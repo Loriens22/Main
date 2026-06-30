@@ -273,9 +273,19 @@
           <div class="field"><label>API key</label>
             <input type="password" id="apiKey" placeholder="nvapi-..." autocomplete="off"></div>
         </div>
-        <div class="field"><label>CORS proxy (prepended to endpoint) — needed for direct browser calls</label>
-          <input type="text" id="apiProxy" placeholder="e.g. https://corsproxy.io/?url=  (leave blank to try direct)">
-          <p class="note">⚠️ NVIDIA's endpoint does <b>not</b> send CORS headers, so a browser cannot call it directly — it will fall back to the offline engine. Put a CORS proxy prefix here (your own, or a public one) so the call can go through. The proxy sees your key, so prefer one you trust.</p>
+        <div class="field"><label>CORS proxy — required for direct browser calls to NVIDIA</label>
+          <select id="apiProxyPreset" style="margin-bottom:8px">
+            <option value="">— pick a proxy preset —</option>
+            <option value="https://proxy.cors.sh/">proxy.cors.sh (public · forwards your key)</option>
+            <option value="https://thingproxy.freeboard.io/fetch/">thingproxy (public · forwards your key)</option>
+            <option value="https://api.allorigins.win/raw?url=">allorigins (public · may strip key)</option>
+            <option value="__worker__">⭐ My own Cloudflare Worker (most reliable — see DEPLOY-PROXY.md)</option>
+          </select>
+          <input type="text" id="apiProxy" placeholder="https://YOUR-worker.workers.dev/   (leave blank to try direct)">
+          <p class="note">⚠️ NVIDIA sends <b>no</b> CORS headers, so a browser can't call it directly. Route through a proxy. Public proxies are unreliable and can log your key; the <b>most reliable + safest</b> option is your own Cloudflare Worker (free, 1 min) — see <b>DEPLOY-PROXY.md</b>. Supported formats: a prefix that gets prepended (<code>https://host/</code>), a <code>?url=</code> style (auto URL-encoded), or a <code>{url}</code> placeholder.</p>
+        </div>
+        <div class="field"><label>Proxy header (optional) — e.g. for proxy.cors.sh: <code>x-cors-api-key: temp_xxx</code></label>
+          <input type="text" id="apiProxyHeader" placeholder="Header-Name: value   (leave blank if not needed)">
         </div>
         <div class="field"><label>Custom instructions for this hero's API <span class="badge">before creation</span></label>
           <textarea id="apiInstr" placeholder="Custom system instructions, e.g.: Always stay in character. Keep replies under 2 sentences. Reason about the neighbor's behavior before replying. Be willing to start a scandal if provoked."></textarea>
@@ -1197,11 +1207,24 @@ They meet now in the hallway/stairwell. Write their exchange.`;
   return [{role:'system',content:sys},{role:'user',content:user}];
 }
 function pickApi(a,b){ if(a.api?.enabled&&a.api.key) return a.api; if(b.api?.enabled&&b.api.key) return b.api; return null; }
-function apiURL(api){ return (api.proxy&&api.proxy.trim())? api.proxy.trim()+api.endpoint : api.endpoint; }
+/* Build the request URL for any proxy format:
+   - "{url}" placeholder  -> replaced with the URL-encoded endpoint
+   - ends with "=" (e.g. ?url=) -> endpoint appended URL-encoded
+   - otherwise -> endpoint appended raw (prefix style, incl. Cloudflare Worker) */
+function apiURL(api){
+  const p=(api.proxy||'').trim(); if(!p) return api.endpoint;
+  if(p.includes('{url}')) return p.replace('{url}', encodeURIComponent(api.endpoint));
+  if(p.endsWith('=')) return p + encodeURIComponent(api.endpoint);
+  return p + api.endpoint;
+}
+/* parse the optional "Header-Name: value" proxy header */
+function proxyHeaders(api){ const h={}; const s=(api.proxyHeader||'').trim();
+  if(s){ const i=s.indexOf(':'); if(i>0) h[s.slice(0,i).trim()] = s.slice(i+1).trim(); } return h; }
 
 async function callNvidia(api, messages, maxTokens=600){
   const body={model:api.model,messages,temperature:1.0,top_p:0.95,max_tokens:maxTokens,stream:false};
-  const res=await fetch(apiURL(api),{method:'POST',headers:{'Content-Type':'application/json','Authorization':'Bearer '+api.key},body:JSON.stringify(body)});
+  const headers=Object.assign({'Content-Type':'application/json','Authorization':'Bearer '+api.key}, proxyHeaders(api));
+  const res=await fetch(apiURL(api),{method:'POST',headers,body:JSON.stringify(body)});
   if(!res.ok){ let t=''; try{t=await res.text();}catch(e){} throw new Error('HTTP '+res.status+(t?(' — '+clip(t,140)):'')); }
   const data=await res.json();
   let content=data.choices?.[0]?.message?.content||'';
@@ -1407,7 +1430,7 @@ function fillHomes(){ const sel=$('hHome'); sel.innerHTML=''; const r=document.c
 /* persist API settings */
 const API_LS='coop3d_api';
 function loadApi(){ try{ return JSON.parse(localStorage.getItem(API_LS))||{}; }catch(e){ return {}; } }
-function saveApi(a){ try{ localStorage.setItem(API_LS, JSON.stringify({endpoint:a.endpoint,model:a.model,key:a.key,proxy:a.proxy,instr:a.instr,enabled:a.enabled})); }catch(e){} }
+function saveApi(a){ try{ localStorage.setItem(API_LS, JSON.stringify({endpoint:a.endpoint,model:a.model,key:a.key,proxy:a.proxy,proxyHeader:a.proxyHeader,instr:a.instr,enabled:a.enabled})); }catch(e){} }
 
 /* preview scene */
 let pvR,pvS,pvC,pvMesh,pvReady=false;
@@ -1423,17 +1446,23 @@ function currentCfg(){ return {
   hat:$('hHat').value, speed:parseFloat($('hSpeed').value),
   persona:$('hPersona').value.trim(), temper:parseFloat($('hTemper').value), home:$('hHome').value,
   api:{ enabled:$('apiEnabled').checked, endpoint:$('apiEndpoint').value.trim(), model:$('apiModel').value.trim(),
-    key:$('apiKey').value.trim(), proxy:$('apiProxy').value.trim(), instr:$('apiInstr').value.trim() }
+    key:$('apiKey').value.trim(), proxy:$('apiProxy').value.trim(), proxyHeader:$('apiProxyHeader').value.trim(), instr:$('apiInstr').value.trim() }
 }; }
 function updatePreview(){ if(!pvReady)return; if(pvMesh)pvS.remove(pvMesh); pvMesh=buildHeroMesh(currentCfg()); pvMesh.position.y=0; pvS.add(pvMesh); }
 ['hHeight','hGirth','hHat','hName'].forEach(id=>$(id).addEventListener('input',updatePreview));
 $('apiEnabled').addEventListener('change',e=>$('apiFields').style.opacity=e.target.checked?'1':'.5');
+$('apiProxyPreset').addEventListener('change',e=>{ const v=e.target.value;
+  if(v==='__worker__'){ $('apiProxy').value=''; $('apiProxy').placeholder='https://YOUR-worker.workers.dev/'; $('apiProxy').focus();
+    showToast('Deploy your free Worker (see DEPLOY-PROXY.md), then paste its URL here'); }
+  else if(v){ $('apiProxy').value=v; if(v.includes('cors.sh')) $('apiProxyHeader').placeholder='x-cors-api-key: temp_xxx (get free at cors.sh)'; }
+  e.target.value=''; });
 
 function openCreator(){
   buildColorRow('skinRow',SKIN,'skin'); buildColorRow('shirtRow',SHIRT,'shirt'); buildColorRow('pantsRow',PANTS,'pants'); buildColorRow('hairRow',HAIR,'hair');
   buildBodyChips(); fillHomes(); $('hName').value='';
   const saved=loadApi(); if(saved.endpoint)$('apiEndpoint').value=saved.endpoint; if(saved.model)$('apiModel').value=saved.model;
-  if(saved.key)$('apiKey').value=saved.key; if(saved.proxy!==undefined)$('apiProxy').value=saved.proxy; if(saved.instr)$('apiInstr').value=saved.instr;
+  if(saved.key)$('apiKey').value=saved.key; if(saved.proxy!==undefined)$('apiProxy').value=saved.proxy;
+  if(saved.proxyHeader!==undefined)$('apiProxyHeader').value=saved.proxyHeader; if(saved.instr)$('apiInstr').value=saved.instr;
   $('apiTestResult').className='testResult';
   show('heroOverlay'); setTimeout(()=>{ if(!pvReady)initPreview(); updatePreview(); },60);
 }
@@ -1449,8 +1478,11 @@ $('apiTest').addEventListener('click',async()=>{
   }catch(e){ const msg=String(e.message||e); const cors=/Failed to fetch|NetworkError|load failed/i.test(msg);
     r.className='testResult err';
     r.innerHTML= cors
-      ? '❌ Blocked by browser CORS (NVIDIA sends no CORS headers). Add a <b>CORS proxy</b> prefix above (your own, or a public one) and test again. Until then this hero uses the offline engine.'
-      : '❌ '+esc(msg)+(/401|403/.test(msg)?' — check the API key.':'');
+      ? (cfg.proxy
+          ? '❌ The proxy didn\'t respond (CORS/network). Check the proxy URL, or that your Cloudflare Worker is deployed. Try the preset dropdown or see DEPLOY-PROXY.md.'
+          : '❌ Blocked by browser CORS (NVIDIA sends no headers). Pick a <b>CORS proxy</b> from the preset dropdown above, or deploy your own (see DEPLOY-PROXY.md), then test again.')
+      : (/401|403/.test(msg) ? '❌ '+esc(msg)+' — the proxy reached NVIDIA but the key was rejected. Check the API key (and that the proxy forwards the Authorization header).'
+                              : '❌ '+esc(msg));
   }
 });
 
