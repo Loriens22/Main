@@ -1,0 +1,1122 @@
+<!DOCTYPE html>
+<html lang="en" data-theme="dark">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<meta name="color-scheme" content="dark light" />
+<title>Drowned Cathedrals — Neo-Gothic City in a Stormy Ocean (twigl-ready shader)</title>
+<meta name="description" content="A real-time raymarched shader of an infinite neo-gothic city half-drowned in a stormy ocean. Accessible controls, twigl.app export." />
+<style>
+  :root{
+    --bg:#05070d;
+    --panel:rgba(14,18,28,0.62);
+    --panel-solid:#0e121c;
+    --stroke:rgba(150,170,210,0.18);
+    --stroke-strong:rgba(150,170,210,0.34);
+    --txt:#e8edf7;
+    --txt-dim:#9aa6bd;
+    --accent:#7fb2ff;
+    --accent-warm:#ffb877;
+    --focus:#ffd24a;
+    --good:#69d58c;
+    --bad:#ff6b6b;
+    --radius:14px;
+    --blur:16px;
+    --shadow:0 10px 40px rgba(0,0,0,0.55);
+    --font:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,Inter,system-ui,sans-serif;
+  }
+  /* Accessibility: reduce-transparency toggle removes blur + raises contrast */
+  html[data-reduce-transparency="true"]{
+    --panel:var(--panel-solid);
+    --blur:0px;
+    --stroke:rgba(170,190,230,0.45);
+    --stroke-strong:rgba(190,210,250,0.7);
+  }
+  *{box-sizing:border-box}
+  html,body{margin:0;height:100%;overflow:hidden;background:var(--bg);color:var(--txt);font-family:var(--font)}
+  body{-webkit-font-smoothing:antialiased}
+
+  #stage{position:fixed;inset:0}
+  canvas{display:block;width:100%;height:100%;touch-action:none}
+
+  /* Skip link for keyboard users */
+  .skip{position:absolute;left:8px;top:-46px;z-index:50;background:var(--accent);color:#04121f;
+        padding:10px 14px;border-radius:10px;font-weight:700;transition:top .15s ease;text-decoration:none}
+  .skip:focus{top:8px}
+
+  /* Top title bar */
+  #titlebar{
+    position:fixed;top:14px;left:14px;z-index:20;max-width:min(46ch,80vw);
+    background:var(--panel);backdrop-filter:blur(var(--blur)) saturate(140%);-webkit-backdrop-filter:blur(var(--blur)) saturate(140%);
+    border:1px solid var(--stroke);border-radius:var(--radius);box-shadow:var(--shadow);
+    padding:12px 16px;pointer-events:none;
+  }
+  #titlebar h1{margin:0;font-size:15px;letter-spacing:.3px;line-height:1.25}
+  #titlebar h1 .sub{display:block;font-weight:500;font-size:12px;color:var(--txt-dim);margin-top:3px}
+
+  /* Control panel */
+  #panel{
+    position:fixed;top:14px;right:14px;z-index:30;width:340px;max-width:calc(100vw - 28px);
+    max-height:calc(100vh - 28px);display:flex;flex-direction:column;
+    background:var(--panel);backdrop-filter:blur(var(--blur)) saturate(140%);-webkit-backdrop-filter:blur(var(--blur)) saturate(140%);
+    border:1px solid var(--stroke);border-radius:var(--radius);box-shadow:var(--shadow);
+  }
+  #panel header{display:flex;align-items:center;gap:10px;padding:12px 14px;border-bottom:1px solid var(--stroke)}
+  #panel header .dot{width:10px;height:10px;border-radius:50%;background:var(--accent);box-shadow:0 0 12px var(--accent)}
+  #panel header h2{margin:0;font-size:13px;font-weight:700;letter-spacing:.4px;text-transform:uppercase;color:var(--txt)}
+  #panel header .spacer{flex:1}
+  .panel-body{overflow-y:auto;padding:6px 14px 14px;scrollbar-width:thin}
+
+  .group{margin-top:14px}
+  .group > .legend{font-size:11px;font-weight:700;letter-spacing:.8px;text-transform:uppercase;color:var(--accent);
+                   margin:0 0 8px;padding-bottom:5px;border-bottom:1px dashed var(--stroke)}
+
+  .ctrl{margin:11px 0}
+  .ctrl .row{display:flex;justify-content:space-between;align-items:baseline;gap:8px}
+  .ctrl label{font-size:13px;color:var(--txt)}
+  .ctrl output{font-size:12px;color:var(--accent);font-variant-numeric:tabular-nums;min-width:46px;text-align:right;
+               background:rgba(127,178,255,0.10);border:1px solid var(--stroke);border-radius:7px;padding:1px 7px}
+  .ctrl .hint{display:block;font-size:11px;color:var(--txt-dim);margin-top:3px;line-height:1.35}
+
+  input[type=range]{-webkit-appearance:none;appearance:none;width:100%;height:24px;margin:6px 0 0;background:transparent;cursor:pointer}
+  input[type=range]::-webkit-slider-runnable-track{height:6px;border-radius:6px;
+    background:linear-gradient(90deg,var(--accent) var(--fill,50%),rgba(150,170,210,0.22) var(--fill,50%))}
+  input[type=range]::-moz-range-track{height:6px;border-radius:6px;background:rgba(150,170,210,0.22)}
+  input[type=range]::-moz-range-progress{height:6px;border-radius:6px;background:var(--accent)}
+  input[type=range]::-webkit-slider-thumb{-webkit-appearance:none;appearance:none;width:18px;height:18px;margin-top:-6px;
+    border-radius:50%;background:#fff;border:3px solid var(--accent);box-shadow:0 2px 6px rgba(0,0,0,.5)}
+  input[type=range]::-moz-range-thumb{width:16px;height:16px;border-radius:50%;background:#fff;border:3px solid var(--accent);box-shadow:0 2px 6px rgba(0,0,0,.5)}
+  input[type=range]:focus-visible{outline:none}
+  input[type=range]:focus-visible::-webkit-slider-thumb{outline:3px solid var(--focus);outline-offset:2px}
+  input[type=range]:focus-visible::-moz-range-thumb{outline:3px solid var(--focus);outline-offset:2px}
+
+  /* Toggles */
+  .toggles{display:grid;grid-template-columns:1fr 1fr;gap:8px}
+  .switch{display:flex;align-items:center;justify-content:space-between;gap:8px;
+    background:rgba(150,170,210,0.07);border:1px solid var(--stroke);border-radius:10px;padding:8px 10px;cursor:pointer}
+  .switch span{font-size:12.5px;color:var(--txt)}
+  .switch input{position:absolute;opacity:0;width:0;height:0}
+  .track{position:relative;width:38px;height:20px;border-radius:20px;background:rgba(150,170,210,0.25);transition:background .18s;flex:none}
+  .track::after{content:"";position:absolute;top:2px;left:2px;width:16px;height:16px;border-radius:50%;background:#fff;transition:transform .18s}
+  .switch input:checked + .track{background:var(--accent)}
+  .switch input:checked + .track::after{transform:translateX(18px)}
+  .switch input:focus-visible + .track{outline:3px solid var(--focus);outline-offset:2px}
+
+  /* Buttons */
+  .btnrow{display:flex;flex-wrap:wrap;gap:8px;margin-top:6px}
+  button.act{appearance:none;border:1px solid var(--stroke-strong);background:rgba(127,178,255,0.12);color:var(--txt);
+    font:inherit;font-size:12.5px;font-weight:600;padding:9px 12px;border-radius:10px;cursor:pointer;flex:1 1 auto;transition:background .15s,border-color .15s}
+  button.act:hover{background:rgba(127,178,255,0.22)}
+  button.act:focus-visible{outline:3px solid var(--focus);outline-offset:2px}
+  button.act.primary{background:var(--accent);color:#04121f;border-color:transparent}
+  button.act.primary:hover{filter:brightness(1.08)}
+  button.icon{flex:none;width:40px;padding:9px 0;text-align:center}
+
+  /* Preset chips */
+  .chips{display:flex;flex-wrap:wrap;gap:7px;margin-top:4px}
+  .chip{font:inherit;font-size:12px;padding:6px 11px;border-radius:999px;border:1px solid var(--stroke-strong);
+    background:transparent;color:var(--txt-dim);cursor:pointer}
+  .chip[aria-pressed=true]{background:var(--accent);color:#04121f;border-color:transparent;font-weight:700}
+  .chip:focus-visible{outline:3px solid var(--focus);outline-offset:2px}
+
+  /* Collapse button */
+  .collapse{appearance:none;background:transparent;border:1px solid var(--stroke);color:var(--txt);border-radius:8px;
+    width:30px;height:30px;cursor:pointer;font-size:14px;line-height:1}
+  .collapse:focus-visible{outline:3px solid var(--focus);outline-offset:2px}
+  #panel.collapsed .panel-body{display:none}
+
+  /* FPS / status badge */
+  #hud{position:fixed;left:14px;bottom:14px;z-index:20;display:flex;gap:8px;align-items:center;
+    background:var(--panel);backdrop-filter:blur(var(--blur));-webkit-backdrop-filter:blur(var(--blur));
+    border:1px solid var(--stroke);border-radius:10px;padding:7px 11px;font-size:12px;color:var(--txt-dim)}
+  #hud b{color:var(--txt);font-variant-numeric:tabular-nums}
+  #hud .pill{padding:2px 7px;border-radius:6px;background:rgba(127,178,255,.12)}
+
+  /* Help / shader dialogs */
+  dialog{border:none;padding:0;max-width:760px;width:calc(100vw - 32px);background:var(--panel-solid);color:var(--txt);
+    border-radius:16px;box-shadow:var(--shadow);border:1px solid var(--stroke-strong)}
+  dialog::backdrop{background:rgba(3,5,10,0.66);backdrop-filter:blur(3px)}
+  .dlg-head{display:flex;align-items:center;gap:10px;padding:16px 18px;border-bottom:1px solid var(--stroke)}
+  .dlg-head h3{margin:0;font-size:16px}
+  .dlg-head .spacer{flex:1}
+  .dlg-body{padding:16px 18px;max-height:70vh;overflow:auto;line-height:1.55;font-size:14px}
+  .dlg-body h4{margin:18px 0 6px;color:var(--accent);font-size:13px;text-transform:uppercase;letter-spacing:.5px}
+  .dlg-body ul{margin:6px 0;padding-left:20px}
+  .dlg-body kbd{background:#1b2233;border:1px solid var(--stroke-strong);border-bottom-width:2px;border-radius:6px;
+    padding:1px 7px;font-size:12px;font-family:ui-monospace,Menlo,Consolas,monospace}
+  .dlg-body code, pre{font-family:ui-monospace,Menlo,Consolas,monospace}
+  pre.code{background:#080b12;border:1px solid var(--stroke);border-radius:10px;padding:12px;overflow:auto;font-size:11.5px;
+    line-height:1.45;max-height:48vh;white-space:pre;color:#cfe0ff}
+  .closeX{appearance:none;background:transparent;border:1px solid var(--stroke);color:var(--txt);border-radius:8px;
+    width:34px;height:34px;cursor:pointer;font-size:16px}
+  .closeX:focus-visible{outline:3px solid var(--focus);outline-offset:2px}
+
+  .visually-hidden{position:absolute!important;width:1px;height:1px;padding:0;margin:-1px;overflow:hidden;clip:rect(0 0 0 0);white-space:nowrap;border:0}
+
+  /* Error overlay */
+  #err{position:fixed;inset:0;z-index:100;display:none;place-items:center;background:rgba(5,7,13,.92);padding:24px}
+  #err .box{max-width:680px;background:#15101a;border:1px solid var(--bad);border-radius:14px;padding:20px}
+  #err h3{margin:0 0 8px;color:var(--bad)}
+  #err pre{white-space:pre-wrap;font-size:12px;color:#ffd0d0;max-height:50vh;overflow:auto}
+
+  @media (max-width:640px){
+    #panel{width:calc(100vw - 28px)}
+    #titlebar{max-width:calc(100vw - 28px)}
+  }
+  /* Respect user OS setting on first load (JS refines this) */
+  @media (prefers-reduced-transparency: reduce){
+    html{--panel:var(--panel-solid);--blur:0px}
+  }
+</style>
+</head>
+<body>
+<a class="skip" href="#panel">Skip to controls</a>
+
+<main id="stage">
+  <canvas id="gl" role="img"
+    aria-label="Animated real-time render: an endless city of neo-gothic stone towers and cathedral spires half-submerged in a dark, storm-tossed ocean with large rolling waves, lightning, and rain."></canvas>
+</main>
+
+<div id="titlebar">
+  <h1>Drowned Cathedrals
+    <span class="sub">Infinite neo-gothic city in a stormy ocean · raymarched · twigl-ready</span>
+  </h1>
+</div>
+
+<!-- Live region for screen-reader status announcements -->
+<div id="live" class="visually-hidden" aria-live="polite"></div>
+
+<section id="panel" aria-label="Scene controls">
+  <header>
+    <span class="dot" aria-hidden="true"></span>
+    <h2>Storm Controls</h2>
+    <span class="spacer"></span>
+    <button class="collapse" id="collapseBtn" aria-expanded="true" aria-controls="panelBody"
+            title="Collapse panel">▾</button>
+  </header>
+
+  <div class="panel-body" id="panelBody">
+
+    <div class="group">
+      <p class="legend">Presets</p>
+      <div class="chips" role="group" aria-label="Scene presets">
+        <button class="chip" data-preset="tempest" aria-pressed="true">Tempest</button>
+        <button class="chip" data-preset="dawn" aria-pressed="false">Drowned Dawn</button>
+        <button class="chip" data-preset="midnight" aria-pressed="false">Black Midnight</button>
+        <button class="chip" data-preset="calm" aria-pressed="false">Receding Tide</button>
+      </div>
+    </div>
+
+    <div class="group">
+      <p class="legend">Ocean &amp; Storm</p>
+
+      <div class="ctrl">
+        <div class="row"><label for="s_storm">Storm intensity</label><output id="o_storm">0.72</output></div>
+        <input type="range" id="s_storm" min="0" max="1" step="0.01" value="0.72"
+               aria-describedby="h_storm" />
+        <span class="hint" id="h_storm">Wave chop, cloud darkness, spray and overall fury of the sea.</span>
+      </div>
+
+      <div class="ctrl">
+        <div class="row"><label for="s_wave">Wave height</label><output id="o_wave">0.55</output></div>
+        <input type="range" id="s_wave" min="0" max="1" step="0.01" value="0.55" aria-describedby="h_wave" />
+        <span class="hint" id="h_wave">Amplitude of the large rolling swells around the towers.</span>
+      </div>
+
+      <div class="ctrl">
+        <div class="row"><label for="s_sea">Sea level</label><output id="o_sea">0.50</output></div>
+        <input type="range" id="s_sea" min="0" max="1" step="0.01" value="0.50" aria-describedby="h_sea" />
+        <span class="hint" id="h_sea">How deeply the gothic city is drowned by the ocean.</span>
+      </div>
+    </div>
+
+    <div class="group">
+      <p class="legend">Light &amp; Atmosphere</p>
+
+      <div class="ctrl">
+        <div class="row"><label for="s_sunE">Sun elevation</label><output id="o_sunE">18°</output></div>
+        <input type="range" id="s_sunE" min="-6" max="80" step="0.5" value="18" aria-describedby="h_sunE" />
+        <span class="hint" id="h_sunE">Height of the sun. Low values give brooding, grazing storm light.</span>
+      </div>
+
+      <div class="ctrl">
+        <div class="row"><label for="s_sunA">Sun direction</label><output id="o_sunA">40°</output></div>
+        <input type="range" id="s_sunA" min="0" max="360" step="1" value="40" aria-describedby="h_sunA" />
+        <span class="hint" id="h_sunA">Compass angle the light comes from.</span>
+      </div>
+
+      <div class="ctrl">
+        <div class="row"><label for="s_fog">Atmosphere / haze</label><output id="o_fog">0.32</output></div>
+        <input type="range" id="s_fog" min="0" max="1" step="0.01" value="0.32" aria-describedby="h_fog" />
+        <span class="hint" id="h_fog">Depth haze that fades the endless city into the storm.</span>
+      </div>
+
+      <div class="ctrl">
+        <div class="row"><label for="s_exp">Exposure</label><output id="o_exp">1.15</output></div>
+        <input type="range" id="s_exp" min="0.3" max="2.2" step="0.01" value="1.15" aria-describedby="h_exp" />
+        <span class="hint" id="h_exp">Overall brightness of the final image.</span>
+      </div>
+    </div>
+
+    <div class="group">
+      <p class="legend">Camera</p>
+      <div class="ctrl">
+        <div class="row"><label for="s_camH">Camera height</label><output id="o_camH">10.0</output></div>
+        <input type="range" id="s_camH" min="2" max="40" step="0.5" value="10" aria-describedby="h_camH" />
+        <span class="hint" id="h_camH">Eye height above the waterline as you fly through the city.</span>
+      </div>
+      <div class="ctrl">
+        <div class="row"><label for="s_speed">Fly-through speed</label><output id="o_speed">1.00</output></div>
+        <input type="range" id="s_speed" min="0" max="3" step="0.05" value="1.0" aria-describedby="h_speed" />
+        <span class="hint" id="h_speed">Forward travel through the infinite skyline. Set to 0 to hover. Drag the canvas to look around.</span>
+      </div>
+      <div class="ctrl">
+        <div class="row"><label for="s_quality">Render quality</label><output id="o_quality">Balanced</output></div>
+        <input type="range" id="s_quality" min="0" max="1" step="0.01" value="0.55" aria-describedby="h_quality" />
+        <span class="hint" id="h_quality">More detail vs. higher frame rate. Lower this if the animation stutters.</span>
+      </div>
+    </div>
+
+    <div class="group">
+      <p class="legend">Weather effects</p>
+      <div class="toggles">
+        <label class="switch"><span>Lightning</span>
+          <input type="checkbox" id="t_light" checked /><span class="track" aria-hidden="true"></span></label>
+        <label class="switch"><span>Rain</span>
+          <input type="checkbox" id="t_rain" checked /><span class="track" aria-hidden="true"></span></label>
+        <label class="switch"><span>Reduce motion</span>
+          <input type="checkbox" id="t_motion" /><span class="track" aria-hidden="true"></span></label>
+        <label class="switch"><span>Reduce transparency</span>
+          <input type="checkbox" id="t_trans" /><span class="track" aria-hidden="true"></span></label>
+      </div>
+    </div>
+
+    <div class="group">
+      <p class="legend">Actions</p>
+      <div class="btnrow">
+        <button class="act primary" id="btnPause" aria-pressed="false">⏸ Pause</button>
+        <button class="act" id="btnReset">↺ Reset</button>
+      </div>
+      <div class="btnrow">
+        <button class="act" id="btnShader">⧉ Copy twigl shader</button>
+        <button class="act" id="btnShot">📷 Save PNG</button>
+        <button class="act icon" id="btnFull" title="Fullscreen" aria-label="Toggle fullscreen">⛶</button>
+        <button class="act icon" id="btnHelp" title="Help" aria-label="Open help">?</button>
+      </div>
+    </div>
+
+  </div>
+</section>
+
+<div id="hud" role="status" aria-live="off">
+  <span class="pill"><b id="fps">–</b> fps</span>
+  <span id="hudmsg">Drag canvas to look · scroll to change height</span>
+</div>
+
+<!-- HELP DIALOG -->
+<dialog id="helpDlg" aria-labelledby="helpTitle">
+  <div class="dlg-head">
+    <h3 id="helpTitle">About &amp; Controls</h3><span class="spacer"></span>
+    <button class="closeX" data-close="helpDlg" aria-label="Close help">✕</button>
+  </div>
+  <div class="dlg-body">
+    <p>An endless skyline of <strong>neo-gothic towers and cathedral spires</strong>, half-swallowed by a
+       <strong>stormy ocean</strong>. Everything is drawn in real time with a single raymarched fragment shader:
+       analytic Gerstner-style waves, physically-based Fresnel water, soft shadows, ambient occlusion, atmospheric
+       haze, an ACES-tonemapped sky, lightning and rain.</p>
+
+    <h4>Mouse &amp; keyboard</h4>
+    <ul>
+      <li><strong>Drag the canvas</strong> — look around (orbit the camera).</li>
+      <li><strong>Scroll / pinch on canvas</strong> — raise or lower the camera.</li>
+      <li><kbd>Tab</kbd> — move between every control. <kbd>Space</kbd>/<kbd>Enter</kbd> — activate buttons.</li>
+      <li><kbd>←</kbd> <kbd>→</kbd> on a focused slider — fine adjust; <kbd>Home</kbd>/<kbd>End</kbd> jump to ends.</li>
+      <li><kbd>P</kbd> pause/play · <kbd>F</kbd> fullscreen · <kbd>H</kbd> this help.</li>
+    </ul>
+
+    <h4>Accessibility</h4>
+    <ul>
+      <li>Every slider and toggle is keyboard-operable with a visible focus ring and a screen-reader label.</li>
+      <li><strong>Reduce motion</strong> freezes the camera fly-through and calms the waves.</li>
+      <li><strong>Reduce transparency</strong> turns the frosted-glass panels into solid high-contrast surfaces
+          (auto-enabled if your OS requests it).</li>
+      <li>The canvas exposes a descriptive text alternative for screen readers.</li>
+    </ul>
+
+    <h4>Run it in twigl.app</h4>
+    <ul>
+      <li>Press <strong>Copy twigl shader</strong>. Open <code>twigl.app</code>, choose the
+          <em>classic</em> mode, paste, and run. The exported code bakes in your current sliders as constants and
+          uses twigl's built-in <code>resolution</code>, <code>mouse</code> and <code>time</code> uniforms.</li>
+    </ul>
+  </div>
+</dialog>
+
+<!-- SHADER DIALOG -->
+<dialog id="shaderDlg" aria-labelledby="shaderTitle">
+  <div class="dlg-head">
+    <h3 id="shaderTitle">twigl.app shader (classic mode)</h3><span class="spacer"></span>
+    <button class="act primary" id="btnCopyNow" style="flex:none">Copy</button>
+    <button class="closeX" data-close="shaderDlg" aria-label="Close shader code">✕</button>
+  </div>
+  <div class="dlg-body">
+    <p style="margin-top:0;color:var(--txt-dim);font-size:13px">
+      Paste into <strong>twigl.app</strong> → <strong>classic</strong> mode. Your current slider values are baked in.</p>
+    <pre class="code" id="shaderCode" tabindex="0" aria-label="Shader source code"></pre>
+  </div>
+</dialog>
+
+<div id="err" role="alert"><div class="box"><h3>WebGL error</h3><pre id="errmsg"></pre></div></div>
+
+<script>
+"use strict";
+/* ============================================================================
+   SHADER SOURCE — single source of truth.
+   The scene body uses twigl's built-in symbols (resolution, time, mouse) plus a
+   set of P_* parameters. In the live page the P_* are uniforms; for twigl export
+   they are emitted as `const` so the exact same body runs unmodified there.
+   ========================================================================== */
+
+const SCENE_BODY = `
+/* ---- constants ---- */
+#define PI 3.14159265
+#define I_GEO 3
+#define I_FRAG 5
+
+mat2 rot(float a){ float c=cos(a),s=sin(a); return mat2(c,-s,s,c); }
+float hash11(float n){ return fract(sin(n)*43758.5453123); }
+float hash21(vec2 p){ p=fract(p*vec2(123.34,456.21)); p+=dot(p,p+45.32); return fract(p.x*p.y); }
+float vnoise(vec2 p){
+  vec2 i=floor(p), f=fract(p); f=f*f*(3.0-2.0*f);
+  float a=hash21(i), b=hash21(i+vec2(1,0)), c=hash21(i+vec2(0,1)), d=hash21(i+vec2(1,1));
+  return mix(mix(a,b,f.x), mix(c,d,f.x), f.y);
+}
+float fbm(vec2 p){
+  float v=0.0, a=0.5; mat2 m=mat2(1.6,1.2,-1.2,1.6);
+  for(int i=0;i<6;i++){ v+=a*vnoise(p); p=m*p; a*=0.5; }
+  return v;
+}
+
+/* derived parameters from the P_* controls */
+float gSeaTime;          /* animated time for the sea */
+float gSeaHeight;        /* wave amplitude        */
+float gSeaLevel;         /* world y of mean sea    */
+vec3  gSun;              /* sun direction          */
+
+/* ===================== OCEAN (Seascape-style heightfield) ================= */
+const float SEA_FREQ=0.16, SEA_CHOPPY=4.0;
+mat2 OCT=mat2(1.6,1.2,-1.2,1.6);
+
+float seaOctave(vec2 uv,float choppy){
+  uv += vnoise(uv);
+  vec2 wv=1.0-abs(sin(uv));
+  vec2 sw=abs(cos(uv));
+  wv=mix(wv,sw,wv);
+  return pow(1.0-pow(wv.x*wv.y,0.65),choppy);
+}
+float seaMap(vec3 p,int iter){
+  float freq=SEA_FREQ, amp=gSeaHeight, choppy=SEA_CHOPPY;
+  vec2 uv=p.xz; uv.x*=0.75;
+  float h=0.0;
+  for(int i=0;i<I_FRAG;i++){
+    if(i>=iter) break;
+    float d =seaOctave((uv+gSeaTime)*freq,choppy);
+          d+=seaOctave((uv-gSeaTime)*freq,choppy);
+    h+=d*amp;
+    uv*=OCT; freq*=1.9; amp*=0.22; choppy=mix(choppy,1.0,0.2);
+  }
+  return p.y - (gSeaLevel + h);
+}
+vec3 seaNormal(vec3 p,float eps){
+  vec3 n;
+  n.y = seaMap(p,I_FRAG);
+  n.x = seaMap(vec3(p.x+eps,p.y,p.z),I_FRAG)-n.y;
+  n.z = seaMap(vec3(p.x,p.y,p.z+eps),I_FRAG)-n.y;
+  n.y = eps;
+  return normalize(n);
+}
+/* returns t to sea surface, or -1 if the ray escapes to sky */
+float seaTrace(vec3 ro,vec3 rd,out vec3 pOut){
+  float tm=0.0, tx=900.0;
+  float hx=seaMap(ro+rd*tx,I_GEO);
+  if(hx>0.0){ pOut=ro+rd*tx; return -1.0; }
+  float hm=seaMap(ro+rd*tm,I_GEO);
+  float tmid=0.0;
+  for(int i=0;i<8;i++){
+    tmid=mix(tm,tx,hm/(hm-hx));
+    pOut=ro+rd*tmid;
+    float hmid=seaMap(pOut,I_GEO);
+    if(hmid<0.0){ tx=tmid; hx=hmid; } else { tm=tmid; hm=hmid; }
+  }
+  return tmid;
+}
+
+/* ===================== NEO-GOTHIC CITY (signed distance) ================== */
+float sdBox(vec3 p,vec3 b){ vec3 q=abs(p)-b; return length(max(q,0.0))+min(max(q.x,max(q.y,q.z)),0.0); }
+/* cone tapering from radius r at y=0 to a point at y=h (approx field) */
+float sdSpire(vec3 p,float h,float r){
+  float d=length(p.xz)-r*max(1.0-p.y/h,0.0);
+  d=max(d,p.y-h);
+  d=max(d,-p.y);
+  return d*0.5;
+}
+
+const float CELL=9.0;
+
+/* For an empty cell, return the distance to its wall so the ray marches on into
+   neighbouring cells (returning a huge value would overstep towers entirely). */
+float emptyStep(vec2 local){
+  return max(CELL*0.5 - max(abs(local.x),abs(local.y)), 0.2);
+}
+
+/* one tower in local space: base at y=0, growing up. Returns distance;
+   also writes a 0..1 "window light" mask in w (recomputed cheaply). */
+float gothicTower(vec3 p,float h,float w,out float winMask){
+  winMask=0.0;
+  float ty=clamp(p.y/h,0.0,1.0);
+  float ww=w*mix(1.0,0.74,ty);                 /* vertical taper */
+  /* octagonal shaft = intersection of two boxes */
+  float b1=sdBox(p,vec3(ww,h*0.5,ww)+vec3(0,0,0));
+  vec3 q2=p; q2.xz=rot(0.7853981)*q2.xz;
+  float b2=sdBox(q2,vec3(ww,h*0.5,ww));
+  /* shift box centers so base sits at y=0 */
+  b1=sdBox(p-vec3(0,h*0.5,0),vec3(ww,h*0.5,ww));
+  b2=sdBox(q2-vec3(0,h*0.5,0),vec3(ww,h*0.5,ww));
+  float shaft=max(b1,b2);
+
+  /* vertical fluting / ribs (carved grooves) */
+  float ang=atan(p.z,p.x);
+  float ribs=cos(ang*8.0)*0.5+0.5;
+  float groove=smoothstep(0.55,0.95,ribs)*0.03*step(0.04,ty)*step(ty,0.97);
+  shaft+=groove;
+
+  /* horizontal cornice bands */
+  float band=abs(fract(p.y*0.55)-0.5);
+  shaft-=smoothstep(0.12,0.0,band)*0.05;
+
+  /* widen the buttressed base */
+  float baseFlare=smoothstep(0.16,0.0,ty)*0.45*w;
+  shaft-=baseFlare;
+
+  /* pointed-arch window rows (recessed) */
+  float rowY=fract(p.y*0.5);
+  float winCol=cos(ang*8.0)*0.5+0.5;
+  float arch=smoothstep(0.65,0.95,winCol)*smoothstep(0.18,0.5,rowY)*smoothstep(0.95,0.62,rowY);
+  float winBand=step(0.12,ty)*step(ty,0.9);
+  shaft+=arch*winBand*0.045;
+  winMask=arch*winBand;
+
+  float d=shaft;
+
+  /* spire / pointed roof on top */
+  float spireH=h*0.42;
+  float sp=sdSpire(p-vec3(0,h,0),spireH,ww*1.15);
+  d=min(d,sp);
+
+  /* four corner pinnacles around the spire base */
+  vec3 cp=p; cp.xz=abs(cp.xz)-vec2(ww*0.9);
+  float pin=sdSpire(vec3(cp.x,p.y-h*0.84,cp.z),h*0.18,ww*0.34);
+  d=min(d,pin);
+
+  /* a small cross-finial cap */
+  float fin=sdBox(p-vec3(0,h+spireH,0),vec3(ww*0.1,ww*0.55,ww*0.1));
+  fin=min(fin,sdBox(p-vec3(0,h+spireH*0.84,0),vec3(ww*0.34,ww*0.1,ww*0.1)));
+  d=min(d,fin);
+
+  return d;
+}
+
+/* world-space city field via domain repetition over the xz grid */
+float cityMap(vec3 p,out float winMask){
+  winMask=0.0;
+  vec2 cell=floor(p.xz/CELL+0.5);
+  vec2 local=p.xz-cell*CELL;
+  /* keep a flooded avenue clear down the camera's path (cell column x==0) so
+     the camera always flies through a canyon of towers instead of inside one */
+  if(cell.x==0.0) return emptyStep(local);
+  float rnd =hash21(cell);
+  float rnd2=hash21(cell+17.13);
+  float rnd3=hash21(cell+91.7);
+  /* a few more cells are open water / plazas */
+  if(rnd3<0.14){ return emptyStep(local); }
+  local += (vec2(rnd,rnd2)-0.5)*1.6;          /* small jitter */
+  float h=mix(12.0,40.0,rnd*rnd);             /* tower height */
+  float w=mix(1.5,2.7,rnd2);
+  float baseY=gSeaLevel-14.0;                  /* foundations below the waves */
+  vec3 lp=vec3(local.x,p.y-baseY,local.y);
+  lp.xz=rot(rnd*PI*2.0)*lp.xz;
+  float totalH=(h)-(baseY);
+  float wm;
+  float d=gothicTower(lp,totalH,w,wm);
+  winMask=wm;
+  return d;
+}
+float cityMapD(vec3 p){ float w; return cityMap(p,w); }
+
+vec3 cityNormal(vec3 p){
+  vec2 e=vec2(0.0022,0.0);
+  return normalize(vec3(
+    cityMapD(p+e.xyy)-cityMapD(p-e.xyy),
+    cityMapD(p+e.yxy)-cityMapD(p-e.yxy),
+    cityMapD(p+e.yyx)-cityMapD(p-e.yyx)));
+}
+float cityTrace(vec3 ro,vec3 rd,float maxd,int maxSteps){
+  float t=0.2;
+  for(int i=0;i<110;i++){
+    if(i>=maxSteps) break;
+    vec3 p=ro+rd*t;
+    float d=cityMapD(p)*0.5;                   /* safety factor for carved field */
+    if(d<0.0015*t){ return t; }
+    t+=d;
+    if(t>maxd) break;
+  }
+  return -1.0;
+}
+float cityShadow(vec3 ro,vec3 rd){
+  float res=1.0, t=0.15;
+  for(int i=0;i<26;i++){
+    vec3 p=ro+rd*t;
+    float h=cityMapD(p)*0.5;
+    res=min(res,11.0*max(h,0.0)/t);
+    t+=clamp(h,0.08,2.2);
+    if(res<0.01||t>46.0) break;
+  }
+  return clamp(res,0.0,1.0);
+}
+float cityAO(vec3 p,vec3 n){
+  float occ=0.0, sca=1.0;
+  for(int i=0;i<5;i++){
+    float hr=0.03+0.13*float(i);
+    float d=cityMapD(p+n*hr);
+    occ+=(hr-d)*sca; sca*=0.72;
+  }
+  return clamp(1.0-1.4*occ,0.0,1.0);
+}
+
+/* ============================ SKY / ATMOSPHERE =========================== */
+vec3 skyColor(vec3 rd){
+  vec3 horizon=mix(vec3(0.46,0.50,0.58),vec3(0.30,0.35,0.44),P_storm);
+  vec3 zenith =mix(vec3(0.16,0.21,0.31),vec3(0.07,0.10,0.17),P_storm);
+  vec3 col=mix(horizon,zenith,smoothstep(0.0,0.7,rd.y));
+
+  /* heavy storm clouds */
+  vec2 cuv=rd.xz/(abs(rd.y)+0.12);
+  float cl=fbm(cuv*0.5+vec2(gSeaTime*0.015,0.0));
+  cl=smoothstep(0.35,0.95,cl)*smoothstep(0.0,0.25,rd.y);
+  vec3 cloudDark=mix(vec3(0.10,0.11,0.14),vec3(0.04,0.05,0.07),P_storm);
+  vec3 cloudLit =vec3(0.30,0.31,0.35);
+  float sl=clamp(dot(rd,gSun)*0.5+0.5,0.0,1.0);
+  vec3 cloudCol=mix(cloudDark,cloudLit,sl*0.6);
+  col=mix(col,cloudCol,cl*(0.55+0.45*P_storm));
+
+  /* sun disk + halo (dimmed by cloud cover) */
+  float sun=max(dot(rd,gSun),0.0);
+  float clear=1.0-cl*0.85;
+  vec3 sunTint=mix(vec3(1.0,0.55,0.30),vec3(1.0,0.93,0.82),smoothstep(0.0,0.5,gSun.y));
+  col+=sunTint*pow(sun,2200.0)*8.0*clear;
+  col+=sunTint*pow(sun,12.0)*0.30*clear;
+  col+=sunTint*pow(sun,3.0)*0.05*clear;
+  return col;
+}
+
+/* ============================ WATER SHADING ============================= */
+float diffuseT(vec3 n,vec3 l,float p){ return pow(dot(n,l)*0.4+0.6,p); }
+float specularT(vec3 n,vec3 l,vec3 e,float s){
+  float nrm=(s+8.0)/(PI*8.0);
+  return pow(max(dot(reflect(e,n),l),0.0),s)*nrm;
+}
+vec3 seaColor(vec3 p,vec3 n,vec3 eye,float dist,float towerNear){
+  vec3 base =mix(vec3(0.0,0.07,0.10),vec3(0.0,0.04,0.06),P_storm);
+  vec3 water=mix(vec3(0.10,0.32,0.34),vec3(0.06,0.18,0.20),P_storm);
+
+  float fres=clamp(1.0-dot(n,-eye),0.0,1.0); fres=pow(fres,3.0)*0.6+0.04;
+  vec3 refl=skyColor(reflect(eye,n));
+  vec3 refr=base + diffuseT(n,gSun,80.0)*water*0.12;
+  vec3 col=mix(refr,refl,fres);
+
+  float atten=max(1.0-dist*0.0012,0.0);
+  float hgt=(p.y-gSeaLevel);
+  col+=water*hgt*0.16*atten;
+
+  /* sun glint */
+  float glint=specularT(n,gSun,eye,200.0);
+  vec3 sunTint=mix(vec3(1.0,0.6,0.35),vec3(1.0,0.95,0.85),smoothstep(0.0,0.5,gSun.y));
+  col+=sunTint*glint*2.5;
+
+  /* foam on the steepest crests and where waves break against stone */
+  float crest=smoothstep(gSeaHeight*0.75,gSeaHeight*1.3,hgt);
+  float fnoise=fbm(p.xz*0.8+gSeaTime*0.6);
+  float foam=clamp(crest*0.55*fnoise + towerNear*0.85*fnoise,0.0,1.0);
+  col=mix(col,vec3(0.80,0.86,0.92),foam*(0.32+0.42*P_storm));
+  return col;
+}
+
+/* ============================== LIGHTNING ============================== */
+float lightningFlash(float t){
+  if(P_lightning<0.5) return 0.0;
+  float seg=floor(t*0.55);
+  float r=hash11(seg);
+  if(r<0.78) return 0.0;
+  float f=fract(t*0.55);
+  float strike=exp(-f*7.0)*(0.6+0.4*step(0.5,fract(f*47.0)));
+  return strike*1.6;
+}
+
+/* ============================== STONE COLOR ============================= */
+vec3 stoneColor(vec3 p,vec3 n,float winMask){
+  /* weathered limestone with vertical rain staining */
+  float grain=fbm(p.xz*0.7+p.y*0.3);
+  vec3 stone=mix(vec3(0.34,0.33,0.31),vec3(0.20,0.20,0.21),grain);
+  float streak=fbm(vec2(p.x*3.0+p.z*3.0,p.y*0.25));
+  stone*=mix(0.7,1.05,streak);
+  /* wet, dark, algae-stained near the waterline (the drowned zone) */
+  float wet=smoothstep(gSeaLevel+4.0,gSeaLevel-0.5,p.y);
+  float tideStain=fbm(p.xz*0.5+p.y*0.6);
+  vec3 algae=mix(vec3(0.04,0.08,0.06),vec3(0.02,0.05,0.05),tideStain);
+  stone=mix(stone,algae,wet*0.9);
+  /* a brighter wet sheen line right at the waterline */
+  float line=smoothstep(1.6,0.0,abs(p.y-gSeaLevel));
+  stone=mix(stone,stone*1.3+0.04,line*0.4);
+  return stone;
+}
+
+/* ================================ RENDER =============================== */
+vec3 render(vec3 ro,vec3 rd,float qsteps){
+  vec3 sky=skyColor(rd);
+
+  /* trace both worlds, keep the nearest */
+  int citySteps=int(40.0+P_quality*70.0);
+  float tCity=cityTrace(ro,rd,220.0,citySteps);
+  vec3 sp; float tSea=seaTrace(ro,rd,sp);
+
+  float flash=lightningFlash(gSeaTime);
+  vec3 sunCol=mix(vec3(1.0,0.5,0.28),vec3(1.0,0.96,0.88),smoothstep(0.0,0.4,gSun.y));
+
+  bool hitCity=(tCity>0.0);
+  bool hitSea =(tSea>0.0);
+  float tHit=1e9; int which=0;          /* 0 sky,1 city,2 sea */
+  if(hitCity){ tHit=tCity; which=1; }
+  if(hitSea && tSea<tHit){ tHit=tSea; which=2; }
+
+  vec3 col;
+  if(which==0){
+    col=sky;
+  } else if(which==1){
+    vec3 p=ro+rd*tCity;
+    vec3 n=cityNormal(p);
+    float wm; cityMap(p,wm);
+    vec3 alb=stoneColor(p,n,wm);
+    float dif=clamp(dot(n,gSun),0.0,1.0);
+    float sh=cityShadow(p+n*0.05,gSun);
+    float ao=cityAO(p,n);
+    /* hemispheric sky ambient: brightens the city even in low storm light */
+    vec3 ambCol=mix(vec3(0.10,0.13,0.19),vec3(0.34,0.40,0.50),0.5+0.5*n.y);
+    ambCol=mix(ambCol,ambCol*0.7,P_storm*0.4);
+    vec3 lit = alb*sunCol*dif*sh*1.6
+             + alb*ambCol*ao
+             + alb*flash*vec3(0.8,0.85,1.0);
+    /* spec on wet stone */
+    float wet=smoothstep(gSeaLevel+3.0,gSeaLevel-1.0,p.y);
+    float spc=specularT(n,gSun,rd,40.0)*sh*(0.2+0.8*wet);
+    lit+=sunCol*spc*0.6;
+    /* warm lit windows flicker into life */
+    float winLit=step(0.55,hash21(floor(p.xz/CELL+0.5)+floor(p.y*0.5)*3.1));
+    lit+=vec3(1.0,0.7,0.35)*wm*winLit*0.9;
+    col=lit;
+  } else {
+    vec3 p=sp;
+    vec3 n=seaNormal(p,0.06+tSea*tSea*0.0008);
+    float wm; float td=cityMap(p+vec3(0.0,2.0,0.0),wm); /* nearby tower => breaking foam */
+    float towerNear=smoothstep(3.0,0.0,td);
+    col=seaColor(p,n,rd,tSea,towerNear);
+    col+=flash*vec3(0.5,0.55,0.7)*0.5;
+  }
+
+  /* atmospheric depth haze toward the storm horizon (sells the infinite city) */
+  if(which!=0){
+    float fogAmt=1.0-exp(-tHit*(0.0022+0.006*P_fog));
+    col=mix(col,sky,clamp(fogAmt,0.0,1.0));
+  }
+
+  /* global lightning lift on the sky too */
+  col+=flash*vec3(0.10,0.12,0.18);
+  return col;
+}
+
+/* ============================== RAIN OVERLAY ===========================
+   Thin, fast, wind-slanted streaks in screen space. */
+float rainLayer(vec2 uv,float t,float cols,float speed){
+  uv.x += uv.y*0.18;                   /* wind slant */
+  float colF = uv.x*cols;
+  float col  = floor(colF);
+  float seed = hash11(col);
+  if(seed<0.62) return 0.0;            /* only some columns carry a drop */
+  float xline = abs(fract(colF)-0.5);
+  float streak = smoothstep(0.5,0.44,xline);            /* thin vertical line */
+  float y = fract(uv.y*1.2 - t*speed*(0.7+seed*0.6) - seed*7.0);
+  float dash = smoothstep(0.0,0.025,y)*smoothstep(0.2,0.0,y); /* short falling dash */
+  return streak*dash;
+}
+
+/* =============================== MAIN ================================= */
+void mainScene(out vec4 fragColor, in vec2 fragCoord){
+  /* ---- map P_* controls into scene globals ---- */
+  gSeaTime  = time*0.85*P_timeScale;
+  gSeaHeight= mix(0.25,2.6,P_wave) * (0.5+0.7*P_storm);
+  gSeaLevel = mix(-6.0,6.0,P_sealevel);
+  float se=radians(P_sunElev), sa=radians(P_sunAzim);
+  gSun=normalize(vec3(cos(se)*cos(sa),sin(se),cos(se)*sin(sa)));
+
+  vec2 uv=(fragCoord*2.0-resolution.xy)/resolution.y;
+
+  /* ---- flying camera through the infinite city ---- */
+  float fly=P_travel;                       /* baked distance travelled */
+  vec3 ro=vec3(sin(gSeaTime*0.13)*3.0, P_camH + sin(gSeaTime*0.3)*0.6, fly);
+  /* gentle defaults so the view is good even when mouse=(0,0), e.g. in twigl */
+  float yaw  =(mouse.x-0.5)*2.0 + sin(gSeaTime*0.08)*0.18;
+  float pitch=-0.08 + (mouse.y-0.5)*0.7;
+  vec3 fwd=normalize(vec3(sin(yaw)*cos(pitch),pitch,cos(yaw)*cos(pitch)));
+  vec3 rt =normalize(cross(vec3(0,1,0),fwd));
+  vec3 up =cross(fwd,rt);
+  vec3 rd =normalize(uv.x*rt + uv.y*up + 1.5*fwd);
+
+  vec3 col=render(ro,rd,P_quality);
+
+  /* rain veil in screen space */
+  if(P_rain>0.5){
+    vec2 ruv=fragCoord/resolution.y;
+    float r =rainLayer(ruv,gSeaTime,70.0,1.6)*0.4;
+          r+=rainLayer(ruv*1.5+vec2(3.0,0.0),gSeaTime,120.0,2.3)*0.28;
+    col+=vec3(0.6,0.66,0.78)*r*(0.22+0.4*P_storm);
+  }
+
+  /* ---- tone mapping (ACES) + exposure + grade ---- */
+  col*=P_exposure*1.2;
+  col=(col*(2.51*col+0.03))/(col*(2.43*col+0.59)+0.14);  /* ACES */
+  col=pow(clamp(col,0.0,1.0),vec3(1.0/2.2));
+  /* subtle teal/orange cinematic grade + vignette */
+  col=mix(col,col*vec3(1.03,1.0,0.95),0.4);
+  float vig=1.0-0.35*dot(uv*0.55,uv*0.55);
+  col*=clamp(vig,0.0,1.0);
+  /* film grain */
+  col+=(hash21(fragCoord+gSeaTime)-0.5)*0.025;
+
+  fragColor=vec4(col,1.0);
+}
+`;
+
+/* The set of tunable parameters and their slider/element bindings. */
+const PARAMS = [
+  // name        uniform        get value
+  ["P_storm",     "u_storm",     ()=>val("s_storm")],
+  ["P_wave",      "u_wave",      ()=>val("s_wave")],
+  ["P_sealevel",  "u_sealevel",  ()=>val("s_sea")],
+  ["P_sunElev",   "u_sunElev",   ()=>val("s_sunE")],
+  ["P_sunAzim",   "u_sunAzim",   ()=>val("s_sunA")],
+  ["P_fog",       "u_fog",       ()=>val("s_fog")],
+  ["P_exposure",  "u_exposure",  ()=>val("s_exp")],
+  ["P_camH",      "u_camH",      ()=>val("s_camH")],
+  ["P_quality",   "u_quality",   ()=>val("s_quality")],
+  ["P_lightning", "u_lightning", ()=>state.lightning?1:0],
+  ["P_rain",      "u_rain",      ()=>state.rain?1:0],
+  ["P_timeScale", "u_timeScale", ()=>state.reduceMotion?0.18:1.0],
+  ["P_travel",    "u_travel",    ()=>state.travel],
+];
+
+/* ---- build the live (WebGL) fragment shader: P_* declared as uniforms ---- */
+function buildLiveFragment(){
+  let head = "precision highp float;\n";
+  head += "uniform vec2 resolution; uniform vec2 mouse; uniform float time; uniform float frame;\n";
+  for(const [name] of PARAMS) head += `uniform float ${name};\n`;
+  return head + SCENE_BODY + "\nvoid main(){ mainScene(gl_FragColor, gl_FragCoord.xy); }\n";
+}
+
+/* ---- build the twigl classic-mode export: P_* baked as const ---- */
+function buildTwiglShader(){
+  let head = "// Drowned Cathedrals — neo-gothic city in a stormy ocean\n";
+  head += "// twigl.app · classic mode · uses built-in resolution / mouse / time\n";
+  head += "precision highp float;\n";
+  head += "uniform vec2 resolution; uniform vec2 mouse; uniform float time; uniform float frame;\n";
+  for(const [name,,getv] of PARAMS){
+    let v = getv();
+    if(name==="P_travel") v = 0.0;          // let twigl animate travel from time
+    head += `const float ${name} = ${fmt(v)};\n`;
+  }
+  // In twigl, drive forward travel from time so the city scrolls by.
+  let body = SCENE_BODY.replace("float fly=P_travel;", "float fly=time*1.6*P_timeScale;");
+  return head + body + "\nvoid main(){ mainScene(gl_FragColor, gl_FragCoord.xy); }\n";
+}
+function fmt(v){ let s=(+v).toFixed(4); return s.indexOf(".")<0 ? s+".0" : s; }
+
+/* ============================================================================
+   WebGL plumbing
+   ========================================================================== */
+const canvas = document.getElementById("gl");
+const gl = canvas.getContext("webgl",{antialias:false,preserveDrawingBuffer:true,powerPreference:"high-performance"})
+        || canvas.getContext("experimental-webgl");
+let program=null, uniforms={}, posLoc=0;
+const state = {
+  paused:false, lightning:true, rain:true, reduceMotion:false,
+  time:0, last:performance.now(), travel:0, speed:1.0,
+  mouse:[0.5,0.5], targetMouse:[0.5,0.5], dragging:false, dpr:1,
+};
+
+function fail(msg){
+  document.getElementById("errmsg").textContent = msg;
+  document.getElementById("err").style.display = "grid";
+  console.error(msg);
+}
+
+function compile(type,src){
+  const sh=gl.createShader(type);
+  gl.shaderSource(sh,src); gl.compileShader(sh);
+  if(!gl.getShaderParameter(sh,gl.COMPILE_STATUS)){
+    const log=gl.getShaderInfoLog(sh);
+    fail("Shader compile error:\n"+log);
+    throw new Error(log);
+  }
+  return sh;
+}
+
+function initGL(){
+  if(!gl){ fail("WebGL is not available in this browser."); return false; }
+  const vsSrc="attribute vec2 p;void main(){gl_Position=vec4(p,0.0,1.0);}";
+  const vs=compile(gl.VERTEX_SHADER,vsSrc);
+  const fs=compile(gl.FRAGMENT_SHADER,buildLiveFragment());
+  program=gl.createProgram();
+  gl.attachShader(program,vs); gl.attachShader(program,fs);
+  gl.bindAttribLocation(program,0,"p");
+  gl.linkProgram(program);
+  if(!gl.getProgramParameter(program,gl.LINK_STATUS)){
+    fail("Program link error:\n"+gl.getProgramInfoLog(program)); return false;
+  }
+  gl.useProgram(program);
+  const buf=gl.createBuffer();
+  gl.bindBuffer(gl.ARRAY_BUFFER,buf);
+  gl.bufferData(gl.ARRAY_BUFFER,new Float32Array([-1,-1,3,-1,-1,3]),gl.STATIC_DRAW);
+  gl.enableVertexAttribArray(0);
+  gl.vertexAttribPointer(0,2,gl.FLOAT,false,0,0);
+
+  uniforms.resolution=gl.getUniformLocation(program,"resolution");
+  uniforms.mouse=gl.getUniformLocation(program,"mouse");
+  uniforms.time=gl.getUniformLocation(program,"time");
+  uniforms.frame=gl.getUniformLocation(program,"frame");
+  for(const [name,uni] of PARAMS) uniforms[uni]=gl.getUniformLocation(program,name);
+  window.__shaderReady = true;     // signal for headless verification
+  return true;
+}
+
+function resize(){
+  const q=val("s_quality");
+  // render scale: lower quality renders fewer pixels for smoothness
+  state.dpr=Math.min(window.devicePixelRatio||1, 0.7+q*0.9);
+  const w=Math.max(2,Math.floor(canvas.clientWidth*state.dpr));
+  const h=Math.max(2,Math.floor(canvas.clientHeight*state.dpr));
+  if(canvas.width!==w||canvas.height!==h){ canvas.width=w; canvas.height=h; }
+  gl.viewport(0,0,canvas.width,canvas.height);
+}
+
+let frameCount=0, fpsAccum=0, fpsTime=0;
+function frame(now){
+  const dt=Math.min(0.05,(now-state.last)/1000); state.last=now;
+  if(!state.paused){
+    const tScale=state.reduceMotion?0.18:1.0;
+    state.time+=dt*tScale;
+    state.travel+=dt*state.speed*1.6*tScale;
+  }
+  // smooth mouse / look
+  state.mouse[0]+=(state.targetMouse[0]-state.mouse[0])*0.08;
+  state.mouse[1]+=(state.targetMouse[1]-state.mouse[1])*0.08;
+
+  resize();
+  gl.useProgram(program);
+  gl.uniform2f(uniforms.resolution,canvas.width,canvas.height);
+  gl.uniform2f(uniforms.mouse,state.mouse[0],state.mouse[1]);
+  gl.uniform1f(uniforms.time,state.time);
+  gl.uniform1f(uniforms.frame,frameCount);
+  for(const [,uni,getv] of PARAMS) gl.uniform1f(uniforms[uni],getv());
+  gl.drawArrays(gl.TRIANGLES,0,3);
+
+  frameCount++; fpsAccum++; fpsTime+=dt;
+  if(fpsTime>=0.5){
+    document.getElementById("fps").textContent=Math.round(fpsAccum/fpsTime);
+    fpsAccum=0; fpsTime=0;
+  }
+  requestAnimationFrame(frame);
+}
+
+/* ============================================================================
+   UI wiring
+   ========================================================================== */
+function el(id){ return document.getElementById(id); }
+function val(id){ return parseFloat(el(id).value); }
+function live(msg){ el("live").textContent=msg; }
+
+function fillRange(input){
+  const min=parseFloat(input.min), max=parseFloat(input.max);
+  const pct=((parseFloat(input.value)-min)/(max-min))*100;
+  input.style.setProperty("--fill",pct+"%");
+}
+
+const OUT = {
+  s_storm:v=>v.toFixed(2), s_wave:v=>v.toFixed(2), s_sea:v=>v.toFixed(2),
+  s_sunE:v=>Math.round(v)+"°", s_sunA:v=>Math.round(v)+"°",
+  s_fog:v=>v.toFixed(2), s_exp:v=>v.toFixed(2), s_camH:v=>v.toFixed(1),
+  s_speed:v=>v.toFixed(2),
+  s_quality:v=> v<0.34?"Performance":v<0.7?"Balanced":"High detail",
+};
+function syncOut(id){
+  const o=el("o_"+id.slice(2));
+  if(o && OUT[id]) o.textContent=OUT[id](val(id));
+  fillRange(el(id));
+}
+
+const SLIDERS=["s_storm","s_wave","s_sea","s_sunE","s_sunA","s_fog","s_exp","s_camH","s_speed","s_quality"];
+SLIDERS.forEach(id=>{
+  const input=el(id);
+  syncOut(id);
+  input.addEventListener("input",()=>{
+    syncOut(id);
+    if(id==="s_speed") state.speed=val("s_speed");
+    clearPreset();
+  });
+});
+
+/* toggles */
+function bindSwitch(id,key,onChange){
+  el(id).addEventListener("change",e=>{
+    state[key]=e.target.checked;
+    if(onChange) onChange(e.target.checked);
+  });
+}
+bindSwitch("t_light","lightning",v=>live(v?"Lightning on":"Lightning off"));
+bindSwitch("t_rain","rain",v=>live(v?"Rain on":"Rain off"));
+bindSwitch("t_motion","reduceMotion",v=>live(v?"Reduced motion on":"Reduced motion off"));
+el("t_trans").addEventListener("change",e=>{
+  document.documentElement.dataset.reduceTransparency=e.target.checked;
+  live(e.target.checked?"Reduced transparency on":"Reduced transparency off");
+});
+
+/* presets */
+const PRESETS={
+  tempest :{s_storm:0.72,s_wave:0.55,s_sea:0.50,s_sunE:18,s_sunA:40,s_fog:0.32,s_exp:1.15,s_camH:10,s_speed:1.0,s_quality:0.55,light:true,rain:true},
+  dawn    :{s_storm:0.5, s_wave:0.42,s_sea:0.46,s_sunE:8, s_sunA:95,s_fog:0.42,s_exp:1.25,s_camH:11,s_speed:0.7,s_quality:0.6, light:false,rain:true},
+  midnight:{s_storm:0.95,s_wave:0.72,s_sea:0.56,s_sunE:2, s_sunA:210,s_fog:0.5, s_exp:1.0, s_camH:15,s_speed:1.2,s_quality:0.55,light:true,rain:true},
+  calm    :{s_storm:0.22,s_wave:0.30,s_sea:0.34,s_sunE:34,s_sunA:130,s_fog:0.22,s_exp:1.1, s_camH:18,s_speed:0.5,s_quality:0.7, light:false,rain:false},
+};
+function applyPreset(name){
+  const p=PRESETS[name]; if(!p) return;
+  for(const k in p){
+    if(k==="light"){ el("t_light").checked=p[k]; state.lightning=p[k]; }
+    else if(k==="rain"){ el("t_rain").checked=p[k]; state.rain=p[k]; }
+    else { el(k).value=p[k]; syncOut(k); }
+  }
+  state.speed=val("s_speed");
+  document.querySelectorAll(".chip").forEach(c=>c.setAttribute("aria-pressed",c.dataset.preset===name));
+  live("Preset: "+name);
+}
+function clearPreset(){ document.querySelectorAll(".chip").forEach(c=>c.setAttribute("aria-pressed","false")); }
+document.querySelectorAll(".chip").forEach(chip=>{
+  chip.addEventListener("click",()=>applyPreset(chip.dataset.preset));
+});
+
+/* buttons */
+el("btnPause").addEventListener("click",()=>togglePause());
+function togglePause(){
+  state.paused=!state.paused;
+  const b=el("btnPause");
+  b.textContent=state.paused?"▶ Play":"⏸ Pause";
+  b.setAttribute("aria-pressed",state.paused);
+  live(state.paused?"Paused":"Playing");
+}
+el("btnReset").addEventListener("click",()=>{ applyPreset("tempest"); state.time=0; state.travel=0; live("Scene reset"); });
+
+el("btnShader").addEventListener("click",()=>openShader());
+el("btnCopyNow").addEventListener("click",()=>copyShader());
+function openShader(){
+  el("shaderCode").textContent=buildTwiglShader();
+  el("shaderDlg").showModal();
+}
+async function copyShader(){
+  const code=buildTwiglShader();
+  try{ await navigator.clipboard.writeText(code); live("Shader copied to clipboard"); flash("btnCopyNow","Copied ✓"); }
+  catch(e){
+    const ta=el("shaderCode"); const r=document.createRange(); r.selectNodeContents(ta);
+    const s=getSelection(); s.removeAllRanges(); s.addRange(r);
+    try{ document.execCommand("copy"); live("Shader copied"); flash("btnCopyNow","Copied ✓"); }
+    catch(_){ live("Copy failed — select the code manually"); }
+  }
+}
+function flash(id,txt){ const b=el(id); const o=b.textContent; b.textContent=txt; setTimeout(()=>b.textContent=o,1400); }
+
+el("btnShot").addEventListener("click",()=>{
+  try{
+    const a=document.createElement("a");
+    a.download="drowned-cathedrals.png";
+    a.href=canvas.toDataURL("image/png");
+    a.click(); live("Saved PNG screenshot");
+  }catch(e){ live("Screenshot failed"); }
+});
+el("btnFull").addEventListener("click",()=>toggleFull());
+function toggleFull(){
+  if(!document.fullscreenElement) document.documentElement.requestFullscreen?.();
+  else document.exitFullscreen?.();
+}
+el("btnHelp").addEventListener("click",()=>el("helpDlg").showModal());
+document.querySelectorAll("[data-close]").forEach(b=>b.addEventListener("click",()=>el(b.dataset.close).close()));
+
+/* collapse panel */
+el("collapseBtn").addEventListener("click",()=>{
+  const p=el("panel"); const c=p.classList.toggle("collapsed");
+  el("collapseBtn").setAttribute("aria-expanded",!c);
+  el("collapseBtn").textContent=c?"▸":"▾";
+});
+
+/* canvas look + height interaction */
+function setLook(cx,cy){
+  const r=canvas.getBoundingClientRect();
+  state.targetMouse[0]=(cx-r.left)/r.width;
+  state.targetMouse[1]=1.0-(cy-r.top)/r.height;
+}
+canvas.addEventListener("pointerdown",e=>{ state.dragging=true; canvas.setPointerCapture(e.pointerId); setLook(e.clientX,e.clientY); });
+canvas.addEventListener("pointermove",e=>{ if(state.dragging) setLook(e.clientX,e.clientY); });
+canvas.addEventListener("pointerup",()=>state.dragging=false);
+canvas.addEventListener("pointercancel",()=>state.dragging=false);
+canvas.addEventListener("wheel",e=>{
+  e.preventDefault();
+  const s=el("s_camH"); let v=val("s_camH")+(e.deltaY>0?-1:1)*0.8;
+  v=Math.max(parseFloat(s.min),Math.min(parseFloat(s.max),v));
+  s.value=v; syncOut("s_camH");
+},{passive:false});
+
+/* keyboard shortcuts (ignored while typing in a field) */
+addEventListener("keydown",e=>{
+  if(e.target.matches("input,textarea")) return;
+  const k=e.key.toLowerCase();
+  if(k==="p"){ togglePause(); }
+  else if(k==="f"){ toggleFull(); }
+  else if(k==="h"||k==="?"){ el("helpDlg").showModal(); }
+});
+
+/* honor OS reduced-motion / reduced-transparency on load */
+function applyOSPrefs(){
+  if(matchMedia("(prefers-reduced-motion: reduce)").matches){
+    el("t_motion").checked=true; state.reduceMotion=true;
+  }
+  if(matchMedia("(prefers-reduced-transparency: reduce)").matches){
+    el("t_trans").checked=true; document.documentElement.dataset.reduceTransparency="true";
+  }
+}
+
+/* ============================== boot ================================= */
+function boot(){
+  applyOSPrefs();
+  if(!initGL()) return;
+  resize();
+  state.speed=val("s_speed");
+  requestAnimationFrame((t)=>{ state.last=t; frame(t); });
+}
+boot();
+</script>
+</body>
+</html>
