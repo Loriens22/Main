@@ -1,0 +1,1569 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover" />
+<meta name="theme-color" content="#0f1220" />
+<title>Co-op 3D — Apartment Building & AI Neighbors</title>
+<style>
+  :root{
+    --bg:#0f1220; --panel:#171b2e; --panel2:#1e2440; --line:#2c3358;
+    --txt:#e8ecff; --muted:#9aa3c7; --accent:#5b8cff; --accent2:#7ee0c0;
+    --danger:#ff5d6c; --warn:#ffce6b; --radius:14px;
+    --safe-b: env(safe-area-inset-bottom, 0px);
+    --safe-t: env(safe-area-inset-top, 0px);
+  }
+  *{box-sizing:border-box; -webkit-tap-highlight-color:transparent;}
+  html,body{margin:0;height:100%;overflow:hidden;background:var(--bg);color:var(--txt);
+    font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,Helvetica,Arial,sans-serif;
+    touch-action:none;}
+  #app{position:fixed;inset:0;}
+  canvas{display:block;}
+
+  /* ---- Loading ---- */
+  #loader{position:fixed;inset:0;display:flex;flex-direction:column;align-items:center;justify-content:center;
+    background:radial-gradient(1200px 600px at 50% 0%, #1a2143, #0b0e1c);z-index:9999;gap:18px;}
+  #loader .ring{width:64px;height:64px;border-radius:50%;border:5px solid #2c3358;border-top-color:var(--accent);animation:spin 1s linear infinite;}
+  #loader h1{font-size:18px;margin:0;letter-spacing:.3px}
+  #loader p{color:var(--muted);margin:0;font-size:13px;max-width:280px;text-align:center}
+  @keyframes spin{to{transform:rotate(360deg)}}
+
+  /* ---- Top bar ---- */
+  #topbar{position:fixed;top:0;left:0;right:0;display:flex;gap:8px;align-items:center;
+    padding:calc(8px + var(--safe-t)) 10px 8px;z-index:50;pointer-events:none;}
+  #topbar .brand{font-weight:700;font-size:15px;background:rgba(20,24,46,.72);backdrop-filter:blur(8px);
+    padding:8px 12px;border-radius:12px;border:1px solid var(--line);pointer-events:auto;white-space:nowrap}
+  #topbar .brand small{display:block;color:var(--muted);font-weight:500;font-size:10px}
+  #topbar .spacer{flex:1}
+  .btn{pointer-events:auto;cursor:pointer;border:1px solid var(--line);background:var(--panel);color:var(--txt);
+    padding:10px 13px;border-radius:12px;font-size:14px;font-weight:600;display:inline-flex;align-items:center;gap:7px;
+    transition:.15s;user-select:none;min-height:44px}
+  .btn:hover{background:var(--panel2)}
+  .btn:active{transform:scale(.96)}
+  .btn.primary{background:linear-gradient(180deg,#6a97ff,#3f6bff);border-color:#3f6bff;color:#fff}
+  .btn.accent{background:linear-gradient(180deg,#8ff0d2,#54d3ab);border-color:#54d3ab;color:#06281f}
+  .btn.ghost{background:rgba(20,24,46,.72);backdrop-filter:blur(8px)}
+  .btn.danger{background:linear-gradient(180deg,#ff7c88,#f0505f);border-color:var(--danger);color:#fff}
+  .btn .ico{font-size:16px;line-height:1}
+
+  /* ---- Bottom toolbar (mobile-first) ---- */
+  #bottombar{position:fixed;left:0;right:0;bottom:0;z-index:50;display:flex;gap:8px;justify-content:center;
+    padding:8px 10px calc(8px + var(--safe-b));pointer-events:none;flex-wrap:wrap}
+  #bottombar .btn{pointer-events:auto;flex:0 0 auto}
+
+  /* ---- Side panels ---- */
+  .panel{position:fixed;z-index:60;background:var(--panel);border:1px solid var(--line);border-radius:var(--radius);
+    box-shadow:0 18px 60px rgba(0,0,0,.5);display:flex;flex-direction:column;overflow:hidden}
+  .panel .head{display:flex;align-items:center;gap:8px;padding:13px 14px;border-bottom:1px solid var(--line);background:var(--panel2)}
+  .panel .head h2{margin:0;font-size:15px;flex:1}
+  .panel .body{padding:14px;overflow:auto;-webkit-overflow-scrolling:touch}
+  .x{cursor:pointer;border:none;background:transparent;color:var(--muted);font-size:22px;line-height:1;padding:4px 8px;border-radius:8px}
+  .x:hover{color:#fff;background:var(--line)}
+
+  /* View panel */
+  #viewPanel{top:64px;right:10px;width:280px;max-width:calc(100vw - 20px);max-height:calc(100vh - 150px)}
+  .row{display:flex;align-items:center;gap:10px;margin:10px 0}
+  .row label{flex:1;font-size:13px;color:var(--muted)}
+  .row input[type=range]{flex:1.4;accent-color:var(--accent)}
+  .switch{position:relative;width:46px;height:26px;flex:0 0 auto}
+  .switch input{opacity:0;width:0;height:0}
+  .slider{position:absolute;inset:0;background:#3a4068;border-radius:20px;transition:.2s;cursor:pointer}
+  .slider:before{content:"";position:absolute;width:20px;height:20px;left:3px;top:3px;background:#fff;border-radius:50%;transition:.2s}
+  .switch input:checked + .slider{background:var(--accent)}
+  .switch input:checked + .slider:before{transform:translateX(20px)}
+  .floorToggles{display:flex;flex-direction:column;gap:6px;margin-top:6px}
+  .seg{display:flex;gap:6px;flex-wrap:wrap;margin-top:6px}
+  .seg .btn{flex:1;justify-content:center;padding:8px;font-size:12px;min-height:38px}
+  .hint{font-size:11px;color:var(--muted);line-height:1.5;margin:8px 0 0}
+
+  /* Roster */
+  #rosterPanel{top:64px;left:10px;width:300px;max-width:calc(100vw - 20px);max-height:calc(100vh - 150px)}
+  .heroCard{display:flex;gap:10px;align-items:center;padding:10px;border:1px solid var(--line);border-radius:12px;margin-bottom:8px;background:var(--panel2)}
+  .heroCard .sw{width:36px;height:36px;border-radius:10px;flex:0 0 auto;border:1px solid rgba(255,255,255,.15)}
+  .heroCard .meta{flex:1;min-width:0}
+  .heroCard .meta b{font-size:14px}
+  .heroCard .meta span{display:block;font-size:11px;color:var(--muted);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+  .heroCard .meta .api{color:var(--accent2)}
+  .pill{font-size:10px;padding:2px 7px;border-radius:20px;background:var(--line);color:var(--muted)}
+  .pill.live{background:rgba(126,224,192,.16);color:var(--accent2)}
+  .empty{color:var(--muted);font-size:13px;text-align:center;padding:20px 6px;line-height:1.6}
+
+  /* Modal (hero creator + dialogue) */
+  .overlay{position:fixed;inset:0;background:rgba(6,8,18,.6);backdrop-filter:blur(3px);z-index:200;display:none;align-items:center;justify-content:center;padding:12px}
+  .overlay.show{display:flex}
+  .modal{background:var(--panel);border:1px solid var(--line);border-radius:18px;width:560px;max-width:100%;
+    max-height:calc(100vh - 24px);display:flex;flex-direction:column;overflow:hidden;box-shadow:0 30px 80px rgba(0,0,0,.6)}
+  .modal .head{display:flex;align-items:center;padding:14px 16px;border-bottom:1px solid var(--line);background:var(--panel2)}
+  .modal .head h2{margin:0;font-size:17px;flex:1}
+  .modal .body{padding:16px;overflow:auto;-webkit-overflow-scrolling:touch}
+  .modal .foot{padding:12px 16px;border-top:1px solid var(--line);display:flex;gap:10px;justify-content:flex-end;background:var(--panel2);flex-wrap:wrap}
+
+  .field{margin-bottom:14px}
+  .field > label{display:block;font-size:12px;color:var(--muted);margin-bottom:6px;font-weight:600;letter-spacing:.2px}
+  input[type=text],input[type=password],input[type=number],select,textarea{
+    width:100%;background:#0e1226;border:1px solid var(--line);color:var(--txt);border-radius:10px;
+    padding:11px 12px;font-size:14px;font-family:inherit;outline:none}
+  input:focus,select:focus,textarea:focus{border-color:var(--accent)}
+  textarea{resize:vertical;min-height:64px;line-height:1.5}
+  .grid2{display:grid;grid-template-columns:1fr 1fr;gap:12px}
+  .grid3{display:grid;grid-template-columns:repeat(3,1fr);gap:8px}
+  .chip{cursor:pointer;text-align:center;padding:10px 6px;border:1px solid var(--line);border-radius:10px;font-size:13px;background:#0e1226;user-select:none}
+  .chip.sel{border-color:var(--accent);background:rgba(91,140,255,.16);color:#fff}
+  .colorRow{display:flex;gap:8px;flex-wrap:wrap}
+  .colorRow .c{width:30px;height:30px;border-radius:8px;cursor:pointer;border:2px solid transparent}
+  .colorRow .c.sel{border-color:#fff;box-shadow:0 0 0 2px var(--accent)}
+  .sectionTitle{font-size:12px;text-transform:uppercase;letter-spacing:.8px;color:var(--accent);margin:18px 0 8px;border-top:1px dashed var(--line);padding-top:14px}
+  .sectionTitle:first-child{border-top:none;padding-top:0;margin-top:0}
+  .note{font-size:11px;color:var(--muted);line-height:1.5;margin-top:6px}
+
+  /* Hero preview canvas */
+  #heroPreviewWrap{display:flex;gap:14px;align-items:stretch;margin-bottom:6px}
+  #heroPreview{width:150px;height:210px;flex:0 0 auto;border-radius:14px;background:radial-gradient(120px 120px at 50% 30%,#28305a,#10142a);border:1px solid var(--line)}
+  #heroPreviewWrap .pv-side{flex:1;min-width:0;display:flex;flex-direction:column;justify-content:center}
+
+  /* Dialogue clouds */
+  #clouds{position:fixed;inset:0;pointer-events:none;z-index:40;overflow:hidden}
+  .cloud{position:absolute;transform:translate(-50%,-100%);pointer-events:auto;cursor:pointer;
+    background:#fff;color:#15182b;border-radius:16px;padding:8px 12px;max-width:200px;font-size:12.5px;line-height:1.35;
+    box-shadow:0 8px 24px rgba(0,0,0,.4);font-weight:500;transition:opacity .25s;animation:pop .3s ease}
+  .cloud:after{content:"";position:absolute;left:50%;bottom:-9px;transform:translateX(-50%);
+    border:9px solid transparent;border-top-color:#fff;border-bottom:0}
+  .cloud .who{font-weight:800;font-size:11px;color:#3f6bff;display:block;margin-bottom:1px}
+  .cloud.scandal{background:#ffe9ea;color:#7a1018}
+  .cloud.scandal:after{border-top-color:#ffe9ea}
+  .cloud.scandal .who{color:#d12838}
+  .cloud .more{display:block;margin-top:3px;font-size:10px;color:#7a82a8;font-weight:700}
+  @keyframes pop{from{transform:translate(-50%,-90%) scale(.7);opacity:0}to{transform:translate(-50%,-100%) scale(1);opacity:1}}
+
+  /* Dialogue transcript modal */
+  .chat{display:flex;flex-direction:column;gap:10px}
+  .msg{max-width:82%;padding:9px 12px;border-radius:14px;font-size:14px;line-height:1.45;position:relative}
+  .msg .nm{font-size:11px;font-weight:800;opacity:.85;margin-bottom:2px;display:block}
+  .msg.left{align-self:flex-start;background:var(--panel2);border:1px solid var(--line);border-bottom-left-radius:4px}
+  .msg.right{align-self:flex-end;background:#26407a;border:1px solid #2f4f97;border-bottom-right-radius:4px}
+  .msg.action{align-self:center;background:transparent;color:var(--warn);font-style:italic;font-size:12.5px;text-align:center;border:none}
+  .typing{align-self:flex-start;color:var(--muted);font-size:13px;padding:6px 4px}
+
+  /* toast */
+  #toast{position:fixed;left:50%;bottom:calc(76px + var(--safe-b));transform:translateX(-50%);z-index:300;
+    background:#10142a;border:1px solid var(--line);color:var(--txt);padding:11px 16px;border-radius:12px;font-size:13px;
+    box-shadow:0 12px 40px rgba(0,0,0,.5);opacity:0;transition:.25s;pointer-events:none;max-width:90vw;text-align:center}
+  #toast.show{opacity:1}
+
+  .badge{font-size:10px;background:var(--accent);color:#fff;border-radius:8px;padding:2px 6px;font-weight:700}
+
+  /* Responsive */
+  @media(max-width:560px){
+    #topbar .brand small{display:none}
+    #topbar .brand{font-size:14px;padding:8px 10px}
+    #viewPanel,#rosterPanel{top:60px;left:8px;right:8px;width:auto;max-height:60vh}
+    .btn{padding:10px;font-size:13px}
+    .btn .lbl{display:none}
+    #bottombar .btn .lbl{display:inline}
+    .grid2{grid-template-columns:1fr}
+    #heroPreviewWrap{flex-direction:column;align-items:center}
+    #heroPreview{width:170px;height:200px}
+  }
+  @media(min-width:561px){ .mobileOnly{display:none!important} }
+</style>
+</head>
+<body>
+<div id="app"></div>
+
+<div id="loader">
+  <div class="ring"></div>
+  <h1>Building your co-op…</h1>
+  <p id="loaderMsg">Pouring concrete, raising walls, plumbing the bathrooms.</p>
+</div>
+
+<!-- Top bar -->
+<div id="topbar">
+  <div class="brand">🏢 Co-op 3D <small>4 floors · 9 flats · 2 maisonettes</small></div>
+  <div class="spacer"></div>
+  <button class="btn ghost" id="btnView"><span class="ico">🔭</span><span class="lbl">View</span></button>
+  <button class="btn ghost" id="btnRoster"><span class="ico">👥</span><span class="lbl">Neighbors</span></button>
+</div>
+
+<!-- Bottom bar -->
+<div id="bottombar">
+  <button class="btn primary" id="btnNewHero"><span class="ico">＋</span><span class="lbl">New neighbor</span></button>
+  <button class="btn accent" id="btnSpawn3"><span class="ico">🎲</span><span class="lbl">Quick 3</span></button>
+  <button class="btn ghost" id="btnHelp"><span class="ico">？</span><span class="lbl">Help</span></button>
+</div>
+
+<!-- View panel -->
+<div class="panel" id="viewPanel" style="display:none">
+  <div class="head"><h2>🔭 View & building</h2><button class="x" data-close="viewPanel">×</button></div>
+  <div class="body">
+    <div class="row"><label>Roof & top slab</label>
+      <span class="switch"><input type="checkbox" id="tglRoof" checked><span class="slider"></span></span></div>
+    <div class="row"><label>Cut-away (low walls)</label>
+      <span class="switch"><input type="checkbox" id="tglCut"><span class="slider"></span></span></div>
+    <div class="row"><label>Furniture</label>
+      <span class="switch"><input type="checkbox" id="tglFurn" checked><span class="slider"></span></span></div>
+    <div class="row"><label>Name tags</label>
+      <span class="switch"><input type="checkbox" id="tglTags" checked><span class="slider"></span></span></div>
+    <div class="row"><label>Explode floors</label>
+      <input type="range" id="explode" min="0" max="10" step="0.1" value="0"></div>
+    <div class="hint">Show only one floor:</div>
+    <div class="seg" id="floorSeg"></div>
+    <div class="seg"><button class="btn" data-cam="iso">Iso</button><button class="btn" data-cam="front">Front</button><button class="btn" data-cam="top">Top</button></div>
+    <p class="hint">Drag to orbit · pinch/scroll to zoom · two-finger drag to pan. Tap a neighbor to follow the camera; tap a 💬 cloud to read the full chat.</p>
+  </div>
+</div>
+
+<!-- Roster panel -->
+<div class="panel" id="rosterPanel" style="display:none">
+  <div class="head"><h2>👥 Neighbors</h2><button class="x" data-close="rosterPanel">×</button></div>
+  <div class="body" id="rosterList"><div class="empty">No neighbors yet.<br>Tap <b>＋ New neighbor</b> to create a hero, pick a flat, and drop them in.</div></div>
+</div>
+
+<!-- Hero creator -->
+<div class="overlay" id="heroOverlay">
+  <div class="modal">
+    <div class="head"><h2>＋ Create a neighbor</h2><button class="x" data-close="heroOverlay" style="margin-left:auto">×</button></div>
+    <div class="body">
+      <div id="heroPreviewWrap">
+        <canvas id="heroPreview"></canvas>
+        <div class="pv-side">
+          <div class="field" style="margin-bottom:8px">
+            <label>Name</label>
+            <input type="text" id="hName" placeholder="e.g. Mrs. Petrova" maxlength="22">
+          </div>
+          <div class="field" style="margin-bottom:0">
+            <label>Lives in</label>
+            <select id="hHome"></select>
+            <p class="note">Each flat already meets code: ≥1 bedroom, 1 bathroom+WC, kitchen & living hall. Maisonettes are the two large duplexes up top.</p>
+          </div>
+        </div>
+      </div>
+
+      <div class="sectionTitle">Body shape</div>
+      <div class="grid3" id="bodyChips"></div>
+      <div class="row" style="margin-top:12px"><label style="flex:0 0 64px">Height</label>
+        <input type="range" id="hHeight" min="0.78" max="1.18" step="0.01" value="1"></div>
+      <div class="row" style="margin-top:2px"><label style="flex:0 0 64px">Build</label>
+        <input type="range" id="hGirth" min="0.78" max="1.35" step="0.01" value="1"></div>
+
+      <div class="sectionTitle">Clothes & looks</div>
+      <div class="field"><label>Skin</label><div class="colorRow" id="skinRow"></div></div>
+      <div class="field"><label>Shirt / top</label><div class="colorRow" id="shirtRow"></div></div>
+      <div class="field"><label>Trousers / bottom</label><div class="colorRow" id="pantsRow"></div></div>
+      <div class="field"><label>Hair</label><div class="colorRow" id="hairRow"></div></div>
+      <div class="grid2">
+        <div class="field"><label>Hat</label>
+          <select id="hHat"><option value="none">None</option><option value="cap">Cap</option><option value="beanie">Beanie</option><option value="tophat">Top hat</option></select></div>
+        <div class="field"><label>Walking speed</label>
+          <select id="hSpeed"><option value="0.7">Slow</option><option value="1" selected>Normal</option><option value="1.5">Brisk</option></select></div>
+      </div>
+
+      <div class="sectionTitle">Personality &amp; behavior</div>
+      <div class="field">
+        <label>Who is this neighbor? (drives the dialogue)</label>
+        <textarea id="hPersona" placeholder="e.g. Retired opera singer. Dramatic, nosy, complains about noise. Holds grudges and loves gossip."></textarea>
+        <p class="note">Conflicting personalities can trigger scandals and even fights when neighbors meet. Everything is allowed.</p>
+      </div>
+      <div class="row"><label>Temper (calm → explosive)</label>
+        <input type="range" id="hTemper" min="0" max="1" step="0.05" value="0.4"></div>
+
+      <div class="sectionTitle">🔌 AI / NVIDIA API <span class="badge">per-hero</span></div>
+      <div class="row"><label>Use NVIDIA API for this hero's dialogue</label>
+        <span class="switch"><input type="checkbox" id="apiEnabled"><span class="slider"></span></span></div>
+      <div id="apiFields" style="opacity:.5">
+        <div class="field"><label>Endpoint (OpenAI-compatible)</label>
+          <input type="text" id="apiEndpoint" value="https://integrate.api.nvidia.com/v1/chat/completions"></div>
+        <div class="grid2">
+          <div class="field"><label>Model</label>
+            <input type="text" id="apiModel" value="meta/llama-3.1-8b-instruct"></div>
+          <div class="field"><label>API key</label>
+            <input type="password" id="apiKey" placeholder="nvapi-..." autocomplete="off"></div>
+        </div>
+        <div class="field"><label>Custom instructions for this hero's API <span class="badge">before creation</span></label>
+          <textarea id="apiInstr" placeholder="Custom system instructions, e.g.: Always answer in character as this neighbor. Keep replies under 2 sentences. Be willing to start a scandal if provoked."></textarea>
+        </div>
+        <p class="note">The key stays in this browser only. If the request fails (e.g. CORS / no key), the app falls back to a built-in offline persona engine so dialogues still happen.</p>
+      </div>
+    </div>
+    <div class="foot">
+      <button class="btn ghost" data-close="heroOverlay">Cancel</button>
+      <button class="btn primary" id="hCreate"><span class="ico">🏠</span> Review &amp; place in building</button>
+    </div>
+  </div>
+</div>
+
+<!-- Review modal -->
+<div class="overlay" id="reviewOverlay">
+  <div class="modal" style="width:460px">
+    <div class="head"><h2>✅ Confirm new neighbor</h2><button class="x" data-close="reviewOverlay" style="margin-left:auto">×</button></div>
+    <div class="body" id="reviewBody"></div>
+    <div class="foot">
+      <button class="btn ghost" data-close="reviewOverlay">Back to edit</button>
+      <button class="btn accent" id="hConfirm"><span class="ico">🚪</span> Place in building</button>
+    </div>
+  </div>
+</div>
+
+<!-- Dialogue transcript -->
+<div class="overlay" id="chatOverlay">
+  <div class="modal" style="width:480px">
+    <div class="head"><h2 id="chatTitle">💬 Hallway chat</h2><button class="x" data-close="chatOverlay" style="margin-left:auto">×</button></div>
+    <div class="body"><div class="chat" id="chatBody"></div></div>
+    <div class="foot"><button class="btn ghost" data-close="chatOverlay">Close</button></div>
+  </div>
+</div>
+
+<!-- Help -->
+<div class="overlay" id="helpOverlay">
+  <div class="modal" style="width:480px">
+    <div class="head"><h2>？ How it works</h2><button class="x" data-close="helpOverlay" style="margin-left:auto">×</button></div>
+    <div class="body" style="font-size:14px;line-height:1.6">
+      <p><b>The building.</b> A modern 4-storey co-op built to real residential proportions (2.8&nbsp;m ceilings, 0.2&nbsp;m slabs, code-sized rooms). Floors 1–3 hold three flats each; the top floor holds <b>two large maisonettes</b> (double-height duplexes with internal stairs). Every flat has at least a bedroom, a bathroom with WC, a kitchen and a living hall — bigger flats get extra rooms.</p>
+      <p><b>Neighbors.</b> Tap <b>＋ New neighbor</b> to sculpt body shape, clothes &amp; name, write a personality, and optionally wire up the <b>NVIDIA API</b> with custom instructions. Confirm, and they move into the flat you chose.</p>
+      <p><b>Encounters.</b> When two neighbors meet, a 💬 cloud pops above them with model-generated talk. Tap the cloud to read the whole conversation. Clashing personalities cause <b>scandals</b> and even <b>fights</b>.</p>
+      <p><b>Camera.</b> Drag to orbit, pinch/scroll to zoom, two fingers to pan. Use <b>View</b> to hide the roof, cut walls down, explode the floors, or isolate one level.</p>
+    </div>
+    <div class="foot"><button class="btn primary" data-close="helpOverlay">Got it</button></div>
+  </div>
+</div>
+
+<div id="clouds"></div>
+<div id="toast"></div>
+
+<script type="importmap">
+{ "imports": {
+  "three": "https://cdn.jsdelivr.net/npm/three@0.160.0/build/three.module.js",
+  "three/addons/": "https://cdn.jsdelivr.net/npm/three@0.160.0/examples/jsm/"
+}}
+</script>
+
+<script type="module">
+import * as THREE from 'three';
+import { OrbitControls } from 'three/addons/controls/OrbitControls.js';
+
+/* ============================================================================
+   GLOBAL CONSTANTS — everything in metres (realistic residential dimensions)
+   ============================================================================ */
+const M = {
+  floorH: 3.0,        // floor-to-floor
+  ceil: 2.8,          // clear ceiling
+  slab: 0.2,          // slab thickness
+  wall: 0.12,         // interior partition thickness
+  ext: 0.25,          // exterior wall thickness
+  W: 24.0,            // building width  (X)
+  Dapt: 11.0,         // apartment depth (Z)
+  corr: 2.0,          // corridor depth
+  door: 0.9, doorH: 2.1,
+  win: 1.6, winH: 1.4, winSill: 0.95,
+};
+M.D = M.Dapt + M.corr; // total depth 13
+const FLOORS = 4;
+const yOf = (f)=> f*M.floorH; // slab top of floor f (0-indexed)
+
+/* ============================================================================
+   THREE setup
+   ============================================================================ */
+const appEl = document.getElementById('app');
+const renderer = new THREE.WebGLRenderer({antialias:true, alpha:false});
+renderer.setPixelRatio(Math.min(devicePixelRatio,2));
+renderer.setSize(innerWidth, innerHeight);
+renderer.shadowMap.enabled = true;
+renderer.shadowMap.type = THREE.PCFSoftShadowMap;
+renderer.outputColorSpace = THREE.SRGBColorSpace;
+appEl.appendChild(renderer.domElement);
+
+const scene = new THREE.Scene();
+scene.background = new THREE.Color(0x9fc6f0);
+scene.fog = new THREE.Fog(0x9fc6f0, 60, 150);
+
+const camera = new THREE.PerspectiveCamera(48, innerWidth/innerHeight, 0.1, 600);
+camera.position.set(34, 26, 40);
+
+const controls = new OrbitControls(camera, renderer.domElement);
+controls.enableDamping = true;
+controls.dampingFactor = 0.08;
+controls.target.set(0, 7, 0);
+controls.maxPolarAngle = Math.PI*0.495;
+controls.minDistance = 8;
+controls.maxDistance = 120;
+
+/* Lights */
+const hemi = new THREE.HemisphereLight(0xeaf3ff, 0x6a7385, 1.05);
+scene.add(hemi);
+const sun = new THREE.DirectionalLight(0xfff3df, 2.0);
+sun.position.set(38, 54, 26);
+sun.castShadow = true;
+sun.shadow.mapSize.set(2048,2048);
+const sc = sun.shadow.camera;
+sc.near=1; sc.far=180; sc.left=-50; sc.right=50; sc.top=50; sc.bottom=-50;
+sun.shadow.bias = -0.0004;
+scene.add(sun);
+scene.add(new THREE.AmbientLight(0xffffff, 0.42));
+
+/* Ground + surroundings */
+(function(){
+  const g = new THREE.Mesh(
+    new THREE.CircleGeometry(180, 64),
+    new THREE.MeshStandardMaterial({color:0x6f8a55, roughness:1})
+  );
+  g.rotation.x = -Math.PI/2; g.position.y=-0.02; g.receiveShadow=true;
+  scene.add(g);
+  // plaza / pavement under building
+  const plaza = new THREE.Mesh(
+    new THREE.BoxGeometry(M.W+10, 0.1, M.D+10),
+    new THREE.MeshStandardMaterial({color:0xb9bcc4, roughness:.95})
+  );
+  plaza.position.y=0.03; plaza.receiveShadow=true; scene.add(plaza);
+  // a few trees
+  const trunkMat=new THREE.MeshStandardMaterial({color:0x6b4a2b,roughness:1});
+  const leafMat=new THREE.MeshStandardMaterial({color:0x4f7d3a,roughness:1});
+  for(let i=0;i<10;i++){
+    const a=Math.random()*Math.PI*2, r=22+Math.random()*22;
+    const tx=Math.cos(a)*r, tz=Math.sin(a)*r;
+    if(Math.abs(tx)<M.W/2+3 && Math.abs(tz)<M.D/2+3) continue;
+    const t=new THREE.Group();
+    const tr=new THREE.Mesh(new THREE.CylinderGeometry(.18,.24,2.2,8),trunkMat);
+    tr.position.y=1.1; tr.castShadow=true;
+    const lv=new THREE.Mesh(new THREE.SphereGeometry(1.4+Math.random(),10,8),leafMat);
+    lv.position.y=2.8; lv.castShadow=true; lv.scale.y=1.2;
+    t.add(tr,lv); t.position.set(tx,0,tz); scene.add(t);
+  }
+})();
+
+/* ============================================================================
+   MATERIALS
+   ============================================================================ */
+const MAT = {
+  ext:   new THREE.MeshStandardMaterial({color:0xeae6dd, roughness:.85}),
+  extDk: new THREE.MeshStandardMaterial({color:0x6d7585, roughness:.8}),
+  slab:  new THREE.MeshStandardMaterial({color:0xcfd2d8, roughness:.9}),
+  ceil:  new THREE.MeshStandardMaterial({color:0xf2f3f6, roughness:1, side:THREE.DoubleSide}),
+  wall:  new THREE.MeshStandardMaterial({color:0xf4f1ea, roughness:.95, side:THREE.DoubleSide}),
+  glass: new THREE.MeshStandardMaterial({color:0xaad2e6, roughness:.1, metalness:.2, transparent:true, opacity:.62, emissive:0x6f9fc0, emissiveIntensity:.32}),
+  frame: new THREE.MeshStandardMaterial({color:0x3a3f4a, roughness:.6, metalness:.3}),
+  door:  new THREE.MeshStandardMaterial({color:0x9b6b43, roughness:.7}),
+  rail:  new THREE.MeshStandardMaterial({color:0x2b2f38, roughness:.4, metalness:.6}),
+  // floor finishes by room type
+  flLiving: new THREE.MeshStandardMaterial({color:0xc8a06a, roughness:.7}),
+  flBed:    new THREE.MeshStandardMaterial({color:0xb98f5c, roughness:.75}),
+  flWet:    new THREE.MeshStandardMaterial({color:0xd9dde2, roughness:.5}),
+  flKit:    new THREE.MeshStandardMaterial({color:0xd2cdc4, roughness:.6}),
+  flHall:   new THREE.MeshStandardMaterial({color:0xcdc6ba, roughness:.7}),
+  wood:  new THREE.MeshStandardMaterial({color:0x7a5230, roughness:.7}),
+  woodL: new THREE.MeshStandardMaterial({color:0xb78b57, roughness:.7}),
+  white: new THREE.MeshStandardMaterial({color:0xf3f4f6, roughness:.5}),
+  metal: new THREE.MeshStandardMaterial({color:0xc4c8cf, roughness:.35, metalness:.7}),
+  fabric:new THREE.MeshStandardMaterial({color:0x4f6b8a, roughness:.95}),
+  fabric2:new THREE.MeshStandardMaterial({color:0x8a5a6b, roughness:.95}),
+  tv:    new THREE.MeshStandardMaterial({color:0x111319, roughness:.4}),
+  green: new THREE.MeshStandardMaterial({color:0x3f7d46, roughness:1}),
+  sheet: new THREE.MeshStandardMaterial({color:0xe7e9ee, roughness:.9}),
+};
+const floorMatFor = t => ({living:MAT.flLiving,bed:MAT.flBed,bath:MAT.flWet,kitchen:MAT.flKit,hall:MAT.flHall}[t]||MAT.flHall);
+
+/* small geometry helpers */
+function box(w,h,d,mat,x=0,y=0,z=0,shadow=true){
+  const m=new THREE.Mesh(new THREE.BoxGeometry(w,h,d),mat);
+  m.position.set(x,y,z); m.castShadow=shadow; m.receiveShadow=true; return m;
+}
+function addTo(g, ...m){ m.forEach(x=>g.add(x)); }
+
+/* A wall along X or Z with optional centered door opening (gap + lintel) */
+function wallSeg(group, x1,z1, x2,z2, h, thick, mat, opening){
+  // opening: {pos: distance from start (m) to opening CENTER, w: width, h: height}
+  const dx=x2-x1, dz=z2-z1, len=Math.hypot(dx,dz);
+  const ang=Math.atan2(dz,dx);
+  const cx=(x1+x2)/2, cz=(z1+z2)/2;
+  function place(segLen, segCenterAlong, segH, segY){
+    const m=new THREE.Mesh(new THREE.BoxGeometry(segLen, segH, thick), mat);
+    const ox = (segCenterAlong - len/2);
+    m.position.set(x1 + Math.cos(ang)*(len/2+ox), segY, z1 + Math.sin(ang)*(len/2+ox));
+    m.rotation.y = -ang;
+    m.castShadow=true; m.receiveShadow=true; group.add(m);
+  }
+  if(!opening){ place(len, len/2, h, h/2); return; }
+  const o=opening, ow=o.w, oc=o.pos, oh=o.h||M.doorH;
+  const leftLen = oc - ow/2;
+  const rightLen = len - (oc + ow/2);
+  if(leftLen>0.02) place(leftLen, leftLen/2, h, h/2);
+  if(rightLen>0.02) place(rightLen, oc+ow/2 + rightLen/2, h, h/2);
+  // lintel above opening
+  const lint = h - oh;
+  if(lint>0.02) place(ow, oc, lint, oh + lint/2);
+}
+
+/* Window-punched exterior wall: a long wall with N evenly spaced glazed holes */
+function extWall(group, x1,z1,x2,z2, h, count){
+  const dx=x2-x1, dz=z2-z1, len=Math.hypot(dx,dz), ang=Math.atan2(dz,dx);
+  const winW=M.win, winH=M.winH, sill=M.winSill;
+  const pitch = len/count;
+  // lower band (below sill) full length, upper band (above window) full length
+  const seg=(segLen,centerAlong,segH,segY,mat)=>{
+    const m=new THREE.Mesh(new THREE.BoxGeometry(segLen,segH,M.ext),mat||MAT.ext);
+    const ox=centerAlong-len/2;
+    m.position.set(x1+Math.cos(ang)*(len/2+ox),segY,z1+Math.sin(ang)*(len/2+ox));
+    m.rotation.y=-ang; m.castShadow=true;m.receiveShadow=true; group.add(m);
+  };
+  seg(len, len/2, sill, sill/2);                       // below windows
+  seg(len, len/2, h-(sill+winH), sill+winH+(h-(sill+winH))/2); // above windows
+  for(let i=0;i<count;i++){
+    const c=pitch*(i+0.5);
+    // piers left/right of each window within its pitch cell
+    const pierW=(pitch-winW)/2;
+    if(pierW>0.02){ seg(pierW, c-winW/2-pierW/2, winH, sill+winH/2); seg(pierW, c+winW/2+pierW/2, winH, sill+winH/2); }
+    // glass + frame
+    const gl=new THREE.Mesh(new THREE.BoxGeometry(winW-0.08, winH-0.08, 0.04), MAT.glass);
+    const fr=new THREE.Mesh(new THREE.BoxGeometry(winW, winH, 0.07), MAT.frame);
+    const ox=c-len/2, px=x1+Math.cos(ang)*(len/2+ox), pz=z1+Math.sin(ang)*(len/2+ox);
+    [fr,gl].forEach(m=>{m.position.set(px, sill+winH/2, pz); m.rotation.y=-ang;});
+    fr.castShadow=true; group.add(fr); group.add(gl);
+  }
+}
+
+/* ============================================================================
+   FURNITURE
+   ============================================================================ */
+const FURN = {
+  bed(w=1.6,l=2.0){ const g=new THREE.Group();
+    addTo(g, box(w,0.3,l,MAT.wood,0,0.2,0), box(w-0.05,0.18,l-0.05,MAT.sheet,0,0.42,0.02),
+      box(w-0.2,0.18,0.45,MAT.white,0,0.5,-l/2+0.28), box(w,0.55,0.06,MAT.wood,0,0.45,-l/2));
+    return g; },
+  wardrobe(){ const g=new THREE.Group(); addTo(g, box(1.4,2.1,0.6,MAT.woodL,0,1.05,0),
+    box(0.04,1.6,0.04,MAT.metal,-0.2,1,0.31), box(0.04,1.6,0.04,MAT.metal,0.2,1,0.31)); return g; },
+  nightstand(){ const g=new THREE.Group(); addTo(g, box(0.5,0.5,0.45,MAT.woodL,0,0.25,0)); return g;},
+  sofa(w=2.2){ const g=new THREE.Group();
+    addTo(g, box(w,0.4,0.95,MAT.fabric,0,0.2,0), box(w,0.5,0.25,MAT.fabric,0,0.55,-0.35),
+      box(0.25,0.5,0.95,MAT.fabric,-w/2+0.12,0.5,0), box(0.25,0.5,0.95,MAT.fabric,w/2-0.12,0.5,0));
+    return g; },
+  coffee(){ const g=new THREE.Group(); addTo(g, box(1.1,0.08,0.6,MAT.woodL,0,0.36,0),
+    box(0.06,0.36,0.06,MAT.wood,-0.5,0.18,-0.25),box(0.06,0.36,0.06,MAT.wood,0.5,0.18,-0.25),
+    box(0.06,0.36,0.06,MAT.wood,-0.5,0.18,0.25),box(0.06,0.36,0.06,MAT.wood,0.5,0.18,0.25)); return g;},
+  tv(){ const g=new THREE.Group(); addTo(g, box(1.5,0.5,0.18,MAT.woodL,0,0.25,0),
+    box(1.4,0.82,0.06,MAT.tv,0,1.1,0.0)); const s=box(1.3,0.72,0.02,new THREE.MeshStandardMaterial({color:0x2a4a8a,emissive:0x12305f,emissiveIntensity:.5}),0,1.1,0.04); g.add(s); return g;},
+  diningSet(){ const g=new THREE.Group(); addTo(g, box(1.5,0.06,0.9,MAT.woodL,0,0.75,0),
+    box(0.07,0.75,0.07,MAT.wood,-0.65,0.37,-0.35),box(0.07,0.75,0.07,MAT.wood,0.65,0.37,-0.35),
+    box(0.07,0.75,0.07,MAT.wood,-0.65,0.37,0.35),box(0.07,0.75,0.07,MAT.wood,0.65,0.37,0.35));
+    for(const sx of [-0.55,0.55]) for(const sz of [-0.62,0.62]){
+      g.add(box(0.42,0.06,0.42,MAT.wood,sx,0.46,sz)); g.add(box(0.42,0.5,0.06,MAT.wood,sx,0.7,sz+(sz<0?-0.18:0.18)));}
+    return g;},
+  kitchen(len=3){ const g=new THREE.Group();
+    addTo(g, box(len,0.85,0.6,MAT.white,0,0.43,0), box(len,0.06,0.65,MAT.metal,0,0.88,0)); // base + worktop
+    g.add(box(len,0.7,0.35,MAT.white,0,1.7,-0.12)); // upper cabinets
+    g.add(box(0.55,0.06,0.45,new THREE.MeshStandardMaterial({color:0x2b2f38,metalness:.6,roughness:.3}),len/2-0.5,0.9,0)); // hob
+    g.add(box(0.4,0.18,0.4,MAT.metal,-len/2+0.5,0.9,0)); // sink
+    g.add(box(0.7,1.8,0.65,new THREE.MeshStandardMaterial({color:0xdfe3ea,metalness:.4,roughness:.3}),-len/2+0.4,0.9,0.0)); // fridge at end
+    return g;},
+  toilet(){ const g=new THREE.Group(); addTo(g, box(0.4,0.4,0.6,MAT.white,0,0.2,0.0),
+    box(0.45,0.1,0.5,MAT.white,0,0.42,0.02), box(0.45,0.5,0.18,MAT.white,0,0.45,-0.32)); return g;},
+  sink(){ const g=new THREE.Group(); addTo(g, box(0.55,0.18,0.42,MAT.white,0,0.82,0),
+    box(0.5,0.55,0.4,MAT.white,0,0.45,0), box(0.06,0.25,0.06,MAT.metal,0,1,-0.12)); return g;},
+  tub(){ const g=new THREE.Group(); addTo(g, box(1.7,0.55,0.75,MAT.white,0,0.3,0),
+    box(1.5,0.2,0.6,new THREE.MeshStandardMaterial({color:0xbfe0ee,roughness:.2}),0,0.42,0)); return g;},
+  shower(){ const g=new THREE.Group(); addTo(g, box(0.9,0.08,0.9,MAT.flWet,0,0.05,0),
+    box(0.9,2.0,0.04,MAT.glass,0,1.05,0.45),box(0.04,2.0,0.9,MAT.glass,0.45,1.05,0)); return g;},
+  plant(){ const g=new THREE.Group(); addTo(g, box(0.3,0.35,0.3,MAT.woodL,0,0.18,0),
+    new THREE.Mesh(new THREE.SphereGeometry(0.32,8,7),MAT.green)); g.children[1].position.y=0.7; return g;},
+  rug(w,d,col=0x8a93b5){ const m=box(w,0.02,d,new THREE.MeshStandardMaterial({color:col,roughness:1}),0,0.011,0); return m;},
+};
+
+/* place a furniture group at room-local (x,z) with rotation (radians) */
+function placeFurn(parent, maker, x,z, rot=0, ...args){
+  const g = (typeof maker==='function')? maker(...args): maker;
+  g.position.set(x, 0, z); g.rotation.y=rot;
+  g.traverse(o=>{ if(o.isMesh){o.castShadow=true;o.receiveShadow=true;} });
+  parent.add(g); return g;
+}
+
+/* ============================================================================
+   ROOM + APARTMENT builders
+   Coordinate convention for an apartment: local origin at its SW corner,
+   x in [0,w], z in [0,depth], floor at y=0. North (corridor) is at z=depth.
+   ============================================================================ */
+const furnitureGroups = []; // for toggling
+
+function roomFloorAndCeil(g, x0,z0,x1,z1, type, withCeil=true){
+  const w=x1-x0, d=z1-z0;
+  const fl=new THREE.Mesh(new THREE.BoxGeometry(w,0.04,d), floorMatFor(type));
+  fl.position.set((x0+x1)/2,0.02,(z0+z1)/2); fl.receiveShadow=true; g.add(fl);
+}
+
+/* draws label-free room; returns center */
+function room(g, x0,z0,x1,z1,type){ roomFloorAndCeil(g,x0,z0,x1,z1,type); return [(x0+x1)/2,(z0+z1)/2]; }
+
+/* Furnish a room by type */
+function furnish(parent, type, x0,z0,x1,z1){
+  const fg=new THREE.Group(); furnitureGroups.push(fg); parent.add(fg);
+  const cx=(x0+x1)/2, cz=(z0+z1)/2, w=x1-x0, d=z1-z0;
+  if(type==='bed'){
+    placeFurn(fg, FURN.bed, x0+0.95, cz, 0, w>3.6?1.8:1.5, 2.0);
+    placeFurn(fg, FURN.nightstand, x0+0.3, cz-1.1);
+    placeFurn(fg, FURN.wardrobe, x1-0.75, z1-0.4, Math.PI);
+    fg.add(placeFurn(fg, FURN.rug(Math.min(w-0.8,2.4), Math.min(d-0.8,1.8), 0x6f5a7a), cx, cz));
+  } else if(type==='living'){
+    placeFurn(fg, FURN.sofa, cx, z0+0.7, 0, Math.min(w-0.8,2.6));
+    placeFurn(fg, FURN.coffee, cx, z0+1.8);
+    placeFurn(fg, FURN.tv, cx, z1-0.35, Math.PI);
+    placeFurn(fg, FURN.plant, x1-0.4, z0+0.4);
+    if(w>5.5) placeFurn(fg, FURN.diningSet, x1-1.4, cz+0.4);
+    placeFurn(fg, FURN.rug(Math.min(w-1,3), Math.min(d*0.5,2.2),0x55608a), cx, z0+1.7);
+  } else if(type==='kitchen'){
+    placeFurn(fg, FURN.kitchen, cx, z1-0.4, Math.PI, Math.min(w-0.4,3));
+    if(d>2.6) placeFurn(fg, FURN.diningSet, cx, z0+0.9);
+  } else if(type==='bath'){
+    placeFurn(fg, FURN.toilet, x0+0.4, z1-0.5, Math.PI);
+    placeFurn(fg, FURN.sink, x1-0.4, z1-0.45, Math.PI);
+    if(w*d>5.5) placeFurn(fg, FURN.tub, cx, z0+0.5, 0);
+    else placeFurn(fg, FURN.shower, x1-0.6, z0+0.6);
+  } else if(type==='hall'){
+    placeFurn(fg, FURN.plant, x0+0.35, z0+0.35);
+  }
+  return fg;
+}
+
+/* Ceiling for a whole apartment footprint */
+function ceiling(parent, x0,z0,x1,z1){
+  const c=new THREE.Mesh(new THREE.PlaneGeometry(x1-x0,z1-z0),MAT.ceil);
+  c.rotation.x=Math.PI/2; c.position.set((x0+x1)/2,M.ceil,(z0+z1)/2); parent.add(c);
+}
+
+/* ---- Apartment templates. Each returns nothing; builds into `g` (apt group),
+   in apt-local coords. w=width, d=depth(=Dapt). entranceX = local x of front door. ---- */
+
+function apt_2BR(g, w, d){
+  const corrL=w*0.44, corrR=w*0.44+1.5; // internal corridor x-band
+  // rooms (clean grid, no overlaps)
+  room(g, 0,0, w,4.5, 'living');                 // living hall full width, south windows
+  room(g, 0,4.5, corrL,8.6, 'bed');              // master bedroom (west)
+  room(g, corrR,4.5, w,8.0, 'bed');              // bedroom 2 (east)
+  room(g, corrL,4.5, corrR,d, 'hall');           // internal corridor spine
+  room(g, 0,8.6, corrL,d, 'bath');               // bathroom (west, near entry)
+  room(g, corrR,8.0, w,d, 'kitchen');            // kitchen (east)
+  ceiling(g,0,0,w,d);
+  // interior walls
+  // living/north divider with corridor opening
+  wallSeg(g,0,4.5, corrL,4.5, M.ceil, M.wall, MAT.wall, {pos:corrL-0.7,w:M.door});
+  wallSeg(g,corrR,4.5, w,4.5, M.ceil, M.wall, MAT.wall, {pos:0.7,w:M.door});
+  // corridor west wall: doors to bedroom1 (z≈6.6) + bathroom (z≈9.8)
+  wallSeg2(g,corrL, 4.5, d, [ {at:6.6}, {at:9.8} ]);
+  // corridor east wall: doors to bedroom2 (z≈6.2) + kitchen (z≈9.8)
+  wallSeg2(g,corrR, 4.5, d, [ {at:6.2}, {at:9.8} ]);
+  // bath/bedroom1 divider
+  wallSeg(g,0,8.6, corrL,8.6, M.ceil, M.wall, MAT.wall);
+  // kitchen/bedroom2 divider
+  wallSeg(g,corrR,8.0, w,8.0, M.ceil, M.wall, MAT.wall);
+  // entrance wall (north, z=d) handled by caller (between apt and corridor)
+  return {entranceX: (corrL+corrR)/2};
+}
+
+/* convenience: a vertical wall along Z at x=cx from z0..z1 with door gaps at given z positions */
+function wallSeg2(g, cx, z0, z1, doors, east){
+  const len=z1-z0;
+  // build as one wall then punch each door — simpler: split manually
+  let segs=[[z0,z1]];
+  doors.forEach(d=>{
+    const a=d.at-M.door/2, b=d.at+M.door/2;
+    const ns=[];
+    segs.forEach(([s,e])=>{
+      if(b<=s||a>=e){ns.push([s,e]);}
+      else { if(a>s) ns.push([s,a]); if(b<e) ns.push([b,e]); }
+    });
+    segs=ns;
+  });
+  segs.forEach(([s,e])=>{ if(e-s>0.03) wallSeg(g,cx,s,cx,e,M.ceil,M.wall,MAT.wall); });
+  // lintels over doors
+  doors.forEach(d=>{
+    const lh=M.ceil-M.doorH;
+    const m=box(M.wall,lh,M.door,MAT.wall,cx,M.doorH+lh/2,d.at); g.add(m);
+  });
+}
+
+function apt_1BR(g, w, d){
+  const cl=w*0.42, cr=w*0.42+1.4;
+  room(g,0,0,w,4.5,'living');
+  room(g,0,4.5,cl,8.5,'bed');
+  room(g,cl,4.5,cr,d,'hall');
+  room(g,cr,4.5,w,8.0,'living'); // small reading/extra living nook
+  room(g,0,8.5,cl,d,'bath');
+  room(g,cr,8.0,w,d,'kitchen');
+  ceiling(g,0,0,w,d);
+  wallSeg(g,0,4.5,cl,4.5,M.ceil,M.wall,MAT.wall,{pos:cl-0.7,w:M.door});
+  wallSeg(g,cr,4.5,w,4.5,M.ceil,M.wall,MAT.wall,{pos:0.7,w:M.door});
+  wallSeg2(g,cl,4.5,d,[{at:6.4},{at:9.6}]);
+  wallSeg2(g,cr,4.5,d,[{at:6.2},{at:9.6}]);
+  wallSeg(g,0,8.5,cl,8.5,M.ceil,M.wall,MAT.wall);
+  wallSeg(g,cr,8.0,w,8.0,M.ceil,M.wall,MAT.wall);
+  return {entranceX:(cl+cr)/2};
+}
+
+/* internal staircase (for maisonettes) from y=0 up to y=floorH, footprint ~1x3 */
+function internalStair(parent, x, z, dir=1){
+  const g=new THREE.Group(); g.position.set(x,0,z);
+  const steps=16, rise=M.floorH/steps, run=0.26, wst=1.0;
+  for(let i=0;i<steps;i++){
+    g.add(box(wst,0.04,run,MAT.woodL,0,rise*(i+1)-0.02, dir*(i*run)));
+    g.add(box(wst,rise,0.04,MAT.wood,0,rise*(i+0.5),dir*(i*run - run/2)));
+  }
+  // railing
+  for(let s=-1;s<=1;s+=2){
+    g.add(box(0.04,0.9,steps*run,MAT.rail, s*wst/2, rise*steps/2+0.4, dir*(steps*run/2-run/2)));
+  }
+  parent.add(g); return g;
+}
+
+/* Maisonette: large duplex over two levels. Lower built into level group,
+   upper into a mezzanine. void over living = double height. w≈12, d=Dapt */
+function maisonetteLower(g, w, d, mirror){
+  const mx = v => mirror? w-v : v;
+  // Big double-height living (south), kitchen+dining, guest WC, entry, stair
+  room(g, 0,0, w,5.5,'living');           // grand living (double height)
+  room(g, 0,5.5, w*0.5,d,'kitchen');      // kitchen-dining
+  room(g, w*0.5,5.5, w*0.78, d,'hall');   // entry hall + stair
+  room(g, w*0.78,5.5, w, d,'bath');       // guest WC
+  // upper slab covers only north half (z 5.5..d) — leave south as void
+  const mez=new THREE.Mesh(new THREE.BoxGeometry(w,M.slab,d-5.5),MAT.slab);
+  mez.position.set(w/2, M.floorH-M.slab/2, (5.5+d)/2); mez.receiveShadow=true; g.add(mez);
+  // dividers
+  wallSeg(g,0,5.5,w*0.5,5.5,M.ceil,M.wall,MAT.wall,{pos:w*0.25,w:1.4}); // open-plan wide opening to living
+  wallSeg(g,w*0.5,5.5,w,5.5,M.ceil,M.wall,MAT.wall,{pos:w*0.14,w:M.door});
+  wallSeg(g,w*0.5,5.5,w*0.5,d,M.ceil,M.wall,MAT.wall,{pos:2.0,w:M.door});
+  wallSeg(g,w*0.78,5.5,w*0.78,d,M.ceil,M.wall,MAT.wall,{pos:1.5,w:M.door});
+  ceiling(g, 0,5.5, w, d); // ceiling only over north (under mezzanine handled by slab)
+  internalStair(g, mx(w*0.64), 5.9, 1);
+  return {entranceX: w*0.64};
+}
+function maisonetteUpper(g, w, d){
+  // upper level sits at +floorH inside maisonette group; only north half is floored
+  const yo=M.floorH;
+  const grp=new THREE.Group(); grp.position.y=yo; g.add(grp);
+  // master suite + 2 bedrooms + bathroom + gallery landing overlooking void
+  room(grp,0,5.5,w*0.5,d,'bed');        // master (north-west)
+  room(grp,w*0.5,5.5,w*0.78,d,'bath');  // family bath
+  room(grp,w*0.78,5.5,w,d,'bed');       // bedroom
+  // gallery landing over the void edge
+  const land=new THREE.Mesh(new THREE.BoxGeometry(w,M.slab,1.4),MAT.slab);
+  land.position.set(w/2,-M.slab/2+0.0,5.5-0.7); land.receiveShadow=true; grp.add(land);
+  // glass balustrade along void edge
+  const bal=box(w,1.0,0.05,MAT.glass,w/2,0.5,5.5-1.4); grp.add(bal);
+  grp.add(box(w,0.06,0.06,MAT.rail,w/2,1.0,5.5-1.4));
+  // dividers (upper)
+  wallSeg(grp,w*0.5,5.5,w*0.5,d,M.ceil,M.wall,MAT.wall,{pos:2.0,w:M.door});
+  wallSeg(grp,w*0.78,5.5,w*0.78,d,M.ceil,M.wall,MAT.wall,{pos:2.0,w:M.door});
+  ceiling(grp,0,5.5,w,d);
+  // furnish upper
+  furnish(grp,'bed',0,5.5,w*0.5,d);
+  furnish(grp,'bath',w*0.5,5.5,w*0.78,d);
+  furnish(grp,'bed',w*0.78,5.5,w,d);
+}
+
+/* ============================================================================
+   BUILD THE WHOLE BUILDING
+   ============================================================================ */
+const buildingRoot = new THREE.Group();
+scene.add(buildingRoot);
+buildingRoot.position.set(-M.W/2, 0, -M.D/2); // so model x:0..W, z:0..D, world centered
+
+const floorGroups = [];   // index 0..3
+const apartments = [];    // metadata for placement + navigation
+const roofGroup = new THREE.Group();
+let topSlabMesh;
+
+// apartment column layout for floors 1-3: widths 9,6,9
+const COLS = [ {x0:0, w:9, type:'2BR'}, {x0:9, w:6, type:'1BR'}, {x0:15, w:9, type:'2BR'} ];
+
+function buildLevelSlabAndCore(f){
+  const y=yOf(f);
+  const g=new THREE.Group(); g.position.y=y; buildingRoot.add(g);
+  floorGroups[f]=g;
+  // structural slab (floor)
+  const slab=new THREE.Mesh(new THREE.BoxGeometry(M.W, M.slab, M.D), MAT.slab);
+  slab.position.set(M.W/2, -M.slab/2, M.D/2); slab.receiveShadow=true; g.add(slab);
+  return g;
+}
+
+function buildExteriorEnvelope(g, f, doubleHeight){
+  const h = doubleHeight? M.floorH*2 - 0.0 : M.ceil+0.2;
+  const top = doubleHeight? M.floorH*2 : M.floorH;
+  // South facade (z=0) with windows
+  extWall(g, 0,0, M.W,0, M.ceil+0.05, doubleHeight?10:8);
+  if(doubleHeight){ // second row of windows for upper level on south
+    const up=new THREE.Group(); up.position.y=M.floorH; g.add(up);
+    extWall(up, 0,0, M.W,0, M.ceil+0.05, 10);
+  }
+  // North facade (z=D) — corridor side, fewer/strip windows
+  extWall(g, 0,M.D, M.W,M.D, M.ceil+0.05, 6);
+  if(doubleHeight){ const up=new THREE.Group(); up.position.y=M.floorH; g.add(up); extWall(up,0,M.D,M.W,M.D,M.ceil+0.05,6); }
+  // East & West facades
+  extWall(g, M.W,0, M.W,M.D, M.ceil+0.05, 5);
+  extWall(g, 0,M.D, 0,0, M.ceil+0.05, 5);
+  if(doubleHeight){
+    const up=new THREE.Group(); up.position.y=M.floorH; g.add(up);
+    extWall(up, M.W,0, M.W,M.D, M.ceil+0.05, 5);
+    extWall(up, 0,M.D, 0,0, M.ceil+0.05, 5);
+  }
+  // balconies on south for living rooms
+  COLS.forEach(c=>{
+    if(f<3){
+      const bx=c.x0+c.w/2;
+      const bal=box(c.w-1.2,0.12,1.2,MAT.extDk,bx,0.0,-0.6); g.add(bal);
+      bal.position.y=0.0;
+      g.add(box(c.w-1.2,0.6,0.06,MAT.glass,bx,0.36,-1.18));
+      g.add(box(0.06,0.6,1.2,MAT.glass,bx-(c.w-1.2)/2,0.36,-0.6));
+      g.add(box(0.06,0.6,1.2,MAT.glass,bx+(c.w-1.2)/2,0.36,-0.6));
+    }
+  });
+}
+
+function buildCorridorAndStairs(g, f, doubleHeight){
+  // corridor floor finish band z in [Dapt, D]
+  const cf=box(M.W, 0.03, M.corr, MAT.flHall, M.W/2, 0.02, M.Dapt+M.corr/2); g.add(cf);
+  // corridor inner wall already created by apartments' north walls; add corridor ceiling
+  ceiling(g, 0, M.Dapt, M.W, M.D);
+  // stair + elevator core centered, x 10.5..13.5 within corridor depth, projecting
+  const coreG=new THREE.Group(); g.add(coreG);
+  // elevator shaft
+  coreG.add(box(1.5,M.ceil,1.4, MAT.extDk, 9.0, M.ceil/2, M.Dapt+1.0));
+  coreG.add(box(1.2,2.1,0.06, MAT.metal, 9.0, 1.05, M.Dapt+0.3)); // doors
+  // stair run within core (purely visual) z band
+  const sx=12.0;
+  const steps=16, rise=M.floorH/steps, run=0.22;
+  for(let i=0;i<steps;i++){
+    coreG.add(box(1.2,0.04,run,MAT.slab, sx, rise*(i+1)-0.02, M.Dapt+0.4 + i*run));
+  }
+  coreG.add(box(0.06,1.0,steps*run,MAT.rail, sx-0.6, rise*steps/2+0.5, M.Dapt+0.4+steps*run/2));
+}
+
+function buildApartmentInto(g, f, col){
+  const apt=new THREE.Group(); apt.position.set(col.x0,0,0); g.add(apt);
+  const info = (col.type==='2BR')? apt_2BR(apt,col.w,M.Dapt): apt_1BR(apt,col.w,M.Dapt);
+  // furnish each room: re-declare same rectangles (kept in sync with templates)
+  if(col.type==='2BR'){
+    const w=col.w, cl=w*0.44, cr=w*0.44+1.5;
+    furnish(apt,'living',0,0,w,4.5);
+    furnish(apt,'bed',0,4.5,cl,8.6);
+    furnish(apt,'bed',cr,4.5,w,8.0);
+    furnish(apt,'bath',0,8.6,cl,M.Dapt);
+    furnish(apt,'kitchen',cr,8.0,w,M.Dapt);
+    furnish(apt,'hall',cl,4.5,cr,M.Dapt);
+  } else {
+    const w=col.w, cl=w*0.42, cr=w*0.42+1.4;
+    furnish(apt,'living',0,0,w,4.5);
+    furnish(apt,'bed',0,4.5,cl,8.5);
+    furnish(apt,'bath',0,8.5,cl,M.Dapt);
+    furnish(apt,'kitchen',cr,8.0,w,M.Dapt);
+    furnish(apt,'hall',cl,4.5,cr,M.Dapt);
+  }
+  // entrance wall between apt and corridor (north, z=Dapt) with a door at entrance
+  wallSeg(g, col.x0,M.Dapt, col.x0+col.w,M.Dapt, M.ceil, M.wall, MAT.wall, {pos: info.entranceX, w:M.door});
+  // door leaf
+  const dl=box(M.door-0.05,M.doorH,0.05,MAT.door, col.x0+info.entranceX-0.2, M.doorH/2, M.Dapt); dl.rotation.y=0.4; g.add(dl);
+  // register apartment for navigation/placement
+  apartments.push({
+    floor:f, name: aptName(f,col), x0:col.x0, w:col.w, depth:M.Dapt, type:col.type,
+    entranceX: col.x0+info.entranceX, isMaison:false,
+    yBase: yOf(f)+0.04, livingCenter:[col.x0+col.w/2, 2.2]
+  });
+}
+
+function aptName(f, col){
+  const letter = col===COLS[0]?'A':col===COLS[1]?'B':'C';
+  return `Flat ${f+1}${letter} (${col.type})`;
+}
+
+function buildMaisonetteInto(g, f, half){ // half 0 = left(x0..12), 1 = right
+  const w=12, x0=half*12;
+  const apt=new THREE.Group(); apt.position.set(x0,0,0); g.add(apt);
+  const mirror = half===1;
+  const info=maisonetteLower(apt, w, M.Dapt, mirror);
+  maisonetteUpper(apt, w, M.Dapt);
+  // furnish lower
+  furnish(apt,'living',0,0,w,5.5);
+  furnish(apt,'kitchen',0,5.5,w*0.5,M.Dapt);
+  furnish(apt,'hall',w*0.5,5.5,w*0.78,M.Dapt);
+  furnish(apt,'bath',w*0.78,5.5,w,M.Dapt);
+  // entrance from corridor
+  wallSeg(g, x0,M.Dapt, x0+w,M.Dapt, M.ceil, M.wall, MAT.wall, {pos: info.entranceX, w:M.door});
+  const dl=box(M.door-0.05,M.doorH,0.05,MAT.door, x0+info.entranceX-0.2,M.doorH/2,M.Dapt); dl.rotation.y=0.4; g.add(dl);
+  apartments.push({
+    floor:f, name:`Maisonette ${half===0?'D (West)':'E (East)'} — duplex`, x0, w, depth:M.Dapt, type:'Maisonette',
+    entranceX:x0+info.entranceX, isMaison:true, yBase: yOf(f)+0.04, livingCenter:[x0+w/2, 2.6]
+  });
+}
+
+/* ---- assemble ---- */
+for(let f=0; f<FLOORS; f++){
+  const dbl = (f===3);
+  const g=buildLevelSlabAndCore(f);
+  buildExteriorEnvelope(g, f, dbl);
+  buildCorridorAndStairs(g, f, dbl);
+  if(f<3){
+    COLS.forEach(c=> buildApartmentInto(g, f, c));
+    // party walls between flats (thicker, acoustic)
+    wallSeg(g, 9,0, 9,M.Dapt, M.ceil, M.ext, MAT.wall);
+    wallSeg(g, 15,0, 15,M.Dapt, M.ceil, M.ext, MAT.wall);
+  } else {
+    buildMaisonetteInto(g, f, 0);
+    buildMaisonetteInto(g, f, 1);
+    // party wall between the two maisonettes, full double height
+    wallSeg(g, 12,0, 12,M.Dapt, M.floorH*2-0.05, M.ext, MAT.wall);
+  }
+}
+
+/* Roof / top slab + parapet (double-height top => roof at 2*floorH above floor3 base) */
+(function(){
+  buildingRoot.add(roofGroup);
+  const yTop = yOf(3) + M.floorH*2;
+  topSlabMesh = box(M.W+0.4, M.slab, M.D+0.4, MAT.slab, M.W/2, yTop, M.D/2);
+  roofGroup.add(topSlabMesh);
+  // parapet
+  const pp=0.6;
+  roofGroup.add(box(M.W+0.4,pp,0.25,MAT.extDk, M.W/2, yTop+pp/2, 0));
+  roofGroup.add(box(M.W+0.4,pp,0.25,MAT.extDk, M.W/2, yTop+pp/2, M.D));
+  roofGroup.add(box(0.25,pp,M.D+0.4,MAT.extDk, 0, yTop+pp/2, M.D/2));
+  roofGroup.add(box(0.25,pp,M.D+0.4,MAT.extDk, M.W, yTop+pp/2, M.D/2));
+  // rooftop tech + solar
+  roofGroup.add(box(3,0.6,2,MAT.metal, 6, yTop+0.3, M.D-3));
+  for(let i=0;i<4;i++){
+    const s=box(2.4,0.06,1.2,new THREE.MeshStandardMaterial({color:0x1c2740,metalness:.4,roughness:.3,emissive:0x0a1530,emissiveIntensity:.3}), 14+i*0, yTop+0.5, 3+i*1.5);
+    s.position.x=12+ (i%2)*3; s.rotation.x=-0.3; roofGroup.add(s);
+  }
+  // entrance canopy + ground-floor lobby doors on north
+  const can=box(6,0.15,2.4,MAT.extDk, 12, M.floorH-0.3, M.D+1.0); buildingRoot.add(can);
+  buildingRoot.add(box(2.6,2.3,0.08,MAT.glass, 12, 1.15, M.D+0.0));
+})();
+
+/* interior fill — mobile-friendly: a few warm point lights per floor + strong ambient */
+for(let f=0; f<FLOORS; f++){
+  const yc = yOf(f)+2.4;
+  for(const x of [5,12,19]){
+    const pl=new THREE.PointLight(0xfff0d8, 9.0, 14, 1.6);
+    pl.position.set(x, yc, 5); floorGroups[f].add(pl);
+  }
+  if(f===3){ // maisonette upper level
+    for(const x of [5,19]){ const pl=new THREE.PointLight(0xfff0d8, 8.0, 14, 1.6);
+      pl.position.set(x, yc+M.floorH, 8); floorGroups[f].add(pl); }
+  }
+}
+
+/* ============================================================================
+   HEROES (neighbors)
+   ============================================================================ */
+const heroes = [];
+let heroSeq = 0;
+
+const BODY_SHAPES = {
+  slim:   {girth:0.82, height:1.02, label:'Slim'},
+  average:{girth:1.0,  height:1.0,  label:'Average'},
+  heavy:  {girth:1.28, height:0.98, label:'Heavy'},
+  tall:   {girth:0.95, height:1.16, label:'Tall'},
+  short:  {girth:1.05, height:0.85, label:'Short'},
+  athletic:{girth:1.08,height:1.06, label:'Athletic'},
+};
+
+function buildHeroMesh(cfg){
+  const g=new THREE.Group();
+  const gi=cfg.girth, he=cfg.height;
+  const skin=new THREE.MeshStandardMaterial({color:cfg.skin, roughness:.7});
+  const shirt=new THREE.MeshStandardMaterial({color:cfg.shirt, roughness:.85});
+  const pants=new THREE.MeshStandardMaterial({color:cfg.pants, roughness:.85});
+  const hair=new THREE.MeshStandardMaterial({color:cfg.hair, roughness:.9});
+  const shoe=new THREE.MeshStandardMaterial({color:0x23262e, roughness:.7});
+  // legs
+  const legH=0.78*he, legW=0.16*gi;
+  const lL=box(legW,legH,legW,pants,-0.12*gi,legH/2,0); const lR=box(legW,legH,legW,pants,0.12*gi,legH/2,0);
+  lL.castShadow=lR.castShadow=true; g.add(lL,lR);
+  g.add(box(legW+0.06,0.08,legW+0.12,shoe,-0.12*gi,0.04,0.04));
+  g.add(box(legW+0.06,0.08,legW+0.12,shoe,0.12*gi,0.04,0.04));
+  // torso
+  const torH=0.62*he, torW=0.42*gi, torD=0.24*gi;
+  const tor=box(torW,torH,torD,shirt,0,legH+torH/2,0); tor.castShadow=true; g.add(tor);
+  // arms
+  const armH=0.6*he, armW=0.12*gi;
+  const aL=new THREE.Group(); aL.position.set(-torW/2-armW/2+0.02, legH+torH-0.04, 0);
+  const aLm=box(armW,armH,armW,shirt,0,-armH/2,0); aLm.castShadow=true;
+  aL.add(aLm); aL.add(box(armW,0.14,armW,skin,0,-armH-0.05,0)); g.add(aL);
+  const aR=new THREE.Group(); aR.position.set(torW/2+armW/2-0.02, legH+torH-0.04, 0);
+  const aRm=box(armW,armH,armW,shirt,0,-armH/2,0); aRm.castShadow=true;
+  aR.add(aRm); aR.add(box(armW,0.14,armW,skin,0,-armH-0.05,0)); g.add(aR);
+  // neck + head
+  const neckY=legH+torH;
+  g.add(box(0.1*gi,0.08,0.1*gi,skin,0,neckY+0.04,0));
+  const headR=0.16*he;
+  const head=new THREE.Mesh(new THREE.SphereGeometry(headR,16,14),skin);
+  head.position.set(0,neckY+0.08+headR,0); head.castShadow=true; g.add(head);
+  // hair
+  const hh=new THREE.Mesh(new THREE.SphereGeometry(headR+0.02,16,12,0,Math.PI*2,0,Math.PI*0.62),hair);
+  hh.position.copy(head.position); g.add(hh);
+  // eyes
+  const eye=new THREE.MeshStandardMaterial({color:0x1a1a22});
+  g.add(box(0.04,0.04,0.02,eye,-0.06,head.position.y+0.02,headR-0.02));
+  g.add(box(0.04,0.04,0.02,eye,0.06,head.position.y+0.02,headR-0.02));
+  // hat
+  if(cfg.hat==='cap'){ g.add(box(headR*2.1,0.06,headR*2.1,hair,0,head.position.y+headR-0.02,0));
+    g.add(box(headR*1.6,0.04,0.2,hair,0,head.position.y+headR-0.04,headR)); }
+  else if(cfg.hat==='beanie'){ const b=new THREE.Mesh(new THREE.SphereGeometry(headR+0.04,14,10,0,Math.PI*2,0,Math.PI*0.55),new THREE.MeshStandardMaterial({color:0xcc5544})); b.position.copy(head.position); g.add(b);}
+  else if(cfg.hat==='tophat'){ g.add(box(headR*2.4,0.05,headR*2.4,MAT.tv,0,head.position.y+headR,0)); g.add(new THREE.Mesh(new THREE.CylinderGeometry(headR*0.9,headR*0.9,0.4,16),MAT.tv).translateY?null:null);
+    const c=new THREE.Mesh(new THREE.CylinderGeometry(headR*0.9,headR*0.9,0.4,16),MAT.tv); c.position.set(0,head.position.y+headR+0.2,0); g.add(c);}
+  g.userData.parts={aL,aR,lL,lR,head};
+  g.userData.totalH = neckY+0.08+headR*2 + (cfg.hat==='tophat'?0.4:0);
+  return g;
+}
+
+/* ---- spawn / placement ---- */
+function spawnHero(cfg){
+  const apt = apartments.find(a=>a.name===cfg.home) || apartments[Math.floor(Math.random()*apartments.length)];
+  const mesh = buildHeroMesh(cfg);
+  const scale = cfg.heightScale||1;
+  mesh.scale.setScalar(0.95*scale);
+  const startX = apt.x0 + apt.w/2 + (Math.random()-.5)*Math.min(apt.w-2,3);
+  const startZ = 2 + Math.random()*4;
+  mesh.position.set(startX, apt.yBase, startZ);
+  buildingRoot.add(mesh);
+
+  const hero = {
+    id:++heroSeq, cfg, mesh, apt,
+    pos:new THREE.Vector3(startX, apt.yBase, startZ),
+    target:new THREE.Vector3(startX, apt.yBase, startZ),
+    speed:(cfg.speed||1)*0.9, heading:0, phase:Math.random()*7,
+    state:'roam', cooldown:0, talkingWith:null, dialogue:null,
+    temper: cfg.temper, persona:cfg.persona, api:cfg.api,
+  };
+  pickNewTarget(hero);
+  heroes.push(hero);
+  // name tag
+  hero.tag = makeTag(cfg.name);
+  refreshRoster();
+  return hero;
+}
+
+/* roaming target: pick a random walkable point on the hero's floor (within building footprint incl corridor) */
+function pickNewTarget(h){
+  const onCorridor = Math.random()<0.45;
+  let x,z;
+  if(onCorridor){ x = 1+Math.random()*(M.W-2); z = M.Dapt + 0.4 + Math.random()*(M.corr-0.8); }
+  else { x = h.apt.x0+0.8 + Math.random()*(h.apt.w-1.6); z = 1.2 + Math.random()*(M.Dapt-2.4); }
+  h.target.set(x, h.apt.yBase, z);
+}
+
+/* ============================================================================
+   NAME TAGS + DIALOGUE CLOUDS (HTML overlay projected from 3D)
+   ============================================================================ */
+const cloudsEl=document.getElementById('clouds');
+function makeTag(name){
+  const el=document.createElement('div');
+  el.className='cloud'; el.style.background='rgba(16,20,42,.82)'; el.style.color='#fff';
+  el.style.padding='2px 8px'; el.style.fontSize='11px'; el.style.fontWeight='700'; el.style.boxShadow='none';
+  el.innerHTML=`<span style="opacity:.95">${escapeHtml(name)}</span>`;
+  el.querySelector('span').parentElement.style.borderRadius='10px';
+  el.style.borderRadius='10px';
+  const after=document.createElement('style');
+  el.dataset.tag='1';
+  cloudsEl.appendChild(el); return el;
+}
+let showTags=true;
+function projectToScreen(v3){
+  const v=v3.clone().project(camera);
+  return { x:(v.x*0.5+0.5)*innerWidth, y:(-v.y*0.5+0.5)*innerHeight, vis: v.z<1 };
+}
+
+/* ============================================================================
+   ENCOUNTER + DIALOGUE
+   ============================================================================ */
+const ENCOUNTER_DIST = 1.5;
+const conversations = []; // active {a,b,cloud,lines,...}
+
+function tryEncounters(){
+  for(let i=0;i<heroes.length;i++) for(let j=i+1;j<heroes.length;j++){
+    const a=heroes[i], b=heroes[j];
+    if(a.apt.floor!==b.apt.floor) continue;       // only meet on same floor
+    if(a.state==='talk'||b.state==='talk') continue;
+    if(a.cooldown>0||b.cooldown>0) continue;
+    const d=a.pos.distanceTo(b.pos);
+    if(d<ENCOUNTER_DIST){ startConversation(a,b); }
+  }
+}
+
+async function startConversation(a,b){
+  a.state=b.state='talk'; a.talkingWith=b; b.talkingWith=a;
+  a.cooldown=b.cooldown=18+Math.random()*8;
+  // face each other & stop
+  faceEachOther(a,b);
+  const mid=a.pos.clone().add(b.pos).multiplyScalar(0.5); mid.y+= a.mesh.userData.totalH*0.95;
+  const cloud=document.createElement('div'); cloud.className='cloud';
+  cloud.innerHTML=`<span class="who">${escapeHtml(a.cfg.name)} &amp; ${escapeHtml(b.cfg.name)}</span><span class="txt">…</span><span class="more">tap to read 💬</span>`;
+  cloudsEl.appendChild(cloud);
+  const convo={a,b,cloud,lines:[],anchor:mid,scandal:false,done:false,fight:false};
+  cloud.addEventListener('click',()=> openChat(convo));
+  conversations.push(convo);
+
+  // generate
+  let result;
+  try { result = await generateDialogue(a,b); }
+  catch(e){ result = localDialogue(a,b); }
+  if(!result || !result.lines || !result.lines.length) result = localDialogue(a,b);
+  convo.lines=result.lines; convo.scandal=result.scandal; convo.fight=result.fight;
+  if(convo.scandal) cloud.classList.add('scandal');
+  // show first snippet in the cloud
+  const first=convo.lines.find(l=>l.who!=='*') || convo.lines[0];
+  cloud.querySelector('.txt').textContent = clip(first.who+': '+first.text, 90);
+  if(convo.fight){ triggerFight(a,b,convo); }
+
+  // schedule cloud fade & state release
+  const dur = 7000 + convo.lines.length*900;
+  convo._timer=setTimeout(()=>endConversation(convo), Math.min(dur,16000));
+}
+
+function endConversation(convo){
+  if(convo.done) return; convo.done=true;
+  clearTimeout(convo._timer);
+  convo.cloud.style.opacity='0';
+  setTimeout(()=>convo.cloud.remove(),300);
+  [convo.a,convo.b].forEach(h=>{ if(h.state==='talk'){h.state='roam'; h.talkingWith=null; pickNewTarget(h);} });
+  const idx=conversations.indexOf(convo); if(idx>=0) conversations.splice(idx,1);
+}
+
+function faceEachOther(a,b){
+  const ang=Math.atan2(b.pos.x-a.pos.x, b.pos.z-a.pos.z);
+  a.mesh.rotation.y=ang; b.mesh.rotation.y=ang+Math.PI;
+}
+
+function triggerFight(a,b,convo){
+  a._fight=b._fight=2.4; // seconds of scuffle
+  showToast(`💥 Scandal between ${a.cfg.name} and ${b.cfg.name}!`);
+}
+
+/* ---- NVIDIA / OpenAI-compatible dialogue generation ---- */
+async function generateDialogue(a,b){
+  const api = a.api?.enabled? a.api : (b.api?.enabled? b.api : null);
+  if(!api || !api.key) return localDialogue(a,b);
+  const sys = `You write short, vivid dialogues between two apartment neighbors who just met in the building.
+Return ONLY a JSON object: {"scandal":bool,"fight":bool,"lines":[{"who":"<name>","text":"..."}]}.
+4 to 7 lines, alternating speakers. Keep each line under 160 chars and in-character.
+If their personalities clash, a scandal or even a physical fight is allowed and encouraged.
+${api.instr? 'Extra instructions: '+api.instr : ''}`;
+  const user = `Neighbor 1: ${a.cfg.name}. Personality: ${a.persona||'an ordinary neighbor'}. Temper ${Math.round(a.temper*100)}/100.
+Neighbor 2: ${b.cfg.name}. Personality: ${b.persona||'an ordinary neighbor'}. Temper ${Math.round(b.temper*100)}/100.
+They cross paths in the hallway/stairwell. Write their exchange now.`;
+  const body={ model:api.model, temperature:1.05, max_tokens:500,
+    messages:[{role:'system',content:sys},{role:'user',content:user}] };
+  const res=await fetch(api.endpoint,{method:'POST',
+    headers:{'Content-Type':'application/json','Authorization':'Bearer '+api.key},
+    body:JSON.stringify(body)});
+  if(!res.ok) throw new Error('api '+res.status);
+  const data=await res.json();
+  const content=data.choices?.[0]?.message?.content||'';
+  return parseDialogue(content,a,b);
+}
+function parseDialogue(content,a,b){
+  // try JSON first
+  try{
+    const m=content.match(/\{[\s\S]*\}/);
+    if(m){ const o=JSON.parse(m[0]);
+      if(o.lines?.length) return {scandal:!!o.scandal,fight:!!o.fight,
+        lines:o.lines.map(l=>({who:l.who||a.cfg.name,text:l.text||''})).filter(l=>l.text)}; }
+  }catch(e){}
+  // fallback: "Name: text" lines
+  const lines=content.split('\n').map(s=>s.trim()).filter(Boolean).map(s=>{
+    const i=s.indexOf(':'); if(i>0&&i<24) return {who:s.slice(0,i).trim(),text:s.slice(i+1).trim()};
+    return {who:a.cfg.name,text:s};
+  });
+  const scandal=/scandal|idiot|shut up|hate|how dare|liar|disgust/i.test(content);
+  const fight=/fight|punch|shove|slap|throw|grab|hits|brawl/i.test(content);
+  return lines.length? {scandal,fight,lines} : localDialogue(a,b);
+}
+
+/* ---- offline persona engine (fallback) ---- */
+const TOPICS=['the noise last night','the recycling bins','a leaking pipe','the elevator being broken',
+  'a parking spot','loud music','cooking smells','the new paint in the lobby','an unpaid co-op fee','a barking dog'];
+function localDialogue(a,b){
+  const t=TOPICS[Math.floor(Math.random()*TOPICS.length)];
+  const aggro = Math.random() < (a.temper*0.5 + b.temper*0.5 + 0.05);
+  const lines=[];
+  const A=a.cfg.name, B=b.cfg.name;
+  if(!aggro){
+    lines.push({who:A,text:`Oh, hello! Lovely to see you. Settling in alright?`});
+    lines.push({who:B,text:`Hi ${A}! Yes, thank you. Though I wanted to ask about ${t}.`});
+    lines.push({who:A,text:`Of course — let's sort it out over coffee sometime.`});
+    lines.push({who:B,text:`I'd like that. Good neighbors make a good building.`});
+    return {scandal:false,fight:false,lines};
+  }
+  // escalating quarrel
+  lines.push({who:A,text:`You! We need to talk about ${t}. It's been driving me mad.`});
+  lines.push({who:B,text:`Excuse me? That's hardly my fault. Maybe look at yourself first.`});
+  lines.push({who:A,text:`How DARE you. Everyone in this co-op knows it's you.`});
+  lines.push({who:B,text:`Oh please. You're impossible. I'm filing a complaint with the board!`});
+  let fight=false;
+  if((a.temper+b.temper)>1.1 && Math.random()<0.7){
+    lines.push({who:'*',text:`💥 ${A} and ${B} start shoving each other in the hallway!`});
+    lines.push({who:A,text:`Take that back!`});
+    fight=true;
+  } else {
+    lines.push({who:A,text:`This isn't over.`});
+  }
+  return {scandal:true,fight,lines};
+}
+
+/* ---- chat transcript modal ---- */
+function openChat(convo){
+  const body=document.getElementById('chatBody');
+  document.getElementById('chatTitle').innerHTML =
+    `${convo.scandal?'💥':'💬'} ${escapeHtml(convo.a.cfg.name)} &amp; ${escapeHtml(convo.b.cfg.name)}`;
+  body.innerHTML='';
+  convo.lines.forEach(l=>{
+    const d=document.createElement('div');
+    if(l.who==='*'){ d.className='msg action'; d.textContent=l.text; }
+    else{
+      const left = l.who===convo.a.cfg.name;
+      d.className='msg '+(left?'left':'right');
+      d.innerHTML=`<span class="nm">${escapeHtml(l.who)}</span>${escapeHtml(l.text)}`;
+    }
+    body.appendChild(d);
+  });
+  show('chatOverlay');
+}
+
+/* ============================================================================
+   ANIMATION LOOP
+   ============================================================================ */
+const clock=new THREE.Clock();
+function tick(){
+  const dt=Math.min(clock.getDelta(),0.05);
+  // heroes
+  for(const h of heroes){
+    h.cooldown=Math.max(0,h.cooldown-dt);
+    if(h.state==='roam'){
+      const dir=h.target.clone().sub(h.pos); dir.y=0;
+      const dist=dir.length();
+      if(dist<0.25){ pickNewTarget(h); }
+      else{
+        dir.normalize();
+        const v=h.speed*dt;
+        h.pos.addScaledVector(dir, Math.min(v,dist));
+        h.heading=Math.atan2(dir.x,dir.z);
+        h.mesh.rotation.y += angleDelta(h.mesh.rotation.y,h.heading)*Math.min(1,dt*8);
+        // walk bob
+        h.phase+=dt*7*h.speed;
+        const sw=Math.sin(h.phase)*0.5;
+        h.mesh.userData.parts.lL.rotation.x= sw; h.mesh.userData.parts.lR.rotation.x=-sw;
+        h.mesh.userData.parts.aL.rotation.x=-sw; h.mesh.userData.parts.aR.rotation.x= sw;
+        h.mesh.position.y = h.apt.yBase + Math.abs(Math.sin(h.phase))*0.02;
+      }
+    }
+    // fight wobble
+    if(h._fight>0){
+      h._fight-=dt;
+      h.mesh.position.x = h.pos.x + Math.sin(performance.now()*0.04)*0.06;
+      h.mesh.userData.parts.aR.rotation.x = Math.sin(performance.now()*0.05)*1.2;
+      h.mesh.userData.parts.aL.rotation.x = -Math.sin(performance.now()*0.05)*1.2;
+      if(h._fight<=0){ h.mesh.position.x=h.pos.x; }
+    } else {
+      h.mesh.position.x=h.pos.x; h.mesh.position.z=h.pos.z;
+    }
+    h.mesh.position.x=h.pos.x; h.mesh.position.z=h.pos.z;
+  }
+  tryEncounters();
+
+  // update conversation cloud anchors
+  for(const c of conversations){
+    c.anchor.copy(c.a.pos).add(c.b.pos).multiplyScalar(0.5);
+    c.anchor.y = Math.max(c.a.mesh.position.y,c.b.mesh.position.y) + c.a.mesh.userData.totalH*0.95 + 0.3;
+    const p=projectToScreen(applyFloorOffset(c.a,c.anchor));
+    if(p.vis){ c.cloud.style.display='block'; c.cloud.style.left=p.x+'px'; c.cloud.style.top=p.y+'px'; }
+    else c.cloud.style.display='none';
+  }
+  // name tags
+  for(const h of heroes){
+    if(!h.tag) continue;
+    if(!showTags || (h.talkingWith)){ h.tag.style.display='none'; continue; }
+    const top=h.mesh.position.clone(); top.y+=h.mesh.userData.totalH+0.25;
+    const p=projectToScreen(applyFloorOffset(h, top));
+    if(p.vis){ h.tag.style.display='block'; h.tag.style.left=p.x+'px'; h.tag.style.top=p.y+'px'; }
+    else h.tag.style.display='none';
+  }
+
+  controls.update();
+  renderer.render(scene,camera);
+  requestAnimationFrame(tick);
+}
+/* heroes live in buildingRoot space which is translated; convert for projection,
+   plus apply the per-floor explode offset */
+const _v=new THREE.Vector3();
+function applyFloorOffset(h, localVec){
+  _v.copy(localVec);
+  _v.add(buildingRoot.position);
+  _v.y += (floorGroups[h.apt.floor].position.y - yOf(h.apt.floor)); // explode delta
+  return _v;
+}
+function angleDelta(a,b){ let d=b-a; while(d>Math.PI)d-=2*Math.PI; while(d<-Math.PI)d+=2*Math.PI; return d; }
+
+/* ============================================================================
+   VIEW CONTROLS
+   ============================================================================ */
+const explodeEl=document.getElementById('explode');
+function applyExplode(){
+  const e=parseFloat(explodeEl.value);
+  for(let f=0;f<FLOORS;f++){ floorGroups[f].position.y = yOf(f) + e*f; }
+  const yTopBase=yOf(3)+M.floorH*2;
+  roofGroup.position.y = e*4; // lift roof a bit more
+}
+explodeEl.addEventListener('input',applyExplode);
+
+document.getElementById('tglRoof').addEventListener('change',e=> roofGroup.visible=e.target.checked);
+document.getElementById('tglFurn').addEventListener('change',e=> furnitureGroups.forEach(g=>g.visible=e.target.checked));
+document.getElementById('tglTags').addEventListener('change',e=> showTags=e.target.checked);
+let cutaway=false;
+document.getElementById('tglCut').addEventListener('change',e=>{
+  cutaway=e.target.checked;
+  const h = cutaway? 1.2: 1.0;
+  buildingRoot.traverse(o=>{
+    if(o.isMesh && o.geometry?.type==='BoxGeometry'){
+      // crude cutaway: scale tall wall meshes down on Y
+      if(o.userData._origScaleY===undefined) o.userData._origScaleY=o.scale.y;
+    }
+  });
+  // simpler: hide upper portion by clipping via material clipping plane
+  renderer.localClippingEnabled=true;
+  const planes = cutaway? buildClipPlanes(): [];
+  Object.values(MAT).forEach(m=>{ if(m && 'clippingPlanes' in m) m.clippingPlanes=planes; });
+});
+function buildClipPlanes(){
+  // clip everything above (floor base + 1.2m) per floor is complex; use a single global
+  // dollhouse: keep nothing — instead lower walls by clipping at 1.3m above each shown floor.
+  return []; // (kept simple; cutaway primarily toggles roof+explode in practice)
+}
+
+// floor isolation buttons
+const floorSeg=document.getElementById('floorSeg');
+['All','1','2','3','4'].forEach((lbl,i)=>{
+  const b=document.createElement('button'); b.className='btn'; b.textContent=lbl;
+  b.addEventListener('click',()=>{
+    [...floorSeg.children].forEach(c=>c.classList.remove('primary'));
+    b.classList.add('primary');
+    if(lbl==='All'){ floorGroups.forEach(g=>g.visible=true); roofGroup.visible=document.getElementById('tglRoof').checked; }
+    else{ const f=i-1; floorGroups.forEach((g,k)=>g.visible=(k===f)); roofGroup.visible=false; }
+  });
+  floorSeg.appendChild(b);
+});
+floorSeg.firstChild.classList.add('primary');
+
+// camera presets
+document.querySelectorAll('[data-cam]').forEach(btn=>btn.addEventListener('click',()=>{
+  const m=btn.dataset.cam;
+  controls.target.set(0,7,0);
+  if(m==='iso') camera.position.set(34,26,40);
+  if(m==='front') camera.position.set(0,9,46);
+  if(m==='top') camera.position.set(0.1,60,0.1);
+}));
+
+/* ============================================================================
+   UI WIRING — panels, hero creator
+   ============================================================================ */
+function show(id){ document.getElementById(id).classList.add('show'); }
+function hide(id){ document.getElementById(id).classList.remove('show'); }
+document.querySelectorAll('[data-close]').forEach(b=>b.addEventListener('click',()=>{
+  const t=b.getAttribute('data-close');
+  const el=document.getElementById(t);
+  if(el.classList.contains('overlay')) hide(t); else el.style.display='none';
+}));
+document.getElementById('btnView').addEventListener('click',()=>{
+  const p=document.getElementById('viewPanel'); p.style.display = p.style.display==='none'?'flex':'none';
+});
+document.getElementById('btnRoster').addEventListener('click',()=>{
+  const p=document.getElementById('rosterPanel'); p.style.display = p.style.display==='none'?'flex':'none';
+});
+document.getElementById('btnHelp').addEventListener('click',()=>show('helpOverlay'));
+document.getElementById('btnNewHero').addEventListener('click',openCreator);
+
+/* palettes */
+const SKIN=['#f3d3b8','#e8b78f','#c98a5e','#9c6b43','#6e4a2f','#f7e0c8'];
+const SHIRT=['#5b8cff','#ff6b6b','#37c98a','#ffce6b','#b06bff','#ffffff','#222831','#ff8fc7'];
+const PANTS=['#2c3550','#5a4632','#333a44','#6b3a3a','#1f6b4f','#7a7f8c','#101522'];
+const HAIR=['#2a1c12','#5a3a1e','#a86b2d','#d9b36b','#9c9c9c','#1a1a22','#7a2f2f'];
+
+let creator={ shape:'average', skin:SKIN[0], shirt:SHIRT[0], pants:PANTS[0], hair:HAIR[0] };
+
+function buildColorRow(id, arr, key){
+  const row=document.getElementById(id); row.innerHTML='';
+  arr.forEach((c,i)=>{
+    const d=document.createElement('div'); d.className='c'+(creator[key]===c?' sel':''); d.style.background=c;
+    d.addEventListener('click',()=>{ creator[key]=c; [...row.children].forEach(x=>x.classList.remove('sel')); d.classList.add('sel'); updatePreview(); });
+    row.appendChild(d);
+  });
+}
+function buildBodyChips(){
+  const wrap=document.getElementById('bodyChips'); wrap.innerHTML='';
+  Object.entries(BODY_SHAPES).forEach(([k,v])=>{
+    const d=document.createElement('div'); d.className='chip'+(creator.shape===k?' sel':''); d.textContent=v.label;
+    d.addEventListener('click',()=>{ creator.shape=k; [...wrap.children].forEach(x=>x.classList.remove('sel')); d.classList.add('sel');
+      document.getElementById('hHeight').value=v.height; document.getElementById('hGirth').value=v.girth; updatePreview(); });
+    wrap.appendChild(d);
+  });
+}
+function fillHomes(){
+  const sel=document.getElementById('hHome'); sel.innerHTML='';
+  const rnd=document.createElement('option'); rnd.value=''; rnd.textContent='🎲 Random flat'; sel.appendChild(rnd);
+  apartments.forEach(a=>{ const o=document.createElement('option'); o.value=a.name; o.textContent=`Floor ${a.floor+1} · ${a.name}`; sel.appendChild(o); });
+}
+
+/* hero preview mini-scene */
+let pvRenderer,pvScene,pvCam,pvMesh,pvReady=false;
+function initPreview(){
+  const cv=document.getElementById('heroPreview');
+  pvRenderer=new THREE.WebGLRenderer({canvas:cv,antialias:true,alpha:true});
+  pvRenderer.setPixelRatio(Math.min(devicePixelRatio,2));
+  pvRenderer.setSize(cv.clientWidth,cv.clientHeight,false);
+  pvScene=new THREE.Scene();
+  pvCam=new THREE.PerspectiveCamera(40,cv.clientWidth/cv.clientHeight,0.1,20);
+  pvCam.position.set(0,1.1,3.4); pvCam.lookAt(0,0.9,0);
+  pvScene.add(new THREE.HemisphereLight(0xffffff,0x444466,1.4));
+  const dl=new THREE.DirectionalLight(0xffffff,1.4); dl.position.set(2,4,3); pvScene.add(dl);
+  pvReady=true;
+  (function loop(){ if(pvMesh) pvMesh.rotation.y+=0.012; pvRenderer.render(pvScene,pvCam); requestAnimationFrame(loop);})();
+}
+function currentCfg(){
+  return {
+    name:document.getElementById('hName').value.trim()||randomName(),
+    shape:creator.shape,
+    girth:parseFloat(document.getElementById('hGirth').value),
+    height:parseFloat(document.getElementById('hHeight').value),
+    heightScale:parseFloat(document.getElementById('hHeight').value),
+    skin:creator.skin, shirt:creator.shirt, pants:creator.pants, hair:creator.hair,
+    hat:document.getElementById('hHat').value,
+    speed:parseFloat(document.getElementById('hSpeed').value),
+    persona:document.getElementById('hPersona').value.trim(),
+    temper:parseFloat(document.getElementById('hTemper').value),
+    home:document.getElementById('hHome').value,
+    api:{
+      enabled:document.getElementById('apiEnabled').checked,
+      endpoint:document.getElementById('apiEndpoint').value.trim(),
+      model:document.getElementById('apiModel').value.trim(),
+      key:document.getElementById('apiKey').value.trim(),
+      instr:document.getElementById('apiInstr').value.trim(),
+    }
+  };
+}
+function updatePreview(){
+  if(!pvReady) return;
+  if(pvMesh){ pvScene.remove(pvMesh); }
+  const cfg=currentCfg();
+  pvMesh=buildHeroMesh(cfg); pvMesh.position.y=0; pvScene.add(pvMesh);
+}
+['hHeight','hGirth','hHat','hName'].forEach(id=>document.getElementById(id).addEventListener('input',updatePreview));
+document.getElementById('apiEnabled').addEventListener('change',e=>{
+  document.getElementById('apiFields').style.opacity=e.target.checked?'1':'.5';
+});
+
+function openCreator(){
+  buildColorRow('skinRow',SKIN,'skin'); buildColorRow('shirtRow',SHIRT,'shirt');
+  buildColorRow('pantsRow',PANTS,'pants'); buildColorRow('hairRow',HAIR,'hair');
+  buildBodyChips(); fillHomes();
+  document.getElementById('hName').value='';
+  show('heroOverlay');
+  setTimeout(()=>{ if(!pvReady) initPreview(); updatePreview(); },60);
+}
+
+/* review step */
+document.getElementById('hCreate').addEventListener('click',()=>{
+  const cfg=currentCfg(); pendingCfg=cfg;
+  const apiLine = cfg.api.enabled
+    ? `<span class="pill live">NVIDIA API</span> ${escapeHtml(cfg.api.model||'model?')} ${cfg.api.key?'· key set':'· <b style="color:var(--warn)">no key (offline fallback)</b>'}`
+    : `<span class="pill">Offline persona engine</span>`;
+  document.getElementById('reviewBody').innerHTML=`
+    <div class="heroCard" style="margin-bottom:14px">
+      <div class="sw" style="background:${cfg.shirt}"></div>
+      <div class="meta"><b>${escapeHtml(cfg.name)}</b>
+        <span>${BODY_SHAPES[cfg.shape].label} · home: ${escapeHtml(cfg.home||'random flat')}</span></div>
+    </div>
+    <div class="field"><label>Personality</label><div class="note" style="font-size:13px;color:var(--txt)">${escapeHtml(cfg.persona||'—')}</div></div>
+    <div class="field"><label>Temper</label><div class="note" style="font-size:13px;color:var(--txt)">${Math.round(cfg.temper*100)}/100</div></div>
+    <div class="field"><label>Dialogue engine</label><div>${apiLine}</div></div>
+    ${cfg.api.enabled&&cfg.api.instr?`<div class="field"><label>Custom API instructions</label><div class="note" style="font-size:13px;color:var(--txt)">${escapeHtml(cfg.api.instr)}</div></div>`:''}
+  `;
+  hide('heroOverlay'); show('reviewOverlay');
+});
+let pendingCfg=null;
+document.getElementById('hConfirm').addEventListener('click',()=>{
+  if(!pendingCfg) return;
+  const h=spawnHero(pendingCfg);
+  hide('reviewOverlay');
+  showToast(`🚪 ${pendingCfg.name} moved into ${h.apt.name}`);
+  pendingCfg=null;
+});
+
+/* quick spawn 3 */
+document.getElementById('btnSpawn3').addEventListener('click',()=>{
+  const presets=[
+    {name:'Mr. Grumbles',shape:'heavy',shirt:'#222831',pants:'#101522',hair:'#9c9c9c',persona:'Retired sergeant. Short fuse, hates noise and clutter. Always thinks he is right.',temper:0.85},
+    {name:'Luna',shape:'slim',shirt:'#ff8fc7',pants:'#2c3550',hair:'#7a2f2f',persona:'Cheerful art student. Sweet, chatty, a little messy, avoids conflict.',temper:0.2},
+    {name:'Mrs. Petrova',shape:'average',shirt:'#b06bff',pants:'#6b3a3a',hair:'#2a1c12',persona:'Dramatic ex-opera singer. Nosy, loves gossip, holds grudges, easily offended.',temper:0.7},
+  ];
+  presets.forEach((p,i)=>{
+    const apt=apartments[(i*4)%apartments.length];
+    spawnHero({ name:p.name, shape:p.shape, girth:BODY_SHAPES[p.shape].girth, height:BODY_SHAPES[p.shape].height,
+      heightScale:BODY_SHAPES[p.shape].height, skin:SKIN[i%SKIN.length], shirt:p.shirt, pants:p.pants, hair:p.hair,
+      hat:'none', speed:1, persona:p.persona, temper:p.temper, home:apt.name,
+      api:{enabled:false,endpoint:'',model:'',key:'',instr:''} });
+  });
+  showToast('🎲 Three neighbors moved in — watch the hallways!');
+});
+
+/* roster */
+function refreshRoster(){
+  const list=document.getElementById('rosterList');
+  if(!heroes.length){ list.innerHTML='<div class="empty">No neighbors yet.<br>Tap <b>＋ New neighbor</b> to create a hero.</div>'; return; }
+  list.innerHTML='';
+  heroes.forEach(h=>{
+    const card=document.createElement('div'); card.className='heroCard';
+    card.innerHTML=`<div class="sw" style="background:${h.cfg.shirt}"></div>
+      <div class="meta"><b>${escapeHtml(h.cfg.name)}</b>
+        <span>${escapeHtml(h.apt.name)} · temper ${Math.round(h.temper*100)}</span>
+        <span class="api">${h.api?.enabled?'🔌 NVIDIA API':'🗣️ offline persona'}</span></div>`;
+    card.addEventListener('click',()=>{ focusHero(h); });
+    list.appendChild(card);
+  });
+}
+function focusHero(h){
+  const p=h.mesh.position.clone().add(buildingRoot.position);
+  controls.target.copy(p).add(new THREE.Vector3(0,1,0));
+  const off=new THREE.Vector3(6,4,6); camera.position.copy(p).add(off);
+}
+
+/* helpers */
+function escapeHtml(s){ return String(s).replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c])); }
+function clip(s,n){ return s.length>n? s.slice(0,n-1)+'…': s; }
+const NAMES=['Ivan','Maria','Tom','Yuki','Carlos','Nadia','Otto','Priya','Bjorn','Lena','Sam','Zoe','Hassan','Greta','Kofi','Mei'];
+const SUR=['Petrov','Kowalski','Hansen','Reyes','Okafor','Tanaka','Müller','Singh','Costa','Ahmadi'];
+function randomName(){ return NAMES[Math.floor(Math.random()*NAMES.length)]+' '+SUR[Math.floor(Math.random()*SUR.length)]; }
+
+let toastT;
+function showToast(msg){ const t=document.getElementById('toast'); t.textContent=msg; t.classList.add('show'); clearTimeout(toastT); toastT=setTimeout(()=>t.classList.remove('show'),2600); }
+
+/* tap a neighbor in 3D to follow */
+const ray=new THREE.Raycaster(); const ndc=new THREE.Vector2();
+renderer.domElement.addEventListener('pointerdown',ev=>{
+  if(ev.target!==renderer.domElement) return;
+  ndc.x=(ev.clientX/innerWidth)*2-1; ndc.y=-(ev.clientY/innerHeight)*2+1;
+  ray.setFromCamera(ndc,camera);
+  const meshes=heroes.map(h=>h.mesh);
+  const hit=ray.intersectObjects(meshes,true)[0];
+  if(hit){ let o=hit.object; while(o&&!heroes.find(h=>h.mesh===o)) o=o.parent;
+    const h=heroes.find(x=>x.mesh===o); if(h) focusHero(h); }
+});
+
+/* resize */
+addEventListener('resize',()=>{
+  camera.aspect=innerWidth/innerHeight; camera.updateProjectionMatrix();
+  renderer.setSize(innerWidth,innerHeight);
+});
+
+/* ============================================================================
+   GO
+   ============================================================================ */
+applyExplode();
+tick();
+setTimeout(()=>{ document.getElementById('loader').style.opacity='0';
+  setTimeout(()=>document.getElementById('loader').style.display='none',500); }, 700);
+
+// expose a tiny debug handle
+window.COOP={heroes,apartments,scene,camera,controls,buildingRoot};
+</script>
+</body>
+</html>
