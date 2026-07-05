@@ -1,0 +1,55 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no">
+<title>Vitosha Grove Residences — Interactive 3D</title>
+<style>
+  html,body{margin:0;padding:0;height:100%;overflow:hidden;background:#0d1117;font-family:'Segoe UI',system-ui,-apple-system,Roboto,Helvetica,Arial,sans-serif;}
+  #c{display:block;width:100%;height:100%;touch-action:none;}
+  #hud{position:fixed;top:0;left:0;right:0;padding:10px 14px;display:flex;flex-direction:column;gap:4px;pointer-events:none;z-index:5;}
+  #hud h1{margin:0;font-size:15px;letter-spacing:.14em;text-transform:uppercase;color:#fff;text-shadow:0 1px 8px rgba(0,0,0,.6);font-weight:600;}
+  #hud p{margin:0;font-size:11px;color:rgba(255,255,255,.75);text-shadow:0 1px 6px rgba(0,0,0,.6);}
+  #bar{position:fixed;left:0;right:0;bottom:0;display:flex;flex-wrap:wrap;gap:6px;justify-content:center;padding:10px 8px calc(10px + env(safe-area-inset-bottom));z-index:5;background:linear-gradient(to top,rgba(8,10,14,.55),transparent);}
+  .btn{pointer-events:auto;border:1px solid rgba(255,255,255,.25);background:rgba(16,20,26,.62);color:#eef2f5;font-size:12px;padding:9px 13px;border-radius:20px;cursor:pointer;backdrop-filter:blur(6px);-webkit-backdrop-filter:blur(6px);user-select:none;-webkit-user-select:none;transition:background .15s,border-color .15s;}
+  .btn:active,.btn.on{background:rgba(212,164,90,.85);border-color:#e8c48a;color:#14100a;}
+  #load{position:fixed;inset:0;background:#0d1117;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:14px;z-index:20;color:#cfd6dd;font-size:13px;letter-spacing:.06em;transition:opacity .5s;}
+  #load .ring{width:44px;height:44px;border-radius:50%;border:3px solid rgba(255,255,255,.15);border-top-color:#d4a45a;animation:spin 1s linear infinite;}
+  @keyframes spin{to{transform:rotate(360deg)}}
+  #err{position:fixed;left:10px;right:10px;top:10px;z-index:30;background:rgba(120,20,20,.92);color:#fff;font-size:12px;padding:10px 12px;border-radius:8px;display:none;white-space:pre-wrap;}
+</style>
+</head>
+<body>
+<canvas id="c"></canvas>
+<div id="hud">
+  <h1>Vitosha Grove Residences</h1>
+  <p>Drag to orbit &nbsp;·&nbsp; pinch / scroll to zoom &nbsp;·&nbsp; two-finger drag to pan</p>
+</div>
+<div id="bar">
+  <button class="btn" data-view="aerial">Aerial</button>
+  <button class="btn" data-view="courtyard">Courtyard</button>
+  <button class="btn" data-view="facade">Facade</button>
+  <button class="btn" data-view="boulevard">Boulevard</button>
+  <button class="btn" data-view="penthouse">Penthouse</button>
+  <button class="btn" id="tglSun">Golden hour</button>
+  <button class="btn" id="tglOrbit">Auto-orbit</button>
+</div>
+<div id="load"><div class="ring"></div><div>Building the residence…</div></div>
+<div id="err"></div>
+
+
+<script>
+  window.addEventListener('error', function(e){
+    var el=document.getElementById('err'); el.style.display='block';
+    el.textContent='Error: '+(e.message||e.type)+(e.filename?('\n'+e.filename+':'+e.lineno):'');
+  });
+  window.addEventListener('unhandledrejection', function(e){
+    var el=document.getElementById('err'); el.style.display='block';
+    el.textContent='Error: '+(e.reason&&e.reason.message?e.reason.message:String(e.reason));
+  });
+</script>
+<script>
+/*BUNDLE*/
+</script>
+</body>
+</html>
