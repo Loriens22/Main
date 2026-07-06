@@ -1,0 +1,101 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1" />
+<title>LUXORA Residences — Photoreal 3D Complex</title>
+<style>
+  * { margin:0; padding:0; box-sizing:border-box; }
+  html,body { width:100%; height:100%; overflow:hidden; background:#0b0f14;
+    font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,Helvetica,Arial,sans-serif; }
+  #scene { position:fixed; inset:0; display:block; width:100%; height:100%; }
+
+  /* ---------- loading overlay ---------- */
+  #overlay { position:fixed; inset:0; z-index:50; display:flex; align-items:center; justify-content:center;
+    background:radial-gradient(circle at 50% 40%, #16202b, #080b10 75%); color:#e8eef4; transition:opacity .6s ease; }
+  #overlay.hidden { opacity:0; pointer-events:none; }
+  .load { text-align:center; }
+  .load h1 { font-weight:600; letter-spacing:.35em; font-size:22px; margin-bottom:6px; }
+  .load .sub { letter-spacing:.28em; font-size:11px; color:#7d95a8; margin-bottom:26px; text-transform:uppercase; }
+  .spinner { width:46px; height:46px; margin:0 auto 18px; border:3px solid rgba(255,255,255,.14);
+    border-top-color:#8fd0c0; border-radius:50%; animation:spin 1s linear infinite; }
+  @keyframes spin { to { transform:rotate(360deg); } }
+  #loadmsg { font-size:12px; color:#93a7b8; letter-spacing:.06em; }
+  .err { max-width:680px; padding:24px; text-align:left; }
+  .err h2 { color:#ff8a7a; margin-bottom:12px; }
+  .err pre { white-space:pre-wrap; font-size:12px; color:#cbd6df; background:#0d1218; padding:14px; border-radius:8px; }
+
+  /* ---------- HUD / controls ---------- */
+  #ui { position:fixed; z-index:20; inset:auto auto 18px 18px; display:flex; flex-direction:column; gap:12px; }
+  #ui.hidden { display:none; }
+  .panel { background:rgba(16,22,30,.62); backdrop-filter:blur(14px) saturate(140%);
+    -webkit-backdrop-filter:blur(14px) saturate(140%); border:1px solid rgba(255,255,255,.10);
+    border-radius:14px; padding:14px 16px; color:#dfe8ef; box-shadow:0 10px 40px rgba(0,0,0,.4); }
+  .brand { position:fixed; top:18px; left:20px; z-index:20; color:#eef4f8; text-shadow:0 2px 18px rgba(0,0,0,.6); }
+  .brand h1 { font-size:19px; font-weight:600; letter-spacing:.32em; }
+  .brand p { font-size:10.5px; letter-spacing:.26em; color:#9fb4c4; text-transform:uppercase; margin-top:3px; }
+  .grp-title { font-size:10px; letter-spacing:.16em; text-transform:uppercase; color:#8ba1b2; margin-bottom:9px; }
+  .views { display:grid; grid-template-columns:repeat(2,1fr); gap:7px; }
+  button.view, .tbtn { appearance:none; cursor:pointer; font-size:12px; color:#dbe6ee; letter-spacing:.04em;
+    background:rgba(255,255,255,.06); border:1px solid rgba(255,255,255,.12); border-radius:9px; padding:8px 10px;
+    transition:all .18s ease; }
+  button.view:hover, .tbtn:hover { background:rgba(143,208,192,.22); border-color:rgba(143,208,192,.5); }
+  button.view.active { background:rgba(143,208,192,.32); border-color:#8fd0c0; color:#fff; }
+  .row { display:flex; align-items:center; gap:10px; margin-top:11px; font-size:11.5px; color:#b9cad6; }
+  .row label { min-width:52px; letter-spacing:.05em; }
+  input[type=range] { flex:1; accent-color:#8fd0c0; height:3px; }
+  .toggles { display:flex; gap:8px; margin-top:11px; }
+  .chk { display:flex; align-items:center; gap:7px; font-size:11.5px; color:#c3d2dd; cursor:pointer; }
+  #fps { position:fixed; top:16px; right:18px; z-index:20; font-size:11px; letter-spacing:.08em; color:#9fb4c4;
+    background:rgba(16,22,30,.5); padding:5px 10px; border-radius:8px; border:1px solid rgba(255,255,255,.08); }
+  .hint { position:fixed; bottom:16px; right:18px; z-index:20; font-size:10.5px; color:#8298a8; letter-spacing:.05em;
+    background:rgba(16,22,30,.42); padding:6px 11px; border-radius:8px; }
+  @media (max-width:640px){ .brand h1{font-size:15px;} #ui{left:10px;bottom:10px;} .panel{padding:11px 12px;} }
+</style>
+</head>
+<body>
+  <canvas id="scene"></canvas>
+
+  <div class="brand">
+    <h1>LUXORA</h1>
+    <p>Residences · Vitosha Park</p>
+  </div>
+
+  <div id="fps">— fps</div>
+
+  <div id="overlay">
+    <div class="load">
+      <div class="spinner"></div>
+      <h1>LUXORA</h1>
+      <div class="sub">Residences</div>
+      <div id="loadmsg">Preparing renderer…</div>
+    </div>
+  </div>
+
+  <div id="ui" class="hidden">
+    <div class="panel">
+      <div class="grp-title">Camera Views</div>
+      <div class="views">
+        <button class="view active" data-view="aerial">Aerial Drone</button>
+        <button class="view" data-view="courtyard">Courtyard</button>
+        <button class="view" data-view="facade">Facade Detail</button>
+        <button class="view" data-view="penthouse">Penthouse</button>
+        <button class="view" data-view="street">Boulevard</button>
+      </div>
+      <div class="toggles">
+        <button class="tbtn" id="dayBtn">☀ Midday</button>
+        <button class="tbtn" id="goldenBtn">🌅 Golden Hour</button>
+      </div>
+      <div class="row"><label>Sun elev</label><input id="sunEl" type="range" min="3" max="80" value="34" step="1"></div>
+      <div class="row"><label>Sun dir</label><input id="sunAz" type="range" min="0" max="360" value="148" step="1"></div>
+      <div class="toggles">
+        <label class="chk"><input type="checkbox" id="rotate"> Auto-orbit</label>
+      </div>
+    </div>
+  </div>
+
+  <div class="hint">Drag to orbit · Scroll to zoom · Right-drag to pan</div>
+
+<script>/*__BUNDLE__*/</script>
+</body>
+</html>
