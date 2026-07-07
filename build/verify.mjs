@@ -65,29 +65,7 @@ const diag = await page.evaluate(() => {
   };
 });
 
-// screenshots of a few views
-async function shot(viewName, name) {
-  await page.evaluate(v => {
-    const V = window.__VIEWS[v];
-    window.__setView(V.pos, V.tgt);
-  }, viewName);
-  await page.waitForTimeout(400);
-  await page.evaluate(() => window.__cam && window.__setView(
-    [window.__cam.position.x, window.__cam.position.y, window.__cam.position.z],
-    [window.__ctrl.target.x, window.__ctrl.target.y, window.__ctrl.target.z]));
-  await page.screenshot({ path: resolve(__dirname, name) });
-}
-await shot('aerial', 'shot_aerial.png');
-await shot('courtyard', 'shot_courtyard.png');
-await shot('facade', 'shot_facade.png');
-await shot('penthouse', 'shot_penthouse.png');
-await shot('street', 'shot_street.png');
-// golden hour
-await page.evaluate(() => window.__setSun(7, 108));
-await page.waitForTimeout(300);
-await shot('aerial', 'shot_golden.png');
-await page.evaluate(() => window.__setSun(34, 148));
-
+// ---- print the health report FIRST (before slow software-rendered shots) ----
 console.log('\n================ VERIFY REPORT ================');
 console.log('overlay dismissed :', overlayHidden);
 console.log('diag              :', JSON.stringify(diag, null, 2));
@@ -96,6 +74,24 @@ logs.slice(0, 40).forEach(l => console.log('   ', l));
 console.log('errors            :', errors.length);
 errors.forEach(e => console.log('   ', e));
 console.log('==============================================\n');
+
+// screenshots of a few views (best-effort; software render can be slow)
+async function shot(viewName, name) {
+  try {
+    await page.evaluate(v => { const V = window.__VIEWS[v]; window.__setView(V.pos, V.tgt); }, viewName);
+    await page.waitForTimeout(500);
+    await page.screenshot({ path: resolve(__dirname, name), timeout: 120000 });
+    console.log('  shot', name);
+  } catch (e) { console.log('  shot FAILED', name, e.message); }
+}
+await shot('aerial', 'shot_aerial.png');
+await shot('courtyard', 'shot_courtyard.png');
+await shot('facade', 'shot_facade.png');
+await shot('penthouse', 'shot_penthouse.png');
+await shot('street', 'shot_street.png');
+await page.evaluate(() => window.__setSun(7, 108));
+await shot('aerial', 'shot_golden.png');
+await page.evaluate(() => window.__setSun(34, 148));
 
 await browser.close();
 const ok = overlayHidden && diag.hasWebGL && !diag.errShown && errors.length === 0;

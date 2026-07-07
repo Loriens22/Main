@@ -108,8 +108,7 @@ export function buildLandscape(scene, M, layout) {
 
   // ---------- trees (instanced trunks + canopies) ----------
   const treePos = [];
-  // courtyard trees — young & modest so they don't hide the landscaping
-  for (let i = 0; i < 13; i++) treePos.push([-23 + rand() * 46, -15 + rand() * 20, 0.95 + rand() * 0.8, (rand() * 3) | 0]);
+  // (courtyard trees are now detailed hero trees supplied by complex.js)
   // boulevard rows
   const bl = layout.boulevardZ;
   for (let x = -70; x <= 70; x += 9) {

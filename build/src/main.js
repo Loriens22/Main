@@ -6,7 +6,7 @@ import * as THREE from 'three';
 import { OrbitControls } from 'three/examples/jsm/controls/OrbitControls.js';
 import { Sky } from 'three/examples/jsm/objects/Sky.js';
 import { createMaterials } from './materials.js';
-import { Complex } from './building.js';
+import { ComplexBuilder } from './complex.js';
 import { buildLandscape } from './landscape.js';
 
 const CONFIG = { boulevardZ: 34 };
@@ -56,9 +56,9 @@ function init() {
   scene.add(sky);
   sun = new THREE.Vector3();
 
-  hemi = new THREE.HemisphereLight(0xbcd9ff, 0x6a6250, 0.55);
+  hemi = new THREE.HemisphereLight(0xbcd9ff, 0x6a6250, 0.7);
   scene.add(hemi);
-  const amb = new THREE.AmbientLight(0xffffff, 0.12);
+  const amb = new THREE.AmbientLight(0xffffff, 0.16);
   scene.add(amb);
 
   sunLight = new THREE.DirectionalLight(0xfff2df, 3.2);
@@ -127,7 +127,7 @@ function setSun(elevationDeg, azimuthDeg) {
   const warm = THREE.MathUtils.clamp((22 - elevationDeg) / 22, 0, 1);
   sunLight.color.setRGB(1.0, 0.95 - warm * 0.18, 0.87 - warm * 0.32);
   sunLight.intensity = 3.4 - warm * 1.3;
-  hemi.intensity = 0.55 - warm * 0.2;
+  hemi.intensity = 0.72 - warm * 0.22;
   if (scene.fog) scene.fog.color.setHSL(0.58, 0.28, 0.72 - warm * 0.25);
 
   // rebuild environment reflections from the current sky
@@ -152,7 +152,7 @@ function refreshEnv() {
 }
 
 function buildComplex() {
-  const c = new Complex(materials);
+  const c = new ComplexBuilder(materials);
 
   // North wing (back, longest, 6 storeys + wood penthouse) faces south (+Z)
   c.wing({
@@ -174,6 +174,15 @@ function buildComplex() {
     bays: 10, bayWidth: 3.55, floors: 5, depth: 12, groundH: 4.2, floorH: 3.25,
     penthouse: true, penthouseAt: 5, entrance: true, seed: 33
   });
+
+  // hero courtyard trees (kept modest & toward the edges so paths stay visible)
+  c.courtyard([
+    [-20, -14, 4.5, 1], [-2, -16, 4, 0], [16, -15, 4.8, 2],
+    [-22, -3, 4.2, 0], [22, -2, 4.5, 1], [-18, 7, 4, 2],
+    [18, 7, 4.3, 0], [0, -9, 5, 2], [8, 4, 4, 1], [-9, 5, 4.2, 0]
+  ]);
+  c.benches([[-10, 3, 0.4], [6, -4, -0.6], [-16, -9, 1.1], [16, 2, 2.4], [0, 7, 0]]);
+  c.bollards([[-12, -2], [-2, -8], [8, -4], [12, 4], [-6, 5], [2, -14]]);
 
   const grp = c.finalize();
   scene.add(grp);

@@ -111,7 +111,7 @@ export function createMaterials() {
 
   M.interiorGlow = new THREE.MeshStandardMaterial({
     map: interior, emissive: 0xffe6bc, emissiveMap: interior,
-    emissiveIntensity: 0.5, roughness: 0.9, metalness: 0.0
+    emissiveIntensity: 1.15, roughness: 0.9, metalness: 0.0
   });
 
   M.lawn = new THREE.MeshStandardMaterial({
@@ -127,8 +127,8 @@ export function createMaterials() {
   paving.normalMap.wrapS = paving.normalMap.wrapT = THREE.RepeatWrapping;
 
   M.darkStone = new THREE.MeshStandardMaterial({
-    map: darkStone.map, normalMap: darkStone.normalMap, color: 0x6a6d73,
-    roughness: 0.8, metalness: 0.12, envMapIntensity: 0.5
+    map: darkStone.map, normalMap: darkStone.normalMap, color: 0x8f8880,
+    roughness: 0.8, metalness: 0.1, envMapIntensity: 0.55
   });
 
   M.gabion = new THREE.MeshStandardMaterial({
