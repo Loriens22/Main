@@ -16,6 +16,8 @@
   #load{position:fixed;inset:0;background:#0d1117;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:14px;z-index:20;color:#cfd6dd;font-size:13px;letter-spacing:.06em;transition:opacity .5s;}
   #load .ring{width:44px;height:44px;border-radius:50%;border:3px solid rgba(255,255,255,.15);border-top-color:#d4a45a;animation:spin 1s linear infinite;}
   @keyframes spin{to{transform:rotate(360deg)}}
+  #dpad{position:fixed;left:14px;bottom:96px;display:none;flex-direction:column;gap:10px;z-index:6;}
+  .pad{width:58px;height:58px;border-radius:50%;font-size:17px;padding:0;}
   #err{position:fixed;left:10px;right:10px;top:10px;z-index:30;background:rgba(120,20,20,.92);color:#fff;font-size:12px;padding:10px 12px;border-radius:8px;display:none;white-space:pre-wrap;}
 </style>
 </head>
@@ -31,10 +33,13 @@
   <button class="btn" data-view="facade">Facade</button>
   <button class="btn" data-view="boulevard">Boulevard</button>
   <button class="btn" data-view="penthouse">Penthouse</button>
+  <button class="btn" data-view="interior">Inside</button>
   <button class="btn" id="tglSun">Golden hour</button>
   <button class="btn" id="tglOrbit">Auto-orbit</button>
   <button class="btn" id="tglFx">FX</button>
+  <button class="btn" id="tglWalk">Walk</button>
 </div>
+<div id="dpad"><button class="btn pad" id="padF">&#9650;</button><button class="btn pad" id="padB">&#9660;</button></div>
 <div id="load"><div class="ring"></div><div>Building the residence…</div></div>
 <div id="err"></div>
 
@@ -42,7 +47,7 @@
 <script>
   window.addEventListener('error', function(e){
     var el=document.getElementById('err'); el.style.display='block';
-    el.textContent='Error: '+(e.message||e.type)+(e.filename?('\n'+e.filename+':'+e.lineno):'');
+    el.textContent='Error: '+(e.message||e.type)+(e.filename?(' @ '+e.filename+':'+e.lineno):'');
   });
   window.addEventListener('unhandledrejection', function(e){
     var el=document.getElementById('err'); el.style.display='block';
