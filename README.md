@@ -13,7 +13,16 @@ needed; open it in any modern browser (phone or desktop).
 
 Controls: drag to orbit, pinch/scroll to zoom, two-finger drag to pan.
 Buttons: Aerial / Courtyard / Facade / Boulevard / Penthouse camera views,
-Golden hour ↔ Midday lighting toggle, Auto-orbit.
+Golden hour <-> Midday lighting toggle, Auto-orbit, FX (bloom post-processing).
+
+Realism features: procedural normal maps on every material, image-based
+lighting rendered from the live sky (reflections follow the lighting mode),
+HDR bloom + MSAA post pipeline, recessed glazing with jamb reveals + sills +
+blinds, true 3D railing bars and glass balustrades, sculpted extruded car
+bodies with spinning wheels, articulated people, noise-displaced organic
+tree canopies with wind sway, 3D noise-displaced mountain terrain with
+altitude-based coloring, ballistic fountain particles, animated water
+ripples, street lamps with light pools and a string-light pergola at dusk.
 
 ## Rebuilding from source
 
