@@ -1,0 +1,1515 @@
+<!DOCTYPE html>
+<html lang="en" data-theme="dark">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+<title>Fantastico — Freshness Reimagined | Dragalevtsi, Sofia</title>
+<meta name="description" content="Fantastico Dragalevtsi — an immersive virtual supermarket experience. Freshness Reimagined.">
+<!--
+  ═══════════════════════════════════════════════════════════════════════════
+  FANTASTICO — DRAGALEVTSI · VIRTUAL STORE EXPERIENCE
+  Single-file build · zero dependencies · vanilla JS + hand-crafted CSS/SVG
+  Dark liquid-glass aesthetic · cinematic entry · mobile-first
+  ═══════════════════════════════════════════════════════════════════════════
+  Every major visual element below carries an [AI-IMAGE-PROMPT] comment so a
+  designer can swap the hand-built SVG/CSS art for photoreal generated images.
+  ═══════════════════════════════════════════════════════════════════════════
+-->
+<style>
+/* ══════════════ DESIGN TOKENS ══════════════ */
+:root{
+  --bg:#070a12; --bg2:#0b1020; --ink:#eef2ff; --ink-dim:rgba(238,242,255,.62);
+  --glass:rgba(255,255,255,.055); --glass-strong:rgba(255,255,255,.09);
+  --stroke:rgba(255,255,255,.13); --stroke-soft:rgba(255,255,255,.07);
+  --red:#e8112d; --red-glow:#ff4d5e; --green:#3ddc84; --lime:#a3e635;
+  --orange:#ff9a3c; --blue:#4cc9f0; --violet:#a78bfa; --gold:#fbbf24;
+  --shadow:0 24px 60px -18px rgba(0,0,0,.65);
+  --r-lg:26px; --r-md:18px; --r-sm:12px;
+  --ease:cubic-bezier(.22,1,.36,1); --ease-cine:cubic-bezier(.65,0,.35,1);
+  --font:'Segoe UI',system-ui,-apple-system,'Helvetica Neue',Arial,sans-serif;
+}
+html[data-theme="light"]{
+  --bg:#f2f4fb; --bg2:#e8ecf7; --ink:#101528; --ink-dim:rgba(16,21,40,.62);
+  --glass:rgba(255,255,255,.55); --glass-strong:rgba(255,255,255,.75);
+  --stroke:rgba(16,21,40,.12); --stroke-soft:rgba(16,21,40,.06);
+  --shadow:0 24px 60px -22px rgba(30,40,90,.28);
+}
+*{margin:0;padding:0;box-sizing:border-box}
+html{scroll-behavior:smooth}
+body{
+  font-family:var(--font); background:var(--bg); color:var(--ink);
+  overflow-x:hidden; -webkit-font-smoothing:antialiased;
+  transition:background .6s var(--ease), color .6s var(--ease);
+}
+body.locked{overflow:hidden;height:100vh}
+img,svg{max-width:100%;display:block}
+button{font-family:inherit;cursor:pointer;border:none;background:none;color:inherit}
+a{color:inherit;text-decoration:none}
+::selection{background:var(--red);color:#fff}
+h1,h2,h3,h4{font-weight:800;letter-spacing:-.02em}
+.glass{
+  background:var(--glass);
+  -webkit-backdrop-filter:blur(22px) saturate(150%);
+  backdrop-filter:blur(22px) saturate(150%);
+  border:1px solid var(--stroke); border-radius:var(--r-lg);
+}
+@media (prefers-reduced-motion:reduce){
+  *,*::before,*::after{animation-duration:.01ms!important;animation-iteration-count:1!important;transition-duration:.01ms!important}
+  html{scroll-behavior:auto}
+}
+
+/* ══════════════ AMBIENT BACKGROUND (whole site) ══════════════ */
+.ambient{position:fixed;inset:0;z-index:-2;pointer-events:none;overflow:hidden;
+  background:
+    radial-gradient(1200px 700px at 85% -10%, rgba(232,17,45,.14), transparent 60%),
+    radial-gradient(1000px 800px at -10% 40%, rgba(61,220,132,.10), transparent 60%),
+    radial-gradient(900px 700px at 60% 110%, rgba(76,201,240,.10), transparent 60%),
+    linear-gradient(180deg,var(--bg) 0%,var(--bg2) 100%);
+}
+.ambient .blob{position:absolute;border-radius:50%;filter:blur(90px);opacity:.35;animation:blobFloat 22s ease-in-out infinite alternate}
+.ambient .b1{width:44vw;height:44vw;left:-12vw;top:-8vw;background:radial-gradient(circle at 35% 35%,#e8112d55,transparent 65%)}
+.ambient .b2{width:38vw;height:38vw;right:-10vw;top:30vh;background:radial-gradient(circle at 60% 40%,#3ddc8444,transparent 65%);animation-delay:-8s}
+.ambient .b3{width:36vw;height:36vw;left:20vw;bottom:-14vw;background:radial-gradient(circle at 50% 50%,#4cc9f044,transparent 65%);animation-delay:-14s}
+@keyframes blobFloat{from{transform:translate(0,0) scale(1)}to{transform:translate(4vw,-3vw) scale(1.12)}}
+
+/* ══════════════════════════════════════════════════════════════
+   HERO — THE ENTRANCE
+   ══════════════════════════════════════════════════════════════ */
+#hero{position:fixed;inset:0;z-index:60;display:grid;place-items:center;overflow:hidden;
+  perspective:1200px; background:#05070e;
+  transition:opacity .9s var(--ease-cine) 1.15s, visibility 0s linear 2.1s;
+}
+#hero.gone{opacity:0;visibility:hidden;pointer-events:none}
+.hero-scene{position:absolute;inset:-6%;transform-style:preserve-3d;
+  transition:transform 2s var(--ease-cine), filter 2s var(--ease-cine);
+  will-change:transform,filter;
+}
+#hero.entering .hero-scene{transform:scale(7.5) translateY(9%);filter:blur(10px) brightness(2.2) saturate(1.4)}
+.layer{position:absolute;inset:0;will-change:transform}
+
+/* [AI-IMAGE-PROMPT · HERO BACKGROUND]
+   "Ultra-wide cinematic architectural photograph of the Fantastico supermarket
+   on Okolovrasten pat, Dragalevtsi, Sofia at blue hour dusk — bold red angular
+   facade, full-height glass curtain wall glowing with warm amber orb lights,
+   red ФАНТАСТИКО roof signage, snow-capped Vitosha mountain behind, wet asphalt
+   reflections, light car trails, volumetric dusk haze, 8k, photoreal,
+   anamorphic lens flare, shot on ARRI Alexa" */
+.sky{background:linear-gradient(180deg,#0a1230 0%,#1a2a5e 34%,#41498f 56%,#b06a8f 74%,#e8996b 88%,#f7c98b 100%)}
+.stars{position:absolute;inset:0;opacity:.8}
+.hero-svg{position:absolute;inset:0;width:100%;height:100%}
+.glow-window{animation:winFlicker 4s ease-in-out infinite}
+.glow-window:nth-child(3n){animation-delay:-1.3s}
+.glow-window:nth-child(4n){animation-delay:-2.6s}
+@keyframes winFlicker{0%,100%{opacity:.85}50%{opacity:1}}
+.haze{position:absolute;inset:0;background:radial-gradient(120% 60% at 50% 100%,rgba(247,201,139,.14),transparent 55%)}
+#heroParticles{position:absolute;inset:0;pointer-events:none}
+
+/* liquid-glass drifting shards over the hero */
+.shard{position:absolute;border-radius:38% 62% 55% 45%/48% 42% 58% 52%;
+  background:linear-gradient(135deg,rgba(255,255,255,.16),rgba(255,255,255,.02) 45%,rgba(120,200,255,.12));
+  border:1px solid rgba(255,255,255,.22);
+  -webkit-backdrop-filter:blur(6px) saturate(160%); backdrop-filter:blur(6px) saturate(160%);
+  box-shadow:inset 0 1px 12px rgba(255,255,255,.25), 0 20px 50px -20px rgba(0,0,0,.5);
+  animation:shardDrift 16s ease-in-out infinite alternate;
+}
+@keyframes shardDrift{
+  from{transform:translate(0,0) rotate(-6deg) scale(1)}
+  to{transform:translate(3vw,-4vh) rotate(8deg) scale(1.08)}
+}
+
+/* hero centre content */
+.hero-center{position:relative;z-index:5;text-align:center;display:flex;flex-direction:column;align-items:center;gap:clamp(14px,2.4vh,26px);padding:20px;
+  transition:opacity .7s var(--ease),transform .7s var(--ease)}
+#hero.entering .hero-center{opacity:0;transform:scale(1.35)}
+.hero-logo{display:flex;align-items:center;gap:16px;animation:riseIn 1.2s var(--ease) both .2s}
+.hero-logo svg{width:clamp(54px,8vw,84px);height:auto;filter:drop-shadow(0 0 26px rgba(232,17,45,.55))}
+.hero-word{font-size:clamp(2.4rem,7.5vw,5.4rem);font-weight:900;letter-spacing:.02em;line-height:1;
+  background:linear-gradient(115deg,#fff 20%,#ffd7dc 40%,#ff8f9d 55%,#fff 75%);
+  -webkit-background-clip:text;background-clip:text;-webkit-text-fill-color:transparent;
+  background-size:220% 100%;animation:sheen 5.5s ease-in-out infinite;
+  text-shadow:0 0 60px rgba(232,17,45,.001);
+}
+@keyframes sheen{0%,100%{background-position:0% 0}50%{background-position:100% 0}}
+.hero-tag{font-size:clamp(.95rem,2.4vw,1.35rem);letter-spacing:.42em;text-transform:uppercase;color:var(--ink-dim);animation:riseIn 1.2s var(--ease) both .45s}
+.hero-sub{font-size:clamp(.78rem,1.8vw,.95rem);color:rgba(238,242,255,.45);letter-spacing:.14em;animation:riseIn 1.2s var(--ease) both .6s}
+@keyframes riseIn{from{opacity:0;transform:translateY(26px)}to{opacity:1;transform:none}}
+
+/* THE ORB — liquid glass entry button */
+.orb-wrap{position:relative;margin-top:clamp(4px,2vh,18px);animation:riseIn 1.2s var(--ease) both .8s}
+.orb{position:relative;width:clamp(128px,20vmin,190px);height:clamp(128px,20vmin,190px);border-radius:50%;
+  display:grid;place-items:center;color:#fff;isolation:isolate;
+  background:radial-gradient(circle at 32% 28%,rgba(255,255,255,.55),rgba(255,255,255,.06) 34%,rgba(150,220,255,.10) 60%,rgba(232,17,45,.18) 100%);
+  border:1px solid rgba(255,255,255,.4);
+  -webkit-backdrop-filter:blur(14px) saturate(180%);backdrop-filter:blur(14px) saturate(180%);
+  box-shadow:inset 0 2px 18px rgba(255,255,255,.5),inset 0 -14px 30px rgba(76,201,240,.28),
+    0 0 0 1px rgba(255,255,255,.08),0 0 60px rgba(255,120,140,.35),0 0 140px rgba(76,201,240,.22),
+    0 30px 60px -20px rgba(0,0,0,.6);
+  animation:orbBreath 3.6s ease-in-out infinite;
+  transition:transform .5s var(--ease),box-shadow .5s var(--ease);
+}
+.orb:hover,.orb:focus-visible{transform:scale(1.07);box-shadow:inset 0 2px 22px rgba(255,255,255,.6),inset 0 -16px 34px rgba(76,201,240,.35),0 0 90px rgba(255,120,140,.55),0 0 190px rgba(76,201,240,.35),0 34px 70px -20px rgba(0,0,0,.65);outline:none}
+.orb:active{transform:scale(.96)}
+@keyframes orbBreath{0%,100%{transform:scale(1) translateY(0)}50%{transform:scale(1.035) translateY(-6px)}}
+.orb::before{content:"";position:absolute;inset:-14px;border-radius:50%;z-index:-1;
+  background:conic-gradient(from 0deg,#e8112d,#ff9a3c,#3ddc84,#4cc9f0,#a78bfa,#e8112d);
+  filter:blur(22px);opacity:.5;animation:spin 7s linear infinite}
+.orb::after{content:"";position:absolute;top:9%;left:16%;width:42%;height:26%;border-radius:50%;
+  background:linear-gradient(180deg,rgba(255,255,255,.85),rgba(255,255,255,0));transform:rotate(-18deg)}
+@keyframes spin{to{transform:rotate(360deg)}}
+.orb-label{font-size:clamp(.72rem,1.6vmin,.86rem);font-weight:800;letter-spacing:.28em;text-transform:uppercase;line-height:1.7;text-shadow:0 2px 14px rgba(0,0,0,.5)}
+.orb-label small{display:block;font-weight:400;letter-spacing:.18em;opacity:.75;font-size:.78em}
+.orb-ring{position:absolute;inset:-26px;border-radius:50%;border:1px dashed rgba(255,255,255,.28);animation:spin 26s linear infinite;pointer-events:none}
+.orb-ring.r2{inset:-44px;border-color:rgba(255,255,255,.14);animation-duration:44s;animation-direction:reverse}
+.hero-hint{margin-top:6px;font-size:.72rem;letter-spacing:.3em;text-transform:uppercase;color:rgba(238,242,255,.4);animation:hintPulse 2.4s ease-in-out infinite}
+@keyframes hintPulse{0%,100%{opacity:.35}50%{opacity:.85}}
+
+/* cinematic flash overlay for the fly-through */
+#flash{position:fixed;inset:0;z-index:70;pointer-events:none;opacity:0;
+  background:radial-gradient(circle at 50% 52%,#fff 0%,#ffe9d6 22%,rgba(255,160,120,.55) 45%,rgba(76,201,240,.25) 70%,transparent 100%)}
+#flash.on{animation:flashBurst 1.9s var(--ease-cine) forwards}
+@keyframes flashBurst{0%{opacity:0}42%{opacity:0}62%{opacity:1}100%{opacity:0}}
+.flare-line{position:fixed;z-index:71;top:50%;left:50%;width:2px;height:2px;border-radius:50%;pointer-events:none;
+  background:#fff;box-shadow:0 0 20px 6px #fff,0 0 60px 20px rgba(255,170,120,.8);opacity:0}
+#hero.entering ~ .flare-line{animation:flareShoot 1.5s var(--ease-cine) forwards}
+@keyframes flareShoot{0%{opacity:0;transform:translate(-50%,-50%) scale(.2)}55%{opacity:1}100%{opacity:0;transform:translate(-50%,-50%) translate(var(--fx),var(--fy)) scale(3)}}
+
+/* ══════════════════════════════════════════════════════════════
+   STORE SHELL (post-entry)
+   ══════════════════════════════════════════════════════════════ */
+#store{opacity:0;transform:translateY(30px) scale(.985);transition:opacity 1.1s var(--ease) .25s,transform 1.1s var(--ease) .25s}
+body.inside #store{opacity:1;transform:none}
+
+/* top navigation */
+#topbar{position:fixed;top:0;left:0;right:0;z-index:50;padding:10px clamp(10px,3vw,28px);
+  display:flex;align-items:center;gap:12px;
+  transform:translateY(-120%);transition:transform .9s var(--ease) .6s}
+body.inside #topbar{transform:none}
+.bar-inner{flex:1;display:flex;align-items:center;gap:clamp(8px,1.6vw,18px);padding:9px clamp(10px,1.8vw,18px);border-radius:999px;
+  background:var(--glass-strong);-webkit-backdrop-filter:blur(24px) saturate(160%);backdrop-filter:blur(24px) saturate(160%);
+  border:1px solid var(--stroke);box-shadow:var(--shadow)}
+.brand{display:flex;align-items:center;gap:9px;font-weight:900;font-size:1.02rem;letter-spacing:.02em;white-space:nowrap}
+.brand svg{width:30px;height:30px;filter:drop-shadow(0 0 10px rgba(232,17,45,.5))}
+.brand b{background:linear-gradient(100deg,var(--ink),var(--red-glow));-webkit-background-clip:text;background-clip:text;-webkit-text-fill-color:transparent}
+.chips{display:flex;gap:6px;overflow-x:auto;scrollbar-width:none;-ms-overflow-style:none;mask-image:linear-gradient(90deg,transparent,#000 4%,#000 96%,transparent)}
+.chips::-webkit-scrollbar{display:none}
+.chip{flex:0 0 auto;padding:7px 14px;border-radius:999px;font-size:.8rem;font-weight:700;letter-spacing:.02em;color:var(--ink-dim);
+  border:1px solid transparent;transition:all .35s var(--ease);white-space:nowrap}
+.chip:hover{color:var(--ink);background:var(--glass)}
+.chip.active{color:#fff;background:linear-gradient(120deg,var(--red),#ff5d3c);border-color:rgba(255,255,255,.25);box-shadow:0 6px 20px -6px rgba(232,17,45,.7)}
+.bar-actions{display:flex;align-items:center;gap:8px;margin-left:auto}
+.icon-btn{position:relative;width:40px;height:40px;border-radius:50%;display:grid;place-items:center;
+  background:var(--glass);border:1px solid var(--stroke);transition:all .3s var(--ease)}
+.icon-btn:hover{transform:translateY(-2px);background:var(--glass-strong);box-shadow:0 8px 22px -8px rgba(0,0,0,.5)}
+.icon-btn svg{width:18px;height:18px;stroke:currentColor}
+.cart-badge{position:absolute;top:-4px;right:-4px;min-width:19px;height:19px;padding:0 5px;border-radius:999px;
+  background:linear-gradient(120deg,var(--red),#ff5d3c);color:#fff;font-size:.66rem;font-weight:800;
+  display:grid;place-items:center;box-shadow:0 4px 12px rgba(232,17,45,.6);
+  transform:scale(0);transition:transform .4s cubic-bezier(.34,1.8,.5,1)}
+.cart-badge.show{transform:scale(1)}
+.cart-badge.pop{animation:badgePop .5s cubic-bezier(.34,2,.5,1)}
+@keyframes badgePop{40%{transform:scale(1.5)}}
+
+/* search */
+.search-wrap{position:relative;flex:0 1 300px;min-width:0}
+.search-box{display:flex;align-items:center;gap:8px;padding:8px 14px;border-radius:999px;
+  background:var(--glass);border:1px solid var(--stroke);transition:all .35s var(--ease)}
+.search-box:focus-within{background:var(--glass-strong);border-color:rgba(76,201,240,.5);box-shadow:0 0 0 4px rgba(76,201,240,.14)}
+.search-box svg{width:15px;height:15px;flex:0 0 auto;opacity:.6}
+.search-box input{flex:1;min-width:0;background:none;border:none;outline:none;color:var(--ink);font-size:.86rem;font-family:inherit}
+.search-box input::placeholder{color:var(--ink-dim)}
+.suggest{position:absolute;top:calc(100% + 10px);left:0;right:0;max-height:290px;overflow:auto;padding:8px;z-index:60;
+  border-radius:var(--r-md);opacity:0;transform:translateY(-8px) scale(.98);pointer-events:none;
+  transition:all .3s var(--ease)}
+.suggest.open{opacity:1;transform:none;pointer-events:auto}
+.suggest button{display:flex;align-items:center;gap:10px;width:100%;padding:9px 10px;border-radius:10px;text-align:left;transition:background .25s}
+.suggest button:hover{background:var(--glass-strong)}
+.suggest .s-emoji{font-size:1.3rem}
+.suggest .s-name{font-size:.85rem;font-weight:700}
+.suggest .s-cat{font-size:.68rem;color:var(--ink-dim);display:block}
+.suggest .s-price{margin-left:auto;font-size:.8rem;font-weight:800;color:var(--green)}
+.suggest .none{padding:12px;font-size:.82rem;color:var(--ink-dim);text-align:center}
+
+/* ══════════════ SECTIONS ══════════════ */
+main{padding-top:0}
+.aisle{position:relative;min-height:100svh;padding:clamp(90px,12vh,130px) clamp(16px,5vw,64px) clamp(60px,8vh,90px);
+  scroll-margin-top:0;overflow:hidden}
+.aisle-head{position:relative;z-index:3;max-width:1200px;margin:0 auto clamp(26px,4vh,44px)}
+.kicker{display:inline-flex;align-items:center;gap:8px;font-size:.7rem;font-weight:800;letter-spacing:.34em;text-transform:uppercase;
+  padding:7px 14px;border-radius:999px;background:var(--glass);border:1px solid var(--stroke);color:var(--ink-dim);margin-bottom:14px}
+.kicker i{width:7px;height:7px;border-radius:50%;background:var(--accent,var(--green));box-shadow:0 0 12px var(--accent,var(--green));font-style:normal}
+.aisle h2{font-size:clamp(1.9rem,5.2vw,3.4rem);line-height:1.04}
+.aisle h2 span{background:var(--h-grad,linear-gradient(100deg,#fff,var(--green)));-webkit-background-clip:text;background-clip:text;-webkit-text-fill-color:transparent}
+.aisle-sub{margin-top:10px;max-width:560px;color:var(--ink-dim);font-size:clamp(.9rem,1.8vw,1.02rem);line-height:1.65}
+.grid{position:relative;z-index:3;max-width:1200px;margin:0 auto;display:grid;gap:clamp(14px,2.2vw,24px);
+  grid-template-columns:repeat(auto-fill,minmax(min(100%,250px),1fr))}
+
+/* reveal on scroll */
+.reveal{opacity:0;transform:translateY(44px);transition:opacity .9s var(--ease),transform .9s var(--ease)}
+.reveal.in{opacity:1;transform:none}
+.grid>.reveal:nth-child(2){transition-delay:.08s}.grid>.reveal:nth-child(3){transition-delay:.16s}
+.grid>.reveal:nth-child(4){transition-delay:.24s}.grid>.reveal:nth-child(5){transition-delay:.32s}
+
+/* ══════════════ PRODUCT CARD ══════════════ */
+.card{position:relative;border-radius:var(--r-lg);overflow:visible;isolation:isolate;
+  background:var(--glass);border:1px solid var(--stroke);
+  -webkit-backdrop-filter:blur(18px) saturate(150%);backdrop-filter:blur(18px) saturate(150%);
+  transition:transform .5s var(--ease),box-shadow .5s var(--ease),border-color .5s var(--ease)}
+.card:hover{transform:translateY(-10px) scale(1.015);border-color:rgba(255,255,255,.28);
+  box-shadow:0 34px 70px -24px rgba(0,0,0,.7),0 0 0 1px var(--stroke),0 0 44px -8px var(--card-glow,rgba(61,220,132,.25))}
+.card.glow-hit{animation:foundGlow 2.2s var(--ease)}
+@keyframes foundGlow{0%,100%{box-shadow:none}25%{box-shadow:0 0 0 3px var(--blue),0 0 60px rgba(76,201,240,.6)}}
+/* [AI-IMAGE-PROMPT · PRODUCT PHOTO — template]
+   "Studio product photograph of {PRODUCT} on a seamless dark charcoal
+   backdrop, dramatic soft-box lighting, glistening fresh texture, water
+   droplets, shallow depth of field, floating slightly with soft shadow
+   below, appetizing food-magazine style, 4k macro detail" */
+.p-visual{position:relative;height:158px;border-radius:var(--r-lg) var(--r-lg) 0 0;overflow:hidden;display:grid;place-items:center;
+  background:radial-gradient(120% 90% at 50% 0%,var(--p-tint,rgba(61,220,132,.16)),transparent 70%)}
+.p-visual::after{content:"";position:absolute;inset:0;background:radial-gradient(60% 36% at 50% 6%,rgba(255,255,255,.16),transparent 70%)}
+.p-emoji{font-size:4.1rem;line-height:1;filter:drop-shadow(0 16px 22px rgba(0,0,0,.5));transition:transform .55s var(--ease);z-index:1}
+.card:hover .p-emoji{transform:translateY(-8px) scale(1.14) rotate(-4deg)}
+.p-shadow{position:absolute;bottom:16px;width:70px;height:12px;border-radius:50%;background:rgba(0,0,0,.45);filter:blur(7px);transition:all .55s var(--ease)}
+.card:hover .p-shadow{transform:scale(1.25);opacity:.6}
+.p-tagline{position:absolute;top:12px;left:12px;z-index:2;font-size:.62rem;font-weight:800;letter-spacing:.14em;text-transform:uppercase;
+  padding:4px 9px;border-radius:999px;background:rgba(0,0,0,.35);border:1px solid rgba(255,255,255,.2);color:#fff;
+  -webkit-backdrop-filter:blur(8px);backdrop-filter:blur(8px)}
+.nutri{position:absolute;top:10px;right:10px;display:flex;flex-direction:column;gap:5px;z-index:2}
+.nutri span{display:flex;align-items:center;gap:4px;font-size:.6rem;font-weight:700;padding:3px 7px;border-radius:999px;
+  background:rgba(0,0,0,.4);border:1px solid rgba(255,255,255,.18);color:#fff;
+  -webkit-backdrop-filter:blur(8px);backdrop-filter:blur(8px);
+  opacity:0;transform:translateX(12px);transition:all .4s var(--ease)}
+.card:hover .nutri span{opacity:1;transform:none}
+.nutri span:nth-child(2){transition-delay:.07s}.nutri span:nth-child(3){transition-delay:.14s}
+.p-body{padding:15px 17px 17px}
+.p-body h4{font-size:1.02rem;margin-bottom:3px}
+.p-desc{font-size:.76rem;color:var(--ink-dim);line-height:1.5;min-height:2.3em}
+.p-row{display:flex;align-items:center;justify-content:space-between;gap:8px;margin-top:12px}
+.price{font-size:1.12rem;font-weight:900;letter-spacing:-.01em}
+.price small{display:block;font-size:.64rem;font-weight:600;color:var(--ink-dim)}
+.price .unit{font-size:.66rem;font-weight:600;color:var(--ink-dim)}
+.add-btn{display:flex;align-items:center;gap:6px;padding:9px 15px;border-radius:999px;font-size:.78rem;font-weight:800;color:#fff;
+  background:linear-gradient(120deg,var(--red),#ff5d3c);box-shadow:0 8px 20px -8px rgba(232,17,45,.8);
+  transition:transform .35s cubic-bezier(.34,1.6,.5,1),box-shadow .35s}
+.add-btn:hover{transform:translateY(-2px) scale(1.05);box-shadow:0 12px 26px -8px rgba(232,17,45,.9)}
+.add-btn:active{transform:scale(.93)}
+.add-btn svg{width:13px;height:13px}
+.fly-item{position:fixed;z-index:95;font-size:2rem;pointer-events:none;transition:all .8s cubic-bezier(.5,-.2,.6,1);filter:drop-shadow(0 6px 12px rgba(0,0,0,.5))}
+
+/* ══════════════ FRUITS & VEGETABLES ══════════════ */
+/* [AI-IMAGE-PROMPT · PRODUCE AISLE BACKDROP]
+   "Luxurious supermarket produce aisle interior — warm walnut wood and white
+   Carrara marble display shelves overflowing with vividly fresh fruit and
+   vegetables, morning light rays through skylights, floating dust motes and
+   dew mist, botanical greenery on the walls, cinematic photoreal render" */
+#fruits{--accent:var(--green);--h-grad:linear-gradient(100deg,#fff 10%,#3ddc84 60%,#a3e635)}
+#fruits .card{--card-glow:rgba(61,220,132,.3)}
+.leaf{position:absolute;z-index:2;font-size:clamp(1rem,2.4vw,1.7rem);opacity:.5;pointer-events:none;
+  animation:leafFall linear infinite;top:-8%;filter:blur(.3px)}
+@keyframes leafFall{
+  0%{transform:translateY(-4vh) translateX(0) rotate(0deg)}
+  25%{transform:translateY(28vh) translateX(4vw) rotate(90deg)}
+  50%{transform:translateY(55vh) translateX(-3vw) rotate(200deg)}
+  75%{transform:translateY(82vh) translateX(3vw) rotate(290deg)}
+  100%{transform:translateY(112vh) translateX(-2vw) rotate(380deg)}
+}
+.dew{position:absolute;border-radius:50%;pointer-events:none;z-index:1;
+  background:radial-gradient(circle at 32% 30%,rgba(255,255,255,.9),rgba(190,240,255,.25) 55%,transparent 75%);
+  animation:dewPulse 5s ease-in-out infinite}
+@keyframes dewPulse{0%,100%{opacity:.25;transform:scale(1)}50%{opacity:.7;transform:scale(1.15)}}
+.vine{position:absolute;left:0;right:0;top:0;height:120px;z-index:1;opacity:.5;pointer-events:none}
+
+/* ══════════════ ICE CREAM ══════════════ */
+#icecream{--accent:var(--blue);--h-grad:linear-gradient(100deg,#fff 10%,#4cc9f0 55%,#a78bfa)}
+#icecream .card{--card-glow:rgba(76,201,240,.3)}
+/* [AI-IMAGE-PROMPT · ICE-CREAM "F" HERO]
+   "Giant letter F sculpted entirely from stacked colorful ice-cream scoops —
+   strawberry pink, pistachio green, mango orange, blueberry violet, vanilla —
+   glossy melting drips running down, waffle-cone base, chocolate shavings and
+   sprinkles falling, studio food photography on a dreamy pastel beach
+   background, hyper-detailed, delicious, 8k" */
+.f-stage{position:relative;z-index:3;display:flex;flex-wrap:wrap;align-items:center;justify-content:center;gap:clamp(24px,5vw,72px);
+  max-width:1200px;margin:0 auto clamp(30px,5vh,56px)}
+.f-monument{position:relative;width:clamp(180px,26vw,270px);aspect-ratio:5/7;transform:rotate(-3deg);animation:fBob 6s ease-in-out infinite}
+@keyframes fBob{0%,100%{transform:rotate(-3deg) translateY(0)}50%{transform:rotate(-2deg) translateY(-10px)}}
+.scoop{position:absolute;border-radius:48% 52% 50% 50%/55% 55% 45% 45%;
+  box-shadow:inset -6px -10px 16px rgba(0,0,0,.28),inset 5px 7px 12px rgba(255,255,255,.55),0 10px 22px -8px rgba(0,0,0,.5);
+  animation:scoopIn .7s cubic-bezier(.34,1.7,.5,1) both}
+.scoop::after{content:"";position:absolute;top:12%;left:16%;width:36%;height:24%;border-radius:50%;
+  background:linear-gradient(180deg,rgba(255,255,255,.85),transparent);transform:rotate(-16deg)}
+@keyframes scoopIn{from{transform:scale(0)}to{transform:scale(1)}}
+.drip{position:absolute;width:9%;border-radius:0 0 999px 999px;opacity:.9;
+  animation:dripGrow 4.5s ease-in-out infinite}
+@keyframes dripGrow{0%,100%{height:6%}50%{height:11%}}
+.f-copy{max-width:420px}
+.f-copy h3{font-size:clamp(1.5rem,3.6vw,2.3rem);line-height:1.1;margin-bottom:12px}
+.f-copy p{color:var(--ink-dim);font-size:.95rem;line-height:1.7}
+/* dreamy beach strip */
+/* [AI-IMAGE-PROMPT · BEACH SCENE]
+   "Dreamy pastel summer beach panorama — gentle turquoise waves, golden sand,
+   soft sunny sky with cotton clouds, giant ice-cream cones planted like beach
+   umbrellas, popsicles floating on waves, whimsical, warm backlight, painterly
+   photoreal blend" */
+.beach{position:relative;z-index:2;max-width:1200px;margin:0 auto clamp(30px,5vh,52px);height:clamp(150px,24vh,220px);
+  border-radius:var(--r-lg);overflow:hidden;border:1px solid var(--stroke);
+  background:linear-gradient(180deg,#7ec8ff 0%,#b8e6ff 42%,#ffe9b8 60%,#ffd98c 100%)}
+.beach .sun{position:absolute;top:12%;right:9%;width:56px;height:56px;border-radius:50%;
+  background:radial-gradient(circle at 40% 38%,#fff8dd,#ffd34d 60%,#ffab2e);
+  box-shadow:0 0 44px 12px rgba(255,211,77,.75);animation:sunPulse 5s ease-in-out infinite}
+@keyframes sunPulse{0%,100%{transform:scale(1)}50%{transform:scale(1.1)}}
+.beach .cloud{position:absolute;background:rgba(255,255,255,.92);border-radius:999px;filter:blur(1px);animation:cloudDrift linear infinite}
+@keyframes cloudDrift{from{transform:translateX(-140px)}to{transform:translateX(calc(100vw + 140px))}}
+.wave{position:absolute;left:-4%;width:108%;bottom:0;height:52%;fill:rgba(46,160,220,.55);animation:waveSway 7s ease-in-out infinite}
+.wave.w2{fill:rgba(20,120,190,.6);height:40%;animation-duration:9s;animation-delay:-3s}
+@keyframes waveSway{0%,100%{transform:translateX(0)}50%{transform:translateX(-3.5%)}}
+.beach .floaty{position:absolute;font-size:1.6rem;animation:floatBob 4.5s ease-in-out infinite;filter:drop-shadow(0 6px 8px rgba(0,60,120,.3))}
+@keyframes floatBob{0%,100%{transform:translateY(0) rotate(-6deg)}50%{transform:translateY(-12px) rotate(6deg)}}
+/* frosted freezer cards */
+.frost .p-visual{background:radial-gradient(120% 90% at 50% 0%,rgba(76,201,240,.2),transparent 70%)}
+.frost::before{content:"";position:absolute;inset:0;border-radius:inherit;pointer-events:none;z-index:2;
+  background:
+    radial-gradient(50px 22px at 6% 4%,rgba(255,255,255,.32),transparent 70%),
+    radial-gradient(60px 26px at 96% 8%,rgba(255,255,255,.26),transparent 70%),
+    radial-gradient(46px 20px at 8% 96%,rgba(255,255,255,.22),transparent 70%),
+    radial-gradient(56px 24px at 94% 94%,rgba(255,255,255,.28),transparent 70%)}
+.frost{border-color:rgba(180,230,255,.3)}
+.snowfall{position:absolute;font-size:.8rem;opacity:.5;pointer-events:none;z-index:2;animation:leafFall linear infinite}
+
+/* ══════════════ DAIRY ══════════════ */
+/* [AI-IMAGE-PROMPT · DAIRY AISLE]
+   "Soft dreamy dairy aisle — porcelain-white shelving with milk bottles,
+   cheeses and yogurt, gentle swirling milk splash frozen mid-air as decorative
+   arcs, morning-cloud ambience, pale blue and cream palette, photoreal" */
+#dairy{--accent:#e6f0ff;--h-grad:linear-gradient(100deg,#fff 20%,#bcd8ff 70%)}
+#dairy .card{--card-glow:rgba(188,216,255,.3)}
+.milk-swirl{position:absolute;left:0;right:0;bottom:-2px;height:130px;z-index:1;opacity:.6;pointer-events:none}
+.milk-swirl path{animation:swirlShift 9s ease-in-out infinite}
+@keyframes swirlShift{0%,100%{transform:translateX(0)}50%{transform:translateX(-2.5%)}}
+
+/* ══════════════ BAKERY & SWEETS ══════════════ */
+/* [AI-IMAGE-PROMPT · BAKERY AISLE]
+   "Artisan bakery corner bathed in golden hour light — rustic oak shelves of
+   crusty sourdough, croissants and Bulgarian banitsa, thick glossy honey
+   dripping from the top frame in slow golden ribbons, floating flour dust,
+   warm amber palette, photoreal, cozy" */
+#bakery{--accent:var(--gold);--h-grad:linear-gradient(100deg,#fff 10%,#fbbf24 60%,#f97316)}
+#bakery .card{--card-glow:rgba(251,191,36,.32)}
+.honey{position:absolute;top:0;z-index:2;width:clamp(10px,1.6vw,18px);pointer-events:none;
+  background:linear-gradient(180deg,rgba(251,191,36,.95),rgba(249,115,22,.75) 80%,rgba(249,115,22,.9));
+  border-radius:0 0 999px 999px;filter:drop-shadow(0 4px 10px rgba(251,191,36,.5));
+  animation:honeyDrip 7s ease-in-out infinite}
+.honey::after{content:"";position:absolute;bottom:-14px;left:50%;transform:translateX(-50%);width:130%;aspect-ratio:1;
+  border-radius:50%;background:radial-gradient(circle at 35% 30%,#ffe28a,#fbbf24 55%,#f59e0b)}
+@keyframes honeyDrip{0%,100%{height:6vh}50%{height:13vh}}
+.flour{position:absolute;border-radius:50%;background:rgba(255,240,210,.5);filter:blur(1px);pointer-events:none;animation:dewPulse 6s ease-in-out infinite}
+
+/* ══════════════ DRINKS ══════════════ */
+/* [AI-IMAGE-PROMPT · DRINKS AISLE]
+   "Backlit premium beverage wall — glass shelves with sparkling mineral water,
+   craft juices and sodas, thousands of tiny rising bubbles caught in cool
+   sapphire rim-light, caustic light reflections dancing on a dark floor,
+   photoreal, refreshing" */
+#drinks{--accent:var(--blue);--h-grad:linear-gradient(100deg,#fff 10%,#4cc9f0 65%,#818cf8)}
+#drinks .card{--card-glow:rgba(76,201,240,.35)}
+.bubble{position:absolute;bottom:-6%;border-radius:50%;pointer-events:none;z-index:1;
+  background:radial-gradient(circle at 32% 30%,rgba(255,255,255,.85),rgba(140,220,255,.25) 60%,transparent 78%);
+  border:1px solid rgba(180,230,255,.35);animation:bubbleRise linear infinite}
+@keyframes bubbleRise{
+  0%{transform:translateY(0) translateX(0);opacity:0}
+  8%{opacity:.8}
+  50%{transform:translateY(-55vh) translateX(2.5vw)}
+  100%{transform:translateY(-110vh) translateX(-2vw);opacity:0}
+}
+
+/* ══════════════ ORGANIC ══════════════ */
+/* [AI-IMAGE-PROMPT · ORGANIC GARDEN AISLE]
+   "Living herb-garden market corner — moss walls, terracotta pots of basil,
+   thyme and rosemary growing directly on the shelves beside organic goods,
+   soft bio-luminescent green glow, fireflies, misty greenhouse light rays,
+   photoreal render" */
+#organic{--accent:var(--lime);--h-grad:linear-gradient(100deg,#fff 10%,#a3e635 60%,#3ddc84)}
+#organic .card{--card-glow:rgba(163,230,53,.32)}
+.firefly{position:absolute;width:5px;height:5px;border-radius:50%;background:#d9f99d;pointer-events:none;z-index:1;
+  box-shadow:0 0 12px 3px rgba(217,249,157,.8);animation:fireflyWander ease-in-out infinite alternate}
+@keyframes fireflyWander{
+  0%{transform:translate(0,0);opacity:.15}
+  30%{opacity:.9}
+  60%{opacity:.3}
+  100%{transform:translate(9vw,-14vh);opacity:.85}
+}
+.herb-row{position:absolute;bottom:8px;left:0;right:0;display:flex;justify-content:space-around;font-size:clamp(1.2rem,3vw,2rem);opacity:.4;pointer-events:none;z-index:1}
+.herb-row span{animation:herbSway 4s ease-in-out infinite;transform-origin:bottom center;display:inline-block}
+.herb-row span:nth-child(2n){animation-delay:-1.4s}.herb-row span:nth-child(3n){animation-delay:-2.5s}
+@keyframes herbSway{0%,100%{transform:rotate(-5deg)}50%{transform:rotate(5deg)}}
+
+/* ══════════════ LIVE STORE / MAP ══════════════ */
+#live{--accent:var(--red-glow);--h-grad:linear-gradient(100deg,#fff 15%,#ff4d5e 70%);min-height:auto}
+.live-wrap{position:relative;z-index:3;max-width:1200px;margin:0 auto;display:grid;gap:clamp(16px,2.5vw,28px);grid-template-columns:1.35fr 1fr}
+@media(max-width:860px){.live-wrap{grid-template-columns:1fr}}
+/* [AI-IMAGE-PROMPT · MAP]
+   "Stylized dark-mode 3D isometric map of the Dragalevtsi district of Sofia at
+   dusk — Okolovrasten pat ring road glowing softly, miniature Fantastico store
+   with red facade highlighted by a pulsing beacon, Vitosha mountain rising in
+   the south, tiny car lights, elegant cartography, deep navy palette" */
+.map-card{position:relative;overflow:hidden;min-height:340px;padding:0}
+.map-card svg{position:absolute;inset:0;width:100%;height:100%}
+.map-pin{animation:pinBounce 2.6s ease-in-out infinite;transform-origin:center bottom}
+@keyframes pinBounce{0%,100%{transform:translateY(0)}50%{transform:translateY(-9px)}}
+.pin-pulse{transform-origin:center;animation:pinPulse 2.6s ease-out infinite}
+@keyframes pinPulse{0%{transform:scale(.4);opacity:.85}100%{transform:scale(2.6);opacity:0}}
+.map-tag{position:absolute;left:14px;bottom:14px;padding:9px 14px;border-radius:999px;font-size:.72rem;font-weight:700;letter-spacing:.06em;
+  display:flex;align-items:center;gap:8px}
+.live-dot{width:8px;height:8px;border-radius:50%;background:var(--green);box-shadow:0 0 10px var(--green);animation:hintPulse 1.6s ease-in-out infinite}
+.stat-stack{display:flex;flex-direction:column;gap:clamp(12px,2vw,18px)}
+.stat{padding:clamp(16px,2.4vw,24px);display:flex;align-items:center;gap:16px}
+.stat .big{font-size:clamp(1.7rem,4vw,2.5rem);font-weight:900;line-height:1;font-variant-numeric:tabular-nums}
+.stat .lbl{font-size:.74rem;letter-spacing:.16em;text-transform:uppercase;color:var(--ink-dim);margin-top:5px}
+.stat-ico{width:52px;height:52px;flex:0 0 auto;border-radius:16px;display:grid;place-items:center;font-size:1.5rem;
+  background:var(--glass-strong);border:1px solid var(--stroke)}
+.open-pill{display:inline-flex;align-items:center;gap:8px;margin-top:8px;padding:5px 12px;border-radius:999px;font-size:.7rem;font-weight:800;
+  letter-spacing:.1em;color:var(--green);background:rgba(61,220,132,.1);border:1px solid rgba(61,220,132,.3)}
+
+/* ══════════════ FRESH TODAY / TESTIMONIALS ══════════════ */
+#fresh{--accent:var(--orange);--h-grad:linear-gradient(100deg,#fff 12%,#ff9a3c 65%);min-height:auto}
+.fresh-rail{position:relative;z-index:3;display:flex;gap:16px;overflow-x:auto;padding:6px 6px 22px;max-width:1200px;margin:0 auto;
+  scroll-snap-type:x mandatory;scrollbar-width:thin}
+.fresh-card{flex:0 0 min(78vw,290px);scroll-snap-align:start;padding:20px;display:flex;flex-direction:column;gap:10px}
+/* [AI-IMAGE-PROMPT · FRESH TODAY PHOTOGRAPHY]
+   "Overhead editorial food photography of {ITEM} arranged on dark slate,
+   scattered fresh herbs, dramatic side light, steam or dew, rich colors,
+   Bon-Appétit-magazine style, 4k" */
+.fresh-emoji{font-size:3rem;filter:drop-shadow(0 10px 16px rgba(0,0,0,.45))}
+.fresh-card h4{font-size:1.05rem}
+.fresh-card p{font-size:.8rem;color:var(--ink-dim);line-height:1.6}
+.fresh-time{margin-top:auto;font-size:.68rem;font-weight:800;letter-spacing:.14em;text-transform:uppercase;color:var(--orange)}
+.testi-grid{position:relative;z-index:3;max-width:1200px;margin:clamp(34px,6vh,56px) auto 0;display:grid;gap:16px;
+  grid-template-columns:repeat(auto-fit,minmax(min(100%,270px),1fr))}
+.testi{padding:22px;display:flex;flex-direction:column;gap:12px}
+.testi q{font-size:.9rem;line-height:1.7;color:var(--ink)}
+.testi .who{display:flex;align-items:center;gap:11px;margin-top:auto}
+.avatar{width:40px;height:40px;border-radius:50%;display:grid;place-items:center;font-weight:900;font-size:.9rem;color:#fff;
+  border:1px solid rgba(255,255,255,.3)}
+.who b{font-size:.83rem;display:block}
+.who span{font-size:.7rem;color:var(--ink-dim)}
+.stars-row{color:var(--gold);letter-spacing:2px;font-size:.85rem}
+
+/* ══════════════ FOOTER ══════════════ */
+footer{position:relative;margin-top:40px;padding:clamp(40px,7vh,70px) clamp(16px,5vw,64px) 110px;overflow:hidden;
+  border-top:1px solid var(--stroke-soft);background:linear-gradient(180deg,transparent,rgba(232,17,45,.06))}
+.foot-grid{position:relative;z-index:2;max-width:1200px;margin:0 auto;display:grid;gap:34px;grid-template-columns:1.4fr 1fr 1fr 1fr}
+@media(max-width:820px){.foot-grid{grid-template-columns:1fr 1fr}}
+@media(max-width:480px){.foot-grid{grid-template-columns:1fr}}
+.foot-brand{display:flex;align-items:center;gap:10px;font-size:1.3rem;font-weight:900;margin-bottom:12px}
+.foot-brand svg{width:34px;height:34px}
+.foot-grid p{font-size:.82rem;color:var(--ink-dim);line-height:1.7;max-width:300px}
+.foot-grid h5{font-size:.72rem;letter-spacing:.22em;text-transform:uppercase;color:var(--ink-dim);margin-bottom:14px}
+.foot-grid ul{list-style:none;display:flex;flex-direction:column;gap:9px}
+.foot-grid ul a{font-size:.86rem;color:var(--ink-dim);transition:color .3s,padding-left .3s}
+.foot-grid ul a:hover{color:var(--ink);padding-left:5px}
+.socials{display:flex;gap:9px;margin-top:16px}
+.socials a{width:38px;height:38px;border-radius:50%;display:grid;place-items:center;background:var(--glass);border:1px solid var(--stroke);transition:all .3s var(--ease)}
+.socials a:hover{transform:translateY(-3px);background:linear-gradient(120deg,var(--red),#ff5d3c);border-color:transparent}
+.socials svg{width:16px;height:16px;fill:currentColor}
+.foot-bottom{position:relative;z-index:2;max-width:1200px;margin:44px auto 0;padding-top:20px;border-top:1px solid var(--stroke-soft);
+  display:flex;flex-wrap:wrap;gap:10px;justify-content:space-between;font-size:.72rem;color:var(--ink-dim)}
+.foot-f{position:absolute;right:-3%;bottom:-16%;font-size:clamp(12rem,26vw,22rem);font-weight:900;line-height:1;color:rgba(232,17,45,.07);pointer-events:none;user-select:none}
+
+/* ══════════════ CART DRAWER ══════════════ */
+#cartDrawer{position:fixed;top:0;right:0;bottom:0;z-index:90;width:min(92vw,400px);display:flex;flex-direction:column;
+  transform:translateX(110%);transition:transform .6s var(--ease);
+  background:var(--glass-strong);-webkit-backdrop-filter:blur(30px) saturate(170%);backdrop-filter:blur(30px) saturate(170%);
+  border-left:1px solid var(--stroke);box-shadow:-30px 0 80px rgba(0,0,0,.5)}
+#cartDrawer.open{transform:none}
+.cart-head{display:flex;align-items:center;gap:12px;padding:20px 22px;border-bottom:1px solid var(--stroke-soft)}
+.cart-head h3{font-size:1.1rem;flex:1}
+.cart-items{flex:1;overflow-y:auto;padding:14px 18px;display:flex;flex-direction:column;gap:12px}
+.cart-empty{margin:auto;text-align:center;color:var(--ink-dim);font-size:.88rem;display:flex;flex-direction:column;gap:10px;align-items:center}
+.cart-empty .big-ico{font-size:3rem;opacity:.5}
+.ci{display:flex;align-items:center;gap:12px;padding:11px 13px;border-radius:var(--r-md);background:var(--glass);border:1px solid var(--stroke-soft);
+  animation:ciIn .45s var(--ease) both}
+@keyframes ciIn{from{opacity:0;transform:translateX(26px)}to{opacity:1;transform:none}}
+.ci-emoji{font-size:1.7rem}
+.ci-info{flex:1;min-width:0}
+.ci-info b{font-size:.84rem;display:block;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.ci-info span{font-size:.72rem;color:var(--ink-dim)}
+.qty{display:flex;align-items:center;gap:8px}
+.qty button{width:25px;height:25px;border-radius:8px;background:var(--glass-strong);border:1px solid var(--stroke);font-weight:800;font-size:.85rem;
+  display:grid;place-items:center;transition:all .25s}
+.qty button:hover{background:var(--red);color:#fff;border-color:transparent}
+.qty b{font-size:.85rem;min-width:16px;text-align:center;font-variant-numeric:tabular-nums}
+.cart-foot{padding:18px 22px calc(18px + env(safe-area-inset-bottom));border-top:1px solid var(--stroke-soft);display:flex;flex-direction:column;gap:13px}
+.total-row{display:flex;justify-content:space-between;align-items:baseline}
+.total-row span{font-size:.78rem;letter-spacing:.14em;text-transform:uppercase;color:var(--ink-dim)}
+.total-row b{font-size:1.45rem;font-variant-numeric:tabular-nums}
+.total-row small{font-size:.72rem;color:var(--ink-dim);font-weight:600;margin-left:6px}
+.checkout{padding:15px;border-radius:16px;font-size:.9rem;font-weight:800;letter-spacing:.06em;color:#fff;text-align:center;
+  background:linear-gradient(120deg,var(--red),#ff5d3c);box-shadow:0 14px 30px -10px rgba(232,17,45,.8);
+  transition:transform .35s cubic-bezier(.34,1.6,.5,1),box-shadow .35s}
+.checkout:hover{transform:translateY(-2px) scale(1.015)}
+.checkout:active{transform:scale(.97)}
+#cartScrim{position:fixed;inset:0;z-index:85;background:rgba(4,6,12,.55);-webkit-backdrop-filter:blur(4px);backdrop-filter:blur(4px);
+  opacity:0;pointer-events:none;transition:opacity .5s}
+#cartScrim.on{opacity:1;pointer-events:auto}
+
+/* floating cart FAB (mobile-friendly) */
+#cartFab{position:fixed;right:18px;bottom:calc(18px + env(safe-area-inset-bottom));z-index:80;width:58px;height:58px;border-radius:50%;
+  display:grid;place-items:center;color:#fff;
+  background:linear-gradient(135deg,var(--red),#ff5d3c);box-shadow:0 16px 34px -8px rgba(232,17,45,.8),inset 0 1px 8px rgba(255,255,255,.4);
+  transform:translateY(140px);transition:transform .7s cubic-bezier(.34,1.6,.5,1)}
+body.inside #cartFab{transform:none}
+#cartFab:hover{transform:scale(1.09)}
+#cartFab svg{width:23px;height:23px;stroke:#fff}
+#cartFab .cart-badge{background:#fff;color:var(--red)}
+
+/* toast */
+#toast{position:fixed;left:50%;bottom:calc(26px + env(safe-area-inset-bottom));z-index:96;transform:translateX(-50%) translateY(120px);
+  padding:13px 22px;border-radius:999px;font-size:.85rem;font-weight:700;display:flex;align-items:center;gap:10px;
+  transition:transform .55s cubic-bezier(.34,1.6,.5,1);pointer-events:none;max-width:88vw}
+#toast.show{transform:translateX(-50%) translateY(0)}
+.confetti{position:fixed;top:-16px;z-index:97;border-radius:3px;pointer-events:none;animation:confFall linear forwards}
+@keyframes confFall{to{transform:translateY(110vh) rotate(720deg);opacity:.9}}
+
+/* small screens */
+@media(max-width:720px){
+  .search-wrap{position:static;flex:1}
+  .suggest{left:10px;right:10px}
+  .chips{display:none}
+  .p-visual{height:132px}
+  .p-emoji{font-size:3.4rem}
+  #mobileChips{display:flex}
+}
+#mobileChips{display:none;position:fixed;left:0;right:0;bottom:0;z-index:79;padding:10px 12px calc(10px + env(safe-area-inset-bottom));
+  gap:7px;overflow-x:auto;scrollbar-width:none;
+  background:linear-gradient(180deg,transparent,rgba(4,6,12,.85) 40%);
+  transform:translateY(120%);transition:transform .8s var(--ease) .7s}
+#mobileChips::-webkit-scrollbar{display:none}
+body.inside #mobileChips{transform:none}
+#mobileChips .chip{background:var(--glass-strong);border:1px solid var(--stroke);
+  -webkit-backdrop-filter:blur(18px);backdrop-filter:blur(18px)}
+@media(min-width:721px){#mobileChips{display:none!important}}
+@media(max-width:720px){body.inside #cartFab{transform:translateY(-52px)}}
+</style>
+</head>
+<body class="locked">
+
+<!-- ambient site background -->
+<div class="ambient" aria-hidden="true"><div class="blob b1"></div><div class="blob b2"></div><div class="blob b3"></div></div>
+
+<!-- ═══════════════ HERO / ENTRANCE ═══════════════ -->
+<section id="hero" aria-label="Fantastico Dragalevtsi entrance">
+  <div class="hero-scene" id="heroScene">
+    <!-- sky + stars -->
+    <div class="layer sky" data-depth="0.15"></div>
+    <svg class="layer stars" data-depth="0.2" viewBox="0 0 1440 900" preserveAspectRatio="xMidYMid slice" aria-hidden="true">
+      <g fill="#fff" id="starField"></g>
+    </svg>
+
+    <!-- Dusk scene of the Dragalevtsi store: Vitosha mountain, red facade, glass wall, glowing orbs, pylon sign, wet road.
+         [AI-IMAGE-PROMPT] see HERO BACKGROUND prompt above -->
+    <svg class="layer hero-svg" data-depth="0.45" viewBox="0 0 1440 900" preserveAspectRatio="xMidYMid slice" aria-hidden="true">
+      <defs>
+        <linearGradient id="mtn" x1="0" y1="0" x2="0" y2="1">
+          <stop offset="0" stop-color="#2b3660"/><stop offset="1" stop-color="#141c3d"/>
+        </linearGradient>
+        <linearGradient id="mtnFar" x1="0" y1="0" x2="0" y2="1">
+          <stop offset="0" stop-color="#3a4677"/><stop offset="1" stop-color="#232c55"/>
+        </linearGradient>
+        <linearGradient id="facadeRed" x1="0" y1="0" x2="0" y2="1">
+          <stop offset="0" stop-color="#e8112d"/><stop offset="1" stop-color="#8f0a1c"/>
+        </linearGradient>
+        <linearGradient id="glassWall" x1="0" y1="0" x2="0" y2="1">
+          <stop offset="0" stop-color="#16213f"/><stop offset=".5" stop-color="#25355e"/><stop offset="1" stop-color="#101a33"/>
+        </linearGradient>
+        <linearGradient id="road" x1="0" y1="0" x2="0" y2="1">
+          <stop offset="0" stop-color="#151a2c"/><stop offset="1" stop-color="#05070f"/>
+        </linearGradient>
+        <radialGradient id="warmGlow" cx=".5" cy=".5" r=".5">
+          <stop offset="0" stop-color="#ffd9a0" stop-opacity=".9"/><stop offset="1" stop-color="#ffd9a0" stop-opacity="0"/>
+        </radialGradient>
+        <filter id="softBlur"><feGaussianBlur stdDeviation="3"/></filter>
+      </defs>
+
+      <!-- Vitosha mountain with snow caps -->
+      <path fill="url(#mtnFar)" d="M-20 470 L180 300 L340 420 L520 260 L700 430 L900 310 L1120 440 L1300 340 L1460 450 L1460 900 L-20 900 Z"/>
+      <path fill="#e8ecf7" opacity=".85" d="M500 278 L520 260 L545 285 L528 292 L512 284 Z M162 316 L180 300 L204 322 L184 330 Z M880 324 L900 310 L922 330 L901 338 Z"/>
+      <path fill="url(#mtn)" d="M-20 560 L240 400 L470 540 L740 380 L1020 550 L1240 430 L1460 560 L1460 900 L-20 900 Z"/>
+
+      <!-- store block -->
+      <g id="storeBuilding">
+        <!-- roof band -->
+        <path fill="url(#facadeRed)" d="M180 470 L1260 430 L1300 505 L150 545 Z"/>
+        <!-- LED strip under roof -->
+        <path fill="#ffe9c2" opacity=".9" d="M186 522 L1274 484 L1276 492 L188 530 Z" filter="url(#softBlur)"/>
+        <!-- glass curtain wall -->
+        <path fill="url(#glassWall)" d="M188 540 L1272 498 L1282 660 L196 700 Z"/>
+        <!-- glass mullions -->
+        <g stroke="#4a5f97" stroke-width="2" opacity=".55">
+          <path d="M290 536 L296 696"/><path d="M400 532 L406 692"/><path d="M510 528 L516 688"/>
+          <path d="M620 524 L626 684"/><path d="M730 520 L736 680"/><path d="M840 516 L846 676"/>
+          <path d="M950 512 L956 672"/><path d="M1060 508 L1066 668"/><path d="M1170 504 L1176 664"/>
+          <path d="M200 590 L1276 548"/><path d="M204 646 L1280 604"/>
+        </g>
+        <!-- warm glowing orb lights inside (the Dragalevtsi signature light wall) -->
+        <g id="warmOrbs"></g>
+        <!-- red side fins -->
+        <path fill="url(#facadeRed)" d="M150 545 L196 540 L206 705 L162 712 Z"/>
+        <path fill="url(#facadeRed)" d="M1262 500 L1300 505 L1310 668 L1272 662 Z"/>
+        <!-- roof sign ФАНТАСТИКО -->
+        <text x="724" y="470" text-anchor="middle" font-family="Arial Black,Arial,sans-serif" font-weight="900" font-size="52"
+          fill="#ff2540" letter-spacing="6" style="filter:drop-shadow(0 0 18px rgba(255,37,64,.9))">ФАНТАСТИКО</text>
+        <!-- entrance glow -->
+        <ellipse cx="724" cy="700" rx="270" ry="60" fill="url(#warmGlow)" opacity=".55"/>
+        <!-- entrance doors -->
+        <path fill="#0b1226" d="M640 606 L810 600 L814 700 L644 706 Z"/>
+        <path stroke="#ffd9a0" stroke-width="2" opacity=".8" fill="none" d="M727 604 L729 703"/>
+        <rect x="646" y="608" width="76" height="94" fill="#1c2c52" opacity=".9"/>
+        <rect x="732" y="606" width="78" height="94" fill="#1c2c52" opacity=".9"/>
+      </g>
+
+      <!-- pylon sign with Ф apple -->
+      <g id="pylon">
+        <rect x="1330" y="470" width="14" height="210" fill="#20283f"/>
+        <circle cx="1337" cy="430" r="52" fill="#e8112d" style="filter:drop-shadow(0 0 22px rgba(232,17,45,.8))"/>
+        <path d="M1337 372 q14 -18 30 -14 q-8 20 -26 22 Z" fill="#3ddc84"/>
+        <text x="1337" y="450" text-anchor="middle" font-family="Arial Black,Arial,sans-serif" font-weight="900" font-size="56" fill="#fff">Ф</text>
+        <rect x="1296" y="492" width="84" height="24" rx="6" fill="#111827"/>
+        <text x="1338" y="509" text-anchor="middle" font-family="Arial,sans-serif" font-weight="700" font-size="13" fill="#fff" letter-spacing="1">NON STOP</text>
+      </g>
+
+      <!-- road + reflections -->
+      <path fill="url(#road)" d="M-20 700 L1460 655 L1460 900 L-20 900 Z"/>
+      <g stroke="#dfe6ff" stroke-width="5" stroke-dasharray="34 46" opacity=".5">
+        <path d="M-20 800 Q720 760 1460 748" fill="none"/>
+      </g>
+      <ellipse cx="724" cy="760" rx="330" ry="34" fill="url(#warmGlow)" opacity=".28"/>
+      <ellipse cx="1337" cy="720" rx="70" ry="16" fill="#e8112d" opacity=".18" filter="url(#softBlur)"/>
+      <!-- car light trails -->
+      <g filter="url(#softBlur)">
+        <path d="M-20 830 Q500 800 900 792" stroke="#ffdf9e" stroke-width="7" fill="none" opacity=".55"/>
+        <path d="M1460 812 Q900 830 420 848" stroke="#ff5a5a" stroke-width="6" fill="none" opacity=".5"/>
+      </g>
+    </svg>
+
+    <!-- atmosphere -->
+    <div class="layer haze" data-depth="0.55"></div>
+    <canvas id="heroParticles" class="layer" data-depth="0.7" aria-hidden="true"></canvas>
+
+    <!-- liquid glass shards floating in front -->
+    <div class="layer" data-depth="0.9" aria-hidden="true">
+      <div class="shard" style="width:15vw;height:11vw;left:6%;top:16%;animation-delay:-3s"></div>
+      <div class="shard" style="width:9vw;height:13vw;right:9%;top:12%;animation-delay:-9s"></div>
+      <div class="shard" style="width:11vw;height:8vw;left:12%;bottom:14%;animation-delay:-6s"></div>
+      <div class="shard" style="width:7vw;height:9vw;right:16%;bottom:20%;animation-delay:-12s"></div>
+    </div>
+  </div>
+
+  <!-- centre: logo + orb -->
+  <div class="hero-center">
+    <div class="hero-logo">
+      <!-- Ф apple mark -->
+      <svg viewBox="0 0 100 100" aria-hidden="true">
+        <circle cx="50" cy="54" r="42" fill="#e8112d"/>
+        <path d="M50 9 q12 -14 26 -11 q-7 17 -22 19 Z" fill="#3ddc84"/>
+        <text x="50" y="71" text-anchor="middle" font-family="Arial Black,Arial,sans-serif" font-weight="900" font-size="48" fill="#fff">Ф</text>
+      </svg>
+      <h1 class="hero-word">Fantastico</h1>
+    </div>
+    <p class="hero-tag">Freshness&nbsp;Reimagined</p>
+    <p class="hero-sub">OKOLOVRASTEN PAT · DRAGALEVTSI · SOFIA · OPEN NON-STOP</p>
+
+    <div class="orb-wrap">
+      <button class="orb" id="enterOrb" aria-label="Enter the store">
+        <span class="orb-ring" aria-hidden="true"></span>
+        <span class="orb-ring r2" aria-hidden="true"></span>
+        <span class="orb-label">Enter<br>the&nbsp;Store<small>tap to walk in</small></span>
+      </button>
+    </div>
+    <p class="hero-hint">✦ &nbsp;a world of flavor awaits&nbsp; ✦</p>
+  </div>
+</section>
+<div id="flash" aria-hidden="true"></div>
+<div class="flare-line" style="--fx:-46vw;--fy:-30vh" aria-hidden="true"></div>
+<div class="flare-line" style="--fx:44vw;--fy:-26vh" aria-hidden="true"></div>
+<div class="flare-line" style="--fx:-38vw;--fy:32vh" aria-hidden="true"></div>
+<div class="flare-line" style="--fx:40vw;--fy:34vh" aria-hidden="true"></div>
+
+<!-- ═══════════════ TOP NAVIGATION ═══════════════ -->
+<header id="topbar">
+  <div class="bar-inner">
+    <a class="brand" href="#fruits" id="brandHome" aria-label="Fantastico home">
+      <svg viewBox="0 0 100 100" aria-hidden="true">
+        <circle cx="50" cy="54" r="42" fill="#e8112d"/>
+        <path d="M50 9 q12 -14 26 -11 q-7 17 -22 19 Z" fill="#3ddc84"/>
+        <text x="50" y="71" text-anchor="middle" font-family="Arial Black,Arial,sans-serif" font-weight="900" font-size="48" fill="#fff">Ф</text>
+      </svg>
+      <b>Fantastico</b>
+    </a>
+    <nav class="chips" id="navChips" aria-label="Store sections"></nav>
+    <div class="bar-actions">
+      <div class="search-wrap">
+        <label class="search-box">
+          <svg viewBox="0 0 24 24" fill="none" stroke-width="2.4" stroke-linecap="round" aria-hidden="true"><circle cx="11" cy="11" r="7"/><path d="m20 20-3.4-3.4"/></svg>
+          <input id="searchInput" type="text" placeholder="Search fresh things…" autocomplete="off" aria-label="Search products">
+        </label>
+        <div class="suggest glass" id="suggestBox" role="listbox" aria-label="Search suggestions"></div>
+      </div>
+      <button class="icon-btn" id="themeBtn" aria-label="Toggle light or dark mode" title="Toggle theme">
+        <svg viewBox="0 0 24 24" fill="none" stroke-width="2" stroke-linecap="round" aria-hidden="true"><path id="themeIcon" d="M21 12.8A9 9 0 1 1 11.2 3 7 7 0 0 0 21 12.8Z"/></svg>
+      </button>
+      <button class="icon-btn" id="cartBtn" aria-label="Open shopping cart">
+        <svg viewBox="0 0 24 24" fill="none" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+          <circle cx="9" cy="20" r="1.6"/><circle cx="17" cy="20" r="1.6"/><path d="M3 3h2.2l2.4 12.2a1.8 1.8 0 0 0 1.8 1.4h7.6a1.8 1.8 0 0 0 1.7-1.3L21 8H6"/>
+        </svg>
+        <span class="cart-badge" id="cartBadge">0</span>
+      </button>
+    </div>
+  </div>
+</header>
+
+<!-- ═══════════════ STORE ═══════════════ -->
+<main id="store" hidden>
+
+  <!-- ─────────── FRUITS & VEGETABLES ─────────── -->
+  <section class="aisle" id="fruits" aria-label="Fruits and vegetables">
+    <svg class="vine" viewBox="0 0 1440 120" preserveAspectRatio="none" aria-hidden="true">
+      <path d="M0 20 Q180 90 360 40 T720 50 T1080 30 T1440 55" fill="none" stroke="#3ddc84" stroke-width="2.5" opacity=".5"/>
+      <path d="M0 60 Q220 10 440 70 T880 60 T1440 20" fill="none" stroke="#a3e635" stroke-width="1.8" opacity=".4"/>
+    </svg>
+    <div class="aisle-head reveal">
+      <span class="kicker"><i></i>Aisle 01 · Garden Fresh</span>
+      <h2>Fruits &amp; <span>Vegetables</span></h2>
+      <p class="aisle-sub">Picked at dawn from Bulgarian farms, misted with mountain dew and laid on marble before you wake. This is where freshness begins.</p>
+    </div>
+    <div class="grid" data-cat="fruits"></div>
+  </section>
+
+  <!-- ─────────── ICE CREAM ─────────── -->
+  <section class="aisle" id="icecream" aria-label="Ice cream">
+    <div class="aisle-head reveal">
+      <span class="kicker"><i></i>Aisle 02 · −18°C of Happiness</span>
+      <h2>The Ice Cream <span>Dream</span></h2>
+      <p class="aisle-sub">Meet our monument of joy — the great “F”, sculpted scoop by scoop. Slightly melting. Entirely irresistible.</p>
+    </div>
+    <div class="f-stage reveal">
+      <div class="f-monument" id="fMonument" role="img" aria-label="Giant letter F made of ice cream scoops"></div>
+      <div class="f-copy">
+        <h3>One letter.<br>Thirty-one scoops.</h3>
+        <p>Strawberry, pistachio, mango, blueberry and Madagascar vanilla — stacked into the most delicious letter of the alphabet. Watch it melt a little. It’s okay. There’s always more in the freezers below.</p>
+      </div>
+    </div>
+    <div class="beach reveal" aria-hidden="true">
+      <div class="sun"></div>
+      <div class="cloud" style="width:90px;height:26px;top:16%;animation-duration:38s"></div>
+      <div class="cloud" style="width:60px;height:18px;top:34%;animation-duration:52s;animation-delay:-20s"></div>
+      <span class="floaty" style="left:12%;bottom:38%">🍦</span>
+      <span class="floaty" style="left:38%;bottom:30%;animation-delay:-1.6s">🍧</span>
+      <span class="floaty" style="left:66%;bottom:36%;animation-delay:-3s">🍨</span>
+      <span class="floaty" style="left:85%;bottom:28%;animation-delay:-2.2s">🏖️</span>
+      <svg class="wave" viewBox="0 0 1440 120" preserveAspectRatio="none"><path d="M0 45 Q120 15 240 45 T480 45 T720 45 T960 45 T1200 45 T1440 45 V120 H0 Z"/></svg>
+      <svg class="wave w2" viewBox="0 0 1440 120" preserveAspectRatio="none"><path d="M0 55 Q120 25 240 55 T480 55 T720 55 T960 55 T1200 55 T1440 55 V120 H0 Z"/></svg>
+    </div>
+    <div class="grid" data-cat="icecream"></div>
+  </section>
+
+  <!-- ─────────── DAIRY ─────────── -->
+  <section class="aisle" id="dairy" aria-label="Dairy">
+    <div class="aisle-head reveal">
+      <span class="kicker"><i style="background:#bcd8ff;box-shadow:0 0 12px #bcd8ff"></i>Aisle 03 · Cloud Soft</span>
+      <h2>Dairy &amp; <span>White Gold</span></h2>
+      <p class="aisle-sub">Bulgarian yogurt with its legendary Lactobacillus bulgaricus, mountain cheeses and milk as soft as morning clouds over Vitosha.</p>
+    </div>
+    <div class="grid" data-cat="dairy"></div>
+    <svg class="milk-swirl" viewBox="0 0 1440 130" preserveAspectRatio="none" aria-hidden="true">
+      <path d="M0 90 Q180 40 360 82 T720 78 T1080 84 T1440 60 V130 H0 Z" fill="rgba(230,240,255,.14)"/>
+      <path d="M0 108 Q240 70 480 100 T960 96 T1440 88 V130 H0 Z" fill="rgba(230,240,255,.1)"/>
+    </svg>
+  </section>
+
+  <!-- ─────────── BAKERY & SWEETS ─────────── -->
+  <section class="aisle" id="bakery" aria-label="Bakery and sweets">
+    <div class="aisle-head reveal">
+      <span class="kicker"><i style="background:var(--gold);box-shadow:0 0 12px var(--gold)"></i>Aisle 04 · Golden Hour</span>
+      <h2>Bakery &amp; <span>Sweet Honey</span></h2>
+      <p class="aisle-sub">Ovens that never sleep. Banitsa at sunrise, sourdough at noon, and honey that drips — quite literally — from the ceiling of this aisle.</p>
+    </div>
+    <div class="grid" data-cat="bakery"></div>
+  </section>
+
+  <!-- ─────────── DRINKS ─────────── -->
+  <section class="aisle" id="drinks" aria-label="Drinks">
+    <div class="aisle-head reveal">
+      <span class="kicker"><i style="background:var(--blue);box-shadow:0 0 12px var(--blue)"></i>Aisle 05 · Effervescent</span>
+      <h2>Drinks &amp; <span>Sparkling Springs</span></h2>
+      <p class="aisle-sub">Mineral water born in Rila's granite heart, cold-pressed juices and sodas that fizz like laughter. Watch the bubbles rise.</p>
+    </div>
+    <div class="grid" data-cat="drinks"></div>
+  </section>
+
+  <!-- ─────────── ORGANIC ─────────── -->
+  <section class="aisle" id="organic" aria-label="Organic">
+    <div class="aisle-head reveal">
+      <span class="kicker"><i style="background:var(--lime);box-shadow:0 0 12px var(--lime)"></i>Aisle 06 · Living Shelf</span>
+      <h2>Organic &amp; <span>Herb Garden</span></h2>
+      <p class="aisle-sub">A shelf that's alive — basil growing beside the pesto, fireflies among the thyme. Certified bio, gathered gently.</p>
+    </div>
+    <div class="grid" data-cat="organic"></div>
+    <div class="herb-row" aria-hidden="true"><span>🌿</span><span>🌱</span><span>🪴</span><span>🌿</span><span>🍀</span><span>🌱</span><span>🌿</span></div>
+  </section>
+
+  <!-- ─────────── LIVE STORE ─────────── -->
+  <section class="aisle" id="live" aria-label="Live store information">
+    <div class="aisle-head reveal">
+      <span class="kicker"><i></i>Right Now · Dragalevtsi</span>
+      <h2>The <span>Live</span> Store</h2>
+      <p class="aisle-sub">Okolovrasten pat 260, Dragalevtsi district, Sofia — at the foot of Vitosha. See who's shopping with you right now.</p>
+    </div>
+    <div class="live-wrap">
+      <div class="map-card glass reveal">
+        <!-- stylized isometric dusk map of Dragalevtsi · [AI-IMAGE-PROMPT] see MAP prompt above -->
+        <svg viewBox="0 0 640 420" preserveAspectRatio="xMidYMid slice" aria-label="Map of Fantastico Dragalevtsi location">
+          <defs>
+            <linearGradient id="mapBg" x1="0" y1="0" x2="0" y2="1">
+              <stop offset="0" stop-color="#0d1430"/><stop offset="1" stop-color="#101a3f"/>
+            </linearGradient>
+            <linearGradient id="mapMtn" x1="0" y1="0" x2="0" y2="1">
+              <stop offset="0" stop-color="#23306156"/><stop offset="1" stop-color="#16204a"/>
+            </linearGradient>
+          </defs>
+          <rect width="640" height="420" fill="url(#mapBg)"/>
+          <path d="M0 420 L120 330 L260 400 L420 310 L560 400 L640 350 L640 420 Z" fill="url(#mapMtn)"/>
+          <text x="500" y="398" font-size="12" fill="#5a6da8" font-family="Arial,sans-serif" letter-spacing="2">VITOSHA ▲</text>
+          <!-- ring road -->
+          <path d="M-10 210 Q160 150 330 190 T650 160" stroke="#3d4c85" stroke-width="16" fill="none" stroke-linecap="round"/>
+          <path d="M-10 210 Q160 150 330 190 T650 160" stroke="#ffd9a0" stroke-width="2.5" fill="none" stroke-dasharray="16 22" opacity=".8"/>
+          <text x="40" y="180" font-size="11" fill="#8ea0d8" font-family="Arial,sans-serif" letter-spacing="1.5">OKOLOVRASTEN PAT</text>
+          <!-- side streets -->
+          <g stroke="#2a3768" stroke-width="7" stroke-linecap="round">
+            <path d="M180 174 L140 320"/><path d="M330 190 L360 340"/><path d="M470 168 L520 300"/><path d="M240 182 L260 60"/>
+          </g>
+          <!-- blocks -->
+          <g fill="#1b2650">
+            <rect x="90" y="230" width="60" height="38" rx="5"/><rect x="200" y="240" width="70" height="44" rx="5"/>
+            <rect x="400" y="220" width="56" height="36" rx="5"/><rect x="480" y="210" width="66" height="40" rx="5"/>
+            <rect x="120" y="90" width="64" height="40" rx="5"/><rect x="330" y="80" width="80" height="46" rx="5"/>
+          </g>
+          <!-- the store -->
+          <g transform="translate(292,120)">
+            <rect x="-46" y="14" width="112" height="52" rx="7" fill="#e8112d" style="filter:drop-shadow(0 0 16px rgba(232,17,45,.7))"/>
+            <rect x="-38" y="30" width="96" height="28" rx="4" fill="#ffd9a0" opacity=".85"/>
+            <text x="10" y="10" text-anchor="middle" font-size="11" font-weight="900" fill="#ff8f9d" font-family="Arial,sans-serif" letter-spacing="1">FANTASTICO</text>
+            <circle class="pin-pulse" cx="10" cy="40" r="26" fill="none" stroke="#ff4d5e" stroke-width="2"/>
+            <g class="map-pin">
+              <path d="M10 -52 q-20 0 -20 20 q0 14 20 34 q20 -20 20 -34 q0 -20 -20 -20Z" fill="#ff2540" style="filter:drop-shadow(0 6px 10px rgba(0,0,0,.5))"/>
+              <circle cx="10" cy="-31" r="9" fill="#fff"/>
+              <text x="10" y="-26.5" text-anchor="middle" font-size="12" font-weight="900" fill="#e8112d" font-family="Arial,sans-serif">Ф</text>
+            </g>
+          </g>
+          <!-- moving car dots on the ring road -->
+          <circle r="3.5" fill="#ffdf9e"><animateMotion dur="9s" repeatCount="indefinite" path="M-10 210 Q160 150 330 190 T650 160"/></circle>
+          <circle r="3.5" fill="#ff6b6b"><animateMotion dur="12s" repeatCount="indefinite" keyPoints="1;0" keyTimes="0;1" path="M-10 214 Q160 154 330 194 T650 164"/></circle>
+        </svg>
+        <div class="map-tag glass"><span class="live-dot"></span> LIVE · Okolovrasten pat 260, Dragalevtsi</div>
+      </div>
+      <div class="stat-stack">
+        <div class="stat glass reveal">
+          <div class="stat-ico">🛒</div>
+          <div><div class="big"><span id="visitorCount">184</span></div><div class="lbl">shoppers in store right now</div></div>
+        </div>
+        <div class="stat glass reveal">
+          <div class="stat-ico">🕐</div>
+          <div><div class="big" id="clockNow">--:--</div><div class="lbl">local Sofia time</div><span class="open-pill"><span class="live-dot"></span>OPEN NON-STOP · 24/7</span></div>
+        </div>
+        <div class="stat glass reveal">
+          <div class="stat-ico">🅿️</div>
+          <div><div class="big"><span id="parkingCount">96</span></div><div class="lbl">free parking spaces</div></div>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- ─────────── FRESH TODAY + TESTIMONIALS ─────────── -->
+  <section class="aisle" id="fresh" aria-label="Fresh today and reviews">
+    <div class="aisle-head reveal">
+      <span class="kicker"><i style="background:var(--orange);box-shadow:0 0 12px var(--orange)"></i>Just Arrived</span>
+      <h2>Fresh <span>Today</span></h2>
+      <p class="aisle-sub">Delivered this morning, gone by tonight. The daily heartbeat of the Dragalevtsi store.</p>
+    </div>
+    <div class="fresh-rail reveal">
+      <div class="fresh-card glass"><span class="fresh-emoji">🍓</span><h4>Sandanski Strawberries</h4><p>First summer crop from the Struma valley — perfume you can smell from aisle three.</p><span class="fresh-time">⏱ arrived 06:40</span></div>
+      <div class="fresh-card glass"><span class="fresh-emoji">🥖</span><h4>Sunrise Sourdough</h4><p>72-hour fermentation, still warm. Crackles when you squeeze it. You will squeeze it.</p><span class="fresh-time">⏱ baked 07:15</span></div>
+      <div class="fresh-card glass"><span class="fresh-emoji">🐟</span><h4>Black Sea Turbot</h4><p>Off the boat in Sozopol at dawn, on our ice by nine. As fresh as it legally gets.</p><span class="fresh-time">⏱ arrived 09:05</span></div>
+      <div class="fresh-card glass"><span class="fresh-emoji">🧀</span><h4>Rhodope Kashkaval</h4><p>Nine months in mountain caves. Nutty, golden, slightly dramatic. Worth it.</p><span class="fresh-time">⏱ arrived 08:20</span></div>
+      <div class="fresh-card glass"><span class="fresh-emoji">🍒</span><h4>Kyustendil Cherries</h4><p>The cherry capital delivers. Dark, glossy, impossible to stop at ten.</p><span class="fresh-time">⏱ arrived 07:50</span></div>
+    </div>
+    <div class="testi-grid">
+      <figure class="testi glass reveal">
+        <div class="stars-row">★★★★★</div>
+        <q>I came for milk and left with a small festival in my bags. The produce section smells like my grandmother's garden in Samokov.</q>
+        <figcaption class="who"><span class="avatar" style="background:linear-gradient(135deg,#e8112d,#ff9a3c)">МК</span><span><b>Maria Koleva</b><span>Dragalevtsi local · every day</span></span></figcaption>
+      </figure>
+      <figure class="testi glass reveal">
+        <div class="stars-row">★★★★★</div>
+        <q>The kids call it “the ice cream palace”. We drive the whole ring road just for the freezer aisle and the warm banitsa.</q>
+        <figcaption class="who"><span class="avatar" style="background:linear-gradient(135deg,#4cc9f0,#a78bfa)">ГД</span><span><b>Georgi Dimitrov</b><span>Boyana · weekends</span></span></figcaption>
+      </figure>
+      <figure class="testi glass reveal">
+        <div class="stars-row">★★★★★</div>
+        <q>Open at 3 AM when my night shift ends, and the bakery still smells like heaven. This store quietly runs half the neighbourhood.</q>
+        <figcaption class="who"><span class="avatar" style="background:linear-gradient(135deg,#3ddc84,#a3e635)">ЕП</span><span><b>Elena Petrova</b><span>Simeonovo · night owl</span></span></figcaption>
+      </figure>
+    </div>
+  </section>
+
+  <!-- ─────────── FOOTER ─────────── -->
+  <footer>
+    <div class="foot-f" aria-hidden="true">Ф</div>
+    <div class="foot-grid">
+      <div>
+        <div class="foot-brand">
+          <svg viewBox="0 0 100 100" aria-hidden="true">
+            <circle cx="50" cy="54" r="42" fill="#e8112d"/>
+            <path d="M50 9 q12 -14 26 -11 q-7 17 -22 19 Z" fill="#3ddc84"/>
+            <text x="50" y="71" text-anchor="middle" font-family="Arial Black,Arial,sans-serif" font-weight="900" font-size="48" fill="#fff">Ф</text>
+          </svg>
+          Fantastico
+        </div>
+        <p>Bulgaria's beloved supermarket family since 1991. The Dragalevtsi store — freshness reimagined at the foot of Vitosha, open non-stop.</p>
+        <div class="socials">
+          <a href="#" aria-label="Facebook"><svg viewBox="0 0 24 24"><path d="M13.5 22v-8h2.7l.4-3.2h-3.1V8.7c0-.9.3-1.6 1.6-1.6h1.6V4.2c-.3 0-1.3-.1-2.4-.1-2.4 0-4 1.4-4 4.1v2.6H7.6V14h2.7v8h3.2Z"/></svg></a>
+          <a href="#" aria-label="Instagram"><svg viewBox="0 0 24 24"><path d="M12 2.2c3.2 0 3.6 0 4.8.1 3.3.1 4.8 1.7 4.9 4.9.1 1.3.1 1.6.1 4.8s0 3.6-.1 4.8c-.1 3.2-1.7 4.8-4.9 4.9-1.2.1-1.6.1-4.8.1s-3.6 0-4.8-.1c-3.3-.1-4.8-1.7-4.9-4.9C2.2 15.6 2.2 15.2 2.2 12s0-3.6.1-4.8C2.4 4 4 2.4 7.2 2.3 8.4 2.2 8.8 2.2 12 2.2Zm0 2.9a6.9 6.9 0 1 0 0 13.8 6.9 6.9 0 0 0 0-13.8Zm0 11.4a4.5 4.5 0 1 1 0-9 4.5 4.5 0 0 1 0 9Zm7.2-11.7a1.6 1.6 0 1 0 0 3.2 1.6 1.6 0 0 0 0-3.2Z"/></svg></a>
+          <a href="#" aria-label="YouTube"><svg viewBox="0 0 24 24"><path d="M23 7.2s-.2-1.6-.9-2.3c-.9-.9-1.9-.9-2.3-1C16.6 3.6 12 3.6 12 3.6s-4.6 0-7.8.3c-.4.1-1.4.1-2.3 1C1.2 5.6 1 7.2 1 7.2S.8 9.1.8 11v1.8c0 1.9.2 3.8.2 3.8s.2 1.6.9 2.3c.9.9 2 .9 2.5 1 1.8.2 7.6.3 7.6.3s4.6 0 7.8-.4c.4-.1 1.4-.1 2.3-1 .7-.7.9-2.3.9-2.3s.2-1.9.2-3.8V11c0-1.9-.2-3.8-.2-3.8ZM9.7 15.1V8.6l6.1 3.3-6.1 3.2Z"/></svg></a>
+          <a href="#" aria-label="TikTok"><svg viewBox="0 0 24 24"><path d="M16.6 3c.4 2.2 1.8 3.6 4.1 3.8v3c-1.5.1-2.9-.4-4.4-1.3v6.1c0 5-4.4 7.5-8 5.4-2.7-1.5-3.5-5-1.8-7.6 1.4-2 3.6-2.8 6.1-2.3v3.1c-.6-.2-1.2-.3-1.8-.2-1.5.4-2.3 1.6-2 3 .3 1.4 1.6 2.2 3 1.9 1.3-.2 2-1.2 2-2.8V3h2.8Z"/></svg></a>
+        </div>
+      </div>
+      <div>
+        <h5>The Store</h5>
+        <ul>
+          <li><a href="#fruits">Fruits &amp; Vegetables</a></li>
+          <li><a href="#icecream">Ice Cream</a></li>
+          <li><a href="#dairy">Dairy</a></li>
+          <li><a href="#bakery">Bakery &amp; Sweets</a></li>
+          <li><a href="#drinks">Drinks</a></li>
+          <li><a href="#organic">Organic</a></li>
+        </ul>
+      </div>
+      <div>
+        <h5>Visit Us</h5>
+        <ul>
+          <li><a href="#live">Okolovrasten pat 260</a></li>
+          <li><a href="#live">Dragalevtsi, Sofia 1415</a></li>
+          <li><a href="#live">Open non-stop · 24/7</a></li>
+          <li><a href="#live">+359 2 942 6000</a></li>
+          <li><a href="#live">960 parking spaces</a></li>
+        </ul>
+      </div>
+      <div>
+        <h5>Fantastico</h5>
+        <ul>
+          <li><a href="#">Our Story</a></li>
+          <li><a href="#">F Club Loyalty Card</a></li>
+          <li><a href="#">Weekly Brochure</a></li>
+          <li><a href="#">Careers</a></li>
+          <li><a href="#fresh">Fresh Today</a></li>
+        </ul>
+      </div>
+    </div>
+    <div class="foot-bottom">
+      <span>© 2026 Fantastico Group · Made with 🍓 in Sofia, Bulgaria</span>
+      <span>Freshness Reimagined ✦ Влезте в света на вкуса</span>
+    </div>
+  </footer>
+</main>
+
+<!-- ═══════════════ MOBILE CATEGORY DOCK ═══════════════ -->
+<nav id="mobileChips" aria-label="Store sections (mobile)"></nav>
+
+<!-- ═══════════════ CART ═══════════════ -->
+<div id="cartScrim"></div>
+<aside id="cartDrawer" aria-label="Shopping cart" aria-hidden="true">
+  <div class="cart-head">
+    <h3>🛒 Your Basket</h3>
+    <button class="icon-btn" id="cartClose" aria-label="Close cart">
+      <svg viewBox="0 0 24 24" fill="none" stroke-width="2.4" stroke-linecap="round" aria-hidden="true"><path d="M6 6l12 12M18 6 6 18"/></svg>
+    </button>
+  </div>
+  <div class="cart-items" id="cartItems"></div>
+  <div class="cart-foot">
+    <div class="total-row"><span>Total</span><b><span id="cartTotal">0,00</span> лв.<small id="cartTotalEur">€0.00</small></b></div>
+    <button class="checkout" id="checkoutBtn">Checkout · Свежо и бързо ✦</button>
+  </div>
+</aside>
+<button id="cartFab" aria-label="Open shopping cart">
+  <svg viewBox="0 0 24 24" fill="none" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+    <circle cx="9" cy="20" r="1.6"/><circle cx="17" cy="20" r="1.6"/><path d="M3 3h2.2l2.4 12.2a1.8 1.8 0 0 0 1.8 1.4h7.6a1.8 1.8 0 0 0 1.7-1.3L21 8H6"/>
+  </svg>
+  <span class="cart-badge" id="fabBadge">0</span>
+</button>
+
+<div id="toast" class="glass" role="status" aria-live="polite"></div>
+
+<script>
+"use strict";
+/* ═══════════════════ DATA ═══════════════════ */
+const EUR = 1.95583; // BGN → EUR fixed rate
+const PRODUCTS = [
+  /* fruits & vegetables */
+  {id:"tom", cat:"fruits", emoji:"🍅", name:"Vine Tomatoes", desc:"Sun-ripened in Plovdiv greenhouses, still on the vine.", price:4.99, unit:"kg", tag:"BG Farm", kcal:"18 kcal", extra:"💧 94% water", vit:"🅲 Vit C"},
+  {id:"str", cat:"fruits", emoji:"🍓", name:"Sandanski Strawberries", desc:"First crop of summer — perfumed, deep red, fragile.", price:7.49, unit:"500 g", tag:"New Crop", kcal:"32 kcal", extra:"🍬 Low sugar", vit:"🅲 Vit C"},
+  {id:"avo", cat:"fruits", emoji:"🥑", name:"Hass Avocado", desc:"Ready-to-eat, creamy, chosen one by one at dawn.", price:2.79, unit:"pc", tag:"Ripe Today", kcal:"160 kcal", extra:"💚 Good fats", vit:"🅺 Vit K"},
+  {id:"pep", cat:"fruits", emoji:"🫑", name:"Kurtovska Kapia Peppers", desc:"The legendary Bulgarian red pepper, roast-ready.", price:5.29, unit:"kg", tag:"Legend", kcal:"26 kcal", extra:"🔥 Roast it", vit:"🅰 Vit A"},
+  {id:"wtm", cat:"fruits", emoji:"🍉", name:"Lyubimets Watermelon", desc:"Thumped, listened to, and personally approved.", price:1.19, unit:"kg", tag:"Summer", kcal:"30 kcal", extra:"💧 Hydrating", vit:"🅲 Vit C"},
+  /* ice cream */
+  {id:"vansc", cat:"icecream", emoji:"🍨", name:"Madagascar Vanilla Tub", desc:"Real pods, slow-churned, dangerously smooth. 900 ml.", price:9.99, unit:"tub", tag:"Bestseller", kcal:"207 kcal", extra:"🥛 Fresh cream", vit:"❄ −18°C"},
+  {id:"frag", cat:"icecream", emoji:"🍓", name:"Strawberry Cheesecake Swirl", desc:"Ribbons of Sandanski strawberry through baked-cheese ice cream.", price:11.49, unit:"tub", tag:"New", kcal:"224 kcal", extra:"🍰 Real biscuit", vit:"❄ −18°C"},
+  {id:"pist", cat:"icecream", emoji:"🍦", name:"Sicilian Pistachio Cones", desc:"Six cones, hand-dipped in dark chocolate. Hide them well.", price:8.79, unit:"6 pcs", tag:"Premium", kcal:"245 kcal", extra:"🥜 30% nuts", vit:"❄ −18°C"},
+  {id:"sorb", cat:"icecream", emoji:"🍧", name:"Mango–Passion Sorbet", desc:"Vegan sunshine. 70% fruit, zero apologies.", price:7.99, unit:"tub", tag:"Vegan", kcal:"118 kcal", extra:"🌱 Plant based", vit:"🅲 Vit C"},
+  /* dairy */
+  {id:"yog", cat:"dairy", emoji:"🥣", name:"Bulgarian Yogurt 3.6%", desc:"With the original Lactobacillus bulgaricus. National treasure.", price:1.89, unit:"400 g", tag:"BG Icon", kcal:"64 kcal", extra:"🦠 Live cultures", vit:"💪 Protein"},
+  {id:"kash", cat:"dairy", emoji:"🧀", name:"Rhodope Kashkaval", desc:"Cave-aged nine months in the Rhodope mountains.", price:19.90, unit:"kg", tag:"Aged 9 mo", kcal:"374 kcal", extra:"🐄 Cow milk", vit:"💪 25 g protein"},
+  {id:"sir", cat:"dairy", emoji:"🫕", name:"White Brined Sirene", desc:"For shopska salad. Crumbles like snow off Vitosha.", price:14.50, unit:"kg", tag:"Classic", kcal:"260 kcal", extra:"🥗 Salad star", vit:"🦴 Calcium"},
+  {id:"milk", cat:"dairy", emoji:"🥛", name:"Mountain Fresh Milk 3%", desc:"From Smolyan farms, bottled the same morning.", price:2.99, unit:"1 L", tag:"Same-day", kcal:"60 kcal", extra:"🐄 Single farm", vit:"🅳 Vit D"},
+  /* bakery & sweets */
+  {id:"ban", cat:"bakery", emoji:"🥧", name:"Warm Banitsa", desc:"Hand-pulled filo, village sirene, drawn from the oven hourly.", price:3.49, unit:"pc", tag:"Oven-warm", kcal:"310 kcal", extra:"🕐 Baked hourly", vit:"🇧🇬 Recipe 1911"},
+  {id:"sour", cat:"bakery", emoji:"🥖", name:"72-Hour Sourdough", desc:"Slow-fermented, blistered crust, deafening crunch.", price:4.89, unit:"loaf", tag:"Artisan", kcal:"238 kcal", extra:"🌾 Stone-milled", vit:"⏳ 72 h"},
+  {id:"honey", cat:"bakery", emoji:"🍯", name:"Strandzha Manna Honey", desc:"Rare oak-forest honey. Amber, dense, quietly famous.", price:16.90, unit:"450 g", tag:"Rare", kcal:"304 kcal", extra:"🐝 Raw & pure", vit:"✨ Antioxidant"},
+  {id:"croi", cat:"bakery", emoji:"🥐", name:"Butter Croissant Duo", desc:"French butter, Bulgarian patience. Flakes everywhere. Sorry.", price:3.99, unit:"2 pcs", tag:"Morning", kcal:"406 kcal", extra:"🧈 82% butter", vit:"😊 Joy"},
+  /* drinks */
+  {id:"min", cat:"drinks", emoji:"💧", name:"Devin Mineral Water", desc:"Born in Rila granite, naturally sparkling, ice cold.", price:1.49, unit:"1.5 L", tag:"Spring", kcal:"0 kcal", extra:"⛰ Rila spring", vit:"🫧 Sparkling"},
+  {id:"oj", cat:"drinks", emoji:"🍊", name:"Cold-Pressed Orange", desc:"Squeezed this morning in-store. Pulp negotiable.", price:5.99, unit:"750 ml", tag:"Pressed today", kcal:"45 kcal", extra:"🍊 6 oranges", vit:"🅲 200% C"},
+  {id:"ayr", cat:"drinks", emoji:"🥤", name:"Salted Ayran", desc:"The only correct answer to a Bulgarian summer.", price:1.29, unit:"500 ml", tag:"Cooling", kcal:"38 kcal", extra:"🧂 Just right", vit:"💪 Protein"},
+  {id:"kom", cat:"drinks", emoji:"🍹", name:"Rose Valley Kombucha", desc:"Fermented with Kazanlak rose petals. Fizzy poetry.", price:4.49, unit:"330 ml", tag:"Probiotic", kcal:"22 kcal", extra:"🌹 Real roses", vit:"🦠 Live SCOBY"},
+  /* organic */
+  {id:"bas", cat:"organic", emoji:"🌿", name:"Living Basil Pot", desc:"Still growing. Take it home, keep it alive, feel proud.", price:3.29, unit:"pot", tag:"Alive", kcal:"23 kcal", extra:"🪴 Keeps growing", vit:"🅺 Vit K"},
+  {id:"eggs", cat:"organic", emoji:"🥚", name:"Bio Pasture Eggs", desc:"From hens with strong opinions and open fields.", price:6.99, unit:"10 pcs", tag:"Free-range", kcal:"66 kcal", extra:"🐔 Pasture", vit:"💪 6 g protein"},
+  {id:"tah", cat:"organic", emoji:"🫙", name:"Stone-Ground Tahini", desc:"Single-origin Bulgarian sesame, nothing else.", price:8.49, unit:"300 g", tag:"1 ingredient", kcal:"595 kcal", extra:"🌰 Whole seed", vit:"🦴 Calcium"},
+  {id:"ler", cat:"organic", emoji:"🫘", name:"Smilyan Beans", desc:"The most famous beans in Bulgaria, from one Rhodope valley.", price:9.90, unit:"kg", tag:"Protected", kcal:"127 kcal", extra:"⛰ Smilyan only", vit:"💪 9 g protein"},
+];
+const CATS = [
+  {id:"fruits", label:"🍅 Fruits & Veg"},
+  {id:"icecream", label:"🍦 Ice Cream"},
+  {id:"dairy", label:"🥛 Dairy"},
+  {id:"bakery", label:"🥐 Bakery"},
+  {id:"drinks", label:"🫧 Drinks"},
+  {id:"organic", label:"🌿 Organic"},
+  {id:"live", label:"📍 Live Store"},
+  {id:"fresh", label:"✨ Fresh Today"},
+];
+
+const $ = s=>document.querySelector(s);
+const $$ = s=>[...document.querySelectorAll(s)];
+const fmtBGN = n=>n.toFixed(2).replace(".",",");
+const fmtEUR = n=>"€"+(n/EUR).toFixed(2);
+const reduceMotion = matchMedia("(prefers-reduced-motion: reduce)").matches;
+
+/* ═══════════════════ HERO: stars, warm orbs, particles, parallax ═══════════════════ */
+(function buildStars(){
+  const g = $("#starField"); let s="";
+  for(let i=0;i<90;i++){
+    const x=(Math.random()*1440).toFixed(0), y=(Math.random()*430).toFixed(0), r=(Math.random()*1.3+.3).toFixed(2);
+    s+=`<circle cx="${x}" cy="${y}" r="${r}" opacity="${(Math.random()*.7+.2).toFixed(2)}"/>`;
+  }
+  g.innerHTML=s;
+})();
+(function buildWarmOrbs(){
+  /* the glowing amber orb-wall visible through the Dragalevtsi glass facade */
+  const g = $("#warmOrbs"); let s="";
+  for(let i=0;i<110;i++){
+    const x=(230+Math.random()*1000).toFixed(0);
+    const y=(548+Math.random()*130 - (x-230)*0.028).toFixed(0);
+    const r=(Math.random()*5+2.5).toFixed(1);
+    s+=`<circle class="glow-window" cx="${x}" cy="${y}" r="${r}" fill="#ffc978" opacity="${(Math.random()*.5+.4).toFixed(2)}"/>`;
+  }
+  g.innerHTML=s;
+})();
+
+/* hero dust particles (canvas) */
+(function particles(){
+  const cv = $("#heroParticles"), ctx = cv.getContext("2d");
+  let W,H,parts=[],raf=null;
+  function size(){ W=cv.width=innerWidth; H=cv.height=innerHeight; }
+  size(); addEventListener("resize",size);
+  const N = innerWidth<720?26:52;
+  for(let i=0;i<N;i++) parts.push({x:Math.random(),y:Math.random(),r:Math.random()*1.8+.4,v:Math.random()*.00035+.0001,o:Math.random()*.5+.15,ph:Math.random()*6.28});
+  function tick(t){
+    ctx.clearRect(0,0,W,H);
+    for(const p of parts){
+      p.y-=p.v; if(p.y<-0.02){p.y=1.02;p.x=Math.random();}
+      const tw=.5+.5*Math.sin(t*.0012+p.ph);
+      ctx.beginPath(); ctx.arc(p.x*W+Math.sin(t*.0004+p.ph)*14, p.y*H, p.r,0,6.283);
+      ctx.fillStyle=`rgba(255,225,180,${(p.o*tw).toFixed(3)})`; ctx.fill();
+    }
+    raf=requestAnimationFrame(tick);
+  }
+  if(!reduceMotion) raf=requestAnimationFrame(tick);
+  /* stop when hero is gone */
+  window.__stopHeroParticles=()=>{ if(raf) cancelAnimationFrame(raf); cv.remove(); };
+})();
+
+/* mouse / gyro parallax on hero layers */
+(function parallax(){
+  const scene = $("#heroScene"), layers = $$("#heroScene .layer");
+  if(reduceMotion) return;
+  let tx=0,ty=0,cx=0,cy=0,active=true;
+  addEventListener("pointermove",e=>{
+    if(!active) return;
+    tx=(e.clientX/innerWidth-.5); ty=(e.clientY/innerHeight-.5);
+  },{passive:true});
+  (function loop(){
+    if(!active) return;
+    cx+=(tx-cx)*.06; cy+=(ty-cy)*.06;
+    for(const l of layers){
+      const d=+l.dataset.depth||0;
+      l.style.transform=`translate3d(${(-cx*36*d).toFixed(2)}px,${(-cy*22*d).toFixed(2)}px,0) scale(${1+d*.04})`;
+    }
+    requestAnimationFrame(loop);
+  })();
+  window.__stopParallax=()=>{active=false;};
+})();
+
+/* ═══════════════════ CINEMATIC ENTRY ═══════════════════ */
+let entered=false;
+function enterStore(){
+  if(entered) return; entered=true;
+  const hero=$("#hero");
+  $("#store").hidden=false;
+  hero.classList.add("entering");
+  $("#flash").classList.add("on");
+  if(navigator.vibrate) navigator.vibrate(18);
+  setTimeout(()=>{
+    document.body.classList.remove("locked");
+    document.body.classList.add("inside");
+    scrollTo({top:0,behavior:"instant"});
+    revealObserve();
+  }, 950);
+  setTimeout(()=>{
+    hero.classList.add("gone");
+    if(window.__stopHeroParticles) window.__stopHeroParticles();
+    if(window.__stopParallax) window.__stopParallax();
+    setTimeout(()=>hero.remove(),1300);
+  }, 1050);
+}
+$("#enterOrb").addEventListener("click",enterStore);
+addEventListener("keydown",e=>{ if(!entered && (e.key==="Enter"||e.key===" ") && document.activeElement===document.body){ e.preventDefault(); enterStore(); }});
+
+/* ═══════════════════ NAV CHIPS ═══════════════════ */
+(function buildChips(){
+  const mk = cat=>{
+    const b=document.createElement("button");
+    b.className="chip"; b.dataset.target=cat.id; b.textContent=cat.label;
+    b.addEventListener("click",()=>{ document.getElementById(cat.id).scrollIntoView({behavior:reduceMotion?"auto":"smooth"}); });
+    return b;
+  };
+  const nav=$("#navChips"), mob=$("#mobileChips");
+  CATS.forEach(c=>{ nav.appendChild(mk(c)); mob.appendChild(mk(c)); });
+})();
+/* active chip via IntersectionObserver */
+const sectionSpy = new IntersectionObserver(entries=>{
+  for(const en of entries){
+    if(en.isIntersecting){
+      $$(".chip").forEach(ch=>ch.classList.toggle("active",ch.dataset.target===en.target.id));
+    }
+  }
+},{rootMargin:"-42% 0px -50% 0px"});
+$$(".aisle").forEach(s=>sectionSpy.observe(s));
+
+/* ═══════════════════ RENDER PRODUCTS ═══════════════════ */
+const TINTS = {fruits:"rgba(61,220,132,.18)", icecream:"rgba(76,201,240,.2)", dairy:"rgba(188,216,255,.16)", bakery:"rgba(251,191,36,.16)", drinks:"rgba(76,201,240,.16)", organic:"rgba(163,230,53,.16)"};
+function cardHTML(p){
+  return `
+  <div class="p-visual" style="--p-tint:${TINTS[p.cat]}">
+    <span class="p-tagline">${p.tag}</span>
+    <span class="p-emoji" aria-hidden="true">${p.emoji}</span>
+    <span class="p-shadow" aria-hidden="true"></span>
+    <div class="nutri" aria-hidden="true"><span>🔥 ${p.kcal}</span><span>${p.extra}</span><span>${p.vit}</span></div>
+  </div>
+  <div class="p-body">
+    <h4>${p.name}</h4>
+    <p class="p-desc">${p.desc}</p>
+    <div class="p-row">
+      <div class="price">${fmtBGN(p.price)} лв. <span class="unit">/ ${p.unit}</span><small>${fmtEUR(p.price)}</small></div>
+      <button class="add-btn" data-add="${p.id}" aria-label="Add ${p.name} to cart">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" aria-hidden="true"><path d="M12 5v14M5 12h14"/></svg>
+        Add
+      </button>
+    </div>
+  </div>`;
+}
+$$(".grid[data-cat]").forEach(grid=>{
+  const cat=grid.dataset.cat;
+  PRODUCTS.filter(p=>p.cat===cat).forEach(p=>{
+    const el=document.createElement("article");
+    el.className="card reveal"+(cat==="icecream"?" frost":"");
+    el.id="p-"+p.id;
+    el.innerHTML=cardHTML(p);
+    grid.appendChild(el);
+  });
+});
+
+/* reveal on scroll */
+let revealIO=null;
+function revealObserve(){
+  if(revealIO) return;
+  revealIO=new IntersectionObserver(es=>{
+    es.forEach(e=>{ if(e.isIntersecting){ e.target.classList.add("in"); revealIO.unobserve(e.target); } });
+  },{threshold:.12,rootMargin:"0px 0px -6% 0px"});
+  $$(".reveal").forEach(el=>revealIO.observe(el));
+}
+
+/* ═══════════════════ AMBIENT SECTION FX (built once, cheap) ═══════════════════ */
+(function sectionFX(){
+  const frag=(host,html)=>host.insertAdjacentHTML("beforeend",html);
+  /* fruits: falling leaves + dew */
+  const fr=$("#fruits");
+  const leaves=["🍃","🍂","🌿"];
+  for(let i=0;i<9;i++){
+    frag(fr,`<span class="leaf" aria-hidden="true" style="left:${(Math.random()*96).toFixed(1)}%;animation-duration:${(9+Math.random()*9).toFixed(1)}s;animation-delay:${(-Math.random()*16).toFixed(1)}s;font-size:${(0.9+Math.random()*1).toFixed(2)}rem">${leaves[i%3]}</span>`);
+  }
+  for(let i=0;i<12;i++){
+    const s=(6+Math.random()*14).toFixed(0);
+    frag(fr,`<span class="dew" aria-hidden="true" style="left:${(Math.random()*94).toFixed(1)}%;top:${(12+Math.random()*80).toFixed(1)}%;width:${s}px;height:${s}px;animation-delay:${(-Math.random()*5).toFixed(1)}s"></span>`);
+  }
+  /* icecream: gentle snow */
+  const ic=$("#icecream");
+  for(let i=0;i<10;i++){
+    frag(ic,`<span class="snowfall" aria-hidden="true" style="left:${(Math.random()*96).toFixed(1)}%;animation-duration:${(11+Math.random()*10).toFixed(1)}s;animation-delay:${(-Math.random()*20).toFixed(1)}s">❄</span>`);
+  }
+  /* bakery: honey drips + flour dust */
+  const bk=$("#bakery");
+  for(let i=0;i<7;i++){
+    frag(bk,`<span class="honey" aria-hidden="true" style="left:${(6+i*14+Math.random()*5).toFixed(1)}%;animation-delay:${(-Math.random()*7).toFixed(1)}s"></span>`);
+  }
+  for(let i=0;i<10;i++){
+    const s=(3+Math.random()*6).toFixed(0);
+    frag(bk,`<span class="flour" aria-hidden="true" style="left:${(Math.random()*95).toFixed(1)}%;top:${(20+Math.random()*70).toFixed(1)}%;width:${s}px;height:${s}px;animation-delay:${(-Math.random()*6).toFixed(1)}s"></span>`);
+  }
+  /* drinks: rising bubbles */
+  const dr=$("#drinks");
+  for(let i=0;i<16;i++){
+    const s=(5+Math.random()*16).toFixed(0);
+    frag(dr,`<span class="bubble" aria-hidden="true" style="left:${(Math.random()*96).toFixed(1)}%;width:${s}px;height:${s}px;animation-duration:${(7+Math.random()*9).toFixed(1)}s;animation-delay:${(-Math.random()*14).toFixed(1)}s"></span>`);
+  }
+  /* organic: fireflies */
+  const og=$("#organic");
+  for(let i=0;i<9;i++){
+    frag(og,`<span class="firefly" aria-hidden="true" style="left:${(Math.random()*88).toFixed(1)}%;top:${(25+Math.random()*60).toFixed(1)}%;animation-duration:${(5+Math.random()*7).toFixed(1)}s;animation-delay:${(-Math.random()*9).toFixed(1)}s"></span>`);
+  }
+})();
+
+/* ═══════════════════ THE ICE-CREAM "F" ═══════════════════ */
+(function buildF(){
+  /* letter F drawn as a 5×7 scoop bitmap */
+  const F = [
+    "11111",
+    "11111",
+    "11000",
+    "11110",
+    "11110",
+    "11000",
+    "11000",
+  ];
+  const FLAVORS = [
+    ["#ff8fab","#e05780"], // strawberry
+    ["#b7e4c7","#74c69d"], // pistachio
+    ["#ffd166","#f4a261"], // mango
+    ["#cdb4f6","#9d6bce"], // blueberry-violet
+    ["#fff3e0","#f0d9b5"], // vanilla
+    ["#d7a86e","#a26b38"], // chocolate
+  ];
+  const host=$("#fMonument");
+  let html="", d=0;
+  for(let r=0;r<7;r++) for(let c=0;c<5;c++){
+    if(F[r][c]!=="1") continue;
+    const [a,b]=FLAVORS[(r*5+c)%FLAVORS.length];
+    const jx=(Math.random()*3-1.5).toFixed(1), jy=(Math.random()*3-1.5).toFixed(1);
+    html+=`<span class="scoop" style="left:calc(${c*20}% + ${jx}%);top:calc(${r*14.28}% + ${jy}%);width:21.5%;height:15.6%;
+      background:radial-gradient(circle at 34% 30%,${a},${b} 72%);animation-delay:${(d*0.045).toFixed(2)}s"></span>`;
+    d++;
+  }
+  /* melting drips under the bottom row scoops */
+  const dripCols=[2,26,44];
+  dripCols.forEach((l,i)=>{
+    const [a,b]=FLAVORS[(i*2+1)%FLAVORS.length];
+    html+=`<span class="drip" style="left:${l}%;top:98%;background:linear-gradient(180deg,${b},${a});animation-delay:${(-i*1.4).toFixed(1)}s"></span>`;
+  });
+  host.innerHTML=html;
+})();
+
+/* ═══════════════════ CART ═══════════════════ */
+const cart=new Map(); // id -> qty
+const drawer=$("#cartDrawer"), scrim=$("#cartScrim");
+function cartCount(){ let n=0; cart.forEach(q=>n+=q); return n; }
+function cartSum(){ let s=0; cart.forEach((q,id)=>{ s+=PRODUCTS.find(p=>p.id===id).price*q; }); return s; }
+function syncBadges(pop){
+  const n=cartCount();
+  [["#cartBadge"],["#fabBadge"]].forEach(([sel])=>{
+    const b=$(sel); b.textContent=n;
+    b.classList.toggle("show",n>0);
+    if(pop&&n>0){ b.classList.remove("pop"); void b.offsetWidth; b.classList.add("pop"); }
+  });
+}
+function renderCart(){
+  const box=$("#cartItems");
+  if(cart.size===0){
+    box.innerHTML=`<div class="cart-empty"><span class="big-ico">🧺</span><b>Your basket is empty</b><span>Walk the aisles — something fresh is waiting.</span></div>`;
+  } else {
+    let html="";
+    cart.forEach((q,id)=>{
+      const p=PRODUCTS.find(x=>x.id===id);
+      html+=`<div class="ci">
+        <span class="ci-emoji">${p.emoji}</span>
+        <span class="ci-info"><b>${p.name}</b><span>${fmtBGN(p.price)} лв. / ${p.unit}</span></span>
+        <span class="qty">
+          <button data-dec="${id}" aria-label="Remove one ${p.name}">−</button><b>${q}</b><button data-inc="${id}" aria-label="Add one ${p.name}">+</button>
+        </span>
+      </div>`;
+    });
+    box.innerHTML=html;
+  }
+  const s=cartSum();
+  $("#cartTotal").textContent=fmtBGN(s);
+  $("#cartTotalEur").textContent=fmtEUR(s);
+  syncBadges(false);
+}
+function openCart(){ drawer.classList.add("open"); drawer.setAttribute("aria-hidden","false"); scrim.classList.add("on"); }
+function closeCart(){ drawer.classList.remove("open"); drawer.setAttribute("aria-hidden","true"); scrim.classList.remove("on"); }
+$("#cartBtn").addEventListener("click",openCart);
+$("#cartFab").addEventListener("click",openCart);
+$("#cartClose").addEventListener("click",closeCart);
+scrim.addEventListener("click",closeCart);
+addEventListener("keydown",e=>{ if(e.key==="Escape"){ closeCart(); closeSuggest(); }});
+
+let toastTimer=null;
+function toast(msg){
+  const t=$("#toast"); t.textContent=msg; t.classList.add("show");
+  clearTimeout(toastTimer); toastTimer=setTimeout(()=>t.classList.remove("show"),2300);
+}
+
+/* add-to-cart with fly animation */
+document.addEventListener("click",e=>{
+  const add=e.target.closest("[data-add]");
+  if(add){
+    const id=add.dataset.add, p=PRODUCTS.find(x=>x.id===id);
+    cart.set(id,(cart.get(id)||0)+1);
+    renderCart(); syncBadges(true);
+    toast(`${p.emoji} ${p.name} — in the basket!`);
+    if(!reduceMotion){
+      const card=add.closest(".card"), em=card.querySelector(".p-emoji");
+      const from=em.getBoundingClientRect();
+      const target=innerWidth<721?$("#cartFab"):$("#cartBtn");
+      const to=target.getBoundingClientRect();
+      const fly=document.createElement("span");
+      fly.className="fly-item"; fly.textContent=p.emoji;
+      fly.style.left=from.left+from.width/2-16+"px"; fly.style.top=from.top+from.height/2-16+"px";
+      document.body.appendChild(fly);
+      requestAnimationFrame(()=>requestAnimationFrame(()=>{
+        fly.style.left=to.left+to.width/2-16+"px"; fly.style.top=to.top+to.height/2-16+"px";
+        fly.style.transform="scale(.25) rotate(24deg)"; fly.style.opacity="0.2";
+      }));
+      setTimeout(()=>fly.remove(),850);
+    }
+    return;
+  }
+  const inc=e.target.closest("[data-inc]"), dec=e.target.closest("[data-dec]");
+  if(inc){ cart.set(inc.dataset.inc,cart.get(inc.dataset.inc)+1); renderCart(); }
+  if(dec){
+    const id=dec.dataset.dec, q=cart.get(id)-1;
+    if(q<=0) cart.delete(id); else cart.set(id,q);
+    renderCart();
+  }
+});
+
+/* checkout → confetti celebration */
+$("#checkoutBtn").addEventListener("click",()=>{
+  if(cart.size===0){ toast("🧺 Your basket is still empty!"); return; }
+  const n=cartCount(), s=cartSum();
+  cart.clear(); renderCart(); closeCart();
+  toast(`🎉 Поръчано! ${n} items · ${fmtBGN(s)} лв. — see you in Dragalevtsi!`);
+  if(reduceMotion) return;
+  const colors=["#e8112d","#3ddc84","#ff9a3c","#4cc9f0","#fbbf24","#a78bfa"];
+  for(let i=0;i<70;i++){
+    const c=document.createElement("i");
+    c.className="confetti";
+    const sz=(5+Math.random()*7).toFixed(0);
+    c.style.cssText=`left:${(Math.random()*100).toFixed(1)}vw;width:${sz}px;height:${sz}px;background:${colors[i%colors.length]};animation-duration:${(1.6+Math.random()*1.8).toFixed(2)}s;animation-delay:${(Math.random()*.5).toFixed(2)}s`;
+    document.body.appendChild(c);
+    setTimeout(()=>c.remove(),4200);
+  }
+});
+
+/* ═══════════════════ SEARCH + SUGGESTIONS ═══════════════════ */
+const sInput=$("#searchInput"), sBox=$("#suggestBox");
+const CATLABEL={fruits:"Fruits & Veg",icecream:"Ice Cream",dairy:"Dairy",bakery:"Bakery",drinks:"Drinks",organic:"Organic"};
+function closeSuggest(){ sBox.classList.remove("open"); }
+sInput.addEventListener("input",()=>{
+  const q=sInput.value.trim().toLowerCase();
+  if(q.length<1){ closeSuggest(); return; }
+  const hits=PRODUCTS.filter(p=>(p.name+" "+p.desc+" "+CATLABEL[p.cat]).toLowerCase().includes(q)).slice(0,6);
+  sBox.innerHTML = hits.length
+    ? hits.map(p=>`<button role="option" data-goto="${p.id}"><span class="s-emoji">${p.emoji}</span><span><span class="s-name">${p.name}</span><span class="s-cat">${CATLABEL[p.cat]}</span></span><span class="s-price">${fmtBGN(p.price)} лв.</span></button>`).join("")
+    : `<div class="none">Nothing fresh found for “${sInput.value.trim().slice(0,30)}” 🥲</div>`;
+  sBox.classList.add("open");
+});
+sInput.addEventListener("focus",()=>{ if(sInput.value.trim()) sInput.dispatchEvent(new Event("input")); });
+document.addEventListener("click",e=>{
+  const go=e.target.closest("[data-goto]");
+  if(go){
+    const card=document.getElementById("p-"+go.dataset.goto);
+    closeSuggest(); sInput.value="";
+    card.classList.add("in");
+    card.scrollIntoView({behavior:reduceMotion?"auto":"smooth",block:"center"});
+    card.classList.remove("glow-hit"); void card.offsetWidth; card.classList.add("glow-hit");
+    return;
+  }
+  if(!e.target.closest(".search-wrap")) closeSuggest();
+});
+
+/* ═══════════════════ LIVE STORE WIDGETS ═══════════════════ */
+(function liveWidgets(){
+  let visitors=140+Math.floor(Math.random()*80);
+  let parking=80+Math.floor(Math.random()*40);
+  const vEl=$("#visitorCount"), pEl=$("#parkingCount"), cEl=$("#clockNow");
+  function drift(){
+    visitors=Math.max(60,Math.min(320,visitors+Math.floor(Math.random()*13)-6));
+    parking=Math.max(20,Math.min(180,parking+Math.floor(Math.random()*7)-3));
+    vEl.textContent=visitors; pEl.textContent=parking;
+  }
+  function clock(){
+    cEl.textContent=new Intl.DateTimeFormat("bg-BG",{hour:"2-digit",minute:"2-digit",timeZone:"Europe/Sofia"}).format(new Date());
+  }
+  drift(); clock();
+  setInterval(drift,4000); setInterval(clock,15000);
+})();
+
+/* ═══════════════════ THEME TOGGLE ═══════════════════ */
+$("#themeBtn").addEventListener("click",()=>{
+  const root=document.documentElement;
+  const light=root.dataset.theme!=="light";
+  root.dataset.theme=light?"light":"dark";
+  $("#themeIcon").setAttribute("d", light
+    ? "M12 4V2m0 20v-2M4 12H2m20 0h-2M5.6 5.6 4.2 4.2m15.6 15.6-1.4-1.4m0-12.8 1.4-1.4M4.2 19.8l1.4-1.4M12 17a5 5 0 1 0 0-10 5 5 0 0 0 0 10Z"
+    : "M21 12.8A9 9 0 1 1 11.2 3 7 7 0 0 0 21 12.8Z");
+  toast(light?"☀️ Daylight mode — like morning in the produce aisle":"🌙 Dusk mode — like the store at blue hour");
+});
+
+/* brand click returns to top */
+$("#brandHome").addEventListener("click",e=>{ e.preventDefault(); scrollTo({top:0,behavior:reduceMotion?"auto":"smooth"}); });
+
+/* subtle scroll parallax for section ambience */
+if(!reduceMotion){
+  let ticking=false;
+  addEventListener("scroll",()=>{
+    if(ticking) return; ticking=true;
+    requestAnimationFrame(()=>{
+      const y=scrollY;
+      $$(".aisle-head").forEach(h=>{
+        const r=h.getBoundingClientRect();
+        if(r.bottom>0&&r.top<innerHeight) h.style.transform=`translateY(${((r.top-100)*0.06).toFixed(1)}px)`;
+      });
+      ticking=false;
+    });
+  },{passive:true});
+}
+
+renderCart();
+</script>
+</body>
+</html>
