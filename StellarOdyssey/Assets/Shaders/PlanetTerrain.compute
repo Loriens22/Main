@@ -1,0 +1,155 @@
+// GPU terrain generation for one quadtree patch of a cube-sphere planet.
+// Multi-layer noise stack (No Man's Sky style):
+//   continents (low-freq fBm) -> mountains (ridged multifractal) ->
+//   canyons (inverted ridge carving) -> fine detail (high-freq fBm) ->
+//   biome classification packed into a float4 per vertex.
+
+#pragma kernel GeneratePatch
+
+RWStructuredBuffer<float3> _Positions;
+RWStructuredBuffer<float3> _Normals;
+RWStructuredBuffer<float4> _BiomeData;   // x: biome id, y: moisture, z: temperature, w: slope
+
+int    _Resolution;
+int    _Seed;
+float  _PlanetRadius;
+float  _MountainHeight;
+float  _BaseFrequency;
+int    _Octaves;
+float  _RidgeSharpness;
+float  _OceanLevel;
+float  _CanyonDepth;
+float3 _FaceNormal;
+float4 _PatchOffsetScale;   // xy: patch UV offset, z: patch UV size
+
+// ---------------------------------------------------------------- noise ----
+float3 hash33(float3 p)
+{
+    p = float3(dot(p, float3(127.1, 311.7, 74.7)),
+               dot(p, float3(269.5, 183.3, 246.1)),
+               dot(p, float3(113.5, 271.9, 124.6)));
+    return -1.0 + 2.0 * frac(sin(p + _Seed * 0.001) * 43758.5453123);
+}
+
+float gradientNoise(float3 p)
+{
+    float3 i = floor(p);
+    float3 f = frac(p);
+    float3 u = f * f * (3.0 - 2.0 * f);
+
+    return lerp(lerp(lerp(dot(hash33(i + float3(0,0,0)), f - float3(0,0,0)),
+                          dot(hash33(i + float3(1,0,0)), f - float3(1,0,0)), u.x),
+                     lerp(dot(hash33(i + float3(0,1,0)), f - float3(0,1,0)),
+                          dot(hash33(i + float3(1,1,0)), f - float3(1,1,0)), u.x), u.y),
+                lerp(lerp(dot(hash33(i + float3(0,0,1)), f - float3(0,0,1)),
+                          dot(hash33(i + float3(1,0,1)), f - float3(1,0,1)), u.x),
+                     lerp(dot(hash33(i + float3(0,1,1)), f - float3(0,1,1)),
+                          dot(hash33(i + float3(1,1,1)), f - float3(1,1,1)), u.x), u.y), u.z);
+}
+
+float fbm(float3 p, int octaves, float lacunarity, float gain)
+{
+    float sum = 0.0, amp = 0.5, freq = 1.0;
+    for (int i = 0; i < octaves; i++)
+    {
+        sum += amp * gradientNoise(p * freq);
+        freq *= lacunarity;
+        amp *= gain;
+    }
+    return sum;
+}
+
+float ridged(float3 p, int octaves)
+{
+    float sum = 0.0, amp = 0.5, freq = 1.0, prev = 1.0;
+    for (int i = 0; i < octaves; i++)
+    {
+        float n = 1.0 - abs(gradientNoise(p * freq));
+        n = pow(n, _RidgeSharpness);
+        sum += n * amp * prev;
+        prev = n;
+        freq *= 2.0;
+        amp *= 0.5;
+    }
+    return sum;
+}
+
+// -------------------------------------------------------------- mapping ----
+float3 cubeToSphere(float2 uv)
+{
+    float3 axisA = float3(_FaceNormal.y, _FaceNormal.z, _FaceNormal.x);
+    float3 axisB = cross(_FaceNormal, axisA);
+    float3 p = _FaceNormal + (uv.x - 0.5) * 2.0 * axisA + (uv.y - 0.5) * 2.0 * axisB;
+    float x2 = p.x * p.x, y2 = p.y * p.y, z2 = p.z * p.z;
+    return float3(
+        p.x * sqrt(1.0 - y2 / 2.0 - z2 / 2.0 + y2 * z2 / 3.0),
+        p.y * sqrt(1.0 - x2 / 2.0 - z2 / 2.0 + x2 * z2 / 3.0),
+        p.z * sqrt(1.0 - x2 / 2.0 - y2 / 2.0 + x2 * y2 / 3.0));
+}
+
+// ---------------------------------------------------------------- height ---
+float terrainHeight(float3 sphereDir)
+{
+    float3 p = sphereDir * _BaseFrequency;
+
+    // Layer 1: continents — where land masses vs oceans sit.
+    float continents = fbm(p * 0.4, 4, 2.0, 0.5) * 2.0;
+
+    // Layer 2: mountains — ridged multifractal masked to continental land.
+    float landMask = smoothstep(-0.1, 0.4, continents);
+    float mountains = ridged(p * 2.0, min(_Octaves, 10)) * landMask;
+
+    // Layer 3: canyons — carve where a band of ridge noise crosses zero.
+    float canyonNoise = gradientNoise(p * 1.3);
+    float canyon = smoothstep(0.02, 0.0, abs(canyonNoise)) * landMask;
+
+    // Layer 4: fine detail for close-range realism.
+    float detail = fbm(p * 24.0, max(_Octaves - 6, 2), 2.1, 0.45) * 0.05;
+
+    float h = continents * 0.25 + mountains * 1.0 + detail;
+    h = h * _MountainHeight - canyon * _CanyonDepth;
+    return h;
+}
+
+// ---------------------------------------------------------------- kernel ---
+[numthreads(8, 8, 1)]
+void GeneratePatch(uint3 id : SV_DispatchThreadID)
+{
+    if (id.x >= (uint)_Resolution || id.y >= (uint)_Resolution) return;
+    int index = id.y * _Resolution + id.x;
+
+    float2 uvLocal = float2(id.xy) / (_Resolution - 1);
+    float2 uv = _PatchOffsetScale.xy + uvLocal * _PatchOffsetScale.z;
+
+    float3 dir = cubeToSphere(uv);
+    float h = terrainHeight(dir);
+    float3 pos = dir * (_PlanetRadius + max(h, _OceanLevel - 2.0)); // clamp just below sea for shore blending
+    _Positions[index] = pos;
+
+    // Normal from central differences on the height field.
+    float eps = _PatchOffsetScale.z / (_Resolution - 1) * 0.5;
+    float3 dirX = cubeToSphere(uv + float2(eps, 0));
+    float3 dirY = cubeToSphere(uv + float2(0, eps));
+    float3 px = dirX * (_PlanetRadius + terrainHeight(dirX));
+    float3 py = dirY * (_PlanetRadius + terrainHeight(dirY));
+    float3 n = normalize(cross(py - pos, px - pos));
+    if (dot(n, dir) < 0) n = -n;
+    _Normals[index] = n;
+
+    // Biome classification.
+    float latitude = abs(dir.y);                       // 0 equator, 1 pole
+    float altitude01 = saturate(h / _MountainHeight);
+    float moisture = fbm(dir * 3.0 + 100.0, 4, 2.0, 0.5) * 0.5 + 0.5;
+    float temperature = (1.0 - latitude) * (1.0 - altitude01 * 0.7);
+    float slope = 1.0 - saturate(dot(n, dir));
+
+    float biomeId;
+    if (h < _OceanLevel)            biomeId = 0; // ocean
+    else if (temperature < 0.2)     biomeId = 1; // ice / snow
+    else if (moisture < 0.3)        biomeId = 2; // desert
+    else if (altitude01 > 0.6)      biomeId = 3; // rocky highlands
+    else if (moisture > 0.65)       biomeId = 4; // lush forest
+    else                            biomeId = 5; // plains
+
+    _BiomeData[index] = float4(biomeId / 8.0, moisture, temperature, slope);
+}
