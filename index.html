@@ -77,7 +77,7 @@ h1,h2,h3,h4{font-weight:800;letter-spacing:-.02em}
    ══════════════════════════════════════════════════════════════ */
 #hero{position:fixed;inset:0;z-index:60;display:grid;place-items:center;overflow:hidden;
   perspective:1200px; background:#05070e;
-  transition:opacity .9s var(--ease-cine) 1.15s, visibility 0s linear 2.1s;
+  transition:opacity .95s var(--ease-cine), visibility 0s linear 1s;
 }
 #hero.gone{opacity:0;visibility:hidden;pointer-events:none}
 .hero-scene{position:absolute;inset:-6%;transform-style:preserve-3d;
@@ -184,19 +184,21 @@ body.inside #store{opacity:1;transform:none}
   display:flex;align-items:center;gap:12px;
   transform:translateY(-120%);transition:transform .9s var(--ease) .6s}
 body.inside #topbar{transform:none}
-.bar-inner{flex:1;display:flex;align-items:center;gap:clamp(8px,1.6vw,18px);padding:9px clamp(10px,1.8vw,18px);border-radius:999px;
+.bar-inner{flex:1;min-width:0;display:flex;align-items:center;gap:clamp(8px,1.6vw,18px);padding:9px clamp(10px,1.8vw,18px);border-radius:999px;
   background:var(--glass-strong);-webkit-backdrop-filter:blur(24px) saturate(160%);backdrop-filter:blur(24px) saturate(160%);
   border:1px solid var(--stroke);box-shadow:var(--shadow)}
 .brand{display:flex;align-items:center;gap:9px;font-weight:900;font-size:1.02rem;letter-spacing:.02em;white-space:nowrap}
 .brand svg{width:30px;height:30px;filter:drop-shadow(0 0 10px rgba(232,17,45,.5))}
 .brand b{background:linear-gradient(100deg,var(--ink),var(--red-glow));-webkit-background-clip:text;background-clip:text;-webkit-text-fill-color:transparent}
-.chips{display:flex;gap:6px;overflow-x:auto;scrollbar-width:none;-ms-overflow-style:none;mask-image:linear-gradient(90deg,transparent,#000 4%,#000 96%,transparent)}
+.chips{flex:1 1 0;min-width:0;display:flex;gap:6px;overflow-x:auto;scrollbar-width:none;-ms-overflow-style:none;
+  -webkit-mask-image:linear-gradient(90deg,transparent,#000 4%,#000 96%,transparent);
+  mask-image:linear-gradient(90deg,transparent,#000 4%,#000 96%,transparent)}
 .chips::-webkit-scrollbar{display:none}
 .chip{flex:0 0 auto;padding:7px 14px;border-radius:999px;font-size:.8rem;font-weight:700;letter-spacing:.02em;color:var(--ink-dim);
   border:1px solid transparent;transition:all .35s var(--ease);white-space:nowrap}
 .chip:hover{color:var(--ink);background:var(--glass)}
 .chip.active{color:#fff;background:linear-gradient(120deg,var(--red),#ff5d3c);border-color:rgba(255,255,255,.25);box-shadow:0 6px 20px -6px rgba(232,17,45,.7)}
-.bar-actions{display:flex;align-items:center;gap:8px;margin-left:auto}
+.bar-actions{flex:0 0 auto;display:flex;align-items:center;gap:8px;margin-left:auto}
 .icon-btn{position:relative;width:40px;height:40px;border-radius:50%;display:grid;place-items:center;
   background:var(--glass);border:1px solid var(--stroke);transition:all .3s var(--ease)}
 .icon-btn:hover{transform:translateY(-2px);background:var(--glass-strong);box-shadow:0 8px 22px -8px rgba(0,0,0,.5)}
@@ -214,7 +216,7 @@ body.inside #topbar{transform:none}
 .search-box{display:flex;align-items:center;gap:8px;padding:8px 14px;border-radius:999px;
   background:var(--glass);border:1px solid var(--stroke);transition:all .35s var(--ease)}
 .search-box:focus-within{background:var(--glass-strong);border-color:rgba(76,201,240,.5);box-shadow:0 0 0 4px rgba(76,201,240,.14)}
-.search-box svg{width:15px;height:15px;flex:0 0 auto;opacity:.6}
+.search-box svg{width:15px;height:15px;flex:0 0 auto;opacity:.6;stroke:currentColor}
 .search-box input{flex:1;min-width:0;background:none;border:none;outline:none;color:var(--ink);font-size:.86rem;font-family:inherit}
 .search-box input::placeholder{color:var(--ink-dim)}
 .suggest{position:absolute;top:calc(100% + 10px);left:0;right:0;max-height:290px;overflow:auto;padding:8px;z-index:60;
@@ -222,7 +224,7 @@ body.inside #topbar{transform:none}
   transition:all .3s var(--ease)}
 .suggest.open{opacity:1;transform:none;pointer-events:auto}
 .suggest button{display:flex;align-items:center;gap:10px;width:100%;padding:9px 10px;border-radius:10px;text-align:left;transition:background .25s}
-.suggest button:hover{background:var(--glass-strong)}
+.suggest button:hover,.suggest button.sel{background:var(--glass-strong)}
 .suggest .s-emoji{font-size:1.3rem}
 .suggest .s-name{font-size:.85rem;font-weight:700}
 .suggest .s-cat{font-size:.68rem;color:var(--ink-dim);display:block}
@@ -246,6 +248,7 @@ main{padding-top:0}
 /* reveal on scroll */
 .reveal{opacity:0;transform:translateY(44px);transition:opacity .9s var(--ease),transform .9s var(--ease)}
 .reveal.in{opacity:1;transform:none}
+.aisle-head.in{transition:opacity .9s var(--ease)} /* free the transform for scroll parallax */
 .grid>.reveal:nth-child(2){transition-delay:.08s}.grid>.reveal:nth-child(3){transition-delay:.16s}
 .grid>.reveal:nth-child(4){transition-delay:.24s}.grid>.reveal:nth-child(5){transition-delay:.32s}
 
@@ -278,7 +281,7 @@ main{padding-top:0}
   background:rgba(0,0,0,.4);border:1px solid rgba(255,255,255,.18);color:#fff;
   -webkit-backdrop-filter:blur(8px);backdrop-filter:blur(8px);
   opacity:0;transform:translateX(12px);transition:all .4s var(--ease)}
-.card:hover .nutri span{opacity:1;transform:none}
+.card:hover .nutri span,.card:focus-within .nutri span{opacity:1;transform:none}
 .nutri span:nth-child(2){transition-delay:.07s}.nutri span:nth-child(3){transition-delay:.14s}
 .p-body{padding:15px 17px 17px}
 .p-body h4{font-size:1.02rem;margin-bottom:3px}
@@ -301,7 +304,13 @@ main{padding-top:0}
    Carrara marble display shelves overflowing with vividly fresh fruit and
    vegetables, morning light rays through skylights, floating dust motes and
    dew mist, botanical greenery on the walls, cinematic photoreal render" */
-#fruits{--accent:var(--green);--h-grad:linear-gradient(100deg,#fff 10%,#3ddc84 60%,#a3e635)}
+#fruits{--accent:var(--green);--h-grad:linear-gradient(100deg,var(--ink) 10%,#3ddc84 60%,#a3e635)}
+/* wood & marble shelf strip under the produce grid */
+.shelf{position:relative;z-index:3;max-width:1200px;margin:clamp(18px,3vh,30px) auto 0;height:26px;border-radius:9px;
+  background:linear-gradient(180deg,#efe9df 0%,#d8d0c3 42%,#7a5233 46%,#96683f 62%,#5c3d26 100%);
+  box-shadow:0 20px 34px -14px rgba(0,0,0,.6),inset 0 1px 0 rgba(255,255,255,.55)}
+.shelf::after{content:"";position:absolute;inset:0 0 55% 0;border-radius:9px 9px 0 0;opacity:.5;
+  background:repeating-linear-gradient(104deg,transparent 0 30px,rgba(120,124,140,.35) 30px 32px,transparent 32px 60px)}
 #fruits .card{--card-glow:rgba(61,220,132,.3)}
 .leaf{position:absolute;z-index:2;font-size:clamp(1rem,2.4vw,1.7rem);opacity:.5;pointer-events:none;
   animation:leafFall linear infinite;top:-8%;filter:blur(.3px)}
@@ -319,7 +328,7 @@ main{padding-top:0}
 .vine{position:absolute;left:0;right:0;top:0;height:120px;z-index:1;opacity:.5;pointer-events:none}
 
 /* ══════════════ ICE CREAM ══════════════ */
-#icecream{--accent:var(--blue);--h-grad:linear-gradient(100deg,#fff 10%,#4cc9f0 55%,#a78bfa)}
+#icecream{--accent:var(--blue);--h-grad:linear-gradient(100deg,var(--ink) 10%,#4cc9f0 55%,#a78bfa)}
 #icecream .card{--card-glow:rgba(76,201,240,.3)}
 /* [AI-IMAGE-PROMPT · ICE-CREAM "F" HERO]
    "Giant letter F sculpted entirely from stacked colorful ice-cream scoops —
@@ -372,14 +381,14 @@ main{padding-top:0}
     radial-gradient(46px 20px at 8% 96%,rgba(255,255,255,.22),transparent 70%),
     radial-gradient(56px 24px at 94% 94%,rgba(255,255,255,.28),transparent 70%)}
 .frost{border-color:rgba(180,230,255,.3)}
-.snowfall{position:absolute;font-size:.8rem;opacity:.5;pointer-events:none;z-index:2;animation:leafFall linear infinite}
+.snowfall{position:absolute;top:-8%;font-size:.8rem;opacity:.5;pointer-events:none;z-index:2;animation:leafFall linear infinite}
 
 /* ══════════════ DAIRY ══════════════ */
 /* [AI-IMAGE-PROMPT · DAIRY AISLE]
    "Soft dreamy dairy aisle — porcelain-white shelving with milk bottles,
    cheeses and yogurt, gentle swirling milk splash frozen mid-air as decorative
    arcs, morning-cloud ambience, pale blue and cream palette, photoreal" */
-#dairy{--accent:#e6f0ff;--h-grad:linear-gradient(100deg,#fff 20%,#bcd8ff 70%)}
+#dairy{--accent:#e6f0ff;--h-grad:linear-gradient(100deg,var(--ink) 20%,#7fb2f0 70%)}
 #dairy .card{--card-glow:rgba(188,216,255,.3)}
 .milk-swirl{position:absolute;left:0;right:0;bottom:-2px;height:130px;z-index:1;opacity:.6;pointer-events:none}
 .milk-swirl path{animation:swirlShift 9s ease-in-out infinite}
@@ -391,7 +400,7 @@ main{padding-top:0}
    crusty sourdough, croissants and Bulgarian banitsa, thick glossy honey
    dripping from the top frame in slow golden ribbons, floating flour dust,
    warm amber palette, photoreal, cozy" */
-#bakery{--accent:var(--gold);--h-grad:linear-gradient(100deg,#fff 10%,#fbbf24 60%,#f97316)}
+#bakery{--accent:var(--gold);--h-grad:linear-gradient(100deg,var(--ink) 10%,#fbbf24 60%,#f97316)}
 #bakery .card{--card-glow:rgba(251,191,36,.32)}
 .honey{position:absolute;top:0;z-index:2;width:clamp(10px,1.6vw,18px);pointer-events:none;
   background:linear-gradient(180deg,rgba(251,191,36,.95),rgba(249,115,22,.75) 80%,rgba(249,115,22,.9));
@@ -408,7 +417,7 @@ main{padding-top:0}
    craft juices and sodas, thousands of tiny rising bubbles caught in cool
    sapphire rim-light, caustic light reflections dancing on a dark floor,
    photoreal, refreshing" */
-#drinks{--accent:var(--blue);--h-grad:linear-gradient(100deg,#fff 10%,#4cc9f0 65%,#818cf8)}
+#drinks{--accent:var(--blue);--h-grad:linear-gradient(100deg,var(--ink) 10%,#4cc9f0 65%,#818cf8)}
 #drinks .card{--card-glow:rgba(76,201,240,.35)}
 .bubble{position:absolute;bottom:-6%;border-radius:50%;pointer-events:none;z-index:1;
   background:radial-gradient(circle at 32% 30%,rgba(255,255,255,.85),rgba(140,220,255,.25) 60%,transparent 78%);
@@ -426,7 +435,7 @@ main{padding-top:0}
    thyme and rosemary growing directly on the shelves beside organic goods,
    soft bio-luminescent green glow, fireflies, misty greenhouse light rays,
    photoreal render" */
-#organic{--accent:var(--lime);--h-grad:linear-gradient(100deg,#fff 10%,#a3e635 60%,#3ddc84)}
+#organic{--accent:var(--lime);--h-grad:linear-gradient(100deg,var(--ink) 10%,#a3e635 60%,#3ddc84)}
 #organic .card{--card-glow:rgba(163,230,53,.32)}
 .firefly{position:absolute;width:5px;height:5px;border-radius:50%;background:#d9f99d;pointer-events:none;z-index:1;
   box-shadow:0 0 12px 3px rgba(217,249,157,.8);animation:fireflyWander ease-in-out infinite alternate}
@@ -442,7 +451,7 @@ main{padding-top:0}
 @keyframes herbSway{0%,100%{transform:rotate(-5deg)}50%{transform:rotate(5deg)}}
 
 /* ══════════════ LIVE STORE / MAP ══════════════ */
-#live{--accent:var(--red-glow);--h-grad:linear-gradient(100deg,#fff 15%,#ff4d5e 70%);min-height:auto}
+#live{--accent:var(--red-glow);--h-grad:linear-gradient(100deg,var(--ink) 15%,#ff4d5e 70%);min-height:auto}
 .live-wrap{position:relative;z-index:3;max-width:1200px;margin:0 auto;display:grid;gap:clamp(16px,2.5vw,28px);grid-template-columns:1.35fr 1fr}
 @media(max-width:860px){.live-wrap{grid-template-columns:1fr}}
 /* [AI-IMAGE-PROMPT · MAP]
@@ -469,7 +478,7 @@ main{padding-top:0}
   letter-spacing:.1em;color:var(--green);background:rgba(61,220,132,.1);border:1px solid rgba(61,220,132,.3)}
 
 /* ══════════════ FRESH TODAY / TESTIMONIALS ══════════════ */
-#fresh{--accent:var(--orange);--h-grad:linear-gradient(100deg,#fff 12%,#ff9a3c 65%);min-height:auto}
+#fresh{--accent:var(--orange);--h-grad:linear-gradient(100deg,var(--ink) 12%,#ff9a3c 65%);min-height:auto}
 .fresh-rail{position:relative;z-index:3;display:flex;gap:16px;overflow-x:auto;padding:6px 6px 22px;max-width:1200px;margin:0 auto;
   scroll-snap-type:x mandatory;scrollbar-width:thin}
 .fresh-card{flex:0 0 min(78vw,290px);scroll-snap-align:start;padding:20px;display:flex;flex-direction:column;gap:10px}
@@ -489,7 +498,7 @@ main{padding-top:0}
 .avatar{width:40px;height:40px;border-radius:50%;display:grid;place-items:center;font-weight:900;font-size:.9rem;color:#fff;
   border:1px solid rgba(255,255,255,.3)}
 .who b{font-size:.83rem;display:block}
-.who span{font-size:.7rem;color:var(--ink-dim)}
+.who span:not(.avatar){font-size:.7rem;color:var(--ink-dim)}
 .stars-row{color:var(--gold);letter-spacing:2px;font-size:.85rem}
 
 /* ══════════════ FOOTER ══════════════ */
@@ -527,6 +536,7 @@ footer{position:relative;margin-top:40px;padding:clamp(40px,7vh,70px) clamp(16px
 .ci{display:flex;align-items:center;gap:12px;padding:11px 13px;border-radius:var(--r-md);background:var(--glass);border:1px solid var(--stroke-soft);
   animation:ciIn .45s var(--ease) both}
 @keyframes ciIn{from{opacity:0;transform:translateX(26px)}to{opacity:1;transform:none}}
+.cart-items.no-anim .ci{animation:none}
 .ci-emoji{font-size:1.7rem}
 .ci-info{flex:1;min-width:0}
 .ci-info b{font-size:.84rem;display:block;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
@@ -556,7 +566,7 @@ footer{position:relative;margin-top:40px;padding:clamp(40px,7vh,70px) clamp(16px
   background:linear-gradient(135deg,var(--red),#ff5d3c);box-shadow:0 16px 34px -8px rgba(232,17,45,.8),inset 0 1px 8px rgba(255,255,255,.4);
   transform:translateY(140px);transition:transform .7s cubic-bezier(.34,1.6,.5,1)}
 body.inside #cartFab{transform:none}
-#cartFab:hover{transform:scale(1.09)}
+body.inside #cartFab:hover{transform:scale(1.09)}
 #cartFab svg{width:23px;height:23px;stroke:#fff}
 #cartFab .cart-badge{background:#fff;color:var(--red)}
 
@@ -571,15 +581,15 @@ body.inside #cartFab{transform:none}
 /* small screens */
 @media(max-width:720px){
   .search-wrap{position:static;flex:1}
-  .suggest{left:10px;right:10px}
+  .suggest{left:8px;right:8px}
   .chips{display:none}
   .p-visual{height:132px}
   .p-emoji{font-size:3.4rem}
-  #mobileChips{display:flex}
 }
-#mobileChips{display:none;position:fixed;left:0;right:0;bottom:0;z-index:79;padding:10px 12px calc(10px + env(safe-area-inset-bottom));
+@media(max-width:520px){.brand b{display:none}}
+#mobileChips{display:flex;position:fixed;left:0;right:0;bottom:0;z-index:79;padding:10px 12px calc(10px + env(safe-area-inset-bottom));
   gap:7px;overflow-x:auto;scrollbar-width:none;
-  background:linear-gradient(180deg,transparent,rgba(4,6,12,.85) 40%);
+  background:linear-gradient(180deg,transparent,color-mix(in srgb,var(--bg) 86%,transparent) 40%);
   transform:translateY(120%);transition:transform .8s var(--ease) .7s}
 #mobileChips::-webkit-scrollbar{display:none}
 body.inside #mobileChips{transform:none}
@@ -733,7 +743,7 @@ body.inside #mobileChips{transform:none}
 <div class="flare-line" style="--fx:40vw;--fy:34vh" aria-hidden="true"></div>
 
 <!-- ═══════════════ TOP NAVIGATION ═══════════════ -->
-<header id="topbar">
+<header id="topbar" inert>
   <div class="bar-inner">
     <a class="brand" href="#fruits" id="brandHome" aria-label="Fantastico home">
       <svg viewBox="0 0 100 100" aria-hidden="true">
@@ -748,11 +758,12 @@ body.inside #mobileChips{transform:none}
       <div class="search-wrap">
         <label class="search-box">
           <svg viewBox="0 0 24 24" fill="none" stroke-width="2.4" stroke-linecap="round" aria-hidden="true"><circle cx="11" cy="11" r="7"/><path d="m20 20-3.4-3.4"/></svg>
-          <input id="searchInput" type="text" placeholder="Search fresh things…" autocomplete="off" aria-label="Search products">
+          <input id="searchInput" type="text" placeholder="Search fresh things…" autocomplete="off" aria-label="Search products"
+            role="combobox" aria-expanded="false" aria-controls="suggestBox" aria-autocomplete="list">
         </label>
         <div class="suggest glass" id="suggestBox" role="listbox" aria-label="Search suggestions"></div>
       </div>
-      <button class="icon-btn" id="themeBtn" aria-label="Toggle light or dark mode" title="Toggle theme">
+      <button class="icon-btn" id="themeBtn" aria-label="Toggle light or dark mode" aria-pressed="false" title="Toggle theme">
         <svg viewBox="0 0 24 24" fill="none" stroke-width="2" stroke-linecap="round" aria-hidden="true"><path id="themeIcon" d="M21 12.8A9 9 0 1 1 11.2 3 7 7 0 0 0 21 12.8Z"/></svg>
       </button>
       <button class="icon-btn" id="cartBtn" aria-label="Open shopping cart">
@@ -780,6 +791,7 @@ body.inside #mobileChips{transform:none}
       <p class="aisle-sub">Picked at dawn from Bulgarian farms, misted with mountain dew and laid on marble before you wake. This is where freshness begins.</p>
     </div>
     <div class="grid" data-cat="fruits"></div>
+    <div class="shelf reveal" aria-hidden="true"></div>
   </section>
 
   <!-- ─────────── ICE CREAM ─────────── -->
@@ -792,7 +804,7 @@ body.inside #mobileChips{transform:none}
     <div class="f-stage reveal">
       <div class="f-monument" id="fMonument" role="img" aria-label="Giant letter F made of ice cream scoops"></div>
       <div class="f-copy">
-        <h3>One letter.<br>Thirty-one scoops.</h3>
+        <h3>One letter.<br>Twenty-four scoops.</h3>
         <p>Strawberry, pistachio, mango, blueberry and Madagascar vanilla — stacked into the most delicious letter of the alphabet. Watch it melt a little. It’s okay. There’s always more in the freezers below.</p>
       </div>
     </div>
@@ -839,7 +851,7 @@ body.inside #mobileChips{transform:none}
     <div class="aisle-head reveal">
       <span class="kicker"><i style="background:var(--blue);box-shadow:0 0 12px var(--blue)"></i>Aisle 05 · Effervescent</span>
       <h2>Drinks &amp; <span>Sparkling Springs</span></h2>
-      <p class="aisle-sub">Mineral water born in Rila's granite heart, cold-pressed juices and sodas that fizz like laughter. Watch the bubbles rise.</p>
+      <p class="aisle-sub">Mineral water born in the Rhodopes' granite heart, cold-pressed juices and sodas that fizz like laughter. Watch the bubbles rise.</p>
     </div>
     <div class="grid" data-cat="drinks"></div>
   </section>
@@ -905,7 +917,7 @@ body.inside #mobileChips{transform:none}
           </g>
           <!-- moving car dots on the ring road -->
           <circle r="3.5" fill="#ffdf9e"><animateMotion dur="9s" repeatCount="indefinite" path="M-10 210 Q160 150 330 190 T650 160"/></circle>
-          <circle r="3.5" fill="#ff6b6b"><animateMotion dur="12s" repeatCount="indefinite" keyPoints="1;0" keyTimes="0;1" path="M-10 214 Q160 154 330 194 T650 164"/></circle>
+          <circle r="3.5" fill="#ff6b6b"><animateMotion dur="12s" repeatCount="indefinite" calcMode="linear" keyPoints="1;0" keyTimes="0;1" path="M-10 214 Q160 154 330 194 T650 164"/></circle>
         </svg>
         <div class="map-tag glass"><span class="live-dot"></span> LIVE · Okolovrasten pat 260, Dragalevtsi</div>
       </div>
@@ -942,17 +954,17 @@ body.inside #mobileChips{transform:none}
     </div>
     <div class="testi-grid">
       <figure class="testi glass reveal">
-        <div class="stars-row">★★★★★</div>
+        <div class="stars-row" role="img" aria-label="5 out of 5 stars">★★★★★</div>
         <q>I came for milk and left with a small festival in my bags. The produce section smells like my grandmother's garden in Samokov.</q>
         <figcaption class="who"><span class="avatar" style="background:linear-gradient(135deg,#e8112d,#ff9a3c)">МК</span><span><b>Maria Koleva</b><span>Dragalevtsi local · every day</span></span></figcaption>
       </figure>
       <figure class="testi glass reveal">
-        <div class="stars-row">★★★★★</div>
+        <div class="stars-row" role="img" aria-label="5 out of 5 stars">★★★★★</div>
         <q>The kids call it “the ice cream palace”. We drive the whole ring road just for the freezer aisle and the warm banitsa.</q>
         <figcaption class="who"><span class="avatar" style="background:linear-gradient(135deg,#4cc9f0,#a78bfa)">ГД</span><span><b>Georgi Dimitrov</b><span>Boyana · weekends</span></span></figcaption>
       </figure>
       <figure class="testi glass reveal">
-        <div class="stars-row">★★★★★</div>
+        <div class="stars-row" role="img" aria-label="5 out of 5 stars">★★★★★</div>
         <q>Open at 3 AM when my night shift ends, and the bakery still smells like heaven. This store quietly runs half the neighbourhood.</q>
         <figcaption class="who"><span class="avatar" style="background:linear-gradient(135deg,#3ddc84,#a3e635)">ЕП</span><span><b>Elena Petrova</b><span>Simeonovo · night owl</span></span></figcaption>
       </figure>
@@ -998,7 +1010,7 @@ body.inside #mobileChips{transform:none}
           <li><a href="#live">Dragalevtsi, Sofia 1415</a></li>
           <li><a href="#live">Open non-stop · 24/7</a></li>
           <li><a href="#live">+359 2 942 6000</a></li>
-          <li><a href="#live">960 parking spaces</a></li>
+          <li><a href="#live">260 parking spaces</a></li>
         </ul>
       </div>
       <div>
@@ -1014,17 +1026,17 @@ body.inside #mobileChips{transform:none}
     </div>
     <div class="foot-bottom">
       <span>© 2026 Fantastico Group · Made with 🍓 in Sofia, Bulgaria</span>
-      <span>Freshness Reimagined ✦ Влезте в света на вкуса</span>
+      <span>Freshness Reimagined ✦ <span lang="bg">Влезте в света на вкуса</span></span>
     </div>
   </footer>
 </main>
 
 <!-- ═══════════════ MOBILE CATEGORY DOCK ═══════════════ -->
-<nav id="mobileChips" aria-label="Store sections (mobile)"></nav>
+<nav id="mobileChips" aria-label="Store sections (mobile)" inert></nav>
 
 <!-- ═══════════════ CART ═══════════════ -->
 <div id="cartScrim"></div>
-<aside id="cartDrawer" aria-label="Shopping cart" aria-hidden="true">
+<aside id="cartDrawer" aria-label="Shopping cart" aria-hidden="true" inert>
   <div class="cart-head">
     <h3>🛒 Your Basket</h3>
     <button class="icon-btn" id="cartClose" aria-label="Close cart">
@@ -1034,10 +1046,10 @@ body.inside #mobileChips{transform:none}
   <div class="cart-items" id="cartItems"></div>
   <div class="cart-foot">
     <div class="total-row"><span>Total</span><b><span id="cartTotal">0,00</span> лв.<small id="cartTotalEur">€0.00</small></b></div>
-    <button class="checkout" id="checkoutBtn">Checkout · Свежо и бързо ✦</button>
+    <button class="checkout" id="checkoutBtn">Checkout · <span lang="bg">Свежо и бързо</span> ✦</button>
   </div>
 </aside>
-<button id="cartFab" aria-label="Open shopping cart">
+<button id="cartFab" aria-label="Open shopping cart" inert>
   <svg viewBox="0 0 24 24" fill="none" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
     <circle cx="9" cy="20" r="1.6"/><circle cx="17" cy="20" r="1.6"/><path d="M3 3h2.2l2.4 12.2a1.8 1.8 0 0 0 1.8 1.4h7.6a1.8 1.8 0 0 0 1.7-1.3L21 8H6"/>
   </svg>
@@ -1073,7 +1085,7 @@ const PRODUCTS = [
   {id:"honey", cat:"bakery", emoji:"🍯", name:"Strandzha Manna Honey", desc:"Rare oak-forest honey. Amber, dense, quietly famous.", price:16.90, unit:"450 g", tag:"Rare", kcal:"304 kcal", extra:"🐝 Raw & pure", vit:"✨ Antioxidant"},
   {id:"croi", cat:"bakery", emoji:"🥐", name:"Butter Croissant Duo", desc:"French butter, Bulgarian patience. Flakes everywhere. Sorry.", price:3.99, unit:"2 pcs", tag:"Morning", kcal:"406 kcal", extra:"🧈 82% butter", vit:"😊 Joy"},
   /* drinks */
-  {id:"min", cat:"drinks", emoji:"💧", name:"Devin Mineral Water", desc:"Born in Rila granite, naturally sparkling, ice cold.", price:1.49, unit:"1.5 L", tag:"Spring", kcal:"0 kcal", extra:"⛰ Rila spring", vit:"🫧 Sparkling"},
+  {id:"min", cat:"drinks", emoji:"💧", name:"Devin Mineral Water", desc:"Born in Rhodope granite, naturally sparkling, ice cold.", price:1.49, unit:"1.5 L", tag:"Spring", kcal:"0 kcal", extra:"⛰ Rhodope spring", vit:"🫧 Sparkling"},
   {id:"oj", cat:"drinks", emoji:"🍊", name:"Cold-Pressed Orange", desc:"Squeezed this morning in-store. Pulp negotiable.", price:5.99, unit:"750 ml", tag:"Pressed today", kcal:"45 kcal", extra:"🍊 6 oranges", vit:"🅲 200% C"},
   {id:"ayr", cat:"drinks", emoji:"🥤", name:"Salted Ayran", desc:"The only correct answer to a Bulgarian summer.", price:1.29, unit:"500 ml", tag:"Cooling", kcal:"38 kcal", extra:"🧂 Just right", vit:"💪 Protein"},
   {id:"kom", cat:"drinks", emoji:"🍹", name:"Rose Valley Kombucha", desc:"Fermented with Kazanlak rose petals. Fizzy poetry.", price:4.49, unit:"330 ml", tag:"Probiotic", kcal:"22 kcal", extra:"🌹 Real roses", vit:"🦠 Live SCOBY"},
@@ -1098,7 +1110,10 @@ const $ = s=>document.querySelector(s);
 const $$ = s=>[...document.querySelectorAll(s)];
 const fmtBGN = n=>n.toFixed(2).replace(".",",");
 const fmtEUR = n=>"€"+(n/EUR).toFixed(2);
-const reduceMotion = matchMedia("(prefers-reduced-motion: reduce)").matches;
+const rmQuery = matchMedia("(prefers-reduced-motion: reduce)");
+let reduceMotion = rmQuery.matches;
+rmQuery.addEventListener("change",e=>{ reduceMotion=e.matches; });
+const esc = s=>s.replace(/[&<>"']/g,c=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c]));
 
 /* ═══════════════════ HERO: stars, warm orbs, particles, parallax ═══════════════════ */
 (function buildStars(){
@@ -1141,18 +1156,19 @@ const reduceMotion = matchMedia("(prefers-reduced-motion: reduce)").matches;
   }
   if(!reduceMotion) raf=requestAnimationFrame(tick);
   /* stop when hero is gone */
-  window.__stopHeroParticles=()=>{ if(raf) cancelAnimationFrame(raf); cv.remove(); };
+  window.__stopHeroParticles=()=>{ if(raf) cancelAnimationFrame(raf); removeEventListener("resize",size); cv.remove(); };
 })();
 
-/* mouse / gyro parallax on hero layers */
+/* pointer parallax on hero layers */
 (function parallax(){
-  const scene = $("#heroScene"), layers = $$("#heroScene .layer");
+  const layers = $$("#heroScene .layer");
   if(reduceMotion) return;
   let tx=0,ty=0,cx=0,cy=0,active=true;
-  addEventListener("pointermove",e=>{
+  const onMove=e=>{
     if(!active) return;
     tx=(e.clientX/innerWidth-.5); ty=(e.clientY/innerHeight-.5);
-  },{passive:true});
+  };
+  addEventListener("pointermove",onMove,{passive:true});
   (function loop(){
     if(!active) return;
     cx+=(tx-cx)*.06; cy+=(ty-cy)*.06;
@@ -1162,7 +1178,7 @@ const reduceMotion = matchMedia("(prefers-reduced-motion: reduce)").matches;
     }
     requestAnimationFrame(loop);
   })();
-  window.__stopParallax=()=>{active=false;};
+  window.__stopParallax=()=>{ active=false; removeEventListener("pointermove",onMove); };
 })();
 
 /* ═══════════════════ CINEMATIC ENTRY ═══════════════════ */
@@ -1177,6 +1193,7 @@ function enterStore(){
   setTimeout(()=>{
     document.body.classList.remove("locked");
     document.body.classList.add("inside");
+    ["#topbar","#cartFab","#mobileChips"].forEach(s=>{ $(s).inert=false; });
     scrollTo({top:0,behavior:"instant"});
     revealObserve();
   }, 950);
@@ -1219,7 +1236,7 @@ function cardHTML(p){
     <span class="p-tagline">${p.tag}</span>
     <span class="p-emoji" aria-hidden="true">${p.emoji}</span>
     <span class="p-shadow" aria-hidden="true"></span>
-    <div class="nutri" aria-hidden="true"><span>🔥 ${p.kcal}</span><span>${p.extra}</span><span>${p.vit}</span></div>
+    <div class="nutri"><span>🔥 ${p.kcal}</span><span>${p.extra}</span><span>${p.vit}</span></div>
   </div>
   <div class="p-body">
     <h4>${p.name}</h4>
@@ -1325,7 +1342,7 @@ function revealObserve(){
     d++;
   }
   /* melting drips under the bottom row scoops */
-  const dripCols=[2,26,44];
+  const dripCols=[4,17,30];
   dripCols.forEach((l,i)=>{
     const [a,b]=FLAVORS[(i*2+1)%FLAVORS.length];
     html+=`<span class="drip" style="left:${l}%;top:98%;background:linear-gradient(180deg,${b},${a});animation-delay:${(-i*1.4).toFixed(1)}s"></span>`;
@@ -1346,8 +1363,9 @@ function syncBadges(pop){
     if(pop&&n>0){ b.classList.remove("pop"); void b.offsetWidth; b.classList.add("pop"); }
   });
 }
-function renderCart(){
+function renderCart(animate){
   const box=$("#cartItems");
+  box.classList.toggle("no-anim",!animate);
   if(cart.size===0){
     box.innerHTML=`<div class="cart-empty"><span class="big-ico">🧺</span><b>Your basket is empty</b><span>Walk the aisles — something fresh is waiting.</span></div>`;
   } else {
@@ -1369,8 +1387,19 @@ function renderCart(){
   $("#cartTotalEur").textContent=fmtEUR(s);
   syncBadges(false);
 }
-function openCart(){ drawer.classList.add("open"); drawer.setAttribute("aria-hidden","false"); scrim.classList.add("on"); }
-function closeCart(){ drawer.classList.remove("open"); drawer.setAttribute("aria-hidden","true"); scrim.classList.remove("on"); }
+let cartReturnFocus=null;
+function openCart(){
+  cartReturnFocus=document.activeElement;
+  drawer.inert=false;
+  drawer.classList.add("open"); drawer.setAttribute("aria-hidden","false"); scrim.classList.add("on");
+  $("#cartClose").focus({preventScroll:true});
+}
+function closeCart(){
+  if(!drawer.classList.contains("open")) return;
+  drawer.classList.remove("open"); drawer.setAttribute("aria-hidden","true"); drawer.inert=true;
+  scrim.classList.remove("on");
+  if(cartReturnFocus && document.contains(cartReturnFocus)) cartReturnFocus.focus({preventScroll:true});
+}
 $("#cartBtn").addEventListener("click",openCart);
 $("#cartFab").addEventListener("click",openCart);
 $("#cartClose").addEventListener("click",closeCart);
@@ -1389,7 +1418,7 @@ document.addEventListener("click",e=>{
   if(add){
     const id=add.dataset.add, p=PRODUCTS.find(x=>x.id===id);
     cart.set(id,(cart.get(id)||0)+1);
-    renderCart(); syncBadges(true);
+    renderCart(true); syncBadges(true);
     toast(`${p.emoji} ${p.name} — in the basket!`);
     if(!reduceMotion){
       const card=add.closest(".card"), em=card.querySelector(".p-emoji");
@@ -1438,15 +1467,32 @@ $("#checkoutBtn").addEventListener("click",()=>{
 /* ═══════════════════ SEARCH + SUGGESTIONS ═══════════════════ */
 const sInput=$("#searchInput"), sBox=$("#suggestBox");
 const CATLABEL={fruits:"Fruits & Veg",icecream:"Ice Cream",dairy:"Dairy",bakery:"Bakery",drinks:"Drinks",organic:"Organic"};
-function closeSuggest(){ sBox.classList.remove("open"); }
+let sugOpts=[], sugIndex=-1;
+function openSuggest(){ sBox.classList.add("open"); sInput.setAttribute("aria-expanded","true"); }
+function closeSuggest(){
+  sBox.classList.remove("open");
+  sInput.setAttribute("aria-expanded","false"); sInput.removeAttribute("aria-activedescendant");
+  sugOpts=[]; sugIndex=-1;
+}
 sInput.addEventListener("input",()=>{
   const q=sInput.value.trim().toLowerCase();
   if(q.length<1){ closeSuggest(); return; }
   const hits=PRODUCTS.filter(p=>(p.name+" "+p.desc+" "+CATLABEL[p.cat]).toLowerCase().includes(q)).slice(0,6);
   sBox.innerHTML = hits.length
-    ? hits.map(p=>`<button role="option" data-goto="${p.id}"><span class="s-emoji">${p.emoji}</span><span><span class="s-name">${p.name}</span><span class="s-cat">${CATLABEL[p.cat]}</span></span><span class="s-price">${fmtBGN(p.price)} лв.</span></button>`).join("")
-    : `<div class="none">Nothing fresh found for “${sInput.value.trim().slice(0,30)}” 🥲</div>`;
-  sBox.classList.add("open");
+    ? hits.map((p,i)=>`<button role="option" id="sug-${i}" aria-selected="false" data-goto="${p.id}"><span class="s-emoji">${p.emoji}</span><span><span class="s-name">${p.name}</span><span class="s-cat">${CATLABEL[p.cat]}</span></span><span class="s-price">${fmtBGN(p.price)} лв.</span></button>`).join("")
+    : `<div class="none">Nothing fresh found for “${esc(sInput.value.trim().slice(0,30))}” 🥲</div>`;
+  sugOpts=[...sBox.querySelectorAll("[data-goto]")]; sugIndex=-1;
+  openSuggest();
+});
+sInput.addEventListener("keydown",e=>{
+  if(e.key==="Escape"){ closeSuggest(); return; }
+  if(!sBox.classList.contains("open")||!sugOpts.length) return;
+  if(e.key==="ArrowDown"||e.key==="ArrowUp"){
+    e.preventDefault();
+    sugIndex=(sugIndex+(e.key==="ArrowDown"?1:-1)+sugOpts.length)%sugOpts.length;
+    sugOpts.forEach((b,i)=>{ const on=i===sugIndex; b.setAttribute("aria-selected",String(on)); b.classList.toggle("sel",on); });
+    sInput.setAttribute("aria-activedescendant","sug-"+sugIndex);
+  } else if(e.key==="Enter"&&sugIndex>=0){ e.preventDefault(); sugOpts[sugIndex].click(); }
 });
 sInput.addEventListener("focus",()=>{ if(sInput.value.trim()) sInput.dispatchEvent(new Event("input")); });
 document.addEventListener("click",e=>{
@@ -1468,11 +1514,13 @@ document.addEventListener("click",e=>{
   let parking=80+Math.floor(Math.random()*40);
   const vEl=$("#visitorCount"), pEl=$("#parkingCount"), cEl=$("#clockNow");
   function drift(){
+    if(document.hidden) return;
     visitors=Math.max(60,Math.min(320,visitors+Math.floor(Math.random()*13)-6));
     parking=Math.max(20,Math.min(180,parking+Math.floor(Math.random()*7)-3));
     vEl.textContent=visitors; pEl.textContent=parking;
   }
   function clock(){
+    if(document.hidden) return;
     cEl.textContent=new Intl.DateTimeFormat("bg-BG",{hour:"2-digit",minute:"2-digit",timeZone:"Europe/Sofia"}).format(new Date());
   }
   drift(); clock();
@@ -1484,6 +1532,7 @@ $("#themeBtn").addEventListener("click",()=>{
   const root=document.documentElement;
   const light=root.dataset.theme!=="light";
   root.dataset.theme=light?"light":"dark";
+  $("#themeBtn").setAttribute("aria-pressed",String(light));
   $("#themeIcon").setAttribute("d", light
     ? "M12 4V2m0 20v-2M4 12H2m20 0h-2M5.6 5.6 4.2 4.2m15.6 15.6-1.4-1.4m0-12.8 1.4-1.4M4.2 19.8l1.4-1.4M12 17a5 5 0 1 0 0-10 5 5 0 0 0 0 10Z"
     : "M21 12.8A9 9 0 1 1 11.2 3 7 7 0 0 0 21 12.8Z");
@@ -1500,7 +1549,7 @@ if(!reduceMotion){
     if(ticking) return; ticking=true;
     requestAnimationFrame(()=>{
       const y=scrollY;
-      $$(".aisle-head").forEach(h=>{
+      $$(".aisle-head.in").forEach(h=>{
         const r=h.getBoundingClientRect();
         if(r.bottom>0&&r.top<innerHeight) h.style.transform=`translateY(${((r.top-100)*0.06).toFixed(1)}px)`;
       });
