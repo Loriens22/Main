@@ -13,9 +13,9 @@
   const VIEWS = {
     plaza:    { target: [144, 38, 146], yaw: 2.6, pitch: -0.35, dist: 52, auto: true },
     overview: { target: [150, 40, 150], yaw: 0.8, pitch: -0.55, dist: 150, auto: true },
-    tower:    { target: [76, 50, 200], yaw: 4.2, pitch: -0.25, dist: 55 },
+    tower:    { target: [76, 48, 196], yaw: 4.71, pitch: -0.22, dist: 58 },
     shops:    { target: [136, 38, 88], yaw: 3.6, pitch: -0.3, dist: 45 },
-    modern:   { target: [232, 52, 82], yaw: 1.3, pitch: -0.3, dist: 70 },
+    modern:   { target: [222, 56, 66], yaw: 1.57, pitch: -0.18, dist: 62 },
     bee:      { target: [130, 45, 200], yaw: 5.6, pitch: -0.3, dist: 45 },
     field:    { target: [214, 36, 206], yaw: 0.6, pitch: -0.45, dist: 55 },
     pond:     { target: [168, 34, 202], yaw: 5.2, pitch: -0.25, dist: 35 },
