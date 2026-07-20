@@ -30,6 +30,8 @@
       B.ROSE_BUSH, B.SWEET_BERRY_BUSH, B.DEAD_BUSH, B.MUSHROOM_RED, B.MUSHROOM_BROWN]);
     const ROCK_IDS = new Set([B.STONE, B.COBBLESTONE, B.MOSSY_COBBLESTONE, B.ANDESITE,
       B.TUFF, B.DEEPSLATE, B.COBBLED_DEEPSLATE, B.GRANITE, B.DIORITE]);
+    // soft vegetation we may stomp where structures must pass (bridge deck, rails)
+    const SOFT_IDS = new Set([...PLANT_IDS, B.SUGAR_CANE, B.BAMBOO, B.SEAGRASS]);
 
     const PLAZA = [116, 120, 172, 172];
     function inPlaza(x, z) { return x >= PLAZA[0] && z >= PLAZA[1] && x <= PLAZA[2] && z <= PLAZA[3]; }
@@ -50,7 +52,9 @@
       return true;
     }
     function tryLamp(x, z) {
-      if (grassy(x, z) && airCol(x, z, GY + 1, GY + 3)) { W.lampPost(x, GY + 1, z); return true; }
+      if (!grassy(x, z)) return false;
+      if (PLANT_IDS.has(W.get(x, GY + 1, z))) W.set(x, GY + 1, z, AIR); // stomp a tuft
+      if (airCol(x, z, GY + 1, GY + 3)) { W.lampPost(x, GY + 1, z); return true; }
       return false;
     }
     function sideDecor(x, z) {
@@ -260,6 +264,9 @@
       }
       if (!wet.length) return; // no stream found — skip gracefully
       const s = Math.min.apply(null, wet) - 1, e = Math.max.apply(null, wet) + 1;
+      for (let x = s; x <= e; x++)             // stomp reeds/tufts in the deck corridor
+        for (let z = 149; z <= 151; z++) for (let y = GY + 1; y <= GY + 4; y++)
+          if (SOFT_IDS.has(W.get(x, y, z))) W.set(x, y, z, AIR);
       for (let z = 149; z <= 151; z++) {
         if (W.get(s, GY + 1, z) === AIR) W.stair(s, GY + 1, z, 'OAK_PLANKS', 'E');
         if (W.get(e, GY + 1, z) === AIR) W.stair(e, GY + 1, z, 'OAK_PLANKS', 'W');
