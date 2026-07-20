@@ -112,7 +112,10 @@
     W.clear(205, Y, FZ2, 208, Y, FZ2);
     // torches on the fence like the reference (corners + spaced along)
     for (const [tx, tz] of [[FX1, FZ1], [FX2, FZ1], [FX1, FZ2], [FX2, FZ2]]) W.torch(tx, Y + 1, tz);
-    for (let x = FX1 + 5; x < FX2; x += 6) { W.torch(x, Y + 1, FZ1); W.torch(x, Y + 1, FZ2); }
+    for (let x = FX1 + 5; x < FX2; x += 6) {
+      if (W.get(x, Y, FZ1)) W.torch(x, Y + 1, FZ1);
+      if (W.get(x, Y, FZ2)) W.torch(x, Y + 1, FZ2);
+    }
     for (let z = FZ1 + 5; z < FZ2; z += 6) {
       if (W.get(FX1, Y, z)) W.torch(FX1, Y + 1, z);
       if (W.get(FX2, Y, z)) W.torch(FX2, Y + 1, z);
@@ -217,6 +220,8 @@
       if (!(x === CX1 && z === CZ2)) W.set(x, Y + 4, z, B.fence('OAK_PLANKS'));
     W.set(CX2, Y + 4, CZ1 + 1, B.fence('OAK_PLANKS'));
     W.set(CX2, Y + 4, CZ2 - 1, B.fence('OAK_PLANKS'));
+    W.set(CX1, Y + 4, CZ1 + 1, B.fence('OAK_PLANKS'));
+    W.set(CX1, Y + 4, CZ2 - 1, B.fence('OAK_PLANKS')); // gap stays at the ladder corner
     for (let y = Y; y <= Y + 3; y++) W.set(CX1 - 1, y, CZ2, B.LADDER_E); // ladder up the SW corner
 
     /* ---- seesaw: fence pivot + tilted slab beam ---- */
@@ -225,7 +230,6 @@
     W.set(223, Y, 176, B.slab('OAK_PLANKS', true));
     W.set(224, Y + 1, 176, B.slab('OAK_PLANKS'));
     W.set(225, Y + 1, 176, B.slab('OAK_PLANKS', true));
-    W.set(226, Y + 1, 176, B.slab('OAK_PLANKS'));
 
     /* ---- sandbox with a ball in it ---- */
     for (let x = 228; x <= 231; x++) for (let z = 174; z <= 177; z++) ground(x, z, B.SAND);
@@ -291,7 +295,7 @@
      * 8) SOUTH — path to storage shed, the shed, trees near the edges
      * ===================================================================== */
     for (let z = 218; z <= 226; z++) for (let x = 206; x <= 207; x++) ground(x, z, B.DIRT_PATH);
-    for (let x = 200; x <= 207; x++) ground(x, 227, B.DIRT_PATH);
+    for (let x = 199; x <= 207; x++) ground(x, 227, B.DIRT_PATH);
 
     /* ---- storage shed 5x4, cobble + planks ---- */
     const DX1 = 197, DX2 = 201, DZ1 = 228, DZ2 = 231;
@@ -320,12 +324,15 @@
     W.tree(187, Y, 178, 'azalea', rnd);
     W.tree(244, Y, 195, 'oak', rnd);
 
-    /* ---- a little tall grass scatter to soften the meadow ---- */
-    for (let i = 0; i < 40; i++) {
-      const x = 187 + ((rnd() * 58) | 0), z = 175 + ((rnd() * 62) | 0);
-      if (W.get(x, Y, z) === 0 && W.get(x, G, z) === 0 &&
-          !(x >= PX1 - 2 && x <= PX2 + 2 && z >= PZ1 - 2 && z <= PZ2 + 2)) {
-        W.set(x, Y, z, rnd() < 0.8 ? B.TALL_GRASS : B.FERN);
+    /* ---- a little tall grass scatter to soften the untouched meadows ---- */
+    const meadows = [[230, 188, 245, 218], [186, 208, 193, 232], [204, 218, 216, 226]];
+    for (const [mx1, mz1, mx2, mz2] of meadows) {
+      for (let i = 0; i < 16; i++) {
+        const x = mx1 + ((rnd() * (mx2 - mx1 + 1)) | 0);
+        const z = mz1 + ((rnd() * (mz2 - mz1 + 1)) | 0);
+        if (W.get(x, Y, z) === 0 && !(x >= 206 && x <= 207)) { // skip the shed path
+          W.set(x, Y, z, rnd() < 0.8 ? B.TALL_GRASS : B.FERN);
+        }
       }
     }
   });
