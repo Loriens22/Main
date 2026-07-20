@@ -1,0 +1,66 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no">
+<title>Minecraft Survival Spawn Hub — Night</title>
+<style>
+  html, body { margin: 0; padding: 0; height: 100%; overflow: hidden; background: #05070f; font-family: 'Segoe UI', system-ui, sans-serif; }
+  #c { width: 100%; height: 100%; display: block; touch-action: none; }
+  #loader {
+    position: fixed; inset: 0; display: flex; flex-direction: column; align-items: center; justify-content: center;
+    background: radial-gradient(ellipse at 50% 30%, #0b1226 0%, #05070f 70%); color: #cdd6f4; z-index: 10;
+  }
+  #loader h1 { font-size: 22px; letter-spacing: 2px; margin: 0 0 6px; text-shadow: 0 0 18px #4a6cff66; }
+  #loader p.sub { margin: 0 0 26px; color: #8b96b8; font-size: 13px; }
+  #loadbarbox { width: min(70vw, 420px); height: 10px; background: #141a2e; border: 1px solid #2a3352; border-radius: 6px; overflow: hidden; }
+  #loadbar { height: 100%; width: 0%; background: linear-gradient(90deg, #f5a623, #ffd97a); transition: width .2s; }
+  #loadmsg { margin-top: 12px; font-size: 13px; color: #aab4d4; }
+  #hud { position: fixed; inset: 0; pointer-events: none; z-index: 5; }
+  #title {
+    position: absolute; top: 10px; left: 50%; transform: translateX(-50%);
+    color: #e8ecff; font-size: 15px; letter-spacing: 3px; text-shadow: 0 1px 6px #000c, 0 0 22px #4a6cff44;
+    white-space: nowrap;
+  }
+  #views {
+    position: absolute; bottom: 12px; left: 50%; transform: translateX(-50%);
+    display: flex; flex-wrap: wrap; justify-content: center; gap: 6px; max-width: 96vw; pointer-events: auto;
+  }
+  #views button, #helpbtn {
+    background: #10162add; color: #cdd6f4; border: 1px solid #2a3352; border-radius: 8px;
+    padding: 7px 12px; font-size: 12px; cursor: pointer; backdrop-filter: blur(4px);
+  }
+  #views button:hover { background: #1c2440dd; border-color: #4a5a8a; }
+  #helpbtn { position: absolute; top: 10px; right: 10px; pointer-events: auto; }
+  #stats { position: absolute; bottom: 12px; right: 12px; color: #55608a; font-size: 10px; }
+  #help {
+    position: absolute; top: 46px; right: 10px; background: #0d1326ee; border: 1px solid #2a3352; border-radius: 10px;
+    color: #b8c2e2; font-size: 12px; padding: 12px 16px; line-height: 1.8; pointer-events: auto; max-width: 260px;
+  }
+  #help b { color: #ffd97a; }
+</style>
+</head>
+<body>
+<canvas id="c"></canvas>
+<div id="hud" style="display:none">
+  <div id="title">✦ SURVIVAL SPAWN HUB ✦</div>
+  <button id="helpbtn">?</button>
+  <div id="help" style="display:none">
+    <b>Drag</b> orbit · <b>Wheel / pinch</b> zoom<br>
+    <b>Right-drag / 2-finger</b> pan<br>
+    <b>WASD</b> move · <b>Q/E</b> up/down<br>
+    <b>Shift</b> fast · buttons below jump to spots.<br>
+    Camera slowly orbits until you touch it.
+  </div>
+  <div id="views"></div>
+  <div id="stats"></div>
+</div>
+<div id="loader">
+  <h1>SURVIVAL SPAWN HUB</h1>
+  <p class="sub">a Minecraft-style voxel night scene · built block by block</p>
+  <div id="loadbarbox"><div id="loadbar"></div></div>
+  <div id="loadmsg">Loading…</div>
+</div>
+<!--SCRIPTS-->
+</body>
+</html>
