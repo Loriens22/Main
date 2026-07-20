@@ -501,11 +501,11 @@
         float bl = vL.x; float sl = vL.y; float ao = vL.z;
         float flick = 1.0 + 0.04*sin(uT*7.0 + vUV.x*300.0) ;
         vec3 blockC = vec3(1.0,0.82,0.58) * bl * flick;
-        vec3 skyC = vec3(0.5,0.62,0.95) * sl * 0.40;
+        vec3 skyC = vec3(0.5,0.62,0.95) * sl * 0.48;
         vec3 L = max(blockC, skyC) + vec3(0.05,0.055,0.075);
         if (vL.w > 0.5) L = max(L, vec3(1.0));
         vec3 col = tex.rgb * L * ao;
-        float f = clamp(exp(-vDist*0.006), 0.0, 1.0);
+        float f = clamp(exp(-vDist*0.0035), 0.0, 1.0);
         col = mix(uFog, col, f);
         gl_FragColor = vec4(col, tex.a);
       }`;
@@ -552,7 +552,7 @@
           gl_FragColor = vec4(0.75,0.8,0.95,a);
         } else {
           vec4 t = texture2D(uTex, vUV);
-          gl_FragColor = vec4(t.rgb*1.25, 1.0);
+          gl_FragColor = vec4(t.rgb*1.02, 1.0);
         }
       }`;
     const pMoon = prog(moonVS, moonFS);
