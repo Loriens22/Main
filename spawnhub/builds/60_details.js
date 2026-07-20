@@ -63,11 +63,16 @@
       if (r < 0.06) W.torch(x, GY + 1, z);            // ground torches at path edges
       else if (r < 0.30) W.set(x, GY + 1, z, pick(FLOWERS));
     }
-    // surface for free-standing decor: y to place at, honoring hills; null = blocked
+    // surface for free-standing decor: y to place at, honoring hills; null = blocked.
+    // A lone grass tuft on natural ground gets stomped.
+    const GROUND_OK = new Set([GRASS, B.PODZOL, B.COARSE_DIRT, B.DIRT]);
     function surfY(x, z) {
-      const t = W.topY(x, z);
+      let t = W.topY(x, z);
       if (t < 0) return GY + 1;                       // empty dev world — terrain lands later
-      if (W.get(x, t, z) === GRASS) return t + 1;
+      if (PLANT_IDS.has(W.get(x, t, z)) && GROUND_OK.has(W.get(x, t - 1, z))) {
+        W.set(x, t, z, AIR); t--;
+      }
+      if (GROUND_OK.has(W.get(x, t, z))) return t + 1;
       return null;
     }
     function decor(x, z, id) {
@@ -286,16 +291,20 @@
      * 4. MINECART LINE — scenic southern straight, x 60..200 at z=228
      * ===================================================================== */
     (function railLine() {
+      const bedOK = new Set([B.GRAVEL, B.COARSE_DIRT, B.PODZOL, B.DIRT, B.DIRT_PATH]);
       for (let x = 60; x <= 200; x++) {
         for (let z = 227; z <= 229; z++) carve(x, z, B.GRAVEL);     // gravel bed
-        if (W.get(x, GY, 228) === B.GRAVEL && W.get(x, GY + 1, 228) === AIR)
-          W.set(x, GY + 1, 228, B.RAIL_X);                          // skip blocked cells
+        if (PLANT_IDS.has(W.get(x, GY + 1, 228))) W.set(x, GY + 1, 228, AIR); // stomp tuft
+        if (bedOK.has(W.get(x, GY, 228)) && W.get(x, GY + 1, 228) === AIR)
+          W.set(x, GY + 1, 228, B.RAIL_X);                          // skip truly blocked cells
         if ((x - 60) % 12 === 0) tryLamp(x, 231);                   // fence+lantern posts
       }
       // tiny station platform at x~150
       const sx1 = 147, sx2 = 153, sz1 = 230, sz2 = 232;
-      for (let z = sz1; z <= sz2; z++) for (let x = sx1; x <= sx2; x++)
+      for (let z = sz1; z <= sz2; z++) for (let x = sx1; x <= sx2; x++) {
+        if (PLANT_IDS.has(W.get(x, GY + 1, z))) W.set(x, GY + 1, z, AIR);
         if (grassy(x, z) && W.get(x, GY + 1, z) === AIR) W.set(x, GY + 1, z, B.SMOOTH_STONE);
+      }
       for (const [px, pz] of [[sx1, sz1], [sx2, sz1], [sx1, sz2], [sx2, sz2]]) {
         W.fencePost(px, GY + 2, pz, 'SPRUCE_PLANKS');
         W.fencePost(px, GY + 3, pz, 'SPRUCE_PLANKS');
@@ -341,6 +350,36 @@
     cow(190, 158); cow(195, 163);
     // two tamed wolves sitting by the plaza's south-east benches
     wolf(155, 156); wolf(150, 158);
+
+    /* ---- picnic corner in the plaza NE ---- */
+    (function picnic() {
+      const px = 166, pz = 126;
+      clearPlazaPlants(px - 2, pz - 1, px + 2, pz + 1);
+      W.table(px, GY + 1, pz);
+      W.chair(px - 1, GY + 1, pz, 'OAK_PLANKS', 'W');
+      W.chair(px + 1, GY + 1, pz, 'OAK_PLANKS', 'E');
+      if (W.get(px - 2, GY + 1, pz + 1) === AIR) W.set(px - 2, GY + 1, pz + 1, B.JACK_O_LANTERN);
+      if (W.get(px + 2, GY + 1, pz - 1) === AIR) W.set(px + 2, GY + 1, pz - 1, B.CAKE);
+    })();
+
+    /* ---- campfire rest stop beside the west (poor-tower) path ---- */
+    (function restStop() {
+      const cx = 110, cz = 142; // just north of the z~146 path run
+      if (grassy(cx, cz) && airCol(cx, cz, GY + 1, GY + 2)) {
+        for (let dz = -1; dz <= 1; dz++) for (let dx = -1; dx <= 1; dx++)
+          if (dx || dz) carve(cx + dx, cz + dz, B.COBBLESTONE);
+        carve(cx, cz, B.STONE);
+        W.set(cx, GY + 1, cz, B.CAMPFIRE);
+        // two log seats, if the grass is free
+        if (grassy(cx - 2, cz) && W.get(cx - 2, GY + 1, cz) === AIR) W.set(cx - 2, GY + 1, cz, B.OAK_LOG);
+        if (grassy(cx + 2, cz) && W.get(cx + 2, GY + 1, cz) === AIR) W.set(cx + 2, GY + 1, cz, B.OAK_LOG);
+      }
+    })();
+
+    /* ---- freight props by the rail station ---- */
+    for (const [hx, hz, id] of [[145, 233, B.HAY_BALE], [155, 231, B.HAY_BALE],
+      [155, 232, B.BARREL], [145, 232, B.CHEST]])
+      if (grassy(hx, hz) && W.get(hx, GY + 1, hz) === AIR) W.set(hx, GY + 1, hz, id);
 
     /* =====================================================================
      * 6. EXTRA VEGETATION & WEAR

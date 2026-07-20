@@ -96,9 +96,9 @@
     W.set(126, 34, 198, B.BARREL); W.set(125, 34, 198, B.HAY_BALE);
     for (let x = 127; x <= 129; x++) for (let z = 194; z <= 197; z++)
       if (H(x, z, 61) < 0.7) W.set(x, 34, z, H(x, z, 62) < 0.5 ? B.CARPET_YELLOW : B.CARPET_BLACK);
-    W.set(126, 36, 193, B.TORCH_WALL_N); W.set(129, 36, 199 - 1, 0) /* keep clear */;
+    W.set(127, 36, 193, B.TORCH_WALL_N);
     W.set(128, 40, 196, B.LANTERN_HANGING);
-    W.set(126, 38, 199, B.PAINTING1_N === undefined ? B.TORCH : B.PAINTING1_N);
+    W.set(128, 37, 198, B.PAINTING1_S);
 
     /* ---- loft (y42..): honey storage ---- */
     W.set(125, 42, 193, B.HONEY_BLOCK); W.set(125, 43, 193, B.HONEY_BLOCK);
@@ -191,8 +191,8 @@
     }
     perim(HX1, HZ1, HX2, HZ2, (x, z) => W.set(x, 40, z, B.DARK_OAK_LOG)); // top plate
     // windows
-    for (const x of [113, 114, 120, 121]) W.fill(x, 36, HZ1, x, 37, HZ1, B.PANE_YELLOW);
-    for (const x of [113, 114, 119, 120]) W.fill(x, 36, HZ2, x, 37, HZ2, B.PANE_YELLOW);
+    for (const x of [112, 113, 121, 122]) W.fill(x, 36, HZ1, x, 37, HZ1, B.PANE_YELLOW);
+    for (const x of [112, 113, 121, 122]) W.fill(x, 36, HZ2, x, 37, HZ2, B.PANE_YELLOW);
     W.fill(HX1, 36, 198, HX1, 37, 199, B.PANE_YELLOW);
     W.fill(HX2, 36, 202, HX2, 37, 203, B.PANE_YELLOW);
     // hall door (north, toward plaza) + sign + torches
@@ -293,7 +293,7 @@
     W.set(123, 33, 188, B.POTTED_TULIP_RED);
 
     // bee-nest posts (fence + nest) scattered in the meadow
-    for (const [nx, nz] of [[142, 189], [146, 206], [121, 217], [111, 186]]) {
+    for (const [nx, nz] of [[142, 189], [146, 206], [121, 217], [111, 181]]) {
       fn(nx, 33, nz, 'SPRUCE_PLANKS'); fn(nx, 34, nz, 'SPRUCE_PLANKS'); W.set(nx, 35, nz, B.BEE_NEST);
     }
     // azalea bushes + a couple of trees
