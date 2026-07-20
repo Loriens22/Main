@@ -26,6 +26,6 @@ mkdirSync(outDir, { recursive: true });
 writeFileSync(join(outDir, 'bundle.js'), bundle);
 
 const template = readFileSync(join(root, 'template.html'), 'utf8');
-const html = template.replace('<!--SCRIPTS-->', '<script>\n' + bundle.replace(/<\/script>/gi, '<\\/script>') + '\n</script>');
+const html = template.replace('<!--SCRIPTS-->', () => '<script>\n' + bundle.replace(/<\/script>/gi, '<\\/script>') + '\n</script>');
 writeFileSync(join(outDir, 'index.html'), html);
 console.log(outDir + '/index.html:', (html.length / 1024).toFixed(0) + ' KB;', 'src files:', srcFiles.length, 'build files:', buildFiles.length ? buildFiles.join(', ') : '(none)');

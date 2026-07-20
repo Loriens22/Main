@@ -501,8 +501,8 @@
         float bl = vL.x; float sl = vL.y; float ao = vL.z;
         float flick = 1.0 + 0.04*sin(uT*7.0 + vUV.x*300.0) ;
         vec3 blockC = vec3(1.0,0.82,0.58) * bl * flick;
-        vec3 skyC = vec3(0.42,0.55,0.9) * sl * 0.30;
-        vec3 L = max(blockC, skyC) + vec3(0.035,0.04,0.055);
+        vec3 skyC = vec3(0.5,0.62,0.95) * sl * 0.40;
+        vec3 L = max(blockC, skyC) + vec3(0.05,0.055,0.075);
         if (vL.w > 0.5) L = max(L, vec3(1.0));
         vec3 col = tex.rgb * L * ao;
         float f = clamp(exp(-vDist*0.006), 0.0, 1.0);
