@@ -1,0 +1,1341 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no" />
+<meta name="theme-color" content="#100c0a" />
+<title>Lo-Fi Octopus — Cozy AI Companion</title>
+<style>
+  /* ============================================================
+     LO-FI OCTOPUS COMPANION — single-file app
+     All CSS inline. Post-processing (grain / vignette / scanlines /
+     chromatic aberration / color grade) done with layered CSS overlays.
+     ============================================================ */
+  :root{
+    --orange:#e0764a;
+    --orange-deep:#c05a34;
+    --cream:#f3e2c9;
+    --ink:#161113;
+    --panel:rgba(24,18,20,.72);
+    --panel-solid:#1b1417;
+    --accent:#6b8cae;
+    --accent-warm:#e8a15c;
+    --ok:#7fce8f;
+    --font: ui-monospace, "SF Mono", "Cascadia Code", "Courier New", monospace;
+  }
+  *{box-sizing:border-box;-webkit-tap-highlight-color:transparent;}
+  html,body{margin:0;height:100%;overflow:hidden;background:#0b0809;color:var(--cream);
+    font-family:var(--font);font-size:15px;-webkit-font-smoothing:none;}
+  canvas{display:block;}
+  #app{position:fixed;inset:0;}
+
+  /* ---- 3D layer ---- */
+  #scene{position:absolute;inset:0;z-index:1;}
+
+  /* ---- Post FX overlays (pointer-events none) ---- */
+  .fx{position:absolute;inset:0;pointer-events:none;z-index:5;}
+  #fx-grade{background:
+      radial-gradient(120% 90% at 50% 40%, rgba(255,190,120,.06), transparent 60%),
+      linear-gradient(180deg, rgba(40,60,90,.10), rgba(60,20,10,.14));
+    mix-blend-mode:overlay;}
+  #fx-vignette{box-shadow:inset 0 0 220px 60px rgba(0,0,0,.72);
+    background:radial-gradient(130% 100% at 50% 45%, transparent 55%, rgba(0,0,0,.55));}
+  #fx-scan{background:repeating-linear-gradient(0deg, rgba(0,0,0,.0) 0px, rgba(0,0,0,.0) 2px, rgba(0,0,0,.18) 3px, rgba(0,0,0,.0) 4px);
+    opacity:.5;}
+  #fx-grain{opacity:.10;mix-blend-mode:overlay;background-repeat:repeat;}
+  #fx-rain{opacity:0;transition:opacity 1.2s;background-repeat:repeat;}
+  #fx-chroma{box-shadow:inset 3px 0 0 rgba(255,0,60,.06), inset -3px 0 0 rgba(0,180,255,.06);}
+  body.hc .fx{display:none;} /* high contrast disables film grade */
+
+  /* ---- Loading ---- */
+  #loader{position:absolute;inset:0;z-index:40;display:flex;flex-direction:column;
+    align-items:center;justify-content:center;background:#0b0809;gap:18px;transition:opacity .8s;}
+  #loader.hide{opacity:0;pointer-events:none;}
+  .loadbar{width:220px;height:8px;background:#241a1c;border-radius:4px;overflow:hidden;}
+  .loadbar>i{display:block;height:100%;width:20%;background:var(--orange);
+    animation:load 1.1s ease-in-out infinite;}
+  @keyframes load{0%{margin-left:-25%;width:35%}50%{width:55%}100%{margin-left:105%;width:35%}}
+  #loader small{color:#7a6a63;}
+
+  /* ---- Top bar (now playing) ---- */
+  #topbar{position:absolute;top:12px;right:14px;z-index:20;display:flex;gap:8px;align-items:center;
+    background:var(--panel);backdrop-filter:blur(6px);border:1px solid rgba(255,255,255,.06);
+    padding:7px 12px;border-radius:10px;font-size:12.5px;color:#d9c8b3;}
+  #topbar .np{max-width:190px;overflow:hidden;white-space:nowrap;text-overflow:ellipsis;}
+  #topbar .eq{display:inline-flex;gap:2px;align-items:flex-end;height:14px;}
+  #topbar .eq i{width:3px;background:var(--orange);height:4px;border-radius:1px;}
+  #topbar.playing .eq i{animation:eq .9s ease-in-out infinite;}
+  #topbar .eq i:nth-child(2){animation-delay:.2s}
+  #topbar .eq i:nth-child(3){animation-delay:.4s}
+  #topbar .eq i:nth-child(4){animation-delay:.1s}
+  @keyframes eq{0%,100%{height:4px}50%{height:13px}}
+
+  /* ---- Left tool rail ---- */
+  #rail{position:absolute;top:12px;left:14px;z-index:20;display:flex;flex-direction:column;gap:6px;}
+  .rgrp{background:var(--panel);backdrop-filter:blur(6px);border:1px solid rgba(255,255,255,.06);
+    border-radius:12px;padding:8px;display:flex;flex-direction:column;gap:6px;}
+  .rgrp .lbl{font-size:10px;letter-spacing:.12em;color:#8a7a72;text-transform:uppercase;padding:0 2px;}
+  .btnrow{display:flex;gap:5px;flex-wrap:wrap;max-width:196px;}
+  button.chip{cursor:pointer;font-family:var(--font);font-size:12px;color:#e9d9c6;
+    background:#2a1f22;border:1px solid rgba(255,255,255,.08);border-radius:8px;padding:6px 9px;
+    transition:transform .08s, background .15s;}
+  button.chip:hover{background:#3a2b2f;}
+  button.chip:active{transform:scale(.94);}
+  button.chip.on{background:var(--orange-deep);border-color:var(--orange);color:#fff;}
+
+  /* ---- Chat dock ---- */
+  #chatdock{position:absolute;left:50%;bottom:16px;transform:translateX(-50%);z-index:22;
+    width:min(680px,94vw);display:flex;flex-direction:column;gap:8px;}
+  #speech{align-self:center;max-width:100%;background:var(--panel);backdrop-filter:blur(8px);
+    border:1px solid rgba(255,255,255,.08);border-radius:14px;padding:10px 15px;font-size:14px;
+    color:#f4e6d3;line-height:1.4;opacity:0;transform:translateY(6px);transition:.25s;position:relative;}
+  #speech.show{opacity:1;transform:none;}
+  #speech::after{content:"";position:absolute;left:calc(50% - 8px);bottom:-8px;width:0;height:0;
+    border:8px solid transparent;border-top-color:var(--panel-solid);border-bottom:0;}
+  #speech .who{color:var(--orange);font-weight:bold;margin-right:6px;}
+  .inrow{display:flex;gap:8px;}
+  #chatin{flex:1;font-family:var(--font);font-size:15px;color:#fff;background:var(--panel-solid);
+    border:1px solid rgba(255,255,255,.12);border-radius:12px;padding:12px 14px;outline:none;}
+  #chatin:focus{border-color:var(--orange);}
+  #sendbtn{cursor:pointer;background:var(--orange);border:0;border-radius:12px;color:#1b1013;
+    font-family:var(--font);font-weight:bold;padding:0 18px;font-size:14px;}
+  #sendbtn:active{transform:scale(.96);}
+
+  /* ---- Subtitle (accessibility) ---- */
+  #subtitle{position:absolute;left:50%;bottom:96px;transform:translateX(-50%);z-index:21;
+    max-width:80vw;text-align:center;font-size:15px;color:#fff;background:rgba(0,0,0,.62);
+    padding:6px 14px;border-radius:8px;opacity:0;transition:.2s;pointer-events:none;}
+  #subtitle.show{opacity:1;}
+  body:not(.subs) #subtitle{display:none;}
+
+  /* ---- Rhythm mini-game ---- */
+  #game{position:absolute;inset:0;z-index:30;display:none;align-items:center;justify-content:center;
+    background:rgba(6,4,5,.72);backdrop-filter:blur(3px);}
+  #game.show{display:flex;}
+  .gamebox{width:min(420px,92vw);background:var(--panel-solid);border:1px solid rgba(255,255,255,.1);
+    border-radius:16px;padding:18px;text-align:center;}
+  #gamelanes{position:relative;height:260px;margin:14px 0;border-radius:12px;overflow:hidden;
+    background:linear-gradient(180deg,#120c0e,#1d1417);border:1px solid rgba(255,255,255,.06);}
+  #hitline{position:absolute;left:0;right:0;bottom:38px;height:3px;background:var(--orange);opacity:.8;}
+  .note{position:absolute;width:44px;height:20px;border-radius:6px;background:var(--accent);
+    left:50%;transform:translateX(-50%);box-shadow:0 0 10px rgba(107,140,174,.6);}
+  #gamehint{font-size:12px;color:#8a7a72;}
+  #tapbtn{margin-top:6px;width:100%;padding:14px;border-radius:12px;border:0;cursor:pointer;
+    background:var(--orange);color:#1b1013;font-weight:bold;font-family:var(--font);font-size:16px;}
+  .gscore{font-size:22px;color:var(--orange);}
+  .close-x{position:absolute;top:10px;right:14px;cursor:pointer;color:#8a7a72;font-size:20px;}
+
+  /* ---- Helper hint ---- */
+  #hint{position:absolute;left:50%;bottom:150px;transform:translateX(-50%);z-index:15;
+    font-size:12px;color:#7a6a63;text-align:center;opacity:1;transition:opacity 1s;pointer-events:none;}
+  #hint.gone{opacity:0;}
+
+  @media (max-width:640px){
+    #rail{transform:scale(.9);transform-origin:top left;}
+    #topbar .np{max-width:110px;}
+    #chatin{font-size:16px;} /* avoid iOS zoom */
+  }
+  .hidden{display:none!important;}
+</style>
+</head>
+<body class="subs">
+<div id="app">
+  <div id="scene"></div>
+
+  <!-- Post-processing overlays -->
+  <div class="fx" id="fx-grade"></div>
+  <div class="fx" id="fx-rain"></div>
+  <div class="fx" id="fx-scan"></div>
+  <div class="fx" id="fx-grain"></div>
+  <div class="fx" id="fx-chroma"></div>
+  <div class="fx" id="fx-vignette"></div>
+
+  <!-- Now playing -->
+  <div id="topbar">
+    <span class="eq"><i></i><i></i><i></i><i></i></span>
+    <span class="np" id="np">lofi radio — paused</span>
+  </div>
+
+  <!-- Tool rail -->
+  <div id="rail">
+    <div class="rgrp">
+      <span class="lbl">Music</span>
+      <div class="btnrow">
+        <button class="chip" id="musicBtn">▶ Play lofi</button>
+      </div>
+    </div>
+    <div class="rgrp">
+      <span class="lbl">Scene / Mood</span>
+      <div class="btnrow">
+        <button class="chip" data-mode="chill">Chill</button>
+        <button class="chip" data-mode="study">Study</button>
+        <button class="chip" data-mode="cook">Cook</button>
+        <button class="chip" data-mode="sleep">Sleep</button>
+      </div>
+    </div>
+    <div class="rgrp">
+      <span class="lbl">Weather</span>
+      <div class="btnrow">
+        <button class="chip" data-weather="clear">Clear</button>
+        <button class="chip" data-weather="rain">Rain</button>
+        <button class="chip" data-weather="snow">Snow</button>
+        <button class="chip" data-weather="night">Night</button>
+        <button class="chip" data-weather="sunset">Sunset</button>
+      </div>
+    </div>
+    <div class="rgrp">
+      <span class="lbl">Outfit</span>
+      <div class="btnrow" id="outfitRow">
+        <button class="chip" data-hat="none">Bare</button>
+        <button class="chip" data-hat="headphones">Headphones</button>
+        <button class="chip" data-hat="chef">Chef</button>
+        <button class="chip" data-hat="beanie">Beanie</button>
+        <button class="chip" data-hat="glasses">Glasses</button>
+      </div>
+    </div>
+    <div class="rgrp">
+      <span class="lbl">Extras</span>
+      <div class="btnrow">
+        <button class="chip" id="danceBtn">Dance</button>
+        <button class="chip" id="gameBtn">Rhythm game</button>
+        <button class="chip" id="subBtn">Subtitles: on</button>
+        <button class="chip" id="hcBtn">High contrast</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Chat -->
+  <div id="chatdock">
+    <div id="speech"><span class="who">Octo</span><span id="speechtext"></span></div>
+    <div class="inrow">
+      <input id="chatin" type="text" autocomplete="off" placeholder="talk to Octo… try “make it rainy”, “let's cook”, “tell me a joke”" />
+      <button id="sendbtn">Send</button>
+    </div>
+  </div>
+
+  <div id="subtitle"></div>
+  <div id="hint">tip: click Octo · drag to look around · scroll to zoom</div>
+
+  <!-- Rhythm mini-game -->
+  <div id="game">
+    <div class="gamebox" style="position:relative;">
+      <span class="close-x" id="gameClose">✕</span>
+      <h3 style="margin:0 0 2px;color:var(--orange);">Octo Beat</h3>
+      <div id="gamehint">tap the button when a note crosses the orange line</div>
+      <div id="gamelanes"><div id="hitline"></div></div>
+      <div>score <span class="gscore" id="gscore">0</span> · combo <span id="gcombo">0</span></div>
+      <button id="tapbtn">TAP</button>
+    </div>
+  </div>
+
+  <!-- YouTube host (created on demand) -->
+  <div id="ythost" style="position:absolute;width:1px;height:1px;overflow:hidden;left:-100px;top:-100px;"></div>
+</div>
+
+<script type="importmap">
+{
+  "imports": {
+    "three": "https://unpkg.com/three@0.160.0/build/three.module.js",
+    "three/addons/": "https://unpkg.com/three@0.160.0/examples/jsm/"
+  }
+}
+</script>
+
+<script type="module">
+import * as THREE from 'three';
+import { OrbitControls } from 'three/addons/controls/OrbitControls.js';
+
+/* =====================================================================
+   0. GLOBAL STATE + HELPERS
+   ===================================================================== */
+const PAL = {
+  orange:      0xe0764a,
+  orangeDark:  0xb85a30,
+  orangeLight: 0xef8f63,
+  black:       0x1a1013,
+  white:       0xf3e2c9,
+  wood:        0x6b4a34,
+  woodDark:    0x4a3222,
+  wall:        0x2b2226,
+  wallWarm:    0x3a2c2a,
+  floor:       0x3f2f2a,
+  metal:       0x8a8f96,
+  leaf:        0x4f8a5a,
+  leafDark:    0x3c6b46,
+  book:        [0x9e5b4b,0x4f6d8a,0x6f8a5a,0xcaa15c,0x8a5a7a,0x5a5a6a],
+  fire:        0xff7a2a,
+  blue:        0x3f6da8,
+  cream:       0xf3e2c9,
+};
+
+const clock = new THREE.Clock();
+const state = {
+  mode: 'chill',        // chill | study | cook | sleep
+  weather: 'clear',     // clear | rain | snow | night | sunset
+  hat: 'none',
+  music: false,
+  danceUntil: 0,
+  gestureUntil: 0,
+  gesture: null,        // 'wave' | 'jump' | 'nod' | 'cook' | 'type' | 'read'
+  blinkAt: 0,
+  expression: 'neutral',// neutral | happy | surprised | sleepy | laugh
+  walkTargetX: 0,
+  subtitles: true,
+  highContrast: false,
+};
+
+/* small utility */
+const rand = (a,b)=>a+Math.random()*(b-a);
+const lerp = (a,b,t)=>a+(b-a)*t;
+const now = ()=>performance.now()/1000;
+
+function box(w,h,d,color,opts={}){
+  const g = new THREE.BoxGeometry(w,h,d);
+  const m = new THREE.MeshStandardMaterial({
+    color, flatShading:true,
+    roughness: opts.rough ?? 0.85,
+    metalness: opts.metal ?? 0.0,
+    emissive: opts.emissive ?? 0x000000,
+    emissiveIntensity: opts.emissiveIntensity ?? 1,
+    transparent: opts.transparent ?? false,
+    opacity: opts.opacity ?? 1,
+  });
+  const mesh = new THREE.Mesh(g,m);
+  mesh.castShadow = opts.noShadow?false:true;
+  mesh.receiveShadow = true;
+  if(opts.pos) mesh.position.set(...opts.pos);
+  return mesh;
+}
+
+/* =====================================================================
+   1. RENDERER / SCENE / CAMERA
+   ===================================================================== */
+const container = document.getElementById('scene');
+let renderer, scene, camera, controls;
+
+try{
+  renderer = new THREE.WebGLRenderer({ antialias:true, alpha:false });
+}catch(e){
+  document.getElementById('loader').innerHTML =
+    '<div style="color:#e0764a">Your browser could not start WebGL.</div>';
+  throw e;
+}
+renderer.setPixelRatio(Math.min(window.devicePixelRatio, 1.75));
+renderer.setSize(window.innerWidth, window.innerHeight);
+renderer.shadowMap.enabled = true;
+renderer.shadowMap.type = THREE.PCFSoftShadowMap;
+renderer.toneMapping = THREE.ACESFilmicToneMapping;
+renderer.toneMappingExposure = 1.15;
+container.appendChild(renderer.domElement);
+
+scene = new THREE.Scene();
+scene.background = new THREE.Color(0x0d0a0b);
+scene.fog = new THREE.FogExp2(0x140d0f, 0.028);
+
+camera = new THREE.PerspectiveCamera(46, window.innerWidth/window.innerHeight, 0.1, 100);
+camera.position.set(0, 2.4, 8.4);
+
+controls = new OrbitControls(camera, renderer.domElement);
+controls.target.set(0, 1.4, 0);
+controls.enableDamping = true;
+controls.dampingFactor = 0.08;
+controls.minDistance = 4;
+controls.maxDistance = 13;
+controls.maxPolarAngle = Math.PI * 0.56;
+controls.minPolarAngle = Math.PI * 0.18;
+controls.enablePan = false;
+
+/* camera focus tween targets per mode */
+const camFocus = {
+  chill:  { pos:new THREE.Vector3(0, 2.4, 8.4),    tgt:new THREE.Vector3(0,1.4,0) },
+  study:  { pos:new THREE.Vector3(3.6, 2.3, 6.6),  tgt:new THREE.Vector3(3.4,1.5,-2.2) },
+  cook:   { pos:new THREE.Vector3(-3.6,2.3, 6.6),  tgt:new THREE.Vector3(-3.4,1.6,-2.2) },
+  sleep:  { pos:new THREE.Vector3(0, 2.0, 7.2),    tgt:new THREE.Vector3(0,1.0,0) },
+};
+let autoFocus = true; // stop auto-focus once the user drags
+controls.addEventListener('start', ()=>{ autoFocus = false; });
+
+/* =====================================================================
+   2. LIGHTING (layered — warm lamps, cool moonlight, fire)
+   ===================================================================== */
+const lights = {};
+lights.ambient   = new THREE.AmbientLight(0xffe6c8, 0.28);
+lights.hemi      = new THREE.HemisphereLight(0x6b7ba0, 0x2a1a16, 0.35);
+lights.moon      = new THREE.DirectionalLight(0x9fb6e0, 0.35);
+lights.moon.position.set(-6, 9, 6);
+lights.moon.castShadow = true;
+lights.moon.shadow.mapSize.set(1024,1024);
+lights.moon.shadow.camera.near = 1; lights.moon.shadow.camera.far = 30;
+lights.moon.shadow.camera.left=-10; lights.moon.shadow.camera.right=10;
+lights.moon.shadow.camera.top=10; lights.moon.shadow.camera.bottom=-10;
+
+lights.lamp      = new THREE.PointLight(0xffb464, 1.5, 12, 2); // overhead warm
+lights.lamp.position.set(0, 4.6, 1.2);
+lights.lamp.castShadow = true;
+lights.lamp.shadow.mapSize.set(1024,1024);
+
+lights.desk      = new THREE.SpotLight(0xffcf8a, 0.0, 9, Math.PI/6, 0.5, 1.4);
+lights.desk.position.set(3.7, 3.0, -1.2);
+lights.deskTarget = new THREE.Object3D(); lights.deskTarget.position.set(3.6,0.9,-2.4);
+scene.add(lights.deskTarget); lights.desk.target = lights.deskTarget;
+
+lights.stove     = new THREE.PointLight(0xff8a3a, 0.0, 6, 2);
+lights.stove.position.set(-3.6, 1.6, -2.0);
+
+lights.fire      = new THREE.PointLight(0xff6a2a, 1.1, 9, 2);
+lights.fire.position.set(-0.2, 1.1, -3.6);
+lights.fire.castShadow = true;
+
+Object.values(lights).forEach(l=>{ if(l.isLight||l.isObject3D) scene.add(l); });
+
+/* =====================================================================
+   3. ENVIRONMENT — the cozy lo-fi apartment
+   ===================================================================== */
+const room = new THREE.Group();
+scene.add(room);
+
+// floor
+const floor = box(20, 0.4, 16, PAL.floor, {pos:[0,-0.2,-2], rough:.95});
+room.add(floor);
+// subtle rug under mascot
+const rug = box(4.6, 0.06, 3.4, 0x7a3f3a, {pos:[0,0.03,1.0], rough:1});
+room.add(rug);
+const rug2 = box(3.6, 0.08, 2.6, 0x8f4a44, {pos:[0,0.05,1.0], rough:1});
+room.add(rug2);
+
+// back wall + side walls
+room.add(box(20, 9, 0.4, PAL.wall, {pos:[0,3.5,-6], rough:1}));
+room.add(box(0.4, 9, 16, PAL.wallWarm, {pos:[-9.8,3.5,-2], rough:1}));
+room.add(box(0.4, 9, 16, PAL.wallWarm, {pos:[9.8,3.5,-2], rough:1}));
+room.add(box(20, 0.4, 16, 0x241a1c, {pos:[0,8,-2], rough:1})); // ceiling
+
+/* ---- WINDOW (center back) with animated sky + parallax city ---- */
+const windowGroup = new THREE.Group();
+windowGroup.position.set(0, 3.4, -5.78);
+room.add(windowGroup);
+// frame
+windowGroup.add(box(4.4, 3.4, 0.2, PAL.woodDark, {pos:[0,0,0]}));
+// sky plane (emissive gradient via canvas texture)
+function makeSkyTexture(){
+  const c=document.createElement('canvas');c.width=256;c.height=256;
+  const x=c.getContext('2d');
+  const g=x.createLinearGradient(0,0,0,256);
+  g.addColorStop(0,'#20304f');g.addColorStop(.55,'#3a3350');g.addColorStop(1,'#6b4a52');
+  x.fillStyle=g;x.fillRect(0,0,256,256);
+  // stars
+  x.fillStyle='rgba(255,240,210,.8)';
+  for(let i=0;i<40;i++){x.fillRect(Math.random()*256,Math.random()*120,1,1);}
+  // city silhouette + neon
+  x.fillStyle='#140d16';
+  for(let i=0;i<14;i++){const w=18+Math.random()*20,h=40+Math.random()*90,px=i*20-10;x.fillRect(px,256-h,w,h);}
+  const neon=['#e0764a','#6b8cae','#e8a15c','#7fce8f'];
+  for(let i=0;i<28;i++){x.fillStyle=neon[i%4];x.globalAlpha=.7;x.fillRect(Math.random()*256,150+Math.random()*90,2,2);}
+  x.globalAlpha=1;
+  const t=new THREE.CanvasTexture(c);t.magFilter=THREE.NearestFilter;return t;
+}
+const skyTex = makeSkyTexture();
+const skyMat = new THREE.MeshBasicMaterial({map:skyTex});
+const skyPlane = new THREE.Mesh(new THREE.PlaneGeometry(4.0,3.0), skyMat);
+skyPlane.position.set(0,0,-0.12);
+windowGroup.add(skyPlane);
+// mullions (cross bars)
+windowGroup.add(box(0.14, 3.0, 0.14, PAL.woodDark, {pos:[0,0,0.02]}));
+windowGroup.add(box(4.0, 0.14, 0.14, PAL.woodDark, {pos:[0,0,0.02]}));
+// windowsill
+windowGroup.add(box(4.8,0.2,0.5,PAL.wood,{pos:[0,-1.8,0.3]}));
+
+/* ---- STUDY DESK (right side) ---- */
+const study = new THREE.Group();
+study.position.set(3.6, 0, -2.4);
+room.add(study);
+study.add(box(3.0, 0.18, 1.5, PAL.wood, {pos:[0,1.2,0]}));           // desktop
+study.add(box(0.18,1.2,1.4, PAL.woodDark,{pos:[-1.3,0.6,0]}));       // legs
+study.add(box(0.18,1.2,1.4, PAL.woodDark,{pos:[1.3,0.6,0]}));
+study.add(box(1.0,0.9,1.3, PAL.woodDark,{pos:[0.9,0.75,0]}));        // drawer block
+study.add(box(0.9,0.05,0.9, PAL.black,{pos:[0.9,0.9,0.05]}));        // drawer handle rows
+// monitor
+const monitor = new THREE.Group(); monitor.position.set(-0.6,1.9,-0.4);
+study.add(monitor);
+monitor.add(box(1.5,0.9,0.1, 0x120c0e,{pos:[0,0,0]}));
+const screenTex = makeScreenTexture();
+const screen = new THREE.Mesh(new THREE.PlaneGeometry(1.34,0.74),
+  new THREE.MeshBasicMaterial({map:screenTex}));
+screen.position.set(0,0,0.06); monitor.add(screen);
+monitor.add(box(0.25,0.5,0.2, 0x1a1216,{pos:[0,-0.6,0]}));          // stand
+monitor.add(box(0.7,0.08,0.4, 0x1a1216,{pos:[0,-0.86,0]}));
+// desk lamp
+const dlamp = new THREE.Group(); dlamp.position.set(1.0,1.29,-0.4); study.add(dlamp);
+dlamp.add(box(0.3,0.06,0.3,0x2a2024,{pos:[0,0,0]}));
+dlamp.add(box(0.06,0.7,0.06,0x2a2024,{pos:[0,0.35,0]}));
+dlamp.add(box(0.5,0.06,0.06,0x2a2024,{pos:[-0.2,0.68,0]}));
+dlamp.add(box(0.34,0.24,0.34,0x3a2a2e,{pos:[-0.42,0.55,0]}));
+const dlampGlow = box(0.2,0.1,0.2,0xffcf8a,{pos:[-0.42,0.44,0],emissive:0xffcf8a,noShadow:true});
+dlampGlow.material.emissiveIntensity=1.4; dlamp.add(dlampGlow);
+// papers + notebook + pencil holder
+study.add(box(0.7,0.03,0.5,PAL.cream,{pos:[0.4,1.3,0.35],rough:1}));
+study.add(box(0.6,0.05,0.44,0xd8c4a2,{pos:[0.35,1.33,0.3],rough:1}));
+study.add(box(0.2,0.3,0.2,0x2a2024,{pos:[1.0,1.42,0.4]}));
+for(let i=0;i<4;i++) study.add(box(0.03,0.35,0.03,[0xe0764a,0x6b8cae,0xcaa15c,0x7fce8f][i],{pos:[0.94+i*0.05,1.5,0.4]}));
+// office chair
+const chair = new THREE.Group(); chair.position.set(3.4,0,-0.6); room.add(chair);
+chair.add(box(0.9,0.2,0.9,0x241a1c,{pos:[0,0.9,0]}));
+chair.add(box(0.9,1.1,0.18,0x2c2024,{pos:[0,1.55,-0.4]}));
+chair.add(box(0.12,0.8,0.12,0x161012,{pos:[0,0.5,0]}));
+for(let i=0;i<5;i++){const a=i/5*Math.PI*2;chair.add(box(0.5,0.1,0.12,0x161012,{pos:[Math.cos(a)*0.35,0.14,Math.sin(a)*0.35]}));}
+
+/* ---- KITCHEN (left side) ---- */
+const kitchen = new THREE.Group();
+kitchen.position.set(-3.6, 0, -2.2);
+room.add(kitchen);
+kitchen.add(box(3.4,0.2,1.6,PAL.wood,{pos:[0,1.5,0]}));          // counter
+kitchen.add(box(3.4,1.4,1.5,PAL.woodDark,{pos:[0,0.7,0]}));      // cabinet
+kitchen.add(box(3.2,0.05,1.5,0x2a2024,{pos:[0,1.62,0]}));        // counter top plate
+// stove
+const stove = new THREE.Group(); stove.position.set(0.8,1.63,0); kitchen.add(stove);
+stove.add(box(1.1,0.08,1.0,0x1a1216,{pos:[0,0,0]}));
+for(const [sx,sz] of [[-0.25,-0.25],[0.25,-0.25],[-0.25,0.25],[0.25,0.25]]){
+  const burner = box(0.34,0.04,0.34,0x120c0e,{pos:[sx,0.05,sz]}); stove.add(burner);
+}
+// pixel flame + steaming pot on front-left burner
+const flame = new THREE.Group(); flame.position.set(-0.25,0.08,0.25); stove.add(flame);
+const flameCore = box(0.24,0.16,0.24,PAL.fire,{pos:[0,0.08,0],emissive:PAL.fire,noShadow:true});
+flameCore.material.emissiveIntensity=1.8; flame.add(flameCore);
+const pot = new THREE.Group(); pot.position.set(-0.25,0.25,0.25); stove.add(pot);
+pot.add(box(0.4,0.28,0.4,0x3a3a40,{metal:.6,rough:.4}));
+pot.add(box(0.44,0.05,0.44,0x2a2a30,{pos:[0,0.16,0]}));
+const steam=[]; for(let i=0;i<3;i++){const s=box(0.06,0.06,0.06,0xffffff,{pos:[0,0.3+i*0.15,0],transparent:true,opacity:.4,noShadow:true});steam.push(s);pot.add(s);}
+// sink + drip
+kitchen.add(box(0.9,0.08,0.7,0x2a2a30,{pos:[-0.9,1.63,0]}));
+kitchen.add(box(0.06,0.3,0.06,PAL.metal,{pos:[-0.9,1.85,-0.2],metal:.7}));
+const drip = box(0.04,0.08,0.04,0x8fb6d8,{pos:[-0.9,1.7,-0.14],transparent:true,opacity:.7,noShadow:true});
+kitchen.add(drip);
+// hanging utensils
+const utilBar = box(1.6,0.05,0.05,PAL.metal,{pos:[-0.5,2.9,-0.6],metal:.6}); kitchen.add(utilBar);
+kitchen.add(box(0.05,0.5,0.05,PAL.metal,{pos:[-1.0,2.6,-0.6],metal:.6}));
+kitchen.add(box(0.22,0.3,0.04,0x9e5b4b,{pos:[-0.6,2.55,-0.6]}));  // spatula head
+kitchen.add(box(0.05,0.5,0.05,PAL.metal,{pos:[-0.2,2.6,-0.6],metal:.6}));
+// spice jars on a shelf
+kitchen.add(box(1.8,0.08,0.4,PAL.wood,{pos:[-0.7,2.3,-0.55]}));
+for(let i=0;i<5;i++){const j=box(0.16,0.24,0.16,[0x9e5b4b,0xcaa15c,0x6f8a5a,0x8a5a7a,0x4f6d8a][i],{pos:[-1.3+i*0.3,2.46,-0.55]});kitchen.add(j);
+  kitchen.add(box(0.12,0.05,0.12,PAL.cream,{pos:[-1.3+i*0.3,2.4,-0.5]}));}
+// cutting board + knife block
+kitchen.add(box(0.6,0.06,0.4,0x8a5a34,{pos:[-1.0,1.66,0.3]}));
+kitchen.add(box(0.24,0.4,0.24,PAL.woodDark,{pos:[1.4,1.83,0.3]}));
+
+/* ---- FIREPLACE (back center-left) ---- */
+const fireplace = new THREE.Group();
+fireplace.position.set(-0.2, 0, -5.4);
+room.add(fireplace);
+fireplace.add(box(3.0,3.2,0.7,0x6a4038,{pos:[0,1.6,0]}));         // brick mass
+fireplace.add(box(2.0,1.6,0.4,0x120a0a,{pos:[0,1.0,0.2]}));        // inner cavity
+fireplace.add(box(3.4,0.3,0.9,0x5a352e,{pos:[0,3.25,0]}));         // mantel
+// logs + animated fire boxes
+fireplace.add(box(1.2,0.18,0.3,PAL.woodDark,{pos:[0,0.35,0.35]}));
+fireplace.add(box(1.0,0.18,0.3,0x3a2418,{pos:[0.1,0.5,0.35]}));
+const fireBoxes=[];
+for(let i=0;i<7;i++){
+  const fb=box(rand(0.1,0.22),rand(0.2,0.5),0.14,PAL.fire,{pos:[rand(-0.6,0.6),rand(0.5,0.9),0.35],emissive:PAL.fire,noShadow:true});
+  fb.material.emissiveIntensity=1.6; fireBoxes.push(fb); fireplace.add(fb);
+}
+// mantel decor: vase w/ flowers, frames, books
+fireplace.add(box(0.24,0.4,0.24,0x4f6d8a,{pos:[-1.1,3.6,0]}));      // vase
+for(let i=0;i<3;i++)fireplace.add(box(0.07,0.3,0.07,PAL.leaf,{pos:[-1.1+(i-1)*0.08,3.9,0]}));
+for(let i=0;i<3;i++)fireplace.add(box(0.14,0.14,0.14,[0xe0764a,0xe8a15c,0x8a5a7a][i],{pos:[-1.1+(i-1)*0.09,4.05,0]}));
+fireplace.add(box(0.5,0.4,0.05,0x2a2024,{pos:[0.8,3.65,0]}));       // frame
+fireplace.add(box(0.9,0.3,0.3,PAL.book[3],{pos:[0.2,3.6,0]}));      // stacked books
+
+/* ---- BOOKSHELF (right back corner) ---- */
+const shelf = new THREE.Group(); shelf.position.set(7.0,0,-5.0); room.add(shelf);
+shelf.add(box(2.4,5.0,0.6,PAL.woodDark,{pos:[0,2.5,0]}));
+for(let r=0;r<4;r++){
+  const y=1.0+r*1.05;
+  shelf.add(box(2.2,0.1,0.55,PAL.wood,{pos:[0,y-0.5,0]}));
+  let x=-1.0;
+  while(x<0.95){
+    const bw=rand(0.1,0.22), bh=rand(0.6,0.9);
+    shelf.add(box(bw,bh,0.4,PAL.book[Math.floor(rand(0,PAL.book.length))],{pos:[x,y+bh/2-0.45,0]}));
+    x+=bw+0.02;
+  }
+}
+// globe + plant on shelf
+shelf.add(box(0.4,0.4,0.4,0x4f6d8a,{pos:[0.6,4.3,0]}));
+// potted monstera near shelf
+const plant = new THREE.Group(); plant.position.set(6.2,0,-3.4); room.add(plant);
+plant.add(box(0.6,0.7,0.6,0x9e5b4b,{pos:[0,0.35,0]}));
+plant.add(box(0.55,0.15,0.55,0x3a2418,{pos:[0,0.7,0]}));
+const leaves=[];
+for(let i=0;i<7;i++){
+  const a=i/7*Math.PI*2, h=rand(0.8,1.6);
+  const stem=box(0.06,h,0.06,PAL.leafDark,{pos:[Math.cos(a)*0.15,0.7+h/2,Math.sin(a)*0.15]});
+  const leaf=box(0.5,0.5,0.08,PAL.leaf,{pos:[Math.cos(a)*0.3,0.7+h,Math.sin(a)*0.3]});
+  leaf.rotation.z=rand(-0.4,0.4); leaves.push(leaf);
+  plant.add(stem); plant.add(leaf);
+}
+// window-seat plant (left)
+const plant2 = new THREE.Group(); plant2.position.set(-6.0,0,-3.2); room.add(plant2);
+plant2.add(box(0.5,0.6,0.5,0x6f8a5a,{pos:[0,0.3,0]}));
+for(let i=0;i<5;i++)plant2.add(box(0.12,rand(0.5,1.0),0.12,PAL.leaf,{pos:[rand(-0.15,0.15),0.7,rand(-0.15,0.15)]}));
+
+// wall posters (referencing lofi culture, generic)
+function poster(x,y,c1,c2){
+  const p=box(1.0,1.4,0.06,c1,{pos:[x,y,-5.7]}); room.add(p);
+  room.add(box(0.6,0.6,0.07,c2,{pos:[x,y+0.1,-5.66]}));
+}
+poster(-3.4,4.6,0x2a2438,0xe0764a);
+poster(3.6,5.0,0x38302a,0x6b8cae);
+// hanging plant near window (from first ref image)
+const hang = new THREE.Group(); hang.position.set(2.4,5.6,-5.4); room.add(hang);
+hang.add(box(0.5,0.3,0.5,0x6f8a5a,{pos:[0,0,0]}));
+for(let i=0;i<8;i++)hang.add(box(0.06,rand(0.4,1.1),0.06,PAL.leafDark,{pos:[rand(-0.25,0.25),-0.5,rand(-0.25,0.25)]}));
+
+/* screen + monitor textures --------------------------------------- */
+function makeScreenTexture(){
+  const c=document.createElement('canvas');c.width=134;c.height=74;const x=c.getContext('2d');
+  x.fillStyle='#0e1518';x.fillRect(0,0,134,74);
+  const cols=['#7fce8f','#6b8cae','#e0764a','#caa15c'];
+  for(let i=0;i<9;i++){x.fillStyle=cols[i%4];x.globalAlpha=.9;x.fillRect(6,6+i*7,10+Math.random()*80,4);}
+  x.globalAlpha=1;const t=new THREE.CanvasTexture(c);t.magFilter=THREE.NearestFilter;return t;
+}
+
+/* =====================================================================
+   4. THE MASCOT — voxel/pixel orange octopus, fully rigged
+   ===================================================================== */
+const mascot = new THREE.Group();
+mascot.position.set(0, 0, 0.8);
+scene.add(mascot);
+
+const rig = {};            // named parts for animation
+// --- BODY (chunky dome) ---
+const bodyGroup = new THREE.Group(); mascot.add(bodyGroup); rig.body = bodyGroup;
+const bodyMat = {rough:.7, metal:.05};
+const body = box(1.5, 1.15, 1.35, PAL.orange, {pos:[0,1.05,0], ...bodyMat});
+bodyGroup.add(body);
+// flat-top dome rounding: shave corners with darker orange trims
+bodyGroup.add(box(1.35,0.2,1.2, PAL.orangeLight,{pos:[0,1.6,0],...bodyMat}));  // top highlight
+bodyGroup.add(box(1.55,0.35,1.4, PAL.orangeDark,{pos:[0,0.5,0],...bodyMat}));  // lower shade
+// belly subtle
+bodyGroup.add(box(0.9,0.6,0.05, PAL.orangeLight,{pos:[0,0.95,0.68],...bodyMat}));
+
+// --- EYES ---
+const eyeL = new THREE.Group(), eyeR = new THREE.Group();
+eyeL.position.set(-0.34,1.2,0.69); eyeR.position.set(0.34,1.2,0.69);
+bodyGroup.add(eyeL); bodyGroup.add(eyeR); rig.eyeL=eyeL; rig.eyeR=eyeR;
+function buildEye(g){
+  const white = box(0.3,0.36,0.06,PAL.black,{pos:[0,0,0],noShadow:true,rough:.4});
+  g.add(white);
+  const hl = box(0.08,0.08,0.03,PAL.white,{pos:[0.07,0.1,0.04],noShadow:true});
+  hl.material.emissive=new THREE.Color(PAL.white); hl.material.emissiveIntensity=.4;
+  g.add(hl);
+  g.userData.lid = box(0.34,0.36,0.08,PAL.orange,{pos:[0,0.4,0.01],...bodyMat}); // blink lid slides down
+  g.add(g.userData.lid);
+}
+buildEye(eyeL); buildEye(eyeR);
+// eyebrow pixels (for expressions)
+const browL = box(0.3,0.06,0.05,PAL.orangeDark,{pos:[-0.34,1.46,0.7],noShadow:true});
+const browR = box(0.3,0.06,0.05,PAL.orangeDark,{pos:[0.34,1.46,0.7],noShadow:true});
+bodyGroup.add(browL); bodyGroup.add(browR); rig.browL=browL; rig.browR=browR;
+
+// --- MOUTH (expression variants toggled) ---
+const mouth = new THREE.Group(); mouth.position.set(0,0.86,0.7); bodyGroup.add(mouth); rig.mouth=mouth;
+const mNeutral = box(0.2,0.05,0.04,PAL.black,{noShadow:true});
+const mHappy = new THREE.Group();
+mHappy.add(box(0.28,0.05,0.04,PAL.black,{pos:[0,0,0],noShadow:true}));
+mHappy.add(box(0.06,0.05,0.04,PAL.black,{pos:[-0.16,0.07,0],noShadow:true}));
+mHappy.add(box(0.06,0.05,0.04,PAL.black,{pos:[0.16,0.07,0],noShadow:true}));
+const mSurprise = box(0.16,0.2,0.04,PAL.black,{noShadow:true});
+const mLaugh = box(0.3,0.24,0.04,PAL.black,{noShadow:true});
+[mNeutral,mHappy,mSurprise,mLaugh].forEach(m=>{m.visible=false;mouth.add(m);});
+const mouths={neutral:mNeutral,happy:mHappy,surprised:mSurprise,laugh:mLaugh,sleepy:mNeutral};
+
+// blush pixels
+const blushL=box(0.2,0.12,0.04,0xff9a7a,{pos:[-0.55,1.05,0.62],transparent:true,opacity:.7,noShadow:true});
+const blushR=box(0.2,0.12,0.04,0xff9a7a,{pos:[0.55,1.05,0.62],transparent:true,opacity:.7,noShadow:true});
+blushL.visible=blushR.visible=false; bodyGroup.add(blushL); bodyGroup.add(blushR);
+
+// --- ARMS (front tentacles, can wave / hold pan) ---
+function tentacle(len,col){
+  const g=new THREE.Group();
+  let seg=g;
+  for(let i=0;i<3;i++){
+    const s=box(0.22-i*0.03,len/3,0.22-i*0.03,i===0?col:col,{...bodyMat});
+    s.position.y=-len/6;
+    const pivot=new THREE.Group(); pivot.position.y=(i===0?0:-len/3);
+    pivot.add(s); seg.add(pivot); seg=pivot;
+    if(!g.userData.segs)g.userData.segs=[]; g.userData.segs.push(pivot);
+  }
+  return g;
+}
+const armL = tentacle(0.7,PAL.orange); armL.position.set(-0.78,1.05,0.2); mascot.add(armL); rig.armL=armL;
+const armR = tentacle(0.7,PAL.orange); armR.position.set(0.78,1.05,0.2); mascot.add(armR); rig.armR=armR;
+
+// held item slot (right arm) — spatula / book
+const heldSlot = new THREE.Group(); heldSlot.position.set(0,-0.7,0); armR.userData.segs[2].add(heldSlot); rig.heldSlot=heldSlot;
+const spatula = new THREE.Group();
+spatula.add(box(0.06,0.5,0.06,0x8a5a34,{noShadow:true}));
+spatula.add(box(0.2,0.24,0.04,0x9a9a9a,{pos:[0,0.35,0],metal:.6,noShadow:true}));
+const bookItem = new THREE.Group();
+bookItem.add(box(0.5,0.36,0.1,PAL.blue,{noShadow:true}));
+bookItem.add(box(0.46,0.32,0.02,PAL.cream,{pos:[0,0,0.06],noShadow:true}));
+[spatula,bookItem].forEach(it=>{it.visible=false;heldSlot.add(it);});
+
+// --- LEGS (stubby tentacle waddle) ---
+const legs=[];
+const legDefs=[[-0.55,0.55],[-0.25,0.62],[0.05,0.62],[0.35,0.6],[0.6,0.5],[-0.4,-0.2],[0.35,-0.2]];
+legDefs.forEach(([lx,lz],i)=>{
+  const pivot=new THREE.Group(); pivot.position.set(lx,0.45,lz); mascot.add(pivot);
+  const leg=box(0.22,0.45,0.22,PAL.orangeDark,{...bodyMat});
+  leg.position.y=-0.22; pivot.add(leg);
+  pivot.add(box(0.24,0.1,0.28,PAL.orange,{pos:[0,-0.42,0.03],...bodyMat})); // foot
+  legs.push(pivot);
+});
+rig.legs=legs;
+
+// --- HEADWEAR SLOT ---
+const headwear = new THREE.Group(); headwear.position.set(0,1.7,0); bodyGroup.add(headwear); rig.headwear=headwear;
+const hats = {};
+// chef hat
+hats.chef = new THREE.Group();
+hats.chef.add(box(0.9,0.3,0.9,PAL.white,{pos:[0,0.1,0]}));
+hats.chef.add(box(1.1,0.5,1.1,PAL.white,{pos:[0,0.5,0]}));
+hats.chef.add(box(0.34,0.34,0.34,PAL.white,{pos:[-0.35,0.75,0.25]}));
+hats.chef.add(box(0.34,0.34,0.34,PAL.white,{pos:[0.35,0.75,-0.1]}));
+hats.chef.add(box(0.3,0.3,0.3,PAL.white,{pos:[0.1,0.85,0.3]}));
+// headphones
+hats.headphones = new THREE.Group();
+hats.headphones.add(box(1.5,0.16,0.16,PAL.blue,{pos:[0,0.35,0]}));
+hats.headphones.add(box(0.28,0.6,0.5,PAL.blue,{pos:[-0.78,-0.45,0]}));
+hats.headphones.add(box(0.28,0.6,0.5,PAL.blue,{pos:[0.78,-0.45,0]}));
+hats.headphones.add(box(0.16,0.4,0.35,0x2a4a7a,{pos:[-0.86,-0.45,0]}));
+hats.headphones.add(box(0.16,0.4,0.35,0x2a4a7a,{pos:[0.86,-0.45,0]}));
+// beanie
+hats.beanie = new THREE.Group();
+hats.beanie.add(box(1.2,0.5,1.15,0x2a2438,{pos:[0,0.15,0]}));
+hats.beanie.add(box(1.25,0.18,1.2,0x3a3450,{pos:[0,-0.12,0]}));
+hats.beanie.add(box(0.2,0.2,0.2,0xe0764a,{pos:[0,0.45,0]}));
+// glasses (red square, sits over eyes not on head — separate)
+const glasses = new THREE.Group(); glasses.position.set(0,1.2,0.72); bodyGroup.add(glasses);
+glasses.add(box(0.4,0.4,0.05,0xc03a2a,{noShadow:true}));
+glasses.add(box(0.4,0.4,0.05,0xc03a2a,{pos:[0.68,0,0],noShadow:true}));
+glasses.position.x=-0.34;
+// hollow them (dark centers)
+glasses.add(box(0.28,0.28,0.03,PAL.black,{pos:[0,0,0.03],noShadow:true}));
+glasses.add(box(0.28,0.28,0.03,PAL.black,{pos:[0.68,0,0.03],noShadow:true}));
+glasses.add(box(0.34,0.06,0.05,0xc03a2a,{pos:[0.34,0.05,0],noShadow:true}));
+glasses.visible=false;
+Object.values(hats).forEach(h=>{h.visible=false;headwear.add(h);});
+
+// floating emote sprites (music notes, sparkles, sweat, zzz)
+const emotes = new THREE.Group(); mascot.add(emotes);
+function makeEmote(char,color){
+  const c=document.createElement('canvas');c.width=64;c.height=64;const x=c.getContext('2d');
+  x.font='48px monospace';x.textAlign='center';x.textBaseline='middle';
+  x.fillStyle=color;x.fillText(char,32,34);
+  const t=new THREE.CanvasTexture(c);
+  const s=new THREE.Sprite(new THREE.SpriteMaterial({map:t,transparent:true}));
+  s.scale.set(0.5,0.5,0.5); s.visible=false; emotes.add(s); return s;
+}
+const emotePool=[]; const emoteChars={note:['♪','#e0764a'],notte:['♫','#6b8cae'],spark:['✦','#e8a15c'],sweat:['💧','#8fb6d8'],z:['z','#cfd8e8']};
+for(let i=0;i<10;i++) emotePool.push({s:makeEmote('♪','#e0764a'),vy:0,born:0,life:0});
+function spawnEmote(kind){
+  const [ch,col]=emoteChars[kind]||emoteChars.note;
+  const e=emotePool.find(o=>!o.s.visible)||emotePool[0];
+  const c=document.createElement('canvas');c.width=64;c.height=64;const x=c.getContext('2d');
+  x.font='48px monospace';x.textAlign='center';x.textBaseline='middle';x.fillStyle=col;x.fillText(ch,32,34);
+  e.s.material.map.dispose(); e.s.material.map=new THREE.CanvasTexture(c); e.s.material.needsUpdate=true;
+  e.s.position.set(rand(-0.6,0.6),1.9,rand(-0.2,0.4)); e.s.visible=true;
+  e.vy=rand(0.5,0.9); e.born=now(); e.life=rand(1.4,2.2);
+}
+
+/* =====================================================================
+   5. WEATHER SYSTEM (rain / snow particles) + window overlay
+   ===================================================================== */
+function makeParticles(count,size,color){
+  const geo=new THREE.BufferGeometry();
+  const pos=new Float32Array(count*3);
+  for(let i=0;i<count;i++){pos[i*3]=rand(-9,9);pos[i*3+1]=rand(0,9);pos[i*3+2]=rand(-6,4);}
+  geo.setAttribute('position',new THREE.BufferAttribute(pos,3));
+  const mat=new THREE.PointsMaterial({color,size,transparent:true,opacity:.7,depthWrite:false});
+  const p=new THREE.Points(geo,mat); p.visible=false; scene.add(p); return p;
+}
+const rainP = makeParticles(500,0.06,0x9fb6d8);
+rainP.material.size=0.05;
+const snowP = makeParticles(400,0.09,0xf0f0f8);
+function stepWeather(dt){
+  for(const [p,speed,drift] of [[rainP,14,0],[snowP,2.2,1]]){
+    if(!p.visible)continue;
+    const a=p.geometry.attributes.position.array;
+    for(let i=0;i<a.length;i+=3){
+      a[i+1]-=speed*dt;
+      if(drift)a[i]+=Math.sin(now()*2+i)*dt*0.4;
+      if(a[i+1]<0){a[i+1]=9;a[i]=rand(-9,9);a[i+2]=rand(-6,4);}
+    }
+    p.geometry.attributes.position.needsUpdate=true;
+  }
+}
+
+/* =====================================================================
+   6. STATE APPLICATION (mode / weather / outfit / lighting)
+   ===================================================================== */
+function applyWeather(w){
+  state.weather=w;
+  rainP.visible = (w==='rain');
+  snowP.visible = (w==='snow');
+  document.getElementById('fx-rain').style.opacity = (w==='rain')?'0.5':'0';
+  // sky + lights per weather
+  const cfg={
+    clear:  {fog:0x140d0f, fogD:0.026, moon:0x9fb6e0, moonI:0.35, amb:0.30, exposure:1.15, bg:0x0d0a0b},
+    rain:   {fog:0x111820, fogD:0.045, moon:0x7f9ac0, moonI:0.30, amb:0.24, exposure:1.0,  bg:0x0a0d10},
+    snow:   {fog:0x1a1e26, fogD:0.05,  moon:0xcdd8ee, moonI:0.5,  amb:0.4,  exposure:1.2,  bg:0x11141a},
+    night:  {fog:0x0c0a12, fogD:0.05,  moon:0x6a7ac0, moonI:0.22, amb:0.18, exposure:0.95, bg:0x070610},
+    sunset: {fog:0x2a1410, fogD:0.03,  moon:0xffb06a, moonI:0.5,  amb:0.42, exposure:1.25, bg:0x1a0d0a},
+  }[w]||{};
+  scene.fog.color.setHex(cfg.fog); scene.fog.density=cfg.fogD;
+  scene.background.setHex(cfg.bg);
+  lights.moon.color.setHex(cfg.moon); lights.moon.intensity=cfg.moonI;
+  lights.ambient.intensity=cfg.amb;
+  renderer.toneMappingExposure=cfg.exposure;
+  updateRailActive();
+  save();
+}
+
+function applyMode(m){
+  state.mode=m; autoFocus=true;
+  // reset mode-specific lights/gestures
+  lights.desk.intensity = (m==='study')?1.6:0.0;
+  lights.stove.intensity = (m==='cook')?1.4:0.0;
+  flameCore.visible = pot.visible = (m==='cook');
+  if(m==='study'){ state.gesture='type'; state.walkTargetX=3.4; setHat('glasses',true); }
+  else if(m==='cook'){ state.gesture='cook'; state.walkTargetX=-3.4; setHat('chef',true); }
+  else if(m==='sleep'){ state.gesture='sleep'; state.walkTargetX=0; setExpression('sleepy'); }
+  else { state.gesture=null; state.walkTargetX=0; setExpression('happy'); }
+  updateRailActive();
+  save();
+}
+
+function setHat(h){
+  state.hat=h;
+  Object.values(hats).forEach(x=>x.visible=false);
+  glasses.visible=false;
+  if(h==='glasses'){ glasses.visible=true; }
+  else if(hats[h]){ hats[h].visible=true; }
+  // headphones => music vibe
+  updateRailActive();
+  save();
+}
+
+function setExpression(e){
+  state.expression=e;
+  Object.values(mouths).forEach(m=>m.visible=false);
+  (mouths[e]||mouths.neutral).visible=true;
+  blushL.visible=blushR.visible=(e==='happy'||e==='laugh');
+  // brows
+  const browY = e==='surprised'?1.52 : e==='sleepy'?1.4 : 1.46;
+  browL.position.y=browR.position.y=browY;
+  browL.rotation.z = e==='laugh'? 0.2 : 0;
+  browR.rotation.z = e==='laugh'? -0.2 : 0;
+}
+
+function updateRailActive(){
+  document.querySelectorAll('[data-mode]').forEach(b=>b.classList.toggle('on',b.dataset.mode===state.mode));
+  document.querySelectorAll('[data-weather]').forEach(b=>b.classList.toggle('on',b.dataset.weather===state.weather));
+  document.querySelectorAll('[data-hat]').forEach(b=>b.classList.toggle('on',
+     (b.dataset.hat==='none'&&state.hat==='none')|| b.dataset.hat===state.hat));
+}
+
+/* =====================================================================
+   7. ANIMATION LOOP — procedural rig animation
+   ===================================================================== */
+let breathT=0;
+function animateMascot(dt,t){
+  breathT+=dt;
+  const gesture = (now()<state.gestureUntil? state.gesture_temp : state.gesture);
+  const dancing = now()<state.danceUntil;
+
+  // walk toward target X (tween)
+  mascot.position.x = lerp(mascot.position.x, state.walkTargetX, dt*2.2);
+  const moving = Math.abs(mascot.position.x-state.walkTargetX)>0.05;
+
+  // base idle breathing bob
+  const breath = Math.sin(breathT*1.8)*0.03;
+  bodyGroup.position.y = breath;
+  bodyGroup.scale.y = 1 + Math.sin(breathT*1.8)*0.015;
+  mascot.rotation.y = lerp(mascot.rotation.y, moving? (state.walkTargetX<mascot.position.x?-0.4:0.4):0, dt*3);
+
+  // legs waddle when moving, gentle when idle
+  legs.forEach((lg,i)=>{
+    const ph=i*0.8;
+    const amp = moving?0.6: (dancing?0.4:0.08);
+    lg.rotation.x = Math.sin(breathT*(moving?9:2)+ph)*amp;
+  });
+
+  // arms default sway
+  const armSway=Math.sin(breathT*1.6)*0.15;
+  swingArm(rig.armL, 0.3+armSway, 0);
+  swingArm(rig.armR, -0.3-armSway, 0);
+
+  // blink
+  if(now()>state.blinkAt){ blink(); state.blinkAt=now()+rand(2.5,5.5); }
+  updateBlink(dt);
+
+  // gestures
+  const g = dancing? 'dance' : gesture;
+  spatula.visible = (g==='cook');
+  bookItem.visible = (g==='read');
+  switch(g){
+    case 'wave':
+      swingArm(rig.armR, -1.6, Math.sin(t*10)*0.5-0.6);
+      break;
+    case 'jump':
+      mascot.position.y = Math.abs(Math.sin(t*8))*0.4;
+      setExpression('surprised');
+      break;
+    case 'nod':
+      bodyGroup.rotation.x = Math.sin(t*4)*0.12;
+      break;
+    case 'cook':
+      swingArm(rig.armR, -1.0+Math.sin(t*5)*0.4, -0.5);
+      bodyGroup.rotation.x = Math.sin(t*5)*0.05;
+      break;
+    case 'type':
+      swingArm(rig.armL, -1.1, Math.sin(t*12)*0.25);
+      swingArm(rig.armR, -1.1, Math.sin(t*12+1)*0.25);
+      bodyGroup.position.y = breath - 0.05;
+      break;
+    case 'read':
+      swingArm(rig.armR, -1.2, -0.3);
+      swingArm(rig.armL, -1.2, 0.3);
+      bodyGroup.rotation.x=0.15;
+      break;
+    case 'sleep':
+      bodyGroup.rotation.x=lerp(bodyGroup.rotation.x,0.5,dt*2);
+      bodyGroup.position.y=breath-0.3;
+      if(Math.random()<0.01) spawnEmote('z');
+      break;
+    case 'dance':
+      mascot.rotation.z=Math.sin(t*6)*0.12;
+      mascot.position.y=Math.abs(Math.sin(t*6))*0.15;
+      swingArm(rig.armL,-1.2+Math.sin(t*6)*0.6,0);
+      swingArm(rig.armR,-1.2-Math.sin(t*6)*0.6,0);
+      legs.forEach((lg,i)=>lg.rotation.x=Math.sin(t*6+i)*0.4);
+      if(Math.random()<0.06) spawnEmote(Math.random()<0.5?'note':'notte');
+      break;
+    default:
+      bodyGroup.rotation.x=lerp(bodyGroup.rotation.x,0,dt*3);
+      mascot.rotation.z=lerp(mascot.rotation.z,0,dt*3);
+      if(!moving) mascot.position.y=lerp(mascot.position.y,0,dt*4);
+  }
+
+  // music head-nod baseline + notes
+  if(state.music){
+    bodyGroup.rotation.x += Math.sin(t*3.2)*0.05;
+    if(Math.random()<0.02) spawnEmote(Math.random()<0.5?'note':'notte');
+  }
+
+  // emotes float
+  emotePool.forEach(e=>{
+    if(!e.s.visible)return;
+    const age=now()-e.born;
+    e.s.position.y+=e.vy*dt;
+    e.s.position.x+=Math.sin(now()*3+e.born)*dt*0.3;
+    e.s.material.opacity=Math.max(0,1-age/e.life);
+    if(age>e.life)e.s.visible=false;
+  });
+}
+
+function swingArm(arm,shoulder,elbow){
+  const s=arm.userData.segs;
+  s[0].rotation.x = lerp(s[0].rotation.x, shoulder, 0.2);
+  s[1].rotation.x = lerp(s[1].rotation.x, elbow, 0.2);
+}
+function blink(){ blinkPhase=1; }
+let blinkPhase=0;
+function updateBlink(dt){
+  if(blinkPhase>0){
+    blinkPhase-=dt*8;
+    const p=Math.max(0,Math.sin((1-blinkPhase)*Math.PI));
+    [rig.eyeL,rig.eyeR].forEach(g=>{ g.userData.lid.position.y=lerp(0.4,-0.02,p); });
+  } else {
+    [rig.eyeL,rig.eyeR].forEach(g=>{ g.userData.lid.position.y=lerp(g.userData.lid.position.y,0.4,dt*10); });
+  }
+}
+
+/* fire + stove flicker + steam + drip */
+function animateEnv(dt,t){
+  const flick=0.8+Math.sin(t*13)*0.2+Math.random()*0.25;
+  lights.fire.intensity = (state.weather==='night'||state.mode==='chill'?1.2:0.9)*flick;
+  fireBoxes.forEach((fb,i)=>{ fb.scale.y=0.7+Math.sin(t*10+i)*0.3+Math.random()*0.2; fb.position.y=0.6+fb.scale.y*0.1; });
+  if(state.mode==='cook'){
+    flameCore.scale.y=0.8+Math.sin(t*14)*0.3;
+    steam.forEach((s,i)=>{ s.position.y=0.3+((t*0.3+i*0.15)%0.6); s.material.opacity=0.4*(1-((t*0.3+i*0.15)%0.6)/0.6); });
+  }
+  // faucet drip
+  drip.position.y-=dt*1.5; if(drip.position.y<1.45){drip.position.y=1.7;}
+  // desk lamp glow pulse
+  dlampGlow.material.emissiveIntensity = state.mode==='study'? 1.4+Math.sin(t*2)*0.2 : 0.3;
+}
+
+/* camera auto focus */
+function stepCamera(dt){
+  if(!autoFocus)return;
+  const f=camFocus[state.mode]||camFocus.chill;
+  camera.position.lerp(f.pos, dt*1.6);
+  controls.target.lerp(f.tgt, dt*1.6);
+}
+
+/* =====================================================================
+   8. RENDER LOOP
+   ===================================================================== */
+function loop(){
+  requestAnimationFrame(loop);
+  const dt=Math.min(clock.getDelta(),0.05);
+  const t=clock.elapsedTime;
+  animateMascot(dt,t);
+  animateEnv(dt,t);
+  stepWeather(dt);
+  stepCamera(dt);
+  // city parallax on sky (subtle offset with camera)
+  skyTex.offset.x = camera.position.x*0.006;
+  controls.update();
+  renderer.render(scene,camera);
+}
+
+/* =====================================================================
+   9. AI COMPANION — rule-based personality, memory, TTS
+   ===================================================================== */
+const memory = JSON.parse(localStorage.getItem('octo.memory')||'{"topics":[],"name":null,"visits":0}');
+memory.visits=(memory.visits||0)+1;
+
+const SPEECH = {
+  greet: [
+    "oh hey, you're back. i kept the beats warm for you 🎧",
+    "welcome to the coziest corner of the internet. mind the crumbs.",
+    "*yawns* ...oh! a human. hi. i was just vibing.",
+  ],
+  joke: [
+    "why did the octopus cross the reef? to get to the other tide. …i'll see myself out.",
+    "i'm reading a book on anti-gravity. it's impossible to put down.",
+    "i told my desk plant a joke. no reaction. tough crowd, that monstera.",
+    "what do you call 8 arms and no rhythm? me, before this playlist.",
+  ],
+  rain: [
+    "rain mode: engaged. nothing beats lofi + raindrops on glass. ☔",
+    "cranking the rain. cozy levels: dangerously high.",
+  ],
+  cook: [
+    "chef hat: ON. i can make exactly one dish and it's 'vibes'. let's cook 🍳",
+    "to the kitchen! warning: i mostly stir and look confident.",
+  ],
+  study: [
+    "study mode. i'll pretend to type important things while you do the real work 📚",
+    "desk lamp on, distractions off. you got this. i'll supervise from the chair.",
+  ],
+  sleep: [
+    "shhh… nap protocol initiated. wake me for snacks. 😴",
+    "powering down to 1% personality. zzz…",
+  ],
+  dance: [
+    "you asked. you shall receive. 8 legs, zero coordination, full commitment 💃",
+    "witness my legally-distinct dance moves.",
+  ],
+  music: [
+    "beats incoming. bob your head, it's mandatory. 🎶",
+    "hit play. suddenly everything feels like a movie montage.",
+  ],
+  compliment: [
+    "aw stop it. …no really, keep going.",
+    "you're doing great. i'm an octopus and even i can tell.",
+  ],
+  bored: [
+    "bored? click me. or start the rhythm game. or just watch the fire, that's valid too.",
+    "we could study, cook, or aggressively relax. dealer's choice.",
+  ],
+  fallback: [
+    "i hear you. i mostly speak in beats and dad jokes though.",
+    "hmm, filing that under 'things to think about while staring at rain'.",
+    "noted. i'll remember that when it's least useful.",
+    "deep. anyway, want rain, cooking, study, or a joke?",
+  ],
+};
+const pick = a=>a[Math.floor(Math.random()*a.length)];
+
+function remember(topic){
+  if(!topic)return;
+  memory.topics=(memory.topics||[]).filter(t=>t!==topic);
+  memory.topics.unshift(topic);
+  memory.topics=memory.topics.slice(0,8);
+  localStorage.setItem('octo.memory',JSON.stringify(memory));
+}
+
+function respond(raw){
+  const text=raw.toLowerCase().trim();
+  let reply='', action=null, expr='happy';
+
+  // remember a name
+  const nameM = text.match(/my name is (\w+)|i'?m (\w+)|call me (\w+)/);
+  if(nameM){ memory.name=(nameM[1]||nameM[2]||nameM[3]); reply=`nice to meet you, ${memory.name}. i'm Octo. we're friends now, no take-backs.`; expr='laugh'; localStorage.setItem('octo.memory',JSON.stringify(memory)); }
+  else if(/\b(rain|rainy|storm)\b/.test(text)){ reply=pick(SPEECH.rain); action=()=>{applyWeather('rain');applyMode('chill');}; remember('rainy vibes'); }
+  else if(/\b(snow|snowy|winter)\b/.test(text)){ reply="snow mode. everything's quiet and soft now. ❄️"; action=()=>applyWeather('snow'); remember('snow'); }
+  else if(/\b(night|dark|late)\b/.test(text)){ reply="lights low, city glowing. late-night lofi hits different 🌃"; action=()=>applyWeather('night'); remember('late nights'); }
+  else if(/\b(sunset|evening|golden)\b/.test(text)){ reply="sunset filter, engaged. everything's peachy. 🌇"; action=()=>applyWeather('sunset'); }
+  else if(/\b(clear|sunny|stop the rain)\b/.test(text)){ reply="clearing the skies. fresh vibes."; action=()=>applyWeather('clear'); }
+  else if(/\b(cook|kitchen|food|hungry|snack|eat)\b/.test(text)){ reply=pick(SPEECH.cook); action=()=>applyMode('cook'); expr='surprised'; remember('cooking'); }
+  else if(/\b(study|work|focus|homework|code|coding)\b/.test(text)){ reply=pick(SPEECH.study); action=()=>applyMode('study'); remember('studying'); }
+  else if(/\b(sleep|nap|tired|goodnight|bed)\b/.test(text)){ reply=pick(SPEECH.sleep); action=()=>applyMode('sleep'); expr='sleepy'; remember('rest'); }
+  else if(/\b(chill|relax|cozy|fireplace|fire)\b/.test(text)){ reply="chill mode. fire's crackling, blanket's metaphorical but warm."; action=()=>applyMode('chill'); remember('chilling'); }
+  else if(/\b(dance|dancing|move|groove)\b/.test(text)){ reply=pick(SPEECH.dance); action=()=>triggerDance(); expr='laugh'; }
+  else if(/\b(music|play|beats|song|lofi)\b/.test(text)){ reply=pick(SPEECH.music); action=()=>startMusic(true); remember('music'); }
+  else if(/\b(joke|funny|laugh)\b/.test(text)){ reply=pick(SPEECH.joke); expr='laugh'; }
+  else if(/\b(headphone|chef|beanie|glasses|hat|outfit|wear)\b/.test(text)){
+    const h = /headphone/.test(text)?'headphones':/chef/.test(text)?'chef':/beanie/.test(text)?'beanie':/glass/.test(text)?'glasses':'headphones';
+    reply=`new drip acquired: ${h}. how do i look? (don't answer that)`; action=()=>setHat(h); }
+  else if(/\b(hi|hello|hey|yo|sup)\b/.test(text)){ reply=pick(SPEECH.greet); action=()=>gestureOnce('wave'); }
+  else if(/\b(thank|love|awesome|great|nice|cute|good)\b/.test(text)){ reply=pick(SPEECH.compliment); expr='laugh'; }
+  else if(/\b(bored|boring|nothing)\b/.test(text)){ reply=pick(SPEECH.bored); }
+  else if(/\b(who are you|what are you|your name)\b/.test(text)){ reply="i'm Octo — 8 legs, questionable advice, unlimited lofi. resident of this cozy pixel apartment."; }
+  else if(/\b(remember|last time|before)\b/.test(text)){
+    reply = memory.topics.length? `course i remember — we were into ${memory.topics.slice(0,3).join(', ')}. good times.` : "we're just getting started, no memories yet. let's make some.";
+  }
+  else { reply=pick(SPEECH.fallback); remember(text.split(' ').slice(0,3).join(' ')); }
+
+  // occasionally reference memory + name for personality
+  if(memory.name && Math.random()<0.3 && !nameM){ reply += ` — right, ${memory.name}?`; }
+
+  setExpression(expr);
+  if(action) action();
+  say(reply);
+  gestureOnce(action?null:'nod');
+}
+
+/* speech bubble + TTS + subtitles */
+const speechEl=document.getElementById('speech');
+const speechText=document.getElementById('speechtext');
+const subEl=document.getElementById('subtitle');
+let speechTimer=null;
+function say(msg){
+  speechText.textContent=msg;
+  speechEl.classList.add('show');
+  clearTimeout(speechTimer);
+  speechTimer=setTimeout(()=>speechEl.classList.remove('show'), Math.max(3200, msg.length*55));
+  if(state.subtitles){ subEl.textContent='Octo: '+msg; subEl.classList.add('show');
+    setTimeout(()=>subEl.classList.remove('show'), Math.max(3200,msg.length*55)); }
+  tts(msg);
+}
+function tts(msg){
+  if(!('speechSynthesis' in window))return;
+  try{
+    speechSynthesis.cancel();
+    const u=new SpeechSynthesisUtterance(msg.replace(/[^\w\s.,!?'-]/g,''));
+    u.pitch=1.35; u.rate=1.06; u.volume=0.9;
+    const vs=speechSynthesis.getVoices();
+    const v=vs.find(v=>/female|zira|samantha|google us/i.test(v.name))||vs[0];
+    if(v)u.voice=v;
+    speechSynthesis.speak(u);
+  }catch(e){}
+}
+
+/* one-shot gestures */
+function gestureOnce(g,dur=1.6){
+  if(!g)return;
+  state.gesture_temp=g; state.gestureUntil=now()+dur;
+}
+function triggerDance(){ state.danceUntil=now()+8; if(!state.music) startMusic(true); }
+
+/* =====================================================================
+   10. MUSIC — YouTube lofi radio (with graceful fallback)
+   ===================================================================== */
+let ytPlayer=null, ytReady=false, musicFallbackOsc=null;
+const NP=document.getElementById('np');
+const TB=document.getElementById('topbar');
+const tracks=["lofi radio — beats to relax/study","Lofi Girl — synthwave radio","chillhop essentials"];
+function loadYT(){
+  return new Promise(res=>{
+    if(window.YT&&window.YT.Player){res();return;}
+    const tag=document.createElement('script'); tag.src="https://www.youtube.com/iframe_api";
+    window.onYouTubeIframeAPIReady=()=>res();
+    tag.onerror=()=>res('err');
+    document.getElementById('ythost').appendChild(tag);
+  });
+}
+async function startMusic(on){
+  if(on===state.music && ytPlayer) { return; }
+  state.music=on;
+  document.getElementById('musicBtn').textContent = on? '❚❚ Pause' : '▶ Play lofi';
+  document.getElementById('musicBtn').classList.toggle('on',on);
+  if(on) setHat(state.hat==='none'?'headphones':state.hat);
+  TB.classList.toggle('playing',on);
+  if(on){
+    const r=await loadYT();
+    if(r==='err'||!window.YT){ NP.textContent='(offline) '+pick(tracks); fallbackTone(true); save(); return; }
+    if(!ytPlayer){
+      ytPlayer=new YT.Player('ythost',{height:'1',width:'1',
+        videoId:'jfKfPfyJRdk', // Lofi Girl radio
+        playerVars:{autoplay:1,controls:0,disablekb:1,playsinline:1},
+        events:{ onReady:e=>{e.target.setVolume(55);e.target.playVideo();ytReady=true;NP.textContent=pick(tracks);},
+                 onError:()=>{NP.textContent='(offline) '+pick(tracks);fallbackTone(true);} }});
+    } else { ytPlayer.playVideo(); NP.textContent=pick(tracks); }
+  } else {
+    if(ytPlayer&&ytReady) ytPlayer.pauseVideo();
+    fallbackTone(false);
+    NP.textContent='lofi radio — paused';
+  }
+  save();
+}
+/* offline fallback: soft WebAudio pad so "music" still feels alive */
+let actx=null;
+function fallbackTone(on){
+  try{
+    if(on){
+      actx=actx||new (window.AudioContext||window.webkitAudioContext)();
+      if(musicFallbackOsc)return;
+      const o=actx.createOscillator(),g=actx.createGain(),o2=actx.createOscillator();
+      o.type='sine';o.frequency.value=110;o2.type='sine';o2.frequency.value=164.81;
+      g.gain.value=0.04;o.connect(g);o2.connect(g);g.connect(actx.destination);
+      o.start();o2.start();musicFallbackOsc={o,o2,g};
+    } else if(musicFallbackOsc){ musicFallbackOsc.o.stop();musicFallbackOsc.o2.stop();musicFallbackOsc=null; }
+  }catch(e){}
+}
+
+/* =====================================================================
+   11. RHYTHM MINI-GAME
+   ===================================================================== */
+const gameEl=document.getElementById('game');
+const lanes=document.getElementById('gamelanes');
+let gameOn=false, gnotes=[], gscore=0, gcombo=0, gspawn=0;
+function openGame(){ gameEl.classList.add('show'); gameOn=true; gscore=0;gcombo=0;gnotes=[];gspawn=0;
+  document.getElementById('gscore').textContent='0';document.getElementById('gcombo').textContent='0';
+  if(!state.music)startMusic(true); requestAnimationFrame(gameLoop);
+  say("beat game! tap when the note hits the line. don't embarrass us."); }
+function closeGame(){ gameEl.classList.remove('show'); gameOn=false; gnotes.forEach(n=>n.el.remove()); gnotes=[]; }
+function gameLoop(ts){
+  if(!gameOn)return;
+  requestAnimationFrame(gameLoop);
+  if(ts-gspawn>760){ gspawn=ts;
+    const el=document.createElement('div');el.className='note';el.style.top='-24px';lanes.appendChild(el);
+    gnotes.push({el,y:-24,hit:false}); }
+  const H=lanes.clientHeight, hit=H-38;
+  gnotes.forEach(n=>{ n.y+=2.6; n.el.style.top=n.y+'px';
+    if(n.y>H+10){ if(!n.hit){gcombo=0;document.getElementById('gcombo').textContent='0';} n.el.remove(); n.dead=true; }});
+  gnotes=gnotes.filter(n=>!n.dead);
+}
+function tapBeat(){
+  if(!gameOn)return;
+  const H=lanes.clientHeight, hit=H-38;
+  let best=null,bd=999;
+  gnotes.forEach(n=>{ if(n.hit)return; const d=Math.abs(n.y-hit); if(d<bd){bd=d;best=n;} });
+  if(best&&bd<34){ best.hit=true;best.el.style.background='var(--orange)';best.el.style.opacity='.3';
+    const pts=bd<14?100:50; gscore+=pts+gcombo*5; gcombo++;
+    document.getElementById('gscore').textContent=gscore;
+    document.getElementById('gcombo').textContent=gcombo;
+    triggerDance(); }
+  else { gcombo=0; document.getElementById('gcombo').textContent='0'; }
+}
+
+/* =====================================================================
+   12. INTERACTION — click mascot, UI wiring, resize, persistence
+   ===================================================================== */
+const raycaster=new THREE.Raycaster(), pointer=new THREE.Vector2();
+const clickLines=["boop! …do it again, i dare you.","hey, watch the tentacles.","*giggles in pixel*","that tickles. 8 times.","you clicked me. i shall now dance about it.","10/10 boop. professional technique."];
+renderer.domElement.addEventListener('pointerdown',ev=>{
+  pointer.x=(ev.clientX/window.innerWidth)*2-1;
+  pointer.y=-(ev.clientY/window.innerHeight)*2+1;
+  raycaster.setFromCamera(pointer,camera);
+  const hits=raycaster.intersectObject(mascot,true);
+  if(hits.length){ say(pick(clickLines)); setExpression('laugh'); gestureOnce(Math.random()<0.5?'jump':'wave');
+    for(let i=0;i<4;i++)setTimeout(()=>spawnEmote(pick(['note','spark','notte'])),i*90); }
+});
+
+// rail buttons
+document.querySelectorAll('[data-mode]').forEach(b=>b.onclick=()=>{applyMode(b.dataset.mode);
+  say(pick(SPEECH[b.dataset.mode]||SPEECH.fallback));});
+document.querySelectorAll('[data-weather]').forEach(b=>b.onclick=()=>applyWeather(b.dataset.weather));
+document.querySelectorAll('[data-hat]').forEach(b=>b.onclick=()=>setHat(b.dataset.hat==='none'?'none':b.dataset.hat));
+document.getElementById('musicBtn').onclick=()=>startMusic(!state.music);
+document.getElementById('danceBtn').onclick=()=>{triggerDance();say(pick(SPEECH.dance));};
+document.getElementById('gameBtn').onclick=openGame;
+document.getElementById('gameClose').onclick=closeGame;
+document.getElementById('tapbtn').onclick=tapBeat;
+window.addEventListener('keydown',e=>{ if(gameOn&&(e.code==='Space'||e.code==='Enter')){e.preventDefault();tapBeat();} });
+document.getElementById('subBtn').onclick=function(){ state.subtitles=!state.subtitles;
+  document.body.classList.toggle('subs',state.subtitles);
+  this.textContent='Subtitles: '+(state.subtitles?'on':'off'); save(); };
+document.getElementById('hcBtn').onclick=function(){ state.highContrast=!state.highContrast;
+  document.body.classList.toggle('hc',state.highContrast); this.classList.toggle('on',state.highContrast); save(); };
+
+// chat input
+const chatin=document.getElementById('chatin');
+function send(){ const v=chatin.value.trim(); if(!v)return; chatin.value=''; respond(v);
+  document.getElementById('hint').classList.add('gone'); }
+document.getElementById('sendbtn').onclick=send;
+chatin.addEventListener('keydown',e=>{ if(e.key==='Enter')send(); });
+
+// resize
+window.addEventListener('resize',()=>{
+  camera.aspect=window.innerWidth/window.innerHeight; camera.updateProjectionMatrix();
+  renderer.setSize(window.innerWidth,window.innerHeight);
+});
+
+/* persistence */
+function save(){
+  localStorage.setItem('octo.prefs',JSON.stringify({
+    mode:state.mode,weather:state.weather,hat:state.hat,
+    subtitles:state.subtitles,highContrast:state.highContrast,music:state.music}));
+}
+function load(){
+  try{
+    const p=JSON.parse(localStorage.getItem('octo.prefs')||'{}');
+    applyWeather(p.weather||'clear');
+    applyMode(p.mode||'chill');
+    setHat(p.hat||'none');
+    if(p.subtitles===false){state.subtitles=false;document.body.classList.remove('subs');document.getElementById('subBtn').textContent='Subtitles: off';}
+    if(p.highContrast){document.body.classList.add('hc');state.highContrast=true;document.getElementById('hcBtn').classList.add('on');}
+  }catch(e){ applyWeather('clear'); applyMode('chill'); }
+}
+
+/* =====================================================================
+   13. GRAIN TEXTURE + BOOT
+   ===================================================================== */
+(function makeGrain(){
+  const c=document.createElement('canvas');c.width=c.height=128;const x=c.getContext('2d');
+  const img=x.createImageData(128,128);
+  for(let i=0;i<img.data.length;i+=4){const v=Math.random()*255;img.data[i]=img.data[i+1]=img.data[i+2]=v;img.data[i+3]=255;}
+  x.putImageData(img,0,0);
+  document.getElementById('fx-grain').style.backgroundImage=`url(${c.toDataURL()})`;
+})();
+(function makeRainOverlay(){
+  const c=document.createElement('canvas');c.width=200;c.height=200;const x=c.getContext('2d');
+  x.strokeStyle='rgba(180,200,230,.35)';x.lineWidth=1;
+  for(let i=0;i<40;i++){const px=Math.random()*200,py=Math.random()*200;x.beginPath();x.moveTo(px,py);x.lineTo(px+2,py+14);x.stroke();}
+  document.getElementById('fx-rain').style.backgroundImage=`url(${c.toDataURL()})`;
+})();
+// animate grain flicker
+setInterval(()=>{ const g=document.getElementById('fx-grain'); g.style.backgroundPosition=`${Math.random()*128}px ${Math.random()*128}px`; },80);
+
+// warm up TTS voices
+if('speechSynthesis' in window){ speechSynthesis.onvoiceschanged=()=>{}; speechSynthesis.getVoices(); }
+
+// boot
+load();
+setExpression('happy');
+loop();
+setTimeout(()=>document.getElementById('loader').classList.add('hide'),600);
+setTimeout(()=>{
+  say(memory.visits>1? pick(SPEECH.greet)+` (visit #${memory.visits})` : "hi! i'm Octo, your lofi apartment buddy. type something, or click me. try 'make it rainy' 🎧");
+  gestureOnce('wave',2);
+},1400);
+setTimeout(()=>document.getElementById('hint').classList.add('gone'),12000);
+
+// expose a tiny API for tinkering in console
+window.OCTO={applyMode,applyWeather,setHat,say,triggerDance,startMusic,state};
+</script>
+
+<!-- ===================================================================
+  LOADER (kept last so it overlays until scene boots)
+  ==================================================================== -->
+<div id="loader">
+  <div style="font-size:28px">🐙</div>
+  <div style="color:#e0764a">warming up the beats…</div>
+  <div class="loadbar"><i></i></div>
+  <small>building the cozy pixel apartment</small>
+</div>
+</body>
+</html>
