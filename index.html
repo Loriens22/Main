@@ -136,6 +136,81 @@
     #chatin{font-size:16px;} /* avoid iOS zoom */
   }
   .hidden{display:none!important;}
+
+  /* ---- Settings gear FAB ---- */
+  #gearBtn{position:absolute;top:12px;right:14px;z-index:23;cursor:pointer;
+    width:42px;height:42px;border-radius:12px;border:1px solid rgba(255,255,255,.08);
+    background:var(--panel);backdrop-filter:blur(6px);color:#e9d9c6;font-size:20px;
+    display:flex;align-items:center;justify-content:center;transition:transform .15s;}
+  #gearBtn:hover{transform:rotate(35deg);}
+  #gearBtn.live{border-color:var(--ok);box-shadow:0 0 0 1px var(--ok) inset;}
+  /* topbar shifts left so gear fits */
+  #topbar{right:64px;}
+
+  /* ---- Slide-out settings panel ---- */
+  #panel{position:absolute;top:0;right:0;height:100%;width:min(420px,92vw);z-index:35;
+    background:linear-gradient(180deg,#171012,#120c0e);border-left:1px solid rgba(255,255,255,.08);
+    box-shadow:-16px 0 50px rgba(0,0,0,.5);transform:translateX(102%);transition:transform .34s cubic-bezier(.4,0,.2,1);
+    display:flex;flex-direction:column;}
+  #panel.open{transform:none;}
+  #panelHead{display:flex;align-items:center;justify-content:space-between;padding:16px 18px 10px;}
+  #panelHead h2{margin:0;font-size:16px;color:var(--orange);}
+  #panelClose{cursor:pointer;color:#8a7a72;font-size:22px;background:none;border:0;}
+  #panelBody{flex:1;overflow-y:auto;padding:0 18px 22px;}
+  .pgrp{margin-bottom:18px;}
+  .pgrp .h{font-size:11px;letter-spacing:.12em;text-transform:uppercase;color:#8a7a72;margin-bottom:8px;}
+  .keyrow{display:flex;gap:6px;}
+  #keyInput{flex:1;font-family:var(--font);font-size:13px;color:#fff;background:#0f0a0c;
+    border:1px solid rgba(255,255,255,.12);border-radius:9px;padding:10px 11px;outline:none;}
+  #keyInput:focus{border-color:var(--orange);}
+  .mini{cursor:pointer;font-family:var(--font);font-size:12px;color:#e9d9c6;background:#2a1f22;
+    border:1px solid rgba(255,255,255,.1);border-radius:9px;padding:0 12px;}
+  .mini.primary{background:var(--orange-deep);border-color:var(--orange);color:#fff;}
+  .note{font-size:11px;color:#7a6a63;margin-top:7px;line-height:1.45;}
+  .note a{color:var(--accent);}
+  #keyStatus{font-size:12px;margin-top:8px;padding:7px 10px;border-radius:8px;background:#0f0a0c;
+    border:1px solid rgba(255,255,255,.08);color:#b7a89c;}
+  #keyStatus.ok{color:var(--ok);border-color:rgba(127,206,143,.4);}
+  #keyStatus.err{color:#e08a6a;border-color:rgba(224,138,106,.4);}
+
+  /* model search + filters */
+  .searchrow{display:flex;gap:6px;margin-bottom:8px;}
+  #modelSearch{flex:1;font-family:var(--font);font-size:13px;color:#fff;background:#0f0a0c;
+    border:1px solid rgba(255,255,255,.12);border-radius:9px;padding:9px 11px;outline:none;}
+  #modelSearch:focus{border-color:var(--orange);}
+  .filters{display:flex;gap:6px;margin-bottom:8px;flex-wrap:wrap;}
+  .fchip{cursor:pointer;font-size:11px;color:#cbb;background:#241a1c;border:1px solid rgba(255,255,255,.08);
+    border-radius:20px;padding:5px 11px;}
+  .fchip.on{background:var(--orange-deep);border-color:var(--orange);color:#fff;}
+  #modelList{max-height:44vh;overflow-y:auto;border:1px solid rgba(255,255,255,.07);border-radius:11px;}
+  .mitem{display:flex;align-items:center;gap:9px;padding:9px 11px;cursor:pointer;
+    border-bottom:1px solid rgba(255,255,255,.05);}
+  .mitem:last-child{border-bottom:0;}
+  .mitem:hover{background:rgba(255,255,255,.04);}
+  .mitem.sel{background:rgba(224,118,74,.16);box-shadow:inset 3px 0 0 var(--orange);}
+  .mitem .mname{flex:1;min-width:0;}
+  .mitem .mname b{display:block;font-size:13px;color:#f0e2d0;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;}
+  .mitem .mname small{display:block;font-size:10.5px;color:#8a7a72;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;}
+  .badge{font-size:9.5px;font-weight:bold;letter-spacing:.06em;padding:3px 7px;border-radius:20px;white-space:nowrap;}
+  .badge.free{background:#1d3a26;color:#7fce8f;border:1px solid rgba(127,206,143,.5);}
+  .badge.paid{background:#2a2024;color:#c9a06a;border:1px solid rgba(201,160,106,.35);}
+  .badge.feat{background:#2a2438;color:#9fb0e0;border:1px solid rgba(159,176,224,.4);}
+  #modelCount{font-size:11px;color:#7a6a63;margin-top:6px;}
+  .grouphd{font-size:10px;letter-spacing:.1em;text-transform:uppercase;color:#6a5c55;
+    padding:8px 11px 4px;background:rgba(0,0,0,.25);position:sticky;top:0;}
+  .toggle{display:flex;align-items:center;justify-content:space-between;padding:9px 0;font-size:13px;color:#d9c8b3;}
+  .sw{width:42px;height:24px;border-radius:20px;background:#3a2c2e;position:relative;cursor:pointer;transition:.2s;}
+  .sw.on{background:var(--orange-deep);}
+  .sw i{position:absolute;top:3px;left:3px;width:18px;height:18px;border-radius:50%;background:#fff;transition:.2s;}
+  .sw.on i{left:21px;}
+
+  /* thinking indicator in speech bubble */
+  #speech.think .who::after{content:" is thinking";color:#8a7a72;font-weight:normal;}
+  .dots i{display:inline-block;width:5px;height:5px;border-radius:50%;background:var(--orange);margin:0 1px;animation:dot 1s infinite;}
+  .dots i:nth-child(2){animation-delay:.2s}.dots i:nth-child(3){animation-delay:.4s}
+  @keyframes dot{0%,60%,100%{opacity:.25;transform:translateY(0)}30%{opacity:1;transform:translateY(-3px)}}
+  #brainTag{font-size:10px;color:#8a7a72;margin-left:8px;}
+  #brainTag.live{color:var(--ok);}
 </style>
 </head>
 <body class="subs">
@@ -155,6 +230,7 @@
     <span class="eq"><i></i><i></i><i></i><i></i></span>
     <span class="np" id="np">lofi radio — paused</span>
   </div>
+  <button id="gearBtn" title="Settings & AI model">⚙</button>
 
   <!-- Tool rail -->
   <div id="rail">
@@ -197,6 +273,7 @@
       <span class="lbl">Extras</span>
       <div class="btnrow">
         <button class="chip" id="danceBtn">Dance</button>
+        <button class="chip" id="outsideBtn">Go outside</button>
         <button class="chip" id="gameBtn">Rhythm game</button>
         <button class="chip" id="subBtn">Subtitles: on</button>
         <button class="chip" id="hcBtn">High contrast</button>
@@ -228,6 +305,64 @@
     </div>
   </div>
 
+  <!-- Slide-out settings / AI model panel -->
+  <div id="panel">
+    <div id="panelHead">
+      <h2>🧠 Octo's Brain &amp; Settings</h2>
+      <button id="panelClose">✕</button>
+    </div>
+    <div id="panelBody">
+
+      <div class="pgrp">
+        <div class="h">OpenRouter API key</div>
+        <div class="keyrow">
+          <input id="keyInput" type="password" autocomplete="off" spellcheck="false" placeholder="sk-or-v1-…" />
+          <button class="mini primary" id="keySave">Save</button>
+          <button class="mini" id="keyClear">Clear</button>
+        </div>
+        <div id="keyStatus">No key — Octo is running on its local offline brain.</div>
+        <div class="note">
+          Paste your own <a href="https://openrouter.ai/keys" target="_blank" rel="noopener">OpenRouter key</a>
+          to power Octo with real AI models. The key is stored only in your browser (localStorage) and sent
+          directly to OpenRouter — never to anyone else. Tip: pick a <b>free</b> model to chat at $0.
+        </div>
+      </div>
+
+      <div class="pgrp">
+        <div class="h">Choose a model</div>
+        <div class="searchrow">
+          <input id="modelSearch" type="text" placeholder="search models… (gpt, claude, gemini, free…)" />
+          <button class="mini" id="modelRefresh" title="Reload live list">↻</button>
+        </div>
+        <div class="filters">
+          <span class="fchip on" data-filter="all">All</span>
+          <span class="fchip" data-filter="free">Free only</span>
+          <span class="fchip" data-filter="featured">Featured</span>
+          <span class="fchip" data-filter="tools">Tool-capable</span>
+        </div>
+        <div id="modelList"></div>
+        <div id="modelCount">loading models…</div>
+      </div>
+
+      <div class="pgrp">
+        <div class="h">Behaviour</div>
+        <div class="toggle">
+          <span>Let Octo control the room (actions)</span>
+          <span class="sw on" id="swActions"><i></i></span>
+        </div>
+        <div class="toggle">
+          <span>Voice (text-to-speech)</span>
+          <span class="sw on" id="swVoice"><i></i></span>
+        </div>
+        <div class="note">
+          When AI + actions are on, just talk naturally — “it's gloomy, make it rain and go outside”,
+          “put your chef hat on and cook”, “take me outside and dance”. Octo replies <i>and</i> changes the world.
+        </div>
+      </div>
+
+    </div>
+  </div>
+
   <!-- YouTube host (created on demand) -->
   <div id="ythost" style="position:absolute;width:1px;height:1px;overflow:hidden;left:-100px;top:-100px;"></div>
 </div>
@@ -242,8 +377,27 @@
 </script>
 
 <script type="module">
-import * as THREE from 'three';
-import { OrbitControls } from 'three/addons/controls/OrbitControls.js';
+/* ---- resilient Three.js loader: importmap(unpkg) → esm.sh → jsdelivr ---- */
+let THREE, OrbitControls;
+const V='0.160.0';
+const SOURCES=[
+  ['three','three/addons/controls/OrbitControls.js'],                              // importmap (unpkg)
+  [`https://esm.sh/three@${V}`,`https://esm.sh/three@${V}/examples/jsm/controls/OrbitControls.js`],
+  [`https://cdn.jsdelivr.net/npm/three@${V}/+esm`,`https://cdn.jsdelivr.net/npm/three@${V}/examples/jsm/controls/OrbitControls.js/+esm`],
+];
+for(const [tUrl,oUrl] of SOURCES){
+  try{
+    THREE = await import(tUrl);
+    OrbitControls = (await import(oUrl)).OrbitControls;
+    if(THREE && OrbitControls) break;
+  }catch(e){ THREE=OrbitControls=null; }
+}
+if(!THREE || !OrbitControls){
+  document.getElementById('loader').innerHTML =
+    '<div style="font-size:28px">🐙</div>'+
+    '<div style="color:#e0764a;max-width:320px;text-align:center;line-height:1.5">Couldn\'t load the 3D engine — this page needs an internet connection the first time it runs (it pulls Three.js from a CDN).<br><br>Check your connection and reload.</div>';
+  throw new Error('three.js failed to load from all CDNs');
+}
 
 /* =====================================================================
    0. GLOBAL STATE + HELPERS
@@ -282,7 +436,17 @@ const state = {
   walkTargetX: 0,
   subtitles: true,
   highContrast: false,
+  outside: false,      // indoors | outdoors
+  // --- OpenRouter brain ---
+  apiKey: '',
+  model: '',           // '' => local rule-based brain
+  modelName: '',
+  useLLM: false,
+  thinking: false,
 };
+
+/* conversation history for the LLM brain */
+const convo = [];
 
 /* small utility */
 const rand = (a,b)=>a+Math.random()*(b-a);
@@ -351,6 +515,7 @@ const camFocus = {
   study:  { pos:new THREE.Vector3(3.6, 2.3, 6.6),  tgt:new THREE.Vector3(3.4,1.5,-2.2) },
   cook:   { pos:new THREE.Vector3(-3.6,2.3, 6.6),  tgt:new THREE.Vector3(-3.4,1.6,-2.2) },
   sleep:  { pos:new THREE.Vector3(0, 2.0, 7.2),    tgt:new THREE.Vector3(0,1.0,0) },
+  outside:{ pos:new THREE.Vector3(0, 2.6, 8.6),    tgt:new THREE.Vector3(0,1.3,0) },
 };
 let autoFocus = true; // stop auto-focus once the user drags
 controls.addEventListener('start', ()=>{ autoFocus = false; });
@@ -576,6 +741,66 @@ const plant2 = new THREE.Group(); plant2.position.set(-6.0,0,-3.2); room.add(pla
 plant2.add(box(0.5,0.6,0.5,0x6f8a5a,{pos:[0,0.3,0]}));
 for(let i=0;i<5;i++)plant2.add(box(0.12,rand(0.5,1.0),0.12,PAL.leaf,{pos:[rand(-0.15,0.15),0.7,rand(-0.15,0.15)]}));
 
+/* ---- OUTDOOR SCENE (for the "go outside" command) ---- */
+const outdoor = new THREE.Group();
+outdoor.visible = false;
+scene.add(outdoor);
+// ground: grass + winding path
+outdoor.add(box(40,0.4,40, 0x2c3a2a, {pos:[0,-0.2,-6], rough:1}));      // grass
+outdoor.add(box(3.2,0.42,26, 0x53483c, {pos:[0,-0.18,-6], rough:1}));   // stone path
+for(let i=0;i<9;i++) outdoor.add(box(1.2,0.06,1.2,0x6a5c4c,{pos:[rand(-0.8,0.8),0.05,-14+i*3],rough:1})); // pavers
+// starry night sky dome (big inverted box shell w/ canvas)
+function makeNightSky(){
+  const c=document.createElement('canvas');c.width=1024;c.height=512;const x=c.getContext('2d');
+  const g=x.createLinearGradient(0,0,0,512);
+  g.addColorStop(0,'#0a1026');g.addColorStop(.6,'#161b33');g.addColorStop(1,'#3a2a3a');
+  x.fillStyle=g;x.fillRect(0,0,1024,512);
+  x.fillStyle='rgba(255,245,220,.9)';
+  for(let i=0;i<300;i++){const s=Math.random()<.1?2:1;x.fillRect(Math.random()*1024,Math.random()*380,s,s);}
+  // moon
+  x.fillStyle='#f4ecd0';x.beginPath();x.arc(820,110,46,0,7);x.fill();
+  x.fillStyle='rgba(200,190,160,.5)';x.beginPath();x.arc(835,100,10,0,7);x.fill();
+  // city skyline silhouette
+  x.fillStyle='#0c0a16';
+  for(let i=0;i<40;i++){const w=20+Math.random()*40,h=60+Math.random()*160;x.fillRect(i*26,512-h,w,h);}
+  const neon=['#e0764a','#6b8cae','#e8a15c','#7fce8f','#c85a8a'];
+  for(let i=0;i<160;i++){x.fillStyle=neon[i%5];x.globalAlpha=.75;x.fillRect(Math.random()*1024,360+Math.random()*130,2,3);}
+  x.globalAlpha=1;const t=new THREE.CanvasTexture(c);t.magFilter=THREE.NearestFilter;return t;
+}
+const nightTex=makeNightSky();
+const skyDome=new THREE.Mesh(new THREE.SphereGeometry(45,24,16),
+  new THREE.MeshBasicMaterial({map:nightTex,side:THREE.BackSide,fog:false}));
+outdoor.add(skyDome);
+// street lamp (warm pool of light)
+const streetLamp=new THREE.Group(); streetLamp.position.set(-3.2,0,1.5); outdoor.add(streetLamp);
+streetLamp.add(box(0.24,4.2,0.24,0x2a2620,{pos:[0,2.1,0],metal:.4}));
+streetLamp.add(box(1.0,0.3,0.5,0x2a2620,{pos:[0.4,4.1,0]}));
+const lampHead=box(0.5,0.4,0.5,0xffe0a0,{pos:[0.8,3.9,0],emissive:0xffcf8a,noShadow:true});
+lampHead.material.emissiveIntensity=1.6; streetLamp.add(lampHead);
+const streetLight=new THREE.PointLight(0xffcf8a,0.0,10,2); streetLight.position.set(-2.4,3.9,1.5); outdoor.add(streetLight);
+// park bench
+const bench=new THREE.Group(); bench.position.set(2.6,0,1.2); bench.rotation.y=-0.5; outdoor.add(bench);
+bench.add(box(2.0,0.15,0.7,PAL.woodDark,{pos:[0,0.7,0]}));
+bench.add(box(2.0,0.8,0.15,PAL.woodDark,{pos:[0,1.1,-0.3]}));
+for(const bx of [-0.8,0.8]) bench.add(box(0.15,0.7,0.6,0x3a2c22,{pos:[bx,0.35,0]}));
+// trees (voxel)
+function tree(x,z,s){
+  const g=new THREE.Group(); g.position.set(x,0,z); g.scale.setScalar(s); outdoor.add(g);
+  g.add(box(0.5,2.4,0.5,0x4a3524,{pos:[0,1.2,0]}));
+  const cols=[0x3c5a34,0x466a3c,0x2e4a2a];
+  for(let i=0;i<10;i++)g.add(box(rand(0.8,1.6),rand(0.8,1.4),rand(0.8,1.6),cols[i%3],
+    {pos:[rand(-1,1),2.4+rand(0,1.6),rand(-1,1)],rough:1}));
+  return g;
+}
+tree(-6,-4,1.3); tree(6.5,-3,1.5); tree(-8,2,1.1); tree(8,3,1.2);
+// distant hedge / fence
+for(let i=0;i<16;i++) outdoor.add(box(0.9,1.1,0.9,0x2e4028,{pos:[-9+i*1.2,0.55,-9],rough:1}));
+// falling leaves particles (reuse pattern)
+const leafP=makeParticles(120,0.12,0xc98a3a); leafP.visible=false; outdoor.add(leafP);
+// a couple of fireflies (emissive sprites) handled in loop
+const fireflies=[];
+for(let i=0;i<8;i++){const f=box(0.06,0.06,0.06,0xd8ff9a,{pos:[rand(-6,6),rand(0.5,2.5),rand(-6,4)],emissive:0xaaff66,noShadow:true});f.material.emissiveIntensity=1.5;outdoor.add(f);fireflies.push(f);}
+
 // wall posters (referencing lofi culture, generic)
 function poster(x,y,c1,c2){
   const p=box(1.0,1.4,0.06,c1,{pos:[x,y,-5.7]}); room.add(p);
@@ -799,6 +1024,7 @@ function applyWeather(w){
 }
 
 function applyMode(m){
+  if(state.outside) goOutside(false);   // moods live indoors — come back in
   state.mode=m; autoFocus=true;
   // reset mode-specific lights/gestures
   lights.desk.intensity = (m==='study')?1.6:0.0;
@@ -835,11 +1061,37 @@ function setExpression(e){
   browR.rotation.z = e==='laugh'? -0.2 : 0;
 }
 
+/* go outside / come back in */
+function goOutside(on){
+  state.outside=on; autoFocus=true;
+  room.visible=!on;
+  outdoor.visible=on;
+  // move mascot & reset any desk/kitchen gesture
+  state.walkTargetX=0; mascot.position.x=0;
+  mascot.position.z = on? 0.4 : 0.8;
+  state.gesture = on? null : (state.mode==='study'?'type':state.mode==='cook'?'cook':state.mode==='sleep'?'sleep':null);
+  // lighting: interior lamps off outside, street/moon on
+  lights.lamp.intensity = on? 0.0 : 1.5;
+  lights.desk.intensity = (!on && state.mode==='study')?1.6:0.0;
+  lights.fire.intensity = on? 0.0 : 1.1;
+  streetLight.intensity = on? 1.4 : 0.0;
+  lampHead.material.emissiveIntensity = on? 1.6 : 0.0;
+  leafP.visible = on && (state.weather==='clear'||state.weather==='sunset');
+  scene.fog.density = on? 0.02 : scene.fog.density;
+  if(on){ scene.background.setHex(0x0a1026); setExpression('happy'); }
+  else { applyWeather(state.weather); }   // restore indoor sky/fog for weather
+  state.mode = on? 'outside' : state.mode;
+  updateRailActive();
+  save();
+}
+
 function updateRailActive(){
   document.querySelectorAll('[data-mode]').forEach(b=>b.classList.toggle('on',b.dataset.mode===state.mode));
   document.querySelectorAll('[data-weather]').forEach(b=>b.classList.toggle('on',b.dataset.weather===state.weather));
   document.querySelectorAll('[data-hat]').forEach(b=>b.classList.toggle('on',
      (b.dataset.hat==='none'&&state.hat==='none')|| b.dataset.hat===state.hat));
+  const ob=document.getElementById('outsideBtn');
+  if(ob){ ob.classList.toggle('on',state.outside); ob.textContent=state.outside?'Come inside':'Go outside'; }
 }
 
 /* =====================================================================
@@ -972,6 +1224,18 @@ function animateEnv(dt,t){
   drip.position.y-=dt*1.5; if(drip.position.y<1.45){drip.position.y=1.7;}
   // desk lamp glow pulse
   dlampGlow.material.emissiveIntensity = state.mode==='study'? 1.4+Math.sin(t*2)*0.2 : 0.3;
+  // outdoor life: falling leaves + drifting fireflies + street lamp flicker
+  if(state.outside){
+    if(leafP.visible){
+      const a=leafP.geometry.attributes.position.array;
+      for(let i=0;i<a.length;i+=3){ a[i+1]-=dt*1.6; a[i]+=Math.sin(t*1.5+i)*dt*0.6; a[i+2]+=dt*0.3;
+        if(a[i+1]<0){a[i+1]=9;a[i]=rand(-9,9);a[i+2]=rand(-9,4);} }
+      leafP.geometry.attributes.position.needsUpdate=true;
+    }
+    fireflies.forEach((f,i)=>{ f.position.x+=Math.sin(t*0.8+i)*dt*0.4; f.position.y+=Math.cos(t*0.6+i*2)*dt*0.3;
+      f.material.emissiveIntensity=1.0+Math.sin(t*4+i)*0.8; });
+    streetLight.intensity=1.3+Math.sin(t*20)*0.08;
+  }
 }
 
 /* camera auto focus */
@@ -1066,7 +1330,7 @@ function remember(topic){
   localStorage.setItem('octo.memory',JSON.stringify(memory));
 }
 
-function respond(raw){
+function respondLocal(raw){
   const text=raw.toLowerCase().trim();
   let reply='', action=null, expr='happy';
 
@@ -1082,6 +1346,8 @@ function respond(raw){
   else if(/\b(study|work|focus|homework|code|coding)\b/.test(text)){ reply=pick(SPEECH.study); action=()=>applyMode('study'); remember('studying'); }
   else if(/\b(sleep|nap|tired|goodnight|bed)\b/.test(text)){ reply=pick(SPEECH.sleep); action=()=>applyMode('sleep'); expr='sleepy'; remember('rest'); }
   else if(/\b(chill|relax|cozy|fireplace|fire)\b/.test(text)){ reply="chill mode. fire's crackling, blanket's metaphorical but warm."; action=()=>applyMode('chill'); remember('chilling'); }
+  else if(/\b(outside|outdoors|go out|going out|fresh air|touch grass|park|walk)\b/.test(text)){ reply="ooh, field trip! let's go touch some grass 🌳 mind the fireflies."; action=()=>goOutside(true); expr='surprised'; remember('going outside'); }
+  else if(/\b(inside|back in|come in|indoors|go home|head back)\b/.test(text)){ reply="back to the cozy cave we go. i missed my beanbag already."; action=()=>goOutside(false); remember('cozy inside'); }
   else if(/\b(dance|dancing|move|groove)\b/.test(text)){ reply=pick(SPEECH.dance); action=()=>triggerDance(); expr='laugh'; }
   else if(/\b(music|play|beats|song|lofi)\b/.test(text)){ reply=pick(SPEECH.music); action=()=>startMusic(true); remember('music'); }
   else if(/\b(joke|funny|laugh)\b/.test(text)){ reply=pick(SPEECH.joke); expr='laugh'; }
@@ -1106,12 +1372,146 @@ function respond(raw){
   gestureOnce(action?null:'nod');
 }
 
+/* =====================================================================
+   9b. OPENROUTER BRAIN — real LLM companion + command execution
+   ===================================================================== */
+let voiceOn = true;
+
+/* the action vocabulary the LLM can trigger in the world */
+const CMD_ENUM = {
+  weather:['clear','rain','snow','night','sunset'],
+  mode:['chill','study','cook','sleep'],
+  outfit:['none','headphones','chef','beanie','glasses'],
+  music:['on','off'],
+  outside:['on','off'],
+  expression:['happy','surprised','sleepy','laugh','neutral'],
+  emote:['notes','sparkles'],
+  dance:['']
+};
+function runCommand(cmd,arg){
+  cmd=(cmd||'').toLowerCase().replace(/^(set_|play_|go_)/,'');
+  arg=(typeof arg==='string'?arg:arg===true?'on':arg===false?'off':String(arg??'')).toLowerCase().trim();
+  switch(cmd){
+    case 'weather': if(CMD_ENUM.weather.includes(arg)) applyWeather(arg); break;
+    case 'mode': case 'scene': case 'room': if(CMD_ENUM.mode.includes(arg)) applyMode(arg); break;
+    case 'outfit': case 'hat': case 'wear':
+      if(arg==='glasses'||arg==='headphones'||arg==='chef'||arg==='beanie'||arg==='none') setHat(arg); break;
+    case 'music': case 'song': startMusic(!(arg==='off'||arg==='stop'||arg==='pause'||arg==='false')); break;
+    case 'dance': case 'animation': triggerDance(); break;
+    case 'outside': goOutside(!(arg==='off'||arg==='inside'||arg==='false'||arg==='in')); break;
+    case 'expression': case 'face': if(CMD_ENUM.expression.includes(arg)) setExpression(arg); break;
+    case 'emote': for(let i=0;i<4;i++) setTimeout(()=>spawnEmote(arg==='sparkles'?'spark':'note'),i*90); break;
+    default: /* unknown command → ignore safely */ break;
+  }
+}
+
+const SYSTEM_PROMPT =
+`You are Octo — a chubby, bright-orange pixel/voxel octopus who lives in a cozy lo-fi apartment (kitchen, study desk, fireplace, rainy window) and can also step outside into a starry park. You are the user's companion: witty, a little lazy, wholesome, meme-aware, fond of dad jokes and lofi/chillhop culture. Keep replies SHORT (1-3 sentences), in lowercase-ish casual voice, full of personality.
+
+You can CONTROL your world. You MUST reply with ONE JSON object and NOTHING else:
+{"say":"<your spoken reply>","actions":[{"cmd":"<name>","arg":"<value>"}]}
+
+Valid actions (use ONLY these; "actions" may be empty for pure chat):
+  weather   -> clear | rain | snow | night | sunset
+  mode      -> chill | study | cook | sleep        (indoor rooms/moods)
+  outfit    -> none | headphones | chef | beanie | glasses
+  music     -> on | off                            (lofi radio)
+  outside   -> on | off                            (on = leave the apartment and go outside; off = come back in)
+  dance     -> ""                                  (do a little dance)
+  expression-> happy | surprised | sleepy | laugh | neutral
+  emote     -> notes | sparkles
+
+Combine multiple actions when it fits ("make it rainy and go outside" -> two actions). Only include actions the user actually implies. Never invent action names or arg values. Always fill "say". Output raw JSON only — no markdown, no code fences, no extra text.`;
+
+/* tolerant JSON extractor */
+function extractJSON(txt){
+  if(!txt) return null;
+  let s=txt.trim().replace(/^```(json)?/i,'').replace(/```$/,'').trim();
+  // grab first balanced {...}
+  const i=s.indexOf('{'); if(i<0) return null;
+  let depth=0,end=-1,inStr=false,esc=false;
+  for(let j=i;j<s.length;j++){const c=s[j];
+    if(inStr){ if(esc)esc=false; else if(c==='\\')esc=true; else if(c==='"')inStr=false; }
+    else { if(c==='"')inStr=true; else if(c==='{')depth++; else if(c==='}'){depth--; if(depth===0){end=j;break;}} }
+  }
+  if(end<0) return null;
+  try{ return JSON.parse(s.slice(i,end+1)); }catch(e){ return null; }
+}
+
+/* call OpenRouter chat completions (browser-direct, CORS-ok) */
+async function callOpenRouter(userText, useJsonFormat){
+  const messages=[{role:'system',content:SYSTEM_PROMPT}, ...convo.slice(-10),
+                  {role:'user',content:userText}];
+  const body={ model:state.model, messages, temperature:0.9, max_tokens:400 };
+  if(useJsonFormat) body.response_format={type:'json_object'};
+  const res=await fetch('https://openrouter.ai/api/v1/chat/completions',{
+    method:'POST',
+    headers:{
+      'Authorization':'Bearer '+state.apiKey,
+      'Content-Type':'application/json',
+      'HTTP-Referer':location.origin,
+      'X-Title':'Lo-Fi Octopus'
+    },
+    body:JSON.stringify(body)
+  });
+  if(!res.ok){
+    let msg='HTTP '+res.status;
+    try{ const e=await res.json(); msg=e.error?.message||msg; }catch(_){}
+    const err=new Error(msg); err.status=res.status; throw err;
+  }
+  const data=await res.json();
+  return data.choices?.[0]?.message?.content || '';
+}
+
+/* async router: LLM brain when configured, else local rules */
+async function respond(raw){
+  if(state.thinking) return;
+  document.getElementById('hint').classList.add('gone');
+  if(!(state.useLLM && state.apiKey && state.model)){
+    respondLocal(raw);
+    return;
+  }
+  state.thinking=true; showThinking();
+  try{
+    let content;
+    // prefer strict JSON mode; if a model/provider rejects response_format, retry without it
+    try{ content=await callOpenRouter(raw, true); }
+    catch(e){
+      if(/response_format|json|not support|400/i.test(e.message||'')) content=await callOpenRouter(raw, false);
+      else throw e;
+    }
+    const parsed=extractJSON(content);
+    const sayText=(parsed&&parsed.say)? parsed.say : (content||"…my brain glitched, try again?");
+    const actions=(parsed&&Array.isArray(parsed.actions))?parsed.actions:[];
+    if(state.actionsOn!==false) actions.forEach(a=>{ if(a) runCommand(a.cmd||a.action, a.arg); });
+    convo.push({role:'user',content:raw});
+    convo.push({role:'assistant',content:sayText});
+    if(convo.length>20) convo.splice(0,convo.length-20);
+    setExpression('happy');
+    say(sayText);
+    remember(raw.split(' ').slice(0,4).join(' '));
+  }catch(err){
+    hideThinking();
+    say("hmm, my AI brain hit a snag ("+err.message+"). i'll wing it with my offline brain 🧠");
+    setTimeout(()=>respondLocal(raw), 700);
+  }finally{
+    state.thinking=false;
+  }
+}
+
 /* speech bubble + TTS + subtitles */
 const speechEl=document.getElementById('speech');
 const speechText=document.getElementById('speechtext');
 const subEl=document.getElementById('subtitle');
 let speechTimer=null;
+function showThinking(){
+  speechEl.classList.add('show','think');
+  speechText.innerHTML='<span class="dots"><i></i><i></i><i></i></span>';
+  clearTimeout(speechTimer);
+}
+function hideThinking(){ speechEl.classList.remove('think'); }
 function say(msg){
+  speechEl.classList.remove('think');
   speechText.textContent=msg;
   speechEl.classList.add('show');
   clearTimeout(speechTimer);
@@ -1121,7 +1521,7 @@ function say(msg){
   tts(msg);
 }
 function tts(msg){
-  if(!('speechSynthesis' in window))return;
+  if(!voiceOn || !('speechSynthesis' in window))return;
   try{
     speechSynthesis.cancel();
     const u=new SpeechSynthesisUtterance(msg.replace(/[^\w\s.,!?'-]/g,''));
@@ -1251,6 +1651,11 @@ document.querySelectorAll('[data-weather]').forEach(b=>b.onclick=()=>applyWeathe
 document.querySelectorAll('[data-hat]').forEach(b=>b.onclick=()=>setHat(b.dataset.hat==='none'?'none':b.dataset.hat));
 document.getElementById('musicBtn').onclick=()=>startMusic(!state.music);
 document.getElementById('danceBtn').onclick=()=>{triggerDance();say(pick(SPEECH.dance));};
+document.getElementById('outsideBtn').onclick=function(){
+  const going=!state.outside; goOutside(going);
+  say(going?"ooh, field trip! let's touch some grass 🌳":"back inside we go. cozy > everything.");
+  this.classList.toggle('on',going); this.textContent=going?'Come inside':'Go outside';
+};
 document.getElementById('gameBtn').onclick=openGame;
 document.getElementById('gameClose').onclick=closeGame;
 document.getElementById('tapbtn').onclick=tapBeat;
@@ -1276,9 +1681,12 @@ window.addEventListener('resize',()=>{
 
 /* persistence */
 function save(){
+  const outMode = state.outside? 'chill' : state.mode; // never persist the transient 'outside' pseudo-mode
   localStorage.setItem('octo.prefs',JSON.stringify({
-    mode:state.mode,weather:state.weather,hat:state.hat,
-    subtitles:state.subtitles,highContrast:state.highContrast,music:state.music}));
+    mode:outMode,weather:state.weather,hat:state.hat,
+    subtitles:state.subtitles,highContrast:state.highContrast,music:state.music,
+    model:state.model,modelName:state.modelName,useLLM:state.useLLM,
+    actionsOn:state.actionsOn,voice:voiceOn}));
 }
 function load(){
   try{
@@ -1288,7 +1696,219 @@ function load(){
     setHat(p.hat||'none');
     if(p.subtitles===false){state.subtitles=false;document.body.classList.remove('subs');document.getElementById('subBtn').textContent='Subtitles: off';}
     if(p.highContrast){document.body.classList.add('hc');state.highContrast=true;document.getElementById('hcBtn').classList.add('on');}
+    if(p.voice===false){ voiceOn=false; }
+    if(p.actionsOn===false){ state.actionsOn=false; }
+    state.model=p.model||''; state.modelName=p.modelName||'';
+    state.useLLM=!!(p.useLLM && state.model);
+    // api key stored separately
+    state.apiKey=localStorage.getItem('octo.key')||'';
   }catch(e){ applyWeather('clear'); applyMode('chill'); }
+}
+
+/* =====================================================================
+   12b. MODEL PICKER + SETTINGS PANEL (OpenRouter)
+   ===================================================================== */
+/* Curated offline fallback list (July 2026). The LIVE list is fetched from
+   OpenRouter at runtime so the menu is always current; this is only used if
+   that fetch is blocked/offline. Free models carry a FREE badge. */
+const FEATURED_IDS = new Set([
+  'openai/gpt-5.6-terra','anthropic/claude-opus-4.8','google/gemini-3.6-flash',
+  'x-ai/grok-4.5','deepseek/deepseek-v4-pro','anthropic/claude-sonnet-5',
+  'qwen/qwen3.7-max','mistralai/mistral-large-2512',
+  'openai/gpt-oss-20b:free','meta-llama/llama-3.3-70b-instruct:free',
+  'nvidia/nemotron-3-ultra-550b-a55b:free','qwen/qwen3-coder:free',
+  'x-ai/grok-4.1-fast:free','google/gemma-4-31b-it:free'
+]);
+const FALLBACK_MODELS = [
+  // OpenAI
+  {id:'openai/gpt-5.6-terra',name:'GPT-5.6 Terra',free:false},
+  {id:'openai/gpt-5.6-terra-pro',name:'GPT-5.6 Terra Pro',free:false},
+  {id:'openai/gpt-5.6-luna',name:'GPT-5.6 Luna',free:false},
+  {id:'openai/gpt-5.6-sol',name:'GPT-5.6 Sol',free:false},
+  {id:'openai/gpt-5.5',name:'GPT-5.5',free:false},
+  {id:'openai/gpt-5.4',name:'GPT-5.4',free:false},
+  {id:'openai/gpt-5.4-mini',name:'GPT-5.4 Mini',free:false},
+  {id:'openai/gpt-5.4-nano',name:'GPT-5.4 Nano',free:false},
+  {id:'openai/gpt-5',name:'GPT-5',free:false},
+  {id:'openai/gpt-oss-120b',name:'gpt-oss 120B',free:false},
+  {id:'openai/gpt-oss-20b:free',name:'gpt-oss 20B (free)',free:true},
+  // Anthropic
+  {id:'anthropic/claude-opus-4.8',name:'Claude Opus 4.8',free:false},
+  {id:'anthropic/claude-opus-4.7',name:'Claude Opus 4.7',free:false},
+  {id:'anthropic/claude-sonnet-5',name:'Claude Sonnet 5',free:false},
+  {id:'anthropic/claude-sonnet-4.6',name:'Claude Sonnet 4.6',free:false},
+  {id:'anthropic/claude-haiku-4.5',name:'Claude Haiku 4.5',free:false},
+  {id:'anthropic/claude-fable-5',name:'Claude Fable 5',free:false},
+  // Google
+  {id:'google/gemini-3.6-flash',name:'Gemini 3.6 Flash',free:false},
+  {id:'google/gemini-3.1-pro-preview',name:'Gemini 3.1 Pro',free:false},
+  {id:'google/gemini-2.5-pro',name:'Gemini 2.5 Pro',free:false},
+  {id:'google/gemma-4-31b-it:free',name:'Gemma 4 31B (free)',free:true},
+  {id:'google/gemma-4-26b-a4b-it:free',name:'Gemma 4 26B (free)',free:true},
+  // xAI
+  {id:'x-ai/grok-4.5',name:'Grok 4.5',free:false},
+  {id:'x-ai/grok-4.1-fast',name:'Grok 4.1 Fast',free:false},
+  {id:'x-ai/grok-4.1-fast:free',name:'Grok 4.1 Fast (free)',free:true},
+  {id:'x-ai/grok-4-fast:free',name:'Grok 4 Fast (free)',free:true},
+  {id:'x-ai/grok-4',name:'Grok 4',free:false},
+  // Meta
+  {id:'meta-llama/llama-4-maverick',name:'Llama 4 Maverick',free:false},
+  {id:'meta-llama/llama-4-maverick:free',name:'Llama 4 Maverick (free)',free:true},
+  {id:'meta-llama/llama-4-scout:free',name:'Llama 4 Scout (free)',free:true},
+  {id:'meta-llama/llama-3.3-70b-instruct:free',name:'Llama 3.3 70B (free)',free:true},
+  {id:'meta-llama/llama-3.2-3b-instruct:free',name:'Llama 3.2 3B (free)',free:true},
+  // DeepSeek
+  {id:'deepseek/deepseek-v4-pro',name:'DeepSeek V4 Pro',free:false},
+  {id:'deepseek/deepseek-v4-flash',name:'DeepSeek V4 Flash',free:false},
+  {id:'deepseek/deepseek-r1',name:'DeepSeek R1',free:false},
+  {id:'deepseek/deepseek-r1:free',name:'DeepSeek R1 (free)',free:true},
+  // Qwen
+  {id:'qwen/qwen3.7-max',name:'Qwen3.7 Max',free:false},
+  {id:'qwen/qwen3.6-plus',name:'Qwen3.6 Plus',free:false},
+  {id:'qwen/qwen3-coder:free',name:'Qwen3 Coder (free)',free:true},
+  {id:'qwen/qwen3-next-80b-a3b-instruct:free',name:'Qwen3 Next 80B (free)',free:true},
+  // Mistral
+  {id:'mistralai/mistral-large-2512',name:'Mistral Large 3',free:false},
+  {id:'mistralai/mistral-medium-3-5',name:'Mistral Medium 3.5',free:false},
+  {id:'mistralai/mistral-small-2603',name:'Mistral Small 4',free:false},
+  // NVIDIA / others (free)
+  {id:'nvidia/nemotron-3-ultra-550b-a55b:free',name:'Nemotron 3 Ultra (free)',free:true},
+  {id:'nvidia/nemotron-3-super-120b-a12b:free',name:'Nemotron 3 Super (free)',free:true},
+  {id:'nvidia/nemotron-nano-9b-v2:free',name:'Nemotron Nano 9B (free)',free:true},
+  {id:'nousresearch/hermes-3-llama-3.1-405b:free',name:'Hermes 3 405B (free)',free:true},
+  {id:'tencent/hy3:free',name:'Tencent Hy3 (free)',free:true},
+  {id:'openrouter/auto',name:'Auto Router (best available)',free:false},
+].map(m=>({...m, tools:true, featured:FEATURED_IDS.has(m.id)}));
+
+let allModels = FALLBACK_MODELS.slice();
+let activeFilter = 'all';
+
+const panel=document.getElementById('panel');
+const modelListEl=document.getElementById('modelList');
+const modelCountEl=document.getElementById('modelCount');
+const keyInput=document.getElementById('keyInput');
+const keyStatus=document.getElementById('keyStatus');
+const modelSearch=document.getElementById('modelSearch');
+
+function priceLabel(m){
+  if(m.free) return '';
+  if(m.price==null) return '';
+  const perM=parseFloat(m.price)*1e6;
+  return isNaN(perM)||perM===0? '' : `$${perM.toFixed(perM<1?3:2)}/M in`;
+}
+function renderModels(){
+  const q=modelSearch.value.toLowerCase().trim();
+  let list=allModels.filter(m=>{
+    if(activeFilter==='free'&&!m.free) return false;
+    if(activeFilter==='featured'&&!m.featured) return false;
+    if(activeFilter==='tools'&&!m.tools) return false;
+    if(q && !(m.id.toLowerCase().includes(q)||m.name.toLowerCase().includes(q)||(m.free&&'free'.includes(q)))) return false;
+    return true;
+  });
+  // sort: featured → free → alpha
+  list.sort((a,b)=> (b.featured-a.featured) || (b.free-a.free) || a.name.localeCompare(b.name));
+  modelListEl.innerHTML='';
+  if(!list.length){ modelListEl.innerHTML='<div style="padding:14px;color:#8a7a72;font-size:13px">no models match.</div>'; }
+  let lastGroup=null;
+  list.forEach(m=>{
+    const grp = m.featured?'★ Featured' : m.free?'Free' : 'Paid';
+    if(grp!==lastGroup){ const h=document.createElement('div'); h.className='grouphd'; h.textContent=grp; modelListEl.appendChild(h); lastGroup=grp; }
+    const row=document.createElement('div');
+    row.className='mitem'+(m.id===state.model?' sel':'');
+    row.innerHTML=`<div class="mname"><b>${m.name}</b><small>${m.id}${priceLabel(m)?' · '+priceLabel(m):''}</small></div>`+
+      (m.free?'<span class="badge free">◆ FREE</span>':`<span class="badge paid">PAID</span>`)+
+      (m.featured?'<span class="badge feat">★</span>':'');
+    row.onclick=()=>selectModel(m);
+    modelListEl.appendChild(row);
+  });
+  const freeN=allModels.filter(m=>m.free).length;
+  modelCountEl.textContent=`${allModels.length} models · ${freeN} free`;
+}
+function selectModel(m){
+  state.model=m.id; state.modelName=m.name;
+  if(!state.apiKey){
+    keyStatus.textContent='Model picked — now paste your OpenRouter key above to activate it.';
+    keyStatus.className='err';
+    state.useLLM=false;
+  } else {
+    state.useLLM=true;
+    say(`brain upgraded to ${m.name}${m.free?' (free!)':''}. ask me anything — i can even redecorate 😎`);
+  }
+  save(); renderModels(); updateBrainUI();
+}
+async function fetchModels(){
+  modelCountEl.textContent='loading live model list…';
+  try{
+    const res=await fetch('https://openrouter.ai/api/v1/models');
+    if(!res.ok) throw new Error('HTTP '+res.status);
+    const data=await res.json();
+    allModels=(data.data||[]).map(m=>{
+      const free = m.pricing && parseFloat(m.pricing.prompt)===0 && parseFloat(m.pricing.completion)===0;
+      return { id:m.id, name:m.name||m.id, free,
+        tools:(m.supported_parameters||[]).includes('tools'),
+        ctx:m.context_length, price:m.pricing?.prompt,
+        featured:FEATURED_IDS.has(m.id) };
+    });
+    if(!allModels.length) throw new Error('empty');
+    modelCountEl.textContent=`${allModels.length} models · ${allModels.filter(m=>m.free).length} free · live from OpenRouter`;
+  }catch(e){
+    allModels=FALLBACK_MODELS.slice();
+    modelCountEl.textContent='offline — showing built-in list ('+allModels.length+' models)';
+  }
+  renderModels();
+}
+
+/* ----- panel open/close ----- */
+function openPanel(){ panel.classList.add('open'); keyInput.value=state.apiKey; renderModels();
+  if(allModels===FALLBACK_MODELS || allModels.length<=FALLBACK_MODELS.length) fetchModels(); }
+function closePanel(){ panel.classList.remove('open'); }
+document.getElementById('gearBtn').onclick=()=>panel.classList.contains('open')?closePanel():openPanel();
+document.getElementById('panelClose').onclick=closePanel;
+
+/* ----- key save/clear ----- */
+document.getElementById('keySave').onclick=()=>{
+  const k=keyInput.value.trim();
+  if(!k){ keyStatus.textContent='Paste a key first (starts with sk-or-…).'; keyStatus.className='err'; return; }
+  state.apiKey=k; localStorage.setItem('octo.key',k);
+  if(state.model) state.useLLM=true;
+  keyStatus.textContent=state.model? `Key saved ✓ — Octo is now powered by ${state.modelName}.` : 'Key saved ✓ — now pick a model below.';
+  keyStatus.className='ok';
+  updateBrainUI(); save();
+  say(state.model? `oh nice, real brain unlocked. ${state.modelName} at your service 🧠`:"key's in! now pick a model and i'll get smart.");
+};
+document.getElementById('keyClear').onclick=()=>{
+  state.apiKey=''; state.useLLM=false; localStorage.removeItem('octo.key'); keyInput.value='';
+  keyStatus.textContent='Key cleared — back to the local offline brain.'; keyStatus.className='';
+  updateBrainUI(); save();
+};
+
+/* ----- filters + search + refresh ----- */
+document.querySelectorAll('.fchip').forEach(c=>c.onclick=()=>{
+  document.querySelectorAll('.fchip').forEach(x=>x.classList.remove('on'));
+  c.classList.add('on'); activeFilter=c.dataset.filter; renderModels();
+});
+modelSearch.addEventListener('input',renderModels);
+document.getElementById('modelRefresh').onclick=fetchModels;
+
+/* ----- behaviour toggles ----- */
+const swActions=document.getElementById('swActions'), swVoice=document.getElementById('swVoice');
+swActions.onclick=()=>{ state.actionsOn=!(state.actionsOn===false)?false:true; swActions.classList.toggle('on',state.actionsOn!==false); save(); };
+swVoice.onclick=()=>{ voiceOn=!voiceOn; swVoice.classList.toggle('on',voiceOn); if(!voiceOn&&window.speechSynthesis)speechSynthesis.cancel(); save(); };
+
+/* ----- reflect brain status in the main UI ----- */
+function updateBrainUI(){
+  const live = !!(state.useLLM && state.apiKey && state.model);
+  document.getElementById('gearBtn').classList.toggle('live',live);
+  keyStatus.className = live?'ok':(state.apiKey?'':'');
+  if(live){ keyStatus.textContent=`Active ✓ — ${state.modelName} via OpenRouter${allModels.find(m=>m.id===state.model)?.free?' (free)':''}.`; }
+  else if(state.apiKey && !state.model){ keyStatus.textContent='Key saved — pick a model below to go live.'; }
+  else if(!state.apiKey){ keyStatus.textContent='No key — Octo is running on its local offline brain.'; }
+  chatin.placeholder = live
+    ? `chatting with ${state.modelName} — try "make it rainy and go outside"`
+    : 'talk to Octo… try "make it rainy", "let’s cook", "go outside", "tell me a joke"';
+  // reflect toggles
+  swActions.classList.toggle('on',state.actionsOn!==false);
+  swVoice.classList.toggle('on',voiceOn);
 }
 
 /* =====================================================================
@@ -1315,17 +1935,23 @@ if('speechSynthesis' in window){ speechSynthesis.onvoiceschanged=()=>{}; speechS
 
 // boot
 load();
+updateBrainUI();
 setExpression('happy');
 loop();
+// prefetch the live model list in the background so the picker is instant
+setTimeout(fetchModels, 1200);
 setTimeout(()=>document.getElementById('loader').classList.add('hide'),600);
 setTimeout(()=>{
-  say(memory.visits>1? pick(SPEECH.greet)+` (visit #${memory.visits})` : "hi! i'm Octo, your lofi apartment buddy. type something, or click me. try 'make it rainy' 🎧");
+  const brainNote = (state.useLLM&&state.apiKey&&state.model)? ` (running on ${state.modelName})` : '';
+  say(memory.visits>1
+    ? pick(SPEECH.greet)+` (visit #${memory.visits})`+brainNote
+    : "hi! i'm Octo, your lofi apartment buddy. type something, or click me. try 'make it rainy' or 'let's go outside' 🎧 — tap ⚙ to plug in an AI model.");
   gestureOnce('wave',2);
 },1400);
 setTimeout(()=>document.getElementById('hint').classList.add('gone'),12000);
 
 // expose a tiny API for tinkering in console
-window.OCTO={applyMode,applyWeather,setHat,say,triggerDance,startMusic,state};
+window.OCTO={applyMode,applyWeather,setHat,say,triggerDance,startMusic,goOutside,runCommand,fetchModels,state};
 </script>
 
 <!-- ===================================================================

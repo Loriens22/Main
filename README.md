@@ -28,29 +28,59 @@ python3 -m http.server 8080  # then visit http://localhost:8080
 
 | Interaction | Result |
 |---|---|
-| **Type in the chat** | Octo replies with witty/sarcastic lines (browser TTS voice), triggers animations & scene changes. Try: `make it rainy`, `let's cook`, `study time`, `tell me a joke`, `dance`, `I'm Luben`. |
+| **Type in the chat** | Octo replies with witty/sarcastic lines (browser TTS voice), triggers animations & scene changes. Try: `make it rainy`, `let's cook`, `study time`, `go outside`, `tell me a joke`, `dance`, `I'm Luben`. |
+| **⚙ Settings → AI model** | Slide-out panel: paste an **OpenRouter API key**, pick from the **live model menu** (free models tagged **◆ FREE**), and Octo starts thinking with a real LLM. |
 | **Click / tap Octo** | Random funny reaction + emote burst (music notes, sparkles). |
 | **Scene / Mood** | Chill · Study · Cook · Sleep — swaps camera focus, lighting, gesture & outfit. |
+| **Go outside** | Leaves the apartment for a starry park (bench, street lamp, trees, fireflies, falling leaves). Say “go outside” / “come inside” or use the button. |
 | **Weather** | Clear · Rain · Snow · Night · Sunset — particles, fog, sky, color grade. |
 | **Outfit** | Bare · Headphones · Chef hat · Beanie · Red glasses — swapped live. |
 | **Rhythm game** | "Octo Beat" — tap the button (or Space/Enter) on the beat line. |
 | **Music** | Toggle the lofi radio; Octo head-bobs and floats music notes. |
-| **Subtitles / High contrast** | Accessibility toggles (subtitles on by default). |
+| **Subtitles / High contrast / Voice** | Accessibility toggles (subtitles on by default; TTS voice toggle in the panel). |
 
 Preferences, unlocked state, remembered name & topics persist in
 `localStorage` (`octo.prefs`, `octo.memory`).
 
-## 🧠 The AI companion
+## 🧠 The AI companion — two brains
 
-Rule-based, offline, zero-API personality engine (`respond()` in `index.html`):
+Octo has a **local offline brain** and an optional **OpenRouter LLM brain**.
 
-- **Keyword intent matching** → scene/weather/outfit/gesture actions + themed lines.
+### Local brain (default, no key)
+Rule-based, offline, zero-API personality engine (`respondLocal()` in `index.html`):
+- **Keyword intent matching** → scene/weather/outfit/outside/gesture actions + themed lines.
 - **Memory**: remembers your name and recent topics, references them humorously.
 - **Voice**: `SpeechSynthesis` with raised pitch/rate for character. Subtitles mirror every line.
 
-Swap in a real LLM by replacing the body of `respond()` with a `fetch()` to your
-endpoint and calling `say(reply)` / the `applyMode` / `applyWeather` / `setHat`
-helpers based on the model's tool call.
+### OpenRouter brain (bring your own key)
+Open the **⚙ panel**, paste an [OpenRouter key](https://openrouter.ai/keys), and pick a model.
+Now Octo is powered by a real LLM and can both **chat** *and* **control its world**.
+
+- **Live model menu** — fetched at runtime from `GET https://openrouter.ai/api/v1/models`, so it's
+  always current. Free models (`pricing.prompt === "0"`) are auto-detected and tagged **◆ FREE**.
+  Search, and filter by **All / Free only / Featured / Tool-capable**. A curated offline
+  fallback list (current as of **July 2026** — GPT‑5.6, Claude Opus 4.8, Gemini 3.6, Grok 4.5,
+  DeepSeek V4, Qwen 3.7, Llama 4, Nemotron 3, gpt‑oss, Gemma 4 …) is used if the fetch is blocked.
+- **Command protocol** — Octo is instructed to answer with a single JSON envelope:
+  ```json
+  { "say": "beach day! watch me dance in the rain", "actions": [
+      {"cmd":"weather","arg":"rain"}, {"cmd":"outside","arg":"on"}, {"cmd":"dance","arg":""} ] }
+  ```
+  The app parses it (tolerant of code fences / prose), speaks `say`, and dispatches each action to
+  the real in-app handler via `runCommand()`. This works on **every** model — including free ones
+  that lack native tool-calling — because it only relies on prompt discipline + `response_format:
+  {type:"json_object"}` (with an automatic retry for models that don't accept that flag).
+- **Actions Octo can trigger**: `weather` (clear/rain/snow/night/sunset), `mode`
+  (chill/study/cook/sleep), `outfit` (none/headphones/chef/beanie/glasses), `music` (on/off),
+  `outside` (on/off — *go outside* / come in), `dance`, `expression`, `emote`. Just talk naturally:
+  *“it's gloomy, make it rain and take me outside”*, *“chef hat on, let's cook”*.
+- **Privacy**: the key is stored only in your browser (`localStorage: octo.key`) and sent directly
+  to OpenRouter — never anywhere else. Toggle **actions** and **voice** off in the panel any time.
+- **Graceful fallback**: any API error (bad key, offline, model down) drops back to the local brain
+  so the app never breaks.
+
+Integration lives in `index.html` §9b (`SYSTEM_PROMPT`, `runCommand`, `callOpenRouter`,
+`extractJSON`, async `respond`) and §12b (the model picker / settings panel).
 
 ## 🏗️ Code structure (all inside `index.html`)
 
@@ -61,16 +91,18 @@ The `<script type="module">` is organized into numbered sections:
 | 0 | Globals & helpers | palette, `state`, `box()` voxel factory |
 | 1 | Renderer / scene / camera | WebGL, ACES tonemap, shadows, OrbitControls, per-mode camera focus |
 | 2 | Lighting | ambient, hemisphere, moon (directional+shadow), lamp, desk spot, stove, fire |
-| 3 | Environment | floor, walls, window (canvas sky + city parallax), desk, monitor, chair, kitchen (stove/pot/utensils/spices), fireplace, bookshelf, plants, posters |
+| 3 | Environment | floor, walls, window (canvas sky + city parallax), desk, monitor, chair, kitchen (stove/pot/utensils/spices), fireplace, bookshelf, plants, posters, **outdoor park** (sky dome, street lamp, bench, trees, fireflies) |
 | 4 | **Mascot rig** | body, eyes (with blink lids), brows, mouth expressions, blush, arm tentacles (3-seg IK), 7 waddle legs, headwear slot, emote sprites |
 | 5 | Weather | rain/snow particle systems + CSS window overlay |
 | 6 | State application | `applyMode` / `applyWeather` / `setHat` / `setExpression` |
 | 7 | Animation loop | procedural idle breathing, waddle, gestures (wave/jump/nod/cook/type/read/sleep/dance), blink, music head-bob |
 | 8 | Render loop | delta-timed update + render |
-| 9 | AI companion | `respond()`, memory, `say()`, TTS, subtitles |
+| 9 | Local AI companion | `respondLocal()`, memory, `say()`, TTS, subtitles, `goOutside()` |
+| 9b | **OpenRouter brain** | `SYSTEM_PROMPT`, `runCommand`, `callOpenRouter`, `extractJSON`, async `respond` router |
 | 10 | Music | YouTube IFrame API + WebAudio fallback |
 | 11 | Rhythm mini-game | falling-note tap game |
 | 12 | Interaction | raycast click, UI wiring, resize, persistence |
+| 12b | **Model picker + panel** | live `/models` fetch, free-tagging, filters/search, key save, toggles |
 | 13 | Post-FX + boot | grain/rain canvas textures, load, greet |
 
 Post-processing (film grain, vignette, scanlines, chromatic aberration, warm
@@ -137,11 +169,13 @@ gracefully when unavailable (the current build never hard-depends on any API).
 
 ## ⚙️ Tech
 
-- **Three.js 0.160** (import map, no bundler) · WebGL2, PCF soft shadows, ACES tonemap.
+- **Three.js 0.160**, loaded with a resilient multi-CDN fallback (unpkg → esm.sh → jsdelivr) and a
+  friendly error screen if all fail · WebGL2, PCF soft shadows, ACES tonemap.
 - **OrbitControls** for look/zoom; auto camera-focus per mood.
+- **OpenRouter** chat completions (browser-direct, CORS-ok) with JSON-command actions + live model list.
 - **SpeechSynthesis** (TTS) · **YouTube IFrame API** + WebAudio fallback (music).
-- **localStorage** persistence · responsive + touch · high-contrast + subtitles.
-- One file, zero dependencies to install.
+- **localStorage** persistence (prefs + `octo.key` + `octo.memory`) · responsive + touch · high-contrast + subtitles.
+- One file, zero install. Needs internet on first load (pulls Three.js from a CDN).
 
 ## 🔧 Extending
 
