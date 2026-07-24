@@ -43,6 +43,27 @@ fs.writeFileSync(OUT, html);
 const kb = (Buffer.byteLength(html) / 1024).toFixed(1);
 console.log('wrote ' + path.relative(ROOT, OUT) + '  (' + kb + ' KB, ' + FILES.length + ' modules)');
 
+/* ---------------------------------------------------------------------
+   Artifact variant: the hosting page supplies <!doctype>, <head> and
+   <body>, so emit the content only — title, styles, markup, scripts.
+   --------------------------------------------------------------------- */
+const ART = path.join(ROOT, 'dist', 'spawn-hub.artifact.html');
+const headStart = html.indexOf('<head>') + '<head>'.length;
+const headEnd = html.indexOf('</head>');
+const bodyStart = html.indexOf('<body>') + '<body>'.length;
+const bodyEnd = html.lastIndexOf('</body>');
+const head = html.slice(headStart, headEnd)
+  .split('\n')
+  .filter(l => !/<meta charset|<meta name="viewport"|<meta name="theme-color"/.test(l))
+  .join('\n').trim();
+const art = head + '\n' + html.slice(bodyStart, bodyEnd).trim() + '\n';
+fs.writeFileSync(ART, art);
+console.log('wrote ' + path.relative(ROOT, ART) +
+  '  (' + (Buffer.byteLength(art) / 1024).toFixed(1) + ' KB, no document wrapper)');
+for (const tag of ['<!DOCTYPE', '<html', '<head>', '<body>']) {
+  if (art.includes(tag)) throw new Error('artifact variant still contains ' + tag);
+}
+
 /* sanity: no leftover network references */
 for (const bad of ['http://', 'https://', 'src="//', 'fetch(', 'XMLHttpRequest', 'import(']) {
   if (html.includes(bad)) console.warn('  ! contains "' + bad + '" — check it is not a live request');
