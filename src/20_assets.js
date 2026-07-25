@@ -2387,5 +2387,2003 @@
     return g;
   };
 
+  /* =========================================================================
+   * 3b. SHOP — furniture, benches, storage
+   * =====================================================================*/
+
+  var DESK_H = 0.75;
+
+  /** workbench(w) — 0.75m deep repair bench, ply top, steel legs, lower shelf. */
+  Geo.workbench = function (w) {
+    var W = num(w, 2.0), D = 0.78, H = DESK_H;
+    var g = grp('workbench');
+    var top = cbox(g, W, 0.045, D, 0.006, M('wood'), 0, H - 0.0225, 0);
+    top.receiveShadow = true;
+    /* anti-static mat */
+    var mat = box(g, W * 0.62, 0.004, D * 0.7, M('rubber'), 0, H + 0.002, 0.02);
+    noShadow(mat);
+    var legG = BOXG(0.05, H - 0.05, 0.05);
+    var legs = inst(legG, M('steelDark'), 4);
+    var ox = W / 2 - 0.07, oz = D / 2 - 0.07;
+    setInst(legs, 0, -ox, (H - 0.05) / 2, -oz);
+    setInst(legs, 1, ox, (H - 0.05) / 2, -oz);
+    setInst(legs, 2, -ox, (H - 0.05) / 2, oz);
+    setInst(legs, 3, ox, (H - 0.05) / 2, oz);
+    legs.instanceMatrix.needsUpdate = true;
+    g.add(legs);
+    /* stretchers + lower shelf */
+    box(g, W - 0.14, 0.04, 0.04, M('steelDark'), 0, 0.16, -oz);
+    box(g, W - 0.14, 0.04, 0.04, M('steelDark'), 0, 0.16, oz);
+    box(g, W - 0.1, 0.022, D - 0.14, M('woodDark'), 0, 0.2, 0);
+    /* back lip so tiny parts do not roll off */
+    box(g, W, 0.06, 0.02, M('wood'), 0, H + 0.03, -D / 2 + 0.01);
+    fin(g, W, H, D, [
+      col(0, H - 0.05, 0, W / 2, 0.05, D / 2),
+      col(0, H / 2 - 0.1, 0, W / 2 - 0.03, H / 2 - 0.1, D / 2 - 0.06)
+    ]);
+    return g;
+  };
+
+  /** counter(w) — shop front counter, customer side has a kick panel. */
+  Geo.counter = function (w) {
+    var W = num(w, 1.8), D = 0.62, H = 0.98;
+    var g = grp('counter');
+    box(g, W, H - 0.05, D - 0.06, M('woodDark'), 0, (H - 0.05) / 2, -0.02);
+    var top = cbox(g, W + 0.08, 0.05, D, 0.01, M('wood'), 0, H - 0.025, 0);
+    top.receiveShadow = true;
+    box(g, W + 0.04, 0.72, 0.02, M('wood'), 0, 0.42, D / 2 - 0.03);
+    box(g, W - 0.1, 0.05, 0.02, M('steel'), 0, 0.06, D / 2 - 0.045);
+    /* two drawers on the staff side */
+    var i;
+    for (i = 0; i < 2; i++) {
+      box(g, W * 0.42, 0.16, 0.02, M('wood'), -W * 0.24 + i * W * 0.48, H - 0.16, -D / 2 + 0.03);
+      cyl(g, 0.012, 0.012, 0.11, 8, M('chrome'),
+        -W * 0.24 + i * W * 0.48, H - 0.16, -D / 2 + 0.02).rotation.z = Math.PI / 2;
+    }
+    fin(g, W + 0.08, H, D, [col(0, H / 2, 0, (W + 0.08) / 2, H / 2, D / 2)]);
+    return g;
+  };
+
+  /** shelvingUnit(w,h) — boltless steel shelving. */
+  Geo.shelvingUnit = function (w, h) {
+    var W = num(w, 1.0), H = num(h, 1.9), D = 0.42;
+    var g = grp('shelvingUnit');
+    var uprights = inst(BOXG(0.04, H, 0.04), M('steelDark'), 4);
+    var ox = W / 2 - 0.02, oz = D / 2 - 0.02;
+    setInst(uprights, 0, -ox, H / 2, -oz);
+    setInst(uprights, 1, ox, H / 2, -oz);
+    setInst(uprights, 2, -ox, H / 2, oz);
+    setInst(uprights, 3, ox, H / 2, oz);
+    uprights.instanceMatrix.needsUpdate = true;
+    g.add(uprights);
+    var n = Math.max(2, Math.round(H / 0.42));
+    var shelves = inst(BOXG(W, 0.022, D), M('woodDark'), n);
+    var i;
+    for (i = 0; i < n; i++) setInst(shelves, i, 0, 0.08 + i * ((H - 0.14) / (n - 1)), 0);
+    shelves.instanceMatrix.needsUpdate = true;
+    g.add(shelves);
+    /* diagonal brace on the back */
+    var br = box(g, Math.sqrt(W * W + H * H), 0.02, 0.015, M('steel'), 0, H / 2, -D / 2 + 0.01);
+    br.rotation.z = Math.atan2(H, W);
+    fin(g, W, H, D, [col(0, H / 2, 0, W / 2, H / 2, D / 2)]);
+    g.shelfYs = (function () { var a = [], k; for (k = 0; k < n; k++) a.push(0.091 + k * ((H - 0.14) / (n - 1))); return a; })();
+    return g;
+  };
+
+  /** pegboard(w,h) — wall-mounted, hooks and hanging tool silhouettes. */
+  Geo.pegboard = function (w, h) {
+    var W = num(w, 1.2), H = num(h, 0.9);
+    var g = grp('pegboard');
+    g.userData.mount = 'wall';
+    var bd = box(g, W, H, 0.012, M('beige'), 0, 0, -0.006);
+    bd.castShadow = false;
+    /* hole grid, faked with a dark instanced dot sheet (cheap, reads right) */
+    var cx = Math.min(24, Math.floor(W / 0.05)), cy = Math.min(20, Math.floor(H / 0.05));
+    var holes = inst(CYLG(0.004, 0.004, 0.004, 5), M('blackPlastic'), cx * cy);
+    var i, j, n = 0;
+    for (j = 0; j < cy; j++) {
+      for (i = 0; i < cx; i++) {
+        setInst(holes, n++, -W / 2 + 0.025 + i * (W - 0.05) / Math.max(1, cx - 1),
+          -H / 2 + 0.025 + j * (H - 0.05) / Math.max(1, cy - 1), 0.001, Math.PI / 2, 0, 0);
+      }
+    }
+    holes.instanceMatrix.needsUpdate = true;
+    noShadow(holes);
+    g.add(holes);
+    /* hooks + a few hanging tools */
+    var rng = STV.rng(4711);
+    var hooks = inst(CYLG(0.004, 0.004, 0.06, 5), M('chrome'), 8);
+    for (i = 0; i < 8; i++) {
+      setInst(hooks, i, -W / 2 + 0.12 + i * (W - 0.24) / 7, H / 2 - 0.12, 0.03, Math.PI / 2, 0, 0);
+    }
+    hooks.instanceMatrix.needsUpdate = true;
+    g.add(hooks);
+    for (i = 0; i < 6; i++) {
+      var x = -W / 2 + 0.12 + i * (W - 0.24) / 7;
+      var len = 0.14 + rng() * 0.12;
+      var tool = box(g, 0.022, len, 0.018, i % 2 ? M('steel') : M('safetyRed'), x, H / 2 - 0.14 - len / 2, 0.03);
+      tool.castShadow = false;
+      if (i % 2) box(g, 0.03, 0.05, 0.028, M('blackPlastic'), x, H / 2 - 0.14 - len - 0.02, 0.03);
+    }
+    fin(g, W, H, 0.06, []);
+    return g;
+  };
+
+  /** toolChest() — 5-drawer roller cab. */
+  Geo.toolChest = function () {
+    var W = 0.66, H = 0.98, D = 0.44;
+    var g = grp('toolChest');
+    var body = M('safetyRed');
+    cbox(g, W, H - 0.1, D, 0.01, body, 0, 0.1 + (H - 0.1) / 2, 0);
+    var top = box(g, W + 0.02, 0.02, D + 0.02, M('rubber'), 0, H + 0.01, 0);
+    noShadow(top);
+    var n = 5, i;
+    var faces = inst(BOXG(W - 0.05, 0.13, 0.012), M('safetyRed'), n);
+    var pulls = inst(BOXG(W - 0.22, 0.022, 0.022), M('chrome'), n);
+    for (i = 0; i < n; i++) {
+      var y = 0.2 + i * 0.155;
+      setInst(faces, i, 0, y, D / 2 + 0.004);
+      setInst(pulls, i, 0, y + 0.04, D / 2 + 0.018);
+    }
+    faces.instanceMatrix.needsUpdate = true;
+    pulls.instanceMatrix.needsUpdate = true;
+    g.add(faces); g.add(pulls);
+    /* castors */
+    var cast = inst(CYLG(0.045, 0.045, 0.03, 8), M('blackPlastic'), 4);
+    setInst(cast, 0, -W / 2 + 0.07, 0.045, -D / 2 + 0.07, 0, 0, Math.PI / 2);
+    setInst(cast, 1, W / 2 - 0.07, 0.045, -D / 2 + 0.07, 0, 0, Math.PI / 2);
+    setInst(cast, 2, -W / 2 + 0.07, 0.045, D / 2 - 0.07, 0, 0, Math.PI / 2);
+    setInst(cast, 3, W / 2 - 0.07, 0.045, D / 2 - 0.07, 0, 0, Math.PI / 2);
+    cast.instanceMatrix.needsUpdate = true;
+    g.add(cast);
+    fin(g, W, H, D, [col(0, H / 2, 0, W / 2, H / 2, D / 2)]);
+    interact(g, 'Open drawer', 'e');
+    return g;
+  };
+
+  /** officeChair() — 5-star gas-lift task chair. g.spin(a) turns the seat. */
+  Geo.officeChair = function (opts) {
+    var o = opt(opts);
+    var g = grp('officeChair');
+    var fabric = M(o.fabric || 'fabricGrey');
+    var base = new THREE.Group();
+    g.add(base);
+    var arms = inst(BOXG(0.30, 0.025, 0.05), M('blackPlastic'), 5);
+    var i;
+    for (i = 0; i < 5; i++) {
+      var a = (i / 5) * Math.PI * 2;
+      setInst(arms, i, Math.cos(a) * 0.15, 0.05, Math.sin(a) * 0.15, 0, -a, 0);
+    }
+    arms.instanceMatrix.needsUpdate = true;
+    base.add(arms);
+    var casts = inst(CYLG(0.028, 0.028, 0.02, 8), M('rubber'), 5);
+    for (i = 0; i < 5; i++) {
+      var a2 = (i / 5) * Math.PI * 2;
+      setInst(casts, i, Math.cos(a2) * 0.29, 0.028, Math.sin(a2) * 0.29, 0, 0, Math.PI / 2);
+    }
+    casts.instanceMatrix.needsUpdate = true;
+    base.add(casts);
+    cyl(base, 0.032, 0.032, 0.30, 10, M('chrome'), 0, 0.2, 0);
+    var seat = new THREE.Group();
+    seat.position.y = 0.36;
+    g.add(seat);
+    cbox(seat, 0.46, 0.09, 0.44, 0.03, fabric, 0, 0.045, 0);
+    box(seat, 0.30, 0.03, 0.30, M('blackPlastic'), 0, -0.01, 0);
+    var backPivot = new THREE.Group();
+    backPivot.position.set(0, 0.08, -0.20);
+    seat.add(backPivot);
+    backPivot.rotation.x = 0.14;
+    cbox(backPivot, 0.42, 0.50, 0.08, 0.025, fabric, 0, 0.26, 0);
+    cbox(backPivot, 0.36, 0.10, 0.06, 0.02, fabric, 0, 0.56, 0.01);
+    /* armrests */
+    var ar;
+    for (i = 0; i < 2; i++) {
+      ar = i ? 1 : -1;
+      box(seat, 0.03, 0.20, 0.03, M('blackPlastic'), ar * 0.24, 0.14, -0.06);
+      cbox(seat, 0.06, 0.03, 0.24, 0.012, M('blackPlastic'), ar * 0.24, 0.245, -0.02);
+    }
+    g.seat = seat;
+    g.base = base;
+    g.spin = function (a) { seat.rotation.y = a || 0; return g; };
+    g.recline = function (t) { backPivot.rotation.x = 0.14 + STV.clamp(num(t, 0), 0, 1) * 0.3; return g; };
+    fin(g, 0.62, 1.02, 0.62, [col(0, 0.25, 0, 0.24, 0.25, 0.24)]);
+    g.userData.seatY = 0.45;
+    return g;
+  };
+
+  /** stool() — shop stool, 0.62m seat. */
+  Geo.stool = function () {
+    var g = grp('stool');
+    var H = 0.62;
+    cyl(g, 0.17, 0.18, 0.06, 14, M('rubber'), 0, H - 0.03, 0);
+    cyl(g, 0.03, 0.03, H - 0.06, 10, M('steel'), 0, (H - 0.06) / 2, 0);
+    var legs = inst(BOXG(0.026, 0.026, 0.34), M('steel'), 3);
+    var i;
+    for (i = 0; i < 3; i++) {
+      var a = (i / 3) * Math.PI * 2;
+      setInst(legs, i, Math.cos(a) * 0.13, 0.14, Math.sin(a) * 0.13, -0.42, -a, 0);
+    }
+    legs.instanceMatrix.needsUpdate = true;
+    g.add(legs);
+    var ring = cyl(g, 0.15, 0.15, 0.016, 12, M('steel'), 0, 0.24, 0);
+    ring.geometry = TORG(0.15, 0.01, 10);
+    ring.rotation.x = Math.PI / 2;
+    fin(g, 0.36, H, 0.36, [col(0, H / 2, 0, 0.17, H / 2, 0.17)]);
+    g.userData.seatY = H;
+    return g;
+  };
+
+  /* =========================================================================
+   * 3c. SHOP — computers and screens
+   * =====================================================================*/
+
+  /** crtMonitor(size) — chunky late-90s CRT. size = nominal inches (14/15/17/21). */
+  Geo.crtMonitor = function (size, opts) {
+    var o = opt(opts);
+    var inch = num(size, 15);
+    var s = inch / 15;
+    var W = 0.38 * s, H = 0.37 * s, D = 0.42 * s;
+    var g = grp('crtMonitor');
+    var beige = M(o.dark ? 'blackPlastic' : 'beige');
+    var beigeD = M(o.dark ? 'blackPlastic' : 'beigeDark');
+    /* base / tilt-swivel foot */
+    cbox(g, W * 0.82, 0.035, D * 0.72, 0.012, beigeD, 0, 0.018, 0.01);
+    cyl(g, W * 0.24, W * 0.26, 0.03, 12, beigeD, 0, 0.048, 0.01);
+    var body = new THREE.Group();
+    body.position.y = 0.062;
+    g.add(body);
+    /* the big tapering box: front bezel + rear shroud */
+    cbox(body, W, H, D * 0.42, 0.022, beige, 0, H / 2, D * 0.21 - 0.02);
+    var shroud = cbox(body, W * 0.80, H * 0.80, D * 0.5, 0.03, beige, 0, H / 2, -D * 0.24);
+    shroud.scale.set(1, 1, 1);
+    /* rear taper: a second, smaller block further back */
+    cbox(body, W * 0.56, H * 0.56, D * 0.12, 0.02, beigeD, 0, H / 2, -D * 0.46);
+    /* vent slots on top */
+    var vn = 7, i;
+    var vents = inst(BOXG(W * 0.5, 0.004, 0.012), M('blackPlastic'), vn);
+    for (i = 0; i < vn; i++) setInst(vents, i, 0, H - 0.004, D * 0.06 - i * 0.022);
+    vents.instanceMatrix.needsUpdate = true;
+    noShadow(vents);
+    body.add(vents);
+    /* screen: slightly inset, curved look via a bezel lip */
+    var sw = W * 0.80, sh = H * 0.78;
+    box(body, sw + 0.02, sh + 0.02, 0.01, M('blackPlastic'), 0, H / 2, D * 0.42 - 0.008);
+    var scr = Mat.screen({
+      w: 256, h: 192, crt: true, glow: o.glow === undefined ? 0x9fd8ff : o.glow,
+      bg: o.bg === undefined ? 0x06090a : o.bg
+    });
+    var pane = new THREE.Mesh(PLANEG(sw, sh), scr.mat || M('screenOff'));
+    pane.position.set(0, H / 2, D * 0.42);
+    noShadow(pane);
+    body.add(pane);
+    g.screen = scr;
+    g.pane = pane;
+    /* brand strip, power LED, buttons */
+    box(body, W * 0.34, 0.012, 0.008, beigeD, -W * 0.2, 0.055, D * 0.42 - 0.002);
+    var led = box(body, 0.012, 0.008, 0.006, M('ledGreen'), W * 0.34, 0.05, D * 0.42);
+    noShadow(led);
+    g.led = led;
+    var btns = inst(BOXG(0.016, 0.008, 0.006), M('beigeDark'), 4);
+    for (i = 0; i < 4; i++) setInst(btns, i, -W * 0.02 + i * 0.024, 0.05, D * 0.42);
+    btns.instanceMatrix.needsUpdate = true;
+    body.add(btns);
+    fin(g, W, H + 0.062, D, [col(0, (H + 0.062) / 2, 0, W / 2, (H + 0.062) / 2, D / 2)]);
+    g.userData.screenSize = { w: sw, h: sh };
+    interact(g, 'Use computer', 'e');
+    return g;
+  };
+
+  /** lcdMonitor(size) — modern thin panel on a slim stand. */
+  Geo.lcdMonitor = function (size, opts) {
+    var o = opt(opts);
+    var inch = num(size, 22);
+    var W = 0.0221 * inch * 0.92, H = W * 0.6, D = 0.05;
+    var g = grp('lcdMonitor');
+    var shell = M('blackPlastic');
+    cbox(g, W * 0.5, 0.016, 0.20, 0.008, shell, 0, 0.008, 0);
+    var neck = box(g, 0.05, 0.22, 0.03, shell, 0, 0.13, -0.01);
+    neck.rotation.x = -0.06;
+    var head = new THREE.Group();
+    head.position.set(0, 0.24 + H / 2, 0);
+    head.rotation.x = -0.05;
+    g.add(head);
+    cbox(head, W, H, D * 0.4, 0.006, shell, 0, 0, -0.012);
+    box(head, W, H, 0.006, shell, 0, 0, 0.004);
+    var scr = Mat.screen({ w: 320, h: 200, crt: false, glow: o.glow === undefined ? 0x8fd0ff : o.glow, bg: 0x0a0d12 });
+    var pane = new THREE.Mesh(PLANEG(W - 0.024, H - 0.03), scr.mat || M('screenOff'));
+    pane.position.set(0, 0.006, 0.008);
+    noShadow(pane);
+    head.add(pane);
+    var led = box(head, 0.01, 0.006, 0.004, M('ledBlue'), W / 2 - 0.03, -H / 2 + 0.006, 0.008);
+    noShadow(led);
+    g.screen = scr; g.pane = pane; g.head = head; g.led = led;
+    fin(g, W, 0.24 + H, 0.20, [col(0, (0.24 + H) / 2, 0, W / 2, (0.24 + H) / 2, 0.1)]);
+    interact(g, 'Use computer', 'e');
+    return g;
+  };
+
+  /** pcTowerBeige() — the hero 1998 AT tower. Yellowed beige, 5.25" bays, turbo. */
+  Geo.pcTowerBeige = function (opts) {
+    var o = opt(opts);
+    var W = 0.20, H = 0.44, D = 0.44;
+    var g = grp('pcTowerBeige');
+    var beige = M('beige'), dark = M('beigeDark');
+    /* main case, front face at +Z */
+    cbox(g, W, H, D, 0.006, beige, 0, H / 2, 0);
+    /* front bezel, proud of the case */
+    var bz = cbox(g, W + 0.004, H, 0.018, 0.004, beige, 0, H / 2, D / 2 + 0.008);
+    bz.receiveShadow = false;
+    var fz = D / 2 + 0.018;
+    /* two 5.25" bays: CD-ROM + blank */
+    var i;
+    var bayY = [H - 0.055, H - 0.115];
+    for (i = 0; i < 2; i++) {
+      box(g, W * 0.78, 0.041, 0.008, dark, 0, bayY[i], fz - 0.004);
+      if (i === 0) {
+        /* CD-ROM: tray seam, eject button, headphone jack, activity LED */
+        box(g, W * 0.62, 0.012, 0.006, M('blackPlastic'), -0.006, bayY[i] - 0.004, fz);
+        box(g, 0.014, 0.006, 0.005, dark, W * 0.30, bayY[i] - 0.012, fz);
+        cyl(g, 0.004, 0.004, 0.004, 6, M('blackPlastic'), -W * 0.34, bayY[i] - 0.012, fz).rotation.x = Math.PI / 2;
+        noShadow(box(g, 0.006, 0.004, 0.004, M('ledAmber'), W * 0.20, bayY[i] - 0.012, fz));
+      }
+    }
+    /* 3.5" floppy bay */
+    box(g, W * 0.62, 0.028, 0.008, dark, 0, H - 0.168, fz - 0.004);
+    box(g, W * 0.48, 0.009, 0.005, M('blackPlastic'), -0.004, H - 0.166, fz);
+    box(g, 0.012, 0.008, 0.005, dark, W * 0.24, H - 0.176, fz);
+    /* THAT grille: horizontal ribs down the lower bezel */
+    var rn = 9;
+    var ribs = inst(BOXG(W * 0.66, 0.006, 0.006), dark, rn);
+    for (i = 0; i < rn; i++) setInst(ribs, i, 0, H - 0.215 - i * 0.0125, fz - 0.002);
+    ribs.instanceMatrix.needsUpdate = true;
+    noShadow(ribs);
+    g.add(ribs);
+    /* badge plate + turbo/reset + big power button + LEDs */
+    box(g, W * 0.5, 0.022, 0.004, M('beigeDark'), -W * 0.14, 0.115, fz);
+    var pwr = cbox(g, 0.036, 0.016, 0.012, 0.003, dark, -W * 0.22, 0.075, fz);
+    var turbo = cbox(g, 0.016, 0.010, 0.010, 0.002, dark, W * 0.16, 0.075, fz);
+    var reset = cbox(g, 0.010, 0.008, 0.008, 0.002, M('safetyRed'), W * 0.30, 0.075, fz);
+    var ledP = box(g, 0.008, 0.005, 0.004, M('ledGreen'), -W * 0.30, 0.045, fz);
+    var ledH = box(g, 0.008, 0.005, 0.004, M('ledRed'), -W * 0.22, 0.045, fz);
+    noShadow(ledP); noShadow(ledH);
+    /* tiny 2-digit "turbo" MHz display, because 1998 */
+    var seg = box(g, 0.026, 0.014, 0.004, M('blackPlastic'), W * 0.22, 0.045, fz);
+    noShadow(seg);
+    /* rear: PSU fan grille, I/O plate, expansion slots */
+    var rz = -D / 2 - 0.002;
+    box(g, W * 0.9, 0.085, 0.006, M('beigeDark'), 0, H - 0.055, rz);
+    cyl(g, 0.035, 0.035, 0.006, 12, M('blackPlastic'), W * 0.15, H - 0.055, rz - 0.003).rotation.x = Math.PI / 2;
+    box(g, 0.09, 0.045, 0.005, M('steel'), -W * 0.18, H - 0.16, rz);
+    var slots = inst(BOXG(0.075, 0.012, 0.004), M('steel'), 5);
+    for (i = 0; i < 5; i++) setInst(slots, i, -W * 0.12, H - 0.215 - i * 0.021, rz);
+    slots.instanceMatrix.needsUpdate = true;
+    g.add(slots);
+    /* side vent slots */
+    var sv = inst(BOXG(0.004, 0.10, 0.006), M('beigeDark'), 6);
+    for (i = 0; i < 6; i++) setInst(sv, i, W / 2 + 0.001, H * 0.55, -D * 0.2 + i * 0.03);
+    sv.instanceMatrix.needsUpdate = true;
+    noShadow(sv);
+    g.add(sv);
+    g.leds = { power: ledP, hdd: ledH };
+    g.buttons = { power: pwr, turbo: turbo, reset: reset };
+    g.userData.era = '1998';
+    fin(g, W, H, D + 0.02, [col(0, H / 2, 0, W / 2, H / 2, D / 2)]);
+    interact(g, 'Open case', 'e');
+    if (o.onSide) { g.rotation.z = Math.PI / 2; g.position.y = W / 2; }
+    return g;
+  };
+
+  /** pcTowerModern() — black steel, mesh front, one tasteful LED strip. */
+  Geo.pcTowerModern = function (opts) {
+    var o = opt(opts);
+    var W = 0.21, H = 0.47, D = 0.46;
+    var g = grp('pcTowerModern');
+    var body = M('blackPlastic');
+    cbox(g, W, H, D, 0.008, body, 0, H / 2, 0);
+    var fz = D / 2 + 0.004;
+    box(g, W * 0.9, H * 0.9, 0.008, M('steelDark'), 0, H / 2, fz);
+    /* mesh dots */
+    var dn = 7, i, j, n = 0;
+    var dots = inst(CYLG(0.004, 0.004, 0.004, 5), M('greyPlastic'), dn * 12);
+    for (j = 0; j < 12; j++) {
+      for (i = 0; i < dn; i++) {
+        setInst(dots, n++, -W * 0.33 + i * (W * 0.66 / (dn - 1)), 0.06 + j * (H * 0.82 / 11), fz + 0.003, Math.PI / 2, 0, 0);
+      }
+    }
+    dots.instanceMatrix.needsUpdate = true;
+    noShadow(dots);
+    g.add(dots);
+    var strip = box(g, 0.008, H * 0.7, 0.006, M(o.led || 'neonCyan'), -W / 2 + 0.014, H / 2, fz + 0.002);
+    noShadow(strip);
+    g.strip = strip;
+    if (o.window !== false) {
+      var win = box(g, 0.006, H * 0.72, D * 0.7, M('glassTint'), W / 2 + 0.002, H * 0.52, -0.02);
+      noShadow(win);
+      /* a hint of guts behind the glass */
+      box(g, 0.004, H * 0.5, D * 0.5, M('pcb'), W / 2 - 0.05, H * 0.5, -0.03);
+      var fan = cyl(g, 0.055, 0.055, 0.02, 10, M('blackPlastic'), W / 2 - 0.10, H * 0.62, D * 0.22);
+      fan.rotation.x = Math.PI / 2;
+      g.fan = fan;
+    }
+    box(g, W * 0.6, 0.012, 0.01, M('steel'), 0, H + 0.004, 0.02);
+    noShadow(box(g, 0.01, 0.006, 0.004, M('ledBlue'), W * 0.3, H - 0.02, fz + 0.004));
+    fin(g, W, H, D, [col(0, H / 2, 0, W / 2, H / 2, D / 2)]);
+    interact(g, 'Open case', 'e');
+    return g;
+  };
+
+  /** keyboard() — 104-key beige plank with real key rows (instanced). */
+  Geo.keyboard = function (opts) {
+    var o = opt(opts);
+    var W = 0.45, D = 0.16, H = 0.028;
+    var g = grp('keyboard');
+    var shell = M(o.dark ? 'blackPlastic' : 'beige');
+    var kc = M(o.dark ? 'greyPlastic' : 'beigeDark');
+    var base = cbox(g, W, H, D, 0.004, shell, 0, H / 2, 0);
+    base.rotation.x = -0.05;
+    /* key field: 6 rows x 15 cols, minus a gap for the space bar row */
+    var rows = 6, cols = 15;
+    var keys = inst(BOXG(0.021, 0.008, 0.021), kc, rows * cols);
+    var i, j, n = 0;
+    for (j = 0; j < rows; j++) {
+      for (i = 0; i < cols; i++) {
+        var kx = -W / 2 + 0.032 + i * 0.0265;
+        var kz = -D / 2 + 0.028 + j * 0.021;
+        var ky = H + 0.004 + (D / 2 + kz) * 0.05;
+        if (j === rows - 1 && i > 3 && i < 10) { setInst(keys, n++, 0, -9, 0); continue; }
+        setInst(keys, n++, kx, ky, kz, -0.05, 0, 0);
+      }
+    }
+    keys.instanceMatrix.needsUpdate = true;
+    noShadow(keys);
+    g.add(keys);
+    var space = box(g, 0.16, 0.008, 0.021, kc, 0, H + 0.014, D / 2 - 0.03);
+    space.rotation.x = -0.05;
+    noShadow(space);
+    /* status LEDs */
+    var l = inst(BOXG(0.006, 0.003, 0.004), M('ledGreen'), 3);
+    for (i = 0; i < 3; i++) setInst(l, i, W / 2 - 0.05 + i * 0.012, H + 0.006, -D / 2 + 0.012);
+    l.instanceMatrix.needsUpdate = true;
+    noShadow(l);
+    g.add(l);
+    /* coiled cable stub */
+    var cbl = cyl(g, 0.004, 0.004, 0.06, 6, M('beigeDark'), 0, 0.012, -D / 2 - 0.03);
+    cbl.rotation.x = Math.PI / 2;
+    fin(g, W, 0.045, D, []);
+    interact(g, 'Type', 'e');
+    return g;
+  };
+
+  /** mouse() — two-button ball mouse (or modern if opts.modern). */
+  Geo.mouse = function (opts) {
+    var o = opt(opts);
+    var g = grp('mouse');
+    var shell = M(o.modern ? 'blackPlastic' : 'beige');
+    var b = cbox(g, 0.058, 0.03, 0.098, 0.014, shell, 0, 0.018, 0);
+    b.scale.set(1, 1, 1);
+    box(g, 0.024, 0.006, 0.036, M(o.modern ? 'greyPlastic' : 'beigeDark'), -0.014, 0.034, 0.026);
+    box(g, 0.024, 0.006, 0.036, M(o.modern ? 'greyPlastic' : 'beigeDark'), 0.014, 0.034, 0.026);
+    if (o.modern) {
+      var wh = cyl(g, 0.008, 0.008, 0.005, 8, M('rubber'), 0, 0.037, 0.028);
+      wh.rotation.z = Math.PI / 2;
+      noShadow(box(g, 0.02, 0.002, 0.03, M('ledRed'), 0, 0.002, 0));
+    } else {
+      var cbl2 = cyl(g, 0.003, 0.003, 0.05, 6, M('beigeDark'), 0, 0.02, -0.07);
+      cbl2.rotation.x = Math.PI / 2;
+    }
+    var pad = pl(g, 0.22, 0.19, M('rubber'), 0, 0.001, 0.01);
+    pad.rotation.x = -Math.PI / 2;
+    fin(g, 0.06, 0.04, 0.10, []);
+    return g;
+  };
+
+  /** laptop() — clamshell; g.open(t) 0=closed 1=open. */
+  Geo.laptop = function (opts) {
+    var o = opt(opts);
+    var W = num(o.w, 0.34), D = num(o.d, 0.24);
+    var g = grp('laptop');
+    var shell = M(o.silver ? 'aluminium' : 'blackPlastic');
+    cbox(g, W, 0.018, D, 0.004, shell, 0, 0.009, 0);
+    var kb = box(g, W * 0.82, 0.003, D * 0.5, M('blackPlastic'), 0, 0.019, -D * 0.14);
+    noShadow(kb);
+    var kr = inst(BOXG(0.012, 0.003, 0.012), M('greyPlastic'), 5 * 12);
+    var i, j, n = 0;
+    for (j = 0; j < 5; j++) {
+      for (i = 0; i < 12; i++) {
+        setInst(kr, n++, -W * 0.38 + i * (W * 0.76 / 11), 0.021, -D * 0.34 + j * (D * 0.4 / 4));
+      }
+    }
+    kr.instanceMatrix.needsUpdate = true;
+    noShadow(kr);
+    g.add(kr);
+    box(g, W * 0.3, 0.002, D * 0.22, M('greyPlastic'), 0, 0.02, D * 0.26);
+    var lid = new THREE.Group();
+    lid.position.set(0, 0.018, -D / 2 + 0.008);
+    g.add(lid);
+    cbox(lid, W, D * 0.92, 0.012, 0.004, shell, 0, D * 0.46, -0.006);
+    var scr = Mat.screen({ w: 320, h: 200, crt: false, glow: o.glow === undefined ? 0x86c8ff : o.glow, bg: 0x0b0f14 });
+    var pane = new THREE.Mesh(PLANEG(W * 0.9, D * 0.82), scr.mat || M('screenOff'));
+    pane.position.set(0, D * 0.46, 0.001);
+    noShadow(pane);
+    lid.add(pane);
+    g.screen = scr; g.pane = pane; g.lid = lid;
+    g.open = function (t) {
+      var k = STV.clamp(num(t, 1), 0, 1);
+      lid.rotation.x = (1 - k) * (-Math.PI / 2 + 0.06) - 0.12 * k;
+      g.userData.openAmount = k;
+      return g;
+    };
+    g.open(num(o.open, 1));
+    fin(g, W, 0.24, D, []);
+    interact(g, 'Use laptop', 'e');
+    return g;
+  };
+
+  /* =========================================================================
+   * 3d. SHOP — bench instruments and small props
+   * =====================================================================*/
+
+  /** solderingStation() — control box, iron in its stand, sponge, solder spool. */
+  Geo.solderingStation = function () {
+    var W = 0.17, H = 0.12, D = 0.20;
+    var g = grp('solderingStation');
+    var body = M('beige');
+    cbox(g, W, H, D, 0.008, body, 0, H / 2, 0);
+    box(g, W - 0.02, 0.05, 0.006, M('beigeDark'), 0, H - 0.035, D / 2 + 0.002);
+    /* temperature readout */
+    var scr = Mat.screen({ w: 64, h: 32, crt: false, glow: 0xff5522, bg: 0x120603 });
+    if (scr.ctx) {
+      scr.ctx.fillStyle = '#140704'; scr.ctx.fillRect(0, 0, 64, 32);
+      scr.ctx.fillStyle = '#ff6a1e';
+      scr.ctx.font = 'bold 20px monospace';
+      scr.ctx.fillText('340', 8, 24);
+      scr.flush();
+    }
+    var pane = new THREE.Mesh(PLANEG(0.05, 0.024), scr.mat || M('screenOff'));
+    pane.position.set(-0.03, H - 0.035, D / 2 + 0.006);
+    noShadow(pane);
+    g.add(pane);
+    g.screen = scr;
+    /* temp knob + power rocker */
+    var knob = cyl(g, 0.016, 0.016, 0.012, 10, M('blackPlastic'), 0.045, H - 0.035, D / 2 + 0.008);
+    knob.rotation.x = Math.PI / 2;
+    noShadow(box(g, 0.004, 0.010, 0.004, M('clothWhite'), 0.045, H - 0.023, D / 2 + 0.012));
+    g.knob = knob;
+    var rocker = box(g, 0.018, 0.012, 0.008, M('safetyRed'), -0.055, 0.028, D / 2 + 0.003);
+    g.power = rocker;
+    noShadow(box(g, 0.006, 0.004, 0.004, M('ledRed'), 0.03, 0.028, D / 2 + 0.004));
+    /* iron stand: coiled steel cradle + brass sponge dish */
+    var stand = new THREE.Group();
+    stand.position.set(W / 2 + 0.09, 0, 0.0);
+    g.add(stand);
+    cbox(stand, 0.10, 0.012, 0.15, 0.004, M('steelDark'), 0, 0.006, 0);
+    var cradle = mk(TORG(0.028, 0.005, 10), M('steel'), 0, 0.055, -0.02);
+    cradle.rotation.x = Math.PI / 2;
+    cradle.rotation.z = 0.5;
+    stand.add(cradle);
+    box(stand, 0.02, 0.05, 0.02, M('steelDark'), 0, 0.03, -0.02);
+    cyl(stand, 0.032, 0.032, 0.012, 12, M('copper'), 0, 0.012, 0.045);
+    var sponge = cyl(stand, 0.028, 0.028, 0.010, 10, Mat.color(0xd8e04a, { rough: 0.98 }), 0, 0.021, 0.045);
+    g.sponge = sponge;
+    /* the iron itself, resting in the cradle */
+    var iron = new THREE.Group();
+    iron.position.set(W / 2 + 0.09, 0.075, -0.02);
+    iron.rotation.z = -0.55;
+    g.add(iron);
+    cyl(iron, 0.011, 0.013, 0.10, 10, M('blackPlastic'), 0, 0, 0).rotation.z = Math.PI / 2;
+    cyl(iron, 0.009, 0.006, 0.05, 8, M('steel'), 0.072, 0, 0).rotation.z = Math.PI / 2;
+    cyl(iron, 0.003, 0.0008, 0.022, 6, M('chrome'), 0.108, 0, 0).rotation.z = Math.PI / 2;
+    cyl(iron, 0.013, 0.011, 0.02, 8, M('safetyRed'), -0.055, 0, 0).rotation.z = Math.PI / 2;
+    g.iron = iron;
+    g.tip = new THREE.Object3D();
+    g.tip.position.set(0.118, 0, 0);
+    iron.add(g.tip);
+    /* solder spool on a wire spindle */
+    var spool = new THREE.Group();
+    spool.position.set(-W / 2 - 0.06, 0.055, 0);
+    g.add(spool);
+    cyl(spool, 0.045, 0.045, 0.004, 14, M('blackPlastic'), 0, 0, 0.014).rotation.x = Math.PI / 2;
+    cyl(spool, 0.045, 0.045, 0.004, 14, M('blackPlastic'), 0, 0, -0.014).rotation.x = Math.PI / 2;
+    cyl(spool, 0.038, 0.038, 0.024, 14, M('chrome'), 0, 0, 0).rotation.x = Math.PI / 2;
+    cyl(spool, 0.004, 0.004, 0.055, 6, M('steel'), 0, -0.055, 0);
+    fin(g, 0.46, 0.16, D, [col(0, H / 2, 0, W / 2, H / 2, D / 2)]);
+    interact(g, 'Solder', 'e');
+    return g;
+  };
+
+  /** oscilloscope() — bench scope with a live phosphor screen. */
+  Geo.oscilloscope = function () {
+    var W = 0.34, H = 0.22, D = 0.32;
+    var g = grp('oscilloscope');
+    var body = M('beigeDark');
+    cbox(g, W, H, D, 0.01, body, 0, H / 2, 0);
+    box(g, W - 0.01, H - 0.01, 0.008, M('beige'), 0, H / 2, D / 2 + 0.002);
+    /* screen with a graticule + trace */
+    var scr = Mat.screen({ w: 192, h: 144, crt: true, glow: 0x55ff99, bg: 0x03110a });
+    if (scr.ctx) {
+      var c = scr.ctx, i;
+      c.fillStyle = '#03110a'; c.fillRect(0, 0, 192, 144);
+      c.strokeStyle = 'rgba(120,255,180,0.18)'; c.lineWidth = 1;
+      for (i = 0; i <= 8; i++) { c.beginPath(); c.moveTo(i * 24, 0); c.lineTo(i * 24, 144); c.stroke(); }
+      for (i = 0; i <= 6; i++) { c.beginPath(); c.moveTo(0, i * 24); c.lineTo(192, i * 24); c.stroke(); }
+      c.strokeStyle = '#7dffb4'; c.lineWidth = 2;
+      c.beginPath();
+      for (i = 0; i <= 192; i += 2) c.lineTo(i, 72 - Math.sin(i * 0.08) * 40);
+      c.stroke();
+      scr.flush();
+    }
+    var pane = new THREE.Mesh(PLANEG(W * 0.42, H * 0.56), scr.mat || M('screenOff'));
+    pane.position.set(-W * 0.24, H * 0.56, D / 2 + 0.006);
+    noShadow(pane);
+    g.add(pane);
+    box(g, W * 0.46, H * 0.6, 0.006, M('blackPlastic'), -W * 0.24, H * 0.56, D / 2 + 0.004);
+    g.screen = scr; g.pane = pane;
+    /* knob cluster */
+    var kn = 6, i2;
+    var knobs = inst(CYLG(0.014, 0.016, 0.014, 10), M('blackPlastic'), kn);
+    for (i2 = 0; i2 < kn; i2++) {
+      setInst(knobs, i2, W * 0.10 + (i2 % 3) * 0.05, H * 0.72 - Math.floor(i2 / 3) * 0.055, D / 2 + 0.010, Math.PI / 2, 0, 0);
+    }
+    knobs.instanceMatrix.needsUpdate = true;
+    g.add(knobs);
+    var btn = inst(BOXG(0.016, 0.008, 0.006), M('greyPlastic'), 5);
+    for (i2 = 0; i2 < 5; i2++) setInst(btn, i2, -W * 0.4 + i2 * 0.026, 0.03, D / 2 + 0.006);
+    btn.instanceMatrix.needsUpdate = true;
+    g.add(btn);
+    /* BNC inputs */
+    var bnc = inst(CYLG(0.008, 0.008, 0.012, 8), M('chrome'), 2);
+    setInst(bnc, 0, W * 0.14, 0.05, D / 2 + 0.008, Math.PI / 2, 0, 0);
+    setInst(bnc, 1, W * 0.26, 0.05, D / 2 + 0.008, Math.PI / 2, 0, 0);
+    bnc.instanceMatrix.needsUpdate = true;
+    g.add(bnc);
+    /* carry handle */
+    var hb = mk(TORG(0.07, 0.008, 10), M('greyPlastic'), 0, H, -D * 0.1);
+    hb.rotation.y = Math.PI / 2;
+    g.add(hb);
+    fin(g, W, H + 0.06, D, [col(0, H / 2, 0, W / 2, H / 2, D / 2)]);
+    interact(g, 'Examine scope', 'e');
+    return g;
+  };
+
+  /** multimeter() — handheld DMM with probes. */
+  Geo.multimeter = function () {
+    var W = 0.09, H = 0.03, D = 0.17;
+    var g = grp('multimeter');
+    cbox(g, W, H, D, 0.008, Mat.color(0xd8a12a, { rough: 0.7 }), 0, H / 2, 0);
+    box(g, W * 0.7, 0.004, D * 0.28, M('blackPlastic'), 0, H + 0.001, -D * 0.28);
+    var scr = Mat.screen({ w: 96, h: 48, crt: false, glow: 0x223322, bg: 0x9fb8a0 });
+    if (scr.ctx) {
+      scr.ctx.fillStyle = '#9fb8a0'; scr.ctx.fillRect(0, 0, 96, 48);
+      scr.ctx.fillStyle = '#1b2a1c';
+      scr.ctx.font = 'bold 30px monospace';
+      scr.ctx.fillText('3.28', 6, 36);
+      scr.flush();
+    }
+    var pane = new THREE.Mesh(PLANEG(W * 0.6, D * 0.2), scr.mat || M('screenOff'));
+    pane.rotation.x = -Math.PI / 2;
+    pane.position.set(0, H + 0.004, -D * 0.28);
+    noShadow(pane);
+    g.add(pane);
+    g.screen = scr;
+    var dial = cyl(g, 0.022, 0.022, 0.008, 12, M('blackPlastic'), 0, H + 0.004, D * 0.06);
+    noShadow(box(g, 0.004, 0.004, 0.016, M('clothWhite'), 0, H + 0.009, D * 0.04));
+    g.dial = dial;
+    var jacks = inst(CYLG(0.005, 0.005, 0.006, 8), M('safetyRed'), 3);
+    var i;
+    for (i = 0; i < 3; i++) setInst(jacks, i, -0.026 + i * 0.026, H + 0.001, D * 0.38);
+    jacks.instanceMatrix.needsUpdate = true;
+    g.add(jacks);
+    /* probes coiled beside it */
+    var pr = new THREE.Group();
+    pr.position.set(W * 0.9, 0.008, 0);
+    g.add(pr);
+    cyl(pr, 0.007, 0.007, 0.09, 8, M('safetyRed'), 0, 0, -0.03).rotation.x = Math.PI / 2;
+    cyl(pr, 0.007, 0.007, 0.09, 8, M('blackPlastic'), 0.02, 0, 0.03).rotation.x = Math.PI / 2;
+    fin(g, W, H + 0.02, D, []);
+    interact(g, 'Take multimeter', 'e');
+    return g;
+  };
+
+  /** cardboardBox(s) — s = edge length in metres. Flaps optional. */
+  Geo.cardboardBox = function (s, opts) {
+    var o = opt(opts);
+    var S = num(s, 0.4);
+    var g = grp('cardboardBox');
+    var m = M('cardboard');
+    cbox(g, S, S * 0.82, S * 0.9, 0.008, m, 0, S * 0.41, 0);
+    if (o.open) {
+      var fl = 0.9;
+      var f1 = box(g, S, 0.008, S * 0.42, m, 0, S * 0.82, -S * 0.45 - S * 0.2);
+      f1.rotation.x = -fl;
+      var f2 = box(g, S, 0.008, S * 0.42, m, 0, S * 0.82, S * 0.45 + S * 0.2);
+      f2.rotation.x = fl;
+    } else {
+      box(g, S * 0.999, 0.006, S * 0.899, m, 0, S * 0.822, 0);
+      /* packing tape */
+      noShadow(box(g, S * 0.14, 0.002, S * 0.9, M('clothWhite'), 0, S * 0.826, 0));
+    }
+    /* printed marks */
+    if (o.label !== false) {
+      noShadow(box(g, S * 0.44, S * 0.16, 0.002, Mat.color(0x7a5f3f, { rough: 1 }), 0, S * 0.5, S * 0.452));
+    }
+    fin(g, S, S * 0.83, S * 0.9, [col(0, S * 0.41, 0, S / 2, S * 0.41, S * 0.45)]);
+    return g;
+  };
+
+  /** partsBin() — stack of 3 louvred parts bins on a rail. */
+  Geo.partsBin = function (opts) {
+    var o = opt(opts);
+    var g = grp('partsBin');
+    var W = 0.16, H = 0.12, D = 0.24;
+    var colr = o.color === undefined ? 0xd05a24 : o.color;
+    var m = Mat.color(colr, { rough: 0.8 });
+    var body = cbox(g, W, H, D, 0.008, m, 0, H / 2, 0);
+    /* open mouth: darker inset at the front-top */
+    noShadow(box(g, W - 0.02, H * 0.5, D * 0.5, M('blackPlastic'), 0, H * 0.78, D * 0.22));
+    box(g, W, 0.012, 0.012, m, 0, H * 0.98, D / 2);
+    /* label window */
+    noShadow(box(g, W * 0.6, 0.03, 0.003, M('paper'), 0, H * 0.28, D / 2 + 0.002));
+    fin(g, W, H, D, [col(0, H / 2, 0, W / 2, H / 2, D / 2)]);
+    interact(g, 'Search bin', 'e');
+    return g;
+  };
+
+  /** coffeeMug() — with a coffee surface and a handle. */
+  Geo.coffeeMug = function (opts) {
+    var o = opt(opts);
+    var g = grp('coffeeMug');
+    var m = Mat.color(o.color === undefined ? 0x2f3a44 : o.color, { rough: 0.45 });
+    cyl(g, 0.041, 0.036, 0.095, 14, m, 0, 0.0475, 0);
+    var h = mk(TORG(0.026, 0.006, 8), m, 0.048, 0.055, 0);
+    h.rotation.y = Math.PI / 2;
+    g.add(h);
+    if (o.empty !== true) {
+      var cf = cyl(g, 0.036, 0.036, 0.002, 14, Mat.color(0x27180d, { rough: 0.25 }), 0, 0.082, 0);
+      noShadow(cf);
+    }
+    fin(g, 0.095, 0.095, 0.082, []);
+    interact(g, 'Coffee', 'e');
+    return g;
+  };
+
+  /** rubberDuck() — the debugger. */
+  Geo.rubberDuck = function () {
+    var g = grp('rubberDuck');
+    var y = Mat.color(0xf2c400, { rough: 0.55 });
+    var b = sph(g, 0.042, 12, y, 0, 0.042, 0);
+    b.scale.set(1.0, 0.86, 1.25);
+    var hd = sph(g, 0.026, 12, y, 0, 0.086, 0.03);
+    var nk = cyl(g, 0.016, 0.02, 0.03, 8, y, 0, 0.07, 0.026);
+    var bk = mk(CONEG(0.013, 0.03, 8), Mat.color(0xe8801e, { rough: 0.6 }), 0, 0.084, 0.056);
+    bk.rotation.x = Math.PI / 2;
+    g.add(bk);
+    var e1 = sph(g, 0.005, 6, M('blackPlastic'), -0.014, 0.094, 0.046);
+    var e2 = sph(g, 0.005, 6, M('blackPlastic'), 0.014, 0.094, 0.046);
+    var t = mk(CONEG(0.014, 0.03, 6), y, 0, 0.055, -0.05);
+    t.rotation.x = -Math.PI / 2.4;
+    g.add(t);
+    g.head = hd;
+    fin(g, 0.09, 0.10, 0.13, []);
+    interact(g, 'Talk to the duck', 'e');
+    g.userData.egg = 'duck';
+    return g;
+  };
+
+  /** deskLamp() — articulated arm, warm spot. g.aim(x,y,z), g.setOn(bool). */
+  Geo.deskLamp = function (opts) {
+    var o = opt(opts);
+    var g = grp('deskLamp');
+    var m = Mat.color(o.color === undefined ? 0x2b3d33 : o.color, { rough: 0.5, metal: 0.3 });
+    cyl(g, 0.075, 0.08, 0.018, 14, m, 0, 0.009, 0);
+    var a1 = new THREE.Group();
+    a1.position.set(0, 0.02, 0);
+    a1.rotation.x = -0.5;
+    g.add(a1);
+    cyl(a1, 0.008, 0.008, 0.26, 8, m, 0, 0.13, 0);
+    var a2 = new THREE.Group();
+    a2.position.set(0, 0.26, 0);
+    a2.rotation.x = 1.15;
+    a1.add(a2);
+    cyl(a2, 0.008, 0.008, 0.24, 8, m, 0, 0.12, 0);
+    var head = new THREE.Group();
+    head.position.set(0, 0.24, 0);
+    head.rotation.x = 0.9;
+    a2.add(head);
+    var shade = mk(CYLG(0.055, 0.03, 0.08, 12, true), m, 0, 0.04, 0);
+    shade.material = m;
+    head.add(shade);
+    var bulb = cyl(head, 0.03, 0.03, 0.006, 10, M('emissiveWhite'), 0, 0.006, 0);
+    noShadow(bulb);
+    var light = null;
+    try {
+      light = new THREE.PointLight(0xffd9a0, 2.0, 3.2, 2);
+      light.position.set(0, 0.0, 0);
+      head.add(light);
+    } catch (e) { light = null; }
+    g.light = light; g.bulb = bulb; g.head = head;
+    g.setOn = function (on) {
+      if (light) light.intensity = on === false ? 0 : 2.0;
+      bulb.material = on === false ? M('greyPlastic') : M('emissiveWhite');
+      return g;
+    };
+    fin(g, 0.16, 0.55, 0.3, []);
+    interact(g, 'Lamp', 'e');
+    return g;
+  };
+
+  /** wallClock() — analogue, ticking. g.setTime(h,m), g.update(dt). */
+  Geo.wallClock = function (opts) {
+    var o = opt(opts);
+    var R = num(o.r, 0.14);
+    var g = grp('wallClock');
+    g.userData.mount = 'wall';
+    cyl(g, R, R, 0.04, 20, M('blackPlastic'), 0, 0, 0.02).rotation.x = Math.PI / 2;
+    var face = cyl(g, R - 0.008, R - 0.008, 0.004, 20, M('clothWhite'), 0, 0, 0.041);
+    face.rotation.x = Math.PI / 2;
+    noShadow(face);
+    var ticks = inst(BOXG(0.004, 0.018, 0.002), M('blackPlastic'), 12);
+    var i;
+    for (i = 0; i < 12; i++) {
+      var a = (i / 12) * Math.PI * 2;
+      setInst(ticks, i, Math.sin(a) * (R - 0.022), Math.cos(a) * (R - 0.022), 0.044, 0, 0, -a);
+    }
+    ticks.instanceMatrix.needsUpdate = true;
+    noShadow(ticks);
+    g.add(ticks);
+    var hourG = new THREE.Group(), minG = new THREE.Group(), secG = new THREE.Group();
+    hourG.position.z = 0.045; minG.position.z = 0.047; secG.position.z = 0.049;
+    g.add(hourG); g.add(minG); g.add(secG);
+    noShadow(box(hourG, 0.008, R * 0.5, 0.003, M('blackPlastic'), 0, R * 0.25, 0));
+    noShadow(box(minG, 0.006, R * 0.72, 0.003, M('blackPlastic'), 0, R * 0.36, 0));
+    noShadow(box(secG, 0.003, R * 0.78, 0.002, M('safetyRed'), 0, R * 0.34, 0));
+    cyl(g, 0.008, 0.008, 0.006, 8, M('blackPlastic'), 0, 0, 0.05).rotation.x = Math.PI / 2;
+    var glass = cyl(g, R - 0.006, R - 0.006, 0.002, 20, M('glass'), 0, 0, 0.052);
+    glass.rotation.x = Math.PI / 2;
+    noShadow(glass);
+    g.hands = { hour: hourG, minute: minG, second: secG };
+    var tSec = 0;
+    g.setTime = function (h, mm, ss) {
+      var H = num(h, 10), MM = num(mm, 10), SS = num(ss, 0);
+      hourG.rotation.z = -((H % 12) + MM / 60) * (Math.PI / 6);
+      minG.rotation.z = -(MM + SS / 60) * (Math.PI / 30);
+      secG.rotation.z = -SS * (Math.PI / 30);
+      tSec = SS;
+      return g;
+    };
+    g.setTime(num(o.h, 16), num(o.m, 25), 0);
+    g.update = function (dt) {
+      tSec += num(dt, 0);
+      secG.rotation.z = -Math.floor(tSec % 60) * (Math.PI / 30);
+      return g;
+    };
+    fin(g, R * 2, R * 2, 0.05, []);
+    interact(g, 'Clock', 'e');
+    g.userData.egg = 'clock';
+    return g;
+  };
+
+  /** fishTank(w) — glass tank, gravel, water plane, one fish named TCP. */
+  Geo.fishTank = function (w) {
+    var W = num(w, 0.8), H = 0.42, D = 0.32;
+    var g = grp('fishTank');
+    /* stand */
+    box(g, W + 0.04, 0.6, D + 0.04, M('woodDark'), 0, 0.3, 0);
+    var y0 = 0.6;
+    var frame = M('blackPlastic');
+    box(g, W, 0.035, D, frame, 0, y0 + 0.017, 0);
+    box(g, W, 0.03, D, frame, 0, y0 + H - 0.015, 0);
+    var glassM = M('glass');
+    var gl;
+    gl = box(g, W - 0.02, H - 0.06, 0.006, glassM, 0, y0 + H / 2, D / 2 - 0.004); noShadow(gl);
+    gl = box(g, W - 0.02, H - 0.06, 0.006, glassM, 0, y0 + H / 2, -D / 2 + 0.004); noShadow(gl);
+    gl = box(g, 0.006, H - 0.06, D - 0.02, glassM, -W / 2 + 0.004, y0 + H / 2, 0); noShadow(gl);
+    gl = box(g, 0.006, H - 0.06, D - 0.02, glassM, W / 2 - 0.004, y0 + H / 2, 0); noShadow(gl);
+    /* gravel + water */
+    box(g, W - 0.03, 0.05, D - 0.03, Mat.color(0x4c443a, { rough: 1 }), 0, y0 + 0.06, 0);
+    var water = box(g, W - 0.03, H * 0.62, D - 0.03, M('water'), 0, y0 + 0.06 + H * 0.31, 0);
+    noShadow(water);
+    /* plants */
+    var rng = STV.rng(9021);
+    var i;
+    for (i = 0; i < 5; i++) {
+      var px = (rng() - 0.5) * (W - 0.14), pz = (rng() - 0.5) * (D - 0.12);
+      var ph = 0.10 + rng() * 0.14;
+      var pv = cyl(g, 0.006, 0.010, ph, 5, M('foliage'), px, y0 + 0.08 + ph / 2, pz);
+      pv.rotation.z = (rng() - 0.5) * 0.4;
+      noShadow(pv);
+    }
+    /* TCP */
+    var fish = new THREE.Group();
+    fish.position.set(0, y0 + 0.24, 0);
+    g.add(fish);
+    var fb = sph(fish, 0.028, 10, Mat.color(0xe07a2a, { rough: 0.4 }), 0, 0, 0);
+    fb.scale.set(1.6, 0.9, 0.7);
+    var ft = mk(CONEG(0.022, 0.04, 6), Mat.color(0xe07a2a, { rough: 0.4 }), -0.05, 0, 0);
+    ft.rotation.z = Math.PI / 2;
+    fish.add(ft);
+    noShadow(sph(fish, 0.005, 6, M('blackPlastic'), 0.03, 0.008, 0.012));
+    g.fish = fish;
+    /* name plate */
+    var plate = box(g, 0.12, 0.03, 0.004, M('paper'), 0, y0 - 0.05, D / 2 + 0.024);
+    noShadow(plate);
+    var lt = Tex.label('tcp', 'TCP', 0xe8e6df, 0x1a1c20, 128, 32);
+    if (lt) {
+      plate.material = new THREE.MeshStandardMaterial({ map: lt, roughness: 0.9 });
+      plate.material.userData.shared = false;
+    }
+    var tAcc = 0;
+    g.update = function (dt) {
+      tAcc += num(dt, 0);
+      var r = W * 0.28;
+      fish.position.x = Math.sin(tAcc * 0.5) * r;
+      fish.position.z = Math.cos(tAcc * 0.31) * (D * 0.2);
+      fish.position.y = y0 + 0.24 + Math.sin(tAcc * 0.9) * 0.03;
+      fish.rotation.y = Math.atan2(
+        Math.cos(tAcc * 0.5) * 0.5 * r, -Math.sin(tAcc * 0.31) * 0.31 * (D * 0.2)
+      ) - Math.PI / 2;
+      return g;
+    };
+    fin(g, W + 0.04, y0 + H, D + 0.04, [col(0, (y0 + H) / 2, 0, (W + 0.04) / 2, (y0 + H) / 2, (D + 0.04) / 2)]);
+    interact(g, 'Look at TCP', 'e');
+    g.userData.egg = 'tcp';
+    return g;
+  };
+
+  /** vendingMachine() — lit front, 4x5 product grid, keypad. g.thunk(). */
+  Geo.vendingMachine = function () {
+    var W = 0.9, H = 1.85, D = 0.78;
+    var g = grp('vendingMachine');
+    var body = Mat.color(0x1b2a3a, { rough: 0.5, metal: 0.2 });
+    cbox(g, W, H, D, 0.02, body, 0, H / 2, 0);
+    var fz = D / 2 + 0.005;
+    /* glass window with a backlit interior */
+    var glass = box(g, W * 0.66, H * 0.62, 0.008, M('glassTint'), -W * 0.14, H * 0.6, fz);
+    noShadow(glass);
+    var inner = box(g, W * 0.64, H * 0.6, 0.02, Mat.color(0x0d1620, { rough: 0.9 }), -W * 0.14, H * 0.6, fz - 0.06);
+    /* product rows, instanced cans */
+    var cols = 5, rows = 4, i, j, n = 0;
+    var cans = inst(CYLG(0.032, 0.032, 0.11, 8), Mat.color(0xc02a2a, { rough: 0.4, metal: 0.3 }), cols * rows);
+    for (j = 0; j < rows; j++) {
+      for (i = 0; i < cols; i++) {
+        setInst(cans, n++, -W * 0.14 + (i - (cols - 1) / 2) * 0.10,
+          H * 0.36 + j * 0.155, fz - 0.10);
+      }
+    }
+    cans.instanceMatrix.needsUpdate = true;
+    g.add(cans);
+    var shelves = inst(BOXG(W * 0.6, 0.008, 0.16), M('steel'), rows);
+    for (j = 0; j < rows; j++) setInst(shelves, j, -W * 0.14, H * 0.36 - 0.058 + j * 0.155, fz - 0.10);
+    shelves.instanceMatrix.needsUpdate = true;
+    g.add(shelves);
+    /* keypad column */
+    box(g, W * 0.24, H * 0.62, 0.01, Mat.color(0x101820, { rough: 0.7 }), W * 0.32, H * 0.6, fz + 0.002);
+    var keys = inst(BOXG(0.026, 0.026, 0.008), M('greyPlastic'), 12);
+    n = 0;
+    for (j = 0; j < 4; j++) {
+      for (i = 0; i < 3; i++) {
+        setInst(keys, n++, W * 0.32 + (i - 1) * 0.036, H * 0.72 - j * 0.036, fz + 0.008);
+      }
+    }
+    keys.instanceMatrix.needsUpdate = true;
+    g.add(keys);
+    /* coin slot, coin return, price display */
+    noShadow(box(g, 0.03, 0.008, 0.006, M('chrome'), W * 0.32, H * 0.86, fz + 0.006));
+    box(g, 0.09, 0.05, 0.02, M('steelDark'), W * 0.32, H * 0.44, fz + 0.004);
+    var scr = Mat.screen({ w: 96, h: 32, crt: false, glow: 0xff8a2b, bg: 0x140a02 });
+    if (scr.ctx) {
+      scr.ctx.fillStyle = '#140a02'; scr.ctx.fillRect(0, 0, 96, 32);
+      scr.ctx.fillStyle = '#ffa63c'; scr.ctx.font = 'bold 20px monospace';
+      scr.ctx.fillText('0.90', 12, 24);
+      scr.flush();
+    }
+    var pane = new THREE.Mesh(PLANEG(0.13, 0.045), scr.mat || M('screenOff'));
+    pane.position.set(W * 0.32, H * 0.9, fz + 0.007);
+    noShadow(pane);
+    g.add(pane);
+    g.screen = scr;
+    /* delivery flap */
+    var flap = box(g, W * 0.5, 0.22, 0.02, Mat.color(0x0d1620, { rough: 0.8 }), -W * 0.1, 0.28, fz);
+    g.flap = flap;
+    /* branding band */
+    noShadow(box(g, W * 0.94, 0.12, 0.006, M('safetyRed'), 0, H - 0.12, fz + 0.002));
+    var light = null;
+    try {
+      light = new THREE.PointLight(0x9fd8ff, 1.2, 2.4, 2);
+      light.position.set(-W * 0.14, H * 0.6, fz - 0.2);
+      g.add(light);
+    } catch (e) { light = null; }
+    g.light = light;
+    var hits = 0, shake = 0;
+    g.thunk = function () { hits++; shake = 1; return hits; };
+    g.update = function (dt) {
+      if (shake > 0) {
+        shake = Math.max(0, shake - num(dt, 0) * 4);
+        g.position.x = Math.sin(shake * 40) * 0.006 * shake;
+        flap.rotation.x = -shake * 0.4;
+      }
+      return g;
+    };
+    fin(g, W, H, D, [col(0, H / 2, 0, W / 2, H / 2, D / 2)]);
+    interact(g, 'Use vending machine', 'e');
+    g.userData.egg = 'vending';
+    return g;
+  };
+
+  /** boombox() — twin deck, big speakers, handle, VU needle. */
+  Geo.boombox = function () {
+    var W = 0.52, H = 0.26, D = 0.16;
+    var g = grp('boombox');
+    var body = M('greyPlastic');
+    cbox(g, W, H, D, 0.012, body, 0, H / 2, 0);
+    var fz = D / 2 + 0.002;
+    var i;
+    for (i = 0; i < 2; i++) {
+      var sx = (i ? 1 : -1) * W * 0.31;
+      cyl(g, 0.072, 0.072, 0.01, 16, M('blackPlastic'), sx, H / 2, fz).rotation.x = Math.PI / 2;
+      cyl(g, 0.055, 0.055, 0.006, 16, Mat.color(0x2a2a2a, { rough: 0.95 }), sx, H / 2, fz + 0.004).rotation.x = Math.PI / 2;
+      cyl(g, 0.02, 0.02, 0.008, 10, M('steelDark'), sx, H / 2, fz + 0.008).rotation.x = Math.PI / 2;
+    }
+    /* centre stack: cassette door, tuner, buttons */
+    box(g, W * 0.3, H * 0.32, 0.008, M('blackPlastic'), 0, H * 0.66, fz + 0.002);
+    noShadow(box(g, W * 0.26, H * 0.24, 0.004, M('glassTint'), 0, H * 0.66, fz + 0.006));
+    var scr = Mat.screen({ w: 128, h: 32, crt: false, glow: 0x54e0a0, bg: 0x06120c });
+    if (scr.ctx) {
+      scr.ctx.fillStyle = '#06120c'; scr.ctx.fillRect(0, 0, 128, 32);
+      scr.ctx.fillStyle = '#6ff2b4'; scr.ctx.font = 'bold 18px monospace';
+      scr.ctx.fillText('98.4 FM', 10, 23);
+      scr.flush();
+    }
+    var pane = new THREE.Mesh(PLANEG(W * 0.26, H * 0.13), scr.mat || M('screenOff'));
+    pane.position.set(0, H * 0.34, fz + 0.004);
+    noShadow(pane);
+    g.add(pane);
+    g.screen = scr;
+    var btn = inst(BOXG(0.026, 0.012, 0.008), M('blackPlastic'), 5);
+    for (i = 0; i < 5; i++) setInst(btn, i, -W * 0.14 + i * 0.07, 0.045, fz + 0.004);
+    btn.instanceMatrix.needsUpdate = true;
+    g.add(btn);
+    var handle = mk(TORG(0.12, 0.008, 10), M('blackPlastic'), 0, H, 0);
+    handle.rotation.y = Math.PI / 2;
+    handle.scale.set(1, 0.5, 1);
+    g.add(handle);
+    var ant = cyl(g, 0.003, 0.005, 0.34, 6, M('chrome'), W * 0.42, H + 0.16, -D * 0.2);
+    ant.rotation.z = 0.3;
+    g.station = 0;
+    g.next = function () { g.station = (g.station + 1) % 4; return g.station; };
+    fin(g, W, H + 0.05, D, [col(0, H / 2, 0, W / 2, H / 2, D / 2)]);
+    interact(g, 'Change station', 'e');
+    g.userData.egg = 'boombox';
+    return g;
+  };
+
+  /** poster(kind,w,h) — wall art from Tex.posterArt. */
+  Geo.poster = function (kind, w, h) {
+    var W = num(w, 0.6), H = num(h, 0.9);
+    var g = grp('poster');
+    g.userData.mount = 'wall';
+    var tex = null;
+    try { tex = Tex.posterArt(kind); } catch (e) { tex = null; }
+    var mat;
+    if (tex) {
+      mat = new THREE.MeshStandardMaterial({ map: tex, roughness: 0.92, metalness: 0.0 });
+      mat.name = 'poster:' + kind;
+    } else {
+      mat = M('paper');
+    }
+    var m = new THREE.Mesh(PLANEG(W, H), mat);
+    m.position.z = 0.004;
+    noShadow(m);
+    g.add(m);
+    noShadow(box(g, W + 0.01, H + 0.01, 0.004, M('paper'), 0, 0, 0.001));
+    g.face = m;
+    fin(g, W, H, 0.006, []);
+    interact(g, 'Read poster', 'e');
+    g.userData.posterKind = kind;
+    return g;
+  };
+
+  /** stickyNote() — small square, optional text, slight curl. */
+  Geo.stickyNote = function (opts) {
+    var o = opt(opts);
+    var S = num(o.size, 0.075);
+    var g = grp('stickyNote');
+    var tex = null;
+    if (o.text) { try { tex = Tex.paperNote(Array.isArray(o.text) ? o.text : [o.text]); } catch (e) { tex = null; } }
+    var mat;
+    if (tex) {
+      mat = new THREE.MeshStandardMaterial({ map: tex, roughness: 0.95, color: 0xffe89a });
+      mat.name = 'sticky';
+    } else {
+      mat = Mat.color(o.color === undefined ? 0xf5e07a : o.color, { rough: 0.95 });
+    }
+    var m = new THREE.Mesh(PLANEG(S, S), mat);
+    m.rotation.x = -Math.PI / 2;
+    m.position.y = 0.001;
+    noShadow(m);
+    g.add(m);
+    /* curled corner */
+    var c = new THREE.Mesh(PLANEG(S * 0.3, S * 0.3), mat);
+    c.rotation.set(-Math.PI / 2 + 0.5, 0, 0);
+    c.position.set(S * 0.3, 0.004, -S * 0.34);
+    noShadow(c);
+    g.add(c);
+    fin(g, S, 0.004, S, []);
+    interact(g, 'Read note', 'e');
+    return g;
+  };
+
+  /** floppyDisk() — 3.5", shutter, label. */
+  Geo.floppyDisk = function (opts) {
+    var o = opt(opts);
+    var g = grp('floppyDisk');
+    var m = Mat.color(o.color === undefined ? 0x24282e : o.color, { rough: 0.75 });
+    cbox(g, 0.09, 0.0032, 0.094, 0.001, m, 0, 0.0016, 0);
+    noShadow(box(g, 0.038, 0.0022, 0.03, M('chrome'), 0, 0.0032, 0.032));
+    noShadow(box(g, 0.014, 0.0022, 0.026, M('blackPlastic'), 0.019, 0.0034, 0.032));
+    var labMat = M('paper');
+    if (o.label) {
+      var lt = Tex.label('flp:' + String(o.label).slice(0, 18), String(o.label), 0xdfe3e6, 0x14171a, 256, 96);
+      if (lt) {
+        labMat = new THREE.MeshStandardMaterial({ map: lt, roughness: 0.95 });
+        labMat.name = 'floppyLabel';
+      }
+    }
+    var lab = new THREE.Mesh(PLANEG(0.07, 0.046), labMat);
+    lab.rotation.x = -Math.PI / 2;
+    lab.position.set(0, 0.0034, -0.018);
+    noShadow(lab);
+    g.add(lab);
+    noShadow(box(g, 0.006, 0.002, 0.006, M('blackPlastic'), -0.04, 0.0032, -0.041));
+    fin(g, 0.09, 0.005, 0.094, []);
+    interact(g, 'Take disk', 'e');
+    return g;
+  };
+
+  /** crowbar() — DO NOT USE (RESERVED). */
+  Geo.crowbar = function () {
+    var g = grp('crowbar');
+    var m = Mat.color(0xb03a2a, { rough: 0.55, metal: 0.5 });
+    var shaft = cyl(g, 0.011, 0.013, 0.86, 8, m, 0, 0.02, 0);
+    shaft.rotation.z = Math.PI / 2;
+    var bend = new THREE.Group();
+    bend.position.set(-0.43, 0.02, 0);
+    bend.rotation.z = -0.9;
+    g.add(bend);
+    cyl(bend, 0.011, 0.011, 0.10, 8, m, -0.045, 0.02, 0).rotation.z = Math.PI / 2;
+    var claw = box(bend, 0.05, 0.026, 0.012, m, -0.10, 0.035, 0);
+    claw.rotation.z = 0.5;
+    noShadow(box(bend, 0.012, 0.008, 0.012, m, -0.12, 0.05, 0));
+    /* chisel end */
+    var tip = box(g, 0.05, 0.02, 0.012, m, 0.44, 0.02, 0);
+    tip.rotation.z = 0.25;
+    g.userData.egg = 'crowbar';
+    fin(g, 0.95, 0.10, 0.05, []);
+    interact(g, 'DO NOT USE (RESERVED)', 'e');
+    return g;
+  };
+
+  /** cashRegister() — beige till with a drawer that opens. */
+  Geo.cashRegister = function () {
+    var W = 0.36, H = 0.24, D = 0.38;
+    var g = grp('cashRegister');
+    var m = M('beige');
+    cbox(g, W, H * 0.55, D, 0.01, m, 0, H * 0.275, 0);
+    var top = new THREE.Group();
+    top.position.set(0, H * 0.55, -D * 0.06);
+    g.add(top);
+    cbox(top, W * 0.9, H * 0.42, D * 0.6, 0.01, m, 0, H * 0.21, 0);
+    /* key grid */
+    var keys = inst(BOXG(0.022, 0.008, 0.022), M('beigeDark'), 16);
+    var i, j, n = 0;
+    for (j = 0; j < 4; j++) {
+      for (i = 0; i < 4; i++) {
+        setInst(keys, n++, -0.05 + i * 0.033, H * 0.42, -0.05 + j * 0.033);
+      }
+    }
+    keys.instanceMatrix.needsUpdate = true;
+    top.add(keys);
+    /* customer display on a post */
+    var post = cyl(top, 0.014, 0.014, 0.14, 8, M('beigeDark'), 0, H * 0.42 + 0.07, -D * 0.2);
+    var disp = box(top, 0.16, 0.07, 0.04, M('beigeDark'), 0, H * 0.42 + 0.16, -D * 0.2);
+    var scr = Mat.screen({ w: 96, h: 32, crt: false, glow: 0x66ff99, bg: 0x02120a });
+    if (scr.ctx) {
+      scr.ctx.fillStyle = '#02120a'; scr.ctx.fillRect(0, 0, 96, 32);
+      scr.ctx.fillStyle = '#7dffb4'; scr.ctx.font = 'bold 18px monospace';
+      scr.ctx.fillText('  0.00', 4, 23);
+      scr.flush();
+    }
+    var pane = new THREE.Mesh(PLANEG(0.13, 0.045), scr.mat || M('screenOff'));
+    pane.position.set(0, H * 0.42 + 0.16, -D * 0.2 - 0.021);
+    pane.rotation.y = Math.PI;
+    noShadow(pane);
+    top.add(pane);
+    g.screen = scr;
+    var drawer = new THREE.Group();
+    g.add(drawer);
+    box(drawer, W - 0.02, H * 0.24, 0.02, M('beigeDark'), 0, H * 0.16, D / 2 + 0.002);
+    box(drawer, W - 0.04, H * 0.2, D - 0.06, M('beigeDark'), 0, H * 0.16, 0);
+    g.drawer = drawer;
+    g.open = function (t) {
+      drawer.position.z = STV.clamp(num(t, 0), 0, 1) * 0.28;
+      return g;
+    };
+    fin(g, W, H + 0.24, D, [col(0, H / 2, 0, W / 2, H / 2, D / 2)]);
+    interact(g, 'Open till', 'e');
+    return g;
+  };
+
+  /** plantPotted() — sad office ficus. */
+  Geo.plantPotted = function (opts) {
+    var o = opt(opts);
+    var rng = seedOf(o, 771);
+    var g = grp('plantPotted');
+    var potH = num(o.potH, 0.26), potR = num(o.potR, 0.16);
+    cyl(g, potR, potR * 0.78, potH, 14, Mat.color(o.pot === undefined ? 0x6b5140 : o.pot, { rough: 0.9 }), 0, potH / 2, 0);
+    cyl(g, potR * 1.06, potR * 1.06, 0.03, 14, Mat.color(o.pot === undefined ? 0x6b5140 : o.pot, { rough: 0.9 }), 0, potH - 0.015, 0);
+    cyl(g, potR * 0.94, potR * 0.94, 0.02, 12, M('soil'), 0, potH - 0.01, 0);
+    var trunkH = num(o.h, 0.9);
+    var trunk = cyl(g, 0.016, 0.026, trunkH, 8, M('bark'), 0, potH + trunkH / 2, 0);
+    trunk.rotation.z = 0.04;
+    var leaves = inst(SPHG(0.13, 8), M('foliage'), 7);
+    var i;
+    for (i = 0; i < 7; i++) {
+      var a = rng() * Math.PI * 2, r = rng() * 0.14;
+      setInst(leaves, i, Math.cos(a) * r, potH + trunkH * (0.6 + rng() * 0.45), Math.sin(a) * r,
+        0, a, 0, 1.1 + rng() * 0.5, 0.62, 1.1 + rng() * 0.5);
+    }
+    leaves.instanceMatrix.needsUpdate = true;
+    g.add(leaves);
+    fin(g, potR * 2.2, potH + trunkH + 0.2, potR * 2.2, [col(0, potH / 2, 0, potR, potH / 2, potR)]);
+    return g;
+  };
+
+  /** doorChime() — the shop bell over the door. g.ring() swings it. */
+  Geo.doorChime = function () {
+    var g = grp('doorChime');
+    g.userData.mount = 'wall';
+    box(g, 0.10, 0.014, 0.03, M('woodDark'), 0, 0, 0.015);
+    var arm = new THREE.Group();
+    arm.position.set(0, -0.008, 0.02);
+    g.add(arm);
+    var spring = cyl(arm, 0.004, 0.004, 0.08, 6, M('steel'), 0, -0.04, 0);
+    var bell = sph(arm, 0.026, 12, M('gold'), 0, -0.095, 0);
+    bell.scale.set(1, 0.85, 1);
+    var clap = sph(arm, 0.008, 6, M('steelDark'), 0, -0.115, 0);
+    g.bell = bell;
+    g.arm = arm;
+    var swing = 0, phase = 0;
+    g.ring = function () { swing = 1; return g; };
+    g.update = function (dt) {
+      var d = num(dt, 0);
+      if (swing > 0.001) {
+        swing = Math.max(0, swing - d * 1.6);
+        phase += d * 18;
+        arm.rotation.z = Math.sin(phase) * 0.5 * swing;
+        arm.rotation.x = Math.cos(phase * 0.7) * 0.2 * swing;
+      } else if (arm.rotation.z !== 0) {
+        arm.rotation.z = 0; arm.rotation.x = 0;
+      }
+      return g;
+    };
+    fin(g, 0.12, 0.16, 0.05, []);
+    return g;
+  };
+
+  /* ---- small hardware ---- */
+
+  /** hardDrive() — 3.5" IDE drive, PCB down, label up. */
+  Geo.hardDrive = function (opts) {
+    var o = opt(opts);
+    var W = 0.102, H = 0.026, D = 0.147;
+    var g = grp('hardDrive');
+    cbox(g, W, H, D, 0.003, M('aluminium'), 0, H / 2, 0);
+    var labMat = M('paper');
+    var lt = Tex.label('hdd', ['SEA-QUEST', '6.4 GB'], 0xd9dde0, 0x181b1e, 256, 128);
+    if (lt) { labMat = new THREE.MeshStandardMaterial({ map: lt, roughness: 0.9 }); labMat.name = 'hddLabel'; }
+    var lab = new THREE.Mesh(PLANEG(W * 0.86, D * 0.62), labMat);
+    lab.rotation.x = -Math.PI / 2;
+    lab.position.y = H + 0.0006;
+    noShadow(lab);
+    g.add(lab);
+    /* pcb underside + IDE header + molex */
+    noShadow(box(g, W * 0.9, 0.003, D * 0.9, M('pcb'), 0, 0.0015, 0));
+    box(g, 0.052, 0.006, 0.006, M('blackPlastic'), -0.018, 0.008, -D / 2 + 0.004);
+    box(g, 0.022, 0.008, 0.006, M('clothWhite'), 0.033, 0.008, -D / 2 + 0.004);
+    /* screws */
+    var sc = inst(CYLG(0.003, 0.003, 0.003, 6), M('steel'), 4);
+    setInst(sc, 0, -W / 2 + 0.008, H, -D / 2 + 0.02);
+    setInst(sc, 1, W / 2 - 0.008, H, -D / 2 + 0.02);
+    setInst(sc, 2, -W / 2 + 0.008, H, D / 2 - 0.02);
+    setInst(sc, 3, W / 2 - 0.008, H, D / 2 - 0.02);
+    sc.instanceMatrix.needsUpdate = true;
+    noShadow(sc);
+    g.add(sc);
+    fin(g, W, H, D, []);
+    interact(g, 'Take drive', 'e');
+    return g;
+  };
+
+  /** motherboard() — ATX board with sockets, slots, caps, RAM. */
+  Geo.motherboard = function (opts) {
+    var o = opt(opts);
+    var W = 0.305, D = 0.244;
+    var g = grp('motherboard');
+    var board = new THREE.Mesh(BOXG(W, 0.0016, D), M('pcb'));
+    board.position.y = 0.0008;
+    board.receiveShadow = true;
+    g.add(board);
+    /* CPU socket + heatsink */
+    box(g, 0.055, 0.006, 0.055, M('blackPlastic'), -W * 0.16, 0.004, -D * 0.1);
+    var fins = inst(BOXG(0.003, 0.026, 0.05), M('aluminium'), 11);
+    var i;
+    for (i = 0; i < 11; i++) setInst(fins, i, -W * 0.16 - 0.025 + i * 0.005, 0.02, -D * 0.1);
+    fins.instanceMatrix.needsUpdate = true;
+    g.add(fins);
+    var fan = cyl(g, 0.026, 0.026, 0.008, 10, M('blackPlastic'), -W * 0.16, 0.037, -D * 0.1);
+    g.fan = fan;
+    /* RAM slots */
+    var slots = inst(BOXG(0.008, 0.008, 0.13), Mat.color(0x1b2c4a, { rough: 0.6 }), 4);
+    for (i = 0; i < 4; i++) setInst(slots, i, -W * 0.02 + i * 0.014, 0.005, -D * 0.06);
+    slots.instanceMatrix.needsUpdate = true;
+    g.add(slots);
+    var ram = box(g, 0.004, 0.028, 0.126, M('pcb'), -W * 0.02, 0.018, -D * 0.06);
+    var ram2 = box(g, 0.004, 0.028, 0.126, M('pcb'), -W * 0.02 + 0.014, 0.018, -D * 0.06);
+    g.ram = [ram, ram2];
+    /* PCI/ISA slots */
+    var pci = inst(BOXG(0.007, 0.010, 0.09), Mat.color(0xd8d2c0, { rough: 0.7 }), 5);
+    for (i = 0; i < 5; i++) setInst(pci, i, -W * 0.30 + i * 0.019, 0.006, D * 0.22);
+    pci.instanceMatrix.needsUpdate = true;
+    g.add(pci);
+    var isa = inst(BOXG(0.007, 0.010, 0.11), Mat.color(0x1a1a1a, { rough: 0.7 }), 2);
+    for (i = 0; i < 2; i++) setInst(isa, i, W * 0.02 + i * 0.019, 0.006, D * 0.2);
+    isa.instanceMatrix.needsUpdate = true;
+    g.add(isa);
+    /* electrolytic caps */
+    var caps = inst(CYLG(0.005, 0.005, 0.014, 8), Mat.color(0x1d3a6b, { rough: 0.5 }), 12);
+    var rng = seedOf(o, 33);
+    for (i = 0; i < 12; i++) {
+      setInst(caps, i, -W * 0.36 + rng() * W * 0.5, 0.008, -D * 0.3 + rng() * D * 0.4);
+    }
+    caps.instanceMatrix.needsUpdate = true;
+    g.add(caps);
+    /* rear I/O + IDE headers */
+    box(g, 0.09, 0.02, 0.012, M('steel'), -W * 0.28, 0.012, -D / 2 + 0.008);
+    box(g, 0.008, 0.008, 0.05, Mat.color(0xffffff, { rough: 0.8 }), W * 0.34, 0.006, -D * 0.1);
+    box(g, 0.008, 0.008, 0.05, Mat.color(0xffffff, { rough: 0.8 }), W * 0.38, 0.006, -D * 0.1);
+    /* BIOS chip + battery seat */
+    box(g, 0.016, 0.005, 0.03, M('blackPlastic'), W * 0.30, 0.004, D * 0.16);
+    var bat = Geo.cmosBattery();
+    bat.position.set(W * 0.36, 0.002, D * 0.30);
+    g.add(bat);
+    g.battery = bat;
+    fin(g, W, 0.05, D, []);
+    interact(g, 'Replace CMOS battery', 'e');
+    return g;
+  };
+
+  /** cmosBattery() — CR2032 in a clip. */
+  Geo.cmosBattery = function () {
+    var g = grp('cmosBattery');
+    var cell = cyl(g, 0.010, 0.010, 0.0032, 14, M('chrome'), 0, 0.0026, 0);
+    noShadow(cyl(g, 0.007, 0.007, 0.0006, 12, M('steelDark'), 0, 0.0043, 0));
+    /* holder clip */
+    var clip = mk(TORG(0.0115, 0.0016, 12), M('steel'), 0, 0.0012, 0);
+    clip.rotation.x = Math.PI / 2;
+    g.add(clip);
+    box(g, 0.006, 0.004, 0.004, M('steel'), 0, 0.004, -0.0115);
+    g.cell = cell;
+    fin(g, 0.024, 0.006, 0.024, []);
+    interact(g, 'Take battery', 'e');
+    return g;
+  };
+
+  /** screwdriver() — Phillips #2, magnetised, obviously. */
+  Geo.screwdriver = function (opts) {
+    var o = opt(opts);
+    var g = grp('screwdriver');
+    var handle = Mat.color(o.color === undefined ? 0xd6432c : o.color, { rough: 0.6 });
+    var h = cyl(g, 0.014, 0.017, 0.10, 10, handle, 0, 0.017, -0.055);
+    h.rotation.x = Math.PI / 2;
+    /* grip ribs */
+    var ribs = inst(BOXG(0.004, 0.004, 0.09), handle, 6);
+    var i;
+    for (i = 0; i < 6; i++) {
+      var a = (i / 6) * Math.PI * 2;
+      setInst(ribs, i, Math.cos(a) * 0.0155, 0.017 + Math.sin(a) * 0.0155, -0.055, 0, 0, 0);
+    }
+    ribs.instanceMatrix.needsUpdate = true;
+    g.add(ribs);
+    var shaft = cyl(g, 0.0035, 0.0035, 0.13, 8, M('chrome'), 0, 0.017, 0.065);
+    shaft.rotation.x = Math.PI / 2;
+    var tip = mk(CONEG(0.004, 0.014, 6), M('steelDark'), 0, 0.017, 0.137);
+    tip.rotation.x = -Math.PI / 2;
+    g.add(tip);
+    fin(g, 0.034, 0.034, 0.24, []);
+    interact(g, 'Take screwdriver', 'e');
+    return g;
+  };
+
+  /** cableCoil() — loose loop of cable on the floor/bench. */
+  Geo.cableCoil = function (opts) {
+    var o = opt(opts);
+    var R = num(o.r, 0.13);
+    var g = grp('cableCoil');
+    var m = Mat.color(o.color === undefined ? 0x14161a : o.color, { rough: 0.85 });
+    var n = 3, i;
+    for (i = 0; i < n; i++) {
+      var t = mk(TORG(R - i * 0.012, 0.007, 14), m, 0, 0.008 + i * 0.014, 0);
+      t.rotation.x = Math.PI / 2;
+      t.rotation.z = i * 0.6;
+      t.scale.set(1, 1, 1);
+      g.add(t);
+    }
+    /* the loose end and a plug */
+    var end = cyl(g, 0.007, 0.007, 0.10, 6, m, R * 0.7, 0.008, R * 0.5);
+    end.rotation.set(Math.PI / 2, 0, 0.7);
+    box(g, 0.018, 0.014, 0.03, M('blackPlastic'), R * 0.9, 0.012, R * 0.85);
+    fin(g, R * 2, 0.05, R * 2, []);
+    interact(g, 'Take cable', 'e');
+    return g;
+  };
+
+  /* =========================================================================
+   * 3e. EXTERIOR
+   * =====================================================================*/
+
+  var CAR_KINDS = {
+    sedan: { l: 4.55, w: 1.78, h: 1.44, wheel: 0.32, cabF: 0.06, cabL: 0.46, roofH: 0.50, bonnet: 0.78, boot: 0.72 },
+    suv: { l: 4.70, w: 1.90, h: 1.78, wheel: 0.37, cabF: 0.02, cabL: 0.56, roofH: 0.62, bonnet: 0.72, boot: 0.42 },
+    van: { l: 5.20, w: 1.96, h: 2.10, wheel: 0.35, cabF: -0.22, cabL: 0.78, roofH: 0.86, bonnet: 0.52, boot: 0.10 },
+    taxi: { l: 4.60, w: 1.80, h: 1.48, wheel: 0.32, cabF: 0.06, cabL: 0.48, roofH: 0.50, bonnet: 0.76, boot: 0.70 }
+  };
+
+  /** car(colorHex, kind) — front is +Z. Wheels on g.wheels for rolling. */
+  Geo.car = function (colorHex, kind, opts) {
+    var o = opt(opts);
+    var k = CAR_KINDS[kind] ? kind : 'sedan';
+    var s = CAR_KINDS[k];
+    var hex = (typeof colorHex === 'number') ? colorHex : 0xb8bcc0;
+    if (k === 'taxi') hex = (typeof colorHex === 'number') ? colorHex : 0xf2c400;
+    var g = grp('car:' + k);
+    var body = Mat.color(hex, { rough: 0.32, metal: 0.55 });
+    var trim = M('blackPlastic');
+    var glassM = M('glassTint');
+    var L = s.l, W = s.w, H = s.h, wr = s.wheel;
+
+    /* main body volume, sitting on the suspension */
+    var sillY = wr * 0.72;
+    var bodyH = (H - s.roofH) - sillY;
+    cbox(g, W, bodyH, L, 0.10, body, 0, sillY + bodyH / 2, 0);
+    /* bonnet + boot steps so the silhouette reads */
+    if (s.bonnet > 0.6) {
+      cbox(g, W * 0.96, bodyH * 0.34, L * 0.30, 0.06, body, 0, sillY + bodyH * 0.92, L * 0.32);
+    }
+    if (s.boot > 0.5) {
+      cbox(g, W * 0.96, bodyH * 0.30, L * 0.24, 0.06, body, 0, sillY + bodyH * 0.90, -L * 0.36);
+    }
+    /* cabin */
+    var cabY = sillY + bodyH;
+    var cabL = L * s.cabL;
+    var cab = cbox(g, W * 0.90, s.roofH, cabL, 0.10, body, 0, cabY + s.roofH / 2, L * s.cabF * 0.5);
+    /* glasshouse: a slightly smaller dark box inside the cabin */
+    var gh = cbox(g, W * 0.915, s.roofH * 0.68, cabL * 0.94, 0.06, glassM, 0, cabY + s.roofH * 0.40, L * s.cabF * 0.5);
+    noShadow(gh);
+    /* roof cap so the glass doesn't wrap over the top */
+    cbox(g, W * 0.88, s.roofH * 0.22, cabL * 0.92, 0.05, body, 0, cabY + s.roofH * 0.90, L * s.cabF * 0.5);
+    /* A/B pillars */
+    var pil = inst(BOXG(W * 0.93, s.roofH * 0.66, 0.05), body, 3);
+    setInst(pil, 0, 0, cabY + s.roofH * 0.4, L * s.cabF * 0.5 + cabL * 0.46);
+    setInst(pil, 1, 0, cabY + s.roofH * 0.4, L * s.cabF * 0.5);
+    setInst(pil, 2, 0, cabY + s.roofH * 0.4, L * s.cabF * 0.5 - cabL * 0.46);
+    pil.instanceMatrix.needsUpdate = true;
+    g.add(pil);
+
+    /* wheels */
+    var wheels = [];
+    var wz = [L * 0.31, -L * 0.31];
+    var wx = [-W / 2 + wr * 0.28, W / 2 - wr * 0.28];
+    var i, j;
+    var tyreG = CYLG(wr, wr, wr * 0.66, 14);
+    var rimG = CYLG(wr * 0.60, wr * 0.60, wr * 0.68, 10);
+    for (i = 0; i < 2; i++) {
+      for (j = 0; j < 2; j++) {
+        var wgp = new THREE.Group();
+        wgp.position.set(wx[j], wr, wz[i]);
+        g.add(wgp);
+        var ty = mk(tyreG, M('rubber'), 0, 0, 0);
+        ty.rotation.z = Math.PI / 2;
+        wgp.add(ty);
+        var rm = mk(rimG, M('aluminium'), 0, 0, 0);
+        rm.rotation.z = Math.PI / 2;
+        wgp.add(rm);
+        wheels.push(wgp);
+        /* arch shadow */
+        noShadow(box(g, 0.02, wr * 1.2, wr * 2.2, trim, wx[j] + (j ? -0.01 : 0.01) * 1, wr * 1.05, wz[i]));
+      }
+    }
+    g.wheels = wheels;
+
+    /* lights */
+    var hlY = sillY + bodyH * 0.6;
+    var hl = inst(BOXG(0.28, 0.11, 0.05), M('emissiveWhite'), 2);
+    setInst(hl, 0, -W * 0.32, hlY, L / 2 - 0.02);
+    setInst(hl, 1, W * 0.32, hlY, L / 2 - 0.02);
+    hl.instanceMatrix.needsUpdate = true;
+    noShadow(hl);
+    g.add(hl);
+    g.headlights = hl;
+    var tl = inst(BOXG(0.26, 0.10, 0.05), M('ledRed'), 2);
+    setInst(tl, 0, -W * 0.33, hlY, -L / 2 + 0.02);
+    setInst(tl, 1, W * 0.33, hlY, -L / 2 + 0.02);
+    tl.instanceMatrix.needsUpdate = true;
+    noShadow(tl);
+    g.add(tl);
+    g.taillights = tl;
+    /* bumpers, grille, mirrors, plate */
+    box(g, W * 0.98, 0.16, 0.06, trim, 0, sillY + 0.06, L / 2 - 0.01);
+    box(g, W * 0.98, 0.16, 0.06, trim, 0, sillY + 0.06, -L / 2 + 0.01);
+    box(g, W * 0.5, 0.10, 0.04, M('steelDark'), 0, hlY - 0.02, L / 2 - 0.005);
+    noShadow(box(g, 0.28, 0.08, 0.006, M('clothWhite'), 0, sillY + 0.14, L / 2 + 0.005));
+    var mir = inst(BOXG(0.06, 0.05, 0.11), trim, 2);
+    setInst(mir, 0, -W / 2 - 0.02, cabY + s.roofH * 0.18, L * s.cabF * 0.5 + cabL * 0.4);
+    setInst(mir, 1, W / 2 + 0.02, cabY + s.roofH * 0.18, L * s.cabF * 0.5 + cabL * 0.4);
+    mir.instanceMatrix.needsUpdate = true;
+    g.add(mir);
+    /* door seams */
+    var seams = inst(BOXG(W * 1.002, bodyH * 0.7, 0.008), trim, 2);
+    setInst(seams, 0, 0, sillY + bodyH * 0.5, L * s.cabF * 0.5 + cabL * 0.46);
+    setInst(seams, 1, 0, sillY + bodyH * 0.5, L * s.cabF * 0.5 - cabL * 0.46);
+    seams.instanceMatrix.needsUpdate = true;
+    noShadow(seams);
+    g.add(seams);
+
+    if (k === 'taxi') {
+      cbox(g, 0.46, 0.13, 0.20, 0.03, M('emissiveWhite'), 0, H + 0.06, L * s.cabF * 0.5 + cabL * 0.2);
+      noShadow(box(g, W * 0.92, 0.22, 0.006, M('clothBlack'), 0, sillY + bodyH * 0.5, -0.001 + W * 0.5));
+      g.userData.taxi = true;
+    }
+    if (k === 'van') {
+      /* sliding-door handle + rear doors seam */
+      box(g, 0.01, 0.05, 0.16, trim, W / 2 + 0.005, cabY - 0.14, 0);
+      noShadow(box(g, 0.01, bodyH * 0.9, 0.01, trim, 0, sillY + bodyH * 0.5, -L / 2 + 0.02));
+    }
+
+    g.setLights = function (on) {
+      hl.material = on === false ? M('greyPlastic') : M('emissiveWhite');
+      tl.material = on === false ? M('blackPlastic') : M('ledRed');
+      return g;
+    };
+    g.roll = function (dist) {
+      var a = num(dist, 0) / wr;
+      var q;
+      for (q = 0; q < wheels.length; q++) wheels[q].rotation.x += a;
+      return g;
+    };
+    g.steer = function (ang) {
+      wheels[0].rotation.y = num(ang, 0);
+      wheels[1].rotation.y = num(ang, 0);
+      return g;
+    };
+    fin(g, W, H, L, [col(0, H / 2, 0, W / 2, H / 2, L / 2)]);
+    interact(g, 'Car', 'e');
+    return g;
+  };
+
+  /** streetLamp() — 5m column, curved arm, sodium head + PointLight. */
+  Geo.streetLamp = function (opts) {
+    var o = opt(opts);
+    var H = num(o.h, 5.0);
+    var g = grp('streetLamp');
+    var m = Mat.color(0x4a5054, { rough: 0.6, metal: 0.4 });
+    cyl(g, 0.10, 0.13, 0.14, 10, M('concrete'), 0, 0.07, 0);
+    cyl(g, 0.055, 0.075, H, 10, m, 0, H / 2, 0);
+    var arm = new THREE.Group();
+    arm.position.set(0, H, 0);
+    g.add(arm);
+    var a1 = cyl(arm, 0.045, 0.05, 0.5, 8, m, 0.16, 0.16, 0);
+    a1.rotation.z = -0.8;
+    var a2 = cyl(arm, 0.04, 0.045, 0.62, 8, m, 0.62, 0.28, 0);
+    a2.rotation.z = -Math.PI / 2 + 0.16;
+    var head = new THREE.Group();
+    head.position.set(0.95, 0.24, 0);
+    arm.add(head);
+    cbox(head, 0.52, 0.12, 0.24, 0.04, m, 0, 0, 0);
+    var lens = box(head, 0.42, 0.03, 0.18, M('emissiveWhite'), 0, -0.06, 0);
+    noShadow(lens);
+    var light = null;
+    try {
+      light = new THREE.PointLight(0xffc07a, num(o.intensity, 6.0), num(o.dist, 14), 2);
+      light.position.set(0, -0.2, 0);
+      head.add(light);
+    } catch (e) { light = null; }
+    g.light = light; g.head = head; g.lens = lens;
+    g.setOn = function (on) {
+      if (light) light.intensity = on === false ? 0 : num(o.intensity, 6.0);
+      lens.material = on === false ? M('greyPlastic') : M('emissiveWhite');
+      return g;
+    };
+    fin(g, 1.2, H + 0.3, 0.3, [col(0, H / 2, 0, 0.1, H / 2, 0.1)]);
+    return g;
+  };
+
+  /** bollard() — short steel post, reflective band. */
+  Geo.bollard = function (opts) {
+    var o = opt(opts);
+    var H = num(o.h, 0.95);
+    var g = grp('bollard');
+    var m = Mat.color(o.color === undefined ? 0x2c3136 : o.color, { rough: 0.5, metal: 0.4 });
+    cyl(g, 0.055, 0.065, H, 12, m, 0, H / 2, 0);
+    cyl(g, 0.058, 0.058, 0.02, 12, M('emissiveWhite'), 0, H - 0.12, 0);
+    sph(g, 0.055, 10, m, 0, H, 0).scale.set(1, 0.6, 1);
+    cyl(g, 0.10, 0.11, 0.03, 12, M('steelDark'), 0, 0.015, 0);
+    fin(g, 0.22, H, 0.22, [col(0, H / 2, 0, 0.07, H / 2, 0.07)]);
+    return g;
+  };
+
+  /** treeSmall() — 4m street tree, 3 foliage masses. */
+  Geo.treeSmall = function (opts) {
+    var o = opt(opts);
+    var rng = seedOf(o, 5150);
+    var H = num(o.h, 4.0);
+    var g = grp('treeSmall');
+    var trunkH = H * 0.42;
+    cyl(g, 0.07, 0.12, trunkH, 8, M('bark'), 0, trunkH / 2, 0);
+    var br = 3, i;
+    for (i = 0; i < br; i++) {
+      var a = rng() * Math.PI * 2;
+      var b = cyl(g, 0.03, 0.05, H * 0.24, 6, M('bark'),
+        Math.cos(a) * 0.14, trunkH + H * 0.08, Math.sin(a) * 0.14);
+      b.rotation.set(Math.sin(a) * 0.5, 0, -Math.cos(a) * 0.5);
+    }
+    var canopy = inst(SPHG(H * 0.20, 9), M('foliage'), 4);
+    setInst(canopy, 0, 0, trunkH + H * 0.28, 0, 0, 0, 0, 1.35, 1.0, 1.35);
+    for (i = 1; i < 4; i++) {
+      var a2 = (i / 3) * Math.PI * 2 + rng();
+      setInst(canopy, i, Math.cos(a2) * H * 0.16, trunkH + H * 0.20 + rng() * H * 0.14,
+        Math.sin(a2) * H * 0.16, 0, a2, 0, 1.0, 0.82, 1.0);
+    }
+    canopy.instanceMatrix.needsUpdate = true;
+    g.add(canopy);
+    /* tree pit */
+    noShadow(cyl(g, 0.4, 0.4, 0.02, 10, M('soil'), 0, 0.01, 0));
+    fin(g, H * 0.6, H, H * 0.6, [col(0, trunkH / 2, 0, 0.14, trunkH / 2, 0.14)]);
+    return g;
+  };
+
+  /** hedge(len) — clipped box hedge, spans X. */
+  Geo.hedge = function (len, opts) {
+    var o = opt(opts);
+    var L = num(len, 3), H = num(o.h, 0.8), D = num(o.d, 0.6);
+    var g = grp('hedge');
+    var m = M('foliage');
+    cbox(g, L, H, D, 0.10, m, 0, H / 2, 0);
+    /* lumpy top so it isn't a slab */
+    var n = Math.max(2, Math.round(L / 0.5));
+    var lumps = inst(SPHG(0.28, 7), m, n);
+    var rng = seedOf(o, 606);
+    var i;
+    for (i = 0; i < n; i++) {
+      setInst(lumps, i, -L / 2 + (L * (i + 0.5)) / n, H - 0.06 + rng() * 0.04, (rng() - 0.5) * D * 0.3,
+        0, rng() * 3, 0, (L / n) * 2.0, 0.5, D * 1.4);
+    }
+    lumps.instanceMatrix.needsUpdate = true;
+    g.add(lumps);
+    fin(g, L, H, D, [col(0, H / 2, 0, L / 2, H / 2, D / 2)]);
+    return g;
+  };
+
+  /** parkingLines(w,d) — instanced painted bays on one thin plane. */
+  Geo.parkingLines = function (w, d, opts) {
+    var o = opt(opts);
+    var W = num(w, 20), D = num(d, 5.2);
+    var g = grp('parkingLines');
+    var bayW = num(o.bay, 2.5);
+    var n = Math.max(1, Math.floor(W / bayW) + 1);
+    var lines = inst(BOXG(0.12, 0.004, D), M('roadPaint'), n);
+    var i;
+    for (i = 0; i < n; i++) setInst(lines, i, -W / 2 + i * bayW, 0.002, 0);
+    lines.instanceMatrix.needsUpdate = true;
+    noShadow(lines);
+    g.add(lines);
+    /* kerb stop line */
+    var stop = box(g, W, 0.004, 0.12, M('roadPaint'), 0, 0.002, -D / 2 + 0.06);
+    noShadow(stop);
+    if (o.wheelStops) {
+      var ws = inst(BOXG(1.6, 0.10, 0.16), M('concrete'), n - 1);
+      for (i = 0; i < n - 1; i++) setInst(ws, i, -W / 2 + bayW * (i + 0.5), 0.05, -D / 2 + 0.6);
+      ws.instanceMatrix.needsUpdate = true;
+      g.add(ws);
+    }
+    fin(g, W, 0.01, D, []);
+    return g;
+  };
+
+  /** officeBlock(w,h,d,opts) — background building with instanced windows. */
+  Geo.officeBlock = function (w, h, d, opts) {
+    var o = opt(opts);
+    var W = num(w, 18), H = num(h, 12), D = num(d, 12);
+    var g = grp('officeBlock');
+    var shell = M(o.mat || 'concrete');
+    var m = box(g, W, H, D, shell, 0, H / 2, 0);
+    m.receiveShadow = true;
+    /* floor bands */
+    var floors = Math.max(1, Math.floor(H / num(o.floorH, 3.4)));
+    var bands = inst(BOXG(W + 0.06, 0.16, D + 0.06), M('concretePolished'), floors);
+    var i, j;
+    for (i = 0; i < floors; i++) setInst(bands, i, 0, (i + 1) * (H / floors) - 0.5, 0);
+    bands.instanceMatrix.needsUpdate = true;
+    g.add(bands);
+    /* windows: two faces only (front +Z, right +X) to save draws */
+    var cols = Math.max(1, Math.floor(W / 2.0));
+    var wgeo = BOXG(1.35, 1.5, 0.06);
+    var lit = num(o.lit, 0.18);
+    var rng = seedOf(o, 2211);
+    var glassMat = M('glassTint');
+    var litMat = Mat.color(0xffd9a0, { rough: 0.4, emissive: 1.3 });
+    var totF = cols * floors;
+    var wf = inst(wgeo, glassMat, totF);
+    var wl = inst(wgeo, litMat, totF);
+    var nf = 0, nl = 0, k;
+    for (j = 0; j < floors; j++) {
+      for (i = 0; i < cols; i++) {
+        var x = -W / 2 + (W / cols) * (i + 0.5);
+        var y = (H / floors) * (j + 0.5);
+        if (rng() < lit) { setInst(wl, nl++, x, y, D / 2 + 0.02); }
+        else { setInst(wf, nf++, x, y, D / 2 + 0.02); }
+      }
+    }
+    for (k = nf; k < totF; k++) setInst(wf, k, 0, -50, 0);
+    for (k = nl; k < totF; k++) setInst(wl, k, 0, -50, 0);
+    wf.instanceMatrix.needsUpdate = true;
+    wl.instanceMatrix.needsUpdate = true;
+    noShadow(wf); noShadow(wl);
+    g.add(wf); g.add(wl);
+    /* side face */
+    var colsD = Math.max(1, Math.floor(D / 2.0));
+    var totS = colsD * floors;
+    var ws = inst(wgeo, glassMat, totS);
+    var ns = 0;
+    for (j = 0; j < floors; j++) {
+      for (i = 0; i < colsD; i++) {
+        setInst(ws, ns++, W / 2 + 0.02, (H / floors) * (j + 0.5), -D / 2 + (D / colsD) * (i + 0.5), 0, Math.PI / 2, 0);
+      }
+    }
+    ws.instanceMatrix.needsUpdate = true;
+    noShadow(ws);
+    g.add(ws);
+    /* roof plant */
+    box(g, W * 0.3, 0.8, D * 0.25, M('steelDark'), -W * 0.2, H + 0.4, 0);
+    box(g, W + 0.2, 0.3, D + 0.2, M('concrete'), 0, H + 0.15, 0);
+    if (o.entrance !== false) {
+      noShadow(box(g, 3.2, 2.6, 0.1, M('glassTint'), 0, 1.3, D / 2 + 0.05));
+      box(g, 4.0, 0.25, 1.4, M('concretePolished'), 0, 2.9, D / 2 + 0.6);
+    }
+    fin(g, W, H, D, [col(0, H / 2, 0, W / 2, H / 2, D / 2)]);
+    return g;
+  };
+
+  /** dumpster() — 1100L bin, lids g.open(t). */
+  Geo.dumpster = function (opts) {
+    var o = opt(opts);
+    var W = 1.35, H = 1.15, D = 1.0;
+    var g = grp('dumpster');
+    var m = Mat.color(o.color === undefined ? 0x2f5a3c : o.color, { rough: 0.75, metal: 0.25 });
+    cbox(g, W, H - 0.2, D, 0.03, m, 0, 0.2 + (H - 0.2) / 2, 0);
+    /* ribs */
+    var ribs = inst(BOXG(0.04, H - 0.3, 0.03), m, 4);
+    var i;
+    for (i = 0; i < 4; i++) setInst(ribs, i, -W / 2 + 0.2 + i * ((W - 0.4) / 3), 0.25 + (H - 0.3) / 2, D / 2 + 0.015);
+    ribs.instanceMatrix.needsUpdate = true;
+    g.add(ribs);
+    var lids = new THREE.Group();
+    lids.position.set(0, H - 0.02, -D / 2 + 0.02);
+    g.add(lids);
+    var lid = cbox(lids, W - 0.04, 0.04, D - 0.04, 0.015, M('blackPlastic'), 0, 0, (D - 0.04) / 2);
+    /* castors */
+    var cast = inst(CYLG(0.09, 0.09, 0.05, 8), M('rubber'), 4);
+    setInst(cast, 0, -W / 2 + 0.14, 0.09, -D / 2 + 0.14, 0, 0, Math.PI / 2);
+    setInst(cast, 1, W / 2 - 0.14, 0.09, -D / 2 + 0.14, 0, 0, Math.PI / 2);
+    setInst(cast, 2, -W / 2 + 0.14, 0.09, D / 2 - 0.14, 0, 0, Math.PI / 2);
+    setInst(cast, 3, W / 2 - 0.14, 0.09, D / 2 - 0.14, 0, 0, Math.PI / 2);
+    cast.instanceMatrix.needsUpdate = true;
+    g.add(cast);
+    g.lid = lids;
+    g.open = function (t) { lids.rotation.x = -STV.clamp(num(t, 0), 0, 1) * 1.9; return g; };
+    fin(g, W, H, D, [col(0, H / 2, 0, W / 2, H / 2, D / 2)]);
+    interact(g, 'Search dumpster', 'e');
+    return g;
+  };
+
+  /** chainFence(len) — posts + rails + a chain-link mesh texture panel. */
+  Geo.chainFence = function (len, opts) {
+    var o = opt(opts);
+    var L = num(len, 6), H = num(o.h, 2.2);
+    var g = grp('chainFence');
+    var m = Mat.color(0x8e959b, { rough: 0.5, metal: 0.6 });
+    var n = Math.max(2, Math.round(L / 2.4) + 1);
+    var posts = inst(CYLG(0.032, 0.032, H, 8), m, n);
+    var i;
+    for (i = 0; i < n; i++) setInst(posts, i, -L / 2 + (L * i) / (n - 1), H / 2, 0);
+    posts.instanceMatrix.needsUpdate = true;
+    g.add(posts);
+    var rails = inst(CYLG(0.022, 0.022, L, 6), m, 2);
+    setInst(rails, 0, 0, H - 0.03, 0, 0, 0, Math.PI / 2);
+    setInst(rails, 1, 0, 0.06, 0, 0, 0, Math.PI / 2);
+    rails.instanceMatrix.needsUpdate = true;
+    g.add(rails);
+    /* mesh: one alpha-tested plane using the grid texture */
+    var meshMat = null;
+    try {
+      var t = Tex.grid(0xb9c0c6, 0x000000, 12);
+      if (t) {
+        var tt = t.clone();
+        tt.needsUpdate = true;
+        tt.userData.shared = true;
+        tt.wrapS = tt.wrapT = THREE.RepeatWrapping;
+        tt.repeat.set(Math.max(1, L * 3), Math.max(1, H * 3));
+        meshMat = new THREE.MeshStandardMaterial({
+          map: tt, alphaMap: tt, transparent: true, alphaTest: 0.35,
+          side: THREE.DoubleSide, roughness: 0.6, metalness: 0.4, color: 0xc8ced3
+        });
+        meshMat.name = 'chainlink';
+      }
+    } catch (e) { meshMat = null; }
+    var panel = new THREE.Mesh(PLANEG(L, H - 0.08), meshMat || M('steel'));
+    panel.position.set(0, H / 2 - 0.02, 0);
+    noShadow(panel);
+    g.add(panel);
+    if (o.razor) {
+      var rz = inst(TORG(0.09, 0.008, 6), m, Math.max(2, Math.round(L / 0.4)));
+      var cnt = Math.max(2, Math.round(L / 0.4));
+      for (i = 0; i < cnt; i++) setInst(rz, i, -L / 2 + (L * i) / (cnt - 1), H + 0.09, 0, 0, Math.PI / 2, 0);
+      rz.instanceMatrix.needsUpdate = true;
+      g.add(rz);
+    }
+    fin(g, L, H, 0.08, [col(0, H / 2, 0, L / 2, H / 2, 0.06)]);
+    return g;
+  };
+
+  /** securityGate(w) — sliding vehicle gate. g.open(t). */
+  Geo.securityGate = function (w, opts) {
+    var o = opt(opts);
+    var W = num(w, 4.5), H = num(o.h, 2.0);
+    var g = grp('securityGate');
+    var m = Mat.color(0x53585d, { rough: 0.5, metal: 0.6 });
+    /* fixed posts */
+    cyl(g, 0.07, 0.07, H + 0.3, 8, m, -W / 2 - 0.12, (H + 0.3) / 2, 0);
+    cyl(g, 0.07, 0.07, H + 0.3, 8, m, W / 2 + 0.12, (H + 0.3) / 2, 0);
+    var leaf = new THREE.Group();
+    g.add(leaf);
+    box(leaf, W, 0.08, 0.06, m, 0, H - 0.04, 0);
+    box(leaf, W, 0.08, 0.06, m, 0, 0.06, 0);
+    var bars = Math.max(4, Math.round(W / 0.22));
+    var bi = inst(BOXG(0.03, H - 0.16, 0.03), m, bars);
+    var i;
+    for (i = 0; i < bars; i++) setInst(bi, i, -W / 2 + 0.04 + i * ((W - 0.08) / (bars - 1)), H / 2, 0);
+    bi.instanceMatrix.needsUpdate = true;
+    leaf.add(bi);
+    /* diagonal brace + hazard chevrons */
+    var d = box(leaf, Math.sqrt(W * W + H * H) * 0.98, 0.05, 0.03, m, 0, H / 2, 0);
+    d.rotation.z = Math.atan2(H, W);
+    noShadow(box(leaf, W * 0.3, 0.14, 0.02, M('hazardYellow'), W * 0.3, H * 0.5, 0.03));
+    var solid = [col(0, H / 2, 0, W / 2, H / 2, 0.08)];
+    g.leaf = leaf;
+    g.open = function (t) {
+      var k = STV.clamp(num(t, 0), 0, 1);
+      leaf.position.x = -W * k * 0.98;
+      g.userData.colliders = k > 0.6 ? [] : solid.slice();
+      g.userData.openAmount = k;
+      return g;
+    };
+    fin(g, W, H + 0.3, 0.12, solid.slice());
+    interact(g, 'Gate', 'e');
+    return g;
+  };
+
+  /** signPost(text) — post with a legible plate (canvas label). */
+  Geo.signPost = function (text, opts) {
+    var o = opt(opts);
+    var H = num(o.h, 2.1);
+    var W = num(o.w, 0.7), PH = num(o.plateH, 0.28);
+    var g = grp('signPost');
+    var m = Mat.color(0x8b9298, { rough: 0.5, metal: 0.5 });
+    cyl(g, 0.03, 0.035, H, 8, m, 0, H / 2, 0);
+    var txt = text === undefined ? 'MERIDIAN SYSTEMS' : String(text);
+    var mat = M('clothWhite');
+    var lt = Tex.label('sign:' + txt.slice(0, 24), txt,
+      o.bg === undefined ? 0x1b4f8a : o.bg, o.fg === undefined ? 0xffffff : o.fg, 512, 160);
+    if (lt) {
+      mat = new THREE.MeshStandardMaterial({ map: lt, roughness: 0.8, metalness: 0.1 });
+      mat.name = 'sign';
+    }
+    var plate = new THREE.Mesh(BOXG(W, PH, 0.02), mat);
+    plate.position.set(0, H - PH / 2 - 0.05, 0.012);
+    plate.castShadow = true;
+    g.add(plate);
+    box(g, W, PH, 0.02, m, 0, H - PH / 2 - 0.05, 0);
+    g.plate = plate;
+    fin(g, W, H, 0.06, [col(0, H / 2, 0, 0.05, H / 2, 0.05)]);
+    interact(g, 'Read sign', 'e');
+    return g;
+  };
+
+  /** puddle(r) — flat reflective decal, slight ripple via scale wobble. */
+  Geo.puddle = function (r, opts) {
+    var o = opt(opts);
+    var R = num(r, 0.9);
+    var g = grp('puddle');
+    var m = new THREE.Mesh(CYLG(R, R, 0.002, 18), M('water'));
+    m.position.y = 0.001;
+    noShadow(m);
+    g.add(m);
+    var edge = new THREE.Mesh(CYLG(R * 1.06, R * 1.06, 0.001, 18), Mat.color(0x2a2c2e, { rough: 0.95 }));
+    edge.position.y = 0.0004;
+    noShadow(edge);
+    g.add(edge);
+    g.surface = m;
+    var t = 0;
+    g.update = function (dt) {
+      t += num(dt, 0);
+      m.scale.set(1 + Math.sin(t * 0.7) * 0.004, 1, 1 + Math.cos(t * 0.5) * 0.004);
+      return g;
+    };
+    fin(g, R * 2, 0.004, R * 2, []);
+    return g;
+  };
+
+  /** bench() — slatted public bench. */
+  Geo.bench = function (opts) {
+    var o = opt(opts);
+    var W = num(o.w, 1.7), H = 0.86, D = 0.62;
+    var g = grp('bench');
+    var wood = M('woodDark'), steel = M('steelDark');
+    var slats = inst(BOXG(W, 0.03, 0.075), wood, 8);
+    var i;
+    for (i = 0; i < 4; i++) setInst(slats, i, 0, 0.45, -D / 2 + 0.12 + i * 0.10);
+    for (i = 0; i < 4; i++) setInst(slats, 4 + i, 0, 0.52 + i * 0.10, -D / 2 + 0.06, -1.25, 0, 0);
+    slats.instanceMatrix.needsUpdate = true;
+    g.add(slats);
+    var legs = inst(BOXG(0.05, 0.45, 0.05), steel, 4);
+    setInst(legs, 0, -W / 2 + 0.14, 0.225, -D / 2 + 0.14);
+    setInst(legs, 1, W / 2 - 0.14, 0.225, -D / 2 + 0.14);
+    setInst(legs, 2, -W / 2 + 0.14, 0.225, D / 2 - 0.14);
+    setInst(legs, 3, W / 2 - 0.14, 0.225, D / 2 - 0.14);
+    legs.instanceMatrix.needsUpdate = true;
+    g.add(legs);
+    box(g, 0.04, 0.42, 0.04, steel, -W / 2 + 0.14, 0.66, -D / 2 + 0.08);
+    box(g, 0.04, 0.42, 0.04, steel, W / 2 - 0.14, 0.66, -D / 2 + 0.08);
+    fin(g, W, H, D, [col(0, 0.24, 0, W / 2, 0.24, D / 2)]);
+    g.userData.seatY = 0.47;
+    return g;
+  };
+
+  /** trashCan() — perforated street bin. */
+  Geo.trashCan = function (opts) {
+    var o = opt(opts);
+    var H = num(o.h, 0.82), R = num(o.r, 0.22);
+    var g = grp('trashCan');
+    var m = Mat.color(o.color === undefined ? 0x3a4045 : o.color, { rough: 0.6, metal: 0.4 });
+    cyl(g, R, R * 0.92, H, 14, m, 0, H / 2, 0);
+    cyl(g, R * 1.05, R * 1.05, 0.03, 14, m, 0, H, 0);
+    noShadow(cyl(g, R * 0.72, R * 0.72, 0.02, 12, M('blackPlastic'), 0, H + 0.005, 0));
+    /* perforation band */
+    var holes = inst(BOXG(0.02, 0.05, 0.01), M('blackPlastic'), 16);
+    var i;
+    for (i = 0; i < 16; i++) {
+      var a = (i / 16) * Math.PI * 2;
+      setInst(holes, i, Math.cos(a) * R * 0.99, H * 0.6, Math.sin(a) * R * 0.99, 0, -a, 0);
+    }
+    holes.instanceMatrix.needsUpdate = true;
+    noShadow(holes);
+    g.add(holes);
+    if (o.bag !== false) {
+      var bag = cyl(g, R * 0.9, R * 0.8, 0.10, 12, Mat.color(0x16181b, { rough: 0.9 }), 0, H - 0.03, 0);
+      noShadow(bag);
+    }
+    fin(g, R * 2.1, H, R * 2.1, [col(0, H / 2, 0, R, H / 2, R)]);
+    interact(g, 'Search bin', 'e');
+    return g;
+  };
+
 /*__APPEND__*/
 })();

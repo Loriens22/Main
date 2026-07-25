@@ -1281,6 +1281,1457 @@
     return A;
   }
 
+  /* ==========================================================================
+   * 13. LEVEL CORE — the object every builder starts from
+   * ========================================================================*/
+
+  function addLight(lv, L, wantShadow) {
+    if (!L) return null;
+    if (lv.lights.length >= MAX_LIGHTS) { return null; }
+    L.castShadow = !!wantShadow && STV.quality === 'high' && lv._shadowCount < 2;
+    if (L.castShadow) {
+      lv._shadowCount++;
+      if (L.shadow) {
+        L.shadow.mapSize.width = 1024;
+        L.shadow.mapSize.height = 1024;
+        L.shadow.bias = -0.0016;
+        if (L.shadow.camera) { L.shadow.camera.near = 0.4; L.shadow.camera.far = 34; }
+      }
+    }
+    lv.root.add(L);
+    lv.lights.push(L);
+    return L;
+  }
+
+  function ambientPair(lv, skyCol, groundCol, intensity) {
+    var h = new T.HemisphereLight(skyCol, groundCol, intensity == null ? 0.8 : intensity);
+    lv.root.add(h);
+    lv.hemi = h;
+    return h;
+  }
+
+  /* Ground plane collider — every level needs one or the player falls forever. */
+  function groundBox(lv, cx, cz, w, d, y) {
+    addCollider(lv, cx, (y || 0) - 0.25, cz, w * 0.5, 0.25, d * 0.5, 'floor');
+  }
+
+  /* Slow-drifting dust / rain motes. One draw call, no lights, big mood. */
+  function addMotes(lv, cfg) {
+    var n = STV.quality === 'low' ? Math.round((cfg.count || 90) * 0.45) : (cfg.count || 90);
+    var pos = new Float32Array(n * 3);
+    var seedR = STV.rng(cfg.seed || 7788);
+    var i;
+    for (i = 0; i < n; i++) {
+      pos[i * 3] = cfg.x + STV.randRange(seedR, -1, 1) * cfg.w * 0.5;
+      pos[i * 3 + 1] = cfg.y + STV.randRange(seedR, 0, 1) * cfg.h;
+      pos[i * 3 + 2] = cfg.z + STV.randRange(seedR, -1, 1) * cfg.d * 0.5;
+    }
+    var g = new T.BufferGeometry();
+    g.setAttribute('position', new T.BufferAttribute(pos, 3));
+    var m = STV.memo(matCache, 'mote|' + (cfg.color || 0xffe9c9) + '|' + (cfg.size || 0.02) + '|' + (cfg.opacity || 0.5), function () {
+      var mm = new T.PointsMaterial({
+        color: cfg.color || 0xffe9c9, size: cfg.size || 0.022,
+        transparent: true, opacity: cfg.opacity == null ? 0.5 : cfg.opacity,
+        depthWrite: false, sizeAttenuation: true
+      });
+      mm.userData.shared = true;
+      return mm;
+    });
+    var pts = new T.Points(g, m);
+    pts.frustumCulled = false;
+    lv.root.add(pts);
+    var fall = cfg.fall || 0.045;
+    var swayA = cfg.sway == null ? 0.08 : cfg.sway;
+    var t0 = 0;
+    lv.addUpdater(function (dt) {
+      t0 += dt;
+      var arr = g.attributes.position.array;
+      for (var k = 0; k < n; k++) {
+        var j = k * 3;
+        arr[j + 1] -= fall * dt;
+        arr[j] += Math.sin(t0 * 0.6 + k) * swayA * dt;
+        if (arr[j + 1] < cfg.y) arr[j + 1] = cfg.y + cfg.h;
+      }
+      g.attributes.position.needsUpdate = true;
+    });
+    return pts;
+  }
+
+  /* Ceiling strip light: emissive plane + probe + (budgeted) point light. */
+  function stripLight(lv, x, y, z, len, yaw, cfg) {
+    cfg = cfg || {};
+    var col = cfg.color == null ? 0xfff2d8 : cfg.color;
+    var g = safeGeo('fluorescentTube', [len], [len, 0.09, 0.16], { mat: 'emissiveWhite', solid: false });
+    if (g.userData) g.userData.colliders = [];
+    addProp(lv, g, x, y, z, yaw || 0, { solid: false, light: false });
+    var pl = new T.Mesh(planeGeo(len * 0.94, 0.2), basic(col, cfg.glow == null ? 0.5 : cfg.glow, true));
+    pl.rotation.x = Math.PI * 0.5;
+    pl.rotation.z = yaw || 0;
+    pl.position.set(x, y - 0.03, z);
+    pl.renderOrder = 2;
+    lv.root.add(pl);
+    addProbe(lv, x, z, cfg.probe == null ? 4.2 : cfg.probe, cfg.probeI == null ? 0.75 : cfg.probeI);
+    if (cfg.real) {
+      var L = new T.PointLight(col, cfg.intensity == null ? 1.1 : cfg.intensity, cfg.dist == null ? 11 : cfg.dist, 1.7);
+      L.position.set(x, y - 0.15, z);
+      addLight(lv, L, cfg.shadow);
+    }
+    return g;
+  }
+
+  /* An emissive quad on the floor — "there is light here" without a light. */
+  function pool(lv, x, z, r, color, opacity, y) {
+    var m = new T.Mesh(planeGeo(r * 2, r * 2), basic(color == null ? 0xffe9c9 : color, opacity == null ? 0.14 : opacity, true));
+    m.rotation.x = -Math.PI * 0.5;
+    m.position.set(x, (y == null ? 0.012 : y), z);
+    m.renderOrder = 1;
+    lv.root.add(m);
+    return m;
+  }
+
+  function makeLevel(id, ctx, cfg) {
+    cfg = cfg || {};
+    var lv = {};
+
+    lv.id = id;
+    lv.ctx = ctx || {};
+    lv.root = new T.Group();
+    lv.root.name = 'lvl_' + id;
+    lv.rng = STV.rng(cfg.seed == null ? 0x51E7E : cfg.seed);
+    lv.spawn = { pos: V(0, 0, 0), yaw: 0 };
+    lv.bounds = new T.Box3(V(-70, -3, -70), V(70, 24, 70));
+
+    lv.lights = [];
+    lv.colliders = [];
+    lv.interactables = [];
+    lv.actors = [];
+    lv.props = {};
+    lv.probes = [];
+    lv.screens = [];
+
+    lv.env = {
+      fog: null, sky: 0x05070a, ambient: 0.8, exposure: 1.0,
+      footstep: 'concrete', ambience: null, music: null, baseLight: 0.3
+    };
+
+    lv.time = 0;
+    lv.phase = null;
+    lv._timers = [];
+    lv._offs = [];
+    lv._updaters = [];
+    lv._keyHandlers = [];
+    lv._caughtIdx = 0;
+    lv._shadowCount = 0;
+    lv._player = null;
+    lv._done = false;
+    lv._noiseT = 0;
+    lv.showCones = true;
+    lv.stealthOff = true;              /* levels with guards flip this off */
+    lv.noMusicSwitch = false;
+    lv.checkpoint = { pos: V(0, 0, 0), yaw: 0 };
+    lv.alert = makeAlert(lv);
+
+    /* ---- scheduling ---- */
+    lv.addTimer = function (fn, delay) {
+      var t = { fn: fn, d: delay == null ? 0 : delay };
+      lv._timers.push(t);
+      return t;
+    };
+    lv.addUpdater = function (fn) { lv._updaters.push(fn); return fn; };
+    lv.on = function (evt, fn) { var o = STV.bus.on(evt, fn); lv._offs.push(o); return o; };
+
+    /* ---- lighting queries ---- */
+    lv.lightAt = function (x, z) {
+      var l = lv.env.baseLight || 0;
+      for (var i = 0; i < lv.probes.length; i++) {
+        var p = lv.probes[i];
+        var d = flatDist(x, z, p.x, p.z);
+        if (d < p.r) l += p.i * (1 - d / p.r);
+      }
+      return STV.clamp(l, 0, 1.8);
+    };
+
+    /* The single fairness knob: how easy is the player to see right now. */
+    lv.detectMul = function (ppos, crouch) {
+      var lit = lv.lightAt(ppos.x, ppos.z);
+      var dark = lit < 0.34;
+      var m = 1;
+      if (crouch) m *= dark ? 0.5 : 0.74;
+      else m *= dark ? 0.84 : 1;
+      if (playerRunning(lv._player)) m *= 1.2;
+      if (lv.alert.level >= 2) m *= 1.1;
+      return STV.clamp(m, 0.34, 1.5);
+    };
+
+    /* ---- world queries ---- */
+    lv.blockedAt = function (x, z, r) {
+      var ph = lv.ctx.physics;
+      if (ph && typeof ph.isFree === 'function') return !ph.isFree(x, 0.15, z, r || 0.34, 1.5);
+      for (var i = 0; i < lv.colliders.length; i++) {
+        var c = lv.colliders[i];
+        if (c.tag === 'floor' || c.tag === 'ceiling') continue;
+        if (c.c.y + c.h.y < 0.3) continue;
+        if (Math.abs(x - c.c.x) < c.h.x + (r || 0.34) && Math.abs(z - c.c.z) < c.h.z + (r || 0.34)) return true;
+      }
+      return false;
+    };
+
+    /* ---- noise propagation ---- */
+    lv.noise = function (pos, loud, tag) {
+      for (var i = 0; i < lv.actors.length; i++) {
+        var a = lv.actors[i];
+        if (a && a.hear) { try { a.hear(pos, loud || 0, tag); } catch (e) {} }
+      }
+    };
+
+    /* ---- checkpoints ---- */
+    lv.setCheckpoint = function (x, y, z, yaw, quiet) {
+      lv.checkpoint.pos.set(x, y || 0, z);
+      lv.checkpoint.yaw = yaw || 0;
+      STV.bus.emit('checkpoint', { pos: lv.checkpoint.pos.clone(), yaw: lv.checkpoint.yaw, silent: !!quiet });
+    };
+    lv.respawnAtCheckpoint = function () {
+      teleportPlayer(lv, lv._player, lv.checkpoint.pos, lv.checkpoint.yaw);
+    };
+    lv.onRespawn = function () {
+      for (var i = 0; i < lv.actors.length; i++) if (lv.actors[i].reset) lv.actors[i].reset();
+      lv.alert.level = lv.alert.floor;
+      lv.alert.calmT = 0;
+    };
+
+    /* ---- completion ---- */
+    lv.complete = function (delay) {
+      if (lv._done) return;
+      lv._done = true;
+      sfx('stinger');
+      lv.addTimer(function () {
+        STV.bus.emit('level:complete', { id: lv.id });
+      }, delay == null ? 1.1 : delay);
+    };
+
+    /* ---- lifecycle ---- */
+    lv.onEnter = function (player, phase) {
+      lv._player = player;
+      if (phase && lv.setPhase) { try { lv.setPhase(phase); } catch (e) {} }
+      var p = playerPos(lv, player);
+      lv.setCheckpoint(p.x, p.y, p.z, player ? player.yaw : 0, true);
+      if (lv.env.music) music(lv.env.music, 1200);
+      if (cfg.onEnter) { try { cfg.onEnter(lv, player, phase); } catch (e) { STV.warn('[lvl]', e); } }
+    };
+
+    lv.update = function (dt, player) {
+      lv._player = player;
+      lv.time += dt;
+
+      /* timers */
+      var i;
+      for (i = lv._timers.length - 1; i >= 0; i--) {
+        var t = lv._timers[i];
+        t.d -= dt;
+        if (t.d <= 0) {
+          lv._timers.splice(i, 1);
+          try { t.fn(); } catch (e) { STV.warn('[timer]', e); }
+        }
+      }
+
+      /* stealth bookkeeping */
+      if (!lv.stealthOff) {
+        lv._noiseT -= dt;
+        if (lv._noiseT <= 0) {
+          lv._noiseT = 0.3;
+          var n = (player && player.noise != null) ? player.noise
+            : (playerRunning(player) ? 1 : (playerMoving(player) ? 0.4 : 0));
+          if (n > 0.3) lv.noise(playerPos(lv, player), n * 7.5 - 2.0, 'steps');
+        }
+        var stim = false;
+        for (i = 0; i < lv.actors.length; i++) {
+          var a = lv.actors[i];
+          if (a && (a.seeing || a.state === 'chase' || a.state === 'search')) { stim = true; break; }
+        }
+        lv.alert.decay(dt, stim);
+      }
+
+      for (i = 0; i < lv._updaters.length; i++) {
+        try { lv._updaters[i](dt, player, lv); } catch (e) { STV.warn('[lvl update]', e); }
+      }
+    };
+
+    lv.dispose = function () {
+      for (var i = 0; i < lv._offs.length; i++) { try { lv._offs[i](); } catch (e) {} }
+      lv._offs.length = 0;
+      for (i = 0; i < lv._keyHandlers.length; i++) {
+        try { window.removeEventListener('keydown', lv._keyHandlers[i], true); } catch (e) {}
+      }
+      lv._keyHandlers.length = 0;
+      lv._timers.length = 0;
+      lv._updaters.length = 0;
+      lv.actors.length = 0;
+      lv.interactables.length = 0;
+      if (cfg.onDispose) { try { cfg.onDispose(lv); } catch (e) {} }
+    };
+
+    return lv;
+  }
+
+  /* Game calls actor.update(dt, player); our actors want (dt, level, player). */
+  function wrapActors(lv) {
+    for (var i = 0; i < lv.actors.length; i++) {
+      var a = lv.actors[i];
+      if (!a || a._wrapped || typeof a.update !== 'function') continue;
+      a._wrapped = true;
+      a._ai = a.update;
+      a.update = (function (act) {
+        return function (dt, player) { act._ai(dt, lv, player || lv._player); };
+      })(a);
+    }
+  }
+
+  /* ==========================================================================
+   * 14. EASTER EGG PLUMBING
+   * ========================================================================*/
+
+  var EGG_NAMES = {
+    konami: 'Up Up Down Down',
+    win98: 'It Still Boots',
+    kernel10: 'Employee of the Month',
+    bsod: 'Blue Screen of Life',
+    crowbar: 'DO NOT USE (RESERVED)',
+    tcp: 'TCP Always Comes Back',
+    hunter2: 'my password is *******',
+    vending: 'Percussive Maintenance',
+    poster127: 'No Place Like 127.0.0.1',
+    duck: 'Rubber Duck Debugging',
+    mom: 'Call Your Mother',
+    ellisbackup: 'ELLIS_BACKUP.IMG',
+    clock: 'Five Past Dusk',
+    boombox: 'Four Stations',
+    deadbeef: '0xDEADBEEF',
+    catmode: 'Everyone Is A Cat'
+  };
+
+  var PET_COUNT = 0;          /* Kernel pets, this session */
+  var VEND_HITS = {};         /* per-machine thump counter */
+
+  function gotEgg(id) {
+    var fresh = STV.egg(id, EGG_NAMES[id] || id);
+    if (fresh) {
+      sfx('success');
+      toast('Easter egg: ' + (EGG_NAMES[id] || id), 'egg', 3200);
+      checkCatMode();
+    }
+    return fresh;
+  }
+  function hasEgg(id) { return !!STV.progress.eggs[id]; }
+
+  function checkCatMode() {
+    if (hasEgg('catmode')) return;
+    for (var i = 0; i < STV.EGGS.length; i++) {
+      var e = STV.EGGS[i];
+      if (e === 'catmode') continue;
+      if (!STV.progress.eggs[e]) return;
+    }
+    STV.egg('catmode', EGG_NAMES.catmode);
+    STV.settings.catmodeUnlocked = true;
+    STV.saveSettings();
+    STV.bus.emit('settings:catmode', { unlocked: true });
+    toast('CATMODE unlocked in settings. Yes, really.', 'cat', 5200);
+    say('Steve', 'I regret every decision that led here.', 2600, 'steve');
+  }
+
+  /* --- konami, listening from the first level build onwards ---------------- */
+  var KONAMI = ['ArrowUp', 'ArrowUp', 'ArrowDown', 'ArrowDown', 'ArrowLeft', 'ArrowRight', 'ArrowLeft', 'ArrowRight', 'b', 'a'];
+  var konamiIdx = 0, konamiInstalled = false;
+
+  function fireKonami() {
+    gotEgg('konami');
+    STV.Levels._hat = true;
+    STV.bus.emit('egg:konami', {});
+    sfx('bootChime');
+    toast('Kernel has acquired a hat.', 'cat', 3400);
+  }
+
+  function installKonami() {
+    if (konamiInstalled) return;
+    konamiInstalled = true;
+    try {
+      window.addEventListener('keydown', function (e) {
+        var k = e.key;
+        if (!k) return;
+        if (k.length === 1) k = k.toLowerCase();
+        if (k === KONAMI[konamiIdx]) {
+          konamiIdx++;
+          if (konamiIdx >= KONAMI.length) { konamiIdx = 0; fireKonami(); }
+        } else {
+          konamiIdx = (k === KONAMI[0]) ? 1 : 0;
+        }
+      }, false);
+    } catch (e) { /* no window keyboard, no problem */ }
+    STV.bus.on('egg:konami:trigger', fireKonami);
+  }
+
+  /* --- catmode: replace every human silhouette with a large, dignified cat -- */
+  function applyCatMode(lv) {
+    if (!STV.settings.catmode) return;
+    for (var i = 0; i < lv.actors.length; i++) {
+      var a = lv.actors[i];
+      if (!a || !a.body || a.type === 'cat') continue;
+      a.body.visible = false;
+      var c = safeGeo('cat', [{ seed: 7 + i * 13 }], [0.28, 0.34, 0.7], { kind: 'cat' });
+      ensureCat(c);
+      c.scale.setScalar(2.6);
+      c.position.y = 0.02;
+      a.obj.add(c);
+      a.catBody = c;
+    }
+  }
+
+  /* Kernel — the shop cat. Used by `shop` and `epilogue`. */
+  function makeKernel(lv, x, z, yaw, cfg) {
+    cfg = cfg || {};
+    var g = safeGeo('cat', [{ color: 0x8c8377, seed: 1010 }], [0.26, 0.32, 0.66], { kind: 'cat' });
+    ensureCat(g);
+    var holder = new T.Group();
+    holder.add(g);
+
+    /* the konami hat — permanent once earned */
+    var hat = new T.Mesh(coneGeo(0.075, 0.15, 10), basic(0xff5fd3, 1));
+    hat.position.set(0, 0.42, 0.16);
+    hat.rotation.z = 0.12;
+    hat.visible = !!(STV.Levels && STV.Levels._hat) || hasEgg('konami');
+    holder.add(hat);
+
+    var A = {
+      type: 'cat', name: 'Kernel', obj: holder, body: g, hat: hat,
+      pos: V(x, 0, z), state: cfg.state || 'sit', purr: 0, tail: 0,
+      update: function (dt) {
+        A.tail += dt;
+        try { g.update(dt, { state: A.state }); } catch (e) {}
+        holder.position.set(A.pos.x, 0, A.pos.z);
+        if (A.purr > 0) {
+          A.purr -= dt;
+          holder.position.y = Math.sin(A.tail * 22) * 0.006;
+        } else holder.position.y = 0;
+        if (!hat.visible && (STV.Levels._hat || hasEgg('konami'))) hat.visible = true;
+      },
+      reset: function () {}
+    };
+    addProp(lv, holder, x, 0, z, yaw || 0, { solid: false, id: 'kernel' });
+    lv.actors.push(A);
+
+    /* --- egg 3: pet the cat ten times ------------------------------------ */
+    var petLines = [
+      'Hello, Kernel.', 'You are not helping.', 'That is my chair.',
+      'You have never paid rent.', 'Yes. Very good.', 'I know. I know.',
+      'You were asleep on the router again.', 'Do not eat the thermal paste.',
+      'One day you will get a job.', ''
+    ];
+    addInteract(lv, {
+      obj: holder,
+      label: 'Pet Kernel',
+      radius: 1.9,
+      onUse: function () {
+        PET_COUNT++;
+        A.purr = 2.2;
+        A.state = 'lick';
+        sfx('catPurr', A.pos, 0.8);
+        lv.addTimer(function () { A.state = cfg.state || 'sit'; }, 2.4);
+        if (PET_COUNT < 10) {
+          var l = petLines[(PET_COUNT - 1) % petLines.length];
+          if (l) say('Steve', l, 1900, 'steve');
+          if (PET_COUNT === 5) hint('He is keeping count. So is the game.', 3200);
+        } else if (PET_COUNT === 10) {
+          sfx('catMeow', A.pos, 1);
+          say('Steve', 'What have you got there? …That is the M3 I have been looking for since March.', 4200, 'steve');
+          /* he brings you the screw */
+          var screw = place(lv, 'screwdriver', [], A.pos.x + 0.35, 0.02, A.pos.z + 0.3, 0.6, [0.02, 0.02, 0.16], { solid: false });
+          if (screw) screw.scale.setScalar(0.5);
+          toast('Kernel brought you an M3 screw.', 'cat', 3600);
+          gotEgg('kernel10');
+        }
+      }
+    });
+    return A;
+  }
+
+  /* ==========================================================================
+   * 15. SHARED SET DRESSING
+   * ========================================================================*/
+
+  /* A wall poster that can carry an egg. */
+  function addPoster(lv, kind, x, y, z, yaw, w, h, cfg) {
+    cfg = cfg || {};
+    var g = safeGeo('poster', [kind, w || 0.6, h || 0.85], [w || 0.6, h || 0.85, 0.02], { kind: 'flat', color: 0x9aa6b2, solid: false });
+    if (g.userData) g.userData.colliders = [];
+    addProp(lv, g, x, y, z, yaw, { solid: false });
+    if (cfg.label) {
+      addInteract(lv, {
+        obj: g, label: cfg.label, radius: cfg.radius || 2.2,
+        onUse: function () { if (cfg.onUse) cfg.onUse(); }
+      });
+    }
+    return g;
+  }
+
+  /* Handwritten sticky note. */
+  function addNote(lv, x, y, z, yaw, cfg) {
+    cfg = cfg || {};
+    var g = safeGeo('stickyNote', [cfg.text || ''], [0.08, 0.08, 0.004], { kind: 'flat', color: 0xf4e58a, solid: false });
+    if (g.userData) g.userData.colliders = [];
+    addProp(lv, g, x, y, z, yaw || 0, { solid: false });
+    if (cfg.label) {
+      addInteract(lv, {
+        obj: g, label: cfg.label, radius: cfg.radius || 1.7,
+        onUse: function () { if (cfg.onUse) cfg.onUse(); }
+      });
+    }
+    return g;
+  }
+
+  /* Cable spaghetti: a sagging catenary of little boxes. Cheap, reads great. */
+  function cableRun(lv, x1, y1, z1, x2, y2, z2, sag, color, seed) {
+    var r = STV.rng(seed || 4242);
+    var segs = 9;
+    var grp = new T.Group();
+    var mat = M(color || 'rubber');
+    for (var i = 0; i < segs; i++) {
+      var t0 = i / segs, t1 = (i + 1) / segs;
+      var p0 = catPt(t0), p1 = catPt(t1);
+      var dx = p1[0] - p0[0], dy = p1[1] - p0[1], dz = p1[2] - p0[2];
+      var len = Math.sqrt(dx * dx + dy * dy + dz * dz);
+      var th = 0.012 + r() * 0.008;
+      var m = new T.Mesh(boxGeo(th, th, len), mat);
+      m.position.set((p0[0] + p1[0]) / 2, (p0[1] + p1[1]) / 2, (p0[2] + p1[2]) / 2);
+      m.lookAt(p1[0], p1[1], p1[2]);
+      grp.add(m);
+    }
+    function catPt(t) {
+      var s = (sag == null ? 0.25 : sag) * Math.sin(Math.PI * t);
+      return [STV.lerp(x1, x2, t), STV.lerp(y1, y2, t) - s, STV.lerp(z1, z2, t)];
+    }
+    grp.userData.colliders = [];
+    lv.root.add(grp);
+    return grp;
+  }
+
+  /* ==========================================================================
+   * 16. LEVEL BUILDERS
+   * ========================================================================*/
+
+  var BUILDERS = {};
+
+  /* Temporary placeholder used until a builder exists; also the crash net. */
+  function buildStub(id, ctx, note) {
+    var lv = makeLevel(id, ctx, {});
+    lv.env.footstep = 'concrete';
+    lv.env.ambience = 'shopRoom';
+    lv.env.sky = 0x0b0e12;
+    ambientPair(lv, 0x9fb6cc, 0x2a2620, 1.0);
+    roomShell(lv, { x0: -6, x1: 6, z0: -6, z1: 6, h: 3, floorMat: 'concrete', ceiling: true });
+    groundBox(lv, 0, 0, 12, 12, 0);
+    stripLight(lv, 0, 2.85, 0, 2.4, 0, { real: true });
+    lv.spawn.pos.set(0, 0, 3);
+    addInteract(lv, {
+      at: [0, 1.2, -2], label: 'Continue', once: true,
+      onUse: function () { lv.complete(0.4); }
+    });
+    objective(note || 'Continue');
+    wrapActors(lv);
+    return lv;
+  }
+
+  /* ==========================================================================
+   * 17. EXPORT
+   * ========================================================================*/
+
+  STV.Levels = {
+    list: LEVEL_IDS.slice(),
+    next: function (id) { return NEXT_ID[id] || null; },
+    _hat: false,
+
+    build: function (id, ctx) {
+      installKonami();
+      if (STV.progress.eggs.konami) STV.Levels._hat = true;
+      var fn = BUILDERS[id];
+      var lv = null;
+      if (typeof fn === 'function') {
+        try {
+          lv = fn(ctx || {});
+        } catch (e) {
+          STV.warn('[levels] builder "' + id + '" failed:', e);
+          lv = null;
+        }
+      } else {
+        STV.warn('[levels] no builder for "' + id + '"');
+      }
+      if (!lv) lv = buildStub(id, ctx || {}, 'Continue');
+      lv.id = id;
+      applyCatMode(lv);
+      wrapActors(lv);
+      STV.log('[levels] built', id, {
+        colliders: lv.colliders.length, actors: lv.actors.length,
+        lights: lv.lights.length, interact: lv.interactables.length
+      });
+      return lv;
+    },
+
+    /* debug / cheats */
+    egg: gotEgg,
+    petCount: function () { return PET_COUNT; }
+  };
+
+  /* ==========================================================================
+   * 18. LEVEL — shop / epilogue shared shell
+   *   Kilbride Computer Repair. Unit 4, a nondescript office park.
+   *   Interior  x[-5,5]  z[-6,4]   Back room x[-1,5] z[-11,-6]
+   *   Forecourt z[4,17]
+   * ========================================================================*/
+
+  function shopShell(lv, opts) {
+    opts = opts || {};
+    var H = 2.9;
+
+    /* --- floors ---------------------------------------------------------- */
+    floorSlab(lv, 0, -1, 10, 10, 'carpetShop', 0);
+    floorSlab(lv, 2, -8.5, 6, 5, 'concrete', 0);
+    groundBox(lv, 0, -1, 10.4, 10.4, 0);
+    groundBox(lv, 2, -8.5, 6.4, 5.4, 0);
+
+    ceilingSlab(lv, 0, -1, 10, 10, 'ceiling', H);
+    ceilingSlab(lv, 2, -8.5, 6, 5, 'ceiling', H - 0.35);
+
+    /* --- walls ----------------------------------------------------------- */
+    /* front (south, z=+4): shop window + glass door */
+    wallLine(lv, -5, 4, 5, 4, H, {
+      mat: 'drywallShop',
+      openings: [
+        { s: 0.8, e: 4.4, bottom: 0.95, top: 2.4 },
+        { s: 5.6, e: 7.0, bottom: 0, top: 2.1 }
+      ]
+    });
+    /* back (north, z=-6) with the back-room doorway */
+    wallLine(lv, -5, -6, 5, -6, H, {
+      mat: 'drywallShop',
+      openings: [{ s: 6.8, e: 7.9, bottom: 0, top: 2.05 }]
+    });
+    wallLine(lv, -5, -6, -5, 4, H, { mat: 'drywallShop' });
+    wallLine(lv, 5, -6, 5, 4, H, { mat: 'drywallShop' });
+
+    /* back room */
+    wallLine(lv, -1, -11, 5, -11, H - 0.35, { mat: 'drywall' });
+    wallLine(lv, -1, -11, -1, -6, H - 0.35, { mat: 'drywall' });
+    wallLine(lv, 5, -11, 5, -6, H - 0.35, { mat: 'drywall' });
+
+    /* --- shop window glass + door ---------------------------------------- */
+    place(lv, 'window', [3.6, 1.45], -2.4, 0.95, 4, 0, [3.6, 1.45, 0.08], { solid: false });
+    var door = safeGeo('door', [1.35, 2.05, { glass: true, mat: 'glass' }], [1.35, 2.05, 0.06], { mat: 'glass', solid: false });
+    ensureOpenable(door, 1.35);
+    if (door.userData) door.userData.colliders = [];
+    addProp(lv, door, 0.62, 0, 4, 0, { solid: false, id: 'frontDoor' });
+    lv.frontDoor = door;
+    place(lv, 'doorChime', [], 1.3, 2.16, 3.9, 0, [0.1, 0.12, 0.05], { solid: false, id: 'chime' });
+
+    /* the door opens for you, like a real shop door */
+    var doorT = 0, doorOpen = false;
+    lv.addUpdater(function (dt, player) {
+      if (!player) return;
+      var p = playerPos(lv, player);
+      var near = flatDist(p.x, p.z, 0.62, 4) < 2.0 && !lv.doorLocked;
+      if (near !== doorOpen) {
+        doorOpen = near;
+        sfx(near ? 'doorOpen' : 'doorClose', V(0.62, 1, 4), 0.6);
+        if (near) sfx('doorChime', V(0.62, 2, 4), 0.75);
+      }
+      doorT = STV.damp(doorT, doorOpen ? 1 : 0, 7, dt);
+      try { door.open(doorT); } catch (e) {}
+    });
+
+    /* --- forecourt ------------------------------------------------------- */
+    floorSlab(lv, 0, 10.5, 26, 13, 'asphalt', 0.0);
+    groundBox(lv, 0, 10.5, 26, 13, 0);
+    place(lv, 'parkingLines', [22, 11], 0, 0.012, 10.5, 0, [22, 0.01, 11], { solid: false });
+
+    /* neighbouring units so the park reads as a park, not a diorama */
+    place(lv, 'officeBlock', [14, 7, 12, { windows: true, tone: 0.6 }], -15.5, 0, -2, 0, [14, 7, 12], { solid: true });
+    place(lv, 'officeBlock', [14, 6.4, 12, { windows: true, tone: 0.45 }], 15.5, 0, -2, 0, [14, 6.4, 12], { solid: true });
+    place(lv, 'officeBlock', [30, 5.5, 8, { windows: true, tone: 0.3 }], 0, 0, 22.5, 0, [30, 5.5, 8], { solid: true });
+    /* our own unit, seen from outside */
+    place(lv, 'signPost', ['KILBRIDE COMPUTER REPAIR'], -3.2, 0, 4.5, 0, [2.2, 0.5, 0.1], { solid: false, id: 'shopSign' });
+
+    place(lv, 'hedge', [9], -9, 0, 16.4, 0, [9, 0.9, 0.7], { solid: true });
+    place(lv, 'hedge', [9], 9, 0, 16.4, 0, [9, 0.9, 0.7], { solid: true });
+    place(lv, 'chainFence', [26], 0, 0, 17.2, 0, [26, 1.9, 0.08], { solid: true });
+    place(lv, 'treeSmall', [], -10.5, 0, 12.5, 0, [1.6, 3.4, 1.6], { solid: true });
+    place(lv, 'treeSmall', [], 10.8, 0, 13.6, 1.2, [1.6, 3.1, 1.6], { solid: true });
+    place(lv, 'dumpster', [], 8.6, 0, 6.4, -0.35, [1.8, 1.25, 1.1], { solid: true });
+    place(lv, 'bench', [], -6.2, 0, 5.6, 0, [1.6, 0.85, 0.6], { solid: true });
+    place(lv, 'trashCan', [], -7.6, 0, 5.6, 0, [0.4, 0.9, 0.4], { solid: true });
+    place(lv, 'bollard', [], 2.9, 0, 4.9, 0, [0.16, 0.9, 0.16], { solid: true });
+    place(lv, 'bollard', [], -0.9, 0, 4.9, 0, [0.16, 0.9, 0.16], { solid: true });
+    place(lv, 'puddle', [1.5], -4.5, 0.006, 9.0, 0, [3, 0.01, 3], { solid: false });
+
+    /* Ms. Ellis's car: a beige saloon that has been beige for 22 years. */
+    lv.props.ellisCar = place(lv, 'car', [0xd8cdb2, 'sedan'], -2.6, 0, 8.2, Math.PI * 0.5,
+      [4.4, 1.45, 1.85], { solid: true, id: 'ellisCar' });
+    place(lv, 'car', [0x39424b, 'van'], 4.4, 0, 8.4, Math.PI * 0.5, [5.0, 2.1, 2.0], { solid: true });
+    if (opts.olegCar !== false) {
+      lv.props.olegCar = place(lv, 'car', [0x14171a, 'suv'], 1.0, 0, 12.4, Math.PI * 0.5,
+        [4.9, 1.75, 1.95], { solid: true, id: 'olegCar' });
+    }
+
+    place(lv, 'streetLamp', [], -8.5, 0, 8.0, 0, [0.2, 5.2, 0.2], { solid: true, light: false, id: 'lamp1' });
+    place(lv, 'streetLamp', [], 8.5, 0, 8.0, 0, [0.2, 5.2, 0.2], { solid: true, light: false, id: 'lamp2' });
+
+    return H;
+  }
+
+  /* The shop's light rig — 3 dynamic lights, everything else is faked. */
+  function shopLighting(lv, mood) {
+    var dusk = mood === 'dusk';
+    var evening = mood === 'evening';
+
+    lv.env.sky = dusk ? 0x2a3140 : (evening ? 0x38424f : 0x9fb7cf);
+    lv.env.fog = { type: 'exp2', color: dusk ? 0x2a3140 : 0x9fb7cf, density: dusk ? 0.016 : 0.008 };
+    lv.env.exposure = dusk ? 0.92 : 1.0;
+    lv.env.baseLight = 0.42;
+
+    var hemi = ambientPair(lv, dusk ? 0x4b5a72 : 0xbcd2e6, 0x3a3128, dusk ? 0.55 : 0.95);
+    lv.hemi = hemi;
+
+    var sun = new T.DirectionalLight(dusk ? 0xffb27a : 0xffeccf, dusk ? 0.55 : 1.35);
+    sun.position.set(-7, dusk ? 5 : 13, 15);
+    sun.target.position.set(0, 0, 0);
+    lv.root.add(sun.target);
+    addLight(lv, sun, true);
+    lv.sun = sun;
+
+    /* two fluorescent battens over the shop floor + one over the bench */
+    stripLight(lv, -1.4, 2.82, 0.6, 2.6, 0, { real: true, intensity: 1.05, dist: 12, probe: 5, probeI: 0.7 });
+    stripLight(lv, -1.4, 2.82, -3.4, 2.6, 0, { real: false, probe: 5, probeI: 0.6 });
+    stripLight(lv, 2.0, 2.45, -8.6, 1.6, 0, { real: false, glow: 0.35, probe: 3.4, probeI: 0.5, color: 0xdfe8ee });
+
+    /* one warm lamp on the workbench — the shop's heart */
+    var lamp = new T.PointLight(0xffd9a0, 0.85, 5.5, 2.0);
+    lamp.position.set(-3.9, 1.35, -1.2);
+    addLight(lv, lamp, false);
+    addProbe(lv, -3.9, -1.2, 3.2, 0.55);
+    lv.benchLamp = lamp;
+
+    /* fake sunlight through the shop window */
+    var shaft = new T.Mesh(planeGeo(3.4, 3.2), basic(0xffe9c9, dusk ? 0.10 : 0.16, true));
+    shaft.rotation.x = -Math.PI * 0.5;
+    shaft.position.set(-2.2, 0.015, 1.4);
+    shaft.renderOrder = 1;
+    lv.root.add(shaft);
+    lv.sunShaft = shaft;
+
+    addMotes(lv, { x: -2.2, y: 0.2, z: 0.6, w: 5.5, h: 2.4, d: 5.0, count: 110, seed: 606, size: 0.018, opacity: 0.42 });
+
+    lv.setMood = function (m) {
+      var d = m === 'dusk';
+      lv.hemi.intensity = d ? 0.5 : 0.95;
+      lv.hemi.color.setHex(d ? 0x4b5a72 : 0xbcd2e6);
+      sun.intensity = d ? 0.45 : 1.35;
+      sun.color.setHex(d ? 0xff9d63 : 0xffeccf);
+      sun.position.set(-11, d ? 3.2 : 13, 15);
+      shaft.material = basic(d ? 0xff9d63 : 0xffe9c9, d ? 0.09 : 0.16, true);
+      if (lv.ctx.scene) {
+        if (lv.ctx.scene.background && lv.ctx.scene.background.setHex) lv.ctx.scene.background.setHex(d ? 0x2a3140 : 0x9fb7cf);
+        if (lv.ctx.scene.fog && lv.ctx.scene.fog.color) lv.ctx.scene.fog.color.setHex(d ? 0x2a3140 : 0x9fb7cf);
+      }
+      if (lv.ctx.renderer) lv.ctx.renderer.toneMappingExposure = d ? 0.92 : 1.0;
+    };
+  }
+
+  /* Footstep + ambience follow you out to the car park. */
+  function shopSurfaceWatcher(lv) {
+    var outside = null;
+    lv.addUpdater(function (dt, player) {
+      if (!player) return;
+      var p = playerPos(lv, player);
+      var out = p.z > 4.3;
+      if (out !== outside) {
+        outside = out;
+        if (player.footSurface !== undefined) player.footSurface = out ? 'concrete' : 'carpet';
+        lv.env.footstep = out ? 'concrete' : 'carpet';
+        lv.env.ambience = out ? 'parkingLot' : 'shopRoom';
+        if (STV.Audio && STV.Audio.ambience) {
+          try { STV.Audio.ambience(out ? 'parkingLot' : 'shopRoom', 800); } catch (e) {}
+        }
+      }
+    });
+  }
+
+  /* ==========================================================================
+   * 19. EGG 2 — a working DOS prompt on Ms. Ellis's tower
+   *   Renders to a real CRT in the world. Keyboard types; on touch the USE
+   *   button runs the highlighted suggestion, so it is playable one-thumbed.
+   * ========================================================================*/
+
+  function makeDosTerminal(lv, cfg) {
+    var scr = makeScreen({ w: 384, h: 288, crt: true, glow: 0x63ff9a });
+    var mesh = scr.mesh(cfg.w || 0.30, cfg.h || 0.225);
+    mesh.position.set(cfg.x, cfg.y, cfg.z);
+    mesh.rotation.y = cfg.yaw || 0;
+    mesh.renderOrder = 3;
+    lv.root.add(mesh);
+
+    var D = {
+      mesh: mesh, screen: scr, on: false, active: false,
+      lines: [], input: '', cursor: 0, blink: 0, busy: 0, ranOne: false,
+      sugg: ['dir', 'ver', 'steve.exe', 'kernel', 'format c:', 'win', 'exit'],
+      suggI: 0
+    };
+
+    var W = 384, H = 288, ROWS = 21, COLS = 44;
+
+    function push(s) {
+      if (s == null) s = '';
+      while (s.length > COLS) { D.lines.push(s.slice(0, COLS)); s = s.slice(COLS); }
+      D.lines.push(s);
+      while (D.lines.length > ROWS) D.lines.shift();
+      D.dirty = true;
+    }
+    D.push = push;
+
+    function draw() {
+      var c = scr.ctx;
+      if (!c) return;
+      c.fillStyle = '#050d07';
+      c.fillRect(0, 0, W, H);
+      c.font = '13px monospace';
+      c.textBaseline = 'top';
+      c.fillStyle = '#78ffae';
+      var i;
+      if (!D.on) {
+        c.fillStyle = '#0b1a10';
+        c.fillRect(0, 0, W, H);
+      } else {
+        for (i = 0; i < D.lines.length; i++) c.fillText(D.lines[i], 8, 6 + i * 13);
+        var y = 6 + D.lines.length * 13;
+        if (y < H - 26) {
+          c.fillText((cfg.prompt || 'C:\\>') + D.input, 8, y);
+          if (D.blink < 0.5 && D.active) {
+            var wpx = c.measureText((cfg.prompt || 'C:\\>') + D.input).width;
+            c.fillStyle = '#78ffae';
+            c.fillRect(8 + wpx + 1, y + 1, 7, 11);
+          }
+        }
+        if (D.active) {
+          c.fillStyle = 'rgba(120,255,174,0.75)';
+          c.fillRect(0, H - 18, W, 18);
+          c.fillStyle = '#050d07';
+          c.fillText('[USE] ' + D.sugg[D.suggI] + '   [ALT] exit', 8, H - 16);
+        }
+      }
+      /* scanlines + a little bloom, because it is 1998 */
+      c.fillStyle = 'rgba(0,0,0,0.16)';
+      for (i = 0; i < H; i += 3) c.fillRect(0, i, W, 1);
+      scr.flush();
+    }
+    D.draw = draw;
+
+    function banner() {
+      D.lines.length = 0;
+      push('Starting Windows 98...');
+      push('');
+      push('Microsoft(R) Windows 98');
+      push('   (C)Copyright Microsoft Corp 1981-1998.');
+      push('');
+      push('HIMEM is testing extended memory...done.');
+      push('');
+    }
+
+    D.boot = function () {
+      D.on = true;
+      banner();
+      draw();
+      sfx('bootChime', null, 0.8);
+      lv.addTimer(function () { sfx('floppySeek', null, 0.5); draw(); }, 0.9);
+    };
+
+    var FILES = [
+      'AUTOEXEC BAT       412  03-14-99   9:02a',
+      'CONFIG   SYS       288  03-14-99   9:02a',
+      'STEVE    EXE     26112  06-02-99  11:40a',
+      'SOL      EXE    180736  05-11-98   8:01a',
+      'HAROLD   JPG    418304  11-22-01   6:17p',
+      'ELLIS    TXT      1024  01-08-02   7:45p',
+      'KERNEL   CAT         0  09-30-04   2:02a'
+    ];
+
+    function run(raw) {
+      var line = (raw || '').replace(/\s+$/, '');
+      push((cfg.prompt || 'C:\\>') + line);
+      var cmd = line.trim().toLowerCase();
+      var arg = '';
+      var sp = cmd.indexOf(' ');
+      if (sp > 0) { arg = cmd.slice(sp + 1).trim(); cmd = cmd.slice(0, sp); }
+      sfx('keyType', null, 0.4);
+
+      if (cmd === '') { draw(); return; }
+
+      if (cmd === 'help' || cmd === '?') {
+        push('DIR  CD  VER  CLS  ECHO  TYPE  WIN  EXIT');
+        push('STEVE.EXE      diagnose everything');
+        push('FORMAT C:      do not');
+      } else if (cmd === 'dir') {
+        push(' Volume in drive C is ELLIS');
+        push(' Directory of C:\\');
+        push('');
+        for (var i = 0; i < FILES.length; i++) push(FILES[i]);
+        push('        7 file(s)     626,876 bytes');
+        push('                    1,204,224 bytes free');
+      } else if (cmd === 'cd') {
+        if (!arg || arg === '\\' || arg === '/') push('C:\\');
+        else push('Directory not found. There never were any.');
+      } else if (cmd === 'ver') {
+        push('');
+        push('Windows 98 [Version 4.10.1998]');
+        push('Uptime since last battery: 0 days.');
+      } else if (cmd === 'cls') {
+        D.lines.length = 0;
+      } else if (cmd === 'echo') {
+        push(arg ? raw.trim().slice(5) : 'ECHO is on.');
+      } else if (cmd === 'type' || cmd === 'cat') {
+        if (arg.indexOf('ellis') === 0) {
+          push('Harold set this up. I have not moved it.');
+          push('The grandson says I should get a new one.');
+          push('I do not want a new one.');
+        } else if (arg.indexOf('kernel') === 0) {
+          push('meow');
+          sfx('catMeow', null, 0.7);
+        } else push('File not found - ' + (arg || '').toUpperCase());
+      } else if (cmd === 'steve.exe' || cmd === 'steve') {
+        push('');
+        push('STEVE.EXE  v1.0  (c) nobody');
+        push('  scanning bus.............. OK');
+        push('  reseating everything...... OK');
+        push('  blowing dust out of fan... OK');
+        push('  charging you for it....... SKIPPED');
+        push('');
+        push('Everything is fine. It usually is.');
+        sfx('beepPC', null, 0.6);
+      } else if (cmd === 'format') {
+        push('');
+        push('WARNING: ALL DATA ON DRIVE C: WILL BE LOST.');
+        push('Proceed? (Y/N) N');
+        push('');
+        push('There are photographs on this drive.');
+        push('No. Thank you for asking.');
+        sfx('uiError', null, 0.5);
+      } else if (cmd === 'win') {
+        push('Loading Windows 98...');
+        D.busy = 1.4;
+        lv.addTimer(function () {
+          push('...');
+          push('No. Let us both stay here where it is quiet.');
+          draw();
+        }, 1.4);
+      } else if (cmd === 'kernel' || cmd === 'meow') {
+        push('    /\\_/\\');
+        push('   ( o.o )   KERNEL.CAT loaded at 0000:0CAT');
+        push('    > ^ <    (resident, will not unload)');
+        sfx('catMeow', null, 0.8);
+      } else if (cmd === 'exit') {
+        push('Goodbye.');
+        D.close();
+      } else {
+        push('Bad command or file name');
+        sfx('uiError', null, 0.35);
+      }
+
+      if (!D.ranOne && cmd !== 'help' && cmd !== '?') {
+        D.ranOne = true;
+        gotEgg('win98');
+        say('Steve', 'Twenty-six years old and it still knows exactly who it is.', 3800, 'steve');
+      }
+      D.suggI = (D.suggI + 1) % D.sugg.length;
+      draw();
+    }
+    D.run = run;
+
+    /* --- session control ------------------------------------------------- */
+    var keyFn = function (e) {
+      if (!D.active) return;
+      var k = e.key;
+      if (!k) return;
+      if (k === 'Escape') { D.close(); }
+      else if (k === 'Enter') { var v = D.input; D.input = ''; run(v); }
+      else if (k === 'Backspace') { D.input = D.input.slice(0, -1); draw(); }
+      else if (k === 'Tab') { D.input = D.sugg[D.suggI]; draw(); }
+      else if (k.length === 1 && D.input.length < 38) { D.input += k; sfx('keyType', null, 0.22); draw(); }
+      else return;
+      e.preventDefault();
+      e.stopPropagation();
+    };
+
+    D.open = function (player) {
+      if (!D.on || D.active) return;
+      D.active = true;
+      lv._dosPlayer = player;
+      if (player) player.locked = true;
+      try { window.addEventListener('keydown', keyFn, true); } catch (e) {}
+      lv._keyHandlers.push(keyFn);
+      hint('Type a command and press ENTER. On touch, USE runs the suggestion. ALT / ESC to step back.', 6000);
+      sfx('crtOn', null, 0.5);
+      draw();
+    };
+    D.close = function () {
+      if (!D.active) return;
+      D.active = false;
+      D.input = '';
+      if (lv._dosPlayer) lv._dosPlayer.locked = false;
+      try { window.removeEventListener('keydown', keyFn, true); } catch (e) {}
+      draw();
+    };
+
+    /* touch / gamepad path: the level eats the USE edge while the session is up */
+    var drawT = 0;
+    lv.addUpdater(function (dt) {
+      D.blink = (D.blink + dt) % 1;
+      if (D.busy > 0) D.busy -= dt;
+      if (!D.active) return;
+      var inp = STV.UI && STV.UI.input;
+      if (inp) {
+        if (inp.use) { inp.use = false; var s = D.sugg[D.suggI]; D.input = ''; run(s); }
+        if (inp.alt) { inp.alt = false; D.close(); }
+      }
+      drawT -= dt;
+      if (drawT <= 0) { drawT = 1 / 12; draw(); }   /* canvas uploads are not free */
+    });
+
+    draw();
+    return D;
+  }
+
+  /* ==========================================================================
+   * 20. THE SHOP INTERIOR — fixtures, clutter, and most of the eggs
+   * ========================================================================*/
+
+  function shopFixtures(lv, opts) {
+    opts = opts || {};
+    var r = STV.rng(0x5A0B);
+    var i;
+
+    /* --- workbench, west wall ------------------------------------------- */
+    var bench = place(lv, 'workbench', [3.6], -4.55, 0, -1.0, Math.PI * 0.5, [3.6, 0.9, 0.72], { solid: true, id: 'workbench' });
+    place(lv, 'pegboard', [3.0, 1.05], -4.93, 1.35, -1.0, Math.PI * 0.5, [3.0, 1.05, 0.05], { solid: false, id: 'pegboard' });
+    place(lv, 'stool', [], -3.55, 0, -0.7, 0.4, [0.4, 0.66, 0.4], { solid: true });
+    place(lv, 'toolChest', [], -4.5, 0, 1.9, Math.PI * 0.5, [0.7, 0.95, 0.45], { solid: true });
+
+    var BY = 0.92;   /* bench top */
+
+    /* Ms. Ellis's tower — the reason we are all here */
+    var tower = place(lv, 'pcTowerBeige', [], -4.42, BY, -0.35, Math.PI * 0.5, [0.2, 0.42, 0.45],
+      { solid: false, id: 'ellisTower' });
+    lv.props.ellisTower = tower;
+
+    var crt = place(lv, 'crtMonitor', [15], -4.5, BY, 0.35, Math.PI * 0.5, [0.4, 0.38, 0.4], { solid: false, id: 'ellisCrt' });
+    place(lv, 'keyboard', [], -4.05, BY, 0.35, Math.PI * 0.5, [0.42, 0.03, 0.15], { solid: false });
+    place(lv, 'mouse', [], -4.02, BY, 0.05, Math.PI * 0.5, [0.06, 0.035, 0.1], { solid: false });
+
+    var dos = makeDosTerminal(lv, { x: -4.30, y: BY + 0.26, z: 0.35, yaw: Math.PI * 0.5, w: 0.27, h: 0.20, prompt: 'C:\\>' });
+    lv.dos = dos;
+
+    /* the half-disassembled tower — cable spaghetti and honest mess */
+    place(lv, 'pcTowerModern', [{ open: true }], -4.42, BY, -1.65, Math.PI * 0.5 + 0.18, [0.22, 0.45, 0.48], { solid: false });
+    place(lv, 'motherboard', [], -4.15, BY, -1.15, Math.PI * 0.5 - 0.3, [0.3, 0.03, 0.24], { solid: false });
+    place(lv, 'hardDrive', [], -4.05, BY, -2.05, Math.PI * 0.5 + 0.5, [0.1, 0.026, 0.147], { solid: false });
+    place(lv, 'hardDrive', [], -4.18, BY + 0.03, -2.15, Math.PI * 0.5 + 0.9, [0.1, 0.026, 0.147], { solid: false });
+    place(lv, 'solderingStation', [], -4.55, BY, -2.55, Math.PI * 0.5, [0.26, 0.14, 0.2], { solid: false, id: 'solderStation' });
+    place(lv, 'oscilloscope', [], -4.6, BY, 1.05, Math.PI * 0.5, [0.32, 0.24, 0.28], { solid: false });
+    place(lv, 'multimeter', [], -4.15, BY, -0.85, Math.PI * 0.5 + 0.2, [0.09, 0.04, 0.16], { solid: false });
+    place(lv, 'screwdriver', [], -4.08, BY, -1.42, 1.9, [0.02, 0.02, 0.18], { solid: false });
+    place(lv, 'cableCoil', [], -4.62, BY, -2.05, 0, [0.2, 0.07, 0.2], { solid: false });
+    place(lv, 'cableCoil', [], -3.2, 0, -2.55, 0.6, [0.24, 0.08, 0.24], { solid: false });
+    place(lv, 'deskLamp', [], -4.78, BY, -1.25, Math.PI * 0.5, [0.16, 0.42, 0.16], { solid: false, light: false });
+    place(lv, 'coffeeMug', [], -4.05, BY, -0.62, 0, [0.08, 0.1, 0.08], { solid: false, id: 'mug' });
+    place(lv, 'partsBin', [], -4.72, BY, 0.72, Math.PI * 0.5, [0.16, 0.1, 0.22], { solid: false });
+
+    /* cable spaghetti: bench to wall, bench to floor */
+    cableRun(lv, -4.85, BY - 0.02, -1.9, -4.92, 0.12, -2.6, 0.22, 'rubber', 11);
+    cableRun(lv, -4.7, BY - 0.02, -0.2, -4.92, 0.35, 0.9, 0.3, 'rubber', 12);
+    cableRun(lv, -4.6, 0.06, -1.2, -3.4, 0.05, -2.9, 0.05, 'rubber', 13);
+
+    /* --- front counter --------------------------------------------------- */
+    place(lv, 'counter', [3.0], 2.9, 0, 1.4, 0, [3.0, 1.05, 0.7], { solid: true, id: 'counter' });
+    place(lv, 'cashRegister', [], 4.05, 1.06, 1.35, -0.2, [0.34, 0.24, 0.3], { solid: false });
+    place(lv, 'laptop', [], 3.35, 1.06, 1.35, Math.PI, [0.33, 0.22, 0.24], { solid: false });
+    var kbd2 = place(lv, 'keyboard', [], 2.25, 1.06, 1.3, Math.PI, [0.42, 0.03, 0.15], { solid: false, id: 'counterKbd' });
+    place(lv, 'officeChair', [], 2.5, 0, 0.35, Math.PI, [0.6, 0.98, 0.6], { solid: true });
+    place(lv, 'plantPotted', [], 4.55, 0, 3.3, 0, [0.45, 1.05, 0.45], { solid: true });
+    place(lv, 'trashCan', [], -4.5, 0, 2.65, 0, [0.34, 0.62, 0.34], { solid: true });
+
+    /* yellowing manuals, stacked because nobody ever throws a manual away */
+    for (i = 0; i < 4; i++) {
+      place(lv, 'cardboardBox', [0.26], 1.75, 1.06 + i * 0.045, 1.55 + r() * 0.04, r() * 0.4 - 0.2,
+        [0.3, 0.045, 0.22], { solid: false });
+    }
+
+    /* --- shelving, back wall --------------------------------------------- */
+    place(lv, 'shelvingUnit', [2.2, 2.1], -2.2, 0, -5.62, 0, [2.2, 2.1, 0.45], { solid: true, id: 'shelfA' });
+    place(lv, 'shelvingUnit', [1.6, 2.1], 0.35, 0, -5.62, 0, [1.6, 2.1, 0.45], { solid: true, id: 'shelfB' });
+    for (i = 0; i < 12; i++) {
+      var sx = -3.1 + (i % 6) * 0.42;
+      var sy = 0.42 + Math.floor(i / 6) * 0.52;
+      place(lv, 'partsBin', [], sx, sy, -5.6, 0, [0.3, 0.16, 0.3], { solid: false });
+    }
+    for (i = 0; i < 5; i++) {
+      place(lv, 'cardboardBox', [0.34 + r() * 0.12], 0.0 + r() * 1.1, 1.46 + Math.floor(i / 3) * 0.36, -5.6, r() * 0.5,
+        [0.36, 0.34, 0.32], { solid: false });
+    }
+
+    /* --- the vending machine (egg 8) ------------------------------------- */
+    var vend = place(lv, 'vendingMachine', [], 4.42, 0, -3.1, -Math.PI * 0.5, [0.95, 1.85, 0.75], { solid: true, id: 'vending', light: false });
+    addProbe(lv, 4.4, -3.1, 2.4, 0.35);
+    glowPanel(lv, 4.05, 1.2, -3.1, 1.0, 1.3, 0x5fd3ff, 0.16, 0);
+    vendingEgg(lv, vend, 'shop', 3.9, 1.1, -3.1);
+
+    /* --- the BSOD corner (egg 4) ----------------------------------------- */
+    bsodEgg(lv, 3.9, -4.85);
+
+    /* --- fish tank: TCP (egg 6) ------------------------------------------ */
+    place(lv, 'counter', [1.4], -3.4, 0, 3.32, 0, [1.4, 0.95, 0.6], { solid: true });
+    var tank = place(lv, 'fishTank', [1.0], -3.4, 0.96, 3.32, 0, [1.0, 0.5, 0.4], { solid: false, id: 'fishTank' });
+    tcpEgg(lv, tank);
+
+    /* --- posters, clock, notes ------------------------------------------- */
+    var p127 = addPoster(lv, '127001', 4.92, 1.75, -0.8, -Math.PI * 0.5, 0.62, 0.86, {
+      label: 'Read the poster',
+      onUse: function () {
+        say('Steve', 'There is no place like it. Harold had the same one. Different wall.', 4200, 'steve');
+        gotEgg('poster127');
+      }
+    });
+    lv.props.poster127 = p127;
+    addPoster(lv, 'raid', 3.55, 1.85, -5.9, 0, 0.58, 0.8, {
+      label: 'Read the poster',
+      onUse: function () { say('Steve', 'RAID is not a backup. It says so. Nobody reads it.', 3400, 'steve'); }
+    });
+    addPoster(lv, 'cat', -4.92, 1.85, 2.4, Math.PI * 0.5, 0.5, 0.7, {
+      label: 'Look at the photo',
+      onUse: function () { say('Steve', 'He was smaller then. Marginally.', 2600, 'steve'); }
+    });
+
+    clockEgg(lv, 0.2, 2.32, -5.9);
+    boomboxEgg(lv, -2.6, 2.16, -5.5);
+    duckEgg(lv, -4.05, BY, -0.05);
+    phoneEgg(lv, -4.02, BY, -1.95);
+    hunter2Egg(lv, kbd2, 2.25, 1.02, 1.3);
+
+    /* --- back room -------------------------------------------------------- */
+    place(lv, 'shelvingUnit', [2.4, 2.1], 4.7, 0, -8.6, -Math.PI * 0.5, [2.4, 2.1, 0.45], { solid: true });
+    place(lv, 'toolChest', [], 0.1, 0, -10.5, 0, [0.72, 0.98, 0.46], { solid: true });
+    place(lv, 'crtMonitor', [17], -0.55, 0, -9.6, 0.7, [0.44, 0.42, 0.44], { solid: true });
+    place(lv, 'crtMonitor', [15], -0.5, 0.44, -9.55, -0.4, [0.4, 0.38, 0.4], { solid: false });
+    place(lv, 'pcTowerBeige', [], 0.9, 0, -9.9, 0.2, [0.2, 0.42, 0.45], { solid: true });
+    place(lv, 'pcTowerBeige', [], 1.15, 0.43, -9.85, -0.3, [0.2, 0.42, 0.45], { solid: false });
+    place(lv, 'trashCan', [], 4.5, 0, -6.7, 0, [0.34, 0.62, 0.34], { solid: true });
+    place(lv, 'cableCoil', [], 3.4, 0, -10.4, 0.3, [0.26, 0.09, 0.26], { solid: false });
+    addPoster(lv, 'safety', 0.6, 1.75, -10.88, 0, 0.5, 0.7, {});
+    for (i = 0; i < 7; i++) {
+      var bx = 1.4 + (i % 3) * 0.62 + r() * 0.12;
+      var bz = -7.2 - Math.floor(i / 3) * 0.8;
+      var by = (i === 6) ? 0.42 : 0;
+      place(lv, 'cardboardBox', [0.42], bx, by, bz, r() * 0.7 - 0.35, [0.44, 0.42, 0.4], { solid: true });
+    }
+    crowbarEgg(lv, 2.6, 1.32, -10.86);
+
+    /* --- dust, because nobody hoovers behind a workbench ------------------ */
+    addMotes(lv, { x: 2.0, y: 0.15, z: -8.6, w: 5.5, h: 2.1, d: 4.6, count: 60, seed: 909, size: 0.016, opacity: 0.3 });
+
+    return bench;
+  }
+
+  /* --- egg 4: the BSOD monitor ------------------------------------------- */
+  function bsodEgg(lv, x, z) {
+    place(lv, 'counter', [1.4], x, 0, z, 0, [1.4, 0.95, 0.6], { solid: true });
+    var mon = place(lv, 'lcdMonitor', [22], x, 0.96, z + 0.05, 0, [0.52, 0.42, 0.18], { solid: false, id: 'bsodMonitor' });
+    var twr = place(lv, 'pcTowerModern', [], x + 0.85, 0, z - 0.05, 0.2, [0.22, 0.45, 0.48], { solid: true, id: 'bsodTower' });
+
+    var scr = makeScreen({ w: 320, h: 200, crt: false, glow: 0x2b57c8 });
+    var mesh = scr.mesh(0.46, 0.29);
+    mesh.position.set(x, 1.28, z + 0.14);
+    mesh.renderOrder = 3;
+    lv.root.add(mesh);
+
+    var state = 0;   /* 0 bsod, 1 dimm out, 2 fixed */
+    function draw() {
+      var c = scr.ctx;
+      if (!c) return;
+      if (state === 0) {
+        c.fillStyle = '#0b2ea8'; c.fillRect(0, 0, 320, 200);
+        c.fillStyle = '#cfe0ff'; c.font = 'bold 12px monospace'; c.textBaseline = 'top';
+        c.fillText('A problem has been detected and Windows has', 12, 26);
+        c.fillText('been shut down to prevent damage.', 12, 40);
+        c.fillText('MEMORY_MANAGEMENT', 12, 66);
+        c.fillText('*** STOP: 0x0000001A (0x00041790,', 12, 92);
+        c.fillText('    0xC0883000, 0x00000001, 0x00000000)', 12, 106);
+        c.fillText('Beginning dump of physical memory...', 12, 138);
+        c.fillText('Contact your system administrator.', 12, 158);
+        c.fillStyle = '#8fb4ff';
+        c.fillText('(that is you)', 12, 172);
+      } else if (state === 1) {
+        c.fillStyle = '#000000'; c.fillRect(0, 0, 320, 200);
+        c.fillStyle = '#d8d8d8'; c.font = '12px monospace'; c.textBaseline = 'top';
+        c.fillText('No boot device.', 12, 90);
+      } else {
+        c.fillStyle = '#04120a'; c.fillRect(0, 0, 320, 200);
+        c.fillStyle = '#78ffae'; c.font = '12px monospace'; c.textBaseline = 'top';
+        c.fillText('Memory test: 8192MB OK', 12, 60);
+        c.fillText('Detecting IDE drives ... done', 12, 76);
+        c.fillText('Booting.', 12, 100);
+        c.fillStyle = '#f0a24b';
+        c.fillText('It was never the software.', 12, 140);
+      }
+      scr.flush();
+    }
+    draw();
+
+    addInteract(lv, {
+      obj: twr,
+      label: 'Reseat the RAM',
+      radius: 2.0,
+      onUse: function () {
+        if (state === 0) {
+          state = 1;
+          sfx('caseOpen', null, 0.7);
+          say('Steve', 'Out you come.', 1600, 'steve');
+          hint('Now put it back. Firmly. Both clips.', 3600);
+          draw();
+        } else if (state === 1) {
+          state = 2;
+          sfx('latchClick', null, 0.8);
+          lv.addTimer(function () { sfx('bootChime', null, 0.7); }, 0.5);
+          say('Steve', 'Ninety per cent of a memory fault is a memory module that is only ninety per cent in.', 5200, 'steve');
+          gotEgg('bsod');
+          draw();
+        }
+      }
+    });
+    if (mon) mon.userData.bsod = true;
+  }
+
+  /* --- egg 8: percussive maintenance ------------------------------------- */
+  function vendingEgg(lv, obj, key, ix, iy, iz) {
+    if (!VEND_HITS[key]) VEND_HITS[key] = 0;
+    var can = null;
+    addInteract(lv, {
+      obj: obj,
+      at: [ix, iy, iz],
+      label: 'Thump the machine',
+      radius: 2.0,
+      onUse: function (player, l, it) {
+        VEND_HITS[key]++;
+        sfx('metalDrag', null, 0.5);
+        sfx('vendingThunk', null, 0.8);
+        if (VEND_HITS[key] === 1) say('Steve', 'It owes me one pound twenty.', 2200, 'steve');
+        else if (VEND_HITS[key] === 2) say('Steve', 'Nearly.', 1200, 'steve');
+        else if (VEND_HITS[key] >= 3 && !can) {
+          sfx('coinDrop', null, 0.9);
+          can = place(lv, 'coffeeMug', [], ix - 0.25, 0.03, iz, 0, [0.07, 0.12, 0.07], { solid: false });
+          if (can) can.scale.set(0.7, 1.1, 0.7);
+          toast('One free Jolt.', 'can', 3000);
+          say('Steve', 'Jolt. Still made. Somewhere.', 2600, 'steve');
+          gotEgg('vending');
+          it.label = 'Thump the machine (satisfied)';
+        }
+      }
+    });
+  }
+
+  /* --- egg 6: TCP the fish ----------------------------------------------- */
+  function tcpEgg(lv, tank) {
+    var fish = new T.Mesh(boxGeo(0.08, 0.045, 0.03), M('ledAmber'));
+    fish.position.set(-3.4, 1.18, 3.32);
+    lv.root.add(fish);
+    var t = 0, hidden = 0;
+    lv.addUpdater(function (dt) {
+      t += dt;
+      if (hidden > 0) { hidden -= dt; fish.visible = false; return; }
+      fish.visible = true;
+      fish.position.x = -3.4 + Math.sin(t * 0.8) * 0.3;
+      fish.position.y = 1.18 + Math.sin(t * 1.7) * 0.03;
+      fish.rotation.y = Math.cos(t * 0.8) > 0 ? 0 : Math.PI;
+    });
+    addInteract(lv, {
+      obj: tank,
+      label: 'Look at the fish',
+      radius: 1.9,
+      onUse: function () {
+        sfx('bubbles', null, 0.7);
+        hidden = 2.6;
+        say('Steve', 'That is TCP. He goes behind the castle when there is company. He always comes back.', 5000, 'steve');
+        lv.addTimer(function () {
+          sfx('bubbles', null, 0.4);
+          toast('TCP came back.', 'fish', 2400);
+          gotEgg('tcp');
+        }, 2.8);
+      }
+    });
+  }
+
+  /* --- egg 7: hunter2 ----------------------------------------------------- */
+  function hunter2Egg(lv, kbd, x, y, z) {
+    var note = addNote(lv, x + 0.02, y + 0.005, z + 0.02, 0.3, { text: '*******' });
+    note.visible = false;
+    var lifted = false;
+    addInteract(lv, {
+      obj: kbd,
+      label: 'Lift the keyboard',
+      radius: 1.8,
+      onUse: function (player, l, it) {
+        if (!lifted) {
+          lifted = true;
+          note.visible = true;
+          sfx('paperRustle', null, 0.6);
+          it.label = 'Read the note';
+          hint('There is always a note under the keyboard.', 3000);
+        } else {
+          say('Steve', 'It just says asterisks. Seven of them. She writes it down exactly as the screen shows it.', 5600, 'steve');
+          lv.addTimer(function () { say('Steve', 'I have never had the heart to explain.', 2800, 'steve'); }, 5.8);
+          gotEgg('hunter2');
+        }
+      }
+    });
+  }
+
+  /* --- egg 5: DO NOT USE (RESERVED) --------------------------------------- */
+  function crowbarEgg(lv, x, y, z) {
+    var bar = place(lv, 'crowbar', [], x, y, z, 0, [0.06, 0.06, 0.9], { solid: false, id: 'crowbar' });
+    addNote(lv, x, y + 0.22, z + 0.02, 0, { text: 'DO NOT USE (RESERVED)' });
+    addInteract(lv, {
+      obj: bar,
+      label: 'Take the crowbar',
+      radius: 2.0,
+      onUse: function () {
+        sfx('toolClink', null, 0.7);
+        say('Steve', 'Reserved. It has been reserved since before I bought the place.', 4000, 'steve');
+        lv.addTimer(function () { say('Steve', 'Feels wrong to be the one who finally uses it.', 3000, 'steve'); }, 4.2);
+        gotEgg('crowbar');
+      }
+    });
+  }
+
+  /* --- egg 13: the clock -------------------------------------------------- */
+  function clockEgg(lv, x, y, z) {
+    var clock = place(lv, 'wallClock', [], x, y, z, 0, [0.3, 0.3, 0.06], { solid: false, id: 'wallClock' });
+    var hits = 0;
+    addInteract(lv, {
+      obj: clock,
+      label: 'Check the time',
+      radius: 2.6,
+      onUse: function () {
+        hits++;
+        sfx('clockTick', null, 0.8);
+        if (hits === 1) say('Steve', 'Ten past four.', 1500, 'steve');
+        else if (hits === 2) say('Steve', 'Still ten past four.', 1700, 'steve');
+        else if (hits === 3) say('Steve', 'It has said ten past four since 2011.', 2600, 'steve');
+        else if (hits === 4) say('Steve', 'I could fix it.', 1600, 'steve');
+        else if (hits === 5) {
+          say('Steve', 'There. Evening.', 1800, 'steve');
+          if (lv.setMood) lv.setMood('dusk');
+          sfx('whoosh', null, 0.5);
+          toast('The light outside goes to dusk.', 'sun', 3200);
+          gotEgg('clock');
+        } else {
+          say('Steve', 'That is as far as time goes in here.', 2600, 'steve');
+        }
+      }
+    });
+  }
+
+  /* --- egg 14: the boombox ------------------------------------------------ */
+  function boomboxEgg(lv, x, y, z) {
+    var box = place(lv, 'boombox', [], x, y, z, 0.2, [0.52, 0.24, 0.18], { solid: false, id: 'boombox' });
+    var STATIONS = [
+      { t: 'shopIdle', n: 'KLBR 88.1 — Dust & Rhodes' },
+      { t: 'travel', n: 'Nightline 101 — Departures' },
+      { t: 'olegTheme', n: 'Longwave 3 — Something Low' },
+      { t: 'epilogue', n: 'Community 96.4 — Tuesdays' }
+    ];
+    var st = -1, heard = {};
+    addInteract(lv, {
+      obj: box,
+      label: 'Change station',
+      radius: 2.2,
+      onUse: function () {
+        st++;
+        sfx('click', null, 0.6);
+        if (st >= STATIONS.length) {
+          st = -1;
+          music(lv.env.music || 'shopIdle', 600);
+          toast('Off.', 'radio', 1600);
+          return;
+        }
+        var s = STATIONS[st];
+        heard[s.t] = 1;
+        music(s.t, 400);
+        toast(s.n, 'radio', 2800);
+        var n = 0, k;
+        for (k in heard) if (heard[k]) n++;
+        if (n >= 4) gotEgg('boombox');
+      }
+    });
+  }
+
+  /* --- egg 10: the rubber duck -------------------------------------------- */
+  function duckEgg(lv, x, y, z) {
+    var duck = place(lv, 'rubberDuck', [], x, y, z, -0.5, [0.09, 0.09, 0.11], { solid: false, id: 'duck' });
+    var said = 0;
+    addInteract(lv, {
+      obj: duck,
+      label: 'Explain the problem to the duck',
+      radius: 1.7,
+      onUse: function () {
+        said++;
+        sfx('clickSoft', null, 0.5);
+        if (said === 1) {
+          say('Steve', 'Right. So it posts, it just will not hold the date.', 3200, 'steve');
+          lv.addTimer(function () { say('Steve', 'Which means it is not the board, it is the—', 2400, 'steve'); }, 3.4);
+          lv.addTimer(function () {
+            say('Steve', '…battery. It is always the battery. Thank you.', 3200, 'steve');
+            toast('The duck has solved it.', 'duck', 3000);
+            if (lv.props.ellisTower) hint('The CMOS battery is a CR2032. Third bin from the left.', 4600);
+            gotEgg('duck');
+          }, 5.9);
+        } else {
+          say('Steve', 'You have done enough today.', 2200, 'steve');
+        }
+      }
+    });
+  }
+
+  /* --- egg 11: 17 missed calls from MOM ----------------------------------- */
+  function phoneEgg(lv, x, y, z) {
+    var ph = place(lv, 'burnerPhone', [], x, y, z, 0.8, [0.07, 0.015, 0.14], { solid: false, id: 'stevePhone' });
+    var seen = false;
+    addInteract(lv, {
+      obj: ph,
+      label: 'Check your phone',
+      radius: 1.7,
+      onUse: function (player, l, it) {
+        if (!seen) {
+          seen = true;
+          sfx('phoneBuzz', null, 0.7);
+          toast('17 missed calls — MOM', 'phone', 4200);
+          say('Steve', 'Seventeen. That is a Tuesday number.', 2800, 'steve');
+          it.label = 'Call her back';
+          hint('Call her back.', 3400);
+        } else {
+          sfx('phoneRing', null, 0.7);
+          say('Steve', 'Hi Mum. No, I am at the shop. …Yes, still.', 4000, 'steve');
+          lv.addTimer(function () { say('Steve', 'No, I ate. …I did. …A proper one.', 3400, 'steve'); }, 4.2);
+          lv.addTimer(function () {
+            say('Steve', 'I know. I will. Love you.', 2600, 'steve');
+            gotEgg('mom');
+          }, 7.8);
+          it.label = 'Phone';
+        }
+      }
+    });
+  }
+
   /*__APPEND__*/
 
   STV.log('levels loaded');
