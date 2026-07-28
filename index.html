@@ -1,0 +1,2368 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<title>THE DROWNING CSÁRDÁS — a theatrical nightmare in three phases</title>
+<style>
+  :root{
+    --ink:#0a0908; --bone:#e8e2d6; --verdigris:#7fa88c; --blood:#8e1b1b; --drowned:#2a4a66;
+    --dim:#6b6558;
+  }
+  *{box-sizing:border-box}
+  html,body{margin:0;height:100%;background:var(--ink);color:var(--bone);overflow:hidden;
+    font-family:ui-monospace,"SF Mono",Menlo,Consolas,monospace;-webkit-text-size-adjust:100%}
+  canvas{display:block;width:100vw;height:100vh;touch-action:none}
+  #hud{position:fixed;inset:0;pointer-events:none;z-index:5;
+       padding:max(14px,env(safe-area-inset-top)) max(14px,env(safe-area-inset-right)) max(14px,env(safe-area-inset-bottom)) max(14px,env(safe-area-inset-left));
+       display:flex;flex-direction:column;justify-content:space-between;
+       text-shadow:0 1px 8px #000; mix-blend-mode:screen}
+  .row{display:flex;justify-content:space-between;align-items:flex-start;gap:12px}
+  .lbl{font-size:10px;letter-spacing:.22em;text-transform:uppercase;color:var(--dim)}
+  .val{font-size:12px;letter-spacing:.08em;color:var(--bone);font-variant-numeric:tabular-nums}
+  #phase{color:var(--verdigris)}
+  #meterwrap{width:min(38vw,240px);height:2px;background:#ffffff22;margin-top:6px;overflow:hidden}
+  #meter{height:100%;width:0%;background:linear-gradient(90deg,var(--verdigris),var(--blood));transition:width .4s linear}
+  #keys{font-size:10px;line-height:1.7;letter-spacing:.1em;color:var(--dim);text-align:right}
+  #keys b{color:var(--bone);font-weight:500}
+  #title{position:fixed;inset:0;z-index:10;display:flex;flex-direction:column;align-items:center;justify-content:center;
+    gap:18px;background:radial-gradient(60% 60% at 50% 45%,#12100e 0%,#000 100%);text-align:center;padding:24px}
+  #title h1{margin:0;font-size:clamp(26px,7vw,64px);letter-spacing:.24em;font-weight:400;text-wrap:balance;
+    color:var(--bone);text-shadow:0 0 40px #7fa88c33}
+  #title p{margin:0;max-width:52ch;font-size:clamp(11px,2.6vw,13px);line-height:1.9;color:var(--dim);letter-spacing:.06em}
+  #title small{color:#4a4640;font-size:10px;letter-spacing:.2em}
+  #enter{pointer-events:auto;margin-top:8px;padding:14px 34px;background:transparent;color:var(--bone);
+    border:1px solid #ffffff30;font:inherit;font-size:12px;letter-spacing:.3em;text-transform:uppercase;cursor:pointer;
+    transition:background .3s,border-color .3s,letter-spacing .3s}
+  #enter:hover,#enter:focus-visible{background:#7fa88c14;border-color:var(--verdigris);letter-spacing:.4em;outline:none}
+  #enter:focus-visible{box-shadow:0 0 0 2px #7fa88c66}
+  .fade{opacity:0;pointer-events:none;transition:opacity 1.6s ease}
+  #ld{font-size:11px;letter-spacing:.24em;color:var(--dim)}
+  @media (prefers-reduced-motion:reduce){#enter{transition:none}}
+</style>
+</head>
+<body>
+<canvas id="c"></canvas>
+<div id="hud">
+  <div class="row">
+    <div>
+      <div class="lbl">Phase</div>
+      <div class="val" id="phase">—</div>
+      <div id="meterwrap"><div id="meter"></div></div>
+    </div>
+    <div id="keys">
+      <b>tap / click</b> raise the chaos<br>
+      <b>drag</b> free look &nbsp; <b>C</b> camera mode<br>
+      <b>1 2 3</b> jump phase &nbsp; <b>R</b> restart
+    </div>
+  </div>
+  <div class="row">
+    <div><div class="lbl">Water</div><div class="val" id="wlvl">0.00 m</div></div>
+    <div style="text-align:right"><div class="lbl">Chaos</div><div class="val" id="chaos">0%</div></div>
+  </div>
+</div>
+<div id="title">
+  <small>MONTI · CSÁRDÁS · 1904 — REIMAGINED</small>
+  <h1>THE&nbsp;DROWNING<br>CSÁRDÁS</h1>
+  <p>An amphitheater that remembers being a body. Four women, one piano, and the water
+     that has been waiting under the stage. Headphones recommended — the score is
+     synthesized live and spatialized around you.</p>
+  <button id="enter">Begin the performance</button>
+  <div id="ld">&nbsp;</div>
+</div>
+<script>
+"use strict";
+/* ═══════════════════════════════════════════════════════════════════════════
+   THE DROWNING CSÁRDÁS
+   A single-file real-time surreal performance. Custom WebGL 2 renderer,
+   procedural geometry, procedural score (Web Audio), no external assets.
+
+   SYSTEMS (in file order)
+     1. CONFIG ......... every tunable parameter, one place
+     2. math ........... vec3 / mat4 / quat helpers
+     3. GL ............. context, programs, meshes, framebuffers
+     4. shaders ........ scene / shadow / water / particles / post
+     5. world .......... amphitheater, columns, seats, piano, debris
+     6. cast ........... skeletons, poses, faces, cloth simulation
+     7. audio .......... Csárdás score, synth voices, degradation chain
+     8. water .......... rising heightfield + caustics + foam
+     9. director ....... timeline state machine + cinematic camera
+    10. loop ........... update / render / post
+   ═══════════════════════════════════════════════════════════════════════════ */
+
+/* ── 1. CONFIG ────────────────────────────────────────────────────────────── */
+const CONFIG = {
+  timeline: {                       // seconds
+    opening:    [0,   30],          // elegant, off-kilter
+    escalation: [30,  70],          // hierarchy breaks, glitches begin
+    flood:      [70,  185],         // the water
+    drowned:    [185, 1e9]          // final resigned dance, loops
+  },
+  water: {
+    startLevel: -0.55,        // just under the stage floor, out of sight              // metres, relative to stage floor
+    riseSpeed:  0.0330,             // metres / second during flood
+    maxLevel:   3.05,
+    waveAmp:    0.055, waveSpeed: 0.85, waveScale: 1.0,
+    foamWidth:  0.22, refractStrength: 0.055,
+    causticStrength: 0.85, tint:[0.070,0.150,0.160]
+  },
+  chaos: { base:0.0, perClick:0.14, decay:0.045, max:1.0 },
+  grade: {                          // colour grading, per phase (lift/gain/sat)
+    opening:    { tint:[0.86,0.93,0.92], sat:0.82, lift:0.008, contrast:1.06 },
+    escalation: { tint:[1.00,0.80,0.72], sat:0.95, lift:0.004, contrast:1.16 },
+    flood:      { tint:[0.72,0.95,1.00], sat:1.05, lift:0.010, contrast:1.20 },
+    drowned:    { tint:[0.58,0.86,1.00], sat:0.72, lift:0.020, contrast:1.10 }
+  },
+  post: { grain:0.055, aberration:0.0022, vignette:0.62, dofStrength:1.0, bloom:0.62, godrays:0.55 },
+  quality: { shadow:1024, waterGrid:150, maxDust:900, maxSpray:1200, dprCap:1.5 },
+  audio: { master:0.72, tempo:1.0, reverb:0.34 }
+};
+
+/* ── 2. MATH ──────────────────────────────────────────────────────────────── */
+const PI=Math.PI, TAU=PI*2;
+const clamp=(x,a,b)=>x<a?a:(x>b?b:x);
+const lerp=(a,b,t)=>a+(b-a)*t;
+const smooth=t=>t*t*(3-2*t);
+const sat=x=>clamp(x,0,1);
+const rand=(s)=>{s=Math.sin(s*127.1+311.7)*43758.5453;return s-Math.floor(s);};
+function noise1(x){const i=Math.floor(x),f=x-i;return lerp(rand(i),rand(i+1),smooth(f))*2-1;}
+function fbm1(x){return noise1(x)*0.55+noise1(x*2.1+7.3)*0.28+noise1(x*4.3+21.1)*0.17;}
+
+const M4={
+  id:()=>new Float32Array([1,0,0,0, 0,1,0,0, 0,0,1,0, 0,0,0,1]),
+  mul(o,a,b){
+    for(let c=0;c<4;c++){const b0=b[c*4],b1=b[c*4+1],b2=b[c*4+2],b3=b[c*4+3];
+      o[c*4  ]=a[0]*b0+a[4]*b1+a[8] *b2+a[12]*b3;
+      o[c*4+1]=a[1]*b0+a[5]*b1+a[9] *b2+a[13]*b3;
+      o[c*4+2]=a[2]*b0+a[6]*b1+a[10]*b2+a[14]*b3;
+      o[c*4+3]=a[3]*b0+a[7]*b1+a[11]*b2+a[15]*b3;}
+    return o;},
+  persp(o,fov,asp,n,f){const t=1/Math.tan(fov/2);o.fill(0);
+    o[0]=t/asp;o[5]=t;o[11]=-1;o[10]=(f+n)/(n-f);o[14]=2*f*n/(n-f);return o;},
+  ortho(o,l,r,b,t,n,f){o.fill(0);o[0]=2/(r-l);o[5]=2/(t-b);o[10]=-2/(f-n);
+    o[12]=-(r+l)/(r-l);o[13]=-(t+b)/(t-b);o[14]=-(f+n)/(f-n);o[15]=1;return o;},
+  look(o,e,c,u){
+    let zx=e[0]-c[0],zy=e[1]-c[1],zz=e[2]-c[2];
+    let l=Math.hypot(zx,zy,zz)||1; zx/=l;zy/=l;zz/=l;
+    let xx=u[1]*zz-u[2]*zy, xy=u[2]*zx-u[0]*zz, xz=u[0]*zy-u[1]*zx;
+    l=Math.hypot(xx,xy,xz)||1; xx/=l;xy/=l;xz/=l;
+    const yx=zy*xz-zz*xy, yy=zz*xx-zx*xz, yz=zx*xy-zy*xx;
+    o[0]=xx;o[1]=yx;o[2]=zx;o[3]=0; o[4]=xy;o[5]=yy;o[6]=zy;o[7]=0;
+    o[8]=xz;o[9]=yz;o[10]=zz;o[11]=0;
+    o[12]=-(xx*e[0]+xy*e[1]+xz*e[2]); o[13]=-(yx*e[0]+yy*e[1]+yz*e[2]);
+    o[14]=-(zx*e[0]+zy*e[1]+zz*e[2]); o[15]=1; return o;},
+  /* Compose translation · rotY · rotX · rotZ · scale (the order the rig uses) */
+  trs(o,px,py,pz,rx,ry,rz,sx,sy,sz){
+    const cx=Math.cos(rx),sxr=Math.sin(rx),cy=Math.cos(ry),syr=Math.sin(ry),
+          cz=Math.cos(rz),szr=Math.sin(rz);
+    const m00=cy*cz+syr*sxr*szr, m01=cx*szr, m02=-syr*cz+cy*sxr*szr;
+    const m10=-cy*szr+syr*sxr*cz, m11=cx*cz, m12=syr*szr+cy*sxr*cz;
+    const m20=syr*cx, m21=-sxr, m22=cy*cx;
+    o[0]=m00*sx;o[1]=m01*sx;o[2]=m02*sx;o[3]=0;
+    o[4]=m10*sy;o[5]=m11*sy;o[6]=m12*sy;o[7]=0;
+    o[8]=m20*sz;o[9]=m21*sz;o[10]=m22*sz;o[11]=0;
+    o[12]=px;o[13]=py;o[14]=pz;o[15]=1; return o;},
+  inv(o,m){
+    const a00=m[0],a01=m[1],a02=m[2],a03=m[3],a10=m[4],a11=m[5],a12=m[6],a13=m[7],
+          a20=m[8],a21=m[9],a22=m[10],a23=m[11],a30=m[12],a31=m[13],a32=m[14],a33=m[15];
+    const b00=a00*a11-a01*a10,b01=a00*a12-a02*a10,b02=a00*a13-a03*a10,b03=a01*a12-a02*a11,
+          b04=a01*a13-a03*a11,b05=a02*a13-a03*a12,b06=a20*a31-a21*a30,b07=a20*a32-a22*a30,
+          b08=a20*a33-a23*a30,b09=a21*a32-a22*a31,b10=a21*a33-a23*a31,b11=a22*a33-a23*a32;
+    let d=b00*b11-b01*b10+b02*b09+b03*b08-b04*b07+b05*b06; if(!d)return o; d=1/d;
+    o[0]=(a11*b11-a12*b10+a13*b09)*d; o[1]=(a02*b10-a01*b11-a03*b09)*d;
+    o[2]=(a31*b05-a32*b04+a33*b03)*d; o[3]=(a22*b04-a21*b05-a23*b03)*d;
+    o[4]=(a12*b08-a10*b11-a13*b07)*d; o[5]=(a00*b11-a02*b08+a03*b07)*d;
+    o[6]=(a32*b02-a30*b05-a33*b01)*d; o[7]=(a20*b05-a22*b02+a23*b01)*d;
+    o[8]=(a10*b10-a11*b08+a13*b06)*d; o[9]=(a01*b08-a00*b10-a03*b06)*d;
+    o[10]=(a30*b04-a31*b02+a33*b00)*d; o[11]=(a21*b02-a20*b04-a23*b00)*d;
+    o[12]=(a11*b07-a10*b09-a12*b06)*d; o[13]=(a00*b09-a01*b07+a02*b06)*d;
+    o[14]=(a31*b01-a30*b03-a32*b00)*d; o[15]=(a20*b03-a21*b01+a22*b00)*d; return o;},
+  xform(out,m,x,y,z){
+    out[0]=m[0]*x+m[4]*y+m[8]*z+m[12];
+    out[1]=m[1]*x+m[5]*y+m[9]*z+m[13];
+    out[2]=m[2]*x+m[6]*y+m[10]*z+m[14]; return out;}
+};
+
+/* ── 3. GL CORE ───────────────────────────────────────────────────────────── */
+const canvas = document.getElementById('c');
+const gl = canvas.getContext('webgl2', {antialias:false, alpha:false, powerPreference:'high-performance',
+                                        depth:true, stencil:false, premultipliedAlpha:false});
+if(!gl){ document.getElementById('ld').textContent = 'WEBGL 2 UNAVAILABLE ON THIS DEVICE'; throw new Error('no webgl2'); }
+const EXT_F16 = gl.getExtension('EXT_color_buffer_half_float') || gl.getExtension('EXT_color_buffer_float');
+gl.getExtension('OES_texture_float_linear');
+const HDR_FMT = EXT_F16 ? gl.RGBA16F : gl.RGBA8;
+const HDR_TYPE = EXT_F16 ? gl.HALF_FLOAT : gl.UNSIGNED_BYTE;
+
+function sh(type, src){
+  const s = gl.createShader(type); gl.shaderSource(s, src); gl.compileShader(s);
+  if(!gl.getShaderParameter(s, gl.COMPILE_STATUS)){
+    const log = gl.getShaderInfoLog(s);
+    console.error(log, src.split('\n').map((l,i)=>(i+1)+': '+l).join('\n'));
+    throw new Error('shader: '+log);
+  } return s;
+}
+function program(vs, fs){
+  const p = gl.createProgram();
+  gl.attachShader(p, sh(gl.VERTEX_SHADER, vs)); gl.attachShader(p, sh(gl.FRAGMENT_SHADER, fs));
+  gl.linkProgram(p);
+  if(!gl.getProgramParameter(p, gl.LINK_STATUS)) throw new Error('link: '+gl.getProgramInfoLog(p));
+  const u = {}; const n = gl.getProgramParameter(p, gl.ACTIVE_UNIFORMS);
+  for(let i=0;i<n;i++){ const info = gl.getActiveUniform(p,i);
+    const name = info.name.replace(/\[0\]$/,''); u[name] = gl.getUniformLocation(p, name); }
+  return {p, u, use(){ gl.useProgram(p); return this; }};
+}
+
+/* Mesh: interleaved [px py pz nx ny nz u v region] = 9 floats. */
+const STRIDE = 9*4;
+function makeMesh(verts, idx, dynamic){
+  const vao = gl.createVertexArray(); gl.bindVertexArray(vao);
+  const vb = gl.createBuffer(); gl.bindBuffer(gl.ARRAY_BUFFER, vb);
+  gl.bufferData(gl.ARRAY_BUFFER, verts, dynamic?gl.DYNAMIC_DRAW:gl.STATIC_DRAW);
+  gl.enableVertexAttribArray(0); gl.vertexAttribPointer(0,3,gl.FLOAT,false,STRIDE,0);
+  gl.enableVertexAttribArray(1); gl.vertexAttribPointer(1,3,gl.FLOAT,false,STRIDE,12);
+  gl.enableVertexAttribArray(2); gl.vertexAttribPointer(2,2,gl.FLOAT,false,STRIDE,24);
+  gl.enableVertexAttribArray(3); gl.vertexAttribPointer(3,1,gl.FLOAT,false,STRIDE,32);
+  let ib=null, count, itype=gl.UNSIGNED_SHORT;
+  if(idx){ ib = gl.createBuffer(); gl.bindBuffer(gl.ELEMENT_ARRAY_BUFFER, ib);
+    gl.bufferData(gl.ELEMENT_ARRAY_BUFFER, idx, dynamic?gl.DYNAMIC_DRAW:gl.STATIC_DRAW); count = idx.length;
+    itype = (idx instanceof Uint32Array) ? gl.UNSIGNED_INT : gl.UNSIGNED_SHORT; }
+  else count = verts.length/9;
+  gl.bindVertexArray(null);
+  return {vao, vb, ib, count, itype, indexed:!!idx, instances:0, ibuf:null,
+    /* per-instance mat4x3 rows + extra(seed,tint,scale,flag) */
+    setInstances(data, n){
+      gl.bindVertexArray(vao);
+      if(!this.ibuf){ this.ibuf = gl.createBuffer();
+        gl.bindBuffer(gl.ARRAY_BUFFER, this.ibuf);
+        gl.bufferData(gl.ARRAY_BUFFER, data, gl.DYNAMIC_DRAW);
+        for(let i=0;i<4;i++){ const loc=4+i; gl.enableVertexAttribArray(loc);
+          gl.vertexAttribPointer(loc,4,gl.FLOAT,false,64,i*16); gl.vertexAttribDivisor(loc,1); }
+      } else { gl.bindBuffer(gl.ARRAY_BUFFER, this.ibuf); gl.bufferSubData(gl.ARRAY_BUFFER,0,data); }
+      this.instances = n; gl.bindVertexArray(null);
+    },
+    setIndices(idx){ gl.bindVertexArray(vao); gl.bindBuffer(gl.ELEMENT_ARRAY_BUFFER, this.ib);
+      gl.bufferSubData(gl.ELEMENT_ARRAY_BUFFER,0,idx); gl.bindVertexArray(null); },
+    update(verts){ gl.bindBuffer(gl.ARRAY_BUFFER, vb); gl.bufferSubData(gl.ARRAY_BUFFER, 0, verts); }
+  };
+}
+function drawMesh(m){
+  gl.bindVertexArray(m.vao);
+  if(m.instances>0){
+    if(m.indexed) gl.drawElementsInstanced(gl.TRIANGLES, m.count, m.itype, 0, m.instances);
+    else gl.drawArraysInstanced(gl.TRIANGLES, 0, m.count, m.instances);
+  } else {
+    if(m.indexed) gl.drawElements(gl.TRIANGLES, m.count, m.itype, 0);
+    else gl.drawArrays(gl.TRIANGLES, 0, m.count);
+  }
+}
+function makeFBO(w,h,opt={}){
+  const fb = gl.createFramebuffer(); gl.bindFramebuffer(gl.FRAMEBUFFER, fb);
+  let color=null, depth=null;
+  if(opt.color!==false){
+    color = gl.createTexture(); gl.bindTexture(gl.TEXTURE_2D, color);
+    gl.texImage2D(gl.TEXTURE_2D,0,opt.fmt||HDR_FMT,w,h,0,gl.RGBA,opt.type||HDR_TYPE,null);
+    gl.texParameteri(gl.TEXTURE_2D,gl.TEXTURE_MIN_FILTER,gl.LINEAR);
+    gl.texParameteri(gl.TEXTURE_2D,gl.TEXTURE_MAG_FILTER,gl.LINEAR);
+    gl.texParameteri(gl.TEXTURE_2D,gl.TEXTURE_WRAP_S,gl.CLAMP_TO_EDGE);
+    gl.texParameteri(gl.TEXTURE_2D,gl.TEXTURE_WRAP_T,gl.CLAMP_TO_EDGE);
+    gl.framebufferTexture2D(gl.FRAMEBUFFER,gl.COLOR_ATTACHMENT0,gl.TEXTURE_2D,color,0);
+  } else { gl.drawBuffers([gl.NONE]); gl.readBuffer(gl.NONE); }
+  if(opt.depth){
+    depth = gl.createTexture(); gl.bindTexture(gl.TEXTURE_2D, depth);
+    gl.texImage2D(gl.TEXTURE_2D,0,gl.DEPTH_COMPONENT24,w,h,0,gl.DEPTH_COMPONENT,gl.UNSIGNED_INT,null);
+    gl.texParameteri(gl.TEXTURE_2D,gl.TEXTURE_MIN_FILTER,gl.NEAREST);
+    gl.texParameteri(gl.TEXTURE_2D,gl.TEXTURE_MAG_FILTER,gl.NEAREST);
+    gl.texParameteri(gl.TEXTURE_2D,gl.TEXTURE_WRAP_S,gl.CLAMP_TO_EDGE);
+    gl.texParameteri(gl.TEXTURE_2D,gl.TEXTURE_WRAP_T,gl.CLAMP_TO_EDGE);
+    gl.framebufferTexture2D(gl.FRAMEBUFFER,gl.DEPTH_ATTACHMENT,gl.TEXTURE_2D,depth,0);
+  }
+  gl.bindFramebuffer(gl.FRAMEBUFFER,null);
+  return {fb, color, depth, w, h};
+}
+function bindTex(unit, tex){ gl.activeTexture(gl.TEXTURE0+unit); gl.bindTexture(gl.TEXTURE_2D, tex); }
+
+/* Fullscreen triangle */
+const quadVAO = (()=>{ const v=gl.createVertexArray(); gl.bindVertexArray(v);
+  const b=gl.createBuffer(); gl.bindBuffer(gl.ARRAY_BUFFER,b);
+  gl.bufferData(gl.ARRAY_BUFFER,new Float32Array([-1,-1, 3,-1, -1,3]),gl.STATIC_DRAW);
+  gl.enableVertexAttribArray(0); gl.vertexAttribPointer(0,2,gl.FLOAT,false,0,0);
+  gl.bindVertexArray(null); return v; })();
+function fullscreen(){ gl.bindVertexArray(quadVAO); gl.drawArrays(gl.TRIANGLES,0,3); }
+
+/* ── 4. SHADERS ───────────────────────────────────────────────────────────── */
+const GLSL_COMMON = `
+float hash11(float p){ p=fract(p*0.1031); p*=p+33.33; p*=p+p; return fract(p); }
+float hash13(vec3 p){ p=fract(p*0.1031); p+=dot(p,p.zyx+31.32); return fract((p.x+p.y)*p.z); }
+float vnoise(vec3 x){
+  vec3 i=floor(x), f=fract(x); f=f*f*(3.0-2.0*f);
+  float n000=hash13(i), n100=hash13(i+vec3(1,0,0)), n010=hash13(i+vec3(0,1,0)), n110=hash13(i+vec3(1,1,0));
+  float n001=hash13(i+vec3(0,0,1)), n101=hash13(i+vec3(1,0,1)), n011=hash13(i+vec3(0,1,1)), n111=hash13(i+vec3(1,1,1));
+  return mix(mix(mix(n000,n100,f.x),mix(n010,n110,f.x),f.y),
+             mix(mix(n001,n101,f.x),mix(n011,n111,f.x),f.y),f.z);
+}
+float fbm3(vec3 p){ float a=0.5,s=0.0; for(int i=0;i<3;i++){ s+=a*vnoise(p); p*=2.07; a*=0.5; } return s; }
+`;
+
+/* Vertex program shared by the scene pass and the shadow pass. */
+const SCENE_VS = `#version 300 es
+precision highp float;
+layout(location=0) in vec3 aPos;
+layout(location=1) in vec3 aNor;
+layout(location=2) in vec2 aUV;
+layout(location=3) in float aRegion;
+layout(location=4) in vec4 iR0;
+layout(location=5) in vec4 iR1;
+layout(location=6) in vec4 iR2;
+layout(location=7) in vec4 iEx;
+uniform mat4 uVP, uModel, uLightVP;
+uniform float uTime, uBreath, uGlitch, uInst, uWarp;
+uniform vec4 uMorph;          // jaw, brow, lid, headTilt
+out vec3 vW; out vec3 vN; out vec2 vUV; out vec4 vLS; out float vSeed; out float vRegion;
+${GLSL_COMMON}
+void main(){
+  vec3 p = aPos; vec3 n = aNor; float seed = 0.0;
+  /* facial blendshapes — regions: 1 jaw, 2 brow, 3 eyelid, 4 cheek */
+  if(uMorph.w > 0.5){
+    if(aRegion > 0.5 && aRegion < 1.5) p += vec3(0.0,-uMorph.x*0.055, uMorph.x*0.02);
+    else if(aRegion < 2.5 && aRegion > 1.5) p += vec3(0.0, uMorph.y*0.022, -abs(uMorph.y)*0.01);
+    else if(aRegion < 3.5 && aRegion > 2.5) p += vec3(0.0,-uMorph.z*0.028, 0.006);
+  }
+  mat4 M = uModel;
+  if(uInst > 0.5){
+    M = mat4(vec4(iR0.xyz,0.0), vec4(iR1.xyz,0.0), vec4(iR2.xyz,0.0),
+             vec4(iR0.w, iR1.w, iR2.w, 1.0));
+    seed = iEx.x;
+  }
+  vec4 wp = M * vec4(p,1.0);
+  vec3 wn = normalize(mat3(M) * n);
+  /* the architecture breathes */
+  if(uBreath > 0.0){
+    float b = sin(uTime*0.62 + wp.x*0.11 + wp.z*0.09) * 0.5 + 0.5;
+    float b2 = sin(uTime*1.31 + wp.y*0.4 + seed*6.0);
+    wp.xyz += wn * (uBreath * (b*0.55 + b2*0.2));
+  }
+  /* controlled geometry failure: quantised displacement in glitch cells */
+  if(uGlitch > 0.001){
+    vec3 cell = floor(wp.xyz*1.7 + uTime*3.0);
+    float h = hash13(cell);
+    if(h > 1.0 - uGlitch*0.35){
+      float d = (hash11(h*91.7)-0.5) * uGlitch * 1.6;
+      wp.xyz += vec3(d, d*0.3, -d*0.7);
+    }
+  }
+  /* global space-warp: the amphitheater is not euclidean */
+  if(uWarp > 0.0){
+    float r = length(wp.xz);
+    wp.y += sin(r*0.28 - uTime*0.35) * uWarp * (0.4 + r*0.05);
+    float tw = uWarp * 0.012 * wp.y;
+    float ct = cos(tw), st = sin(tw);
+    wp.xz = mat2(ct,-st,st,ct) * wp.xz;
+  }
+  vW = wp.xyz; vN = wn; vUV = aUV; vSeed = seed; vRegion = aRegion;
+  vLS = uLightVP * wp;
+  gl_Position = uVP * wp;
+}`;
+
+const SCENE_FS = `#version 300 es
+precision highp float;
+in vec3 vW; in vec3 vN; in vec2 vUV; in vec4 vLS; in float vSeed; in float vRegion;
+uniform vec3 uCam, uColor, uEmis, uSunDir, uSunCol, uSky, uGround;
+uniform float uTime, uRough, uMetal, uFlat, uAlpha, uChaos, uFogDensity;
+uniform vec4 uWater;          // level, causticStrength, underwater, waveT
+uniform vec3 uPL[5];          // point light positions
+uniform vec3 uPLC[5];         // point light colours (rgb * intensity)
+uniform int  uNPL;
+uniform sampler2D uShadow;
+out vec4 frag;
+${GLSL_COMMON}
+float shadowAt(vec3 N, vec3 L){
+  vec3 pc = vLS.xyz / vLS.w * 0.5 + 0.5;
+  if(pc.x<0.0||pc.x>1.0||pc.y<0.0||pc.y>1.0||pc.z>1.0) return 1.0;
+  float bias = max(0.0016, 0.006*(1.0-dot(N,L)));
+  float s = 0.0; vec2 tx = 1.0/vec2(textureSize(uShadow,0));
+  for(int y=-1;y<=1;y++) for(int x=-1;x<=1;x++){
+    float d = texture(uShadow, pc.xy + vec2(x,y)*tx).r;
+    s += (pc.z - bias > d) ? 0.0 : 1.0;
+  }
+  return s/9.0;
+}
+vec3 brdf(vec3 N, vec3 V, vec3 L, vec3 lc, vec3 alb, float rough, float metal){
+  vec3 H = normalize(V+L);
+  float ndl = max(dot(N,L),0.0), ndv = max(dot(N,V),1e-4), ndh = max(dot(N,H),0.0), vdh = max(dot(V,H),0.0);
+  float a = max(rough*rough, 0.002); float a2 = a*a;
+  float d = ndh*ndh*(a2-1.0)+1.0; d = a2/(3.14159*d*d);
+  float k = a*0.5;
+  float g = (ndl/(ndl*(1.0-k)+k)) * (ndv/(ndv*(1.0-k)+k));
+  vec3 F0 = mix(vec3(0.045), alb, metal);
+  vec3 F = F0 + (1.0-F0)*pow(1.0-vdh,5.0);
+  vec3 spec = d*g*F/(4.0*ndv*ndl+1e-4);
+  vec3 kd = (1.0-F)*(1.0-metal);
+  return (kd*alb/3.14159 + spec) * lc * ndl;
+}
+void main(){
+  vec3 N = normalize(vN);
+  if(uFlat > 0.5) N = normalize(cross(dFdx(vW), dFdy(vW)));
+  vec3 V = normalize(uCam - vW);
+  if(dot(N,V) < 0.0 && uFlat > 0.5) N = -N;
+  vec3 alb = uColor;
+  /* procedural surface detail: pores, veining, damp staining */
+  /* one noise fetch, two uses: fine grain and coarse veining */
+  float grain = fbm3(vW*6.0 + vSeed*13.0);
+  float veins = vnoise(vW*1.6 + vec3(0.0,vSeed,0.0))*0.7 + grain*0.3;
+  alb *= 0.82 + 0.30*grain;
+  alb = mix(alb, alb*vec3(0.62,0.70,0.60), smoothstep(0.55,0.85,veins)*0.5);
+  float damp = smoothstep(uWater.x+0.9, uWater.x-0.4, vW.y);
+  alb = mix(alb, alb*vec3(0.42,0.50,0.48), damp*0.65);
+  float rough = clamp(uRough*(0.75+0.5*grain) - damp*0.35, 0.045, 1.0);
+
+  vec3 L = normalize(-uSunDir);
+  float shd = shadowAt(N,L);
+  vec3 col = brdf(N,V,L,uSunCol,alb,rough,uMetal) * shd;
+  for(int i=0;i<5;i++){
+    if(i>=uNPL) break;
+    vec3 d = uPL[i]-vW; float dist = length(d);
+    vec3 lc = uPLC[i] / (1.0 + 0.14*dist*dist);
+    col += brdf(N,V,normalize(d),lc,alb,rough,uMetal);
+  }
+  /* hemispheric ambient + fresnel rim (the theatrical edge light) */
+  float hemi = N.y*0.5+0.5;
+  col += alb * mix(uGround, uSky, hemi) * (0.55 + 0.45*shd);
+  float fres = pow(1.0-max(dot(N,V),0.0), 3.2);
+  col += fres * mix(vec3(0.09,0.20,0.26), vec3(0.42,0.10,0.09), uChaos*0.8) * 0.30;
+  col += uEmis;
+
+  /* caustics on everything beneath the surface */
+  if(vW.y < uWater.x && uWater.y > 0.0){
+    float depth = uWater.x - vW.y;
+    vec2 q = vW.xz*1.35;
+    float t = uWater.w;
+    float c = 0.0;
+    for(int i=0;i<3;i++){
+      float fi = float(i);
+      vec2 o = vec2(sin(t*0.7+fi*2.1), cos(t*0.55+fi*1.3))*0.6;
+      c += abs(sin(q.x*2.1+o.x+t*0.9)*sin(q.y*1.9+o.y-t*0.7));
+      q *= 1.42;
+    }
+    c = pow(max(0.0, 1.0-c*0.42), 4.0);
+    float fade = exp(-depth*0.55) * max(N.y,0.15);
+    col += vec3(0.55,0.95,0.90) * c * fade * uWater.y * 2.4;
+    /* absorption */
+    col *= exp(-depth*vec3(0.34,0.13,0.10)*0.9);
+  }
+
+  /* height-attenuated volumetric fog, thicker in the well of the amphitheater */
+  float dist = length(uCam - vW);
+  float hf = exp(-max(vW.y+2.0,0.0)*0.10);
+  float fog = 1.0 - exp(-dist*uFogDensity*hf);
+  float sun = max(dot(normalize(vW-uCam), L), 0.0);
+  vec3 fogCol = mix(mix(uGround,uSky,0.5), uSunCol*0.85, pow(sun,6.0)*0.7);
+  if(uWater.z > 0.5){ fogCol = vec3(0.085,0.185,0.205); fog *= 0.65; }
+  col = mix(col, fogCol, clamp(fog,0.0,0.93));
+  frag = vec4(col, uAlpha);
+}`;
+
+const SHADOW_FS = `#version 300 es
+precision mediump float; void main(){}`;
+
+/* Water: heightfield surface with screen-space refraction, foam and sun glint. */
+const WATER_VS = `#version 300 es
+precision highp float;
+layout(location=0) in vec3 aPos;
+uniform mat4 uVP; uniform float uTime, uLevel, uAmp, uScale, uSpeed, uChaos, uAnom;
+out vec3 vW; out vec4 vClip; out float vRip;
+${GLSL_COMMON}
+float waveH(vec2 p, float t, out vec2 grad){
+  float h=0.0; grad=vec2(0.0);
+  vec2 dirs[4]; dirs[0]=vec2(1.0,0.24); dirs[1]=vec2(-0.4,0.9); dirs[2]=vec2(0.7,-0.72); dirs[3]=vec2(-0.85,-0.3);
+  float amp=1.0, fr=0.55;
+  for(int i=0;i<4;i++){
+    vec2 d=normalize(dirs[i]);
+    float ph=dot(p,d)*fr + t*(0.9+float(i)*0.31);
+    h += sin(ph)*amp;
+    grad += d*fr*cos(ph)*amp;
+    amp*=0.55; fr*=1.93;
+  }
+  /* radial ring pulses — the water answers the music */
+  float r=length(p);
+  float ring = sin(r*1.6 - t*1.7)*exp(-r*0.06);
+  h += ring*0.5; grad += normalize(p+1e-4)*1.6*cos(r*1.6-t*1.7)*exp(-r*0.06)*0.5;
+  return h;
+}
+void main(){
+  vec2 p = aPos.xz*uScale;
+  vec2 g;
+  float t = uTime*uSpeed;
+  float h = waveH(p, t, g);
+  /* upward-flowing anomaly: columns of water that rise where they should not */
+  float col = fbm3(vec3(aPos.xz*0.09, uTime*0.06));
+  float anomaly = smoothstep(0.62,0.95,col) * (1.2+uChaos*2.4) * uAnom;
+  vec3 w = vec3(aPos.x, uLevel + h*uAmp + anomaly*uAmp*7.0*(0.5+0.5*sin(uTime*0.7+col*20.0)), aPos.z);
+  vRip = h;
+  vW = w; vClip = uVP*vec4(w,1.0); gl_Position = vClip;
+}`;
+
+const WATER_FS = `#version 300 es
+precision highp float;
+in vec3 vW; in vec4 vClip; in float vRip;
+uniform sampler2D uScene, uDepth;
+uniform vec3 uCam, uSunDir, uSunCol, uSky;
+uniform float uTime, uNear, uFar, uRefract, uFoam, uChaos, uLevel, uUnder;
+uniform vec3 uTint;
+out vec4 frag;
+${GLSL_COMMON}
+float lin(float d){ float z=d*2.0-1.0; return 2.0*uNear*uFar/(uFar+uNear-z*(uFar-uNear)); }
+void main(){
+  vec2 uv = vClip.xy/vClip.w*0.5+0.5;
+  /* analytic normal from layered ripples (cheaper + crisper than sampling) */
+  vec2 p = vW.xz;
+  float t = uTime*0.9;
+  vec2 n2 = vec2(0.0);
+  float amp=0.06, fr=1.1;
+  for(int i=0;i<5;i++){
+    vec2 d = normalize(vec2(sin(float(i)*2.3), cos(float(i)*1.7)));
+    float ph = dot(p,d)*fr + t*(1.0+float(i)*0.42);
+    n2 += d*cos(ph)*amp*fr;
+    amp*=0.62; fr*=1.87;
+  }
+  vec3 N = normalize(vec3(-n2.x, 1.0, -n2.y));
+  vec3 V = normalize(uCam-vW);
+  float sceneD = lin(texture(uDepth, uv).r);
+  float surfD  = lin(gl_FragCoord.z);
+  float wdepth = max(sceneD-surfD, 0.0);
+
+  vec2 off = N.xz * uRefract * clamp(wdepth,0.0,2.0);
+  float sceneD2 = lin(texture(uDepth, uv+off).r);
+  if(sceneD2 < surfD) off = vec2(0.0);        // no bleeding of objects in front
+  vec3 below = texture(uScene, uv+off).rgb;
+
+  /* absorption through the water column */
+  vec3 absorb = exp(-wdepth*vec3(0.42,0.16,0.12)*1.5);
+  vec3 col = below*absorb + uTint*(1.0-absorb)*1.4;
+
+  vec3 L = normalize(-uSunDir);
+  float fres = pow(1.0-max(dot(N,V),0.0), 4.0);
+  fres = mix(0.03, 1.0, fres);
+  vec3 R = reflect(-V,N);
+  vec3 sky = mix(uTint*2.0, uSky, clamp(R.y*0.5+0.5,0.0,1.0));
+  float glint = pow(max(dot(R,L),0.0), 340.0);
+  col = mix(col, sky, fres*0.72);
+  col += uSunCol*glint*2.2;
+
+  /* foam at the shoreline and on the crests */
+  float shore = 1.0-smoothstep(0.0, uFoam, wdepth);
+  float crest = smoothstep(0.45, 1.0, vRip)*0.55;
+  float fm = clamp(shore + crest, 0.0, 1.0);
+  float fzz = fbm3(vec3(p*5.5, uTime*0.8));
+  fm *= smoothstep(0.35,0.75,fzz);
+  col = mix(col, vec3(0.86,0.90,0.88), fm*0.85);
+
+  /* thin blood-bloom that appears with the chaos */
+  col += vec3(0.35,0.03,0.04) * uChaos * smoothstep(0.5,1.0,fbm3(vec3(p*0.35, uTime*0.05))) * 0.5;
+
+  float distF = 1.0-exp(-length(uCam-vW)*0.015);
+  col = mix(col, uTint*1.9, distF*0.45);
+  frag = vec4(col, 1.0);
+}`;
+
+/* Points: dust, spray, feathers, sheet music. */
+const PT_VS = `#version 300 es
+precision highp float;
+layout(location=0) in vec4 aP;   // xyz, size
+layout(location=1) in vec4 aC;   // rgb, kind(0 dust,1 spray,2 feather,3 page)
+uniform mat4 uVP; uniform vec2 uRes; uniform float uTime;
+out vec4 vC; out float vKind; out float vRot;
+void main(){
+  vec4 cp = uVP*vec4(aP.xyz,1.0);
+  gl_Position = cp;
+  gl_PointSize = clamp(aP.w*uRes.y/max(cp.w,0.001), 1.0, 190.0);
+  vC = vec4(aC.rgb,1.0); vKind = aC.w;
+  vRot = uTime*0.7 + aP.x*3.1 + aP.z*1.7;
+}`;
+const PT_FS = `#version 300 es
+precision highp float;
+in vec4 vC; in float vKind; in float vRot;
+out vec4 frag;
+void main(){
+  vec2 q = gl_PointCoord*2.0-1.0;
+  float a;
+  if(vKind < 0.5){                       // dust mote
+    a = smoothstep(1.0,0.0,length(q));  a *= a*0.55;
+  } else if(vKind < 1.5){                // spray droplet
+    a = smoothstep(1.0,0.25,length(q*vec2(1.0,1.5)));
+  } else if(vKind < 2.5){                // black feather
+    float c=cos(vRot), s=sin(vRot); vec2 r = mat2(c,-s,s,c)*q;
+    float sp = 1.0 - abs(r.x)*3.2 - abs(r.y)*0.55;
+    a = smoothstep(0.0,0.35,sp) * (0.5+0.5*sin(r.y*22.0));
+  } else {                               // page of sheet music
+    float c=cos(vRot*0.4), s=sin(vRot*0.4); vec2 r = mat2(c,-s,s,c)*q;
+    a = (abs(r.x)<0.7 && abs(r.y)<0.9) ? 1.0 : 0.0;
+    float stave = smoothstep(0.06,0.0,abs(fract(r.y*4.0)-0.5)-0.42);
+    frag = vec4(mix(vC.rgb, vC.rgb*0.25, stave), a); return;
+  }
+  if(a<=0.004) discard;
+  frag = vec4(vC.rgb, a);
+}`;
+
+/* Post: DOF + bloom + god rays + aberration + grain + glitch + film burn + grade. */
+const POST_VS = `#version 300 es
+precision highp float;
+layout(location=0) in vec2 aP; out vec2 vUV;
+void main(){ vUV = aP*0.5+0.5; gl_Position = vec4(aP,0.0,1.0); }`;
+
+const BRIGHT_FS = `#version 300 es
+precision highp float; in vec2 vUV; uniform sampler2D uTex; uniform float uThresh;
+out vec4 frag;
+void main(){ vec3 c = texture(uTex,vUV).rgb;
+  float l = dot(c, vec3(0.2126,0.7152,0.0722));
+  frag = vec4(c*smoothstep(uThresh, uThresh+0.7, l), 1.0); }`;
+
+const BLUR_FS = `#version 300 es
+precision highp float; in vec2 vUV; uniform sampler2D uTex; uniform vec2 uDir;
+out vec4 frag;
+void main(){
+  vec3 s = texture(uTex,vUV).rgb*0.2270270;
+  s += (texture(uTex,vUV+uDir*1.3846).rgb + texture(uTex,vUV-uDir*1.3846).rgb)*0.3162162;
+  s += (texture(uTex,vUV+uDir*3.2307).rgb + texture(uTex,vUV-uDir*3.2307).rgb)*0.0702702;
+  frag = vec4(s,1.0);
+}`;
+
+const POST_FS = `#version 300 es
+precision highp float;
+in vec2 vUV;
+uniform sampler2D uScene, uBloom, uDepth;
+uniform vec2 uRes, uSunUV;
+uniform float uTime, uNear, uFar, uFocus, uDofStr, uGrain, uAberr, uVign, uBloomAmt,
+              uGodrays, uGlitch, uBurn, uUnder, uSat, uContrast, uLift, uFlash, uSlow;
+uniform vec3 uTint, uFlashCol;
+out vec4 frag;
+${GLSL_COMMON}
+float lin(float d){ float z=d*2.0-1.0; return 2.0*uNear*uFar/(uFar+uNear-z*(uFar-uNear)); }
+vec3 aces(vec3 x){
+  return clamp((x*(2.51*x+0.03))/(x*(2.43*x+0.59)+0.14), 0.0, 1.0);
+}
+void main(){
+  vec2 uv = vUV;
+  /* underwater refraction wobble of the whole image */
+  if(uUnder > 0.0){
+    uv += vec2(sin(uv.y*26.0+uTime*2.1), cos(uv.x*22.0+uTime*1.7))*0.0035*uUnder;
+  }
+  /* horizontal tear + block displacement during peak chaos */
+  if(uGlitch > 0.001){
+    float band = floor(uv.y*54.0);
+    float h = hash11(band + floor(uTime*11.0)*37.0);
+    if(h > 1.0-uGlitch*0.30){
+      uv.x += (hash11(h*57.0)-0.5)*0.09*uGlitch;
+    }
+    float blk = hash11(floor(uv.x*13.0)+floor(uv.y*17.0)*23.0+floor(uTime*7.0)*61.0);
+    if(blk > 1.0-uGlitch*0.10) uv += (vec2(hash11(blk*3.1),hash11(blk*7.7))-0.5)*0.05;
+  }
+  float d = lin(texture(uDepth, uv).r);
+  float coc = clamp(abs(d-uFocus)/max(uFocus,1.0)*1.25, 0.0, 1.0)*uDofStr;
+  /* chromatic aberration grows toward the frame edge and with chaos */
+  vec2 dir = uv-0.5;
+  float ab = uAberr*(1.0+dot(dir,dir)*3.5) + uGlitch*0.010;
+  vec3 col;
+  col.r = texture(uScene, uv + dir*ab).r;
+  col.g = texture(uScene, uv).g;
+  col.b = texture(uScene, uv - dir*ab).b;
+  /* hexagonal-ish 7-tap bokeh */
+  if(coc > 0.02){
+    vec3 acc = col; float r = coc*0.020;
+    for(int i=0;i<7;i++){
+      float a = float(i)*0.8975979 + uTime*0.1;
+      vec2 o = vec2(cos(a),sin(a))*r*(0.55+0.45*hash11(float(i)+floor(uTime*24.0)));
+      acc += texture(uScene, uv+o*vec2(1.0,uRes.x/uRes.y)).rgb;
+    }
+    col = mix(col, acc/8.0, clamp(coc*1.6,0.0,1.0));
+  }
+  vec3 bloom = texture(uBloom, uv).rgb;
+  col += bloom*uBloomAmt;
+  /* god rays: radial march through the bloom buffer toward the key light */
+  if(uGodrays > 0.0){
+    vec2 delta = (uSunUV-uv)/22.0; vec2 c = uv; float w=1.0; vec3 acc=vec3(0.0);
+    for(int i=0;i<22;i++){ c+=delta; acc += texture(uBloom,c).rgb*w; w*=0.955; }
+    col += acc/22.0 * uGodrays * 1.5;
+  }
+  /* colour grade */
+  col *= uTint;
+  col += uLift;
+  float l = dot(col, vec3(0.2126,0.7152,0.0722));
+  col = mix(vec3(l), col, uSat);
+  col = (col-0.5)*uContrast+0.5;
+  col = mix(col, uFlashCol, uFlash);
+  col = aces(col*1.05);
+  /* film burn: a bright blister that eats the frame at the worst moments */
+  if(uBurn > 0.001){
+    float n = fbm3(vec3(uv*3.2, uTime*0.35));
+    float edge = smoothstep(0.30, 1.05, length((uv-0.5)*vec2(1.1,1.0))*1.5);
+    float b = smoothstep(0.62, 0.80, n*0.55 + edge*0.62 + uBurn*0.32);
+    col = mix(col, vec3(1.0,0.66,0.28), b*0.80*uBurn);
+    col = mix(col, vec3(0.015,0.008,0.006), smoothstep(0.80,1.0,b)*0.9*uBurn);
+  }
+  /* grain, gate weave, vignette */
+  float g = hash13(vec3(uv*uRes, fract(uTime)*997.0))-0.5;
+  col += g*uGrain*(1.2-l*0.7);
+  float v = smoothstep(1.25, uVign*0.35, length((uv-0.5)*vec2(1.15,1.0))*1.6);
+  col *= mix(1.0, v, uVign);
+  col += vec3(0.006,0.010,0.012)*(1.0-v);
+  /* slow-motion signature: faint double exposure ghost */
+  if(uSlow > 0.0) col = mix(col, texture(uScene, uv + vec2(0.0,0.004*uSlow)).rgb, 0.22*uSlow);
+  frag = vec4(col, 1.0);
+}`;
+
+/* ── PROGRAMS & TARGETS ───────────────────────────────────────────────────── */
+const P_SCENE  = program(SCENE_VS, SCENE_FS);
+const P_SHADOW = program(SCENE_VS, SHADOW_FS);
+const P_WATER  = program(WATER_VS, WATER_FS);
+const P_PT     = program(PT_VS, PT_FS);
+const P_BRIGHT = program(POST_VS, BRIGHT_FS);
+const P_BLUR   = program(POST_VS, BLUR_FS);
+const P_POST   = program(POST_VS, POST_FS);
+
+let FBO_MAIN, FBO_COPY, FBO_B1, FBO_B2, RW=1, RH=1;
+const shadowFBO = makeFBO(CONFIG.quality.shadow, CONFIG.quality.shadow, {color:false, depth:true});
+function resize(){
+  const dpr = Math.min(window.devicePixelRatio||1, CONFIG.quality.dprCap);
+  const w = Math.max(2, Math.floor(innerWidth*dpr)), h = Math.max(2, Math.floor(innerHeight*dpr));
+  if(w===RW && h===RH) return;
+  RW=w; RH=h; canvas.width=w; canvas.height=h;
+  [FBO_MAIN,FBO_COPY,FBO_B1,FBO_B2].forEach(f=>{ if(f){ gl.deleteFramebuffer(f.fb);
+    if(f.color)gl.deleteTexture(f.color); if(f.depth)gl.deleteTexture(f.depth);} });
+  FBO_MAIN = makeFBO(w,h,{depth:true});
+  FBO_COPY = makeFBO(w,h,{depth:true});
+  const bw = Math.max(2,w>>2), bh = Math.max(2,h>>2);
+  FBO_B1 = makeFBO(bw,bh,{}); FBO_B2 = makeFBO(bw,bh,{});
+}
+addEventListener('resize', resize, {passive:true});
+resize();
+
+/* ── 5. GEOMETRY BUILDERS ─────────────────────────────────────────────────── */
+class Builder{
+  constructor(){ this.v=[]; this.i=[]; this.base=0; }
+  get vcount(){ return this.v.length/9; }
+  vert(x,y,z, nx,ny,nz, u,vv, r=0){ this.v.push(x,y,z,nx,ny,nz,u,vv,r); }
+  tri(a,b,c){ this.i.push(this.base+a, this.base+b, this.base+c); }
+  quad(a,b,c,d){ this.tri(a,b,c); this.tri(a,c,d); }
+  mark(){ this.base = this.vcount; }
+  mesh(){ const idx = this.vcount>65000 ? new Uint32Array(this.i) : new Uint16Array(this.i);
+          return makeMesh(new Float32Array(this.v), idx); }
+
+  /* Swept tube: profile(t) -> {c:[x,y,z], r, rot, sides, squash} — the workhorse
+     for columns, bones, arches, piano legs. */
+  tube(steps, sides, fn, region=0){
+    this.mark(); const rings=[];
+    for(let s=0;s<=steps;s++){
+      const t=s/steps, o=fn(t);
+      const [cx,cy,cz]=o.c, r=o.r, rot=o.rot||0, sq=o.squash||1, tilt=o.tilt||0;
+      const ring=[];
+      for(let k=0;k<sides;k++){
+        const a=k/sides*TAU + rot;
+        let px=Math.cos(a)*r, pz=Math.sin(a)*r*sq;
+        let py=0;
+        if(tilt){ const ty=px*Math.sin(tilt); px*=Math.cos(tilt); py=ty; }
+        ring.push([cx+px, cy+py, cz+pz]);
+      }
+      rings.push(ring);
+    }
+    for(let s=0;s<=steps;s++){ const t=s/steps;
+      for(let k=0;k<sides;k++){
+        const p=rings[s][k];
+        const pu=rings[s][(k+1)%sides], pd=rings[s][(k+sides-1)%sides];
+        const pn=rings[Math.min(s+1,steps)][k], pp=rings[Math.max(s-1,0)][k];
+        let ax=pu[0]-pd[0], ay=pu[1]-pd[1], az=pu[2]-pd[2];
+        let bx=pn[0]-pp[0], by=pn[1]-pp[1], bz=pn[2]-pp[2];
+        let nx=ay*bz-az*by, ny=az*bx-ax*bz, nz=ax*by-ay*bx;
+        const L=Math.hypot(nx,ny,nz)||1; nx/=L;ny/=L;nz/=L;
+        this.vert(p[0],p[1],p[2], -nx,-ny,-nz, k/sides, t, region);
+      }
+    }
+    for(let s=0;s<steps;s++) for(let k=0;k<sides;k++){
+      const a=s*sides+k, b=s*sides+(k+1)%sides, c=(s+1)*sides+(k+1)%sides, d=(s+1)*sides+k;
+      this.quad(a,b,c,d);
+    }
+    return this;
+  }
+  box(cx,cy,cz, sx,sy,sz, rotY=0, region=0){
+    this.mark();
+    const c=Math.cos(rotY), s=Math.sin(rotY);
+    const P=(x,y,z)=>[cx + x*c - z*s, cy+y, cz + x*s + z*c];
+    const N=(x,y,z)=>[x*c - z*s, y, x*s + z*c];
+    const hx=sx/2, hy=sy/2, hz=sz/2;
+    const faces=[
+      [[-hx,-hy, hz],[ hx,-hy, hz],[ hx, hy, hz],[-hx, hy, hz],[0,0,1]],
+      [[ hx,-hy,-hz],[-hx,-hy,-hz],[-hx, hy,-hz],[ hx, hy,-hz],[0,0,-1]],
+      [[ hx,-hy, hz],[ hx,-hy,-hz],[ hx, hy,-hz],[ hx, hy, hz],[1,0,0]],
+      [[-hx,-hy,-hz],[-hx,-hy, hz],[-hx, hy, hz],[-hx, hy,-hz],[-1,0,0]],
+      [[-hx, hy, hz],[ hx, hy, hz],[ hx, hy,-hz],[-hx, hy,-hz],[0,1,0]],
+      [[-hx,-hy,-hz],[ hx,-hy,-hz],[ hx,-hy, hz],[-hx,-hy, hz],[0,-1,0]]];
+    for(const f of faces){
+      const n=N(f[4][0],f[4][1],f[4][2]);
+      for(let k=0;k<4;k++){ const p=P(f[k][0],f[k][1],f[k][2]);
+        this.vert(p[0],p[1],p[2], n[0],n[1],n[2], k&1, (k>>1)&1, region); }
+      this.quad(0,1,2,3); this.mark();
+    }
+    return this;
+  }
+  /* Sphere with a region callback so heads can carry blendshape zones. */
+  sphere(cx,cy,cz, rx,ry,rz, seg=18, regionFn=null){
+    this.mark();
+    for(let j=0;j<=seg;j++){ const v=j/seg, ph=v*PI;
+      for(let k=0;k<=seg*2;k++){ const u=k/(seg*2), th=u*TAU;
+        const nx=Math.sin(ph)*Math.cos(th), ny=Math.cos(ph), nz=Math.sin(ph)*Math.sin(th);
+        const x=nx*rx, y=ny*ry, z=nz*rz;
+        const reg = regionFn ? regionFn(x,y,z) : 0;
+        this.vert(cx+x,cy+y,cz+z, nx/rx,ny/ry,nz/rz, u,v, reg);
+      }}
+    const W=seg*2+1;
+    for(let j=0;j<seg;j++) for(let k=0;k<seg*2;k++) this.quad(j*W+k, j*W+k+1, (j+1)*W+k+1, (j+1)*W+k);
+    return this;
+  }
+  ring(cx,cy,cz, r0, r1, seg=64, ny=1, region=0){
+    this.mark();
+    for(let k=0;k<=seg;k++){ const a=k/seg*TAU, c=Math.cos(a), sn=Math.sin(a);
+      this.vert(cx+c*r0, cy, cz+sn*r0, 0,ny,0, k/seg, 0, region);
+      this.vert(cx+c*r1, cy, cz+sn*r1, 0,ny,0, k/seg, 1, region); }
+    for(let k=0;k<seg;k++){ const a=k*2;
+      if(ny>0) this.quad(a, a+2, a+3, a+1); else this.quad(a, a+1, a+3, a+2); }
+    return this;
+  }
+  disc(cx,cy,cz, r, seg=48, ny=1, region=0){
+    this.mark(); this.vert(cx,cy,cz, 0,ny,0, .5,.5, region);
+    for(let k=0;k<=seg;k++){ const a=k/seg*TAU;
+      this.vert(cx+Math.cos(a)*r, cy, cz+Math.sin(a)*r, 0,ny,0, k/seg,1, region); }
+    for(let k=1;k<=seg;k++){ if(ny>0) this.tri(0,k+1,k); else this.tri(0,k,k+1); }
+    return this;
+  }
+}
+const packInstance = (out, o, m, seed, tint, extra) => {
+  /* store the 4x4 as three rows so an instance costs 64 bytes */
+  out[o   ]=m[0]; out[o+1]=m[4]; out[o+2]=m[8];  out[o+3]=m[12];
+  out[o+4]=m[1]; out[o+5]=m[5]; out[o+6]=m[9];  out[o+7]=m[13];
+  out[o+8]=m[2]; out[o+9]=m[6]; out[o+10]=m[10];out[o+11]=m[14];
+  out[o+12]=seed; out[o+13]=tint||0; out[o+14]=extra||0; out[o+15]=0;
+};
+
+/* ── 6. THE AMPHITHEATER ──────────────────────────────────────────────────── */
+/* Draw item = one material + one mesh + one transform. Everything the scene
+   renders lives in `world` or is pushed by the cast/debris systems each frame. */
+function item(mesh, opt={}){
+  return Object.assign({ mesh, model:M4.id(), color:[0.5,0.5,0.5], rough:0.8, metal:0.0,
+    emis:[0,0,0], flat:0, alpha:1, breath:0, glitch:0, warp:0, morph:[0,0,0,0],
+    shadow:true, inst:false }, opt);
+}
+const world = [];          // static architecture
+const dynamicItems = [];   // cast, piano keys, debris — rebuilt each frame
+
+function addPrism(b, pts, y0, y1, region=0){
+  const n = pts.length;
+  b.mark();
+  for(let k=0;k<n;k++){                       // side walls, flat-shaded quads
+    const p = pts[k], q = pts[(k+1)%n];
+    let nx = -(q[1]-p[1]), nz = (q[0]-p[0]); const L = Math.hypot(nx,nz)||1; nx/=L; nz/=L;
+    b.mark();
+    b.vert(p[0],y0,p[1], nx,0,nz, 0,0, region); b.vert(q[0],y0,q[1], nx,0,nz, 1,0, region);
+    b.vert(q[0],y1,q[1], nx,0,nz, 1,1, region); b.vert(p[0],y1,p[1], nx,0,nz, 0,1, region);
+    b.quad(0,1,2,3);
+  }
+  for(const [y,ny] of [[y1,1],[y0,-1]]){      // caps (fan from centroid)
+    let cx=0, cz=0; for(const p of pts){ cx+=p[0]; cz+=p[1]; } cx/=n; cz/=n;
+    b.mark(); b.vert(cx,y,cz, 0,ny,0, .5,.5, region);
+    for(let k=0;k<=n;k++){ const p=pts[k%n]; b.vert(p[0],y,p[1], 0,ny,0, 0,0, region); }
+    for(let k=1;k<=n;k++){ if(ny>0) b.tri(0,k,k+1); else b.tri(0,k+1,k); }
+  }
+}
+
+const STAGE_R = 8.0, STAGE_Y = -0.4;
+const MESH = {}, INST = {};
+
+/* --- stage floor, sunken circle with a cracked rim ------------------------ */
+{
+  const b = new Builder();
+  b.disc(0, STAGE_Y, 0, STAGE_R, 64);                                  // sunken floor
+  b.tube(1, 64, t => ({c:[0,STAGE_Y + t*0.42, 0], r: STAGE_R}));       // rim wall
+  MESH.stage = b.mesh();
+  world.push(item(MESH.stage, {color:[0.33,0.31,0.28], rough:0.90}));
+  const g = new Builder();
+  g.ring(0, 0.02, 0, STAGE_R-0.02, 60, 96, 1);                         // the orchestra floor
+  MESH.ground = g.mesh();
+  world.push(item(MESH.ground, {color:[0.115,0.110,0.100], rough:0.98, shadow:false}));
+}
+/* --- spiralling seat tiers ------------------------------------------------ */
+{
+  const b = new Builder();
+  b.box(0,0,0, 1.55, 0.42, 1.05);                                       // one seat block
+  MESH.seat = b.mesh();
+  const tiers = 15, data = [], m = M4.id();
+  let n = 0;
+  for(let ti=0; ti<tiers; ti++){
+    const r = 10.5 + ti*1.42;
+    const y = 0.5 + ti*0.92 + Math.sin(ti*1.7)*0.12;
+    const count = Math.floor(TAU*r/2.0);
+    const spiral = ti*0.19;                       // the tiers do not close: they climb
+    for(let k=0;k<count;k++){
+      const a = k/count*TAU + spiral;
+      const bite = (a > 4.05 && a < 4.75) ? 0 : 1;   // the missing wedge, a mouth
+      if(!bite) continue;
+      const s = rand(ti*97+k);
+      const tilt = (s-0.5)*0.10;
+      const yy = y + Math.sin(a*3.0+ti)*0.16 + s*0.05;
+      const rr = r + Math.sin(a*5.0+ti*2.0)*0.22;
+      M4.trs(m, Math.cos(a)*rr, yy, Math.sin(a)*rr, tilt, -a, tilt*1.6, 1, 1, 1);
+      packInstance(data, n*16, m, s, 0, ti/tiers); n++;
+    }
+  }
+  INST.seats = { data:new Float32Array(data), n, base:new Float32Array(data) };
+  MESH.seat.setInstances(INST.seats.data, n);
+  world.push(item(MESH.seat, {color:[0.40,0.385,0.35], rough:0.95, inst:true}));
+}
+/* --- columns that melt, and the arcade they carry -------------------------- */
+{
+  const b = new Builder();
+  b.tube(46, 14, t => {
+    const y = t*15.5;
+    const bulge = 1 + Math.sin(t*PI*3.1)*0.13 + Math.exp(-t*9.0)*0.55;   // wax runs
+    const drip  = Math.max(0, Math.sin(t*PI*7.0))*0.06;
+    const r = (0.62 - t*0.16) * bulge + drip;
+    return { c:[Math.sin(t*3.4)*0.42*t, y, Math.cos(t*2.1)*0.30*t],
+             r, rot: t*2.7, squash: 1 + Math.sin(t*PI*2.0)*0.22 };
+  });
+  MESH.column = b.mesh();
+  const N = 22, data = new Float32Array(N*16), m = M4.id();
+  for(let k=0;k<N;k++){
+    const a = k/N*TAU, r = 29.5 + Math.sin(k*2.3)*1.1;
+    const s = rand(k*13.7);
+    M4.trs(m, Math.cos(a)*r, 0.2, Math.sin(a)*r, (s-0.5)*0.08, a*1.3, (s-0.5)*0.10,
+           0.9+s*0.5, 0.85+s*0.55, 0.9+s*0.5);
+    packInstance(data, k*16, m, s, 0, 0);
+  }
+  MESH.column.setInstances(data, N);
+  INST.columns = {data, n:N, base:new Float32Array(data)};
+  world.push(item(MESH.column, {color:[0.50,0.475,0.42], rough:0.78, inst:true, breath:0.012}));
+
+  /* arcade: bone arches leaping between column heads */
+  const ab = new Builder();
+  ab.tube(28, 9, t => {
+    const a = (t-0.5)*0.30;
+    const sag = Math.sin(t*PI);
+    return { c:[Math.sin(a)*29.5, 13.4 + sag*2.6 - 0.4, 0], r: 0.34 + sag*0.16 + Math.sin(t*PI*6.0)*0.04 };
+  });
+  MESH.arch = ab.mesh();
+  const AN = 22, ad = new Float32Array(AN*16);
+  for(let k=0;k<AN;k++){
+    const a = (k+0.5)/AN*TAU, s = rand(k*31.1);
+    M4.trs(m, 0, 0, 0, 0, -a + PI/2, 0, 1, 1+ (s-0.5)*0.2, 1);
+    /* the arch mesh is built around +Z; rotate it into place around the ring */
+    const rot = M4.id(); M4.trs(rot, 0,0,0, 0, a, 0, 1,1,1);
+    packInstance(ad, k*16, rot, s, 0, 0);
+  }
+  MESH.arch.setInstances(ad, AN);
+  world.push(item(MESH.arch, {color:[0.48,0.46,0.41], rough:0.7, inst:true, breath:0.02}));
+}
+/* --- the outer shell: a wall that is also a ribcage ------------------------ */
+{
+  const b = new Builder();
+  b.tube(30, 56, t => ({ c:[0, -1 + t*26, 0], r: 34 + Math.sin(t*PI*2.3)*1.6 - t*2.0 }));
+  MESH.wall = b.mesh();
+  world.push(item(MESH.wall, {color:[0.115,0.115,0.115], rough:1.0, breath:0.05, shadow:false}));
+  /* ribs */
+  const rb = new Builder();
+  rb.tube(20, 7, t => ({ c:[0, t*24-1, 0], r: 0.30 + Math.sin(t*PI)*0.22 }));
+  MESH.rib = rb.mesh();
+  const RN = 40, rd = new Float32Array(RN*16), m = M4.id();
+  for(let k=0;k<RN;k++){ const a=k/RN*TAU, s=rand(k*7.3);
+    M4.trs(m, Math.cos(a)*33.4, 0, Math.sin(a)*33.4, 0, a, (s-0.5)*0.25, 1, 0.8+s*0.5, 1);
+    packInstance(rd, k*16, m, s, 0, 0); }
+  MESH.rib.setInstances(rd, RN);
+  world.push(item(MESH.rib, {color:[0.30,0.28,0.26], rough:0.85, inst:true, breath:0.03, shadow:false}));
+}
+/* --- the piano: a decaying grand, stage-left ------------------------------ */
+const PIANO = { x:-4.4, z:1.6, rotY: 0.62, y: STAGE_Y };
+{
+  const b = new Builder();
+  /* case outline (metres, local space, +x toward the tail) */
+  const outline = [];
+  outline.push([-0.75,-0.72],[0.95,-0.72]);
+  for(let k=0;k<=14;k++){ const t=k/14;                       // the bent side
+    outline.push([0.95 + Math.sin(t*PI*0.92)*1.35, -0.72 + t*1.62]); }
+  outline.push([-0.75, 0.90]);
+  addPrism(b, outline, 0.62, 1.02);                            // case body
+  addPrism(b, outline.map(p=>[p[0]*0.94, p[1]*0.94]), 0.10, 0.62); // under-case
+  b.box(0.05, 0.98, 0.09, 1.30, 0.06, 1.55, 0.0);              // fallboard shelf
+  MESH.pianoBody = b.mesh();
+
+  const lb = new Builder();                                    // the lid, thrown open
+  lb.box(0, 0, 0, 2.5, 0.05, 1.7);
+  MESH.pianoLid = lb.mesh();
+
+  /* keys pivot at their far edge (local origin) and run out along -x */
+  const kb = new Builder(); kb.box(-0.30, 0, 0, 0.60, 0.028, 0.046);
+  MESH.key = kb.mesh();
+  const bkb = new Builder(); bkb.box(-0.20, 0.024, 0, 0.40, 0.030, 0.026);
+  MESH.blackKey = bkb.mesh();
+
+  const legb = new Builder();
+  legb.tube(16, 8, t => ({ c:[Math.sin(t*4.0)*0.10, t*0.72, Math.cos(t*3.0)*0.08],
+                           r: 0.10 - t*0.03 + Math.sin(t*PI*4.0)*0.02 }));
+  MESH.pianoLeg = legb.mesh();
+  const bench = new Builder(); bench.box(0,0,0, 1.15, 0.09, 0.42);
+  bench.box(-0.45,-0.24,0, 0.07,0.40,0.34); bench.box(0.45,-0.24,0, 0.07,0.40,0.34);
+  MESH.bench = bench.mesh();
+}
+
+/* ── 7. THE CAST ──────────────────────────────────────────────────────────── */
+/* Rigid-segment skeletal animation: every bone owns a tapered capsule mesh and
+   its own world matrix, so a 22-bone figure costs 22 small draws and no skinning
+   texture. Faces use real vertex blendshapes (region attribute + uMorph). */
+function segMesh(len, r0, r1, bulge=0.0){
+  const b = new Builder();
+  b.tube(9, 9, t => {
+    const r = lerp(r0, r1, t) * (1 + Math.sin(t*PI)*bulge);
+    return { c:[0, -t*len, 0], r, squash: 0.82 };
+  });
+  /* rounded cap so joints do not show daylight */
+  b.sphere(0,0,0, r0*0.98, r0*0.98, r0*0.8, 8);
+  b.sphere(0,-len,0, r1*0.98, r1*0.98, r1*0.8, 8);
+  return b.mesh();
+}
+const BONE = {
+  spine:   segMesh(0.30, 0.135, 0.115, 0.30),
+  chest:   segMesh(0.26, 0.155, 0.130, 0.22),
+  hips:    segMesh(0.16, 0.150, 0.140, 0.10),
+  neck:    segMesh(0.16, 0.048, 0.042, 0.0),
+  upArm:   segMesh(0.36, 0.055, 0.042, 0.18),
+  loArm:   segMesh(0.34, 0.042, 0.030, 0.10),
+  hand:    segMesh(0.11, 0.032, 0.020, 0.30),
+  finger:  segMesh(0.075,0.011, 0.007, 0.0),
+  thigh:   segMesh(0.56, 0.078, 0.055, 0.22),
+  shin:    segMesh(0.54, 0.055, 0.032, 0.12),
+  foot:    segMesh(0.20, 0.036, 0.022, 0.20)
+};
+/* Head: elongated ovoid, regions 1 jaw / 2 brow / 3 eyelid drive the blendshapes */
+MESH.head = (()=>{ const b=new Builder();
+  b.sphere(0,0.085,0, 0.098, 0.135, 0.108, 20, (x,y,z)=>{
+    if(z>0.02 && y<-0.030) return 1;          // jaw
+    if(z>0.03 && y>0.055 && y<0.105) return 2; // brow
+    if(z>0.05 && y>0.005 && y<0.055) return 3; // eyelid
+    return 0; });
+  return b.mesh(); })();
+MESH.eye = (()=>{ const b=new Builder();
+  b.sphere(-0.040,0.118,0.078, 0.021,0.021,0.016, 8);
+  b.sphere( 0.040,0.118,0.078, 0.021,0.021,0.016, 8); return b.mesh(); })();
+
+/* joint table: [name, parentIndex, offset, boneMesh|null, lengthForChildren] */
+const RIG = [
+  ['root',   -1, [0,0,0],        null],
+  ['hips',    0, [0,0,0],        'hips'],
+  ['spine',   0, [0,0.10,0],     'spine'],
+  ['chest',   2, [0,0.30,0],     'chest'],
+  ['neck',    3, [0,0.26,0],     'neck'],
+  ['head',    4, [0,0.16,0],     null],
+  ['clavL',   3, [0.075,0.20,0], null],
+  ['upArmL',  6, [0.115,0,0],    'upArm'],
+  ['loArmL',  7, [0,-0.36,0],    'loArm'],
+  ['handL',   8, [0,-0.34,0],    'hand'],
+  ['clavR',   3, [-0.075,0.20,0],null],
+  ['upArmR', 10, [-0.115,0,0],   'upArm'],
+  ['loArmR', 11, [0,-0.36,0],    'loArm'],
+  ['handR',  12, [0,-0.34,0],    'hand'],
+  ['thighL',  1, [0.095,-0.06,0],'thigh'],
+  ['shinL',  14, [0,-0.56,0],    'shin'],
+  ['footL',  15, [0,-0.54,0],    'foot'],
+  ['thighR',  1, [-0.095,-0.06,0],'thigh'],
+  ['shinR',  17, [0,-0.56,0],    'shin'],
+  ['footR',  18, [0,-0.54,0],    'foot']
+];
+const J = {}; RIG.forEach((r,i)=>J[r[0]]=i);
+
+const SKIN = [                                   // porcelain, four subtly different firings
+  [0.86,0.80,0.78], [0.84,0.79,0.80], [0.88,0.83,0.79], [0.80,0.77,0.79]
+];
+const GOWN = [
+  [0.09,0.10,0.11],   // pianist: wet black
+  [0.42,0.10,0.11],   // A: dried blood
+  [0.20,0.26,0.24],   // B: verdigris
+  [0.52,0.49,0.42]    // C: bone / dust
+];
+
+class Performer{
+  constructor(id, kind, x, z, facing){
+    this.id=id; this.kind=kind;                  // 'pianist' | 'A' | 'B' | 'C'
+    this.pos=[x, 0, z]; this.vel=[0,0,0]; this.facing=facing;
+    this.rot=[0,facing,0]; this.scaleY = kind==='A' ? 1.10 : kind==='C' ? 0.96 : 1.0;
+    this.rotL = new Float32Array(RIG.length*3);  // local euler per joint
+    this.world = Array.from({length:RIG.length}, ()=>M4.id());
+    this.morph=[0,0,0,0]; this.blink=0; this.nextBlink=rand(id*3)*4;
+    this.seed = id*17.3;
+    this.submerge = 0;                            // 0 dry .. 1 fully under
+    this.panic = 0;
+    this.cloth = makeCloth(this);
+  }
+  /* forward kinematics — offsets are rotated by the parent, no scale in the chain */
+  solve(){
+    const tmp = M4.id();
+    for(let i=0;i<RIG.length;i++){
+      const [ , parent, off ] = RIG[i];
+      const rx=this.rotL[i*3], ry=this.rotL[i*3+1], rz=this.rotL[i*3+2];
+      M4.trs(tmp, off[0],off[1],off[2], rx,ry,rz, 1,1,1);
+      if(parent<0){
+        const rootM = M4.id();
+        M4.trs(rootM, this.pos[0], this.pos[1], this.pos[2],
+               this.rot[0], this.rot[1], this.rot[2], 1, this.scaleY, 1);
+        M4.mul(this.world[i], rootM, tmp);
+      } else {
+        M4.mul(this.world[i], this.world[parent], tmp);
+      }
+    }
+  }
+  jointPos(i, out=[0,0,0]){ const m=this.world[i]; out[0]=m[12]; out[1]=m[13]; out[2]=m[14]; return out; }
+  push(){
+    const skin = SKIN[this.id], gown = GOWN[this.id];
+    for(let i=0;i<RIG.length;i++){
+      const bone = RIG[i][3]; if(!bone) continue;
+      dynamicItems.push(item(BONE[bone], {model:this.world[i], color:skin, rough:0.34, metal:0.02,
+        emis:[0.010,0.007,0.008]}));
+    }
+    /* head + blendshapes, and eyes that do not quite focus */
+    dynamicItems.push(item(MESH.head, {model:this.world[J.head], color:skin, rough:0.30,
+      morph:[this.morph[0], this.morph[1], this.morph[2], 1], emis:[0.012,0.008,0.010]}));
+    dynamicItems.push(item(MESH.eye, {model:this.world[J.head], color:[0.03,0.03,0.04], rough:0.12,
+      emis:[0.02,0.03,0.03]}));
+    /* fingers: five per hand, curled by the score */
+    for(const side of [0,1]){
+      const hand = side ? J.handR : J.handL;
+      for(let f=0; f<5; f++){
+        const m = M4.id(), local = M4.id();
+        const spread = (f-2)*0.030;
+        const curl = this.fingerCurl ? this.fingerCurl[side*5+f] : 0.25;
+        M4.trs(local, spread, -0.10, 0.012 + Math.abs(f-2)*-0.004,
+               -0.55 + curl*1.5, 0, spread*2.0, 1,1,1);
+        M4.mul(m, this.world[hand], local);
+        dynamicItems.push(item(BONE.finger, {model:m, color:skin, rough:0.32, shadow:false}));
+      }
+    }
+    pushCloth(this, gown);
+  }
+}
+
+/* ── CLOTH: verlet ribbons that remember they were once liquid ────────────── */
+const CLOTH_SPEC = [
+  /* joint, count, segs, restLen, w0, w1, mode(0 skirt,1 sleeve,2 veil,3 hair) */
+  { joint:'hips',  n:16, segs:9, rest:0.105, w0:0.085, w1:0.145, mode:0, ring:0.145, y:-0.02 },
+  { joint:'loArmL',n:3,  segs:6, rest:0.075, w0:0.050, w1:0.115, mode:1, ring:0.045, y:-0.30 },
+  { joint:'loArmR',n:3,  segs:6, rest:0.075, w0:0.050, w1:0.115, mode:1, ring:0.045, y:-0.30 },
+  { joint:'chest', n:4,  segs:8, rest:0.095, w0:0.110, w1:0.190, mode:2, ring:0.130, y:0.16 },
+  { joint:'head',  n:7,  segs:6, rest:0.060, w0:0.035, w1:0.070, mode:3, ring:0.085, y:0.14 }
+];
+function makeCloth(perf){
+  const strips=[]; let vtotal=0;
+  for(const spec of CLOTH_SPEC){
+    for(let k=0;k<spec.n;k++){
+      const a = k/spec.n*TAU + (spec.mode===2 ? PI*0.6 : 0);
+      const arc = spec.mode===2 ? 0.9 : 1.0;
+      strips.push({
+        joint:J[spec.joint], mode:spec.mode, segs:spec.segs, rest:spec.rest,
+        w0:spec.w0, w1:spec.w1, seed: rand(perf.id*31 + strips.length*7)*10,
+        anchor:[Math.cos(a*arc)*spec.ring, spec.y, Math.sin(a*arc)*spec.ring],
+        p:new Float32Array((spec.segs+1)*3), o:new Float32Array((spec.segs+1)*3), init:false
+      });
+      vtotal += (spec.segs+1)*2;
+    }
+  }
+  const verts = new Float32Array(vtotal*9);
+  const idx=[]; let v0=0;
+  for(const s of strips){
+    for(let i=0;i<s.segs;i++){ const a=v0+i*2;
+      idx.push(a,a+1,a+3, a,a+3,a+2); }
+    v0 += (s.segs+1)*2;
+  }
+  const mesh = makeMesh(verts, vtotal>65000?new Uint32Array(idx):new Uint16Array(idx), true);
+  return { strips, verts, mesh };
+}
+const _tmpV=[0,0,0];
+function updateCloth(perf, dt, ctx){
+  const c = perf.cloth, wl = ctx.waterLevel, chaos = ctx.chaos, T = ctx.time;
+  const dt2 = Math.min(dt,0.033);
+  let vi = 0;
+  for(const s of c.strips){
+    const M = perf.world[s.joint];
+    M4.xform(_tmpV, M, s.anchor[0], s.anchor[1], s.anchor[2]);
+    const ax=_tmpV[0], ay=_tmpV[1], az=_tmpV[2];
+    if(!s.init){ for(let i=0;i<=s.segs;i++){
+        s.p[i*3]=ax; s.p[i*3+1]=ay-i*s.rest; s.p[i*3+2]=az;
+        s.o[i*3]=ax; s.o[i*3+1]=ay-i*s.rest; s.o[i*3+2]=az; } s.init=true; }
+    s.p[0]=ax; s.p[1]=ay; s.p[2]=az; s.o[0]=ax; s.o[1]=ay; s.o[2]=az;
+    /* fabric mode: it drifts between cloth, feather and liquid */
+    const liquid = sat(Math.sin(T*0.23 + s.seed)*0.5+0.5 + chaos*0.35);
+    const grav = lerp(-9.4, -2.1, liquid) * (s.mode===3 ? 0.55 : 1.0);
+    for(let i=1;i<=s.segs;i++){
+      const o=i*3;
+      let px=s.p[o], py=s.p[o+1], pz=s.p[o+2];
+      let vx=(px-s.o[o])*0.965, vy=(py-s.o[o+1])*0.965, vz=(pz-s.o[o+2])*0.965;
+      s.o[o]=px; s.o[o+1]=py; s.o[o+2]=pz;
+      let gy = grav;
+      const under = py < wl;
+      if(under){                                   // buoyancy, drag, and the current
+        gy = 6.2 + Math.sin(T*1.3+s.seed)*1.5;
+        vx*=0.86; vy*=0.80; vz*=0.86;
+        const cur = 0.55 + chaos*1.2;
+        vx += Math.sin(pz*0.9 + T*0.8 + s.seed)*0.004*cur;
+        vz += Math.cos(px*0.9 - T*0.7 + s.seed)*0.004*cur;
+      }
+      const w = 0.7 + chaos*2.4;
+      vx += Math.sin(T*1.7 + s.seed + i*0.4)*0.0009*w;
+      vz += Math.cos(T*1.4 + s.seed*1.7 + i*0.3)*0.0009*w;
+      vy += Math.sin(T*2.3 + s.seed*0.7)*0.0006*w*liquid;
+      px += vx + 0;         py += vy + gy*dt2*dt2; pz += vz;
+      s.p[o]=px; s.p[o+1]=py; s.p[o+2]=pz;
+    }
+    for(let it=0; it<3; it++){
+      for(let i=1;i<=s.segs;i++){
+        const o=i*3, q=(i-1)*3;
+        let dx=s.p[o]-s.p[q], dy=s.p[o+1]-s.p[q+1], dz=s.p[o+2]-s.p[q+2];
+        const d=Math.hypot(dx,dy,dz)||1e-5;
+        const f=(d-s.rest)/d * (i===1?1.0:0.8);
+        s.p[o]-=dx*f; s.p[o+1]-=dy*f; s.p[o+2]-=dz*f;
+        if(i>1){ s.p[q]+=dx*f*0.5; s.p[q+1]+=dy*f*0.5; s.p[q+2]+=dz*f*0.5; }
+      }
+      /* body collision: a soft vertical capsule, plus the stage floor */
+      for(let i=1;i<=s.segs;i++){
+        const o=i*3;
+        const dx=s.p[o]-perf.pos[0], dz=s.p[o+2]-perf.pos[2];
+        const r=Math.hypot(dx,dz), R=0.165;
+        if(r<R && s.p[o+1] > perf.pos[1]-1.15 && s.p[o+1] < perf.pos[1]+0.7){
+          const k=(R-r)/(r||1e-5); s.p[o]+=dx*k; s.p[o+2]+=dz*k;
+        }
+        if(s.p[o+1] < STAGE_Y+0.015 && Math.hypot(s.p[o],s.p[o+2]) < STAGE_R) s.p[o+1]=STAGE_Y+0.015;
+        /* hard leash: no frame drop can ever stretch a costume across the stage */
+        const lx=s.p[o]-ax, ly=s.p[o+1]-ay, lz=s.p[o+2]-az;
+        const ld=Math.hypot(lx,ly,lz), lmax=i*s.rest*1.06;
+        if(ld>lmax){ const kk=lmax/ld; s.p[o]=ax+lx*kk; s.p[o+1]=ay+ly*kk; s.p[o+2]=az+lz*kk; }
+      }
+    }
+    /* ribbon geometry — normals come from screen-space derivatives (uFlat) */
+    for(let i=0;i<=s.segs;i++){
+      const o=i*3, n=Math.min(i+1,s.segs)*3, pv=Math.max(i-1,0)*3;
+      let tx=s.p[n]-s.p[pv], ty=s.p[n+1]-s.p[pv+1], tz=s.p[n+2]-s.p[pv+2];
+      const tl=Math.hypot(tx,ty,tz)||1; tx/=tl; ty/=tl; tz/=tl;
+      let rx=ty, ry=-tx, rz=0.0;                            // t × (0,0,1)
+      let rl=Math.hypot(rx,ry,rz);
+      if(rl<0.05){ rx=1; ry=0; rz=0; rl=1; }
+      rx/=rl; ry/=rl; rz/=rl;
+      const t=i/s.segs;
+      const hw = lerp(s.w0, s.w1, t)*0.5 * (1 + Math.sin(T*1.1+s.seed+t*4.0)*0.12);
+      for(const sgn of [-1,1]){
+        const b=vi*9;
+        c.verts[b  ]=s.p[o]  + rx*hw*sgn;
+        c.verts[b+1]=s.p[o+1]+ ry*hw*sgn;
+        c.verts[b+2]=s.p[o+2]+ rz*hw*sgn;
+        c.verts[b+3]=0; c.verts[b+4]=1; c.verts[b+5]=0;
+        c.verts[b+6]=(sgn+1)*0.5; c.verts[b+7]=t; c.verts[b+8]=0;
+        vi++;
+      }
+    }
+  }
+  c.mesh.update(c.verts);
+}
+function pushCloth(perf, gown){
+  dynamicItems.push(item(perf.cloth.mesh, {model:M4.id(), color:gown, rough:0.62, flat:1,
+    emis:[0.004,0.005,0.006], shadow:false}));
+}
+
+/* ── CHOREOGRAPHY ─────────────────────────────────────────────────────────── */
+/* Each dancer is a different failure of the same body. Poses are written as
+   layered oscillators so they can be blended with panic, drag and submersion. */
+const cast = [];
+const PELVIS_H = 1.17;      // hip height of a standing figure, above the stage floor
+function setJ(p, j, x, y, z){ p.rotL[j*3]=x; p.rotL[j*3+1]=y; p.rotL[j*3+2]=z; }
+function addJ(p, j, x, y, z){ p.rotL[j*3]+=x; p.rotL[j*3+1]+=y; p.rotL[j*3+2]+=z; }
+
+/* two-bone IK, used for the pianist's arms and for grabbing at the water */
+function ik2(perf, upIdx, loIdx, tx, ty, tz, l1, l2, poleBend){
+  const parent = perf.world[RIG[upIdx][1]];
+  const inv = M4.inv(M4.id(), parent);
+  const o = RIG[upIdx][2];
+  const t = M4.xform([0,0,0], inv, tx, ty, tz);
+  let dx=t[0]-o[0], dy=t[1]-o[1], dz=t[2]-o[2];
+  let L = Math.hypot(dx,dy,dz);
+  const maxL = (l1+l2)*0.995;
+  if(L > maxL){ const k=maxL/L; dx*=k; dy*=k; dz*=k; L=maxL; }
+  L = Math.max(L, 0.05);
+  const ux=dx/L, uy=dy/L, uz=dz/L;
+  let rx = Math.acos(clamp(-uy,-1,1));
+  const ry = Math.atan2(-ux, -uz);
+  const cosA = clamp((l1*l1 + L*L - l2*l2)/(2*l1*L), -1, 1);
+  const cosE = clamp((l1*l1 + l2*l2 - L*L)/(2*l1*l2), -1, 1);
+  setJ(perf, upIdx, rx - Math.acos(cosA), ry, 0);
+  setJ(perf, loIdx, (PI - Math.acos(cosE)) * (poleBend||1), 0, 0);
+}
+
+/* shared body layer: breath, sway, water resistance, drowning */
+function baseLayer(p, ctx){
+  const T = ctx.time, s = p.seed;
+  const breath = Math.sin(T*0.9 + s)*0.5+0.5;
+  setJ(p, J.hips, 0,0,0);
+  setJ(p, J.spine, Math.sin(T*0.7+s)*0.035 + breath*0.02, Math.sin(T*0.4+s)*0.05, 0);
+  setJ(p, J.chest, Math.sin(T*0.9+s*1.3)*0.03, 0, Math.sin(T*0.55+s)*0.04);
+  setJ(p, J.neck, 0,0,0);
+  setJ(p, J.head, Math.sin(T*0.6+s)*0.05, Math.sin(T*0.37+s*2)*0.12, Math.sin(T*0.5+s)*0.06);
+  for(const side of [0,1]){
+    const cl = side? J.clavR : J.clavL;
+    setJ(p, cl, 0, 0, side? -0.10 : 0.10);
+  }
+  /* eyes: hollow, and they blink at the wrong times */
+  p.nextBlink -= ctx.dt;
+  if(p.nextBlink<0){ p.blink=1; p.nextBlink = 1.5 + rand(T+p.id)*4.0; }
+  p.blink = Math.max(0, p.blink - ctx.dt*7.0);
+  p.morph[2] = p.blink;
+}
+/* --- Dancer A: tall, angular. Everything arrives early or late, never on time */
+function poseA(p, ctx){
+  const T = ctx.time*1.0 + p.seed, beat = ctx.beat;
+  const snap = Math.pow(Math.abs(Math.sin(beat*PI)), 6.0);      // attack envelope
+  const freeze = rand(Math.floor(beat*0.5)) > 0.82 ? 0 : 1;     // sudden stillness
+  const sw = Math.sin(beat*PI*0.5), cw = Math.cos(beat*PI*0.5);
+  addJ(p, J.spine, -0.10*snap*freeze, sw*0.22*freeze, cw*0.14);
+  addJ(p, J.chest, 0.06*snap, -sw*0.16*freeze, 0);
+  addJ(p, J.head, -0.22*snap*freeze, sw*0.5, -cw*0.25);
+  /* arms: straight lines, elbows locked, wrists broken outward */
+  setJ(p, J.upArmL, -1.35 - sw*0.55*freeze, 0.25, -0.55 - cw*0.35);
+  setJ(p, J.loArmL, 0.15 + snap*0.5, 0, 0.25);
+  setJ(p, J.upArmR, -1.20 + sw*0.65*freeze, -0.25, 0.60 + cw*0.40);
+  setJ(p, J.loArmR, 0.10 + snap*0.35, 0, -0.30);
+  /* heel stamps — the csárdás under all of it */
+  const stampL = Math.max(0, Math.sin(beat*PI))*freeze;
+  const stampR = Math.max(0, Math.sin(beat*PI+PI))*freeze;
+  setJ(p, J.thighL, -0.55*stampL, 0.08, 0.10);
+  setJ(p, J.shinL,   0.95*stampL, 0, 0);
+  setJ(p, J.footL,  -0.30*stampL - 0.25, 0, 0);
+  setJ(p, J.thighR, -0.55*stampR, -0.08, -0.10);
+  setJ(p, J.shinR,   0.95*stampR, 0, 0);
+  setJ(p, J.footR,  -0.30*stampR - 0.25, 0, 0);
+  p.pos[1] = STAGE_Y + PELVIS_H + (stampL+stampR)*0.055;
+  p.rot[1] = p.facing + Math.sin(beat*0.35)*0.9;
+  p.morph[0] = snap*0.35; p.morph[1] = 0.4 + sw*0.3;
+}
+/* --- Dancer B: serpentine. A wave travels down her and never arrives */
+function poseB(p, ctx){
+  const T = ctx.time*1.15 + p.seed;
+  const wave = (o)=>Math.sin(T*1.6 - o);
+  addJ(p, J.hips,  wave(0)*0.10, wave(0.4)*0.30, wave(0.2)*0.16);
+  addJ(p, J.spine, wave(0.7)*0.20, wave(1.0)*0.22, wave(0.5)*0.20);
+  addJ(p, J.chest, wave(1.4)*0.22, wave(1.7)*0.18, wave(1.2)*0.18);
+  addJ(p, J.neck,  wave(2.0)*0.16, wave(2.2)*0.20, 0);
+  addJ(p, J.head,  wave(2.5)*0.20, wave(2.7)*0.30, wave(2.3)*0.14);
+  const armT = T*0.9;
+  setJ(p, J.upArmL, -0.9 + Math.sin(armT)*0.9, 0.3+Math.sin(armT*0.7)*0.4, -0.5 - Math.cos(armT)*0.6);
+  setJ(p, J.loArmL, 0.55 + Math.sin(armT*1.3+1.0)*0.5, 0, 0.2);
+  setJ(p, J.upArmR, -0.9 + Math.sin(armT+2.1)*0.9, -0.3-Math.sin(armT*0.7)*0.4, 0.5 + Math.cos(armT+1.4)*0.6);
+  setJ(p, J.loArmR, 0.55 + Math.sin(armT*1.3+2.6)*0.5, 0, -0.2);
+  const step = Math.sin(T*0.8);
+  setJ(p, J.thighL, -0.35 + step*0.45, 0.12, 0.06);
+  setJ(p, J.shinL,   0.45 - step*0.35, 0, 0);
+  setJ(p, J.footL,  -0.2, 0, 0);
+  setJ(p, J.thighR, -0.35 - step*0.45, -0.12, -0.06);
+  setJ(p, J.shinR,   0.45 + step*0.35, 0, 0);
+  setJ(p, J.footR,  -0.2, 0, 0);
+  p.pos[1] = STAGE_Y + PELVIS_H + Math.abs(Math.sin(T*0.8))*0.03;
+  p.rot[1] = p.facing + T*0.20;
+  p.morph[0] = 0.25 + Math.sin(T*0.9)*0.2;
+  p.morph[1] = Math.sin(T*0.5)*0.5;
+}
+/* --- Dancer C: the broken doll. Time is quantised; the joints are not hers */
+function poseC(p, ctx){
+  const q = 7.0;                                  // pose updates per second
+  const T = Math.floor((ctx.time + p.seed)*q)/q;
+  const r = (k)=>rand(T*13.7 + k)*2-1;
+  const twitch = rand(Math.floor(ctx.time*2.0)+p.id) > 0.86 ? 1 : 0;
+  addJ(p, J.spine, r(1)*0.28, r(2)*0.35, r(3)*0.30);
+  addJ(p, J.chest, r(4)*0.22, r(5)*0.30, r(6)*0.26);
+  addJ(p, J.neck,  r(7)*0.30, r(8)*0.40, r(9)*0.34);
+  addJ(p, J.head,  r(10)*0.40 - twitch*0.6, r(11)*0.9, r(12)*0.5 + twitch*0.7);
+  setJ(p, J.upArmL, -1.6 + r(13)*1.2, r(14)*0.6, -0.4 + r(15)*0.9);
+  setJ(p, J.loArmL, Math.abs(r(16))*1.9 - 0.4, 0, r(17)*0.5);   // elbow past its stop
+  setJ(p, J.upArmR, -1.6 + r(18)*1.2, r(19)*0.6, 0.4 + r(20)*0.9);
+  setJ(p, J.loArmR, Math.abs(r(21))*1.9 - 0.4, 0, r(22)*0.5);
+  const hop = Math.max(0, r(23));
+  setJ(p, J.thighL, -0.7*hop + r(24)*0.3, r(25)*0.25, 0.1);
+  setJ(p, J.shinL,   1.1*hop, 0, 0);
+  setJ(p, J.footL,  -0.25, 0, 0);
+  setJ(p, J.thighR, -0.7*(1-hop) + r(26)*0.3, r(27)*0.25, -0.1);
+  setJ(p, J.shinR,   1.1*(1-hop), 0, 0);
+  setJ(p, J.footR,  -0.25, 0, 0);
+  p.pos[1] = STAGE_Y + PELVIS_H*(0.97+hop*0.03) + hop*0.06;
+  p.rot[0] = r(28)*0.12; p.rot[2] = r(29)*0.14;
+  p.rot[1] = p.facing + Math.floor(ctx.time*1.3)*0.7;
+  p.morph[0] = twitch*0.9; p.morph[1] = -0.6 + twitch*1.2;
+}
+/* --- the flood layer: drag, panic, swimming, submersion --------------------- */
+function floodLayer(p, ctx){
+  const wl = ctx.waterLevel;
+  const chest = p.pos[1] + 0.55, knee = p.pos[1] - 0.55, waist = p.pos[1] + 0.06;
+  const wade  = sat((wl - knee)/0.5);
+  const swim  = sat((wl - waist)/0.6);
+  const under = sat((wl - chest)/0.5);
+  p.submerge = under;
+  p.panic = Math.max(wade*0.5, swim) * (0.5 + ctx.chaos*0.7);
+  if(wade<=0.001) return;
+  const T = ctx.time*1.7 + p.seed;
+  /* legs slow to nothing as the water takes them */
+  for(const j of [J.thighL,J.thighR,J.shinL,J.shinR,J.footL,J.footR]){
+    p.rotL[j*3]   *= (1-wade*0.75); p.rotL[j*3+1] *= (1-wade*0.75); p.rotL[j*3+2] *= (1-wade*0.75);
+  }
+  /* frantic swimming that is still, unmistakably, choreography */
+  const strokeL = Math.sin(T*2.2), strokeR = Math.sin(T*2.2 + PI*0.85);
+  addJ(p, J.upArmL, -swim*(1.1 + strokeL*0.9), swim*strokeL*0.5, -swim*0.6);
+  addJ(p, J.loArmL,  swim*(0.7 + strokeL*0.5), 0, 0);
+  addJ(p, J.upArmR, -swim*(1.1 + strokeR*0.9), -swim*strokeR*0.5, swim*0.6);
+  addJ(p, J.loArmR,  swim*(0.7 + strokeR*0.5), 0, 0);
+  addJ(p, J.thighL, swim*(0.5 + strokeR*0.6), 0, 0);
+  addJ(p, J.thighR, swim*(0.5 + strokeL*0.6), 0, 0);
+  addJ(p, J.spine, swim*0.25 + under*0.35, 0, Math.sin(T*0.9)*swim*0.25);
+  addJ(p, J.head, -under*0.5 + swim*0.3, Math.sin(T*1.1)*under*0.5, 0);
+  /* float: the body rises, tips forward, and the dance continues underwater */
+  const buoy = Math.max(swim*0.35, under);
+  p.pos[1] = lerp(p.pos[1], wl - 0.22 + Math.sin(T*0.6)*0.10, buoy*0.85);
+  p.rot[0] = lerp(p.rot[0], -0.9 - Math.sin(T*0.5)*0.25, under*0.8);
+  p.rot[2] += Math.sin(T*0.45)*under*0.35;
+  p.morph[0] = Math.max(p.morph[0], swim*0.7*Math.abs(Math.sin(T*1.3)));  // mouth
+  p.morph[1] = Math.max(p.morph[1], swim*0.9);                            // brows up
+}
+
+/* ── 8. AUDIO: the Csárdás, and its drowning ──────────────────────────────── */
+/* Monti's Csárdás (1904, public domain) arranged for this piece and synthesised
+   live, so the pianist's hands can be driven by the same note stream the
+   speakers hear. Degradation is a continuous function of the timeline. */
+const AUDIO = {
+  ctx:null, ready:false, master:null, drive:null, muffle:null, verb:null,
+  pianoPan:null, noise:null, beat:0, notesOn:[], schedTo:0, cursor:0, loopStart:0,
+  intensity:0, lastSplash:0
+};
+const N = (m,b,v=1,h=1)=>({m,b,v,h});     // midi, beats, velocity, hand(1=right)
+function buildScore(){
+  const s = [];  let t = 0;
+  const put = (arr, gap=0)=>{ for(const n of arr){ if(n.m>0) s.push({t, m:n.m, d:n.b*0.92, v:n.v, h:n.h}); t += n.b; } t += gap; };
+  const bass = (root, at, len, v=0.8)=>{ s.push({t:at, m:root-24, d:len*0.9, v, h:0});
+                                         s.push({t:at, m:root-12, d:len*0.9, v:v*0.8, h:0}); };
+  /* — Lassan: slow, proud, already slightly wrong — */
+  const A = [N(86,1),N(84,.5),N(82,.5),N(81,1),N(79,.5),N(77,.5),N(76,1.5),N(74,.5),
+             N(76,.5),N(77,.5),N(76,2)];
+  const B = [N(84,1),N(82,.5),N(81,.5),N(79,1),N(77,.5),N(76,.5),N(74,2),N(0,1)];
+  const C = [N(81,.75),N(82,.25),N(84,.5),N(82,.5),N(81,1),N(79,1),N(77,.5),N(76,.5),N(74,2)];
+  const chordsL = [[62,0,4],[57,4,4],[62,8,4],[65,12,2],[57,14,2]];
+  let mark = 0;
+  for(const ph of [A,B,C,A]){
+    mark = t; put(ph, 0.5);
+    const span = t-mark;
+    for(let k=0;k*2<span;k++){
+      const roots=[62,57,62,60,65,57];
+      bass(roots[k%roots.length], mark + k*2, 1.8, 0.75);
+    }
+  }
+  /* — Friska: fast, mechanical, the dance that cannot stop — */
+  const scale = [74,76,77,79,81,82,84,86];
+  const friskaStart = t;
+  for(let bar=0; bar<24; bar++){
+    const up = bar%2===0;
+    for(let k=0;k<8;k++){
+      const idx = up ? (k%8) : (7-(k%8));
+      const orn = (bar%4===3 && k===7) ? 2 : 0;
+      s.push({t, m:scale[idx]+orn, d:0.22, v:0.85 - (k%2)*0.18, h:1});
+      t += 0.25;
+    }
+    const roots=[62,62,57,57,62,60,65,57];
+    bass(roots[bar%8], friskaStart + bar*2, 1.7, 0.9);
+  }
+  /* — Coda: the theme again, wider, slower, sinking — */
+  put([N(86,1.5),N(84,.5),N(82,1),N(81,1.5),N(79,.5),N(77,1),N(74,3),N(0,1)], 1.0);
+  bass(62, t-6, 5.0, 0.9);
+  s.sort((a,b)=>a.t-b.t);
+  return {notes:s, length:t+2};
+}
+const SCORE = buildScore();
+
+function initAudio(){
+  const AC = window.AudioContext || window.webkitAudioContext;
+  const ctx = new AC(); AUDIO.ctx = ctx;
+  const master = ctx.createGain(); master.gain.value = CONFIG.audio.master;
+  const drive  = ctx.createWaveShaper(); drive.oversample='2x';
+  const muffle = ctx.createBiquadFilter(); muffle.type='lowpass'; muffle.frequency.value=18000; muffle.Q.value=0.6;
+  const hp     = ctx.createBiquadFilter(); hp.type='highpass'; hp.frequency.value=28;
+  /* procedural plate reverb — a hall the size of a bad dream */
+  const verb = ctx.createConvolver();
+  const len = Math.floor(ctx.sampleRate*3.6), buf = ctx.createBuffer(2, len, ctx.sampleRate);
+  for(let ch=0; ch<2; ch++){ const d = buf.getChannelData(ch);
+    for(let i=0;i<len;i++){ const x=i/len;
+      d[i] = (Math.random()*2-1) * Math.pow(1-x, 2.6) * (1 + Math.sin(i*0.0009+ch)*0.35); } }
+  verb.buffer = buf;
+  const verbGain = ctx.createGain(); verbGain.gain.value = CONFIG.audio.reverb;
+  muffle.connect(drive); drive.connect(hp); hp.connect(master);
+  hp.connect(verb); verb.connect(verbGain); verbGain.connect(master);
+  master.connect(ctx.destination);
+  /* spatialised piano */
+  const pan = ctx.createPanner();
+  pan.panningModel='HRTF'; pan.distanceModel='inverse'; pan.refDistance=2.4; pan.rolloffFactor=0.7;
+  pan.positionX && pan.positionX.setValueAtTime(PIANO.x,0);
+  pan.setPosition ? pan.setPosition(PIANO.x, 0.4, PIANO.z) : 0;
+  pan.connect(muffle);
+  AUDIO.pianoPan = pan; AUDIO.master=master; AUDIO.drive=drive; AUDIO.muffle=muffle;
+  AUDIO.verbGain = verbGain;
+
+  /* shared noise bed for water, breath and the far-off screaming */
+  const nb = ctx.createBuffer(1, ctx.sampleRate*4, ctx.sampleRate);
+  const nd = nb.getChannelData(0);
+  for(let i=0;i<nd.length;i++) nd[i] = Math.random()*2-1;
+  AUDIO.noiseBuf = nb;
+
+  const mk = (type, freq, q, gain, dest)=>{
+    const src = ctx.createBufferSource(); src.buffer = nb; src.loop = true;
+    const f = ctx.createBiquadFilter(); f.type=type; f.frequency.value=freq; f.Q.value=q;
+    const g = ctx.createGain(); g.gain.value = gain;
+    src.connect(f); f.connect(g); g.connect(dest||muffle); src.start();
+    return {src, f, g};
+  };
+  AUDIO.waterBed = mk('bandpass', 420, 0.7, 0.0);
+  AUDIO.subBed   = mk('lowpass', 90, 1.2, 0.0);
+  AUDIO.airBed   = mk('highpass', 5200, 0.5, 0.0);
+  /* two detuned drones, a minor second apart — the room's own note */
+  AUDIO.drones = [36.7, 37.6, 55.0].map((f,i)=>{
+    const o = ctx.createOscillator(); o.type = i===2?'sine':'sawtooth'; o.frequency.value = f;
+    const lf = ctx.createBiquadFilter(); lf.type='lowpass'; lf.frequency.value=160; lf.Q.value=6;
+    const g = ctx.createGain(); g.gain.value=0;
+    const lfo = ctx.createOscillator(); lfo.frequency.value = 0.05+i*0.037;
+    const lg = ctx.createGain(); lg.gain.value = 90;
+    lfo.connect(lg); lg.connect(lf.frequency); lfo.start();
+    o.connect(lf); lf.connect(g); g.connect(muffle); o.start();
+    return {o,g,lf};
+  });
+  AUDIO.ready = true;
+  setDrive(0);
+}
+function setDrive(amount){
+  const n = 1024, curve = new Float32Array(n), k = amount*90;
+  for(let i=0;i<n;i++){ const x = i*2/n - 1;
+    curve[i] = (1+k)*x/(1+k*Math.abs(x)); }
+  AUDIO.drive.curve = curve;
+}
+/* one piano note: struck string + hammer, or its reverse for the ghost passes */
+function playNote(midi, when, dur, vel, reversed, detune){
+  const ctx = AUDIO.ctx, f = 440*Math.pow(2,(midi-69)/12) * Math.pow(2, (detune||0)/1200);
+  const g = ctx.createGain();
+  const bp = ctx.createBiquadFilter(); bp.type='lowpass';
+  bp.frequency.setValueAtTime(Math.min(f*7+900, 16000), when); bp.Q.value=0.9;
+  g.connect(bp); bp.connect(AUDIO.pianoPan);
+  const oscs = [];
+  for(const [ratio, amp, type] of [[1,1,'triangle'],[1.001,0.55,'sine'],[2.004,0.22,'sine'],[3.01,0.08,'sine']]){
+    const o = ctx.createOscillator(); o.type=type; o.frequency.value=f*ratio;
+    const og = ctx.createGain(); og.gain.value = amp;
+    o.connect(og); og.connect(g); o.start(when); o.stop(when+dur+0.9); oscs.push(o);
+  }
+  const peak = 0.16*vel;
+  if(reversed){
+    g.gain.setValueAtTime(0.0001, when);
+    g.gain.exponentialRampToValueAtTime(peak, when+dur*0.95);
+    g.gain.exponentialRampToValueAtTime(0.0001, when+dur*1.05);
+  } else {
+    g.gain.setValueAtTime(0.0001, when);
+    g.gain.exponentialRampToValueAtTime(peak, when+0.006);
+    g.gain.exponentialRampToValueAtTime(peak*0.30, when+0.18);
+    g.gain.exponentialRampToValueAtTime(0.0001, when+dur+0.75);
+    /* hammer noise */
+    const ns = ctx.createBufferSource(); ns.buffer = AUDIO.noiseBuf;
+    ns.playbackRate.value = 1.6;
+    const nf = ctx.createBiquadFilter(); nf.type='bandpass'; nf.frequency.value=f*2.5; nf.Q.value=1.2;
+    const ng = ctx.createGain();
+    ng.gain.setValueAtTime(0.05*vel, when); ng.gain.exponentialRampToValueAtTime(0.0002, when+0.09);
+    ns.connect(nf); nf.connect(ng); ng.connect(AUDIO.pianoPan);
+    ns.start(when, Math.random()*3); ns.stop(when+0.12);
+  }
+}
+function splash(when, strength){
+  const ctx = AUDIO.ctx;
+  const s = ctx.createBufferSource(); s.buffer = AUDIO.noiseBuf; s.playbackRate.value = 0.8+Math.random()*1.4;
+  const f = ctx.createBiquadFilter(); f.type='bandpass';
+  f.frequency.setValueAtTime(2600+Math.random()*2500, when);
+  f.frequency.exponentialRampToValueAtTime(420, when+0.35); f.Q.value=1.1;
+  const g = ctx.createGain();
+  g.gain.setValueAtTime(0.0001, when);
+  g.gain.exponentialRampToValueAtTime(0.13*strength, when+0.012);
+  g.gain.exponentialRampToValueAtTime(0.0001, when+0.45);
+  s.connect(f); f.connect(g); g.connect(AUDIO.muffle);
+  s.start(when, Math.random()*3); s.stop(when+0.5);
+}
+/* a scream, far away, that might be a violin */
+function scream(when){
+  const ctx = AUDIO.ctx, base = 300+Math.random()*380;
+  const o = ctx.createOscillator(); o.type='sawtooth';
+  o.frequency.setValueAtTime(base*0.6, when);
+  o.frequency.exponentialRampToValueAtTime(base*2.1, when+0.5);
+  o.frequency.exponentialRampToValueAtTime(base*0.5, when+2.2);
+  const f = ctx.createBiquadFilter(); f.type='bandpass'; f.Q.value=7.5;
+  f.frequency.setValueAtTime(base*3.0, when);
+  f.frequency.exponentialRampToValueAtTime(base*1.2, when+2.2);
+  const g = ctx.createGain();
+  g.gain.setValueAtTime(0.0001, when);
+  g.gain.exponentialRampToValueAtTime(0.030, when+0.6);
+  g.gain.exponentialRampToValueAtTime(0.0001, when+2.4);
+  const p = ctx.createPanner(); p.panningModel='HRTF';
+  const a = Math.random()*TAU;
+  p.setPosition ? p.setPosition(Math.cos(a)*22, 6+Math.random()*8, Math.sin(a)*22) : 0;
+  o.connect(f); f.connect(g); g.connect(p); p.connect(AUDIO.muffle);
+  o.start(when); o.stop(when+2.6);
+}
+/* Scheduler: pushes notes just ahead of the clock, and remembers which are
+   sounding so the pianist's fingers land on the right keys. */
+function updateAudio(showTime, dt, ctxState){
+  if(!AUDIO.ready) return;
+  const ac = AUDIO.ctx, now = ac.currentTime;
+  const ph = ctxState.phaseT;                       // 0..1 progress through the whole arc
+  /* tempo sags as the water wins; pitch drifts flat */
+  const tempo = lerp(1.0, 0.58, Math.pow(ctxState.drown,1.3)) * CONFIG.audio.tempo;
+  const beatDur = (60/76)/tempo;
+  const detune = -ctxState.drown*220 - ctxState.chaos*35;
+  while(AUDIO.schedTo < now + 0.35){
+    const n = SCORE.notes[AUDIO.cursor];
+    if(!n){ AUDIO.cursor = 0; AUDIO.loopStart = AUDIO.schedTo + beatDur*2; continue; }
+    const when = AUDIO.loopStart + n.t*beatDur;
+    if(when < now - 0.2){ AUDIO.cursor++; continue; }
+    if(when > now + 0.35) { AUDIO.schedTo = when; break; }
+    const vel = n.v * lerp(1.0, 0.55, ctxState.drown);
+    playNote(n.m, when, n.d*beatDur, vel, false, detune);
+    /* the ghost pass: a reversed, transposed shadow that grows with the chaos */
+    if(ctxState.chaos > 0.25 && rand(AUDIO.cursor*3.7) < ctxState.chaos*0.5)
+      playNote(n.m - 12, when - n.d*beatDur*0.8, n.d*beatDur, vel*0.5, true, detune-30);
+    if(ctxState.drown > 0.35 && rand(AUDIO.cursor*7.1) < ctxState.drown*0.4)
+      playNote(n.m + (rand(AUDIO.cursor)>0.5?1:-1), when+0.02, n.d*beatDur*1.6, vel*0.35, false, detune-60);
+    AUDIO.notesOn.push({m:n.m, h:n.h, t0:when, t1:when + Math.max(0.12, n.d*beatDur)});
+    if(ctxState.waterLevel > 0.35 && now - AUDIO.lastSplash > 0.14 && rand(AUDIO.cursor*11)<0.5){
+      splash(when, sat(ctxState.waterLevel*0.45)); AUDIO.lastSplash = now;
+    }
+    AUDIO.cursor++; AUDIO.schedTo = when;
+  }
+  AUDIO.notesOn = AUDIO.notesOn.filter(n => n.t1 > now - 0.05);
+  AUDIO.beat = (now - AUDIO.loopStart)/beatDur;
+  /* the mix, degrading */
+  const k = ctxState.drown, ch = ctxState.chaos;
+  setDrive(Math.min(0.9, ch*0.55 + k*0.5));
+  AUDIO.muffle.frequency.setTargetAtTime(lerp(17000, 420, Math.pow(k,0.75)), now, 0.4);
+  AUDIO.verbGain.gain.setTargetAtTime(CONFIG.audio.reverb + k*0.5, now, 0.6);
+  AUDIO.waterBed.g.gain.setTargetAtTime(sat(ctxState.waterLevel*0.09+ctxState.flood*0.05)*1.1, now, 0.5);
+  AUDIO.waterBed.f.frequency.setTargetAtTime(lerp(900, 260, k), now, 0.7);
+  AUDIO.subBed.g.gain.setTargetAtTime(0.05 + k*0.22, now, 1.0);
+  AUDIO.airBed.g.gain.setTargetAtTime(0.012 + ch*0.02, now, 0.8);
+  AUDIO.drones.forEach((d,i)=>{
+    d.g.gain.setTargetAtTime(0.008 + ctxState.escal*0.045 + k*0.075, now, 1.2);
+    d.o.detune.setTargetAtTime(-k*90 + Math.sin(showTime*0.13+i)*25, now, 0.9);
+  });
+  if(ctxState.flood > 0.1 && Math.random() < dt*0.16*ctxState.flood) scream(now + Math.random()*0.5);
+  /* listener follows the camera so the piano stays where it is standing */
+  const L = ac.listener, C = camera;
+  if(L.positionX){
+    L.positionX.setTargetAtTime(C.pos[0],now,0.05); L.positionY.setTargetAtTime(C.pos[1],now,0.05);
+    L.positionZ.setTargetAtTime(C.pos[2],now,0.05);
+    L.forwardX.setTargetAtTime(C.fwd[0],now,0.05); L.forwardY.setTargetAtTime(C.fwd[1],now,0.05);
+    L.forwardZ.setTargetAtTime(C.fwd[2],now,0.05);
+    L.upX.value=0; L.upY.value=1; L.upZ.value=0;
+  } else if(L.setPosition){
+    L.setPosition(C.pos[0],C.pos[1],C.pos[2]);
+    L.setOrientation(C.fwd[0],C.fwd[1],C.fwd[2],0,1,0);
+  }
+}
+
+/* index of each architectural element inside `world`, for the animation layer */
+const WORLD_IDX = { stage:0, ground:1, seats:2, columns:3, arches:4, wall:5, ribs:6 };
+
+/* ── THE KEYBOARD & THE PIANIST ───────────────────────────────────────────── */
+const PM = M4.trs(M4.id(), PIANO.x, STAGE_Y, PIANO.z, 0, PIANO.rotY, 0, 1,1,1);
+const KEY_Z0 = -0.66, KEY_SP = 0.0505, KEY_X = -0.74, KEY_Y = 0.995;
+const WHITE_OF = [0,0,1,1,2,3,3,4,4,5,5,6], IS_BLACK = [0,1,0,1,0,0,1,0,1,0,1,0];
+function keyZ(midi){
+  const n = midi - 36, oct = Math.floor(n/12), pc = ((n%12)+12)%12;
+  return KEY_Z0 + (oct*7 + WHITE_OF[pc])*KEY_SP + (IS_BLACK[pc] ? KEY_SP*0.5 : 0);
+}
+function keyWorld(midi, out=[0,0,0]){
+  return M4.xform(out, PM, KEY_X - 0.30, KEY_Y + (IS_BLACK[((midi-36)%12+12)%12]?0.03:0), keyZ(midi));
+}
+const KEYS = { white:[], black:[] };
+for(let midi=36; midi<36+43; midi++)
+  (IS_BLACK[((midi-36)%12+12)%12] ? KEYS.black : KEYS.white).push(midi);
+const keyInstW = new Float32Array(KEYS.white.length*16);
+const keyInstB = new Float32Array(KEYS.black.length*16);
+const keyPress = new Map();
+function updateKeys(dt){
+  const now = AUDIO.ready ? AUDIO.ctx.currentTime : 0;
+  for(const [k,v] of keyPress) if(v<=0.001) keyPress.delete(k); else keyPress.set(k, v-dt*4.5);
+  for(const n of AUDIO.notesOn) if(now>=n.t0 && now<=n.t1) keyPress.set(n.m, 1);
+  const m = M4.id(), local = M4.id();
+  const write=(list, arr)=>{
+    list.forEach((midi,i)=>{
+      const pr = keyPress.get(midi)||0;
+      const black = IS_BLACK[((midi-36)%12+12)%12];
+      M4.trs(local, KEY_X, KEY_Y + (black?0.028:0), keyZ(midi), 0, 0, pr*0.075, 1,1,1);
+      M4.mul(m, PM, local);
+      packInstance(arr, i*16, m, i*0.37, 0, 0);
+    });
+  };
+  write(KEYS.white, keyInstW); write(KEYS.black, keyInstB);
+  MESH.key.setInstances(keyInstW, KEYS.white.length);
+  MESH.blackKey.setInstances(keyInstB, KEYS.black.length);
+}
+/* The pianist: seated, arms driven by the same note stream you are hearing. */
+function posePianist(p, ctx){
+  const T = ctx.time, now = AUDIO.ready ? AUDIO.ctx.currentTime : 0;
+  const sway = Math.sin(T*0.9)*0.05 + Math.sin(ctx.beat*PI)*0.035;
+  setJ(p, J.spine, 0.16 + sway, Math.sin(T*0.5)*0.05, Math.sin(T*0.7)*0.05);
+  setJ(p, J.chest, 0.10 + sway*0.6, 0, 0);
+  setJ(p, J.neck, 0.18, 0, 0);
+  setJ(p, J.head, 0.30 + Math.sin(T*1.1)*0.08, Math.sin(T*0.6)*0.12, Math.sin(T*0.8)*0.05);
+  /* seated legs, feet on the pedals */
+  setJ(p, J.thighL, -1.48, 0.10, 0.06); setJ(p, J.shinL, 1.35, 0, 0); setJ(p, J.footL, -0.30,0,0);
+  setJ(p, J.thighR, -1.48,-0.10,-0.06); setJ(p, J.shinR, 1.35, 0, 0); setJ(p, J.footR, -0.30,0,0);
+  p.solve();
+  /* hand targets: the mean position of whatever each hand is sounding */
+  const tgt = [[0,0,0],[0,0,0]], have=[0,0], tmp=[0,0,0];
+  for(const n of AUDIO.notesOn){
+    if(now < n.t0-0.05 || now > n.t1+0.25) continue;
+    const h = n.h ? 1 : 0;
+    keyWorld(n.m, tmp);
+    tgt[h][0]+=tmp[0]; tgt[h][1]+=tmp[1]; tgt[h][2]+=tmp[2]; have[h]++;
+  }
+  if(!p.handSmooth) p.handSmooth = [keyWorld(50), keyWorld(76)];
+  for(const h of [0,1]){
+    if(have[h]){ for(let i=0;i<3;i++) tgt[h][i]/=have[h]; }
+    else keyWorld(h? 74 : 50, tgt[h]);
+    const s = p.handSmooth[h], lag = 1 - Math.pow(0.0012, ctx.dt);
+    for(let i=0;i<3;i++) s[i] = lerp(s[i], tgt[h][i], lag);
+  }
+  const lift = 0.10 + Math.abs(Math.sin(ctx.beat*PI))*0.035 + ctx.chaos*0.05;
+  /* right hand is J.handL's chain? no: rig L is +x. Piano is rotated, so pick
+     the chain whose shoulder is closer to each target. */
+  const shoulderL = p.jointPos(J.upArmL), shoulderR = p.jointPos(J.upArmR);
+  const dL = Math.hypot(shoulderL[0]-p.handSmooth[1][0], shoulderL[2]-p.handSmooth[1][2]);
+  const dR = Math.hypot(shoulderR[0]-p.handSmooth[1][0], shoulderR[2]-p.handSmooth[1][2]);
+  const rightChain = dL < dR ? 0 : 1;   // 0 => use L chain for the treble hand
+  const chains = [[J.upArmL,J.loArmL],[J.upArmR,J.loArmR]];
+  const treble = chains[rightChain], bass = chains[1-rightChain];
+  ik2(p, treble[0], treble[1], p.handSmooth[1][0], p.handSmooth[1][1]+lift, p.handSmooth[1][2], 0.36, 0.34, 1);
+  ik2(p, bass[0],  bass[1],  p.handSmooth[0][0], p.handSmooth[0][1]+lift, p.handSmooth[0][2], 0.36, 0.34, 1);
+  /* fingers: whichever finger is nearest the sounding key strikes it */
+  if(!p.fingerCurl) p.fingerCurl = new Float32Array(10);
+  for(let i=0;i<10;i++) p.fingerCurl[i] = Math.max(0.15, p.fingerCurl[i] - ctx.dt*6.0);
+  for(const n of AUDIO.notesOn){
+    if(now < n.t0-0.02 || now > n.t1) continue;
+    const handIdx = (n.h ? (rightChain===0?0:1) : (rightChain===0?1:0));
+    const f = Math.abs(n.m*3 % 5);
+    p.fingerCurl[handIdx*5+f] = 1.0;
+  }
+  /* she keeps playing when the water reaches the keys */
+  const wl = ctx.waterLevel, keys = STAGE_Y + 1.0;
+  if(wl > keys - 0.15){
+    const drowned = sat((wl-keys+0.15)/0.6);
+    addJ(p, J.head, drowned*0.35, 0, 0);
+    addJ(p, J.spine, drowned*0.25, 0, 0);
+    p.morph[0] = Math.max(p.morph[0], drowned*0.5);
+    p.pos[1] = lerp(STAGE_Y + 0.58, wl - 0.75, drowned*0.5);
+  }
+  p.morph[1] = 0.25 + Math.sin(ctx.beat*0.5)*0.25;
+}
+/* the cast, placed */
+cast.push(new Performer(0, 'pianist',
+  M4.xform([0,0,0], PM, -1.60, 0, 0.06)[0], M4.xform([0,0,0], PM, -1.60, 0, 0.06)[2], PIANO.rotY + PI/2));
+cast[0].pos[1] = STAGE_Y + 0.58;
+cast.push(new Performer(1, 'A',  2.6, -1.2, -1.9));
+cast.push(new Performer(2, 'B',  4.2,  2.0,  2.4));
+cast.push(new Performer(3, 'C',  1.2,  3.4,  0.6));
+
+/* dancer floor paths: orbits that tighten around the piano as things worsen */
+function moveDancer(p, ctx){
+  const i = p.id, T = ctx.time;
+  const speed = [0, 0.16, 0.21, 0.13][i];
+  const baseR = [0, 4.6, 5.3, 3.6][i];
+  const a = T*speed + i*2.1;
+  const pull = ctx.escal*0.55 + ctx.flood*0.25;              // drawn toward the piano
+  const r = lerp(baseR, 2.5, pull) + Math.sin(T*0.7+i)*0.5*(1-ctx.flood*0.6);
+  const cx = lerp(0, PIANO.x*0.75, pull), cz = lerp(0, PIANO.z*0.75, pull);
+  let tx = cx + Math.cos(a)*r, tz = cz + Math.sin(a)*r*0.9;
+  /* in deep water they stop travelling and start drifting */
+  const drift = p.submerge;
+  tx += Math.sin(T*0.4+i*3)*drift*1.6; tz += Math.cos(T*0.35+i*2)*drift*1.6;
+  const k = 1 - Math.pow(0.02, ctx.dt);
+  p.pos[0] = lerp(p.pos[0], tx, k*(1-drift*0.7));
+  p.pos[2] = lerp(p.pos[2], tz, k*(1-drift*0.7));
+  p.facing = Math.atan2(cx - p.pos[0], cz - p.pos[2]);       // face the piano
+}
+
+/* ── 9. WATER, SPRAY AND DEBRIS ───────────────────────────────────────────── */
+const WATER = { level: CONFIG.water.startLevel, mesh:null, R:44 };
+{
+  const n = CONFIG.quality.waterGrid, R = WATER.R;
+  const verts = new Float32Array((n+1)*(n+1)*9), idx = new Uint32Array(n*n*6);
+  let v=0, e=0;
+  for(let j=0;j<=n;j++) for(let i=0;i<=n;i++){
+    /* radial-ish grid: denser near the stage where the eye is */
+    const u=(i/n)*2-1, w=(j/n)*2-1;
+    const x = Math.sign(u)*Math.pow(Math.abs(u),1.6)*R, z = Math.sign(w)*Math.pow(Math.abs(w),1.6)*R;
+    verts[v]=x; verts[v+1]=0; verts[v+2]=z; verts[v+4]=1; verts[v+6]=i/n; verts[v+7]=j/n; v+=9;
+  }
+  for(let j=0;j<n;j++) for(let i=0;i<n;i++){
+    const a=j*(n+1)+i, b=a+1, c=a+n+1, d=c+1;
+    idx[e++]=a; idx[e++]=c; idx[e++]=b; idx[e++]=b; idx[e++]=c; idx[e++]=d;
+  }
+  WATER.mesh = makeMesh(verts, idx);
+}
+/* points: dust, spray, feathers, pages of the score */
+const PTS = (()=>{
+  const max = CONFIG.quality.maxDust + CONFIG.quality.maxSpray + 400;
+  const pos = new Float32Array(max*4), col = new Float32Array(max*4);
+  const life = new Float32Array(max), vel = new Float32Array(max*3), kind = new Float32Array(max);
+  const vao = gl.createVertexArray(); gl.bindVertexArray(vao);
+  const pb = gl.createBuffer(); gl.bindBuffer(gl.ARRAY_BUFFER, pb);
+  gl.bufferData(gl.ARRAY_BUFFER, pos, gl.DYNAMIC_DRAW);
+  gl.enableVertexAttribArray(0); gl.vertexAttribPointer(0,4,gl.FLOAT,false,0,0);
+  const cb = gl.createBuffer(); gl.bindBuffer(gl.ARRAY_BUFFER, cb);
+  gl.bufferData(gl.ARRAY_BUFFER, col, gl.DYNAMIC_DRAW);
+  gl.enableVertexAttribArray(1); gl.vertexAttribPointer(1,4,gl.FLOAT,false,0,0);
+  gl.bindVertexArray(null);
+  return {vao, pb, cb, pos, col, life, vel, kind, max, n:0};
+})();
+function spawnPt(k, x,y,z, sx,sy,sz, size, r,g,b, lifeT){
+  const P=PTS; let i = P.n < P.max ? P.n++ : Math.floor(Math.random()*P.max);
+  P.pos[i*4]=x; P.pos[i*4+1]=y; P.pos[i*4+2]=z; P.pos[i*4+3]=size;
+  P.vel[i*3]=sx; P.vel[i*3+1]=sy; P.vel[i*3+2]=sz;
+  P.col[i*4]=r; P.col[i*4+1]=g; P.col[i*4+2]=b; P.col[i*4+3]=k;
+  P.life[i]=lifeT; P.kind[i]=k;
+}
+function updateParticles(dt, ctx){
+  const P=PTS, wl=ctx.waterLevel;
+  /* ambient motes are always falling through the light */
+  if(P.n < CONFIG.quality.maxDust)
+    for(let k=0;k<6;k++){
+      const a=Math.random()*TAU, r=Math.random()*26;
+      spawnPt(0, Math.cos(a)*r, 1+Math.random()*16, Math.sin(a)*r,
+        (Math.random()-0.5)*0.05, -0.04-Math.random()*0.05, (Math.random()-0.5)*0.05,
+        0.006+Math.random()*0.012, 0.75,0.78,0.72, 22+Math.random()*20);
+    }
+  /* the water throws itself at the audience */
+  const sprayRate = ctx.flood*22 + ctx.chaos*24;
+  for(let k=0;k<sprayRate*dt;k++){
+    const a=Math.random()*TAU, r=Math.random()*STAGE_R*1.6;
+    spawnPt(1, Math.cos(a)*r, wl+0.05, Math.sin(a)*r,
+      (Math.random()-0.5)*1.2, 1.4+Math.random()*3.2, (Math.random()-0.5)*1.2,
+      0.008+Math.random()*0.020, 0.72,0.86,0.88, 1.6+Math.random()*1.4);
+  }
+  /* black feathers arrive with the chaos; sheet music leaves the piano */
+  if(Math.random() < ctx.chaos*dt*14){
+    const a=Math.random()*TAU, r=2+Math.random()*10;
+    spawnPt(2, Math.cos(a)*r, 6+Math.random()*8, Math.sin(a)*r,
+      (Math.random()-0.5)*0.4, -0.35-Math.random()*0.3, (Math.random()-0.5)*0.4,
+      0.05+Math.random()*0.05, 0.05,0.05,0.06, 26);
+  }
+  if(Math.random() < ctx.flood*dt*5){
+    spawnPt(3, PIANO.x+(Math.random()-0.5)*2, 1.4+Math.random()*2, PIANO.z+(Math.random()-0.5)*2,
+      (Math.random()-0.5)*0.8, 0.3+Math.random()*0.5, (Math.random()-0.5)*0.8,
+      0.07+Math.random()*0.05, 0.80,0.78,0.70, 30);
+  }
+  for(let i=0;i<P.n;i++){
+    if(P.life[i] <= 0) continue;
+    P.life[i] -= dt;
+    const k = P.kind[i], o=i*4, v=i*3;
+    let x=P.pos[o], y=P.pos[o+1], z=P.pos[o+2];
+    let vx=P.vel[v], vy=P.vel[v+1], vz=P.vel[v+2];
+    if(k===1){ vy -= 7.0*dt; }                                  // spray falls
+    else if(k===2){ vy -= 0.30*dt; vx += Math.sin(ctx.time*1.3+i)*0.35*dt;
+                    vz += Math.cos(ctx.time*1.1+i)*0.35*dt; }   // feathers
+    else if(k===3){ vy -= 0.55*dt; vx += Math.sin(ctx.time*0.8+i*0.7)*0.4*dt; }
+    else { vx += Math.sin(ctx.time*0.3+y*0.5)*0.02*dt; }        // dust drifts
+    if(y < wl){                                                  // buoyancy
+      if(k===1){ P.life[i] = 0; if(Math.random()<0.25 && AUDIO.ready && ctx.flood>0)
+        {/* droplet return is heard, not seen */} }
+      else { vy += (wl-y)*3.0*dt - vy*2.0*dt; vx*=0.96; vz*=0.96;
+             y = lerp(y, wl+0.02, 0.1); }
+    }
+    x+=vx*dt; y+=vy*dt; z+=vz*dt;
+    P.pos[o]=x; P.pos[o+1]=y; P.pos[o+2]=z;
+    P.vel[v]=vx; P.vel[v+1]=vy; P.vel[v+2]=vz;
+    if(P.life[i] <= 0) P.pos[o+3] = 0;                           // size 0 = invisible
+  }
+  gl.bindBuffer(gl.ARRAY_BUFFER, P.pb); gl.bufferSubData(gl.ARRAY_BUFFER, 0, P.pos);
+  gl.bindBuffer(gl.ARRAY_BUFFER, P.cb); gl.bufferSubData(gl.ARRAY_BUFFER, 0, P.col);
+}
+/* Floating wreckage: broken theatre masks and waterlogged score pages. */
+MESH.mask = (()=>{ const b=new Builder();
+  const o=[]; for(let k=0;k<16;k++){ const a=k/16*TAU;
+    o.push([Math.cos(a)*0.16*(1+Math.sin(a*2)*0.12), Math.sin(a)*0.22]); }
+  addPrism(b, o, 0, 0.05);
+  b.sphere(-0.055,0.075,0.055, 0.030,0.020,0.030, 6);   // the sockets
+  b.sphere( 0.055,0.075,0.055, 0.030,0.020,0.030, 6);
+  return b.mesh(); })();
+MESH.page = (()=>{ const b=new Builder(); b.box(0,0,0, 0.21,0.004,0.28); return b.mesh(); })();
+const DEBRIS = { n:34, mask:new Float32Array(34*16), page:new Float32Array(34*16), items:[] };
+for(let i=0;i<DEBRIS.n;i++){
+  const a=Math.random()*TAU, r=1.5+Math.random()*13;
+  DEBRIS.items.push({x:Math.cos(a)*r, z:Math.sin(a)*r, rot:Math.random()*TAU,
+    spin:(Math.random()-0.5)*0.5, ph:Math.random()*TAU, kind:i%2});
+}
+function updateDebris(ctx){
+  const m=M4.id(); let nm=0, np=0;
+  for(const d of DEBRIS.items){
+    d.rot += d.spin*ctx.dt*(0.4+ctx.chaos);
+    d.x += Math.sin(ctx.time*0.3+d.ph)*0.004; d.z += Math.cos(ctx.time*0.27+d.ph)*0.004;
+    const y = ctx.waterLevel + Math.sin(ctx.time*1.1+d.ph)*0.05 + 0.02;
+    const tilt = Math.sin(ctx.time*0.9+d.ph)*0.25;
+    if(ctx.waterLevel < CONFIG.water.startLevel+0.05) continue;
+    M4.trs(m, d.x, y, d.z, tilt, d.rot, tilt*0.6, 1,1,1);
+    if(d.kind===0) packInstance(DEBRIS.mask, (nm++)*16, m, d.ph, 0, 0);
+    else           packInstance(DEBRIS.page, (np++)*16, m, d.ph, 0, 0);
+  }
+  MESH.mask.setInstances(DEBRIS.mask, nm);
+  MESH.page.setInstances(DEBRIS.page, np);
+  if(nm) dynamicItems.push(item(MESH.mask, {color:[0.72,0.69,0.60], rough:0.45, inst:true, shadow:false}));
+  if(np) dynamicItems.push(item(MESH.page, {color:[0.82,0.80,0.72], rough:0.85, inst:true, shadow:false}));
+}
+
+/* ── 10. THE DIRECTOR ─────────────────────────────────────────────────────── */
+const camera = { pos:[0,2.2,14], target:[0,1.2,0], fov:0.86, roll:0, fwd:[0,0,-1] };
+const view = M4.id(), proj = M4.id(), viewProj = M4.id(), lightVP = M4.id();
+const NEARZ = 0.08, FARZ = 220;
+
+const DIRECTOR = {
+  shot:0, shotT:0, free:false, yaw:0.6, pitch:0.22, dist:13, dragging:false, lastInput:0,
+  slow:0, flash:0, flashCol:[1,1,1], burn:0
+};
+/* Shot vocabulary. u = 0..1 through the shot. Each returns eye + look + lens. */
+const SHOTS = [
+  { dur:14, name:'orbit', fn:(u,c)=>{                      // slow proscenium orbit
+      const a = c.time*0.085 + 1.2, r = lerp(13.0, 8.6, u);
+      return { p:[Math.cos(a)*r, lerp(3.0,1.7,u), Math.sin(a)*r], t:[0,1.15,0], fov:0.80, roll:Math.sin(c.time*0.13)*0.05 }; } },
+  { dur:9,  name:'pianist push-in', fn:(u,c)=>{            // into her hands
+      const e = smooth(u), h = cast[0].handSmooth ? cast[0].handSmooth[1] : [PIANO.x,0.7,PIANO.z];
+      return { p:[lerp(PIANO.x+4.2,PIANO.x+1.35,e), lerp(2.6,1.32,e), lerp(PIANO.z+4.6,PIANO.z+1.15,e)],
+               t:[h[0],h[1]+0.06,h[2]], fov:lerp(0.85,0.62,e), roll:0.11*e }; } },
+  { dur:8,  name:'dutch low', fn:(u,c)=>{                  // the floor looks up at them
+      const d = cast[1+Math.floor(c.time*0.21)%3];
+      const a = c.time*0.2;
+      return { p:[d.pos[0]+Math.cos(a)*3.1, STAGE_Y+0.35, d.pos[2]+Math.sin(a)*3.1],
+               t:[d.pos[0], d.pos[1]+1.35, d.pos[2]], fov:0.95, roll:lerp(-0.34,0.30,smooth(u)) }; } },
+  { dur:11, name:'high wide', fn:(u,c)=>{                  // the amphitheater swallows them
+      const a = -c.time*0.05;
+      return { p:[Math.cos(a)*16, lerp(12.0,6.5,smooth(u)), Math.sin(a)*16], t:[0,0.6,0],
+               fov:lerp(0.72,0.88,u), roll:-0.06 }; } },
+  { dur:9,  name:'surface', fn:(u,c)=>{                    // eye level with the water
+      const a = c.time*0.12 + 2.4, r = 7.2;
+      return { p:[Math.cos(a)*r, WATER.level + 0.13 + Math.sin(c.time*0.9)*0.05, Math.sin(a)*r],
+               t:[cast[2].pos[0], WATER.level+0.7, cast[2].pos[2]], fov:0.9, roll:Math.sin(c.time*0.4)*0.12 }; } },
+  { dur:10, name:'submerged', fn:(u,c)=>{                  // under, looking up through it
+      const a = c.time*0.16;
+      return { p:[Math.cos(a)*4.4, WATER.level - lerp(0.2,1.5,smooth(u)), Math.sin(a)*4.4],
+               t:[cast[3].pos[0], WATER.level+0.4, cast[3].pos[2]], fov:1.05,
+               roll:Math.sin(c.time*0.6)*0.25 }; } },
+  { dur:8,  name:'handheld close', fn:(u,c)=>{             // too close to a face
+      const d = cast[1+Math.floor(c.time*0.13)%3], hp = d.jointPos(J.head);
+      const a = c.time*0.35;
+      const jit = (k)=>fbm1(c.time*2.2+k)*0.035;
+      return { p:[hp[0]+Math.cos(a)*1.7+jit(0), hp[1]+0.16+jit(3), hp[2]+Math.sin(a)*1.7+jit(7)],
+               t:[hp[0]+jit(11), hp[1]+jit(13), hp[2]], fov:0.70, roll:0.2*Math.sin(c.time*0.5) }; } }
+];
+const SHOT_PLAN = {                                        // which lenses belong to which phase
+  opening:    [0,1,3,0,2],
+  escalation: [2,1,0,6,3,2],
+  flood:      [4,1,6,0,5,2,4],
+  drowned:    [5,4,6,5,1]
+};
+function directCamera(ctx){
+  DIRECTOR.shotT += ctx.dt;
+  const plan = SHOT_PLAN[ctx.phase];
+  const shot = SHOTS[plan[DIRECTOR.shot % plan.length]];
+  if(DIRECTOR.shotT > shot.dur*(1 - ctx.chaos*0.35)){ DIRECTOR.shotT = 0; DIRECTOR.shot++; }
+  const u = sat(DIRECTOR.shotT/shot.dur);
+  const s = shot.fn(u, ctx);
+  const k = 1 - Math.pow(0.0025, ctx.dt);                  // no cut is ever quite clean
+  if(DIRECTOR.free){
+    const cy=Math.cos(DIRECTOR.yaw), sy=Math.sin(DIRECTOR.yaw), cp=Math.cos(DIRECTOR.pitch);
+    camera.target[0]=lerp(camera.target[0],0,k); camera.target[1]=lerp(camera.target[1],1.1,k);
+    camera.target[2]=lerp(camera.target[2],0,k);
+    camera.pos[0]=camera.target[0]+sy*cp*DIRECTOR.dist;
+    camera.pos[1]=camera.target[1]+Math.sin(DIRECTOR.pitch)*DIRECTOR.dist;
+    camera.pos[2]=camera.target[2]+cy*cp*DIRECTOR.dist;
+    camera.fov=lerp(camera.fov,0.86,k); camera.roll=lerp(camera.roll,0,k);
+  } else {
+    for(let i=0;i<3;i++){ camera.pos[i]=lerp(camera.pos[i],s.p[i],k);
+                          camera.target[i]=lerp(camera.target[i],s.t[i],k); }
+    camera.fov = lerp(camera.fov, s.fov + ctx.chaos*0.06, k);
+    camera.roll = lerp(camera.roll, s.roll + Math.sin(ctx.time*0.7)*ctx.chaos*0.10, k);
+  }
+  let fx=camera.target[0]-camera.pos[0], fy=camera.target[1]-camera.pos[1], fz=camera.target[2]-camera.pos[2];
+  const fl=Math.hypot(fx,fy,fz)||1; camera.fwd=[fx/fl,fy/fl,fz/fl];
+  camera.focus = fl;
+  const up=[Math.sin(camera.roll), Math.cos(camera.roll), 0];
+  M4.look(view, camera.pos, camera.target, up);
+  M4.persp(proj, camera.fov, RW/RH, NEARZ, FARZ);
+  M4.mul(viewProj, proj, view);
+}
+
+/* ── LIGHTING ─────────────────────────────────────────────────────────────── */
+const LIGHT = { sun:[-0.35,-0.86,-0.37], sunCol:[2.3,2.05,1.65], sky:[0.055,0.070,0.086],
+                ground:[0.034,0.026,0.022], pl:new Float32Array(15), plc:new Float32Array(15), n:5 };
+function updateLights(ctx){
+  const t=ctx.time, ch=ctx.chaos;
+  /* the key light swings like something hanging */
+  LIGHT.sun[0] = -0.30 + Math.sin(t*0.11)*0.22;
+  LIGHT.sun[2] = -0.35 + Math.cos(t*0.09)*0.20;
+  LIGHT.sun[1] = -0.90 + Math.sin(t*0.07)*0.06;
+  const L=Math.hypot(...LIGHT.sun); LIGHT.sun.forEach((v,i)=>LIGHT.sun[i]=v/L);
+  const warm=[2.45,2.15,1.70], sick=[1.45,2.35,1.40], cold=[1.75,2.45,3.40];
+  for(let i=0;i<3;i++)
+    LIGHT.sunCol[i] = lerp(lerp(warm[i], sick[i], ctx.escal), cold[i], ctx.flood) * (1 - ctx.drown*0.20);
+  LIGHT.sky[0]=lerp(0.055,0.042,ctx.flood); LIGHT.sky[1]=lerp(0.070,0.150,ctx.flood);
+  LIGHT.sky[2]=lerp(0.086,0.195,ctx.flood);
+  const set=(i,x,y,z,r,g,b)=>{ LIGHT.pl[i*3]=x;LIGHT.pl[i*3+1]=y;LIGHT.pl[i*3+2]=z;
+    LIGHT.plc[i*3]=r;LIGHT.plc[i*3+1]=g;LIGHT.plc[i*3+2]=b; };
+  const pulse = 0.75 + Math.sin(t*2.1)*0.12 + ch*Math.sin(t*17.0)*0.35;
+  /* footlights: blood, at the lip of the stage */
+  set(0,  6.0, STAGE_Y+0.30, 4.0,  4.6*pulse, 0.42, 0.30);
+  set(1, -6.4, STAGE_Y+0.30, 4.4,  4.2*pulse, 0.30, 0.26);
+  /* the pianist's lamp: sickly green, and it is not plugged into anything */
+  set(2, PIANO.x+0.4, STAGE_Y+2.3, PIANO.z-0.2,  0.55, 3.4*(0.8+ctx.escal*0.5), 1.05);
+  /* cold rim from the empty seats */
+  set(3, Math.cos(t*0.2)*13, 7.5, Math.sin(t*0.2)*13,  1.1, 2.2, 4.6);
+  /* a light that wanders where nobody put it */
+  set(4, Math.cos(-t*0.33)*7, 1.2+Math.sin(t*0.5)*2.5, Math.sin(-t*0.33)*7,
+      2.4*ch+0.3, 0.5, 0.7+ctx.flood*1.8);
+}
+
+/* ── RENDER PASSES ────────────────────────────────────────────────────────── */
+function setSceneUniforms(P, ctx, forShadow){
+  const u=P.u;
+  gl.uniformMatrix4fv(u.uVP, false, forShadow ? lightVP : viewProj);
+  gl.uniformMatrix4fv(u.uLightVP, false, lightVP);
+  gl.uniform1f(u.uTime, ctx.time);
+  gl.uniform3fv(u.uCam, camera.pos);
+  gl.uniform3fv(u.uSunDir, LIGHT.sun);
+  gl.uniform3fv(u.uSunCol, LIGHT.sunCol);
+  gl.uniform3fv(u.uSky, LIGHT.sky);
+  gl.uniform3fv(u.uGround, LIGHT.ground);
+  gl.uniform3fv(u.uPL, LIGHT.pl);
+  gl.uniform3fv(u.uPLC, LIGHT.plc);
+  gl.uniform1i(u.uNPL, LIGHT.n);
+  gl.uniform1f(u.uChaos, ctx.chaos);
+  gl.uniform1f(u.uFogDensity, lerp(0.0115, 0.017, ctx.flood) + ctx.chaos*0.006);
+  gl.uniform4f(u.uWater, WATER.level, CONFIG.water.causticStrength*ctx.floodOn,
+               camera.pos[1] < WATER.level ? 1 : 0, ctx.time*CONFIG.water.waveSpeed);
+  gl.uniform1i(u.uShadow, 0);
+  bindTex(0, shadowFBO.depth);
+}
+function drawItems(P, list, ctx, forShadow){
+  const u=P.u;
+  for(const it of list){
+    if(forShadow && !it.shadow) continue;
+    gl.uniformMatrix4fv(u.uModel, false, it.model);
+    gl.uniform1f(u.uInst, it.inst?1:0);
+    gl.uniform1f(u.uBreath, it.breath*(1+ctx.chaos*2.0));
+    gl.uniform1f(u.uGlitch, it.glitch);
+    gl.uniform1f(u.uWarp, it.warp);
+    gl.uniform4fv(u.uMorph, it.morph);
+    if(!forShadow){
+      if(it.flat) gl.disable(gl.CULL_FACE); else gl.enable(gl.CULL_FACE);
+      gl.uniform3fv(u.uColor, it.color);
+      gl.uniform3fv(u.uEmis, it.emis);
+      gl.uniform1f(u.uRough, it.rough);
+      gl.uniform1f(u.uMetal, it.metal);
+      gl.uniform1f(u.uFlat, it.flat);
+      gl.uniform1f(u.uAlpha, it.alpha);
+    }
+    drawMesh(it.mesh);
+  }
+}
+function shadowPass(ctx){
+  const c=[0,1,0], d=12.0;
+  const e=[-LIGHT.sun[0]*26, -LIGHT.sun[1]*26, -LIGHT.sun[2]*26];
+  const lv=M4.look(M4.id(), e, c, [0,1,0]);
+  const lp=M4.ortho(M4.id(), -d,d,-d,d, 1, 60);
+  M4.mul(lightVP, lp, lv);
+  gl.bindFramebuffer(gl.FRAMEBUFFER, shadowFBO.fb);
+  gl.viewport(0,0,shadowFBO.w,shadowFBO.h);
+  gl.clear(gl.DEPTH_BUFFER_BIT);
+  gl.enable(gl.DEPTH_TEST); gl.depthMask(true);
+  gl.enable(gl.CULL_FACE); gl.cullFace(gl.FRONT);
+  P_SHADOW.use(); setSceneUniforms(P_SHADOW, ctx, true);
+  drawItems(P_SHADOW, world, ctx, true);
+  drawItems(P_SHADOW, dynamicItems, ctx, true);
+  gl.cullFace(gl.BACK);
+}
+
+function mainPass(ctx){
+  gl.bindFramebuffer(gl.FRAMEBUFFER, FBO_MAIN.fb);
+  gl.viewport(0,0,RW,RH);
+  gl.clearColor(LIGHT.sky[0]*0.5, LIGHT.sky[1]*0.5, LIGHT.sky[2]*0.6, 1);
+  gl.clear(gl.COLOR_BUFFER_BIT | gl.DEPTH_BUFFER_BIT);
+  gl.enable(gl.DEPTH_TEST); gl.depthMask(true); gl.disable(gl.BLEND); gl.enable(gl.CULL_FACE);
+  P_SCENE.use(); setSceneUniforms(P_SCENE, ctx, false);
+  drawItems(P_SCENE, world, ctx, false);
+  drawItems(P_SCENE, dynamicItems, ctx, false);
+  gl.enable(gl.CULL_FACE);
+}
+function waterPass(ctx){
+  gl.bindFramebuffer(gl.READ_FRAMEBUFFER, FBO_MAIN.fb);
+  gl.bindFramebuffer(gl.DRAW_FRAMEBUFFER, FBO_COPY.fb);
+  gl.blitFramebuffer(0,0,RW,RH, 0,0,RW,RH, gl.COLOR_BUFFER_BIT, gl.NEAREST);
+  gl.blitFramebuffer(0,0,RW,RH, 0,0,RW,RH, gl.DEPTH_BUFFER_BIT, gl.NEAREST);
+  gl.bindFramebuffer(gl.FRAMEBUFFER, FBO_MAIN.fb);
+  gl.viewport(0,0,RW,RH);
+  const P=P_WATER.use(), u=P.u;
+  gl.disable(gl.CULL_FACE); gl.enable(gl.DEPTH_TEST); gl.depthMask(true);
+  gl.uniformMatrix4fv(u.uVP,false,viewProj);
+  gl.uniform1f(u.uTime,ctx.time); gl.uniform1f(u.uLevel,WATER.level);
+  gl.uniform1f(u.uAmp,CONFIG.water.waveAmp*(1+ctx.chaos*1.6));
+  gl.uniform1f(u.uScale,CONFIG.water.waveScale); gl.uniform1f(u.uSpeed,CONFIG.water.waveSpeed);
+  gl.uniform1f(u.uChaos,ctx.chaos); gl.uniform1f(u.uAnom, ctx.floodOn);
+  gl.uniform3fv(u.uCam,camera.pos); gl.uniform3fv(u.uSunDir,LIGHT.sun);
+  gl.uniform3fv(u.uSunCol,LIGHT.sunCol); gl.uniform3fv(u.uSky,LIGHT.sky);
+  gl.uniform1f(u.uNear,NEARZ); gl.uniform1f(u.uFar,FARZ);
+  gl.uniform1f(u.uRefract,CONFIG.water.refractStrength);
+  gl.uniform1f(u.uFoam,CONFIG.water.foamWidth);
+  gl.uniform1f(u.uUnder, camera.pos[1] < WATER.level ? 1:0);
+  gl.uniform3fv(u.uTint, CONFIG.water.tint);
+  gl.uniform1i(u.uScene,0); bindTex(0, FBO_COPY.color);
+  gl.uniform1i(u.uDepth,1); bindTex(1, FBO_COPY.depth);
+  drawMesh(WATER.mesh);
+  gl.enable(gl.CULL_FACE);
+}
+function particlePass(ctx){
+  const P=P_PT.use(), u=P.u;
+  gl.uniformMatrix4fv(u.uVP,false,viewProj);
+  gl.uniform2f(u.uRes,RW,RH); gl.uniform1f(u.uTime,ctx.time);
+  gl.enable(gl.BLEND); gl.blendFunc(gl.SRC_ALPHA, gl.ONE_MINUS_SRC_ALPHA);
+  gl.depthMask(false);
+  gl.bindVertexArray(PTS.vao); gl.drawArrays(gl.POINTS, 0, PTS.n);
+  gl.depthMask(true); gl.disable(gl.BLEND);
+}
+function postPass(ctx){
+  /* bright pass → separable blur, quarter resolution */
+  gl.disable(gl.DEPTH_TEST);
+  gl.bindFramebuffer(gl.FRAMEBUFFER, FBO_B1.fb); gl.viewport(0,0,FBO_B1.w,FBO_B1.h);
+  let P=P_BRIGHT.use(); gl.uniform1i(P.u.uTex,0); bindTex(0,FBO_MAIN.color);
+  gl.uniform1f(P.u.uThresh, lerp(1.05, 0.62, ctx.flood));
+  fullscreen();
+  P=P_BLUR.use(); gl.uniform1i(P.u.uTex,0);
+  gl.bindFramebuffer(gl.FRAMEBUFFER, FBO_B2.fb); bindTex(0,FBO_B1.color);
+  gl.uniform2f(P.u.uDir, 1.0/FBO_B1.w, 0); fullscreen();
+  gl.bindFramebuffer(gl.FRAMEBUFFER, FBO_B1.fb); bindTex(0,FBO_B2.color);
+  gl.uniform2f(P.u.uDir, 0, 1.0/FBO_B1.h); fullscreen();
+  /* composite to the screen */
+  gl.bindFramebuffer(gl.FRAMEBUFFER, null); gl.viewport(0,0,RW,RH);
+  P=P_POST.use(); const u=P.u;
+  gl.uniform1i(u.uScene,0); bindTex(0,FBO_MAIN.color);
+  gl.uniform1i(u.uBloom,1); bindTex(1,FBO_B1.color);
+  gl.uniform1i(u.uDepth,2); bindTex(2,FBO_MAIN.depth);
+  gl.uniform2f(u.uRes,RW,RH);
+  /* where the key light lands on screen, for the god rays */
+  const sp=[camera.pos[0]-LIGHT.sun[0]*90, camera.pos[1]-LIGHT.sun[1]*90, camera.pos[2]-LIGHT.sun[2]*90];
+  const cx=viewProj[0]*sp[0]+viewProj[4]*sp[1]+viewProj[8]*sp[2]+viewProj[12];
+  const cy=viewProj[1]*sp[0]+viewProj[5]*sp[1]+viewProj[9]*sp[2]+viewProj[13];
+  const cw=viewProj[3]*sp[0]+viewProj[7]*sp[1]+viewProj[11]*sp[2]+viewProj[15];
+  gl.uniform2f(u.uSunUV, cw>0 ? cx/cw*0.5+0.5 : -1, cw>0 ? cy/cw*0.5+0.5 : -1);
+  gl.uniform1f(u.uTime,ctx.time);
+  gl.uniform1f(u.uNear,NEARZ); gl.uniform1f(u.uFar,FARZ);
+  gl.uniform1f(u.uFocus, camera.focus);
+  gl.uniform1f(u.uDofStr, CONFIG.post.dofStrength*(0.7+ctx.chaos*0.8));
+  gl.uniform1f(u.uGrain, CONFIG.post.grain*(1+ctx.drown*0.9));
+  gl.uniform1f(u.uAberr, CONFIG.post.aberration*(1+ctx.chaos*2.4));
+  gl.uniform1f(u.uVign, CONFIG.post.vignette*(1+ctx.drown*0.35));
+  gl.uniform1f(u.uBloomAmt, CONFIG.post.bloom*(1+ctx.flood*0.5));
+  gl.uniform1f(u.uGodrays, CONFIG.post.godrays*(0.4+ctx.flood*1.1));
+  gl.uniform1f(u.uGlitch, ctx.glitch);
+  gl.uniform1f(u.uBurn, DIRECTOR.burn);
+  gl.uniform1f(u.uUnder, camera.pos[1] < WATER.level ? 1 : 0);
+  gl.uniform1f(u.uSat, ctx.grade.sat); gl.uniform1f(u.uContrast, ctx.grade.contrast);
+  gl.uniform1f(u.uLift, ctx.grade.lift);
+  gl.uniform3fv(u.uTint, ctx.grade.tint);
+  gl.uniform1f(u.uFlash, DIRECTOR.flash);
+  gl.uniform3fv(u.uFlashCol, DIRECTOR.flashCol);
+  gl.uniform1f(u.uSlow, DIRECTOR.slow);
+  fullscreen();
+}
+
+/* ── TIMELINE & FRAME ─────────────────────────────────────────────────────── */
+const STATE = { showTime:0, chaosPool:0, started:false, last:0, phase:'opening' };
+const gradeMix = { tint:[0,0,0], sat:1, contrast:1, lift:0 };
+function mixGrade(ctx){
+  const G=CONFIG.grade;
+  const f=(a,b,t)=>lerp(a,b,t);
+  const t1=ctx.escal, t2=ctx.flood, t3=ctx.drownPhase;
+  for(let i=0;i<3;i++)
+    gradeMix.tint[i] = f(f(f(G.opening.tint[i],G.escalation.tint[i],t1), G.flood.tint[i],t2), G.drowned.tint[i],t3);
+  gradeMix.sat      = f(f(f(G.opening.sat,G.escalation.sat,t1), G.flood.sat,t2), G.drowned.sat,t3);
+  gradeMix.contrast = f(f(f(G.opening.contrast,G.escalation.contrast,t1), G.flood.contrast,t2), G.drowned.contrast,t3);
+  gradeMix.lift     = f(f(f(G.opening.lift,G.escalation.lift,t1), G.flood.lift,t2), G.drowned.lift,t3);
+  return gradeMix;
+}
+const hudPhase=document.getElementById('phase'), hudMeter=document.getElementById('meter'),
+      hudW=document.getElementById('wlvl'), hudC=document.getElementById('chaos');
+let hudTick=0;
+const PHASE_LABEL = { opening:'I · OPENING', escalation:'II · ESCALATION',
+                      flood:'III · THE FLOOD', drowned:'IV · DROWNED' };
+
+function buildContext(dt){
+  const T=CONFIG.timeline, s=STATE.showTime;
+  const phase = s < T.opening[1] ? 'opening' : s < T.escalation[1] ? 'escalation'
+              : s < T.flood[1] ? 'flood' : 'drowned';
+  const escal = sat((s - T.opening[1])/26);
+  const flood = sat((s - T.escalation[1])/22);
+  const floodOn = sat((s - T.escalation[1])/2.5);
+  const drownPhase = sat((s - T.flood[1] + 25)/40);
+  const drown = sat((WATER.level - 0.35)/2.2);
+  STATE.chaosPool = Math.max(0, STATE.chaosPool - dt*CONFIG.chaos.decay);
+  const auto = escal*0.35 + flood*0.45 + drown*0.25;
+  const chaos = clamp(CONFIG.chaos.base + auto + STATE.chaosPool, 0, CONFIG.chaos.max);
+  const burst = rand(Math.floor(s*3.0)) > (1 - chaos*0.22) ? 1 : 0;
+  const glitch = sat(escal*0.10 + chaos*0.35 + burst*chaos*0.65);
+  const ctx = { dt, time:STATE.showTime, phase, escal, flood, floodOn, drown, drownPhase,
+                chaos, glitch, waterLevel:WATER.level, beat:AUDIO.beat,
+                phaseT: sat(s/200) };
+  ctx.grade = mixGrade(ctx);
+  return ctx;
+}
+function update(dt){
+  STATE.showTime += dt;
+  const ctx = buildContext(dt);
+  /* the water */
+  if(ctx.floodOn > 0)
+    WATER.level = Math.min(CONFIG.water.maxLevel,
+      WATER.level + dt*CONFIG.water.riseSpeed*(1 + ctx.chaos*0.8)*ctx.floodOn);
+  ctx.waterLevel = WATER.level;
+  /* the architecture stops pretending */
+  const W = WORLD_IDX;
+  world[W.seats].warp   = ctx.flood*0.9 + ctx.chaos*0.5;   // seats tilt into the well
+  world[W.columns].warp = ctx.flood*0.6 + ctx.chaos*0.4;   // columns bend
+  world[W.arches].warp  = ctx.flood*0.7;
+  world[W.wall].breath  = 0.05 + ctx.flood*0.35;
+  world[W.ribs].warp    = ctx.flood*0.5;
+  for(let i=2;i<world.length;i++) world[i].glitch = ctx.glitch*(i===W.seats?0.6:0.9);
+  /* the cast */
+  dynamicItems.length = 0;
+  for(const p of cast){
+    baseLayer(p, ctx);
+    if(p.kind==='pianist') posePianist(p, ctx);
+    else {
+      moveDancer(p, ctx);
+      if(p.kind==='A') poseA(p, ctx); else if(p.kind==='B') poseB(p, ctx); else poseC(p, ctx);
+      floodLayer(p, ctx);
+    }
+    p.solve();
+    updateCloth(p, dt, ctx);
+    p.push();
+  }
+  updateKeys(dt);
+  dynamicItems.push(item(MESH.pianoBody, {model:PM, color:[0.045,0.042,0.045], rough:0.16, metal:0.55,
+    emis:[0.004,0.004,0.005]}));
+  const lidM = M4.id(), lidL = M4.id();
+  M4.trs(lidL, 0.55, 1.34, 0.05, 0, 0, -0.62 + Math.sin(ctx.time*0.5)*0.03*ctx.chaos, 1,1,1);
+  M4.mul(lidM, PM, lidL);
+  dynamicItems.push(item(MESH.pianoLid, {model:lidM, color:[0.05,0.048,0.05], rough:0.13, metal:0.6}));
+  for(const [lx,lz] of [[-0.55,-0.55],[-0.55,0.72],[1.75,0.10]]){
+    const m=M4.id(), l=M4.id();
+    M4.trs(l, lx, 0.10, lz, 0,0,0, 1,1,1); M4.mul(m, PM, l);
+    dynamicItems.push(item(MESH.pianoLeg,{model:m, color:[0.05,0.048,0.05], rough:0.2, metal:0.5}));
+  }
+  const bm=M4.id(), bl=M4.id(); M4.trs(bl, -1.62, 0.55, 0.06, 0,0,0, 1,1,1); M4.mul(bm, PM, bl);
+  dynamicItems.push(item(MESH.bench,{model:bm, color:[0.06,0.055,0.05], rough:0.4}));
+  dynamicItems.push(item(MESH.key,{model:M4.id(), color:[0.86,0.84,0.78], rough:0.22, inst:true}));
+  dynamicItems.push(item(MESH.blackKey,{model:M4.id(), color:[0.035,0.033,0.035], rough:0.18, inst:true}));
+  updateDebris(ctx);
+  updateParticles(dt, ctx);
+  updateLights(ctx);
+  /* flashes, film burn and the moments where time gives out */
+  DIRECTOR.flash = Math.max(0, DIRECTOR.flash - dt*4.2);
+  DIRECTOR.burn  = Math.max(0, DIRECTOR.burn  - dt*0.85);
+  DIRECTOR.slow  = Math.max(0, DIRECTOR.slow  - dt*0.5);
+  if(Math.random() < dt*(ctx.chaos*0.22 + ctx.flood*0.10)){
+    DIRECTOR.flash = 0.35 + Math.random()*0.35;
+    const red = Math.random() < 0.45;
+    DIRECTOR.flashCol = red ? [0.55,0.03,0.05] : [0.95,0.97,1.0];
+  }
+  if(Math.random() < dt*ctx.chaos*0.05) DIRECTOR.burn = 0.30 + Math.random()*0.30;
+  if(Math.random() < dt*(ctx.flood*0.06)) DIRECTOR.slow = 1.0;
+  directCamera(ctx);
+  updateAudio(STATE.showTime, dt, ctx);
+  /* HUD */
+  hudTick += dt;
+  if(hudTick > 0.2){
+    hudTick = 0;
+    hudPhase.textContent = PHASE_LABEL[ctx.phase];
+    hudMeter.style.width = (sat(STATE.showTime/200)*100).toFixed(1)+'%';
+    hudW.textContent = (WATER.level - CONFIG.water.startLevel).toFixed(2)+' m';
+    hudC.textContent = Math.round(ctx.chaos*100)+'%';
+  }
+  return ctx;
+}
+function frame(now){
+  requestAnimationFrame(frame);
+  if(!STATE.started) return;
+  const raw = Math.min((now - STATE.last)/1000, 0.05);
+  STATE.last = now;
+  const dt = raw * (1 - DIRECTOR.slow*0.62);       // slow-motion
+  resize();
+  const ctx = update(dt);
+  shadowPass(ctx);
+  mainPass(ctx);
+  if(ctx.floodOn > 0.001) waterPass(ctx);   // nothing to draw before the flood
+  particlePass(ctx);
+  postPass(ctx);
+}
+
+/* ── INPUT ────────────────────────────────────────────────────────────────── */
+let ptr = null;
+canvas.addEventListener('pointerdown', e=>{
+  ptr = {x:e.clientX, y:e.clientY, moved:0};
+  canvas.setPointerCapture(e.pointerId);
+});
+canvas.addEventListener('pointermove', e=>{
+  if(!ptr) return;
+  const dx = e.clientX-ptr.x, dy = e.clientY-ptr.y;
+  ptr.moved += Math.abs(dx)+Math.abs(dy);
+  if(ptr.moved > 8){
+    DIRECTOR.free = true;
+    DIRECTOR.yaw   -= dx*0.006;
+    DIRECTOR.pitch  = clamp(DIRECTOR.pitch + dy*0.005, -0.45, 1.15);
+  }
+  ptr.x=e.clientX; ptr.y=e.clientY;
+});
+canvas.addEventListener('pointerup', e=>{
+  if(ptr && ptr.moved < 8){                       // a tap raises the chaos
+    STATE.chaosPool = Math.min(CONFIG.chaos.max, STATE.chaosPool + CONFIG.chaos.perClick);
+    DIRECTOR.flash = 0.35; DIRECTOR.flashCol = [0.9,0.95,1.0];
+    if(AUDIO.ready) splash(AUDIO.ctx.currentTime+0.02, 0.6);
+  }
+  ptr = null;
+});
+canvas.addEventListener('wheel', e=>{
+  DIRECTOR.dist = clamp(DIRECTOR.dist + e.deltaY*0.012, 2.5, 34); e.preventDefault();
+}, {passive:false});
+addEventListener('keydown', e=>{
+  const k = e.key.toLowerCase();
+  if(k==='c'){ DIRECTOR.free = !DIRECTOR.free; }
+  else if(k==='1'){ STATE.showTime = 0; WATER.level = CONFIG.water.startLevel; }
+  else if(k==='2'){ STATE.showTime = CONFIG.timeline.opening[1] + 1; WATER.level = CONFIG.water.startLevel; }
+  else if(k==='3'){ STATE.showTime = CONFIG.timeline.escalation[1] + 1; }
+  else if(k==='4'){ STATE.showTime = CONFIG.timeline.flood[1] + 1; WATER.level = CONFIG.water.maxLevel*0.9; }
+  else if(k==='r'){ STATE.showTime = 0; WATER.level = CONFIG.water.startLevel;
+                    STATE.chaosPool = 0; DIRECTOR.shot = 0; DIRECTOR.shotT = 0; }
+  else if(k==='f'){ DIRECTOR.slow = 1.0; }
+});
+
+/* ── CURTAIN UP ───────────────────────────────────────────────────────────── */
+const titleEl = document.getElementById('title'), ldEl = document.getElementById('ld');
+document.getElementById('enter').addEventListener('click', ()=>{
+  ldEl.textContent = 'TUNING THE INSTRUMENT…';
+  try { initAudio(); if(AUDIO.ctx.state==='suspended') AUDIO.ctx.resume(); }
+  catch(err){ console.warn('audio unavailable', err); }
+  if(AUDIO.ready) AUDIO.loopStart = AUDIO.ctx.currentTime + 0.6;
+  titleEl.classList.add('fade');
+  setTimeout(()=>{ titleEl.style.display='none'; }, 1700);
+  STATE.started = true; STATE.last = performance.now();
+});
+/* prime the first frame so the opening cut is not a black hole */
+STATE.last = performance.now();
+requestAnimationFrame(frame);
+</script>
+</body>
+</html>
