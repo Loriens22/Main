@@ -90,20 +90,20 @@ const CFG = {
   FX: [0.62, 10.10],                        // front section  (nose 10.10 m ahead of joint)
   RX: [-7.90, -0.62],                       // rear section   → 18.00 m overall
   AXLE: { front: 7.40, mid: 1.50, rear: -4.80 },   // 2.70 m front overhang, 5.90 m wheelbase
-  ARCH: 0.72,
+  ARCH: 0.70,
   WR: 0.515,
   BANDS: { skirtLo:0.30, skirtHi:0.88, yelHi:1.565, stripe:1.625, winLo:1.66, winHi:2.60, cyanLo:2.60 },
-  DOORS: [                                  // 1-2-2-2, Solaris Urbino 18 III body
-    { x:[8.20, 9.10], s:'F', w:1 },         // D1 single leaf, ahead of front axle
-    { x:[4.75, 6.05], s:'F', w:2 },         // D2 double
-    { x:[2.45, 3.75], s:'F', w:2 },         // D3 double, ahead of the drive axle
-    { x:[-0.95,-2.25], s:'R', w:2 }         // D4 double, behind the articulation
+  DOORS: [                                  // two per car section
+    { x:[8.15, 9.10], s:'F', w:2 },         // D1 ahead of the front axle
+    { x:[3.60, 4.92], s:'F', w:2 },         // D2 between front and drive axle
+    { x:[-0.98,-2.30], s:'R', w:2 },        // D3 just behind the articulation
+    { x:[-2.92,-4.24], s:'R', w:2 }         // D4 ahead of the rear axle
   ],
   GLZ: {
-    FR: [[0.78,2.30],[3.90,4.60],[6.20,8.05]],                 // right side (door side)
-    FL: [[0.78,2.90],[3.05,5.15],[5.30,7.40],[7.55,9.05]],
-    RR: [[-2.40,-4.55],[-4.70,-7.55]],
-    RL: [[-0.78,-2.90],[-3.05,-5.20],[-5.35,-7.55]]
+    FR: [[0.78,3.40],[5.08,6.42],[6.56,8.02]],                 // door side
+    FL: [[0.78,2.72],[2.86,4.80],[4.94,6.88],[7.02,9.02]],
+    RR: [[-2.44,-2.80],[-4.38,-5.90],[-6.04,-7.55]],
+    RL: [[-0.78,-2.74],[-2.88,-4.82],[-4.96,-7.55]]
   },
   COL: { cyan:0x4aabdd, cyanHi:0x63bde8, yellow:0xf0b41c, blue:0x2b7fb4,
          dark:0x14181c, glass:0x0b1116, orange:0xd93f1e, grey:0xb9bcc0 }
@@ -153,11 +153,12 @@ function vAtY(y, side){
   if (side > 0){ for(let i=0;i<n-1;i++){ const y0=HALF[i][1], y1=HALF[i+1][1];
       if (y>=y0-1e-6 && y<=y1+1e-6 && y1>y0){ const f=(y-y0)/(y1-y0); return (ARC.a[i]+(ARC.a[i+1]-ARC.a[i])*f)/ARC.tot; } }
     return V_OF_I(n-1); }
-  for(let k=0;k<n-1;k++){ const i=NP-1-k, j=i-1===NP-1?0:i-1;
-    const y0=OUT[i][1], y1=OUT[(i-1+NP)%NP][1];
-    if (y>=Math.min(y0,y1)-1e-6 && y<=Math.max(y0,y1)+1e-6 && Math.abs(y1-y0)>1e-6){
-      const f=(y-y0)/(y1-y0); return (ARC.a[i]+(ARC.a[i+1]-ARC.a[i])*(1-f))/ARC.tot; } }
-  return 0.75;
+  for(let i=NP-1;i>=n;i--){                       // walk the -Z flank downwards
+    const y0=OUT[i][1], y1=OUT[i-1][1];           // segment OUT[i-1] -> OUT[i]
+    if (Math.abs(y1-y0)>1e-6 && y>=Math.min(y0,y1)-1e-6 && y<=Math.max(y0,y1)+1e-6){
+      const f=(y-y0)/(y1-y0);                     // 0 at OUT[i], 1 at OUT[i-1]
+      return (ARC.a[i]+(ARC.a[i-1]-ARC.a[i])*f)/ARC.tot; } }
+  return ARC.a[NP-1]/ARC.tot;
 }
 const V_ROOF0 = V_OF_I(HALF.length-1), V_ROOF1 = V_OF_I(NP-HALF.length+1);
 const V_SIDE_R = [vAtY(CFG.YB,1), vAtY(2.46,1)], V_SIDE_L = [vAtY(2.46,-1), vAtY(CFG.YB,-1)];
@@ -173,7 +174,7 @@ function buildShell(x0, x1, opt){
   const N = 46;
   for (let i=0;i<=N;i++){
     const x = x0 + (x1-x0)*i/N; let sw=1, sh=1;
-    if (noseR>0){ const d=(x1-x)/noseR; if(d<1){ const t=1-d; sw=1-0.10*(1-Math.sqrt(Math.max(0,1-t*t))); sh=1-0.07*(1-Math.sqrt(Math.max(0,1-t*t))); } }
+    if (noseR>0){ const d=(x1-x)/noseR; if(d<1){ const t=1-d; sw=1-0.19*(1-Math.sqrt(Math.max(0,1-t*t))); sh=1-0.055*(1-Math.sqrt(Math.max(0,1-t*t))); } }
     if (tailR>0){ const d=(x-x0)/tailR; if(d<1){ const t=1-d; sw=1-0.07*(1-Math.sqrt(Math.max(0,1-t*t))); sh=1-0.04*(1-Math.sqrt(Math.max(0,1-t*t))); } }
     push(x,sw,sh);
   }
@@ -200,18 +201,17 @@ function buildShell(x0, x1, opt){
   g.setIndex(idx); g.computeVertexNormals();
   return { geo:g, stations:st };
 }
-/** domed end cap */
-function buildCap(x, dir, sw, sh, bulge){
+/** roof-front / tail-front cap: a fan over one arc of the outline only, so the
+    glazed band stays open and you can see into the cab through the screen. */
+function buildCapArc(x, dir, sw, sh, i0, i1, bulge, yC){
   const pos=[], idx=[], uv=[];
-  const cy = (CFG.YB+CFG.YT*sh)/2;
-  pos.push(x+dir*bulge, cy, 0); uv.push(0.5,0.5);
-  for (let j=0;j<=NP;j++){ const k=j%NP,o=OUT[k];
-    const y = CFG.YB+(o[1]-CFG.YB)*sh, z=o[0]*sw;
-    const r = Math.min(1, Math.hypot(z/1.3,(y-cy)/1.5));
-    pos.push(x+dir*bulge*Math.max(0,1-r*r), y, z);
-    uv.push(0.5+z/3, 0.5+(y-cy)/3);
+  pos.push(x + dir*bulge, yC, 0); uv.push(0.5,0.5);
+  for (let j=i0;j<=i1;j++){ const o=OUT[j];
+    pos.push(x, CFG.YB+(o[1]-CFG.YB)*sh, o[0]*sw);
+    uv.push(0.5+o[0]/3, 0.5+(o[1]-yC)/3);
   }
-  for (let j=1;j<=NP;j++){ if(dir>0) idx.push(0,j,j+1); else idx.push(0,j+1,j); }
+  const n=i1-i0+1;
+  for (let j=1;j<n;j++){ if(dir>0) idx.push(0,j,j+1); else idx.push(0,j+1,j); }
   const g=new T.BufferGeometry();
   g.setAttribute('position',new T.Float32BufferAttribute(pos,3));
   g.setAttribute('uv',new T.Float32BufferAttribute(uv,2));
@@ -302,12 +302,14 @@ function initMaterials(){
       opacity:0.86, side:T.DoubleSide, clearcoat:1, envMapIntensity:1.0 });
   M.rubber = new T.MeshStandardMaterial({ color:0x121316, roughness:0.92, metalness:0.0 });
   M.blackPlastic = new T.MeshStandardMaterial({ color:0x131518, roughness:0.62, metalness:0.04, envMapIntensity:0.4 });
-  M.doorGlass = new T.MeshPhysicalMaterial({ color:0x0a1016, roughness:0.05, metalness:0.0, transparent:true,
-      opacity:0.9, side:T.DoubleSide, clearcoat:1, envMapIntensity:0.75 });
+  M.doorGlass = new T.MeshPhysicalMaterial({ color:0x070b0f, roughness:0.045, metalness:0.0, transparent:true,
+      opacity:0.94, side:T.DoubleSide, clearcoat:1, clearcoatRoughness:0.02, envMapIntensity:0.85 });
+  M.doorBar = new T.MeshStandardMaterial({ color:0x0d0f12, roughness:0.48, metalness:0.10, envMapIntensity:0.35 });
   M.chrome = new T.MeshStandardMaterial({ color:0xc8ced4, roughness:0.16, metalness:1.0, envMapIntensity:0.9 });
   M.alu = new T.MeshStandardMaterial({ color:0x9aa1a8, roughness:0.36, metalness:0.85 });
   M.steel = new T.MeshStandardMaterial({ color:0x6d747b, roughness:0.5, metalness:0.8 });
   M.cyan = new T.MeshPhysicalMaterial({ color:C.cyan, roughness:0.34, metalness:0.04, clearcoat:0.55, clearcoatRoughness:0.12, envMapIntensity:0.55 });
+  M.cyanCap = new T.MeshPhysicalMaterial({ side:T.DoubleSide, color:C.cyan, roughness:0.44, metalness:0.03, clearcoat:0.22, clearcoatRoughness:0.25, envMapIntensity:0.35 });
   M.yellow = new T.MeshPhysicalMaterial({ color:C.yellow, roughness:0.30, metalness:0.05, clearcoat:0.8 });
   M.blue = new T.MeshPhysicalMaterial({ color:C.blue, roughness:0.30, metalness:0.05, clearcoat:0.8 });
   M.orange = new T.MeshStandardMaterial({ color:0xcf3d18, roughness:0.30, metalness:0.20, envMapIntensity:0.7 });
@@ -374,44 +376,44 @@ function railTube(pts, r, mat){
   m.castShadow=true; return m;
 }
 
-/* ---------------- doors ---------------- */
+/* ---------------- doors ----------------
+   Solaris outward-gliding leaves: one dark glass pane per leaf inside a
+   heavy black frame, glazed from the step edge right up to the cant rail. */
 function makeDoor(parent, d){
   const [xa,xb]=d.x, x0=Math.min(xa,xb), x1=Math.max(xa,xb);
-  const n = d.w||2, w=(x1-x0)/n, z=CFG.HW-0.015;
-  const yel=new T.MeshStandardMaterial({color:0xefb61c,roughness:0.38,metalness:0.05,envMapIntensity:0.5});
+  const w=(x1-x0)/2, z=CFG.HW-0.015;
+  const GT=0.44, GB=2.505;                       // glazing bottom / top
   const grp=new T.Group(); parent.add(grp);
-  const sides = n===2 ? [-1,1] : [1];
-  for(const s of sides){
-    const leaf=new T.Group();
-    const cx = n===2 ? s*w/2 : w/2;                // leaf centre relative to hinge
-    // glazed area 0.98 → 2.52, lower panel 0.36 → 0.98
-    for(const dx of [-1,1]) leaf.add(box(0.048,2.20,0.05, cx+dx*(w/2-0.024), 1.44, 0, M.blackPlastic)); // stiles
-    leaf.add(box(w-0.09,0.07,0.05, cx, 2.525, 0, M.blackPlastic));                                     // top rail
-    leaf.add(box(w-0.09,0.07,0.05, cx, 0.975, 0, M.blackPlastic));                                     // waist rail
-    leaf.add(box(w-0.09,0.55,0.045, cx, 0.665, 0, yel));                                               // lower panel
-    leaf.add(box(w-0.09,0.06,0.05, cx, 0.375, 0, M.blackPlastic));
-    const gl=box(w-0.10,1.50,0.016, cx, 1.76, 0.012, M.doorGlass); leaf.add(gl);
-    const btn=box(0.06,0.09,0.03, cx+(n===2?-s:1)*(w/2-0.10), 1.10, 0.03,
-      new T.MeshStandardMaterial({color:0x1f8a3c,emissive:0x0d5a22,emissiveIntensity:0.5,roughness:0.4}));
-    leaf.add(btn);
-    leaf.position.set(n===2 ? (x0+x1)/2 : x0, 0, z);
-    leaf.userData={ side:s, hinge:leaf.position.x, w };
-    grp.add(leaf); doorLeaves.push(leaf);
-    leaf.traverse(o=>{o.castShadow=true;});
+  for(const s2 of [-1,1]){
+    const leaf=new T.Group(), cx=s2*w/2;
+    // one continuous dark pane
+    leaf.add(box(w-0.115, GB-GT-0.10, 0.020, cx, (GT+GB)/2, 0.012, M.doorGlass));
+    // heavy black frame: outer stiles, top and bottom rails
+    for(const dx of [-1,1]) leaf.add(box(0.072, GB-GT+0.05, 0.056, cx+dx*(w/2-0.036), (GT+GB)/2, 0, M.doorBar));
+    leaf.add(box(w-0.02, 0.085, 0.056, cx, GB-0.02, 0, M.doorBar));
+    leaf.add(box(w-0.02, 0.075, 0.056, cx, GT+0.015, 0, M.doorBar));
+    // slim glazing bead + green request button
+    leaf.add(box(w-0.145, 0.024, 0.030, cx, GT+0.30, 0.026, M.doorBar));
+    leaf.add(box(0.055,0.085,0.028, cx-s2*(w/2-0.115), 1.16, 0.034,
+      new T.MeshStandardMaterial({color:0x1f8a3c,emissive:0x0c4f1e,emissiveIntensity:0.5,roughness:0.4})));
+    leaf.position.set((x0+x1)/2, 0, z);
+    leaf.userData={ side:s2, hinge:(x0+x1)/2, w };
+    grp.add(leaf); doorLeaves.push(leaf); leaf.traverse(o=>{o.castShadow=true;});
   }
-  // dark surround inside the aperture + yellow step edge
-  parent.add(box(x1-x0+0.10,2.34,0.02,(x0+x1)/2,1.44,CFG.HW-0.045, M.blackPlastic));
-  parent.add(box(x1-x0,0.05,0.34,(x0+x1)/2,0.345,CFG.HW-0.20, yel));
-  parent.add(box(x1-x0,0.16,0.05,(x0+x1)/2,0.26,CFG.HW-0.03, M.blackPlastic));
+  // aperture surround, step tread and sill
+  parent.add(box(x1-x0+0.11, 2.36, 0.02, (x0+x1)/2, 1.44, CFG.HW-0.05, M.doorBar));
+  parent.add(box(x1-x0, 0.05, 0.34, (x0+x1)/2, 0.345, CFG.HW-0.20,
+    new T.MeshStandardMaterial({color:0xefb61c,roughness:0.42,envMapIntensity:0.5})));
+  parent.add(box(x1-x0, 0.14, 0.05, (x0+x1)/2, 0.27, CFG.HW-0.03, M.doorBar));
 }
 function box(w,h,d,x,y,z,m){ const b=new T.Mesh(new T.BoxGeometry(w,h,d),m); b.position.set(x,y,z); return b; }
 
 /* ---------------- curved end panels ----------------
    A bus front/rear is a vertical cylindrical wedge: no Euler gymnastics. */
-function wedge(rad, h, halfW, xTip, y, mat, dir, segs){
+function wedge(rad, h, halfW, xTip, y, mat, dir, segs, rake){
   const a = Math.asin(Math.min(0.99, halfW/rad));
   const th0 = (dir>0 ? Math.PI/2 : -Math.PI/2) - a;
-  const g = new T.CylinderGeometry(rad, rad, h, segs||36, 1, true, th0, 2*a);
+  const g = new T.CylinderGeometry(rad-(rake||0), rad, h, segs||44, 1, true, th0, 2*a);
   const m = new T.Mesh(g, mat);
   m.position.set(xTip - dir*rad, y, 0);
   m.castShadow = true; m.receiveShadow = true;
@@ -420,16 +422,16 @@ function wedge(rad, h, halfW, xTip, y, mat, dir, segs){
 
 /* ---------------- front end ---------------- */
 function buildFront(p){
-  const XF = CFG.FX[1], TIP = XF + 0.17;
+  const XF = CFG.FX[1], TIP = XF + 0.22, RF = 3.45, HWF = 1.10;   // tight plan radius = rounded nose
   /* --- lower blue bumper --- */
-  p.add(wedge(6.40, 0.50, 1.19, TIP-0.02, 0.38, M.blue, 1));
-  const lip = wedge(6.44, 0.13, 1.20, TIP-0.03, 0.15, M.blackPlastic, 1); p.add(lip);
+  p.add(wedge(RF+0.06, 0.52, HWF-0.02, TIP-0.03, 0.38, M.blue, 1));
+  p.add(wedge(RF+0.10, 0.14, HWF-0.03, TIP-0.05, 0.15, M.blackPlastic, 1));
   /* --- silver light strip --- */
   const strip = CT(2048,256,(g,w,h)=>{ const lg=g.createLinearGradient(0,0,0,h);
     lg.addColorStop(0,'#cfd4d8'); lg.addColorStop(0.5,'#eef2f5'); lg.addColorStop(1,'#9ea5ab');
     g.fillStyle=lg; g.fillRect(0,0,w,h);
     txt(g,'S O L A R I S',w/2,h/2+4,58,'#4a5157',400); });
-  p.add(wedge(6.42, 0.30, 1.20, TIP-0.01, 0.77, new T.MeshStandardMaterial({map:strip,roughness:0.30,metalness:0.55}), 1));
+  p.add(wedge(RF+0.04, 0.30, HWF-0.01, TIP-0.015, 0.77, new T.MeshStandardMaterial({map:strip,roughness:0.30,metalness:0.55}), 1));
   /* --- big yellow mask panel --- */
   const panel = CT(2048,768,(g,w,h)=>{
     R(g,0,0,w,h,'#f0b41c');
@@ -452,11 +454,11 @@ function buildFront(p){
     const lg=g.createLinearGradient(0,0,0,h); lg.addColorStop(0,'rgba(255,255,255,0.16)'); lg.addColorStop(1,'rgba(0,0,0,0.07)');
     g.fillStyle=lg; g.fillRect(0,0,w,h); noise(g,w,h,700,0.08);
   });
-  p.add(wedge(6.36, 0.90, 1.21, TIP, 1.38, new T.MeshPhysicalMaterial({map:panel,roughness:0.28,clearcoat:0.9}), 1));
+  p.add(wedge(RF, 0.92, HWF, TIP, 1.38, new T.MeshPhysicalMaterial({map:panel,roughness:0.28,clearcoat:0.9}), 1, 48));
   /* --- headlights sunk into the silver strip --- */
   for(const s of [-1,1]){
-    const zc = s*0.80, xf = TIP - 0.02 - (6.42 - Math.sqrt(Math.max(0,6.42*6.42 - zc*zc)));
-    const hg = new T.Group(); hg.position.set(xf-0.04, 0.77, zc); hg.rotation.y = -s*0.125; p.add(hg);
+    const zc = s*0.74, xf = TIP - 0.015 - ((RF+0.04) - Math.sqrt(Math.max(0,(RF+0.04)**2 - zc*zc)));
+    const hg = new T.Group(); hg.position.set(xf-0.04, 0.77, zc); hg.rotation.y = -s*0.22; p.add(hg);
     hg.add(new T.Mesh(new T.BoxGeometry(0.09,0.235,0.66), M.chrome));
     for(let i=0;i<4;i++){
       const lz=(i-1.5)*0.155, turn=(s>0? i===3 : i===0);
@@ -472,11 +474,13 @@ function buildFront(p){
   /* --- windscreen (two-piece, black rubber surround) --- */
   const wsMat = new T.MeshPhysicalMaterial({ color:0x08111a, roughness:0.035, metalness:0.02, transparent:true,
       opacity:0.52, side:T.DoubleSide, clearcoat:1, clearcoatRoughness:0.02, envMapIntensity:2.2 });
-  p.add(wedge(5.85, 1.34, 1.20, TIP-0.03, 2.02, wsMat, 1, 44));
-  for(const yy of [1.33,2.71]) p.add(wedge(5.90, 0.09, 1.21, TIP-0.02, yy, M.blackPlastic, 1));
-  const mull=new T.Mesh(new T.BoxGeometry(0.10,1.36,0.065), M.blackPlastic); mull.position.set(TIP-0.10,2.02,0); p.add(mull);
-  for(const s of [-1,1]){ const pil=new T.Mesh(new T.BoxGeometry(0.13,1.44,0.10), M.blackPlastic);
-    pil.position.set(TIP-0.03-(5.85-Math.sqrt(5.85*5.85-1.44)),2.02,s*1.20); pil.rotation.y=-s*0.21; p.add(pil); }
+  p.add(wedge(RF-0.10, 1.36, HWF-0.01, TIP-0.05, 2.04, wsMat, 1, 52, 0.30));
+  p.add(wedge(RF-0.03, 0.10, HWF, TIP-0.04, 1.35, M.blackPlastic, 1, 48));
+  p.add(wedge(RF-0.34, 0.11, HWF-0.10, TIP-0.36, 2.73, M.blackPlastic, 1, 48));
+  const mull=new T.Mesh(new T.BoxGeometry(0.11,1.38,0.07), M.blackPlastic); mull.position.set(TIP-0.16,2.04,0); mull.rotation.z=-0.10; p.add(mull);
+  for(const s of [-1,1]){ const pil=new T.Mesh(new T.BoxGeometry(0.15,1.50,0.11), M.blackPlastic);
+    pil.position.set(TIP-0.05-((RF-0.10)-Math.sqrt((RF-0.10)**2-(HWF-0.01)**2)),2.04,s*(HWF-0.02));
+    pil.rotation.y=-s*0.36; pil.rotation.z=-0.10; p.add(pil); }
   /* --- destination display, mounted inside behind the glass --- */
   const dd = CT(1024,160,(g,w,h)=>{ R(g,0,0,w,h,'#060606');
     const c2=document.createElement('canvas'); c2.width=w; c2.height=h; const g2=c2.getContext('2d');
@@ -488,18 +492,18 @@ function buildFront(p){
     g.globalAlpha=0.10; g.fillStyle='#ffab10';
     for(let y=6;y<h-6;y+=9) for(let x=6;x<w-6;x+=9) g.fillRect(x,y,6,6); });
   const ddm=new T.Mesh(new T.PlaneGeometry(1.94,0.30), new T.MeshBasicMaterial({map:dd}));
-  ddm.position.set(TIP-0.44,2.50,0); ddm.rotation.y=Math.PI/2; p.add(ddm);
-  const ddb=new T.Mesh(new T.BoxGeometry(0.10,0.40,2.00), M.blackPlastic); ddb.position.set(TIP-0.52,2.50,0); p.add(ddb);
+  ddm.position.set(TIP-0.60,2.52,0); ddm.rotation.y=Math.PI/2; p.add(ddm);
+  const ddb=new T.Mesh(new T.BoxGeometry(0.10,0.40,2.00), M.blackPlastic); ddb.position.set(TIP-0.68,2.52,0); p.add(ddb);
   /* --- wipers, parked --- */
   for(const s of [-1,1]){
-    const wg=new T.Group(); wg.position.set(TIP-0.16,1.36,s*0.52); p.add(wg); wipers.push(wg);
+    const wg=new T.Group(); wg.position.set(TIP-0.24,1.38,s*0.50); p.add(wg); wipers.push(wg);
     const arm=new T.Mesh(new T.BoxGeometry(0.045,0.98,0.035), M.blackPlastic); arm.position.set(0,0.49,0); arm.rotation.z=-s*0.52; wg.add(arm);
     const bl=new T.Mesh(new T.BoxGeometry(0.022,0.86,0.028), M.rubber); bl.position.set(-s*0.47,0.92,0); bl.rotation.z=-s*0.52; wg.add(bl);
     const pv=new T.Mesh(new T.CylinderGeometry(0.042,0.042,0.06,12), M.blackPlastic); pv.rotation.x=Math.PI/2; wg.add(pv);
   }
   /* --- mirrors --- */
   for(const s of [-1,1]){
-    const mg=new T.Group(); mg.position.set(TIP-0.55,2.68,s*1.14); p.add(mg);
+    const mg=new T.Group(); mg.position.set(TIP-0.62,2.66,s*1.10); p.add(mg);
     mg.add(railTube([[0,0,0],[-0.05,0.16,s*0.20],[-0.06,0.04,s*0.40]],0.030,M.blackPlastic));
     const box=new T.Mesh(new T.BoxGeometry(0.15,0.56,0.12), M.blackPlastic); box.position.set(-0.06,-0.22,s*0.44); mg.add(box);
     const gl=new T.Mesh(new T.PlaneGeometry(0.11,0.46), new T.MeshStandardMaterial({color:0xc6ced6,roughness:0.08,metalness:1}));
@@ -510,17 +514,17 @@ function buildFront(p){
   /* --- cabin trinkets --- */
   const flag=new T.Mesh(new T.PlaneGeometry(0.22,0.14), new T.MeshBasicMaterial({side:T.DoubleSide,
     map:CT(64,40,(g,w,h)=>{ R(g,0,0,w,h/3,'#fff'); R(g,0,h/3,w,h/3,'#00966e'); R(g,0,2*h/3,w,h/3,'#d62612'); })}));
-  flag.position.set(TIP-0.55,1.74,0.55); flag.rotation.y=Math.PI/2-0.35; p.add(flag);
+  flag.position.set(TIP-0.70,1.74,0.52); flag.rotation.y=Math.PI/2-0.35; p.add(flag);
   const sm=new T.Mesh(new T.CircleGeometry(0.13,24), new T.MeshBasicMaterial({side:T.DoubleSide,
     map:CT(128,128,(g,w,h)=>{ R(g,0,0,w,h,'#f6e02a'); g.fillStyle='#111';
       g.beginPath(); g.arc(44,48,9,0,7); g.fill(); g.beginPath(); g.arc(86,48,9,0,7); g.fill();
       g.lineWidth=8; g.strokeStyle='#111'; g.beginPath(); g.arc(64,66,30,0.3,Math.PI-0.3); g.stroke(); })}));
-  sm.position.set(TIP-0.60,2.22,-0.82); sm.rotation.y=Math.PI/2; p.add(sm);
+  sm.position.set(TIP-0.74,2.22,-0.76); sm.rotation.y=Math.PI/2; p.add(sm);
   const rc=new T.Mesh(new T.PlaneGeometry(0.28,0.32), new T.MeshBasicMaterial({side:T.DoubleSide,
     map:CT(96,110,(g,w,h)=>{ R(g,0,0,w,h,'#fff'); txt(g,'2',w/2,h/2+4,80,'#111',700); })}));
-  rc.position.set(TIP-0.62,1.52,0.96); rc.rotation.y=Math.PI/2; p.add(rc);
+  rc.position.set(TIP-0.80,1.52,0.90); rc.rotation.y=Math.PI/2; p.add(rc);
   const pl=new T.Mesh(new T.PlaneGeometry(0.58,0.15), new T.MeshBasicMaterial({map:plateTex()}));
-  pl.position.set(TIP+0.10,0.38,0); pl.rotation.y=Math.PI/2; p.add(pl);
+  pl.position.set(TIP+0.045,0.38,0); pl.rotation.y=Math.PI/2; p.add(pl);
 }
 function plateTex(){ return CT(320,80,(g,w,h)=>{ R(g,0,0,w,h,'#2f7fb4'); g.strokeStyle='#e2e9ee'; g.lineWidth=5;
   g.strokeRect(6,6,w-12,h-12); txt(g,'1650',w/2,h/2+2,50,'#eef4f8',700); }); }
@@ -832,16 +836,64 @@ function buildDecals(){
   decal(frontG, D[2].x[1]+0.22, 1.42, 1, 0.34, 0.17, DEC.access);
   decal(rearG,  D[3].x[0]+0.22, 1.42, 1, 0.34, 0.17, DEC.access);
 }
+
+/* ---------------- flank hardware ----------------
+   Panel seams, service hatches, louvres, markers, mud flaps and drip rails.
+   Applied to BOTH flanks so the offside is as finished as the door side. */
+function sideDetails(parent, sec){
+  const xr = sec==='F'?CFG.FX:CFG.RX, HW=CFG.HW, B=CFG.BANDS;
+  const seam = new T.MeshStandardMaterial({color:0x14181c, roughness:0.7, envMapIntensity:0.3});
+  const hatch = new T.MeshStandardMaterial({color:0xd7a219, roughness:0.42, metalness:0.08, envMapIntensity:0.5});
+  const louvre = new T.MeshStandardMaterial({ roughness:0.6, metalness:0.35, map:CT(128,128,(g,w,h)=>{
+      R(g,0,0,w,h,'#2a2e33'); for(let i=6;i<h-6;i+=11){ R(g,4,i,w-8,6,'#0e1114'); R(g,4,i+6,w-8,3,'#454b52'); } }) });
+  const glassRef = new T.MeshStandardMaterial({color:0xc9d2da, roughness:0.15, metalness:0.9});
+  for(const sd of [1,-1]){
+    const z = sd*(HW+0.006);
+    // continuous rub strip under the window belt + roof drip rail
+    parent.add(box(Math.abs(xr[1]-xr[0])-0.30, 0.035, 0.030, (xr[0]+xr[1])/2, B.yelHi+0.03, z, seam));
+    const rail=new T.Mesh(new T.CylinderGeometry(0.021,0.021,Math.abs(xr[1]-xr[0])-0.55,8), seam);
+    rail.rotation.z=Math.PI/2; rail.position.set((xr[0]+xr[1])/2, 2.665, sd*(HW-0.035)); parent.add(rail);
+    // vertical panel seams at each glazing pillar
+    const bays = sec==='F' ? (sd>0?CFG.GLZ.FR:CFG.GLZ.FL) : (sd>0?CFG.GLZ.RR:CFG.GLZ.RL);
+    for(const bay of bays) for(const e of bay)
+      parent.add(box(0.022, B.yelHi-B.skirtHi-0.06, 0.022, e, (B.skirtHi+B.yelHi)/2, z, seam));
+    // side marker lamps low on the skirt
+    const mk = sec==='F' ? [[xr[1]-0.55,0xff9418],[xr[0]+0.45,0xff9418]] : [[xr[0]+0.40,0xd11a1a],[xr[1]-0.45,0xff9418]];
+    for(const m of mk){ const l=new T.Mesh(new T.BoxGeometry(0.10,0.055,0.025),
+        new T.MeshStandardMaterial({color:m[1],emissive:m[1],emissiveIntensity:0.25,roughness:0.3}));
+      l.position.set(m[0],0.52,z); parent.add(l); }
+    // service hatches + louvred cooling grille on the waistband
+    const hx = sec==='F' ? [[xr[0]+0.95,0.66],[xr[0]+1.78,0.42]] : [[xr[0]+1.15,0.80],[xr[0]+2.10,0.46]];
+    for(const q of hx){
+      parent.add(box(q[1],0.44,0.016,q[0],1.20,z,hatch));
+      parent.add(box(q[1]+0.05,0.48,0.010,q[0],1.20,sd*(HW+0.003),seam));
+    }
+    const lv = sec==='F' ? xr[0]+2.75 : xr[0]+3.15;
+    parent.add(box(0.72,0.40,0.020, lv, 1.20, z, louvre));
+    // mud flaps behind every wheel on this flank
+    const ax = sec==='F' ? [CFG.AXLE.front, CFG.AXLE.mid] : [CFG.AXLE.rear];
+    for(const a of ax){ const f=new T.Mesh(new T.BoxGeometry(0.020,0.34,0.42), M.rubber);
+      f.position.set(a-0.80, 0.22, sd*1.02); parent.add(f); }
+    // small reflector strip near the tail of each section
+    parent.add(box(0.24,0.055,0.016, xr[0]+0.55, 0.66, z, glassRef));
+  }
+  // offside-only: the Škoda BlueDrive branding sits on the left flank
+  if(sec==='R') decal(parent, -5.55, 1.22, -1, 1.05, 0.24, CT(1024,240,(g,w,h)=>{ g.clearRect(0,0,w,h);
+    txt(g,'powered by',60,58,42,'#1c1c1c',400,'left');
+    txt(g,'ŠKODA',60,140,86,'#141414',700,'left');
+    txt(g,'BlueDrive',368,140,82,'#1b5f9c',400,'left');
+    g.strokeStyle='#141414'; g.lineWidth=7; g.beginPath(); g.moveTo(56,196); g.lineTo(760,196); g.lineTo(690,232); g.stroke(); }));
+}
 /* ============================================================
    Part 3 : partial shells, assembly, camera, UI, animation
    ============================================================ */
 function partialShell(x0,x1,idxList,inset,sec){
   const N=40, L=x1-x0, s=1-inset, pos=[],uv=[],idx=[];
-  const nose = sec==='F'?1.05:0, tail = sec==='R'?0.75:0;
+  const nose = sec==='F'?1.90:0, tail = sec==='R'?0.75:0;
   const W = idxList.length;
   for(let i=0;i<=N;i++){
     const x=x0+L*i/N; let sw=1,sh=1;
-    if(nose>0){ const d=(x1-x)/nose; if(d<1){ const t=1-d,f=1-Math.sqrt(Math.max(0,1-t*t)); sw=1-0.10*f; sh=1-0.07*f; } }
+    if(nose>0){ const d=(x1-x)/nose; if(d<1){ const t=1-d,f=1-Math.sqrt(Math.max(0,1-t*t)); sw=1-0.19*f; sh=1-0.055*f; } }
     if(tail>0){ const d=(x-x0)/tail; if(d<1){ const t=1-d,f=1-Math.sqrt(Math.max(0,1-t*t)); sw=1-0.07*f; sh=1-0.04*f; } }
     for(let j=0;j<W;j++){ const o=OUT[idxList[j]];
       pos.push(x, CFG.YB+((CFG.YB+(o[1]-CFG.YB)*sh)-CFG.YB)*s, o[0]*sw*s);
@@ -866,14 +918,16 @@ function buildBus(){
   const mkSkin = t => new T.MeshPhysicalMaterial({ map:t, alphaTest:0.5, side:T.DoubleSide,
       roughness:0.26, metalness:0.02, clearcoat:0.9, clearcoatRoughness:0.06, envMapIntensity:1.15 });
 
-  const sF = buildShell(CFG.FX[0],CFG.FX[1],{nose:1.05});
+  const sF = buildShell(CFG.FX[0],CFG.FX[1],{nose:1.90});
   const bF = new T.Mesh(sF.geo, mkSkin(skinF)); bF.castShadow=true; bF.receiveShadow=true; frontG.add(bF);
   const sR = buildShell(CFG.RX[0],CFG.RX[1],{tail:0.75});
   const bR = new T.Mesh(sR.geo, mkSkin(skinR)); bR.castShadow=true; bR.receiveShadow=true; rearG.add(bR);
 
   // end caps
-  const capF = new T.Mesh(buildCap(CFG.FX[1],1,0.90,0.93,0.09), M.cyan); capF.castShadow=true; frontG.add(capF);
-  const capR = new T.Mesh(buildCap(CFG.RX[0],-1,0.93,0.96,0.05), M.cyan); capR.castShadow=true; rearG.add(capR);
+  const capF = new T.Mesh(buildCapArc(CFG.FX[1],1,0.81,0.945, 9,23, 0.11, 2.70), M.cyanCap);
+  capF.castShadow=true; frontG.add(capF);
+  const capR = new T.Mesh(buildCapArc(CFG.RX[0],-1,0.93,0.96, 9,23, 0.07, 2.72), M.cyanCap);
+  capR.castShadow=true; rearG.add(capR);
   // the joint faces stay open — the articulation is a walk-through passage
 
   buildFront(frontG); buildRear(rearG);
@@ -897,6 +951,7 @@ function buildBus(){
     const ax=new T.Mesh(new T.CylinderGeometry(0.10,0.10,2.1,12), M.steel);
     ax.rotation.x=Math.PI/2; ax.position.set(x,CFG.WR,0); g.add(ax);
   }
+  sideDetails(frontG,'F'); sideDetails(rearG,'R');
   buildDecals();
   buildBellows();
 }
@@ -935,7 +990,7 @@ const VIEWS = {
   top:   [0.90,0.26,28, 1.1,1.00,0],
   door:  [1.20,1.32,8.5, 4.4,1.50,0],
   cabin: [2.30,1.52,2.6, 10.0,1.55,-0.15],
-  saloon:[3.1416,1.553,5.6, 6.0,1.50,0],
+  saloon:[3.1416,1.553,5.6, 6.2,1.50,0],
   joint: [1.35,1.44,6.5, 0.0,1.55,0],
   aisle: [3.1416,1.556,7.2, 2.0,1.50,0]
 };
