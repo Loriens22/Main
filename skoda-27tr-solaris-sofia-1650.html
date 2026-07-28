@@ -58,6 +58,25 @@ input[type=range]{width:100%;accent-color:#f0b41c;background:transparent;margin-
 #pA.act{background:linear-gradient(160deg,#2fa84e,#1c7a38);border-color:#57d67d}
 #pB.act{background:linear-gradient(160deg,#c23c2a,#8e2a1d);border-color:#ef6a55}
 .pgrp{display:flex;gap:12px;align-items:flex-end}
+#inf{position:fixed;left:12px;top:60px;width:250px;z-index:16;display:none;
+  background:linear-gradient(180deg,#ded5ba,#cdc3a6);border:1px solid #a89e84;border-radius:12px;
+  padding:9px;box-shadow:0 16px 40px rgba(0,0,0,.55);font-size:11px}
+#inf.show{display:block}
+.ibar{display:flex;justify-content:space-between;align-items:center;padding:0 3px 7px}
+.ibar b{font-size:12px;color:#2a2d31;letter-spacing:.02em}
+.ibar span{font-size:11px;font-weight:700;color:#2a2d31;letter-spacing:.08em}
+.iscr{background:#d5da3d;border:2px solid #6f7420;border-radius:5px;padding:7px 8px;
+  color:#1b1f06;box-shadow:inset 0 2px 8px rgba(90,100,0,.35)}
+.irow{display:flex;justify-content:space-between;gap:6px;font-size:8.5px;font-weight:600;letter-spacing:.02em}
+.irow i{font-style:normal;opacity:.85;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.istop{font-size:16px;font-weight:800;letter-spacing:.01em;margin:4px 0 2px;line-height:1.15}
+.imsg{font-size:9px;min-height:12px;opacity:.8;font-style:italic}
+.ibtns{display:flex;gap:5px;margin-top:8px}
+.ibtns button{flex:1;background:#26292d;border:1px solid #3d4247;color:#e6ecf1;font-size:9.5px;
+  font-weight:700;letter-spacing:.04em;padding:9px 2px;border-radius:7px}
+.ibtns button:active{background:#3f8fc4}
+#infReset{flex:0 0 34px !important}
+.ivoice{font-size:8px;color:#6a6252;text-align:center;margin-top:6px;letter-spacing:.05em}
 </style>
 </head>
 <body>
@@ -69,6 +88,20 @@ input[type=range]{width:100%;accent-color:#f0b41c;background:transparent;margin-
 </div>
 <div id="stats">loading…</div>
 <div id="burger">☰</div>
+<div id="inf">
+  <div class="ibar"><b>bultec</b><span>BT902</span></div>
+  <div class="iscr">
+    <div class="irow"><i id="infRoute">ЛИНИЯ 9 · ж.к. Борово - пл. Сточна гара</i><i id="infClock">--:--:--</i></div>
+    <div class="istop" id="infStop">ж.к. Борово</div>
+    <div class="imsg" id="infMsg"></div>
+  </div>
+  <div class="ibtns">
+    <button id="infGo">ОБЯВИ СПИРКА</button>
+    <button id="infNext">СЛЕДВАЩА</button>
+    <button id="infReset">↺</button>
+  </div>
+  <div class="ivoice" id="infVoice">глас: …</div>
+</div>
 <div id="drv">
   <div class="pgrp"><div class="pad" id="pL">◀</div><div class="pad" id="pR">▶</div></div>
   <div class="pgrp"><div class="pad big" id="pB">BRAKE</div><div class="pad big" id="pA">DRIVE</div></div>
@@ -83,6 +116,8 @@ input[type=range]{width:100%;accent-color:#f0b41c;background:transparent;margin-
     <button data-v="top">Top</button><button data-v="joint">Joint</button>
     <button data-v="door">Doors</button><button data-v="cabin">Cab</button>
   </div>
+  <div class="lbl">STOP</div>
+  <div class="grid"><button data-v="stop">ж.к. Борово</button><button id="bInf">Информатор</button></div>
   <div class="lbl">INTERIOR</div>
   <div class="grid"><button data-v="saloon">Saloon</button><button data-v="aisle">Aisle</button></div>
   <div class="lbl">ANIMATION</div>
@@ -1081,6 +1116,7 @@ function buildBus(){
   sideDetails(frontG,'F'); sideDetails(rearG,'R');
   buildDecals();
   buildBellows();
+  buildInformator(frontG);
 }
 
 /* ---------------- camera / orbit ---------------- */
@@ -1128,7 +1164,8 @@ const VIEWS = {
   cabin: [2.30,1.52,2.6, 10.0,1.55,-0.15],
   saloon:[3.1416,1.553,5.6, 6.2,1.50,0],
   joint: [1.35,1.44,6.5, 0.0,1.55,0],
-  aisle: [3.1416,1.556,7.2, 2.0,1.50,0]
+  aisle: [3.1416,1.556,7.2, 2.0,1.50,0],
+  stop:  [-1.10,1.12,46, 0.0,7.00,13.0]
 };
 function setView(k){ const v=VIEWS[k]; CAM.thT=v[0]; CAM.phT=v[1]; CAM.rT=v[2]; CAM.tgt.set(v[3],v[4],v[5]); }
 
@@ -1178,9 +1215,10 @@ function init(){
   camera=new T.PerspectiveCamera(38,innerWidth/innerHeight,0.1,600);
   clock=new T.Clock();
   initLights(); initMaterials(); buildEnvironment(); buildBus();
+  buildStopScene(); spawnNPCs();
   initControls(cv);
   addEventListener('resize',()=>{ camera.aspect=innerWidth/innerHeight; camera.updateProjectionMatrix(); renderer.setSize(innerWidth,innerHeight); });
-  bindUI(); bindDriveControls(); setView('hero'); animate();
+  bindUI(); bindDriveControls(); bindInformator(); setView('hero'); animate();
   document.getElementById('load').style.opacity=0;
   setTimeout(()=>document.getElementById('load').remove(),700);
   const tri=renderer.info.render.triangles;
@@ -1194,8 +1232,11 @@ function bindUI(){
     document.getElementById('bCab').classList.remove('on'); setView(b.dataset.v); });
   const tog=(id,fn)=>{ const e=document.getElementById(id); e.onclick=()=>{ e.classList.toggle('on'); fn(e.classList.contains('on')); }; };
   tog('bDoors', v=>{ S.doorsTarget=v?1:0; if(!v) doorBuzzer(); });   // buzzer on close
+  tog('bInf', v=>{ document.getElementById('inf').classList.toggle('show',v); if(v) audioReady(); });
   tog('bDrive', v=>{
     DRV.on=v; document.getElementById('drv').classList.toggle('show',v);
+    document.getElementById('inf').classList.toggle('show',v);
+    document.getElementById('bInf').classList.toggle('on',v);
     if(v){ DRV.fpv=true; audioReady(); document.getElementById('bCab').classList.add('on'); }
     else { DRV.fpv=false; DRV.throttle=DRV.brake=DRV.steerIn=0;
            document.getElementById('bCab').classList.remove('on'); }
@@ -1235,6 +1276,8 @@ function animate(){
   // rear section trails behind: keep its joint face against the front one
   rearG.position.set(0,0,0);
   updateBellows();
+  // the stop and its passengers ride the same treadmill as the scenery
+  if(worldG){ worldG.position.x = STOP.x0 - DRV.dist; updateNPCs(dt); }
   // steering
   const sIn = DRV.on ? DRV.steer : Math.sin(S.t*0.42)*0.30;
   if(steer) steer.rotation.y = sIn*2.4;
@@ -1245,6 +1288,487 @@ function animate(){
   renderer.render(scene,camera);
 }
 window.addEventListener('load',init);
+/* ============================================================
+   Part 4 : ж.к. Борово terminus, passenger NPCs, BT902 informator
+   ============================================================ */
+let worldG = null, npcs = [], stopSign = null;
+const STOP = { x0: 58, arrived:false, served:false };      // metres down the route
+
+/* ---------------- shared materials ---------------- */
+const SM = {};
+function stopMaterials(){
+  SM.concrete = new T.MeshStandardMaterial({ roughness:0.95, map:CT(512,512,(g,w,h)=>{
+    R(g,0,0,w,h,'#b9b4aa'); noise(g,w,h,5000,0.16);
+    for(let i=0;i<26;i++){ g.strokeStyle='rgba(0,0,0,0.13)'; g.lineWidth=1+Math.random()*2;
+      g.beginPath(); g.moveTo(Math.random()*w,Math.random()*h);
+      g.lineTo(Math.random()*w,Math.random()*h); g.stroke(); } })});
+  SM.apron = new T.MeshStandardMaterial({ roughness:0.97, map:CT(512,512,(g,w,h)=>{
+    R(g,0,0,w,h,'#8e8b85'); noise(g,w,h,7000,0.22);
+    for(let i=0;i<16;i++){ g.fillStyle='rgba(255,255,255,0.05)'; g.beginPath();
+      g.ellipse(Math.random()*w,Math.random()*h,Math.random()*70+20,Math.random()*30+10,0,0,7); g.fill(); }},
+    {rep:[6,6]})});
+  SM.steel = new T.MeshStandardMaterial({ color:0x9aa1a6, roughness:0.5, metalness:0.7 });
+  SM.paintBlue = new T.MeshStandardMaterial({ color:0x1b4f9c, roughness:0.55, metalness:0.08 });
+  SM.roofSheet = new T.MeshStandardMaterial({ side:T.DoubleSide, roughness:0.55, metalness:0.35,
+    map:CT(256,256,(g,w,h)=>{ R(g,0,0,w,h,'#c3c8cc');
+      for(let i=0;i<w;i+=10){ R(g,i,0,5,h,'#a9b0b5'); R(g,i+5,0,2,h,'#d8dde0'); }
+      noise(g,w,h,900,0.14); },{rep:[10,2]})});
+  SM.panelBlock = null;  // built per building
+}
+
+/* ---------------- prefab tower / slab blocks ---------------- */
+function blockTex(cols, rows, base, balc){
+  return CT(1024,1024,(g,w,h)=>{
+    R(g,0,0,w,h,base); noise(g,w,h,5200,0.14);
+    const cw=w/cols, ch=h/rows;
+    for(let r=0;r<rows;r++) for(let c=0;c<cols;c++){
+      const x=c*cw, y=r*ch;
+      g.strokeStyle='rgba(0,0,0,0.20)'; g.lineWidth=2; g.strokeRect(x,y,cw,ch);   // panel joints
+      const wx=x+cw*0.20, wy=y+ch*0.22, ww=cw*0.60, wh=ch*0.46;
+      R(g,wx,wy,ww,wh, Math.random()<0.22 ? '#2b3339' : '#5d707c');               // glazing
+      g.strokeStyle='rgba(255,255,255,0.30)'; g.lineWidth=2; g.strokeRect(wx,wy,ww,wh);
+      R(g,wx+ww/2-1,wy,2,wh,'rgba(240,240,240,0.55)');
+      if(balc && c%2===1){                                                        // loggia
+        R(g,x+cw*0.08,y+ch*0.16,cw*0.84,ch*0.62,'rgba(0,0,0,0.16)');
+        R(g,x+cw*0.08,y+ch*0.60,cw*0.84,ch*0.18, Math.random()<0.5?'#9aa3a8':'#b9a98c');
+      }
+      if(Math.random()<0.10){ R(g,wx+ww*0.62,wy+wh*0.55,cw*0.16,ch*0.14,'#8d9499'); } // AC unit
+    }
+    const lg=g.createLinearGradient(0,0,0,h);
+    lg.addColorStop(0,'rgba(255,255,255,0.10)'); lg.addColorStop(1,'rgba(0,0,0,0.22)');
+    g.fillStyle=lg; g.fillRect(0,0,w,h);
+  });
+}
+function buildBlock(p, x, z, w, d, floors, base, balc, rot){
+  const H = floors*2.75;
+  const t = blockTex(Math.max(3,Math.round(w/3.2)), floors, base, balc);
+  const m = new T.Mesh(new T.BoxGeometry(w,H,d), new T.MeshStandardMaterial({map:t,roughness:0.9}));
+  m.position.set(x, H/2, z); m.rotation.y = rot||0; m.castShadow=true; m.receiveShadow=true; p.add(m);
+  const roof = new T.Mesh(new T.BoxGeometry(w+0.35,0.45,d+0.35), new T.MeshStandardMaterial({color:0x9c968c,roughness:0.95}));
+  roof.position.set(x,H+0.22,z); roof.rotation.y=rot||0; p.add(roof);
+  return m;
+}
+
+/* ---------------- the shelter + kiosk row ---------------- */
+function buildShelter(p){
+  const X0=-9.5, X1=8.5, ZA=8.6, ZB=13.4, HR=3.30;
+  // roof: two shallow-pitched sheets on a lattice
+  for(const s of [0,1]){
+    const r = new T.Mesh(new T.BoxGeometry(X1-X0, 0.06, (ZB-ZA)/2+0.1), SM.roofSheet);
+    r.position.set((X0+X1)/2, HR + (s?0.16:0.0), ZA + (ZB-ZA)*(s?0.75:0.25));
+    r.rotation.x = (s? -1: 1) * 0.055; r.castShadow=true; p.add(r);
+  }
+  const fascia = new T.Mesh(new T.BoxGeometry(X1-X0, 0.20, 0.05), SM.steel);
+  fascia.position.set((X0+X1)/2, HR-0.10, ZA-0.06); p.add(fascia);
+  // purlins + rafters
+  for(let i=0;i<7;i++){ const b=new T.Mesh(new T.BoxGeometry(0.07,0.09,ZB-ZA), SM.steel);
+    b.position.set(X0+0.4+i*((X1-X0-0.8)/6), HR-0.12, (ZA+ZB)/2); p.add(b); }
+  for(let i=0;i<4;i++){ const b=new T.Mesh(new T.BoxGeometry(X1-X0,0.05,0.05), SM.steel);
+    b.position.set((X0+X1)/2, HR-0.22, ZA+0.4+i*((ZB-ZA-0.8)/3)); p.add(b); }
+  // columns
+  for(let i=0;i<6;i++){ const cx = X0+0.6+i*((X1-X0-1.2)/5);
+    for(const cz of [ZA+0.35, ZB-0.35]){
+      const c=new T.Mesh(new T.CylinderGeometry(0.055,0.065,HR-0.2,10), SM.steel);
+      c.position.set(cx,(HR-0.2)/2,cz); c.castShadow=true; p.add(c);
+      const bp=new T.Mesh(new T.BoxGeometry(0.20,0.05,0.20), SM.steel); bp.position.set(cx,0.03,cz); p.add(bp);
+    } }
+  // ---- blue kiosk row under the canopy ----
+  const press = CT(1024,1024,(g,w,h)=>{                       // magazine wall
+    R(g,0,0,w,h,'#123f7a');
+    const cols=6, rows=7, cw=w/cols, ch=h/rows;
+    for(let r=0;r<rows;r++) for(let c=0;c<cols;c++){
+      const x=c*cw+6, y=r*ch+6, ww=cw-12, hh=ch-12;
+      g.fillStyle='hsl('+Math.floor(Math.random()*360)+',72%,'+(52+Math.random()*22)+'%)';
+      g.fillRect(x,y,ww,hh);
+      R(g,x,y,ww,hh*0.22,'rgba(255,255,255,0.82)');
+      g.fillStyle='rgba(0,0,0,0.55)';
+      for(let k=0;k<3;k++) g.fillRect(x+8,y+hh*0.30+k*13,ww*(0.35+Math.random()*0.5),6);
+      g.strokeStyle='rgba(0,0,0,0.35)'; g.lineWidth=2; g.strokeRect(x,y,ww,hh);
+    }});
+  const kioskA = new T.Mesh(new T.BoxGeometry(4.6,2.55,2.6), SM.paintBlue);
+  kioskA.position.set(-4.2,1.275,11.4); kioskA.castShadow=true; p.add(kioskA);
+  const disp = new T.Mesh(new T.PlaneGeometry(4.3,1.55), new T.MeshStandardMaterial({map:press,roughness:0.75}));
+  disp.position.set(-4.2,1.55,10.08); p.add(disp);
+  const counter = new T.Mesh(new T.BoxGeometry(4.5,0.55,0.55), SM.paintBlue);
+  counter.position.set(-4.2,0.42,9.95); counter.castShadow=true; p.add(counter);
+  const awn = new T.Mesh(new T.BoxGeometry(4.7,0.06,0.75), SM.steel);
+  awn.position.set(-4.2,2.42,9.85); p.add(awn);
+  // dark open bay + graffitied end wall
+  const bay = new T.Mesh(new T.BoxGeometry(4.0,2.55,2.6), new T.MeshStandardMaterial({color:0x14304f,roughness:0.8}));
+  bay.position.set(0.9,1.275,11.4); bay.castShadow=true; p.add(bay);
+  const tarp = new T.Mesh(new T.PlaneGeometry(3.8,2.1), new T.MeshStandardMaterial({color:0x1d5fa8,roughness:0.9,side:T.DoubleSide}));
+  tarp.position.set(0.9,1.15,10.08); p.add(tarp);
+  const graf = CT(512,512,(g,w,h)=>{ g.clearRect(0,0,w,h);
+    g.fillStyle='#1b3f6d'; g.fillRect(0,0,w,h);
+    txt(g,'1618',w/2,h*0.55,168,'#20456f',700);
+    g.strokeStyle='#2a4f7d'; g.lineWidth=10; g.strokeText&&0;
+    txt(g,'X X',w/2,h*0.22,64,'#25497a',700); });
+  const gw = new T.Mesh(new T.PlaneGeometry(2.6,2.4), new T.MeshStandardMaterial({map:graf,roughness:0.9}));
+  gw.position.set(3.2,1.30,10.09); p.add(gw);
+  const endw = new T.Mesh(new T.BoxGeometry(1.6,2.55,2.6), SM.paintBlue);
+  endw.position.set(3.7,1.275,11.4); p.add(endw);
+  // cardboard boxes and clutter
+  for(const q of [[-1.9,0.22,9.7,0.55],[ -1.35,0.16,9.55,0.40],[4.6,0.20,10.0,0.48]]){
+    const b=new T.Mesh(new T.BoxGeometry(q[3],q[3]*0.8,q[3]*0.7), new T.MeshStandardMaterial({color:0xa98a5f,roughness:0.95}));
+    b.position.set(q[0],q[1],q[2]); b.castShadow=true; p.add(b);
+  }
+}
+
+/* ---------------- stop flag, bin, fence, poles ---------------- */
+function buildStopFurniture(p){
+  // Sofia stop flag on a post, kerbside
+  const post = new T.Mesh(new T.CylinderGeometry(0.045,0.045,3.0,10), SM.steel);
+  post.position.set(-1.4,1.5,7.0); post.castShadow=true; p.add(post);
+  const signTex = CT(512,640,(g,w,h)=>{
+    R(g,0,0,w,h,'#f2f4f6'); R(g,0,0,w,120,'#12539f');
+    txt(g,'ж.к. Борово',w/2,62,52,'#fff',700);
+    g.fillStyle='#12539f'; g.beginPath(); g.arc(w/2,196,52,0,7); g.fill();
+    txt(g,'9',w/2,200,62,'#fff',700);
+    g.strokeStyle='#c8ccd0'; g.lineWidth=3;
+    const rows=['9   пл. Сточна гара','11  Гара Искър','72  Западен парк'];
+    for(let i=0;i<rows.length;i++){ const y=286+i*74;
+      g.beginPath(); g.moveTo(28,y-24); g.lineTo(w-28,y-24); g.stroke();
+      txt(g,rows[i],w/2,y+6,38,'#20262b',500); }
+    txt(g,'СТОЛИЧЕН АВТОТРАНСПОРТ',w/2,h-30,26,'#6b737a',500); });
+  const sign = new T.Mesh(new T.PlaneGeometry(0.62,0.78),
+    new T.MeshStandardMaterial({map:signTex,roughness:0.6,side:T.DoubleSide}));
+  sign.position.set(-1.4,2.35,6.96); sign.rotation.y=-Math.PI/2; p.add(sign); stopSign=sign;
+  // litter bin — dark drum with yellow bands, on a post
+  const bp = new T.Mesh(new T.CylinderGeometry(0.035,0.035,1.05,8), SM.steel);
+  bp.position.set(2.6,0.52,7.6); p.add(bp);
+  const drum = new T.Mesh(new T.CylinderGeometry(0.235,0.215,0.72,18), new T.MeshStandardMaterial({color:0x2f3438,roughness:0.6,metalness:0.35}));
+  drum.position.set(2.6,1.30,7.6); drum.castShadow=true; p.add(drum);
+  for(const y of [1.06,1.54]){ const bd=new T.Mesh(new T.CylinderGeometry(0.243,0.243,0.075,18),
+      new T.MeshStandardMaterial({color:0xd8a318,roughness:0.55})); bd.position.set(2.6,y,7.6); p.add(bd); }
+  const lid = new T.Mesh(new T.CylinderGeometry(0.25,0.25,0.06,18), new T.MeshStandardMaterial({color:0x3a4045,roughness:0.5,metalness:0.4}));
+  lid.position.set(2.6,1.69,7.6); p.add(lid);
+  // steel railing along the back of the apron
+  for(let i=0;i<7;i++){ const x=5.2+i*1.5;
+    const pst=new T.Mesh(new T.BoxGeometry(0.05,1.05,0.05), SM.steel); pst.position.set(x,0.52,12.6); p.add(pst); }
+  for(const y of [0.95,0.55]){ const r=new T.Mesh(new T.BoxGeometry(9.2,0.05,0.04), SM.steel);
+    r.position.set(9.7,y,12.6); p.add(r); }
+  // yellow service container
+  const cont = new T.Mesh(new T.BoxGeometry(4.2,2.35,2.3), new T.MeshStandardMaterial({ roughness:0.7, metalness:0.25,
+    map: CT(256,128,(g,w,h)=>{ R(g,0,0,w,h,'#d9b12a'); for(let i=0;i<w;i+=16) R(g,i,0,3,h,'#b8931f'); noise(g,w,h,700,0.2); },{rep:[2,1]}) }));
+  cont.position.set(-13.2,1.18,10.6); cont.castShadow=true; p.add(cont);
+  // white flat-roofed utility hut
+  const hut = new T.Mesh(new T.BoxGeometry(5.0,2.7,4.2), new T.MeshStandardMaterial({color:0xd8d6cf,roughness:0.95}));
+  hut.position.set(-20.5,1.35,12.0); hut.castShadow=true; p.add(hut);
+  const hr = new T.Mesh(new T.BoxGeometry(5.6,0.22,4.8), new T.MeshStandardMaterial({color:0xc3c1ba,roughness:0.95}));
+  hr.position.set(-20.5,2.78,12.0); p.add(hr);
+  // "ДИДИМИ" shop across the apron
+  const shop = new T.Mesh(new T.BoxGeometry(7.0,3.1,5.0), new T.MeshStandardMaterial({color:0xd6cdb8,roughness:0.95}));
+  shop.position.set(16.5,1.55,13.5); shop.castShadow=true; p.add(shop);
+  const sg = new T.Mesh(new T.PlaneGeometry(4.6,0.62), new T.MeshStandardMaterial({map:
+    CT(512,72,(g,w,h)=>{ R(g,0,0,w,h,'#1b4f9c'); txt(g,'Д И Д И М И',w/2,h/2+3,44,'#fff',700); }),roughness:0.6}));
+  sg.position.set(16.5,2.55,10.98); p.add(sg);
+  const sw = new T.Mesh(new T.PlaneGeometry(4.4,1.3), new T.MeshStandardMaterial({color:0x2a3138,roughness:0.25,metalness:0.4}));
+  sw.position.set(16.5,1.45,10.98); p.add(sw);
+  // street lights + trolley span poles either side of the apron
+  for(const q of [[-11.5,7.6],[6.5,7.6],[19,8.0]]){
+    const m=new T.Mesh(new T.CylinderGeometry(0.10,0.15,9.0,10), new T.MeshStandardMaterial({color:0xb4b8bb,roughness:0.65,metalness:0.3}));
+    m.position.set(q[0],4.5,q[1]); m.castShadow=true; p.add(m);
+    const arm=railTube([[q[0],8.8,q[1]],[q[0]-0.6,9.2,q[1]-1.2],[q[0]-0.9,9.15,q[1]-2.6]],0.05,SM.steel); p.add(arm);
+    const lamp=new T.Mesh(new T.BoxGeometry(0.7,0.16,0.28), new T.MeshStandardMaterial({color:0xd0d4d7,roughness:0.5,metalness:0.4}));
+    lamp.position.set(q[0]-1.15,9.08,q[1]-2.9); p.add(lamp);
+  }
+  // trees / overgrowth behind the shelter
+  for(let i=0;i<9;i++){
+    const x=-24+Math.random()*46, z=15.5+Math.random()*7;
+    const tr=new T.Mesh(new T.CylinderGeometry(0.17,0.26,2.6,7), new T.MeshStandardMaterial({color:0x584434,roughness:1}));
+    tr.position.set(x,1.3,z); p.add(tr);
+    const cr=new T.Mesh(new T.IcosahedronGeometry(2.0+Math.random()*1.2,1),
+      new T.MeshStandardMaterial({color:new T.Color().setHSL(0.24+Math.random()*0.07,0.42,0.17+Math.random()*0.09),roughness:1,flatShading:true}));
+    cr.position.set(x,3.8+Math.random()*1.1,z); cr.castShadow=true; p.add(cr);
+  }
+}
+
+/* ---------------- assemble the stop ---------------- */
+function buildStopScene(){
+  worldG = new T.Group(); scene.add(worldG);
+  const g = new T.Group(); worldG.add(g); g.position.set(0,0,0);
+  stopMaterials();
+  // apron the shelter sits on
+  const apron = new T.Mesh(new T.PlaneGeometry(46,16), SM.apron);
+  apron.rotation.x=-Math.PI/2; apron.position.set(-2,0.165,12.5); apron.receiveShadow=true; g.add(apron);
+  const kerbY = new T.Mesh(new T.BoxGeometry(46,0.17,0.34), new T.MeshStandardMaterial({color:0xd8b93c,roughness:0.9}));
+  kerbY.position.set(-2,0.085,6.35); g.add(kerbY);
+  buildShelter(g); buildStopFurniture(g);
+  // the tower and the panel slabs behind it
+  buildBlock(g, -3.5, 40, 16, 13, 16, '#cfc7b4', true, 0.06);
+  buildBlock(g, -30, 38, 34, 12, 5, '#cbc4b6', true, 0.0);
+  buildBlock(g,  26, 42, 30, 12, 5, '#c6bfae', true, -0.05);
+  buildBlock(g, -52, 30, 22, 12, 8, '#c9c2b2', true, 0.10);
+  worldG.position.x = STOP.x0;
+}
+
+/* ============================================================
+   PASSENGER NPCs
+   ============================================================ */
+const NPC_PAL = ['#2c3550','#6d2f2f','#2f5a45','#4a4a52','#7a5b2e','#31456b','#5c3a5e','#22323a'];
+function makeNPC(){
+  const g = new T.Group();
+  const skin = new T.MeshStandardMaterial({ color:new T.Color().setHSL(0.07,0.34,0.52+Math.random()*0.16), roughness:0.85 });
+  const shirt = new T.MeshStandardMaterial({ color:new T.Color(NPC_PAL[(Math.random()*NPC_PAL.length)|0]), roughness:0.9 });
+  const trous = new T.MeshStandardMaterial({ color:new T.Color().setHSL(0.6,0.10,0.16+Math.random()*0.20), roughness:0.92 });
+  const sc = 0.92 + Math.random()*0.16;
+  const head = new T.Mesh(new T.SphereGeometry(0.108,14,12), skin); head.position.y=1.60; g.add(head);
+  const hair = new T.Mesh(new T.SphereGeometry(0.114,12,10,0,6.3,0,1.5),
+    new T.MeshStandardMaterial({color:new T.Color().setHSL(0.08,0.5,0.10+Math.random()*0.28),roughness:1}));
+  hair.position.y=1.615; g.add(hair);
+  const neck = new T.Mesh(new T.CylinderGeometry(0.045,0.05,0.08,8), skin); neck.position.y=1.49; g.add(neck);
+  const torso = new T.Mesh(new T.BoxGeometry(0.34,0.52,0.20,1,2,1), shirt); torso.position.y=1.19; g.add(torso);
+  const hips = new T.Mesh(new T.BoxGeometry(0.32,0.18,0.20), trous); hips.position.y=0.86; g.add(hips);
+  const limbs=[];
+  for(const s of [-1,1]){
+    const leg=new T.Group(); leg.position.set(0,0.86,s*0.085); g.add(leg);
+    const l=new T.Mesh(new T.BoxGeometry(0.125,0.80,0.15), trous); l.position.y=-0.40; leg.add(l);
+    const sh=new T.Mesh(new T.BoxGeometry(0.13,0.07,0.24), new T.MeshStandardMaterial({color:0x1a1a1d,roughness:0.9}));
+    sh.position.set(0.02,-0.79,0); leg.add(sh);
+    const arm=new T.Group(); arm.position.set(0,1.40,s*0.215); g.add(arm);
+    const a=new T.Mesh(new T.BoxGeometry(0.10,0.50,0.11), shirt); a.position.y=-0.25; arm.add(a);
+    const hd=new T.Mesh(new T.SphereGeometry(0.052,8,6), skin); hd.position.y=-0.53; arm.add(hd);
+    limbs.push(leg, arm);
+  }
+  if(Math.random()<0.35){                                   // shoulder bag
+    const bag=new T.Mesh(new T.BoxGeometry(0.26,0.30,0.12), new T.MeshStandardMaterial({color:0x30323a,roughness:0.9}));
+    bag.position.set(0.02,1.02,0.20); g.add(bag);
+  }
+  g.scale.setScalar(sc);
+  g.traverse(o=>{ if(o.isMesh) o.castShadow=true; });
+  g.userData = { limbs, phase:Math.random()*6.3, state:'wait', speed:1.05+Math.random()*0.45, target:null, wait:0 };
+  return g;
+}
+function spawnNPCs(){
+  const spots = [[-5.0,8.6],[-3.4,8.9],[-1.9,9.1],[-0.4,8.7],[1.4,9.0],[2.9,8.6],[4.6,9.2],[-6.6,9.3]];
+  for(const s of spots){
+    const n = makeNPC();
+    n.position.set(s[0], 0.17, s[1]);
+    n.rotation.y = -Math.PI/2 + (Math.random()-0.5)*0.7;
+    n.userData.home = [s[0], s[1]];
+    worldG.add(n); npcs.push(n);
+  }
+}
+/** door mouths in world space (the bus is fixed at the origin) */
+function doorMouths(){
+  return CFG.DOORS.map(d=>{
+    const cx=(d.x[0]+d.x[1])/2;
+    return new T.Vector3(cx, 0, CFG.HW+0.55);
+  });
+}
+function npcWalkAnim(n, moving, dt){
+  const u=n.userData;
+  if(moving){ u.phase += dt*u.speed*7.0;
+    const a=Math.sin(u.phase)*0.55;
+    u.limbs[0].rotation.z =  a; u.limbs[2].rotation.z = -a;
+    u.limbs[1].rotation.z = -a*0.75; u.limbs[3].rotation.z = a*0.75;
+  } else {
+    for(const l of u.limbs) l.rotation.z *= (1-Math.min(1,dt*6));
+  }
+}
+function updateNPCs(dt){
+  if(!worldG) return;
+  const busX = -worldG.position.x;                    // bus position in worldG-local space
+  const atStop = Math.abs(worldG.position.x) < 9 && S.speed < 0.5;
+  const boarding = atStop && S.doors > 0.75;
+  const mouths = doorMouths();
+  for(const n of npcs){
+    const u=n.userData; let moving=false;
+    if(u.state==='wait'){
+      if(boarding && Math.random() < dt*1.1){
+        const m = mouths[(Math.random()*mouths.length)|0];
+        u.target = new T.Vector3(busX + m.x, 0.17, m.z);
+        u.state = 'board';
+      }
+    }
+    if(u.state==='board' || u.state==='leave'){
+      const t=u.target, dx=t.x-n.position.x, dz=t.z-n.position.z, d=Math.hypot(dx,dz);
+      if(d>0.12){
+        const v=u.speed*dt;
+        n.position.x += dx/d*v; n.position.z += dz/d*v;
+        n.rotation.y = Math.atan2(dx,dz) - Math.PI/2 + Math.PI/2;
+        n.rotation.y = Math.atan2(dx,dz);
+        moving=true;
+      } else if(u.state==='board'){
+        n.visible=false; u.state='aboard'; u.wait=2.5+Math.random()*4;
+      } else { u.state='wait'; u.home=[n.position.x,n.position.z]; }
+    }
+    if(u.state==='aboard'){
+      u.wait-=dt;
+      if(u.wait<=0 && boarding){                       // step back off further down the line
+        n.visible=true;
+        const m = mouths[(Math.random()*mouths.length)|0];
+        n.position.set(busX+m.x, 0.17, CFG.HW+0.35);
+        u.target = new T.Vector3(busX + m.x + (Math.random()-0.5)*5, 0.17, 8.6+Math.random()*2.4);
+        u.state='leave';
+      }
+    }
+    npcWalkAnim(n, moving, dt);
+  }
+}
+
+/* ============================================================
+   BT902 INFORMATOR  (bultec) — route select + stop announcements
+   ============================================================ */
+const INF = {
+  line: 9,
+  route: 'ж.к. Борово - пл. Сточна гара',
+  stops: [ { name:'ж.к. Борово', say:'Спирка жилищен комплекс Борово' } ],
+  idx: 0, lcdTex: null, leds: {}, speaking:false
+};
+function infLcdCanvas(){
+  return CT(1024, 320, (g,w,h)=>{
+    R(g,0,0,w,h,'#d8dc3f');                                  // backlit LCD
+    const lg=g.createLinearGradient(0,0,0,h);
+    lg.addColorStop(0,'rgba(255,255,255,0.30)'); lg.addColorStop(1,'rgba(120,130,0,0.22)');
+    g.fillStyle=lg; g.fillRect(0,0,w,h);
+    const d=new Date(), p2=n=>String(n).padStart(2,'0');
+    g.textBaseline='middle';
+    txt(g,'ЛИНИЯ: '+INF.line, 26, 46, 34, '#20240c', 600, 'left');
+    txt(g,p2(d.getHours())+':'+p2(d.getMinutes())+':'+p2(d.getSeconds()), w-26, 42, 34, '#20240c', 600, 'right');
+    txt(g,'МАРШРУТ: '+INF.route, 26, 100, 30, '#20240c', 500, 'left');
+    txt(g,p2(d.getDate())+'.'+p2(d.getMonth()+1)+'.'+d.getFullYear(), w-26, 96, 26, '#20240c', 500, 'right');
+    const cur = INF.idx < INF.stops.length ? INF.stops[INF.idx].name.toUpperCase() : '— КРАЙ НА СПИСЪКА —';
+    txt(g, cur, 26, 176, 54, '#141705', 700, 'left');
+    g.strokeStyle='rgba(30,35,5,0.35)'; g.lineWidth=3;
+    g.beginPath(); g.moveTo(20,222); g.lineTo(w-20,222); g.stroke();
+    txt(g,'СПИРКА '+(INF.idx+1)+' / '+INF.stops.length, 26, 262, 28, '#2c3110', 500, 'left');
+    // little speaker glyph, top right of the text block
+    g.fillStyle='#20240c'; g.beginPath();
+    g.moveTo(w-150,150); g.lineTo(w-124,150); g.lineTo(w-100,132); g.lineTo(w-100,192);
+    g.lineTo(w-124,174); g.lineTo(w-150,174); g.closePath(); g.fill();
+    for(let i=1;i<=3;i++){ g.strokeStyle='#20240c'; g.lineWidth=4; g.beginPath();
+      g.arc(w-96,162,8+i*11,-0.9,0.9); g.stroke(); }
+  });
+}
+function refreshLcd(){
+  if(!INF.lcdTex) return;
+  const src = infLcdCanvas().image, c = INF.lcdTex.image, g = c.getContext('2d');
+  g.clearRect(0,0,c.width,c.height); g.drawImage(src,0,0);
+  INF.lcdTex.needsUpdate = true;
+  const el = document.getElementById('infLcd'); if(el) el.textContent = '';
+  const nm = document.getElementById('infStop');
+  if(nm) nm.textContent = INF.idx < INF.stops.length ? INF.stops[INF.idx].name : '— край на списъка —';
+  const rt = document.getElementById('infRoute');
+  if(rt) rt.textContent = 'ЛИНИЯ ' + INF.line + '  ·  ' + INF.route;
+  const ct = document.getElementById('infClock');
+  if(ct){ const d=new Date(), p2=n=>String(n).padStart(2,'0');
+    ct.textContent = p2(d.getHours())+':'+p2(d.getMinutes())+':'+p2(d.getSeconds()); }
+}
+
+/* ---- the physical unit, mounted on the cab dash ---- */
+function buildInformator(p){
+  const g = new T.Group();
+  g.position.set(9.88, 1.52, -1.02); g.rotation.y = -0.42; g.rotation.x = -0.20; p.add(g);
+  const body = new T.Mesh(new T.BoxGeometry(0.34,0.20,0.115),
+    new T.MeshStandardMaterial({color:0xd8cfb4, roughness:0.65}));
+  body.castShadow=true; g.add(body);
+  const face = new T.Mesh(new T.BoxGeometry(0.31,0.175,0.012),
+    new T.MeshStandardMaterial({color:0x111316, roughness:0.5}));
+  face.position.z=0.062; g.add(face);
+  INF.lcdTex = new T.CanvasTexture(infLcdCanvas().image);
+  INF.lcdTex.encoding = T.sRGBEncoding;
+  const lcd = new T.Mesh(new T.PlaneGeometry(0.185,0.058), new T.MeshBasicMaterial({map:INF.lcdTex}));
+  lcd.position.set(-0.015,0.026,0.070); g.add(lcd);
+  // status LEDs
+  const ledCol = [0xd02a2a,0x2ad04a,0x2ad04a,0xd0a02a];
+  ['ERROR','START','RUN','LOAD'].forEach((k,i)=>{
+    const l = new T.Mesh(new T.CylinderGeometry(0.004,0.004,0.004,8),
+      new T.MeshStandardMaterial({color:ledCol[i], emissive:ledCol[i], emissiveIntensity:i===2?1.1:0.12, roughness:0.4}));
+    l.rotation.x=Math.PI/2; l.position.set(-0.126, 0.050-i*0.018, 0.070); g.add(l); INF.leds[k]=l;
+  });
+  // four round buttons + SETUP knob
+  for(let i=0;i<4;i++){
+    const b=new T.Mesh(new T.CylinderGeometry(0.017,0.017,0.008,14),
+      new T.MeshStandardMaterial({color:0x2a2d31, roughness:0.55}));
+    b.rotation.x=Math.PI/2; b.position.set(-0.075+i*0.043,-0.052,0.068); g.add(b);
+  }
+  const knob=new T.Mesh(new T.CylinderGeometry(0.020,0.020,0.014,18),
+    new T.MeshStandardMaterial({color:0x1c1f22, roughness:0.5, metalness:0.2}));
+  knob.rotation.x=Math.PI/2; knob.position.set(0.117,-0.010,0.068); g.add(knob);
+  const brand = new T.Mesh(new T.PlaneGeometry(0.30,0.032), new T.MeshBasicMaterial({transparent:true, map:
+    CT(600,64,(gg,w,h)=>{ gg.clearRect(0,0,w,h);
+      txt(gg,'bultec',10,34,34,'#e8e8e8',700,'left'); txt(gg,'BT902',w-10,34,34,'#e8e8e8',700,'right'); })}));
+  brand.position.set(0,0.076,0.069); g.add(brand);
+  // mounting bracket
+  const br=new T.Mesh(new T.BoxGeometry(0.05,0.16,0.05), new T.MeshStandardMaterial({color:0x2a2d31,roughness:0.7}));
+  br.position.set(0,-0.17,0); g.add(br);
+  setInterval(refreshLcd, 1000);
+  refreshLcd();
+}
+
+/* ---- announcement chime + Bulgarian speech ---- */
+function chime(){
+  if(!audioReady()) return;
+  const t0 = AC.currentTime + 0.02;
+  // two-tone bell: struck partials with a long decay
+  const notes = [[t0, 987.77], [t0+0.34, 659.26]];
+  for(const [t,f] of notes){
+    for(const [mul,amp] of [[1,0.20],[2.01,0.075],[3.02,0.035]]){
+      const o=AC.createOscillator(), g=AC.createGain();
+      o.type='sine'; o.frequency.setValueAtTime(f*mul,t);
+      g.gain.setValueAtTime(0.0001,t);
+      g.gain.exponentialRampToValueAtTime(amp,t+0.012);
+      g.gain.exponentialRampToValueAtTime(0.0001,t+0.95);
+      o.connect(g); g.connect(AC.destination); o.start(t); o.stop(t+1.0);
+    }
+  }
+}
+let BG_VOICE = null, VOICE_NOTE = '';
+function pickBgVoice(){
+  if(!('speechSynthesis' in window)) { VOICE_NOTE='няма синтез на реч'; return null; }
+  const vs = speechSynthesis.getVoices() || [];
+  const bg = vs.filter(v => /^bg/i.test(v.lang || ''));
+  const femHint = /female|woman|жена|daria|dari|elena|silvia|milena|iva|nadia|zlatina/i;
+  const fem = bg.find(v => femHint.test(v.name || ''));
+  BG_VOICE = fem || bg[0] || null;
+  VOICE_NOTE = BG_VOICE ? (BG_VOICE.name + (fem ? '' : '')) : 'няма българскu глас на устройството';
+  const el = document.getElementById('infVoice');
+  if(el) el.textContent = BG_VOICE ? ('глас: ' + BG_VOICE.name) : 'няма инсталиран български глас';
+  return BG_VOICE;
+}
+function speakBG(text){
+  if(!('speechSynthesis' in window)) return false;
+  try { speechSynthesis.cancel(); } catch(e){}
+  const u = new SpeechSynthesisUtterance(text);
+  u.lang = 'bg-BG'; u.rate = 0.92; u.pitch = 1.12; u.volume = 1.0;
+  if(!BG_VOICE) pickBgVoice();
+  if(BG_VOICE) u.voice = BG_VOICE;
+  u.onstart = ()=>{ INF.speaking=true; if(INF.leds.START) INF.leds.START.material.emissiveIntensity=1.2; };
+  u.onend   = ()=>{ INF.speaking=false; if(INF.leds.START) INF.leds.START.material.emissiveIntensity=0.12; };
+  speechSynthesis.speak(u);
+  return true;
+}
+function infoAnnounce(){
+  audioReady();
+  if(INF.idx >= INF.stops.length){
+    const b=document.getElementById('infMsg');
+    if(b){ b.textContent='Следващите спирки ще бъдат добавени.'; setTimeout(()=>b.textContent='',2600); }
+    return;
+  }
+  const st = INF.stops[INF.idx];
+  chime();
+  setTimeout(()=>speakBG(st.say), 1150);
+  const b=document.getElementById('infMsg'); if(b) b.textContent = '„'+st.say+'“';
+  refreshLcd();
+}
+function infoNext(){
+  if(INF.idx < INF.stops.length) INF.idx++;
+  refreshLcd();
+  const b=document.getElementById('infMsg');
+  if(b && INF.idx>=INF.stops.length){ b.textContent='Следващите спирки ще бъдат добавени.'; }
+}
+function bindInformator(){
+  const a=document.getElementById('infGo'); if(a) a.onclick=()=>{ infoAnnounce(); };
+  const n=document.getElementById('infNext'); if(n) n.onclick=()=>{ infoNext(); };
+  const r=document.getElementById('infReset'); if(r) r.onclick=()=>{ INF.idx=0; refreshLcd();
+    const b=document.getElementById('infMsg'); if(b) b.textContent=''; };
+  if('speechSynthesis' in window){
+    pickBgVoice();
+    speechSynthesis.onvoiceschanged = pickBgVoice;
+    setTimeout(pickBgVoice, 700);
+  }
+}
 </script>
 </body>
 </html>
