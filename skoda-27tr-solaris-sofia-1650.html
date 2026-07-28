@@ -41,6 +41,23 @@ button.on{background:linear-gradient(160deg,#2f8ec4,#1f6d9e);border-color:#4dabd
 input[type=range]{width:100%;accent-color:#f0b41c;background:transparent;margin-top:2px}
 .row{display:flex;gap:5px}.row>*{flex:1}
 .sp{font-size:8.5px;color:#4f6d82;letter-spacing:.1em;text-align:center;margin-top:9px;line-height:1.5}
+#drv{position:fixed;inset:auto 0 0 0;padding:0 16px 18px;z-index:18;display:none;
+  justify-content:space-between;align-items:flex-end;pointer-events:none}
+#drv.show{display:flex}
+#drv > *{pointer-events:auto}
+#spd{position:fixed;left:50%;transform:translateX(-50%);bottom:150px;text-align:center;
+  font-variant-numeric:tabular-nums;pointer-events:none}
+#spd b{font-size:44px;font-weight:700;color:#eaf6ff;text-shadow:0 2px 14px rgba(0,0,0,.75);letter-spacing:-.02em}
+#spd i{display:block;font-style:normal;font-size:9px;letter-spacing:.3em;color:#8fb4cc;margin-top:-2px}
+.pad{width:78px;height:78px;border-radius:50%;font-size:22px;font-weight:700;
+  background:rgba(14,28,38,.80);border:1px solid #2c485c;color:#cfe6f6;backdrop-filter:blur(8px);
+  display:flex;align-items:center;justify-content:center;box-shadow:0 8px 22px rgba(0,0,0,.45);
+  touch-action:none;user-select:none}
+.pad.act{background:linear-gradient(160deg,#2f8ec4,#1c6b9c);border-color:#5cc0f0;color:#fff;transform:scale(.94)}
+.pad.big{width:92px;height:92px;font-size:12px;letter-spacing:.1em}
+#pA.act{background:linear-gradient(160deg,#2fa84e,#1c7a38);border-color:#57d67d}
+#pB.act{background:linear-gradient(160deg,#c23c2a,#8e2a1d);border-color:#ef6a55}
+.pgrp{display:flex;gap:12px;align-items:flex-end}
 </style>
 </head>
 <body>
@@ -52,6 +69,12 @@ input[type=range]{width:100%;accent-color:#f0b41c;background:transparent;margin-
 </div>
 <div id="stats">loading…</div>
 <div id="burger">☰</div>
+<div id="drv">
+  <div class="pgrp"><div class="pad" id="pL">◀</div><div class="pad" id="pR">▶</div></div>
+  <div class="pgrp"><div class="pad big" id="pB">BRAKE</div><div class="pad big" id="pA">DRIVE</div></div>
+  <div id="spd"><b id="spdv">0</b><i>KM / H</i></div>
+</div>
+
 <div id="panel">
   <div class="lbl">CAMERA</div>
   <div class="grid">
@@ -64,13 +87,14 @@ input[type=range]{width:100%;accent-color:#f0b41c;background:transparent;margin-
   <div class="grid"><button data-v="saloon">Saloon</button><button data-v="aisle">Aisle</button></div>
   <div class="lbl">ANIMATION</div>
   <div class="grid">
-    <button id="bDoors">Doors</button><button id="bDrive">Drive</button>
+    <button id="bDoors">Doors</button><button id="bDrive">Drive it</button>
     <button id="bNight">Night</button><button id="bWire">Wire</button>
   </div>
+  <div class="row" style="margin-top:5px"><button id="bCab">Cab view (1st person)</button></div>
   <div class="lbl">ARTICULATION</div>
   <input id="bend" type="range" min="-26" max="26" value="0" step="0.5">
   <div class="row" style="margin-top:6px"><button id="bAuto" class="on">Auto bend</button></div>
-  <div class="sp">drag · orbit &nbsp;|&nbsp; pinch / wheel · zoom</div>
+  <div class="sp">drag · orbit &nbsp;|&nbsp; pinch / wheel · zoom<br>driving: pads, or WASD / arrows</div>
 </div>
 <script>/**
  * @license
@@ -289,7 +313,7 @@ function liveryTexture(x0, x1, section){
 /* ============================================================
    Part 2 : materials, components, interior, assembly, runtime
    ============================================================ */
-let scene, camera, renderer, clock, root, frontG, rearPivot, rearG, bellows=[], wheels=[], doorLeaves=[],
+let scene, camera, renderer, clock, root, frontG, rearPivot, rearG, propG=null, bellows=[], wheels=[], doorLeaves=[],
     poles=[], wipers=[], steer=null, groundMat=null, headL=[], tailL=[], interiorLights=[];
 const S = { doors:0, doorsTarget:0, bend:0, bendAuto:true, speed:0, drive:false, night:false, wheelRot:0, t:0 };
 
@@ -400,8 +424,10 @@ function makeDoor(parent, d){
     leaf.userData={ side:s2, hinge:(x0+x1)/2, w };
     grp.add(leaf); doorLeaves.push(leaf); leaf.traverse(o=>{o.castShadow=true;});
   }
-  // aperture surround, step tread and sill
-  parent.add(box(x1-x0+0.11, 2.36, 0.02, (x0+x1)/2, 1.44, CFG.HW-0.05, M.doorBar));
+  // aperture surround: a frame, not a panel, so the doorway is a real opening
+  parent.add(box(0.075, 2.36, 0.055, x0-0.038, 1.44, CFG.HW-0.05, M.doorBar));
+  parent.add(box(0.075, 2.36, 0.055, x1+0.038, 1.44, CFG.HW-0.05, M.doorBar));
+  parent.add(box(x1-x0+0.15, 0.085, 0.055, (x0+x1)/2, 2.585, CFG.HW-0.05, M.doorBar));
   parent.add(box(x1-x0, 0.05, 0.34, (x0+x1)/2, 0.345, CFG.HW-0.20,
     new T.MeshStandardMaterial({color:0xefb61c,roughness:0.42,envMapIntensity:0.5})));
   parent.add(box(x1-x0, 0.14, 0.05, (x0+x1)/2, 0.27, CFG.HW-0.03, M.doorBar));
@@ -473,7 +499,7 @@ function buildFront(p){
   }
   /* --- windscreen (two-piece, black rubber surround) --- */
   const wsMat = new T.MeshPhysicalMaterial({ color:0x08111a, roughness:0.035, metalness:0.02, transparent:true,
-      opacity:0.52, side:T.DoubleSide, clearcoat:1, clearcoatRoughness:0.02, envMapIntensity:2.2 });
+      opacity:0.42, side:T.DoubleSide, clearcoat:1, clearcoatRoughness:0.02, envMapIntensity:1.4 });
   p.add(wedge(RF-0.10, 1.36, HWF-0.01, TIP-0.05, 2.04, wsMat, 1, 52, 0.30));
   p.add(wedge(RF-0.03, 0.10, HWF, TIP-0.04, 1.35, M.blackPlastic, 1, 48));
   p.add(wedge(RF-0.34, 0.11, HWF-0.10, TIP-0.36, 2.73, M.blackPlastic, 1, 48));
@@ -620,9 +646,19 @@ function buildInterior(p, sec){
   const inm=new T.MeshStandardMaterial({color:0xb6bbc0,roughness:0.9,side:T.DoubleSide});
   const inl=new T.MeshStandardMaterial({color:0x8f959b,roughness:0.9,side:T.DoubleSide});
   const CEIL=[]; for(let i=9;i<=23;i++) CEIL.push(i);
-  p.add(new T.Mesh(partialShell(xr[0]+0.05,xr[1]-0.05,CEIL,0.045,sec),inm));
-  p.add(new T.Mesh(partialShell(xr[0]+0.05,xr[1]-0.05,[0,1,2,3,4,5,6],0.05,sec),inl));
-  p.add(new T.Mesh(partialShell(xr[0]+0.05,xr[1]-0.05,[26,27,28,29,30,31,0],0.05,sec),inl));
+  const A=xr[0]+0.05, B2=xr[1]-0.05, REF=[A,B2];
+  p.add(new T.Mesh(partialShell(A,B2,CEIL,0.045,sec,REF),inm));
+  p.add(new T.Mesh(partialShell(A,B2,[0,1,2,3],0.05,sec,REF),inl));          // floor pan
+  p.add(new T.Mesh(partialShell(A,B2,[29,30,31,0],0.05,sec,REF),inl));
+  p.add(new T.Mesh(partialShell(A,B2,[26,27,28,29],0.05,sec,REF),inl));      // offside wall
+  // entrance side: break the waist wall at every doorway so the saloon is
+  // visible through an open door, and the street visible from inside
+  const ds = CFG.DOORS.filter(d=>d.s===sec)
+        .map(d=>[Math.min(d.x[0],d.x[1])-0.06, Math.max(d.x[0],d.x[1])+0.06])
+        .sort((a,b)=>a[0]-b[0]);
+  let cur=A;
+  for(const d of ds){ if(d[0]-cur>0.12) p.add(new T.Mesh(partialShell(cur,d[0],[3,4,5,6],0.05,sec,REF),inl)); cur=d[1]; }
+  if(B2-cur>0.12) p.add(new T.Mesh(partialShell(cur,B2,[3,4,5,6],0.05,sec,REF),inl));
   // ceiling light strips + grilles
   for(const s of [-1,1]){
     const n=Math.floor(Math.abs(xr[1]-xr[0])/1.5);
@@ -771,27 +807,33 @@ function buildEnvironment(){
     const pv=new T.Mesh(new T.BoxGeometry(160,0.16,8), new T.MeshStandardMaterial({color:0x7a766f,roughness:0.95}));
     pv.position.set(0,0.08,s*10.3); pv.receiveShadow=true; scene.add(pv);
   }
-  // lane markings
-  for(let i=-14;i<14;i++){ const m=new T.Mesh(new T.PlaneGeometry(2.6,0.14), new T.MeshStandardMaterial({color:0xdcdcd2,roughness:0.9}));
-    m.rotation.x=-Math.PI/2; m.position.set(i*6,0.012,-3.4); scene.add(m); }
-  // overhead trolley wires + masts
-  const wm=new T.MeshStandardMaterial({color:0x3c3c3e,roughness:0.6,metalness:0.6});
-  for(const s of [-0.35,0.35]){
-    const w=new T.Mesh(new T.CylinderGeometry(0.018,0.018,160,6), wm);
-    w.rotation.z=Math.PI/2; w.position.set(0,5.72,-6.0+s); scene.add(w); }
-  for(let i=-6;i<7;i++){
-    const mast=new T.Mesh(new T.CylinderGeometry(0.09,0.13,8.4,10), new T.MeshStandardMaterial({color:0x9aa0a4,roughness:0.6,metalness:0.4}));
-    mast.position.set(i*22,4.2,7.4); mast.castShadow=true; scene.add(mast);
-    const arm=new T.Mesh(new T.CylinderGeometry(0.035,0.035,13.6,8), wm);
-    arm.rotation.z=Math.PI/2; arm.position.set(i*22,7.9,0.6); scene.add(arm);
-  }
-  // some trees for backdrop
-  for(let i=0;i<18;i++){
-    const x=(Math.random()-0.5)*150, z=(Math.random()>0.5?1:-1)*(15+Math.random()*10);
-    const tr=new T.Mesh(new T.CylinderGeometry(0.16,0.24,2.4,7), new T.MeshStandardMaterial({color:0x5a4634,roughness:1}));
-    tr.position.set(x,1.2,z); scene.add(tr);
-    const cr=new T.Mesh(new T.IcosahedronGeometry(1.9+Math.random(),1), new T.MeshStandardMaterial({color:new T.Color().setHSL(0.28,0.4,0.16+Math.random()*0.08),roughness:1,flatShading:true}));
-    cr.position.set(x,3.4+Math.random(),z); cr.castShadow=true; scene.add(cr);
+  // ---- repeating scenery tile (period TILE) so driving never runs out of road ----
+  propG = new T.Group(); scene.add(propG);
+  const treeSeed = [];
+  for(let i=0;i<6;i++) treeSeed.push([Math.random()*TILE, (Math.random()>0.5?1:-1)*(15+Math.random()*10),
+                                      1.9+Math.random()*0.9, 0.16+Math.random()*0.08, Math.random()]);
+  const wm2 = new T.MeshStandardMaterial({color:0x3c3c3e,roughness:0.6,metalness:0.6});
+  for(let t=-3;t<=3;t++){
+    const base = t*TILE;
+    for(let k=0;k<TILE/6;k++){
+      const m=new T.Mesh(new T.PlaneGeometry(2.6,0.14), new T.MeshStandardMaterial({color:0xdcdcd2,roughness:0.9}));
+      m.rotation.x=-Math.PI/2; m.position.set(base+k*6,0.012,-3.4); propG.add(m);
+    }
+    for(let k=0;k<3;k++){
+      const mx = base+k*22;
+      const mast=new T.Mesh(new T.CylinderGeometry(0.09,0.13,8.4,10), new T.MeshStandardMaterial({color:0x9aa0a4,roughness:0.6,metalness:0.4}));
+      mast.position.set(mx,4.2,7.4); mast.castShadow=true; propG.add(mast);
+      const arm=new T.Mesh(new T.CylinderGeometry(0.035,0.035,13.6,8), wm2);
+      arm.rotation.z=Math.PI/2; arm.position.set(mx,7.9,0.6); propG.add(arm);
+    }
+    for(const q of treeSeed){
+      const x=base+q[0], z=q[1];
+      const tr=new T.Mesh(new T.CylinderGeometry(q[3],q[3]*1.5,2.4,7), new T.MeshStandardMaterial({color:0x5a4634,roughness:1}));
+      tr.position.set(x,1.2,z); propG.add(tr);
+      const cr=new T.Mesh(new T.IcosahedronGeometry(q[2],1),
+        new T.MeshStandardMaterial({color:new T.Color().setHSL(0.28,0.4,0.16+q[4]*0.08),roughness:1,flatShading:true}));
+      cr.position.set(x,3.4+q[4],z); cr.castShadow=true; propG.add(cr);
+    }
   }
 }
 
@@ -884,17 +926,102 @@ function sideDetails(parent, sec){
     txt(g,'BlueDrive',368,140,82,'#1b5f9c',400,'left');
     g.strokeStyle='#141414'; g.lineWidth=7; g.beginPath(); g.moveTo(56,196); g.lineTo(760,196); g.lineTo(690,232); g.stroke(); }));
 }
+
+/* ============================================================
+   DOOR BUZZER — synthesised, no audio files (keeps the file self-contained).
+   Škoda/Solaris pattern: a harsh ~2.4 kHz pulse train while the leaves close,
+   finished off by the pneumatic release hiss.
+   ============================================================ */
+let AC = null;
+function audioReady(){
+  if(!AC){ const K = window.AudioContext || window.webkitAudioContext; if(!K) return false; AC = new K(); }
+  if(AC.state === 'suspended') AC.resume();
+  return true;
+}
+function pulse(t, f, dur, vol){
+  const o = AC.createOscillator(), o2 = AC.createOscillator(), g = AC.createGain(), bp = AC.createBiquadFilter();
+  o.type='square';  o.frequency.setValueAtTime(f, t);
+  o2.type='square'; o2.frequency.setValueAtTime(f*0.5, t);
+  bp.type='bandpass'; bp.frequency.setValueAtTime(f, t); bp.Q.setValueAtTime(2.2, t);
+  const g2 = AC.createGain(); g2.gain.setValueAtTime(0.35, t);
+  g.gain.setValueAtTime(0.0001, t);
+  g.gain.exponentialRampToValueAtTime(vol, t+0.008);
+  g.gain.setValueAtTime(vol, t+dur-0.02);
+  g.gain.exponentialRampToValueAtTime(0.0001, t+dur);
+  o.connect(bp); o2.connect(g2); g2.connect(bp); bp.connect(g); g.connect(AC.destination);
+  o.start(t); o2.start(t); o.stop(t+dur+0.02); o2.stop(t+dur+0.02);
+}
+function hiss(t, dur, vol){
+  const n = AC.sampleRate*dur, buf = AC.createBuffer(1, n, AC.sampleRate), d = buf.getChannelData(0);
+  for(let i=0;i<n;i++) d[i] = (Math.random()*2-1) * (1 - i/n);
+  const src = AC.createBufferSource(); src.buffer = buf;
+  const hp = AC.createBiquadFilter(); hp.type='highpass'; hp.frequency.value=1600;
+  const g = AC.createGain(); g.gain.setValueAtTime(vol, t); g.gain.exponentialRampToValueAtTime(0.0001, t+dur);
+  src.connect(hp); hp.connect(g); g.connect(AC.destination); src.start(t); src.stop(t+dur);
+}
+function doorBuzzer(){
+  if(!audioReady()) return;
+  const t0 = AC.currentTime + 0.02;
+  for(let i=0;i<6;i++) pulse(t0 + i*0.30, 2380, 0.135, 0.13);   // ~3.3 Hz pulse train
+  hiss(t0 + 1.86, 0.42, 0.055);                                  // door seal releasing
+}
+
+/* ============================================================
+   DRIVING MODE — cab view with throttle, brake and steering
+   ============================================================ */
+const DRV = { on:false, fpv:false, v:0, throttle:0, brake:0, steer:0, steerIn:0, lat:0, head:0, dist:0, keys:{} };
+const TILE = 66;                                   // scenery repeat period
+function driveStep(dt){
+  const D = DRV;
+  const acc = D.throttle * 1.35 - D.brake * 3.6 - (D.throttle ? 0 : 0.35);
+  D.v = Math.max(0, Math.min(19.5, D.v + acc*dt));               // m/s  (~70 km/h)
+  D.steer += (D.steerIn - D.steer) * Math.min(1, dt*4.5);
+  const grip = Math.min(1, D.v/4.5);
+  D.head += D.steer * 0.42 * grip * dt * (D.v>0.2?1:0);
+  D.head = Math.max(-0.42, Math.min(0.42, D.head));
+  D.lat += D.v * Math.sin(D.head) * dt;
+  if(Math.abs(D.lat) > 3.5){                                      // kerb nudge
+    D.lat = Math.sign(D.lat)*3.5; D.head -= Math.sign(D.lat)*dt*0.8; D.v *= 0.985;
+  }
+  D.head *= (1 - dt*0.55);                                        // self-centring
+  D.dist += D.v * Math.cos(D.head) * dt;
+  root.position.z = D.lat; root.rotation.y = D.head;
+  if(propG) propG.position.x = -(D.dist % TILE);
+  if(groundMat && groundMat.map) groundMat.map.offset.x = -D.dist/14.286;
+  S.speed = D.v;
+  const kmh = Math.round(D.v*3.6);
+  const el = document.getElementById('spdv'); if(el && el.textContent != kmh) el.textContent = kmh;
+}
+function bindDriveControls(){
+  const D = DRV;
+  const hold = (id, set) => { const e = document.getElementById(id); if(!e) return;
+    const on = ev=>{ set(1); e.classList.add('act'); ev.preventDefault(); };
+    const off = ev=>{ set(0); e.classList.remove('act'); if(ev) ev.preventDefault(); };
+    e.addEventListener('pointerdown', on); e.addEventListener('pointerup', off);
+    e.addEventListener('pointerleave', off); e.addEventListener('pointercancel', off);
+  };
+  hold('pA', v=>D.throttle=v); hold('pB', v=>D.brake=v);
+  hold('pL', v=>D.steerIn=-v); hold('pR', v=>D.steerIn=v);
+  addEventListener('keydown', e=>{ const k=e.key.toLowerCase();
+    if(k==='arrowup'||k==='w') D.throttle=1; if(k==='arrowdown'||k==='s') D.brake=1;
+    if(k==='arrowleft'||k==='a') D.steerIn=-1; if(k==='arrowright'||k==='d') D.steerIn=1; });
+  addEventListener('keyup', e=>{ const k=e.key.toLowerCase();
+    if(k==='arrowup'||k==='w') D.throttle=0; if(k==='arrowdown'||k==='s') D.brake=0;
+    if((k==='arrowleft'||k==='a') && D.steerIn<0) D.steerIn=0;
+    if((k==='arrowright'||k==='d') && D.steerIn>0) D.steerIn=0; });
+}
 /* ============================================================
    Part 3 : partial shells, assembly, camera, UI, animation
    ============================================================ */
-function partialShell(x0,x1,idxList,inset,sec){
+function partialShell(x0,x1,idxList,inset,sec,ref){
   const N=40, L=x1-x0, s=1-inset, pos=[],uv=[],idx=[];
+  const RX0=ref?ref[0]:x0, RX1=ref?ref[1]:x1;
   const nose = sec==='F'?1.90:0, tail = sec==='R'?0.75:0;
   const W = idxList.length;
   for(let i=0;i<=N;i++){
     const x=x0+L*i/N; let sw=1,sh=1;
-    if(nose>0){ const d=(x1-x)/nose; if(d<1){ const t=1-d,f=1-Math.sqrt(Math.max(0,1-t*t)); sw=1-0.19*f; sh=1-0.055*f; } }
-    if(tail>0){ const d=(x-x0)/tail; if(d<1){ const t=1-d,f=1-Math.sqrt(Math.max(0,1-t*t)); sw=1-0.07*f; sh=1-0.04*f; } }
+    if(nose>0){ const d=(RX1-x)/nose; if(d<1){ const t=1-d,f=1-Math.sqrt(Math.max(0,1-t*t)); sw=1-0.19*f; sh=1-0.055*f; } }
+    if(tail>0){ const d=(x-RX0)/tail; if(d<1){ const t=1-d,f=1-Math.sqrt(Math.max(0,1-t*t)); sw=1-0.07*f; sh=1-0.04*f; } }
     for(let j=0;j<W;j++){ const o=OUT[idxList[j]];
       pos.push(x, CFG.YB+((CFG.YB+(o[1]-CFG.YB)*sh)-CFG.YB)*s, o[0]*sw*s);
       uv.push(i/N, j/(W-1)); }
@@ -958,7 +1085,16 @@ function buildBus(){
 
 /* ---------------- camera / orbit ---------------- */
 const CAM = { th:0.72, ph:1.24, r:22, tgt:new T.Vector3(2.2,1.75,0), rT:22, thT:0.72, phT:1.24 };
+const EYE=new T.Vector3(), AIM=new T.Vector3();
 function applyCam(){
+  if(DRV.fpv && root){                                    // seated driver's eye point
+    if(camera.fov!==70){ camera.fov=70; camera.updateProjectionMatrix(); }
+    EYE.set(9.10,1.69,-0.58); root.localToWorld(EYE);
+    AIM.set(11.90,1.10,-0.50); root.localToWorld(AIM);
+    camera.position.lerp(EYE,0.6); camera.lookAt(AIM); return;
+  }
+  if(camera.fov!==38){ camera.fov=38; camera.updateProjectionMatrix(); }
+  if(DRV.on && root) CAM.tgt.z = root.position.z;
   CAM.th += (CAM.thT-CAM.th)*0.12; CAM.ph += (CAM.phT-CAM.ph)*0.12; CAM.r += (CAM.rT-CAM.r)*0.10;
   const p=CAM.ph, t=CAM.th, r=CAM.r;
   camera.position.set(CAM.tgt.x + r*Math.sin(p)*Math.cos(t), CAM.tgt.y + r*Math.cos(p), CAM.tgt.z + r*Math.sin(p)*Math.sin(t));
@@ -1044,7 +1180,7 @@ function init(){
   initLights(); initMaterials(); buildEnvironment(); buildBus();
   initControls(cv);
   addEventListener('resize',()=>{ camera.aspect=innerWidth/innerHeight; camera.updateProjectionMatrix(); renderer.setSize(innerWidth,innerHeight); });
-  bindUI(); setView('hero'); animate();
+  bindUI(); bindDriveControls(); setView('hero'); animate();
   document.getElementById('load').style.opacity=0;
   setTimeout(()=>document.getElementById('load').remove(),700);
   const tri=renderer.info.render.triangles;
@@ -1054,13 +1190,21 @@ function init(){
 function bindUI(){
   document.querySelectorAll('[data-v]').forEach(b=>b.onclick=()=>{
     document.querySelectorAll('[data-v]').forEach(x=>x.classList.remove('on'));
-    b.classList.add('on'); setView(b.dataset.v); });
+    b.classList.add('on'); DRV.fpv=false;
+    document.getElementById('bCab').classList.remove('on'); setView(b.dataset.v); });
   const tog=(id,fn)=>{ const e=document.getElementById(id); e.onclick=()=>{ e.classList.toggle('on'); fn(e.classList.contains('on')); }; };
-  tog('bDoors', v=>{ S.doorsTarget=v?1:0; });
-  tog('bDrive', v=>{ S.drive=v; });
+  tog('bDoors', v=>{ S.doorsTarget=v?1:0; if(!v) doorBuzzer(); });   // buzzer on close
+  tog('bDrive', v=>{
+    DRV.on=v; document.getElementById('drv').classList.toggle('show',v);
+    if(v){ DRV.fpv=true; audioReady(); document.getElementById('bCab').classList.add('on'); }
+    else { DRV.fpv=false; DRV.throttle=DRV.brake=DRV.steerIn=0;
+           document.getElementById('bCab').classList.remove('on'); }
+  });
+  document.getElementById('bCab').onclick=()=>{ DRV.fpv=!DRV.fpv;
+    document.getElementById('bCab').classList.toggle('on',DRV.fpv); };
   tog('bNight', v=>setNight(v));
   tog('bWire', v=>{ root.traverse(o=>{ if(o.isMesh && o.material && 'wireframe' in o.material) o.material.wireframe=v; }); });
-  const bs=document.getElementById('bend'); bs.oninput=()=>{ S.bendAuto=false; S.bend=+bs.value*Math.PI/180; };
+  const bs=document.getElementById('bend'); bs.oninput=()=>{ S.bendAuto=false; DRV.on&&0; S.bend=+bs.value*Math.PI/180; };
   document.getElementById('bAuto').onclick=()=>{ S.bendAuto=!S.bendAuto; document.getElementById('bAuto').classList.toggle('on',S.bendAuto); };
   document.getElementById('panel').addEventListener('touchmove',e=>e.stopPropagation());
   document.getElementById('burger').onclick=()=>document.getElementById('panel').classList.toggle('hide');
@@ -1080,22 +1224,21 @@ function animate(){
     l.rotation.y = -s*out*0.055;
   }
   // drive
-  const tgtSpeed = S.drive?7.5:0;
-  S.speed += (tgtSpeed-S.speed)*dt*0.9;
+  if(DRV.on) driveStep(dt); else { S.speed += (0-S.speed)*dt*1.4;
+    if(groundMat && groundMat.map) groundMat.map.offset.x -= S.speed*dt/14.286; }
   S.wheelRot -= S.speed*dt/CFG.WR;
   for(const w of wheels) w.rotation.z=S.wheelRot;
-  if(groundMat && groundMat.map){ groundMat.map.offset.x -= S.speed*dt/14; }
-  // articulation
-  if(S.bendAuto) S.bend = Math.sin(S.t*0.42)*0.20*(S.drive?1:0.55);
+  // articulation: trails the steering while driving, otherwise auto / slider
+  if(DRV.on) S.bend = -DRV.steer*0.26*Math.min(1,DRV.v/5.5);
+  else if(S.bendAuto) S.bend = Math.sin(S.t*0.42)*0.20*0.55;
   rearPivot.rotation.y += (S.bend-rearPivot.rotation.y)*Math.min(1,dt*2.5);
   // rear section trails behind: keep its joint face against the front one
   rearG.position.set(0,0,0);
   updateBellows();
-  // steering + wipers
-  if(steer) steer.rotation.y = Math.sin(S.t*0.42)*0.9*(S.drive?1:0.3);
-  const fw=wheels[0],fw2=wheels[1];
-  const sa=-Math.sin(S.t*0.42)*0.16*(S.drive?1:0.3);
-  if(fw){ fw.rotation.y=sa; fw2.rotation.y=sa; }
+  // steering
+  const sIn = DRV.on ? DRV.steer : Math.sin(S.t*0.42)*0.30;
+  if(steer) steer.rotation.y = sIn*2.4;
+  if(wheels[0]){ wheels[0].rotation.y = -sIn*0.36; wheels[1].rotation.y = -sIn*0.36; }
   // trolley pole sway
   for(const p of poles) p.rotation.z = Math.sin(S.t*0.7)*0.012;
   applyCam();
