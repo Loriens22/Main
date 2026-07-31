@@ -83,17 +83,57 @@ input[type=range]{width:100%;accent-color:#f0b41c;background:transparent;margin-
 .ibtns button:active{background:#3f8fc4}
 #infReset{flex:0 0 34px !important}
 .ivoice{font-size:8px;color:#6a6252;text-align:center;margin-top:6px;letter-spacing:.05em}
+#cat{position:fixed;inset:0;z-index:60;display:none;align-items:center;justify-content:center;
+  background:radial-gradient(120% 90% at 50% 0%,rgba(20,44,64,.96),rgba(6,11,16,.985))}
+#cat.show{display:flex}
+.catbox{width:min(760px,94vw);max-height:92vh;overflow-y:auto;padding:22px}
+.catbox h2{font-size:13px;letter-spacing:.3em;color:#7fc4ea;text-align:center;margin-bottom:18px;font-weight:700}
+.cards{display:grid;grid-template-columns:1fr 1fr;gap:14px}
+@media(max-width:620px){.cards{grid-template-columns:1fr}}
+.card{background:rgba(14,26,36,.9);border:1px solid #23394a;border-radius:16px;padding:12px;cursor:pointer;
+  transition:.18s}
+.card.on{border-color:#4dabdd;box-shadow:0 0 0 1px #4dabdd,0 14px 40px rgba(0,0,0,.5)}
+.card b{display:block;font-size:14px;color:#eaf4fb;margin-top:10px;letter-spacing:.05em}
+.card i{display:block;font-style:normal;font-size:10px;color:#f0b41c;letter-spacing:.1em;margin-top:3px}
+.card p{font-size:10.5px;color:#8fadc2;line-height:1.5;margin-top:7px}
+.thumb{height:104px;border-radius:11px;position:relative;overflow:hidden}
+.thumb.sk{background:linear-gradient(180deg,#8ed0f0 0%,#4aa8d8 54%,#4aa8d8 62%,#f0b41c 63%,#f0b41c 82%,#2b7fb4 83%)}
+.thumb.ik{background:linear-gradient(180deg,#cfe6f2 0%,#f2c033 22%,#f2c033 62%,#122a63 64%,#1c3f8f 65%,#1c3f8f 100%)}
+.thumb span{position:absolute;left:8%;right:8%;top:34%;height:26%;border-radius:4px;
+  background:repeating-linear-gradient(90deg,#16202a 0 13%,rgba(0,0,0,0) 13% 17%)}
+#catGo{display:block;width:100%;margin-top:16px;padding:13px;font-size:12px;letter-spacing:.16em;
+  background:linear-gradient(160deg,#2f8ec4,#1f6d9e);border-color:#4dabdd;color:#fff;font-weight:700}
 </style>
 </head>
 <body>
 <canvas id="c"></canvas>
 <div id="load"><b>ŠKODA 27Tr SOLARIS</b><div class="bar"><i></i></div><i>BUILDING GEOMETRY · SOFIA · #1650</i></div>
 <div id="hud">
-  <h1>ŠKODA 27Tr SOLARIS &nbsp;·&nbsp; <em>#1650</em></h1>
+  <h1 id="vehName">ŠKODA 27Tr SOLARIS &nbsp;·&nbsp; #1650</h1>
   <p>СТОЛИЧЕН АВТОТРАНСПОРТ · ЛИНИЯ 9 · ПЛ. СТОЧНА ГАРА</p>
 </div>
 <div id="stats">loading…</div>
 <div id="burger">☰</div>
+<div id="cat">
+  <div class="catbox">
+    <h2>ИЗБЕРИ ТРОЛЕЙБУС</h2>
+    <div class="cards">
+      <div class="card on" data-veh="skoda">
+        <div class="thumb sk"><span></span></div>
+        <b>ŠKODA 27Tr SOLARIS</b>
+        <i>#1650 · 2021 · 18.0 m · нископодов</i>
+        <p>Модерен нископодов тролейбус, 4 врати, климатик, BlueDrive.</p>
+      </div>
+      <div class="card" data-veh="ikarus">
+        <div class="thumb ik"><span></span></div>
+        <b>IKARUS 280</b>
+        <i>#2105 · 1985–2005 · 16.5 m · висок под</i>
+        <p>Класическият унгарски съчленен тролейбус в жълто-синята ливрея на София.</p>
+      </div>
+    </div>
+    <button id="catGo">ЗАПОЧНИ</button>
+  </div>
+</div>
 <div id="inf">
   <div class="ibar"><b>bultec</b><span>BT902</span></div>
   <div class="iscr">
@@ -118,6 +158,7 @@ input[type=range]{width:100%;accent-color:#f0b41c;background:transparent;margin-
 </div>
 
 <div id="panel">
+  <div class="row"><button id="bCat">🚎 Смени тролейбуса</button></div>
   <div class="lbl">CAMERA</div>
   <div class="grid">
     <button data-v="hero" class="on">Hero 3/4</button><button data-v="side">Side</button>
@@ -480,7 +521,7 @@ function makeDoor(parent, d){
     leaf.add(box(0.055,0.085,0.028, cx-s2*(w/2-0.115), 1.16, 0.034,
       new T.MeshStandardMaterial({color:0x1f8a3c,emissive:0x0c4f1e,emissiveIntensity:0.5,roughness:0.4})));
     leaf.position.set((x0+x1)/2, 0, z);
-    leaf.userData={ side:s2, hinge:(x0+x1)/2, w };
+    leaf.userData={ side:s2, hinge:(x0+x1)/2, w, hw:z };
     grp.add(leaf); doorLeaves.push(leaf); leaf.traverse(o=>{o.castShadow=true;});
   }
   // aperture surround: a frame, not a panel, so the doorway is a real opening
@@ -1156,8 +1197,9 @@ const EYE=new T.Vector3(), AIM=new T.Vector3();
 function applyCam(){
   if(DRV.fpv && root){                                    // seated driver's eye point
     if(camera.fov!==70){ camera.fov=70; camera.updateProjectionMatrix(); }
-    EYE.set(9.10,1.69,-0.58); root.localToWorld(EYE);
-    AIM.set(11.90,1.10,-0.50); root.localToWorld(AIM);
+    const _e=(VEH[CURVEH]&&VEH[CURVEH].eye)||[9.10,1.69,-0.58], _a=(VEH[CURVEH]&&VEH[CURVEH].aim)||[11.90,1.10,-0.50];
+    EYE.set(_e[0],_e[1],_e[2]); root.localToWorld(EYE);
+    AIM.set(_a[0],_a[1],_a[2]); root.localToWorld(AIM);
     camera.position.lerp(EYE,0.6); camera.lookAt(AIM); return;
   }
   if(camera.fov!==38){ camera.fov=38; camera.updateProjectionMatrix(); }
@@ -1248,10 +1290,10 @@ function init(){
   camera=new T.PerspectiveCamera(38,innerWidth/innerHeight,0.1,600);
   clock=new T.Clock();
   initLights(); initMaterials(); buildEnvironment(); buildBus();
-  buildStopScene(); spawnNPCs(); spawnTraffic();
+  buildStopScene(); buildFleet(); spawnNPCs(); spawnTraffic();
   initControls(cv);
   addEventListener('resize',()=>{ camera.aspect=innerWidth/innerHeight; camera.updateProjectionMatrix(); renderer.setSize(innerWidth,innerHeight); });
-  bindUI(); bindDriveControls(); bindInformator(); setView('hero'); animate();
+  bindUI(); bindDriveControls(); bindInformator(); bindCatalog(); setView('hero'); animate();
   document.getElementById('load').style.opacity=0;
   setTimeout(()=>document.getElementById('load').remove(),700);
   const tri=renderer.info.render.triangles;
@@ -1264,7 +1306,7 @@ function bindUI(){
     b.classList.add('on'); DRV.fpv=false;
     document.getElementById('bCab').classList.remove('on'); setView(b.dataset.v); });
   const tog=(id,fn)=>{ const e=document.getElementById(id); e.onclick=()=>{ e.classList.toggle('on'); fn(e.classList.contains('on')); }; };
-  tog('bDoors', v=>{ S.doorsTarget=v?1:0; if(!v) doorBuzzer(); });   // buzzer on close
+  tog('bDoors', v=>{ if(v){ S.doorsTarget=1; S.slam=false; } else doorCloseSequence(); });
   tog('bInf', v=>{ document.getElementById('inf').classList.toggle('show',v); if(v) audioReady(); });
   tog('bDrive', v=>{
     DRV.on=v; document.getElementById('drv').classList.toggle('show',v);
@@ -1289,11 +1331,13 @@ function animate(){
   requestAnimationFrame(animate);
   const dt=Math.min(clock.getDelta(),0.05); S.t+=dt;
   // doors
-  S.doors += (S.doorsTarget-S.doors)*Math.min(1,dt*3.2);
+  S.doors += (S.doorsTarget-S.doors)*Math.min(1, dt*(S.doorsTarget>S.doors ? 3.0 : (S.slam?20:4.0)));
+  if(S.doors<0.02){ S.doors=0; S.slam=false; }
+  updateDoorCam(dt);
   for(const l of doorLeaves){
     const s=l.userData.side, o=S.doors, w=l.userData.w;
     const out=Math.min(1,o*2.2);                 // 1) glide clear of the aperture
-    l.position.z = CFG.HW-0.015 + out*0.155;
+    l.position.z = (l.userData.hw!==undefined?l.userData.hw:CFG.HW-0.015) + out*0.155;
     l.position.x = l.userData.hinge + s*Math.max(0,(o-0.30)/0.70)*(w*0.96);
     l.rotation.y = -s*out*0.055;
   }
@@ -1309,6 +1353,8 @@ function animate(){
   // rear section trails behind: keep its joint face against the front one
   rearG.position.set(0,0,0);
   updateBellows();
+  if(ikarusG && ikarusG.visible){ ikarusG.userData.pivot.rotation.y = rearPivot.rotation.y;
+    updateIkarusBellows(ikarusG); }
   // the stop and its passengers ride the same treadmill as the scenery
   if(routeG){ updateRouteFrame(); streamProps(); updateNPCs(dt);
     for(let i=0;i<STOPGRP.length;i++) STOPGRP[i].visible = Math.abs(INF.list[i].at - DRV.dist) < 260;
@@ -3735,6 +3781,397 @@ function buildStopScene(){
   });
   buildProps();
   buildSignals();
+}
+/* ============================================================
+   Part 8 : IKARUS 280 (Sofia yellow/blue), vehicle catalogue,
+            and the loud door-closing sequence
+   ============================================================ */
+const IK = {
+  FX:[0.55, 9.45], RX:[-7.05,-0.55],          // 16.5 m over both sections
+  HW:1.25, Y0:0.36, Y1:3.06, WR:0.52,
+  AXLE:{ front:7.30, mid:1.10, rear:-3.55 },
+  DOORS:[ [5.20,6.40], [2.30,3.50], [-1.30,-2.50], [-4.90,-6.10] ],
+  GL_F:[[0.80,2.10],[3.70,5.00],[6.65,7.00]],
+  GL_FL:[[0.80,2.55],[2.70,4.45],[4.60,6.35],[6.50,8.25]],
+  GL_R:[[-0.75,-1.15],[-2.65,-4.75],[-6.25,-6.85]],
+  GL_RL:[[-0.75,-2.55],[-2.70,-4.60],[-4.75,-6.85]],
+  YEL:'#f2c033', BLU:'#1c3f8f', FLEET:'2105'
+};
+/* ---- side elevation skin with alpha-cut windows and doorways ---- */
+function ikSkin(x0, x1, side, sec){
+  const W=4096, H=1024, L=x1-x0;
+  const PX = x=>(x-x0)/L*W;
+  const PY = y=>(1 - (y-IK.Y0)/(IK.Y1-IK.Y0))*H;    // y up -> v down
+  const doors = IK.DOORS.filter(d=> sec==='F' ? d[0]>0 : d[0]<0);
+  const glz = sec==='F' ? (side>0?IK.GL_F:IK.GL_FL) : (side>0?IK.GL_R:IK.GL_RL);
+  return CT(W,H,(g)=>{
+    g.clearRect(0,0,W,H);
+    const band=(ya,yb,c)=>{ const a=PY(ya), b=PY(yb); R(g,0,Math.min(a,b),W,Math.abs(b-a),c); };
+    band(IK.Y0, 1.28, IK.BLU);                        // deep cobalt skirt
+    band(1.24, 1.30, '#122a63');                      // dark pin-stripe at the break
+    band(1.30, IK.Y1, IK.YEL);                        // warm yellow above
+    // panel seams and rivet lines
+    g.globalAlpha=0.18;
+    for(let x=0; x<W; x+=W/((L)/1.18)) R(g,x,PY(IK.Y1),2,H,'#000');
+    R(g,0,PY(2.62),W,3,'#000'); R(g,0,PY(0.62),W,3,'#000');
+    g.globalAlpha=1;
+    // window band surround (black rubber) then cut the glass out
+    band(1.62, 2.60, '#15171a');
+    const cut=(xa,xb,ya,yb,r)=>{ g.save(); g.globalCompositeOperation='destination-out'; g.fillStyle='#000';
+      rrect(g, PX(Math.min(xa,xb)), PY(yb), Math.abs(PX(xb)-PX(xa)), Math.abs(PY(ya)-PY(yb)), r===undefined?14:r);
+      g.fill(); g.restore(); };
+    for(const w of glz) cut(w[0],w[1],1.68,2.54,10);
+    if(side>0) for(const d of doors) cut(d[0],d[1],0.42,2.58,8);
+    // wheel arches
+    const arches = sec==='F' ? [IK.AXLE.front, IK.AXLE.mid] : [IK.AXLE.rear];
+    for(const ax of arches){
+      const cx=PX(ax), rr=0.76, ry=Math.abs(PY(IK.Y0+rr)-PY(IK.Y0));
+      g.save(); g.globalCompositeOperation='destination-out'; g.fillStyle='#000';
+      g.beginPath(); g.ellipse(cx, PY(IK.Y0), rr/L*W, ry, 0, Math.PI, 0); g.fill(); g.restore();
+      g.save(); g.strokeStyle='rgba(10,20,50,0.9)'; g.lineWidth=8;
+      g.beginPath(); g.ellipse(cx, PY(IK.Y0), rr/L*W, ry, 0, Math.PI, 0); g.stroke(); g.restore();
+    }
+    // roof gutter + weathering
+    R(g,0,PY(IK.Y1)+2,W,7,'#1a1c20');
+    const lg=g.createLinearGradient(0,PY(0.36),0,PY(1.30));
+    lg.addColorStop(0,'rgba(20,20,25,0.42)'); lg.addColorStop(1,'rgba(20,20,25,0)');
+    g.fillStyle=lg; g.fillRect(0,PY(1.30),W,PY(0.36)-PY(1.30));
+    noise(g,W,H,2600,0.10);
+  });
+}
+function ikPanel(parent, w, h, x, y, z, tex, faceZ){
+  const m = new T.Mesh(new T.PlaneGeometry(w,h), new T.MeshPhysicalMaterial({
+    map:tex, alphaTest:0.5, side:T.DoubleSide, roughness:0.30, metalness:0.05,
+    clearcoat:0.8, clearcoatRoughness:0.08, envMapIntensity:0.9 }));
+  m.position.set(x,y,z); if(faceZ<0) m.rotation.y=Math.PI;
+  m.castShadow=true; m.receiveShadow=true; parent.add(m); return m;
+}
+function makeIkarus(){
+  const G = new T.Group(); G.name='Ikarus280';
+  const front = new T.Group(); front.name='Body_Front'; G.add(front);
+  const pivot = new T.Group(); pivot.name='ArticPivot'; G.add(pivot);
+  const rear  = new T.Group(); rear.name='Body_Rear';  pivot.add(rear);
+  const doorLeaves=[], wheels=[], seats=[];
+  const yelM = new T.MeshPhysicalMaterial({color:new T.Color(IK.YEL), roughness:0.28, metalness:0.06,
+    clearcoat:0.85, clearcoatRoughness:0.08, envMapIntensity:0.9});
+  const bluM = new T.MeshPhysicalMaterial({color:new T.Color(IK.BLU), roughness:0.42, metalness:0.05, clearcoat:0.4});
+  const blk  = new T.MeshStandardMaterial({color:0x141619, roughness:0.6, metalness:0.05});
+  const glassM = new T.MeshPhysicalMaterial({color:0x0b1218, roughness:0.05, metalness:0,
+    transparent:true, opacity:0.80, side:T.DoubleSide, clearcoat:1, envMapIntensity:1.2});
+  const inW = new T.MeshStandardMaterial({color:0xd6d2c6, roughness:0.9, side:T.DoubleSide});
+  const inF = new T.MeshStandardMaterial({color:0x3a3d40, roughness:0.95, side:T.DoubleSide});
+  const railM= new T.MeshStandardMaterial({color:0xe8c22a, roughness:0.35, metalness:0.35});
+  const B=(p,w,h,d,x,y,z,m)=>{ const b=new T.Mesh(new T.BoxGeometry(w,h,d),m);
+    b.position.set(x,y,z); b.castShadow=true; b.receiveShadow=true; p.add(b); return b; };
+  // ---------- body shells ----------
+  for(const [grp, xr, sec] of [[front, IK.FX,'F'], [rear, IK.RX,'R']]){
+    const L=xr[1]-xr[0], cx=(xr[0]+xr[1])/2, cy=(IK.Y0+IK.Y1)/2, hh=IK.Y1-IK.Y0;
+    ikPanel(grp, L, hh, cx, cy,  IK.HW, ikSkin(xr[0],xr[1], 1, sec),  1);
+    ikPanel(grp, L, hh, cx, cy, -IK.HW, ikSkin(xr[0],xr[1],-1, sec), -1);
+    // roof, slightly cambered, with the black rain gutter
+    const rf=B(grp, L, 0.10, IK.HW*2-0.06, cx, IK.Y1+0.02, 0, yelM);
+    B(grp, L, 0.09, 0.07, cx, IK.Y1-0.02,  IK.HW-0.01, blk);
+    B(grp, L, 0.09, 0.07, cx, IK.Y1-0.02, -IK.HW+0.01, blk);
+    B(grp, L-0.2, 0.16, IK.HW*2-0.5, cx, 0.30, 0, blk);          // underfloor
+    // interior lining and floor
+    const fl=B(grp, L-0.1, 0.06, IK.HW*2-0.22, cx, 0.66, 0, inF);
+    B(grp, L-0.1, 0.05, IK.HW*2-0.22, cx, IK.Y1-0.22, 0, inW);   // ceiling
+    for(const s of [-1,1]) B(grp, L-0.1, 0.98, 0.04, cx, 1.13, s*(IK.HW-0.10), inW);
+    // ceiling light strips
+    for(let i=0;i<Math.floor(L/1.7);i++) for(const s of [-1,1])
+      B(grp, 1.2,0.05,0.14, xr[0]+1.0+i*1.7, IK.Y1-0.26, s*0.55, M.lamp);
+    // yellow handrails: continuous overhead + stanchions
+    for(const s of [-1,1]){
+      const r=new T.Mesh(new T.CylinderGeometry(0.024,0.024,L-0.5,10), railM);
+      r.rotation.z=Math.PI/2; r.position.set(cx, 2.42, s*0.46); grp.add(r);
+      for(let i=0;i<Math.floor(L/1.35);i++){
+        const st=new T.Mesh(new T.CylinderGeometry(0.022,0.022,1.72,10), railM);
+        st.position.set(xr[0]+0.7+i*1.35, 1.56, s*0.46); st.castShadow=true; grp.add(st);
+      }
+    }
+    // glazing panes + seats
+    const gr = sec==='F'?IK.GL_F:IK.GL_R, gl2 = sec==='F'?IK.GL_FL:IK.GL_RL;
+    const pane=(a,b,s)=>{ const p2=new T.Mesh(new T.PlaneGeometry(Math.abs(b-a)-0.04,0.84), glassM);
+      p2.position.set((a+b)/2,2.11,s*(IK.HW+0.005)); if(s<0)p2.rotation.y=Math.PI; grp.add(p2); };
+    for(const w of gr) pane(w[0],w[1],1);
+    for(const w of gl2) pane(w[0],w[1],-1);
+    const rows = sec==='F' ? [1.35,2.05,4.15,4.85,6.95,7.65] : [-2.9,-3.6,-4.3,-6.5,-7.0];
+    for(const rx of rows) for(const s of [-1,1]){
+      if(sec==='F' && s>0 && rx<3.6) continue;
+      const sg=new T.Group(); sg.position.set(rx,0.69,s*0.72); sg.rotation.y=Math.PI/2; grp.add(sg);
+      B(sg,0.46,0.08,0.44,0,0.40,0,new T.MeshStandardMaterial({color:0x27306a,roughness:0.92}));
+      const bk=B(sg,0.44,0.56,0.07,0,0.70,-0.19,new T.MeshStandardMaterial({color:0x27306a,roughness:0.92}));
+      bk.rotation.x=-0.09;
+      B(sg,0.47,0.62,0.04,0,0.71,-0.235,new T.MeshStandardMaterial({color:0x8d9298,roughness:0.6}));
+      B(sg,0.32,0.36,0.32,0,0.18,-0.04,new T.MeshStandardMaterial({color:0x6f757b,roughness:0.7}));
+      seats.push({sec, x:rx, y:0.69, z:s*0.72, taken:false});
+    }
+  }
+  // ---------- doors: yellow frame, big glass, fast plug action ----------
+  for(const d of IK.DOORS){
+    const sec = d[0]>0 ? front : rear;
+    const x0=Math.min(d[0],d[1]), x1=Math.max(d[0],d[1]), w=(x1-x0)/2, z=IK.HW-0.02;
+    B(sec, 0.07,2.30,0.06, x0-0.04, 1.55, z-0.03, blk);
+    B(sec, 0.07,2.30,0.06, x1+0.04, 1.55, z-0.03, blk);
+    B(sec, x1-x0+0.16,0.09,0.06, (x0+x1)/2, 2.66, z-0.03, blk);
+    B(sec, x1-x0,0.05,0.30,(x0+x1)/2,0.44,z-0.16,railM);
+    for(const s of [-1,1]){
+      const leaf=new T.Group(); const cxl=s*w/2;
+      for(const dx of [-1,1]) B(leaf,0.075,2.14,0.05,cxl+dx*(w/2-0.037),1.50,0,yelM);
+      B(leaf, w-0.03,0.10,0.05, cxl, 2.53, 0, yelM);
+      B(leaf, w-0.03,0.10,0.05, cxl, 0.47, 0, yelM);
+      B(leaf, w-0.03,0.09,0.05, cxl, 1.30, 0, yelM);
+      B(leaf, w-0.16,0.74,0.018, cxl, 2.03, 0.012, glassM);
+      B(leaf, w-0.16,0.68,0.018, cxl, 0.90, 0.012, glassM);
+      const gb=new T.Mesh(new T.CylinderGeometry(0.02,0.02,1.5,8), railM);
+      gb.position.set(cxl - s*(w/2-0.14), 1.52, -0.05); leaf.add(gb);
+      leaf.position.set((x0+x1)/2, 0, z);
+      leaf.userData={ side:s, hinge:(x0+x1)/2, w, hw:z };
+      leaf.traverse(o=>{o.castShadow=true;});
+      sec.add(leaf); doorLeaves.push(leaf);
+    }
+  }
+  // ---------- front end ----------
+  const XF=IK.FX[1];
+  B(front, 0.16, 1.02, IK.HW*2, XF+0.05, 0.86, 0, yelM);              // lower front panel
+  B(front, 0.20, 0.40, IK.HW*2+0.04, XF+0.07, 0.44, 0, bluM);         // blue bumper wrap
+  B(front, 0.10, 0.22, IK.HW*2-0.30, XF+0.13, 0.98, 0, blk);          // "smile" recess
+  const fmask = CT(2048,700,(c,w,h)=>{
+    R(c,0,0,w,h,IK.YEL);
+    txt(c, IK.FLEET, w/2, 300, 190, '#141414', 700);
+    R(c,0,h-90,w,90,'#141619');
+  });
+  const fm=new T.Mesh(new T.PlaneGeometry(IK.HW*2-0.06, 1.06), new T.MeshPhysicalMaterial({map:fmask,roughness:0.3,clearcoat:0.8}));
+  fm.position.set(XF+0.14,0.90,0); fm.rotation.y=Math.PI/2; front.add(fm);
+  // windscreen + black surround
+  B(front, 0.12, 1.42, IK.HW*2, XF+0.02, 2.10, 0, blk);
+  const ws=new T.Mesh(new T.PlaneGeometry(IK.HW*2-0.22, 1.24),
+    new T.MeshPhysicalMaterial({color:0x0a1219,roughness:0.04,transparent:true,opacity:0.52,
+      side:T.DoubleSide,clearcoat:1,envMapIntensity:1.8}));
+  ws.position.set(XF+0.09,2.08,0); ws.rotation.y=Math.PI/2; front.add(ws);
+  B(front, 0.14, 0.34, IK.HW*2, XF+0.01, 2.90, 0, blk);               // black header band
+  // destination display + round route disc
+  const dd = CT(1024,150,(c,w,h)=>{ R(c,0,0,w,h,'#0a0a0a');
+    const c2=document.createElement('canvas'); c2.width=w; c2.height=h; const g2=c2.getContext('2d');
+    g2.fillStyle='#fff'; g2.font='700 96px Arial'; g2.textBaseline='middle';
+    g2.fillText('9',26,h/2); g2.font='700 82px Arial'; g2.fillText('Ж.К. БОРОВО',180,h/2);
+    const d2=g2.getImageData(0,0,w,h).data; c.fillStyle='#ff7a12';
+    for(let y=6;y<h-6;y+=8) for(let x=6;x<w-6;x+=8) if(d2[(y*w+x)*4+3]>110) c.fillRect(x,y,5,5); });
+  const ddm=new T.Mesh(new T.PlaneGeometry(1.92,0.28), new T.MeshBasicMaterial({map:dd}));
+  ddm.position.set(XF+0.09,2.90,0); ddm.rotation.y=Math.PI/2; front.add(ddm);
+  const disc=new T.Mesh(new T.CircleGeometry(0.16,24), new T.MeshBasicMaterial({side:T.DoubleSide,map:
+    CT(128,128,(c,w,h)=>{ R(c,0,0,w,h,'#f4f4f0'); txt(c,'9',w/2,h/2+6,96,'#111',700); })}));
+  disc.position.set(XF+0.03,1.58,0.72); disc.rotation.y=Math.PI/2; front.add(disc);
+  // quad headlights and fog lamps
+  for(const s of [-1,1]){
+    B(front,0.10,0.24,0.56, XF+0.11, 0.72, s*0.78, new T.MeshStandardMaterial({color:0xc8ced4,roughness:0.2,metalness:0.9}));
+    for(let i=0;i<2;i++){
+      const l=new T.Mesh(new T.CylinderGeometry(0.095,0.095,0.03,18),
+        new T.MeshPhysicalMaterial({color:i? 0xff9418:0xeef4ff, roughness:0.05, clearcoat:1,
+          transparent:true, opacity:0.9, emissive:0x000000}));
+      l.rotation.z=Math.PI/2; l.position.set(XF+0.17, 0.72, s*(0.62+i*0.30)); front.add(l);
+      if(!i) headL.push(l);
+    }
+    const fg=new T.Mesh(new T.CylinderGeometry(0.055,0.055,0.03,14),
+      new T.MeshStandardMaterial({color:0xdfe6ec,roughness:0.1,metalness:0.4}));
+    fg.rotation.z=Math.PI/2; fg.position.set(XF+0.16,0.40,s*0.52); front.add(fg);
+  }
+  // wipers + mirrors
+  for(const s of [-1,1]){
+    const wg=new T.Group(); wg.position.set(XF+0.10,1.44,s*0.46); front.add(wg);
+    const arm=B(wg,0.04,0.94,0.03,0,0.47,0,blk); arm.rotation.z=-s*0.62;
+    B(wg,0.02,0.84,0.03,-s*0.50,0.86,0,M.rubber).rotation.z=-s*0.62;
+    const mg=new T.Group(); mg.position.set(XF-0.30,2.72,s*1.16); front.add(mg);
+    mg.add(railTube([[0,0,0],[0.10,0.16,s*0.22],[0.12,0.02,s*0.44]],0.028,blk));
+    B(mg,0.14,0.62,0.11,0.12,-0.28,s*0.48,blk);
+    B(mg,0.12,0.20,0.10,0.12,-0.68,s*0.46,blk);
+  }
+  // ---------- rear end ----------
+  const XR=IK.RX[0];
+  B(rear, 0.14, 1.00, IK.HW*2, XR-0.05, 0.86, 0, yelM);
+  B(rear, 0.18, 0.42, IK.HW*2+0.04, XR-0.07, 0.44, 0, bluM);
+  const rmask=CT(1400,520,(c,w,h)=>{ R(c,0,0,w,h,IK.YEL); txt(c,'2107',w/2,h/2+10,180,'#141414',700); });
+  const rm=new T.Mesh(new T.PlaneGeometry(IK.HW*2-0.06,0.96), new T.MeshPhysicalMaterial({map:rmask,roughness:0.32}));
+  rm.position.set(XR-0.13,0.88,0); rm.rotation.y=-Math.PI/2; rear.add(rm);
+  B(rear, 0.12, 1.10, IK.HW*2, XR-0.02, 2.14, 0, blk);
+  const rw=new T.Mesh(new T.PlaneGeometry(IK.HW*2-0.26,0.94),
+    new T.MeshPhysicalMaterial({color:0x0a1219,roughness:0.05,transparent:true,opacity:0.78,side:T.DoubleSide}));
+  rw.position.set(XR-0.09,2.14,0); rw.rotation.y=-Math.PI/2; rear.add(rw);
+  for(const s of [-1,1]) for(let i=0;i<2;i++){
+    const cols=[0x8e1414,0xd07a10];
+    const l=new T.Mesh(new T.CylinderGeometry(0.10,0.10,0.05,16),
+      new T.MeshStandardMaterial({color:cols[i], emissive:cols[i], emissiveIntensity:0.45, roughness:0.3}));
+    l.rotation.z=Math.PI/2; l.position.set(XR-0.12,0.74,s*(0.55+i*0.30)); rear.add(l);
+    if(!i) tailL.push(l);
+  }
+  B(rear, 0.10,0.10,0.7, XR+0.4, 3.02, 0, new T.MeshStandardMaterial({color:0x8e1414,emissive:0x5a0000,emissiveIntensity:0.5}));
+  // ---------- roof gear + trolley poles ----------
+  for(const [grp,xs] of [[front,[8.2,5.4,2.4]],[rear,[-1.6,-4.6,-6.4]]])
+    for(const x of xs) B(grp, 1.5,0.22,1.5, x, IK.Y1+0.16, 0, new T.MeshStandardMaterial({color:0xe0d0a0,roughness:0.75}));
+  const poleBase=B(rear,1.3,0.14,1.5,-1.5,IK.Y1+0.14,0,blk);
+  const ikPoles=[];
+  for(const s of [-1,1]){
+    const pg=new T.Group(); pg.position.set(-1.5, IK.Y1+0.30, s*0.42); rear.add(pg); ikPoles.push(pg);
+    const arm=new T.Mesh(new T.CylinderGeometry(0.030,0.046,6.4,12),
+      new T.MeshStandardMaterial({color:0x9aa1a8,roughness:0.35,metalness:0.85}));
+    arm.position.set(-3.05,1.62,0); arm.rotation.z=Math.PI/2-0.47; pg.add(arm);
+    const sp=new T.Mesh(new T.CylinderGeometry(0.075,0.075,0.30,12), M.steel);
+    sp.position.set(-0.30,0.16,0); sp.rotation.z=Math.PI/2-0.47; pg.add(sp);
+    const ins=new T.Mesh(new T.CylinderGeometry(0.075,0.09,0.18,12),
+      new T.MeshStandardMaterial({color:0xd8cfc0,roughness:0.4}));
+    ins.position.set(0,-0.12,0); pg.add(ins);
+    const shoe=B(pg,0.26,0.06,0.09,-5.72,3.04,0,M.chrome); shoe.rotation.z=-0.47;
+  }
+  // ---------- articulation bellows ----------
+  const bel=[];
+  for(let i=0;i<13;i++){
+    const rr=(i%2===0)?1.0:0.90;
+    const ring=new T.Group(); G.add(ring); bel.push(ring);
+    const upper=new T.Mesh(new T.BoxGeometry(0.075, 1.72, IK.HW*2*rr),
+      new T.MeshStandardMaterial({color:new T.Color(IK.YEL).multiplyScalar(0.92), roughness:0.75}));
+    upper.position.y=2.18; ring.add(upper);
+    const lower=new T.Mesh(new T.BoxGeometry(0.075, 0.92, IK.HW*2*rr*0.97),
+      new T.MeshStandardMaterial({color:new T.Color(IK.BLU).multiplyScalar(0.9), roughness:0.8}));
+    lower.position.y=0.86; ring.add(lower);
+    const top=new T.Mesh(new T.BoxGeometry(0.075,0.09,IK.HW*2*rr), blk);
+    top.position.y=3.06; ring.add(top);
+  }
+  const tt=new T.Mesh(new T.CylinderGeometry(1.10,1.10,0.06,32),
+    new T.MeshStandardMaterial({color:0x53585c,roughness:0.6,metalness:0.4}));
+  tt.position.set(0,0.40,0); G.add(tt);
+  // ---------- wheels ----------
+  const addW=(grp,x,z,dual)=>{ const w=wheel(dual); w.position.set(x, IK.WR, z); grp.add(w); wheels.push(w); return w; };
+  addW(front, IK.AXLE.front,  1.03,false); addW(front, IK.AXLE.front, -1.03,false);
+  addW(front, IK.AXLE.mid,    0.98,true);  addW(front, IK.AXLE.mid,   -0.98,true);
+  addW(rear,  IK.AXLE.rear,   1.03,true);  addW(rear,  IK.AXLE.rear,  -1.03,true);
+  for(const [grp,x] of [[front,IK.AXLE.front],[front,IK.AXLE.mid],[rear,IK.AXLE.rear]]){
+    const ax=new T.Mesh(new T.CylinderGeometry(0.10,0.10,2.1,12), M.steel);
+    ax.rotation.x=Math.PI/2; ax.position.set(x,IK.WR,0); grp.add(ax);
+    B(grp, 0.03,0.34,0.44, x-0.82, 0.22, 1.02, M.rubber);
+    B(grp, 0.03,0.34,0.44, x-0.82, 0.22,-1.02, M.rubber);
+  }
+  // ---------- driver's cab ----------
+  B(front, 0.06,1.80,1.62, 8.55, 1.28, -0.40, new T.MeshStandardMaterial({color:0xc8c4b8,roughness:0.85}));
+  B(front, 0.70,0.44,1.10, 9.00, 1.10, -0.58, blk);
+  const sc=new T.Group(); sc.position.set(8.92,1.02,-0.60); front.add(sc);
+  const col2=new T.Mesh(new T.CylinderGeometry(0.045,0.055,0.44,12), blk); col2.rotation.z=0.60; sc.add(col2);
+  const swg=new T.Group(); swg.position.set(-0.20,0.30,0); swg.rotation.z=0.60-Math.PI/2; sc.add(swg);
+  const rim2=new T.Mesh(new T.TorusGeometry(0.235,0.027,10,30), blk); rim2.rotation.x=Math.PI/2; swg.add(rim2);
+  for(let i=0;i<3;i++){ const a=i/3*Math.PI*2;
+    const spk=new T.Mesh(new T.BoxGeometry(0.21,0.022,0.05), blk);
+    spk.position.set(Math.cos(a)*0.11,0,Math.sin(a)*0.11); spk.rotation.y=-a; swg.add(spk); }
+  swg.add(new T.Mesh(new T.CylinderGeometry(0.06,0.06,0.05,14), railM));
+  const cl2=new T.Mesh(new T.PlaneGeometry(0.32,0.13), new T.MeshBasicMaterial({map:
+    CT(240,100,(c,w,h)=>{ R(c,0,0,w,h,'#0a1620'); txt(c,'▮▮▮  600 V',w/2,h/2,26,'#39d1ff',600); })}));
+  cl2.position.set(8.86,1.36,-0.58); cl2.rotation.y=-Math.PI/2+0.1; front.add(cl2);
+  G.userData = { doorLeaves, wheels, seats, poles:ikPoles, pivot, front, rear, bellows:bel,
+                 steer:swg, eye:[8.42,1.66,-0.56], aim:[11.2,1.06,-0.48] };
+  return G;
+}
+function updateIkarusBellows(G){
+  const u=G.userData, a=u.pivot.rotation.y, J=0.55, n=u.bellows.length;
+  for(let i=0;i<n;i++){
+    const t=i/(n-1), th=a*t, bx=J*(1-2*t);
+    u.bellows[i].position.set(bx*Math.cos(th), 0, -bx*Math.sin(th));
+    u.bellows[i].rotation.y = th;
+  }
+}
+
+/* ============================================================
+   VEHICLE CATALOGUE
+   ============================================================ */
+let VEH = {}, CURVEH = 'skoda', skodaG = null, ikarusG = null;
+function buildFleet(){
+  // gather everything the Škoda build put straight into root
+  skodaG = new T.Group(); skodaG.name = 'Skoda27Tr';
+  const kids = root.children.slice();
+  for(const k of kids) skodaG.add(k);
+  root.add(skodaG);
+  VEH.skoda = { g:skodaG, doorLeaves:doorLeaves.slice(), wheels:wheels.slice(),
+                seats:SEATS.slice(), steer:steer, eye:[9.10,1.69,-0.58], aim:[11.90,1.10,-0.50],
+                articulated:true, kind:'skoda' };
+  ikarusG = makeIkarus(); root.add(ikarusG); ikarusG.visible = false;
+  const u = ikarusG.userData;
+  VEH.ikarus = { g:ikarusG, doorLeaves:u.doorLeaves, wheels:u.wheels, seats:u.seats,
+                 steer:u.steer, eye:u.eye, aim:u.aim, articulated:true, kind:'ikarus' };
+  selectVehicle('skoda', true);
+}
+function selectVehicle(id, silent){
+  if(!VEH[id]) return;
+  CURVEH = id;
+  for(const k in VEH) VEH[k].g.visible = (k===id);
+  const v = VEH[id];
+  doorLeaves = v.doorLeaves; wheels = v.wheels; steer = v.steer; SEATS = v.seats;
+  for(const s of SEATS) s.taken = false;
+  // any passengers already aboard belong to the other bus — send them back to the kerb
+  for(const n of npcs){ if(n.userData.state==='seated'||n.userData.state==='standing'||n.userData.state==='toSeat'){
+      n.userData.sitting=false; n.userData.seat=null; n.userData.state='wait'; n.visible=true;
+      if(worldG) worldG.add(n);
+      const home=n.userData.home||[DRV.dist+4, 9]; n.position.set(home[0],0.17,home[1]); } }
+  const nm = document.getElementById('vehName');
+  if(nm) nm.textContent = id==='ikarus' ? 'IKARUS 280  ·  #2105' : 'ŠKODA 27Tr SOLARIS  ·  #1650';
+  document.querySelectorAll('[data-veh]').forEach(b=>b.classList.toggle('on', b.dataset.veh===id));
+  if(!silent) S.doorsTarget = 0;
+}
+function ikarusEye(){ return VEH[CURVEH].eye; }
+function showCatalog(show){
+  const el = document.getElementById('cat'); if(el) el.classList.toggle('show', show);
+}
+
+/* ============================================================
+   DOOR CLOSING — loud buzzer, camera snap, hard slam
+   ============================================================ */
+function loudDoorBeep(){
+  if(!audioReady()) return;
+  const t0 = AC.currentTime + 0.01, dur = 1.45;
+  for(const [f,vol] of [[1150,0.30],[2300,0.10],[575,0.09]]){
+    const o=AC.createOscillator(), g=AC.createGain(), bp=AC.createBiquadFilter();
+    o.type='square'; o.frequency.setValueAtTime(f,t0);
+    bp.type='bandpass'; bp.frequency.setValueAtTime(f,t0); bp.Q.setValueAtTime(1.4,t0);
+    g.gain.setValueAtTime(0.0001,t0);
+    g.gain.exponentialRampToValueAtTime(vol,t0+0.012);
+    g.gain.setValueAtTime(vol,t0+dur-0.10);
+    g.gain.exponentialRampToValueAtTime(0.0001,t0+dur);
+    o.connect(bp); bp.connect(g); g.connect(AC.destination);
+    o.start(t0); o.stop(t0+dur+0.03);
+  }
+  hiss(t0+dur-0.10, 0.30, 0.09);                       // pneumatic slam
+  const t1 = t0+dur-0.06;                              // rubber thump
+  const o2=AC.createOscillator(), g2=AC.createGain();
+  o2.type='sine'; o2.frequency.setValueAtTime(90,t1); o2.frequency.exponentialRampToValueAtTime(42,t1+0.16);
+  g2.gain.setValueAtTime(0.22,t1); g2.gain.exponentialRampToValueAtTime(0.0001,t1+0.22);
+  o2.connect(g2); g2.connect(AC.destination); o2.start(t1); o2.stop(t1+0.25);
+}
+const DOORCAM = { active:false, t:0, save:null };
+function doorCloseSequence(){
+  loudDoorBeep();
+  S.doorsTarget = 0; S.slam = true;
+  DOORCAM.save = { th:CAM.thT, ph:CAM.phT, r:CAM.rT, tx:CAM.tgt.x, ty:CAM.tgt.y, tz:CAM.tgt.z, fpv:DRV.fpv };
+  DRV.fpv = false;
+  const d = (CURVEH==='ikarus' ? IK.DOORS[1] : CFG.DOORS[1]);
+  const cx = (d[0]!==undefined ? (d[0]+d[1])/2 : (d.x[0]+d.x[1])/2);
+  CAM.thT = CAM.th = 1.32; CAM.phT = CAM.ph = 1.40; CAM.rT = CAM.r = 6.4;
+  CAM.tgt.set(cx, 1.45, 0.5);
+  DOORCAM.active = true; DOORCAM.t = 0;
+}
+function updateDoorCam(dt){
+  if(!DOORCAM.active) return;
+  DOORCAM.t += dt;
+  if(DOORCAM.t > 2.3){
+    DOORCAM.active = false;
+    const s = DOORCAM.save; if(!s) return;
+    CAM.thT=s.th; CAM.phT=s.ph; CAM.rT=s.r; CAM.tgt.set(s.tx,s.ty,s.tz); DRV.fpv=s.fpv;
+  }
+}
+function bindCatalog(){
+  document.querySelectorAll('[data-veh]').forEach(b=>{
+    b.onclick = ()=>{ selectVehicle(b.dataset.veh); };
+  });
+  const go=document.getElementById('catGo');
+  if(go) go.onclick = ()=>{ showCatalog(false); audioReady(); };
+  const open=document.getElementById('bCat');
+  if(open) open.onclick = ()=>showCatalog(true);
+  showCatalog(true);
 }
 </script>
 </body>
