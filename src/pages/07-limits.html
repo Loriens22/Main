@@ -1,0 +1,186 @@
+<section class="page" id="limits" data-toc="Limits, plateaus, and bad data" data-num="7" data-grp="II · The evidence">
+  <div class="wrap">
+    <div class="eyebrow err">Domain evidence · demography</div>
+    <h2>Limits, plateaus, and a data-quality scandal</h2>
+    <p class="dek">Before asking whether human lifespan has a ceiling, it is worth asking whether the
+    records at the top of the distribution are real. A substantial fraction of them are not.</p>
+
+    <h3>Is there a hard limit?</h3>
+    <p>In 2016 a <em>Nature</em> paper argued that maximum human lifespan had plateaued around 115
+    years and that the record of 122 was an outlier unlikely to be exceeded. It drew five published
+    rebuttals in the same journal within a year, largely targeting its segmented-regression
+    analysis: the breakpoint was chosen post hoc, the apparent plateau was sensitive to that choice,
+    and the analysis discarded information by using only the single oldest death per year. Later
+    Bayesian and extreme-value analyses have generally failed to find evidence of a hard cap within
+    the observable range.</p>
+
+    <p>Against that, the 2024 <em>Nature Aging</em> analysis of the eight longest-lived populations
+    plus Hong Kong and the US found that life-expectancy improvement has been
+    <strong>decelerating</strong> since 1990, with mortality compression and declining lifespan
+    inequality — and concluded that survival to 100 is unlikely to exceed roughly 15% of women and
+    5% of men. Radical life extension this century, on current trajectories, is implausible
+    <em>unless the biology of aging itself is slowed</em>. That caveat is doing enormous work, and
+    it is exactly the offset-versus-rate distinction restated in demographic language.</p>
+
+    <h3>The records themselves are contaminated</h3>
+    <p>The forensic case here is strong enough that it changes what the top of the survival curve
+    even means.</p>
+  </div>
+
+  <div class="fig wide rv">
+    <div class="fig-head">
+      <div class="fig-title"><span class="tag">Figure 7 · animated</span>
+        Three forensic findings on extreme-age records</div>
+    </div>
+    <div class="fig-body tight"><div class="canvas-host" id="cv-fraud"></div></div>
+    <div class="fig-cap">
+      <b>Left:</b> when US states introduced birth certificates, the number of supercentenarian
+      records in those states fell by 69–82%. <b>Centre:</b> of "exhaustively validated"
+      supercentenarians worldwide, 18% possess a birth certificate — in the United States, 0%.
+      <b>Right:</b> the finding that admits no biological explanation — regions reporting the most
+      people over 105 report <em>fewer</em> people over 90. There is no model of human biology in
+      which a population has a deficit of 90-year-olds and a surplus of 110-year-olds. There is an
+      obvious clerical one.
+      <br><span class="srcnote">Figures from S. J. Newman, bioRxiv 704080 (v3, 2024), awarded the
+      2024 Ig Nobel Prize in Demography. <b>Important status caveat:</b> this preprint remains
+      unpublished in a peer-reviewed journal; Newman's related 2018 <em>PLOS Biology</em> paper on
+      error-driven mortality plateaus <em>is</em> peer-reviewed. The distinction matters and is
+      preserved here deliberately.</span>
+    </div>
+  </div>
+
+  <div class="wrap">
+    <div class="callout warn">
+      <div class="ct">The Blue Zones do not survive auditing</div>
+      <p>The designated Blue Zones of Sardinia, Okinawa and Ikaria correspond to regions with
+      <strong>low incomes, low literacy, high crime rates and short life expectancy relative to
+      their national averages</strong> — precisely the profile that predicts poor vital
+      registration.</p>
+      <p>Okinawa is the sharpest case: the prefecture has the highest per-capita murder rate, the
+      worst over-65 dependency ratio, the second-lowest median income, and <strong>the lowest median
+      lifespan of all 47 Japanese prefectures</strong> — while being marketed worldwide as a
+      longevity capital. Both claims cannot be true in the way the popular literature asserts.</p>
+      <p class="small" style="margin-top:.8em"><b>In fairness to the other side:</b> defenders argue
+      that Okinawa's <em>older</em> cohorts were genuinely exceptional and its younger cohorts have
+      deteriorated on a Westernised diet. That is a real and partially valid argument — but it is a
+      different claim from the one the Blue Zones brand makes, and testing it requires
+      cohort-specific validated records, which for Okinawa are systematically weak because pre-war
+      family registers were substantially destroyed in 1945.</p>
+    </div>
+
+    <p>The birthdate distribution of supercentenarians is <strong>concentrated on days divisible by
+    five</strong>. Age heaping on multiples of five and ten is the standard forensic marker of age
+    misreporting in historical demography, measured by the Whipple and Myers indices. Finding it in
+    the recorded <em>birth dates</em> of supposedly document-validated supercentenarians is close to
+    dispositive of widespread fabrication within that subset.</p>
+
+    <h3>Why this matters for the science, not just the trivia</h3>
+    <ul class="tick">
+      <li><strong>Late-life mortality plateaus may be artifacts.</strong> If the oldest ages contain
+      a mixture of real and mis-recorded individuals, the apparent flattening of hazard after ~105
+      is partly what you would expect from measurement error alone. The plateau is a load-bearing
+      fact in several theoretical models — including reliability theory — so its status is not a
+      side issue.</li>
+      <li><strong>The 122-year record has a live validation dispute.</strong> It has been challenged
+      and defended; the defences are, on balance, stronger. But a field that treats a single
+      contested data point as the anchor of its maximum-lifespan estimate is doing something
+      methodologically fragile.</li>
+      <li><strong>Dietary and lifestyle inferences drawn from Blue Zones are built on the
+      contaminated stratum.</strong> Nutrition advice has been derived, at scale, from populations
+      whose extreme-age claims correlate with poor record-keeping rather than with longevity.</li>
+    </ul>
+
+    <div class="callout key">
+      <div class="ct">The improvement this suggests</div>
+      <p>Extreme-age validation should carry a <strong>machine-checkable provenance standard</strong>:
+      contemporaneous document required, independence of the pension incentive demonstrated, and an
+      automatic age-heaping test (Whipple/Myers) reported for every cohort before it enters any
+      dataset used for lifespan-limit inference. None of this is technically hard. It is simply not
+      currently required — and any analysis of maximum human lifespan that does not report it should
+      be treated as provisional.</p>
+    </div>
+  </div>
+</section>
+
+<script>
+/* ---- Figure 7: forensic panels -------------------------------------- */
+(function(){
+  const host=document.getElementById('cv-fraud'); if(!host) return;
+  CV(host, w=>w<680?0.95:2.55, function(ctx,w,h,t){
+    const three=w>=680;
+    const cols=three?3:1, rows=three?1:3;
+    const cw=w/cols, ch=h/rows;
+    const T=Math.min(t,6);
+
+    function head(x,y,cw2,txt,sub){
+      label(ctx,x+cw2/2,y+16,txt,css('tx3'),'center',9.5);
+      if(sub) label(ctx,x+cw2/2,y+30,sub,css('tx2'),'center',10.5);
+    }
+
+    /* --- panel 1: birth certificate effect --- */
+    (function(){
+      const i=0, x=three?i*cw:0, y=three?0:i*ch;
+      head(x,y,cw,'BEFORE vs AFTER BIRTH CERTIFICATES','US supercentenarian records');
+      const bw=Math.min(52,cw*0.16), base=y+ch-46, top=y+58, H=base-top;
+      const p=ease(clamp((T-0.3)/1.3,0,1));
+      const bars=[['before',1,css('tx3')],['after',1-0.755*p,css('err')]];
+      bars.forEach((b,k)=>{
+        const bx=x+cw/2-bw*1.3+k*bw*1.6;
+        const bh=H*b[1];
+        ctx.save(); ctx.fillStyle=b[2]; ctx.globalAlpha=k?1:0.45;
+        ctx.beginPath();
+        if(ctx.roundRect) ctx.roundRect(bx,base-bh,bw,bh,4); else ctx.rect(bx,base-bh,bw,bh);
+        ctx.fill(); ctx.restore();
+        label(ctx,bx+bw/2,base+14,b[0],css('tx3'),'center',10);
+      });
+      if(p>0.85){
+        label(ctx,x+cw/2,top+8,'−69% to −82%',css('err'),'center',15);
+      }
+    })();
+
+    /* --- panel 2: documentation donut --- */
+    (function(){
+      const i=1, x=three?i*cw:0, y=three?0:i*ch;
+      head(x,y,cw,'HOLD A BIRTH CERTIFICATE','"exhaustively validated" supercentenarians');
+      const cx=x+cw/2, cy=y+ch/2+8, R=Math.min(cw,ch)*0.19;
+      const p=ease(clamp((T-1.2)/1.4,0,1));
+      ctx.save(); ctx.lineWidth=R*0.42;
+      ctx.strokeStyle=css('line2');
+      ctx.beginPath(); ctx.arc(cx,cy,R,0,6.283); ctx.stroke();
+      ctx.strokeStyle=css('offset'); ctx.lineCap='round';
+      ctx.beginPath(); ctx.arc(cx,cy,R,-Math.PI/2,-Math.PI/2+6.283*0.18*p); ctx.stroke();
+      ctx.restore();
+      label(ctx,cx,cy-4,(18*p).toFixed(0)+'%',css('offset'),'center',22);
+      label(ctx,cx,cy+16,'worldwide',css('tx3'),'center',10);
+      if(p>0.9) label(ctx,cx,y+ch-22,'in the United States: 0%',css('err'),'center',12);
+    })();
+
+    /* --- panel 3: the contradiction --- */
+    (function(){
+      const i=2, x=three?i*cw:0, y=three?0:i*ch;
+      head(x,y,cw,'THE FINDING WITH NO BIOLOGY','regions reporting the most 105+');
+      const p=ease(clamp((T-2.2)/1.5,0,1));
+      const base=y+ch-46, top=y+62, H=base-top;
+      const bw=Math.min(46,cw*0.14);
+      const items=[['90+ yrs',0.42,css('data'),'fewer'],['105+ yrs',0.95,css('err'),'more']];
+      items.forEach((b,k)=>{
+        const bx=x+cw/2-bw*1.25+k*bw*1.6, bh=H*b[1]*p;
+        ctx.save(); ctx.fillStyle=b[2]; ctx.globalAlpha=0.85;
+        ctx.beginPath();
+        if(ctx.roundRect) ctx.roundRect(bx,base-bh,bw,bh,4); else ctx.rect(bx,base-bh,bw,bh);
+        ctx.fill(); ctx.restore();
+        label(ctx,bx+bw/2,base+14,b[0],css('tx3'),'center',10);
+        if(p>0.8) label(ctx,bx+bw/2,base-bh-11,b[3],b[2],'center',11);
+      });
+      if(p>0.92) label(ctx,x+cw/2,y+ch-24,'no biological model permits this',css('tx2'),'center',10.5);
+    })();
+
+    /* dividers */
+    if(three){
+      ctx.save(); ctx.strokeStyle=css('line'); ctx.lineWidth=1;
+      for(let k=1;k<3;k++){ ctx.beginPath(); ctx.moveTo(k*cw+.5,26); ctx.lineTo(k*cw+.5,h-18); ctx.stroke(); }
+      ctx.restore();
+    }
+  });
+})();
+</script>

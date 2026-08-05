@@ -1,0 +1,272 @@
+<section class="page" id="trap" data-toc="The Logarithmic Trap" data-num="3" data-grp="I · The problem">
+  <div class="wrap">
+    <div class="eyebrow offset">Original analysis · derivation</div>
+    <h2>The Logarithmic Trap</h2>
+    <p class="dek">Almost every medical intervention ever devised reduces your hazard of death by
+    some multiplicative factor. Here is what that is worth, exactly, in years — and why the answer
+    is so much smaller than intuition suggests.</p>
+
+    <h3>The derivation</h3>
+    <p>Suppose a treatment divides the age-dependent hazard by a constant factor <code>k</code> at
+    every age. Write the treated hazard and factor the constant into the exponent:</p>
+
+    <div class="eq">
+      <span class="lbl">Step 1 — absorb the constant into the exponent</span>
+      μ′(t) = (A/<span class="hl2">k</span>)·e<sup>αt</sup>
+      = A·e<sup>αt − ln <span class="hl2">k</span></sup>
+      = A·e<sup>α(t − <span class="hl">Δ</span>)</sup>,
+      &nbsp;&nbsp; where &nbsp; <span class="hl">Δ = ln k / α</span>
+    </div>
+
+    <p>The treated population's hazard at age <code>t</code> is <em>identical</em> to the untreated
+    hazard at age <code>t − Δ</code>. A multiplicative hazard reduction is not a different kind of
+    aging. It is the <em>same</em> aging, started later. And because <code>α = ln2 / MRDT</code>,
+    that shift has an exquisitely simple form:</p>
+
+    <div class="eq">
+      <span class="lbl">Step 2 — the exchange rate</span>
+      <span class="hl">Δ</span> = MRDT · log<sub>2</sub>(<span class="hl2">k</span>)
+      &nbsp;&nbsp;⟹&nbsp;&nbsp;
+      <b>one MRDT — about 8 years — per halving of mortality.</b>
+    </div>
+
+    <div class="callout warn">
+      <div class="ct">The Logarithmic Trap</div>
+      <p>Benefit scales with the <em>logarithm</em> of effort. Halving all-cause mortality at every
+      age buys ~8 years. Halving it again buys another 8. A hundred-fold reduction — far beyond
+      anything medicine has ever achieved for any population — buys ~53 years. To push the median
+      human lifespan to 150 you would need to suppress hazard at every age by a factor of roughly
+      <b>10<sup>5</sup></b>. There is no plausible stack of disease-specific therapies that reaches
+      this. The exponent eats them.</p>
+    </div>
+
+    <h3>The test: does it reproduce the demographic literature?</h3>
+    <p>A model this simple deserves suspicion. So we check it against a result derived by
+    completely different means — cause-deleted life tables, which ask what happens to life
+    expectancy if a whole category of death is abolished. If a cause accounts for a fraction
+    <code>f</code> of hazard at all ages, then <code>k = 1/(1−f)</code> and:</p>
+
+    <div class="eq">
+      <span class="lbl">Cause-deletion, first order</span>
+      <span class="hl">Δ</span> = −ln(1 − <span class="hl2">f</span>) / α
+    </div>
+
+    <div class="tbl-scroll">
+      <table class="data">
+        <thead><tr>
+          <th>Hypothetical</th><th class="num">share of deaths f</th>
+          <th class="num">model Δ (yr)</th><th class="num">published cause-deleted gain</th><th>verdict</th>
+        </tr></thead>
+        <tbody>
+          <tr><td class="name">Abolish all heart disease</td><td class="num">0.31</td><td class="num">+3.9</td>
+              <td class="num">"almost 4 years"</td><td><span class="pill A">near-exact</span></td></tr>
+          <tr><td class="name">Abolish all cancer</td><td class="num">0.22</td><td class="num">+2.6</td>
+              <td class="num">"more than 3 years"</td><td><span class="pill B">close, low as expected</span></td></tr>
+          <tr><td class="name">Abolish all cardiovascular disease (incl. stroke)</td><td class="num">≈0.40</td><td class="num">+5.4</td>
+              <td class="num">—</td><td><span class="pill n">prediction</span></td></tr>
+          <tr><td class="name">Abolish all dementia</td><td class="num">≈0.06</td><td class="num">+0.7</td>
+              <td class="num">—</td><td><span class="pill n">prediction</span></td></tr>
+          <tr><td class="name">Abolish cancer <em>and</em> heart disease together</td><td class="num">0.53</td><td class="num">+8.0</td>
+              <td class="num">—</td><td><span class="pill n">prediction — note: not 3+4</span></td></tr>
+          <tr><td class="name">Abolish every named disease (hazard ÷100)</td><td class="num">0.99</td><td class="num">+53</td>
+              <td class="num">—</td><td><span class="pill n">prediction</span></td></tr>
+        </tbody>
+      </table>
+    </div>
+    <p class="srcnote">Published gains and lifetime cause probabilities: NCHS, <em>United States Life
+    Tables Eliminating Certain Causes of Death, 1999–2001</em>, National Vital Statistics Reports
+    61(9), 2013 — cause-elimination life tables for 33 causes. The cancer figure is modelled slightly
+    low, in the expected direction: cancer deaths concentrate at somewhat younger ages than all-cause
+    deaths, so a flat proportional-hazards approximation understates the loss. <b>Retrieved via
+    search summaries, not the primary tables — verify before citation.</b> The model's own column is
+    exact given its assumptions and checkable with a calculator.</p>
+
+    <div class="callout key">
+      <div class="ct">The competing-risks principle, in one observation</div>
+      <p>Cancer was responsible for <em>more</em> years of life lost in the United States in 2000
+      than in 1970 — <strong>despite falling cancer mortality rates</strong> — because more people
+      survived heart disease long enough to get it. Remove one cause and you hand the survivors to
+      the next. This is why "cancer + heart disease" yields about 8 years rather than 3 + 4 = 7,
+      and why no achievable stack of disease-specific cures reaches radical life extension.</p>
+    </div>
+
+    <p>The agreement is not a coincidence and it is not a fit — the model has no free parameters
+    beyond α, which came from mortality data and not from these outcomes. <b>The reason curing an
+    entire disease category buys only a few years is not that oncology or cardiology are
+    ineffective. It is the Gompertz exponent.</b> Remove one cause and the survivors are handed
+    straight to the others, whose hazard is already doubling every eight years.</p>
+  </div>
+
+  <div class="fig wide rv">
+    <div class="fig-head">
+      <div class="fig-title"><span class="tag">Figure 3 · interactive · the central result</span>
+        The exchange rate between hazard reduction and years of life</div>
+    </div>
+    <div class="ctrls">
+      <div class="ctrl" style="flex:2 1 280px">
+        <label>Hazard reduction factor k <span class="v" data-for="t-k"></span></label>
+        <input type="range" id="t-k" min="0" max="6" step="0.01" value="0.301">
+      </div>
+      <div class="ctrl">
+        <label>MRDT <span class="v" data-for="t-m"></span></label>
+        <input type="range" id="t-m" min="4" max="20" step="0.25" value="8">
+      </div>
+      <div class="ctrl" style="flex:0 0 auto;min-width:auto">
+        <label>Jump to</label>
+        <div class="seg" id="t-seg">
+          <button data-v="0.0969">cancer</button>
+          <button data-v="0.155">CVD</button>
+          <button class="on" data-v="0.301">×2</button>
+          <button data-v="1">×10</button>
+          <button data-v="2">×100</button>
+          <button data-v="5">×10⁵</button>
+        </div>
+      </div>
+    </div>
+    <div class="fig-body tight"><div class="canvas-host" id="cv-trap"></div></div>
+    <div class="readout">
+      <div class="r"><div class="k">Hazard reduced by</div><div class="v offset" id="t-kv">—</div><div class="s">at every age</div></div>
+      <div class="r"><div class="k">Age offset Δ = ln k/α</div><div class="v rate" id="t-dv">—</div><div class="s">theoretical shift</div></div>
+      <div class="r"><div class="k">Actual gain in e₀</div><div class="v" id="t-ev">—</div><div class="s">numerically integrated</div></div>
+      <div class="r"><div class="k">New median lifespan</div><div class="v data" id="t-mv">—</div><div class="s">baseline median 83 yr</div></div>
+      <div class="r"><div class="k">Effort per extra decade</div><div class="v err" id="t-xv">—</div><div class="s">multiplicative</div></div>
+    </div>
+    <div class="fig-cap">
+      Left: years purchased versus hazard reduction, on a logarithmic effort axis — a
+      <b>straight line</b>, which is the trap in one picture. Right: the survival curve
+      sliding rigidly to the right without changing shape. That rigidity is the signature of an
+      offset intervention, and §<a href="#offset-rate">4</a> turns it into a statistical test.
+      <br><b>Note the fourth readout:</b> the numerically integrated gain in life expectancy is
+      always slightly <em>smaller</em> than the theoretical offset Δ, because the Makeham term does
+      not shift with age. <b>Δ is an upper bound</b> on what a hazard-multiplier can deliver.
+    </div>
+  </div>
+
+  <div class="wrap">
+    <div class="callout caveat">
+      <div class="ct">Where this model is exact, and where it is only approximate</div>
+      <p class="small"><b>Exact:</b> the identity Δ = ln k/α, for a pure Gompertz hazard with a
+      constant multiplier. This is algebra, not empirics.<br>
+      <b>Approximate:</b> (i) real hazards include a Makeham term that does not shift, so realised
+      gains are smaller than Δ; (ii) cause-specific shares vary with age, so cause-deletion is only
+      first-order; (iii) human hazard decelerates above ~95, which slightly favours the intervention
+      at extreme ages; (iv) population heterogeneity in frailty biases naive Gompertz fits — see
+      §<a href="#measurement">9</a>. None of these rescue the conclusion. All are second-order
+      against a factor that must reach 10<sup>5</sup>.</p>
+    </div>
+  </div>
+</section>
+
+<script>
+/* ---- Figure 3: the Logarithmic Trap --------------------------------- */
+(function(){
+  const host=document.getElementById('cv-trap'); if(!host) return;
+  const A0=Math.pow(10,-4.3823), MK=0.0007;
+  const S={logk:0.301, mrdt:8};
+  let rig;
+
+  function upd(){
+    const k=Math.pow(10,S.logk), al=Math.log(2)/S.mrdt;
+    const D=Math.log(k)/al;
+    const e0a=GOMP.e0(A0,al,MK), e0b=GOMP.e0(A0/k,al,MK);
+    const med=GOMP.med(A0/k,al,MK);
+    const set=(id,v)=>{const e=document.getElementById(id); if(e) e.textContent=v;};
+    set('t-kv', k<10?('×'+k.toFixed(2)):('×'+k.toExponential(1).replace('e+','e')));
+    set('t-dv', D.toFixed(1)+' yr');
+    set('t-ev', (e0b-e0a).toFixed(1)+' yr');
+    set('t-mv', med.toFixed(1)+' yr');
+    set('t-xv', '×'+Math.pow(2,10/S.mrdt).toFixed(2));
+    if(rig) rig.invalidate();
+  }
+  SLIDER('t-k', v=>{const k=Math.pow(10,v); return k<10?('×'+k.toFixed(2)):('×'+k.toExponential(1).replace('e+','e'));},
+         v=>{S.logk=v; upd();});
+  SLIDER('t-m', v=>v.toFixed(2)+' yr', v=>{S.mrdt=v; upd();});
+  SEG('#t-seg', v=>{ const el=document.getElementById('t-k'); el.value=v;
+                     el.dispatchEvent(new Event('input')); });
+
+  const MARKS=[
+    {lk:Math.log10(1/0.9),  n:'statin, primary prevention'},
+    {lk:Math.log10(1/0.8),  n:'abolish all cancer'},
+    {lk:Math.log10(1/0.7),  n:'abolish all CVD'},
+    {lk:Math.log10(2),      n:'halve all-cause mortality'},
+    {lk:1,                  n:'10× reduction'},
+    {lk:2,                  n:'100× reduction'},
+    {lk:5,                  n:'10⁵× — required for median 150'}
+  ];
+
+  rig=CV(host, w=>w<680?0.86:2.35, function(ctx,w,h,t){
+    const two=w>=680, gap=28;
+    const pw=two?(w-gap)/2:w, ph=two?h:(h-gap)/2;
+    const k=Math.pow(10,S.logk), al=Math.log(2)/S.mrdt, D=Math.log(k)/al;
+
+    /* ---------- LEFT: years vs log k ---------- */
+    ctx.save();
+    (function(){
+      const M=PLOT(ctx,pw,ph,{xr:[0,6],yr:[0,160],pad:{l:52,r:16,t:26,b:38},
+        xlab:'hazard reduction factor k', ylab:'age offset Δ (years)',
+        xticks:[0,1,2,3,4,5,6], xfmt:v=>v===0?'×1':'×10'+sup(v)});
+      const pts=[]; for(let x=0;x<=6;x+=0.02) pts.push([x, Math.log(Math.pow(10,x))/al]);
+      AREA(ctx,M,pts,'rgba(243,169,82,.10)',null,0);
+      PATH(ctx,M,pts,css('offset'),2.4);
+
+      MARKS.forEach(m=>{
+        if(m.lk>6) return;
+        const x=M.X(m.lk), y=M.Y(Math.log(Math.pow(10,m.lk))/al);
+        ctx.save(); ctx.fillStyle=css('tx3');
+        ctx.beginPath(); ctx.arc(x,y,2.4,0,6.283); ctx.fill();
+        ctx.restore();
+      });
+      /* current point + guides */
+      const cy=M.Y(Math.min(D,160)), cx=M.X(S.logk);
+      ctx.save(); ctx.strokeStyle=css('rate'); ctx.lineWidth=1; ctx.setLineDash([3,3]);
+      ctx.beginPath(); ctx.moveTo(M.x0,cy); ctx.lineTo(cx,cy); ctx.lineTo(cx,M.y0); ctx.stroke();
+      ctx.restore();
+      ctx.save(); ctx.fillStyle=css('rate');
+      ctx.beginPath(); ctx.arc(cx,cy,5,0,6.283); ctx.fill();
+      ctx.globalAlpha=.25+.2*Math.sin(t*3);
+      ctx.beginPath(); ctx.arc(cx,cy,5+5*(0.5+0.5*Math.sin(t*3)),0,6.283); ctx.fill();
+      ctx.restore();
+
+      /* nearest marker label */
+      let best=MARKS[0], bd=9;
+      MARKS.forEach(m=>{const d=Math.abs(m.lk-S.logk); if(d<bd){bd=d;best=m;}});
+      if(bd<0.22) label(ctx, clamp(cx+9,M.x0,M.x1-4), cy-14, best.n, css('tx2'),
+                        cx>M.x0+pw*0.55?'right':'left',10.5);
+      label(ctx,M.x0,14,'BENEFIT IS LINEAR IN log k — THE TRAP',css('offset'),'left',9.5);
+    })();
+    ctx.restore();
+
+    /* ---------- RIGHT: survival curves ---------- */
+    ctx.save(); if(two) ctx.translate(pw+gap,0); else ctx.translate(0,ph+gap);
+    (function(){
+      const M=PLOT(ctx,pw,ph,{xr:[0,140],yr:[0,1],pad:{l:52,r:16,t:26,b:38},
+        xlab:'age (years)', ylab:'survival', yfmt:v=>(v*100).toFixed(0)+'%'});
+      const base=[],tre=[];
+      for(let a=0;a<=140;a+=0.7){ base.push([a,GOMP.S(a,A0,al,MK)]); tre.push([a,GOMP.S(a,A0/k,al,MK)]); }
+      PATH(ctx,M,base,css('tx3'),1.7,null,[5,4]);
+      AREA(ctx,M,tre,'rgba(63,208,201,.09)',null,0);
+      PATH(ctx,M,tre,css('rate'),2.4);
+
+      /* the shift arrow at S=0.5 */
+      const m0=GOMP.med(A0,al,MK), m1=GOMP.med(A0/k,al,MK);
+      if(m1<140){
+        const y=M.Y(0.5);
+        ctx.save(); ctx.strokeStyle=css('offset'); ctx.lineWidth=1.6;
+        ctx.beginPath(); ctx.moveTo(M.X(m0),y); ctx.lineTo(M.X(m1),y); ctx.stroke();
+        [[m0,-1],[m1,1]].forEach(([mm,d])=>{
+          ctx.beginPath(); ctx.moveTo(M.X(mm),y-4); ctx.lineTo(M.X(mm),y+4); ctx.stroke();
+        });
+        ctx.restore();
+        label(ctx,(M.X(m0)+M.X(m1))/2, y-12, '+'+(m1-m0).toFixed(1)+' yr', css('offset'),'center',11);
+      }
+      label(ctx,M.x0,14,'THE CURVE SHIFTS — IT DOES NOT CHANGE SHAPE',css('rate'),'left',9.5);
+      LEG(ctx,M.x1-6,M.y1+30,[[css('tx3'),'untreated','dash'],[css('rate'),'hazard ÷ k']],'right');
+    })();
+    ctx.restore();
+  },{still:true});
+
+  function sup(e){const m={'-':'⁻','0':'⁰','1':'¹','2':'²','3':'³','4':'⁴','5':'⁵','6':'⁶'};
+    return String(e).split('').map(c=>m[c]||c).join('');}
+  upd();
+})();
+</script>

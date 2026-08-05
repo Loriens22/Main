@@ -1,0 +1,206 @@
+<section class="page" id="cellular" data-toc="Cellular mechanisms" data-num="6" data-grp="II · The evidence">
+  <div class="wrap">
+    <div class="eyebrow">Domain evidence · molecular &amp; cellular</div>
+    <h2>What is actually going wrong in the cell</h2>
+    <p class="dek">The Hallmarks of Aging is the field's organising framework. It is an excellent
+    taxonomy and a weak causal theory, and the difference between those two things explains a great
+    deal of wasted effort.</p>
+
+    <p>The 2013 framework named nine hallmarks; the 2023 revision expanded it to twelve. To qualify,
+    a hallmark should manifest with age, accelerate aging when experimentally worsened, and slow
+    aging when experimentally improved. In practice the third criterion — the one that matters — is
+    satisfied for only a minority, and almost always in mice.</p>
+
+    <div class="callout caveat">
+      <div class="ct">Taxonomy is not mechanism</div>
+      <p>A list of twelve things that go wrong together in an aging organism does not tell you which
+      of them is upstream. Because all twelve co-vary with age, correlational evidence cannot rank
+      them, and the framework offers no way to distinguish a driver from a consequence. Its real
+      function is as a shared vocabulary — which is genuinely useful — not as a map of causation,
+      which is how it is usually deployed.</p>
+    </div>
+  </div>
+
+  <div class="fig wide rv">
+    <div class="fig-head">
+      <div class="fig-title"><span class="tag">Figure 6 · interactive · author-assessed</span>
+        The hallmarks, positioned by causal evidence and human druggability</div>
+    </div>
+    <div class="fig-body tight"><div class="canvas-host" id="cv-hall"></div></div>
+    <div class="fig-cap">
+      Hover or tap a point. The horizontal axis asks how strong the evidence is that this hallmark
+      is <em>causally upstream</em> rather than a downstream consequence; the vertical axis asks how
+      tractable it is in a human being today. <b>The upper-right quadrant is nearly empty, and that
+      is the honest state of the field.</b>
+      <br><span class="srcnote"><b>These coordinates are the author's analytical judgement, not
+      measured data</b>, assigned from the evidence reviewed in this study and labelled as such so
+      they are not mistaken for a sourced dataset. They are offered as a structured opinion that can
+      be argued with — which is the point.</span>
+    </div>
+  </div>
+
+  <div class="wrap">
+    <h3>Cellular senescence — the strongest story, with real caveats</h3>
+    <p>Genetically clearing p16-positive cells extends median lifespan in mice, and senolytic drugs
+    reproduce parts of the phenotype. This is the most convincing mechanistic result in the
+    hallmarks literature. It also carries a problem that undermines a large fraction of the field:</p>
+
+    <div class="callout warn">
+      <div class="ct">p16<sup>INK4a</sup> is not senescence-specific</div>
+      <p>p16 and SA-β-gal are induced in <strong>macrophages</strong> as part of a reversible
+      physiological immune response, and can be induced in p53-null mice — unlike genuine
+      senescence. Every INK-ATTAC clearance experiment therefore ablates an unknown mixture of
+      senescent cells <em>and activated macrophages</em>, and every human trial reporting "reduced
+      p16⁺ cells" is reporting a composite of the two.</p>
+      <p>This may be the actual explanation for contradictory results in the literature — including
+      a senolytic trial in which CSF IL-6 and GFAP <em>rose</em> after treatment, exactly what you
+      would expect if you had removed a macrophage population that was restraining inflammation
+      rather than driving it.</p>
+      <p class="small" style="margin-top:.8em"><b>The fix:</b> mandate multi-marker senescence
+      scoring, simultaneous myeloid-lineage exclusion (CD68, F4/80, LYZ2, CD14) at single-cell
+      resolution, and an inducible lineage-tracing control that spares p16-expressing myeloid cells.
+      Falsifiable prediction: in a myeloid-sparing INK-ATTAC variant, the lifespan benefit is
+      preserved or increased while the reported liver-fibrosis phenotype is attenuated.</p>
+    </div>
+
+    <p>The human evidence is far thinner than its citation pattern suggests. The first-in-human
+    demonstration that senolytics reduce senescent-cell burden was <strong>n = 9, open-label, with
+    no control group</strong> — and it subsequently required a corrigendum stating that re-analysis
+    of the raw data had changed some of the paper's conclusions. That paper is the load-bearing
+    citation for "senolytics work in humans." The corrigendum is cited essentially never.</p>
+
+    <h3>Partial reprogramming — the field's biggest hope and its most abused statistic</h3>
+    <p>Cyclic expression of Yamanaka factors restores youthful epigenetic patterns and, in some
+    settings, function. The headline lifespan numbers, however, do not mean what they are usually
+    taken to mean:</p>
+
+    <ul class="tick">
+      <li><strong>The famous +33% median lifespan result came from progeroid mice</strong> —
+      <em>Lmna</em><sup>G609G</sup> homozygotes with a baseline lifespan measured in weeks. Rescuing a
+      monogenic lamin defect is not evidence about the rate of normal aging. Wild-type mice in that
+      same study received injury-regeneration assays, not lifespan measurement.</li>
+      <li><strong>The falsifying experiment has largely been done, and was negative.</strong>
+      Long-term partial reprogramming in physiologically aged wild-type mice produced molecular and
+      tissue rejuvenation <em>without</em> demonstrated lifespan extension.</li>
+      <li><strong>"+109% lifespan" meant about +4%.</strong> One widely-reported result measured
+      median <em>remaining</em> lifespan from 124 weeks, in animals whose controls lived to ~129
+      weeks. A 109% increase on ~5 remaining weeks is roughly +5 weeks absolute — a gap of about
+      <b>25×</b> between the headline and the effect on total lifespan.</li>
+    </ul>
+
+    <div class="callout key">
+      <div class="ct">A reporting standard that would fix most of this</div>
+      <p>Percentage changes in "remaining" lifespan must never be stated without the absolute
+      baseline in the same sentence. The correct estimand is the <strong>restricted mean survival
+      time difference in days with a 95% CI</strong> over a pre-specified horizon — it is
+      interpretable in units of time, does not assume proportional hazards, and cannot be inflated
+      by choosing a late start age.</p>
+    </div>
+
+    <h3>Telomeres — and the trade-off nobody advertises</h3>
+    <p>Telomerase gene therapy extends lifespan in mice. But human genetic evidence points the
+    other way on the thing people most want it to fix: Mendelian randomisation studies find longer
+    telomeres are causally associated with <em>increased</em> cancer risk. Telomere shortening is
+    partly a tumour-suppression mechanism, and lengthening telomeres trades one age-related failure
+    mode for another. Any intervention that increases cellular renewal capacity inherits this
+    trade-off; it is not specific to telomerase.</p>
+  </div>
+</section>
+
+<script>
+/* ---- Figure 6: hallmark landscape ----------------------------------- */
+(function(){
+  const host=document.getElementById('cv-hall'); if(!host) return;
+  /* x = causal evidence upstream (0-10), y = human druggability (0-10), r = reversibility */
+  const H=[
+    ['Cellular senescence',7.5,5.5,7,'Clearance extends mouse lifespan; marker specificity unresolved.'],
+    ['Genomic instability',8,1.5,2,'Somatic mutation load scales inversely with lifespan across mammals — strong causal case, almost no way to intervene.'],
+    ['Epigenetic alterations',6,4,8,'Highly reversible in principle; reprogramming is the only real lever and is not yet safe.'],
+    ['Telomere attrition',5,3.5,6,'Causal in specific syndromes; MR evidence links long telomeres to cancer.'],
+    ['Mitochondrial dysfunction',5,3,4,'Ubiquitous, but interventions have repeatedly failed to extend lifespan.'],
+    ['Loss of proteostasis',6,3,4,'Strong in neurodegeneration; hard to drug systemically.'],
+    ['Deregulated nutrient sensing',7,7.5,6,'The one hallmark with a genuinely druggable node — mTOR. Best mouse evidence in the field.'],
+    ['Stem cell exhaustion',5.5,3,5,'Downstream of several others; cell therapy remains unproven at outcome level.'],
+    ['Altered intercellular comm.',5,4,5,'Includes inflammaging; plausibly a hub, hard to isolate.'],
+    ['Chronic inflammation',6.5,6,5,'Druggable, and anti-inflammatories have real hard-endpoint data — but immunosuppression is the cost.'],
+    ['Disabled macroautophagy',6,2.5,5,'Mechanistically compelling; no selective human agonist.'],
+    ['Dysbiosis',3,6,7,'Easy to manipulate, weakest causal evidence of the twelve.']
+  ];
+  let hover=-1, rig;
+
+  rig=CV(host, w=>w<620?1.0:1.85, function(ctx,w,h,t,r){
+    const M=PLOT(ctx,w,h,{xr:[0,10],yr:[0,10],pad:{l:58,r:20,t:26,b:44},
+      xlab:'evidence it is causally upstream →', ylab:'human druggability today →',
+      xticks:[0,2,4,6,8,10],yticks:[0,2,4,6,8,10]});
+
+    /* quadrant shading */
+    ctx.save();
+    ctx.fillStyle='rgba(63,208,201,.05)';
+    ctx.fillRect(M.X(6),M.Y(10),M.X(10)-M.X(6),M.Y(6)-M.Y(10));
+    ctx.restore();
+    label(ctx,M.X(8),M.Y(9.4),'causal AND druggable',css('rate'),'center',10);
+    label(ctx,M.X(8),M.Y(8.9),'(nearly empty)',css('tx3'),'center',9.5);
+
+    const prog=clamp(t/1.4,0,1);
+    H.forEach((d,i)=>{
+      const on=clamp((prog*H.length-i)/2,0,1); if(on<=0) return;
+      const x=M.X(d[1]), y=M.Y(d[2]);
+      const rad=(5+d[3]*0.85)*ease(on);
+      const isH=hover===i;
+      ctx.save();
+      ctx.globalAlpha=on*(hover<0||isH?1:0.35);
+      ctx.beginPath(); ctx.arc(x,y,rad,0,6.283);
+      ctx.fillStyle=d[1]>=6&&d[2]>=6?'rgba(63,208,201,.35)':'rgba(99,164,255,.22)';
+      ctx.fill();
+      ctx.strokeStyle=d[1]>=6&&d[2]>=6?css('rate'):css('data');
+      ctx.lineWidth=isH?2.2:1.4; ctx.stroke();
+      ctx.restore();
+      if(on>0.6){
+        ctx.save(); ctx.globalAlpha=on*(hover<0||isH?1:0.3);
+        ctx.font=(isH?'700 ':'600 ')+(w<620?8.5:10)+'px ui-sans-serif,system-ui,sans-serif';
+        ctx.fillStyle=isH?css('tx'):css('tx2');
+        ctx.textAlign='center'; ctx.textBaseline='bottom';
+        const nm=w<620?d[0].split(' ')[0]:d[0];
+        ctx.fillText(nm,x,y-rad-4); ctx.restore();
+      }
+    });
+
+    /* tooltip */
+    if(hover>=0){
+      const d=H[hover];
+      const bw=Math.min(300,w-40), pad=11;
+      ctx.save(); ctx.font='500 10.5px ui-sans-serif,system-ui,sans-serif';
+      const words=d[4].split(' '); const lines=[]; let cur='';
+      words.forEach(wd=>{ if(ctx.measureText(cur+' '+wd).width>bw-pad*2){lines.push(cur);cur=wd;}
+                          else cur=cur?cur+' '+wd:wd; });
+      lines.push(cur);
+      const bh=lines.length*14+30;
+      const bx=clamp(M.X(d[1])+14,8,w-bw-8), by=clamp(M.Y(d[2])-bh/2,8,h-bh-8);
+      ctx.fillStyle=css('panel2'); ctx.strokeStyle=css('line2'); ctx.lineWidth=1;
+      ctx.beginPath();
+      if(ctx.roundRect) ctx.roundRect(bx,by,bw,bh,8); else ctx.rect(bx,by,bw,bh);
+      ctx.fill(); ctx.stroke();
+      ctx.fillStyle=css('tx'); ctx.font='700 11px ui-sans-serif,system-ui,sans-serif';
+      ctx.textAlign='left'; ctx.textBaseline='top';
+      ctx.fillText(d[0],bx+pad,by+pad);
+      ctx.fillStyle=css('tx2'); ctx.font='500 10.5px ui-sans-serif,system-ui,sans-serif';
+      lines.forEach((L,i)=>ctx.fillText(L,bx+pad,by+pad+18+i*14));
+      ctx.restore();
+    }
+    r.state.M=M;
+  },{still:false,state:{}});
+
+  function pick(ev){
+    const b=rig.cv.getBoundingClientRect();
+    const cx=(ev.touches?ev.touches[0].clientX:ev.clientX)-b.left;
+    const cy=(ev.touches?ev.touches[0].clientY:ev.clientY)-b.top;
+    const M=rig.state.M; if(!M) return;
+    let best=-1,bd=26;
+    H.forEach((d,i)=>{ const dd=Math.hypot(M.X(d[1])-cx,M.Y(d[2])-cy); if(dd<bd){bd=dd;best=i;} });
+    hover=best; rig.invalidate();
+  }
+  rig.cv.addEventListener('mousemove',pick);
+  rig.cv.addEventListener('touchstart',pick,{passive:true});
+  rig.cv.addEventListener('mouseleave',()=>{hover=-1;rig.invalidate();});
+})();
+</script>

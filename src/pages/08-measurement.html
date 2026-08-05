@@ -1,0 +1,205 @@
+<section class="page" id="measurement" data-toc="The measurement problem" data-num="8" data-grp="II · The evidence">
+  <div class="wrap">
+    <div class="eyebrow err">Domain evidence · biomarkers</div>
+    <h2>The measurement problem</h2>
+    <p class="dek">Aging clocks are the instrument on which the entire modern longevity trial
+    enterprise depends. They have a design flaw at the root, and a validation gap at the top.</p>
+
+    <h3>The clock paradox</h3>
+    <p>Epigenetic clocks are built by regressing DNA methylation on <strong>chronological
+    age</strong>. The training objective is to predict how many birthdays a person has had. But the
+    quantity anyone actually cares about — biological age — is by construction the part the clock
+    <em>fails</em> to predict: the residual.</p>
+
+    <div class="callout key">
+      <div class="ct">The paradox, stated exactly</div>
+      <p>A clock's usefulness as a biological measure lives entirely in its <em>error</em> against
+      chronological age. So the better a clock gets at its training objective, the less room remains
+      for it to carry biological information. <strong>A hypothetical perfect clock — r = 1.0 with
+      chronological age — would be biologically worthless</strong>, because it would tell you
+      nothing you could not read off a birth certificate.</p>
+      <p>The field routinely advertises clocks by their correlation with chronological age. That
+      number is, past a point, a measure of how little the clock can possibly tell you.</p>
+    </div>
+  </div>
+
+  <div class="fig wide rv">
+    <div class="fig-head">
+      <div class="fig-title"><span class="tag">Figure 8 · interactive</span>
+        Why chasing correlation with chronological age is the wrong objective</div>
+    </div>
+    <div class="ctrls">
+      <div class="ctrl" style="flex:2 1 300px">
+        <label>Clock's correlation with chronological age <span class="v" data-for="c-r"></span></label>
+        <input type="range" id="c-r" min="0.5" max="0.995" step="0.005" value="0.93">
+      </div>
+      <div class="ctrl">
+        <label>Technical noise (test–retest) <span class="v" data-for="c-n"></span></label>
+        <input type="range" id="c-n" min="0" max="6" step="0.1" value="2.5">
+      </div>
+    </div>
+    <div class="fig-body tight"><div class="canvas-host" id="cv-clock"></div></div>
+    <div class="readout">
+      <div class="r"><div class="k">Reported accuracy r</div><div class="v data" id="c-rv">—</div><div class="s">the advertised number</div></div>
+      <div class="r"><div class="k">Residual SD</div><div class="v" id="c-sd">—</div><div class="s">total "age acceleration"</div></div>
+      <div class="r"><div class="k">…of which is noise</div><div class="v err" id="c-nz">—</div><div class="s">measurement error</div></div>
+      <div class="r"><div class="k">Usable biological signal</div><div class="v rate" id="c-sig">—</div><div class="s">what's actually left</div></div>
+    </div>
+    <div class="fig-cap">
+      Push the correlation slider toward 1.0 and watch the usable signal collapse. Now add realistic
+      technical noise — <b>a meaningful share of the residual in real clocks is test–retest
+      variability, not biology</b> — and the remaining signal shrinks further. This is why an
+      intervention that "reverses epigenetic age by three years" may be moving a quantity that is
+      substantially measurement error, and why single-timepoint consumer clock tests are close to
+      uninterpretable at the individual level.
+      <br><span class="srcnote">Schematic. The scatter is simulated to illustrate the structural
+      relationship between correlation, residual variance and technical noise, which is a
+      mathematical fact about regression — <b>it is not a plot of any particular clock's data.</b></span>
+    </div>
+  </div>
+
+  <div class="wrap">
+    <h3>The validation gap</h3>
+    <p>Whatever their design, clocks could still earn their place as trial endpoints — if they were
+    validated surrogates. They are not. <strong>No epigenetic clock has been qualified as a
+    surrogate endpoint by any regulator.</strong> Being responsive to an intervention is not the
+    same as being a surrogate for its outcome, and the gap between the two is where most of this
+    field's optimism lives.</p>
+
+    <p>The formal standard is the <strong>Prentice criteria</strong>, and it is worth stating
+    plainly because almost nothing in geroscience meets it:</p>
+
+    <ol class="num">
+      <li>The intervention must have a significant effect on the <em>true</em> endpoint (here:
+      mortality or a hard clinical outcome).</li>
+      <li>The intervention must have a significant effect on the surrogate.</li>
+      <li>The surrogate must be prognostic for the true endpoint.</li>
+      <li><strong>The effect of the intervention on the true endpoint must be fully captured by the
+      surrogate</strong> — conditional on the surrogate, treatment adds no further information.</li>
+    </ol>
+
+    <p>Criterion 4 is the hard one and it is the one that matters. A clock could be perfectly
+    prognostic <em>and</em> perfectly responsive, and still be an invalid surrogate — if the drug
+    moves the clock by a route that does not touch mortality. Given that clocks are trained on
+    methylation patterns whose causal relationship to death is largely unknown, this is not a
+    hypothetical concern.</p>
+
+    <div class="callout warn">
+      <div class="ct">A worked example of the gap</div>
+      <p>The most-cited human "epigenetic age reversal" result — a claimed reversal of about 2.5
+      years alongside thymic regeneration — came from a study with <strong>nine participants and no
+      control group</strong>. It is cited as evidence that human aging can be reversed. It is
+      evidence that nine people's clock readings moved, in an uncontrolled setting, on a measure
+      that is not a validated surrogate for anything.</p>
+      <p>Compare with the largest properly controlled human caloric-restriction trial, which found
+      the pace-of-aging measure slowed by a few percent while two other major clocks
+      <strong>did not move at all</strong>. When three clocks disagree about the same intervention
+      in the same participants, at most one of them can be measuring the thing they all claim to
+      measure.</p>
+    </div>
+
+    <h3>The fix</h3>
+    <p>Three changes would put the field on sound footing, and none requires new technology:</p>
+    <ul class="tick">
+      <li><strong>Train on time-to-death, not on chronological age.</strong> If the target is
+      mortality, regress on mortality. Second-generation clocks partially do this, and they are
+      measurably better prognostically — the lesson has not been generalised.</li>
+      <li><strong>Report technical reliability (ICC) alongside every clock result</strong>, and
+      require that any claimed intervention effect exceed the test–retest noise floor. This is
+      routine in clinical chemistry and essentially absent here.</li>
+      <li><strong>Stop reporting correlation with chronological age as a quality metric.</strong> It
+      rewards exactly the wrong optimisation. Report prognostic performance for hard endpoints
+      instead, and formally test criterion 4 before any clock is used as a trial endpoint.</li>
+    </ul>
+
+    <div class="callout caveat">
+      <div class="ct">To be fair to the clocks</div>
+      <p class="small">Second-generation clocks trained on mortality-linked phenotypes are genuinely
+      prognostic for mortality at the population level, and pace-of-aging measures are conceptually
+      much closer to the rate quantity this document argues for — they estimate a <em>slope</em>
+      rather than a <em>state</em>, which is exactly the right instinct. The criticism here is not
+      that clocks are useless. It is that they are being used as a decision-grade endpoint before
+      anyone has demonstrated they can bear that weight.</p>
+    </div>
+  </div>
+</section>
+
+<script>
+/* ---- Figure 8: the clock paradox ------------------------------------ */
+(function(){
+  const host=document.getElementById('cv-clock'); if(!host) return;
+  const N=420, S={r:0.93, noise:2.5};
+  /* fixed random draws so the scatter is stable while sliders move */
+  const seed=[]; let s=12345;
+  for(let i=0;i<N;i++){ s=(s*1103515245+12345)&0x7fffffff;
+    const u=s/0x7fffffff; s=(s*1103515245+12345)&0x7fffffff; const v=s/0x7fffffff;
+    seed.push([20+u*70, Math.sqrt(-2*Math.log(v||1e-9))*Math.cos(6.283*u)]); }
+  let rig;
+
+  function stats(){
+    const sdAge=20.2;                       /* SD of chronological age in the cohort */
+    const resid=sdAge*Math.sqrt(Math.max(1-S.r*S.r,0));
+    const noise=Math.min(S.noise,resid*0.999);
+    const bio=Math.sqrt(Math.max(resid*resid-noise*noise,0));
+    return {resid,noise,bio};
+  }
+  function upd(){
+    const st=stats();
+    const set=(id,v)=>{const e=document.getElementById(id); if(e) e.textContent=v;};
+    set('c-rv',S.r.toFixed(3));
+    set('c-sd',st.resid.toFixed(2)+' yr');
+    set('c-nz',st.noise.toFixed(2)+' yr');
+    set('c-sig',st.bio.toFixed(2)+' yr');
+    if(rig) rig.invalidate();
+  }
+  SLIDER('c-r', v=>v.toFixed(3), v=>{S.r=v; upd();});
+  SLIDER('c-n', v=>v.toFixed(1)+' yr', v=>{S.noise=v; upd();});
+
+  rig=CV(host, w=>w<680?0.9:2.4, function(ctx,w,h,t){
+    const two=w>=680, gap=28, pw=two?(w-gap)/2:w, ph=two?h:(h-gap)/2;
+    const st=stats();
+
+    /* LEFT: scatter */
+    ctx.save();
+    (function(){
+      const M=PLOT(ctx,pw,ph,{xr:[15,95],yr:[15,95],pad:{l:54,r:16,t:26,b:38},
+        xlab:'chronological age (yr)', ylab:'clock-predicted age (yr)'});
+      PATH(ctx,M,[[15,15],[95,95]],css('line2'),1.3,null,[4,4]);
+      ctx.save();
+      seed.forEach(p=>{
+        const y=p[0]+p[1]*st.resid;
+        if(y<15||y>95) return;
+        ctx.fillStyle='rgba(99,164,255,.45)';
+        ctx.beginPath(); ctx.arc(M.X(p[0]),M.Y(y),2.2,0,6.283); ctx.fill();
+      });
+      ctx.restore();
+      label(ctx,M.x0,14,'r = '+S.r.toFixed(3)+'  — the advertised number',css('data'),'left',10.5);
+    })();
+    ctx.restore();
+
+    /* RIGHT: variance decomposition */
+    ctx.save(); if(two) ctx.translate(pw+gap,0); else ctx.translate(0,ph+gap);
+    (function(){
+      const M=PLOT(ctx,pw,ph,{xr:[-16,16],yr:[0,0.42],pad:{l:54,r:16,t:26,b:38},
+        xlab:'age acceleration (predicted − actual, yr)', ylab:'density', grid:false});
+      function bell(sd,col,fill){
+        if(sd<=0.02) return;
+        const pts=[]; for(let x=-16;x<=16;x+=0.2)
+          pts.push([x, Math.exp(-x*x/(2*sd*sd))/(sd*Math.sqrt(6.283))]);
+        if(fill) AREA(ctx,M,pts,fill,null,0);
+        PATH(ctx,M,pts,col,2);
+      }
+      bell(st.resid,css('data'),'rgba(99,164,255,.10)');
+      bell(st.noise,css('err'),'rgba(242,119,122,.13)');
+      bell(st.bio,css('rate'),'rgba(63,208,201,.16)');
+      LEG(ctx,M.x0+8,M.y1+14,[
+        [css('data'),'total residual '+st.resid.toFixed(1)+' yr'],
+        [css('err'),'technical noise '+st.noise.toFixed(1)+' yr'],
+        [css('rate'),'usable biology '+st.bio.toFixed(1)+' yr']]);
+      if(st.bio<1.2) label(ctx,M.X(0),M.Y(0.36),'signal has collapsed',css('err'),'center',12);
+    })();
+    ctx.restore();
+  },{still:true});
+  upd();
+})();
+</script>

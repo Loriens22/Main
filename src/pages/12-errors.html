@@ -1,0 +1,133 @@
+<section class="page" id="errors" data-toc="Errors and corrections" data-num="12" data-grp="V · Corrections">
+  <div class="wrap">
+    <div class="eyebrow err">Consolidated · all domains</div>
+    <h2>Errors and corrections</h2>
+    <p class="dek">Named problems in named studies, with the specific fix in each case. This is
+    offered in the spirit the field itself requires — these are almost all good scientists making
+    structural mistakes that the incentives of the literature reward.</p>
+
+    <p>The striking thing about assembling this ledger is how few of the errors are about biology.
+    Nearly all are about <strong>estimands, baselines and denominators</strong> — choosing a
+    statistic that flatters the result, or omitting the number that would let a reader calibrate it.</p>
+  </div>
+
+  <div class="fig rv">
+    <div class="fig-head">
+      <div class="fig-title"><span class="tag">Figure 12 · animated</span>
+        Where the errors actually are</div>
+    </div>
+    <div class="fig-body tight"><div class="canvas-host" id="cv-err"></div></div>
+    <div class="fig-cap">
+      Classification of the specific errors catalogued across all five domain reviews. <b>Reporting
+      and estimand choice dominates.</b> This is encouraging in one way — these are the cheapest
+      class of error to fix, requiring no new experiments, only different reporting rules — and
+      discouraging in another, since they have been known and unfixed for decades.
+    </div>
+  </div>
+
+  <div class="wrap">
+    <div class="tbl-scroll">
+      <table class="data">
+        <thead><tr><th class="sortable">Study or claim</th><th class="sortable">Class</th>
+          <th>The flaw</th><th>The correction</th></tr></thead>
+        <tbody>
+          <tr><td class="name">"36% increased survival" from senolytics</td><td>estimand</td>
+            <td>The result was a 36% increase in <em>remaining</em> life in mice treated at 24–27 months — a survivorship-selected cohort. It is quoted almost universally as a 36% lifespan extension.</td>
+            <td>Report (1) median total lifespan from birth in days, (2) median post-treatment survival in days, and (3) the RMST difference with 95% CI over a pre-specified horizon. RMST is the correct estimand: interpretable in time units, no proportional-hazards assumption, and immune to inflation by a late start age.</td></tr>
+          <tr><td class="name">"+109% lifespan" from reprogramming</td><td>estimand</td>
+            <td>Median <em>remaining</em> lifespan measured from 124 weeks against controls living ~129 weeks: ~109% of ~5 weeks is roughly +5 weeks absolute, about +4% of total lifespan — a ~25× gap to the headline. All authors company-affiliated; no independent replication.</td>
+            <td>Percentage changes in remaining lifespan must never appear without the absolute baseline in the same sentence. Replicate as: AAV-OSK in UM-HET3, from 18 months, ≥60/arm/sex, two independent sites, pre-registered, with empty-capsid controls to exclude vector effects.</td></tr>
+          <tr><td class="name">Senescent-cell clearance maximum-lifespan claim</td><td>statistics</td>
+            <td>Maximum lifespan reached significance only with sexes <em>pooled</em> (p = 0.0295), after the sex-stratified analyses failed, and not at all in a second genetic background. With six comparisons in the family, that p-value survives no correction.</td>
+            <td>Quantile regression at the 90th percentile, sex pre-specified as a stratification factor rather than a pooling convenience, background as a fixed effect, cage as a random effect in a Cox frailty model, Holm correction across the full family. Falsifiable prediction: <b>the maximum-lifespan effect will not survive; the median effect probably will.</b></td></tr>
+          <tr><td class="name">First-in-human senolytic study</td><td>design</td>
+            <td>n = 9, open-label, no control group — and it later required a corrigendum stating that re-analysis of the raw data changed some conclusions. It remains the load-bearing citation for "senolytics work in humans"; the corrigendum is essentially never cited.</td>
+            <td>Anyone citing the paper must cite the corrigendum. Replace with: randomised, double-blind, placebo-controlled, n ≥ 60/arm, pre-registered, public raw data, paired biopsies read blind, multi-marker senescence score with myeloid exclusion — not p16 alone.</td></tr>
+          <tr><td class="name">The p16-based senescence literature generally</td><td>construct validity</td>
+            <td>p16<sup>INK4a</sup> and SA-β-gal are induced in macrophages as a reversible immune response and can appear in p53-null mice. Every clearance experiment ablates an unknown mixture of senescent cells and activated macrophages.</td>
+            <td>Mandate multi-marker scoring, simultaneous myeloid-lineage exclusion at single-cell resolution, and inducible lineage-tracing controls that spare p16⁺ myeloid cells.</td></tr>
+          <tr><td class="name">Reprogramming lifespan results</td><td>model validity</td>
+            <td>The headline +33% median came exclusively from progeroid mice with baselines measured in weeks. Rescuing a monogenic lamin defect is not evidence about normal aging, and short baselines inflate percentages.</td>
+            <td>Cite the negative wild-type result rather than the progeroid one when making claims about normal aging. Definitive test: cyclic OSKM in UM-HET3, both sexes, ≥60/arm/sex, ≥2 sites, from 12 months, pre-registered, control lifespan reported in days.</td></tr>
+          <tr><td class="name">Short-lived control cohorts, field-wide</td><td>baseline</td>
+            <td>A percentage lifespan gain is uninterpretable without the control's absolute lifespan. If controls are unusually short-lived, the "intervention" may be rescuing a husbandry or strain pathology rather than slowing aging.</td>
+            <td>Require control median lifespan in days, per sex and per background, alongside every percentage — as journals require CONSORT items in clinical trials. Treat any percentage published without its baseline as uninterpretable.</td></tr>
+          <tr><td class="name">"Metformin users outlive non-diabetics"</td><td>confounding</td>
+            <td>Observational comparison subject to immortal time bias and confounding by indication. The claim has driven enormous interest in a drug that then failed to extend lifespan alone in the ITP.</td>
+            <td>Time-varying exposure modelling with a proper landmark or target-trial emulation design. The definitive answer requires the randomised trial, which has still not been run.</td></tr>
+          <tr><td class="name">The alcohol "J-curve"</td><td>confounding</td>
+            <td>Abstainer bias: the reference group contains people who quit <em>because</em> they were ill. This produced decades of advice that moderate drinking is protective.</td>
+            <td>Bias-adjusted meta-analysis plus Mendelian randomisation — both of which dissolve the protective effect. A worked example of reverse causation surviving in the literature for a generation.</td></tr>
+          <tr><td class="name">"Evidence for a limit to human lifespan of ~115"</td><td>statistics</td>
+            <td>Segmented regression with a post-hoc breakpoint, using only the single oldest death per year and thus discarding most of the information. Five rebuttals followed in the same journal.</td>
+            <td>Use the full distribution of extreme ages with extreme-value or Bayesian hierarchical methods; treat the breakpoint as a parameter with uncertainty rather than a choice; report sensitivity to it.</td></tr>
+          <tr><td class="name">Supercentenarian records and Blue Zones</td><td>data quality</td>
+            <td>Records concentrate in regions with poor birth registration; birth certificates cut recorded counts 69–82%; birthdates heap on days divisible by five; regions reporting most 105+ report fewer 90+.</td>
+            <td>Machine-checkable provenance standard: contemporaneous document required, pension-incentive independence demonstrated, automatic Whipple/Myers age-heaping test reported for every cohort before it enters a lifespan-limit dataset.</td></tr>
+          <tr><td class="name">Epigenetic clocks as trial endpoints</td><td>surrogacy</td>
+            <td>Trained on chronological age — so their biological content lives in their residual; not qualified as a surrogate by any regulator; responsiveness is routinely mistaken for surrogacy; technical noise is rarely reported alongside effects.</td>
+            <td>Train on time-to-death, not chronological age. Report ICC alongside every result and require effects to exceed the noise floor. Formally test Prentice criterion 4 before any clock is used as a decision-grade endpoint.</td></tr>
+          <tr><td class="name">Gompertz slope–intercept fitting</td><td>identifiability</td>
+            <td>Joint least-squares fitting of A and α is ill-posed; the parameters are collinear and the optimiser returns a degenerate manifold. Much of the Strehler–Mildvan literature rests on this artifact.</td>
+            <td>Never fit A and α separately. Use the non-parametric tests of §<a href="#offset-rate">4</a> — Q–Q decomposition, SD of age at death, coefficient of variation — none of which touch the degeneracy.</td></tr>
+          <tr><td class="name">Resilience limit of 120–150 years</td><td>extrapolation</td>
+            <td>A linear fit extrapolated to its zero-crossing far outside the observed data range. Two routes to the same parameter — recovery-time ratio and inverse-variance — appear to disagree by 15–40% (§<a href="#slowing">10</a>).</td>
+            <td>Report the critical age as a range with estimator sensitivity shown, and reconcile the two estimators explicitly. Where they disagree, the disagreement is the finding.</td></tr>
+          <tr><td class="name">"Aging is thermodynamically inevitable"</td><td>conceptual</td>
+            <td>Organisms are open dissipative systems; the germline has persisted ~4 billion years without aging. The second law does not forbid indefinite somatic maintenance.</td>
+            <td>Restate the argument where it actually bites — in <em>information</em> fidelity and the germline/soma asymmetry — rather than in energy or entropy generally.</td></tr>
+          <tr><td class="name">Free-radical / oxidative damage theory</td><td>falsified</td>
+            <td>Antioxidant trials in humans range from null to harmful; several mouse models with elevated oxidative stress live normally or longer.</td>
+            <td>Retire the strong form. It dominated the field for decades and left behind a supplement industry that outlived its evidence base.</td></tr>
+          <tr><td class="name">Longevity escape velocity</td><td>conceptual</td>
+            <td>Coherent as arithmetic, but only if interventions are rate changes. Applied to offsets it fails immediately: each additional decade costs a further ~2.3-fold hazard reduction, permanently.</td>
+            <td>State which parameter the argument assumes is moving. Escape velocity cannot be reached by stacking offsets — see §<a href="#trap">3</a>.</td></tr>
+        </tbody>
+      </table>
+    </div>
+    <p class="srcnote">Columns are sortable. Studies are described rather than named in some rows
+    where the specific citation could not be verified in-session; the methodological point stands
+    independently of attribution, and readers should verify attribution before quoting.</p>
+  </div>
+</section>
+
+<script>
+/* ---- Figure 12: error taxonomy -------------------------------------- */
+(function(){
+  const host=document.getElementById('cv-err'); if(!host) return;
+  const C=[
+    ['Reporting & estimand choice',5,'err','Wrong statistic chosen; baselines omitted; "remaining" vs total lifespan.'],
+    ['Confounding & causal inference',3,'offset','Immortal time, abstainer bias, confounding by indication.'],
+    ['Statistical method',3,'data','Post-hoc breakpoints, sex-pooling after failure, multiplicity.'],
+    ['Conceptual / theoretical',3,'theory','Entropy arguments, escape velocity, falsified damage theories.'],
+    ['Construct & data validity',2,'rate','Markers that do not measure what they claim; contaminated records.']
+  ];
+  CV(host, w=>w<620?1.3:2.5, function(ctx,w,h,t){
+    const total=C.reduce((s,c)=>s+c[1],0);
+    const padL=w<620?128:200, padR=52;
+    const x0=padL, pw=w-padL-padR;
+    const rowH=(h-46)/C.length;
+    const prog=ease(clamp(t/1.2,0,1));
+    label(ctx,x0,16,'ERRORS CATALOGUED, BY CLASS',css('tx3'),'left',9.5);
+    C.forEach((c,i)=>{
+      const y=30+i*rowH, bh=Math.min(rowH*0.44,20);
+      const on=clamp((prog*C.length-i)/1.4,0,1);
+      ctx.save();
+      ctx.font='600 '+(w<620?9.5:11)+'px ui-sans-serif,system-ui,sans-serif';
+      ctx.fillStyle=css('tx'); ctx.textAlign='right'; ctx.textBaseline='middle';
+      ctx.fillText(c[0], padL-14, y+rowH*0.32);
+      ctx.restore();
+      const bw=pw*(c[1]/total)*3.1*on;
+      ctx.save(); ctx.fillStyle=css(c[2]); ctx.globalAlpha=0.8;
+      ctx.beginPath();
+      if(ctx.roundRect) ctx.roundRect(x0,y+rowH*0.32-bh/2,Math.max(bw,2),bh,3);
+      else ctx.rect(x0,y+rowH*0.32-bh/2,Math.max(bw,2),bh);
+      ctx.fill(); ctx.restore();
+      if(on>0.8){
+        label(ctx,x0+bw+8,y+rowH*0.32,String(c[1]),css(c[2]),'left',12);
+        if(w>=620) label(ctx,x0+2,y+rowH*0.32+bh*0.95+7,c[3],css('tx3'),'left',9.5);
+      }
+    });
+  });
+})();
+</script>

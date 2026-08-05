@@ -1,0 +1,204 @@
+<section class="page" id="ledger" data-toc="The intervention ledger" data-num="5" data-grp="II · The evidence">
+  <div class="wrap">
+    <div class="eyebrow">Domain evidence · pharmacology &amp; metabolism</div>
+    <h2>The intervention ledger</h2>
+    <p class="dek">What survives contact with a well-designed experiment. The honest answer is: a
+    short list, mostly sex-specific, mostly in mice — and a very long list of things that do not
+    work at all.</p>
+
+    <h3>The one dataset that deserves your trust</h3>
+    <p>The NIA <strong>Interventions Testing Program</strong> is the closest thing geroscience has
+    to a clean instrument. It runs every compound at three independent sites, in genetically
+    heterogeneous <em>UM-HET3</em> four-way-cross mice — not an inbred strain with its own private
+    pathologies — with both sexes analysed separately and the protocol fixed in advance. It is
+    designed specifically to defeat the failure modes that make the rest of the mouse literature
+    hard to read: strain-specific rescue, single-site effects, sex-pooling, and short-lived
+    controls.</p>
+
+    <p>It is also the reason we know that a great many celebrated compounds do nothing.</p>
+  </div>
+
+  <div class="fig wide rv">
+    <div class="fig-head">
+      <div class="fig-title"><span class="tag">Figure 5 · interactive</span>
+        NIA Interventions Testing Program — median lifespan effect by sex</div>
+      <div class="seg" id="itp-seg">
+        <button class="on" data-v="hits">compounds that worked</button>
+        <button data-v="all">including the failures</button>
+      </div>
+    </div>
+    <div class="fig-body tight"><div class="canvas-host" id="cv-itp"></div></div>
+    <div class="fig-cap">
+      <b>Two things to notice.</b> First, the sex-specificity is extreme and it is not noise:
+      17α-estradiol and canagliflozin extend male lifespan meaningfully and do nothing whatever in
+      females; acarbose gives +22% in males and +5% in females. Any result reported sex-pooled in
+      this field should be treated as uninterpretable until it is split. Second, switch to "including
+      the failures" — <b>the modal outcome of a serious, well-powered longevity experiment is
+      exactly zero</b>, including for several compounds sold as longevity supplements today.
+      <br><span class="srcnote">Values are median-lifespan percentage changes surfaced from
+      published ITP cohort reports via search summaries; several p-values and maximum-lifespan
+      figures could not be retrieved and are omitted rather than guessed. Rapamycin figures shown
+      are for the 42 ppm dose. Astaxanthin and meclizine each showed an effect in one cohort and
+      <b>failed to replicate</b> in a later one — both are shown.</span>
+    </div>
+  </div>
+
+  <div class="wrap">
+    <div class="callout warn">
+      <div class="ct">The supplement graveyard</div>
+      <p>Every one of these was tested by the ITP in genetically heterogeneous mice at three sites,
+      and <strong>every one produced no lifespan extension</strong>: resveratrol, curcumin, green
+      tea extract, fish oil, medium-chain triglyceride oil, oxaloacetate, α-ketoglutarate,
+      ursodeoxycholic acid, nicotinamide riboside, and <strong>fisetin</strong> — the last two being
+      among the most heavily marketed longevity compounds in the world. Metformin failed alone,
+      though it did not block rapamycin's effect when combined.</p>
+      <p>This is what a properly powered negative result looks like, and it is the most valuable
+      output the field produces. It is also the least cited.</p>
+    </div>
+
+    <h3>What this looks like in humans</h3>
+    <p>The translation is brutal. The interventions with the largest, best-established human
+    all-cause mortality effects are not the ones the longevity industry sells.</p>
+
+    <div class="tbl-scroll">
+      <table class="data">
+        <thead><tr>
+          <th class="sortable">Intervention</th>
+          <th class="sortable">Human all-cause mortality effect</th>
+          <th class="sortable">Grade</th>
+          <th>Critical note</th>
+        </tr></thead>
+        <tbody>
+          <tr><td class="name">Not smoking / cessation</td><td>Largest known modifiable effect</td>
+            <td><span class="pill A">A</span></td>
+            <td>Not re-verified in this session. Effect size is large enough that it sits at the top of any honest ranking.</td></tr>
+          <tr><td class="name">Cardiorespiratory fitness</td><td class="num">HR 5.04 (4.10–6.20) low vs elite</td>
+            <td><span class="pill C">C</span></td>
+            <td>Strongest association of any modifiable factor measured — but <b>observational</b>. The achievable causal effect of training is much smaller than the low-vs-elite contrast implies.</td></tr>
+          <tr><td class="name">Aerobic activity, 3–5× minimum</td><td class="num">HR ≈ 0.61</td>
+            <td><span class="pill C">C</span></td><td>Pooled cohorts. Plateaus; no reversal at high volume.</td></tr>
+          <tr><td class="name">Blood pressure control</td><td>Not quantified here</td>
+            <td><span class="pill A">A</span></td><td>High-quality RCT evidence exists; almost certainly belongs top-5. Not sourced in session.</td></tr>
+          <tr><td class="name">Semaglutide 2.4 mg</td><td class="num">HR 0.81 (0.71–0.93)</td>
+            <td><span class="pill B">B</span></td>
+            <td>Real hard-endpoint RCT — but in an enriched high-risk population, and plausibly cardiometabolic rather than geroprotective. Lean-mass loss is a documented cost.</td></tr>
+          <tr><td class="name">Resistance training 30–60 min/wk</td><td class="num">HR ≈ 0.83–0.90</td>
+            <td><span class="pill C">C</span></td><td>Independent of aerobic activity. No added benefit beyond ~60 min/wk.</td></tr>
+          <tr><td class="name">Reducing alcohol</td><td>No benefit from low-volume drinking</td>
+            <td><span class="pill B">B</span></td>
+            <td><b>The important finding is negative:</b> the protective "J-curve" is an artifact of abstainer bias, and does not survive bias-adjusted meta-analysis or Mendelian randomisation.</td></tr>
+          <tr><td class="name">Caloric restriction (CALERIE, 2 yr)</td><td>Unknown — no human mortality data exist</td>
+            <td><span class="pill D">U / B</span></td>
+            <td>DunedinPACE slowed 2–3%; PhenoAge and GrimAge <b>unchanged</b>. Documented harms: bone mineral density loss at lumbar spine, total hip and femoral neck; lean mass loss.</td></tr>
+          <tr><td class="name">Rapamycin (humans)</td><td>Unknown</td>
+            <td><span class="pill D">U in humans</span></td>
+            <td>Best animal evidence in the field. In humans the only adequately powered phase 3 of an mTOR inhibitor for a geroscience-adjacent endpoint <b>failed</b>.</td></tr>
+          <tr><td class="name">Metformin (non-diabetic)</td><td>Unknown; observational case unsound</td>
+            <td><span class="pill E">D, rejected</span></td>
+            <td>Failed alone in the ITP. The famous "diabetics on metformin outlive non-diabetics" claim is biased. Also blunts exercise adaptation.</td></tr>
+          <tr><td class="name">NAD⁺ precursors (NR, NMN)</td><td>No mortality evidence; null on function</td>
+            <td><span class="pill E">B for the null</span></td>
+            <td>Blood NAD⁺ rises reliably. Functional and metabolic endpoints do not follow. NR failed outright in the ITP.</td></tr>
+          <tr><td class="name">Resveratrol, curcumin, fisetin, α-KG, fish oil…</td><td>No evidence of benefit</td>
+            <td><span class="pill E">E</span></td><td>All failed in the ITP.</td></tr>
+          <tr><td class="name">Young plasma / plasma dilution</td><td>Unknown — no controlled human outcome data</td>
+            <td><span class="pill E">U</span></td>
+            <td>Flagged as a high-priority evidence gap: a commercial industry operates here on an evidence base that does not support it.</td></tr>
+        </tbody>
+      </table>
+    </div>
+    <p class="srcnote">Columns are sortable. "U" = genuinely unknown, which is different from zero and
+    is reported as such deliberately. Several rows are marked not-verified-in-session because the
+    search budget was exhausted; they are included for completeness of the ranking rather than as
+    sourced claims, and are flagged accordingly.</p>
+
+    <div class="callout key">
+      <div class="ct">Read this table through the framework</div>
+      <p>Every entry above with real evidence is a <strong>hazard multiplier</strong> — an offset.
+      Semaglutide's HR of 0.81 corresponds to <code>k = 1.23</code>, which by the Logarithmic Trap
+      is worth <code>ln(1.23)/0.0866 ≈ 2.4 years</code> if sustained lifelong at that magnitude.
+      That is a genuinely valuable result and it is also, precisely, the ceiling of that class of
+      intervention. Nothing in this table is a rate change, and nothing in it was ever tested for
+      being one.</p>
+    </div>
+  </div>
+</section>
+
+<script>
+/* ---- Figure 5: ITP results ------------------------------------------ */
+(function(){
+  const host=document.getElementById('cv-itp'); if(!host) return;
+  const HITS=[
+    ['rapamycin (42 ppm)',23,26],['acarbose',22,5],['17α-estradiol',19,0],
+    ['canagliflozin',14,0],['astaxanthin',12,null],['halofuginone',9,null],
+    ['mitoglitazone',9,null],['meclizine',8,null],['epicatechin',5,null],
+    ['glycine',1.3,3.7]
+  ];
+  const FAILS=['metformin (alone)','nicotinamide riboside','resveratrol','fisetin',
+    'curcumin','green tea extract','fish oil','α-ketoglutarate','oxaloacetate',
+    'MCT oil','ursodeoxycholic acid','candesartan','geranylgeranylacetone','MIF098',
+    'SG1002','dimethyl fumarate','mycophenolic acid','4-phenylbutyrate','mifepristone',
+    'methotrexate','atorvastatin + telmisartan','astaxanthin (replication)','meclizine (replication)'];
+  let mode='hits';
+  let rig;
+  SEG('#itp-seg',v=>{mode=v; if(rig){rig.t0=performance.now(); rig.invalidate();}});
+
+  rig=CV(host, w=>{
+    const n = mode==='hits'?HITS.length:HITS.length+FAILS.length;
+    return w / (54 + n*(w<620?21:23));
+  }, function(ctx,w,h,t){
+    const rows = mode==='hits' ? HITS.map(r=>[r[0],r[1],r[2],true])
+      : HITS.map(r=>[r[0],r[1],r[2],true]).concat(FAILS.map(f=>[f,0,0,false]));
+    const labW = w<620?116:186;
+    const x0=labW, x1=w-58, pw=x1-x0;
+    const maxV=28;
+    const X=v=>x0+v/maxV*pw;
+    const rowH=(h-40)/rows.length;
+    const prog=clamp(t/1.1,0,1);
+
+    /* gridlines */
+    ctx.save(); ctx.strokeStyle=css('line'); ctx.fillStyle=css('tx3');
+    ctx.font='500 10px ui-sans-serif,system-ui,sans-serif'; ctx.textAlign='center';
+    for(let v=0;v<=25;v+=5){
+      const x=Math.round(X(v))+.5;
+      ctx.beginPath(); ctx.moveTo(x,26); ctx.lineTo(x,h-14); ctx.stroke();
+      ctx.fillText(v+'%',x,h-12);
+    }
+    ctx.restore();
+    label(ctx,x0,14,'MEDIAN LIFESPAN CHANGE VS CONTROL — UM-HET3 MICE',css('tx3'),'left',9.5);
+    LEG(ctx,w-52,14,[[css('data'),'male'],[css('theory'),'female']],'right');
+
+    rows.forEach((r,i)=>{
+      const y=30+i*rowH, bh=Math.min(rowH*0.34,9);
+      const on=clamp((prog*rows.length-i)/1.6,0,1);
+      /* name */
+      ctx.save();
+      ctx.font=(r[3]?'600 ':'500 ')+(w<620?9.5:11)+'px ui-sans-serif,system-ui,sans-serif';
+      ctx.fillStyle=r[3]?css('tx'):css('tx3');
+      ctx.textAlign='right'; ctx.textBaseline='middle';
+      ctx.fillText(r[0], labW-12, y+rowH*0.42);
+      ctx.restore();
+
+      if(!r[3]){
+        /* zero marker */
+        ctx.save(); ctx.strokeStyle=css('line2'); ctx.lineWidth=1; ctx.setLineDash([2,3]);
+        ctx.beginPath(); ctx.moveTo(X(0),y+rowH*0.42); ctx.lineTo(X(0)+16*on,y+rowH*0.42); ctx.stroke();
+        ctx.restore();
+        label(ctx,X(0)+22,y+rowH*0.42,'no effect',css('tx3'),'left',9.5);
+        return;
+      }
+      [[r[1],css('data'),0],[r[2],css('theory'),1]].forEach(([v,col,k])=>{
+        if(v===null||v===undefined) return;
+        const yy=y+rowH*0.18+k*(bh+2.5);
+        const bw=Math.max(X(v)-X(0),0)*on;
+        ctx.save(); ctx.fillStyle=col; ctx.globalAlpha=v===0?0.28:1;
+        ctx.beginPath();
+        if(ctx.roundRect) ctx.roundRect(X(0),yy,Math.max(bw,1.5),bh,2); else ctx.rect(X(0),yy,Math.max(bw,1.5),bh);
+        ctx.fill(); ctx.restore();
+        if(on>0.75) label(ctx, X(0)+bw+6, yy+bh/2, v===0?'0':('+'+v+'%'),
+                          v===0?css('tx3'):col,'left',9.5);
+      });
+    });
+  },{still:true});
+})();
+</script>

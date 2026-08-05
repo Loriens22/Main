@@ -1,0 +1,211 @@
+<section class="page" id="theory" data-toc="Why aging exists at all" data-num="9" data-grp="III · Theory">
+  <div class="wrap">
+    <div class="eyebrow theory">Domain evidence · evolutionary &amp; physical theory</div>
+    <h2>Why aging exists at all</h2>
+    <p class="dek">Aging is not required by physics, and it is not a program. It is what happens
+    when natural selection stops paying attention — and that framing determines what can and cannot
+    be done about it.</p>
+
+    <h3>The selection shadow</h3>
+    <p>Hamilton's central result is that the strength of selection against a deleterious effect
+    declines with the age at which that effect is expressed, because fewer individuals survive to
+    express it and because the reproductive value remaining at that age is smaller. Past the end of
+    reproduction, selection is nearly blind. A mutation that kills you at 80 is almost invisible to
+    evolution; the same mutation acting at 15 is removed immediately.</p>
+
+    <p>Two mechanisms follow. <strong>Antagonistic pleiotropy</strong>: genes that help early and
+    harm late are actively favoured. <strong>Disposable soma</strong>: because resources are
+    finite and extrinsic death is certain anyway, the optimal allocation to somatic repair is less
+    than perfect. Both predict that aging is a <em>byproduct</em>, not an adaptation — which is
+    good news, because byproducts have no evolutionary defenders. There is no machinery whose
+    purpose is to kill you and which would fight back.</p>
+
+    <div class="callout theory">
+      <div class="ct">The counter-case, stated fairly</div>
+      <p>Programmed-aging arguments — phenoptosis and similar — are not simply wrong; they are
+      motivated by a real observation. A 2014 survey of demographic trajectories across the tree of
+      life found species whose mortality is flat with age and species whose mortality
+      <em>declines</em> with age. If aging were a universal consequence of physics, those species
+      could not exist.</p>
+      <p>The resolution is that this shows aging is <em>optional</em> rather than
+      <em>programmed</em>. Selection can sustain negligible senescence where the ecology rewards it —
+      typically where extrinsic mortality is very low, as in a protected underground colony. That is
+      a far weaker claim than "a death program exists," and a far stronger claim than "aging is
+      inevitable."</p>
+    </div>
+
+    <h3>Aging is not entropy — and the sloppy version of that argument matters</h3>
+    <p>The claim that the second law makes aging inevitable is wrong, and it is worth being precise
+    about why, because it is the single most common piece of pseudo-physics in this field. Living
+    organisms are open systems far from thermodynamic equilibrium; they export entropy to their
+    surroundings continuously. If the second law forced senescence, the germline could not have
+    persisted for roughly four billion years without aging — but it has, and every one of your
+    ancestors was, at the cellular level, a continuously maintained lineage.</p>
+
+    <p>Where an entropic argument <em>does</em> bite is narrower and more interesting: not in energy
+    but in <strong>information</strong>. The germline is copy-protected by selection and by
+    aggressive repair; the soma is not. Somatic damage accumulates because nothing selects against
+    it, not because thermodynamics demands it.</p>
+
+    <div class="callout key">
+      <div class="ct">The strongest quantitative result in the field</div>
+      <p>Whole-genome sequencing of intestinal crypts across 16 mammal species found that
+      <strong>the somatic mutation rate per year scales inversely with lifespan</strong> — and that
+      species reach roughly similar somatic mutation burdens by the end of life, despite lifespans
+      differing by more than an order of magnitude. A mouse accumulates its lifetime allocation in
+      four years; a human takes eighty.</p>
+      <p>This is the cleanest evidence that there is a <em>rate</em> parameter under biological
+      control, that it differs enormously between species built from identical biochemistry, and
+      that it tracks lifespan rather than body size or metabolic rate.</p>
+    </div>
+  </div>
+
+  <div class="fig wide rv">
+    <div class="fig-head">
+      <div class="fig-title"><span class="tag">Figure 9 · interactive</span>
+        The existence proof: α is a species parameter, not a constant of nature</div>
+      <div class="seg" id="sp-seg">
+        <button class="on" data-v="haz">mortality hazard</button>
+        <button data-v="surv">survival from maturity</button>
+      </div>
+    </div>
+    <div class="fig-body tight"><div class="canvas-host" id="cv-species"></div></div>
+    <div class="fig-cap">
+      Four organisms, the same biochemistry, the same twenty amino acids, the same DNA-repair enzyme
+      families. The mouse's risk of death doubles roughly every four months. The human's doubles
+      every eight years. <b>The naked mole-rat's does not measurably double at all</b> — its fitted
+      hazard is approximately constant at about 1 in 10,000 per day for non-breeders, across more
+      than 3,000 animals and nearly four decades of colony records, with maximum lifespan beyond 30
+      years. Hydra is flatter still.
+      <br><span class="srcnote">Ruby, Smith &amp; Buffenstein 2018 <em>eLife</em> 7:e31157; revisited
+      2023 with roughly double the data, same conclusion. <b>The controversy is live and should be
+      stated:</b> two published Comments argue that failure to detect a Gompertz slope is not the
+      same as demonstrating its absence — with a low baseline hazard and a censored captive
+      population, power to detect slow exponential growth is limited. Treat "the naked mole-rat is a
+      non-aging mammal" as strongly supported but not closed.</span>
+    </div>
+  </div>
+
+  <div class="wrap">
+    <div class="tbl-scroll">
+      <table class="data">
+        <thead><tr><th class="sortable">Organism</th><th class="sortable num">Max lifespan</th>
+          <th>Demographic signature</th><th>What it does and does not show</th></tr></thead>
+        <tbody>
+          <tr><td class="name">Naked mole-rat</td><td class="num" data-s="30">&gt;30 yr</td>
+            <td>Hazard constant with age; ~4–5× longer-lived than body mass predicts</td>
+            <td>The key case. A mammal, endothermic, ordinary biochemistry, no detectable demographic aging.</td></tr>
+          <tr><td class="name"><em>Hydra magnipapillata</em></td><td class="num" data-s="1400">~1,400 yr (projected)</td>
+            <td>Constant mortality ≈0.006/yr over an 8-year study</td>
+            <td>Continuous stem-cell renewal. Weaker analogy — body plan permits total cell replacement.</td></tr>
+          <tr><td class="name">Greenland shark</td><td class="num" data-s="392">392 ± 120 yr</td>
+            <td>Extreme longevity, cold, slow</td>
+            <td>Dating by eye-lens racemisation; wide CI. Ectotherm — confounded with temperature.</td></tr>
+          <tr><td class="name">Bowhead whale</td><td class="num" data-s="211">~211 yr</td>
+            <td>Very long-lived endotherm</td>
+            <td>Large body mass; relevant to Peto's paradox and cancer suppression.</td></tr>
+          <tr><td class="name">Ocean quahog</td><td class="num" data-s="507">507 yr</td>
+            <td>Documented individual ("Ming")</td>
+            <td>Bivalve; very low metabolic rate. Distant from mammalian physiology.</td></tr>
+          <tr><td class="name"><em>Turritopsis dohrnii</em></td><td class="num" data-s="9999">"immortal"</td>
+            <td>Reverts to polyp stage</td>
+            <td><b>Not somatic immortality.</b> A reset through dedifferentiation — closer to a germline than to a maintained soma. Frequently misreported.</td></tr>
+          <tr><td class="name">House mouse</td><td class="num" data-s="4">~4 yr</td>
+            <td>MRDT ≈ 0.3 yr</td>
+            <td>The comparison case. Same enzymes, α roughly 27× higher than human.</td></tr>
+        </tbody>
+      </table>
+    </div>
+
+    <div class="callout key">
+      <div class="ct">What this licenses, precisely</div>
+      <p>It does <strong>not</strong> show that α can be driven to zero in humans. It shows
+      something narrower and more useful: <strong>α is a species-specific parameter that evolution
+      has set anywhere from about 2.3 yr⁻¹ in the mouse to indistinguishable from zero in the naked
+      mole-rat, within the same phylum, using the same biochemistry, at the same body
+      temperature.</strong></p>
+      <p>That is an existence proof, not a route map. But an existence proof is exactly what
+      separates "this problem is hard" from "this problem is forbidden" — and it is the reason the
+      Logarithmic Trap is an argument for changing target rather than an argument for giving up.</p>
+    </div>
+
+    <h3>What theory has got wrong</h3>
+    <ul class="tick">
+      <li><strong>The rate-of-living hypothesis</strong> — that lifespan is set by cumulative
+      metabolic expenditure — does not survive comparative data. Birds and bats live far longer than
+      their metabolic rates predict.</li>
+      <li><strong>The free-radical / oxidative damage theory</strong> is largely falsified in its
+      strong form. Antioxidant supplementation trials in humans range from null to harmful, and
+      several mouse models with <em>elevated</em> oxidative stress live normally or longer. The
+      theory dominated the field for decades and generated a supplement industry that outlived the
+      evidence.</li>
+      <li><strong>Longevity escape velocity</strong> — the argument that therapies will add life
+      faster than time passes — is coherent as arithmetic but requires that interventions be
+      <em>rate</em> changes. Applied to offsets, it fails immediately: the Logarithmic Trap means
+      each successive decade costs a further ~2.3-fold hazard reduction, forever. Escape velocity
+      cannot be reached by stacking offsets, and the argument has generally not distinguished the
+      two.</li>
+    </ul>
+  </div>
+</section>
+
+<script>
+/* ---- Figure 9: cross-species hazard --------------------------------- */
+(function(){
+  const host=document.getElementById('cv-species'); if(!host) return;
+  /* [name, A (per yr), alpha (per yr), colour, maturity yr, label offset] */
+  const SP=[
+    ['house mouse',      0.010,  2.31,  'err',    0.15],
+    ['human',            4.15e-5,0.0866,'data',   15],
+    ['naked mole-rat',   0.0365, 0.0,   'rate',   0.5],
+    ['hydra',            0.006,  0.0,   'theory', 0.1]
+  ];
+  let mode='haz', rig;
+  SEG('#sp-seg',v=>{mode=v; if(rig){rig.t0=performance.now(); rig.invalidate();}});
+
+  rig=CV(host, w=>w<620?1.15:2.3, function(ctx,w,h,t){
+    const haz=mode==='haz';
+    const M=PLOT(ctx,w,h,{
+      xr:[0,42], yr: haz?[1e-4,20]:[0,1], ylog:haz,
+      pad:{l:64,r:130,t:26,b:40},
+      xlab:'age (years)', ylab: haz?'annual mortality hazard':'survival from maturity',
+      yfmt: haz? v=>{const e=Math.round(Math.log10(v)); return e===0?'1':(e===1?'10':'10'+supr(e));}
+                : v=>(v*100).toFixed(0)+'%'
+    });
+    const prog=clamp(t/1.6,0,1);
+
+    SP.forEach((s,i)=>{
+      const pts=[];
+      for(let a=0;a<=42;a+=0.15){
+        const mu=s[1]*Math.exp(s[2]*a);
+        if(haz){ pts.push([a,Math.min(mu,20)]); }
+        else{
+          const cum = s[2]>1e-9 ? (s[1]/s[2])*(Math.exp(s[2]*a)-1) : s[1]*a;
+          pts.push([a,Math.exp(-cum)]);
+        }
+      }
+      PATH(ctx,M,pts,css(s[3]),2.4,prog);
+      /* end label */
+      if(prog>0.9){
+        let lx=42, ly=pts[pts.length-1][1];
+        for(const p of pts){ if(haz && p[1]>=20){ lx=p[0]; ly=20; break; } }
+        const yy=clamp(M.Y(ly),M.y1+6,M.y0-6);
+        label(ctx, Math.min(M.X(lx)+8,M.x1+6), yy, s[0], css(s[3]), 'left', 11);
+      }
+    });
+
+    /* annotation */
+    if(prog>0.95 && haz){
+      ctx.save(); ctx.strokeStyle=css('rate'); ctx.lineWidth=1; ctx.setLineDash([3,3]);
+      ctx.beginPath(); ctx.moveTo(M.x0,M.Y(0.0365)); ctx.lineTo(M.x1,M.Y(0.0365)); ctx.stroke();
+      ctx.restore();
+      label(ctx,M.x0+10,M.Y(0.0365)-10,'flat — no demographic aging',css('rate'),'left',10);
+    }
+    label(ctx,M.x0,14, haz?'HAZARD (log scale) — SLOPE IS THE RATE OF AGING'
+                          :'SURVIVAL FROM SEXUAL MATURITY', css('tx3'),'left',9.5);
+  });
+
+  function supr(e){const m={'-':'⁻','0':'⁰','1':'¹','2':'²','3':'³','4':'⁴','5':'⁵'};
+    return String(e).split('').map(c=>m[c]||c).join('');}
+})();
+</script>

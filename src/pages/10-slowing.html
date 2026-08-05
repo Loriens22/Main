@@ -1,0 +1,229 @@
+<section class="page" id="slowing" data-toc="Resilience and the dynamic wall" data-num="10" data-grp="III · Theory">
+  <div class="wrap">
+    <div class="eyebrow theory">Domain evidence · dynamical systems</div>
+    <h2>Resilience and the dynamic wall</h2>
+    <p class="dek">There is a second ceiling, independent of the Logarithmic Trap, and it comes not
+    from mortality statistics but from the physics of how a body returns to normal after being
+    pushed.</p>
+
+    <p>Treat the organism as a dynamical system sitting in a stable basin. Illness, injury and
+    exertion push it out; homeostasis pulls it back. The relevant quantity is the
+    <strong>recovery rate</strong> — how fast the pull acts. In the language of dynamical systems,
+    a system approaching a bifurcation exhibits <strong>critical slowing down</strong>: the recovery
+    rate falls toward zero, fluctuations grow, and the autocorrelation time diverges. It is the same
+    signature that precedes tipping points in ecosystems and climate systems.</p>
+
+    <div class="eq">
+      <span class="lbl">Organism state as an Ornstein–Uhlenbeck process</span>
+      dx &nbsp;=&nbsp; −<span class="hl">λ(a)</span>·x·dt &nbsp;+&nbsp; σ·dW
+      &nbsp;&nbsp;&nbsp; with &nbsp;&nbsp; <span class="hl">λ(a)</span> → 0 &nbsp; as &nbsp; a → a<sub>c</sub>
+      <div class="varlist">
+        <div><b>x</b> deviation of physiological state from its healthy set point</div>
+        <div><b>λ(a)</b> recovery rate at age a — the resilience</div>
+        <div><b>τ = 1/λ</b> recovery time constant</div>
+        <div><b>Var(x) = σ²/2λ</b> — variance diverges as λ → 0</div>
+      </div>
+    </div>
+
+    <p>Longitudinal analysis of blood-count data found exactly this pattern in humans. A composite
+    physiological state indicator shows an autocorrelation time that lengthens with age:
+    <strong>people in their forties took roughly two weeks to recover from a perturbation; people in
+    their nineties took over eight weeks</strong>. The inverse variance of the indicator declines
+    approximately linearly with age, and extrapolating it to zero — the point at which resilience
+    vanishes entirely and any perturbation becomes unrecoverable — gives a critical age somewhere
+    <strong>between 120 and 150 years</strong>.</p>
+
+    <div class="callout key">
+      <div class="ct">Why this matters more than another lifespan estimate</div>
+      <p>If a resilience wall at <code>a<sub>c</sub></code> is real, then <strong>offset
+      interventions are hard-capped by it and cannot pass it at any value of k.</strong> Lowering
+      hazard by a hundred-fold moves you along the survival curve; it does not move the age at which
+      the dynamical system loses the ability to return to its basin at all.</p>
+      <p>The Logarithmic Trap says offsets are expensive. The resilience wall says they are also
+      <em>bounded</em>. Only something that changes the trajectory of λ(a) itself moves the wall.</p>
+    </div>
+  </div>
+
+  <div class="fig wide rv">
+    <div class="fig-head">
+      <div class="fig-title"><span class="tag">Figure 10 · interactive · live simulation</span>
+        Critical slowing down — watch recovery lengthen as the wall approaches</div>
+    </div>
+    <div class="ctrls">
+      <div class="ctrl" style="flex:2 1 300px">
+        <label>Age <span class="v" data-for="s-age"></span></label>
+        <input type="range" id="s-age" min="25" max="115" step="1" value="45">
+      </div>
+      <div class="ctrl">
+        <label>Assumed critical age a<sub>c</sub> <span class="v" data-for="s-ac"></span></label>
+        <input type="range" id="s-ac" min="105" max="160" step="1" value="130">
+      </div>
+    </div>
+    <div class="fig-body tight"><div class="canvas-host" id="cv-ou"></div></div>
+    <div class="readout">
+      <div class="r"><div class="k">Recovery time τ</div><div class="v offset" id="s-tau">—</div><div class="s">1/λ, in weeks</div></div>
+      <div class="r"><div class="k">Resilience λ</div><div class="v rate" id="s-lam">—</div><div class="s">fraction of youthful</div></div>
+      <div class="r"><div class="k">State variance</div><div class="v err" id="s-var">—</div><div class="s">σ²/2λ — diverges at a_c</div></div>
+      <div class="r"><div class="k">Years to the wall</div><div class="v data" id="s-gap">—</div><div class="s">a_c − age</div></div>
+    </div>
+    <div class="fig-cap">
+      Left: the organism's physiological state, perturbed at regular intervals (the red marks) and
+      relaxing back. Drag the age slider upward and watch two things happen together — recoveries
+      take longer, and the baseline wander grows. Right: the recovery time diverging as age
+      approaches <code>a<sub>c</sub></code>. <b>The divergence is the wall.</b> Note that it is
+      approached asymptotically: long before you reach it, recovery takes longer than the interval
+      between ordinary insults, and the system never returns to baseline at all.
+    </div>
+  </div>
+
+  <div class="wrap">
+    <h3>A tension in the published extrapolation, worth flagging</h3>
+    <p>Two numbers in this literature do not obviously agree with each other, and as far as we can
+    tell the discrepancy has not been addressed.</p>
+
+    <div class="callout caveat">
+      <div class="ct">Our own arithmetic on the source result</div>
+      <p class="small">Under the strict linear-resilience model that motivates the extrapolation —
+      <code>λ(a) = λ₀(1 − a/a<sub>c</sub>)</code> — the reported recovery times imply a specific
+      critical age. Setting <code>τ(90)/τ(40) = 8/2 = 4</code> gives:</p>
+      <div class="eq" style="margin:1em 0;font-size:.95rem">
+        (a<sub>c</sub> − 40)/(a<sub>c</sub> − 90) = 4 &nbsp;⟹&nbsp; a<sub>c</sub> ≈ <b>107 years</b>
+      </div>
+      <p class="small">But the paper's headline figure, obtained by extrapolating the inverse
+      <em>variance</em> to zero, is <strong>120–150 years</strong>. These are two routes to the same
+      parameter and they differ by 15–40%. Possible explanations: the quoted recovery times are
+      rounded and approximate ("about two weeks", "over eight weeks"), so the ratio is soft; or
+      λ(a) is not strictly linear in age; or the variance and autocorrelation estimators have
+      different sensitivities to population heterogeneity — in a heterogeneous population, variance
+      inflates for reasons that have nothing to do with individual resilience.</p>
+      <p class="small"><b>The point is not that the paper is wrong.</b> It is that a headline
+      number derived by extrapolating a linear fit far outside the observed data range should be
+      reported as a range with the estimator's sensitivity shown — and that when two estimators of
+      the same quantity disagree by this much, the disagreement is the finding. Set the
+      <code>a<sub>c</sub></code> slider to 107 and to 150 and note how different the resulting
+      picture of human potential is.</p>
+    </div>
+
+    <p>This is, incidentally, an instance of exactly the methodological failure this document
+    criticises elsewhere: extrapolating a linear trend to its zero-crossing far outside the range of
+    the data is the same move that produced the contested "limit of 115" claim. We flag it here
+    against a result we find genuinely important, because the standard has to apply symmetrically.</p>
+
+    <h3>Reliability theory arrives at the same place from a different direction</h3>
+    <p>Model the organism as a system of many partially redundant components, each of which can fail,
+    and which is <em>born with a substantial load of defects already present</em>. Redundancy means
+    early failures are absorbed without consequence; as redundancy is exhausted, failure rate climbs.
+    This model generates the Gompertz law without assuming it, and it also predicts the late-life
+    mortality plateau — once redundancy is gone, the system fails at the constant rate of its last
+    remaining components.</p>
+
+    <p>It is a striking convergence: three independent frameworks — evolutionary theory, dynamical
+    systems, and reliability engineering — all produce exponential mortality, and all locate the rate
+    of aging in a parameter that is <em>set by design</em> rather than fixed by physics. Redundancy
+    depth, recovery rate, and the Gompertz slope are three views of the same quantity.</p>
+  </div>
+</section>
+
+<script>
+/* ---- Figure 10: critical slowing down ------------------------------- */
+(function(){
+  const host=document.getElementById('cv-ou'); if(!host) return;
+  const S={age:45, ac:130};
+  const TAU0=1.0;                  /* youthful recovery time, arbitrary units */
+  let hist=[], tt=0, rig;
+
+  const lam = (a,ac) => Math.max(1 - a/ac, 0.012) / (1 - 25/ac);  /* normalised to 1 at age 25 */
+
+  function upd(){
+    const L=lam(S.age,S.ac);
+    const tauWeeks = 1.6/L;                       /* calibrated so age 45 ≈ 2 wk */
+    const set=(id,v)=>{const e=document.getElementById(id); if(e) e.textContent=v;};
+    set('s-tau', tauWeeks.toFixed(1)+' wk');
+    set('s-lam', (L*100).toFixed(0)+'%');
+    set('s-var', (1/L).toFixed(2)+'×');
+    set('s-gap', Math.max(S.ac-S.age,0).toFixed(0)+' yr');
+    if(rig) rig.invalidate();
+  }
+  SLIDER('s-age', v=>v.toFixed(0)+' yr', v=>{S.age=v; upd();});
+  SLIDER('s-ac',  v=>v.toFixed(0)+' yr', v=>{S.ac=v;  upd();});
+
+  rig=CV(host, w=>w<680?0.88:2.4, function(ctx,w,h,t){
+    const two=w>=680, gap=28, pw=two?(w-gap)/2:w, ph=two?h:(h-gap)/2;
+    const L=lam(S.age,S.ac);
+
+    /* --- advance OU sim --- */
+    const dt=0.055;
+    tt+=dt;
+    const last = hist.length?hist[hist.length-1][1]:0;
+    let x = last + (-L/TAU0*last)*dt + 0.30*Math.sqrt(dt)*gauss();
+    /* periodic perturbation */
+    if(Math.floor(tt/4)!==Math.floor((tt-dt)/4)){ x -= 1.15; hist.push([tt,x,true]); }
+    else hist.push([tt,x,false]);
+    if(hist.length>900) hist.shift();
+
+    /* LEFT: trajectory */
+    ctx.save();
+    (function(){
+      const t1=hist.length?hist[hist.length-1][0]:0, t0=t1-24;
+      const M=PLOT(ctx,pw,ph,{xr:[t0,t1],yr:[-1.9,1.1],pad:{l:52,r:16,t:26,b:38},
+        xlab:'time →', ylab:'physiological state x', grid:false,
+        xticks:[], yticks:[-1.5,-1,-0.5,0,0.5,1]});
+      /* healthy set point */
+      ctx.save(); ctx.strokeStyle=css('line2'); ctx.lineWidth=1; ctx.setLineDash([4,4]);
+      ctx.beginPath(); ctx.moveTo(M.x0,M.Y(0)); ctx.lineTo(M.x1,M.Y(0)); ctx.stroke(); ctx.restore();
+      label(ctx,M.x1-4,M.Y(0)-9,'healthy set point',css('tx3'),'right',9.5);
+      /* danger band */
+      ctx.save(); ctx.fillStyle='rgba(242,119,122,.08)';
+      ctx.fillRect(M.x0,M.Y(-1.9),M.pw,M.Y(-1.35)-M.Y(-1.9)); ctx.restore();
+      label(ctx,M.x0+6,M.Y(-1.62),'unrecoverable',css('err'),'left',9.5);
+
+      const pts=hist.filter(p=>p[0]>=t0).map(p=>[p[0],p[1]]);
+      PATH(ctx,M,pts,css('rate'),1.9);
+      /* perturbation markers */
+      ctx.save(); ctx.fillStyle=css('err');
+      hist.filter(p=>p[0]>=t0&&p[2]).forEach(p=>{
+        ctx.beginPath(); ctx.arc(M.X(p[0]),M.Y(p[1]),3,0,6.283); ctx.fill(); });
+      ctx.restore();
+      label(ctx,M.x0,14,'AGE '+S.age.toFixed(0)+' — RECOVERY TIME '+(1.6/L).toFixed(1)+' WEEKS',
+            css('tx3'),'left',9.5);
+    })();
+    ctx.restore();
+
+    /* RIGHT: tau vs age */
+    ctx.save(); if(two) ctx.translate(pw+gap,0); else ctx.translate(0,ph+gap);
+    (function(){
+      const M=PLOT(ctx,pw,ph,{xr:[25,165],yr:[0,26],pad:{l:52,r:16,t:26,b:38},
+        xlab:'age (years)', ylab:'recovery time τ (weeks)'});
+      const pts=[]; for(let a=25;a<=165;a+=0.5){ const v=1.6/lam(a,S.ac); if(v<40) pts.push([a,Math.min(v,26)]); }
+      AREA(ctx,M,pts,'rgba(243,169,82,.10)',null,0);
+      PATH(ctx,M,pts,css('offset'),2.3);
+      /* the wall */
+      ctx.save(); ctx.strokeStyle=css('err'); ctx.lineWidth=1.6; ctx.setLineDash([5,4]);
+      ctx.beginPath(); ctx.moveTo(M.X(S.ac),M.y1); ctx.lineTo(M.X(S.ac),M.y0); ctx.stroke(); ctx.restore();
+      label(ctx,M.X(S.ac)-7,M.y1+12,'a_c = '+S.ac,css('err'),'right',11);
+      /* empirical anchors */
+      [[40,2,'~2 wk at 40'],[90,8,'>8 wk at 90']].forEach(p=>{
+        ctx.save(); ctx.fillStyle=css('data');
+        ctx.beginPath(); ctx.arc(M.X(p[0]),M.Y(p[1]),4,0,6.283); ctx.fill(); ctx.restore();
+        label(ctx,M.X(p[0])+8,M.Y(p[1])-9,p[2],css('data'),'left',9.5);
+      });
+      /* current */
+      const cy=M.Y(Math.min(1.6/L,26));
+      ctx.save(); ctx.fillStyle=css('rate');
+      ctx.beginPath(); ctx.arc(M.X(S.age),cy,5.5,0,6.283); ctx.fill();
+      ctx.globalAlpha=.3; ctx.beginPath();
+      ctx.arc(M.X(S.age),cy,5.5+6*(0.5+0.5*Math.sin(t*3)),0,6.283); ctx.fill();
+      ctx.restore();
+      label(ctx,M.x0,14,'CRITICAL SLOWING DOWN',css('offset'),'left',9.5);
+      LEG(ctx,M.x1-6,M.y1+14,[[css('data'),'reported anchors']],'right');
+    })();
+    ctx.restore();
+  });
+
+  let sp=null;
+  function gauss(){ if(sp!==null){const v=sp;sp=null;return v;}
+    let u=0,v=0,s2=0; do{u=Math.random()*2-1;v=Math.random()*2-1;s2=u*u+v*v;}while(s2>=1||s2===0);
+    const m=Math.sqrt(-2*Math.log(s2)/s2); sp=v*m; return u*m; }
+  upd();
+})();
+</script>

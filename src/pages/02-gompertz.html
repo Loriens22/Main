@@ -1,0 +1,175 @@
+<section class="page" id="gompertz" data-toc="The mathematics of mortality" data-num="2" data-grp="I · The problem">
+  <div class="wrap">
+    <div class="eyebrow">Foundations</div>
+    <h2>The mathematics of mortality</h2>
+    <p class="dek">Everything in this document rests on one empirical regularity, discovered by an
+    actuary in 1825 and never seriously overturned: the risk of dying rises exponentially with age,
+    and it does so at a remarkably conserved rate.</p>
+
+    <p>Let <code>μ(t)</code> be the <em>hazard</em> — the instantaneous probability per unit time of
+    dying, given that you are alive at age <code>t</code>. Benjamin Gompertz observed that in adult
+    humans this quantity is very nearly exponential. William Makeham later added a constant term to
+    absorb causes of death that do not care how old you are: accidents, violence, most infectious
+    disease.</p>
+
+    <div class="eq">
+      <span class="lbl">Gompertz–Makeham law of mortality</span>
+      μ(t) &nbsp;=&nbsp; <span class="hl2">λ</span> &nbsp;+&nbsp; <span class="hl2">A</span>·e<sup><span class="hl">α</span>t</sup>
+      <div class="varlist">
+        <div><b>μ(t)</b> hazard at age t (per year)</div>
+        <div><b>λ</b> Makeham term — age-independent risk</div>
+        <div><b>A</b> Gompertz intercept — baseline vulnerability</div>
+        <div><b>α</b> Gompertz slope — <em>the rate of aging</em></div>
+      </div>
+    </div>
+
+    <p>The slope <code>α</code> is the quantity this entire document is about. It has a more
+    intuitive form: the <strong>mortality rate doubling time</strong>, the number of years it takes
+    for your risk of death to double.</p>
+
+    <div class="eq">
+      <span class="lbl">Mortality rate doubling time</span>
+      MRDT &nbsp;=&nbsp; ln 2 / <span class="hl">α</span> &nbsp;&nbsp;≈&nbsp;&nbsp; <span class="hl">8 years</span> in humans
+      &nbsp;&nbsp;⟹&nbsp;&nbsp; α ≈ 0.0866 yr<sup>−1</sup>
+    </div>
+
+    <p>Eight years. That number is the exchange rate at which all medical progress is converted into
+    lifespan, and in §<a href="#trap">3</a> we will show that it is a far harsher exchange rate than
+    the field generally acknowledges.</p>
+  </div>
+
+  <div class="fig wide rv">
+    <div class="fig-head">
+      <div class="fig-title"><span class="tag">Figure 2 · interactive</span>
+        The Gompertz–Makeham explorer — drag the parameters and watch the survival curve respond</div>
+    </div>
+    <div class="ctrls">
+      <div class="ctrl">
+        <label>Intercept A <span class="v" data-for="g-A"></span></label>
+        <input type="range" id="g-A" min="-6" max="-3.2" step="0.01" value="-4.38">
+      </div>
+      <div class="ctrl">
+        <label>Rate of aging — MRDT <span class="v" data-for="g-M"></span></label>
+        <input type="range" id="g-M" min="2" max="60" step="0.5" value="8">
+      </div>
+      <div class="ctrl">
+        <label>Makeham λ (extrinsic) <span class="v" data-for="g-L"></span></label>
+        <input type="range" id="g-L" min="0" max="0.02" step="0.0002" value="0.0007">
+      </div>
+      <div class="ctrl" style="flex:0 0 auto;min-width:auto">
+        <label>Reference</label>
+        <div class="seg" id="g-seg">
+          <button class="on" data-v="none">none</button>
+          <button data-v="human">human</button>
+          <button data-v="nmr">naked mole-rat</button>
+        </div>
+      </div>
+    </div>
+    <div class="fig-body tight"><div class="canvas-host" id="cv-gomp"></div></div>
+    <div class="readout" id="g-out">
+      <div class="r"><div class="k">Life expectancy at birth</div><div class="v rate" id="g-e0">—</div><div class="s">numeric ∫S(t)dt</div></div>
+      <div class="r"><div class="k">Median lifespan</div><div class="v" id="g-med">—</div><div class="s">S(t) = 0.5</div></div>
+      <div class="r"><div class="k">99th percentile</div><div class="v" id="g-p99">—</div><div class="s">S(t) = 0.01</div></div>
+      <div class="r"><div class="k">Hazard at 80</div><div class="v offset" id="g-h80">—</div><div class="s">per year</div></div>
+      <div class="r"><div class="k">MRDT</div><div class="v data" id="g-mrdt">—</div><div class="s">ln2 / α</div></div>
+    </div>
+    <div class="fig-cap">
+      <b>Try this:</b> set MRDT to 8 and note the life expectancy. Now drag the intercept
+      <code>A</code> all the way down — a thousand-fold reduction in baseline vulnerability — and
+      watch how little the curve moves. Then put <code>A</code> back and drag MRDT from 8 to 16.
+      The first control is what medicine does. The second is what "curing aging" would mean.
+      They are not close to equivalent, and <b>Figure 3 quantifies exactly how unequal they are.</b>
+      <br><span class="srcnote">Reference presets: "human" ≈ contemporary high-income population
+      (MRDT ≈ 8 yr). "Naked mole-rat" sets α → 0, reflecting Ruby, Smith &amp; Buffenstein
+      (2018) <em>eLife</em>, who report no increase in age-specific hazard across 3,299 animals —
+      shown here rescaled onto a human time axis to make the shape difference visible, not as a
+      claim about mole-rat absolute lifespan.</span>
+    </div>
+  </div>
+</section>
+
+<script>
+/* ---- Figure 2: Gompertz-Makeham explorer ---------------------------- */
+(function(){
+  const host=document.getElementById('cv-gomp'); if(!host) return;
+  const S={A:Math.pow(10,-4.3823), al:Math.log(2)/8, mk:0.0007, ref:'none'};
+  let rig;
+
+  function recompute(){
+    const e0=GOMP.e0(S.A,S.al,S.mk), md=GOMP.med(S.A,S.al,S.mk), p99=GOMP.q(0.01,S.A,S.al,S.mk);
+    const set=(id,v)=>{const e=document.getElementById(id); if(e) e.textContent=v;};
+    set('g-e0', e0.toFixed(1)+' yr');
+    set('g-med', md.toFixed(1)+' yr');
+    set('g-p99', p99.toFixed(1)+' yr');
+    set('g-h80', GOMP.mu(80,S.A,S.al,S.mk).toFixed(3));
+    set('g-mrdt', S.al<1e-6 ? '∞' : (Math.log(2)/S.al).toFixed(1)+' yr');
+    if(rig) rig.invalidate();
+  }
+
+  SLIDER('g-A', v=>'10^'+v.toFixed(2), v=>{S.A=Math.pow(10,v); recompute();});
+  SLIDER('g-M', v=>v.toFixed(1)+' yr', v=>{S.al=Math.log(2)/v; recompute();});
+  SLIDER('g-L', v=>v.toFixed(4), v=>{S.mk=v; recompute();});
+  SEG('#g-seg', v=>{ S.ref=v; if(rig) rig.invalidate(); });
+
+  const REFS={
+    human:{A:Math.pow(10,-4.3823), al:Math.log(2)/8, mk:0.0007, c:'data', n:'human ≈ 2019'},
+    nmr:{A:0.00019, al:0.0000001, mk:0.0, c:'rate', n:'flat hazard (mole-rat form)'}
+  };
+
+  rig=CV(host, w=>w<680?0.92:2.35, function(ctx,w,h,t){
+    const two = w>=680;
+    const gap=26;
+    const pw = two ? (w-gap)/2 : w;
+    const ph = two ? h : (h-gap)/2;
+
+    function panel(ox,oy,pw2,ph2,kind){
+      ctx.save(); ctx.translate(ox,oy);
+      const isHaz = kind==='haz';
+      const M=PLOT(ctx,pw2,ph2,{
+        xr:[0,120],
+        yr: isHaz?[1e-5,3]:[0,1],
+        ylog:isHaz,
+        pad:{l:56,r:14,t:24,b:36},
+        xlab:'age (years)',
+        ylab: isHaz?'annual hazard μ(t)':'survival S(t)',
+        yfmt: isHaz? v=>{const e=Math.round(Math.log10(v)); return e===0?'1':'10'+sup(e);}
+                   : v=>(v*100).toFixed(0)+'%'
+      });
+      const pts=[]; for(let a=0;a<=120;a+=0.5)
+        pts.push([a, isHaz?GOMP.mu(a,S.A,S.al,S.mk):GOMP.S(a,S.A,S.al,S.mk)]);
+
+      /* reference */
+      if(S.ref!=='none'){
+        const R=REFS[S.ref], rp=[];
+        for(let a=0;a<=120;a+=0.5) rp.push([a, isHaz?GOMP.mu(a,R.A,R.al,R.mk):GOMP.S(a,R.A,R.al,R.mk)]);
+        PATH(ctx,M,rp,css(R.c),1.6,null,[5,4]);
+      }
+      if(!isHaz) AREA(ctx,M,pts,'rgba(63,208,201,.10)',null,0);
+      PATH(ctx,M,pts,css('rate'),2.4);
+
+      /* median marker on survival panel */
+      if(!isHaz){
+        const md=GOMP.med(S.A,S.al,S.mk);
+        if(md<120){
+          ctx.save(); ctx.strokeStyle=css('offset'); ctx.lineWidth=1; ctx.setLineDash([3,3]);
+          ctx.beginPath(); ctx.moveTo(M.X(md),M.Y(0.5)); ctx.lineTo(M.X(md),M.y0); ctx.stroke();
+          ctx.beginPath(); ctx.moveTo(M.x0,M.Y(0.5)); ctx.lineTo(M.X(md),M.Y(0.5)); ctx.stroke();
+          ctx.restore();
+          label(ctx,M.X(md)+5,M.Y(0.5)-10,'median '+md.toFixed(0),css('offset'),'left',10.5);
+        }
+      }
+      label(ctx, M.x0, 13, isHaz?'HAZARD  (log scale)':'SURVIVAL', css('tx3'),'left',9.5);
+      if(S.ref!=='none') LEG(ctx, M.x0+6, isHaz?M.y1+16:M.y1+16,
+        [[css('rate'),'your parameters'],[css(REFS[S.ref].c),REFS[S.ref].n,'dash']]);
+      ctx.restore();
+    }
+    if(two){ panel(0,0,pw,h,'haz'); panel(pw+gap,0,pw,h,'surv'); }
+    else{ panel(0,0,w,ph,'haz'); panel(0,ph+gap,w,ph,'surv'); }
+  },{still:true});
+
+  function sup(e){ const m={'-':'⁻','0':'⁰','1':'¹','2':'²','3':'³','4':'⁴','5':'⁵','6':'⁶'};
+    return String(e).split('').map(c=>m[c]||c).join(''); }
+
+  recompute();
+})();
+</script>

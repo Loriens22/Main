@@ -1,0 +1,139 @@
+<section class="page" id="cover" data-toc="Cover" data-num="">
+  <div class="wrap">
+    <div class="eyebrow rate">Research monograph · v1.0 · August 2026</div>
+    <h1 style="font-size:clamp(2.3rem,6.6vw,4.1rem);letter-spacing:-.035em;line-height:1.03;margin-bottom:.35em">
+      The Rate Problem
+    </h1>
+    <p class="dek" style="font-size:clamp(1.1rem,2.6vw,1.42rem);max-width:34em;margin-bottom:2em">
+      A quantitative audit of what is actually proven about extending human life —
+      and a formal argument that the field has spent forty years optimising
+      the wrong parameter.
+    </p>
+  </div>
+
+  <div class="fig wide rv">
+    <div class="fig-head">
+      <div class="fig-title"><span class="tag">Figure 0 · live simulation</span>
+        A synthetic cohort of 4,000 humans, aged under the Gompertz–Makeham law</div>
+    </div>
+    <div class="fig-body tight"><div class="canvas-host" id="cv-cohort"></div></div>
+    <div class="fig-cap">
+      Each dot is one simulated person, drifting rightward through age. Dots extinguish
+      stochastically at the empirical age-specific hazard. No individual is scheduled to die at
+      a particular age — yet the population traces the same smooth survival curve every run.
+      <b>That reproducibility is the central fact of this document:</b> aging is not a schedule,
+      it is a rate, and a rate is a thing you can in principle change.
+    </div>
+  </div>
+
+  <div class="wrap">
+    <div class="grid2" style="margin-top:2.6em">
+      <div class="card rv">
+        <h5 style="color:var(--offset)">What we found</h5>
+        <p>Essentially every intervention with credible human evidence — statins, blood-pressure
+        control, exercise, smoking cessation, GLP-1 agonists, senolytics — acts as a
+        <em>multiplicative reduction in hazard</em>. Under a Gompertz law such interventions
+        are mathematically equivalent to a fixed backward shift in age, and their benefit is
+        <em>logarithmic</em> in their strength.</p>
+      </div>
+      <div class="card rv">
+        <h5 style="color:var(--rate)">What follows</h5>
+        <p>Halving all-cause mortality at every age buys exactly one mortality-rate doubling
+        time — about eight years — and not one year more. Reaching 150 would require suppressing
+        hazard roughly a hundred-thousand-fold at every age. The ceiling is not thermodynamic.
+        It is that we are pushing on the intercept, not the slope.</p>
+      </div>
+    </div>
+
+    <div class="callout caveat rv">
+      <div class="ct">Read this first — provenance and honesty statement</div>
+      <p class="small">This study was produced by an AI research system: one lead model performing
+      synthesis and the original analysis, and five parallel agents performing domain evidence
+      collection. Two hard constraints shaped it, and you should weigh the result accordingly.
+      <b>(1)</b> Full-text retrieval was blocked by this environment's network policy — every
+      publisher domain returned HTTP 403 — so all figures come from search-surfaced abstracts and
+      secondary summaries, not from reading the papers. <b>(2)</b> The session's web-search
+      budget was exhausted mid-project, bounding coverage. Every quantitative claim is therefore
+      tagged with its provenance, and <em>you should verify any number you intend to rely on
+      against the linked primary source.</em> The mathematics in
+      §<a href="#trap">3</a>–§<a href="#offset-rate">4</a> and §<a href="#breakthrough">19</a> is
+      self-contained and can be checked directly — it does not depend on the literature survey.</p>
+    </div>
+  </div>
+</section>
+
+<script>
+/* ---- Figure 0: stochastic cohort simulation ------------------------- */
+(function(){
+  const host=document.getElementById('cv-cohort'); if(!host) return;
+  const N=4000, A=4.147e-5, AL=0.0866, MK=7e-4;   /* ~MRDT 8y, small Makeham */
+  let people=[], curve=[], born=0;
+
+  function reset(){
+    people=new Array(N); born=0;
+    for(let i=0;i<N;i++) people[i]={a:-Math.random()*14, alive:true, y:Math.random(),
+                                    j:(Math.random()-.5)*0.9, fade:0};
+    curve=[];
+  }
+  reset();
+
+  const rig=CV(host, w=>w<620?1.5:2.6, function(ctx,w,h,t){
+    const M=PLOT(ctx,w,h,{xr:[0,110],yr:[0,1],pad:{l:52,r:18,t:18,b:36},
+      xlab:'age (years)', ylab:'fraction surviving',
+      yfmt:v=>(v*100).toFixed(0)+'%'});
+
+    /* advance simulation */
+    const dt=0.16;
+    let alive=0, maxA=0;
+    for(const p of people){
+      if(p.alive){
+        p.a+=dt;
+        if(p.a>0){
+          const haz=GOMP.mu(p.a,A,AL,MK)*dt;
+          if(Math.random()<haz){ p.alive=false; p.fade=1; }
+        }
+        if(p.alive){ alive++; maxA=Math.max(maxA,p.a); }
+      } else if(p.fade>0) p.fade-=0.035;
+    }
+    /* record empirical survival curve */
+    if(maxA>0) curve.push([maxA, alive/N]);
+    if(curve.length>1400) curve.shift();
+
+    /* theoretical curve, drawn faint */
+    const th=[]; for(let a=0;a<=110;a+=0.6) th.push([a,GOMP.S(a,A,AL,MK)]);
+    PATH(ctx,M,th,css('line2'),1.5,null,[4,4]);
+
+    /* the dots */
+    ctx.save();
+    for(const p of people){
+      if(p.a<0) continue;
+      const x=M.X(p.a);
+      if(x<M.x0-4||x>M.x1+4) continue;
+      const frac = p.alive ? 1 : Math.max(0,p.fade);
+      if(frac<=0) continue;
+      const y=M.Y(clamp(p.y*GOMP.S(Math.max(p.a,0),A,AL,MK)+ p.j*0.012,0,1));
+      if(p.alive){
+        ctx.fillStyle='rgba(63,208,201,'+(0.30+0.35*p.y)+')';
+        ctx.fillRect(x,y,1.7,1.7);
+      }else{
+        ctx.fillStyle='rgba(242,119,122,'+(0.9*frac)+')';
+        const r=1.2+3.4*(1-frac);
+        ctx.beginPath(); ctx.arc(x,y,r,0,6.283); ctx.fill();
+      }
+    }
+    ctx.restore();
+
+    /* empirical survival trace */
+    if(curve.length>2) PATH(ctx,M,curve,css('rate'),2.4);
+
+    /* readouts */
+    label(ctx, M.x1-6, M.y1+10, alive.toLocaleString()+' / '+N.toLocaleString()+' alive',
+          css('rate'),'right',12);
+    label(ctx, M.x1-6, M.y1+27, 'MRDT ≈ 8 yr   ·   α = 0.0866 yr⁻¹', css('tx3'),'right',10.5);
+    LEG(ctx, M.x0+12, M.y1+12, [[css('line2'),'Gompertz–Makeham prediction','dash'],
+                                [css('rate'),'this run']]);
+
+    if(alive<N*0.0015 && maxA>105) reset();
+  });
+})();
+</script>

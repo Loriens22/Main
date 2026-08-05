@@ -1,0 +1,242 @@
+<section class="page" id="practice" data-toc="What actually works today" data-num="14" data-grp="VI · Closing">
+  <div class="wrap">
+    <div class="eyebrow">Practical implications</div>
+    <h2>What actually works today</h2>
+    <p class="dek">The framework is pessimistic about ceilings and optimistic about direction. Neither
+    changes what an individual should do this year, which is unglamorous and well established.</p>
+
+    <div class="callout warn">
+      <div class="ct">Not medical advice</div>
+      <p>This section describes what the evidence base shows at population level. It is not
+      individualised advice, and several interventions discussed elsewhere in this document have
+      serious documented harms. Nothing here should be used to start, stop or modify treatment.</p>
+    </div>
+
+    <p>The honest summary of the evidence in §<a href="#ledger">5</a> is that the interventions with
+    the best-established human mortality effects are the ones nobody can sell you. They are also,
+    without exception, offsets — which means they are bounded, and it means they work.</p>
+  </div>
+
+  <div class="fig wide rv">
+    <div class="fig-head">
+      <div class="fig-title"><span class="tag">Figure 14 · animated</span>
+        Roughly how many years each lever is worth, on the offset exchange rate</div>
+    </div>
+    <div class="fig-body tight"><div class="canvas-host" id="cv-final"></div></div>
+    <div class="fig-cap">
+      Each bar converts a reported hazard ratio into years of age-offset via
+      <code>Δ = ln(1/HR)/α</code>. <b>These are illustrative order-of-magnitude conversions, not
+      predictions for an individual</b> — they assume the hazard ratio is causal, applies at all
+      ages, and is sustained lifelong, none of which is exactly true, and the observational entries
+      are certainly overstated for that reason. The purpose is comparative scale: to show what the
+      whole achievable offset stack is worth against what a rate change would be worth.
+    </div>
+  </div>
+
+  <div class="wrap">
+    <div class="callout key">
+      <div class="ct">The summary in one paragraph</div>
+      <p>Do not smoke. Be physically fit — cardiorespiratory fitness is the strongest measured
+      correlate of survival in the entire literature, even after discounting heavily for the
+      healthy-user bias that inflates it. Keep blood pressure and lipids controlled if indicated.
+      Sleep. Get vaccinated. Do not drink for your health — the protective J-curve is an artifact.
+      Then stop, because the remaining evidence-based options are close to exhausted, and everything
+      past this point is either unproven, sold to you, or both.</p>
+      <p style="margin-top:.8em">The entire achievable offset stack is worth perhaps 10–15 years
+      relative to a sedentary smoker, and considerably less relative to someone already doing the
+      basics. That is a lot of life and it is worth having. It is also, by the arithmetic of
+      §<a href="#trap">3</a>, close to the ceiling of what this category of intervention can ever
+      deliver.</p>
+    </div>
+  </div>
+</section>
+
+<section class="page" id="limits-honesty" data-toc="Limitations" data-num="15" data-grp="VI · Closing">
+  <div class="wrap">
+    <div class="eyebrow err">Epistemic status</div>
+    <h2>What is wrong with this document</h2>
+    <p class="dek">A study that spends fifteen sections criticising other people's methodology owes
+    the reader an unusually complete account of its own.</p>
+
+    <h3>Research constraints — serious, and they bound everything</h3>
+    <ul class="tick">
+      <li><strong>No primary full text was read.</strong> The network policy of the environment this
+      study was produced in blocked outbound requests to every publisher and preprint host tested —
+      Nature, Science, Cell, PubMed, PMC, eLife, bioRxiv, arXiv, ClinicalTrials.gov, even Wikipedia —
+      all returning HTTP 403 at the proxy. Every quantitative claim attributed to the literature
+      comes from search-engine summaries of abstracts and secondary sources. <b>This is a serious
+      limitation and it is not mitigated by the number of sources consulted.</b></li>
+      <li><strong>The search budget was exhausted mid-project.</strong> The session's 200-call limit
+      was consumed before three of the five domain reviews had finished collecting. Several planned
+      topics — plasma dilution, vaccination, blood-pressure and lipid evidence, dietary patterns —
+      are consequently under-covered and are flagged as gaps rather than silently omitted.</li>
+      <li><strong>Trial identifiers were not verifiable.</strong> No NCT number could be checked, so
+      none is quoted. Trials are described rather than cited by identifier.</li>
+      <li><strong>Some numbers could not be cross-checked at all</strong> and are marked as such.
+      Where two sources disagreed, both are reported.</li>
+    </ul>
+
+    <h3>Weaknesses in the argument itself</h3>
+    <ul class="tick">
+      <li><strong>The Gompertz model is an approximation.</strong> Real hazards decelerate at
+      extreme ages, populations are heterogeneous in frailty, and the Makeham term does not shift.
+      Every one of these makes the Logarithmic Trap slightly less severe than stated. None makes it
+      go away, because the required factor is 10<sup>5</sup>.</li>
+      <li><strong>The resilience wall rests on an extrapolation we ourselves criticise.</strong> The
+      published critical age comes from extending a linear fit far beyond the observed data, and we
+      showed in §<a href="#slowing">10</a> that two routes to it disagree by 15–40%. The wall may be
+      a good deal softer than modelled, or may not exist as a sharp barrier at all. Figure 13 lets
+      you turn it off for exactly this reason.</li>
+      <li><strong>The assumption that the wall scales with s is a modelling choice</strong>, not a
+      derived result. If resilience loss is driven by something that does not slow when the Gompertz
+      slope slows, the optimistic quadrant of Figure 13 is wrong.</li>
+      <li><strong>The offset/rate dichotomy is a simplification.</strong> Real interventions produce
+      mixtures, time-varying effects, and effects that differ by cause of death. The Q–Q test
+      handles mixtures, but the framing throughout is cleaner than biology is.</li>
+      <li><strong>Rodent caloric restriction remains genuinely unresolved.</strong> If the
+      slope-effect reading is right, a rate intervention already exists in mammals and the central
+      claim needs revision. We report the contradiction rather than picking the side that suits the
+      argument.</li>
+      <li><strong>The naked mole-rat case is contested.</strong> Failure to detect a Gompertz slope
+      is not proof of its absence, and the published Comments make a real statistical point about
+      power. The existence proof is strong but not closed — and it carries more weight in this
+      document than any single contested result comfortably should.</li>
+    </ul>
+
+    <h3>How this document was made</h3>
+    <p>One lead model performed the synthesis, the derivations, the framework in
+    §<a href="#trap">3</a>–§<a href="#offset-rate">4</a> and §<a href="#breakthrough">13</a>, and
+    wrote the document. Five parallel agents collected domain evidence — molecular and cellular
+    mechanisms; pharmacology and metabolism; demography and biomarkers; physics and theory; frontier
+    engineering. The agents were instructed not to attempt synthesis, and were required to tag every
+    number with its provenance and to prefer a null over a guess. All five terminated at their
+    write-up stage when the account's session limit was reached; four delivered complete reports and
+    one delivered structured data only, which is why pharmacology coverage is thinner than intended.</p>
+
+    <div class="callout caveat">
+      <div class="ct">On AI-generated research</div>
+      <p class="small">The reasoning, derivations and framework here are the model's own and can be
+      checked directly — the mathematics in §3, §4 and §13 requires no trust at all, only a
+      calculator. The literature claims are a different matter: they were assembled without reading
+      the papers, by a system that is capable of producing fluent, plausible, and wrong citations.
+      <b>Treat every attributed number in this document as a lead to verify, not as a fact to
+      cite.</b> Where we could not verify, we said so rather than filling the gap, and the reader
+      should hold that standard against us wherever we failed to meet it.</p>
+    </div>
+  </div>
+</section>
+
+<section class="page" id="refs" data-toc="Sources" data-num="16" data-grp="VI · Closing">
+  <div class="wrap">
+    <div class="eyebrow">References</div>
+    <h2>Principal sources</h2>
+    <p class="dek">Listed as leads for verification. Links point to the canonical record; note the
+    provenance caveat above — these were surfaced through search summaries, not read in full.</p>
+
+    <ol class="refs">
+      <li><b>Ruby JG, Smith M, Buffenstein R (2018).</b> Naked mole-rat mortality rates defy Gompertzian laws by not increasing with age. <em>eLife</em> 7:e31157. Plus two 2019 Comments (eLife 45415, 47047), the authors' Response, and the 2023 revisit with roughly double the data (eLife reviewed preprint 88057).</li>
+      <li><b>Stroustrup N, Anthony WE, Nash ZM, Gowda V, Gomez A, López-Moyado IF, Apfeld J, Fontana W (2016).</b> The temporal scaling of <em>Caenorhabditis elegans</em> ageing. <em>Nature</em> 530:103.</li>
+      <li><b>Mathematical artifacts in slope–intercept correlations invalidate biological inferences in aging research.</b> <em>PNAS</em> (2025), doi:10.1073/pnas.2523907122. See also Tarkhov et al., "Strehler–Mildvan correlation is a degenerate manifold of Gompertz fit", <em>J Theor Biol</em> (2017), and Burger &amp; Missov (2016).</li>
+      <li><b>Pyrkov TV, Avchaciov K, Tarkhov AE, Menshikov LI, Gudkov AV, Fedichev PO (2021).</b> Longitudinal analysis of blood markers reveals progressive loss of resilience and predicts human lifespan limit. <em>Nature Communications</em> 12:2765.</li>
+      <li><b>Cagan A, Baez-Ortega A, et al. (2022).</b> Somatic mutation rates scale with lifespan across mammals. <em>Nature</em> 604:517.</li>
+      <li><b>Olshansky SJ, Willcox BJ, Demetrius L, Beltrán-Sánchez H (2024).</b> Implausibility of radical life extension in humans in the twenty-first century. <em>Nature Aging</em>, doi:10.1038/s43587-024-00702-3.</li>
+      <li><b>A Reassessment of Genes Modulating Aging in Mice Using Demographic Measurements of the Rate of Aging.</b> <em>Genetics</em> (2018) 208(4):1617. The finding that only ~15% of lifespan-extending manipulations affect the demographic rate of aging.</li>
+      <li><b>Mair W, Goymer P, Pletcher SD, Partridge L (2003).</b> Demography of dietary restriction and death in <em>Drosophila</em>. <em>Science</em> 301:1731.</li>
+      <li><b>Miller RA, Harrison DE, et al. (2014).</b> Rapamycin-mediated lifespan increase in mice is dose and sex dependent and metabolically distinct from dietary restriction. <em>Aging Cell</em> 13:468.</li>
+      <li><b>Harrison DE, Strong R, et al. (2009).</b> Rapamycin fed late in life extends lifespan in genetically heterogeneous mice. <em>Nature</em> 460:392.</li>
+      <li><b>Simons MJP, Koch W, Verhulst S (2013).</b> Dietary restriction of rodents decreases aging rate without affecting initial mortality rate — a meta-analysis. <em>Aging Cell</em>. Contradicted by <b>de Magalhães JP et al. (2016)</b>, <em>Aging</em>, doi:10.18632/aging.100919.</li>
+      <li><b>Newman SJ (2024).</b> Supercentenarian and remarkable age records exhibit patterns indicative of clerical errors and pension fraud. bioRxiv 704080 (v3). <em>Preprint — not peer-reviewed.</em> Awarded the 2024 Ig Nobel Prize in Demography. See also Newman SJ (2018), <em>PLOS Biology</em>, on error-driven late-life mortality plateaus (peer-reviewed).</li>
+      <li><b>Dong X, Milholland B, Vijg J (2016).</b> Evidence for a limit to human lifespan. <em>Nature</em> 538:257 — together with the five 2017 <em>Nature</em> Brief Communications Arising responding to it.</li>
+      <li><b>Barbi E, Lagona F, Marsili M, Vaupel JW, Wachter KW (2018).</b> The plateau of human mortality: demography of longevity pioneers. <em>Science</em> 360:1459.</li>
+      <li><b>NCHS (2013).</b> United States Life Tables Eliminating Certain Causes of Death, 1999–2001. <em>National Vital Statistics Reports</em> 61(9).</li>
+      <li><b>López-Otín C, Blasco MA, Partridge L, Serrano M, Kroemer G (2013, 2023).</b> The Hallmarks of Aging; Hallmarks of aging: an expanding universe. <em>Cell</em>.</li>
+      <li><b>Baker DJ, Childs BG, et al. (2016).</b> Naturally occurring p16<sup>Ink4a</sup>-positive cells shorten healthy lifespan. <em>Nature</em> 530:184. See §<a href="#errors">12</a> for the sex-pooling issue.</li>
+      <li><b>Ocampo A, Reddy P, et al. (2016).</b> In vivo amelioration of age-associated hallmarks by partial reprogramming. <em>Cell</em> 167:1719 — and <b>Browder KC, et al. (2022)</b>, <em>Nature Aging</em> 2:243, the wild-type follow-up.</li>
+      <li><b>Jones OR, Scheuerlein A, et al. (2014).</b> Diversity of ageing across the tree of life. <em>Nature</em> 505:169.</li>
+      <li><b>Gavrilov LA, Gavrilova NS.</b> The reliability theory of aging and longevity. <em>J Theor Biol</em> (2001) and subsequent work.</li>
+      <li><b>Hamilton WD (1966).</b> The moulding of senescence by natural selection. <em>J Theor Biol</em> 12:12. With <b>Williams GC (1957)</b> on antagonistic pleiotropy and <b>Kirkwood TBL (1977)</b> on disposable soma.</li>
+      <li><b>Waziry R, Ryan CP, et al. (2023).</b> Effect of long-term caloric restriction on DNA methylation measures of biological aging in healthy adults from the CALERIE trial. <em>Nature Aging</em>.</li>
+      <li><b>Mandsager K, et al. (2018).</b> Association of cardiorespiratory fitness with long-term mortality among adults undergoing exercise treadmill testing. <em>JAMA Network Open</em> 1:e183605.</li>
+      <li><b>NIA Interventions Testing Program.</b> Cohort reports, 2009–2025. The primary source for all mouse intervention figures in §<a href="#ledger">5</a>.</li>
+    </ol>
+
+    <hr class="rule">
+    <p class="small muted">Full domain reports, including the complete error ledgers with per-claim
+    provenance tags, are in the <code>research/</code> directory of this repository alongside this
+    document.</p>
+  </div>
+</section>
+
+<script>
+/* ---- Figure 14: years per lever ------------------------------------- */
+(function(){
+  const host=document.getElementById('cv-final'); if(!host) return;
+  const AL=Math.log(2)/8;
+  /* [label, hazard ratio, colour, note] */
+  const L=[
+    ['Smoking cessation (vs continuing)',0.45,'rate'],
+    ['High vs low cardiorespiratory fitness',0.50,'rate'],
+    ['Aerobic activity 3–5× minimum',0.61,'data'],
+    ['Cure ALL heart disease',0.69,'offset'],
+    ['Cure ALL cancer',0.78,'offset'],
+    ['Semaglutide (high-risk population)',0.81,'data'],
+    ['Resistance training 30–60 min/wk',0.87,'data'],
+    ['— — — — — — — — — — — —',null,'tx3'],
+    ['Halving α (a true rate change)',null,'theory']
+  ];
+  CV(host, w=>w<620?1.15:2.5, function(ctx,w,h,t){
+    const padL=w<620?150:290, padR=64;
+    const x0=padL, pw=w-padL-padR;
+    const maxY=40;
+    const rowH=(h-44)/L.length;
+    const prog=ease(clamp(t/1.3,0,1));
+
+    /* axis */
+    ctx.save(); ctx.strokeStyle=css('line'); ctx.fillStyle=css('tx3');
+    ctx.font='500 10px ui-sans-serif,system-ui,sans-serif'; ctx.textAlign='center';
+    for(let v=0;v<=40;v+=10){
+      const x=Math.round(x0+v/maxY*pw)+.5;
+      ctx.beginPath(); ctx.moveTo(x,26); ctx.lineTo(x,h-16); ctx.stroke();
+      ctx.fillText(v+' yr',x,h-13);
+    }
+    ctx.restore();
+    label(ctx,x0,15,'AGE-OFFSET EQUIVALENT — Δ = ln(1/HR) / α',css('tx3'),'left',9.5);
+
+    L.forEach((d,i)=>{
+      const y=32+i*rowH, bh=Math.min(rowH*0.44,13);
+      const on=clamp((prog*L.length-i)/1.5,0,1);
+      ctx.save();
+      ctx.font='600 '+(w<620?9:10.5)+'px ui-sans-serif,system-ui,sans-serif';
+      ctx.fillStyle=d[1]===null&&d[2]==='tx3'?css('tx3'):css('tx');
+      ctx.textAlign='right'; ctx.textBaseline='middle';
+      ctx.fillText(d[0], padL-12, y+rowH*0.32);
+      ctx.restore();
+      if(d[1]===null && d[2]==='tx3') return;
+
+      if(d[1]===null){
+        /* the rate bar: off the chart */
+        const bw=pw*on;
+        ctx.save();
+        const g=ctx.createLinearGradient(x0,0,x0+bw,0);
+        g.addColorStop(0,css('theory')); g.addColorStop(1,'rgba(169,139,245,0)');
+        ctx.fillStyle=g;
+        ctx.beginPath();
+        if(ctx.roundRect) ctx.roundRect(x0,y+rowH*0.32-bh/2,bw,bh,3); else ctx.rect(x0,y+rowH*0.32-bh/2,bw,bh);
+        ctx.fill(); ctx.restore();
+        if(on>0.8) label(ctx,x0+pw*0.62,y+rowH*0.32,'off the chart — the whole timescale dilates',
+                         css('theory'),'left',10.5);
+        return;
+      }
+      const yrs=Math.log(1/d[1])/AL;
+      const bw=Math.min(yrs/maxY*pw,pw)*on;
+      ctx.save(); ctx.fillStyle=css(d[2]); ctx.globalAlpha=.85;
+      ctx.beginPath();
+      if(ctx.roundRect) ctx.roundRect(x0,y+rowH*0.32-bh/2,Math.max(bw,2),bh,3);
+      else ctx.rect(x0,y+rowH*0.32-bh/2,Math.max(bw,2),bh);
+      ctx.fill(); ctx.restore();
+      if(on>0.8) label(ctx,x0+bw+7,y+rowH*0.32,yrs.toFixed(1)+' yr  (HR '+d[1].toFixed(2)+')',
+                       css(d[2]),'left',10);
+    });
+  });
+})();
+</script>

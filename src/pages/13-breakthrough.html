@@ -1,0 +1,315 @@
+<section class="page" id="breakthrough" data-toc="The framework" data-num="13" data-grp="V · Corrections">
+  <div class="wrap">
+    <div class="eyebrow rate">Synthesis · the lead contribution</div>
+    <h2>The framework: two barriers, one target</h2>
+    <p class="dek">Everything in this document converges on a single structural claim. Human
+    lifespan is bounded by two independent barriers, both of which are invisible to the statistic
+    the field uses, and both of which respond to only one of the two things an intervention can do.</p>
+
+    <h3>Barrier one — the Logarithmic Trap</h3>
+    <p>Any intervention that multiplies hazard by a constant is an age-offset of
+    <code>Δ = ln k/α</code>: one mortality-rate doubling time per halving, forever. Benefit is
+    logarithmic in effort. Curing an entire disease category yields single-digit years, and the
+    arithmetic reproduces the published cause-deleted life tables without a free parameter.</p>
+
+    <h3>Barrier two — the resilience wall</h3>
+    <p>Recovery rate declines with age and the organism's autocorrelation time diverges at some
+    critical age. <strong>Offset interventions cannot pass this wall at any value of k.</strong>
+    Lowering hazard moves you along the survival curve; it does not move the age at which the
+    dynamical system stops being able to return to its basin.</p>
+
+    <div class="callout key">
+      <div class="ct">The convergence</div>
+      <p>These two barriers were derived from unrelated data — one from mortality statistics, one
+      from blood-marker dynamics — and they impose the same requirement. <strong>Offsets are both
+      expensive and bounded. Only a change in the rate parameter escapes either.</strong></p>
+      <p>And the rate parameter is not fixed by physics. The naked mole-rat is an existence proof
+      that α can be set to approximately zero in a mammal using ordinary biochemistry at ordinary
+      body temperature. What we lack is not permission. It is a measurement.</p>
+    </div>
+  </div>
+
+  <div class="fig wide rv">
+    <div class="fig-head">
+      <div class="fig-title"><span class="tag">Figure 13 · interactive · the central map</span>
+        The intervention plane — why every current therapy is stuck against the left wall</div>
+    </div>
+    <div class="ctrls">
+      <div class="ctrl" style="flex:2 1 260px">
+        <label>Offset strength — hazard ÷ k <span class="v" data-for="b-k"></span></label>
+        <input type="range" id="b-k" min="0" max="5" step="0.02" value="0.3">
+      </div>
+      <div class="ctrl" style="flex:2 1 260px">
+        <label>Rate change — α ÷ s <span class="v" data-for="b-s"></span></label>
+        <input type="range" id="b-s" min="1" max="2.6" step="0.01" value="1">
+      </div>
+      <div class="ctrl" style="flex:0 0 auto;min-width:auto">
+        <label>Resilience wall</label>
+        <div class="seg" id="b-seg">
+          <button class="on" data-v="1">on</button>
+          <button data-v="0">off</button>
+        </div>
+      </div>
+    </div>
+    <div class="fig-body tight"><div class="canvas-host" id="cv-plane"></div></div>
+    <div class="readout">
+      <div class="r"><div class="k">Median lifespan</div><div class="v rate" id="b-med">—</div><div class="s">with both barriers applied</div></div>
+      <div class="r"><div class="k">Bound by</div><div class="v" id="b-bind" style="font-size:1rem">—</div><div class="s">which barrier is active</div></div>
+      <div class="r"><div class="k">Offset purchased</div><div class="v offset" id="b-off">—</div><div class="s">Δ = ln k / α</div></div>
+      <div class="r"><div class="k">Effort to next decade</div><div class="v err" id="b-cost">—</div><div class="s">further hazard reduction</div></div>
+    </div>
+    <div class="fig-cap">
+      Contours are achievable median lifespan. <b>Move only along the horizontal axis</b> — the pure
+      offset direction, where every existing therapy lives — and the contours crowd together and then
+      stop entirely against the resilience wall. <b>Move vertically</b> and the contours spread out
+      <em>and</em> the wall itself recedes, because slowing the whole process slows the loss of
+      resilience with it. The plotted markers are real interventions placed by their reported
+      effects: they are all clustered at the bottom of the plane.
+      <br><span class="srcnote">The wall is modelled as scaling with s — if aging slows by a factor,
+      resilience is lost more slowly too. That is a modelling assumption, stated so it can be
+      disputed; toggling the wall off shows how much of the picture depends on it.</span>
+    </div>
+  </div>
+
+  <div class="wrap">
+    <h3>The proposal, in three parts</h3>
+
+    <h4>Part 1 · The Rate Identification Protocol — report λ and Δ, not "+X%"</h4>
+    <p>Every lifespan experiment should report the two-parameter decomposition of
+    §<a href="#offset-rate">4</a> instead of, or alongside, a median percentage:</p>
+    <div class="eq">
+      q<sub>treated</sub>(p) = <span class="hl">λ</span>·q<sub>control</sub>(p) + <span class="hl2">Δ</span>
+      &nbsp;&nbsp;·&nbsp;&nbsp; SD = π/(α√6) &nbsp;&nbsp;·&nbsp;&nbsp; ρ = SD/mean
+    </div>
+    <p>Three statistics, all non-parametric, none requiring a Gompertz fit, all computable from data
+    that experiments <em>already collect</em>. Detecting the SD difference between a rate and an
+    offset intervention of equal median effect needs roughly <strong>150 animals per arm</strong> —
+    well within the scale of a routine ITP-grade study. <strong>The discriminating statistic has been
+    computable from data the field has been collecting for thirty years, and it is essentially never
+    reported.</strong></p>
+
+    <h4>Part 2 · τ-slope — a rate readout that works inside a human lifetime</h4>
+    <p>The obstacle to rate research in humans is that measuring a change in α requires decades and
+    deaths. Critical slowing down offers a way around this, because <strong>resilience is a rate,
+    and rates can be measured without waiting for the outcome.</strong> The recovery time constant
+    τ is estimable from serial physiology — blood counts, wearable-derived heart-rate and activity
+    recovery — over weeks, within a single individual.</p>
+
+    <div class="callout key">
+      <div class="ct">The criterion, stated so it can fail</div>
+      <p>A genuine rate intervention must reduce <strong>dτ/d(age)</strong> — the slope of the
+      resilience decline — and not merely lower τ at a point.</p>
+      <p>A drug that improves τ once and then lets it resume its previous trajectory is an offset in
+      disguise, and it will be trapped in the logarithm no matter how good the initial readout
+      looks. This distinction is invisible to every biomarker endpoint currently in use, because
+      they all measure state at a timepoint.</p>
+    </div>
+
+    <p>This converts an intergenerational question into a within-subject one. It also has a property
+    no clock has: <strong>it is dimensionally a rate</strong>, so a change in it is a change in the
+    quantity of interest rather than a proxy for it — which is precisely what Prentice criterion 4
+    demands and what state-based clocks cannot supply.</p>
+
+    <h4>Part 3 · The discriminating experiment</h4>
+    <p>The single highest-value experiment the field is not running, stated concretely:</p>
+    <ol class="num">
+      <li>Take the interventions with the strongest mammalian lifespan evidence — rapamycin,
+      acarbose, 17α-estradiol, caloric restriction — in UM-HET3 mice, both sexes, ≥150 per arm per
+      sex, multi-site, pre-registered.</li>
+      <li>Report λ, Δ, SD and ρ for each. <strong>Predicted result: λ ≈ 1 and Δ &gt; 0 for the
+      pharmacological arms</strong> — offsets — with caloric restriction the one plausible exception
+      and the reason to include it.</li>
+      <li>In parallel, measure τ(age) longitudinally in the same animals from serial physiology.
+      <strong>Predicted result: no pharmacological arm reduces dτ/d(age).</strong></li>
+      <li>Anchor the whole thing against a naked mole-rat cohort measured identically. This provides
+      the positive control the field has never had — an organism where λ is known to be near 1 in the
+      relevant sense, against which the assay's sensitivity can be calibrated.</li>
+    </ol>
+
+    <div class="callout warn">
+      <div class="ct">How to prove this framework wrong</div>
+      <p>The framework makes claims that can fail, and it should be judged on them:</p>
+      <ul class="tick" style="margin-top:.6em">
+        <li>If senolytics or NAD⁺ precursors show <b>λ &gt; 1 with Δ ≈ 0</b> in a properly powered
+        Q–Q analysis, they are rate interventions and the classification here is wrong.</li>
+        <li>If an intervention increases the SD of age at death without increasing the mean, the
+        α-only interpretation of SD is wrong.</li>
+        <li>If τ and the Gompertz slope turn out to be uncoupled — if an intervention flattens
+        dτ/d(age) while leaving α untouched, or the reverse — then the two barriers are not two
+        views of one parameter, and Part 2 collapses.</li>
+        <li>If rodent caloric restriction is definitively shown to be a slope effect, then a rate
+        intervention already exists in mammals, and the correct conclusion is far more optimistic
+        than the one drawn here.</li>
+      </ul>
+    </div>
+
+    <h3>What is new here, stated honestly</h3>
+    <p>Intellectual honesty requires separating synthesis from invention, so:</p>
+    <div class="grid2">
+      <div class="card">
+        <h5 style="color:var(--tx2)">Not new</h5>
+        <p>The Gompertz shift equivalence is standard demography. Temporal scaling of lifespan
+        distributions was demonstrated in <em>C. elegans</em> in 2016. The SD-depends-only-on-α
+        property follows directly from the Gumbel form. Critical slowing down in physiology, the
+        Gompertz identifiability problem, and the surrogacy gap in clocks are all published
+        results, cited here.</p>
+      </div>
+      <div class="card">
+        <h5 style="color:var(--rate)">The contribution</h5>
+        <p>Framing the shift equivalence as a universal <em>exchange rate</em> that bounds every
+        offset intervention; using it to unify the cause-deleted puzzle with geroscience results;
+        the two-parameter Q–Q test as a routine <em>discriminator</em> and reporting standard;
+        the composition of the two barriers into one map; the <b>dτ/d(age)</b> criterion as a
+        within-subject rate endpoint; and the arithmetic in §<a href="#slowing">10</a> showing the
+        two published routes to the resilience limit disagree.</p>
+      </div>
+    </div>
+
+    <p class="small muted" style="margin-top:1.6em">None of this makes anyone live longer by itself.
+    It is a proposal about what to measure. But the field's central quantity — the rate of aging —
+    is currently estimated by instruments that provably cannot identify it, and no amount of
+    additional biology fixes a measurement problem. That seems worth fixing first.</p>
+  </div>
+</section>
+
+<script>
+/* ---- Figure 13: the intervention plane ------------------------------ */
+(function(){
+  const host=document.getElementById('cv-plane'); if(!host) return;
+  const A0=Math.pow(10,-4.3823), AL0=Math.log(2)/8, MK=0.0007, AC=130;
+  const S={lk:0.3, s:1, wall:true};
+  let rig;
+
+  const acOf = s => 25 + (AC-25)*s;
+  function outcome(lk,s){
+    const k=Math.pow(10,lk);
+    const raw=GOMP.med(A0/k, AL0/s, MK);
+    const wall=acOf(s);
+    return S.wall ? {v:Math.min(raw,wall), bound: raw>=wall?'wall':'trap', raw:raw}
+                  : {v:raw, bound:'trap', raw:raw};
+  }
+  function upd(){
+    const o=outcome(S.lk,S.s);
+    const k=Math.pow(10,S.lk);
+    const set=(id,v,c)=>{const e=document.getElementById(id); if(e){e.textContent=v; if(c) e.className='v '+c;}};
+    set('b-med', o.v.toFixed(1)+' yr','rate');
+    set('b-bind', o.bound==='wall'?'RESILIENCE WALL':'LOG TRAP', o.bound==='wall'?'err':'offset');
+    set('b-off', (Math.log(k)/(AL0/S.s)).toFixed(1)+' yr','offset');
+    const nxt=Math.exp((AL0/S.s)*10);
+    set('b-cost','×'+nxt.toFixed(2),'err');
+    if(rig) rig.invalidate();
+  }
+  SLIDER('b-k', v=>{const k=Math.pow(10,v); return k<10?('×'+k.toFixed(2)):('×'+k.toExponential(1).replace('e+','e'));},
+         v=>{S.lk=v; upd();});
+  SLIDER('b-s', v=>'÷'+v.toFixed(2)+(v<1.01?'  (none)':''), v=>{S.s=v; upd();});
+  SEG('#b-seg', v=>{S.wall=(v==='1'); upd();});
+
+  /* real interventions placed by reported effect */
+  const MARKS=[
+    [Math.log10(1/0.81),1,'semaglutide'],
+    [Math.log10(1/0.61),1,'exercise (obs.)'],
+    [Math.log10(1.28),1,'rapamycin (mouse)'],
+    [Math.log10(1.25),1,'acarbose (male)'],
+    [Math.log10(1/0.78),1,'cure all cancer'],
+    [Math.log10(1/0.69),1,'cure all heart disease']
+  ];
+
+  rig=CV(host, w=>w<620?1.05:2.0, function(ctx,w,h,t){
+    const M=PLOT(ctx,w,h,{xr:[0,5],yr:[1,2.6],pad:{l:60,r:20,t:28,b:44},
+      xlab:'offset strength — hazard ÷ k  →', ylab:'rate change — α ÷ s  →',
+      xticks:[0,1,2,3,4,5], xfmt:v=>v===0?'×1':'×10'+supr(v),
+      yticks:[1,1.4,1.8,2.2,2.6], yfmt:v=>'÷'+v.toFixed(1), grid:false});
+
+    /* heat field — teal ramp where the Gompertz curve binds,
+       flat dead grey where the resilience wall has capped the outcome */
+    const CW=6, NX=Math.ceil(M.pw/CW), NY=Math.ceil(M.ph/CW);
+    const dx=M.pw/NX, dy=M.ph/NY;
+    for(let i=0;i<NX;i++)for(let j=0;j<NY;j++){
+      const lk=5*(i+0.5)/NX, s=1+1.6*(1-(j+0.5)/NY);
+      const o=outcome(lk,s);
+      if(o.bound==='wall'){
+        const g=clamp((o.v-83)/120,0,1);
+        ctx.fillStyle='rgba('+Math.round(74+34*g)+','+Math.round(60+26*g)+','+Math.round(70+30*g)+',1)';
+      }else{
+        const u=Math.sqrt(clamp((o.v-83)/(300-83),0,1));
+        ctx.fillStyle='rgba('+Math.round(10+30*u)+','+Math.round(38+168*u)+','+Math.round(52+140*u)+','+(0.20+0.78*u)+')';
+      }
+      ctx.fillRect(M.x0+i*dx-0.5, M.y1+j*dy-0.5, dx+1, dy+1);
+    }
+
+    /* the wall boundary — the frontier no offset can cross */
+    if(S.wall){
+      const wb=[];
+      for(let j=0;j<=200;j++){
+        const s=1+1.6*j/200, wall=acOf(s);
+        let lo=0,hi=5,ok=false;
+        for(let it=0;it<44;it++){ const m=(lo+hi)/2;
+          if(GOMP.med(A0/Math.pow(10,m),AL0/s,MK)<wall) lo=m; else {hi=m; ok=true;} }
+        if(ok&&hi<4.985) wb.push([hi,s]);
+      }
+      if(wb.length>3){
+        PATH(ctx,M,wb,css('err'),2.2);
+        const p=wb[Math.floor(wb.length*0.34)];
+        label(ctx,M.X(p[0])+10,M.Y(p[1]),'← resilience wall',css('err'),'left',10.5);
+      }
+    }
+
+    /* contours */
+    const LV=[95,105,120,150,190];
+    LV.forEach((lv,li)=>{
+      const pts=[];
+      for(let j=0;j<=160;j++){
+        const s=1+1.6*j/160;
+        let lo=0,hi=5,ok=false;
+        for(let it=0;it<40;it++){ const m=(lo+hi)/2;
+          if(outcome(m,s).v<lv) lo=m; else {hi=m; ok=true;} }
+        if(ok && hi<4.97 && hi>0.03) pts.push([hi,s]);
+      }
+      if(pts.length>6){
+        PATH(ctx,M,pts,'rgba(255,255,255,.34)',1);
+        /* label each contour at a different height so labels never collide */
+        const tgt=1.18+li*0.32;
+        let p=pts[0], bd=9;
+        pts.forEach(q=>{const d=Math.abs(q[1]-tgt); if(d<bd){bd=d;p=q;}});
+        if(p) label(ctx,M.X(p[0])+16,M.Y(p[1])-6,lv+' yr','rgba(255,255,255,.82)','left',9.5);
+      }
+    });
+
+    /* markers */
+    MARKS.forEach(m=>{
+      if(m[0]>5) return;
+      const x=M.X(m[0]), y=M.Y(1);
+      ctx.save(); ctx.fillStyle=css('offset');
+      ctx.beginPath(); ctx.arc(x,y,3.4,0,6.283); ctx.fill();
+      ctx.strokeStyle=css('offset'); ctx.lineWidth=1; ctx.globalAlpha=.5;
+      ctx.beginPath(); ctx.moveTo(x,y); ctx.lineTo(x,y-13); ctx.stroke(); ctx.restore();
+    });
+    label(ctx, M.x0+M.pw*0.34, M.Y(1)-30,
+      'every real intervention lives on this line', css('offset'),'center',10.5);
+
+    /* current point */
+    const cx=M.X(S.lk), cy=M.Y(S.s);
+    ctx.save();
+    ctx.strokeStyle=css('rate'); ctx.lineWidth=1; ctx.setLineDash([3,3]);
+    ctx.beginPath(); ctx.moveTo(M.x0,cy); ctx.lineTo(cx,cy); ctx.lineTo(cx,M.y0); ctx.stroke();
+    ctx.setLineDash([]);
+    ctx.fillStyle=css('rate');
+    ctx.beginPath(); ctx.arc(cx,cy,6,0,6.283); ctx.fill();
+    ctx.globalAlpha=.28; ctx.beginPath();
+    ctx.arc(cx,cy,6+7*(0.5+0.5*Math.sin(t*3)),0,6.283); ctx.fill();
+    ctx.restore();
+
+    const o=outcome(S.lk,S.s);
+    const txt=o.v.toFixed(0)+' yr'+(o.bound==='wall'?'  · capped by wall':'');
+    const right = cx < M.x0+M.pw*0.7;
+    label(ctx, cx+(right?14:-14), clamp(cy-14,M.y1+14,M.y0-14), txt,
+          o.bound==='wall'?css('err'):css('rate'), right?'left':'right', 12.5);
+    label(ctx,M.x0,15,'ACHIEVABLE MEDIAN LIFESPAN',css('tx3'),'left',9.5);
+    if(S.wall) label(ctx,M.x1-4,15,'resilience wall active',css('err'),'right',9.5);
+  },{still:true});
+
+  function supr(e){const m={'0':'⁰','1':'¹','2':'²','3':'³','4':'⁴','5':'⁵'};
+    return String(e).split('').map(c=>m[c]||c).join('');}
+  upd();
+})();
+</script>

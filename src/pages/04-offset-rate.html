@@ -1,0 +1,290 @@
+<section class="page" id="offset-rate" data-toc="Offset or rate? A test" data-num="4" data-grp="I · The problem">
+  <div class="wrap">
+    <div class="eyebrow rate">Original analysis · methodology</div>
+    <h2>Offset or rate? Three ways to tell</h2>
+    <p class="dek">If offsets are trapped in a logarithm and rate changes are not, then the single
+    most valuable thing an experiment can report is <em>which one it produced</em>. Almost no
+    experiment reports it. Here are three tests that require no new data — only a different
+    statistic.</p>
+
+    <p>Recall the two possibilities. An <strong>offset</strong> divides hazard by <code>k</code>:
+    the survival curve translates rigidly to the right by <code>Δ = ln k/α</code>. A
+    <strong>rate change</strong> divides the Gompertz slope by <code>s</code>: the entire time axis
+    dilates. In terms of lifespan <code>T</code>:</p>
+
+    <div class="eq">
+      <span class="lbl">The two hypotheses, as transformations of lifespan</span>
+      offset: &nbsp; T′ = T + <span class="hl2">Δ</span>
+      &nbsp;&nbsp;&nbsp;&nbsp;versus&nbsp;&nbsp;&nbsp;&nbsp;
+      rate: &nbsp; T′ = <span class="hl">λ</span> · T
+    </div>
+
+    <p>Reported as "median lifespan +12%", these are indistinguishable — which is exactly why the
+    field's default statistic is the wrong one. But they differ everywhere else in the distribution,
+    and that difference is easy to extract.</p>
+
+    <h3>Test 1 — The Q–Q slope/intercept decomposition</h3>
+    <p>Plot the quantiles of treated lifespan against the corresponding quantiles of control
+    lifespan, and fit a straight line. Do not fit a Gompertz model — that is precisely the step
+    that fails (§<a href="#measurement">9</a>). Just fit:</p>
+
+    <div class="eq">
+      <span class="lbl">The discriminating regression</span>
+      q<sub>treated</sub>(p) &nbsp;=&nbsp; <span class="hl">λ</span> · q<sub>control</sub>(p) &nbsp;+&nbsp; <span class="hl2">Δ</span>
+      <div class="varlist">
+        <div><b>λ ≈ 1, Δ &gt; 0</b> → pure offset. Bounded by the Logarithmic Trap.</div>
+        <div><b>λ &gt; 1, Δ ≈ 0</b> → genuine time dilation. Compounds.</div>
+      </div>
+    </div>
+
+    <p>Report <code>λ</code> and <code>Δ</code> with confidence intervals and you have said
+    everything that matters, non-parametrically, with no distributional assumption. Stroustrup and
+    colleagues showed that in <em>C. elegans</em> a remarkable range of interventions — insulin/IGF-1
+    mutants, temperature, oxidative stress, <em>hsf-1</em>, <em>hif-1</em>, <em>daf-16</em> —
+    collapse onto a single universal curve under pure time rescaling.<sup class="ref">2</sup>
+    Our proposal is the two-parameter generalisation of that collapse, used as a routine
+    <em>discriminator</em> rather than as a demonstration of universality.</p>
+
+    <h3>Test 2 — The standard deviation of age at death</h3>
+    <div class="callout key">
+      <div class="ct">The simplest diagnostic in the whole document</div>
+      <p>For a Gompertz lifespan distribution the standard deviation of age at death is
+      <code>SD = π/(α√6)</code>. It depends on <strong>α alone</strong>. The intercept
+      <code>A</code> cancels completely.</p>
+      <p style="margin-top:.8em"><strong>Therefore: any intervention that extends lifespan without
+      increasing the spread of ages at death acted on the intercept.</strong> No model fitting, no
+      curve regression — just the standard deviation of a column of numbers the experiment already
+      collected.</p>
+    </div>
+
+    <h3>Test 3 — The coefficient of variation</h3>
+    <p>Because the mean grows only logarithmically with hazard reduction while the SD is untouched,
+    an offset intervention makes lifespans <em>relatively more uniform</em> — the coefficient of
+    variation <code>ρ = SD/mean</code> falls. A rate intervention dilates both, so ρ rises slightly.
+    The direction of ρ is a free second opinion.</p>
+  </div>
+
+  <div class="fig wide rv">
+    <div class="fig-head">
+      <div class="fig-title"><span class="tag">Figure 4 · interactive · the discriminator</span>
+        Two interventions with an identical +10-year median gain — and how to tell them apart</div>
+    </div>
+    <div class="ctrls">
+      <div class="ctrl" style="flex:2 1 320px">
+        <label>Mechanism &nbsp;<span style="color:var(--offset)">pure offset</span> ⟷ <span style="color:var(--rate)">pure rate</span> <span class="v" data-for="q-mix"></span></label>
+        <input type="range" id="q-mix" min="0" max="1" step="0.01" value="0">
+      </div>
+      <div class="ctrl">
+        <label>Median gain held fixed at <span class="v" data-for="q-g"></span></label>
+        <input type="range" id="q-g" min="2" max="25" step="0.5" value="10">
+      </div>
+    </div>
+    <div class="fig-body tight"><div class="canvas-host" id="cv-qq"></div></div>
+    <div class="readout">
+      <div class="r"><div class="k">Median gain</div><div class="v" id="q-med">—</div><div class="s">identical by construction</div></div>
+      <div class="r"><div class="k">Q–Q slope λ</div><div class="v rate" id="q-lam">—</div><div class="s">1 = offset · &gt;1 = rate</div></div>
+      <div class="r"><div class="k">Q–Q intercept Δ</div><div class="v offset" id="q-del">—</div><div class="s">years of pure shift</div></div>
+      <div class="r"><div class="k">SD of age at death</div><div class="v data" id="q-sd">—</div><div class="s">α-only diagnostic</div></div>
+      <div class="r"><div class="k">CV (ρ)</div><div class="v" id="q-cv">—</div><div class="s">falls = offset</div></div>
+      <div class="r"><div class="k">Verdict</div><div class="v" id="q-vd" style="font-size:.95rem">—</div><div class="s">automatic classification</div></div>
+    </div>
+    <div class="fig-cap">
+      Drag the mechanism slider. <b>The survival curves (left) look confusingly similar and the
+      median gain is identical at every position</b> — that is the whole problem. But the Q–Q plot
+      (right) swings from "unit slope, positive intercept" to "through the origin, slope &gt; 1",
+      and the SD readout moves only when the mechanism is real. Every number here is computable
+      from a lifespan table that ordinary experiments already produce.
+    </div>
+  </div>
+
+  <div class="wrap">
+    <h3>What happens when you apply this to the actual literature</h3>
+    <p>This is where the framework earns its keep, because the answer is uncomfortable.</p>
+
+    <div class="tbl-scroll">
+      <table class="data">
+        <thead><tr><th>Finding</th><th>What it shows</th><th>Classification</th></tr></thead>
+        <tbody>
+          <tr>
+            <td class="name">Systematic reassessment of mouse longevity mutants<br><span class="srcnote">Genetics 2018;208(4):1617</span></td>
+            <td>Only <b>~15%</b> of genetic manipulations that extend mouse lifespan significantly affect the demographic rate of aging.</td>
+            <td><span class="pill D">5 in 6 are offsets</span></td>
+          </tr>
+          <tr>
+            <td class="name">Dietary restriction in <em>Drosophila</em><br><span class="srcnote">Mair et al. 2003, Science 301:1731</span></td>
+            <td>DR extends life <b>entirely by lowering short-term risk of death</b>. Two days after switching diets, previously fed flies are no more likely to die than lifelong-restricted ones. <b>There is no memory of past diet.</b></td>
+            <td><span class="pill D">pure offset</span></td>
+          </tr>
+          <tr>
+            <td class="name">Rapamycin in mice<br><span class="srcnote">Miller et al. 2014, Aging Cell 13:468</span></td>
+            <td>At 42 ppm in females the Gompertz intercept is <b>~20-fold lower</b> — while the slope is significantly <b>higher</b>. The field's best mammalian geroprotector buys a huge intercept gain and pays for it with a <em>worse</em> demographic rate of aging.</td>
+            <td><span class="pill D">offset, adverse slope</span></td>
+          </tr>
+          <tr>
+            <td class="name">Late-life rapamycin start<br><span class="srcnote">Harrison et al. 2009, Nature 460:392</span></td>
+            <td>Works when begun at 600 days — roughly two-thirds of the way through life. A drug that rescues that late is behaving like a hazard-lowering agent, not a rate agent.</td>
+            <td><span class="pill D">consistent with offset</span></td>
+          </tr>
+          <tr>
+            <td class="name">Rodent dietary restriction — <em>contested</em><br><span class="srcnote">Simons et al. 2013, Aging Cell (82 curve-pairs)</span></td>
+            <td>Meta-analysis re-fitting Gompertz to 82 pairs of survival curves concludes DR <b>"reduced ageing rate without affecting vulnerability"</b> — a slope effect.</td>
+            <td><span class="pill B">claims rate</span></td>
+          </tr>
+          <tr>
+            <td class="name">…directly contradicted<br><span class="srcnote">de Magalhães et al. 2016, Aging</span></td>
+            <td>Re-analysis of CR and growth-hormone-disrupted mice found aging rates "negligibly and non-consistently affected".</td>
+            <td><span class="pill E">contradicts</span></td>
+          </tr>
+        </tbody>
+      </table>
+    </div>
+
+    <div class="callout warn">
+      <div class="ct">The verdict, stated conservatively</div>
+      <p>Across mammals, <strong>no intervention has been shown, reproducibly and without dispute,
+      to reduce the Gompertz slope.</strong> Rodent caloric restriction is the one live candidate
+      and the literature contradicts itself about it. Meanwhile the single best-validated
+      pharmacological intervention in mammals — rapamycin — appears to make the demographic rate of
+      aging <em>worse</em> while delivering its very real benefit entirely through the intercept.</p>
+      <p>Every one of those benefits is worth having. Rapamycin's +23–26% median lifespan in mice is
+      a genuine and important result. But it is an offset, and offsets live inside the logarithm.</p>
+    </div>
+
+    <div class="callout caveat">
+      <div class="ct">Why so many published "slope" claims cannot be trusted either way</div>
+      <p class="small">Fitting <code>A</code> and <code>α</code> jointly by least squares is an
+      ill-posed problem: the two parameters are strongly collinear, and the optimiser returns a
+      <em>degenerate manifold</em> of nearly-equally-good solutions rather than a point estimate.
+      This is the origin of the long-debated Strehler–Mildvan correlation, which a 2025 PNAS
+      analysis identifies as substantially a mathematical artifact of slope–intercept fitting rather
+      than a biological law.<sup class="ref">3</sup> <b>This is the deepest reason to prefer the
+      three tests above:</b> none of them ever fits <code>A</code> and <code>α</code> separately, so
+      none of them can fall into the degeneracy.</p>
+    </div>
+  </div>
+</section>
+
+<script>
+/* ---- Figure 4: offset vs rate discriminator ------------------------- */
+(function(){
+  const host=document.getElementById('cv-qq'); if(!host) return;
+  const A0=Math.pow(10,-4.3823), AL0=Math.log(2)/8;
+  const S={mix:0, gain:10};
+  let rig;
+
+  /* distribution moments by numeric integration of S(t) */
+  function moments(A,al){
+    const T=220,n=2600; let m1=0,m2=0;
+    for(let i=0;i<n;i++){
+      const a=T*i/n, b=T*(i+1)/n, dt=T/n;
+      const fa=GOMP.S(a,A,al,0)-GOMP.S(b,A,al,0);      /* prob of dying in bin */
+      const mid=(a+b)/2;
+      m1+=fa*mid; m2+=fa*mid*mid;
+    }
+    const sd=Math.sqrt(Math.max(m2-m1*m1,0));
+    return {mean:m1, sd:sd, cv:sd/m1};
+  }
+  function solveK(al,target){          /* find A' so median = target */
+    let lo=-9,hi=-1;
+    for(let i=0;i<80;i++){ const m=(lo+hi)/2;
+      if(GOMP.med(Math.pow(10,m),al,0)<target) hi=m; else lo=m; }
+    return Math.pow(10,(lo+hi)/2);
+  }
+
+  function params(){
+    const base=GOMP.med(A0,AL0,0), target=base+S.gain;
+    /* pure-rate solution: scale alpha so median hits target */
+    let lo=0.2,hi=1;
+    for(let i=0;i<80;i++){ const m=(lo+hi)/2;
+      if(GOMP.med(A0,AL0*m,0)<target) hi=m; else lo=m; }
+    const alFull=AL0*((lo+hi)/2);
+    const al = AL0 + S.mix*(alFull-AL0);   /* interpolate slope */
+    const A  = solveK(al,target);          /* then fix intercept to hold median */
+    return {A,al,base,target};
+  }
+
+  function upd(){
+    const P=params();
+    const mc=moments(A0,AL0), mt=moments(P.A,P.al);
+    /* Q-Q least squares over p in [0.02,0.98] */
+    const qs=[]; let sx=0,sy=0,sxx=0,sxy=0,n=0;
+    for(let p=0.02;p<=0.98;p+=0.02){
+      const x=GOMP.q(1-p,A0,AL0,0), y=GOMP.q(1-p,P.A,P.al,0);
+      qs.push([x,y]); sx+=x; sy+=y; sxx+=x*x; sxy+=x*y; n++;
+    }
+    const lam=(n*sxy-sx*sy)/(n*sxx-sx*sx), del=(sy-lam*sx)/n;
+    const set=(id,v,c)=>{const e=document.getElementById(id); if(e){e.textContent=v; if(c){e.className='v '+c;}}};
+    set('q-med','+'+S.gain.toFixed(1)+' yr');
+    set('q-lam',lam.toFixed(3),'rate');
+    set('q-del',(del>=0?'+':'')+del.toFixed(1)+' yr','offset');
+    set('q-sd',mt.sd.toFixed(1)+' yr','data');
+    set('q-cv',mt.cv.toFixed(3)+(mt.cv<mc.cv?' ↓':' ↑'), mt.cv<mc.cv?'offset':'rate');
+    const vd=document.getElementById('q-vd');
+    if(vd){
+      if(lam<1.03){ vd.textContent='OFFSET'; vd.className='v offset'; }
+      else if(Math.abs(del)<2.5){ vd.textContent='RATE'; vd.className='v rate'; }
+      else { vd.textContent='MIXED'; vd.className='v data'; }
+    }
+    if(rig){ rig.state.P=P; rig.state.qs=qs; rig.state.lam=lam; rig.state.del=del;
+             rig.state.mc=mc; rig.state.mt=mt; rig.invalidate(); }
+  }
+
+  SLIDER('q-mix', v=>v<0.03?'offset':v>0.97?'rate':(v*100).toFixed(0)+'% rate', v=>{S.mix=v; upd();});
+  SLIDER('q-g', v=>'+'+v.toFixed(1)+' yr', v=>{S.gain=v; upd();});
+
+  rig=CV(host, w=>w<680?0.86:2.35, function(ctx,w,h,t,r){
+    const P=r.state.P; if(!P) return;
+    const two=w>=680, gap=28, pw=two?(w-gap)/2:w, ph=two?h:(h-gap)/2;
+
+    /* LEFT: survival curves */
+    ctx.save();
+    (function(){
+      const M=PLOT(ctx,pw,ph,{xr:[0,135],yr:[0,1],pad:{l:52,r:16,t:26,b:38},
+        xlab:'age (years)',ylab:'survival',yfmt:v=>(v*100).toFixed(0)+'%'});
+      const c=[],tr=[];
+      for(let a=0;a<=135;a+=0.7){ c.push([a,GOMP.S(a,A0,AL0,0)]); tr.push([a,GOMP.S(a,P.A,P.al,0)]); }
+      PATH(ctx,M,c,css('tx3'),1.7,null,[5,4]);
+      AREA(ctx,M,tr,'rgba(63,208,201,.08)',null,0);
+      PATH(ctx,M,tr,css('rate'),2.4);
+      /* median tie line */
+      const y=M.Y(0.5);
+      ctx.save(); ctx.strokeStyle=css('offset'); ctx.lineWidth=1.4;
+      ctx.beginPath(); ctx.moveTo(M.X(P.base),y); ctx.lineTo(M.X(P.target),y); ctx.stroke(); ctx.restore();
+      label(ctx,(M.X(P.base)+M.X(P.target))/2,y-11,'+'+S.gain.toFixed(0)+' yr median',css('offset'),'center',10.5);
+      label(ctx,M.x0,14,'SURVIVAL — LOOKS THE SAME EITHER WAY',css('tx3'),'left',9.5);
+      LEG(ctx,M.x1-6,M.y1+14,[[css('tx3'),'control','dash'],[css('rate'),'treated']],'right');
+    })();
+    ctx.restore();
+
+    /* RIGHT: Q-Q plot */
+    ctx.save(); if(two) ctx.translate(pw+gap,0); else ctx.translate(0,ph+gap);
+    (function(){
+      const M=PLOT(ctx,pw,ph,{xr:[0,135],yr:[0,135],pad:{l:52,r:16,t:26,b:38},
+        xlab:'control lifespan quantile (yr)',ylab:'treated quantile (yr)'});
+      /* identity line */
+      PATH(ctx,M,[[0,0],[135,135]],css('line2'),1.2,null,[4,4]);
+      /* pure-offset reference */
+      PATH(ctx,M,[[0,S.gain],[135,135+S.gain]],'rgba(243,169,82,.35)',1.3,null,[3,3]);
+      /* fitted line */
+      const L=r.state.lam, D=r.state.del;
+      PATH(ctx,M,[[0,D],[135,L*135+D]],css('rate'),1.6,null,[6,3]);
+      /* the data */
+      ctx.save(); ctx.fillStyle=css('rate');
+      r.state.qs.forEach(q=>{ if(q[0]>135||q[1]>135) return;
+        ctx.beginPath(); ctx.arc(M.X(q[0]),M.Y(q[1]),2.6,0,6.283); ctx.fill(); });
+      ctx.restore();
+      /* annotation */
+      label(ctx,M.x0+8,M.y1+14,'q_treated = '+L.toFixed(3)+' · q_control '+(D>=0?'+':'−')+' '+Math.abs(D).toFixed(1),
+            css('rate'),'left',11);
+      label(ctx,M.x0+8,M.y1+30, L<1.03?'unit slope + positive intercept → OFFSET'
+            : Math.abs(D)<2.5? 'through origin, slope>1 → RATE' : 'both components → MIXED',
+            L<1.03?css('offset'):css('rate'),'left',10);
+      LEG(ctx,M.x1-6,M.y0-40,[[css('line2'),'no effect (y=x)','dash'],
+                              ['rgba(243,169,82,.6)','pure offset','dash']],'right');
+    })();
+    ctx.restore();
+  },{still:true,state:{}});
+
+  upd();
+})();
+</script>

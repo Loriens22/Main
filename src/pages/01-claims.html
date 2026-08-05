@@ -1,0 +1,150 @@
+<section class="page" id="claims" data-toc="The argument in one page" data-num="1" data-grp="I · The problem">
+  <div class="wrap">
+    <div class="eyebrow">Executive summary</div>
+    <h2>The argument in one page</h2>
+    <p class="dek">Six steps. Each is either arithmetic you can check yourself, or an
+    empirical claim with a source. If step 2 is right, most of the field's stated goals are
+    unreachable by the methods currently being used.</p>
+
+    <ol class="num">
+      <li><b>Human mortality is exponential in age.</b> From roughly 30 to 95, the annual chance
+      of death doubles every ~8 years — the Gompertz law. This single exponent governs everything
+      that follows.</li>
+
+      <li><b>Any intervention that multiplies hazard by a constant is exactly equivalent to
+      shifting age backwards by a fixed amount</b> — and that amount is
+      <code>ln(k)/α</code>, i.e. one mortality-rate doubling time per halving. Benefit is
+      <em>logarithmic</em> in effort. We call this the <a href="#trap">Logarithmic Trap</a>.</li>
+
+      <li><b>This explains, from first principles, why curing entire disease categories buys so
+      little.</b> Eliminating all cancer or all cardiovascular disease yields single-digit years
+      of life expectancy — not because oncology is weak, but because the Gompertz exponent
+      compresses it. Our formula reproduces the published cause-deleted life-table results
+      to within about half a year.</li>
+
+      <li><b>The alternative — reducing α itself — is not ruled out by physics.</b> The naked
+      mole-rat's mortality hazard does not increase with age at all, across 3,299 animals and
+      30 years. α is a species-tunable parameter, not a constant of nature. Aging is not entropy
+      in any sense that forbids intervening.<sup class="ref">1</sup></li>
+
+      <li><b>But the field cannot currently tell the two apart.</b> Fitting the Gompertz
+      intercept and slope from survival data is a badly-posed problem that yields a degenerate
+      manifold of solutions; and aging clocks measure <em>state</em>, not <em>rate</em>, and none
+      has been qualified as a surrogate endpoint by any regulator. Both of the field's main
+      instruments are blind to the one parameter that matters.</li>
+
+      <li><b>So we propose two fixes.</b> A non-parametric <a href="#offset-rate">quantile–quantile
+      test</a> that <em>is</em> identifiable where the Gompertz fit is not, and separates offset from
+      rate in any lifespan experiment; and a within-subject rate readout — the
+      <a href="#slowing">resilience time-constant</a> — that makes "is this drug slowing aging?"
+      answerable in weeks instead of decades.</li>
+    </ol>
+
+    <div class="callout key rv">
+      <div class="ct">The central claim</div>
+      <p>Almost everything that works is an offset. Nothing demonstrated in humans is a rate
+      change. The two are routinely reported with the same statistic — "median lifespan +X%" —
+      which is precisely the statistic that cannot distinguish them. The field is not short of
+      biology. It is short of a measurement that separates the two things it most needs to
+      separate.</p>
+    </div>
+  </div>
+
+  <div class="fig rv">
+    <div class="fig-head">
+      <div class="fig-title"><span class="tag">Figure 1 · animated</span>
+        The dependency structure of the argument</div>
+    </div>
+    <div class="fig-body tight"><div class="canvas-host" id="cv-arg"></div></div>
+    <div class="fig-cap">
+      Solid arrows are logical entailment; the dashed arrow is the empirical input that keeps the
+      conclusion from being fatalistic. <b>Node 4 is load-bearing:</b> without a real organism whose
+      hazard does not rise with age, the Logarithmic Trap would be an argument for giving up
+      rather than an argument for changing target.
+    </div>
+  </div>
+</section>
+
+<script>
+/* ---- Figure 1: animated argument DAG -------------------------------- */
+(function(){
+  const host=document.getElementById('cv-arg'); if(!host) return;
+  const nodes=[
+    {id:0,x:.13,y:.20,t:'Gompertz law',s:'hazard doubles / 8 yr',c:'data'},
+    {id:1,x:.40,y:.20,t:'Offset ≡ age shift',s:'Δt = ln k / α',c:'offset'},
+    {id:2,x:.68,y:.11,t:'Logarithmic Trap',s:'8 yr per halving',c:'offset'},
+    {id:3,x:.68,y:.36,t:'Cure-a-disease puzzle',s:'explained, not assumed',c:'offset'},
+    {id:4,x:.13,y:.72,t:'Naked mole-rat',s:'hazard flat with age',c:'rate'},
+    {id:5,x:.40,y:.72,t:'α is tunable',s:'not a physical constant',c:'rate'},
+    {id:6,x:.68,y:.62,t:'Measurement crisis',s:'both instruments blind',c:'err'},
+    {id:7,x:.90,y:.72,t:'Q–Q test + τ-slope',s:'the proposed fix',c:'theory'}
+  ];
+  const edges=[[0,1],[1,2],[1,3],[4,5],[5,6],[2,6],[6,7],[5,7]];
+  const dashed=new Set(['4-5']);
+
+  CV(host, w=>w<620?1.05:2.15, function(ctx,w,h,t){
+    const pad=w<620?52:64;
+    const px=v=>pad+v*(w-pad*1.35), py=v=>26+v*(h-58);
+    const T=(t*0.85)%9.2;   /* animation cycle */
+
+    /* edges */
+    edges.forEach((e,i)=>{
+      const a=nodes[e[0]], b=nodes[e[1]];
+      const x1=px(a.x), y1=py(a.y), x2=px(b.x), y2=py(b.y);
+      const on = T > (e[0]*0.72+0.9);
+      ctx.save();
+      ctx.strokeStyle = on? css('line2') : css('line');
+      ctx.lineWidth=1.4;
+      if(dashed.has(e[0]+'-'+e[1])) ctx.setLineDash([5,4]);
+      const dx=x2-x1, dy=y2-y1, L=Math.hypot(dx,dy);
+      const ux=dx/L, uy=dy/L, r=w<620?26:30;
+      ctx.beginPath();
+      ctx.moveTo(x1+ux*r, y1+uy*r);
+      ctx.lineTo(x2-ux*(r+6), y2-uy*(r+6));
+      ctx.stroke();
+      /* arrowhead */
+      if(on){
+        const hx=x2-ux*(r+6), hy=y2-uy*(r+6);
+        ctx.setLineDash([]); ctx.fillStyle=css('line2');
+        ctx.beginPath();
+        ctx.moveTo(hx,hy);
+        ctx.lineTo(hx-ux*7-uy*4, hy-uy*7+ux*4);
+        ctx.lineTo(hx-ux*7+uy*4, hy-uy*7-ux*4);
+        ctx.closePath(); ctx.fill();
+      }
+      /* travelling pulse */
+      const ph=(T*0.55 - i*0.14)%1;
+      if(ph>0&&ph<1&&on){
+        const gx=x1+ux*r+(dx-ux*r*2)*ph, gy=y1+uy*r+(dy-uy*r*2)*ph;
+        ctx.setLineDash([]);
+        ctx.fillStyle=css('rate'); ctx.globalAlpha=Math.sin(ph*Math.PI)*0.9;
+        ctx.beginPath(); ctx.arc(gx,gy,2.6,0,6.283); ctx.fill();
+      }
+      ctx.restore();
+    });
+
+    /* nodes */
+    nodes.forEach((n,i)=>{
+      const x=px(n.x), y=py(n.y);
+      const appear=clamp((T-i*0.72)/0.55,0,1), e=ease(appear);
+      if(e<=0) return;
+      const col=css(n.c), R=(w<620?24:28)*e;
+      ctx.save();
+      ctx.globalAlpha=e;
+      ctx.beginPath(); ctx.arc(x,y,R,0,6.283);
+      ctx.fillStyle=css('panel2'); ctx.fill();
+      ctx.strokeStyle=col; ctx.lineWidth=1.8; ctx.stroke();
+      /* index */
+      ctx.fillStyle=col; ctx.font='700 '+(w<620?11:12.5)+'px ui-monospace,monospace';
+      ctx.textAlign='center'; ctx.textBaseline='middle';
+      ctx.fillText(String(i+1), x, y);
+      /* labels */
+      ctx.fillStyle=css('tx'); ctx.font='650 '+(w<620?9.5:11.5)+'px ui-sans-serif,system-ui,sans-serif';
+      ctx.fillText(n.t, x, y+R+12);
+      ctx.fillStyle=css('tx3'); ctx.font='500 '+(w<620?8.5:10)+'px ui-sans-serif,system-ui,sans-serif';
+      ctx.fillText(n.s, x, y+R+25);
+      ctx.restore();
+    });
+  });
+})();
+</script>

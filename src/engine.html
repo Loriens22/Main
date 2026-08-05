@@ -1,0 +1,294 @@
+<script>
+/* =====================================================================
+   RENDER ENGINE
+   Lightweight canvas/animation harness. Every figure registers a draw
+   function; only figures inside (or near) the viewport are animated, so
+   a 20-figure document stays at 60fps and idles at ~0% CPU.
+   ===================================================================== */
+(function(){
+'use strict';
+
+const RM = matchMedia('(prefers-reduced-motion: reduce)').matches;
+const css = n => getComputedStyle(document.documentElement).getPropertyValue('--'+n).trim();
+window.css = css;
+window.RM = RM;
+
+const rigs = [];
+
+/* Create a DPR-correct, auto-resizing canvas bound to a draw function.
+   draw(ctx, w, h, t, rig) — t is seconds since the rig first became visible. */
+window.CV = function(host, aspect, draw, opts){
+  opts = opts || {};
+  const cv = document.createElement('canvas');
+  cv.style.width = '100%';
+  host.appendChild(cv);
+  const ctx = cv.getContext('2d');
+  const rig = { cv, ctx, draw, aspect, host, w:0, h:0, t0:0, vis:false, still:!!opts.still,
+                state:opts.state||{}, dirty:true, onResize:opts.onResize };
+  rig.invalidate = () => { rig.dirty = true; };
+
+  rig.resize = function(){
+    const cssW = host.clientWidth || 600;
+    const a = (typeof aspect === 'function') ? aspect(cssW) : aspect;
+    const cssH = Math.round(cssW / a);
+    const dpr = Math.min(devicePixelRatio || 1, 2);
+    cv.width = Math.round(cssW*dpr); cv.height = Math.round(cssH*dpr);
+    cv.style.height = cssH+'px';
+    ctx.setTransform(dpr,0,0,dpr,0,0);
+    rig.w = cssW; rig.h = cssH; rig.dirty = true;
+    if (rig.onResize) rig.onResize(rig);
+  };
+  rigs.push(rig);
+  rig.resize();
+  return rig;
+};
+
+/* visibility gating */
+const io = new IntersectionObserver(es=>{
+  es.forEach(e=>{
+    const r = rigs.find(r=>r.host===e.target || r.host.contains(e.target));
+    if(r){ r.vis = e.isIntersecting; if(e.isIntersecting && !r.t0) r.t0 = performance.now(); r.dirty=true; }
+  });
+},{rootMargin:'200px 0px'});
+
+let last = 0;
+function frame(now){
+  requestAnimationFrame(frame);
+  if(now - last < 15) return;   /* cap ~60fps */
+  last = now;
+  for(const r of rigs){
+    if(!r.vis) continue;
+    if(r.still && !r.dirty) continue;
+    const t = (now - (r.t0||now))/1000;
+    r.ctx.clearRect(0,0,r.w,r.h);
+    try{ r.draw(r.ctx, r.w, r.h, RM && !r.still ? 1e4 : t, r); }catch(err){ /* never let one figure kill the page */ }
+    r.dirty = false;
+  }
+}
+requestAnimationFrame(frame);
+
+let rt;
+addEventListener('resize',()=>{ clearTimeout(rt); rt=setTimeout(()=>rigs.forEach(r=>r.resize()),120); });
+
+/* ---------- drawing helpers ---------- */
+
+/* Plot frame with axes. Returns a mapper {X,Y,x0,y0,x1,y1,pw,ph}. */
+window.PLOT = function(ctx,w,h,o){
+  const m = Object.assign({l:52,r:16,t:16,b:34}, o.pad||{});
+  const x0=m.l, y0=h-m.b, x1=w-m.r, y1=m.t, pw=x1-x0, ph=y0-y1;
+  const [xa,xb]=o.xr, [ya,yb]=o.yr;
+  const X = v => x0 + (v-xa)/(xb-xa)*pw;
+  const Y = v => o.ylog
+      ? y0 - (Math.log10(Math.max(v,1e-12))-Math.log10(ya))/(Math.log10(yb)-Math.log10(ya))*ph
+      : y0 - (v-ya)/(yb-ya)*ph;
+  const line=css('line'), tx3=css('tx3');
+
+  ctx.save();
+  ctx.font='500 10.5px '+ 'ui-sans-serif,system-ui,sans-serif';
+  ctx.strokeStyle=line; ctx.fillStyle=tx3; ctx.lineWidth=1;
+
+  /* gridlines + ticks */
+  const xt = o.xticks || tickvals(xa,xb,6);
+  ctx.textAlign='center'; ctx.textBaseline='top';
+  xt.forEach(v=>{
+    const x=Math.round(X(v))+.5;
+    if(o.grid!==false){ ctx.beginPath(); ctx.moveTo(x,y1); ctx.lineTo(x,y0); ctx.stroke(); }
+    ctx.fillText(o.xfmt?o.xfmt(v):fmt(v), x, y0+7);
+  });
+  const yt = o.yticks || (o.ylog ? logticks(ya,yb) : tickvals(ya,yb,5));
+  ctx.textAlign='right'; ctx.textBaseline='middle';
+  yt.forEach(v=>{
+    const y=Math.round(Y(v))+.5;
+    if(y<y1-1||y>y0+1) return;
+    if(o.grid!==false){ ctx.beginPath(); ctx.moveTo(x0,y); ctx.lineTo(x1,y); ctx.stroke(); }
+    ctx.fillText(o.yfmt?o.yfmt(v):fmt(v), x0-8, y);
+  });
+
+  /* axis labels */
+  ctx.fillStyle=tx3; ctx.font='700 9.5px ui-sans-serif,system-ui,sans-serif';
+  if(o.xlab){ ctx.textAlign='center'; ctx.textBaseline='bottom';
+    ctx.fillText(o.xlab.toUpperCase(), x0+pw/2, h-1); }
+  if(o.ylab){ ctx.save(); ctx.translate(11,y1+ph/2); ctx.rotate(-Math.PI/2);
+    ctx.textAlign='center'; ctx.textBaseline='top'; ctx.fillText(o.ylab.toUpperCase(),0,0); ctx.restore(); }
+  ctx.restore();
+  return {X,Y,x0,y0,x1,y1,pw,ph};
+};
+
+function fmt(v){
+  if(v===0) return '0';
+  const a=Math.abs(v);
+  if(a>=1e6) return (v/1e6)+'M';
+  if(a>=1000) return (v/1000)+'k';
+  if(a<0.001) return v.toExponential(0);
+  if(a<1) return String(+v.toFixed(3));
+  return String(+v.toFixed(a<10?1:0));
+}
+window.fmt = fmt;
+function tickvals(a,b,n){
+  const span=b-a, raw=span/n, mag=Math.pow(10,Math.floor(Math.log10(raw)));
+  const norm=raw/mag, step=(norm<1.5?1:norm<3?2:norm<7?5:10)*mag;
+  const out=[]; for(let v=Math.ceil(a/step)*step; v<=b+1e-9; v+=step) out.push(+v.toFixed(10));
+  return out;
+}
+function logticks(a,b){
+  const out=[];
+  for(let e=Math.floor(Math.log10(a)); e<=Math.ceil(Math.log10(b)); e++){
+    const v=Math.pow(10,e); if(v>=a*0.999&&v<=b*1.001) out.push(v);
+  }
+  return out;
+}
+window.logticks = logticks;
+
+/* Path through data, optionally animated in from the left by `prog` 0..1 */
+window.PATH = function(ctx,M,pts,color,width,prog,dash){
+  const n=pts.length; if(!n) return;
+  const lim = prog==null?n:Math.max(2,Math.floor(n*Math.min(1,Math.max(0,prog))));
+  ctx.save(); ctx.strokeStyle=color; ctx.lineWidth=width||2;
+  ctx.lineJoin='round'; ctx.lineCap='round';
+  if(dash) ctx.setLineDash(dash);
+  ctx.beginPath();
+  for(let i=0;i<lim;i++){ const p=pts[i]; i?ctx.lineTo(M.X(p[0]),M.Y(p[1])):ctx.moveTo(M.X(p[0]),M.Y(p[1])); }
+  ctx.stroke(); ctx.restore();
+};
+/* Filled area under a curve */
+window.AREA = function(ctx,M,pts,color,prog,baseline){
+  const n=pts.length; if(!n) return;
+  const lim = prog==null?n:Math.max(2,Math.floor(n*Math.min(1,Math.max(0,prog))));
+  const base = baseline==null? M.y0 : M.Y(baseline);
+  ctx.save(); ctx.fillStyle=color; ctx.beginPath();
+  ctx.moveTo(M.X(pts[0][0]), base);
+  for(let i=0;i<lim;i++){ const p=pts[i]; ctx.lineTo(M.X(p[0]),M.Y(p[1])); }
+  ctx.lineTo(M.X(pts[lim-1][0]), base); ctx.closePath(); ctx.fill(); ctx.restore();
+};
+/* small inline legend */
+window.LEG = function(ctx,x,y,items,align){
+  ctx.save(); ctx.font='600 11px ui-sans-serif,system-ui,sans-serif';
+  ctx.textBaseline='middle'; ctx.textAlign='left';
+  let w=0; items.forEach(i=>w=Math.max(w,ctx.measureText(i[1]).width));
+  if(align==='right') x -= (w+22);
+  items.forEach((it,k)=>{
+    const yy=y+k*17;
+    ctx.fillStyle=it[0];
+    if(it[2]==='dash'){ ctx.fillRect(x,yy-1,7,2); ctx.fillRect(x+10,yy-1,7,2); }
+    else ctx.fillRect(x,yy-4,9,8);
+    ctx.fillStyle=css('tx2'); ctx.fillText(it[1],x+22,yy);
+  });
+  ctx.restore();
+};
+window.label = function(ctx,x,y,text,color,align,size){
+  ctx.save(); ctx.font='700 '+(size||11)+'px ui-sans-serif,system-ui,sans-serif';
+  ctx.fillStyle=color; ctx.textAlign=align||'left'; ctx.textBaseline='middle';
+  ctx.fillText(text,x,y); ctx.restore();
+};
+window.ease = t => t<0?0 : t>1?1 : t*t*(3-2*t);
+window.clamp = (v,a,b)=>v<a?a:v>b?b:v;
+
+/* Bind a range input to a live-updating label + callback */
+window.SLIDER = function(id, fmtFn, cb){
+  const el=document.getElementById(id); if(!el) return null;
+  const out=document.querySelector('[data-for="'+id+'"]');
+  const upd=()=>{ const v=parseFloat(el.value); if(out) out.textContent=fmtFn?fmtFn(v):v; if(cb) cb(v); };
+  el.addEventListener('input',upd); upd(); return el;
+};
+/* Segmented button group */
+window.SEG = function(sel, cb){
+  const g=document.querySelector(sel); if(!g) return;
+  g.addEventListener('click',e=>{
+    const b=e.target.closest('button'); if(!b) return;
+    g.querySelectorAll('button').forEach(x=>x.classList.toggle('on',x===b));
+    cb(b.dataset.v, b);
+  });
+};
+
+/* ---------- shared demography maths (used by many figures) ---------- */
+window.GOMP = {
+  /* hazard */
+  mu: (t,A,al,mk) => (mk||0) + A*Math.exp(al*t),
+  /* survival from age 0 under Gompertz–Makeham (closed form) */
+  S: (t,A,al,mk) => Math.exp(-(mk||0)*t - (A/al)*(Math.exp(al*t)-1)),
+  /* life expectancy at birth by numeric integration of S */
+  e0: (A,al,mk,cap) => {
+    const T=cap||160, n=3200; let s=0;
+    for(let i=0;i<n;i++){ const a=T*i/n, b=T*(i+1)/n, m=(a+b)/2;
+      s += (T/n)/6*(GOMP.S(a,A,al,mk)+4*GOMP.S(m,A,al,mk)+GOMP.S(b,A,al,mk)); }
+    return s;
+  },
+  /* median lifespan: solve S(t)=0.5 */
+  med: (A,al,mk) => {
+    let lo=0,hi=200;
+    for(let i=0;i<70;i++){ const m=(lo+hi)/2; if(GOMP.S(m,A,al,mk)>0.5) lo=m; else hi=m; }
+    return (lo+hi)/2;
+  },
+  /* quantile: S(t)=p */
+  q: (p,A,al,mk) => {
+    let lo=0,hi=250;
+    for(let i=0;i<70;i++){ const m=(lo+hi)/2; if(GOMP.S(m,A,al,mk)>p) lo=m; else hi=m; }
+    return (lo+hi)/2;
+  }
+};
+
+/* ---------- chrome: TOC, progress, theme, reveal ---------- */
+addEventListener('DOMContentLoaded',()=>{
+  const secs=[...document.querySelectorAll('section.page')];
+  const toc=document.getElementById('toc');
+  let grp=null, html='';
+  secs.forEach((s,i)=>{
+    if(s.dataset.grp && s.dataset.grp!==grp){ grp=s.dataset.grp; html+='<div class="grp">'+grp+'</div>'; }
+    html+='<a href="#'+s.id+'"><span class="n">'+(s.dataset.num||'')+'</span><span>'+s.dataset.toc+'</span></a>';
+  });
+  toc.innerHTML=html;
+
+  const links=[...toc.querySelectorAll('a')];
+  const nav=document.getElementById('navtoggle'), scrim=document.getElementById('scrim');
+  const close=()=>{toc.classList.remove('open');scrim.classList.remove('on');};
+  nav.onclick=()=>{toc.classList.toggle('open');scrim.classList.toggle('on');};
+  scrim.onclick=close;
+  links.forEach(a=>a.onclick=()=>{ if(innerWidth<1400) close(); });
+
+  const bar=document.getElementById('progress');
+  const onScroll=()=>{
+    const d=document.documentElement;
+    bar.style.width=(d.scrollTop/(d.scrollHeight-d.clientHeight)*100)+'%';
+    let cur=0;
+    secs.forEach((s,i)=>{ if(s.getBoundingClientRect().top<=140) cur=i; });
+    links.forEach((a,i)=>a.classList.toggle('active',i===cur));
+  };
+  addEventListener('scroll',onScroll,{passive:true}); onScroll();
+
+  const tb=document.getElementById('themebtn');
+  tb.onclick=()=>{
+    const r=document.documentElement;
+    r.dataset.theme = r.dataset.theme==='dark'?'light':'dark';
+    rigs.forEach(r2=>r2.dirty=true);
+  };
+
+  const ro=new IntersectionObserver(es=>es.forEach(e=>{
+    if(e.isIntersecting){ e.target.classList.add('in'); ro.unobserve(e.target); }
+  }),{rootMargin:'-40px 0px -60px'});
+  document.querySelectorAll('.rv').forEach(e=>ro.observe(e));
+
+  document.querySelectorAll('.canvas-host').forEach(h=>io.observe(h));
+
+  /* sortable tables */
+  document.querySelectorAll('table.data').forEach(tb2=>{
+    tb2.querySelectorAll('th.sortable').forEach((th,ci)=>{
+      const idx=[...th.parentNode.children].indexOf(th);
+      th.onclick=()=>{
+        const desc=!th.classList.contains('desc');
+        th.parentNode.querySelectorAll('th').forEach(x=>x.classList.remove('asc','desc'));
+        th.classList.add(desc?'desc':'asc');
+        const body=tb2.tBodies[0];
+        const rows=[...body.rows].sort((a,b)=>{
+          const av=a.cells[idx].dataset.s ?? a.cells[idx].textContent.trim();
+          const bv=b.cells[idx].dataset.s ?? b.cells[idx].textContent.trim();
+          const an=parseFloat(av), bn=parseFloat(bv);
+          const cmp = (!isNaN(an)&&!isNaN(bn)) ? an-bn : String(av).localeCompare(String(bv));
+          return desc?-cmp:cmp;
+        });
+        rows.forEach(r=>body.appendChild(r));
+      };
+    });
+  });
+});
+})();
+</script>

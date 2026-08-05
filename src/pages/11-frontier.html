@@ -1,0 +1,188 @@
+<section class="page" id="frontier" data-toc="What is actually built" data-num="11" data-grp="IV · Engineering">
+  <div class="wrap">
+    <div class="eyebrow">Domain evidence · frontier engineering</div>
+    <h2>What is actually built, versus what is promised</h2>
+    <p class="dek">The gap between these two things is the defining feature of this sector. Sorting
+    them requires one discipline above all: refusing to let a press release count as a result.</p>
+
+    <p>A note on how technology readiness is abused here. Companies routinely present the evidence
+    of a single mouse study alongside the vocabulary of a late-stage clinical programme. Dosing one
+    healthy volunteer in a phase 1 safety study makes you "clinical-stage" on <em>safety</em> while
+    leaving you at proof-of-concept on <em>efficacy</em>. The chart below scores the efficacy
+    axis — because that is the axis that determines whether anyone lives longer.</p>
+  </div>
+
+  <div class="fig wide rv">
+    <div class="fig-head">
+      <div class="fig-title"><span class="tag">Figure 11 · interactive · agent-assessed</span>
+        The readiness landscape — maturity against realistic deployment</div>
+    </div>
+    <div class="fig-body tight"><div class="canvas-host" id="cv-trl"></div></div>
+    <div class="fig-cap">
+      Hover or tap for detail. Horizontal axis is technology readiness <em>on efficacy</em>; vertical
+      is the earliest defensible date of human deployment for an aging-related indication.
+      <b>The most striking feature of this chart is which technology sits furthest right.</b> It is
+      not reprogramming and it is not senolytics — it is xenotransplantation, which has cleared
+      phase 1/2 for kidneys and is the highest-readiness genuinely transformative item in the whole
+      survey, while receiving the least attention from the longevity community.
+      <br><span class="srcnote"><b>TRL values and dates are analytical judgement, not sourced
+      facts</b>, assigned on an explicit 9-point biomedical scale and labelled as such throughout.
+      They are offered as a defensible opinion to argue with.</span>
+    </div>
+  </div>
+
+  <div class="wrap">
+    <h3>The hype ledger</h3>
+    <p>A field's base rates are set by its failures, not its press releases. These are the ones that
+    should calibrate expectations.</p>
+
+    <div class="tbl-scroll">
+      <table class="data">
+        <thead><tr><th>Case</th><th>The claim</th><th>What actually happened</th></tr></thead>
+        <tbody>
+          <tr><td class="name">Tracheal tissue engineering</td>
+            <td>Engineered windpipes transplanted into patients; celebrated as the arrival of organ engineering.</td>
+            <td>One of the most serious research-fraud scandals in modern medicine. Patients died. Papers retracted, the surgeon criminally convicted. <b>The cautionary tale the whole regenerative field should teach and mostly does not.</b></td></tr>
+          <tr><td class="name">Alagebrium (ALT-711)</td>
+            <td>An "AGE-breaker" that would reverse arterial stiffening by cleaving crosslinks.</td>
+            <td>Failed in clinical development. The category's central chemical target — glucosepane — still has <b>no working breaker</b>, roughly two decades on.</td></tr>
+          <tr><td class="name">Unity Biotechnology (UBX0101)</td>
+            <td>First senolytic into the clinic; osteoarthritis as the beachhead indication.</td>
+            <td>Failed to beat placebo in phase 2. The programme was discontinued and the company nearly collapsed. <b>The first serious clinical test of the senolytic hypothesis was negative.</b></td></tr>
+          <tr><td class="name">resTORbio (RTB101)</td>
+            <td>mTOR inhibition to restore immune function in the elderly.</td>
+            <td>Failed its phase 3. This is the only adequately powered late-stage trial of an mTOR inhibitor for a geroscience-adjacent endpoint, and it did not work.</td></tr>
+          <tr><td class="name">Young-plasma clinics</td>
+            <td>Transfusions of young plasma sold directly to consumers as rejuvenation.</td>
+            <td>The FDA issued a public safety warning against the practice. No controlled human outcome evidence supports it. The industry continues.</td></tr>
+          <tr><td class="name">Telomerase self-experimentation</td>
+            <td>A biotech executive self-administered telomerase gene therapy and reported reversal of biological age.</td>
+            <td><b>Uncontrolled n = 1 self-experimentation is not evidence.</b> No control, no blinding, no independent verification, direct commercial interest in the result.</td></tr>
+          <tr><td class="name">Follistatin gene therapy abroad</td>
+            <td>Gene therapy sold through jurisdictions with permissive regulation.</td>
+            <td>The regulatory-arbitrage pattern: relocate to avoid the evidentiary standard rather than meet it. Products sold ahead of controlled efficacy data.</td></tr>
+          <tr><td class="name">"Reversed aging by X years" headlines</td>
+            <td>Recurring genre, usually built on a clock reading.</td>
+            <td>Typically small, often uncontrolled, and measured on an instrument that is not a validated surrogate for anything (§<a href="#measurement">8</a>).</td></tr>
+        </tbody>
+      </table>
+    </div>
+
+    <div class="callout warn">
+      <div class="ct">The base rate</div>
+      <p>Two clinical-stage geroscience companies ran adequately powered trials against hard-ish
+      endpoints. Both failed. A decade of very well-funded industrial research has produced no
+      approved therapy for any aging-related indication, and aging is not a recognised regulatory
+      indication in the first place — which means there is currently no legal path to approving a
+      drug for it, only for its individual downstream diseases.</p>
+    </div>
+
+    <h3>The one that deserves more attention than it gets</h3>
+    <p>Xenotransplantation is the quiet success story of this survey. Genetically modified pig
+    kidneys and hearts have been transplanted into humans; kidney programmes have cleared phase 1/2
+    and are enrolling. It does not slow aging by a single day — it is a pure organ-supply
+    solution — but organ failure is a major terminal pathway, and this is the nearest-term
+    technology in the entire frontier landscape with the capacity to change outcomes at scale.</p>
+
+    <div class="callout key">
+      <div class="ct">Where the highest-value missing tools are</div>
+      <p>The most useful thing a funder could do in several of these categories is not a therapy but
+      a <strong>reagent</strong>. For crosslink breaking, the field has been stalled for two decades
+      partly because there is no synthetic glucosepane standard and no glucosepane-specific antibody
+      or assay in wide circulation — you cannot optimise a breaker you cannot measure. Tool-building
+      is unglamorous, cheap relative to trials, and repeatedly the actual rate-limiting step.</p>
+    </div>
+  </div>
+</section>
+
+<script>
+/* ---- Figure 11: TRL landscape --------------------------------------- */
+(function(){
+  const host=document.getElementById('cv-trl'); if(!host) return;
+  /* [name, TRL(efficacy), earliest year, colour key, note] */
+  const T=[
+    ['Xenotransplant (kidney)',7,2032,'rate','Phase 1/2 cleared and enrolling. Pure organ supply — does not touch aging rate, but organ failure is a major terminal pathway.'],
+    ['Cornea / flat tissue engineering',7,2027,'rate','Approved or near-approved. The easy geometry: avascular, thin, no perfusion problem.'],
+    ['MSC cell therapy (frailty)',5,2033,'data','Well-conducted small phase 2a with a signal. Encouraging, unreplicated, not efficacy evidence.'],
+    ['Senolytics (systemic)',4.5,2034,'offset','First serious phase 2 failed. Marker specificity unresolved. Mouse data remain the strongest part of the case.'],
+    ['Senolytic CAR-T / CAR-NK',4,2038,'theory','Scientifically the most interesting frontier item: turns cell clearance into a targeted, potentially one-shot therapy.'],
+    ['Partial reprogramming (systemic)',4.5,2036,'offset','Best headline results came from progeroid mice. Teratoma risk is the central unsolved problem.'],
+    ['Telomerase gene therapy',4,2038,'err','Mouse efficacy only. Cancer trade-off is real and directionally supported by human genetic evidence.'],
+    ['Mitochondrial allotopic expression',3.5,2040,'err','Transgenic mice, not treated ones. No delivery vehicle for 13 genes across a whole adult body.'],
+    ['Solid organ bioprinting',3.5,2042,'err','No engineered solid organ transplanted at scale. Vascularisation is the wall.'],
+    ['Glucosepane crosslink breakers',2.5,2038,'err','Target validated, no working breaker in two decades. The missing item is an assay, not a drug.'],
+    ['Medical bioremediation',2,2045,'err','Weakest SENS category by the author of SENS’s own assessment.'],
+    ['Whole-brain connectomics',1.5,2060,'theory','Fly connectome done; a cubic millimetre of mouse cortex done. The scale gap to a human brain is many orders of magnitude.'],
+    ['Cryopreservation revival',1,null,'theory','Vitrification and structural preservation are demonstrable. Revival is not, and the claim is currently unfalsifiable.']
+  ];
+  let hover=-1, rig;
+
+  rig=CV(host, w=>w<620?0.95:1.9, function(ctx,w,h,t,r){
+    const M=PLOT(ctx,w,h,{xr:[0.5,8],yr:[2025,2062],pad:{l:58,r:22,t:26,b:44},
+      xlab:'technology readiness (efficacy axis) →', ylab:'earliest realistic deployment',
+      xticks:[1,2,3,4,5,6,7,8], yticks:[2030,2040,2050,2060],
+      yfmt:v=>String(v)});
+    /* "near-term" band */
+    ctx.save(); ctx.fillStyle='rgba(63,208,201,.05)';
+    ctx.fillRect(M.X(5),M.Y(2040),M.X(8)-M.X(5),M.Y(2025)-M.Y(2040)); ctx.restore();
+    label(ctx,M.X(6.5),M.Y(2027),'ready and near-term',css('rate'),'center',10);
+
+    const prog=clamp(t/1.5,0,1);
+    T.forEach((d,i)=>{
+      const on=clamp((prog*T.length-i)/2,0,1); if(on<=0) return;
+      const yr=d[2]===null?2061:d[2];
+      const x=M.X(d[1]), y=M.Y(yr);
+      const isH=hover===i, rad=(isH?7.5:5.5)*ease(on);
+      ctx.save(); ctx.globalAlpha=on*(hover<0||isH?1:0.3);
+      ctx.beginPath(); ctx.arc(x,y,rad,0,6.283);
+      ctx.fillStyle=css(d[3]); ctx.globalAlpha*=0.75; ctx.fill();
+      ctx.globalAlpha=on*(hover<0||isH?1:0.3);
+      ctx.strokeStyle=css(d[3]); ctx.lineWidth=isH?2.2:1.3; ctx.stroke();
+      if(d[2]===null){ ctx.setLineDash([2,2]); ctx.beginPath();
+        ctx.arc(x,y,rad+4,0,6.283); ctx.stroke(); }
+      ctx.restore();
+      if(on>0.55 && (w>620||isH||d[1]>4)){
+        ctx.save(); ctx.globalAlpha=on*(hover<0||isH?1:0.28);
+        ctx.font=(isH?'700 ':'600 ')+(w<620?8:9.5)+'px ui-sans-serif,system-ui,sans-serif';
+        ctx.fillStyle=isH?css('tx'):css('tx2');
+        ctx.textAlign=x>M.x0+M.pw*0.62?'right':'left'; ctx.textBaseline='middle';
+        ctx.fillText(d[0], x+(x>M.x0+M.pw*0.62?-rad-6:rad+6), y);
+        ctx.restore();
+      }
+    });
+    if(hover>=0){
+      const d=T[hover], bw=Math.min(320,w-32), pad=11;
+      ctx.save(); ctx.font='500 10.5px ui-sans-serif,system-ui,sans-serif';
+      const words=d[4].split(' '), lines=[]; let cur='';
+      words.forEach(wd=>{ if(ctx.measureText(cur+' '+wd).width>bw-pad*2){lines.push(cur);cur=wd;} else cur=cur?cur+' '+wd:wd; });
+      lines.push(cur);
+      const bh=lines.length*14+32;
+      const bx=clamp(M.X(d[1])+14,8,w-bw-8), by=clamp(M.Y(d[2]===null?2061:d[2])-bh-12,8,h-bh-8);
+      ctx.fillStyle=css('panel2'); ctx.strokeStyle=css('line2'); ctx.lineWidth=1;
+      ctx.beginPath(); if(ctx.roundRect) ctx.roundRect(bx,by,bw,bh,8); else ctx.rect(bx,by,bw,bh);
+      ctx.fill(); ctx.stroke();
+      ctx.fillStyle=css('tx'); ctx.font='700 11px ui-sans-serif,system-ui,sans-serif';
+      ctx.textAlign='left'; ctx.textBaseline='top';
+      ctx.fillText(d[0]+'  ·  TRL '+d[1]+(d[2]?'  ·  '+d[2]:'  ·  no date'),bx+pad,by+pad);
+      ctx.fillStyle=css('tx2'); ctx.font='500 10.5px ui-sans-serif,system-ui,sans-serif';
+      lines.forEach((L,i)=>ctx.fillText(L,bx+pad,by+pad+19+i*14));
+      ctx.restore();
+    }
+    r.state.M=M;
+  },{state:{}});
+
+  function pick(ev){
+    const b=rig.cv.getBoundingClientRect();
+    const cx=(ev.touches?ev.touches[0].clientX:ev.clientX)-b.left;
+    const cy=(ev.touches?ev.touches[0].clientY:ev.clientY)-b.top;
+    const M=rig.state.M; if(!M) return;
+    let best=-1,bd=30;
+    T.forEach((d,i)=>{ const dd=Math.hypot(M.X(d[1])-cx,M.Y(d[2]===null?2061:d[2])-cy);
+      if(dd<bd){bd=dd;best=i;} });
+    hover=best; rig.invalidate();
+  }
+  rig.cv.addEventListener('mousemove',pick);
+  rig.cv.addEventListener('touchstart',pick,{passive:true});
+  rig.cv.addEventListener('mouseleave',()=>{hover=-1;rig.invalidate();});
+})();
+</script>
