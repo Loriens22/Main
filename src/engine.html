@@ -255,12 +255,23 @@ addEventListener('DOMContentLoaded',()=>{
   };
   addEventListener('scroll',onScroll,{passive:true}); onScroll();
 
+  /* Theme toggle (standalone build only — the artifact viewer supplies its
+     own, and stamps the same data-theme attribute). Falls back to the OS
+     preference when no explicit stamp is present yet. */
   const tb=document.getElementById('themebtn');
-  tb.onclick=()=>{
+  if(tb) tb.onclick=()=>{
     const r=document.documentElement;
-    r.dataset.theme = r.dataset.theme==='dark'?'light':'dark';
+    const cur = r.dataset.theme ||
+      (matchMedia('(prefers-color-scheme: dark)').matches?'dark':'light');
+    r.dataset.theme = cur==='dark'?'light':'dark';
     rigs.forEach(r2=>r2.dirty=true);
   };
+  /* Repaint every figure when the theme changes by any route, since canvas
+     colours are read from CSS custom properties at draw time. */
+  new MutationObserver(()=>rigs.forEach(r=>r.dirty=true))
+    .observe(document.documentElement,{attributes:true,attributeFilter:['data-theme']});
+  matchMedia('(prefers-color-scheme: dark)')
+    .addEventListener('change',()=>rigs.forEach(r=>r.dirty=true));
 
   const ro=new IntersectionObserver(es=>es.forEach(e=>{
     if(e.isIntersecting){ e.target.classList.add('in'); ro.unobserve(e.target); }
