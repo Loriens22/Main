@@ -246,8 +246,19 @@
       };
       speaking = rec;
 
+      var t0 = util.now();
+
       function finish(ok) {
         if (rec.finished) return;
+        /* Some engines (and every headless browser) "speak" a line
+         * instantly. Hold the promise to most of the estimated duration so
+         * cutscene beats and subtitles never race ahead of the reader. */
+        var elapsed = util.now() - t0;
+        var floor = dur * 0.7;
+        if (elapsed < floor) {
+          setTimeout(function () { finish(ok); }, (floor - elapsed) * 1000);
+          return;
+        }
         rec.finished = true;
         if (rec.timer) clearTimeout(rec.timer);
         if (rec.levelTimer) clearInterval(rec.levelTimer);

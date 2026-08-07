@@ -306,7 +306,10 @@ return{"ACESFilmicToneMapping":nt,"AddEquation":M,"AddOperation":K,"AdditiveAnim
     var strays = [];
 
     group.traverse(function (o) {
-      if (!o.isMesh || !o.geometry || o.userData.noMerge) return;
+      if (!o.isMesh || !o.geometry) return;
+      /* Anything explicitly excluded is carried across untouched rather than
+       * silently dropped — an animated part must survive a merge. */
+      if (o.userData.noMerge) { strays.push(o); return; }
       var m = o.material;
       if (Array.isArray(m)) { strays.push(o); return; }
       var b = byMat.get(m);
@@ -3355,8 +3358,13 @@ return{"ACESFilmicToneMapping":nt,"AddEquation":M,"AddOperation":K,"AdditiveAnim
       var r = derive(tex.roughFrom, t, cfg.rough[0], cfg.rough[1]);
       if (r) { spec.roughnessMap = r; spec.roughness = 1; }
     }
+    /* Metals need the environment or they render black. Dielectrics mostly
+     * do not: at 0.75 the env acts as a second ambient light and floods
+     * every interior, which kills the one thing these rooms are lit by —
+     * a desk lamp, a chandelier, a strip light. Keep it as a hint of
+     * bounce, no more. */
     spec.envMapIntensity = cfg.env === undefined
-      ? (spec.metalness > 0.5 ? 1.0 : 0.75) : cfg.env;
+      ? (spec.metalness > 0.5 ? 1.0 : 0.22) : cfg.env;
 
     if (cfg.extra) {
       for (var k in cfg.extra) {
@@ -7319,8 +7327,19 @@ return{"ACESFilmicToneMapping":nt,"AddEquation":M,"AddOperation":K,"AdditiveAnim
       };
       speaking = rec;
 
+      var t0 = util.now();
+
       function finish(ok) {
         if (rec.finished) return;
+        /* Some engines (and every headless browser) "speak" a line
+         * instantly. Hold the promise to most of the estimated duration so
+         * cutscene beats and subtitles never race ahead of the reader. */
+        var elapsed = util.now() - t0;
+        var floor = dur * 0.7;
+        if (elapsed < floor) {
+          setTimeout(function () { finish(ok); }, (floor - elapsed) * 1000);
+          return;
+        }
         rec.finished = true;
         if (rec.timer) clearTimeout(rec.timer);
         if (rec.levelTimer) clearInterval(rec.levelTimer);
@@ -10243,7 +10262,7 @@ return{"ACESFilmicToneMapping":nt,"AddEquation":M,"AddOperation":K,"AdditiveAnim
     /* The coiled PS/2 lead. */
     g.add(tube([[0, 0.012, -0.08], [0.02, 0.02, -0.14], [-0.03, 0.01, -0.22],
     [0.02, 0.008, -0.3]], 0.004, C(0xc9c0aa, 0.8), 5, false));
-    return done(g, 'keyboardBeige');
+    return done(util.mergeGroup(g), 'keyboardBeige');
   };
 
   MODELS.mouseBall = function () {
@@ -11253,17 +11272,22 @@ return{"ACESFilmicToneMapping":nt,"AddEquation":M,"AddOperation":K,"AdditiveAnim
   MODELS.serverRack = function (opts) {
     opts = opts || {};
     var g = new THREE.Group();
+    /* Built into `bulk` and merged at the end: a rack is ~190 little meshes,
+     * and ten of them in a room is two thousand draw calls otherwise. The
+     * LEDs survive the merge because they share two materials, and
+     * setActivity animates those materials rather than the meshes. */
+    var bulk = new THREE.Group();
     var W = 0.6, H = 2.0, D = 1.07;
     var frame = C(0x24262a, 0.5, 0.6);
     /* Uprights and rails. */
     [[-1, -1], [1, -1], [-1, 1], [1, 1]].forEach(function (s) {
-      B(g, frame, s[0] * (W / 2 - 0.03), H / 2, s[1] * (D / 2 - 0.04), 0.06, H, 0.06);
+      B(bulk, frame, s[0] * (W / 2 - 0.03), H / 2, s[1] * (D / 2 - 0.04), 0.06, H, 0.06);
     });
-    B(g, frame, 0, 0.02, 0, W, 0.04, D);
-    B(g, frame, 0, H - 0.02, 0, W, 0.04, D);
-    B(g, C(0x1c1e22, 0.55), 0, H / 2, -D / 2 + 0.02, W, H, 0.03);
-    B(g, C(0x1c1e22, 0.55), -W / 2 + 0.015, H / 2, 0, 0.02, H, D);
-    B(g, C(0x1c1e22, 0.55), W / 2 - 0.015, H / 2, 0, 0.02, H, D);
+    B(bulk, frame, 0, 0.02, 0, W, 0.04, D);
+    B(bulk, frame, 0, H - 0.02, 0, W, 0.04, D);
+    B(bulk, C(0x1c1e22, 0.55), 0, H / 2, -D / 2 + 0.02, W, H, 0.03);
+    B(bulk, C(0x1c1e22, 0.55), -W / 2 + 0.015, H / 2, 0, 0.02, H, D);
+    B(bulk, C(0x1c1e22, 0.55), W / 2 - 0.015, H / 2, 0, 0.02, H, D);
 
     /* Blades, and one bay left empty because somebody pulled a server. */
     var leds = [];
@@ -11275,17 +11299,17 @@ return{"ACESFilmicToneMapping":nt,"AddEquation":M,"AddOperation":K,"AdditiveAnim
         /* Missing blanking plate — you can see straight in. */
         continue;
       }
-      var blade = B(g, C(i % 5 === 0 ? 0x2f3237 : 0x35383d, 0.55, 0.35),
+      var blade = B(bulk, C(i % 5 === 0 ? 0x2f3237 : 0x35383d, 0.55, 0.35),
         0, y, D / 2 - 0.06, W - 0.08, 0.078, 0.1);
       for (var k = 0; k < 3; k++) {
-        var led = B(g, k === 2 ? amberMat : ledMat,
+        var led = B(bulk, k === 2 ? amberMat : ledMat,
           -W / 2 + 0.09 + k * 0.03, y, D / 2 - 0.008, 0.011, 0.006, 0.004);
         led.castShadow = false;
         leds.push(led);
       }
       /* Drive bays. */
       for (var b2 = 0; b2 < 4; b2++) {
-        var bay = B(g, C(0x2a2d31, 0.6), 0.03 + b2 * 0.045, y, D / 2 - 0.007,
+        var bay = B(bulk, C(0x2a2d31, 0.6), 0.03 + b2 * 0.045, y, D / 2 - 0.007,
           0.04, 0.062, 0.003);
         bay.castShadow = false;
       }
@@ -11312,9 +11336,12 @@ return{"ACESFilmicToneMapping":nt,"AddEquation":M,"AddOperation":K,"AdditiveAnim
         var q = new THREE.Mesh(plnGeo(), dm);
         q.scale.set(0.28, 0.07, 1);
         q.position.set(0, H - 0.12, D / 2 - 0.005);
-        g.add(q);
+        bulk.add(q);
       }
     }
+
+    /* One merged body, plus the door we may want to swing. */
+    g.add(util.mergeGroup(bulk));
 
     var activity = 1;
     g.userData.leds = leds;
@@ -11346,7 +11373,7 @@ return{"ACESFilmicToneMapping":nt,"AddEquation":M,"AddOperation":K,"AdditiveAnim
     /* The uplink, thicker and orange. */
     var up = CYm(g, C(0xff8a3a, 0.45), 0.0, -0.38, 0.09, 0.016, 0.06, 8, 'z');
     up.castShadow = false;
-    return done(g, 'patchPanel');
+    return done(util.mergeGroup(g), 'patchPanel');
   };
 
   MODELS.upsCabinet = function () {
@@ -11428,16 +11455,18 @@ return{"ACESFilmicToneMapping":nt,"AddEquation":M,"AddOperation":K,"AdditiveAnim
         t.castShadow = false;
       }
     }
-    var led = B(g, EM(0x35e07a), 0.36, 1.86, 0.405, 0.018, 0.01, 0.004);
+    var ledMat = new THREE.MeshBasicMaterial({ color: 0x35e07a, toneMapped: false });
+    var led = B(g, ledMat, 0.36, 1.86, 0.405, 0.018, 0.01, 0.004);
     led.castShadow = false;
     var act = 1;
-    g.userData.setActivity = function (a) {
+    var merged = util.mergeGroup(g);
+    merged.userData.setActivity = function (a) {
       if (Math.abs(a - act) < 0.05) return;
       act = a;
       mat.color.setRGB(0.11 * a, 0.23 * a, 0.2 * a);
-      led.material = EM(a > 0.3 ? 0x35e07a : 0x552222);
+      ledMat.color.setHex(a > 0.3 ? 0x35e07a : 0x552222);
     };
-    return done(g, 'tapeLibrary');
+    return done(merged, 'tapeLibrary');
   };
 
   MODELS.breakerPanel = function () {
@@ -11581,7 +11610,7 @@ return{"ACESFilmicToneMapping":nt,"AddEquation":M,"AddOperation":K,"AdditiveAnim
       g.add(tube([[s * w / 2, 1.16, -len / 2], [s * w / 2, 1.16, len / 2]],
         0.02, m, 6, false));
     }
-    return done(g, 'catwalk');
+    return done(util.mergeGroup(g), 'catwalk');
   };
 
   /* ------------------------------------------------------------------ */
@@ -20870,6 +20899,25 @@ return{"ACESFilmicToneMapping":nt,"AddEquation":M,"AddOperation":K,"AdditiveAnim
     return UNIT_PLANE;
   };
 
+  /* Textures are authored to look right at roughly one tile per 2 m. A room
+   * floor built from a unit plane stretches a single 256 px tile across
+   * sixteen metres, which is what turns concrete into grey porridge. Scale
+   * the UVs on a cloned geometry instead of the texture, so the material
+   * stays shared across the whole game. */
+  K.TILE = 2.0;
+
+  K.uvScaled = function (geo, su, sv) {
+    var g = geo.clone();
+    var uv = g.attributes.uv;
+    if (uv) {
+      for (var i = 0; i < uv.count; i++) {
+        uv.setXY(i, uv.getX(i) * su, uv.getY(i) * sv);
+      }
+      uv.needsUpdate = true;
+    }
+    return g;
+  };
+
   /* A box built from the shared unit geometry. Position is the CENTRE. */
   K.box = function (parent, mat, cx, cy, cz, sx, sy, sz, yaw) {
     var m = new THREE.Mesh(K.unitBox(), mat);
@@ -20934,7 +20982,7 @@ return{"ACESFilmicToneMapping":nt,"AddEquation":M,"AddOperation":K,"AdditiveAnim
       var px = a[0] + ux * mid, pz = a[1] + uz * mid;
       var py = (sg.y0 + sg.y1) / 2;
       var sy = sg.y1 - sg.y0;
-      var m = new THREE.Mesh(K.unitBox(), mat);
+      var m = new THREE.Mesh(K.uvScaled(K.unitBox(), w / K.TILE, sy / K.TILE), mat);
       m.scale.set(w, sy, thick);
       m.position.set(px, py, pz);
       m.rotation.y = yaw;
@@ -20981,7 +21029,7 @@ return{"ACESFilmicToneMapping":nt,"AddEquation":M,"AddOperation":K,"AdditiveAnim
     var floorMat = opts.floorMat || M('concrete', { color: 0x6c6d70, roughness: 0.95 });
     var w = x1 - x0, d = z1 - z0;
 
-    var floor = new THREE.Mesh(K.unitPlane(), floorMat);
+    var floor = new THREE.Mesh(K.uvScaled(K.unitPlane(), w / K.TILE, d / K.TILE), floorMat);
     floor.scale.set(w, d, 1);
     floor.rotation.x = -Math.PI / 2;
     floor.position.set((x0 + x1) / 2, y + 0.001, (z0 + z1) / 2);
@@ -20991,7 +21039,8 @@ return{"ACESFilmicToneMapping":nt,"AddEquation":M,"AddOperation":K,"AdditiveAnim
 
     if (opts.ceiling !== false) {
       var ceilMat = opts.ceilMat || M('ceilingTile', { color: 0xdedbd2, roughness: 1 });
-      var ceil = new THREE.Mesh(K.unitPlane(), ceilMat);
+      var ceil = new THREE.Mesh(
+        K.uvScaled(K.unitPlane(), w / K.TILE, d / K.TILE), ceilMat);
       ceil.scale.set(w, d, 1);
       ceil.rotation.x = Math.PI / 2;
       ceil.position.set((x0 + x1) / 2, y + h, (z0 + z1) / 2);
@@ -21762,7 +21811,7 @@ return{"ACESFilmicToneMapping":nt,"AddEquation":M,"AddOperation":K,"AdditiveAnim
       crtLight.position.set(1.0, 1.28, 0.62);
       ctx.add(crtLight);
 
-      var rim = new THREE.DirectionalLight(0x5c78a8, 0.9);
+      var rim = new THREE.DirectionalLight(0x5c78a8, 0.32);
       rim.position.set(4, 3, -5);
       ctx.add(rim);
 
@@ -22971,7 +23020,9 @@ return{"ACESFilmicToneMapping":nt,"AddEquation":M,"AddOperation":K,"AdditiveAnim
     music: 'infiltration',
 
     build: function (ctx) {
-      ctx.spawn = { pos: [0, 0, -6.0], yaw: 0 };
+      /* Far enough in that the spring-arm camera clears the revolving door —
+       * at z = -6 it sat outside the building, shooting through the glass. */
+      ctx.spawn = { pos: [0, 0, -3.4], yaw: 0 };
       var P = ctx.props;
 
       buildLobby(ctx);
@@ -22992,7 +23043,7 @@ return{"ACESFilmicToneMapping":nt,"AddEquation":M,"AddOperation":K,"AdditiveAnim
       populate(ctx);
 
       ctx.trigger({
-        pos: [0, 0, -4.6], radius: 2.6, once: true,
+        pos: [0, 0, -1.6], radius: 3.0, once: true,
         onEnter: function () { ctx.say('hotel.arrive'); }
       });
     },
@@ -23030,7 +23081,7 @@ return{"ACESFilmicToneMapping":nt,"AddEquation":M,"AddOperation":K,"AdditiveAnim
         ctx.box(x, 3.2, z, 0.62, 6.4, 0.62, 0, 'column');
       });
     });
-    ctx.add(cols);
+    K.freeze(ctx, cols);
 
     /* Reception, north wall. */
     var desk = SG.models.receptionCounter ? SG.models.receptionCounter({ w: 5.0 }) : null;
@@ -23225,7 +23276,7 @@ return{"ACESFilmicToneMapping":nt,"AddEquation":M,"AddOperation":K,"AdditiveAnim
         ctx.say('hotel.guard.caught');
         ctx.fade(true, 700).then(function () {
           if (ctx.player) {
-            ctx.player.teleport(new THREE.Vector3(0, 0, -6.0), 0);
+            ctx.player.teleport(new THREE.Vector3(0, 0, -3.4), 0);
           }
           susp.reset();
           return ctx.fade(false, 700);
@@ -23498,15 +23549,19 @@ return{"ACESFilmicToneMapping":nt,"AddEquation":M,"AddOperation":K,"AdditiveAnim
     }
     K.freeze(ctx, tiles);
 
-    /* Light: cold, even, and slightly too bright. */
-    K.ambient(ctx, { sky: 0x9fc4e8, ground: 0x1e2429, intensity: 0.55 });
+    /* Light: cold, even, and slightly too bright. A server hall is the one
+     * room in this game that is never atmospheric — it is lit like a
+     * warehouse, because it is one. */
+    K.ambient(ctx, { sky: 0xa8ccf0, ground: 0x2a3238, intensity: 1.0 });
     var pos = [];
     for (var lz = -4; lz <= 9; lz += 2.6) {
       pos.push([-4, 3.34, lz]); pos.push([4, 3.34, lz]);
     }
+    /* The aisle itself gets fixtures too, or the walkway reads as a pit. */
+    for (lz = -3; lz <= 8; lz += 2.8) pos.push([0, 3.34, lz]);
     K.lightGrid(ctx, pos, {
       w: 1.2, d: 0.22, color: 0xdcefff,
-      real: SG.qpick(1, 2, 3), intensity: 8, dist: 8
+      real: SG.qpick(3, 5, 7), intensity: 11, dist: 11
     });
 
     /* Overhead trays and the fibre coming in. */
@@ -24836,8 +24891,13 @@ return{"ACESFilmicToneMapping":nt,"AddEquation":M,"AddOperation":K,"AdditiveAnim
 
     if (def.music) ctx.music(def.music);
     E.mode = 'level';
-    SG.state.chapter = id;
-    SG.save();
+    /* Only real chapters own the save cursor. Backing sets (`shop_set`,
+     * `flight_set`) are scenery for a cutscene, not a place in the story —
+     * writing them here used to strand advance() with an unknown chapter. */
+    if (E.chapterIndex(id) >= 0) {
+      SG.state.chapter = id;
+      SG.save();
+    }
     SG.bus.emit('level:built', ctx);
 
     if (def.start) {
@@ -24868,6 +24928,11 @@ return{"ACESFilmicToneMapping":nt,"AddEquation":M,"AddOperation":K,"AdditiveAnim
     SG.state.chapter = id;
     SG.save();
 
+    /* Leaving the title means leaving the title menu. */
+    if (id !== 'title' && SG.ui && SG.ui.menu && SG.ui.menu.close) {
+      SG.safe('menu.close', function () { SG.ui.menu.close(); });
+    }
+
     if (id === 'title') {
       E.unloadLevel();
       E.mode = 'title';
@@ -24885,11 +24950,15 @@ return{"ACESFilmicToneMapping":nt,"AddEquation":M,"AddOperation":K,"AdditiveAnim
     }
 
     if (ch.kind === 'cutscene') {
-      /* Cutscenes need a world to be shot in. Load the backing set level. */
-      var setId = ch.scene;
+      /* Cutscenes need a world to be shot in. Load the backing set level —
+       * but only if we are not already standing in it, because rebuilding a
+       * set between two consecutive cutscenes is a visible hitch. */
+      var setId = ch.scene + '_set';
       var p = Promise.resolve();
       if (!E.ctx || E.ctx.id !== setId) {
-        p = E.loadLevel(setId + '_set').catch(function () { });
+        p = E.fadeThrough(function () {
+          return E.loadLevel(setId);
+        });
       }
       return p.then(function () {
         E.mode = 'cutscene';
@@ -24904,7 +24973,25 @@ return{"ACESFilmicToneMapping":nt,"AddEquation":M,"AddOperation":K,"AdditiveAnim
       });
     }
 
-    return E.loadLevel(id);
+    return E.fadeThrough(function () { return E.loadLevel(id); });
+  };
+
+  /* Building a level takes a few hundred milliseconds and drops frames while
+   * it does. Hide that behind black rather than pretending it isn't there. */
+  E.fadeThrough = function (work) {
+    var toBlack = (SG.ui && SG.ui.fade) ? SG.ui.fade(true, 320) : Promise.resolve();
+    return Promise.resolve(toBlack).then(function () {
+      return work();
+    }).then(function (r) {
+      /* One frame on the new scene before lifting, so we never fade up on
+       * a half-built world. */
+      return new Promise(function (res) {
+        requestAnimationFrame(function () { requestAnimationFrame(function () { res(r); }); });
+      });
+    }).then(function (r) {
+      if (SG.ui && SG.ui.fade) SG.ui.fade(false, 480);
+      return r;
+    });
   };
 
   E.loadTitle = function () {

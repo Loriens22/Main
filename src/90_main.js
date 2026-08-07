@@ -405,8 +405,13 @@
 
     if (def.music) ctx.music(def.music);
     E.mode = 'level';
-    SG.state.chapter = id;
-    SG.save();
+    /* Only real chapters own the save cursor. Backing sets (`shop_set`,
+     * `flight_set`) are scenery for a cutscene, not a place in the story —
+     * writing them here used to strand advance() with an unknown chapter. */
+    if (E.chapterIndex(id) >= 0) {
+      SG.state.chapter = id;
+      SG.save();
+    }
     SG.bus.emit('level:built', ctx);
 
     if (def.start) {

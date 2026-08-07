@@ -84,7 +84,7 @@
       crtLight.position.set(1.0, 1.28, 0.62);
       ctx.add(crtLight);
 
-      var rim = new THREE.DirectionalLight(0x5c78a8, 0.9);
+      var rim = new THREE.DirectionalLight(0x5c78a8, 0.32);
       rim.position.set(4, 3, -5);
       ctx.add(rim);
 

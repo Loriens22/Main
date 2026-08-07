@@ -21,7 +21,9 @@
     music: 'infiltration',
 
     build: function (ctx) {
-      ctx.spawn = { pos: [0, 0, -6.0], yaw: 0 };
+      /* Far enough in that the spring-arm camera clears the revolving door —
+       * at z = -6 it sat outside the building, shooting through the glass. */
+      ctx.spawn = { pos: [0, 0, -3.4], yaw: 0 };
       var P = ctx.props;
 
       buildLobby(ctx);
@@ -42,7 +44,7 @@
       populate(ctx);
 
       ctx.trigger({
-        pos: [0, 0, -4.6], radius: 2.6, once: true,
+        pos: [0, 0, -1.6], radius: 3.0, once: true,
         onEnter: function () { ctx.say('hotel.arrive'); }
       });
     },
@@ -80,7 +82,7 @@
         ctx.box(x, 3.2, z, 0.62, 6.4, 0.62, 0, 'column');
       });
     });
-    ctx.add(cols);
+    K.freeze(ctx, cols);
 
     /* Reception, north wall. */
     var desk = SG.models.receptionCounter ? SG.models.receptionCounter({ w: 5.0 }) : null;
@@ -275,7 +277,7 @@
         ctx.say('hotel.guard.caught');
         ctx.fade(true, 700).then(function () {
           if (ctx.player) {
-            ctx.player.teleport(new THREE.Vector3(0, 0, -6.0), 0);
+            ctx.player.teleport(new THREE.Vector3(0, 0, -3.4), 0);
           }
           susp.reset();
           return ctx.fade(false, 700);

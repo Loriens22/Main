@@ -214,7 +214,10 @@
     var strays = [];
 
     group.traverse(function (o) {
-      if (!o.isMesh || !o.geometry || o.userData.noMerge) return;
+      if (!o.isMesh || !o.geometry) return;
+      /* Anything explicitly excluded is carried across untouched rather than
+       * silently dropped — an animated part must survive a merge. */
+      if (o.userData.noMerge) { strays.push(o); return; }
       var m = o.material;
       if (Array.isArray(m)) { strays.push(o); return; }
       var b = byMat.get(m);

@@ -153,8 +153,13 @@
       var r = derive(tex.roughFrom, t, cfg.rough[0], cfg.rough[1]);
       if (r) { spec.roughnessMap = r; spec.roughness = 1; }
     }
+    /* Metals need the environment or they render black. Dielectrics mostly
+     * do not: at 0.75 the env acts as a second ambient light and floods
+     * every interior, which kills the one thing these rooms are lit by —
+     * a desk lamp, a chandelier, a strip light. Keep it as a hint of
+     * bounce, no more. */
     spec.envMapIntensity = cfg.env === undefined
-      ? (spec.metalness > 0.5 ? 1.0 : 0.75) : cfg.env;
+      ? (spec.metalness > 0.5 ? 1.0 : 0.22) : cfg.env;
 
     if (cfg.extra) {
       for (var k in cfg.extra) {

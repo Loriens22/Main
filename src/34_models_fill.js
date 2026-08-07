@@ -474,7 +474,7 @@
     /* The coiled PS/2 lead. */
     g.add(tube([[0, 0.012, -0.08], [0.02, 0.02, -0.14], [-0.03, 0.01, -0.22],
     [0.02, 0.008, -0.3]], 0.004, C(0xc9c0aa, 0.8), 5, false));
-    return done(g, 'keyboardBeige');
+    return done(util.mergeGroup(g), 'keyboardBeige');
   };
 
   MODELS.mouseBall = function () {
@@ -1484,17 +1484,22 @@
   MODELS.serverRack = function (opts) {
     opts = opts || {};
     var g = new THREE.Group();
+    /* Built into `bulk` and merged at the end: a rack is ~190 little meshes,
+     * and ten of them in a room is two thousand draw calls otherwise. The
+     * LEDs survive the merge because they share two materials, and
+     * setActivity animates those materials rather than the meshes. */
+    var bulk = new THREE.Group();
     var W = 0.6, H = 2.0, D = 1.07;
     var frame = C(0x24262a, 0.5, 0.6);
     /* Uprights and rails. */
     [[-1, -1], [1, -1], [-1, 1], [1, 1]].forEach(function (s) {
-      B(g, frame, s[0] * (W / 2 - 0.03), H / 2, s[1] * (D / 2 - 0.04), 0.06, H, 0.06);
+      B(bulk, frame, s[0] * (W / 2 - 0.03), H / 2, s[1] * (D / 2 - 0.04), 0.06, H, 0.06);
     });
-    B(g, frame, 0, 0.02, 0, W, 0.04, D);
-    B(g, frame, 0, H - 0.02, 0, W, 0.04, D);
-    B(g, C(0x1c1e22, 0.55), 0, H / 2, -D / 2 + 0.02, W, H, 0.03);
-    B(g, C(0x1c1e22, 0.55), -W / 2 + 0.015, H / 2, 0, 0.02, H, D);
-    B(g, C(0x1c1e22, 0.55), W / 2 - 0.015, H / 2, 0, 0.02, H, D);
+    B(bulk, frame, 0, 0.02, 0, W, 0.04, D);
+    B(bulk, frame, 0, H - 0.02, 0, W, 0.04, D);
+    B(bulk, C(0x1c1e22, 0.55), 0, H / 2, -D / 2 + 0.02, W, H, 0.03);
+    B(bulk, C(0x1c1e22, 0.55), -W / 2 + 0.015, H / 2, 0, 0.02, H, D);
+    B(bulk, C(0x1c1e22, 0.55), W / 2 - 0.015, H / 2, 0, 0.02, H, D);
 
     /* Blades, and one bay left empty because somebody pulled a server. */
     var leds = [];
@@ -1506,17 +1511,17 @@
         /* Missing blanking plate — you can see straight in. */
         continue;
       }
-      var blade = B(g, C(i % 5 === 0 ? 0x2f3237 : 0x35383d, 0.55, 0.35),
+      var blade = B(bulk, C(i % 5 === 0 ? 0x2f3237 : 0x35383d, 0.55, 0.35),
         0, y, D / 2 - 0.06, W - 0.08, 0.078, 0.1);
       for (var k = 0; k < 3; k++) {
-        var led = B(g, k === 2 ? amberMat : ledMat,
+        var led = B(bulk, k === 2 ? amberMat : ledMat,
           -W / 2 + 0.09 + k * 0.03, y, D / 2 - 0.008, 0.011, 0.006, 0.004);
         led.castShadow = false;
         leds.push(led);
       }
       /* Drive bays. */
       for (var b2 = 0; b2 < 4; b2++) {
-        var bay = B(g, C(0x2a2d31, 0.6), 0.03 + b2 * 0.045, y, D / 2 - 0.007,
+        var bay = B(bulk, C(0x2a2d31, 0.6), 0.03 + b2 * 0.045, y, D / 2 - 0.007,
           0.04, 0.062, 0.003);
         bay.castShadow = false;
       }
@@ -1543,9 +1548,12 @@
         var q = new THREE.Mesh(plnGeo(), dm);
         q.scale.set(0.28, 0.07, 1);
         q.position.set(0, H - 0.12, D / 2 - 0.005);
-        g.add(q);
+        bulk.add(q);
       }
     }
+
+    /* One merged body, plus the door we may want to swing. */
+    g.add(util.mergeGroup(bulk));
 
     var activity = 1;
     g.userData.leds = leds;
@@ -1577,7 +1585,7 @@
     /* The uplink, thicker and orange. */
     var up = CYm(g, C(0xff8a3a, 0.45), 0.0, -0.38, 0.09, 0.016, 0.06, 8, 'z');
     up.castShadow = false;
-    return done(g, 'patchPanel');
+    return done(util.mergeGroup(g), 'patchPanel');
   };
 
   MODELS.upsCabinet = function () {
@@ -1659,16 +1667,18 @@
         t.castShadow = false;
       }
     }
-    var led = B(g, EM(0x35e07a), 0.36, 1.86, 0.405, 0.018, 0.01, 0.004);
+    var ledMat = new THREE.MeshBasicMaterial({ color: 0x35e07a, toneMapped: false });
+    var led = B(g, ledMat, 0.36, 1.86, 0.405, 0.018, 0.01, 0.004);
     led.castShadow = false;
     var act = 1;
-    g.userData.setActivity = function (a) {
+    var merged = util.mergeGroup(g);
+    merged.userData.setActivity = function (a) {
       if (Math.abs(a - act) < 0.05) return;
       act = a;
       mat.color.setRGB(0.11 * a, 0.23 * a, 0.2 * a);
-      led.material = EM(a > 0.3 ? 0x35e07a : 0x552222);
+      ledMat.color.setHex(a > 0.3 ? 0x35e07a : 0x552222);
     };
-    return done(g, 'tapeLibrary');
+    return done(merged, 'tapeLibrary');
   };
 
   MODELS.breakerPanel = function () {
@@ -1812,7 +1822,7 @@
       g.add(tube([[s * w / 2, 1.16, -len / 2], [s * w / 2, 1.16, len / 2]],
         0.02, m, 6, false));
     }
-    return done(g, 'catwalk');
+    return done(util.mergeGroup(g), 'catwalk');
   };
 
   /* ------------------------------------------------------------------ */

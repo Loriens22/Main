@@ -56,12 +56,18 @@ const SHOTS = path.join(ROOT, 'dist', 'shots');
     }));
   }));
 
+  // Neutralise the chapter flow: skipping a cutscene calls advance(), which
+  // would otherwise race every direct loadLevel() below and cascade forward.
+  const freezeFlow = () => page.evaluate(() => {
+    const E = window.SG.engine;
+    if (!E.__realAdvance) { E.__realAdvance = E.advance; E.advance = function () { }; }
+    if (window.SG.cinema && window.SG.cinema.isPlaying()) window.SG.cinema.skip();
+  });
+
   const loadLevel = async (id) => {
-    await page.evaluate((lid) => {
-      if (window.SG.cinema && window.SG.cinema.isPlaying()) window.SG.cinema.skip();
-      window.SG.engine.loadLevel(lid);
-    }, id);
-    await page.waitForTimeout(2200);
+    await freezeFlow();
+    await page.evaluate((lid) => { window.SG.engine.loadLevel(lid); }, id);
+    await page.waitForTimeout(2600);
   };
 
   // ---- 1. title ----

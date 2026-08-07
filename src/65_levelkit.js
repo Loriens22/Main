@@ -51,6 +51,25 @@
     return UNIT_PLANE;
   };
 
+  /* Textures are authored to look right at roughly one tile per 2 m. A room
+   * floor built from a unit plane stretches a single 256 px tile across
+   * sixteen metres, which is what turns concrete into grey porridge. Scale
+   * the UVs on a cloned geometry instead of the texture, so the material
+   * stays shared across the whole game. */
+  K.TILE = 2.0;
+
+  K.uvScaled = function (geo, su, sv) {
+    var g = geo.clone();
+    var uv = g.attributes.uv;
+    if (uv) {
+      for (var i = 0; i < uv.count; i++) {
+        uv.setXY(i, uv.getX(i) * su, uv.getY(i) * sv);
+      }
+      uv.needsUpdate = true;
+    }
+    return g;
+  };
+
   /* A box built from the shared unit geometry. Position is the CENTRE. */
   K.box = function (parent, mat, cx, cy, cz, sx, sy, sz, yaw) {
     var m = new THREE.Mesh(K.unitBox(), mat);
@@ -115,7 +134,7 @@
       var px = a[0] + ux * mid, pz = a[1] + uz * mid;
       var py = (sg.y0 + sg.y1) / 2;
       var sy = sg.y1 - sg.y0;
-      var m = new THREE.Mesh(K.unitBox(), mat);
+      var m = new THREE.Mesh(K.uvScaled(K.unitBox(), w / K.TILE, sy / K.TILE), mat);
       m.scale.set(w, sy, thick);
       m.position.set(px, py, pz);
       m.rotation.y = yaw;
@@ -162,7 +181,7 @@
     var floorMat = opts.floorMat || M('concrete', { color: 0x6c6d70, roughness: 0.95 });
     var w = x1 - x0, d = z1 - z0;
 
-    var floor = new THREE.Mesh(K.unitPlane(), floorMat);
+    var floor = new THREE.Mesh(K.uvScaled(K.unitPlane(), w / K.TILE, d / K.TILE), floorMat);
     floor.scale.set(w, d, 1);
     floor.rotation.x = -Math.PI / 2;
     floor.position.set((x0 + x1) / 2, y + 0.001, (z0 + z1) / 2);
@@ -172,7 +191,8 @@
 
     if (opts.ceiling !== false) {
       var ceilMat = opts.ceilMat || M('ceilingTile', { color: 0xdedbd2, roughness: 1 });
-      var ceil = new THREE.Mesh(K.unitPlane(), ceilMat);
+      var ceil = new THREE.Mesh(
+        K.uvScaled(K.unitPlane(), w / K.TILE, d / K.TILE), ceilMat);
       ceil.scale.set(w, d, 1);
       ceil.rotation.x = Math.PI / 2;
       ceil.position.set((x0 + x1) / 2, y + h, (z0 + z1) / 2);

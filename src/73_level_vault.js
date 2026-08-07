@@ -81,15 +81,19 @@
     }
     K.freeze(ctx, tiles);
 
-    /* Light: cold, even, and slightly too bright. */
-    K.ambient(ctx, { sky: 0x9fc4e8, ground: 0x1e2429, intensity: 0.55 });
+    /* Light: cold, even, and slightly too bright. A server hall is the one
+     * room in this game that is never atmospheric — it is lit like a
+     * warehouse, because it is one. */
+    K.ambient(ctx, { sky: 0xa8ccf0, ground: 0x2a3238, intensity: 1.0 });
     var pos = [];
     for (var lz = -4; lz <= 9; lz += 2.6) {
       pos.push([-4, 3.34, lz]); pos.push([4, 3.34, lz]);
     }
+    /* The aisle itself gets fixtures too, or the walkway reads as a pit. */
+    for (lz = -3; lz <= 8; lz += 2.8) pos.push([0, 3.34, lz]);
     K.lightGrid(ctx, pos, {
       w: 1.2, d: 0.22, color: 0xdcefff,
-      real: SG.qpick(1, 2, 3), intensity: 8, dist: 8
+      real: SG.qpick(3, 5, 7), intensity: 11, dist: 11
     });
 
     /* Overhead trays and the fibre coming in. */
