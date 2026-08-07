@@ -21962,6 +21962,14 @@ return{"ACESFilmicToneMapping":nt,"AddEquation":M,"AddOperation":K,"AdditiveAnim
    * The counter divides customer side (z < -0.9) from Steve's bench. */
   var X0 = -5.5, X1 = 5.5, Z0 = -4.2, Z1 = 4.2, H = 2.9;
 
+  /* Where the front door actually is, in world x. */
+  var DOOR_X = -2.1;
+
+  /* World x -> distance along the south wall, which K.room builds from the
+   * +x end. The north wall runs the other way, and happens to use the same
+   * conversion because it is the same width. */
+  function SX(x) { return X1 - x; }
+
   /* ------------------------------------------------------------------ */
   /* Shared construction                                                 */
   /* ------------------------------------------------------------------ */
@@ -21979,13 +21987,16 @@ return{"ACESFilmicToneMapping":nt,"AddEquation":M,"AddOperation":K,"AdditiveAnim
       ceilMat: K.M('ceilingTile', { color: 0xe4e1d7, roughness: 1 }),
       floorTag: 'carpet',
       openings: {
-        /* South wall: the shop front — a door and two big panes. */
+        /* The south wall is built right-to-left (from x=+5.5 to x=-5.5), so a
+         * hole's `at` is its distance from the RIGHT end, not a world x.
+         * SX() does that conversion, because doing it in my head is exactly
+         * how the door hole ended up 4.2 m from the door. */
         s: [
-          { at: 3.4, w: 1.05, y0: 0, y1: 2.1 },                 /* door */
-          { at: 6.0, w: 3.6, y0: 0.55, y1: 2.35, noReveal: true }, /* window L */
-          { at: 1.2, w: 1.8, y0: 0.55, y1: 2.35, noReveal: true }  /* window R */
+          { at: SX(DOOR_X), w: 1.10, y0: 0, y1: 2.10 },                 /* door */
+          { at: SX(-4.20), w: 2.40, y0: 0.55, y1: 2.35, noReveal: true },
+          { at: SX(1.40), w: 5.40, y0: 0.55, y1: 2.35, noReveal: true }
         ],
-        n: [{ at: 1.0, w: 0.95, y0: 0, y1: 2.05 }]              /* storeroom */
+        n: [{ at: SX(-4.50), w: 0.95, y0: 0, y1: 2.05 }]              /* storeroom */
       }
     });
     K.skirting(ctx, X0 + 0.09, X1 - 0.09, Z0 + 0.09, Z1 - 0.09,
@@ -21997,18 +22008,21 @@ return{"ACESFilmicToneMapping":nt,"AddEquation":M,"AddOperation":K,"AdditiveAnim
       transparent: true, opacity: 0.22
     });
     var glass = new THREE.Group();
-    K.box(glass, glassMat, -2.9, 1.45, Z0 + 0.02, 3.6, 1.8, 0.012);
-    K.box(glass, glassMat, 2.2, 1.45, Z0 + 0.02, 1.8, 1.8, 0.012);
+    K.box(glass, glassMat, -4.20, 1.45, Z0 + 0.02, 2.40, 1.8, 0.012);
+    K.box(glass, glassMat, 1.40, 1.45, Z0 + 0.02, 5.40, 1.8, 0.012);
     glass.traverse(function (o) { if (o.isMesh) { o.castShadow = false; } });
     ctx.add(glass);
     /* Mullions. */
     var mull = new THREE.Group();
     var alu = K.M('aluminium', { color: 0x9aa0a4, roughness: 0.4, metalness: 0.95 });
-    [-4.72, -2.9, -1.08, 1.28, 3.12].forEach(function (x) {
+    [-5.40, -3.00, -1.30, 1.40, 4.10].forEach(function (x) {
       K.box(mull, alu, x, 1.45, Z0 + 0.02, 0.06, 1.86, 0.06);
     });
-    K.box(mull, alu, -1.4, 0.53, Z0 + 0.02, 8.2, 0.07, 0.07);
-    K.box(mull, alu, -1.4, 2.38, Z0 + 0.02, 8.2, 0.07, 0.07);
+    /* Head and cill rails, broken around the doorway. */
+    [[-4.20, 2.40], [1.40, 5.40]].forEach(function (p) {
+      K.box(mull, alu, p[0], 0.53, Z0 + 0.02, p[1], 0.07, 0.07);
+      K.box(mull, alu, p[0], 2.38, Z0 + 0.02, p[1], 0.07, 0.07);
+    });
     K.freeze(ctx, mull);
 
     /* ---- lights ---- */
@@ -22192,18 +22206,18 @@ return{"ACESFilmicToneMapping":nt,"AddEquation":M,"AddOperation":K,"AdditiveAnim
 
     /* ---- the front door ---- */
     var door = K.door(ctx, {
-      pos: [-2.1, 0, Z0 + 0.02], yaw: 0, w: 1.02, h: 2.1, swing: -1,
+      pos: [DOOR_X, 0, Z0 + 0.02], yaw: 0, w: 1.06, h: 2.1, swing: -1,
       mat: K.M('glass', {
         color: 0xdfeef0, roughness: 0.08, transparent: true, opacity: 0.3
       }),
       label: 'the front door', sfx: 'doorOpen',
-      interact: false, tag: 'door'
+      interact: true, tag: 'door'
     });
     P.door = door;
     /* The chime lives above it and is a character in its own right. */
     var chimeBox = K.box(null, K.M('beigePlastic', { color: 0xd6cdb8, roughness: 0.75 }),
       0, 0, 0, 0.09, 0.05, 0.03);
-    chimeBox.position.set(-2.1, 2.2, Z0 + 0.1);
+    chimeBox.position.set(DOOR_X, 2.2, Z0 + 0.1);
     ctx.add(chimeBox);
 
     /* Storeroom door — always locked, and Steve has a line about it. */
@@ -22302,15 +22316,22 @@ return{"ACESFilmicToneMapping":nt,"AddEquation":M,"AddOperation":K,"AdditiveAnim
       lot.add(l);
     }
 
-    /* Kerb + a strip of grass so the lot has an edge. */
-    K.box(lot, K.M('concrete', { color: 0x8d8a84, roughness: 0.95 }),
-      -1, 0.06, -5.4, 22, 0.12, 0.5);
-    ctx.box(-1, 0.06, -5.4, 22, 0.14, 0.5, 0, 'concrete');
+    /* A flush concrete apron between the shopfront and the bays. This used
+     * to be a raised kerb running the full width of the frontage — including
+     * straight across the doorway, which is not how kerbs work and which
+     * stopped you dead on the way to Ms. Ellis's car. */
+    var apron = K.box(lot, K.M('concrete', { color: 0x8d8a84, roughness: 0.95 }),
+      -1, 0.005, -5.4, 22, 0.01, 1.6);
+    apron.castShadow = false;
 
     /* The shop's own facade, seen from outside through the glass. */
     var facade = new THREE.Group();
-    K.box(facade, K.M('brickPainted', { color: 0xa8a094, roughness: 0.95 }),
-      0, 1.9, -4.45, 13.5, 3.8, 0.4);
+    var brick = K.M('brickPainted', { color: 0xa8a094, roughness: 0.95 });
+    /* Broken around the shopfront — a solid 13.5 m slab here used to bury the
+     * glazing and the door behind it. */
+    K.box(facade, brick, -8.6, 1.9, -4.45, 6.2, 3.8, 0.4);
+    K.box(facade, brick, 8.6, 1.9, -4.45, 6.2, 3.8, 0.4);
+    K.box(facade, brick, 0, 3.15, -4.45, 11.2, 1.3, 0.4);
     K.box(facade, K.M('steelPainted', { color: 0x4d5257, roughness: 0.6, metalness: 0.5 }),
       0, 3.9, -4.6, 14, 0.35, 0.9);
     lot.add(facade);
@@ -22929,6 +22950,8 @@ return{"ACESFilmicToneMapping":nt,"AddEquation":M,"AddOperation":K,"AdditiveAnim
     SG.bus.on('objective:done', function (o) {
       if (!o || o.id !== 'clock') return;
       ctx.state.flags['shop.clockDone'] = true;
+      /* Hold the door for her — and make sure the way out is actually open. */
+      if (P.door && P.door.open) P.door.open();
       setTimeout(function () {
         ctx.say('shop.ellis.thanks').then(function () {
           ctx.say('shop.steve.noCharge');
