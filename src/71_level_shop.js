@@ -548,7 +548,7 @@
     /* 1. the driver set */
     K.pickup(ctx, {
       object: P.drivers, label: 'your driver set', item: 'drivers',
-      verb: 'Take', hide: false, sfx: 'clipSnap',
+      verb: 'Take', hide: false, sfx: 'clipSnap', radius: 2.0,
       onTake: function () {
         ctx.done('driver');
         ctx.say('shop.drivers');
@@ -559,7 +559,7 @@
     K.hold(ctx, {
       object: parts.panel || P.tower,
       label: 'the side panel', verb: 'Unscrew', seconds: 2.4,
-      radius: 1.5,
+      radius: 2.3,
       condition: function () { return K.has(ctx, 'drivers') && !ctx.state.flags['shop.panelOff']; },
       sfx: 'screwdriver',
       onStart: function () { ctx.sfx('screwdriver', { vol: 0.7 }); },
@@ -586,7 +586,7 @@
     /* 3. the parts bin */
     K.pickup(ctx, {
       object: P.partsBin, label: 'a CR2032 cell', item: 'cr2032',
-      verb: 'Take', hide: false, sfx: 'clipSnap', radius: 1.6,
+      verb: 'Take', hide: false, sfx: 'clipSnap', radius: 2.1,
       condition: function () { return ctx.state.flags['shop.panelOff']; },
       onTake: function () {
         ctx.done('battery');
@@ -597,7 +597,7 @@
     /* 4. fit it */
     K.hold(ctx, {
       object: parts.battery || P.tower,
-      label: 'the coin cell', verb: 'Fit', seconds: 1.8, radius: 1.4,
+      label: 'the coin cell', verb: 'Fit', seconds: 1.8, radius: 2.2,
       condition: function () {
         return K.has(ctx, 'cr2032') && !ctx.state.flags['shop.fitted'];
       },
@@ -758,7 +758,7 @@
     /* Interact 1 — change the year. */
     ctx.interact({
       object: (P.crt && P.crt.userData && P.crt.userData.screen) || P.crt,
-      label: 'the year', verb: 'Change', radius: 1.7,
+      label: 'the year', verb: 'Change', radius: 2.2,
       condition: function () {
         return state.powered && state.phase === 'setup' && !state.saved;
       },
@@ -772,7 +772,7 @@
     /* Interact 2 — save and exit, from the keyboard. */
     ctx.interact({
       object: P.keyboard || P.crt,
-      label: 'F10 — save and exit', verb: 'Press', radius: 1.6,
+      label: 'F10 — save and exit', verb: 'Press', radius: 2.2,
       condition: function () {
         return state.powered && state.phase === 'setup' && !state.saved;
       },
@@ -802,7 +802,7 @@
     /* Interact 3 — the text adventure, once the machine is booted. */
     ctx.interact({
       object: P.keyboard || P.crt,
-      label: 'the keyboard', verb: 'Type on', radius: 1.6,
+      label: 'the keyboard', verb: 'Type on', radius: 2.2,
       condition: function () {
         return state.powered && (state.phase === 'boot' || state.phase === 'adventure') &&
           state.post > 3.2;
@@ -828,7 +828,7 @@
   function wireDressing(ctx, P) {
     /* The rubber duck: the hint system, and the best joke in the shop. */
     ctx.interact({
-      object: P.duck, label: 'the duck', verb: 'Squeeze', radius: 1.4,
+      object: P.duck, label: 'the duck', verb: 'Squeeze', radius: 2.1,
       onUse: function () {
         ctx.sfx('uiHover', { rate: 0.6, vol: 0.6 });
         var n = SG.count('duck');
@@ -844,7 +844,7 @@
 
     /* Coffee. Twenty seconds of being slightly too awake. */
     ctx.interact({
-      object: P.mug, label: 'your coffee', verb: 'Drink', radius: 1.4,
+      object: P.mug, label: 'your coffee', verb: 'Drink', radius: 2.0,
       onUse: function () {
         ctx.sfx('sipDrink');
         ctx.egg('coffee', "World's okayest tech");

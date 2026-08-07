@@ -398,39 +398,62 @@
 
   /* Something you hold the button on for a while — unscrewing, splicing,
    * copying. Shows a progress bar and can be interrupted. */
+  /* Something you work at for a few seconds — unscrewing, splicing, copying.
+   *
+   * It accepts BOTH inputs: hold the button down, or just tap it once and the
+   * work continues on its own while you stay in range. The tap path matters —
+   * on a phone, "press and hold this while standing still" is a thing players
+   * simply do not discover, and a hold-only action reads as a broken button. */
   K.hold = function (ctx, opts) {
-    var t = 0, active = false, doneOnce = false;
+    var t = 0, doneOnce = false, engaged = false, grace = 0, started = false;
     var need = opts.seconds || 2;
+
     var it = ctx.interact({
       object: opts.object,
       label: opts.label,
-      verb: opts.verb || 'Hold to work',
-      radius: opts.radius || 1.7,
+      verb: opts.verb || 'Work',
+      radius: opts.radius === undefined ? 2.0 : opts.radius,
       condition: opts.condition,
-      onUse: function () { /* handled in the updater */ }
+      onUse: function () {
+        /* A tap latches the work on; tapping again cancels it. */
+        engaged = !engaged;
+        if (engaged && opts.onStart) SG.safe('hold.onStart', function () { opts.onStart(ctx); });
+        if (engaged && opts.sfx) ctx.sfx(opts.sfx);
+      }
     });
 
     ctx.every(function (dt) {
       if (doneOnce && opts.once !== false) return;
+
       var hovering = ctx._hover === it;
       var holding = hovering && SG.input && SG.input.down && SG.input.down('interact');
-      if (holding) {
-        if (!active) {
-          active = true;
-          if (opts.onStart) opts.onStart(ctx);
-          if (opts.sfx) ctx.sfx(opts.sfx, { loop: true });
+
+      /* Losing the prompt for a frame or two (a step sideways, a camera
+       * swing) must not throw away three seconds of work. */
+      if (hovering) grace = 0.6;
+      else grace = Math.max(0, grace - dt);
+      if (!hovering && grace <= 0) engaged = false;
+
+      var working = holding || engaged;
+
+      if (working) {
+        if (!started && opts.onStart && holding) {
+          SG.safe('hold.onStart', function () { opts.onStart(ctx); });
         }
+        started = true;
         t += dt;
-        if (SG.ui.hud) SG.ui.hud.progress(opts.label || 'Working', util.clamp(t / need, 0, 1));
+        if (SG.ui.hud) {
+          SG.ui.hud.progress(opts.label || 'Working', util.clamp(t / need, 0, 1));
+        }
         if (t >= need) {
-          t = 0; active = false; doneOnce = true;
+          t = 0; engaged = false; started = false; doneOnce = true;
           if (SG.ui.hud) SG.ui.hud.progress(null, null);
           if (opts.sfxStop) ctx.sfx(opts.sfxStop);
           it.enabled = opts.repeat === true;
           SG.safe('hold.onDone', function () { opts.onDone(ctx, it); });
         }
-      } else if (active || t > 0) {
-        active = false;
+      } else if (t > 0) {
+        started = false;
         t = Math.max(0, t - dt * 2.2);
         if (SG.ui.hud) {
           SG.ui.hud.progress(t > 0.02 ? (opts.label || 'Working') : null,
@@ -438,6 +461,7 @@
         }
       }
     });
+
     return it;
   };
 
