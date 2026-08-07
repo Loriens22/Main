@@ -29,9 +29,10 @@
       floor.receiveShadow = true;
       ctx.add(floor);
 
-      /* Back wall, just enough of one to catch the lamp. */
-      K.box(ctx.world, K.M('drywall', { color: 0x8c8578, roughness: 0.95 }),
-        0, 1.6, 1.35, 9, 3.2, 0.12);
+      /* Back wall, far enough behind the bench that the desk lamp falls off
+       * before it reaches it — at 0.35 m it simply blew out. */
+      K.box(ctx.world, K.M('drywall', { color: 0x4a463f, roughness: 0.95 }),
+        0, 1.6, 2.6, 9, 3.2, 0.12);
 
       /* The bench. */
       var bench = ctx.prop('benchTable', { w: 3.2, d: 0.78 });
@@ -68,9 +69,9 @@
       ctx.props.cat = cat;
 
       /* ---- light ---- */
-      K.ambient(ctx, { sky: 0x2a3644, ground: 0x1a1410, intensity: 0.28 });
+      K.ambient(ctx, { sky: 0x223044, ground: 0x140f0c, intensity: 0.13 });
 
-      var deskLight = new THREE.PointLight(0xffcf94, 9, 5.5, 2);
+      var deskLight = new THREE.PointLight(0xffcf94, 7.5, 4.0, 2);
       deskLight.position.set(-1.35, 1.62, 1.0);
       deskLight.castShadow = SG.quality !== 'low';
       if (deskLight.castShadow) {
@@ -84,7 +85,7 @@
       crtLight.position.set(1.0, 1.28, 0.62);
       ctx.add(crtLight);
 
-      var rim = new THREE.DirectionalLight(0x5c78a8, 0.32);
+      var rim = new THREE.DirectionalLight(0x5c78a8, 0.18);
       rim.position.set(4, 3, -5);
       ctx.add(rim);
 
@@ -151,7 +152,7 @@
       if (SG.fx && SG.fx.set) {
         SG.fx.set('vignette', 0.72);
         SG.fx.set('grain', 0.3);
-        SG.fx.set('bloom', 0.75);
+        SG.fx.set('bloom', 0.55);
       }
     },
 

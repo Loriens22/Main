@@ -19,7 +19,8 @@
     music: 'vault',
 
     build: function (ctx) {
-      ctx.spawn = { pos: [0, 0, -5.0], yaw: 0 };
+      /* Far enough in from the south wall for the camera arm to extend. */
+      ctx.spawn = { pos: [0, 0, -3.6], yaw: 0 };
       var P = ctx.props;
 
       buildRoom(ctx);

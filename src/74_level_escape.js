@@ -20,7 +20,9 @@
     music: 'alarm',
 
     build: function (ctx) {
-      ctx.spawn = { pos: [0, 0, -5.0], yaw: 0 };
+      /* 2.8 m of clear corridor behind the player so the spring-arm camera
+       * can actually extend instead of sitting on the back of his head. */
+      ctx.spawn = { pos: [0, 0, -3.2], yaw: 0 };
       var P = ctx.props;
 
       ctx.state.flags['escape.checkpoint'] = 'start';
@@ -73,7 +75,7 @@
 
   function caught(ctx, done) {
     var cps = {
-      start: [0, 0, -5.0, 0],
+      start: [0, 0, -3.2, 0],
       stair: [0, 0, 7.0, 0],
       roof: [0, ROOF_Y, 1.0, 0]
     };

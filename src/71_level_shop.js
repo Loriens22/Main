@@ -461,7 +461,10 @@
     music: 'shopAmbient',
 
     build: function (ctx) {
-      ctx.spawn = { pos: [-1.2, 0, 2.0], yaw: Math.PI * 0.9 };
+      /* Standing in the walkway past the end of the counter, facing the
+       * bench: the spring-arm camera needs 2.6 m of clear floor behind the
+       * player, and every other spot in here has furniture in it. */
+      ctx.spawn = { pos: [0.5, 0, 1.6], yaw: 0 };
       var P = buildShop(ctx, { playable: true });
 
       /* Ms. Ellis is waiting at the counter; Oleg is by the door, patient. */
