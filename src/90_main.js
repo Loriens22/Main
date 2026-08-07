@@ -437,6 +437,11 @@
     SG.state.chapter = id;
     SG.save();
 
+    /* Leaving the title means leaving the title menu. */
+    if (id !== 'title' && SG.ui && SG.ui.menu && SG.ui.menu.close) {
+      SG.safe('menu.close', function () { SG.ui.menu.close(); });
+    }
+
     if (id === 'title') {
       E.unloadLevel();
       E.mode = 'title';
@@ -454,11 +459,15 @@
     }
 
     if (ch.kind === 'cutscene') {
-      /* Cutscenes need a world to be shot in. Load the backing set level. */
-      var setId = ch.scene;
+      /* Cutscenes need a world to be shot in. Load the backing set level —
+       * but only if we are not already standing in it, because rebuilding a
+       * set between two consecutive cutscenes is a visible hitch. */
+      var setId = ch.scene + '_set';
       var p = Promise.resolve();
       if (!E.ctx || E.ctx.id !== setId) {
-        p = E.loadLevel(setId + '_set').catch(function () { });
+        p = E.fadeThrough(function () {
+          return E.loadLevel(setId);
+        });
       }
       return p.then(function () {
         E.mode = 'cutscene';
@@ -473,7 +482,25 @@
       });
     }
 
-    return E.loadLevel(id);
+    return E.fadeThrough(function () { return E.loadLevel(id); });
+  };
+
+  /* Building a level takes a few hundred milliseconds and drops frames while
+   * it does. Hide that behind black rather than pretending it isn't there. */
+  E.fadeThrough = function (work) {
+    var toBlack = (SG.ui && SG.ui.fade) ? SG.ui.fade(true, 320) : Promise.resolve();
+    return Promise.resolve(toBlack).then(function () {
+      return work();
+    }).then(function (r) {
+      /* One frame on the new scene before lifting, so we never fade up on
+       * a half-built world. */
+      return new Promise(function (res) {
+        requestAnimationFrame(function () { requestAnimationFrame(function () { res(r); }); });
+      });
+    }).then(function (r) {
+      if (SG.ui && SG.ui.fade) SG.ui.fade(false, 480);
+      return r;
+    });
   };
 
   E.loadTitle = function () {
