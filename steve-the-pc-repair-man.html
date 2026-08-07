@@ -21313,6 +21313,7 @@ return{"ACESFilmicToneMapping":nt,"AddEquation":M,"AddOperation":K,"AdditiveAnim
       verb: opts.verb || 'Work',
       radius: opts.radius === undefined ? 2.0 : opts.radius,
       condition: opts.condition,
+      objective: opts.objective,
       onUse: function () {
         /* A tap latches the work on; tapping again cancels it. */
         engaged = !engaged;
@@ -21373,6 +21374,7 @@ return{"ACESFilmicToneMapping":nt,"AddEquation":M,"AddOperation":K,"AdditiveAnim
       radius: opts.radius || 1.5,
       once: true,
       condition: opts.condition,
+      objective: opts.objective,
       onUse: function () {
         if (opts.object && opts.hide !== false) opts.object.visible = false;
         ctx.sfx(opts.sfx || 'clipSnap', { vol: 0.6 });
@@ -22458,6 +22460,18 @@ return{"ACESFilmicToneMapping":nt,"AddEquation":M,"AddOperation":K,"AdditiveAnim
       /* Standing in the walkway past the end of the counter, facing the
        * bench: the spring-arm camera needs 2.6 m of clear floor behind the
        * player, and every other spot in here has furniture in it. */
+      /* This chapter always rebuilds its objectives from scratch, so its
+       * progress flags must start from scratch too. They live in the save,
+       * and a flag left over from an earlier session (shop.panelOff, say)
+       * makes the matching interaction's condition permanently false while
+       * the objective still reads as open — an unwinnable chapter with no
+       * prompt anywhere. Clearing them here also repairs saves already in
+       * that state. */
+      ['shop.panelOff', 'shop.fitted', 'shop.clockDone', 'shop.done',
+        'item.drivers', 'item.cr2032'].forEach(function (f) {
+          delete ctx.state.flags[f];
+        });
+
       ctx.spawn = { pos: [0.5, 0, 1.6], yaw: 0 };
       var P = buildShop(ctx, { playable: true });
 
@@ -22522,6 +22536,7 @@ return{"ACESFilmicToneMapping":nt,"AddEquation":M,"AddOperation":K,"AdditiveAnim
     K.pickup(ctx, {
       object: P.drivers, label: 'your driver set', item: 'drivers',
       verb: 'Take', hide: false, sfx: 'clipSnap', radius: 2.0,
+      objective: 'driver',
       onTake: function () {
         ctx.done('driver');
         ctx.say('shop.drivers');
@@ -22532,7 +22547,7 @@ return{"ACESFilmicToneMapping":nt,"AddEquation":M,"AddOperation":K,"AdditiveAnim
     K.hold(ctx, {
       object: parts.panel || P.tower,
       label: 'the side panel', verb: 'Unscrew', seconds: 2.4,
-      radius: 2.3,
+      radius: 2.3, objective: 'panel',
       condition: function () { return K.has(ctx, 'drivers') && !ctx.state.flags['shop.panelOff']; },
       sfx: 'screwdriver',
       onStart: function () { ctx.sfx('screwdriver', { vol: 0.7 }); },
@@ -22560,6 +22575,7 @@ return{"ACESFilmicToneMapping":nt,"AddEquation":M,"AddOperation":K,"AdditiveAnim
     K.pickup(ctx, {
       object: P.partsBin, label: 'a CR2032 cell', item: 'cr2032',
       verb: 'Take', hide: false, sfx: 'clipSnap', radius: 2.1,
+      objective: 'battery',
       condition: function () { return ctx.state.flags['shop.panelOff']; },
       onTake: function () {
         ctx.done('battery');
@@ -22571,6 +22587,7 @@ return{"ACESFilmicToneMapping":nt,"AddEquation":M,"AddOperation":K,"AdditiveAnim
     K.hold(ctx, {
       object: parts.battery || P.tower,
       label: 'the coin cell', verb: 'Fit', seconds: 1.8, radius: 2.2,
+      objective: 'fit',
       condition: function () {
         return K.has(ctx, 'cr2032') && !ctx.state.flags['shop.fitted'];
       },
@@ -25111,6 +25128,12 @@ return{"ACESFilmicToneMapping":nt,"AddEquation":M,"AddOperation":K,"AdditiveAnim
   E.startNewGame = function () {
     SG.state.chapter = CHAPTERS[0].id;
     SG.state.stats.started = Date.now();
+    /* Flags and counters are run state, not progress. Carrying them into a
+     * new game leaves conditions satisfied for steps you have not done, and
+     * objectives you cannot complete. Easter eggs and settings are yours to
+     * keep. */
+    SG.state.flags = {};
+    SG.state.counters = {};
     SG.save();
     return E.goto(CHAPTERS[0].id);
   };
@@ -25136,6 +25159,18 @@ return{"ACESFilmicToneMapping":nt,"AddEquation":M,"AddOperation":K,"AdditiveAnim
     E.player.getPosition(_pv);
     E.player.getForward(_fwd);
 
+    /* Which objective is the player actually on? An interaction tagged with
+     * it outranks everything else nearby — otherwise a crowded workbench
+     * hands you the rubber duck when you are trying to open a PC, and the
+     * quest step looks like it does not exist. */
+    var pending = null;
+    for (var q = 0; q < ctx.objectiveList.length; q++) {
+      if (!ctx.objectiveList[q].done && !ctx.objectiveList[q].hidden) {
+        pending = ctx.objectiveList[q].id;
+        break;
+      }
+    }
+
     var best = null, bestScore = -1;
     for (var i = 0; i < ctx.interactables.length; i++) {
       var it = ctx.interactables[i];
@@ -25154,6 +25189,7 @@ return{"ACESFilmicToneMapping":nt,"AddEquation":M,"AddOperation":K,"AdditiveAnim
       var facing = _to.dot(_fwd);
       if (facing < -0.35) continue;
       var score = (1 - d / it.radius) * 0.6 + (facing * 0.5 + 0.5) * 0.4;
+      if (pending && it.objective === pending) score += 1.0;
       if (score > bestScore) { bestScore = score; best = it; }
     }
 

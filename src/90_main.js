@@ -520,6 +520,12 @@
   E.startNewGame = function () {
     SG.state.chapter = CHAPTERS[0].id;
     SG.state.stats.started = Date.now();
+    /* Flags and counters are run state, not progress. Carrying them into a
+     * new game leaves conditions satisfied for steps you have not done, and
+     * objectives you cannot complete. Easter eggs and settings are yours to
+     * keep. */
+    SG.state.flags = {};
+    SG.state.counters = {};
     SG.save();
     return E.goto(CHAPTERS[0].id);
   };
@@ -545,6 +551,18 @@
     E.player.getPosition(_pv);
     E.player.getForward(_fwd);
 
+    /* Which objective is the player actually on? An interaction tagged with
+     * it outranks everything else nearby — otherwise a crowded workbench
+     * hands you the rubber duck when you are trying to open a PC, and the
+     * quest step looks like it does not exist. */
+    var pending = null;
+    for (var q = 0; q < ctx.objectiveList.length; q++) {
+      if (!ctx.objectiveList[q].done && !ctx.objectiveList[q].hidden) {
+        pending = ctx.objectiveList[q].id;
+        break;
+      }
+    }
+
     var best = null, bestScore = -1;
     for (var i = 0; i < ctx.interactables.length; i++) {
       var it = ctx.interactables[i];
@@ -563,6 +581,7 @@
       var facing = _to.dot(_fwd);
       if (facing < -0.35) continue;
       var score = (1 - d / it.radius) * 0.6 + (facing * 0.5 + 0.5) * 0.4;
+      if (pending && it.objective === pending) score += 1.0;
       if (score > bestScore) { bestScore = score; best = it; }
     }
 

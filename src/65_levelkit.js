@@ -414,6 +414,7 @@
       verb: opts.verb || 'Work',
       radius: opts.radius === undefined ? 2.0 : opts.radius,
       condition: opts.condition,
+      objective: opts.objective,
       onUse: function () {
         /* A tap latches the work on; tapping again cancels it. */
         engaged = !engaged;
@@ -474,6 +475,7 @@
       radius: opts.radius || 1.5,
       once: true,
       condition: opts.condition,
+      objective: opts.objective,
       onUse: function () {
         if (opts.object && opts.hide !== false) opts.object.visible = false;
         ctx.sfx(opts.sfx || 'clipSnap', { vol: 0.6 });

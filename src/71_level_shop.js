@@ -485,6 +485,18 @@
       /* Standing in the walkway past the end of the counter, facing the
        * bench: the spring-arm camera needs 2.6 m of clear floor behind the
        * player, and every other spot in here has furniture in it. */
+      /* This chapter always rebuilds its objectives from scratch, so its
+       * progress flags must start from scratch too. They live in the save,
+       * and a flag left over from an earlier session (shop.panelOff, say)
+       * makes the matching interaction's condition permanently false while
+       * the objective still reads as open — an unwinnable chapter with no
+       * prompt anywhere. Clearing them here also repairs saves already in
+       * that state. */
+      ['shop.panelOff', 'shop.fitted', 'shop.clockDone', 'shop.done',
+        'item.drivers', 'item.cr2032'].forEach(function (f) {
+          delete ctx.state.flags[f];
+        });
+
       ctx.spawn = { pos: [0.5, 0, 1.6], yaw: 0 };
       var P = buildShop(ctx, { playable: true });
 
@@ -549,6 +561,7 @@
     K.pickup(ctx, {
       object: P.drivers, label: 'your driver set', item: 'drivers',
       verb: 'Take', hide: false, sfx: 'clipSnap', radius: 2.0,
+      objective: 'driver',
       onTake: function () {
         ctx.done('driver');
         ctx.say('shop.drivers');
@@ -559,7 +572,7 @@
     K.hold(ctx, {
       object: parts.panel || P.tower,
       label: 'the side panel', verb: 'Unscrew', seconds: 2.4,
-      radius: 2.3,
+      radius: 2.3, objective: 'panel',
       condition: function () { return K.has(ctx, 'drivers') && !ctx.state.flags['shop.panelOff']; },
       sfx: 'screwdriver',
       onStart: function () { ctx.sfx('screwdriver', { vol: 0.7 }); },
@@ -587,6 +600,7 @@
     K.pickup(ctx, {
       object: P.partsBin, label: 'a CR2032 cell', item: 'cr2032',
       verb: 'Take', hide: false, sfx: 'clipSnap', radius: 2.1,
+      objective: 'battery',
       condition: function () { return ctx.state.flags['shop.panelOff']; },
       onTake: function () {
         ctx.done('battery');
@@ -598,6 +612,7 @@
     K.hold(ctx, {
       object: parts.battery || P.tower,
       label: 'the coin cell', verb: 'Fit', seconds: 1.8, radius: 2.2,
+      objective: 'fit',
       condition: function () {
         return K.has(ctx, 'cr2032') && !ctx.state.flags['shop.fitted'];
       },
