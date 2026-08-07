@@ -669,6 +669,11 @@
       }
     }
 
+    /* Touch controls: reconcile every frame rather than trusting a one-shot
+     * event. The menu closes before the engine has switched into level mode,
+     * so an edge-triggered check leaves the stick hidden for the whole game. */
+    syncTouch();
+
     if (playing && SG.audio && SG.audio.update) {
       SG.safe('audio.update', function () { SG.audio.update(dt, E.camera); });
     }
@@ -679,6 +684,27 @@
       SG.safe('fx.render', function () { SG.fx.render(dt); }, null);
     } else if (E.renderer) {
       E.renderer.render(E.scene, E.camera);
+    }
+  }
+
+  var _touchShown = null;
+  function syncTouch() {
+    if (!SG.input || !SG.input.setTouchVisible) return;
+    var inWorld = (E.mode === 'level' || E.mode === 'cutscene');
+    var menuOpen = !!(SG.ui && SG.ui.isMenuOpen && SG.ui.isMenuOpen());
+    var want = inWorld && !menuOpen && !E.paused;
+    if (want === _touchShown) return;
+    _touchShown = want;
+    SG.safe('input.setTouchVisible', function () { SG.input.setTouchVisible(want); });
+
+    /* Once, the first time a thumb-driven player reaches a level. */
+    if (want && SG.input.mode === 'touch' && !E._touchTold) {
+      E._touchTold = true;
+      if (SG.ui.hud && SG.ui.hud.toast) {
+        SG.safe('touch.hint', function () {
+          SG.ui.hud.toast('Left thumb to walk · right side to look · round button to use', 'info');
+        });
+      }
     }
   }
 

@@ -397,10 +397,18 @@
 
       /* desired arm, in world space */
       var cpz = Math.cos(pitch), spz = Math.sin(pitch);
+      /* A phone held upright has a tall, narrow frame: the vertical FOV is
+       * unchanged but the horizontal view collapses, so the same spring arm
+       * that frames Steve nicely on a desktop puts the back of his head in
+       * your face. Pull the camera back as the frame gets taller. */
+      var _aspect = (opts.camera && opts.camera.aspect) || 1.6;
+      var _portrait = _aspect < 1 ? util.clamp(1.5 / (_aspect + 0.35), 1, 1.85) : 1;
+      var _back = CAM_BACK * _portrait;
+
       _off.set(
-        _right.x * CAM_RIGHT - _fwd.x * cpz * CAM_BACK,
-        CAM_LIFT - spz * CAM_BACK,
-        _right.z * CAM_RIGHT - _fwd.z * cpz * CAM_BACK);
+        _right.x * CAM_RIGHT - _fwd.x * cpz * _back,
+        CAM_LIFT - spz * _back,
+        _right.z * CAM_RIGHT - _fwd.z * cpz * _back);
       var want = _off.length();
       if (want < 1e-4) want = 1e-4;
       _dir.copy(_off).divideScalar(want);

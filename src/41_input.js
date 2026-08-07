@@ -322,7 +322,21 @@
     'touch-action:none;text-transform:uppercase;}',
     '#sg-touch .sgi-btn.on{opacity:.85;background:rgba(57,217,138,.22);}',
     '#sg-touch .sgi-ctx{width:76px;height:76px;font-size:13px;line-height:1.15;}',
-    '#sg-touch .sgi-ctx.idle{opacity:.22;}',
+    '#sg-touch .sgi-ctx.idle{opacity:.5;}',
+    '#sg-touch .sgi-home{position:absolute;',
+    'left:calc(72px + env(safe-area-inset-left));',
+    'bottom:calc(96px + env(safe-area-inset-bottom));',
+    'width:104px;height:104px;margin:0 0 -52px -52px;',
+    'border:1px dashed rgba(57,217,138,.55);border-radius:50%;',
+    'background:rgba(0,0,0,.26);opacity:.55;transition:opacity .15s linear;}',
+    '#sg-touch .sgi-home.hide{opacity:0;}',
+    '#sg-touch .sgi-home i{position:absolute;left:50%;top:50%;width:34px;height:34px;',
+    'margin:-17px 0 0 -17px;border:1px solid rgba(57,217,138,.7);border-radius:50%;',
+    'background:rgba(57,217,138,.12);font-style:normal;}',
+    '#sg-touch .sgi-look{position:absolute;right:calc(20px + env(safe-area-inset-right));',
+    'top:calc(50% - 10px);opacity:.34;font-size:11px;letter-spacing:.16em;',
+    'transition:opacity .25s linear;}',
+    '#sg-touch .sgi-look.hide{opacity:0;}',
     '#sg-touch .sgi-small{width:58px;height:58px;font-size:11px;opacity:.34;}',
     '#sg-touch .sgi-small.on{opacity:.85;}',
     '#sg-touch .sgi-small.latched{opacity:.8;background:rgba(57,217,138,.18);}',
@@ -332,6 +346,8 @@
   ].join('');
 
   var elRoot = null, elStick = null, elKnob = null;
+  var elHome = null, elLookHint = null;
+  var homeRetired = false;
   var elCtx = null, elSprint = null, elCrouch = null;
   var touchVisible = true;
   var contextVerb = null;
@@ -354,6 +370,12 @@
     elRoot = mkEl('div');
     elRoot.id = 'sg-touch';
     elRoot.setAttribute('aria-hidden', 'true');
+
+    elHome = mkEl('div', 'sgi-home');
+    elHome.appendChild(mkEl('i', ''));
+    elRoot.appendChild(elHome);
+    elLookHint = mkEl('div', 'sgi-look', 'DRAG TO LOOK');
+    elRoot.appendChild(elLookHint);
 
     elStick = mkEl('div', 'sgi-stick');
     elKnob = mkEl('div', 'sgi-knob');
@@ -433,6 +455,18 @@
     on(el, 'pointercancel', up, PASSIVE_NO);
     on(el, 'contextmenu', function (e) { e.preventDefault(); }, PASSIVE_NO);
   }
+
+  /* The resting ring is only an invitation — it gets out of the way the
+   * moment a thumb lands, and the look hint retires once the player looks. */
+  IN.homeUsed = function () { return homeRetired; };
+  IN.setHomeHidden = function (hidden) {
+    if (!elHome) return;
+    if (hidden) elHome.classList.add('hide');
+    else elHome.classList.remove('hide');
+  };
+  IN.retireLookHint = function () {
+    if (elLookHint) elLookHint.classList.add('hide');
+  };
 
   function syncTouchVisible() {
     if (!elRoot) return;
@@ -522,8 +556,10 @@
           elStick.classList.add('on');
           if (elKnob) elKnob.style.transform = 'translate(0px,0px)';
         }
+        if (elHome) { elHome.classList.add('hide'); homeRetired = true; }
       } else if (!hasRole(2)) {
         s.role = 2;
+        if (elLookHint) elLookHint.classList.add('hide');
       } else {
         s.role = 0;
       }
@@ -884,6 +920,7 @@
     offAll();
     if (elRoot && elRoot.parentNode) elRoot.parentNode.removeChild(elRoot);
     elRoot = elStick = elKnob = elCtx = elSprint = elCrouch = null;
+    elHome = elLookHint = null;
     IN.mobileRoot = null;
     inited = false;
   };

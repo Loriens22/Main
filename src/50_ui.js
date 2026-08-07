@@ -171,6 +171,12 @@
     '.sg-toast.in{opacity:0;transform:translateX(14px);}',
     '.sg-toast.out{opacity:0;transform:translateX(14px);}',
     '.sg-root.compact .sg-toasts{max-width:min(74vw,300px);}',
+    /* On a narrow screen the objective list already owns the top-left
+     * and the toast column is wide enough to cover it. Drop toasts
+     * below the list instead of on top of it. */
+    '@media (max-width:560px){.sg-toasts{top:auto;bottom:calc(var(--sab) + 190px);',
+    'right:calc(var(--sar) + 12px);left:calc(var(--sal) + 12px);',
+    'max-width:none;align-items:stretch;}}',
 
     /* ---- crosshair -------------------------------------------------- */
     '.sg-cross{position:absolute;left:50%;top:50%;width:16px;height:16px;',
