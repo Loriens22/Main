@@ -5,7 +5,7 @@
 set -e
 S=src; O=stellar-expanse.html
 
-PARTS="p2-core.js p3-gl.js p5b-biome.js p5-world.js p6f-ship-fallback.js p7f-physics-fallback.js \
+PARTS="p2-core.js p2b-field.js p3-gl.js p5b-biome.js p5-world.js p6f-ship-fallback.js p7f-physics-fallback.js \
 p8-ui.js p9a-shaders.js p12-map.js p13-mobile.js p10-docs.js p11-docs2.js p9b-main.js"
 
 # Guard against a part silently disappearing from the build.

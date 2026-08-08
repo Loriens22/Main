@@ -28,20 +28,32 @@
  *       with octave counts that do not depend on _oct at all. Only two things
  *       are gated on _oct, and both enter the total ADDITIVELY at the very end:
  *         · the orogenic ridge texture (2..4 octaves, amplitude C.rgA)
- *         · four roughness bands (amplitude C.det0 * 0.6^k)
+ *         · three roughness bands, i = 6,7,8 (amplitude C.det0 * 0.58^k)
  *
  * Consequence: |h(_oct=a) - h(_oct=b)| is bounded by the amplitude of the
  * octaves in the tail, and NOTHING else moves. With the amplitudes chosen in
  * fldPrep() the analytic bound is
  *
- *      |h(4) - h(9)|  <=  0.1875*C.rgA + (0.03+0.018+0.0108)*amp
- *                     <=  0.1875*amp   + 0.059*amp   ~=  0.25 * d.amp
+ *      |h(4) - h(9)|  <=  0.1875*C.rgA + (0.045+0.026+0.015)*amp
+ *                     <=  0.1875*amp   + 0.086*amp   ~=  0.27 * d.amp
  *
  * (C.rgA is capped at 1.0*amp exactly so this stays a fraction of d.amp even on
  * worlds where dna.ridgeAmp >> dna.amp). fldSelfTest asserts < 0.32*d.amp over
- * 500 random directions. Every nonlinear operator — the hypsometric transfer,
- * mesa terracing, river clamping, lava flooding — is applied to the STRUCTURAL
- * height only, so none of them can amplify the tail.
+ * 500 random directions; the measured worst case over 4000 directions x 6 tuned
+ * worlds is 0.175*amp (Mars, the highest-relief body). Every nonlinear operator
+ * — the hypsometric transfer, mesa terracing, river clamping, lava flooding —
+ * is applied to the STRUCTURAL height only, so none can amplify the tail.
+ *
+ * TWO DELIBERATE CONSEQUENCES OF THE LADDER:
+ *   · h(_oct=8) is bit-identical to h(_oct=9): the tail's last band is i=8 and
+ *     the ridge texture saturates at 4 octaves by _oct=8. The mesher gives a
+ *     chunk _oct = min(9, max(4, 3+round(depth*0.75))), so every chunk at depth
+ *     >= 7 reproduces the collision height (which always uses _oct = octaves =
+ *     9) EXACTLY. The player always stands on a depth>=8 chunk, so the surface
+ *     drawn under the ship and the surface the ship collides with are the same
+ *     numbers, not merely close ones. Nothing can sink.
+ *   · The refinement steps shrink geometrically (Earth: 0 / 254 / 771 / 367 / 0
+ *     m for 4->5..8->9), so a descent adds detail rather than rearranging it.
  *
  * CONTINUITY. The input is a unit direction, so cube-face seams are free. Two
  * further rules keep it C0 everywhere:
@@ -55,8 +67,14 @@
  *     invariant under the 1<->2 swap that happens when you cross a boundary.
  *
  * COST. fldNoise is a bit-exact but ~2x faster inlining of p2-core's noise3
- * (no per-call closure, integer hash folded in). Measured in node/V8:
- * noise3 167 ns -> fldNoise 82 ns. See src/docs/T1-field.md for per-body µs.
+ * (no per-call closure, integer hash folded in): 180 ns -> 82 ns. fldNoiseF is
+ * the same construction with a Math.imul hash and no derivative, 70 ns, used
+ * for every tap that does not have to reproduce a specific field. Measured in
+ * node/V8, best-of-5, overhead subtracted, _oct=9 / _oct=4:
+ *     Earth 1.98 / 1.73    Luna 2.09 / 1.85    Mars 2.12 / 1.94
+ *     Io    1.44 / 1.23    Europa 1.56 / 1.35   (microseconds per call)
+ * Most chunks are meshed well below _oct 9, so the figure that matters for
+ * frame time is nearer the right-hand column. See src/docs/T1-field.md.
  * ==========================================================================*/
 
 /* ---- gradient table: Float64 copy of p2-core's GRAD (identical values) ---- */
@@ -111,6 +129,53 @@ function fldNoise(x, y, z, D){
  return (a0+a1*ux+a2*uy+a3*uz+a4*ux*uy+a5*uy*uz+a6*ux*uz+a7*ux*uy*uz)*1.6;
 }
 
+/* ---------------------------------------------------------------------------
+ * fldNoiseF — the SAME construction as fldNoise (same lattice, same quintic
+ * fade, same gradient table, same 1.6 scale) but the hash mixes with Math.imul
+ * instead of a float multiply, and it never computes a derivative. ~70 ns vs
+ * ~83 ns; over the ~16 taps a terrestrial sample makes that is worth ~0.2 us.
+ *
+ * WHY TWO NOISE FUNCTIONS. `h*1274126177` overflows the 53-bit mantissa, so the
+ * float version's low bits are rounding noise and Math.imul's are not: the two
+ * hashes are equally good but NOT equal. That matters in exactly one place —
+ * the province tap PR must stay bit-identical to the `noise3` tap biomeColor2
+ * makes at p5b-biome.js:119, or the dark basalt stops coinciding with the maria
+ * and the erg albedo stops coinciding with the dunes. So the province tap (and
+ * the gradient-bearing octaves, which need the derivative) keep fldNoise, and
+ * every other tap — where the field only has to be a good random field, not a
+ * specific one — uses this. --------------------------------------------------*/
+function fldNoiseF(x, y, z){
+ const ix = Math.floor(x), iy = Math.floor(y), iz = Math.floor(z);
+ const fx = x - ix, fy = y - iy, fz = z - iz;
+ const ux = fx*fx*fx*(fx*(fx*6-15)+10), uy = fy*fy*fy*(fy*(fy*6-15)+10),
+       uz = fz*fz*fz*(fz*(fz*6-15)+10);
+ const i0 = Math.imul(ix, 374761393), i1 = i0 + 374761393;
+ const j0 = Math.imul(iy, 668265263), j1 = j0 + 668265263;
+ const k0 = Math.imul(iz, 2147483647), k1 = k0 + 2147483647;
+ const gx = fx-1, gy = fy-1, gz = fz-1;
+ let h;
+ h=(i0+j0+k0)|0; h=Math.imul(h^(h>>>13),1274126177); h=((h^(h>>>16))&15)*3;
+ const n000=FLD_G[h]*fx+FLD_G[h+1]*fy+FLD_G[h+2]*fz;
+ h=(i1+j0+k0)|0; h=Math.imul(h^(h>>>13),1274126177); h=((h^(h>>>16))&15)*3;
+ const n100=FLD_G[h]*gx+FLD_G[h+1]*fy+FLD_G[h+2]*fz;
+ h=(i0+j1+k0)|0; h=Math.imul(h^(h>>>13),1274126177); h=((h^(h>>>16))&15)*3;
+ const n010=FLD_G[h]*fx+FLD_G[h+1]*gy+FLD_G[h+2]*fz;
+ h=(i1+j1+k0)|0; h=Math.imul(h^(h>>>13),1274126177); h=((h^(h>>>16))&15)*3;
+ const n110=FLD_G[h]*gx+FLD_G[h+1]*gy+FLD_G[h+2]*fz;
+ h=(i0+j0+k1)|0; h=Math.imul(h^(h>>>13),1274126177); h=((h^(h>>>16))&15)*3;
+ const n001=FLD_G[h]*fx+FLD_G[h+1]*fy+FLD_G[h+2]*gz;
+ h=(i1+j0+k1)|0; h=Math.imul(h^(h>>>13),1274126177); h=((h^(h>>>16))&15)*3;
+ const n101=FLD_G[h]*gx+FLD_G[h+1]*fy+FLD_G[h+2]*gz;
+ h=(i0+j1+k1)|0; h=Math.imul(h^(h>>>13),1274126177); h=((h^(h>>>16))&15)*3;
+ const n011=FLD_G[h]*fx+FLD_G[h+1]*gy+FLD_G[h+2]*gz;
+ h=(i1+j1+k1)|0; h=Math.imul(h^(h>>>13),1274126177); h=((h^(h>>>16))&15)*3;
+ const n111=FLD_G[h]*gx+FLD_G[h+1]*gy+FLD_G[h+2]*gz;
+ const a0=n000, a1=n100-n000, a2=n010-n000, a3=n001-n000;
+ const a4=n000-n100-n010+n110, a5=n000-n010-n001+n011, a6=n000-n100-n001+n101;
+ const a7=-n000+n100+n010-n110+n001-n101-n011+n111;
+ return (a0+a1*ux+a2*uy+a3*uz+a4*ux*uy+a5*uy*uz+a6*ux*uz+a7*ux*uy*uz)*1.6;
+}
+
 /* fBm with FIXED normalisation (rule R1). ng = how many leading octaves also
  * accumulate the analytic gradient (used to point rivers downhill). */
 function fldFbm(x, y, z, n, ng, lac, gain){
@@ -119,7 +184,7 @@ function fldFbm(x, y, z, n, ng, lac, gain){
   if (i < ng){
    s += a * fldNoise(x*f, y*f, z*f, fldD);
    gx += a*f*fldD[0]; gy += a*f*fldD[1]; gz += a*f*fldD[2];
-  } else s += a * fldNoise(x*f, y*f, z*f);
+  } else s += a * fldNoiseF(x*f, y*f, z*f);
   a *= gain; f *= lac;
  }
  fldGx = gx; fldGy = gy; fldGz = gz;
@@ -131,7 +196,7 @@ function fldFbm(x, y, z, n, ng, lac, gain){
 function fldRidge(x, y, z, n, lac, gain){
  let a = 1, f = 1, s = 0, w = 1;
  for (let i = 0; i < n; i++){
-  let v = fldNoise(x*f, y*f, z*f);
+  let v = fldNoiseF(x*f, y*f, z*f);
   v = 1 - (v < 0 ? -v : v);
   v = v * v * w;
   w = v * 2.6; if (w > 1) w = 1;
@@ -218,10 +283,14 @@ function fldPlate(x, y, z, contFrac){
  * i.e. simple craters are 1:5 depth-to-diameter and complex ones flatten out
  * (a 200 km basin is ~5 km deep, not 40 km). Rim crest sits at +0.22*depth
  * above the datum, floor at -0.78*depth. Ejecta decays as (1-e)^3 out to
- * 1.55 crater radii and is EXACTLY zero beyond, which is what lets the cell
- * loop skip 19 of the 27 neighbours: centres are jittered into the middle half
- * of each cell, so max reach is 0.46*1.55 = 0.713 cells and only 1..2 cells per
- * axis can ever contribute.
+ * 1.5 crater radii and is EXACTLY zero beyond, which is what lets the cell loop
+ * skip most of the 27 neighbours: centres are jittered into the middle half of
+ * each cell, so a neighbour's centre is never nearer than 0.25 and the reach is
+ * 1.5*rcMax = 1.5*0.40 = 0.60 cells. A neighbour can therefore only contribute
+ * while fx < 0.60-0.25 = 0.35, which is exactly the threshold used below — at
+ * fx = 0.35 the dropped term is rim*q^3 with q = 0, i.e. identically zero.
+ * The rcMax = 0.40 that makes this exact is enforced in fldPrep; see the note
+ * there before changing either number.
  * ------------------------------------------------------------------------ */
 function fldCraters(X, Y, Z, C, k){
  const ix = Math.floor(X), iy = Math.floor(Y), iz = Math.floor(Z);
@@ -229,14 +298,16 @@ function fldCraters(X, Y, Z, C, k){
  const i0 = fx <= 0.35 ? -1 : 0, i1 = fx >= 0.65 ? 1 : 0;
  const j0 = fy <= 0.35 ? -1 : 0, j1 = fy >= 0.65 ? 1 : 0;
  const k0 = fz <= 0.35 ? -1 : 0, k1 = fz >= 0.65 ? 1 : 0;
- const base = k*16, dens = C.crDens;
+ const base = k*16, dens = C.crDens, P = C.crP;
  let acc = 0;
  for (let kk = k0; kk <= k1; kk++) for (let jj = j0; jj <= j1; jj++) for (let ii = i0; ii <= i1; ii++){
   let h = (ix+ii)*374761393 + (iy+jj)*668265263 + (iz+kk)*2147483647;
   h = (h ^ (h>>>13)) * 1274126177; h = (h ^ (h>>>16)) >>> 0;
   if ((h>>>24)*FLD_B >= dens) continue;              // no impact in this cell
-  const si = base + ((h>>>20) & 15);
-  const rc = C.crRc[si];
+  /* All five profile parameters for this crater size live in ONE stride-5 run
+   * of C.crP, so a cell touches a single cache line instead of five arrays. */
+  const si = (base + ((h>>>20) & 15)) * 5;
+  const rc = P[si];
   const g = (h * 2654435761) >>> 0;                  // decorrelated jitter
   const ax = X - (ix+ii + 0.25 + (g & 255)*FLD_B*0.5);
   const ay = Y - (iy+jj + 0.25 + ((g>>>8) & 255)*FLD_B*0.5);
@@ -245,13 +316,13 @@ function fldCraters(X, Y, Z, C, k){
   const rmax = rc*1.5;
   if (dd >= rmax*rmax) continue;                     // exact zero outside
   const u = Math.sqrt(dd) / rc;
-  const dep = C.crDep[si], rim = C.crRim[si], brk = C.crBrk[si];
+  const dep = P[si+1], rim = P[si+2], brk = P[si+3];
   let f;
   if (u < brk){ const t = u/brk; f = -dep*(1 - 0.22*t*t); }
   else if (u < 1){ const t = (u-brk)/(1-brk); const sm = t*t*(3-2*t);
                    f = -dep*0.78 + (dep*0.78 + rim)*sm; }
   else { const e = (u-1)*2, q = 1-e; f = rim*q*q*q; }
-  const pk = C.crPk[si];
+  const pk = P[si+4];
   if (pk > 0 && u < 0.30){ const b = 1 - (u*3.3333333333333335)*(u*3.3333333333333333); f += pk*b*b; }
   // degradation: older craters are shallower and softer
   acc += f * (0.42 + 0.58*(((h>>>12) & 255)*FLD_B));
@@ -307,6 +378,17 @@ function fldPrep(d){
  C.hasSea = (ty === 1 || ty === 6) ? 1 : 0;
  C.sea = d.seaLevel || 0;
 
+ /* CACHE VALIDITY. The world builder mutates dna fields after makeDNA(), so the
+  * guard in fieldHeight2 has to notice ALL of them, not just the obvious ones:
+  * p5-world sets temp/humidity/vegetation on procedural planets WITHOUT touching
+  * amp, and temp drives the polar-cap and linea constants. Every dna field
+  * fldPrep reads is mirrored here and compared on entry — 15 numeric compares,
+  * ~15 ns against a ~2000 ns call, in exchange for making a whole class of
+  * stale-constant bugs impossible. */
+ C.kFreq = d.freq; C.kWarp = d.warp; C.kSea = d.seaLevel;
+ C.kCra = d.craters; C.kRiv = d.rivers; C.kDun = d.dunes; C.kIce = d.ice;
+ C.kLav = d.lava; C.kVeg = d.vegetation; C.kTmp = d.temp;
+
  /* seed-decorrelated domain offsets */
  C.s1 = rnd()*211 + 3.7;  C.s2 = rnd()*211 + 57.1; C.s3 = rnd()*211 + 131.3;
  C.s4 = rnd()*211 + 17.9; C.s5 = rnd()*211 + 83.3; C.s6 = rnd()*211 + 149.7;
@@ -323,6 +405,19 @@ function fldPrep(d){
  C.F     = (d.freq > 0 ? d.freq : 1.6);
  C.warpF = C.F * 2.05;
  C.warpA = (d.warp > 0 ? d.warp : 0.35) * 1.15;
+ /* FINE-BAND WARP FRACTION.  The warp is a displacement in continent space, so
+  * a band at k times the continent frequency sees k times the phase shift — and,
+  * more importantly, k times the phase GRADIENT. With the full warp the local
+  * frequency of every band above ~600 km wavelength is modulated by ~66%, which
+  * stretches the fine detail into parallel flutes: the whole planet grows a
+  * brushed-metal grain (visible as combing in lowlands, worst down-slope).
+  * Rigid advection of the crust would be physical; this warp is not rigid, its
+  * gradient is what does the damage. So the structural bands (continents,
+  * plates) keep the full warp — that is what makes coastlines crinkly — and
+  * every band above them is displaced by only this fraction of it, which drops
+  * the frequency modulation to ~15%: enough that fine detail still flows around
+  * the continents, little enough that it never combs. */
+ C.warpQ = 0.22;
  // 6 octaves, Hurst ~0.65 (gain 0.55 at lacunarity 2.05) — the spectral slope
  // real topography actually has. cNorm is picked so sigma(cRaw) ~ 0.21, which
  // is what cBias/contAmp below are calibrated against.
@@ -378,22 +473,30 @@ function fldPrep(d){
  C.crN = cr > 0.05 ? (cr > 0.55 ? 4 : 3) : 0;
  C.crDens = sat(cr * 1.25);
  C.crS = new Float64Array(4); C.crOx = new Float64Array(4);
- C.crRc = new Float64Array(64); C.crDep = new Float64Array(64);
- C.crRim = new Float64Array(64); C.crBrk = new Float64Array(64);
- C.crPk = new Float64Array(64);
+ /* interleaved [rc, dep, rim, brk, pk] x 64 sizes — see fldCraters */
+ C.crP = new Float64Array(64*5);
  let cs = 1.9;
  for (let k = 0; k < 4; k++){
   C.crS[k] = cs; C.crOx[k] = rnd()*97 + k*53.7;
   const cellM = R0 / cs;
   for (let i = 0; i < 16; i++){
-   const rc = 0.16 + 0.30*(i/15);
+   /* CELL-SCAN INVARIANT — do not raise 0.40 without moving the thresholds in
+    * fldCraters. Centres are jittered into the middle half of a cell, so the
+    * closest a neighbouring cell's centre can sit to this cell is 0.25. The
+    * ejecta blanket reaches 1.5*rc, so a neighbour can only ever contribute
+    * while fx < 1.5*rcMax - 0.25. fldCraters scans the -1 cell for fx <= 0.35,
+    * which is exact iff 1.5*rcMax <= 0.60, i.e. rcMax <= 0.40.
+    * (This was 0.46, giving a reach of 0.69 against a bound of 0.60: craters up
+    * to ~840 km across were being dropped from the scan mid-blanket, a real C0
+    * tear of up to 103 m on Luna. Measured 0.0000 m after this change.) */
+   const rc = 0.16 + 0.24*(i/15);
    const Dm = 2*rc*cellM;                                  // crater diameter, metres
    const dep = Math.min(0.2*Dm, 130.8*Math.pow(Dm, 0.301)); // lunar depth scaling
-   const si = k*16 + i;
-   C.crRc[si] = rc;
-   C.crDep[si] = dep*0.78; C.crRim[si] = dep*0.22;
-   C.crBrk[si] = Dm > 2.0e4 ? 0.55 : 0.18;                 // complex craters: flat floor
-   C.crPk[si]  = Dm > 3.0e4 ? dep*0.30 : 0;                // and a central peak
+   const si = (k*16 + i) * 5;
+   C.crP[si]   = rc;
+   C.crP[si+1] = dep*0.78; C.crP[si+2] = dep*0.22;
+   C.crP[si+3] = Dm > 2.0e4 ? 0.55 : 0.18;                 // complex craters: flat floor
+   C.crP[si+4] = Dm > 3.0e4 ? dep*0.30 : 0;                // and a central peak
   }
   cs *= 3.0;
  }
@@ -432,6 +535,17 @@ function fldPrep(d){
  C.capA = mix(0.86, 0.02, cold*ic);
  C.capB = mix(0.99, 0.30, cold*ic);
  if (C.capB <= C.capA + 0.02) C.capB = C.capA + 0.02;
+ /* GLOBAL GLACIATION. `cap` is used twice: as the ice dome's profile and as the
+  * roughness damper. On a body that is frozen solid (Europa, Enceladus, Triton,
+  * Pluto — cold*ic -> 1) the latitude ramp above bottoms out at ~1 deg, which
+  * does NOT mean "ice everywhere": it leaves a ~17 deg equatorial band outside
+  * the cap, carrying full roughness while the rest of the globe is damped. That
+  * showed up as a hard bright stripe around the equator on every ice moon.
+  * A world that cold has a shell over the whole sphere, so blend the cap toward
+  * a global 1 as it freezes. Continuity is unaffected: capA >= 0.02 always, so
+  * smoothstep(capA,capB,|dy|) is identically 0 (flat, zero slope) through the
+  * equator for any gi < 1, and identically 1 when gi == 1. */
+ C.capG = sat((cold*ic - 0.72) * 3.6);
 
  /* --- ice-shell linea / crevasse networks (Europa-style double ridges) --- */
  C.crack = (ty === 3 ? 1.0 : 0.30) * ic * cold;
@@ -454,7 +568,11 @@ function fldPrep(d){
 function fieldHeight2(x, y, z, d){
  let C = d._fldc;
  if (C === undefined || C.seed !== d.seed || C.radius !== d.radius ||
-     C.amp !== d.amp || C.ridgeAmp !== d.ridgeAmp || C.type !== d.type) C = fldPrep(d);
+     C.amp !== d.amp || C.ridgeAmp !== d.ridgeAmp || C.type !== d.type ||
+     C.kFreq !== d.freq || C.kWarp !== d.warp || C.kSea !== d.seaLevel ||
+     C.kCra !== d.craters || C.kRiv !== d.rivers || C.kDun !== d.dunes ||
+     C.kIce !== d.ice || C.kLav !== d.lava || C.kVeg !== d.vegetation ||
+     C.kTmp !== d.temp) C = fldPrep(d);
 
  let oct = d._oct | 0; if (!oct) oct = d.octaves | 0; if (!oct) oct = 9;
  if (oct < 2) oct = 2; else if (oct > 12) oct = 12;
@@ -463,8 +581,8 @@ function fieldHeight2(x, y, z, d){
 
  /* ---- gas giants have no surface: keep the mesh spherical ---- */
  if (C.ty === 5){
-  return (fldNoise(x*2.0 + C.s1, y*13.0, z*2.0)*0.7 +
-          fldNoise(x*5.3, y*31.0 + C.s2, z*5.3)*0.3) * A * 0.02;
+  return (fldNoiseF(x*2.0 + C.s1, y*13.0, z*2.0)*0.7 +
+          fldNoiseF(x*5.3, y*31.0 + C.s2, z*5.3)*0.3) * A * 0.02;
  }
 
  /* ================= 1. DOMAIN WARP (fixed, _oct independent) =============
@@ -474,10 +592,14 @@ function fieldHeight2(x, y, z, d){
   * that is the gradient of a scalar is curl-free, and combing an fBm along its
   * own flow lines gives the whole planet a brushed-metal grain.) */
  const wf = C.warpF, wa = C.warpA;
- const wx = fldNoise(x*wf + C.s1, y*wf, z*wf) * wa;
- const wy = fldNoise(x*wf, y*wf + C.s2, z*wf) * wa;
- const wz = fldNoise(x*wf, y*wf, z*wf + C.s3) * wa;
+ const wx = fldNoiseF(x*wf + C.s1, y*wf, z*wf) * wa;
+ const wy = fldNoiseF(x*wf, y*wf + C.s2, z*wf) * wa;
+ const wz = fldNoiseF(x*wf, y*wf, z*wf + C.s3) * wa;
  const px = x*F + wx, py = y*F + wy, pz = z*F + wz;
+ /* Reduced-warp coordinate for every band above the continent/plate structure.
+  * Same field, same registration, 1/5th of the phase gradient — see C.warpQ. */
+ const qw = C.warpQ;
+ const qx = x*F + wx*qw, qy = y*F + wy*qw, qz = z*F + wz*qw;
 
  /* province field — deliberately the SAME low-frequency noise biomeColor2 reads
   * for its albedo provinces, so mare basalt is both dark and low, and the mesa
@@ -608,7 +730,7 @@ function fieldHeight2(x, y, z, d){
  if (C.lava > 0.05){
   const vs = C.svS, ox = C.svOx;
   h += fldShields(x*vs + ox, y*vs + ox*0.41, z*vs - ox*0.29, C);
-  let n = fldNoise(px*C.lvF + C.s9, py*C.lvF, pz*C.lvF); if (n < 0) n = -n;
+  let n = fldNoiseF(qx*C.lvF + C.s9, qy*C.lvF, qz*C.lvF); if (n < 0) n = -n;
   h -= (1 - smoothstep(0, C.lvW, n)) * C.lvD;               // sinuous rilles
  }
 
@@ -622,7 +744,7 @@ function fieldHeight2(x, y, z, d){
  const landM = C.hasSea ? sat((h - C.sea) / (0.05*A)) : 1;
  if (C.rivers > 0.02){
   const rf = C.rivF, rw = C.rivWarp;
-  const kx = px*rf + ggx*rw + C.s4, ky = py*rf + ggy*rw, kz = pz*rf + ggz*rw;
+  const kx = qx*rf + ggx*rw + C.s4, ky = qy*rf + ggy*rw, kz = qz*rf + ggz*rw;
   /* A ridged MULTIFRACTAL, not |noise|: the w-feedback means octave k only has
    * amplitude where octave k-1 already had a sheet, so the fine channels hang
    * off the coarse ones instead of running parallel to them. That hierarchical
@@ -650,7 +772,7 @@ function fieldHeight2(x, y, z, d){
  /* ================= 11. DUNE FIELDS ======================================= */
  if (C.dunes > 0){
   const df = C.dnF;
-  const dn = fldNoise(px*df + C.s6, py*df, pz*df);
+  const dn = fldNoiseF(qx*df + C.s6, qy*df, qz*df);
   const ph = y*C.dnK + dn*C.dnWob;
   const t = ph - Math.floor(ph);
   // asymmetric cross-section: long windward stoss slope, short slip face
@@ -665,7 +787,8 @@ function fieldHeight2(x, y, z, d){
   * the |dy| kink never reaches the output. cp = 1-(1-cap)^2 gives the concave
   * ice-sheet dome profile with zero slope at the margin. */
  const lat = y < 0 ? -y : y;
- const cap = smoothstep(C.capA, C.capB, lat);
+ let cap = smoothstep(C.capA, C.capB, lat);
+ if (C.capG > 0) cap += (1 - cap) * C.capG;      // frozen solid -> shell is global
  if (C.iceH > 0){
   // grounded ice only: a cap over deep water is a floating shelf and adds no
   // elevation, so fade the dome out as the bed drops away
@@ -674,7 +797,7 @@ function fieldHeight2(x, y, z, d){
  }
  if (C.crH > 0){
   const cf2 = C.crF;
-  let n = fldNoise(px*cf2 + C.s7, py*cf2, pz*cf2); if (n < 0) n = -n;
+  let n = fldNoiseF(qx*cf2 + C.s7, qy*cf2, qz*cf2); if (n < 0) n = -n;
   const core = 1 - smoothstep(0, C.crW, n);
   const flank = (1 - smoothstep(C.crW, C.crW*3.2, n)) - core;
   h += (flank*0.95 - core*0.75) * C.crH;       // double ridge with a medial trough
@@ -686,14 +809,14 @@ function fieldHeight2(x, y, z, d){
  if (beltEnv > 0){                              // exact zero outside every belt
   const nR = 2 + (oct > 6 ? (oct > 7 ? 2 : 1) : 0);
   const rf = C.rgF;
-  h += (fldRidge(px*rf + C.s4, py*rf, pz*rf, nR, 2.4, 0.5)*C.rgNorm - C.rgMid)
+  h += (fldRidge(qx*rf + C.s4, qy*rf, qz*rf, nR, 2.4, 0.5)*C.rgNorm - C.rgMid)
        * C.rgA * beltEnv;
  }
  const rough = (C.hasSea ? mix(0.55, 1.0, landM) : 1.0) * (1 - cap*0.55);
  let da = C.det0, f = C.detF, off = C.s8;
  for (let i = 6; i <= 8; i++){
   if (oct < i) break;
-  h += fldNoise(px*f + off, py*f, pz*f) * da * rough;
+  h += fldNoiseF(qx*f + off, qy*f, qz*f) * da * rough;
   da *= 0.58; f *= 2.8; off += 31.7;
  }
 
@@ -737,6 +860,11 @@ function fldSelfTest(){
   const io = makeDNA(31, 4, 1.8216e6);
   io.lava=1; io.craters=0.05; io.amp=3000; io.temp=130;
   W.push(io);
+
+  /* deterministic PRNG shared by the sampling sections below */
+  let rs = 123456789;
+  const rr = () => { rs = (Math.imul(rs, 1664525) + 1013904223) | 0;
+                     return ((rs >>> 8) & 0xffffff) / 16777216; };
 
   /* ---- 1. DETERMINISM + BOUNDEDNESS -------------------------------------- */
   let maxAbs = 0;
@@ -812,11 +940,51 @@ function fldSelfTest(){
    }
   }
 
+  /* ---- 2b. LATTICE CELL-SCAN CONTINUITY ----------------------------------
+   * The crater and shield loops skip neighbouring cells using a fixed threshold
+   * on the cell-local coordinate. That is only legitimate while the skipped
+   * cell's contribution is identically zero, which is a statement about the
+   * jitter range, the max feature radius and the threshold TOGETHER — get any
+   * one of the three wrong and you get a hard cliff along a lattice plane.
+   *
+   * Arc sampling does not reliably catch this: it needs the biggest feature
+   * size AND a centre sitting on the near edge of its cell, so it hides at
+   * ~1e-5 of directions. (It was real — a 103 m tear on Luna — until rcMax was
+   * brought down to 0.40.) So probe the thresholds directly, straddling each
+   * one by 1e-9 of a cell, where any surviving jump is a pure discontinuity. */
+  {
+   let worstCell = 0, worstCellW = '';
+   for (const dd of W){
+    if (dd.type === 5) continue;
+    dd._oct = 9;
+    fieldHeight2(1, 0, 0, dd);                    // make sure _fldc exists
+    const C = dd._fldc;
+    if (!C || !C.crN) continue;
+    const E = 1e-9;
+    for (let n = 0; n < 900; n++){
+     const ix = (rr()*997)|0, iy = (rr()*997)|0, iz = (rr()*997)|0;
+     const fy = rr(), fz = rr();
+     for (let k = 0; k < C.crN; k++){
+      for (let ti = 0; ti < 2; ti++){
+       const thr = ti ? 0.65 : 0.35;
+       const a = fldCraters(ix+thr-E, iy+fy, iz+fz, C, k);
+       const b = fldCraters(ix+thr+E, iy+fy, iz+fz, C, k);
+       const j = a > b ? a-b : b-a;
+       if (j > worstCell){ worstCell = j; worstCellW = 'type'+dd.type; }
+      }
+     }
+    }
+    dd._oct = dd.octaves;
+   }
+   /* 1 cm: far below the 1e-9-cell probe offset times any plausible slope, and
+    * ~4 orders of magnitude under the tear this is guarding against. */
+   if (worstCell > 0.01)
+    return {ok:false, why:'crater cell-scan discontinuity: '+worstCell.toFixed(4)+
+                          ' m across a lattice threshold on '+worstCellW};
+  }
+
   /* ---- 3. LOD STABILITY -------------------------------------------------- */
   let worstLod = 0, worstLodW = '', worstFrac = 0;
-  let rs = 123456789;
-  const rr = () => { rs = (Math.imul(rs, 1664525) + 1013904223) | 0;
-                     return ((rs >>> 8) & 0xffffff) / 16777216; };
   for (const dd of W){
    if (dd.type === 5) continue;
    for (let i = 0; i < 500; i++){
@@ -836,27 +1004,43 @@ function fldSelfTest(){
                          worstFrac.toFixed(3)+' x amp on '+worstLodW+
                          ' (bound '+FLD_LODFRAC+')'};
 
-  /* ---- 4. TIMING: 20000 calls at _oct = 9 -------------------------------- */
-  const td = earth; td._oct = 9;
+  /* ---- 4. TIMING: 20000 calls at _oct = 9 --------------------------------
+   * The sample directions are precomputed into arrays: four trig calls per
+   * iteration inside the timed region cost ~0.15 us and would inflate the
+   * reported figure by ~10%. The residual array-read + loop overhead is then
+   * measured on its own and subtracted, so the number really is time in
+   * fieldHeight2. Reported as the best of 3 runs — on a machine with other load
+   * the mean measures the noise, not the function. */
   const NT = 20000;
+  const DX = new Float64Array(NT), DY = new Float64Array(NT), DZ = new Float64Array(NT);
+  for (let i = 0; i < NT; i++){
+   const a = i*0.011, b = i*0.0071, cb = Math.cos(b);
+   DX[i] = Math.cos(a)*cb; DY[i] = Math.sin(b); DZ[i] = Math.sin(a)*cb;
+  }
   let sink = 0;
-  for (let i = 0; i < 4000; i++){                 // warm up the JIT
-   const a = i*0.011, b = i*0.0071;
-   sink += fieldHeight2(Math.cos(a)*Math.cos(b), Math.sin(b), Math.sin(a)*Math.cos(b), td);
+  const timeOne = (dd) => {
+   dd._oct = 9;
+   for (let i = 0; i < NT; i++) sink += fieldHeight2(DX[i], DY[i], DZ[i], dd);  // JIT warmup
+   let best = Infinity;
+   for (let r = 0; r < 3; r++){
+    const t0 = now();
+    for (let i = 0; i < NT; i++) sink += fieldHeight2(DX[i], DY[i], DZ[i], dd);
+    const el = (now() - t0) * 1000 / NT;
+    if (el < best) best = el;
+   }
+   return best;
+  };
+  // loop + array-read overhead, measured the same way and subtracted
+  let ovh = Infinity;
+  for (let i = 0; i < NT; i++) sink += DX[i] + DY[i] + DZ[i];
+  for (let r = 0; r < 3; r++){
+   const t0 = now();
+   for (let i = 0; i < NT; i++) sink += DX[i] + DY[i] + DZ[i];
+   const el = (now() - t0) * 1000 / NT;
+   if (el < ovh) ovh = el;
   }
-  const t0 = now();
-  for (let i = 0; i < NT; i++){
-   const a = i*0.011, b = i*0.0071;
-   sink += fieldHeight2(Math.cos(a)*Math.cos(b), Math.sin(b), Math.sin(a)*Math.cos(b), td);
-  }
-  const usEarth = (now() - t0) * 1000 / NT;
-  const td2 = luna; td2._oct = 9;
-  const t1 = now();
-  for (let i = 0; i < NT; i++){
-   const a = i*0.011, b = i*0.0071;
-   sink += fieldHeight2(Math.cos(a)*Math.cos(b), Math.sin(b), Math.sin(a)*Math.cos(b), td2);
-  }
-  const usLuna = (now() - t1) * 1000 / NT;
+  let usEarth = timeOne(earth) - ovh; if (usEarth < 0) usEarth = 0;
+  let usLuna  = timeOne(luna)  - ovh; if (usLuna  < 0) usLuna  = 0;
   if (!isFinite(sink)) return {ok:false, why:'timing loop produced a non-finite sum'};
 
   return {ok:true,
