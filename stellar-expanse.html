@@ -101,7 +101,7 @@ html,body{width:100%;height:100%;overflow:hidden;background:#000;color:#cfe6ff;
 <div id="boot"><h1>STELLAR EXPANSE</h1><div id="bar"><i></i></div><p id="bmsg">INITIALISING</p></div>
 <script>
 "use strict";(function(){
-/* ---------- p2-core.js ---------- */
+/* ---------- src/p2-core.js ---------- */
 /* ===== MATH (Float64 physics vectors, Float32 column-major matrices) ===== */
 const TAU=6.283185307179586, DEG=Math.PI/180;
 const v3=(x,y,z)=>{const a=new Float64Array(3);a[0]=x||0;a[1]=y||0;a[2]=z||0;return a;};
@@ -318,7 +318,7 @@ function describeDNA(d){
    ' · mean '+t.toFixed(0)+'°C · relief '+((d.amp+d.ridgeAmp)/1000).toFixed(1)+' km';
 }
 
-/* ---------- p3-gl.js ---------- */
+/* ---------- src/p3-gl.js ---------- */
 /* ===== GL ENGINE ===== */
 const canvas=document.getElementById('gl');
 const gl=canvas.getContext('webgl2',{antialias:false,alpha:false,depth:true,stencil:false,
@@ -516,7 +516,7 @@ function m4inv(o,m){
  o[14]=(a31*b01-a30*b03-a32*b00)*det;o[15]=(a20*b03-a21*b01+a22*b00)*det;return o;
 }
 
-/* ---------- p5-world.js ---------- */
+/* ---------- src/p5-world.js ---------- */
 /* ===== SOLAR SYSTEM + PROCEDURAL EXOSYSTEMS + CUBE-SPHERE QUADTREE TERRAIN ===== */
 const AU=1.495978707e11, G=6.67430e-11, G0=9.80665;
 let BODIES=[], SUN=null, SYSTEM={id:0,name:'SOL',star:'G2V'};
@@ -978,7 +978,538 @@ function terrVisit(n,b,camLocal,maxDepth,out){
  out.push(n);
 }
 
-/* ---------- p6f-ship-fallback.js ---------- */
+/* ---------- src/p5b-biome.js ---------- */
+/* ===== P1 — SCALE-AWARE BIOME COLOUR + TERRAIN SHADERS =====================
+ * Replaces biomeColor() / VS_TERRAIN / FS_TERRAIN.
+ *
+ * THE BUG: surface colour was evaluated per vertex and Gouraud-interpolated.
+ * At coarse quadtree LOD adjacent vertices are hundreds of km apart, while the
+ * snow / rock / vegetation thresholds flip over a couple of km of elevation.
+ * Neighbouring vertices therefore land on opposite sides of every threshold and
+ * the mesh reads as black-and-white salt-and-pepper.
+ *
+ * THE FIX: nothing about the colour model is allowed to contain detail finer
+ * than the vertex spacing. Two rules, applied everywhere:
+ *   1. every threshold has a transition HALF-WIDTH that grows with `lodScaleM`,
+ *      so a coarse chunk sees a continuous average instead of a hard edge;
+ *   2. every noise term is BAND-LIMITED — a frequency above the Nyquist limit
+ *      of the vertex grid is faded out rather than sampled.
+ * On top of that, coarse chunks blend toward a low-frequency continental
+ * palette (ocean / land / ice-cap) so an orbital view reads as a real globe.
+ *
+ * ---------------------------------------------------------------------------
+ * WIRING FOR THE LEAD
+ *
+ *  biomeColor2(dx,dy,dz, h, slope, d, lodScaleM, out)
+ *    Same as biomeColor plus `lodScaleM` = approximate world-space distance in
+ *    METRES between adjacent vertices of the chunk being built. In
+ *    terrBuildMesh() that is:
+ *        const lodScaleM = b.radius * n.size / (CHUNK_N-1) * 1.35;
+ *    (the 1.35 accounts for the tan() warp in cubeDir; any value within ~2x is
+ *    fine — the response is logarithmic). Passing 0/undefined is safe: it falls
+ *    back to radius*0.004.
+ *
+ *  VS_TERRAIN2 / FS_TERRAIN2 — drop-in for VS_TERRAIN / FS_TERRAIN.
+ *    Attribute layout unchanged (0 position, 1 normal, 2 uv, 3 color).
+ *    All existing uniforms kept and still required:
+ *        uVP uChunkOff uRot uPlanetC uSunDir uSunCol uPlanetR uSkyTint
+ *        uTime uAtmoAmt uOceanLvl   (+ uLogFC from GLSL_COMMON)
+ *    NOTE: uRot is now read by the FRAGMENT shader too (to un-spin the planet
+ *    for the procedural detail). It is the same uniform — no extra work, the
+ *    existing gl.uniformMatrix3fv(P_TERR.u.uRot, ...) already covers it.
+ *
+ *    UNIFORMS ADDED (both OPTIONAL — 0 / unset behaves sensibly):
+ *        uniform float uLodScale;   // metres between vertices of the chunk being
+ *                                   // drawn. If <=0 the shader derives the pixel
+ *                                   // footprint from fwidth() instead, which is
+ *                                   // what it uses anyway — setting it only
+ *                                   // damps detail on very coarse chunks.
+ *                                   //   gl.uniform1f(P_TERR.u.uLodScale, lodScaleM)
+ *                                   //   per chunk, guarded as usual.
+ *        uniform float uDetailAmt;  // 0..1 global detail strength (quality dial).
+ *                                   // If <=0 it is treated as 1.0. Suggested:
+ *                                   //   QUALITY.tier===0 ? 0.55 : 1.0
+ * ========================================================================= */
+
+/* ---- small scale-aware helpers (top-level so no closure is allocated) ---- */
+const BIO_INV_LN2 = 1.4426950408889634;
+function bioLog2(x){ return Math.log(x) * BIO_INV_LN2; }
+
+// Band-limit weight: 1 when frequency f is comfortably below the grid Nyquist
+// limit fMax, smoothly 0 as f reaches it. This is what stops noise from turning
+// into per-vertex hash at coarse LOD.
+function bioBand(fMax, f){
+ const w = fMax / f - 1;
+ if (w <= 0) return 0;
+ if (w >= 1) return 1;
+ return w * w * (3 - 2 * w);
+}
+// smoothstep(e-w, e+w, x) — a threshold with an explicit half-width.
+function bioStep(x, e, w){
+ if (!(w > 1e-9)) return x < e ? 0 : 1;
+ let t = (x - e) / (2 * w) + 0.5;
+ if (t <= 0) return 0;
+ if (t >= 1) return 1;
+ return t * t * (3 - 2 * t);
+}
+// Chroma-only hue rotation (YIQ). Achromatic colours stay achromatic, so snow
+// never turns pink; saturated biomes shift enough to make worlds distinct.
+const _bioRGB = new Float64Array(3);
+function bioHue(r, g, b, ang, satMul, o){
+ const c = Math.cos(ang), s = Math.sin(ang);
+ const Y = 0.299 * r + 0.587 * g + 0.114 * b;
+ const I = 0.596 * r - 0.274 * g - 0.322 * b;
+ const Q = 0.211 * r - 0.523 * g + 0.312 * b;
+ const I2 = (I * c - Q * s) * satMul, Q2 = (I * s + Q * c) * satMul;
+ o[0] = Y + 0.9563 * I2 + 0.6210 * Q2;
+ o[1] = Y - 0.2721 * I2 - 0.6474 * Q2;
+ o[2] = Y - 1.1070 * I2 + 1.7046 * Q2;
+ return o;
+}
+const BIO_DEFPAL = [[.5,.5,.5],[.5,.5,.5],[.5,.5,.5],[.5,.5,.5],[.5,.5,.5],[.5,.5,.5]];
+
+/* =========================================================================
+ * biomeColor2 — allocation free, ~3 noise3 taps, no branching on data that
+ * changes per vertex inside the hot loop.
+ * ======================================================================= */
+function biomeColor2(dx, dy, dz, h, slope, d, lodScaleM, out){
+ const R = (d && d.radius > 1) ? d.radius : 6.371e6;
+ let L = lodScaleM;
+ if (!(L > 0)) L = R * 0.004;      // defensive: caller did not pass one
+ if (L < 1) L = 1;
+
+ // 0 = fine chunk (<=60 m between vertices) … 1 = continental chunk (>=490 km)
+ const coarse = sat(bioLog2(L / 60) / 13);
+ // Nyquist limit of the vertex grid, in cycles per unit direction (~per radian).
+ // 0.35 keeps ~2.8 samples per wavelength at the limit.
+ const fMax = 0.35 * R / L;
+
+ const pal = (d && d.pal) ? d.pal : BIO_DEFPAL;
+ const pr = pal[0], ps = pal[1], pv = pal[2], pa = pal[3], ph = pal[4], pl = pal[5];
+ const sd = d.seed * 13.7;
+ const lat = dy < 0 ? -dy : dy;
+
+ /* ---- band-limited noise taps -------------------------------------------
+  * P  continental provinces  (fixed low frequency, structural)
+  * Q  regional patches       (fixed mid frequency, structural, fades first)
+  * Dn detail mottle          (frequency TRACKS the LOD so it is always just
+  *                            under Nyquist — maximum detail, zero aliasing)
+  * Structural decisions may only use P and Q (fixed frequencies fading
+  * smoothly). Dn is amplitude-limited modulation only, never a threshold.  */
+ const wP = bioBand(fMax, 1.55);
+ const P = wP > 0.004 ? noise3(dx * 1.55 + sd, dy * 1.55 + 13.3, dz * 1.55 - 5.1) * wP : 0;
+ const wQ = bioBand(fMax, 6.4);
+ const Q = wQ > 0.004 ? noise3(dx * 6.4 - sd * 0.37, dy * 6.4 + 41.7, dz * 6.4 + 2.9) * wQ : 0;
+ let fD = fMax * 0.42; if (fD < 9) fD = 9; if (fD > 24000) fD = 24000;
+ const wD = bioBand(fMax, fD);
+ const Dn = wD > 0.004 ? noise3(dx * fD + 7.7, dy * fD - 3.3, dz * fD + 19.1) * wD : 0;
+
+ let cr, cg, cb;
+
+ /* ================= GAS GIANT ================= */
+ if (d.type === 5){
+  const turb = P * 2.4 + Q * 0.9;
+  const band = Math.sin(dy * 17.0 + turb * 2.2) * 0.5 + 0.5;
+  const jet = Math.sin(dy * 43.0 + turb * 1.1) * 0.5 + 0.5;
+  cr = mix(mix(0.42, 0.92, ph[0]), mix(0.26, 0.70, pl[0]), band);
+  cg = mix(mix(0.34, 0.80, ph[1]), mix(0.22, 0.58, pl[1]), band);
+  cb = mix(mix(0.22, 0.62, ph[2]), mix(0.20, 0.54, pl[2]), band);
+  const zw = sat(jet * 0.8 + 0.1) * 0.35;
+  cr = mix(cr, sat(cr * 1.15 + 0.04), zw);
+  cg = mix(cg, sat(cg * 1.06 + 0.02), zw);
+  cb = mix(cb, sat(cb * 0.94), zw);
+  // one great storm oval per world
+  const storm = sat(Math.abs(P) * 2.3 - 1.15);
+  cr = mix(cr, mix(0.60, 0.96, pa[0]), storm * 0.85);
+  cg = mix(cg, mix(0.30, 0.62, pa[1]), storm * 0.85);
+  cb = mix(cb, mix(0.14, 0.34, pa[2]), storm * 0.85);
+  // polar hoods, blurred by LOD like everything else
+  const pol = bioStep(lat, 0.80, 0.14 + 0.20 * coarse);
+  cr = mix(cr, cr * 0.70 + 0.10, pol * 0.75);
+  cg = mix(cg, cg * 0.74 + 0.11, pol * 0.75);
+  cb = mix(cb, cb * 0.86 + 0.14, pol * 0.75);
+  const mo5 = Dn * 0.05 + Q * 0.03;
+  cr = sat(cr * (1 + mo5)); cg = sat(cg * (1 + mo5)); cb = sat(cb * (1 + mo5));
+  bioHue(cr, cg, cb, (d.hue - 0.5) * 0.55, 1.10, _bioRGB);
+  out[0] = sat(_bioRGB[0]); out[1] = sat(_bioRGB[1]); out[2] = sat(_bioRGB[2]);
+  return out;
+ }
+
+ /* ================= SOLID SURFACES ================= */
+ const hPos = h > 0 ? h : 0;
+ // latitude cooling: |sin(lat)| weighted so mid-latitudes fall off realistically
+ const latC = lat * lat * 0.62 + lat * 0.38;
+ // lapse rate + latitude + a smooth regional climate wobble
+ const t = d.temp - hPos * 0.0065 - latC * 52 + P * 9.0 - Q * 4.0;
+ const hum = sat(d.humidity * (0.78 + 0.5 * P) - hPos / 26000 + Q * 0.12);
+
+ /* ---- SCALE-AWARE TRANSITION WIDTHS — the actual fix -------------------- */
+ // Unresolved relief inside one cell: horizontal distance x typical slope.
+ const hW = clamp(L * 0.22, 20, 4500);            // elevation blur, metres
+ const tW = 2.0 + hW * 0.0065 + 7.0 * coarse;     // temperature blur, kelvin
+ const sW = 0.09 + 0.40 * coarse;                 // slope blur
+ // Slope itself is meaningless once vertices are km apart, so fade its weight.
+ const rockAmt = mix(1.0, 0.40, coarse);
+ const rocky = bioStep(slope, 0.32, sW) * rockAmt;
+
+ const sea = d.seaLevel || 0;
+ const hasSea = (d.type === 1 || d.type === 6);
+ const subm = hasSea ? (1 - bioStep(h, sea, hW * 1.2 + 45)) : 0;
+
+ /* ---- bedrock (shared by every rocky type) ---- */
+ let br = mix(0.19, 0.42, pr[0]), bg = mix(0.17, 0.36, pr[1]), bb = mix(0.15, 0.31, pr[2]);
+ const prov = sat(P * 1.3 + 0.5);
+ br = mix(br, mix(0.28, 0.56, ph[0]), prov * 0.5);
+ bg = mix(bg, mix(0.25, 0.48, ph[1]), prov * 0.5);
+ bb = mix(bb, mix(0.21, 0.42, ph[2]), prov * 0.5);
+
+ if (d.type === 2){
+  /* ---- desert: ergs, duricrust, oxide streaks ---- */
+  const sr = mix(0.60, 0.86, pa[0]), sg = mix(0.44, 0.68, pa[1]), sb = mix(0.24, 0.44, pa[2]);
+  const erg = sat(0.40 + P * 1.0) * clamp(d.dunes, 0, 1);
+  cr = mix(sr * 0.78, sr, erg); cg = mix(sg * 0.78, sg, erg); cb = mix(sb * 0.74, sb, erg);
+  const ox = sat(Q * 1.4 + 0.15) * 0.5;
+  cr = mix(cr, sat(cr * 1.12 + 0.04), ox);
+  cg = mix(cg, cg * 0.93, ox);
+  cb = mix(cb, cb * 0.82, ox);
+  // dark basaltic plains where the province noise dips
+  const bas = 1 - bioStep(P, -0.24, 0.14 + 0.30 * coarse);
+  cr = mix(cr, br * 0.85, bas * 0.55); cg = mix(cg, bg * 0.85, bas * 0.55); cb = mix(cb, bb * 0.9, bas * 0.55);
+
+ } else if (d.type === 3){
+  /* ---- ice world: firn, dirty ice, blue crevasse depth ---- */
+  cr = mix(0.72, 0.93, ph[0]); cg = mix(0.79, 0.96, ph[1]); cb = mix(0.86, 1.00, ph[2]);
+  const dirt = sat(0.42 - P * 1.2) * (1 - clamp(d.ice, 0, 1) * 0.55);
+  cr = mix(cr, br * 1.5, dirt * 0.6); cg = mix(cg, bg * 1.5, dirt * 0.6); cb = mix(cb, bb * 1.5, dirt * 0.6);
+  const deepIce = sat(-h / (d.amp * 0.6 + 1)) * 0.55;
+  cr = mix(cr, cr * 0.66, deepIce); cg = mix(cg, cg * 0.84, deepIce); cb = mix(cb, sat(cb * 1.03), deepIce);
+
+ } else if (d.type === 4){
+  /* ---- volcanic: basalt with sulphur / ash provinces ---- */
+  cr = mix(0.10, 0.20, pr[0]); cg = mix(0.08, 0.15, pr[1]); cb = mix(0.07, 0.13, pr[2]);
+  const sul = sat(P * 1.5 + 0.20) * sat(d.lava * 1.3);
+  cr = mix(cr, mix(0.62, 0.94, pa[0]), sul * 0.6);
+  cg = mix(cg, mix(0.46, 0.76, pa[1]), sul * 0.6);
+  cb = mix(cb, mix(0.10, 0.28, pa[2]), sul * 0.6);
+
+ } else if (d.type === 0){
+  /* ---- airless rock: mare / highland albedo provinces ---- */
+  const high = bioStep(P, 0.02, 0.22 + 0.30 * coarse);
+  cr = mix(br * 0.62, br * 1.34, high);
+  cg = mix(bg * 0.63, bg * 1.32, high);
+  cb = mix(bb * 0.66, bb * 1.28, high);
+  // fresh ejecta rays brighten the youngest ground
+  const ray = sat(Q * 1.6 - 0.35) * (1 - coarse * 0.6);
+  cr = mix(cr, sat(cr * 1.45), ray * 0.45);
+  cg = mix(cg, sat(cg * 1.45), ray * 0.45);
+  cb = mix(cb, sat(cb * 1.42), ray * 0.45);
+
+ } else {
+  /* ---- terrestrial / ocean world: a real climate model ---- */
+  // vegetation belt: warm enough, not too hot, below the tree line, humid
+  const vegT = bioStep(t, 272, tW * 1.7) * (1 - bioStep(t, 320, tW * 2.2));
+  const vegA = 1 - bioStep(hPos, 2600 + hW, 700 + hW * 1.2);
+  const veg01 = sat(vegT * vegA * clamp(d.vegetation, 0, 1) * sat(hum * 1.7));
+  // soil, drifting to sand where it is hot and dry
+  let sr = mix(0.28, 0.50, ps[0]), sg = mix(0.21, 0.35, ps[1]), sb = mix(0.12, 0.23, ps[2]);
+  const arid = sat((1 - hum) * 1.3 - 0.15) * bioStep(t, 289, tW * 2.4);
+  sr = mix(sr, mix(0.62, 0.86, pa[0]), arid * 0.85);
+  sg = mix(sg, mix(0.46, 0.68, pa[1]), arid * 0.85);
+  sb = mix(sb, mix(0.26, 0.44, pa[2]), arid * 0.85);
+  // lush jungle green vs olive scrub, chosen by humidity
+  const lush = sat(hum * 1.5 - 0.20);
+  const vr = mix(mix(0.26, 0.42, pv[0]), mix(0.04, 0.14, pv[0]), lush);
+  const vg = mix(mix(0.27, 0.40, pv[1]), mix(0.18, 0.42, pv[1]), lush);
+  const vb = mix(mix(0.11, 0.19, pv[2]), mix(0.03, 0.12, pv[2]), lush);
+  cr = mix(sr, vr, veg01); cg = mix(sg, vg, veg01); cb = mix(sb, vb, veg01);
+ }
+
+ /* ---- exposed rock on steep ground (width and weight both scale-aware) ---- */
+ cr = mix(cr, br * 1.06, rocky); cg = mix(cg, bg * 1.06, rocky); cb = mix(cb, bb * 1.06, rocky);
+
+ /* ---- beach: a thin band, so it must fade out as cells grow ---- */
+ if (hasSea){
+  const bw = 70 + hW * 1.4;
+  const beach = (1 - bioStep(h < sea ? sea - h : h - sea, bw * 0.55, bw * 0.5)) *
+                (1 - rocky) * (1 / (1 + hW / 500));
+  cr = mix(cr, mix(0.66, 0.88, pa[0]), beach * 0.8);
+  cg = mix(cg, mix(0.58, 0.78, pa[1]), beach * 0.8);
+  cb = mix(cb, mix(0.42, 0.60, pa[2]), beach * 0.8);
+  /* ---- seabed under the ocean shell ---- */
+  if (subm > 0.002){
+   const dep = sat((sea - h) / (900 + hW * 3));
+   const sbr = mix(0.13, 0.028, dep) * mix(0.8, 1.2, pl[0]);
+   const sbg = mix(0.17, 0.048, dep) * mix(0.85, 1.15, pl[1]);
+   const sbb = mix(0.16, 0.070, dep) * mix(0.85, 1.15, pl[2]);
+   cr = mix(cr, sbr, subm); cg = mix(cg, sbg, subm); cb = mix(cb, sbb, subm);
+  }
+ }
+
+ /* ---- snowline: temperature driven, blurred by tW (this was the worst
+        offender — a fixed 18 K ramp is ~2.8 km of elevation, far less than the
+        relief inside one coarse cell) ---- */
+ const snow = (1 - bioStep(t, 262, tW * 1.7)) * Math.max(clamp(d.ice, 0, 1), 0.22) *
+              (1 - rocky * 0.5) * (1 - subm);
+ cr = mix(cr, 0.90, snow); cg = mix(cg, 0.93, snow); cb = mix(cb, 0.97, snow);
+
+ /* ---- lava in the low basins ---- */
+ if (d.lava > 0.25){
+  const lv = (1 - bioStep(h, -d.amp * 0.16, d.amp * 0.30 + hW)) * d.lava *
+             (1 - rocky * 0.6) * (1 - bioStep(slope, 0.55, 0.2 + sW));
+  cr = mix(cr, 1.0, lv * 0.78); cg = mix(cg, 0.26, lv * 0.78); cb = mix(cb, 0.05, lv * 0.78);
+ }
+
+ /* ---- CONTINENTAL PALETTE: at coarse LOD blend to the low-frequency read of
+        the world, so from orbit you see ocean / land / ice cap, not noise. ---- */
+ if (coarse > 0.02){
+  let ar, ag, ab;
+  if (d.type === 2){ ar = mix(0.58, 0.82, pa[0]); ag = mix(0.42, 0.63, pa[1]); ab = mix(0.24, 0.42, pa[2]); }
+  else if (d.type === 3){ ar = mix(0.74, 0.90, ph[0]); ag = mix(0.80, 0.94, ph[1]); ab = mix(0.86, 0.99, ph[2]); }
+  else if (d.type === 4){ ar = mix(0.12, 0.22, pr[0]); ag = mix(0.09, 0.16, pr[1]); ab = mix(0.08, 0.14, pr[2]); }
+  else if (d.type === 0){ ar = br; ag = bg; ab = bb; }
+  else {
+   const veg2 = sat(clamp(d.vegetation, 0, 1) * sat(hum * 1.6) *
+                    bioStep(t, 276, 26) * (1 - bioStep(hPos, 3000, 1500)));
+   ar = mix(mix(0.34, 0.52, ps[0]), mix(0.07, 0.18, pv[0]), veg2);
+   ag = mix(mix(0.26, 0.38, ps[1]), mix(0.20, 0.42, pv[1]), veg2);
+   ab = mix(mix(0.15, 0.25, ps[2]), mix(0.05, 0.15, pv[2]), veg2);
+  }
+  const cap = (1 - bioStep(t, 264, 17)) * Math.max(clamp(d.ice, 0, 1), 0.25);
+  ar = mix(ar, 0.90, cap); ag = mix(ag, 0.93, cap); ab = mix(ab, 0.97, cap);
+  if (hasSea){
+   const dep = sat((sea - h) / 3200);
+   ar = mix(ar, mix(0.040, 0.010, dep), subm);
+   ag = mix(ag, mix(0.110, 0.032, dep), subm);
+   ab = mix(ab, mix(0.175, 0.078, dep), subm);
+  }
+  const k = coarse * 0.85;
+  cr = mix(cr, ar, k); cg = mix(cg, ag, k); cb = mix(cb, ab, k);
+ }
+
+ /* ---- multiplicative mottle (keeps dark ground dark), band-limited ---- */
+ const mo = Dn * 0.055 + Q * 0.035 * (1 - coarse * 0.7);
+ cr = cr * (1 + mo); cg = cg * (1 + mo); cb = cb * (1 + mo);
+
+ /* ---- per-planet identity: hue rotation + saturation ---- */
+ const hueAmt = d.type === 1 ? 0.30 : (d.type === 3 ? 0.45 : 0.80);
+ bioHue(cr, cg, cb, (d.hue - 0.5) * hueAmt, 1.0 + (pl[1] - 0.5) * 0.30 + 0.12, _bioRGB);
+ out[0] = sat(_bioRGB[0]); out[1] = sat(_bioRGB[1]); out[2] = sat(_bioRGB[2]);
+ return out;
+}
+
+/* =========================================================================
+ * VS_TERRAIN2 — same attributes/uniforms as VS_TERRAIN; adds vL (chunk-local
+ * position, full float32 precision) so the fragment shader can key sub-metre
+ * detail off something that is not 6.4e6 metres from the origin.
+ * ======================================================================= */
+const VS_TERRAIN2 = `
+layout(location=0) in vec3 position;
+layout(location=1) in vec3 normal;
+layout(location=2) in vec2 uv;
+layout(location=3) in vec3 color;
+uniform mat4 uVP; uniform vec3 uChunkOff; uniform mat3 uRot; uniform vec3 uPlanetC;
+out vec3 vN; out vec3 vC; out vec3 vP; out float vH; out vec3 vL; out vec2 vT;
+void main(){
+ vec3 wp=uRot*position+uChunkOff;
+ vN=normalize(uRot*normal); vC=color; vP=wp; vT=uv;
+ vH=length(wp-uPlanetC);
+ vL=position;                       // chunk-local: small, so precision survives
+ gl_Position=uVP*vec4(wp,1.0); segLog(gl_Position);
+}`;
+
+/* =========================================================================
+ * FS_TERRAIN2
+ *   - triplanar strata + two band-limited procedural detail octaves, each
+ *     faded against the pixel footprint (fwidth) so nothing ever aliases
+ *   - slope/rock blending done PER PIXEL, not per vertex
+ *   - wrapped terminator, cavity AO proxy, ice/snow subsurface term
+ * ======================================================================= */
+const FS_TERRAIN2 = `
+in vec3 vN; in vec3 vC; in vec3 vP; in float vH; in vec3 vL; in vec2 vT;
+uniform vec3 uSunDir; uniform vec3 uSunCol; uniform vec3 uPlanetC; uniform float uPlanetR;
+uniform vec3 uSkyTint; uniform float uTime; uniform float uAtmoAmt; uniform float uOceanLvl;
+uniform mat3 uRot;                 // shared with the VS — used to un-spin the planet
+uniform float uLodScale;           // OPTIONAL (see header). <=0 -> derived from fwidth
+uniform float uDetailAmt;          // OPTIONAL global detail scale. <=0 -> 1.0
+out vec4 fragColor;
+
+// Triplanar sedimentary strata: the noise domain is squashed along each
+// projection axis, so each plane contributes bedding planes instead of blobs.
+float bioStrata(vec3 p,vec3 n,float f,int oct){
+ vec3 w=abs(n); w*=w; w/=max(w.x+w.y+w.z,1e-5);
+ float a=vfbm3(vec3(p.yz*f,p.x*f*0.15),oct);
+ float b=vfbm3(vec3(p.zx*f,p.y*f*0.15)+19.7,oct);
+ float c=vfbm3(vec3(p.xy*f,p.z*f*0.15)+53.3,oct);
+ return a*w.x+b*w.y+c*w.z;
+}
+
+void main(){
+ vec3 up=normalize(vP-uPlanetC);
+ vec3 Ng=normalize(vN);
+ vec3 N=Ng;
+ // planet-FIXED position: un-spin so the detail does not swim as the world turns
+ vec3 dpl=(vP-uPlanetC)*uRot;
+ // tangent frame on the sphere, then the same frame expressed planet-locally
+ vec3 T=normalize(cross(abs(up.y)<0.9?vec3(0.0,1.0,0.0):vec3(1.0,0.0,0.0),up));
+ vec3 B=cross(up,T);
+ vec3 Tl=T*uRot, Bl=B*uRot;
+
+ // world metres covered by one pixel — the anti-aliasing budget for detail
+ float px=max(length(fwidth(vP)),1e-3);
+ float detAmt=uDetailAmt>0.0?uDetailAmt:1.0;
+ if(uLodScale>0.0) detAmt*=sat(600.0/uLodScale);   // never detail a continental chunk
+
+ float cav=0.0;                                    // <0 in creases, >0 on crests
+
+ // ---- band A: ~700 m relief, alive from a few km up ----
+ float wA=sat(700.0/(px*5.0)-1.0)*detAmt;
+ if(wA>0.01){
+  vec3 q=dpl*(1.0/700.0);
+  float e=0.22;
+  float n0=vfbm3(q,3);
+  float gu=(vfbm3(q+Tl*e,3)-n0)/e, gv=(vfbm3(q+Bl*e,3)-n0)/e;
+  N=normalize(N-(T*gu+B*gv)*wA*0.50);
+  cav+=(n0-0.5)*wA;
+ }
+ // ---- band B: ~12 m grain, only once you are close; keyed off vL so the
+ //      coordinate is small and float32 precision holds at 6.4e6 m radius ----
+ float wB=sat(12.0/(px*5.0)-1.0)*detAmt;
+ if(wB>0.01){
+  vec3 q=vL*(1.0/12.0);
+  float e=0.30;
+  float n0=vfbm3(q,2);
+  float gu=(vfbm3(q+Tl*e,2)-n0)/e, gv=(vfbm3(q+Bl*e,2)-n0)/e;
+  N=normalize(N-(T*gu+B*gv)*wB*0.80);
+  cav+=(n0-0.5)*wB*0.9;
+ }
+
+ vec3 alb=vC;
+ // ---- per-pixel slope: high-frequency variation belongs HERE, not in vC ----
+ float slope=1.0-sat(dot(N,up));
+ float rockW=smoothstep(0.14,0.50,slope);
+ // rock colour derived from the vertex albedo, so it stays per-planet correct
+ float lc=luma(alb);
+ vec3 rockC=mix(vec3(lc),alb,0.42)*mix(0.60,0.98,sat(cav*2.0+0.5));
+ float wS=sat(140.0/(px*5.0)-1.0)*detAmt*rockW;
+ if(wS>0.03){
+  float st=bioStrata(dpl,Ng,1.0/48.0,2);
+  rockC*=mix(0.74,1.26,st);
+ }
+ alb=mix(alb,rockC,rockW*0.85);
+ alb*=1.0+cav*0.30;
+
+ // submerged ground: the ocean shell may not cover it at every angle
+ float below=(uOceanLvl>-1.0e8)?((uPlanetR+uOceanLvl)-vH):-1.0;
+ float sub=sat(below/80.0);
+ alb=mix(alb,alb*vec3(0.34,0.62,0.82)*0.8,sub*0.85);
+ alb=sat(alb);
+
+ // ---- snow / ice detection straight from the albedo: bright and blue-biased ----
+ float icy=sat((luma(alb)-0.58)*2.6)*sat((alb.b-alb.r)*4.0+0.35);
+
+ // ---- lighting ----
+ float ndl=dot(N,uSunDir);
+ float diff=sat((ndl+0.08)/1.08);              // soft wrapped terminator
+ float sh=sat(dot(up,uSunDir)*6.0+0.35);       // far side self-shadow
+ diff*=sh;
+ // cheap AO proxy: faces tilted off the local up, plus concave detail
+ float ao=mix(0.52,1.0,sat(dot(N,up)*0.5+0.5));
+ ao*=1.0-0.30*sat(-cav*3.0);
+ // sky dome above + bounce from the ground
+ float skyv=sat(dot(N,up)*0.5+0.5);
+ vec3 amb=uSkyTint*uAtmoAmt*0.20*skyv*ao+alb*0.05*ao;
+ // GGX-ish specular; ice and wet ground are much smoother than regolith
+ vec3 V=normalize(-vP);
+ vec3 Hh=normalize(V+uSunDir);
+ float rough=mix(0.62,0.18,icy);
+ float a2=rough*rough; a2*=a2;
+ float nh=sat(dot(N,Hh));
+ float dg=a2/(PI*pow(nh*nh*(a2-1.0)+1.0,2.0));
+ float fres=0.04+0.22*pow(1.0-sat(dot(N,V)),5.0);
+ vec3 spec=uSunCol*min(dg,60.0)*fres*diff*mix(0.5,3.0,icy);
+ // subsurface: snow and ice glow, strongest looking toward the sun
+ float back=pow(sat(dot(V,-uSunDir)),2.5);
+ vec3 sss=alb*uSunCol*icy*(back*0.30+sat(ndl*0.5+0.5)*0.10)*sh;
+ // molten ground emits (detected from a strongly red-dominant albedo)
+ float lavaW=sat((alb.r-alb.g*1.9-0.12)*2.2);
+ vec3 emis=vec3(1.0,0.30,0.06)*lavaW*lavaW*1.6;
+
+ vec3 c=alb*(diff*uSunCol*ao+amb)+spec+sss+emis;
+ fragColor=vec4(c,1.0);
+}`;
+
+/* =========================================================================
+ * bioSelfTest — the important assertion is #2: adjacent vertices of a COARSE
+ * chunk must not alternate. That is the speckle, expressed as a number.
+ * ======================================================================= */
+function bioSelfTest(){
+ try{
+  const out = [0,0,0];
+  /* 1. finite and in range for every planet type at every LOD */
+  for (let ty = 0; ty < 7; ty++){
+   const d = makeDNA(ty * 7.3 + 1.1, ty, ty === 5 ? 7e7 : 5e6);
+   for (let li = 0; li < 9; li++){
+    const L = 20 * Math.pow(4, li);
+    for (let s = 0; s < 16; s++){
+     const a = s * 0.71, b2 = s * 1.317;
+     const dx = Math.cos(a) * Math.cos(b2), dy = Math.sin(b2), dz = Math.sin(a) * Math.cos(b2);
+     const h = fieldHeight(dx, dy, dz, d);
+     biomeColor2(dx, dy, dz, h, (s % 6) * 0.17, d, L, out);
+     for (let k = 0; k < 3; k++)
+      if (!(out[k] >= 0) || !(out[k] <= 1))
+       return {ok:false, why:'biomeColor2 out of range: type '+ty+' L='+L+' -> '+out.join(',')};
+    }
+   }
+  }
+  /* 2. SPECKLE TEST — walk a great circle at the vertex spacing of a coarse
+     chunk and measure how much the colour can change between neighbours. */
+  let worstL = 0, worst = 0, worstMean = 0;
+  for (const L of [400000, 100000, 25000]){
+   for (const ty of [0,1,2,3,4]){
+    const d = makeDNA(ty * 3.7 + 2.3, ty, 6.0e6);
+    const so = d._oct;
+    d._oct = Math.max(4, Math.min(d.octaves, 4 + Math.round(bioLog2(6.0e6 / L))));
+    const step = L / 6.0e6;
+    let pr0 = 0, pg0 = 0, pb0 = 0, mx = 0, sum = 0, n = 0;
+    for (let i = 0; i < 220; i++){
+     const ang = 0.37 + i * step;
+     const dx = Math.cos(ang) * 0.83, dy = Math.sin(ang), dz = Math.cos(ang) * 0.55;
+     const l = Math.hypot(dx, dy, dz);
+     const ux = dx / l, uy = dy / l, uz = dz / l;
+     const h0 = fieldHeight(ux, uy, uz, d);
+     const h1 = fieldHeight(ux + uz * step, uy, uz - ux * step, d);
+     const g = (h1 - h0) / L;
+     const slope = 1 - 1 / Math.sqrt(1 + g * g);
+     biomeColor2(ux, uy, uz, h0, slope, d, L, out);
+     if (i > 0){
+      const dd = Math.max(Math.abs(out[0]-pr0), Math.abs(out[1]-pg0), Math.abs(out[2]-pb0));
+      if (dd > mx) mx = dd;
+      sum += dd; n++;
+     }
+     pr0 = out[0]; pg0 = out[1]; pb0 = out[2];
+    }
+    d._oct = so;
+    const mean = sum / Math.max(n,1);
+    if (mx > worst){ worst = mx; worstL = L; }
+    if (mean > worstMean) worstMean = mean;
+   }
+  }
+  if (worst > 0.30)
+   return {ok:false, why:'speckle: adjacent-vertex colour jump '+worst.toFixed(3)+' at lodScale '+worstL};
+  if (worstMean > 0.07)
+   return {ok:false, why:'speckle: mean adjacent-vertex colour jump '+worstMean.toFixed(4)};
+  /* 3. shaders compile (only if the GL engine is present) */
+  if (typeof prog === 'function' && typeof gl !== 'undefined' && gl){
+   try{ prog(VS_TERRAIN2, FS_TERRAIN2, 'p1-terrain2'); }
+   catch(e){ return {ok:false, why:'shader: '+e.message}; }
+  }
+  return {ok:true, maxJump:+worst.toFixed(4), meanJump:+worstMean.toFixed(4)};
+ } catch(e){
+  return {ok:false, why:(e && e.message) || String(e)};
+ }
+}
+
+/* ---------- src/p6f-ship-fallback.js ---------- */
 /* ===== FALLBACK SHIP: procedural "Vagrant-class" explorer (lead-authored) ===== */
 function MB(){
  return {P:[],N:[],C:[],M:[],I:[],base:0,
@@ -1239,7 +1770,7 @@ void main(){
  fragColor=vec4(c,1.0);
 }`;
 
-/* ---------- p7f-physics-fallback.js ---------- */
+/* ---------- src/p7f-physics-fallback.js ---------- */
 /* ===== FALLBACK PHYSICS: patched-conic gravity + 6-DOF flight model (lead-authored) ===== */
 const SHIP={
  pos:v3(),vel:v3(),quat:new Float64Array([0,0,0,1]),angVel:v3(),
@@ -1517,7 +2048,7 @@ function fltUpdate(dt){
  CAM.shake=Math.max(CAM.shake,CTX.reentryHeat*0.55+SHIP.throttle*CTX.atmoDensity*0.3);
 }
 
-/* ---------- p8-ui.js ---------- */
+/* ---------- src/p8-ui.js ---------- */
 /* ===== HUD / NAVBALL / WORMHOLE UI ===== */
 const UI={msgT:0,subT:0,scan:null,mapOpen:false,ballFrame:0};
 const $=id=>document.getElementById(id);
@@ -1559,7 +2090,8 @@ function buildHUD(){
  $('b_docs').onclick=()=>{const d=$('docs');const open=d.style.display!=='block';
   d.style.display=open?'block':'none';if(open&&!d.dataset.f){d.dataset.f='1';
    d.innerHTML='<button class="btn" id="dclose" style="position:fixed;top:10px;right:12px;z-index:5">CLOSE</button>'+
-    (typeof DOCS_HTML!=='undefined'?DOCS_HTML:'<div class="w"><h1>Documentation unavailable</h1></div>');
+    ((typeof DOCS_HTML!=='undefined'?DOCS_HTML:'')+(typeof DOCS_HTML2!=='undefined'?DOCS_HTML2:'')
+     ||'<div class="w"><h1>Documentation unavailable</h1></div>');
    $('dclose').onclick=()=>{d.style.display='none';};}};
  $('b_view').onclick=()=>{CTX.view3rd=!CTX.view3rd;$('b_view').classList.toggle('on',!CTX.view3rd);
   message(CTX.view3rd?'EXTERIOR VIEW':'COCKPIT VIEW');};
@@ -1753,10 +2285,10 @@ function bindSticks(){
  bind($('skL'),'lx','ly');bind($('skR'),'rx','ry');
 }
 
-/* ---------- p9a-shaders.js ---------- */
+/* ---------- /tmp/claude-0/-home-user-Main/0bce1a94-c02f-5341-b474-ed6fd5193a21/scratchpad/tmpsrc/p9a-shaders.js ---------- */
 /* ===== BASELINE SHADERS (lead-owned; agent libraries layer on top where compatible) ===== */
 
-const VS_TERRAIN=`
+const VS_TERRAIN_BASE=`
 layout(location=0) in vec3 position;
 layout(location=1) in vec3 normal;
 layout(location=2) in vec2 uv;
@@ -1770,7 +2302,7 @@ void main(){
  vH=length(wp-uPlanetC);
  vec4 cp=uVP*vec4(wp,1.0); segLog(cp); gl_Position=cp;
 }`;
-const FS_TERRAIN=`
+const FS_TERRAIN_BASE=`
 in vec3 vN; in vec3 vC; in vec3 vP; in float vH;
 uniform vec3 uSunDir; uniform vec3 uSunCol; uniform vec3 uPlanetC; uniform float uPlanetR;
 uniform vec3 uSkyTint; uniform float uTime; uniform float uAtmoAmt; uniform float uOceanLvl;
@@ -2238,7 +2770,24 @@ void main(){
  fragColor=vec4(vC*a,a);
 }`;
 
-/* ---------- p10-docs.js ---------- */
+/* ---------- /tmp/claude-0/-home-user-Main/0bce1a94-c02f-5341-b474-ed6fd5193a21/scratchpad/tmpsrc/p1shim.js ---------- */
+/* ---- P1 scratch shim (test harness only; the lead does this wiring for real) ---- */
+const VS_TERRAIN=VS_TERRAIN2, FS_TERRAIN=FS_TERRAIN2;
+let BIO_LOD_M=0;
+const _p1origBuild=terrBuildMesh;
+terrBuildMesh=function(n,b){
+ BIO_LOD_M=b.radius*n.size/(CHUNK_N-1)*1.35;
+ return _p1origBuild(n,b);
+};
+biomeColor=function(dx,dy,dz,h,slope,d,out){
+ return biomeColor2(dx,dy,dz,h,slope,d,BIO_LOD_M,out);
+};
+setTimeout(function(){
+ try{ console.log('BIOSELFTEST '+JSON.stringify(bioSelfTest())); }
+ catch(e){ console.log('BIOSELFTEST throw '+e.message); }
+},1500);
+
+/* ---------- src/p10-docs.js ---------- */
 /* ============================================================================
    p10-docs.js — DOCUMENTATION PAYLOAD          agent B5, tag: doc
    Declares: DOCS_HTML (template literal of HTML injected into #docs)
@@ -3463,7 +4012,523 @@ function docSelfTest(){
   }catch(e){ return {ok:false, why:String(e)}; }
 }
 
-/* ---------- p9b-main.js ---------- */
+/* ---------- src/p11-docs2.js ---------- */
+/* Documentation supplement: the remaining C# scripts, the Unreal plan, shader/VFX
+   recommendations, ship import guidelines, the roadmap, and the performance budget.
+   NOTE: this is a JS template literal — no raw backticks, no raw dollar-brace. */
+const DOCS_HTML2 = `<div class="w">
+
+<h2>2b. KEY C# SCRIPTS — ORBITAL CORE</h2>
+
+<h3>KeplerSolver.cs</h3>
+<p>State vectors to Keplerian elements and back. The bisection fallback is not optional:
+Newton-Raphson on Kepler's equation diverges for high eccentricity with a naive initial
+guess, and that is the single most common bug in hobby orbital code.</p>
+<pre><code>using System;
+using UnityEngine;
+
+public static class KeplerSolver
+{
+    public const double Tolerance = 1e-12;
+    public const int    MaxIter   = 64;
+
+    public struct Elements
+    {
+        public double a, e, i, raan, argp, nu, m0, epoch, mu;
+        public double Period =&gt; (e &lt; 1.0 &amp;&amp; a &gt; 0.0) ? 2.0 * Math.PI * Math.Sqrt(a*a*a/mu)
+                                                       : double.PositiveInfinity;
+        public double Periapsis =&gt; a * (1.0 - e);
+        public double Apoapsis  =&gt; (e &lt; 1.0) ? a * (1.0 + e) : double.PositiveInfinity;
+    }
+
+    /// Solve M = E - e sin E for the eccentric anomaly.
+    public static double SolveElliptic(double M, double e)
+    {
+        M = M % (2.0 * Math.PI); if (M &lt; 0.0) M += 2.0 * Math.PI;
+        // Initial guess after Danby; good enough that Newton converges in ~4 steps.
+        double E = M + 0.85 * e * Math.Sign(Math.Sin(M));
+        for (int k = 0; k &lt; MaxIter; k++)
+        {
+            double f  = E - e * Math.Sin(E) - M;
+            double fp = 1.0 - e * Math.Cos(E);
+            if (Math.Abs(fp) &lt; 1e-14) break;
+            double d = f / fp;
+            E -= d;
+            if (Math.Abs(d) &lt; Tolerance) return E;
+        }
+        // Newton failed (near-parabolic). Bisect, which cannot fail.
+        double lo = 0.0, hi = 2.0 * Math.PI;
+        for (int k = 0; k &lt; 200; k++)
+        {
+            double mid = 0.5 * (lo + hi);
+            if (mid - e * Math.Sin(mid) - M &gt; 0.0) hi = mid; else lo = mid;
+        }
+        return 0.5 * (lo + hi);
+    }
+
+    /// Solve M = e sinh H - H for the hyperbolic anomaly.
+    public static double SolveHyperbolic(double M, double e)
+    {
+        double H = Math.Sign(M) * Math.Log(2.0 * Math.Abs(M) / e + 1.8);
+        for (int k = 0; k &lt; MaxIter; k++)
+        {
+            double f  = e * Math.Sinh(H) - H - M;
+            double fp = e * Math.Cosh(H) - 1.0;
+            if (Math.Abs(fp) &lt; 1e-14) break;
+            double d = f / fp;
+            H -= d;
+            if (Math.Abs(d) &lt; Tolerance) break;
+        }
+        return H;
+    }
+
+    public static Elements FromState(DoubleVector3 r, DoubleVector3 v, double mu, double epoch)
+    {
+        double R = r.Magnitude, V = v.Magnitude;
+        DoubleVector3 h = DoubleVector3.Cross(r, v);
+        DoubleVector3 n = DoubleVector3.Cross(new DoubleVector3(0,0,1), h);
+        DoubleVector3 ev = (DoubleVector3.Cross(v, h) / mu) - (r / R);
+
+        Elements el = default;
+        el.mu    = mu;
+        el.epoch = epoch;
+        el.e     = ev.Magnitude;
+        double energy = V*V*0.5 - mu/R;
+        el.a  = (Math.Abs(el.e - 1.0) &gt; 1e-9) ? -mu / (2.0 * energy) : double.PositiveInfinity;
+        el.i  = Math.Acos(Clamp(h.z / h.Magnitude, -1.0, 1.0));
+
+        // Circular and equatorial orbits leave argp / raan undefined; pick a stable
+        // convention instead of returning NaN.
+        if (n.Magnitude &gt; 1e-9)
+        {
+            el.raan = Math.Acos(Clamp(n.x / n.Magnitude, -1.0, 1.0));
+            if (n.y &lt; 0.0) el.raan = 2.0 * Math.PI - el.raan;
+        }
+        else el.raan = 0.0;
+
+        if (el.e &gt; 1e-9 &amp;&amp; n.Magnitude &gt; 1e-9)
+        {
+            el.argp = Math.Acos(Clamp(DoubleVector3.Dot(n, ev) / (n.Magnitude * el.e), -1.0, 1.0));
+            if (ev.z &lt; 0.0) el.argp = 2.0 * Math.PI - el.argp;
+        }
+        else el.argp = 0.0;
+
+        if (el.e &gt; 1e-9)
+        {
+            el.nu = Math.Acos(Clamp(DoubleVector3.Dot(ev, r) / (el.e * R), -1.0, 1.0));
+            if (DoubleVector3.Dot(r, v) &lt; 0.0) el.nu = 2.0 * Math.PI - el.nu;
+        }
+        else el.nu = 0.0;
+
+        return el;
+    }
+
+    static double Clamp(double x, double a, double b) =&gt; x &lt; a ? a : (x &gt; b ? b : x);
+}</code></pre>
+
+<h3>PatchedConicSolver.cs</h3>
+<p>The sphere of influence radius is <code>r_SOI = a * (m/M)^(2/5)</code>. Crossing it means
+changing reference frame: subtract or add the parent body's state vector. Do it in one
+atomic step or the trajectory visibly kinks.</p>
+<pre><code>public class PatchedConicSolver : MonoBehaviour
+{
+    public CelestialBody currentSOI;
+
+    public static double SoiRadius(CelestialBody b)
+        =&gt; b.parent == null ? double.PositiveInfinity
+                            : b.semiMajorAxis * System.Math.Pow(b.mu / b.parent.mu, 0.4);
+
+    /// Deepest body in the hierarchy whose SOI contains the point.
+    public CelestialBody Dominant(DoubleVector3 pos)
+    {
+        CelestialBody best = CelestialBody.Root;
+        foreach (var b in CelestialBody.All)
+        {
+            if (b.parent == null) continue;
+            if ((pos - b.Position).Magnitude &lt; SoiRadius(b) &amp;&amp; b.Depth &gt; best.Depth)
+                best = b;
+        }
+        return best;
+    }
+
+    /// Rebase the vessel's state when it crosses a SOI boundary.
+    public void CheckTransition(Vessel v)
+    {
+        CelestialBody now = Dominant(v.Position);
+        if (now == currentSOI) return;
+        Debug.Log(\$"SOI change {currentSOI.name} -> {now.name}");
+        // Position and velocity are absolute, so nothing to convert here; what changes is
+        // which mu the conic is fitted against. Refit immediately so the predicted
+        // trajectory does not flicker for a frame.
+        v.elements  = KeplerSolver.FromState(v.Position - now.Position,
+                                             v.Velocity - now.Velocity, now.mu, Time.timeAsDouble);
+        currentSOI  = now;
+        FloatingOrigin.Instance.RequestRebase();
+    }
+}</code></pre>
+
+<h3>PlanetQuadtree.cs — chunked LOD on a cube-sphere</h3>
+<p>Subdivide on screen-space error. Skirts are the cheapest crack fix and the one to use
+first; edge-stitching produces cleaner normals but complicates the index buffer, and
+geomorphing is only worth it once popping is your dominant artifact.</p>
+<pre><code>public class QuadtreeNode
+{
+    public int face, depth;
+    public Vector2 uvMin; public float size;
+    public QuadtreeNode[] children;
+    public Mesh mesh;
+
+    /// Tangent warp spreads vertices evenly; a plain normalized cube bunches them
+    /// badly at the face centres.
+    public static Vector3 CubeToSphere(int face, float u, float v)
+    {
+        float tu = Mathf.Tan(u * Mathf.PI * 0.25f);
+        float tv = Mathf.Tan(v * Mathf.PI * 0.25f);
+        Vector3 p = FaceBasis[face].right   * tu
+                  + FaceBasis[face].up      * tv
+                  + FaceBasis[face].forward;
+        return p.normalized;
+    }
+
+    public void Update(Vector3 camLocal, float planetRadius, int maxDepth)
+    {
+        Vector3 centre = CubeToSphere(face, uvMin.x + size*0.5f, uvMin.y + size*0.5f)
+                       * planetRadius;
+        float dist     = Vector3.Distance(camLocal, centre);
+        float nodeSize = planetRadius * size;
+
+        // Split while the node subtends more than ~2 chunk-widths of screen.
+        bool wantSplit = dist &lt; nodeSize * 2.2f &amp;&amp; depth &lt; maxDepth;
+
+        if (wantSplit &amp;&amp; children == null) Split();
+        if (!wantSplit &amp;&amp; children != null &amp;&amp; dist &gt; nodeSize * 3.2f) Merge(); // hysteresis
+
+        if (children != null) foreach (var c in children) c.Update(camLocal, planetRadius, maxDepth);
+    }
+}</code></pre>
+<div class="note"><strong>Hysteresis matters.</strong> Split at 2.2x and merge at 3.2x, never at
+the same threshold — otherwise a node sitting exactly on the boundary splits and merges
+every frame, and you get a stutter that is very hard to trace.</div>
+
+<h3>WormholeController.cs</h3>
+<pre><code>public class WormholeController : MonoBehaviour
+{
+    public enum Phase { Idle, Charging, Opening, Transit, Exit }
+    public Phase phase = Phase.Idle;
+
+    [SerializeField] float chargeTime = 2.2f, openTime = 1.4f, transitTime = 4.2f;
+    float t;
+    CelestialBody target;
+
+    public void Begin(CelestialBody destination)
+    {
+        if (ship.power &lt; 0.12f) { Hud.Warn("Insufficient reactor charge"); return; }
+        target = destination; phase = Phase.Charging; t = 0f;
+    }
+
+    void Update()
+    {
+        if (phase == Phase.Idle) return;
+        t += Time.deltaTime;
+        switch (phase)
+        {
+            case Phase.Charging:
+                ship.power -= 0.06f * Time.deltaTime;
+                mouthMaterial.SetFloat("_Open", Mathf.Clamp01(t / chargeTime));
+                if (t &gt; chargeTime) { phase = Phase.Opening; t = 0f; }
+                break;
+            case Phase.Transit:
+                if (t &gt; transitTime) { Arrive(); phase = Phase.Exit; t = 0f; }
+                break;
+        }
+    }
+
+    /// Drop the ship on a stable circular orbit rather than at a random point, so the
+    /// player is never dumped into an immediate escape or impact trajectory.
+    void Arrive()
+    {
+        double r  = target.radius * 2.5;
+        DoubleVector3 pos = target.Position + new DoubleVector3(r, 0, 0);
+        double v  = System.Math.Sqrt(target.mu / r);          // vis-viva, circular case
+        ship.SetState(pos, target.Velocity + new DoubleVector3(0, 0, -v));
+        ship.transform.rotation = Quaternion.LookRotation(
+            (Vector3)(target.Position - pos), Vector3.up);
+        FloatingOrigin.Instance.RequestRebase();
+    }
+}</code></pre>
+
+<h3>ScaleManager.cs — the space-to-surface handover</h3>
+<p>One camera cannot cover 0.1 m to 1e13 m with a 24-bit depth buffer. Two options, and
+the second is what this prototype uses.</p>
+<ul>
+<li><strong>Split cameras.</strong> A near camera (0.1 m to 10 km) and a far camera
+(5 km to 1e13 m) rendering in sequence with depth cleared between. Robust, costs an extra
+pass, and objects straddling the boundary need care.</li>
+<li><strong>Logarithmic depth.</strong> Write
+<code>z = log2(max(1e-6, 1 + w)) * (2 / log2(far + 1)) - 1</code> in the vertex shader.
+One pass, no boundary, but interpolation across very large triangles is only approximate —
+so tessellate long thin geometry, and write <code>gl_FragDepth</code> in the fragment shader
+if you see z-fighting on huge polygons.</li>
+</ul>
+
+<h2>3. UNREAL ENGINE 5 ALTERNATIVE</h2>
+
+<h3>What changes, and what does not</h3>
+<p>UE5's <strong>Large World Coordinates</strong> makes <code>FVector</code> double-precision,
+which removes the most painful part of the Unity approach: you can keep true 1:1
+heliocentric positions in engine types without a custom double vector. It does <em>not</em>
+remove the need for origin rebasing — GPU transforms are still float, so
+<code>WorldToMeters</code> drift and shadow/depth precision still degrade far from origin.
+Keep rebasing, just rebase less often.</p>
+
+<h3>Module layout</h3>
+<pre><code>Source/StellarExpanse/
+  Public/
+    Celestial/    APlanetActor.h  UOrbitalMovementComponent.h  FPlanetQuadtree.h
+    Flight/       AVesselPawn.h   UAeroComponent.h  URcsComponent.h
+    Warp/         AWormholeActor.h
+    Render/       UPlanetTerrainComponent.h  FTerrainMeshBuilder.h
+  Private/        (matching .cpp)
+Content/
+  Planets/   Materials/  Niagara/  Blueprints/  Maps/</code></pre>
+
+<h3>Nanite: read this before you plan around it</h3>
+<div class="note"><strong>Nanite does not solve procedural planets the way people assume.</strong>
+Nanite clusters are built offline from static meshes. Runtime-generated geometry has to go
+through the Nanite build path, which is far too slow to do per chunk per frame. As of UE 5.4+
+there is runtime Nanite mesh creation, but it is expensive and not designed for continuous
+streaming terrain. For a procedural planet you almost certainly want conventional chunked
+LOD with your own mesh builder (Realtime Mesh Component or a custom
+<code>UProceduralMeshComponent</code> replacement), and reserve Nanite for authored props
+scattered on the surface — rocks, wreckage, buildings — where it genuinely shines.</div>
+
+<h3>Lumen, World Partition, Chaos, Niagara</h3>
+<ul>
+<li><strong>Lumen</strong> works well for surface-level lighting but its screen-space and
+distance-field paths assume human-scale worlds. At orbital distances, fall back to a simple
+directional light plus your analytic atmosphere; switch Lumen on below roughly 50 km.</li>
+<li><strong>World Partition</strong> is built around a finite grid and does not naturally
+express a sphere. Use it for authored surface content on a "current landing region" tile,
+and drive planet terrain from your own quadtree instead.</li>
+<li><strong>Chaos</strong> handles the landing gear well: a physics constraint per leg with a
+linear drive gives you spring and damping directly, and its solver is stable at the
+stiffnesses landing gear needs.</li>
+<li><strong>Niagara</strong> is the right tool for the plume, re-entry plasma and dust.
+Use GPU sim with a fixed bounds override — the default dynamic bounds computation is a
+readback stall, and at these particle counts it will dominate your frame.</li>
+</ul>
+
+<h2>4. SHADER AND VFX RECOMMENDATIONS</h2>
+
+<h3>Atmospheric scattering</h3>
+<p>Two credible choices. <strong>Bruneton and Neyret (2008)</strong> precompute transmittance
+and multiple-scattering into LUTs; highest quality, but a per-planet bake and several
+megabytes of texture. <strong>Hillaire (2020), "A Scalable and Production Ready Sky and
+Atmosphere Rendering Technique"</strong> is what most modern engines ship: small LUTs, a
+sky-view LUT in a latitude/longitude parameterisation, and an aerial-perspective volume.
+It re-bakes cheaply, which matters when the player can wormhole to a new planet.</p>
+<p>The cheap version — and what this prototype uses — is analytic single scattering with a
+short optical-depth march. It costs about 20 texture-free ALU-heavy steps and looks correct
+from space through to the ground. <strong>Include the ozone layer.</strong> Without it your
+twilight has no purple-magenta band and every sunset looks subtly wrong. The failure mode of
+all of these is banding on long rays; dither the sample offset per pixel.</p>
+
+<h3>Volumetric clouds</h3>
+<p><strong>Schneider and Vos, "The Real-time Volumetric Cloudscapes of Horizon: Zero Dawn"</strong>
+is still the reference: Perlin-Worley base shape, Worley erosion, a weather texture driving
+coverage and type, height-gradient profiles per cloud type, dual-lobe Henyey-Greenstein
+phase, and the Beer's-powder term for dark edges.</p>
+<div class="note"><strong>Normalise your phase function.</strong> Henyey-Greenstein is
+<code>(1 - g^2) / (4*pi*(1 + g^2 - 2*g*cos(theta))^1.5)</code>. Drop the <code>4*pi</code> and
+at g = 0.8 the forward peak reaches about 45 instead of 3.6 — your clouds blow out to solid
+white and no amount of density tuning will fix it. This exact bug occurred during
+development of this prototype.</div>
+<p>Cost control: march at quarter resolution into a separate buffer, offset samples with a
+Bayer or blue-noise pattern, reproject the previous frame, and upsample with a depth-aware
+bilateral filter. Early-out when transmittance drops below 0.01.</p>
+
+<h3>Ocean</h3>
+<p><strong>Tessendorf's FFT</strong> spectrum is the gold standard for a realistic open sea and
+is what film uses, but it needs a compute pass and tiles, which is awkward on a sphere.
+<strong>Sum-of-Gerstner-waves</strong> — 8 to 16 waves from a directional spectrum — gets you
+the sharp trochoidal crests that read as real water, gives analytic normals and tangents for
+free, and lets the CPU evaluate the identical displacement for buoyancy. The
+<strong>Jacobian</strong> of the Gerstner displacement going negative tells you where a wave
+is about to break: that is your foam mask, and it is far more convincing than a noise
+texture.</p>
+<p>The single detail that sells water at distance is <strong>slope-derived roughness</strong>
+feeding a GGX lobe. It turns the sun's reflection from a dot into a long shimmering streak.</p>
+
+<h3>Re-entry plasma and the bow shock</h3>
+<p>Drive everything from real quantities: stagnation heat flux by <strong>Sutton-Graves</strong>,
+<code>q = k * sqrt(rho / Rn) * v^3</code> with k about 1.7415e-4 in SI, and shock standoff
+distance shrinking with Mach number. Colour the emission by blackbody temperature rather than
+by an artist gradient, and modulate it by <code>dot(normal, -velocityDirection)</code> so
+windward surfaces glow and leeward surfaces stay dark. The long turbulent wake behind the
+vehicle is what conveys speed; without it, re-entry reads as a static glow.</p>
+
+<h3>Engine plumes</h3>
+<p>Make plume shape a function of ambient pressure. At sea level you get a narrow collimated
+jet with visible <strong>Mach diamonds</strong> from the shock train; in vacuum the flow is
+grossly underexpanded and blooms into a wide translucent bell. Animating that transition
+during ascent is one of the highest-value details in the whole project, and it is nearly free
+— it is one uniform.</p>
+
+<h3>Wormhole</h3>
+<p>Base it on the Ellis / Morris-Thorne metric as rendered for <em>Interstellar</em>:
+<strong>James, von Tunzelmann, Franklin and Thorne, "Gravitational Lensing by Spinning Black
+Holes in Astrophysics, and in the Movie Interstellar", Classical and Quantum Gravity 32,
+065001 (2015)</strong>. The three things that make it read as real rather than as a portal
+effect:</p>
+<ol>
+<li>The mouth is a <strong>sphere</strong> showing the destination sky, not a hole in a plane.</li>
+<li>An <strong>Einstein ring</strong> where the deflection diverges at the throat edge.</li>
+<li>If you add an accretion disk, <strong>Doppler beaming</strong> makes the approaching side
+dramatically brighter and bluer, and lensing lifts the far side of the disk up over the top
+and under the bottom of the mouth. That asymmetry is the recognisable signature.</li>
+</ol>
+
+<h3>Terrain surface</h3>
+<p>Triplanar mapping avoids UV seams on a sphere and handles cliffs correctly; blend the three
+projections by the squared normal components with a sharpening exponent around 4. Add parallax
+occlusion mapping only below about 50 m from the camera — above that it costs the same and
+does nothing visible. Tessellation is largely obsolete for this purpose; prefer denser chunk
+meshes near the camera, which cost less and behave better with your collision mesh.</p>
+<div class="note"><strong>Scale-aware thresholds.</strong> Any biome boundary — snowline,
+waterline, slope-driven rock — must widen its transition as vertex spacing grows. A fixed
+<code>smoothstep(a,b,x)</code> evaluated per vertex at coarse LOD flips between neighbouring
+vertices hundreds of kilometres apart and Gouraud-interpolates into salt-and-pepper speckle.
+This was a real bug in this prototype and it looks exactly like broken noise.</div>
+
+<h2>5. SHIP MODEL IMPORT AND SETUP</h2>
+
+<h3>Budgets and LOD chain</h3>
+<table>
+<tr><th>LOD</th><th>Triangles</th><th>Switch distance</th><th>Notes</th></tr>
+<tr><td>LOD0</td><td>150k-400k</td><td>0-60 m</td><td>Cockpit interior visible, full greebles</td></tr>
+<tr><td>LOD1</td><td>60k</td><td>60-250 m</td><td>Interior culled, small greebles baked to normal map</td></tr>
+<tr><td>LOD2</td><td>15k</td><td>250 m-2 km</td><td>Silhouette only, panel lines in texture</td></tr>
+<tr><td>LOD3</td><td>2k</td><td>2 km+</td><td>Plus an impostor billboard beyond about 20 km</td></tr>
+</table>
+
+<h3>Conventions</h3>
+<ul>
+<li><strong>Scale:</strong> author in metres, 1 unit = 1 m, and apply scale before export.
+Non-uniform scale on a parent transform breaks normal mapping and physics inertia.</li>
+<li><strong>Pivot:</strong> at the centre of mass, not at the geometric centre and not at the
+nose. Your inertia tensor and every torque calculation assume this.</li>
+<li><strong>Axis:</strong> pick one and enforce it. This project uses -Z forward, +Y up.
+Unity is +Z forward and Blender is +Y forward, so an FBX round-trip will rotate your ship
+unless you fix it at export.</li>
+<li><strong>Naming:</strong> <code>SM_Vagrant_Hull_LOD0</code>,
+<code>SKT_Engine_01</code> for sockets, <code>SM_Vagrant_Gear_L_Upper</code> for
+articulated parts. Sockets for every engine bell, RCS port, gear leg and nav light —
+the flight model finds them by name.</li>
+</ul>
+
+<h3>Rigging the moving parts</h3>
+<ul>
+<li><strong>Engine bells</strong> gimbal about two axes. Rig as a two-bone chain with the
+pivot at the gimbal block, not at the throat, and rate-limit the actuation in code
+(real gimbals slew at roughly 5-15 degrees per second).</li>
+<li><strong>Landing gear</strong> needs a prismatic joint per leg for the shock stroke plus a
+hinge for deployment. Drive the visual compression from the physics constraint, never the
+other way round.</li>
+<li><strong>Radiators</strong> deploy on a hinge; make sure the collider follows, or the ship
+will collide with a stowed radiator's deployed collider.</li>
+</ul>
+
+<h3>Import settings people get wrong</h3>
+<ul>
+<li>Unity: turn <strong>off</strong> "Optimize Mesh" if you rely on vertex order, turn
+<strong>on</strong> "Read/Write" only if you genuinely need CPU access (it doubles memory),
+and set "Normals: Import" — recalculating destroys hard edges on machined surfaces.</li>
+<li>Unreal: disable "Combine Meshes" for anything articulated, enable "Import Normals" for
+the same reason, and set the collision complexity explicitly rather than accepting the
+auto-generated convex hull, which will be wrong for a ship this shape.</li>
+<li>Both: import the metallic/roughness maps as <strong>linear</strong>, not sRGB. This is the
+most common material bug and it makes everything look like wet plastic.</li>
+</ul>
+
+<h2>6. IMPLEMENTATION ROADMAP — MVP TO FULL FEATURE</h2>
+<table>
+<tr><th>Phase</th><th>Deliverable</th><th>Acceptance test</th><th>Risk retired</th></tr>
+<tr><td>0<br>1 week</td><td>One sphere, correct gravity, double-precision state, floating
+origin, log depth</td><td>Circular orbit stable for 100 orbits with no drift and no
+jitter at 1e11 m from origin</td><td><strong>Precision.</strong> If this fails, nothing
+else matters</td></tr>
+<tr><td>1<br>2 weeks</td><td>Cube-sphere quadtree terrain, CPU mesh build, skirts</td>
+<td>Fly from 1000 km to touchdown with no cracks, no popping, no frame spikes above 8 ms</td>
+<td><strong>LOD and streaming.</strong> The hardest sustained engineering problem here</td></tr>
+<tr><td>2<br>1 week</td><td>Atmospheric scattering, ocean, basic clouds</td>
+<td>Sunset from the ground, limb from orbit, and the transition between them, all with
+no seam</td><td><strong>Multi-scale rendering</strong></td></tr>
+<tr><td>3<br>2 weeks</td><td>Full flight model: aero, RCS, SAS, gear, re-entry heating</td>
+<td>Deorbit burn, survive re-entry, land on a slope, take off again</td>
+<td><strong>Physics stability</strong> across 12 orders of magnitude of velocity</td></tr>
+<tr><td>4<br>1 week</td><td>Patched conics, manoeuvre nodes, time warp, navball</td>
+<td>Plan and execute a Hohmann transfer to a moon using only the UI</td>
+<td><strong>Gameplay readability</strong></td></tr>
+<tr><td>5<br>1 week</td><td>Wormhole, procedural exosystems</td>
+<td>Jump to another star, arrive on a stable orbit, land on a planet that has never been
+generated before</td><td><strong>Content scale</strong></td></tr>
+<tr><td>6<br>2 weeks</td><td>Surface scatter, weather, biome variety, audio</td>
+<td>Ten planets that a player can tell apart from orbit and from the ground</td>
+<td><strong>Perceived variety</strong> — the thing No Man's Sky is actually judged on</td></tr>
+<tr><td>7<br>ongoing</td><td>Ship systems, resources, EVA, saving, multiplayer</td>
+<td>A 30-minute session with a goal and no soft-locks</td><td><strong>Game</strong>, as
+opposed to tech demo</td></tr>
+</table>
+<div class="note">Phases 0 and 1 are roughly half the total engineering effort and produce
+almost nothing screenshot-worthy. Every project that skips them ends up rewriting from
+scratch at phase 3, when the physics starts producing NaN at Jupiter's distance and the
+terrain seams cannot be fixed without changing the LOD scheme.</div>
+
+<h2>7. PERFORMANCE BUDGET</h2>
+<p>Frame budgets: 16.6 ms at 60 fps on desktop, 33.3 ms at 30 fps on mobile. Leave 20 percent
+headroom or you will miss vsync on the frames that matter.</p>
+<table>
+<tr><th>System</th><th>Desktop (ms)</th><th>Mobile (ms)</th><th>Main lever</th></tr>
+<tr><td>Terrain raster</td><td>2.5</td><td>5.0</td><td>Chunk count, LOD depth cap</td></tr>
+<tr><td>Terrain mesh generation (CPU)</td><td>1.5</td><td>3.0</td><td>Chunks built per frame; move to a worker/job</td></tr>
+<tr><td>Atmosphere</td><td>1.5</td><td>3.5</td><td>March step count</td></tr>
+<tr><td>Volumetric clouds</td><td>3.0</td><td>6.0</td><td>Quarter-res + reprojection, or billboard fallback</td></tr>
+<tr><td>Ocean</td><td>1.0</td><td>2.0</td><td>Wave count, detail fade distance</td></tr>
+<tr><td>Ship and props</td><td>1.5</td><td>3.0</td><td>LOD chain, instancing</td></tr>
+<tr><td>Particles / VFX</td><td>1.0</td><td>2.5</td><td>Pool cap, overdraw</td></tr>
+<tr><td>Post chain</td><td>2.0</td><td>4.0</td><td>Bloom resolution, drop motion blur first</td></tr>
+<tr><td>Physics + orbits</td><td>0.5</td><td>1.0</td><td>On-rails propagation when coasting</td></tr>
+<tr><td>Headroom</td><td>2.1</td><td>3.3</td><td></td></tr>
+</table>
+
+<h3>Optimisations in priority order</h3>
+<ol>
+<li><strong>Move terrain generation off the main thread.</strong> Unity Jobs plus Burst, or a
+Web Worker. This is the single biggest win and it removes the hitching that players notice
+most.</li>
+<li><strong>Horizon-cull terrain chunks.</strong> On the ground you can see perhaps 5 percent
+of a planet's chunks; culling by the horizon angle is a couple of lines and removes most of
+the draw calls.</li>
+<li><strong>LOD hysteresis</strong> — split and merge at different distances. Costs nothing
+and eliminates a whole class of stutter.</li>
+<li><strong>GPU instancing for surface scatter.</strong> Rocks and plants placed by a
+deterministic hash need exactly one draw call per type per chunk.</li>
+<li><strong>Quarter-resolution volumetrics</strong> with depth-aware upsampling before you
+consider reducing step counts — resolution is cheaper to lose than sample count.</li>
+<li><strong>Occlusion culling</strong> matters far less than people expect on a planet
+surface, because the horizon already does the work. Spend the time on chunk streaming
+instead.</li>
+</ol>
+
+<h3>Profiling method</h3>
+<p>Measure with GPU timer queries per pass, not with frame rate. Frame rate is a ratio and it
+hides which pass regressed. Capture a fixed camera path — orbit, re-entry, low flight,
+landed — and run it after every change; the four scenarios stress completely different parts
+of the pipeline, and an optimisation that helps orbit often hurts the ground.</p>
+
+</div>`;
+
+/* ---------- src/p9b-main.js ---------- */
 /* ===== WORMHOLE ===== */
 const WARPST={state:'idle',t:0,progress:0,target:null,targetSys:null,cool:0,mouth:v3(),open:0};
 function startWarp(body,sysId){
@@ -4138,7 +5203,7 @@ function boot(){
  next();
 }
 window.SEGDBG={DBG:DBG,QUALITY:QUALITY,CTX:CTX,SHIP:SHIP,PART:PART,
- LEAVES:LEAVES,get BODIES(){return BODIES;},startWarp:startWarp,WARPST:WARPST};
+ LEAVES:LEAVES,get BODIES(){return BODIES;},startWarp:startWarp,WARPST:WARPST,warpUpdate:warpUpdate};
 boot();
 
 })();

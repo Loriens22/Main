@@ -39,7 +39,8 @@ function buildHUD(){
  $('b_docs').onclick=()=>{const d=$('docs');const open=d.style.display!=='block';
   d.style.display=open?'block':'none';if(open&&!d.dataset.f){d.dataset.f='1';
    d.innerHTML='<button class="btn" id="dclose" style="position:fixed;top:10px;right:12px;z-index:5">CLOSE</button>'+
-    (typeof DOCS_HTML!=='undefined'?DOCS_HTML:'<div class="w"><h1>Documentation unavailable</h1></div>');
+    ((typeof DOCS_HTML!=='undefined'?DOCS_HTML:'')+(typeof DOCS_HTML2!=='undefined'?DOCS_HTML2:'')
+     ||'<div class="w"><h1>Documentation unavailable</h1></div>');
    $('dclose').onclick=()=>{d.style.display='none';};}};
  $('b_view').onclick=()=>{CTX.view3rd=!CTX.view3rd;$('b_view').classList.toggle('on',!CTX.view3rd);
   message(CTX.view3rd?'EXTERIOR VIEW':'COCKPIT VIEW');};

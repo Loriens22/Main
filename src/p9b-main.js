@@ -672,5 +672,5 @@ function boot(){
  next();
 }
 window.SEGDBG={DBG:DBG,QUALITY:QUALITY,CTX:CTX,SHIP:SHIP,PART:PART,
- LEAVES:LEAVES,get BODIES(){return BODIES;},startWarp:startWarp,WARPST:WARPST};
+ LEAVES:LEAVES,get BODIES(){return BODIES;},startWarp:startWarp,WARPST:WARPST,warpUpdate:warpUpdate};
 boot();
