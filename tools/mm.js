@@ -17,7 +17,11 @@ const {chromium}=require('playwright');
    for(const n of ['bioSelfTest','mapSelfTest','mobSelfTest'])
      try{r[n]=(typeof window[n]==='function')?window[n]():'not-global';}catch(e){r[n]='threw '+e.message;}
    return r;})));
- await p.click('#b_map'); await p.waitForTimeout(3500);
+ // T2: at 390x844 with touch the mobile control scheme (p13) now takes over and
+ // hides the legacy #btns column, so p.click('#b_map') can no longer hit it. Drive
+ // the same handler directly — on a phone the player reaches it via MENU > STAR MAP.
+ await p.evaluate(()=>document.getElementById('b_map').click());
+ await p.waitForTimeout(3500);
  await p.screenshot({path:'shot_map.png',timeout:120000});
  console.log('ERRORS('+errs.length+') '+errs.slice(0,4).join(' | '));
  await b.close();

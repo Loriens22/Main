@@ -1,8 +1,20 @@
+<meta charset="utf-8">
+<!-- T2 FIX (mobile): without this meta a phone browser lays the page out at its
+     980 px fallback width and then scales the whole thing down, so on a 390 px
+     iPhone every control rendered at ~40% size with the bottom control band
+     below the visible area. viewport-fit=cover puts the page under the notch;
+     the touch layer keeps its controls inside the visual viewport itself. -->
+<meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=1,viewport-fit=cover">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="theme-color" content="#000000">
 <title>STELLAR EXPANSE — Deep Space Explorer</title>
 <style>
 *{margin:0;padding:0;box-sizing:border-box;-webkit-tap-highlight-color:transparent}
 html,body{width:100%;height:100%;overflow:hidden;background:#000;color:#cfe6ff;
- font-family:ui-monospace,"SF Mono",Menlo,Consolas,monospace;font-size:12px;user-select:none;touch-action:none}
+ font-family:ui-monospace,"SF Mono",Menlo,Consolas,monospace;font-size:12px;user-select:none;touch-action:none;
+ /* T2: kill iOS/Android rubber-band + pull-to-refresh and iOS text auto-zoom */
+ overscroll-behavior:none;-webkit-text-size-adjust:100%;text-size-adjust:100%;position:fixed;inset:0}
 #gl{position:fixed;inset:0;width:100%;height:100%;display:block}
 #ui{position:fixed;inset:0;pointer-events:none;z-index:10}
 .pan{position:absolute;background:rgba(6,14,26,.55);border:1px solid rgba(90,190,255,.28);
