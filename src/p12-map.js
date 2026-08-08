@@ -69,6 +69,8 @@ let mapGalPos=null, mapGalSize=null, mapGalTint=null, mapGalNames=null, mapGalNe
 let mapGalDirty=true, mapGalLast=-1e9, mapGlow=null, mapGlow2=null, mapGalQ='';
 const mapInsetCam={yaw:0,pitch:1.3,zoom:1,px:0,py:0};
 const mapRingR=[];
+const mapLabels=[], mapOcc=[];
+const MAP_AU_RINGS=[0.05,0.1,0.2,0.5,1,2,5,10,20,50,100];
 const MAP_GAL_LY=900;              // galaxy model radius 1.0 == 900 light years
 const mapPalette=[];               // 24 precomputed star colour strings
 /* input */
@@ -150,6 +152,9 @@ function mapSetMode(m){
  mapEl.tsys.classList.toggle('on',m==='sys');
  mapEl.tgal.classList.toggle('on',m==='gal');
  mapEl.search.style.display=(m==='gal')?'block':'none';
+ mapEl.hint.innerHTML=(m==='sys')
+  ?'DRAG pan · WHEEL/PINCH zoom · TWO-FINGER twist rotate · TAP a body · TILT to change view angle'
+  :'DRAG rotate · WHEEL/PINCH zoom · TAP a star · SEARCH by name';
  if(m==='gal'&&!mapGalPos)mapBuildGalaxy();
  mapPanel();
 }
@@ -363,8 +368,9 @@ function mapMarkPx(b){
  return clamp(2.6+l*2.6,2.2,8.0);
 }
 const MAP_DEC=[1,2,5];
-function mapRenderOrbital(g,vx,vy,vw,vh,frame,cam,hits,inset){
+function mapRenderOrbital(g,vx,vy,vw,vh,frame,cam,hits,inset,fitR){
  if(!frame)return;
+ mapLabels.length=0;
  const kids=mapKids(frame);
  // radial reference: r0 sets the log knee, rRef the outer edge of the plot
  let aMin=Infinity,rRef=frame.radius*60;
@@ -375,6 +381,7 @@ function mapRenderOrbital(g,vx,vy,vw,vh,frame,cam,hits,inset){
  if(domB===frame&&typeof SHIP!=='undefined'&&SHIP.pos)
   aMin=Math.min(aMin,Math.max(vdist(SHIP.pos,frame.pos),frame.radius));
  if(!isFinite(aMin))aMin=frame.radius*16;
+ if(fitR>0)rRef=fitR;
  const r0=Math.max(aMin*0.30,frame.radius*1.6);
  const minD=Math.min(vw,vh);
  const S=cam.zoom*0.42*minD/Math.max(Math.log1p(rRef/r0),1e-6);
@@ -500,8 +507,33 @@ function mapNode(g,x,y,col,txt){
  g.strokeStyle=col;g.lineWidth=1.4;
  g.beginPath();g.moveTo(x,y-4.6);g.lineTo(x+4.6,y);g.lineTo(x,y+4.6);g.lineTo(x-4.6,y);
  g.closePath();g.stroke();
- if(txt){g.fillStyle=col;g.font='9px ui-monospace,Menlo,Consolas,monospace';
-  g.fillText(txt,x+7,y+3);}
+ if(txt)mapLabels.push({x:x,y:y,r:5,t:txt,c:col,f:'9px ui-monospace,Menlo,Consolas,monospace',p:1});
+}
+/* Simple label de-collision: highest priority first, four candidate anchors each, and
+   low-priority labels are dropped rather than allowed to overlap. */
+function mapDrawLabels(g){
+ mapOcc.length=0;
+ mapLabels.sort((a,b)=>b.p-a.p);
+ const OFF=[[1,3.5],[-1,3.5],[1,-9],[1,15],[-1,-9],[-1,15]];
+ for(const L of mapLabels){
+  g.font=L.f;
+  const w=g.measureText(L.t).width;
+  let done=false;
+  for(let k=0;k<OFF.length&&!done;k++){
+   const s=OFF[k][0];
+   const x=s>0?(L.x+L.r+5):(L.x-L.r-5-w);
+   const y=L.y+OFF[k][1];
+   const x0=x-2,y0=y-9,x1=x+w+2,y1=y+3;
+   let hit=false;
+   for(const o of mapOcc)if(x0<o[2]&&x1>o[0]&&y0<o[3]&&y1>o[1]){hit=true;break;}
+   if(hit)continue;
+   mapOcc.push([x0,y0,x1,y1]);
+   g.fillStyle=L.c;g.fillText(L.t,x,y);
+   done=true;
+  }
+  if(!done&&L.p>=3){g.fillStyle=L.c;g.fillText(L.t,L.x+L.r+5,L.y+3.5);}
+ }
+ mapLabels.length=0;
 }
 function mapBodyDot(g,b,x,y,r,hits,isFrame){
  const mk=mapMarkPx(b);
@@ -525,9 +557,10 @@ function mapBodyDot(g,b,x,y,r,hits,isFrame){
   g.beginPath();g.arc(x,y,px+7,0,TAU);g.stroke();
   g.strokeStyle='rgba(199,155,255,0.45)';g.lineWidth=1;
   g.beginPath();g.arc(x,y,px+13,0,TAU);g.stroke();}
- g.font=(b.kind==='star'?'bold ':'')+'10px ui-monospace,Menlo,Consolas,monospace';
- g.fillStyle=sel?'#f0e0ff':(b.kind==='star'?'#ffe9c0':'#bcdcf4');
- g.fillText(b.name,x+px+5,y+3.5);
+ mapLabels.push({x:x,y:y,r:px+(sel?9:0),t:b.name,
+  c:sel?'#f0e0ff':(b.kind==='star'?'#ffe9c0':'#bcdcf4'),
+  f:(b.kind==='star'?'bold ':'')+'10px ui-monospace,Menlo,Consolas,monospace',
+  p:(sel||b.kind==='star')?3:(b.kind==='moon'?1:2)});
  if(hits)hits.push({x:x,y:y,r:px,body:b});
 }
 
@@ -609,6 +642,7 @@ function mapPickGal(x,y){
 }
 function mapRenderGalaxy(g,W,H){
  if(!mapGalPos)mapBuildGalaxy();
+ if(!mapGalNames)mapGalNamesBuild();
  const c=mapGalCam;
  c.cy=Math.cos(c.yaw);c.sy=Math.sin(c.yaw);
  c.cp=Math.cos(c.pitch);c.sp=Math.sin(c.pitch);
@@ -644,6 +678,7 @@ function mapRenderGalaxy(g,W,H){
  const q=mapGalQ;
  g.globalCompositeOperation='lighter';
  const labels=[];
+ let glows=0;
  for(let id=0;id<SYSTEM_COUNT;id++){
   mapGPrj(mapGalPos[id*3],mapGalPos[id*3+1],mapGalPos[id*3+2],mapP);
   if(mapP[2]<0)continue;
@@ -658,7 +693,8 @@ function mapRenderGalaxy(g,W,H){
   g.fillStyle=mapPalette[mapGalTint[id]];
   if(px<1.5)g.fillRect(x-0.7,y-0.7,1.5,1.5);
   else{g.beginPath();g.arc(x,y,px,0,TAU);g.fill();
-   if(px>2.4){g.globalAlpha=a*0.5;g.drawImage(mapGlow,x-px*3.4,y-px*3.4,px*6.8,px*6.8);}}
+   if(px>2.4&&glows<420){glows++;g.globalAlpha=a*0.5;
+    g.drawImage(mapGlow,x-px*3.4,y-px*3.4,px*6.8,px*6.8);}}
   if(!q&&px>2.9&&labels.length<26)labels.push(id);
  }
  g.globalAlpha=1;g.globalCompositeOperation='source-over';
@@ -701,7 +737,6 @@ function mapRenderGalaxy(g,W,H){
  g.fillText('GALACTIC DISC · '+SYSTEM_COUNT+' CHARTED SYSTEMS · '+
    (MAP_GAL_LY*2)+' ly ACROSS · 4 SPIRAL ARMS',10,H-12);
 }
-let mapGalQ='';
 function mapSearch(){
  if(!mapGalNames)mapGalNamesBuild();
  mapGalQ=(mapEl.q.value||'').trim().toUpperCase();
@@ -862,8 +897,8 @@ function mapUpdate(dt){
    g.save();
    g.beginPath();g.rect(ix,iy,s,s);g.clip();
    g.fillStyle='rgba(4,10,20,0.92)';g.fillRect(ix,iy,s,s);
-   mapRenderOrbital(g,ix,iy,s,s,ic,{yaw:mapCam.yaw,pitch:mapCam.pitch,zoom:1,px:0,py:0},
-     mapHits,true);
+   mapInsetCam.yaw=mapCam.yaw;mapInsetCam.pitch=mapCam.pitch;
+   mapRenderOrbital(g,ix,iy,s,s,ic,mapInsetCam,mapHits,true);
    g.restore();
    g.strokeStyle='rgba(90,190,255,0.32)';g.lineWidth=1;g.strokeRect(ix+.5,iy+.5,s,s);
    g.fillStyle='rgba(127,230,255,0.85)';g.font='9px ui-monospace,Menlo,Consolas,monospace';
@@ -873,20 +908,14 @@ function mapUpdate(dt){
   g.fillStyle='rgba(93,134,168,0.85)';g.font='9px ui-monospace,Menlo,Consolas,monospace';
   g.fillText('FRAME '+fz+'  ·  RADIAL SCALE ln(1+r/r₀)  ·  ZOOM '+mapCam.zoom.toFixed(2)+'x'+
     '  ·  TILT '+(mapCam.pitch/DEG).toFixed(0)+'°',10,H-12);
-  mapEl.hint.innerHTML='DRAG pan · WHEEL/PINCH zoom · TWO-FINGER twist rotate · TAP a body';
  } else {
   if(!mapGalNames)mapGalNamesBuild();
-  if(mapGalDirty||performance.now()-mapGalLast>50){
-   mapGalLast=performance.now();mapGalDirty=false;
-   mapRenderGalaxy(g,W,H);
-   mapGalCache=null;
-  }
-  mapEl.hint.innerHTML='DRAG rotate · WHEEL/PINCH zoom · TAP a star · SEARCH by name';
+  mapGalLast=performance.now();mapGalDirty=false;
+  mapRenderGalaxy(g,W,H);
  }
  const c=performance.now()-t0;
  mapCost=c;mapCostAvg=mapCostAvg*0.92+c*0.08;mapCostN++;
 }
-let mapGalCache=null;
 function mapSelectedBody(){return mapSel||null;}
 
 /* ================= SELF TEST ================= */

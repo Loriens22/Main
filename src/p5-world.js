@@ -373,7 +373,8 @@ function terrBuildMesh(n,b){
   if(nx*dir[0]+ny*dir[1]+nz*dir[2]<0){nx=-nx;ny=-ny;nz=-nz;}
   nrm[k*3]=nx;nrm[k*3+1]=ny;nrm[k*3+2]=nz;
   const slope=1-sat(nx*dir[0]+ny*dir[1]+nz*dir[2]);
-  biomeColor(dir[0],dir[1],dir[2],h,slope,d,_bc,lodM);
+  if(typeof biomeColor2==='function')biomeColor2(dir[0],dir[1],dir[2],h,slope,d,lodM,_bc);
+  else biomeColor(dir[0],dir[1],dir[2],h,slope,d,_bc,lodM);
   col[k*3]=_bc[0];col[k*3+1]=_bc[1];col[k*3+2]=_bc[2];
   uvs[k*2]=i/(N-1);uvs[k*2+1]=j/(N-1);
   k++;
@@ -411,6 +412,7 @@ function terrBuildMesh(n,b){
  }
  n.mesh=mesh({position:pos,normal:nrm,color:col,uv:uvs,index:idx.subarray(0,m)});
  n.off=v3(cx,cy,cz);
+ n.lodM=lodM;
  n.maxH=n.ctrH;
 }
 const _tp=v3(),_tq=v3();

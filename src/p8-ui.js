@@ -58,9 +58,28 @@ const WARPS=[1,2,5,10,50,100,1000,10000,100000];
 function setWarp(d){
  let i=WARPS.indexOf(CTX.timeWarp);if(i<0)i=0;
  i=clamp(i+d,0,WARPS.length-1);
- if(d>0&&CTX.altitude<(CTX.body?CTX.body.radius*0.02:1e4)&&WARPS[i]>10){
-  message('WARP LIMITED','Too deep in the gravity well — climb higher to warp');return;}
+ // M2 FIX: the old guard compared CTX.altitude (which the contract says is Infinity in
+ // deep space) against a body radius and only ever blocked >10x, so 100000x was legal
+ // while thrusting or mid-reentry. Defer to the physics ceiling instead.
+ const mx=(typeof fltWarpMax==='function')?fltWarpMax():100000;
+ if(d>0&&WARPS[i]>mx){
+  message('WARP LIMITED',
+   SHIP.throttle>0.001?'Cut the throttle — time warp cannot integrate thrust':
+   (CTX.atmoDensity>0.0015?'Atmospheric flight — time warp unavailable':
+    'Too deep in the gravity well — climb higher to warp'));
+  return;}
  CTX.timeWarp=WARPS[i];message('TIME WARP '+CTX.timeWarp+'x');
+}
+// M2: step the warp down to whatever is currently legal; returns true if it changed.
+function warpEnforce(){
+ if(CTX.timeWarp<=1)return false;
+ const mx=(typeof fltWarpMax==='function')?fltWarpMax():100000;
+ if(CTX.timeWarp<=mx)return false;
+ let j=WARPS.length-1;while(j>0&&WARPS[j]>mx)j--;
+ CTX.timeWarp=WARPS[j];
+ message('TIME WARP '+CTX.timeWarp+'x',
+  mx<=1?'Warp disengaged — thrust, RCS or atmosphere detected':'Warp reduced — gravity well');
+ return true;
 }
 function doScan(){
  const b=CTX.body;
@@ -209,7 +228,9 @@ function updateHUD(dt){
  g('fuel',SHIP.fuel);g('ox',SHIP.oxygen);g('hull',SHIP.hull);g('pwr',SHIP.power);
  $('thr').firstElementChild.style.height=(SHIP.throttle*100).toFixed(0)+'%';
  $('thr').lastElementChild.textContent=(SHIP.throttle*100).toFixed(0)+'%';
- if((UI.ballFrame++ & 1)===0)drawNavball();
+ // M2 PERF: drawNavball rasterises 132x132 px in JS. Every other frame is fine on a
+ // desktop; on a phone that is ~2 ms of the 33 ms budget, so drop to every third.
+ if((UI.ballFrame++ % (IS_MOBILE?3:2))===0)drawNavball();
  if(UI.msgT>0){UI.msgT-=dt;if(UI.msgT<=0)$('msg').style.opacity=0;}
  if(UI.subT>0){UI.subT-=dt;if(UI.subT<=0)$('sub').style.opacity=0;}
 }

@@ -1,7 +1,14 @@
 /* ===== WORMHOLE ===== */
 const WARPST={state:'idle',t:0,progress:0,target:null,targetSys:null,cool:0,mouth:v3(),open:0};
 function startWarp(body,sysId){
+ // M2: WARPST.cool was set on exit but never tested, and a second CREATE WORMHOLE tap
+ // mid-jump restarted the state machine from 'charging' halfway down the tunnel.
+ if(WARPST.state!=='idle'){message('THROAT ALREADY OPEN');return;}
+ if(WARPST.cool>0){message('APERTURE RECHARGING',
+  'Exotic-matter injectors need '+WARPST.cool.toFixed(0)+' s to reset');return;}
  if(SHIP.power<0.12){message('INSUFFICIENT POWER','Wormhole throat needs 12% reactor charge');return;}
+ // M2: arriving in a brand-new SOI at 100000x is instant loss of the vessel.
+ if(CTX.timeWarp>1){CTX.timeWarp=1;}
  WARPST.state='charging';WARPST.t=0;WARPST.target=body;WARPST.targetSys=sysId;
  qrot(_v0,SHIP.quat,v3(0,0,-1));
  vmad(WARPST.mouth,SHIP.pos,_v0,900);
@@ -36,9 +43,11 @@ function warpUpdate(dt){
    vset(_v1,0,0,-vc);vadd(SHIP.vel,b.vel,_v1);
    vsub(_v2,b.pos,SHIP.pos);vnorm(_v2,_v2);
    vnorm(_v3,_v0);
-   qlook(SHIP.quat,_v2,_v3);
+   // M2: _v2 is exactly anti-parallel to _v3 here, which is precisely the case that
+   // makes qlook() collapse. Use the guarded wrapper.
+   fltQlookSafe(SHIP.quat,_v2,_v3);
    vset(SHIP.angVel,0,0,0);
-   SHIP.hullT=290;
+   SHIP.hullT=290;SHIP.contactPrev=false;PART.n=0;
    W.state='exit';W.t=0;W.progress=0;
    message('ARRIVAL — '+b.name,describeDNA(b.dna||makeDNA(1,0,b.radius)));
   }
@@ -192,7 +201,8 @@ let FB_SCENE,FB_COMP,FB_B1,FB_B2;
 let MESH_SPHERE,MESH_SHIP,MESH_COCKPIT,MESH_PART;
 const LEAVES=[];
 function initGL(){
- P_TERR=prog(VS_TERRAIN,FS_TERRAIN,'terrain');
+ P_TERR=prog(typeof VS_TERRAIN2!=='undefined'?VS_TERRAIN2:VS_TERRAIN,
+             typeof FS_TERRAIN2!=='undefined'?FS_TERRAIN2:FS_TERRAIN,'terrain');
  P_SPH=prog(VS_SPHERE,FS_SPHERE,'sphere');
  P_STAR=prog(FSQUAD_VS,FS_STARS,'stars');
  P_ATMO=prog(FSQUAD_VS,FS_ATMO,'atmo');
@@ -235,6 +245,9 @@ function resize(){
 addEventListener('resize',()=>{if(FB_SCENE)resize();});
 /* ===== CAMERA ===== */
 const _c0=v3(),_c1=v3(),_c2=v3(),_c3=v3();
+// M2: hoisted out of the per-frame path — these used to allocate a Float64Array each.
+const _cUP=v3(0,1,0),_cFWD=v3(0,0,-1),_cRIGHT=v3(1,0,0);
+const _pcam=v3();let _pcamOK=false;
 function updateCamera(dt){
  if(CTX.view3rd){
   // orbit camera anchored to the ship's own frame
@@ -244,8 +257,10 @@ function updateCamera(dt){
   qrot(_c1,SHIP.quat,off);
   vmad(CTX.camPos,SHIP.pos,_c1,CAM.dist);
   vsub(_c2,SHIP.pos,CTX.camPos);vnorm(_c2,_c2);
-  qrot(_c3,SHIP.quat,v3(0,1,0));
-  qlook(CTX.camQuat,_c2,_c3);
+  qrot(_c3,SHIP.quat,_cUP);
+  // M2: at the pitch limits the ship's up axis lines up with the view direction and
+  // plain qlook() snaps the camera through 180 degrees. Guarded wrapper.
+  fltQlookSafe(CTX.camQuat,_c2,_c3);
  } else {
   const L=SHIP.layout||SHIP_LAYOUT_FB;
   const e=L.eye||[0,0.55,-11.2];
@@ -259,9 +274,9 @@ function updateCamera(dt){
   qaxis(_q1,Math.sin(CTX.t*61.0),Math.cos(CTX.t*47.0),Math.sin(CTX.t*83.0),s*0.022);
   qmul(_q2,CTX.camQuat,_q1);qnorm(CTX.camQuat,_q2);
  }
- qrot(CTX.camFwd,CTX.camQuat,v3(0,0,-1));
- qrot(CTX.camUp,CTX.camQuat,v3(0,1,0));
- qrot(CTX.camRight,CTX.camQuat,v3(1,0,0));
+ qrot(CTX.camFwd,CTX.camQuat,_cFWD);
+ qrot(CTX.camUp,CTX.camQuat,_cUP);
+ qrot(CTX.camRight,CTX.camQuat,_cRIGHT);
  CTX.fov=mix(1.02,1.42,sat(CTX.speed/9000)*0.5+ (WARPST.state==='tunnel'?0.9:0));
 }
 /* ===== RENDER ===== */
@@ -270,10 +285,15 @@ function yawMat3(o,ang){const c=Math.cos(ang),s=Math.sin(ang);
  o[0]=c;o[1]=0;o[2]=s; o[3]=0;o[4]=1;o[5]=0; o[6]=-s;o[7]=0;o[8]=c;return o;}
 function render(){
  const asp=CTX.W/CTX.H;
- m4persp(CTX.proj,CTX.fov,asp,NEAR,FAR);
+ // Hor+ framing: a phone in portrait has the same vertical FOV as a desktop but a far
+ // narrower horizontal one, which pushes the planet out of frame. Widen vertically to
+ // hold the horizontal FOV roughly constant, clamped so it never goes fisheye.
+ let fovV=CTX.fov;
+ if(asp<1.35){const tanH=Math.tan(CTX.fov*0.5)*1.35;fovV=Math.min(1.85,2*Math.atan(tanH/asp));}
+ m4persp(CTX.proj,fovV,asp,NEAR,FAR);
  m4view(CTX.view,CTX.camQuat,v3(0,0,0));
  m4mul(CTX.viewProj,CTX.proj,CTX.view);
- const tanF=Math.tan(CTX.fov*0.5);
+ const tanF=Math.tan(fovV*0.5);
  // sun direction and screen position
  if(SUN){vsub(_r0,SUN.pos,CTX.camPos);vnorm(CTX.sunDir,_r0);}
  const setCam=P=>{
@@ -299,7 +319,10 @@ function render(){
  // --- terrain of the dominant body ---
  const B=CTX.body;
  if(B&&B.kind!=='star'&&B.dna&&!DBG.noTerrain){
-  terrBudget=QUALITY.tier?6:3;
+  // M2: back the chunk builder off when the frame is already over budget. Each
+  // terrBuildMesh() is ~360 fieldHeight samples, so 6 of them in one long frame is a
+  // visible hitch during descent. Never drops to 0 — chunks must still appear.
+  terrBudget=(CTX.dt>0.055)?1:(QUALITY.tier?6:3);
   terrUpdate(B,CTX.camPos,QUALITY.steps.lod,LEAVES);
   P_TERR.use();
   gl.uniformMatrix4fv(P_TERR.u.uVP,false,CTX.viewProj);
@@ -312,6 +335,7 @@ function render(){
   gl.uniform3f(P_TERR.u.uSkyTint,tint[0],tint[1],tint[2]);
   if(P_TERR.u.uAtmoAmt)gl.uniform1f(P_TERR.u.uAtmoAmt,B.atmo?1:0.12);
   if(P_TERR.u.uOceanLvl)gl.uniform1f(P_TERR.u.uOceanLvl,B.ocean?B.ocean.level:-1e9);
+  if(P_TERR.u.uDetailAmt)gl.uniform1f(P_TERR.u.uDetailAmt,QUALITY.tier?1.0:0.55);
   yawMat3(_rot9,B.rot);
   gl.uniformMatrix3fv(P_TERR.u.uRot,false,_rot9);
   const c=Math.cos(B.rot),s=Math.sin(B.rot);
@@ -319,6 +343,7 @@ function render(){
    if(!n.mesh)continue;
    // must match uRot = yawMat3(B.rot) applied in the vertex shader
    const ox=n.off[0]*c-n.off[2]*s, oz=n.off[0]*s+n.off[2]*c;
+   if(P_TERR.u.uLodScale)gl.uniform1f(P_TERR.u.uLodScale,n.lodM||1.0);
    gl.uniform3f(P_TERR.u.uChunkOff,_r0[0]+ox,_r0[1]+n.off[1],_r0[2]+oz);
    n.mesh.draw();
   }
@@ -628,6 +653,9 @@ function frame(now){
  const steps=clamp(Math.ceil(warp/8),1,8);
  for(let i=0;i<steps;i++)fltUpdate(sim/steps);
  warpUpdate(dt);
+ if(typeof warpEnforce==='function')warpEnforce();   // clamp warp to what physics allows
+ if(typeof mobUpdate==='function')mobUpdate(dt);
+ if(typeof mapUpdate==='function')mapUpdate(dt);
  updateCamera(dt);
  vset(_g0,0,0,0);
  if(CTX.body){
@@ -645,7 +673,11 @@ function boot(){
   ['GENERATING SOLAR SYSTEM',()=>{loadSystem(0);worldStep(0,0);}],
   ['COMPILING SHADERS',()=>{initGL();}],
   ['ASSEMBLING VESSEL',()=>{fltInit();}],
-  ['BINDING CONTROLS',()=>{buildHUD();fltBindInput(canvas);bindSticks();}],
+  ['BINDING CONTROLS',()=>{buildHUD();fltBindInput(canvas);bindSticks();
+    if(typeof mobInit==='function')mobInit();
+    if(typeof mapInit==='function'){mapInit();
+     const mb=$('b_map');if(mb)mb.onclick=()=>{UI.mapOpen=!UI.mapOpen;
+      mb.classList.toggle('on',UI.mapOpen);mapToggle(UI.mapOpen);};}}],
   ['ENTERING ORBIT',()=>{}]
  ];
  let i=0;

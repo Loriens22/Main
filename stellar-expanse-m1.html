@@ -516,537 +516,6 @@ function m4inv(o,m){
  o[14]=(a31*b01-a30*b03-a32*b00)*det;o[15]=(a20*b03-a21*b01+a22*b00)*det;return o;
 }
 
-/* ---------- p5b-biome.js ---------- */
-/* ===== P1 — SCALE-AWARE BIOME COLOUR + TERRAIN SHADERS =====================
- * Replaces biomeColor() / VS_TERRAIN / FS_TERRAIN.
- *
- * THE BUG: surface colour was evaluated per vertex and Gouraud-interpolated.
- * At coarse quadtree LOD adjacent vertices are hundreds of km apart, while the
- * snow / rock / vegetation thresholds flip over a couple of km of elevation.
- * Neighbouring vertices therefore land on opposite sides of every threshold and
- * the mesh reads as black-and-white salt-and-pepper.
- *
- * THE FIX: nothing about the colour model is allowed to contain detail finer
- * than the vertex spacing. Two rules, applied everywhere:
- *   1. every threshold has a transition HALF-WIDTH that grows with `lodScaleM`,
- *      so a coarse chunk sees a continuous average instead of a hard edge;
- *   2. every noise term is BAND-LIMITED — a frequency above the Nyquist limit
- *      of the vertex grid is faded out rather than sampled.
- * On top of that, coarse chunks blend toward a low-frequency continental
- * palette (ocean / land / ice-cap) so an orbital view reads as a real globe.
- *
- * ---------------------------------------------------------------------------
- * WIRING FOR THE LEAD
- *
- *  biomeColor2(dx,dy,dz, h, slope, d, lodScaleM, out)
- *    Same as biomeColor plus `lodScaleM` = approximate world-space distance in
- *    METRES between adjacent vertices of the chunk being built. In
- *    terrBuildMesh() that is:
- *        const lodScaleM = b.radius * n.size / (CHUNK_N-1) * 1.35;
- *    (the 1.35 accounts for the tan() warp in cubeDir; any value within ~2x is
- *    fine — the response is logarithmic). Passing 0/undefined is safe: it falls
- *    back to radius*0.004.
- *
- *  VS_TERRAIN2 / FS_TERRAIN2 — drop-in for VS_TERRAIN / FS_TERRAIN.
- *    Attribute layout unchanged (0 position, 1 normal, 2 uv, 3 color).
- *    All existing uniforms kept and still required:
- *        uVP uChunkOff uRot uPlanetC uSunDir uSunCol uPlanetR uSkyTint
- *        uTime uAtmoAmt uOceanLvl   (+ uLogFC from GLSL_COMMON)
- *    NOTE: uRot is now read by the FRAGMENT shader too (to un-spin the planet
- *    for the procedural detail). It is the same uniform — no extra work, the
- *    existing gl.uniformMatrix3fv(P_TERR.u.uRot, ...) already covers it.
- *
- *    UNIFORMS ADDED (both OPTIONAL — 0 / unset behaves sensibly):
- *        uniform float uLodScale;   // metres between vertices of the chunk being
- *                                   // drawn. If <=0 the shader derives the pixel
- *                                   // footprint from fwidth() instead, which is
- *                                   // what it uses anyway — setting it only
- *                                   // damps detail on very coarse chunks.
- *                                   //   gl.uniform1f(P_TERR.u.uLodScale, lodScaleM)
- *                                   //   per chunk, guarded as usual.
- *        uniform float uDetailAmt;  // 0..1 global detail strength (quality dial).
- *                                   // If <=0 it is treated as 1.0. Suggested:
- *                                   //   QUALITY.tier===0 ? 0.55 : 1.0
- * ========================================================================= */
-
-/* ---- small scale-aware helpers (top-level so no closure is allocated) ---- */
-const BIO_INV_LN2 = 1.4426950408889634;
-function bioLog2(x){ return Math.log(x) * BIO_INV_LN2; }
-
-// Band-limit weight: 1 when frequency f is comfortably below the grid Nyquist
-// limit fMax, smoothly 0 as f reaches it. This is what stops noise from turning
-// into per-vertex hash at coarse LOD.
-function bioBand(fMax, f){
- const w = fMax / f - 1;
- if (w <= 0) return 0;
- if (w >= 1) return 1;
- return w * w * (3 - 2 * w);
-}
-// smoothstep(e-w, e+w, x) — a threshold with an explicit half-width.
-function bioStep(x, e, w){
- if (!(w > 1e-9)) return x < e ? 0 : 1;
- let t = (x - e) / (2 * w) + 0.5;
- if (t <= 0) return 0;
- if (t >= 1) return 1;
- return t * t * (3 - 2 * t);
-}
-// Chroma-only hue rotation (YIQ). Achromatic colours stay achromatic, so snow
-// never turns pink; saturated biomes shift enough to make worlds distinct.
-const _bioRGB = new Float64Array(3);
-function bioHue(r, g, b, ang, satMul, o){
- const c = Math.cos(ang), s = Math.sin(ang);
- const Y = 0.299 * r + 0.587 * g + 0.114 * b;
- const I = 0.596 * r - 0.274 * g - 0.322 * b;
- const Q = 0.211 * r - 0.523 * g + 0.312 * b;
- const I2 = (I * c - Q * s) * satMul, Q2 = (I * s + Q * c) * satMul;
- o[0] = Y + 0.9563 * I2 + 0.6210 * Q2;
- o[1] = Y - 0.2721 * I2 - 0.6474 * Q2;
- o[2] = Y - 1.1070 * I2 + 1.7046 * Q2;
- return o;
-}
-const BIO_DEFPAL = [[.5,.5,.5],[.5,.5,.5],[.5,.5,.5],[.5,.5,.5],[.5,.5,.5],[.5,.5,.5]];
-
-/* =========================================================================
- * biomeColor2 — allocation free, ~3 noise3 taps, no branching on data that
- * changes per vertex inside the hot loop.
- * ======================================================================= */
-function biomeColor2(dx, dy, dz, h, slope, d, lodScaleM, out){
- const R = (d && d.radius > 1) ? d.radius : 6.371e6;
- let L = lodScaleM;
- if (!(L > 0)) L = R * 0.004;      // defensive: caller did not pass one
- if (L < 1) L = 1;
-
- // 0 = fine chunk (<=60 m between vertices) … 1 = continental chunk (>=490 km)
- const coarse = sat(bioLog2(L / 60) / 13);
- // Nyquist limit of the vertex grid, in cycles per unit direction (~per radian).
- // 0.35 keeps ~2.8 samples per wavelength at the limit.
- const fMax = 0.35 * R / L;
-
- const pal = (d && d.pal) ? d.pal : BIO_DEFPAL;
- const pr = pal[0], ps = pal[1], pv = pal[2], pa = pal[3], ph = pal[4], pl = pal[5];
- const sd = d.seed * 13.7;
- const lat = dy < 0 ? -dy : dy;
-
- /* ---- band-limited noise taps -------------------------------------------
-  * P  continental provinces  (fixed low frequency, structural)
-  * Q  regional patches       (fixed mid frequency, structural, fades first)
-  * Dn detail mottle          (frequency TRACKS the LOD so it is always just
-  *                            under Nyquist — maximum detail, zero aliasing)
-  * Structural decisions may only use P and Q (fixed frequencies fading
-  * smoothly). Dn is amplitude-limited modulation only, never a threshold.  */
- const wP = bioBand(fMax, 1.55);
- const P = wP > 0.004 ? noise3(dx * 1.55 + sd, dy * 1.55 + 13.3, dz * 1.55 - 5.1) * wP : 0;
- const wQ = bioBand(fMax, 6.4);
- const Q = wQ > 0.004 ? noise3(dx * 6.4 - sd * 0.37, dy * 6.4 + 41.7, dz * 6.4 + 2.9) * wQ : 0;
- let fD = fMax * 0.42; if (fD < 9) fD = 9; if (fD > 24000) fD = 24000;
- const wD = bioBand(fMax, fD);
- const Dn = wD > 0.004 ? noise3(dx * fD + 7.7, dy * fD - 3.3, dz * fD + 19.1) * wD : 0;
-
- let cr, cg, cb;
-
- /* ================= GAS GIANT ================= */
- if (d.type === 5){
-  const turb = P * 2.4 + Q * 0.9;
-  const band = Math.sin(dy * 17.0 + turb * 2.2) * 0.5 + 0.5;
-  const jet = Math.sin(dy * 43.0 + turb * 1.1) * 0.5 + 0.5;
-  cr = mix(mix(0.42, 0.92, ph[0]), mix(0.26, 0.70, pl[0]), band);
-  cg = mix(mix(0.34, 0.80, ph[1]), mix(0.22, 0.58, pl[1]), band);
-  cb = mix(mix(0.22, 0.62, ph[2]), mix(0.20, 0.54, pl[2]), band);
-  const zw = sat(jet * 0.8 + 0.1) * 0.35;
-  cr = mix(cr, sat(cr * 1.15 + 0.04), zw);
-  cg = mix(cg, sat(cg * 1.06 + 0.02), zw);
-  cb = mix(cb, sat(cb * 0.94), zw);
-  // one great storm oval per world
-  const storm = sat(Math.abs(P) * 2.3 - 1.15);
-  cr = mix(cr, mix(0.60, 0.96, pa[0]), storm * 0.85);
-  cg = mix(cg, mix(0.30, 0.62, pa[1]), storm * 0.85);
-  cb = mix(cb, mix(0.14, 0.34, pa[2]), storm * 0.85);
-  // polar hoods, blurred by LOD like everything else
-  const pol = bioStep(lat, 0.80, 0.14 + 0.20 * coarse);
-  cr = mix(cr, cr * 0.70 + 0.10, pol * 0.75);
-  cg = mix(cg, cg * 0.74 + 0.11, pol * 0.75);
-  cb = mix(cb, cb * 0.86 + 0.14, pol * 0.75);
-  const mo5 = Dn * 0.05 + Q * 0.03;
-  cr = sat(cr * (1 + mo5)); cg = sat(cg * (1 + mo5)); cb = sat(cb * (1 + mo5));
-  bioHue(cr, cg, cb, (d.hue - 0.5) * 0.55, 1.10, _bioRGB);
-  out[0] = sat(_bioRGB[0]); out[1] = sat(_bioRGB[1]); out[2] = sat(_bioRGB[2]);
-  return out;
- }
-
- /* ================= SOLID SURFACES ================= */
- const hPos = h > 0 ? h : 0;
- // latitude cooling: |sin(lat)| weighted so mid-latitudes fall off realistically
- const latC = lat * lat * 0.62 + lat * 0.38;
- // lapse rate + latitude + a smooth regional climate wobble
- const t = d.temp - hPos * 0.0065 - latC * 52 + P * 9.0 - Q * 4.0;
- const hum = sat(d.humidity * (0.78 + 0.5 * P) - hPos / 26000 + Q * 0.12);
-
- /* ---- SCALE-AWARE TRANSITION WIDTHS — the actual fix -------------------- */
- // Unresolved relief inside one cell: horizontal distance x typical slope.
- const hW = clamp(L * 0.22, 20, 4500);            // elevation blur, metres
- const tW = 2.0 + hW * 0.0065 + 7.0 * coarse;     // temperature blur, kelvin
- const sW = 0.09 + 0.40 * coarse;                 // slope blur
- // Slope itself is meaningless once vertices are km apart, so fade its weight.
- const rockAmt = mix(1.0, 0.40, coarse);
- const rocky = bioStep(slope, 0.32, sW) * rockAmt;
-
- const sea = d.seaLevel || 0;
- const hasSea = (d.type === 1 || d.type === 6);
- const subm = hasSea ? (1 - bioStep(h, sea, hW * 1.2 + 45)) : 0;
-
- /* ---- bedrock (shared by every rocky type) ---- */
- let br = mix(0.19, 0.42, pr[0]), bg = mix(0.17, 0.36, pr[1]), bb = mix(0.15, 0.31, pr[2]);
- const prov = sat(P * 1.3 + 0.5);
- br = mix(br, mix(0.28, 0.56, ph[0]), prov * 0.5);
- bg = mix(bg, mix(0.25, 0.48, ph[1]), prov * 0.5);
- bb = mix(bb, mix(0.21, 0.42, ph[2]), prov * 0.5);
-
- if (d.type === 2){
-  /* ---- desert: ergs, duricrust, oxide streaks ---- */
-  const sr = mix(0.60, 0.86, pa[0]), sg = mix(0.44, 0.68, pa[1]), sb = mix(0.24, 0.44, pa[2]);
-  const erg = sat(0.40 + P * 1.0) * clamp(d.dunes, 0, 1);
-  cr = mix(sr * 0.78, sr, erg); cg = mix(sg * 0.78, sg, erg); cb = mix(sb * 0.74, sb, erg);
-  const ox = sat(Q * 1.4 + 0.15) * 0.5;
-  cr = mix(cr, sat(cr * 1.12 + 0.04), ox);
-  cg = mix(cg, cg * 0.93, ox);
-  cb = mix(cb, cb * 0.82, ox);
-  // dark basaltic plains where the province noise dips
-  const bas = 1 - bioStep(P, -0.24, 0.14 + 0.30 * coarse);
-  cr = mix(cr, br * 0.85, bas * 0.55); cg = mix(cg, bg * 0.85, bas * 0.55); cb = mix(cb, bb * 0.9, bas * 0.55);
-
- } else if (d.type === 3){
-  /* ---- ice world: firn, dirty ice, blue crevasse depth ---- */
-  cr = mix(0.72, 0.93, ph[0]); cg = mix(0.79, 0.96, ph[1]); cb = mix(0.86, 1.00, ph[2]);
-  const dirt = sat(0.42 - P * 1.2) * (1 - clamp(d.ice, 0, 1) * 0.55);
-  cr = mix(cr, br * 1.5, dirt * 0.6); cg = mix(cg, bg * 1.5, dirt * 0.6); cb = mix(cb, bb * 1.5, dirt * 0.6);
-  const deepIce = sat(-h / (d.amp * 0.6 + 1)) * 0.55;
-  cr = mix(cr, cr * 0.66, deepIce); cg = mix(cg, cg * 0.84, deepIce); cb = mix(cb, sat(cb * 1.03), deepIce);
-
- } else if (d.type === 4){
-  /* ---- volcanic: basalt with sulphur / ash provinces ---- */
-  cr = mix(0.10, 0.20, pr[0]); cg = mix(0.08, 0.15, pr[1]); cb = mix(0.07, 0.13, pr[2]);
-  const sul = sat(P * 1.5 + 0.20) * sat(d.lava * 1.3);
-  cr = mix(cr, mix(0.62, 0.94, pa[0]), sul * 0.6);
-  cg = mix(cg, mix(0.46, 0.76, pa[1]), sul * 0.6);
-  cb = mix(cb, mix(0.10, 0.28, pa[2]), sul * 0.6);
-
- } else if (d.type === 0){
-  /* ---- airless rock: mare / highland albedo provinces ---- */
-  const high = bioStep(P, 0.02, 0.22 + 0.30 * coarse);
-  cr = mix(br * 0.62, br * 1.34, high);
-  cg = mix(bg * 0.63, bg * 1.32, high);
-  cb = mix(bb * 0.66, bb * 1.28, high);
-  // fresh ejecta rays brighten the youngest ground
-  const ray = sat(Q * 1.6 - 0.35) * (1 - coarse * 0.6);
-  cr = mix(cr, sat(cr * 1.45), ray * 0.45);
-  cg = mix(cg, sat(cg * 1.45), ray * 0.45);
-  cb = mix(cb, sat(cb * 1.42), ray * 0.45);
-
- } else {
-  /* ---- terrestrial / ocean world: a real climate model ---- */
-  // vegetation belt: warm enough, not too hot, below the tree line, humid
-  const vegT = bioStep(t, 272, tW * 1.7) * (1 - bioStep(t, 320, tW * 2.2));
-  const vegA = 1 - bioStep(hPos, 2600 + hW, 700 + hW * 1.2);
-  const veg01 = sat(vegT * vegA * clamp(d.vegetation, 0, 1) * sat(hum * 1.7));
-  // soil, drifting to sand where it is hot and dry
-  let sr = mix(0.28, 0.50, ps[0]), sg = mix(0.21, 0.35, ps[1]), sb = mix(0.12, 0.23, ps[2]);
-  const arid = sat((1 - hum) * 1.3 - 0.15) * bioStep(t, 289, tW * 2.4);
-  sr = mix(sr, mix(0.62, 0.86, pa[0]), arid * 0.85);
-  sg = mix(sg, mix(0.46, 0.68, pa[1]), arid * 0.85);
-  sb = mix(sb, mix(0.26, 0.44, pa[2]), arid * 0.85);
-  // lush jungle green vs olive scrub, chosen by humidity
-  const lush = sat(hum * 1.5 - 0.20);
-  const vr = mix(mix(0.26, 0.42, pv[0]), mix(0.04, 0.14, pv[0]), lush);
-  const vg = mix(mix(0.27, 0.40, pv[1]), mix(0.18, 0.42, pv[1]), lush);
-  const vb = mix(mix(0.11, 0.19, pv[2]), mix(0.03, 0.12, pv[2]), lush);
-  cr = mix(sr, vr, veg01); cg = mix(sg, vg, veg01); cb = mix(sb, vb, veg01);
- }
-
- /* ---- exposed rock on steep ground (width and weight both scale-aware) ---- */
- cr = mix(cr, br * 1.06, rocky); cg = mix(cg, bg * 1.06, rocky); cb = mix(cb, bb * 1.06, rocky);
-
- /* ---- beach: a thin band, so it must fade out as cells grow ---- */
- if (hasSea){
-  const bw = 70 + hW * 1.4;
-  const beach = (1 - bioStep(h < sea ? sea - h : h - sea, bw * 0.55, bw * 0.5)) *
-                (1 - rocky) * (1 / (1 + hW / 500));
-  cr = mix(cr, mix(0.66, 0.88, pa[0]), beach * 0.8);
-  cg = mix(cg, mix(0.58, 0.78, pa[1]), beach * 0.8);
-  cb = mix(cb, mix(0.42, 0.60, pa[2]), beach * 0.8);
-  /* ---- seabed under the ocean shell ---- */
-  if (subm > 0.002){
-   const dep = sat((sea - h) / (900 + hW * 3));
-   const sbr = mix(0.13, 0.028, dep) * mix(0.8, 1.2, pl[0]);
-   const sbg = mix(0.17, 0.048, dep) * mix(0.85, 1.15, pl[1]);
-   const sbb = mix(0.16, 0.070, dep) * mix(0.85, 1.15, pl[2]);
-   cr = mix(cr, sbr, subm); cg = mix(cg, sbg, subm); cb = mix(cb, sbb, subm);
-  }
- }
-
- /* ---- snowline: temperature driven, blurred by tW (this was the worst
-        offender — a fixed 18 K ramp is ~2.8 km of elevation, far less than the
-        relief inside one coarse cell) ---- */
- const snow = (1 - bioStep(t, 262, tW * 1.7)) * Math.max(clamp(d.ice, 0, 1), 0.22) *
-              (1 - rocky * 0.5) * (1 - subm);
- cr = mix(cr, 0.90, snow); cg = mix(cg, 0.93, snow); cb = mix(cb, 0.97, snow);
-
- /* ---- lava in the low basins ---- */
- if (d.lava > 0.25){
-  const lv = (1 - bioStep(h, -d.amp * 0.16, d.amp * 0.30 + hW)) * d.lava *
-             (1 - rocky * 0.6) * (1 - bioStep(slope, 0.55, 0.2 + sW));
-  cr = mix(cr, 1.0, lv * 0.78); cg = mix(cg, 0.26, lv * 0.78); cb = mix(cb, 0.05, lv * 0.78);
- }
-
- /* ---- CONTINENTAL PALETTE: at coarse LOD blend to the low-frequency read of
-        the world, so from orbit you see ocean / land / ice cap, not noise. ---- */
- if (coarse > 0.02){
-  let ar, ag, ab;
-  if (d.type === 2){ ar = mix(0.58, 0.82, pa[0]); ag = mix(0.42, 0.63, pa[1]); ab = mix(0.24, 0.42, pa[2]); }
-  else if (d.type === 3){ ar = mix(0.74, 0.90, ph[0]); ag = mix(0.80, 0.94, ph[1]); ab = mix(0.86, 0.99, ph[2]); }
-  else if (d.type === 4){ ar = mix(0.12, 0.22, pr[0]); ag = mix(0.09, 0.16, pr[1]); ab = mix(0.08, 0.14, pr[2]); }
-  else if (d.type === 0){ ar = br; ag = bg; ab = bb; }
-  else {
-   const veg2 = sat(clamp(d.vegetation, 0, 1) * sat(hum * 1.6) *
-                    bioStep(t, 276, 26) * (1 - bioStep(hPos, 3000, 1500)));
-   ar = mix(mix(0.34, 0.52, ps[0]), mix(0.07, 0.18, pv[0]), veg2);
-   ag = mix(mix(0.26, 0.38, ps[1]), mix(0.20, 0.42, pv[1]), veg2);
-   ab = mix(mix(0.15, 0.25, ps[2]), mix(0.05, 0.15, pv[2]), veg2);
-  }
-  const cap = (1 - bioStep(t, 264, 17)) * Math.max(clamp(d.ice, 0, 1), 0.25);
-  ar = mix(ar, 0.90, cap); ag = mix(ag, 0.93, cap); ab = mix(ab, 0.97, cap);
-  if (hasSea){
-   const dep = sat((sea - h) / 3200);
-   ar = mix(ar, mix(0.040, 0.010, dep), subm);
-   ag = mix(ag, mix(0.110, 0.032, dep), subm);
-   ab = mix(ab, mix(0.175, 0.078, dep), subm);
-  }
-  const k = coarse * 0.85;
-  cr = mix(cr, ar, k); cg = mix(cg, ag, k); cb = mix(cb, ab, k);
- }
-
- /* ---- multiplicative mottle (keeps dark ground dark), band-limited ---- */
- const mo = Dn * 0.055 + Q * 0.035 * (1 - coarse * 0.7);
- cr = cr * (1 + mo); cg = cg * (1 + mo); cb = cb * (1 + mo);
-
- /* ---- per-planet identity: hue rotation + saturation ---- */
- const hueAmt = d.type === 1 ? 0.30 : (d.type === 3 ? 0.45 : 0.80);
- bioHue(cr, cg, cb, (d.hue - 0.5) * hueAmt, 1.0 + (pl[1] - 0.5) * 0.30 + 0.12, _bioRGB);
- out[0] = sat(_bioRGB[0]); out[1] = sat(_bioRGB[1]); out[2] = sat(_bioRGB[2]);
- return out;
-}
-
-/* =========================================================================
- * VS_TERRAIN2 — same attributes/uniforms as VS_TERRAIN; adds vL (chunk-local
- * position, full float32 precision) so the fragment shader can key sub-metre
- * detail off something that is not 6.4e6 metres from the origin.
- * ======================================================================= */
-const VS_TERRAIN2 = `
-layout(location=0) in vec3 position;
-layout(location=1) in vec3 normal;
-layout(location=2) in vec2 uv;
-layout(location=3) in vec3 color;
-uniform mat4 uVP; uniform vec3 uChunkOff; uniform mat3 uRot; uniform vec3 uPlanetC;
-out vec3 vN; out vec3 vC; out vec3 vP; out float vH; out vec3 vL; out vec2 vT;
-void main(){
- vec3 wp=uRot*position+uChunkOff;
- vN=normalize(uRot*normal); vC=color; vP=wp; vT=uv;
- vH=length(wp-uPlanetC);
- vL=position;                       // chunk-local: small, so precision survives
- gl_Position=uVP*vec4(wp,1.0); segLog(gl_Position);
-}`;
-
-/* =========================================================================
- * FS_TERRAIN2
- *   - triplanar strata + two band-limited procedural detail octaves, each
- *     faded against the pixel footprint (fwidth) so nothing ever aliases
- *   - slope/rock blending done PER PIXEL, not per vertex
- *   - wrapped terminator, cavity AO proxy, ice/snow subsurface term
- * ======================================================================= */
-const FS_TERRAIN2 = `
-in vec3 vN; in vec3 vC; in vec3 vP; in float vH; in vec3 vL; in vec2 vT;
-uniform vec3 uSunDir; uniform vec3 uSunCol; uniform vec3 uPlanetC; uniform float uPlanetR;
-uniform vec3 uSkyTint; uniform float uTime; uniform float uAtmoAmt; uniform float uOceanLvl;
-uniform mat3 uRot;                 // shared with the VS — used to un-spin the planet
-uniform float uLodScale;           // OPTIONAL (see header). <=0 -> derived from fwidth
-uniform float uDetailAmt;          // OPTIONAL global detail scale. <=0 -> 1.0
-out vec4 fragColor;
-
-// Triplanar sedimentary strata: the noise domain is squashed along each
-// projection axis, so each plane contributes bedding planes instead of blobs.
-float bioStrata(vec3 p,vec3 n,float f,int oct){
- vec3 w=abs(n); w*=w; w/=max(w.x+w.y+w.z,1e-5);
- float a=vfbm3(vec3(p.yz*f,p.x*f*0.15),oct);
- float b=vfbm3(vec3(p.zx*f,p.y*f*0.15)+19.7,oct);
- float c=vfbm3(vec3(p.xy*f,p.z*f*0.15)+53.3,oct);
- return a*w.x+b*w.y+c*w.z;
-}
-
-void main(){
- vec3 up=normalize(vP-uPlanetC);
- vec3 Ng=normalize(vN);
- vec3 N=Ng;
- // planet-FIXED position: un-spin so the detail does not swim as the world turns
- vec3 dpl=(vP-uPlanetC)*uRot;
- // tangent frame on the sphere, then the same frame expressed planet-locally
- vec3 T=normalize(cross(abs(up.y)<0.9?vec3(0.0,1.0,0.0):vec3(1.0,0.0,0.0),up));
- vec3 B=cross(up,T);
- vec3 Tl=T*uRot, Bl=B*uRot;
-
- // world metres covered by one pixel — the anti-aliasing budget for detail
- float px=max(length(fwidth(vP)),1e-3);
- float detAmt=uDetailAmt>0.0?uDetailAmt:1.0;
- if(uLodScale>0.0) detAmt*=sat(600.0/uLodScale);   // never detail a continental chunk
-
- float cav=0.0;                                    // <0 in creases, >0 on crests
-
- // ---- band A: ~700 m relief, alive from a few km up ----
- float wA=sat(700.0/(px*5.0)-1.0)*detAmt;
- if(wA>0.01){
-  vec3 q=dpl*(1.0/700.0);
-  float e=0.22;
-  float n0=vfbm3(q,3);
-  float gu=(vfbm3(q+Tl*e,3)-n0)/e, gv=(vfbm3(q+Bl*e,3)-n0)/e;
-  N=normalize(N-(T*gu+B*gv)*wA*0.50);
-  cav+=(n0-0.5)*wA;
- }
- // ---- band B: ~12 m grain, only once you are close; keyed off vL so the
- //      coordinate is small and float32 precision holds at 6.4e6 m radius ----
- float wB=sat(12.0/(px*5.0)-1.0)*detAmt;
- if(wB>0.01){
-  vec3 q=vL*(1.0/12.0);
-  float e=0.30;
-  float n0=vfbm3(q,2);
-  float gu=(vfbm3(q+Tl*e,2)-n0)/e, gv=(vfbm3(q+Bl*e,2)-n0)/e;
-  N=normalize(N-(T*gu+B*gv)*wB*0.80);
-  cav+=(n0-0.5)*wB*0.9;
- }
-
- vec3 alb=vC;
- // ---- per-pixel slope: high-frequency variation belongs HERE, not in vC ----
- float slope=1.0-sat(dot(N,up));
- float rockW=smoothstep(0.14,0.50,slope);
- // rock colour derived from the vertex albedo, so it stays per-planet correct
- float lc=luma(alb);
- vec3 rockC=mix(vec3(lc),alb,0.42)*mix(0.60,0.98,sat(cav*2.0+0.5));
- float wS=sat(140.0/(px*5.0)-1.0)*detAmt*rockW;
- if(wS>0.03){
-  float st=bioStrata(dpl,Ng,1.0/48.0,2);
-  rockC*=mix(0.74,1.26,st);
- }
- alb=mix(alb,rockC,rockW*0.85);
- alb*=1.0+cav*0.30;
-
- // submerged ground: the ocean shell may not cover it at every angle
- float below=(uOceanLvl>-1.0e8)?((uPlanetR+uOceanLvl)-vH):-1.0;
- float sub=sat(below/80.0);
- alb=mix(alb,alb*vec3(0.34,0.62,0.82)*0.8,sub*0.85);
- alb=sat(alb);
-
- // ---- snow / ice detection straight from the albedo: bright and blue-biased ----
- float icy=sat((luma(alb)-0.58)*2.6)*sat((alb.b-alb.r)*4.0+0.35);
-
- // ---- lighting ----
- float ndl=dot(N,uSunDir);
- float diff=sat((ndl+0.08)/1.08);              // soft wrapped terminator
- float sh=sat(dot(up,uSunDir)*6.0+0.35);       // far side self-shadow
- diff*=sh;
- // cheap AO proxy: faces tilted off the local up, plus concave detail
- float ao=mix(0.52,1.0,sat(dot(N,up)*0.5+0.5));
- ao*=1.0-0.30*sat(-cav*3.0);
- // sky dome above + bounce from the ground
- float skyv=sat(dot(N,up)*0.5+0.5);
- vec3 amb=uSkyTint*uAtmoAmt*0.20*skyv*ao+alb*0.05*ao;
- // GGX-ish specular; ice and wet ground are much smoother than regolith
- vec3 V=normalize(-vP);
- vec3 Hh=normalize(V+uSunDir);
- float rough=mix(0.62,0.18,icy);
- float a2=rough*rough; a2*=a2;
- float nh=sat(dot(N,Hh));
- float dg=a2/(PI*pow(nh*nh*(a2-1.0)+1.0,2.0));
- float fres=0.04+0.22*pow(1.0-sat(dot(N,V)),5.0);
- vec3 spec=uSunCol*min(dg,60.0)*fres*diff*mix(0.5,3.0,icy);
- // subsurface: snow and ice glow, strongest looking toward the sun
- float back=pow(sat(dot(V,-uSunDir)),2.5);
- vec3 sss=alb*uSunCol*icy*(back*0.30+sat(ndl*0.5+0.5)*0.10)*sh;
- // molten ground emits (detected from a strongly red-dominant albedo)
- float lavaW=sat((alb.r-alb.g*1.9-0.12)*2.2);
- vec3 emis=vec3(1.0,0.30,0.06)*lavaW*lavaW*1.6;
-
- vec3 c=alb*(diff*uSunCol*ao+amb)+spec+sss+emis;
- fragColor=vec4(c,1.0);
-}`;
-
-/* =========================================================================
- * bioSelfTest — the important assertion is #2: adjacent vertices of a COARSE
- * chunk must not alternate. That is the speckle, expressed as a number.
- * ======================================================================= */
-function bioSelfTest(){
- try{
-  const out = [0,0,0];
-  /* 1. finite and in range for every planet type at every LOD */
-  for (let ty = 0; ty < 7; ty++){
-   const d = makeDNA(ty * 7.3 + 1.1, ty, ty === 5 ? 7e7 : 5e6);
-   for (let li = 0; li < 9; li++){
-    const L = 20 * Math.pow(4, li);
-    for (let s = 0; s < 16; s++){
-     const a = s * 0.71, b2 = s * 1.317;
-     const dx = Math.cos(a) * Math.cos(b2), dy = Math.sin(b2), dz = Math.sin(a) * Math.cos(b2);
-     const h = fieldHeight(dx, dy, dz, d);
-     biomeColor2(dx, dy, dz, h, (s % 6) * 0.17, d, L, out);
-     for (let k = 0; k < 3; k++)
-      if (!(out[k] >= 0) || !(out[k] <= 1))
-       return {ok:false, why:'biomeColor2 out of range: type '+ty+' L='+L+' -> '+out.join(',')};
-    }
-   }
-  }
-  /* 2. SPECKLE TEST — walk a great circle at the vertex spacing of a coarse
-     chunk and measure how much the colour can change between neighbours. */
-  let worstL = 0, worst = 0, worstMean = 0;
-  for (const L of [400000, 100000, 25000]){
-   for (const ty of [0,1,2,3,4]){
-    const d = makeDNA(ty * 3.7 + 2.3, ty, 6.0e6);
-    const so = d._oct;
-    d._oct = Math.max(4, Math.min(d.octaves, 4 + Math.round(bioLog2(6.0e6 / L))));
-    const step = L / 6.0e6;
-    let pr0 = 0, pg0 = 0, pb0 = 0, mx = 0, sum = 0, n = 0;
-    for (let i = 0; i < 220; i++){
-     const ang = 0.37 + i * step;
-     const dx = Math.cos(ang) * 0.83, dy = Math.sin(ang), dz = Math.cos(ang) * 0.55;
-     const l = Math.hypot(dx, dy, dz);
-     const ux = dx / l, uy = dy / l, uz = dz / l;
-     const h0 = fieldHeight(ux, uy, uz, d);
-     const h1 = fieldHeight(ux + uz * step, uy, uz - ux * step, d);
-     const g = (h1 - h0) / L;
-     const slope = 1 - 1 / Math.sqrt(1 + g * g);
-     biomeColor2(ux, uy, uz, h0, slope, d, L, out);
-     if (i > 0){
-      const dd = Math.max(Math.abs(out[0]-pr0), Math.abs(out[1]-pg0), Math.abs(out[2]-pb0));
-      if (dd > mx) mx = dd;
-      sum += dd; n++;
-     }
-     pr0 = out[0]; pg0 = out[1]; pb0 = out[2];
-    }
-    d._oct = so;
-    const mean = sum / Math.max(n,1);
-    if (mx > worst){ worst = mx; worstL = L; }
-    if (mean > worstMean) worstMean = mean;
-   }
-  }
-  if (worst > 0.30)
-   return {ok:false, why:'speckle: adjacent-vertex colour jump '+worst.toFixed(3)+' at lodScale '+worstL};
-  if (worstMean > 0.07)
-   return {ok:false, why:'speckle: mean adjacent-vertex colour jump '+worstMean.toFixed(4)};
-  /* 3. shaders compile (only if the GL engine is present) */
-  if (typeof prog === 'function' && typeof gl !== 'undefined' && gl){
-   try{ prog(VS_TERRAIN2, FS_TERRAIN2, 'p1-terrain2'); }
-   catch(e){ return {ok:false, why:'shader: '+e.message}; }
-  }
-  return {ok:true, maxJump:+worst.toFixed(4), meanJump:+worstMean.toFixed(4)};
- } catch(e){
-  return {ok:false, why:(e && e.message) || String(e)};
- }
-}
-
 /* ---------- p5-world.js ---------- */
 /* ===== SOLAR SYSTEM + PROCEDURAL EXOSYSTEMS + CUBE-SPHERE QUADTREE TERRAIN ===== */
 const AU=1.495978707e11, G=6.67430e-11, G0=9.80665;
@@ -1423,8 +892,7 @@ function terrBuildMesh(n,b){
   if(nx*dir[0]+ny*dir[1]+nz*dir[2]<0){nx=-nx;ny=-ny;nz=-nz;}
   nrm[k*3]=nx;nrm[k*3+1]=ny;nrm[k*3+2]=nz;
   const slope=1-sat(nx*dir[0]+ny*dir[1]+nz*dir[2]);
-  if(typeof biomeColor2==='function')biomeColor2(dir[0],dir[1],dir[2],h,slope,d,lodM,_bc);
-  else biomeColor(dir[0],dir[1],dir[2],h,slope,d,_bc,lodM);
+  biomeColor(dir[0],dir[1],dir[2],h,slope,d,_bc,lodM);
   col[k*3]=_bc[0];col[k*3+1]=_bc[1];col[k*3+2]=_bc[2];
   uvs[k*2]=i/(N-1);uvs[k*2+1]=j/(N-1);
   k++;
@@ -1462,7 +930,6 @@ function terrBuildMesh(n,b){
  }
  n.mesh=mesh({position:pos,normal:nrm,color:col,uv:uvs,index:idx.subarray(0,m)});
  n.off=v3(cx,cy,cz);
- n.lodM=lodM;
  n.maxH=n.ctrH;
 }
 const _tp=v3(),_tq=v3();
@@ -1781,54 +1248,11 @@ const SHIP={
  fuel:1,oxygen:1,hull:1,power:1,
  maxThrust:2.6e7,isp:{vac:452,sl:328},
  engines:[],rcsPorts:[],gear:[],
- soi:null,orbit:null,landed:false,gearAnim:0,contactPrev:false,
+ soi:null,orbit:null,landed:false,gearAnim:0,
  heat:0,hullT:290,rcsFire:0
 };
-const _f0=v3(),_f1=v3(),_f2=v3(),_f3=v3(),_f4=v3(),_f5=v3(),_f6=v3(),_f7=v3(),_f8=v3(),_f9=v3();
+const _f0=v3(),_f1=v3(),_f2=v3(),_f3=v3(),_f4=v3(),_f5=v3(),_f6=v3(),_f7=v3();
 const _fq0=new Float64Array(4),_fq1=new Float64Array(4),_fq2=new Float64Array(4);
-const _fFWD=v3(0,0,-1);          // M2: hoisted — this used to allocate every sub-step
-
-/* M2 FIX: qlook() degenerates when `up` is parallel or anti-parallel to `fwd`: the
-   cross product collapses and its fallback axis (fwd.yzx) is itself parallel to fwd
-   for any fwd with three equal components, so the quaternion comes out NaN / flipped.
-   Orthogonalise `up` against `fwd` first and fall back to a provably independent axis.
-   p2-core.js is owned by the lead, so the guard lives at the call sites instead. */
-function fltQlookSafe(o,fwd,up){
- vnorm(_f8,fwd);
- if(vlen2(_f8)<0.5)vset(_f8,0,0,-1);                    // fwd was degenerate
- vmad(_f9,up,_f8,-vdot(up,_f8));                        // up, made perpendicular to fwd
- if(vlen2(_f9)<1e-12){
-  const ax=Math.abs(_f8[0]),ay=Math.abs(_f8[1]),az=Math.abs(_f8[2]);
-  if(ax<=ay&&ax<=az)vset(_f9,1,0,0);else if(ay<=az)vset(_f9,0,1,0);else vset(_f9,0,0,1);
-  vmad(_f9,_f9,_f8,-vdot(_f9,_f8));
- }
- vnorm(_f9,_f9);
- return qlook(o,_f8,_f9);
-}
-
-/* M2 FIX: KSP-style time-warp ceiling. Warp integrates the flight model with sub-steps
-   of tens or hundreds of seconds, which is only valid when gravity is the ONLY force.
-   Under thrust, under RCS, inside an atmosphere or close to terrain the integration
-   diverges (and at 100000x the ship simply teleports through the planet). */
-function fltWarpMax(){
- if(typeof CTX==='undefined'||typeof SHIP==='undefined')return 1;
- if(SHIP.throttle>0.001)return 1;
- if(SHIP.rcsOn&&(Math.abs(SHIP.translate[0])+Math.abs(SHIP.translate[1])+
-    Math.abs(SHIP.translate[2]))>0.001)return 1;
- if(SHIP.landed)return 10;                              // surface warp: spring stays stable
- if(CTX.atmoDensity>0.0015)return 1;
- const b=CTX.body;
- if(!b||b.kind==='star')return 100000;
- const a=CTX.altitude;
- if(!isFinite(a))return 100000;
- const f=a/Math.max(b.radius,1);
- if(f<0.004)return 1;
- if(f<0.02)return 5;
- if(f<0.06)return 50;
- if(f<0.25)return 1000;
- if(f<1.5)return 10000;
- return 100000;
-}
 
 function orbFromState(pos,vel,mu,bodyPos,bodyVel){
  const r=_f0, v=_f1;
@@ -1869,7 +1293,7 @@ function fltInit(){
  vadd(SHIP.vel,earth.vel,_f1);
  vnorm(_f2,_f1);
  vnorm(_f3,_f0);
- fltQlookSafe(SHIP.quat,_f2,_f3);   // M2: gimbal-safe
+ qlook(SHIP.quat,_f2,_f3);
  SHIP.soi=earth;
 }
 function fltDominant(pos){
@@ -1912,22 +1336,14 @@ function fltBindInput(cv){
   if(e.code==='Period')setWarp(1);
   if(e.code==='Comma')setWarp(-1);
   if(e.code==='KeyM'){UI.mapOpen=!UI.mapOpen;}
-  // M2: SHIP.brakes existed but nothing could ever toggle it
-  if(e.code==='KeyB'){SHIP.brakes=!SHIP.brakes;message(SHIP.brakes?'BRAKES ON':'BRAKES OFF');}
   if(['KeyW','KeyS','KeyA','KeyD','KeyQ','KeyE','Space','ShiftLeft','ControlLeft'].includes(e.code))
    e.preventDefault();
  });
  addEventListener('keyup',e=>{KEYS[e.code]=0;});
- // M2: a key held while the tab loses focus never sees its keyup — the ship then
- // rotates forever with no way to stop it. Flush the whole map on blur.
- addEventListener('blur',()=>{for(const k in KEYS)KEYS[k]=0;});
  // mouse-look for the camera orbit
  let drag=false,lx=0,ly=0;
- cv.addEventListener('pointerdown',e=>{
-  if(typeof mobAxes!=='undefined'&&mobAxes.active)return;   // M2: touch scheme owns the camera
-  drag=true;lx=e.clientX;ly=e.clientY;});
+ cv.addEventListener('pointerdown',e=>{drag=true;lx=e.clientX;ly=e.clientY;});
  addEventListener('pointerup',()=>{drag=false;});
- addEventListener('pointercancel',()=>{drag=false;});       // M2: was a stuck-drag path
  addEventListener('pointermove',e=>{
   if(!drag)return;
   CAM.yaw-=(e.clientX-lx)*0.005;CAM.pitch=clamp(CAM.pitch+(e.clientY-ly)*0.005,-1.4,1.4);
@@ -1935,52 +1351,39 @@ function fltBindInput(cv){
  cv.addEventListener('wheel',e=>{CAM.dist=clamp(CAM.dist*(1+Math.sign(e.deltaY)*0.12),12,900);
   e.preventDefault();},{passive:false});
 }
-const CAM={yaw:0.6,pitch:0.44,dist:82,shake:0};  // framed so the planet is in shot on load
+const CAM={yaw:0.4,pitch:0.25,dist:78,shake:0};
 function fltUpdate(dt){
  const K=n=>KEYS[n]?1:0;
  // --- attitude command ---
  let cp=K('KeyS')-K('KeyW'), cy=K('KeyD')-K('KeyA'), cr=K('KeyE')-K('KeyQ');
- // M2: the p13 touch scheme replaces the legacy TOUCH sticks whenever it is active
- const mob=(typeof mobAxes!=='undefined'&&mobAxes.active)?mobAxes:null;
- if(mob){cp+=mob.pitch;cy+=mob.yaw;cr+=mob.roll;}
- else if(IS_MOBILE){cp+=-TOUCH.ry;cy+=TOUCH.rx;}
+ if(IS_MOBILE){cp+=-TOUCH.ry;cy+=TOUCH.rx;}
  const ex=x=>Math.sign(x)*Math.pow(Math.abs(clamp(x,-1,1)),1.7);
  SHIP.rcs[0]=ex(cp);SHIP.rcs[1]=ex(cy);SHIP.rcs[2]=ex(cr);
  // --- throttle ---
  let th=SHIP.throttle;
  th+=(K('ShiftLeft')-K('ControlLeft'))*dt*0.55;
- // with a real throttle slider (p13) the left stick no longer ramps the throttle
- if(!mob&&IS_MOBILE)th+=TOUCH.ly*dt*0.9;
+ if(IS_MOBILE)th+=TOUCH.ly*dt*0.9;
  SHIP.throttle=sat(th);
  // --- translation RCS ---
  SHIP.translate[0]=K('KeyL')-K('KeyJ');
  SHIP.translate[1]=K('KeyI')-K('KeyK');
  SHIP.translate[2]=K('KeyH')-K('KeyN');
- if(mob){SHIP.translate[0]+=mob.tx;SHIP.translate[1]+=mob.ty;}
- else if(IS_MOBILE){SHIP.translate[0]+=TOUCH.lx;}
- for(let i=0;i<3;i++)SHIP.translate[i]=clamp(SHIP.translate[i],-1,1);
+ if(IS_MOBILE){SHIP.translate[0]+=TOUCH.lx;}
 
  const body=fltDominant(SHIP.pos);
  SHIP.soi=body;
  let alt=Infinity, rho=0, gh=0;
  if(body){
-  const rr=vdist(SHIP.pos,body.pos);
-  // M2 PERF: fieldHeight() is the most expensive call in the whole sim loop and it ran
-  // once per physics sub-step (up to 16x per frame under warp). Above a few times the
-  // planet's total relief the terrain offset is irrelevant to altitude, so use the datum.
-  const relief=body.dna?(body.dna.amp+body.dna.ridgeAmp):0;
-  if(body.dna&&rr-body.radius<Math.max(6e4,relief*4)){
-   worldToBodyDir(body,SHIP.pos,_f6);
-   gh=worldGroundHeight(body,_f6);
-  } else gh=body.radius+(body.ocean?Math.max(0,body.ocean.level):0);
-  alt=rr-gh;
-  rho=fltAirDensity(body,rr-body.radius);
+  worldToBodyDir(body,SHIP.pos,_f6);
+  gh=worldGroundHeight(body,_f6);
+  alt=vdist(SHIP.pos,body.pos)-gh;
+  rho=fltAirDensity(body,vdist(SHIP.pos,body.pos)-body.radius);
  }
  // --- forces ---
  const acc=_f0;
  fltGravity(SHIP.pos,acc);
  // thrust
- const fwd=_f1; qrot(fwd,SHIP.quat,_fFWD);
+ const fwd=_f1; qrot(fwd,SHIP.quat,v3(0,0,-1));
  vnorm(fwd,fwd);
  const pAmb=body&&body.atmo?sat(rho/body.atmo.rho0):0;
  const isp=mix(SHIP.isp.vac,SHIP.isp.sl,pAmb);
@@ -1995,9 +1398,8 @@ function fltUpdate(dt){
  }
  // RCS translation
  if(SHIP.rcsOn){
-  // M2: dropped a dead scratch write and a per-sub-step Float64Array allocation
-  vset(_f2,SHIP.translate[0],SHIP.translate[1],-SHIP.translate[2]);
-  qrot(_f3,SHIP.quat,_f2);
+  const tr=_f2;vset(tr,0,0,0);
+  qrot(_f3,SHIP.quat,v3(SHIP.translate[0],SHIP.translate[1],-SHIP.translate[2]));
   vmad(acc,acc,_f3,26000/SHIP.mass);
  }
  // aerodynamics
@@ -2032,14 +1434,10 @@ function fltUpdate(dt){
    SHIP.angVel[0]+=_f6[0]*wc*dt*60;SHIP.angVel[1]+=_f6[1]*wc*dt*60;SHIP.angVel[2]+=_f6[2]*wc*dt*60;
    // Sutton-Graves stagnation heating: q = k*sqrt(rho/Rn)*v^3
    const qdot=1.7415e-4*Math.sqrt(rho/1.8)*Math.pow(vrelLen,3);
-   // M2 FIX: explicit Euler on this stiff linear ODE diverges once dt > 1/0.11 s, which
-   // happens on the very first warp sub-step — hullT oscillated to +/-1e30 and then
-   // silently destroyed the hull. Use the closed-form solution; unconditionally stable.
-   const eqT=290+qdot*0.00021/0.11;
-   SHIP.hullT=eqT+(SHIP.hullT-eqT)*Math.exp(-0.11*dt);
+   SHIP.hullT+=(qdot*0.00021-(SHIP.hullT-290)*0.11)*dt;
    if(SHIP.hullT>1850)SHIP.hull=sat(SHIP.hull-(SHIP.hullT-1850)*2e-6*dt);
   } else {
-   SHIP.hullT=290+(SHIP.hullT-290)*Math.exp(-0.05*dt);   // M2: same fix, cooling branch
+   SHIP.hullT+=(-(SHIP.hullT-290)*0.05)*dt;
   }
  }
  CTX.reentryHeat=sat((SHIP.hullT-620)/1500);
@@ -2080,49 +1478,28 @@ function fltUpdate(dt){
    vsub(_f4,SHIP.vel,body.vel);
    const vn=vdot(_f4,_f3);
    const k=Math.min(pen/clr,1);
-   // M2 FIX: the damper only acted while moving downward (min(vn,0)), so the spring
-   // released its full energy on the way back up and the ship bounced/jittered for
-   // ever instead of settling. Damp both directions, clamped at zero so the ground
-   // can only ever push (a unilateral contact never pulls the ship down).
-   const springA=Math.max(0,k*38.0 - vn*3.2);
+   const springA=k*38.0 - Math.min(vn,0)*3.2;
    vmad(SHIP.vel,SHIP.vel,_f3,springA*dt);
-   // M2 FIX: relaxing only 55% of the penetration is fine for a gentle touchdown, but a
-   // fast descent puts the hull tens of metres under the mesh in one step and it then
-   // sinks. Below the surface, push out completely and cancel the inward velocity.
-   if(alt<0){
-    vmad(SHIP.pos,SHIP.pos,_f3,-alt+0.2);
-    if(vn<0)vmad(SHIP.vel,SHIP.vel,_f3,-vn);
-   } else vmad(SHIP.pos,SHIP.pos,_f3,pen*0.55);
+   vmad(SHIP.pos,SHIP.pos,_f3,pen*0.55);
    // friction: bleed off the tangential component
    const vt=_f5;
    vmad(vt,_f4,_f3,-vn);
    const mu=SHIP.brakes?4.5:1.9;
    vmad(SHIP.vel,SHIP.vel,vt,-Math.min(1,mu*dt));
-   // M2 FIX: impact damage was applied on EVERY sub-step while penetrating, so one
-   // hard landing chewed through the hull in a handful of frames. Once per touchdown.
-   if(!SHIP.contactPrev){
-    if(Math.abs(vn)>34&&SHIP.gearDown===false)SHIP.hull=sat(SHIP.hull-0.16);
-    if(Math.abs(vn)>68)SHIP.hull=sat(SHIP.hull-0.28);
-   }
-   SHIP.contactPrev=true;
+   if(Math.abs(vn)>34&&SHIP.gearDown===false)SHIP.hull=sat(SHIP.hull-0.16);
+   if(Math.abs(vn)>68)SHIP.hull=sat(SHIP.hull-0.28);
    SHIP.landed=vlen(vt)<3.5&&Math.abs(vn)<2.5;
    for(let i=0;i<SHIP.gear.length;i++){
     SHIP.gear[i].compression01=sat(k);SHIP.gear[i].contact=true;
     SHIP.gear[i].dustRate=sat(k*2)*(1-sat(vlen(vt)/30));
    }
    CAM.shake=Math.max(CAM.shake,Math.min(1,Math.abs(vn)/22));
-  } else {SHIP.contactPrev=false;
-   for(const g of SHIP.gear){g.contact=false;g.compression01=0;g.dustRate=0;}}
- } else SHIP.contactPrev=false;
+  } else for(const g of SHIP.gear){g.contact=false;g.compression01=0;g.dustRate=0;}
+ }
  // --- resources ---
  const rs=SUN?vdist(SHIP.pos,SUN.pos):1e12;
  const solar=sat((AU/Math.max(rs,1))**2*0.9);
- // M2 FIX: with solar alone the reactor flat-lines beyond ~2 AU and never recovers —
- // startWarp() needs 12% charge, so the player is stranded with no path back. Model an
- // RTG that trickles all the time and steps up when the bus is low (load shedding), so
- // power always converges to a usable ~35% given time, but thrusting still costs.
- const rtg=SHIP.power<0.35?0.0125:0.0035;
- SHIP.power=sat(SHIP.power+(solar*0.032+rtg-0.010-SHIP.throttle*0.012)*dt);
+ SHIP.power=sat(SHIP.power+(solar*0.035-0.010-SHIP.throttle*0.012)*dt);
  SHIP.oxygen=sat(SHIP.oxygen-dt*7e-6);
  if(SHIP.power<=0.001)SHIP.oxygen=sat(SHIP.oxygen-dt*3e-5);
  // --- frame state ---
@@ -2201,28 +1578,9 @@ const WARPS=[1,2,5,10,50,100,1000,10000,100000];
 function setWarp(d){
  let i=WARPS.indexOf(CTX.timeWarp);if(i<0)i=0;
  i=clamp(i+d,0,WARPS.length-1);
- // M2 FIX: the old guard compared CTX.altitude (which the contract says is Infinity in
- // deep space) against a body radius and only ever blocked >10x, so 100000x was legal
- // while thrusting or mid-reentry. Defer to the physics ceiling instead.
- const mx=(typeof fltWarpMax==='function')?fltWarpMax():100000;
- if(d>0&&WARPS[i]>mx){
-  message('WARP LIMITED',
-   SHIP.throttle>0.001?'Cut the throttle — time warp cannot integrate thrust':
-   (CTX.atmoDensity>0.0015?'Atmospheric flight — time warp unavailable':
-    'Too deep in the gravity well — climb higher to warp'));
-  return;}
+ if(d>0&&CTX.altitude<(CTX.body?CTX.body.radius*0.02:1e4)&&WARPS[i]>10){
+  message('WARP LIMITED','Too deep in the gravity well — climb higher to warp');return;}
  CTX.timeWarp=WARPS[i];message('TIME WARP '+CTX.timeWarp+'x');
-}
-// M2: step the warp down to whatever is currently legal; returns true if it changed.
-function warpEnforce(){
- if(CTX.timeWarp<=1)return false;
- const mx=(typeof fltWarpMax==='function')?fltWarpMax():100000;
- if(CTX.timeWarp<=mx)return false;
- let j=WARPS.length-1;while(j>0&&WARPS[j]>mx)j--;
- CTX.timeWarp=WARPS[j];
- message('TIME WARP '+CTX.timeWarp+'x',
-  mx<=1?'Warp disengaged — thrust, RCS or atmosphere detected':'Warp reduced — gravity well');
- return true;
 }
 function doScan(){
  const b=CTX.body;
@@ -2371,9 +1729,7 @@ function updateHUD(dt){
  g('fuel',SHIP.fuel);g('ox',SHIP.oxygen);g('hull',SHIP.hull);g('pwr',SHIP.power);
  $('thr').firstElementChild.style.height=(SHIP.throttle*100).toFixed(0)+'%';
  $('thr').lastElementChild.textContent=(SHIP.throttle*100).toFixed(0)+'%';
- // M2 PERF: drawNavball rasterises 132x132 px in JS. Every other frame is fine on a
- // desktop; on a phone that is ~2 ms of the 33 ms budget, so drop to every third.
- if((UI.ballFrame++ % (IS_MOBILE?3:2))===0)drawNavball();
+ if((UI.ballFrame++ & 1)===0)drawNavball();
  if(UI.msgT>0){UI.msgT-=dt;if(UI.msgT<=0)$('msg').style.opacity=0;}
  if(UI.subT>0){UI.subT-=dt;if(UI.subT<=0)$('sub').style.opacity=0;}
 }
@@ -2882,1436 +2238,6 @@ void main(){
  float a=pow(1.0-d,1.6);
  fragColor=vec4(vC*a,a);
 }`;
-
-/* ---------- p12-map.js ---------- */
-/* ===== STAR MAP — system (orbital / KSP map view) + galaxy (4096-system chart) =====
-   Owner: agent M1.  Owns exactly one <canvas> of its own, drawn with the 2D API, plus a
-   handful of DOM panels appended to #ui.  Every global here is prefixed `map`. */
-
-const MAP_CSS=`
-#map_root{position:absolute;inset:0;display:none;pointer-events:auto;z-index:60;
- font-family:ui-monospace,"SF Mono",Menlo,Consolas,monospace;color:#cfe6ff;font-size:11px}
-#map_cv{position:absolute;inset:0;width:100%;height:100%;display:block;touch-action:none}
-.map_bar{position:absolute;display:flex;gap:5px;align-items:center;flex-wrap:wrap;z-index:2}
-#map_tabs{top:8px;left:8px}
-#map_tools{top:8px;right:8px;max-width:56vw;justify-content:flex-end}
-.map_b{pointer-events:auto;background:rgba(8,20,36,.82);border:1px solid rgba(90,190,255,.4);
- color:#a8e4ff;border-radius:5px;min-height:34px;min-width:36px;padding:6px 10px;font:inherit;
- font-size:11px;letter-spacing:.08em;cursor:pointer;white-space:nowrap}
-.map_b:active{background:rgba(30,120,200,.55)}
-.map_b.on{background:rgba(30,140,220,.5);border-color:#7fe6ff;color:#eaf8ff}
-.map_b.go{background:linear-gradient(180deg,rgba(120,40,200,.78),rgba(40,10,90,.9));
- border-color:#c79bff;color:#f0e0ff;font-weight:700;box-shadow:0 0 16px rgba(160,80,255,.4);
- width:100%;margin-top:8px;min-height:42px}
-.map_b.go2{background:rgba(10,30,52,.9);border-color:#7fe6ff;color:#dff2ff;width:100%;
- margin-top:6px;min-height:38px}
-#map_info{position:absolute;right:8px;top:52px;width:296px;max-height:calc(100% - 120px);
- overflow:auto;background:rgba(5,12,24,.9);border:1px solid rgba(90,190,255,.32);border-radius:6px;
- padding:10px 12px;backdrop-filter:blur(6px);display:none;z-index:3;
- box-shadow:0 0 30px rgba(0,120,255,.12) inset}
-#map_info h3{font-size:14px;letter-spacing:.16em;color:#dff2ff;margin:0 0 2px;font-weight:600}
-#map_info .k{color:#5d86a8;font-size:9px;letter-spacing:.14em;text-transform:uppercase}
-#map_info .r{display:flex;justify-content:space-between;gap:10px;line-height:1.65}
-#map_info .v{color:#a8e4ff;font-variant-numeric:tabular-nums}
-#map_info .dsc{color:#8fc4e8;font-size:10px;line-height:1.6;margin:6px 0 2px;
- border-left:2px solid rgba(199,155,255,.45);padding-left:7px}
-#map_info .warn{color:#ffb347;font-size:9.5px;margin-top:5px}
-#map_search{position:absolute;top:52px;left:8px;width:236px;display:none;z-index:3}
-#map_q{width:100%;background:rgba(5,12,24,.9);border:1px solid rgba(90,190,255,.35);border-radius:5px;
- color:#dff2ff;font:inherit;font-size:12px;padding:9px 10px;outline:none;min-height:38px}
-#map_q:focus{border-color:#7fe6ff}
-#map_res{margin-top:4px;max-height:40vh;overflow:auto;background:rgba(5,12,24,.92);
- border:1px solid rgba(90,190,255,.22);border-radius:5px;display:none}
-#map_res div{padding:9px 10px;border-bottom:1px solid rgba(90,190,255,.12);cursor:pointer;
- color:#a8e4ff;min-height:36px}
-#map_res div:active{background:rgba(40,20,70,.85);color:#f0e0ff}
-#map_hint{position:absolute;left:8px;bottom:8px;color:#3d6a8f;font-size:9.5px;letter-spacing:.1em;
- line-height:1.6;pointer-events:none;z-index:2;max-width:52vw}
-@media (max-width:600px){
- .map_b{min-height:44px;padding:9px 11px}
- #map_info{left:8px;right:8px;width:auto;top:auto;bottom:8px;max-height:47%}
- #map_search{width:calc(100% - 16px);top:60px}
- #map_hint{display:none}
-}`;
-
-/* ---- state ---- */
-let mapRoot=null, mapCv=null, mapG=null, mapVisible=false, mapMode='sys', mapDPR=1;
-let mapW=0, mapH=0, mapT=0, mapReady=false;
-let mapFrame=null;                 // Body at the centre of the orbital view
-let mapSel=null;                   // selected Body (system map)
-let mapGalSel=-1, mapGalHover=-1;  // selected / hovered system id
-let mapSysId=-1;                   // last SYSTEM.id we synced to
-const mapCam={yaw:0.0,pitch:1.30,zoom:1,px:0,py:0,cy:1,sy:0,cp:0.27,sp:0.96};
-const mapGalCam={yaw:0.6,pitch:0.55,zoom:1,px:0,py:0,dist:3.0,cy:1,sy:0,cp:1,sp:0,f:1,cx:0,cy0:0};
-const mapView={r0:1,S:1,cx:0,cy:0,cyy:1,syy:0,cp:0,sp:1};
-const mapHits=[];                  // {x,y,r,body}
-const mapEl={};
-let mapOrbCache=new WeakMap();
-const mapP=[0,0,0], mapP2=[0,0,0], mapP3=[0,0,0];
-const mapSN=192, mapShipPts=new Float64Array(mapSN*3);
-const mapTmpA=new Float64Array(3), mapTmpB=new Float64Array(3), mapTmpC=new Float64Array(3);
-/* galaxy tables */
-let mapGalPos=null, mapGalSize=null, mapGalTint=null, mapGalNames=null, mapGalNeb=null;
-let mapGalDirty=true, mapGalLast=-1e9, mapGlow=null, mapGlow2=null, mapGalQ='';
-const mapInsetCam={yaw:0,pitch:1.3,zoom:1,px:0,py:0};
-const mapRingR=[];
-const mapLabels=[], mapOcc=[];
-const MAP_AU_RINGS=[0.05,0.1,0.2,0.5,1,2,5,10,20,50,100];
-const MAP_GAL_LY=900;              // galaxy model radius 1.0 == 900 light years
-const mapPalette=[];               // 24 precomputed star colour strings
-/* input */
-const mapPtrs=new Map();
-let mapGest=null, mapDragged=false, mapDownT=0, mapDownX=0, mapDownY=0;
-let mapCost=0, mapCostN=0, mapCostAvg=0;   // per-frame cost telemetry (ms)
-
-/* ================= INIT ================= */
-function mapInit(){
- if(mapRoot)return mapRoot;
- const st=document.createElement('style');st.textContent=MAP_CSS;document.head.appendChild(st);
- const host=document.getElementById('ui')||document.body;
- mapRoot=document.createElement('div');mapRoot.id='map_root';
- mapRoot.innerHTML=
-  '<canvas id="map_cv"></canvas>'+
-  '<div class="map_bar" id="map_tabs">'+
-   '<button class="map_b on" id="map_tsys">SYSTEM</button>'+
-   '<button class="map_b" id="map_tgal">GALAXY</button></div>'+
-  '<div class="map_bar" id="map_tools">'+
-   '<button class="map_b" id="map_rl">&#8634;</button>'+
-   '<button class="map_b" id="map_rr">&#8635;</button>'+
-   '<button class="map_b" id="map_tilt">TILT</button>'+
-   '<button class="map_b" id="map_zo">&minus;</button>'+
-   '<button class="map_b" id="map_zi">+</button>'+
-   '<button class="map_b" id="map_home">RESET</button>'+
-   '<button class="map_b" id="map_x">CLOSE</button></div>'+
-  '<div id="map_search"><input id="map_q" placeholder="SEARCH SYSTEMS…" '+
-   'autocomplete="off" spellcheck="false"><div id="map_res"></div></div>'+
-  '<div id="map_info"></div>'+
-  '<div id="map_hint"></div>';
- host.appendChild(mapRoot);
- const $m=id=>document.getElementById(id);
- mapCv=$m('map_cv');mapG=mapCv.getContext('2d',{alpha:true});
- mapEl.info=$m('map_info');mapEl.hint=$m('map_hint');mapEl.search=$m('map_search');
- mapEl.q=$m('map_q');mapEl.res=$m('map_res');
- mapEl.tsys=$m('map_tsys');mapEl.tgal=$m('map_tgal');mapEl.tilt=$m('map_tilt');
- mapEl.tsys.onclick=()=>mapSetMode('sys');
- mapEl.tgal.onclick=()=>mapSetMode('gal');
- $m('map_x').onclick=()=>mapToggle(false);
- $m('map_rl').onclick=()=>{mapCamOf().yaw-=0.26;mapGalDirty=true;};
- $m('map_rr').onclick=()=>{mapCamOf().yaw+=0.26;mapGalDirty=true;};
- mapEl.tilt.onclick=()=>{const c=mapCamOf();
-  const P=[1.5533,1.05,0.62,0.22];let i=0,bd=9;
-  for(let k=0;k<P.length;k++){const d=Math.abs(P[k]-c.pitch);if(d<bd){bd=d;i=k;}}
-  c.pitch=P[(i+1)%P.length];mapGalDirty=true;};
- $m('map_zi').onclick=()=>mapZoom(1.45,mapW*0.5,mapH*0.5);
- $m('map_zo').onclick=()=>mapZoom(1/1.45,mapW*0.5,mapH*0.5);
- $m('map_home').onclick=()=>mapHome();
- mapEl.q.oninput=()=>mapSearch();
- mapEl.q.onkeydown=e=>{e.stopPropagation();};
- mapEl.q.onkeyup=e=>{e.stopPropagation();};
- mapBindInput();
- mapMakeGlow();
- mapHome();
- mapReady=true;
- return mapRoot;
-}
-function mapCamOf(){return mapMode==='sys'?mapCam:mapGalCam;}
-function mapMakeGlow(){
- const mk=(r,g,b)=>{const c=document.createElement('canvas');c.width=c.height=64;
-  const x=c.getContext('2d');const gr=x.createRadialGradient(32,32,0,32,32,32);
-  gr.addColorStop(0,'rgba('+r+','+g+','+b+',1)');
-  gr.addColorStop(0.35,'rgba('+r+','+g+','+b+',0.36)');
-  gr.addColorStop(1,'rgba('+r+','+g+','+b+',0)');
-  x.fillStyle=gr;x.fillRect(0,0,64,64);return c;};
- mapGlow=mk(150,205,255);mapGlow2=mk(190,150,255);
-}
-function mapHome(){
- if(mapMode==='sys'){
-  mapCam.yaw=0.0;mapCam.pitch=1.30;mapCam.zoom=1;mapCam.px=0;mapCam.py=0;
-  mapFrame=(typeof SUN!=='undefined'&&SUN)?SUN:null;mapSel=null;
- } else {
-  mapGalCam.yaw=0.6;mapGalCam.pitch=0.55;mapGalCam.zoom=1;mapGalCam.px=0;mapGalCam.py=0;
- }
- mapGalDirty=true;mapPanel();
-}
-function mapSetMode(m){
- mapMode=m;mapGalDirty=true;
- mapEl.tsys.classList.toggle('on',m==='sys');
- mapEl.tgal.classList.toggle('on',m==='gal');
- mapEl.search.style.display=(m==='gal')?'block':'none';
- mapEl.hint.innerHTML=(m==='sys')
-  ?'DRAG pan · WHEEL/PINCH zoom · TWO-FINGER twist rotate · TAP a body · TILT to change view angle'
-  :'DRAG rotate · WHEEL/PINCH zoom · TAP a star · SEARCH by name';
- if(m==='gal'&&!mapGalPos)mapBuildGalaxy();
- mapPanel();
-}
-
-/* ================= INPUT ================= */
-function mapZoom(f,ax,ay){
- const c=mapCamOf();
- const z0=c.zoom;
- c.zoom=clamp(c.zoom*f,mapMode==='sys'?0.18:0.35,mapMode==='sys'?900:24);
- const k=c.zoom/z0;
- // keep the point under (ax,ay) fixed
- const cx=mapW*0.5+c.px, cy=mapH*0.5+c.py;
- c.px+=(cx-ax)*(k-1);c.py+=(cy-ay)*(k-1);
- mapGalDirty=true;
-}
-function mapBindInput(){
- const cv=mapCv;
- const loc=e=>{const r=cv.getBoundingClientRect();return[e.clientX-r.left,e.clientY-r.top];};
- cv.addEventListener('wheel',e=>{e.preventDefault();e.stopPropagation();
-  const p=loc(e);mapZoom(Math.pow(1.16,-Math.sign(e.deltaY)),p[0],p[1]);},{passive:false});
- cv.addEventListener('pointerdown',e=>{
-  e.preventDefault();e.stopPropagation();
-  try{cv.setPointerCapture(e.pointerId);}catch(_){}
-  const p=loc(e);
-  mapPtrs.set(e.pointerId,{x:p[0],y:p[1],sh:e.shiftKey||e.button===2});
-  if(mapPtrs.size===1){mapDragged=false;mapDownT=performance.now();mapDownX=p[0];mapDownY=p[1];}
-  if(mapPtrs.size===2)mapGestStart();
- });
- cv.addEventListener('pointermove',e=>{
-  const p=loc(e);
-  const rec=mapPtrs.get(e.pointerId);
-  if(!rec){ if(mapMode==='gal'){mapHoverGal(p[0],p[1]);} return; }
-  const dx=p[0]-rec.x, dy=p[1]-rec.y;
-  rec.x=p[0];rec.y=p[1];
-  if(Math.abs(p[0]-mapDownX)+Math.abs(p[1]-mapDownY)>10)mapDragged=true;
-  if(mapPtrs.size===1){
-   const c=mapCamOf();
-   if(mapMode==='gal'||rec.sh){
-    c.yaw-=dx*0.006;c.pitch=clamp(c.pitch+dy*0.006,-1.5533,1.5533);
-   } else {c.px+=dx;c.py+=dy;}
-   mapGalDirty=true;
-  } else if(mapPtrs.size===2)mapGestMove();
-  e.preventDefault();e.stopPropagation();
- });
- const up=e=>{
-  const rec=mapPtrs.get(e.pointerId);
-  mapPtrs.delete(e.pointerId);
-  if(mapPtrs.size<2)mapGest=null;
-  if(!rec)return;
-  if(!mapDragged&&performance.now()-mapDownT<500&&mapPtrs.size===0)mapTap(rec.x,rec.y);
- };
- cv.addEventListener('pointerup',up);
- cv.addEventListener('pointercancel',up);
- cv.addEventListener('contextmenu',e=>e.preventDefault());
-}
-function mapGestStart(){
- const a=[...mapPtrs.values()];if(a.length<2)return;
- const c=mapCamOf();
- mapGest={d:Math.hypot(a[0].x-a[1].x,a[0].y-a[1].y)||1,
-  ang:Math.atan2(a[1].y-a[0].y,a[1].x-a[0].x),
-  mx:(a[0].x+a[1].x)*0.5,my:(a[0].y+a[1].y)*0.5,z:c.zoom,yaw:c.yaw};
-}
-function mapGestMove(){
- const a=[...mapPtrs.values()];if(a.length<2||!mapGest)return;
- const c=mapCamOf();
- const d=Math.hypot(a[0].x-a[1].x,a[0].y-a[1].y)||1;
- const ang=Math.atan2(a[1].y-a[0].y,a[1].x-a[0].x);
- const mx=(a[0].x+a[1].x)*0.5,my=(a[0].y+a[1].y)*0.5;
- c.px+=mx-mapGest.mx;c.py+=my-mapGest.my;
- const z0=c.zoom;
- c.zoom=clamp(mapGest.z*(d/mapGest.d),mapMode==='sys'?0.18:0.35,mapMode==='sys'?900:24);
- const k=c.zoom/z0;
- const ccx=mapW*0.5+c.px, ccy=mapH*0.5+c.py;
- c.px+=(ccx-mx)*(k-1);c.py+=(ccy-my)*(k-1);
- let da=ang-mapGest.ang; while(da>Math.PI)da-=TAU; while(da<-Math.PI)da+=TAU;
- c.yaw=mapGest.yaw+da;
- mapGest.mx=mx;mapGest.my=my;mapGalDirty=true;
-}
-function mapTap(x,y){
- if(mapMode==='sys'){
-  const b=mapPick(x,y);
-  mapSel=b;mapPanel();
- } else {
-  const id=mapPickGal(x,y);
-  if(id>=0){mapGalSel=id;mapGalDirty=true;mapPanel();}
- }
-}
-function mapPick(x,y){
- let best=null,bd=1e9;
- for(let i=mapHits.length-1;i>=0;i--){
-  const h=mapHits[i];
-  const d=Math.hypot(h.x-x,h.y-y);
-  const rr=Math.max(h.r+8,24);            // >=48 px touch target
-  if(d<rr&&d<bd){bd=d;best=h.body;}
- }
- return best;
-}
-function mapHoverGal(x,y){
- const id=mapPickGal(x,y);
- if(id!==mapGalHover){mapGalHover=id;mapGalDirty=true;}
-}
-
-/* ================= RADIAL WARP + PROJECTION =================
-   The solar system spans 0.39 AU (Mercury) to 39.5 AU (Pluto): a linear plot makes the
-   inner system a single pixel. We map radius through  s(r) = ln(1 + r/r0)  where r0 is
-   ~0.3 x the innermost semi-major axis of the current frame. Because the warp is purely
-   radial and applied to the full 3-vector, direction is untouched — so orbital
-   inclinations and the "star sits at a focus" geometry survive exactly, only the radial
-   metric is compressed. Two decades of radius become a factor ~3.8 on screen. */
-function mapPrj(dx,dy,dz,o){
- const r=Math.sqrt(dx*dx+dy*dy+dz*dz);
- const w=r>1e-9?Math.log1p(r/mapView.r0)/r:0;
- const X=dx*w,Y=dy*w,Z=dz*w;
- const rx=X*mapView.cyy-Z*mapView.syy;
- const fz=X*mapView.syy+Z*mapView.cyy;
- o[0]=mapView.cx+rx*mapView.S;
- o[1]=mapView.cy-(Y*mapView.cp-fz*mapView.sp)*mapView.S;
- o[2]=Y*mapView.sp+fz*mapView.cp;
- return o;
-}
-function mapKids(b){const o=[];if(typeof BODIES==='undefined')return o;
- for(const x of BODIES)if(x.parent===b)o.push(x);return o;}
-
-/* orbit polyline of a body about its parent, cached (elements never change) */
-function mapBodyOrb(b){
- let o=mapOrbCache.get(b);
- if(o)return o;
- const N=b.e>0.25?176:112;
- const pts=new Float64Array(N*3);
- const co=Math.cos(b.argp),so=Math.sin(b.argp),ci=Math.cos(b.inc),si=Math.sin(b.inc),
-       cr=Math.cos(b.raan),sr=Math.sin(b.raan);
- const R11=cr*co-sr*so*ci, R12=-cr*so-sr*co*ci;
- const R21=sr*co+cr*so*ci, R22=-sr*so+cr*co*ci;
- const R31=so*si,          R32=co*si;
- const p=b.a*(1-b.e*b.e);
- for(let i=0;i<N;i++){
-  const nu=i/N*TAU, r=p/(1+b.e*Math.cos(nu));
-  const xp=r*Math.cos(nu), yp=r*Math.sin(nu);
-  pts[i*3]=R11*xp+R12*yp;pts[i*3+1]=R31*xp+R32*yp;pts[i*3+2]=R21*xp+R22*yp;
- }
- const rp=b.a*(1-b.e), ra=b.a*(1+b.e);
- o={pts:pts,n:N,
-    pe:[R11*rp,R31*rp,R21*rp],
-    ap:[-R11*ra,-R31*ra,-R21*ra]};
- mapOrbCache.set(b,o);
- return o;
-}
-/* ship conic about `body`, sampled forward from the current true anomaly */
-function mapShipConic(body){
- if(typeof SHIP==='undefined'||!body)return null;
- const r=mapTmpA, v=mapTmpB;
- vsub(r,SHIP.pos,body.pos);vsub(v,SHIP.vel,body.vel);
- const R=vlen(r);if(!(R>1)||!isFinite(R))return null;
- const h=mapTmpC;vcross(h,r,v);const H=vlen(h);
- if(!(H>1))return null;
- const mu=body.mu;
- const ex=(v[1]*h[2]-v[2]*h[1])/mu-r[0]/R;
- const ey=(v[2]*h[0]-v[0]*h[2])/mu-r[1]/R;
- const ez=(v[0]*h[1]-v[1]*h[0])/mu-r[2]/R;
- let e=Math.hypot(ex,ey,ez);
- let Px,Py,Pz;
- if(e>1e-6){Px=ex/e;Py=ey/e;Pz=ez/e;}
- else{e=0;Px=r[0]/R;Py=r[1]/R;Pz=r[2]/R;}
- // Q = normalize(h x P)
- let Qx=h[1]*Pz-h[2]*Py, Qy=h[2]*Px-h[0]*Pz, Qz=h[0]*Py-h[1]*Px;
- const ql=Math.hypot(Qx,Qy,Qz)||1;Qx/=ql;Qy/=ql;Qz/=ql;
- const pl=H*H/mu;
- const nu0=Math.atan2(r[0]*Qx+r[1]*Qy+r[2]*Qz, r[0]*Px+r[1]*Py+r[2]*Pz);
- let span=TAU, nuMax=Math.PI;
- if(e>=1){nuMax=Math.acos(clamp(-1/e,-1,1))*0.985;span=0;}
- const N=mapSN;
- let n=0;
- for(let i=0;i<N;i++){
-  let nu;
-  if(e<1){nu=nu0+i/(N-1)*TAU;}
-  else{
-   nu=nu0+i/(N-1)*(nuMax-nu0);
-   if(nu>nuMax)break;
-  }
-  const rr=pl/(1+e*Math.cos(nu));
-  if(!(rr>0)||rr>1e15)break;
-  const c=Math.cos(nu),s=Math.sin(nu);
-  mapShipPts[n*3]=Px*rr*c+Qx*rr*s;
-  mapShipPts[n*3+1]=Py*rr*c+Qy*rr*s;
-  mapShipPts[n*3+2]=Pz*rr*c+Qz*rr*s;
-  n++;
- }
- const a=(e!==1)?pl/(1-e*e):Infinity;
- const rp=pl/(1+e), ra=e<1?pl/(1-e):Infinity;
- return {n:n,e:e,a:a,rp:rp,ra:ra,pl:pl,
-  peX:Px*rp,peY:Py*rp,peZ:Pz*rp,
-  apX:-Px*ra,apY:-Py*ra,apZ:-Pz*ra,
-  period:(e<1&&a>0)?TAU*Math.sqrt(a*a*a/mu):Infinity,R:R};
-}
-
-/* ================= ORBITAL (SYSTEM) VIEW ================= */
-function mapFmtR(m){
- if(!isFinite(m))return '—';
- const a=Math.abs(m);
- if(a>=0.004*AU)return (m/AU).toFixed(a<0.1*AU?3:(a<10*AU?2:1))+' AU';
- if(a>=1e9)return (m/1e9).toFixed(2)+' Gm';
- if(a>=1e6)return (m/1e6).toFixed(1)+' Mm';
- return (m/1e3).toFixed(0)+' km';
-}
-function mapCol(c,a){
- return 'rgba('+((c[0]*255)|0)+','+((c[1]*255)|0)+','+((c[2]*255)|0)+','+a+')';
-}
-function mapMarkPx(b){
- if(b.kind==='star')return 7.5;
- const l=Math.log10(Math.max(b.radius,1e4)/1e6);
- return clamp(2.6+l*2.6,2.2,8.0);
-}
-const MAP_DEC=[1,2,5];
-function mapRenderOrbital(g,vx,vy,vw,vh,frame,cam,hits,inset,fitR){
- if(!frame)return;
- mapLabels.length=0;
- const kids=mapKids(frame);
- // radial reference: r0 sets the log knee, rRef the outer edge of the plot
- let aMin=Infinity,rRef=frame.radius*60;
- for(const k of kids){aMin=Math.min(aMin,k.a);rRef=Math.max(rRef,k.a*(1+k.e));}
- // if the ship orbits this body, let its periapsis pull the knee inward so low orbits
- // are not buried inside the primary's disc
- const domB=(typeof CTX!=='undefined'&&CTX.body)?CTX.body:null;
- if(domB===frame&&typeof SHIP!=='undefined'&&SHIP.pos)
-  aMin=Math.min(aMin,Math.max(vdist(SHIP.pos,frame.pos),frame.radius));
- if(!isFinite(aMin))aMin=frame.radius*16;
- if(fitR>0)rRef=fitR;
- const r0=Math.max(aMin*0.30,frame.radius*1.6);
- const minD=Math.min(vw,vh);
- const S=cam.zoom*0.42*minD/Math.max(Math.log1p(rRef/r0),1e-6);
- mapView.r0=r0;mapView.S=S;
- mapView.cx=vx+vw*0.5+(inset?0:cam.px);mapView.cy=vy+vh*0.5+(inset?0:cam.py);
- mapView.cyy=Math.cos(cam.yaw);mapView.syy=Math.sin(cam.yaw);
- mapView.cp=Math.cos(cam.pitch);mapView.sp=Math.sin(cam.pitch);
-
- /* --- range rings: 1/2/5 x 10^k metres, kept ~64 px apart so they span the whole plot
-       instead of bunching up in the compressed outer region. They make the log scale legible. --- */
- g.lineWidth=1;g.font='9px ui-monospace,Menlo,Consolas,monospace';
- mapRingR.length=0;
- let lastPx=-1e9;
- for(let k=5;k<=14&&mapRingR.length<8;k++)for(let m=0;m<3&&mapRingR.length<8;m++){
-  const rr=MAP_DEC[m]*Math.pow(10,k);
-  if(rr>rRef*2.0)break;
-  const px=Math.log1p(rr/r0)*S;
-  if(px<22||px>minD*2.4)continue;
-  if(px-lastPx<Math.max(58,minD*0.10))continue;
-  lastPx=px;mapRingR.push(rr);
- }
- for(let ri=0;ri<mapRingR.length;ri++){
-  const rr=mapRingR[ri];
-  const px=Math.log1p(rr/r0)*S;
-  g.strokeStyle='rgba(90,190,255,0.10)';
-  g.beginPath();
-  let lx=0,ly=0,best=-1e9;
-  for(let i=0;i<=48;i++){
-   const a=i/48*TAU;
-   mapPrj(Math.cos(a)*rr,0,Math.sin(a)*rr,mapP);
-   if(i===0)g.moveTo(mapP[0],mapP[1]);else g.lineTo(mapP[0],mapP[1]);
-   if(mapP[0]>best){best=mapP[0];lx=mapP[0];ly=mapP[1];}
-  }
-  g.stroke();
-  if(!inset&&px>44){g.fillStyle='rgba(93,134,168,0.75)';g.fillText(mapFmtR(rr),lx+4,ly-3);}
- }
- /* --- orbits of the frame's children --- */
- for(const b of kids){
-  const o=mapBodyOrb(b);
-  const selq=(b===mapSel);
-  g.strokeStyle=mapCol(b.color,selq?0.95:0.42);
-  g.lineWidth=selq?2:1.1;
-  g.beginPath();
-  for(let i=0;i<o.n;i++){
-   mapPrj(o.pts[i*3],o.pts[i*3+1],o.pts[i*3+2],mapP);
-   if(i===0)g.moveTo(mapP[0],mapP[1]);else g.lineTo(mapP[0],mapP[1]);
-  }
-  g.closePath();g.stroke();
-  if(selq&&b.e>0.008){
-   mapPrj(o.ap[0],o.ap[1],o.ap[2],mapP);
-   mapNode(g,mapP[0],mapP[1],'#7fe6ff','Ap '+mapFmtR(b.a*(1+b.e)));
-   mapPrj(o.pe[0],o.pe[1],o.pe[2],mapP2);
-   mapNode(g,mapP2[0],mapP2[1],'#ffd34d','Pe '+mapFmtR(b.a*(1-b.e)));
-  }
- }
- /* --- the frame body itself --- */
- mapPrj(0,0,0,mapP);
- mapBodyDot(g,frame,mapP[0],mapP[1],0,hits,true);
- /* --- bodies --- */
- const fx=frame.pos[0],fy=frame.pos[1],fz=frame.pos[2];
- for(const b of kids){
-  const dx=b.pos[0]-fx,dy=b.pos[1]-fy,dz=b.pos[2]-fz;
-  mapPrj(dx,dy,dz,mapP);
-  mapBodyDot(g,b,mapP[0],mapP[1],Math.hypot(dx,dy,dz),hits,false);
- }
- /* --- ship --- */
- if(typeof SHIP!=='undefined'&&SHIP.pos){
-  const dom=(typeof CTX!=='undefined'&&CTX.body)?CTX.body:(SHIP.soi||null);
-  if(dom===frame){
-   const cn=mapShipConic(frame);
-   if(cn&&cn.n>2){
-    // predicted path: 14 chunks with stepped alpha (one stroke each) so the trajectory
-    // reads as "ahead of you" without 190 separate draw calls
-    g.lineWidth=1.7;
-    const CH=14, per=Math.max(2,Math.ceil(cn.n/CH));
-    for(let c0=0;c0<cn.n-1;c0+=per){
-     const a=1-c0/cn.n;
-     g.strokeStyle='rgba(127,230,255,'+(0.12+0.76*a*a).toFixed(3)+')';
-     g.beginPath();
-     const end=Math.min(cn.n-1,c0+per);
-     for(let i=c0;i<=end;i++){
-      mapPrj(mapShipPts[i*3],mapShipPts[i*3+1],mapShipPts[i*3+2],mapP);
-      if(i===c0)g.moveTo(mapP[0],mapP[1]);else g.lineTo(mapP[0],mapP[1]);
-     }
-     g.stroke();
-    }
-    if(isFinite(cn.ra)){mapPrj(cn.apX,cn.apY,cn.apZ,mapP);
-     mapNode(g,mapP[0],mapP[1],'#7fe6ff','Ap '+mapFmtR(cn.ra-frame.radius));}
-    mapPrj(cn.peX,cn.peY,cn.peZ,mapP);
-    mapNode(g,mapP[0],mapP[1],'#ffd34d','Pe '+mapFmtR(cn.rp-frame.radius));
-   }
-  }
-  const sx=SHIP.pos[0]-fx, sy=SHIP.pos[1]-fy, sz=SHIP.pos[2]-fz;
-  mapPrj(sx,sy,sz,mapP);
-  // velocity vector: project a short step along v and normalise on screen
-  const vx0=SHIP.vel[0]-frame.vel[0],vy0=SHIP.vel[1]-frame.vel[1],vz0=SHIP.vel[2]-frame.vel[2];
-  const vl=Math.hypot(vx0,vy0,vz0);
-  const rr=Math.hypot(sx,sy,sz);
-  if(vl>0.01&&rr>1){
-   const st=rr*0.03/vl;
-   mapPrj(sx+vx0*st,sy+vy0*st,sz+vz0*st,mapP2);
-   let ax=mapP2[0]-mapP[0],ay=mapP2[1]-mapP[1];
-   const al=Math.hypot(ax,ay)||1;
-   const L=inset?18:30;
-   ax=ax/al*L;ay=ay/al*L;
-   g.strokeStyle='rgba(255,211,77,0.9)';g.lineWidth=1.6;
-   g.beginPath();g.moveTo(mapP[0],mapP[1]);g.lineTo(mapP[0]+ax,mapP[1]+ay);g.stroke();
-   g.beginPath();g.moveTo(mapP[0]+ax,mapP[1]+ay);
-   g.lineTo(mapP[0]+ax*0.72-ay*0.16,mapP[1]+ay*0.72+ax*0.16);
-   g.lineTo(mapP[0]+ax*0.72+ay*0.16,mapP[1]+ay*0.72-ax*0.16);
-   g.closePath();g.fillStyle='rgba(255,211,77,0.9)';g.fill();
-  }
-  g.strokeStyle='#eaf8ff';g.fillStyle='rgba(127,230,255,0.9)';g.lineWidth=1.5;
-  g.beginPath();
-  g.moveTo(mapP[0],mapP[1]-5.5);g.lineTo(mapP[0]+4.6,mapP[1]+4.4);
-  g.lineTo(mapP[0],mapP[1]+1.8);g.lineTo(mapP[0]-4.6,mapP[1]+4.4);
-  g.closePath();g.fill();g.stroke();
-  if(!inset){g.fillStyle='#eaf8ff';g.font='9px ui-monospace,Menlo,Consolas,monospace';
-   g.fillText('YOU',mapP[0]+7,mapP[1]-6);}
- }
-}
-function mapNode(g,x,y,col,txt){
- g.strokeStyle=col;g.lineWidth=1.4;
- g.beginPath();g.moveTo(x,y-4.6);g.lineTo(x+4.6,y);g.lineTo(x,y+4.6);g.lineTo(x-4.6,y);
- g.closePath();g.stroke();
- if(txt)mapLabels.push({x:x,y:y,r:5,t:txt,c:col,f:'9px ui-monospace,Menlo,Consolas,monospace',p:1});
-}
-/* Simple label de-collision: highest priority first, four candidate anchors each, and
-   low-priority labels are dropped rather than allowed to overlap. */
-function mapDrawLabels(g){
- mapOcc.length=0;
- mapLabels.sort((a,b)=>b.p-a.p);
- const OFF=[[1,3.5],[-1,3.5],[1,-9],[1,15],[-1,-9],[-1,15]];
- for(const L of mapLabels){
-  g.font=L.f;
-  const w=g.measureText(L.t).width;
-  let done=false;
-  for(let k=0;k<OFF.length&&!done;k++){
-   const s=OFF[k][0];
-   const x=s>0?(L.x+L.r+5):(L.x-L.r-5-w);
-   const y=L.y+OFF[k][1];
-   const x0=x-2,y0=y-9,x1=x+w+2,y1=y+3;
-   let hit=false;
-   for(const o of mapOcc)if(x0<o[2]&&x1>o[0]&&y0<o[3]&&y1>o[1]){hit=true;break;}
-   if(hit)continue;
-   mapOcc.push([x0,y0,x1,y1]);
-   g.fillStyle=L.c;g.fillText(L.t,x,y);
-   done=true;
-  }
-  if(!done&&L.p>=3){g.fillStyle=L.c;g.fillText(L.t,L.x+L.r+5,L.y+3.5);}
- }
- mapLabels.length=0;
-}
-function mapBodyDot(g,b,x,y,r,hits,isFrame){
- const mk=mapMarkPx(b);
- // at the centre of the frame the warp is strongly non-linear over the body's own radius,
- // so integrate it properly; elsewhere the local derivative of ln(1+r/r0) is accurate
- const disc=isFrame?Math.log1p(b.radius/mapView.r0)*mapView.S
-                   :b.radius*mapView.S/(mapView.r0+r);
- const px=Math.max(mk,Math.min(disc,Math.min(mapW,mapH)*0.45));
- if(x<-90||x>mapW+90||y<-90||y>mapH+90)return;
- const sel=(b===mapSel);
- if(b.kind==='star'){
-  g.globalCompositeOperation='lighter';
-  g.globalAlpha=0.55;
-  g.drawImage(mapGlow,x-px*4,y-px*4,px*8,px*8);
-  g.globalAlpha=1;g.globalCompositeOperation='source-over';
- }
- g.beginPath();g.arc(x,y,px,0,TAU);
- g.fillStyle=mapCol(b.color,b.kind==='star'?1:0.92);g.fill();
- g.lineWidth=1;g.strokeStyle='rgba(10,20,34,0.9)';g.stroke();
- if(sel){g.strokeStyle='#c79bff';g.lineWidth=2;
-  g.beginPath();g.arc(x,y,px+7,0,TAU);g.stroke();
-  g.strokeStyle='rgba(199,155,255,0.45)';g.lineWidth=1;
-  g.beginPath();g.arc(x,y,px+13,0,TAU);g.stroke();}
- mapLabels.push({x:x,y:y,r:px+(sel?9:0),t:b.name,
-  c:sel?'#f0e0ff':(b.kind==='star'?'#ffe9c0':'#bcdcf4'),
-  f:(b.kind==='star'?'bold ':'')+'10px ui-monospace,Menlo,Consolas,monospace',
-  p:(sel||b.kind==='star')?3:(b.kind==='moon'?1:2)});
- if(hits)hits.push({x:x,y:y,r:px,body:b});
-}
-
-/* ================= GALAXY ================= */
-let mapRandS=0;
-function mapRand(){mapRandS=(mapRandS*1664525+1013904223)>>>0;return mapRandS/4294967296;}
-/* Replays buildSystem()'s own PRNG so the chart agrees with the system you actually jump to. */
-function mapSysInfo(id){
- if(id===0)return {cls:0.42,starR:6.957e8,temp:5772,col:[1,.95,.85],n:9,name:'SOL'};
- mapRandS=(id*2654435761)>>>0;
- const cls=mapRand();
- const n=2+Math.floor(mapRand()*7);
- const temp=mix(2800,9200,cls);
- return {cls:cls,starR:mix(3e8,1.6e9,cls*cls),temp:temp,n:n,
-  col:[Math.min(1,Math.max(.35,1.4-cls*.5)),Math.min(1,.6+cls*.4),Math.min(1,.25+cls*.85)],
-  name:systemName(id)};
-}
-function mapSpectral(T){
- return T>=30000?'O':T>=10000?'B':T>=7500?'A':T>=6000?'F':T>=5200?'G':T>=3700?'K':'M';
-}
-function mapBuildGalaxy(){
- const N=SYSTEM_COUNT;
- mapGalPos=new Float32Array(N*3);mapGalSize=new Float32Array(N);mapGalTint=new Uint8Array(N);
- for(let i=0;i<24;i++){
-  const t=i/23;
-  const R=Math.round(mix(255,150,t)),G=Math.round(mix(190,190,t)),B=Math.round(mix(120,255,t));
-  mapPalette.push('rgb('+R+','+G+','+B+')');
- }
- const ARMS=4, INVTAN=1/Math.tan(0.36);   // ~21 degree pitch logarithmic spiral
- for(let id=0;id<N;id++){
-  mapRandS=(id*2246822519+374761393)>>>0;
-  const R=mapRand;
-  const u=R(), arm=Math.floor(R()*ARMS);
-  let x,y,z;
-  if(u<0.15){                                   // central bulge
-   const rr=0.30*Math.pow(R(),0.65), th=R()*TAU, ph=Math.acos(2*R()-1);
-   const sp=Math.sin(ph);
-   x=rr*sp*Math.cos(th);z=rr*sp*Math.sin(th);y=rr*Math.cos(ph)*0.62;
-  } else {                                      // logarithmic spiral arms
-   const rad=0.10+Math.pow(R(),0.62)*0.90;
-   const g1=R()+R()+R()-1.5;
-   const th=arm*TAU/ARMS+Math.log(rad/0.10)*INVTAN+g1*0.30;
-   x=rad*Math.cos(th)+(R()+R()-1)*0.055;
-   z=rad*Math.sin(th)+(R()+R()-1)*0.055;
-   y=(R()+R()+R()-1.5)*0.070*Math.exp(-rad*0.8);
-  }
-  mapGalPos[id*3]=x;mapGalPos[id*3+1]=y;mapGalPos[id*3+2]=z;
-  const inf=mapSysInfo(id);
-  // luminosity ~ R^2 T^4, relative to Sol
-  const L=Math.pow(inf.starR/6.957e8,2)*Math.pow(inf.temp/5772,4);
-  mapGalSize[id]=clamp(0.9+1.5*(Math.log10(Math.max(L,1e-4))+2)/4,0.75,4.2);
-  mapGalTint[id]=clamp(Math.round(((inf.temp-2800)/6400)*23),0,23);
- }
- mapGalNeb=[];
- for(let i=0;i<N;i+=17)mapGalNeb.push(i);
- mapGalDirty=true;
-}
-function mapGPrj(x,y,z,o){
- const c=mapGalCam;
- const rx=x*c.cy-z*c.sy, fz=x*c.sy+z*c.cy;
- const up=y*c.cp-fz*c.sp;
- const dep=y*c.sp+fz*c.cp;
- const zc=c.dist-dep;
- if(zc<0.12){o[2]=-1;return o;}
- const k=c.f/zc;
- o[0]=c.cx+rx*k;o[1]=c.cy0-up*k;o[2]=zc;
- return o;
-}
-function mapPickGal(x,y){
- if(!mapGalPos)return -1;
- let best=-1,bd=26*26;
- for(let id=0;id<SYSTEM_COUNT;id++){
-  mapGPrj(mapGalPos[id*3],mapGalPos[id*3+1],mapGalPos[id*3+2],mapP);
-  if(mapP[2]<0)continue;
-  const dx=mapP[0]-x,dy=mapP[1]-y,d=dx*dx+dy*dy;
-  if(d<bd){bd=d;best=id;}
- }
- return best;
-}
-function mapRenderGalaxy(g,W,H){
- if(!mapGalPos)mapBuildGalaxy();
- if(!mapGalNames)mapGalNamesBuild();
- const c=mapGalCam;
- c.cy=Math.cos(c.yaw);c.sy=Math.sin(c.yaw);
- c.cp=Math.cos(c.pitch);c.sp=Math.sin(c.pitch);
- c.f=1.26*Math.min(W,H)*c.zoom;
- c.cx=W*0.5+c.px;c.cy0=H*0.5+c.py;
- const cur=(typeof SYSTEM!=='undefined')?SYSTEM.id:0;
- /* --- nebular haze --- */
- g.globalCompositeOperation='lighter';
- for(let i=0;i<mapGalNeb.length;i++){
-  const id=mapGalNeb[i];
-  mapGPrj(mapGalPos[id*3],mapGalPos[id*3+1],mapGalPos[id*3+2],mapP);
-  if(mapP[2]<0)continue;
-  const sz=c.f/mapP[2]*0.10;
-  if(mapP[0]<-sz||mapP[0]>W+sz||mapP[1]<-sz||mapP[1]>H+sz)continue;
-  g.globalAlpha=0.055;
-  g.drawImage((i&3)?mapGlow:mapGlow2,mapP[0]-sz,mapP[1]-sz,sz*2,sz*2);
- }
- g.globalAlpha=1;g.globalCompositeOperation='source-over';
- /* --- galactic plane rings --- */
- g.strokeStyle='rgba(90,190,255,0.10)';g.lineWidth=1;
- for(let k=1;k<=4;k++){
-  const rr=k*0.25;
-  g.beginPath();let started=false;
-  for(let i=0;i<=64;i++){
-   const a=i/64*TAU;
-   mapGPrj(Math.cos(a)*rr,0,Math.sin(a)*rr,mapP);
-   if(mapP[2]<0){started=false;continue;}
-   if(!started){g.moveTo(mapP[0],mapP[1]);started=true;}else g.lineTo(mapP[0],mapP[1]);
-  }
-  g.stroke();
- }
- /* --- stars --- */
- const q=mapGalQ;
- g.globalCompositeOperation='lighter';
- const labels=[];
- let glows=0;
- for(let id=0;id<SYSTEM_COUNT;id++){
-  mapGPrj(mapGalPos[id*3],mapGalPos[id*3+1],mapGalPos[id*3+2],mapP);
-  if(mapP[2]<0)continue;
-  const x=mapP[0],y=mapP[1];
-  if(x<-8||x>W+8||y<-8||y>H+8)continue;
-  const dc=clamp(c.dist/mapP[2],0.35,2.8);          // depth cue
-  let a=clamp(0.20+0.62*(dc-0.55),0.06,1);
-  let px=mapGalSize[id]*dc*(0.8+0.3*Math.min(c.zoom,3));
-  if(q){const hit=mapGalNames[id].indexOf(q)>=0;
-   if(!hit){a*=0.13;px*=0.75;}else{a=1;px*=1.7;labels.push(id);}}
-  g.globalAlpha=a;
-  g.fillStyle=mapPalette[mapGalTint[id]];
-  if(px<1.5)g.fillRect(x-0.7,y-0.7,1.5,1.5);
-  else{g.beginPath();g.arc(x,y,px,0,TAU);g.fill();
-   if(px>2.4&&glows<420){glows++;g.globalAlpha=a*0.5;
-    g.drawImage(mapGlow,x-px*3.4,y-px*3.4,px*6.8,px*6.8);}}
-  if(!q&&px>2.9&&labels.length<26)labels.push(id);
- }
- g.globalAlpha=1;g.globalCompositeOperation='source-over';
- /* --- labels (spaced out so they stay readable) --- */
- g.font='10px ui-monospace,Menlo,Consolas,monospace';
- const placed=[];
- for(let i=0;i<labels.length&&placed.length<24;i++){
-  const id=labels[i];
-  mapGPrj(mapGalPos[id*3],mapGalPos[id*3+1],mapGalPos[id*3+2],mapP);
-  if(mapP[2]<0)continue;
-  let ok=true;
-  for(const p of placed)if(Math.abs(p[0]-mapP[0])<74&&Math.abs(p[1]-mapP[1])<15){ok=false;break;}
-  if(!ok)continue;
-  placed.push([mapP[0],mapP[1]]);
-  g.fillStyle='rgba(168,228,255,0.62)';
-  g.fillText(mapGalNames[id],mapP[0]+6,mapP[1]+3);
- }
- /* --- current / hovered / selected --- */
- const mark=(id,col,tag,pulse)=>{
-  if(id<0||id>=SYSTEM_COUNT)return;
-  mapGPrj(mapGalPos[id*3],mapGalPos[id*3+1],mapGalPos[id*3+2],mapP);
-  if(mapP[2]<0)return;
-  const r=10+(pulse?Math.sin(mapT*3)*2.4:0);
-  g.strokeStyle=col;g.lineWidth=1.8;
-  g.beginPath();g.arc(mapP[0],mapP[1],r,0,TAU);g.stroke();
-  g.beginPath();
-  g.moveTo(mapP[0]-r-6,mapP[1]);g.lineTo(mapP[0]-r-1,mapP[1]);
-  g.moveTo(mapP[0]+r+1,mapP[1]);g.lineTo(mapP[0]+r+6,mapP[1]);
-  g.moveTo(mapP[0],mapP[1]-r-6);g.lineTo(mapP[0],mapP[1]-r-1);
-  g.moveTo(mapP[0],mapP[1]+r+1);g.lineTo(mapP[0],mapP[1]+r+6);
-  g.stroke();
-  g.fillStyle=col;g.font='10px ui-monospace,Menlo,Consolas,monospace';
-  g.fillText(tag+' '+mapGalNames[id],mapP[0]+r+9,mapP[1]-r+2);
- };
- mark(cur,'#7fe6ff','◎',true);
- if(mapGalHover>=0&&mapGalHover!==mapGalSel)mark(mapGalHover,'rgba(199,155,255,0.65)','·');
- if(mapGalSel>=0)mark(mapGalSel,'#c79bff','▣');
- /* --- scale legend --- */
- g.fillStyle='rgba(93,134,168,0.8)';g.font='9px ui-monospace,Menlo,Consolas,monospace';
- g.fillText('GALACTIC DISC · '+SYSTEM_COUNT+' CHARTED SYSTEMS · '+
-   (MAP_GAL_LY*2)+' ly ACROSS · 4 SPIRAL ARMS',10,H-12);
-}
-function mapSearch(){
- if(!mapGalNames)mapGalNamesBuild();
- mapGalQ=(mapEl.q.value||'').trim().toUpperCase();
- mapGalDirty=true;
- const res=mapEl.res;
- if(!mapGalQ){res.style.display='none';res.innerHTML='';return;}
- let h='',n=0;
- for(let id=0;id<SYSTEM_COUNT&&n<14;id++){
-  if(mapGalNames[id].indexOf(mapGalQ)<0)continue;
-  h+='<div data-i="'+id+'">'+mapGalNames[id]+'</div>';n++;
- }
- res.innerHTML=h||'<div style="color:#5d86a8">NO MATCH</div>';
- res.style.display='block';
- res.querySelectorAll('div[data-i]').forEach(el=>{el.onclick=()=>{
-  mapGalSel=+el.dataset.i;mapGalDirty=true;mapPanel();};});
-}
-function mapGalNamesBuild(){
- mapGalNames=new Array(SYSTEM_COUNT);
- for(let i=0;i<SYSTEM_COUNT;i++)mapGalNames[i]=systemName(i);
-}
-function mapGalDist(a,b){
- if(!mapGalPos)mapBuildGalaxy();
- return Math.hypot(mapGalPos[a*3]-mapGalPos[b*3],mapGalPos[a*3+1]-mapGalPos[b*3+1],
-  mapGalPos[a*3+2]-mapGalPos[b*3+2])*MAP_GAL_LY;
-}
-
-/* ================= READOUT PANEL ================= */
-function mapPanel(){
- if(!mapEl.info)return;
- const E=mapEl.info;
- if(mapMode==='sys'){
-  const b=mapSel;
-  if(!b){E.style.display='none';E.innerHTML='';return;}
-  const g0=(typeof G0!=='undefined')?G0:9.80665;
-  const grav=b.mu/(b.radius*b.radius);
-  const kids=mapKids(b);
-  let dist=NaN;
-  if(typeof SHIP!=='undefined'&&SHIP.pos)dist=vdist(SHIP.pos,b.pos);
-  const row=(k,v)=>'<div class="r"><span class="k">'+k+'</span><span class="v">'+v+'</span></div>';
-  let h='<h3>'+b.name+'</h3><div class="k" style="margin-bottom:6px">'+
-   b.kind.toUpperCase()+(b.parent?' · ORBITS '+b.parent.name:' · PRIMARY')+'</div>';
-  h+=row('RADIUS',mapFmtR(b.radius));
-  h+=row('GRAVITY',grav.toFixed(2)+' m/s² ('+(grav/g0).toFixed(2)+' g)');
-  h+=row('ESCAPE',fmt(Math.sqrt(2*b.mu/b.radius),'m/s'));
-  h+=row('ATMOSPHERE',b.atmo?((b.atmo.rho0*287*(b.dna?b.dna.temp:250)/1000).toFixed(1)+' kPa'):'vacuum');
-  if(b.parent){
-   h+=row('SEMI-MAJOR',mapFmtR(b.a));
-   h+=row('ECCENTRICITY',b.e.toFixed(4));
-   h+=row('INCLINATION',(b.inc/DEG).toFixed(2)+'°');
-   h+=row('PERIOD',fmtT(TAU*Math.sqrt(b.a*b.a*b.a/b.parent.mu)));
-  }
-  h+=row('DAY',fmtT(Math.abs(b.rotPeriod)));
-  h+=row('DISTANCE',isFinite(dist)?fmt(dist,'m'):'—');
-  if(kids.length)h+=row('SATELLITES',kids.length);
-  if(b.dna&&typeof describeDNA==='function')
-   h+='<div class="dsc">'+describeDNA(b.dna)+'</div>';
-  if(kids.length)h+='<button class="map_b go2" id="map_focus">FOCUS ON '+b.name+' SYSTEM</button>';
-  if(b.parent&&mapFrame!==b.parent)
-   h+='<button class="map_b go2" id="map_up">UP TO '+b.parent.name+'</button>';
-  h+='<button class="map_b go" id="map_wh">WORMHOLE TO '+b.name+'</button>';
-  if(typeof SHIP!=='undefined'&&SHIP.power<0.12)
-   h+='<div class="warn">! reactor charge below 12% — throat will not form</div>';
-  E.innerHTML=h;E.style.display='block';
-  const f=document.getElementById('map_focus');
-  if(f)f.onclick=()=>{mapFrame=b;mapCam.px=0;mapCam.py=0;mapCam.zoom=1;mapPanel();};
-  const u=document.getElementById('map_up');
-  if(u)u.onclick=()=>{mapFrame=b.parent;mapCam.px=0;mapCam.py=0;mapCam.zoom=1;mapPanel();};
-  document.getElementById('map_wh').onclick=()=>{
-   if(typeof startWarp==='function')startWarp(b,null);
-   mapToggle(false);};
- } else {
-  const id=mapGalSel;
-  if(id<0){E.style.display='none';E.innerHTML='';return;}
-  if(!mapGalNames)mapGalNamesBuild();
-  const inf=mapSysInfo(id);
-  const cur=(typeof SYSTEM!=='undefined')?SYSTEM.id:0;
-  const d=mapGalDist(cur,id);
-  const charge=Math.min(96,12+d/(MAP_GAL_LY*2)*74);
-  const row=(k,v)=>'<div class="r"><span class="k">'+k+'</span><span class="v">'+v+'</span></div>';
-  let h='<h3>'+mapGalNames[id]+'</h3><div class="k" style="margin-bottom:6px">STAR SYSTEM · ID '+id+
-   (id===cur?' · CURRENT':'')+'</div>';
-  h+=row('CLASS',mapSpectral(inf.temp)+' · '+inf.temp.toFixed(0)+' K');
-  h+=row('STAR RADIUS',mapFmtR(inf.starR)+' ('+(inf.starR/6.957e8).toFixed(2)+' R☉)');
-  h+=row('LUMINOSITY',(Math.pow(inf.starR/6.957e8,2)*Math.pow(inf.temp/5772,4)).toFixed(2)+' L☉');
-  h+=row('PLANETS',id===cur?String(mapKids(SUN).length):('~'+inf.n));
-  h+=row('DISTANCE',d.toFixed(1)+' ly');
-  h+=row('EST. CHARGE',charge.toFixed(0)+' %');
-  h+=row('EST. TRANSIT',fmtT(4.2+d*0.004));
-  if(id===cur)h+='<div class="dsc">You are here. Wormhole endpoints cannot terminate inside '+
-   'their own origin system.</div>';
-  else h+='<button class="map_b go" id="map_jump">JUMP &#8594; '+mapGalNames[id]+'</button>';
-  if(typeof SHIP!=='undefined'&&SHIP.power<0.12)
-   h+='<div class="warn">! reactor charge below 12% — throat will not form</div>';
-  E.innerHTML=h;E.style.display='block';
-  const j=document.getElementById('map_jump');
-  if(j)j.onclick=()=>{if(typeof startWarp==='function')startWarp(null,id);mapToggle(false);};
- }
-}
-
-/* ================= FRAME ================= */
-function mapSync(){
- const sid=(typeof SYSTEM!=='undefined')?SYSTEM.id:0;
- if(sid!==mapSysId){
-  mapSysId=sid;mapOrbCache=new WeakMap();
-  mapFrame=(typeof SUN!=='undefined'&&SUN)?SUN:null;mapSel=null;
-  mapCam.px=0;mapCam.py=0;mapCam.zoom=1;mapGalSel=-1;mapGalDirty=true;mapPanel();
- }
- if(typeof BODIES!=='undefined'&&BODIES.length){
-  if(!mapFrame||BODIES.indexOf(mapFrame)<0)mapFrame=SUN||BODIES[0];
-  if(mapSel&&BODIES.indexOf(mapSel)<0){mapSel=null;mapPanel();}
- }
-}
-function mapResize(){
- const dpr=Math.min(window.devicePixelRatio||1,2);
- const w=mapRoot.clientWidth||window.innerWidth, h=mapRoot.clientHeight||window.innerHeight;
- if(mapW===w&&mapH===h&&mapDPR===dpr)return;
- mapW=w;mapH=h;mapDPR=dpr;
- mapCv.width=Math.max(1,Math.round(w*dpr));mapCv.height=Math.max(1,Math.round(h*dpr));
- mapGalDirty=true;
-}
-function mapToggle(on){
- if(!mapRoot)mapInit();
- on=!!on;
- mapVisible=on;
- mapRoot.style.display=on?'block':'none';
- if(typeof UI!=='undefined')UI.mapOpen=on;
- const bm=document.getElementById('b_map');if(bm)bm.classList.toggle('on',on);
- if(on){mapResize();mapSync();mapGalDirty=true;
-  if(mapMode==='gal'&&!mapGalPos)mapBuildGalaxy();
-  mapPanel();}
-}
-function mapUpdate(dt){
- if(typeof UI!=='undefined'&&!!UI.mapOpen!==mapVisible){mapToggle(UI.mapOpen);}
- if(!mapVisible||!mapG)return;
- const t0=performance.now();
- mapT+=dt||0;
- mapResize();mapSync();
- const g=mapG,W=mapW,H=mapH;
- // the galaxy chart is static geometry: repaint it only on interaction or at 20 Hz
- if(mapMode==='gal'&&!mapGalDirty&&performance.now()-mapGalLast<50)return;
- g.setTransform(mapDPR,0,0,mapDPR,0,0);
- g.clearRect(0,0,W,H);
- g.fillStyle='rgba(3,7,15,0.90)';g.fillRect(0,0,W,H);
- g.textBaseline='alphabetic';
- if(mapMode==='sys'){
-  mapHits.length=0;
-  mapRenderOrbital(g,0,0,W,H,mapFrame,mapCam,mapHits,false);
-  /* --- inset: the moon system / local neighbourhood that is invisible at system scale --- */
-  let ic=null;
-  if(mapSel&&mapKids(mapSel).length)ic=mapSel;
-  else{
-   const dom=(typeof CTX!=='undefined'&&CTX.body)?CTX.body:null;
-   if(dom&&dom!==mapFrame)ic=(mapKids(dom).length||dom.parent===mapFrame)?dom:dom.parent;
-  }
-  if(ic&&ic!==mapFrame){
-   const s=Math.min(230,Math.min(W,H)*0.42);
-   const ix=10, iy=H-s-26;
-   g.save();
-   g.beginPath();g.rect(ix,iy,s,s);g.clip();
-   g.fillStyle='rgba(4,10,20,0.92)';g.fillRect(ix,iy,s,s);
-   mapInsetCam.yaw=mapCam.yaw;mapInsetCam.pitch=mapCam.pitch;
-   mapRenderOrbital(g,ix,iy,s,s,ic,mapInsetCam,mapHits,true);
-   g.restore();
-   g.strokeStyle='rgba(90,190,255,0.32)';g.lineWidth=1;g.strokeRect(ix+.5,iy+.5,s,s);
-   g.fillStyle='rgba(127,230,255,0.85)';g.font='9px ui-monospace,Menlo,Consolas,monospace';
-   g.fillText(ic.name+' SYSTEM · DETAIL',ix+6,iy+13);
-  }
-  const fz=mapFrame?mapFrame.name:'—';
-  g.fillStyle='rgba(93,134,168,0.85)';g.font='9px ui-monospace,Menlo,Consolas,monospace';
-  g.fillText('FRAME '+fz+'  ·  RADIAL SCALE ln(1+r/r₀)  ·  ZOOM '+mapCam.zoom.toFixed(2)+'x'+
-    '  ·  TILT '+(mapCam.pitch/DEG).toFixed(0)+'°',10,H-12);
- } else {
-  if(!mapGalNames)mapGalNamesBuild();
-  mapGalLast=performance.now();mapGalDirty=false;
-  mapRenderGalaxy(g,W,H);
- }
- const c=performance.now()-t0;
- mapCost=c;mapCostAvg=mapCostAvg*0.92+c*0.08;mapCostN++;
-}
-function mapSelectedBody(){return mapSel||null;}
-
-/* ================= SELF TEST ================= */
-function mapSelfTest(){
- try{
-  if(!mapRoot)mapInit();
-  if(!mapCv||!mapG)return {ok:false,why:'canvas/2d context missing'};
-  if(!document.getElementById('map_root'))return {ok:false,why:'map root not in DOM'};
-  // radial warp must be strictly monotonic and finite
-  mapView.r0=1e10;
-  let prev=-1;
-  for(let k=6;k<14;k++){const s=Math.log1p(Math.pow(10,k)/mapView.r0);
-   if(!isFinite(s)||s<=prev)return {ok:false,why:'radial warp not monotonic at 1e'+k};
-   prev=s;}
-  // orbit sampling for every body in the current system
-  if(typeof BODIES!=='undefined'){
-   for(const b of BODIES){
-    if(!b.parent)continue;
-    const o=mapBodyOrb(b);
-    if(!o||o.n<8)return {ok:false,why:'orbit sample failed for '+b.name};
-    for(let i=0;i<o.n*3;i++)if(!isFinite(o.pts[i]))
-     return {ok:false,why:'non-finite orbit point for '+b.name};
-    // periapsis must be closer than apoapsis
-    const rp=Math.hypot(o.pe[0],o.pe[1],o.pe[2]), ra=Math.hypot(o.ap[0],o.ap[1],o.ap[2]);
-    if(!(ra>=rp-1))return {ok:false,why:'ap/pe inverted for '+b.name};
-   }
-   // ship conic
-   if(typeof SHIP!=='undefined'&&typeof CTX!=='undefined'&&CTX.body){
-    const cn=mapShipConic(CTX.body);
-    if(!cn)return {ok:false,why:'ship conic failed'};
-    if(!isFinite(cn.rp)||cn.rp<=0)return {ok:false,why:'ship periapsis non-finite'};
-   }
-  }
-  // galaxy distribution
-  if(!mapGalPos)mapBuildGalaxy();
-  let rmax=0,dup=0;
-  for(let i=0;i<SYSTEM_COUNT;i++){
-   const x=mapGalPos[i*3],y=mapGalPos[i*3+1],z=mapGalPos[i*3+2];
-   if(!isFinite(x)||!isFinite(y)||!isFinite(z))return {ok:false,why:'non-finite star position '+i};
-   rmax=Math.max(rmax,Math.hypot(x,y,z));
-  }
-  if(rmax<0.5||rmax>3)return {ok:false,why:'galaxy radius out of range: '+rmax.toFixed(2)};
-  for(let i=1;i<64;i++)if(mapGalPos[i*3]===mapGalPos[(i-1)*3]&&
-     mapGalPos[i*3+2]===mapGalPos[(i-1)*3+2])dup++;
-  if(dup>2)return {ok:false,why:'degenerate galaxy hash (duplicates)'};
-  // projection sanity
-  mapView.r0=1e10;mapView.S=100;mapView.cx=100;mapView.cy=100;
-  mapView.cyy=1;mapView.syy=0;mapView.cp=0;mapView.sp=1;
-  mapPrj(1e11,0,0,mapP);
-  if(!isFinite(mapP[0])||!isFinite(mapP[1]))return {ok:false,why:'projection produced NaN'};
-  if(typeof startWarp!=='function')return {ok:false,why:'startWarp missing'};
-  return {ok:true,cost:+mapCostAvg.toFixed(2)};
- }catch(e){return {ok:false,why:String(e&&e.message||e)};}
-}
-
-/* ---------- p13-mobile.js ---------- */
-/* ===== M2 — MOBILE TOUCH CONTROLS ==========================================
-   Owns its own DOM (appended to #ui) and its own touch pipeline. Nothing here
-   depends on the legacy #skL/#skR sticks or on TOUCH — those are hidden when
-   this module takes over. The flight model reads `mobAxes`.
-
-   Layout (all measured from the bottom of the VISUAL viewport, so the iOS URL
-   bar can never sit on top of a control):
-
-     ┌───────────────────────────────────────────┐
-     │  HUD (untouched)                          │
-     │        ▓ throttle slider (left edge)      │
-     │              ( navball )                  │
-     │  [SAS][RCS][GER][BRK][VIW][W-][W+][MENU]  │  compact row
-     │  ╭ left stick ╮   [RL◀][RL▶]  ╭ right ╮   │  activation band
-     └───────────────────────────────────────────┘
-
-   Left stick  : RCS translation  (X = lateral, Y = vertical)
-   Right stick : pitch / yaw
-   Roll        : dedicated hold buttons OR a two-finger twist anywhere on the
-                 free (camera) area
-   Throttle    : absolute vertical slider, detents at 0 / 50 / 100 %, holds
-   Camera      : one-finger drag on the free area orbits; pinch dollies
-   ========================================================================== */
-const mobAxes={active:false,pitch:0,yaw:0,roll:0,tx:0,ty:0,throttle:0};
-const mobCFG={R:54,dead:0.11,expo:0.60,twistDead:0.10,twistFull:0.55};
-const mobT=new Map();                      // Touch.identifier -> tracker record
-const mobS={on:false,built:false,W:0,H:0,land:false,band:0,
- zL:[0,0,0,0],zR:[0,0,0,0],zT:[0,0,0,0],
- thrTop:0,thrH:1,thrDrag:false,
- rollBtn:0,twist:0,menu:false,
- cN:0,cIds:'',cX:0,cY:0,cD:0,cA:0,
- el:{}};
-
-/* ---- helpers ---- */
-function mobHit(z,x,y){return x>=z[0]&&x<=z[2]&&y>=z[1]&&y<=z[3];}
-function mobHasKind(k){for(const r of mobT.values())if(r.kind===k)return true;return false;}
-// dead zone + cubic expo, so small thumb wobble is nothing and the tips stay precise
-function mobCurve(x){
- const d=mobCFG.dead, a=Math.abs(clamp(x,-1,1));
- if(a<=d)return 0;
- const n=(a-d)/(1-d), e=mobCFG.expo;
- return Math.sign(x)*(e*n*n*n+(1-e)*n);
-}
-function mobBlocked(){
- if(mobS.menu)return true;
- const p=$('pick'),d=$('docs');
- return !!((p&&p.style.display==='block')||(d&&d.style.display==='block'));
-}
-
-/* ---- CSS (injected; p1-shell.html is untouched) ---- */
-const MOB_CSS=`
-#mobRoot{position:absolute;inset:0;pointer-events:auto;z-index:11;touch-action:none}
-#mobUI{position:absolute;inset:0;pointer-events:none;z-index:12;touch-action:none}
-#pick,#docs{z-index:60}
-body.mobOn #stick,body.mobOn #row2,body.mobOn #btns,body.mobOn #thr{display:none!important}
-body.mobOn #ui{bottom:auto;height:var(--mobH,100%)}
-body.mobOn #fps{top:auto;bottom:2px;left:6px;transform:none;font-size:9px;opacity:.65}
-.mobStk{position:absolute;border-radius:50%;border:1px solid rgba(90,190,255,.34);
- background:radial-gradient(circle,rgba(10,26,46,.34),rgba(6,14,26,.10));
- opacity:0;transition:opacity .13s;pointer-events:none;will-change:transform,opacity}
-.mobStk.a{opacity:1}
-.mobStk>i{position:absolute;border-radius:50%;background:rgba(90,190,255,.34);
- border:1px solid rgba(150,225,255,.72);box-shadow:0 0 14px rgba(80,190,255,.35)}
-.mobStk>u{position:absolute;inset:22%;border-radius:50%;border:1px dashed rgba(90,190,255,.20)}
-#mobThr{position:absolute;pointer-events:auto;border:1px solid rgba(90,190,255,.38);
- border-radius:5px;background:rgba(4,10,20,.55);overflow:hidden;touch-action:none}
-#mobThr>i{position:absolute;left:0;right:0;bottom:0;height:0%;
- background:linear-gradient(0deg,#ff7a1d,#ffd479);transition:height .05s linear}
-#mobThr>s{position:absolute;left:0;right:0;height:1px;background:rgba(160,220,255,.45)}
-#mobThr>b{position:absolute;left:0;right:0;bottom:2px;text-align:center;font-size:8px;
- color:#eaf8ff;text-shadow:0 0 4px #000;font-weight:700}
-#mobThr>k{position:absolute;left:-2px;right:-2px;height:3px;border-radius:2px;
- background:#eaf8ff;box-shadow:0 0 8px rgba(120,210,255,.9)}
-#mobRow{position:absolute;display:flex;gap:3px;pointer-events:none}
-.mobB{pointer-events:auto;flex:1 1 0;min-width:0;background:rgba(8,20,36,.82);
- border:1px solid rgba(90,190,255,.42);color:#a8e4ff;border-radius:5px;
- font:inherit;font-size:9.5px;letter-spacing:.04em;padding:0;
- display:flex;align-items:center;justify-content:center;touch-action:none;
- -webkit-user-select:none;user-select:none}
-.mobB:active,.mobB.on{background:rgba(30,140,220,.55);border-color:#7fe6ff;color:#eaf8ff}
-#mobRoll{position:absolute;display:flex;gap:5px;pointer-events:none}
-.mobR{pointer-events:auto;width:42px;height:40px;border-radius:8px;
- background:rgba(8,20,36,.72);border:1px solid rgba(90,190,255,.38);color:#a8e4ff;
- font:inherit;font-size:15px;display:flex;align-items:center;justify-content:center;
- touch-action:none;-webkit-user-select:none;user-select:none}
-.mobR:active,.mobR.on{background:rgba(30,140,220,.55);border-color:#7fe6ff}
-#mobMenu{position:absolute;inset:0;z-index:40;background:rgba(2,8,18,.93);display:none;
- pointer-events:auto;padding:16px;overflow:auto;touch-action:pan-y}
-#mobMenu.a{display:block}
-#mobMenu h3{color:#c79bff;font-size:12px;letter-spacing:.28em;text-align:center;margin:6px 0 12px}
-#mobMenu .g{display:grid;grid-template-columns:1fr 1fr;gap:8px;max-width:520px;margin:0 auto}
-#mobMenu .g button{pointer-events:auto;background:rgba(8,20,36,.9);
- border:1px solid rgba(90,190,255,.42);color:#a8e4ff;border-radius:6px;padding:14px 8px;
- font:inherit;font-size:11px;letter-spacing:.08em;touch-action:none}
-#mobMenu .g button.wide{grid-column:1/-1}
-#mobMenu .g button.wh{background:linear-gradient(180deg,rgba(120,40,200,.8),rgba(40,10,90,.9));
- border-color:#c79bff;color:#f0e0ff;font-weight:700}
-#mobMenu .lg{max-width:520px;margin:14px auto 0;color:#5d86a8;font-size:10px;line-height:1.8}
-@supports (height:100dvh){body.mobOn #ui{height:100dvh}}
-`;
-
-/* ---- DOM ---- */
-function mobBuild(){
- if(mobS.built)return;
- const st=document.createElement('style');st.id='mobCSS';st.textContent=MOB_CSS;
- document.head.appendChild(st);
- const ui=$('ui');
- const mk=(tag,id,parent,html)=>{const e=document.createElement(tag);if(id)e.id=id;
-  if(html!==undefined)e.innerHTML=html;(parent||ui).appendChild(e);return e;};
- const E=mobS.el;
- E.root=mk('div','mobRoot');
- E.wrap=mk('div','mobUI');
- E.sL=mk('div',null,E.wrap,'<u></u><i></i>');E.sL.className='mobStk';
- E.sR=mk('div',null,E.wrap,'<u></u><i></i>');E.sR.className='mobStk';
- E.thr=mk('div','mobThr',E.wrap,'<i></i><s class="d0"></s><s class="d5"></s><k></k><b>0%</b>');
- E.thrFill=E.thr.querySelector('i');E.thrKnob=E.thr.querySelector('k');
- E.thrTxt=E.thr.querySelector('b');
- E.d0=E.thr.querySelector('.d0');E.d5=E.thr.querySelector('.d5');
- E.row=mk('div','mobRow',E.wrap);
- const BT=[['sas','SAS'],['rcs','RCS'],['gear','GER'],['brk','BRK'],
-           ['view','VIW'],['wl','W-'],['wm','W+'],['menu','≡']];
- E.b={};
- for(const b of BT){const el=document.createElement('button');el.className='mobB';
-  el.textContent=b[1];el.dataset.k=b[0];E.row.appendChild(el);E.b[b[0]]=el;}
- E.roll=mk('div','mobRoll',E.wrap);
- E.rl=document.createElement('button');E.rl.className='mobR';E.rl.textContent='↺';
- E.rr=document.createElement('button');E.rr.className='mobR';E.rr.textContent='↻';
- E.roll.appendChild(E.rl);E.roll.appendChild(E.rr);
- E.menu=mk('div','mobMenu',E.wrap,
-  '<h3>SYSTEMS</h3><div class="g">'+
-  '<button class="wide wh" data-k="wh">CREATE WORMHOLE</button>'+
-  '<button data-k="scan">SURFACE SCAN</button>'+
-  '<button data-k="map">MAP</button>'+
-  '<button data-k="docs">DOCUMENTATION</button>'+
-  '<button data-k="cam">RESET CAMERA</button>'+
-  '<button class="wide" data-k="close">CLOSE</button></div>'+
-  '<div class="lg">Left stick&nbsp;— RCS translate&nbsp;· Right stick&nbsp;— pitch/yaw<br>'+
-  'Slider&nbsp;— throttle (detents at 0/50/100%)&nbsp;· ↺↻ or two-finger twist&nbsp;— roll<br>'+
-  'Drag the sky to orbit the camera&nbsp;· pinch to zoom</div>');
-
- /* buttons: fire on touchstart for zero latency, with a click fallback for
-    desktop / automated testing, de-duplicated by a short guard window. */
- const tap=(el,fn)=>{let t0=-1e9;
-  const go=()=>{const n=performance.now();if(n-t0<220)return;t0=n;fn();};
-  el.addEventListener('touchstart',e=>{e.preventDefault();e.stopPropagation();go();},{passive:false});
-  el.addEventListener('click',e=>{e.preventDefault();e.stopPropagation();go();});};
- const fwd=id=>()=>{const e=$(id);if(e)e.click();};
- tap(E.b.sas,fwd('b_sas'));tap(E.b.rcs,fwd('b_rcs'));tap(E.b.gear,fwd('b_gear'));
- tap(E.b.view,fwd('b_view'));
- tap(E.b.brk,()=>{if(typeof SHIP!=='undefined'){SHIP.brakes=!SHIP.brakes;
-  message(SHIP.brakes?'BRAKES ON':'BRAKES OFF');}});
- tap(E.b.wm,()=>{if(typeof setWarp==='function')setWarp(1);});
- tap(E.b.wl,()=>{if(typeof setWarp==='function')setWarp(-1);});
- tap(E.b.menu,()=>mobMenu(true));
- E.menu.querySelectorAll('button').forEach(el=>{
-  const k=el.dataset.k;
-  tap(el,()=>{
-   if(k==='close'){mobMenu(false);return;}
-   if(k==='cam'){if(typeof CAM!=='undefined'){CAM.yaw=0.4;CAM.pitch=0.25;CAM.dist=78;}
-    mobMenu(false);return;}
-   mobMenu(false);
-   const b=$('b_'+k);if(b)b.click();
-  });});
-
- // hold-to-roll
- const hold=(el,v)=>{
-  const dn=e=>{if(e.cancelable)e.preventDefault();e.stopPropagation();
-   mobS.rollBtn=v;el.classList.add('on');};
-  const up=()=>{if(mobS.rollBtn===v)mobS.rollBtn=0;el.classList.remove('on');};
-  el.addEventListener('touchstart',dn,{passive:false});
-  el.addEventListener('touchend',up);el.addEventListener('touchcancel',up);
-  el.addEventListener('pointerdown',dn);el.addEventListener('pointerup',up);
-  el.addEventListener('pointercancel',up);el.addEventListener('pointerleave',up);
- };
- hold(E.rl,-1);hold(E.rr,1);
-
- // throttle: absolute drag, tracked by identifier through mobRoot's pipeline,
- // but also grab its own touches so a thumb starting exactly on it always wins.
- E.thr.addEventListener('touchstart',e=>{e.preventDefault();e.stopPropagation();
-  for(const t of e.changedTouches){mobT.set(t.identifier,{kind:'T',x:t.clientX,y:t.clientY,
-   ox:t.clientX,oy:t.clientY});mobThrFrom(t.clientY);}},{passive:false});
-
- // the main touch pipeline
- E.root.addEventListener('touchstart',mobDown,{passive:false});
- addEventListener('touchmove',mobMove,{passive:false});
- addEventListener('touchend',mobUp,{passive:false});
- addEventListener('touchcancel',mobUp,{passive:false});
- // iOS Safari pinch-zoom / double-tap zoom
- addEventListener('gesturestart',e=>e.preventDefault(),{passive:false});
- addEventListener('gesturechange',e=>e.preventDefault(),{passive:false});
- addEventListener('dblclick',e=>e.preventDefault(),{passive:false});
- // never leave an input latched when the page is backgrounded
- addEventListener('visibilitychange',()=>{if(document.hidden)mobClearAll();});
- addEventListener('blur',mobClearAll);
- mobS.built=true;
-}
-function mobMenu(open){
- mobS.menu=!!open;
- mobS.el.menu.classList.toggle('a',mobS.menu);
- if(mobS.menu)mobClearAll();
-}
-
-/* ---- layout: recomputed on every resize / orientation change ---- */
-function mobLayout(){
- if(!mobS.on||!mobS.built)return;
- const vv=window.visualViewport;
- const W=Math.round(vv?vv.width:innerWidth), H=Math.round(vv?vv.height:innerHeight);
- if(W<2||H<2)return;
- mobS.W=W;mobS.H=H;mobS.land=W>H;
- document.documentElement.style.setProperty('--mobH',H+'px');
- const E=mobS.el;
- const band=Math.round(Math.min(mobS.land?150:172,H*(mobS.land?0.40:0.22)));
- mobS.band=band;
- const rowH=34, rowB=band+6;
- const thrB=rowB+rowH+8, thrW=40;
- const thrH=Math.max(110,Math.min(230,H-thrB-64));
- // stick activation zones — generous, the stick centres wherever the thumb lands
- mobS.zL=[0,H-band,Math.round(W*0.40),H];
- mobS.zR=[Math.round(W*0.60),H-band,W,H];
- // throttle grab zone is 14 px wider than the visual so fat thumbs still catch it
- mobS.zT=[0,H-thrB-thrH,thrW+16,H-thrB];
- mobS.thrTop=H-thrB-thrH;mobS.thrH=thrH;
-
- E.thr.style.cssText='position:absolute;left:6px;bottom:'+thrB+'px;width:'+thrW+
-  'px;height:'+thrH+'px';
- E.d0.style.bottom='0px';E.d5.style.bottom=(thrH*0.5|0)+'px';
- E.row.style.cssText='position:absolute;left:4px;right:4px;bottom:'+rowB+'px;height:'+rowH+'px';
- E.roll.style.cssText='position:absolute;left:50%;transform:translateX(-50%);bottom:'+
-  Math.max(6,((band-40)*0.5)|0)+'px';
- const R=mobCFG.R;
- for(const s of [E.sL,E.sR]){
-  s.style.width=s.style.height=(R*2)+'px';
-  const k=s.querySelector('i');k.style.width=k.style.height='40px';
- }
- // keep the HUD clear of the control band
- const nav=$('nav'),tl=$('tl'),tr=$('tr');
- if(nav)nav.style.bottom=thrB+'px';
- if(mobS.land&&tr)tr.style.display='none';       // no room for the second panel in landscape
- else if(tr)tr.style.display='';
- if(tl)tl.style.maxWidth=(W*0.46)+'px';
- mobPaintSticks();
- mobThrPaint(typeof SHIP!=='undefined'?SHIP.throttle:0);
-}
-
-/* ---- throttle ---- */
-function mobThrFrom(y){
- let t=sat(1-(y-mobS.thrTop)/mobS.thrH);
- // magnetic detents at 0 / 50 / 100 %
- if(t<0.045)t=0;else if(t>0.955)t=1;else if(Math.abs(t-0.5)<0.045)t=0.5;
- mobAxes.throttle=t;
- if(typeof SHIP!=='undefined')SHIP.throttle=t;   // single source of truth
- mobThrPaint(t);
-}
-function mobThrPaint(t){
- const E=mobS.el;if(!E.thrFill)return;
- const p=(sat(t)*100);
- E.thrFill.style.height=p.toFixed(1)+'%';
- E.thrKnob.style.bottom=(sat(t)*(mobS.thrH-3)).toFixed(0)+'px';
- E.thrTxt.textContent=Math.round(p)+'%';
-}
-
-/* ---- touch pipeline ---- */
-function mobDown(e){
- if(!mobS.on)return;
- if(mobBlocked())return;
- for(const t of e.changedTouches){
-  const x=t.clientX,y=t.clientY;
-  let kind='C';
-  if(mobHit(mobS.zT,x,y)&&!mobHasKind('T'))kind='T';
-  else if(mobHit(mobS.zL,x,y)&&!mobHasKind('L'))kind='L';
-  else if(mobHit(mobS.zR,x,y)&&!mobHasKind('R'))kind='R';
-  const R=mobCFG.R;
-  const rec={kind:kind,x:x,y:y,ox:x,oy:y};
-  if(kind==='L'||kind==='R'){                       // floating origin, kept on screen
-   rec.ox=clamp(x,R+4,mobS.W-R-4);
-   rec.oy=clamp(y,R+4,mobS.H-R-4);
-  }
-  mobT.set(t.identifier,rec);
-  if(kind==='T')mobThrFrom(y);
- }
- mobCamStep(true);
- if(e.cancelable)e.preventDefault();
-}
-function mobMove(e){
- if(!mobS.on)return;
- let touched=false;
- for(const t of e.changedTouches){
-  const r=mobT.get(t.identifier);if(!r)continue;
-  touched=true;r.x=t.clientX;r.y=t.clientY;
-  if(r.kind==='T')mobThrFrom(t.clientY);
- }
- if(!touched)return;
- mobCamStep(false);
- if(e.cancelable)e.preventDefault();       // stop scroll / pull-to-refresh
-}
-function mobUp(e){
- if(!mobS.on)return;
- for(const t of e.changedTouches)mobT.delete(t.identifier);
- // Belt and braces: rebuild from what the browser still reports live, so a finger
- // that slid off, was stolen by the system, or whose end event was dropped can
- // never leave an axis latched.
- const live=new Set();
- for(const t of e.touches)live.add(t.identifier);
- for(const id of Array.from(mobT.keys()))if(!live.has(id))mobT.delete(id);
- if(!mobHasKind('T'))mobS.thrDrag=false;
- mobCamStep(true);
-}
-function mobClearAll(){mobT.clear();mobS.rollBtn=0;mobS.twist=0;mobS.cN=0;mobS.cIds='';
- mobAxes.pitch=mobAxes.yaw=mobAxes.roll=mobAxes.tx=mobAxes.ty=0;mobPaintSticks();}
-
-/* ---- camera: 1 finger orbits, 2 fingers pinch-zoom + twist-roll ---- */
-function mobCamStep(reanchor){
- const c=[];
- for(const [id,r] of mobT)if(r.kind==='C')c.push([id,r]);
- c.sort((a,b)=>a[0]-b[0]);
- const n=Math.min(c.length,2);
- const ids=n?c.slice(0,n).map(a=>a[0]).join(','):'';
- const same=(n===mobS.cN&&ids===mobS.cIds&&!reanchor);
- if(n===0){mobS.cN=0;mobS.cIds='';mobS.twist=0;return;}
- if(n===1){
-  const p=c[0][1];
-  if(same&&typeof CAM!=='undefined'){
-   CAM.yaw-=(p.x-mobS.cX)*0.0062;
-   CAM.pitch=clamp(CAM.pitch+(p.y-mobS.cY)*0.0062,-1.35,1.35);
-  }
-  mobS.cX=p.x;mobS.cY=p.y;mobS.twist=0;
- } else {
-  const a=c[0][1],b=c[1][1];
-  const dx=b.x-a.x,dy=b.y-a.y;
-  const d=Math.max(1e-3,Math.hypot(dx,dy)), ang=Math.atan2(dy,dx);
-  if(same&&typeof CAM!=='undefined'){
-   CAM.dist=clamp(CAM.dist*(mobS.cD/d),12,900);
-   let da=ang-mobS.cA;
-   while(da>Math.PI)da-=TAU; while(da<-Math.PI)da+=TAU;
-   mobS.twist=clamp(mobS.twist+da,-1.2,1.2);
-  } else mobS.twist=0;
-  mobS.cD=d;mobS.cA=ang;
- }
- mobS.cN=n;mobS.cIds=ids;
-}
-
-/* ---- visuals ---- */
-function mobPaintSticks(){
- const E=mobS.el;if(!E.sL)return;
- const R=mobCFG.R;
- const one=(el,kind)=>{
-  let rec=null;
-  for(const r of mobT.values())if(r.kind===kind){rec=r;break;}
-  if(!rec){el.classList.remove('a');return;}
-  el.classList.add('a');
-  el.style.left=(rec.ox-R)+'px';el.style.top=(rec.oy-R)+'px';
-  let dx=(rec.x-rec.ox)/R, dy=(rec.y-rec.oy)/R;
-  const l=Math.hypot(dx,dy);if(l>1){dx/=l;dy/=l;}
-  const k=el.querySelector('i');
-  k.style.left=(R-20+dx*(R-22))+'px';k.style.top=(R-20+dy*(R-22))+'px';
- };
- one(E.sL,'L');one(E.sR,'R');
-}
-
-/* ---- per-frame ---- */
-function mobUpdate(dt){
- if(!mobS.on)return;
- let lx=0,ly=0,rx=0,ry=0,tOn=false;
- for(const r of mobT.values()){
-  if(r.kind==='L'){lx=(r.x-r.ox)/mobCFG.R;ly=(r.y-r.oy)/mobCFG.R;}
-  else if(r.kind==='R'){rx=(r.x-r.ox)/mobCFG.R;ry=(r.y-r.oy)/mobCFG.R;}
-  else if(r.kind==='T')tOn=true;
- }
- const cl=(x,y)=>{const l=Math.hypot(x,y);return l>1?1/l:1;};
- let s=cl(lx,ly);lx*=s;ly*=s;
- s=cl(rx,ry);rx*=s;ry*=s;
- mobAxes.yaw=mobCurve(rx);
- mobAxes.pitch=mobCurve(ry);                 // screen-down = nose-up, like a stick
- mobAxes.tx=mobCurve(lx);
- mobAxes.ty=-mobCurve(ly);
- // roll: buttons win, otherwise the two-finger twist
- let roll=mobS.rollBtn;
- if(!roll&&Math.abs(mobS.twist)>mobCFG.twistDead){
-  const t=(Math.abs(mobS.twist)-mobCFG.twistDead)/mobCFG.twistFull;
-  roll=Math.sign(mobS.twist)*Math.min(1,t);
- }
- mobAxes.roll=roll;
- if(!tOn&&typeof SHIP!=='undefined'&&Math.abs(SHIP.throttle-mobAxes.throttle)>1e-4){
-  mobAxes.throttle=SHIP.throttle;mobThrPaint(SHIP.throttle);   // the sim may cut it (no fuel)
- }
- mobPaintSticks();
- // reflect toggle state on our own buttons
- const E=mobS.el;
- if(E.b&&typeof SHIP!=='undefined'){
-  E.b.sas.classList.toggle('on',!!SHIP.sas);
-  E.b.rcs.classList.toggle('on',!!SHIP.rcsOn);
-  E.b.gear.classList.toggle('on',!!SHIP.gearDown);
-  E.b.brk.classList.toggle('on',!!SHIP.brakes);
-  if(typeof CTX!=='undefined')E.b.view.classList.toggle('on',!CTX.view3rd);
- }
- // hide the controls while a full-screen panel is up
- const blocked=mobBlocked();
- E.wrap.style.visibility=(blocked&&!mobS.menu)?'hidden':'';
- E.root.style.pointerEvents=blocked?'none':'auto';
-}
-
-/* ---- enable / disable ---- */
-function mobSetEnabled(on){
- mobAxes.active=mobS.on=!!on;
- document.body.classList.toggle('mobOn',mobS.on);
- if(mobS.on){
-  mobBuild();
-  mobS.el.root.style.display='';mobS.el.wrap.style.display='';
-  mobLayout();
- } else if(mobS.built){
-  mobClearAll();
-  mobS.el.root.style.display='none';mobS.el.wrap.style.display='none';
-  const nav=$('nav');if(nav)nav.style.bottom='';
-  const tr=$('tr');if(tr)tr.style.display='';
- }
- return mobS.on;
-}
-function mobInit(){
- let force=false;
- try{force=/[?#&]touch/i.test(location.search+location.hash)||
-  localStorage.getItem('seg_touch')==='1';}catch(e){}
- const want=(typeof IS_MOBILE!=='undefined'&&IS_MOBILE)||force;
- mobBuild();
- mobSetEnabled(want);
- if(!want){mobS.el.root.style.display='none';mobS.el.wrap.style.display='none';}
- // any real touch turns the scheme on, even if the UA sniff said "desktop"
- addEventListener('touchstart',function once(){
-  if(!mobS.on)mobSetEnabled(true);
-  removeEventListener('touchstart',once,true);
- },{capture:true,passive:true});
- const relay=()=>{mobClearAll();setTimeout(mobLayout,0);setTimeout(mobLayout,260);};
- addEventListener('resize',relay);
- addEventListener('orientationchange',relay);
- if(window.visualViewport){window.visualViewport.addEventListener('resize',mobLayout);
-  window.visualViewport.addEventListener('scroll',mobLayout);}
- return mobS.on;
-}
-
-function mobSelfTest(){
- try{
-  if(typeof mobAxes!=='object')return {ok:false,why:'mobAxes missing'};
-  if(mobCurve(0.05)!==0)return {ok:false,why:'dead zone not applied'};
-  if(Math.abs(mobCurve(1)-1)>1e-9)return {ok:false,why:'curve does not reach 1'};
-  if(Math.abs(mobCurve(-1)+1)>1e-9)return {ok:false,why:'curve not odd'};
-  if(mobCurve(0.6)>=0.6)return {ok:false,why:'expo should soften mid-stick'};
-  if(!mobHit([0,0,10,10],5,5)||mobHit([0,0,10,10],11,5))return {ok:false,why:'hit test'};
-  if(!isFinite(mobCurve(NaN)|0)) return {ok:false,why:'NaN leak'};
-  if(mobS.built){
-   if(!$('mobRoot')||!$('mobThr')||!$('mobRow'))return {ok:false,why:'DOM not built'};
-   if(mobS.on&&(mobS.zL[2]<=0||mobS.zR[2]<=mobS.zR[0]))return {ok:false,why:'zones not laid out'};
-  }
-  return {ok:true};
- }catch(err){return {ok:false,why:String(err&&err.message||err)};}
-}
 
 /* ---------- p10-docs.js ---------- */
 /* ============================================================================
@@ -6054,18 +3980,955 @@ of the pipeline, and an optimisation that helps orbit often hurts the ground.</p
 
 </div>`;
 
+/* ---------- p12-map.js ---------- */
+/* ===== STAR MAP — system (orbital / KSP map view) + galaxy (4096-system chart) =====
+   Owner: agent M1.  Owns exactly one <canvas> of its own, drawn with the 2D API, plus a
+   handful of DOM panels appended to #ui.  Every global here is prefixed `map`. */
+
+const MAP_CSS=`
+#map_root{position:absolute;inset:0;display:none;pointer-events:auto;z-index:60;
+ font-family:ui-monospace,"SF Mono",Menlo,Consolas,monospace;color:#cfe6ff;font-size:11px}
+#map_cv{position:absolute;inset:0;width:100%;height:100%;display:block;touch-action:none}
+.map_bar{position:absolute;display:flex;gap:5px;align-items:center;flex-wrap:wrap;z-index:2}
+#map_tabs{top:8px;left:8px}
+#map_tools{top:8px;right:8px;max-width:56vw;justify-content:flex-end}
+.map_b{pointer-events:auto;background:rgba(8,20,36,.82);border:1px solid rgba(90,190,255,.4);
+ color:#a8e4ff;border-radius:5px;min-height:34px;min-width:36px;padding:6px 10px;font:inherit;
+ font-size:11px;letter-spacing:.08em;cursor:pointer;white-space:nowrap}
+.map_b:active{background:rgba(30,120,200,.55)}
+.map_b.on{background:rgba(30,140,220,.5);border-color:#7fe6ff;color:#eaf8ff}
+.map_b.go{background:linear-gradient(180deg,rgba(120,40,200,.78),rgba(40,10,90,.9));
+ border-color:#c79bff;color:#f0e0ff;font-weight:700;box-shadow:0 0 16px rgba(160,80,255,.4);
+ width:100%;margin-top:8px;min-height:42px}
+.map_b.go2{background:rgba(10,30,52,.9);border-color:#7fe6ff;color:#dff2ff;width:100%;
+ margin-top:6px;min-height:38px}
+#map_info{position:absolute;right:8px;top:52px;width:296px;max-height:calc(100% - 120px);
+ overflow:auto;background:rgba(5,12,24,.9);border:1px solid rgba(90,190,255,.32);border-radius:6px;
+ padding:10px 12px;backdrop-filter:blur(6px);display:none;z-index:3;
+ box-shadow:0 0 30px rgba(0,120,255,.12) inset}
+#map_info h3{font-size:14px;letter-spacing:.16em;color:#dff2ff;margin:0 0 2px;font-weight:600}
+#map_info .k{color:#5d86a8;font-size:9px;letter-spacing:.14em;text-transform:uppercase}
+#map_info .r{display:flex;justify-content:space-between;gap:10px;line-height:1.65}
+#map_info .v{color:#a8e4ff;font-variant-numeric:tabular-nums}
+#map_info .dsc{color:#8fc4e8;font-size:10px;line-height:1.6;margin:6px 0 2px;
+ border-left:2px solid rgba(199,155,255,.45);padding-left:7px}
+#map_info .warn{color:#ffb347;font-size:9.5px;margin-top:5px}
+#map_search{position:absolute;top:52px;left:8px;width:236px;display:none;z-index:3}
+#map_q{width:100%;background:rgba(5,12,24,.9);border:1px solid rgba(90,190,255,.35);border-radius:5px;
+ color:#dff2ff;font:inherit;font-size:12px;padding:9px 10px;outline:none;min-height:38px}
+#map_q:focus{border-color:#7fe6ff}
+#map_res{margin-top:4px;max-height:40vh;overflow:auto;background:rgba(5,12,24,.92);
+ border:1px solid rgba(90,190,255,.22);border-radius:5px;display:none}
+#map_res div{padding:9px 10px;border-bottom:1px solid rgba(90,190,255,.12);cursor:pointer;
+ color:#a8e4ff;min-height:36px}
+#map_res div:active{background:rgba(40,20,70,.85);color:#f0e0ff}
+#map_hint{position:absolute;left:8px;bottom:8px;color:#3d6a8f;font-size:9.5px;letter-spacing:.1em;
+ line-height:1.6;pointer-events:none;z-index:2;max-width:52vw}
+@media (max-width:600px){
+ .map_b{min-height:44px;padding:9px 11px}
+ #map_info{left:8px;right:8px;width:auto;top:auto;bottom:8px;max-height:47%}
+ #map_search{width:calc(100% - 16px);top:60px}
+ #map_hint{display:none}
+}`;
+
+/* ---- state ---- */
+let mapRoot=null, mapCv=null, mapG=null, mapVisible=false, mapMode='sys', mapDPR=1;
+let mapW=0, mapH=0, mapT=0, mapReady=false;
+let mapFrame=null;                 // Body at the centre of the orbital view
+let mapSel=null;                   // selected Body (system map)
+let mapGalSel=-1, mapGalHover=-1;  // selected / hovered system id
+let mapSysId=-1;                   // last SYSTEM.id we synced to
+const mapCam={yaw:0.0,pitch:1.30,zoom:1,px:0,py:0,cy:1,sy:0,cp:0.27,sp:0.96};
+const mapGalCam={yaw:0.6,pitch:0.55,zoom:1,px:0,py:0,dist:3.0,cy:1,sy:0,cp:1,sp:0,f:1,cx:0,cy0:0};
+const mapView={r0:1,S:1,cx:0,cy:0,cyy:1,syy:0,cp:0,sp:1};
+const mapHits=[];                  // {x,y,r,body}
+const mapEl={};
+let mapOrbCache=new WeakMap();
+const mapP=[0,0,0], mapP2=[0,0,0], mapP3=[0,0,0];
+const mapSN=192, mapShipPts=new Float64Array(mapSN*3);
+const mapTmpA=new Float64Array(3), mapTmpB=new Float64Array(3), mapTmpC=new Float64Array(3);
+/* galaxy tables */
+let mapGalPos=null, mapGalSize=null, mapGalTint=null, mapGalNames=null, mapGalNeb=null;
+let mapGalDirty=true, mapGalLast=-1e9, mapGlow=null, mapGlow2=null, mapGalQ='';
+const mapInsetCam={yaw:0,pitch:1.3,zoom:1,px:0,py:0};
+const mapRingR=[];
+const MAP_GAL_LY=900;              // galaxy model radius 1.0 == 900 light years
+const mapPalette=[];               // 24 precomputed star colour strings
+/* input */
+const mapPtrs=new Map();
+let mapGest=null, mapDragged=false, mapDownT=0, mapDownX=0, mapDownY=0;
+let mapCost=0, mapCostN=0, mapCostAvg=0;   // per-frame cost telemetry (ms)
+
+/* ================= INIT ================= */
+function mapInit(){
+ if(mapRoot)return mapRoot;
+ const st=document.createElement('style');st.textContent=MAP_CSS;document.head.appendChild(st);
+ const host=document.getElementById('ui')||document.body;
+ mapRoot=document.createElement('div');mapRoot.id='map_root';
+ mapRoot.innerHTML=
+  '<canvas id="map_cv"></canvas>'+
+  '<div class="map_bar" id="map_tabs">'+
+   '<button class="map_b on" id="map_tsys">SYSTEM</button>'+
+   '<button class="map_b" id="map_tgal">GALAXY</button></div>'+
+  '<div class="map_bar" id="map_tools">'+
+   '<button class="map_b" id="map_rl">&#8634;</button>'+
+   '<button class="map_b" id="map_rr">&#8635;</button>'+
+   '<button class="map_b" id="map_tilt">TILT</button>'+
+   '<button class="map_b" id="map_zo">&minus;</button>'+
+   '<button class="map_b" id="map_zi">+</button>'+
+   '<button class="map_b" id="map_home">RESET</button>'+
+   '<button class="map_b" id="map_x">CLOSE</button></div>'+
+  '<div id="map_search"><input id="map_q" placeholder="SEARCH SYSTEMS…" '+
+   'autocomplete="off" spellcheck="false"><div id="map_res"></div></div>'+
+  '<div id="map_info"></div>'+
+  '<div id="map_hint"></div>';
+ host.appendChild(mapRoot);
+ const $m=id=>document.getElementById(id);
+ mapCv=$m('map_cv');mapG=mapCv.getContext('2d',{alpha:true});
+ mapEl.info=$m('map_info');mapEl.hint=$m('map_hint');mapEl.search=$m('map_search');
+ mapEl.q=$m('map_q');mapEl.res=$m('map_res');
+ mapEl.tsys=$m('map_tsys');mapEl.tgal=$m('map_tgal');mapEl.tilt=$m('map_tilt');
+ mapEl.tsys.onclick=()=>mapSetMode('sys');
+ mapEl.tgal.onclick=()=>mapSetMode('gal');
+ $m('map_x').onclick=()=>mapToggle(false);
+ $m('map_rl').onclick=()=>{mapCamOf().yaw-=0.26;mapGalDirty=true;};
+ $m('map_rr').onclick=()=>{mapCamOf().yaw+=0.26;mapGalDirty=true;};
+ mapEl.tilt.onclick=()=>{const c=mapCamOf();
+  const P=[1.5533,1.05,0.62,0.22];let i=0,bd=9;
+  for(let k=0;k<P.length;k++){const d=Math.abs(P[k]-c.pitch);if(d<bd){bd=d;i=k;}}
+  c.pitch=P[(i+1)%P.length];mapGalDirty=true;};
+ $m('map_zi').onclick=()=>mapZoom(1.45,mapW*0.5,mapH*0.5);
+ $m('map_zo').onclick=()=>mapZoom(1/1.45,mapW*0.5,mapH*0.5);
+ $m('map_home').onclick=()=>mapHome();
+ mapEl.q.oninput=()=>mapSearch();
+ mapEl.q.onkeydown=e=>{e.stopPropagation();};
+ mapEl.q.onkeyup=e=>{e.stopPropagation();};
+ mapBindInput();
+ mapMakeGlow();
+ mapHome();
+ mapReady=true;
+ return mapRoot;
+}
+function mapCamOf(){return mapMode==='sys'?mapCam:mapGalCam;}
+function mapMakeGlow(){
+ const mk=(r,g,b)=>{const c=document.createElement('canvas');c.width=c.height=64;
+  const x=c.getContext('2d');const gr=x.createRadialGradient(32,32,0,32,32,32);
+  gr.addColorStop(0,'rgba('+r+','+g+','+b+',1)');
+  gr.addColorStop(0.35,'rgba('+r+','+g+','+b+',0.36)');
+  gr.addColorStop(1,'rgba('+r+','+g+','+b+',0)');
+  x.fillStyle=gr;x.fillRect(0,0,64,64);return c;};
+ mapGlow=mk(150,205,255);mapGlow2=mk(190,150,255);
+}
+function mapHome(){
+ if(mapMode==='sys'){
+  mapCam.yaw=0.0;mapCam.pitch=1.30;mapCam.zoom=1;mapCam.px=0;mapCam.py=0;
+  mapFrame=(typeof SUN!=='undefined'&&SUN)?SUN:null;mapSel=null;
+ } else {
+  mapGalCam.yaw=0.6;mapGalCam.pitch=0.55;mapGalCam.zoom=1;mapGalCam.px=0;mapGalCam.py=0;
+ }
+ mapGalDirty=true;mapPanel();
+}
+function mapSetMode(m){
+ mapMode=m;mapGalDirty=true;
+ mapEl.tsys.classList.toggle('on',m==='sys');
+ mapEl.tgal.classList.toggle('on',m==='gal');
+ mapEl.search.style.display=(m==='gal')?'block':'none';
+ mapEl.hint.innerHTML=(m==='sys')
+  ?'DRAG pan · WHEEL/PINCH zoom · TWO-FINGER twist rotate · TAP a body · TILT to change view angle'
+  :'DRAG rotate · WHEEL/PINCH zoom · TAP a star · SEARCH by name';
+ if(m==='gal'&&!mapGalPos)mapBuildGalaxy();
+ mapPanel();
+}
+
+/* ================= INPUT ================= */
+function mapZoom(f,ax,ay){
+ const c=mapCamOf();
+ const z0=c.zoom;
+ c.zoom=clamp(c.zoom*f,mapMode==='sys'?0.18:0.35,mapMode==='sys'?900:24);
+ const k=c.zoom/z0;
+ // keep the point under (ax,ay) fixed
+ const cx=mapW*0.5+c.px, cy=mapH*0.5+c.py;
+ c.px+=(cx-ax)*(k-1);c.py+=(cy-ay)*(k-1);
+ mapGalDirty=true;
+}
+function mapBindInput(){
+ const cv=mapCv;
+ const loc=e=>{const r=cv.getBoundingClientRect();return[e.clientX-r.left,e.clientY-r.top];};
+ cv.addEventListener('wheel',e=>{e.preventDefault();e.stopPropagation();
+  const p=loc(e);mapZoom(Math.pow(1.16,-Math.sign(e.deltaY)),p[0],p[1]);},{passive:false});
+ cv.addEventListener('pointerdown',e=>{
+  e.preventDefault();e.stopPropagation();
+  try{cv.setPointerCapture(e.pointerId);}catch(_){}
+  const p=loc(e);
+  mapPtrs.set(e.pointerId,{x:p[0],y:p[1],sh:e.shiftKey||e.button===2});
+  if(mapPtrs.size===1){mapDragged=false;mapDownT=performance.now();mapDownX=p[0];mapDownY=p[1];}
+  if(mapPtrs.size===2)mapGestStart();
+ });
+ cv.addEventListener('pointermove',e=>{
+  const p=loc(e);
+  const rec=mapPtrs.get(e.pointerId);
+  if(!rec){ if(mapMode==='gal'){mapHoverGal(p[0],p[1]);} return; }
+  const dx=p[0]-rec.x, dy=p[1]-rec.y;
+  rec.x=p[0];rec.y=p[1];
+  if(Math.abs(p[0]-mapDownX)+Math.abs(p[1]-mapDownY)>10)mapDragged=true;
+  if(mapPtrs.size===1){
+   const c=mapCamOf();
+   if(mapMode==='gal'||rec.sh){
+    c.yaw-=dx*0.006;c.pitch=clamp(c.pitch+dy*0.006,-1.5533,1.5533);
+   } else {c.px+=dx;c.py+=dy;}
+   mapGalDirty=true;
+  } else if(mapPtrs.size===2)mapGestMove();
+  e.preventDefault();e.stopPropagation();
+ });
+ const up=e=>{
+  const rec=mapPtrs.get(e.pointerId);
+  mapPtrs.delete(e.pointerId);
+  if(mapPtrs.size<2)mapGest=null;
+  if(!rec)return;
+  if(!mapDragged&&performance.now()-mapDownT<500&&mapPtrs.size===0)mapTap(rec.x,rec.y);
+ };
+ cv.addEventListener('pointerup',up);
+ cv.addEventListener('pointercancel',up);
+ cv.addEventListener('contextmenu',e=>e.preventDefault());
+}
+function mapGestStart(){
+ const a=[...mapPtrs.values()];if(a.length<2)return;
+ const c=mapCamOf();
+ mapGest={d:Math.hypot(a[0].x-a[1].x,a[0].y-a[1].y)||1,
+  ang:Math.atan2(a[1].y-a[0].y,a[1].x-a[0].x),
+  mx:(a[0].x+a[1].x)*0.5,my:(a[0].y+a[1].y)*0.5,z:c.zoom,yaw:c.yaw};
+}
+function mapGestMove(){
+ const a=[...mapPtrs.values()];if(a.length<2||!mapGest)return;
+ const c=mapCamOf();
+ const d=Math.hypot(a[0].x-a[1].x,a[0].y-a[1].y)||1;
+ const ang=Math.atan2(a[1].y-a[0].y,a[1].x-a[0].x);
+ const mx=(a[0].x+a[1].x)*0.5,my=(a[0].y+a[1].y)*0.5;
+ c.px+=mx-mapGest.mx;c.py+=my-mapGest.my;
+ const z0=c.zoom;
+ c.zoom=clamp(mapGest.z*(d/mapGest.d),mapMode==='sys'?0.18:0.35,mapMode==='sys'?900:24);
+ const k=c.zoom/z0;
+ const ccx=mapW*0.5+c.px, ccy=mapH*0.5+c.py;
+ c.px+=(ccx-mx)*(k-1);c.py+=(ccy-my)*(k-1);
+ let da=ang-mapGest.ang; while(da>Math.PI)da-=TAU; while(da<-Math.PI)da+=TAU;
+ c.yaw=mapGest.yaw+da;
+ mapGest.mx=mx;mapGest.my=my;mapGalDirty=true;
+}
+function mapTap(x,y){
+ if(mapMode==='sys'){
+  const b=mapPick(x,y);
+  mapSel=b;mapPanel();
+ } else {
+  const id=mapPickGal(x,y);
+  if(id>=0){mapGalSel=id;mapGalDirty=true;mapPanel();}
+ }
+}
+function mapPick(x,y){
+ let best=null,bd=1e9;
+ for(let i=mapHits.length-1;i>=0;i--){
+  const h=mapHits[i];
+  const d=Math.hypot(h.x-x,h.y-y);
+  const rr=Math.max(h.r+8,24);            // >=48 px touch target
+  if(d<rr&&d<bd){bd=d;best=h.body;}
+ }
+ return best;
+}
+function mapHoverGal(x,y){
+ const id=mapPickGal(x,y);
+ if(id!==mapGalHover){mapGalHover=id;mapGalDirty=true;}
+}
+
+/* ================= RADIAL WARP + PROJECTION =================
+   The solar system spans 0.39 AU (Mercury) to 39.5 AU (Pluto): a linear plot makes the
+   inner system a single pixel. We map radius through  s(r) = ln(1 + r/r0)  where r0 is
+   ~0.3 x the innermost semi-major axis of the current frame. Because the warp is purely
+   radial and applied to the full 3-vector, direction is untouched — so orbital
+   inclinations and the "star sits at a focus" geometry survive exactly, only the radial
+   metric is compressed. Two decades of radius become a factor ~3.8 on screen. */
+function mapPrj(dx,dy,dz,o){
+ const r=Math.sqrt(dx*dx+dy*dy+dz*dz);
+ const w=r>1e-9?Math.log1p(r/mapView.r0)/r:0;
+ const X=dx*w,Y=dy*w,Z=dz*w;
+ const rx=X*mapView.cyy-Z*mapView.syy;
+ const fz=X*mapView.syy+Z*mapView.cyy;
+ o[0]=mapView.cx+rx*mapView.S;
+ o[1]=mapView.cy-(Y*mapView.cp-fz*mapView.sp)*mapView.S;
+ o[2]=Y*mapView.sp+fz*mapView.cp;
+ return o;
+}
+function mapKids(b){const o=[];if(typeof BODIES==='undefined')return o;
+ for(const x of BODIES)if(x.parent===b)o.push(x);return o;}
+
+/* orbit polyline of a body about its parent, cached (elements never change) */
+function mapBodyOrb(b){
+ let o=mapOrbCache.get(b);
+ if(o)return o;
+ const N=b.e>0.25?176:112;
+ const pts=new Float64Array(N*3);
+ const co=Math.cos(b.argp),so=Math.sin(b.argp),ci=Math.cos(b.inc),si=Math.sin(b.inc),
+       cr=Math.cos(b.raan),sr=Math.sin(b.raan);
+ const R11=cr*co-sr*so*ci, R12=-cr*so-sr*co*ci;
+ const R21=sr*co+cr*so*ci, R22=-sr*so+cr*co*ci;
+ const R31=so*si,          R32=co*si;
+ const p=b.a*(1-b.e*b.e);
+ for(let i=0;i<N;i++){
+  const nu=i/N*TAU, r=p/(1+b.e*Math.cos(nu));
+  const xp=r*Math.cos(nu), yp=r*Math.sin(nu);
+  pts[i*3]=R11*xp+R12*yp;pts[i*3+1]=R31*xp+R32*yp;pts[i*3+2]=R21*xp+R22*yp;
+ }
+ const rp=b.a*(1-b.e), ra=b.a*(1+b.e);
+ o={pts:pts,n:N,
+    pe:[R11*rp,R31*rp,R21*rp],
+    ap:[-R11*ra,-R31*ra,-R21*ra]};
+ mapOrbCache.set(b,o);
+ return o;
+}
+/* ship conic about `body`, sampled forward from the current true anomaly */
+function mapShipConic(body){
+ if(typeof SHIP==='undefined'||!body)return null;
+ const r=mapTmpA, v=mapTmpB;
+ vsub(r,SHIP.pos,body.pos);vsub(v,SHIP.vel,body.vel);
+ const R=vlen(r);if(!(R>1)||!isFinite(R))return null;
+ const h=mapTmpC;vcross(h,r,v);const H=vlen(h);
+ if(!(H>1))return null;
+ const mu=body.mu;
+ const ex=(v[1]*h[2]-v[2]*h[1])/mu-r[0]/R;
+ const ey=(v[2]*h[0]-v[0]*h[2])/mu-r[1]/R;
+ const ez=(v[0]*h[1]-v[1]*h[0])/mu-r[2]/R;
+ let e=Math.hypot(ex,ey,ez);
+ let Px,Py,Pz;
+ if(e>1e-6){Px=ex/e;Py=ey/e;Pz=ez/e;}
+ else{e=0;Px=r[0]/R;Py=r[1]/R;Pz=r[2]/R;}
+ // Q = normalize(h x P)
+ let Qx=h[1]*Pz-h[2]*Py, Qy=h[2]*Px-h[0]*Pz, Qz=h[0]*Py-h[1]*Px;
+ const ql=Math.hypot(Qx,Qy,Qz)||1;Qx/=ql;Qy/=ql;Qz/=ql;
+ const pl=H*H/mu;
+ const nu0=Math.atan2(r[0]*Qx+r[1]*Qy+r[2]*Qz, r[0]*Px+r[1]*Py+r[2]*Pz);
+ let span=TAU, nuMax=Math.PI;
+ if(e>=1){nuMax=Math.acos(clamp(-1/e,-1,1))*0.985;span=0;}
+ const N=mapSN;
+ let n=0;
+ for(let i=0;i<N;i++){
+  let nu;
+  if(e<1){nu=nu0+i/(N-1)*TAU;}
+  else{
+   nu=nu0+i/(N-1)*(nuMax-nu0);
+   if(nu>nuMax)break;
+  }
+  const rr=pl/(1+e*Math.cos(nu));
+  if(!(rr>0)||rr>1e15)break;
+  const c=Math.cos(nu),s=Math.sin(nu);
+  mapShipPts[n*3]=Px*rr*c+Qx*rr*s;
+  mapShipPts[n*3+1]=Py*rr*c+Qy*rr*s;
+  mapShipPts[n*3+2]=Pz*rr*c+Qz*rr*s;
+  n++;
+ }
+ const a=(e!==1)?pl/(1-e*e):Infinity;
+ const rp=pl/(1+e), ra=e<1?pl/(1-e):Infinity;
+ return {n:n,e:e,a:a,rp:rp,ra:ra,pl:pl,
+  peX:Px*rp,peY:Py*rp,peZ:Pz*rp,
+  apX:-Px*ra,apY:-Py*ra,apZ:-Pz*ra,
+  period:(e<1&&a>0)?TAU*Math.sqrt(a*a*a/mu):Infinity,R:R};
+}
+
+/* ================= ORBITAL (SYSTEM) VIEW ================= */
+function mapFmtR(m){
+ if(!isFinite(m))return '—';
+ const a=Math.abs(m);
+ if(a>=0.004*AU)return (m/AU).toFixed(a<0.1*AU?3:(a<10*AU?2:1))+' AU';
+ if(a>=1e9)return (m/1e9).toFixed(2)+' Gm';
+ if(a>=1e6)return (m/1e6).toFixed(1)+' Mm';
+ return (m/1e3).toFixed(0)+' km';
+}
+function mapCol(c,a){
+ return 'rgba('+((c[0]*255)|0)+','+((c[1]*255)|0)+','+((c[2]*255)|0)+','+a+')';
+}
+function mapMarkPx(b){
+ if(b.kind==='star')return 7.5;
+ const l=Math.log10(Math.max(b.radius,1e4)/1e6);
+ return clamp(2.6+l*2.6,2.2,8.0);
+}
+const MAP_DEC=[1,2,5];
+function mapRenderOrbital(g,vx,vy,vw,vh,frame,cam,hits,inset){
+ if(!frame)return;
+ const kids=mapKids(frame);
+ // radial reference: r0 sets the log knee, rRef the outer edge of the plot
+ let aMin=Infinity,rRef=frame.radius*60;
+ for(const k of kids){aMin=Math.min(aMin,k.a);rRef=Math.max(rRef,k.a*(1+k.e));}
+ // if the ship orbits this body, let its periapsis pull the knee inward so low orbits
+ // are not buried inside the primary's disc
+ const domB=(typeof CTX!=='undefined'&&CTX.body)?CTX.body:null;
+ if(domB===frame&&typeof SHIP!=='undefined'&&SHIP.pos)
+  aMin=Math.min(aMin,Math.max(vdist(SHIP.pos,frame.pos),frame.radius));
+ if(!isFinite(aMin))aMin=frame.radius*16;
+ const r0=Math.max(aMin*0.30,frame.radius*1.6);
+ const minD=Math.min(vw,vh);
+ const S=cam.zoom*0.42*minD/Math.max(Math.log1p(rRef/r0),1e-6);
+ mapView.r0=r0;mapView.S=S;
+ mapView.cx=vx+vw*0.5+(inset?0:cam.px);mapView.cy=vy+vh*0.5+(inset?0:cam.py);
+ mapView.cyy=Math.cos(cam.yaw);mapView.syy=Math.sin(cam.yaw);
+ mapView.cp=Math.cos(cam.pitch);mapView.sp=Math.sin(cam.pitch);
+
+ /* --- range rings: 1/2/5 x 10^k metres, kept ~64 px apart so they span the whole plot
+       instead of bunching up in the compressed outer region. They make the log scale legible. --- */
+ g.lineWidth=1;g.font='9px ui-monospace,Menlo,Consolas,monospace';
+ mapRingR.length=0;
+ let lastPx=-1e9;
+ for(let k=5;k<=14&&mapRingR.length<8;k++)for(let m=0;m<3&&mapRingR.length<8;m++){
+  const rr=MAP_DEC[m]*Math.pow(10,k);
+  if(rr>rRef*2.0)break;
+  const px=Math.log1p(rr/r0)*S;
+  if(px<22||px>minD*2.4)continue;
+  if(px-lastPx<Math.max(58,minD*0.10))continue;
+  lastPx=px;mapRingR.push(rr);
+ }
+ for(let ri=0;ri<mapRingR.length;ri++){
+  const rr=mapRingR[ri];
+  const px=Math.log1p(rr/r0)*S;
+  g.strokeStyle='rgba(90,190,255,0.10)';
+  g.beginPath();
+  let lx=0,ly=0,best=-1e9;
+  for(let i=0;i<=48;i++){
+   const a=i/48*TAU;
+   mapPrj(Math.cos(a)*rr,0,Math.sin(a)*rr,mapP);
+   if(i===0)g.moveTo(mapP[0],mapP[1]);else g.lineTo(mapP[0],mapP[1]);
+   if(mapP[0]>best){best=mapP[0];lx=mapP[0];ly=mapP[1];}
+  }
+  g.stroke();
+  if(!inset&&px>44){g.fillStyle='rgba(93,134,168,0.75)';g.fillText(mapFmtR(rr),lx+4,ly-3);}
+ }
+ /* --- orbits of the frame's children --- */
+ for(const b of kids){
+  const o=mapBodyOrb(b);
+  const selq=(b===mapSel);
+  g.strokeStyle=mapCol(b.color,selq?0.95:0.42);
+  g.lineWidth=selq?2:1.1;
+  g.beginPath();
+  for(let i=0;i<o.n;i++){
+   mapPrj(o.pts[i*3],o.pts[i*3+1],o.pts[i*3+2],mapP);
+   if(i===0)g.moveTo(mapP[0],mapP[1]);else g.lineTo(mapP[0],mapP[1]);
+  }
+  g.closePath();g.stroke();
+  if(selq&&b.e>0.008){
+   mapPrj(o.ap[0],o.ap[1],o.ap[2],mapP);
+   mapNode(g,mapP[0],mapP[1],'#7fe6ff','Ap '+mapFmtR(b.a*(1+b.e)));
+   mapPrj(o.pe[0],o.pe[1],o.pe[2],mapP2);
+   mapNode(g,mapP2[0],mapP2[1],'#ffd34d','Pe '+mapFmtR(b.a*(1-b.e)));
+  }
+ }
+ /* --- the frame body itself --- */
+ mapPrj(0,0,0,mapP);
+ mapBodyDot(g,frame,mapP[0],mapP[1],0,hits,true);
+ /* --- bodies --- */
+ const fx=frame.pos[0],fy=frame.pos[1],fz=frame.pos[2];
+ for(const b of kids){
+  const dx=b.pos[0]-fx,dy=b.pos[1]-fy,dz=b.pos[2]-fz;
+  mapPrj(dx,dy,dz,mapP);
+  mapBodyDot(g,b,mapP[0],mapP[1],Math.hypot(dx,dy,dz),hits,false);
+ }
+ /* --- ship --- */
+ if(typeof SHIP!=='undefined'&&SHIP.pos){
+  const dom=(typeof CTX!=='undefined'&&CTX.body)?CTX.body:(SHIP.soi||null);
+  if(dom===frame){
+   const cn=mapShipConic(frame);
+   if(cn&&cn.n>2){
+    // predicted path: 14 chunks with stepped alpha (one stroke each) so the trajectory
+    // reads as "ahead of you" without 190 separate draw calls
+    g.lineWidth=1.7;
+    const CH=14, per=Math.max(2,Math.ceil(cn.n/CH));
+    for(let c0=0;c0<cn.n-1;c0+=per){
+     const a=1-c0/cn.n;
+     g.strokeStyle='rgba(127,230,255,'+(0.12+0.76*a*a).toFixed(3)+')';
+     g.beginPath();
+     const end=Math.min(cn.n-1,c0+per);
+     for(let i=c0;i<=end;i++){
+      mapPrj(mapShipPts[i*3],mapShipPts[i*3+1],mapShipPts[i*3+2],mapP);
+      if(i===c0)g.moveTo(mapP[0],mapP[1]);else g.lineTo(mapP[0],mapP[1]);
+     }
+     g.stroke();
+    }
+    if(isFinite(cn.ra)){mapPrj(cn.apX,cn.apY,cn.apZ,mapP);
+     mapNode(g,mapP[0],mapP[1],'#7fe6ff','Ap '+mapFmtR(cn.ra-frame.radius));}
+    mapPrj(cn.peX,cn.peY,cn.peZ,mapP);
+    mapNode(g,mapP[0],mapP[1],'#ffd34d','Pe '+mapFmtR(cn.rp-frame.radius));
+   }
+  }
+  const sx=SHIP.pos[0]-fx, sy=SHIP.pos[1]-fy, sz=SHIP.pos[2]-fz;
+  mapPrj(sx,sy,sz,mapP);
+  // velocity vector: project a short step along v and normalise on screen
+  const vx0=SHIP.vel[0]-frame.vel[0],vy0=SHIP.vel[1]-frame.vel[1],vz0=SHIP.vel[2]-frame.vel[2];
+  const vl=Math.hypot(vx0,vy0,vz0);
+  const rr=Math.hypot(sx,sy,sz);
+  if(vl>0.01&&rr>1){
+   const st=rr*0.03/vl;
+   mapPrj(sx+vx0*st,sy+vy0*st,sz+vz0*st,mapP2);
+   let ax=mapP2[0]-mapP[0],ay=mapP2[1]-mapP[1];
+   const al=Math.hypot(ax,ay)||1;
+   const L=inset?18:30;
+   ax=ax/al*L;ay=ay/al*L;
+   g.strokeStyle='rgba(255,211,77,0.9)';g.lineWidth=1.6;
+   g.beginPath();g.moveTo(mapP[0],mapP[1]);g.lineTo(mapP[0]+ax,mapP[1]+ay);g.stroke();
+   g.beginPath();g.moveTo(mapP[0]+ax,mapP[1]+ay);
+   g.lineTo(mapP[0]+ax*0.72-ay*0.16,mapP[1]+ay*0.72+ax*0.16);
+   g.lineTo(mapP[0]+ax*0.72+ay*0.16,mapP[1]+ay*0.72-ax*0.16);
+   g.closePath();g.fillStyle='rgba(255,211,77,0.9)';g.fill();
+  }
+  g.strokeStyle='#eaf8ff';g.fillStyle='rgba(127,230,255,0.9)';g.lineWidth=1.5;
+  g.beginPath();
+  g.moveTo(mapP[0],mapP[1]-5.5);g.lineTo(mapP[0]+4.6,mapP[1]+4.4);
+  g.lineTo(mapP[0],mapP[1]+1.8);g.lineTo(mapP[0]-4.6,mapP[1]+4.4);
+  g.closePath();g.fill();g.stroke();
+  if(!inset){g.fillStyle='#eaf8ff';g.font='9px ui-monospace,Menlo,Consolas,monospace';
+   g.fillText('YOU',mapP[0]+7,mapP[1]-6);}
+ }
+}
+function mapNode(g,x,y,col,txt){
+ g.strokeStyle=col;g.lineWidth=1.4;
+ g.beginPath();g.moveTo(x,y-4.6);g.lineTo(x+4.6,y);g.lineTo(x,y+4.6);g.lineTo(x-4.6,y);
+ g.closePath();g.stroke();
+ if(txt){g.fillStyle=col;g.font='9px ui-monospace,Menlo,Consolas,monospace';
+  g.fillText(txt,x+7,y+3);}
+}
+function mapBodyDot(g,b,x,y,r,hits,isFrame){
+ const mk=mapMarkPx(b);
+ // at the centre of the frame the warp is strongly non-linear over the body's own radius,
+ // so integrate it properly; elsewhere the local derivative of ln(1+r/r0) is accurate
+ const disc=isFrame?Math.log1p(b.radius/mapView.r0)*mapView.S
+                   :b.radius*mapView.S/(mapView.r0+r);
+ const px=Math.max(mk,Math.min(disc,Math.min(mapW,mapH)*0.45));
+ if(x<-90||x>mapW+90||y<-90||y>mapH+90)return;
+ const sel=(b===mapSel);
+ if(b.kind==='star'){
+  g.globalCompositeOperation='lighter';
+  g.globalAlpha=0.55;
+  g.drawImage(mapGlow,x-px*4,y-px*4,px*8,px*8);
+  g.globalAlpha=1;g.globalCompositeOperation='source-over';
+ }
+ g.beginPath();g.arc(x,y,px,0,TAU);
+ g.fillStyle=mapCol(b.color,b.kind==='star'?1:0.92);g.fill();
+ g.lineWidth=1;g.strokeStyle='rgba(10,20,34,0.9)';g.stroke();
+ if(sel){g.strokeStyle='#c79bff';g.lineWidth=2;
+  g.beginPath();g.arc(x,y,px+7,0,TAU);g.stroke();
+  g.strokeStyle='rgba(199,155,255,0.45)';g.lineWidth=1;
+  g.beginPath();g.arc(x,y,px+13,0,TAU);g.stroke();}
+ g.font=(b.kind==='star'?'bold ':'')+'10px ui-monospace,Menlo,Consolas,monospace';
+ g.fillStyle=sel?'#f0e0ff':(b.kind==='star'?'#ffe9c0':'#bcdcf4');
+ g.fillText(b.name,x+px+5,y+3.5);
+ if(hits)hits.push({x:x,y:y,r:px,body:b});
+}
+
+/* ================= GALAXY ================= */
+let mapRandS=0;
+function mapRand(){mapRandS=(mapRandS*1664525+1013904223)>>>0;return mapRandS/4294967296;}
+/* Replays buildSystem()'s own PRNG so the chart agrees with the system you actually jump to. */
+function mapSysInfo(id){
+ if(id===0)return {cls:0.42,starR:6.957e8,temp:5772,col:[1,.95,.85],n:9,name:'SOL'};
+ mapRandS=(id*2654435761)>>>0;
+ const cls=mapRand();
+ const n=2+Math.floor(mapRand()*7);
+ const temp=mix(2800,9200,cls);
+ return {cls:cls,starR:mix(3e8,1.6e9,cls*cls),temp:temp,n:n,
+  col:[Math.min(1,Math.max(.35,1.4-cls*.5)),Math.min(1,.6+cls*.4),Math.min(1,.25+cls*.85)],
+  name:systemName(id)};
+}
+function mapSpectral(T){
+ return T>=30000?'O':T>=10000?'B':T>=7500?'A':T>=6000?'F':T>=5200?'G':T>=3700?'K':'M';
+}
+function mapBuildGalaxy(){
+ const N=SYSTEM_COUNT;
+ mapGalPos=new Float32Array(N*3);mapGalSize=new Float32Array(N);mapGalTint=new Uint8Array(N);
+ for(let i=0;i<24;i++){
+  const t=i/23;
+  const R=Math.round(mix(255,150,t)),G=Math.round(mix(190,190,t)),B=Math.round(mix(120,255,t));
+  mapPalette.push('rgb('+R+','+G+','+B+')');
+ }
+ const ARMS=4, INVTAN=1/Math.tan(0.36);   // ~21 degree pitch logarithmic spiral
+ for(let id=0;id<N;id++){
+  mapRandS=(id*2246822519+374761393)>>>0;
+  const R=mapRand;
+  const u=R(), arm=Math.floor(R()*ARMS);
+  let x,y,z;
+  if(u<0.15){                                   // central bulge
+   const rr=0.30*Math.pow(R(),0.65), th=R()*TAU, ph=Math.acos(2*R()-1);
+   const sp=Math.sin(ph);
+   x=rr*sp*Math.cos(th);z=rr*sp*Math.sin(th);y=rr*Math.cos(ph)*0.62;
+  } else {                                      // logarithmic spiral arms
+   const rad=0.10+Math.pow(R(),0.62)*0.90;
+   const g1=R()+R()+R()-1.5;
+   const th=arm*TAU/ARMS+Math.log(rad/0.10)*INVTAN+g1*0.30;
+   x=rad*Math.cos(th)+(R()+R()-1)*0.055;
+   z=rad*Math.sin(th)+(R()+R()-1)*0.055;
+   y=(R()+R()+R()-1.5)*0.070*Math.exp(-rad*0.8);
+  }
+  mapGalPos[id*3]=x;mapGalPos[id*3+1]=y;mapGalPos[id*3+2]=z;
+  const inf=mapSysInfo(id);
+  // luminosity ~ R^2 T^4, relative to Sol
+  const L=Math.pow(inf.starR/6.957e8,2)*Math.pow(inf.temp/5772,4);
+  mapGalSize[id]=clamp(0.9+1.5*(Math.log10(Math.max(L,1e-4))+2)/4,0.75,4.2);
+  mapGalTint[id]=clamp(Math.round(((inf.temp-2800)/6400)*23),0,23);
+ }
+ mapGalNeb=[];
+ for(let i=0;i<N;i+=17)mapGalNeb.push(i);
+ mapGalDirty=true;
+}
+function mapGPrj(x,y,z,o){
+ const c=mapGalCam;
+ const rx=x*c.cy-z*c.sy, fz=x*c.sy+z*c.cy;
+ const up=y*c.cp-fz*c.sp;
+ const dep=y*c.sp+fz*c.cp;
+ const zc=c.dist-dep;
+ if(zc<0.12){o[2]=-1;return o;}
+ const k=c.f/zc;
+ o[0]=c.cx+rx*k;o[1]=c.cy0-up*k;o[2]=zc;
+ return o;
+}
+function mapPickGal(x,y){
+ if(!mapGalPos)return -1;
+ let best=-1,bd=26*26;
+ for(let id=0;id<SYSTEM_COUNT;id++){
+  mapGPrj(mapGalPos[id*3],mapGalPos[id*3+1],mapGalPos[id*3+2],mapP);
+  if(mapP[2]<0)continue;
+  const dx=mapP[0]-x,dy=mapP[1]-y,d=dx*dx+dy*dy;
+  if(d<bd){bd=d;best=id;}
+ }
+ return best;
+}
+function mapRenderGalaxy(g,W,H){
+ if(!mapGalPos)mapBuildGalaxy();
+ if(!mapGalNames)mapGalNamesBuild();
+ const c=mapGalCam;
+ c.cy=Math.cos(c.yaw);c.sy=Math.sin(c.yaw);
+ c.cp=Math.cos(c.pitch);c.sp=Math.sin(c.pitch);
+ c.f=1.26*Math.min(W,H)*c.zoom;
+ c.cx=W*0.5+c.px;c.cy0=H*0.5+c.py;
+ const cur=(typeof SYSTEM!=='undefined')?SYSTEM.id:0;
+ /* --- nebular haze --- */
+ g.globalCompositeOperation='lighter';
+ for(let i=0;i<mapGalNeb.length;i++){
+  const id=mapGalNeb[i];
+  mapGPrj(mapGalPos[id*3],mapGalPos[id*3+1],mapGalPos[id*3+2],mapP);
+  if(mapP[2]<0)continue;
+  const sz=c.f/mapP[2]*0.10;
+  if(mapP[0]<-sz||mapP[0]>W+sz||mapP[1]<-sz||mapP[1]>H+sz)continue;
+  g.globalAlpha=0.055;
+  g.drawImage((i&3)?mapGlow:mapGlow2,mapP[0]-sz,mapP[1]-sz,sz*2,sz*2);
+ }
+ g.globalAlpha=1;g.globalCompositeOperation='source-over';
+ /* --- galactic plane rings --- */
+ g.strokeStyle='rgba(90,190,255,0.10)';g.lineWidth=1;
+ for(let k=1;k<=4;k++){
+  const rr=k*0.25;
+  g.beginPath();let started=false;
+  for(let i=0;i<=64;i++){
+   const a=i/64*TAU;
+   mapGPrj(Math.cos(a)*rr,0,Math.sin(a)*rr,mapP);
+   if(mapP[2]<0){started=false;continue;}
+   if(!started){g.moveTo(mapP[0],mapP[1]);started=true;}else g.lineTo(mapP[0],mapP[1]);
+  }
+  g.stroke();
+ }
+ /* --- stars --- */
+ const q=mapGalQ;
+ g.globalCompositeOperation='lighter';
+ const labels=[];
+ let glows=0;
+ for(let id=0;id<SYSTEM_COUNT;id++){
+  mapGPrj(mapGalPos[id*3],mapGalPos[id*3+1],mapGalPos[id*3+2],mapP);
+  if(mapP[2]<0)continue;
+  const x=mapP[0],y=mapP[1];
+  if(x<-8||x>W+8||y<-8||y>H+8)continue;
+  const dc=clamp(c.dist/mapP[2],0.35,2.8);          // depth cue
+  let a=clamp(0.20+0.62*(dc-0.55),0.06,1);
+  let px=mapGalSize[id]*dc*(0.8+0.3*Math.min(c.zoom,3));
+  if(q){const hit=mapGalNames[id].indexOf(q)>=0;
+   if(!hit){a*=0.13;px*=0.75;}else{a=1;px*=1.7;labels.push(id);}}
+  g.globalAlpha=a;
+  g.fillStyle=mapPalette[mapGalTint[id]];
+  if(px<1.5)g.fillRect(x-0.7,y-0.7,1.5,1.5);
+  else{g.beginPath();g.arc(x,y,px,0,TAU);g.fill();
+   if(px>2.4&&glows<420){glows++;g.globalAlpha=a*0.5;
+    g.drawImage(mapGlow,x-px*3.4,y-px*3.4,px*6.8,px*6.8);}}
+  if(!q&&px>2.9&&labels.length<26)labels.push(id);
+ }
+ g.globalAlpha=1;g.globalCompositeOperation='source-over';
+ /* --- labels (spaced out so they stay readable) --- */
+ g.font='10px ui-monospace,Menlo,Consolas,monospace';
+ const placed=[];
+ for(let i=0;i<labels.length&&placed.length<24;i++){
+  const id=labels[i];
+  mapGPrj(mapGalPos[id*3],mapGalPos[id*3+1],mapGalPos[id*3+2],mapP);
+  if(mapP[2]<0)continue;
+  let ok=true;
+  for(const p of placed)if(Math.abs(p[0]-mapP[0])<74&&Math.abs(p[1]-mapP[1])<15){ok=false;break;}
+  if(!ok)continue;
+  placed.push([mapP[0],mapP[1]]);
+  g.fillStyle='rgba(168,228,255,0.62)';
+  g.fillText(mapGalNames[id],mapP[0]+6,mapP[1]+3);
+ }
+ /* --- current / hovered / selected --- */
+ const mark=(id,col,tag,pulse)=>{
+  if(id<0||id>=SYSTEM_COUNT)return;
+  mapGPrj(mapGalPos[id*3],mapGalPos[id*3+1],mapGalPos[id*3+2],mapP);
+  if(mapP[2]<0)return;
+  const r=10+(pulse?Math.sin(mapT*3)*2.4:0);
+  g.strokeStyle=col;g.lineWidth=1.8;
+  g.beginPath();g.arc(mapP[0],mapP[1],r,0,TAU);g.stroke();
+  g.beginPath();
+  g.moveTo(mapP[0]-r-6,mapP[1]);g.lineTo(mapP[0]-r-1,mapP[1]);
+  g.moveTo(mapP[0]+r+1,mapP[1]);g.lineTo(mapP[0]+r+6,mapP[1]);
+  g.moveTo(mapP[0],mapP[1]-r-6);g.lineTo(mapP[0],mapP[1]-r-1);
+  g.moveTo(mapP[0],mapP[1]+r+1);g.lineTo(mapP[0],mapP[1]+r+6);
+  g.stroke();
+  g.fillStyle=col;g.font='10px ui-monospace,Menlo,Consolas,monospace';
+  g.fillText(tag+' '+mapGalNames[id],mapP[0]+r+9,mapP[1]-r+2);
+ };
+ mark(cur,'#7fe6ff','◎',true);
+ if(mapGalHover>=0&&mapGalHover!==mapGalSel)mark(mapGalHover,'rgba(199,155,255,0.65)','·');
+ if(mapGalSel>=0)mark(mapGalSel,'#c79bff','▣');
+ /* --- scale legend --- */
+ g.fillStyle='rgba(93,134,168,0.8)';g.font='9px ui-monospace,Menlo,Consolas,monospace';
+ g.fillText('GALACTIC DISC · '+SYSTEM_COUNT+' CHARTED SYSTEMS · '+
+   (MAP_GAL_LY*2)+' ly ACROSS · 4 SPIRAL ARMS',10,H-12);
+}
+function mapSearch(){
+ if(!mapGalNames)mapGalNamesBuild();
+ mapGalQ=(mapEl.q.value||'').trim().toUpperCase();
+ mapGalDirty=true;
+ const res=mapEl.res;
+ if(!mapGalQ){res.style.display='none';res.innerHTML='';return;}
+ let h='',n=0;
+ for(let id=0;id<SYSTEM_COUNT&&n<14;id++){
+  if(mapGalNames[id].indexOf(mapGalQ)<0)continue;
+  h+='<div data-i="'+id+'">'+mapGalNames[id]+'</div>';n++;
+ }
+ res.innerHTML=h||'<div style="color:#5d86a8">NO MATCH</div>';
+ res.style.display='block';
+ res.querySelectorAll('div[data-i]').forEach(el=>{el.onclick=()=>{
+  mapGalSel=+el.dataset.i;mapGalDirty=true;mapPanel();};});
+}
+function mapGalNamesBuild(){
+ mapGalNames=new Array(SYSTEM_COUNT);
+ for(let i=0;i<SYSTEM_COUNT;i++)mapGalNames[i]=systemName(i);
+}
+function mapGalDist(a,b){
+ if(!mapGalPos)mapBuildGalaxy();
+ return Math.hypot(mapGalPos[a*3]-mapGalPos[b*3],mapGalPos[a*3+1]-mapGalPos[b*3+1],
+  mapGalPos[a*3+2]-mapGalPos[b*3+2])*MAP_GAL_LY;
+}
+
+/* ================= READOUT PANEL ================= */
+function mapPanel(){
+ if(!mapEl.info)return;
+ const E=mapEl.info;
+ if(mapMode==='sys'){
+  const b=mapSel;
+  if(!b){E.style.display='none';E.innerHTML='';return;}
+  const g0=(typeof G0!=='undefined')?G0:9.80665;
+  const grav=b.mu/(b.radius*b.radius);
+  const kids=mapKids(b);
+  let dist=NaN;
+  if(typeof SHIP!=='undefined'&&SHIP.pos)dist=vdist(SHIP.pos,b.pos);
+  const row=(k,v)=>'<div class="r"><span class="k">'+k+'</span><span class="v">'+v+'</span></div>';
+  let h='<h3>'+b.name+'</h3><div class="k" style="margin-bottom:6px">'+
+   b.kind.toUpperCase()+(b.parent?' · ORBITS '+b.parent.name:' · PRIMARY')+'</div>';
+  h+=row('RADIUS',mapFmtR(b.radius));
+  h+=row('GRAVITY',grav.toFixed(2)+' m/s² ('+(grav/g0).toFixed(2)+' g)');
+  h+=row('ESCAPE',fmt(Math.sqrt(2*b.mu/b.radius),'m/s'));
+  h+=row('ATMOSPHERE',b.atmo?((b.atmo.rho0*287*(b.dna?b.dna.temp:250)/1000).toFixed(1)+' kPa'):'vacuum');
+  if(b.parent){
+   h+=row('SEMI-MAJOR',mapFmtR(b.a));
+   h+=row('ECCENTRICITY',b.e.toFixed(4));
+   h+=row('INCLINATION',(b.inc/DEG).toFixed(2)+'°');
+   h+=row('PERIOD',fmtT(TAU*Math.sqrt(b.a*b.a*b.a/b.parent.mu)));
+  }
+  h+=row('DAY',fmtT(Math.abs(b.rotPeriod)));
+  h+=row('DISTANCE',isFinite(dist)?fmt(dist,'m'):'—');
+  if(kids.length)h+=row('SATELLITES',kids.length);
+  if(b.dna&&typeof describeDNA==='function')
+   h+='<div class="dsc">'+describeDNA(b.dna)+'</div>';
+  if(kids.length)h+='<button class="map_b go2" id="map_focus">FOCUS ON '+b.name+' SYSTEM</button>';
+  if(b.parent&&mapFrame!==b.parent)
+   h+='<button class="map_b go2" id="map_up">UP TO '+b.parent.name+'</button>';
+  h+='<button class="map_b go" id="map_wh">WORMHOLE TO '+b.name+'</button>';
+  if(typeof SHIP!=='undefined'&&SHIP.power<0.12)
+   h+='<div class="warn">! reactor charge below 12% — throat will not form</div>';
+  E.innerHTML=h;E.style.display='block';
+  const f=document.getElementById('map_focus');
+  if(f)f.onclick=()=>{mapFrame=b;mapCam.px=0;mapCam.py=0;mapCam.zoom=1;mapPanel();};
+  const u=document.getElementById('map_up');
+  if(u)u.onclick=()=>{mapFrame=b.parent;mapCam.px=0;mapCam.py=0;mapCam.zoom=1;mapPanel();};
+  document.getElementById('map_wh').onclick=()=>{
+   if(typeof startWarp==='function')startWarp(b,null);
+   mapToggle(false);};
+ } else {
+  const id=mapGalSel;
+  if(id<0){E.style.display='none';E.innerHTML='';return;}
+  if(!mapGalNames)mapGalNamesBuild();
+  const inf=mapSysInfo(id);
+  const cur=(typeof SYSTEM!=='undefined')?SYSTEM.id:0;
+  const d=mapGalDist(cur,id);
+  const charge=Math.min(96,12+d/(MAP_GAL_LY*2)*74);
+  const row=(k,v)=>'<div class="r"><span class="k">'+k+'</span><span class="v">'+v+'</span></div>';
+  let h='<h3>'+mapGalNames[id]+'</h3><div class="k" style="margin-bottom:6px">STAR SYSTEM · ID '+id+
+   (id===cur?' · CURRENT':'')+'</div>';
+  h+=row('CLASS',mapSpectral(inf.temp)+' · '+inf.temp.toFixed(0)+' K');
+  h+=row('STAR RADIUS',mapFmtR(inf.starR)+' ('+(inf.starR/6.957e8).toFixed(2)+' R☉)');
+  h+=row('LUMINOSITY',(Math.pow(inf.starR/6.957e8,2)*Math.pow(inf.temp/5772,4)).toFixed(2)+' L☉');
+  h+=row('PLANETS',id===cur?String(mapKids(SUN).length):('~'+inf.n));
+  h+=row('DISTANCE',d.toFixed(1)+' ly');
+  h+=row('EST. CHARGE',charge.toFixed(0)+' %');
+  h+=row('EST. TRANSIT',fmtT(4.2+d*0.004));
+  if(id===cur)h+='<div class="dsc">You are here. Wormhole endpoints cannot terminate inside '+
+   'their own origin system.</div>';
+  else h+='<button class="map_b go" id="map_jump">JUMP &#8594; '+mapGalNames[id]+'</button>';
+  if(typeof SHIP!=='undefined'&&SHIP.power<0.12)
+   h+='<div class="warn">! reactor charge below 12% — throat will not form</div>';
+  E.innerHTML=h;E.style.display='block';
+  const j=document.getElementById('map_jump');
+  if(j)j.onclick=()=>{if(typeof startWarp==='function')startWarp(null,id);mapToggle(false);};
+ }
+}
+
+/* ================= FRAME ================= */
+function mapSync(){
+ const sid=(typeof SYSTEM!=='undefined')?SYSTEM.id:0;
+ if(sid!==mapSysId){
+  mapSysId=sid;mapOrbCache=new WeakMap();
+  mapFrame=(typeof SUN!=='undefined'&&SUN)?SUN:null;mapSel=null;
+  mapCam.px=0;mapCam.py=0;mapCam.zoom=1;mapGalSel=-1;mapGalDirty=true;mapPanel();
+ }
+ if(typeof BODIES!=='undefined'&&BODIES.length){
+  if(!mapFrame||BODIES.indexOf(mapFrame)<0)mapFrame=SUN||BODIES[0];
+  if(mapSel&&BODIES.indexOf(mapSel)<0){mapSel=null;mapPanel();}
+ }
+}
+function mapResize(){
+ const dpr=Math.min(window.devicePixelRatio||1,2);
+ const w=mapRoot.clientWidth||window.innerWidth, h=mapRoot.clientHeight||window.innerHeight;
+ if(mapW===w&&mapH===h&&mapDPR===dpr)return;
+ mapW=w;mapH=h;mapDPR=dpr;
+ mapCv.width=Math.max(1,Math.round(w*dpr));mapCv.height=Math.max(1,Math.round(h*dpr));
+ mapGalDirty=true;
+}
+function mapToggle(on){
+ if(!mapRoot)mapInit();
+ on=!!on;
+ mapVisible=on;
+ mapRoot.style.display=on?'block':'none';
+ if(typeof UI!=='undefined')UI.mapOpen=on;
+ const bm=document.getElementById('b_map');if(bm)bm.classList.toggle('on',on);
+ if(on){mapResize();mapSync();mapGalDirty=true;
+  if(mapMode==='gal'&&!mapGalPos)mapBuildGalaxy();
+  mapPanel();}
+}
+function mapUpdate(dt){
+ if(typeof UI!=='undefined'&&!!UI.mapOpen!==mapVisible){mapToggle(UI.mapOpen);}
+ if(!mapVisible||!mapG)return;
+ const t0=performance.now();
+ mapT+=dt||0;
+ mapResize();mapSync();
+ const g=mapG,W=mapW,H=mapH;
+ // the galaxy chart is static geometry: repaint it only on interaction or at 20 Hz
+ if(mapMode==='gal'&&!mapGalDirty&&performance.now()-mapGalLast<50)return;
+ g.setTransform(mapDPR,0,0,mapDPR,0,0);
+ g.clearRect(0,0,W,H);
+ g.fillStyle='rgba(3,7,15,0.90)';g.fillRect(0,0,W,H);
+ g.textBaseline='alphabetic';
+ if(mapMode==='sys'){
+  mapHits.length=0;
+  mapRenderOrbital(g,0,0,W,H,mapFrame,mapCam,mapHits,false);
+  /* --- inset: the moon system / local neighbourhood that is invisible at system scale --- */
+  let ic=null;
+  if(mapSel&&mapKids(mapSel).length)ic=mapSel;
+  else{
+   const dom=(typeof CTX!=='undefined'&&CTX.body)?CTX.body:null;
+   if(dom&&dom!==mapFrame)ic=(mapKids(dom).length||dom.parent===mapFrame)?dom:dom.parent;
+  }
+  if(ic&&ic!==mapFrame){
+   const s=Math.min(230,Math.min(W,H)*0.42);
+   const ix=10, iy=H-s-26;
+   g.save();
+   g.beginPath();g.rect(ix,iy,s,s);g.clip();
+   g.fillStyle='rgba(4,10,20,0.92)';g.fillRect(ix,iy,s,s);
+   mapInsetCam.yaw=mapCam.yaw;mapInsetCam.pitch=mapCam.pitch;
+   mapRenderOrbital(g,ix,iy,s,s,ic,mapInsetCam,mapHits,true);
+   g.restore();
+   g.strokeStyle='rgba(90,190,255,0.32)';g.lineWidth=1;g.strokeRect(ix+.5,iy+.5,s,s);
+   g.fillStyle='rgba(127,230,255,0.85)';g.font='9px ui-monospace,Menlo,Consolas,monospace';
+   g.fillText(ic.name+' SYSTEM · DETAIL',ix+6,iy+13);
+  }
+  const fz=mapFrame?mapFrame.name:'—';
+  g.fillStyle='rgba(93,134,168,0.85)';g.font='9px ui-monospace,Menlo,Consolas,monospace';
+  g.fillText('FRAME '+fz+'  ·  RADIAL SCALE ln(1+r/r₀)  ·  ZOOM '+mapCam.zoom.toFixed(2)+'x'+
+    '  ·  TILT '+(mapCam.pitch/DEG).toFixed(0)+'°',10,H-12);
+ } else {
+  if(!mapGalNames)mapGalNamesBuild();
+  mapGalLast=performance.now();mapGalDirty=false;
+  mapRenderGalaxy(g,W,H);
+ }
+ const c=performance.now()-t0;
+ mapCost=c;mapCostAvg=mapCostAvg*0.92+c*0.08;mapCostN++;
+}
+function mapSelectedBody(){return mapSel||null;}
+
+/* ================= SELF TEST ================= */
+function mapSelfTest(){
+ try{
+  if(!mapRoot)mapInit();
+  if(!mapCv||!mapG)return {ok:false,why:'canvas/2d context missing'};
+  if(!document.getElementById('map_root'))return {ok:false,why:'map root not in DOM'};
+  // radial warp must be strictly monotonic and finite
+  mapView.r0=1e10;
+  let prev=-1;
+  for(let k=6;k<14;k++){const s=Math.log1p(Math.pow(10,k)/mapView.r0);
+   if(!isFinite(s)||s<=prev)return {ok:false,why:'radial warp not monotonic at 1e'+k};
+   prev=s;}
+  // orbit sampling for every body in the current system
+  if(typeof BODIES!=='undefined'){
+   for(const b of BODIES){
+    if(!b.parent)continue;
+    const o=mapBodyOrb(b);
+    if(!o||o.n<8)return {ok:false,why:'orbit sample failed for '+b.name};
+    for(let i=0;i<o.n*3;i++)if(!isFinite(o.pts[i]))
+     return {ok:false,why:'non-finite orbit point for '+b.name};
+    // periapsis must be closer than apoapsis
+    const rp=Math.hypot(o.pe[0],o.pe[1],o.pe[2]), ra=Math.hypot(o.ap[0],o.ap[1],o.ap[2]);
+    if(!(ra>=rp-1))return {ok:false,why:'ap/pe inverted for '+b.name};
+   }
+   // ship conic
+   if(typeof SHIP!=='undefined'&&typeof CTX!=='undefined'&&CTX.body){
+    const cn=mapShipConic(CTX.body);
+    if(!cn)return {ok:false,why:'ship conic failed'};
+    if(!isFinite(cn.rp)||cn.rp<=0)return {ok:false,why:'ship periapsis non-finite'};
+   }
+  }
+  // galaxy distribution
+  if(!mapGalPos)mapBuildGalaxy();
+  let rmax=0,dup=0;
+  for(let i=0;i<SYSTEM_COUNT;i++){
+   const x=mapGalPos[i*3],y=mapGalPos[i*3+1],z=mapGalPos[i*3+2];
+   if(!isFinite(x)||!isFinite(y)||!isFinite(z))return {ok:false,why:'non-finite star position '+i};
+   rmax=Math.max(rmax,Math.hypot(x,y,z));
+  }
+  if(rmax<0.5||rmax>3)return {ok:false,why:'galaxy radius out of range: '+rmax.toFixed(2)};
+  for(let i=1;i<64;i++)if(mapGalPos[i*3]===mapGalPos[(i-1)*3]&&
+     mapGalPos[i*3+2]===mapGalPos[(i-1)*3+2])dup++;
+  if(dup>2)return {ok:false,why:'degenerate galaxy hash (duplicates)'};
+  // projection sanity
+  mapView.r0=1e10;mapView.S=100;mapView.cx=100;mapView.cy=100;
+  mapView.cyy=1;mapView.syy=0;mapView.cp=0;mapView.sp=1;
+  mapPrj(1e11,0,0,mapP);
+  if(!isFinite(mapP[0])||!isFinite(mapP[1]))return {ok:false,why:'projection produced NaN'};
+  if(typeof startWarp!=='function')return {ok:false,why:'startWarp missing'};
+  return {ok:true,cost:+mapCostAvg.toFixed(2)};
+ }catch(e){return {ok:false,why:String(e&&e.message||e)};}
+}
+
 /* ---------- p9b-main.js ---------- */
 /* ===== WORMHOLE ===== */
 const WARPST={state:'idle',t:0,progress:0,target:null,targetSys:null,cool:0,mouth:v3(),open:0};
 function startWarp(body,sysId){
- // M2: WARPST.cool was set on exit but never tested, and a second CREATE WORMHOLE tap
- // mid-jump restarted the state machine from 'charging' halfway down the tunnel.
- if(WARPST.state!=='idle'){message('THROAT ALREADY OPEN');return;}
- if(WARPST.cool>0){message('APERTURE RECHARGING',
-  'Exotic-matter injectors need '+WARPST.cool.toFixed(0)+' s to reset');return;}
  if(SHIP.power<0.12){message('INSUFFICIENT POWER','Wormhole throat needs 12% reactor charge');return;}
- // M2: arriving in a brand-new SOI at 100000x is instant loss of the vessel.
- if(CTX.timeWarp>1){CTX.timeWarp=1;}
  WARPST.state='charging';WARPST.t=0;WARPST.target=body;WARPST.targetSys=sysId;
  qrot(_v0,SHIP.quat,v3(0,0,-1));
  vmad(WARPST.mouth,SHIP.pos,_v0,900);
@@ -6100,11 +4963,9 @@ function warpUpdate(dt){
    vset(_v1,0,0,-vc);vadd(SHIP.vel,b.vel,_v1);
    vsub(_v2,b.pos,SHIP.pos);vnorm(_v2,_v2);
    vnorm(_v3,_v0);
-   // M2: _v2 is exactly anti-parallel to _v3 here, which is precisely the case that
-   // makes qlook() collapse. Use the guarded wrapper.
-   fltQlookSafe(SHIP.quat,_v2,_v3);
+   qlook(SHIP.quat,_v2,_v3);
    vset(SHIP.angVel,0,0,0);
-   SHIP.hullT=290;SHIP.contactPrev=false;PART.n=0;
+   SHIP.hullT=290;
    W.state='exit';W.t=0;W.progress=0;
    message('ARRIVAL — '+b.name,describeDNA(b.dna||makeDNA(1,0,b.radius)));
   }
@@ -6258,8 +5119,7 @@ let FB_SCENE,FB_COMP,FB_B1,FB_B2;
 let MESH_SPHERE,MESH_SHIP,MESH_COCKPIT,MESH_PART;
 const LEAVES=[];
 function initGL(){
- P_TERR=prog(typeof VS_TERRAIN2!=='undefined'?VS_TERRAIN2:VS_TERRAIN,
-             typeof FS_TERRAIN2!=='undefined'?FS_TERRAIN2:FS_TERRAIN,'terrain');
+ P_TERR=prog(VS_TERRAIN,FS_TERRAIN,'terrain');
  P_SPH=prog(VS_SPHERE,FS_SPHERE,'sphere');
  P_STAR=prog(FSQUAD_VS,FS_STARS,'stars');
  P_ATMO=prog(FSQUAD_VS,FS_ATMO,'atmo');
@@ -6302,9 +5162,6 @@ function resize(){
 addEventListener('resize',()=>{if(FB_SCENE)resize();});
 /* ===== CAMERA ===== */
 const _c0=v3(),_c1=v3(),_c2=v3(),_c3=v3();
-// M2: hoisted out of the per-frame path — these used to allocate a Float64Array each.
-const _cUP=v3(0,1,0),_cFWD=v3(0,0,-1),_cRIGHT=v3(1,0,0);
-const _pcam=v3();let _pcamOK=false;
 function updateCamera(dt){
  if(CTX.view3rd){
   // orbit camera anchored to the ship's own frame
@@ -6314,10 +5171,8 @@ function updateCamera(dt){
   qrot(_c1,SHIP.quat,off);
   vmad(CTX.camPos,SHIP.pos,_c1,CAM.dist);
   vsub(_c2,SHIP.pos,CTX.camPos);vnorm(_c2,_c2);
-  qrot(_c3,SHIP.quat,_cUP);
-  // M2: at the pitch limits the ship's up axis lines up with the view direction and
-  // plain qlook() snaps the camera through 180 degrees. Guarded wrapper.
-  fltQlookSafe(CTX.camQuat,_c2,_c3);
+  qrot(_c3,SHIP.quat,v3(0,1,0));
+  qlook(CTX.camQuat,_c2,_c3);
  } else {
   const L=SHIP.layout||SHIP_LAYOUT_FB;
   const e=L.eye||[0,0.55,-11.2];
@@ -6331,9 +5186,9 @@ function updateCamera(dt){
   qaxis(_q1,Math.sin(CTX.t*61.0),Math.cos(CTX.t*47.0),Math.sin(CTX.t*83.0),s*0.022);
   qmul(_q2,CTX.camQuat,_q1);qnorm(CTX.camQuat,_q2);
  }
- qrot(CTX.camFwd,CTX.camQuat,_cFWD);
- qrot(CTX.camUp,CTX.camQuat,_cUP);
- qrot(CTX.camRight,CTX.camQuat,_cRIGHT);
+ qrot(CTX.camFwd,CTX.camQuat,v3(0,0,-1));
+ qrot(CTX.camUp,CTX.camQuat,v3(0,1,0));
+ qrot(CTX.camRight,CTX.camQuat,v3(1,0,0));
  CTX.fov=mix(1.02,1.42,sat(CTX.speed/9000)*0.5+ (WARPST.state==='tunnel'?0.9:0));
 }
 /* ===== RENDER ===== */
@@ -6342,15 +5197,10 @@ function yawMat3(o,ang){const c=Math.cos(ang),s=Math.sin(ang);
  o[0]=c;o[1]=0;o[2]=s; o[3]=0;o[4]=1;o[5]=0; o[6]=-s;o[7]=0;o[8]=c;return o;}
 function render(){
  const asp=CTX.W/CTX.H;
- // Hor+ framing: a phone in portrait has the same vertical FOV as a desktop but a far
- // narrower horizontal one, which pushes the planet out of frame. Widen vertically to
- // hold the horizontal FOV roughly constant, clamped so it never goes fisheye.
- let fovV=CTX.fov;
- if(asp<1.35){const tanH=Math.tan(CTX.fov*0.5)*1.35;fovV=Math.min(1.85,2*Math.atan(tanH/asp));}
- m4persp(CTX.proj,fovV,asp,NEAR,FAR);
+ m4persp(CTX.proj,CTX.fov,asp,NEAR,FAR);
  m4view(CTX.view,CTX.camQuat,v3(0,0,0));
  m4mul(CTX.viewProj,CTX.proj,CTX.view);
- const tanF=Math.tan(fovV*0.5);
+ const tanF=Math.tan(CTX.fov*0.5);
  // sun direction and screen position
  if(SUN){vsub(_r0,SUN.pos,CTX.camPos);vnorm(CTX.sunDir,_r0);}
  const setCam=P=>{
@@ -6376,10 +5226,7 @@ function render(){
  // --- terrain of the dominant body ---
  const B=CTX.body;
  if(B&&B.kind!=='star'&&B.dna&&!DBG.noTerrain){
-  // M2: back the chunk builder off when the frame is already over budget. Each
-  // terrBuildMesh() is ~360 fieldHeight samples, so 6 of them in one long frame is a
-  // visible hitch during descent. Never drops to 0 — chunks must still appear.
-  terrBudget=(CTX.dt>0.055)?1:(QUALITY.tier?6:3);
+  terrBudget=QUALITY.tier?6:3;
   terrUpdate(B,CTX.camPos,QUALITY.steps.lod,LEAVES);
   P_TERR.use();
   gl.uniformMatrix4fv(P_TERR.u.uVP,false,CTX.viewProj);
@@ -6392,7 +5239,6 @@ function render(){
   gl.uniform3f(P_TERR.u.uSkyTint,tint[0],tint[1],tint[2]);
   if(P_TERR.u.uAtmoAmt)gl.uniform1f(P_TERR.u.uAtmoAmt,B.atmo?1:0.12);
   if(P_TERR.u.uOceanLvl)gl.uniform1f(P_TERR.u.uOceanLvl,B.ocean?B.ocean.level:-1e9);
-  if(P_TERR.u.uDetailAmt)gl.uniform1f(P_TERR.u.uDetailAmt,QUALITY.tier?1.0:0.55);
   yawMat3(_rot9,B.rot);
   gl.uniformMatrix3fv(P_TERR.u.uRot,false,_rot9);
   const c=Math.cos(B.rot),s=Math.sin(B.rot);
@@ -6400,7 +5246,6 @@ function render(){
    if(!n.mesh)continue;
    // must match uRot = yawMat3(B.rot) applied in the vertex shader
    const ox=n.off[0]*c-n.off[2]*s, oz=n.off[0]*s+n.off[2]*c;
-   if(P_TERR.u.uLodScale)gl.uniform1f(P_TERR.u.uLodScale,n.lodM||1.0);
    gl.uniform3f(P_TERR.u.uChunkOff,_r0[0]+ox,_r0[1]+n.off[1],_r0[2]+oz);
    n.mesh.draw();
   }
@@ -6710,9 +5555,6 @@ function frame(now){
  const steps=clamp(Math.ceil(warp/8),1,8);
  for(let i=0;i<steps;i++)fltUpdate(sim/steps);
  warpUpdate(dt);
- if(typeof warpEnforce==='function')warpEnforce();   // clamp warp to what physics allows
- if(typeof mobUpdate==='function')mobUpdate(dt);
- if(typeof mapUpdate==='function')mapUpdate(dt);
  updateCamera(dt);
  vset(_g0,0,0,0);
  if(CTX.body){
@@ -6730,11 +5572,7 @@ function boot(){
   ['GENERATING SOLAR SYSTEM',()=>{loadSystem(0);worldStep(0,0);}],
   ['COMPILING SHADERS',()=>{initGL();}],
   ['ASSEMBLING VESSEL',()=>{fltInit();}],
-  ['BINDING CONTROLS',()=>{buildHUD();fltBindInput(canvas);bindSticks();
-    if(typeof mobInit==='function')mobInit();
-    if(typeof mapInit==='function'){mapInit();
-     const mb=$('b_map');if(mb)mb.onclick=()=>{UI.mapOpen=!UI.mapOpen;
-      mb.classList.toggle('on',UI.mapOpen);mapToggle(UI.mapOpen);};}}],
+  ['BINDING CONTROLS',()=>{buildHUD();fltBindInput(canvas);bindSticks();}],
   ['ENTERING ORBIT',()=>{}]
  ];
  let i=0;
@@ -6764,5 +5602,24 @@ window.SEGDBG={DBG:DBG,QUALITY:QUALITY,CTX:CTX,SHIP:SHIP,PART:PART,
  LEAVES:LEAVES,get BODIES(){return BODIES;},startWarp:startWarp,WARPST:WARPST,warpUpdate:warpUpdate};
 boot();
 
+/* ---------- scratch wiring (lead will do this properly) ---------- */
+(function(){
+ const iv=setInterval(()=>{
+  const b=document.getElementById('b_map');
+  if(!b)return;
+  clearInterval(iv);
+  mapInit();
+  b.onclick=()=>{UI.mapOpen=!UI.mapOpen;mapToggle(UI.mapOpen);};
+  const old=updateHUD;
+  updateHUD=function(dt){old(dt);mapUpdate(dt);};
+  window.SEGMAP={mapToggle:mapToggle,mapSelfTest:mapSelfTest,mapSelectedBody:mapSelectedBody,
+   set mode(m){mapSetMode(m);},get mode(){return mapMode;},
+   cam:mapCam,gcam:mapGalCam,sel:function(b){mapSel=b;mapPanel();},
+   gsel:function(i){mapGalSel=i;mapGalDirty=true;mapPanel();},
+   frame:function(b){mapFrame=b;mapPanel();},
+   cost:function(){return mapCostAvg;},
+   tap:function(x,y){mapTap(x,y);}};
+ },60);
+})();
 })();
 </script>
