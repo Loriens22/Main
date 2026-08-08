@@ -1,0 +1,101 @@
+<title>STELLAR EXPANSE — Deep Space Explorer</title>
+<style>
+*{margin:0;padding:0;box-sizing:border-box;-webkit-tap-highlight-color:transparent}
+html,body{width:100%;height:100%;overflow:hidden;background:#000;color:#cfe6ff;
+ font-family:ui-monospace,"SF Mono",Menlo,Consolas,monospace;font-size:12px;user-select:none;touch-action:none}
+#gl{position:fixed;inset:0;width:100%;height:100%;display:block}
+#ui{position:fixed;inset:0;pointer-events:none;z-index:10}
+.pan{position:absolute;background:rgba(6,14,26,.55);border:1px solid rgba(90,190,255,.28);
+ border-radius:6px;padding:8px 10px;backdrop-filter:blur(6px);box-shadow:0 0 24px rgba(0,140,255,.10) inset}
+.lbl{color:#5d86a8;font-size:9px;letter-spacing:.14em;text-transform:uppercase}
+.val{color:#a8e4ff;font-size:13px;font-variant-numeric:tabular-nums}
+.hot{color:#ffb347}.bad{color:#ff5a5a}.ok{color:#66ffa8}
+#tl{top:10px;left:10px;min-width:212px}
+#tl .row{display:flex;justify-content:space-between;gap:14px;line-height:1.5}
+#tr{top:10px;right:10px;min-width:196px}
+#nav{bottom:10px;left:50%;transform:translateX(-50%);padding:6px;display:flex;gap:8px;align-items:flex-end}
+#ball{width:150px;height:150px;display:block}
+#gauges{display:flex;flex-direction:column;gap:3px;width:118px}
+.bar{height:9px;background:rgba(0,0,0,.55);border:1px solid rgba(90,190,255,.3);border-radius:2px;overflow:hidden}
+.bar>i{display:block;height:100%;width:50%;background:linear-gradient(90deg,#1d8fd6,#7fe6ff);transition:width .12s}
+.bar.f>i{background:linear-gradient(90deg,#c98d1d,#ffd479)}
+.bar.o>i{background:linear-gradient(90deg,#1dc98d,#79ffd4)}
+.bar.h>i{background:linear-gradient(90deg,#c9331d,#ff9179)}
+.bar.p>i{background:linear-gradient(90deg,#7a1dc9,#c79bff)}
+#thr{width:26px;height:150px;border:1px solid rgba(90,190,255,.3);border-radius:3px;
+ background:rgba(0,0,0,.5);position:relative;overflow:hidden}
+#thr>i{position:absolute;bottom:0;left:0;right:0;height:0%;background:linear-gradient(0deg,#ff7a1d,#ffd479)}
+#thr>b{position:absolute;bottom:0;left:0;right:0;text-align:center;font-size:8px;color:#04121f;font-weight:700}
+#btns{position:absolute;bottom:10px;right:10px;display:flex;flex-direction:column;gap:6px;align-items:flex-end;pointer-events:auto}
+.btn{pointer-events:auto;background:rgba(8,20,36,.8);border:1px solid rgba(90,190,255,.4);color:#a8e4ff;
+ border-radius:5px;padding:8px 12px;font:inherit;font-size:11px;letter-spacing:.08em;cursor:pointer;white-space:nowrap}
+.btn:active{background:rgba(30,120,200,.55)}
+.btn.on{background:rgba(30,140,220,.5);border-color:#7fe6ff;color:#eaf8ff}
+.btn.big{background:linear-gradient(180deg,rgba(120,40,200,.75),rgba(40,10,90,.85));border-color:#c79bff;
+ color:#f0e0ff;font-weight:700;box-shadow:0 0 18px rgba(160,80,255,.45)}
+#row2{position:absolute;bottom:10px;left:10px;display:flex;gap:6px;flex-wrap:wrap;max-width:40vw;pointer-events:auto}
+#msg{position:absolute;top:40%;left:50%;transform:translate(-50%,-50%);text-align:center;
+ font-size:15px;letter-spacing:.3em;text-shadow:0 0 20px #0af;opacity:0;transition:opacity .4s;color:#dff2ff}
+#sub{position:absolute;bottom:22%;left:50%;transform:translateX(-50%);text-align:center;font-size:11px;
+ color:#8fc4e8;opacity:0;transition:opacity .5s;max-width:70vw;line-height:1.7}
+#pick{position:absolute;inset:auto 0 0 0;top:0;background:rgba(2,8,18,.9);display:none;pointer-events:auto;
+ overflow:auto;padding:46px 16px 16px}
+#pick h2{font-size:14px;letter-spacing:.3em;color:#c79bff;margin-bottom:4px;text-align:center}
+#pick p.s{text-align:center;color:#5d86a8;font-size:10px;margin-bottom:14px}
+#plist{display:grid;grid-template-columns:repeat(auto-fill,minmax(210px,1fr));gap:8px;max-width:960px;margin:0 auto}
+.pit{background:rgba(10,22,40,.8);border:1px solid rgba(90,190,255,.25);border-radius:6px;padding:9px 11px;cursor:pointer}
+.pit:active,.pit:hover{border-color:#c79bff;background:rgba(40,20,70,.8)}
+.pit .n{color:#dff2ff;font-size:13px;letter-spacing:.1em}
+.pit .d{color:#5d86a8;font-size:9.5px;margin-top:3px;line-height:1.5}
+#close{position:absolute;top:10px;right:12px}
+#docs{position:absolute;inset:0;background:#050a12;display:none;pointer-events:auto;overflow:auto;
+ padding:44px 18px 60px;font-size:12.5px;line-height:1.72;color:#b8d4ea}
+#docs .w{max-width:900px;margin:0 auto}
+#docs h1{font-size:19px;color:#7fe6ff;letter-spacing:.16em;margin:0 0 4px}
+#docs h2{font-size:14px;color:#c79bff;letter-spacing:.14em;margin:30px 0 8px;
+ border-bottom:1px solid rgba(199,155,255,.22);padding-bottom:5px}
+#docs h3{font-size:12.5px;color:#ffb347;margin:18px 0 5px;letter-spacing:.06em}
+#docs p{margin:7px 0}#docs ul,#docs ol{margin:7px 0 7px 20px}#docs li{margin:3px 0}
+#docs code{background:rgba(90,190,255,.11);padding:1px 5px;border-radius:3px;color:#9fe8c4;font-size:11.5px}
+#docs pre{background:#070d18;border:1px solid rgba(90,190,255,.18);border-left:2px solid #7fe6ff;
+ border-radius:4px;padding:11px 13px;overflow-x:auto;margin:9px 0;font-size:11px;line-height:1.62;color:#c4dcf0}
+#docs pre code{background:none;padding:0;color:inherit}
+#docs table{border-collapse:collapse;width:100%;margin:9px 0;font-size:11px}
+#docs th,#docs td{border:1px solid rgba(90,190,255,.2);padding:5px 8px;text-align:left}
+#docs th{background:rgba(90,190,255,.09);color:#7fe6ff;font-weight:600}
+#docs .note{border-left:2px solid #ffb347;background:rgba(255,179,71,.07);padding:8px 12px;margin:10px 0}
+#stick{position:absolute;inset:0;pointer-events:none;display:none}
+.sk{position:absolute;width:118px;height:118px;border:1px solid rgba(90,190,255,.3);border-radius:50%;
+ background:rgba(6,14,26,.35);pointer-events:auto}
+.sk>i{position:absolute;width:44px;height:44px;left:37px;top:37px;border-radius:50%;
+ background:rgba(90,190,255,.3);border:1px solid rgba(140,220,255,.6)}
+#skL{left:14px;bottom:14px}#skR{right:14px;bottom:14px}
+#boot{position:fixed;inset:0;background:#000;z-index:100;display:flex;align-items:center;
+ justify-content:center;flex-direction:column;gap:14px;transition:opacity .8s}
+#boot h1{font-size:17px;letter-spacing:.55em;color:#7fe6ff;text-shadow:0 0 30px #0af}
+#boot p{color:#3d6a8f;font-size:10px;letter-spacing:.2em}
+#bar{width:230px;height:2px;background:#0a1a2a}#bar>i{display:block;height:100%;width:0;background:#7fe6ff;transition:width .3s}
+#fps{position:absolute;top:10px;left:50%;transform:translateX(-50%);color:#3d6a8f;font-size:10px}
+@media (max-width:760px){#tl,#tr{font-size:10px;min-width:150px}#ball{width:112px;height:112px}
+ #thr{height:112px;width:20px}#gauges{width:86px}#docs{font-size:12px}.btn{padding:9px 11px}}
+</style>
+<canvas id="gl"></canvas>
+<div id="ui">
+ <div id="fps"></div>
+ <div class="pan" id="tl"></div>
+ <div class="pan" id="tr"></div>
+ <div class="pan" id="nav">
+   <div id="gauges"></div>
+   <canvas id="ball" width="300" height="300"></canvas>
+   <div id="thr"><i></i><b>0%</b></div>
+ </div>
+ <div id="msg"></div><div id="sub"></div>
+ <div id="row2"></div>
+ <div id="btns"></div>
+ <div id="stick"><div class="sk" id="skL"><i></i></div><div class="sk" id="skR"><i></i></div></div>
+ <div id="pick"><button class="btn" id="close">CLOSE</button>
+   <h2>WORMHOLE TARGET SELECTION</h2><p class="s">Select a destination — throat aperture scales with gravity well depth</p>
+   <div id="plist"></div></div>
+ <div id="docs"></div>
+</div>
+<div id="boot"><h1>STELLAR EXPANSE</h1><div id="bar"><i></i></div><p id="bmsg">INITIALISING</p></div>
