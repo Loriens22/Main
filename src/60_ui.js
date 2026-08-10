@@ -637,6 +637,1256 @@ var IP = (typeof IP !== 'undefined' && IP) || {};
     if (document.body) { addC(document.body, 'ip-host'); }
   }
 
+  /* ====================================================================== */
+  /* ==  4.  AUDIO  -  100% synthesized WebAudio                          == */
+  /* ====================================================================== */
+
+  var Audio_ = {};
+  (function () {
+
+    var ctx = null;
+    var ready = false;
+    var failed = false;
+    var master = null, comp = null, dry = null, verbSend = null, verb = null;
+    var busSfx = null, busMusic = null, busVoice = null, busAmb = null;
+    var noiseW = null, noiseP = null, noiseB = null;
+    var irBuf = null;
+    var voices = 0, VOICE_CAP = 32;
+    var lowQ = false;
+    var listenerPos = [0, 0, 0];
+    var t0Boot = 0;
+
+    /* ---------------------------------------------------------- params -- */
+    function P(node, name) {
+      if (!node) { return null; }
+      var p = node[name];
+      return (p && typeof p === 'object') ? p : null;
+    }
+    function setV(p, v, t) {
+      if (!p) { return; }
+      try { if (p.setValueAtTime) { p.setValueAtTime(v, t); } else { p.value = v; } }
+      catch (e) { try { p.value = v; } catch (e2) { } }
+    }
+    function lin(p, v, t) {
+      if (!p) { return; }
+      try { if (p.linearRampToValueAtTime) { p.linearRampToValueAtTime(v, t); } else { p.value = v; } }
+      catch (e) { }
+    }
+    function expo(p, v, t) {
+      if (!p) { return; }
+      if (v <= 0) { v = 0.00001; }
+      try { if (p.exponentialRampToValueAtTime) { p.exponentialRampToValueAtTime(v, t); } else { p.value = v; } }
+      catch (e) { }
+    }
+    function conn(a, b) {
+      if (!a || !a.connect || !b) { return; }
+      try { a.connect(b); } catch (e) { }
+    }
+    function disc(a) { if (a && a.disconnect) { try { a.disconnect(); } catch (e) { } } }
+    function T() { return ctx ? (ctx.currentTime || 0) : 0; }
+
+    /* ------------------------------------------------------- node makers */
+    function gain(v) {
+      if (!ctx || !ctx.createGain) { return null; }
+      var g;
+      try { g = ctx.createGain(); } catch (e) { return null; }
+      if (g) { setV(P(g, 'gain'), v === undefined ? 1 : v, T()); }
+      return g;
+    }
+    function osc(type, freq) {
+      if (!ctx || !ctx.createOscillator) { return null; }
+      var o;
+      try { o = ctx.createOscillator(); } catch (e) { return null; }
+      if (!o) { return null; }
+      try { o.type = type || 'sine'; } catch (e2) { }
+      setV(P(o, 'frequency'), freq || 440, T());
+      return o;
+    }
+    function filt(type, freq, q) {
+      if (!ctx || !ctx.createBiquadFilter) { return null; }
+      var f;
+      try { f = ctx.createBiquadFilter(); } catch (e) { return null; }
+      if (!f) { return null; }
+      try { f.type = type || 'lowpass'; } catch (e2) { }
+      setV(P(f, 'frequency'), freq || 1000, T());
+      setV(P(f, 'Q'), q === undefined ? 1 : q, T());
+      return f;
+    }
+    function delayN(t) {
+      if (!ctx || !ctx.createDelay) { return null; }
+      var d;
+      try { d = ctx.createDelay(2.0); } catch (e) { return null; }
+      if (d) { setV(P(d, 'delayTime'), t || 0.1, T()); }
+      return d;
+    }
+    function shaper(amount) {
+      if (!ctx || !ctx.createWaveShaper) { return null; }
+      var w;
+      try { w = ctx.createWaveShaper(); } catch (e) { return null; }
+      if (!w) { return null; }
+      var n = 1024, c = new Float32Array(n), k = amount || 12, i, x;
+      for (i = 0; i < n; i++) {
+        x = i * 2 / n - 1;
+        c[i] = (1 + k) * x / (1 + k * Math.abs(x));
+      }
+      try { w.curve = c; w.oversample = '2x'; } catch (e2) { }
+      return w;
+    }
+    function srcOf(buf) {
+      if (!ctx || !ctx.createBufferSource) { return null; }
+      var s;
+      try { s = ctx.createBufferSource(); } catch (e) { return null; }
+      if (!s) { return null; }
+      try { s.buffer = buf; } catch (e2) { }
+      return s;
+    }
+    function startStop(node, t, stopAt) {
+      if (!node) { return; }
+      try { if (node.start) { node.start(t); } } catch (e) { }
+      if (stopAt !== undefined && stopAt !== null) {
+        try { if (node.stop) { node.stop(stopAt); } } catch (e2) { }
+      }
+    }
+
+    /* --------------------------------------------------- noise buffers -- */
+    function makeNoise(kind, seconds) {
+      if (!ctx || !ctx.createBuffer) { return null; }
+      var sr = ctx.sampleRate || 44100;
+      var len = Math.max(1, Math.floor(sr * (seconds || 2)));
+      var b;
+      try { b = ctx.createBuffer(1, len, sr); } catch (e) { return null; }
+      if (!b || !b.getChannelData) { return b; }
+      var d;
+      try { d = b.getChannelData(0); } catch (e2) { return b; }
+      if (!d) { return b; }
+      var i, w;
+      var b0 = 0, b1 = 0, b2 = 0, b3 = 0, b4 = 0, b5 = 0, b6 = 0, last = 0;
+      for (i = 0; i < len; i++) {
+        w = Math.random() * 2 - 1;
+        if (kind === 'pink') {
+          b0 = 0.99886 * b0 + w * 0.0555179;
+          b1 = 0.99332 * b1 + w * 0.0750759;
+          b2 = 0.96900 * b2 + w * 0.1538520;
+          b3 = 0.86650 * b3 + w * 0.3104856;
+          b4 = 0.55000 * b4 + w * 0.5329522;
+          b5 = -0.7616 * b5 - w * 0.0168980;
+          d[i] = (b0 + b1 + b2 + b3 + b4 + b5 + b6 + w * 0.5362) * 0.11;
+          b6 = w * 0.115926;
+        } else if (kind === 'brown') {
+          last = (last + 0.02 * w) / 1.02;
+          d[i] = last * 3.5;
+        } else {
+          d[i] = w;
+        }
+      }
+      return b;
+    }
+
+    function makeIR(seconds, decay, bright) {
+      if (!ctx || !ctx.createBuffer) { return null; }
+      var sr = ctx.sampleRate || 44100;
+      var len = Math.max(1, Math.floor(sr * (seconds || 1.8)));
+      var b;
+      try { b = ctx.createBuffer(2, len, sr); } catch (e) { return null; }
+      if (!b || !b.getChannelData) { return b; }
+      var ch, d, i, t, env, lp, a;
+      a = clamp(bright === undefined ? 0.32 : bright, 0.02, 0.95);
+      for (ch = 0; ch < 2; ch++) {
+        try { d = b.getChannelData(ch); } catch (e2) { continue; }
+        if (!d) { continue; }
+        lp = 0;
+        for (i = 0; i < len; i++) {
+          t = i / len;
+          env = Math.pow(1 - t, decay || 3.2);
+          /* early reflection comb + exponentially decaying filtered noise */
+          lp += a * ((Math.random() * 2 - 1) - lp);
+          d[i] = lp * env * (1 + 0.6 * Math.exp(-t * 40) * Math.sin(t * 900 + ch));
+        }
+      }
+      return b;
+    }
+
+    /* --------------------------------------------------------- graph ---- */
+    function buildGraph() {
+      master = gain(1);
+      comp = null;
+      if (ctx && ctx.createDynamicsCompressor) {
+        try { comp = ctx.createDynamicsCompressor(); } catch (e) { comp = null; }
+      }
+      if (comp) {
+        setV(P(comp, 'threshold'), -14, T());
+        setV(P(comp, 'knee'), 22, T());
+        setV(P(comp, 'ratio'), 5, T());
+        setV(P(comp, 'attack'), 0.004, T());
+        setV(P(comp, 'release'), 0.22, T());
+      }
+      busSfx = gain(1); busMusic = gain(1); busVoice = gain(1); busAmb = gain(1);
+      dry = gain(1);
+      verbSend = gain(0.24);
+      conn(busSfx, dry); conn(busAmb, dry); conn(busVoice, dry); conn(busMusic, dry);
+      conn(busSfx, verbSend); conn(busAmb, verbSend);
+      if (!lowQ && ctx && ctx.createConvolver) {
+        try { verb = ctx.createConvolver(); } catch (e2) { verb = null; }
+        if (verb) {
+          irBuf = makeIR(1.9, 3.4, 0.3);
+          try { if (irBuf) { verb.buffer = irBuf; } } catch (e3) { }
+          conn(verbSend, verb);
+          conn(verb, comp || master);
+        }
+      }
+      conn(dry, comp || master);
+      if (comp) { conn(comp, master); }
+      conn(master, ctx ? ctx.destination : null);
+      applyVolumes();
+    }
+
+    function applyVolumes() {
+      var t = T();
+      setV(P(master, 'gain'), clamp(S_.volMaster, 0, 1), t);
+      setV(P(busMusic, 'gain'), clamp(S_.volMusic, 0, 1) * 0.55, t);
+      setV(P(busSfx, 'gain'), clamp(S_.volSfx, 0, 1) * 0.9, t);
+      setV(P(busAmb, 'gain'), clamp(S_.volSfx, 0, 1) * 0.7, t);
+      setV(P(busVoice, 'gain'), clamp(S_.volVoice, 0, 1) * 1.0, t);
+    }
+
+    /* --------------------------------------------------- spatial dest -- */
+    function makeDest(opts) {
+      /* Returns {input, cleanup} routing to the right bus, with optional
+         3D panner + occlusion lowpass. Never throws. */
+      var bus = busSfx;
+      if (opts && opts.bus === 'music') { bus = busMusic; }
+      else if (opts && opts.bus === 'voice') { bus = busVoice; }
+      else if (opts && opts.bus === 'amb') { bus = busAmb; }
+      if (!bus) { return null; }
+      var head = null, tail = null;
+      var occ = (opts && opts.occlusion) || 0;
+      if (occ > 0.01) {
+        var f = filt('lowpass', lerp(18000, 380, clamp(occ, 0, 1)), 0.8);
+        if (f) {
+          var og = gain(lerp(1, 0.45, clamp(occ, 0, 1)));
+          conn(f, og || bus);
+          if (og) { head = f; tail = og; } else { head = f; tail = f; }
+        }
+      }
+      var pan = null;
+      if (opts && opts.pos && !lowQ && ctx && ctx.createPanner) {
+        try { pan = ctx.createPanner(); } catch (e) { pan = null; }
+        if (pan) {
+          try {
+            pan.panningModel = 'equalpower';
+            pan.distanceModel = 'inverse';
+            pan.refDistance = opts.ref || 2.2;
+            pan.maxDistance = opts.max || 90;
+            pan.rolloffFactor = opts.rolloff || 1.1;
+          } catch (e2) { }
+          var px = opts.pos[0] || 0, py = opts.pos[1] || 0, pz = opts.pos[2] || 0;
+          if (pan.positionX && pan.positionX.setValueAtTime) {
+            setV(pan.positionX, px, T()); setV(pan.positionY, py, T()); setV(pan.positionZ, pz, T());
+          } else if (pan.setPosition) {
+            try { pan.setPosition(px, py, pz); } catch (e3) { }
+          }
+        }
+      } else if (opts && opts.pan !== undefined && ctx && ctx.createStereoPanner) {
+        try {
+          pan = ctx.createStereoPanner();
+          setV(P(pan, 'pan'), clamp(opts.pan, -1, 1), T());
+        } catch (e4) { pan = null; }
+      }
+      var out = bus;
+      if (pan) { conn(pan, bus); out = pan; }
+      if (tail) { conn(tail, out); return head; }
+      return out;
+    }
+
+    function trackVoice(node, dur) {
+      voices++;
+      if (node) {
+        node.onended = function () {
+          voices = Math.max(0, voices - 1);
+          disc(node);
+        };
+      }
+      /* Fallback decrement in case onended never fires (mock envs). */
+      if (!node || !('onended' in node)) { voices = Math.max(0, voices - 1); }
+      return dur;
+    }
+
+    function budgetOK(priority) {
+      if (voices < VOICE_CAP) { return true; }
+      return !!priority;
+    }
+
+    /* =================================================================== */
+    /* == SYNTHESIS PRIMITIVES                                          == */
+    /* =================================================================== */
+
+    /* A short noise burst through a filter with a percussive envelope. */
+    function burst(dest, o) {
+      o = o || {};
+      var t = (o.t || T()) + (o.delay || 0);
+      var buf = o.noise === 'pink' ? noiseP : (o.noise === 'brown' ? noiseB : noiseW);
+      var s = srcOf(buf);
+      if (!s) { return; }
+      var dur = o.dur || 0.12;
+      setV(P(s, 'playbackRate'), o.rate || 1, t);
+      var f = filt(o.type || 'bandpass', o.freq || 1200, o.q === undefined ? 1.2 : o.q);
+      var g = gain(0);
+      if (!g) { return; }
+      setV(P(g, 'gain'), 0, t);
+      lin(P(g, 'gain'), (o.vol === undefined ? 0.5 : o.vol), t + (o.atk || 0.002));
+      if (o.f1 !== undefined && f) { expo(P(f, 'frequency'), o.f1, t + dur); }
+      expo(P(g, 'gain'), 0.0005, t + dur);
+      if (f) { conn(s, f); conn(f, g); } else { conn(s, g); }
+      conn(g, dest);
+      var off = Math.random() * 1.5;
+      try { s.loopStart = 0; } catch (e) { }
+      startStop(s, t, t + dur + 0.02);
+      trackVoice(s, dur);
+      if (o.offset) { /* offset handled by start(t, offset) when supported */
+        try { if (s.start) { /* already started */ } } catch (e2) { }
+      }
+      void off;
+    }
+
+    /* A tonal voice with ADSR + optional pitch sweep + optional distortion. */
+    function tone(dest, o) {
+      o = o || {};
+      var t = (o.t || T()) + (o.delay || 0);
+      var oo = osc(o.wave || 'sine', o.f0 || 220);
+      if (!oo) { return; }
+      var dur = o.dur || 0.3;
+      var g = gain(0);
+      if (!g) { return; }
+      var pk = o.vol === undefined ? 0.4 : o.vol;
+      var a = o.atk === undefined ? 0.005 : o.atk;
+      var d = o.dec === undefined ? dur * 0.5 : o.dec;
+      var su = o.sus === undefined ? 0.0 : o.sus;
+      setV(P(g, 'gain'), 0, t);
+      lin(P(g, 'gain'), pk, t + a);
+      expo(P(g, 'gain'), Math.max(0.0006, pk * su), t + a + d);
+      expo(P(g, 'gain'), 0.0005, t + dur);
+      if (o.f1 !== undefined) { expo(P(oo, 'frequency'), Math.max(1, o.f1), t + (o.sweep || dur)); }
+      if (o.detune) { setV(P(oo, 'detune'), o.detune, t); }
+      var node = oo;
+      if (o.dist) {
+        var w = shaper(o.dist);
+        if (w) { conn(node, w); node = w; }
+      }
+      if (o.lp) {
+        var lf = filt('lowpass', o.lp, o.lpq || 0.9);
+        if (lf) {
+          if (o.lp1 !== undefined) { expo(P(lf, 'frequency'), o.lp1, t + dur); }
+          conn(node, lf); node = lf;
+        }
+      }
+      if (o.hp) {
+        var hf = filt('highpass', o.hp, 0.8);
+        if (hf) { conn(node, hf); node = hf; }
+      }
+      conn(node, g); conn(g, dest);
+      startStop(oo, t, t + dur + 0.03);
+      trackVoice(oo, dur);
+    }
+
+    /* Formant filter chain (used for growls, shouts, radio voice). */
+    function formant(dest, o) {
+      o = o || {};
+      var t = (o.t || T()) + (o.delay || 0);
+      var dur = o.dur || 0.6;
+      var base = o.f0 || 96;
+      var src = osc(o.wave || 'sawtooth', base);
+      if (!src) { return; }
+      if (o.f1 !== undefined) { expo(P(src, 'frequency'), o.f1, t + dur); }
+      var vib = osc('sine', o.vibHz || 5.5);
+      var vibg = gain(o.vibDepth === undefined ? 6 : o.vibDepth);
+      if (vib && vibg) { conn(vib, vibg); conn(vibg, P(src, 'detune')); startStop(vib, t, t + dur + 0.02); }
+      var g = gain(0);
+      if (!g) { return; }
+      var pk = o.vol === undefined ? 0.32 : o.vol;
+      setV(P(g, 'gain'), 0, t);
+      lin(P(g, 'gain'), pk, t + (o.atk || 0.05));
+      lin(P(g, 'gain'), pk * 0.8, t + dur * 0.6);
+      expo(P(g, 'gain'), 0.0006, t + dur);
+      var fs = o.formants || [520, 1180, 2500];
+      var qs = o.qs || [7, 9, 11];
+      var amps = o.amps || [1, 0.55, 0.28];
+      var i, bp, bg, sum = gain(1);
+      if (!sum) { return; }
+      for (i = 0; i < fs.length; i++) {
+        bp = filt('bandpass', fs[i], qs[i] || 8);
+        bg = gain(amps[i] === undefined ? 0.4 : amps[i]);
+        if (bp && bg) { conn(src, bp); conn(bp, bg); conn(bg, sum); }
+      }
+      /* breath layer */
+      var nz = srcOf(noiseW);
+      if (nz) {
+        var nf = filt('bandpass', o.breathHz || 1500, 1.1);
+        var ng = gain(o.breath === undefined ? 0.10 : o.breath);
+        if (nf && ng) { conn(nz, nf); conn(nf, ng); conn(ng, sum); }
+        startStop(nz, t, t + dur + 0.02);
+      }
+      var node = sum;
+      if (o.dist) { var ws = shaper(o.dist); if (ws) { conn(node, ws); node = ws; } }
+      conn(node, g); conn(g, dest);
+      startStop(src, t, t + dur + 0.03);
+      trackVoice(src, dur);
+    }
+
+    /* Radio band-limit + squelch grit, wraps any generator. */
+    function radioChain(dest) {
+      var hp = filt('highpass', 420, 0.9);
+      var lp = filt('lowpass', 2900, 0.9);
+      var ws = shaper(8);
+      var g = gain(0.9);
+      if (!hp || !lp || !g) { return dest; }
+      conn(hp, lp);
+      if (ws) { conn(lp, ws); conn(ws, g); } else { conn(lp, g); }
+      conn(g, dest);
+      return hp;
+    }
+
+    /* =================================================================== */
+    /* == SFX REGISTRY                                                  == */
+    /* =================================================================== */
+
+    var SFX = {};
+
+    /* ---- gunfire: layered transient click + body + tail ---------------- */
+    function gunshot(dest, cfg, t) {
+      /* transient */
+      burst(dest, { t: t, dur: 0.02, freq: cfg.click, q: 0.9, type: 'highpass', vol: cfg.vol * 0.9 });
+      /* body */
+      tone(dest, {
+        t: t, wave: 'square', f0: cfg.body, f1: cfg.body * 0.22, sweep: 0.06,
+        dur: cfg.bodyDur, vol: cfg.vol * 0.95, atk: 0.001, dec: cfg.bodyDur * 0.5,
+        dist: cfg.dist || 20, lp: cfg.lp || 4200, lp1: 500
+      });
+      /* punch noise */
+      burst(dest, {
+        t: t, dur: cfg.punch, freq: cfg.punchHz, f1: cfg.punchHz * 0.2, q: 0.7,
+        type: 'bandpass', vol: cfg.vol * 1.0, noise: 'white'
+      });
+      /* tail / room slap */
+      burst(dest, {
+        t: t, delay: 0.012, dur: cfg.tail, freq: cfg.tailHz, f1: 180, q: 0.5,
+        type: 'lowpass', vol: cfg.vol * cfg.tailVol, noise: 'pink'
+      });
+      /* mechanical action */
+      burst(dest, { t: t, delay: 0.035, dur: 0.05, freq: 3400, q: 2.5, type: 'bandpass', vol: cfg.vol * 0.16 });
+    }
+
+    SFX.shot_pistol = function (d, o, t) {
+      gunshot(d, { click: 5200, body: 210, bodyDur: 0.10, punch: 0.07, punchHz: 1500,
+        tail: 0.30, tailHz: 900, tailVol: 0.35, vol: 0.55 * (o.vol || 1), dist: 22 }, t);
+      return 0.4;
+    };
+    SFX.shot_magnum = function (d, o, t) {
+      gunshot(d, { click: 4200, body: 130, bodyDur: 0.18, punch: 0.12, punchHz: 900,
+        tail: 0.70, tailHz: 520, tailVol: 0.62, vol: 0.9 * (o.vol || 1), dist: 34, lp: 3200 }, t);
+      tone(d, { t: t, wave: 'sine', f0: 62, f1: 30, dur: 0.35, vol: 0.5 * (o.vol || 1), atk: 0.002 });
+      return 0.8;
+    };
+    SFX.shot_shotgun = function (d, o, t) {
+      gunshot(d, { click: 3600, body: 150, bodyDur: 0.16, punch: 0.16, punchHz: 700,
+        tail: 0.62, tailHz: 430, tailVol: 0.7, vol: 0.85 * (o.vol || 1), dist: 26, lp: 2600 }, t);
+      burst(d, { t: t, dur: 0.20, freq: 2600, f1: 400, q: 0.6, type: 'bandpass',
+        vol: 0.4 * (o.vol || 1), noise: 'white' });
+      return 0.7;
+    };
+    SFX.shot_smg = function (d, o, t) {
+      gunshot(d, { click: 6200, body: 260, bodyDur: 0.07, punch: 0.05, punchHz: 1900,
+        tail: 0.18, tailHz: 1100, tailVol: 0.25, vol: 0.42 * (o.vol || 1), dist: 18 }, t);
+      return 0.25;
+    };
+    SFX.shot_rifle = function (d, o, t) {
+      gunshot(d, { click: 7400, body: 180, bodyDur: 0.11, punch: 0.09, punchHz: 2400,
+        tail: 0.85, tailHz: 700, tailVol: 0.5, vol: 0.7 * (o.vol || 1), dist: 28, lp: 5200 }, t);
+      /* supersonic crack */
+      burst(d, { t: t, delay: 0.004, dur: 0.03, freq: 9000, q: 0.8, type: 'highpass',
+        vol: 0.5 * (o.vol || 1) });
+      return 0.9;
+    };
+    SFX.dryfire = function (d, o, t) {
+      burst(d, { t: t, dur: 0.035, freq: 2800, q: 3.5, type: 'bandpass', vol: 0.35 * (o.vol || 1) });
+      burst(d, { t: t, delay: 0.02, dur: 0.03, freq: 5200, q: 5, type: 'bandpass', vol: 0.16 * (o.vol || 1) });
+      return 0.1;
+    };
+    SFX.mag_out = function (d, o, t) {
+      burst(d, { t: t, dur: 0.06, freq: 1800, q: 2.2, type: 'bandpass', vol: 0.3 * (o.vol || 1) });
+      burst(d, { t: t, delay: 0.09, dur: 0.10, freq: 900, f1: 300, q: 1.4, type: 'bandpass', vol: 0.26 * (o.vol || 1) });
+      return 0.25;
+    };
+    SFX.mag_in = function (d, o, t) {
+      burst(d, { t: t, dur: 0.05, freq: 1200, q: 1.6, type: 'bandpass', vol: 0.28 * (o.vol || 1) });
+      burst(d, { t: t, delay: 0.05, dur: 0.05, freq: 2600, q: 3.2, type: 'bandpass', vol: 0.34 * (o.vol || 1) });
+      tone(d, { t: t, delay: 0.05, wave: 'square', f0: 180, f1: 90, dur: 0.06, vol: 0.16 * (o.vol || 1) });
+      return 0.2;
+    };
+    SFX.slide_rack = function (d, o, t) {
+      burst(d, { t: t, dur: 0.07, freq: 2200, f1: 1400, q: 1.4, type: 'bandpass', vol: 0.30 * (o.vol || 1) });
+      burst(d, { t: t, delay: 0.08, dur: 0.05, freq: 3400, q: 3.0, type: 'bandpass', vol: 0.34 * (o.vol || 1) });
+      return 0.2;
+    };
+    SFX.pump = function (d, o, t) {
+      burst(d, { t: t, dur: 0.09, freq: 1500, f1: 800, q: 1.1, type: 'bandpass', vol: 0.34 * (o.vol || 1) });
+      burst(d, { t: t, delay: 0.13, dur: 0.07, freq: 2400, f1: 1500, q: 1.6, type: 'bandpass', vol: 0.36 * (o.vol || 1) });
+      return 0.3;
+    };
+    SFX.knife = function (d, o, t) {
+      burst(d, { t: t, dur: 0.13, freq: 5200, f1: 900, q: 0.6, type: 'bandpass', vol: 0.30 * (o.vol || 1) });
+      tone(d, { t: t, wave: 'sine', f0: 2400, f1: 600, dur: 0.10, vol: 0.10 * (o.vol || 1) });
+      return 0.2;
+    };
+    SFX.flesh = function (d, o, t) {
+      burst(d, { t: t, dur: 0.11, freq: 340, f1: 120, q: 0.8, type: 'lowpass', vol: 0.42 * (o.vol || 1), noise: 'brown' });
+      burst(d, { t: t, delay: 0.01, dur: 0.06, freq: 1600, q: 1.0, type: 'bandpass', vol: 0.16 * (o.vol || 1) });
+      return 0.2;
+    };
+    SFX.bone = function (d, o, t) {
+      burst(d, { t: t, dur: 0.04, freq: 2600, q: 4.5, type: 'bandpass', vol: 0.38 * (o.vol || 1) });
+      tone(d, { t: t, wave: 'triangle', f0: 320, f1: 90, dur: 0.09, vol: 0.24 * (o.vol || 1), dist: 30 });
+      return 0.15;
+    };
+    SFX.headshot = function (d, o, t) {
+      burst(d, { t: t, dur: 0.09, freq: 700, f1: 140, q: 0.5, type: 'lowpass', vol: 0.6 * (o.vol || 1), noise: 'brown' });
+      tone(d, { t: t, wave: 'sine', f0: 180, f1: 40, dur: 0.20, vol: 0.4 * (o.vol || 1) });
+      burst(d, { t: t, delay: 0.02, dur: 0.25, freq: 900, f1: 200, q: 0.7, type: 'bandpass',
+        vol: 0.22 * (o.vol || 1), noise: 'pink' });
+      return 0.4;
+    };
+    SFX.parasite_burst = function (d, o, t) {
+      tone(d, { t: t, wave: 'sawtooth', f0: 90, f1: 700, sweep: 0.16, dur: 0.36,
+        vol: 0.34 * (o.vol || 1), dist: 40, lp: 3000, lp1: 700 });
+      burst(d, { t: t, dur: 0.32, freq: 1400, f1: 300, q: 0.6, type: 'bandpass',
+        vol: 0.36 * (o.vol || 1), noise: 'pink' });
+      formant(d, { t: t, delay: 0.04, f0: 220, f1: 640, dur: 0.5, vol: 0.22 * (o.vol || 1),
+        formants: [420, 1600, 3100], qs: [5, 6, 7], dist: 18 });
+      return 0.7;
+    };
+
+    /* ---- footsteps ---------------------------------------------------- */
+    var STEP_CFG = {
+      concrete: { f: 900, q: 1.0, dur: 0.075, vol: 0.22, sub: 120, noise: 'white' },
+      metal: { f: 2400, q: 3.0, dur: 0.16, vol: 0.24, sub: 240, noise: 'white', ring: 1 },
+      gravel: { f: 3200, q: 0.5, dur: 0.13, vol: 0.20, sub: 90, noise: 'pink', crunch: 1 },
+      water: { f: 1500, q: 0.4, dur: 0.22, vol: 0.24, sub: 70, noise: 'pink', splash: 1 },
+      wood: { f: 620, q: 1.6, dur: 0.11, vol: 0.22, sub: 150, noise: 'pink', ring: 0.4 },
+      dirt: { f: 700, q: 0.6, dur: 0.10, vol: 0.17, sub: 80, noise: 'brown' },
+      grate: { f: 3000, q: 4.0, dur: 0.20, vol: 0.22, sub: 260, noise: 'white', ring: 1.4 }
+    };
+    function footstep(d, o, t, surf) {
+      var c = STEP_CFG[surf] || STEP_CFG.concrete;
+      var r = 0.85 + Math.random() * 0.3;
+      var v = (o.vol === undefined ? 1 : o.vol) * (o.sprint ? 1.35 : (o.crouch ? 0.45 : 1));
+      burst(d, { t: t, dur: c.dur * r, freq: c.f * r, f1: c.f * 0.35, q: c.q,
+        type: 'bandpass', vol: c.vol * v, noise: c.noise, rate: r });
+      tone(d, { t: t, wave: 'sine', f0: c.sub * r, f1: c.sub * 0.5, dur: 0.07, vol: 0.16 * v });
+      if (c.ring) {
+        tone(d, { t: t, delay: 0.006, wave: 'triangle', f0: 1800 * r, f1: 1500 * r,
+          dur: 0.24 * c.ring, vol: 0.07 * v * c.ring, hp: 900 });
+      }
+      if (c.crunch) {
+        burst(d, { t: t, delay: 0.02, dur: 0.09, freq: 5200 * r, q: 0.4, type: 'highpass', vol: 0.10 * v });
+      }
+      if (c.splash) {
+        burst(d, { t: t, delay: 0.005, dur: 0.30, freq: 2600, f1: 600, q: 0.35,
+          type: 'bandpass', vol: 0.18 * v, noise: 'white' });
+      }
+      return 0.3;
+    }
+    SFX.step_concrete = function (d, o, t) { return footstep(d, o, t, 'concrete'); };
+    SFX.step_metal = function (d, o, t) { return footstep(d, o, t, 'metal'); };
+    SFX.step_gravel = function (d, o, t) { return footstep(d, o, t, 'gravel'); };
+    SFX.step_water = function (d, o, t) { return footstep(d, o, t, 'water'); };
+    SFX.step_wood = function (d, o, t) { return footstep(d, o, t, 'wood'); };
+    SFX.step_dirt = function (d, o, t) { return footstep(d, o, t, 'dirt'); };
+    SFX.step_grate = function (d, o, t) { return footstep(d, o, t, 'grate'); };
+    SFX.step = function (d, o, t) { return footstep(d, o, t, (o && o.surface) || 'concrete'); };
+
+    SFX.cloth = function (d, o, t) {
+      burst(d, { t: t, dur: 0.16, freq: 3800, f1: 1800, q: 0.5, type: 'bandpass',
+        vol: 0.10 * (o.vol || 1), noise: 'pink', rate: 0.8 + Math.random() * 0.4 });
+      return 0.2;
+    };
+
+    /* ---- world / props ------------------------------------------------ */
+    SFX.door_open = function (d, o, t) {
+      tone(d, { t: t, wave: 'sawtooth', f0: 70, f1: 42, sweep: 0.9, dur: 1.0,
+        vol: 0.14 * (o.vol || 1), lp: 700, lp1: 260, dist: 6 });
+      burst(d, { t: t, dur: 0.9, freq: 620, f1: 260, q: 4.0, type: 'bandpass',
+        vol: 0.12 * (o.vol || 1), noise: 'pink' });
+      burst(d, { t: t, delay: 0.85, dur: 0.09, freq: 1400, q: 2, type: 'bandpass', vol: 0.2 * (o.vol || 1) });
+      return 1.1;
+    };
+    SFX.door_close = function (d, o, t) {
+      burst(d, { t: t, dur: 0.14, freq: 420, f1: 120, q: 0.9, type: 'lowpass', vol: 0.4 * (o.vol || 1), noise: 'brown' });
+      tone(d, { t: t, wave: 'sine', f0: 90, f1: 45, dur: 0.22, vol: 0.28 * (o.vol || 1) });
+      return 0.3;
+    };
+    SFX.door_locked = function (d, o, t) {
+      burst(d, { t: t, dur: 0.05, freq: 1100, q: 3, type: 'bandpass', vol: 0.3 * (o.vol || 1) });
+      burst(d, { t: t, delay: 0.11, dur: 0.05, freq: 1100, q: 3, type: 'bandpass', vol: 0.26 * (o.vol || 1) });
+      return 0.2;
+    };
+    SFX.valve = function (d, o, t) {
+      var i;
+      for (i = 0; i < 7; i++) {
+        burst(d, { t: t, delay: i * 0.11, dur: 0.07, freq: 900 + i * 60, q: 5,
+          type: 'bandpass', vol: 0.16 * (o.vol || 1) });
+      }
+      tone(d, { t: t, wave: 'sawtooth', f0: 120, f1: 90, dur: 0.8, vol: 0.06 * (o.vol || 1), lp: 500 });
+      return 0.9;
+    };
+    SFX.wood_break = function (d, o, t) {
+      var i, n = 6;
+      for (i = 0; i < n; i++) {
+        burst(d, { t: t, delay: Math.random() * 0.16, dur: 0.06, freq: 500 + Math.random() * 2200,
+          q: 2.5, type: 'bandpass', vol: 0.22 * (o.vol || 1), noise: 'pink' });
+      }
+      tone(d, { t: t, wave: 'triangle', f0: 180, f1: 60, dur: 0.28, vol: 0.26 * (o.vol || 1), dist: 14 });
+      return 0.4;
+    };
+    SFX.glass_break = function (d, o, t) {
+      var i;
+      burst(d, { t: t, dur: 0.05, freq: 6000, q: 0.5, type: 'highpass', vol: 0.4 * (o.vol || 1) });
+      for (i = 0; i < 10; i++) {
+        tone(d, { t: t, delay: Math.random() * 0.5, wave: 'triangle',
+          f0: 2400 + Math.random() * 4200, f1: 1800, dur: 0.10 + Math.random() * 0.2,
+          vol: 0.07 * (o.vol || 1) });
+      }
+      return 0.7;
+    };
+    SFX.explosion = function (d, o, t) {
+      tone(d, { t: t, wave: 'sine', f0: 90, f1: 24, sweep: 0.5, dur: 1.4, vol: 0.85 * (o.vol || 1), dist: 12 });
+      burst(d, { t: t, dur: 0.28, freq: 1800, f1: 200, q: 0.4, type: 'lowpass', vol: 0.8 * (o.vol || 1) });
+      burst(d, { t: t, delay: 0.05, dur: 1.6, freq: 700, f1: 120, q: 0.3, type: 'lowpass',
+        vol: 0.42 * (o.vol || 1), noise: 'brown' });
+      burst(d, { t: t, delay: 0.02, dur: 0.6, freq: 4000, f1: 500, q: 0.4, type: 'bandpass',
+        vol: 0.24 * (o.vol || 1), noise: 'pink' });
+      return 1.8;
+    };
+    SFX.fire = function (d, o, t) {
+      burst(d, { t: t, dur: (o.dur || 1.4), freq: 900, f1: 500, q: 0.5, type: 'bandpass',
+        vol: 0.14 * (o.vol || 1), noise: 'pink' });
+      var i;
+      for (i = 0; i < 5; i++) {
+        burst(d, { t: t, delay: Math.random() * (o.dur || 1.4), dur: 0.05,
+          freq: 2400 + Math.random() * 3000, q: 2, type: 'bandpass', vol: 0.07 * (o.vol || 1) });
+      }
+      return (o.dur || 1.4);
+    };
+    SFX.electric = function (d, o, t) {
+      var i, n = 9;
+      for (i = 0; i < n; i++) {
+        burst(d, { t: t, delay: Math.random() * 0.4, dur: 0.02 + Math.random() * 0.05,
+          freq: 1800 + Math.random() * 6000, q: 1.5, type: 'bandpass', vol: 0.20 * (o.vol || 1) });
+      }
+      tone(d, { t: t, wave: 'sawtooth', f0: 120, dur: 0.4, vol: 0.06 * (o.vol || 1), dist: 40, lp: 2400 });
+      return 0.5;
+    };
+    SFX.spark = function (d, o, t) {
+      burst(d, { t: t, dur: 0.05, freq: 7000, q: 0.7, type: 'highpass', vol: 0.18 * (o.vol || 1) });
+      return 0.1;
+    };
+    SFX.thunder = function (d, o, t) {
+      /* real rumble: layered brown noise swells + slow sub sweep + late claps */
+      var far = o.far ? 1 : 0;
+      tone(d, { t: t, wave: 'sine', f0: far ? 42 : 60, f1: 18, sweep: 2.2, dur: far ? 4.0 : 3.0,
+        vol: (far ? 0.35 : 0.7) * (o.vol || 1), dist: 6 });
+      burst(d, { t: t, dur: far ? 4.5 : 3.2, freq: far ? 220 : 520, f1: 70, q: 0.35,
+        type: 'lowpass', vol: (far ? 0.30 : 0.62) * (o.vol || 1), noise: 'brown' });
+      if (!far) {
+        burst(d, { t: t, dur: 0.16, freq: 3200, f1: 700, q: 0.5, type: 'bandpass',
+          vol: 0.4 * (o.vol || 1), noise: 'white' });
+      }
+      var i, n = far ? 2 : 4;
+      for (i = 0; i < n; i++) {
+        burst(d, { t: t, delay: 0.5 + Math.random() * 2.0, dur: 0.9 + Math.random(),
+          freq: 300 + Math.random() * 400, f1: 60, q: 0.3, type: 'lowpass',
+          vol: (far ? 0.14 : 0.28) * (o.vol || 1), noise: 'brown' });
+      }
+      return far ? 5.0 : 4.2;
+    };
+    SFX.alarm = function (d, o, t) {
+      var i, n = o.count || 3;
+      for (i = 0; i < n; i++) {
+        tone(d, { t: t, delay: i * 0.85, wave: 'sawtooth', f0: 520, f1: 760, sweep: 0.35,
+          dur: 0.42, vol: 0.20 * (o.vol || 1), dist: 8, lp: 2600 });
+        tone(d, { t: t, delay: i * 0.85 + 0.42, wave: 'sawtooth', f0: 760, f1: 520, sweep: 0.35,
+          dur: 0.40, vol: 0.18 * (o.vol || 1), dist: 8, lp: 2600 });
+      }
+      return n * 0.85;
+    };
+    SFX.radio_squelch = function (d, o, t) {
+      var rd = radioChain(d);
+      burst(rd, { t: t, dur: 0.07, freq: 2200, q: 0.6, type: 'bandpass', vol: 0.24 * (o.vol || 1) });
+      burst(rd, { t: t, delay: 0.06, dur: 0.05, freq: 1400, q: 2, type: 'bandpass', vol: 0.12 * (o.vol || 1) });
+      return 0.2;
+    };
+    SFX.radio_static = function (d, o, t) {
+      var rd = radioChain(d);
+      burst(rd, { t: t, dur: o.dur || 0.9, freq: 1600, q: 0.4, type: 'bandpass',
+        vol: 0.13 * (o.vol || 1), noise: 'white' });
+      return o.dur || 0.9;
+    };
+    SFX.radio_voice = function (d, o, t) {
+      var rd = radioChain(d);
+      var i, n = o.syll || (3 + ((Math.random() * 4) | 0));
+      var base = o.f0 || (o.female ? 175 : 108);
+      for (i = 0; i < n; i++) {
+        formant(rd, {
+          t: t, delay: i * 0.155, dur: 0.13 + Math.random() * 0.08,
+          f0: base * (0.9 + Math.random() * 0.25), f1: base * (0.85 + Math.random() * 0.3),
+          vol: 0.28 * (o.vol || 1),
+          formants: o.female ? [640, 1900, 2900] : [480, 1300, 2450],
+          qs: [8, 9, 10], amps: [1, 0.5, 0.22], breath: 0.06, dist: 6
+        });
+      }
+      return n * 0.155 + 0.2;
+    };
+    SFX.geiger = function (d, o, t) {
+      var i, n = o.count || 1;
+      for (i = 0; i < n; i++) {
+        burst(d, { t: t, delay: Math.random() * (o.spread || 0.1), dur: 0.012,
+          freq: 5200 + Math.random() * 2600, q: 6, type: 'bandpass', vol: 0.14 * (o.vol || 1) });
+      }
+      return 0.15;
+    };
+    SFX.growl = function (d, o, t) {
+      formant(d, {
+        t: t, dur: o.dur || 0.9, f0: 62 * (o.pitch || 1), f1: 48 * (o.pitch || 1),
+        vol: 0.30 * (o.vol || 1), formants: [340, 900, 1900], qs: [6, 7, 8],
+        amps: [1, 0.6, 0.25], vibHz: 6.5, vibDepth: 22, breath: 0.14, dist: 16
+      });
+      return (o.dur || 0.9) + 0.1;
+    };
+    SFX.shout = function (d, o, t) {
+      formant(d, {
+        t: t, dur: o.dur || 0.7, f0: 150 * (o.pitch || 1), f1: 190 * (o.pitch || 1),
+        vol: 0.34 * (o.vol || 1), formants: [720, 1250, 2600], qs: [7, 8, 9],
+        amps: [1, 0.7, 0.35], vibHz: 5, vibDepth: 14, breath: 0.10, dist: 22, atk: 0.02
+      });
+      return (o.dur || 0.7) + 0.1;
+    };
+    SFX.scream = function (d, o, t) {
+      formant(d, {
+        t: t, dur: o.dur || 1.3, f0: 300 * (o.pitch || 1), f1: 420 * (o.pitch || 1),
+        vol: 0.38 * (o.vol || 1), formants: [900, 1700, 3200], qs: [9, 10, 11],
+        amps: [1, 0.8, 0.5], vibHz: 7.5, vibDepth: 40, breath: 0.16, dist: 26, atk: 0.03
+      });
+      return (o.dur || 1.3) + 0.2;
+    };
+    SFX.chant = function (d, o, t) {
+      var i;
+      for (i = 0; i < 3; i++) {
+        formant(d, { t: t, delay: i * 0.02, dur: o.dur || 2.2, f0: 84 * (1 + i * 0.005),
+          f1: 84, vol: 0.10 * (o.vol || 1), formants: [400, 800, 1500], qs: [8, 9, 10],
+          vibHz: 4, vibDepth: 8, breath: 0.05 });
+      }
+      return (o.dur || 2.2);
+    };
+    SFX.breath = function (d, o, t) {
+      var fear = clamp(o.fear === undefined ? 0 : o.fear, 0, 1);
+      var dur = lerp(0.55, 0.26, fear);
+      burst(d, { t: t, dur: dur, freq: lerp(900, 1500, fear), f1: lerp(500, 1100, fear),
+        q: 0.9, type: 'bandpass', vol: lerp(0.05, 0.16, fear) * (o.vol || 1), noise: 'pink' });
+      if (fear > 0.45) {
+        formant(d, { t: t, delay: dur * 0.55, dur: 0.16, f0: 210, f1: 190,
+          vol: 0.06 * fear * (o.vol || 1), formants: [700, 1500, 2600], qs: [6, 7, 8], breath: 0.3 });
+      }
+      return dur + 0.1;
+    };
+    SFX.heartbeat = function (d, o, t) {
+      var v = (o.vol === undefined ? 1 : o.vol);
+      tone(d, { t: t, wave: 'sine', f0: 64, f1: 34, sweep: 0.10, dur: 0.16, vol: 0.55 * v, atk: 0.004 });
+      tone(d, { t: t, delay: 0.19, wave: 'sine', f0: 56, f1: 30, sweep: 0.10, dur: 0.20, vol: 0.38 * v, atk: 0.005 });
+      return 0.45;
+    };
+    SFX.tinnitus = function (d, o, t) {
+      tone(d, { t: t, wave: 'sine', f0: 4400, dur: o.dur || 3.2, vol: 0.07 * (o.vol || 1),
+        atk: 0.02, dec: 0.4, sus: 0.7 });
+      tone(d, { t: t, wave: 'sine', f0: 6200, dur: (o.dur || 3.2) * 0.8, vol: 0.035 * (o.vol || 1),
+        atk: 0.02, dec: 0.4, sus: 0.6 });
+      return o.dur || 3.2;
+    };
+    SFX.pickup = function (d, o, t) {
+      tone(d, { t: t, wave: 'triangle', f0: 660, f1: 990, sweep: 0.08, dur: 0.16, vol: 0.16 * (o.vol || 1) });
+      burst(d, { t: t, dur: 0.05, freq: 3200, q: 2, type: 'bandpass', vol: 0.10 * (o.vol || 1) });
+      return 0.25;
+    };
+    SFX.ui_move = function (d, o, t) {
+      tone(d, { t: t, wave: 'square', f0: 880, dur: 0.035, vol: 0.05 * (o.vol || 1), lp: 3000 });
+      return 0.06;
+    };
+    SFX.ui_select = function (d, o, t) {
+      tone(d, { t: t, wave: 'square', f0: 520, f1: 780, sweep: 0.05, dur: 0.09, vol: 0.07 * (o.vol || 1), lp: 3200 });
+      return 0.12;
+    };
+    SFX.ui_back = function (d, o, t) {
+      tone(d, { t: t, wave: 'square', f0: 460, f1: 260, sweep: 0.07, dur: 0.11, vol: 0.06 * (o.vol || 1), lp: 2400 });
+      return 0.14;
+    };
+    SFX.ui_error = function (d, o, t) {
+      tone(d, { t: t, wave: 'sawtooth', f0: 180, f1: 120, sweep: 0.12, dur: 0.18,
+        vol: 0.10 * (o.vol || 1), lp: 1400, dist: 10 });
+      return 0.2;
+    };
+    SFX.save = function (d, o, t) {
+      tone(d, { t: t, wave: 'sine', f0: 392, dur: 0.5, vol: 0.10 * (o.vol || 1), dec: 0.3, sus: 0.4 });
+      tone(d, { t: t, delay: 0.16, wave: 'sine', f0: 523.25, dur: 0.6, vol: 0.09 * (o.vol || 1), dec: 0.3, sus: 0.4 });
+      tone(d, { t: t, delay: 0.32, wave: 'sine', f0: 659.25, dur: 0.9, vol: 0.08 * (o.vol || 1), dec: 0.4, sus: 0.4 });
+      return 1.2;
+    };
+    SFX.hurt = function (d, o, t) {
+      burst(d, { t: t, dur: 0.12, freq: 500, f1: 160, q: 0.7, type: 'lowpass',
+        vol: 0.4 * (o.vol || 1), noise: 'brown' });
+      tone(d, { t: t, wave: 'sine', f0: 120, f1: 52, dur: 0.24, vol: 0.28 * (o.vol || 1) });
+      return 0.3;
+    };
+    SFX.grab = function (d, o, t) {
+      burst(d, { t: t, dur: 0.2, freq: 420, f1: 140, q: 0.6, type: 'lowpass',
+        vol: 0.34 * (o.vol || 1), noise: 'brown' });
+      SFX.growl(d, { vol: 1.1 * (o.vol || 1), dur: 0.6, pitch: 0.9 }, t);
+      return 0.7;
+    };
+    SFX.stinger_reveal = function (d, o, t) {
+      tone(d, { t: t, wave: 'sawtooth', f0: 220, f1: 55, sweep: 0.7, dur: 1.5,
+        vol: 0.24 * (o.vol || 1), dist: 24, lp: 1600, lp1: 300 });
+      tone(d, { t: t, wave: 'square', f0: 55, dur: 1.8, vol: 0.16 * (o.vol || 1), lp: 400, dec: 1.0, sus: 0.5 });
+      burst(d, { t: t, dur: 0.5, freq: 3000, f1: 400, q: 0.5, type: 'bandpass',
+        vol: 0.18 * (o.vol || 1), noise: 'pink' });
+      return 2.0;
+    };
+    SFX.stinger_grab = function (d, o, t) {
+      tone(d, { t: t, wave: 'sawtooth', f0: 700, f1: 90, sweep: 0.35, dur: 1.0,
+        vol: 0.26 * (o.vol || 1), dist: 30, lp: 2600, lp1: 400 });
+      tone(d, { t: t, wave: 'triangle', f0: 1320, f1: 1300, dur: 1.2, vol: 0.09 * (o.vol || 1), hp: 800 });
+      return 1.4;
+    };
+    SFX.stinger_danger = function (d, o, t) {
+      var i;
+      for (i = 0; i < 3; i++) {
+        tone(d, { t: t, delay: i * 0.13, wave: 'square', f0: 1046 - i * 90, dur: 0.11,
+          vol: 0.12 * (o.vol || 1), lp: 3000 });
+      }
+      tone(d, { t: t, wave: 'sine', f0: 70, f1: 40, dur: 1.1, vol: 0.2 * (o.vol || 1) });
+      return 1.2;
+    };
+    SFX.upgrade = function (d, o, t) {
+      var i, notes = [261.6, 329.6, 392.0, 523.3];
+      for (i = 0; i < notes.length; i++) {
+        tone(d, { t: t, delay: i * 0.09, wave: 'triangle', f0: notes[i], dur: 0.5,
+          vol: 0.10 * (o.vol || 1), dec: 0.28, sus: 0.35 });
+      }
+      return 0.9;
+    };
+
+    /* ---- looping ambience -------------------------------------------- */
+    var loops = {};
+    function makeLoop(id, cfg) {
+      if (!ctx) { return null; }
+      var s = srcOf(cfg.noise === 'brown' ? noiseB : (cfg.noise === 'white' ? noiseW : noiseP));
+      if (!s) { return null; }
+      try { s.loop = true; } catch (e) { }
+      var f = filt(cfg.type || 'bandpass', cfg.freq || 800, cfg.q === undefined ? 0.7 : cfg.q);
+      var g = gain(0);
+      if (!g) { return null; }
+      var node = s;
+      if (f) { conn(s, f); node = f; }
+      conn(node, g);
+      conn(g, busAmb || busSfx);
+      startStop(s, T(), null);
+      var L = { id: id, src: s, filt: f, g: g, target: 0, cfg: cfg };
+      loops[id] = L;
+      return L;
+    }
+    function loopSet(id, vol, ms) {
+      var L = loops[id];
+      if (!L) { return; }
+      L.target = vol;
+      var t = T();
+      var gp = P(L.g, 'gain');
+      if (gp) {
+        try { if (gp.cancelScheduledValues) { gp.cancelScheduledValues(t); } } catch (e) { }
+        setV(gp, gp.value === undefined ? 0 : gp.value, t);
+        lin(gp, vol, t + (ms === undefined ? 1.2 : ms));
+      }
+    }
+    function loopFreq(id, f, ms) {
+      var L = loops[id];
+      if (!L || !L.filt) { return; }
+      var fp = P(L.filt, 'frequency');
+      if (fp) { lin(fp, f, T() + (ms === undefined ? 1.0 : ms)); }
+    }
+    function buildLoops() {
+      makeLoop('rain', { noise: 'pink', type: 'bandpass', freq: 2200, q: 0.45 });
+      makeLoop('rain_low', { noise: 'brown', type: 'lowpass', freq: 700, q: 0.3 });
+      makeLoop('wind', { noise: 'brown', type: 'lowpass', freq: 280, q: 0.4 });
+      makeLoop('machinery', { noise: 'brown', type: 'bandpass', freq: 92, q: 6 });
+      makeLoop('interior_hum', { noise: 'pink', type: 'bandpass', freq: 140, q: 8 });
+      makeLoop('water_flow', { noise: 'white', type: 'bandpass', freq: 1400, q: 0.8 });
+      makeLoop('fire_bed', { noise: 'pink', type: 'bandpass', freq: 800, q: 0.5 });
+    }
+
+    /* =================================================================== */
+    /* == ADAPTIVE MUSIC                                                == */
+    /* =================================================================== */
+
+    var MUS = {
+      state: 'explore', prevState: 'explore', danger: 0,
+      layers: null, started: false, nextNote: 0, step: 0, bpm: 88, root: 55
+    };
+
+    /* target mix per state: [drone, arp, perc, strings, subpulse] */
+    var MUS_MIX = {
+      safe: [0.30, 0.05, 0.00, 0.10, 0.00],
+      explore: [0.42, 0.14, 0.03, 0.10, 0.05],
+      tension: [0.50, 0.30, 0.16, 0.26, 0.18],
+      combat: [0.42, 0.46, 0.62, 0.34, 0.40],
+      chase: [0.34, 0.62, 0.74, 0.24, 0.50],
+      boss: [0.56, 0.40, 0.66, 0.58, 0.62],
+      none: [0, 0, 0, 0, 0]
+    };
+    var MUS_BPM = { safe: 62, explore: 72, tension: 88, combat: 124, chase: 142, boss: 108, none: 72 };
+
+    function buildMusic() {
+      if (!ctx) { return; }
+      var L = {};
+      var i, k;
+      var names = ['drone', 'arp', 'perc', 'strings', 'sub'];
+      for (i = 0; i < names.length; i++) {
+        k = names[i];
+        L[k] = gain(0);
+        if (L[k]) { conn(L[k], busMusic); }
+      }
+      /* persistent drone: three detuned saws through a slow lowpass */
+      var dl = filt('lowpass', 380, 3.0);
+      if (dl) { conn(dl, L.drone); }
+      var dets = [-9, 0, 7];
+      for (i = 0; i < dets.length; i++) {
+        var o1 = osc('sawtooth', MUS.root * (i === 2 ? 1.5 : 1));
+        if (o1) {
+          setV(P(o1, 'detune'), dets[i], T());
+          var og = gain(0.16);
+          if (og) { conn(o1, og); conn(og, dl || L.drone); }
+          startStop(o1, T(), null);
+        }
+      }
+      /* slow LFO on drone filter */
+      var lfo = osc('sine', 0.06), lg = gain(150);
+      if (lfo && lg && dl) { conn(lfo, lg); conn(lg, P(dl, 'frequency')); startStop(lfo, T(), null); }
+      /* strings-ish swell: two detuned triangles + bandpass */
+      var sf = filt('bandpass', 640, 1.4);
+      if (sf) { conn(sf, L.strings); }
+      for (i = 0; i < 4; i++) {
+        var o2 = osc('triangle', MUS.root * (i < 2 ? 2 : 3) * (1 + (i % 2) * 0.003));
+        if (o2) {
+          setV(P(o2, 'detune'), (i - 1.5) * 11, T());
+          var og2 = gain(0.10);
+          if (og2) { conn(o2, og2); conn(og2, sf || L.strings); }
+          startStop(o2, T(), null);
+        }
+      }
+      var slfo = osc('sine', 0.09), slg = gain(0.06);
+      if (slfo && slg) { conn(slfo, slg); conn(slg, P(L.strings, 'gain')); startStop(slfo, T(), null); }
+      /* sub pulse: sine driven by scheduler */
+      MUS.layers = L;
+      MUS.started = true;
+      MUS.nextNote = T() + 0.1;
+    }
+
+    var SCALE = [0, 3, 5, 7, 10, 12, 15, 12, 10, 7, 5, 3];
+
+    function musicTick() {
+      if (!ctx || !MUS.started || !MUS.layers) { return; }
+      var t = T();
+      var spb = 60 / (MUS.bpm || 88) / 2; /* eighth notes */
+      var guard = 0;
+      while (MUS.nextNote < t + 0.35 && guard < 48) {
+        guard++;
+        var nt = MUS.nextNote;
+        var st = MUS.step;
+        /* arpeggio */
+        if (MUS.layers.arp) {
+          var deg = SCALE[st % SCALE.length];
+          var f = MUS.root * 4 * Math.pow(2, deg / 12);
+          tone(MUS.layers.arp, {
+            t: nt, wave: 'square', f0: f, dur: spb * 1.6, vol: 0.14,
+            atk: 0.004, dec: spb * 0.9, sus: 0.05, lp: 2600, lp1: 700
+          });
+        }
+        /* percussion: kick / hat pattern */
+        if (MUS.layers.perc) {
+          if (st % 4 === 0) {
+            tone(MUS.layers.perc, { t: nt, wave: 'sine', f0: 120, f1: 42, sweep: 0.08,
+              dur: 0.19, vol: 0.42, atk: 0.002 });
+          }
+          if (st % 4 === 2 || st % 8 === 7) {
+            burst(MUS.layers.perc, { t: nt, dur: 0.07, freq: 210, f1: 120, q: 0.9,
+              type: 'bandpass', vol: 0.22, noise: 'white' });
+          }
+          if (st % 2 === 1) {
+            burst(MUS.layers.perc, { t: nt, dur: 0.035, freq: 8200, q: 0.6,
+              type: 'highpass', vol: 0.07 });
+          }
+        }
+        /* sub pulse on the bar */
+        if (MUS.layers.sub && st % 8 === 0) {
+          tone(MUS.layers.sub, { t: nt, wave: 'sine', f0: MUS.root, f1: MUS.root * 0.5,
+            sweep: spb * 6, dur: spb * 8, vol: 0.5, atk: 0.02, dec: spb * 4, sus: 0.25 });
+        }
+        MUS.step = (MUS.step + 1) % 64;
+        MUS.nextNote = nt + spb;
+      }
+      if (MUS.nextNote < t) { MUS.nextNote = t + 0.05; }
+    }
+
+    function musicApply(fadeSec) {
+      if (!MUS.layers) { return; }
+      var mix = MUS_MIX[MUS.state] || MUS_MIX.explore;
+      var d = clamp(MUS.danger, 0, 1);
+      var t = T(), f = fadeSec === undefined ? 1.7 : fadeSec;
+      var names = ['drone', 'arp', 'perc', 'strings', 'sub'];
+      var boost = [1 + d * 0.15, 1 + d * 0.5, 1 + d * 0.85, 1 + d * 0.6, 1 + d * 0.7];
+      var i, g, gp, v;
+      for (i = 0; i < names.length; i++) {
+        g = MUS.layers[names[i]];
+        if (!g) { continue; }
+        gp = P(g, 'gain');
+        if (!gp) { continue; }
+        v = clamp(mix[i] * boost[i], 0, 1.2);
+        try { if (gp.cancelScheduledValues) { gp.cancelScheduledValues(t); } } catch (e) { }
+        setV(gp, (gp.value === undefined ? 0 : gp.value), t);
+        lin(gp, v, t + f);
+      }
+      MUS.bpm = (MUS_BPM[MUS.state] || 80) * (1 + d * 0.10);
+    }
+
+    /* =================================================================== */
+    /* == PUBLIC AUDIO API                                              == */
+    /* =================================================================== */
+
+    var pendingUnlock = false;
+
+    function makeCtx() {
+      if (ctx || failed) { return ctx; }
+      var AC = null;
+      if (typeof AudioContext !== 'undefined') { AC = AudioContext; }
+      else if (typeof window !== 'undefined' && window.AudioContext) { AC = window.AudioContext; }
+      else if (typeof window !== 'undefined' && window.webkitAudioContext) { AC = window.webkitAudioContext; }
+      if (!AC) { failed = true; return null; }
+      try { ctx = new AC({ latencyHint: 'interactive' }); }
+      catch (e) {
+        try { ctx = new AC(); } catch (e2) { failed = true; ctx = null; }
+      }
+      return ctx;
+    }
+
+    Audio_.init = function (opts) {
+      if (ready || failed) { return ready; }
+      try {
+        lowQ = !!(opts && opts.lowQuality) || S_.quality === 0;
+        VOICE_CAP = lowQ ? 18 : 32;
+        makeCtx();
+        if (!ctx) { return false; }
+        noiseW = makeNoise('white', 2);
+        noiseP = makeNoise('pink', 2);
+        noiseB = makeNoise('brown', 2);
+        buildGraph();
+        buildLoops();
+        buildMusic();
+        musicApply(0.01);
+        ready = true;
+        t0Boot = T();
+        Audio_.resume();
+      } catch (e) {
+        failed = true;
+        warn('audio init failed', e);
+        return false;
+      }
+      return ready;
+    };
+
+    Audio_.resume = function () {
+      if (!ctx) { return false; }
+      try {
+        if (ctx.state === 'suspended' && ctx.resume) {
+          var p = ctx.resume();
+          if (p && p.catch) { p.catch(function () { }); }
+        }
+      } catch (e) { return false; }
+      return true;
+    };
+
+    Audio_.suspend = function () {
+      if (!ctx) { return; }
+      try { if (ctx.suspend) { var p = ctx.suspend(); if (p && p.catch) { p.catch(function () { }); } } }
+      catch (e) { }
+    };
+
+    Audio_.isReady = function () { return ready; };
+    Audio_.state = function () { return ctx ? (ctx.state || 'unknown') : 'none'; };
+
+    /* Unlock on the first user gesture (autoplay policy). Never throws. */
+    Audio_.unlock = function () {
+      if (!ready) { Audio_.init(); }
+      Audio_.resume();
+      if (ready && !pendingUnlock) {
+        pendingUnlock = true;
+        /* a silent 1-sample blip satisfies iOS */
+        try {
+          var b = ctx.createBuffer(1, 1, ctx.sampleRate || 44100);
+          var s = srcOf(b);
+          if (s) { conn(s, master); startStop(s, T(), T() + 0.01); }
+        } catch (e) { }
+      }
+      return ready;
+    };
+
+    Audio_.setQuality = function (q) {
+      lowQ = (q === 0);
+      VOICE_CAP = lowQ ? 18 : 32;
+      if (verb && verbSend) {
+        setV(P(verbSend, 'gain'), lowQ ? 0 : 0.24, T());
+      }
+    };
+
+    Audio_.setVolumes = function () { applyVolumes(); };
+
+    Audio_.play = function (name, opts) {
+      if (!ready) { return 0; }
+      opts = opts || {};
+      var fn = SFX[name];
+      if (!fn) { return 0; }
+      if (!budgetOK(opts.priority)) { return 0; }
+      var dest;
+      try { dest = makeDest(opts); } catch (e) { return 0; }
+      if (!dest) { return 0; }
+      var t = T() + (opts.when || 0);
+      var dur = 0;
+      try { dur = fn(dest, opts, t) || 0; } catch (e2) { warn('sfx ' + name, e2); }
+      return dur;
+    };
+
+    Audio_.playAt = function (name, pos, opts) {
+      opts = opts || {};
+      opts.pos = pos;
+      return Audio_.play(name, opts);
+    };
+
+    Audio_.has = function (name) { return !!SFX[name]; };
+    Audio_.list = function () {
+      var a = [], k;
+      for (k in SFX) { if (Object.prototype.hasOwnProperty.call(SFX, k)) { a.push(k); } }
+      a.sort();
+      return a;
+    };
+
+    Audio_.loop = function (id, vol, fadeSec) { if (ready) { loopSet(id, vol, fadeSec); } };
+    Audio_.loopFilter = function (id, hz, fadeSec) { if (ready) { loopFreq(id, hz, fadeSec); } };
+
+    /* Rain/wind blend that changes with interior/exterior. */
+    Audio_.setWeather = function (o) {
+      if (!ready) { return; }
+      o = o || {};
+      var inside = clamp(o.interior || 0, 0, 1);
+      var rain = clamp(o.rain === undefined ? 1 : o.rain, 0, 1);
+      var wind = clamp(o.wind === undefined ? 0.5 : o.wind, 0, 1);
+      loopSet('rain', rain * lerp(0.32, 0.05, inside), o.fade === undefined ? 1.5 : o.fade);
+      loopSet('rain_low', rain * lerp(0.10, 0.20, inside), 1.5);
+      loopFreq('rain', lerp(2400, 620, inside), 1.5);
+      loopSet('wind', wind * lerp(0.24, 0.06, inside), 1.5);
+      loopSet('interior_hum', inside * 0.14, 1.5);
+      if (verbSend) {
+        setV(P(verbSend, 'gain'), lowQ ? 0 : lerp(0.16, 0.42, inside), T());
+      }
+    };
+
+    Audio_.music = function (state, danger) {
+      if (!ready) { MUS.state = state || MUS.state; return; }
+      if (danger !== undefined && danger !== null) { MUS.danger = clamp(danger, 0, 1); }
+      if (state && state !== MUS.state) {
+        MUS.prevState = MUS.state;
+        MUS.state = state;
+        MUS.step = 0;
+      }
+      musicApply(1.7);
+    };
+    Audio_.musicDanger = function (d) {
+      MUS.danger = clamp(d || 0, 0, 1);
+      if (ready) { musicApply(0.8); }
+    };
+    Audio_.musicState = function () { return MUS.state; };
+    Audio_.stinger = function (kind, opts) {
+      var n = 'stinger_' + (kind || 'reveal');
+      if (!SFX[n]) { n = 'stinger_reveal'; }
+      return Audio_.play(n, opts || { bus: 'music', priority: true });
+    };
+
+    Audio_.setListener = function (pos, quat) {
+      if (!ready || !ctx || !ctx.listener) { return; }
+      var L = ctx.listener;
+      var px = (pos && pos[0]) || 0, py = (pos && pos[1]) || 0, pz = (pos && pos[2]) || 0;
+      listenerPos[0] = px; listenerPos[1] = py; listenerPos[2] = pz;
+      var fx = 0, fy = 0, fz = -1, ux = 0, uy = 1, uz = 0;
+      if (quat && IP.Q && IP.Q.rotateVec3) {
+        var f = IP.V3.TMP6, u = IP.V3.TMP7;
+        IP.Q.rotateVec3(f, quat, [0, 0, -1]);
+        IP.Q.rotateVec3(u, quat, [0, 1, 0]);
+        fx = f[0]; fy = f[1]; fz = f[2];
+        ux = u[0]; uy = u[1]; uz = u[2];
+      }
+      var t = T();
+      try {
+        if (L.positionX && L.positionX.setValueAtTime) {
+          setV(L.positionX, px, t); setV(L.positionY, py, t); setV(L.positionZ, pz, t);
+          setV(L.forwardX, fx, t); setV(L.forwardY, fy, t); setV(L.forwardZ, fz, t);
+          setV(L.upX, ux, t); setV(L.upY, uy, t); setV(L.upZ, uz, t);
+        } else {
+          if (L.setPosition) { L.setPosition(px, py, pz); }
+          if (L.setOrientation) { L.setOrientation(fx, fy, fz, ux, uy, uz); }
+        }
+      } catch (e) { }
+    };
+
+    /* Heartbeat driven by health; call every frame. */
+    var hbT = 0;
+    Audio_.heartbeat = function (health01, dt) {
+      if (!ready) { return; }
+      var h = clamp(health01, 0, 1);
+      if (h > 0.55) { hbT = 0; return; }
+      var intensity = smoothstep(0.55, 0.06, h);
+      var period = lerp(1.15, 0.45, intensity);
+      hbT -= dt;
+      if (hbT <= 0) {
+        hbT = period;
+        Audio_.play('heartbeat', { vol: 0.35 + intensity * 0.75, bus: 'voice', priority: true });
+      }
+    };
+
+    /* Elena breathing driven by fear. */
+    var brT = 0;
+    Audio_.companionBreath = function (fear01, dt, pos) {
+      if (!ready) { return; }
+      var f = clamp(fear01, 0, 1);
+      brT -= dt;
+      if (brT <= 0) {
+        brT = lerp(3.4, 0.85, f);
+        Audio_.play('breath', { fear: f, vol: 0.7 + f * 0.5, pos: pos, bus: 'voice' });
+      }
+    };
+
+    Audio_.update = function (dt) {
+      if (!ready) { return; }
+      try { musicTick(); } catch (e) { }
+      void dt;
+    };
+
+    Audio_.voiceCount = function () { return voices; };
+    Audio_.ctx = function () { return ctx; };
+
+  })();
+
 /*__APPEND__*/
 })();
 if (typeof window !== 'undefined') { window.IP = IP; }

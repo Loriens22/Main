@@ -1157,4 +1157,1204 @@ var IP = (typeof IP !== 'undefined' && IP) || {};
     return after - before;
   }
 
+  /* =======================================================================
+     10. PLAYER UPDATE
+     ======================================================================= */
+
+  function playerSpeedTarget(S, input) {
+    var p = S.player;
+    if (p.grabbedBy >= 0 || p.meleeT > 0 || p.vaulting > 0 || p.climbing) { return 0; }
+    if (p.aiming) { return TUNE.speedAim; }
+    if (p.crouch) { return TUNE.speedCrouch; }
+    if (p.sprinting) { return TUNE.speedSprint; }
+    var mag = Math.min(1, Math.sqrt(input.moveX * input.moveX + input.moveY * input.moveY));
+    if (mag < 0.55) { return TUNE.speedWalk; }
+    return TUNE.speedJog;
+  }
+
+  function updatePlayer(S, input, dt) {
+    var p = S.player;
+    p.animT += dt;
+
+    if (!p.alive) {
+      p.deathT += dt;
+      p.anim = 'death';
+      return;
+    }
+
+    /* ---- look ---- */
+    var sens = 0.0022;
+    var aimSens = p.aiming ? 0.55 : 1.0;
+    p.yaw = angleWrap(p.yaw - (input.lookX || 0) * sens * aimSens);
+    p.pitch = clamp(p.pitch - (input.lookY || 0) * sens * aimSens, -1.30, 1.30);
+
+    /* recoil decay pushes the view back down */
+    if (p.recoilPitch !== 0 || p.recoilYaw !== 0) {
+      var rec = Math.exp(-9 * dt);
+      p.pitch -= p.recoilPitch * (1 - rec);
+      p.yaw -= p.recoilYaw * (1 - rec);
+      p.recoilPitch *= rec;
+      p.recoilYaw *= rec;
+      if (Math.abs(p.recoilPitch) < 1e-5) { p.recoilPitch = 0; }
+      if (Math.abs(p.recoilYaw) < 1e-5) { p.recoilYaw = 0; }
+    }
+    p.recoil = Math.max(0, p.recoil - dt * 3.2);
+
+    /* ---- timers ---- */
+    p.iframes = Math.max(0, p.iframes - dt);
+    p.fireCooldown = Math.max(0, p.fireCooldown - dt);
+    p.meleeCooldown = Math.max(0, p.meleeCooldown - dt);
+    p.parryT = Math.max(0, p.parryT - dt);
+    p.blinded = Math.max(0, p.blinded - dt);
+    p.inCombat = Math.max(0, p.inCombat - dt);
+    p.kickT = Math.max(0, p.kickT - dt);
+    if (p.meleeT > 0) { p.meleeT = Math.max(0, p.meleeT - dt); }
+    if (p.vaulting > 0) { p.vaulting = Math.max(0, p.vaulting - dt); }
+
+    /* melee prompt lifetime */
+    if (p.meleePrompt) {
+      p.meleePrompt.t -= dt;
+      var pe = enemyById(S, p.meleePrompt.enemyId);
+      if (p.meleePrompt.t <= 0 || !pe || pe.dead ||
+          distXZ(pe.pos, p.pos) > TUNE.meleeReach + 0.9) {
+        p.meleePrompt = null;
+      }
+    }
+
+    /* ---- grabbed state overrides everything ---- */
+    if (p.grabbedBy >= 0) {
+      updatePlayerGrabbed(S, input, dt);
+      return;
+    }
+
+    /* ---- health regen (current segment only) ---- */
+    var h = p.health;
+    if (p.inCombat <= 0 && S.time - h.lastHurt > TUNE.regenDelay) {
+      var cap = segCap(h);
+      if (h.hp < cap) {
+        h.hp = Math.min(cap, h.hp + TUNE.regenRate * dt);
+      }
+    }
+    if (p.bleeding > 0) {
+      p.bleeding = Math.max(0, p.bleeding - dt);
+      h.hp = Math.max(1, h.hp - 3.5 * dt);
+    }
+    if (p.poisoned > 0) {
+      p.poisoned = Math.max(0, p.poisoned - dt);
+      h.hp = Math.max(1, h.hp - 5.0 * dt);
+      h.lastHurt = S.time;
+    }
+
+    /* ---- crouch / aim transitions ---- */
+    p.crouch = !!input.crouch && p.vaulting <= 0;
+    p.crouchT = approach(p.crouchT, p.crouch ? 1 : 0, 1 / 0.20, dt);
+    p.height = lerp(TUNE.playerHeight, TUNE.playerCrouchHeight, p.crouchT);
+
+    var wantAim = !!input.aim && p.reloading <= 0 && p.meleeT <= 0;
+    p.aiming = wantAim;
+    p.aimT = approach(p.aimT, wantAim ? 1 : 0, 1 / TUNE.aimTransition, dt);
+
+    /* ---- stamina ---- */
+    var stats = equippedStats(S);
+    var wantSprint = !!input.sprint && !p.aiming && !p.crouch && p.stamina > 1 &&
+                     (Math.abs(input.moveX) + Math.abs(input.moveY)) > 0.2 && !p.exhausted;
+    p.sprinting = wantSprint;
+    var drained = false;
+    if (p.sprinting) { p.stamina -= TUNE.staminaSprint * dt; drained = true; }
+    if (p.aiming && stats.aimSpeedMul < 0.8) {
+      p.stamina -= TUNE.staminaAimHeavy * dt * (1 - stats.aimSpeedMul); drained = true;
+    }
+    if (drained) { p.staminaLock = TUNE.staminaRegenDelay; }
+    else {
+      p.staminaLock = Math.max(0, p.staminaLock - dt);
+      if (p.staminaLock <= 0) {
+        p.stamina = Math.min(p.staminaMax, p.stamina + TUNE.staminaRegen * dt);
+      }
+    }
+    if (p.stamina <= 0) { p.stamina = 0; p.exhausted = true; }
+    if (p.exhausted && p.stamina > p.staminaMax * 0.35) { p.exhausted = false; }
+
+    /* ---- movement with deliberate acceleration ---- */
+    var mx = clamp(input.moveX || 0, -1, 1), my = clamp(input.moveY || 0, -1, 1);
+    var mag = Math.sqrt(mx * mx + my * my);
+    if (mag > 1) { mx /= mag; my /= mag; mag = 1; }
+    var sy = Math.sin(p.yaw), cy = Math.cos(p.yaw);
+    /* forward = +Z rotated by yaw */
+    var wx = mx * cy + my * sy;
+    var wz = -mx * sy + my * cy;
+
+    var tgt = playerSpeedTarget(S, input) * mag;
+    if (p.exhausted) { tgt = Math.min(tgt, TUNE.speedJog * 0.8); }
+    var accel = (tgt > p.speed) ? (TUNE.speedSprint / TUNE.accelTime) : (TUNE.speedSprint / TUNE.decelTime);
+    p.speed = approach(p.speed, tgt, accel, dt);
+
+    if (mag > 0.001) {
+      var desiredDir = Math.atan2(wx, wz);
+      p.bodyYaw = turnToward(p.bodyYaw, p.aiming ? p.yaw : desiredDir, TUNE.turnRate, dt);
+      vnorm(p.moveDir, vset(T0, wx, 0, wz));
+    } else {
+      p.bodyYaw = turnToward(p.bodyYaw, p.yaw, TUNE.turnRate * 0.6, dt);
+      vset(p.moveDir, 0, 0, 0);
+      p.speed = approach(p.speed, 0, TUNE.speedSprint / TUNE.decelTime, dt);
+    }
+
+    var vx = p.moveDir[0] * p.speed;
+    var vz = p.moveDir[2] * p.speed;
+    p.vel[0] = vx; p.vel[2] = vz;
+
+    var moved = 0;
+    if (p.meleeT <= 0 && p.vaulting <= 0 && !p.climbing) {
+      moved = moveEntity(S, p, vx * dt, vz * dt, p.radius, p.height);
+    } else {
+      settleVertical(S, p, p.radius, p.height, 0);
+    }
+    S.stats.distance += moved;
+
+    /* ---- aim cone: blooms with movement/fire, converges when still ---- */
+    updateCone(S, stats, moved / Math.max(dt, 1e-5), dt);
+
+    /* ---- noise emission (hearing model) ---- */
+    if (p.sprinting && moved > 0) { makeNoise(S, p.pos, 9, 'sprint'); }
+    else if (p.crouch) { /* quiet */ }
+    else if (moved > 0.01) { makeNoise(S, p.pos, 4.5, 'walk'); }
+
+    /* ---- reload ---- */
+    if (p.reloading > 0) {
+      p.reloading -= dt;
+      if (p.reloading <= 0) { finishReload(S); }
+    } else if (input.reload) {
+      startReload(S);
+    }
+
+    /* ---- weapon swap ---- */
+    if (input.swapPressed) { cycleWeapon(S, 1); }
+
+    /* ---- melee / parry ---- */
+    if (input.meleePressed) { melee(S); }
+
+    /* ---- fire ---- */
+    if ((input.fire || input.firePressed) && p.reloading <= 0 && p.meleeT <= 0) {
+      fireWeapon(S, dt, !!input.firePressed);
+    }
+
+    /* ---- interact ---- */
+    if (input.interactPressed) { interact(S); }
+
+    /* ---- flashlight ---- */
+    if (input.flashlight !== undefined) { p.flashlight = !!input.flashlight; }
+
+    /* ---- animation label ---- */
+    if (p.meleeT > 0) { p.anim = 'melee'; }
+    else if (p.reloading > 0) { p.anim = 'reload'; }
+    else if (p.vaulting > 0) { p.anim = 'vault'; }
+    else if (p.climbing) { p.anim = 'climb'; }
+    else if (p.aiming) { p.anim = 'aim'; }
+    else if (p.crouch) { p.anim = 'crouch'; }
+    else if (p.sprinting && p.speed > 0.5) { p.anim = 'sprint'; }
+    else if (p.speed > 2.2) { p.anim = 'run'; }
+    else if (p.speed > 0.15) { p.anim = 'walk'; }
+    else { p.anim = 'idle'; }
+
+    sanitizeVec(p.pos); sanitizeVec(p.vel);
+    p.health.hp = clamp(finite(p.health.hp, 0), 0, p.health.max);
+    p.stamina = clamp(finite(p.stamina, 0), 0, p.staminaMax);
+  }
+
+  function updateCone(S, stats, speed, dt) {
+    var p = S.player;
+    /* target: tight when aiming and still, wide when hip-firing and moving */
+    var base = stats.cone;
+    var aimFactor = lerp(3.4, 1.0, p.aimT);
+    var moveFactor = 1 + clamp(speed / TUNE.speedSprint, 0, 1) * 2.6;
+    var crouchFactor = p.crouch ? 0.72 : 1.0;
+    var staminaFactor = p.exhausted ? 1.45 : 1.0;
+    var target = base * aimFactor * moveFactor * crouchFactor * staminaFactor;
+    p.coneTarget = target;
+    /* bloom decays; converge rate is per-weapon */
+    p.coneBloom = Math.max(0, p.coneBloom - stats.coneConverge * 60 * dt);
+    var conv = 1 - Math.exp(-dt / TUNE.coneConvergeTime * (p.aiming && speed < 0.3 ? 2.4 : 1.0));
+    p.cone = p.cone + (target - p.cone) * conv;
+    p.cone = clamp(p.cone + p.coneBloom, base * 0.5, 0.42);
+  }
+
+  function getAimCone(S) {
+    var stats = equippedStats(S);
+    return { current: S.player.cone, min: stats.cone, max: stats.cone * 6,
+             converge: clamp(1 - (S.player.cone - stats.cone) / (stats.cone * 5 + 1e-6), 0, 1) };
+  }
+
+  function cycleWeapon(S, dir) {
+    var p = S.player;
+    var n = p.weapons.length;
+    if (n <= 1) { return; }
+    var i = p.equipped;
+    for (var k = 0; k < n; k++) {
+      i = (i + dir + n) % n;
+      var w = WEAPONS[p.weapons[i].id];
+      if (w.slot === 'melee') { continue; }
+      p.lastEquipped = p.equipped;
+      p.equipped = i;
+      p.reloading = 0;
+      p.coneBloom = 0.02;
+      emit('weapon_swap', { id: p.weapons[i].id });
+      return;
+    }
+  }
+
+  function equipWeapon(S, id) {
+    for (var i = 0; i < S.player.weapons.length; i++) {
+      if (S.player.weapons[i].id === id) {
+        S.player.lastEquipped = S.player.equipped;
+        S.player.equipped = i;
+        S.player.reloading = 0;
+        emit('weapon_swap', { id: id });
+        return true;
+      }
+    }
+    return false;
+  }
+
+  /* =======================================================================
+     11. RELOAD
+     ======================================================================= */
+
+  function startReload(S) {
+    var p = S.player;
+    if (p.reloading > 0 || p.meleeT > 0) { return false; }
+    var pw = equippedWeapon(S);
+    var st = weaponStats(S, pw, STAT_SCRATCH);
+    if (!st.ammoType) { return false; }
+    if (st.infinite) { pw.mag = st.capacity; return false; }
+    if (pw.mag >= st.capacity) { return false; }
+    var reserve = p.ammo[st.ammoType] || 0;
+    if (reserve <= 0) { emit('reload', { id: pw.id, empty: true }); return false; }
+    if (st.shellReload) {
+      p.reloading = st.reloadTime;
+      p.reloadTotal = st.reloadTime;
+      p.reloadShells = 1;
+    } else {
+      p.reloading = st.reloadTime;
+      p.reloadTotal = st.reloadTime;
+      p.reloadShells = 0;
+    }
+    p.coneBloom = Math.min(0.12, p.coneBloom + 0.03);
+    emit('reload', { id: pw.id, time: st.reloadTime, shell: !!st.shellReload });
+    return true;
+  }
+
+  function finishReload(S) {
+    var p = S.player;
+    var pw = equippedWeapon(S);
+    var st = weaponStats(S, pw, STAT_SCRATCH);
+    var reserve = p.ammo[st.ammoType] || 0;
+    if (st.shellReload) {
+      if (reserve > 0 && pw.mag < st.capacity) {
+        pw.mag += 1; p.ammo[st.ammoType] = reserve - 1;
+      }
+      p.reloading = 0;
+      if (pw.mag < st.capacity && (p.ammo[st.ammoType] || 0) > 0) {
+        /* chain another shell unless interrupted next frame */
+        p.reloading = st.reloadTime;
+        p.reloadTotal = st.reloadTime;
+      }
+    } else {
+      var need = st.capacity - pw.mag;
+      var take = Math.min(need, reserve);
+      pw.mag += take;
+      p.ammo[st.ammoType] = reserve - take;
+      p.reloading = 0;
+    }
+    emit('reload_done', { id: pw.id, mag: pw.mag });
+  }
+
+  function reload(S) { return startReload(S); }
+
+  /* =======================================================================
+     12. FIRING / HITSCAN
+     ======================================================================= */
+
+  function playerEye(S, out) {
+    var p = S.player;
+    out[0] = p.pos[0];
+    out[1] = p.pos[1] + p.height * TUNE.eyeRatio;
+    out[2] = p.pos[2];
+    return out;
+  }
+
+  function aimDir(S, out, spreadX, spreadY) {
+    var p = S.player;
+    var yaw = p.yaw + (spreadX || 0);
+    var pitch = clamp(p.pitch + (spreadY || 0), -1.45, 1.45);
+    var cp = Math.cos(pitch);
+    out[0] = Math.sin(yaw) * cp;
+    out[1] = Math.sin(pitch);
+    out[2] = Math.cos(yaw) * cp;
+    return out;
+  }
+
+  function fireWeapon(S, dt, pressed) {
+    var p = S.player;
+    if (!p.alive || p.grabbedBy >= 0) { return false; }
+    var pw = equippedWeapon(S);
+    var st = weaponStats(S, pw, STAT_SCRATCH);
+    if (st.slot === 'melee') { if (pressed) { melee(S); } return false; }
+    if (p.fireCooldown > 0) { return false; }
+    if (p.reloading > 0) { return false; }
+
+    if (st.thrown) {
+      var reserveT = p.ammo[st.ammoType] || 0;
+      if (reserveT <= 0) { emit('dryfire', { id: pw.id }); return false; }
+      if (!pressed) { return false; }
+      p.ammo[st.ammoType] = reserveT - 1;
+      throwGrenade(S, st);
+      p.fireCooldown = st.interval;
+      S.stats.shotsFired++;
+      pw.shots++;
+      makeNoise(S, p.pos, 8, 'throw');
+      emit('shot', { id: pw.id, thrown: true });
+      return true;
+    }
+
+    if (st.infinite) { pw.mag = Math.max(pw.mag, 1); }
+    if (pw.mag <= 0) {
+      if (pressed) { emit('dryfire', { id: pw.id }); startReload(S); }
+      return false;
+    }
+
+    pw.mag -= 1;
+    p.fireCooldown = st.interval;
+    p.lastFireT = S.time;
+    p.inCombat = TUNE.combatMemory;
+    S.stats.shotsFired++;
+    pw.shots++;
+    trackWeaponUsage(S, pw.id);
+
+    /* recoil + bloom */
+    p.coneBloom = Math.min(0.30, p.coneBloom + st.coneBloom * (p.aiming ? 0.7 : 1.0));
+    p.recoilPitch += st.recoil * (p.crouch ? 0.8 : 1.0);
+    p.recoilYaw += (rnd(S) - 0.5) * st.recoil * 0.55;
+    p.recoil = 1;
+
+    makeNoise(S, p.pos, st.noise, 'gunshot');
+    emit('shot', { id: pw.id, mag: pw.mag, cone: p.cone, pos: vcopy(p.pos) });
+
+    if (st.projectile) {
+      spawnProjectile(S, 'rocket', p.pos, aimDir(S, T3, 0, 0), 34, st.damage, st);
+      return true;
+    }
+
+    var pellets = st.pellets;
+    var anyHit = false;
+    for (var i = 0; i < pellets; i++) {
+      var sx, sy2;
+      if (pellets > 1) {
+        var a = rnd(S) * TAU, r = Math.sqrt(rnd(S)) * p.cone;
+        sx = Math.cos(a) * r; sy2 = Math.sin(a) * r;
+      } else {
+        var a2 = rnd(S) * TAU, r2 = Math.sqrt(rnd(S)) * p.cone * 0.5;
+        sx = Math.cos(a2) * r2; sy2 = Math.sin(a2) * r2;
+      }
+      if (hitscan(S, st, pw, sx, sy2)) { anyHit = true; }
+    }
+    if (anyHit) { S.stats.shotsHit++; pw.hits++; }
+    return true;
+  }
+
+  /* ray vs enemy: returns hit location string or null */
+  var HIT_SCRATCH = { enemy: null, t: 1, loc: 'torso', point: [0, 0, 0] };
+
+  function rayEnemy(S, e, origin, dir, maxDist, out) {
+    /* capsule approximated by a vertical cylinder + head sphere */
+    var arch = ARCH[e.kind] || ARCH.ganado;
+    var r = e.radius || arch.radius;
+    var hgt = e.height || arch.height;
+    var ox = origin[0] - e.pos[0], oz = origin[2] - e.pos[2];
+    var dx = dir[0], dz = dir[2];
+    var a = dx * dx + dz * dz;
+    if (a < 1e-9) { return false; }
+    var b = 2 * (ox * dx + oz * dz);
+    var c = ox * ox + oz * oz - r * r;
+    var disc = b * b - 4 * a * c;
+    if (disc < 0) { return false; }
+    var sq = Math.sqrt(disc);
+    var t = (-b - sq) / (2 * a);
+    if (t < 0) { t = (-b + sq) / (2 * a); }
+    if (t < 0 || t > maxDist) { return false; }
+    var hy = origin[1] + dir[1] * t;
+    var baseY = e.pos[1];
+    if (e.downed) { hgt *= 0.42; }
+    if (hy < baseY - 0.05 || hy > baseY + hgt) { return false; }
+    var rel = (hy - baseY) / hgt;
+    var loc;
+    if (e.shield && !e.shield.broken && facingShield(e, origin)) {
+      loc = 'shield';
+    } else if (e.mutated && rel > 0.72) {
+      loc = 'weakpoint';
+    } else if (e.weakpointOpen && rel > 0.55 && rel < 0.80) {
+      loc = 'weakpoint';
+    } else if (rel > 0.845) {
+      loc = 'head';
+    } else if (rel < 0.46) {
+      /* legs: pick side from horizontal offset relative to facing */
+      var side = (ox * Math.cos(e.yaw) - oz * Math.sin(e.yaw));
+      loc = side > 0 ? 'limbR' : 'limbL';
+    } else {
+      var hx = origin[0] + dir[0] * t - e.pos[0];
+      var hz = origin[2] + dir[2] * t - e.pos[2];
+      var lat = hx * Math.cos(e.yaw) - hz * Math.sin(e.yaw);
+      if (Math.abs(lat) > r * 0.62 && rel > 0.52 && rel < 0.78) {
+        loc = lat > 0 ? 'limbR' : 'limbL';
+      } else {
+        loc = 'torso';
+      }
+    }
+    out.t = t; out.loc = loc;
+    out.point[0] = origin[0] + dir[0] * t;
+    out.point[1] = hy;
+    out.point[2] = origin[2] + dir[2] * t;
+    return true;
+  }
+
+  function facingShield(e, from) {
+    var dx = from[0] - e.pos[0], dz = from[2] - e.pos[2];
+    var ang = Math.atan2(dx, dz);
+    var d = Math.abs(angleWrap(ang - e.yaw));
+    var arc = (ARCH[e.kind] && ARCH[e.kind].shield) ? ARCH[e.kind].shield.arc : 1.1;
+    return d < arc;
+  }
+
+  function hitscan(S, st, pw, spreadX, spreadY) {
+    var origin = playerEye(S, T2);
+    var dir = aimDir(S, T3, spreadX, spreadY);
+    var maxDist = st.range;
+    /* clip against geometry */
+    T4[0] = origin[0] + dir[0] * maxDist;
+    T4[1] = origin[1] + dir[1] * maxDist;
+    T4[2] = origin[2] + dir[2] * maxDist;
+    var wallT = rayBoxes(S, origin, T4);
+    var wallDist = wallT * maxDist;
+
+    var pierce = st.pierce;
+    var hitAny = false;
+    var guard = 0;
+    var searchFrom = 0;
+    while (guard++ < 12) {
+      var best = null, bestT = wallDist;
+      for (var i = 0; i < S.enemies.length; i++) {
+        var e = S.enemies[i];
+        if (e.dead && e.corpseT > 0.15) { continue; }
+        if (e.__pierced) { continue; }
+        if (rayEnemy(S, e, origin, dir, bestT, HIT_SCRATCH)) {
+          if (HIT_SCRATCH.t > searchFrom && HIT_SCRATCH.t < bestT) {
+            bestT = HIT_SCRATCH.t;
+            best = e;
+            HIT_SCRATCH.enemy = e;
+            best.__hitLoc = HIT_SCRATCH.loc;
+            best.__hitPt = [HIT_SCRATCH.point[0], HIT_SCRATCH.point[1], HIT_SCRATCH.point[2]];
+          }
+        }
+      }
+      if (!best) { break; }
+      hitAny = true;
+      /* distance falloff */
+      var dist = bestT;
+      var fo = 1;
+      if (st.falloffEnd > st.falloffStart) {
+        fo = 1 - clamp((dist - st.falloffStart) / (st.falloffEnd - st.falloffStart), 0, 1);
+        fo = 0.28 + 0.72 * fo;
+      }
+      var loc = best.__hitLoc;
+      var hl = HITLOC[loc] || HITLOC.torso;
+      var mult = hl.mult;
+      if (loc === 'head' && st.headMultBonus) { mult += st.headMultBonus; }
+      var crit = rnd(S) < (st.critChance * hl.crit);
+      var dmg = st.damage * mult * fo * (crit ? st.critMult : 1);
+      damageEnemy(S, best, dmg, 'bullet', best.__hitPt, dir, loc,
+                  st.staggerPower * hl.poise * (crit ? 1.5 : 1));
+      best.__pierced = true;
+      if (pierce <= 0) { break; }
+      pierce--;
+      searchFrom = bestT + 0.01;
+    }
+    /* clear pierce markers */
+    for (var k = 0; k < S.enemies.length; k++) { S.enemies[k].__pierced = false; }
+
+    if (!hitAny) {
+      addEffect(S, 'impact', T4, 0.4);
+    }
+    return hitAny;
+  }
+
+  /* =======================================================================
+     13. ENEMY DAMAGE / STAGGER ECONOMY / LIMBS / MUTATION
+     ======================================================================= */
+
+  function damageEnemy(S, e, amount, type, hitPos, hitDir, loc, poisePower) {
+    if (!e || e.dead) { return 0; }
+    loc = loc || 'torso';
+    var arch = ARCH[e.kind] || ARCH.ganado;
+
+    if (loc === 'shield' && e.shield && !e.shield.broken) {
+      e.shield.hp -= amount * 3.0;
+      addEffect(S, 'spark', hitPos || e.pos, 0.25);
+      emit('hit', { id: e.id, loc: 'shield', dmg: 0, shielded: true,
+                    pos: hitPos ? vcopy(hitPos) : vcopy(e.pos) });
+      if (e.shield.hp <= 0) {
+        e.shield.broken = true;
+        applyStagger(S, e, 'stumble_back', 1.4);
+        emit('stagger', { id: e.id, type: 'shield_break' });
+      }
+      return 0;
+    }
+
+    var armor = arch.armor || 0;
+    if (e.mutated) { armor *= 0.4; }
+    var actual = amount * (1 - armor);
+    if (e.limbs && loc === 'head' && e.limbs.head) { actual *= 1.35; }
+
+    e.hp -= actual;
+    e.lastHitT = S.time;
+    e.alert = 1;
+    noticePlayer(S, e, S.player.pos, 1.0);
+    S.stats.damageDealt += actual;
+    if (loc === 'head') { S.stats.headshots++; }
+
+    emit('hit', { id: e.id, kind: e.kind, loc: loc, dmg: actual, hp: e.hp,
+                  pos: hitPos ? vcopy(hitPos) : vcopy(e.pos),
+                  dir: hitDir ? vcopy(hitDir) : null, type: type });
+    addEffect(S, 'blood', hitPos || e.pos, 0.5);
+
+    /* limb destruction */
+    if (arch.limbs && e.limbs) {
+      if (loc === 'limbL' || loc === 'limbR') {
+        var key = (loc === 'limbL') ? 'larm' : 'rarm';
+        e.limbDmg[key] += actual;
+        if (!e.limbs[key] === false && e.limbDmg[key] > e.limbThreshold && !e.limbLost[key]) {
+          destroyLimb(S, e, key);
+        }
+      }
+    }
+
+    /* poise / stagger economy */
+    var pp = (poisePower !== undefined ? poisePower : amount * 0.35);
+    pp *= TUNE.staggerBase / (diffOf(S).poise);
+    if (e.mutated) { pp *= 0.65; }
+    if (arch.boss) { pp *= 0.35; }
+    e.poise -= pp;
+    if (e.poise <= 0 && !e.staggered) {
+      var hl = HITLOC[loc] || HITLOC.torso;
+      var kind = hl.react;
+      if (kind === 'shield_ring' || kind === 'weak_flinch') { kind = 'stumble_back'; }
+      applyStagger(S, e, kind, 1.0);
+      e.poise = e.poiseMax;
+    }
+
+    if (e.hp <= 0) {
+      killEnemy(S, e, loc, type, hitDir);
+    }
+    return actual;
+  }
+
+  function destroyLimb(S, e, key) {
+    e.limbLost[key] = true;
+    e.limbs[key] = false;
+    applyStagger(S, e, 'kneel', 1.1);
+    emit('limb_lost', { id: e.id, limb: key });
+    addEffect(S, 'gib', e.pos, 0.8);
+    if (e.limbLost.larm && e.limbLost.rarm) {
+      /* armless enemies charge and body-slam */
+      e.armless = true;
+      e.aggression = 1.8;
+      e.speedMul = 1.35;
+      e.canGrab = false;
+      emit('enemy_armless', { id: e.id });
+    }
+  }
+
+  function applyStagger(S, e, kind, scale) {
+    if (e.dead) { return; }
+    var dur = 1.1;
+    if (kind === 'stumble_clutch') { dur = 1.55; }
+    else if (kind === 'kneel') { dur = 2.0; }
+    else if (kind === 'stumble_back') { dur = 1.15; }
+    else if (kind === 'downed') { dur = 2.6; }
+    dur *= scale || 1;
+    if (e.mutated) { dur *= 0.7; }
+    e.staggered = true;
+    e.staggerKind = kind;
+    e.staggerT = dur;
+    e.state = 'Stagger';
+    e.stateT = 0;
+    releaseToken(S, e);
+    if (e.grabbing === 'player') { releasePlayerGrab(S, e, 'stagger'); }
+    if (e.grabbing === 'elena') { releaseElenaGrab(S, e, 'stagger'); }
+    S.stats.staggers++;
+    emit('stagger', { id: e.id, kind: e.kind, type: kind, dur: dur, pos: vcopy(e.pos) });
+    offerMeleePrompt(S, e);
+  }
+
+  function offerMeleePrompt(S, e) {
+    var p = S.player;
+    if (!p.alive || p.grabbedBy >= 0) { return; }
+    var d = distXZ(p.pos, e.pos);
+    if (d > TUNE.meleeReach + 1.2) { return; }
+    var kind;
+    if (e.downed || e.staggerKind === 'downed') { kind = 'finisher'; }
+    else if (e.staggerKind === 'kneel' && isBehind(p, e)) { kind = 'suplex'; }
+    else if (e.staggerKind === 'kneel') { kind = 'roundhouse'; }
+    else if (e.staggerKind === 'stumble_clutch') { kind = 'roundhouse'; }
+    else { kind = 'roundhouse'; }
+    p.meleePrompt = { enemyId: e.id, kind: kind, t: TUNE.meleeWindow };
+    emit('melee_prompt', { id: e.id, kind: kind });
+  }
+
+  function isBehind(p, e) {
+    var dx = p.pos[0] - e.pos[0], dz = p.pos[2] - e.pos[2];
+    var ang = Math.atan2(dx, dz);
+    return Math.abs(angleWrap(ang - e.yaw)) > 2.0;
+  }
+
+  function killEnemy(S, e, loc, type, hitDir) {
+    if (e.dead) { return; }
+    var arch = ARCH[e.kind] || ARCH.ganado;
+    var d = diffOf(S);
+
+    /* Plaga mutation on a killing headshot */
+    if (!e.mutated && arch.mutate && loc === 'head' && type !== 'explosion') {
+      var chance = d.mutChance * (1 + S.act * 0.22) * (1 + S.director.heat * 0.25);
+      if (rnd(S) < clamp(chance, 0, 0.65)) {
+        mutateEnemy(S, e);
+        return;
+      }
+    }
+
+    e.dead = true;
+    e.hp = 0;
+    e.corpseT = 0;
+    e.state = 'Dead';
+    releaseToken(S, e);
+    if (e.grabbing === 'player') { releasePlayerGrab(S, e, 'killed'); }
+    if (e.grabbing === 'elena') { releaseElenaGrab(S, e, 'killed'); }
+    unmarkElenaHunter(S, e);
+    S.stats.kills++;
+    if (type === 'melee') { S.stats.meleeKills++; }
+    S.player.inCombat = TUNE.combatMemory;
+    emit('kill', { id: e.id, kind: e.kind, loc: loc, type: type, pos: vcopy(e.pos),
+                   mutated: e.mutated });
+    addEffect(S, 'death', e.pos, 1.0);
+    /* reward + drops */
+    var scrip = Math.round((arch.scrip || 200) * (e.mutated ? 1.4 : 1));
+    S.player.scrip += scrip;
+    S.stats.scripEarned += scrip;
+    rollDrop(S, e);
+  }
+
+  function mutateEnemy(S, e) {
+    e.mutated = true;
+    e.hp = Math.max(1, Math.round((ARCH[e.kind] || ARCH.ganado).hp * 0.55));
+    e.maxHp = e.hp;
+    e.poiseMax = Math.round(e.poiseMax * 1.35);
+    e.poise = e.poiseMax;
+    e.speedMul = (e.speedMul || 1) * 1.42;
+    e.aggression = (e.aggression || 1) * 1.55;
+    e.staggered = false;
+    e.staggerT = 0;
+    e.state = 'Mutate';
+    e.stateT = 0;
+    e.mutateT = 0.85;
+    e.canGrab = false;
+    S.stats.mutations++;
+    emit('mutate', { id: e.id, kind: e.kind, pos: vcopy(e.pos) });
+    addEffect(S, 'burst', e.pos, 1.2);
+    /* mutation heat: parasite growth ignites nearby fire */
+    for (var i = 0; i < S.hazards.length; i++) {
+      var hz = S.hazards[i];
+      if (hz.kind === 'fire' && distXZ(hz.pos, e.pos) < hz.radius + 2.5) {
+        spawnHazard(S, 'fire', e.pos, 2.0, 7.0);
+        break;
+      }
+    }
+  }
+
+  /* =======================================================================
+     14. MELEE / PARRY / GRABS (player side)
+     ======================================================================= */
+
+  function melee(S) {
+    var p = S.player;
+    if (!p.alive) { return false; }
+
+    /* mash out of a grab */
+    if (p.grabbedBy >= 0) { p.grabTaps++; return true; }
+
+    if (p.meleeCooldown > 0 || p.meleeT > 0) { return false; }
+    if (p.stamina < TUNE.staminaMelee * 0.5) { emit('melee_fail', { reason: 'stamina' }); return false; }
+
+    /* parry check: any enemy currently telegraphing a grab within reach */
+    var parried = null;
+    for (var i = 0; i < S.enemies.length; i++) {
+      var e = S.enemies[i];
+      if (e.dead) { continue; }
+      if (e.state === 'GrabTelegraph' && e.stateT <= TUNE.parryWindow + 0.06) {
+        if (distXZ(e.pos, p.pos) < 2.2) { parried = e; break; }
+      }
+      if (e.state === 'Windup' && e.stateT >= e.windTime * 0.55 &&
+          distXZ(e.pos, p.pos) < 2.0 && rnd(S) < 0.85) {
+        parried = e; break;
+      }
+    }
+
+    p.stamina = Math.max(0, p.stamina - TUNE.staminaMelee);
+    p.staminaLock = TUNE.staminaRegenDelay;
+    p.meleeT = 0.55;
+    p.meleeCooldown = 0.75;
+    p.iframes = TUNE.meleeIFrames;
+    p.inCombat = TUNE.combatMemory;
+
+    if (parried) {
+      p.parrySuccess = S.time;
+      applyStagger(S, parried, 'stumble_clutch', 1.3);
+      damageEnemy(S, parried, 45, 'melee', parried.pos, null, 'torso', 60);
+      emit('parry', { id: parried.id, pos: vcopy(parried.pos) });
+      makeNoise(S, p.pos, 6, 'melee');
+      return true;
+    }
+
+    /* contextual finisher */
+    var prompt = p.meleePrompt;
+    var kind = 'kick';
+    var dmg = 90;
+    var radius = 2.4;
+    if (prompt) {
+      var pe = enemyById(S, prompt.enemyId);
+      if (pe && !pe.dead && distXZ(pe.pos, p.pos) <= TUNE.meleeReach + 0.5) {
+        kind = prompt.kind;
+        if (kind === 'roundhouse') { dmg = 150; radius = 2.9; }
+        else if (kind === 'suplex') { dmg = 260; radius = 2.0; }
+        else if (kind === 'finisher') { dmg = 400; radius = 1.4; }
+        p.meleePrompt = null;
+        /* primary target takes the full hit */
+        damageEnemy(S, pe, dmg, 'melee', pe.pos, null, kind === 'finisher' ? 'head' : 'torso',
+                    260);
+        if (!pe.dead && kind !== 'finisher') {
+          pe.downed = true; pe.downT = 2.4;
+          applyStagger(S, pe, 'downed', 1.0);
+        }
+      }
+    }
+    if (kind === 'kick') {
+      dmg = 70; radius = 2.6;
+    }
+    /* AoE splash on everyone else in range */
+    for (var j = 0; j < S.enemies.length; j++) {
+      var q = S.enemies[j];
+      if (q.dead) { continue; }
+      if (prompt && q.id === prompt.enemyId) { continue; }
+      var dd = distXZ(q.pos, p.pos);
+      if (dd > radius) { continue; }
+      var dot = 1;
+      if (kind === 'kick' || kind === 'roundhouse') {
+        var ang = Math.atan2(q.pos[0] - p.pos[0], q.pos[2] - p.pos[2]);
+        dot = Math.cos(angleWrap(ang - p.yaw));
+        if (dot < (kind === 'roundhouse' ? -0.4 : 0.2)) { continue; }
+      }
+      damageEnemy(S, q, dmg * 0.55, 'melee', q.pos, null, 'torso', 120);
+      pushEnemy(S, q, p.pos, 3.2);
+    }
+    emit('melee', { kind: kind, pos: vcopy(p.pos) });
+    makeNoise(S, p.pos, 7, 'melee');
+    return true;
+  }
+
+  function pushEnemy(S, e, fromPos, force) {
+    var dx = e.pos[0] - fromPos[0], dz = e.pos[2] - fromPos[2];
+    var d = Math.sqrt(dx * dx + dz * dz) || 1;
+    var arch = ARCH[e.kind] || ARCH.ganado;
+    var m = Math.max(30, arch.mass);
+    e.knock[0] += (dx / d) * force * (80 / m);
+    e.knock[2] += (dz / d) * force * (80 / m);
+  }
+
+  function updatePlayerGrabbed(S, input, dt) {
+    var p = S.player;
+    var e = enemyById(S, p.grabbedBy);
+    if (!e || e.dead) { releasePlayerGrab(S, e, 'lost'); return; }
+    p.grabT += dt;
+    p.anim = 'grabbed';
+    if (input.qteTapped || input.meleePressed) { p.grabTaps++; }
+    /* dragged toward the grabber */
+    var dx = e.pos[0] - p.pos[0], dz = e.pos[2] - p.pos[2];
+    var d = Math.sqrt(dx * dx + dz * dz);
+    if (d > 0.85) {
+      moveEntity(S, p, (dx / d) * 1.1 * dt, (dz / d) * 1.1 * dt, p.radius, p.height);
+    }
+    if (p.grabTaps >= p.grabTapsNeeded) {
+      S.stats.grabsEscaped++;
+      applyStagger(S, e, 'stumble_back', 1.0);
+      releasePlayerGrab(S, e, 'escape');
+      emit('grab_escape', { id: e.id, who: 'player', taps: p.grabTaps, time: p.grabT });
+      return;
+    }
+    if (p.grabT >= TUNE.grabMashWindow) {
+      S.stats.grabsFailed++;
+      damage(S, S.player, 28 + S.act * 5, 'grab', e.pos, null);
+      releasePlayerGrab(S, e, 'damaged');
+    }
+  }
+
+  function startPlayerGrab(S, e) {
+    var p = S.player;
+    if (p.grabbedBy >= 0 || p.iframes > 0 || !p.alive) { return false; }
+    p.grabbedBy = e.id;
+    p.grabT = 0;
+    p.grabTaps = 0;
+    p.grabTapsNeeded = diffOf(S).mash;
+    p.sprinting = false;
+    p.speed = 0;
+    e.grabbing = 'player';
+    e.state = 'Grabbing';
+    e.stateT = 0;
+    S.elena.fear = clamp(S.elena.fear + 0.28, 0, 1);
+    emit('grab_start', { id: e.id, who: 'player', taps: p.grabTapsNeeded });
+    return true;
+  }
+
+  function releasePlayerGrab(S, e, reason) {
+    var p = S.player;
+    p.grabbedBy = -1;
+    p.grabT = 0;
+    p.grabTaps = 0;
+    p.iframes = Math.max(p.iframes, 0.45);
+    if (e) {
+      e.grabbing = null;
+      e.grabCooldown = 3.0;
+      if (e.state === 'Grabbing') { e.state = 'Chase'; e.stateT = 0; }
+    }
+    emit('grab_end', { who: 'player', reason: reason });
+  }
+
+  /* =======================================================================
+     15. PROJECTILES / EXPLOSIONS / HAZARDS
+     ======================================================================= */
+
+  function spawnProjectile(S, kind, pos, dir, speed, dmg, st) {
+    if (S.projectiles.length >= TUNE.projectileCap) { S.projectiles.shift(); }
+    var pr = {
+      id: S.nextId++, kind: kind,
+      pos: [pos[0], pos[1] + 1.3, pos[2]],
+      vel: [dir[0] * speed, dir[1] * speed, dir[2] * speed],
+      dmg: dmg, life: 6.0, t: 0,
+      gravity: (kind === 'acid' || kind === 'grenade' || kind === 'brick' ||
+                kind === 'bottle') ? -9.8 : 0,
+      blast: st ? (st.blastRadius || 0) : 0,
+      impulse: st ? (st.impulse || 0) : 0,
+      blind: st ? (st.blind || 0) : 0,
+      stagger: st ? (st.staggerPower || 0) : 0,
+      fuse: -1, owner: 'player', radius: 0.12
+    };
+    S.projectiles.push(pr);
+    return pr;
+  }
+
+  function throwGrenade(S, st) {
+    var p = S.player;
+    var dir = aimDir(S, T3, 0, 0);
+    var pr = spawnProjectile(S, st.id === 'flashbang' ? 'flashbang' : 'grenade',
+                             p.pos, dir, 14, st.damage, st);
+    pr.gravity = -9.8;
+    pr.fuse = 1.6;
+    pr.radius = 0.14;
+    return pr;
+  }
+
+  function updateProjectiles(S, dt) {
+    for (var i = S.projectiles.length - 1; i >= 0; i--) {
+      var pr = S.projectiles[i];
+      pr.t += dt;
+      pr.life -= dt;
+      if (pr.gravity) { pr.vel[1] += pr.gravity * dt; }
+      var ox = pr.pos[0], oy = pr.pos[1], oz = pr.pos[2];
+      pr.pos[0] += pr.vel[0] * dt;
+      pr.pos[1] += pr.vel[1] * dt;
+      pr.pos[2] += pr.vel[2] * dt;
+      sanitizeVec(pr.pos);
+
+      var exploded = false;
+      /* world collision */
+      T0[0] = ox; T0[1] = oy; T0[2] = oz;
+      var tHit = rayBoxes(S, T0, pr.pos);
+      var ground = navSampleHeight(S, pr.pos[0], pr.pos[2]);
+      if (pr.pos[1] <= ground + 0.05) {
+        pr.pos[1] = ground + 0.05;
+        if (pr.fuse > 0) {
+          /* bounce */
+          pr.vel[1] = Math.abs(pr.vel[1]) * 0.34;
+          pr.vel[0] *= 0.6; pr.vel[2] *= 0.6;
+        } else {
+          exploded = true;
+        }
+      } else if (tHit < 1) {
+        if (pr.fuse > 0) {
+          pr.vel[0] *= -0.35; pr.vel[2] *= -0.35;
+          pr.pos[0] = ox; pr.pos[2] = oz;
+        } else {
+          exploded = true;
+        }
+      }
+
+      /* actor collision */
+      if (!exploded && pr.owner === 'player') {
+        for (var j = 0; j < S.enemies.length; j++) {
+          var e = S.enemies[j];
+          if (e.dead) { continue; }
+          if (distXZ2(e.pos, pr.pos) < (e.radius + pr.radius) * (e.radius + pr.radius) &&
+              pr.pos[1] > e.pos[1] - 0.2 && pr.pos[1] < e.pos[1] + e.height) {
+            if (pr.blast > 0) { exploded = true; }
+            else {
+              damageEnemy(S, e, pr.dmg, 'projectile', pr.pos, pr.vel, 'torso', pr.stagger);
+              S.projectiles.splice(i, 1);
+            }
+            break;
+          }
+        }
+      } else if (!exploded && pr.owner === 'enemy') {
+        var pl = S.player;
+        if (distXZ2(pl.pos, pr.pos) < 0.42 * 0.42 &&
+            pr.pos[1] > pl.pos[1] - 0.2 && pr.pos[1] < pl.pos[1] + pl.height) {
+          damage(S, S.player, pr.dmg, pr.kind === 'acid' ? 'acid' : 'bullet', pr.pos, pr.vel);
+          if (pr.kind === 'acid') { S.player.poisoned = 3.0; }
+          if (pr.blast > 0) { exploded = true; }
+          else { S.projectiles.splice(i, 1); continue; }
+        } else if (S.elena.alive && distXZ2(S.elena.pos, pr.pos) < 0.40 * 0.40 &&
+                   pr.pos[1] > S.elena.pos[1] - 0.2 && pr.pos[1] < S.elena.pos[1] + S.elena.height) {
+          damage(S, S.elena, pr.dmg * 0.7, 'acid', pr.pos, pr.vel);
+          S.projectiles.splice(i, 1); continue;
+        }
+      }
+
+      if (pr.fuse > 0) {
+        pr.fuse -= dt;
+        if (pr.fuse <= 0) { exploded = true; }
+      }
+      if (pr.life <= 0) { exploded = pr.blast > 0; }
+
+      if (exploded) {
+        if (pr.blast > 0) {
+          explode(S, pr.pos, pr.blast, pr.dmg, pr.impulse, pr.blind, pr.owner);
+        }
+        if (i < S.projectiles.length && S.projectiles[i] === pr) { S.projectiles.splice(i, 1); }
+      } else if (pr.life <= 0) {
+        S.projectiles.splice(i, 1);
+      }
+    }
+  }
+
+  function explode(S, pos, radius, dmg, impulse, blind, owner) {
+    emit('explosion', { pos: vcopy(pos), radius: radius, blind: blind > 0 });
+    addEffect(S, blind > 0 ? 'flash' : 'explosion', pos, 1.4);
+    makeNoise(S, pos, 90, 'explosion');
+    var i;
+    for (i = 0; i < S.enemies.length; i++) {
+      var e = S.enemies[i];
+      if (e.dead) { continue; }
+      var d = vdist(e.pos, pos);
+      if (d > radius) { continue; }
+      if (!hasLOS(S, pos, e.pos)) { d *= 1.6; if (d > radius) { continue; } }
+      var fall = 1 - clamp(d / radius, 0, 1);
+      fall = fall * fall;
+      if (blind > 0) {
+        e.blinded = blind * fall;
+        applyStagger(S, e, 'stumble_back', 1.2);
+        damageEnemy(S, e, dmg * fall, 'explosion', e.pos, null, 'torso', 200 * fall);
+      } else {
+        damageEnemy(S, e, dmg * fall, 'explosion', e.pos, null, 'torso', 220 * fall);
+        pushEnemy(S, e, pos, impulse * fall);
+      }
+    }
+    /* player self-damage (only from own explosives if very close) */
+    var pd = vdist(S.player.pos, pos);
+    if (pd < radius && blind <= 0) {
+      var pf = 1 - clamp(pd / radius, 0, 1);
+      if (owner === 'enemy' || pf > 0.55) {
+        damage(S, S.player, dmg * pf * (owner === 'player' ? 0.35 : 1), 'explosion', pos, null);
+      }
+    }
+    if (blind > 0 && pd < radius) {
+      S.player.blinded = Math.max(S.player.blinded, blind * 0.35 * (1 - pd / radius));
+    }
+    /* elena is never harmed by player ordnance, but is scared by it */
+    if (vdist(S.elena.pos, pos) < radius * 1.5) {
+      S.elena.fear = clamp(S.elena.fear + 0.12, 0, 1);
+    }
+    /* props take physics impulse */
+    for (i = 0; i < S.props.length; i++) {
+      var pr = S.props[i];
+      if (pr.static) { continue; }
+      var dp = vdist(pr.pos, pos);
+      if (dp > radius * 1.3) { continue; }
+      var f = (1 - clamp(dp / (radius * 1.3), 0, 1)) * impulse;
+      var dx = pr.pos[0] - pos[0], dy = pr.pos[1] - pos[1] + 0.4, dz = pr.pos[2] - pos[2];
+      var dl = Math.sqrt(dx * dx + dy * dy + dz * dz) || 1;
+      var m = Math.max(4, pr.mass || 40);
+      pr.vel[0] += (dx / dl) * f * (40 / m);
+      pr.vel[1] += (dy / dl) * f * (40 / m) * 0.6;
+      pr.vel[2] += (dz / dl) * f * (40 / m);
+      pr.hp -= dmg * (1 - clamp(dp / radius, 0, 1));
+      if (pr.hp <= 0 && !pr.broken) {
+        pr.broken = true;
+        emit('prop_break', { id: pr.id, kind: pr.kind, pos: vcopy(pr.pos) });
+        if (pr.kind === 'barrel_fuel') { spawnHazard(S, 'fire', pr.pos, 2.6, 12); }
+        if (pr.kind === 'barrel_explosive') {
+          explode(S, pr.pos, 5.0, 200, 10, 0, owner);
+        }
+      }
+    }
+    if (blind <= 0) { spawnHazard(S, 'fire', pos, radius * 0.35, 3.5); }
+  }
+
+  function spawnHazard(S, kind, pos, radius, dur) {
+    if (S.hazards.length > 48) { S.hazards.shift(); }
+    S.hazards.push({
+      id: S.nextId++, kind: kind, pos: vcopy(pos), radius: radius,
+      t: 0, dur: dur, dps: kind === 'fire' ? 28 : (kind === 'electric' ? 55 : 10),
+      spreadT: 0
+    });
+  }
+
+  function updateHazards(S, dt) {
+    for (var i = S.hazards.length - 1; i >= 0; i--) {
+      var hz = S.hazards[i];
+      hz.t += dt;
+      if (hz.t >= hz.dur) { S.hazards.splice(i, 1); continue; }
+      var j;
+      for (j = 0; j < S.enemies.length; j++) {
+        var e = S.enemies[j];
+        if (e.dead) { continue; }
+        if (distXZ(e.pos, hz.pos) < hz.radius) {
+          damageEnemy(S, e, hz.dps * dt, hz.kind, e.pos, null, 'torso', 4 * dt);
+          if (hz.kind === 'fire') { e.burning = 1.5; }
+          if (hz.kind === 'electric') { e.stunned = Math.max(e.stunned || 0, 0.4); }
+        }
+      }
+      if (distXZ(S.player.pos, hz.pos) < hz.radius) {
+        damage(S, S.player, hz.dps * 0.55 * dt, hz.kind, hz.pos, null);
+      }
+      /* Elena never walks into hazards - handled in path validation */
+      /* fire spreads toward mutated (parasite) growth */
+      if (hz.kind === 'fire') {
+        hz.spreadT += dt;
+        if (hz.spreadT > 1.2) {
+          hz.spreadT = 0;
+          for (j = 0; j < S.enemies.length; j++) {
+            var m = S.enemies[j];
+            if (m.dead || !m.mutated) { continue; }
+            var dd = distXZ(m.pos, hz.pos);
+            if (dd < hz.radius + 2.2 && dd > hz.radius * 0.5 && S.hazards.length < 40) {
+              spawnHazard(S, 'fire', m.pos, 1.8, 5.0);
+              break;
+            }
+          }
+        }
+      }
+      /* electrified water: any water hazard adjacent to an electric source */
+      if (hz.kind === 'electric' && S.level && S.level.collision && S.level.collision.water) {
+        /* radius follows the water volume it sits in */
+        var waters = S.level.collision.water;
+        for (j = 0; j < waters.length; j++) {
+          var w = waters[j];
+          if (!w.min || !w.max) { continue; }
+          if (hz.pos[0] > w.min[0] && hz.pos[0] < w.max[0] &&
+              hz.pos[2] > w.min[2] && hz.pos[2] < w.max[2]) {
+            hz.radius = Math.max(hz.radius,
+              Math.min(18, Math.max(w.max[0] - w.min[0], w.max[2] - w.min[2]) * 0.5));
+            break;
+          }
+        }
+      }
+    }
+  }
+
+  function electrifyWater(S, pos, dur) {
+    spawnHazard(S, 'electric', pos, 3.0, dur || 5.0);
+  }
+
+  /* =======================================================================
+     16. EFFECTS / NOISE / PROPS
+     ======================================================================= */
+
+  function addEffect(S, kind, pos, life) {
+    if (S.effects.length >= TUNE.effectCap) { S.effects.shift(); }
+    S.effects.push({ kind: kind, pos: [pos[0], pos[1], pos[2]], t: 0, life: life || 0.5 });
+  }
+
+  function updateEffects(S, dt) {
+    for (var i = S.effects.length - 1; i >= 0; i--) {
+      var f = S.effects[i];
+      f.t += dt;
+      if (f.t >= f.life) { S.effects.splice(i, 1); }
+    }
+  }
+
+  function makeNoise(S, pos, loudness, kind) {
+    if (loudness <= 0) { return; }
+    var sq = S.squad;
+    for (var i = 0; i < S.enemies.length; i++) {
+      var e = S.enemies[i];
+      if (e.dead) { continue; }
+      var arch = ARCH[e.kind] || ARCH.ganado;
+      var d = distXZ(e.pos, pos);
+      var hearRange = Math.min(arch.hearing * (loudness / 24 + 0.35), loudness * 1.4);
+      if (kind === 'gunshot' || kind === 'explosion') { hearRange = loudness * 0.9; }
+      if (d < hearRange) {
+        e.heardT = S.time;
+        e.heardPos[0] = pos[0]; e.heardPos[1] = pos[1]; e.heardPos[2] = pos[2];
+        if (e.alert < 0.55) { e.alert = 0.55; }
+        if (e.state === 'Idle' || e.state === 'Patrol') {
+          e.state = 'Investigate'; e.stateT = 0;
+        }
+      }
+    }
+    if (kind === 'gunshot' || kind === 'explosion') {
+      sq.alert = Math.min(1, sq.alert + 0.25);
+      sq.alertT = S.time;
+      S.elena.stress.gunfire = Math.min(1, S.elena.stress.gunfire + 0.30);
+    }
+  }
+
+  function updateProps(S, dt) {
+    for (var i = 0; i < S.props.length; i++) {
+      var p = S.props[i];
+      if (p.static) { continue; }
+      if (p.vel[0] === 0 && p.vel[1] === 0 && p.vel[2] === 0) { continue; }
+      p.vel[1] += TUNE.gravity * dt;
+      p.pos[0] += p.vel[0] * dt;
+      p.pos[1] += p.vel[1] * dt;
+      p.pos[2] += p.vel[2] * dt;
+      var g = navSampleHeight(S, p.pos[0], p.pos[2]);
+      if (p.pos[1] <= g) {
+        p.pos[1] = g;
+        p.vel[1] = 0;
+        p.vel[0] *= 0.65; p.vel[2] *= 0.65;
+        if (Math.abs(p.vel[0]) < 0.05 && Math.abs(p.vel[2]) < 0.05) {
+          p.vel[0] = 0; p.vel[2] = 0;
+        }
+      }
+      var b = levelBounds(S);
+      p.pos[0] = clamp(p.pos[0], b.min[0], b.max[0]);
+      p.pos[2] = clamp(p.pos[2], b.min[2], b.max[2]);
+      sanitizeVec(p.pos); sanitizeVec(p.vel);
+    }
+  }
+
+  function addProp(S, kind, pos, opts) {
+    var p = {
+      id: S.nextId++, kind: kind, pos: vcopy(pos), vel: v3(0, 0, 0),
+      mass: (opts && opts.mass) || 40, hp: (opts && opts.hp) || 40,
+      broken: false, static: !!(opts && opts.static),
+      tag: (opts && opts.tag) || null, used: false
+    };
+    S.props.push(p);
+    return p;
+  }
+
 /* __APPEND__ */
