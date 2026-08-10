@@ -58,10 +58,15 @@ var IP = (typeof IP !== 'undefined' && IP) || {};
 
   /* Quality presets. Index == scene.quality. */
   var QUALITY = [
-    { /* 0 low / mobile */
-      cascades: 1, shadowSize: 512, prepass: false, ssao: false, volumetric: false,
+    { /* 0 low / mobile
+         Contact darkening is what makes the image read as three dimensional.
+         With directional shadows off at this tier (a 512 map is pure acne),
+         SSAO is the only thing left providing it, so it stays ON. The depth
+         prepass it needs also cuts overdraw, which is a net win on the
+         fill-rate-bound GPUs this tier targets. */
+      cascades: 1, shadowSize: 512, prepass: true, ssao: true, volumetric: false,
       bloomMips: 1, lights: 8, triplanar: false, pcf: 1, softParticles: false,
-      ssaoScale: 0.5, volScale: 0.5, aniso: 2
+      ssaoScale: 0.4, volScale: 0.5, aniso: 2
     },
     { /* 1 medium */
       cascades: 2, shadowSize: 1024, prepass: true, ssao: true, volumetric: false,
