@@ -502,14 +502,14 @@ var IP = (typeof IP !== 'undefined' && IP) || {};
     foliage: { albedo: [0.11, 0.19, 0.10], rough: 0.85, metal: 0, tex: 'foliage', texScale: 0.6, doubleSided: true },
     flesh: { albedo: [0.30, 0.11, 0.13], rough: 0.55, metal: 0, tex: 'flesh', texScale: 0.7 },
     growth: { albedo: [0.18, 0.26, 0.14], rough: 0.5, metal: 0, tex: 'flesh', texScale: 0.9,
-              emissive: [0.06, 0.30, 0.12], emissivePulse: 0.22 },
+              emissive: [0.06, 0.30, 0.12], emissivePulse: 0.09 },
     fabric: { albedo: [0.26, 0.24, 0.22], rough: 0.95, metal: 0, tex: 'fabric', texScale: 0.6 },
     glass: { albedo: [0.55, 0.68, 0.66], rough: 0.06, metal: 0, tex: 'glass', texScale: 0.5, alpha: 0.26 },
     tankFluid: { albedo: [0.10, 0.40, 0.22], rough: 0.1, metal: 0, alpha: 0.55,
-                 emissive: [0.10, 0.85, 0.35], emissivePulse: 0.15 },
+                 emissive: [0.10, 0.85, 0.35], emissivePulse: 0.07 },
     water: { albedo: [0.05, 0.09, 0.11], rough: 0.05, metal: 0.1, alpha: 0.72 },
     emergency: { albedo: [0.10, 0.02, 0.02], rough: 0.4, metal: 0.2, emissive: [2.4, 0.18, 0.10] },
-    screen: { albedo: [0.03, 0.05, 0.06], rough: 0.2, metal: 0.1, emissive: [0.10, 0.75, 0.55], emissivePulse: 0.6 }
+    screen: { albedo: [0.03, 0.05, 0.06], rough: 0.2, metal: 0.1, emissive: [0.10, 0.75, 0.55], emissivePulse: 0.22 }
   };
   function matOf(m, over) {
     var o = {}, k;
@@ -616,6 +616,8 @@ var IP = (typeof IP !== 'undefined' && IP) || {};
     return this;
   };
 
+  var WALL_T = 0.32;   /* wall thickness, shared by room() and detailRoom() */
+
   /* --- room: floor, ceiling and four walls with door gaps --------------- */
   /* doors: array of {side:'n'|'s'|'e'|'w', at: offset along the wall, w: width} */
   function room(ctx, x, z, w, d, h, opts) {
@@ -626,7 +628,7 @@ var IP = (typeof IP !== 'undefined' && IP) || {};
     var floorMat = opts.floorMat || th.floor;
     var key = opts.key || (ctx.id + '_r' + Object.keys(ctx.groups).length);
     var doors = opts.doors || [];
-    var t = 0.32; /* wall thickness */
+    var t = WALL_T;
 
     /* floor */
     if (opts.floor !== false) {
@@ -705,75 +707,85 @@ var IP = (typeof IP !== 'undefined' && IP) || {};
     var g = ctx.grp(key + '_dt', trimMat);
     var i, n, px, pz;
 
-    /* skirting along all four walls */
-    var sk = 0.14;
+    /* Walls are WALL_T thick and centred on the room edge, so the inner face
+       sits at half-extent minus half thickness. Every detail below is placed
+       against that face with a real gap - placing them at a percentage of the
+       half-extent made them intersect the wall and z-fight, which reads as
+       violent flickering as the camera moves. */
+    var t = WALL_T;
+    var iz = d / 2 - t / 2, ix = w / 2 - t / 2;
+    var GAP = 0.01;
+
+    /* skirting */
+    var sk = 0.14, skD = 0.09;
+    var skZ = iz - skD / 2 - GAP, skX = ix - skD / 2 - GAP;
     for (i = 0; i < 2; i++) {
-      M4.identity(m); m[12] = x; m[13] = y + sk / 2; m[14] = z + (i ? d / 2 : -d / 2) * 0.97;
-      g.b.push(box(w * 0.99, sk, 0.09), m);
-      M4.identity(m); m[12] = x + (i ? w / 2 : -w / 2) * 0.97; m[13] = y + sk / 2; m[14] = z;
-      g.b.push(box(0.09, sk, d * 0.99), m);
+      M4.identity(m); m[12] = x; m[13] = y + sk / 2; m[14] = z + (i ? skZ : -skZ);
+      g.b.push(box(w - t * 2 - 0.04, sk, skD), m);
+      M4.identity(m); m[12] = x + (i ? skX : -skX); m[13] = y + sk / 2; m[14] = z;
+      g.b.push(box(skD, sk, d - t * 2 - 0.04), m);
     }
 
-    /* vertical ribs / pilasters at regular intervals */
-    var ribW = 0.16, spacing = 3.2;
+    /* vertical ribs / pilasters */
+    var ribW = 0.16, ribD = 0.11, spacing = 3.2;
+    var ribZ = iz - ribD / 2 - GAP, ribX = ix - ribD / 2 - GAP;
     n = Math.max(1, Math.floor(w / spacing));
     for (i = 0; i <= n; i++) {
-      px = x - w / 2 + (i / n) * w;
+      px = x - (w / 2 - t) + (i / n) * (w - t * 2);
       for (var s2 = 0; s2 < 2; s2++) {
-        pz = z + (s2 ? d / 2 : -d / 2) * 0.95;
-        M4.identity(m); m[12] = px; m[13] = y + h * 0.5; m[14] = pz;
-        g.b.push(box(ribW, h * 0.98, 0.11), m);
+        M4.identity(m); m[12] = px; m[13] = y + h * 0.5; m[14] = z + (s2 ? ribZ : -ribZ);
+        g.b.push(box(ribW, h * 0.96, ribD), m);
       }
     }
     n = Math.max(1, Math.floor(d / spacing));
     for (i = 0; i <= n; i++) {
-      pz = z - d / 2 + (i / n) * d;
+      pz = z - (d / 2 - t) + (i / n) * (d - t * 2);
       for (var s3 = 0; s3 < 2; s3++) {
-        px = x + (s3 ? w / 2 : -w / 2) * 0.95;
-        M4.identity(m); m[12] = px; m[13] = y + h * 0.5; m[14] = pz;
-        g.b.push(box(0.11, h * 0.98, ribW), m);
+        M4.identity(m); m[12] = x + (s3 ? ribX : -ribX); m[13] = y + h * 0.5; m[14] = pz;
+        g.b.push(box(ribD, h * 0.96, ribW), m);
       }
     }
 
-    /* ceiling beams across the short axis, plus a strip-light housing */
+    /* ceiling beams, held clear of the ceiling slab */
     var beams = Math.max(1, Math.floor(Math.max(w, d) / 3.6));
     var along = w >= d;
     for (i = 0; i < beams; i++) {
-      var t = (i + 0.5) / beams;
+      var bt = (i + 0.5) / beams;
       M4.identity(m);
       if (along) {
-        m[12] = x - w / 2 + t * w; m[13] = y + h - 0.16; m[14] = z;
-        g.b.push(box(0.22, 0.3, d * 0.98), m);
+        m[12] = x - w / 2 + bt * w; m[13] = y + h - 0.20; m[14] = z;
+        g.b.push(box(0.22, 0.28, d - t * 2 - 0.04), m);
       } else {
-        m[12] = x; m[13] = y + h - 0.16; m[14] = z - d / 2 + t * d;
-        g.b.push(box(w * 0.98, 0.3, 0.22), m);
+        m[12] = x; m[13] = y + h - 0.20; m[14] = z - d / 2 + bt * d;
+        g.b.push(box(w - t * 2 - 0.04, 0.28, 0.22), m);
       }
-      /* fixture housing under every other beam */
       if (i % 2 === 0) {
         M4.identity(m);
-        if (along) { m[12] = x - w / 2 + t * w; m[13] = y + h - 0.36; m[14] = z; }
-        else { m[12] = x; m[13] = y + h - 0.36; m[14] = z - d / 2 + t * d; }
+        if (along) { m[12] = x - w / 2 + bt * w; m[13] = y + h - 0.42; m[14] = z; }
+        else { m[12] = x; m[13] = y + h - 0.42; m[14] = z - d / 2 + bt * d; }
         ctx.mesh(key + '_fix', MAT.metalWall,
                  box(along ? 0.34 : Math.min(w * 0.4, 2.2), 0.12,
                      along ? Math.min(d * 0.4, 2.2) : 0.34), m);
       }
     }
 
-    /* wall panel insets - two rows of shallow recessed plates */
+    /* recessed wall panels, standing proud of the face rather than inside it */
     var panelMat = matOf(wallMat, { albedo: [wallMat.albedo[0] * 1.14,
                                              wallMat.albedo[1] * 1.14,
                                              wallMat.albedo[2] * 1.14], rough: 0.7 });
     var pg = ctx.grp(key + '_pan', panelMat);
+    var panD = 0.05;
+    var panZ = iz - panD / 2 - GAP;
     var cols = Math.max(1, Math.floor(w / 2.4));
     for (i = 0; i < cols; i++) {
       px = x - w / 2 + (i + 0.5) * (w / cols);
       for (var row = 0; row < 2; row++) {
         var pyy = y + 0.55 + row * (h * 0.42);
         if (pyy + 0.5 > y + h) { continue; }
-        M4.identity(m); m[12] = px; m[13] = pyy; m[14] = z - d / 2 * 0.94;
-        pg.b.push(box(w / cols * 0.7, h * 0.3, 0.05), m);
-        M4.identity(m); m[12] = px; m[13] = pyy; m[14] = z + d / 2 * 0.94;
-        pg.b.push(box(w / cols * 0.7, h * 0.3, 0.05), m);
+        M4.identity(m); m[12] = px; m[13] = pyy; m[14] = z - panZ;
+        pg.b.push(box(w / cols * 0.7, h * 0.3, panD), m);
+        M4.identity(m); m[12] = px; m[13] = pyy; m[14] = z + panZ;
+        pg.b.push(box(w / cols * 0.7, h * 0.3, panD), m);
       }
     }
   }

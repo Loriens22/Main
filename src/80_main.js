@@ -102,8 +102,9 @@
     items: [],
     transparent: [],
     sprites: [],
-    post: { exposure: 1.24, bloom: 0.52, grain: 0.055, chroma: 0.26, vignette: 0.44,
-            saturation: 0.78, contrast: 1.14, hurt: 0, flashbang: 0, lightning: 0 },
+    post: { exposure: 1.24, bloom: 0.52, grain: 0.05, chroma: 0.26, vignette: 0.44,
+            saturation: 0.78, contrast: 1.14, hurt: 0, flashbang: 0, lightning: 0,
+            rainLens: 0 },
     time: 0,
     quality: 2
   };
@@ -410,7 +411,7 @@
     wind: [0.9, 0, 0.35],
     indoor: 0,
     lightning: 0,
-    lightningTimer: 6,
+    lightningTimer: 22,
     thunderPending: -1,
     n: 0,
     x: null, y: null, z: null, v: null
@@ -438,7 +439,7 @@
 
     weather.lightningTimer -= dt;
     if (weather.lightningTimer <= 0) {
-      weather.lightningTimer = 7 + IP.Rand.f() * 16;
+      weather.lightningTimer = 18 + IP.Rand.f() * 34;
       weather.lightning = 1.0;
       weather.thunderPending = 0.35 + IP.Rand.f() * 2.4;
       if (has('Audio', 'play')) { IP.Audio.play('lightning_crack', { volume: 0.35 }); }
@@ -451,12 +452,19 @@
         if (has('Audio', 'play')) { IP.Audio.play('thunder', { volume: 0.8 }); }
       }
     }
-    scene.post.lightning = weather.lightning * weather.lightning * (1 - weather.indoor * 0.72) * 0.85;
+    /* Indoors you should only catch a faint wash through a window, not a
+       full-screen strobe; the term is amplified in four shaders downstream. */
+    scene.post.lightning = weather.lightning * weather.lightning *
+                           (1 - weather.indoor * 0.94) * 0.30;
 
     /* rain volume follows the camera; particles wrap inside a moving box */
-    var vis = weather.rainIntensity * (1 - weather.indoor * 0.86);
-    if (vis <= 0.02 || scene.quality === 0 && vis < 0.3) { return; }
-    var n = Math.floor(weather.n * (scene.quality === 0 ? 0.28 : scene.quality === 1 ? 0.6 : 1) * vis);
+    var vis = weather.rainIntensity * (1 - weather.indoor);
+    if (vis <= 0.04) { return; }
+    /* Quantise the count so it does not churn by tens of sprites per frame
+       while the interior blend settles. */
+    var qn = weather.n * (scene.quality === 0 ? 0.28 : scene.quality === 1 ? 0.6 : 1);
+    var n = Math.floor(qn * Math.round(vis * 8) / 8);
+    if (n <= 0) { return; }
     var cx = cam.pos[0], cy = cam.pos[1], cz = cam.pos[2];
     for (var i = 0; i < n; i++) {
       weather.y[i] -= weather.v[i] * dt;
@@ -536,7 +544,9 @@
     var sPit = shake * Math.sin(cam.shakeT * cam.shakeFreq * 1.37 + 1.1) * 0.5 * reduceMotion;
 
     /* breathing / weapon sway when idle-aiming */
-    cam.swayT += dt * (aiming ? 0.9 : 1.4);
+    /* Breathing sway must stop with the simulation, or a paused frame is
+       never the same twice. */
+    cam.swayT += (Game.paused ? 0 : dt) * (aiming ? 0.9 : 1.4);
     var swayAmp = (aiming ? 0.0012 : 0.0028) * (1 + (p.stamina !== undefined ? (1 - p.stamina) * 1.8 : 0));
     var swayY = Math.sin(cam.swayT * 1.7) * swayAmp;
     var swayP = Math.sin(cam.swayT * 2.3 + 0.7) * swayAmp * 0.8;
@@ -625,7 +635,7 @@
     scene.lights.push(L);
   }
 
-  var LIGHT_GAIN = 2.6;
+  var LIGHT_GAIN = 2.35;
   var flickerPhase = IP.Rand.make(31337);
   function assembleLights(S, dt) {
     reset(scene.lights);
@@ -641,12 +651,31 @@
       for (i = 0; i < sec.lights.length; i++) {
         L = sec.lights[i];
         d2 = (L.pos[0] - cx) * (L.pos[0] - cx) + (L.pos[1] - cy) * (L.pos[1] - cy) + (L.pos[2] - cz) * (L.pos[2] - cz);
-        var reach = (L.range + 6); if (d2 > reach * reach) { continue; }
-        inten = (L.intensity === undefined ? 1 : L.intensity) * LIGHT_GAIN;
+        var reach = L.range + 8;
+        if (d2 > reach * reach) { continue; }
+        /* Fade across the outer quarter of the reach. A hard cut here made a
+           light on the boundary blink on and off with the camera's breathing
+           sway, which reads as the whole room flashing. */
+        var dist = Math.sqrt(d2);
+        var fade = U.smoothstep(reach, reach * 0.74, dist);
+        if (fade <= 0.002) { continue; }
+        inten = (L.intensity === undefined ? 1 : L.intensity) * LIGHT_GAIN * fade;
         if (L.flicker) {
-          fl = 1 - L.flicker * (0.5 + 0.5 * Math.sin(scene.time * 17.3 + i * 2.1)) *
-                   (flickerPhase.f() < 0.06 ? 1 : 0.22);
-          inten *= Math.max(0.05, fl);
+          /* Deterministic, band-limited flicker. The previous version rolled a
+             fresh random number per light per frame, which strobed the whole
+             scene at 60Hz. This is a slow sag with an occasional brief dropout,
+             driven by smooth noise so it is stable frame to frame. */
+          /* Subtle and decorrelated. Each lamp gets its own slow breath plus
+             a rare, brief dropout. Anything stronger than this and every lamp
+             in the room pulses together, which reads as the scene strobing
+             rather than as failing strip lights. */
+          var seedA = i * 12.9898 + k * 7.233;
+          var ph = scene.time * 0.55 + seedA;
+          var slow = 0.955 + 0.045 * Math.sin(ph * 2.1);
+          var dip = IP.Noise.perlin2(scene.time * 0.42 + seedA, seedA * 0.31);
+          var drop = U.smoothstep(0.62, 0.86, dip);
+          fl = slow - L.flicker * 0.34 * drop;
+          inten *= Math.max(0.55, fl);
         }
         if (S.flags && S.flags.powerOut && L.tag === 'mains') { inten *= 0.06; }
         pushLight(L.pos[0], L.pos[1], L.pos[2], L.color[0], L.color[1], L.color[2],
@@ -1205,6 +1234,7 @@
     assembleLights(S, dt);
 
     scene.post.flashbang = Math.max(0, scene.post.flashbang - dt * 1.6);
+    scene.post.rainLens = (1 - weather.indoor) * weather.rainIntensity * 0.45;
     scene.sun.intensity = 0.80 * (1 - weather.indoor * 0.55);
     scene.fog.density = 0.026 + weather.indoor * 0.02 + (1 - weather.indoor) * weather.rainIntensity * 0.014;
 

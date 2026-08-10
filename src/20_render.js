@@ -761,9 +761,11 @@ var IP = (typeof IP !== 'undefined' && IP) || {};
     '  vNrm = normalize(uNrmMat * aNrm);',
     '  vUV = aUV;',
     '  vCol = aCol;',
-    '  vec4 vp = uView * wp;',
-    '  vViewZ = -vp.z;',
-    '  gl_Position = uProj * vp;',
+    '  vViewZ = -(uView * wp).z;',
+    '  // Must match VS_DEPTH bit-for-bit: the depth prepass writes',
+    '  // uViewProj * wp, and uProj * (uView * wp) is the same value',
+    '  // mathematically but not numerically, which z-fights the prepass.',
+    '  gl_Position = uViewProj * wp;',
     '}',
     ''].join('\n');
 
@@ -1132,7 +1134,7 @@ var IP = (typeof IP !== 'undefined' && IP) || {};
     '  int steps = int(uVolParams.x);',
     '  float stepLen = maxD / float(steps);',
     '  // dither the ray start: blue-ish noise + per-frame temporal rotation',
-    '  vec2 np = (gl_FragCoord.xy + uCascadeSplits.w * vec2(11.0, 23.0)) / 128.0;',
+    '  vec2 np = gl_FragCoord.xy / 128.0;',
     '  float jitter = texture(uNoiseTex, np).a;',
     '  float t = stepLen * jitter;',
     '  vec3 L = normalize(uSunDir.xyz);',
@@ -1452,7 +1454,8 @@ var IP = (typeof IP !== 'undefined' && IP) || {};
     '  }',
     '',
     '  // --- animated film grain (luma-weighted so darks stay noisy) ----------',
-    '  float g = texture(uNoiseTex, vUV * 7.0 + vec2(fract(uP1.w * 13.0), fract(uP1.w * 7.3))).a;',
+    '  float g = texture(uNoiseTex, vUV * uScreen.xy / 96.0',
+    '                    + vec2(fract(uP1.w * 13.0), fract(uP1.w * 7.3))).a;',
     '  float gn = (g - 0.5) * uP0.z;',
     '  col += gn * (0.35 + (1.0 - lum) * 0.9) * 0.28;',
     '',
@@ -1898,7 +1901,9 @@ var IP = (typeof IP !== 'undefined' && IP) || {};
     try {
       gl = canvas.getContext('webgl2', {
         antialias: false, alpha: false, depth: true, stencil: false,
-        powerPreference: 'high-performance', preserveDrawingBuffer: false,
+        powerPreference: 'high-performance',
+        /* opt-in only: lets automated tests sample the presented frame */
+        preserveDrawingBuffer: !!(typeof window !== 'undefined' && window.IP_PRESERVE_BUFFER),
         premultipliedAlpha: false, desynchronized: false,
         failIfMajorPerformanceCaveat: false
       });
@@ -2119,7 +2124,11 @@ var IP = (typeof IP !== 'undefined' && IP) || {};
     var alb = mat.albedo || [0.8, 0.8, 0.8];
     var em = mat.emissive || null;
     var pulse = 1;
-    if (mat.emissivePulse) { pulse = 0.55 + 0.45 * Math.sin(time * mat.emissivePulse * 6.2831853); }
+    if (mat.emissivePulse) {
+      /* Shallow: a deep pulse on a large emissive surface reads as the whole
+         room changing colour, not as a failing light. */
+      pulse = 0.88 + 0.12 * Math.sin(time * mat.emissivePulse * 6.2831853);
+    }
     u4f(pr, 'uAlbedo', alb[0], alb[1], alb[2], mat.alpha === undefined ? 1 : mat.alpha);
     var layer = -1;
     if (mat.tex && mat.tex !== 'none' && TEX_INDEX[mat.tex] !== undefined) { layer = TEX_INDEX[mat.tex]; }
@@ -2398,7 +2407,8 @@ var IP = (typeof IP !== 'undefined' && IP) || {};
       var range = L.range || 10;
       var d2 = lx * lx + ly * ly + lz * lz;
       if (d2 > (range + far * 0.25) * (range + far * 0.25)) { continue; }
-      if (!sphereVisible(L.pos[0], L.pos[1], L.pos[2], range)) { continue; }
+      /* Deliberately NOT frustum-culled: an off-screen lamp still illuminates
+         on-screen geometry, and dropping it pops the whole room's lighting. */
       var inten = L.intensity === undefined ? 1 : L.intensity;
       lightData[lc * 4] = L.pos[0];
       lightData[lc * 4 + 1] = L.pos[1];
@@ -2747,7 +2757,7 @@ var IP = (typeof IP !== 'undefined' && IP) || {};
     /* Auto-exposure is deliberately OFF. This game is authored dark; letting
        adaptation chase the average luminance washes every scene out to pale
        grey and destroys the art direction. Exposure is art-directed instead. */
-    u4f(progs.composite, 'uP3', prescale, mips, 0, qLevel >= 2 ? 1 : 0);
+    u4f(progs.composite, 'uP3', prescale, mips, 0, 0);
     fullscreen();
   }
 
