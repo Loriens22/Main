@@ -718,6 +718,8 @@ var IP = (typeof IP !== 'undefined' && IP) || {};
       navWarned: false,
       boxCache: null,
       boxCacheLevel: null,
+      boxCacheSection: null,
+      armed: false,
       dropTable: null,
       tmpTargets: []
     };
@@ -736,11 +738,27 @@ var IP = (typeof IP !== 'undefined' && IP) || {};
 
   var FALLBACK_BOUNDS = { min: [-40, -4, -40], max: [40, 20, 40] };
 
+  /* Every section is authored in the same world coordinates, so the merged
+     global box list would have geometry from the docks blocking a sightline
+     in the holding cells. Always collide and raycast against the ACTIVE
+     section only; cache it until the section changes. */
   function levelBoxes(S) {
-    if (S.level && S.level.collision && S.level.collision.boxes) {
-      return S.level.collision.boxes;
+    if (!S.level) { return EMPTY_ARR; }
+    var rt = S._rt;
+    if (rt && rt.boxCacheLevel === S.level && rt.boxCacheSection === S.section && rt.boxCache) {
+      return rt.boxCache;
     }
-    return EMPTY_ARR;
+    var boxes = null;
+    var sec = currentSection(S);
+    if (sec && sec.collision && sec.collision.length) { boxes = sec.collision; }
+    else if (S.level.collision && S.level.collision.boxes) { boxes = S.level.collision.boxes; }
+    else { boxes = EMPTY_ARR; }
+    if (rt) {
+      rt.boxCache = boxes;
+      rt.boxCacheLevel = S.level;
+      rt.boxCacheSection = S.section;
+    }
+    return boxes;
   }
   var EMPTY_ARR = [];
 
@@ -2357,4 +2375,1459 @@ var IP = (typeof IP !== 'undefined' && IP) || {};
     return p;
   }
 
-/* __APPEND__ */
+  /* ======================================================================
+     SECTION -- LOOKUPS AND SQUAD RESOURCES
+     ====================================================================== */
+
+  function enemyById(S, id) {
+    if (id === undefined || id === null || id < 0) { return null; }
+    for (var i = 0; i < S.enemies.length; i++) {
+      if (S.enemies[i].id === id) { return S.enemies[i]; }
+    }
+    return null;
+  }
+
+  /* --- attack tokens ---------------------------------------------------
+     Only a few enemies may be committed to attacking at once; the rest
+     circle and reposition. This is what makes a crowd of twelve feel
+     dangerous without being an unsurvivable pile-on. */
+  function tokenBudget(S) {
+    return Math.max(1, (S.squad.maxTokens || 3) + (S.director.tokenBonus || 0));
+  }
+  function hasToken(S, e) { return S.squad.tokens.indexOf(e.id) >= 0; }
+  function acquireToken(S, e) {
+    var t = S.squad.tokens;
+    if (t.indexOf(e.id) >= 0) { return true; }
+    var cost = (ARCH[e.kind] || ARCH.ganado).tokenCost || 1;
+    if (t.length + cost - 1 >= tokenBudget(S)) { return false; }
+    for (var c = 0; c < cost; c++) { t.push(e.id); }
+    e.hasToken = true;
+    return true;
+  }
+  function releaseToken(S, e) {
+    if (!e) { return; }
+    var t = S.squad.tokens, i;
+    for (i = t.length - 1; i >= 0; i--) { if (t[i] === e.id) { t.splice(i, 1); } }
+    e.hasToken = false;
+  }
+  function pruneTokens(S) {
+    var t = S.squad.tokens, i, e;
+    for (i = t.length - 1; i >= 0; i--) {
+      e = enemyById(S, t[i]);
+      if (!e || e.dead || e.state === 'Stagger') { t.splice(i, 1); }
+    }
+  }
+
+  /* --- Elena hunters: a capped subset actively goes for her ------------- */
+  function markElenaHunter(S, e) {
+    var h = S.squad.elenaHunters;
+    if (h.indexOf(e.id) >= 0) { return true; }
+    if (h.length >= (S.squad.maxElenaHunters || 2)) { return false; }
+    h.push(e.id);
+    e.huntingElena = true;
+    /* telegraph it so the player can react rather than be ambushed */
+    emit('callout', { kind: 'elena_targeted', pos: vcopy(e.pos), id: e.id });
+    return true;
+  }
+  function unmarkElenaHunter(S, e) {
+    if (!e) { return; }
+    var h = S.squad.elenaHunters, i = h.indexOf(e.id);
+    if (i >= 0) { h.splice(i, 1); }
+    e.huntingElena = false;
+  }
+
+  function noticePlayer(S, e, pos, confidence) {
+    e.alert = Math.max(e.alert || 0, confidence || 1);
+    e.lastSeenT = S.time;
+    vset(e.lastSeen, pos[0], pos[1], pos[2]);
+    if (e.state === 'Idle' || e.state === 'Patrol' || e.state === 'Ambush') {
+      e.state = 'Chase'; e.stateT = 0;
+    }
+    /* propagate through the squad blackboard */
+    var sq = S.squad;
+    if (!sq.hasContact || S.time - sq.lastKnownT > 0.5) {
+      sq.hasContact = true;
+      sq.lastKnownT = S.time;
+      vset(sq.lastKnown, pos[0], pos[1], pos[2]);
+      sq.alert = 1;
+    }
+  }
+
+  function trackWeaponUsage(S, id) {
+    var u = S.director.usage;
+    u[id] = (u[id] || 0) + 1;
+    var best = null, bestN = -1, k;
+    for (k in u) {
+      if (Object.prototype.hasOwnProperty.call(u, k) && u[k] > bestN) { bestN = u[k]; best = k; }
+    }
+    if (best) { S.director.preferredAmmo = WEAPON_AMMO[best] || 'pistol'; }
+  }
+
+  /* ======================================================================
+     SECTION -- DROPS
+     ====================================================================== */
+  /* weapon id -> ammo reserve key -> the inventory item that feeds it */
+  var WEAPON_AMMO = {
+    pistol: 'pistol', magnum: 'magnum', shotgun: 'shell', smg: 'smg',
+    rifle: 'rifle', grenade: 'grenade', flashbang: 'flash', launcher: 'rocket'
+  };
+  var AMMO_ITEM = {};
+  (function () {
+    for (var k in ITEMS) {
+      if (Object.prototype.hasOwnProperty.call(ITEMS, k) && ITEMS[k].kind === 'ammo') {
+        AMMO_ITEM[ITEMS[k].ammo] = k;
+      }
+    }
+  })();
+
+  function rollDrop(S, e) {
+    var d = diffOf(S), bias = S.director.dropBias;
+    var roll = rnd(S);
+    var arch = ARCH[e.kind] || ARCH.ganado;
+    S.player.scrip += Math.round((arch.scrip || 100) * 0.12 * d.scripMul);
+
+    var pAmmo = 0.30 * bias.ammo, pHeal = 0.12 * bias.heal;
+    var pRes = 0.16 * bias.resource, pTreasure = 0.07 * bias.treasure;
+    var total = pAmmo + pHeal + pRes + pTreasure;
+    if (roll > Math.min(0.85, total)) { return null; }
+
+    var kind, itemId;
+    if (roll < pAmmo) {
+      kind = 'ammo';
+      itemId = AMMO_ITEM[S.director.preferredAmmo] || 'a_pistol';
+    } else if (roll < pAmmo + pHeal) {
+      kind = 'heal'; itemId = rnd(S) < 0.6 ? 'herb_g' : 'herb_r';
+    } else if (roll < pAmmo + pHeal + pRes) {
+      kind = 'resource'; itemId = rnd(S) < 0.5 ? 'gunpowder' : 'resource_s';
+    } else {
+      kind = 'treasure'; itemId = rnd(S) < 0.6 ? 't_rosary' : 't_censer';
+    }
+    if (!ITEMS[itemId]) { return null; }
+    var pick = {
+      id: S.nextId++, item: itemId, kind: kind,
+      pos: v3(e.pos[0] + (rnd(S) - 0.5) * 0.5, e.pos[1] + 0.1, e.pos[2] + (rnd(S) - 0.5) * 0.5),
+      qty: kind === 'ammo' ? rint(S, 6, 14) : 1, t: 0
+    };
+    S.pickups.push(pick);
+    emit('drop', { pos: vcopy(pick.pos), kind: kind, item: itemId });
+    return pick;
+  }
+
+  /* ======================================================================
+     SECTION -- ENEMY SPAWNING
+     ====================================================================== */
+  var ACT_INDEX = { prologue: 0, act1: 1, act2: 2, act3: 3 };
+  function actIndex(S) {
+    var a = S.act;
+    if (typeof a === 'number') { return a; }
+    return ACT_INDEX[a] === undefined ? 0 : ACT_INDEX[a];
+  }
+
+  function spawnEnemy(S, kind, pos, opts) {
+    opts = opts || {};
+    var arch = ARCH[kind] || ARCH.ganado;
+    var d = diffOf(S);
+    /* enemy toughness scales only with act; difficulty is expressed through
+       damage, token count and aggression, not through HP sponges */
+    var hp = arch.hp * (1 + actIndex(S) * 0.06);
+    var e = {
+      id: S.nextId++, kind: kind,
+      pos: v3(pos[0], pos[1], pos[2]), vel: v3(0, 0, 0), yaw: opts.yaw || 0,
+      hp: hp, maxHp: hp, poise: arch.poise, maxPoise: arch.poise,
+      radius: arch.radius, height: arch.height,
+      speed: 0, anim: 'idle', animT: 0,
+      state: opts.state || 'Idle', stateT: 0,
+      alert: 0, lastSeen: v3(pos[0], pos[1], pos[2]), lastSeenT: -99,
+      path: [], pathI: 0, repathT: 0,
+      attackT: 0, windT: 0, recoverT: 0, burstLeft: 0, fireCD: 0,
+      staggered: false, staggerKind: null, staggerT: 0,
+      grabbing: null, grabT: 0,
+      hasToken: false, huntingElena: false,
+      mutated: false, corpseT: 0, dead: false,
+      lastHitT: -99, circleDir: rnd(S) < 0.5 ? -1 : 1, circleT: 0,
+      heardPos: v3(pos[0], pos[1], pos[2]), heardT: -99, distracted: 0,
+      limbs: arch.limbs ? { larm: false, rarm: false, head: false } : null,
+      shield: arch.shield ? { hp: arch.shield.hp, arc: arch.shield.arc, broken: false } : null,
+      phase: 0, phaseT: 0, weakpointT: 0,
+      from: opts.from || 'ground', spawnT: 0,
+      section: S.section
+    };
+    if (e.from === 'ceiling') { e.state = 'Ambush'; }
+    S.enemies.push(e);
+    emit('spawn', { id: e.id, kind: kind, pos: vcopy(e.pos) });
+    return e;
+  }
+
+  /* Pull spawn markers out of the level and arm them against triggers. */
+  function armSpawners(S) {
+    S.spawners.length = 0;
+    var sec = currentSection(S);
+    if (!sec || !sec.spawns) { return; }
+    for (var i = 0; i < sec.spawns.length; i++) {
+      var sp = sec.spawns[i];
+      S.spawners.push({
+        kind: sp.kind, pos: sp.pos, wave: sp.wave || 0,
+        trigger: sp.trigger || null, from: sp.from || 'ground',
+        fired: false, delay: (sp.wave || 0) * 4.5 + rnd(S) * 1.5
+      });
+    }
+  }
+
+  function updateSpawners(S, dt) {
+    var maxAlive = Math.round(10 * diffOf(S).spawnMul * S.director.spawnMul);
+    var alive = 0, i;
+    for (i = 0; i < S.enemies.length; i++) { if (!S.enemies[i].dead) { alive++; } }
+    for (i = 0; i < S.spawners.length; i++) {
+      var sp = S.spawners[i];
+      if (sp.fired) { continue; }
+      if (sp.trigger && !S.flags[sp.trigger]) { continue; }
+      if (sp.trigger) { sp.delay -= dt; if (sp.delay > 0) { continue; } }
+      else if (distXZ(S.player.pos, sp.pos) > 42) { continue; }
+      if (alive >= maxAlive) { break; }
+      /* never pop an enemy into existence in the player's face */
+      var dToPlayer = distXZ(S.player.pos, sp.pos);
+      if (dToPlayer < 6 && hasLOS(S, S.player.pos, sp.pos)) { continue; }
+      spawnEnemy(S, sp.kind, sp.pos, { from: sp.from });
+      sp.fired = true;
+      alive++;
+    }
+  }
+
+  /* ======================================================================
+     SECTION -- ENEMY PERCEPTION AND AI
+     ====================================================================== */
+  var _pv = v3(0, 0, 0), _pv2 = v3(0, 0, 0), _pathTmp = [];
+
+  function canSee(S, e, targetPos) {
+    var arch = ARCH[e.kind] || ARCH.ganado;
+    var dx = targetPos[0] - e.pos[0], dz = targetPos[2] - e.pos[2];
+    var dist = Math.sqrt(dx * dx + dz * dz);
+    if (dist > arch.sight) { return false; }
+    if (dist > 0.4) {
+      var facing = Math.atan2(dx, dz);
+      var diff = Math.abs(angleWrap(facing - e.yaw));
+      if (diff > arch.fov * 0.5) { return false; }
+    }
+    _pv[0] = e.pos[0]; _pv[1] = e.pos[1] + e.height * 0.82; _pv[2] = e.pos[2];
+    _pv2[0] = targetPos[0]; _pv2[1] = targetPos[1] + 1.2; _pv2[2] = targetPos[2];
+    return hasLOS(S, _pv, _pv2);
+  }
+
+  function updatePerception(S, e, dt) {
+    var arch = ARCH[e.kind] || ARCH.ganado;
+    var p = S.player;
+    var sees = p.alive && canSee(S, e, p.pos);
+    /* proximity awareness: you cannot sneak past someone at arm's length */
+    if (!sees && p.alive && distXZ(e.pos, p.pos) < 3.2) {
+      _pv[0] = e.pos[0]; _pv[1] = e.pos[1] + e.height * 0.7; _pv[2] = e.pos[2];
+      _pv2[0] = p.pos[0]; _pv2[1] = p.pos[1] + 1.1; _pv2[2] = p.pos[2];
+      if (hasLOS(S, _pv, _pv2)) { sees = true; }
+    }
+    if (sees) {
+      noticePlayer(S, e, p.pos, 1);
+      e.alert = 1;
+    } else {
+      e.alert = Math.max(0, (e.alert || 0) - dt * 0.16);
+      /* fall back to squad knowledge before giving up entirely */
+      if (e.alert < 0.4 && S.squad.hasContact && S.time - S.squad.lastKnownT < 8) {
+        vset(e.lastSeen, S.squad.lastKnown[0], S.squad.lastKnown[1], S.squad.lastKnown[2]);
+        e.alert = Math.max(e.alert, 0.55);
+      }
+    }
+    /* hearing */
+    if (S.time - p.lastNoiseT < 0.35) {
+      var nd = distXZ(e.pos, p.pos);
+      if (nd < arch.hearing * (p.lastNoiseLoud || 1)) {
+        noticePlayer(S, e, p.pos, 0.7);
+      }
+    }
+    return sees;
+  }
+
+  function faceToward(e, tx, tz, rate, dt) {
+    var want = Math.atan2(tx - e.pos[0], tz - e.pos[2]);
+    e.yaw = turnToward(e.yaw, want, rate * dt);
+  }
+
+  function stepAlongPath(S, e, dt, speed) {
+    if (!e.path.length || e.pathI >= e.path.length) { return false; }
+    var node = e.path[e.pathI];
+    var dx = node[0] - e.pos[0], dz = node[2] - e.pos[2];
+    var d = Math.sqrt(dx * dx + dz * dz);
+    if (d < 0.45) {
+      e.pathI++;
+      if (e.pathI >= e.path.length) { return false; }
+      return true;
+    }
+    var inv = 1 / (d || 1);
+    var mx = dx * inv * speed * dt, mz = dz * inv * speed * dt;
+    moveEntity(S, e, mx, mz, e.radius, e.height);
+    e.speed = speed;
+    faceToward(e, node[0], node[2], 7.0, dt);
+    return true;
+  }
+
+  function repath(S, e, target, dt, interval) {
+    e.repathT -= dt;
+    if (e.repathT <= 0 || !e.path.length) {
+      e.repathT = interval || (0.45 + rnd(S) * 0.3);
+      navFindPath(S, e.pos, target, _pathTmp);
+      e.path.length = 0;
+      for (var i = 0; i < _pathTmp.length; i++) { e.path.push(_pathTmp[i]); }
+      e.pathI = 0;
+    }
+  }
+
+  function enemyAttack(S, e, dt) {
+    var arch = ARCH[e.kind] || ARCH.ganado;
+    var target = e.huntingElena && S.elena.alive ? S.elena : S.player;
+    var d = distXZ(e.pos, target.pos);
+    faceToward(e, target.pos[0], target.pos[2], 5.5, dt);
+
+    if (e.windT > 0) {
+      e.windT -= dt;
+      e.anim = 'melee';
+      if (e.windT <= 0) {
+        /* the swing lands */
+        if (distXZ(e.pos, target.pos) <= arch.reach + 0.55) {
+          var dirx = target.pos[0] - e.pos[0], dirz = target.pos[2] - e.pos[2];
+          var dl = Math.sqrt(dirx * dirx + dirz * dirz) || 1;
+          if (target === S.player) {
+            damage(S, S.player, arch.dmg, 'melee', target.pos, [dirx / dl, 0, dirz / dl]);
+          } else {
+            damageElena(S, arch.dmg * 0.75, 'melee');
+          }
+        }
+        e.recoverT = arch.attackRec;
+      }
+      return;
+    }
+    if (e.recoverT > 0) {
+      e.recoverT -= dt;
+      if (e.recoverT <= 0) { e.state = 'Circle'; e.stateT = 0; releaseToken(S, e); }
+      return;
+    }
+    /* grab attempt instead of a swing */
+    if (arch.grab && d <= (arch.grabRange || 1.2) && rnd(S) < (arch.grabChance || 0.3) * dt * 3) {
+      if (target === S.player && S.player.grabbedBy < 0) {
+        startPlayerGrab(S, e);
+        return;
+      }
+      if (target === S.elena && S.elena.grabbedBy < 0) {
+        startElenaGrab(S, e);
+        return;
+      }
+    }
+    if (d <= arch.reach) {
+      e.windT = arch.attackWind;
+      e.anim = 'melee';
+      emit('enemy_attack', { id: e.id, kind: e.kind, pos: vcopy(e.pos) });
+    } else if (d > arch.reach + 2.5) {
+      e.state = 'Chase'; e.stateT = 0;
+    } else {
+      /* Inside the commit band but not yet in reach: close the gap. Without
+         this the enemy stands still holding an attack token and the fight
+         quietly stalls. */
+      var cx = target.pos[0] - e.pos[0], cz = target.pos[2] - e.pos[2];
+      var cl = Math.sqrt(cx * cx + cz * cz) || 1;
+      var closeSpeed = arch.speed * 0.95;
+      moveEntity(S, e, cx / cl * closeSpeed * dt, cz / cl * closeSpeed * dt, e.radius, e.height);
+      e.speed = closeSpeed;
+      e.anim = 'walk';
+    }
+  }
+
+  function enemyRanged(S, e, dt) {
+    var arch = ARCH[e.kind] || ARCH.ganado;
+    var target = S.player;
+    var d = distXZ(e.pos, target.pos);
+    faceToward(e, target.pos[0], target.pos[2], 3.4, dt);
+    e.fireCD -= dt;
+
+    /* hold a preferred stand-off band */
+    if (d < (arch.minRange || 6)) {
+      repath(S, e, target.pos, dt, 0.7);
+      var away = [e.pos[0] * 2 - target.pos[0], e.pos[1], e.pos[2] * 2 - target.pos[2]];
+      navFindPath(S, e.pos, away, _pathTmp);
+      e.path.length = 0;
+      for (var i = 0; i < _pathTmp.length; i++) { e.path.push(_pathTmp[i]); }
+      e.pathI = 0;
+      stepAlongPath(S, e, dt, arch.speed);
+      e.anim = 'walk';
+      return;
+    }
+    if (d > (arch.preferredRange || 12) + 4) {
+      repath(S, e, target.pos, dt, 0.6);
+      stepAlongPath(S, e, dt, arch.speed);
+      e.anim = 'walk';
+      return;
+    }
+    e.speed = 0;
+    e.anim = 'aim';
+    if (e.fireCD <= 0 && canSee(S, e, target.pos)) {
+      e.fireCD = arch.ranged ? (arch.burst ? 1.9 : 2.6) : 3;
+      e.anim = 'fire';
+      _pv[0] = e.pos[0]; _pv[1] = e.pos[1] + e.height * 0.75; _pv[2] = e.pos[2];
+      var dx = target.pos[0] - _pv[0], dy = (target.pos[1] + 1.1) - _pv[1], dz = target.pos[2] - _pv[2];
+      var l = Math.sqrt(dx * dx + dy * dy + dz * dz) || 1;
+      spawnProjectile(S, {
+        owner: e.id, hostile: true,
+        pos: _pv, dir: [dx / l, dy / l, dz / l],
+        speed: arch.projSpeed || 20, dmg: arch.dmg,
+        kind: e.kind === 'spitter' ? 'acid' : 'bullet',
+        arc: arch.projArc || 0
+      });
+      emit('enemy_fire', { id: e.id, kind: e.kind, pos: vcopy(_pv) });
+    }
+  }
+
+  function updateEnemy(S, e, dt) {
+    var arch = ARCH[e.kind] || ARCH.ganado;
+    e.stateT += dt;
+    e.animT += dt;
+    e.speed = 0;
+
+    if (e.dead) {
+      e.corpseT += dt;
+      e.anim = 'death';
+      return;
+    }
+    /* poise recovers so a stagger has to be re-earned */
+    if (e.poise < e.maxPoise) {
+      e.poise = Math.min(e.maxPoise, e.poise + TUNE.poiseRegen * dt);
+    }
+    if (e.staggered) {
+      e.staggerT -= dt;
+      e.anim = 'stagger';
+      if (e.staggerT <= 0) {
+        e.staggered = false;
+        e.state = 'Chase'; e.stateT = 0;
+        e.poise = e.maxPoise * 0.6;
+      }
+      return;
+    }
+    if (e.grabbing) { e.anim = 'melee'; return; }
+
+    var sees = updatePerception(S, e, dt);
+    var target = (e.huntingElena && S.elena.alive) ? S.elena : S.player;
+    var dist = distXZ(e.pos, target.pos);
+
+    /* boss phase transitions */
+    if (arch.boss) {
+      var frac = e.hp / e.maxHp;
+      var wantPhase = frac < 0.33 ? 2 : (frac < 0.68 ? 1 : 0);
+      if (wantPhase > e.phase) {
+        e.phase = wantPhase;
+        e.state = 'Mutate'; e.stateT = 0;
+        e.anim = 'mutate';
+        emit('boss_phase', { id: e.id, phase: e.phase });
+      }
+      if (e.state === 'Mutate') {
+        e.anim = 'mutate';
+        if (e.stateT > 2.5) { e.state = 'Chase'; e.stateT = 0; }
+        return;
+      }
+    }
+
+    switch (e.state) {
+      case 'Ambush':
+        e.anim = 'idle';
+        if (dist < 8 && sees) {
+          e.state = 'Chase'; e.stateT = 0;
+          emit('ambush', { id: e.id, pos: vcopy(e.pos) });
+        }
+        break;
+
+      case 'Idle':
+      case 'Patrol':
+        e.anim = 'idle';
+        /* Sweep the head around instead of staring at one wall forever -
+           otherwise an enemy spawned facing away never notices anything and
+           the encounter silently never happens. */
+        e.scanT = (e.scanT || 0) + dt;
+        if (e.scanT > 2.2) {
+          e.scanT = 0;
+          e.scanTarget = e.yaw + (rnd(S) - 0.5) * 2.4;
+        }
+        if (e.scanTarget !== undefined) {
+          e.yaw = turnToward(e.yaw, e.scanTarget, 1.3 * dt);
+        }
+        if (e.alert > 0.3) { e.state = 'Chase'; e.stateT = 0; }
+        else if (S.time - (e.heardT || -99) < 6) { e.state = 'Investigate'; e.stateT = 0; }
+        break;
+
+      case 'Investigate':
+        e.anim = 'walk';
+        repath(S, e, e.heardPos, dt, 0.8);
+        stepAlongPath(S, e, dt, arch.speed * 0.8);
+        if (e.alert > 0.3) { e.state = 'Chase'; e.stateT = 0; }
+        else if (e.stateT > 10 || distXZ(e.pos, e.heardPos) < 1.5) {
+          e.state = 'Idle'; e.stateT = 0; e.heardT = -99;
+        }
+        break;
+
+      case 'Chase':
+        e.anim = dist > 9 ? 'run' : 'walk';
+        /* decide who to chase: a capped few peel off toward Elena */
+        if (!e.huntingElena && S.elena.alive && rnd(S) < dt * 0.35 &&
+            distXZ(e.pos, S.elena.pos) < distXZ(e.pos, S.player.pos) * 1.35) {
+          markElenaHunter(S, e);
+        }
+        repath(S, e, target.pos, dt, 0.5);
+        var chaseSpeed = (dist > 7 ? arch.sprint : arch.speed) * S.director.aggression;
+        stepAlongPath(S, e, dt, chaseSpeed);
+        e.anim = chaseSpeed > arch.speed * 1.3 ? 'run' : 'walk';
+        if (arch.ranged) { e.state = 'Ranged'; e.stateT = 0; break; }
+        if (dist <= arch.reach + 0.6) {
+          if (acquireToken(S, e)) { e.state = 'Attack'; e.stateT = 0; }
+          else { e.state = 'Circle'; e.stateT = 0; }
+        }
+        break;
+
+      case 'Circle':
+        /* no token: orbit at threat distance and look for an opening */
+        e.anim = 'walk';
+        e.circleT += dt;
+        var ang = Math.atan2(e.pos[0] - target.pos[0], e.pos[2] - target.pos[2]);
+        ang += e.circleDir * dt * 0.8;
+        var ring = arch.reach + 2.2;
+        var cx = target.pos[0] + Math.sin(ang) * ring;
+        var cz = target.pos[2] + Math.cos(ang) * ring;
+        var ddx = cx - e.pos[0], ddz = cz - e.pos[2];
+        var dl2 = Math.sqrt(ddx * ddx + ddz * ddz) || 1;
+        moveEntity(S, e, ddx / dl2 * arch.speed * 0.75 * dt, ddz / dl2 * arch.speed * 0.75 * dt,
+                   e.radius, e.height);
+        e.speed = arch.speed * 0.75;
+        faceToward(e, target.pos[0], target.pos[2], 5, dt);
+        if (e.circleT > 1.2 && acquireToken(S, e)) {
+          e.state = 'Attack'; e.stateT = 0; e.circleT = 0;
+        }
+        if (dist > arch.reach + 6) { e.state = 'Chase'; e.stateT = 0; }
+        break;
+
+      case 'Attack':
+        if (!hasToken(S, e) && !acquireToken(S, e)) {
+          e.state = 'Circle'; e.stateT = 0; break;
+        }
+        enemyAttack(S, e, dt);
+        break;
+
+      case 'Ranged':
+        enemyRanged(S, e, dt);
+        if (dist < (arch.minRange || 6) * 0.5) { e.state = 'Chase'; e.stateT = 0; }
+        break;
+
+      default:
+        e.state = 'Idle'; e.stateT = 0;
+        break;
+    }
+  }
+
+  function updateEnemies(S, dt) {
+    pruneTokens(S);
+    var i, e;
+    for (i = S.enemies.length - 1; i >= 0; i--) {
+      e = S.enemies[i];
+      updateEnemy(S, e, dt);
+      /* retire corpses so the array cannot grow without bound */
+      if (e.dead && e.corpseT > 22) {
+        releaseToken(S, e);
+        unmarkElenaHunter(S, e);
+        S.enemies.splice(i, 1);
+      }
+    }
+    /* squad alert decays */
+    if (S.squad.hasContact && S.time - S.squad.lastKnownT > 12) {
+      S.squad.hasContact = false;
+      S.squad.alert = 0;
+    }
+  }
+
+  /* ======================================================================
+     SECTION -- ELENA
+     ====================================================================== */
+  var FOLLOW_DIST = { close: 1.8, medium: 3.2, far: 5.0 };
+
+  function setBehavior(S, name) {
+    var el = S.elena;
+    if (el.behavior === name) { return; }
+    el.prevBehavior = el.behavior;
+    el.behavior = name;
+    el.behaviorT = 0;
+    el.path.length = 0;
+    el.pathI = 0;
+    el.repathT = 0;
+    emit('elena_behavior', { behavior: name, prev: el.prevBehavior });
+  }
+
+  function damageElena(S, amount, type) {
+    var el = S.elena;
+    if (!el.alive || el.downed) { return 0; }
+    amount *= diffOf(S).dmgIn;
+    el.hp = Math.max(0, el.hp - amount);
+    el.lastHitT = S.time;
+    el.hurtT = 0.5;
+    el.fear = clamp(el.fear + 0.22, 0, 1);
+    emit('damage', { who: 'elena', amount: amount, type: type, hp: el.hp, max: el.maxHp });
+    if (el.hp <= 0) { killElena(S, type); }
+    return amount;
+  }
+
+  function startElenaGrab(S, e) {
+    var el = S.elena;
+    if (!el.alive || el.grabbedBy >= 0) { return; }
+    el.grabbedBy = e.id;
+    el.carryT = 0;
+    el.carried = true;
+    e.grabbing = 'elena';
+    e.grabT = 0;
+    setBehavior(S, 'Struggle');
+    el.fear = 1;
+    emit('elena_grabbed', { by: e.id, kind: e.kind, pos: vcopy(el.pos) });
+  }
+
+  function releaseElenaGrab(S, e, reason) {
+    var el = S.elena;
+    if (el.grabbedBy !== (e && e.id)) {
+      if (e) { e.grabbing = null; }
+      return;
+    }
+    el.grabbedBy = -1;
+    el.carried = false;
+    el.carryT = 0;
+    if (e) { e.grabbing = null; unmarkElenaHunter(S, e); }
+    setBehavior(S, 'Follow');
+    emit('elena_rescued', { reason: reason || 'released' });
+  }
+
+  /* A point behind and to the side of the player, never in his firing line. */
+  function followSlot(S, out) {
+    var p = S.player;
+    var dist = FOLLOW_DIST[S.elena.followDist] || 3.2;
+    var side = S.elena.slotSide || 1;
+    var yaw = p.aimYaw !== undefined ? p.aimYaw : p.yaw;
+    var bx = -Math.sin(yaw), bz = -Math.cos(yaw);
+    var rx = Math.cos(yaw), rz = -Math.sin(yaw);
+    out[0] = p.pos[0] + bx * dist + rx * side * 0.9;
+    out[1] = p.pos[1];
+    out[2] = p.pos[2] + bz * dist + rz * side * 0.9;
+    return out;
+  }
+
+  /* If she has drifted into the player's aim cone, step out of it. */
+  function avoidFiringLine(S, dt) {
+    var el = S.elena, p = S.player;
+    var dx = el.pos[0] - p.pos[0], dz = el.pos[2] - p.pos[2];
+    var d = Math.sqrt(dx * dx + dz * dz);
+    if (d > 6 || d < 0.05) { return false; }
+    var yaw = p.aimYaw !== undefined ? p.aimYaw : p.yaw;
+    var toEl = Math.atan2(dx, dz);
+    var off = angleWrap(toEl - yaw);
+    var coneHalf = Math.atan2(0.75, Math.max(1, d));
+    if (Math.abs(off) > coneHalf) { return false; }
+    var push = off >= 0 ? 1 : -1;
+    var px = Math.cos(yaw) * push, pz = -Math.sin(yaw) * push;
+    moveEntity(S, el, px * 2.4 * dt, pz * 2.4 * dt, el.radius, el.height);
+    el.speed = 2.4;
+    el.sidestepT = 0.4;
+    return true;
+  }
+
+  function elenaStress(S, dt) {
+    var el = S.elena, p = S.player;
+    var st = el.stress;
+    /* threat: nearest live enemy */
+    var nearest = 1e9, i, e;
+    for (i = 0; i < S.enemies.length; i++) {
+      e = S.enemies[i];
+      if (e.dead) { continue; }
+      var dd = distXZ(e.pos, el.pos);
+      if (dd < nearest) { nearest = dd; }
+    }
+    st.threat = nearest < 1e9 ? clamp(1 - nearest / 18, 0, 1) : 0;
+    st.gunfire = clamp(st.gunfire - dt * 0.35, 0, 1);
+    if (S.time - p.lastFireT < 0.2) { st.gunfire = Math.min(1, st.gunfire + 0.30); }
+    st.playerHurt = 1 - (p.health.hp / p.health.max);
+    st.dark = el.inDark ? 1 : 0;
+
+    var target = clamp(st.threat * 0.55 + st.gunfire * 0.2 + st.playerHurt * 0.25 +
+                       st.dark * 0.15 + (el.grabbedBy >= 0 ? 1 : 0), 0, 1);
+    /* proximity to the player is calming - this is the mechanic that teaches
+       players to stay close without a tutorial saying so */
+    var pd = distXZ(el.pos, p.pos);
+    if (pd < 2.5) { target -= 0.20; }
+    if (S.flags.safeRoom) { target -= 0.5; }
+    target = clamp(target, 0, 1);
+
+    var rate = target > el.fear ? 1.4 : 0.35;
+    el.fear += (target - el.fear) * Math.min(1, dt * rate);
+    el.fear = clamp(el.fear, 0, 1);
+    el.fearSmoothed += (el.fear - el.fearSmoothed) * Math.min(1, dt * 2);
+
+    var tier = el.fear > 0.72 ? 'panic' : (el.fear > 0.38 ? 'tense' : 'calm');
+    if (tier !== el.fearTier) {
+      el.fearTier = tier;
+      emit('elena_fear', { fear: el.fear, tier: tier });
+    }
+  }
+
+  function updateElena(S, input, dt) {
+    var el = S.elena, p = S.player;
+    if (!el.alive) { el.anim = 'death'; return; }
+    el.behaviorT += dt;
+    el.animT += dt;
+    el.speed = 0;
+    el.barkCD = Math.max(0, el.barkCD - dt);
+    el.screamCD = Math.max(0, el.screamCD - dt);
+    el.throwCD = Math.max(0, el.throwCD - dt);
+    if (el.hurtT > 0) { el.hurtT -= dt; }
+
+    elenaStress(S, dt);
+
+    /* --- commands ------------------------------------------------------ */
+    if (input) {
+      if (input.cmdFollow) { el.order = 'follow'; setBehavior(S, 'Follow'); }
+      else if (input.cmdStay) { el.order = 'stay'; setBehavior(S, 'Stay'); }
+      else if (input.cmdHide) { el.order = 'hide'; setBehavior(S, 'Hide'); }
+      else if (input.cmdCome) { el.order = 'follow'; setBehavior(S, 'ComeHere'); }
+      else if (input.cmdInteract) { setBehavior(S, 'Interact'); }
+    }
+
+    /* --- forced states override orders --------------------------------- */
+    if (el.grabbedBy >= 0 && el.behavior !== 'Struggle') { setBehavior(S, 'Struggle'); }
+    if (el.downed && el.behavior !== 'Downed') { setBehavior(S, 'Downed'); }
+
+    var slot = _pv2;
+
+    switch (el.behavior) {
+      case 'Struggle': {
+        var carrier = enemyById(S, el.grabbedBy);
+        el.anim = 'grabbed';
+        if (!carrier || carrier.dead) { releaseElenaGrab(S, carrier, 'carrier_down'); break; }
+        el.carryT += dt;
+        /* the carrier drags her toward the section edge */
+        var ex = carrier.pos[0], ez = carrier.pos[2];
+        el.pos[0] = ex + Math.sin(carrier.yaw) * 0.6;
+        el.pos[2] = ez + Math.cos(carrier.yaw) * 0.6;
+        el.pos[1] = carrier.pos[1];
+        if (el.carryT > TUNE.elenaCarryTime) {
+          killElena(S, 'taken');
+        }
+        break;
+      }
+
+      case 'Downed':
+        el.anim = 'cower';
+        el.downT += dt;
+        if (distXZ(p.pos, el.pos) < 1.6 && input && input.interact) {
+          el.downed = false; el.downT = 0;
+          el.hp = Math.max(el.hp, el.maxHp * 0.35);
+          el.revives++;
+          setBehavior(S, 'Follow');
+          emit('elena_revived', {});
+        }
+        break;
+
+      case 'Stay':
+        el.anim = el.fear > 0.6 ? 'cower' : 'idle';
+        /* she still cowers if something gets close, but holds position */
+        if (el.stress.threat > 0.6) { el.anim = 'cower'; }
+        break;
+
+      case 'Hide':
+        el.anim = 'hide';
+        break;
+
+      case 'ComeHere':
+        followSlot(S, slot);
+        repath(S, el, p.pos, dt, 0.35);
+        stepAlongPath(S, el, dt, 3.4);
+        el.anim = 'run';
+        if (distXZ(el.pos, p.pos) < 1.6) { setBehavior(S, 'Follow'); }
+        break;
+
+      case 'Interact':
+        el.anim = 'idle';
+        if (el.behaviorT > 1.6) { setBehavior(S, 'Follow'); }
+        break;
+
+      case 'TakeCover': {
+        el.anim = 'walk';
+        if (el.stress.threat < 0.35) { setBehavior(S, 'Follow'); break; }
+        /* put the player between her and the threat */
+        var bx = p.pos[0] * 2 - S.squad.lastKnown[0];
+        var bz = p.pos[2] * 2 - S.squad.lastKnown[2];
+        _pv[0] = bx; _pv[1] = p.pos[1]; _pv[2] = bz;
+        repath(S, el, _pv, dt, 0.6);
+        stepAlongPath(S, el, dt, 3.0);
+        if (distXZ(el.pos, _pv) < 1.2) { el.anim = 'cower'; }
+        break;
+      }
+
+      case 'Follow':
+      default: {
+        followSlot(S, slot);
+        var dToSlot = distXZ(el.pos, slot);
+        var dToPlayer = distXZ(el.pos, p.pos);
+
+        /* combat: get behind the player rather than trailing into fire */
+        if (el.stress.threat > 0.55 && S.player.inCombat > 0) {
+          setBehavior(S, 'TakeCover');
+          break;
+        }
+
+        /* high fear: hesitate at the threshold of somewhere dark */
+        if (el.fear > 0.8 && dToPlayer > 5 && !el.hesitating) {
+          el.hesitating = true;
+          el.hesitateT = 0;
+          vset(el.hesitateAt, el.pos[0], el.pos[1], el.pos[2]);
+          emit('elena_hesitate', { pos: vcopy(el.pos) });
+        }
+        if (el.hesitating) {
+          el.hesitateT += dt;
+          el.anim = 'cower';
+          /* a ComeHere order, or the player getting close, breaks it */
+          if (dToPlayer < 3.0 || el.fear < 0.62 || el.hesitateT > 6) {
+            el.hesitating = false;
+          }
+          break;
+        }
+
+        if (dToSlot > 0.85) {
+          var speed = dToPlayer > 8 ? 4.2 : (dToPlayer > 4 ? 3.2 : 1.9);
+          speed *= (1 - el.fear * 0.18);
+          repath(S, el, slot, dt, dToPlayer > 6 ? 0.3 : 0.55);
+          var moved = stepAlongPath(S, el, dt, speed);
+          el.anim = speed > 3.6 ? 'run' : (speed > 2.2 ? 'run' : 'walk');
+          if (!moved) { el.anim = 'idle'; }
+        } else {
+          el.anim = el.fear > 0.7 ? 'cower' : 'idle';
+          faceToward(el, p.pos[0], p.pos[2], 4, dt);
+        }
+        break;
+      }
+    }
+
+    /* always keep out of the player's line of fire */
+    if (el.behavior !== 'Struggle' && el.behavior !== 'Downed') { avoidFiringLine(S, dt); }
+
+    /* --- limited self-defence ------------------------------------------ */
+    if (el.behavior !== 'Struggle' && el.alive) {
+      /* emergency scream pulls aggro off the player */
+      if (el.screamCD <= 0 && p.health.hp / p.health.max < 0.25 && el.stress.threat > 0.7) {
+        el.screamCD = 45;
+        S.squad.lastKnownT = S.time;
+        vset(S.squad.lastKnown, el.pos[0], el.pos[1], el.pos[2]);
+        for (var si = 0; si < S.enemies.length; si++) {
+          var se = S.enemies[si];
+          if (se.dead) { continue; }
+          if (distXZ(se.pos, el.pos) < 14) { se.distracted = 4.0; }
+        }
+        emit('elena_scream', { pos: vcopy(el.pos) });
+      }
+      /* throw something at a staggered enemy */
+      if (el.throwCD <= 0 && el.fear < 0.8) {
+        for (var ti = 0; ti < S.enemies.length; ti++) {
+          var te = S.enemies[ti];
+          if (te.dead || !te.staggered) { continue; }
+          if (distXZ(te.pos, el.pos) > 9) { continue; }
+          el.throwCD = 8;
+          damageEnemy(S, te, 12, 'thrown', te.pos, null, 'torso', 8);
+          emit('elena_throw', { target: te.id, pos: vcopy(el.pos) });
+          break;
+        }
+      }
+      /* call out an enemy the player cannot see */
+      if (S.time - el.lastCallout > 6) {
+        for (var ci = 0; ci < S.enemies.length; ci++) {
+          var ce = S.enemies[ci];
+          if (ce.dead) { continue; }
+          if (distXZ(ce.pos, p.pos) > 16) { continue; }
+          if (canSee(S, { pos: p.pos, yaw: p.aimYaw || p.yaw, height: 1.7, kind: 'player' }, ce.pos)) { continue; }
+          if (!canSee(S, { pos: el.pos, yaw: el.yaw, height: 1.6, kind: 'elena' }, ce.pos)) { continue; }
+          el.lastCallout = S.time;
+          emit('elena_callout', { target: ce.id, pos: vcopy(ce.pos), kind: ce.kind });
+          break;
+        }
+      }
+    }
+
+    /* keep her on the ground and inside the world */
+    el.pos[1] = navSampleHeight(S, el.pos[0], el.pos[2]);
+    sanitizeVec(el.pos);
+  }
+
+  /* ======================================================================
+     SECTION -- INVENTORY
+     ====================================================================== */
+  var Inventory = {
+    fits: function (S, item, x, y, rot, ignoreUid) {
+      var inv = S.inventory;
+      var def = ITEMS[item.item || item.id] || ITEMS[item];
+      if (!def) { return false; }
+      var w = rot ? def.h : def.w, h = rot ? def.w : def.h;
+      if (x < 0 || y < 0 || x + w > inv.w || y + h > inv.h) { return false; }
+      for (var i = 0; i < inv.items.length; i++) {
+        var o = inv.items[i];
+        if (ignoreUid !== undefined && o.uid === ignoreUid) { continue; }
+        var od = ITEMS[o.item];
+        if (!od) { continue; }
+        var ow = o.rot ? od.h : od.w, oh = o.rot ? od.w : od.h;
+        if (x < o.x + ow && x + w > o.x && y < o.y + oh && y + h > o.y) { return false; }
+      }
+      return true;
+    },
+    findSlot: function (S, itemId) {
+      var inv = S.inventory;
+      for (var r = 0; r < 2; r++) {
+        for (var y = 0; y < inv.h; y++) {
+          for (var x = 0; x < inv.w; x++) {
+            if (Inventory.fits(S, { item: itemId }, x, y, r === 1)) {
+              return { x: x, y: y, rot: r === 1 };
+            }
+          }
+        }
+      }
+      return null;
+    },
+    add: function (S, itemId, qty) {
+      var def = ITEMS[itemId];
+      if (!def) { return false; }
+      qty = qty || 1;
+      var i, o;
+      /* stack first */
+      if (def.stack > 1) {
+        for (i = 0; i < S.inventory.items.length; i++) {
+          o = S.inventory.items[i];
+          if (o.item === itemId && o.qty < def.stack) {
+            var room = def.stack - o.qty;
+            var take = Math.min(room, qty);
+            o.qty += take; qty -= take;
+            if (qty <= 0) { emit('pickup', { item: itemId, name: def.name, qty: take }); return true; }
+          }
+        }
+      }
+      while (qty > 0) {
+        var slot = Inventory.findSlot(S, itemId);
+        if (!slot) { emit('inventory_full', { item: itemId }); return false; }
+        var take2 = Math.min(def.stack || 1, qty);
+        S.inventory.items.push({
+          uid: S.inventory.nextUid++, item: itemId,
+          x: slot.x, y: slot.y, rot: slot.rot, qty: take2
+        });
+        qty -= take2;
+      }
+      emit('pickup', { item: itemId, name: def.name, qty: qty });
+      return true;
+    },
+    remove: function (S, uid, qty) {
+      var items = S.inventory.items;
+      for (var i = 0; i < items.length; i++) {
+        if (items[i].uid !== uid) { continue; }
+        items[i].qty -= (qty || 1);
+        if (items[i].qty <= 0) { items.splice(i, 1); }
+        return true;
+      }
+      return false;
+    },
+    count: function (S, itemId) {
+      var n = 0;
+      for (var i = 0; i < S.inventory.items.length; i++) {
+        if (S.inventory.items[i].item === itemId) { n += S.inventory.items[i].qty; }
+      }
+      return n;
+    },
+    consume: function (S, itemId, qty) {
+      qty = qty || 1;
+      var items = S.inventory.items;
+      for (var i = items.length - 1; i >= 0 && qty > 0; i--) {
+        if (items[i].item !== itemId) { continue; }
+        var take = Math.min(items[i].qty, qty);
+        items[i].qty -= take; qty -= take;
+        if (items[i].qty <= 0) { items.splice(i, 1); }
+      }
+      return qty === 0;
+    },
+    move: function (S, uid, x, y, rot) {
+      var items = S.inventory.items;
+      for (var i = 0; i < items.length; i++) {
+        if (items[i].uid !== uid) { continue; }
+        if (!Inventory.fits(S, items[i], x, y, rot, uid)) { return false; }
+        items[i].x = x; items[i].y = y; items[i].rot = !!rot;
+        return true;
+      }
+      return false;
+    },
+    combine: function (S, uidA, uidB) {
+      var a = null, b = null, i;
+      for (i = 0; i < S.inventory.items.length; i++) {
+        if (S.inventory.items[i].uid === uidA) { a = S.inventory.items[i]; }
+        if (S.inventory.items[i].uid === uidB) { b = S.inventory.items[i]; }
+      }
+      if (!a || !b) { return false; }
+      for (i = 0; i < RECIPES.length; i++) {
+        var r = RECIPES[i];
+        var match = (r.a === a.item && r.b === b.item) || (r.a === b.item && r.b === a.item);
+        if (!match) { continue; }
+        Inventory.remove(S, a.uid, 1);
+        Inventory.remove(S, b.uid, 1);
+        Inventory.add(S, r.result, r.qty || 1);
+        emit('craft', { result: r.result, qty: r.qty || 1 });
+        return true;
+      }
+      return false;
+    },
+    sort: function (S) {
+      var items = S.inventory.items.slice();
+      items.sort(function (p, q) {
+        var dp = ITEMS[p.item], dq = ITEMS[q.item];
+        return (dq.w * dq.h) - (dp.w * dp.h);
+      });
+      S.inventory.items.length = 0;
+      for (var i = 0; i < items.length; i++) {
+        var slot = Inventory.findSlot(S, items[i].item);
+        if (slot) {
+          items[i].x = slot.x; items[i].y = slot.y; items[i].rot = slot.rot;
+          S.inventory.items.push(items[i]);
+        } else {
+          S.inventory.items.push(items[i]);
+        }
+      }
+      return true;
+    },
+    expand: function (S) {
+      var inv = S.inventory;
+      if (inv.w < inv.maxW) { inv.w += 1; }
+      else if (inv.h < inv.maxH) { inv.h += 1; }
+      else { return false; }
+      inv.caseTier++;
+      emit('case_upgrade', { w: inv.w, h: inv.h });
+      return true;
+    }
+  };
+
+  /* ======================================================================
+     SECTION -- PICKUPS AND INTERACTION
+     ====================================================================== */
+  function updatePickups(S, dt) {
+    for (var i = S.pickups.length - 1; i >= 0; i--) {
+      var pk = S.pickups[i];
+      pk.t += dt;
+      if (distXZ(pk.pos, S.player.pos) < 1.15) {
+        var def = ITEMS[pk.item];
+        if (def && def.kind === 'ammo') {
+          giveAmmo(S, def.ammo || 'pistol', pk.qty);
+
+          S.pickups.splice(i, 1);
+        } else if (Inventory.add(S, pk.item, pk.qty)) {
+          S.pickups.splice(i, 1);
+        }
+      } else if (pk.t > 240) {
+        S.pickups.splice(i, 1);
+      }
+    }
+  }
+
+  /* ======================================================================
+     SECTION -- DIRECTOR
+     ====================================================================== */
+  function updateDirector(S, dt) {
+    var d = S.director;
+    d.window += dt;
+    if (d.window < 2.5) { return; }
+    d.window = 0;
+
+    var p = S.player;
+    var acc = S.stats.shotsFired > 0 ? (S.stats.shotsHit || 0) / S.stats.shotsFired : 0.5;
+    d.accuracy += (acc - d.accuracy) * 0.3;
+    d.healthAvg += ((p.health.hp / p.health.max) - d.healthAvg) * 0.35;
+    d.fearAvg += (S.elena.fear - d.fearAvg) * 0.35;
+
+    /* ammo pressure for the weapon the player actually leans on */
+    var pw = equippedWeapon(S);
+    var ammoType = (pw && WEAPON_AMMO[pw.id]) || 'pistol';
+    var reserve = (S.player.ammo && S.player.ammo[ammoType]) || 0;
+    d.ammoPressure = clamp(1 - reserve / 60, 0, 1);
+
+    /* one score: high means the player is comfortable */
+    var score = d.accuracy * 0.28 + d.healthAvg * 0.42 + (1 - d.ammoPressure) * 0.30;
+    d.score += (score - d.score) * 0.4;
+    d.heat = clamp(1 - d.score, 0, 1);
+
+    /* reshape the fight rather than just inflating numbers */
+    d.aggression = 0.82 + d.score * 0.42;
+    d.spawnMul = 0.78 + d.score * 0.5;
+    d.tokenBonus = d.score > 0.75 ? 1 : (d.score < 0.3 ? -1 : 0);
+
+    /* bias drops toward whatever the player is short of */
+    d.dropBias.ammo = 0.65 + d.ammoPressure * 1.5;
+    d.dropBias.heal = 0.55 + (1 - d.healthAvg) * 1.8;
+    d.dropBias.resource = 0.8 + d.score * 0.6;
+    d.dropBias.treasure = 0.5 + d.score * 1.1;
+  }
+
+  /* ======================================================================
+     SECTION -- TRIGGERS, OBJECTIVES, SECTIONS
+     ====================================================================== */
+  function inBox(p, mn, mx) {
+    return p[0] >= mn[0] && p[0] <= mx[0] && p[1] >= mn[1] &&
+           p[1] <= mx[1] && p[2] >= mn[2] && p[2] <= mx[2];
+  }
+
+  function updateTriggers(S, dt) {
+    var sec = currentSection(S);
+    if (!sec || !sec.triggers) { return; }
+    for (var i = 0; i < sec.triggers.length; i++) {
+      var t = sec.triggers[i];
+      if (t.once && S.flags['__trig_' + t.id]) { continue; }
+      if (!inBox(S.player.pos, t.min, t.max)) { continue; }
+      S.flags['__trig_' + t.id] = true;
+      S.flags[t.id] = true;
+      fireTriggerEvent(S, t.event);
+    }
+  }
+
+  function fireTriggerEvent(S, event) {
+    if (!event) { return; }
+    if (event.indexOf('objective:') === 0) {
+      setObjective(S, event.slice(10));
+      return;
+    }
+    S.flags[event] = true;
+    emit('dialogue', { trigger: event });
+    emit('trigger', { event: event });
+  }
+
+  function setObjective(S, id) {
+    if (S.objective === id) { return; }
+    S.objective = id;
+    S.objectiveHistory.push(id);
+    var text = id;
+    if (IP.STORY && IP.STORY.objectives && IP.STORY.objectives[id]) {
+      text = IP.STORY.objectives[id].text || id;
+    }
+    emit('objective', { id: id, text: text });
+  }
+
+  function changeSection(S, id) {
+    if (S.section === id) { return; }
+    var prev = S.section;
+    S.section = id;
+    var lvl = S.level;
+    if (lvl) {
+      for (var i = 0; i < lvl.sections.length; i++) {
+        if (lvl.sections[i].id === id) {
+          S.sectionIndex = i;
+          S.act = lvl.sections[i].act || S.act;
+          break;
+        }
+      }
+    }
+    /* clear the old section's population */
+    S.enemies.length = 0;
+    S.squad.tokens.length = 0;
+    S.squad.elenaHunters.length = 0;
+    armSpawners(S);
+    emit('section_change', { from: prev, to: id });
+  }
+
+  /* Walk the player through a door prop into the next section. */
+  function updateSectionTransitions(S, dt) {
+    var lvl = S.level;
+    if (!lvl || !lvl.transitions) { return; }
+    var sec = currentSection(S);
+    if (!sec || !sec.props) { return; }
+    for (var i = 0; i < sec.props.length; i++) {
+      var pr = sec.props[i];
+      if (!pr.tag || pr.tag.indexOf('to_') !== 0) { continue; }
+      if (distXZ(S.player.pos, pr.pos) > 2.2) { continue; }
+      var targetId = pr.tag.slice(3);
+      /* Elena has to be with you - the escort is the whole point */
+      if (S.elena.alive && distXZ(S.elena.pos, S.player.pos) > 8) {
+        emit('blocked', { reason: 'elena_far' });
+        return;
+      }
+      changeSection(S, targetId);
+      placeAtSectionStart(S, targetId);
+      return;
+    }
+  }
+
+  function placeAtSectionStart(S, id) {
+    var lvl = S.level, sec = null, i;
+    if (!lvl) { return; }
+    for (i = 0; i < lvl.sections.length; i++) {
+      if (lvl.sections[i].id === id) { sec = lvl.sections[i]; break; }
+    }
+    if (!sec) { return; }
+    var b = sec.bounds;
+    var cx = (b.min[0] + b.max[0]) * 0.5, cz = (b.min[2] + b.max[2]) * 0.5;
+    /* find a walkable cell near the centre */
+    for (var r = 0; r < 40; r++) {
+      for (var a = 0; a < 8; a++) {
+        var ang = a / 8 * Math.PI * 2;
+        var x = cx + Math.cos(ang) * r * 1.2, z = cz + Math.sin(ang) * r * 1.2;
+        if (navIsWalkable(S, x, z)) {
+          vset(S.player.pos, x, navSampleHeight(S, x, z), z);
+          vset(S.elena.pos, x - 1.2, S.player.pos[1], z - 1.2);
+          S.elena.path.length = 0;
+          return;
+        }
+      }
+    }
+    vset(S.player.pos, cx, 0, cz);
+    vset(S.elena.pos, cx - 1.2, 0, cz - 1.2);
+  }
+
+  /* ======================================================================
+     SECTION -- ENDINGS
+     ====================================================================== */
+  function evaluateEnding(S, reason) {
+    if (reason === 'elena_lost' || !S.elena.alive) {
+      return { id: 'elena_lost', rank: 'F', name: 'Asset Lost' };
+    }
+    if (reason === 'player_lost') {
+      return { id: 'kia', rank: 'F', name: 'Killed In Action' };
+    }
+    var survivors = S.stats.survivors || 0;
+    var data = !!S.flags.dataDestroyed;
+    var timeLeft = S.extractionClock ? Math.max(0, S.extractionClock.timeLeft) : 0;
+    var score = (survivors * 2) + (data ? 3 : 0) + (timeLeft > 60 ? 2 : 0);
+    var rank = score >= 7 ? 'S' : (score >= 5 ? 'A' : (score >= 3 ? 'B' : 'C'));
+    var id = rank === 'S' ? 'clean_extraction'
+           : (data ? 'scorched_earth' : 'bare_extraction');
+    var ending = { id: id, rank: rank, name: id, survivors: survivors,
+                   dataDestroyed: data, timeLeft: timeLeft };
+    if (IP.STORY && IP.STORY.endings) {
+      for (var i = 0; i < IP.STORY.endings.length; i++) {
+        if (IP.STORY.endings[i].rank === rank) {
+          ending.title = IP.STORY.endings[i].title;
+          ending.text = IP.STORY.endings[i].text;
+          ending.name = IP.STORY.endings[i].name || id;
+          break;
+        }
+      }
+    }
+    S.ending = ending;
+    return ending;
+  }
+
+  /* ======================================================================
+     SECTION -- SAVE / LOAD
+     ====================================================================== */
+  var SAVE_KEY = 'islandProtocolSave';
+  var SAVE_VERSION = 1;
+
+  function store() {
+    try {
+      if (typeof localStorage !== 'undefined' && localStorage) { return localStorage; }
+    } catch (e) { /* blocked by privacy settings */ }
+    return null;
+  }
+
+  /* `level` and `_rt` hold engine handles and cycles; strip them. */
+  function serialize(S) {
+    var out = {}, k;
+    for (k in S) {
+      if (!Object.prototype.hasOwnProperty.call(S, k)) { continue; }
+      if (k === 'level' || k === '_rt') { continue; }
+      out[k] = S[k];
+    }
+    return JSON.stringify({ v: SAVE_VERSION, t: Date.now(), s: out });
+  }
+
+  var Save = {
+    save: function (S) {
+      var st = store();
+      if (!st) { return false; }
+      try {
+        st.setItem(SAVE_KEY, serialize(S));
+        emit('save', { section: S.section, time: S.time });
+        return true;
+      } catch (e) { return false; }
+    },
+    checkpoint: function (S) { return Save.save(S); },
+    hasSave: function () {
+      var st = store();
+      if (!st) { return false; }
+      try { return !!st.getItem(SAVE_KEY); } catch (e) { return false; }
+    },
+    peek: function () {
+      var st = store();
+      if (!st) { return null; }
+      try {
+        var raw = st.getItem(SAVE_KEY);
+        if (!raw) { return null; }
+        var o = JSON.parse(raw);
+        return { version: o.v, time: o.t, section: o.s && o.s.section, act: o.s && o.s.act };
+      } catch (e) { return null; }
+    },
+    load: function () {
+      var st = store();
+      if (!st) { return null; }
+      try {
+        var raw = st.getItem(SAVE_KEY);
+        if (!raw) { return null; }
+        var o = JSON.parse(raw);
+        if (!o || o.v !== SAVE_VERSION || !o.s) { return null; }
+        var S = o.s;
+        /* typed arrays do not survive JSON; rebuild the vectors */
+        reviveVectors(S);
+        S.level = null;
+        S._rt = makeRuntime();
+        return S;
+      } catch (e) { return null; }
+    },
+    clear: function () {
+      var st = store();
+      if (!st) { return false; }
+      try { st.removeItem(SAVE_KEY); return true; } catch (e) { return false; }
+    }
+  };
+
+  var VEC_KEYS = ['pos', 'vel', 'lastSeen', 'goal', 'hesitateAt', 'lastKnown', 'dir'];
+  function reviveVectors(o, depth) {
+    depth = depth || 0;
+    if (!o || typeof o !== 'object' || depth > 6) { return o; }
+    var k, i;
+    if (o.length !== undefined && typeof o.length === 'number' && !(o instanceof Float32Array)) {
+      for (i = 0; i < o.length; i++) { reviveVectors(o[i], depth + 1); }
+      return o;
+    }
+    for (k in o) {
+      if (!Object.prototype.hasOwnProperty.call(o, k)) { continue; }
+      var val = o[k];
+      if (!val || typeof val !== 'object') { continue; }
+      if (VEC_KEYS.indexOf(k) >= 0 && val.length === 3) {
+        o[k] = v3(val[0], val[1], val[2]);
+      } else {
+        reviveVectors(val, depth + 1);
+      }
+    }
+    return o;
+  }
+
+  /* ======================================================================
+     SECTION -- MAIN TICK
+     ====================================================================== */
+  function update(S, input, dt) {
+    if (!S || S.paused) { return; }
+    dt = dt > 0 ? (dt > 0.1 ? 0.1 : dt) : 1 / 60;
+    S.dt = dt;
+    S.time += dt;
+    S.frame++;
+
+    if (!S._rt) { S._rt = makeRuntime(); }
+    if (!S._rt.armed && S.level) {
+      armSpawners(S);
+      S._rt.armed = true;
+      if (!S.introDone) {
+        S.introDone = true;
+        setObjective(S, 'p_reach_lift');
+        emit('dialogue', { trigger: 'game_start' });
+      }
+    }
+
+    if (S.gameOver) { return; }
+
+    if (S.player.grabbedBy >= 0) { updatePlayerGrabbed(S, input, dt); }
+    else { updatePlayer(S, input, dt); }
+
+    updateElena(S, input, dt);
+    updateEnemies(S, dt);
+    updateSpawners(S, dt);
+    updateProjectiles(S, dt);
+    updateHazards(S, dt);
+    updateEffects(S, dt);
+    updateProps(S, dt);
+    updatePickups(S, dt);
+    updateTriggers(S, dt);
+    updateSectionTransitions(S, dt);
+    updateDirector(S, dt);
+
+    var ec = S.extractionClock;
+    if (ec && ec.active && !ec.expired) {
+      ec.timeLeft = Math.max(0, ec.timeLeft - dt);
+      if (ec.timeLeft <= 0) {
+        ec.expired = true;
+        ec.active = false;
+        emit('extraction_expired', {});
+      }
+    }
+
+    /* combat memory drives the music and Elena's posture */
+    if (S.player.inCombat > 0) { S.player.inCombat -= dt; }
+    S.inCombat = S.player.inCombat > 0;
+    S.combat = S.inCombat;
+  }
+
+  /* ======================================================================
+     PUBLIC API
+     ====================================================================== */
+  IP.Systems = {
+    createWorldState: createWorldState,
+    update: update,
+
+    WEAPONS: WEAPONS,
+    ITEMS: ITEMS,
+    RECIPES: RECIPES,
+    UPGRADES: UPGRADES,
+    ARCH: ARCH,
+    TUNE: TUNE,
+    DIFF: DIFF,
+
+    Inventory: Inventory,
+    Save: Save,
+
+    Companion: {
+      setBehavior: setBehavior,
+      command: function (S, cmd) {
+        var map = { follow: 'Follow', stay: 'Stay', hide: 'Hide',
+                    come: 'ComeHere', interact: 'Interact' };
+        if (map[cmd]) { setBehavior(S, map[cmd]); }
+      },
+      setFollowDistance: function (S, d) {
+        if (FOLLOW_DIST[d]) { S.elena.followDist = d; }
+      },
+      damage: damageElena,
+      grab: startElenaGrab,
+      release: releaseElenaGrab,
+      FOLLOW_DIST: FOLLOW_DIST
+    },
+
+    EnemyAI: {
+      spawn: spawnEnemy,
+      update: updateEnemies,
+      canSee: canSee,
+      notice: noticePlayer,
+      acquireToken: acquireToken,
+      releaseToken: releaseToken,
+      tokenBudget: tokenBudget,
+      activeAttackers: function (S) { return S.squad.tokens.length; }
+    },
+
+    damage: damage,
+    damageEnemy: damageEnemy,
+    fireWeapon: fireWeapon,
+    reload: reload,
+    melee: melee,
+    equipWeapon: equipWeapon,
+    cycleWeapon: cycleWeapon,
+    giveWeapon: giveWeapon,
+    giveAmmo: giveAmmo,
+    healPlayer: healPlayer,
+    getAimCone: getAimCone,
+    enemyById: enemyById,
+    setObjective: setObjective,
+    changeSection: changeSection,
+    evaluateEnding: evaluateEnding,
+    healthFraction: function (S) {
+      return S && S.player && S.player.health ? S.player.health.hp / S.player.health.max : 1;
+    },
+    healthSegments: healthSegments,
+    equippedStats: equippedStats,
+    equippedWeapon: equippedWeapon
+  };
+
+})();
+if (typeof window !== 'undefined') { window.IP = IP; }
