@@ -24,8 +24,8 @@
   #ip-root {
     position: fixed; inset: 0; background: var(--ip-void);
     display: block; isolation: isolate;
-    padding: env(safe-area-inset-top) env(safe-area-inset-right)
-             env(safe-area-inset-bottom) env(safe-area-inset-left);
+    padding: env(safe-area-inset-top, 0px) env(safe-area-inset-right, 0px)
+             env(safe-area-inset-bottom, 0px) env(safe-area-inset-left, 0px);
     box-sizing: border-box;
   }
   #ip-canvas {
@@ -75,14 +75,18 @@
     overflow-x: auto; max-height: 52vh; overflow-y: auto;
   }
   #ip-fatal b { color: var(--ip-blood); letter-spacing: .12em; }
+  /* A hint, never a blocker: portrait is playable, landscape is just better. */
   #ip-rotate {
-    display: none; position: absolute; inset: 0; z-index: 10000;
-    background: #05070a; color: var(--ip-bone);
-    align-items: center; justify-content: center; text-align: center;
-    font-size: 15px; letter-spacing: .2em; text-transform: uppercase; padding: 30px;
+    display: none; position: absolute; left: 50%; bottom: 14px; z-index: 60;
+    transform: translateX(-50%);
+    background: rgba(5,7,10,.86); color: var(--ip-bone);
+    border: 1px solid #2a3038; border-left: 2px solid var(--ip-blood);
+    border-radius: 3px; pointer-events: none;
+    font-size: 11px; letter-spacing: .18em; text-transform: uppercase;
+    padding: 8px 14px; white-space: nowrap;
   }
   @media (orientation: portrait) and (pointer: coarse) {
-    #ip-rotate.armed { display: flex; }
+    #ip-rotate.armed { display: block; }
   }
   @media (prefers-reduced-motion: reduce) {
     #ip-boot, #ip-bar > i { transition: none; }
@@ -92,7 +96,7 @@
 <div id="ip-root">
   <canvas id="ip-canvas"></canvas>
   <div id="ip-ui"></div>
-  <div id="ip-rotate">Rotate your device to landscape</div>
+  <div id="ip-rotate">Rotate to landscape for a wider view</div>
   <div id="ip-boot">
     <h2>Island Protocol</h2>
     <h1>Presidential Extraction</h1>
@@ -11204,6 +11208,7 @@ var IP = (typeof IP !== 'undefined' && IP) || {};
     getAimCone: getAimCone,
     enemyById: enemyById,
     setObjective: setObjective,
+    applyDifficulty: applyDifficulty,
     changeSection: changeSection,
     evaluateEnding: evaluateEnding,
     healthFraction: function (S) {
@@ -11393,7 +11398,7 @@ var IP = (typeof IP !== 'undefined' && IP) || {};
     aimAssistIdx: 2, gyroAssist: false, gyroStrength: 0.5,
     aimToggle: false, controlLayout: 'auto', leftHanded: false,
     vibration: true, stickDeadzone: 0.16, triggerThreshold: 0.45,
-    autoSprint: true,
+    autoSprint: true, touchScale: 1.0, touchOpacity: 0.85,
     /* accessibility */
     subtitles: true, subtitleSize: 1.0, subtitleBg: 0.55, captions: true,
     colorblind: 'none', gore: true, reduceMotion: false, highContrast: false,
@@ -13120,90 +13125,136 @@ var IP = (typeof IP !== 'undefined' && IP) || {};
       '#ip-ui .h{position:absolute;pointer-events:none;}',
       '#ip-ui .pe{pointer-events:auto;}',
       /* ---- HUD ---- */
-      '.ip-hud{position:absolute;inset:0;pointer-events:none;opacity:1;transition:opacity .25s;}',
-      '.ip-hud.off{opacity:0;}',
-      '.ip-vit{position:absolute;left:calc(18px + env(safe-area-inset-left));bottom:calc(18px + env(safe-area-inset-bottom));width:190px;}',
-      '.ip-segs{display:flex;gap:3px;height:9px;}',
-      '.ip-segs i{flex:1;background:#1b1f26;border:1px solid #2b3038;position:relative;overflow:hidden;}',
-      '.ip-segs i b{position:absolute;inset:0;transform-origin:left;background:' + P.hp + ';transition:transform .12s linear;}',
-      '.ip-segs i u{position:absolute;inset:0;transform-origin:left;background:' + P.hpGhost + ';opacity:.55;transition:transform .5s ease .25s;}',
-      '.ip-stam{margin-top:5px;height:3px;background:#161a20;}',
-      '.ip-stam b{display:block;height:100%;background:' + P.stam + ';transform-origin:left;}',
-      '.ip-ammo{position:absolute;right:calc(18px + env(safe-area-inset-right));bottom:calc(18px + env(safe-area-inset-bottom));text-align:right;}',
-      '.ip-ammo .mag{font-size:34px;font-weight:700;line-height:1;color:' + P.ammo + ';letter-spacing:.04em;}',
-      '.ip-ammo .res{font-size:13px;opacity:.62;letter-spacing:.18em;}',
-      '.ip-ammo .wep{font-size:11px;opacity:.5;letter-spacing:.26em;text-transform:uppercase;margin-bottom:4px;}',
-      '.ip-ammo.low .mag{color:' + P.warn + ';}',
+      '#ip-ui .ip-hud{position:absolute;inset:0;pointer-events:none;opacity:1;transition:opacity .25s;}',
+      '#ip-ui .ip-hud.off{opacity:0;}',
+      '#ip-ui .ip-vit{position:absolute;left:calc(18px + env(safe-area-inset-left, 0px));bottom:calc(18px + env(safe-area-inset-bottom, 0px));width:190px;}',
+      '#ip-ui .ip-segs{display:flex;gap:3px;height:9px;}',
+      '#ip-ui .ip-segs i{flex:1;background:#1b1f26;border:1px solid #2b3038;position:relative;overflow:hidden;}',
+      '#ip-ui .ip-segs i b{position:absolute;inset:0;transform-origin:left;background:' + P.hp + ';transition:transform .12s linear;}',
+      '#ip-ui .ip-segs i u{position:absolute;inset:0;transform-origin:left;background:' + P.hpGhost + ';opacity:.55;transition:transform .5s ease .25s;}',
+      '#ip-ui .ip-stam{margin-top:5px;height:3px;background:#161a20;}',
+      '#ip-ui .ip-stam b{display:block;height:100%;background:' + P.stam + ';transform-origin:left;}',
+      '#ip-ui .ip-ammo{position:absolute;right:calc(18px + env(safe-area-inset-right, 0px));bottom:calc(18px + env(safe-area-inset-bottom, 0px));text-align:right;}',
+      '#ip-ui .ip-ammo .mag{font-size:34px;font-weight:700;line-height:1;color:' + P.ammo + ';letter-spacing:.04em;}',
+      '#ip-ui .ip-ammo .res{font-size:13px;opacity:.62;letter-spacing:.18em;}',
+      '#ip-ui .ip-ammo .wep{font-size:11px;opacity:.5;letter-spacing:.26em;text-transform:uppercase;margin-bottom:4px;}',
+      '#ip-ui .ip-ammo.low .mag{color:' + P.warn + ';}',
       /* companion */
-      '.ip-comp{position:absolute;left:calc(18px + env(safe-area-inset-left));bottom:calc(62px + env(safe-area-inset-bottom));display:flex;align-items:center;gap:8px;}',
-      '.ip-ring{width:34px;height:34px;border-radius:50%;border:2px solid ' + P.ok + ';position:relative;flex:0 0 auto;background:#0c1015;}',
-      '.ip-ring b{position:absolute;left:2px;right:2px;bottom:2px;background:' + P.ok + ';opacity:.30;border-radius:0 0 16px 16px;}',
-      '.ip-ring.warn{border-color:' + P.warn + ';} .ip-ring.warn b{background:' + P.warn + ';}',
-      '.ip-ring.bad{border-color:' + P.bad + ';animation:ipPulse .7s infinite;} .ip-ring.bad b{background:' + P.bad + ';}',
+      '#ip-ui .ip-comp{position:absolute;left:calc(18px + env(safe-area-inset-left, 0px));bottom:calc(62px + env(safe-area-inset-bottom, 0px));display:flex;align-items:center;gap:8px;}',
+      '#ip-ui .ip-ring{width:34px;height:34px;border-radius:50%;border:2px solid ' + P.ok + ';position:relative;flex:0 0 auto;background:#0c1015;}',
+      '#ip-ui .ip-ring b{position:absolute;left:2px;right:2px;bottom:2px;background:' + P.ok + ';opacity:.30;border-radius:0 0 16px 16px;}',
+      '#ip-ui .ip-ring.warn{border-color:' + P.warn + ';} #ip-ui .ip-ring.warn b{background:' + P.warn + ';}',
+      '#ip-ui .ip-ring.bad{border-color:' + P.bad + ';animation:ipPulse .7s infinite;} #ip-ui .ip-ring.bad b{background:' + P.bad + ';}',
       '@keyframes ipPulse{0%,100%{opacity:1}50%{opacity:.42}}',
-      '.ip-ring i{position:absolute;inset:0;display:flex;align-items:center;justify-content:center;font-size:12px;font-style:normal;letter-spacing:.06em;}',
-      '.ip-compname{font-size:10px;letter-spacing:.22em;opacity:.6;text-transform:uppercase;}',
-      '.ip-arrow{position:absolute;width:0;height:0;border-left:7px solid transparent;border-right:7px solid transparent;border-bottom:12px solid ' + P.warn + ';opacity:0;transition:opacity .2s;}',
+      '#ip-ui .ip-ring i{position:absolute;inset:0;display:flex;align-items:center;justify-content:center;font-size:12px;font-style:normal;letter-spacing:.06em;}',
+      '#ip-ui .ip-compname{font-size:10px;letter-spacing:.22em;opacity:.6;text-transform:uppercase;}',
+      '#ip-ui .ip-arrow{position:absolute;width:0;height:0;border-left:7px solid transparent;border-right:7px solid transparent;border-bottom:12px solid ' + P.warn + ';opacity:0;transition:opacity .2s;}',
       /* objective + clock */
-      '.ip-obj{position:absolute;top:calc(16px + env(safe-area-inset-top));left:50%;transform:translateX(-50%);text-align:center;max-width:74vw;}',
-      '.ip-obj .lbl{font-size:9px;letter-spacing:.42em;opacity:.42;text-transform:uppercase;}',
-      '.ip-obj .txt{font-size:13px;letter-spacing:.06em;opacity:.86;margin-top:3px;}',
-      '.ip-clock{position:absolute;top:calc(16px + env(safe-area-inset-top));right:calc(18px + env(safe-area-inset-right));font-size:20px;letter-spacing:.10em;color:' + P.bad + ';display:none;}',
+      '#ip-ui .ip-obj{position:absolute;top:calc(16px + env(safe-area-inset-top, 0px));left:50%;transform:translateX(-50%);text-align:center;max-width:74vw;}',
+      '#ip-ui .ip-obj .lbl{font-size:9px;letter-spacing:.42em;opacity:.42;text-transform:uppercase;}',
+      '#ip-ui .ip-obj .txt{font-size:13px;letter-spacing:.06em;opacity:.86;margin-top:3px;}',
+      '#ip-ui .ip-clock{position:absolute;top:calc(16px + env(safe-area-inset-top, 0px));right:calc(18px + env(safe-area-inset-right, 0px));font-size:20px;letter-spacing:.10em;color:' + P.bad + ';display:none;}',
       /* reticle */
-      '.ip-ret{position:absolute;left:50%;top:50%;width:64px;height:64px;margin:-32px 0 0 -32px;opacity:0;transition:opacity .12s;}',
-      '.ip-ret.on{opacity:1;}',
-      '.ip-ret span{position:absolute;background:' + P.ok + ';box-shadow:0 0 4px rgba(0,0,0,.9);}',
-      '.ip-ret.hostile span{background:' + P.bad + ';}',
-      '.ip-dot{position:absolute;left:50%;top:50%;width:4px;height:4px;margin:-2px 0 0 -2px;border-radius:50%;background:#ff2b1d;box-shadow:0 0 8px #ff2b1d,0 0 20px rgba(255,43,29,.55);opacity:0;}',
-      '.ip-dot.on{opacity:1;}',
+      '#ip-ui .ip-ret{position:absolute;left:50%;top:50%;width:64px;height:64px;margin:-32px 0 0 -32px;opacity:0;transition:opacity .12s;}',
+      '#ip-ui .ip-ret.on{opacity:1;}',
+      '#ip-ui .ip-ret span{position:absolute;background:' + P.ok + ';box-shadow:0 0 4px rgba(0,0,0,.9);}',
+      '#ip-ui .ip-ret.hostile span{background:' + P.bad + ';}',
+      '#ip-ui .ip-dot{position:absolute;left:50%;top:50%;width:4px;height:4px;margin:-2px 0 0 -2px;border-radius:50%;background:#ff2b1d;box-shadow:0 0 8px #ff2b1d,0 0 20px rgba(255,43,29,.55);opacity:0;}',
+      '#ip-ui .ip-dot.on{opacity:1;}',
       /* prompts, toasts, subtitles */
-      '.ip-prompt{position:absolute;left:50%;top:58%;transform:translateX(-50%);font-size:13px;letter-spacing:.10em;background:rgba(5,7,10,.72);padding:7px 14px;border:1px solid #2a3038;border-radius:3px;display:none;}',
-      '.ip-prompt kbd{display:inline-block;min-width:19px;padding:1px 5px;margin-right:8px;border:1px solid #4a525c;border-radius:3px;background:#161a20;font:inherit;font-size:11px;}',
-      '.ip-toasts{position:absolute;top:calc(74px + env(safe-area-inset-top));left:50%;transform:translateX(-50%);display:flex;flex-direction:column;gap:5px;align-items:center;}',
-      '.ip-toast2{font-size:11px;letter-spacing:.20em;text-transform:uppercase;background:rgba(5,7,10,.80);border-left:2px solid ' + P.warn + ';padding:6px 13px;opacity:0;transform:translateY(-6px);transition:opacity .3s,transform .3s;}',
-      '.ip-toast2.on{opacity:1;transform:none;}',
-      '.ip-subs{position:absolute;left:50%;bottom:calc(96px + env(safe-area-inset-bottom));transform:translateX(-50%);width:min(760px,86vw);text-align:center;}',
-      '.ip-subline{display:inline-block;padding:5px 12px;border-radius:3px;line-height:1.45;}',
-      '.ip-subline .sp{font-weight:700;letter-spacing:.16em;margin-right:9px;}',
+      '#ip-ui .ip-prompt{position:absolute;left:50%;top:58%;transform:translateX(-50%);font-size:13px;letter-spacing:.10em;background:rgba(5,7,10,.72);padding:7px 14px;border:1px solid #2a3038;border-radius:3px;display:none;}',
+      '#ip-ui .ip-prompt kbd{display:inline-block;min-width:19px;padding:1px 5px;margin-right:8px;border:1px solid #4a525c;border-radius:3px;background:#161a20;font:inherit;font-size:11px;}',
+      '#ip-ui .ip-toasts{position:absolute;top:calc(74px + env(safe-area-inset-top, 0px));left:50%;transform:translateX(-50%);display:flex;flex-direction:column;gap:5px;align-items:center;}',
+      '#ip-ui .ip-toast2{font-size:11px;letter-spacing:.20em;text-transform:uppercase;background:rgba(5,7,10,.80);border-left:2px solid ' + P.warn + ';padding:6px 13px;opacity:0;transform:translateY(-6px);transition:opacity .3s,transform .3s;}',
+      '#ip-ui .ip-toast2.on{opacity:1;transform:none;}',
+      '#ip-ui .ip-subs{position:absolute;left:50%;bottom:calc(96px + env(safe-area-inset-bottom, 0px));transform:translateX(-50%);width:min(760px,86vw);text-align:center;}',
+      '#ip-ui .ip-subline{display:inline-block;padding:5px 12px;border-radius:3px;line-height:1.45;}',
+      '#ip-ui .ip-subline .sp{font-weight:700;letter-spacing:.16em;margin-right:9px;}',
       /* damage + horror overlays */
-      '.ip-vig{position:absolute;inset:0;pointer-events:none;background:radial-gradient(ellipse at center,rgba(0,0,0,0) 42%,rgba(120,0,0,.62) 100%);opacity:0;transition:opacity .28s;}',
-      '.ip-dmgdir{position:absolute;left:50%;top:50%;width:200px;height:200px;margin:-100px 0 0 -100px;opacity:0;}',
-      '.ip-dmgdir b{position:absolute;left:50%;top:0;width:52px;height:16px;margin-left:-26px;background:linear-gradient(to bottom,rgba(220,40,30,.95),rgba(220,40,30,0));}',
+      '#ip-ui .ip-vig{position:absolute;inset:0;pointer-events:none;background:radial-gradient(ellipse at center,rgba(0,0,0,0) 42%,rgba(120,0,0,.62) 100%);opacity:0;transition:opacity .28s;}',
+      '#ip-ui .ip-dmgdir{position:absolute;left:50%;top:50%;width:200px;height:200px;margin:-100px 0 0 -100px;opacity:0;}',
+      '#ip-ui .ip-dmgdir b{position:absolute;left:50%;top:0;width:52px;height:16px;margin-left:-26px;background:linear-gradient(to bottom,rgba(220,40,30,.95),rgba(220,40,30,0));}',
       /* ---- TOUCH CONTROLS ---- */
-      '.ip-touch{position:absolute;inset:0;display:none;}',
-      '.ip-touch.on{display:block;}',
-      '.ip-stick{position:absolute;width:132px;height:132px;border-radius:50%;border:2px solid rgba(215,211,200,.22);background:rgba(10,13,18,.28);opacity:0;transition:opacity .15s;}',
-      '.ip-stick.on{opacity:1;}',
-      '.ip-stick i{position:absolute;left:50%;top:50%;width:54px;height:54px;margin:-27px 0 0 -27px;border-radius:50%;background:rgba(215,211,200,.30);border:1px solid rgba(215,211,200,.45);}',
-      '.ip-tbtn{position:absolute;border-radius:50%;background:rgba(12,16,21,.52);border:1.5px solid rgba(215,211,200,.30);color:#d7d3c8;font-size:10px;letter-spacing:.10em;text-transform:uppercase;display:flex;align-items:center;justify-content:center;text-align:center;pointer-events:auto;user-select:none;line-height:1.15;}',
-      '.ip-tbtn.hit{background:rgba(184,35,43,.55);border-color:#e8564d;transform:scale(.94);}',
-      '.ip-tbtn.big{width:82px;height:82px;font-size:12px;}',
-      '.ip-tbtn.mid{width:62px;height:62px;}',
-      '.ip-tbtn.sm{width:52px;height:52px;font-size:9px;}',
-      '.ip-tbtn.ctx{background:rgba(20,40,30,.62);border-color:rgba(111,227,154,.55);}',
-      '.ip-radial{position:absolute;width:224px;height:224px;margin:-112px 0 0 -112px;display:none;}',
-      '.ip-radial.on{display:block;}',
-      '.ip-radial b{position:absolute;width:64px;height:64px;margin:-32px 0 0 -32px;border-radius:50%;background:rgba(12,16,21,.86);border:1.5px solid rgba(215,211,200,.34);display:flex;align-items:center;justify-content:center;font-size:9px;letter-spacing:.08em;text-transform:uppercase;font-weight:400;}',
-      '.ip-radial b.sel{background:rgba(184,35,43,.62);border-color:#e8564d;}',
-      '.ip-qte{position:absolute;left:50%;top:50%;width:180px;height:180px;margin:-90px 0 0 -90px;border-radius:50%;border:3px solid ' + P.bad + ';display:none;align-items:center;justify-content:center;font-size:16px;letter-spacing:.20em;text-transform:uppercase;background:rgba(120,10,10,.30);pointer-events:auto;}',
-      '.ip-qte.on{display:flex;animation:ipPulse .35s infinite;}',
+      '#ip-ui .ip-touch{position:absolute;inset:0;display:none;}',
+      '#ip-ui .ip-touch.on{display:block;}',
+      '#ip-ui .ip-stick{position:absolute;width:132px;height:132px;border-radius:50%;border:2px solid rgba(215,211,200,.22);background:rgba(10,13,18,.28);opacity:0;transition:opacity .15s;}',
+      '#ip-ui .ip-stick.on{opacity:1;}',
+      '#ip-ui .ip-stick i{position:absolute;left:50%;top:50%;width:54px;height:54px;margin:-27px 0 0 -27px;border-radius:50%;background:rgba(215,211,200,.30);border:1px solid rgba(215,211,200,.45);}',
+      '#ip-ui .ip-tbtn{position:absolute;border-radius:50%;background:rgba(12,16,21,.52);border:1.5px solid rgba(215,211,200,.30);color:#d7d3c8;font-size:10px;letter-spacing:.10em;text-transform:uppercase;display:flex;align-items:center;justify-content:center;text-align:center;pointer-events:auto;user-select:none;line-height:1.15;}',
+      '#ip-ui .ip-tbtn.hit{background:rgba(184,35,43,.55);border-color:#e8564d;transform:scale(.94);}',
+      '#ip-ui .ip-tbtn.big{width:82px;height:82px;font-size:12px;}',
+      '#ip-ui .ip-tbtn.mid{width:62px;height:62px;}',
+      '#ip-ui .ip-tbtn.sm{width:52px;height:52px;font-size:9px;}',
+      '#ip-ui .ip-tbtn.ctx{background:rgba(20,40,30,.62);border-color:rgba(111,227,154,.55);}',
+      '#ip-ui .ip-radial{position:absolute;width:224px;height:224px;margin:-112px 0 0 -112px;display:none;}',
+      '#ip-ui .ip-radial.on{display:block;}',
+      '#ip-ui .ip-radial b{position:absolute;width:64px;height:64px;margin:-32px 0 0 -32px;border-radius:50%;background:rgba(12,16,21,.86);border:1.5px solid rgba(215,211,200,.34);display:flex;align-items:center;justify-content:center;font-size:9px;letter-spacing:.08em;text-transform:uppercase;font-weight:400;}',
+      '#ip-ui .ip-radial b.sel{background:rgba(184,35,43,.62);border-color:#e8564d;}',
+      '#ip-ui .ip-qte{position:absolute;left:50%;top:50%;width:180px;height:180px;margin:-90px 0 0 -90px;border-radius:50%;border:3px solid ' + P.bad + ';display:none;align-items:center;justify-content:center;font-size:16px;letter-spacing:.20em;text-transform:uppercase;background:rgba(120,10,10,.30);pointer-events:auto;}',
+      '#ip-ui .ip-qte.on{display:flex;animation:ipPulse .35s infinite;}',
       /* ---- screens ---- */
-      '.ip-scr{position:absolute;inset:0;display:none;flex-direction:column;align-items:center;justify-content:center;background:rgba(4,6,9,.90);pointer-events:auto;padding:24px;overflow-y:auto;}',
-      '.ip-scr.on{display:flex;}',
-      '.ip-scr>*{flex:0 0 auto;}',
-      '.ip-scr h1{font-size:clamp(22px,5.6vw,46px);letter-spacing:.20em;text-transform:uppercase;margin-bottom:6px;text-align:center;}',
-      '.ip-scr h3{font-size:10px;letter-spacing:.44em;text-transform:uppercase;color:' + P.bad + ';margin-bottom:26px;}',
-      '.ip-mbtn{display:block;flex:0 0 auto;width:min(330px,82vw);margin:6px 0;padding:13px 18px;background:rgba(16,20,26,.9);border:1px solid #2b323b;border-left:3px solid ' + P.bad + ';color:#d7d3c8;font:inherit;font-size:12px;letter-spacing:.20em;text-transform:uppercase;text-align:left;cursor:pointer;pointer-events:auto;}',
-      '.ip-mbtn:hover,.ip-mbtn:focus{background:rgba(30,36,45,.95);outline:none;}',
-      '.ip-mbtn[disabled]{opacity:.35;cursor:default;}',
-      '.ip-opt{display:flex;align-items:center;justify-content:space-between;gap:14px;width:min(430px,88vw);padding:9px 4px;border-bottom:1px solid rgba(255,255,255,.06);font-size:11px;letter-spacing:.12em;text-transform:uppercase;}',
-      '.ip-opt input[type=range]{width:150px;}',
-      '.ip-opt .val{min-width:66px;text-align:right;opacity:.7;}',
-      '.ip-optbtn{padding:5px 11px;background:#161a20;border:1px solid #333b45;color:#d7d3c8;font:inherit;font-size:10px;letter-spacing:.12em;cursor:pointer;pointer-events:auto;}',
-      '.ip-grid{display:grid;gap:2px;background:#0b0e13;border:1px solid #2b323b;padding:4px;}',
-      '.ip-gcell{background:rgba(255,255,255,.028);border:1px solid rgba(255,255,255,.05);}',
-      '.ip-gitem{position:absolute;background:rgba(40,48,58,.95);border:1px solid #59636f;font-size:8px;letter-spacing:.04em;display:flex;align-items:center;justify-content:center;text-align:center;padding:2px;cursor:grab;pointer-events:auto;overflow:hidden;}',
-      '.ip-gitem.sel{border-color:' + P.warn + ';background:rgba(70,58,32,.95);}'
+      /* Landscape phones give ~390px of HEIGHT. Every screen is a column with
+         a compact header, one scrolling body, and a footer that can never be
+         overlapped by the body. */
+      '#ip-ui .ip-scr{position:absolute;inset:0;display:none;flex-direction:column;align-items:stretch;justify-content:flex-start;background:rgba(4,6,9,.92);pointer-events:auto;overflow:hidden;',
+      '  padding:calc(16px + env(safe-area-inset-top, 0px)) calc(18px + env(safe-area-inset-right, 0px))',
+      '          calc(10px + env(safe-area-inset-bottom, 0px)) calc(18px + env(safe-area-inset-left, 0px));}',
+      '#ip-ui .ip-scr.on{display:flex;}',
+      '#ip-ui .ip-scr>*{flex:0 0 auto;}',
+      '#ip-ui .ip-scr h1{font-size:clamp(15px,4.4vh,30px);letter-spacing:.20em;text-transform:uppercase;',
+      '  margin:0 0 2px;text-align:center;line-height:1.1;}',
+      '#ip-ui .ip-scr h3{font-size:clamp(8px,1.7vh,10px);letter-spacing:.44em;text-transform:uppercase;',
+      '  color:' + P.bad + ';margin:0 0 8px;text-align:center;}',
+      /* body scrolls, footer does not */
+      '#ip-ui .ip-body{flex:1 1 auto;min-height:0;overflow-y:auto;-webkit-overflow-scrolling:touch;',
+      '  display:flex;flex-direction:column;align-items:center;gap:4px;width:100%;}',
+      /* opaque so a scrolling body cannot show through it */
+      '#ip-ui .ip-foot{flex:0 0 auto;display:flex;flex-wrap:wrap;gap:8px;justify-content:center;',
+      '  padding:10px 0 2px;width:100%;background:rgba(4,6,9,.97);',
+      '  box-shadow:0 -12px 18px rgba(4,6,9,.97);position:relative;z-index:2;}',
+      '#ip-ui .ip-mbtn{display:flex;align-items:center;flex:0 0 auto;min-height:44px;',
+      '  width:min(300px,74vw);margin:0;padding:10px 16px;background:rgba(16,20,26,.92);',
+      '  border:1px solid #2b323b;border-left:3px solid ' + P.bad + ';color:#d7d3c8;font:inherit;',
+      '  font-size:11px;letter-spacing:.20em;text-transform:uppercase;text-align:left;',
+      '  cursor:pointer;pointer-events:auto;}',
+      '#ip-ui .ip-foot .ip-mbtn{width:auto;min-width:140px;justify-content:center;text-align:center;}',
+      '#ip-ui .ip-mbtn:hover,#ip-ui .ip-mbtn:focus{background:rgba(30,36,45,.95);outline:none;}',
+      '#ip-ui .ip-mbtn[disabled]{opacity:.35;cursor:default;}',
+      '#ip-ui .ip-opt{display:flex;align-items:center;justify-content:space-between;gap:12px;',
+      '  width:min(560px,94vw);min-height:44px;padding:4px 6px;',
+      '  border-bottom:1px solid rgba(255,255,255,.07);font-size:11px;letter-spacing:.12em;',
+      '  text-transform:uppercase;pointer-events:auto;}',
+      '#ip-ui .ip-opt>span:first-child{flex:1 1 auto;opacity:.86;}',
+      '#ip-ui .ip-opt .val{flex:0 0 auto;min-width:56px;text-align:right;opacity:.62;',
+      '  font-variant-numeric:tabular-nums;}',
+      /* custom range: the default browser blue is completely off-style */
+      '#ip-ui .ip-opt input[type=range]{flex:0 0 auto;width:min(190px,38vw);height:34px;',
+      '  -webkit-appearance:none;appearance:none;background:transparent;pointer-events:auto;margin:0;}',
+      '#ip-ui .ip-opt input[type=range]::-webkit-slider-runnable-track{height:3px;background:#232a33;}',
+      '#ip-ui .ip-opt input[type=range]::-moz-range-track{height:3px;background:#232a33;}',
+      '#ip-ui .ip-opt input[type=range]::-webkit-slider-thumb{-webkit-appearance:none;appearance:none;',
+      '  width:16px;height:22px;margin-top:-10px;background:' + P.bad + ';border:1px solid #e8564d;border-radius:1px;}',
+      '#ip-ui .ip-opt input[type=range]::-moz-range-thumb{width:16px;height:22px;background:' + P.bad + ';',
+      '  border:1px solid #e8564d;border-radius:1px;}',
+      '#ip-ui .ip-optbtn{flex:0 0 auto;min-width:104px;min-height:36px;padding:8px 14px;',
+      '  background:#161a20;border:1px solid #3a434e;border-left:2px solid ' + P.bad + ';',
+      '  color:#d7d3c8;font:inherit;font-size:10px;letter-spacing:.14em;cursor:pointer;',
+      '  pointer-events:auto;text-transform:uppercase;}',
+      '#ip-ui .ip-optbtn:active{background:#242c36;}',
+      '#ip-ui .ip-sect{width:min(560px,94vw);margin:10px 0 2px;font-size:9px;letter-spacing:.40em;',
+      '  text-transform:uppercase;color:' + P.bad + ';opacity:.8;border-bottom:1px solid rgba(184,35,43,.28);',
+      '  padding-bottom:4px;}',
+      /* auto margins centre it vertically when it fits, and still scroll when it does not */
+      '#ip-ui .ip-invrow{display:flex;gap:14px;align-items:flex-start;justify-content:center;',
+      '  width:100%;flex-wrap:wrap;margin:auto 0;}',
+      '#ip-ui .ip-side2{flex:1 1 200px;max-width:300px;min-width:180px;text-align:left;',
+      '  border-left:1px solid rgba(255,255,255,.08);padding-left:12px;}',
+      '#ip-ui .ip-side2 .nm{font-size:12px;letter-spacing:.12em;text-transform:uppercase;margin-bottom:6px;}',
+      '#ip-ui .ip-side2 .ds{font-size:10px;line-height:1.7;opacity:.66;letter-spacing:.04em;}',
+      '#ip-ui .ip-grid{display:grid;gap:2px;background:#0b0e13;border:1px solid #2b323b;padding:4px;flex:0 0 auto;}',
+      '#ip-ui .ip-gcell{background:rgba(255,255,255,.028);border:1px solid rgba(255,255,255,.05);}',
+      '#ip-ui .ip-gitem{position:absolute;background:rgba(40,48,58,.95);border:1px solid #59636f;font-size:8px;letter-spacing:.04em;display:flex;align-items:center;justify-content:center;text-align:center;padding:2px;cursor:grab;pointer-events:auto;overflow:hidden;}',
+      '#ip-ui .ip-gitem.sel{border-color:' + P.warn + ';background:rgba(70,58,32,.95);}'
     ].join('\n');
   }
 
@@ -13346,19 +13397,19 @@ var IP = (typeof IP !== 'undefined' && IP) || {};
     btn('interact', 'Use', 'sm ctx', 200, 44);
     btn('swap', 'Swap', 'sm', 200, 116);
     var invB = mk('div', 'ip-tbtn sm', touchLayer, 'Case');
-    sty(invB, side, '26px'); sty(invB, 'top', 'calc(84px + env(safe-area-inset-top))');
+    sty(invB, side, '26px'); sty(invB, 'top', 'calc(84px + env(safe-area-inset-top, 0px))');
     sty(invB, 'position', 'absolute');
     invB.setAttribute('data-act', 'inventory');
     IN.buttons.inventory = false;
 
     var pauseB = mk('div', 'ip-tbtn sm', touchLayer, 'Menu');
-    sty(pauseB, far, '18px'); sty(pauseB, 'top', 'calc(14px + env(safe-area-inset-top))');
+    sty(pauseB, far, '18px'); sty(pauseB, 'top', 'calc(14px + env(safe-area-inset-top, 0px))');
     sty(pauseB, 'position', 'absolute');
     pauseB.setAttribute('data-act', 'pause');
     IN.buttons.pause = false;
 
     var compB = mk('div', 'ip-tbtn sm', touchLayer, 'Elena');
-    sty(compB, far, '18px'); sty(compB, 'bottom', 'calc(148px + env(safe-area-inset-bottom))');
+    sty(compB, far, '18px'); sty(compB, 'bottom', 'calc(148px + env(safe-area-inset-bottom, 0px))');
     sty(compB, 'position', 'absolute');
     compB.setAttribute('data-act', 'companion');
     IN.buttons.companion = false;
@@ -13522,12 +13573,14 @@ var IP = (typeof IP !== 'undefined' && IP) || {};
       });
     }
     Input_.releaseAllTouches = releaseAll;
+    Input_.applyTouchStyle = applyTouchStyle;
 
     on(touchLayer, 'touchstart', down, { passive: false });
     on(touchLayer, 'touchmove', move, { passive: false });
     on(touchLayer, 'touchend', up, { passive: false });
     on(touchLayer, 'touchcancel', up, { passive: false });
     sty(touchLayer, 'pointerEvents', 'auto');
+    applyTouchStyle();
   }
 
   function btnEdge(id) {
@@ -13771,96 +13824,125 @@ var IP = (typeof IP !== 'undefined' && IP) || {};
   }
   function cmd(name, value) { emit('ui_command', { cmd: name, value: value }); }
 
+  /* Every screen: compact header, ONE scrolling body, a footer that the body
+     can never overlap. Built for ~390px of height in landscape. */
+  function mkScreen(root, titleText, subText) {
+    var scr = mk('div', 'ip-scr', root, null);
+    if (subText) { mk('h3', null, scr, subText); }
+    var h = mk('h1', null, scr, titleText);
+    var body = mk('div', 'ip-body', scr, null);
+    var foot = mk('div', 'ip-foot', scr, null);
+    return { scr: scr, title: h, body: body, foot: foot };
+  }
+
   function buildScreens(root) {
+    var S1;
+
     /* title */
-    el.title = mk('div', 'ip-scr', root, null);
-    mk('h3', null, el.title, 'Island Protocol');
-    mk('h1', null, el.title, 'Presidential Extraction');
-    el.btnContinue = mbtn(el.title, 'Continue', function () { cmd('load'); });
-    mbtn(el.title, 'New Game', function () { cmd('newgame'); show('hud'); });
-    mbtn(el.title, 'Settings', function () { show('settings'); });
-    el.titleTip = mk('div', 'ip-tip', el.title, '');
-    sty(el.titleTip, 'marginTop', '20px');
-    sty(el.titleTip, 'fontSize', '11px');
+    S1 = mkScreen(root, 'Presidential Extraction', 'Island Protocol');
+    el.title = S1.scr;
+    el.btnContinue = mbtn(S1.body, 'Continue', function () { cmd('load'); });
+    mbtn(S1.body, 'New Game', function () { cmd('newgame'); show('hud'); });
+    mbtn(S1.body, 'Settings', function () { show('settings'); });
+    el.titleTip = mk('div', 'ip-tip', S1.body, '');
+    sty(el.titleTip, 'marginTop', '10px');
+    sty(el.titleTip, 'fontSize', '10px');
     sty(el.titleTip, 'opacity', '.5');
-    sty(el.titleTip, 'maxWidth', '440px');
+    sty(el.titleTip, 'maxWidth', '420px');
     sty(el.titleTip, 'textAlign', 'center');
+    sty(el.titleTip, 'lineHeight', '1.7');
     sty(el.titleTip, 'letterSpacing', '.08em');
 
     /* pause */
-    el.pause = mk('div', 'ip-scr', root, null);
-    mk('h1', null, el.pause, 'Paused');
-    mbtn(el.pause, 'Resume', function () { cmd('resume'); });
-    mbtn(el.pause, 'Save', function () { cmd('save'); });
-    mbtn(el.pause, 'Settings', function () { show('settings'); });
-    mbtn(el.pause, 'Restart Section', function () { cmd('restart'); });
-    mbtn(el.pause, 'Quit to Title', function () { show('title'); });
+    S1 = mkScreen(root, 'Paused', null);
+    el.pause = S1.scr;
+    mbtn(S1.body, 'Resume', function () { cmd('resume'); });
+    mbtn(S1.body, 'Save', function () { cmd('save'); });
+    mbtn(S1.body, 'Settings', function () { show('settings'); });
+    mbtn(S1.body, 'Restart Section', function () { cmd('restart'); });
+    mbtn(S1.body, 'Quit to Title', function () { show('title'); });
 
     /* settings */
-    el.settings = mk('div', 'ip-scr', root, null);
-    mk('h1', null, el.settings, 'Settings');
-    buildSettingsRows(el.settings);
-    mbtn(el.settings, 'Back', function () { show(currentPrev || 'title'); });
+    S1 = mkScreen(root, 'Settings', null);
+    el.settings = S1.scr;
+    buildSettingsRows(S1.body);
+    mbtn(S1.foot, 'Back', function () { show(currentPrev || 'title'); });
 
     /* inventory */
-    el.inv = mk('div', 'ip-scr', root, null);
-    mk('h1', null, el.inv, 'Attache Case');
-    el.invGridWrap = mk('div', null, el.inv, null);
+    S1 = mkScreen(root, 'Attache Case', null);
+    el.inv = S1.scr;
+    var row = mk('div', 'ip-invrow', S1.body, null);
+    el.invGridWrap = mk('div', null, row, null);
     sty(el.invGridWrap, 'position', 'relative');
     el.invGrid = mk('div', 'ip-grid', el.invGridWrap, null);
-    el.invInfo = mk('div', 'ip-tip', el.inv, '');
-    sty(el.invInfo, 'marginTop', '14px');
-    sty(el.invInfo, 'fontSize', '11px');
-    sty(el.invInfo, 'opacity', '.7');
-    mbtn(el.inv, 'Sort', function () {
+    var side = mk('div', 'ip-side2', row, null);
+    el.invName = mk('div', 'nm', side, 'Attache Case');
+    el.invInfo = mk('div', 'ds', side, 'Select an item to inspect it. Drag to move, tap ROTATE to turn it, drop one item onto another to combine.');
+    mbtn(S1.foot, 'Rotate', function () {
+      if (!lastState || selectedUid < 0) { return; }
+      var it = findItem(lastState, selectedUid);
+      if (!it) { return; }
+      if (IP.Systems.Inventory.move(lastState, it.uid, it.x, it.y, !it.rot)) {
+        renderInventory(lastState);
+        if (Audio_ && Audio_.play) { Audio_.play('ui_move'); }
+      }
+    });
+    mbtn(S1.foot, 'Sort', function () {
       if (IP.Systems && lastState) { IP.Systems.Inventory.sort(lastState); renderInventory(lastState); }
     });
-    mbtn(el.inv, 'Close', function () { cmd('resume'); });
+    mbtn(S1.foot, 'Close', function () { cmd('resume'); });
 
     /* game over */
-    el.gameover = mk('div', 'ip-scr', root, null);
-    el.goTitle = mk('h1', null, el.gameover, 'Mission Failed');
-    el.goText = mk('div', 'ip-quote', el.gameover, '');
+    S1 = mkScreen(root, 'Mission Failed', null);
+    el.gameover = S1.scr;
+    el.goTitle = S1.title;
+    el.goText = mk('div', 'ip-quote', S1.body, '');
     sty(el.goText, 'maxWidth', '520px');
     sty(el.goText, 'textAlign', 'center');
-    sty(el.goText, 'fontSize', '12px');
+    sty(el.goText, 'fontSize', '11px');
     sty(el.goText, 'opacity', '.72');
-    sty(el.goText, 'marginBottom', '22px');
-    sty(el.goText, 'lineHeight', '1.7');
-    mbtn(el.gameover, 'Retry', function () { cmd('restart'); });
-    mbtn(el.gameover, 'Load Save', function () { cmd('load'); });
-    mbtn(el.gameover, 'Quit to Title', function () { show('title'); });
+    sty(el.goText, 'lineHeight', '1.8');
+    sty(el.goText, 'marginBottom', '10px');
+    mbtn(S1.foot, 'Retry', function () { cmd('restart'); });
+    mbtn(S1.foot, 'Load Save', function () { cmd('load'); });
+    mbtn(S1.foot, 'Quit to Title', function () { show('title'); });
 
     /* results */
-    el.results = mk('div', 'ip-scr', root, null);
-    el.resTitle = mk('h1', null, el.results, 'Extracted');
-    el.resRank = mk('div', 'ip-rank', el.results, '');
-    sty(el.resRank, 'fontSize', '58px');
+    S1 = mkScreen(root, 'Extracted', null);
+    el.results = S1.scr;
+    el.resTitle = S1.title;
+    el.resRank = mk('div', 'ip-rank', S1.body, '');
+    sty(el.resRank, 'fontSize', 'clamp(30px,9vh,58px)');
     sty(el.resRank, 'letterSpacing', '.1em');
-    sty(el.resRank, 'margin', '10px 0 18px');
-    el.resText = mk('div', null, el.results, '');
+    sty(el.resRank, 'margin', '2px 0 10px');
+    el.resText = mk('div', null, S1.body, '');
     sty(el.resText, 'maxWidth', '520px');
     sty(el.resText, 'textAlign', 'center');
-    sty(el.resText, 'fontSize', '12px');
+    sty(el.resText, 'fontSize', '11px');
     sty(el.resText, 'opacity', '.75');
-    sty(el.resText, 'lineHeight', '1.7');
-    sty(el.resText, 'marginBottom', '20px');
-    mbtn(el.results, 'New Game +', function () { cmd('newgame'); show('hud'); });
-    mbtn(el.results, 'Quit to Title', function () { show('title'); });
+    sty(el.resText, 'lineHeight', '1.8');
+    mbtn(S1.foot, 'New Game +', function () { cmd('newgame'); show('hud'); });
+    mbtn(S1.foot, 'Quit to Title', function () { show('title'); });
 
     /* document reader */
-    el.doc = mk('div', 'ip-scr', root, null);
-    el.docTitle = mk('h1', null, el.doc, '');
-    el.docBody = mk('div', 'ip-scroll', el.doc, '');
-    sty(el.docBody, 'maxWidth', '560px');
-    sty(el.docBody, 'fontSize', '12px');
-    sty(el.docBody, 'lineHeight', '1.85');
+    S1 = mkScreen(root, 'Document', null);
+    el.doc = S1.scr;
+    el.docTitle = S1.title;
+    el.docBody = mk('div', null, S1.body, '');
+    sty(el.docBody, 'maxWidth', '620px');
+    sty(el.docBody, 'fontSize', '11px');
+    sty(el.docBody, 'lineHeight', '1.9');
     sty(el.docBody, 'whiteSpace', 'pre-wrap');
-    sty(el.docBody, 'opacity', '.82');
-    sty(el.docBody, 'maxHeight', '52vh');
-    sty(el.docBody, 'overflowY', 'auto');
-    sty(el.docBody, 'marginBottom', '18px');
-    mbtn(el.doc, 'Close', function () { cmd('resume'); });
+    sty(el.docBody, 'opacity', '.84');
+    sty(el.docBody, 'textAlign', 'left');
+    mbtn(S1.foot, 'Close', function () { cmd('resume'); });
+  }
+
+  function findItem(S, uid) {
+    for (var i = 0; i < S.inventory.items.length; i++) {
+      if (S.inventory.items[i].uid === uid) { return S.inventory.items[i]; }
+    }
+    return null;
   }
 
   function optRow(parent, label) {
@@ -13905,28 +13987,37 @@ var IP = (typeof IP !== 'undefined' && IP) || {};
     return row;
   }
 
-  function buildSettingsRows(parent) {
-    var wrap = mk('div', null, parent, null);
-    sty(wrap, 'maxHeight', '58vh');
-    sty(wrap, 'overflowY', 'auto');
-    sty(wrap, 'pointerEvents', 'auto');
-    sty(wrap, 'marginBottom', '16px');
+  function section(parent, label) { mk('div', 'ip-sect', parent, label); }
+
+  function buildSettingsRows(wrap) {
     var pct = function (v) { return Math.round(v * 100) + '%'; };
+
+    section(wrap, 'Display');
     cycleRow(wrap, 'Graphics', 'quality', [0, 1, 2], ['Low', 'Medium', 'High']);
-    cycleRow(wrap, 'Difficulty', 'difficulty', ['easy', 'normal', 'hard', 'pro'],
-             ['Assisted', 'Standard', 'Veteran', 'Professional']);
     sliderRow(wrap, 'Brightness', 'brightness', 0.5, 1.8, 0.05, pct);
+
+    section(wrap, 'Controls');
+    cycleRow(wrap, 'Scheme', 'controlLayout', ['auto', 'touch', 'desktop'],
+             ['Auto', 'Touch', 'Keyboard']);
     sliderRow(wrap, 'Look Sensitivity', 'sensitivity', 0.3, 2.5, 0.05, pct);
     sliderRow(wrap, 'Touch Sensitivity', 'touchSensitivity', 0.4, 2.5, 0.05, pct);
     cycleRow(wrap, 'Aim Assist', 'aimAssistIdx', [0, 1, 2, 3], ['Off', 'Light', 'Medium', 'Strong']);
     cycleRow(wrap, 'Aim Mode', 'aimToggle', [false, true], ['Hold', 'Toggle']);
-    cycleRow(wrap, 'Invert Y', 'invertY', [false, true], ['Off', 'On']);
-    cycleRow(wrap, 'Controls', 'controlLayout', ['auto', 'touch', 'desktop'],
-             ['Auto', 'Touch', 'Keyboard']);
+    cycleRow(wrap, 'Invert Look', 'invertY', [false, true], ['Off', 'On']);
     cycleRow(wrap, 'Left Handed', 'leftHanded', [false, true], ['Off', 'On']);
-    sliderRow(wrap, 'Master Volume', 'volMaster', 0, 1, 0.05, pct);
+    sliderRow(wrap, 'Control Size', 'touchScale', 0.75, 1.5, 0.05, pct);
+    sliderRow(wrap, 'Control Opacity', 'touchOpacity', 0.25, 1.0, 0.05, pct);
+
+    section(wrap, 'Audio');
+    sliderRow(wrap, 'Master', 'volMaster', 0, 1, 0.05, pct);
     sliderRow(wrap, 'Music', 'volMusic', 0, 1, 0.05, pct);
     sliderRow(wrap, 'Effects', 'volSfx', 0, 1, 0.05, pct);
+
+    section(wrap, 'Difficulty');
+    cycleRow(wrap, 'Threat Level', 'difficulty', ['easy', 'normal', 'hard', 'pro'],
+             ['Assisted', 'Standard', 'Veteran', 'Professional']);
+
+    section(wrap, 'Accessibility');
     cycleRow(wrap, 'Subtitles', 'subtitles', [true, false], ['On', 'Off']);
     sliderRow(wrap, 'Subtitle Size', 'subtitleSize', 0.7, 1.8, 0.1, pct);
     cycleRow(wrap, 'Colourblind', 'colorblind', ['none', 'protan', 'deutan', 'tritan'],
@@ -13936,8 +14027,23 @@ var IP = (typeof IP !== 'undefined' && IP) || {};
     cycleRow(wrap, 'High Contrast', 'highContrast', [false, true], ['Off', 'On']);
   }
 
+  function applyTouchStyle() {
+    if (!touchLayer) { return; }
+    var sc = (S_ && S_.touchScale) || 1;
+    var op = (S_ && S_.touchOpacity) === undefined ? 0.85 : S_.touchOpacity;
+    var kids = touchLayer.children || [];
+    for (var i = 0; i < kids.length; i++) {
+      var a = kids[i].getAttribute && kids[i].getAttribute('data-act');
+      if (!a) { continue; }
+      sty(kids[i], 'transform', 'scale(' + sc + ')');
+      sty(kids[i], 'opacity', String(op));
+    }
+    if (stickEl) { sty(stickEl, 'opacity', String(op)); }
+  }
+
   function applyLiveSettings(key, v) {
     if (key === 'quality') { cmd('quality', v); }
+    else if (key === 'touchScale' || key === 'touchOpacity') { applyTouchStyle(); }
     else if (key === 'controlLayout') {
       Input_.setMobileLayout(v === 'touch' ? true : (v === 'desktop' ? false : detectTouch()));
     } else if (key === 'colorblind' || key === 'highContrast') {
@@ -13999,39 +14105,183 @@ var IP = (typeof IP !== 'undefined' && IP) || {};
 
   /* ---- inventory rendering ---- */
   var lastState = null;
+  var selectedUid = -1;
+
+  /* Small procedural icon per item kind - no image files anywhere. */
+  function itemIcon(kind, w, h) {
+    var c = mk('canvas', null, null, null);
+    if (!c || !c.getContext) { return null; }
+    c.width = w; c.height = h;
+    var g = c.getContext('2d');
+    if (!g) { return null; }
+    var cx = w / 2, cy = h / 2, u = Math.min(w, h) * 0.30;
+    g.lineWidth = Math.max(1.2, u * 0.16);
+    g.lineJoin = 'round';
+    var col = { weapon: '#c8ced6', ammo: '#c9a86a', heal: '#7fdca0',
+                resource: '#9aa6b4', treasure: '#e0c060', key: '#cfd6dc',
+                doc: '#b9c0c8', throwable: '#d08a6a' }[kind] || '#aab2bb';
+    g.strokeStyle = col; g.fillStyle = col;
+    if (kind === 'weapon') {
+      g.beginPath(); g.moveTo(cx - u, cy - u * 0.25); g.lineTo(cx + u, cy - u * 0.25);
+      g.lineTo(cx + u, cy + u * 0.1); g.lineTo(cx + u * 0.1, cy + u * 0.1);
+      g.lineTo(cx - u * 0.35, cy + u); g.lineTo(cx - u, cy + u); g.closePath(); g.stroke();
+    } else if (kind === 'ammo') {
+      for (var i = -1; i <= 1; i++) {
+        g.beginPath();
+        g.roundRect ? g.roundRect(cx + i * u * 0.62 - u * 0.22, cy - u * 0.7, u * 0.44, u * 1.4, u * 0.2)
+                    : g.rect(cx + i * u * 0.62 - u * 0.22, cy - u * 0.7, u * 0.44, u * 1.4);
+        g.stroke();
+      }
+    } else if (kind === 'heal') {
+      g.beginPath(); g.moveTo(cx, cy - u); g.lineTo(cx, cy + u);
+      g.moveTo(cx - u, cy); g.lineTo(cx + u, cy); g.stroke();
+    } else if (kind === 'treasure') {
+      g.beginPath(); g.moveTo(cx, cy - u); g.lineTo(cx + u, cy); g.lineTo(cx, cy + u);
+      g.lineTo(cx - u, cy); g.closePath(); g.stroke();
+    } else if (kind === 'key') {
+      g.beginPath(); g.arc(cx - u * 0.4, cy, u * 0.5, 0, 6.283); g.stroke();
+      g.beginPath(); g.moveTo(cx + u * 0.1, cy); g.lineTo(cx + u, cy);
+      g.moveTo(cx + u * 0.75, cy); g.lineTo(cx + u * 0.75, cy + u * 0.45); g.stroke();
+    } else if (kind === 'doc') {
+      g.strokeRect(cx - u * 0.65, cy - u, u * 1.3, u * 2);
+      g.beginPath();
+      for (var l = -1; l <= 1; l++) {
+        g.moveTo(cx - u * 0.4, cy + l * u * 0.5); g.lineTo(cx + u * 0.4, cy + l * u * 0.5);
+      }
+      g.lineWidth = Math.max(1, u * 0.1); g.stroke();
+    } else {
+      g.beginPath(); g.arc(cx, cy, u * 0.85, 0, 6.283); g.stroke();
+    }
+    return c;
+  }
+
+  function describeItem(def) {
+    if (!def) { return ''; }
+    var bits = [];
+    if (def.kind === 'heal') { bits.push('Restores ' + Math.round((def.heal || 0) * 100) + '% health.'); }
+    else if (def.kind === 'ammo') { bits.push('Ammunition. ' + (def.per || 10) + ' rounds per pickup.'); }
+    else if (def.kind === 'weapon') { bits.push('Weapon. Equip from the case.'); }
+    else if (def.kind === 'treasure') { bits.push('Valuable. Sell to the quartermaster.'); }
+    else if (def.kind === 'key') { bits.push('Opens a specific lock on the island.'); }
+    else if (def.kind === 'doc') { bits.push('Recovered document.'); }
+    else { bits.push('Crafting resource.'); }
+    bits.push('Size ' + def.w + 'x' + def.h + (def.stack > 1 ? '  -  stacks to ' + def.stack : ''));
+    if (def.value) { bits.push('Value ' + def.value); }
+    return bits.join('\n');
+  }
+
+  function selectItem(S, uid) {
+    selectedUid = uid;
+    var it = findItem(S, uid);
+    var def = it && IP.Systems.ITEMS[it.item];
+    setText(el.invName, def ? def.name : 'Attache Case');
+    setText(el.invInfo, def ? describeItem(def)
+      : 'Select an item to inspect it. Drag to move, tap ROTATE to turn it, drop one item onto another to combine.');
+    var kids = el.invGridWrap.querySelectorAll('.ip-gitem');
+    for (var i = 0; i < kids.length; i++) {
+      togC(kids[i], 'sel', String(kids[i].__uid) === String(uid));
+    }
+  }
+
   function renderInventory(S) {
     if (!el.invGrid || !S || !S.inventory) { return; }
     var inv = S.inventory;
-    var cell = Math.min(46, Math.floor((hasWin() ? Math.min(window.innerWidth * 0.86, 560) : 400) / inv.w));
+    var availW = (hasWin() ? window.innerWidth : 900) * 0.52;
+    var availH = (hasWin() ? window.innerHeight : 500) - 150;
+    var cell = Math.floor(Math.min(availW / inv.w, availH / inv.h, 46));
+    if (!(cell > 8)) { cell = 22; }
     sty(el.invGrid, 'gridTemplateColumns', 'repeat(' + inv.w + ',' + cell + 'px)');
     sty(el.invGrid, 'gridTemplateRows', 'repeat(' + inv.h + ',' + cell + 'px)');
     el.invGrid.replaceChildren();
     var i;
     for (i = 0; i < inv.w * inv.h; i++) { mk('div', 'ip-gcell', el.invGrid, null); }
-    /* items float above the grid so they can span cells */
+
     var old = el.invGridWrap.querySelectorAll('.ip-gitem');
     for (i = 0; i < old.length; i++) { if (old[i].remove) { old[i].remove(); } }
+
     var ITEMS = IP.Systems && IP.Systems.ITEMS;
+    var step = cell + 2;
     for (i = 0; i < inv.items.length; i++) {
       var it = inv.items[i];
       var def = ITEMS && ITEMS[it.item];
       if (!def) { continue; }
       var w = it.rot ? def.h : def.w, h = it.rot ? def.w : def.h;
-      var d = mk('div', 'ip-gitem', el.invGridWrap, def.name + (it.qty > 1 ? ' x' + it.qty : ''));
-      sty(d, 'left', (4 + it.x * (cell + 2)) + 'px');
-      sty(d, 'top', (4 + it.y * (cell + 2)) + 'px');
+      var d = mk('div', 'ip-gitem', el.invGridWrap, null);
+      d.__uid = it.uid;
+      sty(d, 'left', (4 + it.x * step) + 'px');
+      sty(d, 'top', (4 + it.y * step) + 'px');
       sty(d, 'width', (w * cell + (w - 1) * 2) + 'px');
       sty(d, 'height', (h * cell + (h - 1) * 2) + 'px');
-      (function (item, def2) {
-        on(d, 'click', function () {
-          setText(el.invInfo, def2.name + '  --  ' +
-            (def2.kind === 'heal' ? 'Restores health' :
-             def2.kind === 'ammo' ? 'Ammunition' :
-             def2.kind === 'treasure' ? ('Value: ' + def2.value) : def2.kind));
-          if (Audio_ && Audio_.play) { Audio_.play('ui_move'); }
-        });
-      })(it, def);
+      sty(d, 'flexDirection', 'column');
+      var ic = itemIcon(def.kind, Math.min(30, w * cell * 0.7), Math.min(30, h * cell * 0.7));
+      if (ic) { d.appendChild(ic); }
+      var lbl = mk('span', null, d, (it.qty > 1 ? 'x' + it.qty : ''));
+      sty(lbl, 'fontSize', '8px');
+      sty(lbl, 'opacity', '.75');
+      if (String(it.uid) === String(selectedUid)) { addC(d, 'sel'); }
+      wireItemDrag(S, d, it, step);
     }
+    if (selectedUid >= 0 && !findItem(S, selectedUid)) { selectedUid = -1; }
+    selectItem(S, selectedUid);
+  }
+
+  /* Touch/mouse drag: move within the grid, or drop onto another item to
+     combine (herb mixing, ammo crafting). */
+  function wireItemDrag(S, d, it, step) {
+    var dragging = false, sx = 0, sy = 0, ox = 0, oy = 0, moved = false;
+    var start = function (e) {
+      var t = (e.touches && e.touches[0]) || e;
+      dragging = true; moved = false;
+      sx = t.clientX; sy = t.clientY;
+      ox = it.x; oy = it.y;
+      sty(d, 'zIndex', '20');
+      if (e.preventDefault && e.cancelable) { e.preventDefault(); }
+    };
+    var move = function (e) {
+      if (!dragging) { return; }
+      var t = (e.touches && e.touches[0]) || e;
+      var dx = t.clientX - sx, dy = t.clientY - sy;
+      if (Math.abs(dx) > 6 || Math.abs(dy) > 6) { moved = true; }
+      sty(d, 'transform', 'translate(' + dx + 'px,' + dy + 'px)');
+      if (e.preventDefault && e.cancelable) { e.preventDefault(); }
+    };
+    var end = function (e) {
+      if (!dragging) { return; }
+      dragging = false;
+      sty(d, 'zIndex', '');
+      sty(d, 'transform', '');
+      var t = (e.changedTouches && e.changedTouches[0]) || e;
+      if (!moved) { selectItem(S, it.uid); if (Audio_ && Audio_.play) { Audio_.play('ui_move'); } return; }
+      var gx = ox + Math.round((t.clientX - sx) / step);
+      var gy = oy + Math.round((t.clientY - sy) / step);
+      /* drop onto another item -> try to combine */
+      var target = null, all = S.inventory.items;
+      for (var k = 0; k < all.length; k++) {
+        var o = all[k];
+        if (o.uid === it.uid) { continue; }
+        var od = IP.Systems.ITEMS[o.item];
+        if (!od) { continue; }
+        var ow = o.rot ? od.h : od.w, oh = o.rot ? od.w : od.h;
+        if (gx >= o.x && gx < o.x + ow && gy >= o.y && gy < o.y + oh) { target = o; break; }
+      }
+      if (target && IP.Systems.Inventory.combine(S, it.uid, target.uid)) {
+        if (Audio_ && Audio_.play) { Audio_.play('ui_select'); }
+      } else if (IP.Systems.Inventory.move(S, it.uid, gx, gy, it.rot)) {
+        if (Audio_ && Audio_.play) { Audio_.play('ui_move'); }
+      } else if (Audio_ && Audio_.play) { Audio_.play('ui_error'); }
+      renderInventory(S);
+    };
+    on(d, 'touchstart', start, { passive: false });
+    on(d, 'touchmove', move, { passive: false });
+    on(d, 'touchend', end, { passive: false });
+    on(d, 'touchcancel', end, { passive: false });
+    on(d, 'mousedown', function (e) {
+      start(e);
+      var mm = function (ev) { move(ev); };
+      var mu = function (ev) { end(ev);
+        if (hasWin()) { window.removeEventListener('mousemove', mm); window.removeEventListener('mouseup', mu); } };
+      if (hasWin()) { on(window, 'mousemove', mm); on(window, 'mouseup', mu); }
+    });
   }
 
   /* ---- per-frame HUD update ---- */
@@ -15976,9 +16226,16 @@ if (typeof window !== 'undefined') { window.IP = IP; }
     dist: 2.45,
     distAim: 1.28,
     distSprint: 2.95,
-    fov: 1.152,          /* 66 deg */
-    fovAim: 0.855,       /* 49 deg */
-    fovSprint: 1.257,    /* 72 deg */
+    /* Framing is driven by HORIZONTAL field of view and the vertical is
+       derived from the aspect. Holding the vertical fov constant meant a
+       844x390 phone got a ~109 degree horizontal fov - fisheye distortion at
+       the edges and a player character too small to read. */
+    hFov: 1.431,         /* 82 deg horizontal */
+    hFovAim: 1.082,      /* 62 deg */
+    hFovSprint: 1.553,   /* 89 deg */
+    vFovMax: 1.309,      /* never exceed 75 deg vertical (tall/portrait) */
+    vFovMin: 0.541,      /* never go below 31 deg vertical */
+    fov: 1.152, fovAim: 0.855, fovSprint: 1.257,   /* legacy fallbacks */
     pitchMin: -1.15,
     pitchMax: 1.05,
     radius: 0.26,
@@ -15988,8 +16245,16 @@ if (typeof window !== 'undefined') { window.IP = IP; }
     sensPitch: 0.0024
   };
 
+  /* Convert a horizontal fov to the vertical fov the projection wants, using
+     the live viewport aspect, clamped so extreme aspects stay sane. */
+  var viewAspect = 16 / 9;
+  function verticalFov(hFov) {
+    var v = 2 * Math.atan(Math.tan(hFov * 0.5) / Math.max(0.35, viewAspect));
+    return U.clamp(v, CAM.vFovMin, CAM.vFovMax);
+  }
+
   var cam = {
-    yaw: 0, pitch: 0.06, roll: 0,
+    yaw: 0, pitch: 0.06, roll: 0, hFov: 1.431,
     dist: CAM.dist, shoulder: CAM.shoulder, fov: CAM.fov, pivotY: CAM.pivotHeight,
     pos: V3.create(0, 2, 6),
     smoothPos: V3.create(0, 2, 6),
@@ -16441,9 +16706,14 @@ if (typeof window !== 'undefined') { window.IP = IP; }
     var sprinting = !!p.sprinting && !aiming;
     var lag = aiming ? CAM.aimLag : CAM.followLag;
 
-    cam.dist = U.damp(cam.dist, aiming ? CAM.distAim : (sprinting ? CAM.distSprint : CAM.dist), lag * 0.55, dt);
+    var distScale = (IP.Input && IP.Input.isTouch) ? 0.88 : 1.0;
+    cam.dist = U.damp(cam.dist,
+      (aiming ? CAM.distAim : (sprinting ? CAM.distSprint : CAM.dist)) * distScale,
+      lag * 0.55, dt);
     cam.shoulder = U.damp(cam.shoulder, (aiming ? CAM.shoulderAim : CAM.shoulder) * cam.side, lag * 0.6, dt);
-    cam.fov = U.damp(cam.fov, aiming ? CAM.fovAim : (sprinting ? CAM.fovSprint : CAM.fov), 9.0, dt);
+    var hTarget = aiming ? CAM.hFovAim : (sprinting ? CAM.hFovSprint : CAM.hFov);
+    cam.hFov = U.damp(cam.hFov, hTarget, 9.0, dt);
+    cam.fov = verticalFov(cam.hFov);
     var targetPivotY = p.crouching ? CAM.pivotHeightCrouch : (aiming ? CAM.pivotHeightAim : CAM.pivotHeight);
     cam.pivotY = U.damp(cam.pivotY, targetPivotY, 11.0, dt);
 
@@ -16861,6 +17131,10 @@ if (typeof window !== 'undefined') { window.IP = IP; }
         attempt('save', function () { IP.Systems.Save.save(Game.S); });
       }
       else if (ev.cmd === 'load') { loadSave(); }
+      else if (ev.cmd === 'difficulty' && Game.S) {
+        Game.S.difficulty = ev.value;
+        if (has('Systems', 'applyDifficulty')) { IP.Systems.applyDifficulty(Game.S); }
+      }
       else if (ev.cmd === 'newgame') { startNewGame(); }
     });
   }
@@ -16904,6 +17178,7 @@ if (typeof window !== 'undefined') { window.IP = IP; }
     attempt('UI.init', function () { if (has('UI', 'init')) { IP.UI.init(uiRoot); } });
     attempt('Input.init', function () { if (has('Input', 'init')) { IP.Input.init(canvas, uiRoot); } });
     attempt('Audio.init', function () { if (has('Audio', 'init')) { IP.Audio.init(); } });
+    armAudioUnlock();
 
     progress(0.2, 'Assembling characters');
     attempt('Actors.build', function () { if (has('Actors', 'build')) { IP.Actors.build(); } });
@@ -16936,6 +17211,27 @@ if (typeof window !== 'undefined') { window.IP = IP; }
     Game.running = true;
     last = U.now();
     requestAnimationFrame(frame);
+  }
+
+  /* The autoplay policy blocks an AudioContext created before any user
+     gesture. Resume it on the first real input, then stop listening. */
+  var audioArmed = false;
+  function armAudioUnlock() {
+    if (audioArmed || typeof window === 'undefined') { return; }
+    audioArmed = true;
+    var events = ['pointerdown', 'touchstart', 'mousedown', 'keydown'];
+    var unlock = function () {
+      attempt('Audio.unlock', function () {
+        if (has('Audio', 'unlock')) { IP.Audio.unlock(); }
+        else if (has('Audio', 'resume')) { IP.Audio.resume(); }
+      });
+      for (var i = 0; i < events.length; i++) {
+        window.removeEventListener(events[i], unlock, true);
+      }
+    };
+    for (var i = 0; i < events.length; i++) {
+      window.addEventListener(events[i], unlock, true);
+    }
   }
 
   /* A minimal playable room so the game still boots if level generation dies. */
@@ -17199,6 +17495,9 @@ if (typeof window !== 'undefined') { window.IP = IP; }
     var h = Math.max(1, canvas.clientHeight || window.innerHeight);
     canvas.width = Math.floor(w * dpr);
     canvas.height = Math.floor(h * dpr);
+    viewAspect = w / Math.max(1, h);
+    cam.fov = verticalFov(cam.hFov);
+    scene.camera.fov = cam.fov;
     if (has('Renderer', 'resize')) { attempt('resize', function () { IP.Renderer.resize(w, h, dpr); }); }
     if (has('UI', 'resize')) { attempt('ui-resize', function () { IP.UI.resize(w, h); }); }
     var rot = document.getElementById('ip-rotate');

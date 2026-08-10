@@ -24,8 +24,8 @@
   #ip-root {
     position: fixed; inset: 0; background: var(--ip-void);
     display: block; isolation: isolate;
-    padding: env(safe-area-inset-top) env(safe-area-inset-right)
-             env(safe-area-inset-bottom) env(safe-area-inset-left);
+    padding: env(safe-area-inset-top, 0px) env(safe-area-inset-right, 0px)
+             env(safe-area-inset-bottom, 0px) env(safe-area-inset-left, 0px);
     box-sizing: border-box;
   }
   #ip-canvas {
@@ -75,14 +75,18 @@
     overflow-x: auto; max-height: 52vh; overflow-y: auto;
   }
   #ip-fatal b { color: var(--ip-blood); letter-spacing: .12em; }
+  /* A hint, never a blocker: portrait is playable, landscape is just better. */
   #ip-rotate {
-    display: none; position: absolute; inset: 0; z-index: 10000;
-    background: #05070a; color: var(--ip-bone);
-    align-items: center; justify-content: center; text-align: center;
-    font-size: 15px; letter-spacing: .2em; text-transform: uppercase; padding: 30px;
+    display: none; position: absolute; left: 50%; bottom: 14px; z-index: 60;
+    transform: translateX(-50%);
+    background: rgba(5,7,10,.86); color: var(--ip-bone);
+    border: 1px solid #2a3038; border-left: 2px solid var(--ip-blood);
+    border-radius: 3px; pointer-events: none;
+    font-size: 11px; letter-spacing: .18em; text-transform: uppercase;
+    padding: 8px 14px; white-space: nowrap;
   }
   @media (orientation: portrait) and (pointer: coarse) {
-    #ip-rotate.armed { display: flex; }
+    #ip-rotate.armed { display: block; }
   }
   @media (prefers-reduced-motion: reduce) {
     #ip-boot, #ip-bar > i { transition: none; }
@@ -92,7 +96,7 @@
 <div id="ip-root">
   <canvas id="ip-canvas"></canvas>
   <div id="ip-ui"></div>
-  <div id="ip-rotate">Rotate your device to landscape</div>
+  <div id="ip-rotate">Rotate to landscape for a wider view</div>
   <div id="ip-boot">
     <h2>Island Protocol</h2>
     <h1>Presidential Extraction</h1>

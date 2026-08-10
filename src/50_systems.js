@@ -3818,6 +3818,7 @@ var IP = (typeof IP !== 'undefined' && IP) || {};
     getAimCone: getAimCone,
     enemyById: enemyById,
     setObjective: setObjective,
+    applyDifficulty: applyDifficulty,
     changeSection: changeSection,
     evaluateEnding: evaluateEnding,
     healthFraction: function (S) {

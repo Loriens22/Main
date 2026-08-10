@@ -61,9 +61,16 @@
     dist: 2.45,
     distAim: 1.28,
     distSprint: 2.95,
-    fov: 1.152,          /* 66 deg */
-    fovAim: 0.855,       /* 49 deg */
-    fovSprint: 1.257,    /* 72 deg */
+    /* Framing is driven by HORIZONTAL field of view and the vertical is
+       derived from the aspect. Holding the vertical fov constant meant a
+       844x390 phone got a ~109 degree horizontal fov - fisheye distortion at
+       the edges and a player character too small to read. */
+    hFov: 1.431,         /* 82 deg horizontal */
+    hFovAim: 1.082,      /* 62 deg */
+    hFovSprint: 1.553,   /* 89 deg */
+    vFovMax: 1.309,      /* never exceed 75 deg vertical (tall/portrait) */
+    vFovMin: 0.541,      /* never go below 31 deg vertical */
+    fov: 1.152, fovAim: 0.855, fovSprint: 1.257,   /* legacy fallbacks */
     pitchMin: -1.15,
     pitchMax: 1.05,
     radius: 0.26,
@@ -73,8 +80,16 @@
     sensPitch: 0.0024
   };
 
+  /* Convert a horizontal fov to the vertical fov the projection wants, using
+     the live viewport aspect, clamped so extreme aspects stay sane. */
+  var viewAspect = 16 / 9;
+  function verticalFov(hFov) {
+    var v = 2 * Math.atan(Math.tan(hFov * 0.5) / Math.max(0.35, viewAspect));
+    return U.clamp(v, CAM.vFovMin, CAM.vFovMax);
+  }
+
   var cam = {
-    yaw: 0, pitch: 0.06, roll: 0,
+    yaw: 0, pitch: 0.06, roll: 0, hFov: 1.431,
     dist: CAM.dist, shoulder: CAM.shoulder, fov: CAM.fov, pivotY: CAM.pivotHeight,
     pos: V3.create(0, 2, 6),
     smoothPos: V3.create(0, 2, 6),
@@ -526,9 +541,14 @@
     var sprinting = !!p.sprinting && !aiming;
     var lag = aiming ? CAM.aimLag : CAM.followLag;
 
-    cam.dist = U.damp(cam.dist, aiming ? CAM.distAim : (sprinting ? CAM.distSprint : CAM.dist), lag * 0.55, dt);
+    var distScale = (IP.Input && IP.Input.isTouch) ? 0.88 : 1.0;
+    cam.dist = U.damp(cam.dist,
+      (aiming ? CAM.distAim : (sprinting ? CAM.distSprint : CAM.dist)) * distScale,
+      lag * 0.55, dt);
     cam.shoulder = U.damp(cam.shoulder, (aiming ? CAM.shoulderAim : CAM.shoulder) * cam.side, lag * 0.6, dt);
-    cam.fov = U.damp(cam.fov, aiming ? CAM.fovAim : (sprinting ? CAM.fovSprint : CAM.fov), 9.0, dt);
+    var hTarget = aiming ? CAM.hFovAim : (sprinting ? CAM.hFovSprint : CAM.hFov);
+    cam.hFov = U.damp(cam.hFov, hTarget, 9.0, dt);
+    cam.fov = verticalFov(cam.hFov);
     var targetPivotY = p.crouching ? CAM.pivotHeightCrouch : (aiming ? CAM.pivotHeightAim : CAM.pivotHeight);
     cam.pivotY = U.damp(cam.pivotY, targetPivotY, 11.0, dt);
 
@@ -946,6 +966,10 @@
         attempt('save', function () { IP.Systems.Save.save(Game.S); });
       }
       else if (ev.cmd === 'load') { loadSave(); }
+      else if (ev.cmd === 'difficulty' && Game.S) {
+        Game.S.difficulty = ev.value;
+        if (has('Systems', 'applyDifficulty')) { IP.Systems.applyDifficulty(Game.S); }
+      }
       else if (ev.cmd === 'newgame') { startNewGame(); }
     });
   }
@@ -989,6 +1013,7 @@
     attempt('UI.init', function () { if (has('UI', 'init')) { IP.UI.init(uiRoot); } });
     attempt('Input.init', function () { if (has('Input', 'init')) { IP.Input.init(canvas, uiRoot); } });
     attempt('Audio.init', function () { if (has('Audio', 'init')) { IP.Audio.init(); } });
+    armAudioUnlock();
 
     progress(0.2, 'Assembling characters');
     attempt('Actors.build', function () { if (has('Actors', 'build')) { IP.Actors.build(); } });
@@ -1021,6 +1046,27 @@
     Game.running = true;
     last = U.now();
     requestAnimationFrame(frame);
+  }
+
+  /* The autoplay policy blocks an AudioContext created before any user
+     gesture. Resume it on the first real input, then stop listening. */
+  var audioArmed = false;
+  function armAudioUnlock() {
+    if (audioArmed || typeof window === 'undefined') { return; }
+    audioArmed = true;
+    var events = ['pointerdown', 'touchstart', 'mousedown', 'keydown'];
+    var unlock = function () {
+      attempt('Audio.unlock', function () {
+        if (has('Audio', 'unlock')) { IP.Audio.unlock(); }
+        else if (has('Audio', 'resume')) { IP.Audio.resume(); }
+      });
+      for (var i = 0; i < events.length; i++) {
+        window.removeEventListener(events[i], unlock, true);
+      }
+    };
+    for (var i = 0; i < events.length; i++) {
+      window.addEventListener(events[i], unlock, true);
+    }
   }
 
   /* A minimal playable room so the game still boots if level generation dies. */
@@ -1284,6 +1330,9 @@
     var h = Math.max(1, canvas.clientHeight || window.innerHeight);
     canvas.width = Math.floor(w * dpr);
     canvas.height = Math.floor(h * dpr);
+    viewAspect = w / Math.max(1, h);
+    cam.fov = verticalFov(cam.hFov);
+    scene.camera.fov = cam.fov;
     if (has('Renderer', 'resize')) { attempt('resize', function () { IP.Renderer.resize(w, h, dpr); }); }
     if (has('UI', 'resize')) { attempt('ui-resize', function () { IP.UI.resize(w, h); }); }
     var rot = document.getElementById('ip-rotate');
