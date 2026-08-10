@@ -1462,6 +1462,1325 @@ var IP = (typeof IP !== 'undefined' && IP) || {};
     '}',
     ''].join('\n');
 
-  /* == SECTION_MARKER_3 == */
+  /* ======================================================================
+     RUNTIME DRIVER
+     ====================================================================== */
+
+  var gl = null, canvasEl = null, aniso = null;
+  var qLevel = 2, Qs = QUALITY[2];
+  var W = 1280, H = 720, DPR = 1, RW = 1280, RH = 720;
+  var progs = {}, tex = {}, fb = {};
+  var uboFrame = null, uboLights = null;
+  var frameData = new Float32Array(FRAME_FLOATS);
+  var lightData = new Float32Array(LIGHT_FLOATS);
+  var spriteData = new Float32Array(MAX_SPRITES * SPRITE_STRIDE);
+  var spriteVAO = null, spriteInstBuf = null, emptyVAO = null;
+  var halfFloatOK = false, floatRTOK = false;
+  var frameIndex = 0, envDirty = true, lastEnvKey = '';
+  var ok = false;
+
+  /* preallocated scratch */
+  var mView = M4.create(), mProj = M4.create(), mVP = M4.create();
+  var mInvView = M4.create(), mInvProj = M4.create(), mPrevVP = M4.create();
+  var mTmp = M4.create(), mTmp2 = M4.create(), mLightVP = [M4.create(), M4.create(), M4.create()];
+  var nrmMat = new Float32Array(9);
+  var vTmp = V3.create(), vTmp2 = V3.create(), vTmp3 = V3.create();
+  var camTarget = V3.create(), camUp = V3.create(0, 1, 0);
+  var planes = new Float32Array(24);
+  var splits = new Float32Array(4);
+  var ssaoKernel = new Float32Array(SSAO_KERNEL * 3);
+  var drawOrder = new Int32Array(MAX_DRAWS);
+  var drawKey = new Float64Array(MAX_DRAWS);
+  var orderArr = [];
+  var volPos = new Float32Array(MAX_VOL_LIGHTS * 4);
+  var volCol = new Float32Array(MAX_VOL_LIGHTS * 4);
+  var identity = M4.create();
+
+  var stats = { drawCalls: 0, tris: 0, fps: 60, lights: 0, culled: 0, sprites: 0 };
+  var debug = { wireframe: false, showCascades: false, noPost: false, noShadow: false };
+
+  var KIND_ID = { spark: 0, rain: 1, smoke: 2, blood: 3, spore: 4, muzzle: 5 };
+  var KIND_ADDITIVE = { spark: 1, muzzle: 1 };
+
+  /* ------------------------------------------------------------------ */
+  function compileShader(type, src, name) {
+    var s = gl.createShader(type);
+    gl.shaderSource(s, src);
+    gl.compileShader(s);
+    if (!gl.getShaderParameter(s, gl.COMPILE_STATUS)) {
+      var log = gl.getShaderInfoLog(s) || '';
+      var lines = src.split('\n');
+      var numbered = [];
+      /* Print only the neighbourhood of each reported line: full dumps of a
+         900-line shader are useless in a console. */
+      var re = /(\d+):(\d+)/g, m, want = {};
+      while ((m = re.exec(log)) !== null) {
+        var ln = parseInt(m[2], 10);
+        for (var k = ln - 3; k <= ln + 3; k++) { want[k] = 1; }
+      }
+      for (var i = 0; i < lines.length; i++) {
+        if (want[i + 1]) { numbered.push((i + 1) + ' | ' + lines[i]); }
+      }
+      if (typeof console !== 'undefined') {
+        console.error('[IP.Renderer] shader compile failed: ' + name + '\n' + log +
+                      (numbered.length ? '\n' + numbered.join('\n') : ''));
+      }
+      gl.deleteShader(s);
+      return null;
+    }
+    return s;
+  }
+
+  function makeProg(vsSrc, fsSrc, name) {
+    var vs = compileShader(gl.VERTEX_SHADER, vsSrc, name + '.vert');
+    var fs = compileShader(gl.FRAGMENT_SHADER, fsSrc, name + '.frag');
+    if (!vs || !fs) { return null; }
+    var p = gl.createProgram();
+    gl.attachShader(p, vs); gl.attachShader(p, fs);
+    gl.linkProgram(p);
+    gl.deleteShader(vs); gl.deleteShader(fs);
+    if (!gl.getProgramParameter(p, gl.LINK_STATUS)) {
+      if (typeof console !== 'undefined') {
+        console.error('[IP.Renderer] link failed: ' + name + '\n' + (gl.getProgramInfoLog(p) || ''));
+      }
+      gl.deleteProgram(p);
+      return null;
+    }
+    var obj = { p: p, u: {}, name: name };
+    var n = gl.getProgramParameter(p, gl.ACTIVE_UNIFORMS) | 0;
+    for (var i = 0; i < n; i++) {
+      var info = gl.getActiveUniform(p, i);
+      if (!info) { continue; }
+      var nm = info.name.replace(/\[0\]$/, '');
+      obj.u[nm] = gl.getUniformLocation(p, info.name);
+    }
+    /* Uniform blocks bind to fixed points so we never rebind them per draw. */
+    bindBlock(p, 'Frame', UBO_FRAME);
+    bindBlock(p, 'Lights', UBO_LIGHTS);
+    return obj;
+  }
+
+  function bindBlock(p, blockName, point) {
+    try {
+      var idx = gl.getUniformBlockIndex(p, blockName);
+      if (idx !== undefined && idx !== 0xFFFFFFFF && idx >= 0) {
+        gl.uniformBlockBinding(p, idx, point);
+      }
+    } catch (e) { /* block absent from this program */ }
+  }
+
+  function u1i(pr, n, v) { if (pr.u[n] !== undefined && pr.u[n] !== null) { gl.uniform1i(pr.u[n], v); } }
+  function u1f(pr, n, v) { if (pr.u[n] !== undefined && pr.u[n] !== null) { gl.uniform1f(pr.u[n], v); } }
+  function u2f(pr, n, a, b) { if (pr.u[n] !== undefined && pr.u[n] !== null) { gl.uniform2f(pr.u[n], a, b); } }
+  function u3f(pr, n, a, b, c) { if (pr.u[n] !== undefined && pr.u[n] !== null) { gl.uniform3f(pr.u[n], a, b, c); } }
+  function u4f(pr, n, a, b, c, d) { if (pr.u[n] !== undefined && pr.u[n] !== null) { gl.uniform4f(pr.u[n], a, b, c, d); } }
+  function uMat4(pr, n, m) { if (pr.u[n] !== undefined && pr.u[n] !== null) { gl.uniformMatrix4fv(pr.u[n], false, m); } }
+  function uMat3(pr, n, m) { if (pr.u[n] !== undefined && pr.u[n] !== null) { gl.uniformMatrix3fv(pr.u[n], false, m); } }
+  function u3fv(pr, n, a) { if (pr.u[n] !== undefined && pr.u[n] !== null) { gl.uniform3fv(pr.u[n], a); } }
+  function u4fv(pr, n, a) { if (pr.u[n] !== undefined && pr.u[n] !== null) { gl.uniform4fv(pr.u[n], a); } }
+
+  /* Assign sampler uniforms to their fixed texture units, once per program. */
+  function assignSamplers(pr, map) {
+    if (!pr) { return; }
+    gl.useProgram(pr.p);
+    for (var k in map) { if (Object.prototype.hasOwnProperty.call(map, k)) { u1i(pr, k, map[k]); } }
+  }
+
+  /* ------------------------------------------------------------------ */
+  function makeTex2D(w, h, internal, filter, wrap, levels) {
+    var t = gl.createTexture();
+    gl.bindTexture(gl.TEXTURE_2D, t);
+    gl.texStorage2D(gl.TEXTURE_2D, levels || 1, internal, w, h);
+    gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MIN_FILTER, filter);
+    gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MAG_FILTER, filter === gl.NEAREST ? gl.NEAREST : gl.LINEAR);
+    gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_S, wrap || gl.CLAMP_TO_EDGE);
+    gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_T, wrap || gl.CLAMP_TO_EDGE);
+    t.__w = w; t.__h = h;
+    return t;
+  }
+
+  function makeFBO(colorTextures, depthTexture) {
+    var f = gl.createFramebuffer();
+    gl.bindFramebuffer(gl.FRAMEBUFFER, f);
+    var bufs = [];
+    if (colorTextures) {
+      for (var i = 0; i < colorTextures.length; i++) {
+        gl.framebufferTexture2D(gl.FRAMEBUFFER, gl.COLOR_ATTACHMENT0 + i, gl.TEXTURE_2D,
+                                colorTextures[i], 0);
+        bufs.push(gl.COLOR_ATTACHMENT0 + i);
+      }
+      if (bufs.length > 1) { gl.drawBuffers(bufs); }
+    }
+    if (depthTexture) {
+      gl.framebufferTexture2D(gl.FRAMEBUFFER, gl.DEPTH_ATTACHMENT, gl.TEXTURE_2D, depthTexture, 0);
+    }
+    var st = gl.checkFramebufferStatus(gl.FRAMEBUFFER);
+    if (st !== gl.FRAMEBUFFER_COMPLETE && typeof console !== 'undefined') {
+      console.warn('[IP.Renderer] incomplete framebuffer 0x' + st.toString(16));
+    }
+    gl.bindFramebuffer(gl.FRAMEBUFFER, null);
+    return f;
+  }
+
+  function del(o, kind) {
+    if (!o) { return; }
+    if (kind === 'tex') { gl.deleteTexture(o); }
+    else if (kind === 'fbo') { gl.deleteFramebuffer(o); }
+  }
+
+  /* HDR colour format, chosen from what the device actually supports. */
+  function hdrFormat() {
+    if (floatRTOK) { return gl.RGBA16F; }
+    return gl.RGBA8;
+  }
+
+  /* ------------------------------------------------------------------ */
+  /*  CPU noise atlas: r=fbm  g=worley  b=perlin  a=white                 */
+  function buildNoiseTexture() {
+    var N = 256, data = new Uint8Array(N * N * 4);
+    var r = Rand.make(0xBEEF);
+    for (var y = 0; y < N; y++) {
+      for (var x = 0; x < N; x++) {
+        var i = (y * N + x) * 4;
+        var fx = x / N * 8, fy = y / N * 8;
+        data[i] = Math.floor((Noise.fbm2(fx, fy, 5, 2.0, 0.5) * 0.5 + 0.5) * 255);
+        data[i + 1] = Math.floor(Noise.worley2(fx * 1.5, fy * 1.5) * 255);
+        data[i + 2] = Math.floor((Noise.perlin2(fx * 2, fy * 2) * 0.5 + 0.5) * 255);
+        data[i + 3] = Math.floor(r.f() * 255);
+      }
+    }
+    var t = makeTex2D(N, N, gl.RGBA8, gl.LINEAR, gl.REPEAT, 1);
+    gl.bindTexture(gl.TEXTURE_2D, t);
+    gl.texSubImage2D(gl.TEXTURE_2D, 0, 0, 0, N, N, gl.RGBA, gl.UNSIGNED_BYTE, data);
+    return t;
+  }
+
+  /*  Material library: one MRT pass per layer into three 2D array textures. */
+  function buildMaterialArrays() {
+    var S = TEXGEN_SIZE, L = TEX_LAYERS;
+    var levels = Math.floor(Math.log(S) / Math.LN2) + 1;
+    var names = ['albedoArr', 'normalArr', 'ormArr'];
+    var i, t;
+    for (i = 0; i < 3; i++) {
+      t = gl.createTexture();
+      gl.bindTexture(gl.TEXTURE_2D_ARRAY, t);
+      gl.texStorage3D(gl.TEXTURE_2D_ARRAY, levels, gl.RGBA8, S, S, L);
+      gl.texParameteri(gl.TEXTURE_2D_ARRAY, gl.TEXTURE_MIN_FILTER, gl.LINEAR_MIPMAP_LINEAR);
+      gl.texParameteri(gl.TEXTURE_2D_ARRAY, gl.TEXTURE_MAG_FILTER, gl.LINEAR);
+      gl.texParameteri(gl.TEXTURE_2D_ARRAY, gl.TEXTURE_WRAP_S, gl.REPEAT);
+      gl.texParameteri(gl.TEXTURE_2D_ARRAY, gl.TEXTURE_WRAP_T, gl.REPEAT);
+      if (aniso) {
+        gl.texParameterf(gl.TEXTURE_2D_ARRAY, aniso.TEXTURE_MAX_ANISOTROPY_EXT, Qs.aniso);
+      }
+      tex[names[i]] = t;
+    }
+    if (!progs.texgen) { return; }
+
+    var f = gl.createFramebuffer();
+    gl.bindFramebuffer(gl.FRAMEBUFFER, f);
+    gl.drawBuffers([gl.COLOR_ATTACHMENT0, gl.COLOR_ATTACHMENT1, gl.COLOR_ATTACHMENT2]);
+    gl.viewport(0, 0, S, S);
+    gl.disable(gl.DEPTH_TEST);
+    gl.disable(gl.BLEND);
+    gl.disable(gl.CULL_FACE);
+    gl.useProgram(progs.texgen.p);
+    gl.activeTexture(gl.TEXTURE0 + TU_NOISE);
+    gl.bindTexture(gl.TEXTURE_2D, tex.noise);
+    u1i(progs.texgen, 'uNoiseTex', TU_NOISE);
+    gl.bindVertexArray(emptyVAO);
+    for (var layer = 0; layer < L; layer++) {
+      for (i = 0; i < 3; i++) {
+        gl.framebufferTextureLayer(gl.FRAMEBUFFER, gl.COLOR_ATTACHMENT0 + i,
+                                   tex[names[i]], 0, layer);
+      }
+      u1i(progs.texgen, 'uLayer', layer);
+      gl.drawArrays(gl.TRIANGLES, 0, 3);
+    }
+    gl.bindFramebuffer(gl.FRAMEBUFFER, null);
+    gl.deleteFramebuffer(f);
+    for (i = 0; i < 3; i++) {
+      gl.bindTexture(gl.TEXTURE_2D_ARRAY, tex[names[i]]);
+      gl.generateMipmap(gl.TEXTURE_2D_ARRAY);
+    }
+  }
+
+  /*  Procedural sky -> cubemap with roughness-prefiltered mips. */
+  function buildEnvironment(sun, sunColor, lightning, time) {
+    if (!progs.env) { return; }
+    if (!tex.env) {
+      var t = gl.createTexture();
+      gl.bindTexture(gl.TEXTURE_CUBE_MAP, t);
+      gl.texStorage2D(gl.TEXTURE_CUBE_MAP, ENV_MIPS, hdrFormat(), ENV_SIZE, ENV_SIZE);
+      gl.texParameteri(gl.TEXTURE_CUBE_MAP, gl.TEXTURE_MIN_FILTER, gl.LINEAR_MIPMAP_LINEAR);
+      gl.texParameteri(gl.TEXTURE_CUBE_MAP, gl.TEXTURE_MAG_FILTER, gl.LINEAR);
+      gl.texParameteri(gl.TEXTURE_CUBE_MAP, gl.TEXTURE_WRAP_S, gl.CLAMP_TO_EDGE);
+      gl.texParameteri(gl.TEXTURE_CUBE_MAP, gl.TEXTURE_WRAP_T, gl.CLAMP_TO_EDGE);
+      gl.texParameteri(gl.TEXTURE_CUBE_MAP, gl.TEXTURE_WRAP_R, gl.CLAMP_TO_EDGE);
+      tex.env = t;
+    }
+    if (!fb.env) { fb.env = gl.createFramebuffer(); }
+    gl.bindFramebuffer(gl.FRAMEBUFFER, fb.env);
+    gl.drawBuffers([gl.COLOR_ATTACHMENT0]);
+    gl.disable(gl.DEPTH_TEST); gl.disable(gl.BLEND); gl.disable(gl.CULL_FACE);
+    gl.useProgram(progs.env.p);
+    gl.activeTexture(gl.TEXTURE0 + TU_NOISE);
+    gl.bindTexture(gl.TEXTURE_2D, tex.noise);
+    u1i(progs.env, 'uNoiseTex', TU_NOISE);
+    u3f(progs.env, 'uSun', -sun[0], -sun[1], -sun[2]);
+    u3f(progs.env, 'uSunColor', sunColor[0], sunColor[1], sunColor[2]);
+    u1f(progs.env, 'uLightning', lightning || 0);
+    u1f(progs.env, 'uTime', time || 0);
+    gl.bindVertexArray(emptyVAO);
+    for (var mip = 0; mip < ENV_MIPS; mip++) {
+      var size = Math.max(1, ENV_SIZE >> mip);
+      gl.viewport(0, 0, size, size);
+      u1f(progs.env, 'uRough', ENV_MIPS > 1 ? mip / (ENV_MIPS - 1) : 0);
+      for (var face = 0; face < 6; face++) {
+        gl.framebufferTexture2D(gl.FRAMEBUFFER, gl.COLOR_ATTACHMENT0,
+                                gl.TEXTURE_CUBE_MAP_POSITIVE_X + face, tex.env, mip);
+        u1i(progs.env, 'uFace', face);
+        gl.drawArrays(gl.TRIANGLES, 0, 3);
+      }
+    }
+    gl.bindFramebuffer(gl.FRAMEBUFFER, null);
+  }
+
+  /* ------------------------------------------------------------------ */
+  function allocShadow() {
+    if (tex.shadow) { del(tex.shadow, 'tex'); tex.shadow = null; }
+    if (fb.shadow) { del(fb.shadow, 'fbo'); fb.shadow = null; }
+    var size = Qs.shadowSize, layers = Qs.cascades;
+    var t = gl.createTexture();
+    gl.bindTexture(gl.TEXTURE_2D_ARRAY, t);
+    gl.texStorage3D(gl.TEXTURE_2D_ARRAY, 1, gl.DEPTH_COMPONENT24, size, size, layers);
+    gl.texParameteri(gl.TEXTURE_2D_ARRAY, gl.TEXTURE_MIN_FILTER, gl.LINEAR);
+    gl.texParameteri(gl.TEXTURE_2D_ARRAY, gl.TEXTURE_MAG_FILTER, gl.LINEAR);
+    gl.texParameteri(gl.TEXTURE_2D_ARRAY, gl.TEXTURE_WRAP_S, gl.CLAMP_TO_EDGE);
+    gl.texParameteri(gl.TEXTURE_2D_ARRAY, gl.TEXTURE_WRAP_T, gl.CLAMP_TO_EDGE);
+    gl.texParameteri(gl.TEXTURE_2D_ARRAY, gl.TEXTURE_COMPARE_MODE, gl.COMPARE_REF_TO_TEXTURE);
+    gl.texParameteri(gl.TEXTURE_2D_ARRAY, gl.TEXTURE_COMPARE_FUNC, gl.LEQUAL);
+    tex.shadow = t;
+    fb.shadow = gl.createFramebuffer();
+  }
+
+  function allocTargets() {
+    var i;
+    ['hdr', 'depth', 'depthCopy', 'ao0', 'ao1', 'vol', 'lum1', 'adapt0', 'adapt1'].forEach(function (k) {
+      if (tex[k]) { del(tex[k], 'tex'); tex[k] = null; }
+    });
+    if (tex.bloom) { for (i = 0; i < tex.bloom.length; i++) { del(tex.bloom[i], 'tex'); del(tex.bloomTmp[i], 'tex'); } }
+    ['hdr', 'depthCopy', 'ao0', 'ao1', 'vol', 'lum1', 'adapt0', 'adapt1'].forEach(function (k) {
+      if (fb[k]) { del(fb[k], 'fbo'); fb[k] = null; }
+    });
+    if (fb.bloom) { for (i = 0; i < fb.bloom.length; i++) { del(fb.bloom[i], 'fbo'); del(fb.bloomTmp[i], 'fbo'); } }
+
+    var fmt = hdrFormat();
+    tex.hdr = makeTex2D(RW, RH, fmt, gl.LINEAR, gl.CLAMP_TO_EDGE, 1);
+    tex.depth = makeTex2D(RW, RH, gl.DEPTH_COMPONENT24, gl.NEAREST, gl.CLAMP_TO_EDGE, 1);
+    fb.hdr = makeFBO([tex.hdr], tex.depth);
+
+    tex.depthCopy = makeTex2D(RW, RH, gl.DEPTH_COMPONENT24, gl.NEAREST, gl.CLAMP_TO_EDGE, 1);
+    fb.depthCopy = makeFBO(null, tex.depthCopy);
+
+    var aw = Math.max(1, RW * Qs.ssaoScale | 0), ah = Math.max(1, RH * Qs.ssaoScale | 0);
+    tex.ao0 = makeTex2D(aw, ah, gl.RGBA8, gl.LINEAR, gl.CLAMP_TO_EDGE, 1);
+    tex.ao1 = makeTex2D(aw, ah, gl.RGBA8, gl.LINEAR, gl.CLAMP_TO_EDGE, 1);
+    fb.ao0 = makeFBO([tex.ao0], null);
+    fb.ao1 = makeFBO([tex.ao1], null);
+
+    var vw = Math.max(1, RW * Qs.volScale | 0), vh = Math.max(1, RH * Qs.volScale | 0);
+    tex.vol = makeTex2D(vw, vh, fmt, gl.LINEAR, gl.CLAMP_TO_EDGE, 1);
+    fb.vol = makeFBO([tex.vol], null);
+
+    tex.bloom = []; tex.bloomTmp = []; fb.bloom = []; fb.bloomTmp = [];
+    for (i = 0; i < 3; i++) {
+      var bw = Math.max(1, RW >> (i + 1)), bh = Math.max(1, RH >> (i + 1));
+      tex.bloom.push(makeTex2D(bw, bh, fmt, gl.LINEAR, gl.CLAMP_TO_EDGE, 1));
+      tex.bloomTmp.push(makeTex2D(bw, bh, fmt, gl.LINEAR, gl.CLAMP_TO_EDGE, 1));
+      fb.bloom.push(makeFBO([tex.bloom[i]], null));
+      fb.bloomTmp.push(makeFBO([tex.bloomTmp[i]], null));
+    }
+
+    tex.lum1 = makeTex2D(64, 64, fmt, gl.LINEAR, gl.CLAMP_TO_EDGE, 7);
+    fb.lum1 = makeFBO([tex.lum1], null);
+    tex.adapt0 = makeTex2D(1, 1, fmt, gl.NEAREST, gl.CLAMP_TO_EDGE, 1);
+    tex.adapt1 = makeTex2D(1, 1, fmt, gl.NEAREST, gl.CLAMP_TO_EDGE, 1);
+    fb.adapt0 = makeFBO([tex.adapt0], null);
+    fb.adapt1 = makeFBO([tex.adapt1], null);
+  }
+
+  /* ------------------------------------------------------------------ */
+  function buildPrograms() {
+    progs.texgen = makeProg(VS_FULLSCREEN, FS_TEXGEN, 'texgen');
+    progs.env = makeProg(VS_FULLSCREEN, FS_ENV, 'env');
+    progs.sky = makeProg(VS_SKY, FS_SKY, 'sky');
+    progs.depth = makeProg(VS_DEPTH, FS_DEPTH, 'depth');
+    progs.pbr = makeProg(VS_PBR, FS_PBR, 'pbr');
+    progs.fallback = makeProg(VS_PBR, FS_FALLBACK, 'fallback');
+    progs.ssao = makeProg(VS_FULLSCREEN, FS_SSAO, 'ssao');
+    progs.aoblur = makeProg(VS_FULLSCREEN, FS_AOBLUR, 'aoblur');
+    progs.volume = makeProg(VS_FULLSCREEN, FS_VOLUME, 'volume');
+    progs.sprite = makeProg(VS_SPRITE, FS_SPRITE, 'sprite');
+    progs.bright = makeProg(VS_FULLSCREEN, FS_BRIGHT, 'bright');
+    progs.blur = makeProg(VS_FULLSCREEN, FS_BLUR, 'blur');
+    progs.blit = makeProg(VS_FULLSCREEN, FS_BLIT, 'blit');
+    progs.lum = makeProg(VS_FULLSCREEN, FS_LUM, 'lum');
+    progs.adapt = makeProg(VS_FULLSCREEN, FS_ADAPT, 'adapt');
+    progs.composite = makeProg(VS_FULLSCREEN, FS_COMPOSITE, 'composite');
+
+    /* The PBR program is the only one we cannot live without. */
+    if (!progs.pbr) { progs.pbr = progs.fallback; }
+
+    assignSamplers(progs.pbr, {
+      uTexAlbedo: TU_ALBEDO, uTexNormal: TU_NORMAL, uTexORM: TU_ORM,
+      uShadowMap: TU_SHADOW, uEnv: TU_ENV, uAOTex: TU_AO
+    });
+    assignSamplers(progs.sky, { uEnv: TU_ENV });
+    assignSamplers(progs.ssao, { uDepth: TU_DEPTH, uNoiseTex: TU_NOISE });
+    assignSamplers(progs.aoblur, { uAO: TU_AO, uDepth: TU_DEPTH });
+    assignSamplers(progs.volume, { uDepth: TU_DEPTH, uNoiseTex: TU_NOISE, uShadowMap: TU_SHADOW });
+    assignSamplers(progs.sprite, { uDepth: TU_DEPTH });
+    assignSamplers(progs.bright, { uSrc: TU_SRC });
+    assignSamplers(progs.blur, { uSrc: TU_SRC });
+    assignSamplers(progs.blit, { uSrc: TU_SRC });
+    assignSamplers(progs.lum, { uSrc: TU_SRC });
+    assignSamplers(progs.adapt, { uLumTex: TU_SRC, uPrev: TU_LUM });
+    assignSamplers(progs.composite, {
+      uSrc: TU_SRC, uBloom0: TU_BLOOM, uBloom1: TU_BLOOM + 1, uBloom2: TU_VOL,
+      uLum: TU_LUM, uNoiseTex: TU_NOISE
+    });
+  }
+
+  function buildSSAOKernel() {
+    var r = Rand.make(0x5EED);
+    for (var i = 0; i < SSAO_KERNEL; i++) {
+      var x = r.f() * 2 - 1, y = r.f() * 2 - 1, z = r.f();
+      var l = Math.sqrt(x * x + y * y + z * z) || 1;
+      var scale = 0.1 + 0.9 * (i / SSAO_KERNEL) * (i / SSAO_KERNEL);
+      ssaoKernel[i * 3] = x / l * scale;
+      ssaoKernel[i * 3 + 1] = y / l * scale;
+      ssaoKernel[i * 3 + 2] = z / l * scale;
+    }
+  }
+
+  function buildSpriteGeometry() {
+    spriteVAO = gl.createVertexArray();
+    gl.bindVertexArray(spriteVAO);
+    var corners = new Float32Array([-1, -1, 1, -1, -1, 1, 1, 1]);
+    var cb = gl.createBuffer();
+    gl.bindBuffer(gl.ARRAY_BUFFER, cb);
+    gl.bufferData(gl.ARRAY_BUFFER, corners, gl.STATIC_DRAW);
+    gl.enableVertexAttribArray(0);
+    gl.vertexAttribPointer(0, 2, gl.FLOAT, false, 0, 0);
+
+    spriteInstBuf = gl.createBuffer();
+    gl.bindBuffer(gl.ARRAY_BUFFER, spriteInstBuf);
+    gl.bufferData(gl.ARRAY_BUFFER, spriteData.byteLength, gl.DYNAMIC_DRAW);
+    var stride = SPRITE_STRIDE * 4;
+    gl.enableVertexAttribArray(A_INST_A);
+    gl.vertexAttribPointer(A_INST_A, 4, gl.FLOAT, false, stride, 0);
+    gl.vertexAttribDivisor(A_INST_A, 1);
+    gl.enableVertexAttribArray(A_INST_B);
+    gl.vertexAttribPointer(A_INST_B, 4, gl.FLOAT, false, stride, 16);
+    gl.vertexAttribDivisor(A_INST_B, 1);
+    gl.enableVertexAttribArray(A_INST_C);
+    gl.vertexAttribPointer(A_INST_C, 4, gl.FLOAT, false, stride, 32);
+    gl.vertexAttribDivisor(A_INST_C, 1);
+    gl.bindVertexArray(null);
+  }
+
+  /* ------------------------------------------------------------------ */
+  /*  PUBLIC: init                                                       */
+  /* ------------------------------------------------------------------ */
+  function init(canvas, opts) {
+    opts = opts || {};
+    canvasEl = canvas;
+    try {
+      gl = canvas.getContext('webgl2', {
+        antialias: false, alpha: false, depth: true, stencil: false,
+        powerPreference: 'high-performance', preserveDrawingBuffer: false,
+        premultipliedAlpha: false, desynchronized: false,
+        failIfMajorPerformanceCaveat: false
+      });
+    } catch (e) { gl = null; }
+    if (!gl) { ok = false; return false; }
+
+    floatRTOK = !!gl.getExtension('EXT_color_buffer_float');
+    halfFloatOK = floatRTOK || !!gl.getExtension('EXT_color_buffer_half_float');
+    if (!floatRTOK && halfFloatOK) { floatRTOK = true; }
+    gl.getExtension('OES_texture_float_linear');
+    gl.getExtension('EXT_float_blend');
+    aniso = gl.getExtension('EXT_texture_filter_anisotropic');
+
+    RW = Math.max(1, canvas.width || 1280);
+    RH = Math.max(1, canvas.height || 720);
+    W = RW; H = RH;
+
+    emptyVAO = gl.createVertexArray();
+
+    uboFrame = gl.createBuffer();
+    gl.bindBuffer(gl.UNIFORM_BUFFER, uboFrame);
+    gl.bufferData(gl.UNIFORM_BUFFER, frameData.byteLength, gl.DYNAMIC_DRAW);
+    gl.bindBufferBase(gl.UNIFORM_BUFFER, UBO_FRAME, uboFrame);
+
+    uboLights = gl.createBuffer();
+    gl.bindBuffer(gl.UNIFORM_BUFFER, uboLights);
+    gl.bufferData(gl.UNIFORM_BUFFER, lightData.byteLength, gl.DYNAMIC_DRAW);
+    gl.bindBufferBase(gl.UNIFORM_BUFFER, UBO_LIGHTS, uboLights);
+
+    buildPrograms();
+    buildSSAOKernel();
+    buildSpriteGeometry();
+
+    tex.noise = buildNoiseTexture();
+    buildMaterialArrays();
+    buildEnvironment([0.32, -0.78, 0.54], [0.42, 0.50, 0.66], 0, 0);
+
+    allocShadow();
+    allocTargets();
+
+    gl.enable(gl.DEPTH_TEST);
+    gl.depthFunc(gl.LEQUAL);
+    gl.enable(gl.CULL_FACE);
+    gl.cullFace(gl.BACK);
+    gl.frontFace(gl.CCW);
+    gl.clearColor(0, 0, 0, 1);
+
+    canvas.addEventListener('webglcontextlost', function (e) {
+      e.preventDefault(); ok = false;
+      if (typeof console !== 'undefined') { console.warn('[IP.Renderer] context lost'); }
+    }, false);
+
+    ok = true;
+    return true;
+  }
+
+  function resize(w, h, dpr) {
+    if (!ok) { return; }
+    DPR = dpr || 1;
+    W = Math.max(1, w | 0); H = Math.max(1, h | 0);
+    RW = Math.max(1, (W * DPR) | 0); RH = Math.max(1, (H * DPR) | 0);
+    if (canvasEl) { canvasEl.width = RW; canvasEl.height = RH; }
+    allocTargets();
+  }
+
+  function setQuality(q) {
+    q = q < 0 ? 0 : (q > 2 ? 2 : (q | 0));
+    if (!ok) { qLevel = q; Qs = QUALITY[q]; return; }
+    var prevShadow = Qs.shadowSize, prevCascades = Qs.cascades;
+    qLevel = q; Qs = QUALITY[q];
+    if (Qs.shadowSize !== prevShadow || Qs.cascades !== prevCascades) { allocShadow(); }
+    allocTargets();
+    envDirty = true;
+  }
+
+  /* ------------------------------------------------------------------ */
+  /*  PUBLIC: geometry upload                                            */
+  /* ------------------------------------------------------------------ */
+  function computeBounds(geo) {
+    var p = geo.positions, n = p.length;
+    var mnx = 1e30, mny = 1e30, mnz = 1e30, mxx = -1e30, mxy = -1e30, mxz = -1e30;
+    for (var i = 0; i < n; i += 3) {
+      var x = p[i], y = p[i + 1], z = p[i + 2];
+      if (x < mnx) { mnx = x; } if (x > mxx) { mxx = x; }
+      if (y < mny) { mny = y; } if (y > mxy) { mxy = y; }
+      if (z < mnz) { mnz = z; } if (z > mxz) { mxz = z; }
+    }
+    if (n === 0) { mnx = mny = mnz = mxx = mxy = mxz = 0; }
+    return { min: [mnx, mny, mnz], max: [mxx, mxy, mxz] };
+  }
+
+  function upload(geo) {
+    if (!ok || !geo || !geo.positions || !geo.indices) { return null; }
+    var vao = gl.createVertexArray();
+    gl.bindVertexArray(vao);
+    var vc = geo.positions.length / 3;
+
+    var vbPos = gl.createBuffer();
+    gl.bindBuffer(gl.ARRAY_BUFFER, vbPos);
+    gl.bufferData(gl.ARRAY_BUFFER, geo.positions, gl.STATIC_DRAW);
+    gl.enableVertexAttribArray(A_POS);
+    gl.vertexAttribPointer(A_POS, 3, gl.FLOAT, false, 0, 0);
+
+    var normals = geo.normals;
+    if (!normals || normals.length !== geo.positions.length) {
+      normals = new Float32Array(geo.positions.length);
+      for (var i = 1; i < normals.length; i += 3) { normals[i] = 1; }
+    }
+    var vbNrm = gl.createBuffer();
+    gl.bindBuffer(gl.ARRAY_BUFFER, vbNrm);
+    gl.bufferData(gl.ARRAY_BUFFER, normals, gl.STATIC_DRAW);
+    gl.enableVertexAttribArray(A_NRM);
+    gl.vertexAttribPointer(A_NRM, 3, gl.FLOAT, false, 0, 0);
+
+    var uvs = geo.uvs && geo.uvs.length === vc * 2 ? geo.uvs : new Float32Array(vc * 2);
+    var vbUV = gl.createBuffer();
+    gl.bindBuffer(gl.ARRAY_BUFFER, vbUV);
+    gl.bufferData(gl.ARRAY_BUFFER, uvs, gl.STATIC_DRAW);
+    gl.enableVertexAttribArray(A_UV);
+    gl.vertexAttribPointer(A_UV, 2, gl.FLOAT, false, 0, 0);
+
+    var cols = geo.colors && geo.colors.length === vc * 3 ? geo.colors : null;
+    if (!cols) { cols = new Float32Array(vc * 3); cols.fill(1); }
+    var vbCol = gl.createBuffer();
+    gl.bindBuffer(gl.ARRAY_BUFFER, vbCol);
+    gl.bufferData(gl.ARRAY_BUFFER, cols, gl.STATIC_DRAW);
+    gl.enableVertexAttribArray(A_COL);
+    gl.vertexAttribPointer(A_COL, 3, gl.FLOAT, false, 0, 0);
+
+    var idx = geo.indices;
+    var use32 = vc > 65535 || !(idx instanceof Uint16Array);
+    var idata = use32 ? (idx instanceof Uint32Array ? idx : new Uint32Array(idx))
+                      : (idx instanceof Uint16Array ? idx : new Uint16Array(idx));
+    var ibo = gl.createBuffer();
+    gl.bindBuffer(gl.ELEMENT_ARRAY_BUFFER, ibo);
+    gl.bufferData(gl.ELEMENT_ARRAY_BUFFER, idata, gl.STATIC_DRAW);
+    gl.bindVertexArray(null);
+
+    var b = geo.bounds || computeBounds(geo);
+    var cxx = (b.min[0] + b.max[0]) * 0.5, cyy = (b.min[1] + b.max[1]) * 0.5, czz = (b.min[2] + b.max[2]) * 0.5;
+    var rr = Math.sqrt((b.max[0] - cxx) * (b.max[0] - cxx) +
+                       (b.max[1] - cyy) * (b.max[1] - cyy) +
+                       (b.max[2] - czz) * (b.max[2] - czz));
+    return {
+      vao: vao, ibo: ibo, count: idata.length,
+      type: use32 ? gl.UNSIGNED_INT : gl.UNSIGNED_SHORT,
+      bufs: [vbPos, vbNrm, vbUV, vbCol],
+      bounds: b, cx: cxx, cy: cyy, cz: czz, radius: rr || 0.001
+    };
+  }
+
+  function updateMesh(mesh, geo) {
+    if (!ok || !mesh || !geo) { return; }
+    gl.bindBuffer(gl.ARRAY_BUFFER, mesh.bufs[0]);
+    gl.bufferData(gl.ARRAY_BUFFER, geo.positions, gl.DYNAMIC_DRAW);
+    if (geo.normals) {
+      gl.bindBuffer(gl.ARRAY_BUFFER, mesh.bufs[1]);
+      gl.bufferData(gl.ARRAY_BUFFER, geo.normals, gl.DYNAMIC_DRAW);
+    }
+    var b = geo.bounds || computeBounds(geo);
+    mesh.bounds = b;
+    mesh.cx = (b.min[0] + b.max[0]) * 0.5;
+    mesh.cy = (b.min[1] + b.max[1]) * 0.5;
+    mesh.cz = (b.min[2] + b.max[2]) * 0.5;
+  }
+
+  function dispose(mesh) {
+    if (!ok || !mesh) { return; }
+    gl.deleteVertexArray(mesh.vao);
+    gl.deleteBuffer(mesh.ibo);
+    for (var i = 0; i < mesh.bufs.length; i++) { gl.deleteBuffer(mesh.bufs[i]); }
+  }
+
+  /* ------------------------------------------------------------------ */
+  /*  Frustum culling                                                    */
+  /* ------------------------------------------------------------------ */
+  function extractPlanes(m) {
+    var i, o;
+    /* left, right, bottom, top, near, far - rows of the view-projection */
+    var rows = [[0, 3, 1], [0, 3, -1], [1, 3, 1], [1, 3, -1], [2, 3, 1], [2, 3, -1]];
+    for (i = 0; i < 6; i++) {
+      var r = rows[i], a = r[0], sgn = r[2];
+      o = i * 4;
+      planes[o] = m[3] + sgn * m[a];
+      planes[o + 1] = m[7] + sgn * m[4 + a];
+      planes[o + 2] = m[11] + sgn * m[8 + a];
+      planes[o + 3] = m[15] + sgn * m[12 + a];
+      var len = Math.sqrt(planes[o] * planes[o] + planes[o + 1] * planes[o + 1] + planes[o + 2] * planes[o + 2]) || 1;
+      planes[o] /= len; planes[o + 1] /= len; planes[o + 2] /= len; planes[o + 3] /= len;
+    }
+  }
+
+  function sphereVisible(x, y, z, r) {
+    for (var i = 0; i < 6; i++) {
+      var o = i * 4;
+      if (planes[o] * x + planes[o + 1] * y + planes[o + 2] * z + planes[o + 3] < -r) { return false; }
+    }
+    return true;
+  }
+
+  /* World-space centre/radius of a draw item, accounting for its matrix. */
+  var _wc = new Float32Array(3);
+  function itemSphere(it) {
+    var g = it.geo, m = it.m;
+    if (!g) { return 0; }
+    M4.transformPoint(_wc, m, [g.cx, g.cy, g.cz]);
+    /* uniform-ish scale estimate from the matrix basis */
+    var sx = Math.sqrt(m[0] * m[0] + m[1] * m[1] + m[2] * m[2]);
+    var sy = Math.sqrt(m[4] * m[4] + m[5] * m[5] + m[6] * m[6]);
+    var sz = Math.sqrt(m[8] * m[8] + m[9] * m[9] + m[10] * m[10]);
+    return g.radius * Math.max(sx, Math.max(sy, sz));
+  }
+
+  /* ------------------------------------------------------------------ */
+  /*  Material binding                                                   */
+  /* ------------------------------------------------------------------ */
+  function bindMaterial(pr, mat, time) {
+    var alb = mat.albedo || [0.8, 0.8, 0.8];
+    var em = mat.emissive || null;
+    var pulse = 1;
+    if (mat.emissivePulse) { pulse = 0.55 + 0.45 * Math.sin(time * mat.emissivePulse * 6.2831853); }
+    u4f(pr, 'uAlbedo', alb[0], alb[1], alb[2], mat.alpha === undefined ? 1 : mat.alpha);
+    var layer = -1;
+    if (mat.tex && mat.tex !== 'none' && TEX_INDEX[mat.tex] !== undefined) { layer = TEX_INDEX[mat.tex]; }
+    u4f(pr, 'uMatParams',
+        mat.rough === undefined ? 0.8 : mat.rough,
+        mat.metal === undefined ? 0.0 : mat.metal,
+        layer, mat.texScale === undefined ? 1.0 : mat.texScale);
+    if (em) { u4f(pr, 'uEmissive', em[0] * pulse, em[1] * pulse, em[2] * pulse, 0); }
+    else { u4f(pr, 'uEmissive', 0, 0, 0, 0); }
+  }
+
+  function normalMatrix(m) {
+    /* inverse-transpose of the upper 3x3 */
+    var a00 = m[0], a01 = m[1], a02 = m[2],
+        a10 = m[4], a11 = m[5], a12 = m[6],
+        a20 = m[8], a21 = m[9], a22 = m[10];
+    var b01 = a22 * a11 - a12 * a21,
+        b11 = -a22 * a10 + a12 * a20,
+        b21 = a21 * a10 - a11 * a20;
+    var d = a00 * b01 + a01 * b11 + a02 * b21;
+    if (!d) {
+      nrmMat[0] = 1; nrmMat[1] = 0; nrmMat[2] = 0;
+      nrmMat[3] = 0; nrmMat[4] = 1; nrmMat[5] = 0;
+      nrmMat[6] = 0; nrmMat[7] = 0; nrmMat[8] = 1;
+      return nrmMat;
+    }
+    d = 1.0 / d;
+    nrmMat[0] = b01 * d;
+    nrmMat[1] = (-a22 * a01 + a02 * a21) * d;
+    nrmMat[2] = (a12 * a01 - a02 * a11) * d;
+    nrmMat[3] = b11 * d;
+    nrmMat[4] = (a22 * a00 - a02 * a20) * d;
+    nrmMat[5] = (-a12 * a00 + a02 * a10) * d;
+    nrmMat[6] = b21 * d;
+    nrmMat[7] = (-a21 * a00 + a01 * a20) * d;
+    nrmMat[8] = (a11 * a00 - a01 * a10) * d;
+    return nrmMat;
+  }
+
+  /* ------------------------------------------------------------------ */
+  /*  Cascade fitting                                                    */
+  /* ------------------------------------------------------------------ */
+  function fitCascades(camera, sunDir, near, far) {
+    var n = Qs.cascades;
+    var lambda = 0.72;
+    var i;
+    for (i = 0; i < n; i++) {
+      var p = (i + 1) / n;
+      var uni = near + (far - near) * p;
+      var log = near * Math.pow(far / near, p);
+      splits[i] = log * lambda + uni * (1 - lambda);
+    }
+    splits[3] = frameIndex & 1023;
+
+    var prevSplit = near;
+    for (i = 0; i < n; i++) {
+      var sEnd = splits[i];
+      /* centre of the frustum slice, radius covering its corners */
+      var tanH = Math.tan(camera.fov * 0.5);
+      var aspect = RW / Math.max(1, RH);
+      var hn = tanH * prevSplit, wn = hn * aspect;
+      var hf = tanH * sEnd, wf = hf * aspect;
+      var midDist = (prevSplit + sEnd) * 0.5;
+      var radius = Math.sqrt(Math.max(
+        wn * wn + hn * hn + prevSplit * prevSplit,
+        wf * wf + hf * hf + sEnd * sEnd) ) * 0.5 + (sEnd - prevSplit) * 0.5;
+      radius = Math.max(radius, 2.0);
+
+      Q.rotateVec3(vTmp, camera.quat, FWD_R);
+      var ccx = camera.pos[0] + vTmp[0] * midDist;
+      var ccy = camera.pos[1] + vTmp[1] * midDist;
+      var ccz = camera.pos[2] + vTmp[2] * midDist;
+
+      /* snap the centre to shadow-texel increments to stop shimmering */
+      var texelsPerUnit = Qs.shadowSize / (radius * 2);
+      ccx = Math.floor(ccx * texelsPerUnit) / texelsPerUnit;
+      ccy = Math.floor(ccy * texelsPerUnit) / texelsPerUnit;
+      ccz = Math.floor(ccz * texelsPerUnit) / texelsPerUnit;
+
+      var d = radius * 2.6;
+      vTmp2[0] = ccx - sunDir[0] * d;
+      vTmp2[1] = ccy - sunDir[1] * d;
+      vTmp2[2] = ccz - sunDir[2] * d;
+      camTarget[0] = ccx; camTarget[1] = ccy; camTarget[2] = ccz;
+      var upRef = Math.abs(sunDir[1]) > 0.98 ? UPZ_R : UPY_R;
+      M4.lookAt(mTmp, vTmp2, camTarget, upRef);
+      M4.ortho(mTmp2, -radius, radius, -radius, radius, 0.05, d * 2.2);
+      M4.mul(mLightVP[i], mTmp2, mTmp);
+      prevSplit = sEnd;
+    }
+  }
+  var FWD_R = V3.create(0, 0, -1), UPY_R = V3.create(0, 1, 0), UPZ_R = V3.create(0, 0, 1);
+
+  /* ------------------------------------------------------------------ */
+  /*  Passes                                                             */
+  /* ------------------------------------------------------------------ */
+  function fullscreen() {
+    gl.bindVertexArray(emptyVAO);
+    gl.drawArrays(gl.TRIANGLES, 0, 3);
+    stats.drawCalls++;
+  }
+
+  function bindTex(unit, target, t) {
+    gl.activeTexture(gl.TEXTURE0 + unit);
+    gl.bindTexture(target, t);
+  }
+
+  function drawItems(list, count, pr, isShadow) {
+    var i, it;
+    for (i = 0; i < count; i++) {
+      it = list[orderArr[i]];
+      if (!it || !it.geo) { continue; }
+      if (isShadow) {
+        uMat4(pr, 'uModel', it.m);
+      } else {
+        uMat4(pr, 'uModel', it.m);
+        uMat3(pr, 'uNrmMat', normalMatrix(it.m));
+        bindMaterial(pr, it.mat || {}, frameData[F_CAMPOS + 3]);
+      }
+      gl.bindVertexArray(it.geo.vao);
+      gl.drawElements(gl.TRIANGLES, it.geo.count, it.geo.type, 0);
+      stats.drawCalls++;
+      stats.tris += it.geo.count / 3;
+    }
+  }
+
+  /* Build the visible/sorted index list for a draw array. */
+  function cullAndSort(items, doCull) {
+    var n = 0, i, it, r;
+    stats.culled = 0;
+    for (i = 0; i < items.length && n < MAX_DRAWS; i++) {
+      it = items[i];
+      if (!it || !it.geo) { continue; }
+      if (doCull) {
+        r = itemSphere(it);
+        if (!sphereVisible(_wc[0], _wc[1], _wc[2], r)) { stats.culled++; continue; }
+      }
+      drawOrder[n] = i;
+      /* sort key: material texture layer, then mesh id - minimises state changes */
+      var mat = it.mat || {};
+      var layer = (mat.tex && TEX_INDEX[mat.tex] !== undefined) ? TEX_INDEX[mat.tex] : 15;
+      drawKey[n] = layer * 100000 + (it.geo.count & 0xFFFF);
+      n++;
+    }
+    orderArr.length = 0;
+    for (i = 0; i < n; i++) { orderArr.push(drawOrder[i]); }
+    orderArr.sort(function (a, b) {
+      var ia = items[a], ib = items[b];
+      var ma = ia.mat || {}, mb = ib.mat || {};
+      var la = (ma.tex && TEX_INDEX[ma.tex] !== undefined) ? TEX_INDEX[ma.tex] : 15;
+      var lb = (mb.tex && TEX_INDEX[mb.tex] !== undefined) ? TEX_INDEX[mb.tex] : 15;
+      return la - lb;
+    });
+    return n;
+  }
+
+  /* Transparent items sort back-to-front by view depth. */
+  function sortTransparent(items, camPos) {
+    var n = 0, i;
+    orderArr.length = 0;
+    for (i = 0; i < items.length; i++) {
+      var it = items[i];
+      if (!it || !it.geo) { continue; }
+      itemSphere(it);
+      var dx = _wc[0] - camPos[0], dy = _wc[1] - camPos[1], dz = _wc[2] - camPos[2];
+      it.__d = dx * dx + dy * dy + dz * dz;
+      orderArr.push(i); n++;
+    }
+    orderArr.sort(function (a, b) { return items[b].__d - items[a].__d; });
+    return n;
+  }
+
+  /* ------------------------------------------------------------------ */
+  /*  PUBLIC: renderFrame                                                */
+  /* ------------------------------------------------------------------ */
+  var lastTime = 0, adaptPing = 0;
+
+  function renderFrame(scene, dt) {
+    if (!ok || !gl) { return; }
+    if (gl.isContextLost && gl.isContextLost()) { return; }
+
+    stats.drawCalls = 0; stats.tris = 0; stats.sprites = 0;
+    var nowMs = Util.now();
+    if (lastTime) { stats.fps = stats.fps * 0.92 + (1000 / Math.max(1, nowMs - lastTime)) * 0.08; }
+    lastTime = nowMs;
+    frameIndex++;
+
+    var cameraIn = scene.camera;
+    var q = (scene.quality === undefined ? qLevel : scene.quality) | 0;
+    if (q !== qLevel) { setQuality(q); }
+
+    var near = cameraIn.near || 0.06, far = cameraIn.far || 400;
+    var aspect = RW / Math.max(1, RH);
+
+    /* --- camera matrices --- */
+    M4.perspective(mProj, cameraIn.fov || 1.1, aspect, near, far);
+    Q.rotateVec3(vTmp, cameraIn.quat, FWD_R);
+    camTarget[0] = cameraIn.pos[0] + vTmp[0];
+    camTarget[1] = cameraIn.pos[1] + vTmp[1];
+    camTarget[2] = cameraIn.pos[2] + vTmp[2];
+    Q.rotateVec3(camUp, cameraIn.quat, UPY_R);
+    M4.lookAt(mView, cameraIn.pos, camTarget, camUp);
+    M4.copy(mPrevVP, mVP);
+    M4.mul(mVP, mProj, mView);
+    M4.invert(mInvView, mView);
+    M4.invert(mInvProj, mProj);
+    extractPlanes(mVP);
+
+    /* --- sun / environment --- */
+    var sun = scene.sun || {};
+    var sunDir = sun.dir || [0.32, -0.78, 0.54];
+    V3.normalize(vTmp3, sunDir);
+    var sunCol = sun.color || [0.4, 0.48, 0.62];
+    var lightning = (scene.post && scene.post.lightning) || 0;
+    var envKey = sunCol[0].toFixed(2) + sunCol[1].toFixed(2) + sunCol[2].toFixed(2) +
+                 vTmp3[0].toFixed(2) + vTmp3[1].toFixed(2);
+    if (envDirty || envKey !== lastEnvKey) {
+      lastEnvKey = envKey; envDirty = false;
+      buildEnvironment(vTmp3, sunCol, 0, scene.time || 0);
+    }
+
+    /* --- pack the Frame UBO --- */
+    frameData.set(mView, F_VIEW);
+    frameData.set(mProj, F_PROJ);
+    frameData.set(mVP, F_VP);
+    frameData.set(mInvView, F_INVVIEW);
+    frameData.set(mInvProj, F_INVPROJ);
+    frameData.set(mPrevVP, F_PREVVP);
+
+    fitCascades({ pos: cameraIn.pos, quat: cameraIn.quat, fov: cameraIn.fov || 1.1 },
+                vTmp3, near, Math.min(far, 90));
+    frameData.set(mLightVP[0], F_CASC0);
+    frameData.set(mLightVP[Math.min(1, Qs.cascades - 1)], F_CASC1);
+    frameData.set(mLightVP[Math.min(2, Qs.cascades - 1)], F_CASC2);
+
+    frameData[F_CAMPOS] = cameraIn.pos[0];
+    frameData[F_CAMPOS + 1] = cameraIn.pos[1];
+    frameData[F_CAMPOS + 2] = cameraIn.pos[2];
+    frameData[F_CAMPOS + 3] = scene.time || 0;
+    /* uSunDir carries the direction TO the light */
+    frameData[F_SUNDIR] = -vTmp3[0];
+    frameData[F_SUNDIR + 1] = -vTmp3[1];
+    frameData[F_SUNDIR + 2] = -vTmp3[2];
+    frameData[F_SUNDIR + 3] = sun.intensity === undefined ? 1 : sun.intensity;
+    frameData[F_SUNCOL] = sunCol[0];
+    frameData[F_SUNCOL + 1] = sunCol[1];
+    frameData[F_SUNCOL + 2] = sunCol[2];
+    frameData[F_SUNCOL + 3] = debug.noShadow ? 0 : 1;
+    var amb = sun.ambient || [0.05, 0.06, 0.08];
+    frameData[F_AMBIENT] = amb[0];
+    frameData[F_AMBIENT + 1] = amb[1];
+    frameData[F_AMBIENT + 2] = amb[2];
+    frameData[F_AMBIENT + 3] = Qs.ssao ? 1.0 : 0.0;
+    var fog = scene.fog || {};
+    var fogCol = fog.color || [0.03, 0.04, 0.06];
+    frameData[F_FOGCOL] = fogCol[0];
+    frameData[F_FOGCOL + 1] = fogCol[1];
+    frameData[F_FOGCOL + 2] = fogCol[2];
+    frameData[F_FOGCOL + 3] = fog.density === undefined ? 0.025 : fog.density;
+    frameData[F_FOGPARAMS] = fog.height === undefined ? 9 : fog.height;
+    frameData[F_FOGPARAMS + 1] = fog.heightFalloff === undefined ? 0.15 : fog.heightFalloff;
+    frameData[F_FOGPARAMS + 2] = near;
+    frameData[F_FOGPARAMS + 3] = far;
+    frameData[F_SCREEN] = RW; frameData[F_SCREEN + 1] = RH;
+    frameData[F_SCREEN + 2] = 1 / RW; frameData[F_SCREEN + 3] = 1 / RH;
+
+    /* --- lights --- */
+    var lights = scene.lights || [];
+    var maxL = Math.min(Qs.lights, MAX_LIGHTS);
+    var lc = 0;
+    for (var li = 0; li < lights.length && lc < maxL; li++) {
+      var L = lights[li];
+      if (!L) { continue; }
+      var lx = L.pos[0] - cameraIn.pos[0], ly = L.pos[1] - cameraIn.pos[1], lz = L.pos[2] - cameraIn.pos[2];
+      var range = L.range || 10;
+      var d2 = lx * lx + ly * ly + lz * lz;
+      if (d2 > (range + far * 0.25) * (range + far * 0.25)) { continue; }
+      if (!sphereVisible(L.pos[0], L.pos[1], L.pos[2], range)) { continue; }
+      var inten = L.intensity === undefined ? 1 : L.intensity;
+      lightData[lc * 4] = L.pos[0];
+      lightData[lc * 4 + 1] = L.pos[1];
+      lightData[lc * 4 + 2] = L.pos[2];
+      lightData[lc * 4 + 3] = range;
+      lightData[MAX_LIGHTS * 4 + lc * 4] = L.color[0] * inten;
+      lightData[MAX_LIGHTS * 4 + lc * 4 + 1] = L.color[1] * inten;
+      lightData[MAX_LIGHTS * 4 + lc * 4 + 2] = L.color[2] * inten;
+      lightData[MAX_LIGHTS * 4 + lc * 4 + 3] = L.shadow ? 1 : 0;
+      lc++;
+    }
+    stats.lights = lc;
+
+    var post = scene.post || {};
+    frameData[F_MISC] = qLevel;
+    frameData[F_MISC + 1] = lc;
+    frameData[F_MISC + 2] = post.exposure === undefined ? 1 : post.exposure;
+    frameData[F_MISC + 3] = Qs.ssao ? 1 : 0;
+    frameData[F_SPLITS] = splits[0];
+    frameData[F_SPLITS + 1] = splits[Math.min(1, Qs.cascades - 1)];
+    frameData[F_SPLITS + 2] = splits[Math.min(2, Qs.cascades - 1)];
+    frameData[F_SPLITS + 3] = frameIndex & 1023;
+    frameData[F_MISC2] = lightning;
+    frameData[F_MISC2 + 1] = 0.035;
+    frameData[F_MISC2 + 2] = 0.0018;
+    frameData[F_MISC2 + 3] = 1 / Qs.shadowSize;
+
+    gl.bindBuffer(gl.UNIFORM_BUFFER, uboFrame);
+    gl.bufferSubData(gl.UNIFORM_BUFFER, 0, frameData);
+    gl.bindBuffer(gl.UNIFORM_BUFFER, uboLights);
+    gl.bufferSubData(gl.UNIFORM_BUFFER, 0, lightData);
+
+    var items = scene.items || [];
+
+    /* ============ 1. shadow cascades ============ */
+    if (progs.depth && !debug.noShadow) {
+      gl.bindFramebuffer(gl.FRAMEBUFFER, fb.shadow);
+      gl.viewport(0, 0, Qs.shadowSize, Qs.shadowSize);
+      gl.enable(gl.DEPTH_TEST);
+      gl.depthMask(true);
+      gl.disable(gl.BLEND);
+      gl.cullFace(gl.FRONT);
+      gl.useProgram(progs.depth.p);
+      u1f(progs.depth, 'uUseLightVP', 1);
+      for (var c = 0; c < Qs.cascades; c++) {
+        gl.framebufferTextureLayer(gl.FRAMEBUFFER, gl.DEPTH_ATTACHMENT, tex.shadow, 0, c);
+        gl.clear(gl.DEPTH_BUFFER_BIT);
+        uMat4(progs.depth, 'uLightVP', mLightVP[c]);
+        var sn = 0;
+        orderArr.length = 0;
+        for (var si = 0; si < items.length && sn < MAX_DRAWS; si++) {
+          if (items[si] && items[si].geo && items[si].castShadow !== false) { orderArr.push(si); sn++; }
+        }
+        drawItems(items, sn, progs.depth, true);
+      }
+      gl.cullFace(gl.BACK);
+    }
+
+    /* ============ 2. main HDR target ============ */
+    gl.bindFramebuffer(gl.FRAMEBUFFER, fb.hdr);
+    gl.viewport(0, 0, RW, RH);
+    gl.enable(gl.DEPTH_TEST);
+    gl.depthMask(true);
+    gl.disable(gl.BLEND);
+    gl.clearColor(fogCol[0], fogCol[1], fogCol[2], 1);
+    gl.clear(gl.COLOR_BUFFER_BIT | gl.DEPTH_BUFFER_BIT);
+
+    var nOpaque = cullAndSort(items, true);
+
+    /* depth prepass */
+    if (Qs.prepass && progs.depth) {
+      gl.colorMask(false, false, false, false);
+      gl.useProgram(progs.depth.p);
+      u1f(progs.depth, 'uUseLightVP', 0);
+      drawItems(items, nOpaque, progs.depth, true);
+      gl.colorMask(true, true, true, true);
+      gl.depthFunc(gl.LEQUAL);
+    }
+
+    /* SSAO from the prepass depth */
+    if (Qs.ssao && Qs.prepass && progs.ssao && progs.aoblur) {
+      gl.bindFramebuffer(gl.READ_FRAMEBUFFER, fb.hdr);
+      gl.bindFramebuffer(gl.DRAW_FRAMEBUFFER, fb.depthCopy);
+      gl.blitFramebuffer(0, 0, RW, RH, 0, 0, RW, RH, gl.DEPTH_BUFFER_BIT, gl.NEAREST);
+      gl.bindFramebuffer(gl.FRAMEBUFFER, fb.ao0);
+      gl.viewport(0, 0, tex.ao0.__w, tex.ao0.__h);
+      gl.disable(gl.DEPTH_TEST);
+      gl.useProgram(progs.ssao.p);
+      bindTex(TU_DEPTH, gl.TEXTURE_2D, tex.depthCopy);
+      bindTex(TU_NOISE, gl.TEXTURE_2D, tex.noise);
+      u3fv(progs.ssao, 'uKernel', ssaoKernel);
+      u2f(progs.ssao, 'uAOParams', 0.55, 1.0);
+      fullscreen();
+      gl.bindFramebuffer(gl.FRAMEBUFFER, fb.ao1);
+      gl.useProgram(progs.aoblur.p);
+      bindTex(TU_AO, gl.TEXTURE_2D, tex.ao0);
+      bindTex(TU_DEPTH, gl.TEXTURE_2D, tex.depthCopy);
+      u2f(progs.aoblur, 'uTexel', 1 / tex.ao0.__w, 1 / tex.ao0.__h);
+      fullscreen();
+      gl.bindFramebuffer(gl.FRAMEBUFFER, fb.hdr);
+      gl.viewport(0, 0, RW, RH);
+      gl.enable(gl.DEPTH_TEST);
+    }
+
+    /* opaque PBR */
+    var pbr = progs.pbr;
+    gl.useProgram(pbr.p);
+    gl.depthMask(!Qs.prepass);
+    gl.depthFunc(Qs.prepass ? gl.LEQUAL : gl.LESS);
+    bindTex(TU_ALBEDO, gl.TEXTURE_2D_ARRAY, tex.albedoArr);
+    bindTex(TU_NORMAL, gl.TEXTURE_2D_ARRAY, tex.normalArr);
+    bindTex(TU_ORM, gl.TEXTURE_2D_ARRAY, tex.ormArr);
+    bindTex(TU_SHADOW, gl.TEXTURE_2D_ARRAY, tex.shadow);
+    bindTex(TU_ENV, gl.TEXTURE_CUBE_MAP, tex.env);
+    bindTex(TU_AO, gl.TEXTURE_2D, (Qs.ssao && Qs.prepass) ? tex.ao1 : tex.noise);
+    drawItems(items, nOpaque, pbr, false);
+    gl.depthMask(true);
+    gl.depthFunc(gl.LEQUAL);
+
+    /* sky behind everything */
+    if (progs.sky) {
+      gl.useProgram(progs.sky.p);
+      bindTex(TU_ENV, gl.TEXTURE_CUBE_MAP, tex.env);
+      gl.depthMask(false);
+      fullscreen();
+      gl.depthMask(true);
+    }
+
+    /* volumetrics */
+    if (Qs.volumetric && progs.volume && progs.blit) {
+      gl.bindFramebuffer(gl.READ_FRAMEBUFFER, fb.hdr);
+      gl.bindFramebuffer(gl.DRAW_FRAMEBUFFER, fb.depthCopy);
+      gl.blitFramebuffer(0, 0, RW, RH, 0, 0, RW, RH, gl.DEPTH_BUFFER_BIT, gl.NEAREST);
+      gl.bindFramebuffer(gl.FRAMEBUFFER, fb.vol);
+      gl.viewport(0, 0, tex.vol.__w, tex.vol.__h);
+      gl.disable(gl.DEPTH_TEST);
+      gl.disable(gl.BLEND);
+      gl.useProgram(progs.volume.p);
+      bindTex(TU_DEPTH, gl.TEXTURE_2D, tex.depthCopy);
+      bindTex(TU_NOISE, gl.TEXTURE_2D, tex.noise);
+      bindTex(TU_SHADOW, gl.TEXTURE_2D_ARRAY, tex.shadow);
+      var nv = 0;
+      for (var vi = 0; vi < lights.length && nv < MAX_VOL_LIGHTS; vi++) {
+        var VL = lights[vi];
+        if (!VL || !VL.shadow) { continue; }
+        volPos[nv * 4] = VL.pos[0]; volPos[nv * 4 + 1] = VL.pos[1];
+        volPos[nv * 4 + 2] = VL.pos[2]; volPos[nv * 4 + 3] = VL.range || 10;
+        var vint = VL.intensity === undefined ? 1 : VL.intensity;
+        volCol[nv * 4] = VL.color[0] * vint; volCol[nv * 4 + 1] = VL.color[1] * vint;
+        volCol[nv * 4 + 2] = VL.color[2] * vint; volCol[nv * 4 + 3] = 1;
+        nv++;
+      }
+      for (var vz = nv; vz < MAX_VOL_LIGHTS; vz++) {
+        volPos[vz * 4 + 3] = 0; volCol[vz * 4 + 3] = 0;
+      }
+      u4fv(progs.volume, 'uVolLightPos', volPos);
+      u4fv(progs.volume, 'uVolLightCol', volCol);
+      u4f(progs.volume, 'uVolParams', VOL_STEPS_HI, 55, 0.032, nv);
+      fullscreen();
+
+      /* additively composite the half-res shafts back into the HDR target */
+      gl.bindFramebuffer(gl.FRAMEBUFFER, fb.hdr);
+      gl.viewport(0, 0, RW, RH);
+      gl.enable(gl.BLEND);
+      gl.blendFunc(gl.ONE, gl.ONE);
+      gl.useProgram(progs.blit.p);
+      bindTex(TU_SRC, gl.TEXTURE_2D, tex.vol);
+      u4f(progs.blit, 'uTint', 1, 1, 1, 1);
+      fullscreen();
+      gl.disable(gl.BLEND);
+      gl.enable(gl.DEPTH_TEST);
+    }
+
+    /* transparent */
+    var transparent = scene.transparent || [];
+    if (transparent.length && pbr) {
+      var nT = sortTransparent(transparent, cameraIn.pos);
+      gl.enable(gl.BLEND);
+      gl.blendFunc(gl.SRC_ALPHA, gl.ONE_MINUS_SRC_ALPHA);
+      gl.depthMask(false);
+      gl.useProgram(pbr.p);
+      drawItems(transparent, nT, pbr, false);
+      gl.depthMask(true);
+      gl.disable(gl.BLEND);
+    }
+
+    /* sprites / particles */
+    var sprites = scene.sprites || [];
+    if (sprites.length && progs.sprite) {
+      if (Qs.softParticles) {
+        gl.bindFramebuffer(gl.READ_FRAMEBUFFER, fb.hdr);
+        gl.bindFramebuffer(gl.DRAW_FRAMEBUFFER, fb.depthCopy);
+        gl.blitFramebuffer(0, 0, RW, RH, 0, 0, RW, RH, gl.DEPTH_BUFFER_BIT, gl.NEAREST);
+        gl.bindFramebuffer(gl.FRAMEBUFFER, fb.hdr);
+        gl.viewport(0, 0, RW, RH);
+      }
+      drawSprites(sprites, scene.time || 0);
+    }
+
+    /* ============ 3. post ============ */
+    if (debug.noPost || !progs.composite) {
+      gl.bindFramebuffer(gl.FRAMEBUFFER, null);
+      gl.viewport(0, 0, RW, RH);
+      gl.disable(gl.DEPTH_TEST);
+      if (progs.blit) {
+        gl.useProgram(progs.blit.p);
+        bindTex(TU_SRC, gl.TEXTURE_2D, tex.hdr);
+        u4f(progs.blit, 'uTint', 1, 1, 1, 1);
+        fullscreen();
+      }
+      return;
+    }
+    postProcess(post, dt);
+  }
+
+  /* ------------------------------------------------------------------ */
+  function drawSprites(sprites, time) {
+    var passAdd, i, s, n, kind, kid;
+    gl.disable(gl.DEPTH_TEST);
+    gl.enable(gl.BLEND);
+    gl.useProgram(progs.sprite.p);
+    bindTex(TU_DEPTH, gl.TEXTURE_2D, tex.depthCopy);
+    u1f(progs.sprite, 'uSoft', Qs.softParticles ? 0.6 : 0);
+    gl.bindVertexArray(spriteVAO);
+
+    for (passAdd = 0; passAdd < 2; passAdd++) {
+      n = 0;
+      for (i = 0; i < sprites.length && n < MAX_SPRITES; i++) {
+        s = sprites[i];
+        if (!s) { continue; }
+        kind = s.kind || 'spark';
+        var isAdd = KIND_ADDITIVE[kind] ? 1 : 0;
+        if (isAdd !== passAdd) { continue; }
+        kid = KIND_ID[kind] === undefined ? 0 : KIND_ID[kind];
+        var o = n * SPRITE_STRIDE;
+        spriteData[o] = s.pos[0]; spriteData[o + 1] = s.pos[1]; spriteData[o + 2] = s.pos[2];
+        spriteData[o + 3] = s.size || 0.1;
+        spriteData[o + 4] = s.color[0]; spriteData[o + 5] = s.color[1];
+        spriteData[o + 6] = s.color[2]; spriteData[o + 7] = s.color[3];
+        spriteData[o + 8] = kid;
+        spriteData[o + 9] = (i * 0.61803398875) % 1;
+        spriteData[o + 10] = kind === 'rain' ? 9.0 : 1.0;
+        spriteData[o + 11] = kind === 'smoke' ? (i * 0.7) % 6.283 : 0;
+        n++;
+      }
+      if (!n) { continue; }
+      gl.blendFunc(gl.ONE, passAdd ? gl.ONE : gl.ONE_MINUS_SRC_ALPHA);
+      gl.bindBuffer(gl.ARRAY_BUFFER, spriteInstBuf);
+      gl.bufferSubData(gl.ARRAY_BUFFER, 0, spriteData, 0, n * SPRITE_STRIDE);
+      gl.drawArraysInstanced(gl.TRIANGLE_STRIP, 0, 4, n);
+      stats.drawCalls++;
+      stats.sprites += n;
+    }
+    gl.disable(gl.BLEND);
+    gl.enable(gl.DEPTH_TEST);
+    gl.bindVertexArray(null);
+  }
+
+  /* ------------------------------------------------------------------ */
+  function postProcess(post, dt) {
+    var i;
+    gl.disable(gl.DEPTH_TEST);
+    gl.disable(gl.BLEND);
+    gl.bindVertexArray(emptyVAO);
+
+    var prescale = floatRTOK ? 1.0 : 4.0;
+
+    /* auto exposure: downsample luminance, then a 1x1 temporal adaptation */
+    if (progs.lum && progs.adapt) {
+      gl.bindFramebuffer(gl.FRAMEBUFFER, fb.lum1);
+      gl.viewport(0, 0, 64, 64);
+      gl.useProgram(progs.lum.p);
+      bindTex(TU_SRC, gl.TEXTURE_2D, tex.hdr);
+      u1f(progs.lum, 'uPrescale', prescale);
+      fullscreen();
+      gl.bindTexture(gl.TEXTURE_2D, tex.lum1);
+      gl.generateMipmap(gl.TEXTURE_2D);
+
+      var src = adaptPing ? tex.adapt1 : tex.adapt0;
+      var dst = adaptPing ? fb.adapt0 : fb.adapt1;
+      gl.bindFramebuffer(gl.FRAMEBUFFER, dst);
+      gl.viewport(0, 0, 1, 1);
+      gl.useProgram(progs.adapt.p);
+      bindTex(TU_SRC, gl.TEXTURE_2D, tex.lum1);
+      bindTex(TU_LUM, gl.TEXTURE_2D, src);
+      u2f(progs.adapt, 'uAdapt', Math.min(dt || 0.016, 0.1), 1.6);
+      fullscreen();
+      adaptPing = adaptPing ? 0 : 1;
+    }
+
+    /* bloom: bright pass into mip 0, then progressive downsample + blur */
+    var mips = Qs.bloomMips;
+    if (progs.bright && progs.blur && mips > 0) {
+      gl.bindFramebuffer(gl.FRAMEBUFFER, fb.bloom[0]);
+      gl.viewport(0, 0, tex.bloom[0].__w, tex.bloom[0].__h);
+      gl.useProgram(progs.bright.p);
+      bindTex(TU_SRC, gl.TEXTURE_2D, tex.hdr);
+      u4f(progs.bright, 'uParams', 1.05, 0.55, prescale, 0);
+      fullscreen();
+
+      for (i = 0; i < mips; i++) {
+        if (i > 0) {
+          gl.bindFramebuffer(gl.FRAMEBUFFER, fb.bloom[i]);
+          gl.viewport(0, 0, tex.bloom[i].__w, tex.bloom[i].__h);
+          gl.useProgram(progs.blit.p);
+          bindTex(TU_SRC, gl.TEXTURE_2D, tex.bloom[i - 1]);
+          u4f(progs.blit, 'uTint', 1, 1, 1, 1);
+          fullscreen();
+        }
+        gl.useProgram(progs.blur.p);
+        gl.bindFramebuffer(gl.FRAMEBUFFER, fb.bloomTmp[i]);
+        gl.viewport(0, 0, tex.bloom[i].__w, tex.bloom[i].__h);
+        bindTex(TU_SRC, gl.TEXTURE_2D, tex.bloom[i]);
+        u2f(progs.blur, 'uDir', 1.4 / tex.bloom[i].__w, 0);
+        fullscreen();
+        gl.bindFramebuffer(gl.FRAMEBUFFER, fb.bloom[i]);
+        bindTex(TU_SRC, gl.TEXTURE_2D, tex.bloomTmp[i]);
+        u2f(progs.blur, 'uDir', 0, 1.4 / tex.bloom[i].__h);
+        fullscreen();
+      }
+    }
+
+    /* composite to the backbuffer */
+    gl.bindFramebuffer(gl.FRAMEBUFFER, null);
+    gl.viewport(0, 0, RW, RH);
+    gl.useProgram(progs.composite.p);
+    bindTex(TU_SRC, gl.TEXTURE_2D, tex.hdr);
+    bindTex(TU_BLOOM, gl.TEXTURE_2D, tex.bloom[0]);
+    bindTex(TU_BLOOM + 1, gl.TEXTURE_2D, tex.bloom[Math.min(1, mips - 1)] || tex.bloom[0]);
+    bindTex(TU_VOL, gl.TEXTURE_2D, tex.bloom[Math.min(2, mips - 1)] || tex.bloom[0]);
+    bindTex(TU_LUM, gl.TEXTURE_2D, adaptPing ? tex.adapt1 : tex.adapt0);
+    bindTex(TU_NOISE, gl.TEXTURE_2D, tex.noise);
+    u4f(progs.composite, 'uP0',
+        post.exposure === undefined ? 1 : post.exposure,
+        post.bloom === undefined ? 0.6 : post.bloom,
+        post.grain === undefined ? 0.25 : post.grain,
+        post.chroma === undefined ? 0.4 : post.chroma);
+    u4f(progs.composite, 'uP1',
+        post.vignette === undefined ? 0.6 : post.vignette,
+        post.saturation === undefined ? 0.85 : post.saturation,
+        post.contrast === undefined ? 1.1 : post.contrast,
+        frameData[F_CAMPOS + 3]);
+    u4f(progs.composite, 'uP2',
+        post.hurt || 0, post.flashbang || 0, post.lightning || 0,
+        post.rainLens === undefined ? 0.5 : post.rainLens);
+    u4f(progs.composite, 'uP3', prescale, mips, 1, qLevel >= 2 ? 1 : 0);
+    fullscreen();
+  }
+
+  /* ------------------------------------------------------------------ */
+  function screenToWorldRay(nx, ny, camera, outOrigin, outDir) {
+    var aspect = RW / Math.max(1, RH);
+    M4.perspective(mTmp, camera.fov || 1.1, aspect, camera.near || 0.06, camera.far || 400);
+    M4.invert(mTmp2, mTmp);
+    var cx = mTmp2[0] * nx + mTmp2[8] * -1 + mTmp2[12];
+    var cy = mTmp2[5] * ny + mTmp2[9] * -1 + mTmp2[13];
+    vTmp[0] = cx; vTmp[1] = cy; vTmp[2] = -1;
+    V3.normalize(vTmp, vTmp);
+    Q.rotateVec3(outDir, camera.quat, vTmp);
+    V3.normalize(outDir, outDir);
+    outOrigin[0] = camera.pos[0];
+    outOrigin[1] = camera.pos[1];
+    outOrigin[2] = camera.pos[2];
+    return outDir;
+  }
+
+  /* ------------------------------------------------------------------ */
+  IP.Renderer = {
+    init: init,
+    resize: resize,
+    upload: upload,
+    updateMesh: updateMesh,
+    dispose: dispose,
+    setQuality: setQuality,
+    renderFrame: renderFrame,
+    screenToWorldRay: screenToWorldRay,
+    stats: stats,
+    debug: debug,
+    get supportsWebGL2() { return ok; },
+    get quality() { return qLevel; },
+    TEX_IDS: TEX_IDS,
+    markEnvDirty: function () { envDirty = true; }
+  };
 
 })();
+if (typeof window !== 'undefined') { window.IP = IP; }
