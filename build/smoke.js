@@ -533,6 +533,23 @@ setTimeout(function () {
   var bootFrames = pump(3);
   if (FORCE_Q !== null && IP.Game && IP.Game.setQuality) { IP.Game.setQuality(FORCE_Q); }
 
+  /* optional: populate the world so enemy rigs, AI and combat all get
+     exercised through the real integration path */
+  var si = process.argv.indexOf('--spawn');
+  if (si >= 0 && IP.Game && IP.Game.S && IP.Systems && IP.Systems.EnemyAI) {
+    var n = parseInt(process.argv[si + 1], 10) || 6;
+    var S = IP.Game.S;
+    var kinds = ['ganado', 'brute', 'shielder', 'spitter', 'crawler', 'soldier', 'boss'];
+    for (var k = 0; k < n; k++) {
+      try {
+        var e = IP.Systems.EnemyAI.spawn(S, kinds[k % kinds.length],
+          [S.player.pos[0] + 2 + k * 1.1, S.player.pos[1], S.player.pos[2] + (k % 3 - 1)], {});
+        e.alert = 1; e.state = 'Chase';
+      } catch (err) { warnings.push('spawn: ' + err.message); }
+    }
+    console.log('spawned ' + n + ' enemies');
+  }
+
   var ran = pump(FRAMES);
   var ms = Date.now() - t0;
 

@@ -26,6 +26,14 @@
   /* ------------------------------------------------------------------ */
   /*  Defensive module access                                            */
   /* ------------------------------------------------------------------ */
+  function healthFrac(S) {
+    if (!S || !S.player) { return 1; }
+    var h = S.player.health;
+    if (h && typeof h === 'object' && h.max) { return h.hp / h.max; }
+    if (typeof h === 'number' && S.player.maxHealth) { return h / S.player.maxHealth; }
+    return 1;
+  }
+
   function has(mod, fn) {
     return !!(IP[mod] && typeof IP[mod][fn] === 'function');
   }
@@ -180,6 +188,28 @@
     hitDir: [0, 0, 1]
   };
 
+  /* IP.Actors emits draw items whose `geo` is CPU-side GeoData, because the
+     actors module is not allowed to touch WebGL. Upload each distinct mesh
+     once and swap the handle in place; rigs of the same kind share template
+     geometry, so this costs one upload per unique part for the whole game. */
+  var geoKeys = [], geoVals = [];
+  function gpuFor(geo) {
+    if (!geo || !geo.positions) { return geo; }
+    for (var i = 0; i < geoKeys.length; i++) {
+      if (geoKeys[i] === geo) { return geoVals[i]; }
+    }
+    var mesh = attempt('upload actor', function () { return IP.Renderer.upload(geo); }, null);
+    geoKeys.push(geo);
+    geoVals.push(mesh || geo);
+    return mesh || geo;
+  }
+  function gpuifyItems(list, from) {
+    for (var i = from; i < list.length; i++) {
+      var it = list[i];
+      if (it && it.geo && it.geo.positions) { it.geo = gpuFor(it.geo); }
+    }
+  }
+
   function acquireRig(kind) {
     var pool = rigPool[kind] || (rigPool[kind] = []);
     if (pool.length) { return pool.pop(); }
@@ -200,7 +230,11 @@
     out.aimYaw = ent.aimYaw || 0;
     out.lookAt = ent.lookAt || null;
     out.blend = ent.animBlend === undefined ? 1 : ent.animBlend;
-    out.injured = ent.maxHealth ? U.clamp(1 - (ent.health / ent.maxHealth), 0, 1) : 0;
+    if (ent.health && typeof ent.health === 'object' && ent.health.max) {
+      out.injured = U.clamp(1 - ent.health.hp / ent.health.max, 0, 1);
+    } else if (ent.maxHp) {
+      out.injured = U.clamp(1 - (ent.hp / ent.maxHp), 0, 1);
+    } else { out.injured = 0; }
     out.fear = ent.fear || 0;
     if (ent.limbLost) {
       out.limbLost.larm = !!ent.limbLost.larm;
@@ -223,7 +257,9 @@
     _v0[0] = pos[0]; _v0[1] = pos[1]; _v0[2] = pos[2];
     _v1[0] = _v1[1] = _v1[2] = ent.scale || 1;
     M4.fromTRS(_m0, _v0, _q0, _v1);
+    var mark = scene.items.length;
     attempt('collect', function () { IP.Actors.collect(rig, _m0, scene.items); });
+    gpuifyItems(scene.items, mark);
   }
 
   function syncEnemyRigs(S, dt) {
@@ -454,7 +490,7 @@
 
     /* look input -> yaw/pitch (mouse delta, stick delta and touch swipe all
        arrive pre-normalised from IP.Input) */
-    var sens = (IP.UI && IP.UI.settings && IP.UI.settings.sensitivity) || 1;
+    var sens = 1;   /* IP.Input already applies the sensitivity setting */
     cam.yaw -= input.lookX * CAM.sensYaw * sens;
     cam.pitch -= input.lookY * CAM.sensPitch * sens;
     cam.pitch = U.clamp(cam.pitch, CAM.pitchMin, CAM.pitchMax);
@@ -468,9 +504,14 @@
     cam.recoilVelY *= Math.exp(-12.0 * dt);
     cam.recoilYaw += cam.recoilVelY * dt;
 
-    /* hand the authoritative aim direction to the simulation */
-    p.aimYaw = cam.yaw + cam.recoilYaw;
-    p.aimPitch = cam.pitch + cam.recoilPitch;
+    /* Hand the authoritative aim direction to the simulation. IP.Systems
+       builds its fire ray from player.yaw/player.pitch, so those are the
+       fields that must carry the camera's aim - aimYaw/aimPitch are kept in
+       sync for the animation layer. */
+    p.yaw = cam.yaw + cam.recoilYaw;
+    p.pitch = cam.pitch + cam.recoilPitch;
+    p.aimYaw = p.yaw;
+    p.aimPitch = p.pitch;
     p.camYaw = cam.yaw;
 
     var aiming = !!p.aiming;
@@ -634,7 +675,7 @@
       }
     }
     /* Elena's light source when she is carrying one */
-    if (S.elena && S.elena.carryingLight && !S.elena.dead) {
+    if (S.elena && S.elena.carryingLight && S.elena.alive !== false) {
       pushLight(S.elena.pos[0], S.elena.pos[1] + 1.2, S.elena.pos[2],
                 0.95, 0.86, 0.66, 9, 1.7, false);
     }
@@ -714,14 +755,14 @@
       if (d2 < nearest) { nearest = d2; }
     }
     var proximity = nearest < 1e9 ? U.clamp(1 - Math.sqrt(nearest) / 26, 0, 1) : 0;
-    var hpFrac = S.player.maxHealth ? S.player.health / S.player.maxHealth : 1;
-    var elenaDanger = S.elena ? (S.elena.grabbed ? 1 : U.clamp(S.elena.fear || 0, 0, 1)) : 0;
+    var hpFrac = healthFrac(S);
+    var elenaDanger = S.elena ? ((S.elena.grabbedBy >= 0) ? 1 : U.clamp(S.elena.fear || 0, 0, 1)) : 0;
     director.danger = U.damp(director.danger,
       Math.max(proximity, elenaDanger * 0.85, 1 - hpFrac), 3.0, dt);
 
     var music = 'explore';
     if (S.flags && S.flags.safeRoom) { music = 'safe'; }
-    else if (S.boss && !S.boss.dead) { music = 'boss'; }
+    else if (S._rt && S._rt.bossActive) { music = 'boss'; }
     else if (S.flags && S.flags.chase) { music = 'chase'; }
     else if (proximity > 0.55 && S.combat) { music = 'combat'; }
     else if (proximity > 0.2 || director.danger > 0.35) { music = 'tension'; }
@@ -731,7 +772,7 @@
     }
 
     /* ambient Elena chatter keyed to her fear tier */
-    if (S.elena && !S.elena.dead && !S.combat) {
+    if (S.elena && S.elena.alive !== false && !S.combat) {
       var f = S.elena.fear || 0;
       bark(f > 0.72 ? 'panic' : f > 0.38 ? 'tense' : 'calm');
     }
@@ -798,12 +839,12 @@
     });
 
     U.on('damage', function (ev) {
-      if (!ev || ev.target !== 'player') { return; }
+      if (!ev || ev.who !== 'player') { return; }
       shake(0.05 + (ev.amount || 0) * 0.0018, 34);
       scene.post.hurt = Math.min(1, scene.post.hurt + 0.45);
       if (has('Audio', 'play')) { IP.Audio.play('player_hurt'); }
       var S = Game.S;
-      if (S && S.player.health / (S.player.maxHealth || 1) < 0.3) { playDialogue('low_health'); }
+      if (S && healthFrac(S) < 0.3) { playDialogue('low_health'); }
     });
 
     U.on('reload', function (ev) {
@@ -839,6 +880,7 @@
     U.on('section_change', function (ev) {
       if (!ev || !ev.to) { return; }
       refreshActiveSections(ev.to);
+      if (Game.S) { V3.copy(cam.pos, Game.S.player.pos); }
       playDialogue(ev.to + '_enter');
       if (ev.to === 'compound') { playDialogue('act2_start'); }
       if (ev.to === 'cliffs') { playDialogue('act3_start'); }
@@ -986,6 +1028,7 @@
     Game.S._rt.level = Game.level;
     director.fired = {}; director.queue.length = 0; director.dialogueTimer = 0;
     refreshActiveSections(Game.S.section || Game.level.sections[0].id);
+    placeAtStart(Game.S);
     cam.yaw = Game.S.player.yaw || 0;
     cam.pitch = 0.05;
     V3.copy(cam.pos, Game.S.player.pos);
@@ -995,17 +1038,45 @@
     }
   }
 
+  /* Authored spawn points: the prologue opens at the west end of the holding
+     block, facing the corridor the player has to run down. */
+  var SECTION_STARTS = {
+    cells: { pos: [-19.5, 0, 0], yaw: 1.5708 },
+    labs: { pos: [0, 0, 7.5], yaw: 3.1416 },
+    power: { pos: [0, 0, 18], yaw: 3.1416 },
+    compound: { pos: [0, 0, 30], yaw: 3.1416 },
+    village: { pos: [0, 0, -26], yaw: 0 },
+    cliffs: { pos: [-32, 0.25, -28], yaw: 1.5708 },
+    tunnels: { pos: [-25, 0, 0], yaw: 1.5708 },
+    docks: { pos: [-27, 0, 0], yaw: 1.5708 }
+  };
+  function placeAtStart(S) {
+    var st = SECTION_STARTS[S.section];
+    if (!st) { return; }
+    S.player.pos[0] = st.pos[0]; S.player.pos[1] = st.pos[1]; S.player.pos[2] = st.pos[2];
+    S.player.yaw = st.yaw; S.player.pitch = 0;
+    cam.yaw = st.yaw;
+    if (S.elena) {
+      S.elena.pos[0] = st.pos[0] - Math.sin(st.yaw) * 1.6;
+      S.elena.pos[1] = st.pos[1];
+      S.elena.pos[2] = st.pos[2] - Math.cos(st.yaw) * 1.6;
+      if (S.elena.path) { S.elena.path.length = 0; }
+    }
+    V3.copy(cam.pos, S.player.pos);
+  }
+
   function minimalState() {
     return {
       time: 0, section: (Game.level && Game.level.sections[0].id) || 'fallback',
       act: 'prologue', objective: '', flags: {}, stats: {}, difficulty: 1,
       player: {
         pos: V3.create(0, 0, 0), vel: V3.create(), yaw: 0, aimYaw: 0, aimPitch: 0,
-        health: 100, maxHealth: 100, stamina: 1, aiming: false, sprinting: false,
+        health: { hp: 600, max: 600, segments: 6 }, stamina: 100,
+        aiming: false, sprinting: false, pitch: 0,
         crouching: false, flashlight: true, speed: 0, anim: 'idle', animT: 0
       },
       elena: {
-        pos: V3.create(1.5, 0, 1.5), yaw: 0, health: 100, maxHealth: 100,
+        pos: V3.create(1.5, 0, 1.5), yaw: 0, hp: 240, maxHp: 240, alive: true,
         fear: 0.5, speed: 0, anim: 'idle', animT: 0, dead: false, grabbed: false
       },
       enemies: [], projectiles: [], pickups: [], props: [], effects: []
@@ -1021,6 +1092,8 @@
     Game.S.level = Game.level;
     Game.S._rt = Game.S._rt || {};
     refreshActiveSections(Game.S.section);
+    cam.yaw = Game.S.player.yaw || 0;
+    V3.copy(cam.pos, Game.S.player.pos);
     if (has('UI', 'show')) { IP.UI.show('hud'); }
   }
 
@@ -1122,6 +1195,7 @@
                 S.player, dt);
     }
     if (rigs.elena && S.elena) {
+      S.elena.anim = S.elena.anim || 'idle';
       drawActor(rigs.elena, S.elena.pos, S.elena.yaw || 0, S.elena, dt);
     }
     syncEnemyRigs(S, dt);

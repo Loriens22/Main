@@ -2239,10 +2239,11 @@ var IP = (typeof IP !== 'undefined' && IP) || {};
         uMat3(pr, 'uNrmMat', normalMatrix(it.m));
         bindMaterial(pr, it.mat || {}, frameData[F_CAMPOS + 3]);
       }
+      if (!it.geo.vao) { continue; }   /* never uploaded - skip rather than crash */
       gl.bindVertexArray(it.geo.vao);
       gl.drawElements(gl.TRIANGLES, it.geo.count, it.geo.type, 0);
       stats.drawCalls++;
-      stats.tris += it.geo.count / 3;
+      stats.tris += (it.geo.count || 0) / 3;
     }
   }
 

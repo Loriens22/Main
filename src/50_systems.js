@@ -2770,13 +2770,12 @@ var IP = (typeof IP !== 'undefined' && IP) || {};
       _pv[0] = e.pos[0]; _pv[1] = e.pos[1] + e.height * 0.75; _pv[2] = e.pos[2];
       var dx = target.pos[0] - _pv[0], dy = (target.pos[1] + 1.1) - _pv[1], dz = target.pos[2] - _pv[2];
       var l = Math.sqrt(dx * dx + dy * dy + dz * dz) || 1;
-      spawnProjectile(S, {
-        owner: e.id, hostile: true,
-        pos: _pv, dir: [dx / l, dy / l, dz / l],
-        speed: arch.projSpeed || 20, dmg: arch.dmg,
-        kind: e.kind === 'spitter' ? 'acid' : 'bullet',
-        arc: arch.projArc || 0
-      });
+      _pv2[0] = dx / l; _pv2[1] = dy / l; _pv2[2] = dz / l;
+      var pr = spawnProjectile(S, e.kind === 'spitter' ? 'acid' : 'bullet',
+                               [_pv[0], _pv[1] - 1.3, _pv[2]], _pv2,
+                               arch.projSpeed || 20, arch.dmg, null);
+      /* updateProjectiles routes damage by owner tag */
+      if (pr) { pr.owner = 'enemy'; pr.shooter = e.id; }
       emit('enemy_fire', { id: e.id, kind: e.kind, pos: vcopy(_pv) });
     }
   }
