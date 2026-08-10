@@ -95,15 +95,15 @@
   /* ------------------------------------------------------------------ */
   var scene = {
     camera: { pos: V3.create(), quat: Q.create(), fov: CAM.fov, near: 0.06, far: 420 },
-    sun: { dir: [0.32, -0.78, 0.54], color: [0.42, 0.50, 0.66], intensity: 0.85,
-           ambient: [0.045, 0.062, 0.085] },
+    sun: { dir: [0.32, -0.78, 0.54], color: [0.30, 0.37, 0.50], intensity: 0.80,
+           ambient: [0.055, 0.068, 0.090] },
     fog: { color: [0.035, 0.048, 0.062], density: 0.026, height: 9.0, heightFalloff: 0.14 },
     lights: [],
     items: [],
     transparent: [],
     sprites: [],
-    post: { exposure: 1.0, bloom: 0.62, grain: 0.26, chroma: 0.38, vignette: 0.64,
-            saturation: 0.80, contrast: 1.12, hurt: 0, flashbang: 0, lightning: 0 },
+    post: { exposure: 1.24, bloom: 0.52, grain: 0.055, chroma: 0.26, vignette: 0.44,
+            saturation: 0.78, contrast: 1.14, hurt: 0, flashbang: 0, lightning: 0 },
     time: 0,
     quality: 2
   };
@@ -625,6 +625,7 @@
     scene.lights.push(L);
   }
 
+  var LIGHT_GAIN = 2.6;
   var flickerPhase = IP.Rand.make(31337);
   function assembleLights(S, dt) {
     reset(scene.lights);
@@ -641,7 +642,7 @@
         L = sec.lights[i];
         d2 = (L.pos[0] - cx) * (L.pos[0] - cx) + (L.pos[1] - cy) * (L.pos[1] - cy) + (L.pos[2] - cz) * (L.pos[2] - cz);
         var reach = (L.range + 6); if (d2 > reach * reach) { continue; }
-        inten = L.intensity === undefined ? 1 : L.intensity;
+        inten = (L.intensity === undefined ? 1 : L.intensity) * LIGHT_GAIN;
         if (L.flicker) {
           fl = 1 - L.flicker * (0.5 + 0.5 * Math.sin(scene.time * 17.3 + i * 2.1)) *
                    (flickerPhase.f() < 0.06 ? 1 : 0.22);
@@ -779,8 +780,8 @@
 
     /* post-processing responds to player state */
     scene.post.hurt = U.damp(scene.post.hurt, U.clamp(1 - hpFrac * 1.35, 0, 1), 4.0, dt);
-    scene.post.vignette = 0.6 + 0.28 * (1 - hpFrac);
-    scene.post.saturation = 0.80 - 0.22 * (1 - hpFrac);
+    scene.post.vignette = 0.44 + 0.30 * (1 - hpFrac);
+    scene.post.saturation = 0.78 - 0.26 * (1 - hpFrac);
     scene.post.chroma = 0.34 + 0.5 * scene.post.hurt;
   }
 
@@ -1204,7 +1205,7 @@
     assembleLights(S, dt);
 
     scene.post.flashbang = Math.max(0, scene.post.flashbang - dt * 1.6);
-    scene.sun.intensity = 0.85 * (1 - weather.indoor * 0.6);
+    scene.sun.intensity = 0.80 * (1 - weather.indoor * 0.55);
     scene.fog.density = 0.026 + weather.indoor * 0.02 + (1 - weather.indoor) * weather.rainIntensity * 0.014;
 
     if (!Game.dbg.noRender) {
@@ -1220,7 +1221,7 @@
 
     /* auto quality scaling: drop a tier if we stay under budget for 4s */
     autoScaleTimer += dt;
-    if (autoScaleTimer > 4) {
+    if (autoScaleTimer > 12) {
       autoScaleTimer = 0;
       var budget = (IP.Input && IP.Input.isTouch) ? 27 : 48;
       if (fpsAvg < budget && Game.quality > 0 &&

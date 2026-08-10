@@ -2744,7 +2744,10 @@ var IP = (typeof IP !== 'undefined' && IP) || {};
     u4f(progs.composite, 'uP2',
         post.hurt || 0, post.flashbang || 0, post.lightning || 0,
         post.rainLens === undefined ? 0.5 : post.rainLens);
-    u4f(progs.composite, 'uP3', prescale, mips, 1, qLevel >= 2 ? 1 : 0);
+    /* Auto-exposure is deliberately OFF. This game is authored dark; letting
+       adaptation chase the average luminance washes every scene out to pale
+       grey and destroys the art direction. Exposure is art-directed instead. */
+    u4f(progs.composite, 'uP3', prescale, mips, 0, qLevel >= 2 ? 1 : 0);
     fullscreen();
   }
 
