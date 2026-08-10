@@ -1110,5 +1110,1023 @@ var IP = (typeof IP !== 'undefined' && IP) || {};
     return geoFromMB(mb);
   }
 
-  /*__APPEND__*/
+  /* ======================================================================
+     SECTION 5 -- SKELETON ASSEMBLY
+     ====================================================================== */
+
+  /* Part builders were authored independently; call them defensively so one
+     bad signature cannot take down every character in the game. */
+  function tryGeo(fn, P, side) {
+    if (typeof fn !== 'function') { return null; }
+    try {
+      var g = side === undefined ? fn(P) : fn(P, side);
+      return (g && g.positions && g.positions.length) ? g : null;
+    } catch (e) {
+      if (typeof console !== 'undefined') { console.warn('[IP.Actors] part failed', e.message); }
+      return null;
+    }
+  }
+
+  /* Some part builders take extra arguments beyond (P, side). */
+  function tryGeoA(fn, args) {
+    if (typeof fn !== 'function') { return null; }
+    try {
+      var g = fn.apply(null, args);
+      return (g && g.positions && g.positions.length) ? g : null;
+    } catch (e) {
+      if (typeof console !== 'undefined') { console.warn('[IP.Actors] part failed', e.message); }
+      return null;
+    }
+  }
+  /* Four skirt panels welded into one mesh so it can swing as a single node. */
+  function skirtGeo(P, col) {
+    var panels = [], which = ['F', 'B', 'L', 'R'], i, g;
+    for (i = 0; i < 4; i++) {
+      g = tryGeoA(geoJacketSkirt, [P, which[i], col]);
+      if (g) { panels.push({ geo: g }); }
+    }
+    if (!panels.length) { return null; }
+    if (panels.length === 1) { return panels[0].geo; }
+    if (IP.Geo && IP.Geo.merge) { return IP.Geo.merge(panels); }
+    return panels[0].geo;
+  }
+
+  function buildTemplate(kind) {
+    var P = baseProps();
+    var T = Tmpl(kind);
+    var isElena = kind === 'elena';
+    var hunch = 0, scale = 1;
+
+    switch (kind) {
+      case 'player':
+        P.skinCol = [0.50, 0.35, 0.27];
+        P.clothCol = [0.13, 0.15, 0.14];
+        P.hairCol = [0.05, 0.04, 0.04];
+        P.muscle = 0.16; P.shoulderW = 0.222; P.chestW = 0.186;
+        break;
+      case 'elena':
+        scale = 0.945;
+        P.skinCol = [0.72, 0.56, 0.48];
+        P.clothCol = [0.62, 0.61, 0.58];   /* light so she reads in the dark */
+        P.hairCol = [0.16, 0.09, 0.06];
+        P.shoulderW = 0.168; P.chestW = 0.150; P.pelvisW = 0.150;
+        P.muscle = 0.02; P.armRTop = 0.043; P.legRTop = 0.078;
+        break;
+      case 'ganado':
+        P.skinCol = [0.42, 0.36, 0.30];
+        P.clothCol = [0.19, 0.16, 0.12];
+        P.hairCol = [0.07, 0.06, 0.05];
+        hunch = 0.22; P.muscle = 0.06;
+        break;
+      case 'brute':
+        scale = 1.26;
+        P.skinCol = [0.40, 0.31, 0.26];
+        P.clothCol = [0.15, 0.12, 0.10];
+        P.muscle = 0.42; P.shoulderW = 0.30; P.chestW = 0.24;
+        P.armRTop = 0.082; P.armRMid = 0.070; P.legRTop = 0.115;
+        hunch = 0.30;
+        break;
+      case 'shielder':
+        P.skinCol = [0.40, 0.34, 0.29];
+        P.clothCol = [0.17, 0.15, 0.13];
+        P.muscle = 0.16; hunch = 0.14;
+        break;
+      case 'spitter':
+        P.skinCol = [0.44, 0.46, 0.33];
+        P.clothCol = [0.20, 0.21, 0.15];
+        P.neckR = 0.062; P.muscle = 0.04; hunch = 0.34;
+        break;
+      case 'crawler':
+        scale = 0.92;
+        P.skinCol = [0.38, 0.34, 0.32];
+        P.clothCol = [0.14, 0.13, 0.12];
+        P.muscle = 0.20; hunch = 0.75;
+        break;
+      case 'soldier':
+        P.skinCol = [0.48, 0.36, 0.29];
+        P.clothCol = [0.16, 0.17, 0.14];
+        P.muscle = 0.18; P.shoulderW = 0.226;
+        break;
+      case 'boss':
+        scale = 2.05;
+        P.skinCol = [0.44, 0.24, 0.22];
+        P.clothCol = [0.20, 0.10, 0.10];
+        P.muscle = 0.55; P.shoulderW = 0.34; P.chestW = 0.28;
+        P.armRTop = 0.10; P.legRTop = 0.135;
+        hunch = 0.18;
+        break;
+    }
+    if (scale !== 1) { scaleProps(P, scale); }
+    P.hunch = hunch;
+    T.height = P.height;
+    T.radius = 0.30 * scale;
+    T.meta.scale = scale;
+    T.meta.hunch = hunch;
+
+    var skinMat = mat({ albedo: P.skinCol, rough: 0.72, tex: 'flesh', texScale: 2.4 });
+    var clothMat = mat({ albedo: P.clothCol, rough: 0.94, tex: 'fabric', texScale: 1.8 });
+    var hairMat = mat({ albedo: P.hairCol, rough: 0.68 });
+    var bootMat = mat({ albedo: [0.07, 0.065, 0.06], rough: 0.55, tex: 'fabric', texScale: 2 });
+    var gearMat = mat({ albedo: [0.10, 0.11, 0.10], rough: 0.72, tex: 'fabric', texScale: 2.2 });
+
+    /* ---- spine ---- */
+    tAdd(T, 'root', null, 0, 0, 0, {});
+    tAdd(T, 'pelvis', 'root', 0, P.hipY, 0, { geo: tryGeo(geoPelvis, P), mat: clothMat, hit: 0.18 });
+    tAdd(T, 'spine01', 'pelvis', 0, P.spine01Y, 0, { geo: tryGeo(geoSpine, P), mat: clothMat, hit: 0.17 });
+    tAdd(T, 'spine02', 'spine01', 0, P.spine02Y, 0, { geo: tryGeo(geoSpine, P), mat: clothMat, hit: 0.17 });
+    tAdd(T, 'chest', 'spine02', 0, P.chestY, 0, { geo: tryGeo(geoChest, P), mat: clothMat, hit: 0.21, tag: 'hitTorso' });
+    tAdd(T, 'neck', 'chest', 0, P.neckY, 0, { geo: tryGeo(geoNeck, P), mat: skinMat });
+    tAdd(T, 'head', 'neck', 0, P.headY, 0, { geo: tryGeo(geoHead, P), mat: skinMat, hit: P.headR * 1.15, tag: 'hitHead' });
+    tAdd(T, 'jaw', 'head', 0, -P.headR * 0.26, P.headR * 0.30, { geo: tryGeo(geoJaw, P), mat: skinMat });
+    tAdd(T, 'eyeL', 'head', -P.headR * 0.34, P.headR * 0.10, P.headR * 0.72,
+         { geo: tryGeo(geoEye, P), mat: mat({ albedo: [0.86, 0.85, 0.82], rough: 0.16 }) });
+    tAdd(T, 'eyeR', 'head', P.headR * 0.34, P.headR * 0.10, P.headR * 0.72,
+         { geo: tryGeo(geoEye, P), mat: mat({ albedo: [0.86, 0.85, 0.82], rough: 0.16 }) });
+    tAdd(T, 'lidL', 'eyeL', 0, 0, 0, { geo: tryGeo(geoLid, P), mat: skinMat });
+    tAdd(T, 'lidR', 'eyeR', 0, 0, 0, { geo: tryGeo(geoLid, P), mat: skinMat });
+    tAdd(T, 'browL', 'head', -P.headR * 0.34, P.headR * 0.30, P.headR * 0.70, { geo: tryGeo(geoBrow, P), mat: hairMat });
+    tAdd(T, 'browR', 'head', P.headR * 0.34, P.headR * 0.30, P.headR * 0.70, { geo: tryGeo(geoBrow, P), mat: hairMat });
+    tAdd(T, 'hairCap', 'head', 0, 0, 0, { geo: tryGeo(geoHairCap, P), mat: hairMat });
+
+    /* Elena's hair is a three-link chain so it swings - it is the single
+       clearest read on her state from behind, which is where the player
+       spends the whole game looking at her. */
+    if (isElena) {
+      var strand = tryGeo(geoHairStrand, P);
+      tAdd(T, 'hairA', 'head', 0, -P.headR * 0.15, -P.headR * 0.82,
+           { geo: strand, mat: hairMat, jiggle: { stiff: 52, damp: 7.5, max: 0.62 } });
+      tAdd(T, 'hairB', 'hairA', 0, -P.headR * 0.95, 0,
+           { geo: strand, mat: hairMat, jiggle: { stiff: 44, damp: 6.5, max: 0.70 } });
+      tAdd(T, 'hairC', 'hairB', 0, -P.headR * 0.95, 0,
+           { geo: strand, mat: hairMat, jiggle: { stiff: 36, damp: 6.0, max: 0.78 } });
+    }
+
+    /* ---- arms ---- */
+    var sides = [['L', -1], ['R', 1]];
+    for (var s = 0; s < 2; s++) {
+      var sfx = sides[s][0], sgn = sides[s][1];
+      tAdd(T, 'clav' + sfx, 'chest', sgn * P.clavX, P.clavY, 0,
+           { geo: tryGeo(geoClav, P, sgn), mat: clothMat });
+      tAdd(T, 'upperArm' + sfx, 'clav' + sfx, sgn * (P.shoulderX - P.clavX), 0, 0,
+           { geo: tryGeo(geoUpperArm, P, sgn), mat: clothMat, len: P.upperArm, hit: 0.09,
+             tag: 'hitLimb' + sfx });
+      tAdd(T, 'forearm' + sfx, 'upperArm' + sfx, 0, -P.upperArm, 0,
+           { geo: tryGeo(geoForearm, P, sgn), mat: clothMat, len: P.forearm, hit: 0.075 });
+      tAdd(T, 'hand' + sfx, 'forearm' + sfx, 0, -P.forearm, 0,
+           { geo: tryGeo(geoHand, P, sgn), mat: skinMat, len: P.hand });
+      tAdd(T, 'fingers' + sfx, 'hand' + sfx, 0, -P.hand * 0.85, 0,
+           { geo: tryGeo(geoFingers, P, sgn), mat: skinMat });
+      tAdd(T, 'thumb' + sfx, 'hand' + sfx, sgn * P.handR * 0.6, -P.hand * 0.4, P.handR * 0.3,
+           { geo: tryGeo(geoThumb, P, sgn), mat: skinMat });
+      /* ---- legs ---- */
+      tAdd(T, 'thigh' + sfx, 'pelvis', sgn * P.hipX, 0, 0,
+           { geo: tryGeo(geoThigh, P, sgn), mat: clothMat, len: P.thigh, hit: 0.11 });
+      tAdd(T, 'shin' + sfx, 'thigh' + sfx, 0, -P.thigh, 0,
+           { geo: tryGeo(geoShin, P, sgn), mat: clothMat, len: P.shin, hit: 0.09 });
+      tAdd(T, 'foot' + sfx, 'shin' + sfx, 0, -P.shin, 0,
+           { geo: tryGeo(geoFoot, P, sgn), mat: bootMat });
+      tAdd(T, 'toe' + sfx, 'foot' + sfx, 0, -P.ankleY * 0.4, P.foot * 0.62,
+           { geo: tryGeo(geoToe, P, sgn), mat: bootMat });
+    }
+
+    /* ---- per-kind gear layers ---- */
+    if (kind === 'player' || kind === 'soldier') {
+      tAdd(T, 'carrier', 'chest', 0, 0, 0, { geo: tryGeo(geoPlateCarrier, P), mat: gearMat });
+      tAdd(T, 'pouchA', 'chest', -0.10, -0.06, P.chestD * 0.92, { geo: tryGeo(geoMagPouch, P), mat: gearMat,
+           jiggle: { stiff: 90, damp: 11, max: 0.22 } });
+      tAdd(T, 'pouchB', 'chest', 0.10, -0.06, P.chestD * 0.92, { geo: tryGeo(geoMagPouch, P), mat: gearMat,
+           jiggle: { stiff: 90, damp: 11, max: 0.22 } });
+      tAdd(T, 'radio', 'chest', -0.15, 0.06, 0.02, { geo: tryGeo(geoRadio, P), mat: gearMat });
+      tAdd(T, 'holster', 'pelvis', 0.14, -0.10, 0.02, { geo: tryGeo(geoHolster, P), mat: gearMat });
+      tAdd(T, 'kneeL', 'shinL', 0, -P.shin * 0.28, P.legRMid * 0.9, { geo: tryGeo(geoKneepad, P), mat: gearMat });
+      tAdd(T, 'kneeR', 'shinR', 0, -P.shin * 0.28, P.legRMid * 0.9, { geo: tryGeo(geoKneepad, P), mat: gearMat });
+      tAdd(T, 'backpack', 'chest', 0, -0.02, -P.chestD * 1.05, { geo: tryGeo(geoBackpack, P), mat: gearMat });
+    } else if (isElena) {
+      tAdd(T, 'vest', 'chest', 0, 0, 0, {
+        geo: tryGeoA(geoVest, [P, [0.70, 0.69, 0.66], 0.10]),
+        mat: mat({ albedo: [0.70, 0.69, 0.66], rough: 0.90, tex: 'fabric', texScale: 2.0 }) });
+      tAdd(T, 'skirt', 'pelvis', 0, -0.02, 0, {
+        geo: skirtGeo(P, P.clothCol), mat: clothMat,
+        jiggle: { stiff: 46, damp: 6.4, max: 0.34 } });
+    } else if (kind === 'ganado' || kind === 'brute' || kind === 'shielder' || kind === 'spitter') {
+      var ragCol = [P.clothCol[0] * 0.8, P.clothCol[1] * 0.8, P.clothCol[2] * 0.8];
+      tAdd(T, 'rags', 'chest', 0, 0, 0, {
+        geo: tryGeoA(geoVest, [P, ragCol, 0.06]),
+        mat: mat({ albedo: ragCol, rough: 0.97, tex: 'fabric', texScale: 1.6 }) });
+      tAdd(T, 'skirt', 'pelvis', 0, -0.02, 0, {
+        geo: skirtGeo(P, ragCol), mat: clothMat,
+        jiggle: { stiff: 38, damp: 5.6, max: 0.40 } });
+    }
+
+    /* the shield is a real node so hit tests can resolve against it */
+    if (kind === 'shielder') {
+      tAdd(T, 'shield', 'forearmL', 0, -P.forearm * 0.45, P.armRMid * 2.4, {
+        geo: shieldGeo(), mat: mat({ albedo: [0.30, 0.20, 0.13], rough: 0.82, metal: 0.5, tex: 'rust', texScale: 1.4 }),
+        hit: 0.55, tag: 'shield'
+      });
+    }
+    if (kind === 'spitter') {
+      tAdd(T, 'sacL', 'chest', -0.13, -0.05, 0.10, {
+        geo: sacGeo(0.11), mat: mat({ albedo: [0.16, 0.30, 0.12], rough: 0.35,
+          emissive: [0.10, 0.85, 0.22], emissivePulse: 0.7 }), tag: 'weakpoint',
+        jiggle: { stiff: 40, damp: 5, max: 0.4 } });
+      tAdd(T, 'sacR', 'chest', 0.13, -0.05, 0.10, {
+        geo: sacGeo(0.11), mat: mat({ albedo: [0.16, 0.30, 0.12], rough: 0.35,
+          emissive: [0.10, 0.85, 0.22], emissivePulse: 0.7 }), tag: 'weakpoint',
+        jiggle: { stiff: 40, damp: 5, max: 0.4 } });
+    }
+    if (kind === 'boss') {
+      /* phase 2 anatomy: hidden until the mutation animation opens the torso */
+      tAdd(T, 'coreShellL', 'chest', -0.16, 0, 0.14, {
+        geo: shellPlateGeo(P), mat: mat({ albedo: [0.28, 0.14, 0.13], rough: 0.6, tex: 'flesh', texScale: 1.4 }) });
+      tAdd(T, 'coreShellR', 'chest', 0.16, 0, 0.14, {
+        geo: shellPlateGeo(P), mat: mat({ albedo: [0.28, 0.14, 0.13], rough: 0.6, tex: 'flesh', texScale: 1.4 }) });
+      tAdd(T, 'core', 'chest', 0, -0.02, 0.10, {
+        geo: sacGeo(0.20), hidden: true, tag: 'weakpoint',
+        mat: mat({ albedo: [0.50, 0.10, 0.10], rough: 0.28,
+                   emissive: [3.0, 0.35, 0.25], emissivePulse: 1.1 }) });
+      for (var e2 = 0; e2 < 2; e2++) {
+        var es = e2 ? 1 : -1, en = e2 ? 'R' : 'L';
+        tAdd(T, 'extraArm' + en, 'chest', es * P.shoulderW * 0.8, 0.02, -0.06, {
+          geo: tryGeo(geoUpperArm, P, es), hidden: true,
+          mat: mat({ albedo: [0.34, 0.16, 0.15], rough: 0.6, tex: 'flesh', texScale: 1.6 }),
+          len: P.upperArm * 1.1 });
+        tAdd(T, 'extraFore' + en, 'extraArm' + en, 0, -P.upperArm * 1.1, 0, {
+          geo: tryGeo(geoForearm, P, es), hidden: true,
+          mat: mat({ albedo: [0.34, 0.16, 0.15], rough: 0.6, tex: 'flesh', texScale: 1.6 }),
+          len: P.forearm * 1.1 });
+      }
+    }
+
+    /* attachment points (no geometry) */
+    tAdd(T, 'weaponGrip', 'handR', 0, -P.hand * 0.55, P.handR * 0.55, {});
+    tAdd(T, 'muzzle', 'weaponGrip', 0, 0, 0.42, {});
+    tAdd(T, 'lightSource', 'chest', 0, 0.04, P.chestD, {});
+    T.meta.props = P;
+    return T;
+  }
+
+  /* --- small extra meshes the part library does not cover --------------- */
+  function shieldGeo() {
+    var mb = MB();
+    mkBox(mb, xf(0, 0, 0), 0.40, 0.52, 0.035, [0.32, 0.22, 0.15], {});
+    mkBox(mb, xf(0, 0.30, 0.01), 0.40, 0.10, 0.05, [0.26, 0.18, 0.12], {});
+    mkBox(mb, xf(0, -0.30, 0.01), 0.40, 0.10, 0.05, [0.26, 0.18, 0.12], {});
+    mkBox(mb, xf(0, 0, -0.05), 0.06, 0.14, 0.05, [0.20, 0.14, 0.10], {});
+    return geoFromMB(mb);
+  }
+  function sacGeo(r) {
+    var mb = MB();
+    mkSphere(mb, xf(0, 0, 0), r, 10, 7, [0.30, 0.62, 0.24], { sy: 1.25 });
+    return geoFromMB(mb);
+  }
+  function shellPlateGeo(P) {
+    var mb = MB();
+    mkBox(mb, xf(0, 0, 0), P.chestW * 0.55, P.chestY * 2.2, 0.05, [0.34, 0.18, 0.16], {});
+    return geoFromMB(mb);
+  }
+
+  var templates = {};
+  var KINDS = ['player', 'elena', 'ganado', 'brute', 'shielder', 'spitter',
+               'crawler', 'soldier', 'boss'];
+
+  function getTemplate(kind) {
+    if (!templates[kind]) {
+      templates[kind] = buildTemplate(KINDS.indexOf(kind) >= 0 ? kind : 'ganado');
+    }
+    return templates[kind];
+  }
+  function build() {
+    for (var i = 0; i < KINDS.length; i++) { getTemplate(KINDS[i]); }
+    return true;
+  }
+  function makeRig(kind) { return instantiate(getTemplate(kind)); }
+
+  /* ======================================================================
+     SECTION 6 -- WEAPONS
+     ====================================================================== */
+  var weaponCache = {};
+  function makeWeapon(id) {
+    if (weaponCache[id]) { return weaponCache[id]; }
+    var gunMat = mat({ albedo: [0.075, 0.078, 0.082], rough: 0.42, metal: 0.85, tex: 'metal', texScale: 3.0 });
+    var gripMat = mat({ albedo: [0.05, 0.05, 0.055], rough: 0.88, tex: 'fabric', texScale: 4.0 });
+    var parts = {};
+    var mb;
+    function body(fn) { mb = MB(); fn(); return geoFromMB(mb); }
+
+    switch (id) {
+      case 'knife':
+        parts.body = body(function () {
+          mkBox(mb, xf(0, 0, 0.06), 0.012, 0.022, 0.075, [0.06, 0.06, 0.06], {});
+          mkBox(mb, xf(0, 0, 0.20), 0.006, 0.020, 0.11, [0.62, 0.64, 0.68], {});
+        });
+        break;
+      case 'shotgun':
+        parts.body = body(function () {
+          mkCylinder(mb, xf(0, 0.012, 0.30, HALFPI, 0, 0), 0.017, 0.017, 0.62, 10, [0.10, 0.10, 0.11], {});
+          mkBox(mb, xf(0, -0.01, 0.06), 0.022, 0.048, 0.16, [0.09, 0.09, 0.10], {});
+          mkBox(mb, xf(0, -0.045, -0.10, 0.22, 0, 0), 0.020, 0.036, 0.16, [0.14, 0.09, 0.05], {});
+        });
+        parts.pump = body(function () {
+          mkCylinder(mb, xf(0, -0.012, 0, HALFPI, 0, 0), 0.024, 0.024, 0.14, 10, [0.14, 0.10, 0.06], {});
+        });
+        parts.pumpAt = [0, 0, 0.30];
+        break;
+      case 'magnum':
+        parts.body = body(function () {
+          mkCylinder(mb, xf(0, 0.010, 0.20, HALFPI, 0, 0), 0.014, 0.014, 0.30, 10, [0.13, 0.13, 0.14], {});
+          mkBox(mb, xf(0, -0.005, 0.05), 0.020, 0.042, 0.10, [0.10, 0.10, 0.11], {});
+          mkBox(mb, xf(0, -0.062, -0.03, 0.30, 0, 0), 0.019, 0.058, 0.036, [0.16, 0.11, 0.07], {});
+        });
+        parts.cylinder = body(function () {
+          mkCylinder(mb, xf(0, 0, 0, HALFPI, 0, 0), 0.028, 0.028, 0.055, 8, [0.16, 0.16, 0.17], {});
+        });
+        parts.cylinderAt = [0, 0.004, 0.075];
+        break;
+      case 'rifle':
+        parts.body = body(function () {
+          mkCylinder(mb, xf(0, 0.014, 0.36, HALFPI, 0, 0), 0.011, 0.011, 0.70, 10, [0.10, 0.10, 0.11], {});
+          mkBox(mb, xf(0, 0, 0.10), 0.020, 0.046, 0.22, [0.09, 0.09, 0.10], {});
+          mkBox(mb, xf(0, -0.05, -0.14, 0.18, 0, 0), 0.020, 0.040, 0.20, [0.12, 0.10, 0.08], {});
+          mkCylinder(mb, xf(0, 0.058, 0.16, HALFPI, 0, 0), 0.020, 0.020, 0.20, 10, [0.06, 0.06, 0.07], {});
+        });
+        parts.bolt = body(function () {
+          mkCylinder(mb, xf(0, 0, 0, 0, 0, HALFPI), 0.008, 0.008, 0.05, 6, [0.30, 0.31, 0.33], {});
+        });
+        parts.boltAt = [0.026, 0.020, 0.10];
+        break;
+      case 'smg':
+        parts.body = body(function () {
+          mkCylinder(mb, xf(0, 0.012, 0.20, HALFPI, 0, 0), 0.011, 0.011, 0.26, 10, [0.10, 0.10, 0.11], {});
+          mkBox(mb, xf(0, 0, 0.05), 0.020, 0.044, 0.14, [0.09, 0.09, 0.10], {});
+          mkBox(mb, xf(0, -0.055, 0.0, 0.12, 0, 0), 0.017, 0.050, 0.032, [0.08, 0.08, 0.09], {});
+        });
+        parts.mag = body(function () {
+          mkBox(mb, xf(0, 0, 0), 0.013, 0.070, 0.020, [0.12, 0.12, 0.13], {});
+        });
+        parts.magAt = [0, -0.075, 0.05];
+        break;
+      case 'launcher':
+        parts.body = body(function () {
+          mkCylinder(mb, xf(0, 0.02, 0.24, HALFPI, 0, 0), 0.045, 0.045, 0.72, 12, [0.14, 0.11, 0.09], {});
+          mkBox(mb, xf(0, -0.05, 0.0, 0.10, 0, 0), 0.020, 0.055, 0.05, [0.10, 0.10, 0.11], {});
+        });
+        break;
+      default: /* pistol */
+        parts.body = body(function () {
+          mkBox(mb, xf(0, 0.012, 0.10), 0.014, 0.026, 0.11, [0.10, 0.10, 0.11], {});
+          mkBox(mb, xf(0, -0.048, -0.006, 0.26, 0, 0), 0.016, 0.052, 0.030, [0.07, 0.07, 0.08], {});
+          mkBox(mb, xf(0, -0.012, 0.045), 0.010, 0.014, 0.05, [0.08, 0.08, 0.09], {});
+        });
+        parts.slide = body(function () {
+          mkBox(mb, xf(0, 0, 0), 0.016, 0.020, 0.115, [0.14, 0.14, 0.15], {});
+        });
+        parts.slideAt = [0, 0.034, 0.10];
+        parts.mag = body(function () {
+          mkBox(mb, xf(0, 0, 0), 0.012, 0.050, 0.018, [0.11, 0.11, 0.12], {});
+        });
+        parts.magAt = [0, -0.055, -0.006];
+        break;
+    }
+    weaponCache[id] = { id: id, parts: parts, mat: gunMat, gripMat: gripMat };
+    return weaponCache[id];
+  }
+
+  function setWeapon(rig, id) {
+    rig.weapon = id ? makeWeapon(id) : null;
+    return rig.weapon;
+  }
+
+  /* ======================================================================
+     SECTION 7 -- ANIMATION
+     ====================================================================== */
+
+  /* Analytic two-bone IK. Returns the root pitch and the knee/elbow bend that
+     place the end effector at `dist` from the root. */
+  var _ik = { a: 0, b: 0 };
+  function solveIK2(dist, l1, l2) {
+    var d = Math.min(Math.max(dist, 1e-4), (l1 + l2) * 0.999);
+    var cosB = (l1 * l1 + l2 * l2 - d * d) / (2 * l1 * l2);
+    cosB = cosB < -1 ? -1 : (cosB > 1 ? 1 : cosB);
+    var bend = Math.PI - Math.acos(cosB);
+    var cosA = (l1 * l1 + d * d - l2 * l2) / (2 * l1 * d);
+    cosA = cosA < -1 ? -1 : (cosA > 1 ? 1 : cosA);
+    _ik.a = Math.acos(cosA);
+    _ik.b = bend;
+    return _ik;
+  }
+
+  function spring(cur, vel, target, stiff, damp, dt) {
+    var f = (target - cur) * stiff - vel * damp;
+    vel += f * dt;
+    cur += vel * dt;
+    return [cur, vel];
+  }
+
+  var ANIM_SPEED = { idle: 0, walk: 1.6, run: 3.4, sprint: 5.0, crouch: 0.9, crawl: 1.0 };
+
+  function pose(rig, ps, dt) {
+    if (!rig) { return; }
+    ps = ps || EMPTY;
+    dt = dt > 0 ? (dt > 0.1 ? 0.1 : dt) : 0.016;
+    var st = rig.state;
+    var ch = rig._chanA;
+    var P = rig.meta.props || baseProps();
+    var i, o;
+
+    st.dt = dt;
+    st.time += dt;
+    var anim = ps.anim || 'idle';
+    if (anim !== st.anim) { st.prevAnim = st.anim; st.anim = anim; st.animTime = 0; }
+    st.animTime += dt;
+
+    chReset(ch);
+
+    /* ---------------- locomotion ---------------- */
+    var speed = ps.speed || 0;
+    st.speedSm = st.speedSm + (speed - st.speedSm) * Math.min(1, dt * 9);
+    st.accel = (st.speedSm - st.prevSpeed) / dt;
+    st.prevSpeed = st.speedSm;
+
+    var moving = st.speedSm > 0.06;
+    /* Cadence derived from real ground speed keeps the planted foot still. */
+    var stride = 0.78 + st.speedSm * 0.10;
+    var cadence = moving ? st.speedSm / stride : 0;
+    st.gaitPhase += cadence * dt * Math.PI * 2;
+    if (st.gaitPhase > Math.PI * 4) { st.gaitPhase -= Math.PI * 4; }
+    var gp = st.gaitPhase;
+    var swing = Math.min(1, st.speedSm / 3.2);
+    var hunch = rig.meta.hunch || 0;
+
+    st.breathePh += dt * (1.1 + st.speedSm * 0.34 + (ps.fear || 0) * 1.5);
+    st.breathe = Math.sin(st.breathePh) * (0.012 + (ps.fear || 0) * 0.016 + st.speedSm * 0.004);
+
+    var injured = ps.injured || 0;
+    st.fearSm += ((ps.fear || 0) - st.fearSm) * Math.min(1, dt * 3);
+
+    var quad = anim === 'crawl' || (rig.kind === 'crawler' && anim !== 'death');
+    var dead = anim === 'death';
+
+    if (!dead) {
+      if (quad) {
+        poseQuadruped(rig, ch, P, gp, swing, st);
+      } else {
+        poseBiped(rig, ch, P, gp, swing, st, anim, injured, hunch);
+      }
+    }
+
+    /* ---------------- upper body additive: aim ---------------- */
+    var wantAim = (anim === 'aim' || anim === 'fire' || anim === 'reload' ||
+                   ps.aiming || anim === 'melee') ? 1 : 0;
+    st.aimW += (wantAim - st.aimW) * Math.min(1, dt * 9);
+    if (st.aimW > 0.004 && !dead) {
+      applyAim(rig, ch, P, ps.aimPitch || 0, st.aimW, st);
+    }
+
+    /* ---------------- recoil impulses ---------------- */
+    var r;
+    r = spring(st.recArm, st.recArmV, 0, 300, 22, dt); st.recArm = r[0]; st.recArmV = r[1];
+    r = spring(st.recChest, st.recChestV, 0, 220, 19, dt); st.recChest = r[0]; st.recChestV = r[1];
+    r = spring(st.recHead, st.recHeadV, 0, 260, 20, dt); st.recHead = r[0]; st.recHeadV = r[1];
+    if (Math.abs(st.recArm) > 1e-4) {
+      addR(rig, ch, 'upperArmR', -st.recArm * 1.3, 0, 0);
+      addR(rig, ch, 'upperArmL', -st.recArm * 0.9, 0, 0);
+      addR(rig, ch, 'chest', -st.recChest * 0.55, 0, 0);
+      addR(rig, ch, 'head', st.recHead * 0.8, 0, 0);
+    }
+
+    /* ---------------- hit reaction ---------------- */
+    r = spring(st.hitX, st.hitXV, 0, 190, 16, dt); st.hitX = r[0]; st.hitXV = r[1];
+    r = spring(st.hitZ, st.hitZV, 0, 190, 16, dt); st.hitZ = r[0]; st.hitZV = r[1];
+    if (Math.abs(st.hitX) > 1e-4 || Math.abs(st.hitZ) > 1e-4) {
+      addR(rig, ch, 'spine01', st.hitZ * 0.5, 0, st.hitX * 0.5);
+      addR(rig, ch, 'chest', st.hitZ * 0.7, 0, st.hitX * 0.7);
+      addR(rig, ch, 'head', st.hitZ * 0.5, 0, st.hitX * 0.4);
+    }
+
+    /* ---------------- state-specific overlays ---------------- */
+    switch (anim) {
+      case 'reload': poseReload(rig, ch, P, st); break;
+      case 'melee': poseMelee(rig, ch, P, st); break;
+      case 'stagger': poseStagger(rig, ch, st); break;
+      case 'hurt': poseStagger(rig, ch, st); break;
+      case 'cower': poseCower(rig, ch, P, st); break;
+      case 'hide': poseCower(rig, ch, P, st); break;
+      case 'grabbed': poseGrabbed(rig, ch, st); break;
+      case 'climb': poseClimb(rig, ch, P, st); break;
+      case 'vault': poseVault(rig, ch, st); break;
+      case 'mutate': poseMutate(rig, ch, st); break;
+      case 'death': poseDeath(rig, ch, st, ps, dt); break;
+    }
+
+    /* ---------------- head look-at ---------------- */
+    if (!dead) { applyLookAt(rig, ch, ps, st, dt); }
+
+    /* ---------------- face ---------------- */
+    updateFace(rig, ch, ps, st, dt);
+
+    /* ---------------- compose ---------------- */
+    composeRig(rig, ch, dt);
+  }
+
+  function poseBiped(rig, ch, P, gp, swing, st, anim, injured, hunch) {
+    var sinL = Math.sin(gp), sinR = Math.sin(gp + Math.PI);
+    var crouch = anim === 'crouch' ? 1 : 0;
+    /* limp: the injured leg spends less time in stance */
+    var limp = injured * 0.5;
+    var legAmp = 0.62 * swing;
+    var armAmp = 0.48 * swing;
+
+    /* pelvis: vertical bob at twice cadence, roll into the stance leg */
+    var bob = -Math.abs(Math.cos(gp)) * 0.035 * swing - crouch * 0.30 + st.breathe * 0.4;
+    setP(rig, ch, 'pelvis', 0, bob, 0);
+    setR(rig, ch, 'pelvis',
+         hunch * 0.5 + crouch * 0.35 + Math.min(0.22, st.accel * 0.02),
+         Math.sin(gp) * 0.10 * swing,
+         Math.cos(gp) * 0.07 * swing);
+
+    /* spine counter-rotates against the hips */
+    setR(rig, ch, 'spine01', hunch * 0.30 + crouch * 0.14, -Math.sin(gp) * 0.07 * swing, 0);
+    setR(rig, ch, 'spine02', hunch * 0.30, -Math.sin(gp) * 0.06 * swing, 0);
+    setR(rig, ch, 'chest', hunch * 0.30 + st.breathe * 1.6 + crouch * 0.10,
+         -Math.sin(gp) * 0.10 * swing, 0);
+    setR(rig, ch, 'neck', -hunch * 0.55 - crouch * 0.18, 0, 0);
+
+    /* legs: pitch swing plus a knee bend that peaks through the swing phase */
+    var legs = [['L', sinL, 1], ['R', sinR, 1 - limp]];
+    for (var i = 0; i < 2; i++) {
+      var sfx = legs[i][0], sv = legs[i][1], amp = legs[i][2];
+      var thigh = sv * legAmp * amp - crouch * 0.85;
+      var knee = Math.max(0, -sv) * 0.9 * swing * amp + 0.06 + crouch * 1.25;
+      /* extra knee lift right after toe-off reads as a real stride */
+      knee += Math.max(0, Math.sin(gp + (i ? Math.PI : 0) - 0.9)) * 0.45 * swing * amp;
+      setR(rig, ch, 'thigh' + sfx, thigh, 0, 0);
+      setR(rig, ch, 'shin' + sfx, knee, 0, 0);
+      /* ankle keeps the foot roughly parallel to the ground */
+      setR(rig, ch, 'foot' + sfx, -thigh * 0.55 - knee * 0.45 + crouch * 0.3, 0, 0);
+      setR(rig, ch, 'toe' + sfx, Math.max(0, sv) * 0.35 * swing, 0, 0);
+    }
+
+    /* arms swing opposite the legs */
+    setR(rig, ch, 'upperArmL', sinR * armAmp - hunch * 0.35, 0, 0.10 + hunch * 0.20);
+    setR(rig, ch, 'upperArmR', sinL * armAmp - hunch * 0.35, 0, -0.10 - hunch * 0.20);
+    setR(rig, ch, 'forearmL', -0.22 - Math.max(0, sinR) * 0.42 * swing - hunch * 0.5, 0, 0);
+    setR(rig, ch, 'forearmR', -0.22 - Math.max(0, sinL) * 0.42 * swing - hunch * 0.5, 0, 0);
+
+    /* injured: pull the near arm across the ribs */
+    if (injured > 0.35) {
+      addR(rig, ch, 'upperArmL', 0.35 * injured, 0, 0.42 * injured);
+      addR(rig, ch, 'forearmL', -0.85 * injured, 0, 0);
+      addR(rig, ch, 'chest', 0.12 * injured, 0, 0.10 * injured);
+    }
+  }
+
+  function poseQuadruped(rig, ch, P, gp, swing, st) {
+    var sinL = Math.sin(gp), sinR = Math.sin(gp + Math.PI);
+    setP(rig, ch, 'pelvis', 0, -0.42, 0);
+    setR(rig, ch, 'pelvis', 1.15, Math.sin(gp) * 0.14, 0);
+    setR(rig, ch, 'spine01', -0.16, 0, 0);
+    setR(rig, ch, 'spine02', -0.16, 0, 0);
+    setR(rig, ch, 'chest', -0.24, Math.sin(gp) * 0.12, 0);
+    setR(rig, ch, 'neck', -0.55, 0, 0);
+    setR(rig, ch, 'head', -0.42, 0, 0);
+    setR(rig, ch, 'upperArmL', -1.55 + sinL * 0.7 * swing, 0, 0.30);
+    setR(rig, ch, 'upperArmR', -1.55 + sinR * 0.7 * swing, 0, -0.30);
+    setR(rig, ch, 'forearmL', -0.55 - Math.max(0, sinL) * 0.6 * swing, 0, 0);
+    setR(rig, ch, 'forearmR', -0.55 - Math.max(0, sinR) * 0.6 * swing, 0, 0);
+    setR(rig, ch, 'thighL', sinR * 0.8 * swing + 0.35, 0, 0);
+    setR(rig, ch, 'thighR', sinL * 0.8 * swing + 0.35, 0, 0);
+    setR(rig, ch, 'shinL', Math.max(0, -sinR) * 1.1 * swing + 0.45, 0, 0);
+    setR(rig, ch, 'shinR', Math.max(0, -sinL) * 1.1 * swing + 0.45, 0, 0);
+  }
+
+  /* Aim is additive over whatever the legs are doing, distributed across the
+     spine so the character never snaps to face the reticle. */
+  function applyAim(rig, ch, P, pitch, w, st) {
+    var p = Math.max(-0.9, Math.min(0.9, pitch));
+    addR(rig, ch, 'spine01', p * 0.12 * w, 0, 0);
+    addR(rig, ch, 'spine02', p * 0.16 * w, 0, 0);
+    addR(rig, ch, 'chest', p * 0.26 * w, 0.18 * w, 0);
+    addR(rig, ch, 'neck', p * 0.18 * w, -0.08 * w, 0);
+
+    /* right hand drives the weapon; left hand supports it */
+    setR(rig, ch, 'upperArmR', -1.32 * w + p * 0.55 * w, 0.30 * w, -0.26 * w);
+    setR(rig, ch, 'forearmR', -0.30 * w, 0, 0);
+    setR(rig, ch, 'handR', 0.10 * w, 0, 0);
+    setR(rig, ch, 'upperArmL', -1.18 * w + p * 0.50 * w, 0.62 * w, 0.42 * w);
+    setR(rig, ch, 'forearmL', -0.92 * w, 0, 0);
+    setR(rig, ch, 'handL', 0.18 * w, 0, 0);
+  }
+
+  function poseReload(rig, ch, P, st) {
+    /* 2.3s sequence: mag release -> hand to pouch -> insert -> slap -> rack */
+    var t = st.animTime / 2.3;
+    var s = t < 1 ? t : 1;
+    var handDown = Math.sin(Math.min(Math.PI, s * Math.PI * 1.6));
+    addR(rig, ch, 'upperArmL', handDown * 1.05, 0, handDown * 0.55);
+    addR(rig, ch, 'forearmL', -handDown * 1.35, 0, 0);
+    addR(rig, ch, 'chest', handDown * 0.16, 0, 0);
+    addR(rig, ch, 'head', handDown * 0.22, 0, 0);
+    st.wMag = s < 0.25 ? -s * 4 * 0.09 : (s < 0.55 ? -0.09 + (s - 0.25) / 0.30 * 0.09 : 0);
+    st.wSlide = (s > 0.72 && s < 0.88) ? -0.035 : 0;
+    /* the aim is broken through the whole animation - the vulnerability
+       window the combat design depends on */
+    addR(rig, ch, 'upperArmR', handDown * 0.30, 0, 0);
+  }
+
+  function poseMelee(rig, ch, P, st) {
+    var t = Math.min(1, st.animTime / 0.55);
+    var swingCurve = Math.sin(t * Math.PI);
+    var wind = t < 0.28 ? t / 0.28 : 1;
+    addR(rig, ch, 'pelvis', 0, -0.55 * wind + swingCurve * 1.1, 0);
+    addR(rig, ch, 'chest', -0.2 * wind + swingCurve * 0.5, -0.4 * wind + swingCurve * 0.9, 0);
+    addR(rig, ch, 'upperArmR', -0.9 * wind - swingCurve * 0.6, 0, -0.5 * wind + swingCurve * 0.9);
+    addR(rig, ch, 'forearmR', -1.4 * wind + swingCurve * 1.2, 0, 0);
+    /* weight transfer: back foot pivots, front knee drives */
+    addR(rig, ch, 'thighR', swingCurve * 0.75, 0, 0);
+    addR(rig, ch, 'shinR', swingCurve * 0.55, 0, 0);
+  }
+
+  function poseStagger(rig, ch, st) {
+    var t = Math.min(1, st.animTime / 0.45);
+    var e = Math.sin(t * Math.PI) * (1 - t * 0.4);
+    addR(rig, ch, 'spine01', e * 0.42, 0, 0);
+    addR(rig, ch, 'chest', e * 0.55, 0, 0);
+    addR(rig, ch, 'head', e * 0.45, 0, 0);
+    addR(rig, ch, 'upperArmL', -e * 0.7, 0, e * 0.5);
+    addR(rig, ch, 'upperArmR', -e * 0.7, 0, -e * 0.5);
+    addP(rig, ch, 'pelvis', 0, -e * 0.10, 0);
+  }
+
+  function poseCower(rig, ch, P, st) {
+    var f = 0.55 + st.fearSm * 0.45;
+    /* high-frequency tremble scaled by fear - reads instantly as terror */
+    var tr = Math.sin(st.time * 34) * 0.012 * st.fearSm;
+    addP(rig, ch, 'pelvis', tr, -0.42 * f, 0);
+    addR(rig, ch, 'pelvis', 0.55 * f, 0, 0);
+    addR(rig, ch, 'spine01', 0.30 * f, 0, tr * 2);
+    addR(rig, ch, 'chest', 0.42 * f, 0, 0);
+    addR(rig, ch, 'neck', 0.30 * f, 0, 0);
+    addR(rig, ch, 'head', 0.35 * f, 0, 0);
+    addR(rig, ch, 'upperArmL', -2.1 * f, 0, 0.8 * f);
+    addR(rig, ch, 'upperArmR', -2.1 * f, 0, -0.8 * f);
+    addR(rig, ch, 'forearmL', -1.9 * f, 0, 0);
+    addR(rig, ch, 'forearmR', -1.9 * f, 0, 0);
+    addR(rig, ch, 'thighL', -1.5 * f, 0, 0.2);
+    addR(rig, ch, 'thighR', -1.5 * f, 0, -0.2);
+    addR(rig, ch, 'shinL', 1.9 * f, 0, 0);
+    addR(rig, ch, 'shinR', 1.9 * f, 0, 0);
+  }
+
+  function poseGrabbed(rig, ch, st) {
+    st.grabStruggle += st.dt * 9;
+    var s = Math.sin(st.grabStruggle), c = Math.cos(st.grabStruggle * 1.37);
+    addR(rig, ch, 'pelvis', 0, s * 0.22, c * 0.14);
+    addR(rig, ch, 'chest', c * 0.2, s * 0.3, 0);
+    addR(rig, ch, 'upperArmL', -1.5 + s * 0.6, 0, 0.7);
+    addR(rig, ch, 'upperArmR', -1.5 - s * 0.6, 0, -0.7);
+    addR(rig, ch, 'forearmL', -0.9, 0, 0);
+    addR(rig, ch, 'forearmR', -0.9, 0, 0);
+    addR(rig, ch, 'thighL', -0.5 + s * 0.4, 0, 0);
+    addR(rig, ch, 'thighR', -0.5 - s * 0.4, 0, 0);
+    addP(rig, ch, 'pelvis', 0, 0.12, 0);
+  }
+
+  function poseClimb(rig, ch, P, st) {
+    var p = st.time * 3.2;
+    var a = Math.sin(p), b = Math.sin(p + Math.PI);
+    addR(rig, ch, 'upperArmL', -2.3 + a * 0.5, 0, 0.35);
+    addR(rig, ch, 'upperArmR', -2.3 + b * 0.5, 0, -0.35);
+    addR(rig, ch, 'forearmL', -0.6, 0, 0);
+    addR(rig, ch, 'forearmR', -0.6, 0, 0);
+    addR(rig, ch, 'thighL', -0.9 + b * 0.5, 0, 0);
+    addR(rig, ch, 'thighR', -0.9 + a * 0.5, 0, 0);
+    addR(rig, ch, 'shinL', 1.1, 0, 0);
+    addR(rig, ch, 'shinR', 1.1, 0, 0);
+  }
+
+  function poseVault(rig, ch, st) {
+    var t = Math.min(1, st.animTime / 0.7);
+    var e = Math.sin(t * Math.PI);
+    addP(rig, ch, 'pelvis', 0, e * 0.45, 0);
+    addR(rig, ch, 'pelvis', e * 0.8, 0, 0);
+    addR(rig, ch, 'thighL', -e * 1.5, 0, 0);
+    addR(rig, ch, 'thighR', -e * 1.1, 0, 0);
+    addR(rig, ch, 'shinL', e * 1.4, 0, 0);
+    addR(rig, ch, 'upperArmR', -e * 1.6, 0, 0);
+  }
+
+  function poseMutate(rig, ch, st) {
+    /* 2.5s: torso plates swing open, core exposed, extra arms unfold */
+    var t = Math.min(1, st.animTime / 2.5);
+    var open = t < 0.35 ? 0 : Math.min(1, (t - 0.35) / 0.45);
+    st.mutatePhase = t;
+    if (t > 0.35) { st.phase2 = true; }
+    var rear = Math.sin(Math.min(Math.PI, t * Math.PI * 1.4));
+    addR(rig, ch, 'chest', -rear * 0.55, 0, 0);
+    addR(rig, ch, 'head', -rear * 0.7, 0, 0);
+    addR(rig, ch, 'upperArmL', -rear * 1.5, 0, rear * 1.1);
+    addR(rig, ch, 'upperArmR', -rear * 1.5, 0, -rear * 1.1);
+    addR(rig, ch, 'coreShellL', 0, -open * 1.5, 0);
+    addR(rig, ch, 'coreShellR', 0, open * 1.5, 0);
+    var ea = open * 1.0;
+    addR(rig, ch, 'extraArmL', -0.6 - ea * 0.8, 0, 1.2 * open);
+    addR(rig, ch, 'extraArmR', -0.6 - ea * 0.8, 0, -1.2 * open);
+    addR(rig, ch, 'extraForeL', -0.9 * open, 0, 0);
+    addR(rig, ch, 'extraForeR', -0.9 * open, 0, 0);
+    if (rig.nodes.core) { rig.nodes.core.hidden = open < 0.25; }
+    if (rig.nodes.extraArmL) { rig.nodes.extraArmL.hidden = open < 0.05; }
+    if (rig.nodes.extraArmR) { rig.nodes.extraArmR.hidden = open < 0.05; }
+    if (rig.nodes.extraForeL) { rig.nodes.extraForeL.hidden = open < 0.05; }
+    if (rig.nodes.extraForeR) { rig.nodes.extraForeR.hidden = open < 0.05; }
+  }
+
+  /* Death is a damped collapse toward the ground rather than a canned pose,
+     so no two deaths look identical. */
+  function poseDeath(rig, ch, st, ps, dt) {
+    if (!st.dead) {
+      st.dead = true; st.deathT = 0;
+      st.deathKind = ps.deathKind || 'torso';
+      st.deathDirX = ps.hitDir ? ps.hitDir[0] : 0;
+      st.deathDirZ = ps.hitDir ? ps.hitDir[2] : 1;
+    }
+    st.deathT += dt;
+    var t = Math.min(1, st.deathT / 1.25);
+    var e = t * t * (3 - 2 * t);
+    var back = st.deathKind === 'head' ? 1.0 : 0.75;
+    addP(rig, ch, 'pelvis', st.deathDirX * e * 0.35, -0.86 * e, st.deathDirZ * e * 0.35);
+    addR(rig, ch, 'pelvis', -e * 1.45 * back, 0, st.deathDirX * e * 0.6);
+    addR(rig, ch, 'spine01', e * 0.35, 0, 0);
+    addR(rig, ch, 'chest', e * 0.45, e * 0.3, 0);
+    addR(rig, ch, 'neck', e * (st.deathKind === 'head' ? 0.9 : 0.5), 0, 0);
+    addR(rig, ch, 'head', e * 0.7, e * 0.5, 0);
+    addR(rig, ch, 'upperArmL', -e * 0.5, 0, e * 1.1);
+    addR(rig, ch, 'upperArmR', -e * 0.5, 0, -e * 1.1);
+    addR(rig, ch, 'forearmL', -e * 0.6, 0, 0);
+    addR(rig, ch, 'forearmR', -e * 0.6, 0, 0);
+    addR(rig, ch, 'thighL', -e * 0.9, 0, e * 0.35);
+    addR(rig, ch, 'thighR', -e * 0.7, 0, -e * 0.5);
+    addR(rig, ch, 'shinL', e * 1.1, 0, 0);
+    addR(rig, ch, 'shinR', e * 0.8, 0, 0);
+  }
+
+  function applyLookAt(rig, ch, ps, st, dt) {
+    var yawT = 0, pitchT = 0;
+    if (ps.lookAt && rig.nodes.head) {
+      var hw = rig.nodes.head.world;
+      var dx = ps.lookAt[0] - hw[12], dy = ps.lookAt[1] - hw[13], dz = ps.lookAt[2] - hw[14];
+      var yaw = Math.atan2(dx, dz);
+      var hyp = Math.sqrt(dx * dx + dz * dz);
+      pitchT = -Math.atan2(dy, hyp || 1e-3);
+      yawT = yaw - (ps.bodyYaw || 0);
+      while (yawT > Math.PI) { yawT -= Math.PI * 2; }
+      while (yawT < -Math.PI) { yawT += Math.PI * 2; }
+      /* limit cone: past it, give up rather than snap the neck */
+      if (Math.abs(yawT) > 1.5) { yawT = 0; pitchT = 0; }
+      yawT = Math.max(-1.0, Math.min(1.0, yawT));
+      pitchT = Math.max(-0.6, Math.min(0.6, pitchT));
+    }
+    /* eyes lead the head - a small but very legible detail */
+    st.eyeYaw += (yawT - st.eyeYaw) * Math.min(1, dt * 18);
+    st.eyePitch += (pitchT - st.eyePitch) * Math.min(1, dt * 18);
+    st.lookYaw += (yawT - st.lookYaw) * Math.min(1, dt * 6.5);
+    st.lookPitch += (pitchT - st.lookPitch) * Math.min(1, dt * 6.5);
+    addR(rig, ch, 'neck', st.lookPitch * 0.35, st.lookYaw * 0.35, 0);
+    addR(rig, ch, 'head', st.lookPitch * 0.65, st.lookYaw * 0.65, 0);
+    addR(rig, ch, 'eyeL', st.eyePitch * 0.5, st.eyeYaw * 0.5, 0);
+    addR(rig, ch, 'eyeR', st.eyePitch * 0.5, st.eyeYaw * 0.5, 0);
+
+    /* Elena glances back over her shoulder while following */
+    if (rig.kind === 'elena') {
+      st.glanceTimer -= dt;
+      if (st.glanceTimer <= 0 && st.glanceT < 0) {
+        st.glanceT = 0; st.glanceTimer = 4 + RG.f() * 6;
+      }
+      if (st.glanceT >= 0) {
+        st.glanceT += dt;
+        var g = Math.sin(Math.min(Math.PI, st.glanceT / 1.1 * Math.PI));
+        addR(rig, ch, 'neck', 0, -g * 0.5, 0);
+        addR(rig, ch, 'head', 0, -g * 0.75, 0);
+        if (st.glanceT > 1.1) { st.glanceT = -1; }
+      }
+    }
+  }
+
+  function updateFace(rig, ch, ps, st, dt) {
+    st.exFear += ((ps.fear === undefined ? st.tFear : ps.fear) - st.exFear) * Math.min(1, dt * 4);
+    st.exPain += (st.tPain - st.exPain) * Math.min(1, dt * 6);
+    st.exAnger += (st.tAnger - st.exAnger) * Math.min(1, dt * 5);
+    st.exTalk += (st.tTalk - st.exTalk) * Math.min(1, dt * 14);
+
+    /* auto blink */
+    st.blinkTimer -= dt;
+    if (st.blinkTimer <= 0 && st.blinkT < 0) {
+      st.blinkT = 0;
+      st.blinkTimer = 1.6 + RG.f() * 3.4 - st.exFear * 0.8;
+    }
+    var lid = 0;
+    if (st.blinkT >= 0) {
+      st.blinkT += dt;
+      lid = Math.sin(Math.min(Math.PI, st.blinkT / 0.13 * Math.PI));
+      if (st.blinkT > 0.13) { st.blinkT = -1; }
+    }
+    /* fear widens the eyes, pain narrows them */
+    var aperture = 1 - lid + st.exFear * 0.22 - st.exPain * 0.35;
+    setS(rig, ch, 'lidL', 1, Math.max(0.02, 1 - aperture), 1);
+    setS(rig, ch, 'lidR', 1, Math.max(0.02, 1 - aperture), 1);
+    addR(rig, ch, 'browL', -st.exFear * 0.22 + st.exAnger * 0.30, 0, st.exAnger * 0.22 - st.exFear * 0.16);
+    addR(rig, ch, 'browR', -st.exFear * 0.22 + st.exAnger * 0.30, 0, -st.exAnger * 0.22 + st.exFear * 0.16);
+
+    if (st.exTalk > 0.01) { st.talkPhase += dt * 15; }
+    var jaw = st.exTalk * (0.5 + 0.5 * Math.sin(st.talkPhase)) * 0.28 +
+              st.exPain * 0.20 + st.exFear * 0.06;
+    addR(rig, ch, 'jaw', jaw, 0, 0);
+  }
+
+  function setExpression(rig, e) {
+    if (!rig || !e) { return; }
+    var st = rig.state;
+    if (e.fear !== undefined) { st.tFear = e.fear; }
+    if (e.pain !== undefined) { st.tPain = e.pain; }
+    if (e.anger !== undefined) { st.tAnger = e.anger; }
+    if (e.talk !== undefined) { st.tTalk = e.talk; }
+    if (e.blink) { st.blinkT = 0; }
+  }
+
+  function addRecoil(rig, amount) {
+    if (!rig) { return; }
+    var st = rig.state;
+    st.recArmV += amount * 9;
+    st.recChestV += amount * 5;
+    st.recHeadV += amount * 4;
+  }
+  function addHit(rig, dirX, dirZ, amount) {
+    if (!rig) { return; }
+    rig.state.hitXV += dirX * amount * 8;
+    rig.state.hitZV += dirZ * amount * 8;
+    rig.state.tPain = Math.min(1, rig.state.tPain + amount * 0.5);
+  }
+
+  /* ======================================================================
+     SECTION 8 -- COMPOSITION AND OUTPUT
+     ====================================================================== */
+  var _lm = M4.create();
+
+  function composeRig(rig, ch, dt) {
+    var list = rig.list, i, n, o, m, pm;
+    for (i = 0; i < list.length; i++) {
+      n = list[i];
+      o = n.idx * CH;
+      m = n.m;
+      M4.identity(m);
+      m[12] = n.bx + ch[o + C_OX];
+      m[13] = n.by + ch[o + C_OY];
+      m[14] = n.bz + ch[o + C_OZ];
+      var ry = ch[o + C_RY], rx = ch[o + C_RX], rz = ch[o + C_RZ];
+      if (ry) { M4.rotateY(m, m, ry); }
+      if (rx) { M4.rotateX(m, m, rx); }
+      if (rz) { M4.rotateZ(m, m, rz); }
+      var sx = ch[o + C_SX], sy = ch[o + C_SY], sz = ch[o + C_SZ];
+      if (sx !== 1 || sy !== 1 || sz !== 1) {
+        m[0] *= sx; m[1] *= sx; m[2] *= sx;
+        m[4] *= sy; m[5] *= sy; m[6] *= sy;
+        m[8] *= sz; m[9] *= sz; m[10] *= sz;
+      }
+      if (n.parentNode) { M4.mul(n.world, n.parentNode.world, m); }
+      else { M4.copy(n.world, m); }
+    }
+    if (rig._jiggles.length) { updateJiggle(rig, dt); }
+  }
+
+  /* Secondary motion: each jiggle node leans away from its parent's world
+     acceleration, damped. Clamped hard - an exploding jiggle chain is far
+     worse than none at all. */
+  function updateJiggle(rig, dt) {
+    var js = rig._jiggles, i, n, j, w;
+    var inv = dt > 1e-5 ? 1 / dt : 60;
+    for (i = 0; i < js.length; i++) {
+      n = js[i]; j = n.jig; w = n.world;
+      if (!j.init) {
+        j.px = w[12]; j.py = w[13]; j.pz = w[14];
+        j.init = true; j.x = 0; j.z = 0; j.vx = 0; j.vz = 0;
+        continue;
+      }
+      var vx = (w[12] - j.px) * inv, vy = (w[13] - j.py) * inv, vz = (w[14] - j.pz) * inv;
+      var ax = (vx - j.vwx) * inv, az = (vz - j.vwz) * inv;
+      j.vwx = vx; j.vwy = vy; j.vwz = vz;
+      j.px = w[12]; j.py = w[13]; j.pz = w[14];
+      if (!isFinite(ax)) { ax = 0; } if (!isFinite(az)) { az = 0; }
+      ax = Math.max(-60, Math.min(60, ax));
+      az = Math.max(-60, Math.min(60, az));
+      var stiff = j.stiff || 45, damp = j.damp || 6.5, max = j.max || 0.5;
+      j.vx += (-j.x * stiff - j.vx * damp - ax * 0.010) * dt;
+      j.vz += (-j.z * stiff - j.vz * damp - az * 0.010) * dt;
+      j.x += j.vx * dt; j.z += j.vz * dt;
+      if (!isFinite(j.x)) { j.x = 0; j.vx = 0; }
+      if (!isFinite(j.z)) { j.z = 0; j.vz = 0; }
+      j.x = Math.max(-max, Math.min(max, j.x));
+      j.z = Math.max(-max, Math.min(max, j.z));
+      /* fold the offset straight into the world matrix of this subtree */
+      M4.identity(_lm);
+      M4.rotateX(_lm, _lm, j.z);
+      M4.rotateZ(_lm, _lm, -j.x);
+      M4.mul(n.world, n.world, _lm);
+    }
+  }
+
+  var _wm = M4.create();
+
+  function collect(rig, worldMatrix, out) {
+    if (!rig || !out) { return out; }
+    var items = rig._items, i, it;
+    for (i = 0; i < items.length; i++) {
+      it = items[i];
+      if (it.node.hidden) { continue; }
+      M4.mul(it.m, worldMatrix, it.node.world);
+      out.push(it);
+    }
+    /* the held weapon rides the grip node */
+    if (rig.weapon && rig.nodes.weaponGrip) {
+      collectWeapon(rig, worldMatrix, out);
+    }
+    return out;
+  }
+
+  function collectWeapon(rig, worldMatrix, out) {
+    var w = rig.weapon, st = rig.state;
+    if (!w._items) {
+      w._items = [];
+      var keys = ['body', 'slide', 'mag', 'bolt', 'cylinder', 'pump'];
+      for (var k = 0; k < keys.length; k++) {
+        if (w.parts[keys[k]]) {
+          w._items.push({ geo: w.parts[keys[k]], mat: w.mat, m: M4.create(),
+                          castShadow: true, skin: null, part: keys[k] });
+        }
+      }
+    }
+    M4.mul(_wm, worldMatrix, rig.nodes.weaponGrip.world);
+    for (var i = 0; i < w._items.length; i++) {
+      var it = w._items[i];
+      var at = w.parts[it.part + 'At'];
+      M4.identity(_lm);
+      if (at) { _lm[12] = at[0]; _lm[13] = at[1]; _lm[14] = at[2]; }
+      /* animated parts: slide cycles on fire, mag drops on reload */
+      if (it.part === 'slide') { _lm[14] += st.wSlide; }
+      else if (it.part === 'mag') { _lm[13] += st.wMag; }
+      else if (it.part === 'bolt') { _lm[14] += st.wBolt; }
+      else if (it.part === 'pump') { _lm[14] += st.wPump; }
+      else if (it.part === 'cylinder') { M4.rotateZ(_lm, _lm, st.wCyl); }
+      M4.mul(it.m, _wm, _lm);
+      out.push(it);
+    }
+  }
+
+  function getBoneWorld(rig, name, outMat) {
+    var n = rig && rig.nodes[name];
+    if (!n) { return null; }
+    if (outMat) { M4.copy(outMat, n.world); return outMat; }
+    return n.world;
+  }
+  function getBonePos(rig, name, worldMatrix, out) {
+    var n = rig && rig.nodes[name];
+    if (!n) { return null; }
+    if (worldMatrix) { M4.mul(_lm, worldMatrix, n.world); }
+    else { M4.copy(_lm, n.world); }
+    out[0] = _lm[12]; out[1] = _lm[13]; out[2] = _lm[14];
+    return out;
+  }
+  /* Hit resolution against the posed skeleton: which body part did the shot
+     land on? Returns the node tag ('hitHead' / 'shield' / 'weakpoint' / ...) */
+  function hitTest(rig, worldMatrix, px, py, pz) {
+    if (!rig) { return null; }
+    var list = rig.list, best = null, bestD = 1e30, i, n;
+    for (i = 0; i < list.length; i++) {
+      n = list[i];
+      if (!n.hit || n.hidden) { continue; }
+      M4.mul(_lm, worldMatrix, n.world);
+      var dx = px - _lm[12], dy = py - _lm[13], dz = pz - _lm[14];
+      var d2 = dx * dx + dy * dy + dz * dz;
+      if (d2 < n.hit * n.hit && d2 < bestD) { bestD = d2; best = n; }
+    }
+    return best ? (best.tag || best.name) : null;
+  }
+
+  IP.Actors = {
+    build: build,
+    makeRig: makeRig,
+    pose: pose,
+    collect: collect,
+    getBoneWorld: getBoneWorld,
+    getBonePos: getBonePos,
+    hitTest: hitTest,
+    setExpression: setExpression,
+    setWeapon: setWeapon,
+    makeWeapon: makeWeapon,
+    addRecoil: addRecoil,
+    addHit: addHit,
+    solveIK2: solveIK2,
+    KINDS: KINDS
+  };
+
 })();
+if (typeof window !== 'undefined') { window.IP = IP; }
