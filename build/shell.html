@@ -1,0 +1,165 @@
+<style>
+  /* ISLAND PROTOCOL - shell styles. The game deliberately commits to a single
+     dark look in both themes; every colour below is painted explicitly. */
+  :root {
+    color-scheme: dark;
+    --ip-void: #05070a;
+    --ip-ink: #0a0d12;
+    --ip-blood: #b8232b;
+    --ip-verdigris: #6fe39a;
+    --ip-bone: #d7d3c8;
+    --ip-dim: #6d7480;
+  }
+  html, body {
+    margin: 0; padding: 0; width: 100%; height: 100%;
+    background: var(--ip-void); color: var(--ip-bone);
+    overflow: hidden; overscroll-behavior: none;
+    font-family: ui-monospace, "SFMono-Regular", "Menlo", "Consolas", monospace;
+    -webkit-font-smoothing: antialiased;
+    -webkit-tap-highlight-color: transparent;
+    -webkit-touch-callout: none;
+    user-select: none; -webkit-user-select: none;
+    touch-action: none;
+  }
+  #ip-root {
+    position: fixed; inset: 0; background: var(--ip-void);
+    display: block; isolation: isolate;
+    padding: env(safe-area-inset-top) env(safe-area-inset-right)
+             env(safe-area-inset-bottom) env(safe-area-inset-left);
+    box-sizing: border-box;
+  }
+  #ip-canvas {
+    position: absolute; inset: 0; width: 100%; height: 100%;
+    display: block; background: #000; touch-action: none;
+  }
+  #ip-ui { position: absolute; inset: 0; pointer-events: none; z-index: 10; }
+
+  /* ---- boot / fatal-error curtain (owned by the shell, not by IP.UI) ---- */
+  #ip-boot {
+    position: absolute; inset: 0; z-index: 9999;
+    display: flex; flex-direction: column; align-items: center; justify-content: center;
+    gap: 18px; text-align: center; padding: 24px; box-sizing: border-box;
+    background:
+      radial-gradient(120% 90% at 50% 40%, #10161d 0%, #05070a 62%, #000 100%);
+    color: var(--ip-bone);
+    transition: opacity .6s ease; opacity: 1;
+  }
+  #ip-boot.gone { opacity: 0; pointer-events: none; }
+  #ip-boot h1 {
+    margin: 0; font-size: clamp(19px, 5.2vw, 40px); font-weight: 700;
+    letter-spacing: .22em; text-transform: uppercase; color: var(--ip-bone);
+    text-shadow: 0 0 26px rgba(184,35,43,.42);
+  }
+  #ip-boot h2 {
+    margin: 0; font-size: clamp(9px, 2.4vw, 13px); font-weight: 400;
+    letter-spacing: .46em; text-transform: uppercase; color: var(--ip-blood);
+  }
+  #ip-bar {
+    width: min(420px, 76vw); height: 3px; background: #171d26;
+    border-radius: 2px; overflow: hidden;
+  }
+  #ip-bar > i {
+    display: block; height: 100%; width: 0%;
+    background: linear-gradient(90deg, #4a1116, var(--ip-blood), #ff6b52);
+    transition: width .28s ease;
+  }
+  #ip-status {
+    font-size: clamp(10px, 2.6vw, 12px); letter-spacing: .16em;
+    text-transform: uppercase; color: var(--ip-dim); min-height: 1.3em;
+  }
+  #ip-fatal {
+    display: none; max-width: 640px; text-align: left; font-size: 13px;
+    line-height: 1.6; color: var(--ip-bone);
+    background: #0d0f14; border: 1px solid #2a1114; border-left: 3px solid var(--ip-blood);
+    padding: 16px 18px; border-radius: 6px; white-space: pre-wrap;
+    overflow-x: auto; max-height: 52vh; overflow-y: auto;
+  }
+  #ip-fatal b { color: var(--ip-blood); letter-spacing: .12em; }
+  #ip-rotate {
+    display: none; position: absolute; inset: 0; z-index: 10000;
+    background: #05070a; color: var(--ip-bone);
+    align-items: center; justify-content: center; text-align: center;
+    font-size: 15px; letter-spacing: .2em; text-transform: uppercase; padding: 30px;
+  }
+  @media (orientation: portrait) and (pointer: coarse) {
+    #ip-rotate.armed { display: flex; }
+  }
+  @media (prefers-reduced-motion: reduce) {
+    #ip-boot, #ip-bar > i { transition: none; }
+  }
+</style>
+
+<div id="ip-root">
+  <canvas id="ip-canvas"></canvas>
+  <div id="ip-ui"></div>
+  <div id="ip-rotate">Rotate your device to landscape</div>
+  <div id="ip-boot">
+    <h2>Island Protocol</h2>
+    <h1>Presidential Extraction</h1>
+    <div id="ip-bar"><i></i></div>
+    <div id="ip-status">Initialising</div>
+    <div id="ip-fatal"></div>
+  </div>
+</div>
+
+<script>
+"use strict";
+/* Shell bootstrap: owns the loading curtain and the fatal-error path so that a
+   failure anywhere in the engine still produces a readable screen. Build __BUILD_DATE__ */
+(function () {
+  var boot = document.getElementById('ip-boot');
+  var bar = document.querySelector('#ip-bar > i');
+  var status = document.getElementById('ip-status');
+  var fatal = document.getElementById('ip-fatal');
+
+  /* The Artifact host supplies its own <head>; make sure a mobile viewport exists. */
+  if (!document.querySelector('meta[name="viewport"]')) {
+    var mv = document.createElement('meta');
+    mv.name = 'viewport';
+    mv.content = 'width=device-width,initial-scale=1,maximum-scale=1,user-scalable=no,viewport-fit=cover';
+    (document.head || document.documentElement).appendChild(mv);
+  }
+
+  window.IP_BOOT = {
+    progress: function (frac, msg) {
+      if (bar) { bar.style.width = Math.max(0, Math.min(1, frac)) * 100 + '%'; }
+      if (msg && status) { status.textContent = msg; }
+    },
+    done: function () {
+      if (boot) { boot.classList.add('gone'); setTimeout(function () { boot.style.display = 'none'; }, 700); }
+    },
+    fail: function (title, detail) {
+      if (!boot) { return; }
+      boot.classList.remove('gone'); boot.style.display = 'flex'; boot.style.opacity = '1';
+      if (bar && bar.parentNode) { bar.parentNode.style.display = 'none'; }
+      if (status) { status.textContent = title || 'Startup failed'; }
+      if (fatal) { fatal.style.display = 'block'; fatal.textContent = String(detail || ''); }
+    }
+  };
+
+  window.addEventListener('error', function (e) {
+    if (window.IP && window.IP.Game && window.IP.Game.running) { return; }
+    window.IP_BOOT.fail('Startup failed', (e && e.message ? e.message : 'Unknown error') +
+      (e && e.filename ? '\n' + e.filename + ':' + e.lineno + ':' + e.colno : ''));
+  });
+  window.addEventListener('unhandledrejection', function (e) {
+    if (window.IP && window.IP.Game && window.IP.Game.running) { return; }
+    window.IP_BOOT.fail('Startup failed', String((e && e.reason) || 'Unhandled rejection'));
+  });
+
+  /* Kill browser gestures that fight a fullscreen game. */
+  var stop = function (e) { if (e.cancelable) { e.preventDefault(); } };
+  document.addEventListener('gesturestart', stop, { passive: false });
+  document.addEventListener('dblclick', stop, { passive: false });
+  document.addEventListener('contextmenu', function (e) {
+    if (e.target && e.target.closest && e.target.closest('#ip-root')) { stop(e); }
+  });
+  document.addEventListener('touchmove', function (e) {
+    if (e.touches && e.touches.length > 1) { stop(e); }
+  }, { passive: false });
+})();
+</script>
+
+<script>
+__GAME_JS__
+</script>
