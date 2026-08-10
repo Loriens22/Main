@@ -1454,7 +1454,7 @@ var IP = (typeof IP !== 'undefined' && IP) || {};
     '  }',
     '',
     '  // --- animated film grain (luma-weighted so darks stay noisy) ----------',
-    '  float g = texture(uNoiseTex, vUV * uScreen.xy / 96.0',
+    '  float g = texture(uNoiseTex, gl_FragCoord.xy / 96.0',
     '                    + vec2(fract(uP1.w * 13.0), fract(uP1.w * 7.3))).a;',
     '  float gn = (g - 0.5) * uP0.z;',
     '  col += gn * (0.35 + (1.0 - lum) * 0.9) * 0.28;',
@@ -2377,7 +2377,10 @@ var IP = (typeof IP !== 'undefined' && IP) || {};
     frameData[F_SUNCOL] = sunCol[0];
     frameData[F_SUNCOL + 1] = sunCol[1];
     frameData[F_SUNCOL + 2] = sunCol[2];
-    frameData[F_SUNCOL + 3] = debug.noShadow ? 0 : 1;
+    /* Quality 0 drops directional shadows entirely: at a 512 map the acne is
+       worse than the shadows are worth, and interiors are carried by point
+       lights anyway. */
+    frameData[F_SUNCOL + 3] = (debug.noShadow || qLevel === 0) ? 0 : 1;
     var amb = sun.ambient || [0.05, 0.06, 0.08];
     frameData[F_AMBIENT] = amb[0];
     frameData[F_AMBIENT + 1] = amb[1];
@@ -2432,8 +2435,10 @@ var IP = (typeof IP !== 'undefined' && IP) || {};
     frameData[F_SPLITS + 2] = splits[Math.min(2, Qs.cascades - 1)];
     frameData[F_SPLITS + 3] = frameIndex & 1023;
     frameData[F_MISC2] = lightning;
-    frameData[F_MISC2 + 1] = 0.035;
-    frameData[F_MISC2 + 2] = 0.0018;
+    /* bias scales with texel size - values tuned at 2048 */
+    var texelScale = 2048 / Qs.shadowSize;
+    frameData[F_MISC2 + 1] = 0.035 * texelScale;
+    frameData[F_MISC2 + 2] = 0.0018 * texelScale;
     frameData[F_MISC2 + 3] = 1 / Qs.shadowSize;
 
     gl.bindBuffer(gl.UNIFORM_BUFFER, uboFrame);
@@ -2444,7 +2449,7 @@ var IP = (typeof IP !== 'undefined' && IP) || {};
     var items = scene.items || [];
 
     /* ============ 1. shadow cascades ============ */
-    if (progs.depth && !debug.noShadow) {
+    if (progs.depth && !debug.noShadow && qLevel > 0) {
       gl.bindFramebuffer(gl.FRAMEBUFFER, fb.shadow);
       gl.viewport(0, 0, Qs.shadowSize, Qs.shadowSize);
       gl.enable(gl.DEPTH_TEST);

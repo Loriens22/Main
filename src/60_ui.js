@@ -2269,6 +2269,39 @@ var IP = (typeof IP !== 'undefined' && IP) || {};
       if (e.preventDefault && e.cancelable) { e.preventDefault(); }
     }
 
+    /* Safety net: if the page ends up with no live touches, release
+       everything. A swallowed touchend otherwise leaves the stick jammed. */
+    var releaseAll = function () {
+      IN.stick.id = -1; IN.stick.x = 0; IN.stick.y = 0;
+      IN.stick.active = false; IN.stick.sprintT = 0;
+      remC(stickEl, 'on');
+      var nub = stickEl && stickEl.children && stickEl.children[0];
+      if (nub) { sty(nub, 'transform', 'translate(0,0)'); }
+      IN.touchLook.id = -1; IN.touchLook.dx = 0; IN.touchLook.dy = 0;
+      IN.radial.open = false; IN.radial.sel = -1;
+      remC(radialEl, 'on');
+      var kids = touchLayer.children || [];
+      for (var k = 0; k < kids.length; k++) {
+        var a = kids[k].getAttribute && kids[k].getAttribute('data-act');
+        if (a) { IN.buttons[a] = false; remC(kids[k], 'hit'); }
+        kids[k].__id = undefined;
+      }
+    };
+    var globalUp = function (e) {
+      if (!e.touches || e.touches.length === 0) { releaseAll(); }
+    };
+    if (hasWin()) {
+      on(window, 'touchend', globalUp, { passive: true });
+      on(window, 'touchcancel', globalUp, { passive: true });
+      on(window, 'blur', releaseAll);
+    }
+    if (hasDoc()) {
+      on(document, 'visibilitychange', function () {
+        if (document.hidden) { releaseAll(); }
+      });
+    }
+    Input_.releaseAllTouches = releaseAll;
+
     on(touchLayer, 'touchstart', down, { passive: false });
     on(touchLayer, 'touchmove', move, { passive: false });
     on(touchLayer, 'touchend', up, { passive: false });

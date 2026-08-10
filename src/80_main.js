@@ -102,7 +102,7 @@
     items: [],
     transparent: [],
     sprites: [],
-    post: { exposure: 1.24, bloom: 0.52, grain: 0.05, chroma: 0.26, vignette: 0.44,
+    post: { exposure: 0.50, bloom: 0.52, grain: 0.05, chroma: 0.26, vignette: 0.44,
             saturation: 0.78, contrast: 1.14, hurt: 0, flashbang: 0, lightning: 0,
             rainLens: 0 },
     time: 0,
@@ -982,7 +982,7 @@
     var isTouch = (has('Input', 'init') && IP.Input.isTouch) ||
                   ('ontouchstart' in window) || navigator.maxTouchPoints > 0;
     var mem = navigator.deviceMemory || 4;
-    Game.quality = isTouch ? (mem >= 6 ? 1 : 0) : (mem >= 8 ? 2 : 1);
+    Game.quality = isTouch ? 0 : (mem >= 8 ? 2 : 1);
     setQuality(Game.quality);
 
     progress(0.12, 'Building interface');
@@ -1153,7 +1153,9 @@
   /* ------------------------------------------------------------------ */
   /*  Frame loop                                                         */
   /* ------------------------------------------------------------------ */
-  var last = 0, acc = 0, FIXED = 1 / 60, MAXSTEP = 5;
+  var last = 0, acc = 0, FIXED = 1 / 60;
+  var MAX_SUBSTEP = 1 / 30;   /* largest slice we will simulate at once */
+  var MAXSTEP = 18;           /* enough slices to cover a 550ms stall */
   var fpsAvg = 60, autoScaleTimer = 0;
   var noInput = {
     moveX: 0, moveY: 0, lookX: 0, lookY: 0, aim: false, fire: false, firePressed: false,
@@ -1170,7 +1172,10 @@
     var dt = (now - last) / 1000;
     last = now;
     if (!(dt > 0)) { dt = FIXED; }
-    if (dt > 0.25) { dt = 0.25; }
+    /* Spiral guard. Anything longer than this is a tab-switch or a stall, not
+       a slow frame, and replaying it would be worse than dropping it. Set high
+       enough that a genuinely slow device still advances in real time. */
+    if (dt > 0.5) { dt = 0.5; }
     fpsAvg = fpsAvg * 0.94 + (1 / Math.max(dt, 1e-4)) * 0.06;
 
     var S = Game.S;
@@ -1185,17 +1190,24 @@
     scene.time += Game.paused ? 0 : dt;
 
     if (!Game.paused) {
-      /* fixed-step simulation, variable-step presentation */
+      /* Semi-fixed timestep: consume the WHOLE elapsed time in bounded slices.
+         The previous version ran at most 5 slices of 1/60 and discarded the
+         rest, so anything under 60fps played in slow motion - on a phone that
+         reads as the game being frozen. */
       acc += dt;
+      if (acc > 0.55) { acc = 0.55; }
       var steps = 0;
-      while (acc >= FIXED && steps < MAXSTEP) {
-        updateCamera(S, steps === 0 ? input : noInput, FIXED);
-        attempt('Systems.update', function () {
-          if (has('Systems', 'update')) { IP.Systems.update(S, input, FIXED); }
-        });
-        acc -= FIXED; steps++;
+      while (acc > 0.0005 && steps < MAXSTEP) {
+        var step = acc < MAX_SUBSTEP ? acc : MAX_SUBSTEP;
+        updateCamera(S, steps === 0 ? input : noInput, step);
+        (function (st) {
+          attempt('Systems.update', function () {
+            if (has('Systems', 'update')) { IP.Systems.update(S, input, st); }
+          });
+        })(step);
+        acc -= step; steps++;
       }
-      if (steps === MAXSTEP) { acc = 0; }
+      acc = 0;
       if (steps === 0) { updateCamera(S, input, dt); }
 
       updateDirector(S, dt);
