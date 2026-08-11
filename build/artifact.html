@@ -109,7 +109,7 @@
 <script>
 "use strict";
 /* Shell bootstrap: owns the loading curtain and the fatal-error path so that a
-   failure anywhere in the engine still produces a readable screen. Build 2026-08-10 */
+   failure anywhere in the engine still produces a readable screen. Build 2026-08-11 */
 (function () {
   var boot = document.getElementById('ip-boot');
   var bar = document.querySelector('#ip-bar > i');
@@ -11404,6 +11404,7 @@ var IP = (typeof IP !== 'undefined' && IP) || {};
     aimToggle: false, controlLayout: 'auto', leftHanded: false,
     vibration: true, stickDeadzone: 0.16, triggerThreshold: 0.45,
     autoSprint: true, touchScale: 1.0, touchOpacity: 0.85,
+    lookMode: 'stick', inputDebug: false,
     /* accessibility */
     subtitles: true, subtitleSize: 1.0, subtitleBg: 0.55, captions: true,
     colorblind: 'none', gore: true, reduceMotion: false, highContrast: false,
@@ -13197,6 +13198,11 @@ var IP = (typeof IP !== 'undefined' && IP) || {};
       '#ip-ui .ip-radial b.sel{background:rgba(184,35,43,.62);border-color:#e8564d;}',
       '#ip-ui .ip-qte{position:absolute;left:50%;top:50%;width:180px;height:180px;margin:-90px 0 0 -90px;border-radius:50%;border:3px solid ' + P.bad + ';display:none;align-items:center;justify-content:center;font-size:16px;letter-spacing:.20em;text-transform:uppercase;background:rgba(120,10,10,.30);pointer-events:auto;}',
       '#ip-ui .ip-qte.on{display:flex;animation:ipPulse .35s infinite;}',
+      '#ip-ui .ip-dbg{position:absolute;left:50%;top:44%;transform:translateX(-50%);',
+      '  font-size:10px;line-height:1.5;letter-spacing:.06em;color:#7fdca0;',
+      '  background:rgba(4,6,9,.86);border:1px solid #23303a;padding:6px 10px;',
+      '  white-space:pre;display:none;z-index:70;font-variant-numeric:tabular-nums;}',
+      '#ip-ui .ip-dbg.on{display:block;}',
       /* ---- screens ---- */
       /* Landscape phones give ~390px of HEIGHT. Every screen is a column with
          a compact header, one scrolling body, and a footer that can never be
@@ -13281,7 +13287,8 @@ var IP = (typeof IP !== 'undefined' && IP) || {};
     keys: {}, keyEdge: {}, mouse: { x: 0, y: 0, dx: 0, dy: 0, b: [false, false, false] },
     mouseEdge: [false, false, false],
     locked: false, gamepadIdx: -1, padPrev: {},
-    touchLook: { id: -1, lx: 0, ly: 0, dx: 0, dy: 0 },
+    touchLook: { id: -1, lx: 0, ly: 0, dx: 0, dy: 0, idle: 0,
+                 ox: 0, oy: 0, sx: 0, sy: 0 },
     stick: { id: -1, ox: 0, oy: 0, x: 0, y: 0, active: false },
     buttons: {}, buttonEdge: {},
     radial: { open: false, sel: -1, cx: 0, cy: 0 },
@@ -13368,7 +13375,7 @@ var IP = (typeof IP !== 'undefined' && IP) || {};
   }
 
   /* ---- touch --------------------------------------------------------- */
-  var touchLayer = null, stickEl = null, radialEl = null, qteEl = null;
+  var touchLayer = null, stickEl = null, lookStickEl = null, radialEl = null, qteEl = null;
   var RADIAL_CMDS = [
     { id: 'cmdFollow', label: 'Follow' }, { id: 'cmdStay', label: 'Stay' },
     { id: 'cmdHide', label: 'Hide' }, { id: 'cmdCome', label: 'Come' },
@@ -13380,6 +13387,8 @@ var IP = (typeof IP !== 'undefined' && IP) || {};
     touchLayer = mk('div', 'ip-touch on', IN.root, null);
     stickEl = mk('div', 'ip-stick', touchLayer, null);
     mk('i', null, stickEl, null);
+    lookStickEl = mk('div', 'ip-stick', touchLayer, null);
+    mk('i', null, lookStickEl, null);
 
     var left = S_ && S_.leftHanded;
     var side = left ? 'left' : 'right';
@@ -13475,6 +13484,14 @@ var IP = (typeof IP !== 'undefined' && IP) || {};
         } else if (IN.touchLook.id < 0) {
           IN.touchLook.id = id;
           IN.touchLook.lx = t.clientX; IN.touchLook.ly = t.clientY;
+          IN.touchLook.ox = t.clientX; IN.touchLook.oy = t.clientY;
+          IN.touchLook.sx = 0; IN.touchLook.sy = 0;
+          IN.touchLook.dx = 0; IN.touchLook.dy = 0; IN.touchLook.idle = 0;
+          if (S_ && S_.lookMode === 'stick') {
+            sty(lookStickEl, 'left', (t.clientX - 66) + 'px');
+            sty(lookStickEl, 'top', (t.clientY - 66) + 'px');
+            addC(lookStickEl, 'on');
+          }
         }
       }
       if (e.preventDefault && e.cancelable) { e.preventDefault(); }
@@ -13497,6 +13514,14 @@ var IP = (typeof IP !== 'undefined' && IP) || {};
           IN.touchLook.dx += t.clientX - IN.touchLook.lx;
           IN.touchLook.dy += t.clientY - IN.touchLook.ly;
           IN.touchLook.lx = t.clientX; IN.touchLook.ly = t.clientY;
+          IN.touchLook.idle = 0;
+          /* absolute deflection, used when lookMode is 'stick' */
+          var ldx = t.clientX - IN.touchLook.ox, ldy = t.clientY - IN.touchLook.oy;
+          var llen = Math.sqrt(ldx * ldx + ldy * ldy), lmax = 58;
+          if (llen > lmax) { ldx = ldx / llen * lmax; ldy = ldy / llen * lmax; }
+          IN.touchLook.sx = ldx / lmax; IN.touchLook.sy = ldy / lmax;
+          var lnub = lookStickEl && lookStickEl.children && lookStickEl.children[0];
+          if (lnub) { sty(lnub, 'transform', 'translate(' + ldx + 'px,' + ldy + 'px)'); }
         } else if (IN.radial.open) {
           var rdx = t.clientX - IN.radial.cx, rdy = t.clientY - IN.radial.cy;
           if (Math.sqrt(rdx * rdx + rdy * rdy) > 34) {
@@ -13524,6 +13549,11 @@ var IP = (typeof IP !== 'undefined' && IP) || {};
           if (nub) { sty(nub, 'transform', 'translate(0,0)'); }
         } else if (id === IN.touchLook.id) {
           IN.touchLook.id = -1;
+          IN.touchLook.sx = 0; IN.touchLook.sy = 0;
+          IN.touchLook.dx = 0; IN.touchLook.dy = 0;
+          remC(lookStickEl, 'on');
+          var ln2 = lookStickEl && lookStickEl.children && lookStickEl.children[0];
+          if (ln2) { sty(ln2, 'transform', 'translate(0,0)'); }
         }
         /* release any button this pointer was holding */
         var kids = touchLayer.children || [];
@@ -13555,6 +13585,10 @@ var IP = (typeof IP !== 'undefined' && IP) || {};
       var nub = stickEl && stickEl.children && stickEl.children[0];
       if (nub) { sty(nub, 'transform', 'translate(0,0)'); }
       IN.touchLook.id = -1; IN.touchLook.dx = 0; IN.touchLook.dy = 0;
+      IN.touchLook.sx = 0; IN.touchLook.sy = 0;
+      remC(lookStickEl, 'on');
+      var ln3 = lookStickEl && lookStickEl.children && lookStickEl.children[0];
+      if (ln3) { sty(ln3, 'transform', 'translate(0,0)'); }
       IN.radial.open = false; IN.radial.sel = -1;
       remC(radialEl, 'on');
       var kids = touchLayer.children || [];
@@ -13619,9 +13653,18 @@ var IP = (typeof IP !== 'undefined' && IP) || {};
     lookX += IN.mouse.dx; lookY += IN.mouse.dy;
     IN.mouse.dx = 0; IN.mouse.dy = 0;
 
-    var aim = IN.mouse.b[2];
-    var fire = IN.mouse.b[0];
-    if (IN.mouseEdge[0]) { OUT.firePressed = true; IN.mouseEdge[0] = false; }
+    var aim, fire;
+    if (IN.isTouch) {
+      /* Synthetic mouse events from taps are ignored outright in touch mode. */
+      IN.mouse.b[0] = false; IN.mouse.b[1] = false; IN.mouse.b[2] = false;
+      IN.mouseEdge[0] = false; IN.mouse.dx = 0; IN.mouse.dy = 0;
+      lookX = 0; lookY = 0;
+      aim = false; fire = false;
+    } else {
+      aim = IN.mouse.b[2];
+      fire = IN.mouse.b[0];
+      if (IN.mouseEdge[0]) { OUT.firePressed = true; IN.mouseEdge[0] = false; }
+    }
 
     OUT.reload = keyDown('reload');
     OUT.sprint = keyDown('sprint');
@@ -13651,9 +13694,33 @@ var IP = (typeof IP !== 'undefined' && IP) || {};
         else { IN.stick.sprintT = 0; }
         if ((IN.stick.sprintT || 0) > 0.3 && (S_ ? S_.autoSprint : true)) { OUT.sprint = true; }
       }
+      /* If a look pointer is live but has sent no movement for a while, the
+         touchend was lost - drop it rather than let a stale finger drift. */
+      if (IN.touchLook.id !== -1) {
+        IN.touchLook.idle += dt;
+        if (IN.touchLook.idle > 0.5) {
+          IN.touchLook.id = -1; IN.touchLook.dx = 0; IN.touchLook.dy = 0;
+        }
+      }
       var ts = (S_ ? S_.touchSensitivity : 1) * 1.35;
-      lookX += IN.touchLook.dx * ts;
-      lookY += IN.touchLook.dy * ts;
+      if (S_ && S_.lookMode === 'stick') {
+        /* Absolute deflection -> turn rate. A stick cannot drift: it is zero
+           whenever the finger is not down. */
+        if (IN.touchLook.id !== -1) {
+          lookX += IN.touchLook.sx * 950 * dt * ts;
+          lookY += IN.touchLook.sy * 700 * dt * ts;
+        }
+        IN.touchLook.dx = 0; IN.touchLook.dy = 0;
+        ts = 0;   /* skip the swipe accumulation below */
+      }
+      /* Cap a single poll's turn. A duplicated or re-used touch identifier can
+         otherwise produce one enormous delta that snaps the view around. */
+      var capPx = (hasWin() ? window.innerWidth : 800) * 0.30;
+      var tdx = IN.touchLook.dx, tdy = IN.touchLook.dy;
+      if (tdx > capPx) { tdx = capPx; } else if (tdx < -capPx) { tdx = -capPx; }
+      if (tdy > capPx) { tdy = capPx; } else if (tdy < -capPx) { tdy = -capPx; }
+      lookX += tdx * ts;
+      lookY += tdy * ts;
       IN.touchLook.dx = 0; IN.touchLook.dy = 0;
 
       if (S_ && S_.aimToggle) {
@@ -13750,13 +13817,27 @@ var IP = (typeof IP !== 'undefined' && IP) || {};
       S_.keys[action] = code;
       saveSettings();
     },
-    defaults: defaultKeys
+    defaults: defaultKeys,
+    state: function () {
+      var pads = 0;
+      try { pads = pollGamepad() ? 1 : 0; } catch (e) { pads = 0; }
+      return {
+        touches: (IN.stick.id !== -1 ? 1 : 0) + (IN.touchLook.id !== -1 ? 1 : 0),
+        stickId: IN.stick.id, lookId: IN.touchLook.id,
+        moveX: OUT.moveX, moveY: OUT.moveY, lookX: OUT.lookX, lookY: OUT.lookY,
+        aim: OUT.aim, fire: OUT.fire,
+        lookMode: (S_ && S_.lookMode) || 'stick',
+        mouseBtn: (IN.mouse.b[0] ? 'L' : '') + (IN.mouse.b[2] ? 'R' : '') || '-',
+        pad: pads
+      };
+    }
   };
 
   /* ======================================================================
      UI
      ====================================================================== */
   var el = {};
+  var dbgT = 0;
   var uiRoot = null, currentScreen = 'title', toastQ = [], subQ = [], subT = 0;
   var hpGhost = 1, promptText = null;
 
@@ -13814,6 +13895,7 @@ var IP = (typeof IP !== 'undefined' && IP) || {};
     el.toasts = mk('div', 'ip-toasts', el.hud, null);
     el.subs = mk('div', 'ip-subs', el.hud, null);
     el.vig = mk('div', 'ip-vig', el.hud, null);
+    el.dbg = mk('div', 'ip-dbg', el.hud, null);
 
     buildScreens(root);
     show('title');
@@ -14007,6 +14089,8 @@ var IP = (typeof IP !== 'undefined' && IP) || {};
     sliderRow(wrap, 'Look Sensitivity', 'sensitivity', 0.3, 2.5, 0.05, pct);
     sliderRow(wrap, 'Touch Sensitivity', 'touchSensitivity', 0.4, 2.5, 0.05, pct);
     cycleRow(wrap, 'Aim Assist', 'aimAssistIdx', [0, 1, 2, 3], ['Off', 'Light', 'Medium', 'Strong']);
+    cycleRow(wrap, 'Look Control', 'lookMode', ['stick', 'swipe'],
+             ['Right Stick', 'Swipe']);
     cycleRow(wrap, 'Aim Mode', 'aimToggle', [false, true], ['Hold', 'Toggle']);
     cycleRow(wrap, 'Invert Look', 'invertY', [false, true], ['Off', 'On']);
     cycleRow(wrap, 'Left Handed', 'leftHanded', [false, true], ['Off', 'On']);
@@ -14030,6 +14114,7 @@ var IP = (typeof IP !== 'undefined' && IP) || {};
     cycleRow(wrap, 'Gore', 'gore', [true, false], ['On', 'Off']);
     cycleRow(wrap, 'Reduce Motion', 'reduceMotion', [false, true], ['Off', 'On']);
     cycleRow(wrap, 'High Contrast', 'highContrast', [false, true], ['Off', 'On']);
+    cycleRow(wrap, 'Input Diagnostic', 'inputDebug', [false, true], ['Off', 'On']);
   }
 
   function applyTouchStyle() {
@@ -14392,6 +14477,26 @@ var IP = (typeof IP !== 'undefined' && IP) || {};
         }
       }
     }
+
+    /* Input diagnostic: shows exactly what the input layer believes is live.
+       If the camera moves on its own, this says which source is producing it. */
+    if (S_ && S_.inputDebug && el.dbg) {
+      addC(el.dbg, 'on');
+      dbgT += dt;
+      if (dbgT > 0.1) {
+        dbgT = 0;
+        var st = IP.Input.state ? IP.Input.state() : null;
+        if (st) {
+          setText(el.dbg,
+            'touches ' + st.touches + '   stick ' + st.stickId + '   look ' + st.lookId + '\n' +
+            'move ' + st.moveX.toFixed(2) + ',' + st.moveY.toFixed(2) +
+            '   look ' + st.lookX.toFixed(1) + ',' + st.lookY.toFixed(1) + '\n' +
+            'aim ' + (st.aim ? 1 : 0) + ' fire ' + (st.fire ? 1 : 0) +
+            '   yaw ' + (IP.Game && IP.Game.cam ? IP.Game.cam.yaw.toFixed(3) : '-') + '\n' +
+            'mode ' + st.lookMode + '   mouseBtn ' + st.mouseBtn + '   pad ' + (st.pad ? 1 : 0));
+        }
+      }
+    } else if (el.dbg) { remC(el.dbg, 'on'); }
 
     /* QTE prompt while grabbed */
     var grabbed = S.player.grabbedBy >= 0 || (elna && elna.grabbedBy >= 0);
