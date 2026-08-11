@@ -6,7 +6,12 @@ export interface LiquidTextProps extends Omit<HTMLAttributes<HTMLElement>, 'chil
   children: string;
   size?: number | string;
   weight?: number;
-  /** 0–1. Drives the accent bloom and enables the shimmer sweep above ~0.35. */
+  /**
+   * 0–1. Drives the accent bloom. At 0.8 and above it also enables the shimmer
+   * sweep, which is deliberately hard to switch on: a `background-position`
+   * animation clipped to text repaints every frame, so it belongs on the
+   * splash and nowhere else.
+   */
   glow?: number;
   as?: ElementType;
 }
@@ -53,7 +58,7 @@ export function LiquidText({
       <span className="on-liquid__face" aria-hidden="true">
         {children}
       </span>
-      {clampedGlow > 0.35 ? (
+      {clampedGlow >= 0.8 ? (
         <span className="on-liquid__shimmer" aria-hidden="true">
           {children}
         </span>

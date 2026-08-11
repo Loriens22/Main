@@ -1,0 +1,173 @@
+/*
+ * Ornight Plus — global ground.
+ *
+ * Everything material lives in the glass design system; this file only sets up
+ * the page itself: the night ground the glass floats over, touch behaviour, and
+ * the few resets that matter on a tablet.
+ */
+
+@import '@ornight/glass/tokens.css';
+
+*,
+*::before,
+*::after {
+  box-sizing: border-box;
+}
+
+html,
+body,
+#root {
+  height: 100%;
+  margin: 0;
+  padding: 0;
+}
+
+html {
+  background: var(--on-bg);
+  color-scheme: dark;
+  /* Stop the whole page rubber-banding; individual scrollers opt back in. */
+  overscroll-behavior: none;
+  -webkit-text-size-adjust: 100%;
+}
+
+body {
+  background:
+    radial-gradient(120% 80% at 18% -10%, rgba(72, 106, 224, 0.22), transparent 62%),
+    radial-gradient(90% 70% at 92% 8%, rgba(120, 150, 255, 0.12), transparent 58%),
+    linear-gradient(180deg, var(--on-bg-2) 0%, var(--on-bg) 58%);
+  background-attachment: fixed;
+  color: var(--on-text);
+  font-family: var(--on-font);
+  font-size: 15px;
+  line-height: 1.5;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+  /* A tablet harness is an app, not a document: no accidental text selection
+     when dragging a panel, no callout menu on long-press. Content that should
+     be selectable (code, output, messages) opts back in below. */
+  -webkit-user-select: none;
+  user-select: none;
+  -webkit-touch-callout: none;
+  overflow: hidden;
+}
+
+#root {
+  isolation: isolate;
+}
+
+/* Anything the operator might genuinely want to copy. */
+pre,
+code,
+.on-selectable,
+[data-selectable='true'] {
+  -webkit-user-select: text;
+  user-select: text;
+  -webkit-touch-callout: default;
+}
+
+button,
+input,
+textarea,
+select {
+  font: inherit;
+  color: inherit;
+}
+
+button {
+  /* iOS otherwise flashes a grey box on every tap; the glass components
+     provide their own press feedback. */
+  -webkit-tap-highlight-color: transparent;
+  touch-action: manipulation;
+}
+
+/* Scrollbars: present on desktop, invisible on touch where they'd only take
+   up room. Styled to read as part of the glass rather than the OS. */
+* {
+  scrollbar-width: thin;
+  scrollbar-color: rgba(160, 185, 255, 0.24) transparent;
+}
+
+*::-webkit-scrollbar {
+  width: 8px;
+  height: 8px;
+}
+
+*::-webkit-scrollbar-thumb {
+  background: rgba(160, 185, 255, 0.22);
+  border-radius: 999px;
+}
+
+*::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+@media (pointer: coarse) {
+  *::-webkit-scrollbar {
+    width: 0;
+    height: 0;
+  }
+}
+
+:focus-visible {
+  outline: 2px solid rgb(var(--on-accent-2) / 0.8);
+  outline-offset: 2px;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+  }
+}
+
+/* -------------------------------------------------------------------------- */
+/* App frame                                                                  */
+/* -------------------------------------------------------------------------- */
+
+.on-app {
+  position: relative;
+  height: 100%;
+  width: 100%;
+  overflow: hidden;
+}
+
+/* A last-resort surface: if a render throws, the operator still gets something
+   coherent rather than a white page. */
+.on-crash {
+  display: flex;
+  height: 100%;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 14px;
+  padding: 32px;
+  text-align: center;
+}
+
+.on-crash h1 {
+  margin: 0;
+  font-size: 19px;
+  font-weight: 600;
+}
+
+.on-crash p {
+  margin: 0;
+  max-width: 42ch;
+  color: var(--on-text-dim);
+  font-size: 14px;
+}
+
+.on-crash pre {
+  max-width: 100%;
+  overflow: auto;
+  border-radius: var(--on-radius-md, 12px);
+  background: rgba(0, 0, 0, 0.4);
+  padding: 12px 14px;
+  color: var(--on-text-faint);
+  font-family: var(--on-mono);
+  font-size: 12px;
+  text-align: left;
+}

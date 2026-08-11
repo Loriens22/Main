@@ -1,0 +1,125 @@
+/**
+ * Ornight Plus — app shell layout.
+ *
+ * Geometry is adapted from the real T3 Code shell (208/256px sidebar, 52px
+ * topbar, 42vw right panel capped near 448px) but retuned for a 7–8.5" tablet:
+ * every target grows to 44px, the topbar gains height, and the two portrait
+ * modes turn the sidebar and the review column into overlays.
+ */
+
+.on-shell-root {
+  position: fixed;
+  inset: 0;
+  display: flex;
+  flex-direction: column;
+  min-height: 0;
+  overflow: hidden;
+  background: var(--on-bg-2);
+  color: var(--on-text);
+  font-family: var(--on-font);
+  -webkit-tap-highlight-color: transparent;
+
+  padding-top: env(safe-area-inset-top, 0px);
+  padding-right: env(safe-area-inset-right, 0px);
+  padding-bottom: env(safe-area-inset-bottom, 0px);
+  padding-left: env(safe-area-inset-left, 0px);
+
+  /* Column geometry, re-declared per layout mode below. */
+  --on-side-w: 280px;
+  --on-side-gap: 280px;
+  --on-review-w: clamp(320px, 34vw, 420px);
+}
+
+.on-shell-root[data-mode='landscape'] {
+  --on-side-w: 240px;
+  --on-side-gap: 240px;
+  --on-review-w: 0px;
+}
+
+.on-shell-root[data-mode='portrait'] {
+  --on-side-w: min(78vw, 320px);
+  --on-side-gap: 0px;
+  --on-review-w: 0px;
+}
+
+.on-shell-root[data-mode='compact-portrait'] {
+  --on-side-w: min(88vw, 320px);
+  --on-side-gap: 0px;
+  --on-review-w: 0px;
+}
+
+.on-shell-body {
+  position: relative;
+  flex: 1 1 auto;
+  min-height: 0;
+  display: grid;
+  grid-template-columns: var(--on-side-gap) minmax(0, 1fr) var(--on-review-w);
+}
+
+/* Sidebar ------------------------------------------------------------------ */
+
+/*
+ * Always mounted, never conditionally rendered: the splash badge morphs into
+ * `<OrnightBadge/>` at the top of this panel, so it has to exist in the tree
+ * before the splash finishes even when the drawer is closed. In the overlay
+ * modes it is parked off-screen with a transform instead.
+ */
+.on-shell-side {
+  position: absolute;
+  top: 0;
+  bottom: 0;
+  left: 0;
+  z-index: 30;
+  width: var(--on-side-w);
+  display: flex;
+  min-height: 0;
+  will-change: transform;
+}
+
+.on-shell-root[data-overlay='true'] .on-shell-side {
+  box-shadow: var(--on-shadow-deep);
+}
+
+.on-shell-scrim {
+  position: absolute;
+  inset: 0;
+  z-index: 25;
+  border: 0;
+  margin: 0;
+  padding: 0;
+  background: var(--on-bg);
+  cursor: pointer;
+}
+
+/* Chat column -------------------------------------------------------------- */
+
+.on-shell-chat {
+  grid-column: 2;
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+  min-height: 0;
+  overflow: hidden;
+}
+
+/* Review column ------------------------------------------------------------ */
+
+.on-shell-review {
+  grid-column: 3;
+  position: relative;
+  min-width: 0;
+  min-height: 0;
+  overflow: hidden;
+  display: flex;
+  flex-direction: column;
+  border-left: 1px solid var(--on-line);
+  background: var(--on-bg);
+}
+
+.on-shell-sheet-body {
+  display: flex;
+  flex-direction: column;
+  min-height: 0;
+  height: 100%;
+}

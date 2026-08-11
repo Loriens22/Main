@@ -1055,7 +1055,11 @@ html[data-glass='reduced'] .on-seg {
   mix-blend-mode: screen;
 }
 
-/* (5) the slow shimmer sweep */
+/* (5) the slow shimmer sweep.
+   Duty-cycled on purpose: the sweep itself lasts ~2s out of a 9s cycle and the
+   rest of the keyframe is a flat hold, so the compositor has nothing to repaint
+   for three quarters of the time. Always-on repainting animations peg the GPU
+   on a battery-powered tablet, so this is opt-in at glow >= 0.8 only. */
 .on-liquid__shimmer {
   position: absolute;
   inset: 0;
@@ -1072,16 +1076,16 @@ html[data-glass='reduced'] .on-seg {
   background-repeat: no-repeat;
   -webkit-background-clip: text;
   background-clip: text;
-  animation: on-sheen 5.2s var(--on-ease) infinite;
+  animation: on-sheen 9s var(--on-ease) infinite;
   mix-blend-mode: screen;
 }
 
 @keyframes on-sheen {
   0%,
-  18% {
+  12% {
     background-position: 180% 0;
   }
-  62%,
+  35%,
   100% {
     background-position: -80% 0;
   }
@@ -1098,32 +1102,43 @@ html[data-glass='reduced'] .on-seg {
 }
 
 .on-mark--animated {
-  animation: on-mark-breathe 6.5s ease-in-out infinite;
+  animation: on-mark-breathe 11s ease-in-out infinite;
   transform-origin: 50% 50%;
 }
 
+/* Duty-cycled: the mark drifts for roughly a third of each cycle and holds
+   still for the rest, so an idle sidebar is not asking the compositor for a
+   new frame at 120 Hz forever. */
 @keyframes on-mark-breathe {
   0%,
-  100% {
+  14% {
     transform: rotate(-0.6deg) scale(1);
   }
   50% {
     transform: rotate(0.6deg) scale(1.018);
   }
+  86%,
+  100% {
+    transform: rotate(-0.6deg) scale(1);
+  }
 }
 
 .on-mark__pulse {
-  animation: on-mark-pulse 4.4s ease-in-out infinite;
+  animation: on-mark-pulse 7.5s ease-in-out infinite;
   transform-origin: 50% 50%;
 }
 
 @keyframes on-mark-pulse {
   0%,
-  100% {
+  16% {
     opacity: 0.5;
   }
   50% {
     opacity: 1;
+  }
+  84%,
+  100% {
+    opacity: 0.5;
   }
 }
 

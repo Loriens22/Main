@@ -9,7 +9,29 @@ import { GlassIconButton } from './GlassIconButton';
 export type SheetSide = 'bottom' | 'right' | 'center';
 export type SheetSize = 'sm' | 'md' | 'lg' | 'full';
 
-export interface GlassSheetProps extends Omit<HTMLAttributes<HTMLDivElement>, 'title'> {
+/**
+ * The drag and animation DOM handlers are dropped: framer-motion redefines
+ * those names with its own gesture signatures, and a sheet has no use for the
+ * native ones.
+ */
+type SheetDivProps = Omit<
+  HTMLAttributes<HTMLDivElement>,
+  | 'title'
+  | 'onDrag'
+  | 'onDragStart'
+  | 'onDragEnd'
+  | 'onDragEnter'
+  | 'onDragExit'
+  | 'onDragLeave'
+  | 'onDragOver'
+  | 'onDrop'
+  | 'onAnimationStart'
+  | 'onAnimationEnd'
+  | 'onAnimationIteration'
+  | 'onTransitionEnd'
+>;
+
+export interface GlassSheetProps extends SheetDivProps {
   open: boolean;
   onClose: () => void;
   title?: ReactNode;

@@ -1,0 +1,32 @@
+<!doctype html>
+<html lang="en" data-glass="full">
+  <head>
+    <meta charset="utf-8" />
+    <!--
+      viewport-fit=cover puts the page under the notch/home indicator so the
+      glass chrome can bleed edge to edge; every fixed surface then pads itself
+      back out with env(safe-area-inset-*). user-scalable=no is deliberate: this
+      is an app surface, and pinch-zoom on a code diff fights the diff's own
+      font-size control.
+    -->
+    <meta
+      name="viewport"
+      content="width=device-width, initial-scale=1, viewport-fit=cover, user-scalable=no, maximum-scale=1"
+    />
+    <meta name="color-scheme" content="dark" />
+    <meta name="theme-color" content="#05070f" />
+    <meta name="description" content="Ornight Plus — a coding agent harness for mini tablets." />
+
+    <!-- Installed-app behaviour on iOS; Android reads the web manifest instead. -->
+    <meta name="apple-mobile-web-app-capable" content="yes" />
+    <meta name="mobile-web-app-capable" content="yes" />
+    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
+    <meta name="apple-mobile-web-app-title" content="Ornight" />
+
+    <title>Ornight Plus</title>
+  </head>
+  <body>
+    <div id="root"></div>
+    <script type="module" src="/src/main.tsx"></script>
+  </body>
+</html>

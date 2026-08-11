@@ -1,0 +1,451 @@
+/**
+ * review/tokens.css
+ *
+ * Local token additions for the review surfaces. Everything here is derived
+ * from the `@ornight/glass` palette — no literal colours — so a theme change
+ * carries the diff colouring with it.
+ *
+ * Two independent colour channels are at work on every diff row and they must
+ * not destroy each other:
+ *
+ *   1. the ROW tint says "this line was added / removed"  → background
+ *   2. the SYNTAX colour says "this is a keyword"          → foreground
+ *
+ * So the tints stay low-alpha washes and the syntax palette stays high enough
+ * in luminance to read through them.
+ */
+
+:root {
+  /* Diff row tints ------------------------------------------------------- */
+  --on-rev-add-wash: rgb(var(--on-success) / 0.11);
+  --on-rev-add-word: rgb(var(--on-success) / 0.3);
+  --on-rev-add-edge: rgb(var(--on-success) / 0.55);
+  --on-rev-add-ink: rgb(var(--on-success));
+
+  --on-rev-del-wash: rgb(var(--on-danger) / 0.12);
+  --on-rev-del-word: rgb(var(--on-danger) / 0.3);
+  --on-rev-del-edge: rgb(var(--on-danger) / 0.55);
+  --on-rev-del-ink: rgb(var(--on-danger));
+
+  --on-rev-ctx-ink: var(--on-text-dim);
+  --on-rev-gutter-bg: rgb(10 16 32 / 0.55);
+  --on-rev-fold-bg: rgb(var(--on-accent) / 0.1);
+
+  /* Syntax palette — all derived, all readable over both washes ----------- */
+  --on-rev-tok-plain: var(--on-text);
+  --on-rev-tok-comment: var(--on-text-faint);
+  --on-rev-tok-punct: var(--on-text-dim);
+  --on-rev-tok-keyword: rgb(var(--on-accent-2));
+  --on-rev-tok-builtin: rgb(var(--on-warn));
+  --on-rev-tok-number: rgb(var(--on-warn));
+  --on-rev-tok-string: rgb(var(--on-success));
+  --on-rev-tok-type: color-mix(in srgb, rgb(var(--on-accent-2)) 55%, rgb(var(--on-success)));
+  --on-rev-tok-func: color-mix(in srgb, rgb(var(--on-accent-2)) 45%, var(--on-text));
+  --on-rev-tok-prop: color-mix(in srgb, rgb(var(--on-accent-2)) 30%, var(--on-text));
+  --on-rev-tok-tag: rgb(var(--on-danger));
+  --on-rev-tok-attr: rgb(var(--on-warn));
+  --on-rev-tok-meta: color-mix(in srgb, rgb(var(--on-accent-2)) 70%, var(--on-text-dim));
+
+  /* Metrics -------------------------------------------------------------- */
+  --on-rev-code-size: 12.5px;
+  --on-rev-code-line: 1.55;
+  --on-rev-gutter-w: 3.1ch;
+}
+
+html[data-glass='reduced'] {
+  --on-rev-gutter-bg: var(--on-surface-solid);
+}
+
+/* -------------------------------------------------------------------------- */
+/* Code rows — shared by DiffView and InlineDiff                              */
+/* -------------------------------------------------------------------------- */
+
+.on-rev-code {
+  font-family: var(--on-mono);
+  font-size: var(--on-rev-code-size);
+  line-height: var(--on-rev-code-line);
+  font-variant-ligatures: none;
+  -webkit-text-size-adjust: 100%;
+}
+
+/* The horizontal scroller. Only this element ever scrolls sideways, which is
+   what keeps the page itself from ever moving on the x axis. */
+.on-rev-scroller {
+  overflow-x: auto;
+  overflow-y: hidden;
+  overscroll-behavior-x: contain;
+  -webkit-overflow-scrolling: touch;
+  scrollbar-width: thin;
+}
+
+.on-rev-scroller--wrap {
+  overflow-x: hidden;
+}
+
+.on-rev-rows {
+  display: grid;
+  grid-template-columns: max-content max-content max-content;
+  min-width: 100%;
+  align-items: stretch;
+}
+
+.on-rev-rows--wrap {
+  grid-template-columns: max-content max-content minmax(0, 1fr);
+}
+
+.on-rev-rows--split {
+  grid-template-columns: max-content max-content max-content max-content;
+}
+
+.on-rev-rows--split.on-rev-rows--wrap {
+  grid-template-columns: max-content minmax(0, 1fr) max-content minmax(0, 1fr);
+}
+
+/* Every cell in a row shares the row's tint so the colour runs edge to edge
+   even when the code is scrolled far to the right. */
+.on-rev-cell {
+  padding: 0;
+  margin: 0;
+  min-height: calc(var(--on-rev-code-size) * var(--on-rev-code-line));
+}
+
+.on-rev-num {
+  position: sticky;
+  left: 0;
+  z-index: 1;
+  min-width: var(--on-rev-gutter-w);
+  padding: 0 0.45ch;
+  text-align: right;
+  color: var(--on-text-faint);
+  background: var(--on-rev-gutter-bg);
+  backdrop-filter: none;
+  user-select: none;
+  -webkit-user-select: none;
+  font-variant-numeric: tabular-nums;
+}
+
+.on-rev-num--new {
+  left: calc(var(--on-rev-gutter-w) + 0.9ch);
+  border-right: 1px solid var(--on-line);
+}
+
+.on-rev-rows--split .on-rev-num--new {
+  left: 0;
+  border-right: none;
+}
+
+.on-rev-src {
+  padding: 0 0.75ch 0 1.1ch;
+  white-space: pre;
+  color: var(--on-text);
+  position: relative;
+}
+
+.on-rev-rows--wrap .on-rev-src {
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+}
+
+/* The 1px sign rail on the left edge of the code cell — the colour cue that
+   survives even when the wash is invisible on a dim screen. */
+.on-rev-src::before {
+  content: '';
+  position: absolute;
+  inset: 0 auto 0 0;
+  width: 2px;
+  background: transparent;
+}
+
+.on-rev-row--add .on-rev-num,
+.on-rev-row--add .on-rev-src {
+  background: var(--on-rev-add-wash);
+}
+
+.on-rev-row--add .on-rev-src::before {
+  background: var(--on-rev-add-edge);
+}
+
+.on-rev-row--del .on-rev-num,
+.on-rev-row--del .on-rev-src {
+  background: var(--on-rev-del-wash);
+}
+
+.on-rev-row--del .on-rev-src::before {
+  background: var(--on-rev-del-edge);
+}
+
+.on-rev-row--empty .on-rev-num,
+.on-rev-row--empty .on-rev-src {
+  background: rgb(var(--on-accent) / 0.03);
+}
+
+.on-rev-sign {
+  display: inline-block;
+  width: 1.2ch;
+  color: var(--on-text-faint);
+  user-select: none;
+  -webkit-user-select: none;
+}
+
+.on-rev-row--add .on-rev-sign {
+  color: var(--on-rev-add-ink);
+}
+
+.on-rev-row--del .on-rev-sign {
+  color: var(--on-rev-del-ink);
+}
+
+/* Word-level emphasis. A pill, not a block, so it reads as "this bit". */
+.on-rev-word {
+  border-radius: 3px;
+  padding: 0.5px 0;
+  box-decoration-break: clone;
+  -webkit-box-decoration-break: clone;
+}
+
+.on-rev-row--add .on-rev-word {
+  background: var(--on-rev-add-word);
+  box-shadow: 0 0 0 1px rgb(var(--on-success) / 0.22);
+}
+
+.on-rev-row--del .on-rev-word {
+  background: var(--on-rev-del-word);
+  box-shadow: 0 0 0 1px rgb(var(--on-danger) / 0.22);
+}
+
+/* Syntax token classes ----------------------------------------------------- */
+.on-rev-t-plain {
+  color: var(--on-rev-tok-plain);
+}
+.on-rev-t-comment {
+  color: var(--on-rev-tok-comment);
+  font-style: italic;
+}
+.on-rev-t-punct {
+  color: var(--on-rev-tok-punct);
+}
+.on-rev-t-keyword {
+  color: var(--on-rev-tok-keyword);
+}
+.on-rev-t-builtin {
+  color: var(--on-rev-tok-builtin);
+}
+.on-rev-t-number {
+  color: var(--on-rev-tok-number);
+}
+.on-rev-t-string {
+  color: var(--on-rev-tok-string);
+}
+.on-rev-t-type {
+  color: var(--on-rev-tok-type);
+}
+.on-rev-t-func {
+  color: var(--on-rev-tok-func);
+}
+.on-rev-t-prop {
+  color: var(--on-rev-tok-prop);
+}
+.on-rev-t-tag {
+  color: var(--on-rev-tok-tag);
+}
+.on-rev-t-attr {
+  color: var(--on-rev-tok-attr);
+}
+.on-rev-t-meta {
+  color: var(--on-rev-tok-meta);
+}
+
+/* Context fold ------------------------------------------------------------- */
+.on-rev-fold {
+  grid-column: 1 / -1;
+  background: var(--on-rev-fold-bg);
+  border-block: 1px solid var(--on-line);
+}
+
+.on-rev-fold__btn {
+  position: sticky;
+  left: 0;
+  display: inline-flex;
+  align-items: center;
+  gap: 0.6ch;
+  min-height: 34px;
+  padding: 0 12px;
+  border: 0;
+  background: none;
+  color: var(--on-text-dim);
+  font: inherit;
+  font-family: var(--on-font);
+  font-size: 11.5px;
+  cursor: pointer;
+  -webkit-tap-highlight-color: transparent;
+}
+
+.on-rev-fold__btn:active {
+  color: var(--on-text);
+}
+
+/* Hunk header -------------------------------------------------------------- */
+.on-rev-hunk-head {
+  grid-column: 1 / -1;
+  background: rgb(var(--on-accent) / 0.07);
+  border-block: 1px solid var(--on-line);
+}
+
+.on-rev-hunk-head__inner {
+  position: sticky;
+  left: 0;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  min-height: 30px;
+  padding: 0 12px;
+  color: var(--on-text-faint);
+  font-family: var(--on-mono);
+  font-size: 11px;
+  white-space: nowrap;
+}
+
+.on-rev-hunk-head__label {
+  color: var(--on-text-dim);
+  font-family: var(--on-font);
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+/* Stat pair ---------------------------------------------------------------- */
+.on-rev-stat {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  font-family: var(--on-mono);
+  font-size: 11.5px;
+  font-variant-numeric: tabular-nums;
+  white-space: nowrap;
+}
+
+.on-rev-stat__add {
+  color: var(--on-rev-add-ink);
+}
+
+.on-rev-stat__del {
+  color: var(--on-rev-del-ink);
+}
+
+.on-rev-stat--muted .on-rev-stat__add,
+.on-rev-stat--muted .on-rev-stat__del {
+  opacity: 0.75;
+}
+
+/* Change-kind glyph -------------------------------------------------------- */
+.on-rev-kind {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 18px;
+  height: 18px;
+  flex: 0 0 auto;
+  border-radius: 5px;
+  font-family: var(--on-mono);
+  font-size: 12px;
+  line-height: 1;
+  background: rgb(var(--on-accent) / 0.14);
+  color: var(--on-text-dim);
+}
+
+.on-rev-kind--added {
+  background: rgb(var(--on-success) / 0.16);
+  color: var(--on-rev-add-ink);
+}
+
+.on-rev-kind--deleted {
+  background: rgb(var(--on-danger) / 0.16);
+  color: var(--on-rev-del-ink);
+}
+
+.on-rev-kind--renamed {
+  background: rgb(var(--on-warn) / 0.16);
+  color: rgb(var(--on-warn));
+}
+
+/* Middle-truncated path ---------------------------------------------------- */
+.on-rev-path {
+  display: inline-flex;
+  align-items: baseline;
+  min-width: 0;
+  font-family: var(--on-mono);
+  font-size: 12px;
+}
+
+.on-rev-path__dir {
+  color: var(--on-text-faint);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  direction: rtl;
+  text-align: left;
+}
+
+.on-rev-path__name {
+  color: var(--on-text);
+  white-space: nowrap;
+  flex: 0 0 auto;
+}
+
+/* Duty-cycled indicators --------------------------------------------------- */
+/* Stepped keyframes on purpose: a 120Hz panel draws a handful of discrete
+   frames per cycle instead of one per vsync. Never a continuous repaint. */
+@keyframes on-rev-pulse {
+  0%,
+  100% {
+    opacity: 0.35;
+  }
+  50% {
+    opacity: 1;
+  }
+}
+
+@keyframes on-rev-sweep {
+  0% {
+    transform: translate3d(-100%, 0, 0);
+  }
+  60%,
+  100% {
+    transform: translate3d(220%, 0, 0);
+  }
+}
+
+.on-rev-live {
+  animation: on-rev-pulse 2s steps(6, end) infinite;
+}
+
+.on-rev-shimmer {
+  position: relative;
+  overflow: hidden;
+}
+
+.on-rev-shimmer::after {
+  content: '';
+  position: absolute;
+  inset: 0 auto 0 0;
+  width: 45%;
+  background: linear-gradient(90deg, transparent, rgb(var(--on-accent-2) / 0.18), transparent);
+  animation: on-rev-sweep 2.4s steps(12, end) infinite;
+  pointer-events: none;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .on-rev-live,
+  .on-rev-shimmer::after {
+    animation: none;
+  }
+  .on-rev-live {
+    opacity: 0.8;
+  }
+  .on-rev-shimmer::after {
+    display: none;
+  }
+}
+
+html[data-glass='reduced'] .on-rev-shimmer::after {
+  display: none;
+}

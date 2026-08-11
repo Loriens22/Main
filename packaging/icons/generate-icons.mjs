@@ -127,6 +127,9 @@ const GRADIENT = [
   { at: 1, rgb: [0.29, 0.51, 1] }, // #4a82ff royal blue
 ];
 
+/** Specular tint — pale sapphire, never white, so highlights stay in family. */
+const HIGHLIGHT = [0.62, 0.75, 1];
+
 function gradientAt(t) {
   const u = Math.min(1, Math.max(0, t));
   for (let i = 1; i < GRADIENT.length; i += 1) {
@@ -207,15 +210,18 @@ function renderMaster(variant) {
       // Glass depth: a broad specular bloom off the upper-left shoulder…
       const dxs = u - 0.3;
       const dys = v - 0.2;
-      const spec = Math.exp(-(dxs * dxs + dys * dys) / 0.18) * 0.2;
+      const spec = Math.exp(-(dxs * dxs + dys * dys) / 0.18) * 0.16;
       // …a bright rim just inside the top edge…
-      const rim = smoothstep(0.14, 0.0, v) * smoothstep(0.02, 0.2, u) * smoothstep(0.98, 0.8, u) * 0.3;
+      const rim =
+        smoothstep(0.13, 0.0, v) * smoothstep(0.02, 0.2, u) * smoothstep(0.98, 0.8, u) * 0.26;
       // …and a settling shadow at the bottom so it reads as a solid object.
-      const floorShadow = smoothstep(0.72, 1, v) * 0.22;
-
-      r = r + (1 - r) * (spec + rim) - r * floorShadow;
-      g = g + (1 - g) * (spec + rim) - g * floorShadow;
-      b = b + (1 - b) * (spec + rim) - b * floorShadow;
+      const floorShadow = smoothstep(0.72, 1, v) * 0.2;
+      // The highlight is tinted sapphire rather than white: lifting a near-black
+      // navy with pure white desaturates it to grey, which kills the identity.
+      const lift = spec + rim;
+      r = r + (HIGHLIGHT[0] - r) * lift - r * floorShadow;
+      g = g + (HIGHLIGHT[1] - g) * lift - g * floorShadow;
+      b = b + (HIGHLIGHT[2] - b) * lift - b * floorShadow;
 
       // Mark: white bloom then the crisp asterisk on top.
       const bloom = Math.min(1, glow[i] * 1.5) * 0.36;

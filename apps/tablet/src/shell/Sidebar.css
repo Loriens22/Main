@@ -1,0 +1,198 @@
+/**
+ * The sidebar reads as a recessed well, not a raised panel — the same visual
+ * signature the real T3 Code dark theme uses (pure black sidebar against a
+ * lifted canvas). Here that is `--on-bg` against the shell's `--on-bg-2`.
+ */
+
+.on-shell-sidebar {
+  display: flex;
+  flex-direction: column;
+  min-height: 0;
+  width: 100%;
+  background: var(--on-bg);
+  border-right: 1px solid var(--on-line);
+  border-radius: 0;
+}
+
+.on-shell-sidebar-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  padding: 10px 10px 6px;
+  min-height: 56px;
+}
+
+/* Connection ---------------------------------------------------------------- */
+
+.on-shell-conn {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 4px 9px;
+  border-radius: var(--on-radius-pill);
+  border: 1px solid var(--on-line);
+  font-size: 11px;
+  letter-spacing: 0.02em;
+  color: var(--on-text-dim);
+  white-space: nowrap;
+}
+
+.on-shell-conn-dot {
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+  background: rgb(var(--on-accent-2));
+  flex: 0 0 auto;
+}
+
+.on-shell-conn[data-state='connected'] .on-shell-conn-dot {
+  background: rgb(var(--on-success));
+}
+.on-shell-conn[data-state='demo'] .on-shell-conn-dot {
+  background: rgb(var(--on-accent-2));
+}
+.on-shell-conn[data-state='offline'] .on-shell-conn-dot {
+  background: rgb(var(--on-danger));
+}
+.on-shell-conn[data-state='connecting'] .on-shell-conn-dot,
+.on-shell-conn[data-state='reconnecting'] .on-shell-conn-dot {
+  background: rgb(var(--on-warn));
+  animation: on-shell-step-pulse 2s steps(1, end) infinite;
+}
+
+/*
+ * Stepped, duty-cycled pulse. T3 Code's house rule — no continuously
+ * repainting animation — because a per-vsync opacity ramp on a 120Hz panel
+ * costs ~288 compositor updates per cycle instead of four.
+ */
+@keyframes on-shell-step-pulse {
+  0% {
+    opacity: 1;
+  }
+  25% {
+    opacity: 0.55;
+  }
+  50% {
+    opacity: 0.3;
+  }
+  75% {
+    opacity: 0.55;
+  }
+  100% {
+    opacity: 1;
+  }
+}
+
+/* Actions ------------------------------------------------------------------- */
+
+.on-shell-sidebar-actions {
+  padding: 2px 10px 8px;
+}
+
+.on-shell-sidebar-search {
+  padding: 0 10px 8px;
+}
+
+.on-shell-sidebar-list {
+  flex: 1 1 auto;
+  min-height: 0;
+  display: flex;
+  flex-direction: column;
+}
+
+/* Footer -------------------------------------------------------------------- */
+
+.on-shell-sidebar-foot {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 8px 10px calc(8px + env(safe-area-inset-bottom, 0px));
+  border-top: 1px solid var(--on-line);
+}
+
+.on-shell-workspace {
+  flex: 1 1 auto;
+  min-width: 0;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  min-height: var(--on-tap);
+  padding: 0 10px;
+  border: 0;
+  border-radius: var(--on-radius-sm);
+  background: transparent;
+  color: var(--on-text-dim);
+  font: inherit;
+  font-size: 13px;
+  text-align: left;
+  cursor: pointer;
+}
+
+.on-shell-workspace:active {
+  background: var(--on-surface);
+}
+
+.on-shell-workspace-name {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  color: var(--on-text);
+}
+
+.on-shell-workspace-path {
+  font-size: 11px;
+  color: var(--on-text-faint);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+/* Workspace picker rows ----------------------------------------------------- */
+
+.on-shell-picker {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.on-shell-picker-row {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  min-height: var(--on-tap-lg);
+  padding: 10px 14px;
+  border: 1px solid transparent;
+  border-radius: var(--on-radius-md);
+  background: transparent;
+  color: var(--on-text);
+  font: inherit;
+  text-align: left;
+  cursor: pointer;
+}
+
+.on-shell-picker-row[data-active='true'] {
+  border-color: rgb(var(--on-accent-2) / 0.4);
+  background: rgb(var(--on-accent) / 0.16);
+}
+
+.on-shell-picker-row:active {
+  background: var(--on-surface);
+}
+
+.on-shell-picker-sub {
+  font-size: 11px;
+  color: var(--on-text-faint);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.on-shell-empty-note {
+  padding: 18px 14px;
+  font-size: 13px;
+  line-height: 1.5;
+  color: var(--on-text-faint);
+  text-align: center;
+}
