@@ -1,0 +1,230 @@
+/* Thread rows: 64px minimum, two lines, everything legible at arm's length. */
+
+.on-shell-row {
+  position: relative;
+  display: flex;
+  align-items: flex-start;
+  gap: 10px;
+  width: 100%;
+  min-height: 64px;
+  padding: 11px 8px 11px 10px;
+  border: 0;
+  border-radius: var(--on-radius-md);
+  background: transparent;
+  color: var(--on-text);
+  font: inherit;
+  text-align: left;
+  cursor: pointer;
+  touch-action: manipulation;
+  -webkit-user-select: none;
+  user-select: none;
+  transition: background-color 140ms var(--on-ease, ease);
+}
+
+.on-shell-row:active,
+.on-shell-row[data-pressed='true'] {
+  background: rgb(var(--on-accent-2) / 0.08);
+}
+
+.on-shell-row[data-active='true'] {
+  background: rgb(var(--on-accent) / 0.2);
+  box-shadow: inset 0 0 0 1px rgb(var(--on-accent-2) / 0.28);
+}
+
+.on-shell-row:focus-visible {
+  outline: 2px solid rgb(var(--on-accent-2) / 0.7);
+  outline-offset: -2px;
+}
+
+/* Provider glyph, tinted with the descriptor's own accent triple. */
+.on-shell-row-glyph {
+  flex: 0 0 auto;
+  display: grid;
+  place-items: center;
+  width: 26px;
+  height: 26px;
+  margin-top: 1px;
+  border-radius: 9px;
+  font-size: 14px;
+  line-height: 1;
+  color: rgb(var(--on-row-accent));
+  background: rgb(var(--on-row-accent) / 0.12);
+  box-shadow: inset 0 0 0 1px rgb(var(--on-row-accent) / 0.22);
+}
+
+.on-shell-row-main {
+  flex: 1 1 auto;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+}
+
+.on-shell-row-top {
+  display: flex;
+  align-items: baseline;
+  gap: 8px;
+  min-width: 0;
+}
+
+.on-shell-row-title {
+  flex: 1 1 auto;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  font-size: 14px;
+  font-weight: 500;
+  color: var(--on-text-dim);
+}
+
+.on-shell-row[data-active='true'] .on-shell-row-title {
+  color: var(--on-text);
+  font-weight: 600;
+}
+
+.on-shell-row-time {
+  flex: 0 0 auto;
+  font-size: 11px;
+  color: var(--on-text-faint);
+  font-variant-numeric: tabular-nums;
+}
+
+.on-shell-row-bottom {
+  display: flex;
+  align-items: center;
+  gap: 7px;
+  min-width: 0;
+}
+
+.on-shell-row-preview {
+  flex: 1 1 auto;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  font-size: 12px;
+  line-height: 1.35;
+  color: var(--on-text-faint);
+}
+
+.on-shell-row-pin {
+  flex: 0 0 auto;
+  color: rgb(var(--on-accent-2) / 0.8);
+  display: inline-flex;
+}
+
+/* Status ------------------------------------------------------------------- */
+
+.on-shell-status {
+  flex: 0 0 auto;
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  font-size: 11.5px;
+  font-weight: 500;
+  white-space: nowrap;
+  color: var(--on-text-dim);
+}
+
+.on-shell-status-dot {
+  width: 7px;
+  height: 7px;
+  border-radius: 50%;
+  background: currentColor;
+  flex: 0 0 auto;
+}
+
+.on-shell-status[data-tone='running'] {
+  color: rgb(var(--on-accent-2));
+}
+.on-shell-status[data-tone='permission'] {
+  color: rgb(var(--on-warn));
+}
+.on-shell-status[data-tone='error'] {
+  color: rgb(var(--on-danger));
+}
+.on-shell-status[data-tone='input'] {
+  color: rgb(var(--on-accent-2) / 0.85);
+}
+.on-shell-status[data-tone='archived'] {
+  color: var(--on-text-faint);
+}
+
+/*
+ * Duty-cycled indicators. Four discrete compositor frames per two-second
+ * cycle instead of one per vsync — the difference between ~14 and ~288
+ * updates on a 120Hz tablet, and it shows up in battery life.
+ */
+@keyframes on-shell-dot-pulse {
+  0% {
+    opacity: 1;
+    transform: scale(1);
+  }
+  25% {
+    opacity: 0.5;
+    transform: scale(0.82);
+  }
+  50% {
+    opacity: 0.3;
+    transform: scale(0.7);
+  }
+  75% {
+    opacity: 0.5;
+    transform: scale(0.82);
+  }
+  100% {
+    opacity: 1;
+    transform: scale(1);
+  }
+}
+
+.on-shell-status[data-pulse='true'] .on-shell-status-dot {
+  animation: on-shell-dot-pulse 2s steps(1, end) infinite;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .on-shell-status[data-pulse='true'] .on-shell-status-dot {
+    animation: none;
+  }
+}
+
+/* Changed-files badge ------------------------------------------------------- */
+
+.on-shell-row-diff {
+  flex: 0 0 auto;
+  display: inline-flex;
+  gap: 5px;
+  font-family: var(--on-mono);
+  font-size: 11px;
+  font-variant-numeric: tabular-nums;
+}
+
+.on-shell-row-ins {
+  color: rgb(var(--on-success));
+}
+.on-shell-row-del {
+  color: rgb(var(--on-danger));
+}
+
+.on-shell-row-more {
+  flex: 0 0 auto;
+  align-self: center;
+  width: var(--on-tap);
+  height: var(--on-tap);
+  display: grid;
+  place-items: center;
+  border: 0;
+  border-radius: var(--on-radius-sm);
+  background: transparent;
+  color: var(--on-text-faint);
+  cursor: pointer;
+  letter-spacing: 1px;
+  font-size: 16px;
+  line-height: 1;
+}
+
+.on-shell-row-more:active {
+  background: var(--on-surface);
+  color: var(--on-text);
+}

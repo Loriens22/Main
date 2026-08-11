@@ -449,3 +449,14 @@ html[data-glass='reduced'] {
 html[data-glass='reduced'] .on-rev-shimmer::after {
   display: none;
 }
+
+/* A grid row is a `display: contents` wrapper so the row-level tint class can
+   still target its cells while the cells stay direct grid items. */
+.on-rev-row {
+  display: contents;
+}
+
+.on-rev-row--meta .on-rev-src {
+  color: var(--on-text-faint);
+  font-style: italic;
+}
