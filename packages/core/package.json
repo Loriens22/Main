@@ -1,0 +1,27 @@
+{
+  "name": "@ornight/core",
+  "version": "1.0.0",
+  "private": true,
+  "type": "module",
+  "description": "Ornight harness engine — provider adapters, threads, worktrees, git and the ship flow.",
+  "main": "./src/index.ts",
+  "types": "./src/index.ts",
+  "exports": {
+    ".": "./src/index.ts",
+    "./providers": "./src/providers/index.ts"
+  },
+  "files": [
+    "src"
+  ],
+  "scripts": {
+    "typecheck": "tsc -p tsconfig.json --noEmit",
+    "build": "tsc -p tsconfig.json --noEmit"
+  },
+  "dependencies": {
+    "@ornight/protocol": "*"
+  },
+  "devDependencies": {
+    "@types/node": "^22.10.0",
+    "typescript": "^5.7.2"
+  }
+}

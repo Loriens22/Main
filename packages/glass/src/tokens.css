@@ -1,0 +1,1158 @@
+/**
+ * @ornight/glass — tokens.css
+ *
+ * The whole material system for Ornight Plus: design tokens plus the class
+ * layer the React components in this package attach to. The lead imports this
+ * exactly once, from `apps/tablet/src/index.css`.
+ *
+ * The material is a *stack*, never a single blur:
+ *
+ *   1. a backdrop layer   — blur + saturate + brightness + a hair of hue shift
+ *   2. a translucent fill — cool indigo, tinted per tone
+ *   3. a hairline edge    — bright at the top, fading to nothing at the bottom
+ *   4. a specular sheen   — soft elliptical highlight in the upper-left
+ *   5. an inner ring      — 1px translucent line that fakes refraction
+ *   6. an outer shadow    — deep and diffuse, never tight
+ *
+ * `html[data-glass="reduced"]` collapses 1/4/5 and swaps translucency for
+ * solid fills. Everything stays legible; only the cost goes away.
+ */
+
+/* -------------------------------------------------------------------------- */
+/* Tokens                                                                     */
+/* -------------------------------------------------------------------------- */
+
+:root {
+  /* Ground ---------------------------------------------------------------- */
+  --on-bg: #05070f;
+  --on-bg-2: #0a0f1e;
+
+  /* Glass fills ----------------------------------------------------------- */
+  --on-surface: rgba(126, 150, 220, 0.1);
+  --on-surface-2: rgba(146, 174, 244, 0.16);
+
+  /* Opaque stand-ins used by the reduced-motion / reduced-glass mode ------- */
+  --on-surface-solid: #101728;
+  --on-surface-2-solid: #172034;
+
+  /* Lines ----------------------------------------------------------------- */
+  --on-line: rgba(160, 185, 255, 0.16);
+  --on-line-strong: rgba(184, 206, 255, 0.32);
+
+  /* Type ------------------------------------------------------------------ */
+  --on-text: #e8eefc;
+  --on-text-dim: rgba(198, 212, 244, 0.68);
+  --on-text-faint: rgba(168, 186, 226, 0.42);
+
+  /* Colour — r g b triples, so components can do rgb(var(--on-accent)/.4) -- */
+  --on-accent: 72 106 224;
+  --on-accent-2: 120 150 255;
+  --on-success: 60 202 150;
+  --on-warn: 232 176 74;
+  --on-danger: 240 92 108;
+
+  /* Blur radii ------------------------------------------------------------ */
+  --on-blur-sm: 8px;
+  --on-blur-md: 16px;
+  --on-blur-lg: 28px;
+  --on-blur-xl: 44px;
+
+  /* Radii ----------------------------------------------------------------- */
+  --on-radius-sm: 10px;
+  --on-radius-md: 16px;
+  --on-radius-lg: 22px;
+  --on-radius-xl: 30px;
+  --on-radius-pill: 999px;
+
+  /* Touch ----------------------------------------------------------------- */
+  --on-tap: 44px;
+  --on-tap-lg: 52px;
+
+  /* Elevation ------------------------------------------------------------- */
+  --on-shadow-lift: 0 1px 2px rgba(2, 5, 14, 0.4), 0 8px 24px -10px rgba(2, 5, 14, 0.7),
+    0 18px 48px -22px rgba(2, 5, 14, 0.85);
+  --on-shadow-deep: 0 2px 6px rgba(2, 5, 14, 0.5), 0 18px 44px -14px rgba(2, 5, 14, 0.78),
+    0 48px 110px -34px rgba(1, 3, 10, 0.9);
+
+  /* The highlight gradient painted across every raised glass edge ---------- */
+  --on-specular: radial-gradient(
+      124% 86% at 16% -12%,
+      rgba(255, 255, 255, 0.22),
+      rgba(255, 255, 255, 0.07) 34%,
+      rgba(255, 255, 255, 0) 62%
+    ),
+    radial-gradient(
+      90% 70% at 92% 108%,
+      rgba(var(--on-accent-2) / 0.14),
+      rgba(var(--on-accent-2) / 0) 60%
+    );
+
+  /* Type stacks ----------------------------------------------------------- */
+  --on-font: -apple-system, BlinkMacSystemFont, 'SF Pro Text', 'Inter', 'Segoe UI', Roboto,
+    'Helvetica Neue', system-ui, sans-serif;
+  --on-mono: 'SF Mono', ui-monospace, 'JetBrains Mono', 'Fira Code', 'Cascadia Code',
+    'Roboto Mono', Menlo, Consolas, monospace;
+
+  /* Internal, not part of the public token contract ------------------------ */
+  --on-glass-filter: blur(var(--on-blur-md)) saturate(1.62) brightness(1.06) hue-rotate(-5deg);
+  --on-ring: inset 0 0 0 1px rgba(190, 212, 255, 0.07);
+  --on-ease: cubic-bezier(0.22, 0.68, 0.16, 1);
+}
+
+/* -------------------------------------------------------------------------- */
+/* Reduced-glass escape hatch                                                 */
+/* -------------------------------------------------------------------------- */
+
+html[data-glass='reduced'] {
+  --on-blur-sm: 0px;
+  --on-blur-md: 0px;
+  --on-blur-lg: 0px;
+  --on-blur-xl: 0px;
+  --on-surface: var(--on-surface-solid);
+  --on-surface-2: var(--on-surface-2-solid);
+  --on-specular: none;
+  --on-glass-filter: none;
+  --on-ring: none;
+  --on-shadow-lift: 0 1px 2px rgba(2, 5, 14, 0.5);
+  --on-shadow-deep: 0 6px 18px -8px rgba(2, 5, 14, 0.75);
+}
+
+html[data-glass='reduced'] .on-glass,
+html[data-glass='reduced'] .on-glass::before,
+html[data-glass='reduced'] .on-glass::after {
+  backdrop-filter: none !important;
+  -webkit-backdrop-filter: none !important;
+}
+
+html[data-glass='reduced'] .on-glass::after,
+html[data-glass='reduced'] .on-liquid__shimmer {
+  display: none;
+}
+
+/* -------------------------------------------------------------------------- */
+/* Base glass surface                                                         */
+/* -------------------------------------------------------------------------- */
+
+.on-glass {
+  position: relative;
+  isolation: isolate;
+  border-radius: var(--on-radius-md);
+  background-color: var(--on-surface);
+  backdrop-filter: var(--on-glass-filter);
+  -webkit-backdrop-filter: var(--on-glass-filter);
+  box-shadow: var(--on-ring), var(--on-shadow-lift);
+  color: var(--on-text);
+  /* Edges catch light: bright above, shadowed below. */
+  --on-edge-top: rgba(255, 255, 255, 0.26);
+  --on-edge-bottom: rgba(4, 8, 20, 0.5);
+}
+
+/* (c) the hairline — a masked gradient border, bright at the top edge and
+   dissolving to nothing at the bottom. This one detail sells the material. */
+.on-glass--border::before {
+  content: '';
+  position: absolute;
+  inset: 0;
+  z-index: 1;
+  border-radius: inherit;
+  padding: 1px;
+  pointer-events: none;
+  background: linear-gradient(
+      177deg,
+      var(--on-edge-top) 0%,
+      rgba(255, 255, 255, 0.08) 22%,
+      rgba(255, 255, 255, 0.02) 52%,
+      rgba(255, 255, 255, 0) 74%
+    ),
+    linear-gradient(0deg, var(--on-edge-bottom) 0%, rgba(0, 0, 0, 0) 34%),
+    linear-gradient(90deg, rgba(var(--on-accent-2) / 0.16), rgba(var(--on-accent) / 0.06));
+  -webkit-mask: linear-gradient(#000 0 0) content-box, linear-gradient(#000 0 0);
+  -webkit-mask-composite: xor;
+  mask: linear-gradient(#000 0 0) content-box, linear-gradient(#000 0 0);
+  mask-composite: exclude;
+}
+
+/* (d) the specular sheen, tucked behind content inside the isolated stack. */
+.on-glass::after {
+  content: '';
+  position: absolute;
+  inset: 0;
+  z-index: -1;
+  border-radius: inherit;
+  pointer-events: none;
+  background: var(--on-specular);
+}
+
+/* Tones ------------------------------------------------------------------- */
+
+.on-glass--panel {
+  background-color: var(--on-surface);
+}
+
+.on-glass--raised {
+  background-color: var(--on-surface-2);
+  box-shadow: var(--on-ring), var(--on-shadow-deep);
+  --on-edge-top: rgba(255, 255, 255, 0.34);
+}
+
+.on-glass--sunken {
+  background-color: rgba(4, 8, 20, 0.34);
+  box-shadow: inset 0 1px 3px rgba(2, 4, 12, 0.6), inset 0 -1px 0 rgba(255, 255, 255, 0.05);
+  --on-edge-top: rgba(2, 5, 14, 0.6);
+  --on-edge-bottom: rgba(255, 255, 255, 0.1);
+}
+
+.on-glass--sunken.on-glass--border::before {
+  background: linear-gradient(177deg, rgba(2, 5, 14, 0.55), rgba(255, 255, 255, 0.03) 60%),
+    linear-gradient(0deg, rgba(255, 255, 255, 0.12), rgba(255, 255, 255, 0) 40%);
+}
+
+.on-glass--chrome {
+  background-color: rgba(8, 12, 26, 0.58);
+  backdrop-filter: blur(var(--on-blur-xl)) saturate(1.7) brightness(1.02);
+  -webkit-backdrop-filter: blur(var(--on-blur-xl)) saturate(1.7) brightness(1.02);
+  box-shadow: var(--on-ring), 0 1px 0 rgba(255, 255, 255, 0.05);
+}
+
+html[data-glass='reduced'] .on-glass--chrome {
+  background-color: #080d1a;
+}
+
+.on-glass--accent {
+  background-color: rgba(var(--on-accent) / 0.22);
+  box-shadow: var(--on-ring), var(--on-shadow-lift),
+    0 10px 34px -14px rgba(var(--on-accent) / 0.65);
+  --on-edge-top: rgba(210, 226, 255, 0.44);
+}
+
+/* Blur steps -------------------------------------------------------------- */
+
+.on-glass--blur-sm {
+  backdrop-filter: blur(var(--on-blur-sm)) saturate(1.45) brightness(1.05) hue-rotate(-5deg);
+  -webkit-backdrop-filter: blur(var(--on-blur-sm)) saturate(1.45) brightness(1.05) hue-rotate(-5deg);
+}
+.on-glass--blur-md {
+  backdrop-filter: blur(var(--on-blur-md)) saturate(1.62) brightness(1.06) hue-rotate(-5deg);
+  -webkit-backdrop-filter: blur(var(--on-blur-md)) saturate(1.62) brightness(1.06) hue-rotate(-5deg);
+}
+.on-glass--blur-lg {
+  backdrop-filter: blur(var(--on-blur-lg)) saturate(1.68) brightness(1.05) hue-rotate(-6deg);
+  -webkit-backdrop-filter: blur(var(--on-blur-lg)) saturate(1.68) brightness(1.05) hue-rotate(-6deg);
+}
+.on-glass--blur-xl {
+  backdrop-filter: blur(var(--on-blur-xl)) saturate(1.74) brightness(1.04) hue-rotate(-6deg);
+  -webkit-backdrop-filter: blur(var(--on-blur-xl)) saturate(1.74) brightness(1.04) hue-rotate(-6deg);
+}
+
+/* Radii ------------------------------------------------------------------- */
+
+.on-r-sm {
+  border-radius: var(--on-radius-sm);
+}
+.on-r-md {
+  border-radius: var(--on-radius-md);
+}
+.on-r-lg {
+  border-radius: var(--on-radius-lg);
+}
+.on-r-xl {
+  border-radius: var(--on-radius-xl);
+}
+.on-r-pill {
+  border-radius: var(--on-radius-pill);
+}
+
+/* Glow and interactivity --------------------------------------------------- */
+
+.on-glass--glow {
+  box-shadow: var(--on-ring), var(--on-shadow-deep),
+    0 0 0 1px rgba(var(--on-accent-2) / 0.12), 0 14px 48px -16px rgba(var(--on-accent) / 0.55);
+}
+
+.on-glass--interactive {
+  cursor: pointer;
+  -webkit-tap-highlight-color: transparent;
+  transition: background-color 180ms var(--on-ease), box-shadow 220ms var(--on-ease),
+    transform 220ms var(--on-ease);
+}
+
+@media (hover: hover) {
+  .on-glass--interactive:hover {
+    background-color: var(--on-surface-2);
+    --on-edge-top: rgba(255, 255, 255, 0.36);
+  }
+}
+
+.on-glass--interactive:active {
+  transform: translate3d(0, 1px, 0) scale(0.994);
+}
+
+.on-glass--interactive:focus-visible {
+  outline: none;
+  box-shadow: var(--on-ring), var(--on-shadow-lift), 0 0 0 2px rgba(var(--on-accent-2) / 0.55),
+    0 0 0 6px rgba(var(--on-accent) / 0.2);
+}
+
+/* -------------------------------------------------------------------------- */
+/* Buttons                                                                    */
+/* -------------------------------------------------------------------------- */
+
+.on-btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  min-height: var(--on-tap);
+  padding: 0 18px;
+  border: 0;
+  border-radius: var(--on-radius-md);
+  font: inherit;
+  font-family: var(--on-font);
+  font-weight: 560;
+  font-size: 15px;
+  letter-spacing: 0.01em;
+  color: var(--on-text);
+  text-align: center;
+  white-space: nowrap;
+  cursor: pointer;
+  user-select: none;
+  -webkit-tap-highlight-color: transparent;
+  touch-action: manipulation;
+}
+
+.on-btn:disabled {
+  opacity: 0.44;
+  cursor: not-allowed;
+}
+
+.on-btn--sm {
+  min-height: 36px;
+  padding: 0 13px;
+  font-size: 13.5px;
+  border-radius: var(--on-radius-sm);
+}
+
+.on-btn--md {
+  min-height: var(--on-tap);
+}
+
+.on-btn--lg {
+  min-height: var(--on-tap-lg);
+  padding: 0 24px;
+  font-size: 16.5px;
+  border-radius: var(--on-radius-lg);
+}
+
+.on-btn--block {
+  display: flex;
+  width: 100%;
+}
+
+.on-btn--primary {
+  background-image: linear-gradient(
+    177deg,
+    rgba(var(--on-accent-2) / 0.9),
+    rgba(var(--on-accent) / 0.94) 58%,
+    rgba(var(--on-accent) / 0.82)
+  );
+  background-color: rgb(var(--on-accent));
+  color: #f4f8ff;
+  text-shadow: 0 1px 2px rgba(4, 10, 32, 0.45);
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.34),
+    inset 0 -1px 0 rgba(6, 12, 34, 0.45), 0 2px 6px rgba(4, 8, 24, 0.4),
+    0 14px 34px -14px rgba(var(--on-accent) / 0.8);
+}
+
+.on-btn--primary:not(:disabled):active {
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.2), inset 0 2px 8px rgba(4, 10, 34, 0.5),
+    0 1px 3px rgba(4, 8, 24, 0.4);
+}
+
+.on-btn--ghost {
+  background-color: var(--on-surface);
+  backdrop-filter: var(--on-glass-filter);
+  -webkit-backdrop-filter: var(--on-glass-filter);
+  box-shadow: var(--on-ring), inset 0 1px 0 rgba(255, 255, 255, 0.14),
+    inset 0 -1px 0 rgba(4, 8, 20, 0.4), 0 6px 20px -10px rgba(2, 5, 14, 0.8);
+}
+
+.on-btn--quiet {
+  background-color: transparent;
+  color: var(--on-text-dim);
+}
+
+.on-btn--quiet:not(:disabled):active {
+  background-color: rgba(160, 185, 255, 0.09);
+}
+
+.on-btn--danger {
+  background-image: linear-gradient(
+    177deg,
+    rgba(var(--on-danger) / 0.88),
+    rgba(var(--on-danger) / 0.7)
+  );
+  background-color: rgb(var(--on-danger) / 0.8);
+  color: #fff4f5;
+  text-shadow: 0 1px 2px rgba(40, 4, 10, 0.4);
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.3), inset 0 -1px 0 rgba(40, 4, 10, 0.4),
+    0 12px 30px -14px rgba(var(--on-danger) / 0.7);
+}
+
+.on-btn:focus-visible {
+  outline: none;
+  box-shadow: 0 0 0 2px rgba(var(--on-accent-2) / 0.6), 0 0 0 7px rgba(var(--on-accent) / 0.22);
+}
+
+.on-btn__icon {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  flex: none;
+}
+
+.on-btn__label {
+  display: inline-flex;
+  align-items: center;
+  min-width: 0;
+}
+
+.on-btn--loading .on-btn__label {
+  opacity: 0.55;
+}
+
+/* Icon button -------------------------------------------------------------- */
+
+.on-iconbtn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  flex: none;
+  width: var(--on-tap);
+  height: var(--on-tap);
+  padding: 0;
+  border: 0;
+  border-radius: var(--on-radius-md);
+  color: var(--on-text-dim);
+  background-color: transparent;
+  cursor: pointer;
+  touch-action: manipulation;
+  -webkit-tap-highlight-color: transparent;
+  transition: background-color 160ms var(--on-ease), color 160ms var(--on-ease),
+    box-shadow 200ms var(--on-ease);
+}
+
+.on-iconbtn--sm {
+  width: 36px;
+  height: 36px;
+  border-radius: var(--on-radius-sm);
+}
+
+.on-iconbtn--lg {
+  width: var(--on-tap-lg);
+  height: var(--on-tap-lg);
+  border-radius: var(--on-radius-lg);
+}
+
+.on-iconbtn:not(:disabled):active {
+  background-color: rgba(160, 185, 255, 0.12);
+  transform: scale(0.94);
+}
+
+.on-iconbtn:disabled {
+  opacity: 0.4;
+  cursor: not-allowed;
+}
+
+.on-iconbtn--active {
+  color: var(--on-text);
+  background-color: var(--on-surface-2);
+  box-shadow: var(--on-ring), inset 0 1px 0 rgba(255, 255, 255, 0.16),
+    inset 0 -1px 0 rgba(4, 8, 20, 0.4);
+}
+
+.on-iconbtn:focus-visible {
+  outline: none;
+  box-shadow: 0 0 0 2px rgba(var(--on-accent-2) / 0.6);
+}
+
+/* -------------------------------------------------------------------------- */
+/* Sheet                                                                      */
+/* -------------------------------------------------------------------------- */
+
+.on-sheet__scrim {
+  position: fixed;
+  inset: 0;
+  z-index: 400;
+  background: radial-gradient(120% 100% at 50% 0%, rgba(4, 7, 18, 0.5), rgba(2, 4, 12, 0.78));
+  backdrop-filter: blur(3px);
+  -webkit-backdrop-filter: blur(3px);
+}
+
+.on-sheet {
+  position: fixed;
+  z-index: 401;
+  display: flex;
+  flex-direction: column;
+  max-height: 100%;
+  overflow: hidden;
+  background-color: rgba(12, 18, 36, 0.72);
+  backdrop-filter: blur(var(--on-blur-xl)) saturate(1.7) brightness(1.04);
+  -webkit-backdrop-filter: blur(var(--on-blur-xl)) saturate(1.7) brightness(1.04);
+  box-shadow: var(--on-shadow-deep);
+  color: var(--on-text);
+}
+
+html[data-glass='reduced'] .on-sheet {
+  background-color: #0c1224;
+}
+
+.on-sheet--bottom {
+  left: 0;
+  right: 0;
+  bottom: 0;
+  border-radius: var(--on-radius-xl) var(--on-radius-xl) 0 0;
+  padding-bottom: env(safe-area-inset-bottom, 0px);
+}
+
+.on-sheet--right {
+  top: 0;
+  right: 0;
+  bottom: 0;
+  border-radius: var(--on-radius-xl) 0 0 var(--on-radius-xl);
+  padding-right: env(safe-area-inset-right, 0px);
+}
+
+.on-sheet--center {
+  top: 50%;
+  left: 50%;
+  transform: translate(-50%, -50%);
+  border-radius: var(--on-radius-xl);
+  max-width: min(92vw, 640px);
+  max-height: min(86vh, 760px);
+}
+
+.on-sheet--bottom.on-sheet--sm {
+  max-height: 42vh;
+}
+.on-sheet--bottom.on-sheet--md {
+  max-height: 62vh;
+}
+.on-sheet--bottom.on-sheet--lg {
+  max-height: 82vh;
+}
+.on-sheet--bottom.on-sheet--full {
+  top: env(safe-area-inset-top, 0px);
+  max-height: none;
+}
+
+.on-sheet--right.on-sheet--sm {
+  width: min(88vw, 320px);
+}
+.on-sheet--right.on-sheet--md {
+  width: min(90vw, 440px);
+}
+.on-sheet--right.on-sheet--lg {
+  width: min(94vw, 600px);
+}
+.on-sheet--right.on-sheet--full {
+  width: 100vw;
+}
+
+.on-sheet--center.on-sheet--sm {
+  width: min(92vw, 380px);
+}
+.on-sheet--center.on-sheet--full {
+  width: 96vw;
+  height: 92vh;
+  max-height: none;
+}
+
+.on-sheet__edge {
+  position: absolute;
+  inset: 0;
+  z-index: 2;
+  border-radius: inherit;
+  padding: 1px;
+  pointer-events: none;
+  background: linear-gradient(
+    177deg,
+    rgba(255, 255, 255, 0.3),
+    rgba(255, 255, 255, 0.05) 26%,
+    rgba(255, 255, 255, 0) 70%
+  );
+  -webkit-mask: linear-gradient(#000 0 0) content-box, linear-gradient(#000 0 0);
+  -webkit-mask-composite: xor;
+  mask: linear-gradient(#000 0 0) content-box, linear-gradient(#000 0 0);
+  mask-composite: exclude;
+}
+
+.on-sheet__grip {
+  flex: none;
+  width: 44px;
+  height: 5px;
+  margin: 10px auto 2px;
+  border-radius: 999px;
+  background: rgba(190, 210, 255, 0.26);
+}
+
+.on-sheet__head {
+  flex: none;
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  min-height: var(--on-tap);
+  padding: 10px 14px 12px 20px;
+}
+
+.on-sheet__title {
+  flex: 1;
+  min-width: 0;
+  font-family: var(--on-font);
+  font-size: 17px;
+  font-weight: 600;
+  letter-spacing: -0.01em;
+  color: var(--on-text);
+}
+
+.on-sheet__body {
+  flex: 1;
+  min-height: 0;
+  overflow: auto;
+  overscroll-behavior: contain;
+  -webkit-overflow-scrolling: touch;
+  padding: 0 20px 20px;
+}
+
+/* -------------------------------------------------------------------------- */
+/* Segmented control                                                          */
+/* -------------------------------------------------------------------------- */
+
+.on-seg {
+  position: relative;
+  display: inline-flex;
+  align-items: stretch;
+  padding: 4px;
+  gap: 2px;
+  border-radius: var(--on-radius-md);
+  background-color: rgba(4, 8, 20, 0.36);
+  box-shadow: inset 0 1px 3px rgba(2, 4, 12, 0.6), inset 0 -1px 0 rgba(255, 255, 255, 0.05),
+    var(--on-ring);
+  backdrop-filter: blur(var(--on-blur-sm)) saturate(1.3);
+  -webkit-backdrop-filter: blur(var(--on-blur-sm)) saturate(1.3);
+}
+
+.on-seg__opt {
+  position: relative;
+  isolation: isolate;
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 1px;
+  min-height: 38px;
+  min-width: 56px;
+  padding: 6px 14px;
+  border: 0;
+  border-radius: calc(var(--on-radius-md) - 5px);
+  background: transparent;
+  color: var(--on-text-dim);
+  font-family: var(--on-font);
+  font-size: 14px;
+  font-weight: 550;
+  cursor: pointer;
+  touch-action: manipulation;
+  -webkit-tap-highlight-color: transparent;
+  transition: color 180ms var(--on-ease);
+}
+
+.on-seg--md .on-seg__opt {
+  min-height: 40px;
+}
+
+.on-seg--sm .on-seg__opt {
+  min-height: 32px;
+  min-width: 44px;
+  padding: 4px 10px;
+  font-size: 13px;
+}
+
+.on-seg__opt[aria-checked='true'] {
+  color: var(--on-text);
+}
+
+.on-seg__opt:focus-visible {
+  outline: none;
+  box-shadow: 0 0 0 2px rgba(var(--on-accent-2) / 0.6);
+}
+
+.on-seg__hint {
+  font-size: 11px;
+  font-weight: 450;
+  color: var(--on-text-faint);
+  letter-spacing: 0.01em;
+}
+
+.on-seg__opt[aria-checked='true'] .on-seg__hint {
+  color: rgba(var(--on-accent-2) / 0.85);
+}
+
+.on-seg__thumb {
+  position: absolute;
+  inset: 0;
+  z-index: -1;
+  border-radius: inherit;
+  background-image: linear-gradient(
+    177deg,
+    rgba(170, 196, 255, 0.2),
+    rgba(126, 150, 220, 0.11) 60%,
+    rgba(126, 150, 220, 0.07)
+  );
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.28), inset 0 -1px 0 rgba(4, 8, 20, 0.4),
+    0 4px 14px -6px rgba(2, 5, 14, 0.8);
+}
+
+.on-seg__label {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  line-height: 1.2;
+}
+
+/* -------------------------------------------------------------------------- */
+/* Field                                                                      */
+/* -------------------------------------------------------------------------- */
+
+.on-field {
+  display: flex;
+  flex-direction: column;
+  gap: 7px;
+  min-width: 0;
+}
+
+.on-field__label {
+  font-family: var(--on-font);
+  font-size: 12px;
+  font-weight: 600;
+  letter-spacing: 0.05em;
+  text-transform: uppercase;
+  color: var(--on-text-faint);
+  padding-left: 2px;
+}
+
+.on-field__box {
+  position: relative;
+  display: flex;
+  align-items: flex-start;
+  gap: 10px;
+  min-height: var(--on-tap);
+  padding: 0 14px;
+  border-radius: var(--on-radius-md);
+  background-color: rgba(4, 8, 20, 0.36);
+  box-shadow: inset 0 1px 3px rgba(2, 4, 12, 0.55), inset 0 -1px 0 rgba(255, 255, 255, 0.06),
+    var(--on-ring);
+  backdrop-filter: blur(var(--on-blur-sm)) saturate(1.3);
+  -webkit-backdrop-filter: blur(var(--on-blur-sm)) saturate(1.3);
+  transition: box-shadow 200ms var(--on-ease);
+}
+
+html[data-glass='reduced'] .on-field__box,
+html[data-glass='reduced'] .on-seg {
+  background-color: #0b1020;
+}
+
+.on-field__box:focus-within {
+  box-shadow: inset 0 1px 3px rgba(2, 4, 12, 0.55), 0 0 0 1px rgba(var(--on-accent-2) / 0.5),
+    0 0 0 5px rgba(var(--on-accent) / 0.16);
+}
+
+.on-field__icon {
+  display: flex;
+  align-items: center;
+  flex: none;
+  align-self: stretch;
+  color: var(--on-text-faint);
+}
+
+.on-field__input {
+  flex: 1;
+  min-width: 0;
+  width: 100%;
+  border: 0;
+  outline: none;
+  background: transparent;
+  color: var(--on-text);
+  font-family: var(--on-font);
+  font-size: 16px; /* 16px keeps iOS from zooming on focus */
+  line-height: 1.45;
+  padding: 11px 0;
+  resize: none;
+  caret-color: rgb(var(--on-accent-2));
+}
+
+.on-field__input::placeholder {
+  color: var(--on-text-faint);
+}
+
+/* -------------------------------------------------------------------------- */
+/* Badge                                                                      */
+/* -------------------------------------------------------------------------- */
+
+.on-badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  padding: 3px 9px;
+  border-radius: var(--on-radius-pill);
+  font-family: var(--on-font);
+  font-size: 11.5px;
+  font-weight: 620;
+  letter-spacing: 0.02em;
+  line-height: 1.5;
+  white-space: nowrap;
+  background-color: rgba(160, 185, 255, 0.12);
+  color: var(--on-text-dim);
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.14), inset 0 -1px 0 rgba(4, 8, 20, 0.32);
+}
+
+.on-badge--md {
+  padding: 5px 12px;
+  font-size: 13px;
+}
+
+.on-badge--accent {
+  background-color: rgba(var(--on-accent) / 0.26);
+  color: #dbe6ff;
+}
+.on-badge--success {
+  background-color: rgba(var(--on-success) / 0.2);
+  color: rgb(var(--on-success));
+}
+.on-badge--warn {
+  background-color: rgba(var(--on-warn) / 0.2);
+  color: rgb(var(--on-warn));
+}
+.on-badge--danger {
+  background-color: rgba(var(--on-danger) / 0.22);
+  color: rgb(var(--on-danger));
+}
+
+/* -------------------------------------------------------------------------- */
+/* Scroll                                                                     */
+/* -------------------------------------------------------------------------- */
+
+.on-scroll {
+  overflow: auto;
+  overscroll-behavior: contain;
+  -webkit-overflow-scrolling: touch;
+  scrollbar-width: thin;
+  scrollbar-color: rgba(160, 185, 255, 0.2) transparent;
+  min-height: 0;
+}
+
+.on-scroll::-webkit-scrollbar {
+  width: 6px;
+  height: 6px;
+}
+.on-scroll::-webkit-scrollbar-thumb {
+  background: rgba(160, 185, 255, 0.2);
+  border-radius: 999px;
+}
+.on-scroll::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+.on-scroll--fade {
+  -webkit-mask-image: linear-gradient(
+    to bottom,
+    transparent 0,
+    #000 22px,
+    #000 calc(100% - 26px),
+    transparent 100%
+  );
+  mask-image: linear-gradient(
+    to bottom,
+    transparent 0,
+    #000 22px,
+    #000 calc(100% - 26px),
+    transparent 100%
+  );
+}
+
+.on-scroll--fade.on-scroll--x {
+  -webkit-mask-image: linear-gradient(
+    to right,
+    transparent 0,
+    #000 22px,
+    #000 calc(100% - 26px),
+    transparent 100%
+  );
+  mask-image: linear-gradient(
+    to right,
+    transparent 0,
+    #000 22px,
+    #000 calc(100% - 26px),
+    transparent 100%
+  );
+}
+
+/* -------------------------------------------------------------------------- */
+/* Divider                                                                    */
+/* -------------------------------------------------------------------------- */
+
+.on-divider {
+  flex: none;
+  border: 0;
+  margin: 0;
+  height: 1px;
+  width: 100%;
+  background: linear-gradient(
+    90deg,
+    rgba(160, 185, 255, 0),
+    var(--on-line) 18%,
+    var(--on-line) 82%,
+    rgba(160, 185, 255, 0)
+  );
+  box-shadow: 0 1px 0 rgba(255, 255, 255, 0.04);
+}
+
+.on-divider--v {
+  height: auto;
+  width: 1px;
+  align-self: stretch;
+  background: linear-gradient(
+    180deg,
+    rgba(160, 185, 255, 0),
+    var(--on-line) 18%,
+    var(--on-line) 82%,
+    rgba(160, 185, 255, 0)
+  );
+  box-shadow: 1px 0 0 rgba(255, 255, 255, 0.04);
+}
+
+/* -------------------------------------------------------------------------- */
+/* Spinner + progress                                                         */
+/* -------------------------------------------------------------------------- */
+
+.on-spinner {
+  display: inline-block;
+  flex: none;
+  animation: on-spin 900ms linear infinite;
+}
+
+@keyframes on-spin {
+  to {
+    transform: rotate(360deg);
+  }
+}
+
+.on-progress {
+  position: relative;
+  width: 100%;
+  height: 6px;
+  border-radius: 999px;
+  overflow: hidden;
+  background-color: rgba(4, 8, 20, 0.5);
+  box-shadow: inset 0 1px 2px rgba(2, 4, 12, 0.6), inset 0 -1px 0 rgba(255, 255, 255, 0.06);
+}
+
+.on-progress__bar {
+  position: absolute;
+  inset: 0 auto 0 0;
+  border-radius: 999px;
+  background-image: linear-gradient(
+    90deg,
+    rgba(var(--on-accent) / 0.9),
+    rgba(var(--on-accent-2) / 0.95)
+  );
+  box-shadow: 0 0 12px rgba(var(--on-accent-2) / 0.55), inset 0 1px 0 rgba(255, 255, 255, 0.3);
+  transition: width 320ms var(--on-ease);
+}
+
+.on-progress--indeterminate .on-progress__bar {
+  width: 38%;
+  transition: none;
+  animation: on-indeterminate 1.25s var(--on-ease) infinite;
+}
+
+@keyframes on-indeterminate {
+  0% {
+    transform: translateX(-105%);
+  }
+  100% {
+    transform: translateX(275%);
+  }
+}
+
+/* -------------------------------------------------------------------------- */
+/* Tooltip                                                                    */
+/* -------------------------------------------------------------------------- */
+
+.on-tip {
+  position: relative;
+  display: inline-flex;
+}
+
+.on-tip__bubble {
+  position: absolute;
+  bottom: calc(100% + 9px);
+  left: 50%;
+  transform: translateX(-50%);
+  z-index: 300;
+  padding: 6px 11px;
+  border-radius: var(--on-radius-sm);
+  background-color: rgba(14, 20, 40, 0.86);
+  backdrop-filter: blur(var(--on-blur-md)) saturate(1.5);
+  -webkit-backdrop-filter: blur(var(--on-blur-md)) saturate(1.5);
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.16), var(--on-shadow-lift);
+  color: var(--on-text);
+  font-family: var(--on-font);
+  font-size: 12.5px;
+  font-weight: 520;
+  white-space: nowrap;
+  pointer-events: none;
+}
+
+/* -------------------------------------------------------------------------- */
+/* LiquidText — the branding typography treatment                             */
+/* -------------------------------------------------------------------------- */
+
+.on-liquid {
+  position: relative;
+  display: inline-block;
+  font-family: var(--on-font);
+  letter-spacing: -0.018em;
+  line-height: 1.1;
+  /* (1) base fill in near-white — this is what stays crisp */
+  color: #f2f6ff;
+  /* (3) accent bloom + (4) bevel: dark emboss below, light lift above */
+  text-shadow: 0 1px 0 rgba(6, 10, 26, 0.72), 0 -1px 0 rgba(255, 255, 255, 0.16),
+    0 0 calc(14px * var(--on-liquid-glow, 0.55)) rgba(var(--on-accent-2) / calc(0.7 * var(--on-liquid-glow, 0.55))),
+    0 0 calc(38px * var(--on-liquid-glow, 0.55)) rgba(var(--on-accent) / calc(0.55 * var(--on-liquid-glow, 0.55))),
+    0 2px 12px rgba(4, 8, 22, 0.55);
+  -webkit-user-select: none;
+  user-select: none;
+}
+
+/* (2) a vertical light falloff clipped to the glyphs, painted over the base
+   fill by a second copy of the text. Keeping the base fill underneath is what
+   stops background-clip:text from going mushy. */
+.on-liquid__face {
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+  background-image: linear-gradient(
+    178deg,
+    rgba(255, 255, 255, 0.95) 0%,
+    rgba(226, 236, 255, 0.55) 34%,
+    rgba(168, 192, 245, 0.16) 62%,
+    rgba(126, 156, 230, 0.4) 100%
+  );
+  -webkit-background-clip: text;
+  background-clip: text;
+  color: transparent;
+  text-shadow: none;
+  mix-blend-mode: screen;
+}
+
+/* (5) the slow shimmer sweep */
+.on-liquid__shimmer {
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+  color: transparent;
+  text-shadow: none;
+  background-image: linear-gradient(
+    100deg,
+    rgba(255, 255, 255, 0) 38%,
+    rgba(255, 255, 255, 0.78) 50%,
+    rgba(255, 255, 255, 0) 62%
+  );
+  background-size: 260% 100%;
+  background-repeat: no-repeat;
+  -webkit-background-clip: text;
+  background-clip: text;
+  animation: on-sheen 5.2s var(--on-ease) infinite;
+  mix-blend-mode: screen;
+}
+
+@keyframes on-sheen {
+  0%,
+  18% {
+    background-position: 180% 0;
+  }
+  62%,
+  100% {
+    background-position: -80% 0;
+  }
+}
+
+/* -------------------------------------------------------------------------- */
+/* Ornight mark                                                               */
+/* -------------------------------------------------------------------------- */
+
+.on-mark {
+  display: block;
+  flex: none;
+  overflow: visible;
+}
+
+.on-mark--animated {
+  animation: on-mark-breathe 6.5s ease-in-out infinite;
+  transform-origin: 50% 50%;
+}
+
+@keyframes on-mark-breathe {
+  0%,
+  100% {
+    transform: rotate(-0.6deg) scale(1);
+  }
+  50% {
+    transform: rotate(0.6deg) scale(1.018);
+  }
+}
+
+.on-mark__pulse {
+  animation: on-mark-pulse 4.4s ease-in-out infinite;
+  transform-origin: 50% 50%;
+}
+
+@keyframes on-mark-pulse {
+  0%,
+  100% {
+    opacity: 0.5;
+  }
+  50% {
+    opacity: 1;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .on-mark--animated,
+  .on-mark__pulse,
+  .on-liquid__shimmer,
+  .on-progress--indeterminate .on-progress__bar {
+    animation: none;
+  }
+}
+
+html[data-glass='reduced'] .on-mark--animated,
+html[data-glass='reduced'] .on-mark__pulse {
+  animation: none;
+}
+
+/* -------------------------------------------------------------------------- */
+/* Utility                                                                    */
+/* -------------------------------------------------------------------------- */
+
+.on-sr {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  padding: 0;
+  margin: -1px;
+  overflow: hidden;
+  clip: rect(0 0 0 0);
+  white-space: nowrap;
+  border: 0;
+}

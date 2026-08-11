@@ -1,0 +1,24 @@
+{
+  "name": "ornight",
+  "version": "1.0.0",
+  "private": true,
+  "description": "Ornight Plus — a liquid-glass coding agent harness built for mini tablets.",
+  "license": "MIT",
+  "workspaces": [
+    "packages/*",
+    "apps/*"
+  ],
+  "scripts": {
+    "dev": "npm run dev --workspace @ornight/tablet",
+    "dev:server": "npm run dev --workspace @ornight/server",
+    "dev:desktop": "npm run dev --workspace @ornight/desktop",
+    "build": "npm run build --workspace @ornight/protocol && npm run build --workspace @ornight/core && npm run build --workspace @ornight/tablet",
+    "build:tablet": "npm run build --workspace @ornight/tablet",
+    "build:single": "npm run build:single --workspace @ornight/tablet",
+    "typecheck": "tsc -b --pretty false",
+    "clean": "rm -rf node_modules */*/node_modules */*/dist"
+  },
+  "engines": {
+    "node": ">=20"
+  }
+}
