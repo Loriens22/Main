@@ -1,33 +1,17 @@
-#!/usr/bin/env node
 /**
- * Ornight Plus — night field generator.
+ * Generates the Ornight night-field hero asset.
  *
- * Renders the hero background behind the splash screen and, cropped, inside
- * the sidebar badge: an open field at night under a deep starry sky, lit by a
- * low moon. Everything here is procedural. There is no source photograph, no
- * dependency and no network access — just arithmetic and `node:zlib`.
+ *   node apps/tablet/src/brand/generate-night-field.mjs
  *
- *   Run:  node apps/tablet/src/brand/generate-night-field.mjs
+ * Writes `night-field.png` (the splash background) and `night-field-thumb.png`
+ * (the crop that lives inside the corner badge). Dependency-free: the only
+ * import is node:zlib, used to deflate the PNG data stream.
  *
- *   Writes: apps/tablet/src/brand/night-field.png        2560 x 1600
- *           apps/tablet/src/brand/night-field-thumb.png   320 x  200
- *
- * The outputs are committed, so this only needs re-running when the art
- * direction changes. `SEED` makes it deterministic: the same seed always
- * produces the same sky, so a re-run is a no-op in git unless something above
- * it actually changed.
- *
- * Pipeline
- * --------
- * The whole frame accumulates in *linear* light as float RGB. Star cores and
- * the moon are allowed to blow past 1.0 and are pulled back by a filmic
- * shoulder at the very end, which is what gives bright stars a natural core
- * rather than a clipped white dot. Only the final encode step converts to
- * sRGB, dithers, and quantises to 8 bits.
- *
- *   sky gradient -> milky way -> stars -> moon + halo -> horizon haze
- *   -> mist -> field layers (far to near, each with aerial perspective)
- *   -> vignette -> grade -> grain -> tonemap -> sRGB -> PNG
+ * Everything is rendered into a linear float buffer and tone-mapped once at the
+ * end. That ordering is what keeps it from looking like clip art: stars
+ * accumulate additively and overlap correctly, the moon's halo lifts the sky
+ * around it rather than pasting a disc on top, and the final curve pulls the
+ * whole frame down into a believable night exposure.
  */
 
 import { deflateSync } from 'node:zlib';
@@ -37,177 +21,117 @@ import { dirname, join } from 'node:path';
 
 const HERE = dirname(fileURLToPath(import.meta.url));
 
-const W = 2560;
-const H = 1600;
-const THUMB_W = 320;
-const THUMB_H = 200;
-const SEED = 20260811;
+const W = 2048;
+const H = 1280;
 
-/** Where the land meets the sky, as a fraction of image height. */
-const HORIZON = 0.615;
-const HORIZON_Y = Math.round(H * HORIZON);
+/** Where the field meets the sky, as a fraction of frame height. */
+const HORIZON = 0.605;
 
-/** The moon is the only light source; everything below agrees with it. */
-const MOON_X = W * 0.715;
-const MOON_Y = HORIZON_Y - H * 0.185;
-const MOON_R = H * 0.026;
+/** The moon is the only light source; everything else is consistent with it. */
+const MOON = { x: 0.735 * W, y: 0.265 * H, r: 11 };
 
 /* -------------------------------------------------------------------------- */
-/* Small maths                                                                */
+/* Deterministic noise                                                        */
 /* -------------------------------------------------------------------------- */
 
-const clamp = (v, lo, hi) => (v < lo ? lo : v > hi ? hi : v);
-const clamp01 = (v) => (v < 0 ? 0 : v > 1 ? 1 : v);
-const lerp = (a, b, t) => a + (b - a) * t;
-const smoothstep = (e0, e1, x) => {
-  const t = clamp01((x - e0) / (e1 - e0));
-  return t * t * (3 - 2 * t);
-};
-
-function mulberry32(seed) {
+/** Mulberry32 — small, fast, and seeded, so the asset is reproducible. */
+function rng(seed) {
   let a = seed >>> 0;
-  return function next() {
-    a = (a + 0x6d2b79f5) | 0;
+  return () => {
+    a = (a + 0x6d2b79f5) >>> 0;
     let t = Math.imul(a ^ (a >>> 15), 1 | a);
     t = (t + Math.imul(t ^ (t >>> 7), 61 | t)) ^ t;
     return ((t ^ (t >>> 14)) >>> 0) / 4294967296;
   };
 }
 
-/** Integer lattice hash in [0,1). Stable across runs and platforms. */
-function hash2(ix, iy, seed) {
-  let h = (Math.imul(ix, 374761393) + Math.imul(iy, 668265263) + Math.imul(seed, 1442695041)) | 0;
-  h = (h ^ (h >>> 13)) | 0;
-  h = Math.imul(h, 1274126177) | 0;
-  return ((h ^ (h >>> 16)) >>> 0) / 4294967296;
+const rand = rng(0x04e19417);
+
+function hash2(x, y) {
+  const n = Math.sin(x * 127.1 + y * 311.7) * 43758.5453;
+  return n - Math.floor(n);
 }
 
-/** Value noise with a smoothstep interpolant. Cheap, and smooth enough here. */
-function vnoise(x, y, seed) {
-  const ix = Math.floor(x);
-  const iy = Math.floor(y);
-  const fx = x - ix;
-  const fy = y - iy;
-  const ux = fx * fx * (3 - 2 * fx);
-  const uy = fy * fy * (3 - 2 * fy);
-  const a = hash2(ix, iy, seed);
-  const b = hash2(ix + 1, iy, seed);
-  const c = hash2(ix, iy + 1, seed);
-  const d = hash2(ix + 1, iy + 1, seed);
-  return a + (b - a) * ux + (c - a) * uy + (a - b - c + d) * ux * uy;
+function valueNoise(x, y) {
+  const xi = Math.floor(x);
+  const yi = Math.floor(y);
+  const xf = x - xi;
+  const yf = y - yi;
+  const u = xf * xf * (3 - 2 * xf);
+  const v = yf * yf * (3 - 2 * yf);
+  const a = hash2(xi, yi);
+  const b = hash2(xi + 1, yi);
+  const c = hash2(xi, yi + 1);
+  const d = hash2(xi + 1, yi + 1);
+  return a * (1 - u) * (1 - v) + b * u * (1 - v) + c * (1 - u) * v + d * u * v;
 }
 
-function fbm(x, y, seed, octaves = 5, lacunarity = 2.03, gain = 0.5) {
+function fbm(x, y, octaves = 5) {
   let sum = 0;
-  let amp = 1;
-  let norm = 0;
-  let fx = x;
-  let fy = y;
-  for (let i = 0; i < octaves; i += 1) {
-    sum += amp * vnoise(fx, fy, seed + i * 1013);
-    norm += amp;
-    amp *= gain;
-    fx *= lacunarity;
-    fy *= lacunarity;
+  let amp = 0.5;
+  let freq = 1;
+  for (let i = 0; i < octaves; i++) {
+    sum += amp * valueNoise(x * freq, y * freq);
+    freq *= 2.03;
+    amp *= 0.5;
   }
-  return sum / norm;
+  return sum;
 }
 
 /* -------------------------------------------------------------------------- */
-/* Colour                                                                     */
+/* Buffer                                                                     */
 /* -------------------------------------------------------------------------- */
 
-/** sRGB hex -> linear float triple. All art-direction colours are authored in
- *  sRGB because that is how eyes and colour pickers work; the renderer needs
- *  linear because that is how light works. */
-function srgbHex(hex) {
-  const n = parseInt(hex.slice(1), 16);
-  return [((n >> 16) & 255) / 255, ((n >> 8) & 255) / 255, (n & 255) / 255].map(toLinear);
-}
+const buf = new Float32Array(W * H * 3);
 
-function toLinear(c) {
-  return c <= 0.04045 ? c / 12.92 : Math.pow((c + 0.055) / 1.055, 2.4);
-}
-
-function toSrgb(c) {
-  return c <= 0.0031308 ? c * 12.92 : 1.055 * Math.pow(c, 1 / 2.4) - 0.055;
-}
-
-/** Blackbody-ish star tint, from cool blue-white through pale gold. */
-function starTint(t) {
-  // t: 0 = blue-white, 1 = warm gold.
-  const r = lerp(0.78, 1.0, t);
-  const g = lerp(0.86, 0.92, t);
-  const b = lerp(1.0, 0.76, t);
-  return [r, g, b];
-}
-
-/* -------------------------------------------------------------------------- */
-/* Framebuffer                                                                */
-/* -------------------------------------------------------------------------- */
-
-const img = new Float32Array(W * H * 3);
+const idx = (x, y) => (y * W + x) * 3;
 
 function addPixel(x, y, r, g, b) {
   if (x < 0 || y < 0 || x >= W || y >= H) return;
-  const i = (y * W + x) * 3;
-  img[i] += r;
-  img[i + 1] += g;
-  img[i + 2] += b;
+  const i = idx(x | 0, y | 0);
+  buf[i] += r;
+  buf[i + 1] += g;
+  buf[i + 2] += b;
 }
 
-/** Composite an opaque colour over the buffer with coverage `a`. */
+/** Alpha-composite a colour over the buffer — used for opaque silhouettes. */
 function overPixel(x, y, r, g, b, a) {
-  if (a <= 0 || x < 0 || y < 0 || x >= W || y >= H) return;
-  const i = (y * W + x) * 3;
-  const k = 1 - a;
-  img[i] = img[i] * k + r * a;
-  img[i + 1] = img[i + 1] * k + g * a;
-  img[i + 2] = img[i + 2] * k + b * a;
+  if (x < 0 || y < 0 || x >= W || y >= H || a <= 0) return;
+  const i = idx(x | 0, y | 0);
+  const k = a > 1 ? 1 : a;
+  buf[i] += (r - buf[i]) * k;
+  buf[i + 1] += (g - buf[i + 1]) * k;
+  buf[i + 2] += (b - buf[i + 2]) * k;
 }
 
 /* -------------------------------------------------------------------------- */
-/* 1. Sky gradient                                                            */
+/* 1. Sky                                                                     */
 /* -------------------------------------------------------------------------- */
-
-/**
- * Vertical ramp from near-black indigo at the zenith through deep blue, to a
- * faint horizon glow that is cool on the left and just barely warm under the
- * moon. Stops are in sRGB, positions are fractions of the sky's height.
- */
-const SKY_STOPS = [
-  { t: 0.0, c: srgbHex('#02030a') },
-  { t: 0.26, c: srgbHex('#050813') },
-  { t: 0.52, c: srgbHex('#080e22') },
-  { t: 0.74, c: srgbHex('#0d1733' ) },
-  { t: 0.9, c: srgbHex('#121e42') },
-  { t: 1.0, c: srgbHex('#182a56') },
-];
-
-function sampleStops(stops, t) {
-  const x = clamp01(t);
-  for (let i = 0; i < stops.length - 1; i += 1) {
-    const a = stops[i];
-    const b = stops[i + 1];
-    if (x >= a.t && x <= b.t) {
-      const k = smoothstep(a.t, b.t, x);
-      return [lerp(a.c[0], b.c[0], k), lerp(a.c[1], b.c[1], k), lerp(a.c[2], b.c[2], k)];
-    }
-  }
-  return stops[stops.length - 1].c;
-}
 
 function renderSky() {
-  for (let y = 0; y < HORIZON_Y + 4; y += 1) {
-    const t = y / HORIZON_Y;
-    const [r, g, b] = sampleStops(SKY_STOPS, t);
-    for (let x = 0; x < W; x += 1) {
-      // A very slight horizontal lean so the sky is not a flat vertical ramp.
-      const lean = 1 + (x / W - 0.5) * 0.06 * t;
-      const i = (y * W + x) * 3;
-      img[i] = r * lean;
-      img[i + 1] = g * lean;
-      img[i + 2] = b * lean;
+  const horizonY = HORIZON * H;
+
+  for (let y = 0; y < H; y++) {
+    // Zenith is nearly black; the sky only opens up as it approaches the field.
+    const t = Math.min(1, Math.max(0, y / horizonY));
+    const lift = Math.pow(t, 2.4);
+
+    let r = 0.006 + 0.052 * lift;
+    let g = 0.010 + 0.070 * lift;
+    let b = 0.030 + 0.121 * lift;
+
+    for (let x = 0; x < W; x++) {
+      // Moonglow: a broad, soft lift centred on the moon. This is what makes
+      // the moon feel like it is *in* the sky rather than stuck on it.
+      const dx = x - MOON.x;
+      const dy = y - MOON.y;
+      const d = Math.sqrt(dx * dx + dy * dy);
+      const glow = 0.30 / (1 + Math.pow(d / 150, 1.9)) + 0.10 / (1 + Math.pow(d / 520, 2.1));
+
+      const i = idx(x, y);
+      buf[i] = r + glow * 0.62;
+      buf[i + 1] = g + glow * 0.70;
+      buf[i + 2] = b + glow * 0.86;
     }
   }
 }
@@ -216,64 +140,34 @@ function renderSky() {
 /* 2. Milky Way                                                               */
 /* -------------------------------------------------------------------------- */
 
-/**
- * A soft band across the upper third, rotated a few degrees. The band is
- * fbm-modulated so it breaks into clumps rather than reading as an airbrushed
- * stripe, and a second, narrower negative band cuts the dust lane through it.
- *
- * Returns a density function reused by the star pass, so star counts rise
- * inside the band exactly where the glow is.
- */
-const MW_ANGLE = (-14 * Math.PI) / 180;
-const MW_COS = Math.cos(MW_ANGLE);
-const MW_SIN = Math.sin(MW_ANGLE);
-const MW_CX = W * 0.42;
-const MW_CY = H * 0.19;
-const MW_HALF = H * 0.155;
-
-function milkyWayDensity(x, y) {
-  const dx = x - MW_CX;
-  const dy = y - MW_CY;
-  // Distance from the band's spine, in rotated space.
-  const across = -dx * MW_SIN + dy * MW_COS;
-  const along = dx * MW_COS + dy * MW_SIN;
-
-  // Wobble the spine so it is not a ruler-straight line.
-  const wobble = (fbm(along / 620, 3.1, SEED + 91, 3) - 0.5) * MW_HALF * 0.7;
-  const d = Math.abs(across - wobble) / MW_HALF;
-  if (d > 1.6) return 0;
-
-  let band = Math.exp(-d * d * 2.1);
-
-  // Clumping.
-  const clump = fbm(x / 260, y / 190, SEED + 17, 5);
-  band *= 0.42 + clump * 1.05;
-
-  // The dust lane: a narrower dark ribbon offset from the spine.
-  const lane = Math.exp(-Math.pow((across - wobble - MW_HALF * 0.22) / (MW_HALF * 0.3), 2) * 1.4);
-  band *= 1 - lane * (0.4 + 0.34 * fbm(x / 150, y / 120, SEED + 55, 3));
-
-  // Fade out where the band runs off the top and toward the horizon.
-  band *= smoothstep(0, H * 0.05, y) * (1 - smoothstep(H * 0.34, H * 0.52, y));
-  return clamp01(band);
+/** Distance from a point to the galactic band's axis, in band-widths. */
+function bandDistance(x, y) {
+  // A shallow diagonal across the upper third.
+  const angle = -0.20;
+  const cx = 0.42 * W;
+  const cy = 0.20 * H;
+  const dx = x - cx;
+  const dy = y - cy;
+  const perp = -Math.sin(angle) * dx + Math.cos(angle) * dy;
+  return perp / (0.19 * H);
 }
 
 function renderMilkyWay() {
-  const cool = srgbHex('#8fa6d8');
-  const warm = srgbHex('#cbb9c9');
-  for (let y = 0; y < Math.round(H * 0.55); y += 1) {
-    for (let x = 0; x < W; x += 1) {
-      const d = milkyWayDensity(x, y);
-      if (d <= 0.002) continue;
-      const mix = fbm(x / 420, y / 380, SEED + 300, 3);
-      const amt = d * 0.05;
-      addPixel(
-        x,
-        y,
-        lerp(cool[0], warm[0], mix) * amt,
-        lerp(cool[1], warm[1], mix) * amt,
-        lerp(cool[2], warm[2], mix) * amt,
-      );
+  for (let y = 0; y < H * 0.62; y++) {
+    for (let x = 0; x < W; x++) {
+      const u = bandDistance(x, y);
+      const falloff = Math.exp(-u * u * 1.5);
+      if (falloff < 0.004) continue;
+
+      // Two noise scales: broad structure, then a finer mottling.
+      const n = fbm(x / 260, y / 260, 5) * 0.72 + fbm(x / 70, y / 70, 3) * 0.28;
+
+      // A dust lane cutting through the middle of the band, slightly offset.
+      const lane = Math.exp(-Math.pow((u + 0.16) * 3.4, 2));
+      const dust = 1 - lane * (0.42 + 0.34 * fbm(x / 180, y / 180, 3));
+
+      const v = falloff * Math.pow(n, 1.9) * dust * 0.115;
+      addPixel(x, y, v * 0.94, v * 0.95, v);
     }
   }
 }
@@ -283,179 +177,132 @@ function renderMilkyWay() {
 /* -------------------------------------------------------------------------- */
 
 /**
- * ~4200 stars on a power-law magnitude distribution: thousands of faint ones,
- * a few dozen obvious ones, a dozen genuinely bright. Each is a radial falloff
- * rather than a hard pixel, so they survive downscaling and never alias. The
- * brightest get a subtle four-point diffraction cross.
+ * Stars are drawn as a continuous Gaussian rather than a filled circle. A disc
+ * of uniform alpha at this size reads as a square blob; a falloff reads as a
+ * point of light.
  */
+function drawStar(cx, cy, brightness, temp, sigma) {
+  const reach = Math.ceil(sigma * 3.2);
+  const inv = 1 / (2 * sigma * sigma);
+
+  // Colour temperature: cool blue-white through pale gold.
+  const r = brightness * (0.74 + 0.30 * temp);
+  const g = brightness * (0.82 + 0.15 * temp);
+  const b = brightness * (1.0 - 0.16 * temp);
+
+  for (let dy = -reach; dy <= reach; dy++) {
+    for (let dx = -reach; dx <= reach; dx++) {
+      const px = Math.round(cx) + dx;
+      const py = Math.round(cy) + dy;
+      // Sub-pixel offset keeps a field of stars from snapping to a grid.
+      const ox = px - cx;
+      const oy = py - cy;
+      const f = Math.exp(-(ox * ox + oy * oy) * inv);
+      if (f < 0.004) continue;
+      addPixel(px, py, r * f, g * f, b * f);
+    }
+  }
+}
+
+/** Only the handful of brightest stars earn spikes. */
+function drawSpikes(cx, cy, brightness, length) {
+  for (let d = 1; d <= length; d++) {
+    const f = brightness * 0.30 * Math.pow(1 - d / length, 2.6);
+    if (f <= 0) continue;
+    addPixel(Math.round(cx) + d, Math.round(cy), f, f * 0.98, f);
+    addPixel(Math.round(cx) - d, Math.round(cy), f, f * 0.98, f);
+    addPixel(Math.round(cx), Math.round(cy) + d, f, f * 0.98, f);
+    addPixel(Math.round(cx), Math.round(cy) - d, f, f * 0.98, f);
+  }
+}
+
 function renderStars() {
-  const rand = mulberry32(SEED + 7);
-  const COUNT = 4200;
+  const COUNT = 5200;
+  const skyBottom = HORIZON * H;
   const bright = [];
 
-  for (let n = 0; n < COUNT; n += 1) {
+  for (let i = 0; i < COUNT; i++) {
     const x = rand() * W;
-    // Stars thin out toward the horizon, where haze eats them.
-    const y = Math.pow(rand(), 0.86) * (HORIZON_Y - 6);
+    // Push density towards the top: the horizon haze would swallow them anyway.
+    const y = Math.pow(rand(), 1.28) * skyBottom;
 
-    // Rejection sampling: the Milky Way carries a much higher star density.
-    const mw = milkyWayDensity(x, y);
-    if (rand() > 0.34 + mw * 1.5) continue;
+    // Clustering along the galactic band, on top of the uniform field.
+    const u = Math.abs(bandDistance(x, y));
+    if (u > 1.15 && rand() < 0.34) continue;
 
-    // Power law: u^-p gives many faint, few bright.
-    const u = rand();
-    const mag = Math.pow(u, 3.3);
-    let intensity = 0.05 + mag * 3.6;
+    // Power law: a great many faint stars, a few bright ones.
+    const m = Math.pow(rand(), 3.5);
+    let brightness = 0.05 + m * 1.5;
 
-    // Atmospheric extinction near the horizon.
-    intensity *= lerp(0.25, 1, smoothstep(HORIZON_Y, HORIZON_Y - H * 0.42, y));
-    // The moon's glare washes out its neighbourhood.
-    const md = Math.hypot(x - MOON_X, y - MOON_Y);
-    intensity *= lerp(0.18, 1, smoothstep(MOON_R * 2, MOON_R * 22, md));
-    if (intensity < 0.012) continue;
+    // Atmospheric extinction — stars dim as they approach the horizon.
+    const alt = 1 - y / skyBottom;
+    brightness *= 0.28 + 0.72 * Math.pow(alt, 0.6);
 
-    const tint = starTint(Math.pow(rand(), 1.6));
-    const radius = 0.75 + Math.pow(intensity, 0.42) * 1.9;
+    // The moon washes out its own neighbourhood.
+    const dx = x - MOON.x;
+    const dy = y - MOON.y;
+    const dm = Math.sqrt(dx * dx + dy * dy);
+    brightness *= Math.min(1, Math.pow(dm / 260, 1.5));
 
-    stampStar(x, y, radius, intensity, tint);
-    if (intensity > 1.5) bright.push({ x, y, intensity, tint });
+    if (brightness < 0.02) continue;
+
+    const temp = rand();
+    const sigma = 0.52 + m * 0.85;
+    drawStar(x, y, brightness, temp, sigma);
+
+    if (brightness > 1.05) bright.push({ x, y, brightness });
   }
 
-  // The brightest dozen or so get diffraction spikes.
-  bright.sort((a, b) => b.intensity - a.intensity);
-  for (const star of bright.slice(0, 14)) {
-    diffraction(star.x, star.y, star.intensity, star.tint);
-  }
-}
-
-function stampStar(cx, cy, radius, intensity, tint) {
-  const r = Math.ceil(radius * 3);
-  const inv = 1 / (radius * radius);
-  for (let dy = -r; dy <= r; dy += 1) {
-    for (let dx = -r; dx <= r; dx += 1) {
-      const d2 = dx * dx + dy * dy;
-      // Gaussian core plus a wide, very faint aureole.
-      const core = Math.exp(-d2 * inv * 1.6);
-      const halo = Math.exp(-d2 * inv * 0.12) * 0.09;
-      const a = (core + halo) * intensity;
-      if (a < 0.0016) continue;
-      addPixel(Math.round(cx) + dx, Math.round(cy) + dy, tint[0] * a, tint[1] * a, tint[2] * a);
-    }
-  }
-}
-
-function diffraction(cx, cy, intensity, tint) {
-  const len = 6 + intensity * 11;
-  const amp = intensity * 0.1;
-  for (let d = 1; d <= len; d += 1) {
-    const f = Math.pow(1 - d / len, 2.4) * amp;
-    if (f < 0.001) continue;
-    for (const [ox, oy] of [
-      [d, 0],
-      [-d, 0],
-      [0, d],
-      [0, -d],
-    ]) {
-      addPixel(Math.round(cx + ox), Math.round(cy + oy), tint[0] * f, tint[1] * f, tint[2] * f);
-    }
-  }
+  bright
+    .sort((a, b) => b.brightness - a.brightness)
+    .slice(0, 14)
+    .forEach((s) => drawSpikes(s.x, s.y, s.brightness, 16 + Math.round(s.brightness * 9)));
 }
 
 /* -------------------------------------------------------------------------- */
-/* 4. Moon and halo                                                           */
+/* 4. Moon                                                                    */
 /* -------------------------------------------------------------------------- */
 
-/**
- * A small, soft, slightly gibbous moon low in the sky with a large diffuse
- * halo bleeding into the surrounding air. The halo is three stacked
- * exponentials at very different radii — that is what makes it read as
- * atmosphere rather than as a lens flare.
- */
 function renderMoon() {
-  const disc = srgbHex('#f4f1e6');
-  const glow = srgbHex('#9fb6e8');
-  const reach = MOON_R * 34;
+  const reach = MOON.r * 6;
+  for (let dy = -reach; dy <= reach; dy++) {
+    for (let dx = -reach; dx <= reach; dx++) {
+      const d = Math.sqrt(dx * dx + dy * dy);
+      const x = Math.round(MOON.x + dx);
+      const y = Math.round(MOON.y + dy);
 
-  const x0 = Math.max(0, Math.floor(MOON_X - reach));
-  const x1 = Math.min(W - 1, Math.ceil(MOON_X + reach));
-  const y0 = Math.max(0, Math.floor(MOON_Y - reach));
-  const y1 = Math.min(HORIZON_Y + 8, Math.ceil(MOON_Y + reach));
+      // Soft-edged disc: a hard circle at this scale looks like a sticker.
+      const disc = 1 - smoothstep(MOON.r - 1.6, MOON.r + 1.4, d);
+      // A tight bloom hugging the limb, separate from the broad sky glow.
+      const bloom = 0.55 * Math.exp(-Math.pow(d / (MOON.r * 1.9), 1.7));
 
-  for (let y = y0; y <= y1; y += 1) {
-    for (let x = x0; x <= x1; x += 1) {
-      const d = Math.hypot(x - MOON_X, y - MOON_Y);
-      if (d > reach) continue;
-
-      // Halo: tight bloom, mid glow, and a very wide skyglow.
-      const h1 = Math.exp(-Math.pow(d / (MOON_R * 2.1), 1.7)) * 0.5;
-      const h2 = Math.exp(-Math.pow(d / (MOON_R * 6.5), 1.5)) * 0.13;
-      const h3 = Math.exp(-Math.pow(d / (MOON_R * 19), 1.25)) * 0.045;
-      const halo = h1 + h2 + h3;
-      if (halo > 0.0009) {
-        addPixel(x, y, glow[0] * halo, glow[1] * halo, glow[2] * halo);
-      }
-
-      // The disc itself, with a soft limb and a faint terminator on the left.
-      if (d < MOON_R * 1.4) {
-        const cov = 1 - smoothstep(MOON_R * 0.92, MOON_R * 1.06, d);
-        if (cov > 0.001) {
-          const nx = (x - MOON_X) / MOON_R;
-          const ny = (y - MOON_Y) / MOON_R;
-          const shade = 0.82 + 0.18 * clamp01(1 - Math.hypot(nx + 0.28, ny + 0.2) * 0.75);
-          // Maria: faint low-contrast mottling so the disc is not a flat coin.
-          const maria = 1 - 0.1 * fbm(x / 9 + 40, y / 9 + 40, SEED + 601, 3);
-          const k = cov * shade * maria * 2.6;
-          addPixel(x, y, disc[0] * k, disc[1] * k, disc[2] * k);
-        }
-      }
+      const v = disc * 1.35 + bloom;
+      if (v < 0.002) continue;
+      addPixel(x, y, v * 0.98, v * 0.99, v);
     }
   }
 }
 
+function smoothstep(a, b, x) {
+  const t = Math.min(1, Math.max(0, (x - a) / (b - a)));
+  return t * t * (3 - 2 * t);
+}
+
 /* -------------------------------------------------------------------------- */
-/* 5. Horizon haze and mist                                                   */
+/* 5. Horizon haze                                                            */
 /* -------------------------------------------------------------------------- */
 
-/**
- * Air has depth. A band of lifted, desaturated value hugs the horizon, warmed
- * slightly on the moon's side, and a separate low mist layer sits just above
- * the far grass so the field dissolves into the sky instead of butting into it.
- */
 function renderHaze() {
-  const hazeCool = srgbHex('#2b3f6b');
-  const hazeWarm = srgbHex('#4a5578');
-
-  for (let y = Math.round(HORIZON_Y - H * 0.3); y < Math.min(H, HORIZON_Y + H * 0.06); y += 1) {
-    const band = Math.exp(-Math.pow((y - HORIZON_Y) / (H * 0.115), 2) * 1.1);
-    if (band < 0.002) continue;
-    for (let x = 0; x < W; x += 1) {
-      // Warmer and brighter under the moon, cooling away from it.
-      const near = clamp01(1 - Math.abs(x - MOON_X) / (W * 0.62));
-      const amt = band * (0.055 + near * 0.075);
-      const t = near * 0.8;
-      addPixel(
-        x,
-        y,
-        lerp(hazeCool[0], hazeWarm[0], t) * amt,
-        lerp(hazeCool[1], hazeWarm[1], t) * amt,
-        lerp(hazeCool[2], hazeWarm[2], t) * amt,
-      );
-    }
-  }
-}
-
-function renderMist(topY) {
-  const mist = srgbHex('#3d4a6e');
-  const y0 = Math.round(topY - H * 0.045);
-  const y1 = Math.round(topY + H * 0.11);
-  for (let y = y0; y < Math.min(H, y1); y += 1) {
-    const band = Math.exp(-Math.pow((y - (topY + H * 0.02)) / (H * 0.05), 2) * 1.3);
-    if (band < 0.003) continue;
-    for (let x = 0; x < W; x += 1) {
-      const drift = fbm(x / 430, y / 90, SEED + 777, 4);
-      const near = clamp01(1 - Math.abs(x - MOON_X) / (W * 0.8));
-      const amt = band * (0.2 + drift * 0.85) * (0.05 + near * 0.05);
-      addPixel(x, y, mist[0] * amt, mist[1] * amt, mist[2] * amt);
+  const horizonY = HORIZON * H;
+  for (let y = Math.floor(horizonY - 240); y < Math.min(H, horizonY + 90); y++) {
+    const t = 1 - Math.abs(y - horizonY) / 240;
+    if (t <= 0) continue;
+    const band = Math.pow(Math.max(0, t), 2.3);
+    for (let x = 0; x < W; x++) {
+      // The haze is lit from the moon's side, so it is not a flat band.
+      const lateral = 0.42 + 0.58 * Math.exp(-Math.pow((x - MOON.x) / (W * 0.55), 2));
+      const mist = band * lateral * (0.030 + 0.022 * fbm(x / 340, y / 90, 3));
+      addPixel(x, y, mist * 0.70, mist * 0.82, mist * 1.0);
     }
   }
 }
@@ -465,466 +312,312 @@ function renderMist(topY) {
 /* -------------------------------------------------------------------------- */
 
 /**
- * Six depth layers of grass and wheat receding to the horizon.
- *
- * Aerial perspective does the heavy lifting: far layers are lifted in value,
- * pushed toward the haze colour, and blurred; near layers are near-black,
- * sharp, and drawn stalk by stalk with real curvature and a consistent wind
- * lean. Every layer catches a rim of moonlight on the side of the stalk that
- * faces the moon.
- *
- * Each layer is rendered into a coverage mask, blurred by the layer's own
- * radius, and only then composited — blurring the mask rather than the pixels
- * is what keeps the far layers soft without smearing the sky behind them.
+ * Five depth layers. Aerial perspective does the heavy lifting: distant grass
+ * is lighter, bluer, softer and shorter; near grass is darker, sharper and
+ * taller. Without that gradient the field reads as one flat black mass.
  */
 const LAYERS = [
-  // topY: mean height of the silhouette edge. hue: silhouette colour.
-  { topY: 0.618, amp: 0.006, colour: '#151f3c', blur: 7, stalks: 0, height: 0.012, width: 0.9 },
-  { topY: 0.632, amp: 0.011, colour: '#111936', blur: 5, stalks: 2600, height: 0.026, width: 1.0 },
-  { topY: 0.664, amp: 0.02, colour: '#0c122a', blur: 3, stalks: 2400, height: 0.05, width: 1.25 },
-  { topY: 0.716, amp: 0.033, colour: '#080d20', blur: 1.6, stalks: 2000, height: 0.086, width: 1.7 },
-  { topY: 0.796, amp: 0.05, colour: '#050818', blur: 0.7, stalks: 1500, height: 0.14, width: 2.4 },
-  { topY: 0.906, amp: 0.07, colour: '#03050f', blur: 0, stalks: 900, height: 0.23, width: 3.6 },
+  { depth: 0.00, blades: 5200, height: 0.045, width: 0.7, value: 0.105, alpha: 0.42, lean: 0.30 },
+  { depth: 0.20, blades: 4200, height: 0.080, width: 1.0, value: 0.062, alpha: 0.62, lean: 0.38 },
+  { depth: 0.44, blades: 3200, height: 0.135, width: 1.5, value: 0.032, alpha: 0.80, lean: 0.46 },
+  { depth: 0.72, blades: 2400, height: 0.215, width: 2.2, value: 0.014, alpha: 0.93, lean: 0.54 },
+  { depth: 1.05, blades: 1500, height: 0.330, width: 3.2, value: 0.005, alpha: 1.0, lean: 0.62 },
 ];
 
-const mask = new Float32Array(W * H);
-const rim = new Float32Array(W * H);
+/**
+ * Blades are rasterised row by row rather than by walking the curve in fixed
+ * steps. Stepping along the parameter leaves gaps wherever the step lands twice
+ * on one scanline, which is what turns a field into a barcode; iterating over
+ * integer y and solving for x guarantees an unbroken stroke.
+ */
+function renderBlade(x0, base, height, lean, width, value, alpha, curve) {
+  const towardsMoon = x0 > MOON.x ? -1 : 1;
+  const rim = 0.13 * alpha * Math.exp(-Math.pow((x0 - MOON.x) / (W * 0.62), 2));
+
+  const top = Math.max(-2, Math.floor(base - height));
+  const bottom = Math.min(H - 1, Math.ceil(base));
+
+  for (let y = bottom; y >= top; y--) {
+    const t = (base - y) / height;
+    if (t < 0 || t > 1) continue;
+
+    // Blend of a quadratic and a cubic so the tip whips over rather than
+    // tracing a perfect parabola — reads as wind rather than geometry.
+    const bend = curve * t * t + (1 - curve) * t * t * t;
+    const x = x0 + lean * bend;
+    const w = width * (1 - t * 0.9);
+
+    const shade = value * (0.82 + 0.36 * t);
+    const a = alpha * (1 - 0.3 * t * t);
+
+    const reach = Math.ceil(w + 1.3);
+    for (let dx = -reach; dx <= reach; dx++) {
+      const cover = Math.max(0, 1 - Math.abs(dx) / (w + 0.85));
+      if (cover <= 0) continue;
+      overPixel(x + dx, y, shade, shade * 1.04, shade * 1.26, a * cover * cover);
+    }
+
+    if (t > 0.4 && rim > 0.004) {
+      const f = rim * (t - 0.4) * 1.7;
+      addPixel(x + towardsMoon * (w + 0.6), y, f * 0.6, f * 0.7, f * 0.92);
+    }
+  }
+}
 
 function renderField() {
-  for (let index = 0; index < LAYERS.length; index += 1) {
-    const layer = LAYERS[index];
-    mask.fill(0);
-    rim.fill(0);
+  const horizonY = HORIZON * H;
 
-    const topY = layer.topY * H;
-    const amp = layer.amp * H;
-    const depth = index / (LAYERS.length - 1); // 0 = farthest, 1 = nearest
+  for (const layer of LAYERS) {
+    // Roots run from the horizon down past the bottom edge, so the nearest
+    // layer fills the frame instead of stopping short and showing sky beneath.
+    const baseY = horizonY + layer.depth * (H - horizonY) * 1.02;
 
-    buildGround(layer, topY, amp, index);
-    if (layer.stalks > 0) drawStalks(layer, topY, amp, index, depth);
+    // Grass grows in tufts. Scattering blades uniformly gives an even comb;
+    // clustering most of them around a handful of centres gives the clumping
+    // and the gaps between clumps that make a field look real.
+    const tufts = Math.max(8, Math.round(layer.blades / 26));
+    const centres = Array.from({ length: tufts }, () => ({
+      x: rand() * (W + 200) - 100,
+      spread: 18 + rand() * 70,
+      lift: 0.7 + rand() * 0.8,
+    }));
 
-    if (layer.blur > 0) blurBuffer(mask, layer.blur);
-    if (layer.blur > 0) blurBuffer(rim, layer.blur * 0.8);
-
-    compositeLayer(layer, depth);
-
-    // The mist sits between the two farthest layers, so the field dissolves
-    // into the sky rather than stopping at a line.
-    if (index === 0) renderMist(topY);
-  }
-}
-
-/** Fill everything below a noisy height field. */
-function buildGround(layer, topY, amp, index) {
-  for (let x = 0; x < W; x += 1) {
-    const n =
-      fbm(x / 520, index * 7.3, SEED + 200 + index * 31, 4) * 0.65 +
-      fbm(x / 90, index * 3.1, SEED + 400 + index * 17, 3) * 0.35;
-    const edge = topY + (n - 0.5) * 2 * amp;
-    const start = Math.max(0, Math.floor(edge));
-    // Antialias the top edge, then fill solid to the bottom.
-    for (let y = start; y < H; y += 1) {
-      const cov = clamp01(y + 1 - edge);
-      const i = y * W + x;
-      if (cov > mask[i]) mask[i] = cov;
-      if (cov >= 1) {
-        // Solid from here down; jump straight to the bottom.
-        for (let yy = y + 1; yy < H; yy += 1) mask[yy * W + x] = 1;
-        break;
+    for (let i = 0; i < layer.blades; i++) {
+      let x0;
+      let lift = 1;
+      if (rand() < 0.72) {
+        const c = centres[(rand() * tufts) | 0];
+        // Box-Muller would be tidier, but two uniforms averaged is enough of a
+        // bell for this and costs half as much.
+        x0 = c.x + (rand() + rand() - 1) * c.spread;
+        lift = c.lift;
+      } else {
+        x0 = rand() * (W + 200) - 100;
       }
+
+      const base = baseY + (rand() - 0.5) * 34 * (0.35 + layer.depth);
+      // Capped: an uncapped tail on the height distribution throws the odd
+      // blade halfway up the sky, which reads as a scratch on the frame.
+      const height = Math.min(
+        H * layer.height * 1.9,
+        H * layer.height * lift * (0.45 + rand() * 1.15),
+      );
+      const lean = (rand() - 0.5) * 2 * layer.lean * height;
+      const width = layer.width * (0.55 + rand() * 0.9);
+      const curve = 0.35 + rand() * 0.6;
+
+      renderBlade(x0, base, height, lean, width, layer.value, layer.alpha, curve);
     }
   }
-}
 
-/**
- * Individual stalks. Each is a quadratic curve leaning with the wind, tapering
- * to a point, with a slightly heavier seed head near the tip on the front
- * layers so the crop reads as wheat rather than lawn.
- */
-function drawStalks(layer, topY, amp, index, depth) {
-  const rand = mulberry32(SEED + 900 + index * 131);
-  const meanHeight = layer.height * H;
-  const halfWidth = layer.width;
-
-  for (let n = 0; n < layer.stalks; n += 1) {
-    const x0 = rand() * (W + 120) - 60;
-
-    // Density varies along x, so the crop clumps instead of being uniform.
-    if (rand() > 0.35 + fbm(x0 / 340, index * 11.7, SEED + 640 + index, 3) * 0.9) continue;
-
-    const baseY = topY + (rand() - 0.5) * 2 * amp + meanHeight * 0.18;
-    const h = meanHeight * (0.45 + Math.pow(rand(), 0.7) * 1.15);
-    // Consistent wind direction with per-stalk variation.
-    const lean = (0.16 + rand() * 0.42) * h * (rand() < 0.82 ? 1 : -0.5);
-    const bend = 0.35 + rand() * 0.5;
-    const w0 = halfWidth * (0.55 + rand() * 0.8);
-    const head = depth > 0.35 && rand() < 0.62;
-
-    const steps = Math.max(6, Math.ceil(h * 2));
-    for (let s = 0; s <= steps; s += 1) {
-      const t = s / steps;
-      const y = baseY - h * t;
-      const x = x0 + lean * Math.pow(t, 1 + bend);
-      // Taper to a point.
-      let w = w0 * Math.pow(1 - t, 0.62);
-      // Seed head: a spindle swelling just below the tip.
-      if (head) w += w0 * 1.5 * Math.exp(-Math.pow((t - 0.8) / 0.13, 2));
-      if (w < 0.12) w = 0.12;
-
-      stampStalk(x, y, w, t, lean, depth);
-    }
-  }
-}
-
-/**
- * One horizontal slice of a stalk, with antialiased coverage, plus the
- * moonlight rim on whichever side faces the moon.
- */
-function stampStalk(cx, cy, w, t, lean, depth) {
-  const y = Math.round(cy);
-  if (y < 0 || y >= H) return;
-  const row = y * W;
-  const x0 = Math.floor(cx - w - 1);
-  const x1 = Math.ceil(cx + w + 1);
-
-  // The moon is to the right of most of the frame, so lit edges face it.
-  const lightDir = cx < MOON_X ? 1 : -1;
-  // Tips catch more light than bases, and near layers catch more than far.
-  const rimAmount = Math.pow(t, 1.5) * (0.32 + depth * 0.75);
-
-  for (let x = x0; x <= x1; x += 1) {
-    if (x < 0 || x >= W) continue;
-    const d = Math.abs(x - cx);
-    const cov = clamp01(w + 0.5 - d);
-    if (cov <= 0) continue;
-    const i = row + x;
-    if (cov > mask[i]) mask[i] = cov;
-
-    // Rim: a bright sliver on the lit flank only.
-    const side = (x - cx) * lightDir;
-    if (side > w * 0.1) {
-      const edge = clamp01((side - w * 0.1) / Math.max(0.4, w * 0.9));
-      const r = edge * cov * rimAmount;
-      if (r > rim[i]) rim[i] = r;
-    }
-  }
-  // Nudge the rim by the lean so it tracks the curve rather than sitting flat.
-  void lean;
-}
-
-/**
- * Separable box blur, run three times to approximate a Gaussian. Operates on
- * the coverage buffers only — never on the composited image.
- */
-const blurTmp = new Float32Array(W * H);
-function blurBuffer(buf, radius) {
-  const r = Math.max(1, Math.round(radius));
-  for (let pass = 0; pass < 3; pass += 1) {
-    // Horizontal
-    for (let y = 0; y < H; y += 1) {
-      const row = y * W;
-      let sum = 0;
-      for (let x = -r; x <= r; x += 1) sum += buf[row + clamp(x, 0, W - 1)];
-      const norm = 1 / (2 * r + 1);
-      for (let x = 0; x < W; x += 1) {
-        blurTmp[row + x] = sum * norm;
-        sum += buf[row + clamp(x + r + 1, 0, W - 1)] - buf[row + clamp(x - r, 0, W - 1)];
-      }
-    }
-    // Vertical
-    for (let x = 0; x < W; x += 1) {
-      let sum = 0;
-      for (let y = -r; y <= r; y += 1) sum += blurTmp[clamp(y, 0, H - 1) * W + x];
-      const norm = 1 / (2 * r + 1);
-      for (let y = 0; y < H; y += 1) {
-        buf[y * W + x] = sum * norm;
-        sum +=
-          blurTmp[clamp(y + r + 1, 0, H - 1) * W + x] - blurTmp[clamp(y - r, 0, H - 1) * W + x];
-      }
-    }
-  }
-}
-
-/**
- * Composite the layer. Aerial perspective: distant silhouettes are lifted
- * toward the haze colour and lose contrast, near ones go almost black.
- */
-function compositeLayer(layer, depth) {
-  const base = srgbHex(layer.colour);
-  const haze = srgbHex('#38486f');
-  const rimColour = srgbHex('#b9c9ee');
-
-  // Far layers sit in more air, so more haze mixes into their silhouette.
-  const hazeMix = Math.pow(1 - depth, 1.7) * 0.42;
-  const cr = lerp(base[0], haze[0], hazeMix);
-  const cg = lerp(base[1], haze[1], hazeMix);
-  const cb = lerp(base[2], haze[2], hazeMix);
-
-  for (let y = 0; y < H; y += 1) {
-    const row = y * W;
-    for (let x = 0; x < W; x += 1) {
-      const i = row + x;
-      const a = mask[i];
-      if (a > 0.001) overPixel(x, y, cr, cg, cb, clamp01(a));
-      const rl = rim[i];
-      if (rl > 0.001) {
-        // Moonlight falls off with distance from the moon.
-        const fall = lerp(0.35, 1.15, clamp01(1 - Math.hypot(x - MOON_X, y - MOON_Y) / (W * 0.85)));
-        const k = rl * fall * 0.5;
-        addPixel(x, y, rimColour[0] * k, rimColour[1] * k, rimColour[2] * k);
-      }
+  // Ground shadow. However dense the near layer is, single blades never fully
+  // cover the bottom of the frame, and the sky showing through between them
+  // reads as a hole rather than as ground. Sink the last stretch into black.
+  const shadowTop = H * 0.86;
+  for (let y = Math.floor(shadowTop); y < H; y++) {
+    const t = Math.pow((y - shadowTop) / (H - shadowTop), 1.4);
+    for (let x = 0; x < W; x++) {
+      const i = idx(x, y);
+      const k = t * 0.92;
+      buf[i] *= 1 - k;
+      buf[i + 1] *= 1 - k;
+      buf[i + 2] *= 1 - k;
     }
   }
 }
 
 /* -------------------------------------------------------------------------- */
-/* 7. Finish: vignette, grade, grain, tonemap                                 */
+/* 7. Grade                                                                   */
 /* -------------------------------------------------------------------------- */
 
-function finish() {
-  const rand = mulberry32(SEED + 4242);
-  const cx = W * 0.5;
-  const cy = H * 0.46;
-  const maxD = Math.hypot(cx, cy);
+function grade() {
+  const cx = W / 2;
+  const cy = H / 2;
+  const maxD = Math.sqrt(cx * cx + cy * cy);
+  const grain = rng(0x51a7);
 
-  for (let y = 0; y < H; y += 1) {
-    for (let x = 0; x < W; x += 1) {
-      const i = (y * W + x) * 3;
-      let r = img[i];
-      let g = img[i + 1];
-      let b = img[i + 2];
+  const out = Buffer.alloc(W * H * 3);
 
-      // Gentle vignette.
-      const d = Math.hypot(x - cx, y - cy) / maxD;
-      const vig = 1 - Math.pow(clamp01(d), 2.3) * 0.44;
+  for (let y = 0; y < H; y++) {
+    for (let x = 0; x < W; x++) {
+      const i = idx(x, y);
+      let r = buf[i];
+      let g = buf[i + 1];
+      let b = buf[i + 2];
+
+      // Vignette.
+      const dx = (x - cx) / maxD;
+      const dy = (y - cy) / maxD;
+      const vig = 1 - 0.46 * Math.pow(Math.sqrt(dx * dx + dy * dy) * 1.32, 2.1);
       r *= vig;
       g *= vig;
       b *= vig;
 
-      // Blue-hour grade: cool the shadows, hold the highlights neutral.
-      const lum = r * 0.2126 + g * 0.7152 + b * 0.0722;
-      const shadow = 1 - smoothstep(0.0, 0.16, lum);
-      r = lerp(r, r * 0.86, shadow);
-      g = lerp(g, g * 0.95, shadow);
-      b = lerp(b, b * 1.16, shadow);
+      // Blue-hour grade: lift the blues slightly, hold the reds back.
+      r *= 0.94;
+      b *= 1.06;
 
-      // Filmic shoulder. Keeps star cores from clipping to flat white.
-      r = tonemap(r);
-      g = tonemap(g);
-      b = tonemap(b);
+      // Filmic shoulder — keeps the moon and bright stars from clipping flat.
+      r = r / (1 + r);
+      g = g / (1 + g);
+      b = b / (1 + b);
 
-      // Film grain, strongest in the mid-tones and suppressed in deep shadow
-      // so it does not turn the sky into noise (and so the PNG still packs).
-      const grain = (rand() - 0.5) * 0.0075 * smoothstep(0.01, 0.22, lum);
-      img[i] = r + grain;
-      img[i + 1] = g + grain;
-      img[i + 2] = b + grain;
+      // Gentle contrast in the low end, where this whole image lives.
+      r = Math.pow(r, 0.92);
+      g = Math.pow(g, 0.92);
+      b = Math.pow(b, 0.92);
+
+      // Grain, scaled with luminance so the shadows stay clean and the PNG
+      // still compresses.
+      const n = (grain() - 0.5) * 0.010;
+      const o = (y * W + x) * 3;
+      out[o] = clamp255((r + n) * 255);
+      out[o + 1] = clamp255((g + n) * 255);
+      out[o + 2] = clamp255((b + n) * 255);
     }
   }
-}
 
-/** ACES-ish filmic curve, cheap form. */
-function tonemap(v) {
-  const x = Math.max(0, v);
-  return clamp01((x * (2.51 * x + 0.03)) / (x * (2.43 * x + 0.59) + 0.14));
-}
-
-/* -------------------------------------------------------------------------- */
-/* 8. Encode                                                                  */
-/* -------------------------------------------------------------------------- */
-
-/** Ordered 4x4 Bayer, so 8-bit quantisation of a smooth sky does not band. */
-const BAYER = [
-  [0, 8, 2, 10],
-  [12, 4, 14, 6],
-  [3, 11, 1, 9],
-  [15, 7, 13, 5],
-];
-
-/** Linear float RGB -> 8-bit sRGB bytes, dithered. */
-function encodeToBytes(source, w, h) {
-  const out = Buffer.allocUnsafe(w * h * 3);
-  for (let y = 0; y < h; y += 1) {
-    for (let x = 0; x < w; x += 1) {
-      const i = (y * w + x) * 3;
-      const dither = (BAYER[y & 3][x & 3] / 16 - 0.5) * (1 / 255);
-      for (let c = 0; c < 3; c += 1) {
-        const v = toSrgb(clamp01(source[i + c])) + dither;
-        out[i + c] = clamp(Math.round(v * 255), 0, 255);
-      }
-    }
-  }
   return out;
 }
 
-/* PNG ---------------------------------------------------------------------- */
+function clamp255(v) {
+  return v < 0 ? 0 : v > 255 ? 255 : Math.round(v);
+}
 
-const CRC_TABLE = (() => {
-  const table = new Int32Array(256);
-  for (let n = 0; n < 256; n += 1) {
+/* -------------------------------------------------------------------------- */
+/* PNG encoding                                                               */
+/* -------------------------------------------------------------------------- */
+
+function crc32(buffer) {
+  let c;
+  const table = crc32.table ?? (crc32.table = buildCrcTable());
+  let crc = 0xffffffff;
+  for (let i = 0; i < buffer.length; i++) {
+    c = (crc ^ buffer[i]) & 0xff;
+    crc = (crc >>> 8) ^ table[c];
+  }
+  return (crc ^ 0xffffffff) >>> 0;
+}
+
+function buildCrcTable() {
+  const table = new Uint32Array(256);
+  for (let n = 0; n < 256; n++) {
     let c = n;
-    for (let k = 0; k < 8; k += 1) c = c & 1 ? 0xedb88320 ^ (c >>> 1) : c >>> 1;
-    table[n] = c;
+    for (let k = 0; k < 8; k++) c = c & 1 ? 0xedb88320 ^ (c >>> 1) : c >>> 1;
+    table[n] = c >>> 0;
   }
   return table;
-})();
-
-function crc32(buf) {
-  let c = -1;
-  for (let i = 0; i < buf.length; i += 1) c = CRC_TABLE[(c ^ buf[i]) & 0xff] ^ (c >>> 8);
-  return (c ^ -1) >>> 0;
 }
 
 function chunk(type, data) {
-  const len = Buffer.alloc(4);
-  len.writeUInt32BE(data.length, 0);
-  const body = Buffer.concat([Buffer.from(type, 'latin1'), data]);
+  const length = Buffer.alloc(4);
+  length.writeUInt32BE(data.length, 0);
+  const body = Buffer.concat([Buffer.from(type, 'ascii'), data]);
   const crc = Buffer.alloc(4);
   crc.writeUInt32BE(crc32(body), 0);
-  return Buffer.concat([len, body, crc]);
+  return Buffer.concat([length, body, crc]);
 }
 
-/**
- * Encode 8-bit RGB (colour type 2) with per-scanline adaptive filtering.
- * The filter is chosen by the standard minimum-sum-of-absolute-differences
- * heuristic, which on an image like this cuts the file roughly in half versus
- * filter type 0 everywhere.
- */
-function encodePng(bytes, w, h) {
-  const stride = w * 3;
-  const raw = Buffer.allocUnsafe((stride + 1) * h);
-  const prev = Buffer.alloc(stride);
-  const candidates = [
-    Buffer.allocUnsafe(stride),
-    Buffer.allocUnsafe(stride),
-    Buffer.allocUnsafe(stride),
-    Buffer.allocUnsafe(stride),
-    Buffer.allocUnsafe(stride),
-  ];
-
-  for (let y = 0; y < h; y += 1) {
-    const line = bytes.subarray(y * stride, (y + 1) * stride);
-    let best = 0;
-    let bestScore = Infinity;
-
-    for (let f = 0; f < 5; f += 1) {
-      const dst = candidates[f];
-      let score = 0;
-      for (let i = 0; i < stride; i += 1) {
-        const a = i >= 3 ? line[i - 3] : 0;
-        const b = prev[i];
-        const c = i >= 3 ? prev[i - 3] : 0;
-        let v;
-        if (f === 0) v = line[i];
-        else if (f === 1) v = line[i] - a;
-        else if (f === 2) v = line[i] - b;
-        else if (f === 3) v = line[i] - ((a + b) >> 1);
-        else v = line[i] - paeth(a, b, c);
-        v &= 0xff;
-        dst[i] = v;
-        score += v < 128 ? v : 256 - v;
-      }
-      if (score < bestScore) {
-        bestScore = score;
-        best = f;
-      }
-    }
-
-    raw[y * (stride + 1)] = best;
-    candidates[best].copy(raw, y * (stride + 1) + 1);
-    line.copy(prev, 0);
-  }
-
-  const ihdr = Buffer.alloc(13);
-  ihdr.writeUInt32BE(w, 0);
-  ihdr.writeUInt32BE(h, 4);
-  ihdr[8] = 8; // bit depth
-  ihdr[9] = 2; // colour type: truecolour RGB
-  ihdr[10] = 0; // deflate
-  ihdr[11] = 0; // adaptive filtering
-  ihdr[12] = 0; // no interlace
-
-  return Buffer.concat([
-    Buffer.from([0x89, 0x50, 0x4e, 0x47, 0x0d, 0x0a, 0x1a, 0x0a]),
-    chunk('IHDR', ihdr),
-    chunk('IDAT', deflateSync(raw, { level: 9, memLevel: 9, windowBits: 15 })),
-    chunk('IEND', Buffer.alloc(0)),
-  ]);
-}
-
+/** Paeth predictor — the best general-purpose filter for smooth gradients. */
 function paeth(a, b, c) {
   const p = a + b - c;
   const pa = Math.abs(p - a);
   const pb = Math.abs(p - b);
   const pc = Math.abs(p - c);
   if (pa <= pb && pa <= pc) return a;
-  return pb <= pc ? b : c;
+  if (pb <= pc) return b;
+  return c;
 }
 
-/** Box-average downsample in linear light, which is the only correct way. */
-function downsample(source, sw, sh, dw, dh) {
-  const out = new Float32Array(dw * dh * 3);
+function encodePng(rgb, width, height) {
+  const stride = width * 3;
+  const raw = Buffer.alloc((stride + 1) * height);
+
+  for (let y = 0; y < height; y++) {
+    const rowStart = y * (stride + 1);
+    raw[rowStart] = 4; // Paeth
+    for (let x = 0; x < stride; x++) {
+      const cur = rgb[y * stride + x];
+      const left = x >= 3 ? rgb[y * stride + x - 3] : 0;
+      const up = y > 0 ? rgb[(y - 1) * stride + x] : 0;
+      const upLeft = y > 0 && x >= 3 ? rgb[(y - 1) * stride + x - 3] : 0;
+      raw[rowStart + 1 + x] = (cur - paeth(left, up, upLeft)) & 0xff;
+    }
+  }
+
+  const ihdr = Buffer.alloc(13);
+  ihdr.writeUInt32BE(width, 0);
+  ihdr.writeUInt32BE(height, 4);
+  ihdr[8] = 8; // bit depth
+  ihdr[9] = 2; // truecolour
+  ihdr[10] = 0;
+  ihdr[11] = 0;
+  ihdr[12] = 0;
+
+  return Buffer.concat([
+    Buffer.from([0x89, 0x50, 0x4e, 0x47, 0x0d, 0x0a, 0x1a, 0x0a]),
+    chunk('IHDR', ihdr),
+    chunk('IDAT', deflateSync(raw, { level: 9 })),
+    chunk('IEND', Buffer.alloc(0)),
+  ]);
+}
+
+/** Box-downsample, for the badge crop. */
+function resize(rgb, sw, sh, dw, dh) {
+  const out = Buffer.alloc(dw * dh * 3);
   const fx = sw / dw;
   const fy = sh / dh;
-  for (let y = 0; y < dh; y += 1) {
+  for (let y = 0; y < dh; y++) {
     const y0 = Math.floor(y * fy);
     const y1 = Math.min(sh, Math.ceil((y + 1) * fy));
-    for (let x = 0; x < dw; x += 1) {
+    for (let x = 0; x < dw; x++) {
       const x0 = Math.floor(x * fx);
       const x1 = Math.min(sw, Math.ceil((x + 1) * fx));
       let r = 0;
       let g = 0;
       let b = 0;
       let n = 0;
-      for (let sy = y0; sy < y1; sy += 1) {
-        for (let sx = x0; sx < x1; sx += 1) {
+      for (let sy = y0; sy < y1; sy++) {
+        for (let sx = x0; sx < x1; sx++) {
           const i = (sy * sw + sx) * 3;
-          r += source[i];
-          g += source[i + 1];
-          b += source[i + 2];
-          n += 1;
+          r += rgb[i];
+          g += rgb[i + 1];
+          b += rgb[i + 2];
+          n++;
         }
       }
       const o = (y * dw + x) * 3;
-      out[o] = r / n;
-      out[o + 1] = g / n;
-      out[o + 2] = b / n;
+      out[o] = Math.round(r / n);
+      out[o + 1] = Math.round(g / n);
+      out[o + 2] = Math.round(b / n);
     }
   }
   return out;
 }
 
 /* -------------------------------------------------------------------------- */
-/* Main                                                                       */
-/* -------------------------------------------------------------------------- */
 
-function step(label, fn) {
-  const t = Date.now();
-  fn();
-  process.stdout.write(`  ${label.padEnd(16)} ${String(Date.now() - t).padStart(6)} ms\n`);
+console.log(`rendering ${W}x${H}…`);
+renderSky();
+renderMilkyWay();
+renderStars();
+renderMoon();
+renderHaze();
+renderField();
+const rgb = grade();
+
+writeFileSync(join(HERE, 'night-field.png'), encodePng(rgb, W, H));
+
+// The badge shows a small crop around the moon, where the frame is most
+// legible at 200px wide.
+const CW = Math.round(W * 0.42);
+const CH = Math.round(H * 0.44);
+const cx0 = Math.round(W * 0.52);
+const cy0 = Math.round(H * 0.10);
+const crop = Buffer.alloc(CW * CH * 3);
+for (let y = 0; y < CH; y++) {
+  rgb.copy(crop, y * CW * 3, ((cy0 + y) * W + cx0) * 3, ((cy0 + y) * W + cx0 + CW) * 3);
 }
+writeFileSync(join(HERE, 'night-field-thumb.png'), encodePng(resize(crop, CW, CH, 400, 250), 400, 250));
 
-console.log(`night field ${W}x${H}, seed ${SEED}`);
-step('sky', renderSky);
-step('milky way', renderMilkyWay);
-step('stars', renderStars);
-step('moon', renderMoon);
-step('haze', renderHaze);
-step('field', renderField);
-step('finish', finish);
-
-let full;
-let thumb;
-step('encode', () => {
-  full = encodePng(encodeToBytes(img, W, H), W, H);
-  // The badge crop wants the interesting part of the frame, not the whole
-  // width: take the region around the moon and the near grass.
-  const small = downsample(img, W, H, THUMB_W, THUMB_H);
-  thumb = encodePng(encodeToBytes(small, THUMB_W, THUMB_H), THUMB_W, THUMB_H);
-});
-
-writeFileSync(join(HERE, 'night-field.png'), full);
-writeFileSync(join(HERE, 'night-field-thumb.png'), thumb);
-
-console.log(`  night-field.png       ${(full.length / 1024 / 1024).toFixed(2)} MB`);
-console.log(`  night-field-thumb.png ${(thumb.length / 1024).toFixed(1)} kB`);
+console.log('wrote night-field.png and night-field-thumb.png');

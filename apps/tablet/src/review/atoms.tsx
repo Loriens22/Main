@@ -51,10 +51,17 @@ export function StatPair({
  */
 export function PathLabel({ path, className }: { path: string; className?: string }) {
   const { dir, name } = splitPath(path);
+  // The directory is laid out RTL so it ellipsises from the left. That moves any
+  // trailing neutral character — the separator — to the visual left edge, which
+  // is why the slash has to live outside the RTL run rather than inside it.
+  const dirBody = dir.endsWith('/') ? dir.slice(0, -1) : dir;
   return (
     <span className={cx('on-rev-path', className)} title={path}>
-      {dir ? (
-        <bdi className="on-rev-path__dir">{dir}</bdi>
+      {dirBody ? (
+        <>
+          <bdi className="on-rev-path__dir">{dirBody}</bdi>
+          <span className="on-rev-path__sep">/</span>
+        </>
       ) : null}
       <span className="on-rev-path__name">{name}</span>
     </span>

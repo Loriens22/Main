@@ -385,6 +385,12 @@ html[data-glass='reduced'] {
   text-align: left;
 }
 
+/* Outside the RTL run above, so it stays between the two halves. */
+.on-rev-path__sep {
+  color: var(--on-text-faint);
+  flex: 0 0 auto;
+}
+
 .on-rev-path__name {
   color: var(--on-text);
   white-space: nowrap;
