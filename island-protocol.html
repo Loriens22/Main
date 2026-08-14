@@ -467,7 +467,12 @@ const rnd=(a=1,b)=>b===undefined?Math.random()*a:a+Math.random()*(b-a);
 const rndi=(a,b)=>Math.floor(rnd(a,b+1));
 const pick=(arr)=>arr[(Math.random()*arr.length)|0];
 const chance=(p)=>Math.random()<p;
-function angLerp(a,b,t){let d=((b-a+PI)%TAU+TAU)%TAU-PI;return a+d*t;}
+// t MUST be clamped: callers pass dt*rate, and a long frame (dt up to the 0.12 cap)
+// used to push t past 1, overshooting the target every frame and spinning the model.
+function angLerp(a,b,t){t=t>1?1:t<0?0:t;let d=((b-a+PI)%TAU+TAU)%TAU-PI;return a+d*t;}
+// frame-rate independent turn that can never overshoot
+function turnToward(cur,tgt,radPerSec,dtv){const d=((tgt-cur+PI)%TAU+TAU)%TAU-PI;
+  const step=Math.min(Math.abs(d),radPerSec*dtv);return cur+Math.sign(d)*step;}
 function angDiff(a,b){let d=((b-a+PI)%TAU+TAU)%TAU-PI;return d;}
 function approach(a,b,dt){return a<b?min(a+dt,b):max(a-dt,b);}
 
@@ -1989,18 +1994,20 @@ function humanoid(c,cfg,po){
     mstT(.225*S*side,.17*S,0,0,0,0);
     const u=side<0?po.armLU:po.armRU, f=side<0?po.armLF:po.armRF, sd=side<0?po.armLS:po.armRS;
     mstDraw(GEO.sph,0,0,0,0,0,0,.115*S,.115*S,.115*S,cloth,0,.8,heat,cfg.style||0);
+    const AL=cfg.arm||1;
     mstT(0,0,0,u,0,sd*side);
-    limb(.30*S,.055*S,.05*S,cloth,heat,cfg.style||0);
-    mstT(0,-.30*S,0,f,0,0);
-    limb(.28*S,.048*S,.045*S,cfg.sleeve||cloth,heat,cfg.style||0);
-    mstT(0,-.28*S,0,0,0,0);
+    limb(.30*S*AL,.055*S,.05*S,cloth,heat,cfg.style||0);
+    mstT(0,-.30*S*AL,0,f,0,0);
+    limb(.28*S*AL,.048*S,.045*S,cfg.sleeve||cloth,heat,cfg.style||0);
+    mstT(0,-.28*S*AL,0,0,0,0);
     mstDraw(GEO.sph,0,-.03*S,0,0,0,0,.09*S,.10*S,.075*S,skin,0,.7,heat*1.15,0);
     if(side>0&&cfg.onHandR)cfg.onHandR(c,S);
     if(side<0&&cfg.onHandL)cfg.onHandL(c,S);
     mstPop();
   }
   // --- head
-  mstT(0,.26*S,0,po.head,po.headY,po.headTilt);
+  mstT(0,(.26+(cfg.neck||0))*S,0,po.head,po.headY,po.headTilt);
+  if(cfg.neck)mstDraw(GEO.cyl,0,-(cfg.neck*.5)*S,0,0,0,0,.085*S,cfg.neck*S,.085*S,skin,0,.75,heat,0);
   mstDraw(GEO.cyl,0,.03*S,0,0,0,0,.095*S,.11*S,.095*S,skin,0,.75,heat*1.15,0);
   mstDraw(GEO.sph,0,.18*S,0,0,0,0,.205*S,.245*S,.225*S,skin,0,.72,heat*1.2,cfg.headStyle||0);
   if(cfg.jaw!==false)mstDraw(GEO.box,0,.125*S,.05*S,0,0,0,.14*S,.085*S,.125*S,skin,0,.72,heat*1.2,0);
@@ -2254,7 +2261,9 @@ function playerDown(type){
   PL.alive=false;PL.state='dead';
   GS.mode='dead';
   sfxTone(null,120,1.6,'sawtooth',.3,40);
-  showDeath(type==='grab'?'Your throat gives. The parasite finishes what the fall started.':
+  showDeath(type==='pallid'?'It did not bite. It did not tear. It simply folded you into itself, and the screaming stopped.':
+    type==='hollow'?'It was three metres away when you looked. It was not, when you looked again.':
+    type==='grab'?'Your throat gives. The parasite finishes what the fall started.':
     type==='elena'?'ASSET PHOENIX LOST':'You bleed out on the wet concrete of Isla Verdugo.');
 }
 
@@ -2704,11 +2713,16 @@ function updatePlayer(dtv){
       PL.vel.x=lerp(PL.vel.x,mx,dtv*14);PL.vel.z=lerp(PL.vel.z,mz,dtv*14);
       collide(PL.p,PL.vel.x*dtv,PL.vel.z*dtv,.32);
     }else{PL.vel.x*=.75;PL.vel.z*=.75;}
-    // face movement / camera
+    // ---- body facing ----
+    // Over-the-shoulder convention: the body always resolves toward the camera heading.
+    // Strafing and backpedalling read through the animation, not by twisting the model —
+    // steering the body at the velocity vector made it chase its own tail while circling.
+    if(PL.yawBody===undefined)PL.yawBody=cam.yaw;
     const moving=mag>.05;
-    const tgtYaw=PL.aim>.3||PL.state==='knife'||PL.state==='kick'?cam.yaw:
-      (moving?Math.atan2(PL.vel.x,-PL.vel.z):PL.yawBody||cam.yaw);
-    PL.yawBody=angLerp(PL.yawBody===undefined?cam.yaw:PL.yawBody,tgtYaw,dtv*(PL.aim>.3?16:9));
+    const turnRate=(PL.aim>.3||PL.state==='knife'||PL.state==='kick')?16:(moving?10:5);
+    PL.yawBody=turnToward(PL.yawBody,cam.yaw,turnRate,dtv);
+    PL.strafe=lerp(PL.strafe||0,ix,min(1,dtv*9));
+    PL.backped=lerp(PL.backped||0,iz<-.15?1:0,min(1,dtv*9));
   }
   // floor follow
   const fy=floorAt(PL.p.x,PL.p.z);
@@ -2869,7 +2883,10 @@ function updateInteract(){
 function drawPlayer(dtv,spd){
   const po=PL.pose,an=PL.an;
   po.crouch=PL.crouch;
-  const lo=animLocomotion(po,an,spd*(PL.sprint>.4?1.35:1),dtv,{stride:PL.sprint>.4?1.25:1});
+  const lo=animLocomotion(po,an,spd*(PL.sprint>.4?1.35:1),dtv*(PL.backped>.5?-1:1),
+    {stride:PL.sprint>.4?1.25:1});
+  po.lean+=(PL.strafe||0)*.16;
+  po.twist+=(PL.strafe||0)*.30;
   animIdle(po,an,dtv*(1-clamp(spd,0,1)));
   blinkUpd(po,an,dtv);
   const aim=PL.aim;
@@ -3101,6 +3118,9 @@ function damageEnemy(e,dmg,zone,pos,dir,weapon){
   if(e.faction==='ally'){elenaDamage(dmg*.55,pos,true);return;}
   if(!e.alive)return;
   const d=e.def;
+  // hitting the Pallid counts as attention, and attention is the trigger
+  if(d.gaze&&!e.rage){e.rage=1;e.stateT=0;sfxRage(e.p);screenShake(1.2);
+    toast('YOU SHOULD NOT HAVE DONE THAT','bad');GS.dreadSpike=1.6;}
   let mult=zone?(zone.mult===undefined?1:zone.mult):1;
   if(zone&&zone.type==='shield'){
     // shield blocks; heavy weapons break it
@@ -3194,6 +3214,7 @@ function spawnGore(p,n,col){
 }
 function killEnemy(e,dir,zone){
   if(!e.alive)return;
+  if(e.def.revive&&horrorOnLethal(e))return;
   e.alive=false;e.state='dead';e.stateT=0;e.canFinish=false;
   PL.kills++;
   sfxVocal(e.p,e.def.boss?'roar':'death');
@@ -3341,6 +3362,8 @@ function updateEnemy(e,dtv){
     if(e.hp<=0){killEnemy(e,V(0,0,0));return;}}
   if(e.frozen>0){e.frozen-=dtv;}
   if(e.blind>0)e.blind-=dtv;
+  // creatures that play by their own rules take the frame entirely
+  if(d.horror&&horrorPre(e,dtv,e.target===EL?EL:PL))return;
   if(e.finishT>0){e.finishT-=dtv;if(e.finishT<=0)e.canFinish=false;}
   if(e.stagger>0){e.stagger-=dtv;if(e.stagger<=0&&e.state==='stagger'){e.state='chase';e.stateT=0;}}
   if(e.down&&e.stateT>4&&!e.limb.ll){/* crawler stays down */}
@@ -3545,7 +3568,7 @@ function drawEnemy(e,dtv,spd){
   if(!e.alive){drawEnemyDead(e,dtv);return;}
   // pose reset
   for(const k in po)po[k]=0;
-  if(moving)animLocomotion(po,an,mv*1.05,dtv,{stride:d.bug?2.2:1});
+  if(moving)animLocomotion(po,an,mv*1.05,dtv*(d.bug?1:stutterScale(e,an,dtv)),{stride:d.bug?2.2:1});
   else animIdle(po,an,dtv);
   // menace: hunched forward, arms out
   po.spine+=.24;po.chest+=.10;po.head-=.22;
@@ -3567,6 +3590,13 @@ function drawEnemy(e,dtv,spd){
   if(e.down){po.bobY-=.55;po.spine+=.7;po.legLU=.8;po.legRU=.8;}
   if(e.frozen>0){for(const k in po)po[k]*=.15;}
   blinkUpd(po,an,dtv);
+  // the uncanny layer — applied last so it distorts an already-correct pose
+  if(!d.boss&&!d.angel)animWrong(e,po,an,dtv,d.horror?1.25:(e.state==='chase'?.85:.6));
+
+  if(d.crawl){drawCrawler(e,dtv,po);return;}
+  if(d.gaze){drawPallid(e,dtv,po);return;}
+  if(d.angel){drawHollow(e,dtv,po);return;}
+  if(d.revive){drawStalker(e,dtv,po);return;}
 
   const cfg=enemyCfg(e);
   if(d.bug){drawSkitter(e,dtv,po,an);return;}
@@ -3690,6 +3720,10 @@ function drawEnemyDead(e,dtv){
   po.legLU=-t*.5;po.legRU=-t*.75;po.armLU=t*1.1;po.armRU=t*.85;po.head=t*.5;
   const cfg=enemyCfg(e);cfg.eyes=e.limb.head!==0;
   if(e.def.bug){drawSkitterBody(e,po,-1);return;}
+  if(e.def.crawl){drawCrawler(e,dtv,po);return;}
+  if(e.def.gaze){drawPallid(e,dtv,po);return;}
+  if(e.def.angel){drawHollow(e,dtv,po);return;}
+  if(e.def.revive){drawStalker(e,dtv,po);return;}
   if(e.def.finalBoss||e.type==='executor'||e.type==='colossus'){
     // large corpses collapse in place
     mstBegin(e.p.x,e.p.y,e.p.z,-e.yaw);
@@ -3852,6 +3886,594 @@ function drawProphetBody(e,po,dtv){
   // crown of horns
   for(let i=0;i<7;i++){const a=(i/7)*TAU;
     mstDraw(GEO.cone,Math.cos(a)*.28*S,2.02*S,Math.sin(a)*.28*S,.4,-a,0,.05*S,.30*S,.05*S,[.70,.68,.62],.02,.3,.4,0);}
+}
+/* ============================ 8c. HORROR LAYER ============================
+   Fear does not come from the model — it comes from wrongness of motion, from
+   presence you cannot see, and from rules the player has to obey.
+   Three levers, applied here:
+     1. WRONGNESS   — head snaps faster than a neck allows, gait stutters,
+                      joints hyperextend, every body is asymmetric.
+     2. GAZE        — creatures that react to being looked at, and creatures
+                      that only move while you are not looking.
+     3. PERSISTENCE — a thing that gets back up, and a dread field that tells
+                      you something is close before you ever see it.
+   ========================================================================= */
+
+/* ---------- who can see what ---------- */
+function inView(p,cosThresh,yOff){
+  const dx=p.x-cam.p.x, dy=(p.y+(yOff===undefined?1.2:yOff))-cam.p.y, dz=p.z-cam.p.z;
+  const d=Math.hypot(dx,dy,dz); if(d<.001)return true;
+  const dot=(dx*cam.fwd.x+dy*cam.fwd.y+dz*cam.fwd.z)/d;
+  return dot>(cosThresh===undefined?.60:cosThresh);
+}
+function observed(e,cosThresh){
+  if(!inView(e.p,cosThresh))return false;
+  _t1.x=cam.p.x;_t1.y=cam.p.y;_t1.z=cam.p.z;
+  _t2.x=e.p.x;_t2.y=e.p.y+1.2;_t2.z=e.p.z;
+  return losFull(_t1,_t2);
+}
+
+/* ---------- extra audio: the sounds that do the actual work ---------- */
+function sfxBreath(pos,wet){
+  if(!AU.ready)return;const ctx=AU.ctx,t=nowA();
+  const out=spatial(pos,AU.sfx,9,.55);if(out.vol<.004)return;
+  const n=ctx.createBufferSource();n.buffer=AU.pink;n.playbackRate.value=rnd(.5,.8);
+  const bp=ctx.createBiquadFilter();bp.type='bandpass';bp.frequency.value=wet?420:760;bp.Q.value=1.5;
+  const g=ctx.createGain();
+  g.gain.setValueAtTime(0,t);g.gain.linearRampToValueAtTime(.22,t+.22);
+  g.gain.linearRampToValueAtTime(.03,t+.55);g.gain.linearRampToValueAtTime(.16,t+.85);
+  g.gain.exponentialRampToValueAtTime(.0005,t+1.5);
+  n.connect(bp);bp.connect(g);g.connect(out.node);n.start(t);n.stop(t+1.6);
+}
+function sfxScrape(pos){
+  if(!AU.ready)return;const ctx=AU.ctx,t=nowA();
+  const out=spatial(pos,AU.sfx,11,.5);if(out.vol<.004)return;
+  const n=ctx.createBufferSource();n.buffer=AU.noise;n.playbackRate.value=.22;
+  const bp=ctx.createBiquadFilter();bp.type='bandpass';bp.frequency.setValueAtTime(3200,t);
+  bp.frequency.exponentialRampToValueAtTime(900,t+.7);bp.Q.value=7;
+  const g=ctx.createGain();g.gain.setValueAtTime(.10,t);g.gain.exponentialRampToValueAtTime(.0005,t+.75);
+  n.connect(bp);bp.connect(g);g.connect(out.node);n.start(t);n.stop(t+.8);
+}
+function sfxWhisper(){
+  if(!AU.ready)return;const ctx=AU.ctx,t=nowA();
+  const n=ctx.createBufferSource();n.buffer=AU.pink;n.playbackRate.value=1.6;
+  const bp=ctx.createBiquadFilter();bp.type='bandpass';bp.frequency.value=1900;bp.Q.value=2.4;
+  const lfo=ctx.createOscillator();lfo.frequency.value=6.5;
+  const lg=ctx.createGain();lg.gain.value=700;lfo.connect(lg);lg.connect(bp.frequency);lfo.start(t);
+  const pan=ctx.createStereoPanner?ctx.createStereoPanner():null;
+  const g=ctx.createGain();g.gain.setValueAtTime(0,t);g.gain.linearRampToValueAtTime(.055,t+.4);
+  g.gain.exponentialRampToValueAtTime(.0004,t+1.9);
+  n.connect(bp);bp.connect(g);
+  if(pan){pan.pan.value=chance(.5)?-.85:.85;g.connect(pan);pan.connect(AU.sfx);}else g.connect(AU.sfx);
+  n.start(t);n.stop(t+2);lfo.stop(t+2);
+}
+function sfxRage(pos){
+  if(!AU.ready)return;const ctx=AU.ctx,t=nowA();
+  const out=spatial(pos,AU.sfx,40,.7);
+  for(let k=0;k<3;k++){
+    const o=ctx.createOscillator();o.type='sawtooth';
+    o.frequency.setValueAtTime(180+k*90,t);
+    o.frequency.linearRampToValueAtTime(1500+k*400,t+.25);
+    o.frequency.linearRampToValueAtTime(300+k*120,t+1.7);
+    const lfo=ctx.createOscillator();lfo.frequency.value=11+k*4;
+    const lg=ctx.createGain();lg.gain.value=140;lfo.connect(lg);lg.connect(o.frequency);lfo.start(t);
+    const bp=ctx.createBiquadFilter();bp.type='bandpass';bp.frequency.value=1200+k*600;bp.Q.value=1.6;
+    const g=ctx.createGain();g.gain.setValueAtTime(0,t);g.gain.linearRampToValueAtTime(.30/(k+1),t+.05);
+    g.gain.exponentialRampToValueAtTime(.0006,t+1.9);
+    o.connect(bp);bp.connect(g);g.connect(out.node);o.start(t);o.stop(t+2);lfo.stop(t+2);}
+}
+function sfxHeavyStep(pos){
+  if(!AU.ready)return;const ctx=AU.ctx,t=nowA();
+  const out=spatial(pos,AU.sfx,26,.5);if(out.vol<.003)return;
+  const o=ctx.createOscillator();o.type='sine';o.frequency.setValueAtTime(84,t);
+  o.frequency.exponentialRampToValueAtTime(30,t+.30);
+  const g=ctx.createGain();g.gain.setValueAtTime(.7,t);g.gain.exponentialRampToValueAtTime(.0005,t+.35);
+  o.connect(g);g.connect(out.node);o.start(t);o.stop(t+.4);
+  const n=ctx.createBufferSource();n.buffer=AU.noise;
+  const lp=ctx.createBiquadFilter();lp.type='lowpass';lp.frequency.value=700;
+  const g2=ctx.createGain();g2.gain.setValueAtTime(.28,t);g2.gain.exponentialRampToValueAtTime(.0005,t+.2);
+  n.connect(lp);lp.connect(g2);g2.connect(out.node);n.start(t);n.stop(t+.25);
+}
+function sfxBoneSnap(pos){
+  if(!AU.ready)return;const ctx=AU.ctx,t=nowA();
+  const out=spatial(pos,AU.sfx,12,.4);if(out.vol<.004)return;
+  for(let i=0;i<3;i++){const d=i*.045;
+    const n=ctx.createBufferSource();n.buffer=AU.noise;
+    const bp=ctx.createBiquadFilter();bp.type='bandpass';bp.frequency.value=rnd(1800,4200);bp.Q.value=9;
+    const g=ctx.createGain();g.gain.setValueAtTime(.22,t+d);g.gain.exponentialRampToValueAtTime(.0004,t+d+.05);
+    n.connect(bp);bp.connect(g);g.connect(out.node);n.start(t+d);n.stop(t+d+.07);}
+}
+
+/* ---------- WRONGNESS: the uncanny motion layer ---------- */
+/* Applied on top of any humanoid pose. The baseline has to read as human for
+   the deviation to land, so this only ever bends an already-correct pose.    */
+function animWrong(e,po,an,dtv,amt){
+  const A=amt===undefined?1:amt;
+  if(an.twT===undefined){an.twT=rnd(.4,2.6);an.twYaw=0;an.twTilt=0;an.twHold=0;
+    an.stutT=rnd(.6,2.2);an.stut=1;an.asym=mkRng(e.id*2654435761)()*.5+.75;}
+  // --- head snaps far faster than a neck should move, then holds, then drifts
+  an.twT-=dtv;
+  if(an.twT<=0){
+    an.twT=rnd(.7,3.1)/A;
+    an.twYawT=rnd(-1.25,1.25)*A;
+    an.twTiltT=rnd(-.85,.85)*A;
+    an.twHold=rnd(.3,1.1);
+    if(chance(.22*A))sfxBoneSnap(e.p);
+  }
+  an.twHold=max(0,an.twHold-dtv);
+  if(an.twHold<=0){an.twYawT=(an.twYawT||0)*Math.pow(.05,dtv);an.twTiltT=(an.twTiltT||0)*Math.pow(.05,dtv);}
+  an.twYaw=approach(an.twYaw,an.twYawT||0,dtv*26);      // 26 rad/s — inhumanly quick
+  an.twTilt=approach(an.twTilt,an.twTiltT||0,dtv*20);
+  po.headY+=an.twYaw;po.headTilt+=an.twTilt;
+  // --- fine tremor through the whole frame
+  const j=A*.11;
+  po.head+=(noise2(T*15+e.id*7,0)-.5)*j;
+  po.armLU+=(noise2(T*19+e.id*3,5)-.5)*j;
+  po.armRU+=(noise2(T*19+e.id*3,11)-.5)*j;
+  po.spine+=(noise2(T*9+e.id,17)-.5)*j*.6;
+  // --- hyperextension: elbows and knees pushed a few degrees the wrong way
+  po.armLF=min(po.armLF,.16*A);po.armRF=min(po.armRF,.16*A);
+  po.legLF-=.13*A;po.legRF-=.13*A;
+  // --- asymmetry: one shoulder permanently higher, one stride longer
+  po.lean+=(an.asym-1)*.34;
+  po.armLS+=(an.asym-1)*.5;
+  po.legLU*=an.asym;po.legRU*=(2-an.asym);
+}
+/* gait stutter — random freezes and bursts, never a steady walk cycle */
+function stutterScale(e,an,dtv){
+  if(an.stutT===undefined){an.stutT=rnd(.6,2.2);an.stut=1;}
+  an.stutT-=dtv;
+  if(an.stutT<=0){
+    an.stutT=rnd(.35,1.9);
+    an.stut=chance(.34)?rnd(0,.15):(chance(.25)?rnd(1.9,2.9):rnd(.75,1.25));
+  }
+  return an.stut;
+}
+
+/* ---------- new creature definitions ---------- */
+Object.assign(ED,{
+  /* CRAWLER — inverted anatomy. Walks on all fours, spine bent the wrong way,
+     head hanging back so it watches you upside down. Fast, erratic, fragile. */
+  crawler:{name:'CRAWLER — INVERTED HOST',hp:260,spd:2.6,rspd:6.0,dmg:22,reach:1.7,atk:.65,
+    sight:26,fov:2.4,hear:32,armor:.05,mass:.8,plaga:.15,grab:.3,scale:1,horror:true,crawl:true,
+    col:{cloth:[.44,.39,.36],cloth2:[.40,.35,.33],skin:[.52,.45,.42],hair:[.10,.08,.07]},
+    loot:['ammo','herb','none'],cash:[160,380]},
+
+  /* THE PALLID — it is only dangerous once you look at it. Faceless, dormant,
+     hands over the place a face should be. Meet its non-eyes and it comes. */
+  pallid:{name:'THE PALLID',hp:9000,spd:0,rspd:7.4,dmg:150,reach:2.4,atk:.5,
+    sight:0,fov:0,hear:0,armor:.985,mass:4,plaga:0,grab:.9,scale:1.52,horror:true,gaze:true,
+    col:{cloth:[.80,.78,.76],cloth2:[.76,.74,.72],skin:[.84,.82,.80],hair:[.7,.7,.7]},
+    loot:[],cash:[0,0]},
+
+  /* HOLLOW — moves only while unobserved. Look at it and it is simply a thing
+     standing in a room, a metre closer than it was. Silent. */
+  hollow:{name:'HOLLOW',hp:900,spd:3.4,rspd:5.6,dmg:38,reach:1.9,atk:.7,
+    sight:999,fov:3.2,hear:0,armor:.5,mass:1.6,plaga:0,grab:.45,scale:1.06,horror:true,angel:true,
+    col:{cloth:[.62,.60,.58],cloth2:[.58,.56,.54],skin:[.66,.64,.62],hair:[.5,.5,.5]},
+    loot:['spinel','ammo'],cash:[400,700]},
+
+  /* THE LONG PATIENT — it does not stay down. Drop it and it gets back up. */
+  stalker:{name:'THE LONG PATIENT',hp:2600,spd:1.6,rspd:4.4,dmg:56,reach:2.5,atk:1.0,
+    sight:36,fov:2.0,hear:80,armor:.55,mass:5,plaga:0,grab:.6,scale:1.34,horror:true,revive:true,
+    col:{cloth:[.16,.15,.17],cloth2:[.13,.12,.14],skin:[.46,.40,.37],hair:[.09,.08,.07]},
+    loot:['spinel','ammo','herb'],cash:[800,1400]},
+});
+
+/* ---------- custom behaviour hook (called before the normal state machine) ----------
+   Returns true when it fully owns the frame. */
+function horrorPre(e,dtv,tgt){
+  const d=e.def;
+
+  /* ===== THE PALLID ===== */
+  if(d.gaze){
+    if(e.rage===undefined){e.rage=0;e.seenT=0;e.loseT=0;e.coverT=0;}
+    const dd=distXZ(e.p,PL.p);
+    if(!e.rage){
+      // A hard stare, not a glance: it has to be near the centre of the screen.
+      const staring=observed(e,.90)&&dd<46;
+      e.seenT=staring?e.seenT+dtv:0;
+      if(staring&&e.seenT>.30){
+        e.rage=1;e.stateT=0;
+        sfxRage(e.p);screenShake(1.2);postFlash=.5;
+        toast('IT SAW YOU LOOK','bad');
+        subtitle('RANGER',"Don't look at it. Do NOT look at it.");
+        if(AU.music)AU.music.stinger('danger');
+        GS.dreadSpike=1.6;
+      }else{
+        // dormant: perfectly still. That stillness is the point.
+        e.state='dormant';
+        e.vocT-=dtv;
+        if(e.vocT<=0){e.vocT=rnd(5,13);if(dd<26)sfxBreath(e.p,false);}
+        updateZones(e);drawEnemy(e,dtv,0);
+        return true;
+      }
+    }
+    // raging: relentless, effectively bulletproof, only broken by distance/doors
+    e.state='chase';
+    e.target=PL;
+    const seeing=observed(e,.35)||dd<7;
+    e.loseT=seeing?0:e.loseT+dtv;
+    if(e.loseT>13){e.rage=0;e.seenT=0;e.loseT=0;e.state='dormant';
+      toast('IT LOST YOU');sfxBreath(e.p,true);
+      updateZones(e);drawEnemy(e,dtv,0);return true;}
+    repath(e,PL.p.x,PL.p.z);
+    const moved=followPath(e,d.rspd,dtv);
+    if(!e.path)moveToward(e,PL.p.x,PL.p.z,d.rspd*.85,dtv);
+    e.stepAcc=(e.stepAcc||0)+d.rspd*dtv;
+    if(e.stepAcc>1.0){e.stepAcc=0;sfxHeavyStep(e.p);}
+    if(dd<d.reach*e.scale){
+      if(PL.invT<=0&&PL.dodgeT<=0){playerDown('pallid');}
+    }
+    // it drags the light down with it
+    GS.dreadSpike=max(GS.dreadSpike||0,clamp(1-dd/30,0,1)*1.4);
+    updateZones(e);drawEnemy(e,dtv,d.rspd);
+    return true;
+  }
+
+  /* ===== HOLLOW ===== */
+  if(d.angel){
+    const seen=observed(e,.42)&&distXZ(e.p,PL.p)<40;
+    e.watched=seen;
+    if(seen){
+      // frozen mid-anything. Pose is held exactly as it was.
+      e.state='frozen';
+      if(!e.wasSeen){e.wasSeen=true;
+        // it re-arranges itself between glances
+        e.poseSeed=(e.poseSeed||0)+1;
+        if(distXZ(e.p,PL.p)<14&&chance(.5)){sfxScrape(e.p);GS.dreadSpike=max(GS.dreadSpike||0,.9);}}
+      updateZones(e);drawEnemy(e,dtv,0);
+      return true;
+    }
+    e.wasSeen=false;
+    // unobserved: it closes, in total silence, faster than you walk
+    e.state='chase';e.target=PL;
+    repath(e,PL.p.x,PL.p.z);
+    followPath(e,d.rspd,dtv);
+    if(!e.path)moveToward(e,PL.p.x,PL.p.z,d.rspd*.8,dtv);
+    if(distXZ(e.p,PL.p)<d.reach){
+      e.atkT=(e.atkT||0)-dtv;
+      if(e.atkT<=0){e.atkT=d.atk;plDamage(d.dmg,e.p,'hollow');
+        sfxBoneSnap(e.p);screenShake(.5);}
+    }
+    updateZones(e);drawEnemy(e,dtv,d.rspd);
+    return true;
+  }
+
+  /* ===== THE LONG PATIENT ===== */
+  if(d.revive){
+    if(e.downT>0){
+      e.downT-=dtv;
+      e.state='downed';
+      if(e.downT<=0){
+        e.hp=e.hpMax*(e.reviveN>=2?.55:.8);
+        e.state='chase';e.alertLevel=1;
+        e.reviveN=(e.reviveN||0)+1;
+        sfxRage(e.p);screenShake(.9);
+        toast('IT IS GETTING BACK UP','bad');
+        if(AU.music)AU.music.stinger('danger');
+      }
+      updateZones(e);drawEnemy(e,dtv,0);
+      return true;
+    }
+    e.stepAcc=(e.stepAcc||0)+(e.state==='chase'?d.rspd:d.spd)*dtv;
+    if(e.stepAcc>1.35){e.stepAcc=0;sfxHeavyStep(e.p);}
+    if(chance(dtv*.35))sfxBreath(e.p,true);
+  }
+  return false;
+}
+/* intercept the kill so the Long Patient goes down instead of dying */
+function horrorOnLethal(e){
+  if(e.def.revive&&(e.reviveN||0)<3){
+    e.hp=1;e.downT=rnd(9,15);e.state='downed';e.stateT=0;
+    e.canFinish=false;e.grabTarget&&releaseGrab(e);
+    sfxVocal(e.p,'death');spawnGore(e.p,14,[.42,.03,.05]);
+    toast('IT WENT DOWN. IT DID NOT DIE.','bad');
+    return true;
+  }
+  return false;
+}
+
+/* ---------- DREAD: presence you feel before you see ---------- */
+const DREAD={v:0,breathT:2,whisperT:6,glimpseT:14,flickT:5};
+function updateDread(dtv){
+  if(GS.mode!=='play'){DREAD.v=approach(DREAD.v,0,dtv);return;}
+  let near=0;
+  for(const e of ents){
+    if(e.faction!=='enemy'||!e.alive)continue;
+    const dd=distXZ(e.p,PL.p);
+    if(dd>26)continue;
+    const unseen=!observed(e,.5);
+    const w=clamp(1-dd/26,0,1);
+    // something close that you cannot see is worth far more dread than a
+    // visible one — the visible one is just a fight
+    near=max(near,unseen?w*(e.def.horror?1.25:.8):w*.28);
+  }
+  if(GS.dreadSpike){near=max(near,GS.dreadSpike);GS.dreadSpike=max(0,GS.dreadSpike-dtv*.8);}
+  if(GS.safeRoom)near=0;
+  DREAD.v=approach(DREAD.v,clamp(near,0,1),dtv*(near>DREAD.v?2.2:.5));
+  const D2=DREAD.v;
+
+  // breathing / dragging from just out of sight
+  DREAD.breathT-=dtv;
+  if(DREAD.breathT<=0&&D2>.25){
+    DREAD.breathT=lerp(4.5,1.1,D2);
+    let best=null,bd=1e9;
+    for(const e of ents){if(e.faction!=='enemy'||!e.alive)continue;
+      const dd=distXZ(e.p,PL.p);if(dd<bd&&!observed(e,.5)){bd=dd;best=e;}}
+    if(best)chance(.5)?sfxBreath(best.p,best.def.horror):sfxScrape(best.p);
+  }
+  // whispers in the dark
+  DREAD.whisperT-=dtv;
+  if(DREAD.whisperT<=0){
+    DREAD.whisperT=lerp(22,5,D2);
+    if(D2>.15&&ceilAt(PL.p.x,PL.p.z)<12)sfxWhisper();
+  }
+  // the lights do not like it either
+  DREAD.flickT-=dtv;
+  if(DREAD.flickT<=0&&D2>.45){
+    DREAD.flickT=rnd(2.5,7);
+    for(const L of lights){
+      if(dist2(L.p,PL.p)<400&&L.base>.4){L.flick=max(L.flick,.85);
+        setTimeout(()=>{if(L)L.flick=0;},rnd(600,2200));}}
+  }
+  // a shape at the edge of vision that is gone when you turn
+  DREAD.glimpseT-=dtv;
+  if(DREAD.glimpseT<=0){
+    DREAD.glimpseT=lerp(40,11,D2);
+    if(D2>.20&&chance(.65))spawnGlimpse();
+  }
+  // presentation: dread tightens the lens and thickens the air
+  env.vig=lerp(.9,1.28,D2);
+  if(env.fogDBase===undefined)env.fogDBase=env.fogD;
+  env.fogD=env.fogDBase*(1+D2*.30);
+  postDrunk=max(postDrunk,D2>.75?(D2-.75)*.9:0);
+}
+
+/* ---------- peripheral glimpse: a silhouette, then nothing ---------- */
+const glimpses=[];
+function spawnGlimpse(){
+  const a=cam.yaw+(chance(.5)?1:-1)*rnd(.85,1.35);
+  const r=rnd(9,17);
+  const x=PL.p.x+Math.sin(a)*r, z=PL.p.z-Math.cos(a)*r;
+  if(!walkAt(x,z))return;
+  glimpses.push({p:V(x,floorAt(x,z),z),t:rnd(.55,1.1),max:1.1,
+    yaw:Math.atan2(PL.p.x-x,-(PL.p.z-z)),kind:rndi(0,2)});
+  if(chance(.4))sfxScrape(V(x,0,z));
+}
+function updateGlimpses(dtv){
+  for(let i=glimpses.length-1;i>=0;i--){
+    const g=glimpses[i];g.t-=dtv;
+    if(g.t<=0||inView(g.p,.80)){   // look straight at it and it is not there
+      glimpses.splice(i,1);continue;}
+    const a=clamp(g.t/g.max,0,1)*.85;
+    const S=g.kind===1?1.5:1.0;
+    // a black cut-out, no detail — the brain fills in worse than we could draw
+    mstBegin(g.p.x,g.p.y,g.p.z,-g.yaw);
+    _charAlpha=a;
+    const c=[.015,.017,.020];
+    mstDraw(GEO.cyl,0,.45*S,0,0,0,0,.30*S,.90*S,.24*S,c,0,1,0,0);
+    mstDraw(GEO.box,0,1.15*S,0,0,0,0,.40*S,.55*S,.26*S,c,0,1,0,0);
+    mstDraw(GEO.sph,0,1.55*S,0,0,0,0,.22*S,.27*S,.23*S,c,0,1,0,0);
+    for(const e2 of [-1,1])
+      mstDraw(GEO.cyl,.22*S*e2,1.05*S,0,0,0,e2*.12,.09*S,.75*S,.09*S,c,0,1,0,0);
+    _charAlpha=1;
+  }
+}
+/* ============================ 8d. HORROR CREATURE RENDERING ============================ */
+
+/* ---- CRAWLER: the spine is bent the wrong way and the head hangs back ---- */
+function drawCrawler(e,dtv,po){
+  const S=e.scale,an=e.an,t=T;
+  const moving=e.state==='chase'||e.state==='alert';
+  const stut=stutterScale(e,an,dtv);
+  an.ph+=dtv*(moving?7.5:2.2)*stut;
+  const c=e.def.col;
+  const hurt=e.lastHitT&&T-e.lastHitT<.09;
+  const skin=hurt?[1,.35,.35]:c.skin, cloth=hurt?[1,.4,.4]:c.cloth;
+  const bob=Math.sin(an.ph*2)*.05;
+
+  mstBegin(e.p.x,e.p.y,e.p.z,-e.yaw);
+  mstT(0,(.62+bob)*S,0,0,0,0);
+  // pelvis is the high point; the chest hangs FORWARD and DOWN from it —
+  // an arch no living spine makes
+  mstDraw(GEO.sph,0,0,-.10*S,0,0,0,.34*S,.28*S,.30*S,cloth,0,.85,.4,4);
+  mstPush();
+  mstT(0,-.02*S,.18*S,-.85,0,0);          // torso pitched back-over
+  mstDraw(GEO.box,0,0,.18*S,0,0,0,.40*S,.26*S,.46*S,cloth,0,.85,.42,4);
+  mstDraw(GEO.box,0,.04*S,.40*S,0,0,0,.34*S,.22*S,.24*S,cloth,0,.85,.42,4);
+  // exposed ribs pushing through the front
+  for(let i=0;i<4;i++)
+    mstDraw(GEO.box,0,.13*S,(.16+i*.12)*S,0,0,0,(.32-i*.03)*S,.045*S,.05*S,[.80,.76,.70],0,.5,.35,0);
+  // head: inverted, jaw uppermost, watching you the wrong way up
+  mstT(0,.02*S,.52*S,1.5+Math.sin(t*1.7+e.id)*.16,po.headY*.6,po.headTilt*.7);
+  mstDraw(GEO.cyl,0,.10*S,0,0,0,0,.11*S,.20*S,.11*S,skin,0,.75,.5,4);
+  mstDraw(GEO.sph,0,.26*S,0,0,0,0,.22*S,.26*S,.23*S,skin,0,.72,.5,4);
+  // jaw hangs open, upside down
+  mstDraw(GEO.box,0,.20*S,-.06*S,-.7,0,0,.15*S,.10*S,.14*S,[.30,.16,.16],0,.7,.5,4);
+  for(const g of [-1,1]){
+    mstDraw(GEO.sph,.065*S*g,.27*S,-.10*S,0,0,0,.05*S,.05*S,.03*S,[.92,.90,.20],.55,.15,.6,0);}
+  mstPop();
+  // four limbs, joints hiked ABOVE the body like a spider
+  const legs=[[-1,.20,.10],[1,.20,.10],[-1,-.16,-.28],[1,-.16,-.28]];
+  for(let i=0;i<4;i++){
+    const [sd,zoff,zb]=legs[i];
+    mstPush();
+    mstT(.24*S*sd,.02*S,zb*S,0,0,0);
+    const ph=an.ph*TAU+i*1.9;
+    const lift=max(0,Math.sin(ph))*(moving?1:.15);
+    // knee/elbow driven UP first, then the shin reaches down to the floor
+    mstT(0,0,0,-2.05-lift*.55,0,sd*.30);
+    limb(.44*S,.062*S,.05*S,cloth,.4,4);
+    mstT(0,-.44*S,0,2.35+lift*.35,0,0);
+    limb(.50*S,.045*S,.035*S,skin,.42,4);
+    mstDraw(GEO.cone,0,-.52*S,.03*S,PI,0,0,.05*S,.16*S,.05*S,[.84,.82,.74],0,.3,.4,0);
+    mstPop();
+  }
+  if(moving&&chance(dtv*5))sfxScrape(e.p);
+}
+
+/* ---- THE PALLID: too tall, too thin, and where a face should be there is nothing ---- */
+function drawPallid(e,dtv,po){
+  const S=e.scale,t=T,an=e.an;
+  const raging=!!e.rage;
+  const pale=[.86,.845,.83];
+  const hurt=e.lastHitT&&T-e.lastHitT<.09?[1,.6,.6]:pale;
+  if(raging){an.ph+=dtv*9;}
+  const sw=Math.sin(an.ph*TAU);
+  const bob=raging?-abs(Math.cos(an.ph*TAU*2))*.09:Math.sin(t*.55+e.id)*.012;
+
+  mstBegin(e.p.x,e.p.y,e.p.z,-e.yaw);
+  mstT(0,(1.02+bob)*S,0,0,raging?-sw*.20:0,raging?.10:0);
+  mstDraw(GEO.box,0,0,0,0,0,0,.24*S,.20*S,.17*S,hurt,0,.62,.30,0);
+  // legs: far too long for the torso
+  for(const sd of [-1,1]){
+    mstPush();
+    mstT(.095*S*sd,-.05*S,0,0,0,0);
+    const u=raging?(sd<0?sw:-sw)*1.05:0, f=raging?max(0,-Math.sin(an.ph*TAU+(sd<0?-1:PI-1)))*1.2:.06;
+    mstT(0,0,0,u,0,sd*.02);
+    limb(.62*S,.052*S,.046*S,hurt,.30,0);
+    mstT(0,-.62*S,0,f,0,0);
+    limb(.60*S,.040*S,.034*S,hurt,.30,0);
+    mstDraw(GEO.box,0,-.63*S,.04*S,0,0,0,.085*S,.05*S,.20*S,hurt,0,.6,.3,0);
+    mstPop();
+  }
+  // torso: a long narrow column, ribs showing through
+  mstT(0,.14*S,0,raging?.42:.20,0,0);
+  mstDraw(GEO.box,0,.20*S,0,0,0,0,.25*S,.42*S,.18*S,hurt,0,.62,.30,0);
+  mstDraw(GEO.box,0,.48*S,0,0,0,0,.30*S,.22*S,.19*S,hurt,0,.62,.30,0);
+  for(let i=0;i<6;i++)
+    mstDraw(GEO.box,0,(.16+i*.085)*S,.095*S,0,0,0,(.24-i*.012)*S,.028*S,.02*S,[.74,.72,.70],0,.5,.28,0);
+  // arms: they reach past the knee
+  for(const sd of [-1,1]){
+    mstPush();
+    mstT(.165*S*sd,.50*S,0,0,0,0);
+    mstDraw(GEO.sph,0,0,0,0,0,0,.10*S,.10*S,.10*S,hurt,0,.6,.3,0);
+    let u,f,side;
+    if(raging){u=-2.5+sw*.55*(sd<0?1:-1);f=-.25;side=.30;}
+    // dormant: elbows out, forearms folded hard back so the hands cover the face
+    else{u=-1.34+Math.sin(t*.5+e.id)*.02;f=-2.46;side=.40;}
+    mstT(0,0,0,u,0,side*sd);
+    limb(.52*S,.045*S,.040*S,hurt,.30,0);
+    mstT(0,-.52*S,0,f,0,0);
+    limb(.50*S,.036*S,.030*S,hurt,.30,0);
+    // long spidery hands
+    mstT(0,-.50*S,0,0,0,0);
+    for(let k=0;k<4;k++)
+      mstDraw(GEO.cyl,(-.045+k*.03)*S,-.10*S,.01*S,.2,0,(k-1.5)*.10,.017*S,.22*S,.017*S,hurt,0,.55,.3,0);
+    mstPop();
+  }
+  // head: a smooth skull. No eyes, no nose. Just a seam where a mouth is kept shut.
+  mstT(0,.62*S,0,raging?-.30:.62,po.headY*.5,po.headTilt*.4);
+  mstDraw(GEO.cyl,0,.06*S,0,0,0,0,.075*S,.16*S,.075*S,hurt,0,.6,.32,0);
+  mstDraw(GEO.sph,0,.26*S,-.01*S,0,0,0,.20*S,.28*S,.22*S,hurt,0,.55,.34,0);
+  if(raging){
+    // the whole lower half of the skull unhinges
+    const open=clamp((e.stateT||0)*3,0,1)*(.75+.25*Math.sin(t*17));
+    mstDraw(GEO.box,0,(.18-open*.10)*S,.06*S,-open*1.15,0,0,.17*S,.15*S,.16*S,[.10,.03,.04],.02,.8,.5,4);
+    for(let k=0;k<7;k++){
+      const a=(k/6-.5)*.30;
+      mstDraw(GEO.cone,a*S,(.20-open*.05)*S,.11*S,-1.4,0,0,.018*S,.10*S,.018*S,[.92,.90,.84],0,.3,.4,0);
+      mstDraw(GEO.cone,a*S,(.14-open*.14)*S,.10*S,1.4-open*1.1,0,0,.018*S,.09*S,.018*S,[.92,.90,.84],0,.3,.4,0);}
+    addLight(e.p.x,e.p.y+2.2*S,e.p.z,.8,.1,.08,7,1.2,{ttl:.06});
+  }else{
+    mstDraw(GEO.box,0,.17*S,.115*S,0,0,0,.10*S,.012*S,.02*S,[.55,.50,.48],0,.7,.3,0);
+  }
+}
+
+/* ---- HOLLOW: a shop mannequin that is a metre closer than it was ---- */
+function drawHollow(e,dtv,po){
+  const S=e.scale;
+  const rg=mkRng((e.poseSeed||0)*7919+e.id*104729);
+  // the pose only changes between glances — never while you are watching
+  const p1=(rg()-.5)*1.5, p2=(rg()-.5)*1.5, p3=(rg()-.5)*1.1, p4=(rg()-.5)*.8;
+  const hurt=e.lastHitT&&T-e.lastHitT<.09;
+  const body=hurt?[1,.55,.55]:e.def.col.skin;
+  const seam=[.30,.29,.30];
+  mstBegin(e.p.x,e.p.y,e.p.z,-e.yaw);
+  mstT(0,.95*S,0,0,p4*.5,p4*.3);
+  mstDraw(GEO.box,0,0,0,0,0,0,.28*S,.20*S,.19*S,body,0,.30,.05,0);
+  mstDraw(GEO.cyl,0,.11*S,0,0,0,0,.30*S,.03*S,.22*S,seam,0,.4,.05,0);
+  for(const sd of [-1,1]){
+    mstPush();
+    mstT(.105*S*sd,-.06*S,0,0,0,0);
+    mstT(0,0,0,(sd<0?p1:p2)*.35,0,sd*.03);
+    limb(.46*S,.072*S,.066*S,body,.05,0);
+    mstDraw(GEO.cyl,0,-.46*S,0,0,0,0,.15*S,.03*S,.15*S,seam,0,.4,.05,0);
+    mstT(0,-.46*S,0,abs(sd<0?p1:p2)*.3,0,0);
+    limb(.44*S,.058*S,.052*S,body,.05,0);
+    mstDraw(GEO.box,0,-.48*S,.05*S,0,0,0,.11*S,.07*S,.24*S,body,0,.3,.05,0);
+    mstPop();
+  }
+  mstT(0,.12*S,0,p3*.25,0,0);
+  mstDraw(GEO.box,0,.16*S,0,0,0,0,.31*S,.32*S,.20*S,body,0,.30,.05,0);
+  mstDraw(GEO.cyl,0,.33*S,0,0,0,0,.34*S,.03*S,.23*S,seam,0,.4,.05,0);
+  mstT(0,.30*S,0,0,0,0);
+  mstDraw(GEO.box,0,.10*S,0,0,0,0,.36*S,.22*S,.22*S,body,0,.30,.05,0);
+  for(const sd of [-1,1]){
+    mstPush();
+    mstT(.21*S*sd,.17*S,0,0,0,0);
+    mstDraw(GEO.sph,0,0,0,0,0,0,.11*S,.11*S,.11*S,seam,0,.4,.05,0);
+    mstT(0,0,0,(sd<0?p2:p1)*1.25-.15,0,(sd<0?p3:-p3)*.5*sd);
+    limb(.31*S,.055*S,.050*S,body,.05,0);
+    mstT(0,-.31*S,0,-abs(sd<0?p3:p1)*.9,0,0);
+    limb(.30*S,.046*S,.042*S,body,.05,0);
+    mstDraw(GEO.box,0,-.34*S,.01*S,0,0,0,.08*S,.09*S,.05*S,body,0,.3,.05,0);
+    mstPop();
+  }
+  // head: featureless. No eyes to meet, which is worse.
+  mstT(0,.24*S,0,p4*.5,p1*.8,p2*.35);
+  mstDraw(GEO.cyl,0,.05*S,0,0,0,0,.09*S,.13*S,.09*S,body,0,.3,.05,0);
+  mstDraw(GEO.sph,0,.21*S,0,0,0,0,.20*S,.26*S,.21*S,body,0,.28,.05,0);
+  mstDraw(GEO.cyl,0,.11*S,0,0,0,0,.19*S,.025*S,.19*S,seam,0,.4,.05,0);
+  if(e.watched)  // a wet gleam that only shows when you look
+    mstDraw(GEO.sph,0,.20*S,.15*S,0,0,0,.055*S,.035*S,.02*S,[.05,.05,.06],0,.05,.05,8);
+}
+
+/* ---- THE LONG PATIENT: heavy, slow, and it does not stop ---- */
+function drawStalker(e,dtv,po){
+  const S=e.scale,an=e.an,t=T;
+  const down=e.downT>0;
+  const c=e.def.col;
+  const hurt=e.lastHitT&&T-e.lastHitT<.09;
+  const cfg={scale:S,skin:hurt?[1,.45,.45]:c.skin,cloth:hurt?[.7,.3,.3]:c.cloth,cloth2:c.cloth2,
+    hair:c.hair,boot:[.07,.07,.08],heat:.48,style:4,hairStyle:0,hipH:1.02,
+    eyes:false,jaw:false,arm:1.24,neck:.10};
+  if(down){
+    po.bobY-=.72;po.spine=.95;po.lean=1.35;po.legLU=.55;po.legRU=.7;po.armLU=.5;po.armRU=.35;
+    // it twitches while it is "dead"
+    const tw=Math.sin(t*11+e.id)*.10*clamp(e.downT/3,0,1);
+    po.armRU+=tw;po.head+=tw*.6;
+  }
+  mstBegin(e.p.x,e.p.y,e.p.z,-e.yaw);
+  humanoid(e,cfg,po);
+  mstBegin(e.p.x,e.p.y,e.p.z,-e.yaw);
+  // long oilskin coat
+  mstDraw(GEO.cone,0,.60*S,0,PI,0,0,1.0*S,1.15*S,.86*S,[.10,.10,.12],0,.94,.35,0);
+  mstDraw(GEO.box,0,1.30*S,0,0,0,0,.86*S,.34*S,.44*S,[.12,.12,.14],0,.9,.35,0);
+  // hoodless head: skin stretched over the skull, mouth stitched shut
+  mstDraw(GEO.sph,0,1.86*S,0,0,0,0,.30*S,.36*S,.31*S,cfg.skin,0,.75,.5,4);
+  for(let i=0;i<6;i++)
+    mstDraw(GEO.box,(-.075+i*.03)*S,1.74*S,.15*S,0,0,.7,.012*S,.075*S,.02*S,[.16,.10,.10],0,.6,.5,0);
+  mstDraw(GEO.box,0,1.745*S,.155*S,0,0,0,.19*S,.014*S,.02*S,[.24,.10,.11],0,.6,.5,0);
+  // the oversized arm
+  mstPush();
+  const swing=e.state==='attack'?Math.sin(clamp(1-e.windup/e.def.atk,0,1)*PI):0;
+  mstT(.50*S,1.24*S,0,-.55-swing*1.9,0,.22);
+  mstDraw(GEO.cyl,0,-.42*S,0,0,0,0,.24*S,.86*S,.24*S,cfg.skin,0,.8,.5,4);
+  mstDraw(GEO.sph,0,-.90*S,0,0,0,0,.30*S,.30*S,.30*S,cfg.skin,0,.8,.5,4);
+  for(let k=0;k<4;k++)
+    mstDraw(GEO.cone,(-.10+k*.07)*S,-1.10*S,.03*S,PI,0,0,.035*S,.30*S,.035*S,[.80,.78,.72],0,.3,.5,0);
+  mstPop();
+  // exposed vertebrae down the back
+  for(let i=0;i<7;i++)
+    mstDraw(GEO.sph,0,(1.02+i*.11)*S,-.26*S,0,0,0,.075*S,.075*S,.075*S,[.78,.74,.68],0,.5,.45,0);
+  if(down){
+    drawT(GEO.sph,e.p.x,e.p.y+.06,e.p.z,0,0,0,1.6,.06,1.6,[.35,.02,.03],.15,.7,.3,0,.75);
+    if(chance(dtv*4))spawnP({p:V(e.p.x+rnd(-.5,.5),e.p.y+.1,e.p.z+rnd(-.5,.5)),
+      v:V(rnd(-.3,.3),rnd(0,.5),rnd(-.3,.3)),life:1.1,size:.06,size1:.02,col:[.45,.03,.04],
+      kind:2,alpha:1,grav:-5});
+  }
 }
 /* ============================ 9. COMPANION — ELENA VOSS ============================ */
 const EL={
@@ -4748,6 +5370,10 @@ function clearWorld(){
   decals.length=0;projectiles.length=0;grenades.length=0;fires.length=0;tracers.length=0;
   for(let i=0;i<PMAX;i++)parts[i].a=false;
   flashLight=null;bossUpdate=null;GS.waves=null;
+  if(typeof glimpses!=='undefined')glimpses.length=0;
+  if(typeof DREAD!=='undefined'){DREAD.v=0;DREAD.breathT=3;DREAD.whisperT=8;
+    DREAD.glimpseT=16;DREAD.flickT=6;}
+  GS.dreadSpike=0;env.fogDBase=undefined;
 }
 
 /* ---------- decoration helpers ---------- */
@@ -5091,6 +5717,7 @@ const ZONES=[
 
    spawnEnemy('husk',-6,-14,{sleep:true});
    spawnEnemy('husk',3,-12,{sleep:true});
+   spawnEnemy('hollow',7,-24,{yaw:PI});
    addEncounter({x:0,z:-8,r:9,who:'RADIO',msg:'Ranger, movement on your level. They are not survivors. Weapons free.',
      music:'sting',spawn:[['husk',-10,-6],['husk',8,-8],['husk',-2,-16]]});
    addEncounter({x:20,z:-2,r:6,spawn:[['husk',28,6],['husk',33,9],['zealot',37,6]],
@@ -5237,10 +5864,13 @@ const ZONES=[
    spawnEnemy('husk',42,-10,{sleep:true});
    spawnEnemy('zealot',48,-16,{});
    spawnEnemy('husk',20,-2,{patrol:[{x:16,z:-2},{x:34,z:-2}]});
+   spawnEnemy('hollow',-9,-49,{yaw:0});
    addEncounter({x:0,z:-30,r:12,who:'ELENA',msg:"Something in here is still alive. I can hear it breathing.",
      music:'danger',
-     spawn:[['husk',-8,-44],['husk',6,-44],['zealot',-2,-50],['howler',4,-42]]});
+     spawn:[['husk',-8,-44],['crawler',6,-44],['zealot',-2,-50],['crawler',4,-42]]});
    addEncounter({x:-50,z:12,r:9,spawn:[['husk',-54,16],['husk',-46,18],['carrier',-50,18]]});
+   spawnEnemy('pallid',-19,50,{yaw:.6});
+   spawnEnemy('crawler',12,44,{sleep:true});
    addEncounter({x:-4,z:26,r:8,who:'RADIO',msg:'Heat bloom below you. Whatever they kept in Lab 4 is not in Lab 4 any more.',
      onStart:()=>{GS.flags.revenantMet=true;},
      spawn:[['revenant',-8,42,{}]],
@@ -5257,6 +5887,9 @@ const ZONES=[
    test:()=>(EL.state==='wait'||EL.state==='hide'||EL.state==='tohide')&&distXZ(EL.p,PL.p)>4,
    done:()=>{
      subtitle('ELENA',"Don't be long. Please don't be long.");
+     setTimeout(()=>{if(GS.mode==='play')
+       subtitle('RADIO','Ranger — thermal has a standing figure in the west corner of that hall. '+
+         'It has no face. Do not put your reticle on it.',true);},5200);
      startWaves({interval:3.4,maxAlive:OPT.difficulty>=2?9:6,
        points:[{x:-18,z:58},{x:2,z:58},{x:-18,z:38},{x:14,z:38}],
        types:[['husk',6],['zealot',3],['carrier',1.2],['howler',1]],
@@ -5402,6 +6035,9 @@ const ZONES=[
    addEncounter({x:0,z:-30,r:10,
      spawn:[['husk',-4,-44],['zealot',4,-46],['breacher',0,-50,{}]],
      who:'ELENA',msg:"That sound— that's a SAW. Oh god, that's a saw.",music:'danger'});
+   spawnEnemy('hollow',13,-70,{yaw:PI});
+   spawnEnemy('crawler',-26,-86,{sleep:true});
+   spawnEnemy('crawler',-2,-86,{sleep:true});
    addEncounter({x:-10,z:-68,r:14,who:'RANGER',msg:'Blind. It hunts on sound. Walk soft or lose your spine.',
      onStart:()=>{GS.flags.wardenFight=true;},
      spawn:[['warden',-24,-80,{}],['husk',-14,-84],['husk',2,-84],['zealot',-30,-74]],
@@ -5432,7 +6068,10 @@ const ZONES=[
    on:()=>{
      subtitle('RADIO','Ranger, thermal shows a mass moving parallel to you. Big. Get across that bridge.',true);
      startWaves({interval:2.6,maxAlive:8,points:[{x:14,z:-26},{x:24,z:-26},{x:30,z:-24}],
-       types:[['husk',6],['zealot',3],['carrier',1.5]],until:()=>GS.flags.bridgeDone});
+       types:[['husk',6],['zealot',3],['carrier',1.5],['crawler',2.5]],until:()=>GS.flags.bridgeDone});
+     const lp=spawnEnemy('stalker',10,-30,{});
+     if(lp){lp.state='chase';lp.alertLevel=1;}
+     subtitle('RANGER',"Something big just stood up behind us. Do not look back. MOVE.");
      GS.kidnapExit=V(-6,0,-40);},
    test:()=>PL.p.x>73,
    done:()=>{
@@ -5545,6 +6184,8 @@ const ZONES=[
    statAddT(GEO.plane,20,-1.4,80,0,0,0,260,1,260,[.05,.09,.12],.02,.05,0,7,1);
    spawnEnemy('skitter',-2,10,{sleep:true});
    spawnEnemy('skitter',-16,22,{sleep:true});
+   spawnEnemy('pallid',-24,24,{yaw:-1.4});
+   spawnEnemy('crawler',22,28,{sleep:true});
    addEncounter({x:0,z:14,r:10,who:'ELENA',msg:"Something's on the CEILING—",music:'sting',
      spawn:[['skitter',-8,22],['skitter',6,24],['skitter',-20,22]]});
    addEncounter({x:28,z:28,r:8,spawn:[['zealot',30,30],['bulwark',28,32],['husk',33,30]]});
@@ -5584,8 +6225,11 @@ const ZONES=[
      GS.kidnapExit=V(31,0,58);
      startWaves({interval:OPT.difficulty>=2?2.0:2.8,maxAlive:OPT.difficulty>=2?11:8,
        points:[{x:20,z:66},{x:40,z:70},{x:24,z:92},{x:40,z:92}],
-       types:[['husk',7],['zealot',4],['carrier',2],['howler',2],['skitter',2],['bulwark',1],['breacher',.6]],
-       until:()=>GS.flags.prophet});}},
+       types:[['husk',7],['zealot',4],['carrier',2],['howler',2],['skitter',2],['crawler',3],
+              ['bulwark',1],['breacher',.6]],
+       until:()=>GS.flags.prophet});
+     const lp=spawnEnemy('stalker',31,92,{});
+     if(lp){lp.state='chase';lp.alertLevel=1;}}},
   {obj:'HOLD THE PAD',sub:'Keep Elena alive until the bird is on the deck',
    test:()=>GS.extract<=0,
    done:()=>{
@@ -6209,7 +6853,11 @@ function showBrief(){
    ['NOVISTADOR SKITTER','Chitinous, refractive, ceiling-dwelling. Spits acid. Hunts in numbers.'],
    ['COLOSSUS — EL GIGANTE','Six metres of hijacked muscle. The parasite rides its spine and only surfaces when it roars.'],
    ['THE EXECUTOR — VERDUGO','Salazar-line bodyguard biology. Small arms glance off. Cold does not.'],
-   ['THE PROPHET — MALDONADO','The man who wrote the doctrine. What is left of him opens an ocular core when it screams.']];
+   ['THE PROPHET — MALDONADO','The man who wrote the doctrine. What is left of him opens an ocular core when it screams.'],
+   ['CRAWLER — INVERTED HOST','The spine set backwards during conversion. It runs on all fours with its joints above its body and its head hanging back, watching you upside down. Fast, fragile, and it does not stop to consider.'],
+   ['HOLLOW','Featureless. Silent. It does not move while you are looking at it — and it is always closer than it was. Keep it on screen or keep a wall between you. There is no third option.'],
+   ['THE PALLID','Stands in the dark with its hands over the place a face should be. Harmless until it is looked at directly, then it is the fastest thing on the island and effectively bulletproof. Break line of sight and keep breaking it.'],
+   ['THE LONG PATIENT','Coat, stitched mouth, one arm grown far past use. Put it on the floor and it will get up. Three times, at least. It is not a fight you win; it is a fight you leave.']];
   for(const [n,d] of bes)h+='<div style="margin-bottom:14px"><b style="font-family:var(--mono);font-size:11px;'+
     'letter-spacing:.14em;color:#c0212a">'+n+'</b><div style="font-size:11.5px;color:#6d7b85;line-height:1.55;margin-top:4px">'+d+'</div></div>';
   h+='</div><div class="foot"><button class="btn ghost" id="bk">BACK</button></div>';
@@ -6494,6 +7142,8 @@ function frame(now){
   drawDecals();
   for(const p of props)drawProp(p);
   updateAmbience(udt);
+  updateDread(udt);
+  updateGlimpses(udt);
 
   // status decay
   postHurt=max(0,postHurt-raw*.8);
