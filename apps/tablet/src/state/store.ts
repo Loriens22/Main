@@ -45,7 +45,7 @@ export interface OrnightState {
   activeThreadId: ThreadId | null;
   messages: Record<ThreadId, Message[]>;
   git: Record<ThreadId, GitState>;
-  ship: Record<ThreadId, ShipProgress | null>;
+  shipProgress: Record<ThreadId, ShipProgress | null>;
   pendingPermissions: PermissionRequest[];
   providers: ProviderDescriptor[];
   providerStatus: Record<ProviderId, ProviderStatus>;
@@ -115,7 +115,7 @@ export const useOrnight = create<OrnightState>((set, get) => ({
   activeThreadId: null,
   messages: {},
   git: {},
-  ship: {},
+  shipProgress: {},
   pendingPermissions: [],
   providers: PROVIDER_ORDER.map((id) => PROVIDERS[id]),
   providerStatus: defaultProviderStatus(),
@@ -288,7 +288,7 @@ export const useOrnight = create<OrnightState>((set, get) => ({
         break;
 
       case 'ship.progress':
-        set((s) => ({ ship: { ...s.ship, [event.progress.threadId]: event.progress } }));
+        set((s) => ({ shipProgress: { ...s.shipProgress, [event.progress.threadId]: event.progress } }));
         break;
 
       case 'provider.status': {

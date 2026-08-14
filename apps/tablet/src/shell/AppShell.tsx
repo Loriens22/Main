@@ -117,7 +117,7 @@ export function AppShell() {
             initial={false}
             transition={springy}
             aria-hidden={sidebarHidden}
-            {...(sidebarHidden ? { inert: '' } : null)}
+            inert={sidebarHidden}
           >
             <Sidebar />
           </motion.aside>

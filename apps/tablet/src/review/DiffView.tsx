@@ -41,8 +41,8 @@ export function DiffView({ patch, actions, onClose, className }: DiffViewProps) 
   const rootRef = useRef<HTMLDivElement | null>(null);
   const width = useContainerWidth(rootRef);
 
-  const [fontSize, setFontSize] = usePersisted(FONT_KEY, FONT_DEFAULT);
-  const [wrap, setWrap] = usePersisted(WRAP_KEY, false);
+  const [fontSize, setFontSize] = usePersisted<number>(FONT_KEY, FONT_DEFAULT);
+  const [wrap, setWrap] = usePersisted<boolean>(WRAP_KEY, false);
   const [mode, setMode] = useState<'unified' | 'split'>('unified');
 
   const parsed = useMemo(() => parsePatch(patch), [patch]);

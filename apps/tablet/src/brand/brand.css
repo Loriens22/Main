@@ -1,0 +1,166 @@
+/*
+ * Ornight branding surfaces: the cold-launch splash and the corner badge it
+ * becomes. These two are one object in two states, so they share a stylesheet —
+ * the properties that must interpolate cleanly between them (radius, padding,
+ * the field crop) are easier to keep honest side by side.
+ */
+
+/* -------------------------------------------------------------------------- */
+/* Splash                                                                     */
+/* -------------------------------------------------------------------------- */
+
+.on-splash {
+  position: fixed;
+  inset: 0;
+  z-index: 90;
+  background: var(--on-bg);
+}
+
+.on-splash-brand {
+  position: absolute;
+  inset: 0;
+  overflow: hidden;
+  border-radius: 0;
+}
+
+.on-splash-field {
+  position: absolute;
+  inset: -4%;
+  background-position: center 62%;
+  background-size: cover;
+  will-change: transform;
+}
+
+/* Pulls the edges down and lifts the centre, so the mark sits in light. */
+.on-splash-vignette {
+  position: absolute;
+  inset: 0;
+  background:
+    radial-gradient(58% 42% at 50% 40%, rgba(96, 132, 236, 0.16), transparent 70%),
+    radial-gradient(120% 90% at 50% 50%, transparent 38%, rgba(3, 5, 12, 0.72) 100%);
+}
+
+.on-splash-content {
+  position: absolute;
+  inset: 0;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 30px;
+  padding: env(safe-area-inset-top) env(safe-area-inset-right) env(safe-area-inset-bottom)
+    env(safe-area-inset-left);
+}
+
+.on-splash-mark {
+  filter: drop-shadow(0 22px 48px rgba(10, 22, 64, 0.72))
+    drop-shadow(0 0 34px rgba(120, 150, 255, 0.34));
+  will-change: transform, opacity;
+}
+
+.on-splash-word {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  /* Reserve the full width up front so the logo above does not shift left as
+     letters arrive — the wordmark grows into a fixed slot. */
+  min-height: 56px;
+  letter-spacing: 0.055em;
+}
+
+.on-splash-caret {
+  display: inline-block;
+  width: 2px;
+  height: 38px;
+  border-radius: 2px;
+  background: linear-gradient(
+    180deg,
+    rgba(232, 238, 252, 0.1),
+    rgba(232, 238, 252, 0.92) 40%,
+    rgba(232, 238, 252, 0.1)
+  );
+  box-shadow: 0 0 12px rgb(var(--on-accent-2) / 0.7);
+  /* Stepped, duty-cycled: the caret is on far longer than it is off, and the
+     keyframes are discrete, so this never becomes a continuous repaint. */
+  animation: on-splash-caret 1.06s steps(1, end) infinite;
+}
+
+@keyframes on-splash-caret {
+  0%,
+  62% {
+    opacity: 1;
+  }
+  63%,
+  100% {
+    opacity: 0.12;
+  }
+}
+
+/* -------------------------------------------------------------------------- */
+/* Badge — where the splash lands                                             */
+/* -------------------------------------------------------------------------- */
+
+.on-brand-badge {
+  position: relative;
+  z-index: 2;
+  display: flex;
+  align-items: center;
+  overflow: hidden;
+  width: 100%;
+  min-height: 52px;
+  border-radius: var(--on-radius-lg, 16px);
+  box-shadow:
+    0 10px 26px rgba(3, 6, 18, 0.55),
+    inset 0 1px 0 rgba(255, 255, 255, 0.16);
+  isolation: isolate;
+}
+
+.on-brand-badge[data-compact='true'] {
+  width: 52px;
+  justify-content: center;
+}
+
+/* The night field, cropped tight and pushed dark enough that the wordmark
+   stays legible over it. */
+.on-brand-badge-field {
+  position: absolute;
+  inset: 0;
+  background-position: center 58%;
+  background-size: cover;
+  opacity: 0.9;
+}
+
+.on-brand-badge-glass {
+  position: absolute;
+  inset: 0;
+  border: 1px solid rgba(168, 192, 255, 0.22);
+  border-radius: inherit;
+  background:
+    linear-gradient(135deg, rgba(255, 255, 255, 0.16), rgba(255, 255, 255, 0) 46%),
+    linear-gradient(180deg, rgba(6, 10, 26, 0.32), rgba(6, 10, 26, 0.62));
+  backdrop-filter: blur(3px) saturate(1.3);
+  -webkit-backdrop-filter: blur(3px) saturate(1.3);
+}
+
+.on-brand-badge-content {
+  position: relative;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 12px 14px;
+}
+
+.on-brand-badge-word {
+  white-space: nowrap;
+  letter-spacing: 0.02em;
+}
+
+html[data-glass='reduced'] .on-brand-badge-glass {
+  background: rgba(10, 15, 30, 0.86);
+  backdrop-filter: none;
+  -webkit-backdrop-filter: none;
+}
+
+html[data-glass='reduced'] .on-brand-badge-field {
+  opacity: 0.42;
+}

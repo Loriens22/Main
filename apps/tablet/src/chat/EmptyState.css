@@ -1,0 +1,73 @@
+.on-chat-empty {
+  display: flex;
+  height: 100%;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  padding: 28px 24px calc(28px + env(safe-area-inset-bottom));
+  text-align: center;
+}
+
+.on-chat-empty-mark {
+  margin-bottom: 10px;
+  filter: drop-shadow(0 14px 32px rgba(10, 22, 64, 0.6));
+  opacity: 0.94;
+}
+
+.on-chat-empty-title {
+  margin: 0;
+  font-size: 21px;
+  font-weight: 600;
+  letter-spacing: -0.01em;
+}
+
+.on-chat-empty-copy {
+  margin: 0;
+  max-width: 46ch;
+  color: var(--on-text-dim);
+  font-size: 14px;
+  line-height: 1.55;
+}
+
+.on-chat-empty-providers {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: center;
+  gap: 10px;
+  margin-top: 22px;
+}
+
+.on-chat-empty-provider {
+  display: flex;
+  align-items: center;
+  gap: 9px;
+  border: 1px solid var(--on-line);
+  border-radius: 999px;
+  background: rgba(255, 255, 255, 0.04);
+  padding: 0 18px;
+  min-height: 48px;
+  color: var(--on-text);
+  font-size: 13.5px;
+  cursor: pointer;
+}
+
+.on-chat-empty-provider:not(:disabled):active {
+  border-color: rgb(var(--provider-accent) / 0.6);
+  background: rgb(var(--provider-accent) / 0.16);
+}
+
+.on-chat-empty-provider:disabled {
+  opacity: 0.42;
+  cursor: default;
+}
+
+.on-chat-empty-glyph {
+  color: rgb(var(--provider-accent));
+  font-size: 15px;
+}
+
+.on-chat-empty-note {
+  color: var(--on-text-faint);
+  font-size: 11.5px;
+}
