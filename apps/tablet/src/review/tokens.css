@@ -460,3 +460,37 @@ html[data-glass='reduced'] .on-rev-shimmer::after {
   color: var(--on-text-faint);
   font-style: italic;
 }
+
+/* Hunk header button ------------------------------------------------------- */
+.on-rev-hunk-btn {
+  border: 0;
+  background: none;
+  cursor: pointer;
+  text-align: left;
+  min-width: 0;
+  -webkit-tap-highlight-color: transparent;
+}
+
+.on-rev-hunk-btn:active {
+  color: var(--on-text);
+}
+
+/* Placeholder standing in for a not-yet-mounted hunk ----------------------- */
+.on-rev-hunk-placeholder {
+  border-bottom: 1px solid var(--on-line);
+  background: repeating-linear-gradient(
+    180deg,
+    transparent 0,
+    transparent 19px,
+    rgb(var(--on-accent) / 0.04) 19px,
+    rgb(var(--on-accent) / 0.04) 20px
+  );
+}
+
+/* Empty / non-textual states ---------------------------------------------- */
+.on-rev-empty {
+  padding: 18px 16px;
+  color: var(--on-text-faint);
+  font-size: 12.5px;
+  font-family: var(--on-font);
+}

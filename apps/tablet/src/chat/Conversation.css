@@ -1,0 +1,224 @@
+.on-chat-conversation {
+  position: relative;
+  flex: 1 1 auto;
+  min-height: 0;
+  display: flex;
+  flex-direction: column;
+}
+
+.on-chat-scroll {
+  flex: 1 1 auto;
+  min-height: 0;
+  overflow-y: auto;
+  overflow-x: hidden;
+  overscroll-behavior: contain;
+  -webkit-overflow-scrolling: touch;
+  scrollbar-width: thin;
+}
+
+.on-chat-stream {
+  display: flex;
+  flex-direction: column;
+  gap: 18px;
+  width: 100%;
+  max-width: 860px;
+  margin: 0 auto;
+  padding: 18px 16px 26px;
+  min-width: 0;
+}
+
+@media (max-width: 620px) {
+  .on-chat-stream {
+    padding: 14px 12px 22px;
+    gap: 16px;
+  }
+}
+
+/* Messages ----------------------------------------------------------------- */
+
+.on-chat-msg {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  min-width: 0;
+}
+
+.on-chat-msg[data-role='user'] {
+  align-items: flex-end;
+}
+
+/*
+ * A tablet has room, so the user turn is a wide plate biased to the right
+ * rather than a cramped chat bubble.
+ */
+.on-chat-user {
+  max-width: min(92%, 640px);
+  padding: 13px 16px;
+  border-radius: var(--on-radius-lg);
+  border-bottom-right-radius: var(--on-radius-sm);
+  background: rgb(var(--on-accent) / 0.2);
+  box-shadow: inset 0 0 0 1px rgb(var(--on-accent-2) / 0.24), var(--on-shadow-lift);
+  color: var(--on-text);
+  min-width: 0;
+}
+
+.on-chat-user .on-chat-md {
+  color: var(--on-text);
+}
+
+.on-chat-assistant {
+  width: 100%;
+  min-width: 0;
+}
+
+.on-chat-system {
+  align-self: center;
+  max-width: 620px;
+  padding: 8px 14px;
+  border-radius: var(--on-radius-pill);
+  border: 1px solid var(--on-line);
+  font-size: 12px;
+  color: var(--on-text-faint);
+  text-align: center;
+}
+
+.on-chat-part + .on-chat-part {
+  margin-top: 12px;
+}
+
+/* Streaming caret ---------------------------------------------------------- */
+
+.on-chat-caret {
+  display: inline-block;
+  width: 2px;
+  height: 1.05em;
+  margin-left: 3px;
+  vertical-align: -0.16em;
+  border-radius: 1px;
+  background: rgb(var(--on-accent-2));
+  animation: on-chat-caret 1.2s steps(1, end) infinite;
+}
+
+/* Three discrete frames a cycle, not a per-vsync ramp. */
+@keyframes on-chat-caret {
+  0% {
+    opacity: 1;
+  }
+  40% {
+    opacity: 0.15;
+  }
+  80% {
+    opacity: 1;
+  }
+  100% {
+    opacity: 1;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .on-chat-caret {
+    animation: none;
+  }
+}
+
+/* Reasoning ---------------------------------------------------------------- */
+
+.on-chat-reason {
+  border: 1px solid var(--on-line);
+  border-radius: var(--on-radius-md);
+  background: rgb(var(--on-accent) / 0.06);
+  overflow: hidden;
+}
+
+.on-chat-reason-toggle {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  width: 100%;
+  min-height: var(--on-tap);
+  padding: 0 12px;
+  border: 0;
+  background: transparent;
+  color: var(--on-text-faint);
+  font: inherit;
+  font-size: 12.5px;
+  text-align: left;
+  cursor: pointer;
+}
+
+.on-chat-reason-toggle:active {
+  color: var(--on-text-dim);
+}
+
+.on-chat-reason-chevron {
+  display: inline-flex;
+  transition: transform 160ms var(--on-ease, ease);
+}
+
+.on-chat-reason[data-open='true'] .on-chat-reason-chevron {
+  transform: rotate(90deg);
+}
+
+.on-chat-reason-body {
+  padding: 2px 14px 12px;
+  font-size: 13.5px;
+  line-height: 1.6;
+  color: var(--on-text-faint);
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+}
+
+/* Jump to latest ----------------------------------------------------------- */
+
+.on-chat-jump-slot {
+  position: absolute;
+  left: 0;
+  right: 0;
+  bottom: 10px;
+  z-index: 12;
+  display: flex;
+  justify-content: center;
+  pointer-events: none;
+}
+
+.on-chat-jump {
+  pointer-events: auto;
+  display: inline-flex;
+  align-items: center;
+  gap: 7px;
+  min-height: var(--on-tap);
+  padding: 0 16px;
+  border: 1px solid var(--on-line-strong);
+  border-radius: var(--on-radius-pill);
+  background: var(--on-surface-2);
+  backdrop-filter: blur(var(--on-blur-md));
+  -webkit-backdrop-filter: blur(var(--on-blur-md));
+  box-shadow: var(--on-shadow-lift);
+  color: var(--on-text);
+  font: inherit;
+  font-size: 13px;
+  cursor: pointer;
+}
+
+/* Permissions -------------------------------------------------------------- */
+
+.on-chat-permissions {
+  flex: 0 0 auto;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  padding: 10px 16px 0;
+  max-width: 860px;
+  width: 100%;
+  margin: 0 auto;
+  max-height: 52vh;
+  overflow-y: auto;
+  overscroll-behavior: contain;
+}
+
+.on-chat-stream-empty {
+  padding: 40px 8px;
+  text-align: center;
+  font-size: 13px;
+  color: var(--on-text-faint);
+}

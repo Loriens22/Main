@@ -1,0 +1,138 @@
+<!doctype html>
+<html lang="en" data-glass="full">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
+    <meta name="theme-color" content="#05070f" />
+    <title>Ornight Plus — offline</title>
+    <link rel="icon" href="icons/ornight-192.png" />
+    <link rel="apple-touch-icon" href="icons/apple-touch-icon.png" />
+    <style>
+      :root {
+        --on-bg: #05070f;
+        --on-surface: rgba(146 176 255 / 0.06);
+        --on-line: rgba(160 186 255 / 0.12);
+        --on-text: #e8edfb;
+        --on-text-dim: rgba(232 237 251 / 0.62);
+        --on-accent: 72 106 224;
+        --on-accent-2: 120 150 255;
+        --on-font: -apple-system, BlinkMacSystemFont, 'Segoe UI', system-ui, sans-serif;
+      }
+      * {
+        box-sizing: border-box;
+      }
+      html,
+      body {
+        height: 100%;
+        margin: 0;
+      }
+      body {
+        display: grid;
+        place-items: center;
+        padding: calc(env(safe-area-inset-top) + 24px) 24px calc(env(safe-area-inset-bottom) + 24px);
+        background: var(--on-bg);
+        color: var(--on-text);
+        font-family: var(--on-font);
+        -webkit-font-smoothing: antialiased;
+        overflow: hidden;
+      }
+      /* Night field: two slow sapphire auroras over the deep ground. */
+      body::before {
+        content: '';
+        position: fixed;
+        inset: -30%;
+        background:
+          radial-gradient(38% 30% at 26% 22%, rgba(var(--on-accent-2) / 0.22), transparent 70%),
+          radial-gradient(46% 36% at 76% 78%, rgba(var(--on-accent) / 0.26), transparent 72%);
+        filter: blur(28px);
+        pointer-events: none;
+      }
+      .card {
+        position: relative;
+        width: min(420px, 100%);
+        padding: 34px 30px 30px;
+        text-align: center;
+        border-radius: 26px;
+        border: 1px solid var(--on-line);
+        background: var(--on-surface);
+        -webkit-backdrop-filter: blur(26px) saturate(1.5);
+        backdrop-filter: blur(26px) saturate(1.5);
+        box-shadow:
+          inset 0 1px 0 rgba(255 255 255 / 0.12),
+          0 30px 80px -30px rgba(0 0 0 / 0.9);
+      }
+      .mark {
+        width: 68px;
+        height: 68px;
+        margin: 0 auto 20px;
+        display: block;
+        border-radius: 20px;
+        box-shadow: 0 16px 40px -18px rgba(var(--on-accent) / 0.9);
+      }
+      h1 {
+        margin: 0 0 10px;
+        font-size: 21px;
+        font-weight: 600;
+        letter-spacing: -0.01em;
+      }
+      p {
+        margin: 0 auto;
+        max-width: 32ch;
+        font-size: 14.5px;
+        line-height: 1.55;
+        color: var(--on-text-dim);
+      }
+      button {
+        margin-top: 24px;
+        min-height: 44px;
+        padding: 0 22px;
+        font: inherit;
+        font-size: 15px;
+        font-weight: 550;
+        color: var(--on-text);
+        cursor: pointer;
+        border-radius: 999px;
+        border: 1px solid rgba(var(--on-accent-2) / 0.4);
+        background: linear-gradient(
+          180deg,
+          rgba(var(--on-accent-2) / 0.34),
+          rgba(var(--on-accent) / 0.28)
+        );
+        box-shadow:
+          inset 0 1px 0 rgba(255 255 255 / 0.22),
+          0 12px 30px -14px rgba(var(--on-accent) / 0.9);
+      }
+      button:active {
+        transform: translateY(1px);
+      }
+      .hint {
+        margin-top: 18px;
+        font-size: 12.5px;
+        color: rgba(232 237 251 / 0.4);
+      }
+      @media (prefers-reduced-motion: no-preference) {
+        .card {
+          animation: rise 520ms cubic-bezier(0.22, 1, 0.36, 1) both;
+        }
+        @keyframes rise {
+          from {
+            opacity: 0;
+            transform: translateY(10px) scale(0.985);
+          }
+        }
+      }
+    </style>
+  </head>
+  <body>
+    <main class="card">
+      <img class="mark" src="icons/ornight-192.png" alt="" width="68" height="68" />
+      <h1>Ornight is offline</h1>
+      <p>
+        The daemon can’t be reached and this page isn’t in the cache yet. Reconnect, or reopen
+        Ornight to keep working against the demo transport.
+      </p>
+      <button type="button" onclick="location.replace('./index.html')">Reopen Ornight</button>
+      <div class="hint">Installed builds keep working offline in demo mode.</div>
+    </main>
+  </body>
+</html>

@@ -1,0 +1,77 @@
+/* review/InlineDiff.css — the compact diff card inside the chat stream. */
+
+.on-rev-inline {
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+  border: 1px solid var(--on-line);
+  border-radius: var(--on-radius-sm);
+  background: rgb(var(--on-accent) / 0.04);
+  overflow: hidden;
+}
+
+.on-rev-inline__head {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  min-height: 34px;
+  padding: 6px 10px;
+  border-bottom: 1px solid var(--on-line);
+  background: var(--on-surface);
+  min-width: 0;
+}
+
+.on-rev-inline__path {
+  flex: 1 1 auto;
+  min-width: 0;
+  overflow: hidden;
+}
+
+.on-rev-inline__from {
+  flex: 0 1 auto;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  font-size: 11px;
+  color: var(--on-text-faint);
+}
+
+.on-rev-inline__body {
+  max-height: 60vh;
+  overflow-y: auto;
+  overscroll-behavior: contain;
+  -webkit-overflow-scrolling: touch;
+}
+
+.on-rev-inline--compact .on-rev-inline__body {
+  max-height: none;
+  overflow-y: hidden;
+}
+
+.on-rev-inline__more {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  min-height: var(--on-tap);
+  width: 100%;
+  padding: 0 12px;
+  border: 0;
+  border-top: 1px solid var(--on-line);
+  background: rgb(var(--on-accent) / 0.08);
+  color: var(--on-text-dim);
+  font-family: var(--on-font);
+  font-size: 12.5px;
+  cursor: pointer;
+  -webkit-tap-highlight-color: transparent;
+}
+
+.on-rev-inline__more:active {
+  background: rgb(var(--on-accent) / 0.16);
+  color: var(--on-text);
+}
+
+.on-rev-inline__sheet {
+  height: 100%;
+  min-height: 0;
+}

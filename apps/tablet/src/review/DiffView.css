@@ -1,0 +1,116 @@
+/* review/DiffView.css — the full-surface diff viewer. */
+
+.on-rev-diff {
+  display: flex;
+  flex-direction: column;
+  min-height: 0;
+  min-width: 0;
+  height: 100%;
+  background: var(--on-bg-2);
+}
+
+/* Sticky so the path and the stat stay answerable while scrolling a long file. */
+.on-rev-diff__head {
+  position: sticky;
+  top: 0;
+  z-index: 3;
+  display: grid;
+  grid-template-areas:
+    'id id'
+    'meta meta'
+    'tools tools';
+  gap: 6px;
+  padding: 10px 12px calc(10px + env(safe-area-inset-bottom, 0px) * 0);
+  padding-inline: max(12px, env(safe-area-inset-left, 0px)) max(12px, env(safe-area-inset-right, 0px));
+  border-bottom: 1px solid var(--on-line);
+  background: var(--on-surface);
+  backdrop-filter: blur(var(--on-blur-md)) saturate(1.4);
+  -webkit-backdrop-filter: blur(var(--on-blur-md)) saturate(1.4);
+}
+
+html[data-glass='reduced'] .on-rev-diff__head {
+  background: var(--on-surface-solid);
+  backdrop-filter: none;
+  -webkit-backdrop-filter: none;
+}
+
+.on-rev-diff__id {
+  grid-area: id;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  min-width: 0;
+}
+
+.on-rev-diff__path {
+  flex: 1 1 auto;
+  min-width: 0;
+  overflow: hidden;
+  font-size: 13px;
+}
+
+.on-rev-diff__meta {
+  grid-area: meta;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  min-width: 0;
+  color: var(--on-text-faint);
+  font-family: var(--on-font);
+  font-size: 11.5px;
+}
+
+.on-rev-diff__from {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.on-rev-diff__tools {
+  grid-area: tools;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex-wrap: wrap;
+}
+
+.on-rev-diff__stepper {
+  display: flex;
+  align-items: center;
+  gap: 2px;
+}
+
+.on-rev-diff__size {
+  min-width: 3.5ch;
+  text-align: center;
+  color: var(--on-text-dim);
+  font-family: var(--on-mono);
+  font-size: 11.5px;
+  font-variant-numeric: tabular-nums;
+}
+
+/* The vertical scroller. Horizontal scrolling belongs to `.on-rev-scroller`
+   inside it, which is what keeps the page from ever moving sideways. */
+.on-rev-diff__scroll {
+  flex: 1 1 auto;
+  min-height: 0;
+  overflow-y: auto;
+  overscroll-behavior: contain;
+  -webkit-overflow-scrolling: touch;
+  padding-bottom: max(16px, env(safe-area-inset-bottom, 0px));
+}
+
+/* At tablet-landscape and up the header collapses to a single line. */
+@media (min-width: 720px) {
+  .on-rev-diff__head {
+    grid-template-areas:
+      'id tools'
+      'meta tools';
+    grid-template-columns: minmax(0, 1fr) auto;
+    align-items: center;
+  }
+
+  .on-rev-diff__tools {
+    justify-content: flex-end;
+  }
+}

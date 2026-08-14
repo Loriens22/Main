@@ -1,0 +1,101 @@
+.on-shell-threads {
+  flex: 1 1 auto;
+  min-height: 0;
+  padding: 0 6px 12px;
+  overscroll-behavior: contain;
+  -webkit-overflow-scrolling: touch;
+}
+
+.on-shell-group {
+  position: sticky;
+  top: 0;
+  z-index: 1;
+  margin: 10px 0 2px;
+  padding: 6px 10px 5px;
+  font-size: 10.5px;
+  font-weight: 600;
+  letter-spacing: 0.09em;
+  text-transform: uppercase;
+  color: var(--on-text-faint);
+  background: linear-gradient(var(--on-bg) 62%, rgb(5 7 15 / 0));
+}
+
+.on-shell-group:first-child {
+  margin-top: 2px;
+}
+
+.on-shell-list-empty {
+  padding: 34px 18px;
+  text-align: center;
+  font-size: 13px;
+  line-height: 1.55;
+  color: var(--on-text-faint);
+}
+
+/* Context sheet ------------------------------------------------------------- */
+
+.on-shell-context {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.on-shell-context-head {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 0 4px 10px;
+  border-bottom: 1px solid var(--on-line);
+  margin-bottom: 6px;
+}
+
+.on-shell-context-title {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  font-size: 14px;
+  font-weight: 600;
+}
+
+.on-shell-context-sub {
+  font-size: 11px;
+  color: var(--on-text-faint);
+}
+
+.on-shell-context-action {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  width: 100%;
+  min-height: var(--on-tap-lg);
+  padding: 0 14px;
+  border: 0;
+  border-radius: var(--on-radius-md);
+  background: transparent;
+  color: var(--on-text);
+  font: inherit;
+  font-size: 14px;
+  text-align: left;
+  cursor: pointer;
+}
+
+.on-shell-context-action:active {
+  background: var(--on-surface);
+}
+
+.on-shell-context-action[data-tone='danger'] {
+  color: rgb(var(--on-danger));
+}
+
+.on-shell-context-rename {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  padding: 2px 2px 6px;
+}
+
+.on-shell-context-rename-actions {
+  display: flex;
+  gap: 8px;
+}
