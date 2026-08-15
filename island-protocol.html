@@ -253,6 +253,37 @@ input[type=range]{width:150px;accent-color:var(--red);background:transparent}
 ::-webkit-scrollbar{width:7px;height:7px}::-webkit-scrollbar-thumb{background:#26303a}::-webkit-scrollbar-track{background:transparent}
 .cb-deut .itm .ic{filter:none}
 
+/* ---------- CINEMATIC DIALOGUE ---------- */
+#bars{position:absolute;inset:0;z-index:14;pointer-events:none}
+#bars:before,#bars:after{content:'';position:absolute;left:0;right:0;height:0;background:#000;
+  transition:height .5s cubic-bezier(.2,.8,.2,1)}
+#bars:before{top:0}#bars:after{bottom:0}
+#bars.on:before,#bars.on:after{height:11.5vh}
+#cineskip{position:absolute;right:24px;bottom:calc(11.5vh + 12px);z-index:15;opacity:0;
+  transition:opacity .4s;font-family:var(--mono);font-size:10px;letter-spacing:.2em;
+  color:#7d8a93;pointer-events:none}
+#cineskip.on{opacity:.9}
+#cinetap{position:absolute;inset:0;z-index:14;display:none}
+#cinetap.on{display:block;pointer-events:auto}
+#cineskipbtn{position:absolute;right:20px;top:calc(11.5vh + 14px);pointer-events:auto;
+  font-family:var(--mono);font-size:10px;letter-spacing:.18em;padding:10px 14px;border-radius:4px;
+  background:rgba(8,12,16,.6);border:1px solid rgba(201,210,216,.28);color:#c9d2d8;display:none}
+#cinetap.on #cineskipbtn{display:block}
+#cineskipbtn:active{background:var(--red);border-color:#ff6b72;color:#fff}
+body.cine #subs{bottom:calc(11.5vh + 20px);font-size:17px}
+body.cine #vitals,body.cine #wepbox,body.cine #elena,body.cine #objwrap,
+body.cine #clockwrap,body.cine #toasts,body.cine #prompt,body.cine #objmark,
+body.cine #noise,body.cine #reloadwrap,body.cine #touch{opacity:0;transition:opacity .35s}
+body.cine #touch{pointer-events:none}
+
+/* ---------- HIT FEEDBACK ---------- */
+#hitmark{position:absolute;left:50%;top:50%;width:30px;height:30px;margin:-15px 0 0 -15px;
+  z-index:13;opacity:0;pointer-events:none;transition:opacity .10s linear}
+#hitmark svg{width:100%;height:100%;display:block}
+#hitmark line{stroke:#e9eef1;stroke-width:2.4;stroke-linecap:round}
+#hitmark.crit line{stroke:#ff4a4a;stroke-width:3}
+#hitmark.weak line{stroke:#9fe83d;stroke-width:3}
+
 /* ---------- TOUCH / MOBILE CONTROLS ---------- */
 #touch{z-index:20;touch-action:none}
 #touch *{touch-action:none}
@@ -307,6 +338,12 @@ body.touch #lock{display:none!important}
 <body>
 <canvas id="gl"></canvas>
 <div id="vig"></div><div id="dmg"></div><div id="flash"></div><div id="thermalfr"></div>
+<div id="bars"></div>
+<div id="cineskip">[F] NEXT · [ESC] SKIP SCENE</div>
+<div id="cinetap"><div id="cineskipbtn">SKIP</div></div>
+<div id="hitmark"><svg viewBox="0 0 30 30">
+  <line x1="7" y1="7" x2="12" y2="12"/><line x1="23" y1="7" x2="18" y2="12"/>
+  <line x1="7" y1="23" x2="12" y2="18"/><line x1="23" y1="23" x2="18" y2="18"/></svg></div>
 <div class="scan" id="scan"></div>
 <div id="fps"></div>
 
@@ -998,7 +1035,7 @@ function mkFbo(w,h,fmt=gl.RGBA16F,type=gl.HALF_FLOAT,depth=false){
     gl.framebufferRenderbuffer(gl.FRAMEBUFFER,gl.DEPTH_ATTACHMENT,gl.RENDERBUFFER,f.rb);}
   gl.bindFramebuffer(gl.FRAMEBUFFER,null);return f;}
 
-const SHADOW_SZ=2048;
+let SHADOW_SZ=2048;
 const shadowFbo=(function(){
   const f={fb:gl.createFramebuffer(),w:SHADOW_SZ,h:SHADOW_SZ};
   f.tex=gl.createTexture();gl.bindTexture(gl.TEXTURE_2D,f.tex);
@@ -1012,6 +1049,16 @@ const shadowFbo=(function(){
   gl.drawBuffers([gl.NONE]);gl.readBuffer(gl.NONE);
   gl.bindFramebuffer(gl.FRAMEBUFFER,null);return f;})();
 
+/* Shadow resolution and rain density are the two things a weak GPU actually
+   chokes on, so the quality setting has to move them, not just the framebuffer. */
+function setShadowSize(n){
+  if(n===SHADOW_SZ)return;
+  SHADOW_SZ=n;shadowFbo.w=shadowFbo.h=n;
+  gl.bindTexture(gl.TEXTURE_2D,shadowFbo.tex);
+  gl.texImage2D(gl.TEXTURE_2D,0,gl.DEPTH_COMPONENT24,n,n,0,gl.DEPTH_COMPONENT,gl.UNSIGNED_INT,null);
+  gl.bindTexture(gl.TEXTURE_2D,null);
+}
+let rainDraw=9000;
 let sceneFbo=null,bloomA=null,bloomB=null;
 let RW=1,RH=1,renderScale=1;
 function resize(){
@@ -1133,7 +1180,7 @@ function renderShadowPass(){
   const {view,proj}=setupShadow();
   M4.mul(_shadowMat,proj,view);
   gl.bindFramebuffer(gl.FRAMEBUFFER,shadowFbo.fb);
-  gl.viewport(0,0,SHADOW_SZ,SHADOW_SZ);
+  gl.viewport(0,0,shadowFbo.w,shadowFbo.h);
   gl.clear(gl.DEPTH_BUFFER_BIT);
   gl.enable(gl.DEPTH_TEST);gl.depthFunc(gl.LEQUAL);
   gl.enable(gl.CULL_FACE);gl.cullFace(gl.FRONT);
@@ -1207,7 +1254,7 @@ function renderRain(){
   gl.uniform1f(P_RAIN.u.uLen,.34+env.rain*.5);gl.uniform1f(P_RAIN.u.uAmount,env.rain);
   gl.uniform3f(P_RAIN.u.uTint,.52,.60,.70);gl.uniform1f(P_RAIN.u.uLightning,env.lightning);
   gl.bindVertexArray(rainVao);
-  gl.drawArraysInstanced(gl.TRIANGLES,0,6,RAINN);
+  gl.drawArraysInstanced(gl.TRIANGLES,0,6,rainDraw);
   gl.depthMask(true);gl.enable(gl.CULL_FACE);
 }
 
@@ -1280,6 +1327,7 @@ const OPT={
   difficulty:1,         // 0 assisted 1 standard 2 hardcore 3 professional
   modBleed:0, modAmmo:0, modElena:0, modPerma:0,
   fov:62, hudScale:1, showFps:0, autoSave:1, bright:1.0, touch:0,
+  voice:.95, voiceMode:1,
 };
 const DIFF=[
   {n:'ASSISTED',dmg:.55,ammo:1.45,heal:1.4,ai:.75,elena:.5,grab:.65,
@@ -1814,12 +1862,14 @@ function collide(p,vx,vz,rad,climb){
 }
 
 /* --- raycast against world + props (returns hit info) --- */
-function rayWorld(o,d,maxD){
+/* tMin skips the segment between the third-person camera and the player.
+   Without it, a camera pressed into a wall makes every shot hit that wall. */
+function rayWorld(o,d,maxD,tMin){
   let best=maxD,hitN=null,kind=null;
-  // grid march (DDA in XZ, with vertical checks vs floor/ceiling)
+  const t0=tMin||0;
   const step=.12;
   let px=o.x,py=o.y,pz=o.z;
-  for(let t=0;t<maxD;t+=step){
+  for(let t=t0;t<maxD;t+=step){
     px=o.x+d.x*t;py=o.y+d.y*t;pz=o.z+d.z*t;
     const k=gi(gx(px),gz(pz));
     if(k<0||!W.walk[k]){best=t;kind='wall';break;}
@@ -1830,7 +1880,7 @@ function rayWorld(o,d,maxD){
     if(!pr.solid&&!pr.shootable)continue;
     const b=pr.aabb;
     const tt=rayAABB(o,d,b);
-    if(tt!==null&&tt<best){best=tt;kind='prop';hitN=pr;}
+    if(tt!==null&&tt>t0&&tt<best){best=tt;kind='prop';hitN=pr;}
   }
   return {t:best,kind,prop:hitN};
 }
@@ -2302,9 +2352,12 @@ function rayCapsule(o,d,a,b,r){
     if(t>0&&(best===null||t<best))best=t;}
   return best;
 }
-function traceShot(o,d,maxD,ignore){
-  const wr=rayWorld(o,d,maxD);
+function traceShot(o,d,maxD,ignore,tMin){
+  const t0=tMin||0;
+  const wr=rayWorld(o,d,maxD,t0);
   let best={t:wr.t,ent:null,zone:null,prop:wr.prop,kind:wr.kind};
+  let node=null;   // Plaga clusters sit *inside* the body capsule, so they can
+                   // never win on distance. They win on priority instead.
   for(const e of ents){
     if(!e.alive||e===ignore||!e.zones)continue;
     if(e.noHit)continue;
@@ -2314,11 +2367,28 @@ function traceShot(o,d,maxD,ignore){
       else{const ex=o.x-z.a.x,ey=o.y-z.a.y,ez=o.z-z.a.z;
         const bq=ex*d.x+ey*d.y+ez*d.z;const cq=ex*ex+ey*ey+ez*ez-z.r*z.r;
         const dq=bq*bq-cq;if(dq>=0){const tt=-bq-sqrt(dq);if(tt>0)t=tt;}}
-      if(t!==null&&t<best.t){best={t,ent:e,zone:z,prop:null,kind:'ent'};}
+      if(t===null||t<t0)continue;
+      if(z.node||z.type==='weak'){
+        if(!node||t<node.t)node={t,ent:e,zone:z,prop:null,kind:'ent'};
+      }
+      if(t<best.t){best={t,ent:e,zone:z,prop:null,kind:'ent'};}
     }
   }
+  if(node&&node.t<best.t+1.3)return node;
   return best;
 }
+/* A bullet leaves the gun, not the lens. Tracing from the camera meant that
+   whenever the camera sat on the far side of a wall corner from the player —
+   it is offset 0.46m sideways and up to 2.45m back — the shot hit that wall
+   and the enemy in the open took nothing. Trace from the player's eyeline in
+   the camera's direction instead; the laser dot marks the true impact point,
+   so what you see is still exactly what you hit. */
+const _eye=V();
+function shotOrigin(){
+  _eye.x=PL.p.x;_eye.y=PL.p.y+1.52-PL.crouch*.30;_eye.z=PL.p.z;
+  return _eye;
+}
+function shotTMin(){return 0;}
 function aimRay(out){
   // ray from camera through screen centre
   vcopy(out,cam.fwd);
@@ -2359,16 +2429,18 @@ function fireWeapon(){
   let anyHit=false;
   for(let i=0;i<pellets;i++){
     const d=V(cam.fwd.x,cam.fwd.y,cam.fwd.z);
-    if(pellets===1&&PL.aim>.5)assistDir(cam.p,d);
+    if(pellets===1&&PL.aim>.5)assistDir(shotOrigin(),d);
     d.x+=rnd(-spread,spread);d.y+=rnd(-spread,spread);d.z+=rnd(-spread,spread);vnorm(d,d);
     let pierce=(w.excl&&w.excl.have&&w.id==='pistol')?2:1;
-    let origin=cam.p,ignore=null,dmg=wDmg(w);
+    const so=shotOrigin();
+    let origin=V(so.x,so.y,so.z),ignore=null,dmg=wDmg(w);
     for(let k=0;k<pierce;k++){
-      const hit=traceShot(origin,d,90,ignore);
+      const hit=traceShot(origin,d,90,ignore,k===0?shotTMin():0);
       const hp=V(origin.x+d.x*hit.t,origin.y+d.y*hit.t,origin.z+d.z*hit.t);
       if(i===0||pellets<=3)tracers.push({a:{x:muzzle.x,y:muzzle.y,z:muzzle.z},b:hp,t:.055});
       if(hit.ent){
         anyHit=true;
+        if(hit.ent.faction==='enemy')hitMarker(hit.zone);
         let mult=hit.zone.mult||1;
         if(w.excl&&w.excl.have&&w.id==='shotgun'&&hit.t>8)mult*=1.5;
         damageEnemy(hit.ent,dmg*mult,hit.zone,hp,d,w);
@@ -2608,8 +2680,9 @@ let flashLight=null;
 
 function updatePlayer(dtv){
   const w=WEAPONS[PL.wep];
+  const cineOn=CINE.active;
   // ---- look ----
-  if(GS.mode==='play'&&!GS.menuOpen){
+  if(GS.mode==='play'&&!GS.menuOpen&&!cineOn){
     const s=OPT.sens*.0022*(PL.aim>.4?OPT.adsSens:1)*(PL.scopeIn>.5?.4:1);
     PL.yaw+=MOUSE.dx*s;
     PL.pitch-=MOUSE.dy*s*(OPT.invertY?-1:1);
@@ -2619,9 +2692,11 @@ function updatePlayer(dtv){
   // recoil recovery
   PL.recoilV=approach(PL.recoilV,0,dtv*(PL.aim>.5?3.4:2.2));
   PL.recoilH=approach(PL.recoilH,0,dtv*2.2);
-  cam.yaw=PL.yaw+PL.recoilH;
-  cam.pitch=clamp(PL.pitch+PL.recoilV,-1.35,1.3);
-  computeCamBasis();
+  if(!cineOn){
+    cam.yaw=PL.yaw+PL.recoilH;
+    cam.pitch=clamp(PL.pitch+PL.recoilV,-1.35,1.3);
+    computeCamBasis();
+  }
 
   if(!PL.alive){updatePlayerDeadCam(dtv);return;}
 
@@ -2674,13 +2749,13 @@ function updatePlayer(dtv){
 
   // ---- input / movement ----
   let ix=0,iz=0;
-  if(GS.mode==='play'&&!GS.menuOpen){
+  if(GS.mode==='play'&&!GS.menuOpen&&!cineOn){
     if(KEYS[BIND.fwd])iz+=1;if(KEYS[BIND.back])iz-=1;
     if(KEYS[BIND.left])ix-=1;if(KEYS[BIND.right])ix+=1;
     if(TC.on){ix+=TC.mx;iz+=TC.mz;}
   }
   const mag=Math.hypot(ix,iz);if(mag>1){ix/=mag;iz/=mag;}
-  const wantAim=MOUSE.r&&GS.mode==='play'&&!GS.menuOpen&&w.cls!=='melee';
+  const wantAim=MOUSE.r&&GS.mode==='play'&&!GS.menuOpen&&!cineOn&&w.cls!=='melee';
   PL.aim=approach(PL.aim,wantAim?1:0,dtv*7);
   const wantCrouch=(KEYS[BIND.crouch]||touchCrouch())?1:0;
   PL.crouch=approach(PL.crouch,wantCrouch,dtv*6);
@@ -2747,7 +2822,7 @@ function updatePlayer(dtv){
   PL.sway=clamp(approach(PL.sway,max(0,targetSway),dtv*3),0,1.5);
 
   // ---- actions ----
-  if(GS.mode==='play'&&!GS.menuOpen){
+  if(GS.mode==='play'&&!GS.menuOpen&&!cineOn){
     if(w.cls==='gun'){
       if(w.auto?MOUSE.l:MOUSE.lDown){if(PL.state!=='knife'&&PL.state!=='kick'&&PL.dodgeT<=0){
         if(PL.state==='reload'&&WEAPONS[PL.wep].shellReload&&WEAPONS[PL.wep].inMag>0){PL.state='idle';PL.autoShell=false;}
@@ -2785,8 +2860,8 @@ function updatePlayer(dtv){
     vset(flashLight.p,fx,fy2,fz);flashLight.on=true;
   }else if(flashLight)flashLight.on=false;
 
-  updateCamera(dtv);
-  updateInteract();
+  if(cineOn)cineCamera(dtv);else updateCamera(dtv);
+  if(!cineOn)updateInteract();else hidePrompt();
   drawPlayer(dtv,spd);
 }
 
@@ -2813,12 +2888,16 @@ function updateCamera(dtv){
   // collide camera against world
   const d=_t3;vsub(d,want,camPivot);const dl=vlen(d)||.001;vscl(d,d,1/dl);
   let allowed=dl;
-  const steps=8;
+  const steps=10;
   for(let i=1;i<=steps;i++){
     const t=dl*i/steps;
     const px=camPivot.x+d.x*t,py=camPivot.y+d.y*t,pz=camPivot.z+d.z*t;
-    if(!walkAt(px,pz)||py>ceilAt(px,pz)-.1||py<floorAt(px,pz)+.15){allowed=max(.35,dl*(i-1)/steps);break;}
+    if(!walkAt(px,pz)||py>ceilAt(px,pz)-.1||py<floorAt(px,pz)+.15){
+      // pull IN past the blocker — the old max(.35,…) parked the camera beyond
+      // it, i.e. inside the wall, which ate every shot the player fired
+      allowed=max(.10,dl*(i-1)/steps-.10);break;}
   }
+  cam.pivotDist=allowed;
   vset(_t4,camPivot.x+d.x*allowed,camPivot.y+d.y*allowed,camPivot.z+d.z*allowed);
   const lag=1-Math.pow(.0001,dtv);
   vlerp(cam.p,cam.p,_t4,min(1,lag*(aim>.5?1.6:1)));
@@ -2922,6 +3001,10 @@ function drawPlayer(dtv,spd){
     const t=1-PL.dodgeT/.42;
     po.spine=Math.sin(t*PI)*1.4;po.bobY-=Math.sin(t*PI)*.42;
   }
+  if(PL.talking){const b=Math.sin(PL.talkPh||0);
+    po.head+=b*.06;po.chest+=b*.035;po.armRU+=Math.sin((PL.talkPh||0)*.62)*.20;po.mouth=.5+b*.4;}
+  if(PL.radioUp>0){po.armLU=lerp(po.armLU,-2.30,PL.radioUp);
+    po.armLF=lerp(po.armLF,-2.10,PL.radioUp);po.armLS=lerp(po.armLS,.34,PL.radioUp);}
   po.head=clamp(pitch*.45,-.6,.6);
   po.chest+=clamp(pitch*.25,-.35,.35)*aim;
   po.headY=angDiff(PL.yawBody||0,cam.yaw)*.55;
@@ -2972,9 +3055,10 @@ function drawWeaponInHand(S){
 }
 function drawLaser(){
   const o=getMuzzle(_t3);
-  const hit=traceShot(cam.p,cam.fwd,60,null);
+  const so=shotOrigin();
+  const hit=traceShot(so,cam.fwd,60,null,0);
   const len=max(.4,hit.t-.05);
-  const end=V(cam.p.x+cam.fwd.x*len,cam.p.y+cam.fwd.y*len,cam.p.z+cam.fwd.z*len);
+  const end=V(so.x+cam.fwd.x*len,so.y+cam.fwd.y*len,so.z+cam.fwd.z*len);
   // dot
   drawT(GEO.sph,end.x,end.y,end.z,0,0,0,.028,.028,.028,[1,.06,.05],3.5,.1,0,0);
   spawnPLaserDot(end);
@@ -3064,7 +3148,7 @@ function spawnEnemy(type,x,z,opt){
     scale:d.scale*(opt&&opt.scale||1),
     dmgMul:1,
   };
-  if(d.nodes){for(let i=0;i<d.nodes;i++)e.nodes.push({alive:true,y:.55+i*.42,a:rnd(TAU),r:.20});
+  if(d.nodes){for(let i=0;i<d.nodes;i++)e.nodes.push({alive:true,y:.55+i*.42,a:rnd(TAU),r:.28,hp:190});
     e.nodeAlive=d.nodes;}
   if(opt&&opt.yaw!==undefined)e.yaw=opt.yaw;
   if(opt&&opt.patrol)e.patrol=opt.patrol;
@@ -3134,7 +3218,7 @@ function damageEnemy(e,dmg,zone,pos,dir,weapon){
   if(zone&&zone.node){
     const n=e.nodes[zone.idx];
     if(n.alive){
-      n.hp=(n.hp||280)-dmg;
+      n.hp=(n.hp||190)-dmg;
       spawnGore(zone.a,6,[.7,.85,.2]);
       sfxGore(zone.a,false);
       if(n.hp<=0){n.alive=false;e.nodeAlive--;
@@ -3156,6 +3240,9 @@ function damageEnemy(e,dmg,zone,pos,dir,weapon){
     e.regenT=1.2;e.stagger=max(e.stagger,.25);
     spawnGore(pos,4,[.5,.12,.12]);
     e.hp=max(e.hpMax*.05,e.hp-dmg*.06);
+    // shredding the flesh pushes the clusters closer to the surface
+    e.strip=min(1,(e.strip||0)+dmg/2200);
+    for(const n of e.nodes)if(n.alive)n.r=.28+e.strip*.16;
     sfxGore(pos,false);
     return;
   }
@@ -3324,6 +3411,7 @@ function repath(e,tx,tz,force){
 
 /* ---- main enemy update ---- */
 function updateEnemies(dtv){
+  if(CINE.active&&CINE.hold)dtv=0;      // nobody moves during coverage
   for(let i=ents.length-1;i>=0;i--){
     const e=ents[i];
     if(e.faction==='ally')continue;
@@ -4810,6 +4898,9 @@ function drawElena(dtv,spd){
   if(EL.down){po.bobY-=.75;po.spine=.9;po.lean=1.3;po.legLU=.6;po.legRU=.7;po.armLU=.4;po.mouth=.8;}
   if(EL.grabbed){po.bobY+=.45;po.legLU=-.7;po.legRU=-.5;po.armLU=-2.2;po.armRU=-2.2;
     po.twist=Math.sin(T*13)*.35;po.mouth=1;po.brow=1.4;}
+  if(EL.talking){const b=Math.sin(EL.talkPh||0);
+    po.head+=b*.07;po.chest+=b*.045;po.mouth=.55+b*.42;po.brow=max(po.brow,.25);
+    po.armRU+=Math.sin((EL.talkPh||0)*.7)*.26;po.armLU+=Math.sin((EL.talkPh||0)*.55+1)*.20;}
   if(!EL.alive){po.lean=1.5;po.bobY=-.7;}
   const cfg=Object.assign({},ELENA_CFG);
   if(EL.hurtT>0)cfg.cloth=[.85,.25,.25];
@@ -4831,6 +4922,320 @@ function drawElena(dtv,spd){
     if(chance(dtv*6))spawnP({p:V(EL.p.x,EL.p.y+.2,EL.p.z),v:V(rnd(-.3,.3),rnd(0,.6),rnd(-.3,.3)),
       life:.9,size:.05,size1:.02,col:[.5,.03,.04],kind:2,alpha:1,grav:-6});}
 }
+/* ============================ 9b. VOICE + CINEMATIC DIALOGUE ============================
+   Two systems:
+     VOX  — spoken lines. Uses the browser's own speech synthesiser (no asset
+            download, works offline, works on phones) with a per-character
+            voice, pitch and cadence. Falls back to procedural formant babble
+            wherever speech synthesis is missing or muted.
+     CINE — camera coverage for conversations: letterbox, framed shots that cut
+            between speakers, actors turning to face each other and gesturing
+            while they talk, and a skip that never traps the player.
+   ========================================================================= */
+
+/* ================================ VOICE ================================ */
+const VOX={
+  ready:false,voices:[],primed:false,speaking:false,lastWho:'',token:0,
+  roles:{
+    RANGER:      {pitch:.58,rate:.95,gender:'m',blip:118},
+    ELENA:       {pitch:1.34,rate:1.06,gender:'f',blip:286},
+    RADIO:       {pitch:.88,rate:1.10,gender:'m',blip:190},
+    SURVIVOR:    {pitch:1.16,rate:.92,gender:'f',blip:242},
+    'THE PROPHET':{pitch:.32,rate:.68,gender:'m',blip:74},
+    DEFAULT:     {pitch:1.0,rate:1.0,gender:'m',blip:170},
+  }
+};
+const F_HINTS=['female','woman','zira','samantha','victoria','karen','moira','tessa','fiona',
+  'susan','linda','hazel','serena','allison','ava','joanna','salli','kimberly','amy','emma','aria'];
+const M_HINTS=['male','man','david','daniel','alex','fred','tom','george','arthur','ryan',
+  'brian','matthew','justin','joey','guy','oliver','james','mark'];
+
+function voxInit(){
+  if(!('speechSynthesis' in window))return;
+  const load=()=>{
+    VOX.voices=speechSynthesis.getVoices().filter(v=>/^en/i.test(v.lang));
+    if(!VOX.voices.length)VOX.voices=speechSynthesis.getVoices();
+    if(!VOX.voices.length)return;
+    const score=(v,hints)=>{const n=(v.name+' '+v.voiceURI).toLowerCase();
+      let s=0;for(const h of hints)if(n.includes(h))s+=2;
+      if(/^en-(gb|us)/i.test(v.lang))s+=1;
+      if(v.localService)s+=1;
+      return s;};
+    const fem=VOX.voices.slice().sort((a,b)=>score(b,F_HINTS)-score(a,F_HINTS));
+    const mal=VOX.voices.slice().sort((a,b)=>score(b,M_HINTS)-score(a,M_HINTS));
+    for(const k in VOX.roles){
+      const r=VOX.roles[k];
+      r.voice=(r.gender==='f'?fem:mal)[0]||VOX.voices[0];
+    }
+    // give the Prophet a different larynx from the Ranger where one exists
+    if(mal.length>1)VOX.roles['THE PROPHET'].voice=mal[1];
+    if(mal.length>2)VOX.roles.RADIO.voice=mal[2];
+    if(fem.length>1)VOX.roles.SURVIVOR.voice=fem[1];
+    VOX.ready=VOX.voices.length>0;
+  };
+  load();
+  speechSynthesis.onvoiceschanged=load;
+}
+/* mobile browsers will not speak until synthesis has been touched inside a gesture */
+function voxPrime(){
+  if(VOX.primed||!('speechSynthesis' in window))return;
+  VOX.primed=true;
+  try{const u=new SpeechSynthesisUtterance(' ');u.volume=0;speechSynthesis.speak(u);}catch(e){}
+}
+function voxStop(){
+  VOX.speaking=false;
+  if('speechSynthesis' in window){try{speechSynthesis.cancel();}catch(e){}}
+}
+function vox(who,text){
+  if(!OPT.voice)return;
+  const r=VOX.roles[who]||VOX.roles.DEFAULT;
+  if(who==='RADIO')sfxRadio();
+  if(OPT.voiceMode===1&&VOX.ready&&'speechSynthesis' in window){
+    try{
+      speechSynthesis.cancel();
+      // em-dashes read as a hard stop; commas give the delivery room to breathe
+      const u=new SpeechSynthesisUtterance(text.replace(/[—–]/g,', ').replace(/…/g,'...'));
+      u.pitch=clamp(r.pitch,0,2);u.rate=clamp(r.rate,.1,3);
+      u.volume=clamp(OPT.voice*OPT.master,0,1);
+      if(r.voice)u.voice=r.voice;
+      VOX.speaking=true;
+      let started=false;
+      u.onstart=()=>{started=true;};
+      u.onend=u.onerror=()=>{VOX.speaking=false;};
+      speechSynthesis.speak(u);
+      // Some engines accept the utterance and then never say it — no voices
+      // installed, an un-primed mobile browser, a muted synth. If nothing has
+      // started shortly after, speak the line with the procedural voice so the
+      // player is never left reading silence.
+      const tok=++VOX.token;
+      setTimeout(()=>{
+        if(!started&&tok===VOX.token&&OPT.voice>0){VOX.speaking=false;voxBlips(who,text,r);}
+      },420);
+      return;
+    }catch(e){}
+  }
+  voxBlips(who,text,r);
+}
+/* procedural fallback: one short formant chirp per syllable, pitched per role */
+function voxBlips(who,text,r){
+  if(!AU.ready)return;
+  r=r||VOX.roles[who]||VOX.roles.DEFAULT;
+  const ctx=AU.ctx,t0=nowA();
+  const words=text.replace(/[^A-Za-z' ]/g,' ').split(/\s+/).filter(Boolean);
+  let t=t0,n=0;
+  for(const w of words){
+    const syl=max(1,Math.round(w.length/2.6));
+    for(let s=0;s<syl&&n<70;s++,n++){
+      const f=r.blip*rnd(.86,1.18);
+      const o=ctx.createOscillator();o.type='sawtooth';o.frequency.setValueAtTime(f,t);
+      o.frequency.linearRampToValueAtTime(f*rnd(.9,1.12),t+.09);
+      const bp=ctx.createBiquadFilter();bp.type='bandpass';
+      bp.frequency.value=f*rnd(4,7);bp.Q.value=6;      // vowel-ish formant
+      const g=ctx.createGain();
+      g.gain.setValueAtTime(0,t);g.gain.linearRampToValueAtTime(.075*OPT.voice,t+.012);
+      g.gain.exponentialRampToValueAtTime(.0004,t+.10);
+      o.connect(bp);bp.connect(g);g.connect(AU.sfx);
+      o.start(t);o.stop(t+.12);
+      t+=.085/r.rate;
+    }
+    t+=.055;
+  }
+}
+
+/* ================================ CINEMATICS ================================ */
+const CINE={
+  active:false,lines:[],i:0,t:0,dur:0,who:'',shot:'ots',
+  blend:0,out:false,onDone:null,hold:true,
+  camP:V(),look:V(),dolly:0,skipHeld:0,
+};
+function actorFor(who){
+  if(who==='ELENA'&&EL.alive&&EL.present)return {kind:'el',p:EL.p,h:1.48*ELENA_CFG.scale};
+  if(who==='THE PROPHET'){
+    const b=ents.find(e=>e.type==='prophet'&&e.alive);
+    if(b)return {kind:'boss',p:b.p,h:2.5};
+  }
+  if(who==='SURVIVOR'||who==='RADIO')return {kind:'pl',p:PL.p,h:1.56};
+  return {kind:'pl',p:PL.p,h:1.56};
+}
+function otherActor(a){
+  if(a.kind==='pl')return (EL.alive&&EL.present)?{kind:'el',p:EL.p,h:1.48}:{kind:'pl',p:PL.p,h:1.56};
+  return {kind:'pl',p:PL.p,h:1.56};
+}
+function playScene(id,onDone){
+  const lines=SCENES[id];
+  if(!lines||!lines.length||GS.mode!=='play'){onDone&&onDone();return;}
+  CINE.active=true;CINE.lines=lines;CINE.i=-1;CINE.blend=0;CINE.out=false;
+  CINE.onDone=onDone;CINE.hold=true;CINE.skipHeld=0;
+  el('bars').classList.add('on');
+  el('cineskip').classList.add('on');
+  el('cineskip').textContent=(typeof TC!=='undefined'&&TC.on)
+    ?'TAP TO CONTINUE':'[F] NEXT · [ESC] SKIP SCENE';
+  if(typeof TC!=='undefined'&&TC.on)el('cinetap').classList.add('on');
+  PL.aim=0;MOUSE.r=false;if(typeof TC!=='undefined'){TC.aimToggle=false;}
+  cineNext();
+}
+function cineNext(){
+  CINE.i++;
+  if(CINE.i>=CINE.lines.length){cineEnd();return;}
+  const L=CINE.lines[CINE.i];
+  CINE.who=L.who;CINE.shot=L.shot||'ots';
+  CINE.t=0;CINE.dolly=0;
+  CINE.dur=L.dur||clamp(1.5+L.text.length*.052,2.2,7.5);
+  subtitle(L.who,L.text,L.who==='RADIO');   // subtitle() speaks the line
+  if(L.fx==='shake')screenShake(.8);
+  if(L.fx==='flash')postFlash=.6;
+}
+function cineEnd(){
+  CINE.out=true;
+  el('bars').classList.remove('on');
+  el('cineskip').classList.remove('on');
+  el('cinetap').classList.remove('on');
+  voxStop();
+  const done=CINE.onDone;CINE.onDone=null;
+  setTimeout(()=>{CINE.active=false;CINE.blend=0;if(done)done();},520);
+}
+function cineSkipAll(){
+  if(!CINE.active)return;
+  CINE.i=CINE.lines.length;cineEnd();
+}
+/* frames the shot and drives the camera; called instead of updateCamera */
+function cineCamera(dtv){
+  const A=actorFor(CINE.who), B=otherActor(A);
+  const ah=_t1;vset(ah,A.p.x,A.p.y+A.h,A.p.z);
+  const bh=_t2;vset(bh,B.p.x,B.p.y+B.h,B.p.z);
+  let dx=ah.x-bh.x, dz=ah.z-bh.z;
+  let l=Math.hypot(dx,dz);
+  if(l<.35){dx=cam.fwd.x;dz=cam.fwd.z;l=Math.hypot(dx,dz)||1;}
+  dx/=l;dz/=l;
+  const rx=-dz, rz=dx;                       // camera-right, perpendicular
+  CINE.dolly+=dtv;
+  const push=CINE.dolly*.10;                 // a slow creep keeps the frame alive
+  const P=CINE.camP, LK=CINE.look;
+  const sh=CINE.shot;
+  if(sh==='close'){
+    vset(P, ah.x+dx*(1.22-push)+rx*.34, ah.y+.13, ah.z+dz*(1.22-push)+rz*.34);
+    vset(LK, ah.x, ah.y-.04, ah.z);
+  }else if(sh==='ots'){
+    // behind the listener's shoulder, framing the speaker down the line between them
+    vset(P, bh.x-dx*.78+rx*.56, bh.y+.20, bh.z-dz*.78+rz*.56);
+    vset(LK, ah.x, ah.y-.06, ah.z);
+  }else if(sh==='two'){
+    vset(P, (ah.x+bh.x)/2+rx*(3.1-push), (ah.y+bh.y)/2+.22, (ah.z+bh.z)/2+rz*(3.1-push));
+    vset(LK, (ah.x+bh.x)/2, (ah.y+bh.y)/2-.05, (ah.z+bh.z)/2);
+  }else if(sh==='low'){
+    vset(P, ah.x+dx*2.0+rx*.9, A.p.y+.34, ah.z+dz*2.0+rz*.9);
+    vset(LK, ah.x, ah.y+.30, ah.z);
+  }else{ // wide
+    vset(P, (ah.x+bh.x)/2+rx*(2.4)-dx*(5.4-push), (ah.y+bh.y)/2+1.7,
+            (ah.z+bh.z)/2+rz*(2.4)-dz*(5.4-push));
+    vset(LK, (ah.x+bh.x)/2, (ah.y+bh.y)/2-.30, (ah.z+bh.z)/2);
+  }
+  // Framing has to survive a corridor. March back from the subject toward the
+  // desired lens position and stop short of anything solid, so the shot gets
+  // tighter rather than ending up inside a wall with the actor off-frame.
+  cineSolve(P,LK);
+
+  CINE.blend=approach(CINE.blend, CINE.out?0:1, dtv*2.6);
+  const k=smooth(clamp(CINE.blend,0,1));
+  // hard cuts between lines, soft blend into and out of the scene
+  const lag=CINE.t<.12?1:min(1,dtv*14);
+  vlerp(cam.p,cam.p,P,CINE.out?min(1,dtv*3):(CINE.blend<.99?min(1,dtv*3.2):lag));
+  const lx=LK.x-cam.p.x, ly=LK.y-cam.p.y, lz=LK.z-cam.p.z;
+  const hl=Math.hypot(lx,lz)||.001;
+  cam.yaw=Math.atan2(lx,-lz);
+  cam.pitch=clamp(Math.atan2(ly,hl),-1.2,1.2);
+  cam.fov=lerp(OPT.fov, sh==='close'?38:sh==='ots'?46:sh==='low'?58:54, k);
+  computeCamBasis();
+  cam.shake=max(0,cam.shake-dtv*3.4);
+  if(cam.shake>.001){const s=cam.shake*cam.shake*.20;
+    cam.p.x+=(noise2(T*40,1)-.5)*s;cam.p.y+=(noise2(T*40,7)-.5)*s;}
+}
+function cineSolve(P,LK){
+  const dx=P.x-LK.x, dy=P.y-LK.y, dz=P.z-LK.z;
+  const dl=Math.hypot(dx,dy,dz)||.001;
+  const ux=dx/dl, uy=dy/dl, uz=dz/dl;
+  let allowed=dl;
+  const steps=14;
+  for(let i=1;i<=steps;i++){
+    const t=dl*i/steps;
+    const x=LK.x+ux*t, y=LK.y+uy*t, z=LK.z+uz*t;
+    if(!walkAt(x,z)||y>ceilAt(x,z)-.20||y<floorAt(x,z)+.25){
+      allowed=max(.62,dl*(i-1)/steps-.10);break;}
+  }
+  const nx=LK.x+ux*allowed, nz=LK.z+uz*allowed;
+  vset(P,nx,clamp(LK.y+uy*allowed,floorAt(nx,nz)+.50,ceilAt(nx,nz)-.28),nz);
+}
+function cineUpdate(dtv){
+  if(!CINE.active)return;
+  CINE.t+=dtv;
+  // actors turn to face whoever is speaking
+  const A=actorFor(CINE.who);
+  if(EL.alive&&EL.present){
+    const tx=(A.kind==='el')?PL.p.x:A.p.x, tz=(A.kind==='el')?PL.p.z:A.p.z;
+    EL.yaw=turnToward(EL.yaw,Math.atan2(tx-EL.p.x,-(tz-EL.p.z)),3.2,dtv);
+    EL.talking=(CINE.who==='ELENA');
+    if(EL.talking)EL.talkPh=(EL.talkPh||0)+dtv*9;
+  }
+  const px=(A.kind==='pl')?(EL.present?EL.p.x:PL.p.x+cam.fwd.x):A.p.x;
+  const pz=(A.kind==='pl')?(EL.present?EL.p.z:PL.p.z+cam.fwd.z):A.p.z;
+  PL.yawBody=turnToward(PL.yawBody===undefined?0:PL.yawBody,
+    Math.atan2(px-PL.p.x,-(pz-PL.p.z)),3.0,dtv);
+  PL.talking=(CINE.who==='RANGER'||CINE.who==='RADIO');
+  if(PL.talking)PL.talkPh=(PL.talkPh||0)+dtv*9;
+  PL.radioUp=(CINE.who==='RADIO')?min(1,(PL.radioUp||0)+dtv*4):max(0,(PL.radioUp||0)-dtv*4);
+
+  if(!CINE.out&&CINE.t>=CINE.dur)cineNext();
+}
+function cineInput(){
+  if(!CINE.active||CINE.out)return;
+  const adv=KEYS[BIND.interact+'_p']||KEYS['Space_p']||KEYS['Enter_p']||MOUSE.lDown||CINE.tapAdv;
+  CINE.tapAdv=false;
+  if(KEYS['Escape_p']){cineSkipAll();return;}
+  if(adv&&CINE.t>.35)cineNext();
+}
+
+/* ================================ SCENES ================================ */
+const SCENES={
+  open:[
+    {who:'RANGER',text:"Phoenix, look at me. Not at them. At me.",shot:'ots'},
+    {who:'ELENA',text:"They were people this morning. That one had a lanyard.",shot:'close'},
+    {who:'RANGER',text:"They were. They are not. That is the whole of it, and it does not change what we do next.",shot:'ots'},
+    {who:'ELENA',text:"Which is what?",shot:'close'},
+    {who:'RANGER',text:"We walk out. Stay on my shoulder, do what I say the moment I say it, and we walk out.",shot:'two'},
+  ],
+  lift:[
+    {who:'ELENA',text:"My father sent one man. Against all of this.",shot:'close'},
+    {who:'RANGER',text:"He sent me because I only have to get one person off this island.",shot:'ots'},
+    {who:'ELENA',text:"And if you can't?",shot:'close'},
+    {who:'RANGER',text:"Then it won't be because I stopped trying. Get in the lift.",shot:'two'},
+  ],
+  booth:[
+    {who:'RANGER',text:"Observation booth. Glass is rated for a lot more than you weigh. Get behind it.",shot:'ots'},
+    {who:'ELENA',text:"You're going out there alone.",shot:'close'},
+    {who:'RANGER',text:"I'm going out there so the lights come on. Three breakers. Ninety seconds.",shot:'ots'},
+    {who:'ELENA',text:"Don't be long. Please don't be long.",shot:'close',fx:'none'},
+    {who:'RADIO',text:"Ranger — thermal has a standing figure in the west corner of that hall. It has no face. Do not put your reticle on it.",shot:'low'},
+  ],
+  bridge:[
+    {who:'ELENA',text:"It's gone. The bridge is gone.",shot:'close',fx:'shake'},
+    {who:'RANGER',text:"Good. So is everything that was on it.",shot:'ots'},
+    {who:'ELENA',text:"That's the way we came.",shot:'close'},
+    {who:'RANGER',text:"There was never a way we came. There's only the dock.",shot:'wide'},
+  ],
+  prophet:[
+    {who:'THE PROPHET',text:"You carried her all this way. For me. Set her down, little soldier.",shot:'low',fx:'shake'},
+    {who:'ELENA',text:"That's the voice. That's the voice from the cells.",shot:'close'},
+    {who:'THE PROPHET',text:"She has heard me every night for nineteen nights. She will not need to be told twice.",shot:'wide'},
+    {who:'ELENA',text:"I'm not going with you.",shot:'close'},
+    {who:'RANGER',text:"She said no. Twice now, if you were counting.",shot:'ots'},
+  ],
+  boarded:[
+    {who:'ELENA',text:"Is it over? Tell me it's over.",shot:'close'},
+    {who:'RANGER',text:"We're on the deck and the door's shut. That's as over as it gets tonight.",shot:'ots'},
+    {who:'ELENA',text:"Thank you.",shot:'close'},
+    {who:'RANGER',text:"Thank me at the coastline.",shot:'two'},
+  ],
+};
 /* ============================ 10. INVENTORY / ITEMS / CRAFTING / MERCHANT ============================ */
 const CASE={w:8,h:6,cell:42,items:[],sel:null,drag:null,rotBuf:0,upg:0};
 const ITEMS={
@@ -5374,6 +5779,12 @@ function clearWorld(){
   if(typeof DREAD!=='undefined'){DREAD.v=0;DREAD.breathT=3;DREAD.whisperT=8;
     DREAD.glimpseT=16;DREAD.flickT=6;}
   GS.dreadSpike=0;env.fogDBase=undefined;
+  if(typeof CINE!=='undefined'){CINE.active=false;CINE.out=false;CINE.onDone=null;
+    el('bars').classList.remove('on');el('cineskip').classList.remove('on');
+    el('cinetap').classList.remove('on');
+    document.body.classList.remove('cine');}
+  if(typeof voxStop==='function')voxStop();
+  PL.talking=false;PL.radioUp=0;EL.talking=false;
 }
 
 /* ---------- decoration helpers ---------- */
@@ -5726,7 +6137,7 @@ const ZONES=[
  },
  script(){return [
   {obj:'Get to the surface',sub:'Follow the corridor — [W A S D] to move, mouse to look',
-   say:"Elena — stay on me. Eyes forward, don't look in the cells.",sayWho:'RANGER',
+   on:()=>{setTimeout(()=>playScene('open'),700);},
    mark:()=>V(0,0,-14),
    test:()=>PL.p.z>-16},
   {obj:'Cross the processing hall',sub:'[RMB] aim · [LMB] fire · [R] reload · aim for the head',
@@ -5747,8 +6158,7 @@ const ZONES=[
    test:()=>distXZ(PL.p,{x:29,z:18})<4.5},
   {obj:'Take the service lift up',sub:'Pull the lift lever',
    mark:()=>V(40,2.2,18),
-   on:()=>{subtitle('ELENA',"My father sent one man. Against all of this.");
-     setTimeout(()=>{if(GS.mode==='play')subtitle('RANGER',"He sent me because I only have to get one person off this island.");},4600);},
+   on:()=>{setTimeout(()=>playScene('lift'),500);},
    test:()=>GS.flags.elevator,
    done:()=>{startZone(1,0);}},
  ];}
@@ -5886,10 +6296,7 @@ const ZONES=[
    say:"Elena — observation booth. Now. I need both hands for this.",sayWho:'RANGER',
    test:()=>(EL.state==='wait'||EL.state==='hide'||EL.state==='tohide')&&distXZ(EL.p,PL.p)>4,
    done:()=>{
-     subtitle('ELENA',"Don't be long. Please don't be long.");
-     setTimeout(()=>{if(GS.mode==='play')
-       subtitle('RADIO','Ranger — thermal has a standing figure in the west corner of that hall. '+
-         'It has no face. Do not put your reticle on it.',true);},5200);
+     playScene('booth');
      startWaves({interval:3.4,maxAlive:OPT.difficulty>=2?9:6,
        points:[{x:-18,z:58},{x:2,z:58},{x:-18,z:38},{x:14,z:38}],
        types:[['husk',6],['zealot',3],['carrier',1.2],['howler',1]],
@@ -6081,8 +6488,8 @@ const ZONES=[
      for(let i=0;i<50;i++)spawnP({p:V(50+rnd(0,14),1,-25+rnd(-3,3)),v:V(rnd(-5,5),rnd(-2,4),rnd(-5,5)),
        life:rnd(1,2.4),size:.3,size1:.9,col:[.18,.16,.14],kind:0,alpha:.5,grav:1.5});
      for(let i=gx(44);i<=gx(69);i++)for(let j=gz(-28);j<=gz(-22.5);j++){const k=gi(i,j);if(k>=0)W.walk[k]=0;}
-     subtitle('ELENA',"It's gone— the bridge is GONE—");
-     for(const e of ents)if(e.faction==='enemy'&&e.alive&&e.p.x<70)killEnemy(e,V(0,0,0));}},
+     for(const e of ents)if(e.faction==='enemy'&&e.alive&&e.p.x<70)killEnemy(e,V(0,0,0));
+     setTimeout(()=>playScene('bridge'),900);}},
   {obj:'Survive the Colossus',sub:'Its plating is useless to shoot — burn the parasite on its spine',
    mark:()=>V(84,0,-40),
    on:()=>{
@@ -6242,7 +6649,7 @@ const ZONES=[
        if(GS.mode!=='play')return;
        const b=spawnEnemy('prophet',31,93,{});b.state='chase';b.alertLevel=1;b.eyeOpen=0;
        GS.bossRef=b;setupProphetAI();
-       subtitle('THE PROPHET',"You carried her all this way. For me. Set her down, little soldier.");
+       playScene('prophet');
      },2600);}},
   {obj:'Kill the Prophet',sub:'The ocular core only opens when it screams — put everything into it',
    mark:()=>V(31,.9,92),
@@ -6251,7 +6658,7 @@ const ZONES=[
   {obj:'Board the extraction',sub:'Bring Elena onto the pad',
    mark:()=>V(31,.9,85),
    test:()=>distXZ(PL.p,{x:31,z:85})<7&&distXZ(EL.p,{x:31,z:85})<11,
-   done:()=>{endGame();}},
+   done:()=>{playScene('boarded',()=>endGame());}},
  ];}
 }];
 /* ============================ 11c. ZONE LOADING / BOSSES / ENDINGS ============================ */
@@ -6519,6 +6926,7 @@ function toast(txt,cls){
 }
 let subT=0;
 function subtitle(who,text,radio){
+  vox(who,text);
   if(!OPT.subs)return;
   const s=el('subs');
   s.className=(radio?'radio ':'')+(OPT.subBox?'boxed':'');
@@ -6532,6 +6940,13 @@ function showPrompt(key,label){
   const p=el('prompt');p.innerHTML='<kbd>'+key+'</kbd>'+label;p.style.opacity='1';promptT=.12;
 }
 function hidePrompt(){if(promptT<=0)el('prompt').style.opacity='0';}
+let hitMarkT=0;
+function hitMarker(zone){
+  const m=el('hitmark');
+  m.className=zone&&zone.type==='head'?'crit':(zone&&(zone.node||zone.type==='weak'))?'weak':'';
+  m.style.opacity='1';hitMarkT=.16;
+  sfxClick(null,zone&&zone.type==='head'?3400:2300,.13,.035);
+}
 function hint(txt,dur){toast(txt);}
 function showDamageDir(ang){
   const d=document.createElement('div');d.className='dind';
@@ -6624,7 +7039,8 @@ function touchInit(){
   /* ---------- look pad (right half) ---------- */
   const look=el('tlook');
   look.addEventListener('pointerdown',e=>{
-    e.preventDefault();audioResume();
+    e.preventDefault();audioResume();voxPrime();
+    if(CINE.active){CINE.tapAdv=true;return;}
     if(TC.lookId!==null)return;
     TC.lookId=e.pointerId;TC.lookX=e.clientX;TC.lookY=e.clientY;TC.lookMoved=0;
     try{look.setPointerCapture&&look.setPointerCapture(e.pointerId);}catch(_){}
@@ -6658,7 +7074,8 @@ function touchInit(){
   bindTap('tb-sprint',()=>{TC.sprintToggle=!TC.sprintToggle;},()=>TC.sprintToggle);
   bindTap('tb-crouch',()=>{TC.crouchToggle=!TC.crouchToggle;},()=>TC.crouchToggle);
   bindTap('tb-case',()=>{if(GS.menuOpen==='inv')closeInventory();else if(!GS.menuOpen)openInventory();});
-  bindTap('tb-menu',()=>{if(GS.menuOpen==='pause')resumeGame();else pauseGame();});
+  bindTap('tb-menu',()=>{if(CINE.active){cineSkipAll();return;}
+    if(GS.menuOpen==='pause')resumeGame();else pauseGame();});
   bindTap('tb-wep',()=>{cycleWeapon(1);});
   bindTap('tb-cmd',()=>{
     if(radialOn){TC.radialFromTouch=false;closeRadial();}
@@ -6680,6 +7097,12 @@ function touchInit(){
     if(TC.on&&GS.mode==='play'&&!GS.menuOpen)e.preventDefault();},{passive:false});
   document.addEventListener('gesturestart',e=>e.preventDefault());
 
+  // during a cinematic the HUD layer is inert, so the scene gets its own surface
+  const tap=el('cinetap'), skipb=el('cineskipbtn');
+  if(tap)tap.addEventListener('pointerdown',e=>{e.preventDefault();
+    if(CINE.active&&!CINE.out)CINE.tapAdv=true;},{passive:false});
+  if(skipb)skipb.addEventListener('pointerdown',e=>{e.preventDefault();e.stopPropagation();
+    cineSkipAll();},{passive:false});
   setTouchMode(touchWanted());
   addEventListener('orientationchange',()=>setTimeout(resize,250));
 }
@@ -6764,7 +7187,11 @@ function wireRows(rerender){
     renderScaleApply();rerender&&rerender();});
 }
 function renderScaleApply(){
-  renderScale=OPT.quality===0?.62:OPT.quality===1?.8:1;
+  const q=OPT.quality;
+  renderScale=q===0?.60:q===1?.80:1;
+  setShadowSize(q===0?768:q===1?1280:2048);
+  rainDraw=q===0?1800:q===1?4200:9000;
+  env.bloom=(OPT.bloomOn&&q>0)?.85:0;
   RW=-1;resize();
 }
 function showOptions(){
@@ -6790,6 +7217,11 @@ function showOptions(){
    segRow('autoSave','Autosave on objectives','',[['OFF',0],['ON',1]])+
    segRow('touch','On-screen touch controls','Auto enables them on phones and tablets',
      [['AUTO',0],['ALWAYS',1],['NEVER',2]])+
+   '<h2 class="sect" style="margin-top:24px">Voice</h2>'+
+   sliderRow('voice','Character voice','Volume of spoken dialogue',0,1,.05,v=>v.toFixed(2))+
+   segRow('voiceMode','Voice style',
+     'Speech uses your device\'s own synthesiser. Vocalise is the procedural fallback.',
+     [['SPEECH',1],['VOCALISE',2]])+
    '<div class="foot"><button class="btn ghost" id="bk">BACK</button></div>';
   showSub(h);wireRows(showOptions);el('bk').onclick=backToMenu;
 }
@@ -6865,6 +7297,7 @@ function showBrief(){
 }
 function pauseGame(){
   if(GS.mode!=='play'||GS.menuOpen)return;
+  voxStop();
   GS.menuOpen='pause';
   showSub('<h1 class="title" style="font-size:34px">PAUSED<small>'+ZONES[GS.zone].name+'</small></h1>'+
     '<div class="menu"><div class="mi" data-p="resume">Resume</div>'+
@@ -6953,6 +7386,7 @@ function closeRadial(){
 function onKeyPress(code){
   audioResume();
   if(code==='Escape'){
+    if(CINE.active&&!CINE.out){cineSkipAll();return;}
     if(GS.menuOpen==='inv')closeInventory();
     else if(GS.menuOpen==='shop')closeShop();
     else if(GS.menuOpen==='doc')closeDoc();
@@ -7144,6 +7578,10 @@ function frame(now){
   updateAmbience(udt);
   updateDread(udt);
   updateGlimpses(udt);
+  if(playing||CINE.active){cineInput();cineUpdate(raw);}
+  document.body.classList.toggle('cine',CINE.active);
+  if(CINE.active)PL.invT=max(PL.invT,.2);
+  if(hitMarkT>0){hitMarkT-=raw;if(hitMarkT<=0)el('hitmark').style.opacity='0';}
 
   // status decay
   postHurt=max(0,postHurt-raw*.8);
@@ -7183,7 +7621,7 @@ function frame(now){
 function boot(){
   resize();renderScaleApply();
   env.bloom=OPT.bloomOn?.85:0;env.grain=OPT.grainOn?.055:0;
-  rebuildHP();applyHudScale();refreshContinue();touchInit();
+  rebuildHP();applyHudScale();refreshContinue();touchInit();voxInit();
   el('menu').querySelectorAll('[data-act]').forEach(b=>{
     b.onclick=()=>menuAction(b.dataset.act);
     b.onmouseenter=()=>{if(AU.ready)sfxUI('hover');};});
@@ -7196,7 +7634,8 @@ function boot(){
     ['item','craft','doc'].forEach(t=>el('tab-'+t).classList.toggle('hidden',t!==b.dataset.tab));
     sfxUI('page');});
   cvs.addEventListener('click',()=>{
-    audioInit();audioResume();
+    audioInit();audioResume();voxPrime();
+    if(CINE.active){CINE.tapAdv=true;return;}
     if(GS.mode==='play'&&!GS.menuOpen&&document.pointerLockElement!==cvs)reqLock();});
   // preview drag-rotate
   el('preview').addEventListener('mousemove',(e)=>{if(e.buttons&1)pvRot+=e.movementX*.012;});
