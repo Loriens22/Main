@@ -66,10 +66,22 @@ past you to take Elena, and three apex bosses.
 `G` throw · `L` flashlight · `V` biosensor scope · `Q` about-face ·
 `Tab` attaché case · hold `C` for Elena's order wheel · `Esc` pause
 
-Options include individual toggles for post-processing, dynamic shadows, bloom and
-volumetric light, plus a quality preset — turn shadows and volumetrics off first if
-the frame rate drags.
+### On a phone or tablet
+
+Touch controls appear automatically (and can be forced on or off in Options). Put a
+thumb down anywhere in the **left half** and a movement stick appears under it — push
+past the ring to sprint. Drag the **right half** to look. The thumb cluster carries
+FIRE, AIM, RELOAD, KNIFE, USE and grenades, with ROLL on the far left; the top row has
+LIGHT, WEAP, SCOPE, CASE and Elena's order wheel, and pause sits in the top-left
+corner. Control size and look speed are both adjustable, the HUD reflows out from
+under your thumbs, the order wheel and attaché case are fully touch-driven, and the
+game asks you to rotate to landscape.
+
+### Settings
+
+Individual toggles for post-processing, dynamic shadows, bloom and volumetric light,
+plus a quality preset — turn shadows and volumetrics off first if the frame rate
+drags. There is a **Brightness** slider if the game is too dark for your screen.
 
 Pointer lock is used when available; if it is blocked the game falls back to
-cursor-edge steering so it stays playable inside sandboxed frames. Touch controls
-appear automatically on phones and tablets.
+cursor-edge steering so it stays playable inside sandboxed frames.

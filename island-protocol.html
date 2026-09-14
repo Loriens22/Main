@@ -16,6 +16,7 @@
   --steel:#1a2228; --steel-lt:#2a353d;
   --amber:#e0a33c; --cyan:#5fd0e8;
   --font:"Consolas","SF Mono","Roboto Mono",ui-monospace,monospace;
+  --ts:1;
 }
 *{box-sizing:border-box;-webkit-tap-highlight-color:transparent}
 html,body{margin:0;padding:0;height:100%;overflow:hidden;background:#000;color:var(--ink);
@@ -281,21 +282,81 @@ canvas{display:block;position:absolute;inset:0;width:100%;height:100%;image-rend
 #qtefill{height:100%;width:100%;background:var(--blood-lt)}
 #qtemsg{margin-top:10px;font-size:11px;letter-spacing:.3em;color:#ffb0a6}
 
-/* mobile controls */
-#touch{position:absolute;inset:0;z-index:36;display:none;pointer-events:none}
+/* ---------- mobile / touch controls ---------- */
+html.touch,html.touch body{touch-action:none;overscroll-behavior:none}
+#touch{position:absolute;inset:0;z-index:36;display:none;pointer-events:none;
+  padding:env(safe-area-inset-top) env(safe-area-inset-right) env(safe-area-inset-bottom) env(safe-area-inset-left)}
 #touch.on{display:block}
-.tstick{position:absolute;width:120px;height:120px;border:1px solid rgba(180,200,195,.22);border-radius:50%;
-  pointer-events:auto;background:rgba(10,14,16,.3)}
-.tstick i{position:absolute;left:35px;top:35px;width:50px;height:50px;border-radius:50%;
-  background:rgba(180,200,195,.22)}
-#tmove{left:22px;bottom:22px}
-.tbtn{position:absolute;border:1px solid rgba(180,200,195,.25);background:rgba(10,14,16,.42);
+/* the whole lower-left quadrant is a floating movement stick */
+#tleft{position:absolute;left:0;bottom:0;width:46%;height:62%;pointer-events:auto}
+#tright{position:absolute;right:0;top:0;width:54%;height:100%;pointer-events:auto}
+#tstick{position:fixed;width:calc(132px*var(--ts));height:calc(132px*var(--ts));
+  margin:calc(-66px*var(--ts)) 0 0 calc(-66px*var(--ts));
+  border:1px solid rgba(180,200,195,.26);border-radius:50%;
+  background:radial-gradient(circle,rgba(10,14,16,.42),rgba(10,14,16,.16));
+  opacity:0;transition:opacity .12s;pointer-events:none}
+#tstick.on{opacity:1}
+#tstick i{position:absolute;left:50%;top:50%;width:calc(56px*var(--ts));height:calc(56px*var(--ts));
+  margin:calc(-28px*var(--ts)) 0 0 calc(-28px*var(--ts));border-radius:50%;
+  background:rgba(190,210,204,.26);border:1px solid rgba(200,220,214,.3)}
+#tstick.run{border-color:rgba(95,208,232,.6)}
+#tstick.run i{background:rgba(95,208,232,.32)}
+.tbtn{position:absolute;border:1px solid rgba(180,200,195,.3);background:rgba(10,14,16,.5);
   border-radius:50%;pointer-events:auto;display:flex;align-items:center;justify-content:center;
-  font-size:10px;letter-spacing:.1em;color:#b9c4c0}
-#tfire{right:26px;bottom:40px;width:84px;height:84px}
-#taim{right:122px;bottom:96px;width:60px;height:60px}
-#trel{right:120px;bottom:26px;width:54px;height:54px}
-#tint{right:30px;bottom:138px;width:56px;height:56px}
+  flex-direction:column;font-size:calc(9px*var(--ts));letter-spacing:.08em;color:#c6d2ce;
+  text-align:center;line-height:1.15;user-select:none;-webkit-user-select:none;
+  backdrop-filter:blur(2px);transition:background .08s,border-color .08s,transform .08s}
+.tbtn b{font-size:calc(15px*var(--ts));font-weight:400;color:#e6ece9}
+.tbtn.down{background:rgba(120,26,26,.62);border-color:#d8302f;transform:scale(.94)}
+.tbtn.act{border-color:var(--plague);color:#dff5d3}
+.tbtn.lit{border-color:var(--amber);color:#f0dcb2}
+.tbtn.sm{font-size:calc(8px*var(--ts))}
+#tfire{right:calc(18px*var(--ts));bottom:calc(26px*var(--ts));
+  width:calc(96px*var(--ts));height:calc(96px*var(--ts));
+  background:rgba(60,14,16,.5);border-color:rgba(216,48,47,.45)}
+#taim  {right:calc(126px*var(--ts));bottom:calc(96px*var(--ts));width:calc(66px*var(--ts));height:calc(66px*var(--ts))}
+#trel  {right:calc(128px*var(--ts));bottom:calc(20px*var(--ts));width:calc(60px*var(--ts));height:calc(60px*var(--ts))}
+#tknife{right:calc(26px*var(--ts));bottom:calc(132px*var(--ts));width:calc(58px*var(--ts));height:calc(58px*var(--ts))}
+#tint  {right:calc(112px*var(--ts));bottom:calc(172px*var(--ts));width:calc(64px*var(--ts));height:calc(64px*var(--ts));
+  opacity:.45}
+#tint.avail{opacity:1;border-color:var(--plague);color:#dff5d3}
+#tnade {right:calc(22px*var(--ts));bottom:calc(206px*var(--ts));width:calc(52px*var(--ts));height:calc(52px*var(--ts))}
+#tdodge{left:calc(10px*var(--ts));bottom:calc(210px*var(--ts));width:calc(52px*var(--ts));height:calc(52px*var(--ts))}
+/* utility row along the top edge, clear of the thumb cluster */
+#tutil{position:absolute;right:calc(6px*var(--ts));top:calc(6px*var(--ts));display:flex;
+  flex-direction:row;gap:calc(6px*var(--ts));pointer-events:none}
+#tutil .tbtn{position:relative;right:auto;bottom:auto;
+  width:calc(44px*var(--ts));height:calc(44px*var(--ts));border-radius:calc(12px*var(--ts))}
+#tpause{position:absolute;left:calc(8px*var(--ts));top:calc(8px*var(--ts));
+  width:calc(40px*var(--ts));height:calc(40px*var(--ts));font-size:calc(13px*var(--ts))}
+#trot{position:absolute;inset:0;z-index:90;display:none;background:#04070a;
+  color:#8f9c98;font-size:13px;letter-spacing:.2em;text-align:center;
+  align-items:center;justify-content:center;flex-direction:column;gap:16px;padding:30px}
+#trot.on{display:flex}
+#trot .rc{font-size:34px;animation:rot 2.2s infinite ease-in-out}
+@keyframes rot{0%,40%{transform:rotate(0)}60%,100%{transform:rotate(90deg)}}
+/* ---- HUD re-flow so nothing sits under a thumb ---- */
+body.touchui #objbox{left:calc(52px*var(--ts));top:2px;max-width:42%;padding:8px 10px}
+body.touchui #objtext{font-size:12px}
+body.touchui #actlabel{display:none}
+body.touchui #vitals{bottom:auto;top:calc(54px*var(--ts));left:0;padding:6px 10px}
+body.touchui .hpseg{width:16px;height:7px}
+body.touchui #stambar{width:104px}
+body.touchui #compbox{top:calc(56px*var(--ts));right:0;padding:6px 10px;min-width:0}
+body.touchui #weaponbox{bottom:auto;top:calc(112px*var(--ts));right:0;padding:6px 10px}
+body.touchui #wslots{display:none}
+body.touchui #ammo{font-size:26px}
+body.touchui #throwable{font-size:10px}
+body.touchui #compass{display:none}
+body.touchui #subs{bottom:auto;top:56%;max-width:52%;font-size:12px}
+body.touchui #toasts{bottom:auto;top:40%;left:10px}
+body.touchui #prompt{top:50%}
+body.touchui #timerbox{font-size:16px}
+body.touchui #bossbar{top:calc(58px*var(--ts));width:38%}
+/* the order wheel has to be reachable and tappable */
+body.touchui #wheel.on{background:rgba(2,4,5,.55);pointer-events:auto}
+body.touchui #wheelc{width:300px;height:300px;margin:-150px 0 0 -150px}
+body.touchui .wopt{pointer-events:auto;width:96px;height:62px;margin:-31px 0 0 -48px}
 
 /* diff cards */
 .diffs{display:grid;grid-template-columns:repeat(auto-fit,minmax(200px,1fr));gap:10px;margin:10px 0 18px}
@@ -383,12 +444,26 @@ hr.s{border:0;border-top:1px solid #1b2226;margin:20px 0}
   <div id="qte"><div id="qtekey">F</div><div id="qtebar"><div id="qtefill"></div></div><div id="qtemsg">BREAK FREE</div></div>
 
   <div id="touch">
-    <div class="tstick" id="tmove"><i></i></div>
-    <div class="tbtn" id="tfire">FIRE</div>
-    <div class="tbtn" id="taim">AIM</div>
-    <div class="tbtn" id="trel">REL</div>
-    <div class="tbtn" id="tint">USE</div>
+    <div id="tleft"><div id="tstick"><i></i></div></div>
+    <div id="tright"></div>
+    <div class="tbtn" id="tfire"><b>◎</b>FIRE</div>
+    <div class="tbtn" id="taim"><b>⊹</b>AIM</div>
+    <div class="tbtn" id="trel"><b>⟲</b>REL</div>
+    <div class="tbtn" id="tknife"><b>⚔</b>KNIFE</div>
+    <div class="tbtn" id="tint"><b>✋</b>USE</div>
+    <div class="tbtn sm" id="tnade"><b>✷</b>NADE</div>
+    <div class="tbtn" id="tdodge"><b>»</b>ROLL</div>
+    <div id="tutil">
+      <div class="tbtn sm" id="tlight"><b>☀</b>LIGHT</div>
+      <div class="tbtn sm" id="tweap"><b>⇄</b>WEAP</div>
+      <div class="tbtn sm" id="tscope"><b>◉</b>SCOPE</div>
+      <div class="tbtn sm" id="tcase"><b>▤</b>CASE</div>
+      <div class="tbtn sm" id="torders"><b>☍</b>ORDER</div>
+    </div>
+    <div class="tbtn" id="tpause"><b>❚❚</b></div>
   </div>
+  <div id="trot"><div class="rc">▭</div><div>ROTATE YOUR DEVICE<br><br>
+    Island Protocol plays in landscape.</div></div>
 
   <!-- ===================== SCREENS ===================== -->
   <div class="screen on" id="title">
@@ -549,7 +624,7 @@ const FS_LIT=VER+`
 precision highp float;
 ${GVIN} vec3 vW; ${GVIN} vec3 vN; ${GVIN} vec3 vC; ${GVIN} vec2 vUV;
 uniform vec3 uCam, uSky, uGnd, uSunDir, uSunCol, uFogCol, uTint, uRimCol;
-uniform float uFogD, uEmis, uMat, uTime, uWet, uAlpha, uRim, uDetail, uVAO;
+uniform float uFogD, uEmis, uMat, uTime, uWet, uAlpha, uRim, uDetail, uVAO, uExp;
 uniform int uNL;
 uniform vec3 uLP[${MAXL}]; uniform vec3 uLC[${MAXL}]; uniform float uLR[${MAXL}];
 uniform vec3 uSpotP, uSpotD, uSpotC; uniform float uSpotR, uSpotI, uSpotO, uSpotOn;
@@ -748,6 +823,12 @@ void main(){
   float fg=1.0-exp(-dd*dd*uFogD*uFogD);
   vec3 col=mix(lit,uFogCol*1.05,clamp(fg,0.0,1.0));
 
+  /* uExp is 1.0 when the post chain will tonemap; otherwise tonemap here */
+  if(uExp>1.001){
+    col*=uExp;
+    col=(col*(2.51*col+0.03))/(col*(2.43*col+0.59)+0.14);
+    col=pow(max(col,0.0),vec3(0.92));
+  }
   ${FRAGOUT}=vec4(max(col,0.0),uAlpha);
 }`;
 
@@ -2236,9 +2317,9 @@ const LEVELS=[
   id:"prologue", title:"HOLDING SUBLEVEL — B4", act:"PROLOGUE", W:52,H:52,
   outdoor:false, rain:0, hum:1, alarm:1, wind:0,
   sky:[0.0480,0.0720,0.0960],sky2:[0.01,0.01,0.02],
-  grade:[0.94,1.00,1.06], exposure:1.42,
-  fog:{c:[0.035,0.045,0.05],d:0.026},
-  amb:{sky:[0.1440,0.1800,0.2040],gnd:[0.0440,0.0484,0.0550],sun:[0,-1,0.2],sunCol:[0.01,0.012,0.014],rim:[0.10,0.18,0.26]},
+  grade:[0.94,1.00,1.06], exposure:1.68,
+  fog:{c:[0.045,0.055,0.062],d:0.022},
+  amb:{sky:[0.2100,0.2500,0.2850],gnd:[0.0700,0.0760,0.0850],sun:[0,-1,0.2],sunCol:[0.02,0.024,0.028],rim:[0.12,0.20,0.28]},
   spawnRoom:0,
   rooms:[
     {x:6, z:36,w:14,d:9, c:4.0,mat:2,col:C_STEEL,name:"CELL BLOCK C",tag:"start"},
@@ -2250,8 +2331,11 @@ const LEVELS=[
   ],
   links:[[0,1,3],[1,2,2],[1,3,3],[3,4,3],[2,5,2],[5,4,2]],
   lights:[
-    {x:13,z:40,y:3.4,c:[0.5,0.13,0.13],r:16,flick:0.5},
-    {x:12,z:28,y:3.2,c:[0.55,0.6,0.62],r:15,flick:0.18},
+    {x:9, z:38,y:3.4,c:[0.55,0.18,0.16],r:19,flick:0.35},
+    {x:16,z:42,y:3.4,c:[0.52,0.15,0.14],r:19,flick:0.5},
+    {x:13,z:40,y:3.4,c:[0.60,0.22,0.20],r:18,flick:0.2},
+    {x:8, z:26,y:3.2,c:[0.62,0.66,0.68],r:18,flick:0.1},
+    {x:12,z:28,y:3.2,c:[0.62,0.66,0.68],r:18,flick:0.18},
     {x:26,z:29,y:3.0,c:[0.36,0.62,0.5],r:13},
     {x:9, z:14,y:4.2,c:[0.45,0.55,0.6],r:18,flick:0.6},
     {x:17,z:14,y:4.2,c:[0.28,0.55,0.3],r:16},
@@ -2287,9 +2371,9 @@ const LEVELS=[
   id:"act1", title:"CONTAINMENT WING", act:"ACT I — FACILITY BREACH", W:72,H:72,
   outdoor:false, rain:0, hum:1, alarm:0.8, wind:0.2,
   sky:[0.0480,0.0720,0.0960],sky2:[0.01,0.012,0.016],
-  grade:[0.92,1.02,1.04], exposure:1.40,
+  grade:[0.92,1.02,1.04], exposure:1.55,
   fog:{c:[0.04,0.05,0.055],d:0.021},
-  amb:{sky:[0.1680,0.2040,0.2280],gnd:[0.0484,0.0550,0.0616],sun:[0,-1,0.2],sunCol:[0.012,0.014,0.016],rim:[0.10,0.20,0.24]},
+  amb:{sky:[0.2100,0.2450,0.2700],gnd:[0.0640,0.0700,0.0760],sun:[0,-1,0.2],sunCol:[0.016,0.019,0.022],rim:[0.11,0.21,0.25]},
   spawnRoom:0,
   rooms:[
     {x:4, z:56,w:12,d:10,c:4.4,mat:2,col:C_STEEL,name:"STAIRWELL LANDING",tag:"start"},
@@ -2761,7 +2845,7 @@ function buildLevel(lv){
   // fill: big rooms get extra fixtures so they read as shaped space, not a void
   for(const r of lv.rooms){
     const area=r.w*r.d;
-    const want=Math.max(1,Math.round(area/58));
+    const want=Math.max(1,Math.round(area/36));
     let have=0;
     for(const l of W.lights){
       const tx=l.x/TILE, tz=l.z/TILE;
@@ -2775,7 +2859,7 @@ function buildLevel(lv){
       const tx=r.x+(i+0.5)*r.w/cols, tz=r.z+(k+0.5)*r.d/rows;
       const wx=tx*TILE, wz=tz*TILE;
       let clear=true;
-      for(const l of W.lights) if(dist2(l.x,l.z,wx,wz)<100){clear=false;break;}
+      for(const l of W.lights) if(dist2(l.x,l.z,wx,wz)<64){clear=false;break;}
       if(!clear)continue;
       const base=r.col;
       const warm=outdoor?[0.60,0.54,0.40]:[0.52+base[0]*0.7,0.54+base[1]*0.62,0.52+base[2]*0.7];
@@ -4023,6 +4107,7 @@ const S={
   lightning:0, lightningT:rr(4,12), rain:0,
   settings:{sens:1.0,invY:false,fov:72,gore:true,shake:1,subs:true,aimAssist:true,
     cbMode:"none",quality:1,post:true,bloom:true,volum:true,shadows:true,
+    brightness:1.18,touchMode:"auto",touchScale:null,touchSens:1,
     vol:{master:0.8,sfx:1,mus:0.55,amb:0.7}},
   inventory:[], invW:10, invH:7, elenaInv:[], elenaW:4, elenaH:3,
   newGamePlus:0, seenIntro:false
@@ -4032,7 +4117,7 @@ const S={
    ================================================================ */
 const K={};
 const IN={mx:0,my:0,dx:0,dy:0,fire:false,firePressed:false,aim:false,locked:false,
-  touch:false,tmx:0,tmy:0,wheelOpen:false,wheelSel:-1};
+  touch:false,tmx:0,tmy:0,tsprint:false,fireQueued:false,wx:0,wy:0,wheelOpen:false,wheelSel:-1};
 let lastMouseClientX=0,lastMouseClientY=0;
 
 window.addEventListener("keydown",ev=>{
@@ -4079,44 +4164,175 @@ window.addEventListener("wheel",ev=>{
   cycleWeapon(ev.deltaY>0?1:-1);
 },{passive:true});
 
-/* ---- touch ---- */
-let tmStick=null;
+/* ================================================================
+   TOUCH / MOBILE CONTROLS
+   Floating left stick, right-side look drag, and a full button set.
+   ================================================================ */
+function deviceIsTouch(){
+  return ("ontouchstart" in window) ||
+         (navigator.maxTouchPoints|0)>0 ||
+         (window.matchMedia&&window.matchMedia("(pointer:coarse)").matches);
+}
+let TOUCH_READY=false;
+function setTouchMode(on){
+  if(on===IN.touch)return;
+  IN.touch=on;
+  $("touch").classList.toggle("on",on&&S.mode==="play"&&!S.paused);
+  document.body.classList.toggle("touchui",on);
+  document.documentElement.classList.toggle("touch",on);
+  if(on&&document.exitPointerLock)document.exitPointerLock();
+  if(typeof buildWheel==="function")buildWheel();
+  updateOrientationHint();
+}
+function updateOrientationHint(){
+  const bad=IN.touch&&innerHeight>innerWidth*1.05&&S.mode==="play";
+  $("trot").classList.toggle("on",bad);
+}
+window.addEventListener("resize",updateOrientationHint);
+window.addEventListener("orientationchange",()=>setTimeout(updateOrientationHint,250));
+
+function applyTouchPref(){
+  const pref=S.settings.touchMode||"auto";
+  if(pref==="on")setTouchMode(true);
+  else if(pref==="off")setTouchMode(false);
+  else setTouchMode(deviceIsTouch());
+  let sc=S.settings.touchScale;
+  if(sc===undefined||sc===null){
+    sc=Math.min(innerWidth,innerHeight)<430?0.86:1;
+    S.settings.touchScale=sc;
+  }
+  document.documentElement.style.setProperty("--ts",sc);
+}
+
 function initTouch(){
-  if(!("ontouchstart" in window))return;
-  IN.touch=true;$("touch").classList.add("on");
-  const stick=$("tmove"),knob=stick.querySelector("i");
-  let sid=null,sx=0,sy=0;
-  stick.addEventListener("touchstart",e=>{e.preventDefault();const t=e.changedTouches[0];sid=t.identifier;
-    sx=t.clientX;sy=t.clientY;},{passive:false});
+  if(TOUCH_READY)return;
+  TOUCH_READY=true;
+  applyTouchPref();
+  // any real touch switches the game to touch mode, whatever the sniffing said
+  window.addEventListener("touchstart",()=>{
+    if((S.settings.touchMode||"auto")!=="off"&&!IN.touch)setTouchMode(true);
+  },{passive:true,capture:true});
+  window.addEventListener("contextmenu",e=>{if(IN.touch)e.preventDefault();});
+  // block double-tap zoom without killing button taps
+  let lastTap=0;
+  document.addEventListener("touchend",e=>{
+    const now=Date.now();
+    if(now-lastTap<320)e.preventDefault();
+    lastTap=now;
+  },{passive:false});
+
+  const stickEl=$("tstick"), knob=stickEl.querySelector("i");
+  let moveId=null, ox=0, oy=0;
+  let lookId=null, lookX=0, lookY=0;
+  const REACH=()=>52*(S.settings.touchScale||1);
+
+  /* ---- movement: the stick appears wherever the thumb lands ---- */
+  const left=$("tleft");
+  left.addEventListener("touchstart",e=>{
+    e.preventDefault();
+    if(moveId!==null)return;
+    const t=e.changedTouches[0];
+    moveId=t.identifier; ox=t.clientX; oy=t.clientY;
+    stickEl.style.left=ox+"px"; stickEl.style.top=oy+"px";
+    stickEl.classList.add("on");
+    AUD.resume();
+  },{passive:false});
+
+  /* ---- look: drag anywhere on the right ---- */
+  const right=$("tright");
+  right.addEventListener("touchstart",e=>{
+    e.preventDefault();
+    if(lookId!==null)return;
+    const t=e.changedTouches[0];
+    lookId=t.identifier; lookX=t.clientX; lookY=t.clientY;
+    AUD.resume();
+  },{passive:false});
+
   window.addEventListener("touchmove",e=>{
+    if(!IN.touch)return;
+    let handled=false;
     for(const t of e.changedTouches){
-      if(t.identifier===sid){
-        let dx=clamp((t.clientX-sx)/48,-1,1),dy=clamp((t.clientY-sy)/48,-1,1);
-        IN.tmx=dx;IN.tmy=dy;knob.style.transform=`translate(${dx*32}px,${dy*32}px)`;
+      if(t.identifier===moveId){
+        handled=true;
+        const r=REACH();
+        let dx=(t.clientX-ox)/r, dy=(t.clientY-oy)/r;
+        const L=Math.hypot(dx,dy);
+        const full=L>1.32;                       // push past the ring to sprint
+        if(L>1){dx/=L;dy/=L;}
+        IN.tmx=dx; IN.tmy=dy; IN.tsprint=full;
+        const sc=S.settings.touchScale||1;
+        knob.style.transform=`translate(${dx*38*sc}px,${dy*38*sc}px)`;
+        stickEl.classList.toggle("run",full);
       } else if(t.identifier===lookId){
-        IN.dx+=(t.clientX-lookX)*1.5;IN.dy+=(t.clientY-lookY)*1.5;
-        lookX=t.clientX;lookY=t.clientY;
+        handled=true;
+        const sens=1.55*(S.settings.touchSens||1);
+        IN.dx+=(t.clientX-lookX)*sens;
+        IN.dy+=(t.clientY-lookY)*sens;
+        lookX=t.clientX; lookY=t.clientY;
       }
     }
+    if(handled&&e.cancelable)e.preventDefault();
   },{passive:false});
-  window.addEventListener("touchend",e=>{
+
+  const endTouch=e=>{
     for(const t of e.changedTouches){
-      if(t.identifier===sid){sid=null;IN.tmx=0;IN.tmy=0;knob.style.transform="";}
+      if(t.identifier===moveId){
+        moveId=null; IN.tmx=0; IN.tmy=0; IN.tsprint=false;
+        knob.style.transform=""; stickEl.classList.remove("on","run");
+      }
       if(t.identifier===lookId)lookId=null;
     }
-  });
-  let lookId=null,lookX=0,lookY=0;
-  CV.addEventListener("touchstart",e=>{const t=e.changedTouches[0];lookId=t.identifier;lookX=t.clientX;lookY=t.clientY;
-    AUD.resume();},{passive:true});
-  const bind=(id,on,off)=>{
-    const el=$(id);
-    el.addEventListener("touchstart",e=>{e.preventDefault();on();},{passive:false});
-    el.addEventListener("touchend",e=>{e.preventDefault();off&&off();},{passive:false});
   };
-  bind("tfire",()=>{IN.fire=true;IN.firePressed=true;},()=>IN.fire=false);
-  bind("taim",()=>IN.aim=!IN.aim);
+  window.addEventListener("touchend",endTouch,{passive:true});
+  window.addEventListener("touchcancel",endTouch,{passive:true});
+
+  /* ---- buttons ---- */
+  const bind=(id,on,off)=>{
+    const el=$(id); if(!el)return;
+    el.addEventListener("touchstart",e=>{e.preventDefault();e.stopPropagation();
+      el.classList.add("down");on();},{passive:false});
+    const up=e=>{if(e.cancelable)e.preventDefault();el.classList.remove("down");off&&off();};
+    el.addEventListener("touchend",up,{passive:false});
+    el.addEventListener("touchcancel",up,{passive:false});
+    // also usable with a mouse, for testing and for touch-screen laptops
+    el.addEventListener("mousedown",e=>{e.preventDefault();el.classList.add("down");on();});
+    el.addEventListener("mouseup",e=>{e.preventDefault();el.classList.remove("down");off&&off();});
+  };
+  bind("tfire",()=>{IN.fire=true;IN.firePressed=true;IN.fireQueued=true;},()=>IN.fire=false);
+  bind("taim",()=>{IN.aim=!IN.aim;$("taim").classList.toggle("act",IN.aim);});
   bind("trel",()=>startReload());
+  bind("tknife",()=>meleeAttack());
   bind("tint",()=>doInteract());
+  bind("tnade",()=>throwItem());
+  bind("tdodge",()=>startDodge());
+  bind("tlight",()=>{P.flashlight=!P.flashlight;AUD.ui("sel");
+    $("tlight").classList.toggle("lit",P.flashlight);});
+  bind("tweap",()=>cycleWeapon(1));
+  bind("tscope",()=>toggleThermal());
+  bind("tcase",()=>toggleInventory());
+  bind("tpause",()=>togglePause());
+  bind("torders",()=>{
+    if(IN.wheelOpen){IN.wheelOpen=false;$("wheel").classList.remove("on");applyWheelChoice();}
+    else{IN.wheelOpen=true;IN.wx=0;IN.wy=0;IN.wheelSel=-1;$("wheel").classList.add("on");}
+  });
+  // the order wheel is tappable on touch
+  $("wheelc").addEventListener("touchstart",e=>{
+    const el=e.target.closest(".wopt"); if(!el)return;
+    e.preventDefault();e.stopPropagation();
+    IN.wheelSel=parseInt(el.dataset.i);
+    applyWheelChoice();
+    IN.wheelOpen=false;$("wheel").classList.remove("on");
+  },{passive:false});
+}
+function syncTouchButtons(){
+  if(!IN.touch)return;
+  const t=P.interactTarget;
+  $("tint").classList.toggle("avail",!!t);
+  $("taim").classList.toggle("act",!!IN.aim);
+  $("tlight").classList.toggle("lit",!!P.flashlight);
+  $("tscope").classList.toggle("act",!!P.thermal);
+  const th=ITEMS[P.throwable];
+  $("tnade").style.opacity=(th&&countItem(P.throwable)>0)?1:0.4;
 }
 
 function handleKeyDown(ev){
@@ -4212,7 +4428,7 @@ function updatePlayer(dt){
 
   P.aiming=IN.aim||down("ShiftRight");
   P.crouch=down("ControlLeft")||down("KeyZ");
-  const wantSprint=(down("ShiftLeft")&&!P.aiming&&mf>0.2&&P.stam>4);
+  const wantSprint=((down("ShiftLeft")||(IN.touch&&IN.tsprint))&&!P.aiming&&mf>0.2&&P.stam>4);
   P.sprinting=wantSprint;
 
   let spd=3.35;
@@ -4313,7 +4529,7 @@ function updatePlayer(dt){
     P.reloading-=dt;
     if(P.reloading<=0)finishReload();
   }
-  if(IN.fire&&P.fireT<=0&&P.reloading<=0&&P.meleeT<=0){
+  if((IN.fire||IN.fireQueued)&&P.fireT<=0&&P.reloading<=0&&P.meleeT<=0){
     const w=curWeapon();
     if(w.melee)meleeAttack();
     else if(magOf(P.wep)>0){fireWeapon();}
@@ -4323,7 +4539,7 @@ function updatePlayer(dt){
       P.fireT=0.25;
     }
   }
-  IN.firePressed=false;
+  IN.firePressed=false;IN.fireQueued=false;
 
   /* --- status effects --- */
   if(P.bleed>0){
@@ -6090,6 +6306,7 @@ function render(dt){
   gl.uniform1f(PROG_LIT.u.uTime,GT);
   gl.uniform1f(PROG_LIT.u.uWet,lv.outdoor?1:0.28);
   gl.uniform1f(PROG_LIT.u.uDetail,S.settings.quality>=1?1:0);
+  gl.uniform1f(PROG_LIT.u.uExp,post?1:(lv.exposure||1.25)*(S.settings.brightness||1)*1.05);
   gl.uniform1f(PROG_LIT.u.uRim,0.30+fl*0.6);
   const rc=lv.amb.rim||[0.16,0.22,0.34];
   gl.uniform3f(PROG_LIT.u.uRimCol,rc[0],rc[1],rc[2]);
@@ -6202,7 +6419,7 @@ function render(dt){
     gl.uniform3f(PROG_COMP.u.uFogCol,fogc[0],fogc[1],fogc[2]);
     const gr=lv.grade||[1,1,1];
     gl.uniform3f(PROG_COMP.u.uGrade,gr[0],gr[1],gr[2]);
-    gl.uniform1f(PROG_COMP.u.uExp,(lv.exposure||1.25)*(1+fl*0.25));
+    gl.uniform1f(PROG_COMP.u.uExp,(lv.exposure||1.25)*(S.settings.brightness||1)*(1+fl*0.25));
     gl.uniform1f(PROG_COMP.u.uTime,GT);
     gl.uniform1f(PROG_COMP.u.uVig,0.62);
     gl.uniform1f(PROG_COMP.u.uGrain,0.055);
@@ -6775,13 +6992,15 @@ const WHEEL=[
 ];
 function buildWheel(){
   const c=$("wheelc");
+  c.dataset.touch=IN.touch?"1":"0";
   c.innerHTML="";
   WHEEL.forEach((w,i)=>{
     const a=i/WHEEL.length*TAU-PI/2;
     const d=document.createElement("div");
     d.className="wopt";
-    d.style.left=(170+Math.cos(a)*118)+"px";
-    d.style.top=(170+Math.sin(a)*118)+"px";
+    const R=IN.touch?100:118, C=IN.touch?150:170;
+    d.style.left=(C+Math.cos(a)*R)+"px";
+    d.style.top=(C+Math.sin(a)*R)+"px";
     d.innerHTML=`<div class="wk">${w.k}</div>${w.n}`;
     d.dataset.i=i;
     c.appendChild(d);
@@ -6852,7 +7071,10 @@ function findElenaInteractable(){
 function showScreen(id){
   for(const s of document.querySelectorAll(".screen"))s.classList.remove("on");
   if(id)$(id).classList.add("on");
-  $("hud").classList.toggle("on",id===null&&S.mode==="play");
+  const playing=(id===null&&S.mode==="play");
+  $("hud").classList.toggle("on",playing);
+  $("touch").classList.toggle("on",playing&&IN.touch&&!S.paused);
+  if(typeof updateOrientationHint==="function")updateOrientationHint();
 }
 function backToTitle(){
   S.mode="title";S.paused=false;
@@ -6863,9 +7085,10 @@ function togglePause(){
   if(S.mode!=="play")return;
   S.paused=!S.paused;
   if(S.paused){buildPause();showScreen("pause");
+    $("touch").classList.remove("on");
     if(document.exitPointerLock)document.exitPointerLock();}
   else {showScreen(null);
-    if(!IN.touch&&CV.requestPointerLock)CV.requestPointerLock();}
+    if(!IN.touch&&CV.requestPointerLock&&!deviceIsTouch())CV.requestPointerLock();}
 }
 function buildTitle(){
   $("btnCont").disabled=!localStorage.getItem("islandProtocolSave");
@@ -6918,6 +7141,11 @@ function buildBrief(viewOnly){
         <div><b>Tab</b> attaché case · <b>C</b> (hold) Elena orders</div>
         <div><b>V</b> biosensor scope · <b>Q</b> about-face</div>
       </div>
+      <div class="small" style="margin-top:10px;line-height:1.9">
+        On a phone or tablet the touch controls appear on their own — drag the left half
+        to move, the right half to look. If the picture is too dark for your screen,
+        raise <b style="color:#cfd6d2">Options → Brightness</b>.
+      </div>
       <hr class="s">
       ${viewOnly?'<button class="btn" id="briefBack">Back</button>':
         '<button class="btn prim" id="briefGo">Begin Operation</button> <button class="btn" id="briefBack">Back</button>'}
@@ -6946,6 +7174,19 @@ function buildOptions(){
     <div class="row"><label>Aim assist</label><div class="sw ${st.aimAssist?"on":""}" id="oAim"><i></i></div></div>
     <div class="row"><label>Field of view</label>
       <input type="range" id="oFov" min="55" max="100" step="1" value="${st.fov}"><span class="val" id="vFov">${st.fov}°</span></div>
+    <div class="row"><label>Brightness</label>
+      <input type="range" id="oBri" min="0.6" max="2.2" step="0.02" value="${st.brightness||1}"><span class="val" id="vBri">${Math.round((st.brightness||1)*100)}%</span></div>
+    <h3>Touch &amp; Mobile</h3>
+    <div class="row"><label>Touch controls</label>
+      <select id="oTouch">
+        <option value="auto">Auto-detect</option>
+        <option value="on">Always on</option>
+        <option value="off">Off</option>
+      </select></div>
+    <div class="row"><label>Control size</label>
+      <input type="range" id="oTs" min="0.7" max="1.6" step="0.05" value="${st.touchScale||1}"><span class="val" id="vTs">${Math.round((st.touchScale||1)*100)}%</span></div>
+    <div class="row"><label>Touch look speed</label>
+      <input type="range" id="oTse" min="0.4" max="2.5" step="0.05" value="${st.touchSens||1}"><span class="val" id="vTse">${Math.round((st.touchSens||1)*100)}%</span></div>
     <h3>Accessibility</h3>
     <div class="row"><label>Subtitles</label><div class="sw ${st.subs?"on":""}" id="oSubs"><i></i></div></div>
     <div class="row"><label>Camera shake</label>
@@ -6991,11 +7232,15 @@ function buildOptions(){
   </div>`;
   $("oCb").value=st.cbMode;
   $("oQ").value=String(st.quality);
+  $("oTouch").value=st.touchMode||"auto";
   const bindR=(id,vid,fn,fmt)=>{
     const e=$(id);e.oninput=()=>{const v=parseFloat(e.value);fn(v);$(vid).textContent=fmt(v);};
   };
   bindR("oSens","vSens",v=>st.sens=v,v=>v.toFixed(2));
   bindR("oFov","vFov",v=>st.fov=v,v=>v+"°");
+  bindR("oBri","vBri",v=>st.brightness=v,v=>Math.round(v*100)+"%");
+  bindR("oTs","vTs",v=>{st.touchScale=v;document.documentElement.style.setProperty("--ts",v);},v=>Math.round(v*100)+"%");
+  bindR("oTse","vTse",v=>st.touchSens=v,v=>Math.round(v*100)+"%");
   bindR("oShake","vShake",v=>st.shake=v,v=>Math.round(v*100)+"%");
   bindR("oVm","vVm",v=>{st.vol.master=v;AUD.setVol("master",v);},v=>Math.round(v*100));
   bindR("oVs","vVs",v=>{st.vol.sfx=v;AUD.setVol("sfx",v);},v=>Math.round(v*100));
@@ -7012,6 +7257,7 @@ function buildOptions(){
   bindSw("oVol",()=>st.volum!==false,v=>st.volum=v);
   $("oCb").onchange=()=>{st.cbMode=$("oCb").value;applyColorFilter();};
   $("oQ").onchange=()=>{st.quality=parseFloat($("oQ").value);resize();};
+  $("oTouch").onchange=()=>{st.touchMode=$("oTouch").value;applyTouchPref();saveSettings();};
   $("optBack").onclick=()=>{AUD.ui("back");saveSettings();S.mode==="play"?(showScreen("pause")):backToTitle();};
   $("optWipe").onclick=()=>{localStorage.removeItem("islandProtocolSave");toast("Save data deleted","warn");buildTitle();};
 }
@@ -7051,6 +7297,20 @@ function buildHelp(){
       <div><b>E</b> — interact / pick up / revive</div><div><b>L</b> — flashlight</div>
       <div><b>V</b> — biosensor scope (SR-9 only)</div><div><b>Tab</b> — attaché case</div>
       <div><b>C</b> (hold) — Elena command wheel</div><div><b>Esc</b> — pause</div>
+      <div><b>Too dark?</b> — Options → Brightness</div>
+      <div><b>Touch</b> — automatic on phones/tablets</div>
+    </div>
+    <h3>On a phone or tablet</h3>
+    <div class="small" style="font-size:11px;line-height:2">
+    Touch controls turn on automatically — or force them from
+    <b style="color:#cfd6d2">Options → Touch controls</b>.<br>
+    • <b style="color:#cfd6d2">Left half</b>: put a thumb down anywhere and a stick appears there.
+      Push past the ring to sprint.<br>
+    • <b style="color:#cfd6d2">Right half</b>: drag to look.<br>
+    • Thumb cluster: FIRE, AIM, REL, KNIFE, USE, NADE — and ROLL on the far left.<br>
+    • Top row: LIGHT, WEAP, SCOPE, CASE, ORDER. Pause is the top-left corner.<br>
+    • Control size and look speed are adjustable in Options. Play in landscape.<br>
+    • Too dark for your screen? <b style="color:#cfd6d2">Options → Brightness</b>.
     </div>
     <h3>Things worth knowing</h3>
     <div class="small" style="font-size:11px;line-height:2">
@@ -7160,7 +7420,7 @@ $("docclose").onclick=()=>{
   AUD.ui("back");
   if(S.mode==="play"&&S.paused&&!document.querySelector(".screen.on")){
     S.paused=false;showScreen(null);
-    if(!IN.touch&&CV.requestPointerLock)CV.requestPointerLock();
+    if(!IN.touch&&CV.requestPointerLock&&!deviceIsTouch())CV.requestPointerLock();
   }
 };
 
@@ -7168,8 +7428,8 @@ $("docclose").onclick=()=>{
 let invSel=null,invDrag=null;
 function toggleInventory(){
   if($("inv").classList.contains("on")){
-    showScreen(null);S.paused=false;
-    if(!IN.touch&&CV.requestPointerLock)CV.requestPointerLock();
+    S.paused=false;showScreen(null);
+    if(!IN.touch&&CV.requestPointerLock&&!deviceIsTouch())CV.requestPointerLock();
   }else{
     S.paused=true;renderInventory();showScreen("inv");
     if(document.exitPointerLock)document.exitPointerLock();
@@ -7261,8 +7521,10 @@ function drawGridItems(g,list,CELL,GW,GH,isElena){
 }
 let invSelList=null;
 function makeDraggable(el,it,list,grid,CELL,GW,GH,isElena){
-  el.onmousedown=ev=>{
+  el.style.touchAction="none";
+  el.onpointerdown=ev=>{
     ev.preventDefault();
+    try{el.setPointerCapture(ev.pointerId);}catch(e){}
     const r0=grid.getBoundingClientRect();
     const ox=ev.clientX,oy=ev.clientY;
     const sx=it.x,sy=it.y;
@@ -7274,8 +7536,9 @@ function makeDraggable(el,it,list,grid,CELL,GW,GH,isElena){
       el._gx=gx;el._gy=gy;
     };
     const up=e2=>{
-      window.removeEventListener("mousemove",move);
-      window.removeEventListener("mouseup",up);
+      window.removeEventListener("pointermove",move);
+      window.removeEventListener("pointerup",up);
+      window.removeEventListener("pointercancel",up);
       el.classList.remove("dragging");
       const gx=el._gx,gy=el._gy;
       if(gx===undefined){return;}
@@ -7297,8 +7560,9 @@ function makeDraggable(el,it,list,grid,CELL,GW,GH,isElena){
       if(invFits(list,w,h,GW,GH,gx,gy,it)){it.x=gx;it.y=gy;AUD.ui("sel");}
       renderInventory();
     };
-    window.addEventListener("mousemove",move);
-    window.addEventListener("mouseup",up);
+    window.addEventListener("pointermove",move);
+    window.addEventListener("pointerup",up);
+    window.addEventListener("pointercancel",up);
   };
 }
 function selectInvItem(it){
@@ -7429,8 +7693,8 @@ function buildShop(){
     if(removeItem(id,1)){P.scrip+=d.val;AUD.ui("buy");toast("+"+d.val+" scrip");buildShop();}
   });
   $("shopClose").onclick=()=>{
-    AUD.ui("back");showScreen(null);S.paused=false;
-    if(!IN.touch&&CV.requestPointerLock)CV.requestPointerLock();
+    AUD.ui("back");S.paused=false;showScreen(null);
+    if(!IN.touch&&CV.requestPointerLock&&!deviceIsTouch())CV.requestPointerLock();
   };
 }
 
@@ -7570,7 +7834,7 @@ function restartLevel(){
   S.mode="play";S.paused=false;
   setupLevel(S.level,true);
   showScreen(null);
-  if(!IN.touch&&CV.requestPointerLock)CV.requestPointerLock();
+  if(!IN.touch&&CV.requestPointerLock&&!deviceIsTouch())CV.requestPointerLock();
 }
 
 /* ---------------- cinematic helper ---------------- */
@@ -7949,7 +8213,7 @@ function loadGame(){
     if(d.objective)S.objective=d.objective;
     showScreen(null);
     $("hud").classList.add("on");
-    if(!IN.touch&&CV.requestPointerLock)CV.requestPointerLock();
+    if(!IN.touch&&CV.requestPointerLock&&!deviceIsTouch())CV.requestPointerLock();
     toast("Checkpoint loaded");
     return true;
   }catch(e){console.warn("load failed",e);return false;}
@@ -7986,7 +8250,7 @@ function newGame(ngp){
   setupLevel(0,true);
   showScreen(null);
   $("hud").classList.add("on");
-  if(!IN.touch&&CV.requestPointerLock)CV.requestPointerLock();
+  if(!IN.touch&&CV.requestPointerLock&&!deviceIsTouch())CV.requestPointerLock();
 }
 /* ================================================================
    22. FILM GRAIN OVERLAY
@@ -8182,6 +8446,7 @@ function frame(now){
   updatePrompt();
   updateWheel();
   updateCompass();
+  if(IN.touch)syncTouchButtons();
   if(FRAME%6===0)updateHUD();
 }
 
@@ -8202,6 +8467,7 @@ const HINTS=[
 ];
 function boot(){
   loadSettings();
+  if(S.settings.brightness===undefined)S.settings.brightness=1.18;
   buildWheel();
   buildTitle();
   initTouch();
