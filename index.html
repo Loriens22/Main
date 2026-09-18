@@ -168,7 +168,30 @@ body{
   opacity:0;transition:opacity .45s ease,transform .45s ease;letter-spacing:.01em}
 #subtitle.show{opacity:1}
 #subtitle.hide{opacity:0;transform:translateX(-50%) translateY(6px)}
-#toasts{position:absolute;left:50%;top:132px;transform:translateX(-50%);
+/* ---------- hazard banner ---------- */
+.hazard{position:absolute;left:50%;top:118px;transform:translateX(-50%) translateY(-8px);
+  display:flex;align-items:center;gap:11px;padding:9px 15px 9px 10px;border-radius:16px;
+  background:linear-gradient(150deg,rgba(38,30,60,.92),rgba(24,20,42,.92));
+  border:1px solid rgba(255,199,107,.35);box-shadow:0 12px 34px rgba(0,0,0,.45);
+  backdrop-filter:blur(10px);-webkit-backdrop-filter:blur(10px);
+  opacity:0;pointer-events:none;transition:opacity .3s ease,transform .3s ease;min-width:270px}
+.hazard.show{opacity:1;transform:translateX(-50%)}
+.hazard.ok{border-color:rgba(143,227,208,.5)}
+.hazard.fail{border-color:rgba(255,111,125,.6);animation:hzShake .4s}
+@keyframes hzShake{0%,100%{transform:translateX(-50%)}25%{transform:translateX(calc(-50% - 6px))}
+  75%{transform:translateX(calc(-50% + 6px))}}
+.hz-ico{width:36px;height:36px;flex:0 0 36px;border-radius:11px;display:grid;place-items:center;
+  font-size:19px;background:rgba(255,199,107,.14);border:1px solid rgba(255,199,107,.22)}
+.hazard.ok .hz-ico{background:rgba(143,227,208,.16);border-color:rgba(143,227,208,.3)}
+.hazard.fail .hz-ico{background:rgba(255,111,125,.16);border-color:rgba(255,111,125,.32)}
+.hz-body{display:flex;flex-direction:column;gap:2px;min-width:0}
+.hz-body b{font-size:13.5px;font-weight:900;letter-spacing:.01em;white-space:nowrap}
+.hz-body span{font-size:11px;color:var(--cream-dim);font-weight:700;white-space:nowrap}
+.hz-bar{width:64px;height:6px;border-radius:99px;background:rgba(0,0,0,.35);overflow:hidden;flex:0 0 64px}
+.hz-fill{height:100%;width:0%;border-radius:99px;background:linear-gradient(90deg,var(--gold),var(--mint))}
+.hazard.fail .hz-fill{background:var(--rose)}
+
+#toasts{position:absolute;left:50%;top:184px;transform:translateX(-50%);
   display:flex;flex-direction:column;align-items:center;gap:8px;width:max-content}
 .toast{padding:9px 18px;border-radius:14px;font-size:15px;font-weight:900;letter-spacing:.01em;
   background:linear-gradient(150deg,rgba(255,199,107,.94),rgba(255,166,94,.94));color:#3a2408;
@@ -197,11 +220,12 @@ body{
 .btn[disabled]{opacity:.42;cursor:not-allowed;filter:grayscale(.5)}
 
 /* ---------- full-screen overlays ---------- */
-.overlay{position:fixed;inset:0;z-index:30;display:grid;place-items:center;padding:20px;
+.overlay{position:fixed;inset:0;z-index:30;display:flex;align-items:center;justify-content:center;
+  padding:20px;overflow-y:auto;overscroll-behavior:contain;
   background:radial-gradient(120% 90% at 50% 0%,rgba(59,44,96,.6),rgba(8,12,26,.86));
   opacity:0;visibility:hidden;pointer-events:none;transition:opacity .5s ease}
 .overlay.show{opacity:1;visibility:visible;pointer-events:auto}
-.sheet{width:min(560px,94vw);padding:30px 32px 26px;border-radius:26px;text-align:center;
+.sheet{width:min(560px,94vw);margin:auto;padding:30px 32px 26px;border-radius:26px;text-align:center;
   background:linear-gradient(170deg,rgba(33,45,76,.96),rgba(19,27,48,.96));
   border:1px solid rgba(255,255,255,.14);box-shadow:0 26px 70px rgba(0,0,0,.55);
   animation:sheetIn .6s cubic-bezier(.2,1.2,.35,1) both}
@@ -307,7 +331,10 @@ body{
   .spd-num b{font-size:28px}
   .bigbtn{width:84px;height:66px;border-radius:17px}
   #subtitle{bottom:214px;font-size:14px;padding:8px 15px}
-  #toasts{top:112px}
+  #toasts{top:150px}
+  .hazard{top:86px;min-width:0;padding:7px 12px 7px 8px}
+  .hz-body b{font-size:12px}.hz-body span{font-size:10px}
+  .hz-ico{width:30px;height:30px;flex:0 0 30px;font-size:16px}
   .cta{bottom:276px}
   .parts{width:min(280px,54vw);top:56px;bottom:82px}
   .ws-head h2{font-size:20px}.ws-head p{max-width:180px;font-size:11px}
@@ -340,8 +367,20 @@ body{
   .part-txt p{display:none}
   .ws-head p{display:none}
 }
-@media (max-height:520px){
+/* short screens (a phone held sideways): the panels have to shrink to fit */
+@media (max-height:560px){
   .card-strip{display:none}
+  .sheet{padding:16px 20px 14px;border-radius:20px}
+  .kicker{font-size:9px;letter-spacing:.24em;margin-bottom:6px}
+  .title{font-size:clamp(24px,5.2vw,32px);margin-bottom:5px}
+  .sub{font-size:12px;line-height:1.45;margin-bottom:12px}
+  .keys{gap:6px;margin-bottom:12px}
+  .key{padding:4px 8px;font-size:10.5px}
+  .key b{min-width:19px;height:19px;font-size:10.5px}
+  .fineprint{margin-top:9px;font-size:9.5px}
+  #btnStart{padding:11px 26px !important;font-size:14px !important}
+  .hazard{top:56px}
+  #toasts{top:120px}
 }
 </style>
 </head>
@@ -401,6 +440,12 @@ body{
     <button class="iconbtn" id="btnCam" title="Change view (C)">&#9678;</button>
     <button class="iconbtn" id="btnSound" title="Sound (M)">&#9834;</button>
     <button class="iconbtn" id="btnHelp" title="How to drive (H)">?</button>
+  </div>
+
+  <div class="hazard" id="hazard">
+    <div class="hz-ico" id="hzIco">!</div>
+    <div class="hz-body"><b id="hzTitle">Hazard</b><span id="hzSub">&nbsp;</span></div>
+    <div class="hz-bar"><div class="hz-fill" id="hzFill"></div></div>
   </div>
 
   <div id="subtitle"></div>
@@ -486,14 +531,16 @@ body{
     <div class="kicker">A LITTLE TRAM ABOVE THE CLOUDS</div>
     <div class="title">CLOUDLINE</div>
     <div class="sub">
-      Drive the old green tram along the Coastal Line, between
-      <b>Saltlight Terminus</b> and <b>Mango Tide</b>.<br>
+      Drive the old green tram around the Coastal Line — four stops above the clouds:
+      <b>Saltlight Terminus</b>, <b>Mango Tide</b>, the fungal
+      <b>Mycelia Market</b> and, after dark, <b>Pumpkin Hollow</b>.<br>
       Keep it smooth — your passengers' legs, and your tips, depend on it.
     </div>
     <div class="keys">
       <div class="key"><b>W</b> Power</div>
       <div class="key"><b>S</b> Brake</div>
       <div class="key"><b>A</b><b>D</b> Trim / lean</div>
+      <div class="key"><b>B</b> Ring the bell</div>
       <div class="key"><b>&#8592;</b><b>&#8594;</b> Swing the camera</div>
       <div class="key"><b>C</b> Change view</div>
     </div>
@@ -508,11 +555,16 @@ body{
     <div class="title" style="font-size:30px;text-align:left">How to drive sweetly</div>
     <div class="sub" style="text-align:left">
       &#9679; <b>Ease the power on.</b> Slamming W or S rattles the cabin and drains leg comfort.<br>
-      &#9679; <b>Slow into the elevated curves.</b> Above ~55 km/h the bend starts throwing people about.<br>
+      &#9679; <b>Slow into the elevated curves.</b> Push a tight bend and someone loses their footing —
+      every accident costs comfort and tips.<br>
       &#9679; <b>Crosswind on the bridges.</b> When the pill on the right turns gold, hold <b>A</b> or <b>D</b>
       against the gust — line the white trim pip up with the gold wind pip.<br>
-      &#9679; <b>Stop on the mark.</b> Coast to a halt inside the lantern-lit stopping zone for the
-      arrival bonus.<br>
+      &#9679; <b>Mind the banner.</b> The line hands you a job: spore drift at Mycelia, a lantern on the
+      rails at the Hollow, a squall, a passenger asleep. Hold it for the few seconds it asks and
+      the cabin pays you for it.<br>
+      &#9679; <b>Ring the bell (B)</b> once Oliver has fitted one. It settles everybody — and shifts
+      whatever has climbed onto the roof.<br>
+      &#9679; <b>Stop on the mark</b>, and don't shut the doors on anyone still boarding.<br>
       &#9679; <b>Keep the streak.</b> Every smooth stretch adds to it; a rough one breaks it.
     </div>
     <button class="btn" id="btnHelpClose">Back to the cab</button>
@@ -577,12 +629,13 @@ window.CLOUDLINE_START = function(){
    ========================================================================== */
 const CFG = {
   // --- track shape -----------------------------------------------------------
-  RA: 250,            // loop radius along X
-  RB: 360,            // loop radius along Z
-  NODES: 32,          // control points around the loop (must divide SAMPLES)
-  SAMPLES: 2048,      // arc-length samples baked for driving + geometry
+  RA: 320,            // loop radius along X
+  RB: 455,            // loop radius along Z
+  NODES: 48,          // control points around the loop (must divide SAMPLES)
+  SAMPLES: 2304,      // arc-length samples baked for driving + geometry (48 x 48)
   PLATFORM_SPAN: 2,   // control points either side of a station forced straight
-  NODE_GAP: 46,       // spacing of those straight platform points (m)
+  EASE_NODES: 3,      // nodes after those, eased from the straight back onto the curve
+  NODE_GAP: 44,       // spacing of those straight platform points (m)
 
   // --- driving ---------------------------------------------------------------
   POWER_ACCEL: 2.55,  // m/s^2 at full power
@@ -595,23 +648,74 @@ const CFG = {
 
   // --- comfort ---------------------------------------------------------------
   JERK_TOL: 6.5,      // m/s^3 the cabin forgives
-  LAT_TOL: 2.55,      // m/s^2 of side force the cabin forgives
+  LAT_TOL: 2.30,      // m/s^2 of side force the cabin forgives
   COMFORT_REGEN: 3.1, // comfort points/sec recovered when driving sweetly
   STREAK_METRES: 190, // smooth metres needed for one streak tick
 
   // --- stations --------------------------------------------------------------
   STOP_WINDOW: 26,    // metres either side of the mark that still counts
-  SEATS: 16
+  SEATS: 16,          // seats in the motor car (the trailer adds more)
+  TRAILER_SEATS: 8,
+
+  // --- incidents -------------------------------------------------------------
+  STUMBLE_LAT: 4.0,   // m/s^2 of side force that throws a standing passenger
+  LURCH_JERK: 15.0,   // m/s^3 that sends the whole cabin rocking
+  SICK_COMFORT: 34,   // below this for SICK_SECONDS and someone gets off early
+  SICK_SECONDS: 14
 };
 
 const SEA_Y = 0;
 
+/**
+ * The four stops, in running order around the loop.  `node` must land on a
+ * control point and the array must stay sorted by it — the leg machine simply
+ * walks to the next index.
+ */
 const STATIONS = [
   { node: 0,  name: 'Saltlight Terminus', short: 'Saltlight', y: 52,
-    hue: 0.09, lighthouse: true },
-  { node: 16, name: 'Mango Tide',         short: 'Mango',     y: 37,
-    hue: 0.06, lighthouse: false }
+    theme: 'coastal', radius: 112, lighthouse: true,  harbourAngle: 2.1 },
+  { node: 12, name: 'Mango Tide',         short: 'Mango',     y: 37,
+    theme: 'coastal', radius: 100, lighthouse: false, harbourAngle: -0.7 },
+  { node: 24, name: 'Mycelia Market',     short: 'Mycelia',   y: 47,
+    theme: 'mycelia', radius: 106 },
+  { node: 36, name: 'Pumpkin Hollow',     short: 'Pumpkin',   y: 61,
+    theme: 'pumpkin', radius: 104 }
 ];
+
+/**
+ * Each region paints its own island, station and sky-glow, and calls its own
+ * tune.  Keeping it in one table means a new stop is mostly a new entry here
+ * plus a decorator function.
+ */
+const THEMES = {
+  coastal: {
+    ground:   { grass: 0x4c7639, grassDry: 0x75863f, sand: 0xb8956a,
+                rockLit: 0x876c60, rock: 0x53445a },
+    platform: 0xc6b291, platformEdge: 0xa8977c, canopy: 0xb85138, trim: 0xe9d6b4,
+    iron: 0x39434a, lamp: 0xffcf87,
+    sign: '#1f3a4d', signFg: '#ffeec2',
+    music: 'coastal',
+    blurb: 'the old harbour line'
+  },
+  mycelia: {
+    ground:   { grass: 0x3c6652, grassDry: 0x55704a, sand: 0xa2937a,
+                rockLit: 0x6e6b80, rock: 0x3f3557 },
+    platform: 0xa8b6a4, platformEdge: 0x8c9a8a, canopy: 0x7a4f8c, trim: 0xd9e8cf,
+    iron: 0x3e4a48, lamp: 0x9fe8c0,
+    sign: '#20362e', signFg: '#b6ffd8',
+    music: 'mycelia',
+    blurb: 'under the great caps'
+  },
+  pumpkin: {
+    ground:   { grass: 0x566030, grassDry: 0x806c36, sand: 0x8a7049,
+                rockLit: 0x63503f, rock: 0x322734 },
+    platform: 0x8a7663, platformEdge: 0x6e5c4c, canopy: 0x8a3f22, trim: 0xe0b078,
+    iron: 0x2e2830, lamp: 0xff9a3c,
+    sign: '#2b1b2a', signFg: '#ffb35c',
+    music: 'pumpkin',
+    blurb: 'mind the lanterns'
+  }
+};
 
 /* Warm dusk palette shared by world + props. */
 const PAL = {
@@ -941,7 +1045,7 @@ function buildStars(scene){
   }};
 }
 
-/** The low sun, its bloom, and a handful of lens-free warm haze layers. */
+/** The low sun, its bloom, and a pale moon on the opposite horizon. */
 function buildSun(scene){
   const g = new THREE.Group();
   const dir = PAL.sunDir.clone().multiplyScalar(5400);
@@ -954,6 +1058,25 @@ function buildSun(scene){
   g.add(disc);
   const bloom = glowSprite(0xffb070, 2600, 0.55); bloom.position.copy(dir); g.add(bloom);
   const bloom2 = glowSprite(0xff8c5a, 5200, 0.22); bloom2.position.copy(dir); g.add(bloom2);
+
+  // the moon: opposite the sun, high enough to hang over the night side
+  const moonDir = V3(0.58, 0.42, 0.70).normalize().multiplyScalar(5400);
+  const moon = new THREE.Mesh(new THREE.CircleGeometry(115, 32),
+    new THREE.MeshBasicMaterial({ color: lin(0xf6f0e2), fog:false, transparent:true,
+                                  opacity:0.9, depthWrite:false }));
+  moon.position.copy(moonDir);
+  moon.lookAt(0,0,0);
+  g.add(moon);
+  for (const c of [[-30, 22, 26], [38, -12, 18], [6, -40, 14]]){   // craters
+    const cr = new THREE.Mesh(new THREE.CircleGeometry(c[2], 16),
+      new THREE.MeshBasicMaterial({ color: lin(0xdcd4c2), fog:false, transparent:true,
+                                    opacity:0.55, depthWrite:false }));
+    cr.position.copy(moonDir).multiplyScalar(0.999);
+    cr.lookAt(0,0,0);
+    cr.translateX(c[0]); cr.translateY(c[1]);
+    g.add(cr);
+  }
+  const moonGlow = glowSprite(0xcfd8ff, 900, 0.30); moonGlow.position.copy(moonDir); g.add(moonGlow);
   g.renderOrder = -8;
   g.traverse(o => { o.frustumCulled = false; });
   scene.add(g);
@@ -1084,9 +1207,11 @@ function buildCloudDeck(scene, avoidPoints){
   group.add(puffs);
 
   // --- distant soft banks (billboards) ---------------------------------------
+  // No fog on these: they sit far enough out that the fog colour would darken
+  // them to a smudge against the bright horizon.  They are backdrop, not depth.
   const sprMat = new THREE.SpriteMaterial({
     map: cloudSpriteTexture(), transparent: true, depthWrite: false,
-    color: lin(0xd9cdf2), opacity: 0.4, fog: true
+    color: lin(0xcfc2ea), opacity: 0.4, fog: false
   });
   for (let i=0;i<58;i++){
     const a = rng()*TAU, rad = 900 + rng()*2600;
@@ -1150,11 +1275,12 @@ function makeIsland(opts){
 
   const pos = g.attributes.position;
   const col = new Float32Array(pos.count * 3);
-  const grass   = new THREE.Color(PAL.grass);
-  const grassDry= new THREE.Color(PAL.grassDry);
-  const sand    = new THREE.Color(PAL.sand);
-  const rock    = new THREE.Color(PAL.rock);
-  const rockLit = new THREE.Color(PAL.rockLit);
+  const C = opts.colors || PAL;                    // each region paints its own rock
+  const grass   = new THREE.Color(C.grass    !== undefined ? C.grass    : PAL.grass);
+  const grassDry= new THREE.Color(C.grassDry !== undefined ? C.grassDry : PAL.grassDry);
+  const sand    = new THREE.Color(C.sand     !== undefined ? C.sand     : PAL.sand);
+  const rock    = new THREE.Color(C.rock     !== undefined ? C.rock     : PAL.rock);
+  const rockLit = new THREE.Color(C.rockLit  !== undefined ? C.rockLit  : PAL.rockLit);
   const tmp = new THREE.Color();
 
   // 1. craggy displacement
@@ -1193,6 +1319,9 @@ function makeIsland(opts){
       tmp.copy(rockLit).lerp(rock, deep);
       tmp.offsetHSL(0.01*(jitter-0.5), -0.04*deep, (jitter-0.5)*0.08 - deep*0.05);
     }
+    // vertex colours bypass the material, so they need the same sRGB -> linear
+    // conversion the rest of the palette gets, or the ground renders chalky
+    tmp.convertSRGBToLinear();
     for (let k=0;k<3;k++){ col[(f+k)*3]=tmp.r; col[(f+k)*3+1]=tmp.g; col[(f+k)*3+2]=tmp.b; }
   }
   g.setAttribute('color', new THREE.BufferAttribute(col, 3));
@@ -1607,6 +1736,417 @@ function animateVillager(v, t){
 }
 
 /* ============================================================================
+   5b.  MYCELIA MARKET — the mushroom city
+   Fat cream stalks, glowing gills, spore drift.  Same warm hand as the coast,
+   only the colours have gone bioluminescent.
+   ========================================================================== */
+const CAP_COLOURS = [0xc4513f, 0x8a5fb0, 0x3f8a7a, 0xd98a3f, 0xb04f6f, 0x5f7ac4];
+
+/** One mushroom cap: dome, flared rim, glowing gills and a few pale spots. */
+function makeCap(parent, r, y, colour, glow){
+  const capMat = surf('cap'+colour, colour, 0.86);
+  const cap = put(parent, geo('capDome', ()=> new THREE.SphereGeometry(1, 14, 8, 0, TAU, 0, Math.PI*0.5)),
+                  capMat, 0, y, 0, 0, 0, 0, r, r*0.62, r);
+  // rim: a shallow cone that flares out under the dome
+  put(parent, geo('capRim', ()=> new THREE.ConeGeometry(1, 1, 14, 1, true)), capMat,
+      0, y + r*0.06, 0, Math.PI, 0, 0, r*1.04, r*0.2, r*1.04);
+  // gills glow softly from underneath
+  put(parent, geo('capGills', ()=> new THREE.ConeGeometry(1, 1, 14)),
+      glowMat('gills', glow || 0x9fe8c0, 0.75), 0, y - r*0.05, 0, Math.PI, 0, 0,
+      r*0.94, r*0.26, r*0.94);
+  const halo = glowSprite(glow || 0x9fe8c0, r*1.5, 0.16);
+  halo.position.set(0, y - r*0.12, 0);
+  parent.add(halo);
+  // pale spots scattered over the dome
+  const spotMat = surf('capSpot', 0xf2e8d8, 0.9);
+  for (let i=0;i<ri(4,8);i++){
+    const a = rng()*TAU, t = rr(0.15, 0.85);
+    const rr2 = Math.cos(t*Math.PI/2) * r * 0.96;
+    put(parent, geo('capSpotGeo', ()=> new THREE.SphereGeometry(1, 8, 6)), spotMat,
+        Math.cos(a)*rr2, y + Math.sin(t*Math.PI/2)*r*0.58, Math.sin(a)*rr2,
+        0, 0, 0, r*rr(0.06,0.13), r*0.04, r*rr(0.06,0.13));
+  }
+  return cap;
+}
+
+/** A giant mushroom: the trees of this island. */
+function makeGiantMushroom(opts){
+  opts = opts || {};
+  const h = opts.height || rr(5, 13);
+  const r = opts.capR || h * rr(0.42, 0.62);
+  const g = new THREE.Group();
+  const stalkMat = surf('stalk', 0xe8dcc4, 0.9);
+  // stalk, fatter at the base, with a ring where the veil tore
+  put(g, geo('stalk', ()=> new THREE.CylinderGeometry(0.62, 1.0, 1, 9)), stalkMat,
+      0, h*0.5, 0, 0, rng()*TAU, rr(-0.05,0.05), r*0.26, h, r*0.26);
+  put(g, geo('stalkRing', ()=> new THREE.CylinderGeometry(1.35, 1.1, 0.16, 10)), stalkMat,
+      0, h*0.72, 0, 0, 0, 0, r*0.3, 1, r*0.3);
+  makeCap(g, r, h, opts.colour || pick(CAP_COLOURS), opts.glow);
+  g.traverse(o => { if (o.isMesh){ o.castShadow = true; o.receiveShadow = true; } });
+  return g;
+}
+
+/** A mushroom people live in: door, round windows, a cap for a roof. */
+function makeMushroomHouse(opts){
+  opts = opts || {};
+  const h = opts.height || rr(4.5, 7.5);
+  const r = opts.capR || h * rr(0.62, 0.85);
+  const g = new THREE.Group();
+  const stalkMat = surf('stalkHouse', 0xeee2cb, 0.92);
+  put(g, geo('stalkFat', ()=> new THREE.CylinderGeometry(0.8, 1.0, 1, 12)), stalkMat,
+      0, h*0.5, 0, 0, 0, 0, r*0.52, h, r*0.52);
+  // door + step
+  const doorW = 0.95;
+  put(g, BOX(doorW, 1.9, 0.14), surf('mycDoor', 0x6b4a63, 0.8), 0, 0.95, r*0.52*0.8 + 0.02);
+  put(g, geo('doorArch', ()=> new THREE.CylinderGeometry(doorW/2, doorW/2, 0.14, 10, 1, false, 0, Math.PI)),
+      surf('mycDoor', 0x6b4a63, 0.8), 0, 1.9, r*0.52*0.8 + 0.02, Math.PI/2, 0, 0);
+  put(g, BOX(1.5, 0.16, 0.7), surf('mycStep', 0xc9c0a8, 0.94), 0, 0.08, r*0.52*0.86 + 0.3);
+  // round windows, warm inside.  The disc geometry is pre-rotated so its axis is
+  // +Z, which means lookAt() is enough to press it flat against the stalk.
+  const winMat = glowMat('mycWin', 0xffd9a0, 1.5);
+  const winGeo = geo('roundWinZ', ()=>{
+    const d = new THREE.CylinderGeometry(0.34, 0.34, 0.12, 10);
+    d.rotateX(Math.PI/2);
+    return d;
+  });
+  for (const a of [0.9, -0.9, 2.6]){
+    const wr = r*0.52*0.84, wy = h*rr(0.42, 0.66);
+    const wx = Math.sin(a)*wr, wz = Math.cos(a)*wr;
+    const win = put(g, winGeo, winMat, wx, wy, wz);
+    win.lookAt(wx*2, wy, wz*2);
+    const gl = glowSprite(0xffd9a0, 2.4, 0.4);
+    gl.position.set(wx*1.2, wy, wz*1.2);
+    g.add(gl);
+  }
+  makeCap(g, r, h, opts.colour || pick(CAP_COLOURS), opts.glow);
+  g.traverse(o => { if (o.isMesh){ o.castShadow = true; o.receiveShadow = true; } });
+  return g;
+}
+
+/** Bioluminescent lamp: a curved stalk with a glowing pod on the end. */
+function makeGlowPod(height){
+  const h = height || rr(3.2, 4.6);
+  const g = new THREE.Group();
+  const stemMat = surf('podStem', 0x5f7a63, 0.93);
+  put(g, geo('podStem', ()=> new THREE.CylinderGeometry(0.07, 0.16, 1, 7)), stemMat,
+      0, h*0.5, 0, 0.16, 0, 0, 1, h, 1);
+  const px = Math.sin(0.16)*h*0.5, py = h*0.98;
+  put(g, geo('podBulb', ()=> new THREE.SphereGeometry(0.3, 10, 8)), glowMat('podGlow', 0x9fe8c0, 2.2),
+      0, py, px*1.6);
+  const halo = glowSprite(0x9fe8c0, 4.2, 0.5);
+  halo.position.set(0, py, px*1.6);
+  g.add(halo);
+  for (let i=0;i<3;i++){
+    put(g, geo('podLeaf', ()=> new THREE.SphereGeometry(0.12, 7, 5)), glowMat('podGlow', 0x9fe8c0, 1.4),
+        rr(-0.3,0.3), h*rr(0.35,0.8), rr(-0.3,0.3));
+  }
+  return g;
+}
+
+/** A market stall roofed with a mushroom cap. */
+function makeFungalStall(){
+  const g = new THREE.Group();
+  const wood = surf('mycWood', 0x7a6a52, 0.93);
+  put(g, BOX(2.4, 0.14, 1.5), wood, 0, 1.05, 0);
+  for (const sx of [-1,1]) for (const sz of [-1,1])
+    put(g, geo('stallLeg', ()=> new THREE.CylinderGeometry(0.06,0.06,1.0,6)), wood, sx*1.1, 0.5, sz*0.65);
+  makeCap(g, 2.1, 1.9, pick(CAP_COLOURS), 0xbff0d4);
+  for (let i=0;i<6;i++){
+    put(g, geo('produceCap', ()=> new THREE.SphereGeometry(1, 8, 6, 0, TAU, 0, Math.PI*0.5)),
+        surf('cap'+CAP_COLOURS[i % CAP_COLOURS.length], CAP_COLOURS[i % CAP_COLOURS.length], 0.86),
+        rr(-0.9,0.9), 1.14, rr(-0.5,0.5), 0,0,0, rr(0.14,0.26), rr(0.1,0.18), rr(0.14,0.26));
+  }
+  return g;
+}
+
+/** Little toadstools, moss tufts and glowing shelf fungus for the ground. */
+function makeToadstools(count){
+  const g = new THREE.Group();
+  for (let i=0;i<count;i++){
+    const a = rng()*TAU, rad = rr(0.3, 2.6);
+    const sc = rr(0.2, 0.55);
+    const one = new THREE.Group();
+    one.position.set(Math.cos(a)*rad, 0, Math.sin(a)*rad);
+    one.rotation.y = rng()*TAU;
+    put(one, geo('tinyStalk', ()=> new THREE.CylinderGeometry(0.1, 0.14, 1, 6)),
+        surf('stalk', 0xe8dcc4, 0.9), 0, sc*0.5, 0, 0,0,0, sc, sc, sc);
+    makeCap(one, sc*0.9, sc, pick(CAP_COLOURS), 0x9fe8c0);
+    g.add(one);
+  }
+  return g;
+}
+
+/** Slowly rising spores — the island's snow. */
+function makeSporeField(count, radius, height){
+  const sprites = [];
+  const g = new THREE.Group();
+  for (let i=0;i<count;i++){
+    const s = glowSprite(0xbff0d4, rr(0.5, 1.4), rr(0.25, 0.6));
+    const a = rng()*TAU, rad = rng()*radius;
+    s.position.set(Math.cos(a)*rad, rng()*height, Math.sin(a)*rad);
+    s.userData = { speed: rr(0.25, 0.8), sway: rr(0.3, 1.1), phase: rng()*TAU, top: height };
+    g.add(s); sprites.push(s);
+  }
+  g.userData.update = (t, dt) => {
+    for (const s of sprites){
+      s.position.y += s.userData.speed * dt;
+      s.position.x += Math.sin(t*0.5 + s.userData.phase) * s.userData.sway * dt;
+      if (s.position.y > s.userData.top) s.position.y = 0;
+      s.material.opacity = 0.18 + 0.32 * Math.sin((s.position.y / s.userData.top) * Math.PI);
+    }
+  };
+  return g;
+}
+
+/* ============================================================================
+   5c.  PUMPKIN HOLLOW — the spooky stop
+   Crooked roofs, carved lanterns and a low mist.  Cosy-spooky, not horror:
+   everything still glows the colour of a hearth.
+   ========================================================================== */
+
+/** Ribbed pumpkin body — a lathe with few segments, so the ribs come for free. */
+function pumpkinGeometry(){
+  return geo('pumpkinBody', ()=>{
+    const prof = [
+      [0.02,-0.50],[0.34,-0.47],[0.62,-0.36],[0.82,-0.19],
+      [0.88, 0.00],[0.82, 0.19],[0.62, 0.36],[0.34, 0.47],[0.06, 0.50]
+    ].map(pt => new THREE.Vector2(pt[0], pt[1]));
+    return new THREE.LatheGeometry(prof, 9);      // 9 segments = 9 fat ribs
+  });
+}
+
+/**
+ * A pumpkin.  `carved` adds a face that glows from inside — the eyes and grin
+ * are thin plates pushed just proud of the skin so they read at any distance.
+ */
+function makePumpkin(opts){
+  opts = opts || {};
+  const size = opts.size || rr(0.8, 1.6);
+  const carved = opts.carved !== false;
+  const g = new THREE.Group();
+  const skin = opts.colour || pick([0xe07a2f, 0xd9692a, 0xe8913a, 0xc75f28]);
+  put(g, pumpkinGeometry(), surf('pumpkinSkin'+skin, skin, 0.86), 0, size*0.5, 0, 0, rng()*TAU, 0, size);
+  // stem: a short bent cylinder
+  put(g, geo('pumpkinStem', ()=> new THREE.CylinderGeometry(0.06, 0.11, 0.3, 6)),
+      surf('pumpkinStem', 0x6b7a3f, 0.92), 0, size*0.98, 0, rr(-0.25,0.25), 0, rr(-0.25,0.25),
+      size, size, size);
+  if (carved){
+    const face = glowMat('pumpkinFace', 0xffb03c, 2.6);
+    const front = size*0.45;
+    // two angled eyes and a jagged grin
+    for (const sx of [-1, 1]){
+      put(g, geo('pkEye', ()=> new THREE.ConeGeometry(0.5, 0.62, 3)), face,
+          sx*size*0.2, size*0.62, front, Math.PI/2, 0, sx*0.5, size*0.34, size*0.2, size*0.34);
+    }
+    put(g, BOX(0.62, 0.16, 0.1), face, 0, size*0.33, front, 0, 0, 0, size, size, size);
+    for (const sx of [-1, 0, 1]){
+      put(g, BOX(0.13, 0.2, 0.1), face, sx*size*0.2, size*0.42, front, 0, 0, 0, size, size, size);
+    }
+    const glow = glowSprite(0xff9a3c, size*5.5, 0.55);
+    glow.position.set(0, size*0.5, front*0.7);
+    g.add(glow);
+    g.userData.faceGlow = glow;
+  }
+  g.traverse(o => { if (o.isMesh){ o.castShadow = true; o.receiveShadow = true; } });
+  return g;
+}
+
+/** A house that has settled at an angle and never been straightened. */
+function makeCrookedHouse(opts){
+  opts = opts || {};
+  const w = opts.w || rr(4.0, 6.0);
+  const d = opts.d || rr(3.8, 5.2);
+  const storeys = opts.storeys || ri(1, 3);
+  const h = storeys * rr(2.7, 3.1);
+  const g = new THREE.Group();
+  const lean = rr(-0.055, 0.055);
+
+  const wallCol = pick([0x6b5a63, 0x7a6a5c, 0x5f5464, 0x8a7460, 0x6e5f50]);
+  const roofCol = pick([0x3f2f3d, 0x4a3326, 0x52304a, 0x35303f]);
+  const wallMat = surf('crookedWall'+wallCol, wallCol, 0.95);
+  const roofMat = surf('crookedRoof'+roofCol, roofCol, 0.92);
+  const beamMat = surf('crookedBeam', 0x3a2c28, 0.95);
+
+  const body = new THREE.Group();
+  body.rotation.z = lean;
+  g.add(body);
+  put(body, BOX(w, h, d), wallMat, 0, h/2, 0);
+  // dark timber framing
+  for (const sx of [-1, 1]){
+    put(body, BOX(0.18, h, 0.18), beamMat, sx*(w/2 - 0.1), h/2, d/2 - 0.1);
+    put(body, BOX(0.18, h, 0.18), beamMat, sx*(w/2 - 0.1), h/2, -d/2 + 0.1);
+  }
+  for (let i=1;i<storeys;i++){
+    put(body, BOX(w + 0.16, 0.2, d + 0.16), beamMat, 0, i*(h/storeys), 0);
+  }
+  // a tall, steep, slightly twisted roof
+  const roofH = rr(2.2, 3.4);
+  put(body, geo('spireRoof', ()=> new THREE.ConeGeometry(1, 1, 4)), roofMat,
+      0, h + roofH/2, 0, 0, Math.PI/4 + rr(-0.16, 0.16), rr(-0.07,0.07),
+      Math.max(w, d)*0.62, roofH, Math.max(w, d)*0.62);
+  put(body, geo('roofFinial', ()=> new THREE.SphereGeometry(0.13, 7, 5)),
+      surf('crookedIron', 0x2e2830, 0.6, 0.4), 0, h + roofH + 0.2, 0);
+  // crooked chimney, leaning the other way
+  put(body, BOX(0.62, rr(1.6, 2.6), 0.62), surf('crookedChimney', 0x4a3f42, 0.95),
+      w*0.28, h + 1.2, rr(-d*0.2, d*0.2), 0, 0, -lean*3.2);
+  // windows: warped, warm, a few of them dark
+  const winGlow = glowMat('pkWin', 0xffa93c, 1.7);
+  const frameMat = beamMat;
+  for (let sIdx=0; sIdx<storeys; sIdx++){
+    const y = 1.5 + sIdx*(h/storeys);
+    if (y > h - 0.8) continue;
+    const cols = w > 5 ? 2 : 1;
+    for (let c=0;c<cols;c++){
+      const x = cols === 1 ? rr(-0.4,0.4) : (c ? 1 : -1) * w*0.24;
+      const lit = rng() < 0.7;
+      const tilt = rr(-0.08, 0.08);
+      put(body, BOX(0.78, 1.0, 0.1), frameMat, x, y, d/2 + 0.01, 0, 0, tilt);
+      put(body, BOX(0.62, 0.84, 0.06), lit ? winGlow : surf('pkWinDark', 0x241f2a, 0.5),
+          x, y, d/2 + 0.05, 0, 0, tilt);
+      if (lit){
+        const gl = glowSprite(0xffa93c, 2.8, 0.42);
+        gl.position.set(x, y, d/2 + 0.3);
+        body.add(gl);
+      }
+    }
+  }
+  // door with a lantern hook
+  put(body, BOX(1.0, 2.0, 0.14), surf('pkDoor', 0x3f2f33, 0.85), -w*0.2, 1.0, d/2 + 0.05);
+  put(body, BOX(1.4, 0.14, 0.8), beamMat, -w*0.2, 2.15, d/2 + 0.3, rr(-0.06,0.06), 0, 0);
+  const lantern = makeHangingLantern();
+  lantern.position.set(-w*0.2 + 0.55, 2.05, d/2 + 0.52);
+  body.add(lantern);
+  g.traverse(o => { if (o.isMesh){ o.castShadow = true; o.receiveShadow = true; } });
+  return g;
+}
+
+/** A little carved lantern on a wire, used all over the Hollow. */
+function makeHangingLantern(){
+  const g = new THREE.Group();
+  put(g, geo('lanternWire', ()=> new THREE.CylinderGeometry(0.015, 0.015, 0.4, 5)),
+      surf('crookedIron', 0x2e2830, 0.6, 0.4), 0, 0.2, 0);
+  const pk = makePumpkin({ size: 0.42, carved: true });
+  pk.position.y = -0.42;
+  g.add(pk);
+  const halo = glowSprite(0xff9a3c, 2.6, 0.5);
+  halo.position.y = -0.25;
+  g.add(halo);
+  return g;
+}
+
+/** Bare, twisted tree.  Branches are cylinders fanned out from the trunk. */
+function makeDeadTree(){
+  const g = new THREE.Group();
+  const h = rr(4.5, 8.5);
+  const barkMat = surf('deadBark', 0x3a2f30, 0.96);
+  put(g, geo('deadTrunk', ()=> new THREE.CylinderGeometry(0.16, 0.42, 1, 7)), barkMat,
+      0, h*0.5, 0, rr(-0.05,0.05), 0, rr(-0.05,0.05), 1, h, 1);
+  const branches = ri(4, 7);
+  for (let i=0;i<branches;i++){
+    const a = (i/branches)*TAU + rng()*0.7;
+    const y = h*rr(0.45, 0.95);
+    const len = rr(1.4, 3.2);
+    const tilt = rr(0.5, 1.15);
+    const b = new THREE.Group();
+    b.position.set(0, y, 0);
+    b.rotation.y = a;
+    b.rotation.z = tilt;
+    put(b, geo('deadBranch', ()=> new THREE.CylinderGeometry(0.05, 0.13, 1, 5)), barkMat,
+        0, len/2, 0, 0, 0, 0, 1, len, 1);
+    // a twig or two at the end
+    for (let k=0;k<2;k++){
+      put(b, geo('deadTwig', ()=> new THREE.CylinderGeometry(0.025, 0.05, 1, 4)), barkMat,
+          rr(-0.15,0.15), len*0.9, rr(-0.15,0.15), rr(-0.5,0.5), 0, rr(-0.6,0.6), 1, rr(0.5,1.2), 1);
+    }
+    g.add(b);
+  }
+  if (rng() < 0.45){   // a crow, watching
+    const crow = new THREE.Group();
+    const crowMat = surf('crow', 0x1c1a20, 0.9);
+    put(crow, geo('crowBody', ()=> new THREE.SphereGeometry(0.16, 8, 6)), crowMat, 0, 0, 0, 0,0,0, 1, 0.9, 1.5);
+    put(crow, geo('crowHead', ()=> new THREE.SphereGeometry(0.1, 8, 6)), crowMat, 0, 0.12, 0.2);
+    put(crow, geo('crowBeak', ()=> new THREE.ConeGeometry(0.04, 0.12, 5)), surf('crowBeak', 0xc9a227, 0.7),
+        0, 0.11, 0.33, Math.PI/2, 0, 0);
+    put(crow, geo('crowEye', ()=> new THREE.SphereGeometry(0.03, 6, 5)), glowMat('crowEye', 0xffd06a, 2.0),
+        0.06, 0.16, 0.26);
+    crow.position.set(rr(-1.5,1.5), h*rr(0.7,0.95), rr(-1.5,1.5));
+    crow.rotation.y = rng()*TAU;
+    g.add(crow);
+  }
+  g.traverse(o => { if (o.isMesh){ o.castShadow = true; o.receiveShadow = true; } });
+  return g;
+}
+
+/** Scarecrow with a lantern for a head. */
+function makeScarecrow(){
+  const g = new THREE.Group();
+  const wood = surf('scarePost', 0x4a3a2e, 0.95);
+  put(g, geo('scarePost', ()=> new THREE.CylinderGeometry(0.09, 0.11, 2.6, 6)), wood, 0, 1.3, 0);
+  put(g, BOX(1.8, 0.11, 0.11), wood, 0, 1.95, 0, 0, 0, rr(-0.1,0.1));
+  const coat = surf('scareCoat', pick([0x6b4a3c, 0x4a4f3c, 0x5c4356]), 0.95);
+  put(g, BOX(0.9, 1.1, 0.34), coat, 0, 1.5, 0, 0, 0, rr(-0.06,0.06));
+  for (const sx of [-1,1]){
+    put(g, BOX(0.7, 0.26, 0.26), coat, sx*0.72, 1.92, 0, 0, 0, sx*0.12);
+    for (let i=0;i<3;i++)   // straw poking out of the cuffs
+      put(g, geo('straw2', ()=> new THREE.CylinderGeometry(0.02,0.02,0.3,4)),
+          surf('strawDry', 0xc9a95e, 0.95), sx*1.05, 1.9 + rr(-0.06,0.06), rr(-0.1,0.1),
+          rr(-0.4,0.4), 0, sx*1.2);
+  }
+  const head = makePumpkin({ size: 0.5, carved: true });
+  head.position.set(0, 2.15, 0);
+  head.rotation.y = rr(-0.5, 0.5);
+  g.add(head);
+  return g;
+}
+
+/** A bat, flapping.  Returned with an update() on userData. */
+function makeBat(){
+  const g = new THREE.Group();
+  const batMat = surf('bat', 0x241f2c, 0.92, 0, { side: THREE.DoubleSide });
+  put(g, geo('batBody', ()=> new THREE.SphereGeometry(0.12, 7, 5)), batMat, 0, 0, 0, 0,0,0, 1, 0.9, 1.6);
+  put(g, geo('batEar', ()=> new THREE.ConeGeometry(0.04, 0.1, 4)), batMat, -0.05, 0.1, 0.1);
+  put(g, geo('batEar', ()=> new THREE.ConeGeometry(0.04, 0.1, 4)), batMat,  0.05, 0.1, 0.1);
+  const wings = [];
+  for (const sx of [-1, 1]){
+    const w = new THREE.Group();
+    put(w, geo('batWing', ()=> new THREE.ConeGeometry(0.42, 0.62, 3)), batMat,
+        sx*0.3, 0, 0, Math.PI/2, 0, sx*Math.PI/2, 1, 1, 0.35);
+    g.add(w); wings.push(w);
+  }
+  g.userData.update = (t, phase) => {
+    const flap = Math.sin(t*9 + phase) * 0.7;
+    wings[0].rotation.z = flap;
+    wings[1].rotation.z = -flap;
+  };
+  return g;
+}
+
+/** Low mist that crawls around the ground at the Hollow. */
+function makeGroundMist(count, radius, y){
+  const g = new THREE.Group();
+  const sprites = [];
+  for (let i=0;i<count;i++){
+    const a = rng()*TAU, rad = Math.sqrt(rng())*radius;
+    const s = new THREE.Sprite(new THREE.SpriteMaterial({
+      map: cloudSpriteTexture(), transparent: true, depthWrite: false,
+      color: lin(0x8a7f9c), opacity: rr(0.14, 0.34), fog: true
+    }));
+    const sc = rr(16, 42);
+    s.position.set(Math.cos(a)*rad, y + rr(-0.5, 1.6), Math.sin(a)*rad);
+    s.scale.set(sc, sc*rr(0.18, 0.3), 1);
+    s.userData = { drift: rr(0.05, 0.22), phase: rng()*TAU, x: s.position.x, z: s.position.z };
+    g.add(s); sprites.push(s);
+  }
+  g.userData.update = (t) => {
+    for (const s of sprites){
+      s.position.x = s.userData.x + Math.sin(t*s.userData.drift + s.userData.phase) * 6;
+      s.position.z = s.userData.z + Math.cos(t*s.userData.drift*0.8 + s.userData.phase) * 5;
+    }
+  };
+  return g;
+}
+
+/* ============================================================================
    6.  THE TRACK
    A closed CatmullRom loop through both stations, baked into an arc-length
    table of frames (position / tangent / up / side / curvature / bank).
@@ -1625,7 +2165,9 @@ function trackControlPoints(){
     const y = 38 + 18*Math.sin(a*2 + 0.5) + 9*Math.sin(a*3 + 2.1);
     P.push(V3(x, y, z));
   }
-  // force a straight, level run through each station so the platform fits
+  // Force a straight, level run through each station so the platform fits, then
+  // ease the next few nodes back onto the ellipse.  Without that easing the
+  // straight meets the curve in a kink tight enough to throw passengers about.
   STATIONS.forEach(st => {
     const i = st.node, n = CFG.NODES;
     const prev = P[(i - 1 + n) % n], next = P[(i + 1) % n];
@@ -1635,6 +2177,17 @@ function trackControlPoints(){
       const idx = (i + k + n) % n;
       P[idx] = centre.clone().addScaledVector(dir, k * CFG.NODE_GAP);
       P[idx].y = st.y;
+    }
+    // transition: blend the outer neighbours between the straight and the curve
+    for (let k = CFG.PLATFORM_SPAN + 1; k <= CFG.PLATFORM_SPAN + CFG.EASE_NODES; k++){
+      const w = 1 - (k - CFG.PLATFORM_SPAN) / (CFG.EASE_NODES + 1);
+      for (const sgn of [-1, 1]){
+        const idx = (i + sgn*k + n) % n;
+        const onLine = centre.clone().addScaledVector(dir, sgn * k * CFG.NODE_GAP);
+        P[idx].x = lerp(P[idx].x, onLine.x, w);
+        P[idx].z = lerp(P[idx].z, onLine.z, w);
+        P[idx].y = lerp(P[idx].y, st.y, w * 0.75);
+      }
     }
     st.pos = centre.clone();
     st.dir = dir.clone();
@@ -1693,7 +2246,7 @@ function buildTrackData(){
   }
   for (let i=0;i<=N;i++){
     curv[i] = sm[i];
-    bank[i] = clamp(sm[i] * 165, -0.34, 0.34);       // radians of cant
+    bank[i] = clamp(sm[i] * 150, -0.26, 0.26);       // radians of cant
   }
   // apply the cant to the up/side vectors so everything rides banked
   const q = new THREE.Quaternion();
@@ -2613,13 +3166,191 @@ function makeTram(){
     }
   }
 
+  // 7. brass bell on the front of the roof
+  parts.bell = new THREE.Group();
+  {
+    put(parts.bell, geo('bellMount', ()=> new THREE.CylinderGeometry(0.06, 0.09, 0.22, 8)), brass,
+        0, roofY + 0.1, L/2 - 1.1);
+    put(parts.bell, geo('bellBody', ()=> new THREE.CylinderGeometry(0.1, 0.26, 0.34, 12, 1, true)), brass,
+        0, roofY + 0.36, L/2 - 1.1);
+    put(parts.bell, geo('bellCrown', ()=> new THREE.SphereGeometry(0.1, 8, 6)), brass,
+        0, roofY + 0.54, L/2 - 1.1);
+    put(parts.bell, geo('bellClapper', ()=> new THREE.SphereGeometry(0.05, 6, 5)), ironMat,
+        0, roofY + 0.24, L/2 - 1.1);
+    parts.bell.children.forEach(c => { c.material.side = THREE.DoubleSide; });
+  }
+
+  // 8. velvet benches: plusher cushions and little window curtains
+  parts.benches = new THREE.Group();
+  {
+    const velvet = surf('velvet', 0x8c2f4a, 0.94);
+    const fringe = surf('velvetFringe', PAL.brass, 0.5, 0.6);
+    seats.forEach(st2 => {
+      put(parts.benches, BOX(0.64, 0.13, 0.98), velvet, st2.x + (st2.side > 0 ? 0.05 : -0.05),
+          st2.y + 0.04, st2.z);
+      put(parts.benches, BOX(0.1, 0.44, 0.96), velvet, st2.side*(HW - 0.15), st2.y + 0.28, st2.z);
+    });
+    for (const side of [1,-1]) winCentres.forEach(z => {
+      put(parts.benches, BOX(0.04, 0.26, 1.06), velvet, side*(HW - 0.1), TRAM.WIN_TOP - 0.14, z);
+      put(parts.benches, BOX(0.05, 0.05, 1.1), fringe, side*(HW - 0.1), TRAM.WIN_TOP - 0.28, z);
+    });
+  }
+
+  // 9. sand brakes: two hoppers and pipes down to the railhead
+  parts.sanders = new THREE.Group();
+  {
+    for (const z of [3.1, -3.1]) for (const side of [1,-1]){
+      put(parts.sanders, BOX(0.3, 0.42, 0.44), surf('sandBox', 0x8a6a42, 0.9),
+          side*(HW - 0.55), TRAM.FLOOR - 0.5, z);
+      put(parts.sanders, geo('sandPipe', ()=> new THREE.CylinderGeometry(0.045, 0.045, 0.6, 6)), ironMat,
+          side*(HW - 0.5), TRAM.FLOOR - 0.95, z + 0.4, 0.5, 0, 0);
+    }
+  }
+
+  // 10. storm skirts: panels that close the gap under the body
+  parts.skirts = new THREE.Group();
+  {
+    const skirtMat = surf('skirt', 0x24483a, 0.8);
+    for (const side of [1,-1]){
+      put(parts.skirts, BOX(0.08, 0.66, L - 1.6), skirtMat, side*(HW + 0.04), TRAM.FLOOR - 0.62, 0);
+      put(parts.skirts, BOX(0.1, 0.07, L - 1.7), brass, side*(HW + 0.06), TRAM.FLOOR - 0.32, 0);
+    }
+  }
+
+  // 11. spore lamps brought back from Mycelia
+  parts.sporelamps = new THREE.Group();
+  {
+    const podMat = glowMat('sporePod', 0x9fe8c0, 2.0);
+    for (const side of [1,-1]) for (let i=0;i<4;i++){
+      const z = -3.6 + i*2.4;
+      put(parts.sporelamps, geo('sporeStem', ()=> new THREE.CylinderGeometry(0.03, 0.04, 0.34, 6)),
+          surf('podStem', 0x5f7a63, 0.93), side*(HW - 0.05), roofY + 0.16, z);
+      put(parts.sporelamps, geo('sporeBulb', ()=> new THREE.SphereGeometry(0.16, 10, 8)), podMat,
+          side*(HW - 0.05), roofY + 0.4, z);
+      const gl = glowSprite(0x9fe8c0, 2.6, 0.5);
+      gl.position.set(side*(HW - 0.05), roofY + 0.4, z);
+      parts.sporelamps.add(gl);
+    }
+  }
+
   Object.keys(parts).forEach(k => { parts[k].visible = false; body.add(parts[k]); });
+
+  /* ==========================================================================
+     The trailer car.  It is NOT parented to the motor car — it rides the rails
+     on its own, a few metres back, so it takes the curves properly.
+     ======================================================================== */
+  const trailer = new THREE.Group();
+  const trailerPeople = [];
+  {
+    const TL = 7.6, TW = HW;
+    const tbody = new THREE.Group();
+    trailer.add(tbody);
+    trailer.userData.body = tbody;
+
+    const winZ = [-2.2, -0.7, 0.8, 2.3];
+    const wallShape = () => {
+      const sh = new THREE.Shape();
+      const z0 = -TL/2, z1 = TL/2, y0 = TRAM.FLOOR - 0.02, y1 = TRAM.WALL_TOP - 0.3, r = 0.28;
+      sh.moveTo(z0, y0); sh.lineTo(z1, y0);
+      sh.lineTo(z1, y1 - r); sh.quadraticCurveTo(z1, y1, z1 - r, y1);
+      sh.lineTo(z0 + r, y1); sh.quadraticCurveTo(z0, y1, z0, y1 - r);
+      sh.closePath();
+      const wy = (TRAM.WIN_BOT + TRAM.WIN_TOP)/2 - 0.16, wh = TRAM.WIN_TOP - TRAM.WIN_BOT - 0.1;
+      winZ.forEach(z => sh.holes.push(roundedRectPath(z, wy, 1.0, wh, 0.18)));
+      return sh;
+    };
+    const tWallR = new THREE.ExtrudeGeometry(wallShape(), {
+      depth: 0.11, bevelEnabled: true, bevelThickness: 0.02, bevelSize: 0.02, bevelSegments: 1 });
+    tWallR.rotateY(-Math.PI/2);
+    const tWallL = mirrorXGeometry(tWallR);
+    for (const side of [1,-1]){
+      const w = new THREE.Mesh(side > 0 ? tWallR : tWallL, green);
+      w.position.x = side * TW;
+      w.castShadow = true; w.receiveShadow = true;
+      tbody.add(w);
+    }
+    // ends, roof, stripes
+    for (const sz of [1,-1]){
+      put(tbody, BOX(TW*2, TRAM.WALL_TOP - TRAM.FLOOR - 0.28, 0.12), green,
+          0, (TRAM.FLOOR + TRAM.WALL_TOP)/2 - 0.15, sz*(TL/2 - 0.06));
+      put(tbody, BOX(TW*1.5, 0.66, 0.06), glassMat,
+          0, (TRAM.WIN_BOT + TRAM.WIN_TOP)/2 - 0.16, sz*(TL/2 + 0.01));
+    }
+    const tRoof = new THREE.Mesh(
+      (function(){
+        const sh = new THREE.Shape();
+        const w2 = TW + 0.13, rise = TRAM.ROOF_RISE*0.85, th = 0.12;
+        sh.moveTo(-w2, 0); sh.quadraticCurveTo(0, rise*1.3, w2, 0);
+        sh.lineTo(w2, -th); sh.quadraticCurveTo(0, rise*1.3 - th*1.5, -w2, -th);
+        sh.closePath();
+        const gg = new THREE.ExtrudeGeometry(sh, { depth: TL, bevelEnabled: false, curveSegments: 12 });
+        gg.translate(0, 0, -TL/2);
+        return gg;
+      })(), greenLite);
+    tRoof.position.y = TRAM.WALL_TOP - 0.3;
+    tRoof.castShadow = true;
+    tbody.add(tRoof);
+    for (const side of [1,-1]){
+      put(tbody, BOX(0.05, 0.26, TL - 0.3), cream, side*(TW + 0.03), TRAM.WIN_BOT - 0.36, 0);
+      put(tbody, BOX(0.05, 0.08, TL - 0.35), brass, side*(TW + 0.04), TRAM.WIN_TOP - 0.06, 0);
+    }
+    // chassis, drawbar and lamps
+    put(tbody, BOX(TW*2 + 0.16, 0.24, TL + 0.1), woodMat, 0, TRAM.FLOOR - 0.16, 0);
+    put(tbody, geo('drawbar', ()=> new THREE.CylinderGeometry(0.07, 0.07, 1.5, 6)), ironMat,
+        0, TRAM.FLOOR - 0.3, TL/2 + 0.75, Math.PI/2, 0, 0);
+    put(tbody, geo('tailLamp2', ()=> new THREE.SphereGeometry(0.09, 8, 6)),
+        glowMat('tailGlow', 0xff6a5a, 2.0), 0, TRAM.FLOOR + 0.35, -TL/2 - 0.06);
+    // interior: benches down both sides and a soft lamp
+    put(tbody, BOX(TW*2 - 0.1, 0.06, TL - 0.25), surf('tramFloor', 0x6b4a33, 0.9), 0, TRAM.FLOOR, 0);
+    for (const side of [1,-1]) winZ.forEach(z => {
+      put(tbody, BOX(0.62, 0.1, 0.92), benchMat, side*(TW - 0.42), TRAM.FLOOR + 0.42, z);
+      put(tbody, BOX(0.58, 0.09, 0.88), cushionMat, side*(TW - 0.42), TRAM.FLOOR + 0.48, z);
+      put(tbody, BOX(0.1, 0.46, 0.92), benchMat, side*(TW - 0.12), TRAM.FLOOR + 0.68, z);
+      const person = makeSeatedPerson();
+      person.position.set(side*(TW - 0.46), TRAM.FLOOR + 0.52, z);
+      person.rotation.y = side > 0 ? -Math.PI/2 : Math.PI/2;
+      person.visible = false;
+      tbody.add(person);
+      trailerPeople.push(person);
+    });
+    for (const z of [-1.6, 1.6]){
+      put(tbody, geo('cabinLamp', ()=> new THREE.SphereGeometry(0.12, 10, 8)),
+          glowMat('cabinGlow', 0xffd9a0, 1.8), 0, TRAM.WALL_TOP - 0.5, z);
+      const gl = glowSprite(0xffd9a0, 1.5, 0.4);
+      gl.position.set(0, TRAM.WALL_TOP - 0.5, z);
+      tbody.add(gl);
+    }
+    // bogies
+    const tWheels = [];
+    for (const z of [2.3, -2.3]){
+      const bg = new THREE.Group();
+      bg.position.set(0, 0, z);
+      put(bg, BOX(TW*1.5, 0.26, 1.6), ironMat, 0, 0.7, 0);
+      for (const side of [1,-1]) for (const az of [-0.62, 0.62]){
+        const wheel = new THREE.Group();
+        wheel.position.set(side*(TW - 0.28), 0.44, az);
+        put(wheel, geo('tyre', ()=> new THREE.CylinderGeometry(0.44, 0.44, 0.1, 18)),
+            mat('wheelSteel', { color: 0x9aa0a6, roughness: 0.35, metalness: 0.9 }), 0, 0, 0, 0, 0, Math.PI/2);
+        put(wheel, geo('hub', ()=> new THREE.CylinderGeometry(0.13, 0.13, 0.16, 10)), ironMat, 0, 0, 0, 0, 0, Math.PI/2);
+        for (let k=0;k<3;k++)
+          put(wheel, BOX(0.06, 0.66, 0.06), ironMat, 0, 0, 0).rotation.set(k*Math.PI/3, 0, 0);
+        bg.add(wheel); tWheels.push(wheel);
+      }
+      trailer.add(bg);
+    }
+    trailer.userData.wheels = tWheels;
+    trailer.visible = false;
+  }
+
+
 
   /* ---------- assemble ---------- */
   root.userData = {
-    body, wheels, doors, parts, people, pole, spark, headGlow,
+    body, wheels, doors, parts, people, pole, spark, headGlow, trailer, trailerPeople,
     setPax(n){
       for (let i=0;i<people.length;i++) people[i].visible = i < n;
+      const spill = n - people.length;
+      for (let i=0;i<trailerPeople.length;i++) trailerPeople[i].visible = i < spill;
     },
     setDestination(name){
       const tex = signTexture(name.toUpperCase(), { bg:'#1d3b2d', fg:'#ffe6ab', w:512, h:96, size:0.44 });
@@ -2647,11 +3378,14 @@ function buildStation(scene, track, st){
   g.add(stat);
   const SIDE = 1;                       // platforms sit on the driver's left
   const PLAT_Y = 0.62, PLAT_LEN = 58, PLAT_W = 5.2, PLAT_X = SIDE * (2.3 + PLAT_W/2);
-  const stone   = surf('platStone', 0xc6b291, 0.94);
-  const stoneD  = surf('platStoneD', 0xa8977c, 0.94);
+  const TH      = THEMES[st.theme] || THEMES.coastal;
+  const stone   = surf('platStone'+st.theme, TH.platform, 0.94);
+  const stoneD  = surf('platStoneD'+st.theme, TH.platformEdge, 0.94);
   const woodMat = surf('stationWood', PAL.wood, 0.92);
-  const ironMat = surf('stationIron', 0x39434a, 0.55, 0.45);
-  const roofMat = surf('stationRoof', PAL.roof, 0.9);
+  const ironMat = surf('stationIron'+st.theme, TH.iron, 0.55, 0.45);
+  const roofMat = surf('stationRoof'+st.theme, TH.canopy, 0.9);
+  const trimMat = surf('canopyTrim'+st.theme, TH.trim, 0.9);
+  const lampCol = TH.lamp;
 
   // ---- platform slab, edge stripe, steps ----
   put(stat, BOX(PLAT_W, PLAT_Y, PLAT_LEN), stone, PLAT_X, PLAT_Y/2, 0);
@@ -2667,14 +3401,14 @@ function buildStation(scene, track, st){
   canopy.position.set(PLAT_X - 0.2, 0, 0);
   stat.add(canopy);
   put(canopy, BOX(PLAT_W + 1.2, 0.18, CAN_LEN), roofMat, 0, CAN_Y, 0);
-  put(canopy, BOX(PLAT_W + 1.5, 0.12, 0.3), surf('canopyTrim', 0xe9d6b4, 0.9), 0, CAN_Y - 0.12, CAN_LEN/2);
-  put(canopy, BOX(PLAT_W + 1.5, 0.12, 0.3), surf('canopyTrim', 0xe9d6b4, 0.9), 0, CAN_Y - 0.12, -CAN_LEN/2);
+  put(canopy, BOX(PLAT_W + 1.5, 0.12, 0.3), trimMat, 0, CAN_Y - 0.12, CAN_LEN/2);
+  put(canopy, BOX(PLAT_W + 1.5, 0.12, 0.3), trimMat, 0, CAN_Y - 0.12, -CAN_LEN/2);
   // scalloped valance along the platform edge
   for (let i=0;i<Math.round(CAN_LEN/0.7);i++){
     const z = -CAN_LEN/2 + i*0.7 + 0.35;
     for (const sx of [-1, 1]){
       put(canopy, geo('scallop', ()=> new THREE.CylinderGeometry(0.3, 0.3, 0.06, 8, 1, false, 0, Math.PI)),
-          surf('canopyTrim', 0xe9d6b4, 0.9), sx*(PLAT_W/2 + 0.6), CAN_Y - 0.22, z, Math.PI/2, 0, 0);
+          trimMat, sx*(PLAT_W/2 + 0.6), CAN_Y - 0.22, z, Math.PI/2, 0, 0);
     }
   }
   for (let i=0;i<6;i++){
@@ -2687,15 +3421,15 @@ function buildStation(scene, track, st){
     }
     // hanging lantern between the posts
     put(canopy, geo('stLantern', ()=> new THREE.SphereGeometry(0.19, 10, 8)),
-        glowMat('stLanternGlow', PAL.lampWarm, 2.2), 0, CAN_Y - 0.75, z);
+        glowMat('stLanternGlow'+st.theme, lampCol, 2.2), 0, CAN_Y - 0.75, z);
     put(canopy, geo('stLanternRod', ()=> new THREE.CylinderGeometry(0.02, 0.02, 0.5, 6)), ironMat, 0, CAN_Y - 0.4, z);
-    const gl = glowSprite(PAL.lampWarm, 4.0, 0.45); gl.position.set(0, CAN_Y - 0.75, z); canopy.add(gl);
+    const gl = glowSprite(lampCol, 4.0, 0.45); gl.position.set(0, CAN_Y - 0.75, z); canopy.add(gl);
   }
 
   // ---- name boards (readable from the cab, both directions) ----
-  const nameTex = signTexture(st.name, { bg: '#1f3a4d', fg: '#ffeec2', w: 1024, h: 160, size: 0.42 });
+  const nameTex = signTexture(st.name, { bg: TH.sign, fg: TH.signFg, w: 1024, h: 160, size: 0.42 });
   const nameMat = mat('sign_'+st.short, { map: nameTex, roughness: 0.75, side: THREE.DoubleSide,
-                                          emissive: 0xffe0a0, emissiveIntensity: 0.16 });
+                                          emissive: TH.lamp, emissiveIntensity: 0.16 });
   for (const z of [-13, 13]){
     const board = put(stat, BOX(6.4, 1.0, 0.12), nameMat, PLAT_X - 1.4, 3.05, z);
     board.rotation.y = 0;
@@ -2741,18 +3475,28 @@ function buildStation(scene, track, st){
   for (const z of [-24, -10, 4, 16, 24]){
     const pot = new THREE.Group();
     pot.position.set(PLAT_X + 2.2, PLAT_Y, z);
-    put(pot, geo('planter', ()=> new THREE.CylinderGeometry(0.42, 0.32, 0.55, 8)), surf('terracotta', 0xc27a52, 0.92), 0, 0.28, 0);
-    for (let i=0;i<4;i++)
-      put(pot, geo('leafBlob', ()=> new THREE.IcosahedronGeometry(1, 0)),
-          surf('potLeaf', 0x6f9a55, 0.95), rr(-0.2,0.2), 0.7 + rr(0,0.3), rr(-0.2,0.2), rng()*3, rng()*3, rng()*3, rr(0.25,0.42));
-    for (let i=0;i<3;i++)
-      put(pot, geo('flowerBall', ()=> new THREE.IcosahedronGeometry(0.11, 0)),
-          glowMat('flower'+ri(0,3), pick([0xff7f9e, 0xffb45e, 0xd88ce0]), 0.35),
-          rr(-0.25,0.25), 1.0, rr(-0.25,0.25));
+    put(pot, geo('planter', ()=> new THREE.CylinderGeometry(0.42, 0.32, 0.55, 8)),
+        surf('terracotta', 0xc27a52, 0.92), 0, 0.28, 0);
+    if (st.theme === 'mycelia'){
+      const ts = makeToadstools(4); ts.position.y = 0.55; ts.scale.setScalar(0.8); pot.add(ts);
+    } else if (st.theme === 'pumpkin'){
+      const pk = makePumpkin({ size: 0.55, carved: rng() < 0.6 });
+      pk.position.y = 0.55; pot.add(pk);
+    } else {
+      for (let i=0;i<4;i++)
+        put(pot, geo('leafBlob', ()=> new THREE.IcosahedronGeometry(1, 0)), surf('potLeaf', 0x6f9a55, 0.95),
+            rr(-0.2,0.2), 0.7 + rr(0,0.3), rr(-0.2,0.2), rng()*3, rng()*3, rng()*3, rr(0.25,0.42));
+      for (let i=0;i<3;i++)
+        put(pot, geo('flowerBall', ()=> new THREE.IcosahedronGeometry(0.11, 0)),
+            glowMat('flower'+ri(0,3), pick([0xff7f9e, 0xffb45e, 0xd88ce0]), 0.35),
+            rr(-0.25,0.25), 1.0, rr(-0.25,0.25));
+    }
     stat.add(pot);
   }
   {   // ticket hut at the town end of the platform
-    const hut = makeHouse({ w: 4.4, d: 3.6, storeys: 1, wall: 0xf1e0c0, roof: PAL.roof });
+    const hut = st.theme === 'mycelia' ? makeMushroomHouse({ height: 4.4, capR: 3.6 })
+              : st.theme === 'pumpkin' ? makeCrookedHouse({ w: 4.4, d: 3.6, storeys: 1 })
+              : makeHouse({ w: 4.4, d: 3.6, storeys: 1, wall: 0xf1e0c0, roof: PAL.roof });
     hut.position.set(PLAT_X + 0.4, PLAT_Y, -PLAT_LEN/2 + 5);
     hut.rotation.y = -Math.PI/2;
     stat.add(hut);
@@ -2766,9 +3510,9 @@ function buildStation(scene, track, st){
   for (const z of [-1.6, 1.6]){
     const post = put(markGroup, geo('markPost', ()=> new THREE.CylinderGeometry(0.07, 0.09, 1.3, 6)), ironMat,
                      SIDE*2.15, PLAT_Y + 0.65, z);
-    const bulb = put(markGroup, geo('markBulb', ()=> new THREE.SphereGeometry(0.14, 8, 6)),
-                     glowMat('markBulbGlow', 0xffc76b, 2.0), SIDE*2.15, PLAT_Y + 1.36, z);
-    const gl = glowSprite(0xffc76b, 2.6, 0.6);
+    put(markGroup, geo('markBulb', ()=> new THREE.SphereGeometry(0.14, 8, 6)),
+        glowMat('markBulbGlow'+st.theme, lampCol, 2.0), SIDE*2.15, PLAT_Y + 1.36, z);
+    const gl = glowSprite(lampCol, 2.6, 0.6);
     gl.position.set(SIDE*2.15, PLAT_Y + 1.36, z);
     markGroup.add(gl);
     markLamps.push(gl);
@@ -2814,200 +3558,420 @@ function buildStation(scene, track, st){
 
 /* ============================================================================
    9.  TOWNS
-   Houses are scattered around the plateau, kept clear of the running line.
+   Three very different places, one set of placement rules: nothing may stand
+   on the running line, nothing may overlap, and everything lands on the
+   plateau.  `buildTown` picks the decorator from the station's theme.
    ========================================================================== */
-function buildTown(parent, opts){
-  const R = opts.radius, dir = opts.dir, harbour = opts.harbour, lighthouse = opts.lighthouse;
-  const groundY = opts.groundY;
-  // static scenery goes in here and is merged into a couple of meshes at the end;
-  // anything that moves (people, boats, the lighthouse beam) stays outside it
-  const stat = new THREE.Group();
-  parent.add(stat);
-  const placed = [];
-  const perp = V3(-dir.z, 0, dir.x);                 // across the running line
 
-  /** Distance from the running line (which crosses the island along `dir`). */
+/** Shared siting rules for a town on a circular plateau. */
+function townPlanner(R, dir){
+  const placed = [];
+  const perp = V3(-dir.z, 0, dir.x);               // across the running line
   const lineDist = (x, z) => Math.abs(x*perp.x + z*perp.z);
   const fits = (x, z, clear, corridor) => {
-    if (lineDist(x, z) < (corridor || 13)) return false;
-    if (Math.hypot(x, z) > R*0.84) return false;
+    if (lineDist(x, z) < (corridor === undefined ? 13 : corridor)) return false;
+    if (Math.hypot(x, z) > R*0.86) return false;
     for (const p of placed) if (Math.hypot(p.x - x, p.z - z) < clear + p.r) return false;
     placed.push({ x, z, r: clear });
     return true;
   };
+  /** Try `count` random spots in an annulus, calling `fn(x, z)` for each that fits. */
+  const scatter = (count, minF, maxF, clear, corridor, fn) => {
+    let made = 0, tries = 0;
+    while (made < count && tries < count * 26){
+      tries++;
+      const a = rng()*TAU, rad = rr(R*minF, R*maxF);
+      const x = Math.cos(a)*rad, z = Math.sin(a)*rad;
+      if (!fits(x, z, clear, corridor)) continue;
+      fn(x, z, a, rad);
+      made++;
+    }
+    return made;
+  };
+  /** A clear spot near the middle of the plateau for a square or a landmark. */
+  const clearing = (clear, corridor, radiusF) => {
+    for (let i=0;i<50;i++){
+      const ang = rng()*TAU, rad = R*(radiusF || 0.38);
+      const x = Math.cos(ang)*rad, z = Math.sin(ang)*rad;
+      if (fits(x, z, clear, corridor)) return { x, z };
+    }
+    return null;
+  };
+  return { lineDist, fits, scatter, clearing };
+}
 
-  // --- houses, clustered a little so they form lanes ---
-  let tries = 0, houses = 0;
-  while (houses < opts.houses && tries < 400){
-    tries++;
-    const a = rng()*TAU, rad = rr(R*0.2, R*0.78);
-    const x = Math.cos(a)*rad, z = Math.sin(a)*rad;
-    if (!fits(x, z, 5.6)) continue;
+/** Rocks, bushes and a sea wall — the bits every island gets. */
+function townGroundwork(stat, plan, opts, colours){
+  const { R, groundY } = opts;
+  const rockMat = surf('groundRock'+colours.rock, colours.rock, 0.95);
+  plan.scatter(18, 0.2, 0.95, 2.4, 9, (x, z) => {
+    put(stat, geo('rockIco', ()=> new THREE.IcosahedronGeometry(1, 0)), rockMat,
+        x, groundY + rr(-0.2, 0.2), z, rng()*3, rng()*3, rng()*3,
+        rr(0.5, 2.2), rr(0.4, 1.4), rr(0.5, 2.2));
+  });
+  const bushMat = surf('groundBush'+colours.bush, colours.bush, 0.96);
+  plan.scatter(24, 0.18, 0.96, 1.6, 8, (x, z) => {
+    put(stat, geo('leafBlob', ()=> new THREE.IcosahedronGeometry(1, 0)), bushMat,
+        x, groundY + 0.25, z, rng()*3, rng()*3, rng()*3,
+        rr(0.5, 1.2), rr(0.4, 0.8), rr(0.5, 1.2));
+  });
+  const wallMat = surf('seaWall'+colours.wall, colours.wall, 0.95);
+  for (let i=0;i<34;i++){
+    const a = i/34*TAU;
+    const x = Math.cos(a)*R*0.9, z = Math.sin(a)*R*0.9;
+    if (plan.lineDist(x, z) < 15) continue;
+    put(stat, BOX(R*0.15, 0.7, 0.5), wallMat, x, groundY + 0.25, z, 0, -a + Math.PI/2, 0);
+  }
+}
+
+/** Villagers milling about, in colours that suit the place. */
+function townFolk(parent, plan, opts, coats){
+  const folk = [];
+  plan.scatter(opts.folk, 0.25, 0.8, 1.2, 12, (x, z) => {
+    const v = makeVillager({ child: rng() < 0.25, coat: coats ? pick(coats) : undefined });
+    v.position.set(x, opts.groundY, z);
+    v.rotation.y = rng()*TAU;
+    v.userData.baseY = opts.groundY;
+    parent.add(v);
+    folk.push(v);
+  });
+  return folk;
+}
+
+/* ---------------------------------------------------------------- coastal -- */
+function buildCoastalTown(parent, stat, plan, opts){
+  const { R, groundY } = opts;
+
+  plan.scatter(opts.houses, 0.2, 0.78, 5.6, 13, (x, z) => {
     const h = makeHouse({ storeys: rng() < 0.45 ? 2 : (rng() < 0.75 ? 1 : 3) });
     h.position.set(x, groundY, z);
-    h.rotation.y = Math.atan2(-x, -z) + rr(-0.5, 0.5);   // face roughly inwards
+    h.rotation.y = Math.atan2(-x, -z) + rr(-0.5, 0.5);
     stat.add(h);
-    houses++;
+  });
+
+  // a plaza with a fountain, lamps and market stalls
+  const sq = plan.clearing(8, 16, 0.38);
+  if (sq){
+    const plaza = new THREE.Group();
+    plaza.position.set(sq.x, groundY, sq.z);
+    put(plaza, geo('plazaSlab', ()=> new THREE.CylinderGeometry(7, 7.2, 0.24, 20)),
+        surf('plaza', 0xd9c4a0, 0.95), 0, 0.02, 0);
+    put(plaza, geo('fountainBowl', ()=> new THREE.CylinderGeometry(2.1, 2.3, 0.7, 16)),
+        surf('fountainStone', 0xcfc1ab, 0.9), 0, 0.42, 0);
+    put(plaza, geo('fountainWater', ()=> new THREE.CylinderGeometry(1.85, 1.85, 0.12, 16)),
+        mat('fountainWater', { color: 0x5fc3d4, roughness: 0.12, metalness: 0.1,
+                               emissive: 0x2a7f95, emissiveIntensity: 0.3 }), 0, 0.72, 0);
+    put(plaza, geo('fountainStem', ()=> new THREE.CylinderGeometry(0.22, 0.3, 1.3, 10)),
+        surf('fountainStone', 0xcfc1ab, 0.9), 0, 1.2, 0);
+    put(plaza, geo('fountainTop', ()=> new THREE.SphereGeometry(0.42, 10, 8)),
+        surf('fountainStone', 0xcfc1ab, 0.9), 0, 1.95, 0);
+    const spray = glowSprite(0xbfe8ee, 2.4, 0.3); spray.position.y = 2.2; plaza.add(spray);
+    for (let i=0;i<4;i++){
+      const la = i/4*TAU + 0.4;
+      const lamp = makeStreetLamp(4.2);
+      lamp.position.set(Math.cos(la)*5.6, 0.1, Math.sin(la)*5.6);
+      lamp.rotation.y = la + Math.PI;
+      plaza.add(lamp);
+    }
+    for (let i=0;i<3;i++){
+      const sa = i/3*TAU + 1.1;
+      const stall = new THREE.Group();
+      stall.position.set(Math.cos(sa)*4.6, 0.1, Math.sin(sa)*4.6);
+      stall.rotation.y = -sa;
+      put(stall, BOX(2.2, 0.12, 1.4), surf('stallTop', PAL.wood, 0.92), 0, 1.0, 0);
+      for (const sx of [-1,1]) for (const sz of [-1,1])
+        put(stall, geo('stallLeg', ()=> new THREE.CylinderGeometry(0.06,0.06,1.0,6)),
+            surf('stallTop', PAL.wood, 0.92), sx*1.0, 0.5, sz*0.6);
+      put(stall, prismRoof(2.6, 0.5, 1.8),
+          surf('stallAwn'+ri(0,4), pick([0xe07a5f, 0x88b4a8, 0xe3b04b]), 0.9), 0, 2.0, 0);
+      for (const sx of [-1,1])
+        put(stall, geo('stallLeg', ()=> new THREE.CylinderGeometry(0.06,0.06,1.0,6)),
+            surf('stallTop', PAL.wood, 0.92), sx*1.0, 1.5, 0);
+      for (let k=0;k<5;k++)
+        put(stall, geo('produce', ()=> new THREE.SphereGeometry(0.16, 8, 6)),
+            surf('produce'+ri(0,4), pick([0xe8703a, 0xf3c14b, 0xb5423a, 0x6f9a55]), 0.85),
+            rr(-0.8,0.8), 1.2, rr(-0.4,0.4));
+      plaza.add(stall);
+    }
+    stat.add(plaza);
+    opts.plazaAt = sq;
   }
 
-  // --- a little plaza with a fountain ---
-  {
-    const a = rng()*TAU;
-    let px = 0, pz = 0, ok = false;
-    for (let i=0;i<40 && !ok;i++){
-      const ang = a + i*0.7, rad = R*0.38;
-      px = Math.cos(ang)*rad; pz = Math.sin(ang)*rad;
-      ok = fits(px, pz, 8, 16);
-    }
-    if (ok){
-      const plaza = new THREE.Group();
-      plaza.position.set(px, groundY, pz);
-      put(plaza, geo('plazaSlab', ()=> new THREE.CylinderGeometry(7, 7.2, 0.24, 20)),
-          surf('plaza', 0xd9c4a0, 0.95), 0, 0.02, 0);
-      put(plaza, geo('fountainBowl', ()=> new THREE.CylinderGeometry(2.1, 2.3, 0.7, 16)),
-          surf('fountainStone', 0xcfc1ab, 0.9), 0, 0.42, 0);
-      put(plaza, geo('fountainWater', ()=> new THREE.CylinderGeometry(1.85, 1.85, 0.12, 16)),
-          mat('fountainWater', { color: 0x5fc3d4, roughness: 0.12, metalness: 0.1,
-                                 emissive: 0x2a7f95, emissiveIntensity: 0.3 }), 0, 0.72, 0);
-      put(plaza, geo('fountainStem', ()=> new THREE.CylinderGeometry(0.22, 0.3, 1.3, 10)),
-          surf('fountainStone', 0xcfc1ab, 0.9), 0, 1.2, 0);
-      put(plaza, geo('fountainTop', ()=> new THREE.SphereGeometry(0.42, 10, 8)),
-          surf('fountainStone', 0xcfc1ab, 0.9), 0, 1.95, 0);
-      const spray = glowSprite(0xbfe8ee, 2.4, 0.3); spray.position.y = 2.2; plaza.add(spray);
-      for (let i=0;i<4;i++){
-        const la = i/4*TAU + 0.4;
-        const lamp = makeStreetLamp(4.2);
-        lamp.position.set(Math.cos(la)*5.6, 0.1, Math.sin(la)*5.6);
-        lamp.rotation.y = la + Math.PI;
-        plaza.add(lamp);
-      }
-      // market stalls with striped awnings
-      for (let i=0;i<3;i++){
-        const sa = i/3*TAU + 1.1;
-        const stall = new THREE.Group();
-        stall.position.set(Math.cos(sa)*4.6, 0.1, Math.sin(sa)*4.6);
-        stall.rotation.y = -sa;
-        put(stall, BOX(2.2, 0.12, 1.4), surf('stallTop', PAL.wood, 0.92), 0, 1.0, 0);
-        for (const sx of [-1,1]) for (const sz of [-1,1])
-          put(stall, geo('stallLeg', ()=> new THREE.CylinderGeometry(0.06,0.06,1.0,6)), surf('stallTop', PAL.wood, 0.92),
-              sx*1.0, 0.5, sz*0.6);
-        put(stall, prismRoof(2.6, 0.5, 1.8), surf('stallAwn'+ri(0,4), pick([0xe07a5f, 0x88b4a8, 0xe3b04b]), 0.9),
-            0, 2.0, 0);
-        for (const sx of [-1,1])
-          put(stall, geo('stallLeg', ()=> new THREE.CylinderGeometry(0.06,0.06,1.0,6)), surf('stallTop', PAL.wood, 0.92),
-              sx*1.0, 1.5, 0);
-        for (let k=0;k<5;k++)
-          put(stall, geo('produce', ()=> new THREE.SphereGeometry(0.16, 8, 6)),
-              surf('produce'+ri(0,4), pick([0xe8703a, 0xf3c14b, 0xb5423a, 0x6f9a55]), 0.85),
-              rr(-0.8,0.8), 1.2, rr(-0.4,0.4));
-        plaza.add(stall);
-      }
-      stat.add(plaza);
-      opts.plaza = { x: px, z: pz };
-    }
-  }
-
-  // --- trees, lamps and low garden walls ---
-  for (let i=0;i<opts.trees;i++){
-    const a = rng()*TAU, rad = rr(R*0.15, R*0.95);
-    const x = Math.cos(a)*rad, z = Math.sin(a)*rad;
-    if (!fits(x, z, 2.2, 11)) continue;
+  plan.scatter(opts.trees, 0.15, 0.95, 2.2, 11, (x, z) => {
     const t = makeTree(rng() < 0.34 ? 'cypress' : (rng() < 0.55 ? 'pine' : 'olive'));
     t.position.set(x, groundY - 0.1, z);
     t.rotation.y = rng()*TAU;
     stat.add(t);
-  }
-  for (let i=0;i<opts.lamps;i++){
-    const a = rng()*TAU, rad = rr(R*0.3, R*0.8);
-    const x = Math.cos(a)*rad, z = Math.sin(a)*rad;
-    if (!fits(x, z, 3.0, 14.5)) continue;
+  });
+  plan.scatter(opts.lamps, 0.3, 0.8, 3.0, 14.5, (x, z) => {
     const l = makeStreetLamp(rr(3.8, 4.8));
     l.position.set(x, groundY, z);
     l.rotation.y = rng()*TAU;
     stat.add(l);
-  }
-  // sea wall along the rim
-  const wallMat = surf('seaWall', 0xc9b596, 0.95);
-  for (let i=0;i<34;i++){
-    const a = i/34*TAU;
-    const x = Math.cos(a)*R*0.9, z = Math.sin(a)*R*0.9;
-    if (lineDist(x, z) < 15) continue;
-    put(stat, BOX(R*0.15, 0.7, 0.5), wallMat, x, groundY + 0.25, z, 0, -a + Math.PI/2, 0);
+  });
+
+  // harbour: docks and moored boats
+  for (let k=0;k<2;k++){
+    const a = opts.harbourAngle + k*0.55;
+    const dock = makeDock(15);
+    dock.position.set(Math.cos(a)*R*0.86, groundY - 0.2, Math.sin(a)*R*0.86);
+    dock.rotation.y = -a + Math.PI/2;
+    stat.add(dock);
+    const boat = makeBoat();
+    boat.position.set(Math.cos(a)*R*1.02 + rr(-2,2), groundY - 1.6, Math.sin(a)*R*1.02 + rr(-2,2));
+    boat.rotation.y = rng()*TAU;
+    boat.userData.bob = rng()*TAU;
+    parent.add(boat);
+    parent.userData.boats = parent.userData.boats || [];
+    parent.userData.boats.push(boat);
   }
 
-  // --- harbour: docks, boats, a crane ---
-  if (harbour){
-    for (let k=0;k<2;k++){
-      const a = opts.harbourAngle + k*0.55;
-      const dock = makeDock(15);
-      dock.position.set(Math.cos(a)*R*0.86, groundY - 0.2, Math.sin(a)*R*0.86);
-      dock.rotation.y = -a + Math.PI/2;
-      stat.add(dock);
-      const boat = makeBoat();
-      boat.position.set(Math.cos(a)*R*1.02 + rr(-2,2), groundY - 1.6, Math.sin(a)*R*1.02 + rr(-2,2));
-      boat.rotation.y = rng()*TAU;
-      boat.userData.bob = rng()*TAU;
-      parent.add(boat);
-      parent.userData.boats = parent.userData.boats || [];
-      parent.userData.boats.push(boat);
-    }
-  }
-
-  // --- lighthouse on the seaward point ---
-  if (lighthouse){
+  if (opts.lighthouse){
     const lh = makeLighthouse();
-    const a = opts.lighthouseAngle;
+    const a = opts.lighthouseAngle === undefined ? -1.15 : opts.lighthouseAngle;
     lh.position.set(Math.cos(a)*R*0.82, groundY, Math.sin(a)*R*0.82);
     parent.add(lh);
     parent.userData.lighthouse = lh;
   }
 
-  // --- rocks, bushes and a worn path across the meadow ---
-  const rockMat = surf('groundRock', 0x8c7f88, 0.95);
-  for (let i=0;i<18;i++){
-    const a = rng()*TAU, rad = rr(R*0.2, R*0.95);
-    const x = Math.cos(a)*rad, z = Math.sin(a)*rad;
-    if (lineDist(x, z) < 9) continue;
-    put(stat, geo('rockIco', ()=> new THREE.IcosahedronGeometry(1, 0)), rockMat,
-        x, groundY + rr(-0.2, 0.2), z, rng()*3, rng()*3, rng()*3,
-        rr(0.5, 2.2), rr(0.4, 1.4), rr(0.5, 2.2));
-  }
-  const bushMat = surf('groundBush', 0x55803f, 0.96);
-  for (let i=0;i<26;i++){
-    const a = rng()*TAU, rad = rr(R*0.18, R*0.96);
-    const x = Math.cos(a)*rad, z = Math.sin(a)*rad;
-    if (lineDist(x, z) < 8) continue;
-    put(stat, geo('leafBlob', ()=> new THREE.IcosahedronGeometry(1, 0)), bushMat,
-        x, groundY + 0.25, z, rng()*3, rng()*3, rng()*3, rr(0.5, 1.2), rr(0.4, 0.8), rr(0.5, 1.2));
-  }
-  if (opts.plaza){
-    // a flagstone path from the plaza out towards the platform steps
-    const pathMat = surf('path', 0xc4b193, 0.96);
-    const px = opts.plaza.x, pz = opts.plaza.z;
-    const steps = 16;
-    for (let i=0;i<steps;i++){
-      const k = i/steps;
-      const x = lerp(px, 0, k) + Math.sin(k*4)*1.6;
-      const z = lerp(pz, 0, k) + Math.cos(k*3)*1.6;
-      if (lineDist(x, z) < 7) continue;
-      put(stat, BOX(2.4, 0.1, 2.0), pathMat, x, groundY + 0.06, z, 0, rng()*0.4, 0);
+  townGroundwork(stat, plan, opts, { rock: 0x8c7f88, bush: 0x55803f, wall: 0xc9b596 });
+  parent.userData.folk = townFolk(parent, plan, opts);
+}
+
+/* ---------------------------------------------------------------- mycelia -- */
+function buildMyceliaTown(parent, stat, plan, opts){
+  const { R, groundY } = opts;
+
+  // homes first, so the giants grow in the gaps between them
+  plan.scatter(opts.houses, 0.18, 0.72, 7.0, 14, (x, z) => {
+    const h = makeMushroomHouse({ height: rr(4.5, 8) });
+    h.position.set(x, groundY, z);
+    h.rotation.y = Math.atan2(-x, -z) + rr(-0.6, 0.6);
+    stat.add(h);
+  });
+
+  // the great caps that give the island its name
+  plan.scatter(16, 0.2, 0.95, 5.0, 13, (x, z) => {
+    const m = makeGiantMushroom({ height: rr(6, 15) });
+    m.position.set(x, groundY - 0.2, z);
+    m.rotation.y = rng()*TAU;
+    stat.add(m);
+  });
+
+  // a damp little market under one big cap
+  const sq = plan.clearing(9, 16, 0.36);
+  if (sq){
+    const market = new THREE.Group();
+    market.position.set(sq.x, groundY, sq.z);
+    put(market, geo('mycSlab', ()=> new THREE.CylinderGeometry(7.5, 7.8, 0.22, 18)),
+        surf('mycPlaza', 0x7a8a72, 0.96), 0, 0.02, 0);
+    const centre = makeGiantMushroom({ height: 14, capR: 9, colour: 0x8a5fb0 });
+    market.add(centre);
+    for (let i=0;i<4;i++){
+      const sa = i/4*TAU + 0.6;
+      const stall = makeFungalStall();
+      stall.position.set(Math.cos(sa)*5.2, 0.1, Math.sin(sa)*5.2);
+      stall.rotation.y = -sa;
+      market.add(stall);
     }
+    for (let i=0;i<5;i++){
+      const la = i/5*TAU;
+      const pod = makeGlowPod(rr(3, 4.4));
+      pod.position.set(Math.cos(la)*6.6, 0.1, Math.sin(la)*6.6);
+      pod.rotation.y = la + Math.PI;
+      market.add(pod);
+    }
+    stat.add(market);
+    opts.plazaAt = sq;
   }
 
-  // --- residents ---
-  const folk = [];
-  for (let i=0;i<opts.folk;i++){
-    const a = rng()*TAU, rad = rr(R*0.25, R*0.8);
-    const x = Math.cos(a)*rad, z = Math.sin(a)*rad;
-    if (lineDist(x, z) < 12) continue;
-    const v = makeVillager({ child: rng() < 0.25 });
-    v.position.set(x, groundY, z);
-    v.rotation.y = rng()*TAU;
-    v.userData.baseY = groundY;
-    parent.add(v);
-    folk.push(v);
+  plan.scatter(opts.lamps + 4, 0.28, 0.88, 3.0, 14, (x, z) => {
+    const pod = makeGlowPod(rr(3, 4.6));
+    pod.position.set(x, groundY, z);
+    pod.rotation.y = rng()*TAU;
+    stat.add(pod);
+  });
+  plan.scatter(18, 0.2, 0.96, 2.6, 9, (x, z) => {
+    const t = makeToadstools(ri(3, 7));
+    t.position.set(x, groundY, z);
+    stat.add(t);
+  });
+  // a few ordinary pines, so the scale of the caps reads
+  plan.scatter(8, 0.3, 0.92, 2.2, 11, (x, z) => {
+    const t = makeTree('pine');
+    t.position.set(x, groundY - 0.1, z);
+    stat.add(t);
+  });
+
+  const dock = makeDock(13);
+  const da = opts.harbourAngle === undefined ? 1.4 : opts.harbourAngle;
+  dock.position.set(Math.cos(da)*R*0.86, groundY - 0.2, Math.sin(da)*R*0.86);
+  dock.rotation.y = -da + Math.PI/2;
+  stat.add(dock);
+
+  townGroundwork(stat, plan, opts, { rock: 0x6f7a80, bush: 0x3f7a5c, wall: 0x9aa894 });
+  parent.userData.folk = townFolk(parent, plan, opts,
+    [0x5f8c87, 0x8a5fb0, 0x3f8a7a, 0xb0885f, 0x7a9c5f, 0x9c6fa0]);
+
+  // spore drift over the whole island
+  const spores = makeSporeField(46, R*0.85, 26);
+  spores.position.set(0, groundY, 0);
+  parent.add(spores);
+  parent.userData.ticks = parent.userData.ticks || [];
+  parent.userData.ticks.push(spores.userData.update);
+}
+
+/* ---------------------------------------------------------------- pumpkin -- */
+function buildPumpkinTown(parent, stat, plan, opts){
+  const { R, groundY } = opts;
+
+  plan.scatter(opts.houses, 0.18, 0.76, 6.0, 13, (x, z) => {
+    const h = makeCrookedHouse({ storeys: rng() < 0.5 ? 2 : (rng() < 0.8 ? 1 : 3) });
+    h.position.set(x, groundY, z);
+    h.rotation.y = Math.atan2(-x, -z) + rr(-0.6, 0.6);
+    stat.add(h);
+  });
+
+  // the square: a great lantern on a plinth, ringed with smaller ones
+  const sq = plan.clearing(9, 16, 0.36);
+  if (sq){
+    const square = new THREE.Group();
+    square.position.set(sq.x, groundY, sq.z);
+    put(square, geo('pkSlab', ()=> new THREE.CylinderGeometry(7.5, 7.8, 0.24, 14)),
+        surf('pkPlaza', 0x6e5f52, 0.96), 0, 0.02, 0);
+    put(square, geo('pkPlinth', ()=> new THREE.CylinderGeometry(1.9, 2.3, 1.4, 10)),
+        surf('pkStone', 0x584b52, 0.95), 0, 0.7, 0);
+    const great = makePumpkin({ size: 3.4, carved: true });
+    great.position.y = 1.4;
+    square.add(great);
+    for (let i=0;i<6;i++){
+      const la = i/6*TAU + 0.3;
+      const p = makePumpkin({ size: rr(0.7, 1.1), carved: rng() < 0.7 });
+      p.position.set(Math.cos(la)*5.4, 0.14, Math.sin(la)*5.4);
+      square.add(p);
+    }
+    for (let i=0;i<4;i++){
+      const la = i/4*TAU + 0.9;
+      const pole = makeLanternPole();
+      pole.position.set(Math.cos(la)*6.9, 0.12, Math.sin(la)*6.9);
+      pole.rotation.y = la + Math.PI;
+      square.add(pole);
+    }
+    stat.add(square);
+    opts.plazaAt = sq;
   }
-  parent.userData.folk = folk;
+
+  // the patch: rows of pumpkins on the ground, most of them uncarved
+  const patch = plan.clearing(11, 15, 0.6);
+  if (patch){
+    const rows = new THREE.Group();
+    rows.position.set(patch.x, groundY, patch.z);
+    rows.rotation.y = rng()*TAU;
+    for (let r0=-3; r0<=3; r0++){
+      put(rows, BOX(15, 0.16, 1.1), surf('pkFurrow', 0x4a3c30, 0.97), 0, 0.06, r0*2.1);
+      for (let i=0;i<5;i++){
+        const p = makePumpkin({ size: rr(0.45, 0.95), carved: rng() < 0.18 });
+        p.position.set(rr(-6.5, 6.5), 0.1, r0*2.1 + rr(-0.3, 0.3));
+        rows.add(p);
+        // a curl of vine
+        put(rows, geo('pkVine', ()=> new THREE.CylinderGeometry(0.05, 0.05, 1, 5)),
+            surf('pkVineMat', 0x5f6b3a, 0.95), p.position.x + rr(-0.6,0.6), 0.16,
+            r0*2.1 + rr(-0.5,0.5), 0, rng()*TAU, Math.PI/2, 1, rr(0.8, 2.0), 1);
+      }
+    }
+    stat.add(rows);
+  }
+
+  plan.scatter(18, 0.2, 0.95, 3.4, 11, (x, z) => {
+    const t = makeDeadTree();
+    t.position.set(x, groundY - 0.1, z);
+    t.rotation.y = rng()*TAU;
+    stat.add(t);
+  });
+  plan.scatter(opts.lamps + 3, 0.28, 0.86, 3.0, 14, (x, z) => {
+    const pole = makeLanternPole();
+    pole.position.set(x, groundY, z);
+    pole.rotation.y = rng()*TAU;
+    stat.add(pole);
+  });
+  plan.scatter(3, 0.35, 0.8, 4.0, 14, (x, z) => {
+    const sc = makeScarecrow();
+    sc.position.set(x, groundY, z);
+    sc.rotation.y = rng()*TAU;
+    stat.add(sc);
+  });
+  // old leaning stones, mossy and harmless
+  plan.scatter(9, 0.4, 0.9, 2.0, 12, (x, z) => {
+    put(stat, BOX(0.9, rr(1.1, 1.9), 0.28), surf('pkStone2', 0x6e6470, 0.96),
+        x, groundY + 0.6, z, rr(-0.14,0.14), rng()*TAU, rr(-0.14,0.14));
+  });
+
+  townGroundwork(stat, plan, opts, { rock: 0x6b5f68, bush: 0x54602f, wall: 0x8a7a68 });
+  parent.userData.folk = townFolk(parent, plan, opts,
+    [0x5c4356, 0x6b4a3c, 0x3f4a5c, 0x7a3f42, 0x4a4f3c]);
+
+  // mist along the ground and bats over the rooftops
+  const mist = makeGroundMist(22, R*0.92, groundY + 1.4);
+  parent.add(mist);
+  const bats = [];
+  for (let i=0;i<9;i++){
+    const b = makeBat();
+    b.userData.orbit = { r: rr(18, R*0.7), y: groundY + rr(12, 30), speed: rr(0.16, 0.4),
+                         phase: rng()*TAU, bob: rr(1.2, 3.4) };
+    parent.add(b);
+    bats.push(b);
+  }
+  parent.userData.ticks = parent.userData.ticks || [];
+  parent.userData.ticks.push(mist.userData.update);
+  parent.userData.ticks.push((t, dt) => {
+    for (const b of bats){
+      const o = b.userData.orbit;
+      const a = t*o.speed + o.phase;
+      b.position.set(Math.cos(a)*o.r, o.y + Math.sin(t*1.1 + o.phase)*o.bob, Math.sin(a)*o.r);
+      b.rotation.y = -a + Math.PI/2;
+      b.userData.update(t, o.phase);
+    }
+  });
+}
+
+/** A hooked pole with a carved lantern swinging from it. */
+function makeLanternPole(){
+  const g = new THREE.Group();
+  const h = rr(3.4, 4.6);
+  const ironMat = surf('crookedIron', 0x2e2830, 0.6, 0.4);
+  put(g, geo('pkPole', ()=> new THREE.CylinderGeometry(0.08, 0.13, 1, 6)), ironMat,
+      0, h/2, 0, rr(-0.04,0.04), 0, rr(-0.04,0.04), 1, h, 1);
+  put(g, geo('pkHook', ()=> new THREE.TorusGeometry(0.42, 0.05, 5, 8, Math.PI*0.6)), ironMat,
+      0, h - 0.1, 0.3, 0, 0, -0.5);
+  const lantern = makeHangingLantern();
+  lantern.position.set(0, h - 0.3, 0.72);
+  g.add(lantern);
+  return g;
+}
+
+/** Entry point: builds the right sort of town for the station's theme. */
+function buildTown(parent, opts){
+  const stat = new THREE.Group();          // merged at the end; movers stay outside
+  parent.add(stat);
+  const plan = townPlanner(opts.radius, opts.dir);
+  opts.R = opts.radius;
+  parent.userData.ticks = parent.userData.ticks || [];
+
+  if (opts.theme === 'mycelia')      buildMyceliaTown(parent, stat, plan, opts);
+  else if (opts.theme === 'pumpkin') buildPumpkinTown(parent, stat, plan, opts);
+  else                               buildCoastalTown(parent, stat, plan, opts);
+
+  // a flagstone path from the square out towards the platform
+  if (opts.plazaAt){
+    const pathMat = surf('path', 0xc4b193, 0.96);
+    for (let i=0;i<16;i++){
+      const k = i/16;
+      const x = lerp(opts.plazaAt.x, 0, k) + Math.sin(k*4)*1.6;
+      const z = lerp(opts.plazaAt.z, 0, k) + Math.cos(k*3)*1.6;
+      if (plan.lineDist(x, z) < 7) continue;
+      put(stat, BOX(2.4, 0.1, 2.0), pathMat, x, opts.groundY + 0.06, z, 0, rng()*0.4, 0);
+    }
+  }
   mergeStatic(stat);
   return parent;
 }
@@ -3123,6 +4087,16 @@ const Sound = (function(){
     init,
     get ready(){ return !!ctx; },
     get on(){ return on; },
+    get ctx(){ return ctx; },
+    get master(){ return master; },
+    /** A gain node feeding the same master, for the music sequencer. */
+    musicOut(vol){
+      if (!ctx) return null;
+      const g = ctx.createGain();
+      g.gain.value = vol === undefined ? 0.16 : vol;
+      g.connect(master);
+      return g;
+    },
     toggle(){
       on = !on;
       if (master) master.gain.setTargetAtTime(on ? 0.9 : 0, ctx.currentTime, 0.05);
@@ -3155,8 +4129,247 @@ const Sound = (function(){
     chime(){ [880, 1108, 1320].forEach((f,i)=> setTimeout(()=> ping(f, 0.55, 'triangle', 0.16), i*95)); },
     coin(){ ping(1320, 0.18, 'square', 0.07, 1980); },
     doors(){ ping(420, 0.35, 'sine', 0.1, 620); },
+    thudLow(){ ping(110, 0.34, 'sine', 0.24, 52); },
     whistle(){ ping(700, 0.7, 'triangle', 0.12, 980); }
   };
+})();
+
+/* ============================================================================
+   10b.  MUSIC
+   A tiny step sequencer.  Each region has a theme — a scale, a chord walk and
+   a couple of voices — and the tram crossfades between them as it travels, so
+   the line sounds like wherever it is going.  Nothing is sampled: every note
+   is two or three oscillators and an envelope.
+   ========================================================================== */
+const Music = (function(){
+  let ctx = null, out = null, started = false;
+  let theme = null, themeName = null, bus = null;
+  let nextTime = 0, step = 0;
+  const retiring = [];                       // buses fading out after a change
+
+  const VOL = 0.50;
+  const hz = midi => 440 * Math.pow(2, (midi - 69) / 12);
+  const rnd = (a, b) => a + Math.random() * (b - a);
+  const chance = p => Math.random() < p;
+
+  /* ---- voices ------------------------------------------------------------ */
+
+  /** Music box / celesta: a bright sine with a quick knock and a long tail. */
+  function bell(time, freq, gain, decay){
+    const o = ctx.createOscillator(), o2 = ctx.createOscillator(), g = ctx.createGain();
+    o.type = 'sine';     o.frequency.value = freq;
+    o2.type = 'sine';    o2.frequency.value = freq * 2.01;   // slightly sharp partial
+    const g2 = ctx.createGain(); g2.gain.value = 0.22;
+    g.gain.setValueAtTime(0.0001, time);
+    g.gain.exponentialRampToValueAtTime(gain, time + 0.008);
+    g.gain.exponentialRampToValueAtTime(0.0001, time + (decay || 1.6));
+    o.connect(g); o2.connect(g2); g2.connect(g); g.connect(bus);
+    o.start(time); o2.start(time);
+    o.stop(time + (decay || 1.6) + 0.1); o2.stop(time + (decay || 1.6) + 0.1);
+  }
+
+  /** Soft plucked string: triangle through a closing filter. */
+  function pluck(time, freq, gain, decay){
+    const o = ctx.createOscillator(), f = ctx.createBiquadFilter(), g = ctx.createGain();
+    o.type = 'triangle'; o.frequency.value = freq;
+    f.type = 'lowpass';
+    f.frequency.setValueAtTime(freq * 6, time);
+    f.frequency.exponentialRampToValueAtTime(Math.max(160, freq * 1.2), time + (decay || 1.2));
+    g.gain.setValueAtTime(0.0001, time);
+    g.gain.exponentialRampToValueAtTime(gain, time + 0.02);
+    g.gain.exponentialRampToValueAtTime(0.0001, time + (decay || 1.2));
+    o.connect(f); f.connect(g); g.connect(bus);
+    o.start(time); o.stop(time + (decay || 1.2) + 0.1);
+  }
+
+  /** Breathing pad: two detuned saws, slow in, slow out. */
+  function pad(time, freq, gain, dur, detune){
+    const g = ctx.createGain(), f = ctx.createBiquadFilter();
+    f.type = 'lowpass'; f.frequency.value = freq * 4.5; f.Q.value = 0.6;
+    g.gain.setValueAtTime(0.0001, time);
+    g.gain.exponentialRampToValueAtTime(gain, time + dur * 0.35);
+    g.gain.exponentialRampToValueAtTime(0.0001, time + dur);
+    for (const cents of [-(detune || 6), (detune || 6)]){
+      const o = ctx.createOscillator();
+      o.type = 'sawtooth'; o.frequency.value = freq; o.detune.value = cents;
+      o.connect(f); o.start(time); o.stop(time + dur + 0.1);
+    }
+    f.connect(g); g.connect(bus);
+  }
+
+  /** Low sustained note, optionally with a slow tremolo. */
+  function drone(time, freq, gain, dur, tremolo){
+    const o = ctx.createOscillator(), g = ctx.createGain();
+    o.type = 'sine'; o.frequency.value = freq;
+    g.gain.setValueAtTime(0.0001, time);
+    g.gain.exponentialRampToValueAtTime(gain, time + dur * 0.25);
+    g.gain.exponentialRampToValueAtTime(0.0001, time + dur);
+    if (tremolo){
+      const lfo = ctx.createOscillator(), lg = ctx.createGain();
+      lfo.frequency.value = tremolo; lg.gain.value = gain * 0.45;
+      lfo.connect(lg); lg.connect(g.gain);
+      lfo.start(time); lfo.stop(time + dur + 0.1);
+    }
+    o.connect(g); g.connect(bus);
+    o.start(time); o.stop(time + dur + 0.1);
+  }
+
+  /** A breath of filtered noise — wind through the rafters. */
+  function gust(time, dur, gain, freq){
+    const len = Math.ceil(ctx.sampleRate * dur);
+    const buf = ctx.createBuffer(1, len, ctx.sampleRate);
+    const d = buf.getChannelData(0);
+    for (let i=0;i<len;i++) d[i] = (Math.random()*2 - 1) * 0.6;
+    const src = ctx.createBufferSource(); src.buffer = buf;
+    const f = ctx.createBiquadFilter(); f.type = 'bandpass'; f.Q.value = 3.5;
+    f.frequency.setValueAtTime(freq || 400, time);
+    f.frequency.linearRampToValueAtTime((freq || 400) * 2.2, time + dur * 0.6);
+    f.frequency.linearRampToValueAtTime((freq || 400) * 0.7, time + dur);
+    const g = ctx.createGain();
+    g.gain.setValueAtTime(0.0001, time);
+    g.gain.linearRampToValueAtTime(gain, time + dur * 0.35);
+    g.gain.linearRampToValueAtTime(0.0001, time + dur);
+    src.connect(f); f.connect(g); g.connect(bus);
+    src.start(time); src.stop(time + dur);
+  }
+
+  const note = (root, scale, degree, octave) =>
+    hz(root + scale[((degree % scale.length) + scale.length) % scale.length]
+            + 12 * (octave || 0) + 12 * Math.floor(degree / scale.length));
+
+  /* ---- themes ------------------------------------------------------------ */
+  const THEME_LIB = {
+    /* the harbour: open fifths, a gentle major pentatonic, salt in the air */
+    coastal: {
+      bpm: 68, root: 57, scale: [0, 2, 4, 7, 9],
+      chords: [[0,4,7], [7,11,14], [9,12,16], [5,9,12]],
+      play(i, t){
+        const bar = Math.floor(i / 8), beat = i % 8;
+        const ch = this.chords[bar % this.chords.length];
+        if (beat === 0){
+          ch.forEach((semi, k) => pad(t, hz(this.root + semi), 0.040, 4.2, 5 + k*3));
+          drone(t, hz(this.root - 12 + ch[0]), 0.060, 4.0);
+        }
+        if (beat === 0 || beat === 3 || beat === 6){
+          if (chance(0.85)) bell(t, note(this.root, this.scale, Math.floor(rnd(2, 8)), 1), 0.075, 2.0);
+        }
+        if (beat === 4 && chance(0.4))
+          pluck(t, note(this.root, this.scale, Math.floor(rnd(0, 5))), 0.060, 1.4);
+      }
+    },
+
+    /* under the caps: lydian, damp, everything wobbles a little */
+    mycelia: {
+      bpm: 56, root: 50, scale: [0, 2, 4, 6, 7, 9, 11],
+      chords: [[0,4,7,11], [2,6,9], [-3,0,4], [5,9,12]],
+      play(i, t){
+        const bar = Math.floor(i / 8), beat = i % 8;
+        const ch = this.chords[bar % this.chords.length];
+        if (beat === 0){
+          ch.forEach((semi, k) => pad(t, hz(this.root + semi), 0.034, 5.6, 9 + k*4));
+          drone(t, hz(this.root - 12), 0.065, 5.4, 0.22);        // slow burble
+        }
+        // droplets, rarely on the beat
+        if (chance(0.34)){
+          const oct = chance(0.3) ? 2 : 1;
+          pluck(t + rnd(0, 0.05), note(this.root, this.scale, Math.floor(rnd(0, 7)), oct), 0.068, 2.4);
+        }
+        if (beat === 5 && chance(0.4))
+          bell(t, note(this.root, this.scale, Math.floor(rnd(4, 9)), 2), 0.048, 3.0);
+      }
+    },
+
+    /* the Hollow: harmonic minor on a music box, a tritone, and a cold draught */
+    pumpkin: {
+      bpm: 80, root: 45, scale: [0, 2, 3, 5, 7, 8, 11],
+      chords: [[0,3,7], [8,12,15], [5,8,12], [7,11,14]],
+      play(i, t){
+        const bar = Math.floor(i / 8), beat = i % 8;
+        const ch = this.chords[bar % this.chords.length];
+        if (beat === 0){
+          ch.forEach((semi, k) => pad(t, hz(this.root + semi), 0.030, 3.4, 12 + k*5));
+          drone(t, hz(this.root - 12), 0.072, 3.6, 5.5);         // uneasy tremolo
+        }
+        // a music-box figure that keeps not quite resolving
+        const fig = [0, 4, 2, 6, 3, 5, 1, 4];
+        if (beat % 2 === 0 || chance(0.25)){
+          const deg = fig[(i + bar) % fig.length];
+          bell(t, note(this.root, this.scale, deg, 2), 0.072, 1.3);
+        }
+        if (beat === 6 && chance(0.5))                          // the tritone, quietly
+          bell(t + 0.04, hz(this.root + 6 + 24), 0.044, 1.1);
+        if (beat === 4 && bar % 2 === 1 && chance(0.55))        // something out in the dark
+          bell(t, hz(this.root + 13 + 24), 0.030, 0.9);
+        if (beat === 0 && bar % 4 === 3) gust(t, 3.2, 0.042, 320);
+      }
+    },
+
+    /* the workshop: warm, unhurried, a bit music-hall */
+    workshop: {
+      bpm: 62, root: 53, scale: [0, 2, 4, 5, 7, 9],
+      chords: [[0,4,7], [5,9,12], [-3,0,4], [7,11,14]],
+      play(i, t){
+        const bar = Math.floor(i / 8), beat = i % 8;
+        const ch = this.chords[bar % this.chords.length];
+        if (beat === 0){
+          ch.forEach((semi, k) => pad(t, hz(this.root + semi), 0.038, 4.6, 6 + k*3));
+          drone(t, hz(this.root - 12 + ch[0]), 0.052, 4.4);
+        }
+        if (beat % 2 === 0 && chance(0.7))
+          pluck(t, note(this.root, this.scale, Math.floor(rnd(0, 6)), 1), 0.065, 1.6);
+        if (beat === 7 && chance(0.3))
+          bell(t, note(this.root, this.scale, Math.floor(rnd(3, 7)), 1), 0.055, 2.2);
+      }
+    }
+  };
+
+  /* ---- transport --------------------------------------------------------- */
+  function init(){
+    if (started) return;
+    Sound.init();
+    ctx = Sound.ctx;
+    if (!ctx) return;
+    out = Sound.musicOut(1.0);
+    started = true;
+  }
+
+  /** Crossfade to another region's theme.  Old notes ring out as it fades. */
+  function setMood(name){
+    if (!started || !ctx || name === themeName || !THEME_LIB[name]) return;
+    const now = ctx.currentTime;
+    if (bus){
+      bus.gain.cancelScheduledValues(now);
+      bus.gain.setTargetAtTime(0.0001, now, 0.9);
+      retiring.push({ node: bus, until: now + 6 });
+    }
+    themeName = name;
+    theme = THEME_LIB[name];
+    bus = ctx.createGain();
+    bus.gain.setValueAtTime(0.0001, now);
+    bus.gain.setTargetAtTime(VOL, now, 1.4);
+    bus.connect(out);
+    step = 0;
+    nextTime = now + 0.12;
+  }
+
+  /** Called every frame: schedules a little way ahead of the clock. */
+  function tick(){
+    if (!started || !ctx || !theme || !bus) return;
+    const now = ctx.currentTime;
+    if (nextTime < now) nextTime = now + 0.05;          // we were backgrounded
+    const stepDur = 60 / theme.bpm / 2;                 // eighth notes
+    let guard = 0;
+    while (nextTime < now + 0.3 && guard++ < 32){
+      try { theme.play(step, nextTime); } catch (e) { /* a dropped note is fine */ }
+      nextTime += stepDur;
+      step++;
+    }
+    for (let i=retiring.length-1; i>=0; i--){
+      if (retiring[i].until < now){ retiring[i].node.disconnect(); retiring.splice(i,1); }
+    }
+  }
+
+  return { init, setMood, tick, get mood(){ return themeName; } };
 })();
 
 /* ============================================================================
@@ -3177,6 +4390,7 @@ function bindInput(game){
     if (e.code === 'KeyH') $('help').classList.toggle('show');
     if (e.code === 'Escape') $('help').classList.remove('show');
     if (e.code === 'Space'){ e.preventDefault(); game.tryDepart(); }
+    if (e.code === 'KeyB') game.ringBell();
     if (['KeyW','KeyS','KeyA','KeyD','ArrowUp','ArrowDown','ArrowLeft','ArrowRight','Space'].indexOf(e.code) >= 0)
       e.preventDefault();
   });
@@ -3215,6 +4429,7 @@ function bindInput(game){
 }
 function toggleSound(){
   Sound.init();
+  Music.init();
   const on = Sound.toggle();
   $('btnSound').classList.toggle('off', !on);
   $('btnSound').title = on ? 'Sound on (M)' : 'Sound off (M)';
@@ -3250,7 +4465,8 @@ const HUD = {
   init(){
     ['uiDest','uiCoins','uiStreak','uiFrom','uiTo','uiMid','uiRailFill','uiPip','uiComfort',
      'uiComfortVal','uiCond','uiPax','uiSpeed','uiSpeedFill','uiLeanPip','uiWindPip','subtitle',
-     'toasts','cta','chipCoins','chipStreak','hud','btnWorkshop','btnDepart']
+     'toasts','cta','chipCoins','chipStreak','hud','btnWorkshop','btnDepart',
+     'hazard','hzIco','hzTitle','hzSub','hzFill']
       .forEach(id => this.els[id] = $(id));
     this._subTimer = null;
   },
@@ -3280,7 +4496,26 @@ const HUD = {
     const el = this.els[which];
     el.classList.remove('bump'); void el.offsetWidth; el.classList.add('bump');
   },
-  cta(show){ this.els.cta.classList.toggle('show', !!show); }
+  cta(show){ this.els.cta.classList.toggle('show', !!show); },
+
+  /** The hazard banner: open it, drive its timer, then close it green or red. */
+  hazardShow(icon, title, sub){
+    this.els.hzIco.textContent = icon;
+    this.els.hzTitle.textContent = title;
+    this.els.hzSub.textContent = sub;
+    this.els.hzFill.style.width = '0%';
+    this.els.hazard.className = 'hazard show';
+  },
+  hazardProgress(f, holding){
+    this.els.hzFill.style.width = clamp(f*100, 0, 100) + '%';
+    this.els.hazard.classList.toggle('ok', !!holding);
+  },
+  hazardEnd(passed){
+    this.els.hazard.classList.toggle('fail', !passed);
+    this.els.hazard.classList.toggle('ok', !!passed);
+    setTimeout(()=>{ this.els.hazard.className = 'hazard'; }, passed ? 700 : 900);
+  },
+  hazardHide(){ this.els.hazard.className = 'hazard'; }
 };
 
 /* ============================================================================
@@ -3293,9 +4528,9 @@ function createRide(renderer, shared){
   scene.fog = new THREE.Fog(lin(PAL.fog).getHex(), 420, 3400);
 
   /* ---------- lighting ---------- */
-  const hemi = new THREE.HemisphereLight(0x8d7ec6, 0x3d3a52, 0.38);
+  const hemi = new THREE.HemisphereLight(0x8d7ec6, 0x3d3a52, 0.36);
   scene.add(hemi);
-  const sun = new THREE.DirectionalLight(0xffc79a, 1.22);
+  const sun = new THREE.DirectionalLight(0xffc79a, 1.16);
   sun.position.copy(PAL.lightDir).multiplyScalar(160);
   sun.castShadow = true;
   sun.shadow.mapSize.set(shared.shadowSize, shared.shadowSize);
@@ -3320,13 +4555,17 @@ function createRide(renderer, shared){
   /* ---------- track ---------- */
   const track = buildTrackData();
 
-  /* ---------- the two home islands + their towns ---------- */
+  /* ---------- the four islands and their towns ---------- */
   const islands = [];
   STATIONS.forEach((st, i) => {
-    const R = i === 0 ? 108 : 96;
-    const isl = mergeStatic(makeIsland({ radius: R, depth: R*1.25, seed: 3 + i*9 }));
-    const topLocal = R*0.0551;         // lathe top, after the depth scaling
-    const groundY = st.y - 1.65;                     // plateau sits just under the railhead
+    const TH = THEMES[st.theme] || THEMES.coastal;
+    const R = st.radius || 100;
+    const isl = mergeStatic(makeIsland({
+      radius: R, depth: R*1.25, seed: 3 + i*9,
+      colors: TH.ground, rough: st.theme === 'pumpkin' ? 1.3 : 1
+    }));
+    const topLocal = R*0.0551;                 // lathe top, after the depth scaling
+    const groundY = st.y - 1.65;               // plateau sits just under the railhead
     isl.position.set(st.pos.x, groundY - topLocal, st.pos.z);
     scene.add(isl);
     islands.push({ center: st.pos, radius: R, group: isl, groundY });
@@ -3335,19 +4574,19 @@ function createRide(renderer, shared){
     town.position.set(st.pos.x, groundY, st.pos.z);
     scene.add(town);
     buildTown(town, {
-      radius: R, dir: st.dir, groundY: 0,
-      houses: i === 0 ? 13 : 11, trees: 26, lamps: 9, folk: 9,
-      harbour: true, harbourAngle: i === 0 ? 2.1 : -0.7,
-      lighthouse: st.lighthouse, lighthouseAngle: i === 0 ? -1.15 : 0
+      theme: st.theme, radius: R, dir: st.dir, groundY: 0,
+      houses: st.theme === 'coastal' ? 12 : 10,
+      trees: 26, lamps: 8, folk: 9,
+      harbourAngle: st.harbourAngle,
+      lighthouse: st.lighthouse, lighthouseAngle: -1.15
     });
     st.town = town;
   });
 
-  const clouds = buildCloudDeck(scene, [
-    STATIONS[0].pos, STATIONS[1].pos,
-    track.frameCopy(track.length*0.25).p, track.frameCopy(track.length*0.75).p,
-    track.frameCopy(track.length*0.12).p, track.frameCopy(track.length*0.62).p
-  ]);
+  const clouds = buildCloudDeck(scene, STATIONS.map(st => st.pos).concat([
+    track.frameCopy(track.length*0.12).p, track.frameCopy(track.length*0.37).p,
+    track.frameCopy(track.length*0.62).p, track.frameCopy(track.length*0.87).p
+  ]));
 
   buildTrackFurniture(scene, track, islands);
   STATIONS.forEach(st => buildStation(scene, track, st));
@@ -3355,6 +4594,7 @@ function createRide(renderer, shared){
   /* ---------- the tram ---------- */
   const tram = makeTram();
   scene.add(tram);
+  scene.add(tram.userData.trailer);       // follows the rails independently
   const tramLight = new THREE.PointLight(0xffd9a0, 0.9, 16, 2);
   tramLight.position.set(0, TRAM.WALL_TOP - 0.4, 0);
   tram.userData.body.add(tramLight);
@@ -3378,7 +4618,9 @@ function createRide(renderer, shared){
     doors: 0, doorsWant: 0,
     roll: 0, pitch: 0, bounce: 0, bounceV: 0, sway: 0,
     clackAt: 0, phaseT: 0, legStart: 0, legLength: 1,
-    bonusShown: false
+    bonusShown: false,
+    // incidents
+    legsDone: 0, sickT: 0, sickFlag: false, bellReady: 0, bellRecent: 0, clock: 0
   };
   shared.state = S;
 
@@ -3427,6 +4669,7 @@ function createRide(renderer, shared){
     HUD.els.uiFrom.classList.remove('active');
     HUD.els.uiTo.classList.add('active');
     tram.userData.setDestination(to.name);
+    planHazards();
   }
 
   function arrive(){
@@ -3442,7 +4685,7 @@ function createRide(renderer, shared){
     // --- tips: comfort, a clean stop and the streak all pay ---
     const accuracy = 1 - clamp(off / CFG.STOP_WINDOW, 0, 1);
     const tipMul = 1 + (shared.upgrades.lanterns ? 0.15 : 0) + (shared.upgrades.rack ? 0.10 : 0);
-    const comfortPay = Math.round(75 * (0.45 + 0.55 * (S.comfort/100)) * tipMul);
+    const comfortPay = Math.round(75 * (0.25 + 0.75 * (S.comfort/100)) * tipMul);
     const stopPay    = Math.round(28 * accuracy);
     const streakPay  = S.streak * 6;
     S.coins += comfortPay + stopPay + streakPay;
@@ -3453,6 +4696,13 @@ function createRide(renderer, shared){
       S.streak++;
       setTimeout(()=> HUD.toast('Sweetest ride yet &#8212; streak x' + S.streak), 2150);
     }
+    if (S.sickFlag){
+      S.coins = Math.max(0, S.coins - 25);
+      setTimeout(()=> HUD.toast('\u221225 a passenger got off early', 'bad'), 1800);
+      setTimeout(()=> HUD.say('\u201cI\u2019ll walk from here, thanks.\u201d', 3200), 2600);
+    }
+    S.sickFlag = false; S.sickT = 0;
+    S.legsDone++;
     HUD.bump('chipCoins');
     setLeg(S.atIdx);                       // line up the next leg straight away
   }
@@ -3477,7 +4727,8 @@ function createRide(renderer, shared){
     }
     S.pax -= alight;
 
-    const room = CFG.SEATS - S.pax;
+    const seatCount = CFG.SEATS + (shared.upgrades.trailer ? CFG.TRAILER_SEATS : 0);
+    const room = seatCount - S.pax;
     const boarding = Math.max(1, Math.min(room, st.queue.length, ri(3, 7) + (shared.upgrades.rack ? 1 : 0)));
     for (let i=0;i<boarding;i++){
       const v = st.queue.shift();
@@ -3488,7 +4739,7 @@ function createRide(renderer, shared){
         to: V3(st.platX - 2.1, st.platformY, dz),
         speed: rr(1.0, 1.5), done: () => { v.visible = false; st.group.remove(v); }
       });
-      S.pax = Math.min(CFG.SEATS, S.pax + 1);
+      S.pax = Math.min(seatCount, S.pax + 1);
     }
     // the platform quietly refills for next time
     setTimeout(()=>{
@@ -3507,6 +4758,12 @@ function createRide(renderer, shared){
 
   function depart(){
     if (S.phase !== 'ready' && S.phase !== 'boarding') return;
+    if (walkers.length){          // somebody is still on the step
+      S.comfort = clamp(S.comfort - 10, 0, 100);
+      S.coins = Math.max(0, S.coins - 15);
+      HUD.toast('You caught someone in the doors', 'bad');
+      Sound.thudLow();
+    }
     S.phase = 'running'; S.phaseT = 0;
     S.doorsWant = 0;
     S.comfort = 100; S.smoothRun = 0; S.discomfort = 0;
@@ -3532,6 +4789,206 @@ function createRide(renderer, shared){
     S.smoothRun = 0;
   }
 
+  /* ============================================================================
+     INCIDENTS
+     Two kinds.  Reactive ones fire the moment you drive badly — a stumble, a
+     spilled cup, a case off the rack.  Line hazards are scheduled ahead on the
+     leg and give you a job to hold for a few seconds; hold it and the cabin
+     thanks you in tips, drop it and everyone feels it.
+     ========================================================================== */
+  const hazardProps = new THREE.Group();
+  scene.add(hazardProps);
+
+  const HAZARDS = {
+    spores: {
+      icon: '\u{1F344}', title: 'Spore drift', sub: 'Ease off \u2014 under 35 km/h',
+      dur: 9, reward: 38,
+      ok: () => S.v * 3.6 < 36,
+      prop: (d) => {
+        const g = new THREE.Group();
+        const f = track.frameCopy(d);
+        g.position.copy(f.p);
+        for (let i=0;i<26;i++){
+          const sp = glowSprite(0xbff0d4, rr(2.2, 6.5), rr(0.14, 0.32));
+          sp.position.set(rr(-9, 9), rr(0, 9), rr(-26, 26));
+          g.add(sp);
+        }
+        return g;
+      }
+    },
+    lantern: {
+      icon: '\u{1F383}', title: 'Lantern on the rails', sub: 'Crawl past it \u2014 under 12 km/h',
+      dur: 6, reward: 45,
+      ok: () => S.v * 3.6 < 13,
+      prop: (d) => {
+        const g = new THREE.Group();
+        const f = track.frameCopy(d + 55);
+        g.position.copy(f.p);
+        frameQuaternion(f, g.quaternion);
+        const pk = makePumpkin({ size: 1.15, carved: true });
+        pk.position.set(rr(-0.5, 0.5), 0.1, 0);
+        pk.rotation.z = 0.5;
+        g.add(pk);
+        return g;
+      }
+    },
+    squall: {
+      icon: '\u{1F32C}', title: 'Squall', sub: 'Hold your trim against it',
+      dur: 8, reward: 40,
+      ok: () => Math.abs(S.wind - input.lean * 0.9) < 0.34,
+      onStart(){ S.windTimer = 99; S.windTarget = (rng() < 0.5 ? -1 : 1) * rr(0.8, 1.0); },
+      onEnd(){ S.windTimer = 0; }
+    },
+    sleeper: {
+      icon: '\u{1F4A4}', title: 'Someone has nodded off', sub: 'Keep her sweet and steady',
+      dur: 11, reward: 42,
+      ok: () => S.discomfort < 0.6
+    },
+    climb: {
+      icon: '\u{26F0}', title: 'Long pull ahead', sub: 'Keep her above 30 km/h',
+      dur: 7, reward: 34,
+      ok: () => S.v * 3.6 > 29
+    },
+    roofRider: {
+      icon: '\u{1F47B}', title: 'Something is on the roof',
+      sub: 'Ring the bell (B)',
+      dur: 7, reward: 55,
+      ok: () => S.bellRecent > 0 || S.v * 3.6 < 26,
+      onStart(){
+        HAZARDS.roofRider.sub = shared.upgrades.bell
+          ? 'Ring the bell (B) to shake it off'
+          : 'No bell fitted \u2014 slow to 25 km/h';
+      }
+    }
+  };
+
+  const hz = { kind: null, t: 0, bad: 0, queue: [], prop: null };
+
+  /** Pick this leg's hazards, spaced out and clear of the platform. */
+  function planHazards(){
+    hz.queue.length = 0;
+    if (hz.kind) endHazard(false, true);
+    const themes = [STATIONS[S.fromIdx].theme, STATIONS[S.targetIdx].theme];
+    const kinds = ['squall', 'sleeper', 'climb'];
+    if (themes.indexOf('mycelia') >= 0) kinds.push('spores', 'spores');
+    if (themes.indexOf('pumpkin') >= 0) kinds.push('lantern', 'roofRider');
+    const count = 1 + (S.legsDone >= 2 ? 1 : 0) + (S.legsDone >= 6 && rng() < 0.55 ? 1 : 0);
+    const span = S.legLength;
+    for (let i=0;i<count;i++){
+      const at = span * (0.20 + 0.50 * (count === 1 ? rng() : i/(count-1))) + rr(-18, 18);
+      if (at < 70 || at > span - 170) continue;
+      hz.queue.push({ at, kind: pick(kinds) });
+    }
+    hz.queue.sort((a, b) => a.at - b.at);
+  }
+
+  function startHazard(kind){
+    const def = HAZARDS[kind];
+    hz.kind = kind; hz.t = 0; hz.bad = 0;
+    if (def.onStart) def.onStart();
+    if (def.prop){
+      hz.prop = def.prop(S.dist);
+      hazardProps.add(hz.prop);
+    }
+    HUD.hazardShow(def.icon, def.title, def.sub);
+    Sound.doors();
+  }
+
+  function endHazard(passed, silent){
+    const def = HAZARDS[hz.kind];
+    if (!def) return;
+    if (def.onEnd) def.onEnd();
+    if (hz.prop){ hazardProps.remove(hz.prop); hz.prop = null; }
+    hz.kind = null;
+    if (silent){ HUD.hazardHide(); return; }
+    HUD.hazardEnd(passed);
+    if (passed){
+      const pay = Math.round(def.reward * (1 + S.streak*0.05));
+      S.coins += pay;
+      S.comfort = clamp(S.comfort + 6, 0, 100);
+      HUD.toast('+' + pay + ' ' + def.title.toLowerCase() + ' handled', 'blue');
+      HUD.bump('chipCoins');
+      Sound.coin();
+    } else {
+      S.comfort = clamp(S.comfort - 17, 0, 100);
+      S.coins = Math.max(0, S.coins - 12);
+      HUD.toast(def.title + ' \u2014 the cabin felt that', 'bad');
+      Sound.thudLow();
+      breakStreak(false);
+    }
+  }
+
+  function updateHazards(dt, travelled){
+    if (S.phase !== 'running'){
+      if (hz.kind) endHazard(false, true);
+      return;
+    }
+    if (!hz.kind && hz.queue.length && travelled >= hz.queue[0].at && toStop() > 150){
+      startHazard(hz.queue.shift().kind);
+    }
+    if (!hz.kind) return;
+    const def = HAZARDS[hz.kind];
+    hz.t += dt;
+    const holding = def.ok();
+    if (hz.t > 1.0 && !holding) hz.bad += dt; else hz.bad = Math.max(0, hz.bad - dt*0.6);
+    HUD.hazardProgress(hz.t / def.dur, holding);
+    if (hz.bad > 0.75){ endHazard(false); return; }
+    if (hz.t >= def.dur) endHazard(true);
+  }
+
+  /* ---- reactive incidents ---- */
+  const incidentAt = {};
+  function incident(id, cool, message, comfortCost, tipCost){
+    if ((incidentAt[id] || -99) > S.clock - cool) return;
+    incidentAt[id] = S.clock;
+    S.comfort = clamp(S.comfort - comfortCost, 0, 100);
+    S.coins = Math.max(0, S.coins - tipCost);
+    S.smoothRun = 0;
+    HUD.toast(message, 'bad');
+    Sound.thudLow();
+    // everyone aboard rocks in their seat
+    tram.userData.people.forEach(p => { if (p.visible) p.userData.tip = rr(-0.4, 0.4); });
+  }
+
+  let dtHat = 0;
+  function checkIncidents(jerk, latRaw, dt){
+    dtHat = dt * 0.35;
+    if (S.phase !== 'running' || S.v < 2.5) return;
+    if (Math.abs(latRaw) > CFG.STUMBLE_LAT)
+      incident('stumble', 7, 'Someone lost their footing.', 11, 10);
+    if (jerk > CFG.LURCH_JERK)
+      incident('lurch', 6, 'That lurch went right through the cabin.', 9, 8);
+    if (input.brake > 0.92 && S.v > 12 && !shared.upgrades.sanders)
+      incident('spill', 10, 'Tea all over the seats.', 7, 6);
+    if (shared.upgrades.rack && jerk > CFG.LURCH_JERK * 0.75)
+      incident('luggage', 14, 'A case came off the roof rack.', 5, 14);
+    // a full car means people standing, and standing people fall over sooner
+    const seatCount = CFG.SEATS + (shared.upgrades.trailer ? CFG.TRAILER_SEATS : 0);
+    if (S.pax > seatCount - 3 && Math.abs(latRaw) > CFG.STUMBLE_LAT * 0.72)
+      incident('standee', 9, 'Standing room only \u2014 someone grabbed for the rail.', 8, 7);
+    // a hat, gone, over the sea
+    if (Math.abs(S.wind) > 0.7 && S.v > 18 && rng() < dtHat)
+      incident('hat', 20, 'A hat went straight out of the window.', 4, 9);
+  }
+
+  /** Ring the brass bell: settles the cabin, and shifts whatever is on the roof. */
+  function ringBell(){
+    if (!shared.upgrades.bell){
+      HUD.toast('No bell fitted \u2014 see Oliver', 'bad');
+      return;
+    }
+    if (S.bellReady > S.clock){
+      HUD.toast('The bell needs a moment', 'bad');
+      return;
+    }
+    S.bellReady = S.clock + 18;
+    S.bellRecent = 1.6;
+    S.comfort = clamp(S.comfort + 9, 0, 100);
+    Sound.bell();
+    HUD.say('A bell, a breath, and everyone settles.', 2400);
+    if (hz.kind === 'roofRider') endHazard(true);
+  }
+
   /* ---------- per-frame update ---------- */
   let clackPhase = 0;
 
@@ -3554,7 +5011,7 @@ function createRide(renderer, shared){
       acc += input.power * CFG.POWER_ACCEL;
       acc -= CFG.GRAVITY * f.grade * CFG.GRADE_GAIN;
       if (S.v > 0.04){
-        acc -= input.brake * CFG.BRAKE_ACCEL;
+        acc -= input.brake * CFG.BRAKE_ACCEL * (shared.upgrades.sanders ? 1.25 : 1);
         acc -= CFG.ROLL_DRAG + CFG.AIR_DRAG * S.v * S.v;
       }
       S.v += acc * dt;
@@ -3578,16 +5035,33 @@ function createRide(renderer, shared){
     // four ways to rattle a cabin, kept separate so they can be read on the HUD
     const dJerk  = Math.max(0, jerk - CFG.JERK_TOL) * 0.055;
     const dLat   = Math.max(0, Math.abs(latRaw) - CFG.LAT_TOL) * 0.95;
-    const dWind  = windErr * Math.abs(S.wind) * (shared.upgrades.roof ? 0.72 : 1.05);
+    const dWind  = windErr * Math.abs(S.wind) * 1.05
+                   * (shared.upgrades.roof ? 0.68 : 1) * (shared.upgrades.skirts ? 0.68 : 1);
     const dBrake = (input.brake > 0.85 && S.v > 8) ? (input.brake - 0.85) * 2.4 : 0;
     const dis = dJerk + dLat + dWind + dBrake;
     S.disJerk = dJerk; S.disLat = dLat; S.disWind = dWind; S.disBrake = dBrake;
     S.discomfort = damp(S.discomfort, dis, 9, dt);
+    S.clock += dt;
+    S.bellRecent = Math.max(0, S.bellRecent - dt);
+    checkIncidents(jerk, latRaw, dt);
+
+    // a long spell of misery and somebody gives up on the ride
+    if (S.phase === 'running'){
+      if (S.comfort < CFG.SICK_COMFORT) S.sickT += dt;
+      else S.sickT = Math.max(0, S.sickT - dt*0.6);
+      if (S.sickT > CFG.SICK_SECONDS && !S.sickFlag){
+        S.sickFlag = true;
+        HUD.say('Someone at the back has gone quite green.', 4000);
+        HUD.toast('A passenger wants off at the next stop', 'bad');
+      }
+    }
 
     if (S.phase === 'running'){
       const regen = CFG.COMFORT_REGEN * (shared.upgrades.dampers ? 1.5 : 1)
-                                      * (shared.upgrades.vines ? 1.25 : 1);
-      S.comfort = clamp(S.comfort - S.discomfort*dt*6.0 + (S.discomfort < 0.45 ? regen*dt : 0), 0, 100);
+                                      * (shared.upgrades.vines ? 1.25 : 1)
+                                      * (shared.upgrades.sporelamps ? 1.2 : 1);
+      const drain = 6.0 * (shared.upgrades.benches ? 0.8 : 1);
+      S.comfort = clamp(S.comfort - S.discomfort*dt*drain + (S.discomfort < 0.45 ? regen*dt : 0), 0, 100);
       // streak: reward metres travelled sweetly
       if (S.discomfort < 0.5){
         S.smoothRun += S.v * dt;
@@ -3625,6 +5099,12 @@ function createRide(renderer, shared){
         HUD.cta(true);
       }
     }
+    // the band changes over once the next stop is closer than the last one
+    const moodSt = (S.phase === 'running' && toGo < S.legLength * 0.5)
+                 ? STATIONS[S.targetIdx] : STATIONS[S.fromIdx];
+    Music.setMood((THEMES[moodSt.theme] || THEMES.coastal).music);
+
+    updateHazards(dt, legTravelled());
 
     /* --- doors -------------------------------------------------------------- */
     S.doors = damp(S.doors, S.doorsWant, 3.4, dt);
@@ -3686,9 +5166,40 @@ function createRide(renderer, shared){
     b.rotation.set(S.pitch, S.sway*0.5, S.roll);
     b.position.set(S.sway*0.1, S.bounce, 0);
 
+    // everyone aboard leans with the car, and rocks when something goes wrong
+    const swayAmt = Math.min(1, S.v / 12) * 0.022;
+    tram.userData.people.forEach(p => {
+      if (!p.visible) return;
+      if (p.userData.tip){
+        p.userData.tip *= Math.pow(0.02, dt);
+        if (Math.abs(p.userData.tip) < 0.004) p.userData.tip = 0;
+      }
+      const want = (p.userData.tip || 0) + Math.sin(t*2.1 + p.userData.phase) * swayAmt - S.roll*0.35;
+      p.rotation.z = damp(p.rotation.z, want, 9, dt);
+    });
+
     // wheels
     const spin = (S.v / 0.44) * dt;
     tram.userData.wheels.forEach(w => { w.rotation.x -= spin; });
+
+    // the trailer takes the curve on its own wheelbase, a few metres back
+    const trailer = tram.userData.trailer;
+    if (trailer.visible){
+      const tF = track.frameAt(S.dist - 8.6, tmpF2);
+      const tp1 = v1.copy(tF.p);
+      const tR = track.frameAt(S.dist - 13.2, tmpF2);
+      const tp2 = v2.copy(tR.p);
+      const tM = track.frameAt(S.dist - 10.9, tmpF);
+      tramFwd.subVectors(tp1, tp2).normalize();
+      tramX.crossVectors(tM.u, tramFwd).normalize();
+      tramUp.crossVectors(tramFwd, tramX).normalize();
+      basis.makeBasis(tramX, tramUp, tramFwd);
+      trailer.position.copy(tp1).add(tp2).multiplyScalar(0.5);
+      trailer.quaternion.setFromRotationMatrix(basis);
+      trailer.userData.body.rotation.z = S.roll * 0.85;
+      trailer.userData.body.position.y = S.bounce * 0.9;
+      trailer.userData.wheels.forEach(w => { w.rotation.x -= spin; });
+    }
     // trolley pole trails a little, and sparks now and then
     tram.userData.pole.rotation.z = damp(tram.userData.pole.rotation.z, -S.roll*0.6, 3, dt);
     tram.userData.headGlow.material.opacity = 0.42 + clamp(S.v/CFG.V_MAX, 0, 1) * 0.3;
@@ -3709,9 +5220,14 @@ function createRide(renderer, shared){
     sky.update(t); stars.update(t, renderer.getPixelRatio());
     ocean.update(t); clouds.update(t); far.update(t);
     STATIONS.forEach(s2 => {
-      s2.queue.forEach(v => animateVillager(v, t));
-      s2.idlers.forEach(v => animateVillager(v, t));
-      if (s2.town.userData.folk) s2.town.userData.folk.forEach(v => animateVillager(v, t));
+      // only the island you are near needs its crowd and its weather animating
+      const near = s2.pos.distanceToSquared(tram.position) < 460*460;
+      if (near){
+        s2.queue.forEach(v => animateVillager(v, t));
+        s2.idlers.forEach(v => animateVillager(v, t));
+        if (s2.town.userData.folk) s2.town.userData.folk.forEach(v => animateVillager(v, t));
+        if (s2.town.userData.ticks) s2.town.userData.ticks.forEach(fn => fn(t, dt));
+      }
       if (s2.town.userData.lighthouse) s2.town.userData.lighthouse.userData.beams.rotation.y = t*0.35;
       if (s2.town.userData.boats) s2.town.userData.boats.forEach(bo => {
         bo.position.y = (bo.userData.baseY === undefined ? (bo.userData.baseY = bo.position.y) : bo.userData.baseY)
@@ -3719,9 +5235,9 @@ function createRide(renderer, shared){
         bo.rotation.z = Math.sin(t*0.7 + bo.userData.bob)*0.05;
       });
       // the stop lamps breathe while you are on approach
-      const near = Math.abs(signedTo(s2.dist)) < 140 && S.phase === 'running';
+      const onApproach = Math.abs(signedTo(s2.dist)) < 140 && S.phase === 'running';
       s2.markLamps.forEach(l => {
-        l.material.opacity = near ? 0.45 + 0.35*Math.sin(t*4) : 0.35;
+        l.material.opacity = onApproach ? 0.45 + 0.35*Math.sin(t*4) : 0.35;
       });
     });
 
@@ -3805,7 +5321,7 @@ function createRide(renderer, shared){
     HUD.els.uiSpeedFill.style.width = clamp(kmh / 110 * 100, 0, 100) + '%';
     HUD.set('uiCoins', String(Math.round(S.coins)));
     HUD.set('uiStreak', 'x' + S.streak);
-    HUD.set('uiPax', S.pax + '/' + CFG.SEATS);
+    HUD.set('uiPax', S.pax + '/' + (CFG.SEATS + (shared.upgrades.trailer ? CFG.TRAILER_SEATS : 0)));
     // leg progress: 0 at the last station, 1 at the next
     const prog = clamp(legTravelled() / S.legLength, 0, 1);
     HUD.els.uiRailFill.style.width = (prog*100) + '%';
@@ -3846,7 +5362,7 @@ function createRide(renderer, shared){
   }
 
   return {
-    scene, camera, track, tram, update, start, S, toStop,
+    scene, camera, track, tram, update, start, S, toStop, ringBell,
     cycleCamera(){
       camState.mode = (camState.mode + 1) % 4;
       input.camNudge = 0;
@@ -3855,6 +5371,7 @@ function createRide(renderer, shared){
     tryDepart(){ depart(); },
     setUpgradeVisuals(upg){
       Object.keys(tram.userData.parts).forEach(k => { tram.userData.parts[k].visible = !!upg[k]; });
+      tram.userData.trailer.visible = !!upg.trailer;
     },
     resumeFromWorkshop(){
       S.phase = 'ready'; HUD.cta(true);
@@ -3868,18 +5385,30 @@ function createRide(renderer, shared){
    A top-down-ish isometric home island where the tram gets its new parts.
    ========================================================================== */
 const PARTS = [
-  { key:'vines',    name:'Hearth Leaves',  icon:'\u{1F33F}', cost:170,
-    blurb:'Trailing ivy along the eaves. Passengers settle faster.' },
   { key:'lanterns', name:'Lantern String', icon:'\u{1F3EE}', cost:130,
-    blurb:'Warm lamps for the night run — and warmer tips.' },
-  { key:'rack',     name:'Harbour Rack',   icon:'\u{1F9F3}', cost:150,
-    blurb:'Brass roof rails for baskets, cases and one bedroll.' },
-  { key:'roof',     name:'Verdant Roof',   icon:'\u{1F331}', cost:200,
-    blurb:'A turf garden overhead. Takes the sting out of a crosswind.' },
-  { key:'awning',   name:'Sunset Awning',  icon:'\u{26F1}',  cost:140,
-    blurb:'Striped canvas against the low evening sun. Pure charm.' },
-  { key:'dampers',  name:'Cloud Dampers',  icon:'\u{2699}',  cost:260,
-    blurb:'Coil springs that swallow the rail joints whole.' }
+    blurb:'Warm lamps along the eaves. +15% tips at every arrival.' },
+  { key:'awning',   name:'Sunset Awning',  icon:'\u{26F1}',  cost:145,
+    blurb:'Striped canvas against the low sun. Pure charm.' },
+  { key:'rack',     name:'Harbour Rack',   icon:'\u{1F9F3}', cost:165,
+    blurb:'Roof rails for baskets and cases. +10% tips, one more traveller \u2014 but a hard lurch spills a case.' },
+  { key:'vines',    name:'Hearth Leaves',  icon:'\u{1F33F}', cost:190,
+    blurb:'Trailing ivy along the eaves. Passengers settle 25% faster.' },
+  { key:'roof',     name:'Verdant Roof',   icon:'\u{1F331}', cost:220,
+    blurb:'A turf garden overhead. Takes a third of the sting out of a crosswind.' },
+  { key:'bell',     name:'Brass Bell',     icon:'\u{1F514}', cost:240,
+    blurb:'Ring it with B: the cabin settles, and whatever is riding the roof lets go.' },
+  { key:'benches',  name:'Velvet Benches', icon:'\u{1FA91}', cost:265,
+    blurb:'Deep cushions and little curtains. Comfort drains 20% slower.' },
+  { key:'dampers',  name:'Cloud Dampers',  icon:'\u{2699}',  cost:290,
+    blurb:'Coil springs that swallow the rail joints. Much faster recovery.' },
+  { key:'skirts',   name:'Storm Skirts',   icon:'\u{1F32C}', cost:310,
+    blurb:'Panels that close the gap under the body. Another third off the wind.' },
+  { key:'sanders',  name:'Sand Brakes',    icon:'\u{23F1}',  cost:340,
+    blurb:'Sand on the railhead: 25% more brake, and no more spilled tea.' },
+  { key:'sporelamps', name:'Spore Lamps',  icon:'\u{1F344}', cost:380,
+    blurb:'Living lamps from Mycelia. They glow all night and the cabin loves them.' },
+  { key:'trailer',  name:'Trailer Car',    icon:'\u{1F68B}', cost:560,
+    blurb:'Couple up a second car: eight more seats, eight more sets of legs to keep happy.' }
 ];
 
 function createWorkshop(renderer, shared){
@@ -3916,7 +5445,8 @@ function createWorkshop(renderer, shared){
   land.add(wsStatic);
 
   const R = 56;
-  const island = makeIsland({ radius: R, depth: R*1.5, seed: 77, rough: 1.5 });
+  const island = makeIsland({ radius: R, depth: R*1.5, seed: 77, rough: 1.4,
+                              colors: THEMES.coastal.ground });
   const groundY = 0;
   island.position.y = groundY - R*0.0551;
   wsStatic.add(island);
@@ -4122,12 +5652,13 @@ function createWorkshop(renderer, shared){
   tram.position.set(0, 0.16, 3.2);
   tram.userData.setPax(0);
   land.add(tram);
+  land.add(tram.userData.trailer);
 
   mergeStatic(wsStatic);
 
   /* ---------- camera ---------- */
   const camera = new THREE.PerspectiveCamera(30, 1, 1, 14000);
-  const cam = { angle: Math.PI*0.44, target: Math.PI*0.44, dist: 94, height: 58 };
+  const cam = { angle: Math.PI*0.44, target: Math.PI*0.44, dist: 80, height: 48 };
   function placeCamera(){
     camera.position.set(Math.cos(cam.angle)*cam.dist, LAND_Y + cam.height, Math.sin(cam.angle)*cam.dist);
     camera.lookAt(0, LAND_Y + 4, 0);
@@ -4197,7 +5728,11 @@ function createWorkshop(renderer, shared){
         anim.sparkle.forEach(s => { s.material.opacity = 0; });
       }
       // 3. the new part settles into place
-      if (a > 0.74 && anim.partKey){
+      if (a > 0.74 && anim.partKey === 'trailer'){
+        tram.userData.trailer.visible = true;
+        const k = smoothstep(0.74, 0.99, a);
+        tram.userData.trailer.position.set(0, 0.16, lerp(-34, tram.position.z - 10.9, k));
+      } else if (a > 0.74 && anim.partKey){
         const part = tram.userData.parts[anim.partKey];
         part.visible = true;
         const k = smoothstep(0.74, 0.97, a);
@@ -4214,6 +5749,13 @@ function createWorkshop(renderer, shared){
         anim.partKey = null;
         companion.position.copy(compHome);
       }
+    }
+
+    // keep the trailer coupled up while it sits in the yard
+    const tr = tram.userData.trailer;
+    if (tr.visible){
+      tr.position.set(0, 0.16, tram.position.z - 10.9);
+      tr.quaternion.identity();
     }
 
     /* --- rolling out of the shed --- */
@@ -4241,6 +5783,8 @@ function createWorkshop(renderer, shared){
         const p = tram.userData.parts[k];
         p.visible = !!upg[k]; p.scale.setScalar(1); p.position.y = 0;
       });
+      tram.userData.trailer.visible = !!upg.trailer;
+      tram.userData.setPax(upg.trailer ? 6 : 0);
     }
   };
 }
@@ -4264,7 +5808,8 @@ renderer.shadowMap.type = THREE.PCFSoftShadowMap;
 $('stage').appendChild(renderer.domElement);
 
 const shared = {
-  upgrades: { roof:false, rack:false, lanterns:false, vines:false, awning:false, dampers:false },
+  upgrades: { roof:false, rack:false, lanterns:false, vines:false, awning:false, dampers:false,
+              bell:false, benches:false, skirts:false, sanders:false, sporelamps:false, trailer:false },
   shadowSize: isMobile ? 1024 : 2048,
   state: null
 };
@@ -4289,6 +5834,7 @@ function enterWorkshop(){
   HUD.cta(false);
   fadeTo(()=>{
     mode = 'workshop';
+    Music.setMood('workshop');
     workshop.reset();
     workshop.applyUpgrades(shared.upgrades);
     renderParts();
@@ -4395,7 +5941,8 @@ function build(){
   workshop = createWorkshop(renderer, shared);
   bindInput({
     cycleCamera: () => { if (mode === 'ride') ride.cycleCamera(); else workshop.turn(); },
-    tryDepart:   () => { if (mode === 'ride') ride.tryDepart(); }
+    tryDepart:   () => { if (mode === 'ride') ride.tryDepart(); },
+    ringBell:    () => { if (mode === 'ride') ride.ringBell(); }
   });
 
   $('btnWorkshop').onclick = enterWorkshop;
@@ -4416,7 +5963,8 @@ function build(){
   addEventListener('resize', resize);
 
   // a handle for the console: CLOUDLINE.state.v = 20, CLOUDLINE.renderer.info, ...
-  window.CLOUDLINE = { THREE, renderer, ride, workshop, shared, get state(){ return shared.state; } };
+  window.CLOUDLINE = { THREE, renderer, ride, workshop, shared, stations: STATIONS,
+                       Sound, Music, HUD, get state(){ return shared.state; } };
 }
 
 function resize(){
@@ -4441,6 +5989,7 @@ function frame(){
   const uiDt = Math.min(raw, 0.2);   // scripted animations: keep to wall-clock time
   elapsed += dt;
   updateInstall(uiDt);
+  Music.tick();
   if (mode === 'ride'){
     ride.update(dt, elapsed);
     renderer.render(ride.scene, ride.camera);
@@ -4462,6 +6011,7 @@ requestAnimationFrame(()=>{
 
   $('btnStart').onclick = () => {
     Sound.init();
+    Music.init();
     $('title').classList.remove('show');
     HUD.show(true);
     ride.start();
