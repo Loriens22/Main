@@ -56,7 +56,12 @@ Open the **galactic map** (`M`), pick a star, and warp; the system is generated 
 
 **Mobile controls.** A full touch flight stack: a floating pitch/yaw stick that spawns wherever
 your thumb lands, an absolute throttle slider with a momentary BURN button, roll and RCS pads, and
-a collapsible action rail. Auto-detects touch devices; toggle it any time in Settings.
+a collapsible action rail. Detection is layered: a stored choice wins over everything, then the
+first genuine touch or pen `pointerdown` (which catches touch laptops and tablets that the
+screen-size heuristic misses), then touch capability plus a small viewport at boot, re-evaluated on
+rotate and resize. There is always a visible way out in both directions — a **Touch controls**
+button in the desktop bar, and a **SETUP** entry on the touch rail, since the touch stylesheet
+hides the desktop bar.
 
 ## Engine documentation
 

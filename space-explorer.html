@@ -273,7 +273,9 @@ body.touchui #btnBar,body.touchui #thrWrap,body.touchui #tags,
 body.touchui #orbitPanel,body.touchui #targetPanel{display:none}
 body.touchui #sysPanel{width:150px;transform:scale(.82);transform-origin:top left;
   top:calc(100px + env(safe-area-inset-top,0px));left:6px}
-body.touchui #log{width:min(56vw,300px);bottom:auto;top:calc(150px + env(safe-area-inset-top,0px));
+/* The systems panel is 150px wide and ~131px tall once scaled, anchored at
+   100px — the log has to clear its bottom edge or it prints straight over it. */
+body.touchui #log{width:min(56vw,300px);bottom:auto;top:calc(238px + env(safe-area-inset-top,0px));
   max-height:22vh}
 body.touchui #flightPanel{width:min(96vw,540px);top:calc(8px + env(safe-area-inset-top,0px))}
 body.touchui #warpRow{top:calc(68px + env(safe-area-inset-top,0px))}
@@ -330,7 +332,20 @@ body.touchui #fps{bottom:auto;top:calc(4px + env(safe-area-inset-top,0px));right
 #tMenu{color:var(--cy);border-color:var(--edge)}
 @media (max-height:640px){
   #tRail{gap:4px} #tRail .tBtn{height:34px;font-size:8.5px}
-  #tThr{height:28vh} #tStickZone{height:40vh}
+  #tStickZone{height:40vh}
+  /* Landscape: there is no room below the systems panel, so the log moves
+     beside it instead of under it. */
+  body.touchui #sysPanel{transform:scale(.7)}
+  body.touchui #log{top:calc(104px + env(safe-area-inset-top,0px));left:118px;
+    width:min(42vw,260px);max-height:30vh}
+  /* The rail and the throttle both want the right edge, and 390px of height
+     is not enough to stack them at their portrait sizes. So the rail goes
+     wide-and-short directly under the flight strip, and the throttle and the
+     button pad drop to the bottom edge underneath it. */
+  #tRail{grid-template-columns:50px 50px;width:106px}
+  #tRail.open{grid-template-columns:repeat(4,50px);width:212px}
+  #tThr{height:38vh;bottom:calc(8px + env(safe-area-inset-bottom,0px))}
+  #tPad{bottom:calc(8px + env(safe-area-inset-bottom,0px))}
 }
 
 </style>
@@ -429,6 +444,7 @@ body.touchui #fps{bottom:auto;top:calc(4px + env(safe-area-inset-top,0px));right
     <button class="btn small" id="btnTarget">◎ Select Target</button>
     <button class="btn small" id="btnHelp">? Controls</button>
     <button class="btn small" id="btnDocs">⌗ Engine Docs</button>
+    <button class="btn small" id="btnTouch">☰ Touch controls</button>
     <button class="btn small" id="btnCfg">⚙ Settings</button>
   </div>
 </div>
@@ -637,6 +653,8 @@ body.touchui #fps{bottom:auto;top:calc(4px + env(safe-area-inset-top,0px));right
     <div class="tBtn xtra" id="tEva"><i>♁</i>EVA</div>
     <div class="tBtn xtra" id="tWarpDn"><i>«</i>SLOW</div>
     <div class="tBtn xtra" id="tWarpUp"><i>»</i>WARP</div>
+    <div class="tBtn xtra" id="tHelp"><i>?</i>KEYS</div>
+    <div class="tBtn xtra" id="tCfg"><i>⚙</i>SETUP</div>
     <div id="tWarpVal" class="xtra">×1</div>
     <div class="tBtn" id="tMenu"><i>⋯</i>MORE</div>
   </div>
@@ -2554,6 +2572,25 @@ shipping: a vertically-centred action rail lands exactly on top of a bottom-anch
 column on a tall phone, and the navball's WebGL viewport is positioned from the <i>bottom</i> of the
 framebuffer while its DOM ring is positioned from the top — they drift apart the moment the layout
 changes. Drive both from one computed rectangle.</p>
+
+<h3>16.4 Deciding <i>when</i> to show them</h3>
+<p>Detection is the part that actually loses players. A screen-size test alone
+(<code>min(innerWidth, innerHeight) &lt; 1100</code>) is wrong in both directions: it hides the touch
+UI on a touch laptop or a large tablet, and it can show it on a small desktop window. A
+<code>hasTouch</code> test alone is wrong too — most laptops now report a touch point. So this build
+uses four signals, in priority order:</p>
+<table>
+<tr><th>Signal</th><th>Beats</th></tr>
+<tr><td>A stored choice (<code>localStorage["odyssey.touch"]</code>)</td><td>Everything. Guessing wrong twice in a row is worse than never guessing.</td></tr>
+<tr><td>The first genuine <code>pointerdown</code> with <code>pointerType</code> of touch or pen</td><td>The size heuristic. A finger is the only signal that cannot be faked by a viewport.</td></tr>
+<tr><td>Touch capability <i>and</i> a small viewport</td><td>Nothing — it is the boot-time guess.</td></tr>
+<tr><td><code>resize</code> / <code>orientationchange</code> re-evaluation</td><td>The boot-time guess, but only while the player has not chosen.</td></tr>
+</table>
+<p>And whatever the detection decides, there is always a visible way out in both directions: a
+toggle in the desktop button bar, and a <b>SETUP</b> entry on the touch rail itself. The touch
+stylesheet hides the desktop bar, so without that rail entry, a player who landed in touch mode by
+mistake would have no route back — the failure mode is not "the wrong UI", it is "no way to change
+the wrong UI".</p>
 </section>
 
 <section data-s="proto">
@@ -8208,7 +8245,7 @@ function randomSystem(g) {
    one owns its pointerId so two thumbs never fight over one gesture.
    ===================================================================== */
 const TOUCH = {
-  enabled: false,
+  enabled: false, userSet: false,
   stick: { id: -1, ox: 0, oy: 0, x: 0, y: 0, active: false },
   look:  { id: -1, lx: 0, ly: 0, dx: 0, dy: 0, active: false },
   thr:   { id: -1, val: 0, top: 0, h: 1, active: false },
@@ -8221,11 +8258,42 @@ function isTouchDevice() {
   return (('ontouchstart' in window) || (navigator.maxTouchPoints || 0) > 0) &&
          Math.min(window.innerWidth, window.innerHeight) < 1100;
 }
-function setTouchUI(on) {
+/* A manual choice always wins over auto-detection, and sticks across
+   reloads — guessing wrong twice in a row is worse than not guessing. */
+function setTouchUI(on, manual) {
   TOUCH.enabled = on;
+  if (manual) {
+    TOUCH.userSet = true;
+    try { localStorage.setItem('odyssey.touch', on ? '1' : '0'); } catch (e) { /* private mode */ }
+  }
   document.body.classList.toggle('touchui', on);
   $('cfgTouch').checked = on;
+  const b = $('btnTouch');
+  if (b) { b.classList.toggle('warn', on); b.textContent = on ? '⌨ Desktop controls' : '☰ Touch controls'; }
   layoutNavball();
+}
+function autoTouchUI() {
+  if (TOUCH.userSet) return;                       // never fight the player
+  setTouchUI(isTouchDevice());
+}
+/* The most reliable signal there is: an actual finger. Screen-size
+   heuristics miss touch laptops, large tablets and desktop-mode browsers,
+   so the first real touch switches the UI over regardless of what the
+   heuristic decided at boot. */
+function armFirstTouch() {
+  const on = e => {
+    if (TOUCH.userSet || TOUCH.enabled) { cleanup(); return; }
+    if (e.pointerType && e.pointerType !== 'touch' && e.pointerType !== 'pen') return;
+    setTouchUI(true);
+    say('Touch controls enabled — turn them off in Settings', 'good');
+    cleanup();
+  };
+  const cleanup = () => {
+    window.removeEventListener('touchstart', on, true);
+    window.removeEventListener('pointerdown', on, true);
+  };
+  window.addEventListener('touchstart', on, true);
+  window.addEventListener('pointerdown', on, true);
 }
 
 /* ------------------------------------------------------- virtual stick */
@@ -8353,8 +8421,18 @@ function initTouchControls() {
   bindTap('tEva', evaToggle);
   bindTap('tWarpUp', () => setWarp(ship.warpIdx + 1));
   bindTap('tWarpDn', () => setWarp(ship.warpIdx - 1));
+  /* the desktop button bar is hidden under the touch UI, so Settings and
+     the manual have to be reachable from the rail or they are unreachable */
+  bindTap('tCfg', () => openModal('cfgModal'));
+  bindTap('tHelp', () => openModal('helpModal'));
   bindTap('tMenu', () => $('tRail').classList.toggle('open'));
-  setTouchUI(isTouchDevice());
+  let pref = null;
+  try { pref = localStorage.getItem('odyssey.touch'); } catch (e) { /* private mode */ }
+  if (pref === '1' || pref === '0') { TOUCH.userSet = true; setTouchUI(pref === '1'); }
+  else { setTouchUI(isTouchDevice()); armFirstTouch(); }
+  /* re-evaluate on rotation / window resize, unless the player chose */
+  window.addEventListener('resize', autoTouchUI);
+  window.addEventListener('orientationchange', autoTouchUI);
 }
 
 /* Feed the touch state into the same control channel the keyboard uses.
@@ -8530,7 +8608,8 @@ function updateMapMarkers() {
 }
 
 /* settings + keys */
-$('cfgTouch').addEventListener('change', e => setTouchUI(e.target.checked));
+$('cfgTouch').addEventListener('change', e => setTouchUI(e.target.checked, true));
+$('btnTouch').addEventListener('click', () => setTouchUI(!TOUCH.enabled, true));
 
 /* =====================================================================
    SHIP VISUAL STATE
