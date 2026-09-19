@@ -44,6 +44,7 @@ canvas#gl{position:fixed;inset:0;width:100%;height:100%;display:block;z-index:0}
 #hud{position:fixed;inset:0;z-index:20;pointer-events:none;opacity:0;transition:opacity .8s ease}
 #hud.on{opacity:1}
 #hud.hidden{opacity:0}
+#hud.mapped{opacity:0;pointer-events:none}
 .panel{background:var(--panel);border:1px solid var(--edge-s);backdrop-filter:blur(7px);-webkit-backdrop-filter:blur(7px);padding:9px 11px}
 .panel h4{font-size:9px;letter-spacing:.24em;color:var(--cy);font-weight:400;margin-bottom:7px;text-transform:uppercase;opacity:.85}
 .row{display:flex;justify-content:space-between;gap:14px;line-height:1.65;font-size:11.5px;white-space:nowrap}
@@ -219,6 +220,119 @@ label.fld .rv{min-width:52px;text-align:right;color:var(--cy);font-variant-numer
   #tags{margin-left:110px;width:74px}
   #thrWrap{margin-left:-112px}
 }
+/* ======================================================= GALAXY MAP === */
+#mapOverlay{position:fixed;inset:0;z-index:40;display:none;pointer-events:none}
+#mapOverlay.on{display:block}
+#mapCanvasCatcher{position:absolute;inset:0;pointer-events:auto;touch-action:none;cursor:grab}
+#mapCanvasCatcher:active{cursor:grabbing}
+#mapTop{position:absolute;left:0;right:0;top:0;display:flex;align-items:center;gap:10px;
+  padding:10px 14px;padding-top:calc(10px + env(safe-area-inset-top,0px));
+  background:linear-gradient(180deg,rgba(2,6,12,.92),rgba(2,6,12,0));pointer-events:auto;flex-wrap:wrap}
+#mapTitle{font-size:11px;letter-spacing:.3em;color:var(--cy);text-transform:uppercase}
+#mapGalaxy{font-size:12px;color:var(--ink);letter-spacing:.1em}
+#mapTop .spacer{flex:1}
+#mapPanel{position:absolute;right:14px;top:64px;width:308px;max-height:calc(100% - 150px);overflow:auto;
+  background:var(--panel-solid);border:1px solid var(--edge);padding:13px 15px;pointer-events:auto}
+.mapName{font-size:17px;color:#fff;letter-spacing:.06em;font-weight:300}
+.mapTagV{font-size:9px;letter-spacing:.2em;color:var(--gr);border:1px solid rgba(93,255,160,.4);padding:1px 5px;vertical-align:middle}
+.mapRegion{font-size:11px;color:var(--am);letter-spacing:.12em;margin-bottom:10px}
+.mapRows{border-top:1px solid var(--edge-s);padding-top:8px}
+.mapRow{display:flex;justify-content:space-between;gap:10px;font-size:11.5px;line-height:1.85}
+.mapRow span{color:var(--dim);letter-spacing:.08em}
+.mapRow b{color:var(--ink);font-weight:400;font-variant-numeric:tabular-nums}
+.mapHint{font-size:11.5px;color:var(--dim);line-height:1.8}
+#mapGlyphs{font-size:21px;letter-spacing:.14em;color:var(--vi);margin:12px 0 2px;word-break:break-all;
+  text-shadow:0 0 14px rgba(185,140,255,.5)}
+#mapHex{font-size:10px;letter-spacing:.22em;color:var(--dim)}
+#mapJump{width:100%;margin-top:12px}
+#mapAddrRow{display:flex;gap:6px;margin-top:10px}
+#mapAddr{flex:1;min-width:0;background:rgba(0,0,0,.45);border:1px solid var(--edge-s);color:var(--ink);
+  font-family:var(--mono);font-size:11px;padding:7px 9px;letter-spacing:.1em}
+#mapAddr:focus{outline:none;border-color:var(--cy)}
+#mapBottom{position:absolute;left:14px;bottom:14px;bottom:calc(14px + env(safe-area-inset-bottom,0px));
+  display:flex;gap:6px;pointer-events:auto;flex-wrap:wrap;max-width:calc(100% - 28px)}
+#mapScale{position:absolute;left:14px;top:64px;font-size:10px;color:var(--dim);letter-spacing:.12em;
+  pointer-events:none;line-height:1.9}
+#mapScale b{color:var(--cy);font-weight:400}
+.mapMk{position:absolute;width:30px;height:30px;margin:-15px 0 0 -15px;pointer-events:none;
+  border:1px solid currentColor;border-radius:50%;box-shadow:0 0 14px currentColor}
+.mapMk:after{content:attr(data-l);position:absolute;left:36px;top:50%;transform:translateY(-50%);
+  font-size:10px;letter-spacing:.14em;white-space:nowrap;text-shadow:0 0 8px #000}
+#mkHere{color:var(--cy)} #mkSel{color:var(--vi)}
+@media (max-width:820px){
+  #mapPanel{right:8px;left:8px;width:auto;top:auto;bottom:calc(58px + env(safe-area-inset-bottom,0px));
+    max-height:46%}
+  #mapScale{display:none}
+  #mapBottom{left:8px;right:8px;bottom:calc(10px + env(safe-area-inset-bottom,0px))}
+}
+
+/* ==================================================== TOUCH CONTROLS === */
+#touchUI{display:none}
+body.touchui #touchUI{display:block}
+body.touchui #btnBar,body.touchui #thrWrap,body.touchui #tags,
+body.touchui #orbitPanel,body.touchui #targetPanel{display:none}
+body.touchui #sysPanel{width:150px;transform:scale(.82);transform-origin:top left;
+  top:calc(100px + env(safe-area-inset-top,0px));left:6px}
+body.touchui #log{width:min(56vw,300px);bottom:auto;top:calc(150px + env(safe-area-inset-top,0px));
+  max-height:22vh}
+body.touchui #flightPanel{width:min(96vw,540px);top:calc(8px + env(safe-area-inset-top,0px))}
+body.touchui #warpRow{top:calc(68px + env(safe-area-inset-top,0px))}
+body.touchui #fps{bottom:auto;top:calc(4px + env(safe-area-inset-top,0px));right:6px}
+
+#tLookZone{position:fixed;inset:0;z-index:24;touch-action:none}
+#tStickZone{position:fixed;left:0;bottom:0;width:46vw;max-width:300px;height:38vh;max-height:280px;
+  z-index:27;touch-action:none}
+#tStickBase{position:absolute;width:116px;height:116px;margin:-58px 0 0 -58px;border-radius:50%;
+  border:1px solid var(--edge);background:radial-gradient(circle,rgba(73,224,255,.07),rgba(3,8,14,.28));
+  opacity:0;transition:opacity .16s;pointer-events:none}
+#tStickBase.on{opacity:1}
+#tStickKnob{position:absolute;left:50%;top:50%;width:52px;height:52px;margin:0;transform:translate(-50%,-50%);
+  border-radius:50%;background:radial-gradient(circle,rgba(73,224,255,.5),rgba(73,224,255,.14));
+  border:1px solid var(--cy);box-shadow:0 0 20px rgba(73,224,255,.4)}
+#tStickHint{position:absolute;left:22px;bottom:calc(18px + env(safe-area-inset-bottom,0px));
+  font-size:9px;letter-spacing:.22em;color:#3c5568;pointer-events:none}
+
+#tThr{position:fixed;right:calc(8px + env(safe-area-inset-right,0px));bottom:calc(84px + env(safe-area-inset-bottom,0px));
+  width:56px;height:min(34vh,240px);z-index:27;display:flex;flex-direction:column;align-items:center;gap:5px}
+#tThrTrack{flex:1;width:100%;position:relative;border:1px solid var(--edge);background:rgba(3,10,18,.6);
+  overflow:hidden;touch-action:none;border-radius:3px}
+#tThrFill{position:absolute;left:0;bottom:0;width:100%;height:0%;
+  background:linear-gradient(0deg,rgba(10,170,100,.85),rgba(93,255,160,.85));box-shadow:0 0 18px rgba(93,255,160,.5)}
+#tThrTrack:after{content:"";position:absolute;left:0;right:0;top:0;bottom:0;pointer-events:none;
+  background:repeating-linear-gradient(0deg,rgba(255,255,255,.14) 0 1px,transparent 1px 10%)}
+#tThrVal{font-size:11px;color:var(--gr);font-variant-numeric:tabular-nums}
+#tThrLab{font-size:8.5px;letter-spacing:.2em;color:var(--dim)}
+
+#tPad{position:fixed;right:calc(74px + env(safe-area-inset-right,0px));
+  bottom:calc(84px + env(safe-area-inset-bottom,0px));z-index:27;
+  display:grid;grid-template-columns:repeat(2,46px);gap:6px}
+.tBtn{-webkit-user-select:none;user-select:none;touch-action:none;display:flex;align-items:center;
+  justify-content:center;border:1px solid var(--edge-s);background:rgba(6,16,26,.72);color:var(--dim);
+  font-family:var(--mono);font-size:10px;letter-spacing:.06em;border-radius:4px;
+  backdrop-filter:blur(6px);-webkit-backdrop-filter:blur(6px);height:44px;transition:.1s}
+.tBtn.held{background:rgba(73,224,255,.26);color:#fff;border-color:var(--cy)}
+.tBtn.lit{color:var(--gr);border-color:rgba(93,255,160,.5)}
+.tBtn.big{height:52px;font-size:11px}
+#tBoost{grid-column:1 / -1;color:var(--gr);border-color:rgba(93,255,160,.35);
+  background:rgba(12,40,26,.7);letter-spacing:.18em}
+
+/* The rail lives under the flight strip, NOT vertically centred: centred it
+   sits straight on top of the throttle column on a phone. */
+#tRail{position:fixed;right:calc(8px + env(safe-area-inset-right,0px));
+  top:calc(104px + env(safe-area-inset-top,0px));z-index:28;
+  display:grid;grid-template-columns:50px;gap:6px}
+#tRail.open{grid-template-columns:50px 50px;width:106px}
+#tRail:not(.open) .xtra{display:none}
+#tRail .tBtn{height:42px;font-size:9.5px;flex-direction:column;gap:1px}
+#tRail .tBtn i{font-style:normal;font-size:14px;line-height:1}
+#tWarpVal{font-size:9px;color:var(--am);text-align:center;letter-spacing:.08em;
+  align-self:center;grid-column:1 / -1}
+#tMenu{color:var(--cy);border-color:var(--edge)}
+@media (max-height:640px){
+  #tRail{gap:4px} #tRail .tBtn{height:34px;font-size:8.5px}
+  #tThr{height:28vh} #tStickZone{height:40vh}
+}
+
 </style>
 </head>
 <body>
@@ -310,6 +424,7 @@ label.fld .rv{min-width:52px;text-align:right;color:var(--cy);font-variant-numer
 
   <div id="btnBar">
     <button class="btn prime" id="btnWormhole">◉ Create Wormhole</button>
+    <button class="btn" id="btnMap">✦ Galactic Map</button>
     <button class="btn" id="btnScan">▤ Scan Body</button>
     <button class="btn small" id="btnTarget">◎ Select Target</button>
     <button class="btn small" id="btnHelp">? Controls</button>
@@ -392,12 +507,22 @@ label.fld .rv{min-width:52px;text-align:right;color:var(--cy);font-variant-numer
         <div><kbd>F</kbd> Exit / board ship (EVA)</div>
         <div><kbd>V</kbd> Cycle camera: chase ▸ cockpit ▸ orbital ▸ cinematic</div>
         <div><kbd>C</kbd> Scan reference body</div>
-        <div><kbd>M</kbd> Wormhole generator</div>
+        <div><kbd>M</kbd> <b>Galactic map</b> (interstellar warp)</div>
+        <div><kbd>Y</kbd> Wormhole generator (in-system)</div>
         <div><kbd>Tab</kbd> Cycle target</div>
         <div><kbd>,</kbd> <kbd>.</kbd> Time warp down / up</div>
         <div><kbd>P</kbd> Toggle lights &middot; <kbd>U</kbd> Toggle HUD</div>
         <div><kbd>Wheel</kbd> Zoom camera</div>
         <div><kbd>F1</kbd> Engine documentation</div>
+      </div>
+      <h6 class="sec">Touch / Mobile</h6>
+      <div class="klist">
+        <div><b>Left thumb</b> anywhere in the lower-left — floating pitch/yaw stick</div>
+        <div><b>Right slider</b> — throttle, with a BURN button for full power</div>
+        <div><b>⟲ ⟳</b> roll &middot; <b>▲▼ RCS</b> translate up / down</div>
+        <div><b>Drag elsewhere</b> — orbit the camera</div>
+        <div><b>Right rail</b> — map, view, SAS, retro-hold, RCS, gear, scan, EVA, time warp</div>
+        <div>Enable or disable under <b>Settings ▸ Touch controls</b></div>
       </div>
       <h6 class="sec">On Foot (EVA)</h6>
       <div class="klist">
@@ -438,10 +563,82 @@ label.fld .rv{min-width:52px;text-align:right;color:var(--cy);font-variant-numer
       <label class="fld">Master volume <input type="range" id="cfgVol" min="0" max="100" step="5" value="70"><span class="rv" id="cfgVolV">70%</span></label>
       <label class="fld">Camera shake <input type="range" id="cfgShake" min="0" max="200" step="10" value="100"><span class="rv" id="cfgShakeV">100%</span></label>
       <label class="fld">Invert pitch <input type="checkbox" id="cfgInvert" style="min-width:auto"></label>
+      <label class="fld">Touch controls <input type="checkbox" id="cfgTouch" style="min-width:auto"></label>
       <label class="fld">Show orbit lines <input type="checkbox" id="cfgOrbits" checked style="min-width:auto"></label>
     </div>
     <footer><div style="font-size:10.5px;color:var(--dim)" id="cfgInfo">—</div>
       <button class="btn small" data-close="cfgModal">Done</button></footer>
+  </div>
+</div>
+
+<!-- ========================================================= GALAXY MAP -->
+<div id="mapOverlay">
+  <div id="mapCanvasCatcher"></div>
+  <div id="mapTop">
+    <div id="mapTitle">Galactic Map</div>
+    <button class="btn small" id="mapGalPrev">◂</button>
+    <div id="mapGalaxy">1 / 256 · Euclid</div>
+    <button class="btn small" id="mapGalNext">▸</button>
+    <div class="spacer"></div>
+    <button class="btn small" id="mapClose">✕ Close</button>
+  </div>
+  <div id="mapScale">
+    <div>GRID <b>4096 × 256 × 4096</b> voxels</div>
+    <div>UP TO <b>768</b> systems per voxel</div>
+    <div>VOXEL <b>≈ 25 ly</b></div>
+  </div>
+  <div id="mapPanel">
+    <div id="mapInfo"><div class="mapHint">Drag to orbit · pinch or wheel to zoom · tap a star to select it.</div></div>
+    <div id="mapGlyphs"></div>
+    <div id="mapHex"></div>
+    <button class="btn prime" id="mapJump" disabled>Warp to system</button>
+    <div id="mapAddrRow">
+      <input id="mapAddr" placeholder="paste portal address" spellcheck="false" autocomplete="off">
+      <button class="btn small" id="mapGo">Go</button>
+    </div>
+  </div>
+  <div id="mapBottom">
+    <button class="btn small" id="mapHome">⌂ Sol</button>
+    <button class="btn small" id="mapHere">◎ Current</button>
+    <button class="btn small" id="mapRandom">⚄ Random</button>
+    <button class="btn small" id="mapCopy">⧉ Copy address</button>
+  </div>
+  <div class="mapMk" id="mkHere" data-l="YOU" style="display:none"></div>
+  <div class="mapMk" id="mkSel" data-l="" style="display:none"></div>
+</div>
+
+<!-- ====================================================== TOUCH CONTROLS -->
+<div id="touchUI">
+  <div id="tLookZone"></div>
+  <div id="tStickZone">
+    <div id="tStickBase"><div id="tStickKnob"></div></div>
+    <div id="tStickHint">PITCH / YAW</div>
+  </div>
+  <div id="tThr">
+    <div id="tThrTrack"><div id="tThrFill"></div></div>
+    <div id="tThrVal">0%</div>
+    <div id="tThrLab">THROTTLE</div>
+  </div>
+  <div id="tPad">
+    <div class="tBtn" id="tRollL">⟲</div>
+    <div class="tBtn" id="tRollR">⟳</div>
+    <div class="tBtn" id="tUp">▲ RCS</div>
+    <div class="tBtn" id="tDown">▼ RCS</div>
+    <div class="tBtn big" id="tBoost">BURN</div>
+  </div>
+  <div id="tRail">
+    <div class="tBtn" id="tMap"><i>✦</i>MAP</div>
+    <div class="tBtn" id="tCam"><i>◫</i>VIEW</div>
+    <div class="tBtn" id="tSas"><i>⌖</i>SAS</div>
+    <div class="tBtn" id="tGear"><i>⊥</i>GEAR</div>
+    <div class="tBtn xtra" id="tRetro"><i>⇣</i>RETRO</div>
+    <div class="tBtn xtra" id="tRcs"><i>⁙</i>RCS</div>
+    <div class="tBtn xtra" id="tScan"><i>▤</i>SCAN</div>
+    <div class="tBtn xtra" id="tEva"><i>♁</i>EVA</div>
+    <div class="tBtn xtra" id="tWarpDn"><i>«</i>SLOW</div>
+    <div class="tBtn xtra" id="tWarpUp"><i>»</i>WARP</div>
+    <div id="tWarpVal" class="xtra">×1</div>
+    <div class="tBtn" id="tMenu"><i>⋯</i>MORE</div>
   </div>
 </div>
 
@@ -470,7 +667,9 @@ label.fld .rv{min-width:52px;text-align:right;color:var(--cy);font-variant-numer
         <div class="grp">Unreal / delivery</div>
         <a data-s="ue5">13 · Unreal Engine 5 variant</a>
         <a data-s="road">14 · Implementation roadmap</a>
-        <a data-s="proto">15 · This prototype's mapping</a>
+        <a data-s="galaxy">15 · Galaxy address space</a>
+        <a data-s="touch">16 · Touch &amp; mobile controls</a>
+        <a data-s="proto">17 · This prototype's mapping</a>
       </nav>
       <div id="docsBody">
 
@@ -2136,8 +2335,229 @@ construction system doubles the surface area of every physics bug you have, and 
 until flying is already good.</div>
 </section>
 
+<section data-s="galaxy">
+<h2>15 · Galaxy address space</h2>
+<p class="lead">An infinite universe is not a big database — it is a <b>function from address to
+content</b>. This section documents how No Man's Sky structures that address, why the structure is
+the way it is, and how this build implements it.</p>
+
+<h3>15.1 How No Man's Sky actually does it</h3>
+<p>Published descriptions of the game and its portal-address format agree on the following
+architecture:</p>
+<ul>
+<li>The universe starts from a <b>single 64-bit seed</b>, run through deterministic generators. The
+same galaxy, with the same contents, is produced for every player.</li>
+<li>Each galaxy is a fixed <b>4096 × 256 × 4096 grid of voxels</b>. A voxel is a region of space,
+not a chunk of stored data.</li>
+<li>Voxel coordinates are <b>two's complement with the midpoint skipped</b>: X and Z span
+−2047…+2047, Y spans −127…+127. (<code>0x801</code> decodes to −2047, <code>0x7FF</code> to
++2047; the exact midpoint is not used.)</li>
+<li>Each voxel holds up to <b>768 star systems</b>, indexed by a <code>SolarSystemIndex</code>;
+each system holds up to <b>6 planets</b>, indexed by a <code>PlanetIndex</code>.</li>
+<li>Voxel XYZ plus the system index is internally called the <b>GalacticAddress</b>. The player-
+facing portal address is twelve glyphs laid out as <code>[P][SSS][YY][ZZZ][XXX]</code> — planet,
+system, then voxel height, width, length.</li>
+<li>Systems, planets, creatures and structures are generated <b>on first visit</b>. Nothing exists
+until someone asks for it; asking is what creates it.</li>
+</ul>
+<div class="note"><b>The insight worth stealing</b> is not the numbers, it is that the coordinate
+<i>is</i> the seed. Because the address hashes to the content, a twelve-character string is a
+complete, shareable pointer to a world — and the server never has to store, sync or authorise
+anything about it.</div>
+
+<h3>15.2 The same scheme here</h3>
+<table>
+<tr><th>Concept</th><th>This build</th></tr>
+<tr><td>Grid</td><td>4096 × 256 × 4096 voxels, X/Z −2047…2047, Y −127…127</td></tr>
+<tr><td>Systems per voxel</td><td>up to 768, set by the density field (mean ≈ 30 over occupied space)</td></tr>
+<tr><td>Planets per system</td><td>1–6, each with 0–3 moons</td></tr>
+<tr><td>Address</td><td><code>{ g, vx, vy, vz, ssi }</code> + planet index</td></tr>
+<tr><td>Portal string</td><td><code>[P][SSS][YY][ZZZ][XXX]</code>, 12 glyphs over a 16-symbol alphabet</td></tr>
+<tr><td>Galaxies</td><td>256, each reseeding the whole field</td></tr>
+<tr><td>Scale</td><td>1 voxel ≈ 25 ly, so a galaxy is ≈ 102 000 ly across</td></tr>
+<tr><td>Population</td><td>≈ 1.3 × 10<sup>11</sup> systems per galaxy — deliberately close to the real Milky Way's star count</td></tr>
+</table>
+
+<h4>Address → seed</h4>
+<p>The address is folded into the same bit-exact PCG hash the terrain uses, so one hash function
+drives both the shape of a mountain and the position of a star.</p>
+<script type="text/plain">
+public static uint AddressSeed(in GalacticAddress a, int salt)
+{
+    // Large odd multipliers decorrelate the axes; the PCG mixer does the rest.
+    return NoiseHash.Hash3(
+        (a.VoxelX * 73856093) ^ (a.Galaxy * 19349663),
+        (a.VoxelY * 83492791) ^ (a.SolarSystemIndex * unchecked((int)2654435761)),
+        (a.VoxelZ * 50331653) ^ (salt * 40503));
+}
+
+// Salts partition one address into independent streams, so adding a new
+// per-planet property never shifts anything already generated.
+//   salt 1   -> star class, radius, mass, planet count
+//   salt 3   -> system name
+//   salt 13  -> region name
+//   salt 100+i -> planet i orbit
+//   salt 200+i -> planet i surface
+//   salt 700+ -> moons
+</script>
+
+<h4>Portal encoding</h4>
+<script type="text/plain">
+// [P][SSS][YY][ZZZ][XXX] — note the field order is NOT x,y,z.
+public static string ToPortal(in GalacticAddress a, int planetIndex) =>
+      Hex(planetIndex, 1)
+    + Hex(a.SolarSystemIndex & 0xFFF, 3)
+    + Hex(a.VoxelY & 0xFF,   2)
+    + Hex(a.VoxelZ & 0xFFF,  3)
+    + Hex(a.VoxelX & 0xFFF,  3);
+
+// Decoding sign-extends each field from its own width.
+static int Signed(int v, int bits) { int half = 1 << (bits - 1); return v >= half ? v - (1 << bits) : v; }
+</script>
+
+<h3>15.3 The density field is the map</h3>
+<p>One function decides both how the galaxy <i>looks</i> and how many systems a voxel <i>holds</i>.
+Two logarithmic spiral arms over an exponential disc, plus a central bulge:</p>
+<script type="text/plain">
+public static float Density(int vx, int vy, int vz)
+{
+    float rx = vx / 2047f, rz = vz / 2047f;
+    float r  = MathF.Sqrt(rx*rx + rz*rz);
+    if (r > 1f) return 0f;
+    float h  = MathF.Abs(vy) / 127f;
+
+    float bulge = MathF.Exp(-r * r * 30f);                    // core
+    float disc  = MathF.Exp(-r * 2.9f) * MathF.Exp(-h*h*11f); // thin disc
+
+    const int   Arms = 2;
+    const float Wind = 3.6f;
+    float theta = MathF.Atan2(rz, rx);
+    float phase = theta * Arms - MathF.Log(MathF.Max(r, 0.03f)) * Wind * Arms;
+    float arm   = MathF.Pow(MathF.Cos(phase) * 0.5f + 0.5f, 2.4f);
+
+    float d = bulge * 0.95f + disc * (0.14f + 0.86f * arm);
+    return Math.Clamp(d * (1f - Smoothstep(0.86f, 1.0f, r)), 0f, 1f);
+}
+
+public static int SystemsInVoxel(int vx, int vy, int vz)
+{
+    float d = Density(vx, vy, vz);
+    if (d <= 0.0016f) return 0;                       // most of a galaxy is empty
+    var rng = new Mulberry32(AddressSeed(new GalacticAddress(vx, vy, vz, 0), 7));
+    return Math.Max(1, (int)MathF.Round(d * 768 * (0.55f + 0.9f * rng.Next())));
+}
+</script>
+<p>Because the map is drawn by sampling the same function, <b>every point on the galaxy map is a
+real address</b>. There is no separate "map data" that could disagree with the universe.</p>
+
+<h3>15.4 Generating a system</h3>
+<p>Draw the star first, because it sets everything downstream:</p>
+<ol>
+<li><b>Spectral class</b> from a weighted table (M 62 %, K 18 %, G 10 %, F 5 %, A 3 %, B 1.6 %,
+O 0.3 %, plus rare exotics). Class fixes colour, temperature, radius and mass.</li>
+<li><b>Habitable zone</b> at <code>√luminosity</code> AU. This single number decides which
+archetypes a planet may draw from, which is what makes systems feel <i>composed</i> rather than
+random — ice giants sit outside, scorched rock sits inside.</li>
+<li><b>Orbits</b> by Titius–Bode-ish spacing (<code>a<sub>n+1</sub> = a<sub>n</sub> ×
+(1.5…2.4)</code>) so orbits never cross.</li>
+<li><b>Type</b>: the probability of a gas giant rises with distance past the habitable zone.</li>
+<li><b>Archetype</b> drawn from the pool its temperature band allows — lush, oceanic, overgrown,
+scorched, frozen, toxic, irradiated, barren, volcanic, marshland, exotic, arid. One archetype per
+planet, exactly as the original does it.</li>
+<li><b>Terrain, palette, atmosphere and clouds</b> derived from that archetype, then jittered by
+the planet's own seed so two "frozen" worlds are never the same world.</li>
+</ol>
+<div class="note"><b>Budget note:</b> generating a system is pure arithmetic — no allocation beyond
+the body list, no I/O, no readback. A full system with moons builds in well under a millisecond, so
+warp arrival costs a frame, not a loading screen.</div>
+
+<h3>15.5 Swapping the live system</h3>
+<p>The only genuinely awkward part. Every subsystem holds a reference to the body list, so the
+lists are <b>mutated in place</b> rather than replaced — otherwise every module needs re-wiring on
+each warp:</p>
+<script type="text/plain">
+void LoadSystem(in GalacticAddress addr)
+{
+    foreach (var view in planetViews.Values) view.Dispose();   // meshes, materials, quadtrees
+    planetViews.Clear();
+    patchGenerator.CancelAll();                                // stale patches must not land
+
+    bodies.Clear();                        // in place: everyone keeps their reference
+    byName.Clear();
+    foreach (var def in Generate(addr).Defs) bodies.Add(new CelestialBody(def));
+    LinkParentsAndSOI();
+    star = bodies[0];
+
+    foreach (var b in bodies.Skip(1)) planetViews[b.Name] = new PlanetView(b);
+    foreach (var b in bodies) b.Evaluate(clock.Time);
+    discovered.Add(ToPortal(addr, 0));
+}
+</script>
+<p>Three things that will bite you if you skip them: cancel in-flight patch generation (a patch
+that lands after the swap attaches to a destroyed planet), dispose materials <i>and</i> their
+textures but not shared geometry, and re-anchor the vessel before the next physics step — its
+position is meaningless in the new system's frame.</p>
+</section>
+
+<section data-s="touch">
+<h2>16 · Touch &amp; mobile controls</h2>
+<p class="lead">A six-degree-of-freedom spacecraft has more axes than a phone has thumbs. The job is
+deciding which axes get direct control, which get a momentary button, and which the autopilot
+should simply handle.</p>
+
+<h3>16.1 The allocation</h3>
+<table>
+<tr><th>Input</th><th>Axis</th><th>Why</th></tr>
+<tr><td>Left floating stick</td><td>Pitch + yaw</td><td>The two axes you steer with continuously. Floating (it spawns where the thumb lands) beats a fixed stick — thumbs do not find a fixed circle without looking.</td></tr>
+<tr><td>Right vertical slider</td><td>Throttle</td><td>Absolute, not incremental: you can slam to zero or full without travel time, which matters on final approach.</td></tr>
+<tr><td>BURN button</td><td>Throttle override</td><td>Momentary 100 %, released back to the slider value. The single most-used control during landing.</td></tr>
+<tr><td>⟲ ⟳ buttons</td><td>Roll</td><td>Roll is used in bursts, not held — a third stick axis would cost more than it returns.</td></tr>
+<tr><td>▲▼ buttons</td><td>RCS translate</td><td>Vertical translation for hovering; the other four translation axes stay on the autopilot.</td></tr>
+<tr><td>Drag anywhere else</td><td>Camera orbit</td><td>A full-screen zone <i>beneath</i> every other control in z-order, so it only receives what nothing else claimed.</td></tr>
+<tr><td>Right rail</td><td>Mode toggles</td><td>Four primary, the rest behind a "more" expander — a phone cannot show eleven buttons and still be a game.</td></tr>
+</table>
+
+<h3>16.2 Implementation rules that matter</h3>
+<ul>
+<li><b>Pointer Events, not touch events.</b> One code path covers touch, pen and mouse, and you get
+<code>pointerId</code> for free — which is what stops two thumbs fighting over one gesture.</li>
+<li><b>Every control owns its pointer id.</b> Each handler ignores any event whose id is not the one
+it captured. Without this, sliding a second thumb onto the screen steals the stick.</li>
+<li><b>Wrap <code>setPointerCapture</code> in try/catch.</b> It throws if the pointer has already
+been released or is synthetic, and an uncaught throw aborts the handler <i>before</i> it applies the
+input — a control that silently does nothing.</li>
+<li><b>Layer with z-index, then let hit-testing do the work.</b> The camera-drag zone is a
+full-screen element at a lower z-index than every button; no manual bounds checks anywhere.</li>
+<li><b><code>touch-action: none</code></b> on every control, or the browser steals the gesture for
+scrolling and your stick jumps.</li>
+<li><b>Respect the safe-area insets.</b> <code>env(safe-area-inset-*)</code> on anything pinned to an
+edge, or the home indicator sits on your throttle.</li>
+<li><b>Feed one control channel.</b> Touch writes into the same <code>ctrl</code> / <code>trans</code>
+vectors the keyboard does, so the flight model never learns there are two input systems — and a
+tablet with a keyboard can use both at once.</li>
+</ul>
+<script type="text/plain">
+// The whole integration point: touch is applied after the keyboard block,
+// into the same vectors, and clamped once at the end.
+void ReadFlightInput(float dt)
+{
+    ctrl = Vector3.Zero; translate = Vector3.Zero;
+    ApplyKeyboard(dt);
+    ApplyTouch(dt);                       // additive, same channel
+    ctrl = Vector3.Clamp(ctrl, -Vector3.One, Vector3.One);
+}
+</script>
+
+<h3>16.3 Layout traps</h3>
+<p>Two collisions cost real debugging time here, and both are worth checking on a device before
+shipping: a vertically-centred action rail lands exactly on top of a bottom-anchored throttle
+column on a tall phone, and the navball's WebGL viewport is positioned from the <i>bottom</i> of the
+framebuffer while its DOM ring is positioned from the top — they drift apart the moment the layout
+changes. Drive both from one computed rectangle.</p>
+</section>
+
 <section data-s="proto">
-<h2>15 · This prototype's mapping</h2>
+<h2>17 · This prototype's mapping</h2>
 <p>The build you are flying implements the spec above in a single HTML file with no external
 assets. If you are porting to Unity or Unreal, these are the pieces to read first:</p>
 <table>
@@ -2153,6 +2573,9 @@ assets. If you are porting to Unity or Unreal, these are the pieces to read firs
 <tr><td>Re-entry</td><td><code>systems()</code> (thermal), <code>plasmaMat</code>, <code>reentrySparks()</code>, and the <code>uHeat</code>/<code>uTint</code> path in the composite pass.</td></tr>
 <tr><td>Wormhole</td><td><code>openWormhole()</code>, <code>updateWormhole()</code>, <code>whCore</code>/<code>whDisk</code>/<code>tunnel</code>, and <code>lensWarp()</code> in the composite shader.</td></tr>
 <tr><td>Ship &amp; textures</td><td><code>buildShip()</code>, <code>buildCockpit()</code>, <code>makeHullTextures()</code> — all parametric, no assets.</td></tr>
+<tr><td>Galaxy</td><td><code>addrSeed()</code>, <code>galaxyDensity()</code>, <code>systemsInVoxel()</code>, <code>generateSystem()</code>, <code>toPortal()</code>/<code>fromPortal()</code>, <code>loadSystem()</code>.</td></tr>
+<tr><td>Galaxy map</td><td><code>buildGalaxyPoints()</code> samples the density field; <code>nearestPoint()</code> picks; <code>warpToSystem()</code> hands the address to the wormhole sequencer.</td></tr>
+<tr><td>Touch</td><td><code>TOUCH</code>, <code>bindStick()</code>, <code>bindThrottle()</code>, <code>applyTouchInput()</code> — one control channel shared with the keyboard.</td></tr>
 </table>
 <h4>Known simplifications versus the full spec</h4>
 <ul>
@@ -2505,7 +2928,10 @@ const NZ = (function () {
     const s = Math.sin((px + pz) * 1.0 + w * 6.0) * 0.5 + 0.5;
     return s * s - 0.35;
   }
-  return { h1: h1, vnoise: vnoise, fbm: fbm, ridged: ridged, craterField: craterField, dunes: dunes };
+  /* raw 32-bit hash of three integers — used to seed galactic addresses */
+  function hash3i(x, y, z) { return uh3(x | 0, y | 0, z | 0)[0] >>> 0; }
+  return { h1: h1, vnoise: vnoise, fbm: fbm, ridged: ridged, craterField: craterField,
+           dunes: dunes, hash3i: hash3i };
 })();
 
 /* ------------------------- terrain height: GLSL side and JS side in sync */
@@ -2900,16 +3326,24 @@ class Body {
 }
 
 /* ------------------------------------------------------------ build tree */
-const BODIES = BODY_DEFS.map(d => new Body(d));
+/* BODIES / BY_NAME are mutated IN PLACE when the vessel warps to another
+   star, so every module that captured a reference keeps working. */
+const BODIES = [];
 const BY_NAME = {};
-BODIES.forEach(b => BY_NAME[b.name] = b);
-BODIES.forEach(b => {
-  if (b.parent) { b.parentBody = BY_NAME[b.parent]; b.parentBody.children.push(b); }
-});
-BODIES.forEach(b => {
-  if (b.parentBody) b.soi = b.el.a * Math.pow(b.mu / b.parentBody.mu, 0.4);
-});
-const SUN = BY_NAME['Sol'];
+function linkSystem(defs) {
+  BODIES.length = 0;
+  for (const k in BY_NAME) delete BY_NAME[k];
+  for (const d of defs) BODIES.push(new Body(d));
+  for (const b of BODIES) BY_NAME[b.name] = b;
+  for (const b of BODIES) {
+    b.children.length = 0;
+    if (b.parent) { b.parentBody = BY_NAME[b.parent]; if (b.parentBody) b.parentBody.children.push(b); }
+  }
+  for (const b of BODIES) if (b.parentBody) b.soi = b.el.a * Math.pow(b.mu / b.parentBody.mu, 0.4);
+  return BODIES[0];
+}
+linkSystem(BODY_DEFS);
+let SUN = BY_NAME['Sol'];   // reassigned when a new star system is loaded
 /* deepest SOI containing a point */
 function dominantBody(p) {
   let best = SUN, bestSoi = Infinity;
@@ -3438,7 +3872,8 @@ scene.add(nebula);
 /* ================================= SOL =================================== */
 const sunMat = new T.RawShaderMaterial({
   glslVersion: T.GLSL3, depthWrite: true,
-  uniforms: { uTime:{value:0}, uLogFC:{value:LOGFC}, uBright:{value:26.0} },
+  uniforms: { uTime:{value:0}, uLogFC:{value:LOGFC}, uBright:{value:26.0},
+              uTint:{value:new T.Vector3(1.0, 0.95, 0.86)} },
   vertexShader: `precision highp float;
     in vec3 position; in vec3 normal;
     uniform mat4 modelViewMatrix, projectionMatrix, modelMatrix;
@@ -3449,7 +3884,7 @@ const sunMat = new T.RawShaderMaterial({
       gl_Position = projectionMatrix*mv; vFragDepth = 1.0 + gl_Position.w; }`,
   fragmentShader: `precision highp float;
     in vec3 vN; in vec3 vL; in float vFragDepth; out vec4 oCol;
-    uniform float uTime, uLogFC, uBright;
+    uniform float uTime, uLogFC, uBright; uniform vec3 uTint;
     ${GLSL_NOISE}
     void main(){
       vec3 n = normalize(vN);
@@ -3461,8 +3896,8 @@ const sunMat = new T.RawShaderMaterial({
       float spots = smoothstep(0.76, 0.93, fbm(vL*11.0 + 5.0, 3, 2.0, 0.5)*0.5 + 0.5);
       float e = 0.72 + 0.34*gr + 0.30*sg;
       e *= 1.0 - spots*0.62;
-      vec3 hot = vec3(1.0, 0.96, 0.88);
-      vec3 cool = vec3(1.0, 0.55, 0.16);
+      vec3 hot = uTint;
+      vec3 cool = uTint*vec3(1.0, 0.58, 0.22);
       vec3 c = mix(cool, hot, clamp(e*0.82, 0.0, 1.0));
       /* limb darkening */
       float mu = sqrt(max(1.0 - lim*lim, 0.0));
@@ -3471,7 +3906,9 @@ const sunMat = new T.RawShaderMaterial({
       oCol = vec4(c*uBright*e, 1.0);
     }`
 });
-const sunMesh = new T.Mesh(new T.IcosahedronGeometry(SUN.R, 5), sunMat);
+/* unit sphere scaled per frame — the star changes when you warp */
+const sunMesh = new T.Mesh(new T.IcosahedronGeometry(1, 5), sunMat);
+sunMesh.scale.setScalar(SUN.R);
 sunMesh.frustumCulled = false;
 scene.add(sunMesh);
 
@@ -4281,7 +4718,8 @@ class QNode {
 /* ------------------------------------------------------- planet renderer */
 const _pv1 = new T.Vector3(), _pv2 = new T.Vector3(), _pv3 = new T.Vector3();
 const ICO = {};
-function ico(d) { if (!ICO[d]) ICO[d] = new T.IcosahedronGeometry(1, d); return ICO[d]; }
+const ICO_SET = new Set();   // shared geometries must survive a system swap
+function ico(d) { if (!ICO[d]) { ICO[d] = new T.IcosahedronGeometry(1, d); ICO_SET.add(ICO[d]); } return ICO[d]; }
 const SUN_SURF_I = 1.25, SUN_ATM_I = 8.0, SUN_LIGHT_I = 5.2;
 /* Irradiance falls as 1/r^2, which is correct and unplayable: Neptune would
    render 900x darker than Earth. We compress the exponent instead of running
@@ -4513,7 +4951,22 @@ class PlanetView {
   }
 }
 const PLANETS = {};
-BODIES.forEach(b => { if (b.name !== 'Sol') PLANETS[b.name] = new PlanetView(b); });
+function disposeMat(m) {
+  if (!m) return;
+  if (Array.isArray(m)) { m.forEach(disposeMat); return; }
+  for (const k in m) { const v = m[k]; if (v && v.isTexture) v.dispose(); }
+  m.dispose();
+}
+PlanetView.prototype.destroy = function () {
+  this.dead = true;
+  this.dropQuadtree();
+  this.group.traverse(o => { if (o.isMesh) { if (o.geometry && !ICO_SET.has(o.geometry)) o.geometry.dispose(); disposeMat(o.material); } });
+  scene.remove(this.group);
+};
+function buildPlanetViews() {
+  for (const b of BODIES) if (b !== BODIES[0]) PLANETS[b.name] = new PlanetView(b);
+}
+buildPlanetViews();
 
 /* =====================================================================
    PROCEDURAL HULL TEXTURES
@@ -6025,7 +6478,7 @@ function updateCamera(dt, dtReal) {
    throat's projected position with strength falling off as 1/b.
    ===================================================================== */
 const wormhole = {
-  state: 'idle', t: 0, target: null, pos: v3(), dir: v3(),
+  state: 'idle', t: 0, target: null, pendingSystem: null, pos: v3(), dir: v3(),
   size: 0, lens: 0, screen: new T.Vector2(-1, -1), flash: 0, fade: 0
 };
 const whGroup = new T.Group();
@@ -6186,7 +6639,9 @@ function updateWormhole(dt) {
     if (w.t >= WH_PHASE.open) {
       w.state = 'transit'; w.t = 0;
       tunnel.visible = true;
-      caption('IN TRANSIT', w.target.name + ' — ' + fmtDist(ship.pos.distanceTo(w.target.pos)), 0);
+      caption('IN TRANSIT', w.pendingSystem
+        ? 'Interstellar fold · ' + lyBetween(w.pendingSystem, CURRENT).toFixed(1) + ' ly'
+        : w.target.name + ' — ' + fmtDist(ship.pos.distanceTo(w.target.pos)), 0);
     }
   } else if (w.state === 'transit') {
     const k = clamp(w.t / WH_PHASE.transit, 0, 1);
@@ -6196,7 +6651,8 @@ function updateWormhole(dt) {
     whGroup.visible = false;
     w.flash = smoothstep(0.88, 1.0, k) * 2.6;
     if (w.t >= WH_PHASE.transit) {
-      arriveAt(w.target);
+      if (w.pendingSystem) { arriveAtSystem(w.pendingSystem); w.pendingSystem = null; }
+      else arriveAt(w.target);
       w.state = 'arrive'; w.t = 0;
     }
   } else if (w.state === 'arrive') {
@@ -6205,7 +6661,7 @@ function updateWormhole(dt) {
     w.flash = 2.6 * (1 - k) * (1 - k);
     w.lens = 0;
     if (w.t >= WH_PHASE.arrive) {
-      w.state = 'idle'; w.target = null; w.flash = 0;
+      w.state = 'idle'; w.target = null; w.pendingSystem = null; w.flash = 0;
       tunnel.visible = false; whGroup.visible = false;
       caption('');
       audio.wormhole(false);
@@ -6444,6 +6900,7 @@ function readFlightInput(dt) {
     eva.yaw -= mouse.dx * sens * (mouse.locked || mouse.rdown ? 1 : 0);
     eva.pitch = clamp(eva.pitch - mouse.dy * sens * (mouse.locked || mouse.rdown ? 1 : 0), -1.45, 1.45);
     mouse.dx = 0; mouse.dy = 0;
+    applyTouchInput(dt);
     return;
   }
   const inv = CFG.invert ? -1 : 1;
@@ -6474,6 +6931,7 @@ function readFlightInput(dt) {
   if (k['Shift'] || k['shift']) ship.throttle = clamp(ship.throttle + dt * 0.62, 0, 1);
   if (k['Control'] || k['control']) ship.throttle = clamp(ship.throttle - dt * 0.62, 0, 1);
   if (k[' ']) ship.throttle = 1;
+  applyTouchInput(dt);
 }
 
 /* =====================================================================
@@ -6572,11 +7030,17 @@ const navTgt = navMarker('#ff7bd9', 'tgt');
 const navNorm = navMarker('#8f6bff', 'tri');
 let navRect = { x: 0, y: 0, w: 200 };
 function layoutNavball() {
-  const s = Math.round(Math.min(216, Math.max(112, Math.min(VW, VH) * 0.21)));
+  const touch = document.body.classList.contains('touchui');
+  const s = Math.round(touch
+    ? Math.min(124, Math.max(78, Math.min(VW, VH) * 0.17))
+    : Math.min(216, Math.max(112, Math.min(VW, VH) * 0.21)));
   navRect.w = s;
   navRect.x = Math.round(VW / 2 - s / 2);
-  navRect.y = 16;
+  /* viewport y counts from the bottom; on touch the ball sits under the
+     flight strip so the thumbs own the lower third of the screen */
+  navRect.y = touch ? Math.max(8, VH - s - 108) : 16;
   const ring = $('navRing'), wrap = $('navWrap');
+  wrap.style.bottom = navRect.y + 'px';
   wrap.style.width = s + 'px'; wrap.style.height = s + 'px';
   ring.style.left = '0px'; ring.style.top = '0px';
   ring.style.width = s + 'px'; ring.style.height = s + 'px';
@@ -7014,7 +7478,8 @@ $('cfgOrbits').addEventListener('change', e => {
 const SAS_KEYS = { '1':'stab','2':'pro','3':'retro','4':'radout','5':'radin','6':'norm','7':'anorm','8':'target','9':'srfretro','0':'srfpro' };
 function onKey(k, e) {
   audio.init();
-  if (k === 'Escape') { $$('.modal.on').forEach(m => closeModal(m.id)); return; }
+  if (k === 'Escape') { if (mapState.open) { closeMap(); return; }
+    $$('.modal.on').forEach(m => closeModal(m.id)); return; }
   if (k === 'F1') { $('docsModal').classList.contains('on') ? closeModal('docsModal') : openModal('docsModal'); return; }
   if (uiFocus) return;
   if (ship.dead && k === 'Enter') { restore(); return; }
@@ -7028,7 +7493,8 @@ function onKey(k, e) {
     case 'z': ship.throttle = 1; break;
     case 'v': cam.mode = (cam.mode + 1) % CAM_MODES.length; break;
     case 'c': beginScan(); break;
-    case 'm': openBodyPicker('warp'); break;
+    case 'm': mapState.open ? closeMap() : openMap(); break;
+    case 'y': openBodyPicker('warp'); break;
     case 'f': evaToggle(); break;
     case 'p': ship.lights = !ship.lights; break;
     case 'u': $('hud').classList.toggle('hidden'); break;
@@ -7077,6 +7543,994 @@ function restore() {
   caption('VESSEL RESTORED', b.name + ' orbit', 2600);
   say('Emergency restore — parked in ' + b.name + ' orbit', 'good');
 }
+
+/* =====================================================================
+   THE GALAXY — an address space, not a database
+   ---------------------------------------------------------------------
+   Modelled directly on No Man's Sky's scheme. A galaxy is a fixed
+   4096 x 256 x 4096 grid of voxels; each voxel holds up to 768 star
+   systems; each system holds up to 6 planets. A location is therefore a
+   GALACTIC ADDRESS — galaxy, voxel XYZ, system index, planet index —
+   and the portal string packs it as [P][SSS][YY][ZZZ][XXX].
+
+   Nothing is stored. Every star, every world, every name is derived by
+   hashing that address with the same bit-exact PCG hash the terrain uses,
+   so the universe is identical for everyone and costs nothing to keep.
+
+   Voxel coordinates are two's-complement with the midpoint skipped, as in
+   the original: X,Z span -2047..2047 and Y spans -127..127.
+   ===================================================================== */
+const GX = { X: 4096, Y: 256, Z: 4096, SYS: 768, LY_PER_VOXEL: 25 };
+/* Sol is hand-authored content pinned to one address. Put it where it
+   actually is: an outer spur about 26 000 ly from the core, not the centre. */
+const SOL_ADDR = { g: 0, vx: -880, vy: 3, vz: 610, ssi: 37 };
+function isSol(a) { return a && a.g === SOL_ADDR.g && a.vx === SOL_ADDR.vx && a.vy === SOL_ADDR.vy &&
+                           a.vz === SOL_ADDR.vz && a.ssi === SOL_ADDR.ssi; }
+const GLYPHS = ['☉','☽','✦','✧','◆','◇','▲','△','▼','▽','●','○','■','□','★','☆'];
+
+/* 64-bit-ish mix of an address into a 32-bit stream seed */
+function addrSeed(a, salt) {
+  const h = NZ.hash3i(
+    (a.vx * 73856093) ^ (a.g * 19349663),
+    (a.vy * 83492791) ^ (a.ssi * 2654435761),
+    (a.vz * 50331653) ^ ((salt || 0) * 40503));
+  return h >>> 0;
+}
+function addrEq(a, b) { return a && b && a.g === b.g && a.vx === b.vx && a.vy === b.vy && a.vz === b.vz && a.ssi === b.ssi; }
+function addrClone(a) { return { g: a.g, vx: a.vx, vy: a.vy, vz: a.vz, ssi: a.ssi }; }
+
+/* ---- portal string ----------------------------------------------------
+   [P][SSS][YY][ZZZ][XXX] — planet, system index, then voxel Y, Z, X.     */
+function toPortal(a, planetIndex) {
+  const hx = (v, n) => ((v >>> 0) & ((1 << (4 * n)) - 1)).toString(16).toUpperCase().padStart(n, '0');
+  const yy = hx(a.vy & 0xFF, 2), zz = hx(a.vz & 0xFFF, 3), xx = hx(a.vx & 0xFFF, 3);
+  return hx(planetIndex || 0, 1) + hx(a.ssi & 0xFFF, 3) + yy + zz + xx;
+}
+function portalGlyphs(a, planetIndex) {
+  return toPortal(a, planetIndex).split('').map(c => GLYPHS[parseInt(c, 16)]).join('');
+}
+function fromPortal(str, galaxy) {
+  let s = String(str).trim().toUpperCase();
+  /* accept glyphs, hex, or a mix */
+  s = s.split('').map(ch => { const i = GLYPHS.indexOf(ch); return i >= 0 ? i.toString(16).toUpperCase() : ch; })
+       .join('').replace(/[^0-9A-F]/g, '');
+  if (s.length !== 12) return null;
+  const sgn = (v, bits) => { const half = 1 << (bits - 1); return v >= half ? v - (1 << bits) : v; };
+  const pi = parseInt(s.slice(0, 1), 16);
+  const ssi = parseInt(s.slice(1, 4), 16);
+  const vy = sgn(parseInt(s.slice(4, 6), 16), 8);
+  const vz = sgn(parseInt(s.slice(6, 9), 16), 12);
+  const vx = sgn(parseInt(s.slice(9, 12), 16), 12);
+  return { addr: { g: galaxy | 0, vx: vx, vy: vy, vz: vz, ssi: ssi }, planetIndex: pi };
+}
+
+/* ---- galaxy shape -----------------------------------------------------
+   Two logarithmic spiral arms over an exponential disc plus a central
+   bulge. This is the function that decides how many systems a voxel
+   holds, so it is simultaneously the map's appearance and the universe's
+   population.                                                            */
+function galaxyDensity(vx, vy, vz) {
+  const rx = vx / 2047, rz = vz / 2047;
+  const r = Math.sqrt(rx * rx + rz * rz);
+  if (r > 1.001) return 0;
+  const h = Math.abs(vy) / 127;
+  const bulge = Math.exp(-r * r * 30);
+  const disc = Math.exp(-r * 2.9) * Math.exp(-h * h * 11);
+  const th = Math.atan2(rz, rx);
+  const ARMS = 2, WIND = 3.6;
+  const phase = th * ARMS - Math.log(Math.max(r, 0.03)) * WIND * ARMS;
+  const arm = Math.pow(Math.cos(phase) * 0.5 + 0.5, 2.4);
+  const d = bulge * 0.95 + disc * (0.14 + 0.86 * arm);
+  return clamp(d * (1 - smoothstep(0.86, 1.0, r)), 0, 1);
+}
+function systemsInVoxel(vx, vy, vz) {
+  const d = galaxyDensity(vx, vy, vz);
+  if (d <= 0.0016) return 0;
+  const r = mulberry(addrSeed({ g: 0, vx: vx, vy: vy, vz: vz, ssi: 0 }, 7));
+  return Math.max(1, Math.round(d * GX.SYS * (0.55 + 0.9 * r())));
+}
+function addrExists(a) {
+  if (isSol(a)) return true;
+  if (Math.abs(a.vx) > 2047 || Math.abs(a.vz) > 2047 || Math.abs(a.vy) > 127) return false;
+  return a.ssi >= 0 && a.ssi < systemsInVoxel(a.vx, a.vy, a.vz);
+}
+
+/* ---- names ------------------------------------------------------------ */
+const GAL_NAMES = ['Euclid','Hilbert','Calypso','Hesperius','Hyades','Ickjamatew','Budullangr',
+  'Kikolgallr','Eltiensleen','Eissentam','Elkupalos','Aptarkaba','Ontiniangp','Odiwagiri',
+  'Ogtialabi','Muhacksonto'];
+const SYL_A = ['Ar','Be','Ca','Dho','El','Fa','Gri','Ha','Il','Ja','Ko','Lu','Ma','Ny','Ok','Pa',
+  'Qu','Ra','Sa','Te','Ul','Va','Wi','Xa','Ya','Zo','Thu','Vor','Mek','Gal','Sil','Nub'];
+const SYL_B = ['la','ri','mo','tan','dra','ves','kor','nia','pho','sul','mar','deth','lys','gon',
+  'rix','tia','ous','ken','bri','wan','zor','eth','ani','ult','hex','oma','urn','iss'];
+const SYL_C = ['','n','s','th','x','r','l','ka','na','ra','sa','ti','on','um','is','ar','or'];
+function nameFrom(seed, kind) {
+  const r = mulberry(seed);
+  const pick = a => a[(r() * a.length) | 0];
+  let n = pick(SYL_A) + pick(SYL_B);
+  if (r() < 0.55) n += pick(SYL_C);
+  if (kind === 'sys') {
+    /* no numerals: planets are named '<system> I', '<system> II' … */
+    const sfx = ['', '', '', '', ' Prime', ' Major', ' Minor', ' Reach'];
+    n += pick(sfx);
+  }
+  return n;
+}
+function regionName(a) {
+  const r = mulberry(addrSeed(a, 31));
+  const kinds = ['Expanse','Void','Cluster','Reach','Anomaly','Sector','Band','Shallows','Terminus',
+    'Quadrant','Fringe','Nebula','Rift','Sprawl','Verge'];
+  return nameFrom(addrSeed({ g: a.g, vx: a.vx, vy: a.vy, vz: a.vz, ssi: 0 }, 13), 'reg') +
+         ' ' + kinds[(r() * kinds.length) | 0];
+}
+
+/* ---- stellar classification ------------------------------------------ */
+const STAR_CLASSES = [
+  { c: 'M', w: 0.62, T: 3000, col: [1.00, 0.52, 0.28], Rk: 0.42, Mk: 0.35 },
+  { c: 'K', w: 0.18, T: 4400, col: [1.00, 0.74, 0.50], Rk: 0.72, Mk: 0.70 },
+  { c: 'G', w: 0.10, T: 5700, col: [1.00, 0.95, 0.85], Rk: 1.00, Mk: 1.00 },
+  { c: 'F', w: 0.05, T: 6800, col: [0.94, 0.95, 1.00], Rk: 1.25, Mk: 1.30 },
+  { c: 'A', w: 0.03, T: 8800, col: [0.80, 0.86, 1.00], Rk: 1.70, Mk: 1.90 },
+  { c: 'B', w: 0.016, T: 16000, col: [0.64, 0.75, 1.00], Rk: 3.2, Mk: 5.0 },
+  { c: 'O', w: 0.003, T: 33000, col: [0.55, 0.68, 1.00], Rk: 6.5, Mk: 16 },
+  { c: 'N', w: 0.001, T: 60000, col: [0.75, 0.90, 1.00], Rk: 0.002, Mk: 1.6, exotic: 'neutron star' }
+];
+function pickStarClass(rnd) {
+  let t = rnd(), acc = 0;
+  for (const s of STAR_CLASSES) { acc += s.w; if (t <= acc) return s; }
+  return STAR_CLASSES[0];
+}
+
+/* ---- planetary archetypes --------------------------------------------
+   Ten terrain archetypes crossed with biome palettes, exactly the shape
+   of the original's "one archetype per planet" rule.                      */
+const ARCHETYPES = [
+  { id:'lush',    label:'Lush',        life:1.0, sea:0.42, mtn:0.55, crater:0.0,  dune:0.0,  atmo:1.0,
+    pal:[[.012,.045,.11],[.03,.16,.26],[.60,.56,.40],[.11,.26,.09],[.30,.27,.18],[.92,.94,.97]],
+    tint:[.45,.62,1.0], bR:[5.8e-6,13.5e-6,33.1e-6], cloud:.45 },
+  { id:'verdant', label:'Overgrown',   life:1.0, sea:0.30, mtn:0.75, crater:0.0,  dune:0.0,  atmo:1.0,
+    pal:[[.02,.07,.06],[.05,.20,.16],[.52,.52,.32],[.07,.30,.10],[.22,.28,.14],[.80,.92,.86]],
+    tint:[.52,1.0,.72], bR:[8.0e-6,16.0e-6,22.0e-6], cloud:.55 },
+  { id:'ocean',   label:'Oceanic',     life:0.8, sea:0.82, mtn:0.35, crater:0.0,  dune:0.0,  atmo:1.0,
+    pal:[[.005,.03,.09],[.02,.13,.24],[.66,.62,.45],[.14,.28,.14],[.32,.30,.22],[.95,.96,.98]],
+    tint:[.36,.60,1.0], bR:[5.2e-6,12.0e-6,31.0e-6], cloud:.62 },
+  { id:'scorched',label:'Scorched',    life:0.0, sea:-1,   mtn:0.85, crater:0.25, dune:0.35, atmo:0.7,
+    pal:[[.14,.05,.02],[.20,.07,.03],[.44,.17,.06],[.52,.22,.08],[.64,.34,.14],[.82,.62,.36]],
+    tint:[1.0,.46,.20], bR:[2.4e-5,1.1e-5,6.0e-6], cloud:.18 },
+  { id:'frozen',  label:'Frozen',      life:0.0, sea:-1,   mtn:0.65, crater:0.30, dune:0.0,  atmo:0.6, ice:1,
+    pal:[[.42,.50,.58],[.54,.62,.70],[.74,.82,.90],[.82,.88,.94],[.88,.93,.97],[.97,.99,1.0]],
+    tint:[.62,.82,1.0], bR:[6.5e-6,1.3e-5,2.6e-5], cloud:.40 },
+  { id:'toxic',   label:'Toxic',       life:0.35,sea:0.35, mtn:0.50, crater:0.10, dune:0.0,  atmo:1.3,
+    pal:[[.08,.12,.03],[.14,.20,.05],[.42,.48,.14],[.30,.40,.10],[.44,.46,.18],[.70,.76,.44]],
+    tint:[.70,1.0,.30], bR:[1.2e-5,2.2e-5,8.0e-6], cloud:.58 },
+  { id:'irrad',   label:'Irradiated',  life:0.0, sea:-1,   mtn:0.60, crater:0.45, dune:0.20, atmo:0.5,
+    pal:[[.12,.10,.03],[.18,.16,.05],[.40,.36,.10],[.48,.44,.13],[.60,.56,.20],[.80,.78,.44]],
+    tint:[.85,1.0,.40], bR:[1.6e-5,2.0e-5,7.0e-6], cloud:.22 },
+  { id:'barren',  label:'Barren',      life:0.0, sea:-1,   mtn:0.55, crater:0.85, dune:0.15, atmo:0.0,
+    pal:[[.05,.05,.05],[.08,.08,.08],[.14,.13,.13],[.18,.17,.16],[.24,.23,.22],[.33,.32,.31]],
+    tint:[.6,.6,.6], bR:[1e-5,1e-5,1e-5], cloud:0 },
+  { id:'volcanic',label:'Volcanic',    life:0.0, sea:-1,   mtn:1.00, crater:0.20, dune:0.0,  atmo:0.9,
+    pal:[[.06,.03,.02],[.10,.04,.02],[.20,.08,.04],[.26,.11,.05],[.40,.16,.06],[.72,.30,.08]],
+    tint:[1.0,.38,.14], bR:[2.8e-5,9.0e-6,5.0e-6], cloud:.30 },
+  { id:'marsh',   label:'Marshland',   life:0.9, sea:0.58, mtn:0.28, crater:0.0,  dune:0.0,  atmo:1.1,
+    pal:[[.04,.06,.04],[.10,.16,.10],[.44,.42,.26],[.16,.24,.10],[.28,.28,.16],[.70,.74,.66]],
+    tint:[.60,.78,.62], bR:[7.0e-6,1.3e-5,1.8e-5], cloud:.70 },
+  { id:'exotic',  label:'Exotic',      life:0.4, sea:0.30, mtn:0.90, crater:0.0,  dune:0.10, atmo:0.8,
+    pal:[[.10,.02,.14],[.20,.05,.26],[.52,.30,.62],[.34,.10,.44],[.50,.24,.60],[.86,.70,.96]],
+    tint:[.80,.40,1.0], bR:[1.8e-5,8.0e-6,2.6e-5], cloud:.35 },
+  { id:'desert',  label:'Arid',        life:0.15,sea:-1,   mtn:0.70, crater:0.15, dune:0.90, atmo:0.55,
+    pal:[[.16,.09,.04],[.24,.14,.06],[.56,.40,.20],[.62,.46,.24],[.72,.58,.34],[.88,.80,.62]],
+    tint:[1.0,.72,.44], bR:[1.9e-5,1.3e-5,9.0e-6], cloud:.12 }
+];
+const GAS_PALETTES = [
+  { c0:[.72,.62,.48], c1:[.46,.33,.24], c2:[.88,.83,.72], c3:[.72,.36,.24] },
+  { c0:[.20,.34,.72], c1:[.14,.26,.62], c2:[.44,.58,.86], c3:[.24,.40,.80] },
+  { c0:[.55,.80,.84], c1:[.44,.72,.78], c2:[.70,.90,.92], c3:[.50,.78,.82] },
+  { c0:[.80,.72,.50], c1:[.60,.52,.34], c2:[.92,.88,.70], c3:[.70,.50,.30] },
+  { c0:[.62,.42,.70], c1:[.44,.28,.52], c2:[.82,.66,.90], c3:[.52,.30,.64] },
+  { c0:[.40,.62,.46], c1:[.26,.44,.32], c2:[.62,.82,.66], c3:[.32,.54,.38] }
+];
+
+/* ---- system generation ------------------------------------------------ */
+function generateSystem(a) {
+  if (isSol(a))
+    return { defs: BODY_DEFS, name: 'Sol', star: STAR_CLASSES[2], home: true, addr: addrClone(a) };
+
+  const r = mulberry(addrSeed(a, 1));
+  const sc = pickStarClass(r);
+  const sysName = nameFrom(addrSeed(a, 3), 'sys');
+  const starR = 6.957e8 * sc.Rk * (0.85 + 0.3 * r());
+  const starMu = 1.32712440018e20 * sc.Mk * (0.9 + 0.2 * r());
+  const lum = Math.pow(sc.Mk, 3.2);
+
+  const defs = [{
+    name: sysName, type: 'star', mu: starMu, R: starR, rotP: 2.2e6 * (0.5 + r()),
+    tilt: r() * 20, color: sc.col, lum: lum, starClass: sc.c
+  }];
+
+  /* habitable-zone radius scales with the square root of luminosity */
+  const hz = AU * Math.sqrt(lum);
+  const nPlanets = 1 + ((r() * 6) | 0);
+  let aPrev = hz * (0.18 + 0.5 * r());
+
+  for (let i = 0; i < nPlanets; i++) {
+    const pr = mulberry(addrSeed(a, 100 + i));
+    /* Titius–Bode-ish spacing keeps orbits from crossing */
+    const sma = aPrev * (1.5 + 0.9 * pr());
+    aPrev = sma;
+    const hzRatio = sma / hz;
+    const gas = pr() < clamp((hzRatio - 1.1) * 0.42, 0, 0.62);
+    const pName = sysName + ' ' + ['I','II','III','IV','V','VI'][i];
+
+    if (gas) {
+      const R = 2.2e7 + pr() * 5.4e7;
+      const gp = GAS_PALETTES[(pr() * GAS_PALETTES.length) | 0];
+      const d = {
+        name: pName, type: 'gas', parent: sysName,
+        mu: 6.0e15 * Math.pow(R / 2.4622e7, 2.6), R: R,
+        el: { a: sma, e: pr() * 0.06, i: (pr() - 0.5) * 0.10, O: pr() * TAU, w: pr() * TAU, M0: pr() * TAU },
+        rotP: 3.2e4 + pr() * 4e4, tilt: pr() * 40,
+        gas: { bands: 4 + ((pr() * 9) | 0), c0: gp.c0, c1: gp.c1, c2: gp.c2, c3: gp.c3,
+               storm: pr() < 0.45 ? pr() : 0, speed: 2.4e-5 + pr() * 4e-5 },
+        atm: { top: R * 0.008, Hr: 2.2e4 + pr() * 1.6e4, Hm: 9000, bR: [7e-6, 1.1e-5, 1.7e-5],
+               bM: 2.6e-5, g: 0.77, rho0: 0.18, sos: 850, tint: [gp.c2[0], gp.c2[1], gp.c2[2]], gain: 1.4 }
+      };
+      if (pr() < 0.35) {
+        const ri = R * (1.6 + pr() * 0.6);
+        d.ring = { inner: ri, outer: ri * (1.6 + pr() * 0.9), tilt: 0, opacity: 0.45 + pr() * 0.45 };
+      }
+      defs.push(d);
+      const nm = (pr() * 3) | 0;
+      for (let m = 0; m < nm; m++) defs.push(makeMoon(a, pName, d, m, i, hzRatio));
+    } else {
+      const pd = makeRocky(a, sysName, pName, sma, hzRatio, i, sc);
+      defs.push(pd);
+      const pr2 = mulberry(addrSeed(a, 400 + i));
+      const nm = pr2() < 0.45 ? 1 + ((pr2() * 2) | 0) : 0;
+      for (let m = 0; m < nm; m++) defs.push(makeMoon(a, pName, pd, m, i, hzRatio));
+    }
+  }
+  return { defs: defs, name: sysName, star: sc, addr: addrClone(a), planets: nPlanets };
+}
+
+function archetypeFor(rnd, hzRatio, cold) {
+  /* temperature bands bias which archetypes can appear, then the seed picks */
+  let pool;
+  if (hzRatio < 0.45) pool = ['scorched', 'volcanic', 'irrad', 'barren'];
+  else if (hzRatio < 0.8) pool = ['desert', 'scorched', 'barren', 'toxic', 'exotic', 'volcanic'];
+  else if (hzRatio < 1.5) pool = ['lush', 'verdant', 'ocean', 'marsh', 'desert', 'toxic', 'exotic', 'barren'];
+  else if (hzRatio < 3.0) pool = ['frozen', 'barren', 'toxic', 'irrad', 'exotic', 'marsh'];
+  else pool = ['frozen', 'barren', 'irrad', 'exotic'];
+  if (cold) pool = ['frozen', 'barren', 'irrad'];
+  const id = pool[(rnd() * pool.length) | 0];
+  return ARCHETYPES.find(x => x.id === id) || ARCHETYPES[0];
+}
+
+function makeRocky(a, sysName, pName, sma, hzRatio, idx, sc) {
+  const pr = mulberry(addrSeed(a, 200 + idx));
+  const arch = archetypeFor(pr, hzRatio);
+  const R = 1.2e6 + pr() * 7.6e6;
+  const dens = 3400 + pr() * 2400;
+  const mu = GRAV * (4 / 3) * PI * R * R * R * dens;
+  const relief = 0.55 + pr() * 1.5;
+  const mtnAmp = 1800 + arch.mtn * 11000 * relief;
+  const hasAtm = arch.atmo > 0.01 && pr() < 0.92;
+  const d = {
+    name: pName, type: arch.ice ? 'ice' : 'rocky', parent: sysName,
+    mu: mu, R: R,
+    el: { a: sma, e: pr() * 0.12, i: (pr() - 0.5) * 0.16, O: pr() * TAU, w: pr() * TAU, M0: pr() * TAU },
+    rotP: (2.4e4 + pr() * 3.4e5) * (pr() < 0.08 ? -1 : 1),
+    tilt: pr() * 48,
+    terr: {
+      freq: 1.9 + pr() * 1.7,
+      contAmp: 900 + pr() * 3400,
+      contEdge: (pr() - 0.5) * 0.22,
+      mtnAmp: mtnAmp,
+      warp: 0.4 + pr() * 1.1,
+      hillAmp: 220 + pr() * 900,
+      craterAmp: arch.crater * (800 + pr() * 2800),
+      craterFreq: 16 + pr() * 18,
+      craterOct: arch.crater > 0.2 ? 3 : 2,
+      duneAmp: arch.dune * (90 + pr() * 180),
+      duneFreq: 320 + pr() * 420,
+      sea: arch.sea < 0 ? -1e9 : (arch.sea * (900 + pr() * 2200))
+    },
+    pal: arch.pal.map(c => c.map(v => clamp(v * (0.8 + pr() * 0.45), 0, 1))),
+    polar: arch.ice ? [.97, .99, 1] : [0.88 + pr() * 0.1, 0.9 + pr() * 0.08, 0.94 + pr() * 0.06],
+    polarLat: 0.72 + pr() * 0.26,
+    life: arch.life > 0 ? arch.life * (0.4 + pr() * 0.6) : 0,
+    ice: arch.ice || 0,
+    archetype: arch.label, biome: arch.id
+  };
+  if (hasAtm) {
+    const thick = arch.atmo * (0.45 + pr() * 1.5);
+    d.atm = {
+      top: R * (0.010 + 0.010 * thick), Hr: 5200 + pr() * 14000, Hm: 1200 + pr() * 3600,
+      bR: arch.bR.map(v => v * (0.75 + pr() * 0.7)),
+      bM: 1.4e-5 * (0.5 + pr() * 2.4), g: 0.70 + pr() * 0.12,
+      rho0: 0.12 + thick * (0.9 + pr() * 2.6), sos: 240 + pr() * 180,
+      tint: arch.tint, gain: 0.8 + pr() * 1.1
+    };
+    if (arch.cloud > 0.05 && pr() < 0.88) {
+      d.cloud = { bottom: 1600 + pr() * 4200, top: 9000 + pr() * 14000,
+        cover: arch.cloud * (0.6 + pr() * 0.7), freq: 3.2 + pr() * 4.2,
+        speed: 2e-4 + pr() * 6e-4,
+        col: [0.9 + pr() * 0.1, 0.88 + pr() * 0.12, 0.86 + pr() * 0.14],
+        dens: 0.7 + pr() * 1.2 };
+    }
+  }
+  if (arch.sea >= 0 && pr() < 0.35) d.liquid = 'methane';
+  return d;
+}
+
+function makeMoon(a, parentName, parentDef, m, idx, hzRatio) {
+  const pr = mulberry(addrSeed(a, 700 + idx * 8 + m));
+  const arch = archetypeFor(pr, hzRatio, hzRatio > 1.2);
+  const R = 3.0e5 + pr() * 1.9e6;
+  const mu = GRAV * (4 / 3) * PI * R * R * R * (2600 + pr() * 1200);
+  const sma = parentDef.R * (3.5 + pr() * 14 + m * 6);
+  return {
+    name: parentName + ' ' + ['a','b','c'][m],
+    type: arch.ice ? 'ice' : 'rocky', parent: parentName, mu: mu, R: R,
+    el: { a: sma, e: pr() * 0.05, i: (pr() - 0.5) * 0.12, O: pr() * TAU, w: pr() * TAU, M0: pr() * TAU },
+    rotP: 8e4 + pr() * 6e5, tilt: pr() * 12,
+    terr: {
+      freq: 2.4 + pr() * 1.8, contAmp: 500 + pr() * 1500, contEdge: (pr() - 0.5) * 0.2,
+      mtnAmp: 900 + arch.mtn * 3800, warp: 0.4 + pr() * 0.9, hillAmp: 160 + pr() * 500,
+      craterAmp: Math.max(arch.crater, 0.5) * (1200 + pr() * 2400),
+      craterFreq: 18 + pr() * 16, craterOct: 3,
+      duneAmp: arch.dune * 90, duneFreq: 380 + pr() * 300, sea: -1e9
+    },
+    pal: arch.pal.map(c => c.map(v => clamp(v * (0.6 + pr() * 0.4), 0, 1))),
+    polar: [0.8, 0.82, 0.86], polarLat: 0.86 + pr() * 0.12,
+    life: 0, ice: arch.ice || 0, archetype: arch.label, biome: arch.id
+  };
+}
+
+/* Cheap preview: replays exactly the RNG prefix generateSystem() consumes,
+   so the map shows the truth without building the whole system. */
+function systemSummary(a) {
+  if (isSol(a)) return { sc: STAR_CLASSES[2], planets: 8, name: 'Sol', home: true };
+  const r = mulberry(addrSeed(a, 1));
+  const sc = pickStarClass(r);
+  r(); r(); r(); r();                       // starR, starMu, rotP, tilt
+  const n = 1 + ((r() * 6) | 0);
+  return { sc: sc, planets: n, name: nameFrom(addrSeed(a, 3), 'sys'), home: false };
+}
+
+/* ---- loading a system into the live simulation ------------------------ */
+let CURRENT = addrClone(SOL_ADDR);
+let CURRENT_INFO = { name: 'Sol', star: STAR_CLASSES[2], home: true };
+const DISCOVERED = {};
+
+function loadSystem(addr) {
+  const gen = generateSystem(addr);
+  for (const n in PLANETS) { PLANETS[n].destroy(); delete PLANETS[n]; }
+  buildQueue.length = 0;
+  SUN = linkSystem(gen.defs);
+  buildPlanetViews();
+  CURRENT = addrClone(addr);
+  CURRENT_INFO = gen;
+  DISCOVERED[toPortal(addr, 0)] = gen.name;
+  for (const b of BODIES) b.update(simTime);
+  /* star appearance follows the class */
+  const col = gen.star ? gen.star.col : [1, .95, .86];
+  sunMat.uniforms.uTint.value.set(col[0], col[1], col[2]);
+  sunMesh.scale.setScalar(SUN.R);
+  ship.target = null;
+  return gen;
+}
+
+/* =====================================================================
+   GALAXY MAP
+   ---------------------------------------------------------------------
+   A sampled point cloud over the density field. Every point IS a real
+   galactic address — selecting one and jumping generates that system on
+   arrival. Nothing on this map is stored content; it is the same function
+   the universe is made of, drawn at a different scale.
+   ===================================================================== */
+const GALAXY_COUNT = 256;
+function galaxyName(g) {
+  if (g < GAL_NAMES.length) return GAL_NAMES[g];
+  return nameFrom(NZ.hash3i(g * 2654435761, 917, 5501), 'gal');
+}
+
+const mapScene = new T.Scene();
+const mapCam = new T.PerspectiveCamera(48, 1, 0.01, 200);
+const MAP_N = 46000;
+const mapState = {
+  open: false, yaw: 0.6, pitch: 0.58, dist: 2.6, tDist: 2.6,
+  sel: -1, addrs: null, pos: null, drag: false, lx: 0, ly: 0,
+  pinch: 0, galaxy: -1, wantGalaxy: 0, count: 0, spin: 0, moved: 0
+};
+
+const mapPtsMat = new T.RawShaderMaterial({
+  glslVersion: T.GLSL3, transparent: true, depthTest: false, depthWrite: false,
+  blending: T.AdditiveBlending,
+  uniforms: { uScale: { value: 300 }, uDim: { value: 1 } },
+  vertexShader: `precision highp float;
+    in vec3 position; in vec3 aCol; in float aSize;
+    uniform mat4 modelViewMatrix, projectionMatrix; uniform float uScale;
+    out vec3 vCol;
+    void main(){ vCol = aCol;
+      vec4 mv = modelViewMatrix*vec4(position,1.0);
+      gl_Position = projectionMatrix*mv;
+      gl_PointSize = clamp(aSize*uScale/max(-mv.z, 0.02), 0.5, 15.0); }`,
+  fragmentShader: `precision highp float;
+    in vec3 vCol; out vec4 oCol; uniform float uDim;
+    void main(){
+      vec2 d = gl_PointCoord - 0.5;
+      float r = dot(d,d)*4.0;
+      if(r > 1.0) discard;
+      float a = exp(-r*3.4);
+      oCol = vec4(vCol*a*uDim, a);
+    }`
+});
+let mapPoints = null;
+
+/* faint galactic haze so the arms read even where stars are sparse */
+const mapHaze = new T.Mesh(new T.PlaneGeometry(2.6, 2.6, 1, 1), new T.RawShaderMaterial({
+  glslVersion: T.GLSL3, transparent: true, depthTest: false, depthWrite: false,
+  blending: T.AdditiveBlending,
+  uniforms: { uTime: { value: 0 } },
+  vertexShader: `precision highp float;
+    in vec3 position; uniform mat4 modelViewMatrix, projectionMatrix;
+    out vec2 vP;
+    void main(){ vP = position.xy; gl_Position = projectionMatrix*modelViewMatrix*vec4(position,1.0); }`,
+  fragmentShader: `precision highp float;
+    in vec2 vP; out vec4 oCol;
+    ${GLSL_NOISE}
+    void main(){
+      float r = length(vP);
+      if(r > 1.28) discard;
+      float th = atan(vP.y, vP.x);
+      float phase = th*2.0 - log(max(r,0.03))*7.2;
+      float arm = pow(cos(phase)*0.5+0.5, 2.4);
+      float bulge = exp(-r*r*26.0);
+      float disc = exp(-r*3.0);
+      float n = fbm(vec3(vP*9.0, 0.5), 4, 2.2, 0.55)*0.5 + 0.5;
+      float d = bulge*0.85 + disc*(0.12 + 0.88*arm)*n*1.5;
+      vec3 col = mix(vec3(0.16,0.20,0.42), vec3(0.95,0.86,0.72), clamp(bulge*1.6,0.0,1.0));
+      col = mix(col, vec3(0.42,0.60,1.0), clamp(arm*0.5,0.0,1.0));
+      oCol = vec4(col*d*0.085, 1.0);
+    }`
+}));
+mapHaze.rotation.x = -PI / 2;
+mapHaze.renderOrder = -1;
+mapScene.add(mapHaze);
+
+function buildGalaxyPoints(g) {
+  if (mapPoints) { mapScene.remove(mapPoints); mapPoints.geometry.dispose(); }
+  const pos = new Float32Array(MAP_N * 3);
+  const col = new Float32Array(MAP_N * 3);
+  const siz = new Float32Array(MAP_N);
+  const addrs = new Array(MAP_N);
+  const r = mulberry(0x9E3779B9 ^ (g * 2654435761));
+  let n = 0, guard = 0;
+  while (n < MAP_N && guard < MAP_N * 60) {
+    guard++;
+    /* sample the disc in polar so the centre gets its share of points */
+    const rr = Math.pow(r(), 0.55);
+    const th = r() * TAU;
+    const vx = Math.round(Math.cos(th) * rr * 2047);
+    const vz = Math.round(Math.sin(th) * rr * 2047);
+    const vy = Math.round((r() * 2 - 1) * Math.pow(r(), 1.6) * 127);
+    const d = galaxyDensity(vx, vy, vz);
+    if (d <= 0.004 || r() > d * 1.35) continue;
+    const cnt = systemsInVoxel(vx, vy, vz);
+    if (cnt <= 0) continue;
+    const ssi = (r() * cnt) | 0;
+    const a = { g: g, vx: vx, vy: vy, vz: vz, ssi: ssi };
+    const sr = mulberry(addrSeed(a, 1));
+    const sc = pickStarClass(sr);
+    pos[n * 3] = vx / 2047; pos[n * 3 + 1] = vy / 2047; pos[n * 3 + 2] = vz / 2047;
+    const bright = 0.18 + (sc.Mk > 1.2 ? 0.55 : 0.14) * Math.min(sc.Mk, 6) / 6 + r() * 0.12;
+    col[n * 3] = sc.col[0] * bright; col[n * 3 + 1] = sc.col[1] * bright; col[n * 3 + 2] = sc.col[2] * bright;
+    siz[n] = 0.6 + Math.min(sc.Rk, 6) * 0.30;
+    addrs[n] = a;
+    n++;
+  }
+  const geo = new T.BufferGeometry();
+  geo.setAttribute('position', new T.BufferAttribute(pos, 3));
+  geo.setAttribute('aCol', new T.BufferAttribute(col, 3));
+  geo.setAttribute('aSize', new T.BufferAttribute(siz, 1));
+  geo.setDrawRange(0, n);
+  geo.boundingSphere = new T.Sphere(new T.Vector3(), 2);
+  mapPoints = new T.Points(geo, mapPtsMat);
+  mapPoints.frustumCulled = false;
+  mapScene.add(mapPoints);
+  mapState.addrs = addrs; mapState.pos = pos; mapState.count = n;
+  mapState.galaxy = g;
+  return n;
+}
+
+/* ------------------------------------------------------------ helpers */
+function voxelToMap(a, out) { return out.set(a.vx / 2047, a.vy / 2047, a.vz / 2047); }
+function lyBetween(a, b) {
+  const dx = a.vx - b.vx, dy = a.vy - b.vy, dz = a.vz - b.vz;
+  return Math.sqrt(dx * dx + dy * dy + dz * dz) * GX.LY_PER_VOXEL;
+}
+function nearestPoint(ndcX, ndcY) {
+  const p = mapState.pos, n = mapState.count;
+  let best = -1, bestD = 0.0016;
+  const v = _v1;
+  for (let i = 0; i < n; i++) {
+    v.set(p[i * 3], p[i * 3 + 1], p[i * 3 + 2]).project(mapCam);
+    if (v.z < -1 || v.z > 1) continue;
+    const dx = v.x - ndcX, dy = v.y - ndcY;
+    const d = dx * dx + dy * dy;
+    if (d < bestD) { bestD = d; best = i; }
+  }
+  return best;
+}
+function updateMapCamera() {
+  mapState.dist += (mapState.tDist - mapState.dist) * 0.18;
+  const cp = Math.cos(mapState.pitch), sp = Math.sin(mapState.pitch);
+  mapCam.position.set(
+    Math.cos(mapState.yaw) * cp * mapState.dist,
+    sp * mapState.dist,
+    Math.sin(mapState.yaw) * cp * mapState.dist);
+  mapCam.up.set(0, 1, 0);
+  mapCam.lookAt(0, 0, 0);
+  mapCam.aspect = VW / VH;
+  mapCam.updateProjectionMatrix();
+  mapCam.updateMatrixWorld(true);
+  mapPtsMat.uniforms.uScale.value = 10.5 * Math.min(VH / 700, 1.7);
+}
+
+/* --------------------------------------------------------------- panel */
+function selectedAddr() {
+  return mapState.sel >= 0 ? mapState.addrs[mapState.sel] : null;
+}
+function refreshMapPanel() {
+  const a = selectedAddr();
+  const info = $('mapInfo');
+  $('mapGalaxy').textContent = (mapState.galaxy + 1) + ' / ' + GALAXY_COUNT + ' · ' + galaxyName(mapState.galaxy);
+  if (!a) { info.innerHTML = '<div class="mapHint">Drag to orbit · pinch or wheel to zoom · tap a star to select it.</div>';
+    $('mapJump').disabled = true; $('mapGlyphs').textContent = ''; return; }
+  const sum = systemSummary(a);
+  const sc = sum.sc, nm = sum.name, np = sum.planets, home = sum.home;
+  const dly = lyBetween(a, CURRENT);
+  const known = DISCOVERED[toPortal(a, 0)];
+  info.innerHTML =
+    '<div class="mapName">' + (home ? 'Sol' : nm) + (known ? ' <span class="mapTagV">visited</span>' : '') + '</div>' +
+    '<div class="mapRegion">' + regionName(a) + '</div>' +
+    '<div class="mapRows">' +
+      row2('STAR', sc.exotic ? sc.exotic.toUpperCase() : 'CLASS ' + sc.c + ' · ' + sc.T + ' K') +
+      row2('WORLDS', np + (np === 1 ? ' planet' : ' planets') + (home ? ' + moons' : '')) +
+      row2('VOXEL', a.vx + ', ' + a.vy + ', ' + a.vz) +
+      row2('SYSTEM IDX', a.ssi) +
+      row2('DISTANCE', dly < 1 ? 'current system' : dly.toFixed(1) + ' ly') +
+    '</div>';
+  $('mapGlyphs').textContent = portalGlyphs(a, 0);
+  $('mapHex').textContent = toPortal(a, 0);
+  $('mapJump').disabled = addrEq(a, CURRENT);
+  $('mapJump').textContent = addrEq(a, CURRENT) ? 'Current system' : 'Warp to system';
+}
+function row2(k, v) { return '<div class="mapRow"><span>' + k + '</span><b>' + v + '</b></div>'; }
+
+function openMap() {
+  if (mapState.galaxy < 0) mapState.wantGalaxy = CURRENT.g;
+  if (!mapState.addrs || mapState.galaxy !== mapState.wantGalaxy) buildGalaxyPoints(mapState.wantGalaxy);
+  mapState.open = true;
+  $('mapOverlay').classList.add('on');
+  $('hud').classList.add('mapped');
+  /* frame the current system */
+  if (mapState.wantGalaxy === CURRENT.g) {
+    let best = -1, bd = 1e9;
+    for (let i = 0; i < mapState.count; i++) {
+      const a = mapState.addrs[i];
+      const d = (a.vx - CURRENT.vx) ** 2 + (a.vy - CURRENT.vy) ** 2 + (a.vz - CURRENT.vz) ** 2;
+      if (d < bd) { bd = d; best = i; }
+    }
+    mapState.sel = best;
+  }
+  refreshMapPanel();
+  audio.blip(560, 0.09);
+}
+function closeMap() {
+  mapState.open = false;
+  $('mapOverlay').classList.remove('on');
+  $('hud').classList.remove('mapped');
+}
+
+/* ------------------------------------------------------------- warping */
+function warpToSystem(addr) {
+  if (!addr) return;
+  if (addrEq(addr, CURRENT)) { say('Already in this system'); return; }
+  if (ship.rho > 1e-6) { say('WARP FAILED — cannot fold space inside an atmosphere', 'bad'); return; }
+  if (ship.onGround) { say('WARP FAILED — must be free of the surface', 'bad'); return; }
+  const cost = 0.45;
+  if (ship.power < cost) { say('Insufficient charge for an interstellar fold', 'bad'); return; }
+  ship.power -= cost;
+  closeMap();
+  wormhole.pendingSystem = addrClone(addr);
+  wormhole.state = 'charge'; wormhole.t = 0;
+  wormhole.target = null;
+  shipAxes();
+  wormhole.dir.copy(_fwd);
+  wormhole.pos.copy(ship.pos).addScaledVector(_fwd, 420);
+  whGroup.visible = true;
+  ship.throttle = 0;
+  const nm = systemSummary(addr).name;
+  caption('FOLDING SPACETIME', 'Interstellar · ' + nm, 0);
+  say('Interstellar bridge charging — ' + nm, 'good');
+  audio.wormhole(true);
+}
+/* called by the wormhole sequencer when the tunnel ends */
+function arriveAtSystem(addr) {
+  const gen = loadSystem(addr);
+  /* park just outside the innermost interesting world */
+  let host = BODIES.find(b => b.parentBody === SUN) || SUN;
+  for (const b of BODIES) if (b.parentBody === SUN && b.terr && b.atm) { host = b; break; }
+  const r = host === SUN ? SUN.R * 40 : host.R * 3.2;
+  _v1.subVectors(SUN.pos, host.pos);
+  if (_v1.lengthSq() < 1) _v1.set(1, 0, 0);
+  _v1.normalize();
+  _v2.set(0, 1, 0).applyQuaternion(host.quat);
+  _v3.crossVectors(_v2, _v1).normalize();
+  if (_v3.lengthSq() < 0.1) _v3.set(0, 0, 1);
+  _v4.copy(_v1).multiplyScalar(Math.cos(0.7)).addScaledVector(_v3, Math.sin(0.7)).normalize();
+  ship.pos.copy(host.pos).addScaledVector(_v4, r);
+  _v5.crossVectors(_v2, _v4).normalize();
+  if (_v5.lengthSq() < 0.1) _v5.set(1, 0, 0);
+  ship.vel.copy(host.vel).addScaledVector(_v5, Math.sqrt(host.mu / r));
+  ship.angVel.set(0, 0, 0);
+  ship.quat.setFromRotationMatrix(_m1.lookAt(v3(0, 0, 0), _v6.copy(_v5).negate(), _v4));
+  ship.soi = host;
+  ship.skinT = Math.min(ship.skinT, 400);
+  ship.target = host === SUN ? null : host;
+  updateShipState();
+  say('Arrived: ' + gen.name + ' · ' + regionName(addr), 'good');
+  caption('SYSTEM ' + gen.name.toUpperCase(), regionName(addr) + ' · ' + portalGlyphs(addr, 0), 4200);
+  audio.blip(920, 0.3);
+}
+function randomSystem(g) {
+  const r = mulberry((Math.random() * 4294967295) >>> 0);
+  for (let i = 0; i < 4000; i++) {
+    const rr = Math.pow(r(), 0.55), th = r() * TAU;
+    const vx = Math.round(Math.cos(th) * rr * 2047);
+    const vz = Math.round(Math.sin(th) * rr * 2047);
+    const vy = Math.round((r() * 2 - 1) * Math.pow(r(), 1.6) * 127);
+    const cnt = systemsInVoxel(vx, vy, vz);
+    if (cnt > 0) return { g: g, vx: vx, vy: vy, vz: vz, ssi: (r() * cnt) | 0 };
+  }
+  return { g: g, vx: 0, vy: 0, vz: 0, ssi: 0 };
+}
+
+/* =====================================================================
+   TOUCH CONTROLS
+   ---------------------------------------------------------------------
+   A full flight stack for phones: a floating attitude stick that spawns
+   wherever the left thumb lands, a vertical throttle on the right, a
+   roll/translate strip, and a compact action rail. Every control is
+   pointer-event based so it works with touch, pen and mouse, and each
+   one owns its pointerId so two thumbs never fight over one gesture.
+   ===================================================================== */
+const TOUCH = {
+  enabled: false,
+  stick: { id: -1, ox: 0, oy: 0, x: 0, y: 0, active: false },
+  look:  { id: -1, lx: 0, ly: 0, dx: 0, dy: 0, active: false },
+  thr:   { id: -1, val: 0, top: 0, h: 1, active: false },
+  roll: 0, transUp: 0, boost: false
+};
+/* setPointerCapture throws if the pointer is already gone (or synthetic);
+   a throw here would abort the handler before the control ever responds. */
+function grab(el, id) { try { el.setPointerCapture(id); } catch (e) { /* non-fatal */ } }
+function isTouchDevice() {
+  return (('ontouchstart' in window) || (navigator.maxTouchPoints || 0) > 0) &&
+         Math.min(window.innerWidth, window.innerHeight) < 1100;
+}
+function setTouchUI(on) {
+  TOUCH.enabled = on;
+  document.body.classList.toggle('touchui', on);
+  $('cfgTouch').checked = on;
+  layoutNavball();
+}
+
+/* ------------------------------------------------------- virtual stick */
+function bindStick() {
+  const zone = $('tStickZone'), base = $('tStickBase'), knob = $('tStickKnob');
+  const R = 58;
+  zone.addEventListener('pointerdown', e => {
+    if (TOUCH.stick.id !== -1) return;
+    TOUCH.stick.id = e.pointerId; TOUCH.stick.active = true;
+    const r = zone.getBoundingClientRect();
+    TOUCH.stick.ox = clamp(e.clientX, r.left + R, r.right - R);
+    TOUCH.stick.oy = clamp(e.clientY, r.top + R, r.bottom - R);
+    base.style.left = (TOUCH.stick.ox - r.left) + 'px';
+    base.style.top = (TOUCH.stick.oy - r.top) + 'px';
+    base.classList.add('on');
+    grab(zone, e.pointerId);
+    e.preventDefault();
+  });
+  zone.addEventListener('pointermove', e => {
+    if (e.pointerId !== TOUCH.stick.id) return;
+    let dx = e.clientX - TOUCH.stick.ox, dy = e.clientY - TOUCH.stick.oy;
+    const l = Math.hypot(dx, dy);
+    if (l > R) { dx *= R / l; dy *= R / l; }
+    TOUCH.stick.x = dx / R; TOUCH.stick.y = dy / R;
+    knob.style.transform = 'translate(-50%,-50%) translate(' + dx + 'px,' + dy + 'px)';
+    e.preventDefault();
+  });
+  const end = e => {
+    if (e.pointerId !== TOUCH.stick.id) return;
+    TOUCH.stick.id = -1; TOUCH.stick.active = false;
+    TOUCH.stick.x = 0; TOUCH.stick.y = 0;
+    knob.style.transform = 'translate(-50%,-50%)';
+    base.classList.remove('on');
+  };
+  zone.addEventListener('pointerup', end);
+  zone.addEventListener('pointercancel', end);
+}
+
+/* -------------------------------------------------------- look / camera */
+function bindLook() {
+  const zone = $('tLookZone');
+  zone.addEventListener('pointerdown', e => {
+    if (TOUCH.look.id !== -1) return;
+    TOUCH.look.id = e.pointerId; TOUCH.look.active = true;
+    TOUCH.look.lx = e.clientX; TOUCH.look.ly = e.clientY;
+    grab(zone, e.pointerId);
+    e.preventDefault();
+  });
+  zone.addEventListener('pointermove', e => {
+    if (e.pointerId !== TOUCH.look.id) return;
+    TOUCH.look.dx += e.clientX - TOUCH.look.lx;
+    TOUCH.look.dy += e.clientY - TOUCH.look.ly;
+    TOUCH.look.lx = e.clientX; TOUCH.look.ly = e.clientY;
+    e.preventDefault();
+  });
+  const end = e => {
+    if (e.pointerId !== TOUCH.look.id) return;
+    TOUCH.look.id = -1; TOUCH.look.active = false;
+  };
+  zone.addEventListener('pointerup', end);
+  zone.addEventListener('pointercancel', end);
+}
+
+/* -------------------------------------------------------------- throttle */
+function bindThrottle() {
+  const trk = $('tThrTrack'), fil = $('tThrFill'), lab = $('tThrVal');
+  const apply = (clientY) => {
+    const r = trk.getBoundingClientRect();
+    const v = clamp(1 - (clientY - r.top) / r.height, 0, 1);
+    ship.throttle = v;
+    fil.style.height = (v * 100).toFixed(0) + '%';
+    lab.textContent = Math.round(v * 100) + '%';
+  };
+  trk.addEventListener('pointerdown', e => {
+    if (TOUCH.thr.id !== -1) return;
+    TOUCH.thr.id = e.pointerId; grab(trk, e.pointerId);
+    apply(e.clientY); e.preventDefault();
+  });
+  trk.addEventListener('pointermove', e => {
+    if (e.pointerId !== TOUCH.thr.id) return;
+    apply(e.clientY); e.preventDefault();
+  });
+  const end = e => { if (e.pointerId === TOUCH.thr.id) TOUCH.thr.id = -1; };
+  trk.addEventListener('pointerup', end);
+  trk.addEventListener('pointercancel', end);
+}
+
+/* --------------------------------------------------------- hold buttons */
+function bindHold(id, onDown, onUp) {
+  const el = $(id);
+  if (!el) return;
+  let pid = -1;
+  el.addEventListener('pointerdown', e => {
+    pid = e.pointerId; grab(el, e.pointerId);
+    el.classList.add('held'); onDown(); e.preventDefault();
+  });
+  const end = e => {
+    if (e.pointerId !== pid) return;
+    pid = -1; el.classList.remove('held'); if (onUp) onUp();
+  };
+  el.addEventListener('pointerup', end);
+  el.addEventListener('pointercancel', end);
+}
+function bindTap(id, fn) {
+  const el = $(id);
+  if (!el) return;
+  el.addEventListener('click', e => { e.preventDefault(); fn(); });
+}
+
+function initTouchControls() {
+  bindStick(); bindLook(); bindThrottle();
+  bindHold('tRollL', () => TOUCH.roll = 1, () => TOUCH.roll = 0);
+  bindHold('tRollR', () => TOUCH.roll = -1, () => TOUCH.roll = 0);
+  bindHold('tUp', () => TOUCH.transUp = 1, () => TOUCH.transUp = 0);
+  bindHold('tDown', () => TOUCH.transUp = -1, () => TOUCH.transUp = 0);
+  bindHold('tBoost', () => TOUCH.boost = true, () => TOUCH.boost = false);
+  bindTap('tGear', toggleGear);
+  bindTap('tSas', () => { ship.sas = !ship.sas; setTag('tagSas', ship.sas); audio.blip(ship.sas ? 740 : 420, .06); });
+  bindTap('tRcs', () => { ship.rcs = !ship.rcs; audio.blip(ship.rcs ? 700 : 400, .06); });
+  bindTap('tRetro', () => { ship.sasMode = ship.sasMode === 'srfretro' ? 'retro' : 'srfretro'; ship.sas = true;
+                            say('SAS ' + (ship.sasMode === 'srfretro' ? 'surface retrograde' : 'retrograde')); });
+  bindTap('tCam', () => { cam.mode = (cam.mode + 1) % CAM_MODES.length; });
+  bindTap('tMap', () => { mapState.open ? closeMap() : openMap(); });
+  bindTap('tScan', beginScan);
+  bindTap('tEva', evaToggle);
+  bindTap('tWarpUp', () => setWarp(ship.warpIdx + 1));
+  bindTap('tWarpDn', () => setWarp(ship.warpIdx - 1));
+  bindTap('tMenu', () => $('tRail').classList.toggle('open'));
+  setTouchUI(isTouchDevice());
+}
+
+/* Feed the touch state into the same control channel the keyboard uses.
+   Called from readFlightInput so the two can be mixed freely. */
+function applyTouchInput(dt) {
+  if (!TOUCH.enabled) return;
+  const inv = CFG.invert ? -1 : 1;
+  if (eva.active) {
+    input.fwd += -TOUCH.stick.y;
+    input.rgt += TOUCH.stick.x;
+    input.jump = input.jump || TOUCH.boost;
+    const sens = 0.0042;
+    eva.yaw -= TOUCH.look.dx * sens;
+    eva.pitch = clamp(eva.pitch - TOUCH.look.dy * sens, -1.45, 1.45);
+    TOUCH.look.dx = 0; TOUCH.look.dy = 0;
+    return;
+  }
+  ship.ctrl.x = clamp(ship.ctrl.x - TOUCH.stick.y * inv, -1, 1);
+  ship.ctrl.y = clamp(ship.ctrl.y - TOUCH.stick.x, -1, 1);
+  ship.ctrl.z = clamp(ship.ctrl.z + TOUCH.roll, -1, 1);
+  ship.trans.y += TOUCH.transUp;
+  if (TOUCH.boost) ship.throttle = 1;
+  /* look drag orbits the chase camera instead of steering */
+  if (CAM_MODES[cam.mode] === 'orbital' || CAM_MODES[cam.mode] === 'chase') {
+    cam.yaw -= TOUCH.look.dx * 0.006;
+    cam.pitch = clamp(cam.pitch - TOUCH.look.dy * 0.006, -1.4, 1.4);
+  }
+  TOUCH.look.dx = 0; TOUCH.look.dy = 0;
+}
+function syncTouchHud() {
+  if (!TOUCH.enabled) return;
+  const fil = $('tThrFill'), lab = $('tThrVal');
+  if (TOUCH.thr.id === -1) {
+    fil.style.height = (ship.throttle * 100).toFixed(0) + '%';
+    lab.textContent = Math.round(ship.throttle * 100) + '%';
+  }
+  $('tGear').classList.toggle('lit', ship.gearDown);
+  $('tSas').classList.toggle('lit', ship.sas);
+  $('tRcs').classList.toggle('lit', ship.rcs);
+  $('tEva').classList.toggle('lit', eva.active);
+  $('tWarpVal').textContent = '×' + (WARPS[ship.warpIdx] >= 1000 ? (WARPS[ship.warpIdx] / 1000) + 'k' : WARPS[ship.warpIdx]);
+}
+
+/* ------------------------------------------------- galaxy map gestures */
+function bindMapGestures() {
+  const el = $('mapCanvasCatcher');
+  const pts = new Map();
+  el.addEventListener('pointerdown', e => {
+    pts.set(e.pointerId, { x: e.clientX, y: e.clientY, sx: e.clientX, sy: e.clientY });
+    grab(el, e.pointerId);
+    mapState.moved = 0;
+  });
+  el.addEventListener('pointermove', e => {
+    const p = pts.get(e.pointerId);
+    if (!p) return;
+    const dx = e.clientX - p.x, dy = e.clientY - p.y;
+    p.x = e.clientX; p.y = e.clientY;
+    mapState.moved += Math.abs(dx) + Math.abs(dy);
+    if (pts.size === 1) {
+      mapState.yaw -= dx * 0.0065;
+      mapState.pitch = clamp(mapState.pitch + dy * 0.0065, -1.45, 1.45);
+    } else if (pts.size === 2) {
+      const a = Array.from(pts.values());
+      const d = Math.hypot(a[0].x - a[1].x, a[0].y - a[1].y);
+      if (mapState.pinch > 0) mapState.tDist = clamp(mapState.tDist * (mapState.pinch / d), 0.12, 6);
+      mapState.pinch = d;
+    }
+  });
+  const end = e => {
+    const p = pts.get(e.pointerId);
+    if (p && pts.size === 1 && mapState.moved < 12) {
+      const r = el.getBoundingClientRect();
+      const nx = ((p.sx - r.left) / r.width) * 2 - 1;
+      const ny = -(((p.sy - r.top) / r.height) * 2 - 1);
+      const i = nearestPoint(nx, ny);
+      if (i >= 0) { mapState.sel = i; refreshMapPanel(); audio.blip(700, 0.05); }
+    }
+    pts.delete(e.pointerId);
+    if (pts.size < 2) mapState.pinch = 0;
+  };
+  el.addEventListener('pointerup', end);
+  el.addEventListener('pointercancel', end);
+  el.addEventListener('wheel', e => {
+    e.preventDefault();
+    mapState.tDist = clamp(mapState.tDist * (1 + Math.sign(e.deltaY) * 0.13), 0.12, 6);
+  }, { passive: false });
+}
+
+/* =====================================================================
+   WIRING for the galaxy map + touch UI
+   ===================================================================== */
+$('btnMap').addEventListener('click', () => openMap());
+$('mapClose').addEventListener('click', closeMap);
+$('mapJump').addEventListener('click', () => warpToSystem(selectedAddr()));
+$('mapHome').addEventListener('click', () => {
+  mapState.wantGalaxy = 0;
+  if (mapState.galaxy !== 0) buildGalaxyPoints(0);
+  focusAddr(SOL_ADDR);
+});
+$('mapHere').addEventListener('click', () => {
+  mapState.wantGalaxy = CURRENT.g;
+  if (mapState.galaxy !== CURRENT.g) buildGalaxyPoints(CURRENT.g);
+  focusAddr(CURRENT);
+});
+$('mapRandom').addEventListener('click', () => focusAddr(randomSystem(mapState.galaxy)));
+$('mapCopy').addEventListener('click', () => {
+  const a = selectedAddr(); if (!a) return;
+  const txt = toPortal(a, 0);
+  if (navigator.clipboard) navigator.clipboard.writeText(txt).then(
+    () => say('Address copied: ' + txt, 'good'), () => say('Address: ' + txt));
+  else say('Address: ' + txt);
+});
+$('mapGo').addEventListener('click', () => {
+  const p = fromPortal($('mapAddr').value, mapState.galaxy);
+  if (!p) { say('Address must be 12 glyphs or hex digits', 'warn'); return; }
+  if (!addrExists(p.addr)) { say('No system at that address — the void is mostly empty', 'warn'); return; }
+  focusAddr(p.addr);
+});
+$('mapAddr').addEventListener('keydown', e => { if (e.key === 'Enter') $('mapGo').click(); });
+function stepGalaxy(d) {
+  mapState.wantGalaxy = (mapState.wantGalaxy + d + GALAXY_COUNT) % GALAXY_COUNT;
+  buildGalaxyPoints(mapState.wantGalaxy);
+  mapState.sel = -1;
+  refreshMapPanel();
+}
+$('mapGalPrev').addEventListener('click', () => stepGalaxy(-1));
+$('mapGalNext').addEventListener('click', () => stepGalaxy(1));
+
+/* Point the camera at an address, inserting it into the cloud if the
+   sampler never happened to pick it. */
+function focusAddr(a) {
+  if (a.g !== mapState.galaxy) { mapState.wantGalaxy = a.g; buildGalaxyPoints(a.g); }
+  let best = -1, bd = 1e18;
+  for (let i = 0; i < mapState.count; i++) {
+    const b = mapState.addrs[i];
+    const d = (b.vx - a.vx) ** 2 + (b.vy - a.vy) ** 2 + (b.vz - a.vz) ** 2 + (b.ssi === a.ssi ? 0 : 1);
+    if (d < bd) { bd = d; best = i; }
+  }
+  if (bd > 0.5 && mapState.count < MAP_N) {
+    /* splice the exact address in so a pasted portal string is selectable */
+    const i = mapState.count;
+    const g = mapPoints.geometry;
+    const p = g.attributes.position.array, c = g.attributes.aCol.array, sz = g.attributes.aSize.array;
+    const sc = systemSummary(a).sc;
+    p[i * 3] = a.vx / 2047; p[i * 3 + 1] = a.vy / 2047; p[i * 3 + 2] = a.vz / 2047;
+    c[i * 3] = sc.col[0]; c[i * 3 + 1] = sc.col[1]; c[i * 3 + 2] = sc.col[2];
+    sz[i] = 1.4;
+    mapState.addrs[i] = addrClone(a);
+    mapState.count = i + 1;
+    g.setDrawRange(0, mapState.count);
+    g.attributes.position.needsUpdate = g.attributes.aCol.needsUpdate = g.attributes.aSize.needsUpdate = true;
+    best = i;
+  }
+  mapState.sel = best;
+  mapState.tDist = 0.55;
+  refreshMapPanel();
+}
+
+/* markers projected onto the map each frame */
+const _mapV = new T.Vector3();
+function placeMapMarker(el, a, label) {
+  if (!a) { el.style.display = 'none'; return; }
+  voxelToMap(a, _mapV).project(mapCam);
+  if (_mapV.z < -1 || _mapV.z > 1) { el.style.display = 'none'; return; }
+  el.style.display = 'block';
+  el.style.transform = 'translate(' + ((_mapV.x * 0.5 + 0.5) * VW) + 'px,' + ((-_mapV.y * 0.5 + 0.5) * VH) + 'px)';
+  if (label !== undefined) el.setAttribute('data-l', label);
+}
+function updateMapMarkers() {
+  placeMapMarker($('mkHere'), mapState.galaxy === CURRENT.g ? CURRENT : null, 'YOU');
+  const a = selectedAddr();
+  placeMapMarker($('mkSel'), a && !addrEq(a, CURRENT) ? a : null, a ? systemSummary(a).name : '');
+}
+
+/* settings + keys */
+$('cfgTouch').addEventListener('change', e => setTouchUI(e.target.checked));
 
 /* =====================================================================
    SHIP VISUAL STATE
@@ -7371,7 +8825,7 @@ function frame(now) {
   last = now;
   if (dtReal > 0.25) dtReal = 0.25;
   if (!started) return;
-  const paused = uiFocus;
+  const paused = uiFocus || mapState.open;
 
   fpsAcc += dtReal; fpsN++;
   if (fpsAcc > 0.5) { fpsShow = fpsN / fpsAcc; fpsAcc = 0; fpsN = 0;
@@ -7445,6 +8899,7 @@ function frame(now) {
   updateNavball();
   updateHUD(dtReal);
   updateMarkers();
+  syncTouchHud();
   if (CFG.orbits && !eva.active) {
     const b = ship.soi;
     _v1.subVectors(ship.pos, b.pos); _v2.subVectors(ship.vel, b.vel);
@@ -7459,6 +8914,7 @@ function frame(now) {
   } else { orbitShip.visible = false; orbitTgt.visible = false; }
 
   /* ========================================================== RENDER */
+  if (mapState.open) { renderGalaxyMap(now); return; }
   updateRayBasis();
   renderer.setRenderTarget(rtScene);
   renderer.setClearColor(0x000000, 1);
@@ -7507,6 +8963,40 @@ function frame(now) {
   }
 }
 
+/* ------------------------------------------------- galaxy map rendering */
+function renderGalaxyMap(now) {
+  updateMapCamera();
+  mapHaze.material.uniforms.uTime.value = now * 0.001;
+  mapPtsMat.uniforms.uDim.value = 1;
+  renderer.setRenderTarget(rtScene);
+  renderer.setClearColor(0x01030a, 1);
+  renderer.clear(true, true, false);
+  renderer.render(mapScene, mapCam);
+  atmoUniforms.uActive.value = 0;
+  atmoUniforms.tCol.value = rtScene.texture;
+  atmoUniforms.tDepth.value = rtScene.depthTexture;
+  runPass(atmoMat, rtHDR);
+  renderBloom(rtHDR.texture);
+  compUniforms.tCol.value = rtHDR.texture;
+  compUniforms.tBloom.value = bloomMips[0].texture;
+  compUniforms.uBloom.value = CFG.bloom * 0.34;
+  compUniforms.uExp.value = CFG.exposure;
+  compUniforms.uTime.value = now * 0.001;
+  compUniforms.uAber.value = 0.0012;
+  compUniforms.uHeat.value = 0;
+  compUniforms.uLensK.value = 0;
+  compUniforms.uWarpBlur.value = 0;
+  compUniforms.uSunUV.value.set(-1, -1);
+  compUniforms.uRays.value = 0;
+  compUniforms.uFlash.value = 0;
+  compUniforms.uTint.value.set(1, 1, 1);
+  runPass(compMat, rtLDR);
+  fxaaMat.uniforms.tCol.value = rtLDR.texture;
+  fxaaMat.uniforms.uOn.value = CFG.quality === 'low' ? 0 : 1;
+  runPass(fxaaMat, null);
+  updateMapMarkers();
+}
+
 /* =====================================================================
    BOOT
    ===================================================================== */
@@ -7543,6 +9033,7 @@ function boot() {
       renderer.clear(true, true, false);
       renderer.render(scene, camera);
     }],
+    ['CHARTING THE GALAXY', () => { initTouchControls(); bindMapGestures(); }],
     ['SYSTEMS NOMINAL', () => { ship.target = BY_NAME['Luna']; }]
   ];
   let i = 0;
@@ -7583,6 +9074,12 @@ window.ODYSSEY = {
     onGround: ship.onGround, alt: +ship.alt.toFixed(1), gearDown: ship.gearDown,
     nearGround: (ship.alt < 4000 || ship.gearAnim > 0.01), acc: +ship.lastAcc.length().toFixed(2) }; },
   get time() { return simTime; },
+  galaxy: { open: openMap, close: closeMap, warp: warpToSystem, load: loadSystem,
+            random: randomSystem, summary: systemSummary, portal: toPortal,
+            glyphs: portalGlyphs, parse: fromPortal, exists: addrExists,
+            density: galaxyDensity, count: systemsInVoxel, state: mapState,
+            get current() { return CURRENT; }, generate: generateSystem },
+  touch: { enable: setTouchUI, state: TOUCH },
   /* point the orbital camera at a body — used by the automated tests */
   look: function (name) {
     const b = BY_NAME[name]; if (!b) return 'no such body';
