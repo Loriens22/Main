@@ -45,18 +45,57 @@ Dust kicked from each contact point, tinted by the local biome albedo.
 lensing pass, a photon-ring throat, a Doppler-beamed accretion disk and a
 transit tunnel.
 
-**EVA.** Get out and walk, jump and jetpack around on any solid surface.
+**Get out and walk.** Land anywhere and an **EXPLORE ON FOOT** prompt appears; step outside into a
+first-person view and walk, sprint, jump and jetpack around the same terrain the ship landed on,
+with the same gravity, wind and surface normals. Walk up to a landmark and look at it.
 
-**An infinite galaxy.** Sol is one address among roughly 130 billion star systems per galaxy,
-across 256 galaxies. The scheme is No Man's Sky's: a fixed **4096 × 256 × 4096 voxel grid**, up to
-768 systems per voxel, up to 6 planets per system, addressed as a twelve-glyph portal string
-`[P][SSS][YY][ZZZ][XXX]`. Nothing is stored — every star, world, biome and name is hashed from its
-address on demand, so a twelve-character string is a complete, shareable pointer to a planet.
-Open the **galactic map** (`M`), pick a star, and warp; the system is generated on arrival.
+**Auto-land.** One button (`O`) flies a complete guided descent to the nearest world: de-orbit burn,
+coast, atmospheric entry, then a closed-loop powered descent. The law commands an *acceleration
+vector* — vertical schedule plus horizontal error — and reads the attitude and throttle off it, so
+it has real braking authority even on a world where holding altitude costs 12 % throttle. It picks
+its own landing site, sampling the height field for flat ground and biasing toward a nearby landmark
+when one is in reach, and it limits its lean by both altitude and dynamic pressure so it does not
+tumble on the way in. It drives time warp itself — 50× in vacuum, 5× in thin air, real time near the
+ground — so a landing from orbit takes about a minute rather than twenty. If it touches down on a
+slope and starts to slide, it lifts off and tries another patch. Any real stick input hands control
+straight back.
+
+Verified headlessly on Luna, Mars, Earth, Titan, Europa and Mercury — vacuum and atmosphere, 0.13 g
+to 1 g — landing every time with the hull intact and under 1.5 m/s of residual motion.
+
+**Unlimited propellant.** A toggle (`;` or *Settings ▸ Unlimited propellant*) for when you want to
+fly rather than budget: fuel, monopropellant, power and oxygen stay full and hull damage repairs.
+
+**An unbounded universe.** Sol is one address among roughly 130 billion star systems per galaxy,
+across **4 294 967 296 galaxies**. The address scheme is No Man's Sky's: a fixed
+**4096 × 256 × 4096 voxel grid**, up to 768 systems per voxel, up to 6 planets per system, written
+as a twelve-glyph portal string `[P][SSS][YY][ZZZ][XXX]`. Nothing is stored — every galaxy, star,
+world, biome and name is hashed from its address on demand, so a twelve-character string is a
+complete, shareable pointer to a planet.
+
+Galaxies are not a list, they are a function of the index, so each one has its own **morphology**:
+spiral, barred, flocculent, elliptical, lenticular, ring or irregular, with its own arm count,
+winding and thickness — and its own **metallicity**, which reweights the stellar population and the
+planetary archetypes. A metal-poor elliptical is all red dwarfs, rock and ice; a metal-rich
+starburst is full of hot blue stars and worlds with atmospheres. One density formula covers all
+seven shapes and runs three times over: in JS to decide how many systems a voxel holds, and in two
+fragment shaders to draw the galaxy's haze and its sprite in the universe view.
+
+**A map with four zoom levels.** *Universe* — a field of galaxies, each sprite running its own
+morphology in the fragment shader. *Galaxy* — the star cloud. *System* — the star and its worlds on
+their real semi-major axes, built by calling the same generator you fly into. *World* — one planet
+close up, shaded from its own terrain parameters, with its inhabitants, landmarks, fauna, hazards
+and resources. Tap to go deeper, breadcrumbs or ▲ to come back, and warp from any level.
+
+**Inhabitants and landmarks.** A dominant species is assigned per **region** — a 16×8×16 block of
+voxels, about 400 light years — so a cultural sphere covers many systems the way it would in
+reality. Individual worlds carry observatories, habitat bases, trading posts, monoliths, crashed
+freighters, ruins and distress beacons; these are not menu entries but real geometry, pinned in the
+body-fixed frame, stood on the terrain normal and lit by a beam you can see from 40 km up.
 
 **Mobile controls.** A full touch flight stack: a floating pitch/yaw stick that spawns wherever
 your thumb lands, an absolute throttle slider with a momentary BURN button, roll and RCS pads, and
-a collapsible action rail. Detection is layered: a stored choice wins over everything, then the
+a collapsible action rail that changes with what you are doing. Detection is layered: a stored choice wins over everything, then the
 first genuine touch or pen `pointerdown` (which catches touch laptops and tablets that the
 screen-size heuristic misses), then touch capability plus a small viewport at boot, re-evaluated on
 rotate and resize. There is always a visible way out in both directions — a **Touch controls**
@@ -76,16 +115,18 @@ six-milestone implementation roadmap.
 ## Controls
 
 `W A S D` pitch/yaw · `Q E` roll · `⇧`/`Ctrl` throttle · `Space` full burn ·
-`T` SAS · `1`–`9` SAS modes · `R` RCS · `G` gear · `V` camera · `C` scan ·
-`M` galactic map · `Y` wormhole · `F` EVA · `Tab` target · `,` `.` time warp ·
-`H`/`?` full manual.
+`T` SAS · `1`–`9` SAS modes · `R` RCS · `G` gear · **`O` auto-land** · `V` camera · `C` scan ·
+`M` galactic map · `Y` wormhole · **`F` step outside** · `;` unlimited propellant ·
+`Tab` target · `,` `.` time warp · `H`/`?` full manual.
 
-On a phone: left thumb steers, right slider is throttle, BURN for full power, drag anywhere else
-to orbit the camera.
+On a phone: left thumb steers, right slider is throttle (double-tap to cut), BURN for full power,
+two-finger pinch to zoom, drag anywhere else to orbit the camera. The right rail carries MAP,
+AUTO-land, on-FOOT, VIEW, SAS and GEAR, with the rest behind MORE — and the moment you step
+outside, the right-hand controls become JUMP / RUN / BOARD.
 
 ## Technical notes
 
-The four hard problems and how they are solved:
+The hard problems and how they are solved:
 
 | Problem | Solution |
 | --- | --- |
@@ -94,6 +135,7 @@ The four hard problems and how they are solved:
 | A 6371 km sphere at 1 m resolution is 5e14 texels | **Everything is a function** — a CDLOD quadtree evaluates the same noise field at whatever frequency the current LOD needs |
 | Terrain is generated on the GPU but collision is queried on the CPU | One **bit-exact PCG integer hash** shared by both, never `frac(sin(dot(...)))` |
 | An infinite universe cannot be stored | The address **is** the seed — content is a pure function of galaxy, voxel, system and planet index |
+| An autopilot that follows a script breaks the first time the ground is not where the script assumed | One **closed-loop guidance law** — point up, tilt into the horizontal velocity error, throttle to a vertical-speed schedule — with no waypoints and no assumptions |
 
 three.js r160 is inlined into the file (MIT), so it runs from `file://` with no
 network. `window.ODYSSEY` exposes the simulation state — including `ODYSSEY.galaxy` for

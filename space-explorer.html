@@ -228,7 +228,12 @@ label.fld .rv{min-width:52px;text-align:right;color:var(--cy);font-variant-numer
 #mapTop{position:absolute;left:0;right:0;top:0;display:flex;align-items:center;gap:10px;
   padding:10px 14px;padding-top:calc(10px + env(safe-area-inset-top,0px));
   background:linear-gradient(180deg,rgba(2,6,12,.92),rgba(2,6,12,0));pointer-events:auto;flex-wrap:wrap}
-#mapTitle{font-size:11px;letter-spacing:.3em;color:var(--cy);text-transform:uppercase}
+#mapTitle{font-size:11px;letter-spacing:.3em;color:var(--cy);text-transform:uppercase;
+  display:flex;align-items:center;gap:7px;flex-wrap:wrap}
+#mapTitle b{font-weight:400;cursor:pointer;color:var(--dim);transition:.15s}
+#mapTitle b:hover{color:var(--cy)}
+#mapTitle b:last-child{color:#fff}
+#mapTitle i{font-style:normal;color:var(--edge);font-size:9px}
 #mapGalaxy{font-size:12px;color:var(--ink);letter-spacing:.1em}
 #mapTop .spacer{flex:1}
 #mapPanel{position:absolute;right:14px;top:64px;width:308px;max-height:calc(100% - 150px);overflow:auto;
@@ -244,7 +249,26 @@ label.fld .rv{min-width:52px;text-align:right;color:var(--cy);font-variant-numer
 #mapGlyphs{font-size:21px;letter-spacing:.14em;color:var(--vi);margin:12px 0 2px;word-break:break-all;
   text-shadow:0 0 14px rgba(185,140,255,.5)}
 #mapHex{font-size:10px;letter-spacing:.22em;color:var(--dim)}
-#mapJump{width:100%;margin-top:12px}
+#mapJump{width:100%;margin-top:7px}
+#mapZoom{width:100%;margin-top:12px}
+/* the world list inside a system, and the landmark / fauna lists */
+.mapListHead{font-size:9.5px;letter-spacing:.24em;color:var(--dim);margin:13px 0 5px;
+  border-top:1px solid var(--edge-s);padding-top:9px}
+.mapWorld,.mapSite{display:flex;align-items:center;gap:8px;font-size:11.5px;line-height:2.1;
+  padding:1px 4px;border-radius:3px}
+.mapWorld{cursor:pointer}
+.mapWorld:hover{background:rgba(73,224,255,.10)}
+.mapWorld span,.mapSite span{flex:1;color:var(--ink);min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.mapWorld b,.mapSite b{color:var(--dim);font-weight:400;font-size:10px;letter-spacing:.08em}
+.mapSite i{font-style:normal;color:var(--am);width:14px;text-align:center}
+.wdot{width:11px;height:11px;border-radius:50%;flex:none;box-shadow:0 0 8px currentColor}
+.wdot.lush{background:#3f8f3a}   .wdot.verdant{background:#2f9e52}
+.wdot.ocean{background:#2a6fd0}  .wdot.scorched{background:#c4491c}
+.wdot.frozen{background:#bcd8ef} .wdot.toxic{background:#8fbe2a}
+.wdot.irrad{background:#c9c03a}  .wdot.barren{background:#6a6a6a}
+.wdot.volcanic{background:#b3320e}.wdot.marsh{background:#5d7a4a}
+.wdot.exotic{background:#a860e0} .wdot.desert{background:#c9a057}
+.wdot.gas{background:#c08b52}
 #mapAddrRow{display:flex;gap:6px;margin-top:10px}
 #mapAddr{flex:1;min-width:0;background:rgba(0,0,0,.45);border:1px solid var(--edge-s);color:var(--ink);
   font-family:var(--mono);font-size:11px;padding:7px 9px;letter-spacing:.1em}
@@ -259,16 +283,40 @@ label.fld .rv{min-width:52px;text-align:right;color:var(--cy);font-variant-numer
 .mapMk:after{content:attr(data-l);position:absolute;left:36px;top:50%;transform:translateY(-50%);
   font-size:10px;letter-spacing:.14em;white-space:nowrap;text-shadow:0 0 8px #000}
 #mkHere{color:var(--cy)} #mkSel{color:var(--vi)}
+/* the galaxy stepper only means something inside a galaxy */
+body[data-maplevel="uni"] #mapGalPrev,body[data-maplevel="uni"] #mapGalNext{opacity:.55}
+body[data-maplevel="sys"] #mapAddrRow,body[data-maplevel="planet"] #mapAddrRow{display:none}
+body[data-maplevel="uni"] #mapAddrRow{display:none}
+body[data-maplevel="uni"] #mapGlyphs,body[data-maplevel="uni"] #mapHex{display:none}
 @media (max-width:820px){
   #mapPanel{right:8px;left:8px;width:auto;top:auto;bottom:calc(58px + env(safe-area-inset-bottom,0px));
     max-height:46%}
   #mapScale{display:none}
   #mapBottom{left:8px;right:8px;bottom:calc(10px + env(safe-area-inset-bottom,0px))}
+  #mapTitle{font-size:10px;letter-spacing:.16em}
 }
+
+/* The prompt that makes "you can get out and walk" discoverable. It sits
+   above the touch stick zone, not inside it, or it eats the first stick
+   gesture on a phone. */
+#footPrompt{position:absolute;left:50%;transform:translateX(-50%) translateY(8px);
+  bottom:calc(20% + 20px);display:none;flex-direction:column;align-items:center;gap:2px;
+  padding:11px 22px;background:rgba(6,16,26,.82);border:1px solid rgba(93,255,160,.55);
+  border-radius:5px;pointer-events:auto;cursor:pointer;opacity:0;transition:.35s;
+  backdrop-filter:blur(8px);-webkit-backdrop-filter:blur(8px);z-index:12}
+#footPrompt.on{display:flex;opacity:1;transform:translateX(-50%) translateY(0)}
+#footPrompt b{font-size:13px;letter-spacing:.22em;color:var(--gr);font-weight:400}
+#footPrompt small{font-size:9.5px;letter-spacing:.16em;color:var(--dim)}
+#footPrompt small i{font-style:normal;color:var(--ink)}
+#footPrompt:hover{border-color:var(--gr);background:rgba(12,40,26,.85)}
+body.touchui #footPrompt{bottom:calc(42vh + 12px)}
 
 /* ==================================================== TOUCH CONTROLS === */
 #touchUI{display:none}
 body.touchui #touchUI{display:block}
+/* the map overlay owns the whole screen — flight controls under it are
+   both unusable and confusing */
+body.touchui.mapopen #touchUI{display:none}
 body.touchui #btnBar,body.touchui #thrWrap,body.touchui #tags,
 body.touchui #orbitPanel,body.touchui #targetPanel{display:none}
 body.touchui #sysPanel{width:150px;transform:scale(.82);transform-origin:top left;
@@ -308,6 +356,22 @@ body.touchui #fps{bottom:auto;top:calc(4px + env(safe-area-inset-top,0px));right
 #tPad{position:fixed;right:calc(74px + env(safe-area-inset-right,0px));
   bottom:calc(84px + env(safe-area-inset-bottom,0px));z-index:27;
   display:grid;grid-template-columns:repeat(2,46px);gap:6px}
+#tFootPad{position:fixed;right:calc(8px + env(safe-area-inset-right,0px));
+  bottom:calc(84px + env(safe-area-inset-bottom,0px));z-index:27;
+  display:none;grid-template-columns:104px;gap:8px}
+#tFootPad .tBtn{height:52px;font-size:12px;letter-spacing:.14em}
+#tFootPad .tBtn.big{height:74px;color:var(--gr);border-color:rgba(93,255,160,.4);
+  background:rgba(12,40,26,.7);font-size:14px}
+/* on foot: hide the flight controls, show the walking ones */
+body.onfoot #tThr,body.onfoot #tPad{display:none}
+body.onfoot #tFootPad{display:grid}
+/* replace the label rather than appending to it: "PITCH / YAW — WALK"
+   is two contradictory instructions in one line */
+body.onfoot #tStickHint{font-size:0}
+body.onfoot #tStickHint:after{content:"MOVE";font-size:9px;letter-spacing:.24em}
+/* your ship's osculating elements are not interesting while you are
+   standing on the ground next to it */
+body.onfoot #orbitPanel,body.onfoot #thrWrap{display:none}
 .tBtn{-webkit-user-select:none;user-select:none;touch-action:none;display:flex;align-items:center;
   justify-content:center;border:1px solid var(--edge-s);background:rgba(6,16,26,.72);color:var(--dim);
   font-family:var(--mono);font-size:10px;letter-spacing:.06em;border-radius:4px;
@@ -324,6 +388,10 @@ body.touchui #fps{bottom:auto;top:calc(4px + env(safe-area-inset-top,0px));right
   top:calc(104px + env(safe-area-inset-top,0px));z-index:28;
   display:grid;grid-template-columns:50px;gap:6px}
 #tRail.open{grid-template-columns:50px 50px;width:106px}
+#tAuto{color:var(--am);border-color:rgba(255,182,72,.34)}
+#tEva{color:var(--gr);border-color:rgba(93,255,160,.30)}
+/* the button you want is the one that matches what you are doing */
+body.onfoot #tAuto,body.onfoot #tGear,body.onfoot #tSas{display:none}
 #tRail:not(.open) .xtra{display:none}
 #tRail .tBtn{height:42px;font-size:9.5px;flex-direction:column;gap:1px}
 #tRail .tBtn i{font-style:normal;font-size:14px;line-height:1}
@@ -342,8 +410,10 @@ body.touchui #fps{bottom:auto;top:calc(4px + env(safe-area-inset-top,0px));right
      is not enough to stack them at their portrait sizes. So the rail goes
      wide-and-short directly under the flight strip, and the throttle and the
      button pad drop to the bottom edge underneath it. */
-  #tRail{grid-template-columns:50px 50px;width:106px}
+  #tRail{grid-template-columns:repeat(3,50px);width:158px}
   #tRail.open{grid-template-columns:repeat(4,50px);width:212px}
+  #tFootPad{grid-template-columns:92px;gap:5px}
+  #tFootPad .tBtn{height:40px} #tFootPad .tBtn.big{height:56px}
   #tThr{height:38vh;bottom:calc(8px + env(safe-area-inset-bottom,0px))}
   #tPad{bottom:calc(8px + env(safe-area-inset-bottom,0px))}
 }
@@ -433,6 +503,9 @@ body.touchui #fps{bottom:auto;top:calc(4px + env(safe-area-inset-top,0px));right
     <div class="tag" id="tagBrake">BRAKE</div>
   </div>
 
+  <!-- the one prompt that turns a landing into a place you can get out and walk -->
+  <div id="footPrompt"><b>⇱ EXPLORE ON FOOT</b><small>press <i>F</i> · or tap here</small></div>
+
   <div id="log"></div>
   <div id="caption"></div>
   <div id="fps"></div>
@@ -440,6 +513,7 @@ body.touchui #fps{bottom:auto;top:calc(4px + env(safe-area-inset-top,0px));right
   <div id="btnBar">
     <button class="btn prime" id="btnWormhole">◉ Create Wormhole</button>
     <button class="btn" id="btnMap">✦ Galactic Map</button>
+    <button class="btn" id="btnAuto">⤓ Auto-Land</button>
     <button class="btn" id="btnScan">▤ Scan Body</button>
     <button class="btn small" id="btnTarget">◎ Select Target</button>
     <button class="btn small" id="btnHelp">? Controls</button>
@@ -516,11 +590,13 @@ body.touchui #fps{bottom:auto;top:calc(4px + env(safe-area-inset-top,0px));right
         <div><kbd>6</kbd> Normal / <kbd>7</kbd> Anti-normal</div>
         <div><kbd>8</kbd> Target</div>
         <div><kbd>9</kbd> Surface retrograde (landing)</div>
+        <div><kbd>O</kbd> <b>AUTO-LAND</b> — full guided descent to the nearest world</div>
       </div>
       <h6 class="sec">Operations</h6>
       <div class="klist">
         <div><kbd>G</kbd> Landing gear</div>
-        <div><kbd>F</kbd> Exit / board ship (EVA)</div>
+        <div><kbd>F</kbd> <b>Step outside</b> — first-person exploration on foot</div>
+        <div><kbd>;</kbd> Unlimited propellant on / off</div>
         <div><kbd>V</kbd> Cycle camera: chase ▸ cockpit ▸ orbital ▸ cinematic</div>
         <div><kbd>C</kbd> Scan reference body</div>
         <div><kbd>M</kbd> <b>Galactic map</b> (interstellar warp)</div>
@@ -537,8 +613,11 @@ body.touchui #fps{bottom:auto;top:calc(4px + env(safe-area-inset-top,0px));right
         <div><b>Right slider</b> — throttle, with a BURN button for full power</div>
         <div><b>⟲ ⟳</b> roll &middot; <b>▲▼ RCS</b> translate up / down</div>
         <div><b>Drag elsewhere</b> — orbit the camera</div>
-        <div><b>Right rail</b> — map, view, SAS, retro-hold, RCS, gear, scan, EVA, time warp</div>
-        <div>Enable or disable under <b>Settings ▸ Touch controls</b></div>
+        <div><b>Double-tap the throttle</b> — instant cut to zero</div>
+        <div><b>Two-finger pinch</b> anywhere on the view — zoom the camera</div>
+        <div><b>Right rail</b> — map, AUTO-land, on-foot, view, SAS, gear, then MORE for the rest</div>
+        <div><b>On foot</b> the right side becomes JUMP / RUN / BOARD automatically</div>
+        <div>Enable or disable under <b>Settings ▸ Touch controls</b>, or the ☰ button</div>
       </div>
       <h6 class="sec">On Foot (EVA)</h6>
       <div class="klist">
@@ -578,6 +657,7 @@ body.touchui #fps{bottom:auto;top:calc(4px + env(safe-area-inset-top,0px));right
       <label class="fld">Surface scatter density <input type="range" id="cfgScatter" min="0" max="200" step="10" value="100"><span class="rv" id="cfgScatterV">100%</span></label>
       <label class="fld">Master volume <input type="range" id="cfgVol" min="0" max="100" step="5" value="70"><span class="rv" id="cfgVolV">70%</span></label>
       <label class="fld">Camera shake <input type="range" id="cfgShake" min="0" max="200" step="10" value="100"><span class="rv" id="cfgShakeV">100%</span></label>
+      <label class="fld">Unlimited propellant <input type="checkbox" id="cfgInfFuel" style="min-width:auto"></label>
       <label class="fld">Invert pitch <input type="checkbox" id="cfgInvert" style="min-width:auto"></label>
       <label class="fld">Touch controls <input type="checkbox" id="cfgTouch" style="min-width:auto"></label>
       <label class="fld">Show orbit lines <input type="checkbox" id="cfgOrbits" checked style="min-width:auto"></label>
@@ -591,14 +671,15 @@ body.touchui #fps{bottom:auto;top:calc(4px + env(safe-area-inset-top,0px));right
 <div id="mapOverlay">
   <div id="mapCanvasCatcher"></div>
   <div id="mapTop">
-    <div id="mapTitle">Galactic Map</div>
+    <div id="mapTitle">Universe</div>
     <button class="btn small" id="mapGalPrev">◂</button>
-    <div id="mapGalaxy">1 / 256 · Euclid</div>
+    <div id="mapGalaxy">#0 · Euclid</div>
     <button class="btn small" id="mapGalNext">▸</button>
     <div class="spacer"></div>
     <button class="btn small" id="mapClose">✕ Close</button>
   </div>
   <div id="mapScale">
+    <div>GALAXIES <b>4 294 967 296</b></div>
     <div>GRID <b>4096 × 256 × 4096</b> voxels</div>
     <div>UP TO <b>768</b> systems per voxel</div>
     <div>VOXEL <b>≈ 25 ly</b></div>
@@ -607,17 +688,20 @@ body.touchui #fps{bottom:auto;top:calc(4px + env(safe-area-inset-top,0px));right
     <div id="mapInfo"><div class="mapHint">Drag to orbit · pinch or wheel to zoom · tap a star to select it.</div></div>
     <div id="mapGlyphs"></div>
     <div id="mapHex"></div>
-    <button class="btn prime" id="mapJump" disabled>Warp to system</button>
+    <button class="btn prime" id="mapZoom">⊕ Zoom in</button>
+    <button class="btn" id="mapJump" disabled>Warp to system</button>
     <div id="mapAddrRow">
       <input id="mapAddr" placeholder="paste portal address" spellcheck="false" autocomplete="off">
       <button class="btn small" id="mapGo">Go</button>
     </div>
   </div>
   <div id="mapBottom">
+    <button class="btn small" id="mapBack">▲ Zoom out</button>
+    <button class="btn small" id="mapUni">✧ Universe</button>
     <button class="btn small" id="mapHome">⌂ Sol</button>
     <button class="btn small" id="mapHere">◎ Current</button>
     <button class="btn small" id="mapRandom">⚄ Random</button>
-    <button class="btn small" id="mapCopy">⧉ Copy address</button>
+    <button class="btn small" id="mapCopy">⧉ Copy</button>
   </div>
   <div class="mapMk" id="mkHere" data-l="YOU" style="display:none"></div>
   <div class="mapMk" id="mkSel" data-l="" style="display:none"></div>
@@ -642,15 +726,23 @@ body.touchui #fps{bottom:auto;top:calc(4px + env(safe-area-inset-top,0px));right
     <div class="tBtn" id="tDown">▼ RCS</div>
     <div class="tBtn big" id="tBoost">BURN</div>
   </div>
+  <!-- on foot the right thumb has a completely different job -->
+  <div id="tFootPad">
+    <div class="tBtn big" id="tJump">JUMP</div>
+    <div class="tBtn" id="tSprint">RUN</div>
+    <div class="tBtn" id="tBoard">BOARD</div>
+  </div>
   <div id="tRail">
     <div class="tBtn" id="tMap"><i>✦</i>MAP</div>
+    <div class="tBtn" id="tAuto"><i>⤓</i>AUTO</div>
+    <div class="tBtn" id="tEva"><i>⇱</i>FOOT</div>
     <div class="tBtn" id="tCam"><i>◫</i>VIEW</div>
     <div class="tBtn" id="tSas"><i>⌖</i>SAS</div>
     <div class="tBtn" id="tGear"><i>⊥</i>GEAR</div>
     <div class="tBtn xtra" id="tRetro"><i>⇣</i>RETRO</div>
     <div class="tBtn xtra" id="tRcs"><i>⁙</i>RCS</div>
     <div class="tBtn xtra" id="tScan"><i>▤</i>SCAN</div>
-    <div class="tBtn xtra" id="tEva"><i>♁</i>EVA</div>
+    <div class="tBtn xtra" id="tFuel"><i>∞</i>FUEL</div>
     <div class="tBtn xtra" id="tWarpDn"><i>«</i>SLOW</div>
     <div class="tBtn xtra" id="tWarpUp"><i>»</i>WARP</div>
     <div class="tBtn xtra" id="tHelp"><i>?</i>KEYS</div>
@@ -687,7 +779,10 @@ body.touchui #fps{bottom:auto;top:calc(4px + env(safe-area-inset-top,0px));right
         <a data-s="road">14 · Implementation roadmap</a>
         <a data-s="galaxy">15 · Galaxy address space</a>
         <a data-s="touch">16 · Touch &amp; mobile controls</a>
-        <a data-s="proto">17 · This prototype's mapping</a>
+        <a data-s="morph">17 · Galaxy morphology</a>
+        <a data-s="lore">18 · Inhabitants &amp; landmarks</a>
+        <a data-s="descent">19 · Guided powered descent</a>
+        <a data-s="proto">20 · This prototype's mapping</a>
       </nav>
       <div id="docsBody">
 
@@ -2593,8 +2688,269 @@ mistake would have no route back — the failure mode is not "the wrong UI", it 
 the wrong UI".</p>
 </section>
 
+
+<section data-s="morph">
+<h2>17 · Galaxy morphology — how to have an unbounded number of them</h2>
+<p class="lead">A list of 256 named galaxies is a database. Replace the list with a function of the
+index and the count stops being a design decision: 2<sup>32</sup> galaxies, none of them stored, each
+one a different shape.</p>
+
+<h3>17.1 One field, seven morphologies</h3>
+<p>Do not write seven density functions. Write one with enough terms to cover the Hubble sequence and
+let the type choose the weights — that way the CPU (which decides how many systems a voxel holds) and
+the GPU (which draws the haze and the map sprites) can run the <i>same</i> formula, and they cannot
+drift apart:</p>
+<script type="text/plain">
+float GalaxyDensity(GalaxyShape s, float3 voxel)
+{
+    float2 q = float2(voxel.x / 2047 / s.ax, voxel.z / 2047 / s.az);
+    float  r = length(q);
+    float  h = abs(voxel.y) / 127;
+    float  hf = exp(-h * h * s.thick);
+
+    float d = s.bulge * exp(-r * r * s.bulgeK);            // central concentration
+
+    if (s.disc > 0) {                                     // exponential disc + arms
+        float arm = 1;
+        if (s.armAmt > 0 && s.arms > 0) {
+            float th    = atan2(q.y, q.x);
+            float phase = th * s.arms - log(max(r, 0.03)) * s.wind * s.arms;
+            arm = pow(cos(phase) * 0.5 + 0.5, s.armSharp);
+        }
+        d += s.disc * exp(-r * s.discS) * hf * (s.armBase + s.armAmt * arm);
+    }
+    if (s.ring > 0) { float dr = (r - s.ringR) / s.ringW;  // ring galaxies
+                      d += s.ring * exp(-dr * dr) * hf; }
+    if (s.bar  > 0) { float2 b = float2(q.x / s.barL, q.y / s.barW);
+                      d += s.bar * exp(-dot(b, b)); }      // the bar of a barred spiral
+    for (int i = 0; i < s.blobCount; ++i)                  // irregulars and dwarfs
+        d += s.blob * exp(-SqrDist(voxel, s.blobs[i]) / (s.blobs[i].w * s.blobs[i].w));
+
+    return saturate(d * (1 - smoothstep(s.edge, s.edge + 0.16, r)));
+}
+</script>
+<table>
+<tr><th>Type</th><th>What the weights do</th></tr>
+<tr><td>Spiral</td><td>2–4 arms, sharp contrast, thin disc.</td></tr>
+<tr><td>Barred spiral</td><td>Two arms plus the bar term. Tighten the bulge or the bar drowns in it.</td></tr>
+<tr><td>Flocculent</td><td>5–8 arms, <code>armSharp</code> near 1 and a high <code>armBase</code>: many faint arms instead of two bright ones.</td></tr>
+<tr><td>Elliptical</td><td>Disc weight near zero, wide bulge, thick, and squashed on one axis. Metal-poor.</td></tr>
+<tr><td>Lenticular</td><td>Disc with no arms and a dominant bulge.</td></tr>
+<tr><td>Ring</td><td>Ring term does the work; disc almost off.</td></tr>
+<tr><td>Irregular</td><td>Three to five Gaussian blobs and a weak disc. No rotational symmetry at all.</td></tr>
+</table>
+
+<h3>17.2 Metallicity is the parameter that makes it matter</h3>
+<p>Shape alone is scenery. One extra number per galaxy — metallicity — changes what you <i>find</i>
+there, and it is free because it only reweights distributions that already existed:</p>
+<ul>
+<li><b>The stellar IMF.</b> A metal-poor elliptical runs almost entirely to red dwarfs; a metal-rich
+starburst has twenty times the O and B stars. Reweight <code>STAR_CLASSES</code> — do not add a draw,
+or the cheap "summary" path that replays the RNG prefix for the map stops matching the full
+generator.</li>
+<li><b>The planetary archetype pool.</b> You cannot build a rocky world out of hydrogen and helium.
+Below about 0.35 the pool is filtered to rock and ice; above 0.85 the lush and oceanic archetypes are
+entered twice.</li>
+</ul>
+<p class="note"><b>Pin your home galaxy.</b> Galaxy 0 contains hand-authored content — a real Solar
+System at a real address — so its shape is hard-coded to a four-armed barred spiral rather than left
+to the hash. Everything a player is told about where they started should stay true.</p>
+
+<h3>17.3 Drawing a galaxy in a point sprite</h3>
+<p>The universe view needs a thousand galaxies on screen, each recognisably itself. Do not use
+textures: run the density formula in the fragment shader of a single point sprite, with the shape
+parameters as vertex attributes. Squash the sprite's local coordinates by a per-galaxy inclination and
+you get discs seen edge-on for free. One draw call, a thousand distinct galaxies, nothing stored.</p>
+</section>
+
+<section data-s="lore">
+<h2>18 · Inhabitants &amp; landmarks</h2>
+<p class="lead">A universe you can only look at goes stale in about ten minutes. The fix is not more
+terrain — it is things that were <i>put</i> there, which means a second derivation layer on top of the
+address space.</p>
+
+<h3>18.1 Species belong to regions, not planets</h3>
+<p>Rolling a species per planet gives you noise: neighbouring worlds with unrelated civilisations and
+no sense of territory. Roll it per <b>super-cell</b> instead — here a 16×8×16 block of voxels, roughly
+400 light years — and a cultural sphere appears for free. Travel far enough and the architecture,
+the names and the disposition of everyone you meet change together, which is what makes distance feel
+like distance.</p>
+<script type="text/plain">
+// The whole mechanism. Everything else is table lookups.
+static RegionCell CellOf(GalacticAddress a)
+    => new RegionCell(a.Galaxy, a.VoxelX >> 4, a.VoxelY >> 3, a.VoxelZ >> 4);
+
+static Species DominantSpecies(GalacticAddress a)
+{
+    var rng = new Rng(AddressSeed(CellOf(a), SALT_SPECIES));
+    var archetype = SPECIES[rng.Range(SPECIES.Length)];
+    return new Species(archetype, NameFrom(rng), presence: rng.Value01());
+}
+</script>
+
+<h3>18.2 Landmarks have to exist in the world, not in a menu</h3>
+<p>The difference between "this planet has an observatory" as a line of text and as a thing you can
+land next to is entirely in whether you pinned it to the terrain. Three rules:</p>
+<ul>
+<li><b>Store the direction in the body-fixed frame.</b> A world-space direction slides across the
+surface as the planet rotates; you will place a base at dawn and find it in the sea by noon.</li>
+<li><b>Stand it on the terrain <i>normal</i>, not the radius.</b> On a 20° slope a radial up puts one
+corner of the building three metres in the air. You already have the normal — the landing gear needs
+it too.</li>
+<li><b>Give it a beam.</b> A 900 m additive cylinder costs nothing and is the only reason a player
+ever finds the place they were aiming at from 40 km up.</li>
+</ul>
+<script type="text/plain">
+// Sites are recycled from a small pool: a planet has landmarks everywhere
+// and only the handful inside ~40 km are worth submitting.
+Vector3 up     = SiteUp(body, site);              // body-fixed dir, rotated to world
+Vector3 normal = body.SurfaceNormal(up, 24f);     // finite difference of the height field
+transform.position = SitePosition(body, site) - FloatingOrigin;
+transform.rotation = Quaternion.FromToRotation(Vector3.up, normal)
+                   * Quaternion.Euler(0, site.Index * 78.5f, 0);
+</script>
+
+<h3>18.3 Standing on a moving world</h3>
+<p class="lead">Landmarks are why you get out of the ship. Getting out of the ship is where a
+heliocentric simulation quietly betrays you.</p>
+<p>A walker integrated in world coordinates has a velocity that includes the body's own motion —
+Luna does 1.02 km/s around the Earth, the Earth does 30 km/s around the Sun. Take the "vertical"
+component of that against the local radial and you are measuring mostly orbital motion. In this
+build the symptom was precise and baffling: step onto the Moon, stand perfectly still, and one second
+later the ship is <b>a kilometre away</b> and refuses to let you board.</p>
+<p>Subtracting the ground velocity before splitting into vertical and horizontal fixes the gross
+error. It does not fix the residual: integrating a position along the <i>tangent</i> of a rotating
+surface, once per frame, lags the surface by ½ω²r·Δt per step. On Earth that is still 36 m in a
+minute of standing still.</p>
+<p>The fix is to move the whole integration into the body-fixed frame and derive world space from
+it, exactly as the landmarks already do:</p>
+<script type="text/plain">
+// Authoritative state is body-fixed. World space is a derived quantity.
+void Step(float dt, WalkInput input)
+{
+    Vector3 up = localPosition.normalized;
+    float   g  = body.Mu / localPosition.sqrMagnitude;
+
+    float   vUp   = Vector3.Dot(localVelocity, up) - g * dt;
+    Vector3 flat  = localVelocity - up * Vector3.Dot(localVelocity, up);
+    Vector3 want  = body.WorldToBodyFixed(WalkDirection(input) * WalkSpeed(input));
+    flat = Vector3.Lerp(flat, want, 1 - Mathf.Exp(-12f * dt));   // hard damping on foot
+
+    localVelocity = flat + up * vUp;
+    localPosition += localVelocity * dt;
+    ClampToSurface();                       // same frame, so the clamp cannot fight the rotation
+
+    worldPosition = body.Position + body.Rotation * localPosition;
+    worldVelocity = body.SurfaceVelocityAt(worldPosition) + body.Rotation * localVelocity;
+}
+</script>
+<p>Standing-still drift over a minute: 1032 m, then 36 m, then under 1 m.</p>
+<p class="note"><b>And park the vehicle.</b> A lander resting on broken ground creeps downhill —
+tens of metres a minute on a slope, which is long enough to lose your ship while you are out
+walking. The tempting fix, modelling static friction, makes it worse: a stiffer pad puts a larger
+tangential force at the foot, which torques the vehicle, which rocks it, which breaks contacts,
+which removes the friction. Hold the vehicle explicitly instead while nobody is aboard.</p>
+</section>
+
+<section data-s="descent">
+<h2>19 · Guided powered descent (auto-land)</h2>
+<p class="lead">An autopilot that plays a scripted animation breaks the first time the ground is not
+where the script assumed. One closed-loop law lands on a slope, in wind, at any gravity, because it
+never assumes anything — it reads the state and commands an acceleration.</p>
+
+<h3>19.1 Command an acceleration vector, not a throttle</h3>
+<p>The obvious formulation is: set throttle from a vertical-speed schedule, then tilt the nose to
+cancel horizontal drift. <b>It does not work</b>, and the reason is worth internalising. On a
+low-gravity world the vertical term is tiny — on the Moon a steady descent needs about 12 % throttle
+— so the tilt has almost no thrust behind it and the lateral authority is a tenth of a m/s². The
+vehicle arrives at the surface still moving sideways at 200 m/s and skids.</p>
+<p>Command the whole acceleration instead, and read the attitude and the throttle off it:</p>
+<script type="text/plain">
+float   aV   = (targetDescentRate - vUp) / 1.15f + g;     // vertical: schedule + weight
+Vector3 dvH  = desiredHorizontalVelocity - vH;            // horizontal error
+float   aHm  = Mathf.Min(dvH.magnitude / tauH, MaxLateral(aV, tiltMax));
+Vector3 aH   = dvH.normalized * aHm;
+
+Vector3 aCmd = up * aV + aH;                              // the command
+autopilot.Aim = aCmd.normalized;                          // attitude falls out
+ship.Throttle = Mathf.Clamp01(aCmd.magnitude * ship.Mass / engine.MaxThrust
+                              / Mathf.Max(Vector3.Dot(ship.Forward, autopilot.Aim), 0.45f));
+</script>
+<p>The final division is the one everybody forgets: thrust only acts along the nose, so leaning over
+to brake costs you vertical thrust and you have to pay it back, or the vehicle sinks exactly when it
+is working hardest.</p>
+
+<h3>19.2 Three limits that keep it stable</h3>
+<table>
+<tr><th>Limit</th><th>Why</th></tr>
+<tr><td><b>Tilt by altitude</b> — 60° above 1.5 km, 26° above 300 m, 10° below</td><td>A big lean is how you kill orbital-scale sideways speed; near the ground it is how you put a landing leg through a boulder.</td></tr>
+<tr><td><b>Tilt by dynamic pressure</b> — scale by <code>clamp(1 − q/4000, 0.1, 1)</code></td><td>Angle of attack is limited by the air, not by ambition. Holding 60° at 2.5 kPa is how a lander becomes a tumbling one.</td></tr>
+<tr><td><b>Descend no faster than you can brake</b></td><td>If the horizontal speed cannot be cancelled inside the descent that is left, slow the descent: <code>tBrake = |Δv_h| / a_h_max</code>, <code>tFall = h / |v_target|</code>, and if <code>tBrake &gt; 0.8·tFall</code> scale the target rate down. Hitting the ground sideways is the one failure the schedule must never allow.</td></tr>
+</table>
+<p>And a recovery, because limits are not guarantees: above 0.8 rad/s the vehicle is not flying a
+guidance law, it is tumbling. Cut the throttle, hold surface-retrograde (in air) or stability assist
+(in vacuum), and do not steer again until the rate is back down.</p>
+
+<h3>19.3 Choose the ground, do not accept it</h3>
+<p>Falling wherever the trajectory happens to point puts you on a 25-degree scree slope, at rest for
+half a second and then sliding — and "at rest" is what gates getting out of the vehicle. Sample the
+height field around the projected touchdown point and steer at the flattest candidate, re-surveying
+as the scale changes: from 30 km a flat candidate is a 20 km plain; from 800 m it is an actual patch
+of ground.</p>
+<script type="text/plain">
+float reach = Mathf.Clamp(altitude * 1.1f, 250f, 24000f);   // how far we can still steer
+float best  = float.NegativeInfinity;
+for (int i = 0; i < 25; ++i) {
+    Vector3 dir = SampleDisc(here, tangentU, tangentV, reach / body.Radius, i);
+    float   sl  = SlopeAt(body, dir, 30f);                  // rise over run, two tangents
+    float   score = -sl * 260f - DistancePenalty(dir);      // flat first, near second
+    if (score > best) { best = score; spot = dir; }
+}
+landingSpot = body.WorldToBodyFixed(spot);                  // or it slides as the planet turns
+</script>
+<p>Seventy height evaluations, three times per landing. It is the cheapest part of the whole system
+and it is the difference between landing and arriving.</p>
+
+<h3>19.4 When to start braking</h3>
+<p>Not at a fixed altitude — at the altitude where stopping is still possible, with margin:</p>
+<script type="text/plain">
+float aMax     = engine.MaxThrust / ship.Mass - g;
+float stopDist = (vUp * vUp) / (2 * Mathf.Max(aMax, 0.5f)) * 1.40f + horizontalSpeed * 6f;
+bool  aero     = ship.DynamicPressure > 2500f;   // let drag do the work while it still can
+if (!aero && altitudeAboveTerrain < stopDist) EnterPhase(Phase.Guide);
+</script>
+<p>The 1.40 is margin for throttle lag and for the terrain ahead being higher than the ground
+directly below. The horizontal term is there because sideways speed is paid for out of the same
+budget.</p>
+
+<h3>19.5 Knowing when to stop</h3>
+<p>Two failure modes here cost more debugging time than the guidance law did:</p>
+<ul>
+<li><b>Contact is not touchdown.</b> A leg grazing a ridge at 15 m/s is a skid; cutting the engine
+there leaves the vehicle sliding. Require an actual near-stop — ground-relative speed under about
+5 m/s — before handing over to the settle phase.</li>
+<li><b>Then stop completely.</b> "Landed" needs the angular rate under 0.06 rad/s, and an autopilot
+that keeps holding an attitude command keeps the reaction wheels turning. It will hover on its own
+gear and never admit it has arrived. Cut throttle, switch to stability assist, set the wheel brakes,
+and wait.</li>
+</ul>
+<p class="note"><b>One contact can be enough.</b> Broken ground routinely leaves a lander balanced on
+a single leg with the attitude hold keeping it upright. If your "landed" test demands two contacts,
+the crew can never open the hatch. Test for <i>at rest on the surface</i>, not for a contact count.</p>
+
+<h3>19.6 The parts that are not guidance</h3>
+<table>
+<tr><th>Problem</th><th>Resolution</th></tr>
+<tr><td>A landing from orbit is twenty minutes of falling</td><td>Let the autopilot drive time warp: 50× in vacuum, 5× in thin air, 1× below ~1.2 km or whenever dynamic pressure is high. The law is closed-loop, so a coarser step costs accuracy, not stability.</td></tr>
+<tr><td>Landing "somewhere" is not a destination</td><td>Bias the landing-spot search toward the nearest landmark — but range-check it first. A monolith on the far side of the Moon is 1600 km away; chasing it turns a landing into an endless series of ballistic hops.</td></tr>
+<tr><td>Deploy state driven by the render loop</td><td>Move it into the physics step. Leg contact keys off the deploy animation, so advancing it from <code>Update()</code> makes whether you land on your legs or your belly depend on whether a frame was drawn.</td></tr>
+<tr><td>The player wants control back</td><td>Any real stick deflection disengages it, with no confirmation. An autopilot you cannot interrupt by simply flying is a trap.</td></tr>
+<tr><td>Out of propellant mid-descent</td><td>Abort and say so. Do not silently keep thrusting — that is the bug that makes players distrust every other system.</td></tr>
+</table>
+</section>
+
 <section data-s="proto">
-<h2>17 · This prototype's mapping</h2>
+<h2>20 · This prototype's mapping</h2>
 <p>The build you are flying implements the spec above in a single HTML file with no external
 assets. If you are porting to Unity or Unreal, these are the pieces to read first:</p>
 <table>
@@ -2607,6 +2963,11 @@ assets. If you are porting to Unity or Unreal, these are the pieces to read firs
 <tr><td>Clouds</td><td><code>CLOUD_FRAG</code> — slab raymarch with Beer-powder lighting and a planet-shadow test.</td></tr>
 <tr><td>Flight model</td><td><code>aeroAndThrust()</code>, <code>attitudeControl()</code>, <code>integrate()</code> (Euler's equation with the gyroscopic term), <code>stepPhysics()</code>.</td></tr>
 <tr><td>Landing</td><td><code>gearPhysics()</code> — three spring-dampers against the CPU noise field.</td></tr>
+<tr><td>Galaxy morphology</td><td><code>galaxyShape()</code>, <code>galaxyDensity()</code> (JS) and the <code>mapHaze</code> / <code>uniMat</code> fragment shaders (GPU) — the same formula three times over.</td></tr>
+<tr><td>Inhabitants</td><td><code>regionSpecies()</code>, <code>planetLore()</code> in the lore layer; <code>loreForBody()</code> caches it on the live body.</td></tr>
+<tr><td>Landmarks</td><td><code>buildSiteMesh()</code>, <code>updateSites()</code>, <code>sitePos()</code> — pooled instances stood on the terrain normal.</td></tr>
+<tr><td>Auto-land</td><td><code>autoStep()</code>, <code>autoDescentRate()</code>, <code>autoWarpTarget()</code>, and the <code>'auto'</code> case in <code>sasTarget()</code>.</td></tr>
+<tr><td>Map levels</td><td><code>setMapLevel()</code>, <code>buildUniversePage()</code>, <code>buildSystemView()</code>, <code>makeMapPlanetMat()</code>.</td></tr>
 <tr><td>Re-entry</td><td><code>systems()</code> (thermal), <code>plasmaMat</code>, <code>reentrySparks()</code>, and the <code>uHeat</code>/<code>uTint</code> path in the composite pass.</td></tr>
 <tr><td>Wormhole</td><td><code>openWormhole()</code>, <code>updateWormhole()</code>, <code>whCore</code>/<code>whDisk</code>/<code>tunnel</code>, and <code>lensWarp()</code> in the composite shader.</td></tr>
 <tr><td>Ship &amp; textures</td><td><code>buildShip()</code>, <code>buildCockpit()</code>, <code>makeHullTextures()</code> — all parametric, no assets.</td></tr>
@@ -2769,6 +3130,7 @@ const CFG = {
   shake: 1.0,
   invert: false,
   orbits: true,
+  infFuel: false,
   shadows: true,
   godrays: true,
   patchRes: 24          // vertices per patch edge (grid is patchRes+1)
@@ -3144,14 +3506,14 @@ const BODY_DEFS = [
 { name:'Sol', type:'star', mu:1.32712440018e20, R:6.957e8, rotP:2.19e6, tilt:7.25,
   color:[1.0,.94,.80], lum:1.0 },
 
-{ name:'Mercury', type:'rocky', parent:'Sol', mu:2.2032e13, R:2.4397e6,
+{ name:'Mercury', loreT:167, loreHaz:'extreme temperature swing', type:'rocky', parent:'Sol', mu:2.2032e13, R:2.4397e6,
   el:{a:5.79090e10,e:.20563,i:7.005*DEG,O:48.331*DEG,w:29.124*DEG,M0:3.05},
   rotP:5.067e6, tilt:0.034,
   terr:{freq:3.1,contAmp:1400,contEdge:0,mtnAmp:3000,warp:.5,hillAmp:400,craterAmp:3200,craterFreq:19,craterOct:3,duneAmp:0,duneFreq:0,sea:-1e9},
   pal:[[.055,.050,.045],[.085,.078,.068],[.150,.138,.122],[.185,.172,.152],[.235,.218,.196],[.310,.295,.275]],
   polar:[.62,.62,.66], polarLat:.97 },
 
-{ name:'Venus', type:'rocky', parent:'Sol', mu:3.24859e14, R:6.0518e6,
+{ name:'Venus', loreT:464, loreHaz:'crushing pressure', type:'rocky', parent:'Sol', mu:3.24859e14, R:6.0518e6,
   el:{a:1.08209e11,e:.006772,i:3.3946*DEG,O:76.680*DEG,w:54.884*DEG,M0:.876},
   rotP:-2.0997e7, tilt:177.36,
   terr:{freq:2.6,contAmp:1900,contEdge:.05,mtnAmp:5200,warp:.7,hillAmp:700,craterAmp:400,craterFreq:26,craterOct:2,duneAmp:0,duneFreq:0,sea:-1e9},
@@ -3160,7 +3522,7 @@ const BODY_DEFS = [
   atm:{ top:1.4e5, Hr:15900, Hm:4000, bR:[9.0e-6,12.0e-6,7.0e-6], bM:5.0e-5, g:.80, rho0:65, sos:410, tint:[1,.86,.5], gain:2.1 },
   cloud:{ bottom:4.6e4, top:7.0e4, cover:.92, freq:2.6, speed:9e-5, col:[.98,.92,.72], dens:2.6 } },
 
-{ name:'Earth', type:'rocky', parent:'Sol', mu:3.986004418e14, R:6.371e6,
+{ name:'Earth', loreT:15,  loreHaz:'none recorded', type:'rocky', parent:'Sol', mu:3.986004418e14, R:6.371e6,
   el:{a:1.495979e11,e:.016709,i:0.0,O:0.0,w:102.937*DEG,M0:6.24},
   rotP:86164.1, tilt:23.4393,
   terr:{freq:2.35,contAmp:3600,contEdge:.02,mtnAmp:7400,warp:.62,hillAmp:950,craterAmp:0,craterFreq:0,craterOct:0,duneAmp:0,duneFreq:0,sea:820},
@@ -3170,14 +3532,14 @@ const BODY_DEFS = [
   cloud:{ bottom:2200, top:11000, cover:.44, freq:5.2, speed:4.5e-4, col:[1,1,1], dens:1.25 },
   life:1.0 },
 
-{ name:'Luna', type:'rocky', parent:'Earth', mu:4.9048695e12, R:1.7374e6,
+{ name:'Luna', loreT:-53, loreHaz:'micrometeorites', type:'rocky', parent:'Earth', mu:4.9048695e12, R:1.7374e6,
   el:{a:3.844e8,e:.0549,i:5.145*DEG,O:1.2,w:5.5,M0:2.35},
   rotP:2.3606e6, tilt:6.68,
   terr:{freq:3.3,contAmp:1500,contEdge:-.05,mtnAmp:2900,warp:.45,hillAmp:330,craterAmp:2900,craterFreq:23,craterOct:3,duneAmp:0,duneFreq:0,sea:-1e9},
   pal:[[.048,.048,.048],[.068,.068,.068],[.125,.122,.118],[.160,.156,.150],[.215,.210,.202],[.300,.295,.288]],
   polar:[.55,.55,.57], polarLat:.98 },
 
-{ name:'Mars', type:'rocky', parent:'Sol', mu:4.282837e13, R:3.3895e6,
+{ name:'Mars', loreT:-63, loreHaz:'caustic dust', type:'rocky', parent:'Sol', mu:4.282837e13, R:3.3895e6,
   el:{a:2.279392e11,e:.09340,i:1.8497*DEG,O:49.558*DEG,w:286.502*DEG,M0:.338},
   rotP:88642.7, tilt:25.19,
   terr:{freq:2.15,contAmp:2900,contEdge:.0,mtnAmp:11000,warp:.85,hillAmp:800,craterAmp:1100,craterFreq:28,craterOct:2,duneAmp:170,duneFreq:520,sea:-1e9},
@@ -3186,7 +3548,7 @@ const BODY_DEFS = [
   atm:{ top:6.5e4, Hr:11100, Hm:3000, bR:[1.95e-5,1.35e-5,9.0e-6], bM:1.4e-5, g:.72, rho0:.020, sos:240, tint:[1,.72,.48], gain:1.35 },
   cloud:{ bottom:9000, top:22000, cover:.16, freq:4.0, speed:6e-4, col:[.95,.9,.86], dens:.45 } },
 
-{ name:'Phobos', type:'rocky', parent:'Mars', mu:7.087e5, R:11267,
+{ name:'Phobos', loreT:-40, loreHaz:'micrometeorites', type:'rocky', parent:'Mars', mu:7.087e5, R:11267,
   el:{a:9.3763e6,e:.0151,i:1.08*DEG,O:.9,w:2.1,M0:1.1}, rotP:27553, tilt:0,
   terr:{freq:5.5,contAmp:900,contEdge:0,mtnAmp:1400,warp:.9,hillAmp:400,craterAmp:1600,craterFreq:13,craterOct:3,duneAmp:0,duneFreq:0,sea:-1e9},
   pal:[[.045,.040,.035],[.065,.058,.050],[.120,.110,.095],[.155,.140,.122],[.205,.186,.162],[.270,.250,.222]],
@@ -3198,25 +3560,25 @@ const BODY_DEFS = [
   gas:{ bands:11, c0:[.72,.62,.48], c1:[.46,.33,.24], c2:[.88,.83,.72], c3:[.72,.36,.24], storm:1.0, speed:4e-5 },
   atm:{ top:6.0e5, Hr:27000, Hm:9000, bR:[7.0e-6,1.0e-5,1.6e-5], bM:3.0e-5, g:.78, rho0:.16, sos:900, tint:[.9,.8,.62], gain:1.5 } },
 
-{ name:'Io', type:'rocky', parent:'Jupiter', mu:5.959916e12, R:1.8216e6,
+{ name:'Io', loreT:-143,loreHaz:'radiation storms', type:'rocky', parent:'Jupiter', mu:5.959916e12, R:1.8216e6,
   el:{a:4.217e8,e:.0041,i:.05*DEG,O:.3,w:1.1,M0:.4}, rotP:1.5285e5, tilt:0,
   terr:{freq:3.0,contAmp:1600,contEdge:0,mtnAmp:5200,warp:.8,hillAmp:520,craterAmp:0,craterFreq:0,craterOct:0,duneAmp:90,duneFreq:300,sea:-1e9},
   pal:[[.30,.24,.05],[.45,.36,.07],[.86,.76,.25],[.92,.82,.36],[.78,.52,.20],[.96,.92,.70]],
   polar:[.9,.85,.6], polarLat:.96 },
 
-{ name:'Europa', type:'ice', parent:'Jupiter', mu:3.202739e12, R:1.5608e6,
+{ name:'Europa', loreT:-171,loreHaz:'radiation storms', type:'ice', parent:'Jupiter', mu:3.202739e12, R:1.5608e6,
   el:{a:6.711e8,e:.0094,i:.47*DEG,O:2.1,w:.4,M0:2.9}, rotP:3.0686e5, tilt:0,
   terr:{freq:2.6,contAmp:420,contEdge:0,mtnAmp:700,warp:1.6,hillAmp:150,craterAmp:260,craterFreq:30,craterOct:2,duneAmp:0,duneFreq:0,sea:-1e9},
   pal:[[.52,.58,.64],[.62,.68,.74],[.80,.85,.90],[.86,.90,.94],[.74,.78,.84],[.96,.98,1.0]],
   polar:[.97,.99,1], polarLat:.90, ice:1 },
 
-{ name:'Ganymede', type:'ice', parent:'Jupiter', mu:9.887834e12, R:2.6341e6,
+{ name:'Ganymede', loreT:-163,loreHaz:'deep freeze', type:'ice', parent:'Jupiter', mu:9.887834e12, R:2.6341e6,
   el:{a:1.0704e9,e:.0013,i:.20*DEG,O:3.3,w:2.7,M0:5.1}, rotP:6.1826e5, tilt:0,
   terr:{freq:3.0,contAmp:1100,contEdge:0,mtnAmp:1900,warp:.7,hillAmp:280,craterAmp:1500,craterFreq:26,craterOct:3,duneAmp:0,duneFreq:0,sea:-1e9},
   pal:[[.22,.22,.24],[.30,.30,.32],[.48,.48,.50],[.56,.56,.58],[.66,.66,.70],[.86,.88,.92]],
   polar:[.88,.9,.94], polarLat:.93, ice:1 },
 
-{ name:'Callisto', type:'ice', parent:'Jupiter', mu:7.179289e12, R:2.4103e6,
+{ name:'Callisto', loreT:-139,loreHaz:'deep freeze', type:'ice', parent:'Jupiter', mu:7.179289e12, R:2.4103e6,
   el:{a:1.8827e9,e:.0074,i:.19*DEG,O:1.7,w:4.4,M0:1.7}, rotP:1.4418e6, tilt:0,
   terr:{freq:3.2,contAmp:900,contEdge:0,mtnAmp:1700,warp:.6,hillAmp:300,craterAmp:2600,craterFreq:21,craterOct:3,duneAmp:0,duneFreq:0,sea:-1e9},
   pal:[[.060,.056,.052],[.085,.080,.075],[.150,.142,.132],[.185,.176,.164],[.240,.230,.216],[.330,.330,.340]],
@@ -3229,7 +3591,7 @@ const BODY_DEFS = [
   atm:{ top:5.4e5, Hr:33000, Hm:11000, bR:[8.0e-6,9.5e-6,1.1e-5], bM:2.6e-5, g:.78, rho0:.19, sos:850, tint:[.94,.88,.68], gain:1.4 },
   ring:{ inner:7.45e7, outer:1.4022e8, tilt:0, opacity:.86 } },
 
-{ name:'Titan', type:'rocky', parent:'Saturn', mu:8.9781e12, R:2.5747e6,
+{ name:'Titan', loreT:-179,loreHaz:'deep freeze', type:'rocky', parent:'Saturn', mu:8.9781e12, R:2.5747e6,
   el:{a:1.221870e9,e:.0288,i:.35*DEG,O:2.6,w:3.9,M0:3.8}, rotP:1.3776e6, tilt:0,
   terr:{freq:2.5,contAmp:900,contEdge:.06,mtnAmp:1600,warp:.9,hillAmp:260,craterAmp:120,craterFreq:32,craterOct:2,duneAmp:210,duneFreq:430,sea:120},
   pal:[[.10,.07,.03],[.18,.12,.05],[.48,.34,.13],[.55,.40,.16],[.66,.51,.24],[.80,.70,.45]],
@@ -3250,13 +3612,13 @@ const BODY_DEFS = [
   gas:{ bands:5, c0:[.20,.34,.72], c1:[.14,.26,.62], c2:[.44,.58,.86], c3:[.24,.40,.80], storm:.55, speed:5.2e-5 },
   atm:{ top:4.2e5, Hr:19700, Hm:8000, bR:[7.0e-6,1.5e-5,3.2e-5], bM:1.9e-5, g:.76, rho0:.45, sos:580, tint:[.32,.48,.95], gain:1.35 } },
 
-{ name:'Triton', type:'ice', parent:'Neptune', mu:1.4279e12, R:1.3534e6,
+{ name:'Triton', loreT:-235,loreHaz:'deep freeze', type:'ice', parent:'Neptune', mu:1.4279e12, R:1.3534e6,
   el:{a:3.5476e8,e:.000016,i:157*DEG,O:2.0,w:.8,M0:1.4}, rotP:-5.0769e5, tilt:0,
   terr:{freq:2.9,contAmp:600,contEdge:0,mtnAmp:1100,warp:1.2,hillAmp:200,craterAmp:500,craterFreq:28,craterOct:2,duneAmp:0,duneFreq:0,sea:-1e9},
   pal:[[.45,.42,.44],[.55,.52,.54],[.76,.74,.74],[.84,.82,.80],[.90,.86,.82],[.98,.97,.96]],
   polar:[.98,.97,.99], polarLat:.82, ice:1 },
 
-{ name:'Pluto', type:'ice', parent:'Sol', mu:8.71e11, R:1.1883e6,
+{ name:'Pluto', loreT:-229,loreHaz:'deep freeze', type:'ice', parent:'Sol', mu:8.71e11, R:1.1883e6,
   el:{a:5.906380e12,e:.24881,i:17.16*DEG,O:110.299*DEG,w:113.834*DEG,M0:.256},
   rotP:5.5187e5, tilt:119.6,
   terr:{freq:3.0,contAmp:900,contEdge:.05,mtnAmp:2100,warp:1.0,hillAmp:280,craterAmp:900,craterFreq:24,craterOct:2,duneAmp:0,duneFreq:0,sea:-1e9},
@@ -5675,6 +6037,221 @@ function buildCockpit() {
   g.traverse(o => { if (o.isMesh) { o.castShadow = false; o.receiveShadow = true; } });
   return { group: g, mfds: mfds, stick: stick, throttle: thrLever, leds: leds };
 }
+/* =====================================================================
+   SURFACE LANDMARKS
+   ---------------------------------------------------------------------
+   The lore layer says a world has an observatory at a given latitude. This
+   is the part that actually builds it out of triangles and stands it on
+   the hillside, so "there is a base down there" is a thing you can fly to
+   and walk around rather than a line in a menu.
+
+   Geometry per kind is built once and shared; only the transforms are per
+   instance. Instances are recycled from a small pool as you move, because
+   a planet has sites everywhere and only the handful within about 40 km
+   are worth submitting.
+   ===================================================================== */
+const SITE_VIS_RANGE = 42000;                    // metres
+const SITE_POOL = 7;
+
+const siteMats = {
+  shell:  new T.MeshStandardMaterial({ color: 0x9aa4ae, metalness: 0.55, roughness: 0.52 }),
+  shell2: new T.MeshStandardMaterial({ color: 0x5c6670, metalness: 0.6,  roughness: 0.45 }),
+  dark:   new T.MeshStandardMaterial({ color: 0x2b3037, metalness: 0.5,  roughness: 0.6 }),
+  rust:   new T.MeshStandardMaterial({ color: 0x6d4a34, metalness: 0.35, roughness: 0.82 }),
+  stone:  new T.MeshStandardMaterial({ color: 0x4a4740, metalness: 0.02, roughness: 0.95 }),
+  black:  new T.MeshStandardMaterial({ color: 0x0a0c10, metalness: 0.3,  roughness: 0.35 }),
+  glass:  new T.MeshPhysicalMaterial({ color: 0x2a4a60, metalness: 0.1, roughness: 0.08,
+            transmission: 0.55, thickness: 0.6, transparent: true, opacity: 0.85 }),
+  lamp:   new T.MeshStandardMaterial({ color: 0x000000, emissive: 0x49e0ff, emissiveIntensity: 5 }),
+  lampW:  new T.MeshStandardMaterial({ color: 0x000000, emissive: 0xffb648, emissiveIntensity: 5 }),
+  glyph:  new T.MeshStandardMaterial({ color: 0x000000, emissive: 0xb98cff, emissiveIntensity: 3.4 })
+};
+function sbox(w, h, d, mat, x, y, z, rx, ry) {
+  const m = new T.Mesh(new T.BoxGeometry(w, h, d), mat);
+  m.position.set(x || 0, y || 0, z || 0);
+  if (rx) m.rotation.x = rx;
+  if (ry) m.rotation.y = ry;
+  m.castShadow = true; m.receiveShadow = true;
+  return m;
+}
+function scyl(rt, rb, h, seg, mat, x, y, z, rx) {
+  const m = new T.Mesh(new T.CylinderGeometry(rt, rb, h, seg), mat);
+  m.position.set(x || 0, y || 0, z || 0);
+  if (rx) m.rotation.x = rx;
+  m.castShadow = true; m.receiveShadow = true;
+  return m;
+}
+
+/* ---- the seven kinds, each about the size of a small building -------- */
+function buildSiteMesh(kind) {
+  const g = new T.Group();
+  if (kind === 'observatory') {
+    g.add(scyl(7.5, 8.6, 3.0, 22, siteMats.shell2, 0, 1.5, 0));
+    g.add(scyl(6.2, 6.8, 4.2, 22, siteMats.shell, 0, 5.2, 0));
+    const dome = new T.Mesh(new T.SphereGeometry(6.2, 26, 14, 0, TAU, 0, PI / 2), siteMats.shell);
+    dome.position.y = 7.3; dome.castShadow = true; g.add(dome);
+    /* the shutter slot — what makes a dome read as a telescope */
+    g.add(sbox(1.7, 7.0, 6.6, siteMats.black, 0, 9.0, 2.6, 0.5));
+    const tube = scyl(1.15, 1.15, 9.0, 14, siteMats.dark, 0, 9.4, 1.2);
+    tube.rotation.x = -0.62; g.add(tube);
+    g.add(sbox(0.5, 0.5, 0.5, siteMats.lamp, 0, 13.6, 0));
+    for (let i = 0; i < 4; i++) {
+      const a = i * PI / 2 + 0.4;
+      g.add(scyl(0.22, 0.22, 3.2, 8, siteMats.dark, Math.cos(a) * 8.2, 1.6, Math.sin(a) * 8.2));
+    }
+  } else if (kind === 'base') {
+    for (let i = 0; i < 3; i++) {
+      const x = (i - 1) * 9.5;
+      const cap = new T.Mesh(new T.CapsuleGeometry(3.2, 7.0, 6, 16), siteMats.shell);
+      cap.rotation.z = PI / 2; cap.position.set(x, 4.6, 0);
+      cap.castShadow = true; cap.receiveShadow = true; g.add(cap);
+      g.add(sbox(1.6, 1.0, 2.2, siteMats.glass, x, 5.6, 3.1));
+      for (const sz of [-1, 1]) {
+        g.add(scyl(0.34, 0.5, 3.0, 8, siteMats.dark, x - 2.4, 1.6, sz * 2.0));
+        g.add(scyl(0.34, 0.5, 3.0, 8, siteMats.dark, x + 2.4, 1.6, sz * 2.0));
+      }
+    }
+    g.add(sbox(19.0, 0.5, 2.4, siteMats.shell2, 0, 2.2, -4.6));
+    /* landing apron */
+    const pad = new T.Mesh(new T.CylinderGeometry(9.5, 9.5, 0.35, 28), siteMats.dark);
+    pad.position.set(0, 0.2, 18); pad.receiveShadow = true; g.add(pad);
+    for (let i = 0; i < 8; i++) {
+      const a = i * TAU / 8;
+      g.add(sbox(0.7, 0.24, 0.7, siteMats.lamp, Math.cos(a) * 8.6, 0.5, 18 + Math.sin(a) * 8.6));
+    }
+    g.add(scyl(0.3, 0.3, 14, 8, siteMats.shell2, 11, 7, -2));
+    g.add(sbox(0.8, 0.8, 0.8, siteMats.lampW, 11, 14.2, -2));
+  } else if (kind === 'trading') {
+    const pad = new T.Mesh(new T.CylinderGeometry(13, 13, 0.4, 32), siteMats.shell2);
+    pad.position.y = 0.2; pad.receiveShadow = true; g.add(pad);
+    g.add(sbox(7.0, 5.0, 6.0, siteMats.shell, -9, 2.9, -3));
+    g.add(sbox(3.0, 1.6, 0.4, siteMats.glass, -9, 3.6, 0.2));
+    /* gantry arch over the pad */
+    for (const sz of [-1, 1]) g.add(scyl(0.5, 0.6, 13, 10, siteMats.shell2, 0, 6.5, sz * 9));
+    g.add(sbox(1.2, 1.0, 19, siteMats.shell2, 0, 12.8, 0));
+    g.add(sbox(1.4, 1.4, 1.4, siteMats.lampW, 0, 13.9, 0));
+    for (let i = 0; i < 6; i++) {
+      const r = mulberry(0x51 + i * 977);
+      g.add(sbox(1.8 + r(), 1.8, 1.8, i % 2 ? siteMats.rust : siteMats.dark,
+        6 + r() * 5, 1.4, -6 + r() * 12, 0, r() * 2));
+    }
+  } else if (kind === 'monolith') {
+    const slab = sbox(4.4, 21, 1.5, siteMats.black, 0, 10.5, 0);
+    g.add(slab);
+    for (let i = 0; i < 7; i++)
+      g.add(sbox(2.2, 0.28, 0.12, siteMats.glyph, 0, 4.0 + i * 2.1, 0.80));
+    g.add(scyl(4.6, 5.6, 1.2, 6, siteMats.stone, 0, 0.6, 0));
+  } else if (kind === 'crash') {
+    const hull = scyl(4.2, 5.4, 26, 14, siteMats.rust, 0, 4.0, 0);
+    hull.rotation.z = PI / 2; hull.rotation.y = 0.2; hull.rotation.x = 0.16;
+    g.add(hull);
+    const tail = scyl(2.4, 4.0, 9, 12, siteMats.rust, 17, 2.2, 5);
+    tail.rotation.z = PI / 2.4; tail.rotation.y = -0.5; g.add(tail);
+    for (const sz of [-1, 1]) g.add(sbox(9, 0.5, 5, siteMats.shell2, 2, 5.4, sz * 5.5, 0, sz * 0.3));
+    for (let i = 0; i < 9; i++) {
+      const r = mulberry(0x77 + i * 1543);
+      g.add(sbox(0.8 + r() * 2, 0.4 + r(), 0.8 + r() * 2, siteMats.dark,
+        (r() * 2 - 1) * 22, 0.5 + r(), (r() * 2 - 1) * 16, r(), r() * 3));
+    }
+    g.add(sbox(0.6, 0.6, 0.6, siteMats.lampW, -11, 6.5, 0));
+  } else if (kind === 'ruins') {
+    for (let i = 0; i < 12; i++) {
+      const r = mulberry(0x31 + i * 2113);
+      const x = ((i % 4) - 1.5) * 8, z = (((i / 4) | 0) - 1) * 9;
+      g.add(sbox(6.5, 1.2 + r() * 4.5, 0.9, siteMats.stone, x, 1.0 + r() * 2, z, 0, (r() - .5) * .2));
+      if (r() < 0.5) g.add(scyl(0.8, 1.0, 3 + r() * 6, 8, siteMats.stone, x + 3.4, 2.5 + r() * 2, z + 4.6));
+    }
+    g.add(scyl(7, 8, 0.6, 20, siteMats.stone, 0, 0.3, 0));
+  } else {                                        /* beacon */
+    g.add(scyl(1.6, 2.4, 1.2, 10, siteMats.dark, 0, 0.6, 0));
+    g.add(scyl(0.28, 0.34, 15, 8, siteMats.shell2, 0, 8.0, 0));
+    for (let i = 0; i < 3; i++)
+      g.add(sbox(3.0, 0.16, 0.16, siteMats.shell2, 0, 6.5 + i * 3.0, 0, 0, i * 0.7));
+    g.add(sbox(0.9, 0.9, 0.9, siteMats.lamp, 0, 15.8, 0));
+  }
+  g.traverse(o => { o.frustumCulled = false; });
+  return g;
+}
+const siteProtos = {};
+function siteProto(kind) {
+  if (!siteProtos[kind]) siteProtos[kind] = buildSiteMesh(kind);
+  return siteProtos[kind];
+}
+
+/* ---- instance pool ---------------------------------------------------- */
+const siteSlots = [];
+for (let i = 0; i < SITE_POOL; i++) {
+  const root = new T.Group();
+  root.visible = false;
+  root.frustumCulled = false;
+  /* A beam you can see from orbit. Without it you would never find the
+     place you were aiming at from 40 km up. */
+  const beam = new T.Mesh(new T.CylinderGeometry(1.6, 0.5, 900, 8, 1, true),
+    new T.MeshBasicMaterial({ color: 0x6fd8ff, transparent: true, opacity: 0.10,
+      blending: T.AdditiveBlending, depthWrite: false, side: T.DoubleSide }));
+  beam.position.y = 450; beam.frustumCulled = false;
+  root.add(beam);
+  const light = new T.PointLight(0x8fd8ff, 0, 220, 2);
+  light.position.y = 12; root.add(light);
+  scene.add(root);
+  siteSlots.push({ root: root, beam: beam, light: light, mesh: null, kind: '', site: null });
+}
+const _st1 = new T.Vector3(), _st2 = new T.Vector3(), _st3 = new T.Vector3(), _stq = new T.Quaternion();
+const nearSites = [];
+
+function updateSites(dtReal) {
+  for (const s of siteSlots) s._keep = false;
+  nearSites.length = 0;
+  const b = ship.soi;
+  const ref = eva.active ? eva.pos : ship.pos;
+  if (b && b !== SUN && b.terr && ref.distanceTo(b.pos) - b.R < SITE_VIS_RANGE * 3) {
+    const lore = loreForBody(b);
+    if (lore) {
+      for (const st of lore.sites) {
+        sitePos(b, st, _st1);
+        const d = ref.distanceTo(_st1);
+        if (d < SITE_VIS_RANGE) nearSites.push({ st: st, d: d, body: b });
+      }
+      nearSites.sort((p, q) => p.d - q.d);
+      for (let i = 0; i < Math.min(nearSites.length, SITE_POOL); i++) {
+        const ns = nearSites[i];
+        let slot = siteSlots.find(s => s.site === ns.st);
+        if (!slot) slot = siteSlots.find(s => !s._keep && !s.site) || siteSlots.find(s => !s._keep);
+        if (!slot) continue;
+        if (slot.site !== ns.st || slot.kind !== ns.st.kind) {
+          if (slot.mesh) slot.root.remove(slot.mesh);
+          slot.mesh = siteProto(ns.st.kind).clone(true);
+          slot.root.add(slot.mesh);
+          slot.kind = ns.st.kind;
+          slot.site = ns.st;
+        }
+        slot._keep = true;
+        /* stand it on the terrain normal, not the radius — a 20-degree
+           slope with a radial up puts one corner 3 m in the air */
+        siteUp(b, ns.st, _st2);
+        b.surfaceNormal(_st2, 24, _st3);
+        sitePos(b, ns.st, _st1);
+        renderPos(_st1, slot.root.position);
+        _stq.setFromUnitVectors(_v1.set(0, 1, 0), _st3);
+        slot.root.quaternion.copy(_stq);
+        slot.root.rotateY(ns.st.idx * 1.37);
+        slot.root.visible = true;
+        slot.beam.visible = ns.d > 900;
+        slot.beam.material.opacity = clamp((ns.d - 900) / 9000, 0, 1) * 0.16;
+        slot.light.intensity = ns.d < 1400 ? 3.2 : 0;
+        slot.mesh.visible = ns.d < 26000;
+      }
+    }
+  }
+  for (const s of siteSlots) if (!s._keep) { s.root.visible = false; s.site = null; }
+}
+/* The nearest landmark, for the HUD and for auto-landing on something
+   more interesting than an arbitrary patch of rock. */
+function nearestSite(maxD) {
+  if (!nearSites.length) return null;
+  const n = nearSites[0];
+  return (maxD === undefined || n.d < maxD) ? n : null;
+}
 
 /* =====================================================================
    VESSEL SIMULATION
@@ -5709,7 +6286,7 @@ const ship = {
   rho: 0, q: 0, mach: 0, gForce: 1, heatRate: 0,
   reentry: 0, warpIdx: 0, pulse: 0, dead: false,
   target: null, mass: 0, thrustN: 0, dv: 0, twr: 0,
-  penMax: 0, penNrm: v3(0, 1, 0), bellyHit: false,
+  penMax: 0, penNrm: v3(0, 1, 0), bellyHit: false, restT: 0,
   bodyUp: v3(0, 1, 0), lastAcc: v3()
 };
 const WARPS = [1, 2, 5, 10, 50, 100, 1000, 10000, 100000];
@@ -5814,7 +6391,7 @@ function aeroAndThrust(dt, body, alt) {
 
   /* ---- main propulsion ------------------------------------------------ */
   let thr = 0;
-  if (ship.throttle > 0.001 && ship.fuel > 0) {
+  if (ship.throttle > 0.001 && (ship.fuel > 0 || CFG.infFuel)) {
     const pAmb = body.atm ? clamp(ship.rho / body.atm.rho0, 0, 1) : 0;
     const isp = lerp(SHIP.isp, SHIP.ispSL, pAmb);
     thr = SHIP.maxThrust * ship.throttle * lerp(1, 0.86, pAmb);
@@ -5913,6 +6490,11 @@ function sasTarget(out) {
     case 'target':
       if (ship.target) out.subVectors(ship.target.pos, ship.pos).normalize();
       else out.copy(vrel).normalize();
+      break;
+    /* the descent guidance law writes straight into auto.aim */
+    case 'auto':
+      if (auto.aim.lengthSq() > 1e-9) out.copy(auto.aim).normalize();
+      else return false;
       break;
     default: return false;
   }
@@ -6069,7 +6651,20 @@ function gearPhysics(dt, body) {
 
   ship.onGround = ship.contacts > 0;
   const relSpd = _v2.subVectors(ship.vel, body.windAt(ship.pos, _v3)).length();
-  ship.landed = ship.contacts >= 2 && relSpd < 1.4 && ship.angVel.length() < 0.06;
+  /* One contact is enough PROVIDED the vessel is genuinely at rest. Broken
+     ground routinely leaves a lander balanced on a single leg with SAS
+     holding it upright — it is on the surface, and requiring two contacts
+     there means the crew can never open the hatch. A leg touching during a
+     bounce fails the speed and rate tests anyway. */
+  /* "Landed" is a dwell, not an instant. A vessel resting on broken ground
+     rocks gently and indefinitely — legs on different rocks, suspension
+     trading energy — so an instantaneous angular-rate test never clears and
+     the EVA hatch refuses at random. Require it to be stationary, and
+     either steady OR stationary for a couple of seconds. */
+  if (ship.onGround && relSpd < 1.4) ship.restT = (ship.restT || 0) + dt;
+  else ship.restT = 0;
+  ship.landed = ship.contacts >= 1 && relSpd < 1.4 &&
+                (ship.angVel.length() < 0.12 || ship.restT > 2.0);
 }
 
 function damage(amount, why) {
@@ -6164,7 +6759,19 @@ function updateShipState() {
   }
 }
 
+/* Deploy state. This lives in the physics step, not the render loop:
+   gearPhysics() only produces leg contacts once gearAnim passes 0.9, so
+   driving it from the frame rate would make whether you land on your legs
+   or on your belly depend on whether a frame was drawn. */
+function stepGear(dt) {
+  const want = ship.gearDown ? 1 : 0;
+  if (Math.abs(ship.gearAnim - want) > 1e-4)
+    ship.gearAnim += clamp(want - ship.gearAnim, -1, 1) * Math.min(1, dt * 0.55);
+  else ship.gearAnim = want;
+}
+
 function stepPhysics(dtReal, warp) {
+  stepGear(dtReal);
   const dtSim = dtReal * warp;
   const onRails = warp > 10 && ship.throttle < 0.001 && ship.trans.lengthSq() < 1e-8 &&
                   ship.rho < 1e-8 && !ship.onGround && !ship.dead;
@@ -6205,6 +6812,20 @@ function stepPhysics(dtReal, warp) {
     }
   }
   updateShipState();
+  /* Parked. A vessel resting on broken ground creeps downhill — tens of
+     metres a minute on a slope — and if the crew is outside walking, that
+     is how you lose your ship. With nobody aboard and the gear down, hold
+     it: brakes on and the ground-relative motion damped out. Trying to do
+     this with a stiffer friction model instead just rocks the vehicle on
+     its legs and breaks contact, which makes the sliding worse. */
+  if (eva.active && ship.onGround && ship.gearDown) {
+    ship.brake = true;
+    const b = ship.soi;
+    b.windAt(ship.pos, _v5);
+    const kk = 1 - Math.exp(-6 * dtReal);
+    ship.vel.lerp(_v5, kk);
+    ship.angVel.multiplyScalar(1 - kk);
+  }
   systems(dtSim, dtReal);
 }
 
@@ -6302,8 +6923,14 @@ function reentrySparks(dt) {
 }
 
 /* ------------------------------------------------------------- EVA mode */
+/* The walker's authoritative state is BODY-FIXED. Integrating a person in
+   heliocentric coordinates means every step follows the tangent of a
+   rotating, orbiting surface instead of the surface itself, and the error
+   is systematic: on Earth it walks you 36 m from your ship in a minute of
+   standing perfectly still. `pos`/`vel` are derived each step for the
+   camera, the markers and everything else that wants world space. */
 const eva = {
-  active: false, pos: v3(), vel: v3(), yaw: 0, pitch: 0,
+  active: false, pos: v3(), vel: v3(), lpos: v3(), lvel: v3(), yaw: 0, pitch: 0,
   onGround: false, jet: 1, height: 1.72, body: null
 };
 function evaToggle() {
@@ -6315,16 +6942,31 @@ function evaToggle() {
     ship.throttle = 0;
     shipAxes();
     eva.pos.copy(ship.pos).addScaledVector(_rgt, 4.2).addScaledVector(ship.bodyUp, -1.0);
-    eva.vel.copy(ship.vel);
+    eva.lpos.subVectors(eva.pos, eva.body.pos).applyQuaternion(eva.body.invQuat);
+    eva.lvel.set(0, 0, 0);                        // at rest with the ground
+    evaSync(eva.body);
     eva.jet = 1;
     const fwd = _v1.copy(_fwd).addScaledVector(ship.bodyUp, -_fwd.dot(ship.bodyUp)).normalize();
     eva.yaw = 0; eva.pitch = 0;
     evaFrame();
-    say('EVA — stepping onto ' + eva.body.name, 'good');
-    caption('EVA ACTIVE', 'WASD move · SPACE jump/jetpack · F to board', 3200);
+    say('On foot — ' + eva.body.name + ' surface', 'good');
+    caption('ON FOOT · ' + eva.body.name.toUpperCase(),
+      TOUCH.enabled ? 'Left thumb walks · JUMP · RUN · BOARD to return'
+                    : 'WASD walk · SHIFT run · SPACE jump / jetpack · F to board', 3600);
+    const lore = loreForBody(eva.body);
+    if (lore && lore.sites.length) {
+      let near = null, nd = Infinity;
+      for (const st of lore.sites) {
+        sitePos(eva.body, st, _v1);
+        const d = _v1.distanceTo(eva.pos);
+        if (d < nd) { nd = d; near = st; }
+      }
+      if (near && nd < 60000)
+        say(near.icon + ' ' + near.name + ' — ' + near.label + ' ' + fmtDist(nd) + ' away');
+    }
   } else {
     const d = eva.pos.distanceTo(ship.pos);
-    if (d > 26) { say('Too far from the vessel (' + d.toFixed(0) + ' m)', 'warn'); return; }
+    if (d > 60) { say('Too far from the vessel (' + fmtDist(d) + ')', 'warn'); return; }
     eva.active = false;
     say('Boarding ' + 'ODYSSEY XR-7', 'good');
   }
@@ -6339,59 +6981,73 @@ function evaFrame() {
   if (!isFinite(evaBasis.fwd.x) || evaBasis.fwd.lengthSq() < 0.1) evaBasis.fwd.set(1, 0, 0);
   evaBasis.right.crossVectors(evaBasis.fwd, evaBasis.up).normalize();
 }
+/* Private scratch: the walker needs several vectors live at once and the
+   general pool is already holding its basis. */
+const _ev1 = new T.Vector3(), _ev2 = new T.Vector3(), _ev3 = new T.Vector3(),
+      _ev4 = new T.Vector3(), _ev5 = new T.Vector3();
+/* body-fixed -> world, for everything downstream of the walker */
+function evaSync(b) {
+  eva.pos.copy(eva.lpos).applyQuaternion(b.quat).add(b.pos);
+  b.windAt(eva.pos, _ev5);
+  eva.vel.copy(eva.lvel).applyQuaternion(b.quat).add(_ev5);
+}
 function evaStep(dt, input) {
   const b = eva.body;
+  evaSync(b);
   evaFrame();
   const cy = Math.cos(eva.yaw), sy = Math.sin(eva.yaw);
   const f = _v1.copy(evaBasis.fwd).multiplyScalar(cy).addScaledVector(evaBasis.right, sy).normalize();
   const r = _v2.crossVectors(f, evaBasis.up).normalize();
-  _v3.subVectors(eva.pos, b.pos);
-  const d = _v3.length();
-  const ground = b.surfaceR(evaBasis.up) + eva.height;
+
+  const d = eva.lpos.length();
+  const lup = _ev1.copy(eva.lpos).divideScalar(d);
+  const ground = b.surfaceR(_ev2.copy(lup).applyQuaternion(b.quat)) + eva.height;
   const h = d - ground;
   eva.onGround = h < 0.12;
   const g = b.mu / (d * d);
-  /* gravity + ground normal force */
-  eva.vel.addScaledVector(evaBasis.up, -g * dt);
+
+  let vUp = eva.lvel.dot(lup) - g * dt;
+  _ev3.copy(eva.lvel).addScaledVector(lup, -eva.lvel.dot(lup));   // body-fixed horizontal
   const walk = (input.sprint ? 9.5 : 4.4) * (eva.onGround ? 1 : 0.28);
-  _v4.set(0, 0, 0).addScaledVector(f, input.fwd * walk).addScaledVector(r, input.rgt * walk);
-  const vUp = eva.vel.dot(evaBasis.up);
-  _v5.copy(eva.vel).addScaledVector(evaBasis.up, -vUp);
-  b.windAt(eva.pos, _v6);
-  const wUp = _v6.dot(evaBasis.up);
-  _v6.addScaledVector(evaBasis.up, -wUp);
-  _v5.sub(_v6);
+  _ev4.set(0, 0, 0).addScaledVector(f, input.fwd * walk).addScaledVector(r, input.rgt * walk)
+      .applyQuaternion(b.invQuat);
   const k = eva.onGround ? 1 - Math.exp(-12 * dt) : 1 - Math.exp(-0.8 * dt);
-  _v5.lerp(_v4, k).add(_v6);
-  eva.vel.copy(_v5).addScaledVector(evaBasis.up, vUp);
+  _ev3.lerp(_ev4, k);
+
   if (input.jump) {
-    if (eva.onGround) eva.vel.addScaledVector(evaBasis.up, Math.sqrt(2 * g * 1.9));
+    if (eva.onGround) vUp = Math.sqrt(2 * g * 1.9);
     else if (eva.jet > 0) {
-      eva.vel.addScaledVector(evaBasis.up, g * 2.1 * dt);
+      vUp += g * 2.1 * dt;
       eva.jet = Math.max(0, eva.jet - dt * 0.09);
       const p = renderPos(eva.pos, _v4);
+      const u = evaBasis.up;
       for (let i = 0; i < 2; i++)
-        sparkPS.spawn(p.x, p.y - 0.6, p.z, (Math.random()-.5)*3 - evaBasis.up.x*6,
-          (Math.random()-.5)*3 - evaBasis.up.y*6, (Math.random()-.5)*3 - evaBasis.up.z*6,
+        sparkPS.spawn(p.x, p.y - 0.6, p.z, (Math.random()-.5)*3 - u.x*6,
+          (Math.random()-.5)*3 - u.y*6, (Math.random()-.5)*3 - u.z*6,
           0.5, 1.2, 0.6, 0.8, 1.2, 1.4, 0.99);
     }
   } else if (eva.onGround) eva.jet = Math.min(1, eva.jet + dt * 0.16);
-  eva.pos.addScaledVector(eva.vel, dt);
-  /* ground clamp */
-  _v3.subVectors(eva.pos, b.pos);
-  const d2 = _v3.length();
-  const g2 = b.surfaceR(_v3.normalize()) + eva.height;
+
+  eva.lvel.copy(_ev3).addScaledVector(lup, vUp);
+  eva.lpos.addScaledVector(eva.lvel, dt);
+
+  /* ground clamp, in the same frame */
+  const d2 = eva.lpos.length();
+  _ev1.copy(eva.lpos).divideScalar(d2);
+  const g2 = b.surfaceR(_ev2.copy(_ev1).applyQuaternion(b.quat)) + eva.height;
   if (d2 < g2) {
-    eva.pos.copy(b.pos).addScaledVector(_v3, g2);
-    const vu = eva.vel.dot(_v3);
-    if (vu < 0) eva.vel.addScaledVector(_v3, -vu);
+    eva.lpos.copy(_ev1).multiplyScalar(g2);
+    const vu = eva.lvel.dot(_ev1);
+    if (vu < 0) eva.lvel.addScaledVector(_ev1, -vu);
     if (vu < -8) {
+      evaSync(b);
       const p = renderPos(eva.pos, _v4);
       for (let i = 0; i < 10; i++)
         dustPS.spawn(p.x, p.y - 1.4, p.z, (Math.random()-.5)*6, (Math.random()-.5)*6, (Math.random()-.5)*6,
           1.2, 1.4, .55, .5, .45, 1.2, 1.01);
     }
   }
+  evaSync(b);
   eva.o2 = ship.o2;
 }
 
@@ -6957,6 +7613,9 @@ function readFlightInput(dt) {
   }
   mouse.dx = 0; mouse.dy = 0;
   ship.ctrl.set(clamp(ship.ctrl.x, -1, 1), clamp(ship.ctrl.y, -1, 1), clamp(ship.ctrl.z, -1, 1));
+  /* Any real stick input hands control back. An autopilot you cannot
+     interrupt by simply flying is a trap, not a feature. */
+  if (auto.mode === 'land' && ship.ctrl.lengthSq() > 0.09) autoAbort('AUTOLAND disengaged — manual control');
   /* RCS translation */
   if (k['i']) ship.trans.y += 1;
   if (k['k']) ship.trans.y -= 1;
@@ -7180,7 +7839,8 @@ const MK_SVG = {
   body: '<circle cx="13" cy="13" r="6" fill="none" stroke="currentColor" stroke-width="1.3"/><circle cx="13" cy="13" r="1.6" fill="currentColor"/>',
   ap:   '<path d="M13 5 L18 14 L8 14 Z" fill="none" stroke="currentColor" stroke-width="1.6"/>',
   pe:   '<path d="M13 21 L18 12 L8 12 Z" fill="none" stroke="currentColor" stroke-width="1.6"/>',
-  tgt:  '<rect x="6" y="6" width="14" height="14" fill="none" stroke="currentColor" stroke-width="1.4"/><circle cx="13" cy="13" r="2" fill="currentColor"/>'
+  tgt:  '<rect x="6" y="6" width="14" height="14" fill="none" stroke="currentColor" stroke-width="1.4"/><circle cx="13" cy="13" r="2" fill="currentColor"/>',
+  site: '<path d="M13 4 L21 13 L13 22 L5 13 Z" fill="none" stroke="currentColor" stroke-width="1.3"/><circle cx="13" cy="13" r="1.4" fill="currentColor"/>'
 };
 const _mkv = new T.Vector3();
 function projectMarker(worldPos, m, kind, label, color, minPx) {
@@ -7207,6 +7867,13 @@ function updateMarkers() {
     const col = b.type === 'star' ? '#ffd27a' : (b.type === 'gas' ? '#c9a06a' : (b.ice ? '#a9d8ff' : '#8fd6ff'));
     if (projectMarker(b.pos, m, b === ship.target ? 'tgt' : 'body',
         b.name + '  ' + fmtDist(d), b === ship.target ? '#ff7bd9' : col)) mi++;
+  }
+  /* landmarks: the reason to fly somewhere specific rather than anywhere */
+  for (const ns of nearSites) {
+    if (mi > 22) break;
+    const m = getMarker(mi);
+    sitePos(ns.body, ns.st, _v5);
+    if (projectMarker(_v5, m, 'site', ns.st.icon + ' ' + ns.st.name + '  ' + fmtDist(ns.d), '#ffb648')) mi++;
   }
   if (CFG.orbits && ship.elems && ship.soi) {
     const el = ship.elems, b = ship.soi;
@@ -7239,6 +7906,7 @@ function setTag(id, on, warn) {
 }
 let hudTick = 0;
 function updateHUD(dtReal) {
+  updateFootPrompt();
   const b = ship.soi, el = ship.elems;
   setBar('barFuel', ship.fuel / SHIP.fuelMax, (ship.fuel / 1000).toFixed(1) + ' t');
   setBar('barMono', ship.mono / SHIP.monoMax, (ship.mono).toFixed(0) + ' kg');
@@ -7293,8 +7961,10 @@ function updateHUD(dtReal) {
   $('thrVal').textContent = (ship.throttle * 100).toFixed(0) + '%';
   const SASN = { stab:'SAS · STAB', pro:'SAS · PROGRADE', retro:'SAS · RETROGRADE', radout:'SAS · RAD OUT',
     radin:'SAS · RAD IN', norm:'SAS · NORMAL', anorm:'SAS · ANTI-NORM', target:'SAS · TARGET',
-    srfretro:'SAS · SRF RETRO', srfpro:'SAS · SRF PRO' };
-  $('chipMode').textContent = eva.active ? 'EVA' : (ship.landed ? 'LANDED' : (ship.sas ? SASN[ship.sasMode] : 'MANUAL'));
+    srfretro:'SAS · SRF RETRO', srfpro:'SAS · SRF PRO', auto:'AUTOLAND' };
+  $('chipMode').textContent = eva.active ? 'ON FOOT'
+    : (auto.mode === 'land' ? 'AUTOLAND · ' + autoStatus().toUpperCase()
+    : (ship.landed ? 'LANDED' : (ship.sas ? SASN[ship.sasMode] : 'MANUAL')));
   const w = WARPS[ship.warpIdx];
   const chw = $('chipWarp');
   chw.textContent = 'TIME ×' + (w >= 1000 ? (w / 1000) + 'k' : w);
@@ -7381,9 +8051,56 @@ function scanReport(b) {
     ${biomes.map(x => '<div style="font-size:11.5px;color:var(--ink);padding:2px 0">▸ ' + x + '</div>').join('')}
     <h5 style="margin-top:12px">Hazards</h5>
     ${haz.map(x => '<div style="font-size:11.5px;color:#ffb0ba;padding:2px 0">⚠ ' + x + '</div>').join('')}
-  </div>`;
+  </div>
+  ${scanLoreCard(b)}`;
 }
 let scanning = 0, scanTarget = null;
+/* Shown only when stepping outside is actually possible, and hidden the
+   moment it is not — a prompt that lies is worse than no prompt. */
+function updateFootPrompt() {
+  const el = $('footPrompt');
+  if (!el) return;
+  const can = ship.landed && !eva.active && wormhole.state === 'idle' && !ship.dead &&
+              ship.soi && ship.soi.terr;
+  el.classList.toggle('on', !!can);
+}
+
+/* What a survey scan is actually for: who lives here and what is down
+   there to fly to. Landmarks are listed with a live range so the card
+   doubles as a destination list. */
+function scanLoreCard(b) {
+  const lore = loreForBody(b);
+  if (!lore) return '';
+  const row = (k, v) => '<div class="row"><span class="k">' + k + '</span><span class="v">' + v + '</span></div>';
+  const ref = eva.active ? eva.pos : ship.pos;
+  let sites = '';
+  for (const st of lore.sites) {
+    sitePos(b, st, _v1);
+    sites += '<div style="display:flex;gap:8px;font-size:11.5px;padding:2px 0">' +
+      '<span style="color:var(--am);width:14px">' + st.icon + '</span>' +
+      '<span style="flex:1;color:var(--ink)">' + st.name + '</span>' +
+      '<span style="color:var(--dim)">' + st.label + '</span>' +
+      '<span style="color:var(--cy);font-variant-numeric:tabular-nums">' + fmtDist(ref.distanceTo(_v1)) + '</span>' +
+      '</div>';
+  }
+  let fauna = '';
+  for (const f of lore.fauna)
+    fauna += '<div style="font-size:11.5px;color:var(--ink);padding:2px 0">❧ ' + f.name +
+      ' <span style="color:var(--dim)">' + f.type + ' · ' + f.temper + ' · ' + f.mass + ' kg</span></div>';
+  return '<div class="scanCard"><h5>Inhabitants</h5>' +
+    row('DOMINANT', lore.species.full) +
+    row('DISPOSITION', lore.species.disp) +
+    row('TECH LEVEL', lore.species.tech + ' / 5') +
+    row('SENTINELS', lore.sentinels) +
+    row('FAUNA', lore.faunaCount + ' species') +
+    row('FLORA', lore.floraCount + ' species') +
+    '<div style="font-size:11px;color:var(--dim);line-height:1.7;margin-top:8px">' +
+      lore.species.desc + '</div>' +
+    (sites ? '<h5 style="margin-top:12px">Landmarks</h5>' + sites : '') +
+    (fauna ? '<h5 style="margin-top:12px">Catalogued fauna</h5>' + fauna : '') +
+    '</div>';
+}
+
 function beginScan() {
   if (scanning > 0) return;
   const b = ship.target && ship.pos.distanceTo(ship.target.pos) < ship.pos.distanceTo(ship.soi.pos) ? ship.target : ship.soi;
@@ -7534,6 +8251,8 @@ function onKey(k, e) {
     case 'y': openBodyPicker('warp'); break;
     case 'f': evaToggle(); break;
     case 'p': ship.lights = !ship.lights; break;
+    case 'o': autoLandStart(); break;
+    case ';': setInfiniteFuel(!CFG.infFuel); break;
     case 'u': $('hud').classList.toggle('hidden'); break;
     case 'Tab': cycleTarget(); break;
     case ',': setWarp(ship.warpIdx - 1); break;
@@ -7551,13 +8270,18 @@ function cycleTarget() {
   ship.target = arr[(i + 1) % arr.length];
   say('Target: ' + ship.target.name);
 }
-function setWarp(i) {
+/* `force` is the autopilot: its descent guidance is closed-loop and stays
+   stable under a few times real time, and without it a landing from orbit
+   is twenty minutes of watching a slow fall. It still cannot warp on the
+   ground, on foot, or mid-fold. */
+function setWarp(i, force) {
   i = clamp(i, 0, WARPS.length - 1);
   if (i > 0) {
-    if (ship.onGround || ship.landed) { say('Time warp unavailable on the surface', 'warn'); return; }
-    if (ship.rho > 1e-6) { say('Time warp unavailable inside an atmosphere', 'warn'); return; }
+    if (ship.onGround || ship.landed) { if (!force) say('Time warp unavailable on the surface', 'warn'); return; }
+    if (!force && ship.rho > 1e-6) { say('Time warp unavailable inside an atmosphere', 'warn'); return; }
     if (wormhole.state !== 'idle' || eva.active) return;
   }
+  if (ship.warpIdx === i) return;
   ship.warpIdx = i;
   audio.blip(400 + i * 60, .06);
 }
@@ -7604,6 +8328,14 @@ const SOL_ADDR = { g: 0, vx: -880, vy: 3, vz: 610, ssi: 37 };
 function isSol(a) { return a && a.g === SOL_ADDR.g && a.vx === SOL_ADDR.vx && a.vy === SOL_ADDR.vy &&
                            a.vz === SOL_ADDR.vz && a.ssi === SOL_ADDR.ssi; }
 const GLYPHS = ['☉','☽','✦','✧','◆','◇','▲','△','▼','▽','●','○','■','□','★','☆'];
+/* There is no galaxy count. The sixteen canonical names are the start of a
+   sequence that continues, procedurally, for as long as you keep counting. */
+const GALAXY_MAX = 4294967296;
+function galaxyName(g) {
+  g = g >>> 0;
+  if (g < GAL_NAMES.length) return GAL_NAMES[g];
+  return nameFrom(NZ.hash3i(Math.imul(g, 2654435761), 917, 5501) >>> 0, 'gal');
+}
 
 /* 64-bit-ish mix of an address into a 32-bit stream seed */
 function addrSeed(a, salt) {
@@ -7641,35 +8373,144 @@ function fromPortal(str, galaxy) {
   return { addr: { g: galaxy | 0, vx: vx, vy: vy, vz: vz, ssi: ssi }, planetIndex: pi };
 }
 
-/* ---- galaxy shape -----------------------------------------------------
-   Two logarithmic spiral arms over an exponential disc plus a central
-   bulge. This is the function that decides how many systems a voxel
-   holds, so it is simultaneously the map's appearance and the universe's
-   population.                                                            */
-function galaxyDensity(vx, vy, vz) {
-  const rx = vx / 2047, rz = vz / 2047;
-  const r = Math.sqrt(rx * rx + rz * rz);
-  if (r > 1.001) return 0;
-  const h = Math.abs(vy) / 127;
-  const bulge = Math.exp(-r * r * 30);
-  const disc = Math.exp(-r * 2.9) * Math.exp(-h * h * 11);
-  const th = Math.atan2(rz, rx);
-  const ARMS = 2, WIND = 3.6;
-  const phase = th * ARMS - Math.log(Math.max(r, 0.03)) * WIND * ARMS;
-  const arm = Math.pow(Math.cos(phase) * 0.5 + 0.5, 2.4);
-  const d = bulge * 0.95 + disc * (0.14 + 0.86 * arm);
-  return clamp(d * (1 - smoothstep(0.86, 1.0, r)), 0, 1);
+/* ---- galaxy morphology ------------------------------------------------
+   A fixed list of 256 galaxies is a database. This is a function, so the
+   only bound on how many galaxies exist is the width of the integer you
+   address one with: 2^32 of them, each with its own shape, palette and
+   stellar population derived from its index alone.
+
+   One parameterised density field covers every morphology in the Hubble
+   sequence we care about — the type only chooses the weights:
+
+     d = bulge·e^(-r²k)                       central concentration
+       + disc ·e^(-r/s)·e^(-h²k)·(base+arm)   exponential disc
+       + ring ·e^(-(r-r0)²/w²)·e^(-h²k)       ring galaxies
+       + bar  ·e^(-(x/l)²-(z/w)²)             barred spirals
+       + blob ·Σ e^(-|p-cᵢ|²/wᵢ²)             irregulars and dwarfs
+
+   The same formula is implemented in GLSL for the map haze, so the cloud
+   you look at is the field the universe is actually populated from.      */
+const GAL_TYPES = [
+  { id:'spiral', label:'Spiral',        w:0.30 },
+  { id:'barred', label:'Barred spiral', w:0.26 },
+  { id:'flocc',  label:'Flocculent',    w:0.13 },
+  { id:'ellip',  label:'Elliptical',    w:0.13 },
+  { id:'lenti',  label:'Lenticular',    w:0.07 },
+  { id:'ring',   label:'Ring',          w:0.05 },
+  { id:'irr',    label:'Irregular',     w:0.06 }
+];
+const _shapeCache = new Map();
+function galaxyShape(g) {
+  g = g >>> 0;
+  const hit = _shapeCache.get(g);
+  if (hit) return hit;
+  const r = mulberry(NZ.hash3i(Math.imul(g, 2654435761), 0x5F356495, 0x27220A95) >>> 0);
+  let t = r(), acc = 0, type = GAL_TYPES[0];
+  for (const x of GAL_TYPES) { acc += x.w; if (t <= acc) { type = x; break; } }
+  const s = {
+    g: g, type: type.id, label: type.label,
+    arms: 2, wind: 3.6, armAmt: 0.86, armSharp: 2.4, armBase: 0.14,
+    bulge: 0.95, bulgeK: 30, disc: 1.0, discS: 2.9, thick: 11,
+    ring: 0, ringR: 0.62, ringW: 0.16, bar: 0, barL: 0.42, barW: 0.09,
+    blob: 0, blobs: [], edge: 0.86,
+    /* metallicity drives the stellar population: metal-poor galaxies are
+       old, red and dim; metal-rich ones are full of hot young stars. */
+    metal: 0.25 + 0.75 * r(),
+    ax: 1, az: 1
+  };
+  switch (type.id) {
+    case 'spiral':
+      s.arms = 2 + ((r() * 3) | 0); s.wind = 2.6 + r() * 2.6;
+      s.armSharp = 1.8 + r() * 1.6; break;
+    case 'barred':
+      s.arms = 2; s.wind = 2.2 + r() * 2.0; s.armSharp = 2.0 + r() * 1.4;
+      s.bar = 0.55 + r() * 0.5; s.barL = 0.34 + r() * 0.22; s.barW = 0.06 + r() * 0.06;
+      s.bulgeK = 44; break;
+    case 'flocc':
+      s.arms = 4 + ((r() * 5) | 0); s.wind = 1.4 + r() * 1.6;
+      s.armAmt = 0.34 + r() * 0.2; s.armSharp = 1.0 + r() * 0.5; s.armBase = 0.5; break;
+    case 'ellip':
+      s.arms = 0; s.armAmt = 0; s.armBase = 1; s.disc = 0.10;
+      s.bulge = 1.5; s.bulgeK = 3.2 + r() * 3.4; s.thick = 1.4 + r() * 1.6;
+      s.metal *= 0.55; s.edge = 0.95; s.ax = 1; s.az = 0.62 + r() * 0.38; break;
+    case 'lenti':
+      s.arms = 0; s.armAmt = 0.05; s.armBase = 0.95;
+      s.bulge = 1.15; s.bulgeK = 11 + r() * 9; s.disc = 0.85; s.discS = 3.4; s.thick = 26;
+      s.metal *= 0.7; break;
+    case 'ring':
+      s.arms = 0; s.armAmt = 0; s.armBase = 0.25; s.disc = 0.16;
+      s.bulge = 0.7; s.bulgeK = 60; s.ring = 1.25;
+      s.ringR = 0.50 + r() * 0.28; s.ringW = 0.09 + r() * 0.09; break;
+    case 'irr':
+      s.arms = 0; s.armAmt = 0; s.armBase = 1; s.disc = 0.22; s.discS = 1.6;
+      s.bulge = 0.18; s.bulgeK = 14; s.blob = 1.1; s.thick = 5;
+      for (let i = 0, n = 3 + ((r() * 3) | 0); i < n; i++)
+        s.blobs.push([(r() * 2 - 1) * 0.62, (r() * 2 - 1) * 0.18, (r() * 2 - 1) * 0.62,
+                      0.16 + r() * 0.26]);
+      s.metal *= 1.15; s.edge = 0.99; break;
+  }
+  /* Galaxy 0 is home. The Milky Way is a barred spiral with four arms and
+     Sol sits two thirds of the way out — pin it rather than let the hash
+     decide, because the rest of the Solar System is hand-authored. */
+  if (g === 0) {
+    s.type = 'barred'; s.label = 'Barred spiral';
+    s.arms = 4; s.wind = 3.1; s.armAmt = 0.86; s.armSharp = 2.3; s.armBase = 0.14;
+    s.bulge = 1.0; s.bulgeK = 38; s.disc = 1.0; s.discS = 2.9; s.thick = 11;
+    s.bar = 0.62; s.barL = 0.40; s.barW = 0.085; s.ring = 0; s.blob = 0;
+    s.metal = 0.72; s.ax = 1; s.az = 1; s.edge = 0.86; s.blobs.length = 0;
+  }
+  while (s.blobs.length < 5) s.blobs.push([0, 0, 0, 0.0001]);
+  s.name = galaxyName(g);
+  if (_shapeCache.size > 512) _shapeCache.clear();
+  _shapeCache.set(g, s);
+  return s;
 }
-function systemsInVoxel(vx, vy, vz) {
-  const d = galaxyDensity(vx, vy, vz);
+
+function galaxyDensity(g, vx, vy, vz) {
+  const s = typeof g === 'object' ? g : galaxyShape(g);
+  const rx = (vx / 2047) / s.ax, rz = (vz / 2047) / s.az;
+  const r = Math.sqrt(rx * rx + rz * rz);
+  if (r > 1.35) return 0;
+  const h = Math.abs(vy) / 127;
+  const hf = Math.exp(-h * h * s.thick);
+  let d = s.bulge * Math.exp(-r * r * s.bulgeK);
+  if (s.disc > 0) {
+    let arm = 1;
+    if (s.armAmt > 0 && s.arms > 0) {
+      const th = Math.atan2(rz, rx);
+      const phase = th * s.arms - Math.log(Math.max(r, 0.03)) * s.wind * s.arms;
+      arm = Math.pow(Math.cos(phase) * 0.5 + 0.5, s.armSharp);
+    }
+    d += s.disc * Math.exp(-r * s.discS) * hf * (s.armBase + s.armAmt * arm);
+  }
+  if (s.ring > 0) {
+    const dr = (r - s.ringR) / s.ringW;
+    d += s.ring * Math.exp(-dr * dr) * hf;
+  }
+  if (s.bar > 0) {
+    const bx = rx / s.barL, bz = rz / s.barW;
+    d += s.bar * Math.exp(-(bx * bx + bz * bz));
+  }
+  if (s.blob > 0) {
+    const y = vy / 127;
+    for (let i = 0; i < s.blobs.length; i++) {
+      const b = s.blobs[i];
+      const dx = rx - b[0], dy = y - b[1], dz = rz - b[2];
+      d += s.blob * Math.exp(-(dx * dx + dy * dy * 0.35 + dz * dz) / (b[3] * b[3]));
+    }
+  }
+  return clamp(d * (1 - smoothstep(s.edge, s.edge + 0.16, r)), 0, 1);
+}
+function systemsInVoxel(g, vx, vy, vz) {
+  const d = galaxyDensity(g, vx, vy, vz);
   if (d <= 0.0016) return 0;
-  const r = mulberry(addrSeed({ g: 0, vx: vx, vy: vy, vz: vz, ssi: 0 }, 7));
-  return Math.max(1, Math.round(d * GX.SYS * (0.55 + 0.9 * r())));
+  const r = mulberry(addrSeed({ g: g, vx: vx, vy: vy, vz: vz, ssi: 0 }, 7));
+  return Math.max(1, Math.round(Math.min(d, 1) * GX.SYS * (0.55 + 0.9 * r())));
 }
 function addrExists(a) {
   if (isSol(a)) return true;
   if (Math.abs(a.vx) > 2047 || Math.abs(a.vz) > 2047 || Math.abs(a.vy) > 127) return false;
-  return a.ssi >= 0 && a.ssi < systemsInVoxel(a.vx, a.vy, a.vz);
+  return a.ssi >= 0 && a.ssi < systemsInVoxel(a.g, a.vx, a.vy, a.vz);
 }
 
 /* ---- names ------------------------------------------------------------ */
@@ -7712,9 +8553,20 @@ const STAR_CLASSES = [
   { c: 'O', w: 0.003, T: 33000, col: [0.55, 0.68, 1.00], Rk: 6.5, Mk: 16 },
   { c: 'N', w: 0.001, T: 60000, col: [0.75, 0.90, 1.00], Rk: 0.002, Mk: 1.6, exotic: 'neutron star' }
 ];
-function pickStarClass(rnd) {
-  let t = rnd(), acc = 0;
-  for (const s of STAR_CLASSES) { acc += s.w; if (t <= acc) return s; }
+/* Metallicity reweights the IMF rather than adding a draw: a metal-poor
+   elliptical is nearly all red dwarfs, a metal-rich starburst has twenty
+   times the O and B stars. The draw count is unchanged, which is what
+   lets systemSummary() replay the prefix exactly. */
+function pickStarClass(rnd, shape) {
+  const m = shape ? shape.metal : 0.6;
+  const hot = 0.25 + m * 1.9;
+  let tot = 0;
+  for (const s of STAR_CLASSES) tot += s.w * (s.Mk > 1.15 ? hot : 1 / (0.6 + hot * 0.55));
+  let t = rnd() * tot, acc = 0;
+  for (const s of STAR_CLASSES) {
+    acc += s.w * (s.Mk > 1.15 ? hot : 1 / (0.6 + hot * 0.55));
+    if (t <= acc) return s;
+  }
   return STAR_CLASSES[0];
 }
 
@@ -7773,8 +8625,9 @@ function generateSystem(a) {
   if (isSol(a))
     return { defs: BODY_DEFS, name: 'Sol', star: STAR_CLASSES[2], home: true, addr: addrClone(a) };
 
+  const shape = galaxyShape(a.g);
   const r = mulberry(addrSeed(a, 1));
-  const sc = pickStarClass(r);
+  const sc = pickStarClass(r, shape);
   const sysName = nameFrom(addrSeed(a, 3), 'sys');
   const starR = 6.957e8 * sc.Rk * (0.85 + 0.3 * r());
   const starMu = 1.32712440018e20 * sc.Mk * (0.9 + 0.2 * r());
@@ -7820,7 +8673,7 @@ function generateSystem(a) {
       const nm = (pr() * 3) | 0;
       for (let m = 0; m < nm; m++) defs.push(makeMoon(a, pName, d, m, i, hzRatio));
     } else {
-      const pd = makeRocky(a, sysName, pName, sma, hzRatio, i, sc);
+      const pd = makeRocky(a, sysName, pName, sma, hzRatio, i, sc, shape);
       defs.push(pd);
       const pr2 = mulberry(addrSeed(a, 400 + i));
       const nm = pr2() < 0.45 ? 1 + ((pr2() * 2) | 0) : 0;
@@ -7830,7 +8683,7 @@ function generateSystem(a) {
   return { defs: defs, name: sysName, star: sc, addr: addrClone(a), planets: nPlanets };
 }
 
-function archetypeFor(rnd, hzRatio, cold) {
+function archetypeFor(rnd, hzRatio, cold, shape) {
   /* temperature bands bias which archetypes can appear, then the seed picks */
   let pool;
   if (hzRatio < 0.45) pool = ['scorched', 'volcanic', 'irrad', 'barren'];
@@ -7839,13 +8692,20 @@ function archetypeFor(rnd, hzRatio, cold) {
   else if (hzRatio < 3.0) pool = ['frozen', 'barren', 'toxic', 'irrad', 'exotic', 'marsh'];
   else pool = ['frozen', 'barren', 'irrad', 'exotic'];
   if (cold) pool = ['frozen', 'barren', 'irrad'];
+  /* You cannot build a rocky world out of hydrogen. A metal-poor galaxy
+     runs to bare rock and ice; a rich one grows atmospheres and life. */
+  if (shape) {
+    if (shape.metal < 0.35) pool = pool.filter(x => ['barren','frozen','irrad','scorched','desert','volcanic'].indexOf(x) >= 0);
+    else if (shape.metal > 0.85) pool = pool.concat(pool.filter(x => ['lush','verdant','ocean','marsh','exotic'].indexOf(x) >= 0));
+    if (!pool.length) pool = ['barren'];
+  }
   const id = pool[(rnd() * pool.length) | 0];
   return ARCHETYPES.find(x => x.id === id) || ARCHETYPES[0];
 }
 
-function makeRocky(a, sysName, pName, sma, hzRatio, idx, sc) {
+function makeRocky(a, sysName, pName, sma, hzRatio, idx, sc, shape) {
   const pr = mulberry(addrSeed(a, 200 + idx));
-  const arch = archetypeFor(pr, hzRatio);
+  const arch = archetypeFor(pr, hzRatio, false, shape);
   const R = 1.2e6 + pr() * 7.6e6;
   const dens = 3400 + pr() * 2400;
   const mu = GRAV * (4 / 3) * PI * R * R * R * dens;
@@ -7902,7 +8762,7 @@ function makeRocky(a, sysName, pName, sma, hzRatio, idx, sc) {
 
 function makeMoon(a, parentName, parentDef, m, idx, hzRatio) {
   const pr = mulberry(addrSeed(a, 700 + idx * 8 + m));
-  const arch = archetypeFor(pr, hzRatio, hzRatio > 1.2);
+  const arch = archetypeFor(pr, hzRatio, hzRatio > 1.2, galaxyShape(a.g));
   const R = 3.0e5 + pr() * 1.9e6;
   const mu = GRAV * (4 / 3) * PI * R * R * R * (2600 + pr() * 1200);
   const sma = parentDef.R * (3.5 + pr() * 14 + m * 6);
@@ -7929,7 +8789,7 @@ function makeMoon(a, parentName, parentDef, m, idx, hzRatio) {
 function systemSummary(a) {
   if (isSol(a)) return { sc: STAR_CLASSES[2], planets: 8, name: 'Sol', home: true };
   const r = mulberry(addrSeed(a, 1));
-  const sc = pickStarClass(r);
+  const sc = pickStarClass(r, galaxyShape(a.g));
   r(); r(); r(); r();                       // starR, starMu, rotP, tilt
   const n = 1 + ((r() * 6) | 0);
   return { sc: sc, planets: n, name: nameFrom(addrSeed(a, 3), 'sys'), home: false };
@@ -7942,6 +8802,9 @@ const DISCOVERED = {};
 
 function loadSystem(addr) {
   const gen = generateSystem(addr);
+  /* Index every definition once. This number is the lore seed and the
+     portal string's planet digit, so the map and the surface agree. */
+  gen.defs.forEach((d, i) => { d.pidx = i; });
   for (const n in PLANETS) { PLANETS[n].destroy(); delete PLANETS[n]; }
   buildQueue.length = 0;
   SUN = linkSystem(gen.defs);
@@ -7957,7 +8820,191 @@ function loadSystem(addr) {
   ship.target = null;
   return gen;
 }
+/* =====================================================================
+   INHABITANTS, LANDMARKS AND LORE
+   ---------------------------------------------------------------------
+   The same rule as everything else: nothing is stored. A species, a
+   creature, an observatory and the hill it stands on are all derived from
+   the galactic address by hashing, so the universe has content everywhere
+   and costs nothing to keep.
 
+   Species are assigned per REGION, not per planet — a 16-voxel super-cell
+   (~400 ly) shares a dominant civilisation, the way a real cultural sphere
+   would and the way No Man's Sky's races do. Individual worlds then get
+   their own outposts, fauna and hazards underneath that.
+   ===================================================================== */
+const SPECIES = [
+  { id:'gek',   name:'Traders',    body:'avian',      disp:'mercantile',
+    desc:'Small, wide-eyed and relentlessly commercial. Speak in prices.' },
+  { id:'korv',  name:'Convergence',body:'silicon',    disp:'scholarly',
+    desc:'Machine intelligences housed in glass. Regard organic life as a rounding error.' },
+  { id:'vyk',   name:'Clans',      body:'saurian',    disp:'martial',
+    desc:'Honour-bound warrior lineages. Judge strangers by scars, not words.' },
+  { id:'myco',  name:'Collective', body:'fungal',     disp:'communal',
+    desc:'A distributed mycelial mind. Individual bodies are temporary opinions.' },
+  { id:'hive',  name:'Hive',       body:'insectoid',  disp:'indifferent',
+    desc:'Chitinous, tireless, and entirely uninterested in negotiation.' },
+  { id:'abys',  name:'Deep-Swimmers', body:'aquatic', disp:'reclusive',
+    desc:'Pressure-dwellers who build downward. Surface contact is a formality.' },
+  { id:'rem',   name:'Remnant',    body:'machine',    disp:'derelict',
+    desc:'Whatever built the towers left. The maintenance drones did not.' },
+  { id:'nomad', name:'Nomads',     body:'humanoid',   disp:'wandering',
+    desc:'No homeworld on record. Their fleets predate most of the charts.' }
+];
+const SPEC_SYL = ['Ael','Bhor','Cyn','Dra','Eph','Fol','Gith','Hul','Ith','Jor','Kael','Lyr',
+  'Mor','Nix','Oss','Pyr','Quel','Rhe','Sek','Tal','Urr','Vash','Wyr','Xen','Yth','Zar'];
+const SPEC_END = ['ari','ex','oth','ini','uun','ath','eki','oss','ura','yn','ail','orr','esh','ika'];
+
+/* One dominant species per ~400 ly super-cell. */
+function regionCell(a) {
+  return { g: a.g, vx: a.vx >> 4, vy: a.vy >> 3, vz: a.vz >> 4, ssi: 0 };
+}
+function regionSpecies(a) {
+  const cell = regionCell(a);
+  const r = mulberry(addrSeed(cell, 4177));
+  const base = SPECIES[(r() * SPECIES.length) | 0];
+  const nm = SPEC_SYL[(r() * SPEC_SYL.length) | 0] + SPEC_END[(r() * SPEC_END.length) | 0];
+  return {
+    id: base.id, archetype: base, name: nm,
+    full: nm + ' ' + base.name,
+    disp: base.disp, body: base.body, desc: base.desc,
+    /* how built-up the region is — drives how many outposts you will find */
+    presence: clamp(r() * 1.25, 0, 1),
+    tech: 1 + ((r() * 5) | 0)
+  };
+}
+
+/* ---- landmarks --------------------------------------------------------
+   Seven kinds, weighted by what the world can actually support. An
+   observatory wants a thin sky; a trading post wants somebody to trade
+   with; a crash site does not care.                                      */
+const SITE_KINDS = [
+  { id:'observatory', label:'Observatory',      icon:'◎', needsLife:0,
+    blurb:'A sealed dome and a very large mirror, pointed away from the star.' },
+  { id:'base',        label:'Habitat Base',     icon:'⌂', needsLife:0.2,
+    blurb:'Pressurised modules on legs, linked by a covered walkway.' },
+  { id:'trading',     label:'Trading Post',     icon:'⇄', needsLife:0.3,
+    blurb:'A landing apron, a cargo gantry and somebody who wants a cut.' },
+  { id:'monolith',    label:'Monolith',         icon:'▮', needsLife:0,
+    blurb:'Older than the outposts. Nobody agrees on what it is counting.' },
+  { id:'crash',       label:'Crashed Freighter',icon:'✖', needsLife:0,
+    blurb:'Hull broken in three places. The reactor is still warm.' },
+  { id:'ruins',       label:'Ruins',            icon:'⌗', needsLife:0,
+    blurb:'Foundations in a grid, scoured to ankle height by the weather.' },
+  { id:'beacon',      label:'Distress Beacon',  icon:'!', needsLife:0,
+    blurb:'Still transmitting. The timestamp is the interesting part.' }
+];
+const SITE_NAME_A = ['Aegis','Bastion','Cinder','Delve','Ember','Forge','Gale','Harrow','Iron',
+  'Jackdaw','Keel','Lantern','Marrow','Nadir','Onyx','Pilgrim','Quarry','Reach','Solace',
+  'Tessellate','Umbra','Vigil','Winnow','Xylem','Yarrow','Zenith'];
+const SITE_NAME_B = ['Station','Outpost','Hold','Terminus','Watch','Array','Landing','Depot',
+  'Shelter','Anchorage','Waypoint','Refuge','Point','Works'];
+
+/* Planet content. `def` is the body definition generateSystem() produced,
+   so the lore knows the real biome, gravity and atmosphere. */
+function planetLore(a, planetIndex, def) {
+  const r = mulberry(addrSeed(a, 9000 + planetIndex * 31));
+  const spec = regionSpecies(a);
+  const life = def.life || 0;
+  const breathable = !!(def.atm && life > 0.35);
+  const g = def.mu / (def.R * def.R);
+  const sites = [];
+  const n = Math.round((1 + r() * 4) * (0.45 + spec.presence) + (life > 0.4 ? 2 : 0));
+  for (let i = 0; i < Math.min(n, 8); i++) {
+    const sr = mulberry(addrSeed(a, 9500 + planetIndex * 97 + i * 7));
+    const pool = SITE_KINDS.filter(k => life >= k.needsLife || sr() < 0.25);
+    const kind = pool.length ? pool[(sr() * pool.length) | 0] : SITE_KINDS[5];
+    /* Latitude is biased away from the poles: that is where the flat ground
+       and the interesting weather both are. */
+    const lat = (sr() * 2 - 1) * 1.15;
+    const lon = sr() * TAU;
+    sites.push({
+      kind: kind.id, label: kind.label, icon: kind.icon, blurb: kind.blurb,
+      name: SITE_NAME_A[(sr() * SITE_NAME_A.length) | 0] + ' ' +
+            SITE_NAME_B[(sr() * SITE_NAME_B.length) | 0],
+      lat: lat, lon: lon,
+      species: kind.id === 'monolith' || kind.id === 'ruins' ? 'unknown' : spec.full,
+      h: 0, idx: i
+    });
+  }
+  const FAUNA = ['grazer','burrower','flier','swarm','apex predator','filter-feeder','glider','crawler'];
+  const TEMPER = ['placid','skittish','territorial','aggressive','curious','docile'];
+  const fauna = [];
+  const nf = life <= 0 ? 0 : Math.round(2 + r() * 9 * life);
+  for (let i = 0; i < Math.min(nf, 6); i++) {
+    const fr = mulberry(addrSeed(a, 9800 + planetIndex * 53 + i * 11));
+    fauna.push({
+      name: nameFrom(addrSeed(a, 9900 + planetIndex * 53 + i * 11), 'fauna'),
+      type: FAUNA[(fr() * FAUNA.length) | 0],
+      temper: TEMPER[(fr() * TEMPER.length) | 0],
+      mass: (0.2 + Math.pow(fr(), 3) * 900).toFixed(fr() < 0.5 ? 1 : 0)
+    });
+  }
+  /* Temperature first: a hazard that contradicts the number printed two
+     rows above it in the same panel is worse than no hazard at all.
+     The hand-authored Solar System bodies carry real measured values; a
+     generated world takes the number its archetype implies. */
+  const tempC = def.loreT !== undefined ? def.loreT
+    : ({ scorched: 420, volcanic: 380, desert: 58, irrad: 44, lush: 21, verdant: 26,
+         ocean: 17, marsh: 24, toxic: 61, exotic: -8, frozen: -118, barren: -62 }[def.biome] || 12)
+      + Math.round((r() * 2 - 1) * 14);
+  let hazard = def.loreHaz || 'none recorded';
+  if (def.loreHaz) { /* authored */ }
+  else if (def.biome === 'scorched' || def.biome === 'volcanic') hazard = 'extreme heat';
+  else if (def.biome === 'frozen' || def.ice) hazard = 'deep freeze';
+  else if (def.biome === 'toxic') hazard = 'toxic rain';
+  else if (def.biome === 'irrad') hazard = 'radiation storms';
+  else if (def.biome === 'desert') hazard = 'caustic dust';
+  else if (r() < 0.30) {
+    const pool = tempC > 90 ? ['extreme heat', 'caustic dust']
+               : tempC < -40 ? ['deep freeze', 'electrical storms']
+               : def.atm ? ['electrical storms', 'caustic dust', 'toxic rain']
+               : ['radiation storms', 'micrometeorites'];
+    hazard = pool[(r() * pool.length) | 0];
+  }
+  if (!def.atm && (hazard === 'toxic rain' || hazard === 'electrical storms'))
+    hazard = 'radiation storms';                       // no air, no weather
+  const RES = ['ferrite','copper','cobalt','sodium','carbon','silicate','di-hydrogen','platinum',
+    'chromatic metal','activated indium','paraffinium','uranium','ammonia','phosphorus'];
+  const res = [];
+  for (let i = 0; i < 3; i++) { const x = RES[(r() * RES.length) | 0]; if (res.indexOf(x) < 0) res.push(x); }
+  return {
+    species: spec, sites: sites, fauna: fauna, faunaCount: nf,
+    floraCount: life <= 0 ? 0 : Math.round(3 + r() * 16 * life),
+    sentinels: ['absent', 'low', 'typical', 'aggressive', 'frenzied'][clamp(Math.floor(r() * 5), 0, 4)],
+    hazard: hazard, resources: res,
+    breathable: breathable,
+    gravity: g,
+    /* Surface temperature from the archetype rather than a real radiative
+       balance — the archetype already encodes where the planet sits. */
+    tempC: tempC
+  };
+}
+
+/* Lore for a body that is actually loaded, cached on the body itself.
+   `pidx` is the body's index in the definition list generateSystem()
+   produced, so the map and the landed player address the same world. */
+function loreForBody(b) {
+  if (!b || b === SUN || !b.terr) return null;
+  if (b._lore) return b._lore;
+  b._lore = planetLore(CURRENT, b.pidx || 0, b);
+  /* Pin each site to the terrain once. The direction is stored in the
+     BODY-FIXED frame — a world-space direction would slide across the
+     surface as the planet turned. */
+  for (const st of b._lore.sites) {
+    const cl = Math.cos(st.lat), sl = Math.sin(st.lat);
+    st.ldir = v3(cl * Math.cos(st.lon), sl, cl * Math.sin(st.lon)).normalize();
+    st.r = b.surfaceR(_v1.copy(st.ldir).applyQuaternion(b.quat));
+    st.body = b;
+  }
+  return b._lore;
+}
+/* World position of a site right now (the planet has turned since). */
+function sitePos(b, st, out) {
+  out.copy(st.ldir).applyQuaternion(b.quat);
+  return out.multiplyScalar(st.r).add(b.pos);
+}
+function siteUp(b, st, out) { return out.copy(st.ldir).applyQuaternion(b.quat); }
 /* =====================================================================
    GALAXY MAP
    ---------------------------------------------------------------------
@@ -7965,20 +9012,24 @@ function loadSystem(addr) {
    galactic address — selecting one and jumping generates that system on
    arrival. Nothing on this map is stored content; it is the same function
    the universe is made of, drawn at a different scale.
-   ===================================================================== */
-const GALAXY_COUNT = 256;
-function galaxyName(g) {
-  if (g < GAL_NAMES.length) return GAL_NAMES[g];
-  return nameFrom(NZ.hash3i(g * 2654435761, 917, 5501), 'gal');
-}
 
+   The map has four zoom levels (universe, galaxy, system, world) and the
+   same camera rig drives all of them; see parts/40b_mapviews.js for the
+   scenes at the other three.
+   ===================================================================== */
 const mapScene = new T.Scene();
 const mapCam = new T.PerspectiveCamera(48, 1, 0.01, 200);
 const MAP_N = 46000;
+/* Sampling stops at MAP_N; the spare slots exist so an exact address —
+   Sol, or one pasted as a portal string — can always be spliced in even
+   when the random sampler has filled the cloud. */
+const MAP_SPARE = 16;
+const MAP_LEVELS = ['uni', 'gal', 'sys', 'planet'];
 const mapState = {
   open: false, yaw: 0.6, pitch: 0.58, dist: 2.6, tDist: 2.6,
   sel: -1, addrs: null, pos: null, drag: false, lx: 0, ly: 0,
-  pinch: 0, galaxy: -1, wantGalaxy: 0, count: 0, spin: 0, moved: 0
+  pinch: 0, galaxy: -1, wantGalaxy: 0, count: 0, spin: 0, moved: 0,
+  level: 'gal', sysAddr: null, planetIdx: -1, uniSel: -1
 };
 
 const mapPtsMat = new T.RawShaderMaterial({
@@ -8005,30 +9056,49 @@ const mapPtsMat = new T.RawShaderMaterial({
 });
 let mapPoints = null;
 
-/* faint galactic haze so the arms read even where stars are sparse */
-const mapHaze = new T.Mesh(new T.PlaneGeometry(2.6, 2.6, 1, 1), new T.RawShaderMaterial({
+/* Faint galactic haze so the arms read even where stars are sparse. The
+   density formula here is the JS galaxyDensity() transcribed — if the two
+   drift apart the haze stops describing where the stars actually are. */
+const mapHaze = new T.Mesh(new T.PlaneGeometry(3.2, 3.2, 1, 1), new T.RawShaderMaterial({
   glslVersion: T.GLSL3, transparent: true, depthTest: false, depthWrite: false,
   blending: T.AdditiveBlending,
-  uniforms: { uTime: { value: 0 } },
+  uniforms: {
+    uTime: { value: 0 },
+    uArm:  { value: new T.Vector4(2, 3.6, 0.86, 2.4) },   // arms, wind, amt, sharp
+    uDisc: { value: new T.Vector4(0.14, 1.0, 2.9, 11) },  // base, disc, scale, thick
+    uCore: { value: new T.Vector4(0.95, 30, 0, 0) },      // bulge, bulgeK, ring, ringR
+    uMisc: { value: new T.Vector4(0.16, 0, 0.42, 0.86) }, // ringW, bar, barL, edge
+    uAxis: { value: new T.Vector3(1, 1, 0.09) },          // ax, az, barW
+    uHue:  { value: new T.Vector3(0.42, 0.60, 1.0) }
+  },
   vertexShader: `precision highp float;
     in vec3 position; uniform mat4 modelViewMatrix, projectionMatrix;
     out vec2 vP;
     void main(){ vP = position.xy; gl_Position = projectionMatrix*modelViewMatrix*vec4(position,1.0); }`,
   fragmentShader: `precision highp float;
     in vec2 vP; out vec4 oCol;
+    uniform float uTime;
+    uniform vec4 uArm, uDisc, uCore, uMisc;
+    uniform vec3 uAxis, uHue;
     ${GLSL_NOISE}
     void main(){
-      float r = length(vP);
-      if(r > 1.28) discard;
-      float th = atan(vP.y, vP.x);
-      float phase = th*2.0 - log(max(r,0.03))*7.2;
-      float arm = pow(cos(phase)*0.5+0.5, 2.4);
-      float bulge = exp(-r*r*26.0);
-      float disc = exp(-r*3.0);
-      float n = fbm(vec3(vP*9.0, 0.5), 4, 2.2, 0.55)*0.5 + 0.5;
-      float d = bulge*0.85 + disc*(0.12 + 0.88*arm)*n*1.5;
-      vec3 col = mix(vec3(0.16,0.20,0.42), vec3(0.95,0.86,0.72), clamp(bulge*1.6,0.0,1.0));
-      col = mix(col, vec3(0.42,0.60,1.0), clamp(arm*0.5,0.0,1.0));
+      vec2 q = vec2(vP.x/uAxis.x, vP.y/uAxis.y);
+      float r = length(q);
+      if(r > 1.45) discard;
+      float arm = 1.0;
+      if(uArm.x > 0.5 && uArm.z > 0.0){
+        float th = atan(q.y, q.x);
+        float ph = th*uArm.x - log(max(r,0.03))*uArm.y*uArm.x;
+        arm = pow(cos(ph)*0.5+0.5, uArm.w);
+      }
+      float n = fbm(vec3(q*9.0, 0.5), 4, 2.2, 0.55)*0.5 + 0.5;
+      float d = uCore.x*exp(-r*r*uCore.y);
+      d += uDisc.y*exp(-r*uDisc.z)*(uDisc.x + uArm.z*arm)*n*1.5;
+      if(uCore.z > 0.0){ float dr = (r-uCore.w)/uMisc.x; d += uCore.z*exp(-dr*dr)*n*1.4; }
+      if(uMisc.y > 0.0){ d += uMisc.y*exp(-(q.x*q.x/(uMisc.z*uMisc.z) + q.y*q.y/(uAxis.z*uAxis.z))); }
+      d *= 1.0 - smoothstep(uMisc.w, uMisc.w+0.16, r);
+      vec3 col = mix(vec3(0.16,0.20,0.42), vec3(0.95,0.86,0.72), clamp(exp(-r*r*uCore.y*0.9)*1.6,0.0,1.0));
+      col = mix(col, uHue, clamp(arm*0.5,0.0,1.0));
       oCol = vec4(col*d*0.085, 1.0);
     }`
 }));
@@ -8036,30 +9106,45 @@ mapHaze.rotation.x = -PI / 2;
 mapHaze.renderOrder = -1;
 mapScene.add(mapHaze);
 
+function applyHazeShape(s) {
+  const u = mapHaze.material.uniforms;
+  u.uArm.value.set(s.arms, s.wind, s.armAmt, s.armSharp);
+  u.uDisc.value.set(s.armBase, s.disc, s.discS, s.thick);
+  u.uCore.value.set(s.bulge, s.bulgeK, s.ring, s.ringR);
+  u.uMisc.value.set(s.ringW, s.bar, s.barL, s.edge);
+  u.uAxis.value.set(s.ax, s.az, s.barW);
+  /* metal-rich galaxies are blue with young stars; metal-poor ones red */
+  u.uHue.value.set(0.92 - s.metal * 0.55, 0.52 + s.metal * 0.14, 0.38 + s.metal * 0.70);
+}
+
 function buildGalaxyPoints(g) {
   if (mapPoints) { mapScene.remove(mapPoints); mapPoints.geometry.dispose(); }
-  const pos = new Float32Array(MAP_N * 3);
-  const col = new Float32Array(MAP_N * 3);
-  const siz = new Float32Array(MAP_N);
-  const addrs = new Array(MAP_N);
-  const r = mulberry(0x9E3779B9 ^ (g * 2654435761));
+  const shape = galaxyShape(g);
+  applyHazeShape(shape);
+  const cap = MAP_N + MAP_SPARE;
+  const pos = new Float32Array(cap * 3);
+  const col = new Float32Array(cap * 3);
+  const siz = new Float32Array(cap);
+  const addrs = new Array(cap);
+  const r = mulberry(0x9E3779B9 ^ Math.imul(g, 2654435761));
   let n = 0, guard = 0;
   while (n < MAP_N && guard < MAP_N * 60) {
     guard++;
     /* sample the disc in polar so the centre gets its share of points */
     const rr = Math.pow(r(), 0.55);
     const th = r() * TAU;
-    const vx = Math.round(Math.cos(th) * rr * 2047);
-    const vz = Math.round(Math.sin(th) * rr * 2047);
+    const vx = Math.round(Math.cos(th) * rr * 2047 * shape.ax);
+    const vz = Math.round(Math.sin(th) * rr * 2047 * shape.az);
     const vy = Math.round((r() * 2 - 1) * Math.pow(r(), 1.6) * 127);
-    const d = galaxyDensity(vx, vy, vz);
+    if (Math.abs(vx) > 2047 || Math.abs(vz) > 2047) continue;
+    const d = galaxyDensity(shape, vx, vy, vz);
     if (d <= 0.004 || r() > d * 1.35) continue;
-    const cnt = systemsInVoxel(vx, vy, vz);
+    const cnt = systemsInVoxel(g, vx, vy, vz);
     if (cnt <= 0) continue;
     const ssi = (r() * cnt) | 0;
     const a = { g: g, vx: vx, vy: vy, vz: vz, ssi: ssi };
     const sr = mulberry(addrSeed(a, 1));
-    const sc = pickStarClass(sr);
+    const sc = pickStarClass(sr, shape);
     pos[n * 3] = vx / 2047; pos[n * 3 + 1] = vy / 2047; pos[n * 3 + 2] = vz / 2047;
     const bright = 0.18 + (sc.Mk > 1.2 ? 0.55 : 0.14) * Math.min(sc.Mk, 6) / 6 + r() * 0.12;
     col[n * 3] = sc.col[0] * bright; col[n * 3 + 1] = sc.col[1] * bright; col[n * 3 + 2] = sc.col[2] * bright;
@@ -8085,7 +9170,9 @@ function buildGalaxyPoints(g) {
 function voxelToMap(a, out) { return out.set(a.vx / 2047, a.vy / 2047, a.vz / 2047); }
 function lyBetween(a, b) {
   const dx = a.vx - b.vx, dy = a.vy - b.vy, dz = a.vz - b.vz;
-  return Math.sqrt(dx * dx + dy * dy + dz * dz) * GX.LY_PER_VOXEL;
+  const inGal = Math.sqrt(dx * dx + dy * dy + dz * dz) * GX.LY_PER_VOXEL;
+  /* crossing galaxies is not a distance you express in light years */
+  return a.g === b.g ? inGal : Infinity;
 }
 function nearestPoint(ndcX, ndcY) {
   const p = mapState.pos, n = mapState.count;
@@ -8100,6 +9187,12 @@ function nearestPoint(ndcX, ndcY) {
   }
   return best;
 }
+/* which scene the renderer should draw for the current zoom level */
+function mapActiveScene() {
+  if (mapState.level === 'uni') return uniScene;
+  if (mapState.level === 'gal') return mapScene;
+  return sysScene;
+}
 function updateMapCamera() {
   mapState.dist += (mapState.tDist - mapState.dist) * 0.18;
   const cp = Math.cos(mapState.pitch), sp = Math.sin(mapState.pitch);
@@ -8112,39 +9205,210 @@ function updateMapCamera() {
   mapCam.aspect = VW / VH;
   mapCam.updateProjectionMatrix();
   mapCam.updateMatrixWorld(true);
-  mapPtsMat.uniforms.uScale.value = 10.5 * Math.min(VH / 700, 1.7);
+  const k = 10.5 * Math.min(VH / 700, 1.7);
+  mapPtsMat.uniforms.uScale.value = k;
+  /* galaxies are drawn as sprites that contain a whole morphology, so
+     they need enough pixels to show one */
+  uniMat.uniforms.uScale.value = k * 14;
 }
 
 /* --------------------------------------------------------------- panel */
 function selectedAddr() {
-  return mapState.sel >= 0 ? mapState.addrs[mapState.sel] : null;
+  if (mapState.level === 'sys' || mapState.level === 'planet') return mapState.sysAddr;
+  return mapState.sel >= 0 && mapState.addrs ? mapState.addrs[mapState.sel] : null;
 }
+function row2(k, v) { return '<div class="mapRow"><span>' + k + '</span><b>' + v + '</b></div>'; }
+function esc(s) { return String(s).replace(/[&<>]/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;' }[c])); }
+
+function mapBreadcrumb() {
+  const parts = ['<b data-lv="uni">Universe</b>'];
+  if (mapState.level !== 'uni')
+    parts.push('<b data-lv="gal">' + esc(galaxyName(mapState.galaxy)) + '</b>');
+  if (mapState.level === 'sys' || mapState.level === 'planet')
+    parts.push('<b data-lv="sys">' + esc(sysState.gen ? sysState.gen.name : '—') + '</b>');
+  if (mapState.level === 'planet' && sysState.gen && mapState.planetIdx >= 0)
+    parts.push('<b data-lv="planet">' + esc(sysState.gen.defs[mapState.planetIdx].name) + '</b>');
+  $('mapTitle').innerHTML = parts.join('<i>▸</i>');
+}
+
 function refreshMapPanel() {
-  const a = selectedAddr();
-  const info = $('mapInfo');
-  $('mapGalaxy').textContent = (mapState.galaxy + 1) + ' / ' + GALAXY_COUNT + ' · ' + galaxyName(mapState.galaxy);
-  if (!a) { info.innerHTML = '<div class="mapHint">Drag to orbit · pinch or wheel to zoom · tap a star to select it.</div>';
-    $('mapJump').disabled = true; $('mapGlyphs').textContent = ''; return; }
-  const sum = systemSummary(a);
-  const sc = sum.sc, nm = sum.name, np = sum.planets, home = sum.home;
-  const dly = lyBetween(a, CURRENT);
-  const known = DISCOVERED[toPortal(a, 0)];
+  const info = $('mapInfo'), jump = $('mapJump'), zoom = $('mapZoom');
+  mapBreadcrumb();
+  const lvl = mapState.level;
+  $('mapGalaxy').textContent = lvl === 'uni'
+    ? 'page ' + (uniState.page + 1) + ' · galaxies ' + (uniState.page * UNI_PAGE) + '–' + (uniState.page * UNI_PAGE + UNI_PAGE - 1)
+    : '#' + mapState.galaxy + ' · ' + galaxyName(mapState.galaxy);
+  $('mapGlyphs').textContent = ''; $('mapHex').textContent = '';
+  jump.style.display = 'none'; zoom.style.display = 'none';
+
+  if (lvl === 'uni') return refreshUniPanel(info, zoom);
+  if (lvl === 'gal') return refreshGalPanel(info, jump, zoom);
+  if (lvl === 'sys') return refreshSysPanel(info, jump, zoom);
+  return refreshPlanetPanel(info, jump, zoom);
+}
+
+function refreshUniPanel(info, zoom) {
+  const g = mapState.uniSel;
+  if (g < 0) {
+    info.innerHTML = '<div class="mapHint">Every point is a galaxy, drawn with its own morphology. ' +
+      'Drag to orbit · pinch or scroll to zoom · tap one to inspect it.</div>' +
+      '<div class="mapRows">' + row2('GALAXIES', '4 294 967 296') +
+      row2('PER GALAXY', '≈ 1.3 × 10¹¹ systems') + '</div>';
+    return;
+  }
+  const s = galaxyShape(g);
   info.innerHTML =
-    '<div class="mapName">' + (home ? 'Sol' : nm) + (known ? ' <span class="mapTagV">visited</span>' : '') + '</div>' +
-    '<div class="mapRegion">' + regionName(a) + '</div>' +
+    '<div class="mapName">' + esc(galaxyName(g)) + (g === CURRENT.g ? ' <span class="mapTagV">you are here</span>' : '') + '</div>' +
+    '<div class="mapRegion">' + s.label + ' galaxy · index ' + g + '</div>' +
+    '<div class="mapRows">' +
+      row2('ARMS', s.arms ? s.arms + (s.bar > 0 ? ' · barred' : '') : 'none') +
+      row2('METALLICITY', (s.metal).toFixed(2) + ' · ' + (s.metal > 0.72 ? 'young, blue' : s.metal > 0.42 ? 'mixed' : 'old, red')) +
+      row2('WORLD BIAS', s.metal < 0.35 ? 'rock and ice' : s.metal > 0.85 ? 'atmospheres, life' : 'varied') +
+    '</div>';
+  zoom.style.display = '';
+  zoom.textContent = '⊕ Enter ' + galaxyName(g);
+}
+
+function refreshGalPanel(info, jump, zoom) {
+  const a = selectedAddr();
+  if (!a) {
+    info.innerHTML = '<div class="mapHint">Drag to orbit · pinch or scroll to zoom · tap a star to select it.</div>';
+    return;
+  }
+  const sum = systemSummary(a);
+  const sc = sum.sc, dly = lyBetween(a, CURRENT);
+  const known = DISCOVERED[toPortal(a, 0)];
+  const spec = regionSpecies(a);
+  info.innerHTML =
+    '<div class="mapName">' + esc(sum.home ? 'Sol' : sum.name) + (known ? ' <span class="mapTagV">visited</span>' : '') + '</div>' +
+    '<div class="mapRegion">' + esc(regionName(a)) + '</div>' +
     '<div class="mapRows">' +
       row2('STAR', sc.exotic ? sc.exotic.toUpperCase() : 'CLASS ' + sc.c + ' · ' + sc.T + ' K') +
-      row2('WORLDS', np + (np === 1 ? ' planet' : ' planets') + (home ? ' + moons' : '')) +
+      row2('WORLDS', sum.planets + (sum.planets === 1 ? ' planet' : ' planets') + (sum.home ? ' + moons' : '')) +
+      row2('INHABITANTS', esc(spec.full)) +
       row2('VOXEL', a.vx + ', ' + a.vy + ', ' + a.vz) +
-      row2('SYSTEM IDX', a.ssi) +
-      row2('DISTANCE', dly < 1 ? 'current system' : dly.toFixed(1) + ' ly') +
+      row2('DISTANCE', dly < 1 ? 'current system' : (isFinite(dly) ? dly.toFixed(1) + ' ly' : 'another galaxy')) +
     '</div>';
   $('mapGlyphs').textContent = portalGlyphs(a, 0);
   $('mapHex').textContent = toPortal(a, 0);
-  $('mapJump').disabled = addrEq(a, CURRENT);
-  $('mapJump').textContent = addrEq(a, CURRENT) ? 'Current system' : 'Warp to system';
+  jump.style.display = ''; zoom.style.display = '';
+  zoom.textContent = '⊕ Open system';
+  jump.disabled = addrEq(a, CURRENT);
+  jump.textContent = addrEq(a, CURRENT) ? 'Current system' : 'Warp to system';
 }
-function row2(k, v) { return '<div class="mapRow"><span>' + k + '</span><b>' + v + '</b></div>'; }
+
+function refreshSysPanel(info, jump, zoom) {
+  const a = mapState.sysAddr, gen = sysState.gen;
+  if (!gen) return;
+  const spec = regionSpecies(a);
+  const worlds = gen.defs.filter(d => d.el);
+  let list = '';
+  for (const d of worlds) {
+    const kind = d.type === 'gas' ? 'gas giant' : (d.archetype || (d.type === 'ice' ? 'Icy' : 'Rocky'));
+    list += '<div class="mapWorld" data-p="' + d.pidx + '">' +
+      '<i class="wdot ' + (d.type === 'gas' ? 'gas' : (d.biome || 'barren')) + '"></i>' +
+      '<span>' + esc(d.name) + '</span><b>' + esc(kind) + '</b></div>';
+  }
+  info.innerHTML =
+    '<div class="mapName">' + esc(gen.name) + '</div>' +
+    '<div class="mapRegion">' + esc(regionName(a)) + ' · ' + esc(spec.full) + '</div>' +
+    '<div class="mapRows">' +
+      row2('STAR', (gen.star.exotic ? gen.star.exotic.toUpperCase() : 'CLASS ' + gen.star.c) + ' · ' + gen.star.T + ' K') +
+      row2('BODIES', worlds.length) +
+      row2('DOMINANT', esc(spec.archetype.name) + ' · ' + spec.disp) +
+    '</div>' +
+    '<div class="mapListHead">WORLDS — tap to inspect</div>' + list;
+  $('mapGlyphs').textContent = portalGlyphs(a, 0);
+  $('mapHex').textContent = toPortal(a, 0);
+  jump.style.display = '';
+  jump.disabled = addrEq(a, CURRENT);
+  jump.textContent = addrEq(a, CURRENT) ? 'Current system' : 'Warp to system';
+}
+
+function refreshPlanetPanel(info, jump, zoom) {
+  const a = mapState.sysAddr, gen = sysState.gen, d = gen && gen.defs[mapState.planetIdx];
+  if (!d) return;
+  const lore = planetLore(a, d.pidx, d);
+  const g = d.mu / (d.R * d.R);
+  const isGas = d.type === 'gas';
+  let sites = '';
+  for (const st of lore.sites)
+    sites += '<div class="mapSite"><i>' + st.icon + '</i><span>' + esc(st.name) +
+             '</span><b>' + esc(st.label) + '</b></div>';
+  let fauna = '';
+  for (const f of lore.fauna)
+    fauna += '<div class="mapSite"><i>❧</i><span>' + esc(f.name) + '</span><b>' +
+             esc(f.type) + ' · ' + esc(f.temper) + '</b></div>';
+  info.innerHTML =
+    '<div class="mapName">' + esc(d.name) + '</div>' +
+    '<div class="mapRegion">' + esc(isGas ? 'Gas giant' : (d.archetype || 'Rocky')) +
+      ' · ' + esc(lore.species.full) + '</div>' +
+    '<div class="mapRows">' +
+      row2('RADIUS', fmtDist(d.R)) +
+      row2('GRAVITY', (g / 9.80665).toFixed(2) + ' g') +
+      row2('ATMOSPHERE', d.atm ? (lore.breathable ? 'breathable' : 'present · not breathable') : 'none') +
+      row2('SURFACE', isGas ? 'no solid surface' : lore.tempC + ' °C') +
+      row2('HAZARD', esc(lore.hazard)) +
+      row2('SENTINELS', esc(lore.sentinels)) +
+      row2('LIFE', lore.faunaCount ? lore.faunaCount + ' fauna · ' + lore.floraCount + ' flora' : 'none detected') +
+      row2('RESOURCES', esc(lore.resources.join(', '))) +
+    '</div>' +
+    (sites ? '<div class="mapListHead">LANDMARKS</div>' + sites : '') +
+    (fauna ? '<div class="mapListHead">CATALOGUED FAUNA</div>' + fauna : '');
+  $('mapGlyphs').textContent = portalGlyphs(a, Math.min(d.pidx, 15));
+  $('mapHex').textContent = toPortal(a, Math.min(d.pidx, 15));
+  jump.style.display = '';
+  jump.disabled = addrEq(a, CURRENT);
+  jump.textContent = addrEq(a, CURRENT) ? 'Current system' : 'Warp to system';
+}
+
+/* -------------------------------------------------------- navigation */
+function setMapLevel(lv, opts) {
+  opts = opts || {};
+  /* Resolve the selection BEFORE switching levels: selectedAddr() reads
+     mapState.level, so setting the level first makes it answer for the
+     level we are going to rather than the one we are coming from. */
+  const fromAddr = selectedAddr();
+  mapState.level = lv;
+  document.body.setAttribute('data-maplevel', lv);
+  if (lv === 'uni') {
+    const want = Math.floor((opts.g !== undefined ? opts.g : mapState.galaxy) / UNI_PAGE);
+    if (!uniState.ids || uniState.page !== want) buildUniversePage(want);
+    mapState.uniSel = opts.g !== undefined ? opts.g : mapState.galaxy;
+    mapState.tDist = 3.1; mapState.pitch = 0.42;
+  } else if (lv === 'gal') {
+    const g = opts.g !== undefined ? opts.g : mapState.galaxy;
+    if (mapState.galaxy !== g || !mapState.addrs) buildGalaxyPoints(g);
+    mapState.wantGalaxy = g;
+    mapState.tDist = 2.6; mapState.pitch = 0.58;
+  } else if (lv === 'sys') {
+    const a = opts.addr || fromAddr || mapState.sysAddr;
+    if (!a) { mapState.level = 'gal'; document.body.setAttribute('data-maplevel', 'gal'); return; }
+    mapState.sysAddr = addrClone(a);
+    buildSystemView(a);
+    mapState.tDist = 3.4; mapState.pitch = 0.48;
+  } else {
+    const idx = opts.idx !== undefined ? opts.idx : mapState.planetIdx;
+    if (idx === undefined || idx < 0 || !mapState.sysAddr) {
+      mapState.level = 'sys'; document.body.setAttribute('data-maplevel', 'sys'); return;
+    }
+    mapState.planetIdx = idx;
+    buildSystemView(mapState.sysAddr, idx);
+    mapState.tDist = 2.7; mapState.pitch = 0.22;
+  }
+  refreshMapPanel();
+  audio.blip(lv === 'planet' ? 880 : 620, 0.07);
+}
+function mapZoomOut() {
+  if (mapState.level === 'planet') setMapLevel('sys');
+  else if (mapState.level === 'sys') setMapLevel('gal', { g: mapState.sysAddr.g });
+  else if (mapState.level === 'gal') setMapLevel('uni', { g: mapState.galaxy });
+  else closeMap();
+}
+function mapZoomIn() {
+  if (mapState.level === 'uni' && mapState.uniSel >= 0) setMapLevel('gal', { g: mapState.uniSel });
+  else if (mapState.level === 'gal' && selectedAddr()) setMapLevel('sys');
+}
 
 function openMap() {
   if (mapState.galaxy < 0) mapState.wantGalaxy = CURRENT.g;
@@ -8152,8 +9416,8 @@ function openMap() {
   mapState.open = true;
   $('mapOverlay').classList.add('on');
   $('hud').classList.add('mapped');
-  /* frame the current system */
-  if (mapState.wantGalaxy === CURRENT.g) {
+  document.body.classList.add('mapopen');
+  if (mapState.level === 'gal' && mapState.wantGalaxy === CURRENT.g) {
     let best = -1, bd = 1e9;
     for (let i = 0; i < mapState.count; i++) {
       const a = mapState.addrs[i];
@@ -8162,13 +9426,14 @@ function openMap() {
     }
     mapState.sel = best;
   }
-  refreshMapPanel();
+  setMapLevel(mapState.level);
   audio.blip(560, 0.09);
 }
 function closeMap() {
   mapState.open = false;
   $('mapOverlay').classList.remove('on');
   $('hud').classList.remove('mapped');
+  document.body.classList.remove('mapopen');
 }
 
 /* ------------------------------------------------------------- warping */
@@ -8177,9 +9442,10 @@ function warpToSystem(addr) {
   if (addrEq(addr, CURRENT)) { say('Already in this system'); return; }
   if (ship.rho > 1e-6) { say('WARP FAILED — cannot fold space inside an atmosphere', 'bad'); return; }
   if (ship.onGround) { say('WARP FAILED — must be free of the surface', 'bad'); return; }
-  const cost = 0.45;
-  if (ship.power < cost) { say('Insufficient charge for an interstellar fold', 'bad'); return; }
-  ship.power -= cost;
+  const inter = addr.g !== CURRENT.g;
+  const cost = inter ? 0.85 : 0.45;
+  if (ship.power < cost && !CFG.infFuel) { say('Insufficient charge for an interstellar fold', 'bad'); return; }
+  if (!CFG.infFuel) ship.power -= cost;
   closeMap();
   wormhole.pendingSystem = addrClone(addr);
   wormhole.state = 'charge'; wormhole.t = 0;
@@ -8190,14 +9456,14 @@ function warpToSystem(addr) {
   whGroup.visible = true;
   ship.throttle = 0;
   const nm = systemSummary(addr).name;
-  caption('FOLDING SPACETIME', 'Interstellar · ' + nm, 0);
-  say('Interstellar bridge charging — ' + nm, 'good');
+  caption(inter ? 'FOLDING INTERGALACTIC SPACE' : 'FOLDING SPACETIME',
+          (inter ? galaxyName(addr.g) + ' · ' : 'Interstellar · ') + nm, 0);
+  say((inter ? 'Intergalactic' : 'Interstellar') + ' bridge charging — ' + nm, 'good');
   audio.wormhole(true);
 }
 /* called by the wormhole sequencer when the tunnel ends */
 function arriveAtSystem(addr) {
   const gen = loadSystem(addr);
-  /* park just outside the innermost interesting world */
   let host = BODIES.find(b => b.parentBody === SUN) || SUN;
   for (const b of BODIES) if (b.parentBody === SUN && b.terr && b.atm) { host = b; break; }
   const r = host === SUN ? SUN.R * 40 : host.R * 3.2;
@@ -8218,21 +9484,459 @@ function arriveAtSystem(addr) {
   ship.skinT = Math.min(ship.skinT, 400);
   ship.target = host === SUN ? null : host;
   updateShipState();
+  const spec = regionSpecies(addr);
   say('Arrived: ' + gen.name + ' · ' + regionName(addr), 'good');
-  caption('SYSTEM ' + gen.name.toUpperCase(), regionName(addr) + ' · ' + portalGlyphs(addr, 0), 4200);
+  caption('SYSTEM ' + gen.name.toUpperCase(),
+    regionName(addr) + ' · ' + spec.full + ' · ' + portalGlyphs(addr, 0), 4600);
   audio.blip(920, 0.3);
 }
 function randomSystem(g) {
+  const shape = galaxyShape(g);
   const r = mulberry((Math.random() * 4294967295) >>> 0);
   for (let i = 0; i < 4000; i++) {
     const rr = Math.pow(r(), 0.55), th = r() * TAU;
-    const vx = Math.round(Math.cos(th) * rr * 2047);
-    const vz = Math.round(Math.sin(th) * rr * 2047);
+    const vx = Math.round(Math.cos(th) * rr * 2047 * shape.ax);
+    const vz = Math.round(Math.sin(th) * rr * 2047 * shape.az);
     const vy = Math.round((r() * 2 - 1) * Math.pow(r(), 1.6) * 127);
-    const cnt = systemsInVoxel(vx, vy, vz);
+    if (Math.abs(vx) > 2047 || Math.abs(vz) > 2047) continue;
+    const cnt = systemsInVoxel(g, vx, vy, vz);
     if (cnt > 0) return { g: g, vx: vx, vy: vy, vz: vz, ssi: (r() * cnt) | 0 };
   }
   return { g: g, vx: 0, vy: 0, vz: 0, ssi: 0 };
+}
+/* =====================================================================
+   MAP VIEWS — universe, system, world
+   ---------------------------------------------------------------------
+   Four levels of the same address space, each drawn by the function that
+   defines it rather than by looking anything up:
+
+     UNIVERSE  a field of galaxies; every sprite runs the galaxy density
+               formula in its own fragment shader, so a barred spiral
+               really is barred and a ring galaxy really is a ring.
+     GALAXY    the star cloud (parts/40_galaxymap.js).
+     SYSTEM    the star and its worlds on their real semi-major axes,
+               built by calling generateSystem() — the same call that
+               builds the system you fly into.
+     WORLD     one planet, close up, shaded from its own terrain
+               parameters so the sphere in the map is the sphere you land
+               on rather than an icon standing in for it.
+   ===================================================================== */
+
+/* ===================================================== UNIVERSE VIEW == */
+const UNI_PAGE = 1024;                  // galaxies drawn at once
+const uniScene = new T.Scene();
+const uniMat = new T.RawShaderMaterial({
+  glslVersion: T.GLSL3, transparent: true, depthTest: false, depthWrite: false,
+  blending: T.AdditiveBlending,
+  uniforms: { uScale: { value: 300 } },
+  vertexShader: `precision highp float;
+    in vec3 position; in vec3 aCol; in float aSize;
+    in vec4 aShape;            // arms, wind, armAmt|armSharp packed, type
+    in vec4 aForm;             // bulgeK, discS, ring r0|w, incl
+    uniform mat4 modelViewMatrix, projectionMatrix; uniform float uScale;
+    out vec3 vCol; out vec4 vShape; out vec4 vForm;
+    void main(){
+      vCol = aCol; vShape = aShape; vForm = aForm;
+      vec4 mv = modelViewMatrix*vec4(position,1.0);
+      gl_Position = projectionMatrix*mv;
+      gl_PointSize = clamp(aSize*uScale/max(-mv.z,0.02), 3.0, 190.0);
+    }`,
+  fragmentShader: `precision highp float;
+    in vec3 vCol; in vec4 vShape; in vec4 vForm; out vec4 oCol;
+    void main(){
+      /* Inclination squashes the sprite, so a disc seen edge-on reads as
+         a disc rather than as a circle that happens to be small. */
+      vec2 q = gl_PointCoord*2.0 - 1.0;
+      float ca = cos(vForm.w), sa = sin(vForm.w);
+      q = mat2(ca,-sa,sa,ca)*q;
+      float incl = 0.30 + 0.70*fract(vForm.w*0.7);
+      q.y /= max(incl, 0.22);
+      float r = length(q);
+      if(r > 1.0) discard;
+      float arms = vShape.x, wind = vShape.y;
+      float armAmt = fract(vShape.z), armSharp = 1.0 + floor(vShape.z);
+      float typ = vShape.w;
+      float th = atan(q.y, q.x);
+      float arm = 1.0;
+      if(arms > 0.5){
+        float ph = th*arms - log(max(r,0.05))*wind*arms;
+        arm = pow(cos(ph)*0.5+0.5, armSharp);
+      }
+      float d = exp(-r*r*vForm.x);                                   // bulge
+      d += exp(-r*vForm.y)*(0.16 + armAmt*arm);                      // disc
+      if(typ > 2.5){ float dr = (r - vForm.z)/0.16; d += 1.1*exp(-dr*dr); }
+      if(typ > 0.5 && typ < 1.5){ d += 0.9*exp(-(q.x*q.x/0.20 + q.y*q.y/0.012)); }
+      d *= smoothstep(1.0, 0.72, r);
+      vec3 core = mix(vCol, vec3(1.0,0.94,0.84), clamp(exp(-r*r*8.0),0.0,1.0));
+      oCol = vec4(core*d*0.9, clamp(d,0.0,1.0));
+    }`
+});
+let uniPoints = null;
+const uniState = { page: 0, ids: null, pos: null, count: 0 };
+
+function buildUniversePage(page) {
+  page = Math.max(0, page | 0);
+  if (uniPoints) { uniScene.remove(uniPoints); uniPoints.geometry.dispose(); }
+  const n = UNI_PAGE;
+  const pos = new Float32Array(n * 3), col = new Float32Array(n * 3), siz = new Float32Array(n);
+  const shp = new Float32Array(n * 4), frm = new Float32Array(n * 4);
+  const ids = new Array(n);
+  for (let i = 0; i < n; i++) {
+    const g = (page * UNI_PAGE + i) >>> 0;
+    const s = galaxyShape(g);
+    const r = mulberry(NZ.hash3i(Math.imul(g, 40503), 0x1234567, 0x89ABCDE) >>> 0);
+    /* A filamentary distribution rather than a uniform box: cosmic
+       structure is sheets and voids, and it reads far better. */
+    const u = r(), v = r(), w = r();
+    const fil = Math.pow(r(), 0.4);
+    const th = u * TAU, ph = Math.acos(2 * v - 1);
+    const rad = 0.35 + fil * 1.55;
+    pos[i * 3]     = Math.sin(ph) * Math.cos(th) * rad + (w - 0.5) * 0.18;
+    pos[i * 3 + 1] = Math.cos(ph) * rad * 0.55 + (r() - 0.5) * 0.14;
+    pos[i * 3 + 2] = Math.sin(ph) * Math.sin(th) * rad + (r() - 0.5) * 0.18;
+    const warm = 1.15 - s.metal * 0.5;
+    col[i * 3]     = 0.52 * warm + 0.22;
+    col[i * 3 + 1] = 0.50 + s.metal * 0.18;
+    col[i * 3 + 2] = 0.55 + s.metal * 0.45;
+    siz[i] = 0.7 + (s.type === 'ellip' ? 0.5 : 0.25) + r() * 0.35;
+    shp[i * 4]     = s.arms;
+    shp[i * 4 + 1] = s.wind;
+    shp[i * 4 + 2] = Math.floor(clamp(s.armSharp, 1, 6)) + clamp(s.armAmt, 0, 0.98);
+    shp[i * 4 + 3] = s.type === 'barred' ? 1 : (s.type === 'ring' ? 3 : 0);
+    frm[i * 4]     = clamp(s.bulgeK * 0.22, 1.5, 26);
+    frm[i * 4 + 1] = s.discS;
+    frm[i * 4 + 2] = s.ringR;
+    frm[i * 4 + 3] = r() * PI;
+    ids[i] = g;
+  }
+  const geo = new T.BufferGeometry();
+  geo.setAttribute('position', new T.BufferAttribute(pos, 3));
+  geo.setAttribute('aCol', new T.BufferAttribute(col, 3));
+  geo.setAttribute('aSize', new T.BufferAttribute(siz, 1));
+  geo.setAttribute('aShape', new T.BufferAttribute(shp, 4));
+  geo.setAttribute('aForm', new T.BufferAttribute(frm, 4));
+  geo.boundingSphere = new T.Sphere(new T.Vector3(), 3);
+  uniPoints = new T.Points(geo, uniMat);
+  uniPoints.frustumCulled = false;
+  uniScene.add(uniPoints);
+  uniState.page = page; uniState.ids = ids; uniState.pos = pos; uniState.count = n;
+  return n;
+}
+function nearestGalaxy(ndcX, ndcY) {
+  const p = uniState.pos, n = uniState.count;
+  let best = -1, bestD = 0.010;
+  for (let i = 0; i < n; i++) {
+    _v1.set(p[i * 3], p[i * 3 + 1], p[i * 3 + 2]).project(mapCam);
+    if (_v1.z < -1 || _v1.z > 1) continue;
+    const dx = _v1.x - ndcX, dy = _v1.y - ndcY, d = dx * dx + dy * dy;
+    if (d < bestD) { bestD = d; best = i; }
+  }
+  return best;
+}
+function galaxyPagePos(g, out) {
+  const i = (g >>> 0) - uniState.page * UNI_PAGE;
+  if (i < 0 || i >= uniState.count) return null;
+  return out.set(uniState.pos[i * 3], uniState.pos[i * 3 + 1], uniState.pos[i * 3 + 2]);
+}
+
+/* ======================================================= SYSTEM VIEW == */
+const sysScene = new T.Scene();
+const sysLight = new T.PointLight(0xffffff, 2.2, 0, 0);
+sysScene.add(sysLight);
+sysScene.add(new T.AmbientLight(0x223044, 0.5));
+
+/* One shader for every world in the map. It re-runs a cut-down version of
+   the terrain field so the preview and the planet you land on share a
+   silhouette — continents in the same places, ice where the ice is. */
+const MAP_PLANET_FRAG = `
+  uniform vec3 uPal0,uPal1,uPal2,uPal3,uPal4,uPal5,uPolar,uTint,uSun;
+  uniform vec3 uSeed;
+  uniform float uFreq,uContEdge,uMtn,uSea,uPolarLat,uAtmo,uCloud,uCloudF,uTime,uGas,uBands,uStorm;
+  varying vec3 vDir;
+  varying vec3 vNrm;
+  varying vec3 vView;
+  void main(){
+    vec3 d = normalize(vDir);
+    vec3 col;
+    if(uGas > 0.5){
+      float lat = d.y;
+      float band = sin(lat*uBands*3.14159 + fbm(d*2.2+uSeed, 3, 2.07, 0.5)*1.6);
+      float t = band*0.5+0.5;
+      col = mix(uPal0, uPal1, t);
+      col = mix(col, uPal2, smoothstep(0.55,1.0,t)*0.8);
+      float sw = fbm(d*4.0 + vec3(uTime*0.02,0.0,0.0) + uSeed, 4, 2.07, 0.5)*0.5+0.5;
+      col = mix(col, uPal3, smoothstep(0.62,0.95,sw)*0.55);
+      if(uStorm > 0.01){
+        vec2 sp = vec2(d.x, d.y - 0.18);
+        float s = exp(-dot(sp,sp)*26.0);
+        col = mix(col, uPal3*1.25, s*uStorm);
+      }
+    } else {
+      float h = fbm(d*uFreq + uSeed, 6, 2.07, 0.5);
+      float m = 1.0 - abs(fbm(d*uFreq*2.6 + uSeed*1.7, 5, 2.07, 0.5));
+      /* the ridged term is strictly positive, so subtract its mean or it
+         lifts the whole planet above sea level and drains the oceans */
+      float elev = h + (m*m - 0.30)*uMtn*0.55;
+      float land = smoothstep(uContEdge-0.06, uContEdge+0.10, elev);
+      if(uSea > -0.5 && elev < uSea){
+        float dp = smoothstep(uSea-0.45, uSea, elev);
+        col = mix(uPal0, uPal1, dp);
+      } else {
+        float t = clamp((elev-uSea)*1.5, 0.0, 1.0);
+        col = mix(uPal3, uPal2, smoothstep(0.12,0.55,t));
+        col = mix(col, uPal4, smoothstep(0.45,0.85,t));
+        col = mix(col, uPal5, smoothstep(0.80,1.0,t));
+        col = mix(uPal3, col, land*0.85+0.15);
+      }
+      /* ice caps */
+      float ice = smoothstep(uPolarLat, uPolarLat+0.10, abs(d.y));
+      col = mix(col, uPolar, ice);
+      if(uCloud > 0.01){
+        float c = fbm(d*uCloudF + vec3(uTime*0.006,0.0,0.0) + uSeed*0.5, 5, 2.07, 0.5)*0.5+0.5;
+        float cm = smoothstep(1.0-uCloud, 1.05-uCloud*0.65, c);
+        col = mix(col, vec3(0.95,0.95,0.97), cm*0.85);
+      }
+    }
+    vec3 N = normalize(vNrm);
+    vec3 V = normalize(vView);
+    float nl = dot(N, normalize(uSun));
+    float lit = smoothstep(-0.12, 0.30, nl);
+    vec3 lightCol = vec3(1.0,0.97,0.92);
+    vec3 outc = col*(lit*1.25 + 0.035);
+    /* atmospheric limb: the single cue that sells a sphere as a world */
+    float fres = pow(1.0 - clamp(dot(N,V),0.0,1.0), 3.0);
+    outc += uTint*fres*uAtmo*(0.25 + 0.95*max(lit,0.0));
+    gl_FragColor = vec4(outc*lightCol, 1.0);
+  }`;
+function makeMapPlanetMat(d, isGas) {
+  const pal = d.pal || [[.1,.1,.1],[.2,.2,.2],[.4,.4,.4],[.3,.3,.3],[.5,.5,.5],[.8,.8,.8]];
+  const gs = d.gas || {};
+  const seed = (() => { let s = 0; const nm = d.name || 'x';
+    for (let i = 0; i < nm.length; i++) s = (Math.imul(s, 131) + nm.charCodeAt(i)) | 0;
+    const r = mulberry(s >>> 0); return [r() * 40 - 20, r() * 40 - 20, r() * 40 - 20]; })();
+  const t = d.terr || {};
+  const seaN = (t.sea !== undefined && t.sea > -1e8)
+    ? clamp(0.05 + (t.sea / Math.max(t.mtnAmp || 3000, 900)) * 0.9, -0.35, 0.45) : -1;
+  const atmTint = d.atm && d.atm.tint ? d.atm.tint : [0.4, 0.6, 1.0];
+  const u = {
+    uPal0:{value:new T.Vector3(...(isGas ? gs.c0 || [.7,.6,.5] : pal[0]))},
+    uPal1:{value:new T.Vector3(...(isGas ? gs.c1 || [.5,.4,.3] : pal[1]))},
+    uPal2:{value:new T.Vector3(...(isGas ? gs.c2 || [.9,.85,.7] : pal[2]))},
+    uPal3:{value:new T.Vector3(...(isGas ? gs.c3 || [.7,.4,.3] : pal[3]))},
+    uPal4:{value:new T.Vector3(...pal[4])},
+    uPal5:{value:new T.Vector3(...pal[5])},
+    uPolar:{value:new T.Vector3(...(d.polar || [.9,.93,.97]))},
+    uTint:{value:new T.Vector3(...atmTint)},
+    uSun:{value:new T.Vector3(1,0.3,0.4)},
+    uSeed:{value:new T.Vector3(...seed)},
+    uFreq:{value: t.freq ? 1.4 + t.freq * 0.5 : 2.2},
+    uContEdge:{value: (t.contEdge || 0) * 0.8},
+    uMtn:{value: clamp((t.mtnAmp || 3000) / 9000, 0.2, 1.4)},
+    uSea:{value: seaN},
+    uPolarLat:{value: d.polarLat || 0.8},
+    uAtmo:{value: d.atm ? 0.9 : 0.0},
+    uCloud:{value: d.cloud ? clamp(d.cloud.cover, 0, 0.85) : 0},
+    uCloudF:{value: d.cloud ? 2.0 + (d.cloud.freq || 4) * 0.5 : 4},
+    uTime:{value:0},
+    uGas:{value: isGas ? 1 : 0},
+    uBands:{value: gs.bands || 6},
+    uStorm:{value: gs.storm || 0}
+  };
+  return new T.ShaderMaterial({
+    uniforms: u,
+    vertexShader: `
+      varying vec3 vDir; varying vec3 vNrm; varying vec3 vView;
+      void main(){
+        vDir = normalize(position);
+        vNrm = normalize(mat3(modelMatrix)*normal);
+        vec4 wp = modelMatrix*vec4(position,1.0);
+        vView = normalize(cameraPosition - wp.xyz);
+        gl_Position = projectionMatrix*viewMatrix*wp;
+      }`,
+    fragmentShader: `${GLSL_NOISE}\n${MAP_PLANET_FRAG}`
+  });
+}
+
+const sysState = { addr: null, gen: null, items: [], t: 0, sel: -1, mode: 'sys' };
+const sysGroup = new T.Group();
+sysScene.add(sysGroup);
+const SPHERE_GEO = new T.SphereGeometry(1, 48, 32);
+const RING_GEO = new T.RingGeometry(1.35, 2.1, 64);
+
+function clearSystemView() {
+  while (sysGroup.children.length) {
+    const c = sysGroup.children.pop();
+    c.traverse(o => { if (o.material && o.material.dispose && o.material !== sysOrbitMat) o.material.dispose(); });
+  }
+  sysState.items.length = 0;
+}
+const sysOrbitMat = new T.LineBasicMaterial({ color: 0x49e0ff, transparent: true, opacity: 0.22 });
+function orbitCircle(rad) {
+  const n = 128, a = new Float32Array((n + 1) * 3);
+  for (let i = 0; i <= n; i++) {
+    a[i * 3] = Math.cos(i / n * TAU) * rad;
+    a[i * 3 + 1] = 0;
+    a[i * 3 + 2] = Math.sin(i / n * TAU) * rad;
+  }
+  const g = new T.BufferGeometry();
+  g.setAttribute('position', new T.BufferAttribute(a, 3));
+  const l = new T.Line(g, sysOrbitMat);
+  l.frustumCulled = false;
+  return l;
+}
+
+/* Build the whole system from the same generator the simulation uses. */
+function buildSystemView(addr, focusIdx) {
+  clearSystemView();
+  const gen = generateSystem(addr);
+  gen.defs.forEach((d, i) => { d.pidx = i; });
+  sysState.addr = addrClone(addr);
+  sysState.gen = gen;
+  sysState.mode = focusIdx === undefined ? 'sys' : 'planet';
+  sysState.sel = focusIdx === undefined ? -1 : focusIdx;
+
+  const star = gen.defs[0];
+  const planets = gen.defs.filter(d => d.el && d.parent === star.name);
+  const moons = gen.defs.filter(d => d.el && d.parent !== star.name);
+
+  if (sysState.mode === 'planet') {
+    const d = gen.defs[focusIdx];
+    const isGas = d.type === 'gas';
+    const mat = makeMapPlanetMat(d, isGas);
+    const m = new T.Mesh(SPHERE_GEO, mat);
+    m.scale.setScalar(1.0);
+    m.frustumCulled = false;
+    sysGroup.add(m);
+    sysState.items.push({ mesh: m, def: d, idx: focusIdx, dispR: 1.0, orbit: 0, ang: 0, rate: 0.08 });
+    if (d.ring) {
+      const rm = new T.Mesh(RING_GEO, new T.MeshBasicMaterial({
+        color: 0xcbb89a, transparent: true, opacity: 0.55, side: T.DoubleSide }));
+      rm.rotation.x = -PI / 2 + 0.34;
+      rm.frustumCulled = false;
+      m.add(rm);
+    }
+    sysLight.position.set(6, 2.4, 4);
+    return gen;
+  }
+
+  /* star */
+  const sc = gen.star || STAR_CLASSES[2];
+  const starMesh = new T.Mesh(SPHERE_GEO, new T.MeshBasicMaterial({
+    color: new T.Color(sc.col[0], sc.col[1], sc.col[2]) }));
+  starMesh.scale.setScalar(0.135);
+  starMesh.frustumCulled = false;
+  sysGroup.add(starMesh);
+  /* An additive SPHERE is a flat disc of constant brightness — it reads as
+     a grey plate covering the inner system. Fade it out toward the middle
+     so what you see is a corona. */
+  const halo = new T.Mesh(new T.SphereGeometry(1, 28, 18), new T.ShaderMaterial({
+    transparent: true, depthWrite: false, blending: T.AdditiveBlending, side: T.BackSide,
+    uniforms: { uCol: { value: new T.Vector3(sc.col[0], sc.col[1], sc.col[2]) } },
+    vertexShader: `
+      varying vec3 vN; varying vec3 vV;
+      void main(){
+        vN = normalize(mat3(modelMatrix)*normal);
+        vec4 wp = modelMatrix*vec4(position,1.0);
+        vV = normalize(cameraPosition - wp.xyz);
+        gl_Position = projectionMatrix*viewMatrix*wp;
+      }`,
+    fragmentShader: `
+      uniform vec3 uCol; varying vec3 vN; varying vec3 vV;
+      void main(){
+        float f = clamp(1.0 - abs(dot(normalize(vN), normalize(vV))), 0.0, 1.0);
+        float a = pow(f, 2.6)*0.75;
+        gl_FragColor = vec4(uCol*a*1.6, a);
+      }`
+  }));
+  halo.scale.setScalar(0.30); halo.frustumCulled = false;
+  sysGroup.add(halo);
+  sysState.items.push({ mesh: starMesh, def: star, idx: 0, dispR: 0.16, orbit: 0, ang: 0, rate: 0 });
+
+  /* Orbits on a log scale: a system spanning 0.2 to 40 AU is unreadable
+     linearly — the inner four worlds land on top of the star. */
+  let aMin = 1e30, aMax = 0;
+  for (const d of planets) { aMin = Math.min(aMin, d.el.a); aMax = Math.max(aMax, d.el.a); }
+  if (!planets.length) { aMin = 1; aMax = 2; }
+  const lo = Math.log(aMin * 0.85), hi = Math.log(Math.max(aMax, aMin * 1.6) * 1.1);
+  const mapR = a => 0.52 + 1.98 * (Math.log(a) - lo) / Math.max(hi - lo, 0.001);
+  let rMax = 0;
+  for (const d of planets) rMax = Math.max(rMax, d.R);
+
+  for (const d of planets) {
+    const rr = mapR(d.el.a);
+    sysGroup.add(orbitCircle(rr));
+    const isGas = d.type === 'gas';
+    const disp = clamp(0.028 + 0.082 * Math.pow(d.R / Math.max(rMax, 1), 0.65), 0.026, 0.110);
+    const m = new T.Mesh(SPHERE_GEO, makeMapPlanetMat(d, isGas));
+    m.scale.setScalar(disp);
+    m.frustumCulled = false;
+    sysGroup.add(m);
+    if (d.ring) {
+      const rm = new T.Mesh(RING_GEO, new T.MeshBasicMaterial({
+        color: 0xcbb89a, transparent: true, opacity: 0.5, side: T.DoubleSide }));
+      rm.rotation.x = -PI / 2 + 0.3;
+      rm.frustumCulled = false;
+      m.add(rm);
+    }
+    const item = { mesh: m, def: d, idx: d.pidx, dispR: disp, orbit: rr,
+                   ang: (d.el.M0 || 0), rate: 0.16 / Math.pow(rr, 1.5), moons: [] };
+    /* moons ride along with their planet */
+    for (const md of moons) {
+      if (md.parent !== d.name) continue;
+      const mm = new T.Mesh(SPHERE_GEO, makeMapPlanetMat(md, false));
+      const ms = clamp(disp * 0.34, 0.012, 0.05);
+      mm.scale.setScalar(ms);
+      mm.frustumCulled = false;
+      sysGroup.add(mm);
+      item.moons.push({ mesh: mm, def: md, idx: md.pidx, dispR: ms,
+        orbit: disp * (2.6 + item.moons.length * 1.5), ang: md.el.M0 || 0,
+        rate: 1.4 + item.moons.length * 0.5 });
+      sysState.items.push(item.moons[item.moons.length - 1]);
+    }
+    sysState.items.push(item);
+  }
+  sysLight.position.set(0, 0, 0);
+  return gen;
+}
+
+function updateSystemView(dt) {
+  sysState.t += dt;
+  for (const it of sysState.items) {
+    if (it.mesh.material.uniforms && it.mesh.material.uniforms.uTime)
+      it.mesh.material.uniforms.uTime.value = sysState.t;
+    if (it.orbit > 0) {
+      it.ang += it.rate * dt * 0.35;
+      it.mesh.position.set(Math.cos(it.ang) * it.orbit, 0, Math.sin(it.ang) * it.orbit);
+    }
+    it.mesh.rotation.y += dt * 0.12;
+    if (it.mesh.material.uniforms && it.mesh.material.uniforms.uSun) {
+      /* light comes from the star, which sits at the origin */
+      _v1.copy(it.mesh.position).negate();
+      if (_v1.lengthSq() < 1e-8) _v1.set(-1, 0.2, 0.3);
+      it.mesh.material.uniforms.uSun.value.copy(_v1.normalize()).multiplyScalar(-1);
+    }
+  }
+  /* moons follow their planet */
+  for (const it of sysState.items) {
+    if (!it.moons) continue;
+    for (const mn of it.moons) {
+      mn.ang += mn.rate * dt * 0.35;
+      mn.mesh.position.copy(it.mesh.position)
+        .add(_v2.set(Math.cos(mn.ang) * mn.orbit, 0, Math.sin(mn.ang) * mn.orbit));
+    }
+  }
+}
+function nearestSysItem(ndcX, ndcY) {
+  let best = -1, bestD = 0.016;
+  for (let i = 0; i < sysState.items.length; i++) {
+    const it = sysState.items[i];
+    if (it.idx === 0) continue;                    // the star is not a world
+    _v1.copy(it.mesh.position).project(mapCam);
+    if (_v1.z < -1 || _v1.z > 1) continue;
+    const dx = _v1.x - ndcX, dy = _v1.y - ndcY, d = dx * dx + dy * dy;
+    if (d < bestD) { bestD = d; best = i; }
+  }
+  return best;
 }
 
 /* =====================================================================
@@ -8245,7 +9949,7 @@ function randomSystem(g) {
    one owns its pointerId so two thumbs never fight over one gesture.
    ===================================================================== */
 const TOUCH = {
-  enabled: false, userSet: false,
+  enabled: false, userSet: false, sprint: false, haptics: true,
   stick: { id: -1, ox: 0, oy: 0, x: 0, y: 0, active: false },
   look:  { id: -1, lx: 0, ly: 0, dx: 0, dy: 0, active: false },
   thr:   { id: -1, val: 0, top: 0, h: 1, active: false },
@@ -8254,6 +9958,12 @@ const TOUCH = {
 /* setPointerCapture throws if the pointer is already gone (or synthetic);
    a throw here would abort the handler before the control ever responds. */
 function grab(el, id) { try { el.setPointerCapture(id); } catch (e) { /* non-fatal */ } }
+/* A 12 ms tick under the thumb is the difference between a button that
+   feels pressed and a button you have to look at to trust. */
+function buzz(ms) {
+  if (!TOUCH.haptics || !navigator.vibrate) return;
+  try { navigator.vibrate(ms || 12); } catch (e) { /* unsupported */ }
+}
 function isTouchDevice() {
   return (('ontouchstart' in window) || (navigator.maxTouchPoints || 0) > 0) &&
          Math.min(window.innerWidth, window.innerHeight) < 1100;
@@ -8283,7 +9993,7 @@ function autoTouchUI() {
 function armFirstTouch() {
   const on = e => {
     if (TOUCH.userSet || TOUCH.enabled) { cleanup(); return; }
-    if (e.pointerType && e.pointerType !== 'touch' && e.pointerType !== 'pen') return;
+    if (e.type === 'pointerdown' && e.pointerType !== 'touch' && e.pointerType !== 'pen') return;
     setTouchUI(true);
     say('Touch controls enabled — turn them off in Settings', 'good');
     cleanup();
@@ -8335,7 +10045,10 @@ function bindStick() {
 /* -------------------------------------------------------- look / camera */
 function bindLook() {
   const zone = $('tLookZone');
+  const pts = new Map();
+  let pinch = 0;
   zone.addEventListener('pointerdown', e => {
+    pts.set(e.pointerId, { x: e.clientX, y: e.clientY });
     if (TOUCH.look.id !== -1) return;
     TOUCH.look.id = e.pointerId; TOUCH.look.active = true;
     TOUCH.look.lx = e.clientX; TOUCH.look.ly = e.clientY;
@@ -8343,6 +10056,20 @@ function bindLook() {
     e.preventDefault();
   });
   zone.addEventListener('pointermove', e => {
+    const p = pts.get(e.pointerId);
+    if (p) { p.x = e.clientX; p.y = e.clientY; }
+    /* two fingers means zoom, not look — and while zooming, look must
+       stop, or the view lurches as the gesture starts */
+    if (pts.size >= 2) {
+      const a = Array.from(pts.values());
+      const d = Math.hypot(a[0].x - a[1].x, a[0].y - a[1].y);
+      if (pinch > 0 && !eva.active)
+        cam.targetDist = clamp(cam.targetDist * (pinch / Math.max(d, 1)), 9, 900);
+      pinch = d;
+      TOUCH.look.lx = e.clientX; TOUCH.look.ly = e.clientY;
+      e.preventDefault();
+      return;
+    }
     if (e.pointerId !== TOUCH.look.id) return;
     TOUCH.look.dx += e.clientX - TOUCH.look.lx;
     TOUCH.look.dy += e.clientY - TOUCH.look.ly;
@@ -8350,6 +10077,8 @@ function bindLook() {
     e.preventDefault();
   });
   const end = e => {
+    pts.delete(e.pointerId);
+    if (pts.size < 2) pinch = 0;
     if (e.pointerId !== TOUCH.look.id) return;
     TOUCH.look.id = -1; TOUCH.look.active = false;
   };
@@ -8367,10 +10096,20 @@ function bindThrottle() {
     fil.style.height = (v * 100).toFixed(0) + '%';
     lab.textContent = Math.round(v * 100) + '%';
   };
+  /* double tap anywhere on the track cuts to zero — the one throttle
+     input you need instantly and cannot afford to drag for */
+  let lastT = 0;
   trk.addEventListener('pointerdown', e => {
     if (TOUCH.thr.id !== -1) return;
+    const now = performance.now();
+    if (now - lastT < 320) {
+      ship.throttle = 0;
+      fil.style.height = '0%'; lab.textContent = '0%';
+      lastT = 0; buzz(24); e.preventDefault(); return;
+    }
+    lastT = now;
     TOUCH.thr.id = e.pointerId; grab(trk, e.pointerId);
-    apply(e.clientY); e.preventDefault();
+    apply(e.clientY); buzz(8); e.preventDefault();
   });
   trk.addEventListener('pointermove', e => {
     if (e.pointerId !== TOUCH.thr.id) return;
@@ -8388,7 +10127,7 @@ function bindHold(id, onDown, onUp) {
   let pid = -1;
   el.addEventListener('pointerdown', e => {
     pid = e.pointerId; grab(el, e.pointerId);
-    el.classList.add('held'); onDown(); e.preventDefault();
+    el.classList.add('held'); buzz(10); onDown(); e.preventDefault();
   });
   const end = e => {
     if (e.pointerId !== pid) return;
@@ -8400,7 +10139,7 @@ function bindHold(id, onDown, onUp) {
 function bindTap(id, fn) {
   const el = $(id);
   if (!el) return;
-  el.addEventListener('click', e => { e.preventDefault(); fn(); });
+  el.addEventListener('click', e => { e.preventDefault(); buzz(12); fn(); });
 }
 
 function initTouchControls() {
@@ -8411,6 +10150,11 @@ function initTouchControls() {
   bindHold('tDown', () => TOUCH.transUp = -1, () => TOUCH.transUp = 0);
   bindHold('tBoost', () => TOUCH.boost = true, () => TOUCH.boost = false);
   bindTap('tGear', toggleGear);
+  bindTap('tAuto', autoLandStart);
+  bindTap('tFuel', () => setInfiniteFuel(!CFG.infFuel));
+  bindHold('tJump', () => TOUCH.boost = true, () => TOUCH.boost = false);
+  bindTap('tSprint', () => { TOUCH.sprint = !TOUCH.sprint; say('Run ' + (TOUCH.sprint ? 'on' : 'off')); });
+  bindTap('tBoard', evaToggle);
   bindTap('tSas', () => { ship.sas = !ship.sas; setTag('tagSas', ship.sas); audio.blip(ship.sas ? 740 : 420, .06); });
   bindTap('tRcs', () => { ship.rcs = !ship.rcs; audio.blip(ship.rcs ? 700 : 400, .06); });
   bindTap('tRetro', () => { ship.sasMode = ship.sasMode === 'srfretro' ? 'retro' : 'srfretro'; ship.sas = true;
@@ -8444,6 +10188,7 @@ function applyTouchInput(dt) {
     input.fwd += -TOUCH.stick.y;
     input.rgt += TOUCH.stick.x;
     input.jump = input.jump || TOUCH.boost;
+    input.sprint = input.sprint || TOUCH.sprint;
     const sens = 0.0042;
     eva.yaw -= TOUCH.look.dx * sens;
     eva.pitch = clamp(eva.pitch - TOUCH.look.dy * sens, -1.45, 1.45);
@@ -8463,6 +10208,7 @@ function applyTouchInput(dt) {
   TOUCH.look.dx = 0; TOUCH.look.dy = 0;
 }
 function syncTouchHud() {
+  document.body.classList.toggle('onfoot', !!eva.active);
   if (!TOUCH.enabled) return;
   const fil = $('tThrFill'), lab = $('tThrVal');
   if (TOUCH.thr.id === -1) {
@@ -8473,6 +10219,10 @@ function syncTouchHud() {
   $('tSas').classList.toggle('lit', ship.sas);
   $('tRcs').classList.toggle('lit', ship.rcs);
   $('tEva').classList.toggle('lit', eva.active);
+  $('tEva').classList.toggle('warn', ship.landed && !eva.active);
+  $('tAuto').classList.toggle('lit', auto.mode === 'land');
+  $('tFuel').classList.toggle('lit', CFG.infFuel);
+  $('tSprint').classList.toggle('lit', TOUCH.sprint);
   $('tWarpVal').textContent = '×' + (WARPS[ship.warpIdx] >= 1000 ? (WARPS[ship.warpIdx] / 1000) + 'k' : WARPS[ship.warpIdx]);
 }
 
@@ -8497,18 +10247,42 @@ function bindMapGestures() {
     } else if (pts.size === 2) {
       const a = Array.from(pts.values());
       const d = Math.hypot(a[0].x - a[1].x, a[0].y - a[1].y);
-      if (mapState.pinch > 0) mapState.tDist = clamp(mapState.tDist * (mapState.pinch / d), 0.12, 6);
+      if (mapState.pinch > 0) mapState.tDist = clamp(mapState.tDist * (mapState.pinch / d), 0.10, 9);
       mapState.pinch = d;
     }
   });
+  /* A tap means something different at every zoom level, and a double tap
+     always means "go deeper" — the one gesture people try first. */
+  let lastTap = 0;
   const end = e => {
     const p = pts.get(e.pointerId);
     if (p && pts.size === 1 && mapState.moved < 12) {
       const r = el.getBoundingClientRect();
       const nx = ((p.sx - r.left) / r.width) * 2 - 1;
       const ny = -(((p.sy - r.top) / r.height) * 2 - 1);
-      const i = nearestPoint(nx, ny);
-      if (i >= 0) { mapState.sel = i; refreshMapPanel(); audio.blip(700, 0.05); }
+      const now = performance.now();
+      const dbl = now - lastTap < 340;
+      lastTap = now;
+      if (mapState.level === 'uni') {
+        const i = nearestGalaxy(nx, ny);
+        if (i >= 0) {
+          mapState.uniSel = uniState.ids[i];
+          refreshMapPanel(); audio.blip(700, 0.05);
+          if (dbl) setMapLevel('gal', { g: mapState.uniSel });
+        }
+      } else if (mapState.level === 'gal') {
+        const i = nearestPoint(nx, ny);
+        if (i >= 0) {
+          mapState.sel = i; refreshMapPanel(); audio.blip(700, 0.05);
+          if (dbl) setMapLevel('sys');
+        }
+      } else if (mapState.level === 'sys') {
+        const i = nearestSysItem(nx, ny);
+        if (i >= 0) {
+          sysState.sel = i;
+          setMapLevel('planet', { idx: sysState.items[i].idx });
+        }
+      }
     }
     pts.delete(e.pointerId);
     if (pts.size < 2) mapState.pinch = 0;
@@ -8517,30 +10291,44 @@ function bindMapGestures() {
   el.addEventListener('pointercancel', end);
   el.addEventListener('wheel', e => {
     e.preventDefault();
-    mapState.tDist = clamp(mapState.tDist * (1 + Math.sign(e.deltaY) * 0.13), 0.12, 6);
+    mapState.tDist = clamp(mapState.tDist * (1 + Math.sign(e.deltaY) * 0.13), 0.10, 9);
   }, { passive: false });
 }
-
 /* =====================================================================
    WIRING for the galaxy map + touch UI
    ===================================================================== */
 $('btnMap').addEventListener('click', () => openMap());
 $('mapClose').addEventListener('click', closeMap);
 $('mapJump').addEventListener('click', () => warpToSystem(selectedAddr()));
+$('mapZoom').addEventListener('click', mapZoomIn);
+$('mapBack').addEventListener('click', mapZoomOut);
+$('mapUni').addEventListener('click', () => setMapLevel('uni', { g: mapState.galaxy }));
 $('mapHome').addEventListener('click', () => {
   mapState.wantGalaxy = 0;
   if (mapState.galaxy !== 0) buildGalaxyPoints(0);
+  setMapLevel('gal', { g: 0 });
   focusAddr(SOL_ADDR);
 });
 $('mapHere').addEventListener('click', () => {
   mapState.wantGalaxy = CURRENT.g;
   if (mapState.galaxy !== CURRENT.g) buildGalaxyPoints(CURRENT.g);
+  setMapLevel('gal', { g: CURRENT.g });
   focusAddr(CURRENT);
 });
-$('mapRandom').addEventListener('click', () => focusAddr(randomSystem(mapState.galaxy)));
+$('mapRandom').addEventListener('click', () => {
+  if (mapState.level === 'uni') {
+    const g = (Math.random() * 4294967296) >>> 0;
+    setMapLevel('uni', { g: g });
+    return;
+  }
+  setMapLevel('gal', { g: mapState.galaxy });
+  focusAddr(randomSystem(mapState.galaxy));
+});
 $('mapCopy').addEventListener('click', () => {
   const a = selectedAddr(); if (!a) return;
-  const txt = toPortal(a, 0);
+  const pi = mapState.level === 'planet' && sysState.gen
+    ? Math.min(sysState.gen.defs[mapState.planetIdx].pidx, 15) : 0;
+  const txt = toPortal(a, pi);
   if (navigator.clipboard) navigator.clipboard.writeText(txt).then(
     () => say('Address copied: ' + txt, 'good'), () => say('Address: ' + txt));
   else say('Address: ' + txt);
@@ -8549,17 +10337,44 @@ $('mapGo').addEventListener('click', () => {
   const p = fromPortal($('mapAddr').value, mapState.galaxy);
   if (!p) { say('Address must be 12 glyphs or hex digits', 'warn'); return; }
   if (!addrExists(p.addr)) { say('No system at that address — the void is mostly empty', 'warn'); return; }
+  setMapLevel('gal', { g: p.addr.g });
   focusAddr(p.addr);
 });
 $('mapAddr').addEventListener('keydown', e => { if (e.key === 'Enter') $('mapGo').click(); });
+
+/* Galaxies are unbounded, so stepping wraps the 32-bit index rather than
+   a list length. At the universe level the same buttons page the field. */
 function stepGalaxy(d) {
-  mapState.wantGalaxy = (mapState.wantGalaxy + d + GALAXY_COUNT) % GALAXY_COUNT;
-  buildGalaxyPoints(mapState.wantGalaxy);
+  if (mapState.level === 'uni') {
+    const p = Math.max(0, uniState.page + d);
+    buildUniversePage(p);
+    mapState.uniSel = -1;
+    refreshMapPanel();
+    return;
+  }
+  const g = ((mapState.galaxy + d) >>> 0);
+  setMapLevel('gal', { g: g });
   mapState.sel = -1;
   refreshMapPanel();
 }
 $('mapGalPrev').addEventListener('click', () => stepGalaxy(-1));
 $('mapGalNext').addEventListener('click', () => stepGalaxy(1));
+
+/* breadcrumb: any crumb jumps straight to that level */
+$('mapTitle').addEventListener('click', e => {
+  const b = e.target.closest('b[data-lv]');
+  if (!b) return;
+  const lv = b.getAttribute('data-lv');
+  if (lv === 'uni') setMapLevel('uni', { g: mapState.galaxy });
+  else if (lv === 'gal') setMapLevel('gal', { g: mapState.galaxy });
+  else if (lv === 'sys') setMapLevel('sys', { addr: mapState.sysAddr });
+});
+/* the world list in the system panel */
+$('mapInfo').addEventListener('click', e => {
+  const w = e.target.closest('.mapWorld');
+  if (!w) return;
+  setMapLevel('planet', { idx: parseInt(w.getAttribute('data-p'), 10) });
+});
 
 /* Point the camera at an address, inserting it into the cloud if the
    sampler never happened to pick it. */
@@ -8571,7 +10386,7 @@ function focusAddr(a) {
     const d = (b.vx - a.vx) ** 2 + (b.vy - a.vy) ** 2 + (b.vz - a.vz) ** 2 + (b.ssi === a.ssi ? 0 : 1);
     if (d < bd) { bd = d; best = i; }
   }
-  if (bd > 0.5 && mapState.count < MAP_N) {
+  if (bd > 0.5 && mapState.count < MAP_N + MAP_SPARE) {
     /* splice the exact address in so a pasted portal string is selectable */
     const i = mapState.count;
     const g = mapPoints.geometry;
@@ -8601,15 +10416,473 @@ function placeMapMarker(el, a, label) {
   el.style.transform = 'translate(' + ((_mapV.x * 0.5 + 0.5) * VW) + 'px,' + ((-_mapV.y * 0.5 + 0.5) * VH) + 'px)';
   if (label !== undefined) el.setAttribute('data-l', label);
 }
-function updateMapMarkers() {
-  placeMapMarker($('mkHere'), mapState.galaxy === CURRENT.g ? CURRENT : null, 'YOU');
-  const a = selectedAddr();
-  placeMapMarker($('mkSel'), a && !addrEq(a, CURRENT) ? a : null, a ? systemSummary(a).name : '');
+function placeMapMarkerAt(el, v, label) {
+  if (!v) { el.style.display = 'none'; return; }
+  _mapV.copy(v).project(mapCam);
+  if (_mapV.z < -1 || _mapV.z > 1) { el.style.display = 'none'; return; }
+  el.style.display = 'block';
+  el.style.transform = 'translate(' + ((_mapV.x * 0.5 + 0.5) * VW) + 'px,' + ((-_mapV.y * 0.5 + 0.5) * VH) + 'px)';
+  if (label !== undefined) el.setAttribute('data-l', label);
 }
+function updateMapMarkers() {
+  const here = $('mkHere'), sel = $('mkSel');
+  if (mapState.level === 'gal') {
+    placeMapMarker(here, mapState.galaxy === CURRENT.g ? CURRENT : null, 'YOU');
+    const a = selectedAddr();
+    placeMapMarker(sel, a && !addrEq(a, CURRENT) ? a : null, a ? systemSummary(a).name : '');
+  } else if (mapState.level === 'uni') {
+    placeMapMarkerAt(here, galaxyPagePos(CURRENT.g, _v2), 'YOU');
+    placeMapMarkerAt(sel, mapState.uniSel >= 0 && mapState.uniSel !== CURRENT.g
+      ? galaxyPagePos(mapState.uniSel, _v3) : null,
+      mapState.uniSel >= 0 ? galaxyName(mapState.uniSel) : '');
+  } else if (mapState.level === 'sys' && sysState.sel >= 0 && sysState.items[sysState.sel]) {
+    here.style.display = 'none';
+    placeMapMarkerAt(sel, sysState.items[sysState.sel].mesh.position,
+      sysState.items[sysState.sel].def.name);
+  } else {
+    here.style.display = 'none'; sel.style.display = 'none';
+  }
+}
+
+/* ship upgrades */
+$('btnAuto').addEventListener('click', autoLandStart);
+$('footPrompt').addEventListener('click', evaToggle);
+$('cfgInfFuel').addEventListener('change', e => setInfiniteFuel(e.target.checked));
 
 /* settings + keys */
 $('cfgTouch').addEventListener('change', e => setTouchUI(e.target.checked, true));
 $('btnTouch').addEventListener('click', () => setTouchUI(!TOUCH.enabled, true));
+/* =====================================================================
+   AUTOPILOT — guided powered descent
+   ---------------------------------------------------------------------
+   One guidance law does the whole landing, in the way a real lander does
+   it rather than as a scripted animation:
+
+     * point the nose UP (along the local radial),
+     * TILT it into the horizontal velocity error, so the same engine that
+       is holding you up also cancels your sideways motion,
+     * set THROTTLE from the vertical-speed schedule
+           v_target(h) = -clamp(0.22·sqrt(2·g·h), 2.5, 220)
+       which is the free-fall speed you could still stop from, scaled down
+       for margin — the classic gravity-turn descent profile.
+
+   Everything else is phase bookkeeping: kill the orbit first, coast under
+   time warp while the atmosphere is still thin, then hand over to the law
+   above. Because the law is closed-loop against the real terrain height,
+   it lands on a slope, in wind, at any gravity, without a script.
+   ===================================================================== */
+const auto = {
+  mode: 'off',            // 'off' | 'land'
+  phase: '',
+  body: null, site: null,
+  aim: v3(), t: 0, tPhase: 0, trace: [], spot: null, spotR: 0, spotH: 0, retries: 0, goAround: false,
+  prevSas: null, prevMode: null, waitArrive: false
+};
+/* Private scratch. The guidance law holds several vectors live at once —
+   sharing them with the general pool, or with each other, is how a
+   horizontal velocity turns into a landmark's position mid-expression. */
+const _ap1 = new T.Vector3(), _ap2 = new T.Vector3(), _ap3 = new T.Vector3(),
+      _ap4 = new T.Vector3(), _ap5 = new T.Vector3(), _ap6 = new T.Vector3(),
+      _ap7 = new T.Vector3(), _ap8 = new T.Vector3();
+
+function autoStatus() {
+  if (auto.mode === 'off') return '';
+  return ({
+    bridge:  'opening bridge',
+    deorbit: 'de-orbit burn',
+    coast:   'coasting to entry',
+    entry:   'atmospheric entry',
+    guide:   'powered descent',
+    touch:   'final approach',
+    settle:  'settling',
+    done:    'touchdown'
+  })[auto.phase] || auto.phase;
+}
+
+/* The most interesting nearby thing to land on. */
+function autoLandTarget() {
+  const b = ship.soi;
+  if (b && b !== SUN && b.terr) return b;
+  let best = null, bd = Infinity;
+  for (const x of BODIES) {
+    if (x === SUN || !x.terr) continue;
+    const d = ship.pos.distanceTo(x.pos);
+    if (d < bd) { bd = d; best = x; }
+  }
+  return best;
+}
+
+function autoLandStart() {
+  if (eva.active) { say('Board the vessel first', 'warn'); return; }
+  if (wormhole.state !== 'idle') return;
+  if (auto.mode === 'land') { autoAbort('Autopilot disengaged'); return; }
+  if (ship.landed) { say('Already on the surface', 'warn'); return; }
+  const b = autoLandTarget();
+  if (!b) { say('No landable world in range', 'bad'); return; }
+  auto.mode = 'land';
+  auto.body = b;
+  auto.t = 0; auto.tPhase = 0; auto.trace.length = 0;
+  auto.spot = null; auto.spotH = 0; auto.retries = 0; auto.goAround = false;
+  auto.prevSas = ship.sas; auto.prevMode = ship.sasMode;
+  auto.waitArrive = false;
+  /* aim for a landmark if the world has one — landing next to an
+     observatory is a destination; landing on bare rock is a coordinate */
+  const lore = loreForBody(b);
+  auto.site = null;
+  if (lore && lore.sites.length) {
+    /* whichever site is closest to the current ground track — and only if
+       it is actually reachable. A landmark on the far side of the Moon is
+       1600 km away; chasing it turns a landing into an endless series of
+       ballistic hops that never gets to touch the ground. */
+    _ap1.subVectors(ship.pos, b.pos);
+    const alt = Math.max(_ap1.length() - b.R, 0);
+    _ap1.normalize();
+    const budget = clamp(alt * 6, 25e3, 600e3);
+    let bd = Infinity;
+    for (const st of lore.sites) {
+      siteUp(b, st, _ap2);
+      const arc = Math.acos(clamp(_ap1.dot(_ap2), -1, 1)) * b.R;
+      if (arc < bd) { bd = arc; auto.site = st; }
+    }
+    if (bd > budget) auto.site = null;
+  }
+  if (ship.soi !== b) {
+    autoPhase('bridge');
+    auto.waitArrive = true;
+    openWormhole(b);
+    if (wormhole.state === 'idle') { autoAbort('Bridge unavailable'); return; }
+  } else {
+    autoPhase(ship.elems && ship.elems.pe > b.R * 1.002 ? 'deorbit' : 'coast');
+  }
+  ship.sas = true;
+  say('AUTOLAND engaged — ' + b.name + (auto.site ? ' · ' + auto.site.name : ''), 'good');
+  caption('AUTOLAND', b.name + (auto.site ? ' — ' + auto.site.name : ''), 3000);
+}
+function autoPhase(p) {
+  if (auto.phase === p) return;
+  auto.phase = p; auto.tPhase = 0;
+  auto.trace.push(p);
+  if (auto.trace.length > 24) auto.trace.shift();
+}
+function autoAbort(msg) {
+  if (auto.mode === 'off') return;
+  auto.mode = 'off'; auto.phase = '';
+  ship.throttle = 0;
+  if (auto.prevSas !== null) { ship.sas = auto.prevSas; ship.sasMode = auto.prevMode || 'stab'; }
+  auto.prevSas = null;
+  if (msg) say(msg, 'warn');
+}
+
+/* ---- where to put it down --------------------------------------------
+   Falling wherever the trajectory happens to point is how a lander ends
+   up on a 25-degree scree slope, at rest for half a second and then
+   sliding. Sample the height field around the projected touchdown point,
+   score the candidates by SLOPE, and steer at the flattest one — biased
+   toward the landmark if there is a reachable one. Costs about seventy
+   height evaluations, three times per landing. */
+const _sp1 = new T.Vector3(), _sp2 = new T.Vector3(), _sp3 = new T.Vector3(),
+      _sp4 = new T.Vector3(), _sp5 = new T.Vector3(), _sp6 = new T.Vector3(),
+      _sp7 = new T.Vector3();
+/* Rise over run, sampled on two perpendicular tangents. */
+function slopeAt(b, dir, base) {
+  const ax = Math.abs(dir.y) > 0.92 ? _sp4.set(1, 0, 0) : _sp4.set(0, 1, 0);
+  const tU = _sp5.crossVectors(ax, dir).normalize();
+  const tV = _sp6.crossVectors(dir, tU).normalize();
+  const de = base / b.R;
+  const h0 = b.surfaceR(dir);
+  const hU = b.surfaceR(_sp7.copy(dir).addScaledVector(tU, de).normalize());
+  const hV = b.surfaceR(_sp7.copy(dir).addScaledVector(tV, de).normalize());
+  return (Math.abs(hU - h0) + Math.abs(hV - h0)) / base;
+}
+function pickLandingSpot(b, h) {
+  const here = v3().subVectors(ship.pos, b.pos).normalize();
+  /* how far sideways we can still steer, in metres of ground */
+  const reach = clamp(h * 1.1, 250, 24000);
+  /* If a landmark is inside that, search around the LANDMARK instead of
+     around the current ground track — otherwise "flattest nearby" wins
+     every time and you touch down 25 km from the thing you came to see. */
+  let centre = here, radius = reach;
+  const siteDir = auto.site ? siteUp(b, auto.site, v3()) : null;
+  if (siteDir) {
+    const arc = Math.acos(clamp(here.dot(siteDir), -1, 1)) * b.R;
+    if (arc < reach) { centre = siteDir; radius = Math.min(500, reach); }
+  }
+  const de = radius / b.R;
+  const upAx = Math.abs(centre.y) > 0.92 ? v3(1, 0, 0) : v3(0, 1, 0);
+  const tU = v3().crossVectors(upAx, centre).normalize();
+  const tV = v3().crossVectors(centre, tU).normalize();
+  const rnd = mulberry(((auto.t * 1000) | 0) ^ 0x9E37);
+  let best = null, bestScore = -1e18, bestSlope = 0;
+  for (let i = 0; i < 28; i++) {
+    /* the centre itself is always a candidate */
+    const a = i === 0 ? 0 : rnd() * TAU;
+    const rr = i === 0 ? 0 : Math.sqrt(rnd()) * de;
+    const dir = v3().copy(centre)
+      .addScaledVector(tU, Math.cos(a) * rr)
+      .addScaledVector(tV, Math.sin(a) * rr).normalize();
+    const sl = slopeAt(b, dir, 30);
+    /* Near the ground a flat patch is the whole decision: a lander that
+       touches down on a 20-degree face slides, and sliding is not landed. */
+    let score = -sl * (h < 600 ? 1400 : 260);
+    if (siteDir) {
+      /* beside the landmark, not on top of it */
+      const arc = Math.acos(clamp(dir.dot(siteDir), -1, 1)) * b.R;
+      score -= Math.abs(arc - 80) * 0.05;
+    } else {
+      score -= Math.acos(clamp(dir.dot(here), -1, 1)) * b.R * 0.0016;
+    }
+    if (score > bestScore) { bestScore = score; best = dir; bestSlope = sl; }
+  }
+  if (!best) return;
+  auto.spot = { ldir: best.applyQuaternion(b.invQuat), slope: bestSlope };
+  auto.spotR = b.surfaceR(_sp3.copy(auto.spot.ldir).applyQuaternion(b.quat));
+}
+function spotPos(b, out) {
+  out.copy(auto.spot.ldir).applyQuaternion(b.quat);
+  return out.multiplyScalar(auto.spotR).add(b.pos);
+}
+
+/* How much time warp this part of the descent can absorb. The guidance
+   law is closed-loop, so it tolerates a coarser step high up where the
+   air is thin; near the ground and at high dynamic pressure it does not. */
+function autoWarpTarget(h) {
+  if (auto.phase === 'touch' || h < 1200) return 0;
+  if (ship.rho < 1e-7) return h > 30000 ? 4 : 2;   // 50x / 5x in vacuum
+  if (ship.q > 9000) return 0;                     // never warp through peak heating
+  if (h > 8000) return 2;                          // 5x
+  if (h > 2500) return 1;                          // 2x
+  return 0;
+}
+
+/* Desired descent rate at a given terrain altitude. */
+function autoDescentRate(h, g) {
+  if (h < 14) return -1.1;
+  if (h < 70) return -3.0;
+  if (h < 260) return -9.0;
+  return -clamp(0.22 * Math.sqrt(2 * g * h), 2.5, 220);
+}
+
+function autoStep(dt) {
+  if (auto.mode !== 'land') return;
+  auto.t += dt; auto.tPhase += dt;
+  const b = auto.body;
+  if (!b) { autoAbort('Autopilot lost its target'); return; }
+
+  if (auto.phase === 'bridge') {
+    if (wormhole.state === 'idle' && auto.waitArrive) {
+      if (ship.soi === b) { auto.waitArrive = false; autoPhase('deorbit'); }
+      else if (auto.tPhase > 30) { autoAbort('AUTOLAND aborted — arrival failed'); }
+    }
+    return;
+  }
+  /* Once it is down it stays down: without this the phase falls through
+     every branch below and the guidance law lights the engine again. */
+  if (auto.phase === 'done') { ship.throttle = 0; return; }
+
+  const rel = _ap1.subVectors(ship.pos, b.pos);
+  const d = rel.length();
+  const up = _ap2.copy(rel).divideScalar(d);
+  const g = b.mu / (d * d);
+  const h = d - b.surfaceR(up);
+  b.windAt(ship.pos, _ap3);                       // ground velocity at this point
+  const vrel = _ap4.subVectors(ship.vel, _ap3);
+  const vUp = vrel.dot(up);
+  const vH = _ap5.copy(vrel).addScaledVector(up, -vUp);
+  const vh = vH.length();
+
+  /* Touchdown is a near-stop on the ground, not merely contact: a leg
+     grazing a ridge at 15 m/s is a skid, and cutting the engine there
+     leaves the vehicle sliding. Stop flying only once it is actually
+     slow — then stop completely, because `landed` needs the angular rate
+     below 0.06 rad/s and an autopilot that keeps steering never gets
+     there. */
+  const gSpd = Math.hypot(vh, vUp);
+  if (ship.onGround && gSpd < 5.0 && h < 250 && !auto.goAround &&
+      (auto.phase === 'guide' || auto.phase === 'touch' || auto.phase === 'entry')) {
+    autoPhase('settle');
+    if (!ship.gearDown) toggleGear();
+  }
+  if (auto.phase === 'settle') {
+    ship.throttle = 0;
+    ship.sasMode = 'stab'; ship.sas = true;
+    ship.brake = true;                            // friction, not hope
+    /* A leg bouncing off a rock is not a reason to fly again. Only a real
+       departure — well clear of the ground and still going up — restarts
+       the descent. */
+    /* Sliding is not landed. If the vehicle is still moving across the
+       ground after a few seconds, this was the wrong patch of ground —
+       pick another and go around, twice, then accept what we have. */
+    if (gSpd > 1.2 && auto.tPhase > 4 && auto.retries < 2) {
+      auto.retries++;
+      auto.spot = null; auto.spotH = 0;
+      auto.goAround = true;                       // climb first, then re-survey
+      if (ship.gearDown) toggleGear();
+      say('AUTOLAND — sliding, going around', 'warn');
+      autoPhase('guide');
+      return;
+    }
+    if (!(ship.landed || (ship.onGround && auto.tPhase > 6) || auto.tPhase > 25)) {
+      if (h > 25 && vUp > 1.0 && auto.tPhase > 2.5) { autoPhase('guide'); return; }
+      return;
+    }
+  }
+  if ((ship.landed || auto.phase === 'settle') && auto.phase !== 'done') {
+    autoPhase('done');
+    ship.throttle = 0;
+    ship.sasMode = 'stab';
+    say('AUTOLAND complete — ' + b.name + ' surface', 'good');
+    caption('TOUCHDOWN', b.name + (auto.site ? ' · ' + auto.site.name : ''), 3600);
+    audio.blip(660, 0.25);
+    setTimeout(() => { if (auto.phase === 'done') autoAbort(null); }, 600);
+    return;
+  }
+
+  /* ---- phase 1: kill the orbit ------------------------------------- */
+  if (auto.phase === 'deorbit') {
+    ship.sasMode = 'retro'; ship.sas = true;
+    if (ship.warpIdx > 0) setWarp(0, true);
+    const pe = ship.elems ? ship.elems.pe : d;
+    if (pe <= b.R * 0.985 || h < b.R * 0.05) { ship.throttle = 0; autoPhase('coast'); return; }
+    shipAxes();
+    _ap6.copy(vrel).normalize().negate();
+    ship.throttle = _fwd.dot(_ap6) > 0.94 ? 0.85 : 0;
+    if (auto.tPhase > 240) { ship.throttle = 0; autoPhase('coast'); }
+    return;
+  }
+
+  /* ---- phase 2: coast down, warping while the air is thin ---------- */
+  if (auto.phase === 'coast') {
+    ship.sasMode = 'srfretro'; ship.sas = true;
+    ship.throttle = 0;
+    setWarp(autoWarpTarget(h), true);
+    if (ship.rho > 1e-7 || h < 14000) autoPhase('entry');
+    return;
+  }
+
+  /* ---- phase 3: ride the entry out --------------------------------- */
+  if (auto.phase === 'entry') {
+    ship.sasMode = 'srfretro'; ship.sas = true;
+    setWarp(autoWarpTarget(h), true);
+    /* only start braking once stopping is actually possible: the burn
+       must fit in the altitude that is left, with 40% margin */
+    const aMax = SHIP.maxThrust / ship.mass - g;
+    const stopDist = (vUp * vUp) / (2 * Math.max(aMax, 0.5)) * 1.40 + vh * 6;
+    /* Not while the air is still doing the work. Pointing anywhere but
+       into the airstream at 2.5 kPa is how a lander becomes a tumbling
+       one; hold surface-retrograde, which is the stable attitude, and let
+       drag take the energy out for free. */
+    const aero = ship.q > 2500;
+    if (!aero && (h < stopDist || h < 9000 || (vUp > -5 && h < 30000))) autoPhase('guide');
+    else ship.throttle = 0;
+    return;
+  }
+
+  /* ---- phase 4+5: the guidance law --------------------------------- */
+  setWarp(autoWarpTarget(h), true);
+  if (auto.phase === 'guide' && h < 140) {
+    autoPhase('touch');
+    if (!ship.gearDown) toggleGear();
+  }
+  if (auto.phase === 'guide' && h < 900 && !ship.gearDown) toggleGear();
+
+  /* where do we want to be going sideways? Toward the landmark while we
+     are still high, and nowhere at all by the time we are low. */
+  /* Re-survey as the ground gets closer: from 30 km a "flat" candidate is
+     a 20 km-wide plain, from 800 m it is an actual patch of ground. */
+  if (!auto.goAround && (!auto.spot || (h < auto.spotH * 0.35 && h > 60))) {
+    pickLandingSpot(b, h);
+    auto.spotH = h;
+  }
+  const vWant = _ap7.set(0, 0, 0);
+  if (auto.spot) {
+    spotPos(b, _ap6);
+    _ap6.sub(ship.pos);
+    _ap6.addScaledVector(up, -_ap6.dot(up));      // horizontal offset to the spot
+    const dist = _ap6.length();
+    if (dist > 1) {
+      /* The sideways budget tapers to nothing by 60 m: past that point
+         every metre per second of drift is a landing leg. */
+      const cap = Math.min(180, Math.max(0, (h - 60) * 0.20));
+      const want = clamp(dist * 0.06, 0, cap);
+      if (want > 0.05) vWant.copy(_ap6).multiplyScalar(want / dist);
+    }
+  }
+  const dvH = _ap8.subVectors(vWant, vH);         // horizontal velocity error
+  const dvMag = dvH.length();
+
+  /* ---- the law -----------------------------------------------------
+     Command an ACCELERATION VECTOR, then read the attitude and the
+     throttle off it. Setting throttle from the vertical schedule alone
+     and then tilting is the trap: on a low-gravity world the vertical
+     term is tiny, so the tilt has almost no thrust behind it and the
+     vehicle arrives at the surface still moving sideways at 200 m/s.  */
+  /* Recover before you steer. A vehicle at 0.8 rad/s is not flying a
+     guidance law, it is tumbling, and adding thrust makes it worse. */
+  if (ship.angVel.length() > 0.8 && h > 250) {
+    ship.sasMode = ship.rho > 1e-5 ? 'srfretro' : 'stab';
+    ship.sas = true; ship.throttle = 0;
+    return;
+  }
+  /* Angle of attack is limited by dynamic pressure, not by ambition. */
+  const qFac = clamp(1 - ship.q / 4000, 0.10, 1);
+  const tiltMax = (h > 1500 ? 1.05 : (h > 300 ? 0.45 : 0.18)) * qFac;
+  const tauH = clamp(h / 60, 2.5, 22);
+  /* A go-around has to actually go up, or "try somewhere else" just means
+     sitting on the same slope with the engine idling. */
+  if (auto.goAround && h > 210) auto.goAround = false;
+  let vT = auto.goAround ? 14 : autoDescentRate(h, g);
+  let aV = (vT - vUp) / 1.15 + g;
+  /* How much sideways acceleration the tilt limit allows, given that the
+     vertical component still has to hold the vehicle up. */
+  let aHmax = Math.max(aV, g * 0.35) * Math.tan(tiltMax);
+  /* If the horizontal speed cannot be cancelled inside the descent that
+     is left, descend more slowly. Hitting the ground sideways is the one
+     failure the schedule must never allow. */
+  const tBrake = dvMag / Math.max(aHmax, 0.05);
+  const tFall = h / Math.max(-vT, 0.5);
+  if (tBrake > tFall * 0.8) {
+    vT *= clamp((tFall * 0.8) / tBrake, 0.10, 1);
+    aV = (vT - vUp) / 1.15 + g;
+    aHmax = Math.max(aV, g * 0.35) * Math.tan(tiltMax);
+  }
+  const aH = _ap6.copy(dvH);
+  const aHmag = Math.min(dvMag / tauH, aHmax);
+  if (dvMag > 1e-4) aH.multiplyScalar(aHmag / dvMag); else aH.set(0, 0, 0);
+
+  const aCmd = _ap7.copy(up).multiplyScalar(aV).add(aH);
+  const aMag = aCmd.length();
+  if (aMag > 1e-5) auto.aim.copy(aCmd).divideScalar(aMag);
+  else auto.aim.copy(up);
+  ship.sasMode = 'auto'; ship.sas = true;
+
+  shipAxes();
+  ship.throttle = clamp(aMag * ship.mass / SHIP.maxThrust, 0, 1);
+  /* do not fight the descent with the nose still swinging round */
+  if (_fwd.dot(auto.aim) < 0.55 && h > 200) ship.throttle = Math.min(ship.throttle, 0.12);
+  /* thrust only counts along the nose, so pay for the angle we are at */
+  else ship.throttle = clamp(ship.throttle / Math.max(_fwd.dot(auto.aim), 0.45), 0, 1);
+  if (auto.phase === 'touch' && h < 3 && vUp > -1.6 && dvMag < 2.5) ship.throttle = 0;
+  if (ship.fuel <= 0 && !CFG.infFuel) autoAbort('AUTOLAND aborted — out of propellant');
+}
+
+/* ------------------------------------------------- infinite propellant */
+function setInfiniteFuel(on) {
+  CFG.infFuel = !!on;
+  const c = $('cfgInfFuel'); if (c) c.checked = CFG.infFuel;
+  if (CFG.infFuel) { ship.fuel = SHIP.fuelMax; ship.mono = SHIP.monoMax; ship.power = 1; ship.o2 = 1; }
+  say('Propellant: ' + (CFG.infFuel ? 'UNLIMITED' : 'realistic'), CFG.infFuel ? 'good' : '');
+}
+/* Called once per frame after the physics step: refilling is simpler and
+   far less invasive than threading a flag through every consumer. */
+function applyInfiniteFuel() {
+  if (!CFG.infFuel) return;
+  ship.fuel = SHIP.fuelMax;
+  ship.mono = SHIP.monoMax;
+  ship.power = 1;
+  ship.o2 = 1;
+  if (ship.hull < 1) ship.hull = Math.min(1, ship.hull + 0.02);
+  ship.dead = false;
+}
 
 /* =====================================================================
    SHIP VISUAL STATE
@@ -8624,11 +10897,8 @@ function updateShipVisual(dtReal) {
   shipRoot.visible = true;
   cockpit.group.visible = (CAM_MODES[cam.mode] === 'cockpit' && !eva.active);
 
-  /* gear kinematics */
-  const want = ship.gearDown ? 1 : 0;
-  if (Math.abs(ship.gearAnim - want) > 1e-4)
-    ship.gearAnim += clamp(want - ship.gearAnim, -1, 1) * Math.min(1, dtReal * 0.55);
-  else ship.gearAnim = want;
+  /* gear kinematics — the state itself is advanced by stepGear() inside
+     the physics step; this only draws it */
   const ga = smoothstep(0, 1, ship.gearAnim);
   for (const g of shipModel.gears) {
     g.leg.rotation.x = lerp(g.stowRot[0] + 2.35, g.deployRot[0], ga);
@@ -8911,6 +11181,7 @@ function frame(now) {
     $('fps').textContent = fpsShow.toFixed(0) + ' fps · ' + (PLANETS[ship.soi.name] ? PLANETS[ship.soi.name].nodeCount : 0) + ' patches'; }
 
   if (!paused) {
+    autoStep(dtReal);
     readFlightInput(dtReal);
     if (wormhole.state === 'transit' || wormhole.state === 'arrive') {
       simTime += dtReal;
@@ -8922,11 +11193,13 @@ function frame(now) {
     } else {
       if (ship.dead) { ship.throttle = 0; }
       stepPhysics(dtReal, ship.dead ? 1 : WARPS[ship.warpIdx]);
-      if (ship.warpIdx > 0 && (ship.rho > 1e-6 || ship.onGround)) setWarp(0);
+      if (ship.warpIdx > 0 && ((ship.rho > 1e-6 && auto.mode !== 'land') || ship.onGround)) setWarp(0);
     }
     updateWormhole(dtReal);
+    applyInfiniteFuel();
     if (scanning > 0) { scanning -= dtReal; if (scanning <= 0) { scanning = 0; finishScan(); } }
   }
+  updateSites(dtReal);
 
   /* ---------------------------------------------------------- camera */
   updateCamera(dtReal * (paused ? 0.25 : 1), dtReal);
@@ -8993,7 +11266,7 @@ function frame(now) {
   } else { orbitShip.visible = false; orbitTgt.visible = false; }
 
   /* ========================================================== RENDER */
-  if (mapState.open) { renderGalaxyMap(now); return; }
+  if (mapState.open) { renderGalaxyMap(now, dtReal); return; }
   updateRayBasis();
   renderer.setRenderTarget(rtScene);
   renderer.setClearColor(0x000000, 1);
@@ -9043,14 +11316,15 @@ function frame(now) {
 }
 
 /* ------------------------------------------------- galaxy map rendering */
-function renderGalaxyMap(now) {
+function renderGalaxyMap(now, dtReal) {
   updateMapCamera();
   mapHaze.material.uniforms.uTime.value = now * 0.001;
   mapPtsMat.uniforms.uDim.value = 1;
+  if (mapState.level === 'sys' || mapState.level === 'planet') updateSystemView(dtReal);
   renderer.setRenderTarget(rtScene);
   renderer.setClearColor(0x01030a, 1);
   renderer.clear(true, true, false);
-  renderer.render(mapScene, mapCam);
+  renderer.render(mapActiveScene(), mapCam);
   atmoUniforms.uActive.value = 0;
   atmoUniforms.tCol.value = rtScene.texture;
   atmoUniforms.tDepth.value = rtScene.depthTexture;
@@ -9159,6 +11433,45 @@ window.ODYSSEY = {
             density: galaxyDensity, count: systemsInVoxel, state: mapState,
             get current() { return CURRENT; }, generate: generateSystem },
   touch: { enable: setTouchUI, state: TOUCH },
+  /* Headless advance with no exit conditions: physics, autopilot and the
+     walker, at a fixed step and without drawing anything. */
+  sim: function (seconds, step) {
+    const dt = step || 0.05;
+    const n = Math.min(Math.ceil(seconds / dt), 200000);
+    for (let i = 0; i < n; i++) {
+      autoStep(dt);
+      readFlightInput(dt);
+      if (eva.active) { stepPhysics(dt, 1); evaStep(dt, input); }
+      else stepPhysics(dt, WARPS[ship.warpIdx]);
+      applyInfiniteFuel();
+    }
+    return n * dt;
+  },
+  auto: { state: auto, land: autoLandStart, abort: autoAbort, status: autoStatus,
+          infinite: setInfiniteFuel,
+          /* Headless fast-forward: run the autopilot and the physics with a
+             fixed step and no rendering. The automated landing tests use
+             this so a descent is measured in simulated seconds rather than
+             in however many frames a software rasteriser managed. */
+          sim: function (seconds, step) {
+            const dt = step || 0.05;
+            const n = Math.min(Math.ceil(seconds / dt), 200000);
+            for (let i = 0; i < n; i++) {
+              autoStep(dt);
+              readFlightInput(dt);
+              if (eva.active) { stepPhysics(dt, 1); evaStep(dt, input); }
+              else stepPhysics(dt, WARPS[ship.warpIdx]);
+              applyInfiniteFuel();
+              if (ship.landed || auto.mode === 'off' || auto.phase === 'done')
+                return { t: i * dt, landed: ship.landed };
+            }
+            return { t: n * dt, landed: ship.landed };
+          } },
+  lore: { region: regionSpecies, planet: planetLore, body: loreForBody,
+          near: function () { return nearSites.map(n => ({ name: n.st.name, kind: n.st.kind,
+            d: Math.round(n.d) })); } },
+  map: { level: setMapLevel, zoomIn: mapZoomIn, zoomOut: mapZoomOut, state: mapState,
+         shape: galaxyShape, sys: sysState, uni: uniState },
   /* point the orbital camera at a body — used by the automated tests */
   look: function (name) {
     const b = BY_NAME[name]; if (!b) return 'no such body';
