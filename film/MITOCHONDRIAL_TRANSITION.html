@@ -1,0 +1,4058 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<title>The Pore That May Not Exist</title>
+<meta name="description" content="A procedurally generated, physics-driven 7-minute multi-scale cinematic film about the mitochondrial permeability transition pore.">
+<!--
+===============================================================================
+  T H E   P O R E   T H A T   M A Y   N O T   E X I S T
+  a biological cinema system  ·  single-file WebGL2 + WebAudio generative film
+  runtime 7:54  ·  deterministic  ·  offline-renderable to 4K
+===============================================================================
+
+  SUBJECT
+  -------
+  The mitochondrial permeability transition pore (mPTP) and its role in
+  ischemia-reperfusion injury. Forty years of electrophysiology have
+  characterised this channel in exquisite detail -- a ~1.3 nS Ca2+-triggered,
+  cyclosporin-A-sensitive "megachannel" in the inner mitochondrial membrane --
+  and yet its molecular identity remains genuinely unresolved. Both leading
+  candidates (the c-ring lumen of F1Fo ATP synthase; the adenine nucleotide
+  translocase) survive their own genetic ablations. The film treats that
+  unresolvedness not as a gap to be papered over but as its central image: a
+  density map that refuses to collapse into one structure.
+
+  THE NARRATIVE SPINE (problem -> partial solution)
+  -------------------------------------------------
+    I-III    the inner membrane as a liquid-crystalline labyrinth; the proton
+             fluid; the pore introduced as an absence.
+    IV-V     ISCHEMIA. O2 -> 0. The electron transport chain stalls, dPsi_m
+             decays, ATP synthase runs backwards hydrolysing ATP to defend the
+             membrane potential, lactate accumulates, pH_m falls to ~6.4.
+             The paradox: acidosis PROTECTS. Protonation of a histidine-
+             dependent site desensitises the pore. Nothing opens.
+    VI-VIII  REPERFUSION. O2 returns; pH snaps back to 7.2 within seconds; the
+             protection is withdrawn exactly when Ca2+ and ROS peak. MCU
+             conducts a sigmoidal Ca2+ flux gated by MICU1/2; complex I and
+             complex III leak superoxide; ROS-induced ROS release turns the
+             myocyte into an excitable medium.
+    IX-XII   THE TRANSITION. Pore opening, dPsi_m collapse, matrix swelling,
+             cristae unfolding (a remembered geometry), outer-membrane rupture,
+             cytochrome c release, and a depolarisation wavefront crossing
+             tissue.
+    XIII     THE UNRESOLVED. Two candidate structures superimposed in one
+             electron-density volume, flickering between hypotheses.
+    XIV-XVII INTERVENTION. Four partial solutions, each real:
+               1. MICU1/2 gatekeeping restores the MCU Ca2+ set-point.
+               2. CypD unbinding from OSCP raises the Ca2+ threshold (CsA).
+               3. Cardiolipin stabilisation (SS-31 / elamipretide) restores
+                  cristae curvature and closes the electron leak.
+               4. Breaking the RIRR feedback loop: the wavefront fails.
+    XVIII    HYSTERESIS. The tissue relights. The membrane keeps the scar.
+
+  EVERY NUMBER IN THIS FILM IS DOING WORK
+  ---------------------------------------
+  * A 12-state ODE system (Science.Model) integrates the ischemia-reperfusion
+    cascade with RK4 at 200 Hz under the picture. It drives shader uniforms,
+    particle behaviour, title annotations and the musical score. It is not a
+    canned animation curve; if you change k_MCU the film changes.
+  * A GPU reaction-diffusion / excitable-medium field (FieldSim) integrates a
+    FitzHugh-Nagumo-class model of ROS-induced ROS release with Ca2+ as the
+    slow variable, on a 512^2 lattice. Its spiral waves are the wavefront.
+  * Atomic coordinates are generated from real helical geometry (rise 1.5 A,
+    100 deg/residue, Ca radius 2.3 A) and splatted into a 96^3 RGBA volume as
+      R = Gaussian electron density of candidate model A (c-ring lumen)
+      G = Gaussian electron density of candidate model B (ANT)
+      B = lipid / hydrophobic belt occupancy
+      A = Debye-Huckel electrostatic potential, kappa from 150 mM ionic strength
+    The molecular acts raymarch that volume directly. The "unresolved" act
+    cross-fades R against G -- an honest picture of model ambiguity.
+  * Audio frequencies are sonified infrared wavenumbers (amide I 1650 cm-1,
+    lipid ester C=O 1740, phosphate P=O 1230, C-H 2925) scaled by 0.25 Hz/cm-1,
+    and the rhythm grid is the myocyte itself: 1.2 Hz sinus rhythm that
+    fibrillates in Act IX and recovers in Act XVII.
+
+  CONTROLS
+  --------
+    space      play / pause              [ ]        previous / next act
+    , .        scrub -5s / +5s           r          restart
+    h          toggle HUD                f          fullscreen
+    1 2 3 4    quality: low .. ultra     m          mute
+    c          realtime capture (webm, with audio)
+    x          offline deterministic render (WebCodecs VP9 + WAV)
+
+  URL PARAMETERS
+  --------------
+    ?t=180              seek to 180 s
+    ?q=ultra            quality preset: low|med|high|ultra
+    ?hud=0              hide the overlay
+    ?w=3840&h=2160      force render resolution
+    ?render=1           start offline render immediately
+    ?start=0&end=60     offline render range in seconds (render-farm chunking)
+    ?fps=24             offline frame rate
+    ?mb=8               motion-blur subframes per output frame
+    ?seed=20260922      deterministic seed
+
+  OFFLINE RENDER -> FINISHED FILM
+  -------------------------------
+    1. open in Chrome/Edge 116+ (needs WebCodecs + WebGL2 + EXT_color_buffer_float)
+    2. MITOCHONDRIAL_TRANSITION.html?q=ultra&w=3840&h=2160&fps=24&mb=8&render=1
+    3. you get film_0000-0474.webm (VP9) and film.wav (48 kHz stereo)
+    4. ffmpeg -i film_0000-0474.webm -i film.wav -map 0:v -map 1:a \
+              -c:v libx264 -crf 14 -preset veryslow -pix_fmt yuv420p \
+              -c:a aac -b:a 320k THE_PORE_THAT_MAY_NOT_EXIST.mp4
+    for a render farm, open N tabs with disjoint ?start/&end and concat:
+       ffmpeg -f concat -safe 0 -i list.txt -c copy full.webm
+
+===============================================================================
+-->
+<style>
+  :root{
+    --ink:#e8f2ef; --dim:#7d9b95; --hot:#ff5a3c; --cold:#4be3c8; --amber:#ffb545;
+    --bg:#04060a;
+  }
+  *{box-sizing:border-box}
+  html,body{margin:0;padding:0;height:100%;background:var(--bg);overflow:hidden;
+    font-family:ui-monospace,SFMono-Regular,"SF Mono",Menlo,Consolas,monospace;
+    color:var(--ink);-webkit-font-smoothing:antialiased}
+  #stage{position:fixed;inset:0;display:grid;place-items:center;background:#000}
+  canvas#gl{display:block;background:#000;image-rendering:auto;
+    max-width:100vw;max-height:100vh}
+  /* ---- HUD (live preview only; the film itself burns its titles into the
+         canvas via the Titles module so captures are self-contained) ---- */
+  #hud{position:fixed;inset:0;pointer-events:none;opacity:1;
+    transition:opacity .4s ease;font-size:11px;line-height:1.5;letter-spacing:.04em}
+  #hud.off{opacity:0}
+  .panel{position:absolute;padding:10px 12px;background:rgba(4,8,12,.42);
+    border:1px solid rgba(75,227,200,.14);backdrop-filter:blur(6px);
+    text-shadow:0 0 12px rgba(75,227,200,.25)}
+  #tl{left:16px;right:16px;bottom:16px;pointer-events:auto;padding:8px 12px}
+  #bar{position:relative;height:3px;background:rgba(232,242,239,.12);margin:8px 0 6px;
+    cursor:pointer}
+  #barfill{position:absolute;inset:0;width:0%;background:linear-gradient(90deg,
+    var(--cold),var(--amber) 60%,var(--hot));box-shadow:0 0 14px rgba(255,90,60,.5)}
+  #acts{position:absolute;inset:0}
+  #acts i{position:absolute;top:-3px;width:1px;height:9px;background:rgba(232,242,239,.3)}
+  #tlrow{display:flex;justify-content:space-between;gap:12px;align-items:baseline;
+    flex-wrap:wrap}
+  #tlrow b{font-weight:600;color:var(--ink);letter-spacing:.14em}
+  #tlrow span{color:var(--dim)}
+  #vitals{left:16px;top:16px;min-width:232px}
+  #vitals h4{margin:0 0 7px;font-size:10px;letter-spacing:.24em;color:var(--dim);
+    font-weight:500}
+  .v{display:flex;align-items:center;gap:7px;margin:2px 0;white-space:nowrap}
+  .v em{font-style:normal;width:62px;color:var(--dim);font-size:10px}
+  .v u{text-decoration:none;width:54px;text-align:right;font-variant-numeric:tabular-nums;
+    font-size:10px}
+  .v div{flex:1;height:2px;background:rgba(232,242,239,.1);position:relative}
+  .v div s{position:absolute;left:0;top:0;bottom:0;text-decoration:none;width:0%}
+  #notes{right:16px;top:16px;max-width:330px;text-align:right}
+  #notes h4{margin:0 0 6px;font-size:10px;letter-spacing:.24em;color:var(--dim);font-weight:500}
+  #notes p{margin:0 0 6px;color:rgba(232,242,239,.82);font-size:10.5px;line-height:1.55}
+  #notes code{color:var(--amber);font-size:10px}
+  #help{right:16px;bottom:86px;max-width:260px;color:var(--dim);font-size:10px}
+  #help b{color:var(--ink);font-weight:500}
+  #boot{position:fixed;inset:0;display:grid;place-items:center;background:#04060a;
+    z-index:50;transition:opacity .8s ease}
+  #boot.gone{opacity:0;pointer-events:none}
+  #boot div{text-align:center;max-width:560px;padding:24px}
+  #boot h1{font-size:13px;letter-spacing:.42em;font-weight:500;margin:0 0 18px;
+    color:var(--cold)}
+  #boot p{font-size:11px;color:var(--dim);line-height:1.8;margin:0 0 20px}
+  #boot #blog{font-size:10px;color:rgba(232,242,239,.45);min-height:16px;
+    letter-spacing:.08em}
+  #boot button{margin-top:22px;background:none;border:1px solid rgba(75,227,200,.4);
+    color:var(--cold);padding:12px 30px;font:inherit;font-size:11px;letter-spacing:.3em;
+    cursor:pointer;transition:all .25s}
+  #boot button:hover{background:rgba(75,227,200,.1);box-shadow:0 0 30px rgba(75,227,200,.2)}
+  #boot button[disabled]{opacity:.3;cursor:wait}
+  #rec{position:fixed;top:16px;left:50%;transform:translateX(-50%);z-index:40;
+    padding:8px 16px;background:rgba(255,40,30,.15);border:1px solid rgba(255,90,60,.5);
+    font-size:10px;letter-spacing:.2em;display:none}
+  #rec.on{display:block}
+  #err{position:fixed;inset:24px;z-index:60;background:rgba(10,2,2,.96);
+    border:1px solid rgba(255,90,60,.6);padding:20px;overflow:auto;display:none;
+    font-size:11px;white-space:pre-wrap;color:#ffb0a0;line-height:1.5}
+  @media (max-width:760px){#vitals,#notes,#help{display:none}}
+</style>
+</head>
+<body>
+<div id="stage"><canvas id="gl"></canvas></div>
+
+<div id="hud">
+  <div class="panel" id="vitals">
+    <h4>MYOCYTE / MITOCHONDRION · LIVE STATE</h4>
+    <div id="vlist"></div>
+  </div>
+  <div class="panel" id="notes">
+    <h4>ANNOTATION</h4>
+    <div id="notebody"></div>
+  </div>
+  <div class="panel" id="help">
+    <b>space</b> play · <b>[ ]</b> act · <b>, .</b> ±5s · <b>h</b> hud<br>
+    <b>1-4</b> quality · <b>c</b> capture · <b>x</b> offline render
+  </div>
+  <div class="panel" id="tl">
+    <div id="tlrow"><b id="actname">—</b><span id="clock">0:00 / 7:54</span></div>
+    <div id="bar"><div id="barfill"></div><div id="acts"></div></div>
+    <div id="tlrow"><span id="scaleread">—</span><span id="perf">—</span></div>
+  </div>
+</div>
+
+<div id="rec">● RECORDING</div>
+<div id="err"></div>
+
+<div id="boot"><div>
+  <h1>THE PORE THAT MAY NOT EXIST</h1>
+  <p>A generative multi-scale film on the mitochondrial permeability transition.<br>
+     Seven minutes fifty-four. Sound on, lights off.<br>
+     Everything you are about to see is computed, not recorded.</p>
+  <div id="blog">initialising…</div>
+  <button id="bgo" disabled>BEGIN</button>
+</div></div>
+
+<script>
+"use strict";
+/* ===========================================================================
+   1 · MATH  ·  deterministic primitives
+   =========================================================================== */
+const M = (() => {
+  const clamp=(x,a,b)=>x<a?a:(x>b?b:x);
+  const sat=x=>clamp(x,0,1);
+  const mix=(a,b,t)=>a+(b-a)*t;
+  const smoothstep=(e0,e1,x)=>{const t=sat((x-e0)/(e1-e0||1e-9));return t*t*(3-2*t);};
+  const smootherstep=(e0,e1,x)=>{const t=sat((x-e0)/(e1-e0||1e-9));return t*t*t*(t*(t*6-15)+10);};
+  const fract=x=>x-Math.floor(x);
+  const TAU=Math.PI*2, DEG=Math.PI/180;
+
+  // easing
+  const E={
+    linear:t=>t,
+    inOut:t=>smootherstep(0,1,t),
+    inQuad:t=>t*t, outQuad:t=>1-(1-t)*(1-t),
+    inCubic:t=>t*t*t, outCubic:t=>1-Math.pow(1-t,3),
+    outExpo:t=>t>=1?1:1-Math.pow(2,-9*t),
+    inExpo:t=>t<=0?0:Math.pow(2,9*(t-1)),
+    outElastic:t=>t<=0?0:t>=1?1:Math.pow(2,-9*t)*Math.sin((t*9-.75)*TAU/3)+1,
+    breath:t=>0.5-0.5*Math.cos(t*TAU),
+  };
+
+  // mulberry32 — small, fast, deterministic
+  function rng(seed){let a=seed>>>0;return function(){a|=0;a=a+0x6D2B79F5|0;
+    let t=Math.imul(a^a>>>15,1|a);t=t+Math.imul(t^t>>>7,61|t)^t;
+    return((t^t>>>14)>>>0)/4294967296;};}
+
+  const h1=n=>{n=Math.sin(n)*43758.5453123;return n-Math.floor(n);};
+  function hash3(x,y,z){return h1(x*127.1+y*311.7+z*74.7);}
+  // value noise (CPU, used for coordinate jitter & camera breathing)
+  function vnoise(x,y,z){
+    const ix=Math.floor(x),iy=Math.floor(y),iz=Math.floor(z);
+    const fx=x-ix,fy=y-iy,fz=z-iz;
+    const ux=fx*fx*(3-2*fx),uy=fy*fy*(3-2*fy),uz=fz*fz*(3-2*fz);
+    let r=0;
+    for(let k=0;k<2;k++)for(let j=0;j<2;j++)for(let i=0;i<2;i++){
+      const w=(i?ux:1-ux)*(j?uy:1-uy)*(k?uz:1-uz);
+      r+=w*hash3(ix+i,iy+j,iz+k);
+    }
+    return r*2-1;
+  }
+  function fbm(x,y,z,oct){let a=.5,f=1,s=0;oct=oct||4;
+    for(let i=0;i<oct;i++){s+=a*vnoise(x*f,y*f,z*f);f*=2.03;a*=.5;}return s;}
+
+  // vec3 helpers on plain arrays
+  const v3=(x,y,z)=>[x||0,y||0,z||0];
+  const add=(a,b)=>[a[0]+b[0],a[1]+b[1],a[2]+b[2]];
+  const sub=(a,b)=>[a[0]-b[0],a[1]-b[1],a[2]-b[2]];
+  const mul=(a,s)=>[a[0]*s,a[1]*s,a[2]*s];
+  const dot=(a,b)=>a[0]*b[0]+a[1]*b[1]+a[2]*b[2];
+  const cross=(a,b)=>[a[1]*b[2]-a[2]*b[1],a[2]*b[0]-a[0]*b[2],a[0]*b[1]-a[1]*b[0]];
+  const len=a=>Math.hypot(a[0],a[1],a[2]);
+  const norm=a=>{const l=len(a)||1e-9;return [a[0]/l,a[1]/l,a[2]/l];};
+  const lerp3=(a,b,t)=>[mix(a[0],b[0],t),mix(a[1],b[1],t),mix(a[2],b[2],t)];
+
+  // Catmull-Rom through an array of vec3, u in [0,1]
+  function spline(pts,u){
+    const n=pts.length;
+    if(n===1)return pts[0].slice();
+    const s=sat(u)*(n-1), i=Math.min(Math.floor(s),n-2), t=s-i;
+    const p0=pts[Math.max(i-1,0)],p1=pts[i],p2=pts[i+1],p3=pts[Math.min(i+2,n-1)];
+    const t2=t*t,t3=t2*t;
+    const out=[0,0,0];
+    for(let k=0;k<3;k++){
+      out[k]=0.5*((2*p1[k])+(-p0[k]+p2[k])*t+
+        (2*p0[k]-5*p1[k]+4*p2[k]-p3[k])*t2+(-p0[k]+3*p1[k]-3*p2[k]+p3[k])*t3);
+    }
+    return out;
+  }
+  // Hill function — appears everywhere in this model
+  const hill=(x,K,n)=>{const a=Math.pow(Math.max(x,0),n);return a/(a+Math.pow(K,n)+1e-30);};
+  return {clamp,sat,mix,smoothstep,smootherstep,fract,TAU,DEG,E,rng,vnoise,fbm,hash3,
+          v3,add,sub,mul,dot,cross,len,norm,lerp3,spline,hill};
+})();
+
+/* ===========================================================================
+   2 · SCIENCE  ·  the biophysics that actually runs underneath the picture
+   ---------------------------------------------------------------------------
+   A 13-state lumped model of cardiac ischemia-reperfusion at the level of one
+   mitochondrion inside one myocyte. Parameters are order-of-magnitude
+   literature values, not fits; the point is that the *topology* of the model is
+   right, so the qualitative behaviour (acidosis protection, the reperfusion
+   ROS burst, the sharp Ca2+ threshold, pore hysteresis, ATP collapse) emerges
+   rather than being keyframed.
+   =========================================================================== */
+const Science = (() => {
+  // ---- physical constants -------------------------------------------------
+  const F   = 96485.33;      // C/mol        Faraday
+  const Rg  = 8.314462;      // J/(mol K)
+  const Tk  = 310.15;        // K            37 C
+  const RTF = Rg*Tk/F*1000;  // mV           26.7 mV
+  const e0  = 8.8541878e-12; // F/m
+  const epsW= 78.4;          // relative permittivity of water at 37 C
+  const kB  = 1.380649e-23;
+
+  // Debye length at ionic strength I (mol/m^3): kappa^-1 = sqrt(eps eps0 R T /(2 F^2 I))
+  function debyeLength(I_molar){
+    const I = I_molar*1000.0;                       // mol/m^3
+    return Math.sqrt(epsW*e0*Rg*Tk/(2*F*F*I));      // metres (~0.78 nm at 150 mM)
+  }
+
+  // Nernst potential for an ion across the inner membrane
+  const nernst=(z,cOut,cIn)=>(RTF/z)*Math.log(Math.max(cOut,1e-12)/Math.max(cIn,1e-12));
+
+  // Goldman-Hodgkin-Katz flux (used for the megachannel conductance once open)
+  function ghk(P,z,V,cIn,cOut){
+    const x=z*V/RTF;
+    if(Math.abs(x)<1e-6) return P*z*(cIn-cOut);
+    return P*z*x*(cIn-cOut*Math.exp(-x))/(1-Math.exp(-x));
+  }
+
+  // Helfrich bending energy density of a membrane patch, kc ~ 20 kBT for a
+  // cardiolipin-rich inner membrane. Drives the cristae morphology shader.
+  function helfrich(H,K,H0,kc,kg){
+    kc=kc||20*kB*Tk; kg=kg||-0.8*kc;
+    return 2*kc*(H-(H0||0))*(H-(H0||0)) + kg*K;
+  }
+
+  // Infrared wavenumbers (cm^-1) used for sonification. These are real bands.
+  const IR = {
+    amideI:1652,      // protein C=O stretch, alpha-helix
+    amideII:1548,
+    esterCO:1740,     // lipid ester carbonyl
+    phosphate:1230,   // PO2- asymmetric stretch (cardiolipin head group)
+    CH2asym:2925,     // acyl chain
+    OH:3400,          // water
+    ringBreath:1003,  // phenylalanine ring breathing
+    FeS:  320,        // iron-sulfur cluster mode, complex I
+  };
+
+  /* ---- the model -------------------------------------------------------- */
+  /* Parameters are not guessed: each one is pinned by a steady-state balance
+     at the healthy operating point (dPsi = 170 mV, ATP = 5 mM, [Ca]c = 0.1 uM,
+     [Ca]m = 0.3 uM, ROS = 0.02 a.u.), so the baseline is a genuine fixed point
+     and every excursion in the film is the model leaving it, not a keyframe. */
+  const P = {
+    tauO2:1.4, adenTot:6.0,
+    // --- electron transport chain ---------------------------------------
+    VmaxE:1.00, KmO2:0.008, dPsiE:190.0, Jdh:0.480,
+    // --- succinate: the ischemic reservoir that fuels the reperfusion burst
+    //     (reverse electron transport at complex I; Chouchani et al. 2014) --
+    kSuccAcc:0.090, kSuccOx:0.04,
+    // --- ATP synthase, forward and reverse ------------------------------
+    VmaxF:0.900, VmaxR:0.5054, dPsiThresh:90.76, Kadp:1.00, nH:3.0, nATP:1.0,
+    // --- proton leak and capacitance ------------------------------------
+    gLeak:0.00187, Cm:0.45, nPump:10.0, kShunt:1.10,
+    // --- reactive oxygen species ----------------------------------------
+    kROSprod:0.250, dPsiROS:38.0, kRET:3.329, dPsiRET0:85.0, dPsiRETk:40.0,
+    kRIRR:1.822, KRIRR:0.300, nRIRR:2.0, kSOD:0.950, kGSH:1.600, gshRecov:0.135, kGSHuse:0.846,
+    kIVscav:16.43, KporeROS:1.162,
+    // --- calcium ---------------------------------------------------------
+    VmcuMax:4.032, VmcuBasal:0.309, KmMCU:1.90, nMCU:2.60,
+    KgMICU:0.90, nMICU:4.0, dPsiMCU0:60.0, dPsiMCUk:70.0,
+    kNCLX:0.5051, KmNCLX:6.00,
+    kSERCA:1.200, kNCX:0.350, kCaIn:0.0712, kLeakATP:4.597, kNCXrev:2.761,
+    KrevCa:1.20, kCaOut0:0.4327,
+    caBuffer:0.28,
+    // --- sodium: the hidden intermediary. NHE trades H+ for Na+ during
+    //     acidosis, the Na/K-ATPase cannot clear it without ATP, and the
+    //     Na+ load is what runs Na/Ca exchange backwards on reperfusion. ---
+    kNHE:0.350, kNaK:0.0443,
+    // --- the permeability transition -------------------------------------
+    Ca0:83.9, nPore:5.0, kpH:4.20, kROSsens:1.787, kCypD:2.071,
+    tauOpen:1.60, tauClose:2.557, hyst:0.62, gPore:0.85,
+    // --- swelling and rupture --------------------------------------------
+    kSwell:0.2067, kRelax:0.055, volCrit:2.00, kCytC:0.2000,
+    // --- ATP economy ------------------------------------------------------
+    atpDemand:0.4921, glycoMax:0.33, glycoATP:0.90, kHydro:1.306,
+    // --- pH ----------------------------------------------------------------
+    kAcid:0.420, kWash:0.420, pH0:7.20, pHmin:6.30,
+    // --- interventions (0..1), written by the Director's schedule ----------
+    ivMICU:0, ivCypD:0, ivCardiolipin:0, ivScavenger:0,
+  };
+
+  const S0 = {
+    O2:1, NADH:0.42, succ:0.02, dPsi:170, ATP:5.0, pH:7.20, Nai:0.02,
+    Cac:0.10, Cam:0.30, ROS:0.020, GSH:1.0,
+    pore:0.0, cypD:0.78, vol:1.0, cytC:0.0, scar:0.0, lac:0.0,
+  };
+
+  // perfusion programme: 1 = fully oxygenated. Drives everything else.
+  function O2target(t){
+    if(t < 74) return 1.0;
+    if(t < 134) return M.mix(1.0,0.0,M.smootherstep(74,88,t));    // occlusion
+    return M.mix(0.0,1.0,M.smootherstep(134,140,t));              // reperfusion
+  }
+
+  function derivs(s,t,P){
+    const d={};
+    const O2=s.O2, dPsi=Math.max(s.dPsi,0);
+    const ADP=Math.max(0, P.adenTot-s.ATP);
+    const fO2=M.hill(O2,P.KmO2,1.0);
+    const ivCL=P.ivCardiolipin;
+
+    /* --- electron transport: substrate x oxygen x protonmotive back-pressure
+           Je = Vmax * NADH * [O2]/(Km+[O2]) * exp(-dPsi/dPsi_e)              */
+    const coupling=1.0+0.35*ivCL;                  // SS-31 restores supercomplexes
+    const Je=P.VmaxE*coupling*s.NADH*fO2*Math.exp(-dPsi/P.dPsiE);
+    // Ca2+ activates the matrix dehydrogenases (PDH, IDH, OGDH)
+    const dh=P.Jdh*(1-s.NADH)*(0.60+0.40*M.hill(s.Cam,1.5,2.0));
+    d.NADH=dh-Je;
+
+    /* --- succinate accumulates without oxygen and is dumped into the chain
+           the instant it returns: the substrate of the burst                 */
+    d.succ=P.kSuccAcc*(1.0-fO2)*(1.0-s.succ)-P.kSuccOx*fO2*s.succ;
+
+    /* --- ATP synthase runs both ways. Below ~100 mV it reverses and
+           hydrolyses ATP to pump protons: the ischemic bargain.              */
+    const Jf1f=P.VmaxF*M.sat((dPsi-P.dPsiThresh)/40.0)*M.hill(ADP,P.Kadp,1.0);
+    const Jf1r=P.VmaxR*M.sat((P.dPsiThresh-dPsi)/45.0)*M.hill(s.ATP,0.50,2.0);
+
+    /* --- calcium --------------------------------------------------------- */
+    const micuGate=M.hill(s.Cac, P.KgMICU*(1.0+2.2*P.ivMICU), P.nMICU+2.0*P.ivMICU);
+    // the uniporter is electrophoretic: no potential, no uptake
+    const psiDrive=M.sat((dPsi-P.dPsiMCU0)/P.dPsiMCUk);
+    const Jmcu=(P.VmcuMax*M.hill(s.Cac,P.KmMCU,P.nMCU)*micuGate
+                + P.VmcuBasal*(1.0-0.85*P.ivMICU)*s.Cac)*psiDrive;
+    const Jnclx=P.kNCLX*M.hill(s.Cam,P.KmNCLX,1.0);
+    const Jpore=s.pore*P.gPore;
+    d.Cam=Jmcu-Jnclx-Jpore*s.Cam*0.90;
+
+    const atpF=M.hill(s.ATP,1.40,2.0);
+    const serca=P.kSERCA*atpF*s.Cac;
+    const ncxFwd=P.kNCX*M.hill(s.ATP,1.00,1.0)*s.Cac;
+    // ER/SR leak accelerates as the pumps fail; protons blunt the release
+    const leakIn=P.kCaIn*(1.0+P.kLeakATP*(1.0-atpF))*M.sat((s.pH-6.10)/0.95);
+    // reverse Na/Ca exchange, driven by the Na+ load that acidosis left behind
+    // reverse exchange shuts itself down as cytosolic Ca2+ climbs
+    const ncxRev=P.kNCXrev*s.Nai*fO2/(1.0+s.Cac/P.KrevCa);
+    d.Nai=P.kNHE*Math.max(0.0,P.pH0-s.pH)*(1.0-s.Nai)-P.kNaK*M.hill(s.ATP,1.00,2.0)*s.Nai;
+    const pmca=P.kCaOut0*s.Cac;   // the ATP-independent floor
+    d.Cac=(leakIn+ncxRev+Jpore*s.Cam*0.50-serca-ncxFwd-pmca-Jmcu*0.25)*P.caBuffer;
+
+    /* --- reactive oxygen species ----------------------------------------- */
+    // cardiolipin stabilisation does not merely scavenge: it closes the
+    // leak sites themselves, which is what breaks the RIRR loop
+    const leakSite=1.0-0.75*ivCL;
+    const fwdROS=P.kROSprod*leakSite*s.NADH*s.NADH*fO2
+               *Math.exp(dPsi/P.dPsiROS-170.0/P.dPsiROS);
+    // reverse electron transport at complex I: needs succinate, oxygen AND a
+    // repolarised membrane -- which is precisely what reperfusion supplies
+    const retROS=P.kRET*leakSite*s.succ*fO2*M.sat((dPsi-P.dPsiRET0)/P.dPsiRETk);
+    // ROS-induced ROS release amplifies at the same leak sites
+    const rirr=P.kRIRR*leakSite*M.hill(s.ROS,P.KRIRR,P.nRIRR)*(0.30+s.pore)*fO2;
+    const scav=(P.kSOD+P.kGSH*s.GSH+P.kIVscav*P.ivScavenger)*s.ROS;
+    d.ROS=fwdROS+retROS+rirr-scav;
+    // the scavenger arm also lets the glutathione pool refill
+    d.GSH=P.gshRecov*(1.0+7.0*P.ivScavenger)*(1-s.GSH)*M.hill(s.ATP,1.50,1.0)
+        -P.kGSHuse*s.ROS*s.GSH;
+
+    /* --- pH: anaerobic glycolysis acidifies; reperfusion washes it out ---- */
+    const glyco=P.glycoMax*(1.0-fO2)*M.sat((s.pH-6.25)/0.40);
+    d.lac=glyco-0.90*fO2*s.lac;
+    d.pH=-P.kAcid*glyco+P.kWash*fO2*(P.pH0-s.pH);
+
+    /* --- the permeability transition -------------------------------------
+       Threshold raised by protons (the acidosis paradox), lowered by ROS and
+       by cyclophilin D bound at OSCP. Opening is steep (n=5) and hysteretic:
+       what has opened once shuts only at a lower load.                      */
+    const fpH=1.0+P.kpH*Math.max(0.0,P.pH0-s.pH);
+    const fROS=1.0/(1.0+P.kROSsens*s.ROS);
+    const fCypD=1.0/(1.0+P.kCypD*s.cypD);
+    const thr=P.Ca0*fpH*fROS*fCypD;
+    const thrEff=(s.pore>0.35)?thr*P.hyst:thr;
+    /* Two arms open this channel, and the second one is a latch: thiol
+       oxidation at the P-site holds it open even after the Ca2+ load has
+       drained through it. That latch, plus RIRR, is why the transition is
+       self-sustaining -- and why breaking the redox loop, not chelating
+       calcium, is what finally shuts it. */
+    const pInf=Math.max(M.hill(s.Cam,thrEff,P.nPore), M.hill(s.ROS,P.KporeROS,3.0));
+    const tau=(pInf>s.pore)?P.tauOpen:P.tauClose*(1.0+0.8*s.scar);
+    d.pore=(pInf-s.pore)/tau;
+    // cyclosporin-A-like displacement of CypD, and slow rebinding after
+    d.cypD=-2.20*P.ivCypD*s.cypD+0.05*(0.78-s.cypD)*(1.0-P.ivCypD);
+
+    /* --- membrane potential ----------------------------------------------- */
+    const pump=P.nPump*Je;
+    const useF1=P.nH*Jf1f;
+    const revPump=P.nH*Jf1r;
+    const leakH=P.gLeak*dPsi*(1.0-0.35*ivCL);
+    const shunt=Jpore*dPsi*P.kShunt;
+    d.dPsi=(pump-useF1-2.0*Jmcu-leakH-shunt+revPump)/P.Cm;
+
+    /* --- ATP --------------------------------------------------------------- */
+    // demand falls as the myocyte stops contracting (ischemic quiescence)
+    const demand=P.atpDemand*(0.35+0.65*M.hill(s.ATP,1.00,2.0))
+               *(1.0+0.25*M.sat((s.Cac-0.10)*0.4));
+    d.ATP=P.nATP*Jf1f+glyco*P.glycoATP-demand-P.kHydro*Jf1r-0.35*s.pore;
+
+    /* --- osmotic swelling; the outer membrane fails above volCrit ---------- */
+    d.vol=P.kSwell*s.pore*(2.30-s.vol)-P.kRelax*(s.vol-1.0)*(1.0-s.pore);
+    d.cytC=P.kCytC*Math.max(0.0,s.vol-P.volCrit)*s.pore*(1.0-s.cytC);
+
+    /* --- irreversible memory: the film's "surfaces remember" channel ------- */
+    d.scar=0.16*s.pore*(1.0-s.scar)+0.05*Math.max(0.0,s.ROS-0.45)*(1.0-s.scar);
+    return d;
+  }
+
+  function clampState(s){
+    s.O2=M.clamp(s.O2,0,1.2); s.NADH=M.clamp(s.NADH,0,1);
+    s.succ=M.clamp(s.succ,0,1);
+    s.dPsi=M.clamp(s.dPsi,0,230); s.ATP=M.clamp(s.ATP,0.02,P.adenTot);
+    s.pH=M.clamp(s.pH,P.pHmin,7.6); s.Cac=M.clamp(s.Cac,0.02,30);
+    s.Cam=M.clamp(s.Cam,0.02,400); s.ROS=M.clamp(s.ROS,0,3.0);
+    s.GSH=M.clamp(s.GSH,0.01,1); s.pore=M.clamp(s.pore,0,1);
+    s.cypD=M.clamp(s.cypD,0,1); s.vol=M.clamp(s.vol,1,2.3);
+    s.Nai=M.clamp(s.Nai,0,1);
+    s.cytC=M.clamp(s.cytC,0,1); s.scar=M.clamp(s.scar,0,1); s.lac=M.clamp(s.lac,0,3);
+    return s;
+  }
+
+  const KEYS=Object.keys(S0);
+  const addS=(a,b,h)=>{const o={};for(const k of KEYS)o[k]=a[k]+(b[k]||0)*h;return o;};
+
+  function step(s,t,dt,P){
+    s.O2 += (O2target(t)-s.O2)*Math.min(1,dt/P.tauO2);
+    const k1=derivs(s,t,P);
+    const k2=derivs(clampState(addS(s,k1,dt/2)),t+dt/2,P);
+    const k3=derivs(clampState(addS(s,k2,dt/2)),t+dt/2,P);
+    const k4=derivs(clampState(addS(s,k3,dt)),t+dt,P);
+    const o={};
+    for(const k of KEYS) o[k]=s[k]+(dt/6)*((k1[k]||0)+2*(k2[k]||0)+2*(k3[k]||0)+(k4[k]||0));
+    o.O2=s.O2;
+    return clampState(o);
+  }
+
+  /* A deterministic integrator that can be fast-forwarded: the film must be
+     seekable, so we cache the trajectory on a 0.05 s grid at load time. */
+  const DT=0.05;
+  /* The film must open on a cell that is genuinely at rest, and the resting
+     point is a property of the parameters, not something to be typed in by
+     hand. So the model is run forward for two minutes of virtual perfusion
+     first and whatever fixed point it settles into becomes frame zero. Change
+     any rate constant and the baseline re-derives itself. */
+  const EQUILIBRATE=120;
+  function equilibrate(){
+    let s=Object.assign({},S0);
+    const p=Object.assign({},P);
+    p.ivMICU=p.ivCypD=p.ivCardiolipin=p.ivScavenger=0;
+    for(let i=0;i<Math.round(EQUILIBRATE/DT);i++) s=step(s,0,DT,p);
+    return s;
+  }
+  function integrate(T, interventionSchedule){
+    const n=Math.ceil(T/DT)+2, traj=new Array(n);
+    let s=equilibrate();
+    const p=Object.assign({},P);
+    for(let i=0;i<n;i++){
+      const t=i*DT;
+      interventionSchedule(p,t);
+      s=step(s,t,DT,p);
+      traj[i]=Object.assign({t},s,{
+        ivMICU:p.ivMICU,ivCypD:p.ivCypD,ivCL:p.ivCardiolipin,ivSC:p.ivScavenger});
+    }
+    return {traj,DT};
+  }
+  function sample(cache,t){
+    const {traj,DT}=cache;
+    const x=M.clamp(t/DT,0,traj.length-1.001);
+    const i=Math.floor(x), f=x-i, a=traj[i], b=traj[i+1]||a, o={};
+    for(const k in a) o[k]=M.mix(a[k],b[k],f);
+    return o;
+  }
+
+  return {F,Rg,Tk,RTF,debyeLength,nernst,ghk,helfrich,IR,P,S0,O2target,
+          integrate,sample,step,equilibrate,DT};
+})();
+
+/* ===========================================================================
+   3 · MOLECULAR BUILDER
+   ---------------------------------------------------------------------------
+   Atomic coordinates are not loaded from a PDB — there is no PDB for a
+   structure nobody agrees exists. They are *generated* from real secondary-
+   structure geometry: alpha-helical rise 1.50 A/residue, 100 deg/residue,
+   C-alpha radius 2.30 A about the helix axis, side-chain centroid ~2.6 A
+   further out. Two competing architectures are built in the same coordinate
+   frame so that a single density volume can hold both.
+       MODEL A : the c8 ring of F1Fo ATP synthase, its lipid plug evacuated.
+       MODEL B : the adenine nucleotide translocase in the c-state, six
+                 tilted transmembrane helices around a funnel cavity.
+   Both carry the features that matter electrostatically: the mid-membrane
+   ring of essential carboxylates (cGlu58 in mammals, cAsp61 in E. coli) that
+   ferries protons, and the basic patch that binds cardiolipin.
+   =========================================================================== */
+const Mol = (() => {
+  const RISE=1.50, TWIST=100*M.DEG, RCA=2.30, RSC=4.90;
+  // crude Kyte-Doolittle-ish hydropathy and formal charge per residue class
+  const RES=[ // code, vdw-ish radius, hydropathy, charge
+    ['L',2.2, 3.8, 0],['I',2.2, 4.5, 0],['V',2.0, 4.2, 0],['F',2.6, 2.8, 0],
+    ['A',1.7, 1.8, 0],['G',1.4,-0.4, 0],['M',2.3, 1.9, 0],['W',2.9,-0.9, 0],
+    ['S',1.8,-0.8, 0],['T',1.9,-0.7, 0],['Y',2.7,-1.3, 0],['C',2.0, 2.5, 0],
+    ['N',2.1,-3.5, 0],['Q',2.3,-3.5, 0],['H',2.5,-3.2, 0.1],
+    ['K',2.6,-3.9, 1],['R',2.8,-4.5, 1],['E',2.3,-3.5,-1],['D',2.1,-3.5,-1],
+    ['P',2.1,-1.6, 0]
+  ];
+  const HYDROPHOBIC=[0,1,2,3,4,6,11], POLAR=[8,9,12,13,14], CHARGED=[15,16,17,18];
+
+  function atom(x,y,z,r,q,kind,hyd){return {x,y,z,r,q,kind,hyd};}
+
+  /* an ideal alpha helix from `o` along unit axis `ax`, n residues.
+     `seqBias` in 0..1 : 0 = polar/charged face, 1 = fully hydrophobic (TM) */
+  function helix(out,o,ax,n,rand,seqBias,phase,special){
+    const a=M.norm(ax);
+    let up=Math.abs(a[1])<0.9?[0,1,0]:[1,0,0];
+    const u=M.norm(M.cross(a,up)), v=M.cross(a,u);
+    for(let i=0;i<n;i++){
+      const th=phase+i*TWIST, z=i*RISE;
+      const cw=Math.cos(th), sw=Math.sin(th);
+      const radial=[u[0]*cw+v[0]*sw,u[1]*cw+v[1]*sw,u[2]*cw+v[2]*sw];
+      const base=[o[0]+a[0]*z,o[1]+a[1]*z,o[2]+a[2]*z];
+      const ca=[base[0]+radial[0]*RCA,base[1]+radial[1]*RCA,base[2]+radial[2]*RCA];
+      out.push(atom(ca[0],ca[1],ca[2],1.9,0,0,0.0));                 // backbone
+      // carbonyl oxygen, offset along the axis — gives the helix its groove
+      out.push(atom(ca[0]+a[0]*0.9+radial[0]*0.4,ca[1]+a[1]*0.9+radial[1]*0.4,
+                    ca[2]+a[2]*0.9+radial[2]*0.4,1.5,-0.35,0,0.0));
+      // side chain
+      let idx;
+      const r=rand();
+      if(r<seqBias) idx=HYDROPHOBIC[(rand()*HYDROPHOBIC.length)|0];
+      else if(r<seqBias+0.6*(1-seqBias)) idx=POLAR[(rand()*POLAR.length)|0];
+      else idx=CHARGED[(rand()*CHARGED.length)|0];
+      let [,rad,hyd,q]=RES[idx];
+      // the essential proton-carrying carboxylate, planted mid-membrane
+      if(special && Math.abs(z-special.z)<1.2){ rad=2.1; hyd=-3.5; q=-1; }
+      const sc=[base[0]+radial[0]*RSC,base[1]+radial[1]*RSC,base[2]+radial[2]*RSC];
+      out.push(atom(sc[0],sc[1],sc[2],rad,q,1,hyd));
+      if(rad>2.3){ // a second lobe for the big side chains: F, W, Y, R, K
+        const t=(i%2)?1:-1;
+        out.push(atom(sc[0]+radial[0]*1.5+a[0]*0.8*t,sc[1]+radial[1]*1.5+a[1]*0.8*t,
+                      sc[2]+radial[2]*1.5+a[2]*0.8*t,rad*0.8,q*0.5,1,hyd));
+      }
+    }
+  }
+
+  /* a beta barrel — cyclophilin D is an 8-stranded antiparallel barrel */
+  function barrel(out,c,R,n,h,rand){
+    for(let s=0;s<n;s++){
+      const th=s/n*M.TAU, tilt=0.42*((s%2)?1:-1);
+      for(let i=0;i<h;i++){
+        const z=(i-h/2)*3.3, tw=th+tilt*z/h;
+        const x=c[0]+Math.cos(tw)*R, y=c[1]+z, zz=c[2]+Math.sin(tw)*R;
+        out.push(atom(x,y,zz,1.9,0,0,0));
+        const idx=(rand()<0.45)?POLAR[(rand()*POLAR.length)|0]:HYDROPHOBIC[(rand()*HYDROPHOBIC.length)|0];
+        const [,rad,hyd,q]=RES[idx];
+        const nx=Math.cos(tw)*((i%2)?1.0:-1.0), nz=Math.sin(tw)*((i%2)?1.0:-1.0);
+        out.push(atom(x+nx*2.8,y,zz+nz*2.8,rad,q,1,hyd));
+      }
+    }
+    // loops that cap the barrel
+    for(let i=0;i<70;i++){
+      const th=rand()*M.TAU, rr=R*(0.4+0.8*rand()), s=(rand()<0.5?1:-1);
+      out.push(atom(c[0]+Math.cos(th)*rr,c[1]+s*(h*1.7+rand()*4),c[2]+Math.sin(th)*rr,
+               2.0,(rand()<0.2?(rand()<0.5?1:-1):0),1,-1.0));
+    }
+  }
+
+  /* cardiolipin: a four-tailed lipid, two phosphates bridged by glycerol.
+     It is the reason this membrane bends the way it does. */
+  function cardiolipin(out,o,dir,rand){
+    const a=M.norm(dir);
+    let up=Math.abs(a[1])<0.9?[0,1,0]:[1,0,0];
+    const u=M.norm(M.cross(a,up)), v=M.cross(a,u);
+    // head: two PO4- groups
+    for(let k=0;k<2;k++){
+      const off=(k?1:-1)*2.6;
+      out.push(atom(o[0]+u[0]*off,o[1]+u[1]*off,o[2]+u[2]*off,2.2,-1,2,-4.0));
+    }
+    out.push(atom(o[0],o[1],o[2],1.8,0,2,-1.0)); // glycerol bridge
+    // four acyl chains (linoleoyl, 18:2 — the tetralinoleoyl species)
+    for(let c=0;c<4;c++){
+      const sp=((c&1)?1:-1)*2.4, sq=((c&2)?1:-1)*2.0;
+      for(let i=1;i<=13;i++){
+        const wob=Math.sin(i*0.9+c)*0.9;
+        out.push(atom(
+          o[0]+a[0]*i*1.24+u[0]*(sp+wob)+v[0]*sq,
+          o[1]+a[1]*i*1.24+u[1]*(sp+wob)+v[1]*sq,
+          o[2]+a[2]*i*1.24+u[2]*(sp+wob)+v[2]*sq,
+          1.85,0,3,3.6));
+      }
+    }
+  }
+
+  function build(seed){
+    const rand=M.rng(seed||20260922);
+    const A=[], B=[], L=[];
+
+    /* ---------------- MODEL A : c8 ring, lumen evacuated ---------------- */
+    const NSUB=8, Rin=9.2, Rout=25.0, HH=48, NRES=32;
+    for(let s=0;s<NSUB;s++){
+      const th=s/NSUB*M.TAU;
+      const ci=[Math.cos(th)*Rin,-HH/2,Math.sin(th)*Rin];
+      const co=[Math.cos(th)*Rout,-HH/2,Math.sin(th)*Rout];
+      // inner helix: lines the lumen. polar face inward -> a conductive pore.
+      helix(A,ci,[0,1,0],NRES,rand,0.55,th,null);
+      // outer helix carries the essential carboxylate at mid-membrane
+      helix(A,co,[0,1,0],NRES,rand,0.92,th+2.1,{z:HH*0.5});
+      // the polar loop that couples to subunit a / OSCP
+      for(let i=0;i<9;i++){
+        const rr=M.mix(Rin,Rout,i/8), tw=th+Math.sin(i/8*Math.PI)*0.35;
+        A.push(atom(Math.cos(tw)*rr,HH/2+2+Math.sin(i/8*Math.PI)*5,Math.sin(tw)*rr,
+                2.1,(i===4?-1:0),1,-2.0));
+      }
+    }
+    // OSCP stalk + cyclophilin-D docked on it: the pharmacological handle
+    for(let i=0;i<3;i++){
+      const th=i/3*M.TAU;
+      helix(A,[Math.cos(th)*7,HH/2+6,Math.sin(th)*7],[0.06*Math.cos(th),1,0.06*Math.sin(th)],
+            16,rand,0.35,th,null);
+    }
+    barrel(A,[0,HH/2+44,0],11.5,8,10,rand);          // CypD
+
+    /* ---------------- MODEL B : ANT, c-state funnel ---------------------- */
+    for(let s=0;s<6;s++){
+      const th=s/6*M.TAU, tilt=(s%2)?0.34:-0.20;
+      const R=(s%2)?13.0:15.5;
+      const o=[Math.cos(th)*R,-HH/2+(s%2?0:3),Math.sin(th)*R];
+      const ax=[Math.sin(th)*tilt,1,-Math.cos(th)*tilt];
+      helix(B,o,ax,(s%2)?28:26,rand,0.86,th*1.7,null);
+      // matrix-side short helices that clamp the cavity shut
+      helix(B,[Math.cos(th+0.4)*9,(s%2)?-6:4,Math.sin(th+0.4)*9],
+            [Math.cos(th+0.4),0.18,Math.sin(th+0.4)],9,rand,0.3,th,null);
+    }
+    // the three bound cardiolipins that every ANT structure shows
+    for(let i=0;i<3;i++){
+      const th=i/3*M.TAU+0.5;
+      cardiolipin(B,[Math.cos(th)*19,-2,Math.sin(th)*19],[0,1,0],rand);
+    }
+    // ADP/ATP in the funnel + the basic residues that grip its phosphates
+    for(let i=0;i<14;i++){
+      const th=rand()*M.TAU, rr=rand()*5;
+      B.push(atom(Math.cos(th)*rr,6+rand()*8,Math.sin(th)*rr,2.2,(i<4?-1:0),1,-3.0));
+    }
+
+    /* ---------------- shared lipid environment --------------------------- */
+    // an annular belt of cardiolipin + a bilayer patch: the hydrophobic frame
+    // both candidates sit inside. The film uses channel B of the volume.
+    for(let i=0;i<300;i++){
+      const th=rand()*M.TAU, rr=32+rand()*26;
+      const upDown=rand()<0.5?1:-1;
+      cardiolipin(L,[Math.cos(th)*rr,upDown*HH*0.5,Math.sin(th)*rr],[0,-upDown,0],rand);
+    }
+    return {A,B,L,box:62.0,HH,Rin,Rout};
+  }
+  return {build,helix,barrel,cardiolipin,RES};
+})();
+
+/* ===========================================================================
+   4 · DENSITY VOLUME
+   ---------------------------------------------------------------------------
+   Atoms are splatted into a 96^3 RGBA texture exactly the way a cryo-EM map is
+   built: a sum of isotropic Gaussians weighted by electron count, blurred to a
+   chosen resolution. On top of that we solve a screened Coulomb (Debye-Huckel)
+   potential so the raymarcher can colour by electrostatics -- the field that
+   actually decides whether a cation goes through.
+         R = rho(model A)   G = rho(model B)   B = lipid/hydrophobic occupancy
+         A = 0.5 + 0.5 * tanh(phi / phi0)      (screened electrostatic potential)
+   =========================================================================== */
+const Density = (() => {
+  const N=96;
+  function build(mol, onlog){
+    const box=mol.box, vox=2*box/N, inv=1/vox;
+    const data=new Float32Array(N*N*N*4);
+    const sigma=1.28, s2=2*sigma*sigma, rad=Math.ceil(3.0*sigma*inv);
+    const kappa=1/(Science.debyeLength(0.150)*1e10); // 1/Angstrom, ~0.128
+    const phiRad=Math.ceil(16*inv);
+
+    function splat(atoms, chan, weightFn){
+      for(let n=0;n<atoms.length;n++){
+        const a=atoms[n];
+        const gx=(a.x+box)*inv, gy=(a.y+box)*inv, gz=(a.z+box)*inv;
+        const i0=Math.max(0,Math.floor(gx-rad)), i1=Math.min(N-1,Math.ceil(gx+rad));
+        const j0=Math.max(0,Math.floor(gy-rad)), j1=Math.min(N-1,Math.ceil(gy+rad));
+        const k0=Math.max(0,Math.floor(gz-rad)), k1=Math.min(N-1,Math.ceil(gz+rad));
+        const w=weightFn?weightFn(a):(a.r*a.r*1.0);
+        if(w===0) continue;
+        for(let k=k0;k<=k1;k++){
+          const dz=(k-gz)*vox;
+          for(let j=j0;j<=j1;j++){
+            const dy=(j-gy)*vox;
+            const rowbase=((k*N+j)*N)*4+chan;
+            for(let i=i0;i<=i1;i++){
+              const dx=(i-gx)*vox, d2=dx*dx+dy*dy+dz*dz;
+              if(d2>14.0) continue;
+              data[rowbase+i*4]+=w*Math.exp(-d2/s2);
+            }
+          }
+        }
+      }
+    }
+    function splatPhi(atoms){
+      for(let n=0;n<atoms.length;n++){
+        const a=atoms[n]; if(!a.q) continue;
+        const gx=(a.x+box)*inv, gy=(a.y+box)*inv, gz=(a.z+box)*inv;
+        const i0=Math.max(0,Math.floor(gx-phiRad)), i1=Math.min(N-1,Math.ceil(gx+phiRad));
+        const j0=Math.max(0,Math.floor(gy-phiRad)), j1=Math.min(N-1,Math.ceil(gy+phiRad));
+        const k0=Math.max(0,Math.floor(gz-phiRad)), k1=Math.min(N-1,Math.ceil(gz+phiRad));
+        for(let k=k0;k<=k1;k++){
+          const dz=(k-gz)*vox;
+          for(let j=j0;j<=j1;j++){
+            const dy=(j-gy)*vox;
+            const rowbase=((k*N+j)*N)*4+3;
+            for(let i=i0;i<=i1;i++){
+              const dx=(i-gx)*vox, d=Math.sqrt(dx*dx+dy*dy+dz*dz)+1.4;
+              data[rowbase+i*4]+=a.q*Math.exp(-kappa*d)/d;
+            }
+          }
+        }
+      }
+    }
+
+    onlog&&onlog('splatting model A density ('+mol.A.length+' atoms)');
+    splat(mol.A,0);
+    onlog&&onlog('splatting model B density ('+mol.B.length+' atoms)');
+    splat(mol.B,1);
+    onlog&&onlog('splatting lipid belt ('+mol.L.length+' atoms)');
+    splat(mol.L,2,a=>(a.kind>=2? a.r*a.r*1.15:0));
+    splat(mol.A,2,a=>(a.hyd>1.5? a.r*a.r*0.5:0));
+    splat(mol.B,2,a=>(a.hyd>1.5? a.r*a.r*0.5:0));
+    onlog&&onlog('solving screened Coulomb potential');
+    splatPhi(mol.A); splatPhi(mol.B); splatPhi(mol.L);
+
+    // normalise
+    let mA=0,mB=0,mL=0,mP=0;
+    for(let i=0;i<N*N*N;i++){
+      mA=Math.max(mA,data[i*4]); mB=Math.max(mB,data[i*4+1]);
+      mL=Math.max(mL,data[i*4+2]); mP=Math.max(mP,Math.abs(data[i*4+3]));
+    }
+    mA=mA||1;mB=mB||1;mL=mL||1;mP=mP||1;
+    const out=new Uint8Array(N*N*N*4);
+    for(let i=0;i<N*N*N;i++){
+      out[i*4  ]=Math.min(255,(data[i*4  ]/mA)*255)|0;
+      out[i*4+1]=Math.min(255,(data[i*4+1]/mB)*255)|0;
+      out[i*4+2]=Math.min(255,(data[i*4+2]/mL)*255)|0;
+      out[i*4+3]=Math.min(255,(0.5+0.5*Math.tanh(data[i*4+3]/(mP*0.28)))*255)|0;
+    }
+    return {data:out,N,box};
+  }
+  return {build,N};
+})();
+
+/* ===========================================================================
+   5 · GL  ·  a thin, honest WebGL2 layer
+   =========================================================================== */
+const GL = (() => {
+  let gl=null, canvas=null, caps={};
+  const dummyVAO={v:null};
+
+  function init(cv){
+    canvas=cv;
+    const opts={alpha:false,antialias:false,depth:false,stencil:false,
+      premultipliedAlpha:false,preserveDrawingBuffer:true,desynchronized:false,
+      powerPreference:'high-performance'};
+    gl=cv.getContext('webgl2',opts);
+    if(!gl) throw new Error('WebGL2 is required. Try Chrome/Edge/Firefox 115+.');
+    caps.colorFloat = !!gl.getExtension('EXT_color_buffer_float');
+    caps.halfFloat  = !!gl.getExtension('EXT_color_buffer_half_float')||caps.colorFloat;
+    caps.linearFloat= !!gl.getExtension('OES_texture_float_linear');
+    caps.linearHalf = !!gl.getExtension('OES_texture_half_float_linear')||true;
+    gl.getExtension('EXT_float_blend');
+    caps.maxTex = gl.getParameter(gl.MAX_TEXTURE_SIZE);
+    caps.maxDraw= gl.getParameter(gl.MAX_DRAW_BUFFERS);
+    caps.renderer = (()=>{const d=gl.getExtension('WEBGL_debug_renderer_info');
+      return d?gl.getParameter(d.UNMASKED_RENDERER_WEBGL):'gpu';})();
+    dummyVAO.v=gl.createVertexArray();
+    gl.disable(gl.DEPTH_TEST); gl.disable(gl.CULL_FACE);
+    return gl;
+  }
+
+  function compile(type,src,name){
+    const sh=gl.createShader(type);
+    gl.shaderSource(sh,src); gl.compileShader(sh);
+    if(!gl.getShaderParameter(sh,gl.COMPILE_STATUS)){
+      const log=gl.getShaderInfoLog(sh);
+      const lines=src.split('\n');
+      let report='SHADER COMPILE FAILED ['+name+']\n'+log+'\n\n';
+      const nums=new Set();
+      log.replace(/:(\d+):(\d+):/g,(m,a,b)=>{nums.add(parseInt(b));return m;});
+      log.replace(/ERROR: (\d+):(\d+)/g,(m,a,b)=>{nums.add(parseInt(b));return m;});
+      nums.forEach(n=>{
+        for(let i=Math.max(0,n-4);i<Math.min(lines.length,n+3);i++)
+          report+=(i+1===n?'>> ':'   ')+(i+1)+' | '+lines[i]+'\n';
+        report+='\n';
+      });
+      throw new Error(report);
+    }
+    return sh;
+  }
+
+  const TYPESET={};
+  function program(vs,fs,name){
+    const p=gl.createProgram();
+    gl.attachShader(p,compile(gl.VERTEX_SHADER,vs,name+'.vert'));
+    gl.attachShader(p,compile(gl.FRAGMENT_SHADER,fs,name+'.frag'));
+    gl.linkProgram(p);
+    if(!gl.getProgramParameter(p,gl.LINK_STATUS))
+      throw new Error('LINK FAILED ['+name+']\n'+gl.getProgramInfoLog(p));
+    const U={};
+    const n=gl.getProgramParameter(p,gl.ACTIVE_UNIFORMS);
+    for(let i=0;i<n;i++){
+      const info=gl.getActiveUniform(p,i);
+      if(!info) continue;
+      const nm=info.name.replace(/\[0\]$/,'');
+      U[nm]={loc:gl.getUniformLocation(p,info.name),type:info.type,size:info.size};
+    }
+    const obj={p,U,name,
+      use(){gl.useProgram(p);return obj;},
+      set(vals){
+        for(const k in vals){
+          const u=U[k]; if(!u||u.loc===null) continue;
+          const v=vals[k];
+          switch(u.type){
+            case gl.FLOAT: gl.uniform1f(u.loc,v); break;
+            case gl.FLOAT_VEC2: gl.uniform2f(u.loc,v[0],v[1]); break;
+            case gl.FLOAT_VEC3: gl.uniform3f(u.loc,v[0],v[1],v[2]); break;
+            case gl.FLOAT_VEC4: gl.uniform4f(u.loc,v[0],v[1],v[2],v[3]); break;
+            case gl.INT: case gl.BOOL:
+            case gl.SAMPLER_2D: case gl.SAMPLER_3D: case gl.SAMPLER_CUBE:
+              gl.uniform1i(u.loc,v|0); break;
+            case gl.INT_VEC2: gl.uniform2i(u.loc,v[0]|0,v[1]|0); break;
+            case gl.FLOAT_MAT3: gl.uniformMatrix3fv(u.loc,false,v); break;
+            case gl.FLOAT_MAT4: gl.uniformMatrix4fv(u.loc,false,v); break;
+            default:
+              if(Array.isArray(v)||ArrayBuffer.isView(v)) gl.uniform1fv(u.loc,v);
+              else gl.uniform1f(u.loc,v);
+          }
+        }
+        return obj;
+      }};
+    return obj;
+  }
+
+  // internal format chooser: float if we can, half if we must, byte as last resort
+  function fmt(prefer){
+    if(prefer==='f32'&&caps.colorFloat) return {i:gl.RGBA32F,f:gl.RGBA,t:gl.FLOAT,lin:caps.linearFloat};
+    if((prefer==='f32'||prefer==='f16')&&caps.halfFloat)
+      return {i:gl.RGBA16F,f:gl.RGBA,t:gl.HALF_FLOAT,lin:true};
+    return {i:gl.RGBA8,f:gl.RGBA,t:gl.UNSIGNED_BYTE,lin:true};
+  }
+
+  function tex2D(w,h,o){
+    o=o||{};
+    const F=o.fmtOverride||fmt(o.prefer||'f16');
+    const t=gl.createTexture();
+    gl.bindTexture(gl.TEXTURE_2D,t);
+    gl.texStorage2D(gl.TEXTURE_2D,1,F.i,w,h);
+    const filt=(o.nearest||!F.lin)?gl.NEAREST:gl.LINEAR;
+    gl.texParameteri(gl.TEXTURE_2D,gl.TEXTURE_MIN_FILTER,filt);
+    gl.texParameteri(gl.TEXTURE_2D,gl.TEXTURE_MAG_FILTER,filt);
+    const wrap=o.repeat?gl.REPEAT:gl.CLAMP_TO_EDGE;
+    gl.texParameteri(gl.TEXTURE_2D,gl.TEXTURE_WRAP_S,wrap);
+    gl.texParameteri(gl.TEXTURE_2D,gl.TEXTURE_WRAP_T,wrap);
+    return {t,w,h,F};
+  }
+
+  function rt(w,h,o){
+    o=o||{};
+    const n=o.n||1, texs=[];
+    const fb=gl.createFramebuffer();
+    gl.bindFramebuffer(gl.FRAMEBUFFER,fb);
+    const bufs=[];
+    for(let i=0;i<n;i++){
+      const tx=tex2D(w,h,o); texs.push(tx);
+      gl.framebufferTexture2D(gl.FRAMEBUFFER,gl.COLOR_ATTACHMENT0+i,gl.TEXTURE_2D,tx.t,0);
+      bufs.push(gl.COLOR_ATTACHMENT0+i);
+    }
+    gl.drawBuffers(bufs);
+    const st=gl.checkFramebufferStatus(gl.FRAMEBUFFER);
+    if(st!==gl.FRAMEBUFFER_COMPLETE) throw new Error('incomplete FBO 0x'+st.toString(16));
+    gl.bindFramebuffer(gl.FRAMEBUFFER,null);
+    return {fb,texs,w,h,n,
+      bind(){gl.bindFramebuffer(gl.FRAMEBUFFER,fb);gl.drawBuffers(bufs);gl.viewport(0,0,w,h);},
+      tex:i=>texs[i||0].t};
+  }
+
+  function pingpong(w,h,o){
+    let a=rt(w,h,o), b=rt(w,h,o);
+    return {get src(){return a;},get dst(){return b;},swap(){const t=a;a=b;b=t;},
+            get w(){return w;},get h(){return h;}};
+  }
+
+  function tex3D(N,data){
+    const t=gl.createTexture();
+    gl.bindTexture(gl.TEXTURE_3D,t);
+    gl.texStorage3D(gl.TEXTURE_3D,1,gl.RGBA8,N,N,N);
+    gl.texSubImage3D(gl.TEXTURE_3D,0,0,0,0,N,N,N,gl.RGBA,gl.UNSIGNED_BYTE,data);
+    gl.texParameteri(gl.TEXTURE_3D,gl.TEXTURE_MIN_FILTER,gl.LINEAR);
+    gl.texParameteri(gl.TEXTURE_3D,gl.TEXTURE_MAG_FILTER,gl.LINEAR);
+    gl.texParameteri(gl.TEXTURE_3D,gl.TEXTURE_WRAP_S,gl.CLAMP_TO_EDGE);
+    gl.texParameteri(gl.TEXTURE_3D,gl.TEXTURE_WRAP_T,gl.CLAMP_TO_EDGE);
+    gl.texParameteri(gl.TEXTURE_3D,gl.TEXTURE_WRAP_R,gl.CLAMP_TO_EDGE);
+    return t;
+  }
+
+  // a decent interleaved-gradient / void-and-cluster-ish blue noise
+  function blueNoise(n){
+    n=n||256;
+    const d=new Uint8Array(n*n*4), rnd=M.rng(13371337);
+    const v=new Float32Array(n*n);
+    for(let i=0;i<n*n;i++) v[i]=rnd();
+    // a few passes of energy relaxation approximate blue noise well enough
+    for(let pass=0;pass<3;pass++){
+      for(let y=0;y<n;y++)for(let x=0;x<n;x++){
+        let s=0,w=0;
+        for(let j=-2;j<=2;j++)for(let i=-2;i<=2;i++){
+          if(!i&&!j)continue;
+          const q=v[((y+j+n)%n)*n+((x+i+n)%n)];
+          const ww=1/(i*i+j*j); s+=q*ww; w+=ww;
+        }
+        v[y*n+x]=M.sat(v[y*n+x]+(v[y*n+x]-s/w)*0.55);
+      }
+    }
+    for(let i=0;i<n*n;i++){
+      d[i*4]=v[i]*255; d[i*4+1]=v[(i*7919+3)%(n*n)]*255;
+      d[i*4+2]=v[(i*104729+17)%(n*n)]*255; d[i*4+3]=rnd()*255;
+    }
+    const t=gl.createTexture();
+    gl.bindTexture(gl.TEXTURE_2D,t);
+    gl.texStorage2D(gl.TEXTURE_2D,1,gl.RGBA8,n,n);
+    gl.texSubImage2D(gl.TEXTURE_2D,0,0,0,n,n,gl.RGBA,gl.UNSIGNED_BYTE,d);
+    gl.texParameteri(gl.TEXTURE_2D,gl.TEXTURE_MIN_FILTER,gl.NEAREST);
+    gl.texParameteri(gl.TEXTURE_2D,gl.TEXTURE_MAG_FILTER,gl.NEAREST);
+    gl.texParameteri(gl.TEXTURE_2D,gl.TEXTURE_WRAP_S,gl.REPEAT);
+    gl.texParameteri(gl.TEXTURE_2D,gl.TEXTURE_WRAP_T,gl.REPEAT);
+    return t;
+  }
+
+  function bind(units){ // {0:texA, 1:texB, ...} or [texA,texB]
+    for(const k in units){
+      const u=parseInt(k); if(units[k]==null) continue;
+      gl.activeTexture(gl.TEXTURE0+u);
+      gl.bindTexture(gl.TEXTURE_2D,units[k]);
+    }
+  }
+  function bind3D(unit,t){gl.activeTexture(gl.TEXTURE0+unit);gl.bindTexture(gl.TEXTURE_3D,t);}
+
+  function drawQuad(){ gl.bindVertexArray(dummyVAO.v); gl.drawArrays(gl.TRIANGLES,0,3); }
+
+  function screen(w,h){gl.bindFramebuffer(gl.FRAMEBUFFER,null);gl.viewport(0,0,w,h);}
+
+  return {init,get gl(){return gl;},get caps(){return caps;},program,rt,pingpong,
+          tex2D,tex3D,blueNoise,bind,bind3D,drawQuad,screen,fmt,compile};
+})();
+
+/* the vertex shader every full-screen pass shares */
+const VS_QUAD = `#version 300 es
+precision highp float;
+out vec2 vUV;
+void main(){
+  vec2 p = vec2((gl_VertexID<<1)&2, gl_VertexID&2);
+  vUV = p;
+  gl_Position = vec4(p*2.0-1.0, 0.0, 1.0);
+}`;
+
+/* ===========================================================================
+   6 · GLSL COMMON  ·  noise, geometry, optics
+   =========================================================================== */
+const GLSL_COMMON = `
+#define PI  3.14159265359
+#define TAU 6.28318530718
+float sat(float x){return clamp(x,0.0,1.0);}
+vec2  sat2(vec2 x){return clamp(x,0.0,1.0);}
+vec3  sat3(vec3 x){return clamp(x,0.0,1.0);}
+float hash11(float p){p=fract(p*0.1031);p*=p+33.33;p*=p+p;return fract(p);}
+float hash12(vec2 p){vec3 p3=fract(vec3(p.xyx)*0.1031);p3+=dot(p3,p3.yzx+33.33);
+  return fract((p3.x+p3.y)*p3.z);}
+float hash13(vec3 p3){p3=fract(p3*0.1031);p3+=dot(p3,p3.zyx+31.32);
+  return fract((p3.x+p3.y)*p3.z);}
+vec3 hash33(vec3 p3){p3=fract(p3*vec3(0.1031,0.1030,0.0973));
+  p3+=dot(p3,p3.yxz+33.33);return fract((p3.xxy+p3.yxx)*p3.zyx);}
+vec2 hash23(vec3 p3){p3=fract(p3*vec3(0.1031,0.1030,0.0973));
+  p3+=dot(p3,p3.yzx+33.33);return fract((p3.xx+p3.yz)*p3.zy);}
+
+float vnoise(vec3 x){
+  vec3 i=floor(x), f=fract(x); f=f*f*(3.0-2.0*f);
+  return mix(mix(mix(hash13(i+vec3(0,0,0)),hash13(i+vec3(1,0,0)),f.x),
+                 mix(hash13(i+vec3(0,1,0)),hash13(i+vec3(1,1,0)),f.x),f.y),
+             mix(mix(hash13(i+vec3(0,0,1)),hash13(i+vec3(1,0,1)),f.x),
+                 mix(hash13(i+vec3(0,1,1)),hash13(i+vec3(1,1,1)),f.x),f.y),f.z)*2.0-1.0;
+}
+float fbm(vec3 p,int oct){
+  float a=0.5,s=0.0; mat3 rot=mat3(0.00,0.80,0.60,-0.80,0.36,-0.48,-0.60,-0.48,0.64);
+  for(int i=0;i<8;i++){ if(i>=oct) break; s+=a*vnoise(p); p=rot*p*2.02; a*=0.5; }
+  return s;
+}
+float fbmRidge(vec3 p,int oct){
+  float a=0.5,s=0.0;
+  for(int i=0;i<8;i++){ if(i>=oct) break;
+    float n=1.0-abs(vnoise(p)); s+=a*n*n; p*=2.06; a*=0.55; }
+  return s;
+}
+vec3 curl(vec3 p,float e){
+  vec3 dx=vec3(e,0,0), dy=vec3(0,e,0), dz=vec3(0,0,e);
+  float x=fbm(p+dy,3)-fbm(p-dy,3)-(fbm(p+dz,3)-fbm(p-dz,3));
+  float y=fbm(p+dz,3)-fbm(p-dz,3)-(fbm(p+dx,3)-fbm(p-dx,3));
+  float z=fbm(p+dx,3)-fbm(p-dx,3)-(fbm(p+dy,3)-fbm(p-dy,3));
+  return vec3(x,y,z)/(2.0*e);
+}
+mat2 rot2(float a){float c=cos(a),s=sin(a);return mat2(c,-s,s,c);}
+mat3 rotAxis(vec3 ax,float a){
+  float c=cos(a),s=sin(a),t=1.0-c; ax=normalize(ax);
+  return mat3(t*ax.x*ax.x+c, t*ax.x*ax.y-s*ax.z, t*ax.x*ax.z+s*ax.y,
+              t*ax.x*ax.y+s*ax.z, t*ax.y*ax.y+c, t*ax.y*ax.z-s*ax.x,
+              t*ax.x*ax.z-s*ax.y, t*ax.y*ax.z+s*ax.x, t*ax.z*ax.z+c);
+}
+/* ---- distance primitives ---- */
+float sdSphere(vec3 p,float r){return length(p)-r;}
+float sdBox(vec3 p,vec3 b){vec3 q=abs(p)-b;return length(max(q,0.0))+min(max(q.x,max(q.y,q.z)),0.0);}
+float sdRoundBox(vec3 p,vec3 b,float r){return sdBox(p,b)-r;}
+float sdCyl(vec3 p,float h,float r){vec2 d=abs(vec2(length(p.xz),p.y))-vec2(r,h);
+  return min(max(d.x,d.y),0.0)+length(max(d,0.0));}
+float sdTorus(vec3 p,vec2 t){vec2 q=vec2(length(p.xz)-t.x,p.y);return length(q)-t.y;}
+float sdCapsule(vec3 p,vec3 a,vec3 b,float r){
+  vec3 pa=p-a,ba=b-a;float h=sat(dot(pa,ba)/dot(ba,ba));return length(pa-ba*h)-r;}
+float sdEllipsoid(vec3 p,vec3 r){
+  float k0=length(p/r), k1=length(p/(r*r)); return k0*(k0-1.0)/max(k1,1e-6);}
+float sdPlane(vec3 p,vec3 n,float h){return dot(p,n)+h;}
+float smin(float a,float b,float k){float h=sat(0.5+0.5*(b-a)/k);return mix(b,a,h)-k*h*(1.0-h);}
+float smax(float a,float b,float k){return -smin(-a,-b,k);}
+vec2  sminM(vec2 a,vec2 b,float k){ // (dist, mat) blended
+  float h=sat(0.5+0.5*(b.x-a.x)/k);
+  return vec2(mix(b.x,a.x,h)-k*h*(1.0-h), mix(b.y,a.y,h));}
+float opRep(inout vec3 p,vec3 c){vec3 id=floor((p+0.5*c)/c);p=mod(p+0.5*c,c)-0.5*c;
+  return hash13(id);}
+vec3 opRepId(inout vec3 p,vec3 c){vec3 id=floor((p+0.5*c)/c);p=mod(p+0.5*c,c)-0.5*c;return id;}
+
+/* ---- the cristae membrane: a Schoen gyroid, the triply-periodic minimal
+       surface that real cubic membrane phases actually adopt.   ---- */
+float gyroid(vec3 p,float scale,float thick,float iso){
+  p*=scale;
+  float g=dot(sin(p),cos(p.yzx));
+  return (abs(g-iso)-thick)/(scale*1.6);
+}
+float gyroidField(vec3 p,float scale){p*=scale;return dot(sin(p),cos(p.yzx));}
+/* lamellar phase: what the cristae collapse into when the potential dies */
+float lamellar(vec3 p,float period,float thick,float wob){
+  float y=p.y+wob;
+  return (abs(fract(y/period)-0.5)*period-thick);
+}
+
+/* ---- optics ---- */
+float hg(float c,float g){float g2=g*g;return (1.0-g2)/(4.0*PI*pow(1.0+g2-2.0*g*c,1.5));}
+float fresnel(float c,float f0){return f0+(1.0-f0)*pow(1.0-c,5.0);}
+/* thin-film interference at 3 sampled wavelengths (nm) */
+vec3 thinFilm(float cosT,float d,float n){
+  float st=sqrt(max(0.0,1.0-(1.0-cosT*cosT)/(n*n)));
+  vec3 lam=vec3(680.0,545.0,445.0);
+  vec3 phase=4.0*PI*n*d*st/lam;
+  vec3 r=0.5+0.5*cos(phase);
+  r=r*r;
+  // pull it back off full saturation: a wet membrane is not a soap advert
+  r=mix(vec3(dot(r,vec3(0.33))), r, 0.62);
+  return r*(0.55+0.45*fresnel(cosT,0.06));
+}
+vec3 aces(vec3 x){
+  const mat3 m1=mat3(0.59719,0.07600,0.02840,0.35458,0.90834,0.13383,0.04823,0.01566,0.83777);
+  const mat3 m2=mat3(1.60475,-0.10208,-0.00327,-0.53108,1.10813,-0.07276,-0.07367,-0.00605,1.07602);
+  vec3 v=m1*x; vec3 a=v*(v+0.0245786)-0.000090537;
+  vec3 b=v*(0.983729*v+0.4329510)+0.238081;
+  return sat3(m2*(a/b));
+}
+vec3 spectral(float t){ // a wet, bruised spectrum — not a rainbow
+  t=sat(t);
+  vec3 c = 0.5+0.5*cos(TAU*(vec3(0.98,0.72,0.56)*t+vec3(0.02,0.28,0.62)));
+  return c*c;
+}
+`;
+
+/* ===========================================================================
+   7 · FIELD SIMULATION
+   ---------------------------------------------------------------------------
+   A Barkley-type excitable medium on a 512^2 lattice standing in for a sheet
+   of the mitochondrial reticulum. u = superoxide (fast activator, diffuses),
+   v = recovery (the depolarised, refractory state of a mitochondrion), so
+   dPsi_m = 1 - v. The excitation threshold (v+b)/a is lowered by matrix Ca2+
+   and by the global pore fraction, which is exactly how ROS-induced ROS
+   release converts a tissue into a medium that can carry a wave.
+        du/dt = Du lap(u) + (1/eps) u (1-u) (u - (v+b)/a)
+        dv/dt = u - v
+   Ca2+ is advected by a curl-noise cytosolic flow and released where u fires.
+   Channel A is an irreversible damage integral: the film's memory.
+   =========================================================================== */
+const FS_FIELD = `#version 300 es
+precision highp float;
+in vec2 vUV;
+out vec4 frag;
+uniform sampler2D uPrev;
+uniform vec2  uRes;
+uniform float uTime, uDt;
+uniform float uCa, uROS, uPsi, uPore, upH, uO2;   // global ODE state
+uniform vec4  uSpark;                              // xy, radius, strength
+uniform float uHeal;                               // intervention: break RIRR
+${GLSL_COMMON}
+void main(){
+  vec2 px=1.0/uRes;
+  vec4 s=texture(uPrev,vUV);
+  float u=s.r, v=s.g, ca=s.b, scar=s.a;
+
+  // --- laplacian (9-point, periodic) ---
+  vec4 n=vec4(0.0);
+  n += texture(uPrev,vUV+vec2( px.x,0.0))  + texture(uPrev,vUV+vec2(-px.x,0.0))
+     + texture(uPrev,vUV+vec2(0.0, px.y))  + texture(uPrev,vUV+vec2(0.0,-px.y));
+  vec4 d=vec4(0.0);
+  d += texture(uPrev,vUV+px) + texture(uPrev,vUV-px)
+     + texture(uPrev,vUV+vec2(px.x,-px.y)) + texture(uPrev,vUV+vec2(-px.x,px.y));
+  vec4 lap = (0.20*n + 0.05*d - s);
+
+  // --- advection of Ca by a curl-noise cytosolic flow (semi-Lagrangian) ---
+  vec3 q=vec3(vUV*3.0, uTime*0.035);
+  vec2 vel = curl(q,0.35).xy * (0.06 + 0.22*uPore);
+  float caAdv = texture(uPrev, vUV - vel*uDt*0.35).b;
+
+  // --- Barkley excitable kinetics ---
+  float a = 0.78 - 0.30*sat(uCa/40.0) - 0.16*uPore - 0.10*sat(uROS);
+  a = mix(a, a+0.34, uHeal);                    // intervention raises threshold
+  float b = 0.03 + 0.05*sat((upH-6.4)/0.8)*0.0 + 0.012*uHeal;
+  float eps = 0.055;
+  float thr = (v+b)/max(a,0.08);
+  float du = 1.35*lap.r + (u*(1.0-u)*(u-thr))/eps;
+  float dv = (u - v)*1.0;
+
+  // --- calcium: diffuses slowly, released by firing mitochondria, taken back
+  //     up by SERCA while ATP lasts ---
+  float dca = 0.28*lap.b + 1.6*sat(u-0.42)*(1.0-ca) + 0.55*uCa/60.0
+            - (0.55+0.6*uO2)*ca*(1.0-0.45*uPore);
+
+  u  += du*uDt;
+  v  += dv*uDt;
+  ca  = mix(ca, caAdv, 0.55) + dca*uDt;
+
+  // --- spark: seed the wave ---
+  vec2 dvec=(vUV-uSpark.xy); dvec.x*=uRes.x/uRes.y;
+  float sp = uSpark.w*exp(-dot(dvec,dvec)/max(uSpark.z*uSpark.z,1e-5));
+  u += sp;
+
+  // --- stochastic flicker: single-mitochondrion openings are a Poisson
+  //     process, and at low dPsi the rate explodes ---
+  float rnd = hash12(floor(vUV*uRes*0.25)+floor(uTime*8.0)*vec2(7.13,3.71));
+  float rate = 0.00018 + 0.0075*sat(uPore*1.4) + 0.0045*sat(uROS-0.25);
+  if(rnd < rate*(1.0-0.85*uHeal)) u += 0.85;
+
+  // --- memory: the damage integral never decreases ---
+  scar = max(scar, max(u*0.92, scar*0.999 + 0.05*uDt*sat(u-0.5)));
+
+  frag = vec4(clamp(u,0.0,1.4), clamp(v,-0.2,1.4), clamp(ca,0.0,1.6), sat(scar));
+}`;
+
+const FS_FIELD_SEED = `#version 300 es
+precision highp float;
+in vec2 vUV; out vec4 frag;
+uniform float uSeed;
+${GLSL_COMMON}
+void main(){
+  float n=fbm(vec3(vUV*9.0,uSeed),4);
+  frag=vec4(0.0,0.02+0.02*n,0.06+0.04*n,0.0);
+}`;
+
+/* ===========================================================================
+   8 · PARTICLES  ·  ions, metabolites, vesicles, cytochrome c
+   ---------------------------------------------------------------------------
+   Mobility follows Stokes-Einstein, D = kT / (6 pi eta r), so a proton moves
+   ~300x faster than a vesicle; drift follows the Nernst-Planck term
+   v = -(D z F / RT) grad(phi) using the simulated membrane-potential field.
+   Species are assigned by texel so the set is stable across frames.
+   =========================================================================== */
+const FS_PART_INIT = `#version 300 es
+precision highp float;
+in vec2 vUV; out vec4 frag;
+uniform float uMode, uSeed;
+${GLSL_COMMON}
+void main(){
+  vec3 h=hash33(vec3(vUV*512.0,uSeed));
+  if(uMode<0.5){
+    vec3 p=(h*2.0-1.0);
+    p*=1.35;
+    float species=floor(hash12(vUV*97.3+uSeed)*6.0);
+    frag=vec4(p,species);
+  } else {
+    frag=vec4((h-0.5)*0.02, hash12(vUV*13.7)*40.0);
+  }
+}`;
+
+const FS_PART_UPDATE = `#version 300 es
+precision highp float;
+in vec2 vUV;
+layout(location=0) out vec4 outPos;
+layout(location=1) out vec4 outVel;
+uniform sampler2D uPos, uVel, uField;
+uniform float uTime, uDt, uScale, uPore, uPsi, uROS, uCa, uO2, uFlow;
+uniform vec3  uCamPos;
+uniform float uMode;   // 0 matrix/ions, 1 cytosol, 2 tissue
+${GLSL_COMMON}
+
+// species: 0 H+, 1 Ca2+, 2 O2-. (superoxide), 3 ATP4-, 4 cytochrome c, 5 vesicle
+void props(float s, out float charge, out float mob, out float life){
+  if(s<0.5)      { charge= 1.0; mob=1.00; life=26.0; }
+  else if(s<1.5) { charge= 2.0; mob=0.42; life=34.0; }
+  else if(s<2.5) { charge=-1.0; mob=0.55; life=18.0; }
+  else if(s<3.5) { charge=-4.0; mob=0.22; life=40.0; }
+  else if(s<4.5) { charge= 0.6; mob=0.085;life=52.0; }
+  else           { charge= 0.0; mob=0.035;life=70.0; }
+}
+
+void main(){
+  vec4 P=texture(uPos,vUV);
+  vec4 V=texture(uVel,vUV);
+  vec3 p=P.xyz; float species=P.w;
+  vec3 vel=V.xyz; float age=V.w;
+  float charge, mob, life; props(species, charge, mob, life);
+
+  // sample the simulated fields through a triplanar projection of the lattice
+  vec2 fu = p.xz*0.32+0.5;
+  vec4 F  = texture(uField, fract(fu));
+  vec2 e  = vec2(0.006,0.0);
+  float px1=texture(uField,fract(fu+e.xy)).g, px0=texture(uField,fract(fu-e.xy)).g;
+  float pz1=texture(uField,fract(fu+e.yx)).g, pz0=texture(uField,fract(fu-e.yx)).g;
+  // dPsi = 1 - v  => electric field points down the recovery gradient
+  vec3 E = -vec3(px1-px0, 0.0, pz1-pz0)/(2.0*e.x) * 0.09;
+  E.y += (0.55 - F.g)*0.35;                       // across the membrane
+
+  vec3 f = E*charge*mob*(0.35+0.65*uPsi);
+  // turbulent cytosol: curl noise, amplitude scaled by pore-driven swelling
+  f += curl(p*1.15 + vec3(0.0,uTime*0.12,0.0), 0.35)*mob*(0.55+1.9*uFlow);
+  // Brownian kick
+  vec3 rnd = hash33(vec3(p.xy*31.7, uTime*7.0+species))*2.0-1.0;
+  f += rnd*mob*0.55;
+  // superoxide is produced at the membrane and repelled by the matrix
+  if(species>1.5 && species<2.5) f += normalize(p+1e-5)*(0.25*uROS);
+  // cytochrome c leaves once the outer membrane goes
+  if(species>3.5 && species<4.5) f += normalize(p+1e-5)*(1.4*uPore*uPore);
+
+  vel = vel*exp(-uDt*(2.2 - 1.2*mob)) + f*uDt;
+  p  += vel*uDt;
+
+  age += uDt*(1.0+2.0*uPore);
+  float outOfBounds = step(1.9, length(p));
+  if(age>life || outOfBounds>0.5){
+    vec3 h=hash33(vec3(vUV*512.0, uTime*3.1+species));
+    float r = 0.15+1.15*pow(h.x,0.6);
+    float th=h.y*TAU, ph=acos(h.z*2.0-1.0);
+    p = vec3(sin(ph)*cos(th), cos(ph)*0.75, sin(ph)*sin(th))*r;
+    vel = vec3(0.0);
+    age = 0.0;
+  }
+  outPos=vec4(p,species);
+  outVel=vec4(vel,age);
+}`;
+
+const VS_PART = `#version 300 es
+precision highp float;
+uniform sampler2D uPos, uVel, uField;
+uniform vec3 uCamPos, uCamR, uCamU, uCamF;
+uniform vec2 uRes;
+uniform float uFocal, uSize, uTexSize, uFade, uPore, uFocusDist, uAperture;
+out vec4 vCol;
+out float vDepth, vCoc;
+${GLSL_COMMON}
+void main(){
+  int id=gl_VertexID;
+  int w=int(uTexSize);
+  vec2 uv=(vec2(float(id%w),float(id/w))+0.5)/uTexSize;
+  vec4 P=texture(uPos,uv);
+  vec4 V=texture(uVel,uv);
+  vec3 rel=P.xyz-uCamPos;
+  float z=dot(rel,uCamF);
+  if(z<0.02){ gl_Position=vec4(2.0,2.0,2.0,1.0); gl_PointSize=0.0; vCol=vec4(0.0);
+              vDepth=1e9; vCoc=0.0; return; }
+  vec2 ndc=vec2(dot(rel,uCamR),dot(rel,uCamU))*uFocal/z;
+  ndc.x/=uRes.x/uRes.y;
+  gl_Position=vec4(ndc,0.0,1.0);
+  float coc = abs(1.0/uFocusDist - 1.0/z)*uAperture*uFocal*uRes.y*0.5;
+  coc = clamp(coc, 0.0, 26.0);
+  float base = uSize*uRes.y*uFocal/(z*110.0);
+  float psz = clamp(base + coc, 1.6, 44.0);
+  gl_PointSize = psz;
+  vCoc = coc;
+  vDepth = z;
+
+  float s=P.w;
+  vec3 c;
+  if(s<0.5)      c=vec3(1.00,0.86,0.42);   // H+   ... hot amber
+  else if(s<1.5) c=vec3(0.35,1.00,0.92);   // Ca2+ ... cold cyan
+  else if(s<2.5) c=vec3(1.00,0.27,0.22);   // O2.- ... arterial red
+  else if(s<3.5) c=vec3(0.62,0.52,1.00);   // ATP  ... violet
+  else if(s<4.5) c=vec3(1.00,0.55,0.12);   // cyt c... heme orange
+  else           c=vec3(0.55,0.85,0.70);   // vesicle
+  float speed=length(V.xyz);
+  float glow=(0.22+0.85*min(speed,1.6))*uFade;
+  // superoxide flares during the burst
+  if(s>1.5&&s<2.5) glow*=(0.45+1.7*uPore+0.6*speed);
+  /* A defocused ion must not also be a brighter ion: spreading the same
+     energy over a bigger disc means dividing by its area. */
+  vCol=vec4(c, glow*0.55/(1.0+psz*psz*0.055));
+}`;
+
+const FS_PART = `#version 300 es
+precision highp float;
+in vec4 vCol; in float vDepth; in float vCoc;
+out vec4 frag;
+uniform sampler2D uSceneDepth;
+uniform vec2 uRes;
+void main(){
+  vec2 d=gl_PointCoord*2.0-1.0;
+  float r2=dot(d,d);
+  if(r2>1.0) discard;
+  float core=exp(-r2*(4.5-3.2*clamp(vCoc/20.0,0.0,1.0)));
+  float sceneZ=texture(uSceneDepth, gl_FragCoord.xy/uRes).r;
+  float occl = smoothstep(0.0,0.10, sceneZ-vDepth+0.03);
+  if(sceneZ>1e8) occl=1.0;
+  frag=vec4(vCol.rgb*vCol.a*core*occl*6.0, core*occl*vCol.a*0.35);
+}`;
+
+/* ===========================================================================
+   9 · THE SCENE
+   ---------------------------------------------------------------------------
+   One raymarcher, seven nested scale-archetypes, and a single continuous
+   coordinate uScale in [0,6] that slides between them:
+
+      0  ~1e-10 m   electron density, side-chain lobes, screened potential
+      1  ~1e-9  m   the whole complex: c8 ring / ANT, lipid belt, CypD
+      2  ~1e-8  m   bilayer mesoscale: head groups, channels, F1 heads
+      3  ~1e-7  m   cristae — a Schoen gyroid carrying ATP synthase dimer rows
+      4  ~1e-6  m   the organelle and its reticulum
+      5  ~1e-5  m   the myocyte: sarcomere lattice, T-tubules, interfibrillar
+                    mitochondria
+      6  ~1e-4  m   tissue: a syncytium carrying a depolarisation wavefront
+
+   Neighbouring layers are not cross-faded; they are *dissolved* through a
+   noise threshold, so matter appears to reorganise itself rather than
+   politely fade. Geometry is displaced by the live simulation fields, so the
+   same shader shows a healthy cristae labyrinth and a swollen, unfolded one
+   without any authored morph target.
+   =========================================================================== */
+const FS_SCENE = `#version 300 es
+precision highp float;
+precision highp sampler3D;
+in vec2 vUV;
+layout(location=0) out vec4 outColor;
+layout(location=1) out vec4 outData;
+
+uniform vec2  uRes;
+uniform float uTime, uFrame, uSeed;
+uniform vec3  uCamPos, uCamR, uCamU, uCamF;
+uniform float uFocal, uAperture, uFocusDist;
+uniform float uScale;
+uniform sampler2D uField, uNoise;
+uniform sampler3D uDensity;
+uniform float uCa,uROS,uPsi,uPore,upH,uO2,uATP,uVol,uCytC,uScar,uCypD,uNADH;
+uniform float uMorphAB,uGhost,uIso,uWeird,uWet,uIrid,uVolDens,uEmiss,uSteps;
+uniform vec3  uTintA,uTintB;
+uniform vec2  uJitter;
+uniform float uLumenOpen, uTeeth, uBreath, uGrip;
+${GLSL_COMMON}
+
+/* ---------------------------------------------------------------------------
+   LEVEL OF DETAIL
+   gFoot is the world-space width of one pixel at the point currently being
+   sampled. Any geometric feature smaller than a pixel must be removed from the
+   distance field rather than drawn, or perspective turns it into moire. This
+   single global is what lets the same shader show individual lipid head groups
+   from 2 nm away and a smooth bilayer from 200 nm away.
+   --------------------------------------------------------------------------- */
+float gFoot=0.002;
+float lod(float featureSize){
+  return 1.0-smoothstep(featureSize*0.55, featureSize*1.8, gFoot);
+}
+
+/* ---------------------------------------------------------------- material */
+struct Mat { vec3 alb; float rough; float sss; float irid; vec3 emis; float film; float trans; };
+Mat MK(vec3 a,float r,float s,float i,vec3 e,float f,float t){
+  Mat m; m.alb=a; m.rough=r; m.sss=s; m.irid=i; m.emis=e; m.film=f; m.trans=t; return m; }
+Mat mixM(Mat a,Mat b,float t){
+  return MK(mix(a.alb,b.alb,t),mix(a.rough,b.rough,t),mix(a.sss,b.sss,t),
+            mix(a.irid,b.irid,t),mix(a.emis,b.emis,t),mix(a.film,b.film,t),
+            mix(a.trans,b.trans,t)); }
+
+/* the simulated field, projected into 3-space by a cheap triplanar */
+vec4 fieldAt(vec3 p){
+  vec4 a=texture(uField,fract(p.xz*0.17+0.5));
+  vec4 b=texture(uField,fract(p.xy*0.17+0.5));
+  return mix(a,b,0.32);
+}
+float breathe(vec3 p){
+  return uBreath*(0.5+0.5*sin(uTime*0.9+p.y*3.0+fbm(p*1.7,2)*2.4));
+}
+
+/* ------------------------------------------------- 0/1 · molecular density */
+float densAt(vec3 q, out float lipid, out float phi){
+  vec3 t=q*0.5+0.5;
+  vec3 c=clamp(t,vec3(0.0),vec3(1.0));
+  vec4 d=texture(uDensity,c);
+  float edge = (c==t)?1.0:0.0;
+  lipid=d.b*edge; phi=mix(0.5,d.a,edge);
+  float ghost = uGhost*(0.5+0.5*sin(uTime*5.7+hash13(floor(q*34.0))*TAU));
+  float mixAB = clamp(uMorphAB + ghost*(hash13(floor(q*26.0)+floor(uTime*3.0))-0.5)*2.2,0.0,1.0);
+  return mix(d.r,d.g,mixAB)*edge;
+}
+float molecular(vec3 p, float zoom, out Mat m){
+  vec3 q=p/zoom;
+  m=MK(vec3(0.8),0.5,0.6,0.3,vec3(0.0),260.0,0.4);
+  /* Everything the map can possibly hit lives inside this sphere, and outside
+     it the density is exactly zero, so bound it and leave: otherwise the
+     marcher creeps across empty space in voxel-sized steps. */
+  float bound=(length(q)-1.02)*zoom;
+  if(bound>0.004) return bound;
+  float lipid,phi;
+  float d=densAt(q,lipid,phi);
+  // the map is a probability, so let it shimmer at the resolution limit
+  d += (0.020+0.045*uWeird)*lod(0.026*zoom)*fbm(q*38.0+uTime*0.55,3);
+  // the lumen: as the transition proceeds the plug evacuates and a conducting
+  // channel appears along the ring axis
+  float lum = 1.0-smoothstep(0.055,0.16,length(q.xz));
+  d -= uLumenOpen*lum*0.95;
+  // CypD grip on the OSCP subunit: a visible clamp that lets go
+  float grip = uGrip*exp(-16.0*length(q-vec3(0.0,0.72,0.0)));
+  d += grip*0.5;
+
+  float iso=uIso*(1.0-0.16*uWeird*sin(uTime*0.7+q.y*6.0));
+  /* A Gaussian density map is NOT a distance field. Its gradient near an atom
+     is about 1/sigma, with sigma = 1.28 A = 0.021 box units, so converting
+     (iso - rho) to a distance needs that factor near the surface or the ray
+     sails straight through the protein. Far from any atom the field is flat
+     and a much longer stride is safe, so the two are blended by density. */
+  float k=mix(0.220, 0.024, smoothstep(0.0, iso*0.92, d))*zoom;
+  float dist=(iso-d)*k;
+  dist=max(dist, bound);
+  dist=max(dist, sdBox(q,vec3(1.02))*zoom);
+
+  // colour by electrostatics: acidic patches cold, basic patches hot, the
+  // hydrophobic belt bone-pale and waxy
+  float e=(phi-0.5)*2.0;
+  vec3 elec=mix(vec3(0.94,0.88,0.80), (e<0.0? vec3(0.22,0.86,0.92):vec3(1.00,0.55,0.20)), abs(e)*1.25);
+  vec3 alb=mix(elec, vec3(0.82,0.74,0.56)*0.85, sat(lipid*1.6));
+  float sss=mix(0.85,0.35,sat(lipid*1.4));
+  vec3 em = vec3(0.0);
+  em += vec3(1.0,0.35,0.16)*uROS*0.22*sat(lipid);
+  em += vec3(0.25,1.0,0.9)*sat(uLumenOpen)*lum*1.2;
+  m=MK(alb, mix(0.55,0.30,uWet), sss, 0.35*uIrid+0.5*sat(lipid), em,
+       mix(110.0,420.0,sat(lipid+uWet)), 0.35*sss);
+  return dist;
+}
+
+/* ------------------------------------------------------ 2 · bilayer mesoscale */
+float layerMembrane(vec3 p, out Mat m){
+  vec3 q=p;
+  float wob = 0.16*fbm(q*1.1+vec3(0.0,uTime*0.05,0.0),4)
+            + 0.05*sin(q.x*4.0+uTime*0.4)*sin(q.z*3.3);
+  wob *= (1.0+0.8*uVol-0.8);
+  float y=q.y-wob;
+  float thick=0.085*(1.0-0.25*(uVol-1.0));
+  float sheet=abs(y)-thick;
+  /* Individual phosphate head groups are ~0.8 nm. Resolving them across a
+     100 nm field would put 125 beads on a pixel row, which reads as dither,
+     not as a membrane -- so they fade in only as the camera closes to
+     molecular range. This is the film's level-of-detail rule: a feature is
+     drawn when it is bigger than the eye that is looking at it. */
+  float headAmp=smoothstep(2.95,2.10,uScale)*lod(0.072);
+  float mem=sheet;
+  if(headAmp>0.01){
+    vec3 h=q; h.y=abs(y)-thick;
+    vec3 hid=opRepId(h,vec3(0.072,4.0,0.072));
+    float heads=sdSphere(h,(0.030+0.007*hash13(hid))*headAmp);
+    heads=max(heads, abs(abs(y)-thick)-0.05);
+    mem=smin(sheet,heads-0.004*headAmp,0.045);
+  }
+  // below that, the leaflets are a texture, not geometry
+  mem-=0.010*(1.0-headAmp)*lod(0.040)*fbm(q*26.0,3);
+
+  // embedded machines: respiratory complexes and the ATP synthase
+  vec3 c=q; vec3 cid=opRepId(c,vec3(0.52,8.0,0.52));
+  float jit=hash13(cid*1.7);
+  c.xz+=(hash23(cid)-0.5)*0.18;
+  c.y-=wob;
+  float rot=jit*TAU; c.xz=rot2(rot)*c.xz;
+  float machAmp=smoothstep(3.60,2.75,uScale)*lod(0.20);
+  float stalk=sdCyl(c-vec3(0.0,0.10,0.0),0.085,0.030);
+  float head =sdEllipsoid(c-vec3(0.0,0.24,0.0),vec3(0.105,0.085,0.105));
+  float foot =sdCyl(c-vec3(0.0,0.0,0.0),0.10,0.072);
+  float mach =smin(smin(stalk,head,0.03),foot,0.035);
+  mach += (1.0-machAmp)*0.26;     // fades by shrinking, so smin stays sane
+  // a funnel: the calcium uniporter, open in proportion to the MICU gate
+  vec3 g=q; vec3 gid=opRepId(g,vec3(1.31,9.0,1.31)); g.y-=wob;
+  float bore=mix(0.012,0.055,sat(uCa/24.0));
+  float cone=max(sdCyl(g,0.13,0.075), -(length(g.xz)-bore-0.14*sat(g.y*3.0+0.5)));
+  mach=min(mach,cone);
+
+  float d=min(mem,mach);
+  float isMach=step(mach,mem);
+  vec3 lipAlb=mix(vec3(0.58,0.50,0.36),vec3(0.86,0.76,0.52),sat(0.5+0.5*fbm(q*7.0,3)));
+  vec3 prAlb =mix(vec3(0.74,0.80,0.78),vec3(0.95,0.55,0.35),sat(uROS*0.8));
+  vec3 em=vec3(0.0);
+  em += vec3(1.0,0.78,0.30)*isMach*0.20*uPsi*(0.4+0.6*uATP/5.0);
+  em += vec3(1.0,0.22,0.14)*uROS*0.5*isMach;
+  em += vec3(0.30,0.95,0.95)*0.35*sat(uCa/30.0)*step(cone,mem+0.001);
+  m=MK(mix(lipAlb,prAlb,isMach), mix(0.42,0.30,uWet), mix(0.75,0.5,isMach),
+       uIrid*mix(0.85,0.2,isMach), em, mix(280.0,150.0,isMach), mix(0.55,0.2,isMach));
+  return d;
+}
+
+/* -------------------------------------------------------- 3 · cristae gyroid */
+vec3 gyroidGrad(vec3 p,float s){
+  vec3 sp=sin(p*s), cp=cos(p*s);
+  return s*vec3(cp.x*cp.y - sp.z*sp.x,
+                cp.y*cp.z - sp.x*sp.y,
+                cp.z*cp.x - sp.y*sp.z);
+}
+float layerCristae(vec3 p, out Mat m){
+  float s=6.2;
+  vec4 F=fieldAt(p*0.6);
+  float depol = sat(F.g);                        // local recovery variable
+  float psi   = sat(uPsi)*(1.0-0.75*depol);
+  // healthy cristae: iso near 0 (connected labyrinth).
+  // collapse: iso runs out to 1.1 and the surface breaks into flat lamellae.
+  float iso  = mix(1.15, 0.0, psi);
+  float thick= mix(0.055,0.020,psi) + 0.02*(uVol-1.0) + 0.012*breathe(p);
+  thick += 0.35*gFoot;              // keep thin membranes at least a pixel wide
+  float g = gyroid(p+vec3(0.0,0.03*sin(uTime*0.5),0.0), s, thick, iso);
+  float lam = lamellar(p, 0.42*uVol, 0.035, 0.09*fbm(p*2.0,3));
+  float d = mix(g, max(lam, sdBox(p,vec3(2.4,1.6,2.4))), sat((uVol-1.0)*1.35));
+  // the scar: membrane that has been through a transition never lies flat again
+  d -= 0.018*uScar*lod(0.11)*fbmRidge(p*9.0,4);
+
+  /* ATP synthase dimer rows ride the ridges. Their 86-degree dimer angle is
+     what imposes the curvature of the cristae edge in the first place. */
+  float teethAmp=uTeeth*smoothstep(4.40,3.50,uScale)*lod(0.090);
+  if(teethAmp>0.01){
+    vec3 q=p; vec3 id=opRepId(q,vec3(0.132));
+    vec3 ctr=id*0.132;
+    float gv=gyroidField(ctr,s);
+    float on=step(abs(gv-iso),0.55)*step(hash13(id),0.62);
+    if(on>0.5){
+      vec3 nrm=normalize(gyroidGrad(ctr,s)+1e-4);
+      // build a frame on the membrane normal
+      vec3 t1=normalize(cross(nrm,vec3(0.0,1.0,0.0)+1e-3));
+      vec3 t2=cross(nrm,t1);
+      float side=sign(gv-iso+1e-5);
+      mat3 Fm=mat3(t1,nrm*side,t2);
+      vec3 l=q*Fm;
+      float best=1e9;
+      for(int k=0;k<2;k++){
+        vec3 lk=l; lk.x+=(float(k)-0.5)*0.040;
+        lk.xy=rot2((float(k)-0.5)*0.30)*lk.xy;
+        float fo=sdCyl(lk-vec3(0.0,0.012,0.0),0.016,0.017);
+        float st=sdCyl(lk-vec3(0.0,0.042,0.0),0.022,0.0055);
+        float f1=sdEllipsoid(lk-vec3(0.0,0.076,0.0),vec3(0.023,0.020,0.023));
+        best=min(best,smin(smin(fo,st,0.008),f1,0.010));
+      }
+      best += (1.0-teethAmp)*0.09;
+      d=smin(d,best,0.012);
+    }
+  }
+  vec3 alb=mix(vec3(0.42,0.36,0.30),vec3(0.80,0.70,0.50),sat(0.5+0.5*fbm(p*5.0,3)));
+  alb=mix(alb,vec3(0.32,0.30,0.34),uScar*0.6);
+  vec3 em=vec3(0.0);
+  em += mix(uTintA,uTintB,sat(F.r))*psi*0.34*uEmiss;
+  em += vec3(1.0,0.20,0.10)*sat(F.r)*1.25*uEmiss;      // the wave, burning
+  em += vec3(0.25,0.85,1.0)*sat(F.b)*0.35;             // calcium
+  m=MK(alb, mix(0.45,0.22,uWet), 0.85, uIrid, em,
+       mix(180.0,520.0,sat(uWet+0.3*depol)), 0.6);
+  return d;
+}
+
+/* ---------------------------------------------------- 4 · the organelle */
+float mitoBody(vec3 q, float sz, float swell, float rupture, float seed){
+  vec3 r=vec3(0.52,0.30,0.30)*sz;
+  r=mix(r, vec3(0.44,0.42,0.42)*sz*1.16, swell);      // spheroidal on swelling
+  // a membrane is a surface, not a solid: take the shell so the matrix is
+  // open space the camera can enter
+  float d=abs(sdEllipsoid(q,r))-0.013*sz;
+  d-=0.012*sz*lod(0.14*sz)*fbm(q*7.0+seed,4);
+  d-=0.008*sz*swell*lod(0.077*sz)*fbmRidge(q*13.0+seed,3);
+  d-=0.30*gFoot;
+  if(rupture>0.01){
+    vec3 h=q; vec3 id=opRepId(h,vec3(0.14*sz));
+    float hole=sdSphere(h,0.055*sz*rupture*step(hash13(id+seed),0.45));
+    d=smax(d,-hole,0.02*sz);
+  }
+  return d;
+}
+float layerMito(vec3 p, out Mat m){
+  vec3 q=p;
+  vec3 id=opRepId(q,vec3(1.42,0.92,1.42));
+  vec2 jt=hash23(id+7.1)-0.5;
+  q.xz+=jt*0.28; q.y+=(hash13(id*3.1)-0.5)*0.16;
+  float seed=hash13(id*1.37)*13.0;
+  float sz=0.78+0.5*hash13(id+2.7);
+  // each organelle carries its own state, sampled from the lattice
+  vec4 F=texture(uField,fract(id.xz*0.093+0.5));
+  float fired=sat(F.g), ros=sat(F.r), cal=sat(F.b), scar=sat(F.a);
+  float swell=sat((uVol-1.0)*1.1+fired*0.7);
+  float rupt =sat(uCytC*1.6+fired*uCytC*2.0);
+  q.xz=rot2(hash13(id+0.3)*TAU)*q.xz;
+
+  float outer=mitoBody(q,sz,swell,rupt,seed);
+  // the inner membrane, folded inside the outer one
+  float shellIn=sdEllipsoid(q,mix(vec3(0.52,0.30,0.30),vec3(0.44,0.42,0.42)*1.16,swell)
+                             *sz*0.93);
+  float inner=max(gyroid(q*3.1+seed, 5.4, 0.045+0.03*swell,
+                         mix(1.2,0.0,uPsi*(1.0-fired))), shellIn);
+  float d=min(outer,inner);
+  float isInner=step(inner,outer);
+
+  vec3 alb=mix(vec3(0.46,0.40,0.34),vec3(0.66,0.58,0.44),isInner);
+  alb=mix(alb,vec3(0.30,0.27,0.30),scar*0.7);
+  vec3 em=vec3(0.0);
+  float psiL=uPsi*(1.0-fired);
+  em += mix(uTintA,uTintB,ros)*psiL*0.42*uEmiss;
+  em += vec3(1.0,0.19,0.09)*ros*1.5*uEmiss;
+  em += vec3(0.22,0.88,1.0)*cal*0.55;
+  em += vec3(1.0,0.50,0.10)*rupt*0.8*uCytC;
+  m=MK(alb,mix(0.40,0.20,uWet),0.9,uIrid*0.8,em,mix(240.0,560.0,uWet),0.55);
+  // the reticulum is a finite cloud, not an infinite crystal: the camera has
+  // somewhere to stand
+  return smax(d, length(p*vec3(1.0,1.30,1.0))-2.55, 0.26);
+}
+
+/* ------------------------------------------------------------- 5 · myocyte */
+float layerCell(vec3 p, out Mat m){
+  // myofibrils run along x; the sarcomere repeats every 2.2 um
+  vec3 q=p;
+  vec3 fid=vec3(0.0, floor(q.y/0.46+0.5), floor(q.z/0.46+0.5));
+  vec3 f=q; f.y=mod(f.y+0.23,0.46)-0.23; f.z=mod(f.z+0.23,0.46)-0.23;
+  f.z += mod(fid.y,2.0)*0.0;
+  float fib=length(f.yz)-0.145;
+  // Z-disks and the A-band thickening
+  float sx=mod(q.x+1.1,2.2)-1.1;
+  float zd=max(abs(sx)-0.030, length(f.yz)-0.175);
+  float aband=length(f.yz)-(0.145+0.028*exp(-sx*sx*9.0));
+  fib=min(smin(fib,aband,0.03),zd);
+  // interfibrillar mitochondria sit in the grooves, in pairs at each Z-disk
+  vec3 mq=q; mq.x=sx;
+  mq.y=mod(mq.y+0.23,0.46)-0.23; mq.z=mod(mq.z+0.23,0.46)-0.23;
+  vec3 mid=vec3(floor((q.x+1.1)/2.2),fid.yz);
+  vec4 F=texture(uField,fract(mid.xy*0.11+0.5));
+  float swell=sat((uVol-1.0)*1.2+sat(F.g)*0.8);
+  float mito=sdEllipsoid(mq-vec3(0.0,0.225,0.225),vec3(0.115,0.075,0.075)*(1.0+0.45*swell));
+  mito=min(mito,sdEllipsoid(mq-vec3(0.0,-0.225,0.225),vec3(0.105,0.070,0.070)*(1.0+0.45*swell)));
+  // t-tubule invaginating at the Z-disk
+  float tt=max(abs(sx)-0.012, -(length(f.yz)-0.30));
+  tt=max(tt, length(f.yz)-0.34);
+  float d=min(min(fib,mito),tt);
+  // sarcolemma: a shell, and the whole fibre is finite along x
+  float sarco=abs(length(p.yz)-1.25)-0.022;
+  sarco-=0.010*lod(0.17)*fbm(p*6.0,3);
+  d=min(d,sarco);
+  d=smax(d, abs(p.x)-6.0, 0.3);
+
+  float isMito=step(mito,min(fib,tt));
+  vec3 alb=mix(vec3(0.60,0.52,0.46),vec3(0.52,0.44,0.34),isMito);
+  vec3 em=vec3(0.0);
+  em += vec3(1.0,0.22,0.10)*sat(F.r)*1.1*isMito*uEmiss;
+  em += mix(uTintA,uTintB,sat(F.r))*uPsi*0.30*isMito*uEmiss;
+  em += vec3(0.25,0.9,1.0)*sat(F.b)*0.30;
+  // contraction band necrosis: the sarcomeres over-shorten where Ca2+ won
+  alb=mix(alb,vec3(0.72,0.30,0.22),sat(F.a)*0.8*(1.0-isMito));
+  m=MK(alb,mix(0.48,0.26,uWet),0.8,uIrid*0.5,em,300.0,0.5);
+  return d;
+}
+
+/* -------------------------------------------------------------- 6 · tissue */
+float layerTissue(vec3 p, out Mat m){
+  vec3 q=p;
+  vec3 id=opRepId(q,vec3(2.6,0.62,0.62));
+  float bend=0.06*sin(id.y*1.7+id.z*2.3);
+  q.y+=bend*sin(q.x*0.8);
+  vec2 jt=(hash23(id+3.3)-0.5)*0.10;
+  q.yz+=jt;
+  vec4 F=texture(uField,fract(id.yz*0.055+0.5));
+  float fired=sat(F.g), ros=sat(F.r), scar=sat(F.a);
+  float shrink=1.0-0.14*scar;
+  float cell=sdCapsule(q,vec3(-1.05,0,0),vec3(1.05,0,0),0.245*shrink);
+  cell-=0.012*lod(0.14)*fbm(q*7.0+id,3);
+  // intercalated discs
+  float disc=max(abs(q.x)-1.09, length(q.yz)-0.26);
+  cell=min(cell,disc);
+  // capillaries thread between the fibres
+  vec3 c=p; vec3 cid=opRepId(c,vec3(9.0,0.62,0.62));
+  c.yz-=vec2(0.31,0.31);
+  float cap=sdCapsule(c,vec3(-5.0,0,0),vec3(5.0,0,0),0.045);
+  float d=min(cell,cap);
+  float isCap=step(cap,cell);
+  d=smax(d, sdBox(p,vec3(8.0,0.90,2.30))-0.10, 0.26);   // a slab of muscle
+  vec3 alb=mix(vec3(0.55,0.34,0.30),vec3(0.70,0.22,0.20),isCap);
+  alb=mix(alb,vec3(0.34,0.31,0.33),scar*0.85);
+  vec3 em=vec3(0.0);
+  em += vec3(1.0,0.20,0.08)*ros*1.7*uEmiss;
+  em += mix(uTintA,uTintB,ros)*(1.0-fired)*uPsi*0.30*uEmiss;
+  em += vec3(0.9,0.35,0.15)*isCap*uO2*0.35;
+  m=MK(alb,mix(0.52,0.30,uWet),0.7,uIrid*0.35,em,320.0,0.45);
+  return d;
+}
+
+/* ------------------------------------------------------------ scale blend */
+float layerMap(int L, vec3 p, out Mat m){
+  m=MK(vec3(0.5),0.5,0.5,0.0,vec3(0.0),200.0,0.3);
+  if(L<=0) return molecular(p,3.30,m);
+  else if(L==1) return molecular(p,1.05,m);
+  else if(L==2) return layerMembrane(p,m);
+  else if(L==3) return layerCristae(p,m);
+  else if(L==4) return layerMito(p,m);
+  else if(L==5) return layerCell(p,m);
+  return layerTissue(p,m);
+}
+/* Blending two distance fields with a *spatially varying* weight destroys the
+   Lipschitz property and the marcher shreds itself on it. The weight is
+   therefore global; the sense that matter is reorganising itself comes from an
+   extra displacement that peaks in the middle of the handover, which stays
+   bounded and so stays marchable. */
+float gBlend=0.0;
+float sceneMap(vec3 p, out Mat m){
+  float li=clamp(uScale,0.0,6.0);
+  int i0=int(floor(li)); float f=li-float(i0);
+  /* The handover occupies only the top half of each unit interval, so a shot
+     parked at an integer scale is a pure layer and only a shot that is
+     actually travelling sees two scales at once. */
+  float w=smoothstep(0.52,0.99,f);
+  gBlend=w*(1.0-w)*4.0;
+  Mat ma; float da=layerMap(i0,p,ma);
+  if(w<=0.003){ m=ma; return da; }
+  Mat mb; float db=layerMap(min(i0+1,6),p,mb);
+  if(w>=0.997){ m=mb; return db; }
+  m=mixM(ma,mb,w);
+  float d=mix(da,db,w);
+  float amp=0.030*gBlend*(0.4+0.6*uWeird)*lod(0.32);
+  d+=amp*fbm(p*3.1+vec3(0.0,uTime*0.10,0.0),3);
+  return d;
+}
+float mapD(vec3 p){ Mat m; return sceneMap(p,m); }
+
+vec3 calcNormal(vec3 p, float e, out float curv){
+  vec2 k=vec2(1.0,-1.0);
+  float a=mapD(p+k.xyy*e), b=mapD(p+k.yyx*e), c=mapD(p+k.yxy*e), d=mapD(p+k.xxx*e);
+  curv=(a+b+c+d)/(4.0*e);
+  return normalize(k.xyy*a+k.yyx*b+k.yxy*c+k.xxx*d);
+}
+float calcAO(vec3 p, vec3 n, float sc){
+  float occ=0.0, s=1.0;
+  for(int i=0;i<5;i++){
+    float h=0.006*sc+0.09*sc*float(i)/4.0;
+    occ+=(h-mapD(p+n*h))*s; s*=0.72;
+  }
+  return clamp(1.0-2.6*occ,0.0,1.0);
+}
+float softShadow(vec3 ro, vec3 rd, float mint, float maxt, float k){
+  float res=1.0, t=mint, ph=1e20;
+  for(int i=0;i<22;i++){
+    float h=mapD(ro+rd*t);
+    if(h<0.0006){ return 0.0; }
+    float y=h*h/(2.0*ph); float dd=sqrt(max(h*h-y*y,0.0));
+    res=min(res,k*dd/max(0.0001,t-y)); ph=h;
+    t+=clamp(h,0.004,0.24);
+    if(t>maxt) break;
+  }
+  return clamp(res,0.0,1.0);
+}
+float thickness(vec3 p, vec3 n, float sc){
+  float t=0.0;
+  for(int i=1;i<=4;i++){
+    float d=0.035*sc*float(i);
+    t+=max(0.0,-mapD(p-n*d));
+  }
+  return t/(0.14*sc);
+}
+
+/* -------------------------------------------------------------- volumetrics
+   Light is treated as something the cell is full of, not something that
+   travels through empty space: extinction and emission both come from the
+   simulated fields, so the air itself reports the state of the tissue.     */
+float volDensity(vec3 p, out vec3 emit){
+  vec4 F=fieldAt(p*0.7);
+  float base=uVolDens*(0.35+0.65*sat(0.5+0.6*fbm(p*1.6+vec3(0.0,uTime*0.08,0.0),4)));
+  float ros=sat(F.r), cal=sat(F.b);
+  float d=base*(0.55+2.2*ros+0.7*cal+1.1*(uVol-1.0));
+  if(uScale<1.7){
+    float mz=mix(3.30,1.05,clamp(uScale,0.0,1.0));
+    vec3 t=clamp(p/mz*0.5+0.5,vec3(0.0),vec3(1.0));
+    vec4 dd=texture(uDensity,t);
+    float rho=mix(dd.r,dd.g,uMorphAB);
+    d += rho*uVolDens*(1.2+5.0*uGhost);
+    emit = mix(uTintA,uTintB,sat(dd.a))*rho*(0.5+2.0*uGhost);
+  } else emit=vec3(0.0);
+  emit += mix(uTintA,uTintB,ros)*(0.12+0.5*ros)*uPsi;
+  emit += vec3(1.0,0.22,0.10)*ros*ros*2.2;
+  emit += vec3(0.20,0.85,1.0)*cal*0.30;
+  return max(d,0.0);
+}
+
+/* ------------------------------------------------------------------ shade */
+vec3 shade(vec3 p, vec3 n, vec3 rd, Mat m, float sc, float ao, float curv){
+  // the key light is a fluid: its colour is the local membrane potential
+  vec4 F=fieldAt(p*0.7);
+  vec3 L1=normalize(vec3(0.55,0.72,-0.40));
+  vec3 L2=normalize(vec3(-0.65,-0.18,0.55));
+  vec3 kcol=mix(uTintA,uTintB,sat(F.r*1.2))*(0.55+0.85*uPsi);
+  kcol=mix(kcol, vec3(1.0,0.26,0.12), sat(F.r*1.6)*0.8);
+  vec3 fcol=mix(vec3(0.10,0.30,0.42), vec3(0.42,0.10,0.16), sat(uROS));
+
+  float sh=softShadow(p+n*0.004*sc, L1, 0.01*sc, 2.2*sc, 12.0);
+  float ndl=max(dot(n,L1),0.0);
+  float wrap=(dot(n,L1)*0.5+0.5);
+
+  vec3 col=vec3(0.0);
+  col += m.alb*kcol*ndl*sh*1.55;
+  col += m.alb*fcol*pow(1.0-max(dot(n,L1),0.0),1.5)*0.45*ao;
+  col += m.alb*vec3(0.06,0.09,0.11)*ao*0.9;
+  col += m.alb*kcol*pow(wrap,2.2)*0.35*ao;
+
+  // subsurface: thin parts of a membrane glow like a held-up hand
+  float th=thickness(p,n,sc);
+  vec3 sssCol=mix(vec3(1.0,0.32,0.22),vec3(1.0,0.62,0.30),sat(uO2));
+  float back=pow(sat(dot(rd,-L1)*0.5+0.5),3.0);
+  col += m.alb*sssCol*m.sss*exp(-th*2.4)*(0.55*back+0.35)*(0.35+0.65*sh);
+
+  // wet specular + clearcoat
+  float rough=max(m.rough*(1.0-0.45*uWet),0.045);
+  vec3 h1=normalize(L1-rd);
+  float spec=pow(max(dot(n,h1),0.0), 2.0/(rough*rough)-2.0+2.0);
+  float fr=fresnel(max(dot(n,-rd),0.0),0.035+0.06*uWet);
+  col += kcol*spec*fr*sh*(1.6+5.0*uWet);
+
+  // thin-film interference: the membrane is a soap bubble made of fat
+  float filmD=m.film*(1.0+0.55*sin(2.2*tanh(curv*0.09)+uTime*0.6)+0.4*uWet+0.6*F.b);
+  vec3 irid=thinFilm(max(dot(n,-rd),0.0), filmD, 1.42);
+  col += irid*m.irid*(0.16+0.70*fr)*(0.35+0.65*ao)*(0.45+0.55*uIrid)*0.62;
+
+  col += m.emis;
+  col *= (0.25+0.75*ao);
+  return col;
+}
+
+/* ------------------------------------------------------------------- main */
+void main(){
+  vec2 uv=(vUV*uRes + uJitter - 0.5*uRes)/uRes.y;
+  vec4 bn=texture(uNoise, (vUV*uRes/256.0) + vec2(uFrame*0.0173, uFrame*0.0411));
+
+  vec3 ro=uCamPos;
+  vec3 rd=normalize(uCamR*uv.x + uCamU*uv.y + uCamF*uFocal);
+  // physically-sampled depth of field; converges under the temporal
+  // accumulation used by the offline renderer
+  if(uAperture>0.0001){
+    float a=bn.x*TAU, r=sqrt(bn.y)*uAperture;
+    vec3 off=uCamR*cos(a)*r + uCamU*sin(a)*r;
+    vec3 focus=ro+rd*uFocusDist;
+    ro+=off; rd=normalize(focus-ro);
+  }
+
+  /* If the camera is inside a solid -- which happens constantly in a film
+     that flies through tissue -- walk out of it before looking for a surface,
+     otherwise every frame hits at zero distance and renders black. */
+  float px=1.6/(uRes.y*uFocal);   // world size of one pixel at unit distance
+  float t=0.02;
+  gFoot=px*0.05;
+  if(mapD(ro)<0.0){
+    for(int i=0;i<28;i++){
+      t+=0.018;
+      if(mapD(ro+rd*t)>0.0) break;
+      if(t>2.0) break;
+    }
+    t+=0.004;
+  }
+  bool hit=false;
+  int steps=int(uSteps);
+  float lastD=1e9;
+  // during a scale handover the field is a blend, so tread more carefully
+  float bl=fract(clamp(uScale,0.0,6.0));
+  float bw=smoothstep(0.52,0.99,bl);
+  float stepK=mix(0.80,0.52,bw*(1.0-bw)*4.0);
+  for(int i=0;i<400;i++){
+    if(i>=steps) break;
+    vec3 p=ro+rd*t;
+    gFoot=px*t;
+    float d=mapD(p);
+    lastD=d;
+    if(d<px*t*0.38+0.00028){ hit=true; break; }
+    t+=d*stepK;
+    if(t>9.0) break;
+  }
+  /* A ray that simply ran out of steps while still hugging a surface must not
+     fall through to the background: that is what turns grazing angles into
+     contour banding. If we stopped close, we stopped ON something. */
+  if(!hit && t<9.0 && lastD < px*t*4.0 + 0.004) hit=true;
+
+  vec3 col=vec3(0.0);
+  float hitT = hit? t : 1e9;
+  float curv=0.0; vec3 n=vec3(0.0,1.0,0.0);
+  Mat m=MK(vec3(0.0),0.5,0.0,0.0,vec3(0.0),200.0,0.0);
+  if(hit){
+    vec3 p=ro+rd*t;
+    float e=max(px*t*0.6,0.00035);
+    n=calcNormal(p,e,curv);
+    float ao=calcAO(p,n,1.0);
+    sceneMap(p,m);
+    col=shade(p,n,rd,m,1.0,ao,curv);
+  } else {
+    // the void is never empty here; it is cytosol
+    col = mix(uTintA,uTintB,0.35)*0.0045 + vec3(0.004,0.007,0.010);
+  }
+
+  /* ---- volumetric integration: single scattering, Henyey-Greenstein ---- */
+  {
+    float far=min(hitT, 6.0);
+    int vs=int(clamp(uSteps*0.30,10.0,48.0));
+    float dt=far/float(vs);
+    float trans=1.0;
+    vec3 acc=vec3(0.0);
+    vec3 L1=normalize(vec3(0.55,0.72,-0.40));
+    float ph=hg(dot(rd,L1),0.42)*4.0;
+    float jit=bn.z;
+    for(int i=0;i<48;i++){
+      if(i>=vs) break;
+      float tt=(float(i)+jit)*dt+0.01;
+      if(tt>far) break;
+      vec3 p=ro+rd*tt;
+      vec3 emit;
+      float dens=volDensity(p,emit);
+      if(dens>0.0005){
+        float sigma=dens*0.85;
+        // cheap shadowing: three taps toward the key light
+        float sh=1.0;
+        for(int k=1;k<=3;k++){
+          vec3 sp=p+L1*(0.12*float(k));
+          vec3 e2; sh*=exp(-volDensity(sp,e2)*0.30);
+        }
+        vec3 scat=mix(uTintA,uTintB,0.35)*(0.35+0.75*uPsi)*ph*sh;
+        acc += trans*(scat*sigma*0.30 + emit*0.62)*dt;
+        trans*=exp(-sigma*dt*1.55);
+      }
+      if(trans<0.01) break;
+    }
+    col=col*trans+acc;
+  }
+
+  outColor=vec4(col,1.0);
+  outData=vec4(hit? t : 1e9, m.rough, curv, 1.0);
+}`;
+
+/* ===========================================================================
+   10 · POST  ·  the image plane as a second organism
+   ---------------------------------------------------------------------------
+   * chromatic aberration whose direction is the screen-space gradient of the
+     surface curvature buffer -- colour fringes therefore run along anatomy,
+     not radially out from the lens centre
+   * a temporal echo buffer warped by a zoom/rotate/curl transform: previous
+     frames are advected like a fluid, so the picture has a memory the same
+     way the membranes do
+   * halation, bloom, anamorphic streak, grain, gate weave, and a glitch bus
+     driven by the cardiac rhythm
+   =========================================================================== */
+const FS_BRIGHT = `#version 300 es
+precision highp float;
+in vec2 vUV; out vec4 frag;
+uniform sampler2D uTex; uniform float uThresh, uKnee;
+void main(){
+  vec3 c=texture(uTex,vUV).rgb;
+  float l=dot(c,vec3(0.2126,0.7152,0.0722));
+  float s=max(l-uThresh,0.0);
+  s=s*s/(s+uKnee+1e-4);
+  frag=vec4(c*(s/max(l,1e-4)),1.0);
+}`;
+
+const FS_DOWN = `#version 300 es
+precision highp float;
+in vec2 vUV; out vec4 frag;
+uniform sampler2D uTex; uniform vec2 uTexel;
+void main(){
+  vec2 t=uTexel;
+  vec3 a=texture(uTex,vUV+t*vec2(-1,-1)).rgb, b=texture(uTex,vUV+t*vec2(1,-1)).rgb;
+  vec3 c=texture(uTex,vUV+t*vec2(-1, 1)).rgb, d=texture(uTex,vUV+t*vec2(1, 1)).rgb;
+  vec3 e=texture(uTex,vUV).rgb;
+  vec3 f=texture(uTex,vUV+t*vec2(-2,0)).rgb, g=texture(uTex,vUV+t*vec2(2,0)).rgb;
+  vec3 h=texture(uTex,vUV+t*vec2(0,-2)).rgb, i=texture(uTex,vUV+t*vec2(0,2)).rgb;
+  frag=vec4((a+b+c+d)*0.125+e*0.25+(f+g+h+i)*0.0625+e*0.0,1.0);
+}`;
+
+const FS_UP = `#version 300 es
+precision highp float;
+in vec2 vUV; out vec4 frag;
+uniform sampler2D uTex, uPrev; uniform vec2 uTexel; uniform float uMix;
+void main(){
+  vec2 t=uTexel*1.4;
+  vec3 s=vec3(0.0);
+  s+=texture(uTex,vUV+t*vec2(-1,-1)).rgb; s+=texture(uTex,vUV+t*vec2(0,-1)).rgb*2.0;
+  s+=texture(uTex,vUV+t*vec2( 1,-1)).rgb; s+=texture(uTex,vUV+t*vec2(-1, 0)).rgb*2.0;
+  s+=texture(uTex,vUV).rgb*4.0;            s+=texture(uTex,vUV+t*vec2( 1, 0)).rgb*2.0;
+  s+=texture(uTex,vUV+t*vec2(-1, 1)).rgb; s+=texture(uTex,vUV+t*vec2(0, 1)).rgb*2.0;
+  s+=texture(uTex,vUV+t*vec2( 1, 1)).rgb;
+  frag=vec4(texture(uPrev,vUV).rgb + s/16.0*uMix,1.0);
+}`;
+
+const FS_POST = `#version 300 es
+precision highp float;
+in vec2 vUV; out vec4 frag;
+uniform sampler2D uScene, uData, uBloom, uFeed, uNoise;
+uniform vec2  uRes;
+uniform float uTime, uFrame;
+uniform float uCA, uEcho, uFeedZoom, uFeedRot, uFeedGain, uGlitch, uHalation;
+uniform float uExposure, uContrast, uSat, uVignette, uGrain, uStreak;
+uniform vec3  uLift, uGamma, uGain, uTintA, uTintB;
+uniform float uROS, uPsi, uPore, uScar, uBeat, uScale;
+${GLSL_COMMON}
+
+vec3 sampleScene(vec2 uv){ return texture(uScene,uv).rgb; }
+
+void main(){
+  vec2 uv=vUV;
+  vec2 c=uv-0.5; c.x*=uRes.x/uRes.y;
+  float r2=dot(c,c);
+
+  // gate weave + a barrel distortion that breathes with the membrane
+  float weave=(hash12(vec2(floor(uTime*24.0),3.7))-0.5)*0.0009*(1.0+3.0*uGlitch);
+  float barrel=1.0+ (0.055+0.09*uPore)*r2*(0.4+0.6*sin(uTime*0.23));
+  uv=0.5+(uv-0.5)*barrel+vec2(weave,weave*0.6);
+
+  /* ---- chromatic aberration steered by surface curvature ---------------- */
+  vec2 px=1.0/uRes;
+  // a wide, smoothed curvature gradient: per-pixel curvature is far too noisy
+  // to steer colour with, and the fringes must run along anatomy, not hash
+  vec2 w=px*3.0;
+  float kR=texture(uData,uv+vec2(w.x,0.0)).b+texture(uData,uv+vec2(w.x,w.y)).b
+          +texture(uData,uv+vec2(w.x,-w.y)).b;
+  float kL=texture(uData,uv-vec2(w.x,0.0)).b+texture(uData,uv-vec2(w.x,w.y)).b
+          +texture(uData,uv-vec2(w.x,-w.y)).b;
+  float kU=texture(uData,uv+vec2(0.0,w.y)).b+texture(uData,uv+vec2(w.x,w.y)).b
+          +texture(uData,uv+vec2(-w.x,w.y)).b;
+  float kD=texture(uData,uv-vec2(0.0,w.y)).b+texture(uData,uv+vec2(w.x,-w.y)).b
+          +texture(uData,uv+vec2(-w.x,-w.y)).b;
+  vec2 dir=vec2(kR-kL,kU-kD)/3.0;
+  float dl=length(dir);
+  dir = dl>1e-4 ? dir/dl : normalize(c+1e-5);
+  float amt=uCA*(0.45+1.1*sat(dl*1.6))*(0.30+1.3*r2)*2.2;
+  vec3 col;
+  amt=clamp(amt,0.0,9.0);
+  col.r=sampleScene(uv+dir*amt*1.5*px).r;
+  col.g=sampleScene(uv).g;
+  col.b=sampleScene(uv-dir*amt*1.8*px).b;
+  // a third tap for the sick, smeared look during the transition
+  col=mix(col, vec3(col.r, sampleScene(uv+dir*amt*3.0*px).g, col.b), sat(uPore*0.75));
+
+  /* ---- temporal echo: previous frames advected like a fluid ------------- */
+  vec2 fuv=uv-0.5;
+  fuv*=uFeedZoom;
+  fuv=rot2(uFeedRot)*fuv;
+  vec2 flow=curl(vec3(uv*4.0,uTime*0.07),0.4).xy*0.0016*(1.0+4.0*uROS);
+  fuv+=0.5+flow;
+  vec3 fb=texture(uFeed,clamp(fuv,vec2(0.001),vec2(0.999))).rgb;
+  // the echo is tinted toward the state the tissue was in, not the one it is
+  fb*=mix(vec3(1.0),mix(uTintA,uTintB,0.7)*1.35,0.35);
+  col=mix(col, max(col,fb*uFeedGain), uEcho);
+
+  /* ---- bloom, halation, anamorphic streak ------------------------------- */
+  vec3 bl=texture(uBloom,uv).rgb;
+  col+=bl*1.0;
+  vec3 hal=vec3(0.0);
+  for(int i=-6;i<=6;i++){
+    float w=exp(-float(i*i)*0.06);
+    hal+=texture(uBloom,uv+vec2(float(i)*px.x*7.0,0.0)).rgb*w;
+  }
+  col+=hal*0.055*uStreak*vec3(0.5,0.75,1.4);
+  col+=bl*bl*uHalation*vec3(1.0,0.32,0.18);
+
+  /* ---- glitch bus: driven by the cardiac rhythm and by pore openings ----- */
+  if(uGlitch>0.001){
+    // a torn scan, not a novelty filter: thin bands, short horizontal tears,
+    // and a channel roll that keeps the picture's own hue
+    float band=floor(uv.y*(90.0+220.0*uGlitch));
+    float rr=hash12(vec2(band,floor(uTime*20.0)));
+    if(rr<uGlitch*0.30){
+      float sh=(hash12(vec2(band,floor(uTime*20.0)+1.0))-0.5)*0.035*uGlitch;
+      vec3 g=sampleScene(clamp(uv+vec2(sh,0.0),vec2(0.002),vec2(0.998)));
+      col=mix(col,mix(g,g.rbg,0.45),0.55);
+    }
+    col*=1.0-0.10*uGlitch*step(0.5,fract(uv.y*uRes.y*0.5+uTime*40.0));
+  }
+
+  /* ---- grade ------------------------------------------------------------ */
+  col*=uExposure*(1.0+0.35*uBeat);
+  col=aces(col);
+  // a gentle toe so the shadows close instead of sitting in grey haze
+  col=col*col*(3.0-2.0*col)*0.28+col*0.72;
+  float l=dot(col,vec3(0.2126,0.7152,0.0722));
+  col=mix(vec3(l),col,uSat);
+  col=(col-0.5)*uContrast+0.5;
+  col=uLift+col*uGain;
+  col=pow(max(col,0.0),uGamma);
+  // the scar desaturates and greens the shadows, permanently
+  col=mix(col, vec3(dot(col,vec3(0.3,0.6,0.1)))*vec3(0.85,1.0,0.92), uScar*0.30*(1.0-l));
+
+  float vig=1.0-uVignette*smoothstep(0.12,0.95,r2*1.35);
+  col*=vig;
+  frag=vec4(max(col,0.0),1.0);
+}`;
+
+const FS_COPY = `#version 300 es
+precision highp float;
+in vec2 vUV; out vec4 frag;
+uniform sampler2D uTex; uniform float uGain;
+void main(){ frag=vec4(texture(uTex,vUV).rgb*uGain,1.0); }`;
+
+const FS_PRESENT = `#version 300 es
+precision highp float;
+in vec2 vUV; out vec4 frag;
+uniform sampler2D uTex, uTitles, uNoise;
+uniform vec2 uRes;
+uniform float uTime, uGrain, uFade, uBars, uTitleCA, uFrame;
+${GLSL_COMMON}
+void main(){
+  vec2 uv=vUV;
+  vec3 col=texture(uTex,uv).rgb;
+
+  // titles are burned into the frame (so captures are self-contained) and get
+  // their own gentle aberration, as if printed on the membrane
+  vec2 d=(uv-0.5);
+  float k=uTitleCA*0.0016;
+  vec4 tr=texture(uTitles,uv+d*k);
+  vec4 tg=texture(uTitles,uv);
+  vec4 tb=texture(uTitles,uv-d*k);
+  vec4 tt=vec4(tr.r,tg.g,tb.b,max(tg.a,max(tr.a,tb.a)));
+  col=mix(col, col*(1.0-tt.a)+tt.rgb, sat(tt.a));
+
+  // 35 mm grain: correlated, not per-pixel white noise
+  vec2 gp=uv*uRes/2.4;
+  float g=hash12(floor(gp)+floor(uTime*24.0)*vec2(13.1,7.7));
+  float g2=hash12(floor(gp*0.5)+floor(uTime*24.0)*vec2(3.3,9.1));
+  float lum=dot(col,vec3(0.299,0.587,0.114));
+  col+=((g-0.5)*0.7+(g2-0.5)*0.3)*uGrain*(0.35+0.9*(1.0-lum));
+
+  // 2.39:1 scope bars
+  float bar=step(uBars, abs(uv.y-0.5));
+  col*=1.0-bar;
+
+  col*=uFade;
+  // ordered dither so the deep blacks do not band at 8 bits
+  float dth=hash12(gl_FragCoord.xy+floor(uTime*24.0))/255.0;
+  frag=vec4(col+dth,1.0);
+}`;
+
+/* ===========================================================================
+   11 · TITLES  ·  burned into the frame, not the DOM
+   ---------------------------------------------------------------------------
+   Everything the film says about itself is drawn into a 2D canvas and
+   composited inside the shader, so a screen capture, a MediaRecorder stream
+   and an offline WebCodecs render all carry identical typography.
+   =========================================================================== */
+const Titles = (() => {
+  let gl=null, cv, ctx, tex, W=1600, H=670, bars=0.5/2.39, dirty=true;
+  const FONT='ui-monospace, "SF Mono", Menlo, Consolas, monospace';
+
+  function alloc(){
+    if(!cv){ cv=document.createElement('canvas'); ctx=cv.getContext('2d'); }
+    cv.width=W; cv.height=H;
+    if(tex) gl.deleteTexture(tex);
+    tex=gl.createTexture();
+    gl.bindTexture(gl.TEXTURE_2D,tex);
+    gl.texStorage2D(gl.TEXTURE_2D,1,gl.RGBA8,W,H);
+    gl.texParameteri(gl.TEXTURE_2D,gl.TEXTURE_MIN_FILTER,gl.LINEAR);
+    gl.texParameteri(gl.TEXTURE_2D,gl.TEXTURE_MAG_FILTER,gl.LINEAR);
+    gl.texParameteri(gl.TEXTURE_2D,gl.TEXTURE_WRAP_S,gl.CLAMP_TO_EDGE);
+    gl.texParameteri(gl.TEXTURE_2D,gl.TEXTURE_WRAP_T,gl.CLAMP_TO_EDGE);
+    dirty=true;
+  }
+  function init(g){ gl=g; alloc(); return tex; }
+  /* The title plate must share the output's aspect or every glyph is stretched.
+     `barsFrac` is the half-height of the 2.39:1 image band inside that frame. */
+  function setFormat(aspect, barsFrac){
+    const nW=1600, nH=Math.max(64, Math.round(nW/Math.max(aspect,0.2))&~1);
+    bars=barsFrac;
+    if(nW!==W||nH!==H){ W=nW; H=nH; alloc(); }
+  }
+
+  function track(text,x,y,sp,align){
+    let total=0; const ws=[];
+    for(const ch of text){const w=ctx.measureText(ch).width+sp;ws.push(w);total+=w;}
+    let cx = align==='center'? x-total/2 : (align==='right'? x-total : x);
+    let i=0;
+    for(const ch of text){ ctx.fillText(ch,cx,y); cx+=ws[i++]; }
+    return total;
+  }
+  function reveal(text, p, seed){
+    const n=Math.floor(M.sat(p)*text.length+0.0001);
+    if(n>=text.length) return text;
+    let out=text.slice(0,n);
+    const noise='▚▞▓▒░▌▐■□╳/\\|_-=+*';
+    const k=Math.min(3,text.length-n);
+    for(let i=0;i<k;i++)
+      out+=noise[Math.floor(M.hash3(seed+i*3.1,n*1.7,i*9.3)*noise.length)%noise.length];
+    return out;
+  }
+
+  /* The plate is 1600 px wide and gets re-uploaded as a texture, so redrawing
+     it on every frame when nothing on it has changed is pure waste. */
+  let lastSig='';
+  function sig(S){
+    const q=x=>Math.round((x||0)*64);
+    return [S.act,S.card,q(S.actA),q(S.noteA),q(S.vitA),q(S.cardA),
+            q(S.actP*24),q(S.cardP*24),S.stamp,
+            (S.vitals||[]).map(v=>v[1]).join('|')].join('\u0001');
+  }
+  function draw(S){
+    if(!ctx) return;
+    const g=sig(S);
+    if(g===lastSig) return;
+    lastSig=g;
+    ctx.clearRect(0,0,W,H);
+    ctx.textBaseline='alphabetic';
+    const top=H*(0.5-bars), bot=H*(0.5+bars);   // the visible 2.39:1 band
+    const left=W*0.072, right=W-W*0.072;
+    const base=bot-H*0.150;                      // baseline for the act title
+
+    if(S.card && S.cardA>0.004){
+      ctx.globalAlpha=S.cardA;
+      ctx.fillStyle='rgba(234,244,241,0.97)';
+      ctx.font='300 '+Math.round(W*0.0265)+'px '+FONT;
+      const lines=S.card.split('\n');
+      let y=H*0.5-(lines.length-1)*W*0.019+W*0.008;
+      for(let i=0;i<lines.length;i++){
+        track(reveal(lines[i],S.cardP-i*0.12,i*7.7), W*0.5, y, W*0.0090, 'center');
+        y+=W*0.0350;
+      }
+      if(S.cardSub){
+        ctx.fillStyle='rgba(120,152,146,0.92)';
+        ctx.font='400 '+Math.round(W*0.0097)+'px '+FONT;
+        track(S.cardSub, W*0.5, y+W*0.006, W*0.0038,'center');
+      }
+      ctx.globalAlpha=1;
+    }
+
+    if(S.act && S.actA>0.004){
+      ctx.globalAlpha=S.actA;
+      ctx.fillStyle='rgba(75,227,200,0.94)';
+      ctx.font='500 '+Math.round(W*0.0082)+'px '+FONT;
+      track(S.num||'', left, base-W*0.0245, W*0.0058,'left');
+      ctx.fillStyle='rgba(238,246,243,0.98)';
+      ctx.font='300 '+Math.round(W*0.0195)+'px '+FONT;
+      track(reveal(S.act,S.actP,3.3), left, base, W*0.0060,'left');
+      if(S.sub){
+        ctx.fillStyle='rgba(146,176,171,0.88)';
+        ctx.font='400 '+Math.round(W*0.0083)+'px '+FONT;
+        track(S.sub, left, base+W*0.0148, W*0.0024,'left');
+      }
+      ctx.globalAlpha=1;
+    }
+
+    if(S.notes && S.notes.length && S.noteA>0.004){
+      ctx.globalAlpha=S.noteA*0.95;
+      ctx.font='400 '+Math.round(W*0.0070)+'px '+FONT;
+      let y=top+H*0.095;
+      for(const ln of S.notes){
+        ctx.fillStyle = ln.startsWith('>')? 'rgba(255,181,69,0.94)':'rgba(186,212,206,0.80)';
+        track(ln.replace(/^>\s*/,''), right, y, W*0.0016,'right');
+        y+=W*0.0118;
+      }
+      ctx.globalAlpha=1;
+    }
+
+    if(S.vitals && S.vitA>0.004){
+      ctx.globalAlpha=S.vitA;
+      ctx.font='400 '+Math.round(W*0.0066)+'px '+FONT;
+      let y=top+H*0.095;
+      for(const v of S.vitals){
+        ctx.fillStyle='rgba(120,152,146,0.78)';
+        track(v[0], left, y, W*0.0014,'left');
+        ctx.fillStyle=v[2]||'rgba(232,242,239,0.9)';
+        track(v[1], left+W*0.070, y, W*0.0014,'left');
+        if(v[3]!=null){
+          ctx.fillStyle='rgba(232,242,239,0.16)';
+          ctx.fillRect(left+W*0.115, y-W*0.0040, W*0.050, Math.max(1,W*0.0012));
+          ctx.fillStyle=v[2]||'rgba(75,227,200,0.85)';
+          ctx.fillRect(left+W*0.115, y-W*0.0040, W*0.050*M.sat(v[3]), Math.max(1,W*0.0012));
+        }
+        y+=W*0.0108;
+      }
+      ctx.globalAlpha=1;
+    }
+
+    if(S.stamp){
+      ctx.globalAlpha=0.46;
+      ctx.fillStyle='rgba(120,152,146,0.9)';
+      ctx.font='400 '+Math.round(W*0.0056)+'px '+FONT;
+      track(S.stamp, right, bot-H*0.050, W*0.0020,'right');
+      ctx.globalAlpha=1;
+    }
+    dirty=true;
+  }
+
+  function upload(g){
+    if(!dirty||!tex) return;
+    g.bindTexture(g.TEXTURE_2D,tex);
+    g.pixelStorei(g.UNPACK_FLIP_Y_WEBGL,true);
+    g.texSubImage2D(g.TEXTURE_2D,0,0,0,g.RGBA,g.UNSIGNED_BYTE,cv);
+    g.pixelStorei(g.UNPACK_FLIP_Y_WEBGL,false);
+    dirty=false;
+  }
+  return {init,setFormat,draw,upload,get tex(){return tex;}};
+})();
+
+/* ===========================================================================
+   12 · RENDERER
+   =========================================================================== */
+const Renderer = (() => {
+  let gl, W=1280, H=536, PW=192, FIELD=512;
+  let P={}, RT={}, TEX={}, bloomA=[], bloomB=[];
+  const BLOOM_LEVELS=5;
+  let frame=0;
+
+  function makePrograms(){
+    P.field  = GL.program(VS_QUAD, FS_FIELD,      'field');
+    P.seed   = GL.program(VS_QUAD, FS_FIELD_SEED, 'fieldSeed');
+    P.pinit  = GL.program(VS_QUAD, FS_PART_INIT,  'partInit');
+    P.pupd   = GL.program(VS_QUAD, FS_PART_UPDATE,'partUpdate');
+    P.pdraw  = GL.program(VS_PART, FS_PART,       'partDraw');
+    P.scene  = GL.program(VS_QUAD, FS_SCENE,      'scene');
+    P.bright = GL.program(VS_QUAD, FS_BRIGHT,     'bright');
+    P.down   = GL.program(VS_QUAD, FS_DOWN,       'down');
+    P.up     = GL.program(VS_QUAD, FS_UP,         'up');
+    P.post   = GL.program(VS_QUAD, FS_POST,       'post');
+    P.present= GL.program(VS_QUAD, FS_PRESENT,    'present');
+    P.copy   = GL.program(VS_QUAD, FS_COPY,       'copy');
+  }
+
+  function allocate(w,h,pw){
+    W=Math.max(16,w|0); H=Math.max(16,h|0); PW=pw|0;
+    RT.scene = GL.rt(W,H,{n:2,prefer:'f16'});
+    RT.feed  = GL.pingpong(W,H,{prefer:'f16'});
+    RT.accum = GL.rt(W,H,{prefer:'f16'});
+    bloomA=[]; bloomB=[];
+    let bw=Math.max(4,W>>1), bh=Math.max(4,H>>1);
+    for(let i=0;i<BLOOM_LEVELS;i++){
+      bloomA.push(GL.rt(bw,bh,{prefer:'f16'}));
+      bloomB.push(GL.rt(bw,bh,{prefer:'f16'}));
+      bw=Math.max(4,bw>>1); bh=Math.max(4,bh>>1);
+    }
+    if(!RT.field){
+      RT.field = GL.pingpong(FIELD,FIELD,{prefer:'f16',repeat:true});
+    }
+    if(!RT.pos || RT.pos.w!==PW){
+      RT.pos = GL.pingpong(PW,PW,{prefer:'f32',nearest:true});
+      RT.vel = GL.pingpong(PW,PW,{prefer:'f32',nearest:true});
+      seedParticles();
+    }
+  }
+
+  function seedField(seed){
+    P.seed.use().set({uSeed:seed||1.0});
+    RT.field.dst.bind(); GL.drawQuad(); RT.field.swap();
+    RT.field.dst.bind(); GL.drawQuad(); RT.field.swap();
+  }
+  function seedParticles(){
+    P.pinit.use();
+    P.pinit.set({uMode:0,uSeed:7.31}); RT.pos.dst.bind(); GL.drawQuad(); RT.pos.swap();
+    P.pinit.set({uMode:0,uSeed:7.31}); RT.pos.dst.bind(); GL.drawQuad(); RT.pos.swap();
+    P.pinit.set({uMode:1,uSeed:2.17}); RT.vel.dst.bind(); GL.drawQuad(); RT.vel.swap();
+    P.pinit.set({uMode:1,uSeed:2.17}); RT.vel.dst.bind(); GL.drawQuad(); RT.vel.swap();
+  }
+
+  function init(canvas, w, h, pw){
+    gl=GL.init(canvas);
+    makePrograms();
+    TEX.noise=GL.blueNoise(256);
+    TEX.titles=Titles.init(gl);
+    allocate(w,h,pw);
+    seedField(1.0);
+    return gl;
+  }
+  function setDensity(vol){ TEX.density=GL.tex3D(vol.N, vol.data); }
+
+  function resize(w,h,pw){
+    // free the old attachments before reallocating
+    const drop=r=>{ if(!r) return;
+      r.texs.forEach(t=>gl.deleteTexture(t.t)); gl.deleteFramebuffer(r.fb); };
+    drop(RT.scene); drop(RT.accum);
+    if(RT.feed){ drop(RT.feed.src); drop(RT.feed.dst); }
+    bloomA.concat(bloomB).forEach(drop);
+    allocate(w,h,pw);
+  }
+
+  /* ---- one simulation + render step -------------------------------------- */
+  /* The field is integrated at a fixed 60 steps per second of FILM time,
+     accumulated across however many sub-frames the caller uses, so the
+     excitable medium evolves identically in the preview and in an 8x
+     motion-blurred offline render. */
+  let fieldAcc=0, fieldT=0;
+  const FIELD_DT=1/60;
+  function resetField(t){ fieldAcc=0; fieldT=t||0; }
+  function stepField(S, dt, spark, heal){
+    fieldAcc+=Math.max(0,Math.min(dt,0.25));
+    let n=0;
+    while(fieldAcc>=FIELD_DT && n<6){
+      fieldAcc-=FIELD_DT; fieldT+=FIELD_DT; n++;
+      P.field.use().set({
+        uPrev:0, uRes:[FIELD,FIELD], uTime:S.t, uDt:FIELD_DT*S.fieldRate,
+        uCa:S.bio.Cam, uROS:S.bio.ROS, uPsi:S.bio.dPsi/170, uPore:S.bio.pore,
+        upH:S.bio.pH, uO2:S.bio.O2, uSpark:spark, uHeal:heal});
+      GL.bind({0:RT.field.src.tex(0)});
+      RT.field.dst.bind(); GL.drawQuad(); RT.field.swap();
+    }
+  }
+  function stepParticles(S, dt){
+    P.pupd.use().set({
+      uPos:0,uVel:1,uField:2, uTime:S.t, uDt:Math.min(dt,0.05),
+      uScale:S.scale, uPore:S.bio.pore, uPsi:S.bio.dPsi/170, uROS:S.bio.ROS,
+      uCa:S.bio.Cam, uO2:S.bio.O2, uFlow:S.flow, uCamPos:S.cam.pos, uMode:0});
+    GL.bind({0:RT.pos.src.tex(0),1:RT.vel.src.tex(0),2:RT.field.src.tex(0)});
+    RT.pos.dst.bind();
+    gl.framebufferTexture2D(gl.FRAMEBUFFER,gl.COLOR_ATTACHMENT1,gl.TEXTURE_2D,
+                            RT.vel.dst.texs[0].t,0);
+    gl.drawBuffers([gl.COLOR_ATTACHMENT0,gl.COLOR_ATTACHMENT1]);
+    GL.drawQuad();
+    gl.framebufferTexture2D(gl.FRAMEBUFFER,gl.COLOR_ATTACHMENT1,gl.TEXTURE_2D,null,0);
+    RT.pos.swap(); RT.vel.swap();
+  }
+
+  function renderScene(S){
+    const c=S.cam;
+    P.scene.use().set({
+      uRes:[W,H], uTime:S.t, uFrame:frame, uSeed:S.seed,
+      uCamPos:c.pos, uCamR:c.right, uCamU:c.up, uCamF:c.fwd,
+      uFocal:c.focal, uAperture:c.aperture*(S.apertureScale||1.0), uFocusDist:c.focus,
+      uScale:S.scale, uField:0, uNoise:1, uDensity:2,
+      uCa:S.bio.Cam, uROS:S.bio.ROS, uPsi:S.bio.dPsi/170, uPore:S.bio.pore,
+      upH:S.bio.pH, uO2:S.bio.O2, uATP:S.bio.ATP, uVol:S.bio.vol,
+      uCytC:S.bio.cytC, uScar:S.bio.scar, uCypD:S.bio.cypD, uNADH:S.bio.NADH,
+      uMorphAB:S.morphAB, uGhost:S.ghost, uIso:S.iso, uWeird:S.weird,
+      uWet:S.wet, uIrid:S.irid, uVolDens:S.volDens, uEmiss:S.emiss,
+      uSteps:S.steps, uTintA:S.tintA, uTintB:S.tintB, uJitter:S.jitter,
+      uLumenOpen:S.lumen, uTeeth:S.teeth, uBreath:S.breath, uGrip:S.grip});
+    GL.bind({0:RT.field.src.tex(0),1:TEX.noise});
+    GL.bind3D(2,TEX.density);
+    RT.scene.bind();
+    gl.clearColor(0,0,0,1); gl.clear(gl.COLOR_BUFFER_BIT);
+    GL.drawQuad();
+
+    /* Particles: additive, soft-depth-tested against the scene's linear depth
+       buffer. That buffer is attachment 1 of the very framebuffer we are
+       drawing into, so it has to be detached first -- otherwise the texture is
+       simultaneously attached and sampled, which is a feedback loop. */
+    if(S.partFade>0.002){
+      gl.framebufferTexture2D(gl.FRAMEBUFFER,gl.COLOR_ATTACHMENT1,gl.TEXTURE_2D,null,0);
+      gl.drawBuffers([gl.COLOR_ATTACHMENT0, gl.NONE]);
+      gl.enable(gl.BLEND); gl.blendFunc(gl.ONE,gl.ONE);
+      P.pdraw.use().set({
+        uPos:0,uVel:1,uField:2,uSceneDepth:3,
+        uCamPos:c.pos,uCamR:c.right,uCamU:c.up,uCamF:c.fwd,
+        uRes:[W,H],uFocal:c.focal,uSize:S.partSize,uTexSize:PW,
+        uFade:S.partFade,uPore:S.bio.pore,uFocusDist:c.focus,
+      uAperture:c.aperture*(S.apertureScale||1.0)});
+      GL.bind({0:RT.pos.src.tex(0),1:RT.vel.src.tex(0),2:RT.field.src.tex(0),
+               3:RT.scene.tex(1)});
+      gl.bindVertexArray(null);
+      gl.drawArrays(gl.POINTS,0,PW*PW);
+      gl.disable(gl.BLEND);
+      gl.framebufferTexture2D(gl.FRAMEBUFFER,gl.COLOR_ATTACHMENT1,gl.TEXTURE_2D,
+                              RT.scene.texs[1].t,0);
+      gl.drawBuffers([gl.COLOR_ATTACHMENT0,gl.COLOR_ATTACHMENT1]);
+    }
+  }
+
+  /* progressive dual-filter bloom: down the A chain, up the B chain, so no
+     target is ever read and written in the same draw. */
+  function renderBloom(S){
+    P.bright.use().set({uTex:0,uThresh:S.bloomThresh,uKnee:0.35});
+    GL.bind({0:RT.scene.tex(0)});
+    bloomA[0].bind(); GL.drawQuad();
+    for(let i=1;i<BLOOM_LEVELS;i++){
+      P.down.use().set({uTex:0,uTexel:[1/bloomA[i-1].w,1/bloomA[i-1].h]});
+      GL.bind({0:bloomA[i-1].tex(0)});
+      bloomA[i].bind(); GL.drawQuad();
+    }
+    const last=BLOOM_LEVELS-1;
+    P.up.use().set({uTex:0,uPrev:1,uTexel:[1/bloomA[last].w,1/bloomA[last].h],uMix:0.0});
+    GL.bind({0:bloomA[last].tex(0),1:bloomA[last].tex(0)});
+    bloomB[last].bind(); GL.drawQuad();
+    for(let i=last-1;i>=0;i--){
+      P.up.use().set({uTex:0,uPrev:1,uTexel:[1/bloomB[i+1].w,1/bloomB[i+1].h],
+                      uMix:S.bloomSpread});
+      GL.bind({0:bloomB[i+1].tex(0),1:bloomA[i].tex(0)});
+      bloomB[i].bind(); GL.drawQuad();
+    }
+  }
+
+  function renderPost(S){
+    P.post.use().set({
+      uScene:0,uData:1,uBloom:2,uFeed:3,uNoise:4,
+      uRes:[W,H],uTime:S.t,uFrame:frame,
+      uCA:S.ca,uEcho:S.echo,uFeedZoom:S.feedZoom,uFeedRot:S.feedRot,
+      uFeedGain:S.feedGain,uGlitch:S.glitch,uHalation:S.halation,
+      uExposure:S.exposure,uContrast:S.contrast,uSat:S.saturation,
+      uVignette:S.vignette,uGrain:0.0,uStreak:S.streak,
+      uLift:S.lift,uGamma:S.gammaC,uGain:S.gainC,
+      uTintA:S.tintA,uTintB:S.tintB,
+      uROS:S.bio.ROS,uPsi:S.bio.dPsi/170,uPore:S.bio.pore,uScar:S.bio.scar,
+      uBeat:S.beat,uScale:S.scale});
+    GL.bind({0:RT.scene.tex(0),1:RT.scene.tex(1),2:bloomB[0].tex(0),
+             3:RT.feed.src.tex(0),4:TEX.noise});
+    RT.feed.dst.bind(); GL.drawQuad();
+  }
+
+  /* the frame core: everything up to (but not including) the final present.
+     Offline rendering calls this several times per output frame and averages
+     the results, which produces true rotary-shutter motion blur and resolves
+     the stochastic depth-of-field sampling at the same time. */
+  function frameCore(S, dt){
+    stepField(S, dt, S.spark, S.heal);
+    if(S.partFade>0.002 || S.t<1.0) stepParticles(S, dt);
+    renderScene(S);
+    renderBloom(S);
+    renderPost(S);
+    frame++;
+  }
+  function clearAccum(){
+    RT.accum.bind(); gl.clearColor(0,0,0,1); gl.clear(gl.COLOR_BUFFER_BIT);
+  }
+  function accumulate(gain){
+    gl.enable(gl.BLEND); gl.blendFunc(gl.ONE,gl.ONE);
+    P.copy.use().set({uTex:0,uGain:gain});
+    GL.bind({0:RT.feed.dst.tex(0)});
+    RT.accum.bind(); GL.drawQuad();
+    gl.disable(gl.BLEND);
+    RT.feed.swap();
+  }
+  function present(S, outW, outH, fromAccum){
+    Titles.upload(gl);
+    P.present.use().set({
+      uTex:0,uTitles:1,uNoise:2,uRes:[outW,outH],uTime:S.t,
+      uGrain:S.grain,uFade:S.fade,uBars:S.bars,uTitleCA:S.titleCA,uFrame:frame});
+    GL.bind({0:fromAccum?RT.accum.tex(0):RT.feed.dst.tex(0),1:TEX.titles,2:TEX.noise});
+    GL.screen(outW,outH); GL.drawQuad();
+    if(!fromAccum) RT.feed.swap();
+  }
+
+  function render(S, dt, outW, outH){
+    frameCore(S, dt);
+    present(S, outW, outH, false);
+  }
+
+  return {init,resize,setDensity,render,frameCore,present,accumulate,clearAccum,
+          seedField,seedParticles,resetField,
+          get W(){return W;},get H(){return H;},get frame(){return frame;},
+          set frame(v){frame=v;},get fieldTex(){return RT.field.src.tex(0);}};
+})();
+
+/* ===========================================================================
+   13 · CAMERA
+   ---------------------------------------------------------------------------
+   Nothing here is on a tripod. Every shot carries a parasite term: a
+   low-frequency curl-noise crawl in camera-local space, a lagging look-at so
+   the camera turns its head a beat after it decides to, and a breathing roll
+   locked to the simulated membrane fluctuation. Focal length and aperture are
+   real: f in normalised units, circle of confusion computed in the shader.
+   =========================================================================== */
+const Camera = (() => {
+  let lookLag=[0,0,0], inited=false;
+  function reset(){inited=false;}
+  function build(pos, target, opt, t, dtLag){
+    opt=opt||{};
+    if(!inited){ lookLag=target.slice(); inited=true; }
+    const lag=M.sat((opt.lag==null?0.14:opt.lag));
+    lookLag=M.lerp3(lookLag, target, 1-Math.pow(lag, Math.max(dtLag,1e-3)*60));
+    const parasite=opt.parasite||0;
+    const n=[M.fbm(t*0.21+11,0,0,3),M.fbm(0,t*0.19+31,0,3),M.fbm(0,0,t*0.23+57,3)];
+    const micro=[M.vnoise(t*2.7,3,5),M.vnoise(7,t*2.9,11),M.vnoise(13,17,t*3.1)];
+    let p=[pos[0]+n[0]*parasite+micro[0]*parasite*0.18,
+           pos[1]+n[1]*parasite+micro[1]*parasite*0.18,
+           pos[2]+n[2]*parasite+micro[2]*parasite*0.18];
+    let fwd=M.norm(M.sub(lookLag,p));
+    const rollN=(opt.roll||0)+(opt.rollNoise||0)*M.fbm(t*0.13+3,0,0,3);
+    let up=[Math.sin(rollN),Math.cos(rollN),0];
+    if(Math.abs(M.dot(up,fwd))>0.985) up=[1,0,0];
+    let right=M.norm(M.cross(fwd,up));
+    up=M.cross(right,fwd);
+    return {pos:p,right,up,fwd,focal:opt.focal==null?1.35:opt.focal,
+            aperture:opt.aperture||0.0, focus:opt.focus==null?M.len(M.sub(lookLag,p)):opt.focus};
+  }
+  // path helpers, all returning a position
+  const orbit=(c,r,a,y)=>[c[0]+Math.cos(a)*r, c[1]+y, c[2]+Math.sin(a)*r];
+  const lerpP=(a,b,t)=>M.lerp3(a,b,t);
+  return {build,reset,orbit,lerpP};
+})();
+
+/* ===========================================================================
+   14 · DIRECTOR  ·  the shot list
+   ---------------------------------------------------------------------------
+   Eighteen shots, 474 seconds. Each shot owns a scale ramp, a camera path, a
+   grade, and a set of annotations. The biology underneath is *not* per-shot:
+   the ODE runs continuously, so an act does not decide that the pore opens --
+   it only decides where the camera is when it does.
+   =========================================================================== */
+const Director = (() => {
+  const BASE = {
+    tintA:[0.16,0.62,0.74], tintB:[1.00,0.42,0.18],
+    exposure:1.30, contrast:1.16, saturation:1.14, vignette:0.70,
+    lift:[-0.010,-0.006,-0.002], gammaC:[1.06,1.02,0.96], gainC:[1.04,1.01,1.03],
+    ca:0.42, echo:0.16, feedZoom:0.9965, feedRot:0.0006, feedGain:0.94,
+    glitch:0.0, halation:0.07, streak:0.5, bloomThresh:0.78, bloomSpread:0.85,
+    grain:0.035, weird:0.45, wet:0.45, irid:0.7, volDens:0.16, emiss:1.0,
+    iso:0.24, morphAB:0.0, ghost:0.0, lumen:0.0, teeth:1.0, breath:0.35, grip:0.0,
+    partFade:0.7, partSize:1.1, flow:0.2, fade:1.0, bars:0.5/2.39*(1.0),
+    titleCA:1.0, steps:999,
+  };
+
+  /* --- the 18 shots ------------------------------------------------------ */
+  const SHOTS=[
+  { num:'I', title:'DESCENT', sub:'the inner mitochondrial membrane · 1.0 × 10⁻⁷ m',
+    dur:26, scale:[4.35,3.05], ease:M.E.inOut,
+    notes:['cristae junctions, 25 nm apertures','ATP synthase dimer rows follow the ridge',
+           '> surface area of one cardiac mitochondrion ≈ 7 µm²'],
+    style:{weird:0.35,wet:0.55,irid:0.85,volDens:0.22,echo:0.22,exposure:1.15,
+           partFade:0.55,flow:0.15,breath:0.5},
+    cam:(u,t)=>{ const a=-0.35+u*1.15;
+      const p=Camera.orbit([0,0,0], M.mix(4.4,1.05,M.E.inOut(u)), a, M.mix(1.9,0.15,M.E.outCubic(u)));
+      return {pos:p,target:[0,M.mix(0.4,0,u),0],
+              opt:{focal:M.mix(1.15,1.6,u),parasite:0.035,aperture:0.010,
+                   focus:M.mix(4.0,1.1,u),rollNoise:0.10,lag:0.12}}; } },
+
+  { num:'II', title:'THE PROTON FLUID', sub:'Δp = ΔΨm − 2.303·(RT/F)·ΔpH ≈ 200 mV',
+    dur:24, scale:[3.05,2.10], ease:M.E.inOut,
+    notes:['the membrane holds 170 mV across 4 nm','that is 40 million volts per metre',
+           '> protons do not swim here. they fall.'],
+    style:{weird:0.4,wet:0.62,irid:0.9,volDens:0.30,partFade:1.25,partSize:1.5,
+           exposure:1.32,echo:0.26,halation:0.12,flow:0.25},
+    cam:(u,t)=>{ const a=1.1+u*2.0;
+      const p=Camera.orbit([0,0,0],M.mix(1.25,0.62,u),a,M.mix(0.20,-0.10,u)+0.06*Math.sin(t*0.5));
+      return {pos:p,target:[0.1*Math.sin(t*0.3),0,0],
+              opt:{focal:1.7,parasite:0.05,aperture:0.022,focus:0.7,rollNoise:0.16,lag:0.10}}; } },
+
+  { num:'III', title:'THE PORE THAT MAY NOT EXIST', sub:'F₁F₀ ATP synthase · c₈ ring · 1.4 × 10⁻⁹ m',
+    dur:24, scale:[2.10,1.02], ease:M.E.outCubic,
+    card:'THE PORE\nTHAT MAY NOT EXIST',
+    cardSub:'on the mitochondrial permeability transition',
+    notes:['40 years of electrophysiology','a 1.3 nS Ca²⁺-gated megachannel',
+           '> no agreed molecular identity'],
+    style:{weird:0.55,wet:0.35,irid:0.55,volDens:0.20,partFade:0.45,iso:0.235,
+           exposure:1.18,echo:0.18,ca:0.62,teeth:0.0},
+    cam:(u,t)=>{ const a=-2.2+u*1.3;
+      const p=Camera.orbit([0,0,0],M.mix(3.0,1.45,M.E.outCubic(u)),a,M.mix(0.9,0.05,u));
+      return {pos:p,target:[0,M.mix(0.2,-0.05,u),0],
+              opt:{focal:M.mix(1.3,1.85,u),parasite:0.02,aperture:0.014,focus:M.mix(2.8,1.5,u),lag:0.16}}; } },
+
+  { num:'IV', title:'ISCHEMIA · THE SILENCE', sub:'coronary occlusion · t + 0 s',
+    dur:30, scale:[1.00,3.20], ease:M.E.inOut,
+    notes:['O₂ → 0. the chain stalls at complex IV','ΔΨm decays; ATP synthase reverses',
+           'hydrolysing ATP to defend the potential','> the cell spends everything to stay charged'],
+    style:{weird:0.3,wet:0.28,irid:0.35,volDens:0.12,partFade:0.5,partSize:0.9,
+           exposure:0.95,saturation:0.72,contrast:1.12,echo:0.30,flow:0.06,
+           tintA:[0.14,0.34,0.62],tintB:[0.34,0.40,0.52],vignette:0.78,
+           lift:[0.006,0.010,0.020],breath:0.12,bloomThresh:0.95},
+    cam:(u,t)=>{ const a=0.6+u*0.9;
+      const p=Camera.orbit([0,0,0],M.mix(1.5,4.6,M.E.inOut(u)),a,M.mix(-0.1,1.3,M.E.inOut(u)));
+      return {pos:p,target:[0,0,0],
+              opt:{focal:M.mix(1.8,1.2,u),parasite:0.012,aperture:0.006,focus:M.mix(1.5,4.2,u),
+                   rollNoise:0.05,lag:0.30}}; } },
+
+  { num:'V', title:'ACIDOSIS · A PROTECTIVE POISON', sub:'pH 7.20 → 6.40 · the pore stays shut',
+    dur:24, scale:[3.20,1.20], ease:M.E.inOut,
+    notes:['anaerobic glycolysis floods the matrix with H⁺','protonation raises the Ca²⁺ threshold ~4×',
+           '> the damage is prevented by the dying','> this is why the CIRCUS trial failed'],
+    style:{weird:0.5,wet:0.20,irid:0.3,volDens:0.14,partFade:1.1,partSize:1.2,
+           exposure:0.92,saturation:0.66,tintA:[0.20,0.30,0.50],tintB:[0.62,0.50,0.30],
+           echo:0.34,glitch:0.03,contrast:1.14,grip:0.0,teeth:0.4},
+    cam:(u,t)=>{ const a=2.4-u*1.6;
+      const p=Camera.orbit([0,0,0],M.mix(4.2,1.6,M.E.inOut(u)),a,M.mix(1.1,0.0,M.E.inOut(u)));
+      return {pos:p,target:[0,0,0],
+              opt:{focal:M.mix(1.2,1.75,u),parasite:0.03,aperture:0.012,focus:M.mix(4.0,1.6,u),
+                   rollNoise:0.14,lag:0.18}}; } },
+
+  { num:'VI', title:'REPERFUSION · THE FLOOD', sub:'the artery opens · t + 60 s',
+    dur:30, scale:[1.20,3.60], ease:M.E.inOut,
+    notes:['O₂ returns in seconds. so does pH.','the protection is withdrawn exactly',
+           'when Ca²⁺ and ROS are at maximum','> the rescue is the injury'],
+    style:{weird:0.6,wet:0.75,irid:0.95,volDens:0.34,partFade:1.7,partSize:1.5,
+           exposure:1.45,saturation:1.20,tintA:[0.10,0.70,0.80],tintB:[1.0,0.36,0.12],
+           echo:0.24,halation:0.18,streak:0.9,flow:0.6,glitch:0.05,breath:0.7},
+    cam:(u,t)=>{ const a=-1.0+u*2.4;
+      const p=Camera.orbit([0,0,0],M.mix(1.1,3.9,M.E.inExpo(u)),a,
+                            M.mix(-0.25,0.9,u)+0.12*Math.sin(t*0.9));
+      return {pos:p,target:[0,0,0],
+              opt:{focal:M.mix(1.9,1.25,u),parasite:0.07,aperture:0.018,
+                   focus:M.mix(1.1,3.4,u),rollNoise:0.22,lag:0.09}}; } },
+
+  { num:'VII', title:'THE CALCIUM DOOR', sub:'MCU · MICU1/2 gatekeeping · Hill n ≈ 2.6',
+    dur:26, scale:[3.60,2.00], ease:M.E.inOut,
+    notes:['J = Vmax·[Ca]ⁿ/(Kmⁿ+[Ca]ⁿ) · gate(MICU)','below the set-point the gate is shut',
+           'above it the uniporter is a hole','> 2 charges per Ca²⁺, and ΔΨm pays'],
+    style:{weird:0.5,wet:0.7,irid:0.85,volDens:0.26,partFade:2.0,partSize:1.7,
+           exposure:1.35,tintA:[0.14,0.85,0.92],tintB:[0.95,0.45,0.22],
+           echo:0.20,flow:0.5,ca:0.55},
+    cam:(u,t)=>{ const a=1.4+u*1.1;
+      const p=Camera.orbit([0,0.0,0],M.mix(3.4,0.85,M.E.outCubic(u)),a,M.mix(0.8,0.22,u));
+      return {pos:p,target:[0,M.mix(0,0.06,u),0],
+              opt:{focal:M.mix(1.3,2.0,u),parasite:0.045,aperture:0.024,
+                   focus:M.mix(3.2,0.9,u),rollNoise:0.12,lag:0.11}}; } },
+
+  { num:'VIII', title:'ROS-INDUCED ROS RELEASE', sub:'∂u/∂t = D∇²u + u(1−u)(u−(v+b)/a)/ε',
+    dur:28, scale:[2.00,3.90], ease:M.E.inOut,
+    notes:['superoxide from complexes I and III','each depolarisation ignites its neighbours',
+           'the organelle network becomes excitable','> a tissue that can carry a wave'],
+    style:{weird:0.75,wet:0.8,irid:0.8,volDens:0.42,partFade:2.2,partSize:1.5,
+           exposure:1.5,saturation:1.25,tintA:[0.10,0.55,0.70],tintB:[1.0,0.25,0.08],
+           echo:0.34,glitch:0.10,halation:0.24,streak:1.0,flow:0.9,ca:0.75,breath:0.9},
+    cam:(u,t)=>{ const a=-2.0+u*2.8;
+      const p=Camera.orbit([0,0,0],M.mix(1.0,3.2,u),a,
+              M.mix(0.1,1.0,u)+0.2*Math.sin(t*1.3)*(1-u));
+      return {pos:p,target:[0.3*Math.sin(t*0.4),0,0.3*Math.cos(t*0.37)],
+              opt:{focal:1.45,parasite:0.10,aperture:0.016,focus:M.mix(1.0,3.0,u),
+                   rollNoise:0.3,lag:0.07}}; } },
+
+  { num:'IX', title:'THE TRANSITION', sub:'[Ca²⁺]m crosses threshold · the channel is there',
+    dur:32, scale:[3.90,0.72], ease:M.E.outCubic,
+    notes:['conductance 1.3 nS · diameter ≈ 3 nm','everything under 1.5 kDa leaves',
+           'the c-ring lumen, or the translocase, or neither','> forty years and we still do not know'],
+    style:{weird:0.95,wet:0.55,irid:0.6,volDens:0.30,partFade:1.5,partSize:1.3,
+           exposure:1.30,saturation:1.05,tintA:[0.30,0.80,0.85],tintB:[1.0,0.30,0.12],
+           echo:0.42,glitch:0.16,ca:1.10,halation:0.22,iso:0.22,teeth:0.0,
+           contrast:1.12,breath:0.6},
+    cam:(u,t)=>{ const a=0.9+u*2.2;
+      const rr=M.mix(3.4,0.55,M.E.inOut(u));
+      const p=Camera.orbit([0,0,0],rr,a,M.mix(1.1,0.0,M.E.inOut(u))+0.05*Math.sin(t*2.1)*u);
+      return {pos:p,target:[0,M.mix(0.1,0,u),0],
+              opt:{focal:M.mix(1.25,2.2,M.E.inOut(u)),parasite:0.05*(1-u)+0.02,
+                   aperture:M.mix(0.010,0.030,u),focus:rr,rollNoise:0.25,lag:0.10}}; } },
+
+  { num:'X', title:'COLLAPSE · THE MEMBRANE REMEMBERS', sub:'ΔΨm → 0 · matrix volume × 2.1',
+    dur:28, scale:[0.70,3.40], ease:M.E.inOut,
+    notes:['the cristae unfold — they do not melt','stored area becomes swollen sphere',
+           'folded geometry is a memory of potential','> the shape was holding the charge'],
+    style:{weird:0.85,wet:0.9,irid:0.5,volDens:0.36,partFade:1.4,partSize:1.2,
+           exposure:1.15,saturation:0.9,tintA:[0.22,0.44,0.52],tintB:[0.95,0.34,0.20],
+           echo:0.46,glitch:0.12,feedZoom:1.0035,feedRot:-0.0016,halation:0.16,
+           vignette:0.76,breath:1.0,flow:0.8},
+    cam:(u,t)=>{ const a=3.1+u*1.0;
+      const p=Camera.orbit([0,0,0],M.mix(0.6,4.4,M.E.inExpo(u)),a,M.mix(0.0,1.5,u));
+      return {pos:p,target:[0,0,0],
+              opt:{focal:M.mix(2.1,1.15,u),parasite:0.05,aperture:0.014,
+                   focus:M.mix(0.6,4.0,u),rollNoise:0.28,lag:0.13}}; } },
+
+  { num:'XI', title:'RUPTURE', sub:'outer membrane fails · cytochrome c leaves the heme bed',
+    dur:24, scale:[3.40,4.60], ease:M.E.inOut,
+    notes:['colloid osmotic pressure wins','cyt c: 12.4 kDa, 1 heme, bright orange',
+           'apoptosome assembly begins downstream','> but at this Ca²⁺ load the cell simply bursts'],
+    style:{weird:0.7,wet:0.95,irid:0.45,volDens:0.30,partFade:2.4,partSize:1.9,
+           exposure:1.28,saturation:1.1,tintA:[0.30,0.42,0.46],tintB:[1.0,0.44,0.14],
+           echo:0.38,glitch:0.14,halation:0.26,streak:1.1,flow:1.0},
+    cam:(u,t)=>{ const a=-0.8+u*1.5;
+      const p=Camera.orbit([0,0,0],M.mix(2.4,5.2,u),a,M.mix(0.4,1.8,u));
+      return {pos:p,target:[0,0,0],
+              opt:{focal:1.3,parasite:0.09,aperture:0.012,focus:M.mix(2.2,4.6,u),
+                   rollNoise:0.2,lag:0.10}}; } },
+
+  { num:'XII', title:'THE WAVEFRONT', sub:'depolarisation crosses the syncytium · ≈ 5 µm s⁻¹',
+    dur:26, scale:[4.60,6.00], ease:M.E.inOut,
+    notes:['one cell tells the next','contraction bands, then nothing',
+           'infarct size is decided in ten minutes','> half the final damage is reperfusion'],
+    style:{weird:0.55,wet:0.6,irid:0.3,volDens:0.24,partFade:0.9,partSize:1.0,
+           exposure:1.18,saturation:0.95,tintA:[0.24,0.40,0.46],tintB:[1.0,0.28,0.10],
+           echo:0.30,glitch:0.07,vignette:0.7,bloomThresh:0.72},
+    cam:(u,t)=>{ const p=[M.mix(-5.5,4.0,u), M.mix(1.2,2.6,M.E.inOut(u)), M.mix(2.2,3.4,u)];
+      return {pos:p,target:[M.mix(-3.0,5.5,u),0,0],
+              opt:{focal:M.mix(1.5,1.1,u),parasite:0.05,aperture:0.010,
+                   focus:M.mix(3.0,4.2,u),roll:0.06,rollNoise:0.1,lag:0.22}}; } },
+
+  { num:'XIII', title:'THE UNRESOLVED', sub:'two structures, one density map',
+    dur:30, scale:[6.00,1.04], ease:M.E.outCubic,
+    card:'WHAT IS THE PORE',
+    cardSub:'c-ring lumen · or translocase · or something not yet named',
+    notes:['c-subunit knockout: transition survives','ANT knockout: transition survives',
+           'CypD knockout: threshold rises, pore remains','> the channel outlives every candidate'],
+    style:{weird:1.0,wet:0.4,irid:0.55,volDens:0.55,partFade:0.5,partSize:1.0,
+           exposure:1.22,saturation:1.0,tintA:[0.35,0.72,0.80],tintB:[0.95,0.50,0.30],
+           echo:0.52,glitch:0.20,ghost:0.85,ca:0.95,feedZoom:0.9930,feedRot:0.0024,
+           iso:0.20,teeth:0.0,contrast:1.0,halation:0.14},
+    cam:(u,t)=>{ const a=t*0.16;
+      const rr=M.mix(6.5,1.55,M.E.inOut(M.sat(u*1.25)));
+      const p=Camera.orbit([0,0,0],rr,a,M.mix(2.0,0.10,M.E.inOut(M.sat(u*1.2)))+0.08*Math.sin(t*0.7));
+      return {pos:p,target:[0,0,0],
+              opt:{focal:M.mix(1.2,1.9,u),parasite:0.03,aperture:0.016,focus:rr*0.96,
+                   rollNoise:0.18,lag:0.14}}; } },
+
+  { num:'XIV', title:'INTERVENTION I · THE GATEKEEPER', sub:'MICU1/2 restores the MCU set-point',
+    dur:24, scale:[1.00,2.20], ease:M.E.inOut,
+    notes:['raise the cooperativity, raise the threshold','the uniporter stops conducting below 1 µM',
+           'matrix Ca²⁺ never reaches the trigger','> solution one: shut the door earlier'],
+    style:{weird:0.55,wet:0.65,irid:0.85,volDens:0.24,partFade:1.6,partSize:1.5,
+           exposure:1.30,saturation:1.12,tintA:[0.12,0.86,0.90],tintB:[0.85,0.55,0.30],
+           echo:0.22,glitch:0.04,ghost:0.10,ca:0.48,halation:0.12},
+    cam:(u,t)=>{ const a=-1.6+u*1.4;
+      const p=Camera.orbit([0,0,0],M.mix(1.5,2.9,u),a,M.mix(-0.05,0.55,u));
+      return {pos:p,target:[0,0,0],
+              opt:{focal:M.mix(1.9,1.4,u),parasite:0.03,aperture:0.018,
+                   focus:M.mix(1.5,2.7,u),rollNoise:0.1,lag:0.15}}; } },
+
+  { num:'XV', title:'INTERVENTION II · UNBINDING', sub:'cyclophilin D leaves the OSCP subunit',
+    dur:24, scale:[2.20,1.02], ease:M.E.outCubic,
+    notes:['cyclosporin A · sanglifehrin · TRO40303','desensitisation, not blockade',
+           'the threshold moves; the channel stays','> solution two: raise the price of opening'],
+    style:{weird:0.6,wet:0.5,irid:0.7,volDens:0.22,partFade:0.8,partSize:1.1,
+           exposure:1.24,saturation:1.05,tintA:[0.30,0.78,0.86],tintB:[0.92,0.62,0.34],
+           echo:0.26,ghost:0.06,grip:1.0,iso:0.235,teeth:0.0},
+    cam:(u,t)=>{ const a=2.0-u*1.7;
+      const p=Camera.orbit([0,0,0],M.mix(2.8,1.35,M.E.inOut(u)),a,
+                            M.mix(0.9,0.62,u));
+      return {pos:p,target:[0,M.mix(0.25,0.62,M.E.outCubic(u)),0],
+              opt:{focal:M.mix(1.4,2.15,u),parasite:0.025,aperture:0.020,
+                   focus:M.mix(2.6,1.3,u),rollNoise:0.08,lag:0.16}}; } },
+
+  { num:'XVI', title:'INTERVENTION III · CARDIOLIPIN', sub:'SS-31 binds the head group · curvature returns',
+    dur:24, scale:[1.00,2.80], ease:M.E.inOut,
+    notes:['tetralinoleoyl cardiolipin, four tails','it is the reason cristae bend at all',
+           'stabilise it and the electron leak closes','> solution three: fix the shape, fix the chemistry'],
+    style:{weird:0.5,wet:0.85,irid:1.1,volDens:0.26,partFade:1.2,partSize:1.3,
+           exposure:1.34,saturation:1.15,tintA:[0.18,0.80,0.78],tintB:[1.0,0.62,0.26],
+           echo:0.24,halation:0.16,streak:0.8,teeth:1.0,breath:0.55},
+    cam:(u,t)=>{ const a=0.4+u*1.9;
+      const p=Camera.orbit([0,0,0],M.mix(1.45,2.6,u),a,M.mix(0.0,0.8,u)+0.07*Math.sin(t*0.6));
+      return {pos:p,target:[0,0,0],
+              opt:{focal:M.mix(2.0,1.45,u),parasite:0.04,aperture:0.020,
+                   focus:M.mix(1.4,2.4,u),rollNoise:0.14,lag:0.12}}; } },
+
+  { num:'XVII', title:'THE FRONT DIES', sub:'the excitable medium loses its excitability',
+    dur:24, scale:[2.80,5.60], ease:M.E.inOut,
+    notes:['raise a, break the feedback, and the wave','cannot recruit its neighbour',
+           'the front propagates, thins, and stops','> solution four: make the tissue boring'],
+    style:{weird:0.4,wet:0.6,irid:0.6,volDens:0.20,partFade:1.0,partSize:1.1,
+           exposure:1.22,saturation:1.0,tintA:[0.16,0.70,0.76],tintB:[0.90,0.50,0.22],
+           echo:0.28,glitch:0.02,vignette:0.66},
+    cam:(u,t)=>{ const p=[M.mix(2.4,-4.5,u), M.mix(0.6,2.2,u), M.mix(1.4,3.6,u)];
+      return {pos:p,target:[M.mix(0,-2.0,u),0,0],
+              opt:{focal:M.mix(1.7,1.15,u),parasite:0.04,aperture:0.010,
+                   focus:M.mix(2.2,4.0,u),rollNoise:0.08,lag:0.2}}; } },
+
+  { num:'XVIII', title:'HYSTERESIS', sub:'what opened once opens again more easily',
+    dur:26, scale:[5.60,3.10], ease:M.E.inOut,
+    card:'THE MEMBRANE KEEPS THE SCAR',
+    cardSub:'and the question stays open',
+    notes:['salvaged tissue is not undamaged tissue','the threshold never fully returns',
+           'every candidate structure survives its knockout','> the pore is still unidentified'],
+    style:{weird:0.45,wet:0.45,irid:0.5,volDens:0.18,partFade:0.5,partSize:1.0,
+           exposure:1.05,saturation:0.85,tintA:[0.22,0.52,0.60],tintB:[0.80,0.46,0.28],
+           echo:0.34,vignette:0.82,grain:0.05,bloomThresh:0.9,breath:0.25},
+    cam:(u,t)=>{ const a=1.2+u*0.7;
+      const p=Camera.orbit([0,0,0],M.mix(5.0,2.6,M.E.outCubic(u)),a,M.mix(1.8,0.5,u));
+      return {pos:p,target:[0,0,0],
+              opt:{focal:M.mix(1.2,1.6,u),parasite:0.02,aperture:0.012,
+                   focus:M.mix(4.6,2.5,u),rollNoise:0.06,lag:0.2}}; } },
+  ];
+
+  // cumulative timing
+  let T=0; for(const s of SHOTS){ s.t0=T; T+=s.dur; s.t1=T; }
+  const TOTAL=T;
+
+  function shotAt(t){
+    t=M.clamp(t,0,TOTAL-1e-4);
+    let lo=0,hi=SHOTS.length-1;
+    while(lo<hi){const mid=(lo+hi)>>1; if(SHOTS[mid].t1<=t) lo=mid+1; else hi=mid;}
+    return SHOTS[lo];
+  }
+  function styleAt(t){
+    // blend the previous shot's grade across a 2 s handover
+    const s=shotAt(t), i=SHOTS.indexOf(s);
+    const out=Object.assign({},BASE,s.style||{});
+    const HAND=2.2;
+    if(t-s.t0<HAND && i>0){
+      const prev=Object.assign({},BASE,SHOTS[i-1].style||{});
+      const w=M.smootherstep(0,1,(t-s.t0)/HAND);
+      for(const k in out){
+        if(typeof out[k]==='number') out[k]=M.mix(prev[k],out[k],w);
+        else if(Array.isArray(out[k])) out[k]=M.lerp3(prev[k],out[k],w);
+      }
+    }
+    return out;
+  }
+
+  /* interventions are applied to the ODE parameters on this schedule */
+  function interventions(P,t){
+    // each one takes hold in the first half of its act, so the consequences
+    // are on screen while the act is still running
+    P.ivMICU        = M.smootherstep(377,390,t);
+    P.ivCypD        = M.smootherstep(401,414,t);
+    P.ivCardiolipin = M.smootherstep(425,438,t);
+    P.ivScavenger   = M.smootherstep(449,460,t);
+  }
+
+  /* the excitation sparks that seed the wave in the field lattice */
+  function sparkAt(t,heal){
+    const rnd=M.rng(Math.floor(t*0.37)*7919+13);
+    if(t>194 && t<352){
+      const phase=(t-194)%9.0;
+      if(phase<0.34){
+        const k=Math.floor((t-194)/9.0);
+        const r2=M.rng(k*104729+7);
+        return [0.2+0.6*r2(),0.2+0.6*r2(),0.035,1.4*(1-heal)];
+      }
+    }
+    if(t>=352&&t<380 && ((t-352)%7.0)<0.3) return [0.5,0.5,0.03,0.9];
+    if(t>=448 && ((t-448)%6.0)<0.3) return [0.5+0.25*Math.sin(t),0.5,0.03,1.6];
+    return [0.5,0.5,0.02,0.0];
+  }
+
+  return {SHOTS,TOTAL,BASE,shotAt,styleAt,interventions,sparkAt};
+})();
+
+/* ===========================================================================
+   15 · AUDIO  ·  a score grown from the chemistry
+   ---------------------------------------------------------------------------
+   Nothing in this soundtrack was composed in the usual sense. Three separate
+   pieces of the biology are sonified directly:
+
+   (a) PITCH MATERIAL comes from infrared vibrational wavenumbers. Scaling by
+       0.25 Hz per cm^-1 puts the amide I band of an alpha helix at 413 Hz,
+       amide II at 387 Hz, the lipid ester carbonyl at 435 Hz, the cardiolipin
+       phosphate at 307 Hz and the acyl C-H stretch at 731 Hz. Amide I against
+       amide II beats at 26 Hz: the film's permanent, unpleasant buzz is the
+       sound of a protein backbone next to itself.
+
+   (b) HARMONY comes from enzyme turnover numbers. Taking frac(log10 k) as a
+       pitch class for k = 10 (NCLX), 76 (complex I), 270 (ATP synthase),
+       1.4e3 (cytochrome c oxidase), 4e7 (catalase), 5e4 (MCU), 2e9 (SOD)
+       yields the ratio set 1.000, 1.107, 1.233, 1.348, 1.518, 1.624, 1.842 --
+       a cluster no tuning system would ever have chosen.
+
+   (c) RHYTHM is the myocyte. A 1.2 Hz sinus grid that slows and staggers
+       through ischemia, breaks into fibrillation the instant the pore opens,
+       goes silent, and is coaxed back by the interventions.
+
+   The whole score is a pure function of film time and the ODE trajectory, so
+   the live mix and the OfflineAudioContext render are sample-identical.
+   =========================================================================== */
+const Audio = (() => {
+  const IR=Science.IR, HZ_PER_CM=0.25;
+  const PARTIALS=[IR.FeS,IR.ringBreath,IR.phosphate,IR.amideII,IR.amideI,
+                  IR.esterCO,IR.CH2asym,IR.OH].map(w=>w*HZ_PER_CM);
+  const RATE_K=[10,76,270,1.4e3,5e4,4e7,2e9];
+  const RATIOS=RATE_K.map(k=>{const f=Math.log10(k); return Math.pow(2,f-Math.floor(f));})
+                     .sort((a,b)=>a-b);
+
+  /* ---- the score: a pure function of film time -------------------------- */
+  function scoreState(t, bio){
+    const S=Director.shotAt(t), i=Director.SHOTS.indexOf(S);
+    const u=(t-S.t0)/S.dur;
+    const psi=M.sat(bio.dPsi/170), ros=M.sat(bio.ROS/1.4), pore=bio.pore;
+    const ph=M.sat((bio.pH-6.3)/0.9), atp=M.sat(bio.ATP/5), scar=bio.scar;
+
+    // root pitch: descends a tritone into ischemia, lurches up at reperfusion
+    let root=55.0;
+    if(t>=74)  root=M.mix(55.0, 55.0*Math.pow(2,-6/12), M.smootherstep(74,110,t));
+    if(t>=134) root=M.mix(root, 55.0*Math.pow(2, 3/12), M.smootherstep(134,152,t));
+    if(t>=212) root=M.mix(root, 55.0*Math.pow(2,-1/12), M.smootherstep(212,250,t));
+    if(t>=376) root=M.mix(root, 55.0*Math.pow(2, 0/12), M.smootherstep(376,460,t));
+
+    // the drone filter is the membrane potential, literally
+    const cutoff=120*Math.pow(2, 1.0+3.4*psi + 1.1*ros);
+    const q=2.5+9.0*ros+5.0*pore;
+
+    // detune grows with disorder; in act XIII the two candidate structures
+    // are two oscillators a few cents apart, beating against each other
+    let detune=3.0+26.0*ros+18.0*pore+22.0*scar;
+    if(t>=322&&t<352) detune+=40.0*M.E.breath((t-322)/30);
+
+    const droneGain=0.085*(0.35+0.65*M.mix(1.0,0.55,M.sat((t-74)/36)))
+                   *(0.5+0.5*psi)+0.02;
+    const noiseGain=0.020+0.085*ros+0.075*pore+0.03*(1-ph);
+    const noiseFreq=180+2600*ros+900*(1-psi);
+    const partialGain=0.020+0.055*M.sat(atp)+0.05*M.sat(1.2-Math.abs(t-52)/26);
+
+    // cardiac rhythm
+    let bpm=72, jitter=0.004, amp=0.9, sub=1;
+    if(t>74&&t<134){ const k=M.smootherstep(74,120,t);
+      bpm=M.mix(72,52,k); jitter=M.mix(0.004,0.055,k); amp=M.mix(0.9,0.5,k); }
+    if(pore>0.25){ const k=M.sat((pore-0.25)/0.35);
+      bpm=M.mix(bpm,330,k); jitter=M.mix(jitter,0.16,k); amp=M.mix(amp,0.42,k); sub=1; }
+    if(t>300&&pore>0.7){ amp*=M.mix(1,0.12,M.smootherstep(300,330,t)); }  // asystole
+    if(t>448){ const k=M.smootherstep(448,470,t);
+      bpm=M.mix(bpm,66,k); jitter=M.mix(jitter,0.008,k); amp=M.mix(amp,0.75,k); }
+
+    return {root,cutoff,q,detune,droneGain,noiseGain,noiseFreq,partialGain,
+            bpm,jitter,amp,sub,psi,ros,pore,ph,atp,scar,shot:i,u,t};
+  }
+
+  /* ---- persistent graph -------------------------------------------------- */
+  function noiseBuffer(ctx,sec){
+    const n=Math.floor(ctx.sampleRate*sec), b=ctx.createBuffer(2,n,ctx.sampleRate);
+    const rnd=M.rng(4242);
+    for(let c=0;c<2;c++){
+      const d=b.getChannelData(c);
+      let b0=0,b1=0,b2=0;
+      for(let i=0;i<n;i++){
+        const w=rnd()*2-1;                     // -> pink-ish (Paul Kellet)
+        b0=0.99765*b0+w*0.0990460; b1=0.96300*b1+w*0.2965164;
+        b2=0.57000*b2+w*1.0526913;
+        d[i]=(b0+b1+b2+w*0.1848)*0.16;
+      }
+    }
+    return b;
+  }
+  function reverbIR(ctx,sec,decay){
+    const n=Math.floor(ctx.sampleRate*sec), b=ctx.createBuffer(2,n,ctx.sampleRate);
+    const rnd=M.rng(9091);
+    for(let c=0;c<2;c++){
+      const d=b.getChannelData(c);
+      let lp=0;
+      for(let i=0;i<n;i++){
+        const x=i/n;
+        // an organelle-sized room: dense, dark, slightly late
+        const env=Math.pow(1-x,decay)*(1-Math.exp(-i/(ctx.sampleRate*0.012)));
+        let v=(rnd()*2-1)*env;
+        lp+=(v-lp)*(0.16+0.5*(1-x));
+        d[i]=lp*(c?0.96:1.0);
+      }
+      // a few discrete early reflections
+      for(const [dt,g] of [[0.011,0.42],[0.023,0.31],[0.037,0.24],[0.061,0.17]]){
+        const o=Math.floor(dt*ctx.sampleRate*(c?1.07:1.0));
+        for(let i=n-1;i>=o;i--) d[i]+=d[i-o]*g*0.30;
+      }
+    }
+    return b;
+  }
+  function satCurve(k){
+    const n=2048,c=new Float32Array(n);
+    for(let i=0;i<n;i++){const x=i*2/n-1; c[i]=Math.tanh(x*k)/Math.tanh(k);}
+    return c;
+  }
+
+  function buildGraph(ctx,dest){
+    const G={};
+    G.master=ctx.createGain(); G.master.gain.value=0.9;
+    G.shape=ctx.createWaveShaper(); G.shape.curve=satCurve(1.9); G.shape.oversample='4x';
+    G.comp=ctx.createDynamicsCompressor();
+    G.comp.threshold.value=-17; G.comp.knee.value=22; G.comp.ratio.value=4.5;
+    G.comp.attack.value=0.010; G.comp.release.value=0.28;
+    G.conv=ctx.createConvolver(); G.conv.buffer=reverbIR(ctx,3.6,2.2);
+    G.wet=ctx.createGain(); G.wet.gain.value=0.34;
+    G.dry=ctx.createGain(); G.dry.gain.value=0.80;
+    G.bus=ctx.createGain(); G.bus.gain.value=1.0;
+    G.bus.connect(G.dry); G.bus.connect(G.conv); G.conv.connect(G.wet);
+    G.dry.connect(G.shape); G.wet.connect(G.shape);
+    G.shape.connect(G.comp); G.comp.connect(G.master); G.master.connect(dest);
+
+    // ---- drone: detuned pair per voice, through a resonant lowpass -------
+    G.dfilt=ctx.createBiquadFilter(); G.dfilt.type='lowpass';
+    G.dfilt.frequency.value=400; G.dfilt.Q.value=4;
+    G.dgain=ctx.createGain(); G.dgain.gain.value=0.0;
+    G.dfilt.connect(G.dgain); G.dgain.connect(G.bus);
+    G.drones=[];
+    const voices=[[1,'sawtooth',0.34,-1],[1,'sawtooth',0.34,1],
+                  [2,'triangle',0.22,-1],[3,'triangle',0.13,1],
+                  [0.5,'sine',0.45,0],[1.5,'sawtooth',0.10,-1]];
+    for(const [mult,type,amp,dir] of voices){
+      const o=ctx.createOscillator(); o.type=type;
+      const g=ctx.createGain(); g.gain.value=amp;
+      o.connect(g); g.connect(G.dfilt);
+      G.drones.push({o,g,mult,dir});
+    }
+    // ---- membrane noise bed ----------------------------------------------
+    G.nsrc=ctx.createBufferSource(); G.nsrc.buffer=noiseBuffer(ctx,8); G.nsrc.loop=true;
+    G.nfilt=ctx.createBiquadFilter(); G.nfilt.type='bandpass'; G.nfilt.Q.value=1.4;
+    G.ngain=ctx.createGain(); G.ngain.gain.value=0.0;
+    G.nsrc.connect(G.nfilt); G.nfilt.connect(G.ngain); G.ngain.connect(G.bus);
+    // ---- sonified infrared partials --------------------------------------
+    G.pgain=ctx.createGain(); G.pgain.gain.value=0.0; G.pgain.connect(G.bus);
+    G.partials=PARTIALS.map((f,i)=>{
+      const o=ctx.createOscillator(); o.type='sine'; o.frequency.value=f;
+      const g=ctx.createGain(); g.gain.value=(i===4?0.9:(i===3?0.7:0.45))/PARTIALS.length;
+      o.connect(g); g.connect(G.pgain);
+      return {o,g,f};
+    });
+    return G;
+  }
+  function startGraph(G,when){
+    G.drones.forEach(d=>d.o.start(when));
+    G.partials.forEach(p=>p.o.start(when));
+    G.nsrc.start(when);
+  }
+
+  /* ---- continuous automation over a window ------------------------------ */
+  function automate(G,ctx,cache,filmT0,filmT1,offset,STEP){
+    STEP=STEP||0.18;
+    for(let ft=filmT0; ft<filmT1; ft+=STEP){
+      const bio=Science.sample(cache,ft);
+      const S=scoreState(ft,bio);
+      const at=ft+offset;
+      if(at<ctx.currentTime-0.05 && ctx.state!=='suspended' && !ctx.length) continue;
+      const set=(p,v)=>{ try{ p.linearRampToValueAtTime(v, at+STEP); }catch(e){} };
+      set(G.dfilt.frequency, M.clamp(S.cutoff,60,12000));
+      set(G.dfilt.Q, M.clamp(S.q,0.5,24));
+      set(G.dgain.gain, S.droneGain);
+      set(G.ngain.gain, S.noiseGain);
+      set(G.nfilt.frequency, M.clamp(S.noiseFreq,60,14000));
+      set(G.nfilt.Q, 0.8+5.0*S.ros);
+      set(G.pgain.gain, S.partialGain);
+      for(let i=0;i<G.drones.length;i++){
+        const d=G.drones[i];
+        const ratio=RATIOS[(i*2+1)%RATIOS.length];
+        const f=S.root*d.mult*(i<2?1:ratio);
+        set(d.o.frequency, M.clamp(f,16,8000));
+        set(d.o.detune, d.dir*S.detune*(1+0.4*i));
+      }
+      // the partials drift sharp as the chemistry heats up: a real spectral
+      // red-shift would be the other way, which is exactly why this is wrong
+      for(let i=0;i<G.partials.length;i++){
+        const p=G.partials[i];
+        set(p.o.detune, (i%2?1:-1)*(S.detune*0.55) + 14.0*S.ros*(i+1));
+        const em=(i===7? 0.25+0.75*S.ros : (i===0? 0.4+0.6*(1-S.psi):1.0));
+        set(p.g.gain, (0.45/PARTIALS.length)*em*(i===4?2.0:1.0));
+      }
+    }
+  }
+
+  /* ---- one-shot events --------------------------------------------------- */
+  function tone(ctx,dest,when,freq,dur,amp,type,glide){
+    const o=ctx.createOscillator(); o.type=type||'sine';
+    const g=ctx.createGain();
+    o.frequency.setValueAtTime(glide?freq*glide:freq,when);
+    if(glide) o.frequency.exponentialRampToValueAtTime(freq,when+dur*0.75);
+    g.gain.setValueAtTime(0.0001,when);
+    g.gain.exponentialRampToValueAtTime(Math.max(amp,0.0002),when+Math.min(0.03,dur*0.2));
+    g.gain.exponentialRampToValueAtTime(0.0001,when+dur);
+    o.connect(g); g.connect(dest);
+    o.start(when); o.stop(when+dur+0.05);
+  }
+  function thump(ctx,dest,when,f0,f1,dur,amp){
+    const o=ctx.createOscillator(); o.type='sine';
+    const g=ctx.createGain();
+    o.frequency.setValueAtTime(f0,when);
+    o.frequency.exponentialRampToValueAtTime(Math.max(f1,8),when+dur*0.85);
+    g.gain.setValueAtTime(amp,when);
+    g.gain.exponentialRampToValueAtTime(0.0001,when+dur);
+    o.connect(g); g.connect(dest);
+    o.start(when); o.stop(when+dur+0.02);
+  }
+  function tick(ctx,dest,when,freq,q,dur,amp,noise){
+    const s=ctx.createBufferSource(); s.buffer=noise; s.loop=true;
+    s.playbackRate.value=0.7+Math.random()*0.6;
+    const f=ctx.createBiquadFilter(); f.type='bandpass';
+    f.frequency.value=freq; f.Q.value=q;
+    const g=ctx.createGain();
+    g.gain.setValueAtTime(amp,when);
+    g.gain.exponentialRampToValueAtTime(0.0001,when+dur);
+    s.connect(f); f.connect(g); g.connect(dest);
+    s.start(when); s.stop(when+dur+0.02);
+  }
+
+  /* The cardiac grid is built once, by integrating the instantaneous rate
+     across the whole film. Picture and sound both read the same list, so the
+     glitch bus, the exposure pulse and the kick drum are the same heartbeat. */
+  let BEATS=[];
+  function buildBeats(cache, total){
+    BEATS=[];
+    const STEP=0.02;
+    let phase=0, last=0;
+    for(let t=0;t<total;t+=STEP){
+      const bio=Science.sample(cache,t);
+      const S=scoreState(t,bio);
+      phase+=(S.bpm/60)*STEP;
+      const b=Math.floor(phase);
+      if(b>last){
+        last=b;
+        const jit=(M.hash3(b*1.7,3.1,7.9)-0.5)*S.jitter*2.0;
+        BEATS.push({t:Math.max(0,t+jit), i:b, root:S.root, amp:S.amp,
+                    pore:S.pore, atp:S.atp, ros:S.ros, bpm:S.bpm});
+      }
+    }
+    return BEATS;
+  }
+  function beatIndex(t){
+    let lo=0, hi=BEATS.length-1, r=-1;
+    while(lo<=hi){ const m=(lo+hi)>>1;
+      if(BEATS[m].t<=t){ r=m; lo=m+1; } else hi=m-1; }
+    return r;
+  }
+  function beatPulse(t){
+    // visual envelope: a short systolic flash that smears during fibrillation
+    let v=0;
+    for(let i=beatIndex(t); i>=0; i--){
+      const dt=t-BEATS[i].t;
+      if(dt>0.60) break;
+      v=Math.max(v, BEATS[i].amp*Math.exp(-dt/0.10));
+    }
+    return M.sat(v);
+  }
+
+  function events(ctx,G,cache,filmT0,filmT1,offset,noise){
+    for(let i=0;i<BEATS.length;i++){
+      const B=BEATS[i];
+      if(B.t<filmT0||B.t>=filmT1) continue;
+      const when=B.t+offset;
+      if(when<=ctx.currentTime && !ctx.length) continue;
+      const amp=B.amp*(0.5+0.5*M.hash3(B.i*2.3,1.1,5.5));
+      thump(ctx,G.bus,when,B.root*1.35,B.root*0.42,
+            M.mix(0.42,0.13,B.pore),0.30*amp*(0.4+0.6*B.atp));
+      tick(ctx,G.bus,when+0.008,B.root*8*(1+0.6*B.ros),6+18*B.pore,
+           M.mix(0.10,0.04,B.pore),0.075*amp,noise);
+      if(B.i%2===0 && B.pore<0.3)
+        tick(ctx,G.bus,when+0.5*60/B.bpm,B.root*14,12,0.06,0.030*amp,noise);
+    }
+    // --- granular ion layer: emission rate follows the superoxide flux ----
+    const STEP=0.02;
+    for(let ft=filmT0; ft<filmT1; ft+=STEP){
+      const S=scoreState(ft,Science.sample(cache,ft));
+      const nG=(2.0+46.0*S.ros+22.0*S.pore)*STEP;
+      if(M.hash3(ft*97.1,11.3,3.7) < nG){
+        const h=M.hash3(ft*131.7,5.9,2.3);
+        const r=RATIOS[(h*RATIOS.length)|0];
+        const oct=Math.pow(2,2+Math.floor(h*3));
+        const when=ft+offset;
+        if(when>ctx.currentTime||ctx.length)
+          tone(ctx,G.bus,when,S.root*r*oct,0.05+0.22*h,
+               0.022*(0.3+0.7*S.ros),(h<0.5?'sine':'triangle'),1+0.4*h);
+      }
+    }
+  }
+
+  /* ---- dramatic one-shots, placed on the timeline ------------------------ */
+  const CUES=[
+    {t:50.0,  fn:(ctx,G,off,c)=>{ // title card: a pure amide-I tone
+        tone(ctx,G.bus,50+off,IR.amideI*HZ_PER_CM,9.0,0.055,'sine');
+        tone(ctx,G.bus,50.4+off,IR.amideI*HZ_PER_CM*1.5,8.2,0.022,'sine'); }},
+    {t:74.0,  fn:(ctx,G,off)=>{ // the artery closes
+        thump(ctx,G.bus,74+off,110,14,3.2,0.34);
+        tone(ctx,G.bus,74+off,38.9,14.0,0.05,'sine'); }},
+    {t:134.0, fn:(ctx,G,off)=>{ // the artery opens: an inrush
+        tone(ctx,G.bus,134+off,65.4,7.0,0.07,'sawtooth',0.25);
+        thump(ctx,G.bus,134.1+off,220,30,2.0,0.30); }},
+    {t:212.0, fn:(ctx,G,off)=>{ // the transition
+        thump(ctx,G.bus,212+off,180,10,5.0,0.42);
+        for(let i=0;i<7;i++)
+          tone(ctx,G.bus,212+off+i*0.045,55*RATIOS[i]*4,6.0-i*0.4,0.030,'sawtooth'); }},
+    {t:296.0, fn:(ctx,G,off)=>{ thump(ctx,G.bus,296+off,90,8,6.0,0.30); }},
+    {t:322.0, fn:(ctx,G,off)=>{ // the unresolved: two tones, 7 cents apart
+        tone(ctx,G.bus,322+off,IR.amideI*HZ_PER_CM,26.0,0.030,'sine');
+        const o=ctx.createOscillator(),g=ctx.createGain();
+        o.type='sine'; o.frequency.value=IR.amideI*HZ_PER_CM; o.detune.value=7;
+        g.gain.setValueAtTime(0.0001,322+off);
+        g.gain.exponentialRampToValueAtTime(0.030,324+off);
+        g.gain.exponentialRampToValueAtTime(0.0001,348+off);
+        o.connect(g); g.connect(G.bus); o.start(322+off); o.stop(349+off); }},
+    // the four interventions each arrive as a pure just interval
+    {t:376.0, fn:(ctx,G,off)=>{ tone(ctx,G.bus,376+off,220.0,13,0.045,'sine',0.6); }},
+    {t:400.0, fn:(ctx,G,off)=>{ tone(ctx,G.bus,400+off,220*1.5,13,0.042,'sine',0.72); }},
+    {t:424.0, fn:(ctx,G,off)=>{ tone(ctx,G.bus,424+off,220*1.25,13,0.040,'sine',0.8); }},
+    {t:448.0, fn:(ctx,G,off)=>{ tone(ctx,G.bus,448+off,220*2,15,0.038,'sine',0.85);
+        tone(ctx,G.bus,449+off,220*3,14,0.020,'sine'); }},
+    {t:462.0, fn:(ctx,G,off)=>{ // the coda: the chord, consonant for once
+        [1,1.5,2,2.5,3].forEach((r,i)=>
+          tone(ctx,G.bus,462+off+i*0.7,55*r*2,12-i,0.026,'sine')); }},
+  ];
+
+  /* ---- public: live transport -------------------------------------------- */
+  let ctx=null,G=null,noise=null,offset=0,cursor=0,firedCues=new Set(),muted=false;
+  function init(cache){
+    if(ctx) return ctx;
+    ctx=new (window.AudioContext||window.webkitAudioContext)({sampleRate:48000});
+    G=buildGraph(ctx,ctx.destination);
+    noise=noiseBuffer(ctx,2.0);
+    startGraph(G,ctx.currentTime+0.05);
+    return ctx;
+  }
+  function seek(filmT){
+    if(!ctx) return;
+    offset=ctx.currentTime-filmT+0.10;
+    cursor=filmT;
+    firedCues.clear();
+    for(const c of CUES) if(c.t<filmT) firedCues.add(c.t);
+    const clr=p=>{try{p.cancelScheduledValues(ctx.currentTime);}catch(e){}};
+    clr(G.dfilt.frequency);clr(G.dgain.gain);clr(G.ngain.gain);clr(G.pgain.gain);
+    G.drones.forEach(d=>{clr(d.o.frequency);clr(d.o.detune);});
+  }
+  function update(cache, filmT, playing){
+    if(!ctx) return;
+    if(!playing) return;
+    const LOOK=0.45;
+    const target=filmT+LOOK;
+    if(cursor<filmT-1.0||cursor>filmT+3.0) seek(filmT);
+    if(target>cursor){
+      automate(G,ctx,cache,cursor,target,offset);
+      events(ctx,G,cache,cursor,target,offset,noise);
+      for(const c of CUES) if(c.t>=cursor&&c.t<target&&!firedCues.has(c.t)){
+        firedCues.add(c.t); c.fn(ctx,G,offset,cache);
+      }
+      cursor=target;
+    }
+  }
+  function setMuted(m){ muted=m; if(G) G.master.gain.value=m?0:0.9; }
+  function isMuted(){return muted;}
+  function suspend(){ if(ctx&&ctx.state==='running') ctx.suspend(); }
+  function resume(){ if(ctx&&ctx.state==='suspended') ctx.resume(); }
+  let streamDest=null;
+  function streamNode(){ // for MediaRecorder capture
+    if(!ctx) return null;
+    if(!streamDest){ streamDest=ctx.createMediaStreamDestination(); G.master.connect(streamDest); }
+    return streamDest;
+  }
+
+  /* ---- offline render: identical score, rendered faster than realtime ----- */
+  async function renderOffline(cache, duration, onProgress){
+    const sr=48000;
+    const octx=new (window.OfflineAudioContext||window.webkitOfflineAudioContext)
+                    (2, Math.ceil(sr*duration), sr);
+    const g=buildGraph(octx,octx.destination);
+    const nz=noiseBuffer(octx,2.0);
+    startGraph(g,0);
+    automate(g,octx,cache,0,duration,0,0.18);
+    // events in chunks so the scheduler's phase integration stays cheap
+    const CH=10;
+    for(let t0=0;t0<duration;t0+=CH){
+      events(octx,g,cache,t0,Math.min(t0+CH,duration),0,nz);
+      if(onProgress) onProgress(t0/duration*0.5);
+    }
+    for(const c of CUES) if(c.t<duration) c.fn(octx,g,0,cache);
+    const buf=await octx.startRendering();
+    if(onProgress) onProgress(1.0);
+    return buf;
+  }
+
+  function encodeWAV(buf){
+    const ch=buf.numberOfChannels, n=buf.length, sr=buf.sampleRate;
+    const bytes=44+n*ch*2, ab=new ArrayBuffer(bytes), dv=new DataView(ab);
+    const wr=(o,s)=>{for(let i=0;i<s.length;i++)dv.setUint8(o+i,s.charCodeAt(i));};
+    wr(0,'RIFF'); dv.setUint32(4,bytes-8,true); wr(8,'WAVE'); wr(12,'fmt ');
+    dv.setUint32(16,16,true); dv.setUint16(20,1,true); dv.setUint16(22,ch,true);
+    dv.setUint32(24,sr,true); dv.setUint32(28,sr*ch*2,true);
+    dv.setUint16(32,ch*2,true); dv.setUint16(34,16,true);
+    wr(36,'data'); dv.setUint32(40,n*ch*2,true);
+    const chans=[]; for(let c=0;c<ch;c++) chans.push(buf.getChannelData(c));
+    let o=44;
+    for(let i=0;i<n;i++) for(let c=0;c<ch;c++){
+      let v=Math.max(-1,Math.min(1,chans[c][i]));
+      dv.setInt16(o,v<0?v*0x8000:v*0x7FFF,true); o+=2;
+    }
+    return new Blob([ab],{type:'audio/wav'});
+  }
+
+  return {init,seek,update,setMuted,isMuted,suspend,resume,streamNode,
+          renderOffline,encodeWAV,scoreState,buildBeats,beatPulse,
+          PARTIALS,RATIOS,get BEATS(){return BEATS;},
+          get ctx(){return ctx;}};
+})();
+
+/* ===========================================================================
+   16 · WEBM MUXER
+   ---------------------------------------------------------------------------
+   A minimal but correct EBML/Matroska writer, so the deterministic renderer
+   can hand WebCodecs-encoded VP9 straight to a file without a library. The
+   segment is written with an unknown size (exactly what MediaRecorder itself
+   emits) and clusters are flushed as Blobs, so a 4K feature-length render
+   never has to sit in memory at once.
+   =========================================================================== */
+const WebM = (() => {
+  const ID={
+    EBML:[0x1A,0x45,0xDF,0xA3], EBMLVersion:[0x42,0x86], EBMLReadVersion:[0x42,0xF7],
+    EBMLMaxIDLength:[0x42,0xF2], EBMLMaxSizeLength:[0x42,0xF3],
+    DocType:[0x42,0x82], DocTypeVersion:[0x42,0x87], DocTypeReadVersion:[0x42,0x85],
+    Segment:[0x18,0x53,0x80,0x67], Info:[0x15,0x49,0xA9,0x66],
+    TimecodeScale:[0x2A,0xD7,0xB1], MuxingApp:[0x4D,0x80], WritingApp:[0x57,0x41],
+    Duration:[0x44,0x89], Tracks:[0x16,0x54,0xAE,0x6B], TrackEntry:[0xAE],
+    TrackNumber:[0xD7], TrackUID:[0x73,0xC5], TrackType:[0x83], CodecID:[0x86],
+    CodecPrivate:[0x63,0xA2], FlagLacing:[0x9C], Language:[0x22,0xB5,0x9C],
+    DefaultDuration:[0x23,0xE3,0x83], Video:[0xE0], PixelWidth:[0xB0],
+    PixelHeight:[0xBA], Cluster:[0x1F,0x43,0xB6,0x75], Timecode:[0xE7],
+    SimpleBlock:[0xA3],
+  };
+  function vint(n){
+    let len=1;
+    while(n >= Math.pow(2,7*len)-1) len++;
+    const b=new Uint8Array(len);
+    let v=n;
+    for(let i=len-1;i>=0;i--){ b[i]=v%256; v=Math.floor(v/256); }
+    b[0]|=(0x80>>(len-1));
+    return b;
+  }
+  function uint(n){
+    if(n===0) return new Uint8Array([0]);
+    const out=[];
+    let v=n;
+    while(v>0){ out.unshift(v%256); v=Math.floor(v/256); }
+    return new Uint8Array(out);
+  }
+  function f64(x){ const b=new Uint8Array(8); new DataView(b.buffer).setFloat64(0,x,false); return b; }
+  function str(s){ const b=new Uint8Array(s.length); for(let i=0;i<s.length;i++) b[i]=s.charCodeAt(i); return b; }
+  function cat(arrs){
+    let n=0; for(const a of arrs) n+=a.length;
+    const o=new Uint8Array(n); let k=0;
+    for(const a of arrs){ o.set(a,k); k+=a.length; }
+    return o;
+  }
+  function el(id, payload){ return cat([new Uint8Array(id), vint(payload.length), payload]); }
+  function elU(id, n){ return el(id, uint(n)); }
+
+  function header(w,h,durationMs,fps){
+    const ebml=el(ID.EBML, cat([
+      elU(ID.EBMLVersion,1), elU(ID.EBMLReadVersion,1),
+      elU(ID.EBMLMaxIDLength,4), elU(ID.EBMLMaxSizeLength,8),
+      el(ID.DocType,str('webm')), elU(ID.DocTypeVersion,2), elU(ID.DocTypeReadVersion,2)]));
+    const info=el(ID.Info, cat([
+      elU(ID.TimecodeScale,1000000),
+      el(ID.MuxingApp,str('mitochondrial-transition')),
+      el(ID.WritingApp,str('mitochondrial-transition')),
+      el(ID.Duration,f64(durationMs))]));
+    const video=el(ID.Video, cat([elU(ID.PixelWidth,w), elU(ID.PixelHeight,h)]));
+    const track=el(ID.TrackEntry, cat([
+      elU(ID.TrackNumber,1), elU(ID.TrackUID,0x4D7A), elU(ID.TrackType,1),
+      elU(ID.FlagLacing,0), el(ID.Language,str('und')), el(ID.CodecID,str('V_VP9')),
+      elU(ID.DefaultDuration, Math.round(1e9/fps)), video]));
+    const tracks=el(ID.Tracks, track);
+    // Segment with unknown size: everything after this streams
+    const segHead=cat([new Uint8Array(ID.Segment),
+                       new Uint8Array([0x01,0xFF,0xFF,0xFF,0xFF,0xFF,0xFF,0xFF])]);
+    return cat([ebml, segHead, info, tracks]);
+  }
+  function simpleBlock(relMs, data, key){
+    const head=new Uint8Array(4);
+    head[0]=0x81;                       // track 1, vint
+    head[1]=(relMs>>8)&0xFF; head[2]=relMs&0xFF;
+    head[3]=key?0x80:0x00;
+    return el(ID.SimpleBlock, cat([head, data]));
+  }
+  function cluster(timecodeMs, blocks){
+    return el(ID.Cluster, cat([elU(ID.Timecode,timecodeMs), cat(blocks)]));
+  }
+  return {header, simpleBlock, cluster, cat};
+})();
+
+/* ===========================================================================
+   17 · EXPORT
+   ---------------------------------------------------------------------------
+   Two paths.
+   REALTIME  : canvas.captureStream + the audio graph -> MediaRecorder -> webm
+               with sound. Convenient; frame timing follows the display.
+   OFFLINE   : the film is advanced by an exact 1/fps, each output frame is
+               the average of `mb` sub-frames (true motion blur, and it also
+               resolves the stochastic lens sampling), WebCodecs encodes VP9,
+               the muxer above writes the stream, and the score is rendered
+               separately through an OfflineAudioContext. Deterministic:
+               render the same range twice and you get the same bytes.
+   =========================================================================== */
+const Export = (() => {
+  let rec=null, chunks=[], recording=false;
+
+  function download(blob, name){
+    const a=document.createElement('a');
+    a.href=URL.createObjectURL(blob); a.download=name;
+    document.body.appendChild(a); a.click();
+    setTimeout(()=>{URL.revokeObjectURL(a.href); a.remove();}, 4000);
+  }
+
+  function startRealtime(canvas, fps, onState){
+    if(recording) return stopRealtime();
+    const vs=canvas.captureStream(fps||60);
+    const an=Audio.streamNode();
+    const tracks=[...vs.getVideoTracks()];
+    if(an) tracks.push(...an.stream.getAudioTracks());
+    const stream=new MediaStream(tracks);
+    const types=['video/webm;codecs=vp9,opus','video/webm;codecs=vp8,opus','video/webm'];
+    const mime=types.find(t=>window.MediaRecorder&&MediaRecorder.isTypeSupported(t));
+    if(!mime){ onState&&onState('MediaRecorder unavailable'); return; }
+    chunks=[];
+    rec=new MediaRecorder(stream,{mimeType:mime,videoBitsPerSecond:38_000_000,
+                                  audioBitsPerSecond:256_000});
+    rec.ondataavailable=e=>{ if(e.data&&e.data.size) chunks.push(e.data); };
+    rec.onstop=()=>{
+      download(new Blob(chunks,{type:'video/webm'}),'the_pore_realtime.webm');
+      onState&&onState(null);
+    };
+    rec.start(1000);
+    recording=true;
+    onState&&onState('recording');
+    return true;
+  }
+  function stopRealtime(){
+    if(rec&&recording){ rec.stop(); recording=false; }
+    return false;
+  }
+  const isRecording=()=>recording;
+
+  function vp9Codec(w,h){
+    const px=w*h;
+    const level = px>=3840*2160?'51' : px>=2560*1440?'50' : px>=1920*1080?'40' : '31';
+    return 'vp09.00.'+level+'.08';
+  }
+
+  /* ---- the deterministic renderer ---------------------------------------- */
+  async function renderOffline(opts){
+    const {canvas, fps, mb, start, end, width, height, bitrate, onProgress, buildState,
+           drawTitles, total} = opts;
+    if(typeof VideoEncoder==='undefined')
+      throw new Error('WebCodecs VideoEncoder not available — use Chrome/Edge 116+ '+
+                      'or the realtime capture (key: c).');
+    const t0=Math.max(0,start||0), t1=Math.min(total, end||total);
+    const nFrames=Math.round((t1-t0)*fps);
+    const dt=1/fps, sub=Math.max(1,mb|0), subDt=dt/sub;
+
+    const parts=[];
+    parts.push(new Blob([WebM.header(width,height,(t1-t0)*1000,fps)]));
+    let clusterBlocks=[], clusterBase=0, pending=0;
+    const GOP=Math.round(fps*2);
+
+    const encoder=new VideoEncoder({
+      output:(chunk)=>{
+        const buf=new Uint8Array(chunk.byteLength);
+        chunk.copyTo(buf);
+        const ms=Math.round(chunk.timestamp/1000);
+        if(clusterBlocks.length===0) clusterBase=ms;
+        if(ms-clusterBase>32000 || (chunk.type==='key'&&clusterBlocks.length>0)){
+          parts.push(new Blob([WebM.cluster(clusterBase, clusterBlocks)]));
+          clusterBlocks=[]; clusterBase=ms;
+        }
+        clusterBlocks.push(WebM.simpleBlock(ms-clusterBase, buf, chunk.type==='key'));
+        pending--;
+      },
+      error:e=>{ console.error('VideoEncoder', e); }
+    });
+    encoder.configure({codec:vp9Codec(width,height), width, height,
+      bitrate:bitrate||Math.round(width*height*fps*0.11),
+      framerate:fps, latencyMode:'quality'});
+
+    // warm the simulation up to the start of the range so a chunked render
+    // matches a full one
+    if(t0>0){
+      const WARM=Math.min(t0, opts.warm==null?20:opts.warm);
+      for(let t=t0-WARM;t<t0;t+=dt){
+        const S=buildState(t, dt);
+        Renderer.frameCore(S, dt);
+      }
+    }
+
+    for(let f=0; f<nFrames; f++){
+      const tFrame=t0+f*dt;
+      Renderer.clearAccum();
+      for(let k=0;k<sub;k++){
+        const ts=tFrame + (k+0.5)*subDt;
+        const S=buildState(ts, subDt);
+        S.jitter=[(k*0.6180339887)%1-0.5, (k*0.3819660113)%1-0.5];
+        Renderer.frameCore(S, subDt);
+        Renderer.accumulate(1.0/sub);
+      }
+      const S=buildState(tFrame+dt*0.5, dt);
+      if(drawTitles) drawTitles(tFrame+dt*0.5);
+      Renderer.present(S, width, height, true);
+
+      const frame=new VideoFrame(canvas, {timestamp: Math.round((tFrame-t0)*1e6),
+                                          duration: Math.round(dt*1e6)});
+      pending++;
+      encoder.encode(frame, {keyFrame: (f%GOP)===0});
+      frame.close();
+      // back-pressure instead of flushing: a flush every few frames would
+      // throw away the encoder's inter-frame state and balloon the bitrate
+      while(encoder.encodeQueueSize>6) await new Promise(r=>setTimeout(r,2));
+      if(onProgress) onProgress(f/nFrames, tFrame);
+      if((f&3)===0) await new Promise(r=>setTimeout(r,0));
+    }
+    await encoder.flush();
+    encoder.close();
+    if(clusterBlocks.length) parts.push(new Blob([WebM.cluster(clusterBase, clusterBlocks)]));
+
+    const name='the_pore_'+String(Math.round(t0)).padStart(4,'0')+'-'+
+               String(Math.round(t1)).padStart(4,'0')+'_'+width+'x'+height+'.webm';
+    download(new Blob(parts,{type:'video/webm'}), name);
+    return name;
+  }
+
+  async function renderAudio(cache, duration, onProgress){
+    const buf=await Audio.renderOffline(cache, duration, onProgress);
+    download(Audio.encodeWAV(buf), 'the_pore_score_48k.wav');
+  }
+
+  return {startRealtime, stopRealtime, isRecording, renderOffline, renderAudio, download};
+})();
+
+/* ===========================================================================
+   18 · THE FILM  ·  state assembly, transport, and boot
+   =========================================================================== */
+const Film = (() => {
+  const Q={
+    low:   {steps:64,  res:0.45, pw:96,  grain:1.0},
+    med:   {steps:104, res:0.62, pw:128, grain:1.0},
+    high:  {steps:150, res:0.85, pw:192, grain:1.0},
+    ultra: {steps:240, res:1.00, pw:256, grain:1.0},
+  };
+  const qs=new URLSearchParams(location.search);
+  const CFG={
+    quality: qs.get('q')||'high',
+    seed: parseInt(qs.get('seed')||'20260922',10),
+    fps: parseFloat(qs.get('fps')||'24'),
+    mb: parseInt(qs.get('mb')||'6',10),
+    warm: parseFloat(qs.get('warm')||'20'),
+    hud: qs.get('hud')!=='0',
+    startT: parseFloat(qs.get('t')||'0'),
+    outW: qs.get('w')?parseInt(qs.get('w'),10):0,
+    outH: qs.get('h')?parseInt(qs.get('h'),10):0,
+    renderNow: qs.get('render')==='1',
+    rangeA: parseFloat(qs.get('start')||'0'),
+    rangeB: qs.get('end')?parseFloat(qs.get('end')):Director.TOTAL,
+  };
+
+  let canvas, gl, bioCache, mol, vol;
+  let t=CFG.startT, playing=false, last=0, booted=false, rendering=false;
+  let fpsAvg=60, hudOn=CFG.hud;
+  const TOTAL=Director.TOTAL;
+
+  /* ---- state assembly: everything the GPU needs for one instant ---------- */
+  function buildState(ft, dt){
+    ft=M.clamp(ft,0,TOTAL-0.001);
+    const shot=Director.shotAt(ft);
+    const idx=Director.SHOTS.indexOf(shot);
+    const u=M.sat((ft-shot.t0)/shot.dur);
+    const st=Director.styleAt(ft);
+    const bio=Science.sample(bioCache, ft);
+    const ease=shot.ease||M.E.inOut;
+    const scale=M.mix(shot.scale[0], shot.scale[1], ease(u));
+    const cp=shot.cam(u, ft);
+    const cam=Camera.build(cp.pos, cp.target, cp.opt, ft, dt);
+
+    const heal=M.sat(0.12*bio.ivMICU+0.20*bio.ivCypD+0.45*bio.ivCL+0.55*bio.ivSC);
+    const beat=Audio.beatPulse(ft);
+    const q=Q[CFG.quality]||Q.high;
+
+    const S=Object.assign({}, st, {
+      t:ft, u, shotIndex:idx, scale, cam, bio, heal, beat,
+      spark: Director.sparkAt(ft, heal),
+      fieldRate: 3.4,
+      seed: CFG.seed*0.0001,
+      steps: st.steps? Math.min(st.steps,q.steps) : q.steps,
+      // without temporal accumulation a wide stochastic aperture is just
+      // noise, so the preview presets stop the lens down
+      apertureScale: {low:0.10, med:0.20, high:0.45, ultra:1.0}[CFG.quality]||0.45,
+      jitter: [ (M.hash3(Renderer.frame*1.37,2.1,5.3)-0.5),
+                (M.hash3(Renderer.frame*2.71,7.7,1.9)-0.5) ],
+    });
+    // the picture inherits the state of the tissue
+    S.glitch = M.sat(S.glitch + 0.30*beat*bio.pore + 0.12*M.sat(bio.ROS-0.5));
+    S.echo   = M.sat(S.echo + 0.10*bio.pore);
+    S.grain  = st.grain*(1.0+0.5*bio.scar);
+    S.exposure = st.exposure*(1.0+0.10*beat*(1.0-0.6*bio.pore));
+    S.lumen  = M.sat(st.lumen + bio.pore*(idx>=8?1.0:0.0));
+    S.wet    = M.sat(st.wet*(1.0+0.35*(bio.vol-1.0)));
+    S.iso    = st.iso*(1.0-0.10*bio.pore);
+    // aspect: letterbox whatever canvas we have down to 2.39:1
+    return S;
+  }
+
+  /* ---- titles ------------------------------------------------------------ */
+  function buildTitles(ft){
+    const shot=Director.shotAt(ft);
+    const bio=Science.sample(bioCache, ft);
+    const lt=ft-shot.t0;
+    const T={};
+    const inA=M.smootherstep(0.6,2.4,lt), outA=1-M.smootherstep(shot.dur-2.2,shot.dur-0.4,lt);
+    const hold=M.sat(1-M.smootherstep(8.5,11.5,lt));
+    T.act=shot.title; T.num=shot.num+' ·'; T.sub=shot.sub;
+    T.actA=inA*outA*Math.max(hold,0.0);
+    T.actP=M.sat((lt-0.7)/1.9);
+    T.notes=shot.notes||[];
+    T.noteA=M.smootherstep(2.6,4.6,lt)*outA*(0.35+0.65*(1-M.smootherstep(shot.dur-9,shot.dur-4,lt)));
+    if(shot.card){
+      const c0=shot.dur*0.30, c1=shot.dur*0.78;
+      T.card=shot.card; T.cardSub=shot.cardSub;
+      T.cardA=M.smootherstep(c0,c0+1.6,lt)*(1-M.smootherstep(c1,c1+2.0,lt));
+      T.cardP=M.sat((lt-c0)/2.2);
+      T.actA*=0.25;
+    }
+    const metres=Math.pow(10, -10 + (buildScale(ft))*(7/6));
+    T.stamp=fmtMetres(metres)+'   ·   t+'+fmtClock(ft);
+    const psi=bio.dPsi/170;
+    T.vitals=[
+      ['ΔΨm', bio.dPsi.toFixed(0)+' mV', tint(psi,true), M.sat(psi)],
+      ['[Ca²⁺]m', bio.Cam.toFixed(1)+' µM', tint(M.sat(bio.Cam/60),false), M.sat(bio.Cam/60)],
+      ['O₂•⁻', bio.ROS.toFixed(2), tint(M.sat(bio.ROS/1.5),false), M.sat(bio.ROS/1.5)],
+      ['pHi', bio.pH.toFixed(2), tint(M.sat((bio.pH-6.3)/0.9),true), M.sat((bio.pH-6.3)/0.9)],
+      ['ATP', bio.ATP.toFixed(1)+' mM', tint(M.sat(bio.ATP/5),true), M.sat(bio.ATP/5)],
+      ['P open', (bio.pore*100).toFixed(0)+' %', tint(bio.pore,false), bio.pore],
+    ];
+    T.vitA=0.55*M.smootherstep(1.5,3.5,lt)*outA;
+    return T;
+  }
+  const tint=(v,goodHigh)=>{
+    const g=goodHigh?v:1-v;
+    return g>0.66?'rgba(75,227,200,0.92)':(g>0.33?'rgba(255,181,69,0.92)':'rgba(255,90,60,0.95)');
+  };
+  function buildScale(ft){
+    const shot=Director.shotAt(ft), u=M.sat((ft-shot.t0)/shot.dur);
+    return M.mix(shot.scale[0],shot.scale[1],(shot.ease||M.E.inOut)(u));
+  }
+  function fmtMetres(m){
+    const units=[[1e-3,'mm'],[1e-6,'µm'],[1e-9,'nm'],[1e-12,'pm']];
+    for(const [f,n] of units){ if(m>=f) return (m/f).toFixed(m/f<10?2:1)+' '+n; }
+    return (m/1e-12).toFixed(1)+' pm';
+  }
+  function fmtClock(x){
+    const m=Math.floor(x/60), sec=Math.floor(x%60);
+    return m+':'+String(sec).padStart(2,'0');
+  }
+
+  /* ---- sizing ------------------------------------------------------------ */
+  function layout(){
+    const q=Q[CFG.quality]||Q.high;
+    let cw, ch;
+    if(CFG.outW){ cw=CFG.outW; ch=CFG.outH||Math.round(CFG.outW/2.39/2)*2; }
+    else {
+      const dpr=Math.min(window.devicePixelRatio||1, 2);
+      cw=Math.round(window.innerWidth*dpr);
+      ch=Math.round(window.innerHeight*dpr);
+      const cap=CFG.quality==='ultra'?3840:2560;
+      if(cw>cap){ const k=cap/cw; cw=Math.round(cw*k); ch=Math.round(ch*k); }
+    }
+    cw=Math.max(64,cw&~1); ch=Math.max(64,ch&~1);
+    canvas.width=cw; canvas.height=ch;
+    const A=cw/ch;
+    Director.BASE.bars=Math.min(0.5, A/4.78);
+    Titles.setFormat(A, Director.BASE.bars);
+    // fit to the viewport
+    const fit=Math.min(window.innerWidth/cw, window.innerHeight/ch);
+    canvas.style.width=(cw*fit)+'px'; canvas.style.height=(ch*fit)+'px';
+    const rw=Math.max(32,Math.round(cw*q.res)&~1), rh=Math.max(32,Math.round(ch*q.res)&~1);
+    Renderer.resize(rw, rh, q.pw);
+    return {cw,ch};
+  }
+
+  /* ---- transport --------------------------------------------------------- */
+  function seek(nt, hard){
+    t=M.clamp(nt,0,TOTAL-0.01);
+    Camera.reset();
+    Renderer.resetField(t);
+    if(hard) Renderer.seedField(1.0+t*0.01);
+    Audio.seek(t);
+  }
+  function setPlaying(p){
+    playing=p;
+    if(p){ Audio.resume(); Audio.seek(t); } else { Audio.suspend(); }
+  }
+
+  /* ---- boot -------------------------------------------------------------- */
+  const blog=m=>{ const e=document.getElementById('blog'); if(e) e.textContent=m; };
+  async function boot(){
+    canvas=document.getElementById('gl');
+    const step=(m)=>new Promise(r=>{ blog(m); setTimeout(r, 12); });
+
+    await step('integrating the ischemia-reperfusion model (13 states, RK4)…');
+    bioCache=Science.integrate(Director.TOTAL+2, Director.interventions);
+
+    await step('building the cardiac grid…');
+    Audio.buildBeats(bioCache, Director.TOTAL+2);
+
+    await step('generating atomic coordinates from helical geometry…');
+    mol=Mol.build(CFG.seed);
+    await step('splatting '+(mol.A.length+mol.B.length+mol.L.length).toLocaleString()+
+               ' atoms into a 96³ density volume…');
+    vol=Density.build(mol, m=>blog(m+'…'));
+
+    await step('compiling shaders…');
+    const q=Q[CFG.quality]||Q.high;
+    gl=Renderer.init(canvas, 640, 268, q.pw);
+    Renderer.setDensity(vol);
+    layout();
+    Renderer.seedField(1.0);
+    Renderer.resetField(CFG.startT);
+
+    blog('renderer: '+GL.caps.renderer+(GL.caps.colorFloat?' · float RT':' · 16-bit RT'));
+    booted=true;
+    const b=document.getElementById('bgo');
+    b.disabled=false;
+    b.textContent='BEGIN';
+    b.onclick=()=>{
+      document.getElementById('boot').classList.add('gone');
+      Audio.init(bioCache);
+      seek(CFG.startT, true);
+      setPlaying(true);
+      if(CFG.renderNow) setTimeout(()=>startOffline(), 400);
+    };
+    buildHUDStatics();
+    document.getElementById('hud').classList.toggle('off',!hudOn);
+    requestAnimationFrame(loop);
+  }
+
+  /* ---- main loop --------------------------------------------------------- */
+  function loop(now){
+    requestAnimationFrame(loop);
+    if(!booted || rendering) return;
+    const dtReal=Math.min(0.1, last? (now-last)/1000 : 1/60);
+    last=now;
+    fpsAvg=fpsAvg*0.92+(1/Math.max(dtReal,1e-4))*0.08;
+    if(playing){
+      t+=dtReal;
+      if(t>=TOTAL){ t=TOTAL-0.01; setPlaying(false); }
+    }
+    const S=buildState(t, dtReal);
+    Titles.draw(buildTitles(t));
+    Renderer.render(S, playing?dtReal:1/1000, canvas.width, canvas.height);
+    Audio.update(bioCache, t, playing);
+    if(hudOn) updateHUD(S);
+  }
+
+  /* ---- HUD --------------------------------------------------------------- */
+  let hudRows=[];
+  function buildHUDStatics(){
+    const acts=document.getElementById('acts');
+    acts.innerHTML='';
+    for(const sh of Director.SHOTS){
+      const i=document.createElement('i');
+      i.style.left=(sh.t0/TOTAL*100)+'%';
+      acts.appendChild(i);
+    }
+    const vl=document.getElementById('vlist');
+    const rows=['ΔΨm','[Ca²⁺]m','[Ca²⁺]c','O₂•⁻','pHi','ATP','succinate','GSH',
+                'matrix vol','cyt c','P open','damage'];
+    vl.innerHTML='';
+    hudRows=rows.map(name=>{
+      const d=document.createElement('div'); d.className='v';
+      d.innerHTML='<em>'+name+'</em><u></u><div><s></s></div>';
+      vl.appendChild(d);
+      return {u:d.querySelector('u'), s:d.querySelector('s')};
+    });
+    document.getElementById('bar').onclick=e=>{
+      const r=e.currentTarget.getBoundingClientRect();
+      seek((e.clientX-r.left)/r.width*TOTAL, true);
+    };
+  }
+  function updateHUD(S){
+    const b=S.bio;
+    const vals=[
+      [b.dPsi.toFixed(0)+' mV', b.dPsi/180, true],
+      [b.Cam.toFixed(1)+' µM', b.Cam/60, false],
+      [b.Cac.toFixed(2)+' µM', b.Cac/6, false],
+      [b.ROS.toFixed(3), b.ROS/1.6, false],
+      [b.pH.toFixed(2), (b.pH-6.2)/1.0, true],
+      [b.ATP.toFixed(2)+' mM', b.ATP/6, true],
+      [b.succ.toFixed(2), b.succ, false],
+      [b.GSH.toFixed(2), b.GSH, true],
+      [b.vol.toFixed(2)+'×', (b.vol-1)/1.3, false],
+      [(b.cytC*100).toFixed(0)+' %', b.cytC, false],
+      [(b.pore*100).toFixed(0)+' %', b.pore, false],
+      [(b.scar*100).toFixed(0)+' %', b.scar, false],
+    ];
+    for(let i=0;i<hudRows.length;i++){
+      const [txt,frac,goodHigh]=vals[i];
+      hudRows[i].u.textContent=txt;
+      const f=M.sat(frac);
+      hudRows[i].s.style.width=(f*100)+'%';
+      const g=goodHigh?f:1-f;
+      hudRows[i].s.style.background=g>0.66?'var(--cold)':(g>0.33?'var(--amber)':'var(--hot)');
+      hudRows[i].u.style.color=g>0.66?'var(--ink)':(g>0.33?'var(--amber)':'var(--hot)');
+    }
+    const sh=Director.shotAt(t);
+    document.getElementById('actname').textContent=sh.num+' · '+sh.title;
+    document.getElementById('clock').textContent=fmtClock(t)+' / '+fmtClock(TOTAL);
+    document.getElementById('barfill').style.width=(t/TOTAL*100)+'%';
+    const metres=Math.pow(10,-10+buildScale(t)*(7/6));
+    document.getElementById('scaleread').textContent=
+      'scale '+fmtMetres(metres)+'  ·  layer '+buildScale(t).toFixed(2);
+    document.getElementById('perf').textContent=
+      fpsAvg.toFixed(0)+' fps · '+Renderer.W+'×'+Renderer.H+' · '+CFG.quality;
+    const nb=document.getElementById('notebody');
+    const notes=(sh.notes||[]).map(n=>n.startsWith('>')
+      ? '<p><code>'+n.slice(1).trim()+'</code></p>' : '<p>'+n+'</p>').join('');
+    if(nb.dataset.k!==sh.num){ nb.dataset.k=sh.num; nb.innerHTML=notes; }
+  }
+
+  /* ---- offline render ---------------------------------------------------- */
+  async function startOffline(){
+    if(rendering) return;
+    const rec=document.getElementById('rec');
+    rendering=true; setPlaying(false);
+    const W=canvas.width, H=canvas.height;
+    rec.classList.add('on');
+    try{
+      // in a chunked render-farm pass only the first chunk needs the score
+      if(CFG.rangeA<=0.001){
+        rec.textContent='● RENDERING AUDIO';
+        await Export.renderAudio(bioCache, Director.TOTAL,
+          p=>{ rec.textContent='● SCORE '+(p*100).toFixed(0)+'%'; });
+      }
+      Camera.reset(); Renderer.resetField(CFG.rangeA); Renderer.seedField(1.0);
+      await Export.renderOffline({
+        canvas, fps:CFG.fps, mb:CFG.mb, start:CFG.rangeA, end:CFG.rangeB,
+        width:W, height:H, total:Director.TOTAL, buildState,
+        drawTitles:(ft)=>Titles.draw(buildTitles(ft)), warm:CFG.warm,
+        onProgress:(p,ft)=>{
+          rec.textContent='● FRAME '+(p*100).toFixed(1)+'%  ·  '+fmtClock(ft)+
+                          '  ·  '+W+'×'+H+'  ·  '+CFG.mb+' subframes';
+        }});
+      rec.textContent='● DONE';
+    }catch(e){
+      showError(e);
+    }
+    setTimeout(()=>rec.classList.remove('on'), 4000);
+    rendering=false; last=0;
+  }
+
+  function showError(e){
+    const d=document.getElementById('err');
+    d.style.display='block';
+    d.textContent=(e&&e.stack)||String(e);
+    console.error(e);
+  }
+
+  /* ---- input -------------------------------------------------------------- */
+  function keys(){
+    addEventListener('keydown',e=>{
+      if(e.metaKey||e.ctrlKey) return;
+      const k=e.key.toLowerCase();
+      if(k===' '){ e.preventDefault(); setPlaying(!playing); }
+      else if(k==='['){ const sh=Director.shotAt(t);
+        const i=Director.SHOTS.indexOf(sh);
+        seek((t-sh.t0<1.2&&i>0)?Director.SHOTS[i-1].t0:sh.t0, true); }
+      else if(k===']'){ const sh=Director.shotAt(t); seek(sh.t1+0.01, true); }
+      else if(k===','){ seek(t-5, true); }
+      else if(k==='.'){ seek(t+5, true); }
+      else if(k==='r'){ seek(0, true); }
+      else if(k==='h'){ hudOn=!hudOn; document.getElementById('hud').classList.toggle('off',!hudOn); }
+      else if(k==='f'){ if(document.fullscreenElement) document.exitFullscreen();
+                        else document.documentElement.requestFullscreen(); }
+      else if(k==='m'){ Audio.setMuted(!Audio.isMuted()); }
+      else if(k==='c'){ const on=Export.startRealtime(canvas, 60, s=>{
+          document.getElementById('rec').classList.toggle('on', !!s);
+          document.getElementById('rec').textContent='● RECORDING (press c to stop)'; });
+        if(!on) document.getElementById('rec').classList.remove('on'); }
+      else if(k==='x'){ startOffline(); }
+      else if('1234'.includes(k)){
+        CFG.quality=['low','med','high','ultra'][parseInt(k,10)-1];
+        layout();
+      }
+    });
+    addEventListener('resize', ()=>{ if(booted&&!rendering) layout(); });
+    addEventListener('error', ev=>showError(ev.error||ev.message));
+    addEventListener('unhandledrejection', ev=>showError(ev.reason));
+  }
+
+  return {boot, keys, get t(){return t;}, seek, setPlaying, showError,
+          get cfg(){return CFG;}, buildState,
+          get ready(){return booted;}};
+})();
+
+Film.keys();
+Film.boot().catch(e=>{
+  const d=document.getElementById('err');
+  d.style.display='block';
+  d.textContent=(e&&e.stack)||String(e);
+  const b=document.getElementById('blog');
+  if(b) b.textContent='failed — see the panel';
+  console.error(e);
+});
+window.__film=Film;
+</script>
+</body>
+</html>
