@@ -51,6 +51,18 @@ VIII ROS-INDUCED ROS RELEASE · IX THE TRANSITION · X COLLAPSE, THE MEMBRANE
 REMEMBERS · XI RUPTURE · XII THE WAVEFRONT · XIII THE UNRESOLVED ·
 XIV–XVI THREE INTERVENTIONS · XVII THE FRONT DIES · XVIII HYSTERESIS`
 
+## Performance
+
+Per frame the film runs a 512² reaction–diffusion step, a 256² pressure-projected
+fluid step, a 256² GPGPU particle integration, a full-screen raymarch of two
+blended scale archetypes (each surface sample costs a normal, an ambient
+occlusion and a soft shadow), a volumetric integration, a five-level bloom and a
+feedback-warped grade. It wants a discrete GPU. Start at `?q=med`, and use `1`–`4`
+to move between presets — they trade march steps, render scale, particle count
+and pressure iterations. Under a software rasteriser it will run, slowly; the
+simulation is clocked on film time rather than frame time, so a slow machine
+shows you the same film, just at fewer frames per second.
+
 ## Controls
 
 ```
@@ -66,6 +78,9 @@ x      offline deterministic render (WebCodecs VP9 + 48 kHz WAV)
 ```
 MITOCHONDRIAL_TRANSITION.html?q=ultra&w=3840&h=1608&fps=24&mb=8&render=1
 ```
+
+Press BEGIN once (the browser will not start an AudioContext without a
+gesture) and the render starts by itself; or press `x` at any time.
 
 Each output frame is the average of `mb` sub-frames, which gives true
 rotary-shutter motion blur and resolves the stochastic depth-of-field sampling
