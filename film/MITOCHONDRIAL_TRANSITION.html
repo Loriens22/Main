@@ -1311,7 +1311,11 @@ void main(){
   float gt =texture(uField,fract(vUV+vec2(0.0,px.y))).g;
   nv += -vec2(gr-gLx,gt-gb)*uDt*(0.9+5.5*uPore);
 
-  // vorticity confinement: put back the curl that the advection smeared out
+  /* Vorticity confinement: semi-Lagrangian advection is famously diffusive
+     and eats the small eddies, so a force is added back along the gradient of
+     vorticity magnitude. The gradient is estimated cheaply from neighbouring
+     velocity components rather than from four full curl evaluations -- an
+     approximation, but one that restores the right structure. */
   float wl=0.0,wr=0.0,wb=0.0,wt=0.0;
   {
     vec2 a=texture(uVel,fract(vUV+vec2(-2.0*px.x,0.0))).xy;
@@ -1520,7 +1524,7 @@ void main(){
   if(s>1.5&&s<2.5) glow*=(0.45+1.7*uPore+0.6*speed);
   /* A defocused ion must not also be a brighter ion: spreading the same
      energy over a bigger disc means dividing by its area. */
-  vCol=vec4(c, glow*0.55/(1.0+psz*psz*0.055));
+  vCol=vec4(c, glow*0.42/(1.0+psz*psz*0.055));
 }`;
 
 const FS_PART = `#version 300 es
@@ -1537,7 +1541,8 @@ void main(){
   float sceneZ=texture(uSceneDepth, gl_FragCoord.xy/uRes).r;
   float occl = smoothstep(0.0,0.10, sceneZ-vDepth+0.03);
   if(sceneZ>1e8) occl=1.0;
-  frag=vec4(vCol.rgb*vCol.a*core*occl*6.0, core*occl*vCol.a*0.35);
+  // particles garnish the image; they are not allowed to become it
+  frag=vec4(vCol.rgb*vCol.a*core*occl*2.3, core*occl*vCol.a*0.18);
 }`;
 
 /* ===========================================================================
@@ -1617,6 +1622,25 @@ vec4 fieldAt(vec3 p){
 }
 float breathe(vec3 p){
   return uBreath*(0.5+0.5*sin(uTime*0.9+p.y*3.0+fbm(p*1.7,2)*2.4));
+}
+
+/* ---------------------------------------------------------------------------
+   LIGHTING RIG
+   A key light fixed in world space leaves whole acts lit exactly on the
+   terminator, because the camera goes wherever the story goes. The key is
+   therefore mostly rigged to the camera -- a three-quarter key up and to the
+   right of the lens -- and only partly fixed to the world, so shots still have
+   an independent light direction to move against instead of a head-lamp.
+   --------------------------------------------------------------------------- */
+vec3 keyDir(){
+  vec3 Lw=normalize(vec3(0.55,0.72,-0.40));
+  vec3 Lc=normalize(-uCamF*0.50 + uCamR*0.72 + uCamU*0.52);
+  return normalize(mix(Lw,Lc,0.66));
+}
+vec3 fillDir(){
+  vec3 Fw=normalize(vec3(-0.65,-0.18,0.55));
+  vec3 Fc=normalize(-uCamF*0.25 - uCamR*0.80 - uCamU*0.28);
+  return normalize(mix(Fw,Fc,0.55));
 }
 
 /* ------------------------------------------------- 0/1 · molecular density */
@@ -2044,8 +2068,8 @@ float volDensity(vec3 p, out vec3 emit){
 vec3 shade(vec3 p, vec3 n, vec3 rd, Mat m, float sc, float ao, float curv){
   // the key light is a fluid: its colour is the local membrane potential
   vec4 F=fieldAt(p*0.7);
-  vec3 L1=normalize(vec3(0.55,0.72,-0.40));
-  vec3 L2=normalize(vec3(-0.65,-0.18,0.55));
+  vec3 L1=keyDir();
+  vec3 L2=fillDir();
   vec3 kcol=mix(uTintA,uTintB,sat(F.r*1.2))*(0.78+0.62*uPsi);
   kcol=mix(kcol, vec3(1.0,0.26,0.12), sat(F.r*1.6)*0.8);
   vec3 fcol=mix(vec3(0.10,0.30,0.42), vec3(0.42,0.10,0.16), sat(uROS));
@@ -2056,8 +2080,13 @@ vec3 shade(vec3 p, vec3 n, vec3 rd, Mat m, float sc, float ao, float curv){
 
   vec3 col=vec3(0.0);
   col += m.alb*kcol*ndl*sh*1.55;
-  col += m.alb*fcol*pow(1.0-max(dot(n,L1),0.0),1.5)*0.45*ao;
-  col += m.alb*vec3(0.06,0.09,0.11)*ao*0.9;
+  col += m.alb*fcol*max(dot(n,L2),0.0)*0.42*ao;
+  col += m.alb*fcol*pow(1.0-max(dot(n,L1),0.0),1.5)*0.30*ao;
+  // an ambient term that survives the loss of the potential: a dead cell is
+  // dark, but it is still a thing in front of the lens
+  col += m.alb*mix(vec3(0.055,0.075,0.090), vec3(0.030,0.026,0.024), sat(uScar))
+         *ao*(1.0+1.1*(1.0-sat(uPsi)));
+  col += m.alb*fcol*pow(1.0-abs(dot(n,rd)),3.0)*0.55*ao;
   col += m.alb*kcol*pow(wrap,2.2)*0.35*ao;
 
   // subsurface: thin parts of a membrane glow like a held-up hand
@@ -2176,7 +2205,7 @@ void main(){
     float dt=far/float(vs);
     float trans=1.0;
     vec3 acc=vec3(0.0);
-    vec3 L1=normalize(vec3(0.55,0.72,-0.40));
+    vec3 L1=keyDir();
     float ph=hg(dot(rd,L1),0.42)*4.0;
     float jit=bn.z;
     for(int i=0;i<48;i++){
@@ -2613,7 +2642,12 @@ const Renderer = (() => {
       RT.fvel = GL.pingpong(FLUID,FLUID,{prefer:'f16',repeat:true});
       RT.fdiv = GL.rt(FLUID,FLUID,{prefer:'f16',repeat:true});
       RT.fprs = GL.pingpong(FLUID,FLUID,{prefer:'f16',repeat:true});
+      clearRT(RT.fvel.src); clearRT(RT.fvel.dst); clearRT(RT.fdiv);
+      clearRT(RT.fprs.src); clearRT(RT.fprs.dst);
     }
+    clearRT(RT.feed.src); clearRT(RT.feed.dst); clearRT(RT.accum);
+    clearRT(RT.scene);
+    bloomA.concat(bloomB).forEach(clearRT);
     /* Particle state is positions in a float texture. On a context that can
        only render to RGBA8 there is nowhere to keep them, so the layer is
        dropped rather than filled with quantised garbage. */
@@ -2623,6 +2657,17 @@ const Renderer = (() => {
       RT.vel = GL.pingpong(PW,PW,{prefer:'f32',nearest:true});
       seedParticles();
     }
+  }
+
+  /* texStorage2D leaves contents undefined. An uninitialised float target is
+     a source of NaNs that then propagate through every feedback loop in the
+     renderer, so every buffer is zeroed the moment it exists. */
+  function clearRT(r){
+    if(!r) return;
+    gl.bindFramebuffer(gl.FRAMEBUFFER,r.fb);
+    gl.viewport(0,0,r.w,r.h);
+    gl.clearColor(0,0,0,1);
+    gl.clear(gl.COLOR_BUFFER_BIT);
   }
 
   function seedField(seed){
@@ -2666,11 +2711,13 @@ const Renderer = (() => {
      motion-blurred offline render. */
   let fieldAcc=0, fieldT=0;
   const FIELD_DT=1/60;
-  function resetField(t){ fieldAcc=0; fieldT=t||0; }
+  function resetField(t){ fieldAcc=0; fieldT=t||0; fluidAcc=0; }
   function stepField(S, dt, spark, heal){
     fieldAcc+=Math.max(0,Math.min(dt,0.25));
     let n=0;
-    while(fieldAcc>=FIELD_DT && n<6){
+    // the cap keeps a hitch from running away; it is generous enough that a
+    // slow preview still advances the medium at close to film rate
+    while(fieldAcc>=FIELD_DT && n<14){
       fieldAcc-=FIELD_DT; fieldT+=FIELD_DT; n++;
       P.field.use().set({
         uPrev:0, uFluid:1, uRes:[FIELD,FIELD], uTime:S.t, uDt:FIELD_DT*S.fieldRate,
@@ -2680,9 +2727,14 @@ const Renderer = (() => {
       RT.field.dst.bind(); GL.drawQuad(); RT.field.swap();
     }
   }
-  /* One fluid step: advect and force, then make it divergence-free. */
-  function stepFluid(S, dt){
-    const d=Math.min(dt,1/30)*S.fluidRate;
+  /* Advect and force, then make it divergence-free. Like the reaction field,
+     the fluid runs on a fixed step of FILM time and accumulates across however
+     many sub-frames the offline renderer uses, so an 8x motion-blurred render
+     and the live preview see the same flow. */
+  let fluidAcc=0;
+  const FLUID_DT=1/60;
+  function stepFluidOnce(S){
+    const d=FLUID_DT*S.fluidRate;
     P.fadv.use().set({uVel:0,uField:1,uRes:[FLUID,FLUID],uDt:d,uTime:S.t,
       uDiss:0.995,uPore:S.bio.pore,uROS:S.bio.ROS,uVort:S.vort,uStir:S.stir});
     GL.bind({0:RT.fvel.src.tex(0),1:RT.field.src.tex(0)});
@@ -2700,6 +2752,11 @@ const Renderer = (() => {
     P.fprj.use().set({uVel:0,uPrs:1,uRes:[FLUID,FLUID]});
     GL.bind({0:RT.fvel.src.tex(0),1:RT.fprs.src.tex(0)});
     RT.fvel.dst.bind(); GL.drawQuad(); RT.fvel.swap();
+  }
+  function stepFluid(S, dt){
+    fluidAcc+=Math.max(0,Math.min(dt,0.25));
+    let n=0;
+    while(fluidAcc>=FLUID_DT && n<10){ fluidAcc-=FLUID_DT; n++; stepFluidOnce(S); }
   }
 
   function stepParticles(S, dt){
@@ -2930,7 +2987,7 @@ const Director = (() => {
     dur:24, scale:[3.05,2.10], ease:M.E.inOut,
     notes:['the membrane holds 170 mV across 4 nm','that is 40 million volts per metre',
            '> protons do not swim here. they fall.'],
-    style:{weird:0.4,wet:0.62,irid:0.9,volDens:0.30,partFade:1.25,partSize:1.5,head:0.55,
+    style:{weird:0.4,wet:0.62,irid:0.9,volDens:0.30,partFade:0.85,partSize:1.4,head:0.55,
            exposure:1.32,echo:0.26,halation:0.12,flow:0.25},
     cam:(u,t)=>{ const a=1.1+u*2.0;
       const p=Camera.orbit([0,0,0],M.mix(1.25,0.62,u),a,M.mix(0.20,-0.10,u)+0.06*Math.sin(t*0.5));
@@ -2968,8 +3025,8 @@ const Director = (() => {
     dur:24, scale:[3.20,1.20], ease:M.E.inOut,
     notes:['anaerobic glycolysis floods the matrix with H⁺','protonation raises the Ca²⁺ threshold ~4×',
            '> the damage is prevented by the dying','> this is why the CIRCUS trial failed'],
-    style:{weird:0.5,wet:0.20,irid:0.3,volDens:0.14,partFade:1.1,partSize:1.2,
-           exposure:0.92,saturation:0.66,tintA:[0.20,0.30,0.50],tintB:[0.62,0.50,0.30],
+    style:{weird:0.5,wet:0.20,irid:0.3,volDens:0.14,partFade:0.75,partSize:1.2,
+           exposure:1.12,saturation:0.66,tintA:[0.20,0.30,0.50],tintB:[0.62,0.50,0.30],
            echo:0.34,glitch:0.03,contrast:1.14,grip:0.0,teeth:0.4},
     cam:(u,t)=>{ const a=2.4-u*1.6;
       const p=Camera.orbit([0,0,0],M.mix(4.2,1.6,M.E.inOut(u)),a,M.mix(1.1,0.0,M.E.inOut(u)));
@@ -2981,7 +3038,7 @@ const Director = (() => {
     dur:30, scale:[1.20,3.60], ease:M.E.inOut,
     notes:['O₂ returns in seconds. so does pH.','the protection is withdrawn exactly',
            'when Ca²⁺ and ROS are at maximum','> the rescue is the injury'],
-    style:{weird:0.6,wet:0.75,irid:0.95,volDens:0.34,partFade:1.7,partSize:1.5,
+    style:{weird:0.6,wet:0.75,irid:0.95,volDens:0.34,partFade:1.15,partSize:1.4,
            exposure:1.45,saturation:1.20,tintA:[0.10,0.70,0.80],tintB:[1.0,0.36,0.12],
            echo:0.24,halation:0.18,streak:0.9,flow:0.6,glitch:0.05,breath:0.7},
     cam:(u,t)=>{ const a=-1.0+u*2.4;
@@ -2995,8 +3052,8 @@ const Director = (() => {
     dur:26, scale:[3.60,2.00], ease:M.E.inOut,
     notes:['J = Vmax·[Ca]ⁿ/(Kmⁿ+[Ca]ⁿ) · gate(MICU)','below the set-point the gate is shut',
            'above it the uniporter is a hole','> 2 charges per Ca²⁺, and ΔΨm pays'],
-    style:{weird:0.5,wet:0.7,irid:0.85,volDens:0.26,partFade:2.0,partSize:1.7,
-           exposure:1.35,tintA:[0.14,0.85,0.92],tintB:[0.95,0.45,0.22],
+    style:{weird:0.5,wet:0.7,irid:0.85,volDens:0.26,partFade:1.3,partSize:1.5,
+           exposure:1.45,tintA:[0.14,0.85,0.92],tintB:[0.95,0.45,0.22],
            echo:0.20,flow:0.5,ca:0.55},
     cam:(u,t)=>{ const a=1.4+u*1.1;
       const p=Camera.orbit([0,0.0,0],M.mix(3.4,0.85,M.E.outCubic(u)),a,M.mix(0.8,0.22,u));
@@ -3008,8 +3065,8 @@ const Director = (() => {
     dur:28, scale:[2.00,3.90], ease:M.E.inOut,
     notes:['superoxide from complexes I and III','each depolarisation ignites its neighbours',
            'the organelle network becomes excitable','> a tissue that can carry a wave'],
-    style:{weird:0.75,wet:0.8,irid:0.8,volDens:0.42,partFade:2.2,partSize:1.5,
-           exposure:1.5,saturation:1.25,tintA:[0.10,0.55,0.70],tintB:[1.0,0.25,0.08],
+    style:{weird:0.75,wet:0.8,irid:0.8,volDens:0.42,partFade:1.4,partSize:1.4,
+           exposure:1.62,saturation:1.25,tintA:[0.10,0.55,0.70],tintB:[1.0,0.25,0.08],
            echo:0.34,glitch:0.10,halation:0.24,streak:1.0,flow:0.9,ca:0.75,breath:0.9},
     cam:(u,t)=>{ const a=-2.0+u*2.8;
       const p=Camera.orbit([0,0,0],M.mix(1.0,3.2,u),a,
@@ -3022,8 +3079,8 @@ const Director = (() => {
     dur:32, scale:[3.90,1.06], ease:M.E.outCubic,
     notes:['conductance 1.3 nS · diameter ≈ 3 nm','everything under 1.5 kDa leaves',
            'the c-ring lumen, or the translocase, or neither','> forty years and we still do not know'],
-    style:{weird:0.95,wet:0.55,irid:0.6,volDens:0.30,partFade:1.5,partSize:1.3,head:1.15,
-           exposure:1.30,saturation:1.05,tintA:[0.30,0.80,0.85],tintB:[1.0,0.30,0.12],
+    style:{weird:0.95,wet:0.55,irid:0.6,volDens:0.30,partFade:0.95,partSize:1.2,head:1.15,
+           exposure:1.52,saturation:1.05,tintA:[0.30,0.80,0.85],tintB:[1.0,0.30,0.12],
            echo:0.42,glitch:0.16,ca:0.52,halation:0.22,iso:0.22,teeth:0.0,
            contrast:1.12,breath:0.6},
     /* Held outside the ring and pushed in optically rather than physically:
@@ -3043,8 +3100,8 @@ const Director = (() => {
     dur:28, scale:[1.06,3.40], ease:M.E.inOut,
     notes:['the cristae unfold — they do not melt','stored area becomes swollen sphere',
            'folded geometry is a memory of potential','> the shape was holding the charge'],
-    style:{weird:0.85,wet:0.9,irid:0.5,volDens:0.36,partFade:1.4,partSize:1.2,head:0.95,
-           exposure:1.15,saturation:0.9,tintA:[0.22,0.44,0.52],tintB:[0.95,0.34,0.20],
+    style:{weird:0.85,wet:0.9,irid:0.5,volDens:0.36,partFade:0.85,partSize:1.1,head:0.95,
+           exposure:1.48,saturation:0.9,tintA:[0.22,0.44,0.52],tintB:[0.95,0.34,0.20],
            echo:0.46,glitch:0.12,feedZoom:1.0035,feedRot:-0.0016,halation:0.16,
            vignette:0.76,breath:1.0,flow:0.8},
     /* The retreat: the ring falls away, the bilayer resolves, and then the
@@ -3060,8 +3117,8 @@ const Director = (() => {
     dur:24, scale:[3.40,5.05], ease:M.E.inOut,
     notes:['colloid osmotic pressure wins','cyt c: 12.4 kDa, 1 heme, bright orange',
            'apoptosome assembly begins downstream','> but at this Ca²⁺ load the cell simply bursts'],
-    style:{weird:0.7,wet:0.95,irid:0.45,volDens:0.30,partFade:2.4,partSize:1.9,
-           exposure:1.28,saturation:1.1,tintA:[0.30,0.42,0.46],tintB:[1.0,0.44,0.14],
+    style:{weird:0.7,wet:0.95,irid:0.45,volDens:0.30,partFade:1.5,partSize:1.6,
+           exposure:1.42,saturation:1.1,tintA:[0.30,0.42,0.46],tintB:[1.0,0.44,0.14],
            echo:0.38,glitch:0.14,halation:0.26,streak:1.1,flow:1.0},
     cam:(u,t)=>{ const a=-0.8+u*1.5;
       const p=Camera.orbit([0,0,0],M.mix(2.4,5.2,u),a,M.mix(0.4,1.8,u));
@@ -3073,8 +3130,8 @@ const Director = (() => {
     dur:26, scale:[5.05,6.00], ease:M.E.inOut,
     notes:['one cell tells the next','contraction bands, then nothing',
            'infarct size is decided in ten minutes','> half the final damage is reperfusion'],
-    style:{weird:0.55,wet:0.6,irid:0.3,volDens:0.24,partFade:0.9,partSize:1.0,
-           exposure:1.18,saturation:0.95,tintA:[0.24,0.40,0.46],tintB:[1.0,0.28,0.10],
+    style:{weird:0.55,wet:0.6,irid:0.3,volDens:0.24,partFade:0.55,partSize:1.0,
+           exposure:1.55,saturation:0.95,tintA:[0.24,0.40,0.46],tintB:[1.0,0.28,0.10],
            echo:0.30,glitch:0.07,vignette:0.7,bloomThresh:0.72},
     cam:(u,t)=>{ const p=[M.mix(-5.5,4.0,u), M.mix(1.2,2.6,M.E.inOut(u)), M.mix(2.2,3.4,u)];
       return {pos:p,target:[M.mix(-3.0,5.5,u),0,0],
@@ -3087,8 +3144,8 @@ const Director = (() => {
     cardSub:'c-ring lumen · or translocase · or something not yet named',
     notes:['c-subunit knockout: transition survives','ANT knockout: transition survives',
            'CypD knockout: threshold rises, pore remains','> the channel outlives every candidate'],
-    style:{weird:1.0,wet:0.4,irid:0.55,volDens:0.55,partFade:0.5,partSize:1.0,head:0.65,
-           exposure:1.22,saturation:1.0,tintA:[0.35,0.72,0.80],tintB:[0.95,0.50,0.30],
+    style:{weird:1.0,wet:0.4,irid:0.55,volDens:0.55,partFade:0.35,partSize:1.0,head:0.65,
+           exposure:1.44,saturation:1.0,tintA:[0.35,0.72,0.80],tintB:[0.95,0.50,0.30],
            echo:0.52,glitch:0.20,ghost:0.85,ca:0.95,feedZoom:0.9930,feedRot:0.0024,
            iso:0.20,teeth:0.0,contrast:1.0,halation:0.14},
     cam:(u,t)=>{ const a=t*0.16;
@@ -3102,7 +3159,7 @@ const Director = (() => {
     dur:24, scale:[1.00,2.20], ease:M.E.inOut,
     notes:['raise the cooperativity, raise the threshold','the uniporter stops conducting below 1 µM',
            'matrix Ca²⁺ never reaches the trigger','> solution one: shut the door earlier'],
-    style:{weird:0.55,wet:0.65,irid:0.85,volDens:0.24,partFade:1.6,partSize:1.5,
+    style:{weird:0.55,wet:0.65,irid:0.85,volDens:0.24,partFade:1.0,partSize:1.4,
            exposure:1.30,saturation:1.12,tintA:[0.12,0.86,0.90],tintB:[0.85,0.55,0.30],
            echo:0.22,glitch:0.04,ghost:0.10,ca:0.48,halation:0.12},
     cam:(u,t)=>{ const a=-1.6+u*1.4;
@@ -3129,7 +3186,7 @@ const Director = (() => {
     dur:24, scale:[1.00,2.80], ease:M.E.inOut,
     notes:['tetralinoleoyl cardiolipin, four tails','it is the reason cristae bend at all',
            'stabilise it and the electron leak closes','> solution three: fix the shape, fix the chemistry'],
-    style:{weird:0.5,wet:0.85,irid:1.1,volDens:0.26,partFade:1.2,partSize:1.3,
+    style:{weird:0.5,wet:0.85,irid:1.1,volDens:0.26,partFade:0.8,partSize:1.2,
            exposure:1.34,saturation:1.15,tintA:[0.18,0.80,0.78],tintB:[1.0,0.62,0.26],
            echo:0.24,halation:0.16,streak:0.8,teeth:1.0,breath:0.55},
     cam:(u,t)=>{ const a=0.4+u*1.9;
@@ -3142,8 +3199,8 @@ const Director = (() => {
     dur:24, scale:[2.80,5.60], ease:M.E.inOut,
     notes:['raise a, break the feedback, and the wave','cannot recruit its neighbour',
            'the front propagates, thins, and stops','> solution four: make the tissue boring'],
-    style:{weird:0.4,wet:0.6,irid:0.6,volDens:0.20,partFade:1.0,partSize:1.1,
-           exposure:1.22,saturation:1.0,tintA:[0.16,0.70,0.76],tintB:[0.90,0.50,0.22],
+    style:{weird:0.4,wet:0.6,irid:0.6,volDens:0.20,partFade:0.7,partSize:1.1,
+           exposure:1.34,saturation:1.0,tintA:[0.16,0.70,0.76],tintB:[0.90,0.50,0.22],
            echo:0.28,glitch:0.02,vignette:0.66},
     cam:(u,t)=>{ const p=[M.mix(2.4,-4.5,u), M.mix(0.6,2.2,u), M.mix(1.4,3.6,u)];
       return {pos:p,target:[M.mix(0,-2.0,u),0,0],
