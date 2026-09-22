@@ -38,7 +38,10 @@
              conducts a sigmoidal Ca2+ flux gated by MICU1/2; complex I and
              complex III leak superoxide; ROS-induced ROS release turns the
              myocyte into an excitable medium.
-    IX-XII   THE TRANSITION. Pore opening, dPsi_m collapse, matrix swelling,
+    IX-XII   THE TRANSITION. In this model the channel is opened by the redox
+             arm -- thiol oxidation at the P-site, latched by RIRR -- while
+             Ca2+ decides how far the threshold has already fallen. Pore
+             opening, dPsi_m collapse, matrix swelling,
              cristae unfolding (a remembered geometry), outer-membrane rupture,
              cytochrome c release, and a depolarisation wavefront crossing
              tissue.
@@ -52,9 +55,19 @@
                4. Breaking the RIRR feedback loop: the wavefront fails.
     XVIII    HYSTERESIS. The tissue relights. The membrane keeps the scar.
 
-  EVERY NUMBER IN THIS FILM IS DOING WORK
-  ---------------------------------------
-  * A 12-state ODE system (Science.Model) integrates the ischemia-reperfusion
+  ONE DELIBERATE DISTORTION, DECLARED
+  -----------------------------------
+  The model is stiff across reperfusion: once superoxide crosses the RIRR
+  threshold the cascade finishes in under half a minute of biological time.
+  That is true of the tissue and unwatchable as cinema, so between 2:10 and
+  3:44 the film's clock runs at 0.38x while the ODE runs on unchanged. Nothing
+  is re-scaled, smoothed or faked; the camera simply walks more slowly along
+  the same trajectory. Every number on screen is the model's own value at that
+  point. Science.warpRate(t) is the whole of it.
+
+  EVERY OTHER NUMBER IN THIS FILM IS DOING WORK
+  ---------------------------------------------
+  * A 17-state ODE system (Science.Model) integrates the ischemia-reperfusion
     cascade with RK4 at 200 Hz under the picture. It drives shader uniforms,
     particle behaviour, title annotations and the musical score. It is not a
     canned animation curve; if you change k_MCU the film changes.
@@ -94,6 +107,7 @@
     ?fps=24             offline frame rate
     ?mb=8               motion-blur subframes per output frame
     ?seed=20260922      deterministic seed
+    ?warm=20            seconds of simulation warm-up before a chunked render
 
   OFFLINE RENDER -> FINISHED FILM
   -------------------------------
@@ -295,7 +309,7 @@ const M = (() => {
 /* ===========================================================================
    2 · SCIENCE  ·  the biophysics that actually runs underneath the picture
    ---------------------------------------------------------------------------
-   A 13-state lumped model of cardiac ischemia-reperfusion at the level of one
+   A 17-state lumped model of cardiac ischemia-reperfusion at the level of one
    mitochondrion inside one myocyte. Parameters are order-of-magnitude
    literature values, not fits; the point is that the *topology* of the model is
    right, so the qualitative behaviour (acidosis protection, the reperfusion
@@ -546,6 +560,22 @@ const Science = (() => {
   /* A deterministic integrator that can be fast-forwarded: the film must be
      seekable, so we cache the trajectory on a 0.05 s grid at load time. */
   const DT=0.05;
+  /* TIME DILATION
+     ------------------------------------------------------------------------
+     The model is stiff across reperfusion: once superoxide crosses the RIRR
+     threshold the whole cascade completes in under half a minute of biological
+     time. That is the truth about the tissue and it is also unwatchable -- the
+     calcium door, the burst and the transition would all land inside a single
+     shot. So the film's clock runs slow across that window and 1:1 everywhere
+     else, the way a documentary slows a collapse without falsifying it. The
+     ODE never changes; only the rate at which the camera walks along it.
+     Every quantity on screen is the model's own value at that point. */
+  const TIME_WARP=0.38, WARP_IN=[130,141], WARP_OUT=[210,224];
+  function warpRate(t){
+    const w=M.smootherstep(WARP_IN[0],WARP_IN[1],t)
+           *(1.0-M.smootherstep(WARP_OUT[0],WARP_OUT[1],t));
+    return M.mix(1.0, TIME_WARP, w);
+  }
   /* The film must open on a cell that is genuinely at rest, and the resting
      point is a property of the parameters, not something to be typed in by
      hand. So the model is run forward for two minutes of virtual perfusion
@@ -563,11 +593,14 @@ const Science = (() => {
     const n=Math.ceil(T/DT)+2, traj=new Array(n);
     let s=equilibrate();
     const p=Object.assign({},P);
+    let modelT=0;
     for(let i=0;i<n;i++){
-      const t=i*DT;
+      const t=i*DT;                       // film time
       interventionSchedule(p,t);
-      s=step(s,t,DT,p);
-      traj[i]=Object.assign({t},s,{
+      const dtm=DT*warpRate(t);           // model time advances at the warped rate
+      s=step(s,t,dtm,p);
+      modelT+=dtm;
+      traj[i]=Object.assign({t,modelT},s,{
         ivMICU:p.ivMICU,ivCypD:p.ivCypD,ivCL:p.ivCardiolipin,ivSC:p.ivScavenger});
     }
     return {traj,DT};
@@ -581,7 +614,7 @@ const Science = (() => {
   }
 
   return {F,Rg,Tk,RTF,debyeLength,nernst,ghk,helfrich,IR,P,S0,O2target,
-          integrate,sample,step,equilibrate,DT};
+          integrate,sample,step,equilibrate,warpRate,TIME_WARP,DT};
 })();
 
 /* ===========================================================================
@@ -2045,8 +2078,13 @@ float volDensity(vec3 p, out vec3 emit){
     vec3 t=clamp(p/mz*0.5+0.5,vec3(0.0),vec3(1.0));
     vec4 dd=texture(uDensity,t);
     float rho=mix(dd.r,dd.g,uMorphAB);
-    d += rho*uVolDens*(1.2+5.0*uGhost);
-    emit = mix(uTintA,uTintB,sat(dd.a))*rho*(0.5+2.0*uGhost);
+    d += rho*uVolDens*(1.2+3.2*uGhost);
+    /* Where the two candidate models disagree, the volume glows: the film's
+       picture of an unresolved structure is a density that is brightest
+       exactly where it is least certain. */
+    float disagree = abs(dd.r-dd.g);
+    emit = mix(uTintA,uTintB,sat(dd.a))*rho*(0.9+2.2*uGhost)*uEmiss
+         + mix(uTintB,vec3(1.0),0.35)*disagree*uGhost*3.4;
   } else emit=vec3(0.0);
   // the open channel is a lit tube: charge moving through a 3 nm hole
   if(uLumenOpen>0.01 && uScale<1.9){
@@ -2974,7 +3012,7 @@ const Director = (() => {
   { num:'I', title:'DESCENT', sub:'the inner mitochondrial membrane · 1.0 × 10⁻⁷ m',
     dur:26, scale:[4.35,3.05], ease:M.E.inOut,
     notes:['cristae junctions, 25 nm apertures','ATP synthase dimer rows follow the ridge',
-           '> surface area of one cardiac mitochondrion ≈ 7 µm²'],
+           '> cristae give one cardiac mitochondrion ≈ 15 µm² of membrane'],
     style:{weird:0.35,wet:0.55,irid:0.85,volDens:0.22,echo:0.22,exposure:1.15,head:0.55,
            partFade:0.55,flow:0.15,breath:0.5},
     cam:(u,t)=>{ const a=-0.35+u*1.15;
@@ -3023,8 +3061,8 @@ const Director = (() => {
 
   { num:'V', title:'ACIDOSIS · A PROTECTIVE POISON', sub:'pH 7.20 → 6.40 · the pore stays shut',
     dur:24, scale:[3.20,1.20], ease:M.E.inOut,
-    notes:['anaerobic glycolysis floods the matrix with H⁺','protonation raises the Ca²⁺ threshold ~4×',
-           '> the damage is prevented by the dying','> this is why the CIRCUS trial failed'],
+    notes:['anaerobic glycolysis floods the cytosol with H⁺','protonation raises the Ca²⁺ threshold ~4×',
+           '> the damage is prevented by the dying','> and one reason the cyclosporin trials failed'],
     style:{weird:0.5,wet:0.20,irid:0.3,volDens:0.14,partFade:0.75,partSize:1.2,
            exposure:1.12,saturation:0.66,tintA:[0.20,0.30,0.50],tintB:[0.62,0.50,0.30],
            echo:0.34,glitch:0.03,contrast:1.14,grip:0.0,teeth:0.4},
@@ -3050,8 +3088,9 @@ const Director = (() => {
 
   { num:'VII', title:'THE CALCIUM DOOR', sub:'MCU · MICU1/2 gatekeeping · Hill n ≈ 2.6',
     dur:26, scale:[3.60,2.00], ease:M.E.inOut,
-    notes:['J = Vmax·[Ca]ⁿ/(Kmⁿ+[Ca]ⁿ) · gate(MICU)','below the set-point the gate is shut',
-           'above it the uniporter is a hole','> 2 charges per Ca²⁺, and ΔΨm pays'],
+    notes:['J = Vmax·[Ca]ⁿ/(Kmⁿ+[Ca]ⁿ) · gate(MICU)','above the set-point the uniporter is a hole',
+           '2 charges per Ca²⁺, and ΔΨm pays for every one',
+           '> the load is rising. the threshold is falling faster.'],
     style:{weird:0.5,wet:0.7,irid:0.85,volDens:0.26,partFade:1.3,partSize:1.5,
            exposure:1.45,tintA:[0.14,0.85,0.92],tintB:[0.95,0.45,0.22],
            echo:0.20,flow:0.5,ca:0.55},
@@ -3078,7 +3117,8 @@ const Director = (() => {
   { num:'IX', title:'THE TRANSITION', sub:'[Ca²⁺]m crosses threshold · the channel is there',
     dur:32, scale:[3.90,1.06], ease:M.E.outCubic,
     notes:['conductance 1.3 nS · diameter ≈ 3 nm','everything under 1.5 kDa leaves',
-           'the c-ring lumen, or the translocase, or neither','> forty years and we still do not know'],
+           'thiol oxidation at the P-site latches it open',
+           '> the c-ring lumen, or the translocase, or neither'],
     style:{weird:0.95,wet:0.55,irid:0.6,volDens:0.30,partFade:0.95,partSize:1.2,head:1.15,
            exposure:1.52,saturation:1.05,tintA:[0.30,0.80,0.85],tintB:[1.0,0.30,0.12],
            echo:0.42,glitch:0.16,ca:0.52,halation:0.22,iso:0.22,teeth:0.0,
@@ -3144,8 +3184,9 @@ const Director = (() => {
     cardSub:'c-ring lumen · or translocase · or something not yet named',
     notes:['c-subunit knockout: transition survives','ANT knockout: transition survives',
            'CypD knockout: threshold rises, pore remains','> the channel outlives every candidate'],
-    style:{weird:1.0,wet:0.4,irid:0.55,volDens:0.55,partFade:0.35,partSize:1.0,head:0.65,
-           exposure:1.44,saturation:1.0,tintA:[0.35,0.72,0.80],tintB:[0.95,0.50,0.30],
+    style:{weird:1.0,wet:0.4,irid:0.55,volDens:0.82,partFade:0.35,partSize:1.0,head:1.45,
+           exposure:2.05,saturation:1.05,emiss:1.7,
+           tintA:[0.35,0.72,0.80],tintB:[0.95,0.50,0.30],
            echo:0.52,glitch:0.20,ghost:0.85,ca:0.95,feedZoom:0.9930,feedRot:0.0024,
            iso:0.20,teeth:0.0,contrast:1.0,halation:0.14},
     cam:(u,t)=>{ const a=t*0.16;
@@ -3170,7 +3211,7 @@ const Director = (() => {
 
   { num:'XV', title:'INTERVENTION II · UNBINDING', sub:'cyclophilin D leaves the OSCP subunit',
     dur:24, scale:[2.20,1.02], ease:M.E.outCubic,
-    notes:['cyclosporin A · sanglifehrin · TRO40303','desensitisation, not blockade',
+    notes:['cyclosporin A · sanglifehrin A · NIM811','desensitisation, not blockade',
            'the threshold moves; the channel stays','> solution two: raise the price of opening'],
     style:{weird:0.6,wet:0.5,irid:0.7,volDens:0.22,partFade:0.8,partSize:1.1,head:0.70,
            exposure:1.24,saturation:1.05,tintA:[0.30,0.78,0.86],tintB:[0.92,0.62,0.34],
@@ -3184,7 +3225,7 @@ const Director = (() => {
 
   { num:'XVI', title:'INTERVENTION III · CARDIOLIPIN', sub:'SS-31 binds the head group · curvature returns',
     dur:24, scale:[1.00,2.80], ease:M.E.inOut,
-    notes:['tetralinoleoyl cardiolipin, four tails','it is the reason cristae bend at all',
+    notes:['tetralinoleoyl cardiolipin, four tails','it is why this membrane bends the way it does',
            'stabilise it and the electron leak closes','> solution three: fix the shape, fix the chemistry'],
     style:{weird:0.5,wet:0.85,irid:1.1,volDens:0.26,partFade:0.8,partSize:1.2,
            exposure:1.34,saturation:1.15,tintA:[0.18,0.80,0.78],tintB:[1.0,0.62,0.26],
@@ -3327,7 +3368,7 @@ const Audio = (() => {
     if(t>=376) root=M.mix(root, 55.0*Math.pow(2, 0/12), M.smootherstep(376,460,t));
 
     // the drone filter is the membrane potential, literally
-    const cutoff=120*Math.pow(2, 1.0+3.4*psi + 1.1*ros);
+    const cutoff=120*Math.pow(2, 0.7+3.4*psi + 1.5*ros + 0.9*pore);
     const q=2.5+9.0*ros+5.0*pore;
 
     // detune grows with disorder; in act XIII the two candidate structures
@@ -3335,11 +3376,17 @@ const Audio = (() => {
     let detune=3.0+26.0*ros+18.0*pore+22.0*scar;
     if(t>=322&&t<352) detune+=40.0*M.E.breath((t-322)/30);
 
+    /* The drone is the membrane potential, so it thins as the cell loses it --
+       but an open pore is not silence, it is a hole with everything pouring
+       through it, so the potential's voice is replaced by a sub-octave rumble
+       and a wide band of membrane noise. The score's loudest minute is the
+       transition, not the opening. */
     const droneGain=0.085*(0.35+0.65*M.mix(1.0,0.55,M.sat((t-74)/36)))
-                   *(0.5+0.5*psi)+0.02;
-    const noiseGain=0.020+0.085*ros+0.075*pore+0.03*(1-ph);
+                   *(0.45+0.55*psi)+0.022+0.075*pore;
+    const noiseGain=0.020+0.17*ros+0.155*pore+0.03*(1-ph);
     const noiseFreq=180+2600*ros+900*(1-psi);
-    const partialGain=0.020+0.055*M.sat(atp)+0.05*M.sat(1.2-Math.abs(t-52)/26);
+    const partialGain=0.020+0.055*M.sat(atp)+0.05*M.sat(1.2-Math.abs(t-52)/26)
+                     +0.045*pore*ros;
 
     // cardiac rhythm
     let bpm=72, jitter=0.004, amp=0.9, sub=1;
@@ -3575,7 +3622,7 @@ const Audio = (() => {
     const STEP=0.02;
     for(let ft=filmT0; ft<filmT1; ft+=STEP){
       const S=scoreState(ft,Science.sample(cache,ft));
-      const nG=(2.0+46.0*S.ros+22.0*S.pore)*STEP;
+      const nG=(2.0+52.0*S.ros+34.0*S.pore)*STEP;
       if(M.hash3(ft*97.1,11.3,3.7) < nG){
         const h=M.hash3(ft*131.7,5.9,2.3);
         const r=RATIOS[(h*RATIOS.length)|0];

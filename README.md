@@ -26,7 +26,7 @@ collapse into either.
 
 | Layer | What it is |
 |---|---|
-| **13-state ODE** | Ischemia–reperfusion at one mitochondrion: ETC flux with protonmotive back-pressure, bidirectional ATP synthase, succinate accumulation driving reverse electron transport, MICU-gated MCU Ca²⁺ flux, RIRR autocatalysis, a redox latch on the pore, osmotic swelling and rupture. RK4 at 20 Hz. It **self-equilibrates** for 120 virtual seconds before frame 0, so the resting state is the model's own fixed point, not a typed-in number. |
+| **17-state ODE** | Ischemia–reperfusion at one mitochondrion: ETC flux with protonmotive back-pressure, bidirectional ATP synthase, succinate accumulation driving reverse electron transport, MICU-gated MCU Ca²⁺ flux, RIRR autocatalysis, a redox latch on the pore, osmotic swelling and rupture. RK4 at 20 Hz. It **self-equilibrates** for 120 virtual seconds before frame 0, so the resting state is the model's own fixed point, not a typed-in number. |
 | **GPU excitable medium** | A Barkley-type reaction–diffusion field on a 512² lattice: `∂u/∂t = D∇²u + u(1−u)(u−(v+b)/a)/ε`, with the excitation threshold lowered by matrix Ca²⁺ and by pore fraction. Its spiral waves *are* the depolarisation wavefront in Act XII. |
 | **Electron-density volume** | ~26 000 atoms generated from real α-helical geometry (1.50 Å rise, 100°/residue, 2.30 Å Cα radius) and splatted into a 96³ RGBA volume: Gaussian density for candidate A, for candidate B, lipid occupancy, and a Debye–Hückel screened potential (κ⁻¹ = 0.78 nm at 150 mM). The molecular acts raymarch that volume directly. |
 | **GPGPU particles** | Ions, metabolites and cytochrome c with Stokes–Einstein mobilities and a Nernst–Planck drift term in the simulated potential field. |
@@ -34,6 +34,14 @@ collapse into either.
 
 Change a rate constant and the film changes. The acts do not decide that the
 pore opens — they only decide where the camera is when it does.
+
+**One deliberate distortion, declared.** The model is stiff across reperfusion:
+once superoxide crosses the RIRR threshold the cascade finishes in under half a
+minute of biological time. True of the tissue, unwatchable as cinema. So between
+2:10 and 3:44 the film's clock runs at 0.38× while the ODE runs on unchanged —
+the camera walks more slowly along the same trajectory. Nothing is re-scaled or
+faked, and every number on screen is the model's own value at that point. It is
+one function, `Science.warpRate(t)`.
 
 ## The eighteen acts
 
