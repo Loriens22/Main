@@ -364,14 +364,14 @@ const Science = (() => {
     // --- proton leak and capacitance ------------------------------------
     gLeak:0.00187, Cm:0.45, nPump:10.0, kShunt:1.10,
     // --- reactive oxygen species ----------------------------------------
-    kROSprod:0.250, dPsiROS:38.0, kRET:3.329, dPsiRET0:85.0, dPsiRETk:40.0,
-    kRIRR:1.822, KRIRR:0.300, nRIRR:2.0, kSOD:0.950, kGSH:1.600, gshRecov:0.135, kGSHuse:0.846,
-    kIVscav:16.43, KporeROS:1.162,
+    kROSprod:0.2219, dPsiROS:38.0, kRET:2.7576, dPsiRET0:85.0, dPsiRETk:40.0,
+    kRIRR:1.4, KRIRR:0.2801, nRIRR:4.7098, kSOD:0.6, kGSH:1.600, gshRecov:0.2079, kGSHuse:0.5,
+    kIVscav:12.3887, KporeROS:1.5675,
     // --- calcium ---------------------------------------------------------
-    VmcuMax:4.032, VmcuBasal:0.309, KmMCU:1.90, nMCU:2.60,
+    VmcuMax:3.3987, VmcuBasal:0.309, KmMCU:1.90, nMCU:2.60,
     KgMICU:0.90, nMICU:4.0, dPsiMCU0:60.0, dPsiMCUk:70.0,
     kNCLX:0.5051, KmNCLX:6.00,
-    kSERCA:1.200, kNCX:0.350, kCaIn:0.0712, kLeakATP:4.597, kNCXrev:2.761,
+    kSERCA:1.200, kNCX:0.350, kCaIn:0.0712, kLeakATP:4.597, kNCXrev:3.222,
     KrevCa:1.20, kCaOut0:0.4327,
     caBuffer:0.28,
     // --- sodium: the hidden intermediary. NHE trades H+ for Na+ during
@@ -379,8 +379,8 @@ const Science = (() => {
     //     Na+ load is what runs Na/Ca exchange backwards on reperfusion. ---
     kNHE:0.350, kNaK:0.0443,
     // --- the permeability transition -------------------------------------
-    Ca0:83.9, nPore:5.0, kpH:4.20, kROSsens:1.787, kCypD:2.071,
-    tauOpen:1.60, tauClose:2.557, hyst:0.62, gPore:0.85,
+    Ca0:107.874, nPore:5.0, kpH:4.20, kROSsens:2.0392, kCypD:2.071,
+    tauOpen:1.60, tauClose:2.8679, hyst:0.62, gPore:0.85,
     // --- swelling and rupture --------------------------------------------
     kSwell:0.2067, kRelax:0.055, volCrit:2.00, kCytC:0.2000,
     // --- ATP economy ------------------------------------------------------
@@ -1201,7 +1201,7 @@ const FS_FIELD = `#version 300 es
 precision highp float;
 in vec2 vUV;
 out vec4 frag;
-uniform sampler2D uPrev;
+uniform sampler2D uPrev, uFluid;
 uniform vec2  uRes;
 uniform float uTime, uDt;
 uniform float uCa, uROS, uPsi, uPore, upH, uO2;   // global ODE state
@@ -1222,10 +1222,9 @@ void main(){
      + texture(uPrev,vUV+vec2(px.x,-px.y)) + texture(uPrev,vUV+vec2(-px.x,px.y));
   vec4 lap = (0.20*n + 0.05*d - s);
 
-  // --- advection of Ca by a curl-noise cytosolic flow (semi-Lagrangian) ---
-  vec3 q=vec3(vUV*3.0, uTime*0.035);
-  vec2 vel = curl(q,0.35).xy * (0.06 + 0.22*uPore);
-  float caAdv = texture(uPrev, vUV - vel*uDt*0.35).b;
+  // --- advection of Ca by the solved cytosolic flow (semi-Lagrangian) ----
+  vec2 vel = texture(uFluid, vUV).xy * (0.22 + 0.55*uPore);
+  float caAdv = texture(uPrev, fract(vUV - vel*uDt)).b;
 
   // --- Barkley excitable kinetics ---
   float a = 0.78 - 0.30*sat(uCa/40.0) - 0.16*uPore - 0.10*sat(uROS);
@@ -1273,6 +1272,115 @@ void main(){
 }`;
 
 /* ===========================================================================
+   7b · CYTOSOL  ·  an incompressible fluid solver
+   ---------------------------------------------------------------------------
+   The cytosol is not noise, it is a fluid, so it is solved as one: semi-
+   Lagrangian advection of the velocity field by itself, body forces from the
+   simulation (buoyancy where superoxide and calcium are concentrated, an
+   outflow jet from every mitochondrion that has fired, vorticity confinement
+   to keep the small eddies from dissipating), then a Jacobi pressure solve and
+   a gradient subtraction so the result is divergence-free.
+
+       du/dt + (u . grad)u = -grad p + f ,    div u = 0
+
+   Everything else drinks from this field: the metabolite particles are
+   transported by it, the calcium in the reaction-diffusion lattice is advected
+   by it, and the volumetric shader warps along it. When the pore opens, the
+   matrix really does start to churn.
+   =========================================================================== */
+const FS_FLUID_ADVECT = `#version 300 es
+precision highp float;
+in vec2 vUV; out vec4 frag;
+uniform sampler2D uVel, uField;
+uniform vec2 uRes;
+uniform float uDt, uTime, uDiss, uPore, uROS, uVort, uStir;
+${GLSL_COMMON}
+void main(){
+  vec2 px=1.0/uRes;
+  vec2 v=texture(uVel,vUV).xy;
+  // semi-Lagrangian: go back along the velocity and take what was there
+  vec2 nv=texture(uVel,fract(vUV-v*uDt)).xy*uDiss;
+
+  vec4 F=texture(uField,vUV);
+  // buoyancy: the hot, oxidised, calcium-loaded regions rise
+  nv.y += uDt*(0.85*sat(F.r)+0.45*sat(F.b))*0.55;
+  // every firing mitochondrion vents: flow runs down the recovery gradient
+  float gLx=texture(uField,fract(vUV-vec2(px.x,0.0))).g;
+  float gr =texture(uField,fract(vUV+vec2(px.x,0.0))).g;
+  float gb =texture(uField,fract(vUV-vec2(0.0,px.y))).g;
+  float gt =texture(uField,fract(vUV+vec2(0.0,px.y))).g;
+  nv += -vec2(gr-gLx,gt-gb)*uDt*(0.9+5.5*uPore);
+
+  // vorticity confinement: put back the curl that the advection smeared out
+  float wl=0.0,wr=0.0,wb=0.0,wt=0.0;
+  {
+    vec2 a=texture(uVel,fract(vUV+vec2(-2.0*px.x,0.0))).xy;
+    vec2 b=texture(uVel,fract(vUV+vec2( 2.0*px.x,0.0))).xy;
+    vec2 c=texture(uVel,fract(vUV+vec2(0.0,-2.0*px.y))).xy;
+    vec2 d=texture(uVel,fract(vUV+vec2(0.0, 2.0*px.y))).xy;
+    wl=a.y; wr=b.y; wb=c.x; wt=d.x;
+  }
+  float curlC=(wr-wl)-(wt-wb);
+  vec2 eta;
+  {
+    float cl=abs((texture(uVel,fract(vUV+vec2(-px.x,0.0))).y));
+    float cr=abs((texture(uVel,fract(vUV+vec2( px.x,0.0))).y));
+    float cb=abs((texture(uVel,fract(vUV+vec2(0.0,-px.y))).x));
+    float ct=abs((texture(uVel,fract(vUV+vec2(0.0, px.y))).x));
+    eta=vec2(cr-cl, ct-cb);
+  }
+  float el=length(eta);
+  if(el>1e-6){
+    vec2 N=eta/el;
+    nv += uVort*uDt*vec2(N.y*curlC, -N.x*curlC);
+  }
+  // a little large-scale stirring so the field never goes completely still
+  nv += curl(vec3(vUV*3.2, uTime*0.045),0.4).xy*uDt*uStir;
+  frag=vec4(clamp(nv,-4.0,4.0),0.0,1.0);
+}`;
+
+const FS_FLUID_DIV = `#version 300 es
+precision highp float;
+in vec2 vUV; out vec4 frag;
+uniform sampler2D uVel; uniform vec2 uRes;
+void main(){
+  vec2 px=1.0/uRes;
+  float l=texture(uVel,fract(vUV-vec2(px.x,0.0))).x;
+  float r=texture(uVel,fract(vUV+vec2(px.x,0.0))).x;
+  float b=texture(uVel,fract(vUV-vec2(0.0,px.y))).y;
+  float t=texture(uVel,fract(vUV+vec2(0.0,px.y))).y;
+  frag=vec4(0.5*((r-l)+(t-b)),0.0,0.0,1.0);
+}`;
+
+const FS_FLUID_JACOBI = `#version 300 es
+precision highp float;
+in vec2 vUV; out vec4 frag;
+uniform sampler2D uPrs, uDiv; uniform vec2 uRes;
+void main(){
+  vec2 px=1.0/uRes;
+  float l=texture(uPrs,fract(vUV-vec2(px.x,0.0))).x;
+  float r=texture(uPrs,fract(vUV+vec2(px.x,0.0))).x;
+  float b=texture(uPrs,fract(vUV-vec2(0.0,px.y))).x;
+  float t=texture(uPrs,fract(vUV+vec2(0.0,px.y))).x;
+  float d=texture(uDiv,vUV).x;
+  frag=vec4((l+r+b+t-d)*0.25,0.0,0.0,1.0);
+}`;
+
+const FS_FLUID_PROJ = `#version 300 es
+precision highp float;
+in vec2 vUV; out vec4 frag;
+uniform sampler2D uVel, uPrs; uniform vec2 uRes;
+void main(){
+  vec2 px=1.0/uRes;
+  float l=texture(uPrs,fract(vUV-vec2(px.x,0.0))).x;
+  float r=texture(uPrs,fract(vUV+vec2(px.x,0.0))).x;
+  float b=texture(uPrs,fract(vUV-vec2(0.0,px.y))).x;
+  float t=texture(uPrs,fract(vUV+vec2(0.0,px.y))).x;
+  vec2 v=texture(uVel,vUV).xy-0.5*vec2(r-l,t-b);
+  frag=vec4(clamp(v,-4.0,4.0),0.0,1.0);
+}`;
+
+/* ===========================================================================
    8 · PARTICLES  ·  ions, metabolites, vesicles, cytochrome c
    ---------------------------------------------------------------------------
    Mobility follows Stokes-Einstein, D = kT / (6 pi eta r), so a proton moves
@@ -1302,7 +1410,7 @@ precision highp float;
 in vec2 vUV;
 layout(location=0) out vec4 outPos;
 layout(location=1) out vec4 outVel;
-uniform sampler2D uPos, uVel, uField;
+uniform sampler2D uPos, uVel, uField, uFluid;
 uniform float uTime, uDt, uScale, uPore, uPsi, uROS, uCa, uO2, uFlow;
 uniform vec3  uCamPos;
 uniform float uMode;   // 0 matrix/ions, 1 cytosol, 2 tissue
@@ -1336,8 +1444,13 @@ void main(){
   E.y += (0.55 - F.g)*0.35;                       // across the membrane
 
   vec3 f = E*charge*mob*(0.35+0.65*uPsi);
-  // turbulent cytosol: curl noise, amplitude scaled by pore-driven swelling
-  f += curl(p*1.15 + vec3(0.0,uTime*0.12,0.0), 0.35)*mob*(0.55+1.9*uFlow);
+  /* Transport by the solved cytosol. A vesicle is dragged by the flow almost
+     completely; a proton barely notices it, because a proton's own diffusion
+     dwarfs the advection. That is the Peclet number doing its job. */
+  vec2 fl = texture(uFluid, fract(fu)).xy;
+  float drag = mix(3.4, 0.45, sat(mob));
+  f += vec3(fl.x, 0.0, fl.y)*drag*(0.6+1.6*uFlow);
+  f += curl(p*1.15 + vec3(0.0,uTime*0.12,0.0), 0.35)*mob*(0.35+0.9*uFlow);
   // Brownian kick
   vec3 rnd = hash33(vec3(p.xy*31.7, uTime*7.0+species))*2.0-1.0;
   f += rnd*mob*0.55;
@@ -1460,13 +1573,13 @@ uniform float uTime, uFrame, uSeed;
 uniform vec3  uCamPos, uCamR, uCamU, uCamF;
 uniform float uFocal, uAperture, uFocusDist;
 uniform float uScale;
-uniform sampler2D uField, uNoise;
+uniform sampler2D uField, uNoise, uFluid;
 uniform sampler3D uDensity;
 uniform float uCa,uROS,uPsi,uPore,upH,uO2,uATP,uVol,uCytC,uScar,uCypD,uNADH;
 uniform float uMorphAB,uGhost,uIso,uWeird,uWet,uIrid,uVolDens,uEmiss,uSteps;
 uniform vec3  uTintA,uTintB;
 uniform vec2  uJitter;
-uniform float uLumenOpen, uTeeth, uBreath, uGrip;
+uniform float uLumenOpen, uTeeth, uBreath, uGrip, uHead;
 ${GLSL_COMMON}
 
 /* ---------------------------------------------------------------------------
@@ -1492,9 +1605,14 @@ Mat mixM(Mat a,Mat b,float t){
             mix(a.trans,b.trans,t)); }
 
 /* the simulated field, projected into 3-space by a cheap triplanar */
+/* The field is read through the flow: the picture's light and haze are dragged
+   along the same velocities that carry the ions, which is what makes the
+   illumination behave like something the cell is full of. */
 vec4 fieldAt(vec3 p){
-  vec4 a=texture(uField,fract(p.xz*0.17+0.5));
-  vec4 b=texture(uField,fract(p.xy*0.17+0.5));
+  vec2 uvA=fract(p.xz*0.17+0.5);
+  vec2 w=texture(uFluid,uvA).xy*0.035;
+  vec4 a=texture(uField,fract(uvA-w));
+  vec4 b=texture(uField,fract(p.xy*0.17+0.5-w.yx));
   return mix(a,b,0.32);
 }
 float breathe(vec3 p){
@@ -1523,7 +1641,9 @@ float molecular(vec3 p, float zoom, out Mat m){
   float lipid,phi;
   float d=densAt(q,lipid,phi);
   // the map is a probability, so let it shimmer at the resolution limit
-  d += (0.020+0.045*uWeird)*lod(0.026*zoom)*fbm(q*38.0+uTime*0.55,3);
+  // the shimmer is a resolution limit, not a snowstorm: keep it well under
+  // the isosurface threshold or the whole map boils
+  d += uIso*(0.040+0.075*uWeird)*lod(0.070*zoom)*fbm(q*15.0+uTime*0.45,3);
   // the lumen: as the transition proceeds the plug evacuates and a conducting
   // channel appears along the ring axis
   float lum = 1.0-smoothstep(0.055,0.16,length(q.xz));
@@ -1532,7 +1652,7 @@ float molecular(vec3 p, float zoom, out Mat m){
   float grip = uGrip*exp(-16.0*length(q-vec3(0.0,0.72,0.0)));
   d += grip*0.5;
 
-  float iso=uIso*(1.0-0.16*uWeird*sin(uTime*0.7+q.y*6.0));
+  float iso=uIso*(1.0-0.09*uWeird*sin(uTime*0.7+q.y*6.0));
   /* A Gaussian density map is NOT a distance field. Its gradient near an atom
      is about 1/sigma, with sigma = 1.28 A = 0.021 box units, so converting
      (iso - rho) to a distance needs that factor near the surface or the ray
@@ -1546,12 +1666,16 @@ float molecular(vec3 p, float zoom, out Mat m){
   // colour by electrostatics: acidic patches cold, basic patches hot, the
   // hydrophobic belt bone-pale and waxy
   float e=(phi-0.5)*2.0;
-  vec3 elec=mix(vec3(0.94,0.88,0.80), (e<0.0? vec3(0.22,0.86,0.92):vec3(1.00,0.55,0.20)), abs(e)*1.25);
-  vec3 alb=mix(elec, vec3(0.82,0.74,0.56)*0.85, sat(lipid*1.6));
+  vec3 elec=mix(vec3(0.90,0.84,0.74), (e<0.0? vec3(0.16,0.84,0.94):vec3(1.00,0.50,0.14)), sat(abs(e)*1.9));
+  vec3 alb=mix(elec, vec3(0.82,0.74,0.56)*0.85, sat(lipid*1.1)*0.85);
   float sss=mix(0.85,0.35,sat(lipid*1.4));
   vec3 em = vec3(0.0);
-  em += vec3(1.0,0.35,0.16)*uROS*0.22*sat(lipid);
-  em += vec3(0.25,1.0,0.9)*sat(uLumenOpen)*lum*1.2;
+  em += vec3(1.0,0.30,0.12)*uROS*0.40*(0.35+0.65*sat(lipid));
+  // the conducting channel lights its own walls: everything that passes
+  // through a 1.3 nS hole is carrying charge
+  float lumGlow = 1.0-smoothstep(0.09,0.46,length(q.xz));
+  em += vec3(0.25,1.0,0.92)*sat(uLumenOpen)*(lum*1.1+lumGlow*0.85)
+        *(0.6+0.8*sin(q.y*9.0-uTime*2.2)*0.5+0.4);
   m=MK(alb, mix(0.55,0.30,uWet), sss, 0.35*uIrid+0.5*sat(lipid), em,
        mix(110.0,420.0,sat(lipid+uWet)), 0.35*sss);
   return dist;
@@ -1755,8 +1879,12 @@ float layerCell(vec3 p, out Mat m){
   // t-tubule invaginating at the Z-disk
   float tt=max(abs(sx)-0.012, -(length(f.yz)-0.30));
   tt=max(tt, length(f.yz)-0.34);
-  float d=min(min(fib,mito),tt);
-  // sarcolemma: a shell, and the whole fibre is finite along x
+  /* Everything inside the cell is built from infinite lattices, so it has to
+     be clipped to the inside of the plasma membrane -- otherwise the camera is
+     standing in solid muscle wherever it goes and every ray hits at zero. */
+  float inside=length(p.yz)-1.235;
+  float d=max(min(min(fib,mito),tt), inside);
+  // sarcolemma: a shell, and the fibre is finite along its length
   float sarco=abs(length(p.yz)-1.25)-0.022;
   sarco-=0.010*lod(0.17)*fbm(p*6.0,3);
   d=min(d,sarco);
@@ -1896,6 +2024,16 @@ float volDensity(vec3 p, out vec3 emit){
     d += rho*uVolDens*(1.2+5.0*uGhost);
     emit = mix(uTintA,uTintB,sat(dd.a))*rho*(0.5+2.0*uGhost);
   } else emit=vec3(0.0);
+  // the open channel is a lit tube: charge moving through a 3 nm hole
+  if(uLumenOpen>0.01 && uScale<1.9){
+    float mz2=mix(3.30,1.05,clamp(uScale,0.0,1.0));
+    vec3 lq=p/mz2;
+    float tube=(1.0-smoothstep(0.03,0.30,length(lq.xz)))
+             * (1.0-smoothstep(0.30,0.75,abs(lq.y)));
+    d    += uLumenOpen*tube*uVolDens*7.0;
+    emit += vec3(0.30,1.0,0.92)*uLumenOpen*tube
+          * (1.4+0.9*sin(lq.y*11.0-uTime*3.0));
+  }
   emit += mix(uTintA,uTintB,ros)*(0.12+0.5*ros)*uPsi;
   emit += vec3(1.0,0.22,0.10)*ros*ros*2.2;
   emit += vec3(0.20,0.85,1.0)*cal*0.30;
@@ -1908,7 +2046,7 @@ vec3 shade(vec3 p, vec3 n, vec3 rd, Mat m, float sc, float ao, float curv){
   vec4 F=fieldAt(p*0.7);
   vec3 L1=normalize(vec3(0.55,0.72,-0.40));
   vec3 L2=normalize(vec3(-0.65,-0.18,0.55));
-  vec3 kcol=mix(uTintA,uTintB,sat(F.r*1.2))*(0.55+0.85*uPsi);
+  vec3 kcol=mix(uTintA,uTintB,sat(F.r*1.2))*(0.78+0.62*uPsi);
   kcol=mix(kcol, vec3(1.0,0.26,0.12), sat(F.r*1.6)*0.8);
   vec3 fcol=mix(vec3(0.10,0.30,0.42), vec3(0.42,0.10,0.16), sat(uROS));
 
@@ -1928,17 +2066,30 @@ vec3 shade(vec3 p, vec3 n, vec3 rd, Mat m, float sc, float ao, float curv){
   float back=pow(sat(dot(rd,-L1)*0.5+0.5),3.0);
   col += m.alb*sssCol*m.sss*exp(-th*2.4)*(0.55*back+0.35)*(0.35+0.65*sh);
 
-  // wet specular + clearcoat
-  float rough=max(m.rough*(1.0-0.45*uWet),0.045);
+  /* Wetness is not a constant. It pools where the simulation says solutes are
+     moving -- high local calcium, high superoxide, a swollen matrix -- so the
+     sheen crawls over the membranes as the chemistry does. */
+  float wet=sat(uWet*(0.55+0.75*sat(F.b*1.2+F.r*0.6)+0.5*(uVol-1.0)));
+  float rough=max(m.rough*(1.0-0.45*wet),0.045);
   vec3 h1=normalize(L1-rd);
   float spec=pow(max(dot(n,h1),0.0), 2.0/(rough*rough)-2.0+2.0);
-  float fr=fresnel(max(dot(n,-rd),0.0),0.035+0.06*uWet);
-  col += kcol*spec*fr*sh*(1.6+5.0*uWet);
+  float fr=fresnel(max(dot(n,-rd),0.0),0.035+0.06*wet);
+  col += kcol*spec*fr*sh*(1.6+5.0*wet);
 
   // thin-film interference: the membrane is a soap bubble made of fat
-  float filmD=m.film*(1.0+0.55*sin(2.2*tanh(curv*0.09)+uTime*0.6)+0.4*uWet+0.6*F.b);
+  float filmD=m.film*(1.0+0.55*sin(2.2*tanh(curv*0.09)+uTime*0.6)+0.4*wet+0.6*F.b);
   vec3 irid=thinFilm(max(dot(n,-rd),0.0), filmD, 1.42);
   col += irid*m.irid*(0.16+0.70*fr)*(0.35+0.65*ao)*(0.45+0.55*uIrid)*0.62;
+
+  /* A headlight. Half this film happens inside something opaque, where the
+     key light cannot reach, and a camera that carries no light of its own just
+     renders black corridors. Inverse-square, tinted to the scene. */
+  if(uHead>0.001){
+    float hd=length(p-uCamPos);
+    vec3 hcol=mix(uTintA,uTintB,0.22)*1.35;
+    col += m.alb*hcol*uHead*(1.0/(1.0+2.4*hd*hd))
+         * pow(max(dot(n,-rd),0.0),0.85)*(0.35+0.65*ao);
+  }
 
   col += m.emis;
   col *= (0.25+0.75*ao);
@@ -1968,12 +2119,15 @@ void main(){
   float t=0.02;
   gFoot=px*0.05;
   if(mapD(ro)<0.0){
-    for(int i=0;i<28;i++){
-      t+=0.018;
-      if(mapD(ro+rd*t)>0.0) break;
-      if(t>2.0) break;
+    // step by the depth we are buried at, so escaping is one or two taps
+    // instead of a fixed crawl that gives up inside dense matter
+    for(int i=0;i<40;i++){
+      float m=mapD(ro+rd*t);
+      if(m>0.0) break;
+      t += max(0.010, -m*0.95);
+      if(t>5.0) break;
     }
-    t+=0.004;
+    t+=0.006;
   }
   bool hit=false;
   int steps=int(uSteps);
@@ -2005,6 +2159,8 @@ void main(){
     vec3 p=ro+rd*t;
     float e=max(px*t*0.6,0.00035);
     n=calcNormal(p,e,curv);
+    // a surface met from the inside still has to face the camera to be lit
+    if(dot(n,rd)>0.0) n=-n;
     float ao=calcAO(p,n,1.0);
     sceneMap(p,m);
     col=shade(p,n,rd,m,1.0,ao,curv);
@@ -2414,13 +2570,17 @@ const Titles = (() => {
    12 · RENDERER
    =========================================================================== */
 const Renderer = (() => {
-  let gl, W=1280, H=536, PW=192, FIELD=512;
-  let P={}, RT={}, TEX={}, bloomA=[], bloomB=[];
+  let gl, W=1280, H=536, PW=192, FIELD=512, FLUID=256;
+  let P={}, RT={}, TEX={}, bloomA=[], bloomB=[], particlesOK=true;
   const BLOOM_LEVELS=5;
   let frame=0;
 
   function makePrograms(){
     P.field  = GL.program(VS_QUAD, FS_FIELD,      'field');
+    P.fadv   = GL.program(VS_QUAD, FS_FLUID_ADVECT,'fluidAdvect');
+    P.fdiv   = GL.program(VS_QUAD, FS_FLUID_DIV,   'fluidDiv');
+    P.fjac   = GL.program(VS_QUAD, FS_FLUID_JACOBI,'fluidJacobi');
+    P.fprj   = GL.program(VS_QUAD, FS_FLUID_PROJ,  'fluidProject');
     P.seed   = GL.program(VS_QUAD, FS_FIELD_SEED, 'fieldSeed');
     P.pinit  = GL.program(VS_QUAD, FS_PART_INIT,  'partInit');
     P.pupd   = GL.program(VS_QUAD, FS_PART_UPDATE,'partUpdate');
@@ -2449,7 +2609,16 @@ const Renderer = (() => {
     if(!RT.field){
       RT.field = GL.pingpong(FIELD,FIELD,{prefer:'f16',repeat:true});
     }
-    if(!RT.pos || RT.pos.w!==PW){
+    if(!RT.fvel){
+      RT.fvel = GL.pingpong(FLUID,FLUID,{prefer:'f16',repeat:true});
+      RT.fdiv = GL.rt(FLUID,FLUID,{prefer:'f16',repeat:true});
+      RT.fprs = GL.pingpong(FLUID,FLUID,{prefer:'f16',repeat:true});
+    }
+    /* Particle state is positions in a float texture. On a context that can
+       only render to RGBA8 there is nowhere to keep them, so the layer is
+       dropped rather than filled with quantised garbage. */
+    particlesOK = GL.caps.colorFloat || GL.caps.halfFloat;
+    if(particlesOK && (!RT.pos || RT.pos.w!==PW)){
       RT.pos = GL.pingpong(PW,PW,{prefer:'f32',nearest:true});
       RT.vel = GL.pingpong(PW,PW,{prefer:'f32',nearest:true});
       seedParticles();
@@ -2473,7 +2642,7 @@ const Renderer = (() => {
     gl=GL.init(canvas);
     makePrograms();
     TEX.noise=GL.blueNoise(256);
-    TEX.titles=Titles.init(gl);
+    Titles.init(gl);
     allocate(w,h,pw);
     seedField(1.0);
     return gl;
@@ -2504,19 +2673,43 @@ const Renderer = (() => {
     while(fieldAcc>=FIELD_DT && n<6){
       fieldAcc-=FIELD_DT; fieldT+=FIELD_DT; n++;
       P.field.use().set({
-        uPrev:0, uRes:[FIELD,FIELD], uTime:S.t, uDt:FIELD_DT*S.fieldRate,
+        uPrev:0, uFluid:1, uRes:[FIELD,FIELD], uTime:S.t, uDt:FIELD_DT*S.fieldRate,
         uCa:S.bio.Cam, uROS:S.bio.ROS, uPsi:S.bio.dPsi/170, uPore:S.bio.pore,
         upH:S.bio.pH, uO2:S.bio.O2, uSpark:spark, uHeal:heal});
-      GL.bind({0:RT.field.src.tex(0)});
+      GL.bind({0:RT.field.src.tex(0),1:RT.fvel.src.tex(0)});
       RT.field.dst.bind(); GL.drawQuad(); RT.field.swap();
     }
   }
+  /* One fluid step: advect and force, then make it divergence-free. */
+  function stepFluid(S, dt){
+    const d=Math.min(dt,1/30)*S.fluidRate;
+    P.fadv.use().set({uVel:0,uField:1,uRes:[FLUID,FLUID],uDt:d,uTime:S.t,
+      uDiss:0.995,uPore:S.bio.pore,uROS:S.bio.ROS,uVort:S.vort,uStir:S.stir});
+    GL.bind({0:RT.fvel.src.tex(0),1:RT.field.src.tex(0)});
+    RT.fvel.dst.bind(); GL.drawQuad(); RT.fvel.swap();
+
+    P.fdiv.use().set({uVel:0,uRes:[FLUID,FLUID]});
+    GL.bind({0:RT.fvel.src.tex(0)});
+    RT.fdiv.bind(); GL.drawQuad();
+
+    P.fjac.use().set({uPrs:0,uDiv:1,uRes:[FLUID,FLUID]});
+    for(let i=0;i<S.jacobi;i++){
+      GL.bind({0:RT.fprs.src.tex(0),1:RT.fdiv.tex(0)});
+      RT.fprs.dst.bind(); GL.drawQuad(); RT.fprs.swap();
+    }
+    P.fprj.use().set({uVel:0,uPrs:1,uRes:[FLUID,FLUID]});
+    GL.bind({0:RT.fvel.src.tex(0),1:RT.fprs.src.tex(0)});
+    RT.fvel.dst.bind(); GL.drawQuad(); RT.fvel.swap();
+  }
+
   function stepParticles(S, dt){
+    if(!particlesOK) return;
     P.pupd.use().set({
-      uPos:0,uVel:1,uField:2, uTime:S.t, uDt:Math.min(dt,0.05),
+      uPos:0,uVel:1,uField:2,uFluid:3, uTime:S.t, uDt:Math.min(dt,0.05),
       uScale:S.scale, uPore:S.bio.pore, uPsi:S.bio.dPsi/170, uROS:S.bio.ROS,
       uCa:S.bio.Cam, uO2:S.bio.O2, uFlow:S.flow, uCamPos:S.cam.pos, uMode:0});
-    GL.bind({0:RT.pos.src.tex(0),1:RT.vel.src.tex(0),2:RT.field.src.tex(0)});
+    GL.bind({0:RT.pos.src.tex(0),1:RT.vel.src.tex(0),2:RT.field.src.tex(0),
+             3:RT.fvel.src.tex(0)});
     RT.pos.dst.bind();
     gl.framebufferTexture2D(gl.FRAMEBUFFER,gl.COLOR_ATTACHMENT1,gl.TEXTURE_2D,
                             RT.vel.dst.texs[0].t,0);
@@ -2532,15 +2725,16 @@ const Renderer = (() => {
       uRes:[W,H], uTime:S.t, uFrame:frame, uSeed:S.seed,
       uCamPos:c.pos, uCamR:c.right, uCamU:c.up, uCamF:c.fwd,
       uFocal:c.focal, uAperture:c.aperture*(S.apertureScale||1.0), uFocusDist:c.focus,
-      uScale:S.scale, uField:0, uNoise:1, uDensity:2,
+      uScale:S.scale, uField:0, uNoise:1, uDensity:2, uFluid:3,
       uCa:S.bio.Cam, uROS:S.bio.ROS, uPsi:S.bio.dPsi/170, uPore:S.bio.pore,
       upH:S.bio.pH, uO2:S.bio.O2, uATP:S.bio.ATP, uVol:S.bio.vol,
       uCytC:S.bio.cytC, uScar:S.bio.scar, uCypD:S.bio.cypD, uNADH:S.bio.NADH,
       uMorphAB:S.morphAB, uGhost:S.ghost, uIso:S.iso, uWeird:S.weird,
       uWet:S.wet, uIrid:S.irid, uVolDens:S.volDens, uEmiss:S.emiss,
       uSteps:S.steps, uTintA:S.tintA, uTintB:S.tintB, uJitter:S.jitter,
-      uLumenOpen:S.lumen, uTeeth:S.teeth, uBreath:S.breath, uGrip:S.grip});
-    GL.bind({0:RT.field.src.tex(0),1:TEX.noise});
+      uLumenOpen:S.lumen, uTeeth:S.teeth, uBreath:S.breath, uGrip:S.grip,
+      uHead:S.head});
+    GL.bind({0:RT.field.src.tex(0),1:TEX.noise,3:RT.fvel.src.tex(0)});
     GL.bind3D(2,TEX.density);
     RT.scene.bind();
     gl.clearColor(0,0,0,1); gl.clear(gl.COLOR_BUFFER_BIT);
@@ -2550,7 +2744,7 @@ const Renderer = (() => {
        buffer. That buffer is attachment 1 of the very framebuffer we are
        drawing into, so it has to be detached first -- otherwise the texture is
        simultaneously attached and sampled, which is a feedback loop. */
-    if(S.partFade>0.002){
+    if(S.partFade>0.002 && particlesOK){
       gl.framebufferTexture2D(gl.FRAMEBUFFER,gl.COLOR_ATTACHMENT1,gl.TEXTURE_2D,null,0);
       gl.drawBuffers([gl.COLOR_ATTACHMENT0, gl.NONE]);
       gl.enable(gl.BLEND); gl.blendFunc(gl.ONE,gl.ONE);
@@ -2616,8 +2810,9 @@ const Renderer = (() => {
      the results, which produces true rotary-shutter motion blur and resolves
      the stochastic depth-of-field sampling at the same time. */
   function frameCore(S, dt){
+    stepFluid(S, dt);
     stepField(S, dt, S.spark, S.heal);
-    if(S.partFade>0.002 || S.t<1.0) stepParticles(S, dt);
+    if(particlesOK && (S.partFade>0.002 || S.t<1.0)) stepParticles(S, dt);
     renderScene(S);
     renderBloom(S);
     renderPost(S);
@@ -2639,7 +2834,9 @@ const Renderer = (() => {
     P.present.use().set({
       uTex:0,uTitles:1,uNoise:2,uRes:[outW,outH],uTime:S.t,
       uGrain:S.grain,uFade:S.fade,uBars:S.bars,uTitleCA:S.titleCA,uFrame:frame});
-    GL.bind({0:fromAccum?RT.accum.tex(0):RT.feed.dst.tex(0),1:TEX.titles,2:TEX.noise});
+    // read the handle live: Titles reallocates its texture whenever the
+    // output aspect changes, and a cached id would be a deleted object
+    GL.bind({0:fromAccum?RT.accum.tex(0):RT.feed.dst.tex(0),1:Titles.tex,2:TEX.noise});
     GL.screen(outW,outH); GL.drawQuad();
     if(!fromAccum) RT.feed.swap();
   }
@@ -2710,6 +2907,7 @@ const Director = (() => {
     glitch:0.0, halation:0.07, streak:0.5, bloomThresh:0.78, bloomSpread:0.85,
     grain:0.035, weird:0.45, wet:0.45, irid:0.7, volDens:0.16, emiss:1.0,
     iso:0.24, morphAB:0.0, ghost:0.0, lumen:0.0, teeth:1.0, breath:0.35, grip:0.0,
+    head:0.30,
     partFade:0.7, partSize:1.1, flow:0.2, fade:1.0, bars:0.5/2.39*(1.0),
     titleCA:1.0, steps:999,
   };
@@ -2720,7 +2918,7 @@ const Director = (() => {
     dur:26, scale:[4.35,3.05], ease:M.E.inOut,
     notes:['cristae junctions, 25 nm apertures','ATP synthase dimer rows follow the ridge',
            '> surface area of one cardiac mitochondrion ≈ 7 µm²'],
-    style:{weird:0.35,wet:0.55,irid:0.85,volDens:0.22,echo:0.22,exposure:1.15,
+    style:{weird:0.35,wet:0.55,irid:0.85,volDens:0.22,echo:0.22,exposure:1.15,head:0.55,
            partFade:0.55,flow:0.15,breath:0.5},
     cam:(u,t)=>{ const a=-0.35+u*1.15;
       const p=Camera.orbit([0,0,0], M.mix(4.4,1.05,M.E.inOut(u)), a, M.mix(1.9,0.15,M.E.outCubic(u)));
@@ -2732,7 +2930,7 @@ const Director = (() => {
     dur:24, scale:[3.05,2.10], ease:M.E.inOut,
     notes:['the membrane holds 170 mV across 4 nm','that is 40 million volts per metre',
            '> protons do not swim here. they fall.'],
-    style:{weird:0.4,wet:0.62,irid:0.9,volDens:0.30,partFade:1.25,partSize:1.5,
+    style:{weird:0.4,wet:0.62,irid:0.9,volDens:0.30,partFade:1.25,partSize:1.5,head:0.55,
            exposure:1.32,echo:0.26,halation:0.12,flow:0.25},
     cam:(u,t)=>{ const a=1.1+u*2.0;
       const p=Camera.orbit([0,0,0],M.mix(1.25,0.62,u),a,M.mix(0.20,-0.10,u)+0.06*Math.sin(t*0.5));
@@ -2745,7 +2943,7 @@ const Director = (() => {
     cardSub:'on the mitochondrial permeability transition',
     notes:['40 years of electrophysiology','a 1.3 nS Ca²⁺-gated megachannel',
            '> no agreed molecular identity'],
-    style:{weird:0.55,wet:0.35,irid:0.55,volDens:0.20,partFade:0.45,iso:0.235,
+    style:{weird:0.55,wet:0.35,irid:0.55,volDens:0.20,partFade:0.45,iso:0.235,head:0.60,
            exposure:1.18,echo:0.18,ca:0.62,teeth:0.0},
     cam:(u,t)=>{ const a=-2.2+u*1.3;
       const p=Camera.orbit([0,0,0],M.mix(3.0,1.45,M.E.outCubic(u)),a,M.mix(0.9,0.05,u));
@@ -2821,36 +3019,45 @@ const Director = (() => {
                    rollNoise:0.3,lag:0.07}}; } },
 
   { num:'IX', title:'THE TRANSITION', sub:'[Ca²⁺]m crosses threshold · the channel is there',
-    dur:32, scale:[3.90,0.72], ease:M.E.outCubic,
+    dur:32, scale:[3.90,1.06], ease:M.E.outCubic,
     notes:['conductance 1.3 nS · diameter ≈ 3 nm','everything under 1.5 kDa leaves',
            'the c-ring lumen, or the translocase, or neither','> forty years and we still do not know'],
-    style:{weird:0.95,wet:0.55,irid:0.6,volDens:0.30,partFade:1.5,partSize:1.3,
+    style:{weird:0.95,wet:0.55,irid:0.6,volDens:0.30,partFade:1.5,partSize:1.3,head:1.15,
            exposure:1.30,saturation:1.05,tintA:[0.30,0.80,0.85],tintB:[1.0,0.30,0.12],
-           echo:0.42,glitch:0.16,ca:1.10,halation:0.22,iso:0.22,teeth:0.0,
+           echo:0.42,glitch:0.16,ca:0.52,halation:0.22,iso:0.22,teeth:0.0,
            contrast:1.12,breath:0.6},
-    cam:(u,t)=>{ const a=0.9+u*2.2;
-      const rr=M.mix(3.4,0.55,M.E.inOut(u));
-      const p=Camera.orbit([0,0,0],rr,a,M.mix(1.1,0.0,M.E.inOut(u))+0.05*Math.sin(t*2.1)*u);
-      return {pos:p,target:[0,M.mix(0.1,0,u),0],
-              opt:{focal:M.mix(1.25,2.2,M.E.inOut(u)),parasite:0.05*(1-u)+0.02,
-                   aperture:M.mix(0.010,0.030,u),focus:rr,rollNoise:0.25,lag:0.10}}; } },
-
+    /* Held outside the ring and pushed in optically rather than physically:
+       at this scale the inside of a protein is an unlit wall, and the thing
+       worth looking at is the channel lighting up from within. */
+    cam:(u,t)=>{ const a=0.9+u*2.35;
+      const k=M.E.inOut(u);
+      // it climbs onto the ring axis, so the last third of the act is a look
+      // straight down the channel as it opens
+      const rr=M.mix(3.40,1.05,k);
+      const p=Camera.orbit([0,0,0],rr,a,M.mix(0.55,1.52,k)+0.05*Math.sin(t*1.7)*u);
+      return {pos:p,target:[0,M.mix(0.15,-0.06,k),0],
+              opt:{focal:M.mix(1.25,2.35,k),parasite:0.05*(1.0-u)+0.016,
+                   aperture:M.mix(0.010,0.026,u),focus:rr*0.97,
+                   rollNoise:0.25,lag:0.10}}; } },
   { num:'X', title:'COLLAPSE · THE MEMBRANE REMEMBERS', sub:'ΔΨm → 0 · matrix volume × 2.1',
-    dur:28, scale:[0.70,3.40], ease:M.E.inOut,
+    dur:28, scale:[1.06,3.40], ease:M.E.inOut,
     notes:['the cristae unfold — they do not melt','stored area becomes swollen sphere',
            'folded geometry is a memory of potential','> the shape was holding the charge'],
-    style:{weird:0.85,wet:0.9,irid:0.5,volDens:0.36,partFade:1.4,partSize:1.2,
+    style:{weird:0.85,wet:0.9,irid:0.5,volDens:0.36,partFade:1.4,partSize:1.2,head:0.95,
            exposure:1.15,saturation:0.9,tintA:[0.22,0.44,0.52],tintB:[0.95,0.34,0.20],
            echo:0.46,glitch:0.12,feedZoom:1.0035,feedRot:-0.0016,halation:0.16,
            vignette:0.76,breath:1.0,flow:0.8},
-    cam:(u,t)=>{ const a=3.1+u*1.0;
-      const p=Camera.orbit([0,0,0],M.mix(0.6,4.4,M.E.inExpo(u)),a,M.mix(0.0,1.5,u));
-      return {pos:p,target:[0,0,0],
-              opt:{focal:M.mix(2.1,1.15,u),parasite:0.05,aperture:0.014,
-                   focus:M.mix(0.6,4.0,u),rollNoise:0.28,lag:0.13}}; } },
-
+    /* The retreat: the ring falls away, the bilayer resolves, and then the
+       cristae, which are busy forgetting how to fold. */
+    cam:(u,t)=>{ const a=3.1+u*1.5;
+      const k=M.E.inExpo(u);
+      const rr=M.mix(1.10,4.80,k);
+      const p=Camera.orbit([0,0,0],rr,a,M.mix(1.50,1.70,M.E.inOut(u)));
+      return {pos:p,target:[0,M.mix(-0.04,0.0,u),0],
+              opt:{focal:M.mix(2.25,1.15,M.E.outCubic(u)),parasite:0.045,
+                   aperture:0.014,focus:rr*0.96,rollNoise:0.28,lag:0.13}}; } },
   { num:'XI', title:'RUPTURE', sub:'outer membrane fails · cytochrome c leaves the heme bed',
-    dur:24, scale:[3.40,4.60], ease:M.E.inOut,
+    dur:24, scale:[3.40,5.05], ease:M.E.inOut,
     notes:['colloid osmotic pressure wins','cyt c: 12.4 kDa, 1 heme, bright orange',
            'apoptosome assembly begins downstream','> but at this Ca²⁺ load the cell simply bursts'],
     style:{weird:0.7,wet:0.95,irid:0.45,volDens:0.30,partFade:2.4,partSize:1.9,
@@ -2863,7 +3070,7 @@ const Director = (() => {
                    rollNoise:0.2,lag:0.10}}; } },
 
   { num:'XII', title:'THE WAVEFRONT', sub:'depolarisation crosses the syncytium · ≈ 5 µm s⁻¹',
-    dur:26, scale:[4.60,6.00], ease:M.E.inOut,
+    dur:26, scale:[5.05,6.00], ease:M.E.inOut,
     notes:['one cell tells the next','contraction bands, then nothing',
            'infarct size is decided in ten minutes','> half the final damage is reperfusion'],
     style:{weird:0.55,wet:0.6,irid:0.3,volDens:0.24,partFade:0.9,partSize:1.0,
@@ -2880,7 +3087,7 @@ const Director = (() => {
     cardSub:'c-ring lumen · or translocase · or something not yet named',
     notes:['c-subunit knockout: transition survives','ANT knockout: transition survives',
            'CypD knockout: threshold rises, pore remains','> the channel outlives every candidate'],
-    style:{weird:1.0,wet:0.4,irid:0.55,volDens:0.55,partFade:0.5,partSize:1.0,
+    style:{weird:1.0,wet:0.4,irid:0.55,volDens:0.55,partFade:0.5,partSize:1.0,head:0.65,
            exposure:1.22,saturation:1.0,tintA:[0.35,0.72,0.80],tintB:[0.95,0.50,0.30],
            echo:0.52,glitch:0.20,ghost:0.85,ca:0.95,feedZoom:0.9930,feedRot:0.0024,
            iso:0.20,teeth:0.0,contrast:1.0,halation:0.14},
@@ -2908,7 +3115,7 @@ const Director = (() => {
     dur:24, scale:[2.20,1.02], ease:M.E.outCubic,
     notes:['cyclosporin A · sanglifehrin · TRO40303','desensitisation, not blockade',
            'the threshold moves; the channel stays','> solution two: raise the price of opening'],
-    style:{weird:0.6,wet:0.5,irid:0.7,volDens:0.22,partFade:0.8,partSize:1.1,
+    style:{weird:0.6,wet:0.5,irid:0.7,volDens:0.22,partFade:0.8,partSize:1.1,head:0.70,
            exposure:1.24,saturation:1.05,tintA:[0.30,0.78,0.86],tintB:[0.92,0.62,0.34],
            echo:0.26,ghost:0.06,grip:1.0,iso:0.235,teeth:0.0},
     cam:(u,t)=>{ const a=2.0-u*1.7;
@@ -3406,21 +3613,25 @@ const Audio = (() => {
   }
 
   /* ---- offline render: identical score, rendered faster than realtime ----- */
-  async function renderOffline(cache, duration, onProgress){
-    const sr=48000;
+  /* `from` lets the score be rendered in segments, which matters at 474 s:
+     a full-length stereo float render is ~180 MB of RAM. Film time t maps to
+     context time t - from, so a segment is sample-identical to that slice of
+     the whole. */
+  async function renderOffline(cache, duration, onProgress, from){
+    const sr=48000, t0=from||0;
     const octx=new (window.OfflineAudioContext||window.webkitOfflineAudioContext)
                     (2, Math.ceil(sr*duration), sr);
     const g=buildGraph(octx,octx.destination);
     const nz=noiseBuffer(octx,2.0);
+    const off=-t0;
     startGraph(g,0);
-    automate(g,octx,cache,0,duration,0,0.18);
-    // events in chunks so the scheduler's phase integration stays cheap
+    automate(g,octx,cache,t0,t0+duration,off,0.18);
     const CH=10;
-    for(let t0=0;t0<duration;t0+=CH){
-      events(octx,g,cache,t0,Math.min(t0+CH,duration),0,nz);
-      if(onProgress) onProgress(t0/duration*0.5);
+    for(let a=t0;a<t0+duration;a+=CH){
+      events(octx,g,cache,a,Math.min(a+CH,t0+duration),off,nz);
+      if(onProgress) onProgress((a-t0)/duration*0.5);
     }
-    for(const c of CUES) if(c.t<duration) c.fn(octx,g,0,cache);
+    for(const c of CUES) if(c.t>=t0 && c.t<t0+duration) c.fn(octx,g,off,cache);
     const buf=await octx.startRendering();
     if(onProgress) onProgress(1.0);
     return buf;
@@ -3732,6 +3943,10 @@ const Film = (() => {
       t:ft, u, shotIndex:idx, scale, cam, bio, heal, beat,
       spark: Director.sparkAt(ft, heal),
       fieldRate: 3.4,
+      fluidRate: 2.2,
+      jacobi: {low:8, med:14, high:20, ultra:28}[CFG.quality]||20,
+      vort:   0.34 + 0.55*bio.pore,
+      stir:   0.22 + 0.9*M.sat(bio.ROS*0.8) + 0.5*bio.pore,
       seed: CFG.seed*0.0001,
       steps: st.steps? Math.min(st.steps,q.steps) : q.steps,
       // without temporal accumulation a wide stochastic aperture is just
@@ -3774,7 +3989,7 @@ const Film = (() => {
     }
     const metres=Math.pow(10, -10 + (buildScale(ft))*(7/6));
     T.stamp=fmtMetres(metres)+'   ·   t+'+fmtClock(ft);
-    const psi=bio.dPsi/170;
+    const psi=bio.dPsi/175;
     T.vitals=[
       ['ΔΨm', bio.dPsi.toFixed(0)+' mV', tint(psi,true), M.sat(psi)],
       ['[Ca²⁺]m', bio.Cam.toFixed(1)+' µM', tint(M.sat(bio.Cam/60),false), M.sat(bio.Cam/60)],
@@ -4052,7 +4267,10 @@ Film.boot().catch(e=>{
   if(b) b.textContent='failed — see the panel';
   console.error(e);
 });
+/* A single handle on the internals, for the console and for automated checks:
+   __mod.Science.P are the rate constants, __mod.Audio.RATIOS the harmony. */
 window.__film=Film;
+window.__mod={M,Science,Mol,Density,GL,Titles,Renderer,Camera,Director,Audio,Export,WebM};
 </script>
 </body>
 </html>
