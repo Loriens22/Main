@@ -2158,7 +2158,9 @@ vec3 shade(vec3 p, vec3 n, vec3 rd, Mat m, float sc, float ao, float curv){
   if(uHead>0.001){
     float hd=length(p-uCamPos);
     vec3 hcol=mix(uTintA,uTintB,0.22)*1.35;
-    col += m.alb*hcol*uHead*(1.0/(1.0+2.4*hd*hd))
+    // a linear term in the denominator keeps it from saturating when the
+    // camera is almost touching a surface, which happens often here
+    col += m.alb*hcol*uHead*(1.0/(1.0+1.6*hd+2.6*hd*hd))
          * pow(max(dot(n,-rd),0.0),0.85)*(0.35+0.65*ao);
   }
 
@@ -3020,7 +3022,7 @@ const Director = (() => {
     dur:26, scale:[4.35,3.05], ease:M.E.inOut,
     notes:['cristae junctions, 25 nm apertures','ATP synthase dimer rows follow the ridge',
            '> cristae give one cardiac mitochondrion ≈ 15 µm² of membrane'],
-    style:{weird:0.35,wet:0.55,irid:0.85,volDens:0.22,echo:0.22,exposure:1.15,head:0.55,
+    style:{weird:0.35,wet:0.55,irid:0.85,volDens:0.22,echo:0.22,exposure:1.18,head:0.42,
            partFade:0.55,flow:0.15,breath:0.5},
     cam:(u,t)=>{ const a=-0.35+u*1.15;
       const p=Camera.orbit([0,0,0], M.mix(4.4,1.05,M.E.inOut(u)), a, M.mix(1.9,0.15,M.E.outCubic(u)));
@@ -3032,12 +3034,16 @@ const Director = (() => {
     dur:24, scale:[3.05,2.10], ease:M.E.inOut,
     notes:['the membrane holds 170 mV across 4 nm','that is 40 million volts per metre',
            '> protons do not swim here. they fall.'],
-    style:{weird:0.4,wet:0.62,irid:0.9,volDens:0.30,partFade:0.85,partSize:1.4,head:0.55,
-           exposure:1.32,echo:0.26,halation:0.12,flow:0.25},
+    style:{weird:0.4,wet:0.62,irid:0.9,volDens:0.30,partFade:0.85,partSize:1.4,head:0.60,
+           exposure:1.30,echo:0.26,halation:0.12,flow:0.25,bloomThresh:0.92},
     cam:(u,t)=>{ const a=1.1+u*2.0;
-      const p=Camera.orbit([0,0,0],M.mix(1.25,0.62,u),a,M.mix(0.20,-0.10,u)+0.06*Math.sin(t*0.5));
-      return {pos:p,target:[0.1*Math.sin(t*0.3),0,0],
-              opt:{focal:1.7,parasite:0.05,aperture:0.022,focus:0.7,rollNoise:0.16,lag:0.10}}; } },
+      // stay above the bilayer and look down across it: skimming the plane
+      // edge-on turns the whole membrane into a horizon line
+      const p=Camera.orbit([0,0,0],M.mix(1.15,0.58,u),a,
+                            M.mix(0.62,0.26,M.E.inOut(u))+0.05*Math.sin(t*0.5));
+      return {pos:p,target:[0.16*Math.sin(t*0.3),-0.06,0.16*Math.cos(t*0.27)],
+              opt:{focal:1.55,parasite:0.05,aperture:0.020,focus:0.85,
+                   rollNoise:0.16,lag:0.10}}; } },
 
   { num:'III', title:'THE PORE THAT MAY NOT EXIST', sub:'F₁F₀ ATP synthase · c₈ ring · 1.4 × 10⁻⁹ m',
     dur:24, scale:[2.10,1.02], ease:M.E.outCubic,
@@ -3192,7 +3198,7 @@ const Director = (() => {
     notes:['c-subunit knockout: transition survives','ANT knockout: transition survives',
            'CypD knockout: threshold rises, pore remains','> the channel outlives every candidate'],
     style:{weird:1.0,wet:0.4,irid:0.55,volDens:0.82,partFade:0.35,partSize:1.0,head:1.45,
-           exposure:2.05,saturation:1.05,emiss:1.7,
+           exposure:2.75,saturation:1.05,emiss:2.3,bloomThresh:0.55,
            tintA:[0.35,0.72,0.80],tintB:[0.95,0.50,0.30],
            echo:0.52,glitch:0.20,ghost:0.85,ca:0.95,feedZoom:0.9930,feedRot:0.0024,
            iso:0.20,teeth:0.0,contrast:1.0,halation:0.14},
