@@ -80,7 +80,9 @@ MITOCHONDRIAL_TRANSITION.html?q=ultra&w=3840&h=1608&fps=24&mb=8&render=1
 ```
 
 Press BEGIN once (the browser will not start an AudioContext without a
-gesture) and the render starts by itself; or press `x` at any time.
+gesture) and the render starts by itself; or press `x` at any time. The score
+is rendered first, through an `OfflineAudioContext` in one pass — that takes a
+few minutes with no progress bar, then the frames begin.
 
 Each output frame is the average of `mb` sub-frames, which gives true
 rotary-shutter motion blur and resolves the stochastic depth-of-field sampling

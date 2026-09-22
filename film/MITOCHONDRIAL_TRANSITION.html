@@ -4000,9 +4000,17 @@ const Export = (() => {
     return name;
   }
 
-  async function renderAudio(cache, duration, onProgress){
-    const buf=await Audio.renderOffline(cache, duration, onProgress);
-    download(Audio.encodeWAV(buf), 'the_pore_score_48k.wav');
+  /* The score is rendered for whatever range is being filmed. A full pass
+     gives the whole 474 s in one file; a short test range gives just that
+     slice, which keeps a three-second check from costing a full-length
+     OfflineAudioContext render. */
+  async function renderAudio(cache, from, to, onProgress){
+    const buf=await Audio.renderOffline(cache, to-from, onProgress, from);
+    const name = (from<=0.001 && to>=Director.TOTAL-1)
+      ? 'the_pore_score_48k.wav'
+      : 'the_pore_score_'+String(Math.round(from)).padStart(4,'0')+'-'+
+        String(Math.round(to)).padStart(4,'0')+'_48k.wav';
+    download(Audio.encodeWAV(buf), name);
   }
 
   return {startRealtime, stopRealtime, isRecording, renderOffline, renderAudio, download};
@@ -4310,9 +4318,11 @@ const Film = (() => {
     try{
       // in a chunked render-farm pass only the first chunk needs the score
       if(CFG.rangeA<=0.001){
-        rec.textContent='● RENDERING AUDIO';
-        await Export.renderAudio(bioCache, Director.TOTAL,
-          p=>{ rec.textContent='● SCORE '+(p*100).toFixed(0)+'%'; });
+        rec.textContent='● SCHEDULING SCORE';
+        await Export.renderAudio(bioCache, CFG.rangeA, CFG.rangeB,
+          p=>{ rec.textContent = p<1
+            ? '● SCHEDULING SCORE '+(p*100).toFixed(0)+'%'
+            : '● RENDERING SCORE — minutes, no progress bar'; });
       }
       Camera.reset(); Renderer.resetField(CFG.rangeA); Renderer.seedField(1.0);
       await Export.renderOffline({
