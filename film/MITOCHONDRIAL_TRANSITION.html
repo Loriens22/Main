@@ -2751,7 +2751,10 @@ const Renderer = (() => {
   const FIELD_DT=1/60;
   function resetField(t){ fieldAcc=0; fieldT=t||0; fluidAcc=0; }
   function stepField(S, dt, spark, heal){
-    fieldAcc+=Math.max(0,Math.min(dt,0.25));
+    /* Clamp the backlog as well as the step count. Without it a machine that
+       cannot keep up accumulates debt it can never repay, so every frame does
+       the maximum number of steps and the slowdown feeds itself. */
+    fieldAcc=Math.min(fieldAcc+Math.max(0,Math.min(dt,0.25)), 14*FIELD_DT);
     let n=0;
     // the cap keeps a hitch from running away; it is generous enough that a
     // slow preview still advances the medium at close to film rate
@@ -2792,9 +2795,9 @@ const Renderer = (() => {
     RT.fvel.dst.bind(); GL.drawQuad(); RT.fvel.swap();
   }
   function stepFluid(S, dt){
-    fluidAcc+=Math.max(0,Math.min(dt,0.25));
+    fluidAcc=Math.min(fluidAcc+Math.max(0,Math.min(dt,0.25)), 8*FLUID_DT);
     let n=0;
-    while(fluidAcc>=FLUID_DT && n<10){ fluidAcc-=FLUID_DT; n++; stepFluidOnce(S); }
+    while(fluidAcc>=FLUID_DT && n<8){ fluidAcc-=FLUID_DT; n++; stepFluidOnce(S); }
   }
 
   function stepParticles(S, dt){
@@ -4048,7 +4051,7 @@ const Film = (() => {
       spark: Director.sparkAt(ft, heal),
       fieldRate: 3.4,
       fluidRate: 2.2,
-      jacobi: {low:8, med:14, high:20, ultra:28}[CFG.quality]||20,
+      jacobi: {low:6, med:12, high:20, ultra:28}[CFG.quality]||20,
       vort:   0.34 + 0.55*bio.pore,
       stir:   0.22 + 0.9*M.sat(bio.ROS*0.8) + 0.5*bio.pore,
       seed: CFG.seed*0.0001,
