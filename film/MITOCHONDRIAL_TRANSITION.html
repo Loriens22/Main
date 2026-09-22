@@ -4027,8 +4027,16 @@ const Film = (() => {
     ultra: {steps:240, res:1.00, pw:256, grain:1.0},
   };
   const qs=new URLSearchParams(location.search);
+  /* A phone is not a small desktop. Left at the desktop default this film
+     asks a handset for 150 raymarch steps at 3x pixel density and delivers a
+     slideshow, so a coarse pointer or a narrow viewport drops the preset and
+     the resolution cap. An explicit ?q= always wins. */
+  const SMALL = (typeof window!=='undefined') && (
+      Math.min(window.innerWidth, window.innerHeight) < 560 ||
+      (window.matchMedia && window.matchMedia('(pointer: coarse)').matches));
   const CFG={
-    quality: qs.get('q')||'high',
+    small: SMALL,
+    quality: qs.get('q')||(SMALL?'low':'high'),
     seed: parseInt(qs.get('seed')||'20260922',10),
     fps: parseFloat(qs.get('fps')||'24'),
     mb: parseInt(qs.get('mb')||'6',10),
@@ -4150,10 +4158,10 @@ const Film = (() => {
     let cw, ch;
     if(CFG.outW){ cw=CFG.outW; ch=CFG.outH||Math.round(CFG.outW/2.39/2)*2; }
     else {
-      const dpr=Math.min(window.devicePixelRatio||1, 2);
+      const dpr=Math.min(window.devicePixelRatio||1, CFG.small?1.5:2);
       cw=Math.round(window.innerWidth*dpr);
       ch=Math.round(window.innerHeight*dpr);
-      const cap=CFG.quality==='ultra'?3840:2560;
+      const cap=CFG.quality==='ultra'?3840:(CFG.small?1100:2560);
       if(cw>cap){ const k=cap/cw; cw=Math.round(cw*k); ch=Math.round(ch*k); }
     }
     cw=Math.max(64,cw&~1); ch=Math.max(64,ch&~1);
@@ -4208,7 +4216,8 @@ const Film = (() => {
     Renderer.seedField(1.0);
     Renderer.resetField(CFG.startT);
 
-    blog('renderer: '+GL.caps.renderer+(GL.caps.colorFloat?' · float RT':' · 16-bit RT'));
+    blog('renderer: '+GL.caps.renderer+(GL.caps.colorFloat?' · float RT':' · 16-bit RT')
+         +(CFG.small?' · touch device, quality lowered (?q=med to override)':''));
     booted=true;
     const b=document.getElementById('bgo');
     b.disabled=false;
