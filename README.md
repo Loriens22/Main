@@ -49,22 +49,81 @@ transit tunnel.
 first-person view and walk, sprint, jump and jetpack around the same terrain the ship landed on,
 with the same gravity, wind and surface normals. Walk up to a landmark and look at it.
 
-**Auto-land.** One button (`O`) flies a complete guided descent to the nearest world: de-orbit burn,
-coast, atmospheric entry, then a closed-loop powered descent. The law commands an *acceleration
-vector* — vertical schedule plus horizontal error — and reads the attitude and throttle off it, so
-it has real braking authority even on a world where holding altitude costs 12 % throttle. It picks
-its own landing site, sampling the height field for flat ground and biasing toward a nearby landmark
-when one is in reach, and it limits its lean by both altitude and dynamic pressure so it does not
-tumble on the way in. It drives time warp itself — 50× in vacuum, 5× in thin air, real time near the
-ground — so a landing from orbit takes about a minute rather than twenty. If it touches down on a
-slope and starts to slide, it lifts off and tries another patch. Any real stick input hands control
-straight back.
+**Auto-land, in under two minutes.** One button (`O`) flies a complete guided descent to the nearest
+world. There is no script and there are no waypoints: one closed-loop law commands an *acceleration
+vector* — a descent-rate schedule plus the horizontal velocity error — and reads the attitude and
+the throttle off it. The whole profile falls out of that by itself: cancel the orbit, dive, swap
+ends, brake, land.
 
-Verified headlessly on Luna, Mars, Earth, Titan, Europa and Mercury — vacuum and atmosphere, 0.13 g
-to 1 g — landing every time with the hull intact and under 1.5 m/s of residual motion.
+The schedule is derived rather than tuned. It is the fastest descent whose braking burn *and*
+turn-around both still fit in the altitude that is left, at half the available braking authority —
+so the vessel is allowed to point its nose **down** and accelerate into the descent, which is what
+makes a big engine worth having. Inside an atmosphere a second ceiling applies, and it is not about
+heating: a vessel braking on its engine flies nose-first into its own airstream, which is the
+unstable way round, and past a few kilopascals it weathercocks and the wheels cannot bring it back.
+So the powered corridor is thousands of pascals, evaluated on the air the vessel will be *in* when
+the braking burn ends rather than the air it is in now.
+
+That corridor also decides the strategy. A chemical stage cannot land propulsively from orbit, so it
+aims its periapsis under the surface and lets drag remove seven kilometres a second for free. An
+antimatter drive has three hundred kilometres a second of Δv, so it spends eight of them cancelling
+the orbit outright and comes straight down — which is both faster and gentler, because the corridor
+holds it inside a few kPa the whole way instead of taking whatever the trajectory hands it.
+
+It picks its own landing site, sampling the height field for flat ground and biasing toward a nearby
+landmark when one is in reach. It drives time warp itself, choosing the tier by what the vessel is
+*doing* — 50× on an unpowered coast (which runs on the exact Keplerian propagation and costs
+nothing), 10× on entry and on a powered descent high up, real time for the last couple of hundred
+metres. If it touches down on a slope and starts to slide, it lifts off and tries another patch. Any
+real stick input hands control straight back.
+
+Measured headlessly, wall-clock seconds from pressing the button to the legs being down, with the
+default antimatter drive at 4 g:
+
+| From | Wall clock | Hull | Residual |
+| --- | --- | --- | --- |
+| Earth, 420 km circular (the opening orbit) | 98 s | 1.00 | 1.0 m/s |
+| Luna, 150 km circular | 63 s | 1.00 | 0.6 m/s |
+| Mercury, 150 km circular | 59 s | 1.00 | 0.8 m/s |
+| Europa, 150 km circular | 62 s | 1.00 | 1.3 m/s |
+| Mars, 60 km | 43 s | 1.00 | 0.7 m/s |
+| Titan, 50 km | 148 s | 1.00 | 0.8 m/s |
+
+At 8 g the Earth descent is 84 s. Two cases are slower and honestly so: **Titan**, which has the
+thickest atmosphere in the system over a tenth of a gravity, so the descent is drag-limited whatever
+is bolted to the back; and the **chemical** drive from low Earth orbit at about 200 s, because a
+vessel with 5 km/s of Δv has to aerobrake, and aerobraking costs half an orbit no matter how it is
+flown.
+
+Verified on Luna, Mars, Earth, Titan, Europa and Mercury — vacuum and atmosphere, 0.13 g to 1 g —
+landing every time with the hull intact and under 1.5 m/s of residual motion, and landing 198 m from
+a named monolith when told to aim at one.
+
+**Antimatter propulsion.** Three drives on one set of bells, cycled with `\`:
+
+| Drive | Exhaust velocity | Thrust | Δv (40 t → 10 t) | Pays in |
+| --- | --- | --- | --- | --- |
+| Chemical | 3.75 km/s | 0.62 MN | 5 km/s | propellant |
+| Antimatter **BOOST** | 245 km/s | 13.1 MN | 332 km/s | propellant, a little antimatter |
+| Antimatter **CRUISE** | 2 450 km/s | 1.31 MN | 3 325 km/s — 1.1 % of *c* | antimatter, almost no propellant |
+
+The two antimatter modes are the same engine at two points on one curve: at a fixed jet power,
+`F = 2P/v_e`, so thrust and exhaust velocity trade against each other exactly. For the *same*
+acceleration BOOST runs at a tenth of full power and sips antimatter while pouring propellant out of
+the tank; CRUISE runs flat out, drinks antimatter and barely touches the propellant. Manoeuvre on
+one, transfer on the other.
+
+Which drive is fitted also changes how the autopilot flies: see **Auto-land** above.
+
+**Thrust is not the limit — you are.** 13 MN on a 40-tonne vessel is 33 g, which is not "fast", it
+is uncontrollable. Every drive is governed to an **acceleration limit** you set (`[` / `]`, 1–15 g,
+default 4). Set 4 g and the vessel does 4 g whether it is full or empty, at Earth or at Titan;
+structural damage still begins above 14 g, so the top of the range costs something. The HUD's TWR,
+Δv and the autopilot all read the governed figure, so nothing anywhere hard-codes the engine.
 
 **Unlimited propellant.** A toggle (`;` or *Settings ▸ Unlimited propellant*) for when you want to
-fly rather than budget: fuel, monopropellant, power and oxygen stay full and hull damage repairs.
+fly rather than budget: propellant, monopropellant, antimatter, power and oxygen stay full and hull
+damage repairs.
 
 **An unbounded universe.** Sol is one address among roughly 130 billion star systems per galaxy,
 across **4 294 967 296 galaxies**. The address scheme is No Man's Sky's: a fixed
@@ -134,6 +193,8 @@ The hard problems and how they are solved:
 | 0.05 m near and 8e13 m far in one depth buffer | **Logarithmic depth**, implemented identically in every custom shader so the post-process depth reads match |
 | A 6371 km sphere at 1 m resolution is 5e14 texels | **Everything is a function** — a CDLOD quadtree evaluates the same noise field at whatever frequency the current LOD needs |
 | Terrain is generated on the GPU but collision is queried on the CPU | One **bit-exact PCG integer hash** shared by both, never `frac(sin(dot(...)))` |
+| A rigid-body attitude hold that looks fine by hand and never converges on a large slew | The angular velocity has to be in **one** frame. Euler's equation is body-frame, so the quaternion derivative must be `q' = ½·q ⊗ ω`, not `½·ω ⊗ q` — the two agree near identity, which is exactly why hand-flying hides it |
+| Reaction wheels that lose to the vessel's own rotation | Feed the gyroscopic term **forward**. At 0.65 rad/s `ω × (Iω)` is half the wheel authority on a vessel whose principal moments differ by 2×, which makes any braking slew profile unfollowable |
 | An infinite universe cannot be stored | The address **is** the seed — content is a pure function of galaxy, voxel, system and planet index |
 | An autopilot that follows a script breaks the first time the ground is not where the script assumed | One **closed-loop guidance law** — point up, tilt into the horizontal velocity error, throttle to a vertical-speed schedule — with no waypoints and no assumptions |
 

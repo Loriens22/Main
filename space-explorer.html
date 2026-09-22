@@ -60,6 +60,9 @@ canvas#gl{position:fixed;inset:0;width:100%;height:100%;display:block;z-index:0}
 .bar .fil{height:100%;width:50%;transition:width .18s linear}
 #barFuel .fil{background:linear-gradient(90deg,#0a6,#5dffa0)}
 #barMono .fil{background:linear-gradient(90deg,#08a,#49e0ff)}
+#barAM .fil{background:linear-gradient(90deg,#5a2ea6,#c98cff);box-shadow:0 0 10px rgba(185,140,255,.55)}
+.chip.drive{color:var(--vi);border-color:rgba(185,140,255,.42)}
+.chip.drive.chem{color:var(--am);border-color:rgba(255,182,72,.42)}
 #barO2 .fil{background:linear-gradient(90deg,#26c,#8ab6ff)}
 #barPwr .fil{background:linear-gradient(90deg,#a70,#ffb648)}
 #barHull .fil{background:linear-gradient(90deg,#666,#dceaf7)}
@@ -389,6 +392,8 @@ body.onfoot #orbitPanel,body.onfoot #thrWrap{display:none}
   display:grid;grid-template-columns:50px;gap:6px}
 #tRail.open{grid-template-columns:50px 50px;width:106px}
 #tAuto{color:var(--am);border-color:rgba(255,182,72,.34)}
+#tDrive{color:var(--vi);border-color:rgba(185,140,255,.34)}
+#tDrive.chem{color:var(--am);border-color:rgba(255,182,72,.30)}
 #tEva{color:var(--gr);border-color:rgba(93,255,160,.30)}
 /* the button you want is the one that matches what you are doing */
 body.onfoot #tAuto,body.onfoot #tGear,body.onfoot #tSas{display:none}
@@ -441,6 +446,7 @@ body.onfoot #tAuto,body.onfoot #tGear,body.onfoot #tSas{display:none}
     <h4>Vessel Systems</h4>
     <div class="bar" id="barFuel"><div class="lab"><span>PROPELLANT</span><b>0</b></div><div class="trk"><div class="fil"></div></div></div>
     <div class="bar" id="barMono"><div class="lab"><span>RCS MONOPROP</span><b>0</b></div><div class="trk"><div class="fil"></div></div></div>
+    <div class="bar" id="barAM"><div class="lab"><span>ANTIMATTER</span><b>0</b></div><div class="trk"><div class="fil"></div></div></div>
     <div class="bar" id="barO2"><div class="lab"><span>LIFE SUPPORT</span><b>0</b></div><div class="trk"><div class="fil"></div></div></div>
     <div class="bar" id="barPwr"><div class="lab"><span>POWER CELL</span><b>0</b></div><div class="trk"><div class="fil"></div></div></div>
     <div class="bar" id="barHull"><div class="lab"><span>HULL</span><b>0</b></div><div class="trk"><div class="fil"></div></div></div>
@@ -455,6 +461,7 @@ body.onfoot #tAuto,body.onfoot #tGear,body.onfoot #tSas{display:none}
   </div>
 
   <div id="warpRow">
+    <div class="chip drive" id="chipDrive">AM-BOOST</div>
     <div class="chip nav" id="chipMode">NAV</div>
     <div class="chip" id="chipWarp">TIME &times;1</div>
     <div class="chip" id="chipCam">CHASE</div>
@@ -513,6 +520,7 @@ body.onfoot #tAuto,body.onfoot #tGear,body.onfoot #tSas{display:none}
   <div id="btnBar">
     <button class="btn prime" id="btnWormhole">◉ Create Wormhole</button>
     <button class="btn" id="btnMap">✦ Galactic Map</button>
+    <button class="btn" id="btnDrive">⚛ Drive</button>
     <button class="btn" id="btnAuto">⤓ Auto-Land</button>
     <button class="btn" id="btnScan">▤ Scan Body</button>
     <button class="btn small" id="btnTarget">◎ Select Target</button>
@@ -573,6 +581,8 @@ body.onfoot #tAuto,body.onfoot #tGear,body.onfoot #tSas{display:none}
       </div>
       <h6 class="sec">Propulsion</h6>
       <div class="klist">
+        <div><kbd>\</kbd> Cycle main drive — <b>chemical ▸ antimatter boost ▸ antimatter cruise</b></div>
+        <div><kbd>[</kbd> <kbd>]</kbd> Acceleration limit (1–15 g) — the drives are governed to it</div>
         <div><kbd>⇧</kbd> Throttle up</div>
         <div><kbd>Ctrl</kbd> Throttle down</div>
         <div><kbd>Z</kbd> Throttle <b>100%</b></div>
@@ -657,6 +667,13 @@ body.onfoot #tAuto,body.onfoot #tGear,body.onfoot #tSas{display:none}
       <label class="fld">Surface scatter density <input type="range" id="cfgScatter" min="0" max="200" step="10" value="100"><span class="rv" id="cfgScatterV">100%</span></label>
       <label class="fld">Master volume <input type="range" id="cfgVol" min="0" max="100" step="5" value="70"><span class="rv" id="cfgVolV">70%</span></label>
       <label class="fld">Camera shake <input type="range" id="cfgShake" min="0" max="200" step="10" value="100"><span class="rv" id="cfgShakeV">100%</span></label>
+      <label class="fld">Main drive
+        <select id="cfgDrive">
+          <option value="0">Chemical — Isp 382 s, TWR 1.6</option>
+          <option value="1" selected>Antimatter BOOST — Isp 25 000 s, 13 MN</option>
+          <option value="2">Antimatter CRUISE — Isp 250 000 s, 1 % of c</option>
+        </select></label>
+      <label class="fld">Acceleration limit <input type="range" id="cfgGLim" min="1" max="15" step="0.5" value="4"><span class="rv" id="cfgGLimV">4.0 g</span></label>
       <label class="fld">Unlimited propellant <input type="checkbox" id="cfgInfFuel" style="min-width:auto"></label>
       <label class="fld">Invert pitch <input type="checkbox" id="cfgInvert" style="min-width:auto"></label>
       <label class="fld">Touch controls <input type="checkbox" id="cfgTouch" style="min-width:auto"></label>
@@ -735,6 +752,7 @@ body.onfoot #tAuto,body.onfoot #tGear,body.onfoot #tSas{display:none}
   <div id="tRail">
     <div class="tBtn" id="tMap"><i>✦</i>MAP</div>
     <div class="tBtn" id="tAuto"><i>⤓</i>AUTO</div>
+    <div class="tBtn" id="tDrive"><i>⚛</i><span id="tDriveL">BOOST</span></div>
     <div class="tBtn" id="tEva"><i>⇱</i>FOOT</div>
     <div class="tBtn" id="tCam"><i>◫</i>VIEW</div>
     <div class="tBtn" id="tSas"><i>⌖</i>SAS</div>
@@ -782,7 +800,9 @@ body.onfoot #tAuto,body.onfoot #tGear,body.onfoot #tSas{display:none}
         <a data-s="morph">17 · Galaxy morphology</a>
         <a data-s="lore">18 · Inhabitants &amp; landmarks</a>
         <a data-s="descent">19 · Guided powered descent</a>
-        <a data-s="proto">20 · This prototype's mapping</a>
+        <a data-s="attitude">20 · Attitude, and three bugs</a>
+        <a data-s="drive">21 · Antimatter propulsion</a>
+        <a data-s="proto">22 · This prototype's mapping</a>
       </nav>
       <div id="docsBody">
 
@@ -2880,25 +2900,61 @@ ship.Throttle = Mathf.Clamp01(aCmd.magnitude * ship.Mass / engine.MaxThrust
 to brake costs you vertical thrust and you have to pay it back, or the vehicle sinks exactly when it
 is working hardest.</p>
 
-<h3>19.2 Three limits that keep it stable</h3>
+<h3>19.2 How hard can it push sideways?</h3>
+<p>Every other number in the law is downstream of this one, and it is the easiest thing in the
+system to get wrong. The tempting answer is <code>a_lat = a_vertical · tan(θ)</code> — lean the
+thrust by θ and the sideways component is what the geometry gives you. It is <b>wrong in the case
+that matters</b>, because the vertical command is not a property of the vehicle. In free fall it is
+zero, so this says a 13 MN drive has no lateral authority at all; in a hover it is <i>g</i>, so this
+says lateral authority is a property of the <i>planet</i>. A vessel dropped over Europa with 260 m/s
+of sideways motion could not cancel it in thirty kilometres of descent and arrived scraping the
+ground at 390 m/s — with the engine barely lit, because it had been told it had 0.35 <i>g</i>·tan θ
+to work with.</p>
+<p>Ask instead what the engine can do, and where the tilt limit really comes from:</p>
+<script type="text/plain">
+// The tilt limit is AERODYNAMIC: it exists so the vessel does not present a
+// huge angle of attack to the airstream. Out of the air there is no airstream.
+// Low down it comes back for a different reason: a lander on final is upright.
+bool  aeroLimited = density > 1e-7f || altitude < 1800f;
+float tiltMax = (aeroLimited ? (altitude > 1500f ? 1.05f
+                             : altitude >  300f ? 0.45f : 0.18f)
+                             : 1.45f) * QFactor(dynamicPressure);
+
+float aLat = aeroLimited ? Mathf.Max(g, 0.35f) * Mathf.Tan(tiltMax)   // lean, holding the descent
+                         : maxAcceleration;                           // nose fully retrograde
+</script>
+<p>Out of the air that is the whole engine, which is what lets the vessel cancel an orbit on the way
+down instead of arriving with it. In air it really is only <i>g</i>·tan θ — 0.8 m/s² on the Moon —
+and that is not a bug, it is a fact about landing on a low-gravity world. It is also the reason the
+approach has to be sized by the authority the vessel will have <i>on final</i>, not the authority it
+has at altitude: drift built up at 6 km with the whole engine behind it still has to come off at
+600 m, where the nose has to stay upright.</p>
+
+<h3>19.3 Two more limits, and a recovery</h3>
 <table>
 <tr><th>Limit</th><th>Why</th></tr>
-<tr><td><b>Tilt by altitude</b> — 60° above 1.5 km, 26° above 300 m, 10° below</td><td>A big lean is how you kill orbital-scale sideways speed; near the ground it is how you put a landing leg through a boulder.</td></tr>
-<tr><td><b>Tilt by dynamic pressure</b> — scale by <code>clamp(1 − q/4000, 0.1, 1)</code></td><td>Angle of attack is limited by the air, not by ambition. Holding 60° at 2.5 kPa is how a lander becomes a tumbling one.</td></tr>
-<tr><td><b>Descend no faster than you can brake</b></td><td>If the horizontal speed cannot be cancelled inside the descent that is left, slow the descent: <code>tBrake = |Δv_h| / a_h_max</code>, <code>tFall = h / |v_target|</code>, and if <code>tBrake &gt; 0.8·tFall</code> scale the target rate down. Hitting the ground sideways is the one failure the schedule must never allow.</td></tr>
+<tr><td><b>Tilt by dynamic pressure</b> — scale θ by <code>clamp(1 − q/18000, 0.12, 1)</code></td><td>Angle of attack is limited by the air, not by ambition. Make this too tight and the number stops being an entry corridor and becomes a landing one: at <code>1 − q/4000</code> the vessel was down to a tenth of its lean allowance at 4 kPa, which on approach is 80 m/s at sea level — it could not lean into a crosswind on short final without being told it was hypersonic.</td></tr>
+<tr><td><b>Descend no faster than you can brake</b></td><td><code>tBrake = max(|Δv_h| − 4, 0) / a_lat</code>, <code>tFall = h / |v_target|</code>; if <code>tBrake &gt; tFall</code>, scale the target rate down. Note the −4: insisting on arriving at <i>exactly</i> zero drift is how a vessel ends up hovering for four minutes to remove the last 4 m/s at a third of a m/s². A few metres a second is what the legs and the go-around check are for. Below ~120 m it does not apply at all.</td></tr>
 </table>
 <p>And a recovery, because limits are not guarantees: above 0.8 rad/s the vehicle is not flying a
 guidance law, it is tumbling. Cut the throttle, hold surface-retrograde (in air) or stability assist
 (in vacuum), and do not steer again until the rate is back down.</p>
 
-<h3>19.3 Choose the ground, do not accept it</h3>
+<h3>19.4 Choose the ground, do not accept it</h3>
 <p>Falling wherever the trajectory happens to point puts you on a 25-degree scree slope, at rest for
 half a second and then sliding — and "at rest" is what gates getting out of the vehicle. Sample the
 height field around the projected touchdown point and steer at the flattest candidate, re-surveying
 as the scale changes: from 30 km a flat candidate is a 20 km plain; from 800 m it is an actual patch
 of ground.</p>
+<p>Two different distances, and conflating them costs minutes. A <b>landmark</b> is a destination:
+crossing twenty kilometres to land at an observatory is the point, and it is paid for at altitude
+where the thrust may lean fully over. <b>Flat ground</b> is not: sampling a 24 km-wide neighbourhood
+from a kilometre up buys a few degrees of slope for a long, slow translation the vessel cannot pay
+for on final. Measured, before the two were split: 275 seconds of a lunar descent spent hovering at
+400 m, drifting sideways at 0.8 m/s².</p>
 <script type="text/plain">
-float reach = Mathf.Clamp(altitude * 1.1f, 250f, 24000f);   // how far we can still steer
+float siteReach = Mathf.Clamp(altitude * 1.1f,  250f, 24000f);  // worth crossing for
+float reach     = Mathf.Clamp(altitude * 0.06f,  30f,   400f);  // worth looking at
 float best  = float.NegativeInfinity;
 for (int i = 0; i < 25; ++i) {
     Vector3 dir = SampleDisc(here, tangentU, tangentV, reach / body.Radius, i);
@@ -2911,19 +2967,28 @@ landingSpot = body.WorldToBodyFixed(spot);                  // or it slides as t
 <p>Seventy height evaluations, three times per landing. It is the cheapest part of the whole system
 and it is the difference between landing and arriving.</p>
 
-<h3>19.4 When to start braking</h3>
-<p>Not at a fixed altitude — at the altitude where stopping is still possible, with margin:</p>
+<h3>19.5 When to stop aerobraking</h3>
+<p>Not at a fixed altitude — and not on dynamic pressure alone, which is the trap. Two things have
+to be true before the guidance takes over from the ballistic entry: the air must have stopped doing
+the work, <b>and the vessel must be able to point</b>.</p>
 <script type="text/plain">
 float aMax     = engine.MaxThrust / ship.Mass - g;
 float stopDist = (vUp * vUp) / (2 * Mathf.Max(aMax, 0.5f)) * 1.40f + horizontalSpeed * 6f;
-bool  aero     = ship.DynamicPressure > 2500f;   // let drag do the work while it still can
-if (!aero && altitudeAboveTerrain < stopDist) EnterPhase(Phase.Guide);
+bool  aero     = dynamicPressure > 9000f && altitudeAboveTerrain > 2500f;
+if (!aero && (altitudeAboveTerrain < stopDist || altitudeAboveTerrain < 9000f))
+    EnterPhase(Phase.Guide);
 </script>
-<p>The 1.40 is margin for throttle lag and for the terrain ahead being higher than the ground
-directly below. The horizontal term is there because sideways speed is paid for out of the same
-budget.</p>
+<p>Set that threshold at 2.5 kPa and it never hands over at all: 2.5 kPa at sea level is 64 m/s, an
+entirely ordinary approach speed, so the vessel rides drag into the ground at 90 m/s sideways with
+the engine off. Hand over too early and it is worse — the guidance takes a vessel weathercocked
+nose-first into a 200 kPa airstream and asks it to point somewhere else, which it cannot, so the
+throttle sits on its floor all the way down while the air steers. Nine kilopascals is about where
+reaction wheels still win.</p>
+<p>The 1.40 in <code>stopDist</code> is margin for throttle lag and for the terrain ahead being
+higher than the ground directly below. The horizontal term is there because sideways speed is paid
+for out of the same budget.</p>
 
-<h3>19.5 Knowing when to stop</h3>
+<h3>19.6 Knowing when to stop</h3>
 <p>Two failure modes here cost more debugging time than the guidance law did:</p>
 <ul>
 <li><b>Contact is not touchdown.</b> A leg grazing a ridge at 15 m/s is a skid; cutting the engine
@@ -2938,19 +3003,239 @@ and wait.</li>
 a single leg with the attitude hold keeping it upright. If your "landed" test demands two contacts,
 the crew can never open the hatch. Test for <i>at rest on the surface</i>, not for a contact count.</p>
 
-<h3>19.6 The parts that are not guidance</h3>
+<h3>19.7 The parts that are not guidance</h3>
 <table>
 <tr><th>Problem</th><th>Resolution</th></tr>
-<tr><td>A landing from orbit is twenty minutes of falling</td><td>Let the autopilot drive time warp: 50× in vacuum, 5× in thin air, 1× below ~1.2 km or whenever dynamic pressure is high. The law is closed-loop, so a coarser step costs accuracy, not stability.</td></tr>
+<tr><td>A landing from orbit is twenty minutes of falling</td><td>Let the autopilot drive time warp, and pick the tier by what the vessel is <i>doing</i>, not by where it is. An unpowered coast out of the air runs on the exact Keplerian propagation above 10× and costs nothing, so give it 50×. An unpowered entry is only holding surface-retrograde while drag works, and the flight model substeps by DISTANCE rather than frame time, so the aerodynamics stay accurate — give it 10×. A powered descent is a guidance law running once per frame, so give it 10× high up and real time for the last couple of hundred metres. Twelve minutes of a LEO descent went into watching an entry at 1× that the vessel was not flying.</td></tr>
 <tr><td>Landing "somewhere" is not a destination</td><td>Bias the landing-spot search toward the nearest landmark — but range-check it first. A monolith on the far side of the Moon is 1600 km away; chasing it turns a landing into an endless series of ballistic hops.</td></tr>
 <tr><td>Deploy state driven by the render loop</td><td>Move it into the physics step. Leg contact keys off the deploy animation, so advancing it from <code>Update()</code> makes whether you land on your legs or your belly depend on whether a frame was drawn.</td></tr>
 <tr><td>The player wants control back</td><td>Any real stick deflection disengages it, with no confirmation. An autopilot you cannot interrupt by simply flying is a trap.</td></tr>
 <tr><td>Out of propellant mid-descent</td><td>Abort and say so. Do not silently keep thrusting — that is the bug that makes players distrust every other system.</td></tr>
+<tr><td>The engine is running while a leg is on the ground</td><td>Cut it. A vessel skidding on its gear has its nose <i>along</i> the ground, so "thrust toward the acceleration command" is mostly thrust along the ground: the law ran the engine to full and accelerated forty tonnes from 120 to 254 m/s across a mountainside, and went on doing it until a watchdog noticed four minutes later.</td></tr>
 </table>
+
+<h3>19.8 Free fall is free, and it is also slow</h3>
+<p>None of the above makes a descent <i>fast</i>, because the vertical command is bounded below at
+zero: the engine may only ever push up, so the vessel waits for gravity. A hundred and fifty
+kilometres above the Moon is seven minutes of 1.6 m/s² doing the work, and no engine anywhere
+changes that. A vessel that can pull 8 g has no reason to wait — point the nose down, dive into the
+descent, swap ends and brake.</p>
+<p>What makes that safe is the schedule, and it has to be derived rather than guessed. Two things
+must fit inside the altitude that is left: the braking burn, and the turn-around the vessel spends
+before the burn starts. That is a quadratic in <i>v</i>:</p>
+<script type="text/plain">
+//   v^2 / (2a) / 0.52   +   TURN * v   =   h        (0.52: never use more than
+//   \______________/       \________/                half the braking authority)
+//     braking burn          swapping ends
+float k = 1f / (1.04f * a);
+float v = (Mathf.Sqrt(TURN * TURN + 4 * k * h) - TURN) / (2 * k);
+</script>
+<p>Leaving the turn-around out is not conservative, it is <i>wrong</i>: a vessel diving at 2 km/s
+eats fourteen kilometres while it flips, and a schedule that has not paid for that hands the
+guidance an altitude it has already spent. With the term in, tracking the schedule exactly is the
+aggressive-but-recoverable profile, and the whole flight falls out of it by itself — kill the
+orbit, dive, swap ends, brake, land — with no phases and no script.</p>
+<p>The lateral channel has to come first, though, because thrust is one vector: every newton spent
+diving is a newton not cancelling the orbit, and a vessel that dives while it is still going
+1.6 km/s sideways arrives at the surface going 1.6 km/s sideways. Reserve what the lateral channel
+needs and dive with what is left of the thrust circle — which is nothing at all while the orbit is
+still there, and nearly all of it once it is gone.</p>
+
+<h3>19.9 In air, the corridor is not about heating</h3>
+<p>The obvious ceiling on a descent rate inside an atmosphere is the airframe:
+<code>v_q = sqrt(2·q_max/ρ)</code>, which bounds heating for free, since stagnation heating goes as
+√ρ·v³ and capping ρv² caps it. For an <i>unpowered</i> entry that is the right number, and it is
+tens of kilopascals.</p>
+<p>A powered descent has a much sharper limit. A vessel braking with its engine is flying nose-first
+into its own airstream, which is the aerodynamically unstable way round; reaction wheels hold it
+there up to a few kilopascals and lose it above. Measured on this vehicle: held at 2.8 kPa,
+weathercocked at 7.7 and could not turn back — whereupon a propulsive descent from orbit became a
+250 kPa lawn dart. So the powered corridor is <b>thousands</b> of pascals, not tens of thousands.</p>
+<p>And it has to be evaluated on the air the vessel will be <i>in</i> once the braking burn it needs
+from here has finished, not the air it is in now. Density doubles every six kilometres; a corridor
+read at the current altitude is always a scale height out of date, which is exactly how a vessel
+ends up needing 35 kPa worth of braking in air that has already become 200.</p>
+<script type="text/plain">
+float look = Mathf.Min(descentRate * descentRate / (2 * a) + TURN * descentRate, altitude);
+float vq   = Mathf.Sqrt(2 * Q_POWERED / body.DensityAt(altitude - look));
+v = Mathf.Min(v, vq);
+</script>
+<p class="note"><b>This also decides the whole strategy.</b> A low-thrust vessel has no choice but
+to use the air: 5 km/s of chemical delta-v does not buy a propulsive landing from orbit, so it aims
+its periapsis under the surface and lets drag remove seven kilometres a second for free. A
+high-thrust one does the opposite, and on a world <i>with</i> air that is a real change of mind.
+Aerobraking is free in propellant and ruinous in time — the ballistic entry is twenty minutes of a
+vessel that is not flying, and it ends low down with hundreds of metres a second still to lose in
+air too thick to lean into. An antimatter drive has three hundred kilometres a second of delta-v;
+spending eight of them to cancel the orbit outright and come straight down turns a twenty-minute
+arrival into a ninety-second one, and it is <i>safer</i>, because the corridor holds the vessel
+inside a few kPa the whole way instead of taking whatever the trajectory hands it.</p>
+</section>
+
+
+<section data-s="attitude">
+<h2>20 · Attitude, and the three bugs that make an autopilot look broken</h2>
+<p class="lead">Every gate in the descent law above waits on alignment: burn when the nose is
+retrograde, throttle up when the nose is near the command. So an attitude hold that does not
+converge does not look like an attitude bug. It looks like a de-orbit burn that never finishes, a
+throttle stuck on its floor, a guidance law that cannot cancel an orbit, and a vessel that arrives
+sideways. All four of those were one bug at a time, and none of them were in the guidance.</p>
+
+<h3>20.1 Which frame is the angular velocity in?</h3>
+<p>Pick one and mean it. Euler's equation for a rigid body with a diagonal inertia tensor is in the
+<b>body</b> frame:</p>
+<script type="text/plain">
+// I w' = tau - w x (I w)     -- body frame, both of them
+float gx = w.y * (I.z * w.z) - w.z * (I.y * w.y);
+float gy = w.z * (I.x * w.x) - w.x * (I.z * w.z);
+float gz = w.x * (I.y * w.y) - w.y * (I.x * w.x);
+w += new Vector3((tau.x - gx) / I.x, (tau.y - gy) / I.y, (tau.z - gz) / I.z) * dt;
+</script>
+<p>so the quaternion kinematics have to be the body-frame form too, and the two differ only in the
+order of a multiplication:</p>
+<script type="text/plain">
+q' = 0.5f * q  (x)  w        // BODY-frame rate   -- correct here
+q' = 0.5f * w  (x)  q        // WORLD-frame rate  -- correct somewhere else
+</script>
+<p>Write the second one next to the first and nothing throws, nothing NaNs, and the vessel still
+rotates convincingly. It just rotates about an axis that is not the one anything asked for: the
+controller drives the body-frame rate that closes the pointing error, the integrator spends it as a
+world-frame rate, and the nose goes somewhere else. Small corrections still work, because near
+identity the two forms agree — which is why it survives hand-flying and only shows up on large
+slews, as a hold that closes to within a radian and then wanders back out. Measured before the fix:
+a 180° slew that settled into a permanent limit cycle at 0.7 rad/s and never converged at all.</p>
+<p class="note">The tell is that the angular velocity <i>is</i> the commanded magnitude and <i>is</i>
+on the commanded axis, and the error still is not closing at that rate. If ω is right and dθ/dt is
+not −|ω|, the frames disagree.</p>
+
+<h3>20.2 Command a rate, not an angle</h3>
+<p>An angle-proportional command clamped at full torque is bang-bang, and bang-bang without a
+braking distance overshoots — it is still applying full torque at one radian out, by which point it
+needs 0.42 rad to stop. Ask for the fastest rate you could still stop from, which by construction
+arrives with zero rate:</p>
+<script type="text/plain">
+float alphaMax = wheelTorque / Mathf.Max(I.x, Mathf.Max(I.y, I.z));
+float wCmd     = Mathf.Min(Mathf.Sqrt(2 * alphaMax * angle) * 0.85f, W_MAX);
+Vector3 axis   = Vector3.Cross(forward, target).normalized;
+Vector3 err    = WorldToBody(axis * wCmd) - angularVelocity;
+command        = Vector3.ClampMagnitude(err * 3.2f, 1f);     // rate loop, saturating
+</script>
+<p>Following that profile costs <code>k²·α</code> of deceleration, so the 0.85 leaves 28 % of the
+authority spare. Remember that number; the next bug spends it.</p>
+
+<h3>20.3 The vessel fights itself</h3>
+<p>The <code>ω × (Iω)</code> term is not a rounding error on a vehicle whose principal moments differ
+by a factor of two. At two thirds of a radian a second it is ~120 kN·m against 240 kN·m of reaction
+wheel — half the authority, spent fighting the vessel's own rotation, against a braking profile that
+budgeted 28 %. The profile becomes unfollowable, every large slew overshoots, the error axis flips,
+and the hold limit-cycles. Feed it forward and the plant becomes <code>I·ω' = τ</code>, which is the
+plant the profile assumes:</p>
+<script type="text/plain">
+command.x += (w.y * (I.z * w.z) - w.z * (I.y * w.y)) / torqueAvailable;   // + gy, gz
+</script>
+<p>Then pick <code>W_MAX</code> as a <i>budget</i> rather than a taste: the profile wants 0.72 of the
+authority and the gyroscopic term wants roughly <code>(I_max − I_min)·ω²/τ</code>. At 0.65 rad/s the
+two do not fit. At 0.5 they do, with room.</p>
+
+<h3>20.4 Point first, roll later</h3>
+<p>Holding the belly toward the planet is worth doing once the nose is roughly where it belongs, and
+worth nothing at all while it is a radian and a half out — up there it only spends torque the
+pointing loop needs, on an axis the pointing loop is about to redefine anyway. Gate the roll term on
+the pointing error (below ~0.6 rad here) and the slew stops being a three-axis argument.</p>
+
+<h3>20.5 Air beats wheels</h3>
+<p>None of this helps when the airstream is stronger than the actuator. A vessel flying nose-first
+into its own wake is at the unstable equilibrium; past a few kilopascals it weathercocks and the
+wheels cannot bring it back. Two consequences, both already in the descent law above: the powered
+descent-rate corridor is sized in <i>thousands</i> of pascals (§19.9), and the throttle is gated on
+alignment — <b>tapered to nothing</b>, not held at a floor. A 12 % floor sounds harmless; in
+practice it is three minutes of thrust pointing wherever the air put it, which does not slow the
+vessel down and does add a hundred metres a second of sideways motion it then has to remove.</p>
+</section>
+
+
+<section data-s="drive">
+<h2>21 · Antimatter propulsion, and why thrust is not the limit</h2>
+<p class="lead">A chemical stage has about 5 km/s of delta-v and a thrust-to-weight of 1.6. That is
+what Apollo had, and it is why everything takes months. If the fiction allows antimatter, the
+interesting part is not "make the number bigger" — it is that one honest equation gives you a whole
+propulsion <i>system</i>, with a real trade in it, for free.</p>
+
+<h3>21.1 One engine, two operating points</h3>
+<p>At a fixed jet power, thrust and exhaust velocity trade against each other exactly:</p>
+<script type="text/plain">
+P = ½·ṁ·v_e²    and    F = ṁ·v_e      ⇒      F = 2P / v_e
+</script>
+<p>So a single magnetic nozzle run at 1.6 TW is <i>either</i> 13 MN at 245 km/s of exhaust
+<i>or</i> 1.3 MN at 2 450 km/s — never both. That is not a game mechanic bolted on, it is the same
+constraint that makes VASIMR interesting, and it means BOOST and CRUISE are one engine with a
+setting rather than two engines with two buttons:</p>
+<table>
+<tr><th>Drive</th><th>v<sub>e</sub></th><th>Thrust</th><th>Δv (40 t → 10 t)</th><th>Costs</th></tr>
+<tr><td>Chemical</td><td>3.75 km/s</td><td>0.62 MN</td><td>5 km/s</td><td>propellant only</td></tr>
+<tr><td>Antimatter BOOST</td><td>245 km/s</td><td>13.1 MN</td><td>332 km/s</td><td>propellant; little antimatter</td></tr>
+<tr><td>Antimatter CRUISE</td><td>2 450 km/s</td><td>1.31 MN</td><td>3 325 km/s (1.1 % c)</td><td>antimatter; almost no propellant</td></tr>
+</table>
+<p>The trade is the point. For the <i>same</i> acceleration, BOOST runs at a tenth of full power and
+sips antimatter while pouring propellant out of the tank; CRUISE runs near full power, so it drinks
+antimatter and barely touches the propellant. Manoeuvre on BOOST, transfer on CRUISE.</p>
+
+<h3>21.2 The fuel accounting</h3>
+<p>Annihilation yields 1.8 × 10<sup>17</sup> J per kilogram of antimatter — the pair energy, since it
+takes an equal mass of ordinary matter with it. Reaction mass and energy are then two separate
+tanks, which is the physically correct structure and also the more interesting one:</p>
+<script type="text/plain">
+float thrust = min(drive.Thrust, gLimit * 9.80665f * ship.Mass) * throttle;
+ship.Propellant  -= thrust / ship.ExhaustVelocity * dt;              // momentum
+ship.Antimatter  -= 0.5f * thrust * ship.ExhaustVelocity            // energy
+                    / (1.8e17f * NOZZLE_EFFICIENCY) * dt;
+</script>
+<p class="note"><b>The one cheat.</b> A containment loop that breeds milligrams of antimatter from
+reactor output is off by roughly ten orders of magnitude. It is there so a player cannot be
+permanently stranded, and it is the only place in the propulsion model that is not defensible.</p>
+
+<h3>21.3 Govern it to the crew, not to the engine</h3>
+<p>13 MN on a 40-tonne vessel is 33 g. Handing that to a player is not "fast", it is
+uncontrollable — and it is also wrong: crewed vehicles are limited by their occupants and their
+structure, not by what the engine could do. So the drive is governed:</p>
+<script type="text/plain">
+ship.ThrustCap = Mathf.Min(drive.Thrust, ship.gLimit * 9.80665f * ship.Mass);
+</script>
+<p>Now the acceleration limit <i>is</i> the throttle in any meaningful sense: set 4 g and the vessel
+does 4 g whether it is empty or full, at Earth or at Titan. Three things fall out of this that are
+worth having:</p>
+<ul>
+<li><b>Mass stops mattering to handling.</b> A governed drive delivers the same acceleration as
+propellant burns off, so the vehicle does not become twitchy when light.</li>
+<li><b>The limit is a real decision.</b> Structural damage still begins above 14 g, so the slider
+has a consequence at the top end rather than being free performance.</li>
+<li><b>Everything downstream reads one number.</b> The autopilot, the HUD's TWR and the delta-v
+readout all take <code>ThrustCap</code>, so they are automatically right for whichever drive is
+selected. Nothing hard-codes the engine.</li>
+</ul>
+
+<h3>21.4 What this does to the descent guidance</h3>
+<p>Give a vessel ten times the braking and the old descent schedule becomes the bottleneck:
+<code>-clamp(0.22·sqrt(2gh), 2.5, 220)</code> caps at 220 m/s no matter what the vehicle can do. The
+fix is to stop writing constants and derive the profile from the vehicle, which is section 19.1 —
+and then two more things become possible:</p>
+<ul>
+<li><b>Skip the de-orbit burn entirely.</b> Above roughly 2 g of margin there is no reason to lower a
+periapsis and wait half an orbit: point at the ground and cancel the orbit on the way down. The
+existing guidance law already does this if you let the nose go past 60° — above the atmosphere there
+is nothing to weathercock against, so the tilt limit can open to nearly 90°.</li>
+<li><b>Bound the descent by an entry corridor instead of a constant.</b> Hold
+<code>½ρv² ≤ 35 kPa</code> and the vehicle comes down as fast as the air will let it, no faster.
+Because stagnation heating goes as <code>sqrt(ρ)·v³</code>, capping dynamic pressure caps heating
+too — one constraint, both problems.</li>
+</ul>
+<p class="note"><b>And measure it in simulated seconds.</b> The autopilot drives time warp, so the
+number of frames a descent takes and the number of seconds it covers differ by up to fifty times.
+Benchmarking the wrong one hides exactly the regression you are looking for.</p>
 </section>
 
 <section data-s="proto">
-<h2>20 · This prototype's mapping</h2>
+<h2>22 · This prototype's mapping</h2>
 <p>The build you are flying implements the spec above in a single HTML file with no external
 assets. If you are porting to Unity or Unreal, these are the pieces to read first:</p>
 <table>
@@ -2961,12 +3246,13 @@ assets. If you are porting to Unity or Unreal, these are the pieces to read firs
 <tr><td>Quadtree</td><td><code>QNode</code>, <code>buildPatchGeometry()</code>, <code>PlanetView.update()</code>, <code>horizonCull()</code>.</td></tr>
 <tr><td>Atmosphere</td><td><code>atmoMat</code> (screen-space raymarch reading the log-depth buffer) and <code>GLOW_FRAG</code> (cheap shell for distant bodies).</td></tr>
 <tr><td>Clouds</td><td><code>CLOUD_FRAG</code> — slab raymarch with Beer-powder lighting and a planet-shadow test.</td></tr>
-<tr><td>Flight model</td><td><code>aeroAndThrust()</code>, <code>attitudeControl()</code>, <code>integrate()</code> (Euler's equation with the gyroscopic term), <code>stepPhysics()</code>.</td></tr>
+<tr><td>Flight model</td><td><code>aeroAndThrust()</code>, <code>attitudeControl()</code> (slew law, gyroscopic feed-forward), <code>integrate()</code> (Euler's equation, and the body-frame quaternion derivative of §20.1), <code>stepPhysics()</code>.</td></tr>
 <tr><td>Landing</td><td><code>gearPhysics()</code> — three spring-dampers against the CPU noise field.</td></tr>
 <tr><td>Galaxy morphology</td><td><code>galaxyShape()</code>, <code>galaxyDensity()</code> (JS) and the <code>mapHaze</code> / <code>uniMat</code> fragment shaders (GPU) — the same formula three times over.</td></tr>
 <tr><td>Inhabitants</td><td><code>regionSpecies()</code>, <code>planetLore()</code> in the lore layer; <code>loreForBody()</code> caches it on the live body.</td></tr>
 <tr><td>Landmarks</td><td><code>buildSiteMesh()</code>, <code>updateSites()</code>, <code>sitePos()</code> — pooled instances stood on the terrain normal.</td></tr>
 <tr><td>Auto-land</td><td><code>autoStep()</code>, <code>autoDescentRate()</code>, <code>autoWarpTarget()</code>, and the <code>'auto'</code> case in <code>sasTarget()</code>.</td></tr>
+<tr><td>Propulsion</td><td><code>DRIVES</code>, <code>driveState()</code>, <code>setDrive()</code> — and <code>ship.thrustCap</code>, which is the one number every other system reads.</td></tr>
 <tr><td>Map levels</td><td><code>setMapLevel()</code>, <code>buildUniversePage()</code>, <code>buildSystemView()</code>, <code>makeMapPlanetMat()</code>.</td></tr>
 <tr><td>Re-entry</td><td><code>systems()</code> (thermal), <code>plasmaMat</code>, <code>reentrySparks()</code>, and the <code>uHeat</code>/<code>uTint</code> path in the composite pass.</td></tr>
 <tr><td>Wormhole</td><td><code>openWormhole()</code>, <code>updateWormhole()</code>, <code>whCore</code>/<code>whDisk</code>/<code>tunnel</code>, and <code>lensWarp()</code> in the composite shader.</td></tr>
@@ -6262,8 +6548,54 @@ function nearestSite(maxD) {
    sphere of influence, which is what keeps a 100000x warp from turning a
    circular orbit into a spiral.
    ===================================================================== */
+/* =====================================================================
+   PROPULSION
+   ---------------------------------------------------------------------
+   Three drives on one set of bells. The chemical engine is the original
+   and is still the only thing that works with the reactor cold; the two
+   antimatter modes are the same hardware run at two points on its
+   variable-specific-impulse curve.
+
+   Antimatter annihilation releases 1.8e17 J per kilogram of antimatter
+   (it takes an equal mass of ordinary matter with it, hence c^2 per kg of
+   pair rather than per kg of antimatter). A magnetic nozzle converts some
+   fraction of that into directed exhaust; at a FIXED jet power the thrust
+   and the exhaust velocity trade against each other exactly:
+
+        P = ½·F·v_e        so      F = 2P / v_e
+
+   which is why BOOST and CRUISE are one engine, not two. Boost throws a
+   lot of mass slowly: enormous thrust, ordinary antimatter draw, drinks
+   propellant. Cruise throws very little mass very fast: a thousand times
+   the delta-v per tonne of propellant, and it burns antimatter to get it.
+   That trade is real (it is the VASIMR trade) and it is the whole reason
+   to have a mode switch at all.
+
+   Thrust is not the limit. The crew is: every drive is governed to
+   ship.gLimit, so a 13 MN engine on a 40 t vessel behaves like whatever
+   acceleration you asked for.                                           */
+const AM_ENERGY = 1.8e17;          // J per kg of antimatter (pair)
+const AM_ETA    = 0.40;            // fraction reaching the exhaust
+const AM_BREED  = 8e-6;            // kg/s bred by the containment loop
+const DRIVES = [
+  { id: 'chem', name: 'CHEMICAL', short: 'CHEM',
+    ve: 382 * 9.80665, veSL: 318 * 9.80665, thrust: 620e3, am: 0,
+    hot: 0xfff0d8, cool: 0x3e7bff, light: [0.42, 0.55, 1.0], len: 1.0,
+    blurb: 'Cryogenic bipropellant. 5 km/s of delta-v and a TWR of 1.6 — ' +
+           'everything the Apollo programme had, and just as slow.' },
+  { id: 'boost', name: 'ANTIMATTER · BOOST', short: 'AM-BOOST',
+    ve: 2.45e5, thrust: 13.1e6, am: 1,
+    hot: 0xe6edff, cool: 0x7a4bff, light: [0.55, 0.62, 1.0], len: 1.9,
+    blurb: 'Isp 25 000 s, 13 MN. Governed to your g-limit, so it climbs ' +
+           'out of any gravity well you point it at. 330 km/s of delta-v.' },
+  { id: 'cruise', name: 'ANTIMATTER · CRUISE', short: 'AM-CRUISE',
+    ve: 2.45e6, thrust: 1.31e6, am: 1,
+    hot: 0xf4e6ff, cool: 0xb14bff, light: [0.72, 0.5, 1.0], len: 3.2,
+    blurb: 'Isp 250 000 s. 3 300 km/s — one percent of light — on the same ' +
+           'tank, paid for in antimatter. This is the interplanetary drive.' }
+];
 const SHIP = {
-  dryMass: 9500, fuelMax: 30000, monoMax: 900,
+  dryMass: 9500, fuelMax: 30000, monoMax: 900, amMax: 0.030,
   maxThrust: 620e3, isp: 382, ispSL: 318,
   rcsThrust: 7.2e3, rcsIsp: 240,
   wheelTorque: 2.4e5,
@@ -6276,7 +6608,8 @@ const ship = {
   pos: v3(), vel: v3(),
   quat: new T.Quaternion(), angVel: v3(),      // angVel in LOCAL frame (rad/s)
   I: v3(680000, 1062500, 462500),
-  fuel: SHIP.fuelMax, mono: SHIP.monoMax,
+  fuel: SHIP.fuelMax, mono: SHIP.monoMax, am: SHIP.amMax,
+  drive: 1, gLimit: 4, ve: 0, thrustCap: 0, thrustRaw: 0, amRate: 0,
   o2: 1, power: 1, hull: 1, skinT: 255,
   throttle: 0, ctrl: v3(), trans: v3(),
   sas: true, sasMode: 'stab', rcs: true, brake: false, lights: true,
@@ -6358,6 +6691,22 @@ const landingLight = new T.SpotLight(0xffffff, 0, 420, 0.5, 0.55, 1.4);
 landingLight.castShadow = false;
 scene.add(landingLight); scene.add(landingLight.target);
 
+/* The three drives do not look alike: chemical burns warm and short, the
+   antimatter modes burn violet and long, and cruise throws a needle. */
+function applyDriveLook() {
+  const D = DRIVES[ship.drive];
+  for (const p of plumes) {
+    p.material.uniforms.uColA.value.setHex(D.hot);
+    p.material.uniforms.uColB.value.setHex(D.cool);
+  }
+  for (const p of nacPlumes) {
+    p.material.uniforms.uColA.value.setHex(D.hot);
+    p.material.uniforms.uColB.value.setHex(D.cool);
+  }
+  engineLight.color.setRGB(D.light[0], D.light[1], D.light[2]);
+}
+applyDriveLook();
+
 /* --------------------------------------------------------- orientation */
 const _fwd = new T.Vector3(), _up = new T.Vector3(), _rgt = new T.Vector3();
 function shipAxes() {
@@ -6379,6 +6728,35 @@ function initOrbit() {
   const look = new T.Matrix4().lookAt(v3(0,0,0), tang.clone().negate(), dir);
   ship.quat.setFromRotationMatrix(look);
   ship.soi = E;
+  /* the flight model produces the atmospheric state, so a teleport has to
+     clear it or the next reader describes the place we just left */
+  ship.rho = 0; ship.q = 0; ship.mach = 0; ship.heatRate = 0; ship.reentry = 0;
+  ship.onGround = false; ship.landed = false; ship.contacts = 0; ship.restT = 0;
+  ship.angVel.set(0, 0, 0); ship.throttle = 0; ship.warpIdx = 0;
+}
+
+/* Current drive operating point. Exhaust velocity and the governed thrust
+   ceiling are wanted by the flight model, the HUD and the autopilot alike,
+   so they live on `ship` and are refreshed wherever the state is. */
+function driveState(body) {
+  const D = DRIVES[ship.drive];
+  const pAmb = body && body.atm ? clamp(ship.rho / body.atm.rho0, 0, 1) : 0;
+  ship.ve = D.am ? D.ve * (1 - 0.06 * pAmb) : lerp(D.ve, D.veSL, pAmb);
+  ship.thrustRaw = D.thrust * (D.am ? 1 - 0.10 * pAmb : lerp(1, 0.86, pAmb));
+  ship.thrustCap = Math.min(ship.thrustRaw, ship.gLimit * 9.80665 * ship.mass);
+  return D;
+}
+function setDrive(i, quiet) {
+  const n = DRIVES.length;
+  ship.drive = ((i % n) + n) % n;
+  const D = DRIVES[ship.drive];
+  driveState(ship.soi);
+  applyDriveLook();
+  if (!quiet) {
+    say('Drive: ' + D.name, D.am ? 'good' : '');
+    caption(D.short, D.blurb, 4200);
+    audio.blip(D.am ? 880 : 520, 0.12);
+  }
 }
 
 /* --------------------------------------------------- aerodynamic model */
@@ -6390,15 +6768,28 @@ function aeroAndThrust(dt, body, alt) {
   const m = ship.mass;
 
   /* ---- main propulsion ------------------------------------------------ */
+  const D = driveState(body);
   let thr = 0;
-  if (ship.throttle > 0.001 && (ship.fuel > 0 || CFG.infFuel)) {
-    const pAmb = body.atm ? clamp(ship.rho / body.atm.rho0, 0, 1) : 0;
-    const isp = lerp(SHIP.isp, SHIP.ispSL, pAmb);
-    thr = SHIP.maxThrust * ship.throttle * lerp(1, 0.86, pAmb);
-    const mdot = thr / (isp * 9.80665);
+  ship.amRate = 0;
+  const hasAM = !D.am || ship.am > 0 || CFG.infFuel;
+  if (ship.throttle > 0.001 && (ship.fuel > 0 || CFG.infFuel) && hasAM) {
+    thr = ship.thrustCap * ship.throttle;
+    const mdot = thr / ship.ve;
     const burn = Math.min(ship.fuel, mdot * dt);
     ship.fuel -= burn;
     if (ship.fuel <= 0) { ship.fuel = 0; thr = 0; }
+    if (D.am && thr > 0 && !CFG.infFuel) {
+      /* jet power is ½·F·v_e; the tank pays for it at 1.8e17 J/kg */
+      ship.amRate = (0.5 * thr * ship.ve) / (AM_ENERGY * AM_ETA);
+      ship.am -= ship.amRate * dt;
+      if (ship.am <= 0) {
+        ship.am = 0; thr = 0; ship.amRate = 0;
+        say('Antimatter containment empty — falling back to chemical', 'bad');
+        setDrive(0);
+      }
+    } else if (D.am && thr > 0) {
+      ship.amRate = (0.5 * thr * ship.ve) / (AM_ENERGY * AM_ETA);
+    }
     _force.addScaledVector(_fwd, thr);
   }
   ship.thrustN = thr;
@@ -6503,6 +6894,11 @@ function sasTarget(out) {
 function attitudeControl(dt) {
   _cmd.set(0, 0, 0);
   const localOmega = ship.angVel;
+  /* How much torque there is to spend, worked out first because the
+     gyroscopic feed-forward below is expressed as a fraction of it. */
+  let tq = SHIP.wheelTorque * (ship.power > 0.02 ? 1 : 0.0);
+  let rcsUse = 0;
+  if (ship.rcs && ship.mono > 0) { tq += SHIP.rcsThrust * 2.2 * 1.6; rcsUse = 1; }
   let usingSas = false;
   if (ship.sas) {
     if (ship.sasMode === 'stab') {
@@ -6514,19 +6910,76 @@ function attitudeControl(dt) {
       const ang = Math.acos(dot);
       _v1.crossVectors(_fwd, _v6);
       if (_v1.lengthSq() < 1e-12) _v1.copy(_up);
-      _v1.normalize().multiplyScalar(ang * 2.4);
-      /* roll: keep the belly toward the reference body */
-      const upRef = _v2.subVectors(ship.pos, ship.soi.pos).normalize();
-      _v3.copy(upRef).addScaledVector(_v6, -upRef.dot(_v6));
-      if (_v3.lengthSq() > 1e-8) {
-        _v3.normalize();
-        const rollErr = Math.atan2(_v3.dot(_rgt), _v3.dot(_up));
-        _v1.addScaledVector(_fwd, -rollErr * 1.6);
+      /* Command a RATE, not an angle.
+         ------------------------------------------------------------------
+         An angle-proportional command clamped at full torque is bang-bang
+         for any large slew, and bang-bang without a braking distance
+         overshoots: it was still applying full torque at one radian out,
+         by which point it needed 0.42 rad to stop. The result was a
+         vessel oscillating around its target instead of settling on it —
+         invisible when you are flying by hand, and ruinous for anything
+         that gates on alignment. A 90 m/s de-orbit burn was taking 170
+         seconds because the autopilot was only pointed the right way two
+         percent of the time.
+
+         The fix is the standard slew law: ask for the fastest rate you
+         could still stop from, which by construction arrives with zero
+         rate and no overshoot. */
+      const alphaMax = SHIP.wheelTorque / Math.max(ship.I.x, ship.I.y, ship.I.z);
+      /* The cap is not taste, it is a budget. Following the profile above
+         costs 0.72 of the authority; the gyroscopic term below costs
+         roughly (Imax-Imin)*w^2/tq, which at 0.65 rad/s is another half.
+         The two together do not fit, the profile becomes unfollowable,
+         and the slew limit-cycles. At 0.5 they fit with room to spare. */
+      const wCmd = Math.min(Math.sqrt(2 * alphaMax * ang) * 0.85, 0.50);
+      _v1.normalize().multiplyScalar(wCmd);
+      /* Roll LAST. Keeping the belly toward the reference body is worth
+         doing once the nose is roughly where it belongs, and worth nothing
+         at all while it is a radian and a half out — up there it only
+         spends torque the pointing loop needs, on an axis the pointing
+         loop is about to redefine anyway. */
+      if (ang < 0.6) {
+        const upRef = _v2.subVectors(ship.pos, ship.soi.pos).normalize();
+        _v3.copy(upRef).addScaledVector(_v6, -upRef.dot(_v6));
+        if (_v3.lengthSq() > 1e-8) {
+          _v3.normalize();
+          const rollErr = Math.atan2(_v3.dot(_rgt), _v3.dot(_up));
+          const wRoll = -Math.sign(rollErr) * Math.min(
+            Math.sqrt(2 * alphaMax * Math.abs(rollErr)) * 0.85, 0.5);
+          _v1.addScaledVector(_fwd, wRoll);
+        }
       }
       _v1.applyQuaternion(_q1.copy(ship.quat).invert());
-      _cmd.set(_v1.x - localOmega.x * 3.0, _v1.y - localOmega.y * 3.0, _v1.z - localOmega.z * 2.6);
+      /* rate error, hard: the clamp below turns this into full torque
+         whenever we are more than ~0.3 rad/s off the commanded rate */
+      _cmd.set((_v1.x - localOmega.x) * 3.2,
+               (_v1.y - localOmega.y) * 3.2,
+               (_v1.z - localOmega.z) * 3.0);
       usingSas = true;
     }
+  }
+  /* Cancel the vessel's own tumble before commanding anything.
+     ---------------------------------------------------------------------
+     Euler's equation carries a term the controller does not get for free:
+
+        I*w' = tau - w x (I*w)
+
+     and this vessel's principal moments differ by more than a factor of
+     two, so at two thirds of a radian per second that cross product is
+     ~120 kN*m against 240 kN*m of wheel. Half the authority, spent
+     fighting the vessel's own rotation — which makes the braking profile
+     above unfollowable, so every large slew overshot, the error axis
+     flipped, and the hold settled into a limit cycle at 0.7 rad/s that
+     never converged. Nothing that gated on alignment ever fired: the
+     de-orbit burn never pointed retrograde and the descent guidance sat
+     at the 12% throttle floor all the way to the ground. Feed the term
+     forward and the plant becomes I*w' = tau, which is the plant the
+     profile assumes. */
+  if (usingSas && tq > 1) {
+    const I = ship.I, w = localOmega;
+    _cmd.x += (w.y * (I.z * w.z) - w.z * (I.y * w.y)) / tq;
+    _cmd.y += (w.z * (I.x * w.x) - w.x * (I.z * w.z)) / tq;
+    _cmd.z += (w.x * (I.y * w.y) - w.y * (I.x * w.x)) / tq;
   }
   /* pilot input always overrides the autopilot on that axis */
   if (Math.abs(ship.ctrl.x) > 0.01) _cmd.x = ship.ctrl.x * 2.6;
@@ -6534,9 +6987,6 @@ function attitudeControl(dt) {
   if (Math.abs(ship.ctrl.z) > 0.01) _cmd.z = ship.ctrl.z * 2.6;
   _cmd.set(clamp(_cmd.x, -1, 1), clamp(_cmd.y, -1, 1), clamp(_cmd.z, -1, 1));
 
-  let tq = SHIP.wheelTorque * (ship.power > 0.02 ? 1 : 0.0);
-  let rcsUse = 0;
-  if (ship.rcs && ship.mono > 0) { tq += SHIP.rcsThrust * 2.2 * 1.6; rcsUse = 1; }
   if (rcsUse) {
     const use = (Math.abs(_cmd.x) + Math.abs(_cmd.y) + Math.abs(_cmd.z)) * 0.55 * dt;
     ship.mono = Math.max(0, ship.mono - use);
@@ -6726,7 +7176,17 @@ function integrate(dt) {
   w.multiplyScalar(damp);
   const wl = w.length();
   if (wl > 2.6) w.multiplyScalar(2.6 / wl);
-  _dq.set(w.x * 0.5 * dt, w.y * 0.5 * dt, w.z * 0.5 * dt, 0).multiply(ship.quat);
+  /* q' = 0.5 * q (x) w, with w in the BODY frame — which is the frame the
+     Euler step above integrates in, and the frame the comment on ship.angVel
+     has always claimed. Writing it the other way round, w (x) q, is the
+     WORLD-frame form, and mixing the two silently rotates the vessel about
+     an axis that is not the one anything asked for: the SAS drove angVel to
+     the body-frame rate that closes the pointing error, the integrator spent
+     it as a world-frame rate, and the nose went somewhere else. Large slews
+     therefore never converged — the hold sat in a limit cycle at 0.7 rad/s
+     and every gate that waits on alignment (the de-orbit burn, the descent
+     guidance's throttle) stayed shut. */
+  _dq.set(w.x * 0.5 * dt, w.y * 0.5 * dt, w.z * 0.5 * dt, 0).premultiply(ship.quat);
   ship.quat.set(ship.quat.x + _dq.x, ship.quat.y + _dq.y, ship.quat.z + _dq.z, ship.quat.w + _dq.w).normalize();
 }
 
@@ -6750,10 +7210,10 @@ function updateShipState() {
   const d = _v1.length();
   _v2.subVectors(ship.vel, b.vel);
   ship.elems = stateToElements(_v1, _v2, b.mu);
-  const ve = SHIP.isp * 9.80665;
-  ship.dv = ve * Math.log(ship.mass / (SHIP.dryMass + ship.mono));
+  driveState(b);
+  ship.dv = ship.ve * Math.log(ship.mass / (SHIP.dryMass + ship.mono));
   const g = b.mu / (d * d);
-  ship.twr = SHIP.maxThrust / (ship.mass * Math.max(g, 1e-6));
+  ship.twr = ship.thrustCap / (ship.mass * Math.max(g, 1e-6));
   if (ship.alt > 4000 || (!ship.gearDown && ship.gearAnim < 0.01)) {
     ship.altTerr = d - b.surfaceR(ship.bodyUp);
   }
@@ -6786,7 +7246,7 @@ function stepPhysics(dtReal, warp) {
     ship.vel.addVectors(b.vel, _v4);
     attitudeControl(dtReal);
     const w = ship.angVel;
-    _dq.set(w.x * 0.5 * dtReal, w.y * 0.5 * dtReal, w.z * 0.5 * dtReal, 0).multiply(ship.quat);
+    _dq.set(w.x * 0.5 * dtReal, w.y * 0.5 * dtReal, w.z * 0.5 * dtReal, 0).premultiply(ship.quat);
     ship.quat.set(ship.quat.x + _dq.x, ship.quat.y + _dq.y, ship.quat.z + _dq.z, ship.quat.w + _dq.w).normalize();
     _force.set(0, 0, 0); ship.rho = 0; ship.q = 0; ship.gForce = 0;
   } else {
@@ -6861,6 +7321,13 @@ function systems(dtSim, dtReal) {
   ship.skinT = Math.max(amb, ship.skinT + dT * dtc);
   if (ship.skinT > SHIP.maxTemp) damage((ship.skinT - SHIP.maxTemp) * 2.2e-5 * dtc, 'thermal overload');
   ship.reentry = clamp((ship.skinT - 760) / 1100, 0, 1) * clamp(ship.q / 900, 0, 1.4);
+
+  /* The containment loop breeds a reserve whenever the drive is idle and
+     there is power to spare. Making antimatter really costs about ten
+     billion times what this implies — it is the one deliberate cheat in
+     the propulsion model, and it exists so you cannot be stranded. */
+  if (ship.throttle < 0.02 && ship.power > 0.25 && ship.am < SHIP.amMax)
+    ship.am = Math.min(SHIP.amMax, ship.am + AM_BREED * dtSim);
 
   if (ship.fuel <= 0 && ship.throttle > 0) { ship.throttle = 0; say('Propellant exhausted', 'warn'); }
 }
@@ -7910,6 +8377,8 @@ function updateHUD(dtReal) {
   const b = ship.soi, el = ship.elems;
   setBar('barFuel', ship.fuel / SHIP.fuelMax, (ship.fuel / 1000).toFixed(1) + ' t');
   setBar('barMono', ship.mono / SHIP.monoMax, (ship.mono).toFixed(0) + ' kg');
+  setBar('barAM', ship.am / SHIP.amMax,
+    ship.am >= 0.001 ? (ship.am * 1000).toFixed(1) + ' g' : (ship.am * 1e6).toFixed(0) + ' mg');
   setBar('barO2',   ship.o2, (ship.o2 * 100).toFixed(0) + '%');
   setBar('barPwr',  ship.power, (ship.power * 100).toFixed(0) + '%');
   setBar('barHull', ship.hull, (ship.hull * 100).toFixed(0) + '%');
@@ -7965,6 +8434,10 @@ function updateHUD(dtReal) {
   $('chipMode').textContent = eva.active ? 'ON FOOT'
     : (auto.mode === 'land' ? 'AUTOLAND · ' + autoStatus().toUpperCase()
     : (ship.landed ? 'LANDED' : (ship.sas ? SASN[ship.sasMode] : 'MANUAL')));
+  const D = DRIVES[ship.drive];
+  const cd = $('chipDrive');
+  cd.textContent = D.short + ' · ' + ship.gLimit.toFixed(0) + 'g';
+  cd.className = 'chip drive' + (D.am ? '' : ' chem');
   const w = WARPS[ship.warpIdx];
   const chw = $('chipWarp');
   chw.textContent = 'TIME ×' + (w >= 1000 ? (w / 1000) + 'k' : w);
@@ -8206,6 +8679,8 @@ function syncCfgLabels() {
   $('cfgScatterV').textContent = Math.round(CFG.scatter * 100) + '%';
   $('cfgVolV').textContent = Math.round(CFG.volume * 100) + '%';
   $('cfgShakeV').textContent = Math.round(CFG.shake * 100) + '%';
+  $('cfgGLimV').textContent = ship.gLimit.toFixed(1) + ' g';
+  $('cfgDrive').value = String(ship.drive);
   $('cfgInfo').textContent = 'renderer: WebGL2 · log-depth · ' + RW + '×' + RH;
 }
 $('cfgQuality').addEventListener('change', e => applyPreset(e.target.value));
@@ -8220,6 +8695,9 @@ bindSlider('cfgExp', v => { CFG.exposure = v / 100; });
 bindSlider('cfgScatter', v => { CFG.scatter = v / 100; });
 bindSlider('cfgVol', v => { CFG.volume = v / 100; if (audio.master) audio.master.gain.value = CFG.volume; });
 bindSlider('cfgShake', v => { CFG.shake = v / 100; });
+bindSlider('cfgGLim', v => { ship.gLimit = v; });
+$('cfgDrive').addEventListener('change', e => setDrive(parseInt(e.target.value, 10)));
+$('btnDrive').addEventListener('click', () => setDrive(ship.drive + 1));
 $('cfgInvert').addEventListener('change', e => CFG.invert = e.target.checked);
 $('cfgOrbits').addEventListener('change', e => {
   CFG.orbits = e.target.checked;
@@ -8253,12 +8731,22 @@ function onKey(k, e) {
     case 'p': ship.lights = !ship.lights; break;
     case 'o': autoLandStart(); break;
     case ';': setInfiniteFuel(!CFG.infFuel); break;
+    case '\\': setDrive(ship.drive + 1); break;
+    case '[': setGLimit(ship.gLimit - 1); break;
+    case ']': setGLimit(ship.gLimit + 1); break;
     case 'u': $('hud').classList.toggle('hidden'); break;
     case 'Tab': cycleTarget(); break;
     case ',': setWarp(ship.warpIdx - 1); break;
     case '.': setWarp(ship.warpIdx + 1); break;
   }
 }
+function setGLimit(v) {
+  ship.gLimit = clamp(Math.round(v * 2) / 2, 1, 15);
+  $('cfgGLim').value = ship.gLimit;
+  syncCfgLabels();
+  say('Acceleration limit ' + ship.gLimit.toFixed(1) + ' g');
+}
+
 function toggleGear() {
   ship.gearDown = !ship.gearDown;
   say('Landing gear ' + (ship.gearDown ? 'DOWN' : 'UP'));
@@ -8301,6 +8789,16 @@ function restore() {
   ship.mono = Math.max(ship.mono, SHIP.monoMax * 0.5);
   ship.dead = false; ship.throttle = 0; ship.warpIdx = 0;
   eva.active = false;
+  /* Atmospheric state is produced by the flight model, so teleporting the
+     vessel leaves it describing where it WAS. A ship restored to a 2000 km
+     orbit still reporting sea-level density makes the autopilot think it
+     is inside an atmosphere and pick the wrong descent entirely. */
+  ship.rho = 0; ship.q = 0; ship.mach = 0; ship.heatRate = 0; ship.reentry = 0;
+  ship.onGround = false; ship.landed = false; ship.contacts = 0; ship.restT = 0;
+  /* mass, elements, exhaust velocity and the governed thrust ceiling all
+     come from here — without it the next thing to read ship.thrustCap
+     (the autopilot, typically) sees the state from before the restore */
+  updateShipState();
   caption('VESSEL RESTORED', b.name + ' orbit', 2600);
   say('Emergency restore — parked in ' + b.name + ' orbit', 'good');
 }
@@ -10151,6 +10649,7 @@ function initTouchControls() {
   bindHold('tBoost', () => TOUCH.boost = true, () => TOUCH.boost = false);
   bindTap('tGear', toggleGear);
   bindTap('tAuto', autoLandStart);
+  bindTap('tDrive', () => setDrive(ship.drive + 1));
   bindTap('tFuel', () => setInfiniteFuel(!CFG.infFuel));
   bindHold('tJump', () => TOUCH.boost = true, () => TOUCH.boost = false);
   bindTap('tSprint', () => { TOUCH.sprint = !TOUCH.sprint; say('Run ' + (TOUCH.sprint ? 'on' : 'off')); });
@@ -10221,6 +10720,9 @@ function syncTouchHud() {
   $('tEva').classList.toggle('lit', eva.active);
   $('tEva').classList.toggle('warn', ship.landed && !eva.active);
   $('tAuto').classList.toggle('lit', auto.mode === 'land');
+  const D = DRIVES[ship.drive];
+  $('tDriveL').textContent = D.am ? (ship.drive === 1 ? 'BOOST' : 'CRUISE') : 'CHEM';
+  $('tDrive').classList.toggle('chem', !D.am);
   $('tFuel').classList.toggle('lit', CFG.infFuel);
   $('tSprint').classList.toggle('lit', TOUCH.sprint);
   $('tWarpVal').textContent = '×' + (WARPS[ship.warpIdx] >= 1000 ? (WARPS[ship.warpIdx] / 1000) + 'k' : WARPS[ship.warpIdx]);
@@ -10552,7 +11054,30 @@ function autoLandStart() {
     openWormhole(b);
     if (wormhole.state === 'idle') { autoAbort('Bridge unavailable'); return; }
   } else {
-    autoPhase(ship.elems && ship.elems.pe > b.R * 1.002 ? 'deorbit' : 'coast');
+    /* Two different right answers, and the atmosphere decides which.
+       On an AIRLESS world every metre per second has to be paid for with
+       propellant, so a high-thrust vessel should simply point at the
+       ground and cancel the orbit on the way down — no half-orbit wait.
+       A LOW-thrust vessel has no choice but to use the air: 5 km/s of
+       chemical delta-v does not buy a propulsive landing from orbit, so
+       it aims its periapsis under the surface, rides the entry down and
+       lets drag remove seven kilometres a second for free.
+
+       A HIGH-thrust one does the opposite, and on a world with air that
+       is a real change of mind. Aerobraking is free in propellant and
+       ruinous in TIME: the ballistic entry is twenty minutes of a vessel
+       that is not flying, and it ends at 12 km with a few hundred metres
+       a second still to lose in air too thick to lean into. An antimatter
+       drive has three hundred kilometres a second of delta-v; spending
+       eight of them to cancel the orbit outright and come straight down
+       turns a twenty-minute arrival into a three-minute one, and it is
+       SAFER, because the descent-rate schedule's dynamic-pressure
+       corridor holds the vessel inside 35 kPa the whole way rather than
+       taking whatever the trajectory hands it. */
+    const d0 = ship.pos.distanceTo(b.pos);
+    const twr = ship.thrustCap / (ship.mass * Math.max(b.mu / (d0 * d0), 1e-6));
+    if (twr > 2.2) autoPhase('guide');
+    else autoPhase(ship.elems && ship.elems.pe > b.R * 1.002 ? 'deorbit' : 'coast');
   }
   ship.sas = true;
   say('AUTOLAND engaged — ' + b.name + (auto.site ? ' · ' + auto.site.name : ''), 'good');
@@ -10596,16 +11121,23 @@ function slopeAt(b, dir, base) {
 }
 function pickLandingSpot(b, h) {
   const here = v3().subVectors(ship.pos, b.pos).normalize();
-  /* how far sideways we can still steer, in metres of ground */
-  const reach = clamp(h * 1.1, 250, 24000);
-  /* If a landmark is inside that, search around the LANDMARK instead of
-     around the current ground track — otherwise "flattest nearby" wins
-     every time and you touch down 25 km from the thing you came to see. */
+  /* Two different distances.
+     A LANDMARK is a destination: crossing twenty kilometres to land at an
+     observatory is the point, and it is paid for at altitude where the
+     thrust may lean fully over. FLAT GROUND is not: sampling a 24 km-wide
+     neighbourhood from a kilometre up and steering at the flattest patch
+     in it buys a few degrees of slope for a long, slow translation the
+     vessel cannot pay for on final, where the nose must stay upright and
+     holding the descent rate already costs a full gravity of thrust.
+     Measured, before this was split: 275 seconds of a lunar descent spent
+     hovering at 400 m, drifting sideways at 0.8 m/s^2. */
+  const siteReach = clamp(h * 1.1, 250, 24000);
+  const reach = clamp(h * 0.06, 30, 400);
   let centre = here, radius = reach;
   const siteDir = auto.site ? siteUp(b, auto.site, v3()) : null;
   if (siteDir) {
     const arc = Math.acos(clamp(here.dot(siteDir), -1, 1)) * b.R;
-    if (arc < reach) { centre = siteDir; radius = Math.min(500, reach); }
+    if (arc < siteReach) { centre = siteDir; radius = Math.min(500, Math.max(reach, 150)); }
   }
   const de = radius / b.R;
   const upAx = Math.abs(centre.y) > 0.92 ? v3(1, 0, 0) : v3(0, 1, 0);
@@ -10644,22 +11176,97 @@ function spotPos(b, out) {
 
 /* How much time warp this part of the descent can absorb. The guidance
    law is closed-loop, so it tolerates a coarser step high up where the
-   air is thin; near the ground and at high dynamic pressure it does not. */
-function autoWarpTarget(h) {
-  if (auto.phase === 'touch' || h < 1200) return 0;
-  if (ship.rho < 1e-7) return h > 30000 ? 4 : 2;   // 50x / 5x in vacuum
-  if (ship.q > 9000) return 0;                     // never warp through peak heating
-  if (h > 8000) return 2;                          // 5x
-  if (h > 2500) return 1;                          // 2x
-  return 0;
+   air is thin; near the ground, under thrust, and at high dynamic
+   pressure it does not. */
+function autoWarpTarget(h, rho, q) {
+  /* Real time for the last couple of hundred metres, and not before: the
+     vessel is doing 20 m/s by then and the contact solver substeps by
+     DISTANCE anyway, so stopping the clock at 900 m only bought the
+     player half a minute of watching a slow descent. */
+  if (h < 220) return 0;
+  const powered = auto.phase === 'guide' || auto.phase === 'deorbit';
+  if (rho < 1e-7) {
+    /* Nothing is happening: no air, no thrust, so the integrator switches
+       to the exact Keplerian propagation above 10x and the coast costs
+       almost nothing. Half a low orbit is 45 minutes of simulated time
+       and there is no reason for the player to sit through four of them
+       at 10x. */
+    if (!powered) return h > 60000 ? 4 : 3;
+    /* Under thrust the law is steering by the altitude that is LEFT, so a
+       single step must not swallow a meaningful fraction of it. A vessel
+       diving at three kilometres a second covers 3.6 km in one 1.2 s step
+       at 10x, which is fine at 60 km and nonsense at 6. */
+    return h > 40000 ? 3 : h > 6000 ? 2 : 1;
+  }
+  /* In air. The flight model substeps by DISTANCE rather than by frame
+     time, so the aerodynamics and the heating stay accurate under warp;
+     what does not is the guidance law, which runs once per frame. So the
+     UNPOWERED entry — where the vessel is only holding surface-retrograde
+     and letting drag take the energy out — can be warped hard, and the
+     powered descent cannot. Twelve minutes of real time went into
+     watching an entry at 1x that the vessel was not flying. */
+  if (!powered) return h > 20000 ? 3 : h > 5000 ? 2 : 1;
+  if (q > 12000) return 1;                         // pull it back through peak heating
+  if (h > 4000) return 3;
+  if (h > 1200) return 2;
+  return 1;
 }
 
-/* Desired descent rate at a given terrain altitude. */
-function autoDescentRate(h, g) {
-  if (h < 14) return -1.1;
-  if (h < 70) return -3.0;
-  if (h < 260) return -9.0;
-  return -clamp(0.22 * Math.sqrt(2 * g * h), 2.5, 220);
+/* Desired descent rate, from the braking this vessel ACTUALLY has.
+   ---------------------------------------------------------------------
+   The original schedule was -clamp(0.22*sqrt(2gh), 2.5, 220): a constant,
+   and a 220 m/s ceiling. That is a sane profile for a chemical stage with
+   a TWR of 1.6 and a ruinous one for a 13 MN antimatter drive, which can
+   stop from ten times that and instead spends the whole descent crawling.
+
+   So derive it instead, from what the vessel can actually do. Two things
+   have to fit inside the altitude that is left:
+
+     the braking burn      v^2 / (2*a)     with 2x margin, so / 0.52
+     the turn-around       TURN * v        it swaps ends before braking
+
+   which is a quadratic in v:
+
+     v^2 / (1.04*a)  +  TURN*v  -  h  =  0
+
+   Leaving the turn-around out is not conservative, it is wrong: a vessel
+   diving at 2 km/s eats fourteen kilometres while it flips, and a
+   schedule that has not paid for that hands the guidance an altitude it
+   has already spent. A second ceiling applies once there is air:
+
+     v_q = sqrt(2*q_max/rho)              what the airframe will take
+
+   which bounds heating for free — stagnation heating goes as
+   sqrt(rho)*v^3, so capping rho*v^2 caps it — and, more sharply, it bounds
+   what the ATTITUDE can survive. A vessel braking with the engine is
+   flying nose-first into its own airstream, which is the aerodynamically
+   unstable way round; the wheels hold it there up to a few kilopascals
+   and lose it above. Measured: held at 2.8 kPa, weathercocked at 7.7 and
+   could not turn back, whereupon a propulsive descent from orbit became a
+   250 kPa lawn dart. So the powered corridor is thousands of pascals, not
+   tens of thousands.
+
+   And it is evaluated on the air the vessel will be IN once the braking
+   burn it needs from here has finished — not the air it is in now.
+   Density doubles every six kilometres; a corridor read at the current
+   altitude is always a scale height out of date, which is exactly how the
+   vessel ends up needing 35 kPa worth of braking in air that has already
+   become 200. */
+const AUTO_QFLY = 3000;                            // Pa, nose-first into the wind
+const AUTO_TURN = 7;                               // s to swap ends and spool up
+function autoDescentRate(h, g, aAvail, rho, b, vDown) {
+  const a = Math.max(aAvail, 0.35);
+  const k = 1 / (1.04 * a);
+  let v = (Math.sqrt(AUTO_TURN * AUTO_TURN + 4 * k * Math.max(h, 0)) - AUTO_TURN) / (2 * k);
+  if (b && b.atm) {
+    const d = Math.max(vDown, 0);
+    const look = Math.min(d * d / (2 * a) + AUTO_TURN * d, h);
+    v = Math.min(v, Math.sqrt(2 * AUTO_QFLY / Math.max(b.density(h - look), 1e-9)));
+  }
+  if (h < 10) v = Math.min(v, 1.4);
+  else if (h < 50) v = Math.min(v, 5.0);
+  else if (h < 260) v = Math.min(v, 22);
+  return -clamp(v, 1.0, 4000);
 }
 
 function autoStep(dt) {
@@ -10679,6 +11286,23 @@ function autoStep(dt) {
      every branch below and the guidance law lights the engine again. */
   if (auto.phase === 'done') { ship.throttle = 0; return; }
 
+  /* Watchdog.
+     ---------------------------------------------------------------------
+     A closed-loop law can chatter against a discrete world — bouncing on
+     the gear, hunting across a phase boundary — and the one outcome a
+     player must never see is an autopilot that holds the vehicle a metre
+     off the ground forever. Two backstops, both of which end with the
+     vessel on the surface rather than in a loop. */
+  if (auto.t > 1800) { autoAbort('AUTOLAND timed out — manual control'); return; }
+  if (auto.t > 420 && ship.altTerr < 400) {
+    /* close, and taking too long: stop flying and let it settle */
+    ship.throttle = 0;
+    ship.sasMode = 'stab'; ship.sas = true; ship.brake = true;
+    if (!ship.gearDown) toggleGear();
+    if (ship.onGround && auto.phase !== 'settle') autoPhase('settle');
+    if (auto.phase !== 'settle') return;
+  }
+
   const rel = _ap1.subVectors(ship.pos, b.pos);
   const d = rel.length();
   const up = _ap2.copy(rel).divideScalar(d);
@@ -10689,6 +11313,18 @@ function autoStep(dt) {
   const vUp = vrel.dot(up);
   const vH = _ap5.copy(vrel).addScaledVector(up, -vUp);
   const vh = vH.length();
+  /* Air, computed HERE rather than read off the ship.
+     ---------------------------------------------------------------------
+     ship.rho and ship.q are produced by the flight model as it integrates,
+     which means they describe where the vessel WAS. Any teleport — a
+     restore, a wormhole arrival, a test hook — leaves them describing the
+     old place, and an autopilot that believes it is in sea-level air at
+     420 km commands accelerations for a situation that does not exist.
+     One such stale read sent the vessel out of the system at 41 km/s.
+     The body knows its own density; ask it. */
+  const rhoNow = b.atm ? b.density(h) : 0;
+  const vGround = vrel.length();
+  const qNow = 0.5 * rhoNow * vGround * vGround;
 
   /* Touchdown is a near-stop on the ground, not merely contact: a leg
      grazing a ridge at 15 m/s is a skid, and cutting the engine there
@@ -10722,7 +11358,11 @@ function autoStep(dt) {
       return;
     }
     if (!(ship.landed || (ship.onGround && auto.tPhase > 6) || auto.tPhase > 25)) {
-      if (h > 25 && vUp > 1.0 && auto.tPhase > 2.5) { autoPhase('guide'); return; }
+      /* A hop off the gear is not a departure. At 25 m and 1 m/s this
+         handed control back to the guidance, which lit the engine, which
+         produced another hop — the vessel bounced at the surface instead
+         of settling onto it. Only a real climb counts. */
+      if (h > 120 && vUp > 6 && auto.tPhase > 4) { autoPhase('guide'); return; }
       return;
     }
   }
@@ -10738,15 +11378,52 @@ function autoStep(dt) {
   }
 
   /* ---- phase 1: kill the orbit ------------------------------------- */
+  /* Where the periapsis has to end up, and it depends entirely on what is
+     doing the braking.
+
+     A HIGH-thrust vessel wants to go in ONCE. A shallow entry skips: the
+     vessel arrives above the local circular speed, drag takes the
+     horizontal out, and it climbs back out of the air and comes round
+     again — sixty-seven kilometres up to seventy-four and back, four
+     times, which was ten minutes of simulated time and the single largest
+     slice of a LEO descent. Aim the periapsis under the surface. The
+     extra de-orbit is about 40 m/s and nothing in that vessel's budget
+     notices.
+
+     A LOW-thrust one needs a shallower one, and the window is narrow at
+     both ends. Aimed 51 km under the surface a chemical stage reached
+     10 km still doing 1.2 km/s, behind 280 kPa that pinned its nose into
+     the airstream and left the guidance with a throttle it had nowhere to
+     point. Aimed ABOVE the surface it skims instead, and arrives at five
+     kilometres still travelling mostly sideways at 212 m/s, which a
+     vessel with a thrust-to-weight of 1.6 cannot turn into a landing
+     either. Thirteen kilometres under puts it on a path that is going
+     DOWN when it gets there, which is the thing that matters.
+
+     On an airless world nothing will catch you either way, so it always
+     has to go under the surface. */
+  const lowThrust = ship.thrustCap / (ship.mass * Math.max(g, 1e-6)) < 2.2;
+  const peTarget = b.atm ? b.R - b.R * (lowThrust ? 0.002 : 0.005)
+                         : b.R * 0.985;
   if (auto.phase === 'deorbit') {
     ship.sasMode = 'retro'; ship.sas = true;
     if (ship.warpIdx > 0) setWarp(0, true);
     const pe = ship.elems ? ship.elems.pe : d;
-    if (pe <= b.R * 0.985 || h < b.R * 0.05) { ship.throttle = 0; autoPhase('coast'); return; }
+    /* Done when the periapsis is low enough, when we are already deep, or
+       when we are plainly falling out of the sky — any of which means
+       more retrograde velocity is wasted propellant at best. */
+    if (pe <= peTarget || h < b.R * 0.05 || vUp < -200 ||
+        (ship.elems && ship.elems.e >= 1)) {
+      ship.throttle = 0; autoPhase('coast'); return;
+    }
     shipAxes();
     _ap6.copy(vrel).normalize().negate();
-    ship.throttle = _fwd.dot(_ap6) > 0.94 ? 0.85 : 0;
-    if (auto.tPhase > 240) { ship.throttle = 0; autoPhase('coast'); }
+    /* Proportional, not a switch. An on/off gate at cos = 0.94 makes the
+       burn stutter every time the attitude hold hunts across it, which
+       turned a 90 m/s de-orbit into a four-minute timeout that gave up
+       with the periapsis still in orbit. */
+    ship.throttle = clamp((_fwd.dot(_ap6) - 0.80) / 0.14, 0, 1);
+    if (auto.tPhase > 600) { ship.throttle = 0; autoPhase('coast'); }
     return;
   }
 
@@ -10754,41 +11431,124 @@ function autoStep(dt) {
   if (auto.phase === 'coast') {
     ship.sasMode = 'srfretro'; ship.sas = true;
     ship.throttle = 0;
-    setWarp(autoWarpTarget(h), true);
-    if (ship.rho > 1e-7 || h < 14000) autoPhase('entry');
+    setWarp(autoWarpTarget(h, rhoNow, qNow), true);
+    if (rhoNow > 1e-7 || h < 14000) { autoPhase('entry'); return; }
+    /* Never coast in an orbit that does not come down. If the periapsis
+       is still above the air after two minutes, the de-orbit burn did not
+       finish its job — go back and finish it, rather than orbiting for
+       eleven days at 50x waiting for something that will not happen.
+       CLOSED orbit only, and only while not already falling: a vessel on
+       a plunging or hyperbolic trajectory has a periapsis reading that
+       means something else entirely, and re-triggering on it put the
+       autopilot in a loop that kept adding retrograde velocity until it
+       was dropping at seven kilometres a second. */
+    const el = ship.elems;
+    if (el && el.e < 1 && el.pe > peTarget * 1.01 && auto.tPhase > 120 && vUp > -80) {
+      autoPhase('deorbit');
+    }
     return;
   }
 
   /* ---- phase 3: ride the entry out --------------------------------- */
   if (auto.phase === 'entry') {
     ship.sasMode = 'srfretro'; ship.sas = true;
-    setWarp(autoWarpTarget(h), true);
+    setWarp(autoWarpTarget(h, rhoNow, qNow), true);
     /* only start braking once stopping is actually possible: the burn
        must fit in the altitude that is left, with 40% margin */
-    const aMax = SHIP.maxThrust / ship.mass - g;
+    const aMax = ship.thrustCap / ship.mass - g;
     const stopDist = (vUp * vUp) / (2 * Math.max(aMax, 0.5)) * 1.40 + vh * 6;
     /* Not while the air is still doing the work. Pointing anywhere but
        into the airstream at 2.5 kPa is how a lander becomes a tumbling
        one; hold surface-retrograde, which is the stable attitude, and let
-       drag take the energy out for free. */
-    const aero = ship.q > 2500;
+       drag take the energy out for free.
+
+       Two things have to be true before it hands over: the air must have
+       stopped doing the work, and the vessel must be able to POINT.
+       Pressure alone gets both wrong. At 2.5 kPa it never hands over at
+       all — 2.5 kPa at sea level is 64 m/s, an ordinary approach speed —
+       so the vessel rode drag into the ground at 90 m/s sideways with the
+       engine off. Hand over too early and it is worse: the guidance takes
+       a vessel weathercocked nose-first into a 200 kPa airstream and asks
+       it to point somewhere else, which it cannot, so the throttle sits
+       on its 12% floor all the way down. Nine kilopascals is about where
+       the wheels still win. Below 2.5 km it hands over whatever the
+       pressure says, because by then there is nothing left to wait for. */
+    const aero = qNow > 9000 && h > 2500;
     if (!aero && (h < stopDist || h < 9000 || (vUp > -5 && h < 30000))) autoPhase('guide');
     else ship.throttle = 0;
     return;
   }
 
   /* ---- phase 4+5: the guidance law --------------------------------- */
-  setWarp(autoWarpTarget(h), true);
+  setWarp(autoWarpTarget(h, rhoNow, qNow), true);
   if (auto.phase === 'guide' && h < 140) {
     autoPhase('touch');
     if (!ship.gearDown) toggleGear();
   }
   if (auto.phase === 'guide' && h < 900 && !ship.gearDown) toggleGear();
 
-  /* where do we want to be going sideways? Toward the landmark while we
-     are still high, and nowhere at all by the time we are low. */
-  /* Re-survey as the ground gets closer: from 30 km a "flat" candidate is
-     a 20 km-wide plain, from 800 m it is an actual patch of ground. */
+  /* ---- the law -----------------------------------------------------
+     Command an ACCELERATION VECTOR, then read the attitude and the
+     throttle off it. Setting throttle from the vertical schedule alone
+     and then tilting is the trap: on a low-gravity world the vertical
+     term is tiny, so the tilt has almost no thrust behind it and the
+     vehicle arrives at the surface still moving sideways at 200 m/s.  */
+  /* Recover before you steer. A vehicle at 0.8 rad/s is not flying a
+     guidance law, it is tumbling, and adding thrust makes it worse. */
+  if (ship.angVel.length() > 0.8 && h > 250) {
+    ship.sasMode = rhoNow > 1e-5 ? 'srfretro' : 'stab';
+    ship.sas = true; ship.throttle = 0;
+    return;
+  }
+  /* Angle of attack is limited by dynamic pressure, not by ambition — but
+     the number has to be an entry corridor, not a landing one. At
+     1 - q/4000 the vessel was down to a tenth of its lean allowance at
+     4 kPa, which on approach is 80 m/s at sea level: it could not lean
+     into a crosswind on short final without being told it was
+     hypersonic. */
+  const qFac = clamp(1 - qNow / 18000, 0.12, 1);
+  /* How far off the vertical the thrust may lean. In air this is an
+     AERODYNAMIC limit — present a large angle of attack at 2.5 kPa and the
+     vessel tumbles. Out of the air there is nothing to weathercock
+     against and the nose can go nearly fully retrograde, which is what
+     makes a direct de-orbit a de-orbit rather than a slow spiral. Low
+     down the limit comes back for a different reason, which is that a
+     lander on final should be upright. Tying it to ALTITUDE instead of to
+     air was a real bug: on an airless world below 60 km it applied the
+     landing-approach limit to a vessel still cancelling its orbit. */
+  const aeroLim = rhoNow > 1e-7 || h < 1800;
+  const tiltMax = (aeroLim ? (h > 1500 ? 1.05 : h > 300 ? 0.45 : 0.18) : 1.45) * qFac;
+  const tanT = Math.tan(tiltMax);
+  const tauH = clamp(h / 60, 2.5, 22);
+  /* Everything below is sized by what this drive can actually do. */
+  const aMaxTotal = Math.max(ship.thrustCap / ship.mass, 0.05);
+  const aAvail = Math.max(aMaxTotal - g, 0.2);
+  /* One honest number for how hard this vessel can push SIDEWAYS, used by
+     everything below that needs to know.
+       * Out of the air, nothing stops the nose going fully retrograde, so
+         it is the whole engine. This is the fix that matters: the old law
+         read the lateral cap off the CURRENT vertical command, and in free
+         fall that command is zero — so a vessel with 13 MN behind it was
+         told it had a third of a gravity of sideways authority, could not
+         cancel 260 m/s in 30 km of descent over Europa, and arrived
+         scraping the ground at 390 m/s.
+       * In air, or low down where a lander has to stay upright, the thrust
+         may only lean by tiltMax, and holding the descent rate already
+         costs g of vertical — so what is left sideways is g*tan(tilt).
+         On the Moon that really is only 0.8 m/s^2, which is not a bug but
+         a fact about landing on a low-gravity world, and the reason the
+         approach must not build up drift it will have to remove down
+         there. */
+  const aLat = aeroLim ? Math.max(g, 0.35) * tanT : aMaxTotal;
+  /* A go-around has to actually go up, or "try somewhere else" just means
+     sitting on the same slope with the engine idling. */
+  if (auto.goAround && h > 210) auto.goAround = false;
+
+  /* ---- where do we want to be going sideways? ------------------------
+     Toward the landmark while we are still high, and nowhere at all by the
+     time we are low. Re-survey as the ground gets closer: from 30 km a
+     "flat" candidate is a 20 km-wide plain, from 800 m it is an actual
+     patch of ground. */
   if (!auto.goAround && (!auto.spot || (h < auto.spotH * 0.35 && h > 60))) {
     pickLandingSpot(b, h);
     auto.spotH = h;
@@ -10800,53 +11560,91 @@ function autoStep(dt) {
     _ap6.addScaledVector(up, -_ap6.dot(up));      // horizontal offset to the spot
     const dist = _ap6.length();
     if (dist > 1) {
-      /* The sideways budget tapers to nothing by 60 m: past that point
-         every metre per second of drift is a landing leg. */
-      const cap = Math.min(180, Math.max(0, (h - 60) * 0.20));
-      const want = clamp(dist * 0.06, 0, cap);
+      /* Closing on the spot is a braking problem like every other one
+         here, so size it the same way: the fastest approach speed the
+         vessel can still stop from, with margin. A flat 0.06*distance
+         command ignores the authority entirely — it would ask for 39 m/s
+         of drift a kilometre above the Moon and then need the whole
+         descent to take it off again, with the vertical schedule
+         throttled back to a crawl to make room. Size it by the authority
+         the vessel will have ON FINAL, not by what it has at altitude:
+         drift built up at 6 km with the whole engine behind it still has
+         to come off at 600 m, where the nose must stay upright. The last
+         term is the old taper: by 45 m up, every metre per second of
+         drift is a landing leg. */
+      const aLatFin = Math.max(g, 0.35) * 0.48;   // 26 deg of lean, on final
+      const cap = Math.min(180, Math.sqrt(2 * aLatFin * dist) * 0.55,
+                           Math.max(0, (h - 45) * 0.25));
+      const want = clamp(dist * 0.08, 0, cap);
       if (want > 0.05) vWant.copy(_ap6).multiplyScalar(want / dist);
     }
   }
   const dvH = _ap8.subVectors(vWant, vH);         // horizontal velocity error
   const dvMag = dvH.length();
 
-  /* ---- the law -----------------------------------------------------
-     Command an ACCELERATION VECTOR, then read the attitude and the
-     throttle off it. Setting throttle from the vertical schedule alone
-     and then tilting is the trap: on a low-gravity world the vertical
-     term is tiny, so the tilt has almost no thrust behind it and the
-     vehicle arrives at the surface still moving sideways at 200 m/s.  */
-  /* Recover before you steer. A vehicle at 0.8 rad/s is not flying a
-     guidance law, it is tumbling, and adding thrust makes it worse. */
-  if (ship.angVel.length() > 0.8 && h > 250) {
-    ship.sasMode = ship.rho > 1e-5 ? 'srfretro' : 'stab';
-    ship.sas = true; ship.throttle = 0;
-    return;
-  }
-  /* Angle of attack is limited by dynamic pressure, not by ambition. */
-  const qFac = clamp(1 - ship.q / 4000, 0.10, 1);
-  const tiltMax = (h > 1500 ? 1.05 : (h > 300 ? 0.45 : 0.18)) * qFac;
-  const tauH = clamp(h / 60, 2.5, 22);
-  /* A go-around has to actually go up, or "try somewhere else" just means
-     sitting on the same slope with the engine idling. */
-  if (auto.goAround && h > 210) auto.goAround = false;
-  let vT = auto.goAround ? 14 : autoDescentRate(h, g);
-  let aV = (vT - vUp) / 1.15 + g;
-  /* How much sideways acceleration the tilt limit allows, given that the
-     vertical component still has to hold the vehicle up. */
-  let aHmax = Math.max(aV, g * 0.35) * Math.tan(tiltMax);
-  /* If the horizontal speed cannot be cancelled inside the descent that
-     is left, descend more slowly. Hitting the ground sideways is the one
-     failure the schedule must never allow. */
-  const tBrake = dvMag / Math.max(aHmax, 0.05);
+  /* ---- may the nose point DOWN? --------------------------------------
+     Free fall is free, and it is also slow. A hundred and fifty
+     kilometres above the Moon is seven minutes of gravity doing the work
+     at 1.6 m/s2, and no engine anywhere changes that if the engine is
+     only ever allowed to push UP. A vessel that can pull 8 g has no
+     reason to wait for gravity: point the nose down, dive into the
+     descent, swap ends and brake. What makes that safe is the schedule —
+     it is, by construction, a speed whose braking burn AND turn-around
+     both fit inside the altitude that is left, with the burn at half
+     authority — so tracking it exactly is the aggressive-but-recoverable
+     profile rather than a gamble.
+
+     Only with real altitude in hand, and always inside the schedule —
+     which is what makes it safe in air too, since the schedule's dynamic
+     pressure corridor is evaluated on the air the braking burn will end
+     in rather than the air the vessel is in now. */
+  const stopH = (vUp * vUp) / (2 * aAvail);
+  /* In air as well as out of it. There is no separate rule for the
+     atmosphere because the schedule already IS the rule there: the
+     descent rate it asks for is the one that keeps 0.5*rho*v^2 under the
+     powered corridor at the altitude the braking burn will finish in, so
+     a vessel that dives to meet it arrives at the turn-around inside the
+     pressure its wheels can still fly at. Without this a descent through
+     thick air is a parachute drop — Titan is fifty kilometres of falling
+     at thirty-five metres a second with the engine off, because terminal
+     velocity, not the vessel, decides. */
+  const dive = !auto.goAround && h > 3000 && h > stopH * 1.8;
+  /* Sideways first. Thrust is one vector: every newton spent diving is a
+     newton not cancelling the orbit, and a vessel that dives while it is
+     still going 1.6 km/s sideways arrives at the surface going 1.6 km/s
+     sideways. So work out what the lateral channel needs, reserve it, and
+     dive with whatever is left of the thrust circle — which is nothing at
+     all while the orbit is still there and nearly all of it once it is
+     gone. The profile falls out by itself: kill the orbit, dive, swap
+     ends, brake, land. */
+  const aHneed = Math.min(dvMag / tauH, aMaxTotal);
+  const aVdown = dive
+    ? -Math.sqrt(Math.max(aMaxTotal * aMaxTotal - aHneed * aHneed, 0)) * 0.92 : 0;
+  /* Thrust only ever acts along the nose. Pushing up is bounded by the
+     engine; pushing down is bounded by that reserve — without a floor, a
+     schedule asking for -2600 m/s2 of "downward thrust" is just asking
+     for free fall. */
+  const vertCmd = v => clamp((v - vUp) / 1.15 + g, aVdown, aMaxTotal);
+
+  let vT = auto.goAround ? 14 : autoDescentRate(h, g, aAvail, rhoNow, b, -vUp);
+  /* If the sideways error cannot be cancelled inside the descent that is
+     left, descend more slowly: arriving at the ground sideways at 390 m/s
+     is the one failure the schedule must never allow. What it must NOT do
+     is insist on arriving at exactly zero — a few metres per second is
+     what the legs and the go-around check are for, and demanding perfect
+     is how the vessel ends up hovering for four minutes to take off the
+     last 4 m/s at a third of a metre per second squared. Below 120 m it
+     does not apply at all: by then the answer to residual drift is to put
+     it down and, if it slides, lift off and try another patch. */
+  const tBrake = Math.max(dvMag - 4, 0) / Math.max(aLat, 0.05);
   const tFall = h / Math.max(-vT, 0.5);
-  if (tBrake > tFall * 0.8) {
-    vT *= clamp((tFall * 0.8) / tBrake, 0.10, 1);
-    aV = (vT - vUp) / 1.15 + g;
-    aHmax = Math.max(aV, g * 0.35) * Math.tan(tiltMax);
-  }
+  if (h > 120 && tBrake > tFall) vT *= clamp(tFall / tBrake, 0.25, 1);
+  const aV = vertCmd(vT);
+  /* The lateral demand, bounded by the authority above and by what is
+     left of the thrust circle once the vertical command is paid for. */
+  const aHmag = Math.min(dvMag / tauH, aLat,
+                         Math.sqrt(Math.max(aMaxTotal * aMaxTotal - aV * aV, 0)));
   const aH = _ap6.copy(dvH);
-  const aHmag = Math.min(dvMag / tauH, aHmax);
   if (dvMag > 1e-4) aH.multiplyScalar(aHmag / dvMag); else aH.set(0, 0, 0);
 
   const aCmd = _ap7.copy(up).multiplyScalar(aV).add(aH);
@@ -10856,12 +11654,33 @@ function autoStep(dt) {
   ship.sasMode = 'auto'; ship.sas = true;
 
   shipAxes();
-  ship.throttle = clamp(aMag * ship.mass / SHIP.maxThrust, 0, 1);
-  /* do not fight the descent with the nose still swinging round */
-  if (_fwd.dot(auto.aim) < 0.55 && h > 200) ship.throttle = Math.min(ship.throttle, 0.12);
-  /* thrust only counts along the nose, so pay for the angle we are at */
-  else ship.throttle = clamp(ship.throttle / Math.max(_fwd.dot(auto.aim), 0.45), 0, 1);
+  ship.throttle = clamp(aMag * ship.mass / ship.thrustCap, 0, 1);
+  /* Thrust only ever acts along the NOSE, so what matters is how close
+     the nose is to the command. Well aligned, pay for the cosine and
+     push. Badly aligned, do not push at all: a 12% floor sounds harmless
+     and is not — a vessel pinned nose-first into a 14 kPa airstream spent
+     three minutes at 12% throttle pointing wherever the air put it, which
+     did not slow it down, and did add a hundred metres a second of
+     sideways motion it then had to remove. Taper it to nothing instead,
+     and let the attitude catch up first. */
+  const align = _fwd.dot(auto.aim);
+  if (align > 0.6) ship.throttle = clamp(ship.throttle / Math.max(align, 0.45), 0, 1);
+  else ship.throttle *= clamp((align - 0.25) / 0.35, 0, 1);
   if (auto.phase === 'touch' && h < 3 && vUp > -1.6 && dvMag < 2.5) ship.throttle = 0;
+  /* Nothing good happens by thrusting upward two metres off the ground. */
+  if (h < 40 && vUp > 0.5) ship.throttle = 0;
+  /* And nothing good happens by running the engine while a leg is ON the
+     ground. A vessel skidding on its gear has its nose along the ground,
+     so "thrust toward the acceleration command" is mostly thrust ALONG
+     the ground: the law ran the engine up to full and accelerated forty
+     tonnes from 120 m/s to 254 across a mountainside, and went on doing
+     it until the watchdog noticed four minutes later. Once anything is
+     touching, the only useful throttle is none. */
+  if (ship.contacts > 0 && vUp < 1.0) {
+    ship.throttle = 0; ship.brake = true;
+    if (!ship.gearDown) toggleGear();
+    if (auto.tPhase > 2 && !auto.goAround && auto.phase !== 'settle') autoPhase('settle');
+  }
   if (ship.fuel <= 0 && !CFG.infFuel) autoAbort('AUTOLAND aborted — out of propellant');
 }
 
@@ -10869,7 +11688,8 @@ function autoStep(dt) {
 function setInfiniteFuel(on) {
   CFG.infFuel = !!on;
   const c = $('cfgInfFuel'); if (c) c.checked = CFG.infFuel;
-  if (CFG.infFuel) { ship.fuel = SHIP.fuelMax; ship.mono = SHIP.monoMax; ship.power = 1; ship.o2 = 1; }
+  if (CFG.infFuel) { ship.fuel = SHIP.fuelMax; ship.mono = SHIP.monoMax;
+                     ship.am = SHIP.amMax; ship.power = 1; ship.o2 = 1; }
   say('Propellant: ' + (CFG.infFuel ? 'UNLIMITED' : 'realistic'), CFG.infFuel ? 'good' : '');
 }
 /* Called once per frame after the physics step: refilling is simpler and
@@ -10878,6 +11698,7 @@ function applyInfiniteFuel() {
   if (!CFG.infFuel) return;
   ship.fuel = SHIP.fuelMax;
   ship.mono = SHIP.monoMax;
+  ship.am = SHIP.amMax;
   ship.power = 1;
   ship.o2 = 1;
   if (ship.hull < 1) ship.hull = Math.min(1, ship.hull + 0.02);
@@ -10914,7 +11735,7 @@ function updateShipVisual(dtReal) {
     const p = plumes[i];
     p.visible = thr > 0.004;
     if (p.visible) {
-      const len = (7 + 30 * thr) * flick * (1 - atmo * 0.35);
+      const len = (7 + 30 * thr) * flick * (1 - atmo * 0.35) * DRIVES[ship.drive].len;
       p.scale.set(0.72 + thr * 0.5, 0.72 + thr * 0.5, len);
       p.material.uniforms.uPower.value = 0.35 + thr * 0.95;
       p.material.uniforms.uTime.value = tnow;
@@ -10924,7 +11745,7 @@ function updateShipVisual(dtReal) {
   for (const p of nacPlumes) {
     p.visible = thr > 0.004;
     if (p.visible) {
-      const len = (4 + 17 * thr) * flick;
+      const len = (4 + 17 * thr) * flick * DRIVES[ship.drive].len;
       p.scale.set(0.55 + thr * 0.35, 0.55 + thr * 0.35, len);
       p.material.uniforms.uPower.value = 0.28 + thr * 0.8;
       p.material.uniforms.uTime.value = tnow;
@@ -10933,8 +11754,11 @@ function updateShipVisual(dtReal) {
   }
   for (const m of shipModel.bellMats) m.emissiveIntensity = thr * 8 * flick;
   shipModel.nacelles.forEach(n => { if (n.userData.inner) n.userData.inner.emissiveIntensity = thr * 6 * flick; });
-  engineLight.intensity = thr * 900;
-  engineLight.color.setRGB(0.42 + atmo * 0.5, 0.55, 1.0);
+  engineLight.intensity = thr * 900 * (DRIVES[ship.drive].am ? 1.8 : 1);
+  {
+    const dl = DRIVES[ship.drive].light;
+    engineLight.color.setRGB(dl[0] + atmo * 0.35, dl[1], dl[2]);
+  }
   _v1.set(0, -0.2, -10).applyQuaternion(ship.quat).add(shipRoot.position);
   engineLight.position.copy(_v1);
 
@@ -11051,6 +11875,7 @@ function drawMFD(i) {
       ['MACH', ship.mach > 0.01 ? ship.mach.toFixed(2) : '—'],
       ['Q', ship.q > 1 ? (ship.q / 1000).toFixed(1) + ' kPa' : '—'],
       ['G', ship.gForce.toFixed(2)],
+      ['DRIVE', DRIVES[ship.drive].short],
       ['TGT', ship.target ? ship.target.name : '—']
     ];
     lines.forEach((l, k) => {
@@ -11437,16 +12262,20 @@ window.ODYSSEY = {
      walker, at a fixed step and without drawing anything. */
   sim: function (seconds, step) {
     const dt = step || 0.05;
-    const n = Math.min(Math.ceil(seconds / dt), 200000);
+    const n = Math.min(Math.ceil(seconds / dt), 400000);
+    let simT = 0;
     for (let i = 0; i < n; i++) {
       autoStep(dt);
       readFlightInput(dt);
-      if (eva.active) { stepPhysics(dt, 1); evaStep(dt, input); }
-      else stepPhysics(dt, WARPS[ship.warpIdx]);
+      if (eva.active) { stepPhysics(dt, 1); evaStep(dt, input); simT += dt; }
+      else { const w = WARPS[ship.warpIdx]; stepPhysics(dt, w); simT += dt * w; }
       applyInfiniteFuel();
     }
-    return n * dt;
+    return { t: n * dt, simT: simT };
   },
+  /* back to the opening state: 420 km circular over Earth */
+  reset: function () { initOrbit(); updateShipState(); return 'LEO'; },
+  drive: { set: setDrive, list: DRIVES, gLimit: setGLimit, state: driveState },
   auto: { state: auto, land: autoLandStart, abort: autoAbort, status: autoStatus,
           infinite: setInfiniteFuel,
           /* Headless fast-forward: run the autopilot and the physics with a
@@ -11455,17 +12284,18 @@ window.ODYSSEY = {
              in however many frames a software rasteriser managed. */
           sim: function (seconds, step) {
             const dt = step || 0.05;
-            const n = Math.min(Math.ceil(seconds / dt), 200000);
+            const n = Math.min(Math.ceil(seconds / dt), 400000);
+            let simT = 0;
             for (let i = 0; i < n; i++) {
               autoStep(dt);
               readFlightInput(dt);
-              if (eva.active) { stepPhysics(dt, 1); evaStep(dt, input); }
-              else stepPhysics(dt, WARPS[ship.warpIdx]);
+              if (eva.active) { stepPhysics(dt, 1); evaStep(dt, input); simT += dt; }
+              else { const w = WARPS[ship.warpIdx]; stepPhysics(dt, w); simT += dt * w; }
               applyInfiniteFuel();
               if (ship.landed || auto.mode === 'off' || auto.phase === 'done')
-                return { t: i * dt, landed: ship.landed };
+                return { t: i * dt, simT: simT, landed: ship.landed };
             }
-            return { t: n * dt, landed: ship.landed };
+            return { t: n * dt, simT: simT, landed: ship.landed };
           } },
   lore: { region: regionSpecies, planet: planetLore, body: loreForBody,
           near: function () { return nearSites.map(n => ({ name: n.st.name, kind: n.st.kind,
@@ -11514,6 +12344,8 @@ window.ODYSSEY = {
     ship.quat.setFromRotationMatrix(_m1.lookAt(v3(0, 0, 0), _v5.copy(_v4).negate(), _v2));
     ship.soi = b; ship.gearDown = true; ship.gearAnim = 1;
     ship.skinT = 250; ship.throttle = 0; ship.sas = true; ship.sasMode = 'stab';
+    ship.rho = 0; ship.q = 0; ship.mach = 0; ship.heatRate = 0; ship.reentry = 0;
+    ship.onGround = false; ship.landed = false; ship.contacts = 0; ship.restT = 0;
     cam.mode = 0; cam.yaw = 0; cam.pitch = 0.12;
     updateShipState();
     return name + ' drop at ' + fmtDist(bestH) + ' elevation';
