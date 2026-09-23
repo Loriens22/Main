@@ -111,6 +111,10 @@ export class Game {
     this.camRig.obstacles = this.bus.staticColliders;
     this.mirrors = new Mirrors(this.engine, this.rig, QUALITY[this.engine.quality].mirrors);
     this.player = new Player(this.bus, this.rig, (x, z) => { const v = occ.get(x, z); return v === 2 ? 0.15 : 0; });
+    this.player.setObstacles(this.bus.staticColliders, [
+      ...this.cat.poles.map((p) => ({ x: p.x, z: p.z, r: 0.24 })),
+      ...reg.trees.map((t) => ({ x: t.x, z: t.z, r: 0.22 * (t.s || 1) })),
+    ]);
     this.ui = new UI(this);
     this.busPts = [];
     this.stats = { t0: 0, violations: 0, collisions: 0, speeding: 0, served: [], announcements: 0, goodAnnouncements: 0, missed: 0, pax: 0, maxJerk: 0, comfortHits: 0 };

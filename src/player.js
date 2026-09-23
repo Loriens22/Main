@@ -16,6 +16,29 @@ export class Player {
     if (this.inside) return out.set(this.pos.x, this.y + this.eye + b, this.pos.z).applyMatrix4(this.body(this.inside).matrixWorld);
     return out.set(this.pos.x, this.y + this.eye + b, this.pos.z);
   }
+  /** Static obstacles for walking outside: boxes {x,z,h,hd,hw} and circles {x,z,r}, bucketed on a 10 m grid. */
+  setObstacles(boxes, circles) {
+    const C = 10, grid = this.grid = new Map();
+    const put = (i0, i1, j0, j1, o) => { for (let i = i0; i <= i1; i++) for (let j = j0; j <= j1; j++) { const k = i + ',' + j; if (!grid.has(k)) grid.set(k, []); grid.get(k).push(o); } };
+    for (const b of boxes) {
+      const r = Math.hypot(b.hd, b.hw);
+      put(Math.floor((b.x - r) / C), Math.floor((b.x + r) / C), Math.floor((b.z - r) / C), Math.floor((b.z + r) / C), { box: b, c: Math.cos(b.h), s: Math.sin(b.h) });
+    }
+    for (const c of circles) put(Math.floor((c.x - c.r) / C), Math.floor((c.x + c.r) / C), Math.floor((c.z - c.r) / C), Math.floor((c.z + c.r) / C), { circ: c });
+  }
+  /** True when a 0.25 m radius body at (x,z) overlaps a static obstacle. */
+  worldHit(x, z) {
+    const list = this.grid?.get(Math.floor(x / 10) + ',' + Math.floor(z / 10));
+    if (!list) return false;
+    const R = 0.25;
+    for (const o of list) {
+      if (o.circ) { const c = o.circ; if ((x - c.x) ** 2 + (z - c.z) ** 2 < (c.r + R) ** 2) return true; continue; }
+      const b = o.box, dx = x - b.x, dz = z - b.z;
+      const lx = dx * o.c + dz * o.s, lz = -dx * o.s + dz * o.c;
+      if (Math.abs(lx) < b.hd + R && Math.abs(lz) < b.hw + R) return true;
+    }
+    return false;
+  }
   placeWorld(x, z) { this.inside = null; this.pos.set(x, 0, z); this.y = this.heightAt(x, z); }
   /** Local position → section lookup. */
   toLocal(sec, world) { return world.clone().applyMatrix4(new THREE.Matrix4().copy(this.body(sec).matrixWorld).invert()); }
@@ -33,7 +56,11 @@ export class Player {
     if (!this.inside) {
       const nx = this.pos.x + wx, nz = this.pos.z + wz;
       const hit = this.busHit(nx, nz);
-      if (!hit) { this.pos.x = nx; this.pos.z = nz; }
+      if (!hit && this.worldHit(nx, nz) && !this.worldHit(this.pos.x, this.pos.z)) {
+        // slide along walls / around poles
+        if (!this.worldHit(nx, this.pos.z) && !this.busHit(nx, this.pos.z)) this.pos.x = nx;
+        else if (!this.worldHit(this.pos.x, nz) && !this.busHit(this.pos.x, nz)) this.pos.z = nz;
+      } else if (!hit) { this.pos.x = nx; this.pos.z = nz; }
       else if (hit.door) {
         // step in through an open door
         this.inside = hit.sec; this.pos.copy(hit.local); this.pos.x = B.hw - 0.35; this.pos.y = 0;
