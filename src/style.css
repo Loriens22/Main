@@ -82,6 +82,7 @@ button { font: inherit; color: inherit; touch-action: none; }
 .ic.on { color: #fff; background: rgba(255,255,255,.14); }
 .ic.warn { color: #111; background: var(--yellow); }
 .ic.bad { color: #fff; background: #d33; }
+#icStop.bad { animation: blink .9s steps(2) infinite; }
 .ic.ind.on { color: #1a1; background: #7f7; }
 
 #minimap {
@@ -97,6 +98,7 @@ button { font: inherit; color: inherit; touch-action: none; }
 #toast.show { opacity: 1; }
 #toast.bad { background: rgba(170,20,20,.85); }
 #toast.good { background: rgba(20,120,50,.85); }
+#toast.warn { background: rgba(225,160,0,.92); color: #1c1400; }
 #subtitle {
   position: absolute; left: 50%; bottom: calc(12px + var(--safe-b)); transform: translateX(-50%) scale(var(--ui)); transform-origin: 50% 100%;
   padding: 6px 14px; border-radius: 8px; background: rgba(0,0,0,.6); color: #ffcf6a; font-size: 15px; font-weight: 600;

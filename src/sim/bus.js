@@ -90,6 +90,16 @@ export class Bus {
     let F = 0;
     const powered = this.power || this.battery;
     const canDrive = !anyDoor && !this.park && powered && (this.gear === 'D' || this.gear === 'R');
+    // tell the driver why the pedal does nothing
+    this.hintT = Math.max(0, (this.hintT || 0) - dt);
+    if (!canDrive && this.throttle > 0.3 && this.hintT <= 0) {
+      this.hintT = 3.5;
+      const why = anyDoor ? (rig.doors.some((d) => d.blocked) ? 'Блокировка на вратите — пътници още се качват' : 'Блокировка: затворете вратите (ВРАТИ / O)')
+        : this.park ? 'Освободете ръчната спирачка (P)'
+          : !powered ? 'Няма напрежение — вдигнете щангите (ЩАНГИ / T)'
+            : 'Изберете посока D или R';
+      this.ev('msg', why, 'bad');
+    }
     // traction/brake controllers ramp their demand (jerk limitation of the Škoda drive, ~1.2 m/s³)
     this.thrEff = this.thrEff || 0; this.brkEff = this.brkEff || 0;
     const thrT = canDrive ? this.throttle : 0;

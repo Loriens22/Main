@@ -141,6 +141,12 @@ export class Audio {
     });
     return 1.55;
   }
+  /** Passenger stop-request bell (two short electronic tones). */
+  stopBell() {
+    if (!this.ctx) return;
+    this.tone(1318.5, 0.35, 'sine', 0.16, null, 0);
+    this.tone(987.8, 0.55, 'sine', 0.16, null, 0.22);
+  }
   doorOpen() { this.noiseBurst(0.9, 2600, 0.8, 0.25); this.tone(95, 0.25, 'sine', 0.3, null, 0.75); }
   doorWarn() { for (let k = 0; k < 3; k++) this.tone(2150, 0.14, 'square', 0.05, null, k * 0.36); }
   doorClose() { this.noiseBurst(0.7, 2200, 0.8, 0.2); this.tone(80, 0.3, 'sine', 0.35, null, 0.62); }

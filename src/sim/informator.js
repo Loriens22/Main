@@ -78,7 +78,9 @@ export class Informator {
     }
     const cur = this.idx < this.seq.length ? this.seq[this.idx] : null;
     const clock = info?.clock || '';
-    const d = info?.dist !== undefined ? (info.dist >= 1000 ? (info.dist / 1000).toFixed(2) + ' км' : Math.round(info.dist) + ' м') : '';
+    // distance to the stop the next message refers to
+    const dist = cur && info?.distTo ? info.distTo(cur.stop) : info?.dist;
+    const d = dist !== undefined ? (dist >= 1000 ? (dist / 1000).toFixed(2) + ' км' : Math.round(dist) + ' м') : '';
     return [
       pad('ТБ9 БОРОВО-ПЛ.СТ.ГАРА'),
       pad((cur ? '►' + cur.lcd : '► КРАЙ НА МАРШРУТА')),

@@ -21,7 +21,7 @@ for (const s of list) {
   if (s.w) await page.setViewportSize({ width: s.w, height: s.h });
   try { const r = await page.evaluate(s.code); if (r !== undefined) console.log(s.name, JSON.stringify(r).slice(0, 3000)); } catch (e) { console.log(s.name, 'error', e.message); }
   await page.waitForTimeout(s.wait || 400);
-  await page.screenshot({ path: `tools/out/${s.name}.png` });
+  try { await page.screenshot({ path: `tools/out/${s.name}.png`, timeout: 90000 }); } catch (e) { console.log(s.name, 'screenshot failed'); }
 }
 console.log(logs.slice(0, 60).join('\n'));
 await browser.close();

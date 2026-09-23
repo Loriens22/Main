@@ -151,6 +151,7 @@ export class UI {
     const g = this.g;
     $('bClose').addEventListener('click', () => $('menu').classList.add('hidden'));
     $('optQuality').addEventListener('change', (e) => g.setQuality(e.target.value));
+    $('optTime').addEventListener('change', (e) => g.setTimeOfDay(e.target.value));
     $('optDynRes').addEventListener('change', (e) => { g.engine.dynRes = e.target.checked; if (!e.target.checked) { g.engine.resScale = 1; g.engine.resize(); } });
     $('optMirrors').addEventListener('change', (e) => { g.mirrors.enabled = e.target.checked; });
     $('optShadows').addEventListener('change', (e) => { g.engine.sun.castShadow = e.target.checked; });
@@ -234,6 +235,7 @@ export class UI {
     for (const g of ['D', 'N', 'R']) $('b' + g).classList.toggle('on', s.gear === g);
     $('bPark').classList.toggle('on', s.park); $('bPark').classList.toggle('warn', !s.park && Math.abs(s.v) < 0.1 && s.gear === 'N');
     $('icPark').className = 'ic ' + (s.park ? 'bad' : '');
+    $('icStop').className = 'ic ' + (s.stopReq ? 'bad' : '');
     $('icDoors').className = 'ic ' + (s.doors ? 'warn' : '');
     $('icPoles').className = 'ic ' + (s.power ? 'on' : 'bad');
     $('bPoles').classList.toggle('bad', !s.power); $('bPoles').classList.toggle('blink', !s.power && s.canRaise);

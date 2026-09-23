@@ -116,6 +116,10 @@ export class Game {
       ...reg.trees.map((t) => ({ x: t.x, z: t.z, r: 0.22 * (t.s || 1) })),
     ]);
     this.ui = new UI(this);
+    let tod = 'afternoon';
+    try { tod = localStorage.getItem('tb1650.tod') || tod; } catch (e) { /* storage unavailable */ }
+    this.setTimeOfDay(tod);
+    const todSel = document.getElementById('optTime'); if (todSel) todSel.value = tod;
     this.busPts = [];
     this.stats = { t0: 0, violations: 0, collisions: 0, speeding: 0, served: [], announcements: 0, goodAnnouncements: 0, missed: 0, pax: 0, maxJerk: 0, comfortHits: 0 };
     this.reset();
@@ -291,7 +295,7 @@ export class Game {
     // ---------- informator ----------
     const now = new Date();
     const clock = now.toTimeString().slice(0, 8);
-    const infoLCD = { dist: this.distToNext, clock, pax: this.people.onBoard(), fault: !bus.power };
+    const infoLCD = { dist: this.distToNext, distTo: (k) => Math.max(0, this.route.stops[k].s - (this.sFrontNow || 0)), clock, pax: this.people.onBoard(), fault: !bus.power };
     this.informator.update(dt, infoLCD);
     const lines = this.informator.lines(infoLCD);
     this.rig.informator.set(lines, this.informator.leds);
@@ -314,13 +318,15 @@ export class Game {
     this.audio.update(dt, { v: bus.v, throttle: bus.throttle, brake: bus.brake, power: bus.power, inCab: this.mode === 'walk' ? !!this.player.inside : this.camRig.mode === 'cab' || this.camRig.mode === 'interior', nearTraffic: this.nearTraffic() });
     this.fleet.render(this.engine.camera, this.mode === 'walk' ? cam : { x: bus.hx, z: bus.hz });
     // ---------- render ----------
-    if (this.mode === 'drive' && this.camRig.mode === 'cab') this.mirrors.render(this.scene);
-    this.engine.render();
+    if (!this.noRender) {
+      if (this.mode === 'drive' && this.camRig.mode === 'cab') this.mirrors.render(this.scene);
+      this.engine.render();
+    }
     this.engine.adapt(dt);
     // ---------- HUD ----------
     const st = this.route.stops[Math.min(this.nextStop, this.route.stops.length - 1)];
     this.ui.update(dt, {
-      v: bus.v, gear: bus.gear, park: bus.park, doors: bus.doorsOpen(), power: bus.power, canRaise: bus.canRaisePoles(), ind: bus.indicator, hazard: bus.hazard, kneel: bus.kneelCmd,
+      stopReq: !!this.stopReq, v: bus.v, gear: bus.gear, park: bus.park, doors: bus.doorsOpen(), power: bus.power, canRaise: bus.canRaisePoles(), ind: bus.indicator, hazard: bus.hazard, kneel: bus.kneelCmd,
       doorStates: this.rig.doors.map((d) => d.open), throttle: bus.throttle, brake: bus.brake,
       atStop: this.atStop >= 0, nextName: this.finished ? 'Край на курса' : (this.atStop >= 0 ? this.route.stops[this.atStop].name : st.name), dist: this.distToNext || 0,
       lcd: lines, leds: this.informator.leds, announceHint: this.mode === 'drive' && this.informator.idx < this.expectedAnnouncement() + (this.shouldAnnounceNow() ? 1 : 0) && this.shouldAnnounceNow(),
@@ -381,6 +387,16 @@ export class Game {
       this.nextStop++;
       if (this.nextStop < stops.length) this.ui.toast(`Следваща спирка: ${stops[this.nextStop].name}`);
     }
+    this.sFrontNow = sF;
+    // passengers who get off at the next stop press the „Слизане“ button on the way
+    if (this.atStop >= 0 || this.nextStop >= stops.length) this.stopReq = false;
+    else if (!this.stopReq && this.people.alightingFor(stops[this.nextStop].id) > 0) {
+      const d = stops[this.nextStop].s - sF;
+      if (d < 900 && d > 50 && Math.random() < dt * 0.2) {
+        this.stopReq = true; this.audio.stopBell();
+        this.ui.toast('🔔 Поискана спирка — пътник ще слиза на ' + stops[this.nextStop].name, 'warn');
+      }
+    }
     this.distToNext = this.nextStop < stops.length ? Math.max(0, stops[this.nextStop].s - sF) : 0;
     // end of the modelled section
     if (!this.finished && this.served.has(2) && this.atStop === 2 && !bus.doorsOpen() && !this.people.busy()) {
@@ -422,6 +438,14 @@ export class Game {
       Комфорт (резки маневри): <b>${s.comfortHits}</b><br>
       <div style="font-size:26px;margin-top:8px">Оценка: <b>${score}/100</b></div>`;
     document.getElementById('endPanel').classList.remove('hidden');
+  }
+  setTimeOfDay(key) {
+    const T = this.engine.setTimeOfDay(key);
+    // street lamps and headlights come on towards dusk
+    WM.emissive.emissiveIntensity = T.lamps;
+    this.rig.M.headLo.emissiveIntensity = T.lamps > 1 ? 2.2 : 0;
+    this.rig.M.led.emissiveIntensity = T.lamps > 1 ? 2.2 : 1.6;
+    try { localStorage.setItem('tb1650.tod', key); } catch (e) { /* storage unavailable */ }
   }
   setQuality(q) {
     this.engine.setQuality(q);

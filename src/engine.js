@@ -10,6 +10,14 @@ export const QUALITY = {
   low: { dpr: 1.0, shadow: 1024, shadowRange: 40, mirrors: 192, far: 0.6 },
 };
 
+/** Lighting presets: sun elevation/azimuth (deg, azimuth 180 = south), colours and atmosphere. */
+export const TIMES = {
+  morning: { elev: 17, azim: 112, sun: 0xffdcb8, sunI: 2.9, sky: 0xd6e0ee, gnd: 0x6e6250, hemiI: 0.34, fog: 0xc8d2dc, far: 1500, turb: 4.2, ray: 1.5, mie: 0.006, mieG: 0.8, gain: 0.6, env: 0.66, exp: 1.02, lamps: 0.15 },
+  noon: { elev: 60, azim: 175, sun: 0xfff6ea, sunI: 3.6, sky: 0xe2e8f0, gnd: 0x7a6e58, hemiI: 0.3, fog: 0xc2d0dc, far: 1600, turb: 2.6, ray: 1.1, mie: 0.004, mieG: 0.78, gain: 0.62, env: 0.75, exp: 0.98, lamps: 0.15 },
+  afternoon: { elev: 38, azim: 208, sun: 0xffeccf, sunI: 3.4, sky: 0xdfe6f0, gnd: 0x7a6e58, hemiI: 0.3, fog: 0xc4d2de, far: 1500, turb: 3.2, ray: 1.25, mie: 0.0045, mieG: 0.78, gain: 0.62, env: 0.72, exp: 1.0, lamps: 0.15 },
+  sunset: { elev: 7, azim: 262, sun: 0xffa45c, sunI: 2.7, sky: 0xc4c6da, gnd: 0x6a5642, hemiI: 0.5, fog: 0xd6b49c, far: 1250, turb: 6.5, ray: 2.2, mie: 0.009, mieG: 0.86, gain: 0.58, env: 0.62, exp: 1.14, lamps: 3.2 },
+};
+
 export class Engine {
   constructor(canvas) {
     this.canvas = canvas;
@@ -84,8 +92,29 @@ export class Engine {
     const ring = new THREE.Mesh(new THREE.CylinderGeometry(600, 600, 60, 48, 1, true), new THREE.MeshBasicMaterial({ color: 0x8c9096, side: THREE.BackSide }));
     ring.position.y = 25; envScene.add(ring);
     const rt = pmrem.fromScene(envScene, 0, 0.5, 5000);
+    if (this.envRT) this.envRT.dispose();
+    this.envRT = rt;
     this.scene.environment = rt.texture;
     pmrem.dispose();
+  }
+
+  /** Switches the time of day (sun, sky, fog, ambient and image-based lighting). */
+  setTimeOfDay(key) {
+    const T = TIMES[key] || TIMES.afternoon;
+    this.tod = key;
+    const elev = T.elev * Math.PI / 180, azim = T.azim * Math.PI / 180;
+    this.sunDir.set(Math.sin(azim) * Math.cos(elev), Math.sin(elev), -Math.cos(azim) * Math.cos(elev)).normalize();
+    const u = this.sky.material.uniforms;
+    u.sunPosition.value.copy(this.sunDir);
+    u.turbidity.value = T.turb; u.rayleigh.value = T.ray; u.mieCoefficient.value = T.mie; u.mieDirectionalG.value = T.mieG;
+    u.skyGain.value = T.gain;
+    this.sun.color.set(T.sun); this.sun.intensity = T.sunI;
+    this.hemi.color.set(T.sky); this.hemi.groundColor.set(T.gnd); this.hemi.intensity = T.hemiI;
+    this.fogColor.set(T.fog); this.scene.fog.color.copy(this.fogColor); this.scene.fog.far = T.far;
+    this.scene.environmentIntensity = T.env;
+    this.renderer.toneMappingExposure = T.exp;
+    this.buildEnvironment();
+    return T;
   }
 
   setQuality(q) {
