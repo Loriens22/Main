@@ -27,6 +27,54 @@ float mnoise(vec2 p){ vec2 i = floor(p), f = fract(p); vec2 u = f*f*(3.0-2.0*f);
   return mat;
 }
 
+/**
+ * Parallax-occlusion windows for facade atlases: the roughness map's green channel doubles as a height
+ * field (glass = recessed), the tangent frame comes from screen-space derivatives, so no tangents are needed.
+ */
+function pomFacade(mat, depth = 0.16) {
+  mat.onBeforeCompile = (sh) => {
+    sh.uniforms.pomDepth = { value: depth };
+    sh.vertexShader = sh.vertexShader
+      .replace('#include <common>', '#include <common>\nvarying vec3 vPomW;')
+      .replace('#include <worldpos_vertex>', '#include <worldpos_vertex>\nvPomW = (modelMatrix * vec4(transformed, 1.0)).xyz;');
+    sh.fragmentShader = sh.fragmentShader
+      .replace('#include <common>', '#include <common>\nvarying vec3 vPomW; uniform float pomDepth;')
+      .replace('#include <map_fragment>', `
+vec2 pUv = vMapUv; float pShade = 1.0;
+vec2 duvx = dFdx(vMapUv), duvy = dFdy(vMapUv);
+{
+  vec3 dpx = dFdx(vPomW), dpy = dFdy(vPomW);
+  float det = duvx.x * duvy.y - duvx.y * duvy.x;
+  vec3 V = cameraPosition - vPomW; float dist = length(V); V /= dist;
+  float fade = smoothstep(85.0, 45.0, dist);
+  if (fade > 0.0 && abs(det) > 1e-14 && textureGrad(roughnessMap, vMapUv, duvx, duvy).g < 0.45) {
+    vec3 T = (dpx * duvy.y - dpy * duvx.y) / det, B = (dpy * duvx.x - dpx * duvy.x) / det;
+    vec3 N = normalize(cross(dpx, dpy)); if (dot(N, V) < 0.0) N = -N;
+    float vn = max(dot(V, N), 0.2);
+    vec3 Vt = V - N * dot(V, N);
+    vec2 dir = vec2(dot(Vt, T) / dot(T, T), dot(Vt, B) / dot(B, B)) / vn;
+    float D = pomDepth * fade;
+    for (int i = 1; i <= 10; i++) {
+      vec2 u2 = vMapUv - dir * (D * float(i) / 10.0);
+      if (textureGrad(roughnessMap, u2, duvx, duvy).g > 0.45) { pUv = u2; pShade = 0.58 + 0.2 * float(i) / 10.0; break; } // reveal
+      pUv = u2; pShade = 0.93;
+    }
+  }
+}
+#ifdef USE_MAP
+  diffuseColor *= textureGrad(map, pUv, duvx, duvy);
+#endif
+diffuseColor.rgb *= pShade;`)
+      .replace('#include <roughnessmap_fragment>', `
+float roughnessFactor = roughness;
+#ifdef USE_ROUGHNESSMAP
+  roughnessFactor *= textureGrad(roughnessMap, pUv, duvx, duvy).g;
+#endif`);
+  };
+  mat.customProgramCacheKey = () => 'pomFacade';
+  return mat;
+}
+
 export function initWorldMaterials() {
   const A = TX.asphalt(1024);
   A.map.repeat.set(1, 1);
@@ -80,7 +128,7 @@ export function initWorldMaterials() {
   // facade atlases
   const fac = (f, name) => {
     const m = std({ name, map: f.map, roughnessMap: f.rough, roughness: 1, metalness: 0.0, envMapIntensity: 1.2, ...vc });
-    return m;
+    return pomFacade(m);
   };
   WM.panelA = fac(TX.panelFacade({ seed: 3, base: [198, 193, 182] }), 'panelA');
   WM.panelB = fac(TX.panelFacade({ seed: 7, base: [176, 178, 176], joint: '#5d5f60' }), 'panelB');
