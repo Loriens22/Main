@@ -104,6 +104,13 @@ window.__dbg = {
       // curves: slow down according to upcoming heading change
       const h0 = r.pose(sF).h, h1 = r.pose(sF + 25).h; const turn = Math.abs(Math.atan2(Math.sin(h1 - h0), Math.cos(h1 - h0)));
       if (turn > 0.3) vT = Math.min(vT, 5);
+      // follow traffic ahead on the bus path
+      for (const c of g.traffic.boxes()) {
+        if (Math.hypot(c.x - fb.x, c.z - fb.z) > 50) continue;
+        const pc = r.bus.project(c.x, c.z); if (!pc || Math.abs(pc.lat) > 2.6) continue;
+        const gap = pc.s - pr.s - c.hd; if (gap < -1 || gap > 45) continue;
+        vT = Math.min(vT, Math.max(0, Math.sqrt(2 * 1.2 * Math.max(0, gap - 4))));
+      }
       if (A.state === 'stopping') { vT = 0; if (Math.abs(b.v) < 0.05) { if (!b.doorsOpen()) b.toggleDoors(); A.state = 'dwell'; A.t = 0; log.push(`arrive ${r.stops[g.nextStop]?.name} err=${(r.stops[g.nextStop].s - sF).toFixed(2)} t=${g.time.toFixed(0)}`); } }
       if (A.state === 'dwell') { vT = 0; A.t += dt; if (A.t > 8 && !g.people.busy() && g.people.waitingAt(r.stops[Math.min(g.nextStop, 2)].id) === 0) { if (b.doorsOpen()) b.toggleDoors(); A.state = 'leaving'; A.t = 0; log.push('depart pax=' + g.people.onBoard()); } if (A.t > 60) { b.toggleDoors(); A.state = 'leaving'; log.push('forced depart'); } }
       if (A.state === 'leaving') { A.t += dt; vT = A.t > 2.5 ? vmax : 0; if (A.t > 2.5 && !b.doorsOpen()) A.state = 'drive2'; }
@@ -111,6 +118,7 @@ window.__dbg = {
       const ev = vT - b.v;
       b.throttle = ev > 0.3 ? Math.min(1, ev * 0.5) : 0; b.brake = ev < -0.3 ? Math.min(1, -ev * 0.4) : 0;
       g.frameSim(dt);
+      if (b.lastHit && b.lastHit !== A.lastHit) { A.lastHit = b.lastHit; log.push(`HIT ${JSON.stringify(b.lastHit)} s=${sF.toFixed(0)} v=${b.v.toFixed(1)}`); }
       if (!b.power && !A.dewiredLogged) { A.dewiredLogged = true; log.push(`DEWIRE at s=${sF.toFixed(0)} lat=${b.poles.map(p=>p.lat.toFixed(2))}`); }
     }
     const fb = b.frontBumper(); const pr = r.bus.project(fb.x, fb.z);

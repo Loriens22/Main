@@ -294,10 +294,10 @@ export class Bus {
   }
   checkCollision(traffic) {
     const bx = this.obbs();
-    if (traffic) for (const c of traffic.boxes()) for (const b of bx) if (obbOverlap(b, c)) { c.ref.v = 0; return true; }
+    if (traffic) for (const c of traffic.boxes()) for (const b of bx) if (obbOverlap(b, c)) { c.ref.v = 0; this.lastHit = { kind: 'car', x: c.x, z: c.z, lane: c.ref.lane?.name }; return true; }
     for (const c of this.staticColliders) {
       if (Math.abs(c.x - this.x) > 90 || Math.abs(c.z - this.z) > 90) continue;
-      for (const b of bx) if (obbOverlap(b, c)) return true;
+      for (const b of bx) if (obbOverlap(b, c)) { this.lastHit = { kind: 'static', x: c.x, z: c.z, hd: c.hd, hw: c.hw }; return true; }
     }
     return false;
   }

@@ -23,6 +23,10 @@ browser. On a phone, rotate to landscape and tap **СТАРТ**; the game goes f
   20 ДКЦ, and at 36 СУ the park with a playground, the old school, a small market and modern
   residential blocks. There is catenary over the whole route, traffic lights with bus priority,
   moving and parked traffic, and passengers who board and alight at the doors.
+- **Graphics:** PBR materials with sky-based image lighting, soft sun shadows, ground-truth ambient
+  occlusion (GTAO) reconstructed from the depth buffer, bloom, ACES filmic tone mapping with
+  colour grading, parallax-occlusion window recesses on every facade, and four times-of-day. The quality
+  presets scale this down for weaker phones.
 - **Informator:** press **ИНФОРМАТОР**, one of the BT902 buttons, or tap the 3D unit in the cab. Each
   press plays the chime and then a Bulgarian female voice reads the next message in order:
   „Спирка жилищен комплекс Борово“ → „Следваща спирка 20 диагностично-консултативен център“
@@ -45,7 +49,7 @@ browser. On a phone, rotate to landscape and tap **СТАРТ**; the game goes f
 | Re-raise poles, kneeling | **ЩАНГИ**, **КЛЯКАНЕ** | T, K |
 | Camera (cab / outside / saloon / cinematic) | 🎥, drag to look, pinch to zoom | C |
 
-Graphics quality, dynamic resolution, mirrors, shadows, tilt steering and volume are in the ☰ menu.
+Graphics quality, time of day, dynamic resolution, mirrors, shadows, tilt steering and volume are in the ☰ menu. Tap the BT902 header to fold the unit down to its screen.
 
 ### Building from source
 ```
