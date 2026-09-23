@@ -124,7 +124,11 @@ export class Game {
     this.stats = { t0: 0, violations: 0, collisions: 0, speeding: 0, served: [], announcements: 0, goodAnnouncements: 0, missed: 0, pax: 0, maxJerk: 0, comfortHits: 0 };
     this.reset();
     // warm up shaders
-    this.engine.renderer.compile(scene, this.engine.camera);
+    // (into the post-processing target when active: its programs differ from the screen variants)
+    const rr = this.engine.renderer;
+    if (this.engine.post.enabled) rr.setRenderTarget(this.engine.post.rt);
+    rr.compile(scene, this.engine.camera);
+    rr.setRenderTarget(null);
     await step(1, `Готово · ${nChunks} групи геометрия`);
     this.ready = true;
     window.__ready = true;
@@ -320,7 +324,7 @@ export class Game {
     // ---------- render ----------
     if (!this.noRender) {
       if (this.mode === 'drive' && this.camRig.mode === 'cab') this.mirrors.render(this.scene);
-      this.engine.render();
+      this.engine.render(undefined, undefined, dt);
     }
     this.engine.adapt(dt);
     // ---------- HUD ----------

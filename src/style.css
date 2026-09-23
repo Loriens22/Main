@@ -139,6 +139,9 @@ button { font: inherit; color: inherit; touch-action: none; }
   width: 34px; height: 34px; border-radius: 50%; border: 0;
   background: radial-gradient(circle at 40% 35%, #555, #151515 60%, #050505); box-shadow: 0 0 0 2px #9a9a9a, 0 2px 4px #000;
 }
+#bt902.mini .bt-leds, #bt902.mini .bt-knob-wrap, #bt902.mini .bt-foot { display: none; }
+#bt902.mini { transform: scale(calc(var(--ui) * .72)); }
+.bt-head { cursor: pointer; }
 .bt-foot { display: flex; align-items: center; justify-content: space-between; margin-top: 5px; }
 .usb { font: 600 8px/1 Arial; color: #ddd; display: flex; gap: 3px; align-items: center; }
 .usb i { width: 14px; height: 7px; background: #bbb; border: 1px solid #666; display: inline-block; }

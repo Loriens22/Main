@@ -2,6 +2,7 @@ import * as THREE from 'three';
 import { Sky } from 'three/addons/objects/Sky.js';
 import { setMaxAniso } from './textures.js';
 import { clamp } from './util.js';
+import { Post } from './post.js';
 
 export const QUALITY = {
   ultra: { dpr: 2.0, shadow: 4096, shadowRange: 70, mirrors: 512, far: 1.0 },
@@ -72,6 +73,9 @@ export class Engine {
     this.scene.environmentIntensity = 0.72;
     this.setShadowRange(60);
     this.buildEnvironment();
+    this.post = new Post(renderer, this.scene, this.camera);
+    this.post.setLevel(this.quality);
+    this.time = 0;
     this.resize();
     window.addEventListener('resize', () => this.resize());
   }
@@ -123,6 +127,7 @@ export class Engine {
     this.sun.shadow.mapSize.set(Q.shadow, Q.shadow);
     if (this.sun.shadow.map) { this.sun.shadow.map.dispose(); this.sun.shadow.map = null; }
     this.setShadowRange(Q.shadowRange);
+    this.post.setLevel(q);
     this.resScale = 1;
     this.resize();
   }
@@ -178,7 +183,9 @@ export class Engine {
     if (old !== this.resScale) this.resize();
   }
 
-  render(scene, camera) {
-    this.renderer.render(scene || this.scene, camera || this.camera);
+  render(scene, camera, dt = 1 / 60) {
+    this.time += dt;
+    if (this.post.enabled && !scene && !camera) this.post.render(this.time);
+    else this.renderer.render(scene || this.scene, camera || this.camera);
   }
 }

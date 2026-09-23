@@ -178,6 +178,13 @@ export class UI {
     const g = this.g;
     document.querySelectorAll('.bt-b').forEach((b) => b.addEventListener('pointerdown', (e) => { e.preventDefault(); g.audio.init(); g.informatorKey(+b.dataset.k); }));
     $('btKnob').addEventListener('pointerdown', (e) => { e.preventDefault(); g.audio.init(); g.informator.knob(); });
+    // tap the header to fold the unit down to its screen (more windscreen on small phones)
+    const bt = $('bt902');
+    try { if (localStorage.getItem('tb1650.btMini') === '1') bt.classList.add('mini'); } catch (e) { /* storage unavailable */ }
+    bt.querySelector('.bt-head').addEventListener('pointerdown', (e) => {
+      e.preventDefault(); bt.classList.toggle('mini');
+      try { localStorage.setItem('tb1650.btMini', bt.classList.contains('mini') ? '1' : '0'); } catch (err) { /* storage unavailable */ }
+    });
   }
   openMenu() {
     $('menu').classList.remove('hidden');

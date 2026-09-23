@@ -116,5 +116,12 @@ window.__dbg = {
     const fb = b.frontBumper(); const pr = r.bus.project(fb.x, fb.z);
     return { s: +(pr.s - r.busOffset).toFixed(1), lat: +pr.lat.toFixed(2), v: +(b.v * 3.6).toFixed(1), next: g.nextStop, pax: g.people.onBoard(), power: b.power, stats: g.stats, log };
   },
-  info() { const r = game.engine.renderer.info; return { calls: r.render.calls, tris: r.render.triangles, geos: r.memory.geometries, tex: r.memory.textures, progs: r.programs.length }; },
+  info() {
+    const R = game.engine.renderer, r = R.info;
+    // count every pass of one frame (shadows, mirrors, scene, post)
+    r.autoReset = false; r.reset(); game.frame(1 / 60); r.autoReset = true;
+    return { calls: r.render.calls, tris: r.render.triangles, geos: r.memory.geometries, tex: r.memory.textures, progs: r.programs.length };
+  },
+  /** Average ms per rendered frame (headless numbers are only useful relative to each other). */
+  bench(n = 6) { const t0 = performance.now(); for (let i = 0; i < n; i++) game.frame(1 / 60); game.engine.renderer.getContext().finish(); return +((performance.now() - t0) / n).toFixed(1); },
 };
