@@ -31,50 +31,96 @@ const TYPES = {
 };
 TYPES.taxi = { ...TYPES.sedan, taxi: true };
 
-function ringPoints(s) {
-  const [x, hw, y0, yb, cab, yt, rw] = s;
-  const top = cab ? yt : yb + 0.002, rwi = cab ? rw : hw * 0.9;
-  // closed loop, left → right over the top (z = lateral)
-  return [
-    [x, y0, -hw * 0.9], [x, y0 + 0.14, -hw], [x, yb - 0.06, -hw], [x, yb, -hw * 0.97],
-    [x, top - 0.05, -rwi], [x, top, -rwi * 0.82], [x, top, rwi * 0.82], [x, top - 0.05, rwi],
-    [x, yb, hw * 0.97], [x, yb - 0.06, hw], [x, y0 + 0.14, hw], [x, y0, hw * 0.9],
-  ];
+// Cross-section of one station: 22 points, left sill → over the roof → right sill (closed loop).
+// Segment zones by index: 0-5 lower body, 6 side window band, 7-10 roof / hood, mirrored after that, 21 underside.
+const RING_N = 22;
+const ZONE = []; for (let j = 0; j < RING_N; j++) { const k = j < 11 ? j : 20 - j; ZONE.push(j === 21 ? 'bot' : k <= 5 ? 'low' : k === 6 ? 'win' : 'top'); }
+function ringHalf(s) {
+  const [, hw, y0, yb, cab, yt, rw] = s;
+  const mid = (y0 + 0.14 + yb - 0.07) / 2;
+  const low = [[y0, hw * 0.86], [y0 + 0.05, hw * 0.96], [y0 + 0.14, hw * 0.995], [mid, hw], [yb - 0.07, hw * 0.995], [yb - 0.015, hw * 0.975]];
+  const up = cab
+    ? [[yb + 0.012, hw * 0.955], [yt - 0.06, rw + 0.015], [yt - 0.024, rw * 0.97], [yt - 0.004, rw * 0.86], [yt, rw * 0.5]]
+    : [[yb + 0.004, hw * 0.945], [yb + 0.012, hw * 0.9], [yb + 0.02, hw * 0.82], [yb + 0.026, hw * 0.7], [yb + 0.03, hw * 0.5]];
+  return low.concat(up); // 11 × [y, |z|]
+}
+/** Monotone Catmull-Rom (no overshoot between the two middle samples). */
+function mcr(a, b, c, d, t) {
+  const v = b + 0.5 * t * (c - a + t * (2 * a - 5 * b + 4 * c - d + t * (3 * (b - c) + d - a)));
+  return Math.min(Math.max(v, Math.min(b, c)), Math.max(b, c));
 }
 
 function buildCarGeometry(type) {
   const T = TYPES[type];
-  const rings = T.st.map(ringPoints);
-  const body = [], glass = [];
-  const push = (arr, a, b, c) => arr.push(...a, ...b, ...c);
-  const n = rings[0].length;
-  for (let i = 0; i < rings.length - 1; i++) {
-    const A = rings[i], Bb = rings[i + 1];
-    const ca = T.st[i][4], cbb = T.st[i + 1][4];
-    for (let j = 0; j < n; j++) {
-      const j2 = (j + 1) % n;
-      if (j === n - 1) { /* bottom closing strip */ }
-      let isGlass = false;
-      const winA = T.st[i][7], winB = T.st[i + 1][7];
-      if ((j === 3 || j === 7) && ca && cbb && (winA || winB)) isGlass = true; // side windows
-      if (j >= 4 && j <= 6 && ca !== cbb) isGlass = true; // windscreen / rear window
-      if ((j === 3 || j === 7) && ca !== cbb && (winA || winB)) isGlass = true;
-      const arr = isGlass ? glass : body;
-      push(arr, A[j], Bb[j], Bb[j2]); push(arr, A[j], Bb[j2], A[j2]);
+  const st = T.st, NS = st.length;
+  const halves = st.map(ringHalf);
+  // longitudinal samples: every station, ~0.22 m in between, and dense around the wheel arches
+  const R = T.wr + 0.065, axles = [-T.wb / 2, T.wb / 2];
+  let xs = [];
+  for (let i = 0; i < NS - 1; i++) { const a = st[i][0], b = st[i + 1][0], n = Math.max(1, Math.ceil((b - a) / 0.22)); for (let k = 0; k < n; k++) xs.push(a + (b - a) * k / n); }
+  xs.push(st[NS - 1][0]);
+  for (const ax of axles) for (let k = 0; k <= 12; k++) xs.push(ax + R * Math.cos(Math.PI * k / 12));
+  xs.sort((a, b) => a - b);
+  xs = xs.filter((x, i) => i === 0 || x - xs[i - 1] > 0.015);
+  // interpolated half-section of every sample (+ the station interval it lies in, for glass)
+  const secs = xs.map((x) => {
+    let i = 0; while (i < NS - 2 && x >= st[i + 1][0]) i++;
+    const t = clamp((x - st[i][0]) / (st[i + 1][0] - st[i][0] || 1), 0, 1);
+    const A = halves[Math.max(0, i - 1)], Bh = halves[i], C = halves[i + 1], D = halves[Math.min(NS - 1, i + 2)];
+    const pts = Bh.map((_, j) => [mcr(A[j][0], Bh[j][0], C[j][0], D[j][0], t), mcr(A[j][1], Bh[j][1], C[j][1], D[j][1], t)]);
+    // wheel arch: lift the sill line over the tyre
+    for (const ax of axles) {
+      const dx = x - ax; if (Math.abs(dx) >= R) continue;
+      const ya = Math.min(T.wr + Math.sqrt(R * R - dx * dx), pts[5][0] - 0.12);
+      for (let j = 0; j <= 4; j++) pts[j][0] = Math.max(pts[j][0], ya + j * 0.012);
+    }
+    return { x, i, pts };
+  });
+  const S = secs.length;
+  const pos = [], col = [];
+  for (const sc of secs) {
+    const ring = []; for (let j = 0; j < 11; j++) ring.push([sc.pts[j][0], -sc.pts[j][1]]);
+    for (let j = 10; j >= 0; j--) ring.push([sc.pts[j][0], sc.pts[j][1]]);
+    ring.forEach(([y, z], j) => {
+      pos.push(sc.x, y, z);
+      const k = j < 11 ? j : 21 - j; const c = k === 0 ? 0.08 : k === 1 ? 0.3 : 1; // dark underside and wheel wells
+      col.push(c, c, c);
+    });
+  }
+  const bodyIdx = [], glassIdx = [];
+  // winding: the roof quad must face up
+  const P = (a, j) => new THREE.Vector3().fromArray(pos, (a * RING_N + j) * 3);
+  const m0 = Math.floor(S / 2), e1 = P(m0 + 1, 10).sub(P(m0, 10)), e2 = P(m0 + 1, 11).sub(P(m0, 10));
+  const flipQ = e1.cross(e2).y < 0;
+  for (let a = 0; a < S - 1; a++) {
+    const iv = secs[a].i;
+    const A0 = st[iv], A1 = st[Math.min(NS - 1, iv + 1)];
+    const ca = !!A0[4], cb = !!A1[4], wA = !!A0[7], wB = !!A1[7];
+    for (let j = 0; j < RING_N; j++) {
+      const j2 = (j + 1) % RING_N, z = ZONE[j];
+      const glass = (z === 'win' && ca && cb && (wA || wB)) || (z === 'top' && ca !== cb);
+      const q = [a * RING_N + j, (a + 1) * RING_N + j, (a + 1) * RING_N + j2, a * RING_N + j2];
+      if (flipQ) (glass ? glassIdx : bodyIdx).push(q[0], q[2], q[1], q[0], q[3], q[2]);
+      else (glass ? glassIdx : bodyIdx).push(q[0], q[1], q[2], q[0], q[2], q[3]);
     }
   }
   // end caps
-  for (const [ring, flip] of [[rings[0], true], [rings[rings.length - 1], false]]) {
-    const c = ring.reduce((a, p) => [a[0] + p[0] / n, a[1] + p[1] / n, a[2] + p[2] / n], [0, 0, 0]);
-    for (let j = 0; j < n; j++) { const a = ring[j], b = ring[(j + 1) % n]; if (flip) push(body, c, b, a); else push(body, c, a, b); }
+  for (const [a, sx] of [[0, -1], [S - 1, 1]]) {
+    const c = [0, 0, 0]; for (let j = 0; j < RING_N; j++) for (let k = 0; k < 3; k++) c[k] += pos[(a * RING_N + j) * 3 + k] / RING_N;
+    const ci = pos.length / 3; pos.push(...c); col.push(1, 1, 1);
+    // the cap must face outwards (−x at the rear, +x at the front)
+    const C = new THREE.Vector3().fromArray(c), f1 = P(a, 10).sub(C), f2 = P(a, 11).sub(C);
+    const flip = Math.sign(f1.cross(f2).x) !== sx;
+    for (let j = 0; j < RING_N; j++) { const p = a * RING_N + j, q = a * RING_N + (j + 1) % RING_N; if (flip) bodyIdx.push(ci, q, p); else bodyIdx.push(ci, p, q); }
   }
-  const mk = (arr) => { const g = new THREE.BufferGeometry(); g.setAttribute('position', new THREE.Float32BufferAttribute(arr, 3)); g.computeVertexNormals(); return g; };
-  const bodyG = mk(body), glassG = mk(glass);
-  // make normals point outwards (check the roof)
-  fixOutward(bodyG); fixOutward(glassG);
-  // smooth-ish shading: merge vertices then recompute normals
-  const smooth = (g) => { const m = mergeVerts(g); m.computeVertexNormals(); return m; };
-  const bodyS = smooth(bodyG);
+  const mkI = (idx) => {
+    const g = new THREE.BufferGeometry();
+    g.setAttribute('position', new THREE.Float32BufferAttribute(pos, 3));
+    g.setAttribute('color', new THREE.Float32BufferAttribute(col, 3));
+    g.setIndex(idx); g.computeVertexNormals();
+    return g;
+  };
+  const bodyS = mkI(bodyIdx), glassG = mkI(glassIdx);
 
   // trim: bumpers, grille, mirrors, arches, plate
   const trim = [], lights = [], wheels = [], rims = [];
@@ -90,11 +136,22 @@ function buildCarGeometry(type) {
     lights.push(xform(prepGeo(roundedBox(0.06, 0.12, 0.3, 0.03), 0xb0100a), mat(-L2 + 0.04, rear[3] - 0.08, s * (hw - 0.22))));
   }
   // wheels
-  const tire = new THREE.CylinderGeometry(T.wr, T.wr, 0.22, 20).rotateX(Math.PI / 2);
-  const rim = new THREE.CylinderGeometry(T.wr * 0.62, T.wr * 0.62, 0.225, 16).rotateX(Math.PI / 2);
+  // rounded tyre (lathe) and a dished five-spoke rim facing outwards
+  const r = T.wr, V2 = (a, b) => new THREE.Vector2(a * r, b);
+  const tire = new THREE.LatheGeometry([V2(0.63, -0.104), V2(0.8, -0.112), V2(0.93, -0.1), V2(0.985, -0.068), V2(1, 0), V2(0.985, 0.068), V2(0.93, 0.1), V2(0.8, 0.112), V2(0.63, 0.104)], 28).rotateX(Math.PI / 2);
+  const rimParts = [
+    new THREE.LatheGeometry([V2(0.66, 0.1), V2(0.63, 0.1), V2(0.55, 0.05), V2(0.2, 0.07), V2(0.16, 0.075), V2(0.01, 0.075)], 24).rotateX(Math.PI / 2),
+    new THREE.CylinderGeometry(0.07 * r / 0.31, 0.08 * r / 0.31, 0.03, 12).rotateX(Math.PI / 2).translate(0, 0, 0.09),
+  ];
+  for (let k = 0; k < 5; k++) {
+    const a = (k / 5) * Math.PI * 2;
+    rimParts.push(new THREE.BoxGeometry(0.46 * r, 0.075 * r, 0.03).translate(0.36 * r, 0, 0.078).rotateZ(a));
+  }
+  const rim = mergeGeometries(rimParts.map((g) => prepGeo(g)), false);
   for (const sx of [-1, 1]) for (const sz of [-1, 1]) {
     wheels.push(xform(prepGeo(tire), mat(sx * T.wb / 2, T.wr, sz * T.track / 2)));
-    rims.push(xform(prepGeo(rim), mat(sx * T.wb / 2, T.wr, sz * (T.track / 2 + 0.005))));
+    // rim geometry faces +z; turn it around for the left-hand wheels
+    rims.push(xform(prepGeo(rim), mat(sx * T.wb / 2, T.wr, sz * (T.track / 2 + 0.005), 0, sz > 0 ? 0 : Math.PI, 0)));
   }
   if (T.taxi) {
     trim.push(xform(prepGeo(roundedBox(0.35, 0.14, 0.6, 0.04), 0xf2c200), mat(-0.2, 1.52, 0)));
@@ -107,30 +164,6 @@ function buildCarGeometry(type) {
     L: T.L, W: T.W, type,
   };
 }
-function fixOutward(g) {
-  const p = g.attributes.position.array;
-  for (let i = 0; i < p.length; i += 9) {
-    // centroid vs normal: outward if dot(n, centroid - (0, 0.8, 0)) > 0
-    const ax = p[i + 3] - p[i], ay = p[i + 4] - p[i + 1], az = p[i + 5] - p[i + 2];
-    const bx = p[i + 6] - p[i], by = p[i + 7] - p[i + 1], bz = p[i + 8] - p[i + 2];
-    const nx = ay * bz - az * by, ny = az * bx - ax * bz, nz = ax * by - ay * bx;
-    const cx = (p[i] + p[i + 3] + p[i + 6]) / 3, cy = (p[i + 1] + p[i + 4] + p[i + 7]) / 3 - 0.8, cz = (p[i + 2] + p[i + 5] + p[i + 8]) / 3;
-    if (nx * cx * 0.3 + ny * cy + nz * cz < 0) { for (let k = 0; k < 3; k++) { const t = p[i + 3 + k]; p[i + 3 + k] = p[i + 6 + k]; p[i + 6 + k] = t; } }
-  }
-  g.computeVertexNormals();
-}
-function mergeVerts(g) {
-  // weld identical positions so normals are smoothed
-  const p = g.attributes.position.array; const map = new Map(); const verts = []; const idx = [];
-  for (let i = 0; i < p.length; i += 3) {
-    const k = `${p[i].toFixed(3)},${p[i + 1].toFixed(3)},${p[i + 2].toFixed(3)}`;
-    let id = map.get(k); if (id === undefined) { id = verts.length / 3; verts.push(p[i], p[i + 1], p[i + 2]); map.set(k, id); }
-    idx.push(id);
-  }
-  const out = new THREE.BufferGeometry(); out.setAttribute('position', new THREE.Float32BufferAttribute(verts, 3)); out.setIndex(idx);
-  return out;
-}
-
 export const CAR_COLORS = [0xe8e8e8, 0xf4f4f2, 0x1b1c1e, 0x2a2d31, 0x8d949b, 0xa9afb4, 0x5f666d, 0x7a1414, 0xa5231f, 0x1f3f7a, 0x23508f, 0x2f5d3a, 0x6b5a3e, 0xc9b99a, 0x3a4a5a, 0x8a1c3b];
 
 export class CarFleet {
@@ -138,7 +171,7 @@ export class CarFleet {
     this.scene = scene;
     const plateTex = TX.plate('CB 9016 KM');
     this.mats = {
-      body: new THREE.MeshPhysicalMaterial({ color: 0xffffff, roughness: 0.32, metalness: 0.35, clearcoat: 1, clearcoatRoughness: 0.08 }),
+      body: new THREE.MeshPhysicalMaterial({ color: 0xffffff, roughness: 0.32, metalness: 0.35, clearcoat: 1, clearcoatRoughness: 0.08, vertexColors: true }),
       glass: new THREE.MeshPhysicalMaterial({ color: 0x0f1418, roughness: 0.03, metalness: 0.2, envMapIntensity: 1.8 }),
       trim: new THREE.MeshStandardMaterial({ color: 0x18191b, roughness: 0.6, vertexColors: true }),
       lights: new THREE.MeshStandardMaterial({ color: 0xffffff, roughness: 0.1, metalness: 0.3, vertexColors: true, envMapIntensity: 2 }),
