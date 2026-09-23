@@ -17,6 +17,7 @@ import { People } from './sim/people.js';
 import { buildTrolleybus, B } from './bus/model.js';
 import { Bus } from './sim/bus.js';
 import { Informator } from './sim/informator.js';
+import { Autopilot } from './sim/autopilot.js';
 import { Audio } from './audio.js';
 import { CameraRig, Mirrors, MODE_NAMES } from './camera.js';
 import { Player } from './player.js';
@@ -69,6 +70,7 @@ export class Game {
     scene.add(this.rig.front, this.rig.rear);
     this.bus = new Bus(this.rig, route, this.cat, (e, a, b) => this.onBusEvent(e, a, b));
     scene.add(this.bus.sparks.points);
+    this.veh = this.bus;
     this.bus.staticColliders = reg.colliders.filter((c) => !c.soft).map((c) => {
       const p = new THREE.Vector3().setFromMatrixPosition(c.M);
       const dir = new THREE.Vector3(1, 0, 0).transformDirection(c.M);
@@ -116,6 +118,7 @@ export class Game {
       ...reg.trees.map((t) => ({ x: t.x, z: t.z, r: 0.22 * (t.s || 1) })),
     ]);
     this.ui = new UI(this);
+    this.auto = new Autopilot(this);
     let tod = 'afternoon';
     try { tod = localStorage.getItem('tb1650.tod') || tod; } catch (e) { /* storage unavailable */ }
     this.setTimeOfDay(tod);
@@ -147,6 +150,7 @@ export class Game {
   }
 
   reset() {
+    if (this.auto) { this.auto.on = false; this.auto.hint = ''; }
     this.bus.placeOnRoute(0);
     this.bus.gear = 'N'; this.bus.park = true; this.bus.passengers = 0;
     for (let i = 0; i < this.rig.doors.length; i++) { const d = this.rig.doors[i]; d.target = 1; d.open = 1; d.pending = 0; }
@@ -176,6 +180,7 @@ export class Game {
   }
 
   enterWalk(silent) {
+    if (this.auto?.on) this.auto.toggle();
     this.mode = 'walk';
     this.camRig.setMode('walk');
     if (!silent) {
@@ -215,22 +220,31 @@ export class Game {
   }
   announce() {
     const inf = this.informator;
-    const expected = this.expectedAnnouncement();
+    // standing at a stop with the doors already closed: the arrival message is over, go straight to "next stop"
+    const k = this.nextStop, N = this.route.stops.length;
+    if (this.atStop === k && !this.veh.doorsOpen() && inf.state === 'run' && inf.idx === this.arrivalIdx(k) && this.served.has(k) && k + 1 < N) inf.idx = k + 1;
+    const due = this.dueAnnouncements();
     const idxBefore = inf.idx;
     inf.announce();
     this.stats.announcements++;
-    if (idxBefore < inf.seq.length && idxBefore === expected) this.stats.goodAnnouncements++;
+    if (idxBefore < inf.seq.length && due.includes(idxBefore)) this.stats.goodAnnouncements++;
   }
-  /** Which message index should be played next given the trip state. */
-  expectedAnnouncement() {
-    if (this.nextStop === 0) return 0;               // at Borovo
-    if (this.nextStop === 1) return 1;               // heading to DCC 20
-    if (this.nextStop === 2) return this.atStopIdx() === 2 ? 3 : 2;
-    return 3;
+  /** Informator message index of the arrival announcement at stop k (only the first and the last stop have one). */
+  arrivalIdx(k) { const N = this.route.stops.length; return k === 0 ? 0 : k === N - 1 ? N : -1; }
+  /** Message indices that are due right now given the trip state. */
+  dueAnnouncements() {
+    const k = this.nextStop, N = this.route.stops.length;
+    if (k >= N) return [];
+    if (this.atStop === k) {
+      const out = [];
+      if (this.arrivalIdx(k) >= 0) out.push(this.arrivalIdx(k));
+      if (k + 1 < N) out.push(k + 1);
+      return out;
+    }
+    return k >= 1 ? [k] : [0];
   }
-  atStopIdx() { return this.atStop; }
   onSay(m, phase) {
-    if (phase === 'chime') this.ui.subtitle('🔔 ' + m.text);
+    if (phase === 'chime') this.ui.subtitle('🔔 ' + (m.show || m.text));
     if (phase === 'novoice') this.ui.toast('Няма инсталиран български глас (TTS) — показан е текст', 'bad');
     if (m.kind === 'next') this.rig.displays.setInterior('Следваща спирка: ' + this.route.stops[m.stop].name);
     else if (m.kind === 'stop') this.rig.displays.setInterior('Спирка: ' + this.route.stops[m.stop].name);
@@ -275,7 +289,12 @@ export class Game {
     // ---------- input ----------
     if (this.mode === 'drive') {
       const inp = this.ui.readDrive(dt, bus);
-      bus.throttle = inp.throttle; bus.brake = inp.brake; bus.steerCmd = clamp(inp.steer, -1, 1);
+      const ap = this.auto.update(dt);
+      if (ap) {
+        bus.throttle = ap.throttle; bus.brake = Math.max(ap.brake, inp.brake);
+        if (ap.steer !== null) { bus.steerCmd = ap.steer; this.ui.setWheel(ap.steer); } else bus.steerCmd = clamp(inp.steer, -1, 1);
+      } else { bus.throttle = inp.throttle; bus.brake = inp.brake; bus.steerCmd = clamp(inp.steer, -1, 1); }
+      this.ui.prompt(ap && this.auto.hint ? this.auto.hint : null);
     } else {
       bus.throttle = 0; bus.brake = 0.4;
       const w = this.ui.readWalk();
@@ -333,21 +352,21 @@ export class Game {
       stopReq: !!this.stopReq, v: bus.v, gear: bus.gear, park: bus.park, doors: bus.doorsOpen(), power: bus.power, canRaise: bus.canRaisePoles(), ind: bus.indicator, hazard: bus.hazard, kneel: bus.kneelCmd,
       doorStates: this.rig.doors.map((d) => d.open), throttle: bus.throttle, brake: bus.brake,
       atStop: this.atStop >= 0, nextName: this.finished ? 'Край на курса' : (this.atStop >= 0 ? this.route.stops[this.atStop].name : st.name), dist: this.distToNext || 0,
-      lcd: lines, leds: this.informator.leds, announceHint: this.mode === 'drive' && this.informator.idx < this.expectedAnnouncement() + (this.shouldAnnounceNow() ? 1 : 0) && this.shouldAnnounceNow(),
+      lcd: lines, leds: this.informator.leds, announceHint: this.mode === 'drive' && this.shouldAnnounceNow(), auto: this.auto.on,
       heading: bus.h, x: bus.x, z: bus.z, streets: this.route.streets, routePts: this.routePtsMini || (this.routePtsMini = this.route.bus.pts.filter((_, i) => i % 4 === 0)),
       inters: this.route.inters.map((it) => ({ x: it.x, z: it.z, col: this.tl.state(it, 'A').c === 'G' ? '#3f3' : '#f33' })),
       stopPts: this.route.stops.map((s, i) => { const p = this.route.pose(s.s); return { x: p.x, z: p.z, next: i === this.nextStop }; }),
     });
   }
   shouldAnnounceNow() {
-    // blink the informator button when an announcement is due
-    const inf = this.informator;
-    const exp = this.expectedAnnouncement();
-    if (inf.idx > exp) return false;
-    if (this.atStop === 0) return true;                            // at the terminus
-    if (this.nextStop >= 1 && this.atStop < 0 && this.distToNext < 1900 && inf.idx <= exp) return true;
-    if (this.atStop === 2 && inf.idx <= 3) return true;
-    return false;
+    // blink the informator button when the queued message is due
+    const due = this.dueAnnouncements();
+    const idx = this.informator.idx;
+    if (!due.includes(idx)) return false;
+    // "next stop" at a stop: only once the doors are closed
+    const k = this.nextStop;
+    if (this.atStop === k && idx === k + 1 && this.veh.doorsOpen()) return false;
+    return true;
   }
   nearTraffic() {
     let s = 0; const b = this.bus;
@@ -358,6 +377,7 @@ export class Game {
   tripLogic(dt) {
     const bus = this.bus, route = this.route;
     const fb = bus.frontBumper();
+    this.frontX = fb.x; this.frontZ = fb.z;
     const pr = route.bus.project(fb.x, fb.z, this.projHint, 80);
     this.projHint = pr.i;
     const sF = pr.s - route.busOffset;
@@ -403,7 +423,8 @@ export class Game {
     }
     this.distToNext = this.nextStop < stops.length ? Math.max(0, stops[this.nextStop].s - sF) : 0;
     // end of the modelled section
-    if (!this.finished && this.served.has(2) && this.atStop === 2 && !bus.doorsOpen() && !this.people.busy()) {
+    const last = stops.length - 1;
+    if (!this.finished && this.served.has(last) && this.atStop === last && !bus.doorsOpen() && !this.people.busy()) {
       this.finished = true;
       setTimeout(() => this.showEnd(), 1500);
     }

@@ -78,51 +78,32 @@ window.__dbg = {
     });
     return [n, game.reg && Object.keys(agg).length, (window.SIGNSN || 0), ...Object.entries(agg).sort((a, b) => b[1] - a[1]).slice(0, 25).map(([k, v]) => k + '=' + v)];
   },
-  /** Debug autopilot: follows the route, obeys signals, services stops. Runs n sim frames without rendering. */
-  auto(n = 600, dt = 1 / 30, vmax = 12) {
-    const g = game, b = g.bus, r = g.route;
+  /** Runs the game autopilot for n sim frames (no rendering), acting as the driver for doors and informator. */
+  auto(n = 600, dt = 1 / 30) {
+    const g = game, v = g.veh, r = g.route;
     window.__manual = true; g.noRender = true;
     if (g.mode !== 'drive') g.enterDriving();
-    b.park = false; b.gear = 'D';
+    if (!g.auto.on) g.auto.toggle();
     const log = [];
-    const A = g.__auto || (g.__auto = { state: 'drive', t: 0 });
+    const D = g.__drv || (g.__drv = { t: 0, last: '' });
     for (let i = 0; i < n; i++) {
-      const fb = b.frontBumper();
-      const pr = r.bus.project(fb.x, fb.z);
-      const sF = pr.s - r.busOffset;
-      // pure pursuit from the middle axle
-      const la = r.pose(sF + 5 - 8.625 + 5.9 + 6);
-      const dx = la.x - b.x, dz = la.z - b.z; const Ld = Math.hypot(dx, dz);
-      const alpha = Math.atan2(dz, dx) - b.h; const al = Math.atan2(Math.sin(alpha), Math.cos(alpha));
-      const delta = Math.atan(2 * 5.9 * Math.sin(al) / Ld);
-      b.steerCmd = Math.max(-1, Math.min(1, delta / (50 * Math.PI / 180)));
-      // targets
-      let vT = vmax;
-      const ns = g.nextStop < r.stops.length ? r.stops[g.nextStop] : null;
-      if (ns && A.state === 'drive') { const d = ns.s - sF; if (d < 60) vT = Math.min(vT, Math.max(0.6, Math.sqrt(2 * 1.0 * Math.max(0, d - 0.5)))); if (d < 0.8 && !g.served.has(g.nextStop)) { A.state = 'stopping'; } }
-      for (const sl of r.stopLines) { const d = sl.s - sF; if (d > -1 && d < 70) { const st = g.tl.state(sl.inter, sl.group); if (st.c !== 'G') vT = Math.min(vT, Math.max(0, Math.sqrt(2 * 1.5 * Math.max(0, d - 1.5)))); } }
-      // curves: slow down according to upcoming heading change
-      const h0 = r.pose(sF).h, h1 = r.pose(sF + 25).h; const turn = Math.abs(Math.atan2(Math.sin(h1 - h0), Math.cos(h1 - h0)));
-      if (turn > 0.3) vT = Math.min(vT, 5);
-      // follow traffic ahead on the bus path
-      for (const c of g.traffic.boxes()) {
-        if (Math.hypot(c.x - fb.x, c.z - fb.z) > 50) continue;
-        const pc = r.bus.project(c.x, c.z); if (!pc || Math.abs(pc.lat) > 2.6) continue;
-        const gap = pc.s - pr.s - c.hd; if (gap < -1 || gap > 45) continue;
-        vT = Math.min(vT, Math.max(0, Math.sqrt(2 * 1.2 * Math.max(0, gap - 4))));
+      // scripted driver: react to the autopilot hints like a player would
+      const h = g.auto.hint; D.t += dt;
+      if (h !== D.last) { D.last = h; D.t = 0; if (h) log.push(`${g.time.toFixed(0)}s ${h} (next=${g.nextStop} s=${(g.sFrontNow || 0).toFixed(1)})`); }
+      if (D.t > 1.5) {
+        const tgt = g.rig.doors.some((d) => d.target > 0);
+        if (h.includes('отворете') && !tgt) { v.toggleDoors(); D.t = 0; }
+        else if (h.includes('затворете') && tgt && !g.people.busy() && (D.t > 12 || g.people.waitingAt(r.stops[Math.min(g.nextStop, r.stops.length - 1)].id) === 0)) { v.toggleDoors(); D.t = 0; }
+        else if (h.includes('обявете')) { g.announce(); D.t = 0; }
       }
-      if (A.state === 'stopping') { vT = 0; if (Math.abs(b.v) < 0.05) { if (!b.doorsOpen()) b.toggleDoors(); A.state = 'dwell'; A.t = 0; log.push(`arrive ${r.stops[g.nextStop]?.name} err=${(r.stops[g.nextStop].s - sF).toFixed(2)} t=${g.time.toFixed(0)}`); } }
-      if (A.state === 'dwell') { vT = 0; A.t += dt; if (A.t > 8 && !g.people.busy() && g.people.waitingAt(r.stops[Math.min(g.nextStop, 2)].id) === 0) { if (b.doorsOpen()) b.toggleDoors(); A.state = 'leaving'; A.t = 0; log.push('depart pax=' + g.people.onBoard()); } if (A.t > 60) { b.toggleDoors(); A.state = 'leaving'; log.push('forced depart'); } }
-      if (A.state === 'leaving') { A.t += dt; vT = A.t > 2.5 ? vmax : 0; if (A.t > 2.5 && !b.doorsOpen()) A.state = 'drive2'; }
-      if (A.state === 'drive2') { if (ns && ns.s - sF < -20) A.state = 'drive'; if (ns && ns.s - sF > 30) A.state = 'drive'; }
-      const ev = vT - b.v;
-      b.throttle = ev > 0.3 ? Math.min(1, ev * 0.5) : 0; b.brake = ev < -0.3 ? Math.min(1, -ev * 0.4) : 0;
+      const ap = g.auto.update(dt);
+      v.throttle = ap.throttle; v.brake = ap.brake; if (ap.steer !== null) v.steerCmd = ap.steer;
       g.frameSim(dt);
-      if (b.lastHit && b.lastHit !== A.lastHit) { A.lastHit = b.lastHit; log.push(`HIT ${JSON.stringify(b.lastHit)} s=${sF.toFixed(0)} v=${b.v.toFixed(1)}`); }
-      if (!b.power && !A.dewiredLogged) { A.dewiredLogged = true; log.push(`DEWIRE at s=${sF.toFixed(0)} lat=${b.poles.map(p=>p.lat.toFixed(2))}`); }
+      if (v.lastHit && v.lastHit !== D.lastHit) { D.lastHit = v.lastHit; log.push(`HIT ${JSON.stringify(v.lastHit)} s=${(g.sFrontNow || 0).toFixed(0)}`); }
+      if (v.power === false && !D.dew) { D.dew = true; log.push(`NO POWER at s=${(g.sFrontNow || 0).toFixed(0)}`); }
     }
-    const fb = b.frontBumper(); const pr = r.bus.project(fb.x, fb.z);
-    return { s: +(pr.s - r.busOffset).toFixed(1), lat: +pr.lat.toFixed(2), v: +(b.v * 3.6).toFixed(1), next: g.nextStop, pax: g.people.onBoard(), power: b.power, stats: g.stats, log };
+    const pr = r.project(g.frontX, g.frontZ);
+    return { s: +(g.sFrontNow || 0).toFixed(1), lat: +pr.lat.toFixed(2), v: +(v.v * 3.6).toFixed(1), next: g.nextStop, pax: g.people.onBoard(), inf: g.informator.idx, stats: g.stats, log };
   },
   info() {
     const R = game.engine.renderer, r = R.info;

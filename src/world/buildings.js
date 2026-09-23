@@ -25,13 +25,13 @@ export function signMat(text, bg = '#1d4e9e', fg = '#ffffff', w = 1024, h = 192,
 }
 
 /** Wall quad (faces +z) with metric UVs. */
-function wallGeo(w, h, uTile, vTile, u0 = 0, v0 = 0) {
+export function wallGeo(w, h, uTile, vTile, u0 = 0, v0 = 0) {
   const g = new THREE.PlaneGeometry(w, h);
   const p = g.attributes.position, uv = g.attributes.uv;
   for (let i = 0; i < p.count; i++) uv.setXY(i, (p.getX(i) + w / 2 + u0) / uTile, (p.getY(i) + h / 2 + v0) / vTile);
   return g;
 }
-const boxUVm = (g, s = 2) => {
+export const boxUVm = (g, s = 2) => {
   const p = g.attributes.position, n = g.attributes.normal, uv = g.attributes.uv;
   for (let i = 0; i < p.count; i++) {
     const ax = Math.abs(n.getX(i)), ay = Math.abs(n.getY(i));
@@ -42,7 +42,7 @@ const boxUVm = (g, s = 2) => {
   return g;
 };
 
-class Ctx {
+export class Ctx {
   constructor(cb, M, reg) { this.cb = cb; this.M = M; this.reg = reg; }
   add(material, geo, m, color) { const mm = m ? this.M.clone().multiply(m) : this.M; return this.cb.add(material, geo, mm, color); }
   box(material, w, h, d, x, y, z, color, ry = 0) { return this.add(material, boxUVm(new THREE.BoxGeometry(w, h, d)), mat(x, y, z, 0, ry), color); }
@@ -50,8 +50,8 @@ class Ctx {
   worldYaw(localYaw) { const e = new THREE.Euler().setFromRotationMatrix(this.M, 'YXZ'); return e.y + localYaw; }
 }
 
-const PARAPET_COLS = [0xb9b5ac, 0xc9c2b4, 0xa7a9a8, 0xd8cfb8, 0xb6c7d3, 0xd9b9b0, 0xe0d7a8, 0xc4c9b2, 0x9ea3a6];
-const FRAME_COLS = [0xf1f1ee, 0xf1f1ee, 0xe8e8e4, 0x7a5a3a, 0xa9aaa8, 0x5d4632];
+export const PARAPET_COLS = [0xb9b5ac, 0xc9c2b4, 0xa7a9a8, 0xd8cfb8, 0xb6c7d3, 0xd9b9b0, 0xe0d7a8, 0xc4c9b2, 0x9ea3a6];
+export const FRAME_COLS = [0xf1f1ee, 0xf1f1ee, 0xe8e8e4, 0x7a5a3a, 0xa9aaa8, 0x5d4632];
 
 /** Bulgarian prefab panel block. opts: {L, D, floors, fmat, balc: 'front'|'both', shops, entrances} */
 export function panelBlock(cb, M, reg, o) {

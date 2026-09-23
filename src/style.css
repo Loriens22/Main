@@ -196,7 +196,9 @@ button { font: inherit; color: inherit; touch-action: none; }
 .b.blink { animation: blink .8s steps(2) infinite; }
 .b:active { transform: translateY(1px); filter: brightness(1.25); }
 .b.d { height: 28px; font-size: 12px; min-width: 0; }
-#btnGrid .b.half:not(#bDoors):not(#bInf) { height: 30px; font-size: 10px; }
+#btnGrid .b.half:not(#bDoors):not(#bInf) { height: 30px; font-size: 11px; }
+#btnGrid .b.sm { height: 30px; font-size: 8.5px; padding: 0 2px; letter-spacing: 0; }
+#bAuto.on { background: linear-gradient(180deg, rgba(41,168,224,.95), rgba(20,120,190,.95)); color: #fff; }
 .b.round { width: 42px; height: 42px; border-radius: 50%; font-size: 17px; padding: 0; }
 @keyframes blink { 50% { filter: brightness(.45); } }
 #topRight {

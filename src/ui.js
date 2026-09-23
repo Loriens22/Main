@@ -116,6 +116,7 @@ export class UI {
     on('bPark', () => g.togglePark());
     on('bPoles', () => g.bus.raisePoles());
     on('bKneel', () => { g.bus.kneelCmd = !g.bus.kneelCmd; g.audio.airHiss(); });
+    on('bAuto', () => g.auto.toggle());
     const horn = $('bHorn');
     horn.addEventListener('pointerdown', (e) => { e.preventDefault(); g.audio.init(); g.audio.hornOn(); });
     for (const ev of ['pointerup', 'pointercancel', 'pointerleave']) horn.addEventListener(ev, () => g.audio.hornOff());
@@ -140,6 +141,7 @@ export class UI {
         case 'KeyP': g.togglePark(); break;
         case 'KeyT': g.bus.raisePoles(); break;
         case 'KeyK': g.bus.kneelCmd = !g.bus.kneelCmd; break;
+        case 'KeyG': if (g.mode === 'drive') g.auto.toggle(); break;
         case 'Digit1': g.setGear('D'); break; case 'Digit2': g.setGear('N'); break; case 'Digit3': g.setGear('R'); break;
         case 'KeyF': g.mode === 'walk' ? g.enterDriving() : g.enterWalk(); break;
         case 'Escape': this.openMenu(); break;
@@ -198,6 +200,7 @@ export class UI {
     if (k.has('KeyW') || k.has('ArrowUp')) acc = Math.max(acc, 1);
     if (k.has('KeyS') || k.has('ArrowDown')) brk = Math.max(brk, 0.8);
     if (k.has('Space')) brk = 1;
+    if (this.g.auto?.on) return { throttle: acc, brake: brk, steer: 0 };
     const kl = k.has('KeyA') || k.has('ArrowLeft'), kr = k.has('KeyD') || k.has('ArrowRight');
     const max = WHEEL_TURNS * 360;
     if (kl || kr) { this.wheelDeg = clamp(this.wheelDeg + (kr ? 1 : -1) * 260 * dt, -max, max); }
@@ -208,6 +211,12 @@ export class UI {
     }
     $('wheelRot').style.transform = `rotate(${this.wheelDeg.toFixed(1)}deg)`;
     return { throttle: acc, brake: brk, steer: this.wheelDeg / max };
+  }
+  /** Autopilot turns the on-screen wheel (steer −1..1). */
+  setWheel(steer) {
+    const max = WHEEL_TURNS * 360;
+    this.wheelDeg = damp(this.wheelDeg, steer * max, 10, 1 / 60);
+    $('wheelRot').style.transform = `rotate(${this.wheelDeg.toFixed(1)}deg)`;
   }
   readWalk() {
     const k = this.keys;
@@ -252,6 +261,7 @@ export class UI {
     $('icR').className = 'ic ind ' + ((s.ind > 0 || s.hazard) && blink ? 'on' : '');
     $('bIndL').classList.toggle('on', s.ind < 0); $('bIndR').classList.toggle('on', s.ind > 0); $('bHazard').classList.toggle('on', s.hazard);
     $('bKneel').classList.toggle('on', s.kneel);
+    $('bAuto').classList.toggle('on', !!s.auto);
     document.querySelectorAll('#btnGrid .d').forEach((b, i) => b.classList.toggle('warn', s.doorStates[i] > 0.02));
     $('accel').querySelector('.fill').style.height = (s.throttle * 100).toFixed(0) + '%';
     $('brake').querySelector('.fill').style.height = (s.brake * 100).toFixed(0) + '%';

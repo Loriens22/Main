@@ -64,6 +64,7 @@ export function buildRoute() {
     { id: 'dcc20', name: '20 ДКЦ', short: '20 ДКЦ', long: '20 диагностично-консултативен център', tts: 'двадесети диагностично-консултативен център', s: rs(dccRaw) },
     { id: 'su36', name: '36 СУ', short: '36 СУ', long: '36-то средно образователно училище', tts: 'тридесет и шесто средно образователно училище', s: rs(suRaw) },
   ];
+  const line = { code: 'ТБ9', header: 'ТБ9 БОРОВО-ПЛ.СТ.ГАРА', menu: ['ТБ 9 Ж.К.БОРОВО→', 'ПЛ. СТОЧНА ГАРА', 'ТБ 9 ПЛ.СТ.ГАРА→БОРОВО'], vehicle: 'trolleybus', number: '9', dest: 'пл. Сточна гара' };
 
   // stop lines & turns along the bus route (for red light detection + UI)
   const approach = [
@@ -163,7 +164,7 @@ export function buildRoute() {
   const ring = { cx: 0, cz: 0, rIn: 19.5, rOut: 28.3, busR: Rring, carR: rIn };
 
   const route = {
-    streets, inters, minors, lanes, ring, stops, stopLines,
+    streets, inters, minors, lanes, ring, stops, stopLines, line,
     bus: busPoly, busOffset: s0, opp: oppPoly,
     S: { S1, S2, S3, S4 }, sI1,
     /** pose on the bus route at game-s (right normal included) */

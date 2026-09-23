@@ -1,6 +1,7 @@
 // Shared world materials (created once after textures are generated).
 import * as THREE from 'three';
 import * as TX from '../textures.js';
+import * as TX2 from '../textures2.js';
 
 export const WM = {};
 export const WT = {};
@@ -141,11 +142,37 @@ export function initWorldMaterials() {
   WM.ribbon = fac(TX.ribbonFacade(), 'ribbon');
   WM.shopA = fac(TX.shopfront({ seed: 3 }), 'shopA');
   WM.shopB = fac(TX.shopfront({ seed: 8, tint: '#9a1f1f' }), 'shopB');
+  // additional facades (line 9 extension, tram line 7)
+  WM.brickStripe = fac(TX2.brickStripeFacade({ seed: 3 }), 'brickStripe');
+  WM.redBrick = fac(TX2.redBrickFacade({ seed: 5 }), 'redBrick');
+  WM.paleA = fac(TX2.paleBlockFacade({ seed: 9 }), 'paleA');
+  WM.paleB = fac(TX2.paleBlockFacade({ seed: 12, base: '#d6cdbd' }), 'paleB');
+  WM.paleC = fac(TX2.paleBlockFacade({ seed: 15, base: '#c9c4bb' }), 'paleC');
+  WM.industrial = fac(TX2.industrialFacade({ seed: 13 }), 'industrial');
+  WM.industrialB = fac(TX2.industrialFacade({ seed: 14, panel: '#e2e2de', stripe: '#b3262d' }), 'industrialB');
+  WM.ceramic = fac(TX2.ceramicFacade({ seed: 23 }), 'ceramic');
+  WM.whiteModern = fac(TX2.whiteModernFacade({ seed: 29 }), 'whiteModern');
+  WM.whiteWood = fac(TX2.whiteModernFacade({ seed: 31, wood: true }), 'whiteWood');
+  WM.beigeModern = fac(TX2.whiteModernFacade({ seed: 33, base: '#e5d2ae', frame: '#5a4430' }), 'beigeModern');
+  WM.greyModern = fac(TX2.whiteModernFacade({ seed: 35, base: '#b9b7b2', frame: '#2a2c30' }), 'greyModern');
+  const cw = (f, name, o = {}) => std({ name, map: f.map, roughnessMap: f.rough, roughness: 1, metalness: o.metal ?? 0.35, envMapIntensity: o.env ?? 1.6, ...vc });
+  WM.curtainBlue = cw(TX2.curtainWall({ seed: 17, glass: ['#a9c7e6', '#2b5d93'], mullion: '#d7dde2' }), 'curtainBlue');
+  WM.curtainDark = cw(TX2.curtainWall({ seed: 19, glass: ['#6f7780', '#1d2226'], mullion: '#2c3035', lit: 0.1 }), 'curtainDark');
+  WM.curtainGreen = cw(TX2.curtainWall({ seed: 21, glass: ['#b8c9c6', '#51686a'], mullion: '#b9bfc3', cols: 6, rows: 6 }), 'curtainGreen');
+  WM.curtainOffice = cw(TX2.curtainWall({ seed: 25, glass: ['#c4d3de', '#48617a'], mullion: '#e6e8ea', spandrel: '#dfe2e4', cols: 6, rows: 6, lit: 0.4 }), 'curtainOffice');
+  WM.ribbonOld = cw(TX2.curtainWall({ seed: 27, glass: ['#9aa8b0', '#3c4a52'], mullion: '#8a8579', spandrel: '#b8ad98', cols: 4, rows: 4, lit: 0.3 }), 'ribbonOld', { metal: 0.1, env: 1.1 });
+  WM.graffiti = std({ name: 'graffiti', map: TX2.graffitiWall({ seed: 31 }), roughness: 0.92, ...vc });
+  WM.graffitiB = std({ name: 'graffitiB', map: TX2.graffitiWall({ seed: 37, base: '#cfc8b8' }), roughness: 0.92, ...vc });
+  WM.ballast = macro(std({ name: 'ballast', map: TX2.ballast(512), roughness: 1, ...vc }), 0.03, 0.18, 7);
+  WM.rail = std({ name: 'rail', color: 0x6e645a, metalness: 0.8, roughness: 0.45, ...vc });
+  WM.railTop = std({ name: 'railTop', color: 0xc9c9c6, metalness: 1.0, roughness: 0.22, ...vc });
+  WM.sleeper = std({ name: 'sleeper', map: WT.concrete, color: 0x9a968c, roughness: 0.95, ...vc });
+  WM.posters = [0, 1, 2, 3, 4, 5].map((k) => std({ name: 'poster' + k, map: TX2.billboardPoster(k), roughness: 0.55, emissive: 0xffffff, emissiveMap: null, emissiveIntensity: 0, ...vc }));
   // plain wall for building sides/backs of panel blocks (same palette)
   WM.plainA = macro(std({ name: 'plainA', map: WT.concrete, color: 0xe8e2d6, roughness: 0.95, ...vc }), 0.05, 0.08, 4);
 
   for (const k of ['leaves', 'leavesBirch', 'needles']) WM[k].userData = { cast: true, receive: true };
   // flat / small surfaces never cast shadows (keeps the shadow pass cheap)
-  for (const k of ['asphalt', 'pavers', 'curb', 'grass', 'dirt', 'paint', 'rubber', 'flatRoof', 'emissive', 'glassDark', 'stone']) WM[k].userData = { ...(WM[k].userData || {}), cast: false };
+  for (const k of ['asphalt', 'pavers', 'curb', 'grass', 'dirt', 'paint', 'rubber', 'flatRoof', 'emissive', 'glassDark', 'stone', 'ballast', 'railTop', 'sleeper']) WM[k].userData = { ...(WM[k].userData || {}), cast: false };
   return WM;
 }

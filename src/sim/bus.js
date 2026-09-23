@@ -47,6 +47,16 @@ export class Bus {
   }
 
   get articulation() { return wrapAngle(this.h2 - this.h); }
+  get steerable() { return true; }
+  /** Pure-pursuit steering command (−1..1) towards the route lane, from the middle axle. */
+  pursuitSteer(route, sF) {
+    const Ld = 11 + Math.abs(this.v) * 0.7;
+    const la = route.pose(sF - 2.725 - B.L1 + Ld);
+    const dx = la.x - this.x, dz = la.z - this.z; const L = Math.hypot(dx, dz) || 1;
+    const al = wrapAngle(Math.atan2(dz, dx) - this.h);
+    const delta = Math.atan(2 * B.L1 * Math.sin(al) / L);
+    return clamp(delta / MAX_STEER, -1, 1);
+  }
 
   frontBumper(out = new THREE.Vector3()) { return out.set(this.x + Math.cos(this.h) * (B.L1 + 2.725), 0, this.z + Math.sin(this.h) * (B.L1 + 2.725)); }
 

@@ -261,7 +261,7 @@ export function needles(size = 512) {
 /* =====================================================================
    BUILDING FACADES — each returns {map, rough} tile textures
    ===================================================================== */
-function drawWindow(ctx, rnd, x, y, w, h, opt = {}) {
+export function drawWindow(ctx, rnd, x, y, w, h, opt = {}) {
   const frame = opt.frame || (rnd() < 0.8 ? '#e9eaea' : rnd() < 0.5 ? '#6b4a2e' : '#c9c9c9');
   const fw = opt.fw || Math.max(3, w * 0.05);
   // reveal shadow
