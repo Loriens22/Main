@@ -108,6 +108,7 @@ export class Game {
     await step(0.95, 'Информатор BT902, звук, управление…');
     this.informator = new Informator(route, this.audio, (m, phase) => this.onSay(m, phase));
     this.camRig = new CameraRig(this.engine.camera, this.bus, this.rig);
+    this.camRig.obstacles = this.bus.staticColliders;
     this.mirrors = new Mirrors(this.engine, this.rig, QUALITY[this.engine.quality].mirrors);
     this.player = new Player(this.bus, this.rig, (x, z) => { const v = occ.get(x, z); return v === 2 ? 0.15 : 0; });
     this.ui = new UI(this);
@@ -292,9 +293,19 @@ export class Game {
     this.rig.informator.set(lines, this.informator.leds);
     // ---------- camera ----------
     this.camRig.update(dt, this.player);
+    const cm = this.camRig.mode;
+    if (cm === 'chase' || cm === 'cinema') this.trees.clearView(this.camRig.smoothTarget, this.engine.camera.position);
+    else if (this.treesCleared !== false) this.trees.clearView(null);
+    this.treesCleared = cm === 'chase' || cm === 'cinema';
     this.engine.followShadow(this.mode === 'walk' ? this.engine.camera.position.clone() : new THREE.Vector3(bus.hx, 0, bus.hz));
     this.engine.sky.material.uniforms.time.value = this.time;
-    this.treeT = (this.treeT || 0) - dt; if (this.treeT <= 0) { this.treeT = 0.4; this.trees.update(this.engine.camera.position); this.cb.cull(this.engine.camera.position, this.drawDist || 1250); }
+    const cp = this.engine.camera.position;
+    this.treeT = (this.treeT || 0) - dt;
+    // refresh LOD/chunk visibility periodically, and immediately after a teleport (reset, recover)
+    if (this.treeT <= 0 || !this.lastCull || (cp.x - this.lastCull.x) ** 2 + (cp.z - this.lastCull.z) ** 2 > 900) {
+      this.treeT = 0.4; (this.lastCull ||= new THREE.Vector3()).copy(cp);
+      this.trees.update(cp); this.cb.cull(cp, this.drawDist || 1250);
+    }
     // ---------- audio ----------
     this.audio.update(dt, { v: bus.v, throttle: bus.throttle, brake: bus.brake, power: bus.power, inCab: this.mode === 'walk' ? !!this.player.inside : this.camRig.mode === 'cab' || this.camRig.mode === 'interior', nearTraffic: this.nearTraffic() });
     this.fleet.render(this.engine.camera, this.mode === 'walk' ? cam : { x: bus.hx, z: bus.hz });

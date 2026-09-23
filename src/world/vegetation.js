@@ -155,7 +155,25 @@ export function buildTrees(scene, kinds, list) {
     b.computeBoundingSphere(); b.computeBoundingBox();
     scene.add(b);
   }
+  let hidden = [];
   return {
+    /** Hides trees standing between the chase camera and the bus (2D capsule test); pass null to restore. */
+    clearView(a, b, r = 4.2) {
+      for (const it of hidden) { tb.setVisibleAt(it.ti, true); it.cb.setVisibleAt(it.ci, true); it.hid = false; }
+      hidden = [];
+      if (!a) return;
+      const dx = b.x - a.x, dz = b.z - a.z, L2 = dx * dx + dz * dz || 1;
+      const minX = Math.min(a.x, b.x) - r, maxX = Math.max(a.x, b.x) + r, minZ = Math.min(a.z, b.z) - r, maxZ = Math.max(a.z, b.z) + r;
+      for (const it of inst) {
+        if (it.x < minX || it.x > maxX || it.z < minZ || it.z > maxZ) continue;
+        const t = ((it.x - a.x) * dx + (it.z - a.z) * dz) / L2;
+        if (t < 0.22 || t > 1.15) continue;
+        const px = a.x + dx * t - it.x, pz = a.z + dz * t - it.z;
+        const rr = r * (0.7 + 0.9 * Math.min(1, t)); // wider near the camera where crowns fill the frame
+        if (px * px + pz * pz > rr * rr) continue;
+        tb.setVisibleAt(it.ti, false); it.cb.setVisibleAt(it.ci, false); it.hid = true; hidden.push(it);
+      }
+    },
     update(cam) {
       for (const it of inst) {
         const d2 = (it.x - cam.x) ** 2 + (it.z - cam.z) ** 2;

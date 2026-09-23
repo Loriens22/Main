@@ -175,22 +175,23 @@ button { font: inherit; color: inherit; touch-action: none; }
 #accel .fill { background: linear-gradient(0deg, rgba(80,230,120,.8), rgba(80,230,120,.25)); }
 #btnGrid {
   position: absolute; right: calc(186px * var(--ui) + 16px + var(--safe-r)); bottom: calc(12px + var(--safe-b));
-  display: grid; grid-template-columns: repeat(4, 46px); gap: 5px; transform: scale(var(--ui)); transform-origin: 100% 100%;
+  display: grid; grid-template-columns: repeat(4, 44px); gap: 5px; transform: scale(var(--ui)); transform-origin: 100% 100%;
 }
 .b {
-  height: 38px; min-width: 38px; border-radius: 10px; border: 1px solid rgba(255,255,255,.16);
-  background: rgba(20,28,40,.72); color: #e8eef5; font-weight: 800; font-size: 13px; padding: 0 6px;
+  height: 36px; min-width: 36px; border-radius: 10px; border: 1px solid rgba(255,255,255,.16);
+  background: rgba(20,28,40,.62); color: #e8eef5; font-weight: 800; font-size: 13px; padding: 0 6px;
   backdrop-filter: blur(6px); -webkit-backdrop-filter: blur(6px); box-shadow: 0 3px 10px rgba(0,0,0,.35);
 }
 .b.wide { grid-column: span 4; font-size: 12px; letter-spacing: .8px; }
-.b.half { grid-column: span 2; font-size: 11px; }
+.b.half { grid-column: span 2; font-size: 11px; letter-spacing: .5px; }
 .b.accent { background: linear-gradient(180deg, rgba(255,194,14,.95), rgba(230,160,0,.95)); color: #1c1400; border-color: transparent; }
 .b.on { background: rgba(60,200,110,.9); color: #032; border-color: transparent; }
 .b.warn { background: rgba(255,194,14,.95); color: #1c1400; }
 .b.bad { background: rgba(220,50,40,.92); color: #fff; }
 .b.blink { animation: blink .8s steps(2) infinite; }
 .b:active { transform: translateY(1px); filter: brightness(1.25); }
-.b.d { height: 30px; font-size: 12px; min-width: 0; }
+.b.d { height: 28px; font-size: 12px; min-width: 0; }
+#btnGrid .b.half:not(#bDoors):not(#bInf) { height: 30px; font-size: 10px; }
 .b.round { width: 42px; height: 42px; border-radius: 50%; font-size: 17px; padding: 0; }
 @keyframes blink { 50% { filter: brightness(.45); } }
 #topRight {

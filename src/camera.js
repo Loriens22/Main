@@ -16,6 +16,8 @@ export class CameraRig {
     this.tmp = new THREE.Vector3(); this.q = new THREE.Quaternion(); this.e = new THREE.Euler(0, 0, 0, 'YXZ');
     this.smoothTarget = new THREE.Vector3();
     this.first = true;
+    this.curDist = this.orbit.dist;
+    this.obstacles = null;
   }
   setMode(m) { this.mode = m; this.first = true; if (m === 'cab' || m === 'interior') { this.look.yaw = 0; this.look.pitch = m === 'cab' ? -0.2 : -0.05; } }
   resetLook() { this.look.yaw = 0; this.look.pitch = this.mode === 'cab' ? -0.2 : -0.05; }
@@ -73,7 +75,13 @@ export class CameraRig {
       if (this.first) this.orbitBase = heading;
       this.orbitBase = this.orbitBase + wrapAngle(heading - this.orbitBase) * Math.min(1, dt * 1.5);
       const yaw = this.orbitBase + Math.PI + this.orbit.yaw;
-      const d = this.orbit.dist, p = this.orbit.pitch;
+      const p = this.orbit.pitch;
+      // pull the camera in front of buildings that would block the view
+      const want = this.orbit.dist;
+      const hit = this.obstacleHit(this.smoothTarget.x, this.smoothTarget.z, Math.cos(yaw) * Math.cos(p) * want, Math.sin(yaw) * Math.cos(p) * want);
+      const target = hit < 1 ? Math.max(5, hit * want - 0.8) : want;
+      if (this.first || target < this.curDist) this.curDist = target; else this.curDist = damp(this.curDist, target, 2.5, dt);
+      const d = this.curDist;
       const cx = this.smoothTarget.x + Math.cos(yaw) * Math.cos(p) * d;
       const cz = this.smoothTarget.z + Math.sin(yaw) * Math.cos(p) * d;
       const cy = Math.max(1.2, 2.0 + Math.sin(p) * d);
@@ -95,6 +103,29 @@ export class CameraRig {
       this.setFov(40, 1);
     }
     this.first = false;
+  }
+  /** First hit (0..1) of the 2D segment (x,z)+t·(dx,dz) with a static building box, 1 if clear. */
+  obstacleHit(x, z, dx, dz) {
+    let best = 1;
+    const obs = this.obstacles; if (!obs) return best;
+    const L = Math.hypot(dx, dz);
+    for (const o of obs) {
+      const r = Math.max(o.hd, o.hw);
+      const ox = o.x - x, oz = o.z - z;
+      if (ox * ox + oz * oz > (L + r) ** 2) continue;
+      const c = Math.cos(o.h), s = Math.sin(o.h);
+      // segment in the box frame
+      const px = -ox * c - oz * s, pz = ox * s - oz * c;
+      const vx = dx * c + dz * s, vz = -dx * s + dz * c;
+      let t0 = 0, t1 = best;
+      for (const [p0, v, e] of [[px, vx, o.hd + 0.4], [pz, vz, o.hw + 0.4]]) {
+        if (Math.abs(v) < 1e-9) { if (Math.abs(p0) > e) { t0 = 2; break; } continue; }
+        let a = (-e - p0) / v, b = (e - p0) / v; if (a > b) { const t = a; a = b; b = t; }
+        t0 = Math.max(t0, a); t1 = Math.min(t1, b); if (t0 > t1) break;
+      }
+      if (t0 <= t1 && t0 > 0.02 && t0 < best) best = t0;
+    }
+    return best;
   }
   setFov(f, k) { if (Math.abs(this.cam.fov - f) > 0.05) { this.cam.fov = lerp(this.cam.fov, f, k === 1 ? 1 : Math.max(k, 0.05)); this.cam.updateProjectionMatrix(); } }
 }

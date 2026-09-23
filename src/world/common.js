@@ -30,7 +30,10 @@ export class ChunkBatch {
       const [ix, iz] = k.split(',').map(Number);
       const meshes = b.build(parent, { name: name + k });
       n += meshes.length;
-      this.chunks.push({ x: (ix + 0.5) * this.size, z: (iz + 0.5) * this.size, meshes, vis: true });
+      // real extent of the chunk (long ribbons can reach far outside their home cell)
+      const box = new THREE.Box3();
+      for (const m of meshes) { m.geometry.computeBoundingBox(); box.union(m.geometry.boundingBox); }
+      this.chunks.push({ x: (ix + 0.5) * this.size, z: (iz + 0.5) * this.size, box, meshes, vis: true });
     }
     this.map.clear();
     return n;
@@ -39,7 +42,9 @@ export class ChunkBatch {
   cull(cam, dist) {
     const d2 = dist * dist;
     for (const c of this.chunks) {
-      const v = (c.x - cam.x) ** 2 + (c.z - cam.z) ** 2 < d2;
+      const b = c.box;
+      const dx = Math.max(b.min.x - cam.x, 0, cam.x - b.max.x), dz = Math.max(b.min.z - cam.z, 0, cam.z - b.max.z);
+      const v = dx * dx + dz * dz < d2;
       if (v !== c.vis) { c.vis = v; for (const m of c.meshes) m.visible = v; }
     }
   }

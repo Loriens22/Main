@@ -217,11 +217,11 @@ export function leafCluster(size = 512, kind = 'broad') {
       const a = rnd() * Math.PI * 2, rad = Math.sqrt(rnd()) * qr;
       const x = qx + Math.cos(a) * rad, y = qy + Math.sin(a) * rad;
       const edge = rad / qr;
-      const L = (kind === 'birch' ? 13 : 20) + rnd() * 12, W = L * (kind === 'birch' ? 0.62 : 0.7);
-      const hue = kind === 'birch' ? 80 + rnd() * 18 : 74 + rnd() * 30;
-      // darker inside the clump, lighter at the rim facing up
-      const light = 16 + rnd() * 14 + edge * 12 + (y < qy ? 5 : -3);
-      const sat = 35 + rnd() * 25;
+      const L = (kind === 'birch' ? 16 : 24) + rnd() * 12, W = L * (kind === 'birch' ? 0.62 : 0.7);
+      const hue = kind === 'birch' ? 76 + rnd() * 12 : 70 + rnd() * 20;
+      // subtle per-leaf variation; darker inside the clump, lighter at the rim facing up
+      const light = 20 + rnd() * 7 + edge * 9 + (y < qy ? 4 : -2);
+      const sat = 38 + rnd() * 16;
       ctx.save(); ctx.translate(x, y); ctx.rotate(rnd() * Math.PI * 2);
       ctx.fillStyle = `hsl(${hue},${sat}%,${light}%)`;
       ctx.beginPath(); ctx.moveTo(0, -L / 2);

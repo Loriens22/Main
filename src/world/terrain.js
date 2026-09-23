@@ -6,7 +6,8 @@ import { fbm, clamp, smoothstep, lerp, prepGeo } from '../util.js';
 export function buildTerrain(scene, fogColor) {
   // ground (lawns/soil) — big plane, slightly below road level
   const gsize = 9000;
-  const g = new THREE.PlaneGeometry(gsize, gsize, 1, 1);
+  // subdivided: two giant triangles lose depth precision after near-plane clipping and poke through the roads
+  const g = new THREE.PlaneGeometry(gsize, gsize, 120, 120);
   g.rotateX(-Math.PI / 2);
   const uv = g.attributes.uv; for (let i = 0; i < uv.count; i++) uv.setXY(i, uv.getX(i) * gsize / 7, uv.getY(i) * gsize / 7);
   const ground = new THREE.Mesh(prepGeo(g), WM.grass);

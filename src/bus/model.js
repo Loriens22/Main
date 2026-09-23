@@ -290,7 +290,14 @@ export function buildTrolleybus() {
         }
       }
       // underbody skirt return
-      b.add(M.under, new THREE.BoxGeometry(0.06, 0.05, z1 - z0), mat(side * (B.hw - 0.06), B.yB + 0.02, (z0 + z1) / 2));
+      {
+        let za = z0;
+        const cuts = axles.filter((a) => a > z0 && a < z1).sort((a, c) => a - c).map((a) => [a - B.archR, a + B.archR]);
+        for (const [c0, c1] of [...cuts, [z1, z1]]) {
+          if (c0 - za > 0.05) b.add(M.under, new THREE.BoxGeometry(0.06, 0.05, c0 - za), mat(side * (B.hw - 0.06), B.yB + 0.02, (za + c0) / 2));
+          za = c1;
+        }
+      }
       // wheel arch liners
       for (const ax of axles) {
         const liner = new THREE.CylinderGeometry(B.archR - 0.01, B.archR - 0.01, 0.42, 24, 1, true, 0, Math.PI);
@@ -725,10 +732,27 @@ export function buildTrolleybus() {
     const z1 = isF ? B.frontEnd - 0.02 : B.zR + 0.2;
     const yF = B.yFloor;
     const iw = B.hw - 0.06;
-    // floor slab
-    const floor = new THREE.BoxGeometry(iw * 2, 0.06, z1 - z0);
-    planarUV(floor, 'xz', 2, 2);
-    b.add(M.floor, floor, mat(0, yF - 0.03, (z0 + z1) / 2));
+    // wheel wells: the floor, podiums and ducts stop at the housings so nothing pierces the tyres
+    const WX = 0.47, WR = 0.58;
+    const wells = (isF ? B.axlesF : B.axlesR).map((ax) => [ax - WR, ax + WR]);
+    /** Splits [a,c] along z into pieces outside / inside the wheel wells. */
+    const splitZ = (a, c) => {
+      const out = []; let za = a;
+      for (const [w0, w1] of wells) {
+        if (w1 <= za || w0 >= c) continue;
+        if (w0 > za) out.push([za, w0, false]);
+        out.push([Math.max(za, w0), Math.min(c, w1), true]); za = Math.min(c, w1);
+      }
+      if (c > za) out.push([za, c, false]);
+      return out.filter(([p, q]) => q - p > 0.02);
+    };
+    const floorBox = (xa, xb, za, zb) => {
+      const g = new THREE.BoxGeometry(xb - xa, 0.06, zb - za); planarUV(g, 'xz', 2, 2);
+      b.add(M.floor, g, mat((xa + xb) / 2, yF - 0.03, (za + zb) / 2));
+    };
+    // floor slab: full-length aisle strip + side strips interrupted by the wells
+    floorBox(-WX, WX, z0, z1);
+    for (const sd of [-1, 1]) for (const [a, c, inW] of splitZ(z0, z1)) if (!inW) floorBox(sd > 0 ? WX : -iw, sd > 0 ? iw : -WX, a, c);
     // inner lower walls + heater ducts
     for (const s of [-1, 1]) {
       const doors = s > 0 ? (isF ? B.doorsF : B.doorsR) : [];
@@ -740,7 +764,7 @@ export function buildTrolleybus() {
         const wall = new THREE.PlaneGeometry(c - a, B.yW0 - yF + 0.02);
         wall.rotateY(s > 0 ? -Math.PI / 2 : Math.PI / 2);
         b.add(M.wallInt, wall, mat(s * iw, (B.yW0 + yF) / 2, (a + c) / 2));
-        b.add(M.wallInt2, new THREE.BoxGeometry(0.1, 0.16, c - a - 0.1), mat(s * (iw - 0.05), yF + 0.08, (a + c) / 2));
+        for (const [p, q, inW] of splitZ(a + 0.05, c - 0.05)) if (!inW) b.add(M.wallInt2, new THREE.BoxGeometry(0.1, 0.16, q - p), mat(s * (iw - 0.05), yF + 0.08, (p + q) / 2));
         // window sill ledge
         b.add(M.wallInt2, new THREE.BoxGeometry(0.07, 0.025, c - a), mat(s * (iw - 0.03), B.yW0 + 0.012, (a + c) / 2));
         // upper interior panel between window top and ceiling
@@ -773,14 +797,20 @@ export function buildTrolleybus() {
     // wheel arch housings / podiums
     const axles = isF ? B.axlesF : B.axlesR;
     for (const ax of axles) for (const s of [-1, 1]) {
-      // inner wheel housing (half cylinder hump), closes the arch from the inside
-      const hous = new THREE.CylinderGeometry(0.64, 0.64, 0.52, 24, 1, true, 0, Math.PI);
-      hous.rotateZ(Math.PI / 2);
-      b.add(M.wallInt2DS, hous, mat(s * (iw - 0.26), B.wheelR, ax));
-      // inner (aisle-side) cap only; the outer side stays open towards the wheel
-      const cap = new THREE.CircleGeometry(0.64, 24, 0, Math.PI);
-      cap.rotateY(s > 0 ? -Math.PI / 2 : Math.PI / 2);
-      b.add(M.wallInt2DS, cap, mat(s * (iw - 0.52), B.wheelR, ax));
+      // wheel housing hump: grey plastic towards the saloon, black liner towards the tyre
+      for (const [m, r, yb] of [[M.wallInt2DS, WR, yF], [M.rubberDS, WR - 0.014, 0.1]]) {
+        const x0 = WX + (WR - r), w = iw - x0 + 0.02, xc = s * (x0 + w / 2);
+        const hous = new THREE.CylinderGeometry(r, r, w, 28, 1, true, 0, Math.PI);
+        hous.rotateZ(Math.PI / 2);
+        b.add(m, hous, mat(xc, B.wheelR, ax));
+        const cap = new THREE.CircleGeometry(r, 28, 0, Math.PI);
+        cap.rotateY(Math.PI / 2);
+        b.add(m, cap, mat(s * x0, B.wheelR, ax));
+        const hLow = B.wheelR - yb;
+        const low = new THREE.PlaneGeometry(2 * r, hLow); low.rotateY(Math.PI / 2);
+        b.add(m, low, mat(s * x0, yb + hLow / 2, ax));
+        for (const e of [-1, 1]) b.add(m, new THREE.PlaneGeometry(w, hLow), mat(xc, yb + hLow / 2, ax + e * r));
+      }
     }
     // seats
     const seatDefs = isF ? [
@@ -797,8 +827,11 @@ export function buildTrolleybus() {
     // podium platforms for raised seats
     const podiums = isF ? [[-1, -6.8, -5.2], [-1, -1.4, 1.0], [1, -6.5, -4.95], [1, -1.4, 1.0]] : [[-1, 3.2, 5.6], [1, 3.2, 5.45]];
     for (const [s, a, c] of podiums) {
-      const pg = new THREE.BoxGeometry(1.05, 0.26, c - a); planarUV(pg, 'xz', 2, 2);
-      b.add(M.floor, pg, mat(s * (iw - 0.52), yF + 0.13, (a + c) / 2));
+      for (const [p, q, inW] of splitZ(a, c)) {
+        const xa = iw - 1.05, xb = inW ? WX : iw;
+        const pg = new THREE.BoxGeometry(xb - xa, 0.26, q - p); planarUV(pg, 'xz', 2, 2);
+        b.add(M.floor, pg, mat(s * (xa + xb) / 2, yF + 0.13, (p + q) / 2));
+      }
       b.add(M.yellowStrip, new THREE.BoxGeometry(0.03, 0.025, c - a), mat(s * (iw - 1.05), yF + 0.255, (a + c) / 2));
     }
     // rear bench platform

@@ -70,8 +70,8 @@ export function initWorldMaterials() {
   WM.stone = std({ name: 'stone', map: WT.stone, roughness: 0.9, ...vc });
   WM.bark = std({ name: 'bark', map: WT.bark, roughness: 0.95, ...vc });
   WM.rubber = std({ name: 'playRubber', map: WT.rubber, roughness: 0.95, ...vc });
-  WM.leaves = std({ alphaToCoverage: true, name: 'leaves', map: WT.leaves, alphaTest: 0.4, side: THREE.DoubleSide, roughness: 0.85, ...vc });
-  WM.leavesBirch = std({ alphaToCoverage: true, name: 'leavesBirch', map: WT.leavesBirch, alphaTest: 0.45, side: THREE.DoubleSide, roughness: 0.85, ...vc });
+  WM.leaves = std({ alphaToCoverage: true, name: 'leaves', map: WT.leaves, alphaTest: 0.4, side: THREE.DoubleSide, roughness: 0.95, envMapIntensity: 0.55, ...vc });
+  WM.leavesBirch = std({ alphaToCoverage: true, name: 'leavesBirch', map: WT.leavesBirch, alphaTest: 0.45, side: THREE.DoubleSide, roughness: 0.95, envMapIntensity: 0.55, ...vc });
   WM.needles = std({ alphaToCoverage: true, name: 'needles', map: WT.needles, alphaTest: 0.45, side: THREE.DoubleSide, roughness: 0.9, ...vc });
   WM.hedge = WM.painted;
   WM.fabric = std({ name: 'fabric', color: 0xffffff, roughness: 0.9, side: THREE.DoubleSide, ...vc });
