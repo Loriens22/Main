@@ -119,8 +119,8 @@ export function redBrickBlock(cb, M, reg, o = {}) {
   if (o.billboard !== undefined) {
     const bw = Math.min(D - 1, 9), bh = Math.min(H * 0.55, 14);
     const g = new THREE.PlaneGeometry(bw, bh); g.rotateY(-Math.PI / 2);
-    c.add(WM.posters[o.billboard], g, mat(-L / 2 - 0.12, H - bh / 2 - 1.5, 0));
-    c.box(WM.metalDark, 0.2, bh + 0.3, bw + 0.3, -L / 2 - 0.05, H - bh / 2 - 1.5, 0, 0x222428);
+    c.add(WM.posters[o.billboard], g, mat(-L / 2 - 0.26, H - bh / 2 - 1.5, 0));
+    c.box(WM.metalDark, 0.2, bh + 0.3, bw + 0.3, -L / 2 - 0.12, H - bh / 2 - 1.5, 0, 0x222428);
   }
   if (o.shops) {
     c.box(WM.metalDark, L, 3.4, 0.3, 0, 1.7, -D / 2 - 0.15, 0x1c1e21);

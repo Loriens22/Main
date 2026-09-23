@@ -1,6 +1,5 @@
 // First-person walking: outside on the street and inside the bus (through open doors), with simple collisions.
 import * as THREE from 'three';
-import { B } from './bus/model.js';
 import { clamp, damp } from './util.js';
 
 export class Player {
@@ -10,7 +9,7 @@ export class Player {
     this.pos = new THREE.Vector3();  // world (outside) or body-local (inside)
     this.y = 0.15; this.bob = 0; this.eye = 1.68;
   }
-  body(sec) { return sec === 'front' ? this.rig.frontBody : this.rig.rearBody; }
+  body(sec) { return this.rig.bodies[sec]; }
   eyeWorld(out = new THREE.Vector3()) {
     const b = Math.sin(this.bob) * 0.025;
     if (this.inside) return out.set(this.pos.x, this.y + this.eye + b, this.pos.z).applyMatrix4(this.body(this.inside).matrixWorld);
@@ -42,8 +41,9 @@ export class Player {
   placeWorld(x, z) { this.inside = null; this.pos.set(x, 0, z); this.y = this.heightAt(x, z); }
   /** Local position → section lookup. */
   toLocal(sec, world) { return world.clone().applyMatrix4(new THREE.Matrix4().copy(this.body(sec).matrixWorld).invert()); }
-  inCab() { return this.inside === 'front' && this.pos.z < -6.5 && this.pos.x < -0.15; }
+  inCab() { const c = this.rig.cab; return !!c && this.inside === c.section && c.inside(this.pos.x, this.pos.z); }
   update(dt, input, yaw) {
+    const rig = this.rig;
     const sp = (input.run ? 3.2 : 1.6);
     const mx = input.x, my = input.y;
     const mag = Math.min(1, Math.hypot(mx, my));
@@ -63,9 +63,9 @@ export class Player {
       } else if (!hit) { this.pos.x = nx; this.pos.z = nz; }
       else if (hit.door) {
         // step in through an open door
-        this.inside = hit.sec; this.pos.copy(hit.local); this.pos.x = B.hw - 0.35; this.pos.y = 0;
+        this.inside = hit.sec; this.pos.copy(hit.local); this.pos.x = rig.hw - 0.35; this.pos.y = 0;
       } else {
-        // slide along the bus side
+        // slide along the vehicle side
         if (!this.busHit(nx, this.pos.z)) this.pos.x = nx; else if (!this.busHit(this.pos.x, nz)) this.pos.z = nz;
       }
       this.y = damp(this.y, this.heightAt(this.pos.x, this.pos.z), 12, dt);
@@ -76,46 +76,43 @@ export class Player {
     const q = body.getWorldQuaternion(new THREE.Quaternion()).invert();
     const d = new THREE.Vector3(wx, 0, wz).applyQuaternion(q);
     let nx = this.pos.x + d.x, nz = this.pos.z + d.z;
-    const doors = this.inside === 'front' ? B.doorsF : B.doorsR;
-    const doorIdx = this.inside === 'front' ? 0 : 2;
-    // leaving through a door
-    if (nx > B.hw - 0.3) {
-      const k = doors.findIndex(([a, b]) => nz > a + 0.15 && nz < b - 0.15);
-      if (k >= 0 && this.rig.doors[doorIdx + k].open > 0.85) {
-        if (nx > B.hw + 0.25) { const w = new THREE.Vector3(nx + 0.3, 0, nz).applyMatrix4(body.matrixWorld); this.placeWorld(w.x, w.z); return; }
-      } else nx = Math.min(nx, B.hw - 0.3);
+    const hw = rig.hw;
+    const secIdx = rig.sections.findIndex((s) => s.name === this.inside);
+    const sec = rig.sections[secIdx];
+    // leaving through a door (doors are on the right-hand side, +x)
+    if (nx > hw - 0.3) {
+      const door = rig.doors.find((dd) => dd.section === this.inside && nz > dd.d0 + 0.15 && nz < dd.d1 - 0.15);
+      if (door && door.open > 0.85) {
+        if (nx > hw + 0.25) { const w = new THREE.Vector3(nx + 0.3, 0, nz).applyMatrix4(body.matrixWorld); this.placeWorld(w.x, w.z); return; }
+      } else nx = Math.min(nx, hw - 0.3);
     }
-    nx = Math.max(nx, -(B.hw - 0.3));
+    nx = Math.max(nx, -(hw - 0.3));
     // cab partition: only via the aisle side
-    if (this.inside === 'front' && nz < -6.95 && this.pos.z >= -6.95 && nx < -0.3) nz = -6.95;
-    // section transitions through the bellows
-    if (this.inside === 'front') {
-      nz = Math.max(nz, -8.15);
-      if (nz > B.frontEnd + 0.15) { this.switchSection('rear', nx, nz); return; }
-    } else {
-      nz = Math.min(nz, B.zR + 0.05);
-      if (nz < B.rearStart - 0.15) { this.switchSection('front', nx, nz); return; }
+    const cab = rig.cab;
+    if (cab && cab.partition && this.inside === cab.section) {
+      const P = cab.partition;
+      if (P.z < 0 ? (nz < P.z && this.pos.z >= P.z && nx < P.xMax) : (nz > P.z && this.pos.z <= P.z && nx < P.xMax)) nz = P.z;
     }
+    // section transitions through the bellows
+    if (nz > sec.z1) { if (secIdx < rig.sections.length - 1) { this.switchSection(rig.sections[secIdx + 1].name, nx, nz); return; } nz = sec.z1; }
+    if (nz < sec.z0) { if (secIdx > 0) { this.switchSection(rig.sections[secIdx - 1].name, nx, nz); return; } nz = sec.z0; }
     this.pos.x = nx; this.pos.z = nz;
-    const cab = this.inside === 'front' && this.pos.z < -6.95 && this.pos.x < -0.3;
-    const rearBench = this.inside === 'rear' && this.pos.z > 6.6;
-    this.y = damp(this.y, B.yFloor + (cab || rearBench ? 0.26 : 0), 10, dt);
+    const raised = sec.raised && sec.raised(this.pos.x, this.pos.z);
+    this.y = damp(this.y, rig.yFloor + (raised ? 0.26 : 0), 10, dt);
   }
   switchSection(to, x, z) {
     const w = new THREE.Vector3(x, 0, z).applyMatrix4(this.body(this.inside).matrixWorld);
     const l = this.toLocal(to, w);
     this.inside = to; this.pos.set(l.x, 0, l.z);
   }
-  /** Returns null if free, {door, sec, local} if hitting the bus (door=true when it's an open doorway). */
+  /** Returns null if free, {door, sec, local} if hitting the vehicle (door=true when it's an open doorway). */
   busHit(x, z) {
-    for (const sec of ['front', 'rear']) {
-      const l = this.toLocal(sec, new THREE.Vector3(x, 0, z));
-      const z0 = sec === 'front' ? -8.7 : B.rearStart - 0.4, z1 = sec === 'front' ? B.frontEnd + 0.4 : B.rearEnd + 0.1;
-      if (Math.abs(l.x) < B.hw + 0.25 && l.z > z0 && l.z < z1) {
-        const doors = sec === 'front' ? B.doorsF : B.doorsR;
-        const base = sec === 'front' ? 0 : 2;
-        const k = doors.findIndex(([a, b]) => l.z > a + 0.2 && l.z < b - 0.2);
-        if (l.x > 0.6 && k >= 0 && this.rig.doors[base + k].open > 0.85) return { door: true, sec, local: l };
+    const rig = this.rig;
+    for (const sec of rig.sections) {
+      const l = this.toLocal(sec.name, new THREE.Vector3(x, 0, z));
+      if (Math.abs(l.x) < rig.hw + 0.25 && l.z > sec.oz0 && l.z < sec.oz1) {
+        const door = rig.doors.find((dd) => dd.section === sec.name && l.z > dd.d0 + 0.2 && l.z < dd.d1 - 0.2);
+        if (l.x > 0.6 && door && door.open > 0.85) return { door: true, sec: sec.name, local: l };
         return { door: false };
       }
     }

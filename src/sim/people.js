@@ -1,7 +1,6 @@
 // NPC behaviours on top of the instanced Humans renderer.
 import * as THREE from 'three';
 import { Humans } from './humans.js';
-import { B } from '../bus/model.js';
 import { makeRng, clamp, wrapAngle, lerp } from '../util.js';
 
 const V = (x, y, z) => new THREE.Vector3(x, y, z);
@@ -17,11 +16,13 @@ export class People {
     this.seats = rig.seats.map((s) => ({ ...s, npc: null }));
     // standing spots near doors (local coords per section)
     this.standSpots = [];
-    for (const [sec, doors] of [['front', B.doorsF.slice(1)], ['rear', B.doorsR]]) for (const [d0, d1] of doors) {
-      this.standSpots.push({ section: sec, x: 0.2, z: (d0 + d1) / 2 - 0.3, npc: null }, { section: sec, x: -0.3, z: (d0 + d1) / 2 + 0.4, npc: null });
+    for (const d of rig.doors) {
+      if (d.cabDoor) continue;
+      this.standSpots.push({ section: d.section, x: 0.2, z: (d.d0 + d.d1) / 2 - 0.3, npc: null }, { section: d.section, x: -0.3, z: (d.d0 + d.d1) / 2 + 0.4, npc: null });
     }
+    this.hw = rig.hw; this.yF = rig.yFloor; this.pY = route.platformY ?? 0.15;
   }
-  body(sec) { return sec === 'front' ? this.rig.frontBody : this.rig.rearBody; }
+  body(sec) { return this.rig.bodies[sec]; }
   mk(kind, opts = {}) {
     const h = this.H.add(opts); if (!h) return null;
     const n = { h, kind, state: 'idle', path: [], speed: opts.speed || 1.25 + this.rnd() * 0.3, t: this.rnd() * 10, anim: 'stand', yawT: 0 };
@@ -55,7 +56,7 @@ export class People {
     }
     // waiting passengers at stops
     this.stops = reg.stopsInfo.map((si) => ({ ...si, waiting: [] }));
-    const counts = { borovo: 8, dcc20: 7, su36: 4 };
+    const counts = { borovo: 8, dcc20: 7, su36: 4, gd: 6, ...(this.route.waitCounts || {}) };
     for (const st of this.stops) {
       const n0 = counts[st.id] || 4;
       for (let k = 0; k < n0 && k < st.wait.length; k++) {
@@ -113,7 +114,7 @@ export class People {
     let best = null, bd = 1e9;
     for (const i of openDoors) {
       const d = this.rig.doors[i]; if (d.open < 0.95) continue;
-      const w = V(B.hw + 1.1, 0, (d.d0 + d.d1) / 2).applyMatrix4(this.body(d.section).matrixWorld);
+      const w = V(this.hw + 1.1, 0, (d.d0 + d.d1) / 2).applyMatrix4(this.body(d.section).matrixWorld);
       const dd = w.distanceTo(p); if (dd < bd && dd < 30) { bd = dd; best = d; }
     }
     return best;
@@ -129,16 +130,16 @@ export class People {
     const zc = (door.d0 + door.d1) / 2 + (this.rnd() - 0.5) * 0.6;
     n.kind = 'pax'; n.state = 'board'; n.section = door.section; n.door = door; n.seat = seat;
     if (seat) seat.npc = n;
-    n.dest = pickDest(n.stopId, this.rnd);
+    n.dest = pickDest(n.stopId, this.rnd, this.route.stops);
     n.path = [
-      { p: V(B.hw + 1.0, 0.15, zc).applyMatrix4(body.matrixWorld), world: true },
-      { p: V(B.hw + 0.35, 0.15, zc).applyMatrix4(body.matrixWorld), world: true, door: true },
-      { p: V(0.85, B.yFloor, zc), local: true, door: true },
-      { p: V(0.25, B.yFloor, zc), local: true },
+      { p: V(this.hw + 1.0, this.pY, zc).applyMatrix4(body.matrixWorld), world: true },
+      { p: V(this.hw + 0.35, this.pY, zc).applyMatrix4(body.matrixWorld), world: true, door: true },
+      { p: V(0.85, this.yF, zc), local: true, door: true },
+      { p: V(0.25, this.yF, zc), local: true },
     ];
     if (seat) {
-      const base = seat.base ?? B.yFloor;
-      n.path.push({ p: V(0.1 * Math.sign(seat.x || 1), B.yFloor, seat.z + (seat.yaw ? -0.45 : 0.45)), local: true });
+      const base = seat.base ?? this.yF;
+      n.path.push({ p: V(0.1 * Math.sign(seat.x || 1), this.yF, seat.z + (seat.yaw ? -0.45 : 0.45)), local: true });
       n.path.push({ p: V(seat.x, base, seat.z + (seat.yaw ? -0.02 : 0.02)), local: true, sit: true });
     }
     n.speed = 1.1 + this.rnd() * 0.3;
@@ -150,11 +151,11 @@ export class People {
     if (n.seat) { n.seat.npc = null; }
     const body = this.body(n.section);
     n.path = [
-      { p: V(0.15, B.yFloor, n.h.pos.z), local: true },
-      { p: V(0.3, B.yFloor, zc), local: true },
-      { p: V(0.9, B.yFloor, zc), local: true, door: true },
-      { p: V(B.hw + 0.4, 0.15, zc), toWorld: true, door: true },
-      { p: V(B.hw + 3 + this.rnd() * 2, 0.15, zc + (this.rnd() - 0.5) * 8), bodyWorld: body },
+      { p: V(0.15, this.yF, n.h.pos.z), local: true },
+      { p: V(0.3, this.yF, zc), local: true },
+      { p: V(0.9, this.yF, zc), local: true, door: true },
+      { p: V(this.hw + 0.4, this.pY, zc), toWorld: true, door: true },
+      { p: V(this.hw + 3 + this.rnd() * 2, this.pY, zc + (this.rnd() - 0.5) * 8), bodyWorld: body },
     ];
     n.speed = 1.2;
   }
@@ -297,8 +298,14 @@ export class People {
   }
 }
 
-function pickDest(from, rnd) {
-  if (from === 'borovo') return rnd() < 0.45 ? 'dcc20' : rnd() < 0.7 ? 'su36' : 'beyond';
-  if (from === 'dcc20') return rnd() < 0.6 ? 'su36' : 'beyond';
-  return 'beyond';
+function pickDest(from, rnd, stops) {
+  // any later stop on the line, weighted towards the next few; some ride beyond the modelled section
+  const ids = stops.map((s) => s.id);
+  const i = ids.indexOf(from);
+  const later = ids.slice(i + 1);
+  if (!later.length || rnd() < 0.18) return 'beyond';
+  const w = later.map((_, k) => 1 / (k + 1.2));
+  let t = rnd() * w.reduce((a, b) => a + b, 0);
+  for (let k = 0; k < later.length; k++) { t -= w[k]; if (t <= 0) return later[k]; }
+  return later[later.length - 1];
 }

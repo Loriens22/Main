@@ -47,6 +47,22 @@ export class Autopilot {
     void v;
     return lim;
   }
+  /** Oncoming cars that would conflict with a left turn at stop line sl. */
+  mustYield(sl) {
+    const g = this.g, it = sl.inter;
+    const hIn = g.route.pose(sl.s).h, ix = Math.cos(hIn), iz = Math.sin(hIn);
+    for (const c of g.traffic.cars) {
+      if (!c.active) continue;
+      const car = c.car, dx = car.x - it.x, dz = car.z - it.z, dist = Math.hypot(dx, dz);
+      if (dist > 75) continue;
+      const cx = Math.cos(car.h), cz = Math.sin(car.h);
+      if (cx * ix + cz * iz > -0.7) continue;               // not oncoming
+      if (dist < 13) return true;                          // already in the junction
+      if (dx * cx + dz * cz > 0) continue;                 // moving away from the centre
+      if (dist / Math.max(c.v, 1) < 7) return true;        // arrives within 7 s
+    }
+    return false;
+  }
   /** Returns {throttle, brake, steer} or null when the autopilot is off. */
   update(dt) {
     if (!this.on) return null;
@@ -97,6 +113,8 @@ export class Autopilot {
         if (!g.tl.mayPass(sl.inter, sl.group, d, Math.abs(veh.v))) vT = Math.min(vT, d > 1.5 ? Math.sqrt(2 * 1.6 * (d - 1.5)) : 0);
         // indicator ahead of turns
         if (sl.turn && d < 70 && d > 0) { veh.indicator = sl.turn === 'right' ? 1 : -1; this.indT = 9; }
+        // left turn: yield to oncoming traffic (wait at the stop line, or at the entry if already past it)
+        if (sl.turn === 'left' && d < 30 && d > -22 && this.mustYield(sl)) vT = Math.min(vT, d > 1.5 ? Math.sqrt(2 * 1.6 * (d - 1.5)) : 0);
       }
       // traffic ahead on our path
       const fx = g.frontX, fz = g.frontZ;

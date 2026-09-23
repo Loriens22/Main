@@ -236,6 +236,22 @@ export function buildTrolleybus() {
   buildMirrors();
   buildBellows();
 
+  // ---- generic vehicle description (used by passengers, walking, cameras, game) ----
+  const Vg = (x, y, z) => new THREE.Vector3(x, y, z);
+  rig.kind = 'trolleybus';
+  rig.roots = [front, rear];
+  rig.bodies = { front: frontBody, rear: rearBody };
+  rig.hw = B.hw; rig.yFloor = B.yFloor;
+  // walkable saloon sections in chain order: z range inside, outer z range (collision), raised areas
+  rig.sections = [
+    { name: 'front', z0: -8.15, z1: B.frontEnd + 0.15, oz0: -8.7, oz1: B.frontEnd + 0.4, raised: (x, z) => z < -6.95 && x < -0.3 },
+    { name: 'rear', z0: B.rearStart - 0.15, z1: B.zR + 0.05, oz0: B.rearStart - 0.4, oz1: B.rearEnd + 0.1, raised: (x, z) => z > 6.6 },
+  ];
+  rig.cab = { section: 'front', inside: (x, z) => z < -6.5 && x < -0.15, partition: { z: -6.95, xMax: -0.3 }, exit: Vg(-0.05, 0, -6.6) };
+  rig.eye = { section: 'front', pos: B.eye.clone() };
+  rig.interiorEye = { section: 'rear', pos: Vg(0.45, 1.72, 6.2) };
+  rig.startSpot = { section: 'front', pos: Vg(B.hw + 3.2, 0, -7.4), look: Vg(B.hw, 0, -7.6) };
+  rig.doors.forEach((d, i) => { d.cabDoor = i === 0; });
   return rig;
 
   /* =============================================================== */

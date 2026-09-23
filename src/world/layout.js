@@ -6,6 +6,7 @@ import { streetPts } from './roads.js';
 import * as BLD from './buildings.js';
 import * as PR from './props.js';
 import { R, rr, ri, pick, chance, mat, makeRng } from '../util.js';
+import { layoutGD, fillGD } from './layoutGD.js';
 
 const SHOPS = [
   { text: 'АПТЕКА', bg: '#1b7a3a', fg: '#fff' }, { text: 'ХРАНИТЕЛНИ СТОКИ', bg: '#c0392b', fg: '#fff' }, { text: 'КАФЕ • БАНИЧКИ', bg: '#6d4c2e', fg: '#ffe7b0' },
@@ -170,11 +171,18 @@ export function layoutWorld(route, cb, occ, reg, roadsInfo) {
   }
 
   /* =========================================================
+     Line 9 extension: S5, S6, бул. Гоце Делчев stop
+     ========================================================= */
+  if (S.S6) layoutGD({ route, cb, occ, reg, S, at, fr, place, markB, freeB, addTree, tryTree, parkCar, faceRoadYaw });
+  const EXT = new Set([S.S5, S.S6, S.X6].filter(Boolean));
+  const MAJOR = [S.S1, S.S2, S.S3, S.S4, S.S5, S.S6, S.X6].filter(Boolean);
+
+  /* =========================================================
      Procedural fill along all major streets
      ========================================================= */
   const rnd = makeRng(99);
   const reserved = (st, s, side) => reg.reserve.some((r) => r.st === st && r.side === side && s > r.a && s < r.b);
-  for (const st of [S.S1, S.S2, S.S3, S.S4]) {
+  for (const st of MAJOR) {
     for (const side of [1, -1]) {
       let s = st === S.S1 ? 70 : 30;
       const end = st.poly.length - 20;
@@ -184,7 +192,17 @@ export function layoutWorld(route, cb, occ, reg, roadsInfo) {
         if (reserved(st, s, side)) { s += 10; continue; }
         const r = rnd();
         let kind, L, D, fl, setback, rot = 0;
-        if (r < 0.46) { kind = 'panel'; L = pick([36, 42, 48, 54, 60, 66]); D = 12; fl = pick([5, 8, 8, 9, 9, 6]); setback = rr(5, 16); if (rnd() < 0.25) rot = Math.PI / 2; }
+        if (EXT.has(st)) {
+          // communist-era corridor: varied blocks, a few 2006 industrial halls and shops
+          if (r < 0.22) { kind = 'panel'; L = pick([42, 48, 54, 60]); D = 12; fl = pick([6, 8, 9]); setback = rr(6, 16); }
+          else if (r < 0.42) { kind = 'b80'; L = pick([40, 48, 54]); D = 13; fl = pick([8, 9, 10]); setback = rr(8, 18); }
+          else if (r < 0.54) { kind = 'brick'; L = pick([36, 42, 48]); D = 13; fl = pick([12, 13, 15]); setback = rr(10, 20); }
+          else if (r < 0.62) { kind = 'sliver'; L = 16; D = 13; fl = pick([10, 11, 12]); setback = rr(8, 16); }
+          else if (r < 0.70) { kind = 'red'; L = 20; D = 14; fl = pick([8, 9, 10]); setback = rr(5, 12); }
+          else if (r < 0.80) { kind = 'hall'; L = pick([26, 32, 40]); D = pick([16, 20]); setback = rr(8, 16); }
+          else if (r < 0.88) { kind = 'shop'; L = pick([8, 10, 12]); D = 7; setback = rr(1.5, 4); }
+          else { kind = 'gap'; L = rr(12, 30); }
+        } else if (r < 0.46) { kind = 'panel'; L = pick([36, 42, 48, 54, 60, 66]); D = 12; fl = pick([5, 8, 8, 9, 9, 6]); setback = rr(5, 16); if (rnd() < 0.25) rot = Math.PI / 2; }
         else if (r < 0.66) { kind = 'modern'; L = pick([30, 36, 42]); D = 14; fl = pick([5, 6, 7, 8]); setback = rr(4, 10); }
         else if (r < 0.78) { kind = 'shop'; L = pick([8, 10, 12]); D = 7; setback = rr(1.5, 4); }
         else if (r < 0.86) { kind = 'market'; L = pick([36, 40, 46]); D = 26; setback = rr(16, 22); }
@@ -199,7 +217,8 @@ export function layoutWorld(route, cb, occ, reg, roadsInfo) {
         const h = (side > 0 ? f.h : f.h + Math.PI) + rot;
         if (!freeB(x, z, h, L, D, 2)) { s += 10; continue; }
         const M = hmat(x, 0, z, h);
-        if (kind === 'panel') BLD.panelBlock(cb, M, reg, { L, floors: fl, fmat: pick([WM.panelA, WM.panelB, WM.panelC]), glazedP: rr(0.4, 0.75), shops: rnd() < 0.35 && !rot ? [pick(SHOPS), pick(SHOPS), pick(SHOPS)] : null, balc: rnd() < 0.3 ? 'both' : 'front' });
+        if (kind === 'b80' || kind === 'brick' || kind === 'red' || kind === 'sliver' || kind === 'hall') fillGD(cb, M, reg, kind, L, D, fl, rnd);
+        else if (kind === 'panel') BLD.panelBlock(cb, M, reg, { L, floors: fl, fmat: pick([WM.panelA, WM.panelB, WM.panelC]), glazedP: rr(0.4, 0.75), shops: rnd() < 0.35 && !rot ? [pick(SHOPS), pick(SHOPS), pick(SHOPS)] : null, balc: rnd() < 0.3 ? 'both' : 'front' });
         else if (kind === 'modern') BLD.modernBlock(cb, M, reg, { L, floors: fl, fmat: pick([WM.modernA, WM.modernB, WM.modernC]), accent: pick([0xb45d3f, 0x6f7880, 0xc9a25a, 0x5b7fa0]), shops: rnd() < 0.7 ? [pick(SHOPS), pick(SHOPS)] : null });
         else if (kind === 'shop') { const sp = pick(SHOPS); BLD.shopPavilion(cb, M, reg, { L, D, text: sp.text, bg: sp.bg, fg: sp.fg }); }
         else if (kind === 'market') {
@@ -248,7 +267,7 @@ export function layoutWorld(route, cb, occ, reg, roadsInfo) {
   }
 
   /* ---------------- street trees & furniture along major streets ---------------- */
-  for (const st of [S.S1, S.S2, S.S3, S.S4]) {
+  for (const st of MAJOR) {
     for (const side of [1, -1]) {
       for (let s = 8; s < st.poly.length - 5; s += rr(9, 13)) {
         const [x, z] = at(st, s, side * (st.halfW + st.sidewalk + 1.7));
@@ -261,7 +280,7 @@ export function layoutWorld(route, cb, occ, reg, roadsInfo) {
     }
   }
   // speed limit signs / name plates
-  for (const [st, s, side] of [[S.S1, 150, 1], [S.S1, 1250, 1], [S.S2, 520, 1], [S.S3, 520, 1], [S.S4, 520, 1], [S.S1, 900, -1]]) {
+  for (const [st, s, side] of [[S.S1, 150, 1], [S.S1, 1250, 1], [S.S2, 520, 1], [S.S3, 520, 1], [S.S4, 520, 1], [S.S1, 900, -1], [S.S5, 480, 1], [S.S5, 1100, 1], [S.S6, 460, 1]].filter((a) => a[0])) {
     const [x, z, h] = at(st, s, side * (st.halfW + 0.8));
     PR.roadSign(cb, x, z, Math.atan2(-Math.cos(h) * side, -Math.sin(h) * side), '40');
   }
@@ -282,7 +301,7 @@ export function layoutWorld(route, cb, occ, reg, roadsInfo) {
   /* ---------------- parked cars on S4 (north side lane) ---------------- */
   {
     const st = S.S4;
-    for (let s = 440; s < st.poly.length - 10; s += rr(5.3, 6.4)) {
+    for (let s = 440; s < Math.min(st.poly.length - 10, 1440); s += rr(5.3, 6.4)) {
       if (Math.abs(s - 900) < 14 || (s > s36 - 30 && s < s36 + 30)) continue;
       if (chance(0.82)) { const [x, z, h] = at(st, s, -5.3); parkCar(x, z, h + Math.PI + rr(-0.02, 0.02), 0); }
     }
@@ -296,11 +315,11 @@ export function layoutWorld(route, cb, occ, reg, roadsInfo) {
   /* ---------------- background city (simple blocks further away) ---------------- */
   const g2 = makeRng(5);
   occ.buildDist(2);
-  for (let x = -700; x < 1700; x += 64) for (let z = -3300; z < 700; z += 64) {
+  for (let x = -700; x < 3400; x += 64) for (let z = -4800; z < 700; z += 64) {
     const cx = x + g2() * 30, cz = z + g2() * 30;
     // distance to the nearest road/sidewalk cell (distance field over the occupancy grid)
     const dmin = occ.dist(cx, cz);
-    if (dmin < 58 || Math.hypot(cx, cz) < 120) continue;
+    if (dmin < 58 || dmin > 520 || Math.hypot(cx, cz) < 120) continue;
     const h = [0, Math.PI / 2, 0.3, -0.4][Math.floor(g2() * 4)];
     const L = 30 + g2() * 36, D = 12 + g2() * 3;
     if (!freeB(cx, cz, h, L, D, 4)) continue;

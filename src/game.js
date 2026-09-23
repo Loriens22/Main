@@ -43,7 +43,7 @@ export class Game {
     initWorldMaterials();
 
     await step(0.25, 'Улици, тротоари, маркировка…');
-    const occ = this.occ = new OccGrid(-900, -3500, 1900, 900, 2);
+    const occ = this.occ = new OccGrid(-900, -4900, 3500, 900, 2);
     const cb = this.cb = new ChunkBatch(420);
     this.roadsInfo = buildRoads(route, cb, occ);
     intersectionMarkings(route, cb);
@@ -58,6 +58,13 @@ export class Game {
     layoutWorld(route, cb, occ, reg, this.roadsInfo);
     SIGNS.finalize();
 
+    // tram overhead wires on side streets (drawn with the trolleybus wires' material)
+    if (reg.tramWires?.length) {
+      const arr = [];
+      for (const line of reg.tramWires) for (let i = 0; i < line.length - 1; i++) arr.push(...line[i], ...line[i + 1]);
+      const g = new THREE.BufferGeometry(); g.setAttribute('position', new THREE.Float32BufferAttribute(arr, 3));
+      const lw = new THREE.LineSegments(g, this.cat.wires.material); lw.frustumCulled = false; scene.add(lw);
+    }
     await step(0.6, 'Сглобяване на града…');
     const nChunks = cb.build(scene, 'city');
     buildTerrain(scene, this.engine.fogColor);
@@ -67,7 +74,7 @@ export class Game {
 
     await step(0.74, 'Тролейбус Škoda 27Tr Solaris №1650…');
     this.rig = buildTrolleybus();
-    scene.add(this.rig.front, this.rig.rear);
+    scene.add(...this.rig.roots);
     this.bus = new Bus(this.rig, route, this.cat, (e, a, b) => this.onBusEvent(e, a, b));
     scene.add(this.bus.sparks.points);
     this.veh = this.bus;
@@ -83,7 +90,7 @@ export class Game {
     const parked = reg.parked;
     const rnd = makeRng(31);
     const moverTypes = ['hatch', 'hatch', 'sedan', 'sedan', 'suv', 'small', 'taxi', 'taxi', 'van', 'small'];
-    const nMovers = 38;
+    const nMovers = 56;
     const movers = [];
     for (let i = 0; i < nMovers; i++) movers.push(moverTypes[Math.floor(rnd() * moverTypes.length)]);
     for (const p of parked) counts[p.type] = (counts[p.type] || 0) + 1;
@@ -160,10 +167,11 @@ export class Game {
     this.finished = false;
     this.informator.state = 'off'; this.informator.idx = 0; this.informator.history.length = 0;
     // start on foot on the Borovo platform, looking at door 1
-    this.rig.front.updateMatrixWorld(true);
-    const w = new THREE.Vector3(B.hw + 3.2, 0, -7.4).applyMatrix4(this.rig.frontBody.matrixWorld);
+    for (const r of this.rig.roots) r.updateMatrixWorld(true);
+    const ss = this.rig.startSpot, sb = this.rig.bodies[ss.section];
+    const w = ss.pos.clone().applyMatrix4(sb.matrixWorld);
     this.player.placeWorld(w.x, w.z);
-    const doorW = new THREE.Vector3(B.hw, 0, -7.6).applyMatrix4(this.rig.frontBody.matrixWorld);
+    const doorW = ss.look.clone().applyMatrix4(sb.matrixWorld);
     this.camRig.look.yaw = Math.atan2(-(doorW.x - w.x), -(doorW.z - w.z)); this.camRig.look.pitch = -0.05;
     this.enterWalk(true);
   }
@@ -184,10 +192,11 @@ export class Game {
     this.mode = 'walk';
     this.camRig.setMode('walk');
     if (!silent) {
-      this.rig.front.updateMatrixWorld(true);
+      for (const r of this.rig.roots) r.updateMatrixWorld(true);
       // step out of the cab into the aisle
-      this.player.inside = 'front'; this.player.pos.set(-0.05, 0, -6.6); this.player.y = B.yFloor;
-      this.camRig.look.yaw = new THREE.Euler().setFromQuaternion(this.rig.frontBody.getWorldQuaternion(new THREE.Quaternion()), 'YXZ').y + Math.PI;
+      const cab = this.rig.cab, cb0 = this.rig.bodies[cab.section];
+      this.player.inside = cab.section; this.player.pos.copy(cab.exit); this.player.y = this.rig.yFloor;
+      this.camRig.look.yaw = new THREE.Euler().setFromQuaternion(cb0.getWorldQuaternion(new THREE.Quaternion()), 'YXZ').y + Math.PI;
     }
     this.ui.showMode('walk');
     this.bus.throttle = 0; this.bus.brake = 0;
@@ -275,7 +284,7 @@ export class Game {
     bus.samplePts(this.busPts);
     this.traffic.update(dt, this.busPts, this.engine.camera.position, this.people.pedPts);
     this.tripLogic(dt);
-    this.rig.front.updateMatrixWorld(true); this.rig.rear.updateMatrixWorld(true);
+    for (const r of this.rig.roots) r.updateMatrixWorld(true);
     this.people.update(dt, this.engine.camera.position, bus, {}, null);
     this.informator.update(dt, {});
   }
@@ -311,7 +320,7 @@ export class Game {
     const cam = this.engine.camera.position;
     this.traffic.update(dt, this.busPts, cam, this.people.pedPts);
     this.tripLogic(dt);
-    this.rig.front.updateMatrixWorld(true); this.rig.rear.updateMatrixWorld(true);
+    for (const r of this.rig.roots) r.updateMatrixWorld(true);
     this.people.update(dt, cam, bus, { stopAt: this.atStop >= 0 ? this.route.stops[this.atStop]?.id : null }, this.engine.camera);
     this.humans.flush();
     this.rig.displays.tick(this.time);

@@ -1,6 +1,5 @@
 // Camera modes: driver cab, chase/orbit, passenger interior, roadside cinematic, first-person walk.
 import * as THREE from 'three';
-import { B } from './bus/model.js';
 import { clamp, damp, lerp, wrapAngle } from './util.js';
 
 export const MODES = ['cab', 'chase', 'interior', 'cinema'];
@@ -54,14 +53,14 @@ export class CameraRig {
     if (this.mode === 'cab') {
       // driver's eye with slight inertia against acceleration
       const lean = clamp(-bus.a * 0.012, -0.05, 0.05);
-      const eye = this.tmp.copy(B.eye); eye.z += lean;
+      const eye = this.tmp.copy(rig.eye.pos); eye.z += lean;
       const shake = bus.shake ? (Math.random() - 0.5) * bus.shake * 0.04 : 0;
-      this.placeLocal(rig.frontBody, eye, this.look.yaw + shake, this.look.pitch + shake);
+      this.placeLocal(rig.bodies[rig.eye.section], eye, this.look.yaw + shake, this.look.pitch + shake);
       this.setFov(fov + 8, 0.06);
       return;
     }
     if (this.mode === 'interior') {
-      this.placeLocal(rig.rearBody, new THREE.Vector3(0.45, 1.72, 6.2), this.look.yaw, this.look.pitch);
+      this.placeLocal(rig.bodies[rig.interiorEye.section], rig.interiorEye.pos, this.look.yaw, this.look.pitch);
       this.setFov(fov + 8, 0.06);
       return;
     }
