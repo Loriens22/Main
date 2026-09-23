@@ -1,0 +1,24 @@
+{
+  "name": "main",
+  "version": "1.0.0",
+  "description": "Create things",
+  "main": "index.js",
+  "scripts": {
+    "test": "echo \"Error: no test specified\" && exit 1"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/Loriens22/Main.git"
+  },
+  "keywords": [],
+  "author": "",
+  "license": "ISC",
+  "bugs": {
+    "url": "https://github.com/Loriens22/Main/issues"
+  },
+  "homepage": "https://github.com/Loriens22/Main#readme",
+  "devDependencies": {
+    "esbuild": "^0.28.2",
+    "three": "^0.186.0"
+  }
+}

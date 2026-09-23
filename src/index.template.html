@@ -1,0 +1,164 @@
+<!doctype html>
+<html lang="bg">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=1,user-scalable=no,viewport-fit=cover">
+<meta name="theme-color" content="#0b1220">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<title>Тролейбус 1650 · Линия 9</title>
+<style>/*__STYLE__*/</style>
+</head>
+<body>
+<canvas id="c"></canvas>
+
+<div id="splash">
+  <div class="splash-inner">
+    <div class="brand">
+      <div class="brand-num">9</div>
+      <div>
+        <div class="brand-title">Тролейбус <b>1650</b></div>
+        <div class="brand-sub">Škoda 27Tr Solaris · Линия 9 · ж.к. Борово → пл. Сточна гара</div>
+      </div>
+    </div>
+    <div class="progress"><div id="progBar"></div></div>
+    <div id="progTxt">Зареждане…</div>
+    <button id="startBtn" class="big-btn" disabled>СТАРТ</button>
+    <div class="splash-hints">
+      <div><b>Пеша:</b> ляв джойстик — движение, влачене — оглеждане. Влезте през предната врата в кабината.</div>
+      <div><b>Шофиране:</b> волан долу вляво, педали долу вдясно, информатор BT902 горе вляво.</div>
+      <div><b>Клавиатура:</b> W/S газ/спирачка, A/D волан, O врати, I информатор, C камера, Q/E мигачи, H клаксон, P ръчна спирачка, 1/2/3 D-N-R.</div>
+    </div>
+  </div>
+</div>
+
+<div id="hud" class="hidden">
+  <div id="topbar">
+    <div id="stopcard" class="panel">
+      <div class="lbl" id="stopLbl">Следваща спирка</div>
+      <div id="nextStop">—</div>
+      <div id="distRow"><span id="dist">0.00</span><span class="unit">км</span><span id="lineTag">Л9</span></div>
+    </div>
+    <div id="speedcard" class="panel">
+      <div class="spdrow"><span id="spd">0</span><small>км/ч</small></div>
+      <div class="gears"><span data-g="D">D</span><span data-g="N" class="on">N</span><span data-g="R">R</span></div>
+    </div>
+    <div id="icons" class="panel">
+      <span id="icPoles" class="ic" title="Токоприемници">⚡</span>
+      <span id="icDoors" class="ic" title="Врати">▯▯</span>
+      <span id="icPark" class="ic" title="Ръчна спирачка">P</span>
+      <span id="icL" class="ic ind">◄</span><span id="icR" class="ic ind">►</span>
+    </div>
+  </div>
+
+  <canvas id="minimap" width="220" height="220"></canvas>
+  <div id="toast"></div>
+  <div id="subtitle"></div>
+  <div id="prompt"></div>
+
+  <div id="bt902" class="hidden">
+    <div class="bt-head">
+      <div class="bt-logo"><span class="dots"></span>bustec</div>
+      <div class="bt-model">BT902</div>
+    </div>
+    <div class="bt-body">
+      <div class="bt-leds">
+        <div><span>ERROR</span><i id="ledErr" class="led red"></i></div>
+        <div><span>START</span><i id="ledStart" class="led green"></i></div>
+        <div><span>RUN</span><i id="ledRun" class="led green"></i></div>
+        <div><span>LOAD</span><i id="ledLoad" class="led green"></i></div>
+      </div>
+      <div class="bt-lcd"><pre id="lcd"></pre></div>
+      <div class="bt-knob-wrap"><button id="btKnob" class="bt-knob" aria-label="SETUP"></button><span>SETUP</span></div>
+    </div>
+    <div class="bt-foot">
+      <span class="usb">USB <i></i></span>
+      <div class="bt-btns">
+        <button class="bt-b" data-k="0"></button><button class="bt-b" data-k="1"></button>
+        <button class="bt-b" data-k="2"></button><button class="bt-b" data-k="3"></button>
+      </div>
+      <span class="sd"></span>
+    </div>
+  </div>
+
+  <div id="drive" class="hidden">
+    <div id="wheel"><div id="wheelRot"></div><div id="wheelAngle">0°</div></div>
+    <div id="pedals">
+      <div id="brake" class="pedal"><div class="fill"></div><span>СПИРАЧКА</span></div>
+      <div id="accel" class="pedal"><div class="fill"></div><span>ГАЗ</span></div>
+    </div>
+    <div id="btnGrid">
+      <button id="bDoors" class="b wide">ВРАТИ</button>
+      <button class="b d" data-d="0">1</button><button class="b d" data-d="1">2</button>
+      <button class="b d" data-d="2">3</button><button class="b d" data-d="3">4</button>
+      <button id="bInf" class="b wide accent">ИНФОРМАТОР</button>
+      <button id="bIndL" class="b">◄</button>
+      <button id="bHazard" class="b">▲</button>
+      <button id="bIndR" class="b">►</button>
+      <button id="bHorn" class="b">📯</button>
+      <button id="bD" class="b gear">D</button>
+      <button id="bN" class="b gear on">N</button>
+      <button id="bR" class="b gear">R</button>
+      <button id="bPark" class="b on">P</button>
+      <button id="bPoles" class="b half">ЩАНГИ</button>
+      <button id="bKneel" class="b half">КЛЯКАНЕ</button>
+    </div>
+  </div>
+
+  <div id="walk" class="hidden">
+    <div id="stick"><div id="knob"></div></div>
+    <button id="actBtn" class="big-btn hidden">ШОФЬОРСКОТО МЯСТО</button>
+  </div>
+
+  <div id="topRight">
+    <button id="bCam" class="b round" title="Камера">🎥</button>
+    <button id="bView" class="b round" title="Центрирай погледа">⊙</button>
+    <button id="bMode" class="b round" title="Пеша / шофиране">🚶</button>
+    <button id="bMenu" class="b round" title="Меню">☰</button>
+  </div>
+</div>
+
+<div id="menu" class="hidden">
+  <div class="menu-inner panel">
+    <h2>Настройки</h2>
+    <label>Качество
+      <select id="optQuality">
+        <option value="ultra">Ултра</option>
+        <option value="high" selected>Високо</option>
+        <option value="medium">Средно</option>
+        <option value="low">Ниско</option>
+      </select></label>
+    <label><input type="checkbox" id="optDynRes" checked> Динамична резолюция</label>
+    <label><input type="checkbox" id="optMirrors" checked> Огледала (живо изображение)</label>
+    <label><input type="checkbox" id="optShadows" checked> Сенки</label>
+    <label><input type="checkbox" id="optTilt"> Управление с накланяне</label>
+    <label><input type="checkbox" id="optAssist" checked> Самоцентриране на волана</label>
+    <label>Звук <input type="range" id="optVol" min="0" max="1" step="0.05" value="0.8"></label>
+    <label>Глас на информатора <select id="optVoice"></select></label>
+    <div class="row">
+      <button id="bTestVoice" class="b wide">Тест на гласа</button>
+      <button id="bReset" class="b wide">Рестарт на маршрута</button>
+      <button id="bRecover" class="b wide">Върни на линията</button>
+    </div>
+    <div id="perf"></div>
+    <button id="bClose" class="big-btn">ПРОДЪЛЖИ</button>
+  </div>
+</div>
+
+<div id="endPanel" class="hidden">
+  <div class="menu-inner panel">
+    <h2>Край на курса</h2>
+    <div id="endStats"></div>
+    <div class="row">
+      <button id="bEndContinue" class="b wide">Свободно каране</button>
+      <button id="bEndRestart" class="big-btn">НОВ КУРС</button>
+    </div>
+  </div>
+</div>
+
+<div id="rotateHint"><div>⟳</div>Завъртете телефона хоризонтално за най-добро изживяване</div>
+<div id="err"></div>
+<script>/*__BUNDLE__*/</script>
+</body>
+</html>
