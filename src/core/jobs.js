@@ -164,7 +164,11 @@ export class JobScheduler {
 
   get active() { return this.jobs.filter((j) => j.status === 'running' || j.status === 'queued'); }
 
-  tick(budgetMs) {
+  get hasRunnable() { return this.jobs.some((j) => (j.status === 'running' && !j.waiting) || j.status === 'queued'); }
+
+  // `idle`: called from requestIdleCallback with the browser's remaining idle
+  // time, so the slice must never exceed the budget (no deadline escalation).
+  tick(budgetMs, idle = false) {
     const now = performance.now();
     // Start queued jobs up to the concurrency limit.
     let running = this.jobs.filter((j) => j.status === 'running').length;
@@ -199,13 +203,17 @@ export class JobScheduler {
         // 92% it runs until done.
         const urgency = el / j.deadlineSec;
         let slice = per;
-        if (urgency > 0.45) slice *= 1 + (urgency - 0.45) * 20;
-        if (urgency > 0.92) slice = 250;
-        const sliceEnd = urgency > 0.45 ? performance.now() + slice : Math.min(end, performance.now() + slice);
+        if (!idle && urgency > 0.45) slice *= 1 + (urgency - 0.45) * 20;
+        if (!idle && urgency > 0.92) slice = 250;
+        const sliceEnd = !idle && urgency > 0.45 ? performance.now() + slice : Math.min(end, performance.now() + slice);
         j.ctx.sliceEnd = sliceEnd;
         // Automatic detail reduction when the job risks running past its deadline.
         if (el > j.deadlineSec * 0.6) j.ctx.detail = Math.max(0.25, 1 - (el / j.deadlineSec - 0.6) * 2);
         let guard = 0;
+        let t0 = performance.now();
+        // Main-thread time actually spent inside the generator (for benchmarks);
+        // booked before 'end' is emitted so listeners see the full total.
+        const book = () => { if (t0 !== null) { j.cpuMs = (j.cpuMs || 0) + performance.now() - t0; t0 = null; } };
         while (performance.now() < sliceEnd && j.status === 'running' && !j.waiting && guard++ < 100000) {
           let step;
           try {
@@ -213,11 +221,13 @@ export class JobScheduler {
             else { const v = j.resumeValue; j.resumeValue = undefined; step = j.gen.next(v); }
           } catch (e) {
             console.error('[job failed]', j.title, e);
+            book();
             j._finish('failed', null, e);
             this._emit('end', j);
             break;
           }
           if (step.done) {
+            book();
             j._finish('done', step.value, null);
             this._emit('end', j);
             break;
@@ -229,6 +239,7 @@ export class JobScheduler {
               (err) => { j.waiting = false; j.pendingThrow = err; });
           }
         }
+        book();
       }
     }
     // Drop finished jobs after a short grace period (UI reads them for fade-out).

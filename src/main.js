@@ -345,6 +345,16 @@ function startLoop() {
     window.__frames++;
   };
   loop();
+  // Generation also soaks up the main thread's idle time between frames
+  // (common when rendering is GPU-bound), without ever delaying a frame.
+  if (typeof requestIdleCallback === 'function' && !BUDGET_OVERRIDE && !params.has('noidle')) {
+    const idle = (deadline) => {
+      const t = deadline.timeRemaining() - 1.5;
+      if (t > 1.5 && G.jobs.hasRunnable) { try { G.jobs.tick(Math.min(t, 40), true); } catch (e) { console.error(e); } }
+      requestIdleCallback(idle);
+    };
+    requestIdleCallback(idle);
+  }
 }
 
 function frame(dt) {

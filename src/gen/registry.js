@@ -234,7 +234,7 @@ export class Registry {
         if (e._lodT <= 0) {
           e._lodT = 0.3;
           const d = e.root.position.distanceTo(camPos) / (e.scale || 1);
-          for (const l of e.lod) l.object.visible = d <= l.maxDist;
+          for (const l of e.lod) l.object.visible = d <= l.maxDist && d > (l.minDist || 0);
         }
       }
     }

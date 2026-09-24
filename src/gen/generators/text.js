@@ -149,7 +149,7 @@ export const textGen = {
     const H = (a.dims.height || 2.2) * (a.dims.height ? 1 : clamp(a.sizeMul || 1, 0.2, 12));
     const px = 64;
     const scale = H / (px * 0.72);
-    const depthM = H * 0.3;
+    const depthM = H * 0.2;
     const root = new THREE.Group();
     const rainbow = a.primaryColor === 'rainbow' || (!a.primaryColor && !a.materials[0] && rng.chance(0.5));
     const glow = a.flags.glow || a.words.includes('neon');
@@ -170,7 +170,7 @@ export const textGen = {
         root.add(m);
         letters.push({ m, x0: x * scale, w: advance * scale });
       }
-      x += advance + px * 0.06;
+      x += advance + px * 0.1;
       if (ctx.shouldYield()) yield;
     }
     const total = x * scale;

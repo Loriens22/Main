@@ -11,7 +11,7 @@ import { G } from '../core/context.js';
 
 export class PlayerAvatar {
   constructor(seed = 20260924) {
-    this.h = new Humanoid({ ...PLAYER_SPEC }, seed);
+    this.h = new Humanoid({ ...PLAYER_SPEC }, seed, { lod: false });
     this.root = this.h.root;
     this.ready = false;
     this.pose = null;

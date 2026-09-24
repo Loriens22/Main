@@ -43,12 +43,17 @@ const t0 = Date.now();
 await page.goto('file://' + join(root, 'index.html') + `?q=${q}&gen=${gen}&nomirror&nofx${bench ? '&norender' : '&budget=400'}${extra ? '&' + extra : ''}`);
 await page.waitForFunction(() => window.G && window.G.player && window.G.avatar && window.G.avatar.ready && window.__frames > 2, null, { timeout: 600000 });
 console.log(`booted in ${((Date.now() - t0) / 1000).toFixed(1)} s`);
-await page.evaluate(() => { document.getElementById('start-btn').click(); });
+await page.evaluate(() => {
+  document.getElementById('start-btn').click();
+  // Sum of main-thread time spent inside generators, per command.
+  window.__cpu = 0;
+  window.G.jobs.on((type, j) => { if (type === 'end') window.__cpu += j.cpuMs || 0; });
+});
 let failures = 0;
 for (let i = 0; i < cmds.length; i++) {
   const c = cmds[i];
   const tc = Date.now();
-  await page.evaluate((text) => { window.G.ui.hooks.onCommand(text, null); }, c);
+  await page.evaluate((text) => { window.__cpu = 0; window.G.ui.hooks.onCommand(text, null); }, c);
   try {
     await page.waitForFunction(() => window.G.jobs.active.length === 0, null, { timeout: 330000, polling: 500 });
   } catch (e) { console.log('TIMEOUT waiting for', c); failures++; }
@@ -57,7 +62,7 @@ for (let i = 0; i < cmds.length; i++) {
     const G = window.G;
     const e = G.lastCreated;
     if (!e) return null;
-    return { name: e.name, gen: e.gen, cat: e.category, pos: e.root.position.toArray().map((v) => +v.toFixed(2)), height: e.height, radius: e.footprint && e.footprint.radius, tris: (() => { let t = 0; e.root.traverse((o) => { if (o.geometry) t += (o.geometry.index ? o.geometry.index.count : o.geometry.attributes.position.count) / 3; }); return Math.round(t); })() };
+    return { cpu: +(window.__cpu / 1000).toFixed(1), name: e.name, gen: e.gen, cat: e.category, pos: e.root.position.toArray().map((v) => +v.toFixed(2)), height: e.height, radius: e.footprint && e.footprint.radius, tris: (() => { let t = 0; e.root.traverse((o) => { if (o.geometry) t += (o.geometry.index ? o.geometry.index.count : o.geometry.attributes.position.count) / 3; }); return Math.round(t); })() };
   });
   console.log(`[${secs.toFixed(1)} s${secs > 300 ? ' OVER BUDGET' : ''}] "${c}" ->`, JSON.stringify(info));
   if (!info) failures++;

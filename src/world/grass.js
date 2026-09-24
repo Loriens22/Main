@@ -116,9 +116,9 @@ objectNormal = normalize( vec3( gDir.x, 0.0, gDir.y ) + vec3( gSide.x, 0.0, gSid
 objectNormal = normalize( mix( objectNormal, gN, 0.55 + smoothstep( 10.0, 40.0, gd ) * 0.35 ) );
 // Colour.
 vec3 gBase = uBaseColor * ( 0.7 + 0.5 * gR2 );
-vec3 gTip = mix( uTipColor, uDryColor, clamp( gMeadow * 0.8 + ( gR4 - 0.5 ) * 0.4 + gClump * 0.2, 0.0, 1.0 ) );
+vec3 gTip = mix( uTipColor, uDryColor, clamp( gMeadow * 0.5 + ( gR4 - 0.5 ) * 0.35 + gClump * 0.15, 0.0, 0.85 ) );
 gTip *= 0.8 + 0.4 * gR1;
-vGrassColor = mix( gBase, gTip, smoothstep( 0.0, 1.0, gY ) );
+vGrassColor = mix( gBase, gTip, smoothstep( 0.0, 0.75, gY ) );
 float gFlower = step( gR4, uFlowers * ( 0.3 + gMeadow ) ) * step( 0.82, gY );
 vec3 gFlowerCol = gR3 < 0.25 ? vec3( 0.95, 0.95, 0.9 ) : gR3 < 0.5 ? vec3( 1.0, 0.8, 0.1 ) : gR3 < 0.75 ? vec3( 0.55, 0.25, 0.8 ) : vec3( 0.9, 0.15, 0.1 );
 vGrassColor = mix( vGrassColor, gFlowerCol, gFlower );
@@ -165,8 +165,8 @@ export class GrassLayer {
       uHeightTex: { value: terrain.heightTex },
       uPaintTex: { value: terrain.paintTex },
       uPlayerPos: { value: new THREE.Vector3(0, -1000, 0) },
-      uBaseColor: { value: new THREE.Color(opts.baseColor || 0x1c3810) },
-      uTipColor: { value: new THREE.Color(opts.tipColor || 0x587e26) },
+      uBaseColor: { value: new THREE.Color(opts.baseColor || 0x28461a) },
+      uTipColor: { value: new THREE.Color(opts.tipColor || 0x5f8c2a) },
       uDryColor: { value: new THREE.Color(opts.dryColor || 0x968a46) },
       uFlowers: { value: opts.flowers ?? 0.025 },
       uTranslucentColor: { value: new THREE.Color(opts.translucent || 0x9acd4a).multiplyScalar(0.5) },

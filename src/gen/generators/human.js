@@ -36,7 +36,7 @@ export const humanGen = {
     const data = {
       root, name: spec.name, category: statue ? 'statue' : 'character', icon: statue ? '🗿' : item.icon,
       height: spec.height, footprint: { radius: Math.max(0.45, spec.height * 0.22) },
-      spec,
+      spec, lod: h.lodTable(16),
     };
     if (statue) {
       // One material for every part, frozen in a pose on a plinth.

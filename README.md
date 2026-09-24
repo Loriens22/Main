@@ -198,7 +198,8 @@ separately set generation quality (Fast/Balanced/Highest detail).
 
 Main loop (per frame): input → player/vehicle physics → **job scheduler
 slice** (generation gets a frame‑rate‑adaptive budget, 8–12 ms, escalating as a
-job approaches its deadline) → interaction ray‑cast → entity updates (NPC
+job approaches its deadline; it also runs in the main thread's idle time
+between frames via `requestIdleCallback`, which never delays a frame) → interaction ray‑cast → entity updates (NPC
 brains, animation, props physics, portal views) → world update (terrain LOD,
 grass, weather, day/night) → light pool → materialise effect → render → HUD
 → audio.
@@ -296,7 +297,7 @@ unique per seed. A hook for optional neural back‑ends is described in
   into a half‑float render target with an oblique clip plane at the exit.
 * Performance: fixed point‑light pool (no shader recompiles), instancing,
   merged building geometry, distance‑based entity update rates, LOD for
-  forests/terrain, frustum‑culled portal renders, material/texture
+  forests, terrain and characters, frustum‑culled portal renders, material/texture
   ref‑counting and garbage collection, adaptive generation budget.
 
 ## Characters
@@ -314,6 +315,10 @@ unique per seed. A hook for optional neural back‑ends is described in
   gaits with foot IK on uneven ground, idle breathing and weight shifts,
   jump/land, crouch, sit, swim, look‑at (head + eyes), blinking, talking, and
   gestures (wave, point, cheer, clap, dance, shrug, bow, think…).
+* **LOD** — every NPC also gets a coarse body and head meshed from the same
+  SDFs at ~2.8× the voxel size (about a tenth of the triangles). They are
+  bound to the same skeleton and swapped in beyond 16 m, so crowds stay
+  cheap.
 * **Minds** — personalities (traits, mood, favourite things, job), a
   template dialogue engine with intent classification, memory of your name,
   small talk about time/weather/nearby objects, jokes, and orders (follow,
@@ -341,26 +346,49 @@ screenshots:
 | *create a modern two‑story house with large windows and a garden* | `2‑story modern house`: cantilevered upper volume, floor‑to‑ceiling glass, flat roof terrace with glass railing, furnished interior, automatic front door, stairs, hedged garden with deck, stepping‑stone path, flower beds, trees and bollard lights (~28k triangles, ~35 draw calls) |
 | *create a 1.70 m tall slightly overweight man with short black hair wearing a blue shirt* | parsed as height 1.70 m, fat 0.56, hair short/black, shirt blue → a unique, named, rigged NPC with personality who greets you and can be talked to |
 
-**Measured generation times.** All numbers below come from the automated
-test in a cloud container with **no GPU**: 4 vCPUs, headless Chromium, WebGL
-through **SwiftShader** (a software rasteriser), running at 0.2–1 fps.
-Because generation is time-sliced into the frame loop, this setup is roughly
-10–30× slower than a desktop browser with a real GPU. I have **not** measured
-on real GPU hardware, so treat these as a worst case. Every job stayed under
-the 5-minute cap.
+**Measured generation times.** All numbers come from the automated tests in
+a cloud container with **no GPU**: 4 vCPUs, headless Chromium, and WebGL
+through **SwiftShader**, a software rasteriser that shares those same CPU
+cores and draws 0.2–1 frames per second. Nothing here was measured on real
+GPU hardware. Every job finished inside the 5‑minute cap.
 
-| Prompt (balanced generation quality, Low preset) | Time (SwiftShader) |
+*Rendered runs* (`npm test` and `--cmd` runs; balanced generation quality,
+Low preset). SwiftShader frames take seconds, which would starve the normal
+8–12 ms per‑frame generation budget, so the test gives generation 400 ms per
+frame (`?budget=400`):
+
+| Prompt | Time |
 |---|---|
-| modern two‑story house with large windows and a garden | 68 s |
-| 1.70 m slightly overweight man, short black hair, blue shirt | 164 s |
+| modern two‑story house with large windows and a garden | 47.6–68 s |
+| 1.70 m slightly overweight man, short black hair, blue shirt | 164–172 s |
 | a campfire / a soccer ball / an oak tree / a giant crystal | 13 s / 12 s / 19.5 s / 11.7 s |
-| a red sports car / a police car / a helicopter | 3.3 s / 18.7 s / 12 s |
-| a mountain / a stone bridge / giant letters spelling HELLO | 6.3 s / 7.5 s / 20.8 s |
+| a red sports car / a police car / a helicopter | 3.3–7.4 s / 18.7 s / 12 s |
+| a mountain / a stone bridge / giant letters spelling HELLO | 6.3 s / 7.5 s / 19.1 s |
 | a dog / a horse / a zebra / an eagle | 53 s / 46 s / 58 s / 11.6 s |
 | a robot / a portal to an underwater city | 24.3 s / 62 s |
 | a campsite (scene: campfire, 3 tents, 2 campers, a van, 7 trees) | 192 s |
+| a medieval castle / a skyscraper | 12.2 s / 3.8 s |
 
+*Benchmark runs* (`node tools/smoke-test.mjs --bench`: rendering off, normal
+adaptive budget plus idle‑time slices). "Generator time" is main‑thread time
+spent inside the generator. It includes stalls when the software GPU's
+command buffer is full, which is why the house varies so much. The rest of
+the wall time is frame overhead plus SwiftShader baking textures and compiling
+shaders, work a real GPU does in milliseconds. Ranges cover 2–5 runs:
 
+| Prompt | Wall time | Generator time |
+|---|---|---|
+| modern two‑story house with large windows and a garden | 9–19 s | 1.5–8.4 s |
+| 1.70 m slightly overweight man, short black hair, blue shirt | 111–210 s | 11.4–12.5 s |
+| a friendly golden retriever | 21–62 s | 1.9–2.4 s |
+| a red sports car | 0.8–2.1 s | 0.1 s |
+| a portal to an underwater city (builds a whole dimension) | 7.7–9.8 s | ≈0.4 s (profiled) |
+
+The man is the most expensive prompt: about 12 s of JavaScript for ~160k
+triangles, including the distance LOD. On a desktop running at 60 fps,
+generation gets about 70 % of each frame plus idle time. From the CPU figure
+alone we would expect roughly 15–25 s there, but that estimate has not been
+measured.
 
 ## Project layout
 
@@ -394,7 +422,7 @@ About 23 000 lines of commented source.
   job fails, exceeds 300 s, or any page error is logged.
 * `node tools/smoke-test.mjs --cmd "a dragon" --cmd "a portal to a neon city" --enter`
   — arbitrary prompts; `--enter` walks through a created portal and captures
-  the inside; `--bench` skips rendering to measure pure generation time;
+  the inside; `--bench` skips rendering and reports wall time plus main‑thread generator time;
   `--q medium` picks a graphics preset; screenshots go to `tools/out/`.
 
 ## Limitations & future work

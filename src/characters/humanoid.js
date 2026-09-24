@@ -221,9 +221,10 @@ function makeMaterials(spec, rng) {
 }
 
 export class Humanoid {
-  constructor(spec, seed = 1) {
+  constructor(spec, seed = 1, opts = {}) {
     this.spec = spec;
     this.seed = seed;
+    this.opts = opts;
     this.rng = new RNG(seed);
     this.root = new THREE.Group();
     this.root.name = 'humanoid';
@@ -276,7 +277,6 @@ export class Humanoid {
     }, ctx);
     onProgress(0.76, 'Painting skin');
     const headOrder = ['skin', 'lips', 'hair', 'accent', 'teeth'];
-    const hp = headMesh.positions;
     const brows = headInfo.brows;
     const browColor = new THREE.Color(spec.hair && spec.hair.color ? (HAIR_COLORS[spec.hair.color] || spec.hair.color) : '#2c1b12');
     const browDark = [browColor.r / Math.max(0.05, skinCol.r), browColor.g / Math.max(0.05, skinCol.g), browColor.b / Math.max(0.05, skinCol.b)].map((v) => Math.min(1, v * 1.2 + 0.05));
@@ -286,9 +286,10 @@ export class Humanoid {
       return Math.hypot(px - a[0] - vx * t, py - a[1] - vy * t, pz - a[2] - vz * t);
     };
     const hsz = headInfo.hs, O = headInfo.O;
-    const headColor = (i) => {
-      const ao = Math.pow(headMesh.ao[i], 0.8) * 0.55 + 0.45;
-      const prim = sdfH.prims[headMesh.dominant[i]];
+    const makeHeadColor = (mesh) => (i) => {
+      const hp = mesh.positions;
+      const ao = Math.pow(mesh.ao[i], 0.8) * 0.55 + 0.45;
+      const prim = sdfH.prims[mesh.dominant[i]];
       if (prim.mat !== 'skin') return [ao, ao, ao];
       const x = hp[i * 3], y = hp[i * 3 + 1], z = hp[i * 3 + 2];
       let r = 1, g = 1, b = 1;
@@ -317,12 +318,16 @@ export class Humanoid {
       }
       return [r * ao, g * ao, b * ao];
     };
-    const headUV = new Float32Array(headMesh.vertexCount * 2);
-    for (let i = 0; i < headMesh.vertexCount; i++) {
-      const x = hp[i * 3] - O[0], y = hp[i * 3 + 1] - O[1], z = hp[i * 3 + 2] - O[2];
-      headUV[i * 2] = Math.atan2(x, z) * 0.1; headUV[i * 2 + 1] = y;
-    }
-    const headGeo = toGeometry(headMesh, sdfH, headOrder, headColor, headUV);
+    const headUVFor = (mesh) => {
+      const hp = mesh.positions;
+      const uv = new Float32Array(mesh.vertexCount * 2);
+      for (let i = 0; i < mesh.vertexCount; i++) {
+        const x = hp[i * 3] - O[0], y = hp[i * 3 + 1] - O[1], z = hp[i * 3 + 2] - O[2];
+        uv[i * 2] = Math.atan2(x, z) * 0.1; uv[i * 2 + 1] = y;
+      }
+      return uv;
+    };
+    const headGeo = toGeometry(headMesh, sdfH, headOrder, makeHeadColor(headMesh), headUVFor(headMesh));
     this._addJawMorph(headGeo, headInfo, J);
     yield;
 
@@ -338,6 +343,20 @@ export class Humanoid {
       const uv = new Float32Array(hm.vertexCount * 2);
       for (let i = 0; i < hm.vertexCount; i++) { uv[i * 2] = hm.positions[i * 3] + hm.positions[i * 3 + 2]; uv[i * 2 + 1] = hm.positions[i * 3 + 1]; }
       handGeos.push(toGeometry(hm, sdfHd, ['skin', 'nail', 'glove'], hc, uv));
+    }
+
+    // ---- Distance LOD ----
+    // The same SDFs meshed ~2.8x coarser (roughly a tenth of the triangles)
+    // and bound to the same skeleton; the registry swaps them in at range.
+    let lodGeos = null;
+    if (this.opts.lod !== false && !(ctx && ctx.mustFinish && ctx.mustFinish())) {
+      onProgress(0.86, 'Building distance LOD');
+      const lb = yield* extractSDFMesh(sdfB, { voxel: gp.bodyVoxel * hScale * 2.8, skin: true, boneCount: BONE_NAMES.length, sigma: 0.011 * P.s, aoScale: 0.06 * P.s }, ctx);
+      const lbColor = (i) => { const a = Math.pow(lb.ao[i], 1.3) * 0.85 + 0.15; return [a, a, a]; };
+      const lodBody = toGeometry(lb, sdfB, bodyOrder, lbColor, computeUVs(lb, sdfB, rest, J));
+      yield;
+      const lh = yield* extractSDFMesh(sdfH, { voxel: gp.headVoxel * Math.pow(headInfo.hs, 0.8) * 2.8, bounds: hb, skin: true, boneCount: BONE_NAMES.length, sigma: 0.008, aoScale: 0.018 * headInfo.hs }, ctx);
+      lodGeos = [lodBody, toGeometry(lh, sdfH, headOrder, makeHeadColor(lh), headUVFor(lh))];
     }
 
     // ---- Assemble ----
@@ -358,6 +377,8 @@ export class Humanoid {
     this.headMesh = bindAll(headGeo, headOrder);
     this.headMesh.morphTargetInfluences = [0];
     this.handMeshes = handGeos.map((g) => bindAll(g, ['skin', 'nail', 'glove']));
+    this.lodMeshes = lodGeos ? [bindAll(lodGeos[0], bodyOrder), bindAll(lodGeos[1], headOrder)] : null;
+    if (this.lodMeshes) for (const m of this.lodMeshes) m.visible = false;
 
     // Eyes, eyelids, mouth interior (children of the head bone).
     const headBone = bones[B.head];
@@ -451,6 +472,15 @@ export class Humanoid {
     this.firstPerson = on;
     // Head parts go to layer 1 (hidden from the first-person camera, visible in mirrors/3rd person).
     for (const o of this.headOnly) o.traverse((c) => { if (on) { c.layers.disable(0); c.layers.enable(1); } else { c.layers.enable(0); } });
+  }
+
+  // Visibility bands for the registry's distance LOD (metres, unscaled).
+  lodTable(swap = 16) {
+    if (!this.lodMeshes) return null;
+    return [
+      { object: this.bodyMesh, maxDist: swap }, { object: this.headMesh, maxDist: swap },
+      { object: this.lodMeshes[0], minDist: swap, maxDist: Infinity }, { object: this.lodMeshes[1], minDist: swap, maxDist: Infinity },
+    ];
   }
 
   update(dt, state) { if (this.animator) this.animator.update(dt, state); }
