@@ -122,7 +122,7 @@ export function layoutGD(L) {
     for (const lat of [-1.75, 1.75]) {
       const pts = streetPts(st, 2, st.poly.length - 2, 3);
       cb.add(WM.concrete, stripGeo(pts, lat - 1.0, lat + 1.0, 0.004, 0.004, { uvScale: 3 }), null, 0x8f8d88);
-      for (const g of [-0.7175, 0.7175]) {
+      for (const g of [-0.5045, 0.5045]) { // Sofia narrow gauge (1009 mm)
         cb.add(WM.rail, stripGeo(pts, lat + g - 0.04, lat + g + 0.04, 0.012, 0.012, { uvScale: 1 }));
         cb.add(WM.railTop, stripGeo(pts, lat + g - 0.028, lat + g + 0.028, 0.014, 0.014, { uvScale: 1 }));
       }
