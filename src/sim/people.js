@@ -46,7 +46,7 @@ export class People {
       n.h.pos.copy(V(-6 + k * 4 + R(), 0.02, -1.7 - R()).applyMatrix4(M)); n.h.yaw = new THREE.Euler().setFromRotationMatrix(M, 'YXZ').y; n.anim = R() < 0.5 ? 'phone' : 'stand';
     }
     // benches
-    for (const b of reg.benches) if (R() < 0.7) { const n = this.mk('fixed', { old: R() < 0.6 }); n.h.pos.copy(b.p); n.h.yaw = b.yaw; n.anim = 'sitBench'; }
+    for (const b of reg.benches) if (R() < 0.7) { const n = this.mk('fixed', { old: R() < 0.6 }); n.h.pos.copy(b.p); n.h.yaw = b.yaw; n.anim = b.stand ? (R() < 0.4 ? 'phone' : 'stand') : 'sitBench'; }
     // playground kids + parents
     if (reg.playground) {
       const pg = reg.playground;

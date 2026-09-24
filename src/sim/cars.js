@@ -298,20 +298,21 @@ export class Traffic {
         const d = o.s - c.s; if (d > 0 && d < gap) { gap = d - (o.car.L + c.car.L) / 2; vLead = o.v; }
       }
       // bus + pedestrians (point checks in the car frame)
-      const checkPts = (pts, halfW) => {
+      let obst = 'car';
+      const checkPts = (pts, halfW, kind) => {
         for (let i = 0; i < pts.length; i += 2) {
           const dx = pts[i] - p.x, dz = pts[i + 1] - p.z;
           const f = dx * hx + dz * hz, l = -dx * hz + dz * hx;
-          if (f > 0 && f < 45 && Math.abs(l) < halfW) { const g2 = f - c.car.L / 2 - 0.4; if (g2 < gap) { gap = g2; vLead = 0; } }
+          if (f > 0 && f < 45 && Math.abs(l) < halfW) { const g2 = f - c.car.L / 2 - 0.4; if (g2 < gap) { gap = g2; vLead = 0; obst = kind; } }
         }
       };
-      if (busPts) checkPts(busPts, 1.35 + c.car.W / 2);
-      if (peds && peds.length) checkPts(peds, 1.1);
+      if (busPts) checkPts(busPts, 0.4 + c.car.W / 2, 'bus');
+      if (peds && peds.length) checkPts(peds, 1.1, 'ped');
       // signals
       for (const sg of L.signals) {
         const d = sg.s - c.s;
         if (d < -1 || d > 90) continue;
-        if (!this.tl.mayPass(sg.inter, sg.group, d, c.v)) { const g2 = d - c.car.L / 2 - 0.5; if (g2 < gap) { gap = Math.max(0.1, g2); vLead = 0; } }
+        if (!this.tl.mayPass(sg.inter, sg.group, d, c.v)) { const g2 = d - c.car.L / 2 - 0.5; if (g2 < gap) { gap = Math.max(0.1, g2); vLead = 0; obst = 'sig'; } }
         break;
       }
       // ---- IDM ----
@@ -326,12 +327,18 @@ export class Traffic {
       c.car.braking = acc < -0.6 || (c.v < 0.3 && gap < 12);
       c.s += c.v * dt;
       // ---- lane change when stuck behind a stationary obstacle ----
-      if (c.v < 0.5 && gap < 14 && vLead < 0.5 && !c.change) c.stuck += dt; else c.stuck = Math.max(0, c.stuck - dt);
+      // (only to get past the stopped bus/tram — never out of a queue at a red light)
+      if (c.v < 0.5 && gap < 14 && vLead < 0.5 && !c.change && obst === 'bus') c.stuck += dt; else c.stuck = Math.max(0, c.stuck - dt);
       if (c.stuck > 2.5 && L.neighbor && !c.change && (L.neighborFrom === undefined || c.s > L.neighborFrom)) {
         const N = L.neighbor;
         const tS = c.s + (L.neighborOffset || 0);
         const pr = N.poly.project(p.x, p.z, N.poly._seg(tS), 25);
-        const ok = pr.d < 5 && (byLane.get(N) || []).every((o) => o.s < pr.s - 10 || o.s > pr.s + 14);
+        let ok = pr.d < 5 && (byLane.get(N) || []).every((o) => o.s < pr.s - 10 || o.s > pr.s + 14);
+        // the target lane must be clear of the bus too
+        if (ok && busPts) for (let i = 0; i < busPts.length; i += 2) {
+          const q = N.poly.project(busPts[i], busPts[i + 1], N.poly._seg(pr.s), 40);
+          if (Math.abs(q.lat) < 2.6 && q.s > pr.s - 12 && q.s < pr.s + 16) { ok = false; break; }
+        }
         if (ok) {
           c.change = { from: L, dS: c.s - pr.s, t: 0, dir: Math.sign(pr.lat) || 1 };
           c.lane = N; c.s = pr.s; c.stuck = 0;

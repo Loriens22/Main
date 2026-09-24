@@ -12,9 +12,34 @@ window.addEventListener('unhandledrejection', (e) => showErr('Promise: ' + ((e.r
 const game = new Game();
 window.__game = game;
 
+const LINES = {
+  9: { num: '9', title: 'Тролейбус <b>1650</b>', sub: 'Škoda 27Tr Solaris · Линия 9 · ж.к. Борово → бул. „Гоце Делчев“', cls: 'line-tb', doc: 'Тролейбус 1650 · Линия 9' },
+  7: { num: '7', title: 'Трамвай <b>2312</b>', sub: 'Pesa Swing 122NaSF · Линия 7 · кв. Манастирски ливади → Метростанция „Хан Кубрат“', cls: 'line-tm', doc: 'Трамвай 2312 · Линия 7' },
+};
+/** Line from ?line=7 / ?line=9, otherwise the splash picker (the last choice is highlighted). */
+function chooseLine() {
+  const q = new URLSearchParams(location.search).get('line');
+  if (q && LINES[q]) return Promise.resolve(q);
+  let last = '9';
+  try { last = localStorage.getItem('tb1650.line') || '9'; } catch (e) { /* storage unavailable */ }
+  return new Promise((res) => {
+    document.querySelectorAll('.line-card').forEach((b) => {
+      b.classList.toggle('last', b.dataset.line === last);
+      b.addEventListener('click', () => res(b.dataset.line));
+    });
+  });
+}
+
 async function boot() {
+  const lineId = await chooseLine();
+  try { localStorage.setItem('tb1650.line', lineId); } catch (e) { /* storage unavailable */ }
+  const L = LINES[lineId];
+  document.body.classList.add(L.cls);
+  $('brandNum').textContent = L.num; $('brandNum').classList.toggle('tm', lineId === '7');
+  $('brandTitle').innerHTML = L.title; $('brandSub').textContent = L.sub; document.title = L.doc;
+  $('linePick').classList.add('hidden'); $('loadBox').classList.remove('hidden');
   try {
-    await game.init((p, txt) => { $('progBar').style.width = (p * 100).toFixed(0) + '%'; $('progTxt').textContent = txt; });
+    await game.init((p, txt) => { $('progBar').style.width = (p * 100).toFixed(0) + '%'; $('progTxt').textContent = txt; }, lineId);
   } catch (e) { showErr('Init: ' + (e.stack || e)); return; }
   const btn = $('startBtn');
   btn.disabled = false;
@@ -29,7 +54,7 @@ async function boot() {
     $('splash').classList.add('hidden');
     $('hud').classList.remove('hidden');
     document.body.classList.add('playing');
-    game.ui.toast('ж.к. Борово · влезте през предната врата в кабината');
+    game.ui.toast(`${game.route.stops[0].name} · влезте през предната врата в кабината`);
   });
   let last = performance.now();
   const loop = (now) => {
@@ -99,7 +124,7 @@ window.__dbg = {
       const ap = g.auto.update(dt);
       v.throttle = ap.throttle; v.brake = ap.brake; if (ap.steer !== null) v.steerCmd = ap.steer;
       g.frameSim(dt);
-      if (v.lastHit && v.lastHit !== D.lastHit) { D.lastHit = v.lastHit; log.push(`HIT ${JSON.stringify(v.lastHit)} s=${(g.sFrontNow || 0).toFixed(0)}`); }
+      if (v.lastHit && v.lastHit !== D.lastHit) { D.lastHit = v.lastHit; const t = `HIT ${JSON.stringify(v.lastHit)} s=${(g.sFrontNow || 0).toFixed(0)}`; if (t !== D.lastHitTxt) log.push(t); D.lastHitTxt = t; }
       if (v.power === false && !D.dew) { D.dew = true; log.push(`NO POWER at s=${(g.sFrontNow || 0).toFixed(0)}`); }
     }
     const pr = r.project(g.frontX, g.frontZ);

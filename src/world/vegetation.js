@@ -101,6 +101,10 @@ export function makeTreeKinds() {
     chestnut: { trunk: trunkGeo(r, { h: 2.6, r: 0.28, branches: 8, crownY: 6, crownR: 4.4 }), crown: crownGeo(r, { cy: 6.6, rx: 4.3, ry: 3.2, n: 76, size: 3.2 }), leaf: WM.leaves },
     small: { trunk: trunkGeo(r, { h: 2.0, r: 0.14, branches: 5, crownY: 3.5, crownR: 2.3 }), crown: crownGeo(r, { cy: 4.2, rx: 2.2, ry: 2.0, n: 38, size: 2.2 }), leaf: WM.leaves },
     birch: { trunk: trunkGeo(r, { h: 4.5, r: 0.16, branches: 6, crownY: 7, crownR: 2.6, white: true }), crown: crownGeo(r, { cy: 8.2, rx: 2.6, ry: 4.2, n: 64, size: 2.3, droop: 1 }), leaf: WM.leavesBirch, white: true },
+    // purple-leaf cherry plum (Prunus cerasifera 'Pissardii'), common in the newer Sofia estates
+    plum: { trunk: trunkGeo(r, { h: 1.8, r: 0.15, branches: 6, crownY: 3.6, crownR: 2.6 }), crown: crownGeo(r, { cy: 4.1, rx: 2.7, ry: 2.2, n: 46, size: 2.2 }), leaf: WM.leavesPlum, tint: false },
+    // weeping willow
+    willow: { trunk: trunkGeo(r, { h: 2.6, r: 0.32, branches: 9, crownY: 5.2, crownR: 4.6 }), crown: crownGeo(r, { cy: 6.2, rx: 4.8, ry: 3.6, n: 92, size: 2.5, droop: 1.8 }), leaf: WM.leavesBirch },
     spruce: { trunk: (() => { const g = new THREE.CylinderGeometry(0.1, 0.28, 15, 8); g.translate(0, 7.5, 0); return prepGeo(g); })(), crown: coniferGeo(r, { h: 15, r: 3.3 }), leaf: WM.needles },
   };
   const r2 = makeRng(505);
@@ -109,8 +113,11 @@ export function makeTreeKinds() {
   kinds.small.far = crownGeo(r2, { cy: 4.2, rx: 2.1, ry: 1.9, n: 14, size: 3.0 });
   kinds.birch.far = crownGeo(r2, { cy: 8.2, rx: 2.5, ry: 4.1, n: 22, size: 3.2, droop: 1 });
   kinds.spruce.far = coniferGeo(r2, { h: 15, r: 3.3 });
+  kinds.plum.far = crownGeo(r2, { cy: 4.1, rx: 2.6, ry: 2.1, n: 14, size: 3.0 });
+  kinds.willow.far = crownGeo(r2, { cy: 6.2, rx: 4.6, ry: 3.5, n: 26, size: 3.6, droop: 1.8 });
   const simpleTrunk = (h, r) => { const g = new THREE.CylinderGeometry(r * 0.5, r, h, 5, 1); g.translate(0, h / 2, 0); return prepGeo(g); };
   kinds.linden.trunkFar = simpleTrunk(6, 0.24); kinds.chestnut.trunkFar = simpleTrunk(5, 0.28); kinds.small.trunkFar = simpleTrunk(3.5, 0.14);
+  kinds.plum.trunkFar = simpleTrunk(3, 0.15); kinds.willow.trunkFar = simpleTrunk(5, 0.32);
   kinds.birch.trunkFar = simpleTrunk(8, 0.16); kinds.spruce.trunkFar = simpleTrunk(12, 0.25);
   return kinds;
 }
@@ -147,7 +154,8 @@ export function buildTrees(scene, kinds, list) {
     const ti = tb.addInstance(trunkIds[t.kind][0]); tb.setMatrixAt(ti, m); tb.setColorAt(ti, k.white ? birchW : white);
     const cb = crownB.get(k.leaf);
     const ci = cb.addInstance(crownIds[t.kind][0]); cb.setMatrixAt(ci, m);
-    col.setHSL(0.24 + (t.hue || 0), 0.35, 0.5); col.lerp(white, 0.55); cb.setColorAt(ci, col);
+    if (k.tint === false) col.setScalar(0.92 + (t.hue || 0)); else { col.setHSL(0.24 + (t.hue || 0), 0.35, 0.5); col.lerp(white, 0.55); }
+    cb.setColorAt(ci, col);
     inst.push({ x: t.x, z: t.z, kind: t.kind, ti, ci, cb, lod: 0 });
   }
   for (const b of [tb, ...crownB.values()]) {

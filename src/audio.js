@@ -109,6 +109,26 @@ export class Audio {
     this.compT -= dt;
     if (this.compT <= 0) { this.compOn = this.compOn ? 0 : 1; this.compT = this.compOn ? 6 + Math.random() * 4 : 40 + Math.random() * 40; }
     this.compGain.gain.setTargetAtTime(this.compOn && s.power ? 0.06 : 0, t, 0.4);
+    // tram: wheel-over-rail-joint clicks for every axle, flange squeal in tight curves
+    if (s.tram) {
+      if (this.lastOdo === undefined) this.lastOdo = s.odo || 0;
+      const odo = s.odo || 0, J = 18;
+      if (Math.floor(odo / J) !== Math.floor(this.lastOdo / J) && v > 1) {
+        const axles = [0, 1.8, 12.4, 14.2, 24.9, 26.7];
+        for (const a of axles) if (a / v < 6) this.noiseBurst(0.07, 950 + Math.random() * 200, 1.4, 0.22 * clamp(v / 8, 0.35, 1), a / v, this.cabFilter);
+      }
+      this.lastOdo = odo;
+      if (!this.squeal) {
+        const ctx = this.ctx; this.squeal = ctx.createGain(); this.squeal.gain.value = 0;
+        const bp = ctx.createBiquadFilter(); bp.type = 'bandpass'; bp.frequency.value = 3600; bp.Q.value = 18;
+        const o = ctx.createOscillator(); o.type = 'triangle'; o.frequency.value = 3550; const og = ctx.createGain(); og.gain.value = 0.25;
+        this.loopNoise(this.noiseBuf, bp); bp.connect(this.squeal); o.connect(og).connect(this.squeal); o.start();
+        const lfo = ctx.createOscillator(); lfo.frequency.value = 6.5; const lg = ctx.createGain(); lg.gain.value = 70; lfo.connect(lg).connect(o.frequency); lfo.start();
+        this.squeal.connect(this.cabFilter);
+      }
+      const sq = (s.curv || 0) > 0.012 && v > 1.5 ? clamp(((s.curv - 0.012) / 0.02) * (v / 6), 0, 1) : 0;
+      this.squeal.gain.setTargetAtTime(sq * 0.09, t, 0.15);
+    }
     // birds
     this.birdT -= dt;
     if (this.birdT <= 0) { this.birdT = 2 + Math.random() * 6; if (!s.inCab || v < 5) this.chirp(); }
@@ -161,6 +181,12 @@ export class Audio {
     this.hornNodes = { g, o1, o2 };
   }
   hornOff() { if (!this.hornNodes) return; const { g, o1, o2 } = this.hornNodes; const t = this.ctx.currentTime; g.gain.setTargetAtTime(0, t, 0.03); o1.stop(t + 0.2); o2.stop(t + 0.2); this.hornNodes = null; }
+  /** Tram warning bell: two strokes of a bronze gong (inharmonic partials). */
+  tramBell() {
+    if (!this.ctx) return;
+    for (const d of [0, 0.32]) for (const [k, a, dur] of [[1, 0.2, 1.4], [2.32, 0.1, 0.9], [4.25, 0.05, 0.5], [6.63, 0.03, 0.3]]) this.tone(1180 * k, dur, 'sine', a, null, d);
+    this.noiseBurst(0.04, 5000, 2, 0.12);
+  }
   airHiss() { this.noiseBurst(1.1, 3200, 0.6, 0.18); }
   sparks() { for (let k = 0; k < 6; k++) this.noiseBurst(0.06 + Math.random() * 0.08, 5000 + Math.random() * 3000, 1, 0.25, k * 0.05); this.tone(60, 0.4, 'square', 0.12); }
   clunk() { this.tone(70, 0.35, 'sine', 0.5); this.noiseBurst(0.25, 400, 1, 0.4); }

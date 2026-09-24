@@ -314,8 +314,10 @@ export class Bus {
   /** Sample points along the bus (for traffic look-ahead). */
   samplePts(out = []) {
     out.length = 0;
-    for (const z of [-8.4, -6, -3.6, -1.2, 1.2]) out.push(this.x - Math.cos(this.h) * z, this.z - Math.sin(this.h) * z);
-    for (const z of [0.6, 3.0, 5.4, 7.5]) out.push(this.hx - Math.cos(this.h2) * z, this.hz - Math.sin(this.h2) * z);
+    // centre line and both flanks (cars crossing in front of the bus must stop short of its side)
+    const add = (x, z, h) => { const rx = -Math.sin(h) * 1.2, rz = Math.cos(h) * 1.2; out.push(x, z, x + rx, z + rz, x - rx, z - rz); };
+    for (const z of [-8.4, -6, -3.6, -1.2, 1.2]) add(this.x - Math.cos(this.h) * z, this.z - Math.sin(this.h) * z, this.h);
+    for (const z of [0.6, 3.0, 5.4, 7.5]) add(this.hx - Math.cos(this.h2) * z, this.hz - Math.sin(this.h2) * z, this.h2);
     return out;
   }
 }

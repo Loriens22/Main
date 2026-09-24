@@ -22,7 +22,7 @@ class Atlas {
     const L = Array.isArray(lines) ? lines : [lines];
     const key = L.join('|') + bg + fg + w + h + font;
     if (this.map.has(key)) return this.map.get(key);
-    const k = Math.min(1, 320 / w);
+    const k = Math.min(1, 320 / w, 220 / h); // tall signs are scaled down so shelf rows stay short
     const pw = Math.round(w * k), ph = Math.round(h * k);
     if (this.x + pw + 4 > this.W) { this.x = 0; this.y += this.rowH + 4; this.rowH = 0; }
     if (this.y + ph > this.H) { console.warn('sign atlas full'); return { u0: 0, v0: 0, u1: 0.01, v1: 0.01 }; }
@@ -56,3 +56,4 @@ class Atlas {
   finalize() { this.tex.needsUpdate = true; this.dirty = false; }
 }
 export const SIGNS = new Atlas();
+if (typeof window !== "undefined") window.__SIGNS = SIGNS;

@@ -40,7 +40,7 @@ export function layoutGD(L) {
     const diag = [at(st, sGD - 30, curb + 9), at(st, sGD - 22, curb + 9), at(st, sGD + 30, curb + 60), at(st, sGD + 22, curb + 60)].map(([x, z]) => [x, z]);
     cb.add(WM.pavers, polyGeo(diag, 0.03, [], 2));
     const stopWait = [];
-    for (let k = 0; k < 10; k++) { const [x, z] = at(st, sGD - rr(2, 16), curb + rr(1.2, 4.2)); stopWait.push({ p: new THREE.Vector3(x, 0.15, z), yaw: faceRoadYaw(st, sGD, 1) + Math.PI + rr(-0.7, 0.7) }); }
+    for (let k = 0; k < 10; k++) { const [x, z] = at(st, sGD - rr(2, 16), curb + rr(1.2, 4.2)); stopWait.push({ p: new THREE.Vector3(x, 0.15, z), yaw: faceRoadYaw(st, sGD, 1) + rr(-0.7, 0.7) }); }
     reg.stopsInfo.push({ id: 'gd', pole: new THREE.Vector3(px, 0.15, pz), wait: stopWait, shelterBench: sh });
 
     // ---- Южен парк: big old trees, dry lawn, park cafés with green umbrellas ----

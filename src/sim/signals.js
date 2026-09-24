@@ -66,10 +66,10 @@ export class TrafficLights {
     }
   }
   /** Can a vehicle on group g pass a stop line `dist` metres ahead at speed v? */
-  mayPass(it, g, dist, v) {
+  mayPass(it, g, dist, v, decel = 3.0) {
     const { c, left } = this.state(it, g);
     if (c === 'G') return true;
-    if (c === 'Y') { const stopDist = (v * v) / (2 * 3.0); return stopDist > dist - 1 || left * v > dist + 5; }
+    if (c === 'Y') { const stopDist = (v * v) / (2 * decel); return stopDist > dist - 1 || left * v > dist + 5; }
     return false;
   }
 }

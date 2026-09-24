@@ -14,7 +14,7 @@ export function streetPts(st, sA, sB, step = 2) {
 }
 
 /** Road-wear vertex colour across a 4-lane carriageway. */
-function wear(l) {
+export function wear(l) {
   const a = Math.abs(l);
   let c = 1;
   for (const lc of [1.75, 5.25]) {
@@ -27,7 +27,7 @@ function wear(l) {
 }
 
 /** Intervals of [0, L] not covered by the given gaps. */
-function openIntervals(L, gaps) {
+export function openIntervals(L, gaps) {
   gaps.sort((a, b) => a[0] - b[0]);
   const out = []; let s = 0;
   for (const [a, b] of gaps) { if (a > s) out.push([s, Math.min(a, L)]); s = Math.max(s, b); }
@@ -210,7 +210,7 @@ export function intersectionMarkings(route, cb) {
 }
 
 /* ---------------- geometry helpers ---------------- */
-function addStrip(cb, mat, g, color) {
+export function addStrip(cb, mat, g, color) {
   if (color !== undefined) {
     const n = g.attributes.position.count; const c = new THREE.Color(color); const arr = new Float32Array(n * 3);
     for (let i = 0; i < n; i++) { arr[i * 3] = c.r; arr[i * 3 + 1] = c.g; arr[i * 3 + 2] = c.b; }
@@ -218,11 +218,11 @@ function addStrip(cb, mat, g, color) {
   }
   cb.add(mat, g);
 }
-function rectGeo(u0, u1, v0, v1, y) {
+export function rectGeo(u0, u1, v0, v1, y) {
   const g = new THREE.PlaneGeometry(u1 - u0, v1 - v0); g.rotateX(-Math.PI / 2); g.translate((u0 + u1) / 2, y, (v0 + v1) / 2);
   return g;
 }
-function cornerArc(cx, cz, r, su, sv, n) {
+export function cornerArc(cx, cz, r, su, sv, n) {
   // arc of the corner circle facing the intersection centre (from the su-arm edge to the sv-arm edge)
   const aStart = Math.atan2(0, -su), aEnd = Math.atan2(-sv, 0);
   let d = aEnd - aStart; while (d > Math.PI) d -= Math.PI * 2; while (d < -Math.PI) d += Math.PI * 2;
@@ -230,13 +230,13 @@ function cornerArc(cx, cz, r, su, sv, n) {
   for (let i = 0; i <= n; i++) { const a = aStart + (d * i) / n; out.push([cx + Math.cos(a) * r, cz + Math.sin(a) * r]); }
   return out;
 }
-function fanGeo(corner, arc, y) {
+export function fanGeo(corner, arc, y) {
   const pos = [];
   for (let i = 0; i < arc.length - 1; i++) pos.push(corner[0], y, corner[1], arc[i][0], y, arc[i][1], arc[i + 1][0], y, arc[i + 1][1]);
   const g = new THREE.BufferGeometry(); g.setAttribute('position', new THREE.Float32BufferAttribute(pos, 3));
   fixUp(g); return g;
 }
-function annulusGeo(outer, inner, y) {
+export function annulusGeo(outer, inner, y) {
   const pos = [];
   for (let i = 0; i < outer.length - 1; i++) {
     const a = outer[i], b = outer[i + 1], c = inner[i], d = inner[i + 1];
@@ -245,7 +245,7 @@ function annulusGeo(outer, inner, y) {
   const g = new THREE.BufferGeometry(); g.setAttribute('position', new THREE.Float32BufferAttribute(pos, 3));
   fixUp(g); fixUV(g, 2); return g;
 }
-function wallAlong(pts, y0, y1) {
+export function wallAlong(pts, y0, y1) {
   const pos = [], uv = [];
   let s = 0;
   for (let i = 0; i < pts.length - 1; i++) {
@@ -259,7 +259,7 @@ function wallAlong(pts, y0, y1) {
   return g;
 }
 function wallLoop(pts, y0, y1) { return wallAlong([...pts, pts[0]], y0, y1); }
-function fixUp(g) {
+export function fixUp(g) {
   const p = g.attributes.position.array;
   for (let i = 0; i < p.length; i += 9) {
     const ax = p[i + 3] - p[i], az = p[i + 5] - p[i + 2], bx = p[i + 6] - p[i], bz = p[i + 8] - p[i + 2];
@@ -268,7 +268,7 @@ function fixUp(g) {
   }
   g.computeVertexNormals();
 }
-function fixUV(g, scale = 5) {
+export function fixUV(g, scale = 5) {
   const p = g.attributes.position; const n = p.count;
   const uv = new Float32Array(n * 2);
   for (let i = 0; i < n; i++) { uv[i * 2] = p.getX(i) / scale; uv[i * 2 + 1] = p.getZ(i) / scale; }
@@ -294,7 +294,7 @@ function offsetPath(pts, d) {
   }
   return out;
 }
-function markRoadOcc(occ, pts, hw, v, l0, l1) {
+export function markRoadOcc(occ, pts, hw, v, l0, l1) {
   for (let i = 0; i < pts.length; i++) {
     const p = pts[i], q = pts[Math.min(pts.length - 1, i + 1)], r = pts[Math.max(0, i - 1)];
     let dx = q[0] - r[0], dz = q[1] - r[1]; const L = Math.hypot(dx, dz) || 1; dx /= L; dz /= L;

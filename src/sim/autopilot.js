@@ -27,6 +27,7 @@ export class Autopilot {
       g.ui.toast('Автоматично управление: ВКЛ', 'good');
     } else {
       this.hint = '';
+      if (g.isTram) g.ui.setLever?.(0, true);
       g.ui.toast('Автоматично управление: ИЗКЛ');
     }
   }
@@ -41,7 +42,7 @@ export class Autopilot {
       const k = Math.abs(wrapAngle(h - hPrev)) / 6; // 1/m
       hPrev = h;
       if (k < 1e-4) continue;
-      const vc = Math.sqrt(A_LAT / k);
+      const vc = Math.sqrt((this.g.veh.aLat || A_LAT) / k);
       lim = Math.min(lim, Math.sqrt(vc * vc + 2 * B_COMF * Math.max(0, d - 6)));
     }
     void v;
@@ -59,7 +60,9 @@ export class Autopilot {
       if (cx * ix + cz * iz > -0.7) continue;               // not oncoming
       if (dist < 13) return true;                          // already in the junction
       if (dx * cx + dz * cz > 0) continue;                 // moving away from the centre
-      if (dist / Math.max(c.v, 1) < 7) return true;        // arrives within 7 s
+      // arrival time including acceleration (a car still standing at the stop line pulls away on the same green)
+      const acc = 1.7, tArr = (-c.v + Math.sqrt(c.v * c.v + 2 * acc * Math.max(0, dist - 8))) / acc;
+      if (tArr < 7.5) return true;
     }
     return false;
   }
@@ -96,48 +99,66 @@ export class Autopilot {
       if (this.t > 1.2 && k < N && sF - stops[k].s > -2) { /* still at the stop: keep going */ }
       if (this.t > 1.2) this.state = 'drive';
     }
+    this.aFF = 0;
     if (this.state === 'drive') {
       this.hint = '';
       if (veh.park) g.togglePark();
       if (veh.gear !== 'D' && Math.abs(veh.v) < 0.5) g.setGear('D');
-      vT = Math.min(vT, this.curveLimit(sF, veh.v));
-      // stop ahead that still has to be served
-      if (stop && !g.served.has(k) && dStop > -3) {
-        const vs = dStop > 0.35 ? Math.sqrt(2 * STOP_B * (dStop - 0.35)) : 0;
-        vT = Math.min(vT, dStop > 2 ? Math.max(1.0, vs) : vs);
-      }
-      // signals
-      for (const sl of r.stopLines) {
-        const d = sl.s - sF;
-        if (d < -0.5 || d > 110) continue;
-        if (!g.tl.mayPass(sl.inter, sl.group, d, Math.abs(veh.v))) vT = Math.min(vT, d > 1.5 ? Math.sqrt(2 * 1.6 * (d - 1.5)) : 0);
-        // indicator ahead of turns
-        if (sl.turn && d < 70 && d > 0) { veh.indicator = sl.turn === 'right' ? 1 : -1; this.indT = 9; }
-        // left turn: yield to oncoming traffic (wait at the stop line, or at the entry if already past it)
-        if (sl.turn === 'left' && d < 30 && d > -22 && this.mustYield(sl)) vT = Math.min(vT, d > 1.5 ? Math.sqrt(2 * 1.6 * (d - 1.5)) : 0);
-      }
-      // traffic ahead on our path
+      // speed limit profile at a point ds metres ahead (all constraints, cars treated as standing)
+      const bPlan = veh.planDecel || 1.6, bCap = veh.brakeCap || 3.0;
       const fx = g.frontX, fz = g.frontZ;
+      const cars = [];
       for (const c of g.traffic.boxes()) {
         if (Math.abs(c.x - fx) > 70 || Math.abs(c.z - fz) > 70) continue;
         const pc = r.project(c.x, c.z);
         if (!pc || Math.abs(pc.lat) > 2.4) continue;
         const gap = pc.s - sF - c.hd;
-        if (gap < -2 || gap > 60) continue;
-        vT = Math.min(vT, Math.max(0, Math.sqrt(2 * 1.4 * Math.max(0, gap - 5))));
+        if (gap > -2 && gap < 60) cars.push(gap);
       }
+      const limit = (ds) => {
+        let lim = Math.min(vT, this.curveLimit(sF + ds, veh.v));
+        // stop ahead that still has to be served (a short overshoot still ends at this stop)
+        const dS = dStop - ds;
+        if (stop && !g.served.has(k) && dStop > -5) {
+          const vs = dS > 0.35 ? Math.sqrt(2 * STOP_B * (dS - 0.35)) : 0;
+          lim = Math.min(lim, dS > 2 ? Math.max(1.0, vs) : vs);
+        }
+        // signals (planning deceleration and the deceleration the vehicle can still achieve on amber)
+        for (const sl of r.stopLines) {
+          const d0 = sl.s - sF, d = d0 - ds;
+          if (d0 < -0.5 || d0 > 140) continue;
+          if (!g.tl.mayPass(sl.inter, sl.group, d0, Math.abs(veh.v), bCap)) lim = Math.min(lim, d > 1.5 ? Math.sqrt(2 * bPlan * (d - 1.5)) : 0);
+          // left turn: yield to oncoming traffic (wait at the stop line, or at the entry if already past it)
+          if (sl.turn === 'left' && d0 < 30 && d0 > -22 && this.mustYield(sl)) lim = Math.min(lim, d > 1.5 ? Math.sqrt(2 * bPlan * (d - 1.5)) : 0);
+        }
+        for (const gap of cars) lim = Math.min(lim, Math.sqrt(2 * Math.min(1.4, bPlan) * Math.max(0, gap - ds - 5)));
+        return lim;
+      };
+      for (const sl of r.stopLines) {
+        const d = sl.s - sF;
+        if (sl.turn && d < 70 && d > 0) { veh.indicator = sl.turn === 'right' ? 1 : -1; this.indT = 9; } // indicator ahead of turns
+      }
+      vT = limit(0);
+      // look-ahead: deceleration needed to follow the profile ~1.2 s ahead (feed-forward for heavy vehicles)
+      const la = Math.max(1, Math.abs(veh.v) * 1.2);
+      const vA = limit(la);
+      this.aFF = Math.max(0, (veh.v * veh.v - vA * vA) / (2 * la));
       if (k >= N) vT = 0;
     }
     if (this.indT > 0) { this.indT -= dt; if (this.indT <= 0) veh.indicator = 0; }
     // ---------- speed controller ----------
     const v = veh.v;
     let throttle = 0, brake = 0;
+    const svc = veh.serviceDecel || 4.2, kB = 4.2 / svc; // gains normalised to the vehicle's service brake
+    const ff = this.aFF > 0.12 ? this.aFF / svc : 0;
     if (vT < 0.05 && v < 0.35) brake = 0.55;
-    else if (v > vT + 0.25) brake = clamp((v - vT) * 0.32 + 0.08, 0.06, 0.95);
+    else if (v > vT + 0.25) brake = clamp((v - vT) * 0.32 * kB + 0.08 + ff, 0.06, 0.95);
+    else if (ff > 0.02 * kB) brake = clamp(ff, 0.04, 0.95);
     else if (v < vT - 0.25) throttle = clamp((vT - v) * 0.35 + 0.15, 0.1, 1);
     // ---------- steering (road vehicles) ----------
     let steer = null;
     if (veh.steerable) steer = veh.pursuitSteer(r, sF);
+    this._vT = +vT.toFixed(1);
     return { throttle, brake, steer, vT };
   }
 }

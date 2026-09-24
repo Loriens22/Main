@@ -7,7 +7,7 @@
 <meta name="mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
-<title>Тролейбус 1650 · Линия 9</title>
+<title>Градски транспорт София · Тролейбус 9 · Трамвай 7</title>
 <style>/*__STYLE__*/</style>
 </head>
 <body>
@@ -16,19 +16,33 @@
 <div id="splash">
   <div class="splash-inner">
     <div class="brand">
-      <div class="brand-num">9</div>
+      <div class="brand-num" id="brandNum">9</div>
       <div>
-        <div class="brand-title">Тролейбус <b>1650</b></div>
-        <div class="brand-sub">Škoda 27Tr Solaris · Линия 9 · ж.к. Борово → пл. Сточна гара</div>
+        <div class="brand-title" id="brandTitle">Градски транспорт <b>София</b></div>
+        <div class="brand-sub" id="brandSub">Изберете линия и превозно средство</div>
       </div>
     </div>
-    <div class="progress"><div id="progBar"></div></div>
-    <div id="progTxt">Зареждане…</div>
-    <button id="startBtn" class="big-btn" disabled>СТАРТ</button>
+    <div id="linePick">
+      <button class="line-card" data-line="9">
+        <span class="lc-num tb">9</span>
+        <span class="lc-txt"><b>Тролейбус 1650</b><small>Škoda 27Tr Solaris · ж.к. Борово → бул. „Гоце Делчев“ · 4 спирки</small></span>
+      </button>
+      <button class="line-card" data-line="7">
+        <span class="lc-num tm">7</span>
+        <span class="lc-txt"><b>Трамвай 2312</b><small>Pesa Swing 122NaSF · кв. Манастирски ливади → бул. „Пенчо Славейков“ · 5 спирки</small></span>
+      </button>
+    </div>
+    <div id="loadBox" class="hidden">
+      <div class="progress"><div id="progBar"></div></div>
+      <div id="progTxt">Зареждане…</div>
+      <button id="startBtn" class="big-btn" disabled>СТАРТ</button>
+    </div>
     <div class="splash-hints">
       <div><b>Пеша:</b> ляв джойстик — движение, влачене — оглеждане. Влезте през предната врата в кабината.</div>
-      <div><b>Шофиране:</b> волан долу вляво, педали долу вдясно, информатор BT902 горе вляво.</div>
-      <div><b>Клавиатура:</b> W/S газ/спирачка, A/D волан, O врати, I информатор, C камера, Q/E мигачи, H клаксон, P ръчна спирачка, 1/2/3 D-N-R.</div>
+      <div class="h-tb"><b>Тролейбус:</b> волан долу вляво, педали долу вдясно, информатор BT902 горе вляво.</div>
+      <div class="h-tm"><b>Трамвай:</b> контролер (лост) долу вляво — нагоре тяга, надолу спирачка, най-долу авариен режим; остава където го пуснете.</div>
+      <div class="h-tb"><b>Клавиатура:</b> W/S газ/спирачка, A/D волан, O врати, I информатор, C камера, Q/E мигачи, H клаксон, P ръчна спирачка, T щанги, G автопилот, 1/2/3 D-N-R.</div>
+      <div class="h-tm"><b>Клавиатура:</b> W/S контролер ±, X неутрално, Space аварийна спирачка, O врати, I информатор, C камера, H звънец, P пружинна спирачка, T пантограф, K пясък, G автопилот, 1/2/3 D-N-R.</div>
     </div>
   </div>
 </div>
@@ -85,6 +99,14 @@
 
   <div id="drive" class="hidden">
     <div id="wheel"><div id="wheelRot"></div><div id="wheelAngle">0°</div></div>
+    <div id="ctl" class="hidden">
+      <div class="ctl-track">
+        <div class="ctl-zone ztr"><span>ТЯГА</span></div><div class="ctl-zone zn"><span>0</span></div>
+        <div class="ctl-zone zbr"><span>СПИР.</span></div><div class="ctl-zone zem"><span>АВАР.</span></div>
+        <div id="ctlKnob"></div>
+      </div>
+      <div id="ctlVal">0</div>
+    </div>
     <div id="pedals">
       <div id="brake" class="pedal"><div class="fill"></div><span>СПИРАЧКА</span></div>
       <div id="accel" class="pedal"><div class="fill"></div><span>ГАЗ</span></div>
@@ -148,6 +170,7 @@
     <div class="row">
       <button id="bTestVoice" class="b wide">Тест на гласа</button>
       <button id="bReset" class="b wide">Рестарт на маршрута</button>
+      <button id="bLine" class="b wide">Смяна на линията</button>
       <button id="bRecover" class="b wide">Върни на линията</button>
     </div>
     <div id="perf"></div>

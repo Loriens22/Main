@@ -77,7 +77,7 @@ export function layoutWorld(route, cb, occ, reg, roadsInfo) {
   }
   function waitPts(cx, cz) {
     // around the pavilion front (Borovo)
-    const out = []; for (let k = 0; k < 10; k++) out.push({ p: new THREE.Vector3(cx + rr(-2.5, 3.2), 0.15, cz + rr(-9, 9)), yaw: -Math.PI / 2 + rr(-0.6, 0.6) });
+    const out = []; for (let k = 0; k < 10; k++) out.push({ p: new THREE.Vector3(cx + rr(-2.5, 3.2), 0.15, cz + rr(-9, 9)), yaw: Math.PI / 2 + rr(-0.6, 0.6) });
     return out;
   }
 
@@ -116,7 +116,7 @@ export function layoutWorld(route, cb, occ, reg, roadsInfo) {
     const lotPts = [at(st, sD + 57, 12), at(st, sD + 93, 12), at(st, sD + 93, 30), at(st, sD + 57, 30)].map(([x, z]) => [x, z]);
     cb.add(WM.asphalt, polyGeo(lotPts, 0.004, [], 5));
     const stopWait = [];
-    for (let k = 0; k < 10; k++) { const [x, z] = at(st, sD - rr(2, 13), 7 + rr(1.0, 3.6)); stopWait.push({ p: new THREE.Vector3(x, 0.15, z), yaw: faceRoadYaw(st, sD, 1) + rr(-0.7, 0.7) + Math.PI }); }
+    for (let k = 0; k < 10; k++) { const [x, z] = at(st, sD - rr(2, 13), 7 + rr(1.0, 3.6)); stopWait.push({ p: new THREE.Vector3(x, 0.15, z), yaw: faceRoadYaw(st, sD, 1) + rr(-0.7, 0.7) }); }
     reg.stopsInfo.push({ id: 'dcc20', pole: new THREE.Vector3(px, 0.15, pz), wait: stopWait, shelterBench: sh });
     reg.reserve.push({ st, a: sD - 90, b: sD + 100, side: 1 }, { st, a: sD - 90, b: sD + 40, side: -1 });
   }
@@ -164,7 +164,7 @@ export function layoutWorld(route, cb, occ, reg, roadsInfo) {
     const mb4 = place(BLD.modernBlock, st, s36 + 135, -1, 11.5 + 8 + 7, { L: 38, floors: 7, fmat: WM.modernA, accent: 0xb45d3f });
     markB(mb4.x, mb4.z, mb4.h, 38, 14);
     const stopWait = [];
-    for (let k = 0; k < 8; k++) { const [x, z] = at(st, s36 - rr(2, 12), 7 + rr(1.0, 3.6)); stopWait.push({ p: new THREE.Vector3(x, 0.15, z), yaw: faceRoadYaw(st, s36, 1) + Math.PI + rr(-0.7, 0.7) }); }
+    for (let k = 0; k < 8; k++) { const [x, z] = at(st, s36 - rr(2, 12), 7 + rr(1.0, 3.6)); stopWait.push({ p: new THREE.Vector3(x, 0.15, z), yaw: faceRoadYaw(st, s36, 1) + rr(-0.7, 0.7) }); }
     reg.stopsInfo.push({ id: 'su36', pole: new THREE.Vector3(px, 0.15, pz), wait: stopWait });
     reg.market = mk;
     reg.reserve.push({ st, a: s36 - 100, b: s36 + 160, side: 1 }, { st, a: s36 - 100, b: s36 + 160, side: -1 });

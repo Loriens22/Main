@@ -88,6 +88,7 @@ export function initWorldMaterials() {
   WT.bark = TX.bark(256);
   WT.leaves = TX.leafCluster(512, 'broad');
   WT.leavesBirch = TX.leafCluster(512, 'birch');
+  WT.leavesPlum = TX.leafCluster(512, 'plum');
   WT.needles = TX.needles(512);
   WT.roofTiles = TX.roofTiles(512);
   WT.flatRoof = TX.flatRoof(256);
@@ -120,9 +121,10 @@ export function initWorldMaterials() {
   WM.bark = std({ name: 'bark', map: WT.bark, roughness: 0.95, ...vc });
   WM.rubber = std({ name: 'playRubber', map: WT.rubber, roughness: 0.95, ...vc });
   WM.leaves = std({ alphaToCoverage: true, name: 'leaves', map: WT.leaves, alphaTest: 0.4, side: THREE.DoubleSide, roughness: 0.95, envMapIntensity: 0.55, ...vc });
+  WM.leavesPlum = std({ alphaToCoverage: true, name: 'leavesPlum', map: WT.leavesPlum, alphaTest: 0.4, side: THREE.DoubleSide, roughness: 0.9, envMapIntensity: 0.6, ...vc });
   WM.leavesBirch = std({ alphaToCoverage: true, name: 'leavesBirch', map: WT.leavesBirch, alphaTest: 0.45, side: THREE.DoubleSide, roughness: 0.95, envMapIntensity: 0.55, ...vc });
   WM.needles = std({ alphaToCoverage: true, name: 'needles', map: WT.needles, alphaTest: 0.45, side: THREE.DoubleSide, roughness: 0.9, ...vc });
-  WM.hedge = WM.painted;
+  WM.hedge = std({ name: 'hedge', map: TX2.hedgeTex(256), roughness: 0.92, ...vc });
   WM.fabric = std({ name: 'fabric', color: 0xffffff, roughness: 0.9, side: THREE.DoubleSide, ...vc });
   WM.emissive = std({ name: 'emissiveW', color: 0x222222, emissive: 0xffffff, emissiveIntensity: 1.2, roughness: 0.4, ...vc });
 
@@ -171,7 +173,7 @@ export function initWorldMaterials() {
   // plain wall for building sides/backs of panel blocks (same palette)
   WM.plainA = macro(std({ name: 'plainA', map: WT.concrete, color: 0xe8e2d6, roughness: 0.95, ...vc }), 0.05, 0.08, 4);
 
-  for (const k of ['leaves', 'leavesBirch', 'needles']) WM[k].userData = { cast: true, receive: true };
+  for (const k of ['leaves', 'leavesBirch', 'leavesPlum', 'needles']) WM[k].userData = { cast: true, receive: true };
   // flat / small surfaces never cast shadows (keeps the shadow pass cheap)
   for (const k of ['asphalt', 'pavers', 'curb', 'grass', 'dirt', 'paint', 'rubber', 'flatRoof', 'emissive', 'glassDark', 'stone', 'ballast', 'railTop', 'sleeper']) WM[k].userData = { ...(WM[k].userData || {}), cast: false };
   return WM;

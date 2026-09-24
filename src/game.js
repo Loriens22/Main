@@ -16,6 +16,11 @@ import { Humans } from './sim/humans.js';
 import { People } from './sim/people.js';
 import { buildTrolleybus, B } from './bus/model.js';
 import { Bus } from './sim/bus.js';
+import { buildTramRoute, PLATFORM_Y } from './tramRoute.js';
+import { buildTramInfra } from './world/tramWorld.js';
+import { layoutTram } from './world/tramLayout.js';
+import { buildTram } from './tram/model.js';
+import { Tram } from './sim/tram.js';
 import { Informator } from './sim/informator.js';
 import { Autopilot } from './sim/autopilot.js';
 import { Audio } from './audio.js';
@@ -29,34 +34,49 @@ import { QUALITY } from './engine.js';
 export class Game {
   constructor() { this.fps = 60; this.time = 0; this.mode = 'walk'; }
 
-  async init(progress) {
+  /** lineId: '9' (trolleybus 1650) or '7' (tram 2312). */
+  async init(progress, lineId = '9') {
+    const tram = this.isTram = lineId === '7';
     const step = async (p, txt) => { progress(p, txt); await nextFrame(); };
     await step(0.02, 'Графичен двигател…');
     this.engine = new Engine(document.getElementById('c'));
     const scene = this.scene = this.engine.scene;
     this.audio = new Audio();
 
-    await step(0.06, 'Маршрут на линия 9…');
-    const route = this.route = buildRoute();
+    await step(0.06, tram ? 'Маршрут на трамвайна линия 7…' : 'Маршрут на линия 9…');
+    const route = this.route = tram ? buildTramRoute() : buildRoute();
 
     await step(0.1, 'Текстури (асфалт, фасади, растителност)…');
     initWorldMaterials();
 
-    await step(0.25, 'Улици, тротоари, маркировка…');
-    const occ = this.occ = new OccGrid(-900, -4900, 3500, 900, 2);
+    const reg = this.reg = { colliders: [], terraces: [], doors: [], benches: [], stopsInfo: [], reserve: [], sellers: [], walkBlockers: [] };
     const cb = this.cb = new ChunkBatch(420);
-    this.roadsInfo = buildRoads(route, cb, occ);
-    intersectionMarkings(route, cb);
+    let occ;
+    if (tram) {
+      await step(0.25, 'Булеварди, трамвайно трасе, перони…');
+      occ = this.occ = new OccGrid(-1500, -4800, 1500, 800, 2);
+      this.tl = new TrafficLights(route);
+      this.roadsInfo = buildTramInfra(route, cb, occ, reg, this.tl);
+      this.cat = this.roadsInfo.cat;
+      scene.add(this.cat.wires);
+      await step(0.42, 'Сгради, паркове, забележителности…');
+      layoutTram(route, cb, occ, reg, this.roadsInfo);
+      SIGNS.finalize();
+    } else {
+      await step(0.25, 'Улици, тротоари, маркировка…');
+      occ = this.occ = new OccGrid(-900, -4900, 3500, 900, 2);
+      this.roadsInfo = buildRoads(route, cb, occ);
+      intersectionMarkings(route, cb);
 
-    await step(0.33, 'Контактна мрежа…');
-    this.cat = buildCatenary(route, cb, scene, occ);
-    this.tl = new TrafficLights(route);
-    for (const it of route.inters) intersectionSignals(cb, route, this.tl, it);
+      await step(0.33, 'Контактна мрежа…');
+      this.cat = buildCatenary(route, cb, scene, occ);
+      this.tl = new TrafficLights(route);
+      for (const it of route.inters) intersectionSignals(cb, route, this.tl, it);
 
-    await step(0.42, 'Сгради, спирки, паркове…');
-    const reg = this.reg = { colliders: [], terraces: [], doors: [], benches: [], stopsInfo: [], reserve: [], sellers: [] };
-    layoutWorld(route, cb, occ, reg, this.roadsInfo);
-    SIGNS.finalize();
+      await step(0.42, 'Сгради, спирки, паркове…');
+      layoutWorld(route, cb, occ, reg, this.roadsInfo);
+      SIGNS.finalize();
+    }
 
     // tram overhead wires on side streets (drawn with the trolleybus wires' material)
     if (reg.tramWires?.length) {
@@ -72,10 +92,18 @@ export class Game {
     await step(0.68, 'Дървета…');
     this.trees = buildTrees(scene, makeTreeKinds(), reg.trees);
 
-    await step(0.74, 'Тролейбус Škoda 27Tr Solaris №1650…');
-    this.rig = buildTrolleybus();
-    scene.add(...this.rig.roots);
-    this.bus = new Bus(this.rig, route, this.cat, (e, a, b) => this.onBusEvent(e, a, b));
+    const ev = (e, a, b) => this.onBusEvent(e, a, b);
+    if (tram) {
+      await step(0.74, 'Трамвай Pesa Swing 122NaSF №2312…');
+      this.rig = buildTram(route.line);
+      scene.add(...this.rig.roots);
+      this.bus = new Tram(this.rig, route, this.cat, ev);
+    } else {
+      await step(0.74, 'Тролейбус Škoda 27Tr Solaris №1650…');
+      this.rig = buildTrolleybus();
+      scene.add(...this.rig.roots);
+      this.bus = new Bus(this.rig, route, this.cat, ev);
+    }
     scene.add(this.bus.sparks.points);
     this.veh = this.bus;
     this.bus.staticColliders = reg.colliders.filter((c) => !c.soft).map((c) => {
@@ -119,8 +147,8 @@ export class Game {
     this.camRig = new CameraRig(this.engine.camera, this.bus, this.rig);
     this.camRig.obstacles = this.bus.staticColliders;
     this.mirrors = new Mirrors(this.engine, this.rig, QUALITY[this.engine.quality].mirrors);
-    this.player = new Player(this.bus, this.rig, (x, z) => { const v = occ.get(x, z); return v === 2 ? 0.15 : 0; });
-    this.player.setObstacles(this.bus.staticColliders, [
+    this.player = new Player(this.bus, this.rig, (x, z) => { const v = occ.get(x, z); return v === 5 ? PLATFORM_Y : v === 2 ? 0.15 : 0; });
+    this.player.setObstacles([...this.bus.staticColliders, ...reg.walkBlockers], [
       ...this.cat.poles.map((p) => ({ x: p.x, z: p.z, r: 0.24 })),
       ...reg.trees.map((t) => ({ x: t.x, z: t.z, r: 0.22 * (t.s || 1) })),
     ]);
@@ -179,12 +207,12 @@ export class Game {
     this.people.resetPax();
     // re-seed waiting passengers by respawning waiters is complex; re-use remaining ones
     this.reset();
-    this.ui.toast('Нов курс — линия 9, ж.к. Борово');
+    this.ui.toast(`Нов курс — линия ${this.route.line.number}, ${this.route.stops[0].name}`);
   }
   recover() {
     const pr = this.route.project(this.bus.x, this.bus.z);
     this.bus.placeOnRoute(Math.max(0, pr.s + 10));
-    this.ui.toast('Тролейбусът е върнат на линията');
+    this.ui.toast(this.isTram ? 'Трамваят е върнат на спирката' : 'Тролейбусът е върнат на линията');
   }
 
   enterWalk(silent) {
@@ -206,7 +234,7 @@ export class Game {
     this.camRig.setMode('cab');
     this.ui.showMode('drive');
     this.ui.prompt(null);
-    if (this.informator.state === 'off') { this.informator.powerOn(); this.ui.toast('Информатор BT902 — избор на маршрут: линия 9'); }
+    if (this.informator.state === 'off') { this.informator.powerOn(); this.ui.toast(`Информатор BT902 — избор на маршрут: линия ${this.route.line.number}`); }
   }
   cycleCamera() {
     if (this.mode === 'walk') return;
@@ -299,7 +327,10 @@ export class Game {
     if (this.mode === 'drive') {
       const inp = this.ui.readDrive(dt, bus);
       const ap = this.auto.update(dt);
-      if (ap) {
+      if (ap && this.isTram) {
+        bus.throttle = ap.throttle; bus.brake = ap.brake;
+        this.ui.setLever(ap.brake > 0 ? (ap.brake >= 0.96 ? -1 : -(ap.brake / 0.95) * 0.88) : ap.throttle, true);
+      } else if (ap) {
         bus.throttle = ap.throttle; bus.brake = Math.max(ap.brake, inp.brake);
         if (ap.steer !== null) { bus.steerCmd = ap.steer; this.ui.setWheel(ap.steer); } else bus.steerCmd = clamp(inp.steer, -1, 1);
       } else { bus.throttle = inp.throttle; bus.brake = inp.brake; bus.steerCmd = clamp(inp.steer, -1, 1); }
@@ -331,6 +362,10 @@ export class Game {
     this.informator.update(dt, infoLCD);
     const lines = this.informator.lines(infoLCD);
     this.rig.informator.set(lines, this.informator.leds);
+    if (this.rig.cabScreens && this.mode === 'drive') {
+      const ns = this.route.stops[Math.min(this.nextStop, this.route.stops.length - 1)];
+      this.rig.cabScreens.update(dt, { v: bus.v, thr: bus.thrEff || 0, brk: bus.brkEff || 0, power: bus.power, panto: bus.panto?.state, doors: this.rig.doors.map((d) => d.open), park: bus.park, gear: bus.gear, next: this.finished ? '' : ns.name, dist: this.distToNext || 0 });
+    }
     // ---------- camera ----------
     this.camRig.update(dt, this.player);
     const cm = this.camRig.mode;
@@ -347,7 +382,7 @@ export class Game {
       this.trees.update(cp); this.cb.cull(cp, this.drawDist || 1250);
     }
     // ---------- audio ----------
-    this.audio.update(dt, { v: bus.v, throttle: bus.throttle, brake: bus.brake, power: bus.power, inCab: this.mode === 'walk' ? !!this.player.inside : this.camRig.mode === 'cab' || this.camRig.mode === 'interior', nearTraffic: this.nearTraffic() });
+    this.audio.update(dt, { v: bus.v, throttle: bus.throttle, brake: bus.brake, power: bus.power, inCab: this.mode === 'walk' ? !!this.player.inside : this.camRig.mode === 'cab' || this.camRig.mode === 'interior', nearTraffic: this.nearTraffic(), tram: this.isTram, odo: bus.odometer, curv: bus.curv });
     this.fleet.render(this.engine.camera, this.mode === 'walk' ? cam : { x: bus.hx, z: bus.hz });
     // ---------- render ----------
     if (!this.noRender) {
@@ -466,9 +501,9 @@ export class Game {
     document.getElementById('endStats').innerHTML = `
       Време за курса: <b>${mm} мин ${ss} с</b><br>
       Обслужени спирки: ${served || '—'}<br>
-      Пътници в тролейбуса: <b>${this.people.onBoard()}</b><br>
+      Пътници в ${this.isTram ? 'трамвая' : 'тролейбуса'}: <b>${this.people.onBoard()}</b><br>
       Съобщения на информатора: <b>${s.goodAnnouncements}</b> навреме / ${s.announcements} общо<br>
-      Червени сигнали: <b>${s.violations}</b> · Сблъсъци: <b>${s.collisions}</b> · Превишаване: <b>${s.speeding}</b> · Изскочили щанги: <b>${s.dewires || 0}</b><br>
+      Червени сигнали: <b>${s.violations}</b> · Сблъсъци: <b>${s.collisions}</b> · Превишаване: <b>${s.speeding}</b> ${this.isTram ? '' : ` · Изскочили щанги: <b>${s.dewires || 0}</b>`}<br>
       Комфорт (резки маневри): <b>${s.comfortHits}</b><br>
       <div style="font-size:26px;margin-top:8px">Оценка: <b>${score}/100</b></div>`;
     document.getElementById('endPanel').classList.remove('hidden');

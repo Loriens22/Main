@@ -204,7 +204,7 @@ export function bark(size = 256) {
 }
 
 export function leafCluster(size = 512, kind = 'broad') {
-  const rnd = makeRng(kind === 'birch' ? 71 : 55);
+  const rnd = makeRng(kind === 'birch' ? 71 : kind === 'plum' ? 83 : 55);
   const c = makeCanvas(size, size), ctx = c.getContext('2d');
   ctx.clearRect(0, 0, size, size);
   const cx = size / 2, cy = size / 2;
@@ -218,10 +218,10 @@ export function leafCluster(size = 512, kind = 'broad') {
       const x = qx + Math.cos(a) * rad, y = qy + Math.sin(a) * rad;
       const edge = rad / qr;
       const L = (kind === 'birch' ? 16 : 24) + rnd() * 12, W = L * (kind === 'birch' ? 0.62 : 0.7);
-      const hue = kind === 'birch' ? 76 + rnd() * 12 : 70 + rnd() * 20;
+      const hue = kind === 'birch' ? 76 + rnd() * 12 : kind === 'plum' ? (338 + rnd() * 22) % 360 : 70 + rnd() * 20;
       // subtle per-leaf variation; darker inside the clump, lighter at the rim facing up
       const light = 20 + rnd() * 7 + edge * 9 + (y < qy ? 4 : -2);
-      const sat = 38 + rnd() * 16;
+      const sat = kind === 'plum' ? 30 + rnd() * 18 : 38 + rnd() * 16;
       ctx.save(); ctx.translate(x, y); ctx.rotate(rnd() * Math.PI * 2);
       ctx.fillStyle = `hsl(${hue},${sat}%,${light}%)`;
       ctx.beginPath(); ctx.moveTo(0, -L / 2);

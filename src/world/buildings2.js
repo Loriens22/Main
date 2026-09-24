@@ -390,12 +390,33 @@ export function billboard(cb, M, reg, o = {}) {
 
 /** Low hedge of red-leaf barberry along a polyline of [x,z] points (tram reservations). */
 export function hedgeLine(cb, pts, h = 0.8, w = 0.9, col = 0x7a2c3a) {
+  // clipped hedge: rounded, slightly lumpy profile lofted along the polyline
+  const prof = [[0.5, 0], [0.52, 0.45], [0.46, 0.8], [0.3, 0.97], [0, 1.02], [-0.3, 0.97], [-0.46, 0.8], [-0.52, 0.45], [-0.5, 0]];
+  const smp = [];
   for (let i = 0; i < pts.length - 1; i++) {
-    const [ax, az] = pts[i], [bx, bz] = pts[i + 1];
-    const L = Math.hypot(bx - ax, bz - az); if (L < 0.1) continue;
-    const g = new THREE.BoxGeometry(L + 0.1, h, w); boxUVm(g, 1);
-    cb.add(WM.hedge, g, mat((ax + bx) / 2, h / 2, (az + bz) / 2, 0, -Math.atan2(bz - az, bx - ax)), col);
+    const [ax, az] = pts[i], [bx, bz] = pts[i + 1], L = Math.hypot(bx - ax, bz - az); if (L < 0.05) continue;
+    const n = Math.max(1, Math.ceil(L / 0.45));
+    for (let k = i ? 1 : 0; k <= n; k++) smp.push([ax + ((bx - ax) * k) / n, az + ((bz - az) * k) / n, (bx - ax) / L, (bz - az) / L]);
   }
+  if (smp.length < 2) return;
+  const P = prof.length, pos = [], uv = [], idx = [];
+  let u = 0;
+  for (let j = 0; j < smp.length; j++) {
+    const [x, z, dx, dz] = smp[j];
+    if (j) u += Math.hypot(x - smp[j - 1][0], z - smp[j - 1][1]);
+    const bump = 1 + 0.07 * Math.sin(u * 2.3) + 0.05 * Math.sin(u * 5.1 + 1.7);
+    for (let k = 0; k < P; k++) {
+      const [px, py] = prof[k];
+      const lat = px * w * (k === 0 || k === P - 1 ? 1 : bump);
+      pos.push(x - dz * lat, py * h * (k === 0 || k === P - 1 ? 1 : bump), z + dx * lat);
+      uv.push(u / 0.9, (k / (P - 1)) * (w + h) / 0.9);
+    }
+    if (j) for (let k = 0; k < P - 1; k++) { const a = (j - 1) * P + k, b = a + 1, c = a + P, d = c + 1; idx.push(a, c, b, b, c, d); }
+  }
+  const g = new THREE.BufferGeometry();
+  g.setAttribute('position', new THREE.Float32BufferAttribute(pos, 3)); g.setAttribute('uv', new THREE.Float32BufferAttribute(uv, 2));
+  g.setIndex(idx); g.computeVertexNormals();
+  cb.add(WM.hedge, g, null, col);
 }
 
 /** Green welded-mesh fence panels along a polyline (tram platforms, dog park). */

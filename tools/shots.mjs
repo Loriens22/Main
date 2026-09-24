@@ -12,14 +12,14 @@ const logs = [];
 page.on('console', (m) => { if (m.type() !== 'debug') logs.push(`[${m.type()}] ${m.text()}`); });
 page.on('pageerror', (e) => logs.push(`[pageerror] ${e.stack || e.message}`));
 const t0 = Date.now();
-await page.goto('file://' + resolve('trolleybus.html'));
+await page.goto('file://' + resolve('trolleybus.html') + '?line=' + (process.env.LINE || '9'));
 await page.evaluate(() => { window.__manual = true; });
 await page.waitForFunction(() => window.__ready === true, null, { timeout: 240000 }).catch(() => logs.push('ready timeout'));
 console.log('ready after', Date.now() - t0, 'ms');
-if (pre) { try { const r = await page.evaluate(pre); if (r !== undefined) console.log('pre:', JSON.stringify(r).slice(0, 3000)); } catch (e) { console.log('pre error', e.message); } }
+if (pre) { try { const r = await page.evaluate(pre); if (r !== undefined) console.log('pre:', JSON.stringify(r).slice(0, +(process.env.MAXOUT || 3000))); } catch (e) { console.log('pre error', e.message); } }
 for (const s of list) {
   if (s.w) await page.setViewportSize({ width: s.w, height: s.h });
-  try { const r = await page.evaluate(s.code); if (r !== undefined) console.log(s.name, JSON.stringify(r).slice(0, 3000)); } catch (e) { console.log(s.name, 'error', e.message); }
+  try { const r = await page.evaluate(s.code); if (r !== undefined) console.log(s.name, JSON.stringify(r).slice(0, +(process.env.MAXOUT || 3000))); } catch (e) { console.log(s.name, 'error', e.message); }
   await page.waitForTimeout(s.wait || 400);
   try { await page.screenshot({ path: `tools/out/${s.name}.png`, timeout: 90000 }); } catch (e) { console.log(s.name, 'screenshot failed'); }
 }

@@ -26,7 +26,18 @@ export class UI {
     this.tilt = false; this.assist = true;
     this.toastT = 0; this.subT = 0;
     $('wheelRot').innerHTML = WHEEL_SVG;
-    this.bindDrive(); this.bindLook(); this.bindWalk(); this.bindButtons(); this.bindKeys(); this.bindMenu(); this.bindInformator();
+    this.lever = 0; // tram master controller: +1 full traction … 0 neutral … −1 emergency brake
+    const tram = !!game.isTram;
+    document.body.classList.toggle('tram', tram);
+    $('ctl').classList.toggle('hidden', !tram);
+    $('lineTag').textContent = tram ? 'ТМ7' : 'Л9';
+    if (tram) {
+      $('bPoles').textContent = 'ПАНТ.'; $('bPoles').title = 'Пантограф';
+      $('bKneel').textContent = 'ПЯСЪК'; $('bKneel').title = 'Пясъчници';
+      $('bHorn').textContent = '🔔'; $('bHorn').title = 'Звънец';
+      $('icPoles').title = 'Пантограф';
+    }
+    this.bindDrive(); this.bindController(); this.bindLook(); this.bindWalk(); this.bindButtons(); this.bindKeys(); this.bindMenu(); this.bindInformator();
     this.mm = $('minimap').getContext('2d');
     this.scaleUI(); window.addEventListener('resize', () => this.scaleUI());
   }
@@ -65,6 +76,31 @@ export class UI {
       const ang = landscape ? e.beta * (window.orientation === -90 ? -1 : 1) : e.gamma;
       this.tiltVal = clamp(ang / 35, -1, 1);
     });
+  }
+  /** Tram master controller: a sticky vertical lever (drag; stays where released, snaps to neutral). */
+  bindController() {
+    const tr = document.querySelector('#ctl .ctl-track');
+    let id = null;
+    const val = (e) => {
+      const r = tr.getBoundingClientRect(); const y = (e.clientY - r.top) / r.height; // 0 top … 1 bottom
+      let v = y < 0.47 ? 1 - y / 0.47 : y < 0.53 ? 0 : y < 0.89 ? -((y - 0.53) / 0.36) * 0.88 : -1;
+      if (Math.abs(v) < 0.04) v = 0;
+      return clamp(v, -1, 1);
+    };
+    tr.addEventListener('pointerdown', (e) => { id = e.pointerId; tr.setPointerCapture(id); e.preventDefault(); this.g.audio.init(); this.takeOver(); this.setLever(val(e)); });
+    tr.addEventListener('pointermove', (e) => { if (e.pointerId === id) this.setLever(val(e)); });
+    const end = (e) => { if (e.pointerId === id) id = null; };
+    tr.addEventListener('pointerup', end); tr.addEventListener('pointercancel', end);
+  }
+  /** Moving the controller while the autopilot drives hands control back to the driver. */
+  takeOver() { if (this.g.auto?.on) this.g.auto.toggle(); }
+  setLever(v, quiet = false) {
+    const prev = this.lever;
+    this.lever = clamp(v, -1, 1);
+    const y = this.lever >= 0 ? 0.47 * (1 - this.lever) : this.lever > -0.88 ? 0.53 + (-this.lever / 0.88) * 0.36 : 0.945;
+    const k = $('ctlKnob'); k.style.top = `calc(${(y * 100).toFixed(1)}% - 13px)`;
+    $('ctlVal').textContent = this.lever > 0.005 ? `Т ${Math.round(this.lever * 100)}%` : this.lever < -0.88 ? 'АВАРИЙНО' : this.lever < -0.005 ? `С ${Math.round((-this.lever / 0.88) * 100)}%` : 'N 0';
+    if (!quiet && Math.sign(prev) !== Math.sign(this.lever) && this.g.audio?.ctx) this.g.audio.tone(this.lever === 0 ? 180 : 140, 0.05, 'square', 0.05);
   }
   bindLook() {
     const c = $('c');
@@ -116,9 +152,10 @@ export class UI {
     on('bPark', () => g.togglePark());
     on('bPoles', () => g.bus.raisePoles());
     on('bKneel', () => { g.bus.kneelCmd = !g.bus.kneelCmd; g.audio.airHiss(); });
+    $('bLine').addEventListener('click', () => { try { localStorage.removeItem('tb1650.autoLine'); } catch (e) { /* storage unavailable */ } location.href = location.href.split('?')[0].split('#')[0] + '?pick=1'; });
     on('bAuto', () => g.auto.toggle());
     const horn = $('bHorn');
-    horn.addEventListener('pointerdown', (e) => { e.preventDefault(); g.audio.init(); g.audio.hornOn(); });
+    horn.addEventListener('pointerdown', (e) => { e.preventDefault(); g.audio.init(); if (g.isTram) g.audio.tramBell(); else g.audio.hornOn(); });
     for (const ev of ['pointerup', 'pointercancel', 'pointerleave']) horn.addEventListener(ev, () => g.audio.hornOff());
     document.querySelectorAll('#btnGrid .d').forEach((b) => b.addEventListener('pointerdown', (e) => { e.preventDefault(); const i = +b.dataset.d; g.bus.setDoor(i, !(g.bus.rig.doors[i].target > 0)); }));
     on('bCam', () => g.cycleCamera());
@@ -137,7 +174,8 @@ export class UI {
         case 'KeyC': g.cycleCamera(); break;
         case 'KeyQ': g.bus.indicator = g.bus.indicator === -1 ? 0 : -1; break;
         case 'KeyE': g.bus.indicator = g.bus.indicator === 1 ? 0 : 1; break;
-        case 'KeyH': g.audio.hornOn(); break;
+        case 'KeyH': if (g.isTram) g.audio.tramBell(); else g.audio.hornOn(); break;
+        case 'KeyX': if (g.isTram) { this.takeOver(); this.setLever(0); } break;
         case 'KeyP': g.togglePark(); break;
         case 'KeyT': g.bus.raisePoles(); break;
         case 'KeyK': g.bus.kneelCmd = !g.bus.kneelCmd; break;
@@ -196,6 +234,23 @@ export class UI {
   /* ------------------------------ per-frame input ------------------------------ */
   readDrive(dt, bus) {
     const k = this.keys;
+    if (this.g.isTram) {
+      // sticky master controller: W/S move it, Space = emergency position
+      const up = k.has('KeyW') || k.has('ArrowUp'), dn = k.has('KeyS') || k.has('ArrowDown');
+      if (up || dn || k.has('Space')) this.takeOver();
+      if (k.has('Space')) this.setLever(-1);
+      else if (up || dn) {
+        // the lever stops at the neutral detent; release the key to move through it
+        if (!this.detent) {
+          let v = this.lever + (up ? 1 : -1) * 0.7 * dt;
+          if (this.lever !== 0 && Math.sign(v) !== Math.sign(this.lever)) { v = 0; this.detent = true; }
+          else if (this.lever === 0) v = (up ? 1 : -1) * Math.max(0.041, Math.abs(v));
+          this.setLever(v);
+        }
+      } else this.detent = false;
+      const L = this.lever;
+      return { throttle: Math.max(0, L), brake: L < -0.88 ? 1 : L < 0 ? (-L / 0.88) * 0.95 : 0, steer: 0 };
+    }
     let acc = this.acc, brk = this.brk;
     if (k.has('KeyW') || k.has('ArrowUp')) acc = Math.max(acc, 1);
     if (k.has('KeyS') || k.has('ArrowDown')) brk = Math.max(brk, 0.8);

@@ -310,3 +310,22 @@ export function ballast(size = 512) {
   ctx.globalCompositeOperation = 'source-over';
   return toTex(c);
 }
+
+/** Tileable clipped-hedge foliage: dense small leaves in neutral greys (the hedge colour comes from vertex colour). */
+export function hedgeTex(size = 256) {
+  const rnd = makeRng(77);
+  const c = makeCanvas(size, size), ctx = c.getContext('2d');
+  ctx.fillStyle = '#4a4a4a'; ctx.fillRect(0, 0, size, size);
+  for (let k = 0; k < 2600; k++) {
+    const x = rnd() * size, y = rnd() * size, L = 5 + rnd() * 6, W = L * 0.6, a = rnd() * Math.PI * 2;
+    const l = 55 + rnd() * 45;
+    ctx.fillStyle = `hsl(0,0%,${l}%)`;
+    for (const ox of [-size, 0, size]) for (const oy of [-size, 0, size]) {
+      if (x + ox < -12 || x + ox > size + 12 || y + oy < -12 || y + oy > size + 12) continue;
+      ctx.save(); ctx.translate(x + ox, y + oy); ctx.rotate(a);
+      ctx.beginPath(); ctx.moveTo(0, -L / 2); ctx.quadraticCurveTo(W / 2, 0, 0, L / 2); ctx.quadraticCurveTo(-W / 2, 0, 0, -L / 2); ctx.fill();
+      ctx.restore();
+    }
+  }
+  return toTex(c);
+}
