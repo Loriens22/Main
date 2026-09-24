@@ -21,6 +21,7 @@ import { buildTramInfra } from './world/tramWorld.js';
 import { layoutTram } from './world/tramLayout.js';
 import { buildTram } from './tram/model.js';
 import { Tram } from './sim/tram.js';
+import { AITrams } from './sim/aiTram.js';
 import { Informator } from './sim/informator.js';
 import { Autopilot } from './sim/autopilot.js';
 import { Audio } from './audio.js';
@@ -106,6 +107,7 @@ export class Game {
     }
     scene.add(this.bus.sparks.points);
     this.veh = this.bus;
+    if (tram) this.aiTrams = new AITrams(this);
     this.bus.staticColliders = reg.colliders.filter((c) => !c.soft).map((c) => {
       const p = new THREE.Vector3().setFromMatrixPosition(c.M);
       const dir = new THREE.Vector3(1, 0, 0).transformDirection(c.M);
@@ -310,6 +312,7 @@ export class Game {
     for (let i = 0; i < n; i++) bus.update(dt / n, this.traffic);
     this.tl.update(dt, this.time);
     bus.samplePts(this.busPts);
+    if (this.aiTrams) { this.aiTrams.update(dt, this.time, this.engine.camera.position); this.aiTrams.samplePts(this.busPts); }
     this.traffic.update(dt, this.busPts, this.engine.camera.position, this.people.pedPts);
     this.tripLogic(dt);
     for (const r of this.rig.roots) r.updateMatrixWorld(true);
@@ -349,6 +352,7 @@ export class Game {
     this.tl.update(dt, this.time);
     bus.samplePts(this.busPts);
     const cam = this.engine.camera.position;
+    if (this.aiTrams) { this.aiTrams.update(dt, this.time, cam); this.aiTrams.samplePts(this.busPts); }
     this.traffic.update(dt, this.busPts, cam, this.people.pedPts);
     this.tripLogic(dt);
     for (const r of this.rig.roots) r.updateMatrixWorld(true);

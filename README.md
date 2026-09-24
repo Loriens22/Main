@@ -49,6 +49,8 @@ or `?line=9` skips the picker, and **Смяна на линията** in the ☰
     парк with a flower parterre and an art garden with sculptures.
   - **бул. „Пенчо Славейков“** (link to trams 1 and 6): Hotel Millennium Sofia next to the
     stop, the bTV Media Group tower behind it, and the ОББ tower and a curved office after it.
+- **Other trams:** 2314 and 2318 run the opposite direction towards Манастирски ливади. They obey
+  the signals, stop at the opposite platforms with their doors open and lay over in the loop.
 - **Sound:** traction inverter whine, wheel clicks over rail joints for every axle, flange squeal
   in tight curves and the tram bell.
 

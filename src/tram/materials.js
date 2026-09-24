@@ -3,7 +3,7 @@ import * as THREE from 'three';
 import * as TX from '../textures.js';
 import { makeRng } from '../util.js';
 
-export const TLIV = { white: '#eef0f0', yellow: '#f5a21f', blue: '#2f8fdc', grey: '#b3b8bd', charcoal: '#3f4348' };
+export const TLIV = { white: '#eef0f0', yellow: '#f5a21f', blue: '#1d5cc0', grey: '#b3b8bd', charcoal: '#3f4348' };
 
 /** Vertical livery band: v = y / 3.4 m (white skirt, yellow-orange stripe, cobalt blue body, grey roof). */
 function tramBand() {
