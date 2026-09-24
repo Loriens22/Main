@@ -645,7 +645,7 @@ export function buildTram(line) {
   rig.sections[0].z0 = -4.2;
   rig.cab = { section: 'A', inside: (x, z) => z < -3.2, partition: { z: -3.1, xMax: 0.32 }, exit: V(0.55, 0, -2.6) };
   rig.eye = { section: 'A', pos: TR.eye.clone() };
-  rig.interiorEye = { section: 'C', pos: V(0.4, 1.72, 2.9) };
+  rig.interiorEye = { section: 'E', pos: V(0, 1.68, 3.3) };
   rig.startSpot = { section: 'A', pos: V(TR.hw + 2.3, 0, -1.2), look: V(TR.hw, 0, -2.35) };
   rig.doors.forEach((d) => { d.cabDoor = false; });
   rig.steeringWheel = null; rig.speedNeedle = null;

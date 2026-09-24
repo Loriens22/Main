@@ -3,10 +3,12 @@ import { Batch, prepGeo, xform } from '../util.js';
 
 /** Batches static geometry per spatial chunk and material → few draw calls, good frustum culling. */
 export class ChunkBatch {
-  constructor(size = 220) { this.size = size; this.map = new Map(); }
+  constructor(size = 220) { this.size = size; this.map = new Map(); this.detail = false; this.detailDist = 320; }
   key(x, z) { return Math.floor(x / this.size) + ',' + Math.floor(z / this.size); }
+  /** While `detail` is set, geometry goes into smaller "detail" chunks that are culled at `detailDist` (fences, sleepers…). */
   get(x, z) {
-    const k = this.key(x, z);
+    const ds = this.size / 2;
+    const k = this.detail ? Math.floor(x / ds) + ',' + Math.floor(z / ds) + '|d' : this.key(x, z);
     let b = this.map.get(k);
     if (!b) { b = new Batch(); this.map.set(k, b); }
     return b;
@@ -27,24 +29,26 @@ export class ChunkBatch {
     let n = 0;
     this.chunks = [];
     for (const [k, b] of this.map) {
-      const [ix, iz] = k.split(',').map(Number);
+      const [kk, dflag] = k.split('|');
+      const [ix, iz] = kk.split(',').map(Number);
+      const cs = dflag ? this.size / 2 : this.size;
       const meshes = b.build(parent, { name: name + k });
       n += meshes.length;
       // real extent of the chunk (long ribbons can reach far outside their home cell)
       const box = new THREE.Box3();
       for (const m of meshes) { m.geometry.computeBoundingBox(); box.union(m.geometry.boundingBox); }
-      this.chunks.push({ x: (ix + 0.5) * this.size, z: (iz + 0.5) * this.size, box, meshes, vis: true });
+      this.chunks.push({ x: (ix + 0.5) * cs, z: (iz + 0.5) * cs, box, meshes, vis: true, detail: !!dflag });
     }
     this.map.clear();
     return n;
   }
   /** Hide whole chunks far beyond the fog. */
   cull(cam, dist) {
-    const d2 = dist * dist;
+    const d2 = dist * dist, dd = Math.min(dist, this.detailDist), dd2 = dd * dd;
     for (const c of this.chunks) {
       const b = c.box;
       const dx = Math.max(b.min.x - cam.x, 0, cam.x - b.max.x), dz = Math.max(b.min.z - cam.z, 0, cam.z - b.max.z);
-      const v = dx * dx + dz * dz < d2;
+      const v = dx * dx + dz * dz < (c.detail ? dd2 : d2);
       if (v !== c.vis) { c.vis = v; for (const m of c.meshes) m.visible = v; }
     }
   }

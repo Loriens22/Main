@@ -72,9 +72,11 @@ export function buildTramInfra(route, cb, occ, reg, tl) {
             addStrip(cb, WM.curb, stripGeo(pp, sd * (TRACK + 1.55), sd * (TRACK + 1.55), -0.02, Y_PLANT, { uvScale: 1 }));
             // red barberry hedge + white pedestrian fence along the tracks
             const hedge = streetPts(st, a + c0 + 1, a + c1 - 1, 4).map(([x, z], i, arr) => { const f = st.poly.at(a + c0 + 1 + (i / Math.max(1, arr.length - 1)) * (c1 - c0 - 2)); return [x - Math.sin(f.h) * sd * (RES - 1.2), z + Math.cos(f.h) * sd * (RES - 1.2)]; });
+            cb.detail = true;
             if (hedge.length > 1 && st.tracks) hedgeLine(cb, hedge, 0.62, 0.95, 0x6a2430);
             const fence = streetPts(st, a + c0 + 1, a + c1 - 1, 2.6).map(([x, z], i, arr) => { const f = st.poly.at(a + c0 + 1 + (i / Math.max(1, arr.length - 1)) * (c1 - c0 - 2)); return [x - Math.sin(f.h) * sd * (TRACK + 1.85), z + Math.cos(f.h) * sd * (TRACK + 1.85)]; });
             if (fence.length > 1 && st.tracks) whiteFence(cb, fence);
+            cb.detail = false;
             // street lamps in the reservation (arm over the carriageway)
             for (let s = Math.ceil((a + c0) / 38) * 38 + 12; s < a + c1 - 4; s += 38) {
               const f = st.poly.at(s); const lx = f.x - Math.sin(f.h) * sd * (RES - 0.5), lz = f.z + Math.cos(f.h) * sd * (RES - 0.5);
@@ -174,16 +176,16 @@ export function buildTramInfra(route, cb, occ, reg, tl) {
   return info;
 }
 
-/** White galvanised pedestrian fence (tram reservation). */
+/** White galvanised pedestrian fence (tram reservation): tube rails, posts and a bar-infill card. */
 function whiteFence(cb, pts) {
   for (let i = 0; i < pts.length - 1; i++) {
     const [ax, az] = pts[i], [bx, bz] = pts[i + 1];
     const L = Math.hypot(bx - ax, bz - az); if (L < 0.2) continue;
     const yaw = -Math.atan2(bz - az, bx - ax), cx = (ax + bx) / 2, cz = (az + bz) / 2;
-    for (const y of [0.25, 1.0]) cb.add(WM.galv, new THREE.CylinderGeometry(0.022, 0.022, L, 6).rotateZ(Math.PI / 2), mat(cx, y, cz, 0, yaw), 0xf2f3f3);
-    cb.add(WM.galv, new THREE.CylinderGeometry(0.03, 0.03, 1.05, 6), mat(ax, 0.55, az), 0xf2f3f3);
-    for (let t = 0.1; t < 1; t += 0.1) cb.add(WM.galv, new THREE.CylinderGeometry(0.008, 0.008, 0.75, 4), mat(ax + (bx - ax) * t, 0.62, az + (bz - az) * t), 0xf2f3f3);
-    cb.add(WM.painted, new THREE.BoxGeometry(0.06, 0.08, 0.04), mat(ax, 0.95, az, 0, yaw), 0x222222);
+    for (const y of [0.25, 1.0]) cb.add(WM.galv, new THREE.CylinderGeometry(0.022, 0.022, L, 5, 1, true).rotateZ(Math.PI / 2), mat(cx, y, cz, 0, yaw), 0xf2f3f3);
+    cb.add(WM.galv, new THREE.CylinderGeometry(0.03, 0.03, 1.05, 6, 1, true), mat(ax, 0.55, az), 0xf2f3f3);
+    const g = new THREE.PlaneGeometry(L, 0.75); const uv = g.attributes.uv; for (let j = 0; j < uv.count; j++) uv.setX(j, uv.getX(j) * L);
+    cb.add(WM.fenceBars, g, mat(cx, 0.62, cz, 0, yaw), 0xf2f3f3);
   }
 }
 
@@ -214,12 +216,14 @@ function buildTracks(route, cb, info) {
       const g2 = GAUGE / 2;
       if (kind === 'j') {
         addStrip(cb, WM.concrete, stripGeo(pts, -1.25, 1.25, 0.004, 0.004, { uvScale: 3 }), 0x8f8d88);
+        cb.detail = true;
         for (const sgn of [-1, 1]) {
           addStrip(cb, WM.railTop, stripGeo(pts, sgn * g2 - 0.03, sgn * g2 + 0.03, 0.013, 0.013, { uvScale: 1 }));
           addStrip(cb, WM.metalDark, stripGeo(pts, sgn * g2 + (sgn > 0 ? -0.075 : 0.03), sgn * g2 + (sgn > 0 ? -0.03 : 0.075), 0.011, 0.011, { uvScale: 1 }), 0x1a1a1a);
         }
       } else {
         if (kind === 'f') addStrip(cb, WM.ballast, stripGeo(pts, -1.55, 1.55, -0.02, -0.02, { uvScale: 2.2, across: 2 }));
+        cb.detail = true;
         for (let s = a + 0.35; s < b; s += 0.72) { poly.at(s, o); cb.add(WM.sleeper, new THREE.BoxGeometry(0.22, 0.1, 1.75), mat(o.x, -0.035, o.z, 0, -o.h), 0x8e8a80); }
         for (const sgn of [-1, 1]) {
           addStrip(cb, WM.railTop, stripGeo(pts, sgn * g2 - 0.03, sgn * g2 + 0.03, 0.03, 0.03, { uvScale: 1 }));
@@ -228,6 +232,7 @@ function buildTracks(route, cb, info) {
           addStrip(cb, WM.rail, stripGeo(pts, sgn * g2 - 0.07, sgn * g2 + 0.07, -0.055, -0.055, { uvScale: 1 }));
         }
       }
+      cb.detail = false;
     }
   }
 }
@@ -282,6 +287,7 @@ function buildTramCatenary(route, cb, occ, info) {
         const c0x = p.x - rx * TRACK, c0z = p.z - rz * TRACK;
         addPole(c0x, c0z, 8.4);
         void cx; void cz;
+        cb.detail = true;
         for (const sd of [-1, 1]) {
           const ex = c0x + rx * sd * (TRACK + 0.5), ez = c0z + rz * sd * (TRACK + 0.5);
           cb.add(WM.galv, tube(c0x, 6.9, c0z, ex, 6.75, ez, 0.035), null, 0xb9bec2);
@@ -289,6 +295,7 @@ function buildTramCatenary(route, cb, occ, info) {
           cb.add(WM.metalDark, new THREE.CylinderGeometry(0.05, 0.05, 0.35, 8), mat(ex - rx * sd * 0.5, 6.4, ez - rz * sd * 0.5), 0x5a3a2a);
           cb.add(WM.galv, tube(ex - rx * sd * 0.5, 6.25, ez - rz * sd * 0.5, c0x + rx * sd * TRACK, WIRE_Y + 0.03, c0z + rz * sd * TRACK, 0.015), null, 0x9aa0a6);
         }
+        cb.detail = false;
         continue;
       }
       // loop / curve: side pole on the outside with a pull-off span
@@ -383,12 +390,14 @@ function buildPlatforms(route, cb, occ, reg, info) {
       markRoadOcc(occ, pts, 0, 5, sd * (e0 + 0.1), sd * (e1 - 0.1));
       // guardrail + green mesh fence on the road side
       const fl = streetPts(st, a + 1, b - 1, 2.5).map(([x, z], i, arr) => { const f = st.poly.at(a + 1 + (i / Math.max(1, arr.length - 1)) * (b - a - 2)); return [x - Math.sin(f.h) * sd * (RES - 0.3), z + Math.cos(f.h) * sd * (RES - 0.3)]; });
+      cb.detail = true;
       guardrail(cb, fl, PLATFORM_Y + 0.55);
       for (let i = 0; i < fl.length - 1; i++) {
         const [ax, az] = fl[i], [bx, bz] = fl[i + 1];
         reg.walkBlockers?.push({ x: (ax + bx) / 2, z: (az + bz) / 2, h: Math.atan2(bz - az, bx - ax), hd: Math.hypot(bx - ax, bz - az) / 2 + 0.05, hw: 0.08 });
       }
       meshFence(cb, fl.map(([x, z]) => [x, z]), 1.35, 0x1f4a32);
+      cb.detail = false;
       // shelter, stop pole, bins
       const f = st.poly.at(sb - 16), hh = sd > 0 ? f.h : f.h + Math.PI;
       const sx = f.x - Math.sin(f.h) * sd * (RES - 1.15), sz = f.z + Math.cos(f.h) * sd * (RES - 1.15);
@@ -397,7 +406,7 @@ function buildPlatforms(route, cb, occ, reg, info) {
       const fp = st.poly.at(sd > 0 ? sb + 0.5 : a + 1.5);
       const px = fp.x - Math.sin(fp.h) * sd * (RES - 0.6), pz = fp.z + Math.cos(fp.h) * sd * (RES - 0.6);
       stopPole(cb, px, pz, Math.atan2(Math.sin(f.h) * sd, -Math.cos(f.h) * sd), stp.name);
-      const fb = st.poly.at(sb - 6); trashBin(cb, fb.x - Math.sin(fb.h) * sd * (RES - 0.5), fb.z + Math.cos(fb.h) * sd * (RES - 0.5));
+      const fb = st.poly.at(sb - 6); cb.detail = true; trashBin(cb, fb.x - Math.sin(fb.h) * sd * (RES - 0.5), fb.z + Math.cos(fb.h) * sd * (RES - 0.5)); cb.detail = false;
       if (sd > 0) {
         // waiting passengers along the platform, facing the track
         const wait = [];

@@ -329,3 +329,26 @@ export function hedgeTex(size = 256) {
   }
   return toTex(c);
 }
+
+/** Vertical fence bars on transparent (1 m tile): pedestrian fences along the tram reservation. */
+export function fenceBars(size = 256) {
+  const c = makeCanvas(size, size / 2), ctx = c.getContext('2d');
+  ctx.clearRect(0, 0, size, size / 2);
+  const n = 9, w = size * 0.028;
+  for (let k = 0; k < n; k++) {
+    const x = ((k + 0.5) / n) * size;
+    const g = ctx.createLinearGradient(x - w, 0, x + w, 0); g.addColorStop(0, '#b8bcbf'); g.addColorStop(0.5, '#ffffff'); g.addColorStop(1, '#9ea3a7');
+    ctx.fillStyle = g; ctx.fillRect(x - w / 2, 0, w, size / 2);
+  }
+  return toTex(c);
+}
+/** Welded wire mesh panel (0.5 m tile): 5 cm × 20 cm grid on transparent. */
+export function weldMesh(size = 256) {
+  const c = makeCanvas(size, size), ctx = c.getContext('2d');
+  ctx.clearRect(0, 0, size, size);
+  ctx.fillStyle = '#ffffff';
+  const nx = 10, ny = 2.5, lw = Math.max(2, size * 0.012);
+  for (let k = 0; k < nx; k++) ctx.fillRect(((k + 0.5) / nx) * size - lw / 2, 0, lw, size);
+  for (let k = 0; k < ny; k++) ctx.fillRect(0, ((k + 0.5) / ny) * size - lw / 2, size, lw);
+  return toTex(c);
+}

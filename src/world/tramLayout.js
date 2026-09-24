@@ -181,7 +181,9 @@ export function layoutTram(route, cb, occ, reg, infra) {
       for (let j = 0; j < n; j++) { const [x, z] = at(B1, gs + rr(-14, 14), gl + rr(-12, 12)); tryTree(x, z, R() < 0.8 ? kind : pick(['linden', 'small', 'birch']), rr(0.95, 1.45)); }
     }
     for (let k = 0; k < 260; k++) { const [x, z] = at(B1, rr(2280, 3690), -(edge(B1) + rr(4, 180))); tryTree(x, z, 'small', rr(0.55, 0.85)); }
+    cb.detail = true;
     for (let s = 2300; s < 3680; s += 45) { const [x, z, h] = at(B1, s, -(edge(B1) + 7)); if (occ.get(x, z) === 0) { BLD.bench({ add: (m, g, lm, c) => cb.add(m, g, lm, c) }, x, z, -h); reg.benches.push({ p: new THREE.Vector3(x, 0.02, z), yaw: -h + Math.PI }); } }
+    cb.detail = false;
     const path = streetPts(B1, 2290, 3680, 4);
     cb.add(WM.pavers, stripGeo(path, -(edge(B1) + 8.2), -(edge(B1) + 5.8), 0.03, 0.03, { uvScale: 2 }));
     reserve(B1, 2280, 3700, -1);
@@ -258,7 +260,9 @@ export function layoutTram(route, cb, occ, reg, infra) {
   // street trees on the outer sidewalk edge, bins
   for (const st of [B1, Bv, X0, X1, X2]) for (const side of [1, -1]) {
     for (let s = 8; s < st.poly.length - 5; s += rr(9, 13)) { const [x, z] = at(st, s, side * (edge(st) - 1.2)); if (occ.get(x, z) <= 2) { if (occ.get(x, z) === 2 && R() < 0.5) continue; tryTreeForce(x, z); } }
+    cb.detail = true;
     for (let s = 40; s < st.poly.length; s += rr(70, 130)) { const [x, z] = at(st, s, side * (edge(st) - 0.5)); if (occ.get(x, z) <= 2) PR.trashBin(cb, x, z); }
+    cb.detail = false;
   }
   function tryTreeForce(x, z) { trees.push({ x, z, kind: pick(['linden', 'chestnut', 'linden', 'small']), s: rr(0.9, 1.2), rot: R() * 6.28, hue: rr(-0.03, 0.05) }); occ.markDisc(x, z, 1.2, 1); }
   // street name plates at the junctions

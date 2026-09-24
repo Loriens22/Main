@@ -49,6 +49,17 @@ button { font: inherit; color: inherit; touch-action: none; }
   background: linear-gradient(180deg, #ffd23f, #f2a900); color: #1b1300; box-shadow: 0 6px 20px rgba(242,169,0,.35);
 }
 .big-btn:disabled { opacity: .35; }
+#splash { overflow-y: auto; align-items: safe center; }
+@media (pointer: coarse) { .splash-hints .kb { display: none; } }
+@media (max-height: 520px) {
+  .brand { margin-bottom: 10px; gap: 12px; }
+  .brand-num { width: 54px; height: 54px; font-size: 36px; border-radius: 12px; }
+  .brand-title { font-size: 24px; }
+  .line-card { padding: 9px 12px; }
+  .lc-num { width: 44px; height: 44px; font-size: 28px; }
+  .lc-txt b { font-size: 16px; }
+  .splash-hints { margin-top: 10px; font-size: 11px; line-height: 1.35; }
+}
 #linePick { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; margin-bottom: 8px; }
 .line-card {
   display: flex; gap: 14px; align-items: center; text-align: left; padding: 14px; border-radius: 14px; cursor: pointer;

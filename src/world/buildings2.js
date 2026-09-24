@@ -391,11 +391,11 @@ export function billboard(cb, M, reg, o = {}) {
 /** Low hedge of red-leaf barberry along a polyline of [x,z] points (tram reservations). */
 export function hedgeLine(cb, pts, h = 0.8, w = 0.9, col = 0x7a2c3a) {
   // clipped hedge: rounded, slightly lumpy profile lofted along the polyline
-  const prof = [[0.5, 0], [0.52, 0.45], [0.46, 0.8], [0.3, 0.97], [0, 1.02], [-0.3, 0.97], [-0.46, 0.8], [-0.52, 0.45], [-0.5, 0]];
+  const prof = [[0.5, 0], [0.52, 0.55], [0.36, 0.93], [0, 1.03], [-0.36, 0.93], [-0.52, 0.55], [-0.5, 0]];
   const smp = [];
   for (let i = 0; i < pts.length - 1; i++) {
     const [ax, az] = pts[i], [bx, bz] = pts[i + 1], L = Math.hypot(bx - ax, bz - az); if (L < 0.05) continue;
-    const n = Math.max(1, Math.ceil(L / 0.45));
+    const n = Math.max(1, Math.ceil(L / 1.1));
     for (let k = i ? 1 : 0; k <= n; k++) smp.push([ax + ((bx - ax) * k) / n, az + ((bz - az) * k) / n, (bx - ax) / L, (bz - az) / L]);
   }
   if (smp.length < 2) return;
@@ -421,14 +421,16 @@ export function hedgeLine(cb, pts, h = 0.8, w = 0.9, col = 0x7a2c3a) {
 
 /** Green welded-mesh fence panels along a polyline (tram platforms, dog park). */
 export function meshFence(cb, pts, h = 1.2, col = 0x1f4a32) {
+  // posts every ~2.5 m, top/bottom tubes and a welded-mesh card
   for (let i = 0; i < pts.length - 1; i++) {
     const [ax, az] = pts[i], [bx, bz] = pts[i + 1];
     const L = Math.hypot(bx - ax, bz - az); if (L < 0.1) continue;
-    const yaw = -Math.atan2(bz - az, bx - ax);
+    const yaw = -Math.atan2(bz - az, bx - ax), cx = (ax + bx) / 2, cz = (az + bz) / 2;
     const n = Math.max(1, Math.round(L / 2.5));
     for (let k = 0; k <= n; k++) { const t = k / n; cb.add(WM.metalDark, new THREE.BoxGeometry(0.06, h + 0.1, 0.06), mat(ax + (bx - ax) * t, (h + 0.1) / 2, az + (bz - az) * t), col); }
-    for (let y = 0.1; y <= h; y += 0.2) cb.add(WM.metalDark, new THREE.BoxGeometry(L, 0.012, 0.012), mat((ax + bx) / 2, y, (az + bz) / 2, 0, yaw), col);
-    for (let t = 0; t < L; t += 0.2) { const k = t / L; cb.add(WM.metalDark, new THREE.BoxGeometry(0.012, h - 0.1, 0.012), mat(ax + (bx - ax) * k, h / 2, az + (bz - az) * k, 0, yaw), col); }
+    for (const y of [0.1, h]) cb.add(WM.metalDark, new THREE.BoxGeometry(L, 0.03, 0.03), mat(cx, y, cz, 0, yaw), col);
+    const g = new THREE.PlaneGeometry(L, h - 0.1); const uv = g.attributes.uv; for (let j = 0; j < uv.count; j++) uv.setXY(j, uv.getX(j) * L * 2, uv.getY(j) * (h - 0.1) * 2);
+    cb.add(WM.weldMesh, g, mat(cx, 0.1 + (h - 0.1) / 2, cz, 0, yaw), col);
   }
 }
 

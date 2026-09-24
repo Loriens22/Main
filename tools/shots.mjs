@@ -12,9 +12,10 @@ const logs = [];
 page.on('console', (m) => { if (m.type() !== 'debug') logs.push(`[${m.type()}] ${m.text()}`); });
 page.on('pageerror', (e) => logs.push(`[pageerror] ${e.stack || e.message}`));
 const t0 = Date.now();
-await page.goto('file://' + resolve('trolleybus.html') + '?line=' + (process.env.LINE || '9'));
+const LINE = process.env.LINE || '9';
+await page.goto('file://' + resolve('trolleybus.html') + (LINE === 'pick' ? '' : '?line=' + LINE));
 await page.evaluate(() => { window.__manual = true; });
-await page.waitForFunction(() => window.__ready === true, null, { timeout: 240000 }).catch(() => logs.push('ready timeout'));
+if (LINE !== 'pick') await page.waitForFunction(() => window.__ready === true, null, { timeout: 240000 }).catch(() => logs.push('ready timeout'));
 console.log('ready after', Date.now() - t0, 'ms');
 if (pre) { try { const r = await page.evaluate(pre); if (r !== undefined) console.log('pre:', JSON.stringify(r).slice(0, +(process.env.MAXOUT || 3000))); } catch (e) { console.log('pre error', e.message); } }
 for (const s of list) {

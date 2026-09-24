@@ -50,16 +50,17 @@ function mcr(a, b, c, d, t) {
   return Math.min(Math.max(v, Math.min(b, c)), Math.max(b, c));
 }
 
-function buildCarGeometry(type) {
+function buildCarGeometry(type, lod = 0) {
   const T = TYPES[type];
   const st = T.st, NS = st.length;
   const halves = st.map(ringHalf);
   // longitudinal samples: every station, ~0.22 m in between, and dense around the wheel arches
   const R = T.wr + 0.065, axles = [-T.wb / 2, T.wb / 2];
   let xs = [];
-  for (let i = 0; i < NS - 1; i++) { const a = st[i][0], b = st[i + 1][0], n = Math.max(1, Math.ceil((b - a) / 0.22)); for (let k = 0; k < n; k++) xs.push(a + (b - a) * k / n); }
+  const dx0 = lod ? 0.65 : 0.22, na = lod ? 4 : 12; // far LOD: coarse sections, few arch samples
+  for (let i = 0; i < NS - 1; i++) { const a = st[i][0], b = st[i + 1][0], n = Math.max(1, Math.ceil((b - a) / dx0)); for (let k = 0; k < n; k++) xs.push(a + (b - a) * k / n); }
   xs.push(st[NS - 1][0]);
-  for (const ax of axles) for (let k = 0; k <= 12; k++) xs.push(ax + R * Math.cos(Math.PI * k / 12));
+  for (const ax of axles) for (let k = 0; k <= na; k++) xs.push(ax + R * Math.cos(Math.PI * k / na));
   xs.sort((a, b) => a - b);
   xs = xs.filter((x, i) => i === 0 || x - xs[i - 1] > 0.015);
   // interpolated half-section of every sample (+ the station interval it lies in, for glass)
@@ -138,12 +139,14 @@ function buildCarGeometry(type) {
   // wheels
   // rounded tyre (lathe) and a dished five-spoke rim facing outwards
   const r = T.wr, V2 = (a, b) => new THREE.Vector2(a * r, b);
-  const tire = new THREE.LatheGeometry([V2(0.63, -0.104), V2(0.8, -0.112), V2(0.93, -0.1), V2(0.985, -0.068), V2(1, 0), V2(0.985, 0.068), V2(0.93, 0.1), V2(0.8, 0.112), V2(0.63, 0.104)], 28).rotateX(Math.PI / 2);
-  const rimParts = [
+  const tire = lod
+    ? new THREE.LatheGeometry([V2(0.63, -0.104), V2(0.95, -0.1), V2(1, 0), V2(0.95, 0.1), V2(0.63, 0.104)], 10).rotateX(Math.PI / 2)
+    : new THREE.LatheGeometry([V2(0.63, -0.104), V2(0.8, -0.112), V2(0.93, -0.1), V2(0.985, -0.068), V2(1, 0), V2(0.985, 0.068), V2(0.93, 0.1), V2(0.8, 0.112), V2(0.63, 0.104)], 28).rotateX(Math.PI / 2);
+  const rimParts = lod ? [new THREE.CylinderGeometry(0.64 * r, 0.64 * r, 0.02, 10, 1, true).rotateX(Math.PI / 2).translate(0, 0, 0.09), new THREE.CircleGeometry(0.64 * r, 10).translate(0, 0, 0.1)] : [
     new THREE.LatheGeometry([V2(0.66, 0.1), V2(0.63, 0.1), V2(0.55, 0.05), V2(0.2, 0.07), V2(0.16, 0.075), V2(0.01, 0.075)], 24).rotateX(Math.PI / 2),
     new THREE.CylinderGeometry(0.07 * r / 0.31, 0.08 * r / 0.31, 0.03, 12).rotateX(Math.PI / 2).translate(0, 0, 0.09),
   ];
-  for (let k = 0; k < 5; k++) {
+  if (!lod) for (let k = 0; k < 5; k++) {
     const a = (k / 5) * Math.PI * 2;
     rimParts.push(new THREE.BoxGeometry(0.46 * r, 0.075 * r, 0.03).translate(0.36 * r, 0, 0.078).rotateZ(a));
   }
@@ -181,8 +184,10 @@ export class CarFleet {
     };
     this.plateTex = plateTex;
     this.geo = {};
-    for (const t of Object.keys(TYPES)) this.geo[t] = buildCarGeometry(t);
-    this.meshes = {};
+    this.geoL = {};
+    for (const t of Object.keys(TYPES)) { this.geo[t] = buildCarGeometry(t); this.geoL[t] = buildCarGeometry(t, 1); }
+    this.meshes = {}; this.meshesL = {};
+    this.lodDist = 55;
     this.used = {};
     this.cars = [];
   }
@@ -190,19 +195,20 @@ export class CarFleet {
   allocate(counts) {
     for (const [t, n] of Object.entries(counts)) {
       if (!n) continue;
-      const G = this.geo[t];
-      const parts = {};
-      for (const k of ['body', 'glass', 'trim', 'lights', 'wheels', 'rims', 'brake']) {
-        const m = new THREE.InstancedMesh(G[k], this.mats[k], n);
-        m.castShadow = k !== 'brake' && k !== 'glass'; m.receiveShadow = k !== 'brake';
-        m.instanceMatrix.setUsage(THREE.DynamicDrawUsage);
-        m.frustumCulled = false;
-        m.count = 0;
-        if (k === 'body') for (let i = 0; i < n; i++) m.setColorAt(i, new THREE.Color(1, 1, 1));
-        this.scene.add(m);
-        parts[k] = m;
+      for (const [G, store] of [[this.geo[t], this.meshes], [this.geoL[t], this.meshesL]]) {
+        const parts = {};
+        for (const k of ['body', 'glass', 'trim', 'lights', 'wheels', 'rims', 'brake']) {
+          const m = new THREE.InstancedMesh(G[k], this.mats[k], n);
+          m.castShadow = k !== 'brake' && k !== 'glass'; m.receiveShadow = k !== 'brake';
+          m.instanceMatrix.setUsage(THREE.DynamicDrawUsage);
+          m.frustumCulled = false;
+          m.count = 0;
+          if (k === 'body') for (let i = 0; i < n; i++) m.setColorAt(i, new THREE.Color(1, 1, 1));
+          this.scene.add(m);
+          parts[k] = m;
+        }
+        store[t] = parts;
       }
-      this.meshes[t] = parts;
     }
   }
   /** Creates a car record of type t with colour. Instance slots are assigned per frame (visibility compaction). */
@@ -218,8 +224,8 @@ export class CarFleet {
     camera.updateMatrixWorld();
     this._pm.multiplyMatrices(camera.projectionMatrix, camera.matrixWorldInverse); this._fr.setFromProjectionMatrix(this._pm);
     const cx = camera.position.x, cz = camera.position.z;
-    const slots = {};
-    for (const t of Object.keys(this.meshes)) slots[t] = 0;
+    const slots = {}, slotsL = {}, ld2 = this.lodDist * this.lodDist;
+    for (const t of Object.keys(this.meshes)) { slots[t] = 0; slotsL[t] = 0; }
     const M = this._M, q = this._q, p = this._p;
     for (const car of this.cars) {
       if (!car.visible) continue;
@@ -228,8 +234,9 @@ export class CarFleet {
       this._sph.center.set(car.x, 1, car.z);
       const nearShadow = shadowFocus && (car.x - shadowFocus.x) ** 2 + (car.z - shadowFocus.z) ** 2 < 3600;
       if (!nearShadow && !this._fr.intersectsSphere(this._sph)) continue;
-      const parts = this.meshes[car.type];
-      const i = slots[car.type]++;
+      const far = d2 > ld2;
+      const parts = (far ? this.meshesL : this.meshes)[car.type];
+      const i = (far ? slotsL : slots)[car.type]++;
       q.setFromAxisAngle(this._up, -car.h); p.set(car.x, car.y || 0, car.z);
       M.compose(p, q, this._one);
       for (const k of ['body', 'glass', 'trim', 'lights', 'wheels', 'rims']) parts[k].setMatrixAt(i, M);
@@ -237,12 +244,12 @@ export class CarFleet {
       if (!car.braking) M.makeScale(0, 0, 0);
       parts.brake.setMatrixAt(i, M);
     }
-    for (const [t, parts] of Object.entries(this.meshes)) {
-      for (const m of Object.values(parts)) { m.count = slots[t]; m.visible = slots[t] > 0; m.instanceMatrix.needsUpdate = true; if (m.instanceColor) m.instanceColor.needsUpdate = true; }
+    for (const [store, sl] of [[this.meshes, slots], [this.meshesL, slotsL]]) for (const [t, parts] of Object.entries(store)) {
+      for (const m of Object.values(parts)) { m.count = sl[t]; m.visible = sl[t] > 0; m.instanceMatrix.needsUpdate = true; if (m.instanceColor) m.instanceColor.needsUpdate = true; }
     }
   }
   flush() {}
-  computeBounds() { for (const parts of Object.values(this.meshes)) for (const m of Object.values(parts)) m.computeBoundingSphere(); }
+  computeBounds() { for (const store of [this.meshes, this.meshesL]) for (const parts of Object.values(store)) for (const m of Object.values(parts)) m.computeBoundingSphere(); }
 }
 
 /* ------------------------------------------------------------------ */

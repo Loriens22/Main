@@ -125,6 +125,8 @@ export function initWorldMaterials() {
   WM.leavesBirch = std({ alphaToCoverage: true, name: 'leavesBirch', map: WT.leavesBirch, alphaTest: 0.45, side: THREE.DoubleSide, roughness: 0.95, envMapIntensity: 0.55, ...vc });
   WM.needles = std({ alphaToCoverage: true, name: 'needles', map: WT.needles, alphaTest: 0.45, side: THREE.DoubleSide, roughness: 0.9, ...vc });
   WM.hedge = std({ name: 'hedge', map: TX2.hedgeTex(256), roughness: 0.92, ...vc });
+  WM.fenceBars = std({ name: 'fenceBars', map: TX2.fenceBars(256), alphaTest: 0.5, alphaToCoverage: true, side: THREE.DoubleSide, roughness: 0.45, metalness: 0.4, ...vc });
+  WM.weldMesh = std({ name: 'weldMesh', map: TX2.weldMesh(256), alphaTest: 0.5, alphaToCoverage: true, side: THREE.DoubleSide, roughness: 0.5, metalness: 0.3, ...vc });
   WM.fabric = std({ name: 'fabric', color: 0xffffff, roughness: 0.9, side: THREE.DoubleSide, ...vc });
   WM.emissive = std({ name: 'emissiveW', color: 0x222222, emissive: 0xffffff, emissiveIntensity: 1.2, roughness: 0.4, ...vc });
 

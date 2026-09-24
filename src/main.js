@@ -35,7 +35,7 @@ async function boot() {
   try { localStorage.setItem('tb1650.line', lineId); } catch (e) { /* storage unavailable */ }
   const L = LINES[lineId];
   document.body.classList.add(L.cls);
-  $('brandNum').textContent = L.num; $('brandNum').classList.toggle('tm', lineId === '7');
+  $('brandNum').textContent = L.num; $('brandNum').classList.toggle('tm', lineId === '7'); $('brandNum').classList.remove('hidden');
   $('brandTitle').innerHTML = L.title; $('brandSub').textContent = L.sub; document.title = L.doc;
   $('linePick').classList.add('hidden'); $('loadBox').classList.remove('hidden');
   try {
