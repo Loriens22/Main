@@ -14,6 +14,7 @@ import { mkdirSync } from 'node:fs';
 const root = join(dirname(fileURLToPath(import.meta.url)), '..');
 const args = process.argv.slice(2);
 const cmds = [];
+let enter = false;
 let shots = join(root, 'tools/out'), q = 'low', w = 960, h = 540, gen = 'balanced', extra = '';
 for (let i = 0; i < args.length; i++) {
   if (args[i] === '--cmd') cmds.push(args[++i]);
@@ -22,6 +23,7 @@ for (let i = 0; i < args.length; i++) {
   else if (args[i] === '--size') { [w, h] = args[++i].split('x').map(Number); }
   else if (args[i] === '--gen') gen = args[++i];
   else if (args[i] === '--extra') extra = args[++i];
+  else if (args[i] === '--enter') enter = true;
 }
 if (!cmds.length) {
   cmds.push('create a modern two-story house with large windows and a garden');
@@ -81,6 +83,15 @@ for (let i = 0; i < cmds.length; i++) {
   });
   await page.waitForTimeout(1500);
   await page.screenshot({ path: join(shots, `slice${i + 1}.png`), timeout: 180000 });
+  if (enter) {
+    const ok = await page.evaluate(() => { const e = window.G.lastCreated; if (e && e.interact) { e.interact.action(e, window.G.player); return window.G.world.name; } return null; });
+    console.log('entered:', ok);
+    await page.waitForTimeout(2500);
+    await page.screenshot({ path: join(shots, `slice${i + 1}-inside.png`), timeout: 180000 });
+    await page.evaluate(() => { const P = window.G.player; P.yaw += Math.PI; P.pitch = 0; });
+    await page.waitForTimeout(2500);
+    await page.screenshot({ path: join(shots, `slice${i + 1}-back.png`), timeout: 180000 });
+  }
 }
 // Third-person view of the player avatar.
 await page.evaluate(() => { const G = window.G; G.player.toggleCamera(); G.player.pitch = -0.25; });

@@ -21,6 +21,7 @@ let WORLD_ID = 0;
 export class World {
   constructor(opts = {}) {
     this.id = opts.id ?? WORLD_ID++;
+    WORLD_ID = Math.max(WORLD_ID, this.id + 1);
     this.name = opts.name || 'World';
     this.kind = opts.kind || 'overworld';
     this.scene = new THREE.Scene();
@@ -34,6 +35,7 @@ export class World {
     this.spawn = { pos: new THREE.Vector3(0, 0, 0), yaw: 0 };
     this.post = { tint: [1, 1, 1], lift: [0, 0, 0], saturation: 1.08, contrast: 1.04, vignette: 0.28, wobble: 0, ca: 0.0015, grain: 0.035, pulse: 0, invert: 0, ...(opts.post || {}) };
     this.waterLevel = opts.waterLevel ?? -1e9;
+    this.waterVolumes = [];
     this.bounds = opts.bounds || 490;
     this.atmosphere = null;
     this.weather = null;
@@ -45,6 +47,18 @@ export class World {
   }
 
   heightAt(x, z) { return this.colliders.terrainHeight(x, z); }
+
+  // Water surface height at (x, z): the global sea/lake level or any local
+  // water body (generated lakes, ponds, rivers, pools). -1e9 when dry.
+  waterAt(x, z) {
+    let w = this.waterLevel;
+    for (const v of this.waterVolumes) {
+      if (v.points) {
+        for (let i = 0; i < v.points.length; i++) { const p = v.points[i]; if (Math.hypot(x - p[0], z - p[1]) < v.r) { w = Math.max(w, p[2]); break; } }
+      } else if (Math.hypot(x - v.x, z - v.z) < v.r) w = Math.max(w, v.level);
+    }
+    return w;
+  }
 
   addUpdater(fn) { this.updaters.push(fn); return fn; }
   removeUpdater(fn) { const i = this.updaters.indexOf(fn); if (i >= 0) this.updaters.splice(i, 1); }

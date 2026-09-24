@@ -3,6 +3,7 @@
 import * as THREE from 'three';
 import { G } from '../core/context.js';
 import { LightPool } from '../render/lights.js';
+import { globalUniforms } from '../render/shaderPatches.js';
 
 export function registerWorld(world) {
   G.worlds.set(world.id, world);
@@ -41,6 +42,7 @@ export function switchWorld(world, pos, yaw) {
   G.renderer.setScene(world.scene);
   G.player.teleport(pos, yaw);
   if (G.player.held) G.interaction && G.interaction.drop(true);
+  if (!world.weather) { globalUniforms.uWetness.value = 0; globalUniforms.uSnowCover.value = 0; globalUniforms.uWindStrength.value = world.meta.wind ?? 0.3; }
   if (world.atmosphere) { world.atmosphere.update(0, G.camera, true); world.atmosphere.applyGlobals(); world.atmosphere.maybeUpdateEnv(true); }
   applyPost(world);
   if (world.onEnter) world.onEnter();

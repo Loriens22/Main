@@ -112,7 +112,7 @@ export class Registry {
         world.terrain.applyEdit({ ...pg, owner: e.id, type: 'paint', x: lp.x, z: lp.z, yaw: (pg.yaw || 0) + e.root.rotation.y, points: pg.points ? pg.points.map(([px, pz]) => { const v = new THREE.Vector3(px, 0, pz).applyMatrix4(e.root.matrixWorld); return [v.x, v.z]; }) : undefined });
       }
     }
-    if (world.vegetation && e.footprint && !e.floating && !opts.noClear) {
+    if (world.vegetation && e.footprint && !e.floating && !opts.noClear && !e.keepVegetation) {
       const fp = e.footprint;
       if (fp.rect) world.vegetation.clearArea(e.root.position.x, e.root.position.z, 0, { hw: fp.rect.hw * e.scale + 1.5, hd: fp.rect.hd * e.scale + 1.5, yaw: e.root.rotation.y });
       else if (fp.radius > 0.8) world.vegetation.clearArea(e.root.position.x, e.root.position.z, fp.radius * e.scale + 0.5);

@@ -112,7 +112,7 @@ export class Player {
     const targetEye = this.crouching ? CROUCH_EYE : EYE_HEIGHT;
 
     // Water.
-    const water = world.waterLevel;
+    const water = world.waterAt ? world.waterAt(this.position.x, this.position.z) : world.waterLevel;
     const inWater = rules.water || (water > -1e8 && this.position.y < water - 1.1);
     this.swimming = inWater && !this.flying;
 

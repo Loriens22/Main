@@ -142,7 +142,8 @@ export class Pipeline {
       if (opts.transform) {
         pos = new THREE.Vector3().fromArray(opts.transform.pos); yaw = opts.transform.yaw;
       } else if (i === 0 || item.placement && item.placement.mode === 'around') {
-        const pr = resolvePlacement(item, { ...info, radius: info.radius * (results.length > 1 && item.placement?.mode !== 'around' ? 1.4 : 1) }, { ...pctx, registry: this.registry, prev: pctx.prev });
+        const pItem = !item.placement && d.preferPlacement ? { ...item, placement: { mode: d.preferPlacement } } : item;
+        const pr = resolvePlacement(pItem, { ...info, radius: info.radius * (results.length > 1 && item.placement?.mode !== 'around' ? 1.4 : 1) }, { ...pctx, registry: this.registry, prev: pctx.prev });
         if (pctx.replaceEntity) { this.registry.remove(pctx.replaceEntity.id); pctx.replaceEntity = null; }
         base = pr.pos; baseYaw = pr.yaw; pos = pr.pos.clone(); yaw = pr.yaw;
         if (results.length > 1 && item.placement && item.placement.mode === 'around') {
