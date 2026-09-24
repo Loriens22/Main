@@ -1,0 +1,140 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no, viewport-fit=cover">
+<meta name="theme-color" content="#0b0d12">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<title>Genesis — Text-to-3D Sandbox</title>
+<meta name="description" content="Offline first-person 3D sandbox: type anything and it is procedurally generated in the world. Single self-contained HTML file, built __BUILD_DATE__.">
+<style>/*__CSS__*/</style>
+</head>
+<body>
+<div id="app"></div>
+
+<!-- Title / loading screen -->
+<div id="title-screen">
+  <div class="title-bg"></div>
+  <div class="title-inner">
+    <div class="logo"><span class="logo-mark">✦</span> GENESIS</div>
+    <div class="tagline">Type anything. Watch it come to life.</div>
+    <div class="loader" id="loader">
+      <div class="loader-bar"><div class="loader-fill" id="loader-fill"></div></div>
+      <div class="loader-text" id="loader-text">Initialising engine…</div>
+    </div>
+    <button id="start-btn" class="btn primary big hidden">Enter the world</button>
+    <div class="title-row hidden" id="title-row">
+      <button class="btn ghost" id="title-load">Load world</button>
+      <button class="btn ghost" id="title-settings">Settings</button>
+      <button class="btn ghost" id="title-help">Controls</button>
+    </div>
+    <div class="title-hint" id="title-hint">Runs 100% offline · procedural PBR · no downloads</div>
+  </div>
+</div>
+
+<!-- In-game HUD -->
+<div id="hud" class="hidden">
+  <div id="crosshair"><div class="dot"></div></div>
+  <div id="interact-hint" class="hidden"><kbd>E</kbd><span></span></div>
+  <div id="status-bar">
+    <span id="status-world">Overworld</span>
+    <span class="sep">·</span>
+    <span id="status-time">09:36</span>
+    <span class="sep">·</span>
+    <span id="status-weather">Clear</span>
+    <span id="status-fps" class="hidden"></span>
+  </div>
+  <div id="toasts"></div>
+  <div id="progress-stack"></div>
+  <div id="bubbles"></div>
+
+  <div id="talk-chip" class="hidden"><span class="talk-dot"></span><span id="talk-name">Talking</span><button id="talk-end" title="Stop talking (Esc)">×</button></div>
+
+  <div id="command">
+    <div id="suggestions" class="hidden"></div>
+    <form id="command-form" autocomplete="off">
+      <span class="cmd-icon">✦</span>
+      <input id="command-input" type="text" spellcheck="false" autocomplete="off" enterkeyhint="send"
+        placeholder="Describe anything to create…  (press Enter)" maxlength="400">
+      <button type="submit" id="command-send" aria-label="Create">↵</button>
+    </form>
+  </div>
+
+  <div id="quickbar">
+    <button class="qb" id="qb-list" title="Created objects (Tab)">☰</button>
+    <button class="qb" id="qb-cam" title="Toggle camera (V)">◐</button>
+    <button class="qb" id="qb-menu" title="Menu (Esc)">⚙</button>
+  </div>
+
+  <!-- Touch controls -->
+  <div id="touch" class="hidden">
+    <div id="look-zone"></div>
+    <div id="joy-zone"><div id="joy-base"><div id="joy-knob"></div></div></div>
+    <div id="touch-buttons">
+      <button class="tb" id="tb-jump">⤒<small>Jump</small></button>
+      <button class="tb" id="tb-crouch">⤓<small>Crouch</small></button>
+      <button class="tb" id="tb-sprint">»<small>Run</small></button>
+      <button class="tb" id="tb-use">E<small>Use</small></button>
+      <button class="tb small" id="tb-wave">👋</button>
+      <button class="tb small" id="tb-sit">⌓</button>
+    </div>
+  </div>
+</div>
+
+<!-- Created objects panel -->
+<div id="entity-panel" class="panel side hidden">
+  <div class="panel-head"><h3>Created</h3><span id="entity-count" class="muted"></span><button class="x" data-close="entity-panel">×</button></div>
+  <div id="entity-list" class="scroll"></div>
+  <div class="panel-foot"><button class="btn ghost small" id="entity-undo">Undo last</button><button class="btn danger small" id="entity-clear">Clear all</button></div>
+</div>
+
+<!-- Pause menu -->
+<div id="pause" class="overlay hidden">
+  <div class="panel center">
+    <div class="logo small"><span class="logo-mark">✦</span> GENESIS</div>
+    <button class="btn primary" id="pm-resume">Resume</button>
+    <button class="btn" id="pm-save">Save world</button>
+    <button class="btn" id="pm-load">Load world</button>
+    <div class="row">
+      <button class="btn ghost small" id="pm-export">Export file</button>
+      <button class="btn ghost small" id="pm-import">Import file</button>
+    </div>
+    <button class="btn" id="pm-settings">Settings</button>
+    <button class="btn" id="pm-help">Controls &amp; examples</button>
+    <button class="btn ghost" id="pm-new">New world</button>
+    <button class="btn danger ghost" id="pm-quit">Quit to title</button>
+    <input type="file" id="import-file" accept=".json,application/json" class="hidden">
+  </div>
+</div>
+
+<!-- Save / load slots -->
+<div id="slots" class="overlay hidden">
+  <div class="panel center wide">
+    <div class="panel-head"><h3 id="slots-title">Save world</h3><button class="x" data-close="slots">×</button></div>
+    <div id="slot-list"></div>
+  </div>
+</div>
+
+<!-- Settings -->
+<div id="settings" class="overlay hidden">
+  <div class="panel center wide">
+    <div class="panel-head"><h3>Settings</h3><button class="x" data-close="settings">×</button></div>
+    <div class="settings-grid scroll" id="settings-grid"></div>
+    <div class="panel-foot"><span class="muted small" id="settings-note">Some graphics changes apply after reload.</span><button class="btn primary small" id="settings-done">Done</button></div>
+  </div>
+</div>
+
+<!-- Help -->
+<div id="help" class="overlay hidden">
+  <div class="panel center wide">
+    <div class="panel-head"><h3>Controls &amp; examples</h3><button class="x" data-close="help">×</button></div>
+    <div class="help-body scroll" id="help-body"></div>
+  </div>
+</div>
+
+<div id="flash"></div>
+<div id="rotate-hint" class="hidden">Rotate your device for the best experience ⟳</div>
+<script>/*__JS__*/</script>
+</body>
+</html>

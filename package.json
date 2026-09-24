@@ -1,0 +1,16 @@
+{
+  "name": "text-to-3d-sandbox",
+  "version": "1.0.0",
+  "private": true,
+  "description": "Offline-first first-person 3D sandbox where typed natural-language prompts become procedurally generated 3D entities. Ships as a single self-contained HTML file.",
+  "type": "module",
+  "scripts": {
+    "build": "node tools/build.mjs",
+    "dev": "node tools/build.mjs --dev",
+    "test": "node tools/smoke-test.mjs"
+  },
+  "devDependencies": {
+    "esbuild": "0.24.0",
+    "three": "0.170.0"
+  }
+}
