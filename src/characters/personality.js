@@ -292,6 +292,40 @@ export class Personality {
   idleRemark(ctx) { return this.info.animal ? this.animalLine() : this._fill(this._pick('idle'), ctx); }
   animalLine() { const s = ANIMAL_SOUNDS[this.info.species] || ANIMAL_SOUNDS.default; return this.rng.pick(s); }
 
+  // First words right after being created.
+  intro() {
+    if (this.info.animal) return this.animalLine();
+    const n = this.info.name;
+    const t = this.primary;
+    const lines = {
+      grumpy: [`Hmph. I'm ${n}. Who woke me up?`, `${n}. Don't expect small talk.`],
+      shy: [`Oh! H-hi... I'm ${n}.`, `Um... hello. I'm ${n}.`],
+      cheerful: [`Hi there! I'm ${n}! What a lovely day to exist!`, `Hello, hello! ${n} here — nice to meet you!`],
+      funny: [`${n}, at your service. I just got here and I already love the scenery.`, `Hi, I'm ${n}! Did I miss anything? I feel like I just popped into existence.`],
+      robotic: [`UNIT ${n.toUpperCase()} ONLINE. GREETINGS, HUMAN.`, `Boot sequence complete. Designation: ${n}.`],
+      evil: [`So... you're the one who summoned ${n}. Interesting.`],
+      wise: [`Greetings, traveller. I am ${n}.`],
+      energetic: [`Woo! I'm ${n}! Let's DO something!`],
+      polite: [`Good day! My name is ${n}. A pleasure.`],
+      mysterious: [`They call me ${n}... for now.`],
+    }[t] || [`Hi! I'm ${n}.`, `Hello there, I'm ${n}. Nice to meet you!`, `Oh, hello! I'm ${n}.`];
+    return this.rng.pick(lines);
+  }
+
+  // Short acknowledgement of an order.
+  ack(action) {
+    if (this.info.animal) return this.animalLine();
+    if (this.info.robot) return this.rng.pick(['ACKNOWLEDGED.', 'EXECUTING.', 'AFFIRMATIVE.']);
+    const t = this.primary;
+    const base = {
+      follow: ['Right behind you!', 'Lead the way.', 'Coming!'], come: ['On my way!', 'Coming!'], stay: ['I\'ll wait here.', 'Okay, staying put.'],
+      dance: ['Watch these moves!', 'Oh, I love this song!'], sit: ['Don\'t mind if I do.', 'Ah, a seat.'], goaway: ['Fine, fine...', 'Okay, I\'ll give you some space.'],
+      wave: ['Hi!', 'Hello!'], jump: ['Wheee!', 'Hup!'], cheer: ['Woohoo!', 'Yeah!'], clap: ['Bravo!'],
+    }[action] || ['Okay!', 'Sure!'];
+    if (t === 'grumpy') return this.rng.pick(['Ugh. Fine.', 'If I must.', 'Whatever you say.']);
+    return this.rng.pick(base);
+  }
+
   // Returns { text, action, gesture }.
   respond(text, ctx) {
     this.memory.talks++;

@@ -192,10 +192,18 @@ export class JobScheduler {
       const end = now + budgetMs;
       const per = budgetMs / runnable.length;
       for (const j of runnable) {
-        const sliceEnd = Math.min(end, performance.now() + per);
+        const el = (performance.now() - j.startTime) / 1000;
+        // Deadline guarantee: as a job approaches its hard limit it is given a
+        // progressively larger share of each frame (trading frame rate for the
+        // promise that every request finishes within the time cap), and past
+        // 92% it runs until done.
+        const urgency = el / j.deadlineSec;
+        let slice = per;
+        if (urgency > 0.45) slice *= 1 + (urgency - 0.45) * 20;
+        if (urgency > 0.92) slice = 250;
+        const sliceEnd = urgency > 0.45 ? performance.now() + slice : Math.min(end, performance.now() + slice);
         j.ctx.sliceEnd = sliceEnd;
         // Automatic detail reduction when the job risks running past its deadline.
-        const el = (performance.now() - j.startTime) / 1000;
         if (el > j.deadlineSec * 0.6) j.ctx.detail = Math.max(0.25, 1 - (el / j.deadlineSec - 0.6) * 2);
         let guard = 0;
         while (performance.now() < sliceEnd && j.status === 'running' && !j.waiting && guard++ < 100000) {

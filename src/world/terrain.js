@@ -121,14 +121,18 @@ export class Terrain {
 
   // ---------------- Editing ----------------
   // op: { type: 'flatten'|'raise'|'carve'|'paint', x, z, radius, ... }
-  applyEdit(op, record = true) {
-    if (record) this.edits.push(op);
+  applyEdit(op, record = true, clip = null) {
+    if (record) {
+      if (!this.basePaint && (op.paint || op.type === 'paint')) this.basePaint = this.paint.slice();
+      this.edits.push(op);
+    }
     const N = this.N, w = N + 1, res = this.res, H = this.heights;
     const r = op.radius + (op.falloff || 0);
-    const i0 = Math.max(0, Math.floor((op.x - r + this.half) / res));
-    const i1 = Math.min(N, Math.ceil((op.x + r + this.half) / res));
-    const j0 = Math.max(0, Math.floor((op.z - r + this.half) / res));
-    const j1 = Math.min(N, Math.ceil((op.z + r + this.half) / res));
+    let i0 = Math.max(0, Math.floor((op.x - r + this.half) / res));
+    let i1 = Math.min(N, Math.ceil((op.x + r + this.half) / res));
+    let j0 = Math.max(0, Math.floor((op.z - r + this.half) / res));
+    let j1 = Math.min(N, Math.ceil((op.z + r + this.half) / res));
+    if (clip) { i0 = Math.max(i0, clip.i0); i1 = Math.min(i1, clip.i1); j0 = Math.max(j0, clip.j0); j1 = Math.min(j1, clip.j1); if (i0 > i1 || j0 > j1) return; }
     if (op.type !== 'paint') {
       for (let j = j0; j <= j1; j++) {
         for (let i = i0; i <= i1; i++) {
@@ -143,6 +147,37 @@ export class Terrain {
     }
     if (op.paint || op.type === 'paint') this._paintRegion(op, i0, i1, j0, j1);
     for (const fn of this.listeners) fn(op);
+  }
+
+  // Undo every edit made by one owner (e.g. a deleted building): restore the
+  // procedural heights/paint in the affected region and replay the remaining
+  // edits clipped to that region, in their original order.
+  revertOwner(owner) {
+    const removed = this.edits.filter((e) => e.owner === owner);
+    if (!removed.length) return false;
+    this.edits = this.edits.filter((e) => e.owner !== owner);
+    const N = this.N, w = N + 1, res = this.res, H = this.heights;
+    for (const op of removed) {
+      const r = op.radius + (op.falloff || 0) + res * 2;
+      const clip = {
+        i0: Math.max(0, Math.floor((op.x - r + this.half) / res)), i1: Math.min(N, Math.ceil((op.x + r + this.half) / res)),
+        j0: Math.max(0, Math.floor((op.z - r + this.half) / res)), j1: Math.min(N, Math.ceil((op.z + r + this.half) / res)),
+      };
+      if (op.type !== 'paint') {
+        for (let j = clip.j0; j <= clip.j1; j++) for (let i = clip.i0; i <= clip.i1; i++) H[i + j * w] = this.heightFn(-this.half + i * res, -this.half + j * res);
+        this._markDirty(op.x, op.z, r + 2);
+        this.heightTexDirty = true;
+      }
+      if ((op.type === 'paint' || op.paint) && this.basePaint) {
+        for (let j = clip.j0; j <= Math.min(N - 1, clip.j1); j++) for (let i = clip.i0; i <= Math.min(N - 1, clip.i1); i++) {
+          const k = (i + j * N) * 4;
+          for (let c = 0; c < 4; c++) this.paint[k + c] = this.basePaint[k + c];
+        }
+        this.paintTexDirty = true;
+      }
+      for (const e of this.edits) this.applyEdit(e, false, clip);
+    }
+    return true;
   }
 
   _shapeWeight(op, x, z) {

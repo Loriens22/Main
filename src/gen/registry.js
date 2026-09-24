@@ -10,21 +10,34 @@ import { disposeObject } from '../core/jobs.js';
 let ENTITY_ID = 1;
 
 export class Entity {
-  constructor(data) {
-    Object.assign(this, data);
-    this.id = data.id || ENTITY_ID++;
-    ENTITY_ID = Math.max(ENTITY_ID, this.id + 1);
-    this.colliders = [];
-    this.lightReqs = [];
-    this.scale = this.scale || 1;
-    this.createdAt = performance.now();
-  }
+  constructor(data) { initEntity(this, data); }
   get position() { return this.root.position; }
   worldBox() { return new THREE.Box3().setFromObject(this.root); }
   headPos(out = new THREE.Vector3()) {
     if (this.humanoid && this.humanoid.bones) { this.humanoid.bones[5].getWorldPosition(out); return out.add(new THREE.Vector3(0, 0.15 * this.scale, 0)); }
     return out.copy(this.root.position).add(new THREE.Vector3(0, (this.height || 1.5) * this.scale, 0));
   }
+}
+
+// Turn a generator result object into an Entity *in place*. Generators hand
+// out closures (update, interact, NPC brains...) that capture their data
+// object, so the entity must be that same object for those closures to see
+// runtime fields such as worldId, colliders and scale.
+export function makeEntity(data, extra = {}) {
+  Object.setPrototypeOf(data, Entity.prototype);
+  return initEntity(data, { ...data, ...extra });
+}
+
+function initEntity(e, data) {
+  Object.assign(e, data);
+  e.id = data.id || ENTITY_ID++;
+  ENTITY_ID = Math.max(ENTITY_ID, e.id + 1);
+  e.colliders = [];
+  e.lightReqs = [];
+  e.scale = e.scale || 1;
+  e.createdAt = performance.now();
+  if (e.root) e.root.userData.entity = e;
+  return e;
 }
 
 export class Registry {
@@ -49,39 +62,7 @@ export class Registry {
     world.entities.add(e);
     world.scene.add(e.root);
     e.root.updateMatrixWorld(true);
-    // Terrain footprint: flatten under buildings, suppress grass, clear trees.
-    if (world.terrain && e.footprint && !e.floating && !opts.noTerrain) {
-      const fp = e.footprint;
-      const x = e.root.position.x, z = e.root.position.z;
-      if (e.flattenTerrain) {
-        const rect = fp.rect ? { hw: fp.rect.hw * e.scale + 0.5, hd: fp.rect.hd * e.scale + 0.5, yaw: e.root.rotation.y } : null;
-        const op = rect
-          ? { type: 'flatten', shape: 'rect', x, z, hw: rect.hw, hd: rect.hd, yaw: rect.yaw, radius: Math.hypot(rect.hw, rect.hd), height: e.root.position.y - 0.02, falloff: e.flattenFalloff ?? 6, owner: e.id }
-          : { type: 'flatten', x, z, radius: fp.radius * e.scale, height: e.root.position.y - 0.02, falloff: e.flattenFalloff ?? 5, owner: e.id };
-        world.terrain.applyEdit(op);
-        // Extra local terrain operations (pool pits, ponds, moats...).
-        for (const t of e.terrainOps || []) {
-          const lp = new THREE.Vector3(t.x || 0, 0, t.z || 0).applyMatrix4(e.root.matrixWorld);
-          world.terrain.applyEdit({ ...t, x: lp.x, z: lp.z, yaw: (t.yaw || 0) + e.root.rotation.y, hw: t.hw !== undefined ? t.hw * e.scale : undefined, hd: t.hd !== undefined ? t.hd * e.scale : undefined, radius: (t.radius || 1) * e.scale, height: t.heightRel !== undefined ? e.root.position.y + t.heightRel * e.scale : t.height, owner: e.id });
-        }
-        if (world.vegetation) world.vegetation.reseat(x, z, op.radius + op.falloff + 2);
-      }
-      if (e.suppressGrass !== false && (e.flattenTerrain || fp.radius > 1.2)) {
-        const pr = fp.rect
-          ? { type: 'paint', shape: 'rect', x, z, hw: fp.rect.hw * e.scale * (e.grassPad ?? 0.95), hd: fp.rect.hd * e.scale * (e.grassPad ?? 0.95), yaw: e.root.rotation.y, radius: Math.hypot(fp.rect.hw, fp.rect.hd) * e.scale, channel: 3, value: 255, falloff: 0.5 }
-          : { type: 'paint', x, z, radius: fp.radius * e.scale * 0.8, channel: 3, value: 255, falloff: 0.5 };
-        world.terrain.applyEdit(pr);
-      }
-      for (const pg of e.paintGround || []) {
-        const lp = new THREE.Vector3(pg.x || 0, 0, pg.z || 0).applyMatrix4(e.root.matrixWorld);
-        world.terrain.applyEdit({ ...pg, type: 'paint', x: lp.x, z: lp.z, yaw: (pg.yaw || 0) + e.root.rotation.y, points: pg.points ? pg.points.map(([px, pz]) => { const v = new THREE.Vector3(px, 0, pz).applyMatrix4(e.root.matrixWorld); return [v.x, v.z]; }) : undefined });
-      }
-    }
-    if (world.vegetation && e.footprint && !e.floating && !opts.noClear) {
-      const fp = e.footprint;
-      if (fp.rect) world.vegetation.clearArea(e.root.position.x, e.root.position.z, 0, { hw: fp.rect.hw * e.scale + 1.5, hd: fp.rect.hd * e.scale + 1.5, yaw: e.root.rotation.y });
-      else if (fp.radius > 0.8) world.vegetation.clearArea(e.root.position.x, e.root.position.z, fp.radius * e.scale + 0.5);
-    }
+    this._applyFootprint(e, world, opts);
     this._applyColliders(e, world);
     // Lights.
     if (e.lights && world.lightPool) {
@@ -102,6 +83,42 @@ export class Registry {
     return e;
   }
 
+  _applyFootprint(e, world, opts = {}) {
+    // Terrain footprint: flatten under buildings, suppress grass, clear trees.
+    if (world.terrain && e.footprint && !e.floating && !opts.noTerrain) {
+      const fp = e.footprint;
+      const x = e.root.position.x, z = e.root.position.z;
+      if (e.flattenTerrain) {
+        const rect = fp.rect ? { hw: fp.rect.hw * e.scale + 0.5, hd: fp.rect.hd * e.scale + 0.5, yaw: e.root.rotation.y } : null;
+        const op = rect
+          ? { type: 'flatten', shape: 'rect', x, z, hw: rect.hw, hd: rect.hd, yaw: rect.yaw, radius: Math.hypot(rect.hw, rect.hd), height: e.root.position.y - 0.02, falloff: e.flattenFalloff ?? 6, owner: e.id }
+          : { type: 'flatten', x, z, radius: fp.radius * e.scale, height: e.root.position.y - 0.02, falloff: e.flattenFalloff ?? 5, owner: e.id };
+        world.terrain.applyEdit(op);
+        // Extra local terrain operations (pool pits, ponds, moats...).
+        for (const t of e.terrainOps || []) {
+          const lp = new THREE.Vector3(t.x || 0, 0, t.z || 0).applyMatrix4(e.root.matrixWorld);
+          world.terrain.applyEdit({ ...t, x: lp.x, z: lp.z, yaw: (t.yaw || 0) + e.root.rotation.y, hw: t.hw !== undefined ? t.hw * e.scale : undefined, hd: t.hd !== undefined ? t.hd * e.scale : undefined, radius: (t.radius || 1) * e.scale, height: t.heightRel !== undefined ? e.root.position.y + t.heightRel * e.scale : t.height, owner: e.id });
+        }
+        if (world.vegetation) world.vegetation.reseat(x, z, op.radius + op.falloff + 2);
+      }
+      if (e.suppressGrass !== false && (e.flattenTerrain || fp.radius > 1.2)) {
+        const pr = fp.rect
+          ? { type: 'paint', shape: 'rect', x, z, hw: fp.rect.hw * e.scale * (e.grassPad ?? 0.95), hd: fp.rect.hd * e.scale * (e.grassPad ?? 0.95), yaw: e.root.rotation.y, radius: Math.hypot(fp.rect.hw, fp.rect.hd) * e.scale, channel: 3, value: 255, falloff: 0.5, owner: e.id }
+          : { type: 'paint', x, z, radius: fp.radius * e.scale * 0.8, channel: 3, value: 255, falloff: 0.5, owner: e.id };
+        world.terrain.applyEdit(pr);
+      }
+      for (const pg of e.paintGround || []) {
+        const lp = new THREE.Vector3(pg.x || 0, 0, pg.z || 0).applyMatrix4(e.root.matrixWorld);
+        world.terrain.applyEdit({ ...pg, owner: e.id, type: 'paint', x: lp.x, z: lp.z, yaw: (pg.yaw || 0) + e.root.rotation.y, points: pg.points ? pg.points.map(([px, pz]) => { const v = new THREE.Vector3(px, 0, pz).applyMatrix4(e.root.matrixWorld); return [v.x, v.z]; }) : undefined });
+      }
+    }
+    if (world.vegetation && e.footprint && !e.floating && !opts.noClear) {
+      const fp = e.footprint;
+      if (fp.rect) world.vegetation.clearArea(e.root.position.x, e.root.position.z, 0, { hw: fp.rect.hw * e.scale + 1.5, hd: fp.rect.hd * e.scale + 1.5, yaw: e.root.rotation.y });
+      else if (fp.radius > 0.8) world.vegetation.clearArea(e.root.position.x, e.root.position.z, fp.radius * e.scale + 0.5);
+    }
+  }
+
   _applyColliders(e, world) {
     for (const c of e.colliders) world.colliders.remove(c);
     e.colliders = [];
@@ -118,10 +135,16 @@ export class Registry {
   }
 
   // Re-apply transform-dependent state after a move/rotate/scale.
-  refresh(e) {
+  refresh(e, opts = {}) {
     const world = G.worlds.get(e.worldId);
     e.root.updateMatrixWorld(true);
+    if (opts.terrain && world.terrain && (e.flattenTerrain || e.paintGround || e.suppressGrass !== false)) {
+      world.terrain.revertOwner(e.id);
+      this._applyFootprint(e, world, { noClear: false });
+    }
     this._applyColliders(e, world);
+    if (e.body) { e.body.x = e.root.position.x; e.body.z = e.root.position.z; e.body.y = e.root.position.y; }
+    if (e.brain) e.brain.home.copy(e.root.position);
   }
 
   remove(id, opts = {}) {
@@ -132,6 +155,9 @@ export class Registry {
     if (e.onRemove) { try { e.onRemove(world); } catch (err) { console.warn(err); } }
     if (world) {
       world.scene.remove(e.root);
+      if (world.terrain && !opts.keepTerrain && world.terrain.revertOwner(e.id) && world.vegetation) {
+        world.vegetation.reseat(e.root.position.x, e.root.position.z, (e.footprint ? e.footprint.radius * e.scale : 5) + 10);
+      }
       for (const c of e.colliders) world.colliders.remove(c);
       world.colliders.removeOwner(e.id);
       for (const r of e.lightReqs) world.lightPool && world.lightPool.remove(r);
@@ -216,7 +242,7 @@ export class Registry {
 
   serialize() {
     return this.list().reverse().map((e) => ({
-      id: e.id, worldId: e.worldId, item: e.item, seed: e.seed, name: e.name,
+      id: e.id, worldId: e.worldId, item: e.item, seed: e.seed, copyIndex: e.copyIndex || 0, name: e.name,
       pos: e.root.position.toArray().map((v) => Math.round(v * 1000) / 1000), yaw: e.root.rotation.y, scale: e.scale,
       state: e.saveState ? e.saveState() : null, colorOverride: e.colorOverride || null, materialOverride: e.materialOverride || null,
     }));

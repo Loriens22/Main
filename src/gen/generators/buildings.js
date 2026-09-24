@@ -655,14 +655,15 @@ function* buildHouse(ctx, item, rng, style) {
   if (doorObjs.length) {
     data.update = (dt) => {
       const P = G.player.position;
-      const world = G.worlds.get(data.worldId);
+      const ent = root.userData.entity;
+      const world = ent && G.worlds.get(ent.worldId);
       for (const d of doorObjs) {
         const wp = new THREE.Vector3(d.x, 0, d.z).applyMatrix4(root.matrixWorld);
         let near = Math.hypot(P.x - wp.x, P.z - wp.z) < 2.2 && Math.abs(P.y - (root.position.y + d.y)) < 2.5;
         if (!near && world) for (const e of world.entities) if (e.body && Math.hypot(e.body.x - wp.x, e.body.z - wp.z) < 2) { near = true; break; }
         d.open += ((near ? 1 : 0) - d.open) * Math.min(1, dt * 5);
         d.pivot.rotation.y = -d.open * 1.75;
-        const col = data.colliders && data.colliders[d.colliderIndex];
+        const col = ent && ent.colliders[d.colliderIndex];
         if (col) col.disabled = d.open > 0.35;
         if (near && d.open < 0.05 && G.audio) G.audio.play('door', wp);
       }

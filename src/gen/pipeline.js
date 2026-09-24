@@ -24,7 +24,7 @@ import { RNG, randomSeed } from '../core/rng.js';
 import { G, settings, genPreset } from '../core/context.js';
 import { GENERATORS, FALLBACK } from './generators/index.js';
 import { resolvePlacement, arrangeMany } from './placement.js';
-import { Entity } from './registry.js';
+import { makeEntity } from './registry.js';
 
 const DEFAULT_STAGES = [
   { name: 'analyze', label: 'Analyzing prompt', weight: 0.4 },
@@ -92,7 +92,9 @@ export class Pipeline {
     const results = [];
     const created = [];
     try {
-      for (let i = 0; i < count; i++) {
+      // When restoring a save, only the one saved copy (copyIndex) is rebuilt.
+      const first = opts.copyIndex ?? 0, last = opts.copyIndex !== undefined ? opts.copyIndex + 1 : count;
+      for (let i = first; i < last; i++) {
         const sub = { ...item, index: i, count };
         const subRng = rng.fork('copy' + i);
         let data = null;
@@ -100,8 +102,8 @@ export class Pipeline {
         try {
           // Each copy maps its progress into the generator stages.
           const wrapCtx = Object.create(ctx);
-          wrapCtx.progress = (f, text) => ctx.progress((i + f) / count, text);
-          wrapCtx.stage = (name, text) => { ctx.stage(name, text); ctx.progress(i / count); };
+          wrapCtx.progress = (f, text) => ctx.progress((i - first + f) / (last - first), text);
+          wrapCtx.stage = (name, text) => { ctx.stage(name, text); ctx.progress((i - first) / (last - first)); };
           data = yield* gen.build(wrapCtx, sub, subRng, { world, index: i, count });
         } catch (err) {
           if (ctx.cancelled) throw err;
@@ -109,8 +111,9 @@ export class Pipeline {
           data = yield* FALLBACK.build(ctx, sub, subRng, { world, error: err });
         }
         if (!data) continue;
-        if (ctx.mustFinish() && i < count - 1) { console.warn('Deadline approaching: stopping after', i + 1, 'copies'); }
+        if (ctx.mustFinish() && i < last - 1) { console.warn('Deadline approaching: stopping after', i + 1, 'copies'); }
         data._genMs = performance.now() - t0;
+        data.copyIndex = i;
         results.push(data);
         if (ctx.mustFinish()) break;
       }
@@ -118,6 +121,12 @@ export class Pipeline {
       // nothing
     }
     ctx.stage('place', 'Placing in world');
+    // Companions ("a man with a dog") wait for their main entity so they can stand next to it.
+    if (pctx.waitFor && (pctx.waitFor.status === 'queued' || pctx.waitFor.status === 'running')) {
+      ctx.progress(0, 'Waiting for companion');
+      const res = yield pctx.waitFor.promise;
+      if (res && res.result && res.result.length) pctx.prev = res.result[0];
+    } else if (pctx.waitFor && pctx.waitFor.result && pctx.waitFor.result.length) pctx.prev = pctx.waitFor.result[0];
     yield;
     // Placement + registration.
     let base = null, baseYaw = 0;
@@ -153,8 +162,8 @@ export class Pipeline {
       const scale = opts.transform?.scale || 1;
       d.root.scale.setScalar(scale);
       d.root.updateMatrixWorld(true);
-      const ent = new Entity({
-        ...d, id: opts.id && i === 0 ? opts.id : undefined, item: stripItem(item), seed, concept: item.concept, gen: item.gen, category: d.category || item.cat,
+      const ent = makeEntity(d, {
+        id: opts.id && i === 0 ? opts.id : undefined, item: stripItem(item), seed, concept: item.concept, gen: item.gen, category: d.category || item.cat,
         icon: d.icon || item.icon, prompt: item.clause, colorWord: item.attrs && item.attrs.colors.length ? item.attrs.colors[0].word : null, scale,
       });
       this.registry.add(ent, world, { silent: opts.silent });
