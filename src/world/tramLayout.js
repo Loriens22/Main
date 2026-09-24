@@ -22,7 +22,7 @@ const SHOPS = [
 export function layoutTram(route, cb, occ, reg, infra) {
   const trees = [], parked = [];
   reg.trees = trees; reg.parked = parked;
-  const { B1, B2: Bv, X1, X2 } = route.S;
+  const { B1, B2: Bv, X0, X1, X2 } = route.S;
   const { sJ1, sJ2, sJ3 } = route.J;
   const edge = (st) => st.halfW + st.sidewalk;
   const fr = (st, s) => { const p = st.poly.at(s); return { x: p.x, z: p.z, h: p.h, rx: -Math.sin(p.h), rz: Math.cos(p.h) }; };
@@ -43,6 +43,14 @@ export function layoutTram(route, cb, occ, reg, infra) {
   const lot = (st, s0, s1, side, l0, l1) => { const q = [at(st, s0, side * l0), at(st, s1, side * l0), at(st, s1, side * l1), at(st, s0, side * l1)].map(([x, z]) => [x, z]); cb.add(WM.asphalt, polyGeo(q, 0.004, [], 5)); };
   const bld = (fn, st, s, side, setback, o, L, D, rot = 0) => { const r = place(fn, st, s, side, edge(st) + setback + D / 2, o, rot); markB(r.x, r.z, r.h, rot ? D : L, rot ? L : D, 2); return r; };
   const reserve = (st, a, b, side) => reg.reserve.push({ st, a, b, side });
+  /** Asphalt apron from the sidewalk to a forecourt, with two dropped-kerb driveways across the sidewalk. */
+  const apron = (st, sc, half, side, depth, drives) => {
+    lot(st, sc - half, sc + half, side, edge(st) - 0.05, edge(st) + depth);
+    for (const [d0, d1] of drives) {
+      const q = [at(st, sc + d0, side * (st.halfW - 0.05)), at(st, sc + d1, side * (st.halfW - 0.05)), at(st, sc + d1, side * edge(st)), at(st, sc + d0, side * edge(st))].map(([x, z]) => [x, z]);
+      cb.add(WM.asphalt, polyGeo(q, 0.158, [], 5));
+    }
+  };
 
   /* =================== кв. Манастирски ливади (terminus loop, summer) =================== */
   {
@@ -50,7 +58,7 @@ export function layoutTram(route, cb, occ, reg, infra) {
     const L0 = route.loopEnd;
     void L0;
     const island = []; for (let k = 0; k < 40; k++) { const a = (k / 40) * Math.PI * 2; island.push([Math.cos(a) * 15, 48 + Math.sin(a) * 22]); }
-    cb.add(WM.grass, polyGeo(island, 0.06, [], 6), null, 0x8fa060);
+    cb.add(WM.grass, polyGeo(island, 0.06, [], 6), null, 0xd2dcae);
     occ.markDisc(0, 45, 26, 3);
     const kiosk = hmat(-7, 0, 32, Math.PI / 2);
     const kc = new BLD.Ctx(cb, kiosk, reg);
@@ -59,27 +67,29 @@ export function layoutTram(route, cb, occ, reg, infra) {
     reg.colliders.push({ M: kiosk, hl: 3, hd: 2 });
     for (let k = 0; k < 14; k++) { const a = rr(0, 6.28), r = rr(3, 12); tryTree(Math.cos(a) * r * 0.9, 48 + Math.sin(a) * r * 1.4, pick(['plum', 'plum', 'small', 'linden'])); }
     // second stop pole for tram 27 on the platform
-    const [tx, tz] = at(B1, 20, RES - 0.6); PR.stopPole(cb, tx, tz, Math.PI / 2, 'ТМ 27');
+    const [tx, tz] = at(B1, 33, RES - 0.6); PR.stopPole(cb, tx, tz, Math.PI / 2, 'ТМ 27');
     // modern residential blocks (2008-2020) around the terminus
+    // (a mix of 2010s blocks with deep glass balconies and colour-accented terraced blocks)
     const blocks = [
       [B1, 90, 1, 12, { L: 52, D: 16, floors: 11, style: 'white' }],
-      [B1, 170, 1, 10, { L: 40, D: 16, floors: 14, style: 'grey' }],
+      [B1, 170, 1, 10, { L: 42, D: 14, floors: 8, res: true, accent: 0xc0603a, shops: [SHOPS[2], SHOPS[3]] }],
       [B1, 245, 1, 14, { L: 44, D: 16, floors: 9, style: 'beige' }],
-      [B1, 100, -1, 10, { L: 56, D: 16, floors: 13, style: 'white' }],
-      [B1, 190, -1, 12, { L: 46, D: 16, floors: 10, style: 'beige' }],
-      [B1, 270, -1, 16, { L: 40, D: 16, floors: 8, style: 'grey' }],
+      [B1, 100, -1, 10, { L: 48, D: 14, floors: 9, res: true, accent: 0x3f78b4, shops: [SHOPS[0], SHOPS[7]] }],
+      [B1, 190, -1, 12, { L: 46, D: 16, floors: 10, style: 'grey' }],
+      [B1, 270, -1, 16, { L: 38, D: 14, floors: 7, res: true, accent: 0x6f9a3a }],
     ];
     for (const [st, s, side, sb, o] of blocks) {
-      const r = bld(B2.modernOffice, st, s, side, sb, o, o.L, o.D);
+      const r = bld(o.res ? BLD.modernBlock : B2.modernOffice, st, s, side, sb, o, o.L, o.D);
       for (let k = 0; k < 5; k++) { const v = new THREE.Vector3(rr(-o.L / 2, o.L / 2), 0, -o.D / 2 - rr(3, 8)).applyMatrix4(r.M); tryTree(v.x, v.z, pick(['plum', 'linden', 'birch', 'small'])); }
       lot(st, s - o.L / 2 + 2, s + o.L / 2 - 2, side, edge(st) + 1, edge(st) + 6);
       for (let x = s - o.L / 2 + 4; x < s + o.L / 2 - 3; x += 2.7) if (chance(0.7)) { const [px, pz, h] = at(st, x, side * (edge(st) + 3.5)); parkCar(px, pz, h + Math.PI / 2); }
       reserve(st, s - o.L / 2 - 8, s + o.L / 2 + 8, side);
     }
     // blocks south of the loop, facing it
-    for (const [x, z, L, fl, style] of [[-50, 118, 50, 12, 'white'], [30, 124, 44, 9, 'beige'], [-78, 60, 36, 15, 'grey'], [72, 58, 40, 11, 'white']]) {
+    for (const [x, z, L, fl, style] of [[-50, 118, 50, 12, 'white'], [30, 124, 44, 9, 'res'], [-78, 60, 36, 15, 'grey'], [72, 58, 40, 8, 'res']]) {
       const h = Math.abs(x) > 60 ? (x < 0 ? Math.PI / 2 : -Math.PI / 2) : Math.PI;
-      B2.modernOffice(cb, hmat(x, 0, z, h), reg, { L, D: 16, floors: fl, style });
+      if (style === 'res') BLD.modernBlock(cb, hmat(x, 0, z, h), reg, { L, D: 14, floors: fl, accent: x > 0 ? 0xd9a23a : 0xb45d3f });
+      else B2.modernOffice(cb, hmat(x, 0, z, h), reg, { L, D: 16, floors: fl, style });
       markB(x, z, h, L, 16, 2);
     }
     for (let k = 0; k < 30; k++) tryTree(rr(-90, 90), rr(12, 100), pick(['plum', 'linden', 'chestnut', 'birch', 'small', 'spruce']));
@@ -117,6 +127,7 @@ export function layoutTram(route, cb, occ, reg, infra) {
     const s = sJ2 + 75;
     // east: Shell station right behind the platform, T-Market behind it, ПРОТЕХ before, beige 10-storey blocks behind
     bld(LM.petrolStation, B1, s + 5, 1, 12, { brand: 'shell', W: 24, D: 14, shopX: 22, shopZ: 6 }, 40, 26);
+    apron(B1, s + 5, 18, 1, 11.5, [[-17, -9], [9, 17]]);
     bld(LM.tMarket, B1, s + 25, 1, 44, { L: 32, D: 20 }, 32, 20);
     bld(LM.commercialBlock, B1, s - 50, 1, 8, { L: 34, D: 14 }, 34, 14);
     bld(BLD.panelBlock, B1, s + 30, 1, 82, { L: 48, floors: 10, fmat: WM.paleB, glazedP: 0.6 }, 48, 12);
@@ -148,6 +159,7 @@ export function layoutTram(route, cb, occ, reg, infra) {
     const s = 2900;
     // east: EKO station with KFC right next to the stop, school behind trees before it
     bld(LM.petrolStation, B1, s + 30, 1, 10, { brand: 'eko', W: 24, D: 15, shopX: 22, shopZ: 7, totemX: -16, totemZ: -10 }, 42, 28);
+    apron(B1, s + 30, 18, 1, 9.5, [[-17, -9], [9, 17]]);
     bld(LM.designSchool, B1, s - 70, 1, 22, {}, 62, 15);
     for (let k = 0; k < 10; k++) { const [x, z] = at(B1, s - 110 + k * 9, edge(B1) + rr(3, 14)); tryTree(x, z, pick(['linden', 'chestnut', 'spruce'])); }
     // west: Южен парк — flower parterre, art garden, big trees, billboards
@@ -163,11 +175,12 @@ export function layoutTram(route, cb, occ, reg, infra) {
   }
   // Южен парк: the west side of бул. България from before пл. Ручей to the Витоша corner is park
   {
-    for (let k = 0; k < 420; k++) {
-      const s = rr(2280, 3690), lat = -(edge(B1) + rr(4, 140));
-      const [x, z] = at(B1, s, lat);
-      tryTree(x, z, pick(['linden', 'chestnut', 'linden', 'spruce', 'birch', 'chestnut', 'small']));
+    // mature park: groves of big lindens and chestnuts, spruce clumps, birches, understorey shrubs
+    for (let k = 0; k < 170; k++) {
+      const gs = rr(2280, 3690), gl = -(edge(B1) + rr(10, 180)), n = 4 + Math.floor(R() * 7), kind = pick(['linden', 'chestnut', 'linden', 'spruce', 'birch', 'chestnut', 'willow']);
+      for (let j = 0; j < n; j++) { const [x, z] = at(B1, gs + rr(-14, 14), gl + rr(-12, 12)); tryTree(x, z, R() < 0.8 ? kind : pick(['linden', 'small', 'birch']), rr(0.95, 1.45)); }
     }
+    for (let k = 0; k < 260; k++) { const [x, z] = at(B1, rr(2280, 3690), -(edge(B1) + rr(4, 180))); tryTree(x, z, 'small', rr(0.55, 0.85)); }
     for (let s = 2300; s < 3680; s += 45) { const [x, z, h] = at(B1, s, -(edge(B1) + 7)); if (occ.get(x, z) === 0) { BLD.bench({ add: (m, g, lm, c) => cb.add(m, g, lm, c) }, x, z, -h); reg.benches.push({ p: new THREE.Vector3(x, 0.02, z), yaw: -h + Math.PI }); } }
     const path = streetPts(B1, 2290, 3680, 4);
     cb.add(WM.pavers, stripGeo(path, -(edge(B1) + 8.2), -(edge(B1) + 5.8), 0.03, 0.03, { uvScale: 2 }));
@@ -203,7 +216,7 @@ export function layoutTram(route, cb, occ, reg, infra) {
   /* =================== procedural fill =================== */
   const rnd = makeRng(707);
   const reserved = (st, s, side) => reg.reserve.some((r) => r.st === st && r.side === side && s > r.a && s < r.b);
-  for (const st of [B1, Bv, X1, X2]) {
+  for (const st of [B1, Bv, X0, X1, X2]) {
     for (const side of [1, -1]) {
       let s = 30; const end = st.poly.length - 20;
       while (s < end) {
@@ -243,7 +256,7 @@ export function layoutTram(route, cb, occ, reg, infra) {
     }
   }
   // street trees on the outer sidewalk edge, bins
-  for (const st of [B1, Bv, X1, X2]) for (const side of [1, -1]) {
+  for (const st of [B1, Bv, X0, X1, X2]) for (const side of [1, -1]) {
     for (let s = 8; s < st.poly.length - 5; s += rr(9, 13)) { const [x, z] = at(st, s, side * (edge(st) - 1.2)); if (occ.get(x, z) <= 2) { if (occ.get(x, z) === 2 && R() < 0.5) continue; tryTreeForce(x, z); } }
     for (let s = 40; s < st.poly.length; s += rr(70, 130)) { const [x, z] = at(st, s, side * (edge(st) - 0.5)); if (occ.get(x, z) <= 2) PR.trashBin(cb, x, z); }
   }
@@ -253,7 +266,7 @@ export function layoutTram(route, cb, occ, reg, infra) {
   // kerbside parking on the cross streets
   for (const st of [X1, X2]) for (const side of [1, -1]) for (let s = 30; s < st.poly.length - 30; s += rr(5.4, 6.6)) {
     const j = route.inters.find((i) => i.b.st === st); if (j && Math.abs(s - j.b.s) < 40) continue;
-    if (chance(0.7)) { const [x, z, h] = at(st, s, side * 5.3); parkCar(x, z, side > 0 ? h : h + Math.PI); }
+    if (chance(0.7)) { const [x, z, h] = at(st, s, side * 5.6); parkCar(x, z, side > 0 ? h : h + Math.PI); }
   }
 
   /* =================== background city =================== */

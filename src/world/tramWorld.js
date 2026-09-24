@@ -99,7 +99,8 @@ export function buildTramInfra(route, cb, occ, reg, tl) {
         addStrip(cb, WM.asphalt, stripGeo(pts, -hw, hw, 0, 0, { uvScale: 5, across: 8, vOffset: a }));
         markRoadOcc(occ, pts, hw, 3);
         addStrip(cb, WM.paint, stripGeo(pts, -0.19, -0.07, Y_PAINT)); addStrip(cb, WM.paint, stripGeo(pts, 0.07, 0.19, Y_PAINT));
-        for (let s = Math.ceil(a / 9) * 9 + 1; s < b - 3.5; s += 9) { const seg = streetPts(st, s, s + 3, 3); for (const l of [-3.5, 3.5]) addStrip(cb, WM.paint, stripGeo(seg, l - 0.06, l + 0.06, Y_PAINT)); }
+        if (st.lanesPerDir > 1) for (let s = Math.ceil(a / 9) * 9 + 1; s < b - 3.5; s += 9) { const seg = streetPts(st, s, s + 3, 3); for (const l of [-3.5, 3.5]) addStrip(cb, WM.paint, stripGeo(seg, l - 0.06, l + 0.06, Y_PAINT)); }
+        else for (const l of [-4.4, 4.4]) addStrip(cb, WM.paint, stripGeo(pts, l - 0.06, l + 0.06, Y_PAINT)); // parking lane edge
         for (const sd of [1, -1]) {
           const l0 = sd * hw, l1 = sd * (hw + sw);
           addStrip(cb, WM.pavers, stripGeo(pts, Math.min(l0, l1), Math.max(l0, l1), Y_WALK, Y_WALK, { uvScale: 2, vOffset: a }));
@@ -121,12 +122,26 @@ export function buildTramInfra(route, cb, occ, reg, tl) {
     const Ha = A.halfW, Hb = Bs.halfW, rc = it.rc;
     const M = hmat(it.x, 0, it.z, hA);
     const add = (m, g, col) => { g.applyMatrix4(M); fixUV(g); addStrip(cb, m, g, col); };
-    add(WM.asphalt, rectGeo(-(Hb + rc), Hb + rc, -Ha, Ha, 0));
+    // tee: street A (the boulevard) only continues on the +u side, the far side of B is a straight kerb
+    const tee = !!it.tee, sws = Bs.sidewalk;
+    add(WM.asphalt, rectGeo(tee ? -Hb : -(Hb + rc), Hb + rc, -Ha, Ha, 0));
     add(WM.asphalt, rectGeo(-Hb, Hb, -(Ha + rc), Ha + rc, 0.0005));
     // paved median ends of boulevards (between the zebra and the junction)
-    if (A.kind === 'boulevard') for (const su of [-1, 1]) add(WM.asphalt, rectGeo(su > 0 ? Hb + rc - 0.01 : -(Hb + rc + 6), su > 0 ? Hb + rc + 6 : -(Hb + rc - 0.01), -RES, RES, 0.001));
+    if (A.kind === 'boulevard') for (const su of tee ? [1] : [-1, 1]) add(WM.asphalt, rectGeo(su > 0 ? Hb + rc - 0.01 : -(Hb + rc + 6), su > 0 ? Hb + rc + 6 : -(Hb + rc - 0.01), -RES, RES, 0.001));
     if (Bs.kind === 'boulevard') for (const sv of [-1, 1]) add(WM.asphalt, rectGeo(-RES, RES, sv > 0 ? Ha + rc - 0.01 : -(Ha + rc + 6), sv > 0 ? Ha + rc + 6 : -(Ha + rc - 0.01), 0.001));
-    for (const su of [-1, 1]) for (const sv of [-1, 1]) {
+    if (tee) {
+      // continuous far-side sidewalk of B across the junction, with a level crossing for the tram tracks
+      const gap = TRACK + 2.4, u0 = -(Hb + sws), u1 = -Hb;
+      for (const [v0, v1] of [[-(Ha + rc) - 0.02, -gap], [gap, Ha + rc + 0.02]]) {
+        add(WM.pavers, rectGeo(u0, u1, v0, v1, Y_WALK));
+        add(WM.curb, rectGeo(u1 - 0.2, u1, v0, v1, Y_WALK + 0.005));
+        const w = wallAlong([[u1, v0], [u1, v1]], 0, Y_WALK + 0.005); add(WM.curb, w);
+        for (const v of [v0, v1]) if (Math.abs(v) < Ha) add(WM.curb, wallAlong([[u0, v], [u1, v]], 0, Y_WALK));
+      }
+      add(WM.concrete, rectGeo(u0, u1, -gap, gap, 0.006), 0x8f8d88);
+      occ.markRect(it.x - Math.cos(hA) * (Hb + sws / 2), it.z - Math.sin(hA) * (Hb + sws / 2), hA, sws / 2, Ha + rc, 2);
+    }
+    for (const su of tee ? [1] : [-1, 1]) for (const sv of [-1, 1]) {
       const fan = cornerArc(su * (Hb + rc), sv * (Ha + rc), rc, su, sv, 16);
       add(WM.asphalt, fanGeo([su * Hb, sv * Ha], fan, 0.0008));
       const inner = cornerArc(su * (Hb + rc), sv * (Ha + rc), rc - 4.5, su, sv, 16);
@@ -139,19 +154,20 @@ export function buildTramInfra(route, cb, occ, reg, tl) {
       if (alongU) { for (let v = v0 + 0.3; v <= v1 - 0.3; v += 1.1) add(WM.paint, rectGeo(u0, u1, v - 0.27, v + 0.27, Y_PAINT)); }
       else { for (let u = u0 + 0.3; u <= u1 - 0.3; u += 1.1) add(WM.paint, rectGeo(u - 0.27, u + 0.27, v0, v1, Y_PAINT)); }
     };
-    for (const su of [-1, 1]) zeb(su > 0 ? Hb + rc + 1 : -(Hb + rc + 5), su > 0 ? Hb + rc + 5 : -(Hb + rc + 1), -Ha, Ha, true);
+    for (const su of tee ? [1] : [-1, 1]) zeb(su > 0 ? Hb + rc + 1 : -(Hb + rc + 5), su > 0 ? Hb + rc + 5 : -(Hb + rc + 1), -Ha, Ha, true);
     for (const sv of [-1, 1]) zeb(-Hb, Hb, sv > 0 ? Ha + rc + 1 : -(Ha + rc + 5), sv > 0 ? Ha + rc + 5 : -(Ha + rc + 1), false);
     // stop lines (right-hand traffic)
     const inA = A.kind === 'boulevard' ? RES + 0.2 : 0.2, inB = Bs.kind === 'boulevard' ? RES + 0.2 : 0.2;
-    add(WM.paint, rectGeo(-(Hb + rc + 5.8), -(Hb + rc + 5.4), inA, Ha - 0.2, Y_PAINT));
+    if (!tee) add(WM.paint, rectGeo(-(Hb + rc + 5.8), -(Hb + rc + 5.4), inA, Ha - 0.2, Y_PAINT));
     add(WM.paint, rectGeo(Hb + rc + 5.4, Hb + rc + 5.8, -(Ha - 0.2), -inA, Y_PAINT));
     add(WM.paint, rectGeo(-(Hb - 0.2), -inB, -(Ha + rc + 5.8), -(Ha + rc + 5.4), Y_PAINT));
     add(WM.paint, rectGeo(inB, Hb - 0.2, Ha + rc + 5.4, Ha + rc + 5.8, Y_PAINT));
     occ.markDisc(it.x, it.z, Math.max(Ha, Hb) + rc + 7, 3);
-    info.junctions.push({ it, M, Ha, Hb, rc, hA });
+    info.junctions.push({ it, M, Ha, Hb, rc, hA, tee, sws });
   }
 
   buildTracks(route, cb, info);
+  for (const poly of [route.bus, route.opp]) markRoadOcc(occ, poly.pts, 0, 3, -2.2, 2.2); // keep trees/buildings off the track
   info.cat = buildTramCatenary(route, cb, occ, info);
   buildSignals(route, cb, tl, info);
   buildPlatforms(route, cb, occ, reg, info);
@@ -173,7 +189,12 @@ function whiteFence(cb, pts) {
 
 /* ------------------------------------ track ------------------------------------ */
 function buildTracks(route, cb, info) {
-  const inJ = (x, z) => info.junctions.some((j) => { const v = new THREE.Vector3(x, 0, z).applyMatrix4(new THREE.Matrix4().copy(j.M).invert()); return Math.abs(v.x) < j.Hb + j.rc + 6.5 && Math.abs(v.z) < j.Ha + j.rc + 6.5 && (Math.abs(v.x) < j.Hb + j.rc + 6.5 && Math.abs(v.z) < j.Ha + j.rc + 6.5); });
+  const inv = info.junctions.map((j) => new THREE.Matrix4().copy(j.M).invert());
+  const inJ = (x, z) => info.junctions.some((j, k) => {
+    const v = new THREE.Vector3(x, 0, z).applyMatrix4(inv[k]);
+    const uMin = j.tee ? -(j.Hb + j.sws + 0.3) : -(j.Hb + j.rc + 6.5);
+    return v.x > uMin && v.x < j.Hb + j.rc + 6.5 && Math.abs(v.z) < j.Ha + j.rc + 6.5;
+  });
   const onCore = (x, z) => route.streets.some((st) => { if (st.kind !== 'boulevard' || !st.tracks) return false; const p = st.poly.project(x, z); return Math.abs(p.lat) < TRACK + 0.8 && p.s > st.tracks[0] + 4 && p.s < st.poly.length - 1; });
   const tracks = [route.bus, route.opp];
   const o = {};
@@ -311,6 +332,7 @@ function buildSignals(route, cb, tl, info) {
       const g = it.groups[st.id], mats = tl.mats(it, g);
       const dist = other.st.halfW + it.rc + 5.6;
       for (const dir of [1, -1]) {
+        if (arm.s - dir * dist < 0 || arm.s - dir * dist > st.poly.length) continue; // no approach from this side (tee)
         const p = st.poly.at(arm.s - dir * dist);
         const hT = p.h + (dir < 0 ? Math.PI : 0);
         const rx = -Math.sin(hT), rz = Math.cos(hT);

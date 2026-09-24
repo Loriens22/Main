@@ -75,6 +75,8 @@ window.__dbg = {
     const cam = g.engine.camera; cam.position.set(px, py, pz); cam.lookAt(tx, ty, tz); cam.fov = fov; cam.updateProjectionMatrix();
     g.camRig.update = () => {};
   },
+  /** Back to the normal camera rig after view(). */
+  unview(mode = 'chase') { const g = game; delete g.camRig.update; g.engine.camera.fov = 55; g.engine.camera.updateProjectionMatrix(); g.camRig.setMode(mode); },
   busAt(s) { game.bus.placeOnRoute(s); game.rig.doors.forEach((d) => { d.target = 0; d.open = 0; }); },
   drive(cam = 'cab') { game.enterDriving(); game.camRig.setMode(cam); },
   pose(s, lat = 0) { return game.route.pose(s, lat); },
