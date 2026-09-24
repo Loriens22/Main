@@ -36,7 +36,8 @@ const DEFAULT_STAGES = [
 ];
 
 function titleFor(item) {
-  const c = item.clause || item.concept;
+  // The parser normalises "an" to "a"; restore it for display.
+  const c = (item.clause || item.concept).replace(/^an?\s+(?=([a-z]+))/i, (m, w) => (/^(?:[aeio]|u(?!ni|s[eu]|ti|ra|ku|fo)|hour|honest)/i.test(w) && !/^one/i.test(w) ? 'an ' : 'a '));
   return (item.count > 1 ? `${item.count} × ` : '') + c.charAt(0).toUpperCase() + c.slice(1);
 }
 
@@ -171,6 +172,30 @@ export class Pipeline {
       if (opts.state && ent.loadState) ent.loadState(opts.state);
       group.push(ent);
       created.push(ent);
+      // Scenes: register the parts they generated as individual entities,
+      // positioned in the scene's local frame and owned by the scene anchor.
+      if (d.subEntities) {
+        ent.childIds = [];
+        let k = 0;
+        for (const sub of d.subEntities) {
+          const sd = sub.data;
+          const lp = new THREE.Vector3(sub.x || 0, 0, sub.z || 0).applyMatrix4(ent.root.matrixWorld);
+          let gy = world.colliders.groundHeight(lp.x, lp.z, 0.3, lp.y + 60, 120, null);
+          if (!Number.isFinite(gy) || gy < -1e5) gy = lp.y;
+          if (sd.wantsWater && world.waterLevel > -1e8) gy = Math.max(gy, world.waterAt ? world.waterAt(lp.x, lp.z) : world.waterLevel);
+          sd.root.position.set(lp.x, gy + (sub.y || 0) + (sd.floating ? sd.floatHeight || 0 : 0), lp.z);
+          sd.root.rotation.y = ent.root.rotation.y + (sub.yaw || 0);
+          sd.root.updateMatrixWorld(true);
+          const se = makeEntity(sd, { item: stripItem(sub.item), seed: sub.seed, concept: sub.item.concept, gen: sub.item.gen, category: sd.category || sub.item.cat, icon: sd.icon || sub.item.icon, prompt: sub.item.clause, parentId: ent.id });
+          this.registry.add(se, world, { silent: opts.silent });
+          if (sub.after) sub.after(se);
+          ent.childIds.push(se.id);
+          if ((++k & 3) === 0) yield;
+        }
+        const prevRemove = ent.onRemove;
+        ent.onRemove = (w) => { if (prevRemove) prevRemove.call(ent, w); for (const id of ent.childIds) this.registry.remove(id); };
+        ent.subEntities = null;
+      }
       pctx.prev = ent;
       if ((i & 3) === 3) yield;
     }

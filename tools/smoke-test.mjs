@@ -14,7 +14,7 @@ import { mkdirSync } from 'node:fs';
 const root = join(dirname(fileURLToPath(import.meta.url)), '..');
 const args = process.argv.slice(2);
 const cmds = [];
-let enter = false;
+let enter = false, bench = false;
 let shots = join(root, 'tools/out'), q = 'low', w = 960, h = 540, gen = 'balanced', extra = '';
 for (let i = 0; i < args.length; i++) {
   if (args[i] === '--cmd') cmds.push(args[++i]);
@@ -24,6 +24,7 @@ for (let i = 0; i < args.length; i++) {
   else if (args[i] === '--gen') gen = args[++i];
   else if (args[i] === '--extra') extra = args[++i];
   else if (args[i] === '--enter') enter = true;
+  else if (args[i] === '--bench') bench = true;
 }
 if (!cmds.length) {
   cmds.push('create a modern two-story house with large windows and a garden');
@@ -39,7 +40,7 @@ page.on('pageerror', (e) => logs.push(`[pageerror] ${e.message}\n${e.stack}`));
 page.on('crash', () => { console.log('PAGE CRASHED. Last logs:\n' + logs.slice(-30).join('\n')); });
 browser.on('disconnected', () => console.log('browser disconnected'));
 const t0 = Date.now();
-await page.goto('file://' + join(root, 'index.html') + `?q=${q}&gen=${gen}&nomirror&nofx&budget=400${extra ? '&' + extra : ''}`);
+await page.goto('file://' + join(root, 'index.html') + `?q=${q}&gen=${gen}&nomirror&nofx${bench ? '&norender' : '&budget=400'}${extra ? '&' + extra : ''}`);
 await page.waitForFunction(() => window.G && window.G.player && window.G.avatar && window.G.avatar.ready && window.__frames > 2, null, { timeout: 600000 });
 console.log(`booted in ${((Date.now() - t0) / 1000).toFixed(1)} s`);
 await page.evaluate(() => { document.getElementById('start-btn').click(); });
@@ -81,6 +82,7 @@ for (let i = 0; i < cmds.length; i++) {
     P.eyeSmoothY = 1.87;
     if (P.cameraMode !== 'first') P.toggleCamera();
   });
+  if (bench) continue;
   await page.waitForTimeout(1500);
   await page.screenshot({ path: join(shots, `slice${i + 1}.png`), timeout: 180000 });
   if (enter) {
@@ -94,9 +96,11 @@ for (let i = 0; i < cmds.length; i++) {
   }
 }
 // Third-person view of the player avatar.
-await page.evaluate(() => { const G = window.G; G.player.toggleCamera(); G.player.pitch = -0.25; });
-await page.waitForTimeout(1500);
-await page.screenshot({ path: join(shots, 'player3p.png'), timeout: 180000 });
+if (!bench) {
+  await page.evaluate(() => { const G = window.G; G.player.toggleCamera(); G.player.pitch = -0.25; });
+  await page.waitForTimeout(1500);
+  await page.screenshot({ path: join(shots, 'player3p.png'), timeout: 180000 });
+}
 const stats = await page.evaluate(() => ({ entities: window.G.registry.entities.size, fps: window.G.fps, calls: window.G.renderer.renderer.info.render.calls }));
 console.log('stats', JSON.stringify(stats));
 const errs = logs.filter((l) => /pageerror|\[error\]/i.test(l));

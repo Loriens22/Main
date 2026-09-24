@@ -241,7 +241,7 @@ export class Registry {
   }
 
   serialize() {
-    return this.list().reverse().map((e) => ({
+    return this.list().reverse().filter((e) => !e.parentId).map((e) => ({
       id: e.id, worldId: e.worldId, item: e.item, seed: e.seed, copyIndex: e.copyIndex || 0, name: e.name,
       pos: e.root.position.toArray().map((v) => Math.round(v * 1000) / 1000), yaw: e.root.rotation.y, scale: e.scale,
       state: e.saveState ? e.saveState() : null, colorOverride: e.colorOverride || null, materialOverride: e.materialOverride || null,

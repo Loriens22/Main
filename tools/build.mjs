@@ -22,7 +22,7 @@ const result = await build({
   minify: !dev,
   target: ['es2020'],
   write: false,
-  legalComments: 'none',
+  legalComments: 'eof', // keep third-party license notices (three.js, MIT)
   logLevel: 'warning',
   define: { 'process.env.NODE_ENV': '"production"' },
 });

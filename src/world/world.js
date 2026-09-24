@@ -124,7 +124,7 @@ export function overworldHeightFn(seed) {
 
 export const OVERWORLD_LAYERS = [
   { recipe: 'grass', world: 3.5, colA: new THREE.Color('#2d5214'), colB: new THREE.Color('#44661c'), colC: new THREE.Color('#6a7430'), bump: 0.012, seed: 1 },
-  { recipe: 'grass', world: 4.5, colA: new THREE.Color('#5a6a26'), colB: new THREE.Color('#7a7834'), colC: new THREE.Color('#948650'), bump: 0.012, seed: 2 },
+  { recipe: 'grass', world: 4.5, colA: new THREE.Color('#4c6a24'), colB: new THREE.Color('#687a30'), colC: new THREE.Color('#84864a'), bump: 0.012, seed: 2 },
   { recipe: 'dirt', world: 3, colA: new THREE.Color('#5a4232'), colB: new THREE.Color('#3e2d22'), colC: new THREE.Color('#8a8070'), bump: 0.03, seed: 3 },
   { recipe: 'rock', world: 9, colA: new THREE.Color('#7b756c'), colB: new THREE.Color('#5c5750'), colC: new THREE.Color('#8f806a'), p: [3, 0, 0, 0], bump: 0.25, seed: 4 },
   { recipe: 'sand', world: 4, colA: new THREE.Color('#cfb88a'), colB: new THREE.Color('#b39b6d'), p: [14, 0, 0, 0], bump: 0.015, seed: 5 },

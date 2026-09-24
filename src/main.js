@@ -34,6 +34,7 @@ import { RNG } from './core/rng.js';
 
 const params = new URLSearchParams(location.search);
 const BUDGET_OVERRIDE = Number(params.get('budget')) || 0; // ms per frame for generation (tests)
+const NO_RENDER = params.has('norender'); // headless benchmark: measure generation without GPU rendering
 const nextFrame = () => new Promise((r) => requestAnimationFrame(() => r()));
 const tick = () => new Promise((r) => setTimeout(r, 0));
 
@@ -387,7 +388,7 @@ function frame(dt) {
   applyPost(world, dt);
   if (world.weather && world.weather.flash > 0.01 && G.renderer.passes.final) G.renderer.passes.final.uniforms.uFlash.value = world.weather.flash * 0.35;
   else if (G.renderer.passes.final) G.renderer.passes.final.uniforms.uFlash.value = 0;
-  G.renderer.render(dt);
+  if (!NO_RENDER) G.renderer.render(dt);
   G.ui.update(dt);
   G.audio.update(dt);
   G.persistence.update(dt);
