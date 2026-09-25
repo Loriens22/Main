@@ -82,6 +82,18 @@ export class UI {
       e.stopPropagation();
     });
     $('talk-end').addEventListener('click', () => this.endTalk());
+    // Phones: keep the bar above the on-screen keyboard (iOS does not resize the layout viewport).
+    if (window.visualViewport) {
+      const vv = window.visualViewport;
+      const fit = () => {
+        const kb = Math.max(0, window.innerHeight - vv.height - vv.offsetTop);
+        document.documentElement.style.setProperty('--kb', (this.focused && kb > 80 ? kb : 0) + 'px');
+      };
+      vv.addEventListener('resize', fit);
+      vv.addEventListener('scroll', fit);
+      input.addEventListener('focus', () => setTimeout(fit, 300));
+      input.addEventListener('blur', () => setTimeout(fit, 50));
+    }
     // Quickbar.
     $('qb-list').addEventListener('click', () => this.toggleEntityPanel());
     $('qb-cam').addEventListener('click', () => this.hooks.onToggleCamera && this.hooks.onToggleCamera());
@@ -160,7 +172,7 @@ export class UI {
     const pool = EXAMPLES.slice();
     while (picks.length < (G.isTouch ? 3 : 5) && pool.length) picks.push(pool.splice(Math.floor(Math.random() * pool.length), 1)[0]);
     el.innerHTML = picks.map((p) => `<span class="chip">${esc(p)}</span>`).join('');
-    el.querySelectorAll('.chip').forEach((c) => c.addEventListener('mousedown', (e) => { e.preventDefault(); $('command-input').value = c.textContent; $('command-input').focus(); }));
+    el.querySelectorAll('.chip').forEach((c) => c.addEventListener('pointerdown', (e) => { e.preventDefault(); $('command-input').value = c.textContent; $('command-input').focus(); }));
     el.classList.remove('hidden');
   }
 
@@ -169,14 +181,14 @@ export class UI {
     $('talk-chip').classList.remove('hidden');
     $('talk-name').textContent = 'Talking to ' + entity.name;
     $('command').classList.add('talking');
-    $('command-input').placeholder = `Say something to ${entity.name}…  (Esc to stop)`;
+    $('command-input').placeholder = G.isTouch ? `Say something to ${entity.name}…` : `Say something to ${entity.name}…  (Esc to stop)`;
   }
   endTalk() {
     if (this.talkTarget && this.hooks.onEndTalk) this.hooks.onEndTalk(this.talkTarget);
     this.talkTarget = null;
     $('talk-chip').classList.add('hidden');
     $('command').classList.remove('talking');
-    $('command-input').placeholder = 'Describe anything to create…  (press Enter)';
+    $('command-input').placeholder = G.isTouch ? 'Tap here and describe anything…' : 'Describe anything to create…  (press Enter)';
   }
 
   // ---------------- Toasts ----------------

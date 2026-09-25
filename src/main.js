@@ -115,7 +115,7 @@ async function boot() {
   const input = new Input(G.renderer.renderer.domElement);
   G.input = input;
   input.enabled = false;
-  if (G.isTouch) input.enableTouch(document.getElementById('touch'));
+  if (G.isTouch) { input.enableTouch(document.getElementById('touch')); document.getElementById('command-input').placeholder = 'Tap here and describe anything…'; }
   bindInput(input);
   player.onStep = (speed) => { if (G.audio) G.audio.play('step', null, { surface: surfaceUnderPlayer(), gain: 0.1 + Math.min(0.15, speed * 0.02) }); };
 

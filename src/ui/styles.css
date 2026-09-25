@@ -180,7 +180,9 @@ input[type=checkbox] { accent-color: #8fd3ff; width: 18px; height: 18px; }
 #rotate-hint { position: fixed; top: 60px; left: 50%; transform: translateX(-50%); background: var(--glass-strong); border: 1px solid var(--line); padding: 8px 14px; border-radius: 10px; font-size: 13px; z-index: 20; }
 
 /* ---------- Touch controls ---------- */
-#touch { position: absolute; inset: 0; pointer-events: none !important; }
+#touch { position: absolute; inset: 0; pointer-events: none !important; z-index: 1; }
+/* Controls you tap must sit above the full-screen joystick / look zones. */
+#command, #quickbar, #talk-chip, #progress-stack { z-index: 5; }
 #touch > * { pointer-events: auto; }
 #look-zone { position: absolute; right: 0; top: 0; bottom: 0; width: 60%; touch-action: none; }
 #joy-zone { position: absolute; left: 0; bottom: 0; width: 40%; height: 70%; touch-action: none; }
@@ -194,7 +196,7 @@ input[type=checkbox] { accent-color: #8fd3ff; width: 18px; height: 18px; }
 .tb.on { background: rgba(143,211,255,0.35); border-color: rgba(143,211,255,0.7); }
 .tb:active { transform: scale(0.94); }
 
-body.touch #command { width: min(560px, calc(100vw - 20px)); bottom: calc(10px + var(--safe-b)); }
+body.touch #command { width: min(560px, calc(100vw - 20px)); bottom: calc(10px + var(--safe-b) + var(--kb, 0px)); }
 body.touch #quickbar { top: 52px; bottom: auto; right: 10px; flex-direction: column; }
 body.touch #progress-stack { top: 52px; right: 64px; width: min(300px, calc(100vw - 80px)); }
 body.touch #status-bar { font-size: 11px; left: 10px; top: 10px; }
