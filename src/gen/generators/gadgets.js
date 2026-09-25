@@ -256,7 +256,7 @@ export function compose(k, a, r, item) {
 }
 
 // ---------------- Generator ----------------
-const SDF_KINDS = new Set(['teddyBear', 'rubberDuck', 'piggyBank']);
+const SDF_KINDS = new Set(['teddyBear', 'rubberDuck', 'piggyBank', 'brain']);
 
 function sparkle(root, color, radius, height) {
   const sprites = [];

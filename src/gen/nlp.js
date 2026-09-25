@@ -192,10 +192,10 @@ export function parseCommand(raw, ctx = {}) {
   if (/^(slow down) (the )?time$|^normal time$/.test(text)) return { type: 'time', speed: 'normal' };
 
   // ---- Weather ----
-  const wm = text.match(/^(?:make it|let it|start|begin|set (?:the )?weather to|weather|i want|turn on)?\s*(?:the\s+)?(rain|raining|rainy|snow|snowing|snowy|storm|stormy|thunderstorm|thunder|lightning|fog|foggy|misty|mist|cloudy|overcast|clear|sunny|sun|clear sky|clear skies|blizzard|drizzle)(?:\s+(?:weather|day))?$/);
+  const wm = text.match(/^(?:make it|let it|start|begin|set (?:the )?weather to|weather|i want|turn on|make|create|build|summon|a|an)?\s*(?:the\s+|a\s+|an\s+)?(rain|raining|rainy|snow|snowing|snowy|storm|stormy|thunderstorm|thunder|lightning storm|lightning|fog|foggy|misty|mist|cloudy|overcast|clear|sunny|sun|clear sky|clear skies|blizzard|drizzle|snowstorm|snow storm|rainstorm|rain storm|hailstorm|downpour|heavy rain|thunder storm)(?:\s+(?:weather|day))?$/);
   if (wm || /^(stop|end) (the )?(rain|snow|storm|fog|raining|snowing)$/.test(text) || /^clear (the )?(weather|sky|skies)$/.test(text)) {
     const w = wm ? wm[1] : 'clear';
-    const map = { rain: 'rain', raining: 'rain', rainy: 'rain', drizzle: 'rain', snow: 'snow', snowing: 'snow', snowy: 'snow', blizzard: 'snow', storm: 'storm', stormy: 'storm', thunderstorm: 'storm', thunder: 'storm', lightning: 'storm', fog: 'fog', foggy: 'fog', misty: 'fog', mist: 'fog', cloudy: 'cloudy', overcast: 'cloudy', clear: 'clear', sunny: 'clear', sun: 'clear', 'clear sky': 'clear', 'clear skies': 'clear' };
+    const map = { rain: 'rain', raining: 'rain', rainy: 'rain', drizzle: 'rain', snow: 'snow', snowing: 'snow', snowy: 'snow', blizzard: 'snow', snowstorm: 'snow', 'snow storm': 'snow', rainstorm: 'storm', 'rain storm': 'storm', hailstorm: 'storm', downpour: 'rain', 'heavy rain': 'rain', 'thunder storm': 'storm', 'lightning storm': 'storm', storm: 'storm', stormy: 'storm', thunderstorm: 'storm', thunder: 'storm', lightning: 'storm', fog: 'fog', foggy: 'fog', misty: 'fog', mist: 'fog', cloudy: 'cloudy', overcast: 'cloudy', clear: 'clear', sunny: 'clear', sun: 'clear', 'clear sky': 'clear', 'clear skies': 'clear' };
     return { type: 'weather', value: map[w] || 'clear' };
   }
 
@@ -378,7 +378,7 @@ function isFeatureOf(concept, parentConcept) {
 
 // Where the main noun phrase ends: relative clauses, participles ("breathing
 // fire", "riding a horse"), comparisons ("the size of a house") and so on.
-const HEAD_BOUNDARY = /\s(?:with|wearing|dressed|who|that|which|named|called|holding|carrying|made of|made from|made out of|out of|having|in a|in an|in the|on a|to a|to an|to the|leading to|going to|full of|filled with|covered in|covered with|shaped like|shaped as|in the shape of|looking like|that looks like|like a|like an|the size of|as big as|as large as|as tall as|as small as|as tiny as|bigger than|larger than|taller than|smaller than|for a|for the|from a|from the|breathing|eating|riding|sitting|standing|playing|flying|swimming|running|jumping|sleeping|reading|singing|dancing|juggling|drinking|chasing|guarding|hugging|pulling|pushing|carrying|spitting|shooting|throwing|walking|surrounded by|on top of|next to|near)\s/;
+const HEAD_BOUNDARY = /\s(?:with|wearing|dressed|who|that|which|named|called|holding|carrying|made of|made from|made out of|out of|having|in a|in an|in the|on a|to a|to an|to the|leading to|going to|full of|filled with|covered in|covered with|shaped like|shaped as|in the shape of|looking like|that looks like|like a|like an|the size of|as big as|as large as|as tall as|as small as|as tiny as|bigger than|larger than|taller than|smaller than|for a|for the|from a|from the|breathing|eating|riding|sitting|standing|playing|flying|swimming|running|jumping|sleeping|reading|singing|dancing|juggling|drinking|chasing|guarding|hugging|pulling|pushing|carrying|spitting|shooting|throwing|walking|driving|piloting|steering|attacking|fighting|hunting|biting|climbing|destroying|protecting|watching|casting|meditating|hanging|rising|sailing|floating|orbiting|surrounded by|on top of|next to|near|over the|over a|under the|under a|above the|above a|below the|across the|beside the|beside a|by the|by a|at the|inside the|inside a|behind the|behind a|in front of)\s/;
 // Reference sizes (m) for "the size of a X" / "as big as a X".
 const REF_SIZES = { house: 8, home: 8, building: 12, skyscraper: 120, castle: 25, tower: 30, church: 20, cathedral: 40, stadium: 40, mountain: 250, hill: 40, volcano: 200, tree: 10, forest: 20, car: 1.5, truck: 3.5, bus: 3.2, train: 4, plane: 12, airplane: 12, ship: 20, boat: 3, horse: 1.7, elephant: 3.2, giraffe: 5, whale: 6, dinosaur: 6, 't-rex': 5, dragon: 6, person: 1.8, man: 1.8, human: 1.8, woman: 1.7, child: 1.2, kid: 1.2, baby: 0.6, dog: 0.6, cat: 0.3, mouse: 0.05, rat: 0.08, ant: 0.005, bug: 0.01, fly: 0.008, bee: 0.015, table: 0.75, chair: 0.9, bed: 0.6, fridge: 1.8, door: 2.1, apple: 0.08, orange: 0.08, coin: 0.02, ball: 0.22, football: 0.22, basketball: 0.24, marble: 0.015, pea: 0.008, grape: 0.02, cup: 0.1, fist: 0.1, hand: 0.19, thumb: 0.06, phone: 0.15, book: 0.25, planet: 2000, moon: 800, sun: 3000, city: 300, lake: 60, pond: 8, pyramid: 140 };
 // Find the head concept in a clause (returns {concept, start, end, phrase}).
@@ -650,11 +650,12 @@ export function parseEntity(clause) {
       if (head.concept.gen === 'building' && BUILDING_FEATURES.includes(h.phrase)) continue;
       // "with a fish tail", "with bat wings", "with a lion's mane": body parts, not companions.
       if (new RegExp(`\\b${h.phrase}(?:'s)?[\\s-]+(?:tails?|heads?|wings?|horns?|scales|fins?|ears?|eyes?|legs?|feet|paws|claws|fur|skin|mane|body|face|teeth|fangs|tusks|antlers|hooves)\\b`).test(tail)) continue;
+      if (h.concept.id === 'baby' && ['animal', 'creature'].includes(head.concept.cat)) continue; // "a kangaroo with a baby"
       if (['character', 'animal', 'vehicle', 'robot', 'creature'].includes(h.concept.cat)) attrs.companions.push(h.concept.id);
     }
   }
   // "a knight riding a horse", "a girl walking a dog": the other creature comes along.
-  const partM = s.match(/\b(riding|chasing|walking|hugging|pulling|guarding|feeding|petting|fighting|playing with|followed by|accompanied by)\s+(.+)$/);
+  const partM = s.match(/\b(riding|chasing|walking|hugging|pulling|guarding|feeding|petting|fighting|attacking|hunting|driving|piloting|playing with|followed by|accompanied by)\s+(.+)$/);
   if (partM) {
     head = head || findHead(s);
     for (const h of scanConcepts(partM[2])) {

@@ -81,16 +81,53 @@ The text box at the bottom is always available. Some examples (all tested):
   *a Victorian house with a turret*, *a medieval castle far away*, *a 40 story
   skyscraper*, *a lighthouse*, *a windmill*, *a Japanese pagoda*, *a greek
   temple*, *a red barn*, *a bakery*, *an igloo*, *a treehouse*, *ancient
-  ruins*, *an alien structure*.
+  ruins*, *an alien structure*, *a haunted house*, *a gingerbread house*, *a
+  chocolate castle*.
+* **Civic buildings & landmarks** — *a hospital*, *a school*, *a police
+  station*, *a fire station*, *a library*, *a museum*, *a bank*, *a city
+  hall*, *a hotel*, *an apartment block*, *a factory*, *a power plant*, *a
+  train station*, *an airport*, *a gas station*, *a supermarket*, *a cinema*,
+  *a casino*, *a stadium*, *a prison*, *an observatory*, *a lab*, *a water
+  tower*, *a hangar*, *a bunker*, *a parking garage*, *a mosque*, *a palace*,
+  *a circus tent*; *the Eiffel Tower*, *Big Ben* (a working clock), *the
+  Colosseum*, *the Statue of Liberty*, *the Taj Mahal*, *the Leaning Tower of
+  Pisa*, *the Great Wall*, *the Arc de Triomphe*, *the Sydney Opera House*,
+  *the Golden Gate Bridge*, *the Sphinx*, *the Burj Khalifa*.
+* **Rides & sports** — *a ferris wheel*, *a carousel*, *a roller coaster*,
+  *a drop tower*, *a swing ride* (all rideable: press E to board),
+  *a trampoline*, *a tennis court*, *a basketball court*, *a football pitch*,
+  *a race track*, *a golf course*, *a hedge maze* (carved fresh every time),
+  *a labyrinth*.
 * **People** — *a 1.70 m tall slightly overweight man with short black hair
   wearing a blue shirt*, *an old woman with gray hair in a red dress*, *a
   police officer*, *a wizard with a long white beard*, *a zombie*, *three
   children*. Every character has a unique face, body, outfit, name and
   personality; press **E** to talk (*“what's your name?”, “tell me a joke”,
   “follow me”, “wait here”, “dance!”*).
+* **Mythical people** — *a minotaur*, *a werewolf*, *Anubis*, *a lizardman*,
+  *a cat girl*, *a dragonborn*, *a mermaid*, *a merman*, *an angel*, *a demon*,
+  *a harpy*, *a fairy*, *a genie*, *Medusa*, *a gargoyle*, *Santa Claus*, *a
+  leprechaun*, *the grim reaper*, *a superhero*, or build your own: *a man
+  with wings and a halo*, *a woman with horns and a tail*, *a knight with the
+  head of a bull*, *a girl with a fish tail*. Animal heads (bull, wolf,
+  jackal, cat, lion, lizard, pig, rabbit, bear, goat, horse, eagle, elephant,
+  monkey, shark, dragon), feathered/bat/fairy wings, halos, horns and tails
+  are real sculpted, animated parts on the character's rig.
 * **Animals & creatures** — *a friendly golden retriever*, *a dalmatian*,
   *a zebra*, *an elephant*, *a dragon*, *a unicorn*, *a T‑rex*, *a flock of
-  birds*, *a shark in the lake*, *a slime*, *a ghost*, *a robot*, *a mech*.
+  birds*, *a shark in the lake*, *a slime*, *a ghost*, *a robot*, *a mech*,
+  and about 150 species more: *a kangaroo*, *a sloth*, *a hippo*, *a
+  platypus*, *a capybara*, *a tarantula*, *a scorpion*, *a ladybug*, *a
+  stegosaurus*, *a pterodactyl*, *Godzilla*, *King Kong*, *a woolly mammoth*,
+  *a peacock*, *a flamingo*, *a narwhal*, *a seahorse*… Mythical beasts:
+  *a pegasus*, *a three‑headed dog*, *a hydra*, *a chimera*, *a manticore*, *a
+  griffin*, *a centaur*, *a kirin*, *a wyvern*. Any creature can be modified:
+  *a two‑headed dragon breathing fire*, *an ice‑breathing wolf*, *a winged
+  horse*, *a six‑legged cat*, *a one‑eyed monster*, *a marble statue of a
+  lion*, *a ghostly horse*, *a robot dragon*, *a skeleton dragon*, *a dragon
+  made of fire*, *a crystal deer*, *a steampunk owl* (living materials: the
+  creature stays alive and animated; only *statue*/*carved*/stone words make
+  a statue on a plinth).
 * **Vehicles (drivable/flyable)** — *a red sports car*, *a police car*, *a
   taxi*, *a bus*, *a motorcycle*, *a tank*, *a steam train*, *a sailboat*,
   *a submarine*, *a helicopter*, *a plane*, *a spaceship*, *a UFO*, *a rocket*
@@ -102,17 +139,67 @@ The text box at the bottom is always available. Some examples (all tested):
 * **Objects** — *a wooden table with four chairs*, *a grand piano*, *a
   campfire*, *a fountain*, *a treasure chest*, *a gift* (open it!), *a soccer
   ball* (kick it), *a sword in a stone*, *a sign that says “Welcome”*, *giant
-  letters spelling HELLO*.
+  letters spelling HELLO*. About 270 purpose‑built object recipes, many of
+  them interactive:
+  * *home & tech* — toaster, microwave, washing machine, laptop (animated
+    screen), old TV, game console, arcade machine, vending machine, ATM,
+    record player, 3D printer, server rack, phone booth, lava lamp, safe…
+  * *street* — traffic light (cycles), bus stop, fire hydrant, parking meter,
+    dumpster, billboard, neon sign, hot dog cart, lemonade stand, market
+    stall, ticket booth, newsstand;
+  * *toys, games, music* — teddy bear, rubber duck, rocking horse, chess set,
+    toy train, snow globe, piñata, pool table, foosball, drum kit, violin,
+    trumpet, harp, synthesizer (they play notes), slot machine (pull the
+    lever), roulette, jukebox, disco ball;
+  * *fantasy & history* — magic wand, wizard staff, crystal ball, cauldron,
+    potions, crown, throne, hourglass, coffin, totem pole, magic circle, holy
+    grail, dragon egg, magic carpet, flying broom, guillotine, catapult,
+    trebuchet, cannon (fires), weapons and armour;
+  * *science & space* — telescope, microscope, satellite dish, wind turbine,
+    jetpack (lets you fly), hoverboard, time machine (changes the time of
+    day), teleporter (teleports you), reactor, Tesla coil (arcs), robot arm,
+    lightsaber, planets (Earth, Mars, ringed giants), the Moon, stars,
+    meteors, comets, atoms, DNA;
+  * *food* — pineapple, bananas, watermelon (with a slice), pumpkin or
+    jack‑o'‑lantern, birthday / wedding cake with lit candles, cupcake, donut,
+    pizza with a slice pulled out, burger, hot dog, taco, sushi, ramen, ice
+    cream cone, milkshake, popcorn, lollipop, candy cane… (take a bite!);
+  * *weather* — *a tornado*, *a hurricane*, *a dust devil*, *a fire tornado*:
+    a swirling funnel that wanders around and lifts you if you get too close
+    (*a thunderstorm*, *a snowstorm*, *a blizzard* change the weather instead);
+  * *nature & odd things* — a geyser that erupts every few seconds, an
+    iceberg, a glacier, a Venus flytrap (poke it) or a giant man‑eating plant,
+    an anthill with marching ants, a beehive with orbiting bees, a moai, a
+    paper airplane / boat / crane, a tennis racket, a baseball bat, a golf
+    club, a yo‑yo, a barbecue, a home gym, a treadmill, a wheelchair, a
+    shopping cart, a pram;
+  * Anything else is **designed on the spot**: *a steampunk coffee machine
+    with gears and pipes*, *an ancient glowing relic*, *a toy robot with
+    wheels and antennas* — an archetype (machine, relic, toy, tool, weapon,
+    container, object) is chosen from the words and parts named in the prompt
+    (wheels, eyes, screens, propellers, wings, legs, tentacles, spikes,
+    crystals, pipes…) are added.
 * **Surreal & abstract** — *a tesseract*, *a black hole*, *a melting clock*,
   *a giant eye*, *a hologram*, *a spiral galaxy*, *fireworks*, *a rainbow*.
-  Unknown nouns become a unique sculpted art piece labelled with the word.
+* **Words it has never seen** — the interpreter never gives up: compounds
+  are split (*a lava‑cat*, *a crystal‑bot*, *a chocolate dragon*), suffixes
+  and context are read (*…‑zilla* is a giant monster, *…‑bot* a robot, *a
+  flerp that swims* a fish, *a zorbulator machine* a machine) and truly
+  invented words (*a blorptastic zingwobble*) become a consistent invented
+  creature or artefact named after the word. Typos are corrected with a
+  keyboard‑aware model (*a dragin*, *a caslte*), while real words that simply
+  resemble a known one are not “corrected” into it.
 * **Portals** — *a portal to an underwater city*, *…to a low gravity crystal
   world*, *…to an infinite library*, *…to a nightmare dimension*, *…to the sky
   islands*, *…space*, *…a desert*, *…a frozen world*, *…a lava world*, *…a
   neon city*, *…candy land*, *…an alien jungle*.
 * **Whole scenes** — *a village*, *a city*, *a park*, *a campsite*, *a farm*,
-  *a beach*, *a graveyard*, *a living room*, *Stonehenge*, *a market*, *a
+  *a beach*, *a graveyard*, *a living room*, *a kitchen*, *a bathroom*, *a
+  bedroom*, *a classroom*, *a home office*, *Stonehenge*, *a market*, *a
   zoo*, *a party*.
+* **Size words work on everything** — *a giant pineapple*, *a tiny elephant*,
+  *a teddy bear the size of a house*, *a toy castle* / *a miniature Eiffel
+  Tower* (scaled down as a whole, colliders included), *a 3 m tall robot*.
 * **Placement** — *…in front of me / behind me / next to me / to my left /
   above me / far away / around me / next to the house / on the table / by the
   lake / on the lake / replace the house with a castle*.
@@ -169,11 +256,12 @@ separately set generation quality (Fast/Balanced/Highest detail).
                           │        │                │ Generation pipeline (time-sliced jobs, ≤ 5 min) │   │
                           │        │                │  plan → generator stages → placement → register │   │
                           │        │                └──────┬─────────────────────────────────────────┘   │
-                          │        │                       │ generators (18 families)                     │
+                          │        │                       │ generators (22 families)                     │
                           │        │   ┌───────────────────┼──────────────────────────────────────────┐   │
                           │        │   │ buildings · humans · creatures · vehicles · nature · terrain │   │
                           │        │   │ props · furniture · structures · text · abstract · portals   │   │
                           │        │   │ scenes · birds · fish · snakes · blobs · robots · fallback   │   │
+                          │        │   │ gadgets (≈270 recipes) · civic · landmarks · rides           │   │
                           │        │   └───┬──────────────┬──────────────┬─────────────┬─────────────┘   │
                           │        │       │ SDF modeller │ MeshBuilder  │ GPU texture │ rig +         │   │
                           │        │       │ surface nets │ (merged per  │ baker (PBR  │ procedural    │   │
@@ -208,14 +296,21 @@ grass, weather, day/night) → light pool → materialise effect → render → 
 
 1. **Parsing (`src/gen/nlp.js`, `lexicon.js`)** — a rule‑based parser splits
    the sentence into commands or entity clauses (*“a man with a dog and two
-   cats”* → man + companion dog + 2 cats), resolves the head noun against ~280
-   concepts (with synonyms and **trigram fuzzy matching**, so *“skyscrapper”*
-   still works), and binds attributes: counts, explicit dimensions (*1.70 m*,
+   cats”* → man + companion dog + 2 cats; *“a man with wings and a halo”*
+   stays one character), resolves the head noun against ~800 concepts and
+   ~2 800 phrases (`lexicon.js` + the more specific `lexicon2.js`,
+   which takes precedence), with **keyboard‑aware typo correction** (swapped
+   or neighbouring keys and vowel mix‑ups are cheap, other substitutions
+   count double) so *“skyscrapper”* still works but *“hand”* does not become
+   *“wand”*, and binds attributes: counts, explicit dimensions (*1.70 m*,
    *30 story*), sizes, colours bound to parts (*blue shirt*, *red roof*,
    *black hair*), materials, styles (modern, medieval, futuristic…), body
    types, ages, hair styles/colours, clothing, personality words, placement
-   phrases, quoted text and portal destinations. Unknown nouns fall through to
-   a sculpted interpretation instead of failing.
+   phrases, quoted text, portal destinations, reference sizes (*the size of
+   a house*), head/leg/eye counts, *statue of …* / *toy …* rewrites and
+   body‑part features. Unknown nouns go to `interpret.js` (compounds →
+   context cues → word shape → invention), so every prompt builds something
+   meaningful.
 2. **Job (`src/core/jobs.js`, `src/gen/pipeline.js`)** — each entity becomes a
    cooperative generator‑function job with named stages, so the game keeps
    running. The UI shows a non‑intrusive card with a progress ring,
@@ -408,18 +503,25 @@ src/player/      input (keyboard/mouse/pointer-lock/touch joystick), first/third
 src/characters/  rig, body/head/hand SDFs, humanoid builder, animator, accessories,
                  specs from prompts, personality & dialogue, NPC brain & pathfinding
 src/gen/         lexicon, NLP parser, pipeline, placement solver, entity registry
-src/gen/generators/  18 generator families + shared kits (buildkit, sdfkit, physics, common)
+src/gen/generators/  22 generator families + shared kits (buildkit, sdfkit, gadgetkit,
+                 physics, common); gadgets_*.js hold the object recipes, buildings3.js the
+                 civic buildings, landmarks.js, rides.js
+src/characters/hybrids.js  animal heads, wings, halos, horns, tails for mythical people
 src/game/        command executor, interaction, avatar, persistence, world switching
 src/audio/       procedural WebAudio engine
 src/ui/          HTML shell, CSS, UI controller
 ```
 
-About 23 000 lines of commented source.
+About 30 000 lines of commented source.
 
 ## Testing
 
 * `npm test` — vertical slice (both required prompts) end to end, fails if a
   job fails, exceeds 300 s, or any page error is logged.
+* `node tools/gallery.mjs [--gen gadget|ride|civic|landmark|creature] [--kinds a,b]
+  [--prompts "p1|p2"] [--each]` — builds every recipe (or the given kinds /
+  prompts) headless, reports failures, triangle counts and timings, and
+  screenshots them in rows (or one close‑up each with `--each`).
 * `node tools/smoke-test.mjs --cmd "a dragon" --cmd "a portal to a neon city" --enter`
   — arbitrary prompts; `--enter` walks through a created portal and captures
   the inside; `--bench` skips rendering and reports wall time plus main‑thread generator time;
@@ -436,7 +538,8 @@ About 23 000 lines of commented source.
 * **Language understanding is rule‑based.** It handles a large vocabulary,
   attribute binding and typos, but unusual phrasings or deeply nested
   descriptions (*“a house whose second floor is made of glass except the
-  balcony”*) are simplified. Unknown nouns become sculptures.
+  balcony”*) are simplified. Unknown nouns are interpreted (see above), which
+  is always something sensible but not always what you pictured.
 * **Faces are stylised‑realistic**, not photoreal: SDF sculpting at the voxel
   sizes that fit a few seconds of JavaScript cannot reach scan quality.
   Hair is solid sculpted volume, not strands.

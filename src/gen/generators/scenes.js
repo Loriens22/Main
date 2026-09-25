@@ -108,6 +108,45 @@ const PLANS = {
     ];
     return { name: 'Living room', radius: 5, parts, room: true };
   },
+  kitchen(rng) {
+    const H = Math.PI;
+    const parts = [
+      { text: 'a fridge', x: -2.6, z: -2.4 }, { text: 'an oven', x: -1.6, z: -2.5 }, { text: 'a sink', x: -0.6, z: -2.5 }, { text: 'a dishwasher', x: 0.3, z: -2.5, optional: true },
+      { text: 'a kitchen counter', x: 1.4, z: -2.5, optional: true }, { text: 'a microwave', x: 1.4, z: -2.5, y: 0.92, optional: true }, { text: 'a kettle', x: 0.9, z: -2.45, y: 0.92, optional: true },
+      { text: 'a table', x: 0.6, z: 0.4 }, { text: 'a chair', x: 0.6, z: -0.3 }, { text: 'a chair', x: 0.6, z: 1.1, yaw: H }, { text: 'a coffee machine', x: 1.9, z: -2.45, y: 0.92, optional: true },
+      { text: 'a fruit basket', x: 0.6, z: 0.4, y: 0.76, optional: true },
+    ];
+    return { name: 'Kitchen', radius: 4, parts, room: true };
+  },
+  bathroom(rng) {
+    const parts = [
+      { text: 'a toilet', x: -1.4, z: -1.6 }, { text: 'a sink', x: 0, z: -1.8 }, { text: 'a mirror', x: 0, z: -1.95, y: 1.1, optional: true },
+      { text: 'a shower', x: 1.5, z: -1.3 }, { text: 'a bathtub', x: -1.0, z: 1.2, yaw: Math.PI / 2, optional: true }, { text: 'a small rug', x: 0.2, z: 0.2, optional: true },
+    ];
+    return { name: 'Bathroom', radius: 3, parts, room: true };
+  },
+  bedroom(rng) {
+    const parts = [
+      { text: 'a bed', x: 0, z: -1.6 }, { text: 'a nightstand', x: 1.3, z: -2.3 }, { text: 'a desk lamp', x: 1.3, z: -2.3, y: 0.6, optional: true },
+      { text: 'a wardrobe', x: -2.6, z: -1.2, yaw: Math.PI / 2 }, { text: 'a rug', x: 0, z: 0.6 }, { text: 'a desk', x: 2.4, z: 1.2, yaw: -Math.PI / 2, optional: true },
+      { text: 'a chair', x: 1.8, z: 1.2, yaw: Math.PI / 2, optional: true }, { text: 'a plant pot', x: -2.5, z: 2.2, optional: true }, { text: 'a teddy bear', x: -0.5, z: -2.2, y: 0.6, optional: true },
+    ];
+    return { name: 'Bedroom', radius: 4, parts, room: true };
+  },
+  classroom(rng) {
+    const parts = [{ text: 'a whiteboard', x: 0, z: -3.6 }, { text: 'a desk', x: 2.4, z: -2.6, yaw: Math.PI }, { text: 'a teacher', x: 1.5, z: -2.8, yaw: Math.PI, optional: true }];
+    for (let r = 0; r < 3; r++) for (let c = 0; c < 3; c++) { parts.push({ text: 'a small table', x: -2 + c * 2, z: -0.8 + r * 1.6, optional: r > 1 }); parts.push({ text: 'a chair', x: -2 + c * 2, z: -0.2 + r * 1.6, yaw: Math.PI, optional: r > 1 }); }
+    parts.push({ text: 'a bookshelf', x: -3.8, z: 1, yaw: Math.PI / 2, optional: true }, { text: 'a globe', x: 2.6, z: -2.6, y: 0.76, optional: true });
+    return { name: 'Classroom', radius: 5, parts, room: true };
+  },
+  officeRoom(rng) {
+    const parts = [
+      { text: 'a desk', x: 0, z: -1.5 }, { text: 'a computer', x: 0, z: -1.6, y: 0.76 }, { text: 'an office chair', x: 0, z: -0.8, yaw: Math.PI },
+      { text: 'a filing cabinet', x: 1.6, z: -1.8 }, { text: 'a bookshelf', x: -2.2, z: -1.8, optional: true }, { text: 'a plant pot', x: 2.2, z: 1.2, optional: true },
+      { text: 'a whiteboard', x: -2.6, z: 0.5, yaw: Math.PI / 2, optional: true }, { text: 'a desk lamp', x: 0.6, z: -1.7, y: 0.76, optional: true },
+    ];
+    return { name: 'Office', radius: 4, parts, room: true };
+  },
   market(rng) {
     const parts = [];
     for (let i = 0; i < 3; i++) parts.push({ text: rng.pick(['a merchant with an apron', 'a woman carrying a basket', 'an old man with a cane']), x: rng.range(-5, 5), z: rng.range(-3, 3), optional: true });
@@ -176,7 +215,7 @@ function marketStall(b, x, z, yaw, rng) {
 
 export const sceneGen = {
   maxCount: 1,
-  estimate: (item) => ({ city: 60, village: 60, farm: 45, zoo: 45, park: 30, campsite: 25, beach: 20, graveyard: 20, livingroom: 12, market: 18, party: 35, stonehenge: 3 }[item.params.kind] || 30),
+  estimate: (item) => ({ city: 60, village: 60, farm: 45, zoo: 45, park: 30, campsite: 25, beach: 20, graveyard: 20, livingroom: 12, kitchen: 14, bathroom: 8, bedroom: 12, classroom: 18, officeRoom: 12, market: 18, party: 35, stonehenge: 3 }[item.params.kind] || 30),
   stages: () => [{ name: 'plan', label: 'Planning the scene', weight: 0.3 }, { name: 'geometry', label: 'Generating parts', weight: 8 }, { name: 'textures', label: 'Finishing touches', weight: 0.5 }],
   *build(ctx, item, rng, env) {
     const kind = item.params.kind;

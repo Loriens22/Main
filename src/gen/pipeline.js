@@ -122,6 +122,12 @@ export class Pipeline {
           if (data.isCharacter && data.humanoid) data.subtitle = data.subtitle ? `${sub.params.displayName} · ${data.subtitle}` : sub.params.displayName;
           else data.name = sub.params.displayName;
         }
+        // Buildings clamp their own size, so "a toy castle" / "a tiny house" is scaled as a whole.
+        if (['building', 'civic', 'landmark', 'structure', 'scene', 'ride'].includes(sub.gen) && sub.attrs && data.root && !data.isCharacter) {
+          const sm = sub.attrs.sizeMul || 1;
+          const k = sub.attrs.flags && sub.attrs.flags.toy ? 0.07 : sm < 0.5 ? Math.max(0.05, sm / 0.6) : 1;
+          if (k < 1) { data.scale = k; data.root.scale.setScalar(k); }
+        }
         if (ctx.mustFinish() && i < last - 1) { console.warn('Deadline approaching: stopping after', i + 1, 'copies'); }
         data._genMs = performance.now() - t0;
         data.copyIndex = i;

@@ -108,6 +108,14 @@ const MISCS = rows('gadget', 'object', '🎲', [
   ['silo', 'silo, grain silo, farm silo'], ['scarecrow', 'scarecrow, scarecrows'], ['gingerbreadMan', 'gingerbread man, gingerbread cookie, gingerbread'],
   ['witchHat', 'witch hat, witches hat, wizard hat'], ['broom', 'broom, broomstick, flying broom, witch broom, magic broom'], ['magicCarpet', 'magic carpet, flying carpet'],
   ['swordInStone', 'sword in the stone, sword in stone, excalibur'], ['dragonEgg', 'dragon egg, dragon eggs'],
+  ['sportsGear', 'tennis racket, racket, racquet, badminton racket, baseball bat, cricket bat, golf club, hockey stick'], ['yoyo', 'yo-yo, yoyo, yo yo'],
+  ['bbq', 'bbq, barbecue, barbeque, bbq grill, grill, barbecue grill'], ['geyser', 'geyser, hot spring, onsen'], ['iceberg', 'iceberg, glacier, ice floe'],
+  ['moai', 'moai, easter island head, easter island statue, stone head'], ['flytrap', 'venus flytrap, flytrap, carnivorous plant, man eating plant, man-eating plant, piranha plant'],
+  ['anthill', 'anthill, ant hill, ant colony, ant farm, termite mound'], ['paperPlane', 'paper airplane, paper plane, paper aeroplane, paper boat, paper crane, origami, origami crane'],
+  ['gymEquipment', 'gym, home gym, fitness center, workout room, dumbbell, dumbbells, barbell, weights, treadmill, weight bench'],
+  ['star', 'sun, the sun with sunglasses'], ['planet', 'death star'], ['meteor', 'meteor shower, shooting stars'],
+  ['computer', 'gaming setup, gaming pc, battle station, gaming rig'],
+  ['windTurbine', 'wind farm'], ['solarPanel', 'solar farm'],
   ['wheelchair', 'wheelchair, wheel chair'], ['shoppingCart', 'shopping cart, shopping trolley'], ['stroller', 'stroller, baby stroller, pram, pushchair, baby buggy'],
 ]);
 
@@ -139,7 +147,7 @@ const CIVIC = rows('civic', 'building', '🏛️', [
   ['supermarket', 'supermarket, grocery store, shopping mall, mall, department store, hypermarket'], ['cinema', 'cinema, movie theater, movie theatre, theater, theatre, opera, movie house'],
   ['stadium', 'stadium, arena, sports arena, football stadium, soccer stadium, ballpark', null, true], ['prison', 'prison, jail, penitentiary'], ['observatory', 'observatory, planetarium'],
   ['lab', 'laboratory, lab, research lab, research facility, science lab'], ['waterTower', 'water tower'], ['hangar', 'hangar, aircraft hangar'], ['bunker', 'bunker, pillbox'],
-  ['garage', 'garage, carport'], ['parkingGarage', 'parking garage, car park, multi-storey car park, parking structure'], ['mosque', 'mosque'], ['palace', 'palace, royal palace, chateau'],
+  ['garage', 'garage, carport'], ['parkingGarage', 'parking garage, car park, multi-storey car park, parking structure'], ['mosque', 'mosque'], ['palace', 'palace, kremlin, the kremlin, royal palace, chateau'],
   ['circusTent', 'circus, circus tent, big top'],
 ]);
 
@@ -154,7 +162,7 @@ const SPECIES = rows('creature', 'animal', '🐾', [
   ['spider', 'spider, spiders', null, true], ['tarantula', 'tarantula'], ['ant', 'ant, ants', null, true], ['scorpion', 'scorpion', null, true], ['crab', 'crab, crabs', null, true],
   ['lobster', 'lobster, crayfish, crawfish'], ['beetle', 'beetle, bug, scarab'], ['ladybug', 'ladybug, ladybird'], ['bee', 'bee, bumblebee, honeybee', null, true], ['wasp', 'wasp, hornet'],
   ['seal', 'seal, sea lion'], ['walrus', 'walrus'],
-  ['godzilla', 'godzilla, kaiju, giant lizard monster'], ['kingkong', 'king kong, kong, giant ape, giant gorilla'], ['mammoth', 'mammoth, woolly mammoth, mastodon'],
+  ['godzilla', 'godzilla, kaiju, giant lizard monster, behemoth, colossus'], ['kingkong', 'king kong, kong, giant ape, giant gorilla'], ['mammoth', 'mammoth, woolly mammoth, mastodon'],
   ['wolverine', 'wolverine'], ['badger', 'badger, honey badger'], ['skunk', 'skunk, polecat'], ['weasel', 'weasel, ferret, stoat, mink, ermine, mongoose'],
   ['meerkat', 'meerkat, prairie dog'], ['wombat', 'wombat'], ['capybara', 'capybara'], ['mole', 'mole'],
   ['kangaroo', 'kangaroo'], ['wallaby', 'wallaby'], ['koala', 'koala, koala bear'], ['sloth', 'sloth'], ['hippo', 'hippo, hippopotamus', null, true], ['gorilla', 'gorilla, silverback', null, true],
@@ -198,7 +206,8 @@ const PLACES = [
     ['stable', 'stable, stables, shed, cowshed, chicken coop, coop', { style: 'barn' }],
     ['shack', 'shack, hovel, lean-to', { style: 'hut' }],
     ['megatower', 'burj khalifa, empire state building, world trade center, one world trade center, petronas towers, shanghai tower, chrysler building, supertall, megatall, tallest building', { style: 'skyscraper', floors: 90 }, true],
-    ['dungeon', 'dungeon, crypt, catacombs, tomb, mausoleum', { style: 'ruins' }],
+    ['dungeon', 'dungeon, crypt, catacombs, tomb, mausoleum, machu picchu, angkor wat, ancient city, lost city', { style: 'ruins' }],
+    ['obsTower', 'space needle, cn tower, tokyo tower, sky tower, tv tower, observation tower, space elevator', { style: 'tower' }],
   ]),
 ];
 
@@ -250,6 +259,17 @@ const HUMANOIDS = rows('human', 'character', '🧝', [
   ['gargoyle', 'gargoyle, gargoyles', { wings: 'bat', horns: true, tail: 'devil', statue: true, statueMaterial: 'stone', statueName: 'Gargoyle', profession: 'demon', height: 1.5 }],
   ['valkyrie', 'valkyrie, valkyries', { wings: 'feather', sex: 'female', profession: 'knight' }],
   ['fairy2', 'fairy, fairies, pixie, pixies, sprite, tinkerbell, tinker bell', { height: 0.5, sex: 'female', fairy: true, wings: 'fairy', profession: 'fairy' }],
+  ['viking', 'viking, vikings, norseman, barbarian', { profession: 'viking', muscle: 0.8, facialHair: 'full', hair: { style: 'long' } }],
+  ['gladiator', 'gladiator, gladiators, spartan, roman soldier, centurion, legionary', { profession: 'gladiator', muscle: 0.85, fat: 0.12 }],
+  ['pharaoh', 'pharaoh, pharaohs, cleopatra, egyptian king, egyptian queen', { profession: 'anubis' }],
+  ['samurai', 'samurai, shogun, ronin', { profession: 'samurai', muscle: 0.6 }],
+  ['blacksmith', 'blacksmith, smith, forger, armorer', { profession: 'blacksmith', muscle: 0.8, sex: 'male' }],
+  ['princess', 'princess, princesses', { profession: 'princess', sex: 'female', age: 19 }],
+  ['prince', 'prince, princes', { profession: 'prince', sex: 'male', age: 22 }],
+  ['dryad', 'dryad, nymph, wood nymph, forest spirit', { elf: true, sex: 'female', skinColor: '#8ab070', profession: 'elf', hair: { style: 'long', color: 'green' } }],
+  ['horseman', 'horseman, headless horseman, horse rider, rider, jockey, equestrian, cavalryman', { profession: 'cowboy' }],
+  ['slayer', 'dragon slayer, monster hunter, witcher, slayer, demon hunter', { profession: 'knight' }],
+  ['earthElemental', 'earth elemental, rock golem, stone golem', { height: 2.8, muscle: 1, stone: true, profession: 'golem' }],
   ['santa', 'santa, santa claus, father christmas, saint nick, st nick', { profession: 'santa', sex: 'male', age: 70, fat: 0.7, facialHair: 'full', hair: { style: 'short', color: 'white' } }],
   ['leprechaun', 'leprechaun, leprechauns', { profession: 'leprechaun', sex: 'male', height: 1.0, facialHair: 'full', hair: { style: 'short', color: 'ginger' } }],
   ['genie', 'genie, djinn, jinn, genie of the lamp', { mermaid: true, tailColor: '#3a6ad8', skinColor: '#4a7ae0', profession: 'genie', muscle: 0.7, hair: { style: 'bald' } }],
@@ -261,9 +281,21 @@ const HUMANOIDS = rows('human', 'character', '🧝', [
 ].map((r) => { r[3] = true; return r; }));
 HUMANOIDS.push({ id: 'powerArmor', cat: 'robot', gen: 'robot', icon: '🤖', r: 0.8, p: { kind: 'humanoid', color: '#b82020', height: 2.1, displayName: 'Power armor' }, o: true, words: ['iron man', 'ironman', 'power armor', 'power armour', 'mech suit', 'battle suit', 'robot suit'] });
 
+const ROOMS = rows('scene', 'scene', '🏠', [
+  ['kitchen', 'kitchen, kitchens', { kind: 'kitchen' }], ['bathroom', 'bathroom, bath room, restroom, washroom', { kind: 'bathroom' }],
+  ['bedroom', 'bedroom, bed room, kids room, nursery', { kind: 'bedroom' }], ['classroom', 'classroom, class room, school room', { kind: 'classroom' }],
+  ['officeRoom', 'office room, home office, study room, workspace, desk setup', { kind: 'officeRoom' }],
+]);
+
 const MYTH = [
   { id: 'basilisk', cat: 'animal', gen: 'snake', icon: '🐍', r: 1, p: { species: 'snake', giant: true }, o: true, words: ['basilisk', 'giant serpent', 'sea serpent', 'leviathan', 'loch ness monster', 'nessie', 'jormungandr'] },
-  { id: 'banshee', cat: 'creature', gen: 'blob', icon: '👻', r: 1, p: { kind: 'ghost', displayName: 'Banshee' }, o: true, words: ['banshee', 'wraith', 'spirit', 'phantom', 'specter', 'spectre', 'poltergeist'] },
+  { id: 'dam', cat: 'structure', gen: 'landmark', icon: '🧱', r: 20, p: { kind: 'greatWall', displayName: 'Dam' }, o: true, words: ['dam', 'hoover dam', 'barrage'] },
+  { id: 'banshee', cat: 'creature', gen: 'blob', icon: '👻', r: 1, p: { kind: 'ghost', displayName: 'Banshee' }, o: true, words: ['banshee', 'wraith', 'spirit', 'phantom', 'specter', 'spectre', 'poltergeist', 'air elemental', 'wind spirit', 'shadow creature', 'shade'] },
+  { id: 'waterElemental', cat: 'creature', gen: 'blob', icon: '💧', r: 1, p: { kind: 'slime', color: '#3a8ad8', displayName: 'Water elemental' }, o: true, words: ['water elemental', 'water spirit'] },
+  { id: 'fireElemental', cat: 'creature', gen: 'blob', icon: '🔥', r: 1, p: { kind: 'slime', color: '#ff6a1a', glow: true, displayName: 'Fire elemental' }, o: true, words: ['fire elemental', 'fire spirit', 'flame spirit'] },
+  { id: 'snail', cat: 'creature', gen: 'blob', icon: '🐌', r: 0.4, p: { kind: 'slime', color: '#a8906a', displayName: 'Snail' }, o: true, words: ['snail', 'slug', 'snails'] },
+  { id: 'caterpillar', cat: 'animal', gen: 'snake', icon: '🐛', r: 0.4, p: { species: 'snake', color: '#6ab02a', small: true, displayName: 'Caterpillar' }, o: true, words: ['caterpillar', 'larva', 'grub', 'inchworm'] },
+  { id: 'treant', cat: 'nature', gen: 'nature', icon: '🌳', r: 3, p: { kind: 'tree', species: 'oak', displayName: 'Treant' }, o: true, words: ['treant', 'ent', 'tree ent', 'tree man', 'talking tree', 'living tree'] },
   { id: 'skeletonWarrior', cat: 'object', gen: 'gadget', icon: '💀', r: 1, p: { kind: 'skeleton', displayName: 'Skeleton warrior' }, o: true, words: ['skeleton warrior', 'skeleton knight', 'undead warrior'] },
 ];
 
@@ -276,5 +308,5 @@ for (const c of HUMANOIDS) if (c.gen === 'human') c.p = { ...c.p, displayName: c
 // Every entry here is more specific than the older lexicon's coarse
 // mapping for the same word (a violin used to be a guitar, a squirrel a
 // mouse, a washing machine a fridge), so the whole table takes precedence.
-export const CONCEPTS2 = [...HUMANOIDS, ...GADGETS, ...FOODS, ...MISCS, ...ARCHETYPES, ...RIDES, ...CIVIC, ...LANDMARKS, ...SPECIES, ...BIRDS, ...FISH, ...PLACES, ...VEHICLES, ...MYTH];
+export const CONCEPTS2 = [...ROOMS, ...HUMANOIDS, ...GADGETS, ...FOODS, ...MISCS, ...ARCHETYPES, ...RIDES, ...CIVIC, ...LANDMARKS, ...SPECIES, ...BIRDS, ...FISH, ...PLACES, ...VEHICLES, ...MYTH];
 for (const c of CONCEPTS2) c.o = true;

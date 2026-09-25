@@ -14,6 +14,7 @@ import { G } from '../../core/context.js';
 import { attachFire } from './furniture.js';
 import { hsl, glowTexture } from './common.js';
 import { playTune, playBeat } from './gadgets_home.js';
+import { sdfPart } from './gadgets_fun.js';
 
 const PI = Math.PI, TAU = PI * 2, HALF = PI / 2;
 function sound(e, name, opts) { if (G.audio) G.audio.play(name, e.root.position, opts); }
@@ -331,7 +332,7 @@ export const MISC = {
     }
     k.tick((dt) => { spin.group.rotation.y += dt * 0.15; });
     const nm = earth ? 'Earth' : red ? 'Mars' : ringed ? 'Ringed planet' : 'Planet';
-    return { name: nm, static: true, float: true, noCollide: false, collideAuto: true };
+    return { name: nm, static: true, noCollide: false, collideAuto: true };
   },
   moon(k, a, r) {
     const R = 2;
@@ -347,7 +348,7 @@ export const MISC = {
     }
     if (has(a, /cheese/)) m.material.color.set('#f2d24a');
     k.tick((dt) => { g.group.rotation.y += dt * 0.05; });
-    return { name: has(a, /cheese/) ? 'Cheese moon' : 'Moon', static: true, float: true, collideAuto: true };
+    return { name: has(a, /cheese/) ? 'Cheese moon' : 'Moon', static: true, collideAuto: true };
   },
   star(k, a, r) {
     const pts = []; for (let i = 0; i < 10; i++) { const an = (i / 10) * TAU + HALF, rr = i % 2 ? 0.42 : 1; pts.push([Math.cos(an) * rr, Math.sin(an) * rr]); }
@@ -357,7 +358,7 @@ export const MISC = {
     k.glow(col, [0, 1.6, 0], 3.2, 0.6);
     k.light([0, 1.6, 0.5], col, 2, 8);
     k.tick((dt, t) => { s.group.rotation.y += dt * 0.8; s.group.position.y = 1.6 + Math.sin(t * 1.5) * 0.08; });
-    return { name: 'Star', static: true, float: true, noCollide: true, sparkle: true };
+    return { name: 'Star', static: true, noCollide: true, sparkle: true };
   },
   meteor(k, a, r) {
     const t = a.text || '';
@@ -380,7 +381,7 @@ export const MISC = {
       }
     }
     k.tick((dt) => { g.group.rotation.y += dt * (comet ? 0.4 : 0.1); g.group.rotation.x += dt * 0.07; });
-    return { name: comet ? 'Comet' : asteroid ? 'Asteroid' : 'Meteorite', static: true, float: comet, collideAuto: true };
+    return { name: comet ? 'Comet' : asteroid ? 'Asteroid' : 'Meteorite', static: true, collideAuto: true };
   },
   goldNugget(k, a, r) {
     const g = k.sub([0, 0.05, 0]);
@@ -401,7 +402,7 @@ export const MISC = {
     }
     c.glow('#60c0ff', [0, 0, 0], 1.2, 0.3);
     k.tick((dt) => { orbits.forEach((o, i) => { o.group.rotation.y += dt * (2.5 + i); }); c.group.rotation.y += dt * 0.2; });
-    return { name: 'Atom', static: true, float: true, noCollide: true };
+    return { name: 'Atom', static: true, noCollide: true };
   },
   dna(k, a, r) {
     const h = k.sub([0, 0.2, 0]);
@@ -431,15 +432,17 @@ export const MISC = {
       g.ext('g:' + k.color('#e0203a'), s, 0.25, [0, 0, 0], null, 0.08);
     }
     k.tick((dt, t) => { const b = 1 + Math.max(0, Math.sin(t * 7)) * 0.08; g.group.scale.setScalar(b); if (!organ) g.group.rotation.y += dt * 0.6; });
-    return { name: organ ? 'Heart' : 'Love heart', static: !organ, phys: organ ? { mass: 0.3 } : null, float: !organ, noCollide: !organ };
+    return { name: organ ? 'Heart' : 'Love heart', static: !organ, phys: organ ? { mass: 0.3 } : null, noCollide: !organ };
   },
-  brain(k, a, r) {
-    for (const s of [-1, 1]) {
-      k.ball('g:#e8a0a8', [s * 0.035, 0.06, 0], 0.055, [0.8, 0.85, 1.25], 18);
-      for (let i = 0; i < 16; i++) { const an = r.range(0, TAU), el = r.range(-0.3, 1.3); k.torus('g:#d88a94', [s * 0.035 + s * Math.abs(Math.cos(el) * Math.cos(an)) * 0.04, 0.06 + Math.sin(el) * 0.045, Math.cos(el) * Math.sin(an) * 0.065], 0.012, 0.006, [r.range(0, PI), r.range(0, PI), 0], PI, 10); }
-    }
-    k.ball('g:#d88a94', [0, 0.02, -0.04], 0.03, [1.3, 0.7, 1]);
-    k.seg('g:#d8a0a0', [0, 0.02, -0.02], [0, -0.01, -0.03], 0.012, 0.01, 8);
+  *brain(k, a, r, item, ctx) {
+    // Two wrinkled hemispheres (noise-displaced SDF), cerebellum and stem.
+    yield* sdfPart(k, ctx, (sd) => {
+      sd.beginGroup({ op: 'union', defaults: { mat: 'brain' } });
+      for (const s of [-1, 1]) sd.ellipsoid([s * 0.036, 0.075, 0], [0.04, 0.052, 0.078], { op: 'smooth', k: 0.004, disp: { amp: 0.0045, freq: 90, oct: 2 } });
+      sd.ellipsoid([0, 0.04, -0.05], [0.05, 0.022, 0.03], { op: 'smooth', k: 0.01, disp: { amp: 0.002, freq: 160, oct: 1 } });
+      sd.roundCone([0, 0.045, -0.02], [0, 0.0, -0.03], 0.013, 0.01, { op: 'smooth', k: 0.01 });
+      sd.endGroup();
+    }, { brain: ['glossyPlastic', { color: k.color('#e8a0a8') }] }, 0.0035);
     return { name: 'Brain', phys: { mass: 1.4 } };
   },
   tooth(k) {
@@ -511,7 +514,7 @@ export const MISC = {
     cols.forEach((c, i) => k.light([Math.cos(i * HALF) * 1.2, 2.2, Math.sin(i * HALF) * 1.2], c, 1.4, 7));
     for (let i = 0; i < 6; i++) k.glow(cols[i % 4], [Math.cos(i) * 0.3, 2.6 + Math.sin(i * 2) * 0.3, Math.sin(i) * 0.3], 0.25, 0.8);
     k.tick((dt) => { g.group.rotation.y += dt * 0.9; });
-    return { name: 'Disco ball', static: true, noCollide: true, float: true };
+    return { name: 'Disco ball', static: true, noCollide: true };
   },
   chandelier(k, a, r) {
     const n = 8, y = 2.6;
@@ -526,7 +529,7 @@ export const MISC = {
       for (let j = 0; j < 3; j++) k.ball('crystal', [x * (0.7 + j * 0.1), y - 0.12 - j * 0.05, z * (0.7 + j * 0.1)], 0.025, [1, 1.6, 1], 6);
     }
     k.light([0, y, 0], '#ffd8a0', 2.5, 10, false, true);
-    return { name: 'Chandelier', static: true, noCollide: true, float: true };
+    return { name: 'Chandelier', static: true, noCollide: true };
   },
   menorah(k, a, r) {
     k.lathe('gold', [0, 0, 0], [[0, 0], [0.15, 0], [0.12, 0.04], [0.03, 0.08], [0.025, 0.3], [0, 0.3]], 24);
@@ -726,7 +729,7 @@ export const MISC = {
     g.cone('p:#d8b860', [0.62, 0, 0], 0.12, 0.3, [0, 0, HALF], 16);
     g.torus('p:#8a2a1a', [0.48, 0, 0], 0.03, 0.008, [0, HALF, 0], TAU, 12);
     if (flying) k.tick((dt, t) => { g.group.position.y = 1.0 + Math.sin(t * 1.4) * 0.1; g.group.rotation.x = Math.sin(t * 0.9) * 0.08; });
-    return { name: flying ? 'Flying broom' : 'Broom', phys: flying ? null : { mass: 0.8 }, static: flying, float: flying, noCollide: flying, seats: flying ? [{ x: 0, y: 1.0, z: 0, yaw: -HALF }] : undefined };
+    return { name: flying ? 'Flying broom' : 'Broom', phys: flying ? null : { mass: 0.8 }, static: flying, noCollide: flying, seats: flying ? [{ x: 0, y: 1.0, z: 0, yaw: -HALF }] : undefined };
   },
   magicCarpet(k, a, r) {
     const col = k.color('#8a1a2a');
@@ -742,7 +745,7 @@ export const MISC = {
     }
     for (const s of [-1, 1]) for (let j = 0; j < 8; j++) parts[s > 0 ? n - 1 : 0].seg('gold', [s * (L / n / 2), 0, -W / 2 + (j + 0.5) * W / 8], [s * (L / n / 2 + 0.08), -0.02, -W / 2 + (j + 0.5) * W / 8], 0.006, 0.004, 4);
     k.tick((dt, t) => { parts.forEach((p, i) => { p.group.position.y = 0.9 + Math.sin(t * 2 + i * 0.6) * 0.04; p.group.rotation.z = Math.cos(t * 2 + i * 0.6) * 0.04; }); });
-    return { name: 'Magic carpet', static: true, float: true, noCollide: true, sparkle: true, seats: [{ x: 0, y: 0.93, z: 0, yaw: 0 }] };
+    return { name: 'Magic carpet', static: true, noCollide: true, sparkle: true, seats: [{ x: 0, y: 0.93, z: 0, yaw: 0 }] };
   },
   swordInStone(k, a, r) {
     const stone = rockMesh(0.7, r, G.materials.get('rock', {}), 0.3);
@@ -827,3 +830,190 @@ function rAt(profile, y) {
   }
   return 0;
 }
+
+// ================= More odds and ends =================
+Object.assign(MISC, {
+  sportsGear(k, a, r) {
+    const t = a.text || '';
+    if (/baseball|cricket|bat\b/.test(t)) {
+      k.lathe(/cricket/.test(t) ? 'lightWood' : 'w:#c8905a', [0, 0, 0], [[0, 0], [0.028, 0.002], [0.03, 0.01], [0.012, 0.02], [0.012, 0.3], [0.02, 0.45], [0.033, 0.7], [0.034, 0.84], [0, 0.85]], 16, [0, 0, HALF]);
+      return { name: /cricket/.test(t) ? 'Cricket bat' : 'Baseball bat', phys: { mass: 0.9 } };
+    }
+    if (/golf/.test(t)) {
+      k.seg('chrome', [0, 0.02, 0], [0.95, 0.02, 0], 0.006, 0.006, 8);
+      k.seg('rubber', [0.7, 0.02, 0], [0.98, 0.02, 0], 0.012, 0.012, 8);
+      k.rbox('chrome', [-0.03, 0.03, 0.02], [0.08, 0.04, 0.025], 0.008);
+      return { name: 'Golf club', phys: { mass: 0.4 } };
+    }
+    if (/hockey/.test(t)) {
+      k.seg('w:#1a1a1a', [0, 0.02, 0], [1.3, 0.02, 0], 0.014, 0.014, 6);
+      k.rbox('w:#1a1a1a', [-0.12, 0.02, 0.05], [0.3, 0.035, 0.02], 0.01, [0, 0.4, 0]);
+      return { name: 'Hockey stick', phys: { mass: 0.5 } };
+    }
+    // Tennis / badminton racket.
+    const R = /badminton/.test(t) ? 0.1 : 0.14;
+    k.torus('c:' + k.color('#1a4ad8'), [0, 0.012, 0.3], R, 0.01, [HALF, 0, 0], TAU, 32);
+    for (let i = -6; i <= 6; i++) { const w = Math.sqrt(Math.max(0, R * R - (i * R / 7) ** 2)); k.seg('white', [i * R / 7, 0.012, 0.3 - w], [i * R / 7, 0.012, 0.3 + w], 0.0012, 0.0012, 3); k.seg('white', [-w, 0.012, 0.3 + i * R / 7], [w, 0.012, 0.3 + i * R / 7], 0.0012, 0.0012, 3); }
+    k.seg('c:' + k.color('#1a4ad8'), [0, 0.012, 0.3 - R], [0, 0.012, 0.03], 0.01, 0.012, 8);
+    k.seg('rubber', [0, 0.012, 0.03], [0, 0.012, -0.13], 0.016, 0.016, 8);
+    return { name: /badminton/.test(t) ? 'Badminton racket' : 'Tennis racket', phys: { mass: 0.3 } };
+  },
+  yoyo(k, a, r) {
+    const c = k.color('#e8203a');
+    for (const s of [-1, 1]) k.cyl('g:' + c, [0, 0.03, s * 0.012], 0.03, 0.02, [HALF, 0, 0], { rTop: 0.025, segs: 24 });
+    k.cyl('chrome', [0, 0.03, 0], 0.006, 0.006, [HALF, 0, 0]);
+    k.seg('white', [0, 0.03, 0], [0.2, 0.004, 0.05], 0.001, 0.001, 3);
+    return { name: 'Yo-yo', phys: { mass: 0.05 } };
+  },
+  bbq(k, a, r) {
+    k.dome('m:#1a1a1a', [0, 0.75, 0], 0.3, [PI, 0, 0], { segs: 24 });
+    const lid = k.sub([0, 0.76, -0.3]);
+    lid.dome('m:#1a1a1a', [0, 0, 0.3], 0.3, [-1.2, 0, 0], { segs: 24 });
+    for (let i = 0; i < 3; i++) { const an = (i / 3) * TAU; k.seg('chrome', [Math.cos(an) * 0.22, 0.6, Math.sin(an) * 0.22], [Math.cos(an) * 0.3, 0, Math.sin(an) * 0.3], 0.012, 0.012, 6); }
+    k.torus('chrome', [0, 0.76, 0], 0.29, 0.006, [HALF, 0, 0], TAU, 32);
+    for (let i = 0; i < 4; i++) k.seg('p:#8a3a1a', [-0.15, 0.78, -0.12 + i * 0.08], [0.15, 0.78, -0.12 + i * 0.08], 0.018, 0.018, 8);
+    k.glow('#ff7a30', [0, 0.72, 0], 0.5, 0.4);
+    k.light([0, 0.9, 0], '#ff8a40', 0.8, 3, false, true);
+    return { name: 'Barbecue grill', static: true, interact: { label: () => 'Flip the sausages', action: (e) => sound(e, 'whoosh') } };
+  },
+  geyser(k, a, r) {
+    const mound = rockMesh(1.6, r, G.materials.get('rock', { color: '#a89a80' }), 0.2);
+    mound.scale.set(1.3, 0.35, 1.3);
+    k.add(mound);
+    k.disc('water', [0, 0.58, 0], 0.5, [-HALF, 0, 0]);
+    const jet = k.sub([0, 0.55, 0]);
+    jet.cyl('water', [0, 0.5, 0], 0.18, 1, null, { rTop: 0.32, segs: 16, open: true });
+    const steam = k.glow('#ffffff', [0, 2, 0], 3, 0.25);
+    let t0 = 0;
+    k.tick((dt) => {
+      t0 += dt;
+      const ph = t0 % 12, h = ph < 4 ? Math.sin((ph / 4) * PI) * 14 : 0.05;
+      jet.group.scale.set(1, Math.max(0.05, h), 1);
+      steam.position.y = 0.6 + h; steam.material.opacity = h > 0.2 ? 0.35 : 0.08;
+    });
+    return { name: 'Geyser', static: true, collideAuto: true };
+  },
+  iceberg(k, a, r) {
+    const glacier = /glacier/.test(a.text || '');
+    const mat = G.materials.get('ice', {});
+    for (let i = 0; i < (glacier ? 6 : 3); i++) {
+      const m = rockMesh(glacier ? r.range(4, 7) : r.range(2, 3.5), r, mat, 0.45);
+      m.scale.set(r.range(0.8, 1.3), glacier ? 0.6 : r.range(1.2, 1.8), r.range(0.8, 1.3));
+      m.position.set(glacier ? (i - 2.5) * 5 : r.range(-1.5, 1.5), 0.8, r.range(-1.5, 1.5));
+      k.add(m);
+    }
+    k.dome('snow', [0, 0.2, 0], glacier ? 14 : 4, null, { scl: [1, 0.1, 1] });
+    return { name: glacier ? 'Glacier' : 'Iceberg', static: true, collideAuto: true };
+  },
+  moai(k, a, r) {
+    const st = 'stone';
+    k.rbox(st, [0, 1.3, 0], [1.3, 2.6, 1.1], 0.2);
+    k.rbox(st, [0, 3.5, 0.05], [1.2, 2.0, 1.05], 0.25);
+    k.rbox(st, [0, 3.95, 0.6], [1.1, 0.25, 0.3], 0.1);
+    k.ext(st, [[-0.18, 0], [0.18, 0], [0.08, 1.1], [-0.08, 1.1]], 0.35, [0, 2.9, 0.62], null, 0.04);
+    k.rbox(st, [0, 2.75, 0.55], [0.6, 0.12, 0.1], 0.04);
+    for (const s of [-1, 1]) { k.rbox(st, [s * 0.66, 3.4, 0], [0.12, 1.1, 0.3], 0.05); k.box('p:#1a1a1a', [s * 0.3, 3.7, 0.58], [0.3, 0.1, 0.02]); }
+    k.cyl('rooftiles', [0, 4.65, -0.05], 0.45, 0.35, null, { segs: 16 });
+    return { name: 'Moai', static: true, collideAuto: true };
+  },
+  flytrap(k, a, r) {
+    const big = /man.?eating|giant|piranha/.test(a.text || '');
+    const S = big ? 6 : 1;
+    k.cyl('p:#6a4a3a', [0, 0.06 * S, 0], 0.09 * S, 0.12 * S, null, { rTop: 0.11 * S, segs: 16 });
+    const heads = [];
+    for (let i = 0; i < (big ? 1 : 3); i++) {
+      const an = (i / 3) * TAU, off = big ? 0 : 0.05;
+      const top = [Math.cos(an) * off * S, (0.3 + i * 0.05) * S, Math.sin(an) * off * S];
+      k.tube('p:#3a8a2a', [[0, 0.1 * S, 0], [top[0] * 0.5, top[1] * 0.6, top[2] * 0.5], top], 0.008 * S, 12, false, 6);
+      const hd = k.sub(top, [0, an, 0]);
+      const R = 0.06 * S;
+      for (const side of [1, -1]) {
+        // Hinged at the back edge; the tick opens the front like a clam.
+        const jaw = hd.sub([0, 0, -R]);
+        const flip = side > 0 ? null : [PI, 0, 0];
+        jaw.dome('p:#c8302a', [0, 0, R], R, flip, { scl: [1.1, 0.35, 1], segs: 16 });
+        jaw.dome('p:#5aa02a', [0, side * 0.002 * S, R], R * 1.04, flip, { scl: [1.1, 0.36, 1], segs: 16 });
+        for (let j = 0; j < 11; j++) { const aj = (j / 10) * PI * 1.4 - PI * 0.2; jaw.cone('p:#e8f0c0', [Math.cos(aj) * R * 1.1, side * 0.012 * S, R + Math.sin(aj) * R], 0.004 * S, 0.03 * S, flip, 5); }
+        heads.push([jaw, side]);
+      }
+    }
+    for (let i = 0; i < 4; i++) k.ext('p:#4a9a3a', [[0, 0], [0.04, 0.08], [0, 0.2], [-0.04, 0.08]], 0.004, [0, 0.11 * S, 0], [-1.1, (i / 4) * TAU + 0.4, 0], 0, [S, S, S]);
+    let snap = 0;
+    k.tick((dt, t) => { snap = Math.max(0, snap - dt * 2); const o = 0.35 + Math.sin(t * 1.2) * 0.1 - snap * 0.4; for (const [j, side] of heads) j.group.rotation.x = -side * o; });
+    return { name: big ? 'Man-eating plant' : 'Venus flytrap', static: big, phys: big ? null : { mass: 1.5 }, interact: { label: () => 'Poke it', action: (e) => { snap = 1; sound(e, 'pop'); } } };
+  },
+  anthill(k, a, r) {
+    k.cone('dirt', [0, 0.35, 0], 0.9, 0.7, null, 24);
+    k.cyl('p:#1a1208', [0, 0.69, 0], 0.05, 0.02, null, { segs: 10 });
+    const ants = k.sub([0, 0, 0]);
+    for (let i = 0; i < 30; i++) { const an = r.range(0, TAU), rr = r.range(0.2, 1.3), y = rr < 0.9 ? 0.7 * (1 - rr / 0.9) + 0.01 : 0.01; ants.ball('p:#141008', [Math.cos(an) * rr, y + 0.006, Math.sin(an) * rr], 0.006, [1.8, 0.8, 1], 5, [0, -an, 0]); }
+    k.tick((dt) => { ants.group.rotation.y += dt * 0.2; });
+    return { name: 'Anthill', static: true };
+  },
+  paperPlane(k, a) {
+    const boat = /boat|ship/.test(a.text || ''), crane = /crane|bird|origami/.test(a.text || '') && !boat;
+    const col = k.color('#f4f2ec');
+    if (boat) {
+      k.ext('p:' + col, [[-0.12, 0.06], [0.12, 0.06], [0.07, 0], [-0.07, 0]], 0.06, [0, 0, 0], null);
+      k.ext('p:' + col, [[-0.06, 0.06], [0.06, 0.06], [0, 0.16]], 0.002, [0, 0, 0], null);
+      return { name: 'Paper boat', phys: { mass: 0.02 } };
+    }
+    if (crane) {
+      k.ext('p:' + col, [[-0.02, 0], [0.02, 0], [0, 0.07]], 0.03, [0, 0.03, 0], null);
+      for (const s of [-1, 1]) k.ext('p:' + col, [[0, 0], [s * 0.12, 0.06], [0, 0.03]], 0.001, [0, 0.05, 0], [0.3, 0, 0]);
+      k.seg('p:' + col, [0, 0.04, 0.01], [0, 0.12, 0.08], 0.006, 0.002, 4);
+      k.seg('p:' + col, [0, 0.04, -0.01], [0, 0.1, -0.08], 0.006, 0.002, 4);
+      return { name: 'Paper crane', phys: { mass: 0.01 } };
+    }
+    for (const s of [-1, 1]) k.ext('p:' + col, [[0, 0.15], [s * 0.1, -0.1], [0, -0.1]], 0.001, [0, 0.03, 0], [-HALF, 0, s * -0.15]);
+    k.ext('p:' + col, [[0, 0.15], [0, -0.1], [0.0, -0.1]], 0.001, [0, 0.03, 0], [-HALF, 0, 0]);
+    k.ext('p:' + col, [[0, 0.15], [0.02, -0.1], [-0.02, -0.1]], 0.001, [0, 0.015, 0], [0, 0, 0]);
+    return { name: 'Paper airplane', phys: { mass: 0.01 } };
+  },
+  gymEquipment(k, a, r) {
+    const t = a.text || '';
+    const weights = (x, z, len = 0.35, R = 0.06) => { k.seg('chrome', [x - len / 2, 0.08, z], [x + len / 2, 0.08, z], 0.012, 0.012, 8); for (const s of [-1, 1]) k.cyl('black', [x + s * len * 0.38, 0.08, z], R, 0.05, [0, 0, HALF], { segs: 16 }); };
+    if (/dumbbell|weights/.test(t) && !/gym/.test(t)) { weights(0, 0); weights(0, 0.25); return { name: 'Dumbbells', phys: { mass: 10 } }; }
+    if (/treadmill/.test(t) && !/gym/.test(t)) {
+      k.rbox('black', [0, 0.12, 0], [0.8, 0.16, 1.8], 0.04); k.box('rubber', [0, 0.205, 0], [0.55, 0.01, 1.6]);
+      for (const s of [-1, 1]) k.seg('chrome', [s * 0.36, 0.2, 0.7], [s * 0.3, 1.25, 0.8], 0.02, 0.02, 8);
+      k.rbox('dark', [0, 1.3, 0.82], [0.7, 0.22, 0.1], 0.03); k.screen([0, 1.3, 0.875], 0.3, 0.14, null, (g, w, h, tt) => { g.fillStyle = '#0a1a10'; g.fillRect(0, 0, w, h); g.fillStyle = '#40ff80'; g.font = `${h * 0.5}px monospace`; g.fillText(`${(6 + Math.sin(tt) * 0.3).toFixed(1)} km/h`, 6, h * 0.65); }, { fps: 2 });
+      return { name: 'Treadmill', static: true };
+    }
+    // A small home gym.
+    k.box('rubber', [0, 0.01, 0], [5, 0.02, 4]);
+    k.rbox('leather', [-1.2, 0.45, -0.5], [0.3, 0.08, 1.2], 0.03); k.box('chrome', [-1.2, 0.2, -0.5], [0.08, 0.4, 0.9]);
+    for (const s of [-1, 1]) k.seg('chrome', [-1.2 + s * 0.4, 0, -1.0], [-1.2 + s * 0.4, 1.2, -1.0], 0.02, 0.02, 8);
+    k.seg('chrome', [-2.0, 1.1, -1.0], [-0.4, 1.1, -1.0], 0.014, 0.014, 8); for (const s of [-1, 1]) k.cyl('black', [-1.2 + s * 0.65, 1.1, -1.0], 0.2, 0.06, [0, 0, HALF], { segs: 20 });
+    k.box('m:#3a3a3a', [1.3, 0.35, -1.6], [1.2, 0.04, 0.35]); for (let i = 0; i < 5; i++) weights(0.8 + i * 0.25, -1.6, 0.25, 0.04 + i * 0.006);
+    k.rbox('black', [1.4, 0.12, 0.6], [0.8, 0.16, 1.8], 0.04); for (const s of [-1, 1]) k.seg('chrome', [1.4 + s * 0.36, 0.2, 1.3], [1.4 + s * 0.3, 1.25, 1.4], 0.02, 0.02, 8); k.rbox('dark', [1.4, 1.3, 1.42], [0.7, 0.22, 0.1], 0.03);
+    k.seg('chrome', [-1.8, 2.4, 1.2], [-1.8, 2.2, 1.2], 0.01, 0.01, 4); k.cyl('l:#c81a1a', [-1.8, 1.6, 1.2], 0.18, 1.0, null, { segs: 16 });
+    return { name: 'Home gym', static: true, noCollide: true };
+  },
+});
+
+// A sun (glowing sphere with a corona) and a Death Star, as variants of star / planet.
+const _star = MISC.star, _planet = MISC.planet;
+MISC.star = function (k, a, r, ...rest) {
+  if (!/\bsun\b/.test(a.text || '')) return _star(k, a, r, ...rest);
+  const g = k.sub([0, 2.2, 0]);
+  g.ball('e:#ffd24a', [0, 0, 0], 1.2, null, 32);
+  k.glow('#ffb030', [0, 2.2, 0], 6, 0.6);
+  for (let i = 0; i < 12; i++) { const an = (i / 12) * TAU; g.cone('e:#ffa020', [Math.cos(an) * 1.5, Math.sin(an) * 1.5, 0], 0.18, 0.5, [0, 0, an - HALF], 8); }
+  if (/sunglasses|glasses|cool/.test(a.text || '')) { for (const s of [-1, 1]) g.cyl('black', [s * 0.42, 0.25, 1.1], 0.3, 0.05, [HALF, 0, 0], { segs: 20 }); g.box('black', [0, 0.3, 1.13], [0.4, 0.06, 0.04]); g.torus('p:#8a3a0a', [0, -0.25, 1.05], 0.35, 0.05, [0, 0, PI], PI, 16); }
+  k.light([0, 2.2, 1.5], '#ffd080', 3, 14);
+  k.tick((dt) => { g.group.rotation.z += dt * 0.15; });
+  return { name: 'Sun', static: true, noCollide: true };
+};
+MISC.planet = function (k, a, r, ...rest) {
+  if (!/death star/.test(a.text || '')) return _planet(k, a, r, ...rest);
+  const R = 2.6;
+  const g = k.sub([0, R + 1.5, 0]);
+  const m = new THREE.Mesh(new THREE.SphereGeometry(R, 48, 32), new THREE.MeshStandardMaterial({ map: planetTexture('rocky', r, '#8a8c90'), roughness: 0.7, metalness: 0.4 }));
+  g.add(m);
+  g.torus('dark', [0, 0, 0], R * 1.0, 0.06, [HALF, 0, 0], TAU, 64);
+  g.dome('dark', [R * 0.45, R * 0.45, R * 0.72], R * 0.3, [-0.55, 0.6, 0], { segs: 20, scl: [1, 0.3, 1] });
+  g.ball('e:#40ff60', [R * 0.47, R * 0.47, R * 0.74], 0.08, null, 8);
+  k.tick((dt) => { g.group.rotation.y += dt * 0.05; });
+  return { name: 'Death Star', static: true, collideAuto: true };
+};

@@ -303,7 +303,7 @@ export const FOOD = {
   taco(k, a, r) {
     k.top.mats.shell = G.materials.get('plastic', { color: '#e0b050', side: THREE.DoubleSide });
     k.cyl('shell', [0, 0.062, 0], 0.06, 0.14, [0, 0, HALF], { arcStart: PI, arc: PI, open: true, segs: 20 });
-    k.ball('p:#6a3a1a', [0, 0.055, 0], 0.06, [1.1, 0.55, 0.62], 14, [0, 0, HALF]);
+    k.ball('p:#6a3a1a', [0, 0.05, 0], 0.06, [1.1, 0.5, 0.6], 14);
     for (let i = 0; i < 26; i++) {
       const x = r.range(-0.06, 0.06), z = r.range(-0.035, 0.035), c = r.pick(['p:#58b040', 'p:#58b040', 'p:#d83a2a', 'p:#f2c830', 'p:#f8f4e8']);
       k.box(c, [x, 0.088 + r.range(0, 0.012), z], [0.012, 0.006, 0.01], [r.range(0, 1), r.range(0, PI), 0]);

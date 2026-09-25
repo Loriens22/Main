@@ -357,11 +357,12 @@ function spout(root, L) {
 // ======================================================================
 function* buildSnake(ctx, item, rng) {
   const a = item.attrs;
-  const L = rng.range(1.6, 3.2) * clamp(a.sizeMul || 1, 0.2, 10);
-  const R = L * 0.022;
+  const small = !!item.params.small, giant = !!item.params.giant;
+  const L = (small ? rng.range(0.12, 0.2) : giant ? rng.range(18, 26) : rng.range(1.6, 3.2)) * clamp(a.sizeMul || 1, 0.2, 10);
+  const R = L * (small ? 0.06 : 0.022);
   ctx.stage('geometry', 'Growing scales');
   yield;
-  const col = userCol(a) || rng.pick(['#3a6a2a', '#8a6a2a', '#1a1a1a', '#c8a020', '#6a3a1a']);
+  const col = userCol(a) || item.params.color || rng.pick(['#3a6a2a', '#8a6a2a', '#1a1a1a', '#c8a020', '#6a3a1a']);
   const cv = document.createElement('canvas'); cv.width = 512; cv.height = 64;
   const g = cv.getContext('2d');
   g.fillStyle = col; g.fillRect(0, 0, 512, 64);
@@ -453,9 +454,9 @@ function* buildBlob(ctx, item, rng) {
     const mouth = mesh(new THREE.SphereGeometry(S * 0.06, 10, 8), G.materials.plain('#0a0a14', 0.3), false); mouth.scale.set(1, 1.5, 0.5); mouth.position.set(0, -S * 0.12, S * 0.47); body.add(mouth);
     body.position.y = S * 1.2;
   } else {
-    const col = userCol(a) || rng.pick(['#40e060', '#40a0ff', '#ff60b0', '#ffd040', '#b060ff']);
+    const col = userCol(a) || item.params.color || rng.pick(['#40e060', '#40a0ff', '#ff60b0', '#ffd040', '#b060ff']);
     const g = new THREE.SphereGeometry(S * 0.5, 40, 28);
-    const mat = new THREE.MeshPhysicalMaterial({ color: col, roughness: 0.05, transmission: 0.55, thickness: S * 0.6, ior: 1.33, clearcoat: 1, emissive: col, emissiveIntensity: 0.15 });
+    const mat = new THREE.MeshPhysicalMaterial({ color: col, roughness: 0.05, transmission: 0.55, thickness: S * 0.6, ior: 1.33, clearcoat: 1, emissive: col, emissiveIntensity: item.params.glow ? 1.4 : 0.15 });
     blob = mesh(g, mat);
     blob.userData.base = g.attributes.position.array.slice();
     body.add(blob);

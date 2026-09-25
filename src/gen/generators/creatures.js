@@ -280,10 +280,19 @@ function applyModifiers(t, a) {
   if (has(/long[\s-]*neck/)) t.neck[0] *= 1.8;
   if (has(/long[\s-]*tail/)) t.tail[1] *= 1.8;
   if (has(/\b(fluffy|furry|shaggy)\b/) && t.coat === 'fur') t.coat = 'curly';
-  if (has(/\b(robotic|mechanical|cyborg)\b/)) t.statue = 'chrome';
+  // Living materials: the creature stays alive, only its surface changes.
+  if (has(/\b(robotic|mechanical|cyborg|robot|android|mecha)\b/)) t.skinMat = 'chrome';
+  if (has(/\b(steampunk|clockwork|brass)\b/)) t.skinMat = 'copper';
+  if (has(/\b(skeleton|skeletal|bony|bone)\b/)) t.skinMat = 'bone';
+  if (has(/\bzombie|undead|rotting\b/)) { t.base = '#6a7a5a'; t.belly = '#8a9a6a'; t.pattern = null; t.eyeColor = '#e0e0a0'; }
+  if (has(/made (?:of|from|out of) (?:fire|flames?|lava|magma)|\b(?:fire|flame|lava|magma) (?:dragon|wolf|bird|horse|lion|snake|monster|creature|cat|dog)\b/)) { t.skinMat = 'lava'; t.fireBreath = t.fireBreath || 'fire'; t.glow = true; }
+  if (has(/made (?:of|from|out of) water|\bwater (?:dragon|horse|snake|creature)\b/)) t.skinMat = 'water';
+  if (has(/\b(shadow|dark matter|void)\b/)) t.skinMat = 'shadow';
   const mat = a.materials && a.materials[0];
-  if (has(/\b(statue|sculpture|figurine|carved|made of|made from|out of)\b/)) t.statue = mat || 'marble';
-  else if (mat && ['stone', 'marble', 'granite', 'bronze', 'concrete', 'rock', 'wood', 'planks', 'copper', 'blackMarble'].includes(mat)) t.statue = mat;
+  const stony = ['stone', 'marble', 'granite', 'bronze', 'concrete', 'rock', 'wood', 'planks', 'blackMarble', 'sand', 'brick', 'cobble'];
+  if (has(/\b(statue|sculpture|figurine|carved|carving)\b/)) t.statue = mat || 'marble';
+  else if (mat && stony.includes(mat)) t.statue = mat;
+  else if (mat && mat !== 'emissive') t.skinMat = mat;
   if (a.flags.transparent || has(/\b(ghost|ghostly|spectral)\b/)) t.ghost = true;
 }
 function centaurize(t, a, rng) {
@@ -971,6 +980,11 @@ export const creatureGen = {
       return d0;
     }
     if (t.ghost) { const gm = M.get('glass', { color: '#d8e8ff', opacity: 0.35 }); skinned.material = matOrder.map(() => gm); }
+    else if (t.skinMat) {
+      const sm = t.skinMat === 'bone' ? M.get('plaster', { color: '#e8dfc8', vertexColors: true }) : t.skinMat === 'water' ? M.get('glass', { color: '#3a8ad8', opacity: 0.55 })
+        : t.skinMat === 'shadow' ? M.get('glossyPlastic', { color: '#0c0a12', vertexColors: true }) : M.get(t.skinMat, { vertexColors: true });
+      skinned.material = matOrder.map(() => sm);
+    }
     const anim = new CreatureAnimator(t, lay, bones, eyes);
     const breath = (t.fireBreath || t.species === 'dragon') ? makeBreath(t, lay, bones, t.fireBreath === 'ice' ? 'ice' : 'fire') : null;
     // Personality & brain.

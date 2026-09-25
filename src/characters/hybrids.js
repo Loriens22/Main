@@ -153,8 +153,8 @@ function wingMesh(kind, span, color) {
 }
 
 function mergeGeos(list) {
-  let n = 0, m = 0;
-  for (const g of list) { n += g.attributes.position.count; m += g.index ? g.index.count : g.attributes.position.count; }
+  let n = 0;
+  for (const g of list) n += g.attributes.position.count;
   const pos = new Float32Array(n * 3), nor = new Float32Array(n * 3), idx = [];
   let o = 0;
   for (const g of list) {
@@ -164,7 +164,6 @@ function mergeGeos(list) {
     o += g.attributes.position.count;
     g.dispose();
   }
-  void m;
   const out = new THREE.BufferGeometry();
   out.setAttribute('position', new THREE.BufferAttribute(pos, 3));
   out.setAttribute('normal', new THREE.BufferAttribute(nor, 3));
