@@ -176,7 +176,45 @@ export class AudioEngine {
       case 'chirp': this._bird(out); break;
       case 'robot': for (let i = 0; i < 4; i++) this._tone(out, { freq: 300 + Math.random() * 900, dur: 0.07, type: 'square', gain: 0.04, when: i * 0.08 }); break;
       case 'honk': this._tone(out, { freq: 400, dur: 0.35, type: 'square', gain: 0.08 }); this._tone(out, { freq: 500, dur: 0.35, type: 'square', gain: 0.06 }); break;
+      // Instruments: opts.freq (Hz) and opts.timbre.
+      case 'note': this._note(out, opts.freq || 440, opts.timbre || 'piano', opts.when || 0); break;
+      case 'chord': for (const [i, f] of (opts.freqs || [262, 330, 392]).entries()) this._note(out, f, opts.timbre || 'piano', (opts.when || 0) + i * (opts.strum || 0)); break;
+      case 'beep': this._tone(out, { freq: opts.freq || 880, dur: 0.09, type: 'square', gain: 0.04 }); break;
+      case 'ding': this._tone(out, { freq: 1320, dur: 0.9, gain: 0.08 }); this._tone(out, { freq: 2640, dur: 0.5, gain: 0.03 }); break;
+      case 'bell': for (const [f, g] of [[opts.freq || 330, 0.12], [(opts.freq || 330) * 2.76, 0.05], [(opts.freq || 330) * 5.4, 0.025]]) this._tone(out, { freq: f, dur: 2.8, gain: g, attack: 0.004 }); break;
+      case 'gong': this._tone(out, { freq: 110, freqEnd: 96, dur: 4, gain: 0.16, attack: 0.02 }); this._noiseBurst(out, { freq: 600, q: 2, dur: 2.5, gain: 0.06 }); break;
+      case 'zap': this._tone(out, { freq: 1800, freqEnd: 120, dur: 0.35, type: 'sawtooth', gain: 0.07 }); this._noiseBurst(out, { freq: 3000, q: 1, dur: 0.2, gain: 0.08 }); break;
+      case 'bubble': for (let i = 0; i < 5; i++) this._tone(out, { freq: 300 + Math.random() * 500, freqEnd: 900 + Math.random() * 600, dur: 0.08, gain: 0.05, when: i * 0.09 + Math.random() * 0.05 }); break;
+      case 'magic': for (let i = 0; i < 7; i++) this._tone(out, { freq: 880 * Math.pow(1.122, i), dur: 0.5, gain: 0.04, when: i * 0.06 }); this._noiseBurst(out, { freq: 6000, q: 2, dur: 0.8, gain: 0.03, attack: 0.2 }); break;
+      case 'whirr': this._tone(out, { freq: 90, freqEnd: 240, dur: 1.2, type: 'sawtooth', gain: 0.05, attack: 0.3 }); this._noiseBurst(out, { freq: 700, q: 3, dur: 1.2, gain: 0.05, attack: 0.3 }); break;
+      case 'creak': this._tone(out, { freq: 180, freqEnd: 120, dur: 0.6, type: 'sawtooth', gain: 0.04 }); break;
+      case 'pop': this._tone(out, { freq: 700, freqEnd: 180, dur: 0.12, gain: 0.12 }); break;
+      case 'whoosh': this._noiseBurst(out, { freq: 400, freqEnd: 1800, q: 1.2, dur: 0.9, gain: 0.25, attack: 0.25 }); break;
+      case 'squeak': this._tone(out, { freq: 1200, freqEnd: 1800, dur: 0.18, type: 'triangle', gain: 0.07 }); break;
       default: this._tone(out, { freq: 600, dur: 0.1, gain: 0.05 });
+    }
+  }
+
+  // One instrument note: a few oscillators shaped to suggest the timbre.
+  _note(out, f, timbre, when = 0) {
+    switch (timbre) {
+      case 'pluck': this._tone(out, { freq: f, dur: 1.2, type: 'triangle', gain: 0.12, attack: 0.002, when }); this._tone(out, { freq: f * 2, dur: 0.4, gain: 0.04, attack: 0.002, when }); break;
+      case 'brass': this._tone(out, { freq: f, dur: 0.7, type: 'sawtooth', gain: 0.06, attack: 0.04, when }); this._tone(out, { freq: f * 1.005, dur: 0.7, type: 'square', gain: 0.025, attack: 0.05, when }); break;
+      case 'reed': this._tone(out, { freq: f, dur: 0.8, type: 'square', gain: 0.045, attack: 0.03, when }); this._tone(out, { freq: f * 2, dur: 0.6, type: 'triangle', gain: 0.03, attack: 0.03, when }); break;
+      case 'string': this._tone(out, { freq: f, dur: 1.4, type: 'sawtooth', gain: 0.05, attack: 0.12, when }); this._tone(out, { freq: f * 1.004, dur: 1.4, type: 'sawtooth', gain: 0.03, attack: 0.15, when }); break;
+      case 'flute': this._tone(out, { freq: f, dur: 0.9, gain: 0.1, attack: 0.06, when }); this._noiseBurst(out, { freq: f * 2, q: 6, dur: 0.5, gain: 0.02, attack: 0.05, when }); break;
+      case 'bell': this._tone(out, { freq: f, dur: 1.8, gain: 0.08, attack: 0.002, when }); this._tone(out, { freq: f * 2.76, dur: 0.8, gain: 0.03, attack: 0.002, when }); break;
+      case 'mallet': this._tone(out, { freq: f, dur: 0.6, gain: 0.12, attack: 0.002, when }); this._tone(out, { freq: f * 4, dur: 0.15, gain: 0.03, attack: 0.002, when }); break;
+      case 'synth': this._tone(out, { freq: f, dur: 0.8, type: 'sawtooth', gain: 0.05, attack: 0.01, when }); this._tone(out, { freq: f / 2, dur: 0.8, type: 'square', gain: 0.03, attack: 0.01, when }); break;
+      case 'kick': this._tone(out, { freq: 150, freqEnd: 45, dur: 0.35, gain: 0.35, attack: 0.002, when }); break;
+      case 'snare': this._noiseBurst(out, { freq: 1800, q: 0.7, dur: 0.2, gain: 0.25, when }); this._tone(out, { freq: 220, freqEnd: 160, dur: 0.1, gain: 0.08, when }); break;
+      case 'hat': this._noiseBurst(out, { freq: 8000, q: 1.5, dur: 0.06, gain: 0.12, type: 'highpass', when }); break;
+      case 'cymbal': this._noiseBurst(out, { freq: 6000, q: 0.8, dur: 1.4, gain: 0.12, type: 'highpass', when }); break;
+      case 'tom': this._tone(out, { freq: f || 120, freqEnd: (f || 120) * 0.7, dur: 0.4, gain: 0.25, attack: 0.002, when }); break;
+      default: // piano
+        this._tone(out, { freq: f, dur: 1.6, type: 'triangle', gain: 0.1, attack: 0.003, when });
+        this._tone(out, { freq: f * 2, dur: 0.7, gain: 0.035, attack: 0.003, when });
+        this._tone(out, { freq: f * 3.01, dur: 0.3, gain: 0.015, attack: 0.003, when });
     }
   }
 

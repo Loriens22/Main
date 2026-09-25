@@ -22,17 +22,22 @@ import {
   PERSONALITY_WORDS, ETHNICITY_WORDS, BUILDING_FEATURES, NUMBER_WORDS,
 } from './lexicon.js';
 import { MATERIAL_WORDS } from '../render/materials.js';
+import { CONCEPTS2 } from './lexicon2.js';
+import { interpretUnknown } from './interpret.js';
 
 // ---------------- Indexes ----------------
+// Overrides from the extended vocabulary win over older, coarser mappings.
+export const ALL_CONCEPTS = [...CONCEPTS2.filter((c) => c.o), ...CONCEPTS, ...CONCEPTS2.filter((c) => !c.o)];
 const PHRASE_TO_CONCEPT = new Map();
 let MAX_PHRASE = 1;
-for (const c of CONCEPTS) {
+for (const c of ALL_CONCEPTS) {
   for (const w of c.words) {
     if (!PHRASE_TO_CONCEPT.has(w)) PHRASE_TO_CONCEPT.set(w, c);
     MAX_PHRASE = Math.max(MAX_PHRASE, w.split(' ').length);
   }
 }
-const CONCEPT_BY_ID = new Map(CONCEPTS.map((c) => [c.id, c]));
+const CONCEPT_BY_ID = new Map();
+for (const c of ALL_CONCEPTS) if (!CONCEPT_BY_ID.has(c.id)) CONCEPT_BY_ID.set(c.id, c);
 export function conceptById(id) { return CONCEPT_BY_ID.get(id); }
 
 const COLOR_PHRASES = Object.keys(COLORS).sort((a, b) => b.split(' ').length - a.split(' ').length);
@@ -68,16 +73,57 @@ function trigramSim(a, b) {
   return dot / Math.sqrt(na * nb || 1);
 }
 const SINGLE_WORDS = [...PHRASE_TO_CONCEPT.keys()].filter((w) => !w.includes(' ') && w.length >= 3);
+// Optimal-string-alignment (Damerau-Levenshtein) distance with an early cut-off.
+// Typing-error model: swapping neighbouring keys or mixing up vowels is a
+// plausible slip (cost 1); any other substitution counts double, so real
+// but unknown words ("hand", "golf", "brain") are not "corrected" into
+// look-alikes ("wand", "wolf", "train"). Short words also get no
+// insertions/deletions ("atom" is not a misspelt "atm").
+const KEY_ROWS = ['qwertyuiop', 'asdfghjkl', 'zxcvbnm'];
+const KEY_POS = {};
+KEY_ROWS.forEach((row, y) => [...row].forEach((ch, x) => { KEY_POS[ch] = [x + y * 0.5, y]; }));
+const VOWELS = new Set('aeiouy');
+function subCost(x, y) {
+  if (x === y) return 0;
+  if (VOWELS.has(x) && VOWELS.has(y)) return 1;
+  const p = KEY_POS[x], q = KEY_POS[y];
+  return p && q && Math.abs(p[0] - q[0]) <= 1 && Math.abs(p[1] - q[1]) <= 1 ? 1 : 2;
+}
+function editDistance(a, b, max) {
+  if (Math.abs(a.length - b.length) > max) return max + 1;
+  const n = a.length, m = b.length;
+  const indel = n <= 4 ? max + 1 : 1;
+  let prev2 = null, prev = Array.from({ length: m + 1 }, (_, j) => j * indel);
+  for (let i = 1; i <= n; i++) {
+    const cur = [i * indel];
+    let rowMin = cur[0];
+    for (let j = 1; j <= m; j++) {
+      const cost = subCost(a[i - 1], b[j - 1]);
+      let v = Math.min(prev[j] + indel, cur[j - 1] + indel, prev[j - 1] + cost);
+      if (prev2 && i > 1 && j > 1 && a[i - 1] === b[j - 2] && a[i - 2] === b[j - 1]) v = Math.min(v, prev2[j - 2] + 1);
+      cur.push(v);
+      if (v < rowMin) rowMin = v;
+    }
+    if (rowMin > max) return max + 1;
+    prev2 = prev; prev = cur;
+  }
+  return prev[m];
+}
+// Typo tolerance scales with word length: 1 edit up to 6 letters, 2 up to 10, 3 beyond.
 export function fuzzyConcept(word) {
   if (word.length < 4) return null;
-  let best = null, bestS = 0;
+  const max = word.length <= 6 ? 1 : word.length <= 10 ? 2 : 3;
+  let best = null, bestD = max + 1, bestS = 0;
   for (const w of SINGLE_WORDS) {
-    if (Math.abs(w.length - word.length) > 3) continue;
+    if (Math.abs(w.length - word.length) > max) continue;
+    const d = editDistance(word, w, max);
+    if (d > max) continue;
     const s = trigramSim(word, w);
-    if (s > bestS) { bestS = s; best = w; }
+    if (d < bestD || (d === bestD && s > bestS)) { bestD = d; bestS = s; best = w; }
   }
-  return bestS >= 0.62 ? { concept: PHRASE_TO_CONCEPT.get(best), word: best, score: bestS } : null;
+  return best ? { concept: PHRASE_TO_CONCEPT.get(best), word: best, score: 1 - bestD / word.length } : null;
 }
+export function lookupPhrase(ph) { return PHRASE_TO_CONCEPT.get(ph) || PHRASE_TO_CONCEPT.get(singular(ph)) || null; }
 
 const WORD_NUMS = { one: 1, two: 2, three: 3, four: 4, five: 5, six: 6, seven: 7, eight: 8, nine: 9, ten: 10, eleven: 11, twelve: 12, thirteen: 13, fourteen: 14, fifteen: 15, twenty: 20, thirty: 30, forty: 40, fifty: 50, sixty: 60, seventy: 70, eighty: 80, ninety: 90, hundred: 100 };
 
@@ -307,17 +353,21 @@ function splitClauses(s) {
     const sub = t.split(/\s+and\s+(?=(?:a|an|some|two|three|four|five|six|seven|eight|nine|ten|\d+|several|many|few|the)\s)/);
     for (const x of sub) parts.push(x);
   }
-  // Re-merge clauses that are only features of the previous one (e.g. "and a garden").
+  // Re-merge clauses that are only features of the previous one (e.g. "and a garden",
+  // or body parts of a character: "a man with wings and a halo").
   const merged = [];
   for (const p of parts) {
     const head = findHead(p);
     const prev = merged[merged.length - 1];
-    if (prev && (!head || isFeatureOf(head.concept, prev.headConcept) || (head && head.concept.cat === 'clothing'))) {
+    const bodyPart = prev && prev.headConcept && ['human', 'creature', 'robot', 'bird', 'fish', 'snake'].includes(prev.headConcept.gen) && BODY_PARTS.test(p);
+    if (prev && (!head || bodyPart || isFeatureOf(head.concept, prev.headConcept) || (head && head.concept.cat === 'clothing'))) {
       prev.text += ' and ' + p;
     } else merged.push({ text: p, headConcept: head ? head.concept : null });
   }
   return merged.map((m) => m.text);
 }
+
+const BODY_PARTS = /^(?:(?:a|an|the|some|two|three|four|big|small|long|huge|little|glowing|golden|red|black|white|curved|sharp|pointy|fluffy|feathered|bat|spiked|devil|fish|scaly|\d+)\s+)*(?:halo|tails?|horns?|wings?|fangs|claws|mane|beard|moustache|mustache|antlers|trunk|fins?|scales|fur|tentacles?|hooves|paws|tusks|spikes|eyes?|heads?|legs?|arms?)\b/;
 
 function isFeatureOf(concept, parentConcept) {
   if (!parentConcept) return false;
@@ -326,9 +376,14 @@ function isFeatureOf(concept, parentConcept) {
   return false;
 }
 
+// Where the main noun phrase ends: relative clauses, participles ("breathing
+// fire", "riding a horse"), comparisons ("the size of a house") and so on.
+const HEAD_BOUNDARY = /\s(?:with|wearing|dressed|who|that|which|named|called|holding|carrying|made of|made from|made out of|out of|having|in a|in an|in the|on a|to a|to an|to the|leading to|going to|full of|filled with|covered in|covered with|shaped like|shaped as|in the shape of|looking like|that looks like|like a|like an|the size of|as big as|as large as|as tall as|as small as|as tiny as|bigger than|larger than|taller than|smaller than|for a|for the|from a|from the|breathing|eating|riding|sitting|standing|playing|flying|swimming|running|jumping|sleeping|reading|singing|dancing|juggling|drinking|chasing|guarding|hugging|pulling|pushing|carrying|spitting|shooting|throwing|walking|surrounded by|on top of|next to|near)\s/;
+// Reference sizes (m) for "the size of a X" / "as big as a X".
+const REF_SIZES = { house: 8, home: 8, building: 12, skyscraper: 120, castle: 25, tower: 30, church: 20, cathedral: 40, stadium: 40, mountain: 250, hill: 40, volcano: 200, tree: 10, forest: 20, car: 1.5, truck: 3.5, bus: 3.2, train: 4, plane: 12, airplane: 12, ship: 20, boat: 3, horse: 1.7, elephant: 3.2, giraffe: 5, whale: 6, dinosaur: 6, 't-rex': 5, dragon: 6, person: 1.8, man: 1.8, human: 1.8, woman: 1.7, child: 1.2, kid: 1.2, baby: 0.6, dog: 0.6, cat: 0.3, mouse: 0.05, rat: 0.08, ant: 0.005, bug: 0.01, fly: 0.008, bee: 0.015, table: 0.75, chair: 0.9, bed: 0.6, fridge: 1.8, door: 2.1, apple: 0.08, orange: 0.08, coin: 0.02, ball: 0.22, football: 0.22, basketball: 0.24, marble: 0.015, pea: 0.008, grape: 0.02, cup: 0.1, fist: 0.1, hand: 0.19, thumb: 0.06, phone: 0.15, book: 0.25, planet: 2000, moon: 800, sun: 3000, city: 300, lake: 60, pond: 8, pyramid: 140 };
 // Find the head concept in a clause (returns {concept, start, end, phrase}).
 function findHead(s) {
-  const boundary = s.search(/\s(?:with|wearing|dressed|who|that|which|named|called|holding|carrying|made of|made from|having|in a|in an|in the|on a|to a|to an|to the|leading to|going to|full of|filled with|covered in|covered with|shaped like)\s/);
+  const boundary = s.search(HEAD_BOUNDARY);
   const main = boundary > 0 ? s.slice(0, boundary) : s;
   const inMain = scanConcepts(main);
   if (inMain.length) return inMain[inMain.length - 1];
@@ -364,7 +419,7 @@ function scanConcepts(s) {
 }
 
 function parseCount(s) {
-  const m = s.match(/^(\d+(?![\d.])(?!\s*(?:m|cm|mm|ft|feet|foot|meters?|metres?|km|inch|inches|in|story|storey|stories|storeys|floor|floors|level|levels|years?|yrs?|yo|x)\b)|a dozen|dozens of|a few|a couple of|a couple|a pair of|a pair|a group of|a herd of|a flock of|a pack of|a family of|a crowd of|a school of|a swarm of|a bunch of|a lot of|lots of|several|some|many|few|two|three|four|five|six|seven|eight|nine|ten|eleven|twelve|twenty)\b\s*/);
+  const m = s.match(/^(\d+(?![\d.])(?!\s*(?:m|cm|mm|ft|feet|foot|meters?|metres?|km|inch|inches|in|story|storey|stories|storeys|floor|floors|level|levels|years?|yrs?|yo|x|headed|legged|eyed|armed|winged|tailed|horned|wheeled|sided|tiered|stage|part)\b)|a dozen|dozens of|a few|a couple of|a couple|a pair of|a pair|a group of|a herd of|a flock of|a pack of|a family of|a crowd of|a school of|a swarm of|a bunch of|a lot of|lots of|several|some|many|few|two|three|four|five|six|seven|eight|nine|ten|eleven|twelve|twenty)\b\s*/);
   if (!m) return { count: 1, rest: s };
   const w = m[1];
   let n;
@@ -400,6 +455,30 @@ export function parseEntity(clause) {
   if (said) attrs.label = said[1].trim();
   // Portal destination.
   const dest = s.match(/\b(?:to|into|leading to|that leads to|opening to|towards|going to)\s+(?:(?:a|an|the)\s+)?(.+)$/);
+  // "a statue of a lion", "a model of the eiffel tower": the thing depicted is the subject.
+  const ofM = s.match(/\b(statue|sculpture|figurine|carving|bust|monument|replica|model|toy|miniature)s?\s+of\s+(?:a|an|the)\s+/);
+  if (ofM && findHead(s.slice(ofM.index + ofM[0].length))) {
+    s = (s.slice(0, ofM.index) + ' ' + s.slice(ofM.index + ofM[0].length)).replace(/\s+/g, ' ').trim();
+    if (/statue|sculpture|figurine|carving|bust|monument/.test(ofM[1])) attrs.flags.statue = ofM[1];
+    else attrs.flags.toy = true;
+  }
+  // "the size of a house", "as big as a car", "bigger than a bus": explicit scale.
+  const refM = s.match(/\b(the size of|size of|as big as|as large as|as tall as|as small as|as tiny as|bigger than|larger than|taller than|smaller than|tinier than)\s+(?:a|an|the)?\s*([a-z-]+)(?:\s+([a-z-]+))?/);
+  if (refM) {
+    const cand = [refM[3], refM[2]].filter(Boolean);
+    let size = null;
+    for (const c of cand) { size = REF_SIZES[c] || REF_SIZES[singular(c)] || null; if (size) break; const lc = lookupPhrase(c); if (lc) { size = Math.max(0.2, (lc.r || 1) * 1.6); break; } }
+    if (size) {
+      const k = /bigger|larger|taller/.test(refM[1]) ? 1.6 : /smaller|tinier/.test(refM[1]) ? 0.5 : 1;
+      attrs.dims.height = attrs.dims.height || size * k;
+      attrs.sizeRef = cand[cand.length - 1];
+    }
+    s = s.replace(refM[0], ' ').replace(/\s+/g, ' ').trim();
+  }
+  const headsM = s.match(/\b(\d+|two|three|four|five|six|seven|eight|nine)[\s-]*(?:headed|heads)\b/); if (headsM) attrs.heads = /\d/.test(headsM[1]) ? Number(headsM[1]) : NUMBER_WORDS[headsM[1]];
+  const legsM = s.match(/(\d+)\s*legged/); if (legsM) attrs.legs = Number(legsM[1]);
+  const eyesM = s.match(/(\d+)\s*eyed/); if (eyesM) attrs.eyes = Number(eyesM[1]);
+  if (/\b(winged|with wings)\b/.test(s)) attrs.flags.wings = true;
   let head = findHead(s);
   if (head && head.concept.gen === 'portal' && dest) { attrs.destination = dest[1].trim(); }
   // Explicit dimensions.
@@ -569,7 +648,18 @@ export function parseEntity(clause) {
       if (!head || h.concept === head.concept) continue;
       if (isFeatureOf(h.concept, head.concept)) continue;
       if (head.concept.gen === 'building' && BUILDING_FEATURES.includes(h.phrase)) continue;
+      // "with a fish tail", "with bat wings", "with a lion's mane": body parts, not companions.
+      if (new RegExp(`\\b${h.phrase}(?:'s)?[\\s-]+(?:tails?|heads?|wings?|horns?|scales|fins?|ears?|eyes?|legs?|feet|paws|claws|fur|skin|mane|body|face|teeth|fangs|tusks|antlers|hooves)\\b`).test(tail)) continue;
       if (['character', 'animal', 'vehicle', 'robot', 'creature'].includes(h.concept.cat)) attrs.companions.push(h.concept.id);
+    }
+  }
+  // "a knight riding a horse", "a girl walking a dog": the other creature comes along.
+  const partM = s.match(/\b(riding|chasing|walking|hugging|pulling|guarding|feeding|petting|fighting|playing with|followed by|accompanied by)\s+(.+)$/);
+  if (partM) {
+    head = head || findHead(s);
+    for (const h of scanConcepts(partM[2])) {
+      if (!head || h.concept === head.concept || isFeatureOf(h.concept, head.concept)) continue;
+      if (['character', 'animal', 'vehicle', 'robot', 'creature'].includes(h.concept.cat) && !attrs.companions.includes(h.concept.id)) attrs.companions.push(h.concept.id);
     }
   }
   if (/\b(big|large|huge|floor[- ]to[- ]ceiling|panoramic|glass) windows\b/.test(s)) attrs.flags.bigWindows = true;
@@ -579,16 +669,41 @@ export function parseEntity(clause) {
   let concept = head ? head.concept : null;
   let fuzzy = null;
   if (!concept) {
-    const candidates = words.filter((w) => !STOP.has(w) && !COLORS[w] && !SIZE_WORDS[w] && !STYLE_WORDS[w] && !/^\d/.test(w));
-    for (let k = candidates.length - 1; k >= 0 && !concept; k--) {
-      const f = fuzzyConcept(candidates[k]) || fuzzyConcept(singular(candidates[k]));
-      if (f) { concept = f.concept; fuzzy = { from: candidates[k], to: f.word }; }
+    const isCand = (w) => !STOP.has(w) && !COLORS[w] && !SIZE_WORDS[w] && !STYLE_WORDS[w] && !MATERIAL_WORDS[w] && !AGE_WORDS[w] && !PERSONALITY_WORDS[w] && !/^\d/.test(w) && !/(ing|ly)$/.test(w);
+    const bnd = (' ' + s + ' ').search(HEAD_BOUNDARY);
+    const mainWords = (bnd > 0 ? (' ' + s).slice(0, bnd) : s).trim().split(' ').filter(Boolean);
+    const mainCands = mainWords.filter(isCand), allCands = words.filter(isCand);
+    for (const list of [mainCands, allCands]) {
+      for (let k = list.length - 1; k >= 0 && !concept; k--) {
+        const f = fuzzyConcept(list[k]) || fuzzyConcept(singular(list[k]));
+        if (f) { concept = f.concept; fuzzy = { from: list[k], to: f.word }; }
+      }
+      if (concept) break;
     }
     if (!concept) {
-      concept = CONCEPTS.find((c) => c.id === 'sculpture');
-      attrs.unknownNoun = candidates[candidates.length - 1] || words[words.length - 1] || 'thing';
+      // Never refuse: interpret the unknown word (compounds, context, morphology, invention).
+      const noun = mainCands[mainCands.length - 1] || allCands[allCands.length - 1] || words.filter((w) => !STOP.has(w)).pop() || 'thing';
+      const res = interpretUnknown(noun, { lookup: lookupPhrase, materials: MATERIAL_WORDS, colors: COLORS, words, text: attrs.text });
+      concept = res.concept;
+      attrs.unknownNoun = noun;
+      attrs.interpretation = res.reason;
+      const pa = res.attrsPatch;
+      if (pa) {
+        if (pa.material) attrs.materials.unshift(pa.material);
+        if (pa.color && !attrs.primaryColor) attrs.primaryColor = pa.color;
+        if (pa.sizeMul) attrs.sizeMul *= pa.sizeMul;
+        if (pa.textAppend) attrs.text += pa.textAppend;
+      }
     }
   }
+  // Archetype objects take their modifiers as a name ("a zorblax machine" -> "Zorblax machine").
+  const params = { ...(concept.p || {}) };
+  if (head && params.arche && !params.displayName) {
+    const pre = words.slice(Math.max(0, head.start - 2), head.start).filter((w) => !STOP.has(w) && !COLORS[w] && !SIZE_WORDS[w] && !STYLE_WORDS[w] && !MATERIAL_WORDS[w] && !AGE_WORDS[w] && !PERSONALITY_WORDS[w] && !/^\d/.test(w) && !/^(glowing|floating|flying|spinning|shiny|old|new|big|small)$/.test(w));
+    if (pre.length) { const nm = [...pre, head.phrase].join(' '); params.displayName = nm.charAt(0).toUpperCase() + nm.slice(1); }
+  }
+  // "a toy dragon", "a miniature castle": tabletop scale.
+  if (head && ['toy', 'miniature', 'model'].includes(words[head.start - 1]) && !/toy|model|miniature/.test(head.phrase) && ['vehicle', 'animal', 'creature', 'building', 'robot', 'landmark', 'structure'].includes(concept.cat)) { attrs.sizeMul *= 0.08; attrs.flags.toy = true; }
   // Plural head implies count > 1 ("trees", "cats") when no count given.
   if (count === 1 && head && /s$/.test(head.phrase) && !/ss$/.test(head.phrase) && singular(head.phrase) !== head.phrase && !head.concept.words.includes(head.phrase.replace(/s$/, 's'))) {
     if (!['glasses', 'stairs', 'ruins', 'pants', 'jeans', 'dunes', 'hills', 'mountains', 'fireworks', 'letters', 'books', 'woods', 'stars', 'clouds', 'crystals', 'flowers', 'mushrooms', 'rocks', 'bushes', 'ferns', 'reeds', 'balloons', 'candles', 'logs', 'coins', 'sparkles', 'fireflies', 'butterflies', 'people', 'men', 'women', 'children', 'kids', 'sheep', 'deer', 'fish', 'moose', 'mice', 'geese', 'trees'].includes(head.phrase) || ['trees', 'people', 'men', 'women', 'children', 'kids', 'sheep', 'deer', 'fish', 'mice'].includes(head.phrase)) count = Math.max(count, head.phrase === 'trees' ? 5 : 3);
@@ -596,7 +711,7 @@ export function parseEntity(clause) {
   if (attrs.flags.float && !placement) attrs.placementFloat = true;
   return {
     concept: concept.id, gen: concept.gen, cat: concept.cat, icon: concept.icon, radius: concept.r || 1,
-    params: { ...(concept.p || {}) }, attrs, count, placement, fuzzy, clause: clause.trim(),
+    params, attrs, count, placement, fuzzy, clause: clause.trim(), headPhrase: head ? head.phrase : (attrs.unknownNoun || null),
   };
 }
 
@@ -605,8 +720,14 @@ function hairColorName(w) {
   return map[w] || w;
 }
 
+// "a man with the head of a wolf" / "a woman with a cat's head" -> "a wolf-headed man".
+function rewriteAnimalHeads(s) {
+  s = s.replace(/\b(cotton candy|bubble gum)\s+(?=[a-z])/g, (m, w) => w.replace(' ', '') + ' ');
+  return s.replace(/\b(an?|the)?\s*([a-z][a-z ]*?)\s+with\s+(?:the|a|an)\s+(?:head of (?:an? |the )?([a-z]+)|([a-z]+)(?:'s)? head)\b/g, (m, art, who, a1, a2) => `${art ? art + ' ' : ''}${a1 || a2}-headed ${who}`.replace(/^an ([^aeiou])/, 'a $1').replace(/^a ([aeiou])/, 'an $1'));
+}
+
 export function parseCreation(body) {
-  const clauses = splitClauses(body);
+  const clauses = splitClauses(rewriteAnimalHeads(body));
   const items = [];
   for (const c of clauses) {
     if (!c.trim()) continue;

@@ -226,7 +226,7 @@ export class Registry {
         const d = e.root.position.distanceTo(camPos);
         e._updAcc = (e._updAcc || 0) + dt;
         // Far entities update at a lower rate.
-        const interval = d < 40 ? 0 : d < 120 ? 0.1 : 0.4;
+        const interval = e.alwaysUpdate || d < 40 ? 0 : d < 120 ? 0.1 : 0.4;
         if (e._updAcc >= interval) { e.update(e._updAcc, G.time, d); e._updAcc = 0; }
       }
       if (e.lod) {

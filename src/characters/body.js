@@ -102,13 +102,40 @@ export function buildBodySDF(sdf, P, J, spec, noise) {
   const hipY = J.thighL.y;
 
   // ---- Skin body ----
+  const LEG = /^(thigh|knee|shin|calf|foot|ankle|toes)[LR]$/;
   let first = true;
   for (const p of parts) {
     // The neck comes from the finer head mesh (it plunges into the torso), so the
     // body skips it; this avoids coarse/fine surfaces fighting at the collar.
     if (p.name === 'neck') continue;
+    if (spec.mermaid && LEG.test(p.name)) continue;
     emit(sdf, p, 0, { mat: 'skin', op: first ? 'union' : 'smooth' });
     first = false;
+  }
+
+  // ---- Mermaid tail ----
+  // Scaled tail from the hips to the ground, curling forward into a fluke;
+  // bound to the hips so it sways with the body.
+  if (spec.mermaid) {
+    mats.add('tail');
+    const H = P.H, f = P.fat;
+    const w = 1 + 0.25 * f + 0.1 * P.female;
+    const pts = [
+      [0, hipY + 0.035 * H, -0.006 * H, 0.15 * s * w],
+      [0, hipY - 0.1 * H, 0.004 * H, 0.14 * s * w],
+      [0, hipY - 0.24 * H, 0, 0.1 * s * w],
+      [0, 0.15 * H, -0.02 * H, 0.066 * s],
+      [0, 0.05 * H, 0.03 * H, 0.042 * s],
+      [0, 0.03 * H, 0.14 * H, 0.03 * s],
+    ];
+    const scaleDisp = (x, y, z) => 0.0025 * s * Math.sin(y * 260 / s + Math.sin(Math.atan2(x, z) * 9) * 1.6) * Math.sin(Math.atan2(x, z) * 14);
+    sdf.chain(pts, { mat: 'tail', op: 'smooth', k: 0.05 * s, bone: B.hips, priority: 3, disp: scaleDisp, dispAmp: 0.003 * s });
+    // Fluke: two flattened lobes spreading sideways.
+    for (const side of [1, -1]) {
+      sdf.ellipsoid([side * 0.1 * s, 0.028 * H, 0.2 * H], [0.13 * s, 0.014 * s, 0.07 * s], { rot: [0, side * 0.55, 0], mat: 'tail', op: 'smooth', k: 0.03 * s, bone: B.hips, priority: 3 });
+    }
+    // Fin frills at the hips where scales meet skin.
+    sdf.torus([0, hipY + 0.04 * H, -0.004 * H], 0.15 * s * w, 0.012 * s, { mat: 'tail', op: 'smooth', k: 0.01 * s, bone: B.hips, priority: 3 });
   }
 
   const n3 = (x, y, z) => noise.n3(x, y, z);
@@ -126,7 +153,7 @@ export function buildBodySDF(sdf, P, J, spec, noise) {
 
   // ---- Bottoms ----
   const bType = bottom.type;
-  if (bType && bType !== 'none' && top.type !== 'dress' && top.type !== 'robe') {
+  if (bType && bType !== 'none' && top.type !== 'dress' && top.type !== 'robe' && !spec.mermaid) {
     mats.add('bottom');
     const t = bType === 'jeans' ? 0.011 * s : bType === 'sweatpants' ? 0.024 * s : 0.016 * s;
     const waistTop = hipY + 0.065 * P.H;
@@ -286,7 +313,7 @@ export function buildBodySDF(sdf, P, J, spec, noise) {
 
   // ---- Shoes ----
   const st = shoes.type;
-  if (st && st !== 'barefoot') {
+  if (st && st !== 'barefoot' && !spec.mermaid) {
     mats.add('shoe'); mats.add('sole');
     for (const side of [1, -1]) {
       const S = side > 0 ? 'L' : 'R';

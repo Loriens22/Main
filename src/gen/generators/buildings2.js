@@ -23,7 +23,7 @@ const TAU = Math.PI * 2;
 const clamp = (x, a, b) => Math.max(a, Math.min(b, x));
 
 // Shared builder state.
-function makeState(ctx, item, rng) {
+export function makeState(ctx, item, rng) {
   return {
     ctx, item, rng, a: item.attrs || {}, b: new MeshBuilder(), root: new THREE.Group(), lights: [], seats: [], extraColliders: [],
     detail: ctx.detail ?? genPreset().detail, M: G.materials, updates: [],
@@ -33,7 +33,7 @@ function makeState(ctx, item, rng) {
 function userColor(a) { return a.primaryColor && a.primaryColor !== 'rainbow' ? a.primaryColor : undefined; }
 
 // Assemble the standard generator result.
-function finish(S, mats, o) {
+export function finish(S, mats, o) {
   S.ctx.stage('optimize', 'Merging geometry');
   const group = S.b.build(mats, { castShadow: true });
   S.root.add(group);
@@ -54,12 +54,12 @@ function finish(S, mats, o) {
   return data;
 }
 
-function addLight(S, pos, color = '#ffd9a0', intensity = 2, distance = 8, nightOnly = true, flicker = false) {
+export function addLight(S, pos, color = '#ffd9a0', intensity = 2, distance = 8, nightOnly = true, flicker = false) {
   S.lights.push({ pos, color, intensity, distance, nightOnly, flicker });
 }
 
 // Crenellated parapet along a straight segment.
-function merlons(b, key, ax, az, bx, bz, y, h = 0.9, t = 0.6, w = 0.7, gap = 0.6) {
+export function merlons(b, key, ax, az, bx, bz, y, h = 0.9, t = 0.6, w = 0.7, gap = 0.6) {
   const len = Math.hypot(bx - ax, bz - az);
   const n = Math.max(1, Math.floor(len / (w + gap)));
   const yaw = Math.atan2(bx - ax, bz - az) + Math.PI / 2;
@@ -71,7 +71,7 @@ function merlons(b, key, ax, az, bx, bz, y, h = 0.9, t = 0.6, w = 0.7, gap = 0.6
 }
 
 // Ring of merlons around a round tower.
-function roundMerlons(b, key, cx, cz, r, y, h = 0.8, n = 12) {
+export function roundMerlons(b, key, cx, cz, r, y, h = 0.8, n = 12) {
   for (let i = 0; i < n; i++) {
     const a = (i / n) * TAU;
     obox(b, key, cx + Math.sin(a) * (r - 0.3), y + h / 2, cz + Math.cos(a) * (r - 0.3), (TAU * r / n) * 0.55, h, 0.6, a);

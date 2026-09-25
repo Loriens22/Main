@@ -92,7 +92,11 @@ export class Player {
     if (this.vehicle) { this.vehicle.drive(dt, input, this); this._updateCamera(dt, world); return; }
     if (this.sitting) {
       if (input.pressed('jump') || input.moveAxes().y !== 0 && Math.abs(input.moveAxes().y) > 0.5) this.standUp();
-      else { this._updateCamera(dt, world); return; }
+      else {
+        // Moving seats (rides) carry the player along.
+        if (this.sitting.follow) { this.sitting.follow(this.sitting, dt); this.position.copy(this.sitting.feet); }
+        this._updateCamera(dt, world); return;
+      }
     }
 
     const ax = input.moveAxes();

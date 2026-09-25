@@ -216,7 +216,10 @@ function makeMaterials(spec, rng) {
     glove: M.get('leather', { color: outfit.gloveColor || '#2a2a2a', ...common }),
     teeth: M.plain('#f0ece0', 0.3, 0, { vertexColors: true }),
     glow: M.get('emissive', { color: outfit.glowColor || '#60d0ff', emissiveIntensity: 2 }),
+    tail: M.get('scales', { color: spec.tailColor || '#1f8a7a', ...common }),
   };
+  // Fur-covered bodies (werewolves, beast folk) swap skin for fur.
+  if (spec.furSkin) mats.skin = M.get('fur', { color: skinCol, ...common, world: 0.12 });
   return { mats, skinCol, hairCol };
 }
 
@@ -474,13 +477,20 @@ export class Humanoid {
     for (const o of this.headOnly) o.traverse((c) => { if (on) { c.layers.disable(0); c.layers.enable(1); } else { c.layers.enable(0); } });
   }
 
+  // Hide the sculpted human head (face, eyes, mouth, hair, hats) when a
+  // hybrid part such as an animal head replaces it.
+  hideHumanHead() {
+    this.humanHeadHidden = true;
+    for (const o of this.headOnly) o.visible = false;
+    if (this.lodMeshes) this.lodMeshes[1].visible = false;
+  }
+
   // Visibility bands for the registry's distance LOD (metres, unscaled).
   lodTable(swap = 16) {
     if (!this.lodMeshes) return null;
-    return [
-      { object: this.bodyMesh, maxDist: swap }, { object: this.headMesh, maxDist: swap },
-      { object: this.lodMeshes[0], minDist: swap, maxDist: Infinity }, { object: this.lodMeshes[1], minDist: swap, maxDist: Infinity },
-    ];
+    const bands = [{ object: this.bodyMesh, maxDist: swap }, { object: this.lodMeshes[0], minDist: swap, maxDist: Infinity }];
+    if (!this.humanHeadHidden) bands.push({ object: this.headMesh, maxDist: swap }, { object: this.lodMeshes[1], minDist: swap, maxDist: Infinity });
+    return bands;
   }
 
   update(dt, state) { if (this.animator) this.animator.update(dt, state); }

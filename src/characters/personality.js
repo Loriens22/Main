@@ -20,6 +20,12 @@ const HOBBIES = ['painting', 'hiking', 'reading old books', 'playing chess', 'st
 const PLACES = ['a little town by the sea', 'the mountains up north', 'a big noisy city', 'a farm past the hills', 'somewhere far away', 'a village you have never heard of', 'the forest edge', 'right here in this valley'];
 const COLORS = ['blue', 'green', 'red', 'yellow', 'purple', 'orange', 'teal', 'gold', 'black', 'white'];
 const JOB_DESC = {
+  minotaur: 'I guard a labyrinth. Well, I used to. Now I mostly get lost in it.', werewolf: 'Accountant by day. The nights are... complicated.',
+  anubis: 'I weigh hearts against a feather. Yours looks light enough.', beastfolk: 'I hunt, I trade, I tell stories by the fire.',
+  mermaid: 'I sing to sailors. Mostly they just ask for directions.', angel: 'I watch over this world. You keep me busy.',
+  demon: 'Contracts, mostly. Read the fine print.', harpy: 'I patrol the cliffs. Nothing gets past me.',
+  santa: 'Ho ho ho! I deliver presents. Have you been good this year?', leprechaun: 'I guard me pot o\' gold. Don\'t even think about it.',
+  genie: 'I grant wishes. Three per customer, no wishing for more wishes.', reaper: 'I collect. Don\'t worry — not today.', superhero: 'I save the day. Every day. It\'s exhausting.',
   doctor: 'I am a doctor. I patch people up.', nurse: 'I am a nurse — long shifts, good people.', scientist: 'I do research. Mostly on things that probably should not exist, like this whole place.',
   chef: 'I cook. Give me a kitchen and I will make you cry — happy tears.', police: 'I keep the peace around here.', firefighter: 'I fight fires. Please do not create any volcanoes near me.',
   soldier: 'I serve and I protect.', knight: 'I am a knight, sworn to protect this realm.', wizard: 'I study the arcane arts. Also, I make excellent tea.', witch: 'Potions, curses, the occasional herbal remedy.',

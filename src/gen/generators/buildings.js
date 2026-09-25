@@ -176,6 +176,16 @@ function* buildHouse(ctx, item, rng, style) {
   if (W < D) [W, D] = [D, W];
   const FH = S.floorH, T = 0.28, BASE = 0.15;
   const P = S.palette(rng, a);
+  // "a gingerbread house", "a chocolate cottage", "a stone house": the prompt's material wins.
+  const um = a.materials && a.materials[0];
+  if (um && um !== 'glass' && um !== 'emissive') {
+    const uc = a.primaryColor && a.primaryColor !== 'rainbow' ? a.primaryColor : undefined;
+    P.wall = [um, uc ? { color: uc } : {}];
+    if (['gingerbread', 'chocolate', 'candy', 'bubblegum', 'cottonCandy', 'jelly', 'icing'].includes(um)) {
+      P.trim = ['icing', {}]; P.frame = ['icing', {}]; P.accent = ['candy', {}];
+      P.roof = [um === 'gingerbread' ? 'chocolate' : um === 'chocolate' ? 'icing' : um === 'candy' ? 'bubblegum' : um, {}];
+    }
+  }
   const wantGarden = a.features.includes('garden') || a.features.includes('lawn') || a.features.includes('trees') || a.features.includes('flowers') || (style !== 'cabin' && rng.chance(0.55));
   const wantPool = a.features.includes('pool') || a.features.includes('swimming pool') || (style === 'modern' && wantGarden && rng.chance(0.3)) || (style === 'mansion' && rng.chance(0.5));
   const bigWindows = !!a.flags.bigWindows || style === 'modern';

@@ -112,6 +112,16 @@ export class Pipeline {
           data = yield* FALLBACK.build(ctx, sub, subRng, { world, error: err });
         }
         if (!data) continue;
+        // Name things after the words the user typed ("trombone", "fire truck", "clinic").
+        if (sub.params && sub.params.usePhrase && sub.headPhrase && !(sub.attrs && sub.attrs.name) && !data.isCharacter) {
+          const ph = sub.headPhrase.replace(/s$/, (m) => (/(ss|us|is)$/.test(sub.headPhrase) ? m : ''));
+          data.name = ph.charAt(0).toUpperCase() + ph.slice(1);
+        }
+        if (sub.params && sub.params.displayName && !(sub.attrs && sub.attrs.name) && data.category !== 'statue') {
+          // Characters keep their personal name and wear the kind as a subtitle ("Rhea · Mermaid").
+          if (data.isCharacter && data.humanoid) data.subtitle = data.subtitle ? `${sub.params.displayName} · ${data.subtitle}` : sub.params.displayName;
+          else data.name = sub.params.displayName;
+        }
         if (ctx.mustFinish() && i < last - 1) { console.warn('Deadline approaching: stopping after', i + 1, 'copies'); }
         data._genMs = performance.now() - t0;
         data.copyIndex = i;

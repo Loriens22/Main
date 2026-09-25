@@ -5,6 +5,7 @@ import * as THREE from 'three';
 import { Humanoid } from '../../characters/humanoid.js';
 import { buildHumanSpec } from '../../characters/specs.js';
 import { makeNPC } from '../../characters/npc.js';
+import { applyHybrid } from '../../characters/hybrids.js';
 import { G } from '../../core/context.js';
 
 const STATUE_MATS = { marble: 'marble', bronze: 'bronze', gold: 'gold', stone: 'stone', chrome: 'chrome', plastic: 'plastic', rock: 'stone', wood: 'wood', ice: 'ice', crystal: 'crystal', granite: 'granite', copper: 'copper', iron: 'iron', steel: 'steel' };
@@ -20,7 +21,7 @@ export const humanGen = {
   ],
   *build(ctx, item, rng, env) {
     const spec = buildHumanSpec(item, rng);
-    const statue = !!(item.params && item.params.statue) || !!spec.statue || !!spec.stone;
+    const statue = !!(item.params && item.params.statue) || !!spec.statue || !!spec.stone || !!(item.attrs && item.attrs.flags && item.attrs.flags.statue);
     ctx.stage('body', 'Sculpting body & clothes');
     const h = new Humanoid(spec, rng.nextU32());
     let faceStage = false;
@@ -31,6 +32,8 @@ export const humanGen = {
     });
     ctx.stage('rig', 'Rigging & skinning');
     yield;
+    const hybrid = spec.animalHead || spec.wings || spec.halo || spec.horns || spec.tail;
+    const ticks = hybrid ? yield* applyHybrid(h, spec, ctx, rng.fork('hybrid')) : [];
     const root = new THREE.Group();
     root.add(h.root);
     const data = {
@@ -40,7 +43,7 @@ export const humanGen = {
     };
     if (statue) {
       // One material for every part, frozen in a pose on a plinth.
-      const matKey = STATUE_MATS[spec.statueMaterial] || (item.attrs.materials && STATUE_MATS[item.attrs.materials[0]]) || 'marble';
+      const matKey = STATUE_MATS[spec.statueMaterial] || (item.attrs.materials && STATUE_MATS[item.attrs.materials[0]]) || STATUE_MATS[item.params && item.params.statueMaterial] || 'marble';
       const mat = G.materials.get(matKey, { color: item.attrs.primaryColor && item.attrs.primaryColor !== 'rainbow' ? item.attrs.primaryColor : undefined, world: 0.6 });
       h.root.traverse((o) => { if (o.isMesh) o.material = Array.isArray(o.material) ? o.material.map(() => mat) : mat; });
       const pose = rng.pick(['wave', 'point', 'think', 'cheer', 'bow', 'thumbsup']);
@@ -52,13 +55,14 @@ export const humanGen = {
       root.add(plinth);
       h.root.position.y = plinthH;
       data.colliderDefs = [{ type: 'box', x: 0, z: 0, y0: 0, y1: plinthH, hx: spec.height * 0.275, hz: spec.height * 0.275 }, { type: 'cyl', x: 0, z: 0, y0: plinthH, y1: plinthH + spec.height, r: spec.height * 0.15 }];
-      data.name = `Statue of ${spec.sex === 'female' ? 'a woman' : 'a man'}`;
+      data.name = item.params && item.params.statueName ? item.params.statueName : `Statue of ${item.params && item.params.displayName ? 'a ' + item.params.displayName.toLowerCase() : spec.sex === 'female' ? 'a woman' : 'a man'}`;
       data.footprint = { radius: spec.height * 0.4 };
       data.dispose = () => h.dispose();
       return data;
     }
     ctx.stage('mind', 'Building personality');
     yield;
+    if (ticks.length) data.update = (dt) => { for (const f of ticks) f(dt); };
     const traits = spec.personality && spec.personality.length ? spec.personality : null;
     const subtitle = [spec.profession ? spec.profession[0].toUpperCase() + spec.profession.slice(1) : null, traits ? traits[0] : null].filter(Boolean).join(' · ');
     makeNPC(data, {
@@ -66,8 +70,8 @@ export const humanGen = {
       personalityInfo: { name: spec.name, sex: spec.sex, age: spec.age, profession: spec.profession, traits },
       radius: Math.max(0.25, 0.3 * spec.height / 1.8),
       brainOpts: {
-        walkSpeed: (spec.zombie ? 0.6 : spec.age > 70 ? 0.95 : 1.35) * Math.sqrt(spec.height / 1.75), runSpeed: (spec.zombie ? 1.2 : spec.age > 70 ? 2 : 4.6) * Math.sqrt(spec.height / 1.75),
-        radius: Math.max(0.25, 0.3 * spec.height / 1.8), wanderRadius: 6, lazy: traits && traits.includes('lazy'),
+        walkSpeed: (spec.mermaid ? 0.25 : spec.zombie ? 0.6 : spec.age > 70 ? 0.95 : 1.35) * Math.sqrt(spec.height / 1.75), runSpeed: (spec.zombie ? 1.2 : spec.age > 70 ? 2 : 4.6) * Math.sqrt(spec.height / 1.75),
+        radius: Math.max(0.25, 0.3 * spec.height / 1.8), wanderRadius: spec.mermaid ? 0 : 6, lazy: traits && traits.includes('lazy'),
       },
       subtitle: subtitle || (spec.age < 13 ? 'Child' : ''),
     });

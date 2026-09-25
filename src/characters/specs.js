@@ -6,6 +6,7 @@
 // honoured exactly.
 
 import { NAMES } from '../gen/lexicon.js';
+import { animalHeadColor, ANIMAL_HEADS } from '../gen/generators/creatures.js';
 
 export const PLAYER_SPEC = {
   sex: 'male', age: 28, height: 2.0, fat: 0.24, muscle: 0.5, skinTone: 0.3, undertone: 0.25,
@@ -65,6 +66,19 @@ const PROFESSIONS = {
   giant: (r) => ({ top: { type: 'tank', color: r.pick(['#5a4a3a', '#6a5a4a']) }, bottom: { type: 'trousers', color: '#3a2a1a' }, shoes: { type: 'barefoot' } }),
   fairy: (r) => ({ top: { type: 'dress', color: r.pick(['#e0a0e0', '#a0e0c0', '#a0c8f0']) }, shoes: { type: 'barefoot' }, glowColor: '#f0c0ff' }),
   yeti: () => ({ top: { type: 'none' }, bottom: { type: 'none' }, shoes: { type: 'barefoot' } }),
+  minotaur: () => ({ top: { type: 'none' }, bottom: { type: 'shorts', color: '#4a2e1c', fabric: 'leather' }, shoes: { type: 'barefoot' }, beltColor: '#2a1a10' }),
+  werewolf: (r) => ({ top: { type: 'none' }, bottom: { type: 'shorts', color: r.pick(['#2b3e66', '#3a3a40', '#4a3a2a']), fabric: 'denim' }, shoes: { type: 'barefoot' } }),
+  anubis: () => ({ top: { type: 'none' }, bottom: { type: 'skirt', color: '#f0ead8', length: 'mini' }, shoes: { type: 'sandals', color: '#c8a040' }, hat: 'crown', beltColor: '#d0a030' }),
+  beastfolk: (r) => ({ top: { type: r.pick(['tank', 'none', 'shirt']), color: r.pick(['#5a4a3a', '#3a4a2a', '#6a2a1a', '#2a2a3a']) }, bottom: { type: 'trousers', color: r.pick(['#3a2a1a', '#2a2a2a', '#4a3a2a']) }, shoes: { type: 'barefoot' } }),
+  mermaid: () => ({ shoes: { type: 'barefoot' } }),
+  angel: (r) => ({ top: { type: 'robe', color: r.pick(['#f6f4ee', '#f0ead8', '#eef2f8']) }, shoes: { type: 'sandals', color: '#c8a860' }, glowColor: '#ffe8a0' }),
+  demon: () => ({ top: { type: 'none' }, bottom: { type: 'trousers', color: '#141010' }, shoes: { type: 'barefoot' } }),
+  santa: () => ({ top: { type: 'coat', color: '#c81a1a' }, bottom: { type: 'trousers', color: '#c81a1a' }, shoes: { type: 'boots', color: '#141414' }, hat: 'beanie', hatColor: '#c81a1a', beltColor: '#141414', gloves: true, gloveColor: '#141414' }),
+  leprechaun: () => ({ top: { type: 'suit', color: '#1a7a2a' }, bottom: { type: 'trousers', color: '#1a6a22' }, shoes: { type: 'dress', color: '#141414' }, hat: 'tophat', hatColor: '#1a7a2a', beltColor: '#141414' }),
+  genie: () => ({ top: { type: 'jacket', color: '#8a1a6a' }, shoes: { type: 'barefoot' }, hat: null }),
+  reaper: () => ({ top: { type: 'robe', color: '#0e0c10' }, shoes: { type: 'barefoot' } }),
+  superhero: (r) => { const c = r.pick(['#1a3ad8', '#c81a1a', '#1a1a1e', '#2a8a3a']); return { top: { type: 'tshirt', color: c, sleeves: 'long' }, bottom: { type: 'leggings', color: r.pick(['#c81a1a', '#1a3ad8', '#1a1a1e']) }, shoes: { type: 'boots', color: '#c81a1a' }, gloves: true, gloveColor: c, beltColor: '#f0c020' }; },
+  harpy: () => ({ top: { type: 'tank', color: '#5a4030' }, bottom: { type: 'shorts', color: '#4a3020' }, shoes: { type: 'barefoot' } }),
   golem: () => ({ top: { type: 'none' }, bottom: { type: 'none' }, shoes: { type: 'barefoot' } }),
 };
 
@@ -145,6 +159,8 @@ export function buildHumanSpec(item, rng) {
   if (outfit.bottom && !outfit.bottom.color) outfit.bottom.color = outfit.bottom.type === 'jeans' ? '#2b3e66' : rng.pick(BOTTOM_COLORS);
   if (!outfit.shoes) outfit.shoes = { type: outfit.top.type === 'suit' ? 'dress' : outfit.top.type === 'dress' && rng.chance(0.4) ? 'heels' : rng.weighted([['sneakers', 5], ['boots', 1.5], ['dress', 1]]), color: rng.pick(SHOE_COLORS) };
   if (!outfit.shoes.color) outfit.shoes.color = rng.pick(SHOE_COLORS);
+  // Bare-chested presets (minotaur, demon, yeti...) get a top for women.
+  if (outfit.top.type === 'none' && spec.sex === 'female' && !p.fairy) outfit.top = { type: 'crop', color: rng.pick(['#3a2a1a', '#141414', '#5a1a1a', '#2a3a2a']), sleeves: 'none' };
   if (outfit.top.type === 'dress' && !outfit.top.sleeves) outfit.top.sleeves = rng.pick(['none', 'short', 'none']);
   if (!outfit.glasses && !outfit.sunglasses && !prof.glasses && rng.chance(spec.age > 50 ? 0.35 : 0.1) && !p.profession) outfit.glasses = true;
   spec.outfit = outfit;
@@ -157,12 +173,49 @@ export function buildHumanSpec(item, rng) {
   if (spec.furry) { spec.hair = { style: 'afro', color: 'white' }; spec.facialHair = 'full'; }
   if (spec.zombie) spec.eyeColor = '#c0c0a0';
   if (spec.vampire) { spec.eyeColor = '#a01010'; spec.hair = { style: 'slicked', color: 'black' }; }
+  applyHybridSpec(spec, a, p, rng);
   // Personality & name.
   spec.personality = (a.personality && a.personality.length ? a.personality : p.personality) || null;
   spec.name = a.name || rng.pick(spec.sex === 'female' ? NAMES.female : spec.sex === 'male' ? NAMES.male : NAMES.neutral);
   spec.profession = p.profession || null;
   if (a.materials && a.materials.length && (p.statue || spec.statue)) spec.statueMaterial = a.materials[0];
   return spec;
+}
+
+// Mythical extras from lexicon params ("minotaur", "angel") or from the
+// prompt text ("a man with wings and a halo", "a bull-headed warrior",
+// "a woman with a fish tail").
+const HYBRID_KEYS = ['animalHead', 'animalHeadScale', 'animalHeadColor', 'animalMane', 'wings', 'wingColor', 'halo', 'horns', 'hornColor', 'tail', 'tailColor', 'mermaid', 'furSkin'];
+function applyHybridSpec(spec, a, p, rng) {
+  for (const k of HYBRID_KEYS) if (p[k] !== undefined) spec[k] = p[k];
+  const txt = ' ' + (a.text || '').toLowerCase() + ' ';
+  const has = (re) => re.test(txt);
+  if (!spec.animalHead) {
+    const m = txt.match(/\b([a-z]+)[\s-]headed\b/) || txt.match(/\bhead of an? ([a-z]+)\b/) || txt.match(/\b(?:with|has) (?:an? |the )?([a-z]+) head\b/);
+    const k = m && (m[1] === 'dog' ? 'dog' : m[1] === 'crocodile' || m[1] === 'alligator' ? 'croc' : m[1] === 'snake' || m[1] === 'reptile' ? 'lizard' : m[1] === 'sheep' ? 'ram' : m[1] === 'hawk' || m[1] === 'falcon' || m[1] === 'bird' ? 'eagle' : m[1] === 'ape' || m[1] === 'gorilla' ? 'monkey' : m[1] === 'ox' ? 'bull' : m[1]);
+    if (k && ANIMAL_HEADS.includes(k)) spec.animalHead = k;
+  }
+  if (!spec.wings && (a.flags && a.flags.wings || has(/\b(winged|wings)\b/))) spec.wings = has(/\b(bat|demon|devil|dragon|leathery)\b/) ? 'bat' : has(/\b(fairy|butterfly|insect|dragonfly|pixie)\b/) ? 'fairy' : 'feather';
+  if (!spec.halo && has(/\bhalo\b/)) spec.halo = true;
+  if (!spec.horns && has(/\b(horns|horned)\b/)) spec.horns = has(/\bram\b/) ? 'ram' : true;
+  if (!spec.mermaid && has(/\b(fish|mermaid|scaly) tail\b/)) spec.mermaid = true;
+  if (!spec.tail && !spec.mermaid && has(/\b(tail|tailed)\b/)) spec.tail = has(/\b(cat|feline)\b/) ? 'cat' : has(/\b(lizard|reptil\w*|dragon)\b/) ? 'lizard' : 'devil';
+  if (spec.animalHead) {
+    // Beast folk: fur (or scales) over the whole body in the head's colour.
+    if (!a.skinColor && !p.skinColor) spec.skinColor = spec.animalHeadColor || animalHeadColor(spec.animalHead);
+    if (spec.furSkin === undefined) spec.furSkin = !['lizard', 'croc', 'shark', 'dragon', 'eagle'].includes(spec.animalHead);
+    spec.facialHair = 'none';
+    spec.outfit.glasses = spec.outfit.sunglasses = false;
+    if (spec.outfit.hat) delete spec.outfit.hat;
+  }
+  if (spec.mermaid) {
+    if (!(a.clothing || []).some((c) => c.slot === 'top')) spec.outfit.top = spec.sex === 'female' ? { type: 'crop', color: spec.outfit.top && spec.outfit.top.color || rng.pick(['#e8d8c0', '#c83a6a', '#8a4ad0', '#2a8ac8']), sleeves: 'none' } : { type: 'none' };
+    delete spec.outfit.bottom;
+    spec.outfit.shoes = { type: 'barefoot' };
+    if (!spec.tailColor) spec.tailColor = a.primaryColor && a.primaryColor !== 'rainbow' ? a.primaryColor : rng.pick(['#1f8a7a', '#2a6ac8', '#6a3ab0', '#c83a5a', '#2a9a4a']);
+    if (spec.sex === 'female' && !(a.hair && a.hair.style)) spec.hair.style = rng.pick(['long', 'wavy', 'long']);
+  }
+  if (spec.wings === 'bat' && spec.horns === undefined && p.profession === undefined && has(/\b(demon|devil)\b/)) spec.horns = true;
 }
 
 export function describeSpec(spec) {
