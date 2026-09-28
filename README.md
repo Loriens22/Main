@@ -6,7 +6,7 @@ An open-world 3D exploration game set inside the Internet, inspired by *Ralph Br
 
 Serve the folder over http(s), then open `internet-city.html`. For example, run `python3 -m http.server` and browse to `http://localhost:8000/internet-city.html`, or use GitHub Pages. Opening the file straight from disk also works, but YouTube embeds need http(s).
 
-The game loads three.js (r160) from a CDN on first start, so it needs an internet connection.
+The game loads three.js (r160) from a CDN on first start, so it needs an internet connection. It also downloads real photographed HDR lighting ([Poly Haven](https://polyhaven.com), CC0) from GitHub. If that download fails, the game falls back to its procedural sky.
 
 ## Controls
 
@@ -75,9 +75,16 @@ The game loads three.js (r160) from a CDN on first start, so it needs an interne
 
   Rooms are visible behind the glass through interior mapping. Towers get parapets, rooftop plant, masts, spires and podiums.
 - **Central Hub:** a three-level curved arcade built from revolved profiles, with colonnades, glass balustrades and mullioned storefronts showing shop interiors. The restaurants have tiled walls, working equipment, stone counters, fabric awnings, patio umbrellas and bistro furniture.
-- **Streets:** procedural trees with swaying leaves, street lamps, benches, asphalt roads and stone paving with normal and roughness maps.
+- **Streets:** procedural trees with swaying leaves, street lamps, benches, curbs, zebra crossings, ground-level pod traffic, asphalt roads and stone paving with normal and roughness maps. Pedestrians use the sidewalks, and building facades show rain streaks and street grime.
 - **Interiors:** textured oak, marble and polished-concrete floors, trim, light coves and recessed downlights.
-- **Lighting:** a cloudy sky with a sun, exponential fog, and reflections captured from the city itself.
+  - The Google, Facebook, eBay and Amazon interiors are **daylit**: sun comes through glass curtain walls, casts soft shadows across the floor and shows visible light shafts, and you can see the city outside.
+  - Each room is captured into its own reflection/ambient probe twice, which approximates two bounces of global illumination.
+  - They also have oak slat walls, brick, exposed steel roof trusses, pendant lights and real potted trees.
+- **Lighting:**
+  - The city is lit by a real HDR photograph of a city square, the same image-based lighting technique Blender uses.
+  - The lit city is then captured again for reflections.
+  - Shadows are contact-hardening soft shadows (PCSS): sharp where objects touch the ground and softer further away. A static far shadow map covers the whole deck.
+- **Camera:** depth of field in menus and cutscenes.
 - **Post-processing:** HDR rendering with MSAA, SSAO, bloom, AgX tone mapping (Blender's default view transform), and FXAA on medium quality.
 
 ### Settings and saving

@@ -1222,6 +1222,20 @@ function loadHDRI(name) {
 }
 const withTimeout = (p, ms) => Promise.race([p, new Promise(r => setTimeout(() => r(null), ms))]);
 
+/* ---------- capture hygiene: one NaN/Inf texel in a cube capture gets smeared over the whole prefiltered
+   environment by PMREM and turns every PBR surface black — scrub the capture on the GPU before filtering ---------- */
+let SANI = null;
+function sanitizeCube(rt, maxV = 48) {
+  if (!SANI) { const sc = new THREE.Scene(); const m = new THREE.ShaderMaterial({ side: THREE.BackSide, depthTest: false, depthWrite: false, fog: false,
+      uniforms: { tCube: { value: null }, uMax: { value: maxV } },
+      vertexShader: 'varying vec3 vD; void main(){ vD = position; gl_Position = projectionMatrix*modelViewMatrix*vec4(position,1.); }',
+      fragmentShader: 'uniform samplerCube tCube; uniform float uMax; varying vec3 vD; void main(){ vec3 c = textureCube(tCube, vD).rgb; if(any(isnan(c)) || any(isinf(c)) || !(c.r + c.g + c.b >= 0.)) c = vec3(0.); gl_FragColor = vec4(clamp(c, 0., uMax), 1.); }' });
+    sc.add(new THREE.Mesh(new THREE.BoxGeometry(2, 2, 2), m)); SANI = { sc, m }; }
+  const out = new THREE.WebGLCubeRenderTarget(rt.width, { type: THREE.HalfFloatType });
+  SANI.m.uniforms.tCube.value = rt.texture; SANI.m.uniforms.uMax.value = maxV;
+  const cc = new THREE.CubeCamera(.1, 10, out); cc.update(renderer, SANI.sc); SANI.m.uniforms.tCube.value = null;
+  return out;
+}
 /* ---------- light probes: capture a scene into its own environment (multi-bounce) ---------- */
 let CITY_CUBE = null; // HDR cube capture of the city (used as the view outside interior windows)
 function bakeProbe(scene, pos, o = {}) {
@@ -1231,7 +1245,8 @@ function bakeProbe(scene, pos, o = {}) {
     const hide = o.hide || []; hide.forEach(m => m.visible = false);
     for (let b = 0; b < (o.bounces ?? 2); b++) {
       cc.update(renderer, scene);
-      const env = pmrem.fromCubemap(rt.texture).texture, old = scene.environment; scene.environment = env; if (old && old !== o.keep && old.isTexture && old !== CITY_CUBE) old.dispose();
+      const clean = sanitizeCube(rt); const env = pmrem.fromCubemap(clean.texture).texture; clean.dispose();
+      const old = scene.environment; scene.environment = env; if (old && old !== o.keep && old.isTexture && old !== CITY_CUBE) old.dispose();
     }
     hide.forEach(m => m.visible = true); scene.remove(cc);
     if (o.keepCube) return rt; rt.dispose();
@@ -3342,9 +3357,9 @@ function towerMaterial() {
         vec3 TN = normalize(vTN); float wall = (1. - vRoof)*(1. - step(.7, abs(TN.y)));
         float ft = floor(vTw.y + .5), sd = vTw.z;
         vec2 fc = vFac; vec2 fwc = fwidth(fc); float lod = smoothstep(.18, .55, max(fwc.x, fwc.y));
-        float lobbyH = ft > 4.5 ? 0. : 1.75; float inLobby = step(fc.y, lobbyH);
+        float lobbyH = ft > 4.5 ? 0. : 1.75; float inLobby = ft > 4.5 ? 0. : step(fc.y, lobbyH);
         vec2 cell = floor(fc), f = fract(fc);
-        if(inLobby > .5){ cell.y = -1.; f.y = fc.y/lobbyH; }
+        if(inLobby > .5){ cell.y = -1.; f.y = clamp(fc.y/max(lobbyH, 1e-3), 0., 1.); }
         vec3 V = normalize(vTP - cameraPosition); vec3 T = normalize(cross(vec3(0., 1., 0.), TN) + 1e-5);
         vec3 rw = vec3(dot(V, T), V.y, max(dot(V, -TN), .035));
         vec2 csz = inLobby > .5 ? vec2(vCell.x, vCell.y*lobbyH) : vCell;
@@ -3968,6 +3983,10 @@ async function buildCityAsync() {
       MAPDATA.rects.push({ x, z, w: ww, d: ddd, rot, h, round: type === 'cyl' || type === 'hex' });
     }
   }
+  /* ---------- curbs & zebra crossings ---------- */
+  for (const a of BLVD) { const ar = a * PI / 180, dx = Math.sin(ar), dz = -Math.cos(ar), r0 = 52, r1 = a === 0 ? 102 : DECK_R - 2, L = r1 - r0, cx = dx * (r0 + r1) / 2, cz = dz * (r0 + r1) / 2;
+    for (const side of [-1, 1]) { const ox = -dz * side * (BLVD_W / 2 + .12), oz = dx * side * (BLVD_W / 2 + .12); B.box(cx + ox, .07, cz + oz, .26, .14, L, { c: 0xb9b6b0, r: .75, g: .5 }, 0, -ar); }
+    for (const d of [60, 150, 240].filter(v => v < r1 - 10)) for (let k = -3; k <= 3; k++) { const lx = -dz * k * 2, lz = dx * k * 2; B.box(dx * d + lx, .045, dz * d + lz, .9, .01, 4, { c: 0xe8e6e0, r: .7, sharp: true }, 0, -ar); } }
   /* ---------- boulevard trees, lamps and benches ---------- */
   const stTrees = [], lampM = { c: 0x2b2f36, r: .38, m: .75 }, lampLED = { c: 0x222222, e: 0xfff4e0, ei: 3.2 };
   const streetLamp = (x, z, yaw) => cityLamp(B, W, x, z, yaw);
@@ -4041,6 +4060,9 @@ async function buildCityAsync() {
   const lanes = [];
   for (const a of BLVD) { for (const side of [-1, 1]) { const ar = a * PI / 180, dx = Math.sin(ar), dz = -Math.cos(ar), ox = -dz * side * 5, oz = dx * side * 5; const y = 26 + (side > 0 ? 0 : 5);
     const p0 = V3(dx * 70 + ox, y, dz * 70 + oz), p1 = V3(dx * 1400 + ox, y + 40, dz * 1400 + oz); lanes.push(side > 0 ? { a: p0, b: p1, count: 26, speed: 26 } : { a: p1, b: p0, count: 26, speed: 26 }); } }
+  for (const a of BLVD) { const ar = a * PI / 180, dx = Math.sin(ar), dz = -Math.cos(ar), r1 = a === 0 ? 100 : DECK_R - 4;
+    for (const [side, off] of [[1, 2], [1, 5.6], [-1, 2], [-1, 5.6]]) { const ox = -dz * side * off, oz = dx * side * off;
+      const p0 = V3(dx * 56 + ox, .32, dz * 56 + oz), p1 = V3(dx * r1 + ox, .32, dz * r1 + oz); lanes.push(side > 0 ? { a: p0, b: p1, count: 5, speed: 12 + off } : { a: p1, b: p0, count: 5, speed: 12 + off }); } }
   for (let i = 0; i < 16; i++) { const a = i / 16 * TAU, a2 = (i + 1) / 16 * TAU, r = 150, y = 55; lanes.push({ a: V3(Math.sin(a) * r, y, -Math.cos(a) * r), b: V3(Math.sin(a2) * r, y, -Math.cos(a2) * r), count: 4, speed: 18 }); }
   for (let i = 0; i < 40; i++) { const y = rnd(40, 230), a = rnd(0, PI), d = rnd(-900, 900); const dx = Math.cos(a), dz = Math.sin(a), ox = -dz * d, oz = dx * d, L = rnd(900, 2200);
     lanes.push({ a: V3(ox - dx * L, y, oz - dz * L), b: V3(ox + dx * L, y + rnd(-20, 20), oz + dz * L), count: rndi(10, 34), speed: rnd(30, 70) }); }
@@ -4054,7 +4076,7 @@ async function buildCityAsync() {
     else { const a = rnd(0, TAU), r = rnd(9, 30); if (chance(.5)) crowd.idle(Math.sin(a) * r, -Math.cos(a) * r); else { const a2 = a + rnd(-.3, .3); crowd.add(Math.sin(a) * r, -Math.cos(a) * r, Math.sin(a2) * (r + rnd(-5, 5)), -Math.cos(a2) * (r + rnd(-5, 5)), rnd(.8, 1.4)); } }
   }
   const blN = N * .42 | 0;
-  for (let i = 0; i < blN; i++) { const a = pick(BLVD) * PI / 180, dx = Math.sin(a), dz = -Math.cos(a); const lat = rnd(-7.2, 7.2) * (chance(.7) ? 1 : .4); const s0 = rnd(55, a === 0 ? 95 : DECK_R - 60), s1 = clamp(s0 + rnd(-90, 90), 55, a === 0 ? 100 : DECK_R - 10);
+  for (let i = 0; i < blN; i++) { const a = pick(BLVD) * PI / 180, dx = Math.sin(a), dz = -Math.cos(a); const lat = (chance(.5) ? 1 : -1) * rnd(BLVD_W / 2 + 1.2, BLVD_W / 2 + 5.2); const s0 = rnd(55, a === 0 ? 95 : DECK_R - 60), s1 = clamp(s0 + rnd(-90, 90), 55, a === 0 ? 100 : DECK_R - 10);
     const ox = -dz * lat, oz = dx * lat; if (chance(.12)) crowd.idle(dx * s0 + ox, dz * s0 + oz); else crowd.add(dx * s0 + ox, dz * s0 + oz, dx * s1 + ox, dz * s1 + oz, rnd(1, 1.7)); }
   const heroes = MAPDATA.heroes.filter(h => h.plaza);
   for (let i = 0; i < N - hubN - blN; i++) { const h = pick(heroes); if (!h) break; const pz = h.plaza; const a = rnd(0, TAU), r = rnd(0, pz.r);
@@ -4089,8 +4111,9 @@ async function buildCityAsync() {
     const oldBg = S.background; if (hdrBg) { S.background = hdrBg; S.backgroundIntensity = .9; sky.visible = false; }
     sky.position.copy(cubeCam.position); cubeCam.update(renderer, S); S.remove(cubeCam);
     S.background = oldBg; S.backgroundIntensity = 1; sky.visible = true;
-    const old = S.environment; S.environment = pmrem.fromCubemap(envRT.texture).texture; if (old) old.dispose(); if (hdrBg) hdrBg.dispose();
-    CITY_CUBE = envRT.texture;
+    const clean = sanitizeCube(envRT); envRT.dispose();
+    const old = S.environment; S.environment = pmrem.fromCubemap(clean.texture).texture; if (old) old.dispose(); if (hdrBg) hdrBg.dispose();
+    CITY_CUBE = clean.texture;
     Z.hdri = !!img;
   } catch (e) { console.warn('env capture failed', e); }
   /* ---------- per-frame city logic ---------- */
@@ -5376,6 +5399,11 @@ function buildAmazonInterior() {
   const fl = new THREE.Mesh(gPlane(), new THREE.MeshStandardMaterial({ map: floorTex, roughness: .35, metalness: .1 })); fl.rotation.x = -PI / 2; fl.scale.set(60, 40, 1); fl.receiveShadow = true; S.add(fl);
   roomShell(Z, B, X0, Z0, X1, Z1, H, { wall: { c: 0x2b3440, r: .6 }, ceilC: { c: 0x3a3f48, r: .7 }, gaps: [-24, -12, 0, 12].map(c => ({ side: 's', c, w: 10, h: 15, y0: 3 })) });
   interiorSun(Z, [X0, Z0, X1, Z1, H], [.25, .6, .76], { intensity: 8 });
+  // high-bay LED fixtures in rows over the aisles — each a real light source (emissive lens + a few point lights for bounce)
+  for (let x = X0 + 6; x < X1 - 3; x += 9) for (let z = Z0 + 5; z < Z1 - 3; z += 8) {
+    B.cyl(x, H - 1.2, z, .012, 2.4, { c: 0x2b2f35, m: .8, r: .4 }, 6); B.add(new THREE.CylinderGeometry(.45, .62, .32, 32, 1, true), mtx(x, H - 2.55, z), { c: 0x3a3f46, r: .35, m: .8 });
+    B.cyl(x, H - 2.7, z, .58, .02, { c: 0x222, e: 0xfff0dc, ei: 4 }, 32); }
+  for (const [x, z] of [[-15, -8], [15, -8], [-15, 8], [15, 8], [0, 0]]) { const pl = new THREE.PointLight(0xfff0dc, 90, 32, 1.6); pl.position.set(x, H - 3.2, z); S.add(pl); }
   // sky windows (south wall) with backdrop
   for (let i = 0; i < 4; i++) BG.box(-24 + i * 12, 9, Z1 - .35, 10, 12, .1, { c: 0xcff6ff, r: .02 });
   const skyB = new THREE.Mesh(gPlane(), new THREE.MeshBasicMaterial({ map: canvasTex(1024, 256, (g, w, h) => { const gr = g.createLinearGradient(0, 0, 0, h); gr.addColorStop(0, '#3a8ae8'); gr.addColorStop(1, '#cff4ff'); g.fillStyle = gr; g.fillRect(0, 0, w, h); for (let i = 0; i < 140; i++) { const x = Math.random() * w, bh = 20 + Math.random() * 110; g.fillStyle = `rgba(${150 + Math.random() * 60},${170 + Math.random() * 60},230,.8)`; g.fillRect(x, h - bh, 6 + Math.random() * 14, bh); } }), color: HDR(0xffffff, 1.3), fog: false }));
