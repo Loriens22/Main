@@ -117,6 +117,7 @@ input:focus,select:focus{border-color:var(--holo)}
 .mk .nm{font-weight:700;font-size:13px}
 .mk .ds{opacity:.8}
 .mk.tgt .dia{background:currentColor}
+.mk.min .nm,.mk.min .ds{display:none}.mk.min .dia{width:9px;height:9px;border-width:1.5px;margin-bottom:0}
 #interact{position:absolute;left:50%;top:calc(50% + 46px);transform:translateX(-50%);font-size:17px;padding:6px 14px;background:rgba(0,10,18,.55);border:1px solid var(--line);white-space:nowrap}
 #bl{position:absolute;left:calc(22px + var(--sal));bottom:calc(22px + var(--sab));width:300px}
 .bar{display:flex;align-items:center;gap:8px;margin:5px 0}
@@ -1065,6 +1066,7 @@ class Universe {
       sand: hsl(r.float(28, 50), r.float(0.3, 0.55), r.float(0.55, 0.72)), snow: hsl(r.float(190, 230), 0.25, 0.92), bed: hsl(r.float(170, 210), 0.3, 0.2),
     };
     if (biome === 'volcanic') { C.r1 = hsl(r.float(0, 30), 0.1, 0.1); C.r2 = hsl(r.float(0, 30), 0.12, 0.18); }
+    if (biome === 'marsh') { C.sand = hsl(gh + r.float(-35, -10), r.float(0.25, 0.4), r.float(0.2, 0.3)); P.beach = r.float(0.25, 0.7); } // muddy, narrow banks
     if (biome === 'frozen') { C.g2 = hsl(gh + 10, gs * 0.6, 0.8); }
     P.grass = B.grass * (r.chance(0.85) ? 1 : 0.3); P.grassH = r.float(0.45, 1.25) * (biome === 'frozen' ? 0.5 : 1);
     const gaH = gh + r.float(-15, 15);
@@ -1083,7 +1085,7 @@ class Universe {
       skyHue = biome === 'toxic' ? r.pick([r.float(60, 110), r.float(30, 50)]) : biome === 'scorched' || biome === 'volcanic' ? r.float(15, 45) : biome === 'irradiated' ? r.pick([r.float(40, 70), r.float(0, 20)]) : r.chance(0.6) ? r.float(190, 230) : r.float(0, 360);
       const skyCol = hsl(skyHue, r.float(0.5, 0.9), 0.5);
       // Rayleigh coefficients proportional to the desired zenith colour
-      const k = r.float(0.85, 1.4) * 3.6 / atmo.h;
+      const k = r.float(0.85, 1.4) * 2.2 / atmo.h;
       const base = [skyCol[0] * 0.55 + 0.08, skyCol[1] * 0.75 + 0.1, skyCol[2] + 0.12];
       atmo.betaR = base.map(v => v * k);
       atmo.betaM = r.float(0.3, 0.9) / atmo.h;
@@ -1346,15 +1348,15 @@ const Post = {
       void main(){
         vec3 a=s(vec2(-2,-2)),b=s(vec2(0,-2)),c=s(vec2(2,-2)),d=s(vec2(-1,-1)),e=s(vec2(1,-1)),f=s(vec2(-2,0)),g=s(vec2(0,0)),h=s(vec2(2,0)),i=s(vec2(-1,1)),j=s(vec2(1,1)),k=s(vec2(-2,2)),l=s(vec2(0,2)),m=s(vec2(2,2));
         vec3 col = g*0.125 + (a+c+k+m)*0.03125 + (b+f+h+l)*0.0625 + (d+e+i+j)*0.125;
-        if(uPre>0.5){ float br=max(col.r,max(col.g,col.b)); float soft=clamp(br-uThr+0.5,0.0,1.0); soft=soft*soft*0.5; float contrib=max(soft,br-uThr)/max(br,1e-4); col*=contrib; col=min(col,vec3(60.0)); }
+        if(uPre>0.5){ if(any(isnan(col))||any(isinf(col))) col=vec3(0.0); float br=max(col.r,max(col.g,col.b)); float soft=clamp(br-uThr+0.5,0.0,1.0); soft=soft*soft*0.5; float contrib=max(soft,br-uThr)/max(br,1e-4); col*=contrib; col=min(col,vec3(60.0)); }
         gl_FragColor=vec4(col,1.0);
       }`, { tIn: { value: null }, uTexel: { value: new V2() }, uPre: { value: 0 }, uThr: { value: 1.1 } });
     this.bloomUp = fsMat(/* glsl */`
-      uniform sampler2D tIn; uniform vec2 uTexel; uniform float uRad; varying vec2 vUv;
+      uniform sampler2D tIn; uniform vec2 uTexel; uniform float uRad; uniform float uW; varying vec2 vUv;
       void main(){ vec2 o=uTexel*uRad; vec3 c=texture2D(tIn,vUv).rgb*4.0;
         c+=(texture2D(tIn,vUv+vec2(-o.x,0.)).rgb+texture2D(tIn,vUv+vec2(o.x,0.)).rgb+texture2D(tIn,vUv+vec2(0.,-o.y)).rgb+texture2D(tIn,vUv+vec2(0.,o.y)).rgb)*2.0;
         c+=texture2D(tIn,vUv+vec2(-o.x,-o.y)).rgb+texture2D(tIn,vUv+vec2(o.x,-o.y)).rgb+texture2D(tIn,vUv+vec2(-o.x,o.y)).rgb+texture2D(tIn,vUv+vec2(o.x,o.y)).rgb;
-        gl_FragColor=vec4(c/16.0,1.0); }`, { tIn: { value: null }, uTexel: { value: new V2() }, uRad: { value: 1 } }, { blending: THREE.AdditiveBlending, transparent: true });
+        gl_FragColor=vec4(c/16.0*uW,1.0); }`, { tIn: { value: null }, uTexel: { value: new V2() }, uRad: { value: 1 }, uW: { value: 0.75 } }, { blending: THREE.AdditiveBlending, transparent: true });
     this.god = fsMat(/* glsl */`
       uniform sampler2D tIn; uniform vec2 uSun; uniform float uStr; uniform vec2 uAsp; varying vec2 vUv;
       void main(){ vec2 d=(vUv-uSun); float dl=length(d*uAsp); vec2 st=d/40.0*0.9; vec2 uv=vUv; vec3 acc=vec3(0.0); float w=1.0;
@@ -1376,6 +1378,7 @@ const Post = {
         vec3 col;
         if(ca>0.0001){ col.r=texture2D(tScene,uv+cc*ca).r; col.g=texture2D(tScene,uv).g; col.b=texture2D(tScene,uv-cc*ca).b; }
         else col=texture2D(tScene,uv).rgb;
+        if(any(isnan(col))) col=vec3(0.0);
         if(uWarp>0.0){ vec3 acc=vec3(0.0); for(int i=1;i<8;i++){ acc+=texture2D(tScene,0.5+cc*(1.0-float(i)*0.025*uWarp)).rgb; } col=mix(col,acc/7.0,clamp(uWarp,0.0,1.0)*0.8); }
         col+=texture2D(tBloom,uv).rgb*uBloom;
         col+=texture2D(tGod,uv).rgb*uGod;
@@ -1426,6 +1429,7 @@ const Post = {
     const r = GL.renderer; const q = Q();
     // ---- scene: far pass then near pass (split depth ranges)
     r.setRenderTarget(this.rt); r.setClearColor(0x000000, 1); r.clear(true, true, false); r.autoClear = false;
+    r.info.reset(); r.info.autoReset = false;
     camera.near = SPLIT * 0.98; camera.far = 4e9; camera.updateProjectionMatrix(); camera.layers.enable(1);
     r.render(scene, camera);
     r.clearDepth();
@@ -1433,6 +1437,7 @@ const Post = {
     if (r.shadowMap.enabled) r.shadowMap.needsUpdate = true;
     r.render(scene, camera);
     r.autoClear = true;
+    this.stats = { calls: r.info.render.calls, tris: r.info.render.triangles }; r.info.autoReset = true;
     // ---- bloom
     const bd = this.bloomDown, bu = this.bloomUp;
     let src = this.rt;
@@ -2301,7 +2306,7 @@ const World = {
     this.day = day; this.sunVisCam = sunVis;
     // sun light (per-vertex vSunT handles planet shadow and reddening)
     const L = this.sun; const fp = focusPos || _v4.set(0, 0, 0);
-    L.color.setRGB(sunCol.x, sunCol.y, sunCol.z); L.intensity = 3.4;
+    L.color.setRGB(sunCol.x, sunCol.y, sunCol.z); L.intensity = this.indoor ? 0.5 : 3.4;
     L.target.position.copy(fp); L.position.copy(fp).addScaledVector(this.sunDir, 400);
     L.target.updateMatrixWorld(); L.updateMatrixWorld();
     // ambient
@@ -2322,7 +2327,7 @@ const World = {
         const near = b.camLocal.length() < b.soi * 1.5;
         if (near || (this.frameT + b.index) % 20 === 0) b.terrain.update(b.camLocal);
         b.terrainU.uSunLocal.value.copy(this.sunDir).applyQuaternion(qi);
-        if (b.terrain.waterMat) { const wu = b.terrain.waterMat.userData.u; wu.uRot.value.setFromMatrix4(_m1.makeRotationFromQuaternion(qr)); wu.uZen.value.copy(this.skyZen).multiplyScalar(b === cur ? 1 : 0).addScalar(0.01); wu.uHor.value.copy(this.skyHor).multiplyScalar(b === cur ? 1 : 0).addScalar(0.01); wu.uAmb.value.copy(hemi.color).multiplyScalar(0.8); }
+        if (b.terrain.waterMat) { const wu = b.terrain.waterMat.userData.u; wu.uRot.value.setFromMatrix4(_m1.makeRotationFromQuaternion(qr)); wu.uZen.value.copy(this.skyZen).multiplyScalar(b === cur ? 1 : 0).addScalar(0.01); wu.uHor.value.copy(this.skyHor).multiplyScalar(b === cur ? 1 : 0).addScalar(0.01); wu.uAmb.value.set(hemi.color.r, hemi.color.g, hemi.color.b).multiplyScalar(0.8); }
       }
       if (b.clouds) { b.clouds.material.uniforms.uRot.value.setFromMatrix4(_m1.makeRotationFromQuaternion(qi)); b.clouds.userData.update(b.camLocal.length()); b.clouds.material.uniforms.uAmb.value.copy(this.skyZen).multiplyScalar(b === cur ? 0.9 : 0).addScalar(0.015); }
       if (b.rings) b.rings.material.uniforms.uC.value.copy(b.group.position);
@@ -2334,6 +2339,7 @@ const World = {
     const inFront = _v2.set(0, 0, -1).applyQuaternion(this.camQuat).dot(this.sunDir) > 0;
     let occl = sunVis * (inFront ? 1 : 0) * smoothstep(1.25, 0.95, Math.max(Math.abs(sp.x), Math.abs(sp.y)));
     if (occl > 0 && cur) occl *= this.terrainSunOcclusion(cur);
+    if (occl > 0 && Colliders.raycast(this.camPos, this.sunDir, 4000)) occl = 0;
     this.sunScreen.set(sp.x * 0.5 + 0.5, sp.y * 0.5 + 0.5, occl);
     Env.update(dt, this.skyZen, this.skyHor, _v5.copy(this.gndCol).multiplyScalar(day), _v4.copy(this.sunDir), _v3.copy(sunCol).multiplyScalar(this.sunTint.y * 2 * sunVis), false);
   },
@@ -2410,12 +2416,14 @@ function makeLeafAtlas() {
 
 // ------------------------------------------------------------------ plant geometry builder
 class PGeo {
-  constructor() { this.p = []; this.n = []; this.uv = []; this.c = []; this.f = []; this.e = []; this.i = []; }
+  // PGeo.LOD > 0 while building the distant version: fewer leaf cards / segments, same RNG stream so shapes match
+  constructor() { this.p = []; this.n = []; this.uv = []; this.c = []; this.f = []; this.e = []; this.i = []; this.lod = PGeo.LOD; this.lc = 0; }
   get vc() { return this.p.length / 3; }
   v(p, n, u, v, col, flex, emis) { this.p.push(p.x, p.y, p.z); this.n.push(n.x, n.y, n.z); this.uv.push(u, v); this.c.push(col[0], col[1], col[2]); this.f.push(flex); this.e.push(emis || 0); return this.vc - 1; }
   tri(a, b, c) { this.i.push(a, b, c); }
   // tube along path with radii
   tube(pts, radii, seg, col, cell, flexFn, emis = 0, colFn = null) {
+    if (this.lod) { seg = Math.max(3, Math.ceil(seg * 0.5)); if (pts.length > 4) { const k = pts.map((_, i) => i).filter(i => i % 2 === 0 || i === pts.length - 1); pts = k.map(i => pts[i]); radii = k.map(i => radii[i]); } }
     const uvr = atlasUV(cell); const base = this.vc; const N = pts.length;
     let T = new V3(), Nn = new V3(), B = new V3();
     for (let i = 0; i < N; i++) {
@@ -2436,6 +2444,7 @@ class PGeo {
   }
   // curved leaf card: from p along dir (length), side vector (width), droop bends along normal
   leaf(p, dir, side, len, wid, droop, cell, col, f0, f1, emis = 0, segs = 3, nrmOverride = null) {
+    if (this.lod) { if (this.lc++ % 2) return; wid *= 1.4; len *= 1.04; segs = 1; }
     const uvr = atlasUV(cell); const base = this.vc; const nrm = nrmOverride || _v4.crossVectors(side, dir).normalize();
     const nn = nrm.clone();
     for (let i = 0; i <= segs; i++) {
@@ -2445,7 +2454,7 @@ class PGeo {
     for (let i = 0; i < segs; i++) { const a = base + i * 2; this.tri(a, a + 1, a + 3); this.tri(a, a + 3, a + 2); }
   }
   blob(c, rx, ry, rz, detail, col, cell, flex, emis = 0, noise = 0, seed = 1) {
-    const g = new THREE.IcosahedronGeometry(1, detail); const pos = g.getAttribute('position'); const uvr = atlasUV(cell); const base = this.vc; const r = new RNG(seed);
+    const g = new THREE.IcosahedronGeometry(1, this.lod ? Math.max(0, detail - 1) : detail); const pos = g.getAttribute('position'); const uvr = atlasUV(cell); const base = this.vc; const r = new RNG(seed);
     const off = [r.float(0, 10), r.float(0, 10), r.float(0, 10)];
     for (let i = 0; i < pos.count; i++) {
       const x = pos.getX(i), y = pos.getY(i), z = pos.getZ(i); const nz = noise ? 1 + noise * (Math.sin(x * 4 + off[0]) * Math.sin(y * 5 + off[1]) * Math.sin(z * 4.5 + off[2])) : 1;
@@ -2457,6 +2466,7 @@ class PGeo {
   }
   // lathe around axis at position (profile: [[r,h],...])
   lathe(c, axis, prof, seg, col, cell, flex, emis = 0, colFn = null) {
+    if (this.lod) seg = Math.max(5, Math.ceil(seg * 0.5));
     const uvr = atlasUV(cell); const base = this.vc; const up = axis.clone().normalize(); const t1 = new V3(1, 0, 0); if (Math.abs(up.x) > 0.9) t1.set(0, 0, 1); const a1 = t1.cross(up).normalize(); const a2 = up.clone().cross(a1);
     for (let i = 0; i < prof.length; i++) {
       const [rr, hh] = prof[i]; const t = i / (prof.length - 1); const dr = i < prof.length - 1 ? prof[i + 1][0] - rr : rr - prof[i - 1][0]; const dh = i < prof.length - 1 ? prof[i + 1][1] - hh : hh - prof[i - 1][1];
@@ -2493,6 +2503,7 @@ class PGeo {
     g.computeBoundingSphere(); g.computeBoundingBox(); return g;
   }
 }
+PGeo.LOD = 0;
 const col3 = (h, s, l) => lin3(hsl(h, s, l));
 const vary = (c, r, a = 0.08) => [c[0] * (1 + r.float(-a, a)), c[1] * (1 + r.float(-a, a)), c[2] * (1 + r.float(-a, a))];
 
@@ -2777,8 +2788,12 @@ class FloraManager {
     let si = 0;
     for (const kind of list) {
       const sr = new RNG(hash(d.seed, si++, 0xF10B));
-      let res;
-      if (kind === 'rockBig') res = PLANTS.rock(sr, this.pal, true); else if (kind === 'mineral') res = PLANTS.crystal(sr, this.pal, false); else res = PLANTS[kind](sr, this.pal);
+      const make = (rr) => kind === 'rockBig' ? PLANTS.rock(rr, this.pal, true) : kind === 'mineral' ? PLANTS.crystal(rr, this.pal, false) : PLANTS[kind](rr, this.pal);
+      const lodR = new RNG(hash(d.seed, si - 1, 0xF10B));
+      const res = make(sr);
+      // decimated far geometry (same seed → same silhouette)
+      PGeo.LOD = 1; try { res.geoLo = make(lodR).geo; } finally { PGeo.LOD = 0; }
+      if (res.geoLo.index.count > res.geo.index.count * 0.8) { res.geoLo.dispose(); res.geoLo = res.geo; }
       const cat = CAT_DEF[res.cat]; const range = (res.cat === 'floater' ? 1500 : q.floraRange) * cat.range * (res.height > 8 ? 1.2 : 1);
       const densScale = res.cat === 'rock' || res.cat === 'mineral' ? 1 : (0.25 + d.flora * 0.95);
       const spec = {
@@ -2803,13 +2818,15 @@ class FloraManager {
   update(camLocal) {
     if (!this.species.length) return;
     const cells = this.body.terrain.cellsAt(this.level, camLocal, this.maxRange, []);
-    const keep = new Set();
+    const keep = new Set(); const pend = [];
     for (const n of cells) {
       keep.add(n.key); let c = this.cells.get(n.key);
       if (!c) { c = { node: n, data: null, meshes: new Array(this.species.length).fill(null), state: 0 }; this.cells.set(n.key, c); }
-      if (c.state === 0 && this.inflight < 6) this.request(c, camLocal);
+      if (c.state === 0) pend.push(c);
       if (c.state === 2) this.refresh(c, camLocal);
     }
+    // nearest cells first
+    if (pend.length && this.inflight < 8) { pend.sort((a, b) => a.node.center.distanceToSquared(camLocal) - b.node.center.distanceToSquared(camLocal)); for (const c of pend) { if (this.inflight >= 8) break; this.request(c, camLocal); } }
     for (const [k, c] of this.cells) if (!keep.has(k)) { this.disposeCell(c); this.cells.delete(k); }
   }
   request(c, camLocal) {
@@ -2818,7 +2835,7 @@ class FloraManager {
     const excl = []; const S = Game.save;
     if (S) { for (const id in S.bases) { const b = S.bases[id]; if (b.kind === 'planet' && World.sys && b.sys === World.sys.key && b.body === body.index) excl.push([...b.anchor.p, 38]); } if (S.startSpot && S.startSpot.sys === (World.sys && World.sys.key) && S.startSpot.body === body.index) excl.push([...S.startSpot.p, 30]); }
     Pool.run({ t: 'flora', pid: body.pid, face: n.face, u0: n.u0, v0: n.v0, size: n.size, species: specs, seed: hash(body.data.seed, n.face, Math.round(n.u0 * 1e6), Math.round(n.v0 * 1e6)), dens: 1, excl },
-      () => n.center.distanceTo(this.body.camLocal) * 0.02 + 5).then(r => { this.inflight--; if (!r) { c.state = 0; return; } if (!this.cells.has(n.key)) return; c.data = r; c.state = 2; });
+      () => n.center.distanceTo(this.body.camLocal) / this.cellM * 90 - 1e6).then(r => { this.inflight--; if (!r) { c.state = 0; return; } if (!this.cells.has(n.key)) return; c.data = r; c.state = 2; });
   }
   refresh(c, camLocal) {
     const d = c.node.center.distanceTo(camLocal);
@@ -2826,7 +2843,7 @@ class FloraManager {
       const sp = this.species[i]; const want = d < sp.range + c.node.meters * 0.75;
       if (want && !c.meshes[i]) {
         const arr = c.data[i]; const n = arr.length / 6; if (!n) { c.meshes[i] = 'empty'; continue; }
-        const im = new THREE.InstancedMesh(sp.res.geo, sp.mat, n); im.customDepthMaterial = sp.depth;
+        const im = new THREE.InstancedMesh(d > this.lodDist(sp) ? sp.res.geoLo : sp.res.geo, sp.mat, n); im.customDepthMaterial = sp.depth;
         const m = _m1, q = _q1, up = _v1, pos = _v2, sc = _v3; const rr = new RNG(hash(c.node.face, i, Math.round(c.node.u0 * 1e5)));
         for (let k = 0; k < n; k++) {
           pos.set(arr[k * 6], arr[k * 6 + 1], arr[k * 6 + 2]); up.copy(pos).normalize();
@@ -2840,9 +2857,10 @@ class FloraManager {
         im.castShadow = sp.cat !== 'small' && sp.cat !== 'floater'; im.receiveShadow = true;
         this.group.add(im); c.meshes[i] = im;
       } else if (!want && c.meshes[i]) { if (c.meshes[i] !== 'empty') { this.group.remove(c.meshes[i]); c.meshes[i].dispose(); } c.meshes[i] = null; }
-      if (c.meshes[i] && c.meshes[i] !== 'empty') c.meshes[i].castShadow = d < 160 && sp.cat !== 'small' && sp.cat !== 'floater';
+      if (c.meshes[i] && c.meshes[i] !== 'empty') { const im = c.meshes[i]; im.castShadow = d < 160 && sp.cat !== 'small' && sp.cat !== 'floater'; const g = d > this.lodDist(sp) + (im.geometry === sp.res.geoLo ? -20 : 20) ? sp.res.geoLo : sp.res.geo; if (im.geometry !== g) im.geometry = g; }
     }
   }
+  lodDist(sp) { return (sp.cat === 'tree' ? 170 : 70) + this.cellM * 0.5; }
   disposeCell(c) { for (const m of c.meshes) if (m && m !== 'empty') { this.group.remove(m); m.dispose(); } c.state = -1; }
   // find instances near a point (planet-local) for scanning / mining
   query(p, radius, cb) {
@@ -2861,7 +2879,7 @@ class FloraManager {
     const im = c.meshes[si]; if (im && im !== 'empty') { im.getMatrixAt(k, _m1); _m1.decompose(_v1, _q1, _v2); _m1.compose(_v1, _q1, _v2.set(0, 0, 0)); im.setMatrixAt(k, _m1); im.instanceMatrix.needsUpdate = true; }
   }
   setGlow(night) { for (const s of this.species) s.uni.uGlow.value = s.glow ? (0.25 + night * 1.2) : 0.3; }
-  dispose() { for (const [, c] of this.cells) this.disposeCell(c); this.cells.clear(); this.body.group.remove(this.group); for (const s of this.species) { s.res.geo.dispose(); s.mat.dispose(); } }
+  dispose() { for (const [, c] of this.cells) this.disposeCell(c); this.cells.clear(); this.body.group.remove(this.group); for (const s of this.species) { s.res.geo.dispose(); if (s.res.geoLo !== s.res.geo) s.res.geoLo.dispose(); s.mat.dispose(); } }
 }
 
 // ------------------------------------------------------------------ grass
@@ -2933,18 +2951,19 @@ class GrassManager {
   update(camLocal) {
     if (!this.enabled) return;
     const cells = this.body.terrain.cellsAt(this.level, camLocal, this.range, []);
-    const keep = new Set();
+    const keep = new Set(); const pend = [];
     for (const n of cells) {
       keep.add(n.key); let c = this.cells.get(n.key);
       if (!c) { c = { node: n, mesh: null, state: 0 }; this.cells.set(n.key, c); }
-      if (c.state === 0 && this.inflight < 4) this.request(c);
+      if (c.state === 0) pend.push(c);
       if (c.mesh) { const d = n.center.distanceTo(camLocal); const f = d < 30 ? 1 : d < 55 ? 0.75 : 0.5; c.mesh.geometry.instanceCount = Math.floor(c.n * f); }
     }
+    if (pend.length && this.inflight < 6) { pend.sort((a, b) => a.node.center.distanceToSquared(camLocal) - b.node.center.distanceToSquared(camLocal)); for (const c of pend) { if (this.inflight >= 6) break; this.request(c); } }
     for (const [k, c] of this.cells) if (!keep.has(k)) { if (c.mesh) { this.group.remove(c.mesh); c.mesh.geometry.dispose(); } c.state = -1; this.cells.delete(k); }
   }
   request(c) {
     c.state = 1; this.inflight++; const n = c.node; const body = this.body;
-    Pool.run({ t: 'grass', pid: body.pid, face: n.face, u0: n.u0, v0: n.v0, size: n.size, dens: this.density, seed: hash(body.data.seed, n.face, Math.round(n.u0 * 1e6), Math.round(n.v0 * 1e6), 7) }, () => n.center.distanceTo(this.body.camLocal) * 0.05 + 2).then(r => {
+    Pool.run({ t: 'grass', pid: body.pid, face: n.face, u0: n.u0, v0: n.v0, size: n.size, dens: this.density, seed: hash(body.data.seed, n.face, Math.round(n.u0 * 1e6), Math.round(n.v0 * 1e6), 7) }, () => n.center.distanceTo(this.body.camLocal) / (n.meters + 1) * 60 - 1e6 - 50).then(r => {
       this.inflight--; if (!r || c.state !== 1) { if (c.state === 1) c.state = 0; return; }
       const count = r.pos.length / 4; c.state = 2; c.n = count; if (!count) return;
       const g = new THREE.InstancedBufferGeometry(); g.index = this.base.index; for (const k of ['position', 'normal', 'uv']) g.setAttribute(k, this.base.getAttribute(k));
@@ -3296,9 +3315,10 @@ class HGeo {
   constructor() { this.parts = []; }
   add(geo, col, surf, m) {
     let g = geo.index ? geo.toNonIndexed() : geo; if (g !== geo) geo.dispose(); if (m) g.applyMatrix4(m);
-    const n = g.getAttribute('position').count; const c = new Float32Array(n * 3), s = new Float32Array(n * 4);
-    for (let i = 0; i < n; i++) { c[i * 3] = col[0]; c[i * 3 + 1] = col[1]; c[i * 3 + 2] = col[2]; s.set(surf, i * 4); }
-    g.setAttribute('color', new THREE.BufferAttribute(c, 3)); g.setAttribute('aSurf', new THREE.BufferAttribute(s, 4));
+    const n = g.getAttribute('position').count; const s = new Float32Array(n * 4);
+    for (let i = 0; i < n; i++) s.set(surf, i * 4);
+    if (col) { const c = new Float32Array(n * 3); for (let i = 0; i < n; i++) { c[i * 3] = col[0]; c[i * 3 + 1] = col[1]; c[i * 3 + 2] = col[2]; } g.setAttribute('color', new THREE.BufferAttribute(c, 3)); }
+    g.setAttribute('aSurf', new THREE.BufferAttribute(s, 4));
     for (const k of Object.keys(g.attributes)) if (!['position', 'normal', 'color', 'aSurf'].includes(k)) g.deleteAttribute(k);
     this.parts.push(g); return g;
   }
@@ -3340,6 +3360,35 @@ class HGeo {
     const quad = (a, b, c, d) => { tri(a, b, c); tri(a, c, d); };
     quad(r0t, r1t, t1t, t0t); quad(r0b, t0b, t1b, r1b); quad(r0t, t0t, t0b, r0b); quad(r1t, r1b, t1b, t1t); quad(t0t, t1t, t1b, t0b); quad(r0t, r0b, r1b, r1t);
     const g = new THREE.BufferGeometry(); g.setAttribute('position', new THREE.Float32BufferAttribute(pos, 3)); g.computeVertexNormals(); return this.add(g, col, surf);
+  }
+  // smooth lofted body along z through superellipse sections {z,w,h,y,x,n}
+  loft(secs, seg, colFn, surf, m, along = 5, caps = true) {
+    const cr = (a, b, c, d, t) => 0.5 * (2 * b + (-a + c) * t + (2 * a - 5 * b + 4 * c - d) * t * t + (-a + 3 * b - 3 * c + d) * t * t * t);
+    const S = []; const K = ['z', 'w', 'h', 'y', 'x', 'n'];
+    const get = (i, k) => { const q = secs[clamp(i, 0, secs.length - 1)]; return q[k] ?? (k === 'n' ? 2 : 0); };
+    for (let i = 0; i < secs.length - 1; i++) for (let k = 0; k < along; k++) { const t = k / along; const o = {}; for (const key of K) o[key] = cr(get(i - 1, key), get(i, key), get(i + 1, key), get(i + 2, key), t); o.t = (i + t) / (secs.length - 1); S.push(o); }
+    const last = {}; for (const key of K) last[key] = get(secs.length - 1, key); last.t = 1; S.push(last);
+    const pos = [], col = [], idx = []; const W = seg + 1;
+    for (const q of S) for (let a = 0; a <= seg; a++) {
+      const ang = a / seg * TAU; const c = Math.cos(ang), sn = Math.sin(ang); const e = 2 / Math.max(1.2, q.n);
+      const x = q.x + Math.sign(c) * Math.pow(Math.abs(c), e) * Math.max(q.w, 0.001) / 2, y = q.y + Math.sign(sn) * Math.pow(Math.abs(sn), e) * Math.max(q.h, 0.001) / 2;
+      pos.push(x, y, q.z); const cc = colFn(q.t, ang, x, y, q.z, q); col.push(cc[0], cc[1], cc[2]);
+    }
+    for (let i = 0; i < S.length - 1; i++) for (let a = 0; a < seg; a++) { const p0 = i * W + a, p1 = p0 + 1, p2 = p0 + W, p3 = p2 + 1; idx.push(p0, p1, p2, p1, p3, p2); }
+    if (caps) for (const [si, flip] of [[0, true], [S.length - 1, false]]) { const q = S[si]; const ci = pos.length / 3; pos.push(q.x, q.y, q.z); const cc = colFn(q.t, 0, q.x, q.y, q.z, q); col.push(cc[0], cc[1], cc[2]); for (let a = 0; a < seg; a++) { const p0 = si * W + a; if (flip) idx.push(ci, p0 + 1, p0); else idx.push(ci, p0, p0 + 1); } }
+    const g = new THREE.BufferGeometry(); g.setAttribute('position', new THREE.Float32BufferAttribute(pos, 3)); g.setAttribute('color', new THREE.Float32BufferAttribute(col, 3)); g.setIndex(idx); g.computeVertexNormals();
+    return this.add(g, null, surf, m);
+  }
+  // airfoil wing between root and tip (span along +x, mirrored by side)
+  airfoil(side, root, tip, chordR, chordT, thickR, thickT, colFn, surf, stations = 8) {
+    const ring = 14; const pos = [], col = [], idx = [];
+    for (let i = 0; i <= stations; i++) {
+      const t = i / stations; const p = new V3().lerpVectors(root, tip, t); const ch = lerp(chordR, chordT, t); const th = lerp(thickR, thickT, t) * (i === stations ? 0.25 : 1);
+      for (let j = 0; j < ring; j++) { const a = j / ring * TAU; const u = Math.cos(a) * 0.5; const v = Math.sin(a) * 0.5 * th * (0.35 + 0.65 * Math.pow(1 - Math.abs(Math.cos(a)), 0.5)); const z = p.z + u * ch + (u < 0 ? 0 : 0); pos.push(p.x * side, p.y + v + Math.max(0, -u) * th * 0.15, z); const cc = colFn(t, u); col.push(cc[0], cc[1], cc[2]); }
+    }
+    for (let i = 0; i < stations; i++) for (let j = 0; j < ring; j++) { const a = i * ring + j, b = i * ring + (j + 1) % ring, c = a + ring, d = b + ring; if (side > 0) idx.push(a, c, b, b, c, d); else idx.push(a, b, c, b, d, c); }
+    const g = new THREE.BufferGeometry(); g.setAttribute('position', new THREE.Float32BufferAttribute(pos, 3)); g.setAttribute('color', new THREE.Float32BufferAttribute(col, 3)); g.setIndex(idx); g.computeVertexNormals();
+    return this.add(g, null, surf);
   }
   build() { const g = mergeGeometries(this.parts, false); for (const p of this.parts) p.dispose(); this.parts = []; g.computeBoundingSphere(); g.computeBoundingBox(); return g; }
 }
@@ -3429,91 +3478,120 @@ function genShipDesign(seed, cls) {
 }
 function buildShip(design) {
   const r = new RNG(design.seed ^ 0x5417); const C = SHIP_CLASSES[design.cls] || SHIP_CLASSES.fighter; const L = C.len * (design.scale || 1);
-  const H = new HGeo(); const P = lin3(design.primary), S2 = lin3(design.secondary), A = lin3(design.accent), G = design.glow, DK = [0.05, 0.055, 0.06], MT = [0.4, 0.42, 0.45];
+  const H = new HGeo(); const P = lin3(design.primary), S2 = lin3(design.secondary), A = lin3(design.accent), G = design.glow, DK = [0.035, 0.038, 0.045], MT = [0.42, 0.44, 0.48], GR = [0.16, 0.17, 0.19];
   const out = { nozzles: [], gear: [], lights: [], guns: [], len: L, cockpit: new V3(0, L * 0.12, -L * 0.25) };
-  const W = L * 0.34, HH = L * 0.18;
-  // ---- hull
-  const hull = design.hull;
-  if (hull === 'block' || hull === 'heavy') {
-    const hw = hull === 'heavy' ? W * 1.3 : W; const hh = hull === 'heavy' ? HH * 1.35 : HH;
-    H.taper(-L * 0.5, hw * 0.35, hh * 0.4, 0, -L * 0.28, hw * 0.7, hh * 0.85, 0, P, SURF.paint);
-    H.taper(-L * 0.28, hw * 0.7, hh * 0.85, 0, L * 0.25, hw, hh, 0, P, SURF.paint);
-    H.taper(L * 0.25, hw, hh, 0, L * 0.45, hw * 0.8, hh * 0.8, 0, S2, SURF.paint2);
-    H.box(new V3(0, hh * 0.52, 0), new V3(hw * 0.6, hh * 0.2, L * 0.5), S2, SURF.paint2);
-    H.box(new V3(0, -hh * 0.55, L * 0.05), new V3(hw * 0.75, hh * 0.18, L * 0.55), DK, SURF.dark);
-    if (hull === 'heavy') for (const s of [-1, 1]) H.box(new V3(s * hw * 0.62, 0, L * 0.05), new V3(hw * 0.28, hh * 0.9, L * 0.55), MT, SURF.metal);
-  } else if (hull === 'dart' || hull === 'tri') {
-    H.taper(-L * 0.55, W * 0.08, HH * 0.1, HH * 0.05, -L * 0.2, W * 0.5, HH * 0.7, 0, P, SURF.paint);
-    H.taper(-L * 0.2, W * 0.5, HH * 0.7, 0, L * 0.3, W * (hull === 'tri' ? 1.2 : 0.7), HH * 0.75, 0, P, SURF.paint);
-    H.taper(L * 0.3, W * (hull === 'tri' ? 1.2 : 0.7), HH * 0.75, 0, L * 0.45, W * 0.6, HH * 0.6, 0, S2, SURF.paint2);
-    H.box(new V3(0, HH * 0.38, L * 0.1), new V3(W * 0.2, HH * 0.15, L * 0.55), A, SURF.paint2);
-  } else if (hull === 'pod' || hull === 'orb') {
-    const rr = hull === 'orb' ? L * 0.32 : W * 0.55;
-    H.sphere(new V3(0, 0, 0), rr, P, SURF.paint, 1, hull === 'orb' ? 1 : 0.75, hull === 'orb' ? 1 : 2.1, 28);
-    H.torus(new V3(0, 0, hull === 'orb' ? 0 : L * 0.1), rr * (hull === 'orb' ? 1.05 : 0.95), rr * 0.07, S2, SURF.metal, new Q4().setFromAxisAngle(new V3(1, 0, 0), Math.PI / 2));
-    if (hull === 'pod') H.box(new V3(0, -rr * 0.6, L * 0.05), new V3(W * 0.5, HH * 0.2, L * 0.6), DK, SURF.dark);
+  const W = L * 0.34, HH = L * 0.18; const stripe = r.chance(0.6); const twoTone = r.chance(0.7);
+  const paint = (t, ang, x, y, z, q) => {
+    const ny = (y - q.y) / (q.h / 2 + 1e-4), nx = (x - q.x) / (q.w / 2 + 1e-4);
+    if (t < 0.035) return A;
+    if (twoTone && ny < -0.3) return S2;
+    if (stripe && ny > 0.62 && Math.abs(nx) < 0.16) return A;
+    if (Math.abs(nx) > 0.9 && Math.abs(ny) < 0.12) return GR;
+    return P;
+  };
+  const solid = c => () => c;
+  const hull = design.hull; let bodyW = W, bodyH = HH, bottom = -HH * 0.5, topY = HH * 0.5;
+  // ------------------------------------------------------------ fuselage
+  if (hull === 'block') {
+    H.loft([{ z: -L * 0.53, w: W * 0.12, h: HH * 0.14, y: -HH * 0.06, n: 2 }, { z: -L * 0.4, w: W * 0.42, h: HH * 0.5, y: -HH * 0.02, n: 2.6 }, { z: -L * 0.16, w: W * 0.72, h: HH * 0.88, y: HH * 0.04, n: 3.4 }, { z: L * 0.12, w: W * 0.95, h: HH * 1.02, y: HH * 0.06, n: 4.2 }, { z: L * 0.34, w: W, h: HH * 0.96, n: 4.6 }, { z: L * 0.47, w: W * 0.84, h: HH * 0.8, n: 4 }], 28, paint, SURF.paint);
+    H.loft([{ z: -L * 0.05, w: W * 0.32, h: HH * 0.2, y: HH * 0.55, n: 5 }, { z: L * 0.25, w: W * 0.38, h: HH * 0.24, y: HH * 0.58, n: 5 }, { z: L * 0.42, w: W * 0.3, h: HH * 0.18, y: HH * 0.5, n: 5 }], 16, solid(S2), SURF.paint2);
+    topY = HH * 0.66;
+  } else if (hull === 'heavy') {
+    bodyW = W * 1.25; bodyH = HH * 1.3;
+    H.loft([{ z: -L * 0.52, w: W * 0.5, h: HH * 0.55, y: -HH * 0.05, n: 3 }, { z: -L * 0.36, w: W * 1.05, h: HH * 1.15, n: 5 }, { z: L * 0.3, w: W * 1.25, h: HH * 1.32, n: 7 }, { z: L * 0.48, w: W * 1.1, h: HH * 1.18, n: 6 }], 28, paint, SURF.paint);
+    for (const s of [-1, 1]) for (let k = 0; k < 3; k++) H.box(new V3(s * W * 0.68, -HH * 0.05, -L * 0.2 + k * L * 0.2), new V3(W * 0.22, HH * 0.9, L * 0.17), k % 2 ? S2 : MT, SURF.metal, null, 0.12);
+    bottom = -HH * 0.66; topY = HH * 0.66;
+  } else if (hull === 'dart') {
+    bodyW = W * 0.62; bodyH = HH * 0.7;
+    H.loft([{ z: -L * 0.62, w: W * 0.02, h: HH * 0.02, y: -HH * 0.02, n: 2 }, { z: -L * 0.42, w: W * 0.2, h: HH * 0.26, n: 2 }, { z: -L * 0.12, w: W * 0.46, h: HH * 0.6, y: HH * 0.03, n: 2.3 }, { z: L * 0.22, w: W * 0.62, h: HH * 0.7, y: HH * 0.04, n: 2.8 }, { z: L * 0.46, w: W * 0.5, h: HH * 0.56, n: 3 }], 28, paint, SURF.paint);
+    bottom = -HH * 0.35; topY = HH * 0.4;
+  } else if (hull === 'pod') {
+    bodyW = W * 0.95; bodyH = HH * 1.1;
+    H.loft([{ z: -L * 0.46, w: W * 0.18, h: HH * 0.2, n: 2 }, { z: -L * 0.33, w: W * 0.75, h: HH * 0.85, n: 2.1 }, { z: L * 0.1, w: W * 0.98, h: HH * 1.1, y: HH * 0.05, n: 2.3 }, { z: L * 0.4, w: W * 0.82, h: HH * 0.92, n: 2.4 }, { z: L * 0.48, w: W * 0.55, h: HH * 0.6, n: 2.2 }], 30, paint, SURF.paint);
+    bottom = -HH * 0.55; topY = HH * 0.6;
+  } else if (hull === 'tri') {
+    bodyW = W * 1.3; bodyH = HH * 0.5;
+    H.loft([{ z: -L * 0.62, w: W * 0.04, h: HH * 0.04, n: 2 }, { z: -L * 0.3, w: W * 0.55, h: HH * 0.32, n: 2 }, { z: L * 0.05, w: W * 1.15, h: HH * 0.45, n: 2.6 }, { z: L * 0.32, w: W * 1.4, h: HH * 0.48, n: 3 }, { z: L * 0.46, w: W * 1.1, h: HH * 0.42, n: 3 }], 28, paint, SURF.paint);
+    H.loft([{ z: -L * 0.25, w: W * 0.3, h: HH * 0.2, y: HH * 0.22, n: 2 }, { z: L * 0.35, w: W * 0.4, h: HH * 0.35, y: HH * 0.28, n: 3 }], 16, solid(S2), SURF.paint2);
+    bottom = -HH * 0.25; topY = HH * 0.4;
   } else if (hull === 'twinboom') {
-    H.taper(-L * 0.5, W * 0.4, HH * 0.5, 0, L * 0.1, W * 0.7, HH * 0.9, 0, P, SURF.paint);
-    for (const s of [-1, 1]) H.taper(-L * 0.2, W * 0.3, HH * 0.6, -HH * 0.1, L * 0.5, W * 0.35, HH * 0.7, -HH * 0.1, S2, SURF.paint2, s * W * 0.75);
-    H.box(new V3(0, -HH * 0.1, L * 0.25), new V3(W * 1.5, HH * 0.25, L * 0.12), DK, SURF.dark);
+    H.loft([{ z: -L * 0.5, w: W * 0.2, h: HH * 0.25, n: 2 }, { z: -L * 0.3, w: W * 0.62, h: HH * 0.75, n: 2.6 }, { z: L * 0.12, w: W * 0.72, h: HH * 0.9, n: 3.2 }, { z: L * 0.25, w: W * 0.5, h: HH * 0.6, n: 3 }], 24, paint, SURF.paint);
+    for (const s of [-1, 1]) H.loft([{ z: -L * 0.3, w: W * 0.08, h: HH * 0.1, x: s * W * 0.78, n: 2 }, { z: -L * 0.15, w: W * 0.32, h: HH * 0.55, x: s * W * 0.8, y: -HH * 0.08, n: 2.6 }, { z: L * 0.35, w: W * 0.38, h: HH * 0.62, x: s * W * 0.8, y: -HH * 0.08, n: 3 }, { z: L * 0.5, w: W * 0.3, h: HH * 0.5, x: s * W * 0.8, y: -HH * 0.08, n: 3 }], 18, (t, a, x, y, z, q) => paint(t + 0.1, a, x, y, z, q), SURF.paint);
+    H.loft([{ z: L * 0.12, w: W * 1.5, h: HH * 0.16, y: -HH * 0.12, n: 4 }, { z: L * 0.28, w: W * 1.5, h: HH * 0.16, y: -HH * 0.12, n: 4 }], 16, solid(DK), SURF.dark);
+    bodyW = W * 1.6;
+  } else { // orb (exotic)
+    const rr = L * 0.32; bodyW = rr * 2; bodyH = rr * 2; H.sphere(new V3(0, 0, 0), rr, P, SURF.chrome, 1, 1, 1, 40);
+    H.torus(new V3(0, 0, 0), rr * 1.08, rr * 0.06, S2, SURF.metal, new Q4().setFromAxisAngle(new V3(1, 0, 0), Math.PI / 2), 64); H.torus(new V3(0, 0, 0), rr * 1.08, rr * 0.02, G, SURF.glow, new Q4().setFromAxisAngle(new V3(1, 0, 0), Math.PI / 2), 64);
+    for (let k = 0; k < 6; k++) { const a = k / 6 * TAU; H.box(new V3(Math.cos(a) * rr * 0.98, Math.sin(a) * rr * 0.98, 0), new V3(rr * 0.12, rr * 0.12, rr * 1.3), DK, SURF.dark, new Q4().setFromAxisAngle(new V3(0, 0, 1), a), 0.1); }
+    bottom = -rr; topY = rr * 0.9;
   }
-  // ---- cockpit
-  const cp = design.cockpit; const cz = -L * 0.22; const glassCol = [0.02, 0.05, 0.08];
-  const glass = new HGeo();
-  if (cp === 'bubble') { glass.sphere(new V3(0, HH * 0.45, cz), W * 0.3, glassCol, SURF.glass, 1, 0.75, 1.5, 24); H.torus(new V3(0, HH * 0.42, cz), W * 0.3, 0.06, MT, SURF.metal, new Q4().setFromAxisAngle(new V3(1, 0, 0), Math.PI / 2)); out.cockpit.set(0, HH * 0.45, cz); }
-  else if (cp === 'wedge' || cp === 'needle') { const n = cp === 'needle' ? 1.4 : 1; glass.taper(cz - L * 0.14 * n, W * 0.1, HH * 0.1, HH * 0.3, cz + L * 0.1, W * 0.42, HH * 0.42, HH * 0.52, glassCol, SURF.glass); out.cockpit.set(0, HH * 0.5, cz); }
-  else if (cp === 'visor') { glass.box(new V3(0, HH * 0.3, cz - L * 0.12), new V3(W * 0.55, HH * 0.18, L * 0.12), glassCol, SURF.glass, null, 0.05); out.cockpit.set(0, HH * 0.3, cz - L * 0.05); }
-  else { glass.sphere(new V3(0, HH * 0.4, cz), W * 0.38, glassCol, SURF.glass, 1.1, 0.8, 1.1, 24); out.cockpit.set(0, HH * 0.45, cz); }
-  // ---- wings
-  const wg = design.wings; const wz = L * 0.08;
+  // nose intake glow ("face") for bulky hulls
+  if (hull === 'block' || hull === 'heavy') { H.box(new V3(0, -HH * 0.08, -L * 0.36), new V3(W * 0.28, HH * 0.1, 0.12), G, SURF.glow, null, 0.03); for (let k = 0; k < 3; k++) H.box(new V3(0, -HH * 0.2 - k * HH * 0.07, -L * 0.34), new V3(W * 0.22, HH * 0.03, 0.1), DK, SURF.dark, null, 0.01); }
+  // ------------------------------------------------------------ cockpit canopy (glass, sunk into hull)
+  const cp = design.cockpit; const cz = hull === 'orb' ? -L * 0.12 : -L * 0.2; const glassCol = [0.02, 0.05, 0.08]; const glass = new HGeo(); const cy = hull === 'orb' ? L * 0.2 : topY * 0.75;
+  if (cp === 'bubble') { glass.sphere(new V3(0, cy, cz), W * 0.26, glassCol, SURF.glass, 1, 0.78, 1.45, 28); H.torus(new V3(0, cy - W * 0.03, cz), W * 0.26, 0.05 * L / 12, MT, SURF.metal, new Q4().setFromAxisAngle(new V3(1, 0, 0), Math.PI / 2).premultiply(new Q4().setFromAxisAngle(new V3(0, 1, 0), 0)), 40); }
+  else if (cp === 'wedge') glass.sphere(new V3(0, cy - HH * 0.02, cz), W * 0.2, glassCol, SURF.glass, 1, 0.75, 2.6, 28);
+  else if (cp === 'needle') glass.sphere(new V3(0, cy - HH * 0.04, cz - L * 0.06), W * 0.14, glassCol, SURF.glass, 1, 0.9, 4.2, 28);
+  else if (cp === 'visor') { glass.sphere(new V3(0, cy - HH * 0.12, cz - L * 0.1), W * 0.3, glassCol, SURF.glass, 1.2, 0.32, 0.9, 28); }
+  else glass.sphere(new V3(0, cy, cz), W * 0.32, glassCol, SURF.glass, 1.05, 0.85, 1.1, 32);
+  out.cockpit.set(0, cy, cz);
+  // ------------------------------------------------------------ wings
+  const wg = design.wings; const wz = L * 0.06; const wy = (hull === 'tri' ? 0 : -HH * 0.05); const rootX = bodyW * 0.4;
+  const wcol = (t, u) => t > 0.86 ? A : (u < -0.36 ? GR : S2);
   for (const s of [-1, 1]) {
-    if (wg === 'box') { H.box(new V3(s * W * 0.95, -HH * 0.05, wz), new V3(W * 0.55, HH * 0.9, L * 0.42), S2, SURF.paint2); H.box(new V3(s * W * 1.3, -HH * 0.05, wz + L * 0.04), new V3(W * 0.08, HH * 1.3, L * 0.5), A, SURF.paint2); H.box(new V3(s * W * 0.95, -HH * 0.55, wz), new V3(W * 0.5, HH * 0.1, L * 0.36), DK, SURF.dark); }
-    else if (wg === 'swept') H.wing(s, new V3(W * 0.4, 0, wz), L * 0.42, new V3(W * 1.9, -HH * 0.05, wz + L * 0.3), L * 0.14, HH * 0.18, S2, SURF.paint2);
-    else if (wg === 'forward') H.wing(s, new V3(W * 0.4, 0, wz + L * 0.1), L * 0.4, new V3(W * 1.7, HH * 0.1, wz - L * 0.22), L * 0.16, HH * 0.18, S2, SURF.paint2);
-    else if (wg === 'delta') H.wing(s, new V3(W * 0.35, -HH * 0.1, wz + L * 0.05), L * 0.62, new V3(W * 1.5, -HH * 0.15, wz + L * 0.3), L * 0.08, HH * 0.14, S2, SURF.paint2);
-    else if (wg === 'stub') H.wing(s, new V3(W * 0.4, -HH * 0.1, wz), L * 0.3, new V3(W * 1.05, -HH * 0.25, wz + L * 0.08), L * 0.18, HH * 0.22, S2, SURF.paint2);
-    else if (wg === 'vertical') { H.wing(s, new V3(W * 0.4, 0, wz), L * 0.3, new V3(W * 1.1, 0, wz + L * 0.1), L * 0.2, HH * 0.18, S2, SURF.paint2); H.box(new V3(s * W * 1.1, HH * 0.6, wz + L * 0.12), new V3(W * 0.06, HH * 1.4, L * 0.22), A, SURF.paint2); }
-    else if (wg === 'ring') { H.torus(new V3(s * W * 1.35, 0, wz), L * 0.24, L * 0.018, S2, SURF.metal, new Q4().setFromAxisAngle(new V3(0, 1, 0), Math.PI / 2), 40); H.cyl(new V3(s * W * 0.4, 0, wz), new V3(s * (W * 1.35 - L * 0.24), 0, wz), L * 0.02, L * 0.02, 8, MT, SURF.metal); H.add(new THREE.CircleGeometry(L * 0.23, 40), [G[0] * 0.25, G[1] * 0.25, G[2] * 0.25], [0, 0.4, 0.35, 0], new M4().compose(new V3(s * W * 1.35, 0, wz), new Q4().setFromAxisAngle(new V3(0, 1, 0), Math.PI / 2), new V3(1, 1, 1))); }
-    else if (wg === 'sail') { const sail = H.wing(s, new V3(W * 0.4, HH * 0.1, wz), L * 0.5, new V3(W * 2.4, HH * 0.9, wz + L * 0.15), L * 0.4, 0.08, [0.95, 0.75, 0.3], [0.9, 0.2, 0.15, 1]); H.cyl(new V3(s * W * 0.4, HH * 0.1, wz), new V3(s * W * 2.4, HH * 0.9, wz), 0.08, 0.05, 6, MT, SURF.metal); }
-    if (wg !== 'none' && wg !== 'ring') { out.lights.push({ pos: new V3(s * W * (wg === 'box' ? 1.32 : wg === 'stub' ? 1.05 : 1.7), 0, wz + L * 0.2), col: s < 0 ? [1, 0.1, 0.1] : [0.1, 1, 0.2] }); }
+    if (wg === 'box') {
+      H.airfoil(s, new V3(rootX, wy, wz), new V3(W * 1.0, wy - HH * 0.1, wz + L * 0.05), L * 0.42, L * 0.32, HH * 0.28, HH * 0.2, wcol, SURF.paint2, 4);
+      H.box(new V3(s * W * 1.08, wy - HH * 0.12, wz + L * 0.04), new V3(W * 0.08, HH * 1.2, L * 0.46), S2, SURF.paint2, new Q4().setFromAxisAngle(new V3(0, 0, 1), -s * 0.4), 0.1);
+      H.box(new V3(s * W * 1.13, wy - HH * 0.12, wz + L * 0.04), new V3(W * 0.025, HH * 0.95, L * 0.4), A, SURF.paint2, new Q4().setFromAxisAngle(new V3(0, 0, 1), -s * 0.4), 0.02);
+    }
+    else if (wg === 'swept') H.airfoil(s, new V3(rootX, wy, wz), new V3(W * 1.95, wy - HH * 0.08, wz + L * 0.32), L * 0.44, L * 0.12, HH * 0.26, HH * 0.08, wcol, SURF.paint2);
+    else if (wg === 'forward') H.airfoil(s, new V3(rootX, wy, wz + L * 0.12), new V3(W * 1.75, wy + HH * 0.12, wz - L * 0.22), L * 0.4, L * 0.14, HH * 0.26, HH * 0.1, wcol, SURF.paint2);
+    else if (wg === 'delta') H.airfoil(s, new V3(rootX * 0.8, wy - HH * 0.08, wz + L * 0.08), new V3(W * 1.55, wy - HH * 0.14, wz + L * 0.3), L * 0.68, L * 0.07, HH * 0.22, HH * 0.05, wcol, SURF.paint2);
+    else if (wg === 'stub') H.airfoil(s, new V3(rootX, wy - HH * 0.08, wz), new V3(W * 1.1, wy - HH * 0.3, wz + L * 0.07), L * 0.32, L * 0.2, HH * 0.3, HH * 0.18, wcol, SURF.paint2, 5);
+    else if (wg === 'vertical') { H.airfoil(s, new V3(rootX, wy, wz), new V3(W * 1.1, wy, wz + L * 0.1), L * 0.32, L * 0.2, HH * 0.24, HH * 0.14, wcol, SURF.paint2, 5); H.loft([{ z: wz - L * 0.06, w: 0.1, h: HH * 0.2, x: s * W * 1.1, y: 0, n: 2 }, { z: wz + L * 0.12, w: W * 0.07, h: HH * 1.1, x: s * W * 1.1, y: HH * 0.3, n: 2 }, { z: wz + L * 0.24, w: W * 0.05, h: HH * 0.85, x: s * W * 1.1, y: HH * 0.42, n: 2 }], 12, solid(A), SURF.paint2); }
+    else if (wg === 'ring') { H.torus(new V3(s * W * 1.35, 0, wz), L * 0.24, L * 0.022, S2, SURF.metal, new Q4().setFromAxisAngle(new V3(0, 1, 0), Math.PI / 2), 48); H.torus(new V3(s * W * 1.35, 0, wz), L * 0.2, L * 0.006, G, SURF.glow, new Q4().setFromAxisAngle(new V3(0, 1, 0), Math.PI / 2), 48); H.airfoil(s, new V3(rootX, 0, wz), new V3(W * 1.35 - L * 0.22, 0, wz), L * 0.12, L * 0.08, HH * 0.12, HH * 0.1, solid(MT), SURF.metal, 3); H.add(new THREE.CircleGeometry(L * 0.2, 40), [G[0] * 0.3, G[1] * 0.3, G[2] * 0.3], [0, 0.4, 0.3, 0], new M4().compose(new V3(s * W * 1.35, 0, wz), new Q4().setFromAxisAngle(new V3(0, 1, 0), Math.PI / 2), new V3(1, 1, 1))); }
+    else if (wg === 'sail') { for (let k = 0; k < 3; k++) { const a = -0.25 + k * 0.28; H.airfoil(s, new V3(rootX, 0, wz + L * 0.02 * k), new V3(rootX + W * 1.35 * Math.cos(a), W * 1.35 * Math.sin(a), wz + L * 0.08 + L * 0.02 * k), L * 0.34, L * 0.26, 0.12 * L / 12, 0.08 * L / 12, (t, u) => Math.abs(u) > 0.42 ? MT : mixc([0.95, 0.72, 0.28], [1, 0.52, 0.18], t), [0.9, 0.2, 0.25, 1], 4); } H.cyl(new V3(s * rootX, 0, wz), new V3(s * W * 0.9, 0, wz), 0.15, 0.1, 8, MT, SURF.metal); }
+    if (wg !== 'none' && wg !== 'ring' && wg !== 'sail') out.lights.push({ pos: new V3(s * (wg === 'box' ? W * 1.2 : wg === 'stub' ? W * 1.1 : wg === 'vertical' ? W * 1.1 : W * 1.8), wy, wz + L * (wg === 'forward' ? -0.2 : 0.25)), col: s < 0 ? [1, 0.1, 0.1] : [0.1, 1, 0.2] });
   }
-  // ---- engines
-  const en = design.engines; const ez = L * 0.45; const nozzle = (p, rad) => { H.lathe(p, new V3(0, 0, 1), [[rad * 0.95, 0], [rad * 1.05, rad * 0.4], [rad * 0.9, rad * 0.9], [rad * 0.75, rad * 1.0]], 16, DK, SURF.dark); H.add(new THREE.CircleGeometry(rad * 0.72, 16), G, SURF.glow, new M4().compose(p.clone().add(new V3(0, 0, rad * 0.5)), new Q4(), new V3(1, 1, 1))); out.nozzles.push({ pos: p.clone().add(new V3(0, 0, rad * 0.9)), rad }); };
-  if (en === 'pods') { for (const s of [-1, 1]) { const x = s * W * 0.7; H.cyl(new V3(x, 0, ez - L * 0.35), new V3(x, 0, ez), HH * 0.42, HH * 0.5, 16, MT, SURF.metal); H.cyl(new V3(x, 0, ez - L * 0.38), new V3(x, 0, ez - L * 0.35), HH * 0.2, HH * 0.42, 16, DK, SURF.dark); H.torus(new V3(x, 0, ez - L * 0.1), HH * 0.5, 0.07, G, SURF.glow); nozzle(new V3(x, 0, ez), HH * 0.42); } }
-  else if (en === 'twin') for (const s of [-1, 1]) nozzle(new V3(s * W * 0.3, 0, ez), HH * 0.3);
-  else if (en === 'quad') for (const s of [-1, 1]) for (const t of [-1, 1]) nozzle(new V3(s * W * 0.3, t * HH * 0.25, ez), HH * 0.22);
-  else if (en === 'single') nozzle(new V3(0, 0, ez), HH * 0.45);
-  else if (en === 'ring') { H.torus(new V3(0, 0, ez), HH * 0.6, HH * 0.12, MT, SURF.metal); H.torus(new V3(0, 0, ez + 0.05), HH * 0.55, HH * 0.05, G, SURF.glow); nozzle(new V3(0, 0, ez - 0.2), HH * 0.35); }
-  else { for (let k = 0; k < 5; k++) { const a = k / 5 * TAU; nozzle(new V3(Math.cos(a) * W * 0.3, Math.sin(a) * HH * 0.3, ez), HH * 0.18); } }
-  // ---- extras
-  if (design.extras.includes('cannons') || C.stats.dmg > 1.2) for (const s of [-1, 1]) { const x = s * W * 0.75; H.cyl(new V3(x, -HH * 0.35, -L * 0.1), new V3(x, -HH * 0.35, -L * 0.48), 0.12, 0.09, 8, DK, SURF.dark); out.guns.push(new V3(x, -HH * 0.35, -L * 0.5)); }
-  if (!out.guns.length) out.guns.push(new V3(0, -HH * 0.4, -L * 0.5));
-  if (design.extras.includes('antenna')) H.cyl(new V3(W * 0.2, HH * 0.4, L * 0.2), new V3(W * 0.25, HH * 1.4, L * 0.3), 0.04, 0.02, 5, MT, SURF.metal);
-  if (design.extras.includes('fins')) H.box(new V3(0, HH * 0.85, L * 0.34), new V3(0.14, HH * 0.9, L * 0.22), A, SURF.paint2, new Q4().setFromAxisAngle(new V3(1, 0, 0), -0.35), 0.05);
-  if (design.extras.includes('spoiler')) H.box(new V3(0, HH * 0.7, L * 0.42), new V3(W * 1.1, 0.12, L * 0.1), A, SURF.paint2);
-  if (design.extras.includes('radar')) H.lathe(new V3(-W * 0.2, HH * 0.45, L * 0.1), new V3(0.3, 1, 0), [[0.01, 0], [W * 0.18, W * 0.05], [W * 0.2, W * 0.07]], 12, MT, SURF.metal);
-  if (design.extras.includes('greebles') || true) { for (let k = 0; k < 10; k++) { const z = r.float(-L * 0.3, L * 0.35); H.box(new V3(r.float(-W * 0.3, W * 0.3), HH * 0.47, z), new V3(r.float(0.2, 0.6), r.float(0.08, 0.25), r.float(0.2, 0.9)), r.chance(0.5) ? MT : DK, SURF.metal, null, 0.03); } }
-  // accent stripe & lights
-  H.box(new V3(0, HH * 0.02, -L * 0.36), new V3(W * 0.36, HH * 0.08, L * 0.04), G, SURF.glow, null, 0.01);
+  // ------------------------------------------------------------ engines
+  const en = design.engines; const ez = L * 0.47;
+  const nozzle = (p, rad) => { H.lathe(p, new V3(0, 0, 1), [[rad * 1.02, 0], [rad * 1.12, rad * 0.35], [rad * 1.0, rad * 0.8], [rad * 0.86, rad * 0.95], [rad * 0.78, rad * 0.4]], 24, DK, SURF.dark); H.torus(p.clone().add(new V3(0, 0, rad * 0.1)), rad * 1.06, rad * 0.06, MT, SURF.metal, null, 24); H.add(new THREE.CircleGeometry(rad * 0.8, 24), G, SURF.glow, new M4().compose(p.clone().add(new V3(0, 0, rad * 0.45)), new Q4(), new V3(1, 1, 1))); out.nozzles.push({ pos: p.clone().add(new V3(0, 0, rad * 0.9)), rad }); };
+  const nacelle = (x, y, z0, z1, rad) => { H.loft([{ z: z0, w: rad * 0.9, h: rad * 0.9, x, y, n: 2 }, { z: z0 + rad * 0.5, w: rad * 2.1, h: rad * 2.1, x, y, n: 2 }, { z: lerp(z0, z1, 0.6), w: rad * 2.2, h: rad * 2.2, x, y, n: 2.2 }, { z: z1, w: rad * 2.0, h: rad * 2.0, x, y, n: 2 }], 20, (t, a) => t > 0.55 && t < 0.62 ? A : (Math.sin(a) < -0.4 ? S2 : MT), SURF.metal, null, 4, false); H.torus(new V3(x, y, z0 + rad * 0.3), rad * 0.95, rad * 0.08, G, SURF.glow, null, 24); nozzle(new V3(x, y, z1), rad * 0.95); };
+  if (en === 'pods') for (const s of [-1, 1]) nacelle(s * bodyW * 0.62, -HH * 0.02, ez - L * 0.42, ez, HH * 0.42);
+  else if (en === 'twin') for (const s of [-1, 1]) { H.cyl(new V3(s * W * 0.3, 0, ez - L * 0.12), new V3(s * W * 0.3, 0, ez), HH * 0.34, HH * 0.34, 20, MT, SURF.metal); nozzle(new V3(s * W * 0.3, 0, ez), HH * 0.3); }
+  else if (en === 'quad') for (const s of [-1, 1]) for (const t of [-1, 1]) { H.cyl(new V3(s * W * 0.3, t * HH * 0.25, ez - L * 0.1), new V3(s * W * 0.3, t * HH * 0.25, ez), HH * 0.24, HH * 0.24, 16, MT, SURF.metal); nozzle(new V3(s * W * 0.3, t * HH * 0.25, ez), HH * 0.21); }
+  else if (en === 'single') { H.cyl(new V3(0, 0, ez - L * 0.12), new V3(0, 0, ez), HH * 0.5, HH * 0.48, 24, MT, SURF.metal); nozzle(new V3(0, 0, ez), HH * 0.45); }
+  else if (en === 'ring') { H.torus(new V3(0, 0, ez), HH * 0.62, HH * 0.13, MT, SURF.metal, null, 40); H.torus(new V3(0, 0, ez + 0.05), HH * 0.56, HH * 0.05, G, SURF.glow, null, 40); nozzle(new V3(0, 0, ez - 0.2), HH * 0.34); }
+  else { for (let k = 0; k < 5; k++) { const a = k / 5 * TAU + 0.3; const p = new V3(Math.cos(a) * W * 0.3, Math.sin(a) * HH * 0.3, ez); H.cyl(p.clone().add(new V3(0, 0, -L * 0.08)), p, HH * 0.2, HH * 0.2, 14, MT, SURF.metal); nozzle(p, HH * 0.18); } }
+  // ------------------------------------------------------------ extras & greebles
+  if (design.extras.includes('cannons') || C.stats.dmg > 1.2) for (const s of [-1, 1]) { const x = s * bodyW * 0.55; H.loft([{ z: -L * 0.05, w: 0.5, h: 0.4, x, y: -HH * 0.36, n: 3 }, { z: -L * 0.3, w: 0.36, h: 0.3, x, y: -HH * 0.36, n: 3 }], 10, solid(DK), SURF.dark); H.cyl(new V3(x, -HH * 0.36, -L * 0.3), new V3(x, -HH * 0.36, -L * 0.5), 0.1, 0.08, 8, MT, SURF.metal); H.torus(new V3(x, -HH * 0.36, -L * 0.42), 0.13, 0.03, G, SURF.glow, null, 12); out.guns.push(new V3(x, -HH * 0.36, -L * 0.52)); }
+  if (!out.guns.length) out.guns.push(new V3(0, -HH * 0.35, -L * 0.52));
+  if (design.extras.includes('antenna')) { H.cyl(new V3(W * 0.12, topY, L * 0.2), new V3(W * 0.15, topY + HH * 1.1, L * 0.3), 0.05, 0.02, 5, MT, SURF.metal); H.sphere(new V3(W * 0.15, topY + HH * 1.12, L * 0.3), 0.07, [1, 0.2, 0.2], SURF.glow, 1, 1, 1, 6); }
+  if (design.extras.includes('fins')) for (const s of (hull === 'tri' ? [-1, 1] : [0])) H.loft([{ z: L * 0.16, w: 0.1, h: 0.1, x: s * W * 0.35, y: topY * 0.85, n: 2 }, { z: L * 0.34, w: W * 0.05, h: HH * 0.7, x: s * W * 0.35, y: topY + HH * 0.22, n: 2 }, { z: L * 0.45, w: W * 0.04, h: HH * 0.6, x: s * W * 0.35, y: topY + HH * 0.3, n: 2 }], 12, (t) => t > 0.7 ? A : S2, SURF.paint2);
+  if (design.extras.includes('spoiler')) H.airfoil(1, new V3(0, topY + HH * 0.35, L * 0.42), new V3(W * 0.7, topY + HH * 0.45, L * 0.45), L * 0.12, L * 0.08, 0.14, 0.1, solid(A), SURF.paint2, 3), H.airfoil(-1, new V3(0, topY + HH * 0.35, L * 0.42), new V3(W * 0.7, topY + HH * 0.45, L * 0.45), L * 0.12, L * 0.08, 0.14, 0.1, solid(A), SURF.paint2, 3);
+  if (design.extras.includes('radar')) H.lathe(new V3(-W * 0.15, topY, L * 0.12), new V3(0.3, 1, 0), [[0.01, 0], [W * 0.16, W * 0.05], [W * 0.18, W * 0.07]], 16, MT, SURF.metal);
+  for (let k = 0; k < 14; k++) { const z = r.float(-L * 0.25, L * 0.4); const x = r.float(-bodyW * 0.28, bodyW * 0.28); H.box(new V3(x, topY * 0.93, z), new V3(r.float(0.15, 0.5) * L / 12, r.float(0.06, 0.18) * L / 12, r.float(0.2, 0.8) * L / 12), r.chance(0.5) ? MT : DK, SURF.metal, null, 0.02); }
+  for (let k = 0; k < 4; k++) { const z = -L * 0.1 + k * L * 0.1; for (const s of [-1, 1]) H.box(new V3(s * bodyW * 0.48, 0, z), new V3(0.06, HH * 0.18, L * 0.05), DK, SURF.dark, null, 0.01); }
+  // ------------------------------------------------------------ assemble
   const group = new THREE.Group();
   const mesh = new THREE.Mesh(H.build(), HSMat()); mesh.castShadow = true; mesh.receiveShadow = true; group.add(mesh);
   const gm = new THREE.Mesh(glass.build(), GlassMat()); group.add(gm);
-  for (const lt of out.lights) { const s = new THREE.Mesh(new THREE.SphereGeometry(0.12, 8, 6), new THREE.MeshBasicMaterial({ color: new COL(lt.col[0] * 6, lt.col[1] * 6, lt.col[2] * 6) })); s.position.copy(lt.pos); group.add(s); lt.mesh = s; }
-  // plumes
+  for (const lt of out.lights) { const s = new THREE.Mesh(new THREE.SphereGeometry(0.1 * L / 12, 8, 6), new THREE.MeshBasicMaterial({ color: new COL(lt.col[0] * 8, lt.col[1] * 8, lt.col[2] * 8) })); s.position.copy(lt.pos); group.add(s); lt.mesh = s; }
   const pm = makePlumeMaterial(G); out.plumeMat = pm; out.plumes = [];
-  for (const nz of out.nozzles) { const pg = new THREE.ConeGeometry(nz.rad * 0.85, nz.rad * 6, 16, 1, true); pg.rotateX(-Math.PI / 2); pg.translate(0, 0, nz.rad * 3); const pl = new THREE.Mesh(pg, pm); pl.position.copy(nz.pos); pl.renderOrder = 7; group.add(pl); out.plumes.push(pl); }
-  // landing gear (front + 2 rear)
-  const gearMat = HSMat(); const gearH = HH * 0.5 + L * 0.06;
-  const legs = [[0, -L * 0.28], [-W * 0.55, L * 0.22], [W * 0.55, L * 0.22]];
-  const bottom = -HH * (hull === 'heavy' ? 0.7 : 0.5);
+  for (const nz of out.nozzles) { const pg = new THREE.ConeGeometry(nz.rad * 0.8, nz.rad * 6, 18, 1, true); pg.rotateX(-Math.PI / 2); pg.translate(0, 0, nz.rad * 3); const pl = new THREE.Mesh(pg, pm); pl.position.copy(nz.pos); pl.renderOrder = 7; group.add(pl); out.plumes.push(pl); }
+  // landing gear
+  const gearH = HH * 0.55 + L * 0.06;
+  const legs = [[0, -L * 0.27], [-bodyW * 0.42, L * 0.22], [bodyW * 0.42, L * 0.22]];
   for (const [x, z] of legs) {
-    const pivot = new THREE.Group(); pivot.position.set(x, bottom, z);
-    const g2 = new HGeo(); g2.cyl(new V3(0, 0, 0), new V3(0, -gearH, 0.1), 0.14, 0.11, 8, MT, SURF.metal); g2.cyl(new V3(0, -gearH * 0.4, 0.3), new V3(0, -gearH * 0.9, 0.12), 0.06, 0.06, 6, DK, SURF.dark);
-    g2.box(new V3(0, -gearH - 0.05, 0.1), new V3(0.7, 0.12, 0.9), DK, SURF.rubber, null, 0.04);
-    const gm2 = new THREE.Mesh(g2.build(), gearMat); gm2.castShadow = true; pivot.add(gm2); group.add(pivot);
+    const pivot = new THREE.Group(); pivot.position.set(x, bottom + 0.1, z);
+    const g2 = new HGeo(); const k = L / 12;
+    g2.cyl(new V3(0, 0, 0), new V3(0, -gearH * 0.55, 0.06 * k), 0.16 * k, 0.14 * k, 10, MT, SURF.metal); g2.cyl(new V3(0, -gearH * 0.5, 0.06 * k), new V3(0, -gearH, 0.1 * k), 0.1 * k, 0.1 * k, 10, [0.75, 0.77, 0.8], SURF.chrome);
+    g2.cyl(new V3(0, -gearH * 0.2, 0.3 * k), new V3(0, -gearH * 0.85, 0.14 * k), 0.05 * k, 0.05 * k, 6, DK, SURF.dark); g2.box(new V3(0, -gearH * 0.08, 0), new V3(0.4 * k, 0.25 * k, 0.4 * k), DK, SURF.dark, null, 0.04);
+    g2.lathe(new V3(0, -gearH - 0.02, 0.1 * k), new V3(0, 1, 0), [[0.01, 0], [0.42 * k, 0], [0.45 * k, 0.08 * k], [0.3 * k, 0.16 * k], [0.12 * k, 0.2 * k]], 16, DK, SURF.rubber);
+    const gm2 = new THREE.Mesh(g2.build(), HSMat()); gm2.castShadow = true; pivot.add(gm2); group.add(pivot);
     out.gear.push(pivot);
   }
-  out.gearH = gearH - bottom; // distance from ship origin to ground when landed
+  out.gearH = gearH - bottom - 0.1;
   out.group = group; out.mesh = mesh; out.glass = gm; out.radius = L * 0.6;
   out.design = design;
   return out;
@@ -3613,15 +3691,18 @@ function buildStation(seed, race) {
   for (let k = 0; k < 6; k++) { const a = r.float(0, TAU); const b = new V3(Math.cos(a) * R0 * 0.9, Math.sin(a) * R0 * 0.9, r.float(-60, 100)); H.cyl(b, b.clone().add(new V3(Math.cos(a) * 60, Math.sin(a) * 60, 0)), 1.5, 0.5, 5, darkC, SURF.metal); }
   // ---- hangar interior (inside hub): floor at y=-38, from z=-118 to z=60, width 140
   const I = new HGeo(); const floorY = -38;
-  I.box(new V3(0, floorY - 2, -30), new V3(146, 4, 180), [0.2, 0.21, 0.23], SURF.metal, null, 0.1);
-  I.box(new V3(0, 46, -30), new V3(146, 4, 180), [0.1, 0.1, 0.11], SURF.dark, null, 0.1);
-  for (const s of [-1, 1]) I.box(new V3(s * 73, 4, -30), new V3(4, 88, 180), [0.16, 0.17, 0.19], SURF.paint, null, 0.1);
-  I.box(new V3(0, 4, 62), new V3(146, 88, 4), [0.16, 0.17, 0.19], SURF.paint, null, 0.1);
+  I.box(new V3(0, floorY - 2, -30), new V3(146, 4, 180), [0.3, 0.31, 0.33], SURF.metal, null, 0.1);
+  I.box(new V3(0, 46, -30), new V3(146, 4, 180), [0.16, 0.16, 0.17], SURF.dark, null, 0.1);
+  for (const s of [-1, 1]) I.box(new V3(s * 73, 4, -30), new V3(4, 88, 180), [0.32, 0.33, 0.35], SURF.paint, null, 0.1);
+  I.box(new V3(0, 4, 62), new V3(146, 88, 4), [0.32, 0.33, 0.35], SURF.paint, null, 0.1);
+  // wall ribs & light strips along the hangar
+  const dimGlow = glow.map(c => c * 0.4);
+  for (const s of [-1, 1]) for (let k = 0; k < 9; k++) { const z = -112 + k * 21; I.box(new V3(s * 70.5, 4, z), new V3(2, 88, 3), [0.12, 0.12, 0.13], SURF.metal, null, 0.2); I.box(new V3(s * 70.8, -30, z + 10), new V3(0.4, 0.5, 14), dimGlow, SURF.glow, null, 0.05); }
   // pads
   const pads = [];
-  for (let k = 0; k < 6; k++) { const x = (k % 2 ? 1 : -1) * 36, z = -90 + Math.floor(k / 2) * 52; I.lathe(new V3(x, floorY, z), new V3(0, 1, 0), [[0.1, 0], [16, 0], [16, 0.6], [15, 0.8], [0.1, 0.8]], 24, [0.25, 0.26, 0.28], SURF.metal); I.torus(new V3(x, floorY + 0.85, z), 13, 0.3, glow, SURF.glow, new Q4().setFromAxisAngle(new V3(1, 0, 0), Math.PI / 2), 40); pads.push(new V3(x, floorY + 0.8, z)); }
+  for (let k = 0; k < 6; k++) { const x = (k % 2 ? 1 : -1) * 36, z = -90 + Math.floor(k / 2) * 52; I.lathe(new V3(x, floorY, z), new V3(0, 1, 0), [[0.1, 0], [16, 0], [16, 0.6], [15, 0.8], [0.1, 0.8]], 24, [0.25, 0.26, 0.28], SURF.metal); I.torus(new V3(x, floorY + 0.85, z), 13, 0.3, dimGlow, SURF.glow, new Q4().setFromAxisAngle(new V3(1, 0, 0), Math.PI / 2), 40); pads.push(new V3(x, floorY + 0.8, z)); }
   // ceiling lights
-  for (let k = 0; k < 10; k++) I.box(new V3((k % 2 ? 1 : -1) * 40, 43.5, -100 + k * 18), new V3(20, 1, 3), [1, 0.97, 0.9], SURF.glow, null, 0.2);
+  for (let k = 0; k < 10; k++) I.box(new V3((k % 2 ? 1 : -1) * 40, 43.5, -100 + k * 18), new V3(20, 1, 3), [0.6, 0.58, 0.54], SURF.glow, null, 0.2);
   // concourse (back room) floor raised with terminals
   I.box(new V3(0, floorY + 1, 45), new V3(140, 2, 30), [0.3, 0.3, 0.33], SURF.paint, null, 0.2);
   const terminals = [];
@@ -4612,7 +4693,7 @@ class Station extends FrameObject {
     for (let k = 0; k < 6; k++) { const t = M.terminals[k % M.terminals.length]; const look = { suit: hsl(r.float(0, 360), 0.4, 0.4), armor: hsl(r.float(0, 360), 0.2, 0.6), trim: [0.1, 0.1, 0.1], glow: r.pick(GLOWS), toolSeed: k }; const npc = buildAstronaut(look); npc.position.copy(t.pos).add(new V3(r.float(-3, 3), -1, r.float(-5, -2))); npc.rotation.y = r.float(0, 6); npc.userData.tool.visible = false; npc.userData.flames.forEach(f => f.visible = false); this.group.add(npc); this.npcs.push(npc); }
     this.padsUsed = new Set(); this.label = NAME.word(new RNG(sys.seed ^ 77), 2) + ' Station';
     // interior lights
-    const pl = new THREE.PointLight(0xcfe4ff, 400, 260, 1.6); pl.position.set(0, 30, -30); this.group.add(pl);
+    for (const z of [-85, -30, 25]) { const pl = new THREE.PointLight(0xdce8ff, 130, 240, 1.1); pl.position.set(0, 32, z); this.group.add(pl); }
   }
   update(t) { this.pos.copy(this.planet.pos).add(this.offset); }
   gravityAt(pos, up) { const lp = this.frameToLocal(pos, _v5); const I = this.model.interior; if (lp.x > I.xmin - 2 && lp.x < I.xmax + 2 && lp.y > I.ymin - 3 && lp.y < I.ymax && lp.z > I.zmin - 8 && lp.z < I.zmax + 2) { this.upFrame(up); return true; } return false; }
@@ -5615,7 +5696,9 @@ const HUD = {
     // bases
     for (const [, rt] of Build.bases) { if (rt.body && rt.body === F) add('base' + rt.data.id, rt.anchorPos.clone().add(rt.up.clone().multiplyScalar(6)), rt.data.name, '#7dffb0', 'dia'); }
     this.compassList = list;
-    const seen = new Set(); const camPos = World.camPos;
+    const seen = new Set(); const camPos = World.camPos; const labeled = [];
+    for (const m of list) m.d = m.p.distanceTo(camPos);
+    list.sort((a, b) => (a.key === 'ship' ? -1 : 0) - (b.key === 'ship' ? -1 : 0) || a.d - b.d);
     for (const m of list) {
       const rel = _v1.copy(m.p).sub(camPos); const dist = rel.length(); const v = _v2.copy(rel).applyQuaternion(_q1.copy(World.camQuat).invert());
       let e = this.markers.get(m.key); if (!e) { e = el('div', { class: 'mk' }, `<div class="dia ${m.shape === 'round' ? 'round' : ''}"></div><div class="nm"></div><div class="ds"></div>`); this.mk.appendChild(e); this.markers.set(m.key, e); }
@@ -5625,8 +5708,15 @@ const HUD = {
       if (Math.abs(sx) > 1.1 || Math.abs(sy) > 1.1) { e.style.display = 'none'; continue; }
       e.style.display = ''; e.style.left = ((sx * 0.5 + 0.5) * W) + 'px'; e.style.top = ((-sy * 0.5 + 0.5) * H) + 'px'; e.style.color = m.col;
       const tgt = Ship.target && Ship.target.label === m.label; e.classList.toggle('tgt', !!tgt);
-      e.children[1].textContent = m.label; e.children[2].textContent = fmtDist(dist) + (m.sub ? ' · ' + m.sub : '');
-      e.style.opacity = dist > 5000 && m.shape !== 'round' ? 0.7 : 1;
+      // declutter: full label only when looked at, targeted, close, or not overlapping a nearer label
+      const px = (sx * 0.5 + 0.5) * W, py = (-sy * 0.5 + 0.5) * H; const cen = Math.hypot(sx * cam.aspect, sy);
+      const far = lowAlt && (m.key[0] === 'b' || m.key[0] === 'o');
+      let full = tgt || cen < 0.16 || (!far && (m.key === 'ship' ? dist < 400 : dist < 1500));
+      if (full && !tgt && cen >= 0.16) for (const q of labeled) if (Math.abs(q[0] - px) < 150 && Math.abs(q[1] - py) < 38) { full = false; break; }
+      if (full) labeled.push([px, py]);
+      e.classList.toggle('min', !full);
+      if (full) { e.children[1].textContent = m.label; e.children[2].textContent = fmtDist(dist) + (m.sub ? ' · ' + m.sub : ''); }
+      e.style.opacity = far ? 0.55 : dist > 5000 && m.shape !== 'round' ? 0.75 : 1;
     }
     for (const [k, e] of this.markers) if (!seen.has(k)) { e.remove(); this.markers.delete(k); }
   },
@@ -5650,7 +5740,7 @@ const HUD = {
     c.globalAlpha = 1; c.fillStyle = '#fff'; c.beginPath(); c.moveTo(W / 2 - 7, H); c.lineTo(W / 2 + 7, H); c.lineTo(W / 2, H - 9); c.fill();
   },
   update(dt) {
-    this.frames++; this.fpsT += dt; if (this.fpsT > 0.5) { this.fps = this.frames / this.fpsT; this.frames = 0; this.fpsT = 0; $('#fps').textContent = Settings.data.showFps ? `${this.fps.toFixed(0)} FPS · ${GL.renderer.info.render.calls} draws` : ''; }
+    this.frames++; this.fpsT += dt; if (this.fpsT > 0.5) { this.fps = this.frames / this.fpsT; this.frames = 0; this.fpsT = 0; $('#fps').textContent = Settings.data.showFps ? `${this.fps.toFixed(0)} FPS · ${Post.stats ? Post.stats.calls : 0} draws · ${Post.stats ? (Post.stats.tris / 1e6).toFixed(2) : 0}M tris` : ''; }
     this.slow = (this.slow || 0) + dt; const doSlow = this.slow > 0.1; if (doSlow) this.slow = 0;
     this.updateMarkers(); if (doSlow) this.drawCompass();
     const F = World.frame; const inShip = Player.mode === 'ship';
@@ -6370,6 +6460,8 @@ const Main = {
   async boot() {
     try {
       setLoad(0.02, 'Initializing engine');
+      const test = document.createElement('canvas').getContext('webgl2');
+      if (!test) { $('#loadMsg').innerHTML = 'WebGL 2 is not available in this browser.<br>Please use a recent Chrome, Edge, Firefox or Safari with hardware acceleration enabled.'; $('#loadMsg').style.cssText = 'height:auto;color:#ffb347;text-align:center;line-height:1.5'; return; }
       Pool.init(); initRenderer();
       let done = 0; await genTextures(() => setLoad(0.05 + (++done) / 10 * 0.5, 'Synthesizing materials'));
       FloraSys.init(); Sky.init(); Particles.init(); WarpTunnel.init(); Env.init(); World.init();
@@ -6379,7 +6471,7 @@ const Main = {
       await this.setupTitle();
       setLoad(1, 'Ready');
       UI.loading(false); Title.show();
-      window.__game = { Game, World, Player, Ship, GalaxyMap, Build, UI, Main, SU, GL, Space, Warp, Teleport, Discover, Research, THREE, Post };
+      window.__game = { Game, World, Player, Ship, GalaxyMap, Build, UI, Main, SU, GL, Space, Warp, Teleport, Discover, Research, THREE, Post, ShipBuilder, genShipDesign, buildShip, Freighter, Weather, NEXTGEN, Pool, Settings, Input, Sound };
       this.last = performance.now(); requestAnimationFrame(t => this.loop(t));
     } catch (e) { console.error(e); $('#loadMsg').textContent = 'Error: ' + e.message; $('#loadMsg').style.color = '#ff6a6a'; }
   },
@@ -6387,6 +6479,12 @@ const Main = {
     Bus.on('arrived', e => { const before = this.coreDist; this.coreDist = Game.universe.distCenter(World.addr); if (before && before > this.coreDist) Bus.emit('coreProgress', before - this.coreDist); if (e.first && Math.random() < 0.35) setTimeout(() => Mystery.archivist('warp'), 6000); });
     Bus.on('frameChanged', e => { const nf = e.to; if (nf && nf.kind === 'station') { notify(nf.label, 'Entering station control zone', 'good'); } });
     Bus.on('warpEnd', () => { Sound.music('space'); });
+    Bus.on('gameStarted', e => {
+      if (!e.fresh) return; const touch = Settings.data.touchUI;
+      const tips = touch ? [['Welcome, Traveller', 'Left side: move · right side: look'], ['Analysis Visor', 'Tap VISOR and look at plants, creatures and minerals to catalogue them'], ['Your Starship', 'Walk to your ship and tap E to board · PULSE to take off'], ['Build', 'Tap the house icon to build a base anywhere'], ['Galaxy Map', 'Tap the map icon to chart a course to another star']]
+        : [['Welcome, Traveller', 'WASD to move · mouse to look · Space for jetpack'], ['Analysis Visor', 'Press F and focus on plants, creatures and minerals to catalogue them'], ['Your Starship', 'Walk to your ship and press E to board · Space to take off'], ['Build & Terraform', 'Press B to build a base · Q cycles multi-tool modes'], ['Galaxy Map', 'Press M to chart a course to another star · H shows all controls']];
+      tips.forEach((t, i) => setTimeout(() => notify(t[0], t[1], 'good'), 4000 + i * 9000));
+    });
   },
   async setupTitle() {
     const U = new Universe(); Game.universe = U; const st = Game.findStart(U);
@@ -6428,6 +6526,7 @@ const Main = {
     let fov = Settings.data.fov; if (Player.mode === 'ship') { const sp = Ship.vel.length(); fov += clamp(sp / 50, 0, 10) + Ship.pulse * 16 + (Ship.boosting ? 6 : 0); } if (Player.visor && Player.mode === 'foot') fov -= 18; fov += FX.warpAmt * 30;
     this.fov = damp(this.fov, fov, 4, dt); GL.camera.fov = this.fov; GL.camera.updateProjectionMatrix();
     World.place(cp, cq);
+    { const F2 = World.frame; World.indoor = !!(F2 && F2.kind && F2.gravityAt && F2.gravityAt(cp, _v1) && F2.kind !== 'freighter'); }
     // uniforms requiring camera
     const F = World.frame; if (F instanceof Body) { SU.uCamLocal.value.copy(cp); SU.uPlayerLocal.value.copy(Player.mode === 'foot' ? Player.pos : _v1.set(0, 1e9, 0)); }
     World.render(dt, Player.mode === 'ship' ? Ship.pos.clone().sub(cp) : Player.pos.clone().sub(cp));
@@ -6443,7 +6542,7 @@ const Main = {
     this.visorA = damp(this.visorA, Player.visor && Player.mode === 'foot' ? 1 : 0, 8, dt);
     const night = F instanceof Body ? 1 - World.day : 0;
     const flash = FX.flashA; const fade = flash > 0 ? new V4(FX.flashCol.x, FX.flashCol.y, FX.flashCol.z, Math.min(1, flash)) : new V4(0, 0, 0, 0);
-    Post.render(GL.scene, GL.camera, { sunScreen: Game.inTunnel ? null : World.sunScreen, sunCol: World.sunTint, godStr: 0.45, bloom: 0.5 + night * 0.15, bloomThr: 1.5, exposure: 1.02 + night * 0.9 + (F instanceof Body ? 0 : 0.08), visor: this.visorA, damage: UI.damageA * 0.5, heat: Ship.heat, warp: FX.warpAmt, fade, underwater: uw, ca: 0.12 + FX.warpAmt * 2 });
+    if (!this.noRender) Post.render(GL.scene, GL.camera, { sunScreen: Game.inTunnel ? null : World.sunScreen, sunCol: World.sunTint, godStr: 0.45, bloom: 0.5 + night * 0.15, bloomThr: 1.5, exposure: 1.02 + night * 0.9 + (F instanceof Body ? 0 : 0.08), visor: this.visorA, damage: UI.damageA * 0.5, heat: Ship.heat, warp: FX.warpAmt, fade, underwater: uw, ca: 0.12 + FX.warpAmt * 2 });
     if (Game.state === 'play') HUD.update(dt);
     Sound.update(dt);
     this.adaptive(dt);
@@ -6519,6 +6618,33 @@ const Main = {
 window.addEventListener('beforeunload', () => { if (Game.state === 'play') Game.autosave(); });
 document.addEventListener('visibilitychange', () => { if (document.hidden && Game.state === 'play') Game.autosave(); });
 Main.boot();
+
+// ---- debug / scenario helpers (used by automated visual tests; harmless in normal play)
+const Debug = {
+  goto(bi, o = {}) {
+    const b = World.bodies[bi]; if (!b) return 'no body';
+    World.update(0); World.setFrame(b, [Player, Ship]);
+    const sunL = b.pos.clone().negate().normalize().applyQuaternion(b.qinv);
+    const elev = (o.elev ?? 35) * DEG; const ax = new V3(0, 1, 0).cross(sunL).normalize().applyAxisAngle(sunL, o.az || 0);
+    let dir = sunL.clone().applyAxisAngle(ax, Math.PI / 2 - elev).normalize();
+    if (o.coast && b.sea !== null) { let best = null; for (let i = 0; i < 400; i++) { const d = dir.clone().add(new V3(Math.random() - .5, Math.random() - .5, Math.random() - .5).multiplyScalar(0.25)).normalize(); const h = b.height(d.x, d.y, d.z, 2) - b.sea; if (h > 0.5 && h < 3) { const n = b.surfaceNormal(d, new V3(), 4); if (1 - n.dot(d) < 0.08) { best = d; break; } } } if (best) dir = best; }
+    const gi = groundInfo(b, dir.clone().multiplyScalar(b.R + 50));
+    const up = dir.clone(); const sunT = sunL.clone().addScaledVector(up, -sunL.dot(up)).normalize(); const fwd = sunT.applyAxisAngle(up, (o.yaw ?? 150) * DEG);
+    if (o.mode === 'ship') {
+      Player.mode = 'ship'; Player.model.visible = false; Ship.mode = 'flying'; Ship.setGear(0); Ship.pos.copy(dir).multiplyScalar(Math.max(gi.groundR, gi.waterR) + (o.alt ?? 60)); Ship.quat.copy(quatLook(fwd.clone().addScaledVector(up, o.pitch ?? 0), up)); Ship.camQ.copy(Ship.quat); Ship.vel.set(0, 0, 0); Ship.throttle = o.throttle ?? 0;
+    } else {
+      Player.mode = 'foot'; Player.model.visible = true; Player.pos.copy(dir).multiplyScalar(Math.max(gi.groundR, gi.waterR > 0 ? gi.waterR : 0) + (o.alt ?? 0.2)); Player.up.copy(up); Player.heading.copy(fwd); Player.pitch = o.pitch ?? 0; Player.vel.set(0, 0, 0);
+      if (o.shipNear) { const sp = Player.pos.clone().addScaledVector(fwd, 16).addScaledVector(new V3().crossVectors(fwd, up), 6); const sd = sp.clone().normalize(); const sg = groundInfo(b, sp); Ship.pos.copy(sd).multiplyScalar(sg.groundR + Ship.model.gearH); Ship.quat.copy(quatLook(fwd, sd)); Ship.mode = 'landed'; Ship.setGear(1); }
+      else { Ship.pos.copy(dir).multiplyScalar(gi.groundR + 2000); Ship.mode = 'landed'; }
+    }
+    return { body: b.name, biome: b.data.biome, clouds: b.data.atmo && b.data.atmo.clouds, liquid: b.liquid, sea: b.sea };
+  },
+  bodies() { return World.bodies.map((b, i) => ({ i, name: b.name, biome: b.data.biome, type: b.data.type, clouds: b.data.atmo ? +b.data.atmo.clouds.toFixed(2) : 0, liquid: b.liquid, rings: !!b.data.rings, flora: +b.data.flora.toFixed(2), fauna: +b.data.fauna.toFixed(2) })); },
+  async system(addr) { await Game.arriveSystem(addr, true); return World.sys.name; },
+  // stream content without rendering (for slow software-GL test runs)
+  async settle(ms = 5000) { Main.noRender = true; await sleep(ms); Main.noRender = false; const F = World.frame; let pend = 0; if (F && F.flora) for (const [, c] of F.flora.cells) if (c.state !== 2) pend++; return { pendingFlora: pend, pool: Pool.queue.length }; },
+};
+window.__debug = Debug;
 
 </script>
 </body>
