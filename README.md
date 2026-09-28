@@ -65,9 +65,20 @@ The game loads three.js (r160) from a CDN on first start, so it needs an interne
 
 ### Graphics
 - **Characters:** people have sculpted heads (nose, lips, eye sockets, ears) and anatomical bodies with skeletal skinning. Eyes blink and jaws move while talking. Clothing and hair have fabric and strand shading.
-- **Crowd:** GPU-skinned instanced people who walk and idle, with bending knees and elbows.
-- **Buildings:** curved towers (twisted, tapered, bulging, lens, blade, and setback shapes). Their curtain-wall glass reflects the sky and shows interior-mapped rooms behind it.
-- **Post-processing:** HDR rendering with MSAA, SSAO, bloom, ACES tone mapping, and FXAA on medium quality.
+- **Crowd:** GPU-skinned instanced people who walk and idle, with bending knees and elbows and soft contact shadows.
+- **Skyscrapers:** curved, twisted, tapered, bulging, lens, blade and setback towers in five facade families:
+  - glass curtain wall with per-pane reflections
+  - stone with recessed windows
+  - metal ribbon glazing
+  - deep vertical fins
+  - diagrid
+
+  Rooms are visible behind the glass through interior mapping. Towers get parapets, rooftop plant, masts, spires and podiums.
+- **Central Hub:** a three-level curved arcade built from revolved profiles, with colonnades, glass balustrades and mullioned storefronts showing shop interiors. The restaurants have tiled walls, working equipment, stone counters, fabric awnings, patio umbrellas and bistro furniture.
+- **Streets:** procedural trees with swaying leaves, street lamps, benches, asphalt roads and stone paving with normal and roughness maps.
+- **Interiors:** textured oak, marble and polished-concrete floors, trim, light coves and recessed downlights.
+- **Lighting:** a cloudy sky with a sun, exponential fog, and reflections captured from the city itself.
+- **Post-processing:** HDR rendering with MSAA, SSAO, bloom, AgX tone mapping (Blender's default view transform), and FXAA on medium quality.
 
 ### Settings and saving
 - Quality presets from low to ultra, with adaptive resolution.

@@ -3493,8 +3493,9 @@ class Crowd {
 /* ---------- flying pod traffic (GPU-animated lanes) ---------- */
 function podGeometry() {
   const b = new Batch();
-  b.add(roundedBox(1.5, 1.3, 1.9, .38, 2), mtx(0, .75, 0), { c: 0xbfefff, e: 0x6fdcff, ei: .5, r: .05, m: .1, g: 0 });
-  b.add(roundedBox(1.56, .18, 1.96, .08, 1), mtx(0, .12, 0), { c: 0xffffff, r: .3, g: 0 });
+  const canopy = new THREE.SphereGeometry(1, 28, 16, 0, TAU, 0, PI * .55); b.add(canopy, mtx(0, .42, 0, 0, 0, 0, .78, .78, 1.02), { c: 0x9fd4e8, e: 0x4fb8dc, ei: .35, r: .04, m: .6, g: 0 });
+  b.add(new THREE.SphereGeometry(1, 28, 12, 0, TAU, PI * .55, PI * .25), mtx(0, .5, 0, 0, 0, 0, .8, .55, 1.05), { c: 0xf4f6f8, r: .22, m: .2, g: 0 });
+  b.add(new THREE.TorusGeometry(1, .07, 10, 40), mtx(0, .38, 0, PI / 2, 0, 0, .8, 1.05, 1), { c: 0xdfe4ea, r: .18, m: .9, g: 0 });
   b.add(new THREE.TorusGeometry(.72, .06, 6, 20, PI), mtx(.78, .75, 0, 0, PI / 2, 0), { c: 0xffffff, r: .3, g: 0 });
   b.add(new THREE.TorusGeometry(.72, .06, 6, 20, PI), mtx(-.78, .75, 0, 0, PI / 2, 0), { c: 0xffffff, r: .3, g: 0 });
   b.add(gBox(), mtx(0, .02, 0, 0, 0, 0, 1.2, .05, 1.5), { c: 0x000000, e: 0x3ef4ff, ei: 3, g: 0 });
@@ -3699,6 +3700,14 @@ function facadeBlock(kind, x, y, z, w, h, d, rot, color, facade = 0, lit = .5, h
   geo.setAttribute('aTw', new THREE.InstancedBufferAttribute(new Float32Array([hue, facade, rnd(0, 10), lit]), 4)); geo.setAttribute('aPer', new THREE.BufferAttribute(new Float32Array(G.attributes.position.count).fill(G.userData.per), 1));
   const im = new THREE.InstancedMesh(geo, TowerField.mat, 1); im.setMatrixAt(0, mtx(x, y, z, 0, rot, 0, w, h, d)); im.setColorAt(0, COL(color)); im.castShadow = shadows; im.receiveShadow = true; im.computeBoundingSphere(); return im;
 }
+function cityLamp(B, W, x, z, yaw, h = 7.2) { // tapered steel column, swan-neck arm, LED luminaire
+  const lampM = { c: 0x2b2f36, r: .38, m: .75 }, lampLED = { c: 0x222222, e: 0xfff4e0, ei: 3.2 };
+  B.push(mtx(x, 0, z, 0, yaw, 0));
+  B.add(new THREE.CylinderGeometry(.075, .12, 1, 16), mtx(0, h / 2, 0, 0, 0, 0, 1, h, 1), lampM); B.cyl(0, .25, 0, .2, .5, lampM, 20);
+  B.add(tubeGeo([V3(0, h - .1, 0), V3(0, h + .35, .35), V3(0, h + .45, 1.1), V3(0, h + .4, 1.9)], [.07, .06, .055, .05], 10), new THREE.Matrix4(), lampM);
+  B.add(roundedBox(.34, .12, .78, .05, 2), mtx(0, h + .36, 2.05), lampM); B.add(roundedBox(.26, .02, .62, .01, 1), mtx(0, h + .295, 2.05), lampLED); B.pop();
+  if (W) W.circle(x, z, .15, -1, h);
+}
 
 /* =====================================================================
    ZONE: INTERNET CITY (open world)
@@ -3812,10 +3821,7 @@ async function buildCityAsync() {
   }
   /* ---------- boulevard trees, lamps and benches ---------- */
   const stTrees = [], lampM = { c: 0x2b2f36, r: .38, m: .75 }, lampLED = { c: 0x222222, e: 0xfff4e0, ei: 3.2 };
-  const streetLamp = (x, z, yaw) => { B.push(mtx(x, 0, z, 0, yaw, 0));
-    B.add(new THREE.CylinderGeometry(.075, .12, 1, 16), mtx(0, 3.6, 0, 0, 0, 0, 1, 7.2, 1), lampM); B.cyl(0, .25, 0, .2, .5, lampM, 20);
-    B.add(tubeGeo([V3(0, 7.1, 0), V3(0, 7.55, .35), V3(0, 7.65, 1.1), V3(0, 7.6, 1.9)], [.07, .06, .055, .05], 10), new THREE.Matrix4(), lampM);
-    B.add(roundedBox(.34, .12, .78, .05, 2), mtx(0, 7.56, 2.05), lampM); B.add(roundedBox(.26, .02, .62, .01, 1), mtx(0, 7.495, 2.05), lampLED); B.pop(); W.circle(x, z, .15, -1, 7); };
+  const streetLamp = (x, z, yaw) => cityLamp(B, W, x, z, yaw);
   const bench = (x, z, yaw) => { B.push(mtx(x, 0, z, 0, yaw, 0));
     for (let k = 0; k < 5; k++) B.box(0, .45, -.22 + k * .11, 1.9, .045, .09, { c: 0x8a5a36, r: .62, g: .5 });
     for (let k = 0; k < 3; k++) B.box(0, .68 + k * .12, -.33, 1.9, .08, .035, { c: 0x8a5a36, r: .62, g: .5 }, -.18);
@@ -3849,10 +3855,27 @@ async function buildCityAsync() {
     if (chance(.25)) B.box(t.x + rnd(-t.r * .4, t.r * .4), t.h + 1, t.z + rnd(-t.r * .4, t.r * .4), rnd(2, 4), 2, rnd(2, 4), { c: 0x9aa8bb, r: .4, m: .5 }); }
   S.add(makeLEDs(beacons, .35));
   // floating app-icon cubes near rooftops (colourful signage like the reference)
-  const iconN = Math.min(260, towers.length); const icons = new THREE.InstancedMesh(roundedBox(1, 1, .35, .15, 1), new THREE.MeshStandardMaterial({ color: 0xffffff, roughness: .3, metalness: .1, emissive: 0xffffff, emissiveIntensity: .0 }), iconN);
-  const iconD = []; const iconCols = [0xff4f7b, 0x49c6ff, 0xffd84a, 0x7cff9a, 0xb07cff, 0xff8f3a, 0x3ef4ff, 0xff3fd8];
-  for (let i = 0; i < iconN; i++) { const t = towers[(i * 7) % towers.length]; const a = rnd(0, TAU); iconD.push({ x: t.x + Math.cos(a) * (t.r + 1.5), z: t.z + Math.sin(a) * (t.r + 1.5), y: rnd(.3, .95) * t.h, s: rnd(1.8, 4.2), a: a + PI / 2, ph: rnd(0, TAU) }); icons.setColorAt(i, HDR(pick(iconCols), 1.6)); }
-  icons.material.emissive = COL(0x000000); icons.material.onBeforeCompile = s => { s.fragmentShader = s.fragmentShader.replace('#include <emissivemap_fragment>', '#include <emissivemap_fragment>\n#ifdef USE_INSTANCING_COLOR\n totalEmissiveRadiance += vColor*.9;\n#endif'); };
+  const iconN = Math.min(160, towers.length);
+  const iconAtlas = canvasTex(1024, 512, (g) => { const glyph = [(c) => { c.beginPath(); c.moveTo(0, 30); c.bezierCurveTo(-70, -20, -35, -75, 0, -38); c.bezierCurveTo(35, -75, 70, -20, 0, 30); c.fill(); },
+      (c) => { c.beginPath(); c.moveTo(-28, -40); c.lineTo(42, 0); c.lineTo(-28, 40); c.closePath(); c.fill(); }, (c) => { roundRect(c, -55, -45, 110, 72, 26); c.fill(); c.beginPath(); c.moveTo(-20, 20); c.lineTo(-38, 50); c.lineTo(8, 24); c.fill(); },
+      (c) => { roundRect(c, -52, -32, 104, 70, 14); c.fill(); c.fillRect(-22, -48, 44, 20); c.globalCompositeOperation = 'destination-out'; c.beginPath(); c.arc(0, 3, 22, 0, TAU); c.fill(); c.globalCompositeOperation = 'source-over'; c.beginPath(); c.arc(0, 3, 13, 0, TAU); c.fill(); },
+      (c) => { c.fillRect(8, -50, 10, 80); c.beginPath(); c.ellipse(-4, 32, 20, 15, -.4, 0, TAU); c.fill(); c.beginPath(); c.moveTo(18, -50); c.quadraticCurveTo(50, -30, 38, 0); c.quadraticCurveTo(38, -24, 18, -26); c.fill(); },
+      (c) => { c.beginPath(); for (let i = 0; i < 10; i++) { const a = -PI / 2 + i * PI / 5, r = i % 2 ? 22 : 55; c.lineTo(Math.cos(a) * r, Math.sin(a) * r); } c.closePath(); c.fill(); },
+      (c) => { c.beginPath(); c.moveTo(-55, -40); c.lineTo(-38, -40); c.lineTo(-25, 18); c.lineTo(40, 18); c.lineTo(52, -24); c.lineTo(-30, -24); c.stroke(); c.beginPath(); c.arc(-18, 38, 9, 0, TAU); c.arc(32, 38, 9, 0, TAU); c.fill(); },
+      (c) => { c.beginPath(); c.moveTo(-40, 25); c.quadraticCurveTo(-40, -45, 0, -48); c.quadraticCurveTo(40, -45, 40, 25); c.closePath(); c.fill(); c.fillRect(-50, 22, 100, 10); c.beginPath(); c.arc(0, 42, 11, 0, TAU); c.fill(); }];
+    const cols = [['#ff4f7b', '#ff2a55'], ['#ff3b3b', '#c80000'], ['#49c6ff', '#1d7bf0'], ['#b07cff', '#6a3cff'], ['#3ad6c5', '#0fa39a'], ['#ffd84a', '#ff9f1a'], ['#ff9900', '#e46a00'], ['#7cff9a', '#20b25a']];
+    for (let i = 0; i < 8; i++) { const x = (i % 4) * 256, y = Math.floor(i / 4) * 256; const gr = g.createLinearGradient(x, y, x, y + 256); gr.addColorStop(0, cols[i][0]); gr.addColorStop(1, cols[i][1]); g.fillStyle = gr; g.fillRect(x, y, 256, 256);
+      const hl = g.createLinearGradient(x, y, x, y + 130); hl.addColorStop(0, 'rgba(255,255,255,.35)'); hl.addColorStop(1, 'rgba(255,255,255,0)'); g.fillStyle = hl; g.fillRect(x, y, 256, 130);
+      g.save(); g.translate(x + 128, y + 132); g.scale(1.5, 1.5); g.fillStyle = '#fff'; g.strokeStyle = '#fff'; g.lineWidth = 9; g.lineJoin = 'round'; glyph[i](g); g.restore(); } }, { srgb: true });
+  const iconG = roundedBox(1, 1, .16, .2, 3);
+  const icons = new THREE.InstancedMesh(iconG, new THREE.MeshPhysicalMaterial({ map: iconAtlas, roughness: .18, metalness: 0, clearcoat: 1, clearcoatRoughness: .08, emissiveMap: iconAtlas, emissive: 0xffffff, emissiveIntensity: .35 }), iconN);
+  const iconIdx = new Float32Array(iconN); const iconD = [];
+  for (let i = 0; i < iconN; i++) { const t = towers[(i * 7) % towers.length]; const a = rnd(0, TAU); iconD.push({ x: t.x + Math.cos(a) * (t.r + 2), z: t.z + Math.sin(a) * (t.r + 2), y: rnd(.3, .95) * t.h, s: rnd(2, 4.4), a: a + PI / 2, ph: rnd(0, TAU) }); iconIdx[i] = rndi(0, 7); }
+  iconG.setAttribute('aIcon', new THREE.InstancedBufferAttribute(iconIdx, 1));
+  icons.material.onBeforeCompile = sh => { sh.vertexShader = sh.vertexShader.replace('#include <common>', '#include <common>\nattribute float aIcon; varying float vIcon; varying float vFront;').replace('#include <uv_vertex>', '#include <uv_vertex>\nvIcon = aIcon; vFront = step(.5, normal.z);');
+    sh.fragmentShader = sh.fragmentShader.replace('#include <common>', '#include <common>\nvarying float vIcon; varying float vFront;')
+      .replace('#include <map_fragment>', `vec2 iuv = (clamp(vMapUv, .02, .98) + vec2(mod(vIcon, 4.), 1. - floor(vIcon/4.)))*vec2(.25, .5); vec4 ic = texture2D(map, iuv); diffuseColor.rgb *= mix(vec3(.94), ic.rgb, vFront);`)
+      .replace('#include <emissivemap_fragment>', 'totalEmissiveRadiance *= mix(vec3(.2), texture2D(emissiveMap, iuv).rgb, vFront);'); };
   icons.frustumCulled = false; S.add(icons);
   setLoad(.72, 'wiring the data network…'); await yieldF();
   /* ---------- data lines, beams, traffic ---------- */
@@ -4029,7 +4052,7 @@ function setupArrival(Z) {
       return false;
     });
     const finish = () => { cap.visible = false; burst.visible = burstGlow.visible = false; Game.cine = false; Player.mode = 'walk'; Player.pos.y = 0; Player.yaw = PI; CamRig.snapBehind();
-      if (!SAVE.visited.city) { SAVE.visited.city = true; persist(); setTimeout(() => UI.toast('Tip: walk up to <b>KnowsMore</b> (north) to search & teleport anywhere · press <kbd>V</kbd> for a hover pod · <kbd>M</kbd> map', '', 9000), 1500); }
+      if (!SAVE.visited.city) { SAVE.visited.city = true; persist(); setTimeout(() => UI.toast(IS_TOUCH ? 'Tip: walk up to <b>KnowsMore</b> (north) to search & teleport anywhere · tap ▭ for a hover pod · tap the map icon for the city map' : 'Tip: walk up to <b>KnowsMore</b> (north) to search & teleport anywhere · press <kbd>V</kbd> for a hover pod · <kbd>M</kbd> map', '', 9000), 1500); }
       cityObjective(); };
     Z.skipCine = () => { if (!Game.cine) return; CamRig.cine = null; landed = true; Player.pos.set(0, 0, 24.5); finish(); };
   };
@@ -4246,7 +4269,7 @@ function buildHub(Z, B, BG) {
   if (shopBacks.length) { const g = mergeGeos(shopBacks.map(geo => ({ geo, m: new THREE.Matrix4() }))); const sb = new THREE.Mesh(g, mallInteriorMat()); S.add(sb); }
   // tables & umbrellas in front of restaurants handled per restaurant; lamp posts around plaza
   for (let i = 0; i < 12; i++) { const a = (i + .5) / 12 * TAU; const x = Math.sin(a) * 49.5, z = -Math.cos(a) * 49.5; if (BLVD.some(b => Math.abs(angDiff(a, b * PI / 180)) < .15)) continue;
-    B.cyl(x, 2.5, z, .09, 5, { c: 0xe8eef6, r: .3, m: .6 }, 8); B.sph(x, 5.1, z, .35, { c: 0xffffff, e: 0xdffcff, ei: 2.5 }, 12); W.circle(x, z, .25, -1, 5); }
+    cityLamp(B, W, x, z, Math.atan2(-x, -z), 6); }
   // update: fountain spin, arrival beams, data fountain
   Z.up((dt, t) => {
     holo.rotation.y += dt * .25; holoLines.rotation.y -= dt * .15; arr.rotation.y += dt * .3;
@@ -4397,7 +4420,9 @@ function buildKnowsMore(Z, B) {
   for (let i = -16; i <= 16; i += 1) B.box(i, 20.6, .35, .5, .4, .5, woodL); // dentils
   B.box(0, 19.5, .1, 34, .6, .8, woodL); B.box(0, 17.2, .2, 30, .25, .5, gold);
   // columns / pilasters
-  for (const x of [-16.2, -14.2, 14.2, 16.2]) { B.box(x, 9.5, .1, 1.3, 19, 1, woodL); B.box(x, 18.8, .2, 1.8, .7, 1.3, woodD); B.box(x, .5, .2, 1.8, 1, 1.3, woodD); }
+  for (const x of [-16.2, -14.2, 14.2, 16.2]) { B.box(x, 9.5, -.35, 1.3, 19, .3, woodL);
+    B.cyl(x, 9.6, .45, .56, 16.8, woodL, 32); for (let k = 0; k < 12; k++) { const a = k / 12 * TAU; B.box(x + Math.cos(a) * .55, 9.6, .45 + Math.sin(a) * .55, .07, 16.4, .07, woodD, 0, -a); }
+    B.cyl(x, 18.35, .45, .72, .35, woodD, 32); B.box(x, 18.8, .45, 1.8, .5, 1.6, woodD); B.cyl(x, .95, .45, .72, .35, woodD, 32); B.box(x, .45, .45, 1.8, .9, 1.6, woodD); const cw = toW(x, 0, .45); W.circle(cw.x, cw.z, .8, -1, 19); }
   // open book sculpture on top
   B.push(mtx(0, 24.4, -.6)); for (const s of [-1, 1]) B.add(roundedBox(3.2, .35, 2.6, .12, 1), mtx(s * 1.6, 0, 0, 0, 0, s * -.35), { c: 0xe9dcc0, r: .8 }); B.box(0, -.35, 0, 6.6, .3, 2.8, { c: 0x6e3b24, r: .6 });
   for (const s of [-1, 1]) { B.sph(s * 5, -.2, 0, .8, { c: 0x8a6a48, r: .7 }, 12, 1); B.sph(s * 5, .7, 0, .55, { c: 0x8a6a48, r: .7 }, 12); } B.pop();
@@ -4958,7 +4983,7 @@ Game.goInterior = (id, ret) => {
 Game.exitInterior = () => { if (Screen.el) Screen.close(true); Game.transition(() => { Game.switchZone('city', Game.returnTo); if (Game.returnTo) Player.yaw = Game.returnTo.yaw; CamRig.snapBehind(); cityObjective(); }); };
 function interiorZone(id, name, o = {}) {
   const Z = new Zone(id, name); Z.bed = o.bed || 'room'; Z.music = o.music || 'room'; Z.minimap = false; Z.allowPod = false;
-  Z.grade = { bloom: .8, threshold: 1.3, knee: .6, exposure: .95, sat: 1.12, contrast: 1.06, vignette: .38, chroma: .004, grain: .015, tint: 0xffffff, lift: 0, ...(o.grade || {}) };
+  Z.grade = { bloom: .7, threshold: 1.6, knee: .7, exposure: .84, sat: 1.14, contrast: 1.1, vignette: .4, chroma: .003, grain: .014, tint: 0xfffcf8, lift: 0, ao: 1, ...(o.grade || {}) };
   Z.scene.background = COL(o.bg ?? 0x0a0c12); if (o.fog) Z.scene.fog = new THREE.FogExp2(o.fog[0], o.fog[1]);
   Z.scene.environment = makeEnv(COL(o.env?.[0] ?? 0x9fb8d8).multiplyScalar(.55).getHex(), COL(o.env?.[1] ?? 0x5a6a88).multiplyScalar(.55).getHex(), o.env?.[2] ?? 0x20242e, (o.envPanels || [{ p: [0, 20, 0], s: [20, 20], c: 0xffffff, i: 2 }, { p: [20, 5, 0], s: [4, 16], c: o.accent ?? 0x3ef4ff, i: 2.5 }]).map(q => ({ ...q, i: (q.i ?? 2) * .5 })));
   Z.onEnter = () => { UI.zoneName(name.toUpperCase()); UI.objective(o.objective || 'Explore · press <kbd>E</kbd> near glowing stations'); if (o.greet) setTimeout(o.greet, 900); };
@@ -4976,7 +5001,45 @@ function roomShell(Z, B, x0, z0, x1, z1, h, o = {}) { // axis-aligned room; wall
     for (const g of gs) { seg(cur, g.c - g.w / 2); seg(g.c - g.w / 2, g.c + g.w / 2, g.h, h); if (g.y0) seg(g.c - g.w / 2, g.c + g.w / 2, 0, g.y0); cur = g.c + g.w / 2; } seg(cur, b); };
   ['n', 's', 'w', 'e'].forEach(wall);
   if (o.ceil !== false) B.box((x0 + x1) / 2, h + .2, (z0 + z1) / 2, x1 - x0 + 1.2, .4, z1 - z0 + 1.2, o.ceilC ?? { c: 0x2a3040, r: .6 });
+  // architectural trim: baseboards, a recessed light cove along the ceiling line, downlights in a grid
+  const light = (wc.c ?? 0xffffff) > 0x808080, base = { c: light ? 0x3a3e46 : 0x16181d, r: .4, m: .2 }, cove = { c: 0x222222, e: light ? 0xfff4e6 : (o.accent ?? 0x3ef4ff), ei: light ? 1.6 : 2.2 };
+  const bb = (x, z, w, d) => B.box(x, .06, z, w, .12, d, base);
+  bb((x0 + x1) / 2, z0 + .03, x1 - x0, .06); bb((x0 + x1) / 2, z1 - .03, x1 - x0, .06); bb(x0 + .03, (z0 + z1) / 2, .06, z1 - z0); bb(x1 - .03, (z0 + z1) / 2, .06, z1 - z0);
+  if (o.ceil !== false) {
+    const cv = (x, z, w, d) => B.box(x, h - .06, z, w, .05, d, cove);
+    cv((x0 + x1) / 2, z0 + .12, x1 - x0 - .3, .06); cv((x0 + x1) / 2, z1 - .12, x1 - x0 - .3, .06); cv(x0 + .12, (z0 + z1) / 2, .06, z1 - z0 - .3); cv(x1 - .12, (z0 + z1) / 2, .06, z1 - z0 - .3);
+    const sp = 3.2, nx = Math.max(1, Math.floor((x1 - x0) / sp)), nz = Math.max(1, Math.floor((z1 - z0) / sp));
+    for (let i = 0; i < nx; i++) for (let k = 0; k < nz; k++) { const x = x0 + (i + .5) * (x1 - x0) / nx, z = z0 + (k + .5) * (z1 - z0) / nz;
+      B.cyl(x, h - .005, z, .13, .02, { c: 0x111111, e: 0xfff1de, ei: light ? 3 : 1.5 }, 20); B.cyl(x, h + .004, z, .17, .01, { c: 0xd8dce2, r: .2, m: .9 }, 20); }
+    for (let i = 1; i < nx; i++) B.box(x0 + i * (x1 - x0) / nx, h - .003, (z0 + z1) / 2, .02, .01, z1 - z0, { c: light ? 0xc9ced6 : 0x222228, r: .5 });
+  }
   Z.camBox = Z.camBox || [x0 + .4, .4, z0 + .4, x1 - .4, h - .4, z1 - .4];
+}
+function floorTextures(kind) { // procedural PBR floors: 'wood' | 'marble' | 'concrete'
+  const key = 'fl_' + kind; if (TEX[key]) return TEX[key];
+  const W = 1024, hc = makeCanvas(W, W), hg = hc.getContext('2d'), rc = makeCanvas(W, W), rg = rc.getContext('2d'); hg.fillStyle = '#fff'; hg.fillRect(0, 0, W, W); rg.fillStyle = '#777'; rg.fillRect(0, 0, W, W);
+  const map = canvasTex(W, W, (g) => {
+    if (kind === 'wood') { const pw = W / 5, pl = W / 1.1; // 5 planks × ~0.9 plank lengths per tile (tile = 1m)
+      for (let c = 0; c < 5; c++) for (let r = -1; r < 3; r++) { const off = (c * 0.37 % 1) * pl, y0 = r * pl + off, hue = 28 + Math.random() * 8, l = 48 + Math.random() * 14;
+        g.fillStyle = `hsl(${hue},${38 + Math.random() * 12}%,${l}%)`; g.fillRect(c * pw, y0, pw, pl);
+        for (let k = 0; k < 40; k++) { g.strokeStyle = `hsla(${hue - 6},45%,${l - 14 - Math.random() * 10}%,${.15 + Math.random() * .25})`; g.lineWidth = .8 + Math.random() * 2; const x = c * pw + Math.random() * pw; g.beginPath(); g.moveTo(x, y0); g.bezierCurveTo(x + (Math.random() - .5) * 20, y0 + pl * .3, x + (Math.random() - .5) * 20, y0 + pl * .7, x + (Math.random() - .5) * 12, y0 + pl); g.stroke(); }
+        if (Math.random() < .5) { g.fillStyle = `hsla(${hue - 8},40%,${l - 22}%,.5)`; g.beginPath(); g.ellipse(c * pw + Math.random() * pw, y0 + Math.random() * pl, 3 + Math.random() * 6, 8 + Math.random() * 14, 0, 0, TAU); g.fill(); }
+        hg.fillStyle = '#000'; hg.fillRect(c * pw, y0, 3, pl); hg.fillRect(c * pw, y0, pw, 3); const rv = 90 + Math.random() * 60 | 0; rg.fillStyle = `rgb(${rv},${rv},${rv})`; rg.fillRect(c * pw + 3, y0 + 3, pw - 3, pl - 3); } }
+    else if (kind === 'marble') { g.fillStyle = '#eeebe6'; g.fillRect(0, 0, W, W); const id = g.getImageData(0, 0, W, W), d = id.data;
+      for (let y = 0; y < W; y++) for (let x = 0; x < W; x++) { const n = fbm(x / 110, y / 110, 5), v = Math.abs(Math.sin((x / W * 5 + y / W * 3 + n * 4.5) * PI)), vein = Math.pow(1 - v, 18) * .55 + Math.pow(1 - v, 60) * .35, i = (y * W + x) * 4, b = 236 - vein * 120 - n * 10;
+        d[i] = b; d[i + 1] = b - 2; d[i + 2] = b - 5; }
+      g.putImageData(id, 0, 0); hg.fillStyle = '#000'; for (let i = 0; i <= 2; i++) { hg.fillRect(i * W / 2 - 1, 0, 2, W); hg.fillRect(0, i * W / 2 - 1, W, 2); } g.fillStyle = 'rgba(0,0,0,.12)'; for (let i = 0; i <= 2; i++) { g.fillRect(i * W / 2 - 1, 0, 2, W); g.fillRect(0, i * W / 2 - 1, W, 2); } rg.fillStyle = '#3a3a3a'; rg.fillRect(0, 0, W, W); }
+    else { g.fillStyle = '#b9bcc0'; g.fillRect(0, 0, W, W); const id = g.getImageData(0, 0, W, W), d = id.data;
+      for (let y = 0; y < W; y++) for (let x = 0; x < W; x++) { const n = fbm(x / 60, y / 60, 5), i = (y * W + x) * 4, sp = Math.random() < .015 ? (Math.random() - .5) * 60 : 0, b = 176 + n * 40 + sp; d[i] = b; d[i + 1] = b + 1; d[i + 2] = b + 4; }
+      g.putImageData(id, 0, 0); hg.fillStyle = '#000'; hg.fillRect(0, 0, W, 3); hg.fillRect(0, 0, 3, W); for (let i = 0; i < 30; i++) { const x = Math.random() * W, y = Math.random() * W, r = 30 + Math.random() * 90, gr = rg.createRadialGradient(x, y, 0, x, y, r); gr.addColorStop(0, 'rgba(40,40,40,.4)'); gr.addColorStop(1, 'rgba(40,40,40,0)'); rg.fillStyle = gr; rg.fillRect(x - r, y - r, 2 * r, 2 * r); } }
+  }, { repeat: [1, 1] });
+  map.wrapS = map.wrapT = THREE.RepeatWrapping; const normal = heightToNormal(hc, kind === 'wood' ? 3 : 2); const rough = new THREE.CanvasTexture(rc); rough.wrapS = rough.wrapT = THREE.RepeatWrapping;
+  return (TEX[key] = { map, normal, rough, tile: kind === 'wood' ? 1.9 : kind === 'marble' ? 2.4 : 6 });
+}
+function floorMat(kind, w, d, mirrorKey, extra = {}) {
+  const T = floorTextures(kind), cl = t => { const c = t.clone(); c.needsUpdate = true; c.repeat.set(w / T.tile, d / T.tile); return c; };
+  const params = { map: cl(T.map), normalMap: cl(T.normal), normalScale: new THREE.Vector2(.6, .6), roughnessMap: cl(T.rough), roughness: kind === 'marble' ? .35 : kind === 'wood' ? .9 : .7, metalness: 0, ...extra };
+  return mirrorKey && Q.mirror ? mirrorMaterial(params, { strength: kind === 'wood' ? .18 : .3, wet: 0, key: mirrorKey + kind }) : new THREE.MeshStandardMaterial(params);
 }
 function exitPortal(Z, x, z, yaw, color = 0x3ef4ff, label = 'EXIT TO CITY') {
   const S = Z.scene; const g = new THREE.Group(); g.position.set(x, 0, z); g.rotation.y = yaw; S.add(g);
@@ -5061,7 +5124,7 @@ function buildSnapInterior() {
   const Z = interiorZone('snapchat', 'Snapchat HQ', { accent: 0xfffc00, bg: 0x0c0c08, env: [0xfff8c0, 0x6a6030, 0x151510], grade: { exposure: .9, bloom: .75 }, objective: 'Use a <b>Snap station</b> to open the Snap Booth camera', greet: () => npcSay(Z.staff, 'Snap Staff', 'Welcome to Snapchat! Try our Snap Booth lenses!', { kind: 'female', rate: 1.1, pitch: 1.2 }) });
   const S = Z.scene, W = Z.world, B = new Batch(); const R = 20, H = 12;
   S.add(new THREE.HemisphereLight(0xfffbe0, 0x40381a, .6));
-  const fl = new THREE.Mesh(new THREE.CircleGeometry(R, 96), mirrorMaterial({ color: 0xf6f6f2, roughness: .12, metalness: .05 }, { strength: .45, wet: 0, pattern: 0, key: 'snap' })); fl.rotation.x = -PI / 2; fl.receiveShadow = true; S.add(fl); if (Q.mirror) Z.mirrors.push(new Mirror(fl, .5));
+  const fl = new THREE.Mesh(new THREE.CircleGeometry(R, 96), floorMat('concrete', 2 * R, 2 * R, 'snap', { color: 0xf4f4f2 })); fl.rotation.x = -PI / 2; fl.receiveShadow = true; S.add(fl); if (Q.mirror) Z.mirrors.push(new Mirror(fl, .5));
   W.sDisc(0, 0, R, 0); W.keepInside(0, 0, R - .8, -2, H);
   const wall = new THREE.Mesh(new THREE.CylinderGeometry(R, R, H, 96, 1, true), new THREE.MeshStandardMaterial({ color: 0xfafaf4, roughness: .5, side: THREE.BackSide })); wall.position.y = H / 2; S.add(wall);
   for (const [r, c] of [[6, 0xfffc00], [10, 0xfff27a], [14, 0xfffc00], [18.5, 0xffd400]]) { const m = new THREE.Mesh(new THREE.TorusGeometry(r, .05, 6, 128), glowMat(c, 2.5)); m.rotation.x = PI / 2; m.position.y = .02; S.add(m); }
@@ -5175,7 +5238,7 @@ function buildFacebookInterior() {
     greet: () => npcSay(Z.barista, 'Barista', 'Welcome to The Feed Café! Our Like Latte is trending today.', { kind: 'female', rate: 1.08, pitch: 1.15 }) });
   const S = Z.scene, W = Z.world, B = new Batch(), BG = new Batch(); const X0 = -22, X1 = 22, Z0 = -18, Z1 = 18, H = 14;
   S.add(new THREE.HemisphereLight(0xffffff, 0x8aa0c8, .7)); const dl = new THREE.DirectionalLight(0xffffff, .9); dl.position.set(10, 20, 8); S.add(dl);
-  const fl = new THREE.Mesh(gPlane(), mirrorMaterial({ color: 0xf4f7fc, roughness: .15, metalness: .05 }, { strength: .3, wet: 0, key: 'fb' })); fl.rotation.x = -PI / 2; fl.scale.set(44, 36, 1); fl.receiveShadow = true; S.add(fl); if (Q.mirror) Z.mirrors.push(new Mirror(fl, .5));
+  const fl = new THREE.Mesh(gPlane(), floorMat('wood', 44, 36, 'fb')); fl.rotation.x = -PI / 2; fl.scale.set(44, 36, 1); fl.receiveShadow = true; S.add(fl); if (Q.mirror) Z.mirrors.push(new Mirror(fl, .5));
   roomShell(Z, B, X0, Z0, X1, Z1, H, { wall: { c: 0xf7f9fd, r: .5 }, ceilC: { c: 0xffffff, r: .6 } });
   for (let i = 0; i < 9; i++) B.box(-20 + i * 5, H - .05, 0, .3, .1, 34, { c: 0x111, e: 0xffffff, ei: 1.6 });
   B.box(0, 7, Z0 + .2, 44, 14, .1, { c: 0x1877f2, r: .4 });
@@ -5338,13 +5401,13 @@ function plant(S, B, x, z, s = 1, kind = 0) {
     l.scale.set(len * .5, len, 1); l.position.set(x + Math.cos(a) * len * .35, (kind === 1 ? 4.4 * s : .9) + len * .3, z + Math.sin(a) * len * .35); l.rotation.set(-PI / 2 + (kind === 1 ? .9 : .6), 0, 0); l.rotation.order = 'YXZ'; l.rotation.y = -a + PI / 2; l.castShadow = true; S.add(l); }
 }
 function buildGoogleInterior() {
-  const Z = interiorZone('google', 'Google', { accent: 0x4285f4, bg: 0xf2f6fb, bed: 'water', env: [0xffffff, 0xdfe8f2, 0x8a9aa8], envPanels: [{ p: [0, 20, 0], s: [30, 30], c: 0xffffff, i: 2 }, { p: [18, 6, 0], s: [4, 12], c: 0x4285f4, i: 2 }, { p: [-18, 6, 0], s: [4, 12], c: 0x34a853, i: 2 }, { p: [0, 6, -18], s: [12, 4], c: 0xfbbc05, i: 2 }],
+  const Z = interiorZone('google', 'Google', { grade: { exposure: .7, contrast: 1.14 }, accent: 0x4285f4, bg: 0xf2f6fb, bed: 'water', env: [0xffffff, 0xdfe8f2, 0x8a9aa8], envPanels: [{ p: [0, 20, 0], s: [30, 30], c: 0xffffff, i: 2 }, { p: [18, 6, 0], s: [4, 12], c: 0x4285f4, i: 2 }, { p: [-18, 6, 0], s: [4, 12], c: 0x34a853, i: 2 }, { p: [0, 6, -18], s: [12, 4], c: 0xfbbc05, i: 2 }],
     grade: { exposure: .82, bloom: .5, threshold: 1.6, sat: 1.12 }, objective: 'Blue tunnel ← <b>Search Room</b> · Rainbow tunnel → <b>Gemini Room</b> · say hi at reception',
     greet: () => { npcSay(Z.recep, 'Receptionist', Game.pendingGoogle ? `Welcome to Google! Your search for “${Game.pendingGoogle}” is ready in the Search Room — through the blue tunnel.` : 'Welcome to Google! Search Room is through the blue tunnel, Gemini through the rainbow one.', { kind: 'female', rate: 1.05, pitch: 1.12 }); } });
   const S = Z.scene, W = Z.world, B = new Batch(), BG = new Batch();
   S.add(new THREE.HemisphereLight(0xffffff, 0x9aa8b8, .65)); const dl = new THREE.DirectionalLight(0xfff6e8, 1.1); dl.position.set(8, 20, 12); dl.castShadow = Q.shadows; dl.shadow.mapSize.set(1024, 1024); Object.assign(dl.shadow.camera, { left: -30, right: 30, top: 30, bottom: -30 }); S.add(dl);
   const X0 = -22, X1 = 22, Z0 = -16, Z1 = 16, H = 14;
-  const fl = new THREE.Mesh(gPlane(), mirrorMaterial({ color: 0xf6f3ee, roughness: .12, metalness: .05, map: canvasTex(1024, 1024, (g, w) => { g.fillStyle = '#f4f1ec'; g.fillRect(0, 0, w, w); for (let i = 0; i < 60; i++) { g.strokeStyle = `rgba(160,150,140,${Math.random() * .25})`; g.lineWidth = Math.random() * 3; g.beginPath(); g.moveTo(Math.random() * w, Math.random() * w); g.bezierCurveTo(Math.random() * w, Math.random() * w, Math.random() * w, Math.random() * w, Math.random() * w, Math.random() * w); g.stroke(); } g.strokeStyle = 'rgba(0,0,0,.08)'; for (let i = 0; i <= 4; i++) { g.beginPath(); g.moveTo(i * 256, 0); g.lineTo(i * 256, w); g.moveTo(0, i * 256); g.lineTo(w, i * 256); g.stroke(); } }, { repeat: [4, 3] }) }, { strength: .35, wet: 0, key: 'gg' }));
+  const fl = new THREE.Mesh(gPlane(), floorMat('marble', 44, 32, 'gg', { color: 0xdcd6cc }));
   fl.rotation.x = -PI / 2; fl.scale.set(44, 32, 1); fl.receiveShadow = true; S.add(fl); if (Q.mirror) Z.mirrors.push(new Mirror(fl, .5));
   roomShell(Z, B, X0, Z0, X1, Z1, H, { wall: { c: 0xf8f9fb, r: .45 }, ceilC: { c: 0xffffff, r: .6 }, gaps: [{ side: 'w', c: 0, w: 5, h: 5.4 }, { side: 'e', c: 0, w: 5, h: 5.4 }] });
   const GC4 = [0x4285f4, 0xea4335, 0xfbbc05, 0x34a853];
@@ -5452,12 +5515,12 @@ const AUCTION_LOTS = [['Mint-condition 56k Dial-up Modem', '📠', 8, 45], ['Sig
   ['Rare Pixel Art Print', '👾', 7, 40], ['Lost Password (Sealed Envelope)', '✉️', 3, 25], ['Bottle of Pure Bandwidth', '🧴', 5, 30]];
 const BIDDERS = ['@PixelPam', '@BidBot3000', '@CapyCollector', '@RetroRick', '@MemeLord42', '@DialUpDave', '@NFTina', '@GrandmaGamer', '@404Frank', '@CookieMonstr'];
 function buildEbayInterior() {
-  const Z = interiorZone('ebay', 'eBay Auction Hall', { accent: 0xf5af02, bg: 0xf3f4f7, env: [0xffffff, 0xe0e4ec, 0x8a8f99], envPanels: [{ p: [0, 20, 0], s: [30, 30], c: 0xffffff, i: 2 }, { p: [20, 6, 0], s: [4, 12], c: 0xe53238, i: 2 }, { p: [-20, 6, 0], s: [4, 12], c: 0x0064d2, i: 2 }],
+  const Z = interiorZone('ebay', 'eBay Auction Hall', { grade: { exposure: .7, contrast: 1.14 }, accent: 0xf5af02, bg: 0xf3f4f7, env: [0xffffff, 0xe0e4ec, 0x8a8f99], envPanels: [{ p: [0, 20, 0], s: [30, 30], c: 0xffffff, i: 2 }, { p: [20, 6, 0], s: [4, 12], c: 0xe53238, i: 2 }, { p: [-20, 6, 0], s: [4, 12], c: 0x0064d2, i: 2 }],
     grade: { exposure: .82, bloom: .5, threshold: 1.6 }, objective: 'Join the <b>live auction</b> at the stage · browse stalls · search listings at the terminal',
     greet: () => npcSay(Z.auctioneer, 'Auctioneer', 'Welcome, welcome to the eBay auction hall! Step up and place your bids!', { kind: 'male', rate: 1.2, pitch: .95 }) });
   const S = Z.scene, W = Z.world, B = new Batch(), BG = new Batch(); const X0 = -35, X1 = 35, Z0 = -25, Z1 = 25, H = 16;
   S.add(new THREE.HemisphereLight(0xffffff, 0x9098a8, .7)); const dl = new THREE.DirectionalLight(0xffffff, .9); dl.position.set(-10, 25, 10); S.add(dl);
-  const fl = new THREE.Mesh(gPlane(), new THREE.MeshStandardMaterial({ map: canvasTex(1024, 1024, (g, w) => { g.fillStyle = '#e9ebef'; g.fillRect(0, 0, w, w); for (let y = 0; y < 8; y++) for (let x = 0; x < 8; x++) { g.fillStyle = (x + y) % 2 ? '#e1e4ea' : '#eef0f3'; g.fillRect(x * 128, y * 128, 128, 128); } }, { repeat: [9, 6] }), roughness: .25, metalness: .05 }));
+  const fl = new THREE.Mesh(gPlane(), floorMat('concrete', 70, 50, null, { color: 0xc8c2b8 }));
   fl.rotation.x = -PI / 2; fl.scale.set(70, 50, 1); fl.receiveShadow = true; S.add(fl);
   roomShell(Z, B, X0, Z0, X1, Z1, H, { wall: { c: 0xf6f7f9, r: .5 }, ceilC: { c: 0xffffff } });
   const EC = [0xe53238, 0x0064d2, 0xf5af02, 0x86b817]; for (let i = 0; i < 12; i++) B.box(-33 + i * 6, H - .1, 0, .6, .15, 48, { c: 0x111, e: EC[i % 4], ei: 1.8 });
