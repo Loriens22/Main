@@ -6301,7 +6301,7 @@ if (URLQ.get('zone') === 'city') setTimeout(() => startGame(true), 300);
 if (URLQ.get('zone') === 'router') setTimeout(() => { startGame(false); const Z = Game.zone; Z.stage = 'router'; Player.place(V3(0, Z.TOPY, -44), PI); Z.lift.position.y = Z.TOPY; }, 300);
 if (URLQ.get('zone') === 'cable') setTimeout(() => { startGame(false); Game.enterCable(); }, 300);
 if (URLQ.get('zone') && BUILDERS[URLQ.get('zone')] && !['city', 'router', 'cable'].includes(URLQ.get('zone'))) setTimeout(async () => { startGame(true); await Game.ensureCity(); setTimeout(() => Game.goInterior && Game.goInterior(URLQ.get('zone')), 1500); }, 300);
-window.__game = { post, RESTAURANTS, Game, Player, CamRig, THREE, renderer, camera, Input, SAVE, matchPlace, PLACES, Menus, Screens, Pod, Redirect, Screen, Panel, Items };
+window.__game = { post, RESTAURANTS, Game, Items, Input, Player, CamRig, THREE, renderer, camera, Input, SAVE, matchPlace, PLACES, Menus, Screens, Pod, Redirect, Screen, Panel, Items };
 })();
 </script>
 </body>
