@@ -158,6 +158,7 @@ input:focus,select:focus{border-color:var(--holo)}
 #visor{position:absolute;inset:0;opacity:0;transition:opacity .35s;background:radial-gradient(ellipse at center,transparent 45%,rgba(40,20,90,.35) 80%,rgba(10,0,30,.8) 100%)}
 #visor::before{content:"";position:absolute;inset:0;background:repeating-linear-gradient(0deg,rgba(143,245,255,.04) 0 1px,transparent 1px 3px)}
 #visorInfo{position:absolute;left:calc(50% + 60px);top:calc(50% - 70px);min-width:250px;padding:10px 14px;opacity:0;transition:opacity .2s}
+#toast,#visorInfo{backdrop-filter:none;-webkit-backdrop-filter:none} /* live over the 3D view: skip the per-frame backdrop blur */
 #visorInfo .v1{font-size:12px;letter-spacing:.25em;color:var(--holo)}
 #visorInfo .v2{font-size:20px;font-weight:700}
 #visorInfo .v3{font-size:13px;color:var(--txt2);line-height:1.35;margin-top:4px}
@@ -205,7 +206,7 @@ input:focus,select:focus{border-color:var(--holo)}
 .joy.on{opacity:1}
 .joy i{position:absolute;left:50%;top:50%;width:56px;height:56px;margin:-28px 0 0 -28px;border-radius:50%;background:radial-gradient(circle at 40% 35%,rgba(220,252,255,.55),rgba(143,245,255,.18));border:1px solid rgba(255,255,255,.5)}
 #joyHint{position:absolute;left:calc(70px + var(--sal));bottom:calc(70px + var(--sab));width:110px;height:110px;margin:-55px;border-radius:50%;border:2px dashed rgba(143,245,255,.18);pointer-events:none}
-.tb{position:absolute;pointer-events:auto;width:64px;height:64px;border-radius:50%;border:1.5px solid rgba(143,245,255,.45);background:radial-gradient(circle at 50% 35%,rgba(40,90,120,.55),rgba(4,14,24,.55));display:flex;align-items:center;justify-content:center;flex-direction:column;font-size:11px;font-weight:700;letter-spacing:.06em;color:#dffcff;backdrop-filter:blur(4px);-webkit-backdrop-filter:blur(4px);text-shadow:0 0 4px #000}
+.tb{position:absolute;pointer-events:auto;width:64px;height:64px;border-radius:50%;border:1.5px solid rgba(143,245,255,.45);background:radial-gradient(circle at 50% 35%,rgba(40,90,120,.62),rgba(4,14,24,.66));display:flex;align-items:center;justify-content:center;flex-direction:column;font-size:11px;font-weight:700;letter-spacing:.06em;color:#dffcff;text-shadow:0 0 4px #000}
 .tb svg{width:26px;height:26px;margin-bottom:1px;fill:none;stroke:#dffcff;stroke-width:2;stroke-linecap:round;stroke-linejoin:round}
 .tb.big{width:82px;height:82px}
 .tb.sm{width:48px;height:48px;font-size:10px}
@@ -1594,11 +1595,11 @@ const Sky = {
           float n=fbm(p); float n2=fbm(p*1.9+3.1); float n3=fbm(p*4.0+9.0);
           float neb=smoothstep(0.38,0.85,n+ (n3-0.5)*0.25);
           float dust=smoothstep(0.48,0.72,n2);
-          vec3 col=mix(uNa,uNb,smoothstep(0.35,0.72,n2))*neb*neb*1.6*uAmt;
-          col+=uNc*0.18*(0.6+n);
+          vec3 col=mix(uNa,uNb,smoothstep(0.35,0.72,n2))*neb*neb*0.85*uAmt;
+          col+=uNc*0.11*(0.5+n);
           float gb=dot(d,uGalN); float band=exp(-gb*gb/0.03);
           float bn=fbm(d*1.1+7.0);
-          col+=vec3(0.75,0.8,1.0)*band*(0.06+bn*0.28)*(0.6+uAmt*0.4);
+          col+=vec3(0.75,0.8,1.0)*band*(0.04+bn*0.2)*(0.6+uAmt*0.4);
           float core=pow(max(dot(d,uCore),0.0),5.0); col+=mix(uNa,vec3(1.0,0.85,0.6),0.6)*core*0.55;
           col*=mix(1.0,0.35,dust*(band*0.7+0.3)*smoothstep(0.3,0.7,n3));
           gl_FragColor=vec4(col*uDim,1.0);
@@ -1650,7 +1651,7 @@ const Sky = {
     u.uNa.value.set(...lin3(n.a)); u.uNb.value.set(...lin3(n.b)); u.uNc.value.set(...lin3(n.c)); u.uAmt.value = n.amt; u.uSeed.value = n.seed;
     u.uGalN.value.fromArray(sys.galNormal); u.uCore.value.fromArray(sys.coreDir);
     const c = sys.star.col; this.sunMat.uniforms.uCol.value.set(...lin3(c)); this.coronaMat.uniforms.uCol.value.set(...lin3(c));
-    const sr = sys.starRadius * 0.42; this.sun.scale.setScalar(sr); this.corona.scale.setScalar(sr * 9);
+    const sr = sys.starRadius * 0.42; this.sun.scale.setScalar(sr); this.corona.scale.setScalar(sr * 4.2);
     this.starMat.uniforms.uTex.value = TEX.sprite;
   },
 };
@@ -2304,7 +2305,9 @@ const World = {
       const inside = 1 - smoothstep(cur.atmoR * 0.95, cur.atmoR * 1.4, ro.length());
       SU.uDayLight.value = clamp((this.skyZen.x + this.skyZen.y + this.skyZen.z) * 0.9, 0, 1) * inside;
     } else {
-      this.skyZen.set(0.02, 0.025, 0.04); this.skyHor.set(0.02, 0.02, 0.03); this.skyHorSun.copy(this.skyHor); this.sunTint.set(1, 1, 1); SU.uDayLight.value = 0;
+      // deep space: faint fill light tinted by the system's nebula
+      const na = Sky.bgMat.uniforms.uNa.value, nb = Sky.bgMat.uniforms.uNb.value;
+      this.skyZen.set(0.03 + (na.x + nb.x) * 0.02, 0.035 + (na.y + nb.y) * 0.02, 0.05 + (na.z + nb.z) * 0.02); this.skyHor.copy(this.skyZen).multiplyScalar(0.8); this.skyHorSun.copy(this.skyHor); this.sunTint.set(1, 1, 1); SU.uDayLight.value = 0;
       if (cur) { const ro = _v1.copy(cur.atmoU.uAtmoC.value).negate(); up.copy(ro).normalize(); const t = this.sunDir.dot(ro); if (t < 0) { const d = Math.sqrt(Math.max(ro.lengthSq() - t * t, 0)); sunVis = smoothstep(cur.R * 0.96, cur.R * 1.02, d); } day = sunVis; }
       else day = 1;
     }
@@ -2509,6 +2512,7 @@ class PGeo {
   }
 }
 PGeo.LOD = 0;
+const _fc1 = new V3(), _fc2 = new V3();
 const col3 = (h, s, l) => lin3(hsl(h, s, l));
 const vary = (c, r, a = 0.08) => [c[0] * (1 + r.float(-a, a)), c[1] * (1 + r.float(-a, a)), c[2] * (1 + r.float(-a, a))];
 
@@ -2759,12 +2763,14 @@ function floraMaterial(opts) {
       transformed *= smoothstep(uRange, uRange*0.82, dcam);
     `,
     fPars: 'varying float vEmis; varying vec3 vOP; uniform float uGlow; uniform float uTransl; uniform sampler2D tRock; uniform float uCrys;',
-    fColor: opts.rock ? /* glsl */`{ vec3 an = abs(normalize(vOP+vec3(0.001))); vec3 w = pow(an, vec3(4.0)); w/= (w.x+w.y+w.z); float a = texture2D(tRock, vOP.zy*0.35).a*w.x + texture2D(tRock, vOP.xz*0.35).a*w.y + texture2D(tRock, vOP.xy*0.35).a*w.z; diffuseColor.rgb *= 0.55 + a*0.9; }` : '',
+    fColor: /* glsl */`{ // dissolve anything right in front of the camera so foliage never walls off the view
+        float dcam = length(vViewPosition); if (dcam < 3.2) { float ign = fract(52.9829189 * fract(dot(gl_FragCoord.xy, vec2(0.06711056, 0.00583715)))); if (smoothstep(1.0, 3.2, dcam) < ign) discard; } }` +
+      (opts.rock ? /* glsl */`{ vec3 an = abs(normalize(vOP+vec3(0.001))); vec3 w = pow(an, vec3(4.0)); w/= (w.x+w.y+w.z); float a = texture2D(tRock, vOP.zy*0.35).a*w.x + texture2D(tRock, vOP.xz*0.35).a*w.y + texture2D(tRock, vOP.xy*0.35).a*w.z; diffuseColor.rgb *= 0.55 + a*0.9; }` : ''),
     fRough: opts.crystal ? 'roughnessFactor = 0.18;' : '',
     fLights: opts.rock ? '' : /* glsl */`
       #if NUM_DIR_LIGHTS > 0
       { vec3 Ld = directionalLights[0].direction; float back = pow(max(dot(-geometryViewDir, Ld), 0.0), 3.0); float wrap = max(dot(-normal, Ld), 0.0);
-        reflectedLight.directDiffuse += diffuseColor.rgb * directionalLights[0].color * vSunT * (back * 0.9 + wrap * 0.35) * uTransl; }
+        reflectedLight.directDiffuse += diffuseColor.rgb * directionalLights[0].color * vSunT * (back * 0.9 + wrap * 0.35) * uTransl * 0.42; }
       #endif`,
     fEmis: 'totalEmissiveRadiance += diffuseColor.rgb * vEmis * uGlow * 2.2;',
   });
@@ -2867,6 +2873,26 @@ class FloraManager {
   }
   lodDist(sp) { return (sp.cat === 'tree' ? 170 : 70) + this.cellM * 0.5; }
   disposeCell(c) { for (const m of c.meshes) if (m && m !== 'empty') { this.group.remove(m); m.dispose(); } c.state = -1; }
+  // trunks and boulders block walking: only solid species, only cells around p (planet-local)
+  collide(p, r, vel) {
+    if (!this.solid) this.solid = this.species.map(s => s.cat === 'tree' ? { r: Math.max(0.16, s.res.height * 0.034), h: s.res.height * 0.85 } : s.kind === 'rockBig' ? { r: (s.res.geo.boundingSphere ? s.res.geo.boundingSphere.radius : 1.5) * 0.6, h: 8 } : null);
+    const up = _fc1.copy(p).normalize();
+    for (const [, c] of this.cells) {
+      if (c.state !== 2 || c.node.center.distanceTo(p) > c.node.meters * 0.75 + 12) continue;
+      for (let i = 0; i < this.species.length; i++) {
+        const so = this.solid[i]; if (!so) continue; const arr = c.data[i];
+        for (let k = 0; k < arr.length; k += 6) {
+          const s = arr[k + 3], rr = so.r * s + r; const dx = p.x - arr[k], dy = p.y - arr[k + 1], dz = p.z - arr[k + 2];
+          if (dx * dx + dy * dy + dz * dz > (rr + so.h * s) * (rr + so.h * s)) continue;
+          const d = _fc2.set(dx, dy, dz); const along = d.dot(up); if (along < -1 || along > so.h * s) continue;
+          d.addScaledVector(up, -along); const l = d.length(); if (l >= rr || l < 1e-4) continue;
+          if (this.removed.has(c.node.key + ':' + i + ':' + (k / 6))) continue;
+          d.multiplyScalar(1 / l); p.addScaledVector(d, rr - l);
+          if (vel) { const vn = vel.dot(d); if (vn < 0) vel.addScaledVector(d, -vn); }
+        }
+      }
+    }
+  }
   // find instances near a point (planet-local) for scanning / mining
   query(p, radius, cb) {
     for (const [, c] of this.cells) {
@@ -3686,10 +3712,14 @@ function buildStation(seed, race) {
     H.sphere(p1, 70, hullC, SURF.paint, 1, 1, 1.3, 20); H.torus(p1, 76, 4, darkC, SURF.metal, new Q4().setFromUnitVectors(new V3(0, 0, 1), dir));
     for (let j = 0; j < 8; j++) { const q = new Q4().setFromAxisAngle(dir, j / 8 * TAU); H.torus(p1, 72, 1.6, darkC, SURF.metal, q.multiply(new Q4().setFromAxisAngle(new V3(1, 0, 0), Math.PI / 2)), 32); }
     for (let j = 0; j < 12; j++) H.box(p1.clone().add(new V3(r.float(-40, 40), r.float(-40, 40), -92)), new V3(r.float(3, 10), r.float(3, 10), 3), glow, SURF.glow, null, 0.5);
+    // lit window band around each pod + navigation light
+    const warm = [1, 0.82, 0.55]; const bx = dir.clone(), by = new V3(0, 0, 1);
+    for (let j = 0; j < 28; j++) { const t = j / 28 * TAU; const n = bx.clone().multiplyScalar(Math.cos(t)).addScaledVector(by, Math.sin(t) * 1.3); const q = new Q4().setFromUnitVectors(new V3(0, 0, 1), n.clone().normalize()); if (r.chance(0.8)) H.box(p1.clone().addScaledVector(n, 69.5), new V3(r.float(4, 9), 2.2, 1.5), r.chance(0.7) ? warm : glow, SURF.glow, q, 0.2); }
+    H.sphere(p1.clone().addScaledVector(dir, 72), 3.2, k % 2 ? [1, 0.15, 0.1] : [0.2, 1, 0.35], SURF.glow, 1, 1, 1, 10);
     arms.push({ p: p1, r: 80 });
   }
   // windows strips on hub
-  for (let k = 0; k < 40; k++) { const a = r.float(0, TAU), z = r.float(-100, 110); H.box(new V3(Math.cos(a) * R0 * 0.96, Math.sin(a) * R0 * 0.96, z), new V3(4, 4, r.float(6, 18)), glow, SURF.glow, new Q4().setFromAxisAngle(new V3(0, 0, 1), a), 0.2); }
+  for (let k = 0; k < 110; k++) { const a = r.float(0, TAU), z = r.float(-100, 110); H.box(new V3(Math.cos(a) * R0 * 0.96, Math.sin(a) * R0 * 0.96, z), new V3(4, 4, r.float(6, 18)), r.chance(0.55) ? [1, 0.82, 0.55] : glow, SURF.glow, new Q4().setFromAxisAngle(new V3(0, 0, 1), a), 0.2); }
   // emblem triangle
   H.torus(new V3(0, 0, -125), 20, 2, accent, SURF.glow, null, 3);
   // antennae
@@ -4027,6 +4057,7 @@ const Player = {
     const gn = _v2.set(0, 0, 0);
     const feet = _v4.copy(this.pos).addScaledVector(this.up, 0.42); if (Colliders.resolveSphere(feet, 0.4, this.vel, this.up, gn)) { this.onGround = true; } this.pos.copy(feet).addScaledVector(this.up, -0.42);
     const chest = _v4.copy(this.pos).addScaledVector(this.up, 1.35); Colliders.resolveSphere(chest, 0.35, this.vel, null); this.pos.copy(chest).addScaledVector(this.up, -1.35);
+    if (World.frame instanceof Body && World.frame.flora) World.frame.flora.collide(this.pos, 0.38, this.vel);
     this.animate(dt, hSpeed);
     this.placeModel(dt);
   },
@@ -4533,6 +4564,182 @@ const Warp = {
     Game.arriveSystem(this.dest).then(() => { this.loaded = true; });
   },
   exitTunnel() { WarpTunnel.mesh.visible = false; Game.inTunnel = false; _heldNotes.splice(0).forEach((n, i) => setTimeout(() => notify(...n), 700 + i * 500)); },
+};
+
+
+// =====================================================================================
+//  EXOCRAFT — summonable bipedal walker for planetary exploration (quick menu → Summon)
+// =====================================================================================
+function buildMech(seed) {
+  const r = new RNG(seed || 7); const mat = HSMat(); const root = new THREE.Group(); const J = {};
+  const hull = lin3(r.pick([[0.86, 0.84, 0.8], [0.9, 0.62, 0.2], [0.75, 0.78, 0.82], [0.35, 0.42, 0.3]])), dark = [0.07, 0.075, 0.08], mid = [0.28, 0.29, 0.31];
+  const glow = r.pick(GLOWS), warn = [0.95, 0.55, 0.08];
+  const part = (name, parent, pos, build) => { const g = new THREE.Group(); g.position.copy(pos); (parent ? J[parent] : root).add(g); J[name] = g; if (build) { const h = new HGeo(); build(h); const m = new THREE.Mesh(h.build(), mat); m.castShadow = true; m.receiveShadow = true; g.add(m); } return g; };
+  part('pelvis', null, new V3(0, 3.35, 0), h => {
+    h.box(new V3(0, 0, 0), new V3(1.5, 0.55, 1.0), mid, SURF.metal, null, 0.12); h.cyl(new V3(-0.95, -0.1, 0), new V3(0.95, -0.1, 0), 0.26, 0.26, 12, dark, SURF.dark);
+    h.box(new V3(0, 0.1, 0.55), new V3(0.8, 0.35, 0.3), dark, SURF.dark, null, 0.06);
+  });
+  part('torso', 'pelvis', new V3(0, 0.42, 0), h => {
+    // cockpit pod
+    h.box(new V3(0, 0.75, 0.1), new V3(2.1, 1.35, 2.0), hull, SURF.paint, null, 0.32);
+    h.box(new V3(0, 0.12, 0.05), new V3(1.6, 0.4, 1.6), mid, SURF.metal, null, 0.1);
+    h.sphere(new V3(0, 0.95, -0.8), 0.72, [0.02, 0.03, 0.05], SURF.glass, 1.25, 0.72, 0.6, 20);
+    h.box(new V3(0, 1.5, -0.55), new V3(1.5, 0.12, 0.5), dark, SURF.dark, null, 0.04); // visor brow
+    for (const s of [-1, 1]) {
+      h.box(new V3(s * 1.2, 1.05, 0.1), new V3(0.4, 0.9, 1.3), hull, SURF.paint, null, 0.12); // shoulder armour
+      h.box(new V3(s * 1.43, 1.05, 0.1), new V3(0.06, 0.5, 0.9), warn, SURF.paint2, null, 0.02);
+      h.cyl(new V3(s * 0.55, 1.35, 1.05), new V3(s * 0.55, 0.45, 1.15), 0.22, 0.28, 12, dark, SURF.dark); // jump-jet pods
+      h.cyl(new V3(s * 0.55, 0.45, 1.15), new V3(s * 0.55, 0.3, 1.17), 0.24, 0.2, 12, glow, SURF.glow);
+      h.box(new V3(s * 0.62, 1.52, -0.72), new V3(0.26, 0.12, 0.12), [1, 0.95, 0.85], SURF.glow, null, 0.03); // headlights
+    }
+    h.box(new V3(0, 1.45, 0.95), new V3(1.1, 0.5, 0.5), mid, SURF.metal, null, 0.08);
+    h.cyl(new V3(0.6, 1.6, 0.7), new V3(0.7, 2.6, 0.9), 0.03, 0.015, 5, dark, SURF.metal); h.sphere(new V3(0.7, 2.62, 0.9), 0.05, [1, 0.2, 0.1], SURF.glow, 1, 1, 1, 6);
+    for (let k = 0; k < 6; k++) h.box(new V3(r.float(-0.8, 0.8), r.float(0.3, 1.3), 1.12), new V3(r.float(0.1, 0.35), r.float(0.08, 0.3), 0.08), r.chance(0.3) ? glow : dark, r.chance(0.3) ? SURF.glow : SURF.dark, null, 0.02);
+  });
+  for (const s of [-1, 1]) {
+    const S = s < 0 ? 'L' : 'R';
+    part('arm' + S, 'torso', new V3(s * 1.5, 1.05, 0.05), h => { h.sphere(new V3(0, 0, 0), 0.32, mid, SURF.metal, 1, 1, 1, 12); h.cyl(new V3(0, 0, 0), new V3(s * 0.1, -0.9, 0), 0.2, 0.17, 10, dark, SURF.dark); });
+    part('fore' + S, 'arm' + S, new V3(s * 0.1, -0.95, 0), h => {
+      h.box(new V3(0, -0.1, -0.35), new V3(0.42, 0.42, 1.1), hull, SURF.paint, null, 0.1);
+      if (s > 0) { h.cyl(new V3(0, -0.05, -0.9), new V3(0, -0.05, -1.55), 0.12, 0.1, 10, dark, SURF.metal); h.torus(new V3(0, -0.05, -1.5), 0.13, 0.03, glow, SURF.glow, null, 16); }
+      else { h.lathe(new V3(0, -0.1, -0.9), new V3(0, 0, -1), [[0.2, 0], [0.18, 0.2], [0.02, 0.75]], 10, mid, SURF.metal); }
+    });
+    part('hip' + S, 'pelvis', new V3(s * 1.0, -0.1, 0), h => {
+      h.sphere(new V3(0, 0, 0), 0.4, dark, SURF.dark, 1, 1, 1, 14);
+      h.box(new V3(s * 0.06, -0.72, 0), new V3(0.78, 1.25, 0.9), hull, SURF.paint, null, 0.18); // thigh armour
+      h.box(new V3(s * 0.43, -0.6, 0), new V3(0.06, 0.8, 0.6), warn, SURF.paint2, null, 0.02);
+      h.cyl(new V3(0, -0.3, 0.52), new V3(0, -1.5, 0.42), 0.09, 0.08, 8, [0.8, 0.8, 0.82], SURF.chrome); // pistons
+      h.cyl(new V3(0, -0.3, -0.5), new V3(0, -1.45, -0.4), 0.07, 0.06, 8, [0.8, 0.8, 0.82], SURF.chrome);
+      h.box(new V3(s * 0.06, -1.3, 0), new V3(0.5, 0.35, 0.6), mid, SURF.metal, null, 0.08);
+    });
+    part('knee' + S, 'hip' + S, new V3(0, -1.62, 0), h => {
+      h.sphere(new V3(0, 0, 0), 0.36, mid, SURF.metal, 1, 1, 1, 14);
+      h.box(new V3(0, 0.05, -0.36), new V3(0.6, 0.55, 0.28), warn, SURF.paint2, null, 0.08); // knee cap
+      h.box(new V3(0, -0.72, 0.06), new V3(0.62, 1.25, 0.72), hull, SURF.paint, null, 0.14);
+      h.box(new V3(0, -0.72, -0.34), new V3(0.4, 0.9, 0.08), dark, SURF.dark, null, 0.03);
+      h.cyl(new V3(0, -0.25, 0.46), new V3(0, -1.35, 0.36), 0.08, 0.07, 8, [0.8, 0.8, 0.82], SURF.chrome);
+    });
+    part('foot' + S, 'knee' + S, new V3(0, -1.55, 0.02), h => {
+      h.sphere(new V3(0, 0, 0), 0.28, dark, SURF.dark, 1, 1, 1, 12);
+      h.box(new V3(0, -0.2, -0.22), new V3(0.95, 0.32, 1.45), mid, SURF.metal, null, 0.1);
+      for (const t of [-0.3, 0, 0.3]) h.box(new V3(t, -0.25, -1.0), new V3(0.24, 0.22, 0.45), dark, SURF.dark, null, 0.06); // toes
+      h.box(new V3(0, -0.24, 0.62), new V3(0.4, 0.2, 0.45), dark, SURF.dark, null, 0.05);
+    });
+  }
+  // jet flames
+  const flames = [];
+  for (const s of [-1, 1]) { const f = new THREE.Mesh(new THREE.ConeGeometry(0.2, 1.6, 10, 1, true), makePlumeMaterial(glow)); f.rotation.x = Math.PI; f.position.set(s * 0.55, -0.6, 1.17); f.material.uniforms.uT.value = 1; f.visible = false; J.torso.add(f); flames.push(f); }
+  // (headlights reuse the pilot's torch light: adding lights at runtime would force every shader to recompile)
+  return { root, J, flames };
+}
+
+const Mech = {
+  model: null, body: null, riding: false, pos: new V3(), vel: new V3(), up: new V3(0, 1, 0), heading: new V3(0, 0, -1), pitch: -0.15, yawV: new V3(0, 0, -1),
+  onGround: true, phase: 0, walk: 0, fuel: 1, jet: 0, shake: 0, lastSin: 0, seed: 7,
+  get exists() { return !!this.model; },
+  summon() {
+    const F = World.frame; if (!(F instanceof Body)) { notify('Exocraft', 'Exocraft can only be summoned on a planet surface', 'warn'); return; }
+    if (Player.mode !== 'foot') { notify('Exocraft', 'Leave your starship first', 'warn'); return; }
+    this.dismiss(true);
+    this.seed = Game.save ? hash(Game.save.seed[0], 0xE70) : 7;
+    const m = buildMech(this.seed); this.model = m; World.frameGroup.add(m.root); this.body = F;
+    const up = Player.pos.clone().normalize(); const fwd = Player.heading.clone().addScaledVector(up, -Player.heading.dot(up)).normalize();
+    const p = Player.pos.clone().addScaledVector(fwd, 10); const gi = groundInfo(F, p); p.normalize().multiplyScalar(Math.max(gi.groundR, gi.waterR > 0 ? gi.waterR - 2 : 0));
+    this.pos.copy(p); this.vel.set(0, 0, 0); this.up.copy(up); this.heading.copy(fwd).negate(); this.yawV.copy(this.heading); this.phase = 0; this.walk = 0;
+    FX.flash(0.5, 1.4, [0.6, 0.85, 1]); FX.dust(this.pos, this.up, 2); Sound.play('warpExit'); Sound.play('mechStep');
+    notify('Exocraft', 'Walker summoned — approach it and press E to board', 'good'); this.place(0);
+  },
+  dismiss(quiet) {
+    if (this.riding) this.exit();
+    if (this.model) { World.frameGroup.remove(this.model.root); this.model.root.traverse(o => { if (o.geometry) o.geometry.dispose(); }); this.model = null; if (!quiet) notify('Exocraft', 'Exocraft returned to storage'); }
+    this.body = null;
+  },
+  near() { return this.model && !this.riding && Player.mode === 'foot' && this.pos.distanceTo(Player.pos) < 5.5; },
+  board() { if (!this.model) return; this.riding = true; Player.model.visible = false; Player.beam.visible = false; Player.visor = false; this.heading.copy(Player.heading); this.pitch = -0.12; Sound.play('board'); Bus.emit('mechBoard'); },
+  exit() {
+    if (!this.riding) return; this.riding = false; const right = _v1.copy(this.yawV).cross(this.up).normalize();
+    Player.pos.copy(this.pos).addScaledVector(right, 2.6); const F = World.frame; if (F instanceof Body) { const gi = groundInfo(F, Player.pos); Player.pos.normalize().multiplyScalar(Math.max(gi.groundR, gi.waterR > 0 ? gi.waterR : 0) + 0.1); }
+    Player.vel.set(0, 0, 0); Player.up.copy(this.up); Player.heading.copy(this.heading); Player.model.visible = true; Sound.play('exit');
+  },
+  // --------------------------------------------------------------- driving
+  update(dt) {
+    const F = World.frame; if (!this.model || !(F instanceof Body)) { if (this.model) this.dismiss(true); return; }
+    const creative = Game.mode === 'creative'; const look = Input.lookDelta(new V2(), dt); const mv = Input.moveAxes(new V2());
+    const G = gravityAt(this.pos, Player.g); const g = G ? G.g : 9.8;
+    this.up.lerp(this.pos.clone().normalize(), 1 - Math.exp(-dt * 6)).normalize();
+    this.heading.addScaledVector(this.up, -this.heading.dot(this.up)).normalize();
+    if (!UI.modal) { this.heading.applyAxisAngle(this.up, -look.x); this.pitch = clamp(this.pitch - look.y, -1.1, 0.9); }
+    const right = _v2.copy(this.heading).cross(this.up).normalize();
+    const sprint = Input.k('sprint'); const speed = sprint ? 12.5 : 7;
+    const wish = _v3.copy(this.heading).multiplyScalar(mv.y).addScaledVector(right, mv.x); if (wish.lengthSq() > 1) wish.normalize(); if (UI.modal) wish.set(0, 0, 0);
+    let vv = this.vel.dot(this.up); const hv = _v4.copy(this.vel).addScaledVector(this.up, -vv);
+    const gi = groundInfo(F, this.pos); const underwater = gi.waterR > 0 && this.pos.length() < gi.waterR - 3;
+    hv.lerp(wish.multiplyScalar(speed * (underwater ? 0.6 : 1)), 1 - Math.exp(-dt * (this.onGround ? 3.2 : 0.8)));
+    vv -= g * dt * (underwater ? 0.5 : 1);
+    // jump & jets
+    const wantJet = Input.k('jump') && !UI.modal && (creative || this.fuel > 0.02);
+    if (Input.p('jump') && this.onGround && !UI.modal) { vv = 7.5; this.onGround = false; Sound.play('jump'); FX.dust(this.pos, this.up, 1.2); }
+    else if (wantJet && !this.onGround && this.airT > 0.25) { vv = Math.min(vv + (g + 9) * dt, 9); hv.addScaledVector(this.heading, dt * 5 * Math.max(0, mv.y)); if (!creative) this.fuel = Math.max(0, this.fuel - dt * 0.3); this.jet = 1; }
+    else this.jet = Math.max(0, this.jet - dt * 4);
+    if (this.onGround) { this.fuel = Math.min(1, this.fuel + dt * 0.35); this.airT = 0; } else this.airT = (this.airT || 0) + dt;
+    this.vel.copy(hv).addScaledVector(this.up, vv); this.pos.addScaledVector(this.vel, dt);
+    // ground
+    const was = this.onGround; this.onGround = false;
+    const inf = groundInfo(F, this.pos); const rr = this.pos.length();
+    if (rr < inf.groundR + 0.02) { this.pos.multiplyScalar(inf.groundR / rr); const vn = this.vel.dot(this.up); if (vn < 0) { if (vn < -9) { this.shake = Math.min(1.2, -vn * 0.07); Sound.play('mechStep', 1.3); FX.dust(this.pos, this.up, 2.2); } this.vel.addScaledVector(this.up, -vn); } this.onGround = true; }
+    else if (was && rr - inf.groundR < 0.6 && vv <= 0.5) { this.pos.multiplyScalar(inf.groundR / rr); this.onGround = true; const vn = this.vel.dot(this.up); if (vn < 0) this.vel.addScaledVector(this.up, -vn); }
+    // structures & trees
+    const hip = _v5.copy(this.pos).addScaledVector(this.up, 2.2); Colliders.resolveSphere(hip, 1.4, this.vel, null); this.pos.copy(hip).addScaledVector(this.up, -2.2);
+    const feet = _v5.copy(this.pos).addScaledVector(this.up, 0.9); if (Colliders.resolveSphere(feet, 0.9, this.vel, this.up)) this.onGround = true; this.pos.copy(feet).addScaledVector(this.up, -0.9);
+    if (F.flora) F.flora.collide(this.pos, 1.1, this.vel);
+    // the pilot rides along (keeps streaming, hazards and discovery tied to the walker)
+    Player.pos.copy(this.pos).addScaledVector(this.up, 4.3); Player.vel.copy(this.vel); Player.up.copy(this.up); Player.heading.copy(this.heading); Player.pitch = this.pitch; Player.onGround = this.onGround;
+    const hs = hv.length(); this.walk = damp(this.walk, this.onGround ? clamp(hs / 7, 0, 1.8) : 0, 6, dt);
+    this.shake = Math.max(0, this.shake - dt * 3);
+    this.place(dt, hs);
+  },
+  // idle / animation when not driven
+  tick(dt) {
+    if (!this.model) return;
+    if (World.frame !== this.body) { this.dismiss(true); return; }
+    if (!this.riding) { this.walk = damp(this.walk, 0, 4, dt); this.jet = 0; this.place(dt, 0); }
+  },
+  place(dt, hs = 0) {
+    const m = this.model; if (!m) return; const J = m.J;
+    // body faces travel direction when moving, else the view heading while driven
+    const hv = _v1.copy(this.vel).addScaledVector(this.up, -this.vel.dot(this.up));
+    const target = this.riding ? (hv.lengthSq() > 1 ? hv.normalize() : this.heading) : this.yawV;
+    this.yawV.lerp(target, 1 - Math.exp(-dt * 3)).addScaledVector(this.up, -this.yawV.dot(this.up)).normalize();
+    const f = this.yawV, rgt = _v2.copy(f).cross(this.up).normalize(); _m1.makeBasis(rgt, this.up, _v3.copy(f).negate());
+    m.root.position.copy(this.pos); m.root.quaternion.setFromRotationMatrix(_m1);
+    // gait
+    const w = Math.min(1, this.walk), run = clamp(this.walk - 1, 0, 0.8);
+    this.phase += dt * (0.9 + hs * 0.17);
+    const ph = this.phase * Math.PI; const air = this.onGround ? 0 : 1;
+    for (const s of [-1, 1]) {
+      const S = s < 0 ? 'L' : 'R'; const p = ph + (s > 0 ? Math.PI : 0); const sw = Math.cos(p), lift = Math.max(0, Math.sin(p));
+      const hipA = sw * (0.42 + run * 0.2) * w - air * 0.35 * (s > 0 ? 1 : 0.6); const kneeA = lift * (0.9 + run * 0.4) * w + 0.12 + air * 0.6;
+      J['hip' + S].rotation.x = hipA; J['knee' + S].rotation.x = kneeA; J['foot' + S].rotation.x = -(hipA + kneeA) * 0.85;
+      J['arm' + S].rotation.x = -sw * 0.25 * w - (this.riding && Input.fire() && s > 0 ? 1.2 + this.pitch : 0); J['fore' + S].rotation.x = -0.35 - 0.15 * w;
+    }
+    // footfalls
+    const sn = Math.sin(ph); if (w > 0.15 && this.onGround && Math.sign(sn) !== Math.sign(this.lastSin)) { Sound.play('mechStep', 0.6 + w * 0.5); this.shake = Math.max(this.shake, 0.18 + run * 0.25); const fp = this.pos.clone().addScaledVector(rgt, sn > 0 ? 0.98 : -0.98); FX.dust(fp, this.up, 0.5 + run); } this.lastSin = sn;
+    J.pelvis.position.y = 3.35 - Math.abs(Math.sin(ph)) * 0.14 * w - 0.12 * w - air * 0.1;
+    J.pelvis.rotation.set(0, Math.sin(ph) * 0.06 * w, Math.sin(ph) * 0.03 * w);
+    J.torso.rotation.set(0.05 * w + run * 0.08 + (this.riding ? clamp(-this.pitch * 0.25, -0.2, 0.2) : 0), 0, 0);
+    for (const fl of m.flames) { fl.visible = this.jet > 0.05; fl.scale.set(1, 0.6 + this.jet * 0.8 + Math.random() * 0.25, 1); }
+  },
+  camera(dt, outPos, outQuat) {
+    const up = this.up; const fwd = _v1.copy(this.heading).multiplyScalar(Math.cos(this.pitch)).addScaledVector(up, Math.sin(this.pitch)).normalize();
+    const right = _v2.copy(fwd).cross(up).normalize(); const camUp = _v3.copy(right).cross(fwd).normalize();
+    const pivot = this.pos.clone().addScaledVector(up, 5.2);
+    outPos.copy(pivot).addScaledVector(fwd, -11).addScaledVector(up, 1.2);
+    const F = World.frame; if (F instanceof Body) { const inf = groundInfo(F, outPos); const rr = outPos.length(); const minR = inf.groundR + 0.8; if (rr < minR) outPos.multiplyScalar(minR / rr); }
+    const d = _v4.copy(outPos).sub(pivot); const len = d.length(); d.divideScalar(len); const hit = Colliders.raycast(pivot, d, len); if (hit) outPos.copy(pivot).addScaledVector(d, Math.max(0.5, hit.t - 0.4));
+    const sh = this.shake * 0.12 * Settings.data.camShake; if (sh > 0) outPos.addScaledVector(camUp, (Math.random() - 0.5) * sh).addScaledVector(right, (Math.random() - 0.5) * sh);
+    _m1.makeBasis(right, camUp, _v5.copy(fwd).negate()); outQuat.setFromRotationMatrix(_m1);
+    Player.camFwd = (Player.camFwd || new V3()).copy(fwd); Player.camPos = (Player.camPos || new V3()).copy(outPos);
+  },
 };
 
 
@@ -5152,7 +5359,7 @@ const Build = {
   // ---- entering build mode -------------------------------------------
   toggle() {
     if (this.active) return this.exit();
-    if (Player.mode !== 'foot') { notify('Build', 'Exit your ship to build', 'warn'); return; }
+    if (Player.mode !== 'foot' || Mech.riding) { notify('Build', Mech.riding ? 'Leave the exocraft to build' : 'Exit your ship to build', 'warn'); return; }
     this.active = true; Player.visor = false; UI.showBuild(true); Sound.play('ui');
     if (World.frame instanceof Body) { if (this.cat === 'Station') this.cat = 'Structures'; } else if (this.cat !== 'Station' && this.cat !== 'Decor' && this.cat !== 'Technology') this.cat = 'Station';
     UI.refreshBuild();
@@ -5434,7 +5641,7 @@ const Game = {
     this.slot = slot; this.save = saveData; this.mode = saveData.mode; this.dead = false;
     this.universe = new Universe(saveData.seed[0], saveData.seed[1]);
     UI.loading(true, 'Charting the universe…', 0.05);
-    Net.reset(); Player.init(); Ship.init(saveData.ship ? saveData.ship.design : null || genShipDesign(hash(saveData.seed[0], 99), 'fighter'));
+    Net.reset(); Mech.dismiss(true); Player.init(); Ship.init(saveData.ship ? saveData.ship.design : null || genShipDesign(hash(saveData.seed[0], 99), 'fighter'));
     if (!saveData.ships.length) saveData.ships.push(Ship.design);
     let addr = saveData.addr, bodyIdx = 0, fresh = !saveData.addr;
     if (fresh) { const st = this.findStart(this.universe); addr = st.addr; bodyIdx = st.body; saveData.addr = addr; saveData.visited.push(this.universe.addrKey(addr)); }
@@ -5702,6 +5909,7 @@ const HUD = {
     for (const o of World.others) { if (o === F) continue; add('o' + o.label, World.systemToFrame(o.pos, new V3()), o.label || o.kind, o.kind === 'station' ? '#ffd66b' : o.kind === 'freighter' ? '#9fd8ff' : '#7dffb0', 'dia'); }
     // ship
     if (!inShip && Ship.model) add('ship', Ship.pos.clone().add(new V3(0, 2, 0)), 'Starship', '#8ff5ff', 'dia');
+    if (Mech.exists && !Mech.riding) add('mech', Mech.pos.clone().addScaledVector(Mech.up, 7), 'Exocraft', '#ffc36b', 'dia');
     // co-op travellers
     for (const n of Net.markers()) add(n.key, n.pos, n.name, '#d6a2ff', 'dia', 'Traveller');
     // POIs revealed
@@ -5779,7 +5987,9 @@ const HUD = {
     // interaction prompt
     const ip = $('#interact'); let txt = '';
     if (!UI.modal && !Build.active) {
-      if (Player.mode === 'foot') { const shipD = Ship.pos.distanceTo(Player.pos); if (Ship.mode === 'landed' && shipD < Ship.model.len * 0.6 + 4) txt = `<span class="kbd">E</span>Board ${Ship.design.name}`; else if (Interact.current) txt = `<span class="kbd">E</span>${Interact.current.label}`; else { const c = Player.lookTarget; if (c && c.kind === 'fauna' && c.obj && c.obj.pos.distanceTo(Player.pos) < 5) txt = `<span class="kbd">E</span>Feed ${c.sp.common}`; } if (Player.eva && Ship.pos.distanceTo(Player.pos) < Ship.model.len + 6) txt = `<span class="kbd">E</span>Board ${Ship.design.name}`; }
+      if (Player.mode === 'foot' && Mech.riding) txt = `<span class="kbd">E</span>Exit Exocraft &nbsp; <span class="kbd">Space</span>Jump jets`;
+      else if (Player.mode === 'foot' && Mech.near()) txt = `<span class="kbd">E</span>Board Exocraft`;
+      else if (Player.mode === 'foot') { const shipD = Ship.pos.distanceTo(Player.pos); if (Ship.mode === 'landed' && shipD < Ship.model.len * 0.6 + 4) txt = `<span class="kbd">E</span>Board ${Ship.design.name}`; else if (Interact.current) txt = `<span class="kbd">E</span>${Interact.current.label}`; else { const c = Player.lookTarget; if (c && c.kind === 'fauna' && c.obj && c.obj.pos.distanceTo(Player.pos) < 5) txt = `<span class="kbd">E</span>Feed ${c.sp.common}`; } if (Player.eva && Ship.pos.distanceTo(Player.pos) < Ship.model.len + 6) txt = `<span class="kbd">E</span>Board ${Ship.design.name}`; }
       else if (Ship.mode === 'landed') txt = `<span class="kbd">Space</span>Take off &nbsp; <span class="kbd">E</span>Exit`;
       else if (Ship.mode === 'flying') { const e = Ship.lastEnv; if (e && e.body && e.alt < 400) txt = `<span class="kbd">E</span>Land`; else if (!e || !e.body || e.dens < 0.05) txt = Ship.target ? `<span class="kbd">Space</span>Pulse to ${Ship.target.label}` : `<span class="kbd">Space</span>Pulse Drive &nbsp; <span class="kbd">T</span>Target &nbsp; <span class="kbd">M</span>Galaxy Map`; }
     }
@@ -5920,6 +6130,8 @@ const UI = {
     const F = World.frame; const onPlanet = F instanceof Body;
     const acts = [
       ['Summon Starship', () => this.summonShip(), onPlanet && Player.mode === 'foot'],
+      ['Summon Exocraft', () => Mech.summon(), onPlanet && Player.mode === 'foot' && !Mech.riding],
+      ['Dismiss Exocraft', () => Mech.dismiss(), Mech.exists && !Mech.riding],
       ['Summon Freighter', () => Freighter.summon(), !!Game.save.freighter],
       ['Deploy Station Core', () => Build.deployStation(), !onPlanet],
       ['Build Mode', () => Build.toggle(), Player.mode === 'foot'],
@@ -6400,6 +6612,7 @@ const Sound = {
       case 'warpJump': T.burst(1.8, 0.4, 8000, 80, 0.6, 'lowpass', { rev: 1 }); T.tone('sine', 120, 30, 1.5, 0.3); break;
       case 'warpExit': T.burst(1.5, 0.3, 200, 6000, 0.6, 'bandpass', { rev: 1 }); T.tone('triangle', 800, 200, 1.2, 0.08, { rev: 1 }); break;
       case 'thud': T.burst(0.3, 0.3, 300, 40, 1, 'lowpass'); break;
+      case 'mechStep': T.burst(0.45, 0.3 * vol, 260, 35, 0.9, 'lowpass', { rev: 0.25 }); T.tone('square', 72, 38, 0.3, 0.045 * vol, { lp: 280 }); T.tone('sawtooth', 380, 540, 0.16, 0.01 * vol, { lp: 1600, delay: 0.06 }); break;
       case 'hurt': T.tone('sawtooth', 300, 90, 0.25, 0.08, { lp: 1200 }); break;
       case 'alarm': for (let i = 0; i < 3; i++) T.tone('square', 880, 660, 0.18, 0.04, { delay: i * 0.25, lp: 2000 }); break;
       case 'build': T.burst(0.25, 0.12, 900, 200, 2); T.tone('sine', 520, 780, 0.15, 0.05, { delay: 0.1 }); break;
@@ -6574,13 +6787,13 @@ const Net = {
   frameId(F) { if (!F) return 'sys'; if (F instanceof Body) return 'b' + F.index; return (F.kind || 'o') + ':' + (F.label || F.name || ''); },
   sendState(full) {
     if (!Game.save || Game.state !== 'play' || !World.sys) return;
-    const inShip = Player.mode === 'ship'; const F = World.frame;
-    const pos = inShip ? Ship.pos : Player.pos; const q = inShip ? Ship.quat : (Player.model ? Player.model.quaternion : Ship.quat);
+    const inShip = Player.mode === 'ship'; const inMech = !inShip && Mech.riding && Mech.model; const F = World.frame;
+    const pos = inShip ? Ship.pos : inMech ? Mech.pos : Player.pos; const q = inShip ? Ship.quat : inMech ? Mech.model.root.quaternion : (Player.model ? Player.model.quaternion : Ship.quat);
     const sp = World.frameToSystem(pos, new V3()); const sq = World.frameQuatToSystem(q, new Q4());
     const r3 = v => [+v.x.toFixed(2), +v.y.toFixed(2), +v.z.toFixed(2)], r4 = v => [+v.x.toFixed(4), +v.y.toFixed(4), +v.z.toFixed(4), +v.w.toFixed(4)];
     const m = {
       k: 'st', name: this.name, since: this.since, t: World.t, sys: World.sys.key, addr: World.sys.addr, sysName: World.sys.name, fr: this.frameId(F), where: F ? (F.name || F.label || '') : 'deep space',
-      p: r3(pos), q: r4(q), sp: r3(sp), sq: r4(sq), m: inShip ? 'ship' : 'foot',
+      p: r3(pos), q: r4(q), sp: r3(sp), sq: r4(sq), m: inShip ? 'ship' : inMech ? 'mech' : 'foot',
       sm: Ship.mode, v: +(inShip ? Ship.vel.length() : Player.vel.length()).toFixed(1), jet: Player.jetting ? 1 : 0, g: Player.onGround ? 1 : 0, thr: +Ship.throttle.toFixed(2),
       seed: Game.universe ? [Game.universe.hi, Game.universe.lo] : null,
     };
@@ -6620,9 +6833,20 @@ const Net = {
   },
   showAvatar(p, s, dt) {
     this.ensureAvatar(p);
-    const inShip = s.m === 'ship';
-    const a = p.avatar; a.visible = !inShip;
-    if (!inShip) {
+    const inShip = s.m === 'ship', inMech = s.m === 'mech';
+    const a = p.avatar; a.visible = !inShip && !inMech;
+    // exocraft
+    if (inMech && !p.mech) { p.mech = buildMech(hashStr(p.id)); World.frameGroup.add(p.mech.root); }
+    if (p.mech) {
+      p.mech.root.visible = inMech;
+      if (inMech) {
+        const J = p.mech.J; p.mech.root.position.copy(p.pos); p.mech.root.quaternion.copy(p.quat);
+        const w = s.g ? clamp(s.v / 7, 0, 1) : 0; p.phase += dt * (0.9 + s.v * 0.17); const ph = p.phase * Math.PI;
+        for (const sd of [-1, 1]) { const S = sd < 0 ? 'L' : 'R'; const q = ph + (sd > 0 ? Math.PI : 0); const hipA = Math.cos(q) * 0.42 * w - (s.g ? 0 : 0.3); const kneeA = Math.max(0, Math.sin(q)) * 0.9 * w + 0.12 + (s.g ? 0 : 0.5); J['hip' + S].rotation.x = hipA; J['knee' + S].rotation.x = kneeA; J['foot' + S].rotation.x = -(hipA + kneeA) * 0.85; }
+        J.pelvis.position.y = 3.35 - Math.abs(Math.sin(ph)) * 0.14 * w; for (const fl of p.mech.flames) fl.visible = !!s.jet && !s.g;
+      }
+    }
+    if (!inShip && !inMech) {
       a.position.copy(p.pos); a.quaternion.copy(p.quat);
       // procedural walk / jetpack pose
       const J = p.J; const w = s.g ? clamp(s.v / 4.6, 0, 1.6) : 0; p.phase += dt * (1.2 + s.v * 0.95);
@@ -6644,15 +6868,15 @@ const Net = {
       for (const pl of sh.plumes) pl.visible = inShip && s.sm !== 'landed';
     }
   },
-  hideAvatar(p) { if (p.avatar) p.avatar.visible = false; if (p.ship) p.ship.group.visible = false; p.has = false; },
-  disposeAvatar(p) { if (p.avatar) World.frameGroup.remove(p.avatar); if (p.ship) World.frameGroup.remove(p.ship.group); p.avatar = p.ship = null; },
+  hideAvatar(p) { if (p.avatar) p.avatar.visible = false; if (p.ship) p.ship.group.visible = false; if (p.mech) p.mech.root.visible = false; p.has = false; },
+  disposeAvatar(p) { if (p.avatar) World.frameGroup.remove(p.avatar); if (p.ship) World.frameGroup.remove(p.ship.group); if (p.mech) World.frameGroup.remove(p.mech.root); p.avatar = p.ship = p.mech = null; },
   // re-attach avatars after the frame group is rebuilt (new game / load)
   reset() { for (const [, p] of this.peers) { this.disposeAvatar(p); p.shipKey = ''; p.has = false; } },
   markers() {
     const out = [];
     for (const [, p] of this.peers) {
       if (!p.has || !p.st) continue; const up = World.frame instanceof Body ? p.pos.clone().normalize() : new V3(0, 1, 0);
-      out.push({ key: 'np' + p.id, pos: p.pos.clone().addScaledVector(up, p.st.m === 'ship' ? 4 : 2.4), name: p.name });
+      out.push({ key: 'np' + p.id, pos: p.pos.clone().addScaledVector(up, p.st.m === 'ship' ? 4 : p.st.m === 'mech' ? 7.5 : 2.4), name: p.name });
     }
     return out;
   },
@@ -6736,7 +6960,7 @@ const Main = {
       await this.setupTitle();
       setLoad(1, 'Ready');
       UI.loading(false); Title.show();
-      window.__game = { Game, World, Player, Ship, GalaxyMap, Build, UI, Main, SU, GL, Space, Warp, Teleport, Discover, Research, THREE, Post, ShipBuilder, genShipDesign, buildShip, Freighter, Weather, NEXTGEN, Pool, Settings, Input, Sound, Net, WarpTunnel, Touch };
+      window.__game = { Game, World, Player, Ship, GalaxyMap, Build, UI, Main, SU, GL, Space, Warp, Teleport, Discover, Research, THREE, Post, ShipBuilder, genShipDesign, buildShip, Freighter, Weather, NEXTGEN, Pool, Settings, Input, Sound, Net, WarpTunnel, Touch, Mech, HUD, FX, Interact, Combat, Env, Sky };
       this.last = performance.now(); requestAnimationFrame(t => this.loop(t));
     } catch (e) { console.error(e); $('#loadMsg').textContent = 'Error: ' + e.message; $('#loadMsg').style.color = '#ff6a6a'; }
   },
@@ -6786,7 +7010,7 @@ const Main = {
     // camera
     const cp = this.camPos, cq = this.camQuat;
     if (Game.state === 'play') {
-      if (Player.mode === 'ship') Ship.camera(dt, cp, cq); else Player.camera(dt, cp, cq);
+      if (Player.mode === 'ship') Ship.camera(dt, cp, cq); else if (Mech.riding) Mech.camera(dt, cp, cq); else Player.camera(dt, cp, cq);
     }
     let fov = Settings.data.fov; if (Player.mode === 'ship') { const sp = Ship.vel.length(); fov += clamp(sp / 50, 0, 10) + Ship.pulse * 16 + (Ship.boosting ? 6 : 0); } if (Player.visor && Player.mode === 'foot') fov -= 18; fov += FX.warpAmt * 30;
     this.fov = damp(this.fov, fov, 4, dt); GL.camera.fov = this.fov; GL.camera.updateProjectionMatrix();
@@ -6840,15 +7064,17 @@ const Main = {
     World.update(dt);
     // entity updates
     if (Player.mode === 'foot') {
-      Player.update(dt);
+      if (Mech.riding) Mech.update(dt); else Player.update(dt);
       Interact.update();
-      if (!UI.modal && Input.p('interact') && !Interact.current) {
+      if (!UI.modal && Input.p('interact') && (Mech.riding || Mech.near())) { if (Mech.riding) Mech.exit(); else Mech.board(); }
+      else if (!UI.modal && Input.p('interact') && !Interact.current) {
         const shipD = Ship.pos.distanceTo(Player.pos);
         if ((Ship.mode === 'landed' && shipD < Ship.model.len * 0.6 + 4) || (Player.eva && shipD < Ship.model.len + 6)) { if (Player.eva) { Ship.mode = 'flying'; } Ship.board(); }
         else { const c = Player.lookTarget; if (c && c.kind === 'fauna' && c.obj && c.obj.pos.distanceTo(Player.pos) < 6) { c.obj.follow = 60; c.obj.state = 'idle'; FX.hearts(c.obj.pos.clone().addScaledVector(c.obj.dir, c.sp.size)); Sound.play('feed'); Bus.emit('feed'); if (Math.random() < 0.5) Game.gain('Faecium', 10); } }
       }
       Build.update(dt);
     }
+    Mech.tick(dt);
     Ship.update(dt);
     if (Warp.pending && Ship.mode === 'flying' && Player.mode === 'ship' && Ship.lastEnv && Ship.lastEnv.dens < 0.01) { const d = Warp.pending; Warp.pending = null; Warp.start(d); }
     if (Ship.mode === 'flying' && !(World.frame instanceof Body)) Space.shipCollide(Ship);

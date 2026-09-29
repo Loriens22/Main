@@ -8,6 +8,7 @@ Open `index.html` in a modern desktop or mobile browser (Chrome, Edge, Firefox, 
 - **Seamless planets**: quadtree cube-sphere terrain streamed from Web Workers, physically based atmospheric scattering, raymarched volumetric clouds, oceans / lava / ice, rings, aurora, weather (storms, blizzards, toxic rain, radiation, embers…), real day/night from planetary rotation.
 - **Procedural life**: dozens of plant archetypes (trees, palms, conifers, foxglove stalks, flytraps, floating jellyfish flora, crystals, corals…), wind-animated dense grass, and skinned procedural creatures (quadrupeds, hexapods, bipeds, flyers, hoppers, slugs, swimmers, air-jellies) with herd AI.
 - **Flight**: space ↔ atmosphere flight model, pulse drive, atmospheric entry heating, automatic landing/take-off with animated gear and dust, station docking, hyperdrive warp tunnel, photon cannons & beams, squadron wingmen.
+- **Exocraft**: summon a two-legged walker from the quick menu (G) on any planet — heavy procedural gait with footfall shake and dust, jump jets, headlights at night, crashes through the undergrowth but not the trees.
 - **Space stations** with walkable hangars and terminals, **freighters**, NPC traffic, asteroid fields, sentinels, points of interest (ruins, monoliths, portals, crashed ships, settlements…).
 - **Building**: planetary bases, auto-connecting cuboid rooms, deployable orbital habitats, terrain manipulator, teleporters, landing pads.
 - **Ship fabricator** with modular parts, classes and next-generation presets.
