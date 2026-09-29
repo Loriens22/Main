@@ -44,7 +44,7 @@ button{font-family:var(--font);color:var(--txt);cursor:pointer}
 h1,h2,h3{font-family:var(--font2);font-weight:700;letter-spacing:.12em;margin:0}
 .lbl{font-size:12px;letter-spacing:.2em;text-transform:uppercase;color:var(--holo-dim)}
 .kbd{display:inline-block;min-width:22px;padding:1px 6px;border:1px solid var(--holo-dim);border-radius:3px;font-size:13px;text-align:center;margin-right:6px;background:rgba(143,245,255,.08);color:var(--holo)}
-input[type=text],input[type=number],select{background:rgba(0,20,30,.6);border:1px solid var(--line);color:var(--txt);font-family:var(--font);font-size:16px;padding:7px 10px;border-radius:2px;outline:none}
+input[type=text],input[type=number],select,textarea{background:rgba(0,20,30,.6);border:1px solid var(--line);color:var(--txt);font-family:var(--font);font-size:16px;padding:7px 10px;border-radius:2px;outline:none}
 input[type=range]{accent-color:var(--holo);width:100%}
 input:focus,select:focus{border-color:var(--holo)}
 ::-webkit-scrollbar{width:6px;height:6px}::-webkit-scrollbar-thumb{background:var(--line);border-radius:3px}::-webkit-scrollbar-track{background:transparent}
@@ -117,6 +117,7 @@ input:focus,select:focus{border-color:var(--holo)}
 .mk .nm{font-weight:700;font-size:13px}
 .mk .ds{opacity:.8}
 .mk.tgt .dia{background:currentColor}
+#hud.building #bl,#hud.building #toolHud,#hud.building #markers{opacity:0;pointer-events:none;transition:opacity .25s}
 .mk.min .nm,.mk.min .ds{display:none}.mk.min .dia{width:9px;height:9px;border-width:1.5px;margin-bottom:0}
 #interact{position:absolute;left:50%;top:calc(50% + 46px);transform:translateX(-50%);font-size:17px;padding:6px 14px;background:rgba(0,10,18,.55);border:1px solid var(--line);white-space:nowrap}
 #bl{position:absolute;left:calc(22px + var(--sal));bottom:calc(22px + var(--sab));width:300px}
@@ -210,7 +211,8 @@ input:focus,select:focus{border-color:var(--holo)}
 .tb.sm{width:48px;height:48px;font-size:10px}
 .tb.sm svg{width:20px;height:20px}
 .tb.on,.tb:active{background:radial-gradient(circle at 50% 35%,rgba(143,245,255,.6),rgba(40,120,160,.5));border-color:#fff}
-#tTop{position:absolute;top:calc(8px + var(--sat));left:50%;transform:translateX(-50%);display:flex;gap:8px;pointer-events:auto}
+#tTop{position:absolute;top:calc(44px + var(--sat));left:calc(14px + var(--sal));display:flex;gap:7px;pointer-events:auto}
+body.touchui #toolHud{display:none}
 #tTop .tb{position:relative;width:44px;height:44px;border-radius:8px}
 #tTop .tb svg{width:20px;height:20px}
 /* ---------- misc ---------- */
@@ -1648,7 +1650,7 @@ const Sky = {
     u.uNa.value.set(...lin3(n.a)); u.uNb.value.set(...lin3(n.b)); u.uNc.value.set(...lin3(n.c)); u.uAmt.value = n.amt; u.uSeed.value = n.seed;
     u.uGalN.value.fromArray(sys.galNormal); u.uCore.value.fromArray(sys.coreDir);
     const c = sys.star.col; this.sunMat.uniforms.uCol.value.set(...lin3(c)); this.coronaMat.uniforms.uCol.value.set(...lin3(c));
-    this.sun.scale.setScalar(sys.starRadius); this.corona.scale.setScalar(sys.starRadius * 7);
+    const sr = sys.starRadius * 0.42; this.sun.scale.setScalar(sr); this.corona.scale.setScalar(sr * 9);
     this.starMat.uniforms.uTex.value = TEX.sprite;
   },
 };
@@ -1825,12 +1827,15 @@ const WarpTunnel = {
       uniforms: { uTime: SU.uTime, uNoise: SU.uNoise3D, uA: { value: new V3(0.3, 0.6, 1) }, uB: { value: new V3(1, 0.4, 0.8) }, uI: { value: 0 }, uSpeed: { value: 1 } },
       vertexShader: `varying vec3 vP; varying vec2 vUv; void main(){ vP=position; vUv=uv; gl_Position=projectionMatrix*modelViewMatrix*vec4(position,1.0); }`,
       fragmentShader: /* glsl */`uniform float uTime; uniform sampler3D uNoise; uniform vec3 uA,uB; uniform float uI; uniform float uSpeed; varying vec3 vP; varying vec2 vUv;
+        vec3 sat(vec3 c){ float m=max(c.r,max(c.g,c.b)); vec3 k=c/max(m,1e-3); return k*k*1.2; }
         void main(){ float ang=atan(vP.y,vP.x)/6.2831853; float z=vP.z/6000.0+0.5; float t=uTime*uSpeed;
-          vec3 q=vec3(ang*3.0, z*0.6-t*0.9, 0.3); float n=texture(uNoise,q).a; float n2=texture(uNoise,vec3(ang*9.0,z*2.0-t*2.5,0.7)).r;
-          float streak=pow(smoothstep(0.55,0.95,texture(uNoise,vec3(ang*24.0,z*0.25-t*3.5,0.1)).b),3.0);
-          vec3 c=mix(uA,uB,n)*(0.25+n2*0.9)+vec3(1.0)*streak*2.5;
+          vec3 q=vec3(ang*3.0, z*0.6-t*0.9, 0.3); float n=texture(uNoise,q).a; float n2=texture(uNoise,vec3(ang*9.0+n*0.6,z*2.0-t*2.5,0.7)).r;
+          float bands=smoothstep(0.38,0.8,n2); float rib=pow(0.5+0.5*sin(z*260.0-t*40.0+n*6.0),8.0);
+          float streak=pow(smoothstep(0.62,0.97,texture(uNoise,vec3(ang*24.0,z*0.25-t*3.5,0.1)).b),3.0);
+          vec3 A=sat(uA), B=sat(uB); vec3 col=mix(A,B,smoothstep(0.3,0.7,n));
+          vec3 c=col*(0.05+bands*0.85+rib*0.25)+mix(col,vec3(1.0),0.35)*streak*1.3;
           float fadeZ=smoothstep(0.0,0.25,z)*smoothstep(1.0,0.6,z);
-          gl_FragColor=vec4(c*uI*fadeZ*1.4,1.0); }`,
+          gl_FragColor=vec4(c*uI*fadeZ,1.0); }`,
     });
     this.mesh = new THREE.Mesh(g, this.mat); this.mesh.frustumCulled = false; this.mesh.visible = false; this.mesh.renderOrder = 50; GL.scene.add(this.mesh);
   },
@@ -3811,11 +3816,11 @@ const KEYMAP = {
   forward: ['KeyW', 'ArrowUp'], back: ['KeyS', 'ArrowDown'], left: ['KeyA', 'ArrowLeft'], right: ['KeyD', 'ArrowRight'],
   jump: ['Space'], sprint: ['ShiftLeft', 'ShiftRight'], interact: ['KeyE'], scan: ['KeyC'], visor: ['KeyF'], tool: ['KeyQ'],
   build: ['KeyB'], inventory: ['Tab', 'KeyI'], galaxy: ['KeyM'], log: ['KeyJ'], camera: ['KeyV'], pause: ['Escape'], down: ['ControlLeft', 'ControlRight', 'KeyZ'],
-  rotate: ['KeyR'], remove: ['KeyX'], quick: ['KeyG'], target: ['KeyT'], help: ['KeyH'], tool1: ['Digit1'], tool2: ['Digit2'], tool3: ['Digit3'], tool4: ['Digit4'], photo: ['KeyP'], map: ['KeyN'],
+  rotate: ['KeyR'], remove: ['KeyX'], quick: ['KeyG'], target: ['KeyT'], help: ['KeyH'], tool1: ['Digit1'], tool2: ['Digit2'], tool3: ['Digit3'], tool4: ['Digit4'], photo: ['KeyP'], map: ['KeyN'], chat: ['Enter', 'NumpadEnter'],
 };
 const Input = {
   keys: new Set(), down: new Set(), mouse: { dx: 0, dy: 0, b: [false, false, false], bd: [false, false, false], wheel: 0 }, locked: false, enabled: true,
-  touch: { joy: new V2(), look: new V2(), held: new Set(), pressed: new Set() }, pad: null, padPrev: {},
+  touch: { joy: new V2(), look: new V2(), rstick: new V2(), rActive: false, held: new Set(), pressed: new Set() }, pad: null, padPrev: {},
   init() {
     window.addEventListener('keydown', e => {
       if (e.target && (e.target.tagName === 'INPUT' || e.target.tagName === 'TEXTAREA' || e.target.tagName === 'SELECT')) return;
@@ -4281,7 +4286,8 @@ const Ship = {
     const e = this.env(); this.lastEnv = e; const S = this.stats; const creative = Game.mode === 'creative';
     const look = Input.lookDelta(new V2(), dt); const mv = Input.moveAxes(new V2());
     // virtual stick from mouse / touch look
-    if (!UI.modal) { this.stick.x += look.x * 2.6; this.stick.y += look.y * 2.6; }
+    if (Input.touch.rActive && !UI.modal) { const rs = Input.touch.rstick; this.stick.set(rs.x, rs.y * (Settings.data.invertY ? -1 : 1)).multiplyScalar(1 / Math.exp(-dt * 2.8)); }
+    else if (!UI.modal) { this.stick.x += look.x * 2.6; this.stick.y += look.y * 2.6; }
     if (Input.pad) { const ax = Input.pad.axes; if (Math.abs(ax[2]) > 0.12 || Math.abs(ax[3]) > 0.12) this.stick.set(ax[2], ax[3] * (Settings.data.invertY ? -1 : 1)); }
     if (this.stick.length() > 1) this.stick.normalize(); this.stick.multiplyScalar(Math.exp(-dt * 2.8));
     const inAtmo = e.dens > 0.05; const autopilot = this.target && this.pulse > 0.2;
@@ -4526,7 +4532,7 @@ const Warp = {
     await sleep(60);
     Game.arriveSystem(this.dest).then(() => { this.loaded = true; });
   },
-  exitTunnel() { WarpTunnel.mesh.visible = false; Game.inTunnel = false; },
+  exitTunnel() { WarpTunnel.mesh.visible = false; Game.inTunnel = false; _heldNotes.splice(0).forEach((n, i) => setTimeout(() => notify(...n), 700 + i * 500)); },
 };
 
 
@@ -5428,7 +5434,7 @@ const Game = {
     this.slot = slot; this.save = saveData; this.mode = saveData.mode; this.dead = false;
     this.universe = new Universe(saveData.seed[0], saveData.seed[1]);
     UI.loading(true, 'Charting the universe…', 0.05);
-    Player.init(); Ship.init(saveData.ship ? saveData.ship.design : null || genShipDesign(hash(saveData.seed[0], 99), 'fighter'));
+    Net.reset(); Player.init(); Ship.init(saveData.ship ? saveData.ship.design : null || genShipDesign(hash(saveData.seed[0], 99), 'fighter'));
     if (!saveData.ships.length) saveData.ships.push(Ship.design);
     let addr = saveData.addr, bodyIdx = 0, fresh = !saveData.addr;
     if (fresh) { const st = this.findStart(this.universe); addr = st.addr; bodyIdx = st.body; saveData.addr = addr; saveData.visited.push(this.universe.addrKey(addr)); }
@@ -5530,6 +5536,7 @@ const Discover = {
     Game.save.discoveries[key] = e; Game.save.stats.scans++;
     if (!d.silent) { UI.toast(d.type.toUpperCase() + ' DISCOVERED', d.name, d.reward ? '+' + fmt(d.reward) + ' Units' : ''); Sound.play('discover'); }
     if (d.reward) Game.gain('Units', d.reward);
+    if (!d.silent && Net.online && d.type !== '_') Net.broadcast({ k: 'disc', name: Net.name, what: `${d.name} (${String(d.type).toLowerCase()})` });
     Bus.emit('discovery', e); Game.dirty = true; return true;
   },
   scan(pick) {
@@ -5662,7 +5669,10 @@ const Mystery = {
 // =====================================================================================
 //  UI — HUD, menus, terminals, dialogs
 // =====================================================================================
+const _heldNotes = [];
 function notify(title, body, kind = '') {
+  if (typeof Game !== 'undefined' && Game.inTunnel) { _heldNotes.push([title, body, kind]); return; } // shown after the warp tunnel
+  if (title === '__toast') return UI.toast(body, kind, arguments[3]);
   const host = $('#notif'); if (!host) return; const n = el('div', { class: 'note ' + kind }, `<div class="nt">${title}</div><div class="nb">${body}</div>`);
   host.prepend(n); while (host.children.length > 5) host.lastChild.remove();
   setTimeout(() => { n.style.transition = 'opacity .6s'; n.style.opacity = 0; setTimeout(() => n.remove(), 700); }, 4200);
@@ -5682,6 +5692,7 @@ const HUD = {
   },
   // world-space markers projected to screen
   updateMarkers() {
+    this.mk.style.display = Game.inTunnel ? 'none' : ''; if (Game.inTunnel) return;
     const list = []; const cam = GL.camera; const W = window.innerWidth, H = window.innerHeight;
     const F = World.frame; const inShip = Player.mode === 'ship';
     const add = (key, framePos, label, col, shape, sub) => list.push({ key, p: framePos.clone(), label, col, shape, sub });
@@ -5691,6 +5702,8 @@ const HUD = {
     for (const o of World.others) { if (o === F) continue; add('o' + o.label, World.systemToFrame(o.pos, new V3()), o.label || o.kind, o.kind === 'station' ? '#ffd66b' : o.kind === 'freighter' ? '#9fd8ff' : '#7dffb0', 'dia'); }
     // ship
     if (!inShip && Ship.model) add('ship', Ship.pos.clone().add(new V3(0, 2, 0)), 'Starship', '#8ff5ff', 'dia');
+    // co-op travellers
+    for (const n of Net.markers()) add(n.key, n.pos, n.name, '#d6a2ff', 'dia', 'Traveller');
     // POIs revealed
     if (F instanceof Body && Game.save.revealed) for (const poi of F.data.pois) { if (!Game.save.revealed[F.data.seed + ':' + poi.id]) continue; const p = new V3().fromArray(poi.dir).multiplyScalar(F.R + (poi.flatH || poi.baseH || 0) + 4); add('p' + poi.id, p, POI_NAMES[poi.type], '#ffb347', 'dia'); }
     // bases
@@ -5770,7 +5783,8 @@ const HUD = {
       else if (Ship.mode === 'landed') txt = `<span class="kbd">Space</span>Take off &nbsp; <span class="kbd">E</span>Exit`;
       else if (Ship.mode === 'flying') { const e = Ship.lastEnv; if (e && e.body && e.alt < 400) txt = `<span class="kbd">E</span>Land`; else if (!e || !e.body || e.dens < 0.05) txt = Ship.target ? `<span class="kbd">Space</span>Pulse to ${Ship.target.label}` : `<span class="kbd">Space</span>Pulse Drive &nbsp; <span class="kbd">T</span>Target &nbsp; <span class="kbd">M</span>Galaxy Map`; }
     }
-    ip.innerHTML = txt; ip.classList.toggle('hidden', !txt || IS_TOUCH && Settings.data.touchUI && false);
+    if (txt && Settings.data.touchUI) txt = txt.replace(/<span class="kbd">([^<]+)<\/span>/g, (m, k) => `<span class="kbd">${Touch.label(k)}</span>`);
+    ip.innerHTML = txt; ip.classList.toggle('hidden', !txt);
     // scan ring & visor
     const sr = $('#scanRing'); sr.style.opacity = Player.scanProg > 0.01 ? 1 : 0; $('#scanArc').setAttribute('stroke-dashoffset', 106.8 * (1 - Player.scanProg));
     $('#visor').style.opacity = Player.visor && !inShip ? 1 : 0;
@@ -5798,7 +5812,7 @@ const UI = {
   currency() { if (!Game.save) return; $('#currency').innerHTML = Game.creative ? `<span style="color:var(--gold)">◈ ∞</span><span style="color:var(--nanite)">⬡ ∞</span>` : `<span style="color:var(--gold)">◈ ${fmt(Game.save.units)}</span><span style="color:var(--nanite)">⬡ ${fmt(Game.save.nanites)}</span>`; },
   pickup(item, n) { this.pk = this.pk || {}; this.pk[item] = (this.pk[item] || 0) + n; clearTimeout(this.pkT); this.pkT = setTimeout(() => { for (const k in this.pk) notify('+' + this.pk[k] + ' ' + k, Game.creative ? 'Creative inventory' : 'Total: ' + fmt(Game.count(k)), 'good'); this.pk = {}; }, 250); },
   saveIcon() { },
-  toast(t1, t2, t3) { const t = $('#toast'); t.children[0].textContent = t1; t.children[1].textContent = t2; t.children[2].textContent = t3 || ''; t.style.opacity = 1; t.style.transform = 'translateX(-50%) translateY(0)'; clearTimeout(this.toastT); this.toastT = setTimeout(() => { t.style.opacity = 0; }, 3800); },
+  toast(t1, t2, t3) { if (Game.inTunnel) { _heldNotes.push(['__toast', t1, t2, t3]); return; } const t = $('#toast'); t.children[0].textContent = t1; t.children[1].textContent = t2; t.children[2].textContent = t3 || ''; t.style.opacity = 1; t.style.transform = 'translateX(-50%) translateY(0)'; clearTimeout(this.toastT); this.toastT = setTimeout(() => { t.style.opacity = 0; }, 3800); },
   bigMessage(a, b, c, dur = 5) { const m = $('#bigMsg'); m.children[0].textContent = a; m.children[1].textContent = b; m.children[2].textContent = c || ''; m.style.opacity = 1; clearTimeout(this.bigT); this.bigT = setTimeout(() => m.style.opacity = 0, dur * 1000); },
   systemTitle(sys, body) {
     if (body instanceof Body) this.bigMessage(body.name, `${body.data.desc} ${body.data.biomeName} ${body.data.type === 'moon' ? 'Moon' : 'Planet'}`, `${sys.name} · ${sys.regionName} · ${sys.galaxy.name}`);
@@ -5827,12 +5841,12 @@ const UI = {
   // ------------------------------------------------------------ pause
   openPause() {
     const o = this.open(`<div class="window holo" style="width:min(420px,100%)"><div class="whead"><h2>PAUSED</h2><button class="closeX" data-close>✕</button></div><div class="wbody"><div class="list" id="pm"></div><p class="small center" style="margin-top:14px">${MODES[Game.mode].name} · Slot ${Game.slot} · Played ${Math.floor((Game.save.stats.playTime || 0) / 60)} min</p></div></div>`);
-    const items = [['Resume', () => this.close()], ['Inventory & Crafting', () => this.openPanel('inventory')], ['Discoveries', () => this.openPanel('discoveries')], ['Research', () => this.openPanel('research')], ['Chronicle', () => this.openPanel('lore')], ['Galaxy Map', () => { this.close(); GalaxyMap.open(); }], ['Starship', () => this.openPanel('ship')], ['Settings', () => this.openPanel('settings')], ['Controls', () => this.openPanel('controls')], ['Save Game', () => { Game.autosave(true); }], ['Quit to Title', () => { Game.autosave(); location.reload(); }]];
+    const items = [['Resume', () => this.close()], ['Inventory & Crafting', () => this.openPanel('inventory')], ['Discoveries', () => this.openPanel('discoveries')], ['Research', () => this.openPanel('research')], ['Co-op · Multiplayer' + (Net.peers.size ? ` (${Net.peers.size})` : ''), () => this.openPanel('coop')], ['Chronicle', () => this.openPanel('lore')], ['Galaxy Map', () => { this.close(); GalaxyMap.open(); }], ['Starship', () => this.openPanel('ship')], ['Settings', () => this.openPanel('settings')], ['Controls', () => this.openPanel('controls')], ['Save Game', () => { Game.autosave(true); }], ['Quit to Title', () => { Game.autosave(); location.reload(); }]];
     for (const [l, f] of items) { const b = el('button', { class: 'hbtn', style: 'text-align:left' }, l); b.onclick = f; $('#pm', o).appendChild(b); }
   },
   // ------------------------------------------------------------ tabbed panel
   openPanel(tab = 'inventory') {
-    const tabs = [['inventory', 'Inventory'], ['crafting', 'Crafting'], ['discoveries', 'Discoveries'], ['research', 'Research'], ['lore', 'Chronicle'], ['ship', 'Starship'], ['settings', 'Settings'], ['controls', 'Controls']];
+    const tabs = [['inventory', 'Inventory'], ['crafting', 'Crafting'], ['discoveries', 'Discoveries'], ['research', 'Research'], ['lore', 'Chronicle'], ['ship', 'Starship'], ['coop', 'Co-op'], ['settings', 'Settings'], ['controls', 'Controls']];
     const o = this.open(`<div class="window holo" style="height:min(760px,100%)"><div class="tabs">${tabs.map(([k, l]) => `<div class="tab ${k === tab ? 'sel' : ''}" data-tab="${k}">${l}</div>`).join('')}<div style="flex:1"></div><button class="closeX" data-close style="margin-bottom:6px">✕</button></div><div class="wbody" id="panelBody"></div></div>`);
     $$('.tab', o).forEach(t => t.onclick = () => { $$('.tab', o).forEach(x => x.classList.remove('sel')); t.classList.add('sel'); this.panelTab = t.dataset.tab; this.refreshPanel(); });
     this.panelTab = tab; $$('[data-close]', o).forEach(b => b.onclick = () => this.close()); this.refreshPanel();
@@ -5854,6 +5868,8 @@ const UI = {
       $('#upAll').onclick = () => { Discover.uploadAll(); this.refreshPanel(); }; $$('[data-rn]', b).forEach(e => e.onclick = () => { const d = S.discoveries[e.dataset.rn]; this.prompt('Rename discovery', d.name, v => { d.name = v; this.openPanel('discoveries'); }); });
     } else if (t === 'research') {
       Research.ensure(); b.innerHTML = `<p class="small">Research never ends — every completed tier reveals a new one. Progress by exploring, scanning, building and travelling.</p><div class="two" style="margin-top:10px">${Object.entries(S.research).map(([k, st]) => `<div class="holo" style="padding:14px"><div class="lbl">${BRANCHES[k].icon} ${BRANCHES[k].name}</div><h3 style="font-size:17px;margin:4px 0 10px">Tier ${roman(st.tier)}</h3>${st.tasks.map(tk => `<div style="margin-bottom:8px"><div class="flex" style="justify-content:space-between"><span>${tk.text}</span><b style="color:${tk.have >= tk.need ? 'var(--ok)' : 'var(--holo)'}">${Math.floor(tk.have)}/${tk.need}</b></div><div class="prog"><i style="width:${tk.have / tk.need * 100}%"></i></div></div>`).join('')}</div>`).join('')}</div>`;
+    } else if (t === 'coop') {
+      Net.renderPanel(b);
     } else if (t === 'lore') {
       b.innerHTML = `<p class="small">Fragments recovered from ruins, monoliths, relics and research. The Chronicle grows forever. Alien words learnt: ${S.words || 0}</p><div class="list" style="margin-top:10px">${S.lore.slice().reverse().map(l => `<div class="row" style="display:block"><div class="t1">${l.title}</div><p class="lore" style="margin:6px 0 0">“${l.text}”</p></div>`).join('') || '<p class="small">Nothing recorded yet. Seek out ancient ruins and monoliths.</p>'}</div>`;
     } else if (t === 'ship') {
@@ -5867,7 +5883,7 @@ const UI = {
       $$('[data-sq]', b).forEach(e => e.onclick = () => { const n = +e.dataset.sq; if (!Game.creative && n > (S.squadronMax || 0)) { notify('Squadron', 'Recruit pilots at a space station (Starship Outfitting)', 'warn'); return; } S.squadron = n; Ship.setSquadron(n); this.refreshPanel(); });
     } else if (t === 'settings') this.settingsHTML(b);
     else if (t === 'controls') {
-      b.innerHTML = `<div class="two"><div><div class="lbl">On foot</div><div class="helpgrid" style="margin-top:8px">${[['WASD', 'Move'], ['Mouse', 'Look'], ['Space', 'Jump / Jetpack (hold)'], ['Shift', 'Sprint'], ['E', 'Interact / Board ship / Feed'], ['F', 'Analysis Visor'], ['C', 'Scanner pulse'], ['LMB', 'Use multi-tool'], ['RMB', 'Terrain: raise'], ['Q / 1-4', 'Switch multi-tool mode'], ['B', 'Build mode'], ['G', 'Quick menu (summon, deploy…)'], ['V', 'Camera first/third person'], ['Tab / I', 'Inventory'], ['M', 'Galaxy map'], ['J', 'Research log'], ['Esc', 'Pause']].map(([k, v]) => `<div><span class="kbd">${k}</span>${v}</div>`).join('')}</div></div>
+      b.innerHTML = `<div class="two"><div><div class="lbl">On foot</div><div class="helpgrid" style="margin-top:8px">${[['WASD', 'Move'], ['Mouse', 'Look'], ['Space', 'Jump / Jetpack (hold)'], ['Shift', 'Sprint'], ['E', 'Interact / Board ship / Feed'], ['F', 'Analysis Visor'], ['C', 'Scanner pulse'], ['LMB', 'Use multi-tool'], ['RMB', 'Terrain: raise'], ['Q / 1-4', 'Switch multi-tool mode'], ['B', 'Build mode'], ['G', 'Quick menu (summon, deploy…)'], ['V', 'Camera first/third person'], ['Tab / I', 'Inventory'], ['M', 'Galaxy map'], ['J', 'Research log'], ['Esc', 'Pause'], ['Enter', 'Co-op chat']].map(([k, v]) => `<div><span class="kbd">${k}</span>${v}</div>`).join('')}</div></div>
         <div><div class="lbl">Starship</div><div class="helpgrid" style="margin-top:8px">${[['Mouse', 'Pitch / Yaw'], ['A / D', 'Roll'], ['W / S', 'Throttle'], ['Shift', 'Boost'], ['Space', 'Pulse drive (space) / Ascend (atmosphere) / Take off'], ['Ctrl / Z', 'Descend'], ['E', 'Land / Exit ship'], ['T', 'Cycle navigation target (autopilot pulse)'], ['LMB', 'Photon cannons'], ['RMB', 'Positron beam'], ['V', 'Cockpit / chase camera'], ['M', 'Galaxy map → warp']].map(([k, v]) => `<div><span class="kbd">${k}</span>${v}</div>`).join('')}</div>
         <div class="lbl" style="margin-top:14px">Touch</div><p class="small">Left side: virtual joystick (move / throttle & roll). Right side: drag to look / steer. Context buttons appear for jump, interact, scan, fire, boost, pulse and landing. Top bar: menu, map, build, camera and quick actions. Gamepads are supported.</p></div></div>`;
     }
@@ -5932,7 +5948,7 @@ const UI = {
     Ship.landData = null; Ship.startLanding(); notify('Starship', 'Your ship is inbound', 'good');
   },
   // ------------------------------------------------------------ build HUD
-  showBuild(on) { $('#buildHud').classList.toggle('hidden', !on); $('#crosshair').style.opacity = on ? 0.5 : 1; Touch.setMode(); },
+  showBuild(on) { $('#buildHud').classList.toggle('hidden', !on); $('#hud').classList.toggle('building', !!on); $('#crosshair').style.opacity = on ? 0.5 : 1; Touch.setMode(); },
   buildTip(t) { if (this._bt !== t) { $('#buildTip').textContent = t; this._bt = t; } },
   refreshBuild() {
     const cats = $('#buildCats'), items = $('#buildItems'), mats = $('#buildMats');
@@ -6259,9 +6275,13 @@ const Touch = {
     const jend = e => { if (e.pointerId !== jid) return; jid = null; joy.classList.remove('on'); joy.firstChild.style.transform = ''; Input.touch.joy.set(0, 0); };
     L.addEventListener('pointerup', jend); L.addEventListener('pointercancel', jend);
     const looks = new Map();
-    R.addEventListener('pointerdown', e => { e.preventDefault(); Sound.unlock(); R.setPointerCapture(e.pointerId); looks.set(e.pointerId, { x: e.clientX, y: e.clientY, t: performance.now() }); });
-    R.addEventListener('pointermove', e => { const p = looks.get(e.pointerId); if (!p) return; Input.touch.look.x += (e.clientX - p.x); Input.touch.look.y += (e.clientY - p.y); p.x = e.clientX; p.y = e.clientY; });
-    const rend = e => { looks.delete(e.pointerId); }; R.addEventListener('pointerup', rend); R.addEventListener('pointercancel', rend);
+    R.addEventListener('pointerdown', e => { e.preventDefault(); Sound.unlock(); R.setPointerCapture(e.pointerId); looks.set(e.pointerId, { x: e.clientX, y: e.clientY, sx: e.clientX, sy: e.clientY, t: performance.now() }); });
+    R.addEventListener('pointermove', e => {
+      const p = looks.get(e.pointerId); if (!p) return; Input.touch.look.x += (e.clientX - p.x); Input.touch.look.y += (e.clientY - p.y); p.x = e.clientX; p.y = e.clientY;
+      // flight: deflection from where the finger landed acts as a held stick
+      const r = 70 * Settings.data.touchSize; Input.touch.rstick.set((p.x - p.sx) / r, (p.y - p.sy) / r); if (Input.touch.rstick.length() > 1) Input.touch.rstick.normalize(); Input.touch.rActive = true;
+    });
+    const rend = e => { looks.delete(e.pointerId); if (!looks.size) { Input.touch.rstick.set(0, 0); Input.touch.rActive = false; } }; R.addEventListener('pointerup', rend); R.addEventListener('pointercancel', rend);
     // button sets
     this.sets = {
       foot: [this.btn('fire', 'fire', 'USE', 30, 150, 'big'), this.btn('jump', 'jump', 'JUMP', 130, 40, 'big'), this.btn('interact', 'interact', 'E', 30, 50), this.btn('scan', 'scan', 'SCAN', 118, 150), this.btn('visor', 'visor', 'VISOR', 108, 236, 'sm'), this.btn('tool', 'tool', 'TOOL', 40, 250, 'sm'), this.btn('alt', 'alt', 'ALT', 188, 206, 'sm')],
@@ -6277,8 +6297,12 @@ const Touch = {
     h.appendChild(top); this.top = top;
     this.setMode();
   },
+  // on-screen names for keyboard hints
+  label(k) { const m = Player.mode === 'ship' ? { Space: 'PULSE', E: 'LAND', T: 'TARGET', M: 'MAP' } : { Space: 'JUMP', M: 'MAP', B: 'BUILD' }; return m[k] || k; },
+  wanted() { const modal = !!UI.modal || GalaxyMap.active; return modal ? 'none' : Build.active ? 'build' : Player.mode === 'ship' ? 'ship' : 'foot'; },
+  update() { const on = !!Settings.data.touchUI && Game.state === 'play'; if (on === this.host.classList.contains('hidden') || (on && this.wanted() !== this.mode)) this.setMode(); },
   setMode() {
-    const on = !!Settings.data.touchUI && Game.state === 'play'; this.host.classList.toggle('hidden', !on); if (!on) return;
+    const on = !!Settings.data.touchUI && Game.state === 'play'; this.host.classList.toggle('hidden', !on); document.body.classList.toggle('touchui', on); if (!on) { this.mode = null; return; }
     const modal = !!UI.modal || GalaxyMap.active; const mode = modal ? 'none' : Build.active ? 'build' : Player.mode === 'ship' ? 'ship' : 'foot';
     for (const k in this.sets) for (const b of this.sets[k]) b.style.display = (k === mode || (k === 'footLeft' && (mode === 'foot'))) ? '' : 'none';
     $('#tLeft').style.display = $('#tRight').style.display = modal ? 'none' : ''; this.top.style.display = modal ? 'none' : ''; $('#joyHint').style.display = modal ? 'none' : '';
@@ -6453,6 +6477,247 @@ const Sound = {
 
 
 // =====================================================================================
+//  NET — optional co-op. Serverless: WebRTC data channels with copy-paste invite codes
+//  (the host relays for everyone it invited), plus BroadcastChannel so several tabs of the
+//  same browser share one universe automatically. Everyone with the same universe seed
+//  sees the same planets, so only players are synchronised — never the world itself.
+// =====================================================================================
+const Net = {
+  id: '', name: '', since: 0, seq: 0, seen: new Map(), gone: new Map(), peers: new Map(), links: new Set(), bc: null, pending: null, sendT: 0, log: [], timeLocked: false,
+  init() {
+    this.id = Math.random().toString(36).slice(2, 10); this.since = Date.now();
+    this.name = Settings.data.netName || ('Traveller ' + this.id.slice(0, 4).toUpperCase());
+    if (window.BroadcastChannel && Settings.data.localCoop !== false) {
+      try { this.bc = new BroadcastChannel('space-exploration-coop'); this.bc.onmessage = e => this.recv(e.data, 'bc'); } catch (e) { this.bc = null; }
+    }
+    window.addEventListener('beforeunload', () => this.broadcast({ k: 'bye' }));
+    // hidden tabs stop animating; keep announcing our (frozen) position so we don't time out
+    setInterval(() => { if (document.hidden && (this.bc || this.links.size)) this.sendState(false); }, 1000);
+  },
+  get online() { return this.links.size > 0 || this.peers.size > 0; },
+  // ---------------------------------------------------------------- WebRTC manual signalling
+  newPC() { return new RTCPeerConnection({ iceServers: [{ urls: ['stun:stun.l.google.com:19302', 'stun:stun1.l.google.com:19302'] }] }); },
+  iceDone(pc) {
+    return new Promise(res => {
+      if (pc.iceGatheringState === 'complete') return res();
+      const t = setTimeout(res, 3500);
+      pc.addEventListener('icegatheringstatechange', () => { if (pc.iceGatheringState === 'complete') { clearTimeout(t); res(); } });
+    });
+  },
+  pack(desc) { return 'SX1-' + btoa(unescape(encodeURIComponent(JSON.stringify({ t: desc.type, s: desc.sdp, n: this.name })))); },
+  unpack(code) {
+    code = (code || '').replace(/\s+/g, '');
+    if (!code.startsWith('SX1-')) throw new Error('That is not a Space Exploration code');
+    const o = JSON.parse(decodeURIComponent(escape(atob(code.slice(4))))); return { type: o.t, sdp: o.s, name: o.n };
+  },
+  async host() {
+    if (!window.RTCPeerConnection) throw new Error('WebRTC is not available in this browser');
+    const pc = this.newPC(); const dc = pc.createDataChannel('sx', { ordered: false, maxRetransmits: 0 });
+    this.bind(dc, pc);
+    await pc.setLocalDescription(await pc.createOffer()); await this.iceDone(pc);
+    this.pending = pc; return this.pack(pc.localDescription);
+  },
+  async join(code) {
+    if (!window.RTCPeerConnection) throw new Error('WebRTC is not available in this browser');
+    const d = this.unpack(code); if (d.type !== 'offer') throw new Error('Paste the HOST invite code here');
+    const pc = this.newPC(); pc.ondatachannel = e => this.bind(e.channel, pc);
+    await pc.setRemoteDescription({ type: 'offer', sdp: d.sdp }); await pc.setLocalDescription(await pc.createAnswer()); await this.iceDone(pc);
+    this.joining = pc; return this.pack(pc.localDescription);
+  },
+  async accept(code) {
+    const d = this.unpack(code); if (d.type !== 'answer') throw new Error('Paste the REPLY code from your friend');
+    if (!this.pending) throw new Error('Create an invite first');
+    await this.pending.setRemoteDescription({ type: 'answer', sdp: d.sdp }); this.pending = null;
+  },
+  bind(dc, pc) {
+    dc.onopen = () => { this.links.add(dc); this.say(null, 'Link established — another traveller is near.'); notify('Co-op', 'Connected to another traveller', 'good'); Sound.play('discover'); this.sendState(true); };
+    dc.onclose = () => { this.links.delete(dc); for (const [id, p] of this.peers) if (p.via === dc) this.drop(id); };
+    dc.onmessage = e => { try { this.recv(JSON.parse(e.data), dc); } catch (err) { /* ignore malformed */ } };
+    pc.onconnectionstatechange = () => { if (pc.connectionState === 'failed') { notify('Co-op', 'Connection failed — try again, or both use the same network', 'warn'); } };
+  },
+  // ---------------------------------------------------------------- messaging
+  broadcast(msg, except = null) {
+    if (!msg.id) { msg.id = this.id; msg.n = ++this.seq; } const s = JSON.stringify(msg);
+    if (this.bc && except !== 'bc') try { this.bc.postMessage(msg); } catch (e) { }
+    for (const dc of this.links) if (dc !== except && dc.readyState === 'open') try { dc.send(s); } catch (e) { }
+  },
+  recv(m, via) {
+    if (!m || !m.id || m.id === this.id) return;
+    // de-duplicate (messages can reach us over several routes)
+    let sn = this.seen.get(m.id); if (!sn) { sn = new Set(); this.seen.set(m.id, sn); } if (sn.has(m.n)) return; sn.add(m.n); if (sn.size > 300) { const keep = [...sn].slice(-100); sn.clear(); keep.forEach(x => sn.add(x)); }
+    // relay to our other links (star topology: host forwards between guests; tabs bridge to WebRTC)
+    this.broadcast(Object.assign({}, m), via);
+    let p = this.peers.get(m.id);
+    if (m.k === 'bye') { this.drop(m.id); return; }
+    if (!p) { p = { id: m.id, name: m.name || 'Traveller', look: null, design: null, st: null, via, last: 0, avatar: null, ship: null, shipKey: '', pos: new V3(), quat: new Q4(), has: false, phase: 0 }; this.peers.set(m.id, p); const g = this.gone.get(m.id); if (!g || Date.now() - g > 60000) this.say(null, `${p.name} joined.`); this._sentLook = false; }
+    p.last = performance.now(); p.via = via;
+    if (m.name) p.name = m.name;
+    if (m.k === 'st') {
+      p.st = m; if (m.look) p.look = m.look; if (m.design) p.design = m.design;
+      // one world clock: the earliest session is the time authority
+      if (m.since < this.since || (m.since === this.since && m.id < this.id)) {
+        const dtw = m.t - World.t; if (Math.abs(dtw) > 20 || !this.timeLocked) { World.t = m.t; this.timeLocked = true; } else World.t += dtw * 0.05;
+      }
+      if (m.seed && Game.universe && (m.seed[0] !== Game.universe.hi || m.seed[1] !== Game.universe.lo) && !p.warnedSeed) { p.warnedSeed = true; this.say(null, `${p.name} is exploring a different universe seed — you will not see the same worlds.`); }
+    } else if (m.k === 'chat') { this.say(p.name, String(m.text).slice(0, 200)); Sound.play('ui'); }
+    else if (m.k === 'disc') { this.say(null, `${p.name} discovered ${m.what}`); }
+    else if (m.k === 'wave') { if (p.avatar) p.waveT = 2.2; }
+  },
+  say(who, text) {
+    this.log.push({ who, text, t: Date.now() }); if (this.log.length > 60) this.log.shift();
+    if (who) notify(who, text); if (UI.modal && UI.panelTab === 'coop') UI.refreshPanel();
+  },
+  chat(text) { text = (text || '').trim(); if (!text) return; this.broadcast({ k: 'chat', name: this.name, text }); this.say(this.name, text); },
+  wave() { this.broadcast({ k: 'wave', name: this.name }); },
+  drop(id, quiet) { const p = this.peers.get(id); if (!p) return; this.gone.set(id, Date.now()); if (!quiet) this.say(null, `${p.name} left.`); this.disposeAvatar(p); this.peers.delete(id); },
+  // ---------------------------------------------------------------- state
+  frameId(F) { if (!F) return 'sys'; if (F instanceof Body) return 'b' + F.index; return (F.kind || 'o') + ':' + (F.label || F.name || ''); },
+  sendState(full) {
+    if (!Game.save || Game.state !== 'play' || !World.sys) return;
+    const inShip = Player.mode === 'ship'; const F = World.frame;
+    const pos = inShip ? Ship.pos : Player.pos; const q = inShip ? Ship.quat : (Player.model ? Player.model.quaternion : Ship.quat);
+    const sp = World.frameToSystem(pos, new V3()); const sq = World.frameQuatToSystem(q, new Q4());
+    const r3 = v => [+v.x.toFixed(2), +v.y.toFixed(2), +v.z.toFixed(2)], r4 = v => [+v.x.toFixed(4), +v.y.toFixed(4), +v.z.toFixed(4), +v.w.toFixed(4)];
+    const m = {
+      k: 'st', name: this.name, since: this.since, t: World.t, sys: World.sys.key, addr: World.sys.addr, sysName: World.sys.name, fr: this.frameId(F), where: F ? (F.name || F.label || '') : 'deep space',
+      p: r3(pos), q: r4(q), sp: r3(sp), sq: r4(sq), m: inShip ? 'ship' : 'foot',
+      sm: Ship.mode, v: +(inShip ? Ship.vel.length() : Player.vel.length()).toFixed(1), jet: Player.jetting ? 1 : 0, g: Player.onGround ? 1 : 0, thr: +Ship.throttle.toFixed(2),
+      seed: Game.universe ? [Game.universe.hi, Game.universe.lo] : null,
+    };
+    // parked ship of a player on foot is shown too
+    if (!inShip && Ship.model && Ship.mode === 'landed') { m.shipP = r3(Ship.pos); m.shipQ = r4(Ship.quat); }
+    if (full || !this._sentLook) { m.look = Game.save.look || null; m.design = Ship.design || null; this._sentLook = true; }
+    this.broadcast(m);
+  },
+  update(dt) {
+    if (!this.bc && !this.links.size) return;
+    this.sendT -= dt;
+    if (this.sendT <= 0) { this.sendT = 0.1; this.sendState(Math.random() < 0.02); }
+    const now = performance.now(); const myFr = this.frameId(World.frame);
+    if (myFr !== this.lastFr) { this.lastFr = myFr; for (const [, p] of this.peers) p.has = false; } // our coordinates changed: snap
+    for (const [id, p] of this.peers) {
+      if (now - p.last > 20000) { this.drop(id); continue; }
+      const s = p.st; if (!s) continue;
+      const here = World.sys && s.sys === World.sys.key && Game.state === 'play';
+      if (!here) { this.hideAvatar(p); continue; }
+      // target transform in the current frame
+      const tp = _v1, tq = _q1;
+      if (s.fr === myFr) { tp.fromArray(s.p); tq.fromArray(s.q); }
+      else { World.systemToFrame(_v2.fromArray(s.sp), tp); World.systemQuatToFrame(_q2.fromArray(s.sq), tq); }
+      const jump = !p.has || p.pos.distanceToSquared(tp) > 400 * 400 || p.fr !== s.fr;
+      if (jump) { p.pos.copy(tp); p.quat.copy(tq); } else { p.pos.lerp(tp, 1 - Math.exp(-dt * 10)); p.quat.slerp(tq, 1 - Math.exp(-dt * 10)); }
+      p.has = true; p.fr = s.fr;
+      this.showAvatar(p, s, dt);
+    }
+  },
+  ensureAvatar(p) {
+    if (!p.avatar) { p.avatar = buildAstronaut(p.look || { suit: [0.55, 0.2, 0.62], armor: [0.86, 0.86, 0.9], trim: [0.08, 0.08, 0.1], glow: [0.7, 0.4, 1], helmet: 1 }); p.J = p.avatar.userData.J; World.frameGroup.add(p.avatar); }
+    const key = p.design ? JSON.stringify(p.design).length + ':' + (p.design.seed || '') : 'none';
+    if (p.design && p.shipKey !== key) {
+      if (p.ship) { World.frameGroup.remove(p.ship.group); }
+      try { p.ship = buildShip(p.design); p.ship.group.traverse(o => { if (o.isMesh) o.castShadow = true; }); World.frameGroup.add(p.ship.group); p.shipKey = key; } catch (e) { p.ship = null; p.shipKey = key; }
+    }
+  },
+  showAvatar(p, s, dt) {
+    this.ensureAvatar(p);
+    const inShip = s.m === 'ship';
+    const a = p.avatar; a.visible = !inShip;
+    if (!inShip) {
+      a.position.copy(p.pos); a.quaternion.copy(p.quat);
+      // procedural walk / jetpack pose
+      const J = p.J; const w = s.g ? clamp(s.v / 4.6, 0, 1.6) : 0; p.phase += dt * (1.2 + s.v * 0.95);
+      const ph = p.phase * Math.PI; const sw = Math.sin(ph) * 0.6 * Math.min(1, w); const air = s.g ? 0 : 1;
+      J.thighL.rotation.set(sw - air * 0.35, 0, 0); J.thighR.rotation.set(-sw - air * 0.15, 0, 0);
+      J.shinL.rotation.set(-Math.max(0, -Math.cos(ph)) * 0.9 * Math.min(1, w) - air * 0.5, 0, 0); J.shinR.rotation.set(-Math.max(0, Math.cos(ph)) * 0.9 * Math.min(1, w) - air * 0.3, 0, 0);
+      const wave = p.waveT > 0 ? (p.waveT -= dt, 1) : 0;
+      J.uarmL.rotation.set(-sw * 0.8 + air * 0.4, 0, -0.12 - air * 0.3); J.uarmR.rotation.set(wave ? -2.7 : sw * 0.8 + air * 0.4, 0, wave ? 0.3 + Math.sin(performance.now() * 0.012) * 0.35 : 0.12);
+      for (const f of a.userData.flames || []) { f.visible = !!s.jet; }
+    }
+    const sh = p.ship;
+    if (sh) {
+      if (inShip) { sh.group.visible = true; sh.group.position.copy(p.pos); sh.group.quaternion.copy(p.quat); sh.plumeMat.uniforms.uT.value = damp(sh.plumeMat.uniforms.uT.value, s.sm === 'landed' ? 0 : Math.max(0.25, s.thr), 5, dt); for (const g of sh.gear) { const t = s.sm === 'landed' ? 1 : 0; g.rotation.x = lerp(-1.45, 0, t); g.scale.setScalar(0.3 + 0.7 * t); } }
+      else if (s.shipP) {
+        const myFr = this.frameId(World.frame);
+        if (s.fr === myFr) { sh.group.visible = true; sh.group.position.fromArray(s.shipP); sh.group.quaternion.fromArray(s.shipQ); sh.plumeMat.uniforms.uT.value = 0; for (const g of sh.gear) { g.rotation.x = 0; g.scale.setScalar(1); } }
+        else sh.group.visible = false;
+      } else sh.group.visible = false;
+      for (const pl of sh.plumes) pl.visible = inShip && s.sm !== 'landed';
+    }
+  },
+  hideAvatar(p) { if (p.avatar) p.avatar.visible = false; if (p.ship) p.ship.group.visible = false; p.has = false; },
+  disposeAvatar(p) { if (p.avatar) World.frameGroup.remove(p.avatar); if (p.ship) World.frameGroup.remove(p.ship.group); p.avatar = p.ship = null; },
+  // re-attach avatars after the frame group is rebuilt (new game / load)
+  reset() { for (const [, p] of this.peers) { this.disposeAvatar(p); p.shipKey = ''; p.has = false; } },
+  markers() {
+    const out = [];
+    for (const [, p] of this.peers) {
+      if (!p.has || !p.st) continue; const up = World.frame instanceof Body ? p.pos.clone().normalize() : new V3(0, 1, 0);
+      out.push({ key: 'np' + p.id, pos: p.pos.clone().addScaledVector(up, p.st.m === 'ship' ? 4 : 2.4), name: p.name });
+    }
+    return out;
+  },
+  async travelTo(p) {
+    const s = p.st; if (!s || !s.addr) return;
+    if (World.sys && s.sys === World.sys.key) {
+      // same system: bring our ship next to theirs
+      if (Game.creative || Game.mode === 'normal') { const sp = new V3().fromArray(s.sp); const F = World.bodyAt(sp); World.setFrame(F, [Player, Ship]); const tp = World.systemToFrame(sp, new V3());
+        const up = F instanceof Body ? tp.clone().normalize() : new V3(0, 1, 0); if (Player.mode === 'ship') { Ship.pos.copy(tp).addScaledVector(up, 60); Ship.vel.set(0, 0, 0); } else { Player.pos.copy(tp).addScaledVector(up, 3); Player.vel.set(0, 0, 0); }
+        FX.flash(0.7, 1.2, [0.6, 0.8, 1]); notify('Co-op', 'Rendezvous with ' + p.name, 'good'); }
+      else Ship.target = null;
+      return;
+    }
+    if (!Game.creative) { Warp.pending = { ...s.addr }; notify('Co-op', `${p.name} is in ${s.sysName}. Target set — open the Galaxy Map or engage the hyperdrive.`, 'good'); return; }
+    UI.close(); FX.flash(1, 1.5, [0.7, 0.8, 1]);
+    // arrive seated in the ship, whatever we were doing
+    if (Build.active) Build.exit();
+    Player.mode = 'ship'; Player.model.visible = false; Player.beam.visible = false; Player.visor = false; Ship.mode = 'flying'; Ship.setGear(0); Ship.camQ.copy(Ship.quat);
+    await Game.arriveSystem({ ...s.addr }, true);
+    // then rendezvous: park near them if they are in open space or at a station
+    const sp = new V3().fromArray(p.st.sys === World.sys.key ? p.st.sp : s.sp); if (p.st.sys === World.sys.key && !World.bodyAt(sp)) { World.setFrame(null, [Player, Ship]); Ship.pos.copy(sp).add(new V3(0, 60, 120)); Ship.vel.set(0, 0, 0); }
+    notify('Co-op', 'Arrived in ' + s.sysName + ' with ' + p.name, 'good');
+  },
+  // ---------------------------------------------------------------- panel (UI tab)
+  renderPanel(b) {
+    const list = [...this.peers.values()];
+    const esc = t => String(t).replace(/[&<>"]/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c]));
+    b.innerHTML = `<p class="small">Explore together. Everyone who shares the same universe seed sees the same galaxies, systems and planets. Connection is direct peer-to-peer — no servers, no accounts. Tabs of this browser join automatically.</p>
+      <div class="two" style="margin-top:12px"><div>
+        <div class="lbl">Your name</div><div class="flex" style="margin:6px 0 14px"><input type="text" id="netName" maxlength="24" value="${esc(this.name)}" style="flex:1"><button class="hbtn small" id="netNameOk">Save</button></div>
+        <div class="lbl">Invite a friend</div>
+        <ol class="small" style="margin:6px 0 8px 18px;line-height:1.6"><li>Press <b>Create invite</b> and send the code to your friend.</li><li>They press <b>Join</b>, paste it, and send back their reply code.</li><li>Paste the reply here and press <b>Connect</b>.</li></ol>
+        <div class="flex"><button class="hbtn small primary" id="netHost">Create invite</button><button class="hbtn small" id="netCopy">Copy</button></div>
+        <textarea id="netCode" rows="3" readonly placeholder="Your invite code appears here" style="width:100%;margin-top:6px;font-size:11px"></textarea>
+        <textarea id="netReply" rows="3" placeholder="Paste your friend's reply code" style="width:100%;margin-top:6px;font-size:11px"></textarea>
+        <button class="hbtn small" id="netAccept" style="margin-top:6px">Connect</button>
+        <div class="lbl" style="margin-top:16px">Join a friend</div>
+        <textarea id="netJoin" rows="3" placeholder="Paste the host's invite code" style="width:100%;margin-top:6px;font-size:11px"></textarea>
+        <div class="flex" style="margin-top:6px"><button class="hbtn small primary" id="netJoinBtn">Join</button><button class="hbtn small" id="netCopy2">Copy reply</button></div>
+        <textarea id="netAnswer" rows="3" readonly placeholder="Your reply code appears here — send it back to the host" style="width:100%;margin-top:6px;font-size:11px"></textarea>
+      </div><div>
+        <div class="lbl">Travellers · ${list.length}</div>
+        <div class="list" style="margin-top:8px">${list.length ? list.map(p => { const s = p.st || {}; const here = World.sys && s.sys === World.sys.key; return `<div class="row"><div style="flex:1"><b>${esc(p.name)}</b><div class="small">${s.sysName ? esc(s.sysName) + ' · ' + esc(s.where || '') : 'connecting…'}${here ? ' · <span style="color:#7dffb0">this system</span>' : ''}</div></div><button class="hbtn small" data-go="${p.id}">${here ? 'Rendezvous' : Game.creative ? 'Travel' : 'Set course'}</button></div>`; }).join('') : '<div class="small" style="opacity:.7">No one yet. Open another tab, or invite a friend.</div>'}</div>
+        <div class="lbl" style="margin-top:16px">Comms</div>
+        <div id="netLog" class="small" style="height:180px;overflow:auto;margin-top:6px;padding:8px;background:rgba(0,20,30,.35);border:1px solid rgba(143,245,255,.18)">${this.log.map(l => `<div>${l.who ? `<b style="color:#8ff5ff">${esc(l.who)}:</b> ` : '<i style="opacity:.7">'}${esc(l.text)}${l.who ? '' : '</i>'}</div>`).join('')}</div>
+        <div class="flex" style="margin-top:6px"><input type="text" id="netMsg" maxlength="200" placeholder="Message…" style="flex:1"><button class="hbtn small" id="netSend">Send</button><button class="hbtn small" id="netWave">Wave</button></div>
+      </div></div>`;
+    const lg = $('#netLog', b); lg.scrollTop = lg.scrollHeight;
+    const err = e => notify('Co-op', e.message || String(e), 'warn');
+    $('#netNameOk', b).onclick = () => { const v = $('#netName', b).value.trim().slice(0, 24); if (v) { this.name = v; Settings.data.netName = v; Settings.save(); this._sentLook = false; notify('Co-op', 'Name saved', 'good'); } };
+    $('#netHost', b).onclick = async () => { $('#netCode', b).value = 'Gathering network routes…'; try { $('#netCode', b).value = await this.host(); } catch (e) { $('#netCode', b).value = ''; err(e); } };
+    const copy = id => { const t = $(id, b); t.select(); try { navigator.clipboard.writeText(t.value); } catch (e) { document.execCommand('copy'); } notify('Co-op', 'Code copied', 'good'); };
+    $('#netCopy', b).onclick = () => copy('#netCode'); $('#netCopy2', b).onclick = () => copy('#netAnswer');
+    $('#netAccept', b).onclick = async () => { try { await this.accept($('#netReply', b).value); notify('Co-op', 'Connecting…'); } catch (e) { err(e); } };
+    $('#netJoinBtn', b).onclick = async () => { $('#netAnswer', b).value = 'Gathering network routes…'; try { $('#netAnswer', b).value = await this.join($('#netJoin', b).value); } catch (e) { $('#netAnswer', b).value = ''; err(e); } };
+    const send = () => { const i = $('#netMsg', b); this.chat(i.value); i.value = ''; };
+    $('#netSend', b).onclick = send; $('#netMsg', b).onkeydown = e => { e.stopPropagation(); if (e.key === 'Enter') send(); };
+    $('#netWave', b).onclick = () => this.wave();
+    $$('[data-go]', b).forEach(e => e.onclick = () => { const p = this.peers.get(e.dataset.go); if (p) this.travelTo(p); });
+    for (const i of $$('input,textarea', b)) i.addEventListener('keydown', e => e.stopPropagation());
+  },
+};
+
+
+// =====================================================================================
 //  MAIN — boot, title screen, game loop
 // =====================================================================================
 const Main = {
@@ -6465,13 +6730,13 @@ const Main = {
       Pool.init(); initRenderer();
       let done = 0; await genTextures(() => setLoad(0.05 + (++done) / 10 * 0.5, 'Synthesizing materials'));
       FloraSys.init(); Sky.init(); Particles.init(); WarpTunnel.init(); Env.init(); World.init();
-      FX.init(); Combat.init(); Space.init(); Build.init(); GalaxyMap.init(); UI.init(); Input.init(); Touch.init(); Research.init();
+      FX.init(); Combat.init(); Space.init(); Build.init(); GalaxyMap.init(); UI.init(); Input.init(); Touch.init(); Research.init(); Net.init();
       this.hooks();
       setLoad(0.62, 'Charting the universe');
       await this.setupTitle();
       setLoad(1, 'Ready');
       UI.loading(false); Title.show();
-      window.__game = { Game, World, Player, Ship, GalaxyMap, Build, UI, Main, SU, GL, Space, Warp, Teleport, Discover, Research, THREE, Post, ShipBuilder, genShipDesign, buildShip, Freighter, Weather, NEXTGEN, Pool, Settings, Input, Sound };
+      window.__game = { Game, World, Player, Ship, GalaxyMap, Build, UI, Main, SU, GL, Space, Warp, Teleport, Discover, Research, THREE, Post, ShipBuilder, genShipDesign, buildShip, Freighter, Weather, NEXTGEN, Pool, Settings, Input, Sound, Net, WarpTunnel, Touch };
       this.last = performance.now(); requestAnimationFrame(t => this.loop(t));
     } catch (e) { console.error(e); $('#loadMsg').textContent = 'Error: ' + e.message; $('#loadMsg').style.color = '#ff6a6a'; }
   },
@@ -6531,11 +6796,17 @@ const Main = {
     const F = World.frame; if (F instanceof Body) { SU.uCamLocal.value.copy(cp); SU.uPlayerLocal.value.copy(Player.mode === 'foot' ? Player.pos : _v1.set(0, 1e9, 0)); }
     World.render(dt, Player.mode === 'ship' ? Ship.pos.clone().sub(cp) : Player.pos.clone().sub(cp));
     if (!Game.inTunnel) { Weather.update(dt); }
+    Net.update(dt);
     FX.update(dt); Combat.update(dt);
     // underwater
     let uw = null; if (F instanceof Body && F.sea !== null && (F.liquid === 'water' || F.liquid === 'toxic')) { const r = cp.length(); if (r < F.R + F.sea - 0.05) { const c = lin3(F.data.liquidCol[1]); const day = 0.15 + World.day * 0.85; SU.uUnder.value.set(c[0] * 1.5 * day, c[1] * 1.6 * day, c[2] * 1.6 * day, 0.045); uw = new V4(c[0] * 3 + 0.2, c[1] * 3 + 0.3, c[2] * 3 + 0.3, 1); } else SU.uUnder.value.w = 0; } else SU.uUnder.value.w = 0;
     // warp tunnel follows camera
-    if (WarpTunnel.mesh.visible) { WarpTunnel.mesh.position.copy(Ship.pos); WarpTunnel.mesh.quaternion.copy(Ship.quat); }
+    if (WarpTunnel.mesh.visible) { if (WarpTunnel.mesh.parent !== World.frameGroup) World.frameGroup.add(WarpTunnel.mesh); WarpTunnel.mesh.position.copy(Ship.pos); WarpTunnel.mesh.quaternion.copy(Ship.quat); }
+    { // inside the tunnel only the ship and the tunnel exist
+      const vis = !(Game.inTunnel && Warp.phase === 1 && Warp.t > 0.35);
+      if (vis !== this.worldVis) { this.worldVis = vis; Sky.group.visible = Sky.sunGroup.visible = World.spaceGroup.visible = vis; for (const b of World.bodies) b.group.visible = vis; for (const o of World.others) o.group.visible = vis; }
+      else if (!vis) { for (const b of World.bodies) b.group.visible = false; for (const o of World.others) o.group.visible = false; }
+    }
     // torch
     const torch = Player.torch; if (torch) { const want = Player.mode === 'foot' && (Player.torchOn || (F instanceof Body && World.day < 0.25) || (F && F.kind && World.day < 0.3)); torch.intensity = damp(torch.intensity, want ? 60 : 0, 5, dt); if (want) { torch.position.copy(Player.pos).addScaledVector(Player.up, 1.7).addScaledVector(Player.right, 0.25); torch.target.position.copy(torch.position).addScaledVector(Player.camFwd || Player.heading, 10); torch.target.updateMatrixWorld(); } }
     // post fx
@@ -6555,6 +6826,10 @@ const Main = {
     if (!UI.modal) {
       if (Input.p('inventory')) UI.openPanel('inventory');
       if (Input.p('galaxy')) GalaxyMap.open();
+      if (Input.p('chat') && Net.online) UI.prompt('Message to travellers', '', v => Net.chat(v));
+    }
+    if (Touch.host) Touch.update();
+    if (!UI.modal) {
       if (Input.p('log')) UI.openPanel('research');
       if (Input.p('help')) UI.openPanel('controls');
       if (Input.p('build')) Build.toggle();
