@@ -3648,7 +3648,7 @@ function buildAstronaut(look) {
     h.box(new V3(0, -0.06, -0.14), new V3(0.26, 0.1, 0.06), trim, SURF.dark, null, 0.03);
     // backpack
     h.box(new V3(0, 0.08, 0.2), new V3(0.36, 0.44, 0.2), armor, SURF.paint, null, 0.06);
-    h.torus(new V3(0, 0.12, 0.31), 0.13, 0.025, glow, SURF.glow, null, 24);
+    h.torus(new V3(0, 0.12, 0.31), 0.13, 0.025, glow.map(v => v * 0.55), SURF.glow, null, 24);
     h.cyl(new V3(-0.14, -0.14, 0.24), new V3(-0.14, 0.25, 0.24), 0.05, 0.05, 8, trim, SURF.dark); h.cyl(new V3(0.14, -0.14, 0.24), new V3(0.14, 0.25, 0.24), 0.05, 0.05, 8, trim, SURF.dark);
     for (const s of [-1, 1]) h.sphere(new V3(s * 0.26, 0.18, 0), 0.1, armor, SURF.paint, 1, 0.8, 1, 10);
   });
