@@ -3893,6 +3893,8 @@ const Input = {
   },
   fire() { return this.mouse.b[0] || this.touch.held.has('fire') || (this.pad && this.pad.buttons[7] && this.pad.buttons[7].value > 0.3); },
   alt() { return this.mouse.b[2] || this.touch.held.has('alt') || (this.pad && this.pad.buttons[6] && this.pad.buttons[6].value > 0.3); },
+  // an action handled this frame must not trigger anything else in the same frame
+  consume(action) { for (const c of KEYMAP[action] || []) this.down.delete(c); this.touch.pressed.delete(action); if (this.pad) { const i = this.padMap[action]; if (i !== undefined) this.padPrev[i] = true; } },
   firePressed() { return this.mouse.bd[0] || this.touch.pressed.has('fire'); },
   altPressed() { return this.mouse.bd[2] || this.touch.pressed.has('alt'); },
   endFrame() {
@@ -4212,7 +4214,7 @@ const Interact = {
       if (score < bs) { bs = score; best = it; }
     }
     this.current = best;
-    if (best && Input.p('interact')) { Sound.play('ui'); best.action(best); }
+    if (best && Input.p('interact')) { Sound.play('ui'); best.action(best); Input.consume('interact'); }
   },
 };
 
@@ -4295,7 +4297,7 @@ const Ship = {
     else if (this.mode === 'landing') this.updateLanding(dt);
     else if (this.mode === 'takeoff') this.updateTakeoff(dt);
     else if (this.mode === 'docking' || this.mode === 'undocking') this.updateDocking(dt);
-    else if (this.mode === 'landed') { this.vel.set(0, 0, 0); this.angVel.set(0, 0, 0); this.pulse = 0; this.heat = 0; if (Player.mode === 'ship' && !UI.modal) { if (Input.p('jump') || Input.p('fire') && IS_TOUCH && false) this.takeoff(); if (Input.p('interact')) this.exit(); } }
+    else if (this.mode === 'landed') { this.vel.set(0, 0, 0); this.angVel.set(0, 0, 0); this.pulse = 0; this.heat = 0; if (Player.mode === 'ship' && !UI.modal) { if (Input.p('jump')) { this.takeoff(); Input.consume('jump'); } else if (Input.p('interact')) { this.exit(); Input.consume('interact'); } } }
     else if (this.mode === 'warp') Warp.update(dt);
     // visuals
     m.group.position.copy(this.pos); m.group.quaternion.copy(this.quat);
@@ -4362,7 +4364,7 @@ const Ship = {
     // station docking check
     for (const st of Space.stations) if (st.isDockEntry && st.isDockEntry(this)) { this.startDocking(st); break; }
     // land prompt
-    if (Input.p('interact') && !UI.modal) this.startLanding();
+    if (Input.p('interact') && !UI.modal) { this.startLanding(); Input.consume('interact'); }
     if (Input.p('target') && !UI.modal) HUD.cycleTarget();
     if (!creative && this.pulse > 0.1) Game.fuel('pulse', dt);
   },
@@ -4466,7 +4468,7 @@ const Ship = {
   },
   // ----------------------------------------------------------- boarding
   board() {
-    if (this.mode !== 'landed') return; Player.mode = 'ship'; Player.model.visible = false; Sound.play('board'); this.camQ.copy(this.quat); Bus.emit('boarded');
+    if (this.mode !== 'landed' && !Player.eva) return; Player.mode = 'ship'; Player.model.visible = false; Sound.play('board'); this.camQ.copy(this.quat); Bus.emit('boarded');
     Player.beam.visible = false; Player.visor = false;
   },
   exit() {
@@ -7065,12 +7067,14 @@ const Main = {
     // entity updates
     if (Player.mode === 'foot') {
       if (Mech.riding) Mech.update(dt); else Player.update(dt);
+      // E / touch "E": same priority as the on-screen prompt — walker, then own ship, then nearby interactables
+      const shipD = Ship.pos.distanceTo(Player.pos);
+      const canBoard = (Ship.mode === 'landed' && shipD < Ship.model.len * 0.6 + 4) || (Player.eva && shipD < Ship.model.len + 6);
+      if (!UI.modal && Input.p('interact') && (Mech.riding || Mech.near())) { if (Mech.riding) Mech.exit(); else Mech.board(); Input.consume('interact'); }
+      else if (!UI.modal && Input.p('interact') && canBoard) { if (Player.eva) { Ship.mode = 'flying'; } Ship.board(); Input.consume('interact'); }
       Interact.update();
-      if (!UI.modal && Input.p('interact') && (Mech.riding || Mech.near())) { if (Mech.riding) Mech.exit(); else Mech.board(); }
-      else if (!UI.modal && Input.p('interact') && !Interact.current) {
-        const shipD = Ship.pos.distanceTo(Player.pos);
-        if ((Ship.mode === 'landed' && shipD < Ship.model.len * 0.6 + 4) || (Player.eva && shipD < Ship.model.len + 6)) { if (Player.eva) { Ship.mode = 'flying'; } Ship.board(); }
-        else { const c = Player.lookTarget; if (c && c.kind === 'fauna' && c.obj && c.obj.pos.distanceTo(Player.pos) < 6) { c.obj.follow = 60; c.obj.state = 'idle'; FX.hearts(c.obj.pos.clone().addScaledVector(c.obj.dir, c.sp.size)); Sound.play('feed'); Bus.emit('feed'); if (Math.random() < 0.5) Game.gain('Faecium', 10); } }
+      if (!UI.modal && Input.p('interact') && !Interact.current) {
+        { const c = Player.lookTarget; if (c && c.kind === 'fauna' && c.obj && c.obj.pos.distanceTo(Player.pos) < 6) { c.obj.follow = 60; c.obj.state = 'idle'; FX.hearts(c.obj.pos.clone().addScaledVector(c.obj.dir, c.sp.size)); Sound.play('feed'); Bus.emit('feed'); if (Math.random() < 0.5) Game.gain('Faecium', 10); } }
       }
       Build.update(dt);
     }
