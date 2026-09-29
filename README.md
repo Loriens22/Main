@@ -18,7 +18,7 @@ Open `index.html` in a modern desktop or mobile browser (Chrome, Edge, Firefox, 
 - **Mobile**: virtual joystick, drag-to-look, context buttons that switch between on-foot, flight and build layouts; gamepad supported. Adaptive resolution and quality presets.
 
 ## Controls (touch)
-Left thumb: floating joystick (walk; in flight it rolls and sets throttle) · Right thumb: drag to look — in flight the drag works as a held flight stick · Buttons: USE (multi-tool), JUMP (jetpack), E (interact / board), SCAN, VISOR, TOOL, RUN · In the ship: FIRE, PULSE (take off / pulse drive), BOOST, LAND, BEAM, TARGET · Top bar: menu, inventory, galaxy map, build, quick menu, camera, fullscreen.
+Left thumb: floating joystick (walk; in flight it rolls and sets throttle) · Right thumb: drag to look — in flight the drag works as a held flight stick · Buttons: USE (multi-tool), JUMP (jetpack), E (interact / board), SCAN, VISOR, TOOL, RUN · In the ship: FIRE, PULSE (take off / pulse drive), BOOST, LAND, BEAM, TARGET · Top bar: menu, inventory, galaxy map, build, quick menu, camera, fullscreen. · Galaxy map: drag to rotate, pinch or −/+ to zoom, tap a star to select it.
 
 ## Controls (desktop)
 WASD move · Mouse look · Space jump/jetpack · Shift sprint · E interact/board · F analysis visor · C scanner · LMB multi-tool · Q switch tool · B build · G quick menu · M galaxy map · Tab inventory · J research · V camera · Esc pause · Enter co-op chat.

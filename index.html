@@ -191,6 +191,9 @@ input:focus,select:focus{border-color:var(--holo)}
 #gAddr .a3{font-size:13px;color:var(--txt2)}
 #gInfo{position:absolute;right:calc(16px + var(--sar));top:calc(90px + var(--sat));width:min(330px,88vw);padding:14px;max-height:calc(100% - 200px);overflow:auto}
 #gInfo h3{font-size:18px;margin-bottom:4px}
+#gInfo{touch-action:pan-y;overscroll-behavior:contain;-webkit-overflow-scrolling:touch}
+#gInfo .gwarp{position:sticky;bottom:-14px;margin:12px -14px -14px;padding:10px 14px 12px;background:linear-gradient(0deg,rgba(4,12,20,.97) 72%,rgba(4,12,20,0))}
+@media (max-height:520px){#gInfo{top:calc(64px + var(--sat));max-height:calc(100% - 128px);width:min(320px,52vw)}#gAddr{min-width:0}#gAddr .a2{font-size:17px}#gAddr .a3{display:none}}
 #gBottom{position:absolute;left:50%;bottom:calc(16px + var(--sab));transform:translateX(-50%);display:flex;gap:8px;flex-wrap:wrap;justify-content:center;width:min(900px,96vw)}
 .glyphs{display:flex;gap:3px;margin-top:6px;flex-wrap:wrap}
 .glyph{width:22px;height:22px;border:1px solid var(--line);display:flex;align-items:center;justify-content:center;background:rgba(143,245,255,.06)}
@@ -3861,7 +3864,7 @@ const Input = {
     window.addEventListener('keyup', e => this.keys.delete(e.code));
     window.addEventListener('blur', () => { this.keys.clear(); this.mouse.b = [false, false, false]; });
     const cv = GL.canvas;
-    cv.addEventListener('mousedown', e => { if (IS_TOUCH && e.sourceCapabilities && e.sourceCapabilities.firesTouchEvents) return; Sound.unlock(); if (!this.locked && Game.state === 'play' && !UI.modal && !Settings.data.touchUI) { cv.requestPointerLock?.(); } this.mouse.b[e.button] = true; this.mouse.bd[e.button] = true; });
+    cv.addEventListener('mousedown', e => { if (IS_TOUCH && e.sourceCapabilities && e.sourceCapabilities.firesTouchEvents) return; Sound.unlock(); if (!this.locked && Game.state === 'play' && !UI.modal && !GalaxyMap.active && !Settings.data.touchUI) { cv.requestPointerLock?.(); } this.mouse.b[e.button] = true; this.mouse.bd[e.button] = true; });
     window.addEventListener('mouseup', e => { this.mouse.b[e.button] = false; });
     window.addEventListener('mousemove', e => { if (this.locked) { this.mouse.dx += e.movementX; this.mouse.dy += e.movementY; } });
     window.addEventListener('wheel', e => { this.mouse.wheel += Math.sign(e.deltaY); }, { passive: true });
@@ -6319,28 +6322,38 @@ const GalaxyMap = {
     }
     this.target.copy(this.gals[this.focus.g].p); this.dist = 2400;
   },
+  // the map overlay lets empty space fall through to the 3D canvas, so gestures are read from the canvas
   bindInput() {
-    const ui = $('#galaxyUI'); let drag = null; const ptrs = new Map(); let pinch = 0;
-    ui.addEventListener('pointerdown', e => { if (e.target !== ui) return; ptrs.set(e.pointerId, { x: e.clientX, y: e.clientY }); drag = { x: e.clientX, y: e.clientY, moved: 0 }; ui.setPointerCapture(e.pointerId); });
-    ui.addEventListener('pointermove', e => {
-      if (!ptrs.has(e.pointerId)) return; const p = ptrs.get(e.pointerId); const dx = e.clientX - p.x, dy = e.clientY - p.y; p.x = e.clientX; p.y = e.clientY;
-      if (ptrs.size === 2) { const [a, b] = [...ptrs.values()]; const d = Math.hypot(a.x - b.x, a.y - b.y); if (pinch) this.dist = clamp(this.dist * pinch / d, 60, 2e5); pinch = d; return; }
+    const cv = GL.canvas; let drag = null; const ptrs = new Map(); let pinch = 0;
+    cv.addEventListener('pointerdown', e => {
+      if (!this.active) return; e.preventDefault(); ptrs.set(e.pointerId, { x: e.clientX, y: e.clientY });
+      if (ptrs.size === 1) drag = { moved: 0, touch: e.pointerType !== 'mouse' }; else if (drag) drag.moved = 1e9; // second finger: pinch, never a tap
+      try { cv.setPointerCapture(e.pointerId); } catch (err) { /* ignore */ }
+    });
+    cv.addEventListener('pointermove', e => {
+      if (!this.active || !ptrs.has(e.pointerId)) return; const p = ptrs.get(e.pointerId); const dx = e.clientX - p.x, dy = e.clientY - p.y; p.x = e.clientX; p.y = e.clientY;
+      if (ptrs.size >= 2) { const [a, b] = [...ptrs.values()]; const d = Math.max(1, Math.hypot(a.x - b.x, a.y - b.y)); if (pinch) this.zoom(pinch / d); pinch = d; return; }
       if (drag) { drag.moved += Math.abs(dx) + Math.abs(dy); this.yaw -= dx * 0.005; this.pitch = clamp(this.pitch + dy * 0.005, -1.4, 1.4); }
     });
-    const up = e => { if (drag && drag.moved < 8 && ptrs.size === 1) this.pick(e.clientX, e.clientY); ptrs.delete(e.pointerId); if (ptrs.size < 2) pinch = 0; if (!ptrs.size) drag = null; };
-    ui.addEventListener('pointerup', up); ui.addEventListener('pointercancel', up);
-    ui.addEventListener('wheel', e => { this.dist = clamp(this.dist * (e.deltaY > 0 ? 1.12 : 0.89), 60, 2e5); }, { passive: true });
+    const up = e => {
+      if (!ptrs.has(e.pointerId)) return;
+      if (this.active && e.type === 'pointerup' && drag && ptrs.size === 1 && drag.moved < (drag.touch ? 16 : 8)) this.pick(e.clientX, e.clientY, drag.touch);
+      ptrs.delete(e.pointerId); if (ptrs.size < 2) pinch = 0; if (!ptrs.size) drag = null;
+    };
+    cv.addEventListener('pointerup', up); cv.addEventListener('pointercancel', up);
+    cv.addEventListener('wheel', e => { if (!this.active) return; e.preventDefault(); this.zoom(e.deltaY > 0 ? 1.12 : 0.89); }, { passive: false });
   },
-  pick(mx, my) {
+  zoom(f) { this.dist = clamp(this.dist * f, 60, 2e5); },
+  pick(mx, my, touch) {
     const W = window.innerWidth, H = window.innerHeight; const v = new V3();
     if (this.level === 'region') {
-      let best = -1, bd = 22; for (let i = 0; i < this.stars.length; i++) { v.copy(this.stars[i].p).project(this.cam); if (v.z > 1) continue; const x = (v.x * 0.5 + 0.5) * W, y = (-v.y * 0.5 + 0.5) * H; const d = Math.hypot(x - mx, y - my); if (d < bd) { bd = d; best = i; } }
+      let best = -1, bd = touch ? 46 : 22; for (let i = 0; i < this.stars.length; i++) { v.copy(this.stars[i].p).project(this.cam); if (v.z > 1) continue; const x = (v.x * 0.5 + 0.5) * W, y = (-v.y * 0.5 + 0.5) * H; const d = Math.hypot(x - mx, y - my); if (d < bd) { bd = d; best = i; } }
       if (best >= 0) { this.selected = this.stars[best]; this.updateSel(); this.ui(); Sound.play('ui'); }
     } else if (this.level === 'galaxy') {
       // intersect with galactic plane
       const ray = new THREE.Raycaster(); ray.setFromCamera(new V2(mx / W * 2 - 1, -(my / H) * 2 + 1), this.cam); const t = -ray.ray.origin.y / ray.ray.direction.y; if (t > 0) { const p = ray.ray.origin.clone().addScaledVector(ray.ray.direction, t); const rx = clamp(Math.round(p.x + 2048), 0, 4095), rz = clamp(Math.round(p.z + 2048), 0, 4095); this.focus.x = rx; this.focus.z = rz; this.focus.y = 128; this.selected = null; Sound.play('ui'); this.setLevel('region'); }
     } else {
-      let best = null, bd = 40; for (const g of this.gals) { v.copy(g.p).project(this.cam); const x = (v.x * 0.5 + 0.5) * W, y = (-v.y * 0.5 + 0.5) * H; const d = Math.hypot(x - mx, y - my); if (d < bd && v.z < 1) { bd = d; best = g; } }
+      let best = null, bd = touch ? 64 : 40; for (const g of this.gals) { v.copy(g.p).project(this.cam); const x = (v.x * 0.5 + 0.5) * W, y = (-v.y * 0.5 + 0.5) * H; const d = Math.hypot(x - mx, y - my); if (d < bd && v.z < 1) { bd = d; best = g; } }
       if (best) { this.focus.g = best.g; this.buildUniverse(); this.ui(); Sound.play('ui'); }
     }
   },
@@ -6355,16 +6368,17 @@ const GalaxyMap = {
       const d = this.distLy(s); const inRange = Game.creative || d <= Ship.stats.warp; const sys = U.system(s); const visited = Game.save.visited.includes(U.addrKey(s));
       info = `<div class="lbl">${s.typeName} star · ${s.spectral}${visited ? ' · visited' : ''}</div><h3>${s.name}</h3><div class="kv" style="margin:8px 0"><div>Distance</div><div>${fmt(Math.round(d))} ly</div><div>Planets</div><div>${sys.bodies.filter(b => b.type === 'planet').length} (+${sys.bodies.filter(b => b.type === 'moon').length} moons)</div><div>Dominant</div><div>${s.abandoned ? 'Abandoned' : RACES[s.race].name}</div><div>Economy</div><div>${s.economy} · ${WEALTH[s.wealth]}</div><div>Conflict</div><div>${CONFLICT[s.conflict]}</div><div>Address</div><div>${U.address(s)}</div></div>
       <div class="glyphs">${U.portalDigits(s).map(d => `<div class="glyph">${glyphSVG(d)}</div>`).join('')}</div><div class="sep"></div><div class="list">${sys.bodies.map(b => `<div class="row" style="padding:6px 8px"><div class="grow"><div class="t1" style="font-size:14px">${b.type === 'moon' ? '◦ ' : ''}${Discover.has('pl:' + b.seed) ? b.name : 'Uncharted ' + (b.type === 'moon' ? 'moon' : 'planet')}</div><div class="t2">${b.desc} ${b.biomeName} · Flora ${lvl(b.flora)} · Fauna ${lvl(b.fauna)} · Sentinels ${b.sentinels}${b.rings ? ' · Rings' : ''}${b.liquid ? ' · ' + b.liquid : ''}</div></div></div>`).join('')}</div>
-      <div class="flex" style="margin-top:12px"><button class="hbtn primary" id="gWarp" ${inRange ? '' : 'disabled'}>${inRange ? 'Engage Hyperdrive' : 'Out of range (' + fmt(Ship.stats.warp) + ' ly)'}</button></div>`;
+      <div class="flex gwarp"><button class="hbtn primary" id="gWarp" ${inRange ? '' : 'disabled'}>${inRange ? 'Engage Hyperdrive' : 'Out of range (' + fmt(Ship.stats.warp) + ' ly)'}</button></div>`;
     } else if (this.level === 'universe') { const Gs = U.galaxy(f.g); info = `<div class="lbl">Galaxy ${f.g + 1} of 256</div><h3>${Gs.name}</h3><div class="kv" style="margin:8px 0"><div>Type</div><div>${Gs.type}</div><div>Regions</div><div>4,294,967,296</div><div>Spiral arms</div><div>${Gs.arms}</div></div>${f.g !== this.current.g ? `<button class="hbtn primary" id="gGal">${Game.creative ? 'Jump to this galaxy' : 'Reach the galactic core to travel'}</button>` : '<p class="small">You are here.</p>'}`; }
-    else if (this.level === 'galaxy') info = `<div class="lbl">${G.name}</div><p class="small">Click anywhere on the galactic disc to jump the map to that region. The amber marker shows your position. ${fmt(dCore)} ly from the core.</p>`;
-    else info = `<p class="small">Select a star. Drag to rotate · scroll / pinch to zoom.</p>`;
+    else if (this.level === 'galaxy') info = `<div class="lbl">${G.name}</div><p class="small">${IS_TOUCH ? 'Tap' : 'Click'} anywhere on the galactic disc to jump the map to that region. The amber marker shows your position. ${fmt(dCore)} ly from the core.</p>`;
+    else info = `<p class="small">${IS_TOUCH ? 'Tap a star to select it. Drag to rotate · pinch or −/+ to zoom.' : 'Click a star to select it. Drag to rotate · scroll or −/+ to zoom.'}</p>`;
     host.innerHTML = `<div id="gTop"><div id="gAddr" class="holo"><div class="a1">${G.name.toUpperCase()} · GALAXY ${f.g + 1}</div><div class="a2">${U.regionName(f.g, f.x, f.y, f.z)}</div><div class="a3">Region ${hex(f.x, 3)}:${hex(f.y, 2)}:${hex(f.z, 3)} · You: ${curSt.name} · ${fmt(dCore)} ly to core</div></div>
       <div id="gLevels" class="holo" style="padding:6px"><button class="hbtn small ${this.level === 'region' ? 'sel' : ''}" data-l="region">Region</button><button class="hbtn small ${this.level === 'galaxy' ? 'sel' : ''}" data-l="galaxy">Galaxy</button><button class="hbtn small ${this.level === 'universe' ? 'sel' : ''}" data-l="universe">Universe</button></div>
       <div id="gSearch" class="holo"><button class="hbtn small" id="gPortal">Glyph address</button><button class="hbtn small" id="gCore">Toward core</button><button class="hbtn small" id="gHome">Center</button></div><div style="flex:1"></div><button class="closeX" id="gClose">✕</button></div>
       <div id="gInfo" class="holo">${info}</div>
-      <div id="gBottom">${this.level === 'region' ? '<button class="hbtn small" data-mv="-1,0,0">◀ X</button><button class="hbtn small" data-mv="1,0,0">X ▶</button><button class="hbtn small" data-mv="0,0,-1">◀ Z</button><button class="hbtn small" data-mv="0,0,1">Z ▶</button><button class="hbtn small" data-mv="0,1,0">▲ Y</button><button class="hbtn small" data-mv="0,-1,0">▼ Y</button>' : ''}</div>`;
+      <div id="gBottom"><button class="hbtn small" data-zm="1.35" title="Zoom out">−</button><button class="hbtn small" data-zm="0.74" title="Zoom in">+</button>${this.level === 'region' ? '<button class="hbtn small" data-mv="-1,0,0">◀ X</button><button class="hbtn small" data-mv="1,0,0">X ▶</button><button class="hbtn small" data-mv="0,0,-1">◀ Z</button><button class="hbtn small" data-mv="0,0,1">Z ▶</button><button class="hbtn small" data-mv="0,1,0">▲ Y</button><button class="hbtn small" data-mv="0,-1,0">▼ Y</button>' : ''}</div>`;
     $$('[data-l]', host).forEach(b => b.onclick = () => this.setLevel(b.dataset.l)); $('#gClose').onclick = () => this.close();
+    $$('[data-zm]', host).forEach(b => b.onclick = () => this.zoom(+b.dataset.zm));
     $('#gHome').onclick = () => { this.focus = { g: this.current.g, x: this.current.x, y: this.current.y, z: this.current.z }; this.selected = null; this.setLevel('region'); };
     $('#gCore').onclick = () => this.towardCore(); $('#gPortal').onclick = () => this.glyphInput();
     $$('[data-mv]', host).forEach(b => b.onclick = () => { const [x, y, z] = b.dataset.mv.split(',').map(Number); this.focus.x = clamp(this.focus.x + x, 0, 4095); this.focus.y = clamp(this.focus.y + y, 0, 255); this.focus.z = clamp(this.focus.z + z, 0, 4095); this.selected = null; this.setLevel('region'); });
