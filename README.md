@@ -7,9 +7,11 @@ A first-person 3D ride along a Sofia Metro line, in one HTML file. Open `sofia-m
 
 ### What's in it
 
-- **The line**: 19 stations over 40.05 km, with the real distances between them.
-  Сливница → Люлин (2 km) → Западен парк (3 km) → Вардар (2.5 km) → Константин Величков (3.7 km) → Опълченска (2 km) → Сердика (1.4 km) → СУ „Св. Климент Охридски“ (1.1 km) → Стадион Васил Левски (1 km) → Жолио Кюри (4 km) → Г.М. Димитров (1.2 km) → Мусагеница (1.1 km) → Младост 1 (1.3 km) → Младост 3 (3 km) → Интер Експо Център – Цариградско шосе (2.4 km) → Дружба (2.6 km) → Искърско шосе (2.8 km) → Софийска Света Гора (2.95 km) → Летище София (2 km).
-  The tunnels curve and dip between stations. The first eight stations have island platforms; the others have side platforms.
+- **The line**: 29 stations over 60.66 km, with the real distances between them.
+  - The western branch, from its terminus: Национален Дворец на културата (НДК) → Сердика 2 (1.9 km) → Лъвов мост (2.5 km) → Централна ЖП гара (2.2 km) → Княгиня Мария Луиза (1.9 km) → Хан Кубрат (1.2 km) → Надежда (1.8 km) → Бели Дунав (2.5 km) → Ломско шосе (2.51 km) → Обеля (1.8 km) → Сливница (2.3 km).
+  - Then on to the airport: Сливница → Люлин (2 km) → Западен парк (3 km) → Вардар (2.5 km) → Константин Величков (3.7 km) → Опълченска (2 km) → Сердика (1.4 km) → СУ „Св. Климент Охридски“ (1.1 km) → Стадион Васил Левски (1 km) → Жолио Кюри (4 km) → Г.М. Димитров (1.2 km) → Мусагеница (1.1 km) → Младост 1 (1.3 km) → Младост 3 (3 km) → Интер Експо Център – Цариградско шосе (2.4 km) → Дружба (2.6 km) → Искърско шосе (2.8 km) → Софийска Света Гора (2.95 km) → Летище София (2 km).
+  The tunnels curve and dip between stations. Сливница to СУ and НДК have island platforms; the others have side platforms. Westbound trains run to НДК, eastbound trains to Летище София.
+- **West of Сливница**: the line climbs out of the tunnel through a portal and an open cutting with mesh fences to Обеля, a station at ground level next to the metro depot. The depot has a sandstone office building with a green roof ("МЕТРО ДЕПО ОБЕЛЯ"), a stabling yard with parked trains of all three types, and a maintenance shed. From Обеля a covered tube runs 1.8 km on an embankment and then a viaduct to the elevated Ломско шосе. The tube has ribbed grey sheeting low down, clear glazing, blue ribs and LED lines. After the station, 510 m more of covered tube ramp down to a second portal, followed by 2 km of tunnel to Бели Дунав. Outside: Ломско шосе boulevard with traffic, streets passing under the viaduct, panel-block estates and lawns.
 - **Open-air sections**: after Жолио Кюри the line climbs out into a wavy glass tube for 800 m, then goes underground for the last 400 m to Г.М. Димитров. From there it runs 800 m underground, then 300 m in the open to Мусагеница, an open-air station under a glass roof. After Мусагеница come 900 m above ground and 400 m underground to Младост 1. Along these stretches you get sky, sun, clouds, grass, trees, street lamps, housing blocks and moving traffic on Цариградско шосе.
 - **To the airport**: 2 km after Искърско шосе the line leaves the tunnel through a portal. For 950 m it runs in an arched polycarbonate tube, first in a cutting, then on an embankment, then up onto a girder to the elevated Софийска Света Гора. The last 2 km to Летище София are all above ground:
   - a short covered tube, then an open viaduct on piers with parapets, lamp posts and handrails;
@@ -20,6 +22,16 @@ A first-person 3D ride along a Sofia Metro line, in one HTML file. Open `sofia-m
 - **Time of day**: follows your clock by default, with the sun placed for Sofia. Menu → Settings has fixed presets from sunrise to night. At night the blocks' windows, the terminal, the street lamps and the tube lights come on, and the open-air stations switch to their own lamps.
 - **Weather** (Menu → Settings: Auto, Clear, Overcast, Rain): cloud cover, a grey sky and weaker sun, rain falling outside (not under the station roofs or the tubes), wet glossy concrete and roads, and the sound of rain in the open air.
 - **Stations**: each is modelled after its reference photos.
+  - НДК: island terminus. Glossy burgundy walls over a wavy grey-green band with a stainless trim. A silver relief of the palace. A white vault with LED lines and a red ribbon that winds along the hall and coils into spirals with purple lights. A polished floor with white wavy inlays, curved stainless tube benches and purple sign posts.
+  - Сердика 2: a caramel vault with arched ribs and rows of round downlights. Curved bronze brackets hold tubular lamps. There are glass cases with Roman finds and granite benches with stainless seats. The floor has a checkerboard band. Stairs at the end lead up to a bridge across the tracks. It also has the blue/green Обеля / exit sign.
+  - Лъвов мост: grey stone and terracotta walls with a crenellated band and a stone arch over the name. A stone lion relief and ring motifs. Black cast-iron double lamps along the platforms, wall lanterns, a warm-lit cove ceiling and wooden benches.
+  - Централна ЖП гара: beige walls with blue bands and a stepped blue skirting, and cream pillars with two blue bands. Blue inverted-pyramid ceiling lamps and the green/blue Изход Банишора / Център sign.
+  - Мария Луиза: light-green pillars with beige bands, curved green ribbed fascias with light lines, sand-coloured walls with dark-green lettering, and pixel mosaics.
+  - Хан Кубрат: sage and khaki tiles in a stepped skyline, red lettering under a yellow beam with downlights, and grey curved panels over the tracks. The tracks curve away at one end.
+  - Надежда: a gold quilted vault over the name side, with big red letters on cream tiles. A glossy orange wall curves into a polished metal ceiling on granite pillars. Orange chairs, chrome benches, and terracotta stripes in the floor.
+  - Бели Дунав: cream tiles with light-green stripes, marble pilasters and green leaf murals. A geometric ceiling with round downlights, spotlight bars, yellow floor bands and green benches.
+  - Ломско шосе: elevated. Blue lattice arches under a glass barrel and a coral spine beam with lighting. Glass walls with louvres and teal accents, and orange cube seats. Outside, the bright-blue station building with the round window and the blue arched canopy over the entrance.
+  - Обеля: a green space-frame roof with half-round dormers, orange beams carrying the luminaires, and glass side walls. Green seats on brick plinths, brick pillar boxes, and a diamond-patterned floor.
   - Сливница: marble panels, orange benches.
   - Люлин: white marble pillars, purple seats.
   - Западен парк: green circle-relief tiles.
@@ -40,7 +52,8 @@ A first-person 3D ride along a Sofia Metro line, in one HTML file. Open `sofia-m
   - Софийска Света Гора: elevated; teal steel arches under a glass roof, leaning glazing with lime-green accents, the name on a green fascia, ticket gates and a police booth, the tube mouths at both ends, a stainless "belly" and columns underneath.
   - Летище София: elevated terminus; a white space-frame vault with glass walls onto the airfield, a polished marble floor with dark inlays, sky murals, pendant lamps, planters with trees, stainless benches on marble plinths.
 
-  At side-platform stations you can cross to the other platform: at the top of the stairs underground, at the ticket gates at the elevated stations.
+  At side-platform stations you can cross to the other platform: at the top of the stairs underground, at the ticket gates at Обеля and the elevated stations.
+  At the new western stations, small lights set into the platform edge flash while a train pulls in and stay lit while it stands.
 - **Three trains**, and any arrival can be any of them:
   - **Метровагон 81-740 (Rusich)**: 4 cars, car numbers 2024 …. Ivory body with a blue stripe, blue door frames and roof. Inside: grey seats and green grab poles.
   - **Škoda Varsovia**: 3 cars, car numbers 4002 …, with open gangways you can walk through. Outside: white body with a red lower band and yellow stripes, a black front with a green LED destination display (M4 badge), LED headlights, black doors. Inside: grey seats, red handrails and Y-shaped poles, warm LED strips along the ceiling, and passenger screens showing M4, the destination and the route.
@@ -53,13 +66,14 @@ A first-person 3D ride along a Sofia Metro line, in one HTML file. Open `sofia-m
   - Automatic driving with jerk-limited acceleration and braking to the stop mark.
   - Door cycles with chimes and dwell times.
   - A second train in the other direction that passes you on the way.
-  - Reversal at either terminus if you stay on board.
+  - Reversal at either terminus (НДК and Летище София) if you stay on board.
 - **Announcements**: the exact Bulgarian and English phrases on arrival and at door closing, each after a chime, with subtitles.
-  - The luggage reminder plays at Г.М. Димитров, Мусагеница, Младост 3 and Софийска Света Гора.
+  - The luggage reminder plays at Обеля, Надежда, Княгиня Мария Луиза, Лъвов мост, Г.М. Димитров, Мусагеница, Младост 3 and Софийска Света Гора.
+  - Transfer messages: Сердика 2 "Връзка с линии М2 и М4" / "Transfer to M2 and M4 metro lines", and НДК "Връзка с линия М3" / "Transfer to the M3 metro line". Both are also in the next-station announcement before them.
   - The transfer message plays only at Младост 1: "Връзка с метровлаковете за Бизнес парк" / "Mladost 1. Transfer for metro trains to the Business Park".
   - The voices are recordings built into the file, so they play in every browser and in in-app browsers that have no speech engine. Bulgarian is a female voice, English a male voice.
   - Menu → Settings can switch to your browser's own speech voices instead.
-  - The informator (red LED running text plus a route strip) runs in the HUD and inside the cars.
+  - The informator (red LED running text plus a route strip) runs in the HUD and inside the cars. With 29 stations, the route strips and the station line maps show the part of the line around you.
 - **Sound**, all synthesised:
   - Train: traction motors, gear whine, rolling noise, rail-joint clacks, flange squeal on curves.
   - Doors and brakes: pneumatic doors, the brake-release hiss, the green train's escalating door beeper.
