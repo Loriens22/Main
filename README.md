@@ -7,6 +7,10 @@ A first-person 3D ride along a Sofia Metro line, in one HTML file. Open `sofia-m
 
 ### What's in it
 
+- **Two lines to choose from**: a switch on the title screen and at the top of Menu → Stations picks the network you play.
+  - **М1 · М2 · М4**: Витоша ⇄ Летище София, 32 stations, four kinds of train (described below).
+  - **Линия М3**: Хаджи Димитър ⇄ Красно село, 8 stations, only the Siemens Inspiro, with platform screen doors (see "Line M3" below).
+  - Switching reloads the game on the chosen line. The choice is remembered.
 - **The line**: 32 stations over 66.86 km, with the real distances between them.
   - From the western terminus: Витоша → Джеймс Баучер (1.6 km) → Европейски съюз (1.8 km) → Национален Дворец на културата (НДК, 2.8 km). All three are underground, with their own curves and dips in the tunnels.
   - The western branch: НДК → Сердика 2 (1.9 km) → Лъвов мост (2.5 km) → Централна ЖП гара (2.2 km) → Княгиня Мария Луиза (1.9 km) → Хан Кубрат (1.2 km) → Надежда (1.8 km) → Бели Дунав (2.5 km) → Ломско шосе (2.51 km) → Обеля (1.8 km) → Сливница (2.3 km).
@@ -97,6 +101,47 @@ A first-person 3D ride along a Sofia Metro line, in one HTML file. Open `sofia-m
   - Quality presets from Low to Ultra; resolution scales automatically to hold the frame rate.
   - Stations are built as you approach them and freed behind you, which keeps memory use low on phones.
 
+### Line M3
+
+- **The route**: 8 underground stations, 17.0 km, with the real distances:
+  Хаджи Димитър → Театрална (2.6 km) → Орлов мост (2.8 km) → Патриарх Евтимий (1.5 km) → Национален Дворец на културата 2 (1.3 km) → Медицински университет (3.2 km) → Булевард България (2.7 km) → Красно село (2.9 km).
+  - Both tracks run in one round bored tunnel: segmental lining, walkways with handrails on both sides, cables, lamps and exit signs.
+  - Power comes from a rigid overhead conductor rail, so there is no third rail, and the train has a pantograph.
+  - The stations are side-platform halls. The tunnel meets each hall through a round portal with a concrete collar.
+  - Tail tunnels continue past both termini; a train you stay on reverses there.
+- **Siemens Inspiro** (the only train on M3): 3 cars with open gangways, car numbers 3018 ….
+  - Outside: a white body with a continuous turquoise band that rises into turquoise door surrounds. A rounded cab with a black panoramic glass face, two wipers, LED headlights and an amber LED destination display ("М3 Красно село" / "М3 Хаджи Димитър"). Bogies with air springs, roof equipment, and the pantograph on the middle car.
+  - Inside: white walls and ceiling, grey longitudinal seats with glass screens, turquoise poles, curved handrails and hanging straps. LED ceiling lines, large windows, and glass door leaves with turquoise frames and stickers. Line maps over the doors, fire extinguishers and red emergency buttons.
+  - Screens: TFT displays in a white-and-turquoise design show the direction, the current and next station, the exit side, transfers, the clock with the date, and the whole M3 line diagram. The HUD informator switches to the same design.
+  - Electric doors: a two-note gong when they open, quick beeps while they close.
+- **Platform screen doors** at every M3 station:
+  - Half-height glass doors along both platform edges, with silver frames, orange caps and lines, door-state lamps, "do not lean" stickers, and floor markings in front of each door.
+  - When a train stops, the platform doors open first with a gentle ticking, then the train's doors. When it leaves, the train's doors close first, then the platform doors close with the same ticking, and only then does the train move off.
+  - The lamps on the door posts flash while the leaves move and stay lit while they are open.
+  - You can only step between platform and train where both sets of doors are open.
+  - Driving yourself, you must stop within ±0.5 m of the mark for the doors to open. The driver's display shows the distance to the mark to the centimetre.
+- **The stations**, each after its reference photos:
+  - Хаджи Димитър: blue and beige triangular panels on the walls, a folded triangulated ceiling with diagonal linear LEDs, and a mezzanine bridge with glass balustrades over the stairs end. Stairs and escalators climb to the bridge. The name is in turquoise.
+  - Театрална: white walls over soft-green enamel panels and a long theatre mural (curtains, comedy and tragedy masks, the National Theatre). Black cylindrical pendant lamps, wooden-slat benches, and a light floor with the yellow tactile line.
+  - Орлов мост: a green-and-beige geometric coffered vault, beige tiles with green pilasters, and bronze eagles on the end walls, after the four eagles of the bridge. Multicoloured floor tiles. Transfer signs to M1 and M4.
+  - Патриарх Евтимий: beige and white patterned tiles with red, yellow and orange mosaic squares in bronze frames. Circular ring lights of three sizes hang under the white ceiling.
+  - НДК 2: bright yellow geometric walls and a folded yellow ceiling with white and charcoal accents. Black rectangular pendants, and platform doors with orange highlights. Transfer signs to M1.
+  - Медицински университет: blue and beige checkered tiles, an arched white ceiling with blue stripes, multicoloured floor tiles, and wooden benches.
+  - Булевард България: white walls with green and red bands and rows of embroidered crosses, and green coffers and beams in the white ceiling.
+  - Красно село: blue and orange zigzag walls, blue beams and light coves in the white ceiling, and blue seats. A second name board reads "бул. „Цар Борис III“ / Tsar Boris III Blvd".
+  - Every station also has:
+    - navy M3 direction signs with the green M3 roundel;
+    - next-train screens with the destination, minutes and the clock;
+    - information totems with the M3 line diagram;
+    - adverts, fire-extinguisher cabinets with SOS intercoms, and CCTV cameras;
+    - passengers, who queue beside the platform doors;
+    - lighting that brightens as a train pulls in and dims a little late at night.
+- **Announcements** on M3, recorded like the rest:
+  - At every door closing: "Внимание, вратите се затварят" / "Stand clear of the closing doors, please", then the next station.
+  - On arrival: "Станция …" / "This station is …".
+  - At Орлов мост, both messages add "връзка с линии М1 и М4" / "transfer to M1 and M4 metro lines". At НДК 2 they add "връзка с линия М1" / "transfer to M1 metro line".
+  - There are no luggage reminders on M3.
+
 ### Controls
 
 | Desktop | Action |
@@ -118,6 +163,7 @@ On phones and tablets:
 - The on-screen buttons are Use, Run, Skip, time, camera and menu.
 - In the cab you also get a controller slider and a Doors button.
 - Phones start on the Low graphics preset; you can raise it in the menu.
+- The menu and its station list scroll with your finger, including while the game is fullscreen.
 
 ### About the recorded voices
 
