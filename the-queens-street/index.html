@@ -1305,7 +1305,7 @@ function genParticleAtlas() {
   const radial = (r, stops) => { const g = x.createRadialGradient(0, 0, 0, 0, 0, r); stops.forEach(s => g.addColorStop(s[0], s[1])); return g; };
   cell(0, r => { x.fillStyle = radial(r, [[0, 'rgba(255,255,255,1)'], [.4, 'rgba(255,255,255,.55)'], [1, 'rgba(255,255,255,0)']]); x.fillRect(-r, -r, 2 * r, 2 * r); });
   cell(1, r => { srand(5); for (let k = 0; k < 14; k++) { const px = SR(-r * .45, r * .45), py = SR(-r * .45, r * .45), rr = SR(r * .25, r * .55); x.fillStyle = radial(rr, [[0, 'rgba(255,255,255,.55)'], [1, 'rgba(255,255,255,0)']]); x.save(); x.translate(px, py); x.fillRect(-rr, -rr, 2 * rr, 2 * rr); x.restore(); } });
-  cell(2, r => { const g = x.createRadialGradient(0, r * .25, 0, 0, r * .1, r * .9); g.addColorStop(0, 'rgba(255,255,255,1)'); g.addColorStop(.35, 'rgba(255,255,255,.75)'); g.addColorStop(1, 'rgba(255,255,255,0)'); x.fillStyle = g; x.beginPath(); x.moveTo(0, -r); x.bezierCurveTo(r * .6, -r * .2, r * .75, r * .5, 0, r * .9); x.bezierCurveTo(-r * .75, r * .5, -r * .6, -r * .2, 0, -r); x.fill(); });
+  cell(2, r => { srand(21); for (let k = 0; k < 7; k++) { const ox = SR(-.25, .25) * r, top = -r * SR(.55, 1), w = r * SR(.25, .5); const g = x.createLinearGradient(0, top, 0, r * .9); g.addColorStop(0, 'rgba(255,255,255,0)'); g.addColorStop(.45, 'rgba(255,255,255,.55)'); g.addColorStop(1, 'rgba(255,255,255,.9)'); x.fillStyle = g; x.beginPath(); x.moveTo(ox + SR(-.1, .1) * r, top); x.bezierCurveTo(ox + w, top + r * .5, ox + w * 1.2, r * .55, ox, r * .9); x.bezierCurveTo(ox - w * 1.2, r * .55, ox - w, top + r * .5, ox + SR(-.1, .1) * r, top); x.fill(); } const g2 = x.createRadialGradient(0, r * .45, 0, 0, r * .45, r * .55); g2.addColorStop(0, 'rgba(255,255,255,.9)'); g2.addColorStop(1, 'rgba(255,255,255,0)'); x.fillStyle = g2; x.fillRect(-r, -r, 2 * r, 2 * r); });
   cell(3, r => { const g = x.createLinearGradient(-r, 0, r, 0); g.addColorStop(0, 'rgba(255,255,255,0)'); g.addColorStop(.7, 'rgba(255,255,255,1)'); g.addColorStop(1, 'rgba(255,255,255,0)'); x.fillStyle = g; x.fillRect(-r, -r * .08, 2 * r, r * .16); });
   cell(4, r => { x.fillStyle = '#ffd93b'; x.strokeStyle = '#7a4b00'; x.lineWidth = 5; x.beginPath(); for (let k = 0; k < 10; k++) { const a = -Math.PI / 2 + k * Math.PI / 5, rr = k % 2 ? r * .38 : r * .85; x.lineTo(Math.cos(a) * rr, Math.sin(a) * rr); } x.closePath(); x.fill(); x.stroke(); });
   cell(5, r => { x.fillStyle = radial(r * .5, [[0, 'rgba(255,255,255,1)'], [1, 'rgba(255,255,255,0)']]); x.fillRect(-r, -r, 2 * r, 2 * r); x.fillStyle = '#fff'; x.beginPath(); x.moveTo(0, -r); x.lineTo(r * .08, 0); x.lineTo(0, r); x.lineTo(-r * .08, 0); x.fill(); x.beginPath(); x.moveTo(-r, 0); x.lineTo(0, r * .08); x.lineTo(r, 0); x.lineTo(0, -r * .08); x.fill(); });
@@ -1809,7 +1809,7 @@ function buildMountains(parent) {
   const m = new THREE.Mesh(g, M.mountain); m.receiveShadow = false; parent.add(m);
   // low eastern hills
   const pos2 = [], col2 = [], idx2 = [], sA = 90, sR = 12;
-  for (let j = 0; j <= sR; j++) for (let i = 0; i <= sA; i++) { const a = lerp(-1.4, 1.4, i / sA), r = lerp(380, 900, j / sR), x = Math.cos(a) * r, z = Math.sin(a) * r; const hh = smooth(380, 560, r) * (40 + 90 * fbm2(a * 6, r * .01, 3)); pos2.push(x, hh + terrainH(x, z) - 2, z); const n = fbm2(a * 20, r * .03, 2); col2.push(.2 + n * .1, .27 + n * .08, .13); }
+  for (let j = 0; j <= sR; j++) for (let i = 0; i <= sA; i++) { const a = lerp(-1.4, 1.4, i / sA), r = lerp(380, 900, j / sR), x = Math.cos(a) * r, z = Math.sin(a) * r; const hh = smooth(380, 600, r) * (25 + 70 * fbm2(a * 6, r * .01, 3)); pos2.push(x, hh + terrainH(x, z) - 2, z); const n = fbm2(a * 20, r * .03, 2); col2.push(.27 + n * .1, .34 + n * .08, .17); }
   for (let j = 0; j < sR; j++) for (let i = 0; i < sA; i++) { const a = j * (sA + 1) + i, b = a + 1, c = a + sA + 1, d = c + 1; idx2.push(a, c, b, b, c, d); }
   const g2 = new THREE.BufferGeometry(); g2.setAttribute('position', new THREE.Float32BufferAttribute(pos2, 3)); g2.setAttribute('color', new THREE.Float32BufferAttribute(col2, 3)); g2.setIndex(idx2); g2.computeVertexNormals(); parent.add(new THREE.Mesh(g2, M.mountain));
 }
@@ -2897,7 +2897,7 @@ const FX = {
   },
   update(dt) { this.alpha.update(dt); this.addv.update(dt); for (const d of [this.glassD, this.metalD, this.stoneD, this.billD, this.boneD]) d.update(dt);
     for (const d of this.decals) if (d.m.visible) { d.life -= dt; if (d.life < 5) d.m.material.opacity = Math.max(0, d.life / 5) * d.op; if (d.life <= 0) d.m.visible = false; }
-    for (const r of this.rings) if (r.m.visible) { r.t += dt / r.dur; const k = easeOut(Math.min(1, r.t)); r.m.scale.setScalar(.2 + k * r.r); r.m.material.opacity = Math.pow(1 - r.t, 2) * .6; if (r.t >= 1) r.m.visible = false; }
+    for (const r of this.rings) if (r.m.visible) { r.t += dt / r.dur; const k = easeOut(Math.min(1, r.t)); r.m.scale.setScalar(.2 + k * r.r); r.m.material.opacity = Math.pow(1 - r.t, 2.5) * .45; if (r.t >= 1) r.m.visible = false; }
     for (const L of this.lights) { if (L.sustain > 0) { L.sustain -= dt; L.l.intensity = L.base * (.75 + Math.random() * .5); if (L.sustain <= 0) { L.l.intensity = 0; L.key = null; } } else if (L.t < L.dur) { L.t += dt; L.l.intensity = L.base * Math.pow(1 - Math.min(1, L.t / L.dur), 2); if (L.t >= L.dur) L.key = null; } }
   },
   smoke(p, dark = .5, sc = 1) { const c = .42 - dark * .36; this.alpha.emit(p.x + R(-.15, .15), p.y + R(-.1, .1), p.z + R(-.15, .15), R(-.25, .25) + .35, R(.7, 1.5), R(-.25, .25), R(2.2, 3.6) * Math.sqrt(sc), .5 * sc, R(2.2, 3.2) * sc, [c, c, c * 1.03, .5], [c + .08, c + .08, c + .1, 0], 1, .4, -.05); },
@@ -2911,7 +2911,7 @@ const FX = {
     for (let i = 0; i < 26 * s; i++) { const d = _v1.randomDirection(); d.y = Math.abs(d.y); const sp = R(1, 5) * s; this.alpha.emit(p.x, p.y + .5, p.z, d.x * sp, d.y * sp + 1, d.z * sp, R(2.5, 5), R(1.5, 2.5) * s, R(4, 7) * s, [.07, .065, .06, .8], [.16, .155, .15, 0], 1, 1.2, -.2); }
     this.sparks(p, 50 * s, 1.5 * s); for (let i = 0; i < 18 * s; i++) this.metalD.emit(p, _v1.randomDirection().multiplyScalar(R(4, 12)).setY(R(4, 12)), R(3, 6), R(.8, 2)); this.ring(p, 9 * s, .45);
   },
-  ring(p, r, dur = .5, col = 0xfff2d0) { const it = this.rings.find(x => !x.m.visible) || this.rings[0]; it.m.visible = true; it.m.position.set(p.x, groundAt(p.x, p.z, p.y) + .06, p.z); it.t = 0; it.r = r; it.dur = dur; it.m.material.color.setHex(col); },
+  ring(p, r, dur = .38, col = 0xfff8ea) { const it = this.rings.find(x => !x.m.visible) || this.rings[0]; it.m.visible = true; it.m.position.set(p.x, groundAt(p.x, p.z, p.y) + .06, p.z); it.t = 0; it.r = r; it.dur = dur; it.m.material.color.setHex(col); },
   glass(p, n = 20) { for (let i = 0; i < n; i++) this.glassD.emit(p, V3(R(-2.5, 2.5), R(.5, 3), R(-2.5, 2.5)), R(3, 6), R(.6, 1.3)); for (let i = 0; i < 6; i++) this.addv.emit(p.x, p.y, p.z, R(-2, 2), R(0, 2), R(-2, 2), R(.2, .4), .25, .02, [3, 3.5, 4, 1], [1, 1, 1, 0], 5, 1, 4); },
   stones(p, n = 6) { for (let i = 0; i < n; i++) this.stoneD.emit(p, V3(R(-2, 2), R(1, 3), R(-2, 2)), R(3, 5)); this.dust(p, 3, .4); },
   money(p, n = 30) { for (let i = 0; i < n; i++) this.billD.emit(p, V3(R(-3, 3), R(2, 6), R(-3, 3)), R(5, 9), 1, 3); for (let i = 0; i < 10; i++) this.alpha.emit(p.x, p.y, p.z, R(-3, 3), R(2, 5), R(-3, 3), R(.8, 1.4), .3, .25, [1, 1, 1, 1], [1, 1, 1, 0], 10, .5, 6); },
@@ -3100,6 +3100,9 @@ function updateCamera(dt, dtReal) {
     const c = V3(1.2, 3.8, 10); const p = V3(c.x + Math.sin(th) * r, 4.2 + Math.sin(t * 1.3) * 1.2, c.z - Math.cos(th) * r);
     CAM.pos.lerp(p, 1 - Math.exp(-2 * dtReal)); CAM.look.lerp(V3(c.x + Math.sin(th) * 2, 3.6, c.z), 1 - Math.exp(-2 * dtReal));
     camera.position.copy(CAM.pos); camera.lookAt(CAM.look);
+  } else if (G.player && G.player.state === 'eat') {
+    const t = performance.now() / 1000; const p = V3(4.7 + Math.sin(t * .15) * .4, 4.35, 7.7); const l = V3(2.6, 3.65, 10.3);
+    CAM.pos.lerp(p, 1 - Math.exp(-3 * dtReal)); CAM.look.lerp(l, 1 - Math.exp(-3 * dtReal)); camera.position.copy(CAM.pos); camera.lookAt(CAM.look); IN.mdx = IN.mdy = 0;
   } else if (G.player) {
     const sens = .0023 * S.sens; CAM.yaw -= IN.mdx * sens; CAM.pitch = clamp(CAM.pitch + IN.mdy * sens * (S.invertY ? -1 : 1), -.35, 1.25);
     CAM.distT = clamp(CAM.distT + IN.wheel * .5, 2.4, 9);
@@ -3114,7 +3117,7 @@ function updateCamera(dt, dtReal) {
     const right = _v3.set(Math.cos(CAM.yaw), 0, -Math.sin(CAM.yaw));
     const origin = V3().copy(CAM.look).addScaledVector(right, .36);
     let maxD = dist;
-    for (const c of COL) { if (c.off || c.tag === 'rail' || c.tag === 'bush' || c.tag === 'tree' || c.tag === 'pole' || c.tag === 'plot') continue; const t2 = rayAABB(origin, dir, maxD, c); if (t2 < maxD) maxD = Math.max(.6, t2 - .25); }
+    for (const c of COL) { if (c.off || c.tag === 'rail' || c.tag === 'bush' || c.tag === 'tree' || c.tag === 'pole' || c.tag === 'plot') continue; let box = c.tag === 'hedge' ? (c._cam || (c._cam = { x0: c.x0 - .75, x1: c.x1 + .75, y0: c.y0, y1: c.y1 + .5, z0: c.z0 - .75, z1: c.z1 + .75 })) : c; if (box !== c && origin.x > box.x0 && origin.x < box.x1 && origin.z > box.z0 && origin.z < box.z1 && origin.y < box.y1) box = c; const t2 = rayAABB(origin, dir, maxD, box); if (t2 < maxD) maxD = Math.max(.9, t2 - .25); }
     CAM.dist = maxD < CAM.dist ? maxD : damp(CAM.dist, maxD, 4, dtReal);
     const p = origin.addScaledVector(dir, CAM.dist);
     const gy = groundAt(p.x, p.z, p.y) + .25; if (p.y < gy) p.y = gy;
@@ -3359,9 +3362,9 @@ const WEAP = {
   hammer: { dur: .7, hitAt: .5, reach: 2.05, arc: 2.3, dmg: 30, car: 22, knock: 8.5, kind: 'hammer', anim: 'hammer' },
   chainsaw: { tick: .1, reach: 1.75, arc: 1.3, dmg: 7, car: 6.5, knock: 1.6, kind: 'chainsaw' },
   shovel: { dur: .62, hitAt: .55, reach: 1.95, arc: 1.9, dmg: 24, car: 9, knock: 7, kind: 'shovel', anim: 'shovel' },
-  bat: { dur: .6, hitAt: .55, reach: 1.7, arc: 1.6, dmg: 12, car: 8, knock: 6, kind: 'bat', anim: 'baton' },
-  baton: { dur: .55, hitAt: .55, reach: 1.5, arc: 1.4, dmg: 9, car: 4, knock: 4.5, kind: 'baton', anim: 'baton' },
-  npcfist: { dur: .5, hitAt: .4, reach: 1.15, arc: 1.4, dmg: 6, car: 3, knock: 3, kind: 'fists', anim: 'punch' },
+  bat: { dur: .6, hitAt: .55, reach: 1.7, arc: 1.6, dmg: 9, car: 8, knock: 6, kind: 'bat', anim: 'baton' },
+  baton: { dur: .55, hitAt: .55, reach: 1.5, arc: 1.4, dmg: 7, car: 4, knock: 4.5, kind: 'baton', anim: 'baton' },
+  npcfist: { dur: .5, hitAt: .4, reach: 1.15, arc: 1.4, dmg: 4.5, car: 3, knock: 3, kind: 'fists', anim: 'punch' },
 };
 function meleeStrike(att, W, mult = 1) {
   const f = att.fwd(V3()), o = V3(att.pos.x, att.pos.y + 1.0 * att.S, att.pos.z); let hitSomething = false, carDmg = 0;
@@ -3370,7 +3373,7 @@ function meleeStrike(att, W, mult = 1) {
     if (ch === att || ch.hidden || ch.inCar || ch.invuln > 0 || ch.kind === 'zlata') continue; if (att.kind !== 'queen' && ch.kind !== 'queen' && !(att.kind === 'visitor') && ch.kind !== 'visitor') continue;
     const c = ch.ragdoll ? ch.ragdoll.p[0] : ch.pos; const dx = c.x - o.x, dz = c.z - o.z, d = Math.hypot(dx, dz); if (d > W.reach + ch.radius) continue; if (Math.abs(c.y - att.pos.y) > 1.8) continue;
     if (d > .6 && (dx * f.x + dz * f.z) / d < cosA) continue;
-    const push = V3(dx / (d || 1), .45, dz / (d || 1)).multiplyScalar(W.knock * mult); const vk = ch.kind === 'visitor' ? (W.kind === 'chainsaw' ? .4 : .62) : 1;
+    const push = V3(dx / (d || 1), .45, dz / (d || 1)).multiplyScalar(W.knock * mult); const vk = ch.kind === 'visitor' ? (W.kind === 'chainsaw' ? .3 : .55) : 1;
     if (ch.takeHit(W.dmg * mult * vk, push, att, W.kind)) { hitSomething = true; if (att.onDealtHit) att.onDealtHit(ch, W.dmg * mult); }
   }
   const sp = V3().copy(o).addScaledVector(f, W.reach * .7);
@@ -3929,7 +3932,7 @@ function spawnPedestrian() { const n = new NPC(chance(.5) ? 'normal' : 'woman');
 // =====================================================================
 class Visitor extends Char {
   constructor() {
-    super(CHAR_SPECS.visitor, { kind: 'visitor', speaker: 'you', prof: 'you', hp: 100, radius: .3 });
+    super(CHAR_SPECS.visitor, { kind: 'visitor', speaker: 'you', prof: 'you', hp: 130, radius: .3 });
     this.stamina = 100; this.weapon = 'fists'; this.stones = 3; this.dodgeCd = 0; this.wax = 0; this.regenT = 0; this.hitsOnQueen = 0;
     this.shovel = makeProp('shovel'); attachToHand(this, this.shovel); this.shovel.visible = false; this.stoneProp = makeProp('stone'); attachToHand(this, this.stoneProp, true); this.stoneProp.visible = false;
   }
@@ -4040,7 +4043,7 @@ const CINE = {
   },
   endAt() { const l = this.steps[this.steps.length - 1]; return l ? l.at + (l.dur || 0) : 0; },
   finish() { if (!this.active) return; this.active = false; UI.letterbox(false); $('skip').hidden = true; UI.caption(null); const f = this.fin; this.fin = null; f && f(); },
-  skip() { if (!this.active) return; SFX.click(); speechSynthesis && speechSynthesis.cancel && speechSynthesis.cancel(); this.finish(); },
+  skip() { if (!this.active) return; SFX.click(); window.speechSynthesis && window.speechSynthesis.cancel && window.speechSynthesis.cancel(); this.finish(); },
 };
 function followCamNow(yaw) { CAM.mode = 'follow'; CAM.cine = null; if (yaw !== undefined) CAM.yaw = yaw; CAM.pitch = .3; const pl = G.player; CAM.look.set(pl.pos.x, pl.pos.y + 1.5, pl.pos.z); }
 function introM1() {
@@ -4254,8 +4257,8 @@ G.gameOver = function (win) {
   $('go-title').textContent = title; $('go-text').textContent = text;
   setTimeout(() => { $('gameover').hidden = false; UI.showHUD(false); }, win ? 300 : 1400); if (win) { UI.bigTitle(t('win_m2'), '', 2); SFX.cheer(camera.position); }
 };
-function pauseGame() { if (G.state !== 'play') return; G.state = 'paused'; $('pause').hidden = false; if (document.pointerLockElement) document.exitPointerLock(); speechSynthesis && speechSynthesis.pause && speechSynthesis.pause(); }
-function resumeGame() { $('pause').hidden = true; G.state = 'play'; speechSynthesis && speechSynthesis.resume && speechSynthesis.resume(); if (!IS_TOUCH) { try { const r = renderer.domElement.requestPointerLock(); if (r && r.catch) r.catch(() => { }); } catch (e) { } } }
+function pauseGame() { if (G.state !== 'play') return; G.state = 'paused'; $('pause').hidden = false; if (document.pointerLockElement) document.exitPointerLock(); window.speechSynthesis && window.speechSynthesis.pause && window.speechSynthesis.pause(); }
+function resumeGame() { $('pause').hidden = true; G.state = 'play'; window.speechSynthesis && window.speechSynthesis.resume && window.speechSynthesis.resume(); if (!IS_TOUCH) { try { const r = renderer.domElement.requestPointerLock(); if (r && r.catch) r.catch(() => { }); } catch (e) { } } }
 function toMenu() { $('pause').hidden = true; $('gameover').hidden = true; UI.showHUD(false); $('fade').style.opacity = 1; setTimeout(() => { setupMenuScene(); $('menu').hidden = false; $('fade').style.opacity = 0; musicSet('menu'); updateMenuFoot(); }, 450); }
 function onEscape() {
   if (!$('settings').hidden) { closeSettings(); return; } if (!$('controls-help').hidden) { $('controls-help').hidden = true; return; }
@@ -4377,6 +4380,7 @@ function update(dt, dtR) {
   spawnerUpdate(dt); m2Update(dt); menuTraffic(dt); updateDoors(dt);
   if (G.mode === 'm1' && live) { G.goshoT = (G.goshoT ?? 100) - dt; if (G.goshoT <= 0) { G.goshoT = R(110, 170); say('gosho', L.goshoYell, null, 2, V3(2, 6, 16), 'gosho'); setTimeout(() => G.queen && G.queen.say(L.goshoReply, 2), 2600); } G.scandal = Math.max(0, G.scandal - dt * .012); }
   for (const it of G.pickups) if (!it.taken && it.mode === G.mode && it.mesh && it.mesh.visible) { const k = .5 + .5 * Math.sin(G.time * 4); FX.addv.icon(it.pos.x, it.pos.y + 1.2 + k * .1, it.pos.z, 5, .35 + k * .12, [1.2, 2.2, 1.2, 1]); }
+  G.birdT = (G.birdT ?? 6) - dt; if (G.birdT <= 0) { G.birdT = R(14, 28); const c = camera.position, a = R(0, TAU), sp = R(7, 11), vx = Math.cos(a) * sp, vz = Math.sin(a) * sp, ox = c.x - vx * 6 + R(-20, 20), oz = c.z - vz * 6 + R(-20, 20), oy = c.y + R(18, 32); for (let i = 0; i < RI(6, 12); i++) FX.alpha.emit(ox + R(-4, 4), oy + R(-2, 2), oz + R(-4, 4), vx + R(-.5, .5), R(-.2, .3), vz + R(-.5, .5), 14, .55, .45, [.06, .06, .07, 1], [.06, .06, .07, 1], 15, 0, 0, Math.atan2(vz, vx), R(-.3, .3)); }
   FX.update(dt);
   MUS.intensity = damp(MUS.intensity, G.comboT > 0 ? .85 : .25, .5, dtR);
   ambUpdate(dtR, camera.position, MUS.intensity); engineSounds();
