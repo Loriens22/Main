@@ -278,6 +278,14 @@ body.photo #hud,body.photo #labels{display:none}
   #toolOptions{bottom:auto;top:calc(58px + env(safe-area-inset-top,0px));left:auto;right:10px}
   #menu .logo{font-size:38px}
 }
+/* touch camera pad (phones & tablets) */
+html,body{touch-action:pan-x pan-y}
+#camPad{position:absolute;left:10px;bottom:calc(110px + env(safe-area-inset-bottom,0px));display:none;grid-template-columns:repeat(3,44px);grid-auto-rows:44px;gap:6px}
+#camPad button{border-radius:12px;border:1px solid var(--line-2);background:var(--panel-2);display:grid;place-items:center;touch-action:none;-webkit-user-select:none;user-select:none;-webkit-touch-callout:none;cursor:pointer;padding:0}
+#camPad button.on,#camPad button:active{background:var(--accent)}
+#camPad svg{width:22px;height:22px}
+@media (pointer:coarse){#camPad{display:grid}}
+body.photo #camPad{display:none}
 @media (prefers-reduced-motion:reduce){*{animation-duration:.01ms!important;transition:none!important}}
 
 </style>
@@ -293,6 +301,7 @@ body.photo #hud,body.photo #labels{display:none}
     <button class="round" id="btnSettings" title="Menu (Esc)" aria-label="Menu"></button>
   </div>
   <div id="toasts"></div>
+  <div id="camPad" aria-label="Camera controls"></div>
   <div id="panelStack"></div>
   <div id="rightRail"></div>
   <div id="toolPanel" class="panel hide"></div>
@@ -1905,24 +1914,145 @@ const CamCtl = {
     canvas.addEventListener('contextmenu', e => e.preventDefault());
     canvas.addEventListener('pointerdown', e => this.onDown(e));
     addEventListener('pointerup', e => this.onUp(e));
+    addEventListener('pointercancel', e => this.onUp(e, true));
     addEventListener('pointermove', e => this.onMove(e));
+    // stop iOS Safari's page pinch-zoom from stealing map gestures
+    for (const ev of ['gesturestart', 'gesturechange', 'gestureend']) document.addEventListener(ev, e => e.preventDefault(), { passive: false });
     canvas.addEventListener('wheel', e => { e.preventDefault(); this.onWheel(e); }, { passive: false });
     addEventListener('keydown', e => { if (e.target.tagName === 'INPUT' || e.target.tagName === 'TEXTAREA' || e.target.tagName === 'SELECT') return; this.keys[e.code] = true; });
     addEventListener('keyup', e => { this.keys[e.code] = false; });
     addEventListener('blur', () => { this.keys = {}; });
   },
+  setMouse(e) {
+    this.mouse.x = e.clientX; this.mouse.y = e.clientY;
+    this.mouse.nx = (e.clientX / innerWidth) * 2 - 1; this.mouse.ny = -(e.clientY / innerHeight) * 2 + 1;
+    this.mouse.inside = e.target === this.canvas;
+  },
   onDown(e) {
     this.canvas.focus();
+    if (e.pointerType === 'touch') return this.touchDown(e);
+    this.setMouse(e); if (e.button === 0) Input.refreshHit();
     this.drag = { b: e.button, x: e.clientX, y: e.clientY, sx: e.clientX, sy: e.clientY, moved: 0, shift: e.shiftKey };
     if (e.button === 0) Input.down(e);
   },
-  onUp(e) {
+  onUp(e, cancelled) {
+    if (e.pointerType === 'touch') return this.touchUp(e, cancelled);
     const d = this.drag; this.drag = null;
     if (!d) return;
-    if (d.b === 0) Input.up(e, d.moved < 5);
-    if (d.b === 2 && d.moved < 5) Input.rightClick(e);
+    if (d.b === 0) { if (cancelled) Input.cancel(); else Input.up(e, d.moved < 5); }
+    if (d.b === 2 && d.moved < 5 && !cancelled) Input.rightClick(e);
+  },
+  /* ---------- touch: 1 finger pans (or drives the active tool), tap selects, pinch zooms,
+     two-finger twist rotates, two fingers dragged up/down tilt, double-tap zooms in ---------- */
+  T: { pts: new Map(), mode: null, lastTap: 0 },
+  touchFrame() {
+    const P = [...this.T.pts.values()], n = P.length; let mx = 0, my = 0; for (const p of P) { mx += p.x; my += p.y; } mx /= n; my /= n;
+    const d = n >= 2 ? Math.hypot(P[1].x - P[0].x, P[1].y - P[0].y) : 0, a = n >= 2 ? Math.atan2(P[1].y - P[0].y, P[1].x - P[0].x) : 0;
+    return { n, mx, my, d, a, P };
+  },
+  touchDown(e) {
+    const T = this.T; T.pts.set(e.pointerId, { x: e.clientX, y: e.clientY });
+    try { this.canvas.setPointerCapture(e.pointerId); } catch (err) { }
+    if (!this._touchHint && MainMenu.inGame) { this._touchHint = true; UI.toast('Pinch to zoom · twist two fingers to rotate · drag two fingers up/down to tilt · double-tap to zoom in'); }
+    if (T.pts.size === 1) {
+      const tool = !!Input.tool && this.mode !== 'street' && this.mode !== 'free';
+      Object.assign(T, { mode: 'one', sx: e.clientX, sy: e.clientY, lx: e.clientX, ly: e.clientY, moved: 0, t0: performance.now(), tool, committed: false, noTap: false });
+      if (tool) this.setMouse(e); else this.mouse.inside = false;
+      return;
+    }
+    // a second finger turns any single-finger action into a camera gesture
+    if (T.mode === 'one' && T.tool && T.committed) Input.cancel();
+    T.mode = 'multi'; T.gest = null; T.prev = this.touchFrame(); T.start = T.prev; this.mouse.inside = false;
+  },
+  touchCommit(e) { // start the tool action at the finger's first contact point
+    const T = this.T; if (T.committed) return; T.committed = true;
+    this.setMouse({ clientX: T.sx, clientY: T.sy, target: this.canvas }); Input.refreshHit(); Input.down(e);
+    this.setMouse(e);
+  },
+  touchMove(e) {
+    const T = this.T; T.pts.set(e.pointerId, { x: e.clientX, y: e.clientY });
+    if (T.mode === 'one') {
+      const dx = e.clientX - T.lx, dy = e.clientY - T.ly; T.lx = e.clientX; T.ly = e.clientY;
+      T.moved = Math.max(T.moved, Math.hypot(e.clientX - T.sx, e.clientY - T.sy));
+      if (T.tool) { this.setMouse(e); if (!T.committed && (T.moved > 10 || performance.now() - T.t0 > 220)) this.touchCommit(e); if (T.committed) Input.refreshHit(); return; }
+      if (this.mode === 'street' || this.mode === 'free') { this.street.yaw += dx * 0.005; this.street.pitch = clamp(this.street.pitch + dy * 0.005, -1.45, 1.45); return; }
+      this.panBy(dx, dy);
+      return;
+    }
+    if (T.mode !== 'multi') return;
+    const f = this.touchFrame(), p = T.prev; T.prev = f;
+    if (!p || f.n !== p.n) return;
+    if (this.mode === 'street' || this.mode === 'free') { // pinch walks / flies along the view direction
+      const s = this.street, k = (f.d - p.d) * (this.mode === 'free' ? 0.25 : 0.04);
+      s.pos.x += -Math.sin(s.yaw) * k; s.pos.z += -Math.cos(s.yaw) * k; if (this.mode === 'free') s.pos.y += Math.sin(s.pitch) * k;
+      s.yaw += angWrap(f.a - p.a); return;
+    }
+    if (f.n >= 3) { this.goal.pitch = clamp(this.goal.pitch + (f.my - p.my) * 0.006, 0.08, 1.52); return; }
+    // classify the two-finger gesture once it has moved a little: parallel vertical drag = tilt, anything else = pinch/twist/pan
+    if (!T.gest) {
+      const S = T.start; if (!S || S.n !== f.n) { T.start = f; return; }
+      const d1 = [f.P[0].x - S.P[0].x, f.P[0].y - S.P[0].y], d2 = [f.P[1].x - S.P[1].x, f.P[1].y - S.P[1].y];
+      if (Math.hypot(...d1) + Math.hypot(...d2) < 16) return;
+      const vert = d1[1] * d2[1] > 0 && Math.abs(d1[1]) > 1.6 * Math.abs(d1[0]) && Math.abs(d2[1]) > 1.6 * Math.abs(d2[0]) && Math.abs(f.d - S.d) < 24;
+      T.gest = vert ? 'tilt' : 'map';
+      return;
+    }
+    if (T.gest === 'tilt') { this.goal.pitch = clamp(this.goal.pitch + (f.my - p.my) * 0.006, 0.08, 1.52); return; }
+    if (p.d > 8 && f.d > 8) this.zoomAt(f.mx, f.my, p.d / f.d);
+    this.goal.yaw += angWrap(f.a - p.a);
+    this.panBy(f.mx - p.mx, f.my - p.my);
+  },
+  touchUp(e, cancelled) {
+    const T = this.T; if (!T.pts.has(e.pointerId)) return;
+    T.pts.delete(e.pointerId);
+    try { this.canvas.releasePointerCapture(e.pointerId); } catch (err) { }
+    if (T.mode === 'one') {
+      const now = performance.now(), tap = !cancelled && T.moved < 12 && now - T.t0 < 600 && !T.noTap;
+      if (T.tool) {
+        this.setMouse(e);
+        if (cancelled) { if (T.committed) Input.cancel(); }
+        else {
+          if (!T.committed) this.touchCommit(e); else Input.refreshHit();
+          const t = Input.tool; Input.up(e, tap || !(t && (t.down || t.drag))); // click-style tools place where the finger lifts
+          this.mouse.inside = true; // keep the tool preview where the finger lifted
+        }
+      } else if (tap) {
+        const x = e.clientX, y = e.clientY;
+        if (T.pendTap && now - T.lastTap < 330 && Math.hypot(x - T.ltx, y - T.lty) < 40) { // double-tap: zoom instead of selecting
+          clearTimeout(T.pendTap); T.pendTap = null; T.lastTap = 0;
+          if (this.mode === 'orbit' || this.mode === 'follow') this.zoomAt(x, y, 0.5);
+        } else { // single tap selects once we know no second tap is coming
+          if (T.pendTap) clearTimeout(T.pendTap);
+          T.lastTap = now; T.ltx = x; T.lty = y;
+          T.pendTap = setTimeout(() => { T.pendTap = null; if (Input.tool) return; this.setMouse({ clientX: x, clientY: y, target: this.canvas }); Input.refreshHit(); Input.up({ clientX: x, clientY: y, button: 0, shiftKey: false, ctrlKey: false, altKey: false }, true); this.mouse.inside = false; }, 300);
+        }
+      }
+      T.mode = null; return;
+    }
+    if (T.mode === 'multi') {
+      if (T.pts.size === 0) { T.mode = null; return; }
+      if (T.pts.size === 1) { // keep panning smoothly with the remaining finger, never as a tap or tool action
+        const p = [...T.pts.values()][0]; Object.assign(T, { mode: 'one', sx: p.x, sy: p.y, lx: p.x, ly: p.y, moved: 99, t0: performance.now(), tool: false, committed: false, noTap: true });
+        return;
+      }
+      T.prev = this.touchFrame(); T.start = T.prev; T.gest = null;
+    }
+  },
+  // move the map so the ground follows the finger
+  panBy(dx, dy) {
+    const k = 2 * Math.tan(this.fov * DEG / 2) * this.dist / Math.max(1, innerHeight), kd = k / Math.max(0.35, Math.sin(this.pitch));
+    const c = Math.cos(this.yaw), sn = Math.sin(this.yaw);
+    this.goal.x += -c * dx * k - sn * dy * kd; this.goal.z += sn * dx * k - c * dy * kd; this.follow = null;
+  },
+  // scale the camera distance by f, keeping the ground under screen point (px,py) roughly fixed
+  zoomAt(px, py, f) {
+    const nd = clamp(this.goal.dist * f, 12, 9000);
+    const hit = this.pickGround((px / innerWidth) * 2 - 1, -(py / innerHeight) * 2 + 1);
+    if (hit) { const k = 1 - nd / this.goal.dist; this.goal.x += (hit.x - this.goal.x) * k * 0.9; this.goal.z += (hit.z - this.goal.z) * k * 0.9; }
+    this.goal.dist = nd;
   },
   onMove(e) {
+    if (e.pointerType === 'touch') { if (this.T.pts.has(e.pointerId)) this.touchMove(e); return; }
     this.mouse.x = e.clientX; this.mouse.y = e.clientY;
     this.mouse.nx = (e.clientX / innerWidth) * 2 - 1; this.mouse.ny = -(e.clientY / innerHeight) * 2 + 1;
     this.mouse.inside = e.target === this.canvas;
@@ -8647,6 +8777,14 @@ const Input = {
     else SelectTool.hover(ray);
     if (t && t.update) t.update(dt);
   },
+  // recompute the ground hit under the pointer now (touch has no hover before a tap)
+  refreshHit() { const ray = CamCtl.ray(CamCtl.mouse.nx, CamCtl.mouse.ny); this.ray = ray; this.hit = Terrain.raycast(ray.origin, ray.direction); const t = this.tool; if (t && t.move) t.move(this.hit); },
+  // abandon a press without applying it (second finger landed, pointer cancelled)
+  cancel() {
+    this.mouseDown = false; const t = this.tool; if (!t) return; if (t.cancel) return t.cancel();
+    if ('painting' in t) t.painting = false; if ('dragStart' in t) t.dragStart = null; if ('dragV' in t) t.dragV = null;
+    if (t === TerrainTool) t.target = null; if (t === TerrTool) { OverlayMap.brushStroke = null; OverlayMap.dirty = true; }
+  },
   down(e) { this.mouseDown = true; const t = this.tool; if (t && t.down) t.down(this.hit, e); },
   up(e, click) {
     this.mouseDown = false; const t = this.tool;
@@ -8971,7 +9109,7 @@ const UI = {
     $('btnHelp').innerHTML = ICONS.help; $('btnHelp').onclick = () => Menus.openHelp();
     $('btnSettings').innerHTML = ICONS.settings; $('btnSettings').onclick = () => Menus.openPause();
     $('btnMod').innerHTML = ICONS.mod; $('btnMod').onclick = () => Menus.openMod(); $('btnMod').style.background = '#f4a261';
-    this.buildToolbar(); this.buildStatus(); this.buildRail();
+    this.buildToolbar(); this.buildStatus(); this.buildRail(); this.buildCamPad();
     Bus.on('pulse', () => this.refreshRail());
   },
   /* ---------- toasts / tooltips / measures ---------- */
@@ -9009,6 +9147,35 @@ const UI = {
     return b;
   },
   closeModal() { $('modalWrap').classList.add('hide'); $('modal').innerHTML = ''; this.modalRefresh = null; },
+  /* ---------- touch camera pad: hold a button to keep zooming / rotating / tilting ---------- */
+  buildCamPad() {
+    const pad = $('camPad'); pad.innerHTML = '';
+    const ic = (d) => `<svg viewBox="0 0 24 24" fill="none" stroke="#e8eef5" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round">${d}</svg>`;
+    const step = {
+      zin: () => { if (CamCtl.mode === 'orbit' || CamCtl.mode === 'follow') CamCtl.zoomAt(innerWidth / 2, innerHeight / 2, 0.93); else CamCtl.street.pos.addScaledVector(new THREE.Vector3(-Math.sin(CamCtl.street.yaw), 0, -Math.cos(CamCtl.street.yaw)), 1.2); },
+      zout: () => { if (CamCtl.mode === 'orbit' || CamCtl.mode === 'follow') CamCtl.goal.dist = clamp(CamCtl.goal.dist * 1.075, 12, 9000); else CamCtl.street.pos.addScaledVector(new THREE.Vector3(-Math.sin(CamCtl.street.yaw), 0, -Math.cos(CamCtl.street.yaw)), -1.2); },
+      rl: () => { if (CamCtl.mode === 'street' || CamCtl.mode === 'free') CamCtl.street.yaw += 0.05; else CamCtl.goal.yaw -= 0.05; },
+      rr: () => { if (CamCtl.mode === 'street' || CamCtl.mode === 'free') CamCtl.street.yaw -= 0.05; else CamCtl.goal.yaw += 0.05; },
+      tu: () => { CamCtl.goal.pitch = clamp(CamCtl.goal.pitch + 0.035, 0.08, 1.52); },
+      td: () => { CamCtl.goal.pitch = clamp(CamCtl.goal.pitch - 0.035, 0.08, 1.52); },
+    };
+    const btns = [
+      ['zin', 'Zoom in', ic('<circle cx="11" cy="11" r="6.5"/><path d="M11 8v6M8 11h6M16 16l4.5 4.5"/>')],
+      ['rl', 'Rotate left', ic('<path d="M4 11a8 8 0 1 1 2.3 5.7"/><path d="M4 5v6h6"/>')],
+      ['tu', 'Tilt to top-down', ic('<path d="M6 14l6-6 6 6"/>')],
+      ['zout', 'Zoom out', ic('<circle cx="11" cy="11" r="6.5"/><path d="M8 11h6M16 16l4.5 4.5"/>')],
+      ['rr', 'Rotate right', ic('<path d="M20 11a8 8 0 1 0-2.3 5.7"/><path d="M20 5v6h-6"/>')],
+      ['td', 'Tilt toward the horizon', ic('<path d="M6 10l6 6 6-6"/>')],
+    ];
+    for (const [k, label, svg] of btns) {
+      const b = h('button', { title: label, 'aria-label': label, html: svg });
+      let iv = null; const stop = () => { if (iv) { clearInterval(iv); iv = null; } b.classList.remove('on'); };
+      b.addEventListener('pointerdown', e => { e.preventDefault(); e.stopPropagation(); stop(); b.classList.add('on'); step[k](); iv = setInterval(step[k], 45); try { b.setPointerCapture(e.pointerId); } catch (err) { } });
+      for (const ev of ['pointerup', 'pointercancel', 'lostpointercapture']) b.addEventListener(ev, stop);
+      b.addEventListener('contextmenu', e => e.preventDefault());
+      pad.appendChild(b);
+    }
+  },
   /* ---------- toolbar ---------- */
   MENU() {
     const svcTabs = (cat) => [{ name: SVC_CATS[cat].name, items: Object.values(SERVICES).filter(s => s.cat === cat).map(s => ({ id: s.key, name: s.name, cost: s.cost, lock: s.key, thumb: { key: 'svc:' + s.key, gen: (bb, o) => SVC_GEN[s.key].call(SVC_GEN, bb, s.w * 8, s.d * 8, o.era, {}), w: s.w * 8, d: s.d * 8 }, act: () => Input.setTool(PlaceTool, PlaceTool.service(s.key)) })) }];
@@ -9722,6 +9889,7 @@ const Menus = {
   openHelp() {
     UI.modal('How to play', h('div', { class: 'cols' },
       h('div', { class: 'card' }, h('div', { class: 'sec-h' }, 'Camera'), ...[['W A S D / arrows', 'Pan'], ['Q / E', 'Rotate'], ['R / F or wheel', 'Zoom'], ['T / G', 'Tilt'], ['Right-drag', 'Orbit'], ['Middle-drag / Shift+right-drag', 'Pan'], ['V', 'Street-level walk mode'], ['Shift+C', 'Free fly camera'], ['Ctrl+P', 'Photo mode']].map(([k, v]) => row(k, v))),
+      h('div', { class: 'card' }, h('div', { class: 'sec-h' }, 'Touch screens'), ...[['One finger', 'Pan the map · tap to select'], ['Pinch', 'Zoom in / out'], ['Twist two fingers', 'Rotate'], ['Two fingers up / down', 'Tilt'], ['Double-tap', 'Zoom in on that spot'], ['With a tool', 'One finger uses the tool, two fingers move the camera'], ['Buttons bottom-left', 'Hold to zoom, rotate or tilt']].map(([k, v]) => row(k, v))),
       h('div', { class: 'card' }, h('div', { class: 'sec-h' }, 'Building'), ...[['Click / Enter', 'Place & confirm'], ['Right-click', 'Undo point / cancel tool'], ['B or Delete', 'Bulldozer'], ['U', 'Underground view (metro)'], ['I', 'Info views'], ['Space', 'Pause'], ['. and ,', 'Speed up / down'], ['Ctrl+S', 'Quick save'], ['F10', 'Mod menu']].map(([k, v]) => row(k, v))),
       h('div', { class: 'card' }, h('div', { class: 'sec-h' }, 'Getting started'), h('ol', { style: { paddingLeft: '18px', lineHeight: 1.6, margin: 0, color: 'var(--fg-2)' } }, h('li', null, 'Draw roads from the highway entrance (Roads menu).'), h('li', null, 'Zone residential, commercial and industrial cells next to them.'), h('li', null, 'Add power (wind/coal), a water pump with a sewage outlet near the river.'), h('li', null, 'Add clinics, schools, police, fire and garbage as the town grows.'), h('li', null, 'Found cities & countries with the flag menu; set taxes and policies per city.'), h('li', null, 'Start supermarket, tech and AI corporations from the briefcase menu.')))), 'wide');
   },

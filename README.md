@@ -18,4 +18,6 @@ Open `civitas.html` in a desktop browser with WebGL2 (it loads Three.js from jsD
 
 ## Controls
 
-Right-drag to rotate, middle-drag or Shift+right-drag to pan, and use the wheel to zoom toward the cursor. WASD/QE move the camera; Esc opens the pause menu and `I` opens the info views.
+**Mouse & keyboard:** right-drag to rotate, middle-drag or Shift+right-drag to pan, and use the wheel to zoom toward the cursor. WASD/QE move the camera; Esc opens the pause menu and `I` opens the info views.
+
+**Touch:** one finger pans and a tap selects; pinch to zoom; twist two fingers to rotate; drag two fingers up or down to tilt; double-tap to zoom in. With a tool active, one finger uses the tool and two fingers move the camera. Buttons at the bottom left zoom, rotate and tilt while held.
