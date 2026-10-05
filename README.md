@@ -4,7 +4,9 @@ An original, playable 3D browser game about a gentle evening tram run between fl
 
 ## Play
 
-**[Play Saltlight in your browser](https://loriens22.github.io/Main/)**
+**[Play Saltlight in your browser](https://rawcdn.githack.com/Loriens22/Main/955fe1dafa3f22adc01837c7b626bd1f078b2c4b/web/index.html)**
+
+On a first visit, the host displays an external-content notice. Choose **Open the page**, then **All aboard**. The published build has been checked in a browser with real keyboard and touch input.
 
 Choose **All aboard**, then hold **W** for power and **S** to brake. Release to coast. Arrow keys also accelerate, brake, and look around. **C** changes between chase, window and scenic cameras. **Space** opens the doors at a station and departs after boarding. **R** visits Oliver's Cloudworks while stopped at a station. **P / Esc** pauses. On mobile, hold the Power and Brake buttons.
 
@@ -35,7 +37,9 @@ python3 -m http.server 8000 --directory web
 
 Visit `http://localhost:8000`. Browser security requires serving the WebAssembly game over HTTP(S), so opening `index.html` as a `file://` URL will not work. The export is single-threaded and works on GitHub Pages without cross-origin isolation headers.
 
-The game lives on the `saltlight-coastal-line` branch of `Loriens22/Main`. GitHub Pages publishes this branch automatically. Re-export after changing Godot source or Blender assets, then push the updated browser build to this branch.
+The game lives on the `saltlight-coastal-line` branch of `Loriens22/Main`. The connected GitHub integration cannot enable GitHub Pages, so the play link serves the published GitHub build through the githack CDN. The link is pinned to the tested game commit.
+
+Re-export after changing Godot source or Blender assets, publish the updated browser build to this branch, and update the CDN link to the new commit. To use GitHub Pages instead, the repository owner can select **Settings → Pages → Deploy from a branch → saltlight-coastal-line → / (root)**.
 
 ## Credits
 
