@@ -4,7 +4,7 @@ An original, playable 3D browser game about an evening tram run through **five f
 
 ## Play
 
-**[Play Saltlight in your browser](https://rawcdn.githack.com/Loriens22/Main/955fe1dafa3f22adc01837c7b626bd1f078b2c4b/web/index.html)**
+**[Play Saltlight in your browser](https://rawcdn.githack.com/Loriens22/Main/0c8374375f59fed1d42a9881a774aa2ad99b9323/web/index.html)**
 
 On a first visit, the host displays an external-content notice. Choose **Open the page**, then **All aboard**. The published build has been checked in a browser with real keyboard and touch input.
 
