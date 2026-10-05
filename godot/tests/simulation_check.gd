@@ -22,7 +22,7 @@ func run():
 		game._process(1.0/60.0)
 		if game.mode=="docked":break
 	assert(game.mode=="docked" and game.current_station==1,"Power and station safety braking must reach Mango Tide.")
-	assert(game.coins>=215,"A station arrival must earn fares.")
+	assert(game.coins==215 and game.journeys==1,"A station arrival must award fares exactly once.")
 	assert(game.comfort<100,"Overspeed driving must affect passenger comfort.")
 	game.command("power",false)
 	game.command("doors")
@@ -38,6 +38,7 @@ func run():
 		game._process(1.0/60.0)
 		if game.mode=="docked":break
 	assert(game.mode=="docked" and game.current_station==0,"The return journey must reach Saltlight.")
+	assert(game.journeys==2,"Each leg must count as exactly one journey.")
 	game.command("power",false)
 	game.command("brake",false)
 	game.command("workshop")

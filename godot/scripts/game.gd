@@ -257,13 +257,16 @@ func drive(dt):
 		broken=false
 		streak=1
 		emit_event("subtitle",{"text":"Found your balance. Your streak is growing again.","kind":"welcome"})
-	if remaining_distance()<.4 and speed<.65:arrive()
+	if remaining_distance()<.4 and speed<.65:
+		arrive()
+		return
 	if power and speed<.1 and remaining<.5:arrive()
 
 func remaining_distance() -> float:
 	return max(0.0,leg_length-(distance-leg_start))
 
 func arrive():
+	if mode!="drive":return
 	speed=0
 	accel=0
 	current_station=target_station
