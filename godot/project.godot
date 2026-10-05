@@ -1,0 +1,28 @@
+; Godot 4.6 browser game. Compatibility rendering keeps the export on WebGL 2.
+config_version=5
+
+[application]
+config/name="Saltlight — The Coastal Line"
+run/main_scene="res://main.tscn"
+config/features=PackedStringArray("4.6", "GL Compatibility")
+config/description="A gentle tram journey through floating seaside villages."
+
+[display]
+window/size/viewport_width=1440
+window/size/viewport_height=900
+window/stretch/mode="canvas_items"
+window/stretch/aspect="expand"
+window/size/window_width_override=1280
+window/size/window_height_override=800
+
+[rendering]
+renderer/rendering_method="gl_compatibility"
+renderer/rendering_method.mobile="gl_compatibility"
+textures/default_filters/use_nearest_mipmap_filter=false
+environment/defaults/default_clear_color=Color(0.29, 0.34, 0.50, 1)
+lights_and_shadows/directional_shadow/size=1024
+anti_aliasing/quality/msaa_3d=1
+textures/vram_compression/import_etc2_astc=true
+
+[audio]
+driver/enable_input=false

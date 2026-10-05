@@ -1,0 +1,101 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+  <meta name="theme-color" content="#193e37">
+  <meta name="description" content="Take the controls of a little aerial tram. Carry your neighbours between floating seaside islands, find your balance, and visit Oliver's Cloudworks.">
+  <title>Saltlight · The Coastal Line</title>
+  <link rel="icon" href="favicon.svg" type="image/svg+xml">
+  <link rel="stylesheet" href="style.css">
+</head>
+<body data-mode="loading">
+  <canvas id="canvas" tabindex="0" aria-label="Saltlight 3D tram game. W accelerates, S brakes, C changes camera, Space opens the station doors.">Your browser needs a canvas to play Saltlight.</canvas>
+  <div class="vignette" aria-hidden="true"></div>
+
+  <div id="loading" class="loading">
+    <div class="loading-emblem"><svg viewBox="0 0 32 32"><use href="icons.svg#tram"/></svg></div>
+    <div class="loading-title">Saltlight</div>
+    <p id="loading-text">Warming up the Coastal Line…</p>
+    <div class="loading-track"><i id="load-fill"></i></div>
+    <button id="retry" class="primary" hidden>Try again</button>
+  </div>
+
+  <div id="ui" class="ui" hidden>
+    <header class="topbar">
+      <div class="identity">
+        <span class="brand">Saltlight<span class="brand-star">✦</span></span>
+        <span class="line-name">THE COASTAL LINE</span>
+        <div class="next-stop play-only"><span class="eyebrow">NEXT STOP</span><strong id="destination">Mango Tide</strong><span id="distance">— m away</span></div>
+      </div>
+      <div class="journey play-only" id="journey">
+        <div class="route-names"><span id="origin">Saltlight Terminus</span><span id="target">Mango Tide</span></div>
+        <div class="route-line"><i class="route-dot start"></i><i class="route-dot end"></i><div id="route-fill"></div><div id="route-tram"><svg viewBox="0 0 32 32"><use href="icons.svg#tram"/></svg></div></div>
+        <div class="comfort"><svg viewBox="0 0 24 24"><use href="icons.svg#leaf"/></svg><span>Leg comfort</span><div class="comfort-track"><i id="comfort-fill"></i></div><strong id="comfort-value">100%</strong></div>
+      </div>
+      <div class="top-right">
+        <div class="wallet"><svg viewBox="0 0 24 24"><use href="icons.svg#coin"/></svg><strong id="coins">180</strong><span class="wallet-divider"></span><svg class="streak-icon" viewBox="0 0 24 24"><use href="icons.svg#spark"/></svg><span id="streak">×1</span></div>
+        <div class="tools">
+          <button id="workshop-button" class="icon-button" aria-label="Visit Oliver's Cloudworks" title="Oliver's Cloudworks · R"><svg viewBox="0 0 24 24"><use href="icons.svg#tools"/></svg></button>
+          <button id="sound-button" class="icon-button" aria-label="Mute sound" title="Sound on" aria-pressed="true"><svg viewBox="0 0 24 24"><use id="sound-icon" href="icons.svg#sound"/></svg></button>
+          <button id="help-button" class="icon-button" aria-label="Pause and view controls" title="Controls · P"><svg viewBox="0 0 24 24"><use href="icons.svg#help"/></svg></button>
+          <button id="fullscreen-button" class="icon-button fullscreen" aria-label="Enter full screen" title="Full screen"><svg viewBox="0 0 24 24"><use href="icons.svg#expand"/></svg></button>
+        </div>
+      </div>
+    </header>
+
+    <section id="intro" class="intro">
+      <div class="intro-ticket"><span class="ticket-line"></span>YOUR EVENING RUN<span class="ticket-line"></span></div>
+      <h1>Saltlight<span class="title-star">✦</span></h1>
+      <div class="intro-subtitle">The Coastal Line</div>
+      <p>A little tram. A sea of clouds.<br>Bring your neighbours home, gently.</p>
+      <button id="start-button" class="primary"><svg viewBox="0 0 32 32"><use href="icons.svg#tram"/></svg>All aboard<span class="key light">↵</span></button>
+      <div class="intro-controls"><span><kbd>W</kbd> Power</span><span><kbd>S</kbd> Brake</span><span class="mobile-note">Or hold the on-screen controls</span></div>
+    </section>
+
+    <div id="subtitle" class="subtitle" role="status" aria-live="polite"><span id="subtitle-text"></span></div>
+    <div id="arrival" class="arrival" hidden><div class="arrival-stamp"><svg viewBox="0 0 24 24"><use href="icons.svg#spark"/></svg></div><div><span id="arrival-caption" class="eyebrow">A SMOOTH ARRIVAL</span><strong id="arrival-station">Mango Tide</strong></div><span id="arrival-reward">+75</span></div>
+
+    <section id="workshop-panel" class="workshop-panel" hidden>
+      <span class="eyebrow">OLIVER'S HOME ISLAND</span>
+      <h2>Cloudworks<span>✦</span></h2>
+      <p class="shop-intro">A little care goes a long way.</p>
+      <button class="part-card" id="hearth-button" data-part="hearth"><span class="part-icon"><svg viewBox="0 0 24 24"><use href="icons.svg#leaf"/></svg></span><span class="part-copy"><strong>Hearth leaves</strong><span>A green enamel roof & trailing ivy.</span></span><span class="part-price" id="hearth-price">50<svg viewBox="0 0 24 24"><use href="icons.svg#coin"/></svg></span></button>
+      <button class="part-card" id="companion-button" data-part="companion"><span class="part-icon"><svg viewBox="0 0 24 24"><use href="icons.svg#lantern"/></svg></span><span class="part-copy"><strong>Little Companion</strong><span>Lanterns, luggage & a softer ride.</span></span><span class="part-price" id="companion-price">75<svg viewBox="0 0 24 24"><use href="icons.svg#coin"/></svg></span></button>
+      <div id="workshop-progress" class="workshop-progress" hidden><span id="upgrade-label">Lifting the old part</span><div role="progressbar" aria-label="Workshop progress" aria-valuemin="0" aria-valuemax="100" id="upgrade-track"><i id="upgrade-fill"></i></div><p>Sit back and watch the workshop.</p></div>
+      <button class="return-button" id="return-button">Back to the Coastal Line<kbd>R</kbd></button>
+    </section>
+
+    <footer class="drive-hud play-only" id="drive-hud">
+      <div class="speed-panel"><div class="speed-reading"><span id="speed">00</span><span class="speed-units">km/h</span></div><div id="speed-bar" class="speed-bar" aria-hidden="true"></div><span id="speed-hint">A gentle start</span></div>
+      <div class="driving-center">
+        <div id="drive-hint" class="drive-hint">Find your rhythm. Let the line carry you.</div>
+        <div id="drive-controls" class="drive-controls"><button id="brake-button" class="drive-button brake" aria-label="Hold to brake"><svg viewBox="0 0 24 24"><use href="icons.svg#brake"/></svg><span>Brake</span><kbd>S</kbd></button><button id="power-button" class="drive-button power" aria-label="Hold to accelerate"><svg viewBox="0 0 24 24"><use href="icons.svg#power"/></svg><span>Power</span><kbd>W</kbd></button></div>
+        <div id="station-controls" class="station-controls" hidden><span id="station-caption">Welcome to Mango Tide</span><button id="doors-button" class="primary"><svg viewBox="0 0 24 24"><use href="icons.svg#doors"/></svg><span id="doors-label">Open doors</span><span class="key light">Space</span></button><div class="boarding-track" id="boarding-track" hidden><i id="boarding-fill"></i></div></div>
+        <span class="bottom-instruction" id="bottom-instruction">HOLD TO DRIVE · RELEASE TO COAST</span>
+      </div>
+      <div class="ride-panel"><div class="ride-stat"><svg viewBox="0 0 24 24"><use href="icons.svg#people"/></svg><span><strong id="passengers">12<span>/16</span></strong><small>aboard</small></span></div><div class="condition" id="condition"><svg viewBox="0 0 24 24"><use href="icons.svg#wind"/></svg><span id="condition-text">Steady</span></div><button id="view-button" class="camera-button" aria-label="Change camera view"><svg viewBox="0 0 24 24"><use href="icons.svg#camera"/></svg><span id="view-label">Chase view</span><kbd>C</kbd></button></div>
+    </footer>
+    <span class="intro-footer" id="intro-footer">SALTLIGHT TERMINUS <span>•</span> MANGO TIDE</span>
+  </div>
+
+  <dialog id="help-dialog" class="help-dialog">
+    <button class="dialog-close icon-button" id="close-help" aria-label="Return to the game">×</button>
+    <span class="eyebrow">TAKE A BREATHER</span><h2>A softer journey.</h2>
+    <p>Carry your neighbours between Saltlight Terminus and Mango Tide. Smooth driving keeps their legs comfortable and earns better tips.</p>
+    <div class="control-list"><span><kbd>W</kbd><kbd>↑</kbd> Hold for power</span><span><kbd>S</kbd><kbd>↓</kbd> Hold to brake</span><span><kbd>←</kbd><kbd>→</kbd> Look around</span><span><kbd>C</kbd> Change camera</span><span><kbd>Space</kbd> Open doors / depart</span><span><kbd>R</kbd> Visit the workshop at a station</span></div>
+    <div class="help-tip"><svg viewBox="0 0 24 24"><use href="icons.svg#leaf"/></svg><span>Aim for 24–32 km/h on open track. Ease off in curves and crosswinds. Start braking before the platform.</span></div>
+    <button class="primary" id="resume-button">Back aboard</button><button class="restart" id="restart-button">Restart this journey</button>
+    <p class="save-note">Fares and fitted parts stay with you on this browser.</p>
+  </dialog>
+  <script src="$GODOT_URL"></script>
+  <script src="ui.js"></script>
+  <script>
+    const engine = new Engine($GODOT_CONFIG);
+    window.saltlightEngine = engine;
+    const missing = Engine.getMissingFeatures({threads: false});
+    if (missing.length) window.saltlightLoadError('This browser needs WebGL 2 to join the Coastal Line. Try a recent Chrome, Firefox, Edge, or Safari.');
+    else engine.startGame({canvas:document.getElementById('canvas'),onProgress:(current,total)=>window.saltlightLoadProgress(current,total)}).catch(error=>window.saltlightLoadError(error.message || String(error)));
+  </script>
+</body>
+</html>
