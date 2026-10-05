@@ -3,7 +3,7 @@
 Blender Z is up, and the tram faces +Y (glTF converts it to Godot's -Z).
 Assets are kept in named collections in the .blend and exported as small glTFs.
 """
-import bpy, math, random, os
+import bpy, bmesh, math, random, os, runpy
 from mathutils import Vector
 random.seed(71)
 ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
@@ -63,22 +63,24 @@ def assign(o,mat,parent,name):
     o.name=name; o.data.materials.append(P[mat] if isinstance(mat,str) else mat); o.parent=parent
     return o
 def box(name,loc,size,mat,parent,bevel=0):
-    bpy.ops.mesh.primitive_cube_add(size=1,location=loc)
-    o=bpy.context.object; o.scale=size
-    bpy.ops.object.transform_apply(location=False,rotation=False,scale=True)
+    # Data API construction avoids dependency-graph updates for every roof tile and paving stone.
+    bm=bmesh.new();bmesh.ops.create_cube(bm,size=1)
+    for v in bm.verts:v.co=Vector((v.co.x*size[0],v.co.y*size[1],v.co.z*size[2]))
     if bevel:
-        mod=o.modifiers.new('Soft handmade edges','BEVEL'); mod.width=bevel;mod.segments=2
-        bpy.ops.object.modifier_apply(modifier=mod.name)
-        o.modifiers.new('Weighted normals','WEIGHTED_NORMAL')
+        bmesh.ops.bevel(bm,geom=list(bm.edges),offset=min(bevel,min(size)*.45),segments=2,affect='EDGES')
+    me=bpy.data.meshes.new(name);bm.to_mesh(me);bm.free();me.update()
+    o=bpy.data.objects.new(name,me);bpy.context.collection.objects.link(o);o.location=loc
     return assign(o,mat,parent,name)
 def cyl(name,loc,r,depth,mat,parent,vertices=10,rotation=None):
-    bpy.ops.mesh.primitive_cylinder_add(vertices=vertices,radius=r,depth=depth,location=loc)
-    o=bpy.context.object
+    bm=bmesh.new();bmesh.ops.create_cone(bm,cap_ends=True,cap_tris=False,segments=vertices,radius1=r,radius2=r,depth=depth)
+    me=bpy.data.meshes.new(name);bm.to_mesh(me);bm.free();me.update()
+    o=bpy.data.objects.new(name,me);bpy.context.collection.objects.link(o);o.location=loc
     if rotation: o.rotation_euler=rotation
     return assign(o,mat,parent,name)
 def ico(name,loc,size,mat,parent,sub=1):
-    bpy.ops.mesh.primitive_ico_sphere_add(subdivisions=sub,radius=1,location=loc)
-    o=bpy.context.object; o.scale=size
+    bm=bmesh.new();bmesh.ops.create_icosphere(bm,subdivisions=sub,radius=1)
+    me=bpy.data.meshes.new(name);bm.to_mesh(me);bm.free();me.update()
+    o=bpy.data.objects.new(name,me);bpy.context.collection.objects.link(o);o.location=loc;o.scale=size
     return assign(o,mat,parent,name)
 def mesh(name,vertices,faces,mat,parent):
     me=bpy.data.meshes.new(name);me.from_pydata(vertices,[],faces);me.update()
@@ -90,6 +92,7 @@ def beam(name,a,b,r,mat,parent):
 
 ASSETS=[]
 def asset(name):
+    print('Modelling',name,flush=True)
     col=bpy.data.collections.new(name);bpy.context.scene.collection.children.link(col)
     bpy.context.view_layer.active_layer_collection=bpy.context.view_layer.layer_collection.children[col.name]
     root=empty(name);ASSETS.append((name,root,col));return root
@@ -99,7 +102,7 @@ tram=asset('tram')
 body=empty('Body',tram)
 box('Oak chassis',(0,0,.62),(2.45,6.15,.40),'wood',body,.15)
 box('Green waist',(0,0,1.25),(2.30,5.95,.95),'green',body,.20)
-box('Interior floor',(0,0,1.72),(2.12,5.70,.12),'darkwood',body)
+box('Interior floor',(0,0,.98),(2.12,5.70,.12),'darkwood',body)
 for side in [-1,1]:
     box('Brass waistline',(side*1.17,0,1.63),(.06,5.8,.055),'gold',body,.015)
     box('Cream window sill',(side*1.18,0,1.79),(.1,5.7,.13),'cream',body,.035)
@@ -133,16 +136,31 @@ for x in [-1,1]:
         wheel=empty('Wheel_'+str(x)+'_'+str(y),tram)
         cyl('Steel wheel',(x,y,.42),.42,.18,'black',wheel,14,(0,math.pi/2,0))
         cyl('Wheel hub',(x*1.02,y,.42),.18,.20,'gold',wheel,12,(0,math.pi/2,0))
+        for spoke in range(6):
+            a=spoke*math.tau/6
+            beam('Wheel spoke',(x*1.115,y,.42),(x*1.115,y+math.cos(a)*.35,.42+math.sin(a)*.35),.025,'gold',wheel)
+        wheel.location=(x,y,.42)
+        for child in wheel.children:child.location-=Vector((x,y,.42))
         beam('Oak bogie',(x,y-.52,.54),(x,y+.52,.54),.13,'darkwood',body)
 passengers=empty('Passengers',tram)
 for i,y in enumerate([-1.9,-.65,.65,1.9]):
     for side in [-1,1]:
         x=side*.62
-        box('Bench',(x,y,1.89),(.57,.78,.18),'wood',body,.05)
-        ico('Passenger coat',(x,y,2.19),(.23,.22,.31),'shirt' if i%2 else 'scarf',passengers,2)
-        ico('Passenger head',(x,y,2.58),(.18,.17,.20),'skin',passengers,2)
-        ico('Passenger hair',(x,y+.02,2.70),(.185,.18,.105),'hair',passengers,1)
-        for xx in [-.08,.08]:box('Boot',(x+xx,y+.20,1.82),(.10,.21,.13),'black',passengers,.03)
+        box('Bench',(x,y,1.50),(.57,.78,.18),'wood',body,.05)
+        ico('Passenger coat',(x,y,1.81),(.23,.22,.31),'shirt' if i%2 else 'scarf',passengers,2)
+        ico('Passenger head',(x,y,2.22),(.18,.17,.20),'skin',passengers,2)
+        ico('Passenger hair',(x,y+.02,2.34),(.185,.18,.105),'hair',passengers,1)
+        for xx in [-.08,.08]:
+            beam('Trouser leg',(x+xx,y+.14,1.5),(x+xx,y+.20,1.14),.055,'blue',passengers)
+            box('Boot',(x+xx,y+.20,1.10),(.10,.21,.13),'black',passengers,.03)
+for i,y in enumerate([-1.2,-.4,.4,1.2]):
+    x=.12 if i%2 else -.12
+    ico('Standing neighbour coat',(x,y,2.0),(.22,.20,.38),'shirt' if i%2 else 'scarf',passengers,2)
+    ico('Standing neighbour head',(x,y,2.58),(.17,.17,.20),'skin',passengers,2)
+    ico('Standing neighbour hair',(x,y-.015,2.70),(.175,.17,.10),'hair',passengers,2)
+    for side in [-1,1]:
+        beam('Standing trouser leg',(x+side*.09,y,1.7),(x+side*.09,y,1.13),.055,'blue',passengers)
+        box('Standing neighbour boot',(x+side*.09,y+.02,1.08),(.12,.23,.13),'black',passengers,.03)
 satchel=empty('Satchel',tram)
 box('Old travelling bag',(.15,1.65,3.48),(.65,.58,.40),'red',satchel,.07)
 box('Old bag strap',(.15,1.65,3.48),(.08,.60,.42),'cream',satchel,.015)
@@ -197,6 +215,22 @@ for k,wall in enumerate(['plaster','yellow','white','pink']):
     box('Front door',(0,2.4,.87),(.72,.14,1.70),'blue',g,.10)
     ico('Door brass knob',(.22,2.49,.88),(.045,.045,.045),'gold',g,2)
     box('Door step',(0,2.65,.12),(1.15,.56,.24),'cream',g,.055)
+    # Rain gutters, stonework, shutter slats and plaster repairs give the houses a lived history.
+    for side in [-1,1]:
+        beam('Copper gutter',(side*2.47,-2.6,h),(side*2.47,2.6,h),.065,'gold',g)
+        beam('Downpipe',(side*2.13,2.38,.3),(side*2.13,2.38,h),.045,'blue',g)
+        for z in [.42,.78,1.14]:
+            for j in range(6):
+                box('Hand-cut foundation stone',(side*2.12,-2.0+j*.78,z),(.04,.71,.28),'cream' if j%3 else 'white',g,.025)
+    for x in [-1.12,1.12]:
+        for side in [-1,1]:
+            for z in range(7):box('Shutter slat',(x+side*.62,2.48,h*.66-.48+z*.15),(.23,.03,.035),'green',g)
+    for i in range(9):
+        x=random.uniform(-1.8,1.8);z=random.uniform(.35,1.3)
+        box('Plaster repair',(x,2.356,z),(.16+random.random()*.22,.012,.05),'white',g,.01)
+    box('Door lintel',(0,2.51,1.77),(1.0,.20,.13),'wood',g,.025)
+    for x in [-.48,.48]:box('Door jamb',(x,2.48,.87),(.12,.18,1.7),'wood',g,.02)
+    for i in range(5):box('Door boards',(-.27+i*.13,2.485,.87),(.012,.03,1.4),'green',g)
 
 root=asset('tree');g=empty('Olive tree',root)
 cyl('Crooked trunk',(0,0,1.5),.20,3.0,'wood',g,7)
@@ -258,6 +292,9 @@ for x in [-.34,.34]:
     beam('Arm',(x*.9,0,.95),(x,-.08,.60),.075,'shirt',g)
     ico('Hand',(x,-.08,.57),(.08,.08,.10),'skin',g)
 box('Travel bag',(.45,.02,.46),(.28,.25,.36),'wood',g,.04)
+
+# The expanded archipelago shares this small, deterministic modelling vocabulary.
+runpy.run_path(os.path.join(ROOT,'blender','archipelago_assets.py'),init_globals=globals())
 
 # Join pieces within named groups to keep browser draw calls economical.
 for name,root,col in ASSETS:

@@ -18,6 +18,7 @@ var passengers = 12
 var journeys = 0
 var target_station = 1
 var current_station = 0
+var leg_origin = 0
 var leg_start = 0.0
 var leg_length = 0.0
 var mode = "intro"
@@ -49,6 +50,13 @@ var ready_sent = false
 var web_commands = []
 var light_graphics = false
 var graphics_start = 0
+var visited = [true,false,false,false,false]
+var completed_album = false
+var wheel_nodes = []
+var look_angle = 0.0
+var lore_sent = false
+var preview_station = -1
+var graphics = "auto"
 
 func _ready():
 	world = Node3D.new()
@@ -57,7 +65,7 @@ func _ready():
 	tram = world.TRAM.instantiate()
 	add_child(tram)
 	cam = Camera3D.new()
-	cam.fov = 51
+	cam.fov = 58
 	cam.near = .2
 	cam.far = 1500
 	add_child(cam)
@@ -69,6 +77,7 @@ func _ready():
 	for name in ["Door_Front","Door_Rear"]:
 		var node=find_part(tram,name)
 		if node:door_nodes.append(node)
+	for node in tram.find_children("Wheel_*","Node3D",true,false):wheel_nodes.append(node)
 	leg_length = world.stations[1].distance
 	if OS.has_feature("web"):
 		web_callback = JavaScriptBridge.create_callback(_web_command)
@@ -82,6 +91,9 @@ func _ready():
 				var u=data.get("upgrades",{})
 				upgrades.hearth=bool(u.get("hearth",false))
 				upgrades.companion=bool(u.get("companion",false))
+				var album=data.get("visited",[])
+				if album is Array and album.size()==world.stations.size():visited=album
+				completed_album=bool(data.get("completedAlbum",false))
 	else:
 		var ui=CanvasLayer.new()
 		add_child(ui)
@@ -91,9 +103,12 @@ func _ready():
 		ui.add_child(native_label)
 	apply_upgrades(tram)
 	apply_upgrades(world.shop_tram)
+	prepare_glass(tram)
+	prepare_glass(world.shop_tram)
 	place_tram(0.0)
-	cam.position=tram.position+Vector3(-19,11,18)
-	cam.look_at(tram.position+Vector3(2,1.5,0))
+	var start=world.frame(0)
+	cam.position=tram.position-start.basis.x*13+start.basis.z*17+Vector3(0,6.0,0)
+	cam.look_at(tram.position+Vector3(0,1.4,0))
 	call_deferred("announce_ready")
 
 func announce_ready():
@@ -107,6 +122,15 @@ func find_part(root: Node, wanted: String) -> Node3D:
 		var found=find_part(child,wanted)
 		if found:return found
 	return null
+
+func prepare_glass(root: Node3D):
+	# Clear, curved casements reveal the cabin and driver controls while retaining blue reflections.
+	for node in root.find_children("*","MeshInstance3D",true,false):
+		for surface in range(node.mesh.get_surface_count()):
+			var material=node.mesh.surface_get_material(surface)
+			if material is StandardMaterial3D and material.resource_name.to_lower().contains("glass"):
+				material.transparency=BaseMaterial3D.TRANSPARENCY_ALPHA
+				material.albedo_color.a=.24
 
 func _web_command(args):
 	if args.size()==0:return
@@ -124,7 +148,16 @@ func command(action: String, value = true):
 		"power":power_pressed=bool(value)
 		"brake":brake_pressed=bool(value)
 		"look":angle_input=float(value)
-		"view":view=(view+1)%3
+		"view":view=(view+1)%4
+		"preview":preview_station=clampi(int(value),0,world.stations.size()-1)
+		"preview_clear":preview_station=-1
+		"graphics":
+			graphics=str(value)
+			light_graphics=graphics=="balanced"
+			if light_graphics:world.use_light_graphics()
+			else:world.use_full_graphics()
+			get_viewport().scaling_3d_scale=1.0 if graphics=="high" else .8
+			graphics_start=Time.get_ticks_msec()
 		"pause":
 			paused=bool(value)
 			power_pressed=false
@@ -146,6 +179,7 @@ func command(action: String, value = true):
 			comfort=100
 			target_station=1
 			current_station=0
+			leg_origin=0
 			leg_start=0
 			leg_length=world.stations[1].distance
 			mode="drive"
@@ -156,6 +190,8 @@ func command(action: String, value = true):
 			broken=false
 			streak=1
 			door_open=0
+			view=0
+			lore_sent=false
 			emit_event("subtitle",{"text":"A fresh start at Saltlight. Take your time.","kind":"welcome"})
 	send_hud()
 
@@ -182,7 +218,7 @@ func _process(delta):
 	for data in queued:command(str(data.get("action","")),data.get("value",true))
 	var dt=min(delta,.5)
 	clock+=dt
-	if OS.has_feature("web") and not light_graphics and Time.get_ticks_msec()-graphics_start>9000 and Engine.get_frames_per_second()<24:
+	if OS.has_feature("web") and graphics=="auto" and not light_graphics and Time.get_ticks_msec()-graphics_start>18000 and Engine.get_frames_per_second()<24:
 		light_graphics=true
 		world.use_light_graphics()
 		get_viewport().scaling_3d_scale=.65
@@ -261,6 +297,9 @@ func drive(dt):
 		arrive()
 		return
 	if power and speed<.1 and remaining<.5:arrive()
+	if not lore_sent and remaining_distance()<90:
+		lore_sent=true
+		emit_event("subtitle",{"text":world.stations[target_station].tag+" — "+world.stations[target_station].name+" ahead.","kind":"welcome"})
 
 func remaining_distance() -> float:
 	return max(0.0,leg_length-(distance-leg_start))
@@ -276,9 +315,14 @@ func arrive():
 	var smooth=comfort>=72 and not safe_stop
 	var reward=75 if smooth else 35
 	coins+=reward
+	visited[current_station]=true
 	if smooth:streak+=1
 	emit_event("arrival",{"station":world.stations[current_station].name,"reward":reward,"smooth":smooth,"comfort":roundi(comfort)})
 	emit_event("subtitle",{"text":"A lovely arrival. +75 in fares and tips." if smooth else "Welcome in. +35 in fares. Open the doors when you're ready.","kind":"arrival"})
+	if not completed_album and not false in visited:
+		completed_album=true
+		coins+=100
+		emit_event("album_complete",{"text":"Five islands, a hundred little stories. Coastal album complete. +100."})
 	save_game()
 
 func open_doors():
@@ -295,29 +339,31 @@ func boarding(dt):
 	for i in range(queue.size()):
 		var f=queue[i]
 		var phase=clampf((service_time-.8-float(i)*.48)/1.5,0,1)
-		f.node.position=f.home.lerp(Vector3(1.0,.98,.8),phase)
-		f.node.rotation.y=-PI*.5
+		f.node.position=f.home.lerp(Vector3(1.0,.98,-1.25 if i%2 else 1.25),phase)
+		f.node.rotation.y=PI*.5
 		f.node.position.y+=sin(phase*PI*8)*.045
 		f.node.visible=phase<.98
 	if service_time-dt<1.8 and service_time>=1.8:
 		emit_event("subtitle",{"text":"Please wait… a few more neighbours are coming aboard.","kind":"boarding"})
 	if service_time-dt<4.5 and service_time>=4.5:
-		passengers=13 if current_station==1 else 12
+		passengers=world.stations[current_station].passengers
 	if service_time-dt<5.4 and service_time>=5.4:
 		service_pending=false
 		comfort=min(100,comfort+12)
-		emit_event("subtitle",{"text":"All aboard. Ready when you are.","kind":"welcome"})
+		emit_event("subtitle",{"text":world.stations[current_station].story,"kind":"story"})
 
 func depart():
 	if mode=="boarding" and service_time<5.4:return
 	mode="drive"
 	service_pending=false
-	target_station=1-current_station
+	leg_origin=current_station
+	target_station=(current_station+1)%world.stations.size()
 	leg_start=distance
 	var destination=float(world.stations[target_station].distance)
 	leg_length=fposmod(destination-fposmod(distance,world.length),world.length)
 	if leg_length<20:leg_length=world.length
 	safe_stop=false
+	lore_sent=false
 	comfort=min(100,comfort+8)
 	for f in world.waiting[current_station]:
 		f.node.position=f.home
@@ -333,13 +379,22 @@ func place_tram(dt):
 	tram.rotate_object_local(Vector3.FORWARD,roll)
 	if mode!="boarding":door_open=move_toward(door_open,0,dt*1.5)
 	for i in range(door_nodes.size()):door_nodes[i].position.z=(.65 if i==0 else -.65)*door_open
+	for wheel in wheel_nodes:wheel.rotation.x=fposmod(distance/.42,TAU)
 
 func move_camera(dt):
 	var aspect = get_viewport().get_visible_rect().size.x / max(1.0,get_viewport().get_visible_rect().size.y)
-	cam.fov = 66 if aspect<.8 else 51
+	cam.fov = 70 if aspect<.8 else 58
 	var desired: Vector3
 	var focus: Vector3
-	if mode in ["workshop","upgrading","exitshop"]:
+	if preview_station>=0:
+		cam.projection=Camera3D.PROJECTION_PERSPECTIVE
+		cam.fov=62 if aspect<.8 else 54
+		var village=world.island_roots[preview_station]
+		var a=sin(clock*.035)*.12
+		desired=village.global_transform*Vector3(-42*cos(a),18,34+42*sin(a))
+		focus=village.global_transform*Vector3(1,4,-2)
+		if aspect<.8:focus=village.global_transform*Vector3(1,-2.5,-2)
+	elif mode in ["workshop","upgrading","exitshop"]:
 		cam.projection=Camera3D.PROJECTION_ORTHOGONAL
 		cam.size=35
 		desired=world.workshop+Vector3(25,27,31)
@@ -353,22 +408,32 @@ func move_camera(dt):
 		var look=angle_input
 		if Input.is_physical_key_pressed(KEY_LEFT) or Input.is_physical_key_pressed(KEY_A):look=-1
 		if Input.is_physical_key_pressed(KEY_RIGHT) or Input.is_physical_key_pressed(KEY_D):look=1
-		var side=9.5+look*5
+		look_angle=lerpf(look_angle,look*.75,1-exp(-dt*2))
+		var side=-7.4+look*4
 		if view==1:
 			desired=tram.position+right*3.8-forward*3.4+Vector3(0,3.2,0)
 			focus=tram.position+forward*12+Vector3(0,2.2,0)
 		elif view==2:
-			desired=tram.position+right*(side*1.6)-forward*24+Vector3(0,16,0)
-			focus=tram.position+forward*5+Vector3(0,1,0)
+			desired=tram.position+right*(side*2.4)-forward*28+Vector3(0,18,0)
+			focus=tram.position+forward*10+Vector3(0,3,0)
+		elif view==3:
+			if mode in ["docked","boarding"]:
+				var village=world.island_roots[current_station]
+				var a=clock*.055+look_angle
+				desired=village.global_transform*Vector3(-cos(a)*49,20,sin(a)*49)
+				focus=village.global_transform*Vector3(0,4,0)
+			else:
+				desired=tram.position+Vector3(0,2.68,0)+forward*2.35+right*look_angle*.8
+				focus=tram.position+forward*30+right*look_angle*12+Vector3(0,2.7,0)
 		else:
-			desired=tram.position+right*side-forward*15.5+Vector3(0,8.8,0)
-			focus=tram.position+forward*3.6+Vector3(0,1.3,0)
+			desired=tram.position+right*side-forward*12.5+Vector3(0,5.3,0)
+			focus=tram.position+forward*4.0+Vector3(0,1.7,0)
 		if mode=="intro":
-			desired=tram.position+right*17-forward*22+Vector3(0,10,0)
-			focus=tram.position+forward*2+Vector3(0,1.1,0)
+			desired=tram.position-right*13-forward*17+Vector3(0,6.0,0)
+			focus=tram.position-right*5+forward*3+Vector3(0,2,0)
 	cam.position=cam.position.lerp(desired,1-exp(-dt*2.5))
 	cam.look_at(focus,Vector3.UP)
-	if mode=="drive":cam.rotate_object_local(Vector3.FORWARD,lateral*.002+sin(clock*5)*speed*.00016)
+	if mode=="drive" and preview_station<0:cam.rotate_object_local(Vector3.FORWARD,lateral*.002+sin(clock*5)*speed*.00016)
 
 func can_workshop() -> bool:
 	return mode in ["intro","docked","workshop"] or (mode=="drive" and speed<.5 and distance-leg_start<2) or (mode=="boarding" and service_time>=5.4)
@@ -425,7 +490,8 @@ func leave_workshop(dt):
 		mode=workshop_return_mode
 		if mode=="intro":mode="drive"
 		if mode=="boarding":mode="docked"
-		emit_event("subtitle",{"text":"All aboard. Next stop: "+world.stations[target_station].name+".","kind":"welcome"})
+		var next=(current_station+1)%world.stations.size() if mode=="docked" else target_station
+		emit_event("subtitle",{"text":"All aboard. Next stop: "+world.stations[next].name+".","kind":"welcome"})
 
 func apply_upgrades(root: Node3D):
 	var vines=find_part(root,"Vines")
@@ -446,7 +512,7 @@ func apply_upgrades(root: Node3D):
 
 func save_game():
 	if not OS.has_feature("web"):return
-	var data=JSON.stringify({"coins":coins,"journeys":journeys,"upgrades":upgrades})
+	var data=JSON.stringify({"coins":coins,"journeys":journeys,"upgrades":upgrades,"visited":visited,"completedAlbum":completed_album})
 	JavaScriptBridge.eval("localStorage.setItem('saltlight-save-v1',"+JSON.stringify(data)+");",true)
 
 func emit_event(type: String, data: Dictionary):
@@ -459,8 +525,9 @@ func send_hud():
 	var status="Steady"
 	if wind>.65:status="Crosswind"
 	if remaining<50 and mode=="drive":status="Station approach"
-	var data={"mode":mode,"paused":paused,"speed":speed*3.6,"comfort":comfort,"coins":coins,"streak":streak,"passengers":passengers,"journeys":journeys,"destination":world.stations[target_station].name,"origin":world.stations[1-target_station].name,"station":world.stations[current_station].name,"remaining":remaining,"progress":progress,"condition":status,"wind":wind,"lateral":lateral,"canWorkshop":can_workshop(),"servicePending":service_pending,"boardingTime":service_time,"upgrades":upgrades,"upgrade":upgrade,"upgradeProgress":clampf(upgrade_time/6,0,1),"view":view}
+	var data={"mode":mode,"paused":paused,"speed":speed*3.6,"comfort":comfort,"coins":coins,"streak":streak,"passengers":passengers,"journeys":journeys,"destination":world.stations[target_station].name,"origin":world.stations[leg_origin].name,"station":world.stations[current_station].name,"remaining":remaining,"progress":progress,"condition":status,"wind":wind,"lateral":lateral,"canWorkshop":can_workshop(),"servicePending":service_pending,"boardingTime":service_time,"upgrades":upgrades,"upgrade":upgrade,"upgradeProgress":clampf(upgrade_time/6,0,1),"view":view,"visited":visited,"completedAlbum":completed_album,"stationIndex":current_station,"targetIndex":target_station,"stopTag":world.stations[target_station].tag}
 	if OS.has_feature("web"):
+		data["previewStation"]=preview_station
 		data["fps"]=Engine.get_frames_per_second()
 		data["drawCalls"]=RenderingServer.get_rendering_info(RenderingServer.RENDERING_INFO_TOTAL_DRAW_CALLS_IN_FRAME)
 		JavaScriptBridge.eval("window.saltlightState && window.saltlightState("+JSON.stringify(data)+");",true)
