@@ -216,6 +216,14 @@ label.chk input{accent-color:var(--accent);width:15px;height:15px}
 .post .hd b{font-size:12.5px}.post .hd span{color:var(--muted);font-size:11px}
 .post .tx{margin-top:3px;line-height:1.4;color:var(--fg-2);overflow-wrap:anywhere}
 .post .ft{margin-top:4px;color:var(--muted);font-size:11px;display:flex;gap:12px}
+.post .replies{margin-top:7px;border-left:2px solid var(--line);padding-left:9px;display:flex;flex-direction:column;gap:6px}
+.post .reply{display:flex;gap:7px}.post .av.sm{width:24px;height:24px;font-size:10px}
+.trend{display:flex;flex-wrap:wrap;gap:6px;align-items:center;margin:6px 0 2px}.trend .lab{color:var(--muted);font-size:11px;margin-right:2px}
+.trend .tag{font-size:11px;padding:2px 7px;border-radius:10px}.trend .tag.neg{background:#ff5b5730;color:#ffb3b0}.trend .tag.pos{background:#5bd66a30;color:#b6f5a8}
+.op{display:flex;gap:7px;padding:4px 0;line-height:1.35;font-size:12.5px}.op i{font-style:normal;font-weight:800;width:14px;flex-shrink:0;text-align:center}.op.neg i{color:#ff7b77}.op.pos i{color:#7be08a}.op span{color:var(--fg-2);overflow-wrap:anywhere}
+.chat{display:flex;flex-direction:column;gap:5px;margin:4px 0 6px}.chat .cq,.chat .ca{max-width:88%;padding:6px 9px;border-radius:12px;font-size:12.5px;line-height:1.35;overflow-wrap:anywhere}
+.chat .cq{align-self:flex-end;background:var(--accent);color:#fff;border-bottom-right-radius:4px}.chat .ca{align-self:flex-start;background:rgba(255,255,255,.08);color:var(--fg-2);border-bottom-left-radius:4px}
+.chips .btn{white-space:nowrap}
 .tag{display:inline-block;padding:0 6px;border-radius:3px;font-size:10.5px;font-weight:700;letter-spacing:.03em}
 
 /* legend */
@@ -287,6 +295,14 @@ html,body{touch-action:pan-x pan-y}
 @media (pointer:coarse){#camPad{display:grid}}
 body.photo #camPad{display:none}
 @media (prefers-reduced-motion:reduce){*{animation-duration:.01ms!important;transition:none!important}}
+
+#advisor{position:absolute;left:50%;transform:translateX(-50%);top:calc(env(safe-area-inset-top,0px) + 12px);z-index:6;width:max-content;max-width:min(420px,calc(100vw - 560px));background:rgba(18,26,36,.9);backdrop-filter:blur(8px);-webkit-backdrop-filter:blur(8px);border:1px solid rgba(255,190,80,.35);border-radius:12px;padding:8px 10px;color:var(--fg);font-size:12px;line-height:1.35;cursor:pointer;box-shadow:0 6px 20px rgba(0,0,0,.35)}
+#advisor .adv-h{display:flex;gap:8px;align-items:flex-start}#advisor .adv-i{flex-shrink:0;width:20px;height:20px;border-radius:50%;background:#ffb64a;color:#2a1a00;font-weight:900;display:grid;place-items:center;font-size:13px}
+#advisor .adv-t{flex:1;min-width:0}#advisor .adv-t b,#advisor .adv-r b{display:block;font-size:12.5px;color:#ffd79a}#advisor .adv-t div,#advisor .adv-r div{color:var(--fg-2)}
+#advisor .adv-x{background:none;border:0;color:var(--muted);font-size:16px;line-height:1;padding:0 2px;cursor:pointer}
+#advisor .adv-l{margin-top:6px;display:flex;flex-direction:column;gap:6px;border-top:1px solid var(--line);padding-top:6px}#advisor .adv-m{margin-top:3px;color:var(--muted);font-size:11px;padding-left:28px}
+@media (max-width:1100px){#advisor{max-width:min(420px,calc(100vw - 420px))}}
+@media (max-width:760px){#advisor{left:10px;right:10px;transform:none;width:auto;max-width:none;top:calc(env(safe-area-inset-top,0px) + 62px);padding:6px 9px}#advisor .adv-t div,#advisor .adv-m{display:none}#advisor.open .adv-t div{display:block}}
 
 </style>
 </head>
@@ -5769,6 +5785,7 @@ const Signs = {
     else if (sg.spec.kind === 'office') name = r.pick(NAMES.corpA) + ' ' + r.pick(NAMES.corpB);
     else if (sg.spec.kind === 'industry') name = r.pick(NAMES.corpA).toUpperCase() + ' ' + r.pick(['STEEL', 'WORKS', 'LOGISTICS', 'FOODS', 'PLASTICS', 'MOTORS', 'TEXTILES', 'CHEMICALS']);
     else name = 'SHOP';
+    if (b.bizName && sg.spec.kind !== 'hotel') name = sg.spec.kind === 'industry' || sg.spec.kind === 'store' ? b.bizName.toUpperCase() : b.bizName;
     b.bizName = b.bizName || name;
     return { key: 'n:' + name + bg, draw: c => this.drawText(c, name, bg, fg) };
   },
@@ -6068,19 +6085,19 @@ function trainStation(b, w, d, era, opts) {
 /* service definitions: cat, cost, upkeep/h, lot cells, radius (m), capacity, workers, milestone */
 const SERVICES = {
   // electricity (MW)
-  coal: { name: 'Coal Power Plant', cat: 'power', cost: 180000, upkeep: 1900, w: 12, d: 10, power: 180, workers: 80, poll: { air: 1, ground: 0.5, noise: 0.6 }, ms: 1 },
+  coal: { name: 'Coal Power Plant', cat: 'power', cost: 180000, upkeep: 1900, w: 12, d: 10, power: 180, workers: 80, poll: { air: 1, ground: 0.5, noise: 0.6 }, ms: 0 },
   gas: { name: 'Gas Power Plant', cat: 'power', cost: 240000, upkeep: 2200, w: 10, d: 9, power: 160, workers: 60, poll: { air: 0.45, noise: 0.4 }, ms: 3 },
   solar: { name: 'Solar Farm', cat: 'power', cost: 210000, upkeep: 900, w: 14, d: 12, power: 45, solarP: true, workers: 8, ms: 4 },
-  wind: { name: 'Wind Turbine', cat: 'power', cost: 28000, upkeep: 160, w: 3, d: 3, power: 8, windP: true, workers: 1, poll: { noise: 0.25 }, ms: 2 },
+  wind: { name: 'Wind Turbine', cat: 'power', cost: 28000, upkeep: 160, w: 3, d: 3, power: 8, windP: true, workers: 1, poll: { noise: 0.25 }, ms: 0 },
   hydro: { name: 'Hydro Power Station', cat: 'power', cost: 360000, upkeep: 1600, w: 10, d: 4, power: 140, needsWater: true, workers: 30, ms: 6 },
   geothermal: { name: 'Geothermal Plant', cat: 'power', cost: 420000, upkeep: 1800, w: 10, d: 10, power: 150, workers: 40, ms: 8 },
   nuclear: { name: 'Nuclear Power Plant', cat: 'power', cost: 1400000, upkeep: 6500, w: 18, d: 14, power: 900, workers: 220, poll: { noise: 0.3 }, ms: 12 },
   battery: { name: 'Battery Storage', cat: 'power', cost: 120000, upkeep: 400, w: 6, d: 5, storage: 300, workers: 4, ms: 5 },
   // water (k m³/month ~ units)
-  waterpump: { name: 'Water Pump Station', cat: 'water', cost: 45000, upkeep: 300, w: 4, d: 4, water: 50, needsWater: true, workers: 8, ms: 1 },
-  groundpump: { name: 'Groundwater Pump', cat: 'water', cost: 38000, upkeep: 260, w: 4, d: 4, water: 22, workers: 6, ms: 2 },
-  watertower: { name: 'Water Tower', cat: 'water', cost: 30000, upkeep: 180, w: 3, d: 3, water: 12, workers: 2, ms: 1 },
-  sewageout: { name: 'Sewage Outlet', cat: 'water', cost: 25000, upkeep: 200, w: 3, d: 4, sewage: 70, needsWater: true, poll: { water: 1 }, workers: 4, ms: 1 },
+  waterpump: { name: 'Water Pump Station', cat: 'water', cost: 45000, upkeep: 300, w: 4, d: 4, water: 50, needsWater: true, workers: 8, ms: 0 },
+  groundpump: { name: 'Groundwater Pump', cat: 'water', cost: 38000, upkeep: 260, w: 4, d: 4, water: 22, workers: 6, ms: 0 },
+  watertower: { name: 'Water Tower', cat: 'water', cost: 30000, upkeep: 180, w: 3, d: 3, water: 12, workers: 2, ms: 0 },
+  sewageout: { name: 'Sewage Outlet', cat: 'water', cost: 25000, upkeep: 200, w: 3, d: 4, sewage: 70, needsWater: true, poll: { water: 1 }, workers: 4, ms: 0 },
   treatment: { name: 'Wastewater Treatment Plant', cat: 'water', cost: 260000, upkeep: 1500, w: 10, d: 8, sewage: 160, workers: 40, poll: { water: 0.1, noise: 0.2 }, ms: 5 },
   // healthcare & deathcare
   clinic: { name: 'Medical Clinic', cat: 'health', cost: 60000, upkeep: 420, w: 4, d: 4, radius: 1000, cap: 60, workers: 20, cov: 'health', ms: 1, vehicles: 2 },
@@ -6135,7 +6152,7 @@ const SERVICES = {
   airport: { name: 'International Airport', cat: 'transport', cost: 1600000, upkeep: 5000, w: 30, d: 22, workers: 260, station: 'air', tourism: 4, ms: 11, poll: { noise: 1 } },
   cargoterminal: { name: 'Cargo Train Terminal', cat: 'transport', cost: 300000, upkeep: 1200, w: 10, d: 8, workers: 60, cargo: 'train', ms: 7, poll: { noise: 0.4 } },
 };
-for (const k in SERVICES) { SERVICES[k].key = k; SERVICES[k].gen = SVC_GEN[k]; }
+for (const k in SERVICES) { SERVICES[k].key = k; SERVICES[k].gen = SVC_GEN[k]; SERVICES[k].upkeep = Math.round(SERVICES[k].upkeep * 0.7); }
 const SVC_CATS = {
   power: { name: 'Electricity', icon: 'power' }, water: { name: 'Water & Sewage', icon: 'water' }, health: { name: 'Healthcare & Deathcare', icon: 'health' },
   garbage: { name: 'Garbage Management', icon: 'garbage' }, education: { name: 'Education & Research', icon: 'education' }, fire: { name: 'Fire & Rescue', icon: 'fire' },
@@ -6257,6 +6274,18 @@ const THEMES = {
   suburban: { name: 'Suburban America', houses: { h1965: 1.4, h1985: 2, h2008: 1.6 }, blocks: { m2008: 1, m2017: 0.6 }, era: '1985' },
   modern: { name: 'Modern Skyline', houses: { h2015: 1.6, h2025: 1.4, h2008: 0.6 }, blocks: { m2008: 0.6, m2017: 1.6, m2025: 1.8 }, era: '2025' },
 };
+// business names that say what the business is (shown on signs, panels and in citizens' posts)
+const BIZ_NAMES = {
+  grocery: [['Fresh', 'Corner', 'Daily', 'Green Leaf', 'Harvest', 'Village', 'Sunny', 'Little'], ['Grocer', 'Market', 'Foods', 'Pantry', 'Deli', 'Grocery']],
+  retail: [['Urban', 'Bright', 'Maple', 'Nova', 'Atlas', 'Linden', 'Silver'], ['Outfitters', 'Goods', 'Boutique', 'Home & Co', 'Books', 'Hardware', 'Electronics']],
+  auto: [['Prime', 'Valley', 'Metro', 'Summit', 'Bay'], ['Motors', 'Autos', 'Car Center']],
+  pharmacy: [['Care', 'Well', 'Green Cross', 'City', 'Corner'], ['Pharmacy', 'Chemist', 'Drugstore']],
+  restaurant: [['Bella', 'Golden', 'Blue Door', 'Old Town', 'Olive', 'Copper', 'Lucky'], ['Bistro', 'Diner', 'Trattoria', 'Grill', 'Café', 'Kitchen', 'Noodles', 'Pizzeria']],
+  leisure: [['Starlight', 'Retro', 'Neon', 'Lucky', 'Velvet', 'Royal'], ['Cinema', 'Arcade', 'Lanes', 'Club', 'Gym', 'Theatre']],
+};
+const IND_NAMES = { food: 'Foods', beverages: 'Brewing', textiles: 'Textiles', timber: 'Timber', paper: 'Paper Mill', metals: 'Metalworks', steel: 'Steel', minerals: 'Minerals', concrete: 'Concrete', petrochemicals: 'Petrochem', plastics: 'Plastics', chemicals: 'Chemicals', pharmaceuticals: 'Pharma', electronics: 'Electronics', machinery: 'Machinery', vehicles: 'Motors', furniture: 'Furniture', software: 'Software', financial: 'Capital', media: 'Media', telecom_s: 'Telecom' };
+function bizName(r, shop, product) { if (shop && BIZ_NAMES[shop]) { const [a, b] = BIZ_NAMES[shop]; return r.pick(a) + ' ' + r.pick(b); } if (product && IND_NAMES[product]) return r.pick(NAMES.corpA) + ' ' + IND_NAMES[product]; return null; }
+const pickShop = (r) => r.weighted(Object.keys(SHOP_TYPES).filter(k => k !== 'hotel'), k => SHOP_TYPES[k].w);
 function wpick(r, weights, allowed) { const ks = Object.keys(weights).filter(k => !allowed || allowed.has(k)); if (!ks.length) return Object.keys(weights)[0]; return r.weighted(ks, k => weights[k]); }
 
 const Sim = {
@@ -6329,6 +6358,7 @@ const Sim = {
     if (cat === 'ind') product = b.product || r.weighted(IND_PRODUCTS, p => Econ.productDemand(p));
     if (cat === 'com') shop = b.shop || r.weighted(Object.keys(SHOP_TYPES), k => SHOP_TYPES[k].w * (b.zone === 'com_high' && k === 'hotel' ? 3 : 1));
     if (cat === 'off') product = b.product || r.pick(['software', 'financial', 'media', 'telecom_s']);
+    if (cat === 'spec') product = b.product || 'grain';
     const c = { b: b.id, cat, slots, filled: [0, 0, 0, 0, 0], workers: new Set(), revenue: 0, cost: 0, profit: 0, prof: 0.5, product, shop, stock: 0, outside: 0, badDays: 0, hist: [], corp: b.corp || null, monthRev: 0, monthProfit: 0, customers: 0 };
     this.comp.set(b.id, c); b.jobs = jobs;
     return c;
@@ -6360,22 +6390,23 @@ const Sim = {
       spec.style = st; spec.floors = floors; spec.shops = !!Z.mixed;
       const per = [55, 70, 95, 140][cls];
       spec.capHH = Math.max(2, Math.round(Math.min(area * 0.55, 900) * (floors - (Z.mixed ? 1 : 0)) / per));
-      if (Z.mixed) spec.jobs = Math.round(lot.w * 6 / 30);
+      if (Z.mixed) { spec.jobs = Math.round(lot.w * 6 / 30); spec.shop = pickShop(r); spec.bizName = bizName(r, spec.shop); }
       spec.gen = (b, bl) => genBlock(b, bl.w, bl.d, bl.style, bl.cls, bl.floors, { shops: bl.shops });
-    } else if (zk === 'com_low') { spec.floors = 2; spec.era = th.era; spec.jobs = Math.round(area / 45); spec.gen = (b, bl) => genShop(b, bl.w, bl.d, bl.cls, bl.era, bl.level); }
+    } else if (zk === 'com_low') { spec.floors = 2; spec.era = th.era; spec.jobs = Math.round(area / 45); spec.shop = pickShop(r); spec.bizName = bizName(r, spec.shop); spec.gen = (b, bl) => genShop(b, bl.w, bl.d, bl.cls, bl.era, bl.level); }
     else if (zk === 'com_high') {
       if (r.chance(0.35)) { spec.floors = r.int(8, 22); spec.shop = 'hotel'; spec.jobs = Math.round(area * spec.floors / 260); spec.gen = (b, bl) => genHotel(b, bl.w, bl.d, bl.floors, bl.cls); }
-      else { spec.floors = 3; spec.jobs = Math.round(area / 22); spec.gen = (b, bl) => genStore(b, bl.w, bl.d, bl.cls, r.chance(0.4) ? 'dept' : 'store'); }
-    } else if (zk === 'ind') { const kind = r.chance(0.45) ? 'warehouse' : 'factory'; spec.floors = 2; spec.jobs = Math.round(area / 55); spec.indKind = kind; spec.gen = (b, bl) => genIndustry(b, bl.w, bl.d, bl.indKind, bl.level); }
-    else if (zk === 'off_low') { spec.floors = r.int(3, 6); spec.era = r.chance(0.5) ? th.era : r.pick(ERA_KEYS); spec.jobs = Math.round(area * 0.6 * spec.floors / 22); spec.gen = (b, bl) => genOffice(b, bl.w, bl.d, bl.floors, bl.cls, bl.era); }
-    else if (zk === 'off_high') { spec.floors = r.int(10, 18 + Math.round(lv * 40)); spec.era = r.chance(0.5) ? th.era : r.pick(['2008', '2025', '1960s', '2008']); spec.jobs = Math.round(Math.min(area, 1100) * 0.6 * spec.floors / 20); spec.gen = (b, bl) => genOffice(b, bl.w, bl.d, bl.floors, bl.cls, bl.era); }
+      else { spec.floors = 3; spec.jobs = Math.round(area / 22); spec.shop = 'retail'; spec.gen = (b, bl) => genStore(b, bl.w, bl.d, bl.cls, r.chance(0.4) ? 'dept' : 'store'); }
+    } else if (zk === 'ind') { const kind = r.chance(0.45) ? 'warehouse' : 'factory'; spec.floors = 2; spec.jobs = Math.round(area / 55); spec.indKind = kind; spec.product = r.weighted(IND_PRODUCTS, p => Econ.productDemand(p)); spec.bizName = bizName(r, null, spec.product); spec.gen = (b, bl) => genIndustry(b, bl.w, bl.d, bl.indKind, bl.level); }
+    else if (zk === 'off_low') { spec.product = r.pick(['software', 'financial', 'media', 'telecom_s']); spec.bizName = bizName(r, null, spec.product); spec.floors = r.int(3, 6); spec.era = r.chance(0.5) ? th.era : r.pick(ERA_KEYS); spec.jobs = Math.round(area * 0.6 * spec.floors / 22); spec.gen = (b, bl) => genOffice(b, bl.w, bl.d, bl.floors, bl.cls, bl.era); }
+    else if (zk === 'off_high') { spec.product = r.pick(['software', 'financial', 'media', 'telecom_s']); spec.bizName = bizName(r, null, spec.product); spec.floors = r.int(10, 18 + Math.round(lv * 40)); spec.era = r.chance(0.5) ? th.era : r.pick(['2008', '2025', '1960s', '2008']); spec.jobs = Math.round(Math.min(area, 1100) * 0.6 * spec.floors / 20); spec.gen = (b, bl) => genOffice(b, bl.w, bl.d, bl.floors, bl.cls, bl.era); }
     return spec;
   },
   spawnZoned(zk) {
-    const lot = Zones.findLot(zk, this.rng); if (!lot) return null;
+    let lot = null; for (let t = 0; t < 4 && !lot; t++) { const l = Zones.findLot(zk, this.rng); if (!l) return null; if (Econ.linkedAt(l.seg, l.x, l.z)) lot = l; } // zones only develop once their roads reach the highway
+    if (!lot) { this.unlinkedZones = Sim.minutes; return null; }
     const spec = this.zonedSpec(zk, lot);
     const b = Bld.create(spec);
-    this.setupBuilding(b);
+    this.setupBuilding(b); Progress.xp(0.35);
     return b;
   },
   setupBuilding(b) {
@@ -6402,7 +6433,7 @@ const Sim = {
   },
   findVacancy(cityId, h) {
     const list = this.resBuildings; if (!list || !list.length) return null;
-    for (let k = 0; k < 24; k++) { const b = list[(this.rng.next() * list.length) | 0]; if (!b || b.abandoned || this.minutes < b.doneAt) continue; if (b.households.length < b.capHH && (!h || b.id !== h.b)) { if (cityId && b.cityId !== cityId && this.rng.chance(0.6)) continue; return b; } }
+    for (let k = 0; k < 24; k++) { const b = list[(this.rng.next() * list.length) | 0]; if (!b || b.abandoned || this.minutes < b.doneAt || (!cityId && !h && !Econ.linked(b))) continue; if (b.households.length < b.capHH && (!h || b.id !== h.b)) { if (cityId && b.cityId !== cityId && this.rng.chance(0.6)) continue; return b; } }
     return null;
   },
   /* ---------- main update ---------- */
@@ -6562,8 +6593,10 @@ const Econ = {
   power: { prod: 0, cons: 0, imp: 0, exp: 0, comps: [] }, water: { prod: 0, cons: 0, sewP: 0, sewC: 0, imp: 0 },
   ledgerNew() { return { inc: { resTax: 0, comTax: 0, indTax: 0, offTax: 0, fees: 0, exports: 0, trade: 0, tourism: 0, transit: 0, corp: 0, other: 0 }, exp: { services: 0, roads: 0, transit: 0, imports: 0, loans: 0, pensions: 0, subsidies: 0, construction: 0 } }; },
   init() { this.ledgerH = this.ledgerNew(); this.ledgerD = this.ledgerNew(); this.prevH = this.ledgerNew(); this.prevD = this.ledgerNew(); },
-  canAfford(x) { return this.unlimited || Mod.unlimitedMoney || this.money >= x; },
-  spend(x, cat = 'construction', cityId) { if (Mod.unlimitedMoney) return; this.money -= x; this.ledgerH.exp.construction += cat === 'construction' || cat === 'Roads' || cat === 'Buildings' ? x : 0; if (cityId) Terr.book(cityId, 'exp', x); },
+  freeBuild: false,
+  free(fn) { const f = this.freeBuild; this.freeBuild = true; try { return fn(); } finally { this.freeBuild = f; } }, // regional infrastructure is not paid by the player
+  canAfford(x) { return this.freeBuild || this.unlimited || Mod.unlimitedMoney || this.money >= x; },
+  spend(x, cat = 'construction', cityId) { if (this.freeBuild) return; if (cat === 'construction' || cat === 'Roads') Progress.buildXp(x); if (Mod.unlimitedMoney) return; this.money -= x; this.ledgerH.exp.construction += cat === 'construction' || cat === 'Roads' || cat === 'Buildings' ? x : 0; if (cityId) Terr.book(cityId, 'exp', x); },
   earn(x, cat = 'other', cityId) { this.money += x; if (this.ledgerH.inc[cat] !== undefined) this.ledgerH.inc[cat] += x; else this.ledgerH.inc.other += x; if (cityId) Terr.book(cityId, 'inc', x); },
   taxFor(b, kind) { const t = Terr.taxFor(b ? b.cityId : 0, kind); return (t !== undefined ? t : this.tax[kind]) * (Mod.taxMul || 1); },
   market(cid) { cid = cid || 0; let m = this.markets.get(cid); if (!m) { m = { stock: {}, prod: {}, cons: {}, imp: {}, exp: {}, hist: [] }; for (const k in RESOURCES) { m.stock[k] = 0; m.prod[k] = 0; m.cons[k] = 0; m.imp[k] = 0; m.exp[k] = 0; } this.markets.set(cid, m); } return m; },
@@ -6614,6 +6647,11 @@ const Econ = {
     const outside = new Set(); for (const n of Net.nodes.values()) if (n.outside) outside.add(find(n.id));
     return { compOfSeg, outside };
   },
+  netVer: 0, _conn: null, _connVer: -1,
+  conn() { if (this._connVer !== this.netVer || !this._conn) { this._conn = this.components(); this._connVer = this.netVer; } return this._conn; },
+  linkedSeg(sid) { if (!Outside.nodes().length) return true; const C = this.conn(); const c = C.compOfSeg.get(sid); return c !== undefined && C.outside.has(c); },
+  linkedAt(sid, x, z) { if (!sid || !Net.segs.has(sid)) { const q = Net.nearestSeg(x, z, 60, s => !s.T.underground); sid = q ? q.seg.id : 0; } return !!sid && this.linkedSeg(sid); },
+  linked(b) { const sid = this.segOf(b); return !!sid && this.linkedSeg(sid); },
   segOf(b) { if (b.seg && Net.segs.has(b.seg)) return b.seg; const q = Net.nearestSeg(b.x, b.z, Math.max(b.w, b.d) / 2 + 30, s => !s.T.underground); b.seg = q ? q.seg.id : 0; return b.seg; },
   utilities() {
     const { compOfSeg, outside } = this.components();
@@ -6629,8 +6667,8 @@ const Econ = {
       const done = Sim.minutes >= b.doneAt; if (!done) continue;
       if (b.kind === 'service') {
         const S = SERVICES[b.type]; const eff = (b.svc ? b.svc.eff : 1) * Math.min(1.25, this.budgetMul[S.cat] || 1);
-        if (S.power) { let p = S.power * eff; if (S.solarP) p *= sun * 1.4; if (S.windP) p *= clamp(0.35 + Terrain.windAt(b.x, b.z) * 0.8 + Env.rainCur * 0.3, 0.2, 1.3); c.pp += p; totP += p; }
-        if (S.water) { let w = S.water * eff; if (b.waterPolluted) w *= 0.8; c.wp += w; }
+        if (S.power) { let p = S.power * eff; if (S.solarP) p *= sun * 1.4; if (S.windP) p *= clamp(0.35 + Terrain.windAt(b.x, b.z) * 0.8 + Env.rainCur * 0.3, 0.2, 1.3) * (Progress.bought.has('wind') ? 1.25 : 1); c.pp += p; totP += p; }
+        if (S.water) { let w = S.water * eff * (b.type === 'groundpump' && Progress.bought.has('gw') ? 1.3 : 1); if (b.waterPolluted) w *= 0.8; c.wp += w; }
         if (S.sewage) c.sp += S.sewage * eff;
         c.pc += 0.4; c.wc += 0.2; c.sc += 0.2;
         continue;
@@ -6659,7 +6697,7 @@ const Econ = {
     // costs of trade
     const pf = this.fees.power, wf = this.fees.water;
     this.ledgerH.exp.imports += imp * 95 + wImp * 40; this.money -= Mod.unlimitedMoney ? 0 : imp * 95 + wImp * 40;
-    this.earn(exp * 45, 'exports');
+    this.earn(exp * 14, 'exports');
   },
   /* ---------- hourly economy ---------- */
   hourly() {
@@ -6668,6 +6706,7 @@ const Econ = {
     this.schools = []; for (const b of Bld.list.values()) if (b.kind === 'service' && SERVICES[b.type].cov && SERVICES[b.type].cov.startsWith('edu')) this.schools.push(b);
     // consumer spending pool per country/category
     const pool = new Map(); const getPool = cid => { let p = pool.get(cid); if (!p) { p = {}; for (const k in SHOP_TYPES) p[k] = 0; pool.set(cid, p); } return p; };
+    const cells = new Map(); const RC = 300;
     let resTaxT = 0, rentHigh = 0, pensions = 0, feesT = 0;
     for (const h of Sim.hh.values()) {
       const b = Bld.list.get(h.b); if (!b) continue;
@@ -6677,7 +6716,7 @@ const Econ = {
       if (!inc && h.members.some(c => Sim.st[c] === CS.UNEMPLOYED)) { const w = b.cov && b.cov.welfare ? 350 : 120; inc += w * E / 24; L.exp.subsidies += w * E / 24; }
       const tax = inc * this.taxFor(b, 'res'); resTaxT += tax;
       const cls = b.cls || 0; const lv = b.landValue || 0.3;
-      const rentBase = { res_low: 720, res_row: 560, res_med: 470, res_high: 440, res_mixed: 460, res_lowrent: 250 }[b.zone] || 500;
+      const rentBase = { res_low: 560, res_row: 440, res_med: 370, res_high: 350, res_mixed: 360, res_lowrent: 200 }[b.zone] || 400;
       const rent = rentBase * (0.55 + lv * 0.9) * [0.7, 1, 1.5, 2.3][cls] * (1 + 0.06 * (b.level || 1)) * (Mod.rentMul || 1) * E * (Terr.policy(b.cityId, 'rentcontrol') ? 0.8 : 1) / 24;
       const util = (65 * this.fees.power + 40 * this.fees.water + 25 * this.fees.garbage + 30 * this.fees.internet * (b.cov && b.cov.telecom ? 1 : 0)) * E / 24;
       feesT += util;
@@ -6688,36 +6727,69 @@ const Econ = {
       h.highRent = (wages + pension) > 0 && rent > (wages + pension) * 0.5 && h.savings < rent * 24 * 3; // savings cushion ~3 months
       if (h.highRent) rentHigh++;
       const p = getPool(b.countryId || 0); const groc = Corp.groceryPriceMul(b.cityId);
-      for (const k in SHOP_TYPES) p[k] += spend * SHOP_TYPES[k].share * (k === 'grocery' ? groc : 1);
+      const ck = Math.floor(b.x / RC) * 100003 + Math.floor(b.z / RC); let rc = cells.get(ck); if (!rc) { rc = { x: 0, z: 0, w: 0, amt: {} }; for (const k in SHOP_TYPES) rc.amt[k] = 0; cells.set(ck, rc); }
+      rc.x += b.x * (spend + 1e-3); rc.z += b.z * (spend + 1e-3); rc.w += spend + 1e-3;
+      for (const k in SHOP_TYPES) { const a = spend * SHOP_TYPES[k].share * (k === 'grocery' ? groc : 1); p[k] += a; rc.amt[k] += a; }
       // tourism spending into hotels/leisure
     }
     // commercial companies
     const comps = { com: [], ind: [], off: [], spec: [], svc: [] };
     for (const c of Sim.comp.values()) { const b = Bld.list.get(c.b); if (!b || b.abandoned || Sim.minutes < b.doneAt) continue; comps[c.cat] && comps[c.cat].push(c); c.bld = b; }
-    const capByShop = new Map();
-    for (const c of comps.com) { const k = (c.bld.countryId || 0) + ':' + c.shop; c.cap = (c.slots.reduce((a, x) => a + x, 0)) * 140 * E * (0.3 + 0.7 * this.workRatio(c)) * (c.bld.power ? 1 : 0.4); capByShop.set(k, (capByShop.get(k) || 0) + c.cap); }
-    let comTax = 0, indTax = 0, offTax = 0; let unmet = 0, spendT = 0;
-    const tourism = Tourism.hourlySpend();
+    // shops: capacity, attractiveness and a spatial index; household spending flows to nearby shops (catchment model)
+    const SG = 500, SR = 2000, shopGrid = new Map(), shopsOf = {};
     for (const c of comps.com) {
-      const k = (c.bld.countryId || 0) + ':' + c.shop; const P = getPool(c.bld.countryId || 0)[c.shop] + (c.shop === 'hotel' ? tourism.hotel : c.shop === 'leisure' || c.shop === 'restaurant' ? tourism.leisure * 0.5 : 0);
-      const capT = capByShop.get(k) || 1; let rev = Math.min(c.cap, P * c.cap / capT);
-      if (c.corp) rev *= Corp.storeMul(c);
+      const corp = c.corp ? Corp.get(c.corp) : null;
+      c.cap = (c.slots.reduce((a, x) => a + x, 0)) * 250 * E * (0.3 + 0.7 * this.workRatio(c)) * (c.bld.power ? 1 : 0.4);
+      c.attr = c.cap * (corp ? Corp.storeMul(c) * (c.shop === 'grocery' ? 1.8 : 1.3) : 1) * (c.bld.power ? 1 : 0.5) * (1 + (c.bld.level || 1) * 0.04);
+      c.dem = 0; if (c.attr <= 0) continue;
+      const k = Math.floor(c.bld.x / SG) * 100003 + Math.floor(c.bld.z / SG); let a = shopGrid.get(k); if (!a) shopGrid.set(k, a = []); a.push(c);
+      (shopsOf[c.shop] || (shopsOf[c.shop] = [])).push(c);
+    }
+    this.shopGrid = shopGrid;
+    let comTax = 0, indTax = 0, offTax = 0; let unmet = 0, spendT = 0, noShop = 0, noAny = 0;
+    const cand = [], RG = Math.ceil(SR / SG);
+    for (const rc of cells.values()) {
+      const x = rc.x / rc.w, z = rc.z / rc.w; cand.length = 0;
+      const gx = Math.floor(x / SG), gz = Math.floor(z / SG);
+      for (let i = gx - RG; i <= gx + RG; i++) for (let j = gz - RG; j <= gz + RG; j++) { const a = shopGrid.get(i * 100003 + j); if (a) for (const c of a) cand.push(c); }
+      if (!cand.some(c => dist2(x, z, c.bld.x, c.bld.z) < 1500)) for (const k in rc.amt) if (k !== 'hotel') noAny += rc.amt[k];
+      for (const k in rc.amt) {
+        const amt = rc.amt[k]; if (amt <= 0 || k === 'hotel') continue; spendT += amt;
+        let W = 0; for (const c of cand) { if (c.shop !== k) continue; const d = dist2(x, z, c.bld.x, c.bld.z); c._w = d > SR ? 0 : c.attr / (1 + (d / 450) * (d / 450)); W += c._w; }
+        if (W <= 0) { noShop += amt; continue; }
+        for (const c of cand) if (c.shop === k && c._w > 0) { c.dem += amt * c._w / W; c._w = 0; }
+      }
+    }
+    // visitors: tourists and regional shoppers from outside connections
+    const tourism = Tourism.hourlySpend(); const reg = Outside.connected() ? 0.14 : 0;
+    for (const k in shopsOf) {
+      const L2 = shopsOf[k]; let A = 0; for (const c of L2) A += c.attr; if (A <= 0) continue;
+      let extra = 0; for (const p of pool.values()) extra += p[k] * reg;
+      extra += k === 'hotel' ? tourism.hotel : k === 'leisure' || k === 'restaurant' ? tourism.leisure * 0.5 : 0;
+      for (const c of L2) c.dem += extra * c.attr / A;
+    }
+    // crowded shops send customers to others of the same kind that still have room
+    const over = {}, spare = {};
+    for (const c of comps.com) if (c.dem > c.cap) { over[c.shop] = (over[c.shop] || 0) + c.dem - c.cap; c.dem = c.cap; }
+    for (const c of comps.com) if (c.cap > c.dem && over[c.shop]) { c._sp = c.cap - c.dem; spare[c.shop] = (spare[c.shop] || 0) + c._sp; }
+    unmet = noShop;
+    for (const k in over) { const sw = spare[k] || 0; const give = Math.min(over[k] * 0.8, sw); unmet += over[k] - give; if (give > 0) for (const c of shopsOf[k]) if (c._sp) { c.dem += c._sp * give / sw; c._sp = 0; } }
+    for (const c of comps.com) {
+      const corp = c.corp ? Corp.get(c.corp) : null;
+      const rev = c.dem * (corp && corp.type === 'supermarket' ? Math.pow(corp.priceLevel * (Mod.groceryPrice || 1), 0.6) : 1);
       // buy goods from market
-      const goods = SHOP_TYPES[c.shop].goods; const M2 = this.market(c.bld.countryId); const need = rev * 0.5;
+      const goods = SHOP_TYPES[c.shop].goods; const M2 = this.market(c.bld.countryId); const need = rev * 0.35;
       let costG = 0; for (const g of goods) { const units = need / goods.length / this.price(g); const take = Math.min(M2.stock[g], units); M2.stock[g] -= take; M2.cons[g] += units; const short = units - take; M2.imp[g] += short; costG += take * this.price(g) + short * this.price(g) * 1.3; }
-      const wages = this.wageBill(c, E); const profit = rev - costG - wages - rev * 0.06;
+      const wages = this.wageBill(c, E); const profit = rev - costG - wages - rev * 0.05;
       const t = Math.max(0, profit) * this.taxFor(c.bld, 'com'); comTax += t;
       this.book(c, rev, costG + wages + t, profit - t);
-      c.customers += rev / (18 * E);
+      c.util = c.cap > 0 ? c.dem / c.cap : 0; c.customers += rev / (18 * E);
     }
-    for (const k in SHOP_TYPES) for (const p of pool.values()) spendT += p[k];
-    let capSum = 0; for (const v of capByShop.values()) capSum += v;
-    unmet = Math.max(0, spendT - capSum);
-    this.unmetRatio = spendT > 0 ? unmet / spendT : 0;
+    this.unmetRatio = spendT > 0 ? unmet / spendT : 0; this.noShopRatio = spendT > 0 ? noShop / spendT : 0; this.noAnyShopRatio = spendT > 0 ? noAny / spendT : 0;
     // industry
     for (const c of comps.ind) {
-      const R = RESOURCES[c.product]; const M2 = this.market(c.bld.countryId);
-      const out = c.slots.reduce((a, x) => a + x, 0) * 0.9 * (0.25 + 0.75 * this.workRatio(c)) * (c.bld.power ? 1 : 0.3) * (c.bld.level ? 1 + (c.bld.level - 1) * 0.15 : 1) * Corp.prodBoost(c.bld.cityId);
+      if (!RESOURCES[c.product]) continue; const R = RESOURCES[c.product]; const M2 = this.market(c.bld.countryId);
+      const out = this.effWorkers(c) * prodK(c.product) * (c.bld.power ? 1 : 0.3) * (c.bld.level ? 1 + (c.bld.level - 1) * 0.08 : 1) * Corp.prodBoost(c.bld.cityId);
       let costI = 0; for (const g of R.in) { const units = out * 0.7 / R.in.length; const take = Math.min(M2.stock[g], units); M2.stock[g] -= take; M2.cons[g] += units; const short = units - take; M2.imp[g] += short; costI += (take + short * 1.25) * this.price(g); }
       M2.stock[c.product] += out; M2.prod[c.product] += out;
       const rev = out * this.price(c.product) * 0.92; const wages = this.wageBill(c, E); const profit = rev - costI - wages;
@@ -6725,8 +6797,8 @@ const Econ = {
     }
     // specialized extractors
     for (const c of comps.spec) {
-      const b = c.bld; const M2 = this.market(b.countryId); const rich = b.richness !== undefined ? b.richness : 0.7;
-      const out = c.slots.reduce((a, x) => a + x, 0) * 1.4 * rich * (0.3 + 0.7 * this.workRatio(c)) * (Env.seasonName() === 'Winter' && RESOURCES[c.product].area === 'farm' ? 0.4 : 1);
+      const b = c.bld; if (!RESOURCES[c.product]) c.product = b.product || 'grain'; const M2 = this.market(b.countryId); const rich = b.richness !== undefined ? b.richness : 0.7;
+      const out = this.effWorkers(c) * 125 / RESOURCES[c.product].price * (0.45 + 0.55 * rich) * (Env.seasonName() === 'Winter' && RESOURCES[c.product].area === 'farm' ? 0.55 : 1);
       M2.stock[c.product] += out; M2.prod[c.product] += out;
       if (b.depleting) { b.reserve = Math.max(0, (b.reserve || 1) - out * 0.00002); if (b.reserve <= 0) b.notif |= N.NOGOODS; }
       const rev = out * this.price(c.product); const wages = this.wageBill(c, E); const profit = rev - wages;
@@ -6734,7 +6806,7 @@ const Econ = {
     }
     // offices: produce services sold locally & exported
     for (const c of comps.off) {
-      const out = c.slots.reduce((a, x) => a + x, 0) * 0.5 * (0.2 + 0.8 * this.workRatio(c)) * (c.bld.cov && c.bld.cov.telecom ? 1 : 0.75) * (1 + Corp.aiBoost(c.bld.cityId, 'office'));
+      const out = this.effWorkers(c) * 215 / (RESOURCES[c.product].price * 0.95 * 0.9) * (c.bld.cov && c.bld.cov.telecom ? 1 : 0.82) * (c.bld.power ? 1 : 0.3) * (1 + Corp.aiBoost(c.bld.cityId, 'office'));
       const M2 = this.market(c.bld.countryId); M2.stock[c.product] += out; M2.prod[c.product] += out;
       const rev = out * this.price(c.product) * 0.95; const wages = this.wageBill(c, E); const profit = rev - wages - rev * 0.1;
       const t = Math.max(0, profit) * this.taxFor(c.bld, 'off'); offTax += t; this.book(c, rev, wages + t, profit - t);
@@ -6765,7 +6837,7 @@ const Econ = {
     }
     // taxes go to treasury (per-city booking)
     for (const c of [...comps.com, ...comps.ind, ...comps.off, ...comps.spec]) { /* booked in book() */ }
-    L.inc.resTax += resTaxT; L.inc.comTax += comTax; L.inc.indTax += indTax; L.inc.offTax += offTax; L.inc.fees += feesT * 0.35; L.inc.exports += expRev * 0.08; L.inc.trade += tradeRev; L.inc.tourism += tourism.tax;
+    L.inc.resTax += resTaxT; L.inc.comTax += comTax; L.inc.indTax += indTax; L.inc.offTax += offTax; L.inc.fees += feesT * 0.35; L.inc.exports += expRev * 0.04; L.inc.trade += tradeRev; L.inc.tourism += tourism.tax;
     L.exp.services += upkeep; L.exp.roads += roadUp; L.exp.pensions += pensions * 0.3; L.exp.imports += impCost * 0.02;
     const transit = Transit.hourlyFinance(); L.inc.transit += transit.fares; L.exp.transit += transit.upkeep;
     const corpTax = Corp.hourlyTax(); L.inc.corp += corpTax;
@@ -6779,6 +6851,7 @@ const Econ = {
     // notifications on companies
     for (const c of Sim.comp.values()) { const b = Bld.list.get(c.b); if (!b) continue; const tot = c.slots.reduce((a, x) => a + x, 0); const f = c.filled.reduce((a, x) => a + x, 0); b.workers = f; b.notif = (b.notif & ~N.NOWORKERS) | (tot > 4 && f < tot * 0.35 && Sim.minutes > b.doneAt + 600 ? N.NOWORKERS : 0); }
   },
+  effWorkers(c) { return this.workRatio(c) * c.slots.reduce((a, x) => a + x, 0); },
   workRatio(c) { const tot = c.slots.reduce((a, x) => a + x, 0); if (!tot) return 1; const f = c.filled.reduce((a, x) => a + x, 0); const outside = Math.min(tot - f, Math.round(tot * Outside.commuterShare())); c.outside = outside; return clamp((f + outside * 0.85) / tot, 0, 1); },
   wageBill(c, E) { let w = 0; for (let l = 0; l < 5; l++) w += c.filled[l] * WAGES[l]; w += (c.outside || 0) * WAGES[1]; return w * E / 24; },
   book(c, rev, cost, profit) { c.revenue += rev; c.cost += cost; c.profit += profit; c.monthRev += rev; c.monthProfit += profit; const b = c.bld; if (b) Terr.book(b.cityId, 'gdp', rev); },
@@ -6823,8 +6896,32 @@ const Econ = {
     this.inflation *= 1 + (Mod.inflation !== undefined ? Mod.inflation : 0.02) / 12;
     this.pollution(); this.landValues(); this.happiness();
     for (const M2 of this.markets.values()) { M2.hist.push({ prod: { ...M2.prod }, cons: { ...M2.cons }, imp: { ...M2.imp }, exp: { ...M2.exp } }); if (M2.hist.length > 24) M2.hist.shift(); for (const k in RESOURCES) { M2.prod[k] *= 0; M2.cons[k] *= 0; M2.imp[k] *= 0; M2.exp[k] *= 0; } }
-    for (const c of Sim.comp.values()) { c.hist.push({ rev: c.monthRev, profit: c.monthProfit, cust: c.customers }); if (c.hist.length > 24) c.hist.shift(); c.prof = clamp(0.5 + c.monthProfit / Math.max(500, c.monthRev) * 2, 0, 1); c.monthRev = 0; c.monthProfit = 0; c.customers = 0; if (c.prof < 0.15) c.badDays++; else c.badDays = Math.max(0, c.badDays - 1); }
+    for (const c of Sim.comp.values()) {
+      c.hist.push({ rev: c.monthRev, profit: c.monthProfit, cust: c.customers }); if (c.hist.length > 24) c.hist.shift();
+      c.prof = clamp(0.5 + c.monthProfit / Math.max(500, c.monthRev) * 2, 0, 1); c.monthRev = 0; c.monthProfit = 0; c.customers = 0;
+      if (c.cat === 'svc') { c.badDays = 0; continue; }
+      const b = Bld.list.get(c.b); const young = !b || Sim.minutes < b.doneAt + 1440 * 3;
+      if (c.prof < 0.15 && !young) c.badDays++; else c.badDays = Math.max(0, c.badDays - 1);
+      if (c.prof < 0.44 && !young) c.lossDays = (c.lossDays || 0) + 1; else c.lossDays = Math.max(0, (c.lossDays || 0) - 1);
+      this.resize(c, b);
+      if (b && c.cat === 'com') b.notif = (b.notif & ~N.NOCUSTOMERS) | (!young && c.util !== undefined && c.util < 0.3 ? N.NOCUSTOMERS : 0);
+    }
     this.dirtyCoverage = true;
+  },
+  // struggling firms shed staff instead of closing at once; thriving ones grow back to the building's size
+  resize(c, b) {
+    if (!c.base) c.base = c.slots.slice();
+    const tot = c.slots.reduce((a, x) => a + x, 0), baseTot = c.base.reduce((a, x) => a + x, 0);
+    if ((c.lossDays || 0) >= 3 && tot > Math.max(2, Math.ceil(baseTot * 0.3))) {
+      const fired = [];
+      for (let l = 0; l < 5; l++) { c.slots[l] = Math.floor(c.slots[l] * 0.8); if (c.filled[l] > c.slots[l]) for (const w of [...c.workers]) { if (c.filled[l] <= c.slots[l]) break; if (Sim.jobLv[w] === l) { Sim.leaveJob(w); fired.push(w); } } }
+      c.lossDays = 1; c.badDays = Math.min(c.badDays, 2); c.downsized = (c.downsized || 0) + 1; c.lastResize = Sim.day;
+      if (b && fired.length && Math.random() < 0.5) Pulse.event('layoffs', { b, c, fired });
+    } else if (c.prof > 0.6 && tot < baseTot && Sim.day - (c.lastResize || 0) >= 2) {
+      for (let l = 0; l < 5; l++) c.slots[l] = Math.min(c.base[l], Math.ceil(c.slots[l] * 1.15) + (c.slots[l] < c.base[l] ? 1 : 0));
+      c.lastResize = Sim.day; if (c.slots.reduce((a, x) => a + x, 0) >= baseTot) c.downsized = 0;
+    }
+    if (b) b.jobs = c.slots.reduce((a, x) => a + x, 0);
   },
   pollution() {
     const G2 = new Map(); const CELLP = 32; const key = (x, z) => Math.floor(x / CELLP) * 100003 + Math.floor(z / CELLP);
@@ -6853,6 +6950,22 @@ const Econ = {
     this.grid = G2;
     for (const b of Bld.list.values()) { const c = G2.get(key(b.x, b.z)); b.pollAir = c ? Math.min(1, c.air) : 0; b.pollGround = c ? Math.min(1, c.ground) : 0; b.pollNoise = c ? Math.min(1, c.noise) : 0; b.notif = (b.notif & ~N.POLLUTION) | (b.pollAir + b.pollGround > 1.35 && b.households && b.households.length ? N.POLLUTION : 0); if (b.kind === 'service' && SERVICES[b.type].water && c && c.water > 0.3) b.waterPolluted = true; }
   },
+  // how well each home is served by shops (grocery weighted most); used by happiness and citizens' opinions
+  shopAccessUpdate() {
+    const G = this.shopGrid; if (!G) return;
+    for (const b of Bld.list.values()) {
+      if (!b.households || !b.households.length) continue;
+      const gx = Math.floor(b.x / 500), gz = Math.floor(b.z / 500); let groc = 0, any = 0, best = 1e9, bid = 0;
+      for (let i = gx - 2; i <= gx + 2; i++) for (let j = gz - 2; j <= gz + 2; j++) { const a = G.get(i * 100003 + j); if (!a) continue; for (const c of a) { const d = dist2(b.x, b.z, c.bld.x, c.bld.z); if (d > 1200) continue; const w = 1 / (1 + (d / 450) * (d / 450)); any += w; if (c.shop === 'grocery') { groc += w * (c.corp ? 1.5 : 1); if (d < best) { best = d; bid = c.b; } } } }
+      b.shopAccess = clamp(groc * 0.6 + any * 0.15, 0, 1); b.groceryDist = best; b.groceryId = bid;
+    }
+  },
+  pickShop(x, z, kind) { // destination for a shopping trip: nearby shops weighted by attractiveness and distance
+    const G = this.shopGrid; if (!G) return null; const gx = Math.floor(x / 500), gz = Math.floor(z / 500); let W = 0; const L2 = [];
+    for (let i = gx - 3; i <= gx + 3; i++) for (let j = gz - 3; j <= gz + 3; j++) { const a = G.get(i * 100003 + j); if (!a) continue; for (const c of a) { if (kind && c.shop !== kind) continue; const d = dist2(x, z, c.bld.x, c.bld.z); if (d > 1800) continue; const w = c.attr / (1 + (d / 450) * (d / 450)); L2.push(c, w); W += w; } }
+    let r = Math.random() * W; for (let i = 0; i < L2.length; i += 2) { r -= L2[i + 1]; if (r <= 0) return L2[i].bld; }
+    return L2.length ? L2[0].bld : null;
+  },
   pollAt(x, z) { return this.grid.get(Math.floor(x / 32) * 100003 + Math.floor(z / 32)); },
   landValues() {
     let wsum = 0, wn = 0;
@@ -6866,13 +6979,18 @@ const Econ = {
     for (const b of Bld.list.values()) { if (b.landValue === undefined) continue; let s = 0, n = 0; for (const o of Bld.hash.queryR(b.x, b.z, 90)) { if (o.landValue !== undefined) { s += o.landValue; n++; } } if (n) b.landValue = clamp(b.landValue * 0.6 + (s / n) * 0.4 + Math.min(0.1, n * 0.004), 0, 1); }
     for (const h of Sim.hh.values()) { wsum += clamp(h.savings / 40000, 0, 1); wn++; } this.avgWealth = wn ? wsum / wn : 0.4;
   },
+  expect: 0,
   happiness() {
+    this.expect = clamp((Sim.stats.pop - 500) / 5000, 0, 1); // small towns don't expect a full set of city services yet
+    this.shopAccessUpdate();
     for (const b of Bld.list.values()) {
       if (!b.households || !b.households.length) continue;
       const c = b.cov || {}; const f = {};
       f.power = b.power ? 0 : -16; f.water = b.water ? 0 : -14; f.sewage = b.sewage ? 0 : -10;
-      f.health = (c.health || 0) * 8 - 3; f.education = (c.edu || 0) * 6 - 2; f.police = (c.police || 0) * 6 - 2 - (b.crime || 0) * 14; f.fire = (c.fire || 0) * 4 - 1;
-      f.leisure = (c.leisure || 0) * 10 - 3; f.post = (c.post || 0) * 3; f.internet = (c.telecom || 0) * 6 - 2; f.transit = (c.transit || 0) * 4;
+      const ex = this.expect;
+      f.health = (c.health || 0) * 8 - 4 * ex; f.education = (c.edu || 0) * 6 - 3 * ex; f.police = (c.police || 0) * 6 - 3 * ex - (b.crime || 0) * 14; f.fire = (c.fire || 0) * 4 - 2 * ex;
+      f.leisure = (c.leisure || 0) * 10 - 4 * ex; f.post = (c.post || 0) * 3; f.internet = (c.telecom || 0) * 6 - 3 * ex; f.transit = (c.transit || 0) * 4;
+      f.shops = b.shopAccess === undefined ? 0 : b.shopAccess > 0.5 ? 2 : b.shopAccess > 0 ? 0 : -4 * Math.max(0.4, ex);
       f.pollution = -(b.pollAir || 0) * 12 - (b.pollGround || 0) * 12 - (b.pollNoise || 0) * 8; f.garbage = b.notif & N.GARBAGE ? -8 : 0; f.deathcare = b.notif & N.DEAD ? -8 : 0;
       f.taxes = -(this.taxFor(b, 'res') - 0.1) * 60;
       let rentHigh = 0, wealth = 0, unemp = 0, n = 0;
@@ -6890,6 +7008,14 @@ const Econ = {
     }
   },
 };
+for (const e of ['segAdded', 'segRemoved', 'segSplit', 'netChanged']) Bus.on(e, () => { Econ.netVer++; });
+// units produced per worker-hour so that value added ≈ 1.5× the average industrial wage
+const PROD_K = {};
+function prodK(p) {
+  if (PROD_K[p]) return PROD_K[p]; const R = RESOURCES[p]; if (!R) return 1;
+  let inP = 0; if (R.in) { for (const g of R.in) inP += RESOURCES[g].price; inP /= R.in.length; }
+  return (PROD_K[p] = 130 / Math.max(8, R.price * 0.92 - (R.in ? 0.7 * inP * 1.12 : 0)));
+}
 
 /* ==== PART 26_events.js ==== */
 /* =====================================================================
@@ -6933,9 +7059,15 @@ const Events = {
       } else if (r.chance((0.00009 + (b.zone === 'ind' ? 0.0001 : 0)) * (1 - (b.cov ? b.cov.fire : 0) * 0.85) * (Mod.disasters ? 3 : 1))) this.ignite(b);
       // abandonment
       const comp = Sim.comp.get(b.id);
-      const bad = (!b.power || !b.water) || (comp && comp.badDays > 6) || b.rezoned;
-      b.badHours = bad ? (b.badHours || 0) + 1 : Math.max(0, (b.badHours || 0) - 2);
-      if (!b.abandoned && b.badHours > 72) { b.abandoned = true; b.notif |= N.ABANDONED; Bld.setFlag(b, 8, true); for (const hid of [...b.households]) { const h = Sim.hh.get(hid); if (h) Sim.removeHousehold(h); } Sim.removeCompany(b); this.push('abandon', `${b.address} has been abandoned.`, b); b.abandonedAt = Sim.minutes; }
+      const noUtil = !b.power || !b.water, broke = comp && comp.badDays > 6;
+      const bad = noUtil || broke || b.rezoned;
+      b.badHours = bad ? (b.badHours || 0) + (b.rezoned ? 3 : 1) : Math.max(0, (b.badHours || 0) - 3);
+      if (!b.abandoned && b.badHours > 120) {
+        const why = b.rezoned ? 'rezoned' : broke ? 'bankrupt' : !b.power && !b.water ? 'noUtilities' : !b.power ? 'noPower' : 'noWater';
+        b.abandoned = true; b.notif |= N.ABANDONED; Bld.setFlag(b, 8, true);
+        for (const hid of [...b.households]) { const h = Sim.hh.get(hid); if (h) { const n = h.members.length; Pulse.leaving && Pulse.leaving(h, why); Sim.rehome(h); if (!Sim.hh.has(h.id)) Sim.stats.movedOut += n; } }
+        Sim.removeCompany(b); this.push('abandon', `${b.address} has been abandoned (${{ rezoned: 'rezoned', bankrupt: 'the business went bankrupt', noUtilities: 'no electricity or water', noPower: 'no electricity', noWater: 'no water' }[why]}).`, b); b.abandonedAt = Sim.minutes; b.abandonWhy = why;
+      }
       if (b.abandoned && Sim.minutes - b.abandonedAt > 1440 * 2) Sim.demolish(b, 'collapse');
     }
     // road maintenance & snow plowing visualisation
@@ -6950,7 +7082,7 @@ const Events = {
         const b = Bld.list.get(h.b);
         const target = Terr.migrationTarget(b ? b.cityId : 0, h);
         if (target) { const v = Sim.findVacancy(target, h); if (v && v.cityId !== (b && b.cityId)) { Sim.rehome(h); Terr.bookMigration(b ? b.cityId : 0, v.cityId, h.members.length); moved++; continue; } }
-        Sim.stats.movedOut += h.members.length; Sim.removeHousehold(h); moved++;
+        Sim.stats.movedOut += h.members.length; Pulse.leaving && Pulse.leaving(h, h.broke > 4 ? 'broke' : 'unhappy'); Sim.removeHousehold(h); moved++;
       }
     }
   },
@@ -6970,7 +7102,7 @@ const Events = {
         if (Z.cat === 'res' && b.cls < 3 && lv > [0.3, 0.48, 0.68][b.cls] && b.level >= 3) { b.cls++; Bld.rebuild(b); }
         if (b.capHH && Z.dens > 0) b.capHH = Math.round(b.capHH * 1.08);
         const c = Sim.comp.get(b.id); if (c) { for (let l = 0; l < 5; l++) c.slots[l] = Math.round(c.slots[l] * 1.1); }
-        Progress.xp(2);
+        Progress.xp(0.5);
       }
     }
     // lightning strikes start fires during storms
@@ -7003,8 +7135,8 @@ const MILESTONES = [
 ];
 const DEV_TREE = {
   roads: [{ id: 'hwy', name: 'Highways', cost: 1, unlock: ['highway', 'highway1w', 'ramp'] }, { id: 'large', name: 'Large Avenues', cost: 1, unlock: ['large'] }, { id: 'maint', name: 'Asphalt Recycling', cost: 1, desc: 'Road upkeep -15%' }],
-  power: [{ id: 'wind', name: 'Wind Power', cost: 1, unlock: ['wind'] }, { id: 'solar', name: 'Solar Farms', cost: 1, unlock: ['solar'] }, { id: 'hydro', name: 'Hydro Power', cost: 2, unlock: ['hydro'] }, { id: 'geo', name: 'Geothermal', cost: 2, unlock: ['geothermal'] }, { id: 'nuke', name: 'Nuclear Power', cost: 3, unlock: ['nuclear'] }, { id: 'bat', name: 'Grid Batteries', cost: 1, unlock: ['battery'] }],
-  water: [{ id: 'gw', name: 'Groundwater Pumping', cost: 1, unlock: ['groundpump'] }, { id: 'treat', name: 'Wastewater Treatment', cost: 2, unlock: ['treatment'] }],
+  power: [{ id: 'wind', name: 'Wind Farms', cost: 1, desc: 'Wind turbine output +25%' }, { id: 'solar', name: 'Solar Farms', cost: 1, unlock: ['solar'] }, { id: 'hydro', name: 'Hydro Power', cost: 2, unlock: ['hydro'] }, { id: 'geo', name: 'Geothermal', cost: 2, unlock: ['geothermal'] }, { id: 'nuke', name: 'Nuclear Power', cost: 3, unlock: ['nuclear'] }, { id: 'bat', name: 'Grid Batteries', cost: 1, unlock: ['battery'] }],
+  water: [{ id: 'gw', name: 'Deep Wells', cost: 1, desc: 'Groundwater pump output +30%' }, { id: 'treat', name: 'Wastewater Treatment', cost: 2, unlock: ['treatment'] }],
   health: [{ id: 'hosp', name: 'Hospitals', cost: 2, unlock: ['hospital'] }, { id: 'crem', name: 'Crematoria', cost: 1, unlock: ['crematorium'] }, { id: 'prev', name: 'Preventive Care', cost: 2, desc: 'Sickness -20%' }],
   education: [{ id: 'hs', name: 'High Schools', cost: 1, unlock: ['highschool'] }, { id: 'col', name: 'Colleges', cost: 2, unlock: ['college'] }, { id: 'uni', name: 'Universities', cost: 3, unlock: ['university'] }, { id: 'res', name: 'Research Centers', cost: 3, unlock: ['research'] }],
   transport: [{ id: 'bus', name: 'Bus Network', cost: 1, unlock: ['busdepot'] }, { id: 'tram', name: 'Trams', cost: 2, unlock: ['tramdepot', 'tramave', 'tramtrack'] }, { id: 'metro', name: 'Metro', cost: 3, unlock: ['metro'] }, { id: 'train', name: 'Railways', cost: 2, unlock: ['trainstation', 'rail', 'cargoterminal'] }, { id: 'ferry', name: 'Ferries', cost: 2, unlock: ['harbor', 'cargoharbor'] }, { id: 'air', name: 'Aviation', cost: 4, unlock: ['airport'] }, { id: 'taxi', name: 'Taxis', cost: 1, unlock: ['taxidepot'] }],
@@ -7015,6 +7147,7 @@ const DEV_TREE = {
 const Progress = {
   level: 0, xpTotal: 0, points: 0, bought: new Set(), unlockAll: false, attract: 0,
   xp(n) { this.xpTotal += n; this.check(); },
+  buildXp(cost) { if (cost > 0 && MainMenu.inGame) this.xp(Math.min(25, cost / 4500)); },
   check() {
     while (this.level < MILESTONES.length - 1 && this.xpTotal >= MILESTONES[this.level + 1].xp) {
       this.level++; const M2 = MILESTONES[this.level]; this.points += M2.pts; Econ.earn(M2.reward, 'other');
@@ -7025,7 +7158,7 @@ const Progress = {
   lastPop: 0,
   daily() {
     const p = Sim.stats.pop; const g = Math.max(0, p - this.lastPop); this.lastPop = Math.max(this.lastPop, p);
-    this.xp(Math.floor(g / 12) + (Sim.stats.happiness > 60 ? 2 : 0) + Math.floor(Bld.list.size / 400));
+    this.xp(Math.floor(g / 10) + (Sim.stats.happiness > 60 ? 3 : Sim.stats.happiness > 50 ? 1 : 0) + Math.floor(Bld.list.size / 300));
     this.attract = this.level * 0.05;
   },
   // milestone requirement for items
@@ -7321,10 +7454,12 @@ const Traffic = {
       let dest = null, purpose = 'leisure';
       if (Sim.st[cit] === CS.WORKER && Sim.work[cit]) { dest = Bld.list.get(Sim.work[cit]); purpose = 'work'; }
       else if (Sim.st[cit] === CS.STUDENT && Sim.school[cit]) { dest = Bld.list.get(Sim.school[cit]); purpose = 'school'; }
-      else if (work.length) { const near = Bld.hash.queryR(hb.x, hb.z, 1500); const shops = [...near].filter(b => b.zone && ZONES[b.zone].cat === 'com' || (b.kind === 'service' && SERVICES[b.type].leisure) || b.kind === 'corp'); if (shops.length) { dest = shops[(Math.random() * shops.length) | 0]; purpose = dest.kind === 'service' ? 'leisure' : 'shopping'; } }
+      else if (Math.random() < 0.72) { dest = Econ.pickShop(hb.x, hb.z, Math.random() < 0.5 ? 'grocery' : null); purpose = 'shopping'; } // errands go to the shops that actually get the customers
+      else { const near = Bld.hash.queryR(hb.x, hb.z, 1500); const parks = [...near].filter(b => b.kind === 'service' && SERVICES[b.type].leisure); if (parks.length) { dest = parks[(Math.random() * parks.length) | 0]; purpose = 'leisure'; } }
       if (!dest || dest === hb) continue;
       const evening = hr > 15 && hr < 23;
-      const A = evening && purpose === 'work' ? dest : hb, B = evening && purpose === 'work' ? hb : dest;
+      let A = evening && purpose === 'work' ? dest : hb, B = evening && purpose === 'work' ? hb : dest;
+      if (evening && purpose === 'work' && hr < 20.5 && Math.random() < 0.3) { const sh = Econ.pickShop(dest.x, dest.z, 'grocery'); if (sh && sh !== dest) { B = sh; purpose = 'shopping'; } } // grocery stop on the way home
       const dist = dist2(A.x, A.z, B.x, B.z);
       const mode = this.modeChoice(h, A, B, dist);
       if (mode === 'transit') { Transit.rideRequest(A, B, cit); if (this.peds.length < pedT) this.walkTo(A, Transit.nearestStop(A), cit, 'transit'); continue; }
@@ -7917,7 +8052,7 @@ const Terr = {
   centroid(t) { let best = null, ba = -1; for (const p of t.polys) { const a = Math.abs(polyArea(p)); if (a > ba) { ba = a; best = p; } } return best ? polyCentroid(best) : { x: 0, z: 0 }; },
   containing(kind, t) { const c = this.centroid(t); let best = null, ba = Infinity; for (const o of this.list.values()) { if (o.kind !== kind || o === t) continue; if (this.contains(o, c)) { const a = this.area(o); if (a < ba) { ba = a; best = o; } } } return best; },
   at(kind, x, z) {
-    const k = kind[0] + Math.floor(x / 48) + ',' + Math.floor(z / 48); const c = this.gridCache.get(k); if (c !== undefined) return c;
+    const k = kind.slice(0, 3) + Math.floor(x / 48) + ',' + Math.floor(z / 48); const c = this.gridCache.get(k); if (c !== undefined) return c;
     let best = 0, ba = Infinity;
     for (const t of this.list.values()) { if (t.kind !== kind) continue; const bb = t._bb || (t._bb = this.bbox(t)); if (x < bb.minX || x > bb.maxX || z < bb.minZ || z > bb.maxZ) continue; if (this.contains(t, { x, z })) { const a = this.area(t); if (a < ba) { ba = a; best = t.id; } } }
     this.gridCache.set(k, best); if (this.gridCache.size > 200000) this.gridCache.clear(); return best;
@@ -8243,7 +8378,7 @@ const Corp = {
   logoCanvas(corp, s = 40) { const cv = document.createElement('canvas'); cv.width = cv.height = s * 2; const c = cv.getContext('2d'); c.scale(2, 2); this.drawLogo(c, corp, s / 2, s / 2, s * 0.42); return cv; },
   /* ---------- buildings ---------- */
   buildingSpec(corp, kind) {
-    if (kind === 'store' && corp.type === 'supermarket') return { w: 5, d: 5, cost: 120000, jobs: 40, shop: 'grocery', gen: (b, bl) => genStore(b, bl.w, bl.d, 2, 'super') };
+    if (kind === 'store' && corp.type === 'supermarket') return { w: 5, d: 5, cost: 120000, jobs: 30, shop: 'grocery', gen: (b, bl) => genStore(b, bl.w, bl.d, 2, 'super') };
     if (kind === 'store' && corp.type === 'tech') return { w: 3, d: 3, cost: 90000, jobs: 18, shop: 'retail', gen: (b, bl) => genTechStore(b, bl.w, bl.d) };
     if (kind === 'hq') return { w: 5, d: 5, cost: 650000, jobs: corp.type === 'ai' ? 260 : 180, cat: 'off', gen: (b, bl) => { genOffice(b, bl.w, bl.d, 22 + (bl.seed % 14), 3, corp.type === 'ai' ? '2025' : '2008'); b.sign(0, b.maxY + 3, -bl.d / 2 + 6, 0, -1, 14, 7, { kind: 'brand' }); } };
     if (kind === 'datacenter') return { w: 7, d: 6, cost: 480000, jobs: 40, cat: 'off', datacenter: true, gen: (b, bl) => { SVC_GEN.datacenter.call(SVC_GEN, b, bl.w, bl.d); b.sign(0, 9, -bl.d * 0.35 - 0.4, 0, -1, 10, 4, { kind: 'brand' }); } };
@@ -8264,17 +8399,18 @@ const Corp = {
     if (!corp.auto || corp.cash < 400000 || corp.type === 'ai') return;
     const last = corp.hist.slice(-2); const ok = last.length < 2 || last[last.length - 1].profit > 0;
     if (!ok) return;
-    // find dense residential area lacking this chain
-    const res = (Sim.resBuildings || []).filter(b => b.households.length > 2);
+    // open where many households live far from a supermarket of this chain (and from big competitors)
+    const res = (Sim.resBuildings || []).filter(b => b.households.length && Econ.linked(b));
     if (!res.length) return;
-    for (let t = 0; t < 8; t++) {
-      const b = res[(Math.random() * res.length) | 0];
-      const mine = corp.stores.some(id => { const s = Bld.list.get(id); return s && dist2(s.x, s.z, b.x, b.z) < 900; });
-      if (mine) continue;
-      const S = this.buildingSpec(corp, 'store');
-      const lot = PlaceTool.findLotNear(b.x, b.z, S.w, S.d, 600);
-      if (lot) { this.placeBuilding(corp, 'store', lot); return; }
+    let best = null, bs = corp.type === 'supermarket' ? 45 : 30;
+    for (let t = 0; t < 24; t++) {
+      const b = res[(Math.random() * res.length) | 0]; let hh = 0, rival = 0;
+      for (const o of Bld.hash.queryR(b.x, b.z, 750)) { if (o.households) hh += o.households.length; const c2 = Sim.comp.get(o.id); if (c2 && c2.shop === 'grocery' && o.kind === 'corp') { if (o.corp === corp.id) { hh = -1e9; break; } rival += 1; } }
+      const score = hh / (1 + rival * 1.5); if (score > bs) { bs = score; best = b; }
     }
+    if (!best) return;
+    const S = this.buildingSpec(corp, 'store'); const lot = PlaceTool.findLotNear(best.x, best.z, S.w, S.d, 600);
+    if (lot) this.placeBuilding(corp, 'store', lot);
   },
   /* ---------- tech products ---------- */
   releaseProduct(c, o) {
@@ -8367,7 +8503,7 @@ const Corp = {
     }
   },
   npcBehave(c) {
-    if (c.type === 'supermarket') { if (c.stores.length < Math.floor(Sim.stats.pop / 6000) + 1) this.autoExpand(Object.assign(c, { auto: true })); c.priceLevel = clamp(c.priceLevel + (Math.random() - 0.5) * 0.04, 0.85, 1.2); }
+    if (c.type === 'supermarket') { if (Sim.stats.pop > 250 && c.stores.length < Math.floor(Sim.stats.pop / 3500) + 1) this.autoExpand(Object.assign(c, { auto: true })); c.priceLevel = clamp(c.priceLevel + (Math.random() - 0.5) * 0.04, 0.85, 1.2); }
   },
   serialize() { return [...this.list.values()]; },
   load(arr) { this.list.clear(); for (const c of arr) { this.list.set(c.id, c); this.nextId = Math.max(this.nextId, c.id + 1); } },
@@ -8383,7 +8519,9 @@ function genTechStore(b, w, d) {
 
 /* ==== PART 31_pulse.js ==== */
 /* =====================================================================
-   PULSE — citizen opinions: social feed, thought bubbles, sentiment
+   PULSE — citizen opinions: social feed with replies, thought bubbles and
+   conversations. Personal posts come from the speaker's own situation:
+   home, household budget, job, commute, shops, services, environment.
    ===================================================================== */
 const PULSE_T = {
   highRent: { s: -1, t: ['Rent at {street} just went up again. Half my paycheck gone. 😩', 'Love {city}, can\'t afford {city}. Rent is brutal.', 'Who can pay these rents in a {style}? Not me.', 'Landlord says the luxury upgrade "justifies" the rent. My wage disagrees.'] },
@@ -8441,94 +8579,267 @@ const PULSE_T = {
   merge: { s: 0, t: ['{city} and {other} are one city now. Weird but ok.'] },
   happyGeneral: { s: 1, t: ['Beautiful day in {city}.', 'Love my neighbourhood.', 'Coffee on the balcony, sunset over {city}. 🌅'] },
 };
+/* ---------- personal opinions: what one citizen thinks, from their own situation ---------- */
+// n = complaints, p = praise, sn/sp = short thought-bubble versions, fix = what they'd ask the mayor for
+const OPN = {
+  power: { n: ['No electricity at {addr} {since}. Everything in the fridge is going off. 🔌', 'Power is out on {street} {since}. Candles and cold dinners again.', 'Still no power at home. How can {city} not keep the lights on?'], sn: 'No power at home 🔌', fix: 'Get the power back on — build a power plant or connect us to the grid.' },
+  water: { n: ['No running water at {addr} {since}. 🚱', 'The taps are dry on {street}. We\'re cooking with bottled water.', 'Can\'t shower, can\'t cook — no water on {street} {since}.'], sn: 'Taps are dry 🚱', fix: 'We need water: a pump or water tower connected to our street.' },
+  sewage: { n: ['The drains on {street} are backing up. The smell is unbearable. 🤢', 'Sewage can\'t drain from {street}. Please fix the sewers!'], sn: 'Drains backing up 🤢', fix: 'Build a sewage outlet or treatment plant.' },
+  garbage: { n: ['Bins on {street} haven\'t been emptied for days. 🗑️', 'Rubbish is piling up outside {addr}. Rats next?'], sn: 'Bins overflowing 🗑️', fix: 'Send the garbage trucks — we need a landfill or more trucks.' },
+  deathcare: { n: ['A neighbour on {street} passed away and nobody has come for days. Grim.'], sn: 'Nobody came for the deceased…', fix: 'Build a cemetery or crematorium.' },
+  fire: { n: ['Fire in our building at {addr}! 🔥 Everyone out!'], sn: 'Fire!! 🔥', fix: 'We need a fire station closer to {street}.' },
+  rent: { n: ['Rent at {addr} eats {pct}% of what we earn. 😩', 'After rent we have almost nothing left — {pct}% of our income goes to the landlord.', 'Love {city}, can\'t afford {city}. Rent is {pct}% of our income.'], p: ['Our rent on {street} is only {pct}% of our income. Fair deal!', 'Found a place on {street} with fair rent. Rare win! 🏠'], sn: 'Rent is too high 😩', sp: 'Rent is fair here', fix: 'Zone low-rent housing or bring in rent control.' },
+  rentCrisis: { n: ['We can\'t cover the rent at {addr} — it\'s more than we earn.', 'Rent is more than our whole income. We\'re eating our savings.'], sn: 'Can\'t pay the rent 😰', fix: 'Create jobs and zone low-rent housing.' },
+  broke: { n: ['Our savings are gone. We\'re behind on bills at {addr}.', 'Every month ends in the red for us. Something has to change.'], p: ['Things are going well — we finally have savings put aside. 💰'], sn: 'Money is tight…', sp: 'Doing well these days', fix: 'More well-paid jobs, please.' },
+  job: { n: ['{Edu} and stuck in a {lvl} job at {work}. {city} needs skilled jobs.', 'My diploma is gathering dust at {work}. Need better jobs in {city}.'], p: ['Good, steady work at {work}. Can\'t complain. 💼', 'Another solid week at {work}.', 'Love my team at {work}.'], sn: 'I\'m overqualified for this', sp: 'Work is going well 💼', fix: 'Zone offices so skilled people have real jobs.' },
+  jobless: { n: ['Still looking for work in {city}. {n} applications, no luck.', 'Need a job. Anyone hiring near {street}?', 'Out of work again. {city} needs more jobs for {edu} people.'], sn: 'Looking for work…', fix: 'Zone industry, shops or offices — people need jobs.' },
+  commute: { n: ['{km} km to {work} every day, and no decent way to get there.', 'My commute to {work} takes forever. We need transit near {street}.'], p: ['I just walk to {work} — {m} m from home. 🚶', 'Short commute to {work}. Best part of living on {street}.'], sn: 'This commute takes forever', sp: 'Work is just around the corner', fix: 'Put a bus line between {street} and {work}.' },
+  traffic: { n: ['{road} is a parking lot again. 🚗🚗🚗', 'Stuck in traffic on {road}. {city} needs better junctions.', 'Every evening the same jam on {road}.'], sn: 'So much traffic 🚗', fix: 'Fix the traffic on {road} — bigger roads or public transport.' },
+  groceries: { n: ['Nearest grocery store is {km} km from {street}. 🛒', 'No supermarket anywhere near {street}. Dinner means a long trip.', 'We need a grocery store in our neighbourhood!'], p: ['{shop} is only {m} m from home — so handy. 🛒', 'Did the weekly shop at {shop}. Quick and easy.', 'Love having {shop} around the corner.'], sn: 'No shop nearby 🛒', sp: 'Off to {shop} 🛒', fix: 'Zone some commercial near {street} so we get a supermarket.' },
+  prices: { n: ['{corp} raised prices AGAIN. 🛒💸', 'Paid a fortune at {corp} for basic groceries.'], p: ['{corp} has great prices this month.'], sn: 'Groceries cost a fortune', sp: 'Good prices at {corp}', fix: 'Do something about grocery prices at {corp}.' },
+  pollution: { n: ['Smoke from {source} drifts right into our windows on {street}. 🏭', 'The air near {street} smells like a factory.', 'Can\'t hang laundry outside because of {source}.'], p: ['Fresh, clean air on {street}. 🌿'], sn: 'This air… 🏭', sp: 'Fresh air today 🌿', fix: 'Move polluting industry away from homes or plant trees.' },
+  noise: { n: ['Noise from {source} all day and night on {street}.', 'Can\'t sleep — {source} is so loud.'], p: ['Our street is so quiet. Perfect for sleeping.'], sn: 'Too noisy here', sp: 'So quiet here', fix: 'Keep noisy roads and industry away from houses.' },
+  crime: { n: ['Another break-in on {street}. 🚨 Where are the police?', 'I don\'t walk around {street} after dark anymore.'], p: ['Feel safe walking home on {street}. Thanks, police!', 'Saw a patrol near {street}. Reassuring.'], sn: 'Feels unsafe 🚨', sp: 'Safe neighbourhood', fix: 'Build a police station near {street}.' },
+  health: { n: ['Feeling sick and the nearest clinic is too far from {street}. 🤒', 'Sick for days — no doctor within reach.'], p: ['Caught a bug, but {clinic} sorted me out quickly.', 'Healthcare here is actually good!'], sn: 'Need a doctor 🤒', sp: 'Great clinic nearby', fix: 'Build a clinic near {street}.' },
+  healthcare: { n: ['No clinic anywhere near {street}. Scary if someone gets sick.', 'If my kids get sick, where do we even go? No doctor near {street}.'], p: ['Good to know there\'s a clinic close to {street}.'], sn: 'No doctor nearby…', sp: 'Clinic nearby 👍', fix: 'Build a clinic near {street}.' },
+  school: { n: ['No school near {street} for our kids.', 'The kids have nowhere to study. {city} needs schools!'], p: ['Our kids love {school}. Great teachers! 🎓', 'Proud parent — {school} is excellent.'], sn: 'Need a school nearby', sp: 'Great schools here 🎓', fix: 'Build a school near {street}.' },
+  study: { n: ['No school for me to go to. Just sitting at home.'], p: ['Exams at {school} next week. Wish me luck! 📚', 'Good day at {school}.'], sn: 'Nowhere to study', sp: 'Off to {school} 📚', fix: 'Build schools so we can study.' },
+  park: { n: ['Not a single park near {street}. Concrete everywhere.', 'Nowhere to walk the dog near {street}.'], p: ['Evening walk in {park}. 🌳', '{park} makes this neighbourhood.', 'Picnic in {park} today!'], sn: 'Need a park 🌳', sp: 'Lovely park 🌳', fix: 'Build a park near {street}.' },
+  internet: { n: ['Internet on {street} is painfully slow. 📶', 'Working from home is impossible with this connection.'], p: ['Fast internet at home. Streaming in 4K. 📶'], sn: 'Wi-Fi is so slow 📶', sp: 'Fast internet!', fix: 'Build a telecom tower near {street}.' },
+  transit: { n: ['No bus anywhere near {street}, and we don\'t have a car.', 'Without a car it\'s impossible to get around {city}.'], p: ['The {line} stops right by {street}. Love it. 🚌', 'Took the {line} today — faster than driving!'], sn: 'No bus nearby…', sp: 'Love this bus 🚌', fix: 'Run a bus line to {street}.' },
+  taxes: { n: ['Taxes in {city} are too high ({pct}%). Thinking about moving.', 'Where does all my tax money go?'], p: ['Low taxes in {city} ({pct}%) — not complaining!'], sn: 'Taxes too high!', sp: 'Low taxes 👍', fix: 'Lower the residential tax.' },
+  home: { n: ['Our {style} needs renovation — drafty windows, no lift.'], p: ['Living in a {style} on {street} feels like a film set. ✨', 'Love our {style} on {street}.'], sn: 'Our block needs repairs', sp: 'Beautiful facades ✨', fix: 'Renovate the old blocks.' },
+  newHome: { p: ['Just moved into {addr}! Hello {city}! 📦', 'First week on {street}. The neighbours are lovely.'], sp: 'New home! 📦' },
+  general: { n: ['Not the best month in {city}.', 'Something has to change in {city}.'], p: ['Beautiful day in {city}.', 'Coffee on the balcony on {street}. ☕', 'Love my neighbourhood.'], sn: 'Hmm…', sp: 'What a nice day ☀️' },
+};
+// replies: same view (agree) / opposite experience (differ) / support
+const REPLY = {
+  agree: ['Same on {street}. {short}', 'Exactly this. {short}', 'Here too, on {street}.', '+1 from {street}.'],
+  differ: ['Weird — on {street} it\'s fine for us.', 'Not on {street}. {short}', 'Move to {street} 😉'],
+  support: ['Hope the council reads this 🙏', 'Write to City Hall!', 'Sorry to hear that.', 'Hang in there.', 'The mayor needs to see this.'],
+  cheer: ['Love to see it! 🙌', 'Same, honestly.', 'Nice!', 'Lucky you 😄'],
+};
+const MOOD_WORDS = [[25, 'miserable'], [42, 'pretty unhappy'], [58, 'okay'], [75, 'happy'], [101, 'really happy']];
 const Pulse = {
-  posts: [], nextId: 1, unread: 0, bubbles: [], filter: { kind: 'all', id: 0 },
-  author(cityId) {
-    let cit = -1; for (let k = 0; k < 10; k++) { const i = (Math.random() * Sim.n) | 0; if (Sim.st && Sim.st[i] !== CS.FREE && Sim.age[i] >= 14) { const b = Bld.list.get(Sim.home[i]); if (!cityId || (b && b.cityId === cityId)) { cit = i; break; } } }
-    const seed = cit >= 0 ? Sim.seed[cit] : (Math.random() * 1e9) | 0; const name = personName(seed); const [f, l] = name.split(' ');
-    return { cit, name, handle: '@' + (f + l[0]).toLowerCase() + (seed % 97), color: `hsl(${seed % 360},55%,45%)`, b: cit >= 0 ? Bld.list.get(Sim.home[cit]) : null };
-  },
+  posts: [], nextId: 1, unread: 0, bubbles: [], filter: { kind: 'all', id: 0 }, recent: new Map(), chats: new Map(), leaveT: -1e9,
   fill(text, v) { return text.replace(/\{(\w+)\}/g, (m, k) => v[k] !== undefined ? v[k] : m); },
-  ctx(a, extra = {}) {
-    const b = a.b; const city = b ? Terr.get(b.cityId) : null; const country = city ? Terr.get(city.parent) : null;
-    const seg = b && b.seg ? Net.segs.get(b.seg) : null;
-    const cities = Terr.cities(); const other = cities.find(c => c !== city) || null;
-    const lines = [...Transit.lines.values()]; const line = lines.length ? lines[(Math.random() * lines.length) | 0] : null;
-    const corps = [...Corp.list.values()];
-    return Object.assign({ city: city ? city.name : (Econ.cityName || 'town'), country: country ? country.name : 'our country', other: other ? other.name : 'the next town', street: seg ? seg.name : 'my street', road: this.busyRoad() || 'Main Road', district: b && b.districtId ? Terr.get(b.districtId).name : (seg ? seg.name : 'downtown'), style: b && b.style ? (BLOCK_STYLES[b.style] || HOUSE_ERAS[b.style] || { name: 'building' }).name.toLowerCase() : 'building', line: line ? line.name : 'bus', stop: line && line.stops.length ? (Transit.stops.get(line.stops[0]) || {}).name || 'the stop' : 'the stop', corp: corps.length ? corps[(Math.random() * corps.length) | 0].name : 'the store', temp: Math.round(Env.temp), biz: b ? 'the factory' : 'work', school: 'the school', park: 'the park', station: 'Central' }, extra);
+  pick(a) { return a[(Math.random() * a.length) | 0]; },
+  persona(cit) { const seed = Sim.seed[cit]; const name = personName(seed); const [f, l] = name.split(' '); return { cit, name, first: f, handle: '@' + (f + (l || 'x')[0]).toLowerCase() + (seed % 97), color: `hsl(${seed % 360},55%,45%)`, b: Bld.list.get(Sim.home[cit]) || null }; },
+  randomAdult(not = -1, cityId = 0) { if (!Sim.st) return -1; for (let k = 0; k < 24; k++) { const i = (Math.random() * Sim.n) | 0; if (i === not || Sim.st[i] === CS.FREE || Sim.age[i] < 14) continue; if (cityId) { const b = Bld.list.get(Sim.home[i]); if (!b || b.cityId !== cityId) continue; } return i; } return -1; },
+  neighbour(b, not = -1) { // someone living close to b
+    if (b) { const homes = []; for (const o of Bld.hash.queryR(b.x, b.z, 420)) if (o.households && o.households.length) homes.push(o);
+      for (let t = 0; t < 8 && homes.length; t++) { const o = homes[(Math.random() * homes.length) | 0]; const hh = Sim.hh.get(o.households[(Math.random() * o.households.length) | 0]); if (!hh || !hh.members.length) continue; const c = hh.members[(Math.random() * hh.members.length) | 0]; if (c !== not && Sim.st[c] !== CS.FREE && Sim.age[c] >= 14) return c; } }
+    return this.randomAdult(not);
   },
-  busyRoad() { let best = null, bf = 0; for (const s of Net.segs.values()) if (s.cong > bf && !s.T.rail) { bf = s.cong; best = s; } return best ? best.name : null; },
-  post(topic, extra = {}, cityId) {
+  author(cityId) { const i = this.randomAdult(-1, cityId); if (i >= 0) return this.persona(i); const seed = (Math.random() * 1e9) | 0; const name = personName(seed); const [f, l] = name.split(' '); return { cit: -1, name, first: f, handle: '@' + (f + l[0]).toLowerCase() + (seed % 97), color: `hsl(${seed % 360},55%,45%)`, b: null }; },
+  street(b) { const s = b && b.seg ? Net.segs.get(b.seg) : null; return s ? s.name : 'our street'; },
+  placeName(b, short) {
+    if (!b) return 'work'; const on = short ? '' : ' on ' + this.street(b);
+    if (b.bizName) return (/[a-z]/.test(b.bizName) ? b.bizName : b.bizName.toLowerCase().replace(/(^|\s)\S/g, c => c.toUpperCase())) + on;
+    if (b.kind === 'service') return (short ? 'the ' : 'the ') + SERVICES[b.type].name.toLowerCase() + on;
+    if (b.kind === 'spec') return 'the ' + ((SPEC_TYPES[b.type] || {}).name || 'farm').toLowerCase() + on;
+    const c = Sim.comp.get(b.id);
+    if (c && c.shop) return 'the ' + SHOP_TYPES[c.shop].name.toLowerCase() + (c.shop === 'grocery' ? ' store' : c.shop === 'retail' ? ' shop' : '') + on;
+    if (b.zone === 'ind') return 'the ' + (c && RESOURCES[c.product] ? RESOURCES[c.product].name.toLowerCase() + ' plant' : 'factory') + on;
+    if (b.zone && ZONES[b.zone].cat === 'off') return 'the office' + on;
+    return b.address || 'work';
+  },
+  nearestSvc(b, cov, leisure) { let best = null, bd = 1e9; for (const o of Bld.hash.queryR(b.x, b.z, 1500)) { if (o.kind !== 'service') continue; const S = SERVICES[o.type]; if (leisure ? !S.leisure : S.cov !== cov) continue; const d = dist2(b.x, b.z, o.x, o.z); if (d < bd) { bd = d; best = o; } } return best; },
+  sourceNear(b, kind) { // the polluting / noisy neighbour a resident would blame
+    let best = null, bd = 1e9;
+    for (const o of Bld.hash.queryR(b.x, b.z, 650)) {
+      if (o === b || o.abandoned || Sim.minutes < o.doneAt) continue; const P = o.kind === 'service' ? SERVICES[o.type].poll || {} : null;
+      const w = kind === 'air' ? (P ? (P.air || 0) + (P.ground || 0) : o.zone === 'ind' ? 0.8 : o.kind === 'spec' ? 0.3 : 0) : (P ? P.noise || 0 : o.zone === 'ind' ? 0.35 : 0);
+      if (w <= 0) continue; const d = dist2(b.x, b.z, o.x, o.z) / (w + 0.15); if (d < bd) { bd = d; best = o; }
+    }
+    if (kind === 'noise') { const s = b.seg ? Net.segs.get(b.seg) : null; if (s && (!best || (s.flow || 0) > 40)) return 'the traffic on ' + s.name; }
+    return best ? this.placeName(best) : kind === 'air' ? 'the industrial area' : 'the traffic';
+  },
+  busySeg() { let best = null, bf = 0; for (const s of Net.segs.values()) if (s.cong > bf && !s.T.rail && !s.T.metro) { bf = s.cong; best = s; } return best; },
+  busyRoad() { const s = this.busySeg(); return s ? s.name : null; },
+  styleName(b) { return ((BLOCK_STYLES[b.style] || HOUSE_ERAS[b.style] || { name: 'home' }).name || 'home').toLowerCase(); },
+  /* ---------- what citizen i likes and dislikes, strongest first ---------- */
+  assess(i) {
+    if (!Sim.st || i < 0 || Sim.st[i] === CS.FREE) return [];
+    const b = Bld.list.get(Sim.home[i]); if (!b) return [];
+    const h = Sim.hh.get(Sim.hhId[i]); const c = b.cov || {}; const st = Sim.st[i]; const age = Sim.age[i]; const ex = Econ.expect || 0;
+    const city = Terr.get(b.cityId); const street = this.street(b);
+    const V = { addr: b.address || street, street, city: city ? city.name : (Econ.cityName || 'town') };
+    const O = []; const add = (key, s, w, vars) => O.push({ key, s, w, v: vars ? Object.assign({}, V, vars) : V });
+    const since = (b.badHours || 0) > 30 ? 'since yesterday' : (b.badHours || 0) > 6 ? 'for ' + Math.round(b.badHours) + ' hours' : 'again';
+    if (b.fire) add('fire', -1, 12);
+    if (!b.power) add('power', -1, 10, { since }); if (!b.water) add('water', -1, 10, { since });
+    if (!b.sewage && b.power && b.water) add('sewage', -1, 6);
+    if (b.notif & N.GARBAGE) add('garbage', -1, 6); if (b.notif & N.DEAD) add('deathcare', -1, 5);
+    if (h) {
+      const inc = h.income || 0, rs = inc > 0 ? h.rent / inc : 0;
+      if (inc > 0 && rs > 1) add('rentCrisis', -1, 6); else if (inc > 0 && rs > 0.42) add('rent', -1, 3 + (rs - 0.42) * 18, { pct: Math.round(rs * 100) }); else if (inc > 0 && rs < 0.25) add('rent', 1, 1.5, { pct: Math.round(rs * 100) });
+      if (h.savings < 0) add('broke', -1, 3 + Math.min(4, -h.savings / 3000)); else if (h.savings > 40000) add('broke', 1, 1.1);
+      if (Sim.minutes - h.movedIn < 1440 * 1.5) add('newHome', 1, 3.2);
+    }
+    const ed = EDU_NAMES[Sim.edu[i]];
+    if (st === CS.WORKER) {
+      const wb = Bld.list.get(Sim.work[i]); const work = this.placeName(wb); const lv = Math.max(0, Sim.jobLv[i]);
+      if (Sim.edu[i] - lv >= 2) add('job', -1, 2.3 + Sim.edu[i] - lv, { work, Edu: ed, lvl: ['entry-level', 'junior', 'regular', 'senior', 'top'][lv] }); else add('job', 1, 1.3, { work });
+      if (wb) { const d = dist2(b.x, b.z, wb.x, wb.z); if (d > 2200 && (c.transit || 0) < 0.3) add('commute', -1, 1.5 + d / 2000, { work, km: (d / 1000).toFixed(1) }); else if (d < 650) add('commute', 1, 1.7, { work, m: Math.max(50, Math.round(d / 10) * 10) }); }
+    }
+    if (st === CS.UNEMPLOYED && age >= 18) add('jobless', -1, 5.5, { n: 3 + (Sim.seed[i] % 40), edu: ed.toLowerCase() });
+    if (st === CS.STUDENT) { if (Sim.school[i]) add('study', 1, 1.5, { school: this.placeName(Bld.list.get(Sim.school[i])) }); else if (age >= 6) add('study', -1, 3.2); }
+    if (h && age >= 20) { let noSchool = 0, sb = null; for (const m of h.members) { if (m === i || Sim.st[m] !== CS.STUDENT) continue; if (Sim.school[m]) sb = Bld.list.get(Sim.school[m]); else noSchool++; } if (noSchool) add('school', -1, 3 + noSchool); else if (sb) add('school', 1, 1.7, { school: this.placeName(sb) }); }
+    if (Sim.sick[i]) { if ((c.health || 0) < 0.25) add('health', -1, 6); else { const cl = this.nearestSvc(b, 'health'); add('health', 1, 2, { clinic: cl ? this.placeName(cl) : 'the clinic' }); } }
+    else if ((c.health || 0) < 0.08 && ex > 0.25) add('healthcare', -1, 1 + 2.5 * ex); else if ((c.health || 0) > 0.6) add('healthcare', 1, 0.8);
+    const gd = b.groceryDist;
+    if ((gd === undefined || gd > 1200) && Sim.stats.pop > 120 && b.shopAccess !== undefined) add('groceries', -1, 2.4 + 2 * ex + (h && !h.cars ? 1.4 : 0), { km: gd < 1e8 ? (gd / 1000).toFixed(1) : 'over 2' });
+    else if (gd < 650) { const g = Bld.list.get(b.groceryId); if (g) add('groceries', 1, 2.1, { shop: this.placeName(g), m: Math.max(50, Math.round(gd / 10) * 10) }); }
+    const pm = Corp.groceryPriceMul(b.cityId);
+    if (pm > 1.1 || pm < 0.95) { const chains = Corp.byType('supermarket').filter(x => x.stores.length).sort((x, y) => y.priceLevel - x.priceLevel); const ch = pm > 1.1 ? chains[0] : chains[chains.length - 1]; if (ch) add('prices', pm > 1.1 ? -1 : 1, pm > 1.1 ? (pm - 1) * 22 : 1.1, { corp: ch.name }); }
+    const pa = (b.pollAir || 0) + (b.pollGround || 0); if (pa > 0.3) add('pollution', -1, 2 + pa * 7, { source: this.sourceNear(b, 'air') }); else if (pa < 0.04) add('pollution', 1, 0.6);
+    const pn = b.pollNoise || 0; if (pn > 0.45) add('noise', -1, 1.4 + pn * 4, { source: this.sourceNear(b, 'noise') }); else if (pn < 0.06) add('noise', 1, 0.5);
+    if ((b.crime || 0) > 0.4) add('crime', -1, 2 + b.crime * 7); else if ((c.police || 0) > 0.55 && (b.crime || 0) < 0.15) add('crime', 1, 1.1);
+    if ((c.leisure || 0) > 0.45 || b.miniPark) { const pk = this.nearestSvc(b, null, true); add('park', 1, 1.6 + (c.leisure || 0), { park: pk ? 'the ' + SERVICES[pk.type].name.toLowerCase() + ' on ' + this.street(pk) : 'the courtyard park' }); }
+    else if ((c.leisure || 0) < 0.08 && ex > 0.12) add('park', -1, 1 + 2.5 * ex);
+    if ((c.telecom || 0) < 0.08 && ex > 0.35) add('internet', -1, 1 + 2 * ex); else if ((c.telecom || 0) > 0.6) add('internet', 1, 0.8);
+    if (h && !h.cars && (c.transit || 0) < 0.1 && Sim.stats.pop > 1200) add('transit', -1, 3);
+    else if ((c.transit || 0) > 0.5) { const ns = Transit.nearestStop(b); const st2 = ns && ns.id ? Transit.stops.get(ns.id) : null; const ln = st2 && st2.lines && st2.lines.size ? Transit.lines.get([...st2.lines][0]) : null; if (ln) add('transit', 1, 1.4, { line: ln.name }); }
+    const hs = b.seg ? Net.segs.get(b.seg) : null;
+    if (hs && hs.cong > 0.55) add('traffic', -1, 1.5 + hs.cong * 4, { road: hs.name }); else if (st === CS.WORKER && h && h.cars) { const bs = this.busySeg(); if (bs && bs.cong > 0.7) add('traffic', -1, 1 + bs.cong * 2, { road: bs.name }); }
+    const tx = Econ.taxFor(b, 'res'); if (tx > 0.125) add('taxes', -1, (tx - 0.1) * 45, { pct: Math.round(tx * 100) }); else if (tx < 0.085) add('taxes', 1, 1.2, { pct: Math.round(tx * 100) });
+    if (b.style === 'hauss' || b.style === 'aristo' || b.style === 'm2025') add('home', 1, 1.3, { style: this.styleName(b) }); else if (b.style === 'panel' && (b.level || 1) < 3) add('home', -1, 1.6, { style: this.styleName(b) });
+    add('general', (b.happiness || 55) >= 52 ? 1 : -1, 0.5);
+    return O.sort((a, b2) => b2.w - a.w);
+  },
+  pickOp(O) { const top = O.slice(0, 5); let W = 0; for (const o of top) W += o.w; let r = Math.random() * W; for (const o of top) { r -= o.w; if (r <= 0) return o; } return top[0]; },
+  compose(op) { const T = OPN[op.key]; const L = T && (op.s < 0 ? T.n : T.p); return L && L.length ? this.fill(this.pick(L), op.v) : null; },
+  shortOf(op) { const T = OPN[op.key]; const t = T && (op.s < 0 ? T.sn : T.sp); return t ? this.fill(t, op.v) : ''; },
+  likes(i) { const O = this.assess(i); return { pos: O.filter(o => o.s > 0 && o.key !== 'general').slice(0, 3), neg: O.filter(o => o.s < 0 && o.key !== 'general').slice(0, 3) }; },
+  /* ---------- feed ---------- */
+  make(a, text, s, topic) { return { id: this.nextId++, t: Sim.minutes, name: a.name, handle: a.handle, color: a.color, text, s, topic, likes: Math.round(4 + Math.random() * 30), cityId: a.b ? a.b.cityId : 0, countryId: a.b ? a.b.countryId : 0, cit: a.cit, bid: a.b ? a.b.id : 0, street: a.b ? this.street(a.b) : '', replies: [] }; },
+  push(p) { this.posts.unshift(p); if (this.posts.length > 300) this.posts.pop(); this.unread++; Bus.emit('pulse', p); return p; },
+  speak(i, op) { const text = this.compose(op); if (!text) return null; const p = this.make(this.persona(i), text, op.s, op.key); this.replies(p, i, op); this.remember(i, op.key); return this.push(p); },
+  replies(p, i, op) {
+    const n = Math.random() < 0.5 ? 1 + (Math.random() < 0.4 ? 1 : 0) + (Math.random() < 0.15 ? 1 : 0) : 0; const home = Bld.list.get(Sim.home[i]); let agree = 0;
+    for (let k = 0; k < n; k++) {
+      const j = this.neighbour(home, i); if (j < 0) break; const a = this.persona(j); const mine = this.assess(j).find(o => o.key === op.key); let text, s = 0;
+      if (mine && mine.s === op.s) { agree++; text = this.fill(this.pick(REPLY.agree), { street: this.street(a.b), short: this.shortOf(mine) }); s = op.s; }
+      else if (mine) { text = this.fill(this.pick(REPLY.differ), { street: this.street(a.b), short: this.shortOf(mine) }); s = mine.s; }
+      else text = this.pick(op.s < 0 ? REPLY.support : REPLY.cheer);
+      p.replies.push({ name: a.name, handle: a.handle, color: a.color, cit: j, text: text.trim(), s, t: Sim.minutes + 5 + k * 9 });
+    }
+    p.likes = Math.round(3 + Math.random() * 10 + (agree + 1) * (5 + Math.random() * 12) + Math.sqrt(Sim.stats.pop || 0) * 0.15 * Math.random());
+  },
+  recentlySaid(i, key) { const t = this.recent.get(i + ':' + key); return t !== undefined && Sim.minutes - t < 1440 * 2; },
+  remember(i, key) { if (this.recent.size > 5000) this.recent.clear(); this.recent.set(i + ':' + key, Sim.minutes); },
+  citizenPost() { // residents with strong feelings speak up more
+    let best = null, bw = 0;
+    for (let k = 0; k < 6; k++) { const i = this.randomAdult(); if (i < 0) return null; const O = this.assess(i); if (!O.length) continue; const op = this.pickOp(O); if (this.recentlySaid(i, op.key)) continue; const w = op.w * (0.6 + Math.random() * 0.8); if (w > bw) { bw = w; best = [i, op]; } }
+    return best ? this.speak(best[0], best[1]) : null;
+  },
+  post(topic, extra = {}, cityId) { // city-wide topics (tech, AI, weather, events) written by a real resident
     const T = PULSE_T[topic]; if (!T) return;
     const a = this.author(cityId); const v = this.ctx(a, extra);
-    const text = this.fill(T.t[(Math.random() * T.t.length) | 0], v);
-    const p = { id: this.nextId++, t: Sim.minutes, name: a.name, handle: a.handle, color: a.color, text, s: T.s, topic, likes: Math.round(Math.random() * 40 + (T.s < 0 ? 20 : 5)), cityId: a.b ? a.b.cityId : (cityId || 0), countryId: a.b ? a.b.countryId : 0, cit: a.cit, bid: a.b ? a.b.id : 0 };
-    this.posts.unshift(p); if (this.posts.length > 300) this.posts.pop(); this.unread++;
-    Bus.emit('pulse', p);
-    return p;
+    const p = this.make(a, this.fill(this.pick(T.t), v), T.s, topic);
+    if (Math.random() < 0.3 && a.cit >= 0) { const j = this.neighbour(a.b, a.cit); if (j >= 0) { const r = this.persona(j); p.replies.push({ name: r.name, handle: r.handle, color: r.color, cit: j, text: this.pick(T.s < 0 ? REPLY.support : REPLY.cheer), s: 0, t: Sim.minutes + 7 }); } }
+    return this.push(p);
+  },
+  ctx(a, extra = {}) {
+    const b = a.b; const city = b ? Terr.get(b.cityId) : null; const country = city ? Terr.get(city.parent) : null;
+    const other = Terr.cities().find(c => c !== city) || null;
+    return Object.assign({ city: city ? city.name : (Econ.cityName || 'town'), country: country ? country.name : 'our country', other: other ? other.name : 'the next town', street: this.street(b), road: this.busyRoad() || this.street(b), temp: Math.round(Env.temp), name: '' }, extra);
   },
   event(kind, o) {
     if (!Sim.stats.pop && kind !== 'milestone') return;
-    const map = { fire: 'fire', fireDestroyed: 'fireDestroyed', milestone: 'milestone', storeOpened: 'storeOpened', productLaunch: 'productLaunch', aiRelease: 'aiRelease', migration: 'migration', capital: 'capital', merge: 'merge', pricesHigh: 'groceryHigh' };
+    if (kind === 'layoffs') { const i = o.fired && o.fired.length ? o.fired[0] : this.neighbour(o.b); if (i < 0) return; const a = this.persona(i); const place = this.placeName(o.b); const own = o.fired && o.fired.includes(i); return this.push(Object.assign(this.make(a, own ? this.pick([`${place} just let me go. Not enough customers, they said. 😞`, `Laid off from ${place} today. Back to job hunting.`]) : `${place} is cutting staff. Hope my neighbours there are okay.`, -1, 'layoffs'), {})); }
+    if (kind === 'storeOpened' || kind === 'fire' || kind === 'fireDestroyed') {
+      const i = this.neighbour(o.b); if (i < 0) return; const a = this.persona(i); const d = a.b ? Math.round(dist2(a.b.x, a.b.z, o.b.x, o.b.z) / 10) * 10 : 0; const st = this.street(o.b);
+      const text = kind === 'storeOpened' ? (o.kind === 'store' ? this.pick([`A new ${o.corp.name} is opening on ${st} — ${d} m from my place! 🛒`, `Finally a ${o.corp.name} near ${this.street(a.b)}. No more long trips for groceries.`]) : `${o.corp.name} is building on ${st}.`) : kind === 'fire' ? this.pick([`Fire on ${st}! 🔥 Hope everyone got out.`, `Smoke everywhere near ${st}. Stay safe, neighbours.`]) : `The building on ${st} burned down. ${o.b.cov && o.b.cov.fire > 0.2 ? 'The fire trucks did what they could.' : 'No fire station close enough. 😢'}`;
+      return this.push(this.make(a, text, kind === 'storeOpened' ? 1 : -1, kind));
+    }
+    const map = { milestone: 'milestone', productLaunch: 'productLaunch', aiRelease: 'aiRelease', migration: 'migration', capital: 'capital', merge: 'merge', pricesHigh: 'groceryHigh' };
     const topic = map[kind]; if (!topic) return;
     const extra = {};
-    if (o.b && o.b.seg) { const s = Net.segs.get(o.b.seg); if (s) extra.street = s.name; }
     if (o.corp) extra.corp = o.corp.name; if (o.p) extra.product = o.p.name; if (o.m) { extra.model = o.m.name; extra.mmlu = o.m.bench.mmlu.toFixed(1); }
     if (o.name) extra.name = o.name; if (o.city) extra.city = o.city.name; if (o.country) extra.country = o.country.name;
     if (o.from) { extra.other = o.from.name; extra.city = o.to.name; } if (o.a) { extra.city = o.a.name; extra.other = o.b && o.b.name; }
-    if (Math.random() < (kind === 'storeOpened' ? 0.5 : 0.9)) this.post(topic, extra);
+    if (Math.random() < 0.9) this.post(topic, extra);
+  },
+  leaving(h, why) { // a household gives up on the city and says why
+    if (!h || !h.members.length || Sim.minutes - this.leaveT < 360 || Math.random() < 0.35) return; this.leaveT = Sim.minutes;
+    const i = h.members.find(m => Sim.age[m] >= 18); if (i === undefined) return; const a = this.persona(i); const city = (Terr.get(a.b && a.b.cityId) || {}).name || Econ.cityName || 'town';
+    let text;
+    if (why === 'noPower' || why === 'noUtilities') text = `We're leaving ${city}. Days without electricity${why === 'noUtilities' ? ' or water' : ''} was the last straw. 🔌`;
+    else if (why === 'noWater') text = `Moving out of ${city} — we can't live without running water. 🚱`;
+    else if (why === 'broke') text = `Can't make rent anymore. We're moving out of ${city}. 💔`;
+    let about = why === 'broke' ? 'rent' : why === 'noWater' ? 'water' : 'power';
+    if (why !== 'noPower' && why !== 'noUtilities' && why !== 'noWater' && why !== 'broke') { const neg = this.assess(i).filter(o => o.s < 0 && o.key !== 'general'); about = neg.length ? neg[0].key : 'general'; text = neg.length ? `Packing our boxes. Goodbye ${city}. ` + this.compose(neg[0]) : `Time for a fresh start somewhere else. Goodbye ${city}.`; }
+    const p = this.make(a, text, -1, 'leaving'); p.about = about; this.push(p);
   },
   hourly() {
     if (!Sim.stats.pop) return;
     const n = Math.min(4, 1 + Math.floor(Math.sqrt(Sim.stats.pop) / 60));
-    for (let k = 0; k < n; k++) { if (Math.random() < 0.55) this.postTopic(this.pickTopic()); }
+    for (let k = 0; k < n; k++) if (Math.random() < 0.6) this.citizenPost();
+    if (Math.random() < 0.16) this.postTopic(this.cityTopic());
   },
-  pickTopic() {
-    const st = Sim.stats; const W = {};
-    const hh = Math.max(1, st.hhCount);
-    W.highRent = (Econ.highRentCount || 0) / hh * 8; W.rentOk = 0.2;
-    let cong = 0, n = 0; for (const s of Net.segs.values()) { if (!s.T.rail && !s.T.metro) { cong += s.cong || 0; n++; } } cong = n ? cong / n : 0;
-    W.traffic = cong * 6; W.trafficOk = (1 - cong) * 0.6;
-    W.transitGood = Transit.lines.size ? (Transit.avgWait() < 15 ? 1.2 : 0.2) : 0; W.transitBad = Transit.lines.size ? Transit.avgWait() / 30 : 0; W.noTransit = !Transit.lines.size && st.pop > 2000 ? 1 : 0;
-    let cov = { edu: 0, health: 0, police: 0, leisure: 0, telecom: 0 }, bn = 0, crime = 0, poll = 0, nopow = 0, nowat = 0, garb = 0, dead = 0, panel = 0, hauss = 0, lux = 0, mini = 0;
-    for (const b of Sim.resBuildings || []) { if (!b.cov || !b.households.length) continue; bn++; for (const k in cov) cov[k] += b.cov[k] || 0; crime += b.crime || 0; poll += (b.pollAir || 0) + (b.pollGround || 0); if (!b.power) nopow++; if (!b.water) nowat++; if (b.notif & N.GARBAGE) garb++; if (b.notif & N.DEAD) dead++; if (b.style === 'panel') panel++; if (b.style === 'hauss' || b.style === 'aristo') hauss++; if (b.cls === 3) lux++; if (b.miniPark) mini++; }
-    if (bn) { for (const k in cov) cov[k] /= bn; crime /= bn; poll /= bn; }
-    W.eduGood = cov.edu * 1.2; W.eduBad = (1 - cov.edu) * (st.children + st.students > 50 ? 1.5 : 0.2);
-    W.healthGood = cov.health; W.healthBad = (1 - cov.health) * 1.5;
-    W.crime = crime * 6; W.safe = cov.police * 0.8;
-    W.pollution = poll * 5; W.parksGood = cov.leisure + mini * 0.3; W.parksBad = (1 - cov.leisure) * 1.2;
-    const gp = Corp.groceryPriceMul(0); W.groceryHigh = Math.max(0, gp - 1) * 12; W.groceryGood = Math.max(0, 1.05 - gp) * 6;
-    W.internetBad = (1 - cov.telecom) * 1.2; W.internetGood = cov.telecom * 0.5;
+  cityTopic() {
+    const W = {};
     const models = Corp.modelsIn(0); if (models.length) { const best = models.sort((a, b) => b.m.quality * b.m.adoption - a.m.quality * a.m.adoption)[0]; W.aiPraise = best.m.adoption * 4; W.aiAnxiety = best.m.adoption * best.m.quality * 4 * (Terr.policy(0, 'airegulation') ? 0.4 : 1); this._ai = best; }
-    const techs = Corp.byType('tech'); if (techs.length) { W.techLove = 0.8; W.techMeh = 0.4; }
-    const tx = Econ.tax.res * (Mod.taxMul || 1); W.taxHigh = Math.max(0, tx - 0.11) * 30; W.taxLow = Math.max(0, 0.09 - tx) * 20;
-    W.power = nopow / Math.max(1, bn) * 12; W.water = nowat / Math.max(1, bn) * 12; W.garbage = garb / Math.max(1, bn) * 10; W.dead = dead / Math.max(1, bn) * 10;
-    const ur = st.unemployed / Math.max(1, st.workers + st.unemployed); W.jobs = ur * 10; W.jobsGood = Math.max(0, 0.06 - ur) * 12;
-    W.oldBlocks = panel / Math.max(1, bn) * 3; W.hauss = hauss / Math.max(1, bn) * 3; W.luxury = lux / Math.max(1, bn) * 2;
+    const techs = Corp.byType('tech').filter(t => t.products.length); if (techs.length) { W.techLove = 0.8; W.techMeh = 0.4; }
     W.cityRival = Terr.cities().length > 1 ? 0.8 : 0; W.national = Terr.countries().length ? 0.4 : 0;
     W.checkpoints = Terr.countries().some(c => c.policies.has('checkpoints')) && Terr.countries().length > 1 ? 0.6 : 0; W.freeTravel = Terr.countries().some(c => c.policies.has('freetravel')) && Terr.countries().length > 1 ? 0.6 : 0;
-    W.stationGood = [...Bld.list.values()].some(b => b.type === 'metro' && b.opts && b.opts.quality > 0.6) ? 0.7 : 0; W.stationBad = [...Bld.list.values()].some(b => b.type === 'metro' && b.opts && b.opts.quality < 0.4) ? 0.7 : 0;
     W.weatherSnow = Env.weather === 'snow' ? 2 : 0; W.weatherRain = Env.weather === 'rain' || Env.weather === 'storm' ? 1.5 : 0; W.weatherHot = Env.temp > 29 ? 1.5 : 0;
-    W.happyGeneral = (st.happiness - 40) / 40;
+    W.happyGeneral = Math.max(0.05, (Sim.stats.happiness - 45) / 40);
     const keys = Object.keys(W).filter(k => W[k] > 0.01);
-    if (!keys.length) return 'happyGeneral';
-    const k = Sim.rng.weighted(keys, k2 => W[k2]);
-    return k;
+    return keys.length ? Sim.rng.weighted(keys, k => W[k]) : 'happyGeneral';
   },
-  postTopic(topic) { const extra = {}; if ((topic === 'aiPraise' || topic === 'aiAnxiety') && this._ai) { extra.model = this._ai.m.name; extra.corp = this._ai.c.name; } if (topic === 'techLove' || topic === 'techMeh') { const t = Corp.byType('tech')[0]; if (t && t.products.length) { extra.corp = t.name; extra.product = t.products[t.products.length - 1].name; } } if (topic === 'groceryHigh' || topic === 'groceryGood') { const s = Corp.byType('supermarket').sort((a, b) => b.priceLevel - a.priceLevel)[topic === 'groceryHigh' ? 0 : 1]; if (s) extra.corp = s.name; } return this.post(topic, extra); },
-  /* thought bubbles above nearby agents */
+  postTopic(topic) { const extra = {}; if ((topic === 'aiPraise' || topic === 'aiAnxiety') && this._ai) { extra.model = this._ai.m.name; extra.corp = this._ai.c.name; } if (topic === 'techLove' || topic === 'techMeh') { const t = Corp.byType('tech').find(x => x.products.length); if (!t) return; extra.corp = t.name; extra.product = t.products[t.products.length - 1].name; } return this.post(topic, extra); },
+  /* ---------- conversations (citizen panel) ---------- */
+  CHAT_Q: [['mood', 'How are you?'], ['likes', 'What do you like here?'], ['dislikes', 'What bothers you?'], ['work', 'How is work?'], ['shop', 'Where do you shop?'], ['mayor', 'What should I fix?']],
+  chat(i, q) {
+    if (Sim.st[i] === CS.FREE) return '…';
+    const O = this.assess(i); const pos = O.filter(o => o.s > 0 && o.key !== 'general'), neg = O.filter(o => o.s < 0 && o.key !== 'general');
+    const b = Bld.list.get(Sim.home[i]); const st = Sim.st[i]; const h = Sim.hh.get(Sim.hhId[i]); const city = (b && Terr.get(b.cityId) || {}).name || Econ.cityName || 'town';
+    let a;
+    if (q === 'mood') { const hp = Sim.happy[i]; const mw = MOOD_WORDS.find(m => hp < m[0])[1]; const top = hp < 55 ? neg[0] : pos[0] || neg[0]; a = `Honestly? I'm ${mw}.` + (top ? ' ' + this.compose(top) : ''); }
+    else if (q === 'likes') a = pos.length ? pos.slice(0, 2).map(o => this.compose(o)).join(' ') : 'Not much, to be honest.' + (neg[0] ? ' ' + this.compose(neg[0]) : '');
+    else if (q === 'dislikes') a = neg.length ? neg.slice(0, 2).map(o => this.compose(o)).join(' ') : `Nothing really — life is good in ${city}. 😊`;
+    else if (q === 'work') {
+      if (st === CS.WORKER) { const wb = Bld.list.get(Sim.work[i]); const lv = Math.max(0, Sim.jobLv[i]); const d = wb && b ? dist2(b.x, b.z, wb.x, wb.z) : 0; const cm = O.find(o => o.key === 'commute' || o.key === 'job'); a = `I work at ${this.placeName(wb)} in a ${['entry-level', 'junior', 'regular', 'senior', 'top'][lv]} position — ¢${fmtInt(WAGES[lv] * Econ.inflation)} a month, ${d < 1000 ? Math.round(d / 10) * 10 + ' m' : (d / 1000).toFixed(1) + ' km'} from home.` + (cm && cm.s < 0 ? ' ' + this.compose(cm) : ''); }
+      else if (st === CS.UNEMPLOYED) a = `I'm out of work. ` + (Sim.stats.freeJobs > 20 ? `There are openings, but nothing for ${EDU_NAMES[Sim.edu[i]].toLowerCase()} people like me.` : `There just aren't enough jobs in ${city}.`);
+      else if (st === CS.STUDENT) a = Sim.school[i] ? `I study at ${this.placeName(Bld.list.get(Sim.school[i]))}. ` + (Sim.age[i] >= 18 ? 'Almost done!' : 'Homework, homework…') : `I should be at school, but there's no school with room near us.`;
+      else if (st === CS.RETIRED) a = `I'm retired — living on my pension${h && h.savings > 20000 ? ' and doing just fine' : ', which is tight'}.`;
+      else a = 'I\'m a kid! I play all day. 🧸';
+    } else if (q === 'shop') {
+      const g = b && b.groceryId ? Bld.list.get(b.groceryId) : null;
+      if (g && b.groceryDist < 2000) { const d = b.groceryDist; const pm = Corp.groceryPriceMul(b.cityId); a = `Mostly at ${this.placeName(g)}, ${d < 1000 ? Math.round(d / 10) * 10 + ' m' : (d / 1000).toFixed(1) + ' km'} from home${h && !h.cars ? ' — I walk there' : ''}. ` + (pm > 1.1 ? 'Prices keep going up, though.' : pm < 0.97 ? 'Prices are good lately.' : 'Prices are okay.'); }
+      else a = 'There\'s no grocery store near us. Getting food means a long trip across town.';
+    } else if (q === 'mayor') { const top = neg.find(o => OPN[o.key].fix); a = top ? 'If I were you: ' + this.fill(OPN[top.key].fix, top.v) : 'Keep doing what you\'re doing! 👍'; }
+    let log = this.chats.get(i); if (!log) { log = []; this.chats.set(i, log); if (this.chats.size > 60) this.chats.delete(this.chats.keys().next().value); }
+    log.push({ q: (this.CHAT_Q.find(x => x[0] === q) || [q, q])[1], a }); if (log.length > 8) log.shift();
+    return a;
+  },
+  /* ---------- thought bubbles above nearby pedestrians: their own trip or their own opinion ---------- */
+  thought(p) {
+    const i = p.cit >= 0 && Sim.st[p.cit] !== CS.FREE ? p.cit : -1; const dest = p.toB ? Bld.list.get(p.toB) : null;
+    if (dest && (i < 0 || Math.random() < 0.45)) {
+      if (dest.kind === 'service' && SERVICES[dest.type].leisure) return ['Walk in the ' + SERVICES[dest.type].name.toLowerCase() + ' 🌳', 1];
+      if (i >= 0 && dest.id === Sim.work[i]) return ['Off to work at ' + this.placeName(dest, true), 0];
+      if (i >= 0 && dest.id === Sim.school[i]) return ['Off to school 📚', 0];
+      if (i >= 0 && dest.id === Sim.home[i]) return ['Heading home 🏠', 0];
+      const c = Sim.comp.get(dest.id); if (c && c.shop) return [(c.shop === 'restaurant' ? 'Dinner at ' : c.shop === 'leisure' ? 'Fun night at ' : 'Shopping at ') + this.placeName(dest, true) + (c.shop === 'grocery' ? ' 🛒' : ''), 1];
+    }
+    const j = i >= 0 ? i : this.randomAdult(); const O = this.assess(j); if (!O.length) return ['What a nice day ☀️', 1];
+    const op = this.pickOp(O); return [this.shortOf(op) || (op.s < 0 ? 'Hmm…' : 'Nice day ☀️'), op.s];
+  },
   bubbleTick(dt) {
     this.bt = (this.bt || 0) + dt; if (this.bt < 2.2 || CamCtl.dist > 500 || !Sim.stats.pop) return; this.bt = 0;
-    const cands = Traffic.peds.filter(p => { const d = Gfx.camera.position.distanceTo(new THREE.Vector3(p.x, p.y, p.z)); return d < 260; });
+    const cp = Gfx.camera.position; const cands = Traffic.peds.filter(p => !p.dead && (p.x - cp.x) ** 2 + (p.y - cp.y) ** 2 + (p.z - cp.z) ** 2 < 260 * 260 && !this.bubbles.some(b => b.p === p));
     if (!cands.length) return;
-    const p = cands[(Math.random() * cands.length) | 0]; const topic = this.pickTopic(); const T = PULSE_T[topic];
-    const shortT = { highRent: 'Rent is too high! 😩', traffic: 'So much traffic 🚗', transitGood: 'Love this metro 🚇', transitBad: 'Bus is late again…', parksGood: 'Lovely park 🌳', parksBad: 'Need more trees', crime: 'Feels unsafe 🚨', pollution: 'This air… 🏭', groceryHigh: 'Groceries cost a fortune 🛒', aiPraise: 'AI helped me today 🤖', aiAnxiety: 'Will AI take my job? 😟', taxHigh: 'Taxes too high!', eduGood: 'Great schools here 🎓', healthBad: 'Need a doctor 🤒', power: 'Power cut again 🔌', jobs: 'Looking for work…', happyGeneral: 'What a nice day ☀️', weatherSnow: 'Snow! ❄️', weatherRain: 'Wet again ☔', hauss: 'Beautiful facades ✨', oldBlocks: 'Our block needs repairs', techLove: 'Love my new phone 📱', internetBad: 'Wi-Fi is so slow 📶', luxury: 'Who affords those towers?', cityRival: 'Best city ever!', stationGood: 'Gorgeous station!' }[topic] || 'Hmm…';
-    this.bubbles.push({ p, text: shortT, s: T ? T.s : 0, t: 0, el: null });
+    const p = cands[(Math.random() * cands.length) | 0]; const [text, s] = this.thought(p);
+    this.bubbles.push({ p, text, s, t: 0, el: null });
   },
   renderBubbles(dt) {
-    const cont = $('labels'); const v = new THREE.Vector3();
+    const cont = $('labels'); const v = this._v || (this._v = new THREE.Vector3());
     for (const b of this.bubbles) {
-      b.t += dt; if (!b.el) { b.el = h('div', { class: 'bubble ' + (b.s < 0 ? 'neg' : b.s > 0 ? 'pos' : '') }, b.text); cont.appendChild(b.el); }
+      b.t += dt; if (!b.el) { b.el = h('div', { class: 'bubble ' + (b.s < 0 ? 'neg' : b.s > 0 ? 'pos' : '') }, b.text); if (b.p.cit >= 0) { b.el.style.pointerEvents = 'auto'; b.el.style.cursor = 'pointer'; b.el.onclick = () => Sim.st[b.p.cit] !== CS.FREE && Panels.citizen(b.p.cit); } cont.appendChild(b.el); }
       v.set(b.p.x, b.p.y + 2.3, b.p.z).project(Gfx.camera);
       if (v.z > 1 || b.p.dead) { b.el.style.display = 'none'; } else { b.el.style.display = ''; b.el.style.left = ((v.x + 1) / 2 * innerWidth) + 'px'; b.el.style.top = ((1 - v.y) / 2 * innerHeight) + 'px'; }
       if (b.t > 4.5) { b.el.remove(); b.dead = true; }
@@ -8536,6 +8847,62 @@ const Pulse = {
     this.bubbles = this.bubbles.filter(b => !b.dead);
   },
   sentiment(cityId) { let s = 0, n = 0; for (const p of this.posts.slice(0, 80)) { if (cityId && p.cityId !== cityId) continue; s += p.s; n++; } return n ? s / n : 0; },
+  // what the city talks about most (for the feed header)
+  trending() { const c = {}; for (const p of this.posts.slice(0, 80)) { const t = p.about || p.topic; if (!OPN[t] || t === 'general') continue; const k = t + (p.s < 0 ? '-' : '+'); c[k] = (c[k] || 0) + 1 + (p.replies ? p.replies.filter(r => r.s === p.s).length : 0); } return Object.entries(c).sort((a, b) => b[1] - a[1]).slice(0, 3).map(([k, n]) => ({ key: k.slice(0, -1), s: k.endsWith('-') ? -1 : 1, n })); },
+};
+
+/* ==== PART 31b_advisor.js ==== */
+/* =====================================================================
+   ADVISOR — names the city's most urgent problem and how to fix it
+   ===================================================================== */
+const Advisor = {
+  el: null, t: 0, open: false, items: [], dismissed: new Map(),
+  init() {
+    if (this.el) return;
+    this.el = h('div', { id: 'advisor', class: 'hide' }); $('hud').appendChild(this.el);
+    this.el.addEventListener('click', e => { const it = e.target.closest('[data-i]'); if (it) { const x = this.items[+it.dataset.i]; if (x && x.at) CamCtl.lookAt(x.at.x, x.at.z, Math.min(CamCtl.goal.dist, 420)); return; } if (e.target.closest('.adv-x')) { const top = this.items[0]; if (top) this.dismissed.set(top.k, Sim.minutes); this.open = false; this.render(); return; } this.open = !this.open; this.render(); });
+  },
+  update(dt) {
+    if (!MainMenu.inGame) return; if (!this.el) this.init();
+    this.t += dt; if (this.t < 1.5) return; this.t = 0;
+    this.items = this.check(); this.render();
+  },
+  check() {
+    const I = []; const add = (k, pri, text, fix, at) => { const d = this.dismissed.get(k); if (d !== undefined && Sim.minutes - d < 1440 * 2) return; I.push({ k, pri, text, fix, at }); };
+    const st = Sim.stats; const blds = [...Bld.list.values()].filter(b => Sim.minutes >= b.doneAt && !b.abandoned && b.kind !== 'service');
+    const playerSegs = [...Net.segs.values()].filter(s => !s.T.highway && s.T.network === 'road');
+    if (!playerSegs.length) add('roads', 100, 'Build your first roads', 'Start a road from the end of the avenue that leaves the highway.', null);
+    else if (Sim.unlinkedZones && Sim.minutes - Sim.unlinkedZones < 180) { const s = playerSegs.find(x => !Econ.linkedSeg(x.id)); add('link', 95, 'Your roads aren\'t connected to the highway', 'Nothing can be built until your streets connect to the outside world. Link them to the highway avenue.', s ? s.mid : null); }
+    if (playerSegs.length && !blds.length && !ZKEYS.some(zk => Zones.freeCount(zk) > 0)) add('zone', 90, 'Zone land for your first citizens', 'Paint residential (green) along your roads, plus some commercial and industrial for jobs.', null);
+    const count = (f) => { let n = 0, ex = null; for (const b of blds) if (f(b)) { n++; ex = ex || b; } return [n, ex]; };
+    const [np, bp] = count(b => !b.power), [nw, bw] = count(b => !b.water), [ns, bs] = count(b => !b.sewage);
+    const lim = Math.max(2, blds.length * 0.08);
+    if (np > lim) add('power', 85, `${np} buildings have no electricity`, Econ.linked(bp) ? 'Build a power plant or wind turbines — or keep importing from the highway (costs more).' : 'Build a power plant or wind turbines on the same road network.', bp);
+    if (nw > lim) add('water', 84, `${nw} buildings have no water`, 'Build a water tower or a pump by the river, connected by road.', bw);
+    if (ns > lim) add('sewage', 70, `${ns} buildings have no sewage`, 'Place a sewage outlet by the river, downstream of your water pumps.', bs);
+    const [ng, bg] = count(b => b.notif & N.GARBAGE); if (ng > lim) add('garbage', 66, `Garbage is piling up at ${ng} buildings`, Progress.unlocked('landfill') ? 'Build a landfill within reach of these streets.' : 'Landfills unlock at the next milestone.', bg);
+    const lab = st.workers + st.unemployed; if (lab > 40 && st.unemployed / lab > 0.12) add('jobs', 60, `${Math.round(st.unemployed / lab * 100)}% unemployment`, 'Zone industry, commercial or offices to create jobs.', null);
+    if (Sim.demandCat.com > 0.5 && (Econ.noAnyShopRatio || 0) > 0.3 && st.pop > 100) add('shops', 55, 'Residents have nowhere to shop', 'Zone commercial (blue) near homes — supermarkets also open in dense neighbourhoods.', null);
+    let farShop = 0, ex2 = null, homes = 0; for (const b of blds) if (b.households && b.households.length) { homes++; if (b.groceryDist > 1200) { farShop++; ex2 = ex2 || b; } }
+    if (homes > 20 && Sim.day >= 1 && farShop / homes > 0.3) add('grocery', 50, `${farShop} homes are far from a grocery store`, 'Zone a few commercial plots in this neighbourhood.', ex2);
+    if (Econ.lastDayIncome - Econ.lastDayExpense < 0 && Econ.money < 400000 && Sim.day > 1) add('money', 80, 'You are losing money', 'Raise taxes a little, trim service budgets, or take a loan in the Budget panel.', null);
+    const ex = Econ.expect || 0; if (ex > 0.25) {
+      const cov = (k) => { let s = 0, n = 0; for (const b of blds) if (b.households && b.households.length && b.cov) { s += b.cov[k] || 0; n++; } return n ? s / n : 1; };
+      for (const [k, name, svc] of [['health', 'healthcare', 'a clinic'], ['edu', 'schools', 'an elementary school'], ['police', 'police', 'a police station'], ['fire', 'fire protection', 'a fire house']]) if (cov(k) < 0.3) add('cov_' + k, 40, `Few homes have ${name}`, `Build ${svc} where people live.`, null);
+    }
+    I.sort((a, b) => b.pri - a.pri); return I;
+  },
+  render() {
+    const el = this.el; if (!el) return; const it = this.items;
+    const show = MainMenu.inGame && it.length && !PhotoMode.active;
+    el.classList.toggle('hide', !show); if (!show) return;
+    const key = it.map(x => x.k + x.text).join('|') + this.open; if (key === this._k) return; this._k = key;
+    const top = it[0];
+    el.innerHTML = ''; el.classList.toggle('open', this.open);
+    el.append(h('div', { class: 'adv-h' }, h('span', { class: 'adv-i' }, '!'), h('div', { class: 'adv-t' }, h('b', null, top.text), h('div', null, top.fix)), h('button', { class: 'adv-x', title: 'Hide for now' }, '×')));
+    if (this.open && it.length > 1) el.append(h('div', { class: 'adv-l' }, it.slice(1, 5).map((x, k) => h('div', { class: 'adv-r', 'data-i': k + 1 }, h('b', null, x.text), h('div', null, x.fix)))));
+    else if (it.length > 1) el.append(h('div', { class: 'adv-m' }, `+${it.length - 1} more`));
+  },
 };
 
 /* ==== PART 32_icons.js ==== */
@@ -9434,19 +9801,19 @@ const Panels = {
       const out = [h('div', { style: { display: 'flex', gap: '10px', alignItems: 'center', marginBottom: '6px' } }, h('div', { style: { width: '44px', height: '44px', borderRadius: '50%', background: `hsl(${Sim.seed[i] % 360},55%,45%)`, display: 'grid', placeItems: 'center', fontWeight: 800 } }, name.split(' ').map(x => x[0]).join('')), h('div', null, h('div', { style: { fontWeight: 700, fontSize: '15px' } }, name), h('div', { class: 'muted' }, `${Math.floor(Sim.age[i])} years · ${stName}`)))];
       out.push(row('Happiness', face(Sim.happy[i])), row('Health', bar(Sim.health[i] / 100)), row('Education', EDU_NAMES[Sim.edu[i]]), row('Wealth', WEALTH_NAMES[wl]));
       if (home) out.push(row('Home', h('button', { class: 'btn sm', onclick: () => Panels.building(home) }, home.address || 'Home')));
-      if (work) out.push(row('Works at', h('button', { class: 'btn sm', onclick: () => Panels.building(work) }, work.bizName || work.address || (work.kind === 'service' ? SERVICES[work.type].name : 'Workplace'))), row('Job level', EDU_NAMES[Sim.jobLv[i]] + ' position'), row('Wage', '¢' + fmtInt(WAGES[Sim.jobLv[i]] * Econ.inflation) + ' / month'));
+      if (work) out.push(row('Works at', h('button', { class: 'btn sm', onclick: () => Panels.building(work) }, work.bizName ? Pulse.placeName(work, true) : work.kind === 'service' ? SERVICES[work.type].name : work.kind === 'spec' ? (SPEC_TYPES[work.type] || {}).name || 'Workplace' : work.address || 'Workplace')), row('Job level', EDU_NAMES[Sim.jobLv[i]] + ' position'), row('Wage', '¢' + fmtInt(WAGES[Sim.jobLv[i]] * Econ.inflation) + ' / month'));
       if (school) out.push(row('Studies at', h('button', { class: 'btn sm', onclick: () => Panels.building(school) }, SERVICES[school.type].name)));
       if (Sim.sick[i]) out.push(row('Status', h('span', { class: 'bad' }, 'Sick')));
       if (hh) { out.push(h('div', { class: 'sec-h' }, 'Household')); for (const m of hh.members) if (m !== i) out.push(h('div', { class: 'row', style: { cursor: 'pointer' }, onclick: () => Panels.citizen(m) }, h('span', { class: 'k' }, Sim.citizenName(m)), h('span', { class: 'v' }, Math.floor(Sim.age[m]) + ' y'))); out.push(row('Savings', '¢' + fmtInt(hh.savings)), row('Cars', hh.cars)); }
-      // opinions
-      out.push(h('div', { class: 'sec-h' }, 'Thinks about the city'));
+      // opinions: likes, dislikes and a short conversation, all from this citizen's own situation
+      const L2 = Pulse.likes(i); const op = (o, s) => h('div', { class: 'op ' + (s < 0 ? 'neg' : 'pos') }, h('i', null, s < 0 ? '−' : '+'), h('span', null, Pulse.compose(o)));
+      out.push(h('div', { class: 'sec-h' }, 'Likes'), ...(L2.pos.length ? L2.pos.map(o => op(o, 1)) : [h('div', { class: 'muted' }, 'Nothing stands out yet.')]));
+      out.push(h('div', { class: 'sec-h' }, 'Dislikes'), ...(L2.neg.length ? L2.neg.map(o => op(o, -1)) : [h('div', { class: 'muted' }, 'No complaints right now.')]));
+      out.push(h('div', { class: 'sec-h' }, 'Talk to ' + name.split(' ')[0]));
+      const log = h('div', { class: 'chat' }, (Pulse.chats.get(i) || []).map(m => [h('div', { class: 'cq' }, m.q), h('div', { class: 'ca' }, m.a)]).flat());
+      out.push(log, h('div', { class: 'chips' }, Pulse.CHAT_Q.map(([k, q]) => h('button', { class: 'btn sm', onclick: () => { const a = Pulse.chat(i, k); log.append(h('div', { class: 'cq' }, q), h('div', { class: 'ca' }, a)); log.lastChild.scrollIntoView({ block: 'nearest' }); } }, q))));
       const mine = Pulse.posts.filter(p => p.cit === i).slice(0, 2);
-      const b = home; const ops = [];
-      if (b && b.happyF) { const f = Object.entries(b.happyF).sort((a, c) => a[1] - c[1]); const worst = f[0], best = f[f.length - 1]; const say = { rent: ['My rent is way too high.', 'Rent is fair here.'], pollution: ['The air here is awful.', 'Fresh air around here.'], leisure: ['We need a park nearby.', 'Love the park next door!'], health: ['No doctor anywhere near us.', 'Great clinic nearby.'], police: ['Doesn\'t feel safe at night.', 'Very safe neighbourhood.'], education: ['Schools are too far.', 'Good schools around.'], internet: ['Internet is painfully slow.', 'Fast internet, love it.'], transit: ['No bus stop nearby.', 'Transit is super convenient.'], taxes: ['Taxes are too high.', 'Taxes are reasonable.'], corporations: ['Groceries cost too much.', 'Prices at the store are fine.'], aesthetics: ['Our building looks run-down.', 'I love the architecture here.'], traffic: ['Traffic noise all day.', 'Quiet street.'], power: ['Power keeps cutting out!', ''], water: ['No running water!', ''], jobs: ['Can\'t find a job.', 'Plenty of work around.'], wealth: ['Money is tight.', 'Doing well financially.'], city: ['This city is going downhill.', 'Proud to live in ' + ((Terr.get(b.cityId) || {}).name || 'this town') + '.'] };
-        if (worst && worst[1] < -1 && say[worst[0]]) ops.push([say[worst[0]][0], -1]); if (best && best[1] > 1 && say[best[0]] && say[best[0]][1]) ops.push([say[best[0]][1], 1]); }
-      for (const p of mine) ops.push([p.text, p.s]);
-      if (!ops.length) ops.push(['Life is okay, I guess.', 0]);
-      out.push(...ops.map(([t, s]) => h('div', { class: 'post' }, h('div', { class: 'tx', style: { color: s < 0 ? '#ffb3b0' : s > 0 ? '#b6f5a8' : 'var(--fg-2)' } }, '“' + t + '”'))));
+      if (mine.length) out.push(h('div', { class: 'sec-h' }, 'Recent posts'), ...mine.map(p => h('div', { class: 'post' }, h('div', { class: 'tx', style: { color: p.s < 0 ? '#ffb3b0' : p.s > 0 ? '#b6f5a8' : 'var(--fg-2)' } }, '“' + p.text + '”'))));
       out.push(h('div', { class: 'btns' }, agent ? h('button', { class: 'btn primary', onclick: () => { CamCtl.follow = { pos: () => agent.dead ? null : { x: agent.x, z: agent.z } }; CamCtl.goal.dist = Math.min(CamCtl.goal.dist, 80); } }, 'Follow') : null, home ? h('button', { class: 'btn', onclick: () => CamCtl.lookAt(home.x, home.z, 150) }, 'Show home') : null));
       return out;
     };
@@ -9769,8 +10136,12 @@ const Menus = {
       const f = Pulse.filter; const list = Pulse.posts.filter(p => f.kind === 'all' || (f.kind === 'city' && p.cityId === f.id) || (f.kind === 'country' && p.countryId === f.id)).slice(0, 60);
       const sel = h('select', { onchange: e => { const [k, id] = e.target.value.split(':'); Pulse.filter = { kind: k, id: +id || 0 }; p.querySelector('.panel-b').replaceChildren(...render()); } }, h('option', { value: 'all:0' }, 'Everyone'), Terr.countries().map(t => h('option', { value: 'country:' + t.id, selected: f.kind === 'country' && f.id === t.id }, 'Country: ' + t.name)), Terr.cities().map(t => h('option', { value: 'city:' + t.id, selected: f.kind === 'city' && f.id === t.id }, 'City: ' + t.name)));
       const sentiment = Pulse.sentiment(f.kind === 'city' ? f.id : 0);
+      const who = (p) => h('b', { style: { cursor: p.cit >= 0 ? 'pointer' : 'default' }, onclick: () => p.cit >= 0 && Sim.st[p.cit] !== CS.FREE && Panels.citizen(p.cit) }, p.name);
+      const trend = Pulse.trending(); const TN = { rentCrisis: 'Rent', power: 'Power cuts', water: 'Water outages', sewage: 'Sewage', garbage: 'Garbage', rent: 'Rent', broke: 'Money worries', job: 'Jobs', jobless: 'Unemployment', commute: 'Commutes', traffic: 'Traffic', groceries: 'Grocery stores', prices: 'Grocery prices', pollution: 'Pollution', noise: 'Noise', crime: 'Crime', health: 'Healthcare', healthcare: 'Healthcare', school: 'Schools', study: 'Schools', park: 'Parks', internet: 'Internet', transit: 'Public transport', taxes: 'Taxes', home: 'Housing', newHome: 'New neighbours', deathcare: 'Deathcare', fire: 'Fires' };
       return [h('div', { class: 'opt-row' }, h('span', { class: 'lab' }, 'Show posts from'), sel), row('Mood', h('span', { class: sentiment > 0.1 ? 'good' : sentiment < -0.1 ? 'bad' : 'warn' }, sentiment > 0.1 ? 'Positive' : sentiment < -0.1 ? 'Critical' : 'Mixed')),
-        list.length ? list.map(p => h('div', { class: 'post' }, h('div', { class: 'av', style: { background: p.color } }, p.name.split(' ').map(x => x[0]).join('')), h('div', { class: 'bd' }, h('div', { class: 'hd' }, h('b', { style: { cursor: p.cit >= 0 ? 'pointer' : 'default' }, onclick: () => p.cit >= 0 && Sim.st[p.cit] !== CS.FREE && Panels.citizen(p.cit) }, p.name), h('span', null, p.handle), h('span', null, '· ' + this.ago(p.t)), p.cityId && Terr.get(p.cityId) ? h('span', { class: 'tag', style: { background: Terr.get(p.cityId).color + '40', color: '#fff' } }, Terr.get(p.cityId).name) : null), h('div', { class: 'tx' }, p.text), h('div', { class: 'ft' }, h('span', null, '♥ ' + p.likes), h('span', null, '↻ ' + Math.round(p.likes / 4)))))) : h('div', { class: 'muted', style: { padding: '10px 0' } }, 'Quiet for now. Citizens start posting once people move in.')];
+        trend.length ? h('div', { class: 'trend' }, h('span', { class: 'lab' }, 'Talking about'), trend.map(t => h('span', { class: 'tag ' + (t.s < 0 ? 'neg' : 'pos') }, (t.s < 0 ? '▼ ' : '▲ ') + (TN[t.key] || t.key)))) : null,
+        list.length ? list.map(p => h('div', { class: 'post' }, h('div', { class: 'av', style: { background: p.color } }, p.name.split(' ').map(x => x[0]).join('')), h('div', { class: 'bd' }, h('div', { class: 'hd' }, who(p), h('span', null, p.handle), h('span', null, '· ' + this.ago(p.t)), p.street ? h('span', null, '· ' + p.street) : null, p.cityId && Terr.get(p.cityId) ? h('span', { class: 'tag', style: { background: Terr.get(p.cityId).color + '40', color: '#fff' } }, Terr.get(p.cityId).name) : null), h('div', { class: 'tx' }, p.text), h('div', { class: 'ft' }, h('span', null, '♥ ' + p.likes), h('span', null, '💬 ' + (p.replies ? p.replies.length : 0)), h('span', null, '↻ ' + Math.round(p.likes / 4))),
+          p.replies && p.replies.length ? h('div', { class: 'replies' }, p.replies.map(r => h('div', { class: 'reply' }, h('div', { class: 'av sm', style: { background: r.color } }, r.name.split(' ').map(x => x[0]).join('')), h('div', { class: 'bd' }, h('div', { class: 'hd' }, who(r), h('span', null, r.handle)), h('div', { class: 'tx' }, r.text))))) : null))) : h('div', { class: 'muted', style: { padding: '10px 0' } }, 'Quiet for now. Citizens start posting once people move in.')];
     };
     const p = UI.showPanel('pulse', 'Pulse', render(), { icon: ICONS.pulse, refresh: () => { if (Pulse.unread) { Pulse.unread = 0; const pb = p.querySelector('.panel-b'); const s = pb.scrollTop; pb.replaceChildren(...render()); pb.scrollTop = s; } } });
   },
@@ -9985,11 +10356,11 @@ const Outside = {
   createHighway(cx, cz, ang, len = 2800, startR = 380) {
     const sx = cx + Math.cos(ang) * startR, sz = cz + Math.sin(ang) * startR, ex = cx + Math.cos(ang) * (startR + len), ez = cz + Math.sin(ang) * (startR + len);
     const mx = (sx + ex) / 2 + Math.sin(ang) * len * 0.08, mz = (sz + ez) / 2 - Math.cos(ang) * len * 0.08;
-    const res = Net.place([{ p0: { x: ex, z: ez }, c: { x: mx, z: mz }, p1: { x: sx, z: sz } }], 'highway', 0, { force: true, name: 'Route ' + (10 + this.ids.size * 7) });
+    const res = Econ.free(() => Net.place([{ p0: { x: ex, z: ez }, c: { x: mx, z: mz }, p1: { x: sx, z: sz } }], 'highway', 0, { force: true, name: 'Route ' + (10 + this.ids.size * 7) }));
     if (!res.ok) return null;
     const far = Net.nearestNode(ex, ez, 2); if (far) { far.outside = true; this.ids.add(far.id); }
     // feeder avenue into town
-    const fx = cx + Math.cos(ang) * 120, fz = cz + Math.sin(ang) * 120; Net.place([{ p0: { x: sx, z: sz, node: Net.nearestNode(sx, sz, 2) }, c: { x: (sx + fx) / 2, z: (sz + fz) / 2 }, p1: { x: fx, z: fz } }], 'medium', 0, { force: true });
+    const fx = cx + Math.cos(ang) * 120, fz = cz + Math.sin(ang) * 120; Econ.free(() => Net.place([{ p0: { x: sx, z: sz, node: Net.nearestNode(sx, sz, 2) }, c: { x: (sx + fx) / 2, z: (sz + fz) / 2 }, p1: { x: fx, z: fz } }], 'medium', 0, { force: true }));
     return far;
   },
   daily() {
@@ -10001,7 +10372,7 @@ const Outside = {
       if (d < R + 1600) { // city reached the edge: push the outside connection outward
         const ang = Math.atan2(n.z - cz, n.x - cx); const ex = n.x + Math.cos(ang) * 2000, ez = n.z + Math.sin(ang) * 2000;
         const s = Net.segs.get(n.segs[0]); const type = s ? s.type : 'highway';
-        const res = Net.place([{ p0: { x: n.x, z: n.z, node: n }, c: { x: (n.x + ex) / 2, z: (n.z + ez) / 2 }, p1: { x: ex, z: ez } }], type, 0, { force: true, name: s ? s.name : undefined });
+        const res = Econ.free(() => Net.place([{ p0: { x: n.x, z: n.z, node: n }, c: { x: (n.x + ex) / 2, z: (n.z + ez) / 2 }, p1: { x: ex, z: ez } }], type, 0, { force: true, name: s ? s.name : undefined }));
         if (res.ok) { n.outside = false; this.ids.delete(n.id); const far = Net.nearestNode(ex, ez, 2); if (far) { far.outside = true; this.ids.add(far.id); } UI.toast('The region grows: outside connection extended.'); }
       }
     }
@@ -10165,7 +10536,8 @@ const MainMenu = {
       CamCtl.target.set(0, Terrain.height(0, 0), 0); CamCtl.goal.x = 0; CamCtl.goal.z = 0;
       setLoad(0.5, 'Laying the highway…');
       Terrain.update(true);
-      const ang = Outside.bestDir(0, 0); Outside.createHighway(0, 0, ang);
+      Outside.ids.clear(); let ang = Outside.bestDir(0, 0);
+      for (let k = 0; k < 9; k++) { const a = ang + (k ? (k % 2 ? 1 : -1) * Math.ceil(k / 2) * 0.55 : 0); if (Outside.createHighway(0, 0, a)) { ang = a; break; } }
       setLoad(0.75, 'Founding ' + o.city + '…');
       const pts = []; for (let i = 0; i < 14; i++) { const a = i / 14 * TAU; const R = 1700 * (0.85 + hash2i(i, this.seed) * 0.3); pts.push({ x: Math.cos(a) * R, z: Math.sin(a) * R }); }
       const cpts = []; for (let i = 0; i < 16; i++) { const a = i / 16 * TAU; const R = 5200 * (0.8 + hash2i(i + 40, this.seed) * 0.4); cpts.push({ x: Math.cos(a) * R, z: Math.sin(a) * R }); }
@@ -10201,7 +10573,7 @@ const Game = {
     Env.update(dt, gm);
     Terrain.update(); Net.update(); Bld.update(); Zones.update(); Flora.update(); Water.update(); Signs.update(); Smoke.update(dt); Rotors.update(dt); OverlayMap.update(dt);
     if (MainMenu.inGame) {
-      Input.update(dt); Traffic.update(dt); Transit.update(dt); Terr.update(); InfoViews.tick(dt); UI.update(dt); Pulse.bubbleTick(dt); Pulse.renderBubbles(dt); Audio.update(); Save.tick(dt);
+      Input.update(dt); Traffic.update(dt); Transit.update(dt); Terr.update(); InfoViews.tick(dt); UI.update(dt); Advisor.update(dt); Pulse.bubbleTick(dt); Pulse.renderBubbles(dt); Audio.update(); Save.tick(dt);
       this.hourAcc = (this.hourAcc || 0) + gm; if (this.hourAcc >= 60) { this.hourAcc -= 60; Pulse.hourly(); }
       this.dayAcc = (this.dayAcc || 0) + gm; if (this.dayAcc >= 1440) { this.dayAcc -= 1440; Outside.daily(); Transit.monthly(); Tourism.monthTourists = 0; }
     } else Terr.update();
@@ -10218,7 +10590,7 @@ async function boot() {
     Gfx.init(); setLoad(0.12, 'Building sky & atmosphere…'); Env.init(); Econ.init(); OverlayMap.init();
     Terrain.init(); Water.init(); Flora.init(); Net.init(); Zones.init(); Bld.init(); Signs.init(); Smoke.init(); Traffic.init(); Transit.init(); Thumb.init();
     CamCtl.init(Gfx.renderer.domElement); UI.init(); Audio.init();
-    window.CIV = { mkBB: (s, m) => new BB(s, m), GEN: { SPEC_TYPES, genHouse, genRow, genBlock, genShop, genStore, genHotel, genOffice, genIndustry, SVC_GEN, specGen, genMiniPark }, INFO_VIEWS, PhotoMode, Gfx, Env, Terrain, CamCtl, Flora, Sim, U, Net, Zones, Bld, ZONES, RoadTool, ROAD_TYPES, Econ, Terr, Corp, Transit, Traffic, Pulse, UI, Menus, Panels, InfoViews, Input, PlaceTool, BlockTool, MainMenu, Save, Mod, Progress, Outside, SERVICES, Events, Game };
+    window.CIV = { Advisor, CS, mkBB: (s, m) => new BB(s, m), GEN: { SPEC_TYPES, genHouse, genRow, genBlock, genShop, genStore, genHotel, genOffice, genIndustry, SVC_GEN, specGen, genMiniPark }, INFO_VIEWS, PhotoMode, Gfx, Env, Terrain, CamCtl, Flora, Sim, U, Net, Zones, Bld, ZONES, RoadTool, ROAD_TYPES, Econ, Terr, Corp, Transit, Traffic, Pulse, UI, Menus, Panels, InfoViews, Input, PlaceTool, BlockTool, MainMenu, Save, Mod, Progress, Outside, SERVICES, Events, Game };
     const pending = safeStore('civ_pending_load'); safeStore('civ_pending_load', null);
     const toMenu = safeStore('civ_menu'); safeStore('civ_menu', null);
     if (pending) {

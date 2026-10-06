@@ -16,6 +16,14 @@ Open `civitas.html` in a desktop browser with WebGL2 (it loads Three.js from jsD
 - **Pulse**: a citizen opinion feed and thought bubbles.
 - **Tools**: info views, a mod / god menu, photo mode, and save/load to browser storage or to a file.
 
+## Gameplay notes
+
+- **Getting started**: the starting highway and its avenue are free. Roads must connect to the highway before anything can be built. Until you build your own utilities, power, water and sewage are imported through that connection. Water towers, water pumps, sewage outlets, wind turbines and coal plants are available from the start.
+- **City Advisor**: a card at the top of the screen names the city's most urgent problem and how to fix it, for example "Your roads aren't connected to the highway" or "12 buildings have no water". Tap it for the full list; tap an item to fly to it.
+- **Businesses**: shops, factories and offices earn money in proportion to their staff and customers. A struggling business lays off staff and shrinks before it ever closes, and grows back when demand returns.
+- **Shopping**: households spend at the shops near home, weighted by distance and appeal. Supermarket chains open stores in dense neighbourhoods that lack one, and shopping trips (including grocery stops on the way home from work) go to the stores that actually get the customers.
+- **Pulse**: every post comes from a real citizen and describes their own situation: their rent as a share of income, their workplace and commute, the nearest grocery store, the source of the smoke outside their window. Neighbours reply when they share (or don't share) the experience. Open any citizen to see their likes and dislikes and to ask them questions.
+
 ## Controls
 
 **Mouse & keyboard:** right-drag to rotate, middle-drag or Shift+right-drag to pan, and use the wheel to zoom toward the cursor. WASD/QE move the camera; Esc opens the pause menu and `I` opens the info views.
