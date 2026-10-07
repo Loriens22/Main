@@ -782,11 +782,11 @@ const U = {
   uLitRes: { value: 0.5 }, uLitOff: { value: 0.5 }, uLitCom: { value: 0.5 },
   uSeaLevel: { value: 0 }, uOff: { value: new THREE.Vector2(0, 0) },
   uCamPos: { value: new THREE.Vector3() },
-  uHighlight: { value: -1 },
+  uHighlight: { value: -1 }, uClimDry: { value: 0.12 },
 };
 
 const GLSL_COMMON = /* glsl */`
-uniform float uTime, uGameTime, uNight, uHour, uSnow, uWet, uRoadSnow, uLeaf, uAutumn, uSpring, uWindStr, uCloud, uInfoMode, uInfoRamp, uAmbient, uLitRes, uLitOff, uLitCom, uSeaLevel, uHighlight;
+uniform float uTime, uGameTime, uNight, uHour, uSnow, uWet, uRoadSnow, uLeaf, uAutumn, uSpring, uWindStr, uCloud, uInfoMode, uInfoRamp, uAmbient, uLitRes, uLitOff, uLitCom, uSeaLevel, uHighlight, uClimDry;
 uniform vec3 uSunDir, uSunColor, uBrushColor, uCamPos;
 uniform vec2 uWind, uCloudOff, uOff;
 uniform vec4 uOverlayRect, uBrush;
@@ -858,6 +858,14 @@ vec3 perturbN(vec3 surf_pos, vec3 surf_norm, vec2 dHdxy, float faceDir){
   return normalize(abs(fDet) * surf_norm - vGrad);
 }
 `;
+/* forest density: mirrored exactly by Flora.dens() so the far canopy tint lines up with the instanced trees */
+const GLSL_FOREST = /* glsl */`
+float forestDens(vec2 p, float f, float h){
+  float m = gnoise(p/120.0)*0.65 + gnoise(p/41.0 + vec2(3.1,-1.7))*0.35;
+  float d = smoothstep(0.3, 0.55, f + m*0.55) * (1.0 - smoothstep(0.3, 0.42, gnoise(p/85.0 + vec2(8.1,-4.4))));
+  return max(d, smoothstep(0.38, 0.5, gnoise(p/70.0 + vec2(-5.3,2.9)))*0.85*(1.0 - smoothstep(380.0, 520.0, h)));
+}
+`;
 /* Material patcher: inject into MeshStandardMaterial / MeshPhysicalMaterial chunks */
 let _patchId = 0;
 function patchMaterial(mat, o) {
@@ -915,18 +923,18 @@ function patchDepth(o) {
    GFX — renderer, camera, lights, HDR post-processing pipeline
    ===================================================================== */
 const QUALITY = {
-  low:    { pr: 0.75, shadow: 1024, gtao: false, bloom: true, smaa: false, interior: false, trees: 0.45, vehicles: 450, peds: 300, reflect: false, treeDist: 1400, detailDist: 180, detailBudget: 500000, detailShadows: false, treeCards: 0, roadDetail: 0 },
-  medium: { pr: 1.0,  shadow: 2048, gtao: false, bloom: true, smaa: true,  interior: true,  trees: 0.7,  vehicles: 900, peds: 600, reflect: false, treeDist: 2000, detailDist: 300, detailBudget: 1000000, detailShadows: false, treeCards: 140, roadDetail: 1 },
-  high:   { pr: 1.0,  shadow: 4096, gtao: true,  bloom: true, smaa: true,  interior: true,  trees: 1.0,  vehicles: 1500, peds: 1000, reflect: false, treeDist: 2600, detailDist: 400, detailBudget: 1700000, detailShadows: true, treeCards: 220, roadDetail: 2 },
-  ultra:  { pr: 1.5,  shadow: 4096, gtao: true,  bloom: true, smaa: true,  interior: true,  trees: 1.0,  vehicles: 2400, peds: 1600, reflect: true, treeDist: 3400, detailDist: 600, detailBudget: 2600000, detailShadows: true, treeCards: 320, roadDetail: 2 },
+  low:    { pr: 0.75, shadow: 1024, gtao: false, bloom: true, smaa: false, interior: false, trees: 0.45, vehicles: 450, peds: 300, reflect: false, treeDist: 1400, detailDist: 180, detailBudget: 500000, detailShadows: false, treeCards: 0, roadDetail: 0, terrDetail: 0, waterDepth: false, beams: false },
+  medium: { pr: 1.0,  shadow: 2048, gtao: false, bloom: true, smaa: true,  interior: true,  trees: 0.7,  vehicles: 900, peds: 600, reflect: false, treeDist: 2000, detailDist: 300, detailBudget: 1000000, detailShadows: false, treeCards: 140, roadDetail: 1, terrDetail: 1, waterDepth: true, beams: true },
+  high:   { pr: 1.0,  shadow: 4096, gtao: true,  bloom: true, smaa: true,  interior: true,  trees: 1.0,  vehicles: 1500, peds: 1000, reflect: false, treeDist: 2600, detailDist: 400, detailBudget: 1700000, detailShadows: true, treeCards: 220, roadDetail: 2, terrDetail: 1, waterDepth: true, beams: true },
+  ultra:  { pr: 1.5,  shadow: 4096, gtao: true,  bloom: true, smaa: true,  interior: true,  trees: 1.0,  vehicles: 2400, peds: 1600, reflect: true, treeDist: 3400, detailDist: 600, detailBudget: 2600000, detailShadows: true, treeCards: 320, roadDetail: 2, terrDetail: 1, waterDepth: true, beams: true },
 };
 const FinalShader = {
   uniforms: { tColor: { value: null }, uRes: { value: new THREE.Vector2(1, 1) }, uExposure: { value: 1 }, uContrast: { value: 1.04 }, uSaturation: { value: 1.06 },
-    uVignette: { value: 0.35 }, uGrain: { value: 0.025 }, uCA: { value: 0.25 }, uTime: { value: 0 }, uTint: { value: new THREE.Vector3(1, 1, 1) }, uLift: { value: 0.0 } },
+    uVignette: { value: 0.35 }, uGrain: { value: 0.025 }, uCA: { value: 0.25 }, uTime: { value: 0 }, uTint: { value: new THREE.Vector3(1, 1, 1) }, uLift: { value: 0.0 }, uGrade: { value: 1 }, uNightG: { value: 0 } },
   vertexShader: `varying vec2 vUv; void main(){ vUv = uv; gl_Position = vec4(position.xy, 0.0, 1.0); }`,
   fragmentShader: /* glsl */`
   precision highp float; varying vec2 vUv;
-  uniform sampler2D tColor; uniform vec2 uRes; uniform float uExposure, uContrast, uSaturation, uVignette, uGrain, uCA, uTime, uLift; uniform vec3 uTint;
+  uniform sampler2D tColor; uniform vec2 uRes; uniform float uExposure, uContrast, uSaturation, uVignette, uGrain, uCA, uTime, uLift, uGrade, uNightG; uniform vec3 uTint;
   vec3 RRTAndODTFit(vec3 v){ vec3 a = v*(v+0.0245786)-0.000090537; vec3 b = v*(0.983729*v+0.4329510)+0.238081; return a/b; }
   vec3 aces(vec3 c){
     const mat3 I = mat3(vec3(0.59719,0.07600,0.02840), vec3(0.35458,0.90834,0.13383), vec3(0.04823,0.01566,0.83777));
@@ -945,8 +953,12 @@ const FinalShader = {
     col *= uExposure * uTint / 0.6;
     col = aces(col);
     float l = dot(col, vec3(0.2126,0.7152,0.0722));
+    float gr = clamp((col.g - max(col.r, col.b)) / (col.g + 1e-3), 0.0, 1.0);
+    col = mix(col, vec3(l) + (col - vec3(l))*0.8 + vec3(0.012,0.0,-0.006)*gr, gr*uGrade*0.6); // muted, slightly warmer foliage greens
     col = mix(vec3(l), col, uSaturation);
-    col = clamp((col - 0.5) * uContrast + 0.5 + uLift, 0.0, 1.0);
+    col = mix(col, vec3(l)*vec3(0.6,0.82,1.35), uNightG*0.75*(1.0 - smoothstep(0.015, 0.2, l))); // scotopic blue shift of the moonlit landscape; lights stay warm
+    col *= mix(vec3(1.0) + vec3(-0.03,0.0,0.045)*uGrade, vec3(1.0) + vec3(0.035,0.008,-0.035)*uGrade, smoothstep(0.04, 0.55, l)); // cool shadows, warm highlights
+    col = clamp(0.18 * pow(max(col, vec3(0.0)) / 0.18, vec3(uContrast)) + uLift, 0.0, 1.0); // contrast pivoting on mid grey keeps blacks (night, shadows) from crushing
     col = toSRGB(col);
     float v = smoothstep(0.95, 0.25, length(d*vec2(1.0, 0.9)));
     col *= mix(1.0, v, uVignette);
@@ -958,11 +970,11 @@ const FinalShader = {
 const AtmoShader = {
   uniforms: { tColor: { value: null }, tDepth: { value: null }, uInvProj: { value: new THREE.Matrix4() }, uInvView: { value: new THREE.Matrix4() },
     uCam: { value: new THREE.Vector3() }, uSun: { value: new THREE.Vector3() }, uFogCol: { value: new THREE.Color() }, uSunCol: { value: new THREE.Color() },
-    uDensity: { value: 0.00012 }, uFalloff: { value: 0.0018 }, uRain: { value: 0 }, uUnder: { value: 0 } },
+    uDensity: { value: 0.00012 }, uFalloff: { value: 0.0018 }, uRain: { value: 0 }, uUnder: { value: 0 }, uAerial: { value: 0.00004 }, uAirCol: { value: new THREE.Color() } },
   vertexShader: `varying vec2 vUv; void main(){ vUv = uv; gl_Position = vec4(position.xy, 0.0, 1.0); }`,
   fragmentShader: /* glsl */`
   precision highp float; varying vec2 vUv;
-  uniform sampler2D tColor, tDepth; uniform mat4 uInvProj, uInvView; uniform vec3 uCam, uSun, uFogCol, uSunCol; uniform float uDensity, uFalloff, uRain, uUnder;
+  uniform sampler2D tColor, tDepth; uniform mat4 uInvProj, uInvView; uniform vec3 uCam, uSun, uFogCol, uSunCol, uAirCol; uniform float uDensity, uFalloff, uRain, uUnder, uAerial;
   void main(){
     vec3 col = texture2D(tColor, vUv).rgb;
     float z = texture2D(tDepth, vUv).x;
@@ -981,6 +993,11 @@ const AtmoShader = {
     fog = clamp(fog * (sky > 0.5 ? 0.55 : 1.0), 0.0, 1.0);
     float s = max(dot(rd, normalize(uSun)), 0.0);
     vec3 fc = uFogCol + uSunCol * (pow(s, 10.0) * 0.9 + pow(s, 2.5) * 0.15);
+    if (sky < 0.5) { // aerial perspective: distance-based blue in-scatter + extinction, warmer toward the sun
+      float ap = 1.0 - exp(-dist * uAerial);
+      vec3 ac = uAirCol + uSunCol * (pow(s, 6.0) * 0.5);
+      col = mix(col, ac, ap);
+    }
     col = mix(col, fc, fog);
     if (uUnder > 0.5) col = mix(col, vec3(0.02,0.12,0.14), clamp(dist/60.0,0.0,0.95));
     if (any(isnan(col)) || any(isinf(col))) col = vec3(0.0); // never let a bad pixel smear through bloom
@@ -1022,7 +1039,7 @@ const DofShader = {
 const Gfx = {
   renderer: null, scene: null, camera: null, sun: null, hemi: null,
   q: QUALITY.high, qName: 'high',
-  post: { exposure: 0.82, contrast: 1.06, saturation: 1.06, vignette: 0.32, grain: 0.022, ca: 0.2, dof: false, tilt: false, focus: 300, aperture: 1.0, maxBlur: 9, bloom: 0.55 },
+  post: { exposure: 0.84, contrast: 1.1, saturation: 1.0, vignette: 0.32, grain: 0.022, ca: 0.2, dof: false, tilt: false, focus: 300, aperture: 1.0, maxBlur: 9, bloom: 0.55 },
   init() {
     const canvas = document.createElement('canvas'); canvas.id = 'gl'; canvas.tabIndex = 0;
     document.body.prepend(canvas);
@@ -1121,7 +1138,7 @@ const Gfx = {
     ua.uInvProj.value.copy(cam.projectionMatrixInverse); ua.uInvView.value.copy(cam.matrixWorld);
     ua.uCam.value.copy(cam.position); ua.uSun.value.copy(U.uSunDir.value);
     ua.uFogCol.value.copy(Env.fogColor); ua.uSunCol.value.copy(Env.fogSunColor);
-    ua.uDensity.value = Env.fogDensity * (Env.infoActive ? 0.25 : 1); ua.uFalloff.value = Env.fogFalloff;
+    ua.uDensity.value = Env.fogDensity * (Env.infoActive ? 0.25 : 1); ua.uFalloff.value = Env.fogFalloff; ua.uAirCol.value.copy(Env.airColor); ua.uAerial.value = Env.aerial * (Env.infoActive ? 0.3 : 1);
     ua.uUnder.value = cam.position.y < Terrain.seaAt(cam.position.x, cam.position.z) - 0.2 ? 1 : 0;
     { const out = other(src); this.pass(this.matAtmo, out); src = out; }
     // bloom (in place on src)
@@ -1132,7 +1149,7 @@ const Gfx = {
       const out = other(src); this.pass(this.matDof, out); src = out;
     }
     const uf = this.matFinal.uniforms; uf.tColor.value = src.texture; uf.uExposure.value = P.exposure * Env.exposure; uf.uContrast.value = P.contrast; uf.uSaturation.value = P.saturation * (Env.infoActive ? 0.85 : 1);
-    uf.uVignette.value = P.vignette; uf.uGrain.value = P.grain; uf.uCA.value = P.ca; uf.uTime.value = U.uTime.value;
+    uf.uVignette.value = P.vignette; uf.uGrade.value = Env.infoActive ? 0 : 1; uf.uNightG.value = Env.infoActive ? 0 : U.uNight.value; uf.uGrain.value = P.grain; uf.uCA.value = P.ca; uf.uTime.value = U.uTime.value;
     if (this.q.smaa && this.smaa) { this.pass(this.matFinal, this.rtL); this.smaa.renderToScreen = true; this.smaa.render(r, null, this.rtL); }
     else this.pass(this.matFinal, null);
   },
@@ -1143,11 +1160,11 @@ const Gfx = {
    ENVIRONMENT — sun/moon, sky, clouds, IBL, weather, seasons, climate
    ===================================================================== */
 const CLIMATES = {
-  temperate: { name: 'Temperate', lat: 49, temps: [-2, 0, 5, 10, 15, 19, 22, 21, 16, 10, 4, 0], rain: [.35, .3, .35, .4, .45, .4, .35, .35, .4, .45, .45, .4], storm: .12, diurnal: 7 },
-  nordic: { name: 'Nordic', lat: 61, temps: [-9, -8, -3, 3, 10, 15, 18, 16, 10, 4, -2, -7], rain: [.45, .4, .35, .35, .35, .4, .45, .5, .5, .55, .55, .5], storm: .08, diurnal: 6 },
-  mediterranean: { name: 'Mediterranean', lat: 40, temps: [9, 10, 13, 16, 20, 25, 28, 28, 24, 19, 14, 10], rain: [.4, .35, .3, .3, .2, .08, .04, .06, .18, .35, .45, .45], storm: .15, diurnal: 9 },
-  tropical: { name: 'Tropical', lat: 12, temps: [26, 27, 28, 29, 29, 28, 27, 27, 27, 27, 27, 26], rain: [.2, .15, .2, .35, .55, .65, .7, .7, .65, .5, .35, .25], storm: .3, diurnal: 6 },
-  arid: { name: 'Arid', lat: 28, temps: [13, 15, 19, 24, 29, 33, 35, 34, 31, 25, 18, 14], rain: [.08, .08, .06, .04, .02, .01, .02, .03, .03, .04, .06, .08], storm: .05, diurnal: 14 },
+  temperate: { dry: 0.12, name: 'Temperate', lat: 49, temps: [-2, 0, 5, 10, 15, 19, 22, 21, 16, 10, 4, 0], rain: [.35, .3, .35, .4, .45, .4, .35, .35, .4, .45, .45, .4], storm: .12, diurnal: 7 },
+  nordic: { dry: 0, name: 'Nordic', lat: 61, temps: [-9, -8, -3, 3, 10, 15, 18, 16, 10, 4, -2, -7], rain: [.45, .4, .35, .35, .35, .4, .45, .5, .5, .55, .55, .5], storm: .08, diurnal: 6 },
+  mediterranean: { dry: 0.5, name: 'Mediterranean', lat: 40, temps: [9, 10, 13, 16, 20, 25, 28, 28, 24, 19, 14, 10], rain: [.4, .35, .3, .3, .2, .08, .04, .06, .18, .35, .45, .45], storm: .15, diurnal: 9 },
+  tropical: { dry: -0.15, name: 'Tropical', lat: 12, temps: [26, 27, 28, 29, 29, 28, 27, 27, 27, 27, 27, 26], rain: [.2, .15, .2, .35, .55, .65, .7, .7, .65, .5, .35, .25], storm: .3, diurnal: 6 },
+  arid: { dry: 0.9, name: 'Arid', lat: 28, temps: [13, 15, 19, 24, 29, 33, 35, 34, 31, 25, 18, 14], rain: [.08, .08, .06, .04, .02, .01, .02, .03, .03, .04, .06, .08], storm: .05, diurnal: 14 },
 };
 const MONTHS = ['January', 'February', 'March', 'April', 'May', 'June', 'July', 'August', 'September', 'October', 'November', 'December'];
 const MONTHS_S = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'June', 'July', 'Aug', 'Sept', 'Oct', 'Nov', 'Dec'];
@@ -1161,10 +1178,11 @@ const WEATHER = {
   fog: { name: 'Fog', cloud: 0.6, rain: 0, fog: 7.0, sun: 0.55 },
 };
 
+const _ec1 = new THREE.Color(), _ec2 = new THREE.Color();
 const Env = {
   climate: CLIMATES.temperate, weather: 'clear', weatherT: 0, nextWeatherAt: 0,
   cloudCur: 0.2, rainCur: 0, fogCur: 1, sunCur: 1, temp: 15, snowAcc: 0, wet: 0,
-  fogColor: new THREE.Color(), fogSunColor: new THREE.Color(), fogDensity: 0.00012, fogFalloff: 0.0016, exposure: 1,
+  fogColor: new THREE.Color(), airColor: new THREE.Color(), aerial: 0.00004, fogSunColor: new THREE.Color(), fogDensity: 0.00012, fogFalloff: 0.0016, exposure: 1,
   moonDir: new THREE.Vector3(), infoActive: false, override: { hour: null, month: null, weather: null, season: null },
   envDirty: true, lastEnvSun: new THREE.Vector3(), lastEnvCloud: -1, flash: 0,
   init() {
@@ -1310,12 +1328,12 @@ const Env = {
     U.uLitCom.value = (hour >= 8 && hour < 22) ? 0.9 : 0.25;
     // sun color & intensity
     const warm = smoothstep(0.35, 0.02, el);
-    const sc = U.uSunColor.value; sc.setRGB(1.0, lerp(0.97, 0.62, warm), lerp(0.92, 0.38, warm));
-    const sunI = 3.4 * smoothstep(-0.02, 0.12, el) * (0.25 + 0.75 * this.sunCur);
+    const sc = U.uSunColor.value; sc.setRGB(1.0, lerp(0.95, 0.6, warm), lerp(0.86, 0.36, warm));
+    const sunI = 3.6 * smoothstep(-0.02, 0.12, el) * (0.25 + 0.75 * this.sunCur);
     const s = Gfx.sun;
     if (day > 0.02) { s.intensity = sunI; s.color.copy(sc); }
-    else { s.intensity = 0.62 * (1 - this.cloudCur * 0.55); s.color.setRGB(0.52, 0.64, 1.0); } // moonlight
-    Gfx.hemi.intensity = lerp(0.2, 0.3, day) * (1.1 - this.sunCur * 0.25);
+    else { s.intensity = 1.9 * (1 - this.cloudCur * 0.55); s.color.setRGB(0.5, 0.63, 1.0); } // moonlight
+    Gfx.hemi.intensity = lerp(0.3, 0.3, day) * (1.1 - this.sunCur * 0.25);
     Gfx.hemi.color.setRGB(lerp(0.3, 0.75, day), lerp(0.4, 0.85, day), lerp(0.78, 1.0, day));
     const su = this.sky.material.uniforms;
     su.sunPosition.value.copy(sd).multiplyScalar(10000);
@@ -1327,16 +1345,15 @@ const Env = {
     this.moon.position.copy(cp).addScaledVector(this.moonDir, 26000);
     this.moon.material.opacity = (1 - day) * (1 - this.cloudCur * 0.8);
     this.clouds.position.x = cp.x; this.clouds.position.z = cp.z;
-    U.uCloud.value = this.cloudCur;
+    U.uCloud.value = this.cloudCur; U.uClimDry.value = this.climate.dry || 0;
     const wv = U.uWind.value; U.uCloudOff.value.x += wv.x * dt * 0.0015 * (1 + Sim.speedMul * 0.3); U.uCloudOff.value.y += wv.y * dt * 0.0015 * (1 + Sim.speedMul * 0.3);
     U.uWindStr.value = 0.25 + this.rainCur * 0.6 + (this.weather === 'storm' ? 0.5 : 0);
     // fog & atmosphere colors
     const f = this.fogColor;
-    const dayFog = new THREE.Color(0.42, 0.55, 0.72).lerp(new THREE.Color(0.5, 0.52, 0.55), this.cloudCur);
-    const duskFog = new THREE.Color(0.85, 0.55, 0.38);
-    const nightFog = new THREE.Color(0.011, 0.017, 0.032);
-    f.copy(dayFog).lerp(duskFog, warm * (1 - this.cloudCur * 0.7) * day).lerp(nightFog, 1 - day);
+    f.setRGB(0.42, 0.55, 0.72).lerp(_ec1.setRGB(0.5, 0.52, 0.55), this.cloudCur).lerp(_ec2.setRGB(0.85, 0.55, 0.38), warm * (1 - this.cloudCur * 0.7) * day).lerp(_ec1.setRGB(0.016, 0.026, 0.05), 1 - day);
     f.multiplyScalar(lerp(1.0, 0.75, this.rainCur));
+    this.airColor.copy(f).multiply(_ec2.setRGB(lerp(0.86, 1, this.cloudCur), lerp(0.95, 1, this.cloudCur), lerp(1.12, 1, this.cloudCur)));
+    this.aerial = 0.000038 * Math.sqrt(this.fogCur) * (1 + this.rainCur * 0.6);
     this.fogSunColor.copy(sc).multiplyScalar(day * 0.6 * this.sunCur);
     this.fogDensity = 0.000085 * this.fogCur * (1 + U.uNight.value * 0.3);
     this.fogFalloff = 0.0016 / Math.sqrt(this.fogCur);
@@ -1352,7 +1369,7 @@ const Env = {
     // env map refresh
     const sunMoved = this.lastEnvSun.distanceToSquared(sd) > 0.0012 || Math.abs(this.lastEnvCloud - this.cloudCur) > 0.06;
     if (this.envDirty || sunMoved) this.refreshEnv();
-    Gfx.scene.environmentIntensity = lerp(0.12, 1.0, day) * lerp(1, 0.75, this.cloudCur);
+    Gfx.scene.environmentIntensity = lerp(0.22, 1.0, day) * lerp(1, 0.75, this.cloudCur);
   },
   refreshEnv() {
     this.envDirty = false; this.lastEnvSun.copy(U.uSunDir.value); this.lastEnvCloud = this.cloudCur;
@@ -1491,51 +1508,71 @@ const Terrain = {
   /* ---------- mesh generation ---------- */
   initMaterial() {
     const m = new THREE.MeshStandardMaterial({ color: 0xffffff, roughness: 0.95, metalness: 0 });
+    this.uFlora = { value: new THREE.Vector4(0, 0, 1e5, 0) }; this.uDetail = { value: Gfx.q.terrDetail };
+    Bus.on('quality', () => { this.uDetail.value = Gfx.q.terrDetail; });
     patchMaterial(m, {
-      uniforms: { uResView: { value: 0 }, uDetail: { value: 1 } },
+      uniforms: { uResView: { value: 0 }, uDetail: this.uDetail, uFlora: this.uFlora },
       vDecl: 'attribute vec4 aRes; attribute float aGw; varying vec4 vRes; varying float vGw;',
       vBegin: 'vRes = aRes; vGw = aGw;',
-      fDecl: 'uniform float uResView, uDetail; varying vec4 vRes; varying float vGw; float tH; float tRock; float tWetSand;',
+      fDecl: 'uniform float uResView, uDetail; uniform vec4 uFlora; varying vec4 vRes; varying float vGw; float tH, tRock, tScree, tWetSand, tCan, tCanN, tStrata, tFd;' + GLSL_FOREST,
       fColor: /* glsl */`
       {
         vec3 wp = vWPos; float h = wp.y - uSeaLevel; float ny = vWNor.y;
         vec2 p = wp.xz;
-        float n1 = fbm3(p/180.0), n2 = gnoise(p/23.0), n3 = gnoise(p/4.1), n4 = gnoise(p*0.9);
-        vec3 grassA = vec3(0.062,0.082,0.03), grassB = vec3(0.098,0.112,0.045), dry = vec3(0.17,0.15,0.085);
-        float n0 = fbm3(p/900.0);
-        vec3 col = mix(grassA, grassB, smoothstep(-0.3,0.4,n1));
-        col = mix(col, vec3(0.11,0.105,0.05), smoothstep(-0.1,0.5,n0)*0.6);
-        col = mix(col, vec3(0.045,0.065,0.03), smoothstep(0.1,0.6,-n0)*0.5);
-        col = mix(col, dry, clamp(smoothstep(0.2,0.6,n1+n2*0.3)*0.5 + smoothstep(0.3,0.7,gnoise(p/60.0))*0.25 + uAutumn*0.3, 0.0, 1.0));
-        col = mix(col, col*vec3(1.1,1.12,0.85), uSpring*0.2);
-        col *= 0.88 + n3*0.12 + n4*0.06;
-        // fertile soil: lush, darker
-        col = mix(col, vec3(0.06,0.085,0.028), vRes.x*0.4);
-        // forest floor
-        col = mix(col, vec3(0.04,0.05,0.02), vRes.y*0.7);
-        // dirt patches
-        col = mix(col, vec3(0.14,0.11,0.07), smoothstep(0.42,0.6,n2*0.6+n1*0.5)*0.35);
-        // rock on slopes & mountains
-        float rock = smoothstep(0.86, 0.66, ny + n2*0.06) + smoothstep(260.0, 420.0, h + n1*60.0)*0.6;
-        rock = clamp(rock,0.0,1.0); tRock = rock;
-        vec3 rockC = mix(vec3(0.16,0.15,0.135), vec3(0.27,0.26,0.24), smoothstep(-0.4,0.5,gnoise(p/40.0)+n3*0.3));
-        rockC *= 0.85 + 0.15*gnoise(vec2(p.x+p.y, wp.y)/3.0);
-        col = mix(col, rockC, rock);
-        // ore tint on rocky ground
+        float camD = length(wp - cameraPosition); tFd = 1.0 - smoothstep(120.0, 800.0, camD);
+        // multi-scale fields: macro (km), meso (10-100 m), micro (near camera only)
+        float nM = fbm3(p/1700.0), nm = gnoise(p/430.0 + 3.7), n1 = gnoise(p/97.0), n2 = gnoise(p/29.0), n3 = gnoise(p/8.3);
+        float n4 = uDetail > 0.5 ? (gnoise(p/2.6)*0.6 + gnoise(p*0.83)*0.4) * tFd : 0.0;
+        float alt = smoothstep(60.0, 320.0, h + nM*60.0);
+        float moist = nM*0.95 + nm*0.55 + n1*0.45 + n2*0.15 + vRes.x*0.5 + vGw*0.2 + (1.0 - smoothstep(1.5, 20.0, h))*0.3 - alt*0.35 - uClimDry*0.9 - 0.05;
+        vec3 col = mix(vec3(0.23,0.195,0.1), vec3(0.135,0.155,0.058), smoothstep(-0.55, -0.1, moist));
+        col = mix(col, vec3(0.08,0.108,0.042), smoothstep(-0.1, 0.45, moist));
+        col *= 0.8 + n2*0.32 + n3*0.34;
+        col = mix(col, col*vec3(1.25,1.12,0.7), smoothstep(0.05, 0.35, n2 + n1*0.35)*0.5);
+        col = mix(col, vec3(0.048,0.07,0.03), smoothstep(0.12, 0.45, -n2 - n3*0.35)*0.35*smoothstep(-0.3, 0.3, moist));
+        col *= 1.0 + n4*0.5;
+        // seasons: autumn straw, winter dormancy, spring flush
+        float dorm = 1.0 - uLeaf;
+        col = mix(col, col*vec3(1.3,1.02,0.62) + vec3(0.012,0.006,0.0), uAutumn*0.55);
+        col = mix(col, vec3(0.112,0.098,0.066)*(0.9 + n2*0.25), dorm*0.6);
+        col = mix(col, col*vec3(0.92,1.14,0.8), uSpring*0.4);
+        // bare soil / worn patches
+        float soil = smoothstep(0.34, 0.52, n2*0.6 + n3*0.35 + n1*0.3 - moist*0.12);
+        col = mix(col, mix(vec3(0.082,0.064,0.044), vec3(0.128,0.1,0.068), n3*0.5 + 0.5), soil*0.7);
+        // forest: litter floor near the camera, canopy where instanced trees are no longer drawn
+        float sl = 1.0 - ny;
+        float fden = forestDens(p, vRes.y, h) * smoothstep(0.9, 1.6, h) * (1.0 - smoothstep(0.13, 0.18, sl));
+        float far = smoothstep(uFlora.z*0.5, uFlora.z*0.92, length(p - uFlora.xy));
+        tCanN = gnoise(p/5.5)*0.6 + n3*0.4;
+        vec3 canC = mix(vec3(0.017,0.03,0.015), vec3(0.05,0.072,0.027), smoothstep(-0.35, 0.45, tCanN));
+        vec3 aut = mix(vec3(0.2,0.07,0.018), vec3(0.24,0.15,0.03), smoothstep(-0.3, 0.3, n2)); aut = mix(aut, vec3(0.13,0.12,0.035), smoothstep(0.1, 0.4, n1));
+        canC = mix(canC, aut*(0.7 + 0.5*smoothstep(-0.35, 0.45, tCanN)), uAutumn*0.8*smoothstep(-0.25, 0.15, n1 + nm*0.5));
+        canC = mix(canC, vec3(0.058,0.05,0.04)*(0.8 + tCanN*0.4), dorm*0.55*smoothstep(-0.25, 0.25, n1));
+        vec3 floorC = mix(vec3(0.044,0.04,0.026), vec3(0.06,0.06,0.03), n3*0.5 + 0.5);
+        col = mix(col, mix(floorC, canC, far), fden*mix(0.78, 0.97, far));
+        tCan = fden*far;
+        // slopes: scree then rock, strata banding; alpine rock with altitude
+        float rock = clamp(smoothstep(0.17, 0.3, sl + n2*0.07 + n3*0.04) + smoothstep(300.0, 460.0, h + nM*90.0)*0.7, 0.0, 1.0);
+        float scree = smoothstep(0.085, 0.17, sl + n2*0.1 + n3*0.05) * (1.0 - rock);
+        tStrata = gnoise(vec2(wp.y*0.45 + n2*1.5, (p.x - p.y)*0.004));
+        vec3 rockC = mix(vec3(0.15,0.142,0.128), vec3(0.28,0.265,0.24), smoothstep(-0.45, 0.45, tStrata + n3*0.35));
+        rockC *= vec3(1.0 + n1*0.07, 1.0, 1.0 - n1*0.07);
+        col = mix(col, mix(vec3(0.165,0.15,0.125), vec3(0.23,0.21,0.18), n3*0.5 + 0.5), scree*0.75);
+        col = mix(col, rockC, rock); tRock = rock; tScree = scree;
         col = mix(col, col*vec3(1.12,0.86,0.72), vRes.z*0.3*rock);
-        // beaches / riverbanks
-        float sand = 1.0 - smoothstep(0.6, 2.6 + n2*1.2, h);
-        vec3 sandC = mix(vec3(0.36,0.31,0.22), vec3(0.22,0.19,0.14), smoothstep(0.4,-0.3,h));
-        col = mix(col, sandC, sand*(1.0-rock*0.6));
-        tWetSand = smoothstep(0.9,-0.1,h) * step(-3.0, h);
+        // banks: sandy beaches on some shores, dark mud on others
+        float beach = smoothstep(-0.05, 0.2, gnoise(p/260.0 + 11.0) + nm*0.3);
+        float bank = 1.0 - smoothstep(0.4, 1.4 + n2*1.4 + beach*1.3, h);
+        col = mix(col, mix(vec3(0.07,0.06,0.042), vec3(0.22,0.19,0.138)*(0.9 + n3*0.15), beach), bank*(1.0 - rock*0.6));
+        tWetSand = smoothstep(0.8, -0.1, h) * step(-3.0, h);
         // underwater absorption
-        float under = smoothstep(0.0, -10.0, h);
-        col = mix(col, mix(vec3(0.16,0.2,0.16), vec3(0.03,0.08,0.1), smoothstep(0.0,-8.0,h)), under);
+        float dep = max(-h, 0.0);
+        col = mix(col*vec3(0.75,0.82,0.78), vec3(0.02,0.055,0.05), (1.0 - exp(-dep*0.8))*0.94);
         // snow
-        float snowLine = smoothstep(520.0, 700.0, h + n1*90.0) * 0.9;
-        float snow = clamp(max(uSnow, snowLine) * smoothstep(0.55, 0.85, ny + n3*0.05) * (0.85+n4*0.15), 0.0, 1.0);
-        snow *= step(0.0, h);
-        col = mix(col, vec3(0.8,0.83,0.88), snow);
+        float snowLine = smoothstep(520.0, 700.0, h + nM*90.0) * 0.9;
+        float snow = clamp(max(uSnow, snowLine) * smoothstep(0.55, 0.85, ny + n3*0.05) * (0.85 + n2*0.15), 0.0, 1.0);
+        snow *= step(0.0, h) * (1.0 - tCan*0.6*smoothstep(-0.2, 0.3, tCanN));
+        col = mix(col, vec3(0.8,0.83,0.88)*(0.96 + n3*0.06), snow);
         tH = snow;
         // resource info views
         if (uResView > 0.5) {
@@ -1555,14 +1592,15 @@ const Terrain = {
         col = mix(col, ov.rgb, ov.a);
         col = mix(col, uBrushColor, brushRing(wp)*0.85);
         // wetness darkening
-        col *= 1.0 - (max(uWet*0.35, tWetSand*0.3))*(1.0-snow);
+        col *= 1.0 - (max(uWet*0.35, tWetSand*0.35))*(1.0-snow);
         diffuseColor.rgb = col;
       }`,
-      fRough: `roughnessFactor = mix(0.97, 0.55, max(uWet*0.8, tWetSand*0.7)); roughnessFactor = mix(roughnessFactor, 0.6, tH*0.6); roughnessFactor = mix(roughnessFactor, 0.82, tRock*0.3); metalnessFactor = 0.0;`,
+      fRough: `roughnessFactor = mix(0.97, 0.5, max(uWet*0.8, tWetSand*0.75)); roughnessFactor = mix(roughnessFactor, 0.6, tH*0.6); roughnessFactor = mix(roughnessFactor, 0.8, tRock*0.35); metalnessFactor = 0.0;`,
       fNormal: /* glsl */`
       {
-        vec2 p = vWPos.xz;
-        float bh = (gnoise(p/3.3)*0.6 + gnoise(p/1.1)*0.3 + gnoise(p*2.6)*0.12) * (0.35 + tRock*1.6) * uDetail;
+        vec2 p = vWPos.xz; float fd = tFd*tFd;
+        float bh = tStrata*tRock*1.4 + tCan*tCanN*2.6;
+        if (uDetail > 0.5) bh += (gnoise(p/3.1)*0.55 + gnoise(p/1.05)*0.3 + gnoise(p*2.4)*0.15*fd) * (0.28 + tRock*1.5 + tScree*0.8) * fd;
         normal = perturbN(-vViewPosition, normal, vec2(dFdx(bh), dFdy(bh)), faceDirection);
       }`,
       fEmissive: `totalEmissiveRadiance += uBrushColor * brushRing(vWPos) * 0.25;`,
@@ -1730,28 +1768,50 @@ const Terrain = {
    WATER — sea level plane with procedural waves (PBR, env reflections)
    ===================================================================== */
 const Water = {
+  dirty: true, bakeAt: -1e9, bx: 1e9, bz: 1e9, bE: 0,
   init() {
+    // top-down bake of the terrain group into a small RT: signed water depth for shore foam, clear shallows and soft edges
+    const rt = new THREE.WebGLRenderTarget(256, 256, { depthBuffer: true, type: THREE.UnsignedByteType }); rt.texture.minFilter = rt.texture.magFilter = THREE.LinearFilter; rt.texture.generateMipmaps = false; this.rt = rt;
+    this.bCam = new THREE.OrthographicCamera(-1, 1, 1, -1, 1, 9000); this.bCam.up.set(0, 0, -1);
+    this.bScene = new THREE.Scene(); this.bScene.overrideMaterial = new THREE.ShaderMaterial({ uniforms: { uSea: U.uSeaLevel },
+      vertexShader: 'varying float vY; void main(){ vec4 w = modelMatrix*vec4(position,1.0); vY = w.y; gl_Position = projectionMatrix*viewMatrix*w; }',
+      fragmentShader: 'uniform float uSea; varying float vY; void main(){ gl_FragColor = vec4(clamp((uSea - vY + 4.0)*16.0/255.0, 0.0, 1.0), 0.0, 0.0, 1.0); }' });
+    this.uRect = { value: new THREE.Vector4(0, 0, 0, 0) }; this.uVP = { value: new THREE.Matrix4() };
+    Bus.on('terrainChanged', () => { this.dirty = true; });
     const m = new THREE.MeshStandardMaterial({ color: 0x0b2a33, roughness: 0.03, metalness: 0.0, transparent: true, opacity: 0.86, depthWrite: true });
     patchMaterial(m, {
-      fDecl: 'float wFoam;',
+      uniforms: { uDepthTex: { value: rt.texture }, uDepthRect: this.uRect, uBakeVP: this.uVP },
+      fDecl: 'uniform sampler2D uDepthTex; uniform vec4 uDepthRect; uniform mat4 uBakeVP; float wFoam, wDep;',
       fColor: /* glsl */`
       {
-        vec3 wp = vWPos; float pol = sampleOverlay(wp).a;
-        vec3 deep = vec3(0.008,0.04,0.05), shallow = vec3(0.02,0.08,0.075);
+        vec3 wp = vWPos; float camD = length(wp - cameraPosition);
+        // water depth from the baked heightfield around the camera (signed: negative = dry land)
+        vec2 uv = (uBakeVP * vec4(wp, 1.0)).xy*0.5 + 0.5; vec2 eu = min(uv, 1.0 - uv);
+        float inR = uDepthRect.w * smoothstep(0.0, 0.06, min(eu.x, eu.y));
+        wDep = mix(9.0, texture2D(uDepthTex, clamp(uv, 0.0, 1.0)).r * 255.0 / 16.0 - 4.0, inR);
+        float d = max(wDep, 0.0);
         float n = fbm2(wp.xz/240.0 + uTime*0.01);
-        vec3 c = mix(deep, shallow, smoothstep(-0.3,0.5,n));
+        vec3 c = mix(vec3(0.03,0.092,0.08), vec3(0.005,0.026,0.038), 1.0 - exp(-d*0.22)) * (0.9 + n*0.2);
+        // foam: lines lapping at the shore + froth right at the waterline
+        float fn = gnoise(wp.xz*0.32 + vec2(uTime*0.13, -uTime*0.09))*0.6 + gnoise(wp.xz*1.25 - uTime*0.21)*0.4;
+        float wave = sin(d*6.5 - uTime*1.6 + fn*4.0)*0.5 + 0.5;
+        wFoam = (1.0 - smoothstep(0.05, 1.1, d)) * smoothstep(0.45, 0.85, wave + fn*0.5) + (1.0 - smoothstep(0.0, 0.22, d)) * smoothstep(-0.3, 0.2, fn);
+        wFoam = clamp(wFoam, 0.0, 1.0) * (1.0 - smoothstep(120.0, 520.0, camD)) * inR;
+        c = mix(c, vec3(0.6,0.64,0.64), wFoam*0.8);
         if (uInfoMode > 0.5) c = mix(c, vec3(0.35,0.5,0.62), 0.6);
         vec4 ov = sampleOverlay(wp); c = mix(c, ov.rgb, ov.a);
-        c = mix(c, vec3(0.75,0.85,0.9), uSnow*0.0);
         diffuseColor.rgb = c;
-        diffuseColor.a = mix(0.82, 0.95, smoothstep(200.0, 3000.0, length(wp - cameraPosition)));
+        // clear shallows, opaque depths, more reflective/opaque at grazing angles
+        float fres = pow(1.0 - clamp(normalize(cameraPosition - wp).y, 0.0, 1.0), 5.0);
+        diffuseColor.a = clamp(smoothstep(-0.05, 0.4, wDep) * (0.42 + 0.55*(1.0 - exp(-d*0.4))) + fres*0.6 + wFoam*0.7, 0.0, 1.0);
+        diffuseColor.a = mix(diffuseColor.a, 0.95, smoothstep(1500.0, 4500.0, camD));
       }`,
-      fRough: 'roughnessFactor = 0.04 + uWet*0.05 + smoothstep(150.0, 2500.0, length(vWPos - cameraPosition))*0.14; metalnessFactor = 0.0;',
+      fRough: 'roughnessFactor = 0.04 + uWet*0.05 + smoothstep(150.0, 2500.0, length(vWPos - cameraPosition))*0.12 + wFoam*0.6; metalnessFactor = 0.0;',
       fNormal: /* glsl */`
       {
         vec2 p = vWPos.xz; float t = uTime;
         vec2 w = normalize(uWind + vec2(0.001));
-        float s = 0.6 + uWindStr*1.4;
+        float s = (0.6 + uWindStr*1.4) * (0.35 + 0.65*smoothstep(0.0, 2.5, wDep));
         vec2 d1 = p/9.0 + w*t*0.35, d2 = p/3.1 - w.yx*t*0.6, d3 = p/31.0 + vec2(w.x,-w.y)*t*0.12, d4 = p/1.3 + w*t*1.1;
         float e = 0.06;
         float fd = 1.0 - smoothstep(60.0, 900.0, length(vWPos - cameraPosition));
@@ -1760,21 +1820,33 @@ const Water = {
         float hz = gnoise(d1+vec2(0.0,e))*0.6 + gnoise(d2+vec2(0.0,e))*0.25*fd + gnoise(d3+vec2(0.0,e))*1.2 + gnoise(d4+vec2(0.0,e))*0.08*fd;
         vec3 nw = normalize(vec3(-(hx-h0)/e*0.09*s, 1.0, -(hz-h0)/e*0.09*s));
         float fade = 1.0 - smoothstep(600.0, 6000.0, length(vWPos - cameraPosition));
-        nw = normalize(mix(vec3(0.0,1.0,0.0), nw, 0.35 + 0.65*fade));
+        nw = normalize(mix(vec3(0.0,1.0,0.0), nw, (0.35 + 0.65*fade) * (1.0 - wFoam*0.7)));
         normal = normalize((viewMatrix * vec4(nw, 0.0)).xyz);
       }`,
       fEmissive: /* glsl */`
       {
-        // subsurface glow in wave crests and night reflection boost
-        totalEmissiveRadiance += vec3(0.0,0.02,0.025) * (1.0-uNight) * uAmbient;
+        totalEmissiveRadiance += vec3(0.0,0.018,0.022) * (1.0-uNight) * uAmbient * (1.0 - wFoam);
       }`,
+      fLights: 'reflectedLight.indirectSpecular *= vec3(0.62,0.7,0.78);',
       noCloud: false,
     });
     const g = new THREE.PlaneGeometry(80000, 80000, 1, 1).rotateX(-Math.PI / 2);
     this.mesh = new THREE.Mesh(g, m); this.mesh.receiveShadow = true; this.mesh.renderOrder = 1; this.mesh.frustumCulled = false;
     Gfx.scene.add(this.mesh); this.mat = m;
   },
-  update() { const c = Gfx.camera.position; this.mesh.position.set(Math.round(c.x / 100) * 100, Terrain.seaLevel, Math.round(c.z / 100) * 100); },
+  bake(cx, cz, E) {
+    const c = this.bCam, r = Gfx.renderer, h = E / 2, g = Terrain.group, par = g.parent, prev = r.getRenderTarget();
+    c.left = -h; c.right = h; c.top = h; c.bottom = -h; c.position.set(cx, 4500, cz); c.lookAt(cx, 0, cz); c.updateProjectionMatrix(); c.updateMatrixWorld();
+    this.uVP.value.multiplyMatrices(c.projectionMatrix, c.matrixWorldInverse);
+    this.bScene.add(g); r.setRenderTarget(this.rt); r.setClearColor(0xff0000, 1); r.clear(); r.render(this.bScene, c); r.setRenderTarget(prev); par.add(g);
+    this.uRect.value.set(cx, cz, E, 1); this.bx = cx; this.bz = cz; this.bE = E; this.dirty = false; this.bakeAt = performance.now();
+  },
+  update() {
+    const c = Gfx.camera.position; this.mesh.position.set(Math.round(c.x / 100) * 100, Terrain.seaLevel, Math.round(c.z / 100) * 100);
+    if (!Gfx.q.waterDepth) { this.uRect.value.w = 0; return; }
+    const t = CamCtl.target, E = CamCtl.dist > 900 ? 6000 : 1600, now = performance.now();
+    if (E !== this.bE || Math.hypot(t.x - this.bx, t.z - this.bz) > E * 0.15 || now - this.bakeAt > (this.dirty ? 700 : 2500)) this.bake(t.x, t.z, E);
+  },
 };
 
 /* ==== PART 15_flora.js ==== */
@@ -1835,9 +1907,9 @@ const Flora = {
       if (hi) { for (let i = 0; i < 5; i++) { const a = i / 5 * TAU + 0.5; eblob(Math.cos(a) * 1.1, S.h * r.range(0.45, 0.82), Math.sin(a) * 1.1, r.range(1.5, 2.1), 1.25, 0.45); } eblob(0, S.h * 0.88, 0, 1.6, 1.3, 0.4); }
       else { eblob(0, S.h * 0.66, 0, 2.5, 1.75, 0); }
     } else if (S.key === 'pine') {
-      tr(0.3, 0.16, S.h * 0.66, [0.36, 0.22, 0.14]);
-      if (hi) { for (let i = 0; i < 6; i++) { const a = i / 6 * TAU + r.next() * 0.5; eblob(Math.cos(a) * 1.9, S.h * r.range(0.62, 0.84), Math.sin(a) * 1.9, r.range(1.6, 2.2), 0.62, 0.35); } eblob(0, S.h * 0.9, 0, 2.2, 0.6, 0.3); }
-      else { eblob(0, S.h * 0.78, 0, 3.6, 0.55, 0); }
+      tr(0.3, 0.16, S.h * 0.62, [0.36, 0.22, 0.14]);
+      if (hi) { for (let i = 0; i < 7; i++) { const a = i / 7 * TAU + r.next() * 0.6, d = r.range(1.3, 2.5); eblob(Math.cos(a) * d, S.h * r.range(0.58, 0.86), Math.sin(a) * d, r.range(1.9, 2.6), 0.72, 0.45); } eblob(0, S.h * 0.88, 0, 2.5, 0.7, 0.35); }
+      else { eblob(0, S.h * 0.8, 0, 3.9, 0.62, 0); eblob(0.8, S.h * 0.66, -0.5, 2.6, 0.7, 0); }
     } else if (S.key === 'palm') {
       tr(0.32, 0.2, S.h * 0.92, [0.45, 0.36, 0.25]);
       const fr = hi ? 8 : 5; for (let i = 0; i < fr; i++) { const a = i / fr * TAU; const g = new THREE.BoxGeometry(5.2, 0.12, 0.9); g.translate(2.6, 0, 0); g.rotateZ(-0.35); g.rotateY(a); g.translate(0, S.h * 0.92, 0); addMesh(g, L, true, S.h, 0); }
@@ -1905,10 +1977,11 @@ const Flora = {
         vec3 c = diffuseColor.rgb;
         if (vLeaf > 0.5) {
           float s = vSeed;
-          vec3 summer = mix(vec3(0.06,0.115,0.035), vec3(0.125,0.18,0.05), s);
-          if (DECID < 0.5) summer = mix(vec3(0.035,0.075,0.04), vec3(0.06,0.11,0.055), s);
+          vec3 summer = mix(vec3(0.058,0.096,0.032), vec3(0.128,0.16,0.054), s);
+          summer = mix(summer, vec3(0.12,0.135,0.045), step(0.8, fract(s*7.3))*0.6);
+          if (DECID < 0.5) summer = mix(vec3(0.03,0.058,0.035), vec3(0.058,0.088,0.048), s);
           if (PALM > 0.5) summer = vec3(0.13,0.25,0.07);
-          vec3 autumn = s < 0.33 ? vec3(0.72,0.24,0.06) : s < 0.66 ? vec3(0.85,0.52,0.08) : vec3(0.7,0.62,0.12);
+          vec3 autumn = s < 0.33 ? vec3(0.44,0.12,0.03) : s < 0.66 ? vec3(0.52,0.28,0.04) : vec3(0.42,0.36,0.07);
           vec3 lc = mix(summer, autumn, uAutumn*DECID);
           lc = mix(lc, lc*1.2 + vec3(0.02,0.03,0.0), uSpring*DECID);
           if (s > 0.975) lc = mix(lc, vec3(0.62,0.46,0.5), uSpring*DECID*0.6);
@@ -1973,23 +2046,34 @@ const Flora = {
     if (t > -0.05) return r < 0.35 ? 1 : r < 0.55 ? 2 : r < 0.85 ? 0 : 3;
     return r < 0.6 ? 0 : r < 0.8 ? 2 : r < 0.92 ? 5 : 1;
   },
+  dens(x, z, f, h) { // mirrors GLSL forestDens(): ragged forest edges, clearings, copses in open land
+    const m = gnoise(x / 120, z / 120) * 0.65 + gnoise(x / 41 + 3.1, z / 41 - 1.7) * 0.35;
+    const d = smoothstep(0.3, 0.55, f + m * 0.55) * (1 - smoothstep(0.3, 0.42, gnoise(x / 85 + 8.1, z / 85 - 4.4)));
+    return Math.max(d, smoothstep(0.38, 0.5, gnoise(x / 70 - 5.3, z / 70 + 2.9)) * 0.85 * (1 - smoothstep(380, 520, h)));
+  },
   cell(cx, cz) {
     const k = cx + ',' + cz; let c = this.cells.get(k); if (c) return c;
     c = { trees: [] };
-    const dens = Gfx.q.trees;
+    const dens = Gfx.q.trees, cold = Env.climate === CLIMATES.nordic;
     const sp = 8;
     for (let j = 0; j < CELL_T / sp; j++) for (let i = 0; i < CELL_T / sp; i++) {
       const hx = hash2i(cx * 64 + i, cz * 64 + j), hz = hash2i(cx * 64 + i + 999, cz * 64 + j - 77), hp = hash2i(cx * 64 + i - 31, cz * 64 + j + 55);
       const x = cx * CELL_T + (i + hx) * sp, z = cz * CELL_T + (j + hz) * sp;
       const h = Terrain.height(x, z);
       if (h < 1.0) continue;
-      const f = Terrain.forest(x, z, h);
-      const p = f * dens * 0.85 + 0.006;
+      const d = h > 1.6 ? this.dens(x, z, Terrain.forest(x, z, h), h) : 0;
+      // hedgerows along field boundaries and a few lone field trees
+      const hedge = d < 0.3 && h < 300 && Math.abs(gnoise(x / 240 + 1.3, z / 240 - 7.1) + gnoise(x / 77, z / 77) * 0.25) < 0.016;
+      const p = Math.max(d * 0.95, hedge ? 0.4 : 0.0035) * dens;
       if (hp > p) continue;
-      if (Terrain.slope(x, z) > 0.9) continue;
+      if (Terrain.slope(x, z) > 0.62) continue;
       if (isOccupied(x, z, 2.5)) continue;
-      const sp2 = this.speciesFor(x, z, h, hash2i(cx * 64 + i + 7, cz * 64 + j + 3));
-      c.trees.push({ x, y: h - 0.2, z, s: 0.75 + hash2i(i * 3 + cx, j * 7 + cz) * 0.55, r: hp * 40, sp: sp2 });
+      const r2 = hash2i(cx * 64 + i + 7, cz * 64 + j + 3), r3 = hash2i(i * 3 + cx, j * 7 + cz);
+      const edge = d > 0.05 && d < 0.55, lone = d < 0.05 && !hedge;
+      const sp2 = (edge && r3 < 0.4) || (hedge && r3 < 0.45) ? 5 : lone && r2 < 0.75 && Env.climate !== CLIMATES.tropical && Env.climate !== CLIMATES.arid ? (r2 < 0.5 ? 0 : 2) : this.speciesFor(x, z, h, r2);
+      // young growth at the margins, old tall trees in the interior and alone in the fields
+      const s = (0.72 + r3 * 0.5) * (lone ? 1.25 : edge ? 0.62 + d * 0.7 : 1 + r2 * 0.15) * (sp2 === 5 ? 0.8 + r2 * 0.7 : 1) * (cold && sp2 !== 5 ? 1.08 : 1);
+      c.trees.push({ x, y: h - 0.2, z, s, r: hp * 40, sp: sp2 });
     }
     this.cells.set(k, c); return c;
   },
@@ -2014,6 +2098,7 @@ const Flora = {
     if (!force && !this.dirty && moved < Math.max(120, R * 0.12) && Math.abs(dist - this.lastDist) < this.lastDist * 0.25) return;
     this.dirty = false; this.lastCenter.set(tgt.x, 0, tgt.z); this.lastDist = dist;
     const nearR = Math.max(180, Math.min(420, dist * 0.7));
+    Terrain.uFlora.value.set(tgt.x, tgt.z, R, 0);
     const cardR = Gfx.q.treeCards ? clamp(dist * 0.6 + 40, 70, Gfx.q.treeCards) : 0;
     const m4 = new THREE.Matrix4(), q = new THREE.Quaternion(), sc = new THREE.Vector3(), ps = new THREE.Vector3(), ax = new THREE.Vector3(0, 1, 0);
     const counts = this.meshes.map(() => [0, 0, 0]);
@@ -2147,9 +2232,9 @@ const TreeCards = {
     } else if (S.key === 'pine') {
       // slightly leaning trunk with bare lower part, umbrella crown of needle tufts
       const top = [0.4, H * 0.86, 0.2]; tube([0, -0.3, 0], [0.15, H * 0.5, 0.05], 0.32, 0.22, 7); tube([0.15, H * 0.5, 0.05], top, 0.22, 0.12, 6);
-      for (let i = 0; i < 8; i++) { const y = H * (0.62 + i * 0.035), az = i * 2.3; const st = [0.15 + 0.25 * (i / 8), y, 0.05 + 0.15 * (i / 8)]; const d = nrm([Math.cos(az), 0.35, Math.sin(az)]); const L = 2.8 - i * 0.18; const e = add(st, sc(d, L)); tube(st, e, 0.1, 0.04, 4);
-        for (const t of [0.6, 1]) { const c = add(st, sc(d, L * t)); const rv = r.next(); for (let k = 0; k < 3; k++) { const nn = nrm([r.range(-0.4, 0.4), 1, r.range(-0.4, 0.4)]); const u = perp(nn), v = cross(nn, u); card(add(c, [0, 0.15 * k, 0]), u, v, 1.9 - k * 0.3, 1, rv); } } }
-      core(0.35, H * 0.8, 0.15, 1.8, 0.8);
+      for (let i = 0; i < 12; i++) { const y = H * (0.56 + i * 0.027), az = i * 2.3; const st = [0.15 + 0.25 * (i / 12), y, 0.05 + 0.15 * (i / 12)]; const d = nrm([Math.cos(az), 0.3, Math.sin(az)]); const L = 3.2 - i * 0.14; const e = add(st, sc(d, L)); tube(st, e, 0.1, 0.04, 4);
+        for (const t of [0.55, 1]) { const c = add(st, sc(d, L * t)); const rv = r.next(); for (let k = 0; k < 3; k++) { const nn = nrm([r.range(-0.6, 0.6), 1, r.range(-0.6, 0.6)]); const u = perp(nn), v = cross(nn, u); card(add(c, [0, 0.2 * k, 0]), u, v, 2.6 - k * 0.4, 1, rv); } } }
+      core(0.35, H * 0.8, 0.15, 1.7, 1.3); core(-0.4, H * 0.7, 0.5, 1.3, 1.0);
     } else if (S.key === 'palm') {
       // curved, ringed trunk and arching fronds
       let p = [0, -0.3, 0]; const segs = 7; for (let i = 0; i < segs; i++) { const t = (i + 1) / segs; const q = [Math.sin(t * 1.2) * 1.4, H * 0.92 * t, 0]; tube(p, q, 0.34 - t * 0.1, 0.32 - t * 0.1, 7); p = q; }
@@ -4351,17 +4436,32 @@ const BuildingMaterial = {
           } else if (T < 18.5) { // green roof
             bC = mix(vec3(0.17,0.28,0.08), vec3(0.3,0.36,0.12), gnoise(uv*1.3+seed)*0.5+0.5) * (0.85 + gnoise(uv*6.0)*0.15); bR = 0.95;
             bC = mix(bC, bC*vec3(1.4,1.0,0.6), uAutumn*0.4);
-          } else if (T < 19.5) { // lawn
-            bC = mix(vec3(0.085,0.16,0.04), vec3(0.15,0.22,0.065), gnoise(vec2(vWPos.x,vWPos.z)*0.15)*0.5+0.5) * (0.88 + gnoise(vWPos.xz*3.0)*0.1);
-            bC *= 1.0 + lineMask(fract(vWPos.x/3.0)-0.5, 0.25, 0.1)*0.05;
-            bC = mix(bC, bC*vec3(1.35,1.05,0.55), uAutumn*0.35); bR = 0.95;
+          } else if (T < 19.5) { // lawn: mown turf toned to sit in the terrain grass; lot lawns (gT=1, fh/cw = half size) get stripes + worn, blended edges
+            vec2 wq = vWPos.xz; float n1 = gnoise(wq*0.09), n2 = gnoise(wq*0.47 + seed*9.0), n3 = gnoise(wq*3.7);
+            float care = fract(seed*7.31);
+            bC = mix(vec3(0.06,0.086,0.03), vec3(0.09,0.12,0.042), smoothstep(-0.6,0.6,n1 + n2*0.5));
+            bC = mix(bC, vec3(0.13,0.12,0.066), clamp(smoothstep(0.15,0.8,n2*0.7 + n1*0.3)*(0.6 - care*0.5) + uAutumn*0.3, 0.0, 1.0));
+            bC *= 0.9 + n3*0.09; bC = mix(bC, bC*vec3(1.08,1.12,0.85), uSpring*0.25);
+            if (gT > 0.5) {
+              float ax = step(0.5, fract(seed*3.7)); float su = mix(uv.x, uv.y, ax) / 1.7;
+              float tri = abs(fract(su*0.5) - 0.5)*2.0; float aw = fwidth(su)*0.7 + 0.04;
+              float st = (smoothstep(0.5-aw, 0.5+aw, tri)*2.0 - 1.0) * aaF(3.4) * (0.3 + care*0.7);
+              bC *= (1.0 + st*0.07) * (0.95 + gnoise(wq*7.0)*0.1*aaF(0.5)); bC.g *= 1.0 + st*0.02;
+              float e = min(fh - abs(uv.x), cw - abs(uv.y)) + n2*0.35;
+              vec3 terr = mix(vec3(0.066,0.086,0.032), vec3(0.106,0.121,0.047), smoothstep(-0.3,0.4,gnoise(wq/180.0)*0.8)) * (0.9 + n3*0.1);
+              bC = mix(bC, terr, (1.0 - smoothstep(0.0, 1.8, e))*0.8);
+            }
+            bC = mix(bC, bC*vec3(1.3,1.0,0.6), uAutumn*0.3); bR = 0.95;
           } else if (T < 20.5) { // paving
             vec2 t = vWPos.xz / 0.6; vec2 f = fract(t); float j = 1.0 - boxMask(f, vec2(0.04), vec2(0.96), fwidth(t)*0.9);
             bC = base * (0.88 + hash12(floor(t))*0.14) * (1.0 - j*0.2); bR = mix(0.8, 0.3, uWet); bC *= 1.0 - uWet*0.25;
-          } else if (T < 21.5) { // parking lot
-            bC = vec3(0.08 + gnoise(vWPos.xz*0.7)*0.01); bR = mix(0.85, 0.3, uWet);
-            float st = lineMask(fract(uv.x/2.6)-0.5, 0.03, fwidth(uv.x/2.6)) * step(abs(fract(uv.y/12.0)-0.5), 0.2);
-            bC = mix(bC, vec3(0.6), st * aaF(0.6));
+          } else if (T < 21.5) { // parking lot (gT 0: painted bays) / service yard (gT 2: worn asphalt and concrete aprons)
+            vec2 wq = vWPos.xz; float n = gnoise(wq*0.7), n2 = gnoise(wq*0.09 + seed*7.0);
+            bC = vec3(0.078 + n*0.012 + n2*0.014); bR = mix(0.85, 0.3, uWet);
+            bC *= 1.0 - smoothstep(0.45, 0.85, gnoise(wq*0.45 + seed*3.0))*0.3;
+            bC *= 1.0 - step(0.6, hash12(floor(wq/3.2) + seed*5.0)) * 0.22;
+            if (gT < 1.5) { float st = lineMask(fract(uv.x/2.6)-0.5, 0.03, fwidth(uv.x/2.6)) * step(abs(fract(uv.y/12.0)-0.5), 0.2); bC = mix(bC, vec3(0.6), st * aaF(0.6)); }
+            else { vec2 t = uv/5.0; float jt = 1.0 - boxMask(fract(t), vec2(0.01), vec2(0.99), fwidth(t)); float conc = step(0.42, hash12(floor(t) + seed*13.0)); bC = mix(bC, vec3(0.16,0.155,0.145)*(0.85 + n*0.2 + n2*0.1), conc*0.85) * (1.0 - jt*0.4*conc*aaF(5.0)); }
           } else if (T < 22.5) { // pool water
             bC = vec3(0.03,0.35,0.42); bR = 0.03; bM = 0.0;
             bE = vec3(0.02,0.25,0.3) * (0.2 + 0.8*uNight) * (0.8 + 0.2*sin(uTime*2.0 + vWPos.x));
@@ -5225,10 +5325,23 @@ function dockDoor(b, x, z, nz, w = 3.0, h = 3.2, fl = 1.2) { // truck dock in a 
 }
 function pylonSign(b, x, z, h, w, text, bg, fg) { b.box(x - 0.25, z - 0.25, x + 0.25, z + 0.25, 0, h, DMAT.trim(hex('#5d6268')), null); b.box(x - w / 2, z - 0.35, x + w / 2, z + 0.35, h, h + w * 0.45, DMAT.trim(hex(bg || '#1f3a5c')), DMAT.trim(hex(bg || '#1f3a5c'))); b.sign(x, h + w * 0.22, z - 0.36, 0, -1, w * 0.9, w * 0.38, { kind: 'text', text, bg: bg || '#1f3a5c', fg: fg || '#fff' }); }
 function parkingLot(b, x0, z0, x1, z1, cars = 0.55, ang = Math.PI / 2) {
-  b.rect(x0, z0, x1, z1, 0.07, MAT.parking());
+  b.rect(x0, z0, x1, z1, 0.07, M(SURF.PARKING, hex('#333'), null, { g: 2 }));
   const rows = Math.floor((z1 - z0) / 12); for (let rI = 0; rI < Math.max(1, rows); rI++) { const zc = z0 + 6 + rI * 12; for (let x = x0 + 1.5; x < x1 - 1.5; x += 2.7) { const h = hashInt(Math.round(x * 31 + zc * 7 + b.seed) | 0); if (h < cars) car(b, x, zc - 2.6, ang + (h - 0.3) * 0.05, null, h < 0.15 ? 'suv' : 'sedan', true); if (h > 1 - cars * 0.8 && zc + 2.6 < z1) car(b, x, zc + 2.6, ang + Math.PI, null, 'sedan', true); } }
   b.D(() => { const ln = DMAT.trim(hex('#e8e6df')); for (let rI = 0; rI < Math.max(1, rows); rI++) { const zc = z0 + 6 + rI * 12; for (let x = x0 + 0.15; x < x1 - 0.5; x += 2.7) { b.box(x, zc - 5, x + 0.1, zc - 0.4, 0.075, 0.085, ln, ln); if (zc + 5 < z1) b.box(x, zc + 0.4, x + 0.1, zc + 5, 0.075, 0.085, ln, ln); } } for (let x = x0 + 8; x < x1 - 4; x += 18) lampPost(b, x, Math.min(z1 - 1, z0 + 6), 7.5, 'modern'); });
 }
+/* service-yard clutter: pallet stacks, skips, drums, IBC totes */
+function pallets(b, x, z, ang, n = 2) {
+  b.D((rd) => { const w = PM.wood(hex('#a07d55')), ca = Math.cos(ang), sa = Math.sin(ang);
+    for (let i = 0; i < n; i++) { const px = x + ca * i * 1.35, pz = z + sa * i * 1.35, lv = rd.chance(0.5) ? 2 : 1; let y = 0;
+      for (let k = 0; k < lv; k++) { const h = rd.range(0.5, 1.1), g = DMAT.trim(hex(rd.pick(['#b89a6a', '#d8d3c6', '#c4a878', '#5a7a9a', '#9a5a46', '#e0dcd0']))); b.obox(px, pz, 1.2, 1.0, ang, y, y + 0.14, w, w); b.obox(px, pz, 1.12, 0.94, ang, y + 0.14, y + 0.14 + h, g, g); y += 0.14 + h; } } });
+}
+function skip(b, x, z, ang, col) {
+  const m = DMAT.trim(hex(col || '#d9a21b')); b.extrude([[-1.45, 0.1], [1.45, 0.1], [1.85, 1.3], [-1.85, 1.3]], 1.7, x, z, ang, 0, m, m);
+  b.D((rd) => { const k = PM.black(); b.obox(x, z, 3.5, 1.5, ang, 1.18, 1.32 + rd.range(0, 0.25), DMAT.conc(hex(rd.pick(['#7a6a58', '#8a8070', '#5f5a52']))), DMAT.conc(hex('#6f665a'))); b.obox(x, z, 2.6, 1.6, ang, 0, 0.12, k, k); });
+}
+function drums(b, x, z, n = 4) { b.D((rd) => { for (let i = 0; i < n; i++) { const dx = (i % 2) * 0.65, dz = Math.floor(i / 2) * 0.65; const m = DMAT.trim(hex(rd.pick(['#2a5aa0', '#b03a2e', '#3a3d40', '#2f6b3a']))); b.cyl(x + dx, z + dz, 0.29, 0, 0.88, m, m, 10); } }); }
+function ibc(b, x, z) { b.D(() => { const c = DMAT.chrome(hex('#9aa0a4')); b.box(x - 0.6, z - 0.5, x + 0.6, z + 0.5, 0, 0.15, c, c); b.box(x - 0.55, z - 0.45, x + 0.55, z + 0.45, 0.15, 1.15, DMAT.trim(hex('#e8e6dc')), DMAT.trim(hex('#e8e6dc'))); b.cyl(x, z, 0.12, 1.15, 1.25, PM.black(), null, 8); }); }
+function bayLines(b, x0, z0, z1, n, pitch = 2.8) { b.D(() => { const ln = DMAT.trim(hex('#e8e6df')); for (let i = 0; i <= n; i++) { const x = x0 + i * pitch; b.rect(x - 0.06, z0, x + 0.06, z1, 0.075, ln); } b.rect(x0, z1 - 0.12, x0 + n * pitch, z1, 0.075, ln); }); }
 
 /* ==== PART 21_bstyles.js ==== */
 /* =====================================================================
@@ -5269,8 +5382,9 @@ const mul = (c, k) => c.map(v => Math.min(1, v * k));
 
 /* ---------- common ---------- */
 function plinth(b, w, d, h = 0.35) { const m = MAT.concrete(hex('#8e8b84')); b.box(-w / 2, -d / 2, w / 2, d / 2, -2.5, h, m, null); }
+const lotLawnM = (hw, hd) => M(SURF.LAWN, hex('#5a7a32'), null, { fh: hw, cw: hd, g: 1 });
 function lotGround(b, w, d, kind) {
-  const m = kind === 'paving' ? MAT.paving() : kind === 'parking' ? MAT.parking() : kind === 'dirt' ? MAT.dirt() : MAT.lawn();
+  const m = kind === 'paving' ? MAT.paving() : kind === 'parking' ? M(SURF.PARKING, hex('#333'), null, { g: 2 }) : kind === 'dirt' ? MAT.dirt() : lotLawnM(w / 2 - 0.2, d / 2 - 0.2);
   b.rect(-w / 2 + 0.2, -d / 2 + 0.2, w / 2 - 0.2, d / 2 - 0.2, 0.06, m);
 }
 function roofUnits(b, x0, z0, x1, z1, y, n) {
@@ -5330,8 +5444,42 @@ function genMiniPark(b, x0, z0, x1, z1) {
    ===================================================================== */
 function genHouse(b, w, d, era, cls) {
   const f = { h1965: house1965, h1985: house1985, h2008: house2008, h2015: house2015, h2025: house2025 }[era] || house1985;
-  b.rect(-w / 2 + 0.2, -d / 2 + 0.2, w / 2 - 0.2, d / 2 - 0.2, 0.06, MAT.lawn());
-  f(b, w, d, cls);
+  lotGround(b, w, d, 'lawn');
+  yardLife(b, w, d, f(b, w, d, cls), cls);
+}
+/* lived-in yard: shed + stepping stones, planted borders, kitchen garden, bins, front shrubs */
+function yardLife(b, w, d, L, cls) {
+  if (!L) return; const r = b.r, hw = w / 2, hd = d / 2, { z0, z1, side, x0, x1 } = L, back = hd - z1;
+  const clear = (x, z, rr) => { b.trees = b.trees.filter(t => Math.hypot(t.x - x, t.z - z) > rr); };
+  const greens = ['#3a5a26', '#2f4d22', '#4a6a2c', '#3c5e33', '#556b2f', '#2e4a2a'], blooms = ['#c0392b', '#f4d03f', '#8e44ad', '#f5f5f0', '#e67e22', '#e84393', '#5b7fd1'];
+  let shedZ = hd - 0.8;
+  if (back > 9 && r.chance(cls === 3 ? 0.35 : 0.7)) {
+    const sw = r.range(2.0, 2.8), sd = r.range(1.7, 2.2), sx = side > 0 ? -hw + 1.0 + sw / 2 : hw - 1.0 - sw / 2, sz = hd - 1.0 - sd / 2; shedZ = sz - sd / 2 - 0.6;
+    const wm = PM.wood(pickc(r, ['#7a5a3c', '#9c8c6c', '#5f6f5a', '#b8b0a0', '#6a4a32', '#7d8c94', '#a04a3a']));
+    b.box(sx - sw / 2, sz - sd / 2, sx + sw / 2, sz + sd / 2, 0, 1.95, wm, null);
+    b.gable(sx - sw / 2, sz - sd / 2, sx + sw / 2, sz + sd / 2, 1.95, 0.7, M(SURF.TILE, pickc(r, PAL.roof)), wm, 'x', 0.18);
+    clear(sx, sz, 2.4);
+    b.D((rd) => {
+      b.box(sx - 0.45, sz - sd / 2 - 0.04, sx + 0.45, sz - sd / 2, 0.02, 1.8, M(SURF.DOOR, hex(rd.pick(['#4a5a3a', '#5a4a3a', '#2f4a6a'])), hex('#eee')), null, { sides: [1, 0, 0, 0] });
+      const st = MAT.paving(hex('#aaa498')); for (let z = z1 + 1.2; z < sz - sd / 2 - 0.5; z += 0.95) { const jx = rd.range(-0.12, 0.12); b.rect(sx - 0.32 + jx, z, sx + 0.32 + jx, z + 0.55, 0.08, st); }
+      if (rd.chance(0.6)) { const k = PM.black(); b.box(sx + sw / 2 + 0.1, sz - 0.4, sx + sw / 2 + 0.75, sz + 0.4, 0, 0.9, M(SURF.PLAIN, hex('#3d5a3a')), k); }
+    });
+  }
+  // planted borders along the back side fences (read as shrubbery from afar, individual shrubs and blooms up close)
+  if (back > 6) for (const sx of [-1, 1]) {
+    const bx0 = sx < 0 ? -hw + 0.45 : hw - 1.25, bx1 = bx0 + 0.8, bz0 = z1 + 1.6, bz1 = (sx === -side ? shedZ : hd - 0.6);
+    if (bz1 - bz0 < 2 || r.chance(0.25)) continue;
+    b.rect(bx0, bz0, bx1, bz1, 0.075, M(SURF.GREEN, hex('#3b5526')));
+    b.D((rd) => { for (let z = bz0 + 0.4; z < bz1 - 0.3; z += rd.range(0.7, 1.3)) { const x = (bx0 + bx1) / 2 + rd.range(-0.15, 0.15); blob(b, x, 0.4, z, rd.range(0.35, 0.55), rd.range(0.35, 0.6), PM.leaf(hex(rd.pick(greens))), 6, 3); if (rd.chance(0.45)) blob(b, x + rd.range(-0.2, 0.2), 0.75, z + 0.3, 0.12, 0.1, DMAT.trim(hex(rd.pick(blooms))), 5, 2); } });
+  }
+  // kitchen garden on the modest lots
+  if (cls <= 1 && back > 13 && r.chance(0.5)) {
+    const gx = side > 0 ? hw - 4.6 : -hw + 1.6, gz = hd - 4.6; b.rect(gx, gz, gx + 3, gz + 3.4, 0.08, MAT.dirt()); clear(gx + 1.5, gz + 1.7, 2.6);
+    b.D((rd) => { for (let x = gx + 0.4; x < gx + 2.8; x += 0.6) for (let z = gz + 0.35; z < gz + 3.2; z += 0.45) blob(b, x, 0.16, z, 0.17, rd.range(0.1, 0.22), PM.leaf(hex(rd.pick(['#4f7a2a', '#5f8a32', '#3f6a2a']))), 5, 2); const t = PM.wood(hex('#6b4a32')); b.box(gx - 0.05, gz - 0.05, gx + 3.05, gz, 0, 0.25, t, t); b.box(gx - 0.05, gz + 3.4, gx + 3.05, gz + 3.45, 0, 0.25, t, t); });
+  }
+  // wheelie bins against the side wall, shrubs at the street corner away from the drive
+  const bx = side > 0 ? x0 - 0.75 : x1 + 0.75; if (Math.abs(bx) < hw - 0.5) bins(b, bx, z0 + 1.0, Math.PI / 2);
+  const fx = side > 0 ? -hw + 1.3 : hw - 1.3; b.D((rd) => { for (let i = 0; i < 3; i++) { const z = -hd + 1.4 + i * rd.range(0.8, 1.2); if (z > z0 - 1.5) break; blob(b, fx + rd.range(-0.3, 0.3), 0.45, z, rd.range(0.45, 0.7), rd.range(0.4, 0.65), PM.leaf(hex(rd.pick(greens))), 6, 3); } });
 }
 const foundation = (b, x0, z0, x1, z1, top, c) => b.box(x0, z0, x1, z1, -2.5, top, DMAT.conc(hex(c || '#a9a59c')), DMAT.conc(hex(c || '#b4b0a7')));
 function foundationShrubs(b, x0, x1, z, skip = [], col) {
@@ -5394,6 +5542,7 @@ function house1965(b, w, d, cls) {
   else if (cls === 1) picketFence(b, [[-w / 2 + 0.3, z1 + 0.5], [-w / 2 + 0.3, d / 2 - 0.3], [w / 2 - 0.3, d / 2 - 0.3], [w / 2 - 0.3, z1 + 0.5]], 1.1);
   else { hedgeRow(b, -w / 2 + 0.3, -d / 2 + 0.3, -w / 2 + 1.1, d / 2 - 0.3, 1.5); hedgeRow(b, w / 2 - 1.1, -d / 2 + 0.3, w / 2 - 0.3, d / 2 - 0.3, 1.5); }
   const nt = [1, 2, 3, 4][cls]; for (let i = 0; i < nt; i++) b.tree(r.range(-w / 2 + 2, w / 2 - 2), i === 0 ? r.range(-d / 2 + 1.5, z0 - 2.5) : r.range(z1 + 3, d / 2 - 1.5), r.pick([0, 2, 6]), r.range(0.65, 0.95));
+  return { z0, z1, side, x0, x1 };
 }
 
 /* ---------- 1985: two-storey suburban colonial / cape ---------- */
@@ -5447,6 +5596,7 @@ function house1985(b, w, d, cls) {
   if (cls >= 1) picketFence(b, [[-w / 2 + 0.3, -d / 2 + 0.5], [dx - 0.3, -d / 2 + 0.5]], 0.95);
   if (cls >= 1) picketFence(b, [[-w / 2 + 0.3, z1 + 1], [-w / 2 + 0.3, d / 2 - 0.3], [w / 2 - 0.3, d / 2 - 0.3], [w / 2 - 0.3, z1 + 1]], 1.6, hex('#d9cfbf'));
   const nt = [1, 2, 3, 4][cls]; for (let i = 0; i < nt; i++) b.tree(r.range(-w / 2 + 2, w / 2 - 2), i === 0 ? r.range(-d / 2 + 1.5, z0 - 3.5) : r.range(z1 + 4, d / 2 - 1.5), r.pick([0, 6, 2]), r.range(0.7, 1.0));
+  return { z0, z1, side, x0, x1 };
 }
 
 /* ---------- 2008: contemporary suburban, stone & stucco, layered hip roofs ---------- */
@@ -5501,6 +5651,7 @@ function house2008(b, w, d, cls) {
   patioSet(b, x0 + 3.1, z1 + 2.1, false); bbq(b, x1 - 1.6, z1 + 1.2);
   if (cls >= 2 && d / 2 - z1 > 11) { const px0 = -w / 2 + 2.5, px1 = Math.min(w / 2 - 2.5, px0 + 8); pool(b, px0, z1 + 5.6, px1, Math.min(d / 2 - 2, z1 + 9.6)); b.D(() => { const zf = d / 2 - 0.4; railRun(b, -w / 2 + 0.4, zf, w / 2 - 0.4, zf, 0, 1.4, DMAT.iron(), { postEvery: 2.4 }); }); }
   const nt = [2, 3, 3, 5][cls]; for (let i = 0; i < nt; i++) b.tree(r.range(-w / 2 + 2, w / 2 - 2), i === 0 ? r.range(-d / 2 + 2, z0 - 3.2) : r.range(z1 + 5, d / 2 - 1.5), r.pick(i === 0 ? [6, 0] : [0, 2, 6]), r.range(0.7, 1.0));
+  return { z0, z1, side, x0, x1 };
 }
 
 /* ---------- 2015: modern minimalist, cantilevered boxes ---------- */
@@ -5551,6 +5702,7 @@ function house2015(b, w, d, cls) {
   else b.D(() => { b.cyl(x1 - 2.5, z1 + 5.5, 0.7, 0, 0.35, DMAT.conc(hex('#6d6a66')), DMAT.iron(hex('#1a1a1a')), 12); for (let i = 0; i < 3; i++) { const a = i / 3 * TAU + 0.5; lounger(b, x1 - 2.5 + Math.cos(a) * 1.9, z1 + 5.5 + Math.sin(a) * 1.9, a + Math.PI); } });
   postFence(b, [[-w / 2 + 0.3, z1 + 0.5], [-w / 2 + 0.3, d / 2 - 0.3], [w / 2 - 0.3, d / 2 - 0.3], [w / 2 - 0.3, z1 + 0.5]], 1.7, PM.wood(hex('#6e5038')));
   const nt = [1, 2, 3, 3][cls]; for (let i = 0; i < nt; i++) b.tree(r.range(-w / 2 + 2, w / 2 - 2), r.range(z1 + 7, d / 2 - 1.5), r.pick([2, 6]), r.range(0.65, 0.9));
+  return { z0, z1, side, x0, x1 };
 }
 
 /* ---------- 2025: smart, low-carbon home with butterfly roof ---------- */
@@ -5603,6 +5755,7 @@ function house2025(b, w, d, cls) {
   if (cls >= 3) b.D(() => { const hx = (x0 + ax1) / 2, hz = (z0 + z1) / 2; b.cyl(hx, hz, 1.6, ya + 1.25, ya + 1.32, M(SURF.HELI, hex('#3a3a3a')), M(SURF.HELI, hex('#3a3a3a')), 16); });
   postFence(b, [[-w / 2 + 0.3, z1 + 0.5], [-w / 2 + 0.3, d / 2 - 0.3], [w / 2 - 0.3, d / 2 - 0.3], [w / 2 - 0.3, z1 + 0.5]], 1.5, PM.wood(hex('#a07a52')));
   const nt = [1, 2, 3, 4][cls]; for (let i = 0; i < nt; i++) b.tree(r.range(-w / 2 + 2, w / 2 - 2), r.range(z1 + 5, d / 2 - 1.5), r.pick([2, 6, 0]), r.range(0.65, 0.9));
+  return { z0, z1, side, x0, x1 };
 }
 
 /* ==== PART 21b_blocks.js ==== */
@@ -5767,8 +5920,9 @@ function blockPanel(b, w, d, cls, floors, opts, style) {
 /* ---------- 2008 modern mid-rise ---------- */
 function block2008(b, w, d, cls, floors, opts) {
   const r = b.r, shops = !!opts.shops;
-  plinth(b, w - 0.6, d - 0.6, 0.0); lotGround(b, w, d, 'paving');
+  plinth(b, w - 0.6, d - 0.6, 0.0); lotGround(b, w, d, 'lawn');
   const W = w - 2, D = d - 2, x0 = -W / 2, z0 = -d / 2 + 1, x1 = W / 2;
+  { const zA = z0 + 2.2, zB = zA + Math.min(D - 3, 16), pv = MAT.paving(hex('#a7a299')); b.rect(-w / 2 + 0.2, -d / 2 + 0.2, w / 2 - 0.2, zA + 0.4, 0.065, pv); b.rect(x0 + 1.0, zB - 0.4, x1 - 1.0, Math.min(zB + 2.4, d / 2 - 0.4), 0.065, pv); if (d / 2 - zB > 7) { const gx = (x0 + x1) / 2; b.rect(gx - 0.8, zB + 2.4, gx + 0.8, d / 2 - 0.4, 0.065, pv); bench(b, gx - 2.2, zB + 4.5, Math.PI / 2); bench(b, gx + 2.2, zB + 4.5, -Math.PI / 2); flowerBed(b, x0 + 2, zB + 3.2, x0 + 6, zB + 4.6); } }
   const fh = 3.0, col = pickc(r, ['#efeeea', '#e3e0da', '#d5d3ce', '#cfc6b8', '#e8e2d6']), acc = pickc(r, PAL.accent);
   const wallM = M(SURF.BALC, col, acc, { fh, cw: 3.4, ww: 0.6, wh: 0.6, fl: USE.RES, g: shops ? 1 : 2 });
   const sd = Math.min(D - 3, 16), zA = z0 + 2.2, zB = zA + sd, top = 0.3 + floors * fh;
@@ -6097,11 +6251,11 @@ function genOffice(b, w, d, floors, cls, era) {
 /* ------------------------------ INDUSTRY ------------------------------ */
 function genIndustry(b, w, d, kind, level) {
   const r = b.r; plinth(b, w, d, 0.0); lotGround(b, w, d, 'parking');
-  const x0 = -w / 2 + 1.5, x1 = w / 2 - 1.5, z0 = -d / 2 + 8, z1 = d / 2 - 1.5;
+  const x0 = -w / 2 + 1.5, x1 = w / 2 - 1.5, z0 = -d / 2 + 8; let z1 = d / 2 - 1.5;
   const col = pickc(r, PAL.ind), acc = pickc(r, PAL.accent);
   const met = M(SURF.METAL, col, acc, { fh: 4, cw: 3, fl: USE.IND });
   if (kind === 'warehouse') {
-    const H = r.range(9, 12);
+    const H = r.range(9, 12), yz1 = z1; if (d > 36) z1 -= 6.5;
     b.box(x0, z0, x1, z1, 0.3, H, met, MAT.roofFlat(hex('#9a9c9e')));
     // office annex with ribbon windows at the front corner
     const ow = Math.min(12, (x1 - x0) * 0.35); b.box(x0, z0 - 4, x0 + ow, z0, 0.3, 7.6, M(SURF.RIBBON, hex('#e6e6e2'), acc, { fh: 3.6, cw: 2.4, wh: 0.5, fl: USE.OFF }), MAT.roofFlat(), { sides: [1, 1, 0, 1] });
@@ -6111,7 +6265,8 @@ function genIndustry(b, w, d, kind, level) {
     b.D((rd) => { for (let i = 0; i < nd; i += 2) if (hashInt(i * 31 + (b.seed | 0)) < 0.6) truck(b, x0 + ow + 3 + i * 4.5, z0 - 8.6, Math.PI / 2, rd.pick(['#1f3a5c', '#c8102e', '#e8e8e4', '#2f6b3a']), true); forklift(b, x1 - 4, z0 - 3, 0.4); });
     b.D(() => { for (let x = x0 + 4; x < x1 - 3; x += 6) for (let z = z0 + 4; z < z1 - 3; z += 8) skylight(b, x, z, x + 2.4, z + 4, H); });
     rooftopClutter(b, x0 + 2, z0 + 2, x1 - 2, z1 - 2, H, 0.5);
-    for (let i = 0; i < 2; i++) container(b, x1 - 8, z1 - 3 - i * 2.6, 0, 0); b.D(() => container(b, x1 - 8, z1 - 3, 0, 2.59));
+    for (let i = 0; i < nd; i += 2) if (i + 1 < nd) pallets(b, x0 + ow + 5.25 + i * 4.5, z0 - 1.0, 0, 1);
+    if (yz1 > z1) { container(b, x1 - 7.5, yz1 - 1.6, 0, 0); b.D(() => container(b, x1 - 7.5, yz1 - 1.6, 0, 2.59)); if (x1 - x0 > 30) container(b, x1 - 20.2, yz1 - 1.6, 0, 0); skip(b, x0 + 3, yz1 - 2.6, 0, r.pick(['#d9a21b', '#2a5aa0', '#2f6b3a'])); pallets(b, x0 + 6.5, yz1 - 2.0, 0, 3); drums(b, x0 + 11.5, yz1 - 2.6, 4); ibc(b, x0 + 13.6, yz1 - 2.0); }
   } else { // factory: sawtooth halls, process tanks, pipe racks, conveyor, stack
     const H = r.range(7, 10), brick = r.chance(0.4);
     const wm = brick ? M(SURF.BRICK, pickc(r, PAL.brick), hex('#333'), { fh: 4.5, cw: 3.5, ww: 0.6, wh: 0.45, fl: USE.IND, det: { lintel: 'soldier' } }) : met;
@@ -6130,9 +6285,11 @@ function genIndustry(b, w, d, kind, level) {
     });
     b.sign(x0 + 6, H - 1.6, z0 - 0.04, 0, -1, 8, 1.5, { kind: 'industry' });
     b.D(() => forklift(b, xm + 6, z0 - 3, -0.6));
+    if (x1 - xm > 12 && z1 - z0 > 26) { const yx = xm + 6.5; skip(b, x1 - 2.4, z0 + 15.5, Math.PI / 2, r.pick(['#d9a21b', '#2a5aa0', '#b03a2e'])); pallets(b, yx, z0 + 14.5, 0, 3); drums(b, yx, z0 + 17, 6); ibc(b, yx + 2.4, z0 + 17.4); ibc(b, yx + 3.7, z0 + 17.4); }
   }
   b.D(() => { postFence(b, [[-w / 2 + 0.3, -d / 2 + 0.4], [-w / 2 + 0.3, d / 2 - 0.3], [w / 2 - 0.3, d / 2 - 0.3], [w / 2 - 0.3, -d / 2 + 0.4]], 2.0, DMAT.chrome(hex('#9da2a5'))); });
   for (let i = 0; i < 3; i++) car(b, -w / 2 + 3 + i * 2.8, -d / 2 + 3, Math.PI / 2);
+  bayLines(b, -w / 2 + 1.6, -d / 2 + 0.7, -d / 2 + 5.6, 4);
 }
 
 /* ==== PART 22_bld.js ==== */
@@ -7839,63 +7996,163 @@ const VMODELS = {
   sedan: { L: 4.5, W: 1.85, H: 1.45, speed: 1, kind: 'car' }, hatch: { L: 3.9, W: 1.78, H: 1.5, speed: 1, kind: 'car' }, suv: { L: 4.8, W: 1.95, H: 1.75, speed: 1, kind: 'car' },
   pickup: { L: 5.3, W: 2.0, H: 1.85, speed: 1, kind: 'car' }, van: { L: 5.2, W: 2.0, H: 2.3, speed: 0.95, kind: 'van' }, truck: { L: 8.5, W: 2.4, H: 3.4, speed: 0.85, kind: 'truck' },
   semi: { L: 16, W: 2.5, H: 3.9, speed: 0.8, kind: 'truck' }, bus: { L: 12, W: 2.55, H: 3.1, speed: 0.85, kind: 'bus' }, tram: { L: 30, W: 2.4, H: 3.4, speed: 0.8, kind: 'tram' },
+  wagon: { L: 4.7, W: 1.85, H: 1.5, speed: 1, kind: 'car' }, compact: { L: 3.6, W: 1.72, H: 1.5, speed: 1, kind: 'car' }, coupe: { L: 4.4, W: 1.86, H: 1.32, speed: 1.05, kind: 'car' },
   taxi: { L: 4.6, W: 1.85, H: 1.5, speed: 1, kind: 'car' }, police: { L: 4.8, W: 1.9, H: 1.55, speed: 1.2, kind: 'car' }, ambulance: { L: 6, W: 2.1, H: 2.7, speed: 1.2, kind: 'van' },
   firetruck: { L: 9, W: 2.5, H: 3.2, speed: 1.1, kind: 'truck' }, garbage: { L: 8.5, W: 2.5, H: 3.4, speed: 0.8, kind: 'truck' }, hearse: { L: 5.4, W: 1.9, H: 1.6, speed: 0.95, kind: 'car' },
   post: { L: 5.2, W: 2.0, H: 2.4, speed: 0.95, kind: 'van' }, maint: { L: 7, W: 2.4, H: 3.0, speed: 0.8, kind: 'truck' }, plow: { L: 8, W: 2.6, H: 3.2, speed: 0.7, kind: 'truck' },
 };
-const CAR_COLORS = ['#d8d8d8', '#1b1b1d', '#7a7d82', '#a61b1b', '#1f3a6e', '#e8e4dc', '#2f4f3a', '#5b5f66', '#b8a07a', '#0e5c8a', '#c5c9cf', '#6b1d2a', '#f2c230', '#3b3b3b'];
+const CAR_COLORS = ['#e9e9e6', '#101012', '#9aa0a6', '#2b2f36', '#c9c3b5', '#8fa6bd', '#d8d8d8', '#1b1b1d', '#7a7d82', '#a61b1b', '#1f3a6e', '#e8e4dc', '#2f4f3a', '#5b5f66', '#b8a07a', '#0e5c8a', '#c5c9cf', '#6b1d2a', '#f2c230', '#3b3b3b'];
 const VehGeo = {
+  /* low-poly but properly shaped vehicles: extruded side profiles, glasshouse with tumblehome, wheel arches,
+     8-sided wheels with rims, bumpers, grilles, mirrors, lamps. Parts: 0 body(instance colour) 1 glass 2 tyre 3 headlamp
+     4 tail lamp 5 beacon 6 fixed colour 7 chrome 8 black trim 9 rim 10 amber lamp 11 lit sign 12 interior/undercarriage */
   build(key) {
-    const m = VMODELS[key]; const pos = [], nor = [], part = [], col = [], idx = [];
-    const box = (x0, y0, z0, x1, y1, z1, p, c = [1, 1, 1], taper = 0) => {
-      const b = pos.length / 3;
-      const P = [[x0, y0, z0], [x1, y0, z0], [x1, y1, z0], [x0, y1, z0], [x0, y0, z1], [x1, y0, z1], [x1, y1, z1], [x0, y1, z1]];
-      if (taper) { for (const i of [2, 3, 6, 7]) { P[i][0] = P[i][0] < (x0 + x1) / 2 ? P[i][0] + taper : P[i][0] - taper; } }
-      const F = [[0, 1, 2, 3, 0, 0, -1], [5, 4, 7, 6, 0, 0, 1], [4, 0, 3, 7, -1, 0, 0], [1, 5, 6, 2, 1, 0, 0], [3, 2, 6, 7, 0, 1, 0], [4, 5, 1, 0, 0, -1, 0]];
-      for (const f of F) { const s = pos.length / 3; for (let k = 0; k < 4; k++) { pos.push(...P[f[k]]); nor.push(f[4], f[5], f[6]); part.push(p); col.push(...c); } idx.push(s, s + 1, s + 2, s, s + 2, s + 3); }
+    const m = VMODELS[key]; const pos = [], nor = [], part = [], col = [], idx = [], W1 = [1, 1, 1];
+    const poly = (V, p, c, O) => {
+      const n = V.length; let nx = 0, ny = 0, nz = 0, cx = 0, cy = 0, cz = 0;
+      for (let i = 0; i < n; i++) { const a = V[i], b = V[(i + 1) % n]; nx += (a[1] - b[1]) * (a[2] + b[2]); ny += (a[2] - b[2]) * (a[0] + b[0]); nz += (a[0] - b[0]) * (a[1] + b[1]); cx += a[0]; cy += a[1]; cz += a[2]; }
+      const l = Math.hypot(nx, ny, nz); if (l < 1e-6) return; nx /= l; ny /= l; nz /= l;
+      if ((cx / n - O[0]) * nx + (cy / n - O[1]) * ny + (cz / n - O[2]) * nz < 0) { V = V.slice().reverse(); nx = -nx; ny = -ny; nz = -nz; }
+      const s = pos.length / 3; for (const v of V) { pos.push(v[0], v[1], v[2]); nor.push(nx, ny, nz); part.push(p); col.push(c[0], c[1], c[2]); }
+      for (let i = 1; i < n - 1; i++) idx.push(s, s + i, s + i + 1);
     };
-    const wheel = (x, z, r) => { box(x - 0.13, 0, z - r, x + 0.13, r * 2, z + r, 2); };
-    const L = m.L, W = m.W, H = m.H, hw = W / 2;
-    // length along +z (front at +z)
+    // box without bottom face; tp = top inset across x
+    const box = (x0, y0, z0, x1, y1, z1, p, c = W1, tp = 0) => {
+      const O = [(x0 + x1) / 2, (y0 + y1) / 2, (z0 + z1) / 2], a = x0 + tp, b = x1 - tp;
+      const P = [[x0, y0, z0], [x1, y0, z0], [b, y1, z0], [a, y1, z0], [x0, y0, z1], [x1, y0, z1], [b, y1, z1], [a, y1, z1]];
+      for (const f of [[0, 1, 2, 3], [4, 5, 6, 7], [0, 3, 7, 4], [1, 2, 6, 5], [3, 2, 6, 7]]) poly(f.map(i => P[i]), p, c, O);
+    };
+    // side profile [z, y, inset, edgePart] extruded across x (±hw); caps part cp (-1 none)
+    const ext = (pr, hw, p, cp, c = W1) => {
+      let oy = 0, oz = 0; for (const q of pr) { oz += q[0]; oy += q[1]; } const O = [0, oy / pr.length, oz / pr.length], X = q => hw - (q[2] || 0);
+      for (let i = 0; i < pr.length; i++) { const a = pr[i], b = pr[(i + 1) % pr.length], ep = a[3] === undefined ? p : a[3]; if (ep >= 0) poly([[-X(a), a[1], a[0]], [X(a), a[1], a[0]], [X(b), b[1], b[0]], [-X(b), b[1], b[0]]], ep, c, O); }
+      if (cp >= 0) for (const s of [-1, 1]) poly(pr.map(q => [s * X(q), q[1], q[0]]), cp, c, O);
+    };
+    const fz = (x0, y0, x1, y1, z, p, c = W1) => poly([[x0, y0, z], [x1, y0, z], [x1, y1, z], [x0, y1, z]], p, c, [(x0 + x1) / 2, (y0 + y1) / 2, z - Math.sign(z)]);
+    const fzs = (xa, xb, y0, y1, z, p, c) => { fz(xa, y0, xb, y1, z, p, c); fz(-xb, y0, -xa, y1, z, p, c); };
+    // side panel on both flanks at |x| = x (from z0 to z1, optional slanted ends at the top)
+    const fx = (x, z0, y0, z1, y1, p, c = W1, sl = 0, sr = 0, x1 = x) => { for (const s of [-1, 1]) poly([[s * x, y0, z0], [s * x, y0, z1], [s * x1, y1, z1 - sr], [s * x1, y1, z0 + sl]], p, c, [0, (y0 + y1) / 2, (z0 + z1) / 2]); };
+    const wheel = (x, z, r, w = 0.22) => {
+      const s = Math.sign(x), N = 8, xo = x + s * w / 2, xi = x - s * w / 2, O = [x - s * 0.4, r, z];
+      const ring = (xx, rr) => { const V = []; for (let i = 0; i < N; i++) { const a = (i + 0.5) / N * Math.PI * 2; V.push([xx, r + Math.cos(a) * rr, z + Math.sin(a) * rr]); } return V; };
+      const A = ring(xo, r), B = ring(xi, r); for (let i = 0; i < N; i++) { const j = (i + 1) % N; poly([B[i], A[i], A[j], B[j]], 2, W1, [x, r, z]); }
+      poly(A, 2, W1, O); poly(ring(xo + s * 0.012, r * 0.6), 9, W1, O);
+    };
+    const axle = (z, r, hw, w) => { wheel(-hw + w / 2 + 0.02, z, r, w); wheel(hw - w / 2 - 0.02, z, r, w); };
+    const L = m.L, W = m.W, H = m.H, hw = W / 2, F = L / 2, B = -L / 2;
+    // underbody + arches: skirts between wheels, bumpers, dark tub so the wells read as holes
+    const chassis = (s0, zf, zr, r, bump = 0) => {
+      box(-hw + 0.22, 0.2, B + 0.15, hw - 0.22, s0 + 0.02, F - 0.15, 12);
+      box(-hw, s0 - 0.16, zr + r + 0.08, -hw + 0.12, s0 + 0.01, zf - r - 0.08, 0); box(hw - 0.12, s0 - 0.16, zr + r + 0.08, hw, s0 + 0.01, zf - r - 0.08, 0);
+      box(-hw, s0 - 0.2, zf + r + 0.06, hw, s0 + 0.01, F, bump ? 8 : 0); box(-hw, s0 - 0.2, B, hw, s0 + 0.01, zr - r - 0.06, bump ? 8 : 0);
+      box(-hw + 0.02, 0.22, F - 0.12, hw - 0.02, s0 - 0.12, F + 0.02, 8); box(-hw + 0.02, 0.22, B - 0.02, hw - 0.02, s0 - 0.12, B + 0.12, 8);
+    };
+    const lamps = (yf, yr, s0, wide = 0.42) => {
+      fzs(hw - 0.12 - wide, hw - 0.12, yf - 0.17, yf - 0.05, F + 0.006, 3); fzs(hw - 0.1 - wide * 0.9, hw - 0.1, yr - 0.2, yr - 0.07, B - 0.006, 4);
+      fz(-hw + 0.2 + wide, s0 + 0.04, hw - 0.2 - wide, yf - 0.06, F + 0.006, 8); fz(-0.26, s0 - 0.08, 0.26, s0 + 0.04, F + 0.016, 6, [0.85, 0.85, 0.82]); fz(-0.26, s0 + 0.02, 0.26, s0 + 0.14, B - 0.016, 6, [0.85, 0.85, 0.82]);
+      fzs(hw - 0.14, hw - 0.04, yf - 0.24, yf - 0.17, F + 0.004, 10);
+    };
+    const mirrors = (zw, yb, w = 0.16) => { box(-hw - w, yb + 0.04, zw - 0.3, -hw + 0.02, yb + 0.2, zw - 0.12, 0); box(hw - 0.02, yb + 0.04, zw - 0.3, hw + w, yb + 0.2, zw - 0.12, 0); };
     if (m.kind === 'car') {
-      box(-hw, 0.28, -L / 2, hw, H * 0.55, L / 2, 0);
-      const cs = key === 'hatch' ? -L * 0.32 : -L * 0.24, ce = key === 'pickup' ? L * 0.05 : L * 0.2;
-      box(-hw + 0.06, H * 0.55, cs, hw - 0.06, H, ce, 1, [1, 1, 1], 0.12);
-      if (key === 'pickup') box(-hw, H * 0.55, -L / 2, hw, H * 0.72, cs, 0);
-      box(-hw + 0.15, 0.55, L / 2 - 0.02, -hw + 0.55, 0.75, L / 2 + 0.01, 3); box(hw - 0.55, 0.55, L / 2 - 0.02, hw - 0.15, 0.75, L / 2 + 0.01, 3);
-      box(-hw + 0.1, 0.6, -L / 2 - 0.01, -hw + 0.45, 0.8, -L / 2 + 0.02, 4); box(hw - 0.45, 0.6, -L / 2 - 0.01, hw - 0.1, 0.8, -L / 2 + 0.02, 4);
-      if (key === 'taxi') box(-0.35, H, -0.2, 0.35, H + 0.25, 0.2, 6, [1, 0.85, 0.2]);
-      if (key === 'police') { box(-0.6, H, -0.2, -0.05, H + 0.18, 0.2, 5, [1, 0.1, 0.1]); box(0.05, H, -0.2, 0.6, H + 0.18, 0.2, 5, [0.1, 0.2, 1]); }
-      if (key === 'hearse') box(-hw + 0.05, H * 0.55, -L / 2 + 0.3, hw - 0.05, H, cs, 1);
+      const st = { sedan: 's', taxi: 's', police: 's', coupe: 'c', hatch: 'h', compact: 'h', wagon: 'w', hearse: 'w', suv: 'u', pickup: 'p' }[key] || 's';
+      const big = st === 'u' || st === 'p', r = big ? 0.38 : key === 'compact' ? 0.29 : 0.32, s0 = big ? 0.56 : 0.42, tum = big ? 0.12 : 0.15;
+      const zf = F - Math.max(0.72, L * 0.18), zr = B + Math.max(0.78, L * 0.2), sh = 0.07;
+      const yb = big ? H * 0.6 : H * 0.64, yf = yb - (big ? 0.16 : 0.2), yr = yb - 0.14;
+      const zw = st === 'h' ? F - Math.max(0.9, L * 0.25) : big ? F - L * 0.25 : F - L * 0.31, wt = zw - (H - yb) * (big ? 1.2 : 1.55);
+      chassis(s0, zf, zr, r);
+      const nose = [[F, yf, 0.03], [F - 0.3, yf + 0.13, sh], [zw, yb, sh]];
+      if (st === 'p') {
+        const zc = zw - 2.15;
+        ext([[B, s0], [F, s0], ...nose, [B, yb, sh]], hw, 0, 0);
+        ext([[zw + 0.05, yb - 0.01, sh, 1], [wt, H, sh + tum, 0], [zc, H, sh + tum, 1], [zc, yb, sh, -1]], hw, 0, 1);
+        box(-hw, yb, B, -hw + 0.08, yb + 0.34, zc - 0.08, 0); box(hw - 0.08, yb, B, hw, yb + 0.34, zc - 0.08, 0); box(-hw, yb, B, hw, yb + 0.34, B + 0.08, 0);
+        poly([[-hw + 0.08, yb + 0.02, B + 0.08], [hw - 0.08, yb + 0.02, B + 0.08], [hw - 0.08, yb + 0.02, zc - 0.08], [-hw + 0.08, yb + 0.02, zc - 0.08]], 8, W1, [0, 0, 0]);
+        fx(hw - sh + 0.008, (wt + zc) / 2 - 0.05, yb + 0.02, (wt + zc) / 2 + 0.05, H - 0.02, 0, W1, 0, 0, hw - sh - tum + 0.008);
+      } else {
+        const tail = st === 's' ? [[B + 0.2, yb + 0.02, sh], [B, yr, 0.03]] : st === 'c' ? [[B + 0.25, yb, sh], [B, yr, 0.03]] : [[B + 0.03, yb + 0.03, sh], [B, yr - 0.05, 0.03]];
+        ext([[B, s0], [F, s0], ...nose, [st === 's' ? B + L * 0.22 : st === 'c' ? B + L * 0.18 : B + 0.08, yb + 0.03, sh], ...tail], hw, 0, 0);
+        const rr = st === 's' ? B + L * 0.33 : st === 'c' ? B + L * 0.42 : st === 'h' ? B + 0.3 : B + 0.18, rb = st === 's' ? B + L * 0.21 : st === 'c' ? B + L * 0.16 : B + 0.07;
+        const hh = st === 'c' ? H - 0.02 : H;
+        ext([[zw + 0.05, yb - 0.01, sh, 1], [wt, hh, sh + tum, 0], [rr, hh, sh + tum, 1], [rb, yb + 0.02, sh, -1]], hw, 0, 1);
+        const pz = (wt + rr) / 2 + (st === 'w' || st === 'u' ? 0.25 : 0.1);
+        fx(hw - sh + 0.008, pz - 0.06, yb + 0.02, pz + 0.06, hh - 0.02, 0, W1, 0, 0, hw - sh - tum + 0.008);
+        if (st === 'w' || st === 'u' || st === 'h') fx(hw - sh + 0.008, rr + 0.05, yb + 0.02, rr + 0.36, hh - 0.02, 0, W1, 0, 0, hw - sh - tum + 0.008);
+        if (st === 'u') { box(-hw + sh + tum + 0.05, H, wt - 0.2, -hw + sh + tum + 0.12, H + 0.07, rr + 0.15, 8); box(hw - sh - tum - 0.12, H, wt - 0.2, hw - sh - tum - 0.05, H + 0.07, rr + 0.15, 8); }
+      }
+      lamps(yf, yr, s0); mirrors(zw, yb, 0.13);
+      for (const z of [zf, zr]) axle(z, r, hw, 0.22);
+      if (key === 'taxi') box(-0.32, H, (wt - 0.3) - 0.14, 0.32, H + 0.22, (wt - 0.3) + 0.14, 11, [1, 0.8, 0.15], 0.04);
+      if (key === 'police') { box(-0.62, H, wt - 0.55, -0.02, H + 0.13, wt - 0.25, 5, [1, 0.08, 0.06]); box(0.02, H, wt - 0.55, 0.62, H + 0.13, wt - 0.25, 5, [0.1, 0.25, 1]); fx(hw + 0.006, zr + r, s0 + 0.02, zf - r, yb - 0.08, 6, [0.92, 0.92, 0.9]); box(-hw + 0.25, s0 - 0.1, F, hw - 0.25, yf - 0.05, F + 0.14, 8); }
+      if (key === 'hearse') fx(hw - sh + 0.006, B + 0.35, yb + 0.05, B + 1.6, H - 0.1, 12, W1, 0, 0, hw - sh - tum + 0.006);
     } else if (m.kind === 'van') {
-      box(-hw, 0.35, -L / 2, hw, H, L / 2 - 1.0, 0); box(-hw, 0.35, L / 2 - 1.0, hw, H * 0.6, L / 2, 0); box(-hw + 0.05, H * 0.6, L / 2 - 1.0, hw - 0.05, H * 0.95, L / 2 - 0.55, 1, [1, 1, 1], 0.05);
-      box(-hw + 0.15, 0.6, L / 2 - 0.01, -hw + 0.5, 0.8, L / 2 + 0.01, 3); box(hw - 0.5, 0.6, L / 2 - 0.01, hw - 0.15, 0.8, L / 2 + 0.01, 3); box(-hw + 0.1, 0.7, -L / 2 - 0.01, hw - 0.1, 0.9, -L / 2 + 0.01, 4);
-      if (key === 'ambulance') { box(-hw - 0.01, 1.2, -L / 2 + 0.3, hw + 0.01, 1.45, L / 2 - 1.2, 6, [0.85, 0.1, 0.1]); box(-0.7, H, L / 2 - 1.3, 0.7, H + 0.2, L / 2 - 1.1, 5, [1, 0.1, 0.1]); }
-      if (key === 'post') box(-hw - 0.01, 1.0, -L / 2 + 0.3, hw + 0.01, 1.3, L / 2 - 1.2, 6, [0.95, 0.75, 0.1]);
+      const r = 0.36, s0 = 0.48, zf = F - 0.85, zr = B + 1.0, zw = F - 0.95, yb = 1.08;
+      chassis(s0, zf, zr, r, 1);
+      const box2 = key === 'ambulance';
+      ext([[B, s0], [F, s0], [F, yb - 0.08], [F - 0.4, yb + 0.12], [zw, yb + 0.22, 0, 1], [zw - 0.45, H - 0.05, 0.05], [box2 ? zw - 0.6 : B + 0.05, H], [B, H - 0.08]], hw, 0, 0);
+      if (box2) { box(-hw - 0.08, s0, B, hw + 0.08, H + 0.25, zw - 0.6, 6, [0.95, 0.95, 0.93]); fx(hw + 0.086, B + 0.3, 1.3, zw - 0.8, 1.6, 6, [0.85, 0.08, 0.08]); box(-0.7, H + 0.25, zw - 1.0, 0.7, H + 0.4, zw - 0.75, 5, [1, 0.1, 0.1]); box(-0.7, H + 0.25, B + 0.1, 0.7, H + 0.4, B + 0.3, 5, [0.15, 0.3, 1]); }
+      fx(hw + 0.005, zw - 0.95, yb + 0.25, zw - 0.15, H - 0.3, 1, W1, 0, 0.35);
+      if (!box2) { fx(hw + 0.005, zw - 2.2, yb + 0.25, zw - 1.15, H - 0.3, key === 'post' ? 6 : 1, [0.95, 0.75, 0.1]); fz(-hw + 0.15, yb + 0.3, -0.05, H - 0.35, B - 0.006, 1); fz(0.05, yb + 0.3, hw - 0.15, H - 0.35, B - 0.006, 1); fz(-0.02, s0 + 0.05, 0.02, H - 0.15, B - 0.008, 8); }
+      if (key === 'post') fx(hw + 0.006, B + 0.3, 0.75, zw - 0.3, 0.95, 6, [0.95, 0.75, 0.1]);
+      lamps(yb - 0.08, H * 0.5, s0, 0.36); mirrors(zw - 0.3, yb + 0.25, 0.2);
+      for (const z of [zf, zr]) axle(z, r, hw, 0.24);
     } else if (m.kind === 'truck') {
-      const cab = 2.4;
-      box(-hw, 0.5, L / 2 - cab, hw, H * 0.85, L / 2, 0); box(-hw + 0.05, H * 0.55, L / 2 - 0.25, hw - 0.05, H * 0.82, L / 2 + 0.01, 1);
-      const bodyC = key === 'garbage' ? [0.2, 0.55, 0.3] : key === 'firetruck' ? [0.75, 0.05, 0.05] : key === 'maint' || key === 'plow' ? [0.95, 0.5, 0.05] : [0.92, 0.92, 0.9];
-      box(-hw, 0.5, -L / 2, hw, H, L / 2 - cab - 0.15, 6, bodyC);
-      box(-hw, 0.2, -L / 2, hw, 0.6, L / 2, 2);
-      box(-hw + 0.15, 0.8, L / 2 - 0.01, -hw + 0.5, 1.0, L / 2 + 0.01, 3); box(hw - 0.5, 0.8, L / 2 - 0.01, hw - 0.15, 1.0, L / 2 + 0.01, 3); box(-hw + 0.1, 0.8, -L / 2 - 0.01, hw - 0.1, 1.0, -L / 2 + 0.01, 4);
-      if (key === 'firetruck') { box(-0.8, H * 0.85, L / 2 - 1.6, 0.8, H * 0.85 + 0.2, L / 2 - 1.3, 5, [1, 0.1, 0.1]); box(-0.15, H, -L / 2 + 0.5, 0.15, H + 0.3, L / 2 - cab - 0.5, 6, [0.8, 0.8, 0.82]); }
-      if (key === 'plow') box(-hw - 0.4, 0.15, L / 2 + 0.1, hw + 0.4, 1.0, L / 2 + 0.5, 6, [0.95, 0.5, 0.05]);
+      const r = 0.52, cab = key === 'semi' ? 2.7 : 2.3, zc = F - cab, s0 = 0.75, ct = Math.min(H * 0.86, 3.0), zf = F - 1.15;
+      box(-hw + 0.3, 0.45, B + 0.2, hw - 0.3, 0.95, F - 0.3, 12);
+      ext([[zc, s0], [F, s0], [F, 1.62, 0, 1], [F - 0.38, ct - 0.08, 0.05], [F - 0.55, ct, 0.08], [zc, ct, 0.08]], hw, 0, 0);
+      fx(hw + 0.005, zc + 0.9, 1.75, F - 0.45, ct - 0.25, 1, W1, 0, 0.2);
+      box(-hw + 0.1, 0.3, F - 0.12, hw - 0.1, s0 + 0.15, F + 0.12, 8); fz(-hw + 0.56, s0 + 0.2, hw - 0.56, 1.5, F + 0.006, 8);
+      fzs(hw - 0.5, hw - 0.12, s0 + 0.2, s0 + 0.42, F + 0.006, 3); mirrors(F - 0.4, 1.7, 0.32);
+      if (key === 'semi') {
+        box(-hw + 0.15, ct, zc + 0.3, hw - 0.15, ct + 0.65, F - 0.9, 0, W1, 0.25);
+        box(-hw, 1.15, B, hw, H, zc - 0.25, 6, [0.88, 0.88, 0.86]); fx(hw + 0.006, B + 0.4, 1.3, zc - 0.6, 1.45, 6, [0.75, 0.1, 0.08]);
+        for (const z of [zf, zc - 1.6, zc - 2.9, B + 1.4, B + 2.6]) axle(z, r, hw, 0.36);
+        fzs(hw - 0.5, hw - 0.1, 1.2, 1.4, B - 0.006, 4);
+      } else {
+        const bc = key === 'garbage' ? [0.18, 0.5, 0.28] : key === 'firetruck' ? [0.7, 0.04, 0.04] : key === 'maint' || key === 'plow' ? [0.95, 0.5, 0.05] : [0.9, 0.9, 0.88];
+        if (key === 'garbage') { ext([[B + 0.6, 1.0], [zc - 0.15, 1.0], [zc - 0.15, H - 0.1], [B + 1.2, H], [B + 0.6, H - 0.4]], hw, 6, 6, bc); ext([[B, 0.8], [B + 0.6, 0.8], [B + 0.6, H - 0.2], [B + 0.1, H - 0.7]], hw - 0.05, 6, 6, [0.25, 0.27, 0.28]); }
+        else if (key === 'maint' || key === 'plow') { box(-hw, 1.0, B + 0.2, hw, 1.55, zc - 0.15, 6, [0.4, 0.42, 0.44]); box(-hw + 0.3, 1.55, B + 0.6, hw - 0.3, 2.3, B + 2.0, 6, bc); box(-0.5, ct, zc + 1.0, 0.5, ct + 0.15, zc + 1.4, 5, [1, 0.6, 0.05]); }
+        else { box(-hw, 1.0, B, hw, H, zc - 0.15, 6, bc); if (key === 'truck') fz(-hw + 0.1, 1.1, hw - 0.1, H - 0.1, B - 0.006, 6, [0.78, 0.78, 0.76]); }
+        if (key === 'firetruck') { box(-0.5, ct + 0.02, zc + 0.9, 0.5, ct + 0.18, zc + 1.4, 5, [1, 0.1, 0.1]); for (const s of [-0.45, 0.45]) box(s - 0.05, H, B + 0.3, s + 0.05, H + 0.12, zc + 0.6, 7); fx(hw + 0.006, B + 0.4, 1.5, zc - 0.5, 1.6, 7); fx(hw + 0.006, B + 0.4, 2.3, zc - 0.5, 2.4, 7); }
+        if (key === 'plow') box(-hw - 0.45, 0.12, F + 0.15, hw + 0.45, 1.05, F + 0.55, 6, [0.95, 0.5, 0.05], 0.1);
+        for (const z of [zf, B + 1.5]) axle(z, r, hw, 0.36);
+        fzs(hw - 0.45, hw - 0.1, 1.05, 1.25, B - 0.012, 4);
+      }
     } else if (m.kind === 'bus') {
-      box(-hw, 0.35, -L / 2, hw, H, L / 2, 0);
-      box(-hw - 0.01, 1.2, -L / 2 + 0.6, hw + 0.01, H - 0.3, L / 2 - 0.4, 1);
-      box(-hw + 0.1, 1.0, L / 2 - 0.01, hw - 0.1, H - 0.2, L / 2 + 0.01, 1);
-      box(-hw + 0.15, 0.6, L / 2 - 0.01, -hw + 0.55, 0.85, L / 2 + 0.02, 3); box(hw - 0.55, 0.6, L / 2 - 0.01, hw - 0.15, 0.85, L / 2 + 0.02, 3); box(-hw + 0.1, 0.6, -L / 2 - 0.02, hw - 0.1, 0.85, -L / 2 + 0.01, 4);
+      const r = 0.5, zf = F - 2.6, zr = B + 3.1;
+      box(-hw + 0.3, 0.3, B + 0.3, hw - 0.3, 1.0, F - 0.3, 12);
+      box(-hw, 0.3, zf + r + 0.1, hw, 1.01, F, 0); box(-hw, 0.3, zr + r + 0.1, hw, 1.01, zf - r - 0.1, 0); box(-hw, 0.3, B, hw, 1.01, zr - r - 0.1, 0);
+      ext([[B, 1.0], [F, 1.0], [F, H - 0.25], [F - 0.18, H], [B + 0.12, H], [B, H - 0.2]], hw, 0, 0);
+      fx(hw + 0.005, B + 0.5, 1.15, F - 0.4, H - 0.3, 1); fz(-hw + 0.1, 0.95, hw - 0.1, H - 0.5, F + 0.006, 1); fz(-hw + 0.25, H - 0.45, hw - 0.25, H - 0.22, F + 0.008, 11, [1, 0.7, 0.15]);
+      fz(-hw + 0.3, 1.6, hw - 0.3, H - 0.4, B - 0.006, 1);
+      for (const z of [F - 1.6, -0.6]) poly([[-hw - 0.007, 0.35, z - 0.55], [-hw - 0.007, 0.35, z + 0.55], [-hw - 0.007, H - 0.35, z + 0.55], [-hw - 0.007, H - 0.35, z - 0.55]], 1, W1, [0, 1.5, z]);
+      fx(hw + 0.006, B + 0.3, 0.98, F - 0.3, 1.1, 6, [0.85, 0.85, 0.85]);
+      box(-0.8, H, -2.2, 0.8, H + 0.3, 0.6, 6, [0.78, 0.79, 0.8], 0.1);
+      fzs(hw - 0.45, hw - 0.12, 0.6, 0.8, F + 0.008, 3); fzs(hw - 0.4, hw - 0.12, 0.6, 1.0, B - 0.008, 4); mirrors(F - 0.2, 2.0, 0.3);
+      for (const z of [zf, zr]) axle(z, r, hw, 0.32);
     } else if (m.kind === 'tram') {
       const segs = 3, sl = L / segs;
-      for (let i = 0; i < segs; i++) { const z0 = -L / 2 + i * sl + 0.15, z1 = z0 + sl - 0.3; box(-hw, 0.35, z0, hw, H, z1, 0); box(-hw - 0.01, 1.1, z0 + 0.4, hw + 0.01, H - 0.35, z1 - 0.4, 1); }
-      box(-hw + 0.1, 1.0, L / 2 - 0.16, hw - 0.1, H - 0.3, L / 2 - 0.14, 1); box(-0.1, H, -L / 4, 0.1, H + 0.6, L / 4, 2);
-      box(-hw + 0.15, 0.5, L / 2 - 0.16, -hw + 0.5, 0.75, L / 2 - 0.13, 3); box(hw - 0.5, 0.5, L / 2 - 0.16, hw - 0.15, 0.75, L / 2 - 0.13, 3);
+      for (let i = 0; i < segs; i++) {
+        const z0 = B + i * sl + 0.12, z1 = z0 + sl - 0.24, end0 = i === 0, end1 = i === segs - 1;
+        ext([[z0 + (end0 ? 0.5 : 0), 0.35], [z1 - (end1 ? 0.5 : 0), 0.35], ...(end1 ? [[z1, 1.0], [z1 - 0.3, H]] : [[z1, H]]), ...(end0 ? [[z0 + 0.3, H], [z0, 1.0]] : [[z0, H]])], hw, 0, 0);
+        fx(hw + 0.005, z0 + 0.5, 1.05, z1 - 0.5, H - 0.35, 1); box(-hw + 0.25, 0.1, z0 + 1.2, hw - 0.25, 0.4, z0 + 3.0, 12);
+      }
+      fz(-hw + 0.25, 1.05, hw - 0.25, H - 0.4, F - 0.115, 1); fz(-hw + 0.25, 1.05, hw - 0.25, H - 0.4, B + 0.115, 1); fz(-0.6, H - 0.38, 0.6, H - 0.15, F - 0.11, 11, [1, 0.7, 0.15]);
+      box(-0.5, H, -1.0, 0.5, H + 0.25, 1.0, 8); box(-0.04, H + 0.25, -0.8, 0.04, H + 0.9, 0.6, 8); box(-0.7, H + 0.85, 0.5, 0.7, H + 0.92, 0.6, 8);
+      fzs(hw - 0.45, hw - 0.15, 0.6, 0.8, F - 0.115, 3);
     }
-    if (m.kind !== 'tram') { const r = m.kind === 'car' ? 0.33 : 0.48; for (const z of [L / 2 - (m.kind === 'car' ? 0.85 : 1.2), -L / 2 + (m.kind === 'car' ? 0.9 : 1.4)]) { wheel(-hw + 0.05, z, r); wheel(hw - 0.05, z, r); } if (key === 'semi' || key === 'bus') { wheel(-hw + 0.05, -L / 2 + 3, 0.48); wheel(hw - 0.05, -L / 2 + 3, 0.48); } }
     const g = new THREE.BufferGeometry(); g.setAttribute('position', new THREE.Float32BufferAttribute(pos, 3)); g.setAttribute('normal', new THREE.Float32BufferAttribute(nor, 3));
     g.setAttribute('aPart', new THREE.Float32BufferAttribute(part, 1)); g.setAttribute('aFix', new THREE.Float32BufferAttribute(col, 3)); g.setIndex(idx); g.computeBoundingSphere();
     return g;
+  },
+  // night headlight pool on the road ahead (additive, instanced, drawn only when Gfx.q.beams)
+  beamGeo() {
+    const g = new THREE.BufferGeometry(); g.setAttribute('position', new THREE.Float32BufferAttribute([-0.9, 0.06, 0, 0.9, 0.06, 0, 2.6, 0.06, 11, -2.6, 0.06, 11], 3));
+    g.setAttribute('uv', new THREE.Float32BufferAttribute([-1, 0, 1, 0, 1, 1, -1, 1], 2)); g.setIndex([0, 2, 1, 0, 3, 2]); g.computeBoundingSphere(); return g;
+  },
+  beamMat() {
+    return new THREE.ShaderMaterial({ uniforms: { uNight: U.uNight }, transparent: true, depthWrite: false, blending: THREE.AdditiveBlending, polygonOffset: true, polygonOffsetFactor: -2, polygonOffsetUnits: -8,
+      vertexShader: 'varying vec2 vUv; void main(){ vUv = uv; vec4 p = vec4(position, 1.0);\n#ifdef USE_INSTANCING\np = instanceMatrix * p;\n#endif\ngl_Position = projectionMatrix * modelViewMatrix * p; }',
+      fragmentShader: 'uniform float uNight; varying vec2 vUv; void main(){ float d = vUv.y, a = (1.0 - d) * (1.0 - d) * smoothstep(0.0, 0.06, d) * (1.0 - smoothstep(0.35, 1.0, abs(vUv.x))); float lobes = 0.75 + 0.25 * smoothstep(0.1, 0.5, abs(vUv.x)) * (1.0 - d); gl_FragColor = vec4(vec3(1.0, 0.88, 0.7) * a * lobes * 0.32 * uNight, 1.0); }' });
   },
   material() {
     const m = new THREE.MeshStandardMaterial({ color: 0xffffff, roughness: 0.35, metalness: 0.55 });
@@ -7904,14 +8161,21 @@ const VehGeo = {
       vBegin: 'vPart = aPart; vFix = aFix; vBrake = aBrake;',
       fDecl: 'varying float vPart; varying vec3 vFix; varying float vBrake; float cR; float cM; vec3 cE;',
       fColor: /* glsl */`
-        { float p = floor(vPart + 0.5); cR = 0.32; cM = 0.6; cE = vec3(0.0);
-          if (p == 1.0) { diffuseColor.rgb = vec3(0.03,0.035,0.04); cR = 0.05; cM = 0.9; cE = vec3(0.04,0.035,0.02) * uNight * 2.0; }
-          else if (p == 2.0) { diffuseColor.rgb = vec3(0.025); cR = 0.9; cM = 0.0; }
-          else if (p == 3.0) { diffuseColor.rgb = vec3(0.9); cR = 0.1; cE = vec3(1.0,0.95,0.85) * (0.05 + uNight * 9.0); }
-          else if (p == 4.0) { diffuseColor.rgb = vec3(0.5,0.02,0.02); cE = vec3(1.0,0.05,0.03) * (0.2 + uNight * 3.0 + vBrake * 5.0); }
+        { float p = floor(vPart + 0.5); cR = 0.3; cM = 0.5; cE = vec3(0.0);
+          if (p == 1.0) { diffuseColor.rgb = vec3(0.025,0.032,0.04); cR = 0.04; cM = 0.92; cE = vec3(0.05,0.04,0.025) * uNight * 2.0; }
+          else if (p == 2.0) { diffuseColor.rgb = vec3(0.022); cR = 0.88; cM = 0.0; }
+          else if (p == 3.0) { diffuseColor.rgb = vec3(0.9); cR = 0.08; cM = 0.2; cE = vec3(1.0,0.95,0.85) * (0.08 + uNight * 10.0); }
+          else if (p == 4.0) { diffuseColor.rgb = vec3(0.45,0.02,0.02); cR = 0.15; cE = vec3(1.0,0.05,0.03) * (0.15 + uNight * 3.5 + vBrake * 6.0); }
           else if (p == 5.0) { float f = step(0.0, sin(uTime*14.0 + vFix.b*3.0)); diffuseColor.rgb = vFix; cE = vFix * 6.0 * f * (0.3 + uNight); }
-          else if (p == 6.0) { diffuseColor.rgb = vFix; cR = 0.5; cM = 0.1; }
-          else { diffuseColor.rgb *= 0.8; diffuseColor.rgb = mix(diffuseColor.rgb, vec3(0.88,0.9,0.94), smoothstep(0.7,0.95,vWNor.y)*uSnow*0.8); }
+          else if (p == 6.0) { diffuseColor.rgb = vFix; cR = 0.45; cM = 0.15; }
+          else if (p == 7.0) { diffuseColor.rgb = vec3(0.75); cR = 0.18; cM = 1.0; }
+          else if (p == 8.0) { diffuseColor.rgb = vec3(0.03,0.032,0.035); cR = 0.6; cM = 0.0; }
+          else if (p == 9.0) { diffuseColor.rgb = vec3(0.5,0.51,0.53); cR = 0.3; cM = 0.9; }
+          else if (p == 10.0) { diffuseColor.rgb = vec3(0.7,0.3,0.02); cR = 0.15; cE = vec3(1.0,0.45,0.05) * uNight * 0.6; }
+          else if (p == 11.0) { diffuseColor.rgb = vFix; cR = 0.3; cM = 0.0; cE = vFix * (0.25 + uNight * 3.0); }
+          else if (p == 12.0) { diffuseColor.rgb = vec3(0.025); cR = 0.9; cM = 0.0; }
+          else { diffuseColor.rgb *= 0.8; cR = 0.24; cM = 0.35; }
+          if (p == 0.0 || p == 6.0) diffuseColor.rgb = mix(diffuseColor.rgb, vec3(0.88,0.9,0.94), smoothstep(0.7,0.95,vWNor.y)*uSnow*0.8);
           if (uInfoMode > 0.5) { diffuseColor.rgb = vec3(0.6); cE = vec3(0.0); }
         }`,
       fRough: 'roughnessFactor = cR; metalnessFactor = cM;',
@@ -7920,30 +8184,48 @@ const VehGeo = {
     return m;
   },
 };
-/* person mesh with walk animation */
+/* person mesh with walk animation: shoes, trousers or skirt, tapered torso, sleeves, hair, optional backpack */
 const PedGeo = {
   build() {
     const pos = [], nor = [], part = [], idx = [];
-    const box = (x0, y0, z0, x1, y1, z1, p) => { const P = [[x0, y0, z0], [x1, y0, z0], [x1, y1, z0], [x0, y1, z0], [x0, y0, z1], [x1, y0, z1], [x1, y1, z1], [x0, y1, z1]]; const F = [[0, 1, 2, 3, 0, 0, -1], [5, 4, 7, 6, 0, 0, 1], [4, 0, 3, 7, -1, 0, 0], [1, 5, 6, 2, 1, 0, 0], [3, 2, 6, 7, 0, 1, 0], [4, 5, 1, 0, 0, -1, 0]]; for (const f of F) { const s = pos.length / 3; for (let k = 0; k < 4; k++) { pos.push(...P[f[k]]); nor.push(f[4], f[5], f[6]); part.push(p); } idx.push(s, s + 1, s + 2, s, s + 2, s + 3); } };
-    box(-0.17, 0, -0.09, -0.02, 0.86, 0.09, 4); box(0.02, 0, -0.09, 0.17, 0.86, 0.09, 5);
-    box(-0.2, 0.84, -0.12, 0.2, 1.42, 0.12, 1);
-    box(-0.29, 0.86, -0.07, -0.2, 1.4, 0.07, 6); box(0.2, 0.86, -0.07, 0.29, 1.4, 0.07, 7);
-    box(-0.1, 1.44, -0.11, 0.1, 1.68, 0.11, 2); box(-0.11, 1.62, -0.12, 0.11, 1.72, 0.12, 3);
+    const box = (x0, y0, z0, x1, y1, z1, p, tp = 0, tz = 0) => {
+      const P = [[x0, y0, z0], [x1, y0, z0], [x1 - tp, y1, z0 + tz], [x0 + tp, y1, z0 + tz], [x0, y0, z1], [x1, y0, z1], [x1 - tp, y1, z1 - tz], [x0 + tp, y1, z1 - tz]];
+      const F = [[0, 1, 2, 3, 0, 0, -1], [5, 4, 7, 6, 0, 0, 1], [4, 0, 3, 7, -1, 0, 0], [1, 5, 6, 2, 1, 0, 0], [3, 2, 6, 7, 0, 1, 0]];
+      for (const f of F) { const s = pos.length / 3; for (let k = 0; k < 4; k++) { pos.push(...P[f[k]]); nor.push(f[4], f[5], f[6]); part.push(p); } idx.push(s, s + 1, s + 2, s, s + 2, s + 3); }
+    };
+    box(-0.155, 0, -0.07, -0.025, 0.9, 0.09, 4, 0.0); box(0.025, 0, -0.07, 0.155, 0.9, 0.09, 5, 0.0);
+    box(-0.175, 0.84, -0.1, 0.175, 1.0, 0.1, 13);
+    box(-0.165, 0.98, -0.105, 0.165, 1.44, 0.11, 1, -0.04, 0.01);
+    box(-0.27, 0.86, -0.06, -0.19, 1.43, 0.07, 6, -0.02); box(0.19, 0.86, -0.06, 0.27, 1.43, 0.07, 7, -0.02);
+    box(-0.09, 1.44, -0.1, 0.09, 1.72, 0.11, 2, 0.015, 0.015);
+    box(-0.1, 1.6, -0.12, 0.1, 1.76, 0.08, 3, 0.02, 0.02);
+    box(-0.15, 1.0, -0.26, 0.15, 1.38, -0.1, 10, 0.02);
     const g = new THREE.BufferGeometry(); g.setAttribute('position', new THREE.Float32BufferAttribute(pos, 3)); g.setAttribute('normal', new THREE.Float32BufferAttribute(nor, 3)); g.setAttribute('aPart', new THREE.Float32BufferAttribute(part, 1)); g.setIndex(idx); return g;
   },
   material() {
     const m = new THREE.MeshStandardMaterial({ color: 0xffffff, roughness: 0.8 });
     patchMaterial(m, {
-      vDecl: 'attribute float aPart; attribute float aWalk; varying float vPart; varying float vSeedP;',
-      vBegin: `vPart = aPart; vec3 ip = vec3(instanceMatrix[3][0], instanceMatrix[3][1], instanceMatrix[3][2]); float sd = hash12(floor(ip.xz*0.5)+aWalk*0.0); vSeedP = fract(aWalk*13.7);
-        float ph = uTime*7.0*step(0.01,aWalk) + aWalk*31.0; float sw = sin(ph)*0.35*step(0.01,aWalk);
-        if (aPart > 3.5 && aPart < 5.5) { float s = aPart < 4.5 ? 1.0 : -1.0; float k = (0.86 - transformed.y); transformed.z += s*sw*k; }
-        if (aPart > 5.5) { float s = aPart < 6.5 ? -1.0 : 1.0; float k = (1.4 - transformed.y); transformed.z += s*sw*k*0.8; }`,
-      fDecl: 'varying float vPart; varying float vSeedP;',
-      fColor: `{ float p = floor(vPart+0.5);
-        vec3 skin = mix(vec3(0.85,0.62,0.48), vec3(0.32,0.2,0.14), fract(vSeedP*7.3));
-        vec3 pants = mix(vec3(0.08,0.1,0.18), vec3(0.35,0.32,0.28), fract(vSeedP*3.1));
-        if (p == 2.0 || p > 5.5) diffuseColor.rgb = skin; else if (p == 3.0) diffuseColor.rgb = mix(vec3(0.05,0.04,0.03), vec3(0.55,0.4,0.2), fract(vSeedP*5.7)); else if (p > 3.5 && p < 5.5) diffuseColor.rgb = pants;
+      vDecl: 'attribute float aPart; attribute float aWalk; varying float vPart; varying float vSeedP; varying float vLy;',
+      vBegin: `vPart = aPart; vLy = position.y; vec3 ip = vec3(instanceMatrix[3][0], instanceMatrix[3][1], instanceMatrix[3][2]);
+        vSeedP = aWalk > 0.01 ? fract(aWalk*13.7) : hash12(floor(ip.xz*2.0));
+        float ph = uTime*7.0*step(0.01,aWalk) + aWalk*31.0; float sw = sin(ph)*0.38*step(0.01,aWalk);
+        if (aPart > 3.5 && aPart < 5.5) { float s = aPart < 4.5 ? 1.0 : -1.0; float k = (0.9 - transformed.y); transformed.z += s*sw*k; transformed.y += max(0.0, s*sw)*0.05*(1.0-transformed.y); }
+        if (aPart > 5.5 && aPart < 7.5) { float s = aPart < 6.5 ? -1.0 : 1.0; float k = (1.42 - transformed.y); transformed.z += s*sw*k*0.75; }
+        if (aPart > 9.5 && aPart < 10.5 && fract(vSeedP*5.3) > 0.3) transformed *= 0.0;`,
+      fDecl: 'varying float vPart; varying float vSeedP; varying float vLy;',
+      fColor: `{ float p = floor(vPart+0.5); float s1 = fract(vSeedP*7.3), s2 = fract(vSeedP*3.1+0.37), s3 = fract(vSeedP*11.9+0.11), s4 = fract(vSeedP*17.3+0.6);
+        vec3 skin = mix(vec3(0.8,0.55,0.4), vec3(0.22,0.12,0.07), s1*s1);
+        vec3 pal = s3 < 0.12 ? vec3(0.62,0.06,0.05) : s3 < 0.22 ? vec3(0.04,0.09,0.3) : s3 < 0.34 ? vec3(0.78,0.76,0.7) : s3 < 0.45 ? vec3(0.025) : s3 < 0.53 ? vec3(0.1,0.25,0.12) : s3 < 0.6 ? vec3(0.85,0.5,0.06) : s3 < 0.68 ? vec3(0.3,0.48,0.72) : s3 < 0.76 ? vec3(0.45,0.08,0.25) : s3 < 0.86 ? vec3(0.22,0.2,0.18) : vec3(0.85,0.83,0.8);
+        vec3 top = mix(pal, diffuseColor.rgb*0.8, step(0.7, s2));
+        vec3 pants = s2 < 0.4 ? vec3(0.035,0.06,0.13) : s2 < 0.6 ? vec3(0.02) : s2 < 0.75 ? vec3(0.3,0.25,0.16) : s2 < 0.88 ? vec3(0.18,0.18,0.19) : top;
+        vec3 hair = s4 < 0.4 ? vec3(0.015,0.012,0.01) : s4 < 0.7 ? vec3(0.12,0.06,0.025) : s4 < 0.85 ? vec3(0.55,0.4,0.18) : vec3(0.45);
+        top = mix(top, top*0.55 + vec3(0.02), uSnow*0.5);
+        if (p == 1.0) diffuseColor.rgb = top;
+        else if (p == 2.0) diffuseColor.rgb = skin;
+        else if (p == 3.0) diffuseColor.rgb = hair;
+        else if (p == 4.0 || p == 5.0 || p == 13.0) diffuseColor.rgb = vLy < 0.085 ? (s4 < 0.3 ? vec3(0.75) : vec3(0.02)) : pants;
+        else if (p == 6.0 || p == 7.0) diffuseColor.rgb = vLy > 1.12 + s1*0.18 ? top : skin;
+        else if (p == 10.0) diffuseColor.rgb = mix(vec3(0.03), pal*0.6, step(0.5, s1));
         if (uInfoMode > 0.5) diffuseColor.rgb = vec3(0.6); }`,
     });
     return m;
@@ -7955,7 +8237,7 @@ const Traffic = {
   init() {
     this.mat = VehGeo.material();
     for (const k in VMODELS) {
-      const cap = k === 'sedan' || k === 'hatch' || k === 'suv' ? 900 : k === 'bus' || k === 'truck' || k === 'van' ? 400 : 160;
+      const cap = k === 'sedan' || k === 'hatch' || k === 'suv' ? 900 : k === 'wagon' || k === 'compact' || k === 'coupe' ? 500 : k === 'bus' || k === 'truck' || k === 'van' ? 400 : 160;
       const im = new THREE.InstancedMesh(VehGeo.build(k), this.mat, cap); im.count = 0; im.frustumCulled = false; im.castShadow = true; im.receiveShadow = true;
       im.instanceColor = new THREE.InstancedBufferAttribute(new Float32Array(cap * 3).fill(1), 3);
       const br = new THREE.InstancedBufferAttribute(new Float32Array(cap), 1); im.geometry.setAttribute('aBrake', br); im.userData.brake = br;
@@ -7966,9 +8248,10 @@ const Traffic = {
     this.walkAttr = new THREE.InstancedBufferAttribute(new Float32Array(2500), 1); pm.geometry.setAttribute('aWalk', this.walkAttr);
     Gfx.scene.add(pm); this.pedMesh = pm;
     // parked cars (static)
-    this.parked = new THREE.InstancedMesh(VehGeo.build('sedan'), this.mat, 4000); this.parked.count = 0; this.parked.frustumCulled = false; this.parked.castShadow = true;
-    this.parked.instanceColor = new THREE.InstancedBufferAttribute(new Float32Array(4000 * 3).fill(1), 3); this.parked.geometry.setAttribute('aBrake', new THREE.InstancedBufferAttribute(new Float32Array(4000), 1));
-    Gfx.scene.add(this.parked);
+    this.beams = new THREE.InstancedMesh(VehGeo.beamGeo(), VehGeo.beamMat(), 1200); this.beams.count = 0; this.beams.frustumCulled = false; this.beams.renderOrder = 2; Gfx.scene.add(this.beams); this.beamP = new THREE.Vector3();
+    this.parkedM = ['sedan', 'hatch', 'wagon', 'suv'].map(k => { const im = new THREE.InstancedMesh(VehGeo.build(k), this.mat, 1200); im.count = 0; im.frustumCulled = false; im.castShadow = true;
+      im.instanceColor = new THREE.InstancedBufferAttribute(new Float32Array(1200 * 3).fill(1), 3); im.geometry.setAttribute('aBrake', new THREE.InstancedBufferAttribute(new Float32Array(1200), 1)); Gfx.scene.add(im); return im; });
+    this.parked = this.parkedM[0];
     // traffic light heads
     this.lightHeads = new THREE.InstancedMesh(signalLensGeo(), signalLensMat(), 3000); this.lightHeads.count = 0; this.lightHeads.frustumCulled = false; this.lightHeads.instanceColor = new THREE.InstancedBufferAttribute(new Float32Array(3000 * 3), 3); Gfx.scene.add(this.lightHeads);
     Bus.on('netChanged', () => { this.graphV = -1; this.pathCache.clear(); this.parkDirty = true; this.lightsDirty = true; });
@@ -8064,7 +8347,7 @@ const Traffic = {
     this.vehicles.push(v);
     return v;
   },
-  carModel() { const r = Math.random(); return r < 0.42 ? 'sedan' : r < 0.66 ? 'hatch' : r < 0.86 ? 'suv' : r < 0.94 ? 'pickup' : 'van'; },
+  carModel() { const r = Math.random(); return r < 0.28 ? 'sedan' : r < 0.46 ? 'hatch' : r < 0.64 ? 'suv' : r < 0.73 ? 'wagon' : r < 0.81 ? 'compact' : r < 0.86 ? 'coupe' : r < 0.94 ? 'pickup' : 'van'; },
   trip(fromB, toB, model, opts = {}) {
     const a = this.access(fromB), b = this.access(toB); if (!a || !b) return null;
     const path = this.astar(a.s, a.arc, b.s, b.arc); if (!path) return null;
@@ -8285,15 +8568,18 @@ const Traffic = {
     const counts = {}; for (const k in this.meshes) counts[k] = 0;
     const m4 = new THREE.Matrix4(), q = new THREE.Quaternion(), e = new THREE.Euler(), p = new THREE.Vector3(), sc = new THREE.Vector3(1, 1, 1), col = new THREE.Color();
     const cam = Gfx.camera.position; const R = Math.max(1500, CamCtl.dist * 4);
+    const bm = this.beams, beamOn = Gfx.q.beams && U.uNight.value > 0.05, BR = Math.min(R, 700), bp = this.beamP; let nb = 0;
     for (const v of this.vehicles) {
       if (v.dead || v.hidden) continue; if (Math.abs(v.x - cam.x) > R || Math.abs(v.z - cam.z) > R) continue;
       const im = this.meshes[v.model]; const i = counts[v.model]; if (i >= im.instanceMatrix.count) continue;
       e.set(0, v.yaw, 0); q.setFromEuler(e); p.set(v.x, v.y + 0.02, v.z); m4.compose(p, q, sc); im.setMatrixAt(i, m4);
       col.set(v.color); im.setColorAt(i, col); im.userData.brake.array[i] = v.brake;
       counts[v.model]++;
+      if (beamOn && nb < 1200 && v.M && Math.abs(v.x - cam.x) < BR && Math.abs(v.z - cam.z) < BR) { const f = v.M.L / 2 - 0.1; bp.set(v.x + Math.sin(v.yaw) * f, v.y + 0.02, v.z + Math.cos(v.yaw) * f); m4.compose(bp, q, sc); bm.setMatrixAt(nb++, m4); }
     }
     // transit consists drawn by Transit
     if (Transit.drawVehicles) Transit.drawVehicles(counts, this.meshes);
+    bm.count = nb; if (nb) bm.instanceMatrix.needsUpdate = true;
     for (const k in this.meshes) { const im = this.meshes[k]; im.count = counts[k]; im.instanceMatrix.needsUpdate = true; if (im.instanceColor) im.instanceColor.needsUpdate = true; im.userData.brake.needsUpdate = true; }
     let n = 0; const pm = this.pedMesh;
     for (const pd of this.peds) { if (n >= 2500) break; if (Math.abs(pd.x - cam.x) > 900 || Math.abs(pd.z - cam.z) > 900) continue; e.set(0, pd.yaw, 0); q.setFromEuler(e); p.set(pd.x, pd.y, pd.z); m4.compose(p, q, sc); pm.setMatrixAt(n, m4); col.set(pd.color); pm.setColorAt(n, col); this.walkAttr.array[n] = 0.3 + (pd.id % 97) / 97; n++; }
@@ -8304,18 +8590,19 @@ const Traffic = {
     this.updateLights();
   },
   buildParked() {
-    this.parkDirty = false; let n = 0; const m4 = new THREE.Matrix4(), q = new THREE.Quaternion(), e = new THREE.Euler(), p = new THREE.Vector3(), sc = new THREE.Vector3(1, 1, 1), col = new THREE.Color();
+    this.parkDirty = false; const cn = [0, 0, 0, 0], PM4 = this.parkedM; const m4 = new THREE.Matrix4(), q = new THREE.Quaternion(), e = new THREE.Euler(), p = new THREE.Vector3(), sc = new THREE.Vector3(1, 1, 1), col = new THREE.Color();
     for (const s of Net.segs.values()) {
       if (!s.up.parking || s.T.highway) continue; const T = s.T;
       const na = Net.nodes.get(s.a), nb = Net.nodes.get(s.b); const d0 = (na.trims[s.id] || 0) + 8, d1 = s.len - (nb.trims[s.id] || 0) - 8;
-      for (const side of [-1, 1]) for (let d = d0; d < d1 && n < 4000; d += 6.5) {
+      for (const side of [-1, 1]) for (let d = d0; d < d1; d += 6.5) {
         if (hash2i(s.id * 31 + side, Math.round(d)) < 0.45) continue;
+        const k = (hash2i(s.id * 7 + side, Math.round(d * 5)) * 4) | 0, im = PM4[k]; if (cn[k] >= 1200) continue;
         const pt = Net.pointAt(s, d); const lat = side * (T.cw - 1.25 - T.shoulder); const x = pt.x - pt.tz * lat, z = pt.z + pt.tx * lat;
-        e.set(0, Math.atan2(pt.tx, pt.tz) + (side < 0 ? Math.PI : 0), 0); q.setFromEuler(e); p.set(x, pt.y + 0.02, z); m4.compose(p, q, sc); this.parked.setMatrixAt(n, m4);
-        col.set(CAR_COLORS[(hash2i(s.id, Math.round(d * 3)) * CAR_COLORS.length) | 0]); this.parked.setColorAt(n, col); n++;
+        e.set(0, Math.atan2(pt.tx, pt.tz) + (side < 0 ? Math.PI : 0), 0); q.setFromEuler(e); p.set(x, pt.y + 0.02, z); m4.compose(p, q, sc); im.setMatrixAt(cn[k], m4);
+        col.set(CAR_COLORS[(hash2i(s.id, Math.round(d * 3)) * CAR_COLORS.length) | 0]); im.setColorAt(cn[k], col); cn[k]++;
       }
     }
-    this.parked.count = n; this.parked.instanceMatrix.needsUpdate = true; if (this.parked.instanceColor) this.parked.instanceColor.needsUpdate = true;
+    PM4.forEach((im, k) => { im.count = cn[k]; im.instanceMatrix.needsUpdate = true; im.instanceColor.needsUpdate = true; });
   },
   buildLights() {
     this.lightsDirty = false; this.lightList = [];

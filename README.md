@@ -8,6 +8,9 @@ Open `civitas.html` in a desktop browser with WebGL2 (it loads Three.js from jsD
 
 - **World**: endless streamed terrain with rivers, editable landscape, natural resources, climates, seasons, day/night, weather (rain, snow, storms, fog).
 - **Rendering**: PBR materials, procedural facades with interior mapping, GTAO, height fog, bloom, depth of field / tilt-shift, SMAA, cloud shadows.
+- **Landscape**: ground shading that varies from lush to dry grass, bare soil, scree and rock with slope and altitude, beaches and mud at the shore; clustered forests with clearings, hedgerows and lone field trees; depth-shaded water with shoreline foam; aerial haze, a filmic colour grade and moonlit nights.
+- **Streets**: roads follow hills with graded cut and fill, grassy embankments and retaining walls; junctions sit on flat plateaus with zebra crossings, stop lines, lane arrows, bike lanes, traffic signals, stop and give-way signs and street furniture; asphalt shows age and tyre wear, and winter adds slush tracks and kerb snow.
+- **Lots and traffic**: natural lawns with gardens, sheds, hedges and fences, paved forecourts and parking bays, industrial yards with pallets and skips; detailed cars, vans, trucks and buses with working head and tail lights.
 - **Near-camera detail layer**: within range of the camera every building gains real 3D window surrounds, sills, lintels and pediments, balconies, cornices, gutters, chimneys, porches, cars, rooftop plant and yard props. Trees switch to branching skeletons with alpha-tested leaf, needle and frond cards. Detail is generated on demand inside a per-quality vertex budget.
 - **Architecture**: houses from 1965 / 1985 / 2008 / 2015 / 2025; apartment blocks (Old European, Haussmann, socialist panel, renovated panel, 2008, 2017, 2025); four economic classes; era variants for shops, big-box stores, hotels, offices, industry, farms, mines, oil fields and fisheries; about 50 civic services.
 - **Simulation**: citizens, households, companies, jobs, education, demand, an economy with production chains, budgets, taxes and policies, traffic agents, public transport, tourism, milestones and a development tree.
@@ -28,4 +31,4 @@ Open `civitas.html` in a desktop browser with WebGL2 (it loads Three.js from jsD
 
 **Mouse & keyboard:** right-drag to rotate, middle-drag or Shift+right-drag to pan, and use the wheel to zoom toward the cursor. WASD/QE move the camera; Esc opens the pause menu and `I` opens the info views.
 
-**Touch:** one finger pans and a tap selects; pinch to zoom; twist two fingers to rotate; drag two fingers up or down to tilt; double-tap to zoom in. With a tool active, one finger uses the tool and two fingers move the camera. Buttons at the bottom left zoom, rotate and tilt while held.
+**Touch:** one finger pans and a tap selects; pinch to zoom; twist two fingers to rotate; drag two fingers up or down to tilt; double-tap to zoom in. With a tool active, one finger uses the tool and two fingers move the camera. Buttons at the bottom left zoom, rotate and tilt while held. On phones, panels open as bottom sheets you can drag down or collapse, and the toolbar uses two rows of large buttons.
