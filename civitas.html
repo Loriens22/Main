@@ -33,7 +33,11 @@
   --shadow:0 8px 28px rgba(0,0,0,.45);
   color-scheme:dark;
 }
-html,body{height:100%;margin:0;overflow:hidden;background:var(--bg);color:var(--fg);font-family:var(--font-ui);font-size:13px;-webkit-font-smoothing:antialiased}
+html,body{height:100%;margin:0;overflow:hidden;background:var(--bg);color:var(--fg);font-family:var(--font-ui);font-size:13px;-webkit-font-smoothing:antialiased;-webkit-tap-highlight-color:transparent;-webkit-text-size-adjust:100%;text-size-adjust:100%}
+/* game UI: no text selection, long-press callouts or drag ghosts (form fields stay editable) */
+#hud,#menu,#modalWrap,#photoUI,#tooltip,#labels,#loading{-webkit-user-select:none;user-select:none;-webkit-touch-callout:none}
+input,textarea,select{-webkit-user-select:text;user-select:text}
+img,svg,canvas{-webkit-user-drag:none}
 *{box-sizing:border-box}
 button{font-family:inherit;color:inherit}
 canvas#gl{position:fixed;inset:0;width:100%;height:100%;display:block;outline:none;touch-action:none}
@@ -53,6 +57,8 @@ canvas#gl{position:fixed;inset:0;width:100%;height:100%;display:block;outline:no
 #topLeft{position:absolute;left:10px;top:calc(10px + env(safe-area-inset-top,0px));display:flex;gap:8px}
 #topLeft .tlx{background:var(--panel-2);border:1px solid var(--line-2)}
 #topLeft .tlx svg{width:22px;height:22px}
+#topLeft .tlx{position:relative}
+#topLeft .tlx .n{display:none;position:absolute;top:-5px;right:-6px;background:var(--good);color:#0a2a10;font-weight:800;font-size:10px;line-height:1.25;padding:1px 5px;border-radius:9px;border:2px solid #10351a;font-family:var(--font-num)}
 #topRight{position:absolute;right:10px;top:calc(10px + env(safe-area-inset-top,0px));display:flex;gap:8px}
 
 /* panels */
@@ -64,6 +70,10 @@ canvas#gl{position:fixed;inset:0;width:100%;height:100%;display:block;outline:no
 .panel-h .title{flex:1;min-width:0;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;text-align:center}
 .panel-h .x{border:0;background:none;cursor:pointer;width:24px;height:24px;display:grid;place-items:center;border-radius:4px;color:var(--fg);font-size:18px;line-height:1}
 .panel-h .x:hover{background:rgba(255,255,255,.1)}
+.panel-h .cl{display:none;border:0;background:none;cursor:pointer;width:34px;height:34px;place-items:center;border-radius:6px;color:var(--fg-2);padding:0;flex-shrink:0}
+.panel-h .cl svg{transition:transform .18s}
+.panel-h .title .sub{color:var(--fg-2);font-weight:600;letter-spacing:.03em;text-transform:none}
+.panel.collapsed > :not(.panel-h){display:none!important}
 .panel-b{padding:10px 12px;overflow:auto;min-height:0}
 .sec-h{font-size:11px;letter-spacing:.09em;text-transform:uppercase;color:var(--muted);margin:10px 0 6px;font-weight:700}
 .sec-h:first-child{margin-top:2px}
@@ -146,11 +156,14 @@ label.chk input{accent-color:var(--accent);width:15px;height:15px}
 .faces{display:flex;gap:3px}
 .faces i{width:17px;height:17px;border-radius:50%;background:rgba(255,255,255,.12);display:block;position:relative}
 .faces i.on{transform:scale(1.15)}
+#sbSpeed{display:flex;align-items:center;gap:0}
 .speed i{display:inline-block;width:0;height:0;border-top:5px solid transparent;border-bottom:5px solid transparent;border-left:7px solid var(--muted);margin-right:1px}
 .speed.s1 i:nth-child(-n+1),.speed.s2 i:nth-child(-n+2),.speed.s3 i:nth-child(-n+3){border-left-color:var(--accent-2)}
 
 /* tool asset panel */
-#toolPanel{position:absolute;left:50%;transform:translateX(-50%);bottom:calc(100px + env(safe-area-inset-bottom,0px));width:min(760px,calc(100vw - 20px));max-height:44vh}
+#toolPanel{position:absolute;left:50%;transform:translateX(-50%);bottom:calc(100% + 6px);width:min(760px,calc(100vw - 20px));max-height:44vh}
+/* desktop: the asset menu steps aside when the tool options panel is open, so they never overlap */
+#toolOptions:not(.hide) + #toolPanel{left:max(calc(50% - 380px),352px);transform:none;width:min(760px,calc(100vw - 362px))}
 .tabs{display:flex;gap:2px;padding:6px 6px 0;background:rgba(0,0,0,.2);overflow-x:auto;flex-shrink:0}
 .tab{border:0;background:none;padding:7px 11px;border-radius:5px 5px 0 0;cursor:pointer;font-size:11.5px;font-weight:700;letter-spacing:.05em;text-transform:uppercase;color:var(--muted);white-space:nowrap}
 .tab:hover{color:var(--fg)}
@@ -166,7 +179,12 @@ label.chk input{accent-color:var(--accent);width:15px;height:15px}
 .tile .lock{position:absolute;top:4px;right:5px;font-size:10px;color:var(--warn)}
 
 /* tool options (bottom-left) */
-#toolOptions{position:absolute;left:10px;bottom:calc(100px + env(safe-area-inset-bottom,0px));min-width:250px;max-width:min(330px,calc(100vw - 20px))}
+#toolOptions{position:absolute;left:10px;bottom:calc(100% + 6px);min-width:250px;max-width:min(330px,calc(100vw - 20px));max-height:calc(100vh - 170px)}
+.to-tg,.to-act{display:none}
+/* swipeable strips fade at an edge when there is more to reveal */
+.sh.sr{-webkit-mask-image:linear-gradient(90deg,#000 calc(100% - 30px),transparent);mask-image:linear-gradient(90deg,#000 calc(100% - 30px),transparent)}
+.sh.sl{-webkit-mask-image:linear-gradient(90deg,transparent,#000 30px);mask-image:linear-gradient(90deg,transparent,#000 30px)}
+.sh.sl.sr{-webkit-mask-image:linear-gradient(90deg,transparent,#000 30px,#000 calc(100% - 30px),transparent);mask-image:linear-gradient(90deg,transparent,#000 30px,#000 calc(100% - 30px),transparent)}
 .opt-row{display:flex;align-items:center;gap:10px;padding:5px 0}
 .opt-row .lab{flex:1;min-width:84px;color:var(--fg-2);font-size:12.5px}
 .seg{display:flex;gap:3px;flex-wrap:wrap}
@@ -178,8 +196,8 @@ label.chk input{accent-color:var(--accent);width:15px;height:15px}
 .stepper span{min-width:48px;text-align:center;font-family:var(--font-num)}
 
 /* tooltip near cursor */
-#tooltip{position:fixed;pointer-events:none;z-index:20;display:flex;flex-direction:column;gap:3px;transform:translate(16px,14px)}
-#tooltip .tt{background:rgba(20,28,38,.92);border:1px solid var(--line-2);border-radius:4px;padding:3px 8px;font-size:12px;white-space:nowrap;display:flex;align-items:center;gap:6px}
+#tooltip{position:fixed;left:0;top:0;pointer-events:none;z-index:20;display:flex;flex-direction:column;gap:3px;max-width:calc(100vw - 12px)}
+#tooltip .tt{background:rgba(20,28,38,.92);border:1px solid var(--line-2);border-radius:4px;padding:3px 8px;font-size:12px;white-space:nowrap;display:flex;align-items:center;gap:6px;max-width:calc(100vw - 12px);overflow:hidden;text-overflow:ellipsis}
 #tooltip .tt.err{color:#ffcf6b;border-color:rgba(246,196,69,.5)}
 #tooltip .tt.cost{color:#b6f5a8}
 .measure{position:absolute;background:rgba(20,28,38,.9);border:1px solid var(--line-2);border-radius:4px;padding:2px 7px;font-size:11.5px;font-family:var(--font-num);white-space:nowrap;transform:translate(-50%,-50%);color:var(--fg)}
@@ -278,22 +296,257 @@ table.t tr.click{cursor:pointer}table.t tr.click:hover td{background:rgba(255,25
 #photoUI{position:fixed;right:10px;top:10px;bottom:10px;width:min(300px,calc(100vw - 20px));z-index:25}
 body.photo #hud,body.photo #labels{display:none}
 
-@media (max-width:720px){
-  #toolbar{gap:4px}
-  .tb-btn{width:38px;height:38px}.tb-btn svg{width:24px;height:24px}
-  #msName,#demand{display:none}
-  #toolPanel{bottom:calc(96px + env(safe-area-inset-bottom,0px))}
-  #toolOptions{bottom:auto;top:calc(58px + env(safe-area-inset-top,0px));left:auto;right:10px}
-  #menu .logo{font-size:38px}
-}
+
 /* touch camera pad (phones & tablets) */
 html,body{touch-action:pan-x pan-y}
 #camPad{position:absolute;left:10px;bottom:calc(110px + env(safe-area-inset-bottom,0px));display:none;grid-template-columns:repeat(3,44px);grid-auto-rows:44px;gap:6px}
 #camPad button{border-radius:12px;border:1px solid var(--line-2);background:var(--panel-2);display:grid;place-items:center;touch-action:none;-webkit-user-select:none;user-select:none;-webkit-touch-callout:none;cursor:pointer;padding:0}
 #camPad button.on,#camPad button:active{background:var(--accent)}
 #camPad svg{width:22px;height:22px}
+#camPad{position:absolute}
+#camPad .cp-tg{position:absolute;top:-30px;left:0;width:42px;height:26px;border-radius:9px;opacity:.85}
+#camPad .cp-tg svg{width:17px;height:17px}
+#camPad.min{grid-template-columns:42px;grid-auto-rows:42px}
+#camPad.min > button:not(.cp-tg){display:none}
+#camPad.min .cp-tg{position:static;width:42px;height:42px;border-radius:12px;opacity:1}
+#camPad.min .cp-tg svg{width:22px;height:22px}
 @media (pointer:coarse){#camPad{display:grid}}
 body.photo #camPad{display:none}
+
+/* ======================= responsive layers =======================
+   compact = phone portrait, short landscape or any touch screen: the asset menu and tool options
+   stack in-flow above the toolbar (so --bot, the measured height of #bottom, always clears them) */
+@media (max-width:1400px) and (min-width:601px){
+  #msName{min-width:0;padding-right:12px}
+  #demand .bars{width:96px}
+  #toolbar{gap:8px}
+  .tb-sep{margin:0 5px}
+}
+@media (max-width:1180px) and (min-width:601px){
+  #msName{display:none}
+  #sbTime,#sbPop,#sbMoney{min-width:0}
+  #sbCity{min-width:0;overflow:hidden}
+  #sbCityName{overflow:hidden;text-overflow:ellipsis}
+}
+@media (max-width:900px) and (min-width:601px){ #sbSeason,#sbDate{display:none} }
+@media (max-width:600px), (max-height:520px), (pointer:coarse){
+  #bottom{pointer-events:none}
+  #toolPanel,#toolOptions{position:relative;left:auto;right:auto;bottom:auto;transform:none;width:auto;min-width:0;max-width:none;margin:0 6px 6px;border-radius:12px}
+  #toolOptions:not(.hide) + #toolPanel{left:auto;transform:none;width:auto}
+  #toolPanel{max-height:none}
+  #toolPanel .panel-h{cursor:pointer;padding:8px 6px 8px 12px;min-height:44px}
+  #toolPanel .panel-h .title{text-align:left}
+  #toolPanel .tabs{padding:4px 6px 0;scrollbar-width:none;overscroll-behavior-x:contain}
+  #toolPanel .tabs::-webkit-scrollbar{display:none}
+  #toolPanel .tab{padding:9px 12px 8px}
+  #toolPanel .tiles{grid-template-columns:none;grid-auto-flow:column;grid-auto-columns:96px;grid-template-rows:auto;overflow-x:auto;overflow-y:hidden;scroll-snap-type:x proximity;overscroll-behavior-x:contain;padding:7px 8px 8px;gap:6px;scrollbar-width:none}
+  #toolPanel .tiles::-webkit-scrollbar{display:none}
+  #toolPanel .tile{min-height:0;scroll-snap-align:start;padding:5px 5px 6px;gap:3px}
+  #toolPanel .tile .th{height:54px}
+  #toolPanel .tile .th svg{width:34px;height:34px}
+  #toolPanel .tile .sw{width:36px!important;height:36px!important}
+  #toolPanel .tile .nm{display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;overflow:hidden;min-height:26px}
+  .panel-h .cl{display:grid}
+  .panel.collapsed .cl svg{transform:rotate(180deg)}
+  /* tool options: one swipeable strip of labelled control groups */
+  #toolOptions{flex-direction:row;align-items:stretch;overflow:hidden;max-height:none}
+  #toolOptions > .panel-b{flex:1;min-width:0;display:flex;align-items:stretch;padding:6px 4px;overflow-x:auto;overflow-y:hidden;scroll-snap-type:x proximity;overscroll-behavior-x:contain;scrollbar-width:none}
+  #toolOptions > .panel-b::-webkit-scrollbar{display:none}
+  #toolOptions > .panel-b > div{display:flex;align-items:stretch;gap:6px;flex:none}
+  #toolOptions .opt-row{flex:none;flex-direction:column;align-items:flex-start;justify-content:center;gap:3px;padding:4px 8px 5px;background:rgba(255,255,255,.045);border:1px solid var(--line);border-radius:8px;scroll-snap-align:start}
+  #toolOptions .opt-row .lab{flex:none;min-width:0;font-size:9.5px;font-weight:800;letter-spacing:.08em;text-transform:uppercase;color:var(--muted);white-space:nowrap}
+  #toolOptions .seg{flex-wrap:nowrap}
+  #toolOptions .seg button{height:34px;min-width:36px;padding:0 8px;font-size:11.5px;white-space:nowrap}
+  #toolOptions .stepper button{width:34px;height:34px}
+  #toolOptions .sec-h{margin:0!important;align-self:center;max-width:120px;white-space:normal;line-height:1.25;color:var(--accent-2);padding-left:4px}
+  #toolOptions .muted{align-self:center;max-width:230px;font-size:11px!important;line-height:1.35;margin:0!important;flex:none;padding-right:6px}
+  #toolOptions label.f,#toolOptions label.chk{margin:0;flex:none;align-self:center}
+  #toolOptions label.f{max-width:190px}
+  #toolOptions input[type=range]{width:130px}
+  #toolOptions select{width:auto;max-width:190px}
+  .to-tg{display:flex;flex-direction:column;align-items:center;justify-content:center;gap:1px;flex:none;width:34px;border:0;border-right:1px solid var(--line);background:rgba(255,255,255,.03);color:var(--fg-2);cursor:pointer;padding:0;font-size:9px;font-weight:800;letter-spacing:.06em;text-transform:uppercase}
+  .to-tg span{display:none}
+  .to-act{display:flex;align-items:center;gap:4px;flex:none;padding:0 6px;border-left:1px solid var(--line)}
+  .to-act button{width:38px;height:38px;border-radius:50%;border:1px solid var(--line-2);background:rgba(0,0,0,.25);display:grid;place-items:center;cursor:pointer;padding:0;color:var(--fg);font-size:22px;line-height:1}
+  .to-act button.ex{background:rgba(255,91,87,.16);border-color:rgba(255,91,87,.45)}
+  #toolOptions.min{align-self:flex-start}
+  #toolOptions.min > .panel-b{display:none}
+  #toolOptions.min .to-tg{width:auto;flex-direction:row;gap:6px;padding:0 12px;min-height:40px;border-right:1px solid var(--line)}
+  #toolOptions.min .to-tg span{display:inline}
+  #toolOptions.min .to-tg svg{transform:rotate(180deg)}
+  /* toolbar: big targets, swipe to reveal more, bulldozer pinned on the right edge */
+  #toolbar{gap:4px;padding:4px 0 4px 6px;min-height:56px;scroll-snap-type:x proximity;overscroll-behavior-x:contain;scrollbar-width:none}
+  #toolbar::-webkit-scrollbar{display:none}
+  #toolbar .grp.center{justify-content:flex-start;gap:2px}
+  .tb-btn{width:46px;height:46px;scroll-snap-align:start}
+  .tb-btn svg{width:28px;height:28px}
+  .tb-sep{margin:0 4px;height:28px}
+  #milestone{scroll-snap-align:start}
+  #msBadge{width:42px;height:42px}#msBadge svg{width:42px;height:42px}
+  .tb-btn[data-cat=bulldoze]{position:sticky;right:0;z-index:1;width:54px;height:48px;border-radius:12px 0 0 12px;background:linear-gradient(180deg,#2a3647,#202a38);box-shadow:-14px 0 14px -8px rgba(5,9,14,.85),inset 1px 0 0 var(--line-2);margin-left:6px}
+  .tb-btn.on[data-cat=bulldoze]{background:linear-gradient(180deg,#5a3a32,#3d2622);box-shadow:-14px 0 14px -8px rgba(5,9,14,.85),inset 0 0 0 2px #ff7b5c}
+  /* panels: no hover-only affordances, bigger headers */
+  .panel-h{min-height:44px}
+  #rightRail{top:calc(62px + env(safe-area-inset-top,0px));transform:none;right:calc(10px + env(safe-area-inset-right,0px))}
+  #camPad{left:auto;right:calc(10px + env(safe-area-inset-right,0px));bottom:calc(var(--bot,100px) + 10px)}
+  #panelStack{max-height:calc(100% - var(--bot,100px) - 72px)}
+  #tooltip .tt{font-size:12.5px;padding:4px 9px}
+}
+/* two-row toolbar: every category visible at once, groups split by hairlines */
+#hud.tb2 #toolbar{overflow:visible;padding:4px 6px;gap:6px;min-height:0;scroll-snap-type:none}
+#hud.tb2 #toolbar .grp.center{display:grid;grid-template-columns:repeat(var(--tbc,9),minmax(0,1fr));grid-auto-rows:44px;gap:2px 0;flex:1;min-width:0;max-width:calc(var(--tbc,9) * 64px);margin:0 auto}
+#hud.tb2 #toolbar .grp.center > .tb-sep{display:none}
+#hud.tb2 .tb-btn{width:auto;height:44px;border-radius:12px;scroll-snap-align:none}
+#hud.tb2 .tb-btn.gs::before{content:"";position:absolute;left:0;top:11px;bottom:11px;width:1px;background:var(--line-2)}
+#hud.tb2 .tb-btn[data-cat=bulldoze]{position:relative;right:auto;width:auto;height:44px;margin:0;border-radius:12px;box-shadow:none;background:rgba(255,123,92,.1)}
+#hud.tb2 .tb-btn.on[data-cat=bulldoze]{background:rgba(255,123,92,.3);box-shadow:inset 0 0 0 2px #ff7b5c}
+@media (max-width:900px){
+  #hud.tb2 #milestone,#hud.tb2 #milestone + .tb-sep{display:none}
+  #hud.tb2 #topLeft .tlx .n{display:block}
+}
+/* touch: comfortable hit targets, 16px form fields (stops iOS focus-zoom) */
+@media (pointer:coarse){
+  input[type=text],input[type=number],select,textarea{font-size:16px;padding:7px 9px}
+  .btn{min-height:38px}
+  .btn.sm{min-height:34px;padding:6px 10px;font-size:12px}
+  .seg button{min-width:36px;height:36px}
+  .stepper button{width:36px;height:36px}
+  label.chk{padding:6px 0;min-height:34px}
+  label.chk input{width:20px;height:20px}
+  input[type=range]{height:30px}
+  .panel-h .x{width:40px;height:40px;font-size:24px}
+  .tab{padding:10px 12px}
+  .sb{height:36px}
+  .sb button{height:32px;min-width:32px}
+  table.t td{padding:9px 6px}
+  #demand,#msName{display:none}
+}
+@media (pointer:coarse) and (min-width:1181px){ #demand,#msName{display:flex} }
+
+/* ---------- phone portrait: compact top bar, bottom sheets ---------- */
+@media (max-width:600px){
+  #topLeft,#topRight{gap:6px;top:calc(8px + env(safe-area-inset-top,0px))}
+  #topLeft{left:calc(8px + env(safe-area-inset-left,0px))}
+  #topRight{right:calc(8px + env(safe-area-inset-right,0px))}
+  #topLeft .round,#topRight .round{width:38px;height:38px}
+  #topLeft .round svg,#topRight .round svg{width:22px;height:22px}
+  #btnHelp{display:none}
+  /* the strip below the top bar is left free for the city advisor; the rail sits in thumb reach above the bottom stack */
+  #rightRail{top:auto;bottom:calc(var(--bot,100px) + var(--sheet,0px) + 10px);right:calc(8px + env(safe-area-inset-right,0px));gap:8px}
+  #rightRail .round{width:40px;height:40px;background:rgba(44,56,72,.86)}
+  #rightRail .round svg{width:22px;height:22px}
+  #toasts{top:calc(54px + env(safe-area-inset-top,0px));left:8px;right:8px;width:auto;transform:none;z-index:3}
+  #hud:has(#advisor:not(.hide)) #toasts{top:calc(116px + env(safe-area-inset-top,0px))}
+  .toast{max-width:100%;font-size:12px;padding:7px 11px;line-height:1.4}
+  .toast:nth-child(n+3){display:none}
+  #camPad{right:auto;left:calc(8px + env(safe-area-inset-left,0px));bottom:calc(var(--bot,100px) + var(--sheet,0px) + 10px);grid-template-columns:repeat(3,42px);grid-auto-rows:42px;gap:5px}
+  #camPad button{background:rgba(44,56,72,.86)}
+  /* sheets */
+  /* an expanded sheet takes the place of the toolbar, camera pad & rail (#hud.sheet); collapsed ones stack above the toolbar */
+  #panelStack{z-index:2;left:6px;right:6px;top:auto;width:auto;bottom:var(--bot,100px);max-height:min(56vh,calc(100% - var(--bot,100px) - 112px));gap:6px;justify-content:flex-end}
+  #hud.sheet #toolbar,#hud.sheet #camPad,#hud.sheet #rightRail{display:none}
+  #panelStack > .panel{border-radius:16px;box-shadow:0 -4px 24px rgba(0,0,0,.45)}
+  #panelStack > .panel:last-child{border-radius:16px 16px 0 0;border-bottom:0}
+  #panelStack > .panel.pin{max-height:40%}
+  .panel-h{position:relative;padding:13px 6px 7px 14px;touch-action:none;cursor:grab}
+  #panelStack .panel-h::before,#photoUI .panel-h::before,#modal .panel-h::before{content:"";position:absolute;top:5px;left:50%;width:38px;height:4px;margin-left:-19px;border-radius:2px;background:rgba(200,220,240,.32)}
+  .panel-h .title{text-align:left;font-size:12.5px}
+  .panel-b{padding:10px 14px;overscroll-behavior:contain}
+  /* bottom stack */
+  #toolPanel,#toolOptions{margin:0 4px 5px}
+  #toolbar{min-height:54px}
+  .tb-btn{width:44px;height:44px}
+  #statusbar{gap:4px;padding:4px 6px 5px;overflow:hidden}
+  .sb{padding:3px 6px;gap:5px;min-width:0;height:34px}
+  #sbTime{min-width:0;flex:none;padding:3px 2px;gap:2px}
+  #sbPlay,#sbSpeed{min-width:30px;padding:0 3px}
+  #sbDate,#sbSeason,#sbCity,.delta{display:none}
+  #sbPop,#sbMoney{min-width:0;flex:1 1 auto;justify-content:center;overflow:hidden}
+  #sbMoneyN,#sbPopN{overflow:hidden;text-overflow:ellipsis}
+  #sbWeather{flex:none}
+  .faces i:not(.on){display:none}
+  .faces i.on{transform:none;width:20px;height:20px}
+  /* modals: full-width sheet from the bottom */
+  #modalWrap{padding:0;place-items:end stretch;background:rgba(5,9,14,.55)}
+  #modal,#modal.wide,#modal.narrow{width:100%;max-height:calc(100% - 26px - env(safe-area-inset-top,0px));border-radius:16px 16px 0 0;border-bottom:0}
+  #modal > .panel-b{padding-bottom:calc(16px + env(safe-area-inset-bottom,0px))}
+  #modal .cols{grid-template-columns:minmax(0,1fr)}
+  #modal .card[style*="span 2"]{grid-column:auto!important}
+  .stats{grid-template-columns:repeat(2,minmax(0,1fr))}
+  .stat .v{font-size:18px}
+  /* photo mode: short sheet so the picture stays visible */
+  #photoUI{top:auto;left:4px;right:4px;bottom:0;width:auto;max-height:min(50vh,440px);border-radius:16px 16px 0 0;border-bottom:0}
+  #photoUI .panel-b{padding-bottom:calc(12px + env(safe-area-inset-bottom,0px))}
+  #photoUI .btns{position:sticky;bottom:-12px;background:var(--panel-solid);margin:8px -14px 0!important;padding:8px 14px}
+  /* main menu */
+  #menu{background:linear-gradient(180deg,rgba(8,12,18,.9) 0%,rgba(8,12,18,.55) 50%,rgba(8,12,18,.88) 100%)}
+  #menu .side{padding:calc(30px + env(safe-area-inset-top,0px)) 22px calc(18px + env(safe-area-inset-bottom,0px));gap:16px}
+  #menu .logo{font-size:40px;letter-spacing:.28em}
+  #menu .mbtn{font-size:18px;padding:11px 0 11px 14px}
+  #menu .foot{font-size:10.5px}
+}
+@media (max-width:380px){
+  #topLeft,#topRight{gap:5px}
+  #camPad{grid-template-columns:repeat(3,40px);grid-auto-rows:40px}
+  #topLeft .round,#topRight .round{width:36px;height:36px}
+  #sbWeather{display:none}
+  .tb-btn{width:42px}
+}
+
+/* ---------- short landscape (phones on their side): side sheets, one-row bottom bar ---------- */
+@media (max-height:520px) and (min-width:601px){
+  #topLeft,#topRight{gap:6px;top:calc(7px + env(safe-area-inset-top,0px))}
+  #topLeft{left:calc(10px + env(safe-area-inset-left,0px))}
+  #topRight{right:calc(10px + env(safe-area-inset-right,0px))}
+  #topLeft .round,#topRight .round{width:38px;height:38px}
+  #topLeft .round svg,#topRight .round svg{width:22px;height:22px}
+  /* top centre stays free (city advisor); the rail runs down the right edge, the camera pad sits bottom-left */
+  #rightRail{gap:5px;top:calc(52px + env(safe-area-inset-top,0px));right:calc(10px + env(safe-area-inset-right,0px))}
+  #rightRail .round{width:36px;height:36px}
+  #rightRail .round svg{width:20px;height:20px}
+  #hud #advisor{max-width:calc(100vw - 480px);left:50%;right:auto;transform:translateX(-50%);top:calc(env(safe-area-inset-top,0px) + 8px);padding:6px 9px}
+  #hud #advisor .adv-t div,#hud #advisor .adv-m{display:none}
+  #hud #advisor.open .adv-t div{display:block}
+  #hud:has(#advisor:not(.hide)) #toasts{top:calc(70px + env(safe-area-inset-top,0px))}
+  #toasts{top:calc(52px + env(safe-area-inset-top,0px))}
+  .toast{max-width:min(460px,54vw);font-size:12px}
+  .toast:nth-child(n+3){display:none}
+  #bottom{display:grid;grid-template-columns:minmax(0,1fr) auto;padding-left:env(safe-area-inset-left,0px);padding-right:env(safe-area-inset-right,0px)}
+  #toolOptions,#toolPanel{grid-column:1 / -1}
+  #toolbar{grid-column:1;min-height:52px;padding-top:3px;padding-bottom:3px}
+  .tb-btn{width:44px;height:44px}
+  #statusbar{grid-column:2;border-top:1px solid var(--line-2);border-left:1px solid var(--line-2);padding:4px 8px;gap:5px}
+  #sbDate,#sbSeason,#sbCity,#sbWeather,.delta{display:none}
+  #sbTime,#sbPop,#sbMoney{min-width:0}
+  .faces i:not(.on){display:none}
+  .faces i.on{transform:none;width:20px;height:20px}
+  #toolPanel .tiles{grid-auto-columns:90px;padding:6px}
+  #toolPanel .tile .th{height:40px}
+  #toolPanel .tabs{padding-top:2px}
+  #toolPanel .tab{padding:7px 10px 6px}
+  #toolPanel .panel-h{min-height:38px;padding-top:3px;padding-bottom:3px}
+  .panel-h .x,.panel-h .cl{width:34px;height:34px}
+  #toolOptions > .panel-b{padding:4px}
+  #toolOptions .opt-row{padding:3px 7px 4px;gap:2px}
+  #toolOptions .seg button,#toolOptions .stepper button{height:32px}
+  .to-act button{width:34px;height:34px}
+  #panelStack{z-index:2;top:calc(52px + env(safe-area-inset-top,0px));bottom:calc(var(--bot,60px) + 6px);left:calc(10px + env(safe-area-inset-left,0px));max-height:none;width:min(360px,46vw);gap:6px}
+  .panel-h{padding-top:6px;padding-bottom:6px}
+  #camPad{left:calc(10px + env(safe-area-inset-left,0px));right:auto;bottom:calc(var(--bot,60px) + 8px);grid-template-columns:repeat(3,40px);grid-auto-rows:40px;gap:5px}
+  #modalWrap{padding:8px}
+  #modal,#modal.wide,#modal.narrow{max-height:calc(100% - 4px)}
+  #photoUI{top:calc(6px + env(safe-area-inset-top,0px));bottom:6px;right:calc(6px + env(safe-area-inset-right,0px))}
+  #menu .side{width:min(860px,100%);display:grid;grid-template-columns:minmax(250px,320px) minmax(0,1fr);grid-template-rows:auto 1fr auto;align-content:start;column-gap:28px;row-gap:12px;padding:calc(20px + env(safe-area-inset-top,0px)) 28px 16px calc(28px + env(safe-area-inset-left,0px))}
+  #menu .logo{font-size:34px;grid-column:1}
+  #menu .logo small{margin-top:6px}
+  #menu .newgame{grid-column:1}
+  #menu .mbtn{font-size:16px;padding:7px 0 7px 14px}
+  #menu #menuForm{grid-column:2;grid-row:1 / span 3}
+  #menu .foot{grid-column:1;font-size:10px}
+}
+/* tablets in portrait: keep the strip under the top bar (city advisor) clear of the rail, and the advisor clear of the top-left cluster */
+@media (pointer:coarse) and (min-width:601px) and (max-width:760px) and (min-height:521px){ #rightRail{top:calc(112px + env(safe-area-inset-top,0px))} }
+@media (min-width:761px) and (max-width:900px) and (min-height:521px){ #hud #advisor{max-width:calc(100vw - 500px)} }
 @media (prefers-reduced-motion:reduce){*{animation-duration:.01ms!important;transition:none!important}}
 
 #advisor{position:absolute;left:50%;transform:translateX(-50%);top:calc(env(safe-area-inset-top,0px) + 12px);z-index:6;width:max-content;max-width:min(420px,calc(100vw - 560px));background:rgba(18,26,36,.9);backdrop-filter:blur(8px);-webkit-backdrop-filter:blur(8px);border:1px solid rgba(255,190,80,.35);border-radius:12px;padding:8px 10px;color:var(--fg);font-size:12px;line-height:1.35;cursor:pointer;box-shadow:0 6px 20px rgba(0,0,0,.35)}
@@ -320,9 +573,9 @@ body.photo #camPad{display:none}
   <div id="camPad" aria-label="Camera controls"></div>
   <div id="panelStack"></div>
   <div id="rightRail"></div>
-  <div id="toolPanel" class="panel hide"></div>
-  <div id="toolOptions" class="panel hide"></div>
   <div id="bottom">
+    <div id="toolOptions" class="panel hide"></div>
+    <div id="toolPanel" class="panel hide"></div>
     <div id="toolbar"></div>
     <div id="statusbar"></div>
   </div>
@@ -662,10 +915,10 @@ function patchDepth(o) {
    GFX — renderer, camera, lights, HDR post-processing pipeline
    ===================================================================== */
 const QUALITY = {
-  low:    { pr: 0.75, shadow: 1024, gtao: false, bloom: true, smaa: false, interior: false, trees: 0.45, vehicles: 450, peds: 300, reflect: false, treeDist: 1400, detailDist: 180, detailBudget: 500000, detailShadows: false, treeCards: 0 },
-  medium: { pr: 1.0,  shadow: 2048, gtao: false, bloom: true, smaa: true,  interior: true,  trees: 0.7,  vehicles: 900, peds: 600, reflect: false, treeDist: 2000, detailDist: 300, detailBudget: 1000000, detailShadows: false, treeCards: 140 },
-  high:   { pr: 1.0,  shadow: 4096, gtao: true,  bloom: true, smaa: true,  interior: true,  trees: 1.0,  vehicles: 1500, peds: 1000, reflect: false, treeDist: 2600, detailDist: 400, detailBudget: 1700000, detailShadows: true, treeCards: 220 },
-  ultra:  { pr: 1.5,  shadow: 4096, gtao: true,  bloom: true, smaa: true,  interior: true,  trees: 1.0,  vehicles: 2400, peds: 1600, reflect: true, treeDist: 3400, detailDist: 600, detailBudget: 2600000, detailShadows: true, treeCards: 320 },
+  low:    { pr: 0.75, shadow: 1024, gtao: false, bloom: true, smaa: false, interior: false, trees: 0.45, vehicles: 450, peds: 300, reflect: false, treeDist: 1400, detailDist: 180, detailBudget: 500000, detailShadows: false, treeCards: 0, roadDetail: 0 },
+  medium: { pr: 1.0,  shadow: 2048, gtao: false, bloom: true, smaa: true,  interior: true,  trees: 0.7,  vehicles: 900, peds: 600, reflect: false, treeDist: 2000, detailDist: 300, detailBudget: 1000000, detailShadows: false, treeCards: 140, roadDetail: 1 },
+  high:   { pr: 1.0,  shadow: 4096, gtao: true,  bloom: true, smaa: true,  interior: true,  trees: 1.0,  vehicles: 1500, peds: 1000, reflect: false, treeDist: 2600, detailDist: 400, detailBudget: 1700000, detailShadows: true, treeCards: 220, roadDetail: 2 },
+  ultra:  { pr: 1.5,  shadow: 4096, gtao: true,  bloom: true, smaa: true,  interior: true,  trees: 1.0,  vehicles: 2400, peds: 1600, reflect: true, treeDist: 3400, detailDist: 600, detailBudget: 2600000, detailShadows: true, treeCards: 320, roadDetail: 2 },
 };
 const FinalShader = {
   uniforms: { tColor: { value: null }, uRes: { value: new THREE.Vector2(1, 1) }, uExposure: { value: 1 }, uContrast: { value: 1.04 }, uSaturation: { value: 1.06 },
@@ -791,7 +1044,10 @@ const Gfx = {
     this.matFinal = new THREE.ShaderMaterial({ ...FinalShader, uniforms: THREE.UniformsUtils.clone(FinalShader.uniforms), depthTest: false, depthWrite: false });
     this.matDof = new THREE.ShaderMaterial({ ...DofShader, uniforms: THREE.UniformsUtils.clone(DofShader.uniforms), depthTest: false, depthWrite: false });
     let qp = null; try { qp = new URLSearchParams(location.search).get('q'); } catch (e) {}
-    this.setQuality(qp || safeStore('civ_quality') || 'high', true);
+    // phones & small tablets start on a lighter preset unless the player picked one in the settings (civ_qset)
+    const mob = !!(window.matchMedia && window.matchMedia('(pointer: coarse)').matches) && Math.min(window.screen ? window.screen.width : innerWidth, window.screen ? window.screen.height : innerHeight) <= 820;
+    const auto = mob ? ((navigator.hardwareConcurrency || 8) <= 4 || (navigator.deviceMemory || 8) <= 3 ? 'low' : 'medium') : 'high';
+    this.setQuality(qp || (mob && !safeStore('civ_qset') ? null : safeStore('civ_quality')) || auto, true);
     addEventListener('resize', () => this.resize());
   },
   setQuality(name, first) {
@@ -1972,6 +2228,14 @@ const CamCtl = {
     if (!this._touchHint && MainMenu.inGame) { this._touchHint = true; UI.toast('Pinch to zoom · twist two fingers to rotate · drag two fingers up/down to tilt · double-tap to zoom in'); }
     if (T.pts.size === 1) {
       const tool = !!Input.tool && this.mode !== 'street' && this.mode !== 'free';
+      // timings compare an event's own timestamp with when the previous one was handled, so a long frame in between
+      // (slow phones) cannot turn a tap into a long-press or split a double-tap.
+      // A second finger-down soon after a tap, near it, means double-tap: drop the pending single-tap selection
+      // (or undo it, if a janky frame let it run first)
+      if (T.lastTap && (e.timeStamp || performance.now()) - T.lastTap < 330 && Math.hypot(e.clientX - T.ltx, e.clientY - T.lty) < 40) {
+        if (T.pendTap) clearTimeout(T.pendTap); else if (T.selN !== undefined && T.selN !== UI.selN) UI.closePanel('sel');
+        T.pendTap = null; T.dbl = true;
+      }
       Object.assign(T, { mode: 'one', sx: e.clientX, sy: e.clientY, lx: e.clientX, ly: e.clientY, moved: 0, t0: performance.now(), tool, committed: false, noTap: false });
       if (tool) this.setMouse(e); else this.mouse.inside = false;
       return;
@@ -1990,7 +2254,7 @@ const CamCtl = {
     if (T.mode === 'one') {
       const dx = e.clientX - T.lx, dy = e.clientY - T.ly; T.lx = e.clientX; T.ly = e.clientY;
       T.moved = Math.max(T.moved, Math.hypot(e.clientX - T.sx, e.clientY - T.sy));
-      if (T.tool) { this.setMouse(e); if (!T.committed && (T.moved > 10 || performance.now() - T.t0 > 220)) this.touchCommit(e); if (T.committed) Input.refreshHit(); return; }
+      if (T.tool) { this.setMouse(e); if (!T.committed && (T.moved > 10 || (e.timeStamp || performance.now()) - T.t0 > 220)) this.touchCommit(e); if (T.committed) Input.refreshHit(); return; }
       if (this.mode === 'street' || this.mode === 'free') { this.street.yaw += dx * 0.005; this.street.pitch = clamp(this.street.pitch + dy * 0.005, -1.45, 1.45); return; }
       this.panBy(dx, dy);
       return;
@@ -2023,7 +2287,7 @@ const CamCtl = {
     T.pts.delete(e.pointerId);
     try { this.canvas.releasePointerCapture(e.pointerId); } catch (err) { }
     if (T.mode === 'one') {
-      const now = performance.now(), tap = !cancelled && T.moved < 12 && now - T.t0 < 600 && !T.noTap;
+      const now = e.timeStamp || performance.now(), tap = !cancelled && T.moved < 12 && now - T.t0 < 600 && !T.noTap, dbl = T.dbl; T.dbl = false;
       if (T.tool) {
         this.setMouse(e);
         if (cancelled) { if (T.committed) Input.cancel(); }
@@ -2034,13 +2298,15 @@ const CamCtl = {
         }
       } else if (tap) {
         const x = e.clientX, y = e.clientY;
-        if (T.pendTap && now - T.lastTap < 330 && Math.hypot(x - T.ltx, y - T.lty) < 40) { // double-tap: zoom instead of selecting
-          clearTimeout(T.pendTap); T.pendTap = null; T.lastTap = 0;
+        if (dbl && Math.hypot(x - T.ltx, y - T.lty) < 40) { // double-tap: zoom instead of selecting
+          T.lastTap = 0;
           if (this.mode === 'orbit' || this.mode === 'follow') this.zoomAt(x, y, 0.5);
         } else { // single tap selects once we know no second tap is coming
           if (T.pendTap) clearTimeout(T.pendTap);
-          T.lastTap = now; T.ltx = x; T.lty = y;
-          T.pendTap = setTimeout(() => { T.pendTap = null; if (Input.tool) return; this.setMouse({ clientX: x, clientY: y, target: this.canvas }); Input.refreshHit(); Input.up({ clientX: x, clientY: y, button: 0, shiftKey: false, ctrlKey: false, altKey: false }, true); this.mouse.inside = false; }, 300);
+          T.lastTap = performance.now(); T.ltx = x; T.lty = y; T.selN = undefined;
+          const sel = () => { T.pendTap = null; if (Input.tool) return; T.selN = UI.selN; this.setMouse({ clientX: x, clientY: y, target: this.canvas }); Input.refreshHit(); Input.up({ clientX: x, clientY: y, button: 0, shiftKey: false, ctrlKey: false, altKey: false }, true); this.mouse.inside = false; };
+          // smooth frames: wait to see whether a second tap follows; janky ones (frames longer than the wait): select at once
+          if (this.ft > 150) sel(); else T.pendTap = setTimeout(sel, 300);
         }
       }
       T.mode = null; return;
@@ -2113,8 +2379,10 @@ const CamCtl = {
     this.mode = m; Bus.emit('camMode', m);
   },
   lookAt(x, z, dist) { this.goal.x = x; this.goal.z = z; if (dist) this.goal.dist = dist; this.follow = null; if (this.mode !== 'orbit' && this.mode !== 'follow') this.setMode('orbit'); },
+  ft: 16, _lt: 0,
   update(dt) {
-    const k = this.keys, cam = Gfx.camera;
+    // ft: smoothed real frame time (ms); camera easing follows real time, so it keeps up even when the game's dt is capped on slow frames
+    const k = this.keys, cam = Gfx.camera, tn = performance.now(), fdt = this._lt ? Math.min(5, (tn - this._lt) / 1000) : dt; this.ft += (fdt * 1000 - this.ft) * 0.25; this._lt = tn;
     const typing = document.activeElement && /INPUT|TEXTAREA|SELECT/.test(document.activeElement.tagName);
     const fast = k.ShiftLeft || k.ShiftRight ? 3 : 1;
     if (this.mode === 'street' || this.mode === 'free') {
@@ -2147,7 +2415,7 @@ const CamCtl = {
       if (k.KeyT) g.pitch = Math.min(1.52, g.pitch + dt); if (k.KeyG) g.pitch = Math.max(0.08, g.pitch - dt);
     }
     if (this.follow) { const p = this.follow.pos ? this.follow.pos() : null; if (p) { g.x = p.x; g.z = p.z; } else this.follow = null; }
-    const a = 1 - Math.exp(-dt * 9);
+    const a = 1 - Math.exp(-clamp(fdt, dt, 0.5) * 9);
     this.target.x = lerp(this.target.x, g.x, a); this.target.z = lerp(this.target.z, g.z, a);
     this.dist = lerp(this.dist, g.dist, a); this.yaw = this.yaw + angWrap(g.yaw - this.yaw) * a; this.pitch = lerp(this.pitch, g.pitch, a);
     const th = Math.max(Terrain.height(this.target.x, this.target.z), Terrain.seaLevel);
@@ -2163,6 +2431,24 @@ const CamCtl = {
 };
 
 /* ==== PART 17_roads.js ==== */
+/* three signal lenses (red, amber, green from the top) on the face of a signal head; Traffic instances them per approach and
+   colours each instance by its state, the shader lights only the matching lens. The housing is part of the road mesh. */
+function signalLensGeo() {
+  const p = [], ix = [], K = 12;
+  for (const y of [0.3, 0, -0.3]) { const b = p.length / 3; p.push(0, y, 0.15); for (let k = 0; k <= K; k++) { const a = k / K * TAU; p.push(Math.cos(a) * 0.095, y + Math.sin(a) * 0.095, 0.15); } for (let k = 0; k < K; k++) ix.push(b, b + 1 + k, b + 2 + k); }
+  const g = new THREE.BufferGeometry(); g.setAttribute('position', new THREE.Float32BufferAttribute(p, 3)); g.setIndex(ix); return g;
+}
+function signalLensMat() {
+  const m = new THREE.MeshBasicMaterial({ color: 0xffffff });
+  m.onBeforeCompile = sh => {
+    sh.vertexShader = sh.vertexShader.replace('#include <common>', '#include <common>\nvarying float vLY;').replace('#include <begin_vertex>', '#include <begin_vertex>\nvLY = position.y;');
+    sh.fragmentShader = sh.fragmentShader.replace('#include <common>', '#include <common>\nvarying float vLY;').replace('#include <color_fragment>', `{
+      float iR = step(0.15, vLY), iG = step(vLY, -0.15), iA = 1.0 - iR - iG;
+      float on = iR * step(0.5, vColor.r) * step(vColor.g, 0.5) + iA * step(0.5, vColor.r) * step(0.5, vColor.g) + iG * step(0.5, vColor.g) * step(vColor.r, 0.5);
+      diffuseColor.rgb = (iR * vec3(1.0, 0.07, 0.03) + iA * vec3(1.0, 0.5, 0.04) + iG * vec3(0.08, 1.0, 0.45)) * mix(0.04, 3.5, on); }`);
+  };
+  return m;
+}
 /* =====================================================================
    ROAD NETWORK — graph, bezier segments, junction geometry, road shader
    ===================================================================== */
@@ -2186,7 +2472,11 @@ for (const k in ROAD_TYPES) {
   t.cw = (t.lanesF + t.lanesB) * t.laneW / 2 + t.median / 2 + t.shoulder; // half carriage
   t.hw = t.cw + t.sidewalk; // half width
   t.network = t.rail ? 'rail' : t.metro ? 'metro' : t.tramOnly ? 'tram' : t.ped ? 'ped' : 'road';
+  t.grade = t.rail ? 0.035 : t.highway ? (t.oneway && t.lanesF < 2 ? 0.09 : 0.07) : t.ped ? 0.2 : t.tramOnly ? 0.09 : t.hier >= 3 ? 0.1 : t.hier === 2 ? 0.12 : 0.15; // max longitudinal grade
+  t.verge = t.sidewalk > 0 ? 2 : 2.5; // flat ground kept beside the road edge before the embankment starts
 }
+// earthworks: flat verge, then eased cut (steeper) / fill slopes; ground roads higher than EMB_MAX above the ground become bridges
+const EMB_MAX = 7, CUT_K = 0.62, FILL_K = 0.5, EASE_W = 4;
 const UPGRADES = {
   trees: { name: 'Trees', cost: 6, desc: 'Plant street trees along the sidewalks. Improves land value and absorbs noise.' },
   grass: { name: 'Grass Median', cost: 4, desc: 'Turn the median or curb strip green.' },
@@ -2223,117 +2513,214 @@ class Acc {
 const ROAD_CLEAR = 0.08;
 const Net = {
   nodes: new Map(), segs: new Map(), nextId: 1, chunks: new Map(), segHash: new SpatialHash(64), nodeHash: new SpatialHash(48),
-  version: 0, mat: null, ghostMat: null, group: null, streetCounter: 0,
+  version: 0, mat: null, ghostMat: null, group: null, streetCounter: 0, reprof: new Set(),
   /* ---------- material ---------- */
   initMaterial() {
     const m = new THREE.MeshStandardMaterial({ color: 0xffffff, roughness: 0.9, metalness: 0 });
     const cfgA = [], cfgB = [];
     const list = Object.values(ROAD_TYPES).sort((a, b) => a.cfg - b.cfg);
-    for (let i = 0; i < 16; i++) { const t = list[i]; if (t) { cfgA.push(new THREE.Vector4(t.lanesF, t.lanesB, t.laneW, t.median)); cfgB.push(new THREE.Vector4(t.oneway ? 1 : 0, t.shoulder, t.highway ? 1 : 0, t.cw)); } else { cfgA.push(new THREE.Vector4()); cfgB.push(new THREE.Vector4()); } }
+    for (let i = 0; i < 16; i++) { const t = list[i]; if (t) { cfgA.push(new THREE.Vector4(t.lanesF, t.lanesB, t.laneW, t.median)); cfgB.push(new THREE.Vector4(t.oneway ? 1 : 0, t.sidewalk, t.highway ? 1 : 0, t.cw)); } else { cfgA.push(new THREE.Vector4()); cfgB.push(new THREE.Vector4()); } }
+    this.uQ = { value: 1 };
     patchMaterial(m, {
-      uniforms: { uCfgA: { value: cfgA }, uCfgB: { value: cfgB } },
+      uniforms: { uCfgA: { value: cfgA }, uCfgB: { value: cfgB }, uRoadQ: this.uQ },
       vDecl: 'attribute vec4 aRoad; attribute float aInfo; varying vec4 vRoad; varying vec2 vUv2; varying float vInfo;',
       vBegin: 'vRoad = aRoad; vUv2 = uv; vInfo = aInfo;',
-      fDecl: /* glsl */`uniform vec4 uCfgA[16]; uniform vec4 uCfgB[16]; varying vec4 vRoad; varying vec2 vUv2; varying float vInfo;
+      // depth-only pull toward the camera that grows with distance: hides coarse terrain LOD rising through far roads
+      vEnd: 'gl_Position = projectionMatrix * vec4(mvPosition.xyz * (1.0 - min(0.004, length(mvPosition.xyz) * 1.5e-6)), 1.0);',
+      fDecl: /* glsl */`uniform vec4 uCfgA[16]; uniform vec4 uCfgB[16]; uniform float uRoadQ; varying vec4 vRoad; varying vec2 vUv2; varying float vInfo;
         float rRough; float rMetal; float rBump; vec3 rEmis; float rPaint;
-        float dashLine(float u, float c, float v, float w, float aa){ return lineMask(u - c, w, aa) * step(fract(v/12.0), 0.25); }
+        float dashLine(float u, float c, float v, float w, float aa, float per, float on){ return lineMask(u - c, w, aa) * step(fract(v/per), on/per); }
         float lampLight(float u, float v, float cw, float len){
-          float sp = 30.0; float best = 0.0;
+          float best = 0.0;
           for (int s = 0; s < 2; s++) {
-            float side = s == 0 ? 1.0 : -1.0; float off = s == 0 ? 15.0 : 0.0;
-            float k = floor((v - off) / sp + 0.5); float lv = off + k*sp;
+            float side = s == 0 ? 1.0 : -1.0; float off = s == 0 ? 19.0 : 4.0;
+            float k = floor((v - off) / 30.0 + 0.5); float lv = off + k*30.0;
             if (lv < 3.0 || lv > len - 3.0) continue;
-            vec2 d = vec2(u - side*(cw+0.4), v - lv);
+            vec2 d = vec2(u - side*(cw-1.2), v - lv);
             best += exp(-dot(d,d)/70.0);
           }
           return best;
+        }
+        // hairline cracks sealed with tar, only in some stretches; fade out with distance
+        float roadCracks(vec2 wp, float fw){
+          if (uRoadQ < 0.5 || fw > 0.12) return 0.0;
+          float m = smoothstep(0.02, 0.35, gnoise(wp/37.0 + 2.3));
+          if (m <= 0.0) return 0.0;
+          vec2 q = wp*0.21; q += vec2(gnoise(q*2.3), gnoise(q*2.3 + 5.2))*0.4;
+          float c = abs(gnoise(q)), w = 0.006 + fw*0.03;
+          return (1.0 - smoothstep(w, w*2.0 + fwidth(c), c)) * m * (1.0 - smoothstep(0.04, 0.12, fw));
+        }
+        // fine aggregate: sparse light chips and grain, only close to the camera
+        float roadGrain(vec2 wp, float fw){
+          if (uRoadQ < 0.5) return 0.0;
+          float near = 1.0 - smoothstep(0.008, 0.045, fw); if (near <= 0.0) return 0.0;
+          return ((hash12(floor(wp*26.0)) - 0.5)*0.014 + step(0.972, hash12(floor(wp*13.0) + 3.1))*0.03) * near;
+        }
+        float arrowMask(vec2 p, vec2 aa){ // p.x across lane, p.y along travel (0..5, tip at 5)
+          float shaft = lineMask(p.x, 0.11, aa.x) * lineMask(p.y - 1.75, 1.75, aa.y);
+          float hw = 0.52 * clamp((5.0 - p.y)/1.5, 0.0, 1.0);
+          float head = step(3.5, p.y) * step(p.y, 5.0) * lineMask(p.x, hw, aa.x);
+          return max(shaft, head);
         }`,
       fColor: /* glsl */`
       {
-        float surf = floor(vRoad.x + 0.5); int ci = int(vRoad.y + 0.5); float len = vRoad.z; float flags = vRoad.w;
+        float surf = floor(vRoad.x + 0.5); int ci = int(vRoad.y + 0.5); float len = vRoad.z; float flags = floor(vRoad.w + 0.5); float lenK = floor(len * 8.0 + 0.5);
         float u = vUv2.x, v = vUv2.y;
         vec2 aa = fwidth(vUv2) * 0.8 + 0.002;
         vec4 A = uCfgA[ci]; vec4 B = uCfgB[ci];
-        float lf = A.x, lb = A.y, lw = A.z, med = A.w; float oneway = B.x; float hwy = B.z; float cw = B.w;
+        float lf = A.x, lb = A.y, lw = A.z, med = A.w; float oneway = B.x; float swk = B.y; float hwy = B.z; float cw = B.w;
         vec3 col = vec3(0.1); rRough = 0.9; rMetal = 0.0; rBump = 0.0; rEmis = vec3(0.0); rPaint = 0.0;
-        vec2 wp = vWPos.xz;
-        float n1 = gnoise(wp/6.0), n2 = gnoise(wp*1.7), n3 = gnoise(wp*7.0);
+        vec2 wp = vWPos.xz; float fw = length(fwidth(wp));
+        float n1 = gnoise(wp/9.0), n2 = gnoise(wp*0.9 + 3.7), n3 = gnoise(wp*4.3);
         bool crossA = mod(floor(flags), 2.0) > 0.5, crossB = mod(floor(flags/2.0), 2.0) > 0.5;
-        bool bike = mod(floor(flags/4.0), 2.0) > 0.5, tram = mod(floor(flags/8.0), 2.0) > 0.5, park = mod(floor(flags/16.0), 2.0) > 0.5, grassF = mod(floor(flags/32.0), 2.0) > 0.5, bus = mod(floor(flags/64.0), 2.0) > 0.5;
+        bool jpc = flags > 127.5, bike = mod(floor(flags/4.0), 2.0) > 0.5, tram = mod(floor(flags/8.0), 2.0) > 0.5, park = mod(floor(flags/16.0), 2.0) > 0.5, grassF = mod(floor(flags/32.0), 2.0) > 0.5, bus = mod(floor(flags/64.0), 2.0) > 0.5;
         if (surf < 0.5 || surf == 11.0) {
-          // asphalt
-          float g = 0.058 + n1*0.01 + n2*0.008 + n3*0.006;
-          // patches / repairs
-          vec2 pc = floor(wp/7.0); float ph = hash12(pc);
-          if (ph > 0.9) { vec2 f = fract(wp/7.0); g -= 0.012 * boxMask(f, vec2(0.15), vec2(0.15)+hash22(pc)*0.6+0.2, vec2(0.02)); }
-          col = vec3(g, g, g*1.03);
-          rRough = 0.88 + n3*0.05;
-          float paint = 0.0; vec3 pcol = vec3(0.86,0.86,0.82);
+          // asphalt: large scale tone, grain, tar-sealed cracks
+          float age = smoothstep(-0.45, 0.45, gnoise(wp/47.0 + 1.7));
+          float g = 0.052 + age*0.011 + n1*0.008 + n2*0.005 + n3*0.003 + roadGrain(wp, fw);
+          rRough = 0.86 + n3*0.04 + age*0.04;
+          float crk = roadCracks(wp, fw) * (0.4 + age*0.6);
+          col = g * mix(vec3(0.99, 1.0, 1.025), vec3(1.035, 1.0, 0.955), age);
+          float paint = 0.0; vec3 pcol = vec3(0.8,0.8,0.77);
           if (surf < 0.5) {
-            float tot = (lf+lb)*lw;
-            // wheel path wear (darker, smoother)
-            float lp = oneway > 0.5 ? (u + lf*lw*0.5)/lw : (abs(u) - med*0.5)/lw;
-            float wf = fract(lp); float wear = (lineMask(wf-0.27, 0.12, 0.08) + lineMask(wf-0.73, 0.12, 0.08)) * step(0.0, lp);
-            col *= 1.0 - wear*0.18; rRough -= wear*0.12;
-            float oil = lineMask(wf-0.5, 0.25, 0.15) * step(0.0, lp) * smoothstep(0.2,0.7,gnoise(wp/2.5));
-            col *= 1.0 - oil*0.25;
+            float tot = (lf+lb)*lw, au = abs(u);
+            float outer = oneway > 0.5 ? lf*lw*0.5 : med*0.5 + lf*lw;
+            // lane-aligned repair patches (fresher, darker asphalt with sealed seams)
+            float li = floor((oneway > 0.5 ? u + outer : au - med*0.5) / lw);
+            if (li >= 0.0 && uRoadQ > 0.5) {
+              float pv = v + hash12(vec2(li, lenK))*40.0; float cell = floor(pv/17.0);
+              float ph = hash12(vec2(li*3.7 + cell + sign(u)*0.31, lenK*0.017 + 7.0));
+              if (ph > 0.83) {
+                vec2 f = vec2(fract((oneway > 0.5 ? u + outer : au - med*0.5) / lw), fract(pv/17.0));
+                float hi = 0.2 + (ph - 0.83)*4.0;
+                float pm = boxMask(f, vec2(0.06, 0.1), vec2(0.94, hi), aa/vec2(lw, 17.0));
+                float seam = pm - boxMask(f, vec2(0.06, 0.1) + 0.012, vec2(0.94, hi) - 0.006, aa/vec2(lw, 17.0));
+                col = mix(col, col*vec3(0.86,0.86,0.9), pm); rRough = mix(rRough, 0.82, pm);
+                col *= 1.0 - seam*0.35;
+              }
+            }
+            // wheel paths: rubber-darkened, polished; oil drips along the lane centre, heavier where cars queue
+            float lp = oneway > 0.5 ? (u + lf*lw*0.5)/lw : (au - med*0.5)/lw;
+            float wf = fract(lp), inl = step(0.0, lp) * step(lp, oneway > 0.5 ? lf : (u > 0.0 ? lf : lb));
+            float wear = (lineMask(wf-0.27, 0.11, 0.09) + lineMask(wf-0.73, 0.11, 0.09)) * inl;
+            col *= 1.0 - wear*0.16; rRough -= wear*0.1;
+            float queue = (crossA ? 1.0 - smoothstep(5.0, 35.0, v) : 0.0) + (crossB ? 1.0 - smoothstep(5.0, 35.0, len - v) : 0.0);
+            float oil = lineMask(wf-0.5, 0.2, 0.15) * inl * smoothstep(0.15, 0.6, gnoise(wp/2.3)) * (0.35 + queue*0.65);
+            col *= 1.0 - oil*0.3; rRough -= oil*0.25;
+            // gutter: concrete channel along curbs
+            float gut = 0.0;
+            if (oneway > 0.5 || lf + lb > 0.5) {
+              gut = smoothstep(cw - 0.42 - aa.x, cw - 0.38 + aa.x, au) * step(0.5, swk);
+              vec3 gc = vec3(0.17 + n3*0.01) * (1.0 - lineMask(fract(v/1.5) - 0.5, 0.012, aa.y/1.5)*0.35);
+              col = mix(col, gc, gut); rRough = mix(rRough, 0.8, gut);
+            }
+            // rumble strips on highway shoulders
+            if (hwy > 0.5 && fw < 0.06) { float eo = oneway > 0.5 ? lf*lw*0.5 : med*0.5 + lf*lw; float rs = step(eo + 0.35, au) * step(au, eo + 0.95) * lineMask(fract(v/0.6) - 0.5, 0.14, aa.y/0.6 + 0.02); col *= 1.0 - rs*0.3*(1.0 - smoothstep(0.03, 0.06, fw)); }
+            // markings
+            float yel = 0.0, per = hwy > 0.5 ? 18.0 : 9.0, on = hwy > 0.5 ? 6.0 : 3.0;
+            bool nearA = crossA && v < 24.0, nearB = crossB && v > len - 24.0;
             if (oneway > 0.5) {
               float h = lf*lw*0.5;
-              paint += lineMask(u + h - 0.25, 0.08, aa.x) * (hwy > 0.5 ? 0.0 : 1.0);
-              float yl = lineMask(u + h - 0.25, 0.08, aa.x) * hwy;
-              paint += lineMask(u - h + 0.25, 0.08, aa.x);
-              for (int k = 1; k < 4; k++) { if (float(k) >= lf) break; paint += dashLine(u, -h + float(k)*lw, v, 0.07, aa.x); }
-              if (yl > 0.0) { pcol = mix(pcol, vec3(0.9,0.68,0.1), yl); paint = max(paint, yl); }
+              float le = lineMask(u + h - 0.25, 0.075, aa.x); if (hwy > 0.5) yel += le; else paint += le;
+              paint += lineMask(u - h + 0.25, 0.075, aa.x);
+              for (int k = 1; k < 5; k++) { if (float(k) >= lf) break; float c = -h + float(k)*lw; paint += nearB ? lineMask(u - c, 0.065, aa.x) : dashLine(u, c, v, 0.065, aa.x, per, on); }
             } else if (lf + lb > 0.5) {
               float h = med*0.5;
-              float yel = 0.0;
-              if (med < 0.5) { yel = lineMask(u - 0.13, 0.055, aa.x) + lineMask(u + 0.13, 0.055, aa.x); }
-              for (int k = 1; k < 4; k++) { if (float(k) >= lf) break; paint += dashLine(abs(u), h + float(k)*lw, v, 0.07, aa.x); }
-              if (lf >= 2.0 || hwy > 0.5) paint += lineMask(abs(u) - (h + lf*lw) + 0.2, 0.07, aa.x);
-              if (hwy > 0.5 && med > 0.5) yel += lineMask(abs(u) - h - 0.3, 0.08, aa.x);
-              if (yel > 0.0) { pcol = mix(pcol, vec3(0.9,0.66,0.08), clamp(yel,0.0,1.0)); paint = max(paint, yel); }
+              if (med < 0.5) { if (lf < 1.5) yel += dashLine(u, 0.0, v + 1.5, 0.06, aa.x, 9.0, 4.0) + (nearA || nearB ? lineMask(u, 0.06, aa.x) : 0.0); else yel += lineMask(u - 0.13, 0.055, aa.x) + lineMask(u + 0.13, 0.055, aa.x); }
+              bool sideIn = (u < 0.0 && nearA) || (u > 0.0 && nearB);
+              for (int k = 1; k < 4; k++) { if (float(k) >= lf) break; float c = h + float(k)*lw; paint += sideIn ? lineMask(au - c, 0.065, aa.x) : dashLine(au, c, v, 0.065, aa.x, per, on); }
+              if (lf >= 2.0 || hwy > 0.5) paint += lineMask(au - (h + lf*lw) + 0.2, 0.07, aa.x);
+              if (med > 0.5) yel += lineMask(au - h - 0.3, 0.07, aa.x);
               // bike lanes (outermost 1.6 m)
-              float outer = h + lf*lw;
-              if (bike) { float bm = step(outer - 1.7, abs(u)) * step(abs(u), outer); col = mix(col, vec3(0.12,0.36,0.16), bm*0.85); paint += lineMask(abs(u) - (outer - 1.75), 0.06, aa.x); }
-              if (bus) { float bm = step(outer - lw, abs(u)) * step(abs(u), outer) * (bike ? step(abs(u), outer-1.7) : 1.0); col = mix(col, vec3(0.34,0.1,0.08), bm*0.7); }
-              if (park) { float pm = step(outer - 2.2, abs(u)); paint += pm * lineMask(fract(v/6.5)-0.5, 0.012, 0.01) * step(abs(u), outer-0.2) ; paint += lineMask(abs(u) - (outer-2.25), 0.05, aa.x); }
+              if (bike) { float bm = step(outer - 1.7, au) * step(au, outer); col = mix(col, vec3(0.12,0.36,0.16), bm*0.85); paint += lineMask(au - (outer - 1.75), 0.06, aa.x); }
+              if (bus) { float bm = step(outer - lw, au) * step(au, outer) * (bike ? step(au, outer-1.7) : 1.0); col = mix(col, vec3(0.34,0.1,0.08), bm*0.7); }
+              if (park) { float pm = step(outer - 2.2, au); paint += pm * lineMask(fract(v/6.5)-0.5, 0.012, 0.01) * step(au, outer-0.2) ; paint += lineMask(au - (outer-2.25), 0.05, aa.x); }
               if (tram) { for (int s = 0; s < 2; s++) { float tc = (s == 0 ? 1.0 : -1.0) * (h + lw*0.5); float r1 = lineMask(u - tc - 0.72, 0.045, aa.x), r2 = lineMask(u - tc + 0.72, 0.045, aa.x); float rr = max(r1, r2); col = mix(col, vec3(0.5,0.5,0.52), rr); rMetal = max(rMetal, rr*0.9); rRough = mix(rRough, 0.25, rr); rBump -= (lineMask(u - tc - 0.78, 0.02, aa.x)+lineMask(u - tc + 0.66, 0.02, aa.x))*0.02; } }
             }
-            // crosswalks + stop lines
+            if (yel > 0.0) { pcol = mix(pcol, vec3(0.85,0.6,0.08), clamp(yel, 0.0, 1.0)); paint = max(paint, yel); }
+            // junction approaches: zebra crossing, stop line, lane arrows
             if (hwy < 0.5) {
-              float zf = fwidth(u/1.1); float zebra = mix(smoothstep(0.5 - zf, 0.5 + zf, fract(u/1.1 + 0.25)) * (1.0 - smoothstep(1.0 - zf, 1.0, fract(u/1.1 + 0.25))), 0.5, smoothstep(0.15, 0.5, zf)) * step(abs(u), tot*0.5 + med*0.5);
-              if (crossA && v > 0.8 && v < 3.8) paint = max(paint, zebra);
-              if (crossB && v < len - 0.8 && v > len - 3.8) paint = max(paint, zebra);
-              if (crossA && v > 4.2 && v < 4.6 && u < -med*0.5 && oneway < 0.5) paint = 1.0;
-              if (crossB && v < len - 4.2 && v > len - 4.6 && (u > med*0.5 || oneway > 0.5)) paint = 1.0;
+              float hc = oneway > 0.5 ? lf*lw*0.5 : med*0.5 + lf*lw;
+              float zeb = lineMask(fract(u + 0.5) - 0.5, 0.27, fwidth(u)) * lineMask(au, hc - 0.25, aa.x);
+              if (crossA) paint = max(paint, zeb * lineMask(v - 2.4, 1.6, aa.y));
+              if (crossB) paint = max(paint, zeb * lineMask(len - v - 2.4, 1.6, aa.y));
+              float inA = oneway > 0.5 ? 0.0 : step(u, -med*0.5) * step(-hc + 0.2, u), inB = oneway > 0.5 ? step(au, hc - 0.2) : step(med*0.5, u) * step(u, hc - 0.2);
+              if (crossA) paint = max(paint, inA * lineMask(v - 4.85, 0.22, aa.y));
+              if (crossB) paint = max(paint, inB * lineMask(len - v - 4.85, 0.22, aa.y));
+              if (lf + lb >= 3.0 || (oneway > 0.5 && lf >= 2.0)) {
+                float lc = oneway > 0.5 ? (floor((u + hc)/lw) + 0.5)*lw - hc : sign(u)*(med*0.5 + (floor((au - med*0.5)/lw) + 0.5)*lw);
+                if (crossA && inA > 0.5 && len > 30.0) paint = max(paint, arrowMask(vec2(u - lc, 14.0 - v), aa));
+                if (crossB && inB > 0.5 && len > 30.0) paint = max(paint, arrowMask(vec2(u - lc, v - (len - 14.0)), aa));
+              }
             }
-            paint = clamp(paint, 0.0, 1.0) * (0.75 + 0.25*smoothstep(-0.6, 0.3, gnoise(wp*0.8)));
-            col = mix(col, pcol * (0.82 + n2*0.08), paint);
+            // manhole covers in the lanes and drain grates in the gutters
+            if (uRoadQ > 0.5 && fw < 0.15) {
+              float cellM = floor((v + 9.0)/41.0), mv = mod(v + 9.0, 41.0) - 20.5;
+              float side = hash12(vec2(cellM, lenK)) > 0.5 ? 1.0 : -1.0;
+              float mu = oneway > 0.5 ? (floor(hash12(vec2(lenK, cellM))*lf) + 0.5)*lw - lf*lw*0.5 : side*(med*0.5 + lw*0.5);
+              float r = length(vec2(u - mu, mv));
+              float mh = 1.0 - smoothstep(0.33, 0.33 + fw*1.5, r);
+              if (mh > 0.0 && v > 6.0 && v < len - 6.0) {
+                float grooves = lineMask(fract(r*7.0) - 0.5, 0.18, fw*7.0) * step(r, 0.27) + lineMask(fract((u - mu)*6.0 + 0.5) - 0.5, 0.15, fw*6.0) * step(r, 0.12);
+                col = mix(col, vec3(0.05,0.048,0.045) * (1.0 - grooves*0.4) + vec3(0.03,0.02,0.01)*n3, mh);
+                col *= 1.0 - lineMask(r - 0.335, 0.02, fw)*0.5;
+                rMetal = max(rMetal, mh*0.55); rRough = mix(rRough, 0.5, mh); rBump -= grooves*mh*0.004; paint *= 1.0 - mh;
+              }
+              if (gut > 0.0) {
+                vec2 gq = vec2(au - (cw - 0.2), mod(v + 6.0, 27.0) - 13.5);
+                float gm = boxMask(gq, vec2(-0.2, -0.45), vec2(0.2, 0.45), vec2(fw*0.8));
+                if (gm > 0.0 && v > 5.0 && v < len - 5.0) { float sl = lineMask(fract(gq.y*6.0) - 0.5, 0.25, fw*6.0) * step(abs(gq.x), 0.15); col = mix(col, vec3(0.06,0.058,0.055) * (1.0 - sl*0.8), gm); rMetal = max(rMetal, gm*0.5); rRough = mix(rRough, 0.55, gm); rBump -= sl*gm*0.01; }
+              }
+            }
+            paint = clamp(paint, 0.0, 1.0) * (0.72 + 0.28*smoothstep(-0.6, 0.3, gnoise(wp*0.8))) * (1.0 - wear*0.35);
+            col = mix(col, pcol * (0.85 + n2*0.08), paint);
             rRough = mix(rRough, 0.55, paint); rPaint = paint;
+          } else {
+            // junction box: tyre polish where wheels turn
+            float tm = smoothstep(0.1, 0.6, gnoise(wp/5.0));
+            col *= 0.97 - tm*0.03; rRough -= tm*0.08;
           }
+          col *= 1.0 - crk*0.5; rRough = mix(rRough, 0.55, crk); rBump -= crk*0.004;
           // puddles when wet
           float pud = smoothstep(0.35, 0.6, gnoise(wp/3.3) + n1*0.3) * uWet;
           col *= 1.0 - uWet*0.32; rRough = mix(rRough, 0.28, uWet*0.6); rRough = mix(rRough, 0.03, pud);
           // snow with clearer tyre tracks
+          // snow: traffic packs the wheel paths into grey slush, ploughed snow banks along the kerbs
           float sn = uRoadSnow * (0.75 + n2*0.25);
           float lp2 = fract((abs(u) - med*0.5)/max(lw,1.0));
-          float tracks = (lineMask(lp2-0.27, 0.1, 0.06) + lineMask(lp2-0.73, 0.1, 0.06));
-          sn *= 1.0 - tracks*0.6*step(0.0, abs(u)-med*0.5);
-          col = mix(col, vec3(0.86,0.88,0.92), clamp(sn,0.0,1.0)); rRough = mix(rRough, 0.7, sn);
-        } else if (surf == 1.0) { // sidewalk tiles
-          vec2 t = vec2(u, v) / 1.25; vec2 f = fract(t);
-          float j = 1.0 - boxMask(f, vec2(0.025), vec2(0.975), fwidth(t)*0.8);
-          float tv = hash12(floor(t + floor(wp/50.0)));
-          col = vec3(0.24 + tv*0.045 + n2*0.018) * vec3(1.0,0.99,0.96);
-          col *= 1.0 - j*0.25; rBump = -j*0.004;
-          col *= 1.0 - smoothstep(0.4,0.8,gnoise(wp/1.4))*0.08;
+          float trk = surf < 0.5 ? (lineMask(lp2-0.27, 0.12, 0.08) + lineMask(lp2-0.73, 0.12, 0.08)) * step(0.0, abs(u)-med*0.5) : smoothstep(0.0, 0.5, gnoise(wp/4.0))*0.7;
+          float bank = surf < 0.5 ? uSnow * smoothstep(cw - 1.4, cw - 0.3, abs(u)) * (0.75 + 0.25*n3) : 0.0;
+          vec3 snowC = mix(vec3(0.86,0.88,0.92), vec3(0.24,0.245,0.26) + n3*0.04, clamp(trk, 0.0, 1.0)*0.9*(1.0 - bank));
+          float snA = max(clamp(sn * (1.0 - trk*0.45), 0.0, 1.0), bank);
+          col = mix(col, snowC, snA); rRough = mix(rRough, 0.7, snA);
+        } else if (surf == 1.0) { // sidewalk: curb stones and concrete slabs
+          float au = abs(u) - cw;
+          float curb = 1.0 - smoothstep(0.24 - aa.x, 0.24 + aa.x, au);
+          vec2 t = vec2(au - 0.24, v) / 1.4; vec2 f = fract(t);
+          float j = 1.0 - boxMask(f, vec2(0.018), vec2(0.982), fwidth(t)*0.9);
+          float tv = hash12(floor(t) + floor(wp/60.0)*7.0);
+          vec3 slab = vec3(0.215 + tv*0.035 + n2*0.014) * vec3(1.0,0.985,0.95);
+          slab *= 1.0 - smoothstep(0.35,0.85,gnoise(wp/1.7))*0.1 - step(0.93, tv)*0.07 - (1.0 - smoothstep(0.3, 1.1, au))*0.09;
+          slab *= (1.0 - j*0.28) * (1.0 - 0.12*smoothstep(swk - 0.4, swk, au));
+          vec3 cc = vec3(0.31 + n3*0.02 + (hash12(floor(wp*40.0)) - 0.5)*0.03*(1.0 - smoothstep(0.01, 0.03, fw))) * vec3(1.0,0.99,0.97) * (1.0 - lineMask(fract(v/1.0) - 0.5, 0.01, aa.y)*0.3);
+          col = mix(slab, cc, curb);
+          rBump = -j*0.003*(1.0-curb) + smoothstep(0.0, 0.07, au)*0.012*curb;
           // tree pits
-          if (grassF) { float tp = boxMask(vec2(abs(fract((v-5.0)/10.0+0.5)-0.5)*10.0, abs(u) - (cw + 1.25)), vec2(-1.0,-0.7), vec2(1.0, 0.7), vec2(0.03)); col = mix(col, vec3(0.14,0.11,0.08), tp); }
-          col = mix(col, vec3(0.9,0.92,0.95), uSnow*0.85*(0.7+n2*0.3));
-          col *= 1.0 - uWet*0.3; rRough = mix(0.85, 0.35, uWet);
-        } else if (surf == 2.0) { col = vec3(0.25 + n3*0.025); rRough = 0.8; col = mix(col, vec3(0.9), uSnow*0.6); }
-        else if (surf == 3.0) { col = mix(vec3(0.18,0.28,0.08), vec3(0.26,0.33,0.11), n1*0.5+0.5) * (0.9+n3*0.1); col = mix(col, vec3(0.9,0.92,0.95), uSnow); rRough = 0.95; }
-        else if (surf == 4.0) { col = vec3(0.52 + n1*0.04) * vec3(1.0,0.99,0.97); col *= 1.0 - lineMask(fract(v/2.4)-0.5, 0.01, 0.01)*0.12; col *= 1.0 - smoothstep(0.3, 0.9, gnoise(wp/4.0 + vec2(0.0, vWPos.y/3.0)))*0.15; rRough = 0.85; }
+          if (grassF) { float tp = boxMask(vec2(abs(fract((v-5.0)/10.0+0.5)-0.5)*10.0, au - 1.25), vec2(-1.0,-0.7), vec2(1.0, 0.7), vec2(0.03)); col = mix(col, vec3(0.1,0.075,0.05)*(0.8+n3*0.3), tp); rBump -= tp*0.01; }
+          col = mix(col, vec3(0.9,0.92,0.95), uSnow*0.85*(0.7+n2*0.3)*(1.0-curb*0.4));
+          col *= 1.0 - uWet*0.3; rRough = mix(0.82, 0.35, uWet);
+        } else if (surf == 2.0) { // curb faces & concrete
+          col = vec3(0.27 + n3*0.02) * (0.82 + 0.18*smoothstep(-0.15, 0.15, vUv2.y)); rRough = 0.8; col = mix(col, vec3(0.9), uSnow*0.6);
+        }
+        else if (surf == 3.0) { col = mix(vec3(0.07,0.1,0.03), vec3(0.11,0.13,0.045), n1*0.5+0.5) * (0.85+n3*0.2); col = mix(col, vec3(0.9,0.92,0.95), uSnow); rRough = 0.95; }
+        else if (surf == 4.0) { // structural concrete: formwork lifts, rain runoff streaks, darker soffits
+          float wy = vWPos.y, near = 1.0 - smoothstep(0.03, 0.1, fw);
+          col = vec3(0.34 + n1*0.03) * vec3(1.0,0.99,0.965);
+          col *= 1.0 - lineMask(fract(wy/1.25) - 0.5, 0.012, fwidth(wy/1.25) + 0.002)*0.14*near;
+          col *= 1.0 - smoothstep(0.15, 0.8, gnoise(vec2((wp.x + wp.y)*1.3, wy*0.11)))*0.2;
+          col *= 1.0 - smoothstep(0.3, 0.9, gnoise(wp/4.0 + vec2(0.0, wy/3.0)))*0.12;
+          col *= 0.78 + 0.22*smoothstep(-1.5, 0.0, vUv2.y); rRough = 0.88;
+        }
         else if (surf == 5.0) { // gravel
           col = vec3(0.36,0.32,0.26) * (0.85 + n3*0.12 + gnoise(wp*5.0)*0.08);
           float tr = lineMask(fract((u+1.5)/3.0)-0.5, 0.14, 0.1); col *= 1.0 - tr*0.12;
@@ -2351,14 +2738,37 @@ const Net = {
           float j = 1.0 - boxMask(f, vec2(0.04), vec2(0.96), fwidth(t)*0.8);
           col = mix(vec3(0.5,0.42,0.36), vec3(0.58,0.52,0.46), hash12(floor(t))) * (1.0 - j*0.3);
           col = mix(col, vec3(0.9,0.92,0.95), uSnow*0.8); rRough = mix(0.85, 0.35, uWet); col *= 1.0 - uWet*0.25;
-        } else if (surf == 9.0) { col = vec3(0.6,0.6,0.58)*(0.92+n3*0.06); rRough = 0.8; }
+        } else if (surf == 9.0) { col = vec3(0.5,0.5,0.48)*(0.92+n3*0.06); col *= 0.85 + 0.15*smoothstep(0.0, 0.5, vUv2.y); rRough = 0.8; }
         else if (surf == 10.0) { col = vec3(0.32,0.38,0.34) * (0.9 + 0.1*step(0.5, fract(u*0.0+v/0.5))); rRough = 0.6; rMetal = 0.3; }
-        else if (surf == 12.0) { col = vec3(0.16,0.17,0.18); rMetal = 0.7; rRough = 0.4; } // lamp pole
-        else if (surf == 13.0) { col = vec3(0.9,0.88,0.8); rEmis = vec3(1.0,0.78,0.5) * 3.0 * uNight; rRough = 0.3; } // lamp head
+        else if (surf == 12.0) { col = vec3(0.13,0.14,0.15); rMetal = 0.65; rRough = 0.38; } // lamp pole / signal mast
+        else if (surf == 13.0) { col = vec3(0.9,0.88,0.8); rEmis = vec3(1.0,0.86,0.66) * 3.0 * uNight; rRough = 0.3; } // lamp head lens
+        else if (surf == 14.0) { col = vec3(0.6,0.62,0.6); rMetal = 0.8; rRough = 0.32; } // galvanised steel (guard rails)
+        else if (surf == 15.0) { col = vec3(0.045,0.05,0.05); rRough = 0.5; } // dark housings
+        else if (surf == 16.0) { // raised median: concrete slabs with expansion joints and curb stones along both edges
+          float e = smoothstep(med*0.5 - 0.26, med*0.5 - 0.22, abs(u));
+          col = vec3(0.24 + n3*0.015 + hash12(vec2(floor(v/2.0), sign(u)))*0.02) * (1.0 - lineMask(fract(v/2.0) - 0.5, 0.008, aa.y*0.5)*0.35);
+          col = mix(col, vec3(0.34 + n3*0.02), e); col *= 1.0 - smoothstep(0.4, 0.9, gnoise(wp/2.1))*0.08;
+          col = mix(col, vec3(0.9,0.92,0.95), uSnow*0.8); rRough = 0.82;
+        } else if (surf == 18.0) { // painted street furniture, colour by code: hydrant, bin, bench wood, steel, sign back
+          col = len < 1.5 ? vec3(0.42,0.05,0.03) : len < 2.5 ? vec3(0.04,0.08,0.06) : len < 3.5 ? vec3(0.22,0.12,0.06)*(0.85 + 0.3*hash12(floor(vWPos.xz*9.0))) : len < 4.5 ? vec3(0.2,0.21,0.22) : vec3(0.32,0.33,0.34);
+          rRough = len < 2.5 ? 0.45 : len < 3.5 ? 0.75 : 0.4; rMetal = len > 3.5 ? 0.6 : 0.0;
+        } else if (surf == 19.0) { // traffic sign face: 1 stop (red octagon), 2 give way (inverted triangle)
+          vec2 q = vUv2*2.0 - 1.0, aq = abs(q); float e = fwidth(q.x)*1.5;
+          if (len < 1.5) { float o = max(max(aq.x, aq.y), (aq.x + aq.y)*0.7071); if (o > 1.0) discard;
+            float letters = step(aq.y, 0.2) * step(aq.x, 0.66) * step(0.3, fract(q.x*3.1 + 0.5)) ;
+            col = mix(vec3(0.5,0.03,0.02), vec3(0.85), max(smoothstep(0.86 - e, 0.86 + e, o), letters)); }
+          else { float tri = max(q.y - 0.92, aq.x*1.732 - (q.y + 0.92)*0.866*1.15); if (tri > 0.0) discard;
+            col = mix(vec3(0.85), vec3(0.5,0.03,0.02), smoothstep(-0.28 - e, -0.28 + e, tri)); }
+          rRough = 0.35; rEmis = col * 0.06 * uNight;
+        } else if (surf == 17.0) { // street name sign: green plate, white border and lettering
+          float bd = 1.0 - boxMask(vUv2, vec2(0.05, 0.12), vec2(0.95, 0.88), vec2(0.01));
+          float tx = lineMask(vUv2.y - 0.5, 0.17, 0.02) * step(0.12, vUv2.x) * step(vUv2.x, 0.88) * step(0.35, hash12(vec2(floor(vUv2.x*14.0), 3.0)));
+          col = mix(vec3(0.02,0.16,0.07), vec3(0.85), max(bd, tx*0.9)); rRough = 0.4; rEmis = col * 0.15 * uNight;
+        }
         // night light pools on streets & sidewalks
         if ((surf < 1.5 || surf == 8.0 || surf == 11.0) && uNight > 0.01) {
-          float L = surf == 11.0 ? 0.6 : lampLight(u, v, cw, len);
-          rEmis += col * vec3(1.0,0.75,0.45) * L * 0.9 * uNight;
+          float L = jpc ? (surf == 1.0 ? 0.6 : 0.85) : surf == 11.0 ? 0.6 : lampLight(u, v, cw, len);
+          rEmis += col * vec3(1.0,0.84,0.62) * L * 0.9 * uNight;
         }
         if (uInfoMode > 0.5) {
           if (surf < 12.5) {
@@ -2370,10 +2780,11 @@ const Net = {
         if (vInfo < -1.5 && vInfo > -2.5) col = mix(col, vec3(0.3,0.7,1.0), 0.6);
         diffuseColor.rgb = col;
       }`,
-      fRough: 'roughnessFactor = clamp(max(rRough, min(0.6, max(fwidth(vUv2.x), fwidth(vUv2.y)) * 0.0 + length(fwidth(vWPos.xz)) * 0.5)), 0.03, 1.0); metalnessFactor = rMetal;',
+      fRough: 'roughnessFactor = clamp(max(rRough, min(0.6, length(fwidth(vWPos.xz)) * 0.5)), 0.03, 1.0); metalnessFactor = rMetal;',
       fNormal: /* glsl */`
       {
-        float bh = rBump + gnoise(vWPos.xz*3.0)*0.004*(1.0-rPaint) + gnoise(vWPos.xz*11.0)*0.0015;
+        float fwb = length(fwidth(vWPos.xz));
+        float bh = (rBump + gnoise(vWPos.xz*3.0)*0.004 + (uRoadQ > 1.5 ? gnoise(vWPos.xz*11.0)*0.0012*(1.0 - smoothstep(0.006, 0.03, fwb)) : 0.0)) * (1.0 - smoothstep(0.04, 0.16, fwb));
         normal = perturbN(-vViewPosition, normal, vec2(dFdx(bh), dFdy(bh))*28.0, faceDirection);
       }`,
       fEmissive: 'totalEmissiveRadiance += rEmis;',
@@ -2382,7 +2793,7 @@ const Net = {
     this.ghostMat = new THREE.MeshBasicMaterial({ color: 0x3fb5ff, transparent: true, opacity: 0.45, depthWrite: false });
     this.ghostBad = new THREE.MeshBasicMaterial({ color: 0xff5050, transparent: true, opacity: 0.45, depthWrite: false });
   },
-  init() { this.initMaterial(); this.group = new THREE.Group(); Gfx.scene.add(this.group); },
+  init() { this.initMaterial(); this.group = new THREE.Group(); Gfx.scene.add(this.group); Bus.on('quality', () => { for (const ch of this.chunks.values()) ch.dirty = true; }); },
   /* ---------- basic graph ops ---------- */
   addNode(x, z, elev = 0, y) {
     const id = this.nextId++;
@@ -2393,7 +2804,7 @@ const Net = {
   },
   removeNode(n) { this.nodeHash.remove(n); this.nodes.delete(n.id); this.chunkFor(n.x, n.z).nodes.delete(n.id); this.chunkFor(n.x, n.z).dirty = true; },
   chunkKey(x, z) { return Math.floor(x / ROAD_CHUNK) + ',' + Math.floor(z / ROAD_CHUNK); },
-  chunkFor(x, z) { const k = this.chunkKey(x, z); let c = this.chunks.get(k); if (!c) { c = { key: k, segs: new Set(), nodes: new Set(), mesh: null, dirty: true }; this.chunks.set(k, c); } return c; },
+  chunkFor(x, z) { const k = this.chunkKey(x, z); let c = this.chunks.get(k); if (!c) { c = { key: k, segs: new Set(), nodes: new Set(), mesh: null, pmesh: null, dirty: true, x0: Math.floor(x / ROAD_CHUNK) * ROAD_CHUNK, z0: Math.floor(z / ROAD_CHUNK) * ROAD_CHUNK }; this.chunks.set(k, c); } return c; },
   addSeg(a, b, type, cx, cz, opts = {}) {
     const T = ROAD_TYPES[type];
     const id = this.nextId++;
@@ -2438,8 +2849,8 @@ const Net = {
   },
   angleBetween(s1, s2, n) { const d1 = this.dirFrom(s1, n), d2 = this.dirFrom(s2, n); return Math.acos(clamp(d1.x * d2.x + d1.z * d2.z, -1, 1)); },
   /* ---------- segment geometry ---------- */
-  computeGeom(s) {
-    const a = this.nodes.get(s.a), b = this.nodes.get(s.b), T = ROAD_TYPES[s.type]; s.T = T;
+  computeGeom(s, a = this.nodes.get(s.a), b = this.nodes.get(s.b)) {
+    const T = ROAD_TYPES[s.type]; s.T = T;
     const P0 = { x: a.x, z: a.z }, P1 = { x: s.cx, z: s.cz }, P2 = { x: b.x, z: b.z };
     const approx = dist2(a.x, a.z, s.cx, s.cz) + dist2(s.cx, s.cz, b.x, b.z);
     const n = Math.max(3, Math.ceil(approx / 3.5) + 1);
@@ -2449,34 +2860,71 @@ const Net = {
       const t = i / (n - 1), p = qbez(P0, P1, P2, t), d = qbezTan(P0, P1, P2, t);
       xs[i] = p.x; zs[i] = p.z; tx[i] = d.x; tz[i] = d.z;
       if (i > 0) L += Math.hypot(xs[i] - xs[i - 1], zs[i] - zs[i - 1]); arc[i] = L;
-      gs[i] = Terrain.height(p.x, p.z);
     }
     s.n = n; s.xs = xs; s.zs = zs; s.ys = ys; s.gs = gs; s.arc = arc; s.tx = tx; s.tz = tz; s.len = L;
-    // height profile
-    const ya = a.y, yb = b.y;
-    const elevated = T.underground || a.elev > 2 || b.elev > 2 || a.elev < -2 || b.elev < -2;
-    if (T.underground) { for (let i = 0; i < n; i++) ys[i] = gs[i] - 14; }
-    else if (elevated) { for (let i = 0; i < n; i++) ys[i] = lerp(ya, yb, arc[i] / L); }
-    else {
-      // the deck rides ROAD_CLEAR above the ground it carved (conform lowers ground by the same amount) so re-profiling is stable
-      const clr = T.rail ? 0.35 : ROAD_CLEAR;
-      for (let i = 0; i < n; i++) ys[i] = Math.max(gs[i] + clr, Terrain.seaLevel + (gs[i] < Terrain.seaLevel - 0.3 ? 7 : 0.4));
-      ys[0] = ya; ys[n - 1] = yb;
-      const grade = T.rail ? 0.035 : 0.09;
-      for (let it = 0; it < 2; it++) {
-        for (let i = 1; i < n; i++) { const ds = arc[i] - arc[i - 1]; ys[i] = Math.max(ys[i], ys[i - 1] - grade * ds); }
-        for (let i = n - 2; i >= 0; i--) { const ds = arc[i + 1] - arc[i]; ys[i] = Math.max(ys[i], ys[i + 1] - grade * ds); }
-        for (let k = 0; k < 3; k++) for (let i = 1; i < n - 1; i++) ys[i] = ys[i] * 0.5 + (ys[i - 1] + ys[i + 1]) * 0.25;
-        ys[0] = ya; ys[n - 1] = yb;
-      }
-    }
-    s.bridge = new Uint8Array(n); let anyBridge = false;
-    for (let i = 0; i < n; i++) { if (!T.underground && ys[i] - gs[i] > 1.6) { s.bridge[i] = 1; anyBridge = true; } }
-    s.hasBridge = anyBridge;
+    this.profile(s, a, b);
     let minX = Infinity, minZ = Infinity, maxX = -Infinity, maxZ = -Infinity;
     for (let i = 0; i < n; i++) { minX = Math.min(minX, xs[i]); maxX = Math.max(maxX, xs[i]); minZ = Math.min(minZ, zs[i]); maxZ = Math.max(maxZ, zs[i]); }
     const pad = T.hw + 2; s.bb = { minX: minX - pad, minZ: minZ - pad, maxX: maxX + pad, maxZ: maxZ + pad };
     const m = this.pointAt(s, L / 2); s.mid = { x: m.x, z: m.z };
+  },
+  /* height profile: grade-limited balanced cut & fill that follows the ground, level with junction nodes over their trim
+     (junction plateau), bridges over water / deep valleys. Re-running it on ground it carved reproduces itself. */
+  profile(s, a = this.nodes.get(s.a), b = this.nodes.get(s.b)) {
+    const T = s.T, n = s.n, arc = s.arc, L = s.len, ys = s.ys, gs = s.gs, sea = Terrain.seaLevel;
+    for (let i = 0; i < n; i++) gs[i] = Terrain.height(s.xs[i], s.zs[i]);
+    const ya = a.y, yb = b.y;
+    const pa = Math.min(a.trims[s.id] || 0, L * 0.45), pb = Math.min(b.trims[s.id] || 0, L * 0.45);
+    s.plat0 = pa; s.plat1 = pb;
+    const span = Math.max(0.5, L - pa - pb), clr = T.rail ? 0.35 : ROAD_CLEAR;
+    const elevated = T.underground || a.elev > 2 || b.elev > 2 || a.elev < -2 || b.elev < -2;
+    if (T.underground) { for (let i = 0; i < n; i++) ys[i] = gs[i] - 14; }
+    else if (elevated) { for (let i = 0; i < n; i++) ys[i] = lerp(ya, yb, clamp((arc[i] - pa) / span, 0, 1)); }
+    else {
+      const G = Math.max(T.grade, Math.abs(yb - ya) / span * 1.02);
+      const t = new Float64Array(n), U = new Float64Array(n), W = new Float64Array(n);
+      // over water: carry the line between the banks on either side (at least a few metres above the water)
+      for (let i = 0; i < n; i++) if (gs[i] < sea - 0.3) {
+        let j = i; while (j < n - 1 && gs[j + 1] < sea - 0.3) j++;
+        const hl = i > 0 ? Math.max(gs[i - 1], gs[Math.max(0, i - 2)], gs[Math.max(0, i - 3)]) : ya - clr, hr = j < n - 1 ? Math.max(gs[j + 1], gs[Math.min(n - 1, j + 2)], gs[Math.min(n - 1, j + 3)]) : yb - clr;
+        const a0 = arc[Math.max(0, i - 1)], a1 = arc[Math.min(n - 1, j + 1)];
+        for (let k = i; k <= j; k++) W[k] = Math.max(sea + 4.5, lerp(hl, hr, (arc[k] - a0) / Math.max(1, a1 - a0)) + clr);
+        i = j;
+      }
+      for (let i = 0; i < n; i++) {
+        const s0 = Math.max(0, arc[i] - pa), s1 = Math.max(0, L - pb - arc[i]);
+        const lo = Math.max(ya - G * s0, yb - G * s1), hi = Math.min(ya + G * s0, yb + G * s1);
+        const base = gs[i] < sea - 0.3 ? W[i] : Math.max(gs[i] + clr, sea + 0.4);
+        t[i] = U[i] = W[i] = Math.min(hi, Math.max(lo, base));
+      }
+      // fill envelope U >= t and cut envelope W <= t (both grade limited); their mean balances cut against fill
+      for (let i = 1; i < n; i++) { const g = G * (arc[i] - arc[i - 1]); U[i] = Math.max(U[i], U[i - 1] - g); W[i] = Math.min(W[i], W[i - 1] + g); }
+      for (let i = n - 2; i >= 0; i--) { const g = G * (arc[i + 1] - arc[i]); U[i] = Math.max(U[i], U[i + 1] - g); W[i] = Math.min(W[i], W[i + 1] + g); }
+      for (let i = 0; i < n; i++) U[i] = (U[i] + W[i]) * 0.5 - t[i];
+      for (let k = 0; k < 4; k++) for (let i = 1; i < n - 1; i++) U[i] = U[i] * 0.5 + (U[i - 1] + U[i + 1]) * 0.25; // round off vertical kinks
+      for (let i = 0; i < n; i++) ys[i] = gs[i] < sea - 0.3 ? Math.max(t[i] + U[i], sea + 3.5) : t[i] + U[i];
+      for (let i = 1; i < n; i++) ys[i] = Math.max(ys[i], ys[i - 1] - G * (arc[i] - arc[i - 1]));
+      for (let i = n - 2; i >= 0; i--) ys[i] = Math.max(ys[i], ys[i + 1] - G * (arc[i + 1] - arc[i]));
+      for (let i = 0; i < n; i++) { if (arc[i] <= pa + 1e-3) ys[i] = ya; else if (arc[i] >= L - pb - 1e-3) ys[i] = yb; }
+      // vertical curves: averaging keeps the grade limit and removes sags the 4 m terrain grid would bridge over
+      for (let k = 0; k < 6; k++) for (let i = 1; i < n - 1; i++) if (arc[i] > pa + 1e-3 && arc[i] < L - pb - 1e-3) ys[i] = ys[i] * 0.5 + (ys[i - 1] + ys[i + 1]) * 0.25;
+    }
+    s.bridge = new Uint8Array(n); let anyBridge = false, dev = 0;
+    const e = T.hw + T.verge;
+    for (let i = 0; i < n; i++) {
+      if (T.underground) continue;
+      const hgt = ys[i] - gs[i];
+      if (elevated ? hgt > 1.6 : (gs[i] < sea - 0.3 || hgt > EMB_MAX)) { s.bridge[i] = 1; anyBridge = true; continue; }
+      const rx = -s.tz[i], rz = s.tx[i], y = ys[i] - clr;
+      dev = Math.max(dev, Math.abs(y - gs[i]), Math.abs(y - Terrain.height(s.xs[i] + rx * e, s.zs[i] + rz * e)), Math.abs(y - Terrain.height(s.xs[i] - rx * e, s.zs[i] - rz * e)));
+    }
+    s.hasBridge = anyBridge; s.dev = dev; s.reach = Math.min(60, dev / FILL_K * 1.4 + EASE_W + 3);
+    if (dev > 0.05 && !T.underground && s.id > 0) this.reprof.add(s);
+  },
+  // the profile a planned curve would get (for the placement ghost)
+  previewSeg(c, type, elev) {
+    const end = e => { if (e.node && this.nodes.has(e.node.id)) return e.node; let y; if (e.seg && this.segs.has(e.seg.id)) y = this.pointAt(e.seg, this.closestOnSeg(e.seg, e.x, e.z).arc).y; else y = Math.max(Terrain.height(e.x, e.z) + ROAD_CLEAR, Terrain.seaLevel + (Terrain.isWater(e.x, e.z) ? 6 : 0)) + elev; return { x: e.x, z: e.z, y, elev: e.seg ? 0 : elev, trims: {} }; };
+    const s = { id: -1, type, cx: c.c.x, cz: c.c.z, up: {} }; this.computeGeom(s, end(c.p0), end(c.p1)); return s;
   },
   idxAt(s, d) { const arc = s.arc; let lo = 0, hi = s.n - 1; if (d <= 0) return [0, 0]; if (d >= s.len) return [s.n - 2, 1]; while (hi - lo > 1) { const m = (lo + hi) >> 1; if (arc[m] <= d) lo = m; else hi = m; } return [lo, (d - arc[lo]) / Math.max(1e-6, arc[lo + 1] - arc[lo])]; },
   pointAt(s, d, out = {}) { const [i, f] = this.idxAt(s, d); out.x = lerp(s.xs[i], s.xs[i + 1], f); out.z = lerp(s.zs[i], s.zs[i + 1], f); out.y = lerp(s.ys[i], s.ys[i + 1], f); let tx = lerp(s.tx[i], s.tx[i + 1], f), tz = lerp(s.tz[i], s.tz[i + 1], f); const l = Math.hypot(tx, tz) || 1; out.tx = tx / l; out.tz = tz / l; out.bridge = s.bridge[f < 0.5 ? i : i + 1]; return out; },
@@ -2491,40 +2939,34 @@ const Net = {
     return best;
   },
   nearestNode(x, z, maxD = 10, filter) { let best = null, bd = maxD; for (const n of this.nodeHash.queryR(x, z, maxD)) { if (filter && !filter(n)) continue; const d = dist2(x, z, n.x, n.z); if (d <= bd) { bd = d; best = n; } } return best; },
-  blocksTerrain(x, z) { for (const s of this.segHash.queryR(x, z, 2)) { if (s.T.underground) continue; const q = this.closestOnSeg(s, x, z); if (q.d < s.T.hw + 1) return true; } return false; },
+  blocksTerrain(x, z) { for (const s of this.segHash.queryR(x, z, 6)) { if (s.T.underground) continue; const q = this._closest(s, x, z); if (q.d < s.T.hw + s.T.verge + 2 && !s.bridge[q.f < 0.5 ? q.i : q.i + 1]) return true; } return false; },
   surfaceAt(x, z, yHint) { let best = -1e9; for (const s of this.segHash.queryR(x, z, 1)) { if (s.T.underground) continue; const q = this.closestOnSeg(s, x, z); if (q.d < s.T.hw) { const p = this.pointAt(s, q.arc); const y = p.y + (q.d > s.T.cw ? 0.18 : 0.02); if (yHint === undefined || y < yHint + 3) best = Math.max(best, y); } } return best; },
   footprintHit(x, z, pad = 0) { for (const s of this.segHash.queryR(x, z, pad + 2)) { if (s.T.underground) continue; const q = this.closestOnSeg(s, x, z); if (q.d < s.T.hw + pad) { const p = this.pointAt(s, q.arc); if (!p.bridge || p.y - Terrain.height(x, z) < 5) return s; } } return null; },
   /* ---------- junctions ---------- */
   computeNode(n) {
     const segs = n.segs.map(id => this.segs.get(id)).filter(Boolean);
-    n.trims = {}; n.poly = null; n.corners = null;
+    n.trims = {}; n.poly = null; n.corners = null; n.miter = null;
     for (const s of segs) n.trims[s.id] = 0;
     n.light = null;
-    if (segs.length < 2) return;
+    if (segs.length < 2) return this.plateau(n, segs);
     const items = segs.map(s => { const d = this.dirFrom(s, n); return { s, d, ang: Math.atan2(d.z, d.x), cw: s.T.cw, hw: s.T.hw }; });
     items.sort((p, q) => p.ang - q.ang);
     if (segs.length === 2) {
-      const dot = items[0].d.x * items[1].d.x + items[0].d.z * items[1].d.z;
-      if (dot < -0.985 && items[0].s.type === items[1].s.type) return;
+      // a bend between two roads of the same cross-section: mitre both ends along the bisector (no junction box, markings run through)
+      const A = items[0], B = items[1], TA = A.s.T, TB = B.s.T, dot = A.d.x * B.d.x + A.d.z * B.d.z;
+      if (dot < -0.72 && TA.cw === TB.cw && TA.hw === TB.hw && TA.median === TB.median && TA.network === TB.network && !TA.underground === !TB.underground) {
+        let tx = A.d.x - B.d.x, tz = A.d.z - B.d.z; const tl = Math.hypot(tx, tz) || 1; tx /= tl; tz /= tl;
+        n.miter = {};
+        for (const it of items) { // lateral vector along the mitre line, scaled so its component across the segment is 1
+          const sg = it.s.a === n.id ? 1 : -1, rx = -it.d.z * sg, rz = it.d.x * sg, k = -tz * rx + tx * rz;
+          n.miter[it.s.id] = { x: -tz / k, z: tx / k, tan: Math.sqrt(Math.max(0, 1 / (k * k) - 1)) };
+        }
+        return this.plateau(n, segs);
+      }
     }
-    const N = items.length;
-    const trims = items.map(() => 0);
-    let maxHW = 0; for (const it of items) maxHW = Math.max(maxHW, it.hw);
-    for (let i = 0; i < N; i++) {
-      const A = items[i], B = items[(i + 1) % N];
-      const rA = { x: -A.d.z, z: A.d.x }, rB = { x: -B.d.z, z: B.d.x };
-      let gap = B.ang - A.ang; if (i === N - 1) gap += TAU; if (N === 1) gap = TAU;
-      if (gap > Math.PI * 0.93) continue;
-      const pA = { x: n.x + rA.x * A.hw, z: n.z + rA.z * A.hw }, pB = { x: n.x - rB.x * B.hw, z: n.z - rB.z * B.hw };
-      const X = lineIntersect(pA, A.d, pB, B.d);
-      if (X) { trims[i] = Math.max(trims[i], X.t); trims[(i + 1) % N] = Math.max(trims[(i + 1) % N], X.s); }
-    }
-    for (let i = 0; i < N; i++) {
-      const it = items[i]; let t = trims[i] + 1.5;
-      if (N >= 3) t = Math.max(t, maxHW * 0.75 + 1.5);
-      t = Math.min(t, it.s.len * 0.45);
-      n.trims[it.s.id] = Math.max(0, t);
-    }
+    const trims = this.calcTrims(items), N = items.length;
+    for (let i = 0; i < N; i++) n.trims[items[i].s.id] = Math.max(0, Math.min(trims[i], items[i].s.len * 0.45));
+    this.plateau(n, segs);
     // corner geometry
     const corners = [];
     for (const it of items) {
@@ -2541,6 +2983,20 @@ const Net = {
     n.light = (N >= 3 && big >= 1 && !isHwy && !segs.some(s => s.T.rail || s.T.metro || s.T.ped)) ? { phase: 0, t: 0, groups: this.lightGroups(items) } : null;
     if (n.lightOverride === false) n.light = null;
   },
+  // set-back of each approach (items sorted by angle, {d, hw}) so adjacent road edges clear each other
+  calcTrims(items) {
+    const N = items.length, trims = items.map(() => 0); let maxHW = 0; for (const it of items) maxHW = Math.max(maxHW, it.hw);
+    for (let i = 0; i < N; i++) {
+      const A = items[i], B = items[(i + 1) % N];
+      let gap = Math.atan2(B.d.z, B.d.x) - Math.atan2(A.d.z, A.d.x); if (gap <= 0) gap += TAU; if (N === 1) gap = TAU;
+      if (gap > Math.PI * 0.93) continue;
+      const X = lineIntersect({ x: -A.d.z * A.hw, z: A.d.x * A.hw }, A.d, { x: B.d.z * B.hw, z: -B.d.x * B.hw }, B.d);
+      if (X) { trims[i] = Math.max(trims[i], X.t); trims[(i + 1) % N] = Math.max(trims[(i + 1) % N], X.s); }
+    }
+    return trims.map(t => N >= 3 ? Math.max(t + 1.5, maxHW * 0.75 + 1.5) : t + 1.5);
+  },
+  // junction approaches run level with the node over their trim: re-profile segments whose plateau changed
+  plateau(n, segs) { for (const s of segs) { const want = Math.min(n.trims[s.id] || 0, s.len * 0.45); if (Math.abs((s.a === n.id ? s.plat0 : s.plat1) - want) > 0.25) { this.profile(s); this.chunkFor(s.mid.x, s.mid.z).dirty = true; } } },
   lightGroups(items) { // pair roughly opposite approaches into the same phase
     const g = {}; const used = new Set(); let ph = 0;
     for (let i = 0; i < items.length; i++) {
@@ -2559,9 +3015,12 @@ const Net = {
     if (s.up.bike) f |= 4; if (s.T.tram) f |= 8; if (s.up.parking) f |= 16; if (s.up.trees || s.up.grass) f |= 32; if (s.up.buslane) f |= 64;
     return f;
   },
+  // cross-section frames along s between arcs d0..d1, each with its lateral vector (rx, rz); mitred ends use the bend's mitre line
   frames(s, d0, d1) {
-    const out = []; const push = d => { const p = this.pointAt(s, d); p.d = d; out.push(p); };
-    push(d0); for (let i = 1; i < s.n - 1; i++) { const d = s.arc[i]; if (d > d0 + 0.5 && d < d1 - 0.5) push(d); } push(d1);
+    const na = this.nodes.get(s.a), nb = this.nodes.get(s.b), ma = na && na.miter && na.miter[s.id], mb = nb && nb.miter && nb.miter[s.id];
+    const g0 = d0 + 0.5 + (ma ? s.T.hw * ma.tan : 0), g1 = d1 - 0.5 - (mb ? s.T.hw * mb.tan : 0);
+    const out = []; const push = (d, m) => { const p = this.pointAt(s, d); p.d = d; p.rx = m ? m.x : -p.tz; p.rz = m ? m.z : p.tx; out.push(p); };
+    push(d0, ma); for (let i = 1; i < s.n - 1; i++) { const d = s.arc[i]; if (d > g0 && d < g1) push(d); } push(d1, mb);
     return out;
   },
   buildSeg(s, A) {
@@ -2574,7 +3033,7 @@ const Net = {
     const strip = (u0, u1, h0, h1, surf, vOff = 0) => { // top surface strip (h0 at u0, h1 at u1)
       const base = A.count;
       for (const f of F) {
-        const rx = -f.tz, rz = f.tx;
+        const rx = f.rx, rz = f.rz;
         A.v(f.x + rx * u0, f.y + h0, f.z + rz * u0, 0, 1, 0, u0, f.d - d0 + vOff, surf, cfg, Ld, flags);
         A.v(f.x + rx * u1, f.y + h1, f.z + rz * u1, 0, 1, 0, u1, f.d - d0 + vOff, surf, cfg, Ld, flags);
       }
@@ -2582,105 +3041,195 @@ const Net = {
     };
     const wall = (u, hb, ht, side, surf) => { // vertical face at lateral u facing +side*right
       const base = A.count;
-      for (const f of F) { const rx = -f.tz, rz = f.tx; A.v(f.x + rx * u, f.y + hb, f.z + rz * u, rx * side, 0, rz * side, f.d - d0, hb, surf, cfg, Ld, flags); A.v(f.x + rx * u, f.y + ht, f.z + rz * u, rx * side, 0, rz * side, f.d - d0, ht, surf, cfg, Ld, flags); }
+      for (const f of F) { const rx = f.rx, rz = f.rz; A.v(f.x + rx * u, f.y + hb, f.z + rz * u, rx * side, 0, rz * side, f.d - d0, hb, surf, cfg, Ld, flags); A.v(f.x + rx * u, f.y + ht, f.z + rz * u, rx * side, 0, rz * side, f.d - d0, ht, surf, cfg, Ld, flags); }
       for (let k = 0; k < F.length - 1; k++) { const a = base + k * 2; const nx = -F[k].tz * side, nz = F[k].tx * side; A.triN(a, a + 1, a + 3, nx, 0, nz); A.triN(a, a + 3, a + 2, nx, 0, nz); }
     };
-    const cw = T.cw, hw = T.hw, sw = T.sidewalk, cH = 0.18;
+    // extrude a cross-section polyline [u, h, surf of the edge that starts here] along the frames; traced clockwise (left to right
+    // over the top) so every face points outward. Flat-ish faces get (u, v) uvs, steep ones (v, h).
+    const ext = (prof, surf, FF = F) => {
+      if (FF.length < 2) return;
+      for (let k = 0; k < prof.length - 1; k++) {
+        const u0 = prof[k][0], h0 = prof[k][1], u1 = prof[k + 1][0], h1 = prof[k + 1][1], sf = prof[k][2] !== undefined ? prof[k][2] : surf;
+        let nu = h0 - h1, nh = u1 - u0; const l = Math.hypot(nu, nh) || 1; nu /= l; nh /= l;
+        const top = nh > 0.7, base = A.count;
+        for (const f of FF) {
+          const rx = f.rx, rz = f.rz, vv = f.d - d0;
+          A.v(f.x + rx * u0, f.y + h0, f.z + rz * u0, rx * nu, nh, rz * nu, top ? u0 : vv, top ? vv : h0, sf, cfg, Ld, flags);
+          A.v(f.x + rx * u1, f.y + h1, f.z + rz * u1, rx * nu, nh, rz * nu, top ? u1 : vv, top ? vv : h1, sf, cfg, Ld, flags);
+        }
+        for (let j = 0; j < FF.length - 1; j++) { const a = base + j * 2, gx = -FF[j].tz * nu, gz = FF[j].tx * nu; A.triN(a, a + 1, a + 3, gx, nh, gz); A.triN(a, a + 3, a + 2, gx, nh, gz); }
+      }
+    };
+    const mir = P => { const out = []; for (let k = P.length - 1; k >= 0; k--) out.push([-P[k][0], P[k][1], k > 0 ? P[k - 1][2] : undefined]); return out; };
+    const runs = pred => { const out = []; let cur = []; for (const f of F) { if (pred(f)) cur.push(f); else { if (cur.length > 1) out.push(cur); cur = []; } } if (cur.length > 1) out.push(cur); return out; };
+    const cw = T.cw, hw = T.hw, sw = T.sidewalk, cH = 0.18, ch = 0.06;
+    const onBridge = f => f.bridge || Terrain.height(f.x, f.z) < f.y - 1.2;
+    const bridgeRuns = s.hasBridge ? runs(onBridge) : [], groundRuns = s.hasBridge ? runs(f => !f.bridge) : [F];
     if (T.underground) {
       if (!Net.showUnderground) return;
       strip(-cw, cw, 0, 0, 6); s.vr = { start, count: A.count - start }; return;
     }
     if (T.rail) {
       strip(-hw, -hw + 1.2, -0.4, 0.05, 6); strip(-hw + 1.2, hw - 1.2, 0.05, 0.05, 6); strip(hw - 1.2, hw, 0.05, -0.4, 6);
-      for (const tc of [-2.25, 2.25]) for (const ro of [-0.72, 0.72]) { const u = tc + ro; strip(u - 0.04, u + 0.04, 0.24, 0.24, 7); wall(u - 0.04, 0.05, 0.24, -1, 7); wall(u + 0.04, 0.05, 0.24, 1, 7); }
+      for (const tc of [-2.25, 2.25]) for (const ro of [-0.72, 0.72]) { const u = tc + ro; ext([[u - 0.04, 0.05], [u - 0.04, 0.24], [u + 0.04, 0.24], [u + 0.04, 0.05]], 7); }
     } else if (T.ped || T.tramOnly) {
-      strip(-hw, hw, 0.1, 0.1, T.surf); wall(-hw, -1.2, 0.1, -1, 2); wall(hw, -1.2, 0.1, 1, 2);
+      ext([[-hw, -1.2, 2], [-hw, 0.1, T.surf], [hw, 0.1, 2], [hw, -1.2]], 2);
       if (T.tramOnly) for (const tc of [-1.6, 1.6]) for (const ro of [-0.72, 0.72]) { const u = tc + ro; strip(u - 0.04, u + 0.04, 0.13, 0.13, 7); }
     } else {
       const surf = T.surf !== undefined ? T.surf : 0;
       const med = T.median;
       if (med > 0) {
         strip(-cw, -med / 2, 0, 0, surf); strip(med / 2, cw, 0, 0, surf);
-        if (T.highway) { strip(-med / 2, med / 2, 0, 0, 9); wall(-0.3, 0, 0.9, -1, 9); wall(0.3, 0, 0.9, 1, 9); strip(-0.3, 0.3, 0.9, 0.9, 9); }
-        else { strip(-med / 2, med / 2, cH, cH, s.up.grass || s.up.trees ? 3 : 2); wall(-med / 2, 0, cH, -1, 2); wall(med / 2, 0, cH, 1, 2); }
+        if (T.highway) { strip(-med / 2, -0.3, 0, 0, 9); strip(0.3, med / 2, 0, 0, 9); ext([[-0.3, 0], [-0.24, 0.08], [-0.1, 0.33], [-0.08, 0.85], [0.08, 0.85], [0.1, 0.33], [0.24, 0.08], [0.3, 0]], 9); }
+        else { const top = s.up.grass || s.up.trees ? 3 : 16; ext([[-med / 2, 0, 2], [-med / 2, cH - ch, 2], [-med / 2 + ch, cH, top], [med / 2 - ch, cH, 2], [med / 2, cH - ch, 2], [med / 2, 0]], 2); }
       } else strip(-cw, cw, 0, 0, surf);
       if (sw > 0) {
-        if (s.up.grass) { strip(-hw, -cw - 1.6, cH, cH, 1); strip(-cw - 1.6, -cw, cH, cH, 3); strip(cw, cw + 1.6, cH, cH, 3); strip(cw + 1.6, hw, cH, cH, 1); }
-        else { strip(-hw, -cw, cH, cH, 1); strip(cw, hw, cH, cH, 1); }
-        wall(-cw, 0, cH, 1, 2); wall(cw, 0, cH, -1, 2);
-        wall(-hw, -1.6, cH, -1, 2); wall(hw, -1.6, cH, 1, 2);
-      } else {
-        const sk = T.highway ? -0.3 : -1.2;
-        wall(-cw, sk, 0, -1, 2); wall(cw, sk, 0, 1, 2);
-        if (T.highway) { for (const sd of [-1, 1]) { const u = sd * (cw - 0.2); wall(u - 0.25 * sd, 0, 0.85, -sd, 9); strip(Math.min(u, u - 0.25 * sd), Math.max(u, u - 0.25 * sd), 0.85, 0.85, 9); } }
-      }
-      if (s.up.barrier) for (const sd of [-1, 1]) { const u = sd * (hw + 0.2); wall(u, 0, 4.2, -sd, 10); wall(u + sd * 0.2, 0, 4.2, sd, 10); strip(Math.min(u, u + sd * 0.2), Math.max(u, u + sd * 0.2), 4.2, 4.2, 10); }
+        // curb face with chamfered curb stone, walk surface (optional grass strip), skirt down to the ground
+        const P = s.up.grass ? [[cw, 0, 2], [cw, cH - ch, 1], [cw + ch, cH, 1], [cw + 0.25, cH, 3], [cw + 1.6, cH, 1], [hw, cH, 2], [hw, -1.6]] : [[cw, 0, 2], [cw, cH - ch, 1], [cw + ch, cH, 1], [hw, cH, 2], [hw, -1.6]];
+        ext(P, 1); ext(mir(P), 1);
+      } else if (T.highway) {
+        const P = [[cw, 0, 5], [cw + 1.2, -0.3, 2], [cw + 1.2, -1.2]];
+        ext(P, 5); ext(mir(P), 5);
+        // W-beam guard rails on posts along the shoulders (bridges carry concrete parapets instead)
+        const G = [[cw - 0.45, 0.45, 14], [cw - 0.52, 0.55, 14], [cw - 0.45, 0.64, 14], [cw - 0.52, 0.73, 14], [cw - 0.45, 0.8, 14], [cw - 0.39, 0.8, 14], [cw - 0.39, 0.45]];
+        for (const R of groundRuns) {
+          ext(G, 14, R); ext(mir(G), 14, R);
+          for (let d = R[0].d + 2; d < R[R.length - 1].d - 1; d += 4) { const p = this.pointAt(s, d), rx = -p.tz, rz = p.tx; for (const sd of [-1, 1]) this.box(A, p.x + rx * sd * (cw - 0.33), p.z + rz * sd * (cw - 0.33), p.y - 0.3, p.y + 0.74, 0.1, 0.1, p.tx, p.tz, 14, cfg); }
+        }
+      } else { const P = [[cw, 0, 5], [cw + 0.8, -0.2, 2], [cw + 0.8, -1.2]]; ext(P, 5); ext(mir(P), 5); }
+      if (s.up.barrier) for (const sd of [-1, 1]) { const u = sd * (hw + 0.2); const P = [[u - 0.1, -0.6], [u - 0.1, 4.2], [u + 0.1, 4.2], [u + 0.1, -0.6]]; ext(P, 10); }
     }
-    // bridges: deck underside & sides and pillars
-    if (s.hasBridge) {
-      const deck = 1.4;
-      const bf = F.filter(f => f.bridge || Terrain.height(f.x, f.z) < f.y - 1.2);
-      if (bf.length > 1) {
-        const save = F.slice(); F.length = 0; F.push(...bf);
-        strip(-hw, hw, -deck, -deck, 4); wall(-hw - 0.01, -deck, 0.2, -1, 4); wall(hw + 0.01, -deck, 0.2, 1, 4);
-        // railings
-        if (!T.highway && !T.rail) { wall(-hw, 0.18, 1.1, -1, 12); wall(hw, 0.18, 1.1, 1, 12); }
-        F.length = 0; F.push(...save);
+    // bridges: concrete deck with parapets, box girders, piers with caps
+    if (bridgeRuns.length) {
+      const deck = 1.65, pw = 0.32, ph = (T.sidewalk > 0 ? cH : 0) + (T.rail ? 0.6 : 1.0), inb = T.sidewalk > 0 ? cH : 0;
+      const side = [[hw, inb, 4], [hw, ph, 4], [hw + pw, ph, 4], [hw + pw, -deck + 0.45]];
+      const bot = [[hw + pw, -deck + 0.45, 4], [hw - 0.2, -deck, 4], [-hw + 0.2, -deck, 4], [-hw - pw, -deck + 0.45]];
+      const gird = hw > 6 ? [-hw * 0.45, hw * 0.45] : [0];
+      for (const R of bridgeRuns) {
+        ext(side, 4, R); ext(mir(side), 4, R); ext(bot, 4, R);
+        for (const g of gird) ext([[g + 0.8, -deck, 4], [g + 0.55, -deck - 0.9, 4], [g - 0.55, -deck - 0.9, 4], [g - 0.8, -deck]], 4, R);
+        if (!T.highway && !T.rail) for (const sd of [-1, 1]) { const u = sd * (hw + pw / 2); ext([[u - 0.03, ph + 0.05, 12], [u - 0.03, ph + 0.12, 12], [u + 0.03, ph + 0.12, 12], [u + 0.03, ph + 0.05]], 12, R); }
       }
+      // abutments where an embankment hands over to a span: a wall across the end of the fill, down into the ground below
+      for (const R of bridgeRuns) { const i0 = F.indexOf(R[0]), i1 = F.indexOf(R[R.length - 1]); if (i0 > 0) this.abutment(A, R[0], F[i0 - 1], 1, hw + pw, cfg); if (i1 < F.length - 1) this.abutment(A, R[R.length - 1], F[i1 + 1], -1, hw + pw, cfg); }
       let lastP = -1e9;
-      for (let d = d0 + 18; d < d1 - 6; d += 4) {
+      for (let d = d0 + 14; d < d1 - 6; d += 4) {
         const p = this.pointAt(s, d); const gy = Terrain.height(p.x, p.z);
-        if (p.y - gy < 4 || d - lastP < 38) continue; lastP = d;
-        const pw = Math.min(hw * 0.8, 6), pd = 1.6, bot = Math.min(gy, Terrain.seaLevel) - 2, top = p.y - deck;
-        const rx = -p.tz, rz = p.tx;
-        const cols = hw > 9 ? [-hw * 0.5, hw * 0.5] : [0];
-        for (const off of cols) this.box(A, p.x + rx * off, p.z + rz * off, bot, top, cols.length > 1 ? 1.4 : pw, pd, p.tx, p.tz, 4, cfg);
-        if (cols.length > 1) this.box(A, p.x, p.z, top - 1.2, top, hw * 1.7, pd + 0.4, p.tx, p.tz, 4, cfg);
+        if (p.y - gy < 4 || d - lastP < 36) continue;
+        const rx = -p.tz, rz = p.tx, cols = hw > 9 ? [-hw * 0.45, hw * 0.45] : [0], cr = cols.length > 1 ? 0.85 : Math.min(1.1, hw * 0.2);
+        // keep piers off the roads underneath (try again 4 m further on)
+        if (cols.some(off => this.roadUnder(s, p.x + rx * off, p.z + rz * off, cr + 0.8, p.y - 3))) continue;
+        lastP = d;
+        const bot2 = Math.min(gy, Terrain.seaLevel) - 2, top = p.y - deck - 0.9;
+        for (const off of cols) { const x = p.x + rx * off, z = p.z + rz * off; this.cyl(A, x, z, bot2, top - 0.75, cr, cr * 0.9, 12, 4, cfg); this.cyl(A, x, z, top - 0.9, top - 0.6, cr * 0.9, cr * 1.25, 12, 4, cfg); }
+        this.box(A, p.x, p.z, top - 0.6, top, hw * 2 * 0.92, 1.8, p.tx, p.tz, 4, cfg, true);
       }
     }
     // street lamps
     if (T.lamps && !T.underground) {
-      const sp = 30, centre = T.highway && T.median > 0;
+      const centre = T.highway && T.median > 0;
       for (const side of (centre ? [0] : [-1, 1])) {
-        const off = side > 0 ? 15 : 0;
-        for (let v = off; v < Ld - 3; v += sp) {
-          if (v < 3) continue;
-          const p = this.pointAt(s, d0 + v); const rx = -p.tz, rz = p.tx;
-          const u = side * (cw + 0.4);
-          const bx = p.x + rx * u, bz = p.z + rz * u;
-          const by = p.y + (T.sidewalk > 0 ? 0.18 : T.highway ? 0.9 : 0.1);
-          const H = T.highway ? 11 : T.hier >= 2 ? 9 : 7.5, arm = T.highway ? 2.6 : 1.9;
-          this.box(A, bx, bz, by, by + H, 0.18, 0.18, p.tx, p.tz, 12, cfg);
-          for (const ad of (centre ? [-1, 1] : [-side])) {
-            this.box(A, bx + rx * ad * arm * 0.5, bz + rz * ad * arm * 0.5, by + H - 0.12, by + H, arm, 0.1, p.tx, p.tz, 12, cfg);
-            this.box(A, bx + rx * ad * arm, bz + rz * ad * arm, by + H - 0.3, by + H - 0.06, 0.7, 0.36, p.tx, p.tz, 13, cfg);
-          }
+        const off = side > 0 ? 19 : 4;
+        for (let v = off; v < Ld - 3; v += 30) {
+          const p = this.pointAt(s, d0 + v), rx = -p.tz, rz = p.tx;
+          const u = side * (T.sidewalk > 0 ? cw + 0.7 : T.highway ? cw + 0.25 : cw + 0.6);
+          const by = p.y + (T.sidewalk > 0 ? cH : T.highway && centre ? 0.85 : 0);
+          const H = T.highway ? 11 : T.hier >= 2 ? 9 : 7.5, arm = T.highway ? 2.6 : T.hier >= 2 ? 2.2 : 1.7;
+          this.lamp(A, p.x + rx * u, by, p.z + rz * u, p.tx, p.tz, centre ? [-1, 1] : [-side], H, arm, cfg, centre);
         }
       }
     }
+    if (this._P && T.sidewalk > 0) this.props(s, d0, d1, this._P);
     s.vr = { start, count: A.count - start };
   },
-  box(A, cx, cz, y0, y1, w, d, tx, tz, surf, cfg) { // oriented box: d along (tx,tz), w across
+  // another ground road (below height yMax) within its half width + pad of (x, z)
+  roadUnder(s, x, z, pad, yMax) { for (const o of this.segHash.queryR(x, z, 20)) { if (o === s || o.T.underground) continue; const q = this._closest(o, x, z); if (q.d < o.T.hw + pad && o.ys[q.i] < yMax) return true; } return false; },
+  // wall in the plane of frame f facing sg*tangent: top follows the fill on the ground side G (deck shell above |u| < hw), bottom below the open side
+  abutment(A, f, G, sg, hw, cfg) {
+    const tx = f.tx * sg, tz = f.tz * sg, rx = f.rx, rz = f.rz, pts = [];
+    for (const side of [-1, 1]) for (let k = 0; k < 40; k++) {
+      const u = side * k * 1.5, gt = Terrain.height(G.x + G.rx * u, G.z + G.rz * u) + 0.05, top = Math.abs(u) < hw ? f.y - 0.4 : Math.min(f.y - 0.05, gt);
+      const bot = Math.min(Terrain.height(f.x + rx * u, f.z + rz * u), Terrain.height(f.x + rx * u + tx * 2, f.z + rz * u + tz * 2)) - 0.8;
+      if (k === 0 && side > 0) continue;
+      pts.push({ u, top, bot }); if (Math.abs(u) > hw && (top - bot < 1.0 || Math.abs(u) > hw + 4)) break;
+    }
+    pts.sort((a, b) => a.u - b.u); if (pts.length < 2) return;
+    const base = A.count;
+    for (const q of pts) { const x = f.x + rx * q.u - tx * 0.3, z = f.z + rz * q.u - tz * 0.3; A.v(x, Math.max(q.bot, Math.min(q.top, q.bot + 0.01)), z, tx, 0, tz, q.u, q.bot - f.y, 4, cfg, 1, 0); A.v(x, Math.max(q.top, q.bot), z, tx, 0, tz, q.u, q.top - f.y, 4, cfg, 1, 0); }
+    for (let k = 0; k < pts.length - 1; k++) { const a = base + k * 2; A.triN(a, a + 2, a + 3, tx, 0, tz); A.triN(a, a + 3, a + 1, tx, 0, tz); }
+  },
+  box(A, cx, cz, y0, y1, w, d, tx, tz, surf, cfg, bottom, k = 1) { // oriented box: d along (tx,tz), w across; k: paint code (len slot)
     const rx = -tz, rz = tx; const hw = w / 2, hd = d / 2;
     const P = [[-hw, -hd], [hw, -hd], [hw, hd], [-hw, hd]].map(([a, b]) => [cx + rx * a + tx * b, cz + rz * a + tz * b]);
-    const faces = [[0, 1, rx * 0 - tx, -tz], [1, 2, rx, rz], [2, 3, tx, tz], [3, 0, -rx, -rz]];
+    const faces = [[0, 1, -tx, -tz], [1, 2, rx, rz], [2, 3, tx, tz], [3, 0, -rx, -rz]];
     for (const [i, j, nx, nz] of faces) {
-      const a = A.v(P[i][0], y0, P[i][1], nx, 0, nz, 0, 0, surf, cfg, 1, 0), b = A.v(P[j][0], y0, P[j][1], nx, 0, nz, 1, 0, surf, cfg, 1, 0);
-      const c = A.v(P[j][0], y1, P[j][1], nx, 0, nz, 1, 1, surf, cfg, 1, 0), e = A.v(P[i][0], y1, P[i][1], nx, 0, nz, 0, 1, surf, cfg, 1, 0);
+      const a = A.v(P[i][0], y0, P[i][1], nx, 0, nz, 0, 0, surf, cfg, k, 0), b = A.v(P[j][0], y0, P[j][1], nx, 0, nz, 1, 0, surf, cfg, k, 0);
+      const c = A.v(P[j][0], y1, P[j][1], nx, 0, nz, 1, 1, surf, cfg, k, 0), e = A.v(P[i][0], y1, P[i][1], nx, 0, nz, 0, 1, surf, cfg, k, 0);
       A.triN(a, b, c, nx, 0, nz); A.triN(a, c, e, nx, 0, nz);
     }
-    const t = P.map(p => A.v(p[0], y1, p[1], 0, 1, 0, 0, 0, surf, cfg, 1, 0)); A.triN(t[0], t[1], t[2], 0, 1, 0); A.triN(t[0], t[2], t[3], 0, 1, 0);
+    const t = P.map(p => A.v(p[0], y1, p[1], 0, 1, 0, 0, 0, surf, cfg, k, 0)); A.triN(t[0], t[1], t[2], 0, 1, 0); A.triN(t[0], t[2], t[3], 0, 1, 0);
+    if (bottom) { const b = P.map(p => A.v(p[0], y0, p[1], 0, -1, 0, 0, 0, surf, cfg, k, 0)); A.triN(b[0], b[1], b[2], 0, -1, 0); A.triN(b[0], b[2], b[3], 0, -1, 0); }
+  },
+  cyl(A, x, z, y0, y1, r0, r1, k, surf, cfg, pc = 1) { // k-sided frustum with a top cap; pc: paint code
+    const base = A.count;
+    for (let i = 0; i <= k; i++) { const a = i / k * TAU, c = Math.cos(a), sn = Math.sin(a); A.v(x + c * r0, y0, z + sn * r0, c, 0, sn, i / k, 0, surf, cfg, pc, 0); A.v(x + c * r1, y1, z + sn * r1, c, 0, sn, i / k, 1, surf, cfg, pc, 0); }
+    for (let i = 0; i < k; i++) { const a = base + i * 2, am = (i + 0.5) / k * TAU; A.triN(a, a + 1, a + 3, Math.cos(am), 0, Math.sin(am)); A.triN(a, a + 3, a + 2, Math.cos(am), 0, Math.sin(am)); }
+    const c = A.v(x, y1, z, 0, 1, 0, 0, 0, surf, cfg, pc, 0); for (let i = 0; i < k; i++) A.triN(c, base + i * 2 + 1, base + i * 2 + 3, 0, 1, 0);
+  },
+  // modern street light: plinth, tapered octagonal pole, slender outreach arm(s), flat LED luminaire with a glowing lens
+  lamp(A, x, y, z, tx, tz, dirs, H, arm, cfg, tall) {
+    const rx = -tz, rz = tx;
+    this.box(A, x, z, y, y + (tall ? 0.15 : 0.5), 0.34, 0.34, tx, tz, 15, cfg);
+    this.cyl(A, x, z, y, y + H, 0.11, 0.06, 8, 12, cfg);
+    for (const ad of dirs) {
+      const ex = x + rx * ad * arm, ez = z + rz * ad * arm;
+      this.box(A, x + rx * ad * arm * 0.5, z + rz * ad * arm * 0.5, y + H - 0.17, y + H - 0.07, arm, 0.07, tx, tz, 12, cfg);
+      this.box(A, ex, ez, y + H - 0.22, y + H - 0.04, 0.95, 0.36, tx, tz, 15, cfg, true);
+      this.box(A, ex, ez, y + H - 0.27, y + H - 0.2, 0.99, 0.4, tx, tz, 13, cfg, true);
+    }
+  },
+  // sidewalk band between an inner curb line ia (with .y) and an outer line oa: curb face, chamfer, walk, skirt
+  curbRun(A, ia, oa, sT) {
+    const M = ia.length, cH = 0.18, ch = 0.06, prof = [[0, 0, 2], [0, cH - ch, 1], [ch, cH, 1], [1, cH, 2], [1, -1.6]];
+    let arcL = 0; const vs = [0]; for (let j = 1; j < M; j++) { arcL += Math.hypot(ia[j].x - ia[j - 1].x, ia[j].z - ia[j - 1].z); vs.push(arcL); }
+    for (let e = 0; e < prof.length - 1; e++) {
+      const base = A.count, sf = prof[e][2];
+      for (let j = 0; j < M; j++) {
+        const ex = oa[j].x - ia[j].x, ez = oa[j].z - ia[j].z, W = Math.hypot(ex, ez) || 1, ux = ex / W, uz = ez / W, yy = ia[j].y;
+        const o0 = prof[e][0] === 1 ? W : prof[e][0], o1 = prof[e + 1][0] === 1 ? W : prof[e + 1][0], h0 = prof[e][1], h1 = prof[e + 1][1];
+        let nu = h0 - h1, nh = o1 - o0; const l = Math.hypot(nu, nh) || 1; nu /= l; nh /= l; const top = nh > 0.7;
+        A.v(ia[j].x + ux * o0, yy + h0, ia[j].z + uz * o0, ux * nu, nh, uz * nu, top ? sT.cw + o0 : vs[j], top ? vs[j] : h0, sf, sT.cfg, 1, 128);
+        A.v(ia[j].x + ux * o1, yy + h1, ia[j].z + uz * o1, ux * nu, nh, uz * nu, top ? sT.cw + o1 : vs[j], top ? vs[j] : h1, sf, sT.cfg, 1, 128);
+      }
+      for (let j = 0; j < M - 1; j++) { const a = base + j * 2, P = A.n, gx = P[a * 3], gy = P[a * 3 + 1], gz = P[a * 3 + 2]; A.triN(a, a + 1, a + 3, gx, gy, gz); A.triN(a, a + 3, a + 2, gx, gy, gz); }
+    }
+  },
+  // rounded end where a street stops (no cul-de-sac bulb, just a kerbed half disc)
+  buildCap(n, A) {
+    const s = this.segs.get(n.segs[0]); if (!s || n.outside) return null;
+    const T = s.T; if (T.underground || T.rail || T.metro || T.tramOnly) return null;
+    const p = this.pointAt(s, s.a === n.id ? 0 : s.len), d = this.dirFrom(s, n), ox = -d.x, oz = -d.z, rx = -oz, rz = ox;
+    if (p.bridge) return null;
+    const start = A.count, K = 10, y = p.y, R = T.ped ? T.hw : T.cw, ring = [], outer = [];
+    for (let k = 0; k <= K; k++) { const a = k / K * Math.PI, c = Math.cos(a), sn = Math.sin(a); ring.push({ x: p.x + (rx * c + ox * sn) * R, z: p.z + (rz * c + oz * sn) * R, y }); outer.push({ x: p.x + (rx * c + ox * sn) * T.hw, z: p.z + (rz * c + oz * sn) * T.hw }); }
+    const ci = A.v(p.x, y + (T.ped ? 0.1 : 0), p.z, 0, 1, 0, p.x, p.z, T.ped ? 8 : T.surf === 5 ? 5 : 11, 0, 1, 128);
+    const rv = ring.map(q => A.v(q.x, y + (T.ped ? 0.1 : 0), q.z, 0, 1, 0, q.x, q.z, T.ped ? 8 : T.surf === 5 ? 5 : 11, 0, 1, 128));
+    for (let k = 0; k < K; k++) A.triN(ci, rv[k], rv[k + 1], 0, 1, 0);
+    if (T.sidewalk > 0) this.curbRun(A, ring, outer, T);
+    else { const base = A.count; for (let k = 0; k <= K; k++) { const q = ring[k], nx = q.x - p.x, nz = q.z - p.z, l = Math.hypot(nx, nz) || 1; A.v(q.x, y + (T.ped ? 0.1 : 0), q.z, nx / l, 0, nz / l, k, 0, 2, 0, 1, 0); A.v(q.x, y - 1.2, q.z, nx / l, 0, nz / l, k, -1.2, 2, 0, 1, 0); } for (let k = 0; k < K; k++) { const a = base + k * 2, q = ring[k]; A.triN(a, a + 1, a + 3, q.x - p.x, 0, q.z - p.z); A.triN(a, a + 3, a + 2, q.x - p.x, 0, q.z - p.z); } }
+    return { start, count: A.count - start };
   },
   buildNode(n, A) {
+    if (n.segs.length === 1) { n.vr = this.buildCap(n, A); return; }
     if (!n.corners || n.segs.length < 2) { n.vr = null; return; }
     const start = A.count;
     const C = n.corners, N = C.length;
     const anyUnder = C.some(c => c.it.s.T.underground); if (anyUnder) { n.vr = null; return; }
-    const y = n.y;
+    const y = n.y, cH = 0.18;
     const allPed = C.every(c => c.it.s.T.ped || c.it.s.T.tramOnly);
     const isRail = C.some(c => c.it.s.T.rail);
     const surfMain = allPed ? 8 : isRail ? 6 : 11;
-    const inner = [], outer = [];
+    const inner = [];
     const curvePts = (p0, d0, p1, d1, k) => {
       const X = lineIntersect(p0, d0, p1, d1); const pts = [];
       let ctrl = X && X.t < 0.5 && X.s < 0.5 && X.t > -60 && X.s > -60 ? { x: X.x, z: X.z } : null;
@@ -2690,65 +3239,105 @@ const Net = {
     for (let i = 0; i < N; i++) {
       const c = C[i], nx = C[(i + 1) % N];
       const cw = allPed ? c.it.hw : c.it.cw, hw = c.it.hw;
-      const L = { x: c.p.x - c.r.x * cw, z: c.p.z - c.r.z * cw }, R = { x: c.p.x + c.r.x * cw, z: c.p.z + c.r.z * cw };
-      const LO = { x: c.p.x - c.r.x * hw, z: c.p.z - c.r.z * hw }, RO = { x: c.p.x + c.r.x * hw, z: c.p.z + c.r.z * hw };
-      inner.push(L, R); outer.push({ p: LO, edge: true }, { p: RO, edge: true });
+      const L = { x: c.p.x - c.r.x * cw, z: c.p.z - c.r.z * cw, y: c.p.y }, R = { x: c.p.x + c.r.x * cw, z: c.p.z + c.r.z * cw, y: c.p.y };
+      const RO = { x: c.p.x + c.r.x * hw, z: c.p.z + c.r.z * hw };
+      inner.push(L, R);
       const cw2 = allPed ? nx.it.hw : nx.it.cw, hw2 = nx.it.hw;
-      const L2 = { x: nx.p.x - nx.r.x * cw2, z: nx.p.z - nx.r.z * cw2 }, LO2 = { x: nx.p.x - nx.r.x * hw2, z: nx.p.z - nx.r.z * hw2 };
+      const L2 = { x: nx.p.x - nx.r.x * cw2, z: nx.p.z - nx.r.z * cw2, y: nx.p.y }, LO2 = { x: nx.p.x - nx.r.x * hw2, z: nx.p.z - nx.r.z * hw2 };
       let gap = Math.atan2(nx.d.z, nx.d.x) - Math.atan2(c.d.z, c.d.x); if (gap <= 0) gap += TAU;
-      const straight = gap > Math.PI * 0.93;
+      const straight = Math.abs(gap - Math.PI) < 0.02;
       const k = straight ? 1 : 7;
-      const ci = straight ? [] : curvePts(R, c.d, L2, nx.d, k);
+      const ci = straight ? [] : curvePts(R, c.d, L2, nx.d, k); ci.forEach((q, j) => q.y = lerp(c.p.y, nx.p.y, (j + 1) / k));
       const co = straight ? [] : curvePts(RO, c.d, LO2, nx.d, k);
-      // sidewalk corner strip
-      if (!allPed && (c.it.s.T.sidewalk > 0 || nx.it.s.T.sidewalk > 0) && !straight) {
-        const ia = [R, ...ci, L2], oa = [RO, ...co, LO2];
-        const base = A.count;
-        for (let j = 0; j < ia.length; j++) { A.v(ia[j].x, y + 0.18, ia[j].z, 0, 1, 0, ia[j].x, ia[j].z, 1, 0, 1, 0); A.v(oa[j].x, y + 0.18, oa[j].z, 0, 1, 0, oa[j].x, oa[j].z, 1, 0, 1, 0); }
-        for (let j = 0; j < ia.length - 1; j++) { const a = base + j * 2; A.triN(a, a + 1, a + 3, 0, 1, 0); A.triN(a, a + 3, a + 2, 0, 1, 0); }
-        const cb = A.count; for (let j = 0; j < ia.length; j++) { const dx = n.x - ia[j].x, dz = n.z - ia[j].z, l = Math.hypot(dx, dz) || 1; A.v(ia[j].x, y, ia[j].z, dx / l, 0, dz / l, j, 0, 2, 0, 1, 0); A.v(ia[j].x, y + 0.18, ia[j].z, dx / l, 0, dz / l, j, 0.18, 2, 0, 1, 0); }
-        for (let j = 0; j < ia.length - 1; j++) { const a = cb + j * 2; const dx = n.x - ia[j].x, dz = n.z - ia[j].z; A.triN(a, a + 1, a + 3, dx, 0, dz); A.triN(a, a + 3, a + 2, dx, 0, dz); }
-        const ob = A.count; for (let j = 0; j < oa.length; j++) { const dx = oa[j].x - n.x, dz = oa[j].z - n.z, l = Math.hypot(dx, dz) || 1; A.v(oa[j].x, y - 1.6, oa[j].z, dx / l, 0, dz / l, j, 0, 2, 0, 1, 0); A.v(oa[j].x, y + 0.18, oa[j].z, dx / l, 0, dz / l, j, 0.18, 2, 0, 1, 0); }
-        for (let j = 0; j < oa.length - 1; j++) { const a = ob + j * 2; const dx = oa[j].x - n.x, dz = oa[j].z - n.z; A.triN(a, a + 1, a + 3, dx, 0, dz); A.triN(a, a + 3, a + 2, dx, 0, dz); }
-      }
+      // sidewalk corner: curb face, chamfered curb stone, walk surface and skirt, with (u, v) laid out like the segment sidewalks
+      const sT = c.it.s.T.sidewalk > 0 ? c.it.s.T : nx.it.s.T;
+      if (!allPed && sT.sidewalk > 0) this.curbRun(A, [R, ...ci, L2], [RO, ...co, LO2], sT);
       inner.push(...ci);
     }
     // asphalt fan
-    const cIdx = A.v(n.x, y, n.z, 0, 1, 0, n.x, n.z, surfMain, 0, 1, 0);
-    const ring = inner.map(p => A.v(p.x, y, p.z, 0, 1, 0, p.x, p.z, surfMain, 0, 1, 0));
+    const cIdx = A.v(n.x, y, n.z, 0, 1, 0, n.x, n.z, surfMain, 0, 1, 128);
+    const ring = inner.map(p => A.v(p.x, p.y, p.z, 0, 1, 0, p.x, p.z, surfMain, 0, 1, 128));
     for (let i = 0; i < ring.length; i++) A.triN(cIdx, ring[i], ring[(i + 1) % ring.length], 0, 1, 0);
     // underside for elevated junctions
     if (y - Terrain.height(n.x, n.z) > 2.5) {
-      const ring2 = inner.map(p => A.v(p.x, y - 1.4, p.z, 0, -1, 0, p.x, p.z, 4, 0, 1, 0)); const c2 = A.v(n.x, y - 1.4, n.z, 0, -1, 0, 0, 0, 4, 0, 1, 0);
+      const ring2 = inner.map(p => A.v(p.x, p.y - 1.65, p.z, 0, -1, 0, p.x, p.z, 4, 0, 1, 0)); const c2 = A.v(n.x, y - 1.65, n.z, 0, -1, 0, 0, 0, 4, 0, 1, 0);
       for (let i = 0; i < ring2.length; i++) A.triN(c2, ring2[i], ring2[(i + 1) % ring2.length], 0, -1, 0);
-      const gy = Math.min(Terrain.height(n.x, n.z), Terrain.seaLevel) - 2; this.box(A, n.x, n.z, gy, y - 1.4, 2.2, 2.2, 1, 0, 4, 0);
+      const gy = Math.min(Terrain.height(n.x, n.z), Terrain.seaLevel) - 2; this.box(A, n.x, n.z, gy, y - 1.65, 2.2, 2.2, 1, 0, 4, 0);
     }
-    // traffic light poles
+    // traffic signal masts (heads are instanced by Traffic) with pedestrian signal boxes; street name signs elsewhere
     if (n.light) for (const c of C) {
       if (c.it.s.T.ped) continue;
-      const px = c.p.x + c.r.x * (c.it.hw - 0.6), pz = c.p.z + c.r.z * (c.it.hw - 0.6);
-      this.box(A, px, pz, y + 0.18, y + 6.2, 0.2, 0.2, c.d.x, c.d.z, 12, 0);
-      const armL = Math.min(c.it.cw, 7.5);
-      const ax = px - c.r.x * armL / 2, az = pz - c.r.z * armL / 2;
-      this.box(A, ax, az, y + 5.9, y + 6.1, armL, 0.14, c.d.x, c.d.z, 12, 0);
+      // mast on the kerb of the incoming lanes, outreach arm over them, three-lens head (lenses instanced by Traffic) with backplate and visors
+      const dx = c.d.x, dz = c.d.z, rx = -c.r.x, rz = -c.r.z, o = c.it.hw - 0.6, px = c.p.x + rx * o, pz = c.p.z + rz * o, armL = Math.min(c.it.cw, 7.5), hy = y + 5.3;
+      const hx = px - rx * armL + dx * 0.3, hz = pz - rz * armL + dz * 0.3;
+      this.box(A, px, pz, y + cH, y + 0.45, 0.42, 0.42, dx, dz, 15, 0);
+      this.cyl(A, px, pz, y + cH, y + 6.3, 0.13, 0.09, 8, 12, 0);
+      this.box(A, px - rx * (armL + 0.25) / 2, pz - rz * (armL + 0.25) / 2, y + 5.94, y + 6.08, armL + 0.25, 0.12, dx, dz, 12, 0, true);
+      this.box(A, hx - dx * 0.25, hz - dz * 0.25, hy + 0.5, y + 5.96, 0.07, 0.07, dx, dz, 12, 0);
+      this.box(A, hx, hz, hy - 0.5, hy + 0.5, 0.36, 0.26, dx, dz, 15, 0, true);
+      this.box(A, hx - dx * 0.15, hz - dz * 0.15, hy - 0.64, hy + 0.64, 0.66, 0.035, dx, dz, 15, 0, true);
+      for (const ly of [0.3, 0, -0.3]) this.box(A, hx + dx * 0.22, hz + dz * 0.22, hy + ly + 0.1, hy + ly + 0.125, 0.25, 0.18, dx, dz, 15, 0, true);
+      // pedestrian signal on the mast, facing across the approach
+      this.box(A, px - rx * 0.2, pz - rz * 0.2, y + 2.4, y + 2.95, 0.22, 0.3, rx, rz, 15, 0, true);
+    } else if (N >= 3 && !allPed && !isRail) {
+      // stop / give-way signs for the minor approaches, by the stop line on the kerb of the incoming lanes
+      // priority: the straightest pair of the highest-ranked roads runs through, every other approach yields
+      const P = this._P, top = Math.max(...C.map(c => c.it.s.T.hier)); let pa = -1, pb = -1, bd = -0.5;
+      for (let i = 0; i < N; i++) for (let j = i + 1; j < N; j++) { if (C[i].it.s.T.hier < top || C[j].it.s.T.hier < top) continue; const dt = C[i].d.x * C[j].d.x + C[i].d.z * C[j].d.z; if (dt < bd) { bd = dt; pa = i; pb = j; } }
+      if (P) for (let i = 0; i < N; i++) { const c = C[i], T2 = c.it.s.T; if (T2.sidewalk <= 0 || i === pa || i === pb || (pa < 0 && T2.hier >= top)) continue;
+        const x = c.p.x - c.r.x * (c.it.cw + 0.45) + c.d.x * 6.3, z = c.p.z - c.r.z * (c.it.cw + 0.45) + c.d.z * 6.3, py = c.p.y + cH, k = T2.hier <= 1 ? 1 : 2;
+        this.cyl(P, x, z, py, py + 2.62, 0.035, 0.03, 6, 12, 0); this.box(P, x - c.d.x * 0.03, z - c.d.z * 0.03, py + 1.95, py + 2.6, 0.66, 0.02, c.d.x, c.d.z, 18, 0, true, 5);
+        this.quad(P, x - c.d.x * 0.015, z - c.d.z * 0.015, py + 1.96, py + 2.59, 0.63, c.d.x, c.d.z, 19, k); }
+      const c = C[0]; if (c.it.s.T.sidewalk > 0) {
+        const px = c.p.x + c.r.x * (c.it.cw + 0.5) + c.d.x * 0.6, pz = c.p.z + c.r.z * (c.it.cw + 0.5) + c.d.z * 0.6, py = c.p.y + cH;
+        this.cyl(A, px, pz, py, py + 3.1, 0.045, 0.04, 6, 12, 0);
+        this.box(A, px, pz, py + 2.62, py + 2.84, 1.0, 0.03, c.d.x, c.d.z, 17, 0, true);
+        this.box(A, px, pz, py + 2.87, py + 3.09, 1.0, 0.03, -c.d.z, c.d.x, 17, 0, true);
+      }
     }
     n.vr = { start, count: A.count - start };
   },
   rebuildChunk(ch) {
-    const A = new Acc();
+    const A = new Acc(), P = this._P = (Gfx.q.roadDetail || 0) > 0 ? new Acc() : null;
     for (const sid of ch.segs) { const s = this.segs.get(sid); if (s) { this.buildSeg(s, A); if (s.vr) s.vr.chunk = ch; } }
     for (const nid of ch.nodes) { const n = this.nodes.get(nid); if (n) { this.buildNode(n, A); if (n.vr) n.vr.chunk = ch; } }
+    this._P = null;
     if (ch.mesh) { this.group.remove(ch.mesh); ch.mesh.geometry.dispose(); ch.mesh = null; }
+    if (ch.pmesh) { this.group.remove(ch.pmesh); ch.pmesh.geometry.dispose(); ch.pmesh = null; }
     if (A.count) {
       const m = new THREE.Mesh(A.geometry(), this.mat); m.receiveShadow = true; m.castShadow = true; m.matrixAutoUpdate = false; m.userData.chunk = ch;
       this.group.add(m); ch.mesh = m;
       if (InfoViews.active) InfoViews.applyRoadsChunk(ch);
     }
+    if (P && P.count) { const m = new THREE.Mesh(P.geometry(), this.mat); m.receiveShadow = true; m.castShadow = !!Gfx.q.detailShadows; m.matrixAutoUpdate = false; m.visible = false; this.group.add(m); ch.pmesh = m; }
     ch.dirty = false;
   },
+  // street furniture along a sidewalk road: hydrants, litter bins and (on wide sidewalks) benches, clear of lamps and street trees
+  props(s, d0, d1, P) {
+    const T = s.T, Ld = d1 - d0, tree = s.up.trees || s.up.grass, cH = 0.18; if (Ld < 16) return;
+    const at = (v, side, uo) => { const p = this.pointAt(s, d0 + v); if (p.bridge) return null; const u = side * (T.cw + uo); return { x: p.x - p.tz * u, z: p.z + p.tx * u, y: p.y + cH, tx: p.tx, tz: p.tz, ox: -p.tz * side, oz: p.tx * side }; };
+    for (let v = 12; v < Ld - 6; v += 90) { const q = at(v, 1, 0.55); if (!q) continue;
+      this.cyl(P, q.x, q.z, q.y, q.y + 0.55, 0.12, 0.11, 8, 18, 0, 1); this.cyl(P, q.x, q.z, q.y + 0.55, q.y + 0.7, 0.1, 0.04, 8, 18, 0, 1);
+      this.box(P, q.x, q.z, q.y + 0.3, q.y + 0.4, 0.4, 0.1, q.tx, q.tz, 18, 0, true, 1); }
+    if (!tree) for (let v = 26; v < Ld - 6; v += 60) { const q = at(v, -1, 0.6); if (!q) continue;
+      this.cyl(P, q.x, q.z, q.y, q.y + 0.92, 0.22, 0.24, 8, 18, 0, 2); this.cyl(P, q.x, q.z, q.y + 0.92, q.y + 0.98, 0.26, 0.2, 8, 18, 0, 4); }
+    if (!tree && T.sidewalk >= 3) for (let v = 41; v < Ld - 6; v += 60) { const q = at(v, 1, T.sidewalk - 0.8); if (!q) continue;
+      this.box(P, q.x, q.z, q.y + 0.42, q.y + 0.47, 0.46, 1.7, q.tx, q.tz, 18, 0, true, 3);
+      this.box(P, q.x + q.ox * 0.24, q.z + q.oz * 0.24, q.y + 0.52, q.y + 0.88, 0.05, 1.7, q.tx, q.tz, 18, 0, true, 3);
+      for (const e of [-0.72, 0.72]) this.box(P, q.x + q.tx * e, q.z + q.tz * e, q.y, q.y + 0.86, 0.5, 0.06, q.tx, q.tz, 18, 0, false, 4); }
+  },
+  // vertical quad facing (nx, nz), uv 0..1 (sign faces)
+  quad(A, cx, cz, y0, y1, w, nx, nz, surf, k) {
+    const rx = -nz, rz = nx, a = A.v(cx - rx * w / 2, y0, cz - rz * w / 2, nx, 0, nz, 0, 0, surf, 0, k, 0), b = A.v(cx + rx * w / 2, y0, cz + rz * w / 2, nx, 0, nz, 1, 0, surf, 0, k, 0);
+    const c = A.v(cx + rx * w / 2, y1, cz + rz * w / 2, nx, 0, nz, 1, 1, surf, 0, k, 0), d = A.v(cx - rx * w / 2, y1, cz - rz * w / 2, nx, 0, nz, 0, 1, surf, 0, k, 0);
+    A.triN(a, b, c, nx, 0, nz); A.triN(a, c, d, nx, 0, nz);
+  },
   update(force) {
-    const t0 = nowMs();
+    const t0 = nowMs(); this.uQ.value = Gfx.q.roadDetail || 0;
     for (const ch of this.chunks.values()) { if (ch.dirty) { this.rebuildChunk(ch); if (!force && nowMs() - t0 > 12) break; } }
+    // street furniture only near the camera
+    const c = Gfx.camera.position, R = (Gfx.q.detailDist || 300) + 80;
+    for (const ch of this.chunks.values()) if (ch.pmesh) { const dx = Math.max(ch.x0 - c.x, 0, c.x - ch.x0 - ROAD_CHUNK), dz = Math.max(ch.z0 - c.z, 0, c.z - ch.z0 - ROAD_CHUNK); ch.pmesh.visible = dx * dx + dz * dz < R * R && c.y - CamCtl.target.y < R * 1.5; }
   },
   showUnderground: false,
   setUnderground(on) { this.showUnderground = on; for (const ch of this.chunks.values()) { for (const sid of ch.segs) { const s = this.segs.get(sid); if (s && s.T.underground) { ch.dirty = true; break; } } } },
@@ -2775,24 +3364,55 @@ const Net = {
     Bus.emit('segSplit', { old: s, parts: [s1, s2], node: n });
     return n;
   },
-  conform(s) {
-    const T = s.T; if (T.underground) return;
-    const hw = T.hw, R = hw + 10;
-    const bb = s.bb;
-    Terrain.modify(bb.minX - 8, bb.minZ - 8, bb.maxX + 8, bb.maxZ + 8, (x, z, h) => {
-      const q = this.closestOnSeg(s, x, z); if (q.d > R) return;
-      const p = this.pointAt(s, q.arc); if (p.bridge && p.y - h > 3) return;
-      const ty = p.y - (T.rail ? 0.35 : ROAD_CLEAR);
-      const w = smoothstep(R, hw + 1.0, q.d);
-      if (q.d < hw + 1.0) return ty;
-      return lerp(h, ty, w * (p.bridge ? 0.5 : 1));
+  /* terrain under roads: every ground (non-bridge) road in the area constrains each terrain sample to an interval:
+     flat road bed inside its footprint + verge, then eased cut/fill slopes. Clamping the ground into the intersection of
+     all intervals is order independent and idempotent, so neighbouring roads never undo each other's beds. */
+  _cq: { d: 0, arc: 0, i: 0, f: 0 },
+  _closest(s, x, z) {
+    const xs = s.xs, zs = s.zs, n = s.n; let bd = Infinity, bi = 0, bt = 0;
+    for (let i = 0; i < n - 1; i++) {
+      const ax = xs[i], az = zs[i], dx = xs[i + 1] - ax, dz = zs[i + 1] - az, l2 = dx * dx + dz * dz;
+      let t = l2 > 0 ? ((x - ax) * dx + (z - az) * dz) / l2 : 0; t = t < 0 ? 0 : t > 1 ? 1 : t;
+      const ex = ax + dx * t - x, ez = az + dz * t - z, d2 = ex * ex + ez * ez;
+      if (d2 < bd) { bd = d2; bi = i; bt = t; }
+    }
+    const q = this._cq; q.d = Math.sqrt(bd); q.i = bi; q.f = bt; q.arc = s.arc[bi] + (s.arc[bi + 1] - s.arc[bi]) * bt; return q;
+  },
+  conformArea(x0, z0, x1, z1) {
+    const cand = []; for (const s of this.segHash.query(x0 - 64, z0 - 64, x1 + 64, z1 + 64)) if (!s.T.underground && s.reach !== undefined) cand.push(s);
+    if (!cand.length) return false;
+    return Terrain.modify(x0, z0, x1, z1, (x, z, h) => {
+      let lo = -1e9, hi = 1e9, hard = 1e9, hit = false;
+      for (const s of cand) {
+        const R = s.reach + s.T.verge, bb = s.bb;
+        if (x < bb.minX - R || x > bb.maxX + R || z < bb.minZ - R || z > bb.maxZ + R) continue;
+        const q = this._closest(s, x, z), xx = q.d - s.T.hw - s.T.verge;
+        if (xx > s.reach) continue;
+        if (s.bridge[q.f < 0.5 ? q.i : q.i + 1]) continue;
+        const y = s.ys[q.i] + (s.ys[q.i + 1] - s.ys[q.i]) * q.f - (s.T.rail ? 0.35 : ROAD_CLEAR);
+        hit = true;
+        if (xx <= 0) { const yh = q.d < s.T.cw ? y - 0.17 : y; if (yh < hard) hard = yh; continue; }
+        const ez = xx < EASE_W ? xx * xx / (2 * EASE_W) : xx - EASE_W / 2;
+        lo = Math.max(lo, y - FILL_K * ez); hi = Math.min(hi, y + CUT_K * ez);
+      }
+      if (!hit) return;
+      if (hard < 1e9) return Math.min(hard, hi);
+      return lo <= hi ? clamp(h, lo, hi) : hi;
     });
   },
-  conformNode(n) {
-    if (n.segs.length < 2) return; let r = 0; for (const sid of n.segs) { const s = this.segs.get(sid); if (s) r = Math.max(r, (n.trims[sid] || 0) + s.T.hw); }
-    if (n.y - Terrain.height(n.x, n.z) > 3) return;
-    const R = r + 6;
-    Terrain.modify(n.x - R, n.z - R, n.x + R, n.z + R, (x, z, h) => { const d = dist2(x, z, n.x, n.z); if (d > R) return; return lerp(h, n.y - ROAD_CLEAR, smoothstep(R, r, d)); });
+  conformSegs(list) {
+    for (const s of list) { if (!this.segs.has(s.id) || s.T.underground || s.reach === undefined) continue; const R = s.reach + s.T.verge + 1, bb = s.bb; if (this.conformArea(bb.minX - R, bb.minZ - R, bb.maxX + R, bb.maxZ + R)) this.settleFlora(bb.minX - R, bb.minZ - R, bb.maxX + R, bb.maxZ + R); }
+  },
+  conform(s) { this.reprof.add(s); this.flushConform(); },
+  conformNode(n) { for (const sid of n.segs) { const s = this.segs.get(sid); if (s) this.reprof.add(s); } this.flushConform(); },
+  flushConform() { const l = [...this.reprof]; this.reprof.clear(); this.conformSegs(l); },
+  // trees standing on re-graded ground follow it (and leave steep fresh embankments)
+  settleFlora(x0, z0, x1, z1) {
+    for (let cx = Math.floor(x0 / CELL_T); cx <= Math.floor(x1 / CELL_T); cx++) for (let cz = Math.floor(z0 / CELL_T); cz <= Math.floor(z1 / CELL_T); cz++) {
+      const c = Flora.cells.get(cx + ',' + cz); if (!c) continue;
+      c.trees = c.trees.filter(t => { if (t.x < x0 || t.x > x1 || t.z < z0 || t.z > z1) return true; const y = Terrain.height(t.x, t.z) - 0.2; if (Math.abs(y - t.y) < 0.05) return true; if (!t.planted && Terrain.slope(t.x, t.z) > 0.9) return false; t.y = y; return true; });
+    }
+    Flora.dirty = true;
   },
   isConnected(a, b) { return a.segs.some(sid => { const s = this.segs.get(sid); return s && (s.a === b.id || s.b === b.id); }); },
   /* ---------- graph for pathfinding ---------- */
@@ -2849,7 +3469,42 @@ Object.assign(Net, {
         }
       }
     }
+    if (!errs.length && !T.underground) for (const c of curves) if (!this.spacingOk(c, type, elev)) { errs.push('Too close to another junction'); break; }
     return { errs: [...new Set(errs)], cost: Math.round(cost), len };
+  },
+  // junctions closer together than their set-backs would overlap: check every junction the new curve creates or extends
+  spacingOk(c, type, elev) {
+    const T = ROAD_TYPES[type], { pts } = this.sampleCurve(c, 3), cum = [0];
+    for (let i = 1; i < pts.length; i++) cum.push(cum[i - 1] + dist2(pts[i - 1].x, pts[i - 1].z, pts[i].x, pts[i].z));
+    const arcAt = t => { const f = t * (pts.length - 1), i = Math.min(pts.length - 2, Math.floor(f)); return lerp(cum[i], cum[i + 1], f - i); };
+    const trimsAt = (others, t) => { // others: [{d, hw, seg?, back?}] meeting the new road at curve parameter t
+      const d = qbezTan(c.p0, c.c, c.p1, t), items = others.slice();
+      if (t > 0) items.push({ d: { x: -d.x, z: -d.z }, hw: T.hw, me: -1 }); if (t < 1) items.push({ d, hw: T.hw, me: 1 });
+      items.sort((a, b) => Math.atan2(a.d.z, a.d.x) - Math.atan2(b.d.z, b.d.x));
+      if (items.length === 2 && items[0].d.x * items[1].d.x + items[0].d.z * items[1].d.z < -0.985) return { f: 0, b: 0, items: items.map(it => ({ ...it, tr: 0 })) };
+      const tr = this.calcTrims(items); let f = 0, b = 0; items.forEach((it, i) => { it.tr = tr[i]; if (it.me === 1) f = tr[i]; if (it.me === -1) b = tr[i]; });
+      return { f, b, items };
+    };
+    const segDirs = (s, arc) => { const p = this.pointAt(s, arc); return [{ d: { x: p.tx, z: p.tz }, hw: s.T.hw, seg: s, fwd: true }, { d: { x: -p.tx, z: -p.tz }, hw: s.T.hw, seg: s, fwd: false }]; };
+    const nodeDirs = n => n.segs.map(sid => this.segs.get(sid)).filter(s => s && this.compatible(type, s)).map(s => ({ d: this.dirFrom(s, n), hw: s.T.hw, seg: s, node: n }));
+    const stops = [];
+    // a split existing segment must still fit both of its new junction set-backs
+    const segFits = (s, arc, st) => { for (const it of st.items) if (it.seg === s) { const n = this.nodes.get(it.fwd ? s.b : s.a), room = it.fwd ? s.len - arc : arc; if (it.tr + ((n && n.trims[s.id]) || 0) > room * 0.95) return false; } return true; };
+    const nodeFits = st => { for (const it of st.items) if (it.node) { const s = it.seg, o = this.nodes.get(s.a === it.node.id ? s.b : s.a); if (it.tr + ((o && o.trims[s.id]) || 0) > s.len * 0.95) return false; } return true; };
+    for (const [e, t] of [[c.p0, 0], [c.p1, 1]]) {
+      let st = null;
+      if (e.node && this.nodes.has(e.node.id)) { st = trimsAt(nodeDirs(e.node), t); if (!nodeFits(st)) return false; }
+      else if (e.seg && this.segs.has(e.seg.id)) { const q = this.closestOnSeg(e.seg, e.x, e.z); if (q.arc > 3 && q.arc < e.seg.len - 3) { st = trimsAt(segDirs(e.seg, q.arc), t); if (!segFits(e.seg, q.arc, st)) return false; } else { st = trimsAt(nodeDirs(this.nodes.get(q.arc <= 3 ? e.seg.a : e.seg.b)), t); if (!nodeFits(st)) return false; } }
+      stops.push({ a: arcAt(t), f: st ? st.f : 0, b: st ? st.b : 0 });
+    }
+    for (const x of this.crossings(c, type, elev)) {
+      if (x.t < 0.02 || x.t > 0.98) continue;
+      let st; if (x.arc < 4 || x.arc > x.s.len - 4) { st = trimsAt(nodeDirs(this.nodes.get(x.arc < 4 ? x.s.a : x.s.b)), x.t); if (!nodeFits(st)) return false; } else { st = trimsAt(segDirs(x.s, x.arc), x.t); if (!segFits(x.s, x.arc, st)) return false; }
+      stops.push({ a: arcAt(x.t), f: st.f, b: st.b });
+    }
+    stops.sort((p, q) => p.a - q.a);
+    for (let i = 0; i < stops.length - 1; i++) if (stops[i].f + stops[i + 1].b > (stops[i + 1].a - stops[i].a) * 0.95) return false;
+    return true;
   },
   /* find crossings between a new curve and the existing network */
   crossings(c, type, elev) {
@@ -2934,11 +3589,10 @@ Object.assign(Net, {
       }
     }
     // terrain conform & side effects
-    for (const s of created) { if (!s.T.underground) this.conform(s); }
-    const touched = new Set(); for (const s of created) { touched.add(s.a); touched.add(s.b); }
-    for (const id of touched) { const n = this.nodes.get(id); if (n) { this.conformNode(n); } }
+    for (const s of created) if (!s.T.underground) this.reprof.add(s);
+    this.flushConform();
     for (const s of created) {
-      const ys = s.ys; for (let i = 0; i < s.n; i++) s.gs[i] = Terrain.height(s.xs[i], s.zs[i]);
+      for (let i = 0; i < s.n; i++) s.gs[i] = Terrain.height(s.xs[i], s.zs[i]);
       if (!s.T.underground) Flora.removeWhere(s.bb.minX, s.bb.minZ, s.bb.maxX, s.bb.maxZ, (x, z) => this.closestOnSeg(s, x, z).d < s.T.hw + 2.5);
       if (s.up.trees) this.plantStreetTrees(s);
       Bus.emit('segAdded', s);
@@ -2956,7 +3610,7 @@ Object.assign(Net, {
     const opts = { up: s.up, name: s.name };
     this.removeSeg(s, true);
     const ns = this.addSeg(a, b, type, s.cx, s.cz, opts);
-    this.conform(ns); this.conformNode(a); this.conformNode(b);
+    this.reprof.add(ns); this.flushConform();
     Flora.removeWhere(ns.bb.minX, ns.bb.minZ, ns.bb.maxX, ns.bb.maxZ, (x, z) => this.closestOnSeg(ns, x, z).d < ns.T.hw + 2.5);
     if (ns.up.trees) this.plantStreetTrees(ns);
     Econ.spend(cost, 'Roads'); Bus.emit('segAdded', ns); Bus.emit('netChanged');
@@ -2988,6 +3642,7 @@ Object.assign(Net, {
     this.removeSeg(s);
     // merge pass-through nodes (two collinear segments of same type) to keep graph clean
     for (const n of [a, b]) if (n && this.nodes.has(n.id)) this.tryMerge(n);
+    this.flushConform();
     Econ.earn(refund, 'Refunds'); Bus.emit('netChanged'); Audio.play('bulldoze');
   },
   tryMerge(n) {
@@ -3114,18 +3769,12 @@ const RoadTool = {
     const T = ROAD_TYPES[this.type];
     const pos = [], idx = [];
     for (const c of curves) {
-      const { pts } = Net.sampleCurve(c, 3);
-      const base = pos.length / 3;
-      const y0 = c.p0.node ? c.p0.node.y : Terrain.height(c.p0.x, c.p0.z) + this.elev;
-      const y1 = c.p1.node ? c.p1.node.y : Terrain.height(c.p1.x, c.p1.z) + this.elev;
-      for (let i = 0; i < pts.length; i++) {
-        const t = pts[i].t; const d = qbezTan(c.p0, c.c, c.p1, t); const rx = -d.z, rz = d.x;
-        let y = this.elev > 2 ? lerp(y0, y1, t) : Math.max(Terrain.height(pts[i].x, pts[i].z), Terrain.seaLevel + (Terrain.isWater(pts[i].x, pts[i].z) ? 7 : 0));
-        if (T.underground) y = Terrain.height(pts[i].x, pts[i].z) + 0.5;
-        y += 0.35;
-        pos.push(pts[i].x - rx * T.hw, y, pts[i].z - rz * T.hw, pts[i].x + rx * T.hw, y, pts[i].z + rz * T.hw);
+      const s = Net.previewSeg(c, this.type, this.elev), base = pos.length / 3;
+      for (let i = 0; i < s.n; i++) {
+        const rx = -s.tz[i], rz = s.tx[i], y = T.underground ? Terrain.height(s.xs[i], s.zs[i]) + 0.5 : s.ys[i] + 0.35;
+        pos.push(s.xs[i] - rx * T.hw, y, s.zs[i] - rz * T.hw, s.xs[i] + rx * T.hw, y, s.zs[i] + rz * T.hw);
       }
-      for (let i = 0; i < pts.length - 1; i++) { const a = base + i * 2; idx.push(a, a + 2, a + 1, a + 1, a + 2, a + 3); }
+      for (let i = 0; i < s.n - 1; i++) { const a = base + i * 2; idx.push(a, a + 2, a + 1, a + 1, a + 2, a + 3); }
     }
     const g = new THREE.BufferGeometry(); g.setAttribute('position', new THREE.Float32BufferAttribute(pos, 3)); g.setIndex(idx);
     this.clearGhost(); this.ghost = new THREE.Mesh(g, bad ? Net.ghostBad : Net.ghostMat); this.ghost.material.side = THREE.DoubleSide; this.ghost.renderOrder = 5; this.ghost.frustumCulled = false; Gfx.scene.add(this.ghost);
@@ -7321,8 +7970,7 @@ const Traffic = {
     this.parked.instanceColor = new THREE.InstancedBufferAttribute(new Float32Array(4000 * 3).fill(1), 3); this.parked.geometry.setAttribute('aBrake', new THREE.InstancedBufferAttribute(new Float32Array(4000), 1));
     Gfx.scene.add(this.parked);
     // traffic light heads
-    const lm = new THREE.MeshBasicMaterial({ color: 0xffffff }); lm.onBeforeCompile = sh => { sh.fragmentShader = sh.fragmentShader.replace('vec4 diffuseColor = vec4( diffuse, opacity );', 'vec4 diffuseColor = vec4( diffuse, opacity ); diffuseColor.rgb *= 3.5;'); };
-    this.lightHeads = new THREE.InstancedMesh(new THREE.BoxGeometry(0.35, 0.95, 0.35), lm, 3000); this.lightHeads.count = 0; this.lightHeads.frustumCulled = false; this.lightHeads.instanceColor = new THREE.InstancedBufferAttribute(new Float32Array(3000 * 3), 3); Gfx.scene.add(this.lightHeads);
+    this.lightHeads = new THREE.InstancedMesh(signalLensGeo(), signalLensMat(), 3000); this.lightHeads.count = 0; this.lightHeads.frustumCulled = false; this.lightHeads.instanceColor = new THREE.InstancedBufferAttribute(new Float32Array(3000 * 3), 3); Gfx.scene.add(this.lightHeads);
     Bus.on('netChanged', () => { this.graphV = -1; this.pathCache.clear(); this.parkDirty = true; this.lightsDirty = true; });
     Bus.on('segRemoved', s => { for (const v of this.vehicles) if (v.path && v.path.some(p => p.s === s)) v.dead = true; for (const p of this.peds) if (p.path && p.path.some(q => q.s === s)) p.dead = true; });
   },
@@ -7673,7 +8321,7 @@ const Traffic = {
     this.lightsDirty = false; this.lightList = [];
     for (const n of Net.nodes.values()) {
       if (!n.light || !n.corners) continue;
-      for (const c of n.corners) { if (c.it.s.T.ped) continue; const armL = Math.min(c.it.cw, 7.5); const px = c.p.x + c.r.x * (c.it.hw - 0.6 - armL), pz = c.p.z + c.r.z * (c.it.hw - 0.6 - armL); this.lightList.push({ n, sid: c.it.s.id, x: px + c.d.x * 0.3, y: n.y + 5.3, z: pz + c.d.z * 0.3, yaw: Math.atan2(c.d.x, c.d.z) }); }
+      for (const c of n.corners) { if (c.it.s.T.ped) continue; const armL = Math.min(c.it.cw, 7.5); const px = c.p.x - c.r.x * (c.it.hw - 0.6 - armL), pz = c.p.z - c.r.z * (c.it.hw - 0.6 - armL); this.lightList.push({ n, sid: c.it.s.id, x: px + c.d.x * 0.3, y: n.y + 5.3, z: pz + c.d.z * 0.3, yaw: Math.atan2(c.d.x, c.d.z) }); }
     }
     const m4 = new THREE.Matrix4(), q = new THREE.Quaternion(), e = new THREE.Euler(), p = new THREE.Vector3(), sc = new THREE.Vector3(1, 1, 1);
     let i = 0; for (const L of this.lightList) { if (i >= 3000) break; e.set(0, L.yaw, 0); q.setFromEuler(e); p.set(L.x, L.y, L.z); m4.compose(p, q, sc); this.lightHeads.setMatrixAt(i++, m4); }
@@ -9189,6 +9837,7 @@ const SelectTool = {
     $('gl').style.cursor = b ? 'pointer' : '';
   },
   click(ray, e) {
+    if (UI.sheets()) { const sx = CamCtl.mouse.x, sy = CamCtl.mouse.y; requestAnimationFrame(() => UI.reveal(sx, sy)); }
     const ag = Traffic.pick(ray); if (ag) { if (ag.kind === 'ped' && ag.p.cit >= 0) return Panels.citizen(ag.p.cit, ag.p); if (ag.kind === 'vehicle') return Panels.vehicle(ag.v); }
     const b = Bld.pick(ray, 6000); if (b) { Audio.play('click'); return Panels.building(b); }
     const hit = Terrain.raycast(ray.origin, ray.direction); if (!hit) return;
@@ -9469,8 +10118,15 @@ const Thumb = {
   },
 };
 
+/* layout classes, mirrored by the @media blocks in 00_style.css:
+   phone = portrait phone (panels become bottom sheets), land = short landscape screens (side sheets, one-row bottom bar),
+   coarse = touch pointer (bigger targets); any of them = compact (tool menu & options stack in-flow above the toolbar) */
+const LAY = { phone: window.matchMedia('(max-width: 600px)'), land: window.matchMedia('(max-height: 520px) and (min-width: 601px)'), coarse: window.matchMedia('(pointer: coarse)') };
+const CHEV = '<svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><path d="M6 9l6 6 6-6"/></svg>';
 const UI = {
-  panels: new Map(), selected: null, toolCat: null, toolTab: 0, measureEls: [], notifEls: new Map(),
+  panels: new Map(), selN: 0, selected: null, toolCat: null, toolTab: 0, measureEls: [], notifEls: new Map(), toolMin: false, toolSel: '', optMin: false, _ttKey: '',
+  sheets() { return LAY.phone.matches || LAY.land.matches; },
+  cmp() { return this.sheets() || LAY.coarse.matches; },
   init() {
     $('btnInfo').innerHTML = ICONS.info; $('btnInfo').onclick = () => this.toggleInfoViews();
     $('btnHelp').innerHTML = ICONS.help; $('btnHelp').onclick = () => Menus.openHelp();
@@ -9478,37 +10134,112 @@ const UI = {
     $('btnMod').innerHTML = ICONS.mod; $('btnMod').onclick = () => Menus.openMod(); $('btnMod').style.background = '#f4a261';
     this.buildToolbar(); this.buildStatus(); this.buildRail(); this.buildCamPad();
     Bus.on('pulse', () => this.refreshRail());
+    // keep floating HUD pieces (sheets, camera pad, rail) clear of the bottom stack, whatever its current height
+    const hud = $('hud'), bot = $('bottom'), ps = $('panelStack'); let bw = -1;
+    const fit = () => { if (bot.offsetWidth !== bw) { bw = bot.offsetWidth; this.fitToolbar(); } hud.style.setProperty('--bot', bot.offsetHeight + 'px'); hud.style.setProperty('--sheet', (LAY.phone.matches ? ps.offsetHeight : 0) + 'px'); };
+    if (window.ResizeObserver) { const ro = new window.ResizeObserver(fit); ro.observe(bot); ro.observe(ps); } addEventListener('resize', () => { bw = -1; fit(); });
+    for (const m of Object.values(LAY)) m.addEventListener && m.addEventListener('change', () => { bw = -1; fit(); if (!this.sheets()) for (const p of document.querySelectorAll('.panel.collapsed')) p.classList.remove('collapsed'); this.toolMin = false; $('toolPanel').classList.remove('collapsed'); this.syncSheet(); });
+    fit();
+    // long-press on the HUD must not open the browser's context menu / callouts
+    for (const el of [hud, $('modalWrap'), $('photoUI')]) el.addEventListener('contextmenu', e => { if (!e.target.closest('input,textarea,select')) e.preventDefault(); });
   },
+  // touch / narrow tall screens whose single toolbar row would need scrolling (phones & tablets in portrait) get a two-row grid instead
+  fitToolbar() {
+    const hud = $('hud'), tb = $('toolbar'); if (!tb.offsetWidth) return;
+    hud.classList.remove('tb2'); const two = (LAY.coarse.matches || innerWidth <= 900) && tb.scrollWidth > tb.clientWidth + 2 && innerHeight >= 600;
+    hud.classList.toggle('tb2', two); tb.style.setProperty('--tbc', Math.ceil(tb.querySelectorAll('.tb-btn').length / 2));
+  },
+  // phones: an open (expanded) sheet takes the toolbar's place, so the map above it stays visible
+  // after a map tap opened a sheet: slide the map so the tapped spot is not hidden under it
+  reveal(sx, sy) {
+    const p = this.panels.get('sel'); if (!this.sheets() || !p || p.classList.contains('collapsed') || CamCtl.mode !== 'orbit') return;
+    const r = $('panelStack').getBoundingClientRect();
+    if (LAY.phone.matches) { const top = $('topLeft').getBoundingClientRect().bottom + 50, bot = r.top - 16; if (bot - top > 60 && (sy < top || sy > bot)) CamCtl.panBy(0, (top + bot) / 2 - sy); }
+    else { const left = r.right + 16, right = innerWidth - 70; if (right - left > 60 && (sx < left || sx > right)) CamCtl.panBy((left + right) / 2 - sx, 0); }
+  },
+  syncSheet() { let on = false; if (LAY.phone.matches) for (const p of this.panels.values()) if (!p.classList.contains('collapsed') && !p.classList.contains('pin')) on = true; $('hud').classList.toggle('sheet', on); },
   /* ---------- toasts / tooltips / measures ---------- */
   toast(html, kind) { const el = h('div', { class: 'toast ' + (kind || ''), html }); $('toasts').prepend(el); setTimeout(() => el.remove(), 5200); while ($('toasts').children.length > 4) $('toasts').lastChild.remove(); },
   tooltip(items) {
-    const tt = $('tooltip'); tt.innerHTML = '';
-    for (const it of items || []) { if (!it) continue; const o = typeof it === 'string' ? { text: it } : it; if (!o.text) continue; tt.appendChild(h('div', { class: 'tt ' + (o.cls || '') }, o.text)); }
-    tt.style.left = CamCtl.mouse.x + 'px'; tt.style.top = CamCtl.mouse.y + 'px';
+    const tt = $('tooltip'); let key = '';
+    for (const it of items || []) { if (!it) continue; const o = typeof it === 'string' ? { text: it } : it; if (o.text) key += (o.cls || '') + '\u0001' + o.text + '\u0002'; }
+    if (key !== this._ttKey) {
+      this._ttKey = key; tt.innerHTML = '';
+      for (const it of items || []) { if (!it) continue; const o = typeof it === 'string' ? { text: it } : it; if (!o.text) continue; tt.appendChild(h('div', { class: 'tt ' + (o.cls || '') }, o.text)); }
+      this._ttW = tt.offsetWidth; this._ttH = tt.offsetHeight;
+    }
+    if (!key) return;
+    // keep it on screen: right of the cursor (flipped near edges); on touch, above the finger so it is not hidden under it
+    const mx = CamCtl.mouse.x, my = CamCtl.mouse.y, w = this._ttW, hh = this._ttH, W = innerWidth, H = innerHeight, touch = LAY.coarse.matches;
+    let x = touch ? mx - w / 2 : mx + 16, y = touch ? my - hh - 46 : my + 14;
+    if (!touch && x + w > W - 6) x = mx - w - 12; if (!touch && y + hh > H - 6) y = my - hh - 10; if (touch && y < 50) y = my + 46;
+    tt.style.left = clamp(x, 6, Math.max(6, W - w - 6)) + 'px'; tt.style.top = clamp(y, 6, Math.max(6, H - hh - 6)) + 'px';
   },
   measures(list) { this.measureList = list || []; },
+  _mv: new THREE.Vector3(),
   renderMeasures() {
     const cont = $('labels'); const L = this.measureList || [];
     while (this.measureEls.length < L.length) { const el = h('div', { class: 'measure' }); cont.appendChild(el); this.measureEls.push(el); }
-    const v = new THREE.Vector3();
-    this.measureEls.forEach((el, i) => { const m = L[i]; if (!m) { el.style.display = 'none'; return; } v.set(m.x, m.y, m.z).project(Gfx.camera); if (v.z > 1) { el.style.display = 'none'; return; } el.style.display = ''; el.textContent = m.text; el.style.left = ((v.x + 1) / 2 * innerWidth) + 'px'; el.style.top = ((1 - v.y) / 2 * innerHeight) + 'px'; });
+    const v = this._mv, W = innerWidth, H = innerHeight;
+    for (let i = 0; i < this.measureEls.length; i++) {
+      const el = this.measureEls[i], m = L[i]; if (!m) { if (el._on !== false) { el.style.display = 'none'; el._on = false; } continue; }
+      v.set(m.x, m.y, m.z).project(Gfx.camera); if (v.z > 1) { if (el._on !== false) { el.style.display = 'none'; el._on = false; } continue; }
+      if (el._on !== true) { el.style.display = ''; el._on = true; } if (el._txt !== m.text) { el.textContent = m.text; el._txt = m.text; el._w = el.offsetWidth; }
+      const hw = (el._w || 60) / 2 + 4; el.style.left = clamp((v.x + 1) / 2 * W, hw, W - hw) + 'px'; el.style.top = clamp((1 - v.y) / 2 * H, 14, H - 14) + 'px';
+    }
   },
-  toolOptions(el) { const t = $('toolOptions'); t.innerHTML = ''; if (!el) { t.classList.add('hide'); return; } t.classList.remove('hide'); t.appendChild(h('div', { class: 'panel-b' }, el)); },
+  toolOptions(el) {
+    const t = $('toolOptions'); const old = t.querySelector('.panel-b'); const sl = old ? old.scrollLeft : 0, stp = old ? old.scrollTop : 0; t.innerHTML = '';
+    if (!el) { t.classList.add('hide'); return; } t.classList.remove('hide');
+    // compact layouts show the options as one swipeable strip that can be tucked away
+    t.classList.toggle('min', this.optMin);
+    t.appendChild(h('button', { class: 'to-tg', title: 'Show / hide tool options', 'aria-label': 'Show or hide tool options', html: CHEV, onclick: () => { this.optMin = !this.optMin; t.classList.toggle('min', this.optMin); } }, h('span', null, 'Options')));
+    const b = h('div', { class: 'panel-b' }, el); t.appendChild(b); b.scrollLeft = sl; b.scrollTop = stp; if (this.cmp()) this.scrollHint(b);
+    // touch has no right-click / Esc: explicit "undo last point" and "exit tool" buttons
+    const tl = Input.tool, undo = tl === RoadTool || tl === TransitTool;
+    t.appendChild(h('div', { class: 'to-act' }, undo ? h('button', { title: 'Undo last point', 'aria-label': 'Undo last point', html: '<svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M9 14L4 9l5-5"/><path d="M4 9h10a6 6 0 0 1 0 12h-3"/></svg>', onclick: () => { const t2 = Input.tool; if (t2 && t2.right) t2.right(Input.hit); } }) : null,
+      h('button', { class: 'ex', title: 'Exit tool', 'aria-label': 'Exit tool', onclick: () => { Input.setTool(null); this.closeToolPanel(); } }, '×')));
+  },
   /* ---------- panels ---------- */
   showPanel(key, title, body, opts = {}) {
-    let p = this.panels.get(key);
+    let p = this.panels.get(key); if (key === 'sel') this.selN++;
     if (!p) { p = h('div', { class: 'panel' + (opts.top ? ' pin' : ''), 'data-key': key }); this.panels.set(key, p); if (opts.top) $('panelStack').prepend(p); else $('panelStack').appendChild(p); }
     p.innerHTML = '';
-    const head = h('div', { class: 'panel-h' }, opts.icon ? h('span', { html: opts.icon, style: { width: '18px', height: '18px', display: 'inline-flex' } }) : null, h('div', { class: 'title' }, title), h('button', { class: 'x', 'aria-label': 'Close', onclick: () => this.closePanel(key) }, '×'));
+    const head = h('div', { class: 'panel-h' }, opts.icon ? h('span', { class: 'ic', html: opts.icon, style: { width: '18px', height: '18px', display: 'inline-flex', flexShrink: 0 } }) : null, h('div', { class: 'title' }, title), h('button', { class: 'cl', title: 'Collapse / expand', 'aria-label': 'Collapse or expand', html: CHEV, onclick: () => this.setCollapsed(p, !p.classList.contains('collapsed')) }), h('button', { class: 'x', 'aria-label': 'Close', onclick: () => this.closePanel(key) }, '×'));
+    this.sheetHandle(head, p, () => this.closePanel(key));
     p.appendChild(head); p.appendChild(h('div', { class: 'panel-b' }, body));
     p._refresh = opts.refresh || null; p._t = 0;
-    return p;
+    // on phones only one sheet is open at a time: showing a panel expands it and tucks the others (and the asset menu) away
+    if (this.sheets() && !opts.passive) { this.setCollapsed(p, false); if (this.toolCat && !this.toolMin) this.setToolMin(true); }
+    this.syncSheet(); return p;
   },
-  closePanel(key) { const p = this.panels.get(key); if (p) { p.remove(); this.panels.delete(key); } if (key === 'sel') { this.selected = null; U.uHighlight.value = -1; CamCtl.follow = null; } if (key === 'info' && InfoViews.active) InfoViews.set(null); },
+  setCollapsed(p, c) {
+    if (!p) return; p.classList.toggle('collapsed', c);
+    if (!c && this.sheets() && p.dataset.key) for (const q of this.panels.values()) if (q !== p && !q.classList.contains('pin')) q.classList.add('collapsed');
+    this.syncSheet();
+  },
+  // mark a horizontally scrolling strip so CSS can fade the edge(s) that hide more content
+  scrollHint(el) { const f = () => { const m = el.scrollWidth - el.clientWidth; el.classList.toggle('sl', el.scrollLeft > 2); el.classList.toggle('sr', el.scrollLeft < m - 2); }; el.classList.add('sh'); el.addEventListener('scroll', f, { passive: true }); requestAnimationFrame(f); return el; },
+  collapseAll() { if (this.sheets()) { for (const p of this.panels.values()) p.classList.add('collapsed'); this.syncSheet(); } },
+  // on compact layouts a panel header doubles as a sheet handle: tap toggles, swipe down tucks it away (closes it when already tucked), swipe up expands
+  sheetHandle(head, p, close, noCollapse) {
+    let st = null;
+    head.addEventListener('pointerdown', e => { if (!this.sheets() || e.button > 0 || e.target.closest('button,input,select,a,label')) return; st = { y: e.clientY, dy: 0, id: e.pointerId }; try { head.setPointerCapture(e.pointerId); } catch (err) { } });
+    head.addEventListener('pointermove', e => { if (!st || e.pointerId !== st.id) return; st.dy = e.clientY - st.y; if (LAY.phone.matches && Math.abs(st.dy) > 6) { p.style.transition = 'none'; p.style.transform = `translateY(${st.dy > 0 ? st.dy : st.dy * 0.25}px)`; } });
+    const end = (e, cancel) => {
+      if (!st || e.pointerId !== st.id) return; const dy = st.dy; st = null; p.style.transition = ''; p.style.transform = ''; if (cancel) return;
+      const col = p.classList.contains('collapsed');
+      if (noCollapse) { if (dy > 50 && close) close(); return; }
+      if (Math.abs(dy) < 8) this.setCollapsed(p, !col); else if (dy > 40) { if (col && close) close(); else this.setCollapsed(p, true); } else if (dy < -30) this.setCollapsed(p, false);
+    };
+    head.addEventListener('pointerup', e => end(e)); head.addEventListener('pointercancel', e => end(e, true));
+  },
+  closePanel(key) { const p = this.panels.get(key); if (p) { p.remove(); this.panels.delete(key); this.syncSheet(); } if (key === 'sel') { this.selected = null; U.uHighlight.value = -1; CamCtl.follow = null; } if (key === 'info' && InfoViews.active) InfoViews.set(null); },
   closeTopPanel() { const keys = [...this.panels.keys()]; if (!keys.length) return false; this.closePanel(keys[keys.length - 1]); return true; },
   modal(title, body, size) {
     const m = $('modal'); m.className = 'panel ' + (size || ''); m.innerHTML = '';
-    m.appendChild(h('div', { class: 'panel-h' }, h('div', { class: 'title' }, title), h('button', { class: 'x', onclick: () => this.closeModal() }, '×')));
+    const head = h('div', { class: 'panel-h' }, h('div', { class: 'title' }, title), h('button', { class: 'x', 'aria-label': 'Close', onclick: () => this.closeModal() }, '×'));
+    this.sheetHandle(head, m, () => this.closeModal(), true); m.appendChild(head);
     const b = h('div', { class: 'panel-b' }, body); m.appendChild(b); $('modalWrap').classList.remove('hide');
     $('modalWrap').onclick = (e) => { if (e.target === $('modalWrap')) this.closeModal(); };
     return b;
@@ -9542,6 +10273,10 @@ const UI = {
       b.addEventListener('contextmenu', e => e.preventDefault());
       pad.appendChild(b);
     }
+    // the pad can be folded into one small button (remembered) once pinch / twist gestures are familiar
+    const setMin = (m) => { pad.classList.toggle('min', m); safeStore('civ_campad', m ? 'min' : null); };
+    pad.appendChild(h('button', { class: 'cp-tg', title: 'Show / hide camera buttons', 'aria-label': 'Show or hide camera buttons', html: ic('<path d="M4 8h3l2-3h6l2 3h3v11H4z"/><circle cx="12" cy="13" r="3.5"/>'), onclick: () => setMin(!pad.classList.contains('min')) }));
+    if (safeStore('civ_campad') === 'min') pad.classList.add('min');
   },
   /* ---------- toolbar ---------- */
   MENU() {
@@ -9590,39 +10325,56 @@ const UI = {
     tb.appendChild(ms);
     tb.appendChild(h('div', { class: 'tb-sep' }));
     const center = h('div', { class: 'grp center' });
+    let gs = false;
     for (const m of this.MENU()) {
-      const btn = h('button', { class: 'tb-btn', title: m.name, 'aria-label': m.name, 'data-cat': m.key, html: ICONS[m.key] || ICONS[{ corp: 'corp', territory: 'territory' }[m.key]] || ICONS.roads, onclick: () => { if (m.act) { this.closeToolPanel(); m.act(); return; } this.toggleToolPanel(m.key); } });
-      center.appendChild(btn);
-      if (['landscape', 'roads', 'police', 'comms', 'corp'].includes(m.key)) center.appendChild(h('div', { class: 'tb-sep' }));
+      const btn = h('button', { class: 'tb-btn' + (gs ? ' gs' : ''), title: m.name, 'aria-label': m.name, 'data-cat': m.key, html: ICONS[m.key] || ICONS[{ corp: 'corp', territory: 'territory' }[m.key]] || ICONS.roads, onclick: () => { if (m.act) { this.closeToolPanel(); if (m.key === 'bulldoze' && Input.tool === BulldozeTool) Input.setTool(null); else m.act(); return; } this.toggleToolPanel(m.key); } });
+      center.appendChild(btn); gs = ['landscape', 'roads', 'police', 'comms', 'corp'].includes(m.key);
+      if (gs) center.appendChild(h('div', { class: 'tb-sep' }));
     }
     tb.appendChild(center);
     // city-management menus live in the top-left cluster (as in CS2) so the build toolbar fits narrower screens
     const tl = $('topLeft'); for (const el of [...tl.querySelectorAll('.tlx')]) el.remove();
     for (const [title, icon, fn] of [['Progression', ICONS.progression, () => Menus.openProgress()], ['Statistics & economy', ICONS.stats, () => Menus.openStats()], ['Budget, taxes & policies', ICONS.city, () => Menus.openBudget()], ['Photo mode (Ctrl+P)', ICONS.camera, () => PhotoMode.enter()]])
-      tl.appendChild(h('button', { class: 'round tlx', title, 'aria-label': title, html: icon, onclick: fn }));
+      tl.appendChild(h('button', { class: 'round tlx', title, 'aria-label': title, html: icon, onclick: fn }, icon === ICONS.progression ? h('span', { class: 'n hide', id: 'tlPts' }) : null));
   },
-  toggleToolPanel(key) { if (this.toolCat === key) return this.closeToolPanel(); this.toolCat = key; this.toolTab = 0; this.renderToolPanel(); },
-  closeToolPanel() { this.toolCat = null; $('toolPanel').classList.add('hide'); for (const b of document.querySelectorAll('.tb-btn[data-cat]')) b.classList.remove('on'); },
+  toggleToolPanel(key) {
+    if (this.toolCat === key) { if (this.toolMin) return this.setToolMin(false); return this.closeToolPanel(); }
+    this.toolCat = key; this.toolTab = 0; this.toolSel = ''; this.toolMin = false; this.collapseAll(); this.renderToolPanel();
+  },
+  closeToolPanel() { this.toolCat = null; this.toolMin = false; $('toolPanel').classList.add('hide'); $('toolPanel').classList.remove('collapsed'); for (const b of document.querySelectorAll('.tb-btn[data-cat]')) if (b.dataset.cat !== 'bulldoze') b.classList.remove('on'); },
+  setToolMin(c) { this.toolMin = !!c && this.cmp(); $('toolPanel').classList.toggle('collapsed', this.toolMin); if (!this.toolMin) this.collapseAll(); },
   renderToolPanel() {
     const m = this.MENU().find(x => x.key === this.toolCat); if (!m) return;
-    for (const b of document.querySelectorAll('.tb-btn[data-cat]')) b.classList.toggle('on', b.dataset.cat === this.toolCat);
-    const p = $('toolPanel'); p.innerHTML = ''; p.classList.remove('hide');
-    p.appendChild(h('div', { class: 'panel-h' }, h('span', { html: ICONS[m.key] || '', style: { width: '18px', height: '18px', display: 'inline-flex' } }), h('div', { class: 'title' }, m.name), h('button', { class: 'x', onclick: () => { this.closeToolPanel(); Input.setTool(null); } }, '×')));
-    if (m.tabs.length > 1) p.appendChild(h('div', { class: 'tabs' }, m.tabs.map((t, i) => h('button', { class: 'tab' + (i === this.toolTab ? ' on' : ''), onclick: () => { this.toolTab = i; this.renderToolPanel(); } }, t.name))));
+    for (const b of document.querySelectorAll('.tb-btn[data-cat]')) if (b.dataset.cat !== 'bulldoze') b.classList.toggle('on', b.dataset.cat === this.toolCat);
+    const p = $('toolPanel'); const oldTabs = p.querySelector('.tabs'); const tsl = oldTabs ? oldTabs.scrollLeft : 0;
+    p.innerHTML = ''; p.classList.remove('hide'); p.classList.toggle('collapsed', this.toolMin);
+    const sub = h('span', { class: 'sub' }, this.toolSel ? ' · ' + this.toolSel : '');
+    const head = h('div', { class: 'panel-h' }, h('span', { class: 'ic', html: ICONS[m.key] || '', style: { width: '18px', height: '18px', display: 'inline-flex', flexShrink: 0 } }), h('div', { class: 'title' }, m.name, sub), h('button', { class: 'cl', title: 'Collapse / expand', 'aria-label': 'Collapse or expand', html: CHEV, onclick: () => this.setToolMin(!this.toolMin) }), h('button', { class: 'x', 'aria-label': 'Close', onclick: () => { this.closeToolPanel(); Input.setTool(null); } }, '×'));
+    head.addEventListener('click', e => { if (this.cmp() && !e.target.closest('button')) this.setToolMin(!this.toolMin); });
+    p.appendChild(head);
+    if (m.tabs.length > 1) { const tabs = h('div', { class: 'tabs' }, m.tabs.map((t, i) => h('button', { class: 'tab' + (i === this.toolTab ? ' on' : ''), onclick: () => { this.toolTab = i; this.renderToolPanel(); } }, t.name))); p.appendChild(tabs); tabs.scrollLeft = tsl; this.scrollHint(tabs); }
     const tab = m.tabs[this.toolTab] || m.tabs[0];
     const grid = h('div', { class: 'tiles' });
     for (const it of tab.items) {
       const locked = it.lock && !Progress.unlocked(it.lock);
       const th = h('div', { class: 'th' });
       if (it.thumb) { th.dataset.thumb = it.thumb.key; const url = Thumb.get(it.thumb.key, it.thumb.gen, it.thumb.w, it.thumb.d); if (url) th.style.backgroundImage = `url(${url})`; }
-      else if (it.swatch) th.appendChild(h('div', { style: { width: '44px', height: '44px', borderRadius: '6px', background: it.swatch, boxShadow: 'inset 0 0 0 3px rgba(255,255,255,.35)' } }));
+      else if (it.swatch) th.appendChild(h('div', { class: 'sw', style: { width: '44px', height: '44px', borderRadius: '6px', background: it.swatch, boxShadow: 'inset 0 0 0 3px rgba(255,255,255,.35)' } }));
       else if (it.svg) th.innerHTML = it.svg;
-      const tile = h('button', { class: 'tile' + (locked ? ' locked' : ''), title: locked ? Progress.lockReason(it.lock) : it.name, onclick: () => { if (locked) { this.toast(Progress.lockReason(it.lock), 'err'); return; } it.act(); for (const t of grid.children) t.classList.remove('on'); tile.classList.add('on'); } }, th, h('div', null, it.name), it.cost ? h('div', { class: 'cost' }, '¢' + fmtInt(it.cost)) : it.sub ? h('div', { class: 'cost' }, it.sub) : null, locked ? h('span', { class: 'lock' }, '🔒') : null);
+      const tile = h('button', { class: 'tile' + (locked ? ' locked' : '') + (this.toolSel === it.name ? ' on' : ''), title: locked ? Progress.lockReason(it.lock) : it.name, onclick: () => {
+        if (locked) { this.toast(Progress.lockReason(it.lock), 'err'); return; } it.act(); for (const t of grid.children) t.classList.remove('on'); tile.classList.add('on');
+        this.toolSel = it.name; sub.textContent = ' · ' + it.name;
+        if (this.cmp() && (innerHeight < 560 || LAY.phone.matches) && Input.tool) this.setToolMin(true); // phones & short screens: tuck the menu away once something is picked
+      } }, th, h('div', { class: 'nm' }, it.name), it.cost ? h('div', { class: 'cost' }, '¢' + fmtInt(it.cost)) : it.sub ? h('div', { class: 'cost' }, it.sub) : null, locked ? h('span', { class: 'lock' }, '🔒') : null);
       grid.appendChild(tile);
     }
-    p.appendChild(grid);
+    p.appendChild(grid); if (this.cmp()) this.scrollHint(grid);
   },
-  onToolChange(t) { if (!t) for (const tl of document.querySelectorAll('#toolPanel .tile.on')) tl.classList.remove('on'); },
+  onToolChange(t) {
+    if (!t) { for (const tl of document.querySelectorAll('#toolPanel .tile.on')) tl.classList.remove('on'); this.toolSel = ''; const s = document.querySelector('#toolPanel .sub'); if (s) s.textContent = ''; }
+    const bd = document.querySelector('.tb-btn[data-cat=bulldoze]'); if (bd) bd.classList.toggle('on', t === BulldozeTool);
+    if (t) this.collapseAll();
+  },
   /* ---------- status bar ---------- */
   buildStatus() {
     const sb = $('statusbar'); sb.innerHTML = '';
@@ -9645,18 +10397,18 @@ const UI = {
     $('sbTemp').textContent = Math.round(Env.temp) + '°'; $('sbSeason').textContent = Env.seasonName();
     const t = Terr.get(Terr.cityAt(CamCtl.target.x, CamCtl.target.z)); const co = t ? Terr.get(t.parent) : Terr.get(Terr.countryAt(CamCtl.target.x, CamCtl.target.z));
     $('sbCityName').textContent = t ? (t.name + (co ? ' · ' + co.name : '')) : co ? co.name + ' (unincorporated)' : 'Unincorporated land';
-    $('sbPopN').textContent = fmtInt(Sim.stats.pop);
+    const tight = LAY.phone.matches || LAY.land.matches; $('sbPopN').textContent = tight && Sim.stats.pop >= 1e4 ? fmtK(Sim.stats.pop) : fmtInt(Sim.stats.pop);
     const H2 = Sim.hist.pop; const d = H2.length > 1 ? H2[H2.length - 1] - H2[H2.length - 2] : 0; const ph = Math.round(d / 24);
     $('sbPopD').textContent = (ph >= 0 ? '+' : '−') + fmtInt(Math.abs(ph)) + ' /h'; $('sbPopD').className = 'delta ' + (ph >= 0 ? 'good' : 'bad');
     const cityCur = co && co.currency ? co.currency : '¢';
-    $('sbMoneyN').textContent = Mod.unlimitedMoney ? '∞' : fmtMoney(Econ.money, cityCur);
+    $('sbMoneyN').textContent = Mod.unlimitedMoney ? '∞' : tight ? (Econ.money < 0 ? '−' : '') + cityCur + fmtK(Math.abs(Econ.money)) : fmtMoney(Econ.money, cityCur);
     const net = Econ.lastHour.inc - Econ.lastHour.exp; $('sbMoneyD').textContent = (net >= 0 ? '+' : '−') + fmtInt(Math.abs(net)) + ' /h'; $('sbMoneyD').className = 'delta ' + (net >= 0 ? 'good' : 'bad');
     const hp = Sim.stats.happiness; const fi = hp < 25 ? 0 : hp < 42 ? 1 : hp < 58 ? 2 : hp < 75 ? 3 : 4;
     [...$('sbFaces').children].forEach((el, i) => { el.style.opacity = i === fi ? 1 : 0.3; el.classList.toggle('on', i === fi); });
     // milestone / demand
     const L = Progress.level, M2 = MILESTONES; $('msText').textContent = M2[L].name;
     const nx = M2[L + 1]; $('msXp').style.width = nx ? clamp((Progress.xpTotal - M2[L].xp) / (nx.xp - M2[L].xp) * 100, 0, 100) + '%' : '100%';
-    $('msPts').textContent = Progress.points;
+    $('msPts').textContent = Progress.points; const tp = $('tlPts'); if (tp) { tp.textContent = Progress.points; tp.classList.toggle('hide', !Progress.points); }
     for (const k of ['res', 'com', 'ind', 'off']) { const v = Sim.demandCat[k]; const el = $('dem_' + k); el.style.width = clamp(v * 100, 0, 100) + '%'; el.style.opacity = v > 0 ? 1 : 0.3; }
   },
   /* ---------- right rail ---------- */
@@ -10003,13 +10755,13 @@ const InfoViews = {
     else { body.push(h('div', { class: 'legend-grad', style: { background: V.res ? 'linear-gradient(90deg,#3a3f44,' + ['#f2bf33', '#26b333', '#d95a4d', '#3a2a4d', '#338cff', '#ffcc33'][V.res - 1] + ')' : this.rampCss(V.ramp || 0) } }), h('div', { class: 'lg-ends' }, h('span', null, V.legend[0]), h('span', null, V.legend[1]))); }
     if (V.stats) { body.push(h('div', { class: 'sec-h' }, 'Overview')); for (const s of V.stats()) body.push(h('div', { class: 'row' }, h('span', { class: 'k' }, s))); }
     if (V.terr) for (const t of Terr.cities()) body.push(h('div', { class: 'row', style: { cursor: 'pointer' }, onclick: () => Panels.territory(t) }, h('span', { class: 'legend-sw', style: { background: pal[(t.id * 5) % 16] } }), h('span', { class: 'k' }, t.name), h('span', { class: 'v' }, fmtInt(t.stats.pop))));
-    const p = UI.showPanel('info', V.name, h('div', null, h('div', { class: 'sec-h' }, 'Map legend'), body), { icon: ICONS.infoviews, top: true });
+    UI.showPanel('info', V.name, h('div', null, h('div', { class: 'sec-h' }, 'Map legend'), body), { icon: ICONS.infoviews, top: true, passive: !!update });
   },
-  openList() {
+  openList(keep) {
     const groups = {}; for (const V of INFO_VIEWS) (groups[V.grp] = groups[V.grp] || []).push(V);
-    const body = Object.entries(groups).map(([g, vs]) => h('div', null, h('div', { class: 'sec-h' }, g), h('div', { class: 'chips' }, vs.map(V => h('button', { class: 'btn sm' + (this.active === V ? ' on' : ''), onclick: () => { this.set(this.active === V ? null : V.key); this.openList(); } }, V.name)))));
-    body.push(h('div', { class: 'btns', style: { marginTop: '10px' } }, h('button', { class: 'btn', onclick: () => { this.set(null); this.openList(); } }, 'Clear view'), h('button', { class: 'btn', onclick: () => Net.setUnderground(!Net.showUnderground) }, 'Toggle underground (U)')));
-    UI.showPanel('infolist', 'Info views', body, { icon: ICONS.infoviews });
+    const body = Object.entries(groups).map(([g, vs]) => h('div', null, h('div', { class: 'sec-h' }, g), h('div', { class: 'chips' }, vs.map(V => h('button', { class: 'btn sm' + (this.active === V ? ' on' : ''), onclick: () => { this.set(this.active === V ? null : V.key); this.openList(true); } }, V.name)))));
+    body.push(h('div', { class: 'btns', style: { marginTop: '10px' } }, h('button', { class: 'btn', onclick: () => { this.set(null); this.openList(true); } }, 'Clear view'), h('button', { class: 'btn', onclick: () => Net.setUnderground(!Net.showUnderground) }, 'Toggle underground (U)')));
+    UI.showPanel('infolist', 'Info views', body, { icon: ICONS.infoviews, passive: keep });
   },
 };
 const OverlayMap = {
@@ -10267,14 +11019,14 @@ const Menus = {
   openPause() {
     const slots = Save.slots();
     UI.modal('Menu', h('div', null,
-      h('div', { class: 'btns', style: { marginBottom: '12px' } }, h('button', { class: 'btn primary', onclick: () => UI.closeModal() }, 'Resume'), h('button', { class: 'btn', onclick: () => { Save.save('slot1'); UI.toast('Game saved.'); this.openPause(); } }, 'Save (slot 1)'), h('button', { class: 'btn', onclick: () => { Save.save('slot2'); UI.toast('Game saved.'); this.openPause(); } }, 'Save (slot 2)'), h('button', { class: 'btn', onclick: () => Save.exportFile() }, 'Export save file'), h('label', { class: 'btn' }, 'Import save file', h('input', { type: 'file', accept: '.json,.civ', style: { display: 'none' }, onchange: e => Save.importFile(e.target.files[0]) }))),
+      h('div', { class: 'btns', style: { marginBottom: '12px' } }, h('button', { class: 'btn primary', onclick: () => UI.closeModal() }, 'Resume'), h('button', { class: 'btn', onclick: () => { Save.save('slot1'); UI.toast('Game saved.'); this.openPause(); } }, 'Save (slot 1)'), h('button', { class: 'btn', onclick: () => { Save.save('slot2'); UI.toast('Game saved.'); this.openPause(); } }, 'Save (slot 2)'), h('button', { class: 'btn', onclick: () => Save.exportFile() }, 'Export save file'), h('button', { class: 'btn', onclick: () => this.openHelp() }, 'How to play'), h('label', { class: 'btn' }, 'Import save file', h('input', { type: 'file', accept: '.json,.civ', style: { display: 'none' }, onchange: e => Save.importFile(e.target.files[0]) }))),
       h('div', { class: 'sec-h' }, 'Saved games'), slots.length ? slots.map(s => h('div', { class: 'row' }, h('span', { class: 'k' }, `${s.slot}: ${s.name} · pop ${fmtInt(s.pop)}`), h('span', { class: 'muted', style: { fontSize: '11px' } }, new Date(s.t).toLocaleString()), h('button', { class: 'btn sm', onclick: () => Save.load(s.slot) }, 'Load'))) : h('div', { class: 'muted' }, 'No saves yet.'),
       h('div', { class: 'sec-h' }, 'Settings'), this.settingsBody(),
       h('div', { class: 'btns', style: { marginTop: '12px' } }, h('button', { class: 'btn danger', onclick: () => { UI.closeModal(); MainMenu.show(); } }, 'Quit to main menu'))), 'narrow');
   },
   settingsBody() {
     return h('div', null,
-      h('div', { class: 'opt-row' }, h('span', { class: 'lab' }, 'Graphics'), h('div', { class: 'seg' }, Object.keys(QUALITY).map(k => h('button', { class: Gfx.qName === k ? 'on' : '', onclick: () => { Gfx.setQuality(k); Flora.dirty = true; UI.toast('Graphics: ' + k); this.openPause(); } }, k)))),
+      h('div', { class: 'opt-row' }, h('span', { class: 'lab' }, 'Graphics'), h('div', { class: 'seg' }, Object.keys(QUALITY).map(k => h('button', { class: Gfx.qName === k ? 'on' : '', onclick: () => { Gfx.setQuality(k); safeStore('civ_qset', '1'); Flora.dirty = true; UI.toast('Graphics: ' + k); this.openPause(); } }, k)))),
       slider('Field of view', 25, 80, 1, CamCtl.fov, v => CamCtl.fov = v, v => v + '°'),
       slider('Brightness', 0.5, 1.6, 0.02, Gfx.post.exposure, v => Gfx.post.exposure = v, v => v.toFixed(2)),
       slider('Bloom', 0, 1.5, 0.05, Gfx.post.bloom, v => Gfx.post.bloom = v, v => v.toFixed(2)),
@@ -10291,7 +11043,7 @@ const PhotoMode = {
   enter() {
     if (this.active) return; this.active = true; document.body.classList.add('photo'); this.prev = { ...Gfx.post }; this.prevMode = CamCtl.mode;
     const p = $('photoUI'); p.classList.remove('hide'); const P = Gfx.post;
-    p.innerHTML = ''; p.appendChild(h('div', { class: 'panel-h' }, h('div', { class: 'title' }, 'Photo mode'), h('button', { class: 'x', onclick: () => this.exit() }, '×')));
+    p.innerHTML = ''; p.classList.remove('collapsed'); const head = h('div', { class: 'panel-h' }, h('div', { class: 'title' }, 'Photo mode'), h('button', { class: 'cl', title: 'Collapse / expand', 'aria-label': 'Collapse or expand', html: CHEV, onclick: () => UI.setCollapsed(p, !p.classList.contains('collapsed')) }), h('button', { class: 'x', 'aria-label': 'Close photo mode', onclick: () => this.exit() }, '×')); UI.sheetHandle(head, p, () => this.exit()); p.appendChild(head);
     p.appendChild(h('div', { class: 'panel-b' },
       h('div', { class: 'opt-row' }, h('span', { class: 'lab' }, 'Camera'), h('div', { class: 'seg' }, [['orbit', 'Orbit'], ['free', 'Free fly'], ['street', 'Street']].map(([k, n]) => h('button', { onclick: () => CamCtl.setMode(k) }, n)))),
       slider('Field of view', 15, 100, 1, CamCtl.fov, v => CamCtl.fov = v, v => v + '°'),
