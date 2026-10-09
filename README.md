@@ -4,6 +4,13 @@
 
 Open [`hyperspace-walk.html`](hyperspace-walk.html) in a current desktop or mobile browser (Chrome, Edge, Firefox, Safari with WebGL 2). No install, no server, no external assets: every image, sound and voice line is computed live.
 
+| | |
+|---|---|
+| ![Euclid Station under the lensed accretion disk](docs/screenshots/hero_station.jpg) | ![Inside the tesseract lattice](docs/screenshots/hero_tesseract.jpg) |
+| ![The Bulk: slices of regular 4-polytopes, 4D shadows and reflections](docs/screenshots/hero_bulk.jpg) | ![Aether, the crystalline companion](docs/screenshots/hero_aether.jpg) |
+
+*Screenshots are software-rendered previews at reduced resolution; a GPU renders considerably sharper.*
+
 You explore ℝ⁴ with **Aether**, a crystalline companion who explains each idea by voice (English or Bulgarian, through your device's speech synthesiser) and with interactive holograms:
 
 | Chapter | What happens | What is computed |

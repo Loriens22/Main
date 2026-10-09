@@ -1884,7 +1884,7 @@ void main(){
         } else {
           nc=objNormalCam(i,PL(h.fN)); if(dot(nc,dl)>0.) nc=-nc;
           vec2 ed=edgeD(i,q,h.fN)*s.x;
-          float ew=.014+.0011*h.t; float edge=1.-smoothstep(ew*.45,ew*1.5,ed.x); float vtx=1.-smoothstep(ew*1.3,ew*3.,ed.y);
+          float es=mt.w; float ew=(.014+.0011*h.t)*mix(.6,1.,es); float edge=(1.-smoothstep(ew*.45,ew*1.5,ed.x))*es; float vtx=(1.-smoothstep(ew*1.3,ew*3.,ed.y))*es*es;
           vec3 ft=hsv(fract(mt.x+(h11(float(h.fN))-.5)*.18),.5,1.);
           float fr=.04+.96*pow(1.-abs(dot(nc,dl)),5.);
           vec3 rf=reflect(dl,nc); vec4 r4=rf.x*uCR+rf.y*uCU+rf.z*uCF;
@@ -1892,7 +1892,7 @@ void main(){
           vec3 ec=mix(vec3(1.,.82,.5),tint,.35)*(.62+mt.z*1.2);
           front=sky4(r4)*fr*1.2+vec3(1.,.95,.85)*sp+ft*(.07+.06*mt.z)*(.6+.4*max(dot(nc,uLC),0.))+ec*edge*2.4+vec3(1.,.95,.85)*vtx*4.;
           al=clamp(.16+.08*mt.z+fr*.7+edge*.9,0.,1.);
-          if(uBackEdges>.5&&h.fF>=0){ vec4 qb=rows(i,P+D*h.tf-c)/s; vec2 eb=edgeD(i,qb,h.fF)*s.x; float ewb=.014+.0011*h.tf; front+=ec*(1.-smoothstep(ewb*.45,ewb*1.5,eb.x))*.9*(1.-al)/(1.-al+.001)*.8; }
+          if(uBackEdges>.5&&h.fF>=0){ vec4 qb=rows(i,P+D*h.tf-c)/s; vec2 eb=edgeD(i,qb,h.fF)*s.x; float ewb=.014+.0011*h.tf; front+=ec*(1.-smoothstep(ewb*.45,ewb*1.5,eb.x))*.7*es; }
           if(abs(float(i)-uSel)<.5) front+=ec*.15*(.5+.5*sin(uTime*4.));
         }
         // what lies behind the translucent cross-section
@@ -1932,7 +1932,7 @@ float h31(vec3 p3){p3=fract(p3*.1031);p3+=dot(p3,p3.zyx+31.32);return fract((p3.
 float vnoise(vec3 p){vec3 i=floor(p),f=fract(p);f=f*f*(3.-2.*f);
  return mix(mix(mix(h31(i),h31(i+vec3(1,0,0)),f.x),mix(h31(i+vec3(0,1,0)),h31(i+vec3(1,1,0)),f.x),f.y),
             mix(mix(h31(i+vec3(0,0,1)),h31(i+vec3(1,0,1)),f.x),mix(h31(i+vec3(0,1,1)),h31(i+vec3(1,1,1)),f.x),f.y),f.z);}
-int gm;
+int gm; float gEdge;
 // ---- explorer: joints 0 pelvis 1 chest 2 head 3-5 L arm 6-8 R arm 9-11 L leg 12-14 R leg ----
 float astro(vec3 p){
   vec3 J0=uJ[0],J1=uJ[1],J2=uJ[2];
@@ -1970,11 +1970,18 @@ float astro(vec3 p){
 float aether(vec3 p){
   float s=uScale; p/=s;
   vec3 q=p;
-  float egg=sdEll(q-vec3(0.,.005,0.),vec3(.105,.135,.105));
-  float fac=(abs(q.x)*.9+abs(q.y)*.75+abs(q.z)*.9-.155)*.62;
-  float body=max(egg,fac);
+  // brilliant-cut gem: 8 girdle facets, 8 crown + 8 pavilion facets, table and culet (y squashed into an egg)
+  vec3 g=q*vec3(1.,.8,1.); float d1=-1e9, d2=-1e9;
+  for(int i=0;i<26;i++){
+    vec3 n; float dd;
+    if(i<24){ int ring=i/8; float a=(float(i-ring*8)+(ring==1?.5:0.))*.7853982; float el=ring==0?0.:(ring==1?.62:-.66);
+      n=vec3(cos(a)*cos(el),sin(el),sin(a)*cos(el)); dd=ring==0?.098:(ring==1?.104:.106); }
+    else { n=vec3(0.,i==24?1.:-1.,0.); dd=i==24?.092:.1; }
+    float pd=dot(g,n)-dd; if(pd>d1){d2=d1;d1=pd;} else if(pd>d2) d2=pd;
+  }
+  float body=d1*.8; gEdge=(d1-d2);
   float c=cos(uTime*.9),sn=sin(uTime*.9); vec3 r=q; r.xz=mat2(c,-sn,sn,c)*r.xz; float ct=cos(.45),st=sin(.45); r.yz=mat2(ct,-st,st,ct)*r.yz;
-  float ring=length(vec2(length(r.xz)-.19,r.y))-.0075;
+  float ring=length(vec2(length(r.xz)-.19,r.y))-.0048;
   vec3 f=q; f.x=abs(f.x)-.125; float fa=-.5; f.xy=mat2(cos(fa),-sin(fa),sin(fa),cos(fa))*f.xy;
   float fins=sdEll(f-vec3(0.,.0,-.01),vec3(.055,.012,.04));
   float d=body; gm=10;
@@ -2027,14 +2034,24 @@ void main(){
     float bc=-dot(ro,rl); float dc=length(ro+rl*bc)/uScale;
     float core=exp(-dc*dc*900.)*(2.5+uTalk*2.5)+exp(-dc*dc*120.)*(.6+uTalk*.6);
     vec3 cyan=vec3(.35,.78,1.);
-    if(m==12){ col=vec3(.6,.9,1.)*(2.2+uTalk*1.5); }
+    if(m==12){ col=vec3(.55,.88,1.)*(1.3+uTalk*1.2); }
     else{
       vec2 off=n.xy*uRes.y*.035; vec3 bg=texture(uScene,clamp((gl_FragCoord.xy-off)/uRes,vec2(.001),vec2(.999))).rgb;
       vec3 irid=.5+.5*cos(6.2832*(fr*1.4+NoV*.3+vec3(0.,.33,.67)));
       vec3 H=normalize(L+v); float s=pow(max(dot(n,H),0.),220.)*2.5;
       float facet=step(.985,fract(dot(nl,vec3(7.,11.,5.))*1.7));
-      col=bg*vec3(.45,.75,1.)*.65+cyan*core+irid*fr*.6+uKeyCol*s+cyan*.05+vec3(.7,.9,1.)*facet*.2;
-      vec3 pl=p/uScale; if(m==10&&pl.z>.075&&abs(pl.y-.02)<.016&&abs(pl.x)<.06) col+=vec3(.6,.95,1.)*(3.+uTalk*3.);
+      aether(p); float fe=smoothstep(.0032,.0,gEdge)*step(float(m),10.5);
+      col=bg*vec3(.42,.72,1.)*.62+cyan*core*.75+irid*fr*.55+uKeyCol*s+cyan*.04+vec3(.75,.93,1.)*fe*(1.1+uTalk*.6);
+      vec3 pl=p/uScale;
+      // faint internal circuitry, seen through the crystal along the refracted view ray
+      vec3 ci=pl-rl*.03; vec3 cg=abs(fract(ci*26.)-.5); float tr=smoothstep(.045,.0,min(min(cg.x,cg.y),cg.z))*step(.52,vnoise(floor(ci*26.)*.7+3.));
+      col+=cyan*tr*(.18+.25*uTalk)*(.6+.4*sin(uTime*2.+ci.y*60.))*step(float(m),10.5);
+      if(m==10&&pl.z>.05){ float vy=abs(pl.y-.022), vx=abs(pl.x);
+        float band=smoothstep(.013,.006,vy)*smoothstep(.062,.045,vx);
+        col=mix(col,vec3(.02,.05,.08),band*.85);
+        float eyes=exp(-(pow(vx-.024,2.)+vy*vy)*16000.)*(2.6+uTalk*2.5);
+        float scan=band*(.35+.65*pow(.5+.5*sin(pl.x*120.-uTime*6.),6.))*(.6+uTalk);
+        col+=vec3(.45,.9,1.)*(eyes+scan*.9); }
       if(m==11) col=col*.7+cyan*.25;
     }
   }
@@ -2646,7 +2663,7 @@ const Player = {
 
 /* Aether: a critically-damped spring that follows the explorer (always kept inside the explorer's slice) */
 const Aether = {
-  P: [0, 1.6, 0, 0], V: [0, 0, 0, 0], visible: true, talk: 0, talkV: 0, scale: 1, mode: 'follow', target: null, look: null, t: 0, spawn: 1,
+  P: [0, 1.6, 0, 0], V: [0, 0, 0, 0], visible: true, talk: 0, talkV: 0, scale: 1.45, mode: 'follow', target: null, look: null, t: 0, spawn: 1,
   camPos() { return Cam.pt(this.P); },
   goTo(p4, look) { this.mode = 'at'; this.target = p4.slice(); this.look = look || null; },
   present(h, side = 1) { const B = Player.body(); const p = V4.madd(V4.madd(h.anchor, B.R, side * (h.scale * 2.6 + .4)), [0, 1, 0, 0], -.25); this.goTo(p, h.anchor); },
@@ -2784,7 +2801,7 @@ class StationCh extends Chapter {
     Object.assign(Player, { mode: 'walk', allowW: false, allow4: false, free: false, gravity: 9.81, visible: true, lockMove: false, lockLook: false, stretch: 0 });
     this.f = Object.assign({ n: [false, false, false], intro: false, brief: false }, cp.flags || {});
     Player.place([0, 0, 13, 0], [0, 0, -1, 0]);
-    Aether.visible = true; Aether.scale = 1; Aether.follow(); Aether.teleport(); Aether.spawn = this.f.intro ? 1 : 0;
+    Aether.visible = true; Aether.scale = 1.45; Aether.follow(); Aether.teleport(); Aether.spawn = this.f.intro ? 1 : 0;
     this.busy = false; this.nodeOn = [0, 0, 0]; this.hatch = 0;
     this.bhCam = [0, 2.4, 22];
     const dBH = V3.norm(V3.sc(this.bhCam, -1)), dSt = V3.norm([0, .14, -1]);
@@ -2891,7 +2908,7 @@ class PlungeCh extends Chapter {
   enter(cp = {}) {
     this.base(); Sound.setMood('plunge');
     Object.assign(Player, { mode: 'float', allowW: false, allow4: false, free: false, visible: false, lockMove: true, lockLook: true, stretch: 0 });
-    Aether.visible = true; Aether.scale = .8; Aether.spawn = 1; Aether.follow();
+    Aether.visible = true; Aether.scale = 1.1; Aether.spawn = 1; Aether.follow();
     this.r0 = 26; this.r = 26; this.phase = 'approach'; this.t = 0; this.ox = 0; this.oy = 0; this.vx = 0; this.vy = 0; this.yaw = 0; this.pit = 0;
     this.hull = 1; this.rings = []; for (let rr = 25; rr > 2.5; rr -= 1.25) this.rings.push({ r: rr, done: false });
     this.ejectT = 0; this.inside = 0; this.shell = 0; this.insideT = 0; this.hits = 0; this.passes = 0; this.fired = {}; this.podT = 0; this.flash = 0; this.dim = 1;
@@ -3003,7 +3020,7 @@ class PlungeCh extends Chapter {
   }
   light() { const L = V3.norm(V3.add(V3.sc(V3.norm(this.podBH || [0, 0, 1]), -1), [0, -.25, 0])); return { key: w0(L), keyCol: [2.2, 1.7, 1.15], ambU: [.04, .045, .07], ambD: [.08, .06, .04], rim: [1, .7, .4] }; }
   grade() {
-    const g = GRADE_DEFAULT(); g.exposure = 1.05 * (this.phase === 'inside' ? 1 : lerp(1, .22, sstep(5, 1.15, this.r))); g.bloom = .65; g.flare = .4; g.vig = .7;
+    const g = GRADE_DEFAULT(); g.exposure = 1.05 * (this.phase === 'inside' ? 1 : lerp(1, .55, sstep(18, 7, this.r)) * lerp(1, .4, sstep(5, 1.15, this.r))); g.bloom = .65; g.flare = .4; g.vig = .7;
     g.ca = .5 + (this.r < 4 ? (4 - this.r) * .35 : 0) + this.inside * .8;
     g.letter = this.phase === 'approach' ? 0 : 1;
     g.shake = this.phase === 'inside' ? .35 : this.r < 4 ? (4 - this.r) * .12 : 0;
@@ -3031,7 +3048,7 @@ class TesseractCh extends Chapter {
     this.f = Object.assign({ intro: false, near: false, wUnlocked: false, wTold: false, alone: false, solved: false, nudged: false }, cp.flags || {});
     Player.place([5, 5, 5, 0], [0, 0, -1, 0]); Player.V = [0, 0, -.6, 0];
     if (this.f.wUnlocked) Player.allowW = true;
-    Aether.visible = true; Aether.scale = 1; Aether.spawn = 1; Aether.follow(); Aether.teleport();
+    Aether.visible = true; Aether.scale = 1.45; Aether.spawn = 1; Aether.follow(); Aether.teleport();
     this.latM = M4.I(); this.latO = [0, 0, 0, 0]; this.reveal = cp.fromPlunge ? 0 : 1; this.threadI = cp.fromPlunge ? 0 : 1;
     this.target = [0, 0, -2]; this.T = [0, 0, -20]; this.bits = 0; this.pulses = []; this.dists = []; this.closing = 0; this.tgtGlow = 1; this.future = 0;
     this.msgPluck = [0, 0, 0, 0, 0, 0, 0];
@@ -3182,7 +3199,7 @@ class BulkCh extends Chapter {
     Object.assign(Player, { mode: 'walk', allowW: true, allow4: true, free: false, gravity: 9.81, visible: true, lockMove: false, lockLook: false, stretch: 0 });
     this.f = Object.assign({ intro: false, rotated: false, gallery: false, vault: false, vaultHint: false, hinton: [false, false, false, false], seen: {}, kiosk: {}, ended: false, bound: false }, cp.flags || {});
     Player.place([0, 0, -1.5, 0], [0, 0, 1, 0]);
-    Aether.visible = true; Aether.scale = 1; Aether.spawn = 1; Aether.follow(); Aether.teleport();
+    Aether.visible = true; Aether.scale = 1.45; Aether.spawn = 1; Aether.follow(); Aether.teleport();
     this.mode = 'cell'; this.ang = ORIENT.cell.slice(); this.t = 0; this.vaultT = 0; this.sliceInfo = null; this.sliceT = 0;
     if (cp.fromTesseract) Game.fadeTo(0, 3, [1, .97, .92]);
     this.build();
@@ -3203,6 +3220,7 @@ class BulkCh extends Chapter {
     const add = o => { O.push(Object.assign({ M: M4.I(), glow: 0, alpha: 1, hidden: false, rot: null }, o)); return O[O.length - 1]; };
     const poly = (name, key, p, c, s, hue, rot) => add({ name, type: 0, c, s: [s, s, s, s], start: off[key], count: p.N.length, d: p.d, R: p.R, hue, poly: p, rot, sc: s });
     this.tess = poly('hinton', 't8', P.tesseract, [0, 2.4, 16, 0], 1.1, .58, null); this.tess.glow = .7;
+    const edgeScale = { c5: .9, c16: .75, c24: .75, c120: .5, c600: .3 };
     this.gal = [
       poly('c5', 'c5', P.c5, [12.5, 2.3, 5, 0], 1.25, .07, [.07, .05]),
       poly('c16', 'c16', P.c16, [15.5, 2.3, 11, 0], 1.75, .33, [.06, .045]),
@@ -3211,6 +3229,7 @@ class BulkCh extends Chapter {
       poly('c120', 'c120', P.c120, [8, 2.9, 31, 7], 2.2, .11, [.035, .03]),
       poly('c600', 'c600', P.c600, [-4, 2.9, 31, -7], 2.2, .62, [.035, .028]),
     ];
+    this.gal.forEach(g => { if (edgeScale[g.name]) g.alpha = edgeScale[g.name]; });
     const box = (name, c, s, hue, type = 2, glow = 0) => add({ name, type, c, s, start: off.t8, count: 8, d: 1, R: 2, hue, glow });
     this.gal.forEach(g => box('ped_' + g.name, [g.c[0], .45, g.c[2], g.c[3]], [.75, .45, .75, .8], g.hue));
     const V = this.vaultC = [-13, 0, 10, 0], ih = 1.6, th = .125, ww = .8;
@@ -4032,7 +4051,7 @@ const Game = {
   };
   btn.onclick = go;
   $('#boot-lang').querySelectorAll('button').forEach(b => b.addEventListener('click', () => { S.lang = b.dataset.lang; saveSettings(); applyI18n(); }));
-  HW.Game = Game; HW.Lines = Lines; HW.Labels = Labels; HW.Cam = Cam; HW.Player = Player; HW.GL = GL; HW.S = S; HW.Poly = Poly; HW.go = go; HW.Aether = Aether; HW.Dialogue = Dialogue; HW.Sound = Sound; HW.Save = Save;
+  HW.Game = Game; HW.HUD = HUD; HW.Lines = Lines; HW.Labels = Labels; HW.Cam = Cam; HW.Player = Player; HW.GL = GL; HW.S = S; HW.Poly = Poly; HW.go = go; HW.Aether = Aether; HW.Dialogue = Dialogue; HW.Sound = Sound; HW.Save = Save;
 })();
 Game.showTouch = () => { UIX.touchVis(); };
 Voice.onChange = () => { if (Game.settingsOpen) UIX.buildSettings(); };
