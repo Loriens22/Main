@@ -8,7 +8,7 @@ A first-person 3D ride along a Sofia Metro line, in one HTML file. Open `sofia-m
 ### What's in it
 
 - **Two lines to choose from**: a switch on the title screen and at the top of Menu → Stations picks the network you play.
-  - **М1 · М2 · М4**: Витоша ⇄ Летище София, 32 stations, four kinds of train (described below).
+  - **М1 · М2 · М4**: Витоша ⇄ Летище София, 32 stations, five kinds of train (described below).
   - **Линия М3**: Хаджи Димитър ⇄ Красно село, 8 stations, only the Siemens Inspiro, with platform screen doors (see "Line M3" below).
   - Switching reloads the game on the chosen line. The choice is remembered.
 - **The line**: 32 stations over 66.86 km, with the real distances between them.
@@ -16,7 +16,7 @@ A first-person 3D ride along a Sofia Metro line, in one HTML file. Open `sofia-m
   - The western branch: НДК → Сердика 2 (1.9 km) → Лъвов мост (2.5 km) → Централна ЖП гара (2.2 km) → Княгиня Мария Луиза (1.9 km) → Хан Кубрат (1.2 km) → Надежда (1.8 km) → Бели Дунав (2.5 km) → Ломско шосе (2.51 km) → Обеля (1.8 km) → Сливница (2.3 km).
   - Then on to the airport: Сливница → Люлин (2 km) → Западен парк (3 km) → Вардар (2.5 km) → Константин Величков (3.7 km) → Опълченска (2 km) → Сердика (1.4 km) → СУ „Св. Климент Охридски“ (1.1 km) → Стадион Васил Левски (1 km) → Жолио Кюри (4 km) → Г.М. Димитров (1.2 km) → Мусагеница (1.1 km) → Младост 1 (1.3 km) → Младост 3 (3 km) → Интер Експо Център – Цариградско шосе (2.4 km) → Дружба (2.6 km) → Искърско шосе (2.8 km) → Софийска Света Гора (2.95 km) → Летище София (2 km).
   The tunnels curve and dip between stations. Сливница to СУ, НДК, Европейски съюз and Витоша have island platforms; the others have side platforms. Westbound trains run to Витоша, eastbound trains to Летище София.
-- **West of Сливница**: the line climbs out of the tunnel through a portal and an open cutting with mesh fences to Обеля, a station at ground level next to the metro depot. The depot has a sandstone office building with a green roof ("МЕТРО ДЕПО ОБЕЛЯ"), a stabling yard with parked trains of all four types, and a maintenance shed. From Обеля a covered tube runs 1.8 km on an embankment and then a viaduct to the elevated Ломско шосе. The tube has ribbed grey sheeting low down, clear glazing, blue ribs and LED lines. After the station, 510 m more of covered tube ramp down to a second portal, followed by 2 km of tunnel to Бели Дунав. Outside: Ломско шосе boulevard with traffic, streets passing under the viaduct, panel-block estates and lawns.
+- **West of Сливница**: the line climbs out of the tunnel through a portal and an open cutting with mesh fences to Обеля, a station at ground level next to the metro depot. The depot has a sandstone office building with a green roof ("МЕТРО ДЕПО ОБЕЛЯ"), a stabling yard with parked trains of all five types, and a maintenance shed. From Обеля a covered tube runs 1.8 km on an embankment and then a viaduct to the elevated Ломско шосе. The tube has ribbed grey sheeting low down, clear glazing, blue ribs and LED lines. After the station, 510 m more of covered tube ramp down to a second portal, followed by 2 km of tunnel to Бели Дунав. Outside: Ломско шосе boulevard with traffic, streets passing under the viaduct, panel-block estates and lawns.
 - **Open-air sections**: after Жолио Кюри the line climbs out into a wavy glass tube for 800 m, then goes underground for the last 400 m to Г.М. Димитров. From there it runs 800 m underground, then 300 m in the open to Мусагеница, an open-air station under a glass roof. After Мусагеница come 900 m above ground and 400 m underground to Младост 1. Along these stretches you get sky, sun, clouds, grass, trees, street lamps, housing blocks and moving traffic on Цариградско шосе.
 - **To the airport**: 2 km after Искърско шосе the line leaves the tunnel through a portal. For 950 m it runs in an arched polycarbonate tube, first in a cutting, then on an embankment, then up onto a girder to the elevated Софийска Света Гора. The last 2 km to Летище София are all above ground:
   - a short covered tube, then an open viaduct on piers with parapets, lamp posts and handrails;
@@ -62,7 +62,7 @@ A first-person 3D ride along a Sofia Metro line, in one HTML file. Open `sofia-m
 
   At side-platform stations you can cross to the other platform: at the top of the stairs underground, at the ticket gates at Обеля and the elevated stations.
   At the western stations, small lights set into the platform edge flash while a train pulls in and stay lit while it stands.
-- **Four trains**, and any arrival can be any of them:
+- **Five trains**, and any arrival can be any of them:
   - **Метровагон 81-740 (Rusich)**: 4 cars, car numbers 2024 …. Ivory body with a blue stripe, blue door frames and roof. Inside: grey seats and green grab poles.
   - **Red Rusich (81-740, cream and maroon)**: 4 cars, car numbers 2069, 2014 ….
     - Outside: a cream body with a continuous maroon stripe and roofline, maroon-framed doors with small maroon blocks at stripe level, and a maroon swoosh on the cab side. The rounded cab has a panoramic windscreen in a maroon frame, two wipers, LED headlight modules in the maroon band, the polished winged M emblem and a white LED destination display.
@@ -74,6 +74,7 @@ A first-person 3D ride along a Sofia Metro line, in one HTML file. Open `sofia-m
     - Inside: cream walls, beige seats with dark grey side screens and tall end panels, green poles and curved handrails, stainless overhead bars, two continuous LED lines, a speckled grey floor and a wheelchair bay. The end doors swing open as you walk up to them.
     - Door warning: a beeper starts at a moderate pace with the closing announcement, speeds up, then turns into a loud, fast two-tone alarm while the doors actually close.
     - Screens: modern TFT displays in every car, and the same design in the HUD. They show the direction, the clock, the next stop or arrival with the exit side, transfers, time and distance to the next station, and a line diagram that scrolls with the train.
+  - **Вагонмаш 81-717** (the classic Sofia stock): 4 cars, car numbers 1015 …. See "The Vagonmash" below.
 - **Train operation**:
   - Automatic driving with jerk-limited acceleration and braking to the stop mark.
   - Door cycles with chimes and dwell times.
@@ -90,9 +91,10 @@ A first-person 3D ride along a Sofia Metro line, in one HTML file. Open `sofia-m
   - Train: traction motors, gear whine, rolling noise, rail-joint clacks, flange squeal on curves.
   - Doors and brakes: pneumatic doors, the brake-release hiss, the green train's escalating door beeper.
   - Weather: rain in the open air.
-  - Stations: reverb, crowd murmur, escalator hum, footsteps.
-- **Passengers** who wait at the platform edge, sit on benches, board through the nearest door, ride and get off.
-- **Driving**: sit in the leading cab's driver's seat to drive any of the four trains yourself.
+  - Stations: reverb, crowd murmur (louder as the crowd grows), escalator hum, footsteps.
+  - The Vagonmash: rattling panels and windows, stick-slip creaks as it pulls away.
+- **Passengers**: how many there are, and how they behave, depends on the passenger-flow setting (see "Passenger flow" below).
+- **Driving**: sit in the leading cab's driver's seat to drive any of the five trains yourself.
 - **Graphics**:
   - PBR materials with procedurally generated albedo, normal and roughness maps.
   - Image-based lighting captured from every station and from the sky.
@@ -142,6 +144,45 @@ A first-person 3D ride along a Sofia Metro line, in one HTML file. Open `sofia-m
   - At Орлов мост, both messages add "връзка с линии М1 и М4" / "transfer to M1 and M4 metro lines". At НДК 2 they add "връзка с линия М1" / "transfer to M1 metro line".
   - There are no luggage reminders on M3.
 
+### The Vagonmash
+
+The older Sofia Metro stock, built after the reference photos. It runs on М1 · М2 · М4 only, not on M3.
+- **Outside**:
+  - A silver ribbed, slightly weathered metal body with a continuous green stripe edged in yellow pinstripes. Riveted seams, panel lines, rubber window gaskets and car numbers.
+  - Rectangular windows, and green door leaves (pink-brown on the inside).
+  - The black cab front with the winged M, two round headlights in each lamp pod, and red markers that light at the rear of the train.
+  - A green LED destination display ("М1 ДО СЛИВНИЦА", "ЛЕТИЩЕ СОФИЯ" …) and a route card.
+  - Bogies, brake gear, boxes and cables underneath, roof vents, a silver apron and the coupler.
+- **Inside**:
+  - Light-wood laminate walls, and longitudinal brown seats, worn on the most-used places. A grey floor with hatches.
+  - Chrome poles, rails and overhead bars, and a continuous fluorescent strip of a warmer, older tone.
+  - Large windows, adverts, line maps and stickers. Each end wall has a door and two small windows.
+- **Displays**: when you ride it, the passenger information turns retro:
+  - In the HUD, coarse green dot-matrix running text in a scratched aluminium bezel, a seven-segment amber clock, and the line as a row of square lamps with station names in a pixel font.
+  - In the cars, small LED boxes over the end doors show the same running text and lamp row.
+- **Motion and sound**:
+  - The cars rock side to side, more at speed and in curves, and the camera picks up a fine mechanical vibration.
+  - Panels and windows rattle all the time it is moving.
+  - The body and couplers creak and squeak as it pulls away and while it gathers speed.
+  - The motors and gear whine are louder than on the newer trains.
+
+### Passenger flow
+
+Menu → Settings → "Пътникопоток · Flow", the selector on the title screen, or <kbd>F</kbd> in the game. It applies to every station and train on both lines, the Vagonmash included.
+- **Auto**: about 6, 20, 40 or 50 people per station, depending on the hour and on the station (the big transfer stations and the termini are busier). Trains are loaded to match. People keep their distance, let others off first and board politely.
+- **Busy** (Натоварено): 50–80 people per station, and full trains.
+  - Many of them are grandmothers (баби) in headscarves with big supermarket bags. They sit down first and put their bags on the seats next to them, holding two or three seats.
+  - Others have to stand or squeeze in, and there is some mild pushing and racing for seats. People no longer wait at the side of the doors for others to get off.
+  - Standing next to a granny's bags, <kbd>E</kbd> asks her to move them. She may, or she may answer back.
+- **Peak hours** (Час пик): 200–210 people per station, and packed trains.
+  - The grandmothers push and jostle with everyone else at the doors, getting on and getting off, and now and then a door turns into a real scrum ("соматоха").
+  - In these moments you hear them, and speech bubbles show over their heads: "Я се махни от тука, бе!", "Направете път, я трябва да седна!", "Ти ли ще ми кажеш, бе!", "Мърдай, мърдай, че ще ме смачкате!", "Тука е заето!", "Пусни ме да сляза, бе!", "Чакай, чакай, не затваряйте!" and more.
+  - Now and then a man joins in: "Абе, пуснете хората да слязат!", "Ей, внимавайте, бе!", "Влизайте навътре, има място!".
+  - Push into a granny and she pushes back, and tells you so.
+- **In every mode**:
+  - People queue at the doors, step round each other and the benches, find a seat or a place to stand, and keep a little room around you.
+  - The crowd is drawn in detail near you and with a lighter model farther away, so even Peak hours stays playable on phones.
+
 ### Controls
 
 | Desktop | Action |
@@ -149,7 +190,8 @@ A first-person 3D ride along a Sofia Metro line, in one HTML file. Open `sofia-m
 | Click | capture the mouse |
 | W A S D, mouse | walk and look |
 | Shift | run |
-| E | sit, stand, take the driver's seat, cross to the other platform (top of the stairs, or at the ticket gates) |
+| E | sit, stand, take the driver's seat, cross to the other platform (top of the stairs, or at the ticket gates), ask a granny to move her bags |
+| F | passenger flow: auto, busy, peak hours |
 | V | camera: first person, chase, cinematic |
 | T | time ×1, ×2, ×4, ×8 |
 | N | skip the dwell, or bring the next train closer |
@@ -167,8 +209,9 @@ On phones and tablets:
 
 ### About the recorded voices
 
-The announcements were synthesised offline with the Piper neural TTS voices below and embedded as MP3.
+The announcements and the passengers' voices were synthesised offline with the Piper neural TTS voices below and embedded as MP3.
 - **Bulgarian**: `ru_RU-irina-medium`, driven with Bulgarian phonemes and hand-set stress, so it may carry a slight accent. Its model card gives the dataset as RHVoice (https://github.com/RHVoice/RHVoice), with the licence listed as "Unknown".
 - **English**: `en_GB-alan-medium`. Its model card points to https://github.com/MycroftAI/mimic3-voices for the dataset licence.
+- **Passengers' voices**: `ru_RU-irina-medium` (the women, and the grandmothers, whose takes were processed to sound older and shakier) and `ru_RU-denis-medium` (men), with the same Bulgarian phonemes. They are synthetic, so they won't sound quite like real Sofia grandmothers. The model card for `ru_RU-denis-medium` gives its dataset as https://github.com/NabuCasa/voice-datasets, licensed CC0.
 
-Check both licences before redistributing the file commercially.
+Check these licences before redistributing the file commercially.
