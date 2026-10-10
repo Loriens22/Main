@@ -276,8 +276,10 @@ input[type=range]{width:100%;accent-color:var(--stucco)}
 }
 @media (max-height:480px){
   .sign-main{font-size:clamp(30px,7vh,60px)}
-  .menu-buttons{gap:8px}
-  .plate{padding:8px 14px}
+  .menu-buttons{gap:7px}
+  .plate{padding:6px 14px}
+  .plate small{font-size:11px}
+  .sign.old{display:none}
   #subs{bottom:calc(16px + var(--safe-b));width:min(520px,calc(100% - 340px))}
   #interact{bottom:calc(16px + var(--safe-b));left:calc(160px + var(--safe-l));transform:none}
 }
@@ -5418,7 +5420,10 @@ function drvUI() {
 #drv-touch button.dn{background:rgba(242,201,74,.55)}#drv-touch .st{bottom:20px;width:96px;height:96px;font-size:34px}#drv-touch .sl{left:16px}#drv-touch .sr{left:124px}
 #drv-touch .gas{right:18px;bottom:20px;width:86px;height:150px;background:rgba(40,120,60,.55)}#drv-touch .brk{right:116px;bottom:20px;width:86px;height:96px;background:rgba(150,40,30,.55)}
 #drv-touch .sm{width:62px;height:46px;font-size:11px}
-@media (max-height:480px){#drv-speedo{width:140px;height:140px}#drv-touch .st{width:80px;height:80px}#drv-touch .sr{left:104px}#drv-touch .gas{height:120px}}`;
+@media (max-height:480px){#drv-speedo{width:140px;height:140px}#drv-touch .st{width:80px;height:80px}#drv-touch .sr{left:104px}#drv-touch .gas{height:120px}}
+#app.drv-tch #drv-radio{top:calc(10px + var(--safe-t));bottom:auto;left:calc(12px + var(--safe-l));flex-wrap:wrap;max-width:214px;padding:5px 7px;gap:5px}#app.drv-tch #drv-radio .lcd{flex:1 1 100%;min-width:0;font-size:11px;padding:3px 6px}#app.drv-tch #drv-radio .lcd small{display:none}#app.drv-tch #drv-radio button{padding:6px 9px;font-size:12px}
+#app.drv-tch #drv-hud .top{min-width:min(400px,44vw)}#app.drv-tch #drv-speedo{width:108px;height:108px;bottom:auto;top:auto;bottom:calc(152px + var(--safe-b))}#app.drv-tch #drv-hud .warn{right:auto;bottom:auto;left:calc(14px + var(--safe-l));top:150px;align-items:flex-start}
+#drv-touch .sm.wide{width:76px}#app.drv-tch #subs{bottom:calc(112px + var(--safe-b))}`;
   document.head.appendChild(st);
   const h = document.createElement('div'); h.id = 'drv-hud'; h.hidden = true; h.innerHTML = `<div class="top"><div class="dist"><b id="drv-km">12.0</b> <span id="drv-kml"></span></div><div class="strip"><i id="drv-pos"></i><em>🏛️</em></div><div class="off zero" id="drv-off"></div></div><canvas id="drv-speedo" width="300" height="300"></canvas><div class="warn"><span class="oil" id="drv-oil" hidden></span><span class="hp" id="drv-hp"></span></div>
     <div id="drv-radio"><div class="lcd" id="drv-lcd">—</div><button id="drv-rnext" title="R">📻 ▸</button><button id="drv-roff">■</button><button id="drv-eject" title="MP3">⏏ MP3</button></div><div class="keys" id="drv-keys"></div>`;
@@ -5426,15 +5431,15 @@ function drvUI() {
   const tc = document.createElement('div'); tc.id = 'drv-touch'; tc.hidden = true; $('app').appendChild(tc);
   const btn = (cls, txt, key, style) => { const b = document.createElement('button'); b.className = cls; b.textContent = txt; if (style) b.style.cssText = style; const dn = e => { e.preventDefault(); b.classList.add('dn'); if (key.startsWith('t:')) DRIVE.touch[key.slice(2)] = 1; else IN.tbPressed.add(key); try { b.setPointerCapture(e.pointerId); } catch (er) { } }; const up = () => { b.classList.remove('dn'); if (key.startsWith('t:')) DRIVE.touch[key.slice(2)] = 0; }; b.addEventListener('pointerdown', dn); b.addEventListener('pointerup', up); b.addEventListener('pointercancel', up); b.addEventListener('lostpointercapture', up); tc.appendChild(b); return b; };
   btn('st sl', '◀', 't:l'); btn('st sr', '▶', 't:r'); DRIVE.ui = { hud: h, touch: tc }; DRIVE.ui.gas = btn('gas', t('drv_gas'), 't:gas'); DRIVE.ui.brk = btn('brk', t('drv_brake'), 't:brake');
-  btn('sm', t('drv_hb'), 't:hb', 'right:212px;bottom:20px'); btn('sm', '📯', 'd-horn', 'right:212px;bottom:74px'); btn('sm', '🎥', 'd-cam', 'right:18px;top:96px'); btn('sm', '📻', 'd-radio', 'right:88px;top:96px');
+  btn('sm', t('drv_hb'), 't:hb', 'right:212px;bottom:20px'); btn('sm', '📯', 'd-horn', 'right:212px;bottom:74px'); btn('sm', '🎥', 'd-cam', 'left:calc(14px + var(--safe-l));top:96px');
   DRIVE.ui.extra = 0; for (const b of DRIVE.buttons) drvAddTouchBtn(b);
   $('drv-rnext').addEventListener('click', () => RADIO.next()); $('drv-roff').addEventListener('click', () => RADIO.off()); $('drv-eject').addEventListener('click', () => RADIO.pick());
   return DRIVE.ui;
 }
-function drvAddTouchBtn(b) { const tc = DRIVE.ui.touch, el = document.createElement('button'); el.className = 'sm'; el.textContent = b.label(); el.style.cssText = `right:${158 + DRIVE.ui.extra * 70}px;top:96px`; DRIVE.ui.extra++; el.addEventListener('pointerdown', e => { e.preventDefault(); el.classList.add('dn'); b.onDown && b.onDown(); }); el.addEventListener('pointerup', () => { el.classList.remove('dn'); b.onUp && b.onUp(); }); tc.appendChild(el); b.el = el; }
+function drvAddTouchBtn(b) { const tc = DRIVE.ui.touch, el = document.createElement('button'); el.className = 'sm wide'; el.textContent = b.label(); el.style.cssText = `left:calc(${84 + DRIVE.ui.extra * 84}px + var(--safe-l));top:96px`; DRIVE.ui.extra++; el.addEventListener('pointerdown', e => { e.preventDefault(); el.classList.add('dn'); b.onDown && b.onDown(); }); el.addEventListener('pointerup', () => { el.classList.remove('dn'); b.onUp && b.onUp(); }); tc.appendChild(el); b.el = el; }
 DRIVE.addTouchButton = function (id, labelFn, onDown, onUp) { const b = { id, label: typeof labelFn === 'function' ? labelFn : () => labelFn, onDown, onUp }; this.buttons.push(b); if (this.ui) drvAddTouchBtn(b); return b; };
-function drvShowHUD(on) { const ui = drvUI(); const show = on && DRIVE.active && G.state !== 'cine'; ui.hud.hidden = !show; const touchOn = S.touch === 'on' || (S.touch === 'auto' && IS_TOUCH); ui.touch.hidden = !(show && touchOn); if (show) { $('touch').hidden = true; for (const id of ['bar-hp', 'bar-ultra', 'bar-hunger', 'bar-stamina', 'weapon', 'crosshair', 'interact']) { const e = $(id); if (e) e.hidden = true; } } $('drv-keys').textContent = IS_TOUCH ? '' : t('drv_keys'); }
-HOOKS.showHUD.push(on => { if (DRIVE.active) drvShowHUD(on); else if (DRIVE.ui) { DRIVE.ui.hud.hidden = true; DRIVE.ui.touch.hidden = true; } });
+function drvShowHUD(on) { const ui = drvUI(); const show = on && DRIVE.active && G.state !== 'cine'; ui.hud.hidden = !show; const touchOn = S.touch === 'on' || (S.touch === 'auto' && IS_TOUCH); ui.touch.hidden = !(show && touchOn); $('app').classList.toggle('drv-tch', !!(show && touchOn)); if (show) { $('touch').hidden = true; for (const id of ['bar-hp', 'bar-ultra', 'bar-hunger', 'bar-stamina', 'weapon', 'crosshair', 'interact']) { const e = $(id); if (e) e.hidden = true; } } $('drv-keys').textContent = IS_TOUCH ? '' : t('drv_keys'); }
+HOOKS.showHUD.push(on => { if (DRIVE.active) drvShowHUD(on); else if (DRIVE.ui) { DRIVE.ui.hud.hidden = true; DRIVE.ui.touch.hidden = true; $('app').classList.remove('drv-tch'); } });
 function drvSpeedo() {
   const c = $('drv-speedo'); if (!c) return; const x = c.getContext('2d'), W = 300, cx = 150, cy = 158, D = DRIVE; x.clearRect(0, 0, W, W);
   x.fillStyle = 'rgba(10,12,14,.72)'; x.beginPath(); x.arc(cx, cy, 132, 0, TAU); x.fill(); x.strokeStyle = 'rgba(255,255,255,.18)'; x.lineWidth = 3; x.stroke();
@@ -6311,7 +6316,7 @@ function ofUI() {
 #of-form .tip{font-size:11px;opacity:.7;margin-top:6px;font-family:var(--font-ui)}
 #of-form .docview{background:#f4efe2;color:#1e1a12;border-radius:6px;padding:12px;margin-top:8px;font-family:"Courier New",monospace;font-size:13px;line-height:1.45}
 #of-form .docview button{margin-top:8px;margin-right:6px;border:0;border-radius:4px;padding:7px 12px;font:700 12px var(--font-ui);cursor:pointer;background:#1d4e9e;color:#fff}
-@media (max-width:760px){#of-form .wrap{grid-template-columns:1fr;}#of-form .left{max-height:34vh}#of-form .paper{max-height:56vh;padding:12px}#of-form .row{grid-template-columns:96px 1fr}}`;
+@media (max-width:760px){#of-form .wrap{grid-template-columns:1fr;}#of-form .left{max-height:34vh}#of-form .paper{max-height:56vh;padding:12px}#of-form .row{grid-template-columns:96px 1fr}}@media (max-height:480px){#of-form{padding:6px}#of-form .wrap{gap:8px}#of-form .left,#of-form .paper{max-height:calc(100vh - 12px)}#of-form .paper{padding:10px 14px}#of-form .row{margin:4px 0}#of-form .clock{position:static;display:block;text-align:right;margin-bottom:2px}}`;
   document.head.appendChild(st);
   const mk = (id, html) => { const d = document.createElement('div'); d.id = id; d.hidden = true; if (html) d.innerHTML = html; $('app').appendChild(d); return d; };
   const ui = OFFICE.ui = { prompt: mk('of-prompt'), hud: mk('of-hud'), elev: mk('of-elev'), form: mk('of-form') };
@@ -6793,7 +6798,7 @@ TRAFFIC.update = function (dt, dtR) {
   if (AU.ok) { const near = this.cars.filter(c => c.mode === 'traffic' && c.tr.v > 1).sort((a, b) => Math.abs(a.root.position.x - px) - Math.abs(b.root.position.x - px)).slice(0, 2); while (this.voices.length < near.length) this.voices.push(new LoopVoice('engine')); this.voices.forEach((v, i) => { const c = near[i]; if (c) v.set(c.root.position, .12, c.tr.v); else v.set(null, 0); }); }
   // angry drivers who got out shake fists, then walk back
   for (const c of this.cars) { const d = c.driverNpc; if (d && !d.inCar && d.trAngry > 0 && !d.removed) { d.trAngry -= dt; if (!d.ragdoll && d.state !== 'flee') { d.yaw = dampA(d.yaw, Math.atan2(p.x - d.pos.x, p.z - d.pos.z), 4, dt); d.extraPose = (P2, ch) => { P2.mix(BN.shR, -2.4 + Math.sin(ch.t * 12) * .3, 0, -.4, 1); P2.mix(BN.elR, -1.6, 0, 0, 1); }; } if (d.trAngry <= 0) d.extraPose = null; } }
-  const u = this.ui; if (u) { u.b.hidden = !(DRIVE.ui && !DRIVE.ui.hud.hidden); u.b.textContent = '🍺 × ' + this.bottles + (IS_TOUCH ? '' : '  [B]'); }
+  const u = this.ui; if (u) { const tch = !!(DRIVE.ui && !DRIVE.ui.touch.hidden); u.b.hidden = !(DRIVE.ui && !DRIVE.ui.hud.hidden) || tch; const bt = '🍺 × ' + this.bottles + (IS_TOUCH ? '' : '  [B]'); if (u.b.textContent !== bt) u.b.textContent = bt; } if (this.btn && this.btn.el) { const lb = '🍺 ' + this.bottles; if (this.btn.el.textContent !== lb) this.btn.el.textContent = lb; }
 };
 HOOKS.update.push((dt, dtR) => { try { TRAFFIC.update(dt, dtR); } catch (e) { console.error(e); } });
 HOOKS.clear.push(() => TRAFFIC.stop());
