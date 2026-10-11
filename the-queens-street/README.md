@@ -31,19 +31,19 @@ Each day ends with a summary of money earned, fines and bribes paid, then a nigh
 
 **3 · To the Municipality.** The property papers will not sort themselves out. This mode jumps straight into the mission; it is also the second daily choice in the campaign.
 - **The terrace.** Penka yells at her husband Гошо and then calls her friend Кака Бистра on the Nokia. Bistra arrives carrying three enormous folders ("тежи цял тон").
-- **The car.** They leave in a dirty sage-green estate with roof rails and mud up to the windows. Penka lights a cigarette and puts on black sunglasses.
+- **The car.** They leave in a dirty sage-green early-2000s estate, modelled in detail: a curved body with panel gaps, real headlight and tail-light units, a badge-free grille, alloy wheels with brake discs, roof rails and wipers. The interior has a curved dashboard with gauges, sculpted seats, and a mess of cigarette butts, beer bottles, magazines and Gosho's underwear. Penka lights a cigarette and puts on black sunglasses.
 - **The drive.** About 12 km along a long Sofia-style boulevard: tram tracks and trams with stops, traffic lights, zebra crossings with pedestrians, a tree-lined median, panel blocks, shops and billboards. Vitosha and the hills sit in the distance.
   - Traffic drives with its own AI: it brakes, changes lanes, honks and gets out to argue if you ram it.
   - Braking hard from speed makes the tyres squeal and starts an **oil leak**. The oil trail makes cars behind you spin.
   - Bistra throws beer bottles out of the window (B), and both women comment on everything.
   - **Police.** Red lights, rammed cars, hit pedestrians, bottles and car damage add up to a fine of 500–28 000 €. Pull over when the police chase you (or meet a checkpoint), then pay or try a bribe. Fines above 1 500 € get special lines.
-- **The radio** (R). Two procedural stations play rap and a 7/16 чалга loop. A third, "Queen Radio", plays any MP3 you load with the ⏏ button. The file stays in your browser (IndexedDB) and loops if it is short. Turning to it triggers a 15–20 s cinematic: the car drives itself while both women nod and rap along, and Penka fans a stack of cash.
+- **The radio** (R). Two procedural stations play rap and a 7/16 чалга loop. A third, "Queen Radio", plays any MP3 you load with the ⏏ button. The song plays at full volume through the phone's media channel, so it also plays when an iPhone is on silent, and the engine is turned down while it plays. The file stays in your browser (IndexedDB) and loops. If the browser blocks playback, the radio screen shows "tap to play". Turning to it triggers a 15–20 s cinematic: the car drives itself while both women nod and rap along to the song's beat, and Penka fans a stack of cash.
 - **Arrival.** Penka brakes hard in front of a monumental building with relief panels and a tower. Both doors slam, and five seconds later the driver's door falls off.
-- **Inside.** A communist-era hall with five counters, flickering fluorescent tubes, plastic chairs and a green elevator.
+- **Inside.** A communist-era "Center for administrative services": polished terrazzo with brass divider strips, travertine dado, a 60×60 ceiling grid with prismatic light panels, laminate service counters with framed glass, speaking grilles and beige CRTs, moulded shell chairs on steel beams, vertical blinds, cast-iron radiators and the scuffed green elevator with its porthole doors.
   - Леля Донка demands a queue ticket. Take one and wait (time-lapse), or refuse and start a **fight**. Clerks throw paper stacks, binders and staplers, any weapon works, and Bistra fights with her heel.
   - Chainsaw a counter and someone presses the red button. Four white vans and a black sedan bring the Mayoress. She opens the law book, and the paper turns into a **paper monster** with purple lasers, orbiting law books, stomps and paperling minions every 2 minutes.
-  - The elevator to **floor 7 – Имотни въпроси** shakes and creaks, and the cable can snap (58% chance, game over and retry from the elevator).
-  - On the luxurious 7th floor a secretary hands over the form. Fill it in correctly, attach the right documents and stamp it before 17:00, then drive home at sunset.
+  - The old elevator (teak panels, cracked mirror, perforated light ceiling) to **floor 7 – Имотни въпроси** shakes and creaks, and the cable can snap (58% chance, game over and retry from the elevator).
+  - The luxurious 7th floor has oak floors, Persian rugs, walnut wainscoting, damask walls, a crystal chandelier, tufted chesterfields, velvet curtains and the padded director's door. The secretary hands over the form. Fill it in correctly, attach the right documents, sign it with your finger or the mouse, and stamp it before 17:00. Then drive home at sunset. On phones, tap the green "👆" prompt or the glowing action button to talk to her.
 
 ## Content note
 
@@ -99,9 +99,9 @@ All dialogue is written in Bulgarian and is spoken through the browser's speech 
 
 - **Rendering:** three.js r169 with PBR materials, IBL from a procedural sky, soft shadows, GTAO, bloom, MSAA/FXAA and a colour-grading pass (vignette, grain, chromatic aberration).
 - **Textures:** all canvas-generated, with normal and roughness maps (stucco, roof tiles, stone cladding, paving, asphalt, wood, leaves, fabrics).
-- **Characters:** procedural skinned meshes driven by procedural animation, with verlet ragdolls.
+- **Characters:** procedural skinned meshes with shaped limbs, hands with fingers and sculpted faces, driven by procedural animation, with verlet ragdolls.
 - **Cars:** deformable shaped bodies on a custom rigid-body solver (ground contacts, car-to-car impulses).
 - **Sound:** fully synthesized with WebAudio, including the music (a procedural ръченица in 7/16) and the radio stations.
 - **City:** the boulevard is streamed in 120 m chunks, with canvas-generated facades whose windows light up at night.
 - **Driving:** a bicycle-model car with tyre slip, a stability assist and handbrake drifts. Traffic uses an intelligent-driver model that obeys lights, pedestrians and trams.
-- **Interiors:** the Municipality hall, elevator cabin and 7th floor are separate worlds, swapped in without reloading the page.
+- **Interiors:** the Municipality hall, elevator cabin and 7th floor are separate worlds, swapped in without reloading the page. Each glossy room captures a reflection probe the first time you enter it, so floors and glass reflect the room itself.
