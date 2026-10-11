@@ -6728,11 +6728,12 @@ const OFFICE = {
   elevatorFailChance: .58, forceElevator: null, counters: [], npcs: [], lights: [], props: [], prompt: null, cb: {}, fightOn: false, kos: 0, formOpen: false,
   spots: {}, set: 'hall',
 };
-async function ofGenAll(progress) { const N = ofTS(1024), N2 = ofTS(512); const steps = [() => ofGenTerrazzo(N), () => ofGenTravertine(N2), () => { ofGenVeneer('ofVen', N2, [168, 116, 70], 5); ofGenVeneer('ofVenDark', N2, [112, 70, 40], 9, 1.4); }, () => ofGenCeiling(N2), () => { ofGenChipped('ofChipG', N2, [176, 198, 168], 3); ofGenChipped('ofChipC', N2, [214, 206, 182], 7); }, () => { ofGenParquet(N2); ofGenWalnut(N2); }, () => { ofGenDamask(N2); ofGenLeather(N2); }, () => { OFFICE.atlasH = ofBuildAtlasHall(); }, () => { OFFICE.atlasL = ofBuildAtlasLux(); }]; for (let i = 0; i < steps.length; i++) { steps[i](); progress((i + 1) / steps.length); await nextFrame(); } }
+async function ofGenAll(progress) { const N = ofTS(1024), N2 = ofTS(512), lean = typeof ofhBuildHall === 'function' && typeof ofuBuildFloor7 === 'function'; // the detailed sets bring their own surfaces
+  const steps = (lean ? [] : [() => ofGenTerrazzo(N), () => ofGenTravertine(N2), () => ofGenCeiling(N2), () => { ofGenChipped('ofChipG', N2, [176, 198, 168], 3); ofGenChipped('ofChipC', N2, [214, 206, 182], 7); }, () => ofGenParquet(N2), () => { ofGenDamask(N2); ofGenLeather(N2); }]).concat([() => { ofGenVeneer('ofVen', N2, [168, 116, 70], 5); ofGenVeneer('ofVenDark', N2, [112, 70, 40], 9, 1.4); }, () => ofGenWalnut(N2), () => { OFFICE.atlasH = ofBuildAtlasHall(); }, () => { OFFICE.atlasL = ofBuildAtlasLux(); }]); for (let i = 0; i < steps.length; i++) { steps[i](); progress((i + 1) / steps.length); await nextFrame(); } }
 function ofMats() {
   if (M.ofTerr) return; const N = ofTS(1024), N2 = ofTS(512);
   const reg = (k, m, uv = 1) => { M[k] = m; UVS[k] = uv; return m; };
-  const pb = (t, c, o) => pbrMat(TEX[t], c, o);
+  const pb = (t, c, o) => TEX[t] ? pbrMat(TEX[t], c, o) : stdMat({ color: c, roughness: .8 });
   reg('ofTerr', pb('ofTerrazzo', 0xffffff, { ns: .6, roughness: 1 }), 1.5); reg('ofTrav', weather(pb('ofTrav', 0xffffff, { ns: .8 }), { s: .15, h: .5 }), 1.6);
   reg('ofVen', pb('ofVen', 0xffffff, { ns: .6, roughness: 1 }), 1.2); reg('ofVenDark', pb('ofVenDark', 0xffffff, { ns: .6, roughness: 1 }), 1.2); reg('ofCeil', pb('ofCeil', 0xffffff, { ns: .8 }), 1.2);
   reg('ofWallG', weather(pb('ofChipG', 0xffffff, { ns: .7 }), { s: .25, h: 1.4, streak: .12 }), 2.2); reg('ofWallC', weather(pb('ofChipC', 0xffffff, { ns: .7 }), { s: .2, h: 1.2, streak: .1 }), 2.2);
@@ -6927,7 +6928,7 @@ function ofLightsTo(set) { OFFICE.set = set; const L = OF_LIGHTSETS[set]; OFFICE
 OFFICE.build = function (progress = () => { }) {
   if (this.built) return Promise.resolve(); if (this.building) return this.building;
   this.building = (async () => {
-    const t0 = performance.now(); if (!M.ofTerr) await ofGenAll(p => progress(p * .4)); if (typeof ofhGenAll === 'function') await ofhGenAll(p => progress(.4 + p * .1)); if (typeof ofuGenAll === 'function') await ofuGenAll(p => progress(.5 + p * .08)); ofMats(); if (typeof ofhMats === 'function') ofhMats(); if (typeof ofuMats === 'function') ofuMats(); progress(.6); await nextFrame();
+    const t0 = performance.now(); if (!M.ofVen) await ofGenAll(p => progress(p * .4)); if (typeof ofhGenAll === 'function') await ofhGenAll(p => progress(.4 + p * .1)); if (typeof ofuGenAll === 'function') await ofuGenAll(p => progress(.5 + p * .08)); ofMats(); if (typeof ofhMats === 'function') ofhMats(); if (typeof ofuMats === 'function') ofuMats(); progress(.6); await nextFrame();
     this.root = new THREE.Group(); this.root.name = 'office'; this.root.visible = false; scene.add(this.root);
     registerWorld('office', { objs: [this.root], fogNear: 60, fogFar: 400, onEnter: ofOnEnter, onExit: ofOnExit });
     await withWorldArraysAsync('office', async () => { ofBuildHall(this.root); progress(.75); await nextFrame(); ofBuildCabin(this.root); ofBuildFloor7(this.root); progress(.92); });
