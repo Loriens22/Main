@@ -296,7 +296,7 @@ function NewGroupSheet({ open }: { open: boolean }) {
       <div className="label">Agents · {agents.length}</div>
       <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
         {agents.map((a, i) => (
-          <div key={i} className="group" style={{ padding: 12 }}>
+          <div key={i} style={{ padding: 12, borderRadius: 22, background: 'var(--card)', border: '1px solid var(--line)' }}>
             <div style={{ display: 'flex', gap: 10, alignItems: 'center' }}>
               <button className="avatar" style={{ width: 40, height: 40, background: a.color }} onClick={() => update(i, { color: COLORS[(COLORS.indexOf(a.color) + 1) % COLORS.length] })} aria-label="Change color">
                 {a.name[0] ?? '?'}

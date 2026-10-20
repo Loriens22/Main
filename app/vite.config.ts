@@ -12,10 +12,10 @@ export default defineConfig({
     assetsInlineLimit: 0,
     chunkSizeWarningLimit: 1500,
     rollupOptions: {
-      input: {
-        main: resolve(__dirname, 'index.html'),
-        lab: resolve(__dirname, 'mascot-lab.html'),
-      },
+      // The mascot lab and icon renderer are dev tools; ship them only when asked.
+      input: process.env.MASCOT_LAB
+        ? { main: resolve(__dirname, 'index.html'), lab: resolve(__dirname, 'mascot-lab.html') }
+        : { main: resolve(__dirname, 'index.html') },
     },
   },
   server: { port: 5173 },

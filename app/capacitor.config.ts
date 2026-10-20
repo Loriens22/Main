@@ -24,6 +24,10 @@ const config: CapacitorConfig = {
       resize: 'native',
       resizeOnFullScreen: true,
     },
+    SystemBars: {
+      insetsHandling: 'css',
+      initialViewportFitValueHint: 'cover',
+    },
     StatusBar: {
       overlaysWebView: true,
       style: 'DARK',

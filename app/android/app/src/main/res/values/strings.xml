@@ -1,0 +1,7 @@
+<?xml version='1.0' encoding='utf-8'?>
+<resources>
+    <string name="app_name">Maverick Bot</string>
+    <string name="title_activity_main">Maverick Bot</string>
+    <string name="package_name">com.loriens22.maverickbot</string>
+    <string name="custom_url_scheme">com.loriens22.maverickbot</string>
+</resources>

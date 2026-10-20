@@ -1,5 +1,12 @@
 # Maverick core: gateway + OpenCode server (+ the PWA build for iOS/web).
 # Build context: repository root.
+FROM node:22-bookworm AS web
+WORKDIR /src/app
+COPY app/package.json app/package-lock.json ./
+RUN npm ci
+COPY app/ ./
+RUN npx vite build
+
 FROM node:22-bookworm AS server-build
 WORKDIR /srv
 COPY server/package.json server/package-lock.json ./
@@ -19,6 +26,7 @@ WORKDIR /srv
 COPY --from=server-build /srv/node_modules ./node_modules
 COPY --from=server-build /srv/dist ./dist
 COPY server/package.json ./
+COPY --from=web /src/app/dist ./public
 ENV NODE_ENV=production \
     DATA_DIR=/data \
     WEB_DIR=/srv/public \

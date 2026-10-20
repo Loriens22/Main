@@ -1,0 +1,156 @@
+name: Build Maverick Bot apps
+
+on:
+  push:
+    branches: [main, ccr-b02444a3-nlojc9]
+    paths:
+      - 'app/**'
+      - '.github/workflows/mobile.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+concurrency:
+  group: mobile-${{ github.ref }}
+  cancel-in-progress: true
+
+env:
+  VITE_DEFAULT_SERVER: https://maverick-core-production.up.railway.app
+
+jobs:
+  android:
+    name: Android APK
+    runs-on: ubuntu-latest
+    timeout-minutes: 45
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+          cache-dependency-path: app/package-lock.json
+
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: 21
+
+      - name: Install dependencies
+        working-directory: app
+        run: npm ci
+
+      - name: Type-check and build web app
+        working-directory: app
+        run: npm run build
+
+      - name: Sync Capacitor Android project
+        working-directory: app
+        run: npx cap sync android
+
+      # A stable signing key lets new APKs install as updates. Preferred: repository secrets
+      # (ANDROID_KEYSTORE_BASE64, ANDROID_KEYSTORE_PASSWORD, ANDROID_KEY_ALIAS, ANDROID_KEY_PASSWORD).
+      # Without secrets a key is generated once and kept in the Actions cache (never committed).
+      - name: Restore cached signing key
+        id: keycache
+        uses: actions/cache@v4
+        with:
+          path: ~/.maverick-signing
+          key: maverick-signing-key-v1
+
+      - name: Prepare signing key
+        env:
+          KS_B64: ${{ secrets.ANDROID_KEYSTORE_BASE64 }}
+          KS_PASS: ${{ secrets.ANDROID_KEYSTORE_PASSWORD }}
+          KEY_ALIAS: ${{ secrets.ANDROID_KEY_ALIAS }}
+          KEY_PASS: ${{ secrets.ANDROID_KEY_PASSWORD }}
+        run: |
+          mkdir -p ~/.maverick-signing
+          if [ -n "$KS_B64" ]; then
+            echo "$KS_B64" | base64 -d > ~/.maverick-signing/release.jks
+            echo "MAVERICK_KEYSTORE_PASSWORD=$KS_PASS" >> "$GITHUB_ENV"
+            echo "MAVERICK_KEY_ALIAS=$KEY_ALIAS" >> "$GITHUB_ENV"
+            echo "MAVERICK_KEY_PASSWORD=$KEY_PASS" >> "$GITHUB_ENV"
+            echo "Using signing key from repository secrets"
+          else
+            if [ ! -f ~/.maverick-signing/release.jks ]; then
+              PASS=$(openssl rand -hex 24)
+              keytool -genkeypair -v -keystore ~/.maverick-signing/release.jks -storetype PKCS12 \
+                -alias maverick -keyalg RSA -keysize 4096 -validity 10000 \
+                -storepass "$PASS" -keypass "$PASS" -dname "CN=Maverick Bot, O=Loriens22, C=US"
+              echo "$PASS" > ~/.maverick-signing/pass
+              echo "Generated a new signing key (cached for future builds)"
+            fi
+            PASS=$(cat ~/.maverick-signing/pass)
+            echo "::add-mask::$PASS"
+            echo "MAVERICK_KEYSTORE_PASSWORD=$PASS" >> "$GITHUB_ENV"
+            echo "MAVERICK_KEY_ALIAS=maverick" >> "$GITHUB_ENV"
+            echo "MAVERICK_KEY_PASSWORD=$PASS" >> "$GITHUB_ENV"
+          fi
+          echo "MAVERICK_KEYSTORE=$HOME/.maverick-signing/release.jks" >> "$GITHUB_ENV"
+
+      - name: Build signed release APK
+        working-directory: app/android
+        env:
+          VERSION_CODE: ${{ github.run_number }}
+        run: |
+          set -o pipefail
+          chmod +x gradlew
+          ./gradlew --no-daemon assembleRelease
+          APK=app/build/outputs/apk/release/app-release.apk
+          ls -la "$APK"
+          "$ANDROID_HOME"/build-tools/$(ls "$ANDROID_HOME"/build-tools | sort -V | tail -1)/apksigner verify --print-certs "$APK"
+          mkdir -p ../../dist-apk
+          cp "$APK" ../../dist-apk/maverick-bot.apk
+          sha256sum ../../dist-apk/maverick-bot.apk | tee ../../dist-apk/maverick-bot.apk.sha256
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: maverick-bot-apk
+          path: dist-apk/
+
+      - name: Publish GitHub release
+        uses: softprops/action-gh-release@v2
+        with:
+          tag_name: v1.0.${{ github.run_number }}
+          name: Maverick Bot 1.0.${{ github.run_number }}
+          target_commitish: ${{ github.sha }}
+          make_latest: true
+          files: |
+            dist-apk/maverick-bot.apk
+            dist-apk/maverick-bot.apk.sha256
+          body: |
+            **Maverick Bot** — AI coding companion for Android.
+
+            Download `maverick-bot.apk` below, open it on your phone and allow installing from this source.
+            On first launch enter your access code (Railway → maverick-bot → maverick-core → Variables → `ACCESS_CODE`).
+
+            Backend: https://maverick-core-production.up.railway.app · iPhone/iPad: open that URL in Safari → Share → Add to Home Screen.
+
+            Built from ${{ github.sha }}.
+
+  ios:
+    name: iOS build check (simulator, unsigned)
+    runs-on: macos-15
+    timeout-minutes: 45
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+          cache-dependency-path: app/package-lock.json
+      - name: Install and build web app
+        working-directory: app
+        run: |
+          npm ci
+          npm run build
+          npx cap sync ios
+      - name: Compile iOS app for the simulator
+        working-directory: app/ios/App
+        run: |
+          set -o pipefail
+          xcodebuild -project App.xcodeproj -scheme App -configuration Debug \
+            -sdk iphonesimulator -destination 'generic/platform=iOS Simulator' \
+            CODE_SIGNING_ALLOWED=NO build | tail -40
