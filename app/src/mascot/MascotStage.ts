@@ -646,12 +646,14 @@ export class MascotStage implements MascotStageApi {
     if (companion) {
       const ms = mav.size.x;
       const orbit = t * 0.5;
-      homeX = mav.pos.x + ms * (0.56 + Math.cos(orbit) * 0.06);
-      homeY = mav.pos.y - ms * (0.3 + Math.sin(orbit * 1.3) * 0.06) - mav.hop * ms * 0.5;
       targetSize = ms * 0.42;
+      // Orbit just outside Maverick's silhouette so the two never overlap, even at small sizes.
+      const gap = ms * 0.5 + targetSize * 0.62;
+      homeX = mav.pos.x + gap + ms * Math.cos(orbit) * 0.05;
+      homeY = mav.pos.y - ms * (0.28 + Math.sin(orbit * 1.3) * 0.05) - mav.hop * ms * 0.5;
       // Stay on screen: mirror to Maverick's left when he sits near the right edge, and keep below the top edge.
       const half = targetSize * 0.6;
-      if (homeX > this.W - half) homeX = mav.pos.x - ms * (0.56 + Math.cos(orbit) * 0.06);
+      if (homeX > this.W - half) homeX = mav.pos.x - gap - ms * Math.cos(orbit) * 0.05;
       homeX = clamp(homeX, half, Math.max(half, this.W - half));
       homeY = clamp(homeY, half + 6, Math.max(half + 6, this.H - half));
       if (!c.homeKnown) {

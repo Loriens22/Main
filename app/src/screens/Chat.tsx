@@ -128,12 +128,12 @@ export function ChatScreen({ chatId }: { chatId: string }) {
     <div className="screen" {...edgeSwipe}>
       <header className="chat-head">
         <Glass as="button" className="circle-btn" radius={999} refract interactive onClick={() => openSheet('chat-menu', { chatId })} aria-label="Chat menu">
-          <Icon name="menu" size={22} stroke={2.4} />
+          <Icon name="menu" size={18} stroke={2.2} />
         </Glass>
         <div className="chat-head__center">
-          <MascotAnchor id="maverick" size={96} />
-          <Glass className="name-capsule" radius={999} refract blur={18} onClick={goBack} role="button" aria-label="Back to chats">
-            {chat.kind === 'group' ? chat.title : 'Maverick'}
+          <MascotAnchor id="maverick" size={84} />
+          <Glass className="name-capsule" radius={999} refract blur={20} interactive onClick={goBack} role="button" aria-label="Back to chats">
+            <span className="name-capsule__text">{chat.kind === 'group' ? chat.title : 'Maverick'}</span>
           </Glass>
           <div className={`head-status${busy ? ' head-status--busy' : ''}`}>
             {busy && <span className="spinner" style={{ width: 11, height: 11, borderWidth: 1.6 }} />}
@@ -141,11 +141,11 @@ export function ChatScreen({ chatId }: { chatId: string }) {
           </div>
         </div>
         <Glass as="button" className="circle-btn" radius={999} refract interactive onClick={() => (haptic.medium(), setCallChat(chatId))} aria-label="Start voice call">
-          <Icon name="phone" size={22} />
+          <Icon name="phone" size={17} />
         </Glass>
       </header>
 
-      <div className="scroll" ref={scroller} onScroll={onScroll} style={{ paddingTop: 'calc(var(--safe-top) + 196px)' }}>
+      <div className="scroll" ref={scroller} onScroll={onScroll} style={{ paddingTop: 'calc(var(--safe-top) + 152px)' }}>
         <div className="messages content-max">
           {activeRun && <TaskBoard run={activeRun} agents={thread.agents ?? chat.agents ?? []} />}
           {thread.loading && !thread.loaded && (
@@ -155,7 +155,7 @@ export function ChatScreen({ chatId }: { chatId: string }) {
           )}
           {thread.error && (
             <div className="banner banner--err">
-              <Icon name="wifiOff" size={18} /> <span style={{ flex: 1 }}>{thread.error}</span>
+              <Icon name="wifiOff" size={15} /> <span style={{ flex: 1 }}>{thread.error}</span>
               <button className="composer__chip" onClick={() => loadThread(chatId)}>
                 Retry
               </button>
@@ -178,6 +178,7 @@ export function ChatScreen({ chatId }: { chatId: string }) {
                   busy={busy}
                   agent={agent}
                   showAgentTag={chat.kind === 'group' && (prevAgent !== m.agentId || prev?.kind !== 'msg')}
+                  hidePlanJson={chat.kind === 'group'}
                   seen={seen}
                   onRetry={m.info.error && item.key === lastAssistantId && lastUserText ? () => onSend(lastUserText, [], { agent: 'build' }) : undefined}
                   onSwitchModel={m.info.error && chat.kind === 'single' ? () => setPicker(true) : undefined}
@@ -196,7 +197,7 @@ export function ChatScreen({ chatId }: { chatId: string }) {
             } else if (item.kind === 'delegation') {
               node = (
                 <div className="delegation">
-                  <Icon name="arrowRight" size={14} /> {item.text}
+                  <Icon name="arrowRight" size={12} /> {item.text}
                 </div>
               );
             }
@@ -211,7 +212,7 @@ export function ChatScreen({ chatId }: { chatId: string }) {
           {busy && !thread.permissions.length && <TypingIndicator label={latest && Date.now() - latest.at < 120_000 ? latest.label : undefined} />}
           {thread.status === 'retry' && (
             <div className="banner banner--warn">
-              <Icon name="refresh" size={18} />
+              <Icon name="refresh" size={15} />
               <span style={{ flex: 1 }}>OpenCode is retrying the model request automatically. {thread.retry?.message}</span>
               {chat.kind === 'single' && (
                 <button className="composer__chip" onClick={() => setPicker(true)}>
@@ -233,9 +234,9 @@ export function ChatScreen({ chatId }: { chatId: string }) {
 
       <AnimatePresence>
         {showJump && (
-          <motion.div initial={{ opacity: 0, scale: 0.6 }} animate={{ opacity: 1, scale: 1 }} exit={{ opacity: 0, scale: 0.6 }} style={{ position: 'absolute', right: 0, bottom: 'calc(var(--safe-bottom) + 150px)', zIndex: 15 }}>
-            <Glass as="button" className="jump-btn" radius={999} refract interactive onClick={jump} aria-label="Scroll to latest" style={{ position: 'relative', right: 18 }}>
-              <Icon name="chevronDown" size={22} />
+          <motion.div initial={{ opacity: 0, scale: 0.6 }} animate={{ opacity: 1, scale: 1 }} exit={{ opacity: 0, scale: 0.6 }} style={{ position: 'absolute', right: 0, bottom: 'calc(var(--safe-bottom) + 132px)', zIndex: 15 }}>
+            <Glass as="button" className="jump-btn" radius={999} refract interactive onClick={jump} aria-label="Scroll to latest" style={{ position: 'relative', right: 14 }}>
+              <Icon name="chevronDown" size={17} />
             </Glass>
           </motion.div>
         )}
@@ -294,17 +295,17 @@ const TEAM_SUGGESTIONS = ['Build a to-do REST API in Node with tests, and review
 function EmptyChat({ kind, onPick }: { kind: 'single' | 'group'; onPick: (t: string) => void }) {
   const list = kind === 'group' ? TEAM_SUGGESTIONS : SUGGESTIONS;
   return (
-    <div style={{ padding: '24px 6px', display: 'flex', flexDirection: 'column', gap: 10 }}>
-      <div className="muted" style={{ textAlign: 'center', marginBottom: 6 }}>
+    <div style={{ padding: '20px 4px', display: 'flex', flexDirection: 'column', gap: 6 }}>
+      <div className="muted" style={{ textAlign: 'center', marginBottom: 8, fontSize: 13 }}>
         {kind === 'group' ? 'Give your team a goal. The lead plans, delegates, and reports back.' : 'Ask for real code. Maverick edits files, runs commands and tests on your server.'}
       </div>
       {list.map((s) => (
-        <Glass key={s} as="button" className="option" radius={18} interactive variant="clear" onClick={() => onPick(s)} style={{ border: '1px solid var(--line)' }}>
-          <Icon name="sparkle" size={17} style={{ color: 'var(--accent)' }} />
-          <div className="option__main" style={{ fontSize: 15 }}>
+        <button key={s} className="option" onClick={() => onPick(s)} style={{ background: 'var(--s1)', boxShadow: 'inset 0 0 0 0.5px var(--line-2)' }}>
+          <Icon name="sparkle" size={15} style={{ color: 'var(--t3)' }} />
+          <div className="option__main" style={{ fontSize: 14, color: 'var(--t2)' }}>
             {s}
           </div>
-        </Glass>
+        </button>
       ))}
     </div>
   );

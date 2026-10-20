@@ -77,16 +77,16 @@ function releaseFilter(id: string): void {
 }
 
 /* ------------------------------------------------------------------ */
-/* <Glass> — Liquid Glass surface                                      */
+/* <Glass> — Liquid Glass surface for the floating control layer      */
 /* ------------------------------------------------------------------ */
-export type GlassVariant = 'regular' | 'strong' | 'accent' | 'clear' | 'danger';
+export type GlassVariant = 'regular' | 'strong' | 'clear' | 'primary' | 'danger';
 
 export interface GlassProps extends HTMLAttributes<HTMLElement> {
   as?: 'div' | 'button' | 'nav' | 'header' | 'section' | 'span' | 'label' | 'footer';
   radius?: number;
-  /** Bend the backdrop at the rim (Chromium/Android). Falls back to frosted blur elsewhere. */
+  /** Bend the backdrop at the rim (Chromium / Android WebView). Elsewhere: frosted blur. */
   refract?: boolean;
-  /** Blur radius of the frosted layer, px. */
+  /** Frost radius in px. */
   blur?: number;
   variant?: GlassVariant;
   interactive?: boolean;
@@ -95,18 +95,21 @@ export interface GlassProps extends HTMLAttributes<HTMLElement> {
   children?: ReactNode;
 }
 
+const SOLID: GlassVariant[] = ['primary', 'danger'];
+
 export const Glass = forwardRef<HTMLElement, GlassProps>(function Glass(
-  { as = 'div', radius = 22, refract = false, blur = 14, variant = 'regular', interactive = false, className = '', style, children, ...rest },
+  { as = 'div', radius = 20, refract = false, blur = 20, variant = 'regular', interactive = false, className = '', style, children, onPointerDown, onPointerUp, onPointerCancel, onPointerLeave, ...rest },
   ref,
 ) {
   const el = useRef<HTMLElement>(null);
   useImperativeHandle(ref, () => el.current as HTMLElement);
   const [filterId, setFilterId] = useState<string | null>(null);
   const [quality, setQuality] = useState(glassQuality());
+  const solid = SOLID.includes(variant);
 
   useEffect(() => subscribeGlassQuality(setQuality), []);
 
-  const wantRefraction = refract && refractionSupported() && quality === 'high';
+  const wantRefraction = refract && !solid && refractionSupported() && quality === 'high';
 
   useLayoutEffect(() => {
     if (!wantRefraction || !el.current) {
@@ -121,8 +124,9 @@ export const Glass = forwardRef<HTMLElement, GlassProps>(function Glass(
       const { width, height } = node.getBoundingClientRect();
       if (width < 4 || height < 4) return;
       const r = Math.min(radius, width / 2, height / 2);
-      const bezel = Math.min(Math.max(10, r * 0.9), 26);
-      const next = acquireFilter(width, height, r, bezel, Math.min(46, bezel * 1.8));
+      // A thin, smooth lens at the rim — enough to read as glass, never wobbly.
+      const bezel = Math.min(Math.max(7, r * 0.5), 15);
+      const next = acquireFilter(width, height, r, bezel, Math.min(20, bezel * 1.25));
       if (current) releaseFilter(current);
       current = next;
       setFilterId(next);
@@ -140,18 +144,31 @@ export const Glass = forwardRef<HTMLElement, GlassProps>(function Glass(
     };
   }, [wantRefraction, radius]);
 
-  const backdrop =
-    quality === 'low'
-      ? 'none'
-      : filterId
-        ? `url(#${filterId}) blur(${Math.max(1, blur * 0.25)}px) saturate(185%) brightness(1.05)`
-        : `blur(${blur}px) saturate(180%)`;
+  const frost = `blur(${blur}px) saturate(170%) brightness(0.92)`;
+  const backdrop = solid || quality === 'low' ? 'none' : filterId ? `url(#${filterId}) blur(${Math.max(2, blur * 0.5)}px) saturate(170%) brightness(0.92)` : frost;
 
   const s: CSSProperties = {
     borderRadius: radius,
     backdropFilter: backdrop,
-    WebkitBackdropFilter: backdrop === 'none' || filterId ? backdrop : `blur(${blur}px) saturate(180%)`,
+    WebkitBackdropFilter: backdrop === 'none' ? 'none' : frost,
     ...style,
+  };
+
+  // Press feedback: a soft highlight blooms where the finger lands, the surface dips slightly.
+  const press = (e: React.PointerEvent<HTMLElement>) => {
+    const node = el.current;
+    if (!node) return;
+    const r = node.getBoundingClientRect();
+    node.style.setProperty('--px', `${e.clientX - r.left}px`);
+    node.style.setProperty('--py', `${e.clientY - r.top}px`);
+    node.style.setProperty('--press', '0.16');
+    node.classList.add('is-pressed');
+  };
+  const release = () => {
+    const node = el.current;
+    if (!node) return;
+    node.style.setProperty('--press', '0');
+    node.classList.remove('is-pressed');
   };
 
   return createElement(
@@ -162,6 +179,22 @@ export const Glass = forwardRef<HTMLElement, GlassProps>(function Glass(
       className: `glass glass--${variant}${interactive ? ' glass--interactive' : ''}${filterId ? ' glass--refract' : ''} ${className}`,
       style: s,
       'data-glass-quality': quality,
+      onPointerDown: (e: React.PointerEvent<HTMLElement>) => {
+        if (interactive) press(e);
+        onPointerDown?.(e);
+      },
+      onPointerUp: (e: React.PointerEvent<HTMLElement>) => {
+        if (interactive) release();
+        onPointerUp?.(e);
+      },
+      onPointerCancel: (e: React.PointerEvent<HTMLElement>) => {
+        if (interactive) release();
+        onPointerCancel?.(e);
+      },
+      onPointerLeave: (e: React.PointerEvent<HTMLElement>) => {
+        if (interactive) release();
+        onPointerLeave?.(e);
+      },
     },
     <span className="glass__sheen" aria-hidden="true" />,
     children,

@@ -13,14 +13,14 @@ function Row({ icon, color, title, sub, right, onClick }: { icon: IconName; colo
   const C = onClick ? 'button' : 'div';
   return (
     <C className="setting" onClick={onClick}>
-      <span className="setting__icon" style={{ background: color }}>
-        <Icon name={icon} size={17} />
+      <span className="setting__icon" data-tone={color}>
+        <Icon name={icon} size={15} />
       </span>
       <div className="setting__main">
         <div className="setting__title">{title}</div>
         {sub && <div className="setting__sub">{sub}</div>}
       </div>
-      {right ?? (onClick ? <Icon name="chevron" size={16} style={{ color: 'var(--ink-3)' }} /> : null)}
+      {right ?? (onClick ? <Icon name="chevron" size={14} style={{ color: 'var(--t4)' }} /> : null)}
     </C>
   );
 }
@@ -100,15 +100,15 @@ export function Settings() {
 
   return (
     <div className="screen">
-      <div className="scroll" style={{ paddingBottom: 'calc(var(--safe-bottom) + 130px)' }}>
-        <div className="content-max" style={{ padding: '0 14px' }}>
-          <header className="home-head" style={{ padding: 'calc(var(--safe-top) + 14px) 6px 6px' }}>
+      <div className="scroll" style={{ paddingBottom: 'calc(var(--safe-bottom) + 100px)' }}>
+        <div className="content-max" style={{ padding: '0 12px' }}>
+          <header className="home-head" style={{ padding: 'calc(var(--safe-top) + 10px) 4px 2px' }}>
             <h1 className="home-title">Settings</h1>
-            <MascotAnchor id="sparky" size={64} />
+            <MascotAnchor id="sparky" size={52} />
           </header>
 
           <div className="label">Server</div>
-          <Glass className="group" radius={22} blur={16}>
+          <div className="group">
             <Row icon="globe" color="#3b82f6" title={apiBase().replace(/^https?:\/\//, '')} sub={conn === 'online' ? 'Connected' : conn === 'unauthorized' ? 'Signed out' : 'Connecting…'} right={<span className={`conn-dot${conn === 'online' ? '' : ' conn-dot--off'}`} />} />
             <Row icon="bolt" color="#8b5cf6" title="OpenCode" sub={diag ? `v${diag.opencode.version || '?'} · ${diag.opencode.ready ? 'ready' : 'starting'}` : '…'} />
             <Row icon="mic" color="#ec4899" title="Voice engine" sub={diag ? (diag.voice.ok ? 'sherpa-onnx + Kokoro ready' : `Sleeping or unavailable${diag.voice.detail ? ` (${diag.voice.detail})` : ''} — wakes on call`) : '…'} />
@@ -139,10 +139,10 @@ export function Settings() {
                 toast('Refreshed', 'ok');
               }}
             />
-          </Glass>
+          </div>
 
           <div className="label">Models</div>
-          <Glass className="group" radius={22} blur={16}>
+          <div className="group">
             <Row
               icon="sparkle"
               color="#22c55e"
@@ -164,17 +164,17 @@ export function Settings() {
                 }}
               />
             ))}
-          </Glass>
+          </div>
           {keyFor && (
-            <Glass className="card" radius={22} variant="strong" style={{ width: '100%' }}>
+            <div className="card" style={{ width: '100%', marginTop: 8 }}>
               <div className="card__title">API key for {providers.find((p) => p.id === keyFor)?.name}</div>
               <div className="card__body">Stored by OpenCode on your server only. The server restarts OpenCode to load it (running tasks are interrupted).</div>
-              <input className="field" style={{ marginTop: 10 }} type="password" value={keyValue} onChange={(e) => setKeyValue(e.target.value)} placeholder="Paste key" autoComplete="off" />
+              <input className="field" style={{ marginTop: 10, height: 38 }} type="password" value={keyValue} onChange={(e) => setKeyValue(e.target.value)} placeholder="Paste key" autoComplete="off" />
               <div className="card__actions">
                 {providers.find((p) => p.id === keyFor)?.connected && (
                   <button
                     className="btn"
-                    style={{ background: 'var(--card-2)', color: 'var(--danger)' }}
+                    style={{ color: 'var(--danger)' }}
                     onClick={async () => {
                       await api(`/api/providers/${keyFor}`, { method: 'DELETE', timeoutMs: 60_000 }).catch((e) => toast(e.message, 'error'));
                       setProviders(await api('/api/providers'));
@@ -185,14 +185,14 @@ export function Settings() {
                     Remove
                   </button>
                 )}
-                <button className="btn" style={{ background: 'var(--card-2)' }} onClick={() => setKeyFor(null)}>
+                <button className="btn" onClick={() => setKeyFor(null)}>
                   Cancel
                 </button>
                 <Glass
                   as="button"
                   className="btn"
                   radius={999}
-                  variant="accent"
+                  variant="primary"
                   interactive
                   disabled={!keyValue.trim()}
                   onClick={async () => {
@@ -210,16 +210,16 @@ export function Settings() {
                   Save key
                 </Glass>
               </div>
-            </Glass>
+            </div>
           )}
 
           <div className="label">Coding</div>
-          <Glass className="group" radius={22} blur={16}>
+          <div className="group">
             <div className="setting" style={{ display: 'block' }}>
-              <div className="setting__title" style={{ marginBottom: 8 }}>
+              <div className="setting__title" style={{ marginBottom: 7 }}>
                 Default approvals for new chats
               </div>
-              <div className="segmented" style={{ background: 'var(--card)' }}>
+              <div className="segmented">
                 {(['ask', 'auto-edit', 'full'] as ApprovalMode[]).map((m) => (
                   <button key={m} aria-pressed={settings?.defaultApprovalMode === m} onClick={() => saveServerSettings({ defaultApprovalMode: m }).catch((e) => toast(e.message, 'error'))}>
                     {m === 'ask' ? 'Ask first' : m === 'auto-edit' ? 'Auto-edit' : 'Full auto'}
@@ -248,8 +248,8 @@ export function Settings() {
             ) : (
               <div className="setting" style={{ display: 'block' }}>
                 <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
-                  <span className="setting__icon" style={{ background: '#24292f' }}>
-                    <Icon name="github" size={17} />
+                  <span className="setting__icon">
+                    <Icon name="github" size={15} />
                   </span>
                   <div className="setting__main">
                     <div className="setting__title">Connect GitHub</div>
@@ -257,14 +257,14 @@ export function Settings() {
                   </div>
                 </div>
                 <div style={{ display: 'flex', gap: 8, marginTop: 10 }}>
-                  <input className="field" style={{ height: 44 }} type="password" placeholder="github_pat_…" value={ghToken} onChange={(e) => setGhToken(e.target.value)} autoComplete="off" />
+                  <input className="field" style={{ height: 36, fontSize: 14 }} type="password" placeholder="github_pat_…" value={ghToken} onChange={(e) => setGhToken(e.target.value)} autoComplete="off" />
                   <Glass
                     as="button"
                     className="btn"
                     radius={999}
-                    variant="accent"
+                    variant="primary"
                     interactive
-                    style={{ height: 44 }}
+                    style={{ height: 36 }}
                     disabled={!ghToken.trim()}
                     onClick={async () => {
                       try {
@@ -282,10 +282,10 @@ export function Settings() {
                 </div>
               </div>
             )}
-          </Glass>
+          </div>
 
           <div className="label">Voice</div>
-          <Glass className="group" radius={22} blur={16}>
+          <div className="group">
             <div className="setting" style={{ display: 'block' }}>
               <div style={{ display: 'flex', justifyContent: 'space-between' }}>
                 <span className="setting__title">Speaking speed</span>
@@ -313,34 +313,22 @@ export function Settings() {
                       </span>
                     </div>
                   </button>
-                  <button className="circle-btn circle-btn--sm" style={{ background: 'var(--card-2)', borderRadius: '50%' }} onClick={() => preview(v.id)} aria-label={`Preview ${v.name}`}>
-                    {playing === v.id ? <span className="spinner" /> : <Icon name="play" size={15} />}
+                  <button className="icon-btn" onClick={() => preview(v.id)} aria-label={`Preview ${v.name}`}>
+                    {playing === v.id ? <span className="spinner" style={{ width: 11, height: 11 }} /> : <Icon name="play" size={11} />}
                   </button>
-                  {settings?.voice.voice === v.id && <Icon name="check" size={20} style={{ color: 'var(--accent)' }} />}
+                  {settings?.voice.voice === v.id && <Icon name="check" size={16} style={{ color: 'var(--accent)' }} />}
                 </div>
               ))
             )}
-          </Glass>
+          </div>
 
           <div className="label">Appearance</div>
-          <Glass className="group" radius={22} blur={16}>
+          <div className="group">
             <div className="setting" style={{ display: 'block' }}>
-              <div className="setting__title" style={{ marginBottom: 8 }}>
-                Theme
-              </div>
-              <div className="segmented" style={{ background: 'var(--card)' }}>
-                {(['system', 'light', 'dark'] as const).map((t) => (
-                  <button key={t} aria-pressed={prefs.theme === t} onClick={() => setPrefs({ theme: t })}>
-                    {t[0].toUpperCase() + t.slice(1)}
-                  </button>
-                ))}
-              </div>
-            </div>
-            <div className="setting" style={{ display: 'block' }}>
-              <div className="setting__title" style={{ marginBottom: 8 }}>
+              <div className="setting__title" style={{ marginBottom: 7 }}>
                 Liquid Glass
               </div>
-              <div className="segmented" style={{ background: 'var(--card)' }}>
+              <div className="segmented">
                 {(['auto', 'high', 'balanced', 'low'] as const).map((t) => (
                   <button key={t} aria-pressed={prefs.glass === t} onClick={() => setPrefs({ glass: t })}>
                     {t === 'low' ? 'Battery' : t[0].toUpperCase() + t.slice(1)}
@@ -351,10 +339,10 @@ export function Settings() {
             <Row icon="sparkle" color="#3b82f6" title="3D mascots" sub="Maverick and Sparky react to real coding events" right={<Toggle label="3D mascots" on={prefs.mascots} onChange={(v) => setPrefs({ mascots: v })} />} />
             <Row icon="bolt" color="#f97316" title="Mascots roam the screen" right={<Toggle label="Roaming" on={prefs.roaming} onChange={(v) => setPrefs({ roaming: v })} />} />
             <div className="setting" style={{ display: 'block' }}>
-              <div className="setting__title" style={{ marginBottom: 8 }}>
+              <div className="setting__title" style={{ marginBottom: 7 }}>
                 Mascot rendering quality
               </div>
-              <div className="segmented" style={{ background: 'var(--card)' }}>
+              <div className="segmented">
                 {(['auto', 'high', 'medium', 'low'] as const).map((t) => (
                   <button key={t} aria-pressed={prefs.mascotQuality === t} onClick={() => setPrefs({ mascotQuality: t })}>
                     {t[0].toUpperCase() + t.slice(1)}
@@ -364,10 +352,10 @@ export function Settings() {
             </div>
             <Row icon="moon" color="#6366f1" title="Reduce motion" right={<Toggle label="Reduce motion" on={prefs.reduceMotion} onChange={(v) => setPrefs({ reduceMotion: v })} />} />
             <Row icon="bolt" color="#22c55e" title="Haptics" right={<Toggle label="Haptics" on={prefs.haptics} onChange={(v) => setPrefs({ haptics: v })} />} />
-          </Glass>
+          </div>
 
           <div className="label">Paired devices</div>
-          <Glass className="group" radius={22} blur={16}>
+          <div className="group">
             {devices.map((d) => (
               <Row
                 key={d.id}
@@ -398,15 +386,15 @@ export function Settings() {
                 if (confirm('Sign out? You will need the access code to pair again.')) void unpair(true);
               }}
             />
-          </Glass>
+          </div>
 
           <div className="label">About</div>
-          <Glass className="group" radius={22} blur={16}>
+          <div className="group">
             <Row icon="sparkle" color="#3b82f6" title="Maverick Bot 1.0.0" sub={`Server ${diag?.server ?? '…'} · OpenCode ${diag?.opencode?.version ?? '…'}`} />
-            <div className="setting" style={{ display: 'block', fontSize: 12.5, color: 'var(--ink-3)', lineHeight: 1.5 }}>
+            <div className="setting" style={{ display: 'block', fontSize: 12, color: 'var(--t3)', lineHeight: 1.5 }}>
               Built on OpenCode (MIT), sherpa-onnx (Apache-2.0), Kokoro-82M (Apache-2.0), NVIDIA NeMo FastConformer streaming ASR (CC-BY-4.0), three.js (MIT), Capacitor (MIT) and React (MIT).
             </div>
-          </Glass>
+          </div>
         </div>
       </div>
       <ModelPicker

@@ -41,17 +41,17 @@ export function Pairing() {
       <div className="scroll">
         <div className="pair content-max">
           <div className="pair__hero">
-            <MascotAnchor id="maverick" size={190} />
+            <MascotAnchor id="maverick" size={168} />
             <motion.h1 className="pair__title" initial={{ opacity: 0, y: 12 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.2 }}>
               Maverick
             </motion.h1>
-            <motion.p className="muted" style={{ fontSize: 17, margin: 0, maxWidth: 320 }} initial={{ opacity: 0 }} animate={{ opacity: 1 }} transition={{ delay: 0.35 }}>
+            <motion.p className="muted" style={{ fontSize: 14.5, margin: 0, maxWidth: 300, lineHeight: 1.45 }} initial={{ opacity: 0 }} animate={{ opacity: 1 }} transition={{ delay: 0.35 }}>
               Your AI coding companion. Real code, real tests, on your own OpenCode server.
             </motion.p>
           </div>
-          <Glass className="pair__card" variant="strong" radius={30} refract blur={24}>
-            <div style={{ fontWeight: 750, fontSize: 18 }}>Connect your server</div>
-            <div className="muted" style={{ fontSize: 14, marginTop: -6 }}>
+          <div className="pair__card content-max">
+            <div style={{ fontWeight: 620, fontSize: 15.5 }}>Connect your server</div>
+            <div className="muted" style={{ fontSize: 12.5, marginTop: -6, lineHeight: 1.45 }}>
               Enter the access code from your Railway deployment (variable <code>ACCESS_CODE</code>).
             </div>
             <input
@@ -64,24 +64,24 @@ export function Pairing() {
               spellCheck={false}
               onKeyDown={(e) => e.key === 'Enter' && submit()}
               aria-label="Access code"
-              style={{ fontFamily: 'var(--mono)', letterSpacing: '0.08em', textAlign: 'center', fontSize: 18 }}
+              style={{ fontFamily: 'var(--mono)', letterSpacing: '0.06em', textAlign: 'center', fontSize: 15.5, height: 44 }}
             />
             {advanced && (
-              <input className="field" value={server} onChange={(e) => setServer(e.target.value)} placeholder="https://your-server.up.railway.app" inputMode="url" autoCapitalize="off" autoCorrect="off" aria-label="Server URL" />
+              <input className="field" style={{ fontSize: 14 }} value={server} onChange={(e) => setServer(e.target.value)} placeholder="https://your-server.up.railway.app" inputMode="url" autoCapitalize="off" autoCorrect="off" aria-label="Server URL" />
             )}
             {err && (
               <div className="banner banner--err" style={{ width: '100%', margin: 0 }}>
-                <Icon name="x" size={18} /> {err}
+                <Icon name="x" size={14} /> {err}
               </div>
             )}
-            <Glass as="button" className="btn btn--block" variant="accent" radius={999} interactive onClick={submit} disabled={busy || !code.trim()}>
-              {busy ? <span className="spinner" /> : <Icon name="bolt" size={19} />}
+            <Glass as="button" className="btn btn--block" variant="primary" radius={999} interactive onClick={submit} disabled={busy || !code.trim()}>
+              {busy && <span className="spinner" />}
               {busy ? 'Connecting…' : 'Pair this device'}
             </Glass>
-            <button className="muted" style={{ fontSize: 13.5, padding: 6 }} onClick={() => setAdvanced((v) => !v)}>
+            <button className="muted" style={{ fontSize: 12, padding: 4 }} onClick={() => setAdvanced((v) => !v)}>
               {advanced ? 'Hide server address' : `Server: ${server.replace(/^https?:\/\//, '')} · change`}
             </button>
-          </Glass>
+          </div>
         </div>
       </div>
     </div>

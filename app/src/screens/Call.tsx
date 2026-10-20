@@ -127,7 +127,7 @@ function CallInner({ chatId: initialChat }: { chatId: string }) {
     <motion.div className="call" initial={{ opacity: 0, scale: 1.04 }} animate={{ opacity: 1, scale: 1 }} exit={{ opacity: 0, scale: 1.04 }} transition={{ duration: 0.35 }}>
       <div className="call__top">
         <div className="call__name">Maverick</div>
-        <div className="muted" style={{ fontSize: 13.5, marginTop: 2 }}>
+        <div className="muted" style={{ fontSize: 12, marginTop: 2 }}>
           {chat?.projectName ?? ''} · {mm}:{ss}
         </div>
         <div className="call__state">
@@ -144,17 +144,17 @@ function CallInner({ chatId: initialChat }: { chatId: string }) {
       </div>
 
       <div className="call__stage" onClick={() => state === 'speaking' && client.current?.interrupt()}>
-        <MascotAnchor id="maverick" size={230} />
+        <MascotAnchor id="maverick" size={200} />
         <div className="call__captions selectable">
           {(partial || you) && <span className="you">“{partial || you}”</span>}
           {said}
-          {!partial && !you && !said && state === 'listening' && <span className="muted" style={{ fontWeight: 500 }}>Say something like “Create a new project called weather app” or “Run the tests and fix what fails”.</span>}
+          {!partial && !you && !said && state === 'listening' && <span className="muted" style={{ fontWeight: 450, fontSize: 14 }}>Say something like “Create a new project called weather app” or “Run the tests and fix what fails”.</span>}
         </div>
         <div className="call__activity">
           <AnimatePresence initial={false}>
             {acts.map((a) => (
               <motion.div key={a.at} initial={{ opacity: 0, y: 8 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0 }} className="delegation" style={{ margin: 0 }}>
-                <Icon name={a.ok === false ? 'x' : a.ok ? 'check' : 'bolt'} size={14} style={{ color: a.ok === false ? 'var(--danger)' : a.ok ? 'var(--ok)' : 'var(--accent)' }} />
+                <Icon name={a.ok === false ? 'x' : a.ok ? 'check' : 'bolt'} size={11} style={{ color: a.ok === false ? 'var(--danger)' : a.ok ? 'var(--ok)' : 'var(--accent)' }} />
                 {a.label.replace(/`/g, '')}
               </motion.div>
             ))}
@@ -163,7 +163,7 @@ function CallInner({ chatId: initialChat }: { chatId: string }) {
       </div>
 
       {typing && (
-        <Glass className="composer" radius={24} variant="strong" style={{ width: '100%', maxWidth: 560, marginBottom: 14, display: 'flex', gap: 6, padding: 6 }}>
+        <Glass className="composer" radius={20} refract style={{ width: '100%', maxWidth: 520, marginBottom: 12, display: 'flex', gap: 6, padding: 4 }}>
           <input
             className="composer__input"
             autoFocus
@@ -184,17 +184,17 @@ function CallInner({ chatId: initialChat }: { chatId: string }) {
 
       <div className="call__controls">
         <Glass as="button" className={`call__btn${muted ? ' call__btn--on' : ''}`} radius={999} refract interactive onClick={() => (setMuted(!muted), client.current?.setMuted(!muted), haptic.tap())} aria-label={muted ? 'Unmute' : 'Mute'}>
-          <Icon name={muted ? 'micOff' : 'mic'} size={26} />
+          <Icon name={muted ? 'micOff' : 'mic'} size={21} />
         </Glass>
-        <Glass as="button" className="call__btn" radius={999} variant="danger" interactive onClick={hangUp} aria-label="End call" style={{ width: 82, height: 82 }}>
-          <Icon name="phoneOff" size={30} />
+        <Glass as="button" className="call__btn call__btn--end" radius={999} variant="danger" interactive onClick={hangUp} aria-label="End call">
+          <Icon name="phoneOff" size={24} />
         </Glass>
         <Glass as="button" className={`call__btn${typing ? ' call__btn--on' : ''}`} radius={999} refract interactive onClick={() => setTyping((v) => !v)} aria-label="Type a message">
-          <Icon name="edit" size={24} />
+          <Icon name="edit" size={19} />
         </Glass>
       </div>
       {state === 'speaking' && (
-        <div className="muted" style={{ fontSize: 12.5, marginTop: 12 }}>
+        <div className="muted" style={{ fontSize: 11.5, marginTop: 10 }}>
           Tap Maverick or just start talking to interrupt
         </div>
       )}

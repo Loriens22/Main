@@ -1,4 +1,6 @@
 :root {
+  color-scheme: dark;
+
   --font: 'Inter Variable', 'Inter', system-ui, -apple-system, 'Segoe UI', Roboto, sans-serif;
   --mono: ui-monospace, 'SF Mono', 'JetBrains Mono', 'Roboto Mono', Menlo, Consolas, monospace;
 
@@ -8,89 +10,60 @@
   --safe-left: max(env(safe-area-inset-left, 0px), var(--safe-area-inset-left, 0px));
   --safe-right: max(env(safe-area-inset-right, 0px), var(--safe-area-inset-right, 0px));
 
-  --radius-s: 12px;
-  --radius-m: 18px;
-  --radius-l: 26px;
-  --radius-xl: 34px;
+  /* ---- surfaces: true black OLED base, neutral elevation steps ---- */
+  --bg: #000000;
+  --s1: #0d0d10; /* grouped lists, page sections */
+  --s2: #151519; /* cards, assistant bubbles */
+  --s3: #1d1d22; /* inputs, raised controls */
+  --s4: #26262c; /* pressed / selected */
+  --line: rgba(255, 255, 255, 0.065);
+  --line-2: rgba(255, 255, 255, 0.11);
 
-  --ease-spring: cubic-bezier(0.2, 1.4, 0.35, 1);
-  --ease-out: cubic-bezier(0.16, 1, 0.3, 1);
+  /* ---- text ---- */
+  --t1: #f2f2f5;
+  --t2: rgba(235, 235, 245, 0.66);
+  --t3: rgba(235, 235, 245, 0.42);
+  --t4: rgba(235, 235, 245, 0.24);
 
-  /* Light-direction for specular highlights; updated from device tilt / pointer. */
-  --lg-angle: 135deg;
+  /* ---- color: one calm accent, muted status hues ---- */
+  --accent: #8aa6e0;
+  --accent-strong: #6f8fd3;
+  --me: #44609a; /* user bubble */
+  --ok: #5cc48a;
+  --warn: #d9a74a;
+  --danger: #ee5d5d;
+  --flame: #e8894a;
+
+  /* ---- Liquid Glass (dark) ---- */
+  --glass-fill: rgba(30, 30, 35, 0.5);
+  --glass-fill-thick: rgba(18, 18, 21, 0.84);
+  --glass-rim: rgba(255, 255, 255, 0.24);
+  --glass-rim-soft: rgba(255, 255, 255, 0.05);
+  --glass-shadow: 0 12px 32px -10px rgba(0, 0, 0, 0.8), 0 2px 8px rgba(0, 0, 0, 0.45);
+
+  /* light direction for the specular rim (follows device tilt) */
+  --lg-angle: 160deg;
   --lg-x: 30%;
   --lg-y: 0%;
 
-  --accent: #3d8bff;
-  --accent-2: #7c5cff;
-  --accent-ink: #ffffff;
-  --flame: #ff8a3d;
-  --ok: #34d399;
-  --warn: #fbbf24;
-  --danger: #ff5c6c;
-}
+  --r-xs: 8px;
+  --r-s: 12px;
+  --r-m: 16px;
+  --r-l: 22px;
 
-/* ---------- Dark (default) ---------- */
-:root,
-:root[data-theme='dark'] {
-  color-scheme: dark;
-  --bg: #05060a;
-  --bg-2: #0b0d14;
-  --ink: #f4f6fb;
-  --ink-2: rgba(244, 246, 251, 0.72);
-  --ink-3: rgba(244, 246, 251, 0.48);
-  --ink-4: rgba(244, 246, 251, 0.28);
-  --line: rgba(255, 255, 255, 0.09);
-  --line-2: rgba(255, 255, 255, 0.16);
+  --ease-spring: cubic-bezier(0.25, 1.25, 0.4, 1);
+  --ease-out: cubic-bezier(0.16, 1, 0.3, 1);
 
-  --glass-tint: rgba(28, 32, 44, 0.42);
-  --glass-tint-strong: rgba(30, 34, 48, 0.66);
-  --glass-rim-hi: rgba(255, 255, 255, 0.55);
-  --glass-rim-lo: rgba(255, 255, 255, 0.06);
-  --glass-sheen: rgba(255, 255, 255, 0.10);
-  --glass-shadow: 0 10px 40px rgba(0, 0, 0, 0.45), 0 2px 8px rgba(0, 0, 0, 0.35);
-
-  --bubble-me: linear-gradient(160deg, #4b93ff 0%, #3a6fe0 55%, #5a55e6 100%);
-  --bubble-me-ink: #ffffff;
-  --bubble-ai: rgba(255, 255, 255, 0.075);
-  --bubble-ai-ink: var(--ink);
-  --code-bg: rgba(0, 0, 0, 0.42);
-  --card: rgba(255, 255, 255, 0.055);
-  --card-2: rgba(255, 255, 255, 0.09);
-
-  --aurora-1: rgba(61, 139, 255, 0.28);
-  --aurora-2: rgba(124, 92, 255, 0.22);
-  --aurora-3: rgba(255, 138, 61, 0.14);
-}
-
-/* ---------- Light ---------- */
-:root[data-theme='light'] {
-  color-scheme: light;
-  --bg: #efe9fb;
-  --bg-2: #f7f3ff;
-  --ink: #12131a;
-  --ink-2: rgba(18, 19, 26, 0.72);
-  --ink-3: rgba(18, 19, 26, 0.5);
-  --ink-4: rgba(18, 19, 26, 0.28);
-  --line: rgba(18, 19, 26, 0.08);
-  --line-2: rgba(18, 19, 26, 0.14);
-
-  --glass-tint: rgba(255, 255, 255, 0.42);
-  --glass-tint-strong: rgba(255, 255, 255, 0.7);
-  --glass-rim-hi: rgba(255, 255, 255, 0.95);
-  --glass-rim-lo: rgba(255, 255, 255, 0.25);
-  --glass-sheen: rgba(255, 255, 255, 0.5);
-  --glass-shadow: 0 10px 34px rgba(76, 52, 140, 0.14), 0 2px 6px rgba(76, 52, 140, 0.08);
-
-  --bubble-me: linear-gradient(160deg, #4b93ff 0%, #3a6fe0 60%, #5a55e6 100%);
-  --bubble-me-ink: #ffffff;
-  --bubble-ai: rgba(255, 255, 255, 0.72);
-  --bubble-ai-ink: var(--ink);
-  --code-bg: rgba(20, 16, 40, 0.06);
-  --card: rgba(255, 255, 255, 0.55);
-  --card-2: rgba(255, 255, 255, 0.8);
-
-  --aurora-1: rgba(160, 140, 255, 0.45);
-  --aurora-2: rgba(255, 190, 210, 0.45);
-  --aurora-3: rgba(255, 214, 170, 0.45);
+  /* ---- legacy aliases used by component inline styles ---- */
+  --ink: var(--t1);
+  --ink-2: var(--t2);
+  --ink-3: var(--t3);
+  --ink-4: var(--t4);
+  --card: var(--s2);
+  --card-2: var(--s3);
+  --code-bg: #0a0a0d;
+  --bubble-ai: var(--s2);
+  --bubble-ai-ink: var(--t1);
+  --bubble-me: var(--me);
+  --bubble-me-ink: #fff;
 }

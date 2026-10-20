@@ -1,6 +1,5 @@
 import { useState } from 'react';
 import { Icon } from '@/components/Icon';
-import { Glass } from '@/glass/Glass';
 import { haptic } from '@/lib/platform';
 import { cleanDiff } from '@/lib/format';
 import type { Agent, GroupRun, PermissionRequest, QuestionRequest } from '@/lib/types';
@@ -22,29 +21,29 @@ export function PermissionCard({ chatId, req, agent }: { chatId: string; req: Pe
   const detail = req.permission === 'bash' ? (md.command ?? req.patterns.join('\n')) : md.diff ? cleanDiff(String(md.diff)).slice(0, 2000) : req.patterns.join('\n');
   const who = agent?.name ?? 'Maverick';
   return (
-    <Glass className="card" radius={22} refract variant="strong" style={{ alignSelf: 'flex-start', border: '1px solid rgba(255,138,61,0.35)' }}>
+    <div className="card card--attention" style={{ alignSelf: 'flex-start' }}>
       <div className="card__title">
-        <span className="tool__icon" style={{ background: 'rgba(255,138,61,0.18)', color: 'var(--flame)' }}>
-          <Icon name="shield" size={17} />
+        <span className="tool__icon" style={{ background: 'rgba(232,137,74,0.14)', color: 'var(--flame)' }}>
+          <Icon name="shield" size={14} />
         </span>
         <span style={{ flex: 1 }}>{who} needs your approval</span>
       </div>
       <div className="card__body">{req.title.replace(/`/g, '')}</div>
       {detail && <div className="perm-cmd selectable">{detail}</div>}
       <div className="card__actions">
-        <Glass as="button" className="btn" radius={999} interactive variant="clear" onClick={() => reply('reject')} disabled={busy}>
+        <button className="btn" onClick={() => reply('reject')} disabled={busy}>
           Deny
-        </Glass>
-        <Glass as="button" className="btn" radius={999} interactive variant="accent" onClick={() => reply('once')} disabled={busy}>
+        </button>
+        <button className="btn btn--primary" onClick={() => reply('once')} disabled={busy}>
           Allow once
-        </Glass>
+        </button>
         {req.always?.length > 0 && (
-          <Glass as="button" className="btn" radius={999} interactive variant="strong" onClick={() => reply('always')} disabled={busy} style={{ flexBasis: '100%' }}>
+          <button className="btn btn--ghost" onClick={() => reply('always')} disabled={busy} style={{ flexBasis: '100%', height: 30, fontSize: 12.5 }}>
             Always allow {req.always.length === 1 && req.always[0] !== '*' ? `“${req.always[0].slice(0, 40)}”` : 'this kind of action'}
-          </Glass>
+          </button>
         )}
       </div>
-    </Glass>
+    </div>
   );
 }
 
@@ -60,34 +59,34 @@ export function QuestionCard({ chatId, req }: { chatId: string; req: QuestionReq
     await answerQuestion(chatId, req.id, answers).catch((e) => toast(e.message, 'error'));
   };
   return (
-    <Glass className="card" radius={22} refract variant="strong" style={{ alignSelf: 'flex-start' }}>
+    <div className="card" style={{ alignSelf: 'flex-start' }}>
       {req.questions.map((q, qi) => (
         <div key={qi} style={{ marginBottom: 12 }}>
           <div className="card__title">
-            <Icon name="sparkle" size={17} /> {q.header}
+            <Icon name="sparkle" size={14} style={{ color: 'var(--t3)' }} /> {q.header}
           </div>
           <div className="card__body">{q.question}</div>
           <div style={{ display: 'flex', flexWrap: 'wrap', gap: 6, marginTop: 10 }}>
             {q.options.map((o) => (
-              <button key={o.label} className="composer__chip" style={sel[qi].includes(o.label) ? { background: 'var(--accent)', color: '#fff', borderColor: 'transparent' } : undefined} onClick={() => toggle(qi, o.label, q.multiple)} title={o.description}>
+              <button key={o.label} className="composer__chip" style={sel[qi].includes(o.label) ? { background: '#ececf1', color: '#0a0a0c' } : undefined} onClick={() => toggle(qi, o.label, q.multiple)} title={o.description}>
                 {o.label}
               </button>
             ))}
           </div>
           {q.custom !== false && (
-            <input className="field" style={{ marginTop: 10, height: 44 }} placeholder="Or type your own answer" value={custom[qi]} onChange={(e) => setCustom((c) => c.map((x, i) => (i === qi ? e.target.value : x)))} />
+            <input className="field" style={{ marginTop: 10, height: 38, fontSize: 14 }} placeholder="Or type your own answer" value={custom[qi]} onChange={(e) => setCustom((c) => c.map((x, i) => (i === qi ? e.target.value : x)))} />
           )}
         </div>
       ))}
       <div className="card__actions">
-        <Glass as="button" className="btn" radius={999} interactive variant="clear" onClick={() => answerQuestion(chatId, req.id, null)}>
+        <button className="btn" onClick={() => answerQuestion(chatId, req.id, null)}>
           Skip
-        </Glass>
-        <Glass as="button" className="btn" radius={999} interactive variant="accent" onClick={submit} disabled={sel.every((a, i) => !a.length && !custom[i].trim())}>
+        </button>
+        <button className="btn btn--primary" onClick={submit} disabled={sel.every((a, i) => !a.length && !custom[i].trim())}>
           Answer
-        </Glass>
+        </button>
       </div>
-    </Glass>
+    </div>
   );
 }
 
@@ -99,7 +98,7 @@ export function TodoCard({ todos }: { todos: { content: string; status: string; 
     <div className="tool" style={{ alignSelf: 'flex-start' }}>
       <button className="tool__head" onClick={() => setOpen((v) => !v)}>
         <span className="tool__icon">
-          <Icon name="list" size={17} />
+          <Icon name="list" size={14} />
         </span>
         <span className="tool__title">
           Plan
@@ -107,7 +106,7 @@ export function TodoCard({ todos }: { todos: { content: string; status: string; 
             {done}/{todos.length} done
           </small>
         </span>
-        <Icon name={open ? 'chevronDown' : 'chevron'} size={16} style={{ color: 'var(--ink-3)' }} />
+        <Icon name={open ? 'chevronDown' : 'chevron'} size={14} style={{ color: 'var(--t3)' }} />
       </button>
       {open && (
         <div style={{ padding: '4px 14px 12px', borderTop: '1px solid var(--line)' }}>
@@ -137,9 +136,9 @@ export function TaskBoard({ run, agents }: { run: GroupRun; agents: Agent[] }) {
   const done = run.tasks.filter((t) => t.status === 'done').length;
   const active = ['planning', 'running', 'summarizing'].includes(run.status);
   return (
-    <Glass className="taskboard" radius={22} refract variant="strong">
+    <div className="taskboard">
       <button className="taskboard__head" onClick={() => setOpen((v) => !v)}>
-        {active ? <span className="spinner" style={{ color: 'var(--accent)' }} /> : <Icon name={run.status === 'done' ? 'check' : 'list'} size={18} />}
+        {active ? <span className="spinner" style={{ color: 'var(--accent)' }} /> : <Icon name={run.status === 'done' ? 'check' : 'list'} size={15} style={{ color: run.status === 'done' ? 'var(--ok)' : 'var(--t3)' }} />}
         <span style={{ flex: 1 }}>
           {STATUS_LABEL[run.status]}
           {run.tasks.length > 0 && (
@@ -149,16 +148,16 @@ export function TaskBoard({ run, agents }: { run: GroupRun; agents: Agent[] }) {
             </span>
           )}
         </span>
-        <Icon name={open ? 'chevronDown' : 'chevron'} size={16} style={{ color: 'var(--ink-3)' }} />
+        <Icon name={open ? 'chevronDown' : 'chevron'} size={14} style={{ color: 'var(--t3)' }} />
       </button>
       {open && (
         <div style={{ marginTop: 8 }}>
-          {run.status === 'planning' && <div className="muted" style={{ fontSize: 13.5, padding: '4px 0' }}>The lead is reading the project and splitting the work…</div>}
+          {run.status === 'planning' && <div className="muted" style={{ fontSize: 12.5, padding: '4px 0' }}>The lead is reading the project and splitting the work…</div>}
           {run.tasks.map((t) => {
             const a = agents.find((x) => x.id === t.agentId);
             return (
               <div className="task" key={t.id}>
-                <span className="avatar" style={{ width: 26, height: 26, fontSize: 11, background: a?.color ?? 'var(--card-2)' }}>
+                <span className="avatar" style={{ width: 22, height: 22, fontSize: 10, background: a?.color ?? 'var(--s3)' }}>
                   {a?.name[0] ?? '?'}
                 </span>
                 <div className="task__title">
@@ -169,7 +168,7 @@ export function TaskBoard({ run, agents }: { run: GroupRun; agents: Agent[] }) {
                   </small>
                 </div>
                 <span className={`status-pill status-pill--${t.status}`}>
-                  {t.status === 'running' && <span className="spinner" style={{ width: 10, height: 10, borderWidth: 1.5 }} />}
+                  {t.status === 'running' && <span className="spinner" style={{ width: 8, height: 8, borderWidth: 1.4 }} />}
                   {t.status}
                 </span>
               </div>
@@ -177,6 +176,6 @@ export function TaskBoard({ run, agents }: { run: GroupRun; agents: Agent[] }) {
           })}
         </div>
       )}
-    </Glass>
+    </div>
   );
 }

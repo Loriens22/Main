@@ -27,8 +27,8 @@ export function NavBar() {
             <div className="plus-bubbles">
               {(
                 [
-                  { kind: 'single', label: 'Create New Chat', icon: 'chats', x: -24, delay: 0 },
-                  { kind: 'group', label: 'Create New Group Chat', icon: 'users', x: 24, delay: 0.06 },
+                  { kind: 'single', label: 'New Chat', icon: 'chats', x: -24, delay: 0 },
+                  { kind: 'group', label: 'New Group Chat', icon: 'users', x: 24, delay: 0.06 },
                 ] as const
               ).map((b) => (
                 <motion.div
@@ -38,10 +38,10 @@ export function NavBar() {
                   exit={{ opacity: 0, y: 70, x: -b.x * 3, scale: 0.3, transition: { duration: 0.18 } }}
                   transition={{ type: 'spring', damping: 14, stiffness: 220, delay: b.delay }}
                 >
-                  <motion.div animate={{ y: [0, -6, 0] }} transition={{ duration: 3.2 + b.delay * 10, repeat: Infinity, ease: 'easeInOut' }}>
+                  <motion.div animate={{ y: [0, -3, 0] }} transition={{ duration: 3.2 + b.delay * 10, repeat: Infinity, ease: 'easeInOut' }}>
                     <Glass as="button" className="plus-bubble" radius={999} refract interactive variant="regular" onClick={() => pick(b.kind)} aria-label={b.label}>
                       <span className="plus-bubble__icon">
-                        <Icon name={b.icon} size={24} />
+                        <Icon name={b.icon} size={18} />
                       </span>
                       <span>{b.label}</span>
                     </Glass>
@@ -53,7 +53,7 @@ export function NavBar() {
         )}
       </AnimatePresence>
       <div className="nav-wrap">
-        <Glass as="nav" className="navbar" radius={999} refract blur={18} aria-label="Main">
+        <Glass as="nav" className="navbar" radius={999} refract blur={22} aria-label="Main">
           <button
             className="navbar__tab"
             aria-current={route.name === 'home' ? 'page' : undefined}
@@ -63,11 +63,11 @@ export function NavBar() {
               goHome();
             }}
           >
-            <Icon name="chats" size={22} />
+            <Icon name="chats" size={19} />
             Chats
           </button>
-          <Glass as="button" className="navbar__plus" variant="accent" radius={999} interactive aria-label="New" aria-expanded={open} onClick={toggle}>
-            <Icon name="plus" size={28} stroke={2.4} />
+          <Glass as="button" className="navbar__plus" variant="primary" radius={999} interactive aria-label="New" aria-expanded={open} onClick={toggle}>
+            <Icon name="plus" size={20} stroke={2.4} />
           </Glass>
           <button
             className="navbar__tab"
@@ -78,7 +78,7 @@ export function NavBar() {
               if (route.name !== 'settings') navigate({ name: 'settings' });
             }}
           >
-            <Icon name="settings" size={22} />
+            <Icon name="settings" size={19} />
             Settings
           </button>
         </Glass>

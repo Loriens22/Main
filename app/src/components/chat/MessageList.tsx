@@ -18,8 +18,8 @@ function Reasoning({ text, live }: { text: string; live: boolean }) {
   if (!text.trim()) return null;
   return (
     <div className="reasoning">
-      <button onClick={() => setOpen((v) => !v)} style={{ display: 'flex', alignItems: 'center', gap: 6, fontWeight: 650, color: 'var(--ink-2)' }}>
-        <Icon name="brain" size={15} /> {live ? 'Thinking…' : 'Thought process'} <Icon name={open ? 'chevronDown' : 'chevron'} size={14} />
+      <button onClick={() => setOpen((v) => !v)} style={{ display: 'flex', alignItems: 'center', gap: 5, fontWeight: 560, fontSize: 12.5, color: 'var(--t3)' }}>
+        <Icon name="brain" size={13} /> {live ? 'Thinking…' : 'Thought process'} <Icon name={open ? 'chevronDown' : 'chevron'} size={12} />
       </button>
       {open && <div style={{ marginTop: 6 }}>{text}</div>}
     </div>
@@ -28,11 +28,11 @@ function Reasoning({ text, live }: { text: string; live: boolean }) {
 
 function FileChip({ part }: { part: any }) {
   if (String(part.mime).startsWith('image/') && String(part.url).startsWith('data:')) {
-    return <img src={part.url} alt={part.filename ?? 'image'} style={{ maxWidth: 220, maxHeight: 220, borderRadius: 18, display: 'block', margin: '4px 0' }} />;
+    return <img src={part.url} alt={part.filename ?? 'image'} style={{ maxWidth: 200, maxHeight: 200, borderRadius: 14, display: 'block', margin: '3px 0' }} />;
   }
   return (
     <span className="composer__chip" style={{ margin: '4px 0' }}>
-      <Icon name="file" size={14} /> <span>{part.filename ?? part.mime}</span>
+      <Icon name="file" size={12} /> <span>{part.filename ?? part.mime}</span>
     </span>
   );
 }
@@ -55,6 +55,7 @@ export const MessageView = memo(function MessageView({
   seen,
   onRetry,
   onSwitchModel,
+  hidePlanJson,
 }: {
   msg: Msg;
   isLastAssistant: boolean;
@@ -64,6 +65,8 @@ export const MessageView = memo(function MessageView({
   seen?: 'sending' | 'sent' | 'seen';
   onRetry?: () => void;
   onSwitchModel?: () => void;
+  /** Team chats: the lead's machine-readable plan is shown as the task board instead. */
+  hidePlanJson?: boolean;
 }) {
   const role = msg.info.role;
   const parts = msg.order.map((id) => msg.parts[id]).filter((p) => p && !HIDDEN_PARTS.has(p.type) && !p.synthetic && !p.ignored);
@@ -99,13 +102,15 @@ export const MessageView = memo(function MessageView({
       )}
       {parts.map((p) => {
         switch (p.type) {
-          case 'text':
-            if (!p.text?.trim() && !(live && p.id === lastTextId)) return null;
+          case 'text': {
+            const text = hidePlanJson ? String(p.text ?? '').replace(/```json\s*\{[\s\S]*?"tasks"[\s\S]*?(```|$)/g, '').trim() : (p.text ?? '');
+            if (!text.trim() && !(live && p.id === lastTextId)) return null;
             return (
               <div key={p.id} className={`bubble bubble--ai${live && p.id === lastTextId ? ' caret' : ''}`}>
-                <Markdown text={p.text ?? ''} streaming={live && p.id === lastTextId} />
+                <Markdown text={text} streaming={live && p.id === lastTextId} />
               </div>
             );
+          }
           case 'reasoning':
             return <Reasoning key={p.id} text={p.text ?? ''} live={live && !p.time?.end} />;
           case 'tool':
@@ -116,20 +121,20 @@ export const MessageView = memo(function MessageView({
           case 'patch':
             return (
               <div key={p.id} className="delegation" style={{ alignSelf: 'flex-start', margin: '4px 0' }}>
-                <Icon name="git" size={14} /> Changed {p.files?.length ?? 0} file{p.files?.length === 1 ? '' : 's'}
+                <Icon name="git" size={12} /> Changed {p.files?.length ?? 0} file{p.files?.length === 1 ? '' : 's'}
               </div>
             );
           case 'retry':
             return (
               <div key={p.id} className="delegation" style={{ alignSelf: 'flex-start' }}>
-                <Icon name="refresh" size={14} /> Retrying (attempt {p.attempt})
+                <Icon name="refresh" size={12} /> Retrying (attempt {p.attempt})
               </div>
             );
           case 'agent':
           case 'subtask':
             return (
               <div key={p.id} className="delegation" style={{ alignSelf: 'flex-start' }}>
-                <Icon name="users" size={14} /> {p.description ?? p.name ?? 'Sub-agent'}
+                <Icon name="users" size={12} /> {p.description ?? p.name ?? 'Sub-agent'}
               </div>
             );
           default:
@@ -138,7 +143,7 @@ export const MessageView = memo(function MessageView({
       })}
       {msg.info.error && msg.info.error.name !== 'MessageAbortedError' && (
         <div className="banner banner--err" style={{ marginLeft: 0 }}>
-          <Icon name="x" size={18} />
+          <Icon name="x" size={14} />
           <span style={{ flex: 1 }}>{errorText(msg.info.error)}</span>
           {onRetry && (
             <button className="composer__chip" onClick={onRetry}>

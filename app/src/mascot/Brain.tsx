@@ -26,8 +26,8 @@ function bubblePlacement(pos: { x: number; y: number; size: number }): { left: n
   return { left: Math.max(12, Math.min(vw - w - 12, pos.x - w / 2)), top: pos.y + pos.size * 0.62 + 46 };
 }
 
-const TAP_LINES = ['Hey, that tickles!', 'Ready when you are.', 'Got a bug for me?', 'Beret: securely fastened.', 'What are we building today?', 'Boop!'];
-const SPARKY_LINES = ['Fwoosh!', 'Hot code incoming!', 'I keep the build warm.', 'Careful, I’m spicy.'];
+const TAP_LINES = ['Ready when you are.', 'Got a bug for me?', 'Beret: securely fastened.', 'What are we building today?', 'Hey, that tickles.'];
+const SPARKY_LINES = ['Fwoosh.', 'I keep the build warm.', 'Careful, I run hot.'];
 
 /**
  * Turns real coding events into mascot emotions and short commentary.
@@ -112,7 +112,7 @@ export function MascotBrain() {
           if (a.ok) {
             feel('celebrate', 'celebrate', 3200, 'celebrate');
             haptic.success();
-            say('maverick', `${prefix}${a.label}! 🎉`, 4000, true);
+            say('maverick', `${prefix}${a.label}`, 4000, true);
           } else {
             feel('sad', 'error', 3200, 'shake');
             haptic.error();
@@ -205,11 +205,11 @@ export function MascotBrain() {
       } else if (kind === 'longpress') {
         haptic.success();
         mascot.setEmotion(id, 'love', { durationMs: 2600 });
-        say(id, id === 'maverick' ? 'Aww. Love you too.' : '🔥❤️', 2400, true);
+        say(id, id === 'maverick' ? 'Aww, thanks.' : 'Warm and fuzzy.', 2400, true);
       } else if (kind === 'drag-start') {
         mascot.setEmotion(id, 'surprised', { durationMs: 1200 });
       } else if (kind === 'drag-end') {
-        say(id, id === 'maverick' ? 'Wheee!' : 'Zoom!', 1600, true);
+        say(id, id === 'maverick' ? 'Whee.' : 'Zoom.', 1600, true);
       }
     });
     // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -219,7 +219,8 @@ export function MascotBrain() {
   useEffect(() => {
     const roam = prefs.roaming && !prefs.reduceMotion && !callActive;
     mascot.roam('sparky', roam ? 'gentle' : 'off');
-    mascot.roam('maverick', roam && route.name === 'home' ? 'gentle' : 'off');
+    // Maverick stays put in headers (gentle hops would clip at the top edge); Sparky wanders.
+    mascot.roam('maverick', 'off');
   }, [prefs.roaming, prefs.reduceMotion, route.name, callActive, mascot]);
 
   useEffect(() => {
@@ -271,7 +272,7 @@ export function MascotBrain() {
           transition={{ type: 'spring', damping: 16, stiffness: 260 }}
           style={{ position: 'fixed', zIndex: 45, pointerEvents: 'none', ...bubblePlacement(pos) }}
         >
-          <Glass className="speech" radius={18} variant="strong" style={{ position: 'relative' }}>
+          <Glass className="speech" radius={14} variant="strong" style={{ position: 'relative' }}>
             {bubble.text}
           </Glass>
         </motion.div>

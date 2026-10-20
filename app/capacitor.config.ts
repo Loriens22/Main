@@ -4,20 +4,20 @@ const config: CapacitorConfig = {
   appId: 'com.loriens22.maverickbot',
   appName: 'Maverick Bot',
   webDir: 'dist',
-  backgroundColor: '#05060a',
+  backgroundColor: '#000000',
   android: {
     allowMixedContent: false,
-    backgroundColor: '#05060a',
+    backgroundColor: '#000000',
   },
   ios: {
     contentInset: 'never',
-    backgroundColor: '#05060a',
+    backgroundColor: '#000000',
   },
   plugins: {
     SplashScreen: {
       launchShowDuration: 600,
       launchAutoHide: true,
-      backgroundColor: '#05060a',
+      backgroundColor: '#000000',
       showSpinner: false,
     },
     Keyboard: {

@@ -1,5 +1,5 @@
 import { AnimatePresence, motion } from 'motion/react';
-import { useEffect, useState } from 'react';
+import { useEffect } from 'react';
 import { Icon } from '@/components/Icon';
 import { NavBar } from '@/components/NavBar';
 import { Glass } from '@/glass/Glass';
@@ -15,25 +15,14 @@ import { Settings } from '@/screens/Settings';
 import { Sheets } from '@/screens/Sheets';
 import { goBack, toast, useStore } from '@/state/store';
 
-function useSystemDark(): boolean {
-  const [dark, setDark] = useState(() => window.matchMedia('(prefers-color-scheme: dark)').matches);
-  useEffect(() => {
-    const mq = window.matchMedia('(prefers-color-scheme: dark)');
-    const on = () => setDark(mq.matches);
-    mq.addEventListener('change', on);
-    return () => mq.removeEventListener('change', on);
-  }, []);
-  return dark;
-}
-
 export function App() {
   const booted = useStore((s) => s.booted);
   const paired = useStore((s) => s.paired);
   const prefs = useStore((s) => s.prefs);
   const stack = useStore((s) => s.stack);
   const toasts = useStore((s) => s.toasts);
-  const systemDark = useSystemDark();
-  const theme: 'light' | 'dark' = prefs.theme === 'system' ? (systemDark ? 'dark' : 'light') : prefs.theme;
+  // Maverick is dark-only by design.
+  const theme = 'dark' as const;
   const reduced = prefs.reduceMotion || window.matchMedia('(prefers-reduced-motion: reduce)').matches;
 
   useEffect(() => {
@@ -74,7 +63,6 @@ export function App() {
 
   return (
     <MascotLayer theme={theme} quality={prefs.mascotQuality} reducedMotion={reduced} enabled={prefs.mascots}>
-      <div className="aurora" aria-hidden="true" />
       <div className="app">
         {!booted ? null : !paired ? (
           <Pairing />
@@ -103,8 +91,8 @@ export function App() {
         <AnimatePresence>
           {toasts.map((t) => (
             <motion.div key={t.id} initial={{ opacity: 0, y: -16, scale: 0.95 }} animate={{ opacity: 1, y: 0, scale: 1 }} exit={{ opacity: 0, y: -10 }}>
-              <Glass className={`toast toast--${t.kind}`} radius={20} variant="strong" refract>
-                <Icon name={t.kind === 'error' ? 'x' : t.kind === 'ok' ? 'check' : 'sparkle'} size={18} />
+              <Glass className={`toast toast--${t.kind}`} radius={19} variant="strong" refract>
+                <Icon name={t.kind === 'error' ? 'x' : t.kind === 'ok' ? 'check' : 'sparkle'} size={14} />
                 {t.text}
               </Glass>
             </motion.div>

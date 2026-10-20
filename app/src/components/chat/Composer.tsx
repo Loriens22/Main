@@ -97,36 +97,36 @@ export function Composer({
   const conn = useStore((s) => s.conn);
   return (
     <div className="composer-wrap content-max">
-      <Glass className={`composer${expanded ? ' composer--expanded' : ''}`} radius={28} refract blur={22} variant="strong">
+      <Glass className={`composer${expanded ? ' composer--expanded' : ''}`} radius={22} refract blur={24}>
         <div className="composer__chips">
           {chat.kind === 'single' ? (
             <>
               <button className="composer__chip" onClick={onPickModel} aria-label="Choose model">
-                <Icon name="sparkle" size={14} />
+                <Icon name="sparkle" size={12} />
                 <span>{model?.name ?? chat.model.split('/').pop()}</span>
                 {model && <span className={`badge ${model.free ? 'badge--free' : 'badge--paid'}`}>{model.free ? 'Free' : 'Paid'}</span>}
-                <Icon name="chevronDown" size={13} />
+                <Icon name="chevronDown" size={11} />
               </button>
               <button className="composer__chip" onClick={() => setMode((m) => (m === 'build' ? 'plan' : 'build'))} aria-label="Toggle plan mode" title="Plan mode reads and plans without editing files">
-                <Icon name={mode === 'build' ? 'bolt' : 'list'} size={14} />
+                <Icon name={mode === 'build' ? 'bolt' : 'list'} size={12} />
                 <span>{mode === 'build' ? 'Build' : 'Plan only'}</span>
               </button>
             </>
           ) : (
             <>
-              <button className={`composer__chip`} style={!target ? { borderColor: 'var(--accent)', color: 'var(--ink)' } : undefined} onClick={() => setTarget(undefined)}>
-                <Icon name="users" size={14} /> <span>Whole team</span>
+              <button className={`composer__chip`} style={!target ? { background: 'rgba(255,255,255,0.14)', color: 'var(--t1)' } : undefined} onClick={() => setTarget(undefined)}>
+                <Icon name="users" size={12} /> <span>Whole team</span>
               </button>
               {agents?.map((a) => (
-                <button key={a.id} className="composer__chip" style={target === a.id ? { borderColor: a.color, color: 'var(--ink)' } : undefined} onClick={() => setTarget(target === a.id ? undefined : a.id)}>
-                  <span style={{ width: 8, height: 8, borderRadius: 4, background: a.color }} /> <span>@{a.name}</span>
+                <button key={a.id} className="composer__chip" style={target === a.id ? { background: 'rgba(255,255,255,0.14)', color: 'var(--t1)' } : undefined} onClick={() => setTarget(target === a.id ? undefined : a.id)}>
+                  <span style={{ width: 6, height: 6, borderRadius: 3, background: a.color }} /> <span>@{a.name}</span>
                 </button>
               ))}
             </>
           )}
           {conn !== 'online' && (
             <span className="composer__chip" style={{ color: 'var(--warn)' }}>
-              <Icon name="wifiOff" size={14} /> <span>{conn === 'unauthorized' ? 'Signed out' : 'Reconnecting'}</span>
+              <Icon name="wifiOff" size={12} /> <span>{conn === 'unauthorized' ? 'Signed out' : 'Reconnecting'}</span>
             </span>
           )}
         </div>
@@ -136,20 +136,20 @@ export function Composer({
               <div className="attachment" key={i}>
                 {f.mime.startsWith('image/') ? <img src={f.dataUrl} alt={f.filename} /> : <span>{f.filename}</span>}
                 <button onClick={() => setFiles((cur) => cur.filter((_, j) => j !== i))} aria-label={`Remove ${f.filename}`}>
-                  <Icon name="close" size={12} stroke={3} />
+                  <Icon name="close" size={10} stroke={3} />
                 </button>
               </div>
             ))}
           </div>
         )}
         {error && (
-          <div className="muted" style={{ fontSize: 12.5, padding: '0 8px 6px', color: 'var(--warn)' }}>
+          <div className="muted" style={{ fontSize: 12, padding: '0 6px 6px', color: 'var(--warn)' }}>
             {error}
           </div>
         )}
         <div className="composer__row">
           <button className="composer__btn" onClick={() => fileInput.current?.click()} aria-label="Attach files">
-            <Icon name="attach" size={21} />
+            <Icon name="attach" size={18} />
           </button>
           <input ref={fileInput} type="file" multiple hidden accept="image/*,.txt,.md,.json,.csv,.js,.ts,.tsx,.jsx,.py,.html,.css,.pdf,.log,.yaml,.yml,.xml,.java,.kt,.swift,.go,.rs,.c,.cpp,.h,.sh" onChange={(e) => {
             void onFiles(e.target.files);
@@ -172,16 +172,16 @@ export function Composer({
           />
           {(text.split('\n').length > 2 || text.length > 120 || expanded) && (
             <button className="composer__btn" onClick={() => setExpanded((v) => !v)} aria-label={expanded ? 'Collapse editor' : 'Expand editor'}>
-              <Icon name={expanded ? 'collapse' : 'expand'} size={19} />
+              <Icon name={expanded ? 'collapse' : 'expand'} size={16} />
             </button>
           )}
           {busy && !canSend ? (
             <Glass as="button" className="composer__send" radius={999} interactive variant="danger" onClick={onStop} aria-label="Stop">
-              <Icon name="stop" size={16} />
+              <Icon name="stop" size={11} />
             </Glass>
           ) : (
-            <Glass as="button" className="composer__send" radius={999} interactive variant="accent" onClick={send} disabled={!canSend} aria-label="Send">
-              <Icon name="send" size={21} stroke={2.6} />
+            <Glass as="button" className="composer__send" radius={999} interactive variant="primary" onClick={send} disabled={!canSend} aria-label="Send">
+              <Icon name="send" size={17} stroke={2.6} />
             </Glass>
           )}
         </div>

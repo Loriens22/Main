@@ -56,6 +56,8 @@ function describe(part: any): { title: string; sub?: string } {
       return { title: 'Apply patch', sub: st.title };
     case 'skill':
       return { title: `Use skill ${input.name ?? ''}` };
+    case 'invalid':
+      return { title: 'Tried a tool that isn’t available here', sub: input.tool ? `${input.tool}` : undefined };
     default:
       return { title: part.tool, sub: st.title };
   }
@@ -115,25 +117,25 @@ export const ToolCard = memo(function ToolCard({ part }: { part: any }) {
     <div className="tool">
       <button className="tool__head" onClick={() => body && setOpen((v) => !v)} aria-expanded={open}>
         <span className="tool__icon" style={failed ? { color: 'var(--danger)' } : undefined}>
-          <Icon name={ICONS[part.tool] ?? 'bolt'} size={17} />
+          <Icon name={ICONS[part.tool] ?? 'bolt'} size={13} />
         </span>
         <span className="tool__title">
           {title}
           {sub && <small>{sub}</small>}
         </span>
         {fd && (fd.additions || fd.deletions) ? (
-          <span style={{ fontSize: 12, fontFamily: 'var(--mono)' }}>
+          <span style={{ fontSize: 11, fontFamily: 'var(--mono)' }}>
             <span style={{ color: 'var(--ok)' }}>+{fd.additions ?? 0}</span> <span style={{ color: 'var(--danger)' }}>−{fd.deletions ?? 0}</span>
           </span>
         ) : null}
         {status === 'running' || status === 'pending' ? (
           <span className="tool__state--run spinner" />
         ) : failed ? (
-          <Icon name="x" size={18} className="tool__state--err" />
+          <Icon name="x" size={14} className="tool__state--err" />
         ) : (
-          <Icon name="check" size={18} className="tool__state--ok" />
+          <Icon name="check" size={14} className="tool__state--ok" />
         )}
-        {body ? <Icon name={open ? 'chevronDown' : 'chevron'} size={16} style={{ color: 'var(--ink-3)' }} /> : null}
+        {body ? <Icon name={open ? 'chevronDown' : 'chevron'} size={13} style={{ color: 'var(--t3)' }} /> : null}
       </button>
       {open && body && <div className="tool__body">{body}</div>}
     </div>

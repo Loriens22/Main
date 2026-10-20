@@ -54,7 +54,7 @@ function ProjectChooser({ value, onChange }: { value: string | null; onChange: (
 
   return (
     <>
-      <div className="segmented" style={{ background: 'var(--card)' }}>
+      <div className="segmented">
         <button aria-pressed={mode === 'existing'} onClick={() => setMode('existing')} disabled={!projects.length}>
           Existing
         </button>
@@ -74,7 +74,7 @@ function ProjectChooser({ value, onChange }: { value: string | null; onChange: (
                 <div className="option__title">{p.name}</div>
                 {p.repo && <div className="option__sub">github.com/{p.repo}</div>}
               </div>
-              {value === p.id && <Icon name="check" size={18} style={{ color: 'var(--accent)' }} />}
+              {value === p.id && <Icon name="check" size={15} style={{ color: 'var(--accent)' }} />}
             </button>
           ))}
         </div>
@@ -88,7 +88,7 @@ function ProjectChooser({ value, onChange }: { value: string | null; onChange: (
             <div style={{ marginTop: 8, maxHeight: 200, overflowY: 'auto' }}>
               {repos.slice(0, 50).map((r) => (
                 <button key={r.fullName} className="option" aria-selected={repo === r.fullName} onClick={() => setRepo(r.fullName)}>
-                  <Icon name="github" size={18} />
+                  <Icon name="github" size={15} />
                   <div className="option__main">
                     <div className="option__title">
                       {r.fullName} {r.private && <span className="badge badge--muted">private</span>}
@@ -116,8 +116,8 @@ function ModelRow({ value, onClick }: { value: string | null; onClick: () => voi
   const catalog = useStore((s) => s.catalog);
   const m = catalog?.models.find((x) => x.id === value);
   return (
-    <button className="option" onClick={onClick} style={{ background: 'var(--card)', border: '1px solid var(--line)' }}>
-      <Icon name="sparkle" size={19} style={{ color: 'var(--accent)' }} />
+    <button className="option" onClick={onClick} style={{ background: 'var(--s2)', boxShadow: 'inset 0 0 0 0.5px var(--line)' }}>
+      <Icon name="sparkle" size={15} style={{ color: 'var(--t3)' }} />
       <div className="option__main">
         <div className="option__title">
           {m?.name ?? value ?? 'Loading models…'} {m && <span className={`badge ${m.free ? 'badge--free' : 'badge--paid'}`}>{m.free ? 'Free' : 'Paid'}</span>}
@@ -185,7 +185,7 @@ function NewChatSheet({ open }: { open: boolean }) {
       <div className="group">
         {APPROVAL.map((a) => (
           <button key={a.id} className="option" aria-selected={approval === a.id} onClick={() => setApproval(a.id)} style={{ borderRadius: 0 }}>
-            <Icon name="shield" size={18} />
+            <Icon name="shield" size={15} />
             <div className="option__main">
               <div className="option__title">{a.title}</div>
               <div className="option__sub">{a.sub}</div>
@@ -193,8 +193,8 @@ function NewChatSheet({ open }: { open: boolean }) {
           </button>
         ))}
       </div>
-      <Glass as="button" className="btn btn--block" variant="accent" radius={999} interactive onClick={start} disabled={busy} style={{ marginTop: 18 }}>
-        {busy ? <span className="spinner" /> : <Icon name="chats" size={19} />}
+      <Glass as="button" className="btn btn--block" variant="primary" radius={999} interactive onClick={start} disabled={busy} style={{ marginTop: 18 }}>
+        {busy && <span className="spinner" />}
         {busy ? (draft?.repo ? 'Cloning…' : 'Creating…') : 'Start chat'}
       </Glass>
       <ModelPicker
@@ -296,31 +296,31 @@ function NewGroupSheet({ open }: { open: boolean }) {
       <div className="label">Agents · {agents.length}</div>
       <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
         {agents.map((a, i) => (
-          <div key={i} style={{ padding: 12, borderRadius: 22, background: 'var(--card)', border: '1px solid var(--line)' }}>
+          <div key={i} style={{ padding: 10, borderRadius: 14, background: 'var(--s2)', boxShadow: 'inset 0 0 0 0.5px var(--line)' }}>
             <div style={{ display: 'flex', gap: 10, alignItems: 'center' }}>
-              <button className="avatar" style={{ width: 40, height: 40, background: a.color }} onClick={() => update(i, { color: COLORS[(COLORS.indexOf(a.color) + 1) % COLORS.length] })} aria-label="Change color">
+              <button className="avatar" style={{ width: 32, height: 32, fontSize: 13, background: a.color }} onClick={() => update(i, { color: COLORS[(COLORS.indexOf(a.color) + 1) % COLORS.length] })} aria-label="Change color">
                 {a.name[0] ?? '?'}
               </button>
-              <input className="field" style={{ height: 42, flex: 1 }} value={a.name} onChange={(e) => update(i, { name: e.target.value })} aria-label="Agent name" />
+              <input className="field" style={{ height: 34, flex: 1, fontSize: 14 }} value={a.name} onChange={(e) => update(i, { name: e.target.value })} aria-label="Agent name" />
               {agents.length > 2 && (
-                <button className="circle-btn circle-btn--sm" onClick={() => setAgents((x) => x.filter((_, j) => j !== i))} aria-label="Remove agent">
-                  <Icon name="trash" size={18} />
+                <button className="icon-btn" onClick={() => setAgents((x) => x.filter((_, j) => j !== i))} aria-label="Remove agent">
+                  <Icon name="trash" size={15} />
                 </button>
               )}
             </div>
-            <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap', marginTop: 10 }}>
+            <div style={{ display: 'flex', gap: 5, flexWrap: 'wrap', marginTop: 8 }}>
               {ROLE_PRESETS.map((r) => (
-                <button key={r.role} className="composer__chip" style={a.role === r.role ? { background: a.color, color: '#fff', borderColor: 'transparent' } : undefined} onClick={() => update(i, { role: r.role, instructions: r.instructions })}>
+                <button key={r.role} className="composer__chip" style={a.role === r.role ? { background: '#ececf1', color: '#0a0a0c' } : undefined} onClick={() => update(i, { role: r.role, instructions: r.instructions })}>
                   {r.role}
                 </button>
               ))}
             </div>
-            <textarea className="field" rows={2} style={{ marginTop: 10, fontSize: 14 }} value={a.instructions} onChange={(e) => update(i, { instructions: e.target.value })} placeholder="Custom instructions" />
+            <textarea className="field" rows={2} style={{ marginTop: 8, fontSize: 13 }} value={a.instructions} onChange={(e) => update(i, { instructions: e.target.value })} placeholder="Custom instructions" />
             <div style={{ display: 'flex', gap: 8, marginTop: 8, alignItems: 'center' }}>
               <button className="composer__chip" onClick={() => setPickFor(i)}>
                 <Icon name="sparkle" size={13} /> <span>{modelName(a.model)}</span>
               </button>
-              <button className="composer__chip" style={a.isLead ? { borderColor: 'var(--accent)', color: 'var(--ink)' } : undefined} onClick={() => update(i, { isLead: true })}>
+              <button className="composer__chip" style={a.isLead ? { background: 'rgba(255,255,255,0.14)', color: 'var(--t1)' } : undefined} onClick={() => update(i, { isLead: true })}>
                 {a.isLead ? '★ Lead' : 'Make lead'}
               </button>
             </div>
@@ -329,12 +329,12 @@ function NewGroupSheet({ open }: { open: boolean }) {
         {agents.length < 6 && (
           <button
             className="option"
-            style={{ justifyContent: 'center', border: '1px dashed var(--line-2)' }}
+            style={{ justifyContent: 'center', boxShadow: 'inset 0 0 0 0.5px var(--line-2)', color: 'var(--t2)', fontSize: 13.5 }}
             onClick={() =>
               setAgents((x) => [...x, { name: NAMES[x.length] ?? `Agent ${x.length + 1}`, ...ROLE_PRESETS[Math.min(x.length, ROLE_PRESETS.length - 1)], model: settings?.defaultModel ?? catalog?.defaultModel ?? null, color: COLORS[x.length % COLORS.length], isLead: false }])
             }
           >
-            <Icon name="plus" size={18} /> Add agent
+            <Icon name="plus" size={15} /> Add agent
           </button>
         )}
       </div>
@@ -344,15 +344,15 @@ function NewGroupSheet({ open }: { open: boolean }) {
         How many teammates may work at the same time. Tasks touching the same files are sequenced by the lead. Free models have rate limits, so 1–2 is usually best.
       </div>
       <div className="label">Approvals</div>
-      <div className="segmented" style={{ background: 'var(--card)' }}>
+      <div className="segmented">
         {APPROVAL.map((a) => (
           <button key={a.id} aria-pressed={approval === a.id} onClick={() => setApproval(a.id)}>
             {a.title}
           </button>
         ))}
       </div>
-      <Glass as="button" className="btn btn--block" variant="accent" radius={999} interactive onClick={create} disabled={busy || agents.length < 2} style={{ marginTop: 18 }}>
-        {busy ? <span className="spinner" /> : <Icon name="users" size={19} />}
+      <Glass as="button" className="btn btn--block" variant="primary" radius={999} interactive onClick={create} disabled={busy || agents.length < 2} style={{ marginTop: 18 }}>
+        {busy && <span className="spinner" />}
         {busy ? 'Assembling…' : 'Create team'}
       </Glass>
       <ModelPicker
@@ -422,7 +422,7 @@ function ChatMenuSheet({ open, chatId }: { open: boolean; chatId?: string }) {
 
   return (
     <Sheet open={open} onClose={closeSheet} title={chat.projectName} tall>
-      <div className="segmented" style={{ background: 'var(--card)', marginBottom: 12 }}>
+      <div className="segmented" style={{ marginBottom: 12 }}>
         <button aria-pressed={tab === 'changes'} onClick={() => setTab('changes')}>
           Changes
         </button>
@@ -438,7 +438,7 @@ function ChatMenuSheet({ open, chatId }: { open: boolean; chatId?: string }) {
         (file ? (
           <>
             <button className="option" onClick={() => setFile(null)}>
-              <Icon name="back" size={18} /> <div className="option__main option__title">{file.path}</div>
+              <Icon name="back" size={15} /> <div className="option__main option__title">{file.path}</div>
             </button>
             <pre className="tool__body selectable" style={{ maxHeight: '60vh', borderRadius: 16, background: 'var(--code-bg)', margin: 0 }}>
               {file.binary ? '(binary file)' : file.content}
@@ -448,12 +448,12 @@ function ChatMenuSheet({ open, chatId }: { open: boolean; chatId?: string }) {
           <>
             {path && (
               <button className="option" onClick={() => setPath(path.split('/').slice(0, -1).join('/'))}>
-                <Icon name="back" size={18} /> <div className="option__main option__title">{path}</div>
+                <Icon name="back" size={15} /> <div className="option__main option__title">{path}</div>
               </button>
             )}
             {entries.map((e) => (
               <button key={e.path} className="option" onClick={() => (e.dir ? setPath(e.path) : openFile(e.path))}>
-                <Icon name={e.dir ? 'folder' : 'file'} size={19} style={{ color: e.dir ? 'var(--accent)' : 'var(--ink-3)' }} />
+                <Icon name={e.dir ? 'folder' : 'file'} size={15} style={{ color: e.dir ? 'var(--accent)' : 'var(--ink-3)' }} />
                 <div className="option__main">
                   <div className="option__title">{e.name}</div>
                 </div>
@@ -467,9 +467,9 @@ function ChatMenuSheet({ open, chatId }: { open: boolean; chatId?: string }) {
       {tab === 'changes' && (
         <>
           {git?.isRepo && (
-            <div className="group" style={{ padding: 14, marginBottom: 12 }}>
+            <div className="group" style={{ padding: 12, marginBottom: 10 }}>
               <div style={{ display: 'flex', gap: 8, alignItems: 'center', fontWeight: 650 }}>
-                <Icon name="git" size={18} /> {git.branch || 'main'}
+                <Icon name="git" size={15} /> {git.branch || 'main'}
                 {git.remote && <span className="muted" style={{ fontSize: 12.5, fontWeight: 500 }}>· {git.remote.replace(/^https:\/\/github.com\//, '')}</span>}
                 {git.ahead > 0 && <span className="badge badge--warn">{git.ahead} to push</span>}
               </div>
@@ -483,15 +483,15 @@ function ChatMenuSheet({ open, chatId }: { open: boolean; chatId?: string }) {
               ))}
               {(git.files.length > 0 || git.ahead > 0) && (
                 <>
-                  <input className="field" style={{ marginTop: 12, height: 44 }} placeholder="Commit message" value={msg} onChange={(e) => setMsg(e.target.value)} />
+                  <input className="field" style={{ marginTop: 10, height: 38, fontSize: 14 }} placeholder="Commit message" value={msg} onChange={(e) => setMsg(e.target.value)} />
                   <div className="card__actions">
-                    <button className="btn" style={{ background: 'var(--card-2)' }} onClick={() => commit(false)} disabled={working || !git.files.length}>
+                    <button className="btn" onClick={() => commit(false)} disabled={working || !git.files.length}>
                       Commit
                     </button>
                     {git.remote && (
-                      <Glass as="button" className="btn" radius={999} variant="accent" interactive onClick={() => commit(true)} disabled={working || !github.connected}>
-                        {working ? <span className="spinner" /> : <Icon name="github" size={16} />} Commit & push
-                      </Glass>
+                      <button className="btn btn--primary" onClick={() => commit(true)} disabled={working || !github.connected}>
+                        {working ? <span className="spinner" /> : <Icon name="github" size={14} />} Commit & push
+                      </button>
                     )}
                   </div>
                   {git.remote && !github.connected && <div className="muted" style={{ fontSize: 12.5, marginTop: 8 }}>Connect GitHub in Settings to push.</div>}
@@ -530,7 +530,7 @@ function ChatMenuSheet({ open, chatId }: { open: boolean; chatId?: string }) {
           <div className="group">
             {APPROVAL.map((a) => (
               <button key={a.id} className="option" aria-selected={chat.approvalMode === a.id} style={{ borderRadius: 0 }} onClick={() => patchChat(chat.id, { approvalMode: a.id }).catch((e) => toast(e.message, 'error'))}>
-                <Icon name="shield" size={18} />
+                <Icon name="shield" size={15} />
                 <div className="option__main">
                   <div className="option__title">{a.title}</div>
                   <div className="option__sub">{a.sub}</div>
@@ -547,14 +547,14 @@ function ChatMenuSheet({ open, chatId }: { open: boolean; chatId?: string }) {
           <div className="label">Chat</div>
           <div className="group">
             <button className="option" style={{ borderRadius: 0 }} onClick={() => patchChat(chat.id, { pinned: !chat.pinned })}>
-              <Icon name="pin" size={18} /> <div className="option__main">{chat.pinned ? 'Unpin chat' : 'Pin chat'}</div>
+              <Icon name="pin" size={15} /> <div className="option__main">{chat.pinned ? 'Unpin chat' : 'Pin chat'}</div>
             </button>
             <button className="option" style={{ borderRadius: 0 }} onClick={() => useStore.setState({ sheet: { name: 'rename-chat', props: { chatId: chat.id } } })}>
-              <Icon name="edit" size={18} /> <div className="option__main">Rename</div>
+              <Icon name="edit" size={15} /> <div className="option__main">Rename</div>
             </button>
             {chat.allowPaid && (
               <button className="option" style={{ borderRadius: 0 }} onClick={() => patchChat(chat.id, { allowPaid: false }).then(() => toast('Paid models disabled for this chat', 'ok'))}>
-                <Icon name="key" size={18} /> <div className="option__main">Revoke paid-model consent</div>
+                <Icon name="key" size={15} /> <div className="option__main">Revoke paid-model consent</div>
               </button>
             )}
             <button
@@ -567,7 +567,7 @@ function ChatMenuSheet({ open, chatId }: { open: boolean; chatId?: string }) {
                 goHome();
               }}
             >
-              <Icon name="trash" size={18} /> <div className="option__main">Delete chat</div>
+              <Icon name="trash" size={15} /> <div className="option__main">Delete chat</div>
             </button>
           </div>
         </>
@@ -588,7 +588,7 @@ function RenameSheet({ open, chatId }: { open: boolean; chatId?: string }) {
       <Glass
         as="button"
         className="btn btn--block"
-        variant="accent"
+        variant="primary"
         radius={999}
         interactive
         style={{ marginTop: 14 }}

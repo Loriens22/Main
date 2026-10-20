@@ -186,6 +186,10 @@ export function MascotLayer({ theme, quality = 'auto', reducedMotion = false, en
     stageRef.current?.setReducedMotion(reducedMotion);
   }, [reducedMotion, backend]);
 
+  // Dev builds expose the stage for automated UI tests.
+  if (import.meta.env.DEV) (window as unknown as { __mascotApi?: MascotStageApi; __mascotAnchors?: typeof anchors }).__mascotApi = api;
+  if (import.meta.env.DEV) (window as unknown as { __mascotAnchors?: typeof anchors }).__mascotAnchors = anchors;
+
   const ctx = useMemo<Ctx>(
     () => ({
       api,

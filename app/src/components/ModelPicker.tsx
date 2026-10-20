@@ -52,11 +52,11 @@ export function ModelPicker({ open, onClose, value, onPick }: { open: boolean; o
           {!m.available && <span className="badge badge--muted">Needs key</span>}
         </div>
         <div className="option__sub">
-          {m.providerName} · <span style={{ fontFamily: 'var(--mono)', fontSize: 12 }}>{m.id}</span>
+          {m.providerName} · <span style={{ fontFamily: 'var(--mono)', fontSize: 11 }}>{m.id}</span>
         </div>
         <Caps m={m} />
       </div>
-      {m.id === value && <Icon name="check" size={20} style={{ color: 'var(--accent)' }} />}
+      {m.id === value && <Icon name="check" size={16} style={{ color: 'var(--accent)' }} />}
     </button>
   );
 
@@ -68,8 +68,7 @@ export function ModelPicker({ open, onClose, value, onPick }: { open: boolean; o
       tall
       actions={
         <button
-          className="circle-btn circle-btn--sm"
-          style={{ background: 'var(--card-2)', borderRadius: '50%' }}
+          className="icon-btn"
           aria-label="Refresh models"
           onClick={async () => {
             setRefreshing(true);
@@ -77,26 +76,25 @@ export function ModelPicker({ open, onClose, value, onPick }: { open: boolean; o
             setRefreshing(false);
           }}
         >
-          {refreshing ? <span className="spinner" /> : <Icon name="refresh" size={17} />}
+          {refreshing ? <span className="spinner" style={{ width: 12, height: 12 }} /> : <Icon name="refresh" size={13} />}
         </button>
       }
     >
-      <input className="field" placeholder="Search models" value={q} onChange={(e) => setQ(e.target.value)} style={{ marginBottom: 10 }} />
+      <input className="field" placeholder="Search models" value={q} onChange={(e) => setQ(e.target.value)} style={{ marginBottom: 4, height: 38 }} />
       {confirm ? (
-        <div className="card" style={{ width: '100%', background: 'var(--card)', border: '1px solid rgba(251,191,36,0.4)' }}>
+        <div className="card" style={{ width: '100%', boxShadow: 'inset 0 0 0 0.5px rgba(217,167,74,0.45)' }}>
           <div className="card__title">
-            <Icon name="key" size={18} /> {confirm.name} is a paid model
+            <Icon name="key" size={14} style={{ color: 'var(--warn)' }} /> {confirm.name} is a paid model
           </div>
           <div className="card__body">
             It costs {price(confirm.cost.input)} per million input tokens and {price(confirm.cost.output)} per million output tokens, billed to your {confirm.providerName} account. Maverick will only use it in this chat after you confirm.
           </div>
           <div className="card__actions">
-            <button className="btn" style={{ background: 'var(--card-2)' }} onClick={() => setConfirm(null)}>
+            <button className="btn" onClick={() => setConfirm(null)}>
               Cancel
             </button>
             <button
-              className="btn"
-              style={{ background: 'var(--warn)', color: '#1a1200' }}
+              className="btn btn--primary"
               onClick={() => {
                 onPick(confirm, true);
                 setConfirm(null);

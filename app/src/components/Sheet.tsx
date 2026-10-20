@@ -29,16 +29,16 @@ export function Sheet({ open, onClose, title, children, actions, tall }: { open:
             dragElastic={{ top: 0.05, bottom: 0.8 }}
             onDragEnd={onDragEnd}
           >
-            <Glass className="sheet" variant="strong" radius={32} blur={30} refract style={{ position: 'relative', height: tall ? '92vh' : undefined, borderRadius: '32px 32px 0 0' }} role="dialog" aria-modal="true">
+            <Glass className="sheet" variant="strong" radius={22} blur={30} style={{ position: 'relative', height: tall ? '90vh' : undefined, borderRadius: '22px 22px 0 0' }} role="dialog" aria-modal="true">
               <div onPointerDown={(e) => drag.start(e)} style={{ touchAction: 'none' }}>
                 <div className="sheet__grab" />
                 {title !== undefined && (
                   <div className="sheet__head">
                     <div className="sheet__title">{title}</div>
-                    <div style={{ display: 'flex', gap: 8, alignItems: 'center' }}>
+                    <div style={{ display: 'flex', gap: 6, alignItems: 'center' }}>
                       {actions}
-                      <button className="circle-btn circle-btn--sm" onClick={onClose} aria-label="Close" style={{ background: 'var(--card-2)', borderRadius: '50%' }}>
-                        <Icon name="close" size={18} />
+                      <button className="icon-btn" onClick={onClose} aria-label="Close">
+                        <Icon name="close" size={13} stroke={2.4} />
                       </button>
                     </div>
                   </div>
