@@ -67,6 +67,8 @@ export interface MascotStageApi {
   roam(id: MascotId, mode: RoamMode): void;
   moveTo(id: MascotId, point: { x: number; y: number }, opts?: { hop?: boolean; durationMs?: number }): Promise<void>;
   hitTest(x: number, y: number): MascotId | null;
+  /** Current on-screen centre (CSS px) and rendered diameter, including roam/drag/hop offsets. */
+  getPosition(id: MascotId): { x: number; y: number; size: number; visible: boolean } | null;
   onInteract(cb: (id: MascotId, kind: InteractionKind) => void): () => void;
   setTheme(theme: 'light' | 'dark'): void;
   setQuality(q: Quality): void;

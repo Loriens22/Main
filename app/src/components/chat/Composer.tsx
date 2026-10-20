@@ -1,0 +1,191 @@
+import { useEffect, useRef, useState } from 'react';
+import { Icon } from '@/components/Icon';
+import { Glass } from '@/glass/Glass';
+import { haptic } from '@/lib/platform';
+import type { Agent, Attachment, Chat, ModelInfo } from '@/lib/types';
+import { useStore } from '@/state/store';
+
+const MAX_FILE = 6 * 1024 * 1024;
+
+function readFile(f: File): Promise<Attachment> {
+  return new Promise((resolve, reject) => {
+    if (f.size > MAX_FILE) return reject(new Error(`${f.name} is larger than 6 MB`));
+    const r = new FileReader();
+    r.onload = () => resolve({ mime: f.type || 'application/octet-stream', filename: f.name, dataUrl: String(r.result), size: f.size });
+    r.onerror = () => reject(r.error ?? new Error('Could not read file'));
+    r.readAsDataURL(f);
+  });
+}
+
+export function Composer({
+  chat,
+  busy,
+  onSend,
+  onStop,
+  onPickModel,
+  model,
+  agents,
+}: {
+  chat: Chat;
+  busy: boolean;
+  onSend: (text: string, attachments: Attachment[], opts: { agent: 'build' | 'plan'; targetAgentId?: string }) => Promise<boolean>;
+  onStop: () => void;
+  onPickModel: () => void;
+  model?: ModelInfo;
+  agents?: Agent[];
+}) {
+  const [text, setText] = useState('');
+  const [files, setFiles] = useState<Attachment[]>([]);
+  const [expanded, setExpanded] = useState(false);
+  const [mode, setMode] = useState<'build' | 'plan'>('build');
+  const [target, setTarget] = useState<string | undefined>();
+  const [error, setError] = useState('');
+  const ta = useRef<HTMLTextAreaElement>(null);
+  const fileInput = useRef<HTMLInputElement>(null);
+  const draftKey = `draft:${chat.id}`;
+
+  useEffect(() => {
+    try {
+      setText(sessionStorage.getItem(draftKey) ?? '');
+    } catch {
+      /* ignore */
+    }
+  }, [draftKey]);
+
+  useEffect(() => {
+    try {
+      if (text) sessionStorage.setItem(draftKey, text);
+      else sessionStorage.removeItem(draftKey);
+    } catch {
+      /* ignore */
+    }
+    const el = ta.current;
+    if (!el || expanded) return;
+    el.style.height = 'auto';
+    el.style.height = `${Math.min(168, el.scrollHeight)}px`;
+  }, [text, expanded, draftKey]);
+
+  // Sending while the agent works queues the message in OpenCode; with an empty box the button stops the run.
+  const canSend = text.trim().length > 0 || files.length > 0;
+  const send = async () => {
+    if (!canSend) return;
+    haptic.tap();
+    const t = text;
+    const f = files;
+    setText('');
+    setFiles([]);
+    setExpanded(false);
+    setError('');
+    const ok = await onSend(t, f, { agent: mode, targetAgentId: target });
+    if (!ok) {
+      setText(t);
+      setFiles(f);
+    }
+  };
+
+  const onFiles = async (list: FileList | null) => {
+    if (!list) return;
+    try {
+      const add = await Promise.all([...list].slice(0, 6).map(readFile));
+      setFiles((cur) => [...cur, ...add].slice(0, 8));
+      if (model && !model.caps.attachments && add.some((a) => a.mime.startsWith('image/'))) setError(`${model.name} may not read images. Pick a vision model to send pictures.`);
+    } catch (e) {
+      setError((e as Error).message);
+    }
+  };
+
+  const conn = useStore((s) => s.conn);
+  return (
+    <div className="composer-wrap content-max">
+      <Glass className={`composer${expanded ? ' composer--expanded' : ''}`} radius={28} refract blur={22} variant="strong">
+        <div className="composer__chips">
+          {chat.kind === 'single' ? (
+            <>
+              <button className="composer__chip" onClick={onPickModel} aria-label="Choose model">
+                <Icon name="sparkle" size={14} />
+                <span>{model?.name ?? chat.model.split('/').pop()}</span>
+                {model && <span className={`badge ${model.free ? 'badge--free' : 'badge--paid'}`}>{model.free ? 'Free' : 'Paid'}</span>}
+                <Icon name="chevronDown" size={13} />
+              </button>
+              <button className="composer__chip" onClick={() => setMode((m) => (m === 'build' ? 'plan' : 'build'))} aria-label="Toggle plan mode" title="Plan mode reads and plans without editing files">
+                <Icon name={mode === 'build' ? 'bolt' : 'list'} size={14} />
+                <span>{mode === 'build' ? 'Build' : 'Plan only'}</span>
+              </button>
+            </>
+          ) : (
+            <>
+              <button className={`composer__chip`} style={!target ? { borderColor: 'var(--accent)', color: 'var(--ink)' } : undefined} onClick={() => setTarget(undefined)}>
+                <Icon name="users" size={14} /> <span>Whole team</span>
+              </button>
+              {agents?.map((a) => (
+                <button key={a.id} className="composer__chip" style={target === a.id ? { borderColor: a.color, color: 'var(--ink)' } : undefined} onClick={() => setTarget(target === a.id ? undefined : a.id)}>
+                  <span style={{ width: 8, height: 8, borderRadius: 4, background: a.color }} /> <span>@{a.name}</span>
+                </button>
+              ))}
+            </>
+          )}
+          {conn !== 'online' && (
+            <span className="composer__chip" style={{ color: 'var(--warn)' }}>
+              <Icon name="wifiOff" size={14} /> <span>{conn === 'unauthorized' ? 'Signed out' : 'Reconnecting'}</span>
+            </span>
+          )}
+        </div>
+        {files.length > 0 && (
+          <div className="attachments">
+            {files.map((f, i) => (
+              <div className="attachment" key={i}>
+                {f.mime.startsWith('image/') ? <img src={f.dataUrl} alt={f.filename} /> : <span>{f.filename}</span>}
+                <button onClick={() => setFiles((cur) => cur.filter((_, j) => j !== i))} aria-label={`Remove ${f.filename}`}>
+                  <Icon name="close" size={12} stroke={3} />
+                </button>
+              </div>
+            ))}
+          </div>
+        )}
+        {error && (
+          <div className="muted" style={{ fontSize: 12.5, padding: '0 8px 6px', color: 'var(--warn)' }}>
+            {error}
+          </div>
+        )}
+        <div className="composer__row">
+          <button className="composer__btn" onClick={() => fileInput.current?.click()} aria-label="Attach files">
+            <Icon name="attach" size={21} />
+          </button>
+          <input ref={fileInput} type="file" multiple hidden accept="image/*,.txt,.md,.json,.csv,.js,.ts,.tsx,.jsx,.py,.html,.css,.pdf,.log,.yaml,.yml,.xml,.java,.kt,.swift,.go,.rs,.c,.cpp,.h,.sh" onChange={(e) => {
+            void onFiles(e.target.files);
+            e.target.value = '';
+          }} />
+          <textarea
+            ref={ta}
+            className="composer__input"
+            rows={1}
+            value={text}
+            placeholder={chat.kind === 'group' ? (target ? `Message @${agents?.find((a) => a.id === target)?.name}` : 'Give the team a goal…') : busy ? 'Maverick is working…' : 'Ask Maverick anything…'}
+            onChange={(e) => setText(e.target.value)}
+            onKeyDown={(e) => {
+              if (e.key === 'Enter' && !e.shiftKey && window.matchMedia('(pointer: fine)').matches) {
+                e.preventDefault();
+                void send();
+              }
+            }}
+            aria-label="Message"
+          />
+          {(text.split('\n').length > 2 || text.length > 120 || expanded) && (
+            <button className="composer__btn" onClick={() => setExpanded((v) => !v)} aria-label={expanded ? 'Collapse editor' : 'Expand editor'}>
+              <Icon name={expanded ? 'collapse' : 'expand'} size={19} />
+            </button>
+          )}
+          {busy && !canSend ? (
+            <Glass as="button" className="composer__send" radius={999} interactive variant="danger" onClick={onStop} aria-label="Stop">
+              <Icon name="stop" size={16} />
+            </Glass>
+          ) : (
+            <Glass as="button" className="composer__send" radius={999} interactive variant="accent" onClick={send} disabled={!canSend} aria-label="Send">
+              <Icon name="send" size={21} stroke={2.6} />
+            </Glass>
+          )}
+        </div>
+      </Glass>
+    </div>
+  );
+}

@@ -81,7 +81,10 @@ export async function createProject(input: { name: string; repo?: string | null 
   if (!name && !input.repo) throw new HttpError(400, 'Project name is required');
   const repoRef = input.repo ? parseRepo(input.repo) : null;
   if (input.repo && !repoRef) throw new HttpError(400, 'GitHub repository must look like owner/name or a github.com URL');
-  const displayName = name || repoRef!.repo;
+  let displayName = name || repoRef!.repo;
+  // Keep project names distinguishable in filters and voice commands ("switch to project …").
+  const taken = new Set((db.prepare('SELECT name FROM projects').all() as { name: string }[]).map((r) => r.name.toLowerCase()));
+  for (let i = 2; taken.has(displayName.toLowerCase()); i++) displayName = `${name || repoRef!.repo} ${i}`;
   const slug = uniqueSlug(slugify(displayName));
   const path = join(config.workspacesDir, slug);
   const t = now();
@@ -174,8 +177,23 @@ export async function gitStatus(p: ProjectRow) {
 }
 
 export async function gitDiff(p: ProjectRow): Promise<string> {
-  const r = await git(p.path, ['diff', 'HEAD', '--stat', '--patch', '--no-color']).catch(() => ({ stdout: '' }));
-  return r.stdout.slice(0, 400_000);
+  const r = await git(p.path, ['diff', 'HEAD', '--patch', '--no-color']).catch(() => ({ stdout: '' }));
+  let out = r.stdout;
+  // Untracked files are new work too; show them as additions.
+  const untracked = await git(p.path, ['ls-files', '--others', '--exclude-standard'])
+    .then((x) => x.stdout.split('\n').filter(Boolean))
+    .catch(() => [] as string[]);
+  for (const f of untracked.slice(0, 25)) {
+    try {
+      if (statSync(join(p.path, f)).size > 200_000) continue;
+    } catch {
+      continue;
+    }
+    // --no-index exits 1 when files differ, so read stdout from the rejection too.
+    const d = await git(p.path, ['diff', '--no-color', '--no-index', '--', '/dev/null', f]).catch((e: { stdout?: string }) => ({ stdout: e.stdout ?? '' }));
+    out += (out && !out.endsWith('\n') ? '\n' : '') + d.stdout;
+  }
+  return out.slice(0, 400_000);
 }
 
 export async function commitAndPush(p: ProjectRow, message: string, push: boolean): Promise<{ committed: boolean; pushed: boolean; output: string }> {
