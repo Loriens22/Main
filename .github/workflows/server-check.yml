@@ -1,0 +1,70 @@
+name: Check Maverick server
+
+# Probes a deployed Maverick core from the public internet. It never uses the real
+# access code (this repository is public): pairing is checked with a wrong code,
+# which must be rejected with 401, proving that pairing is configured and working.
+on:
+  workflow_dispatch:
+    inputs:
+      url:
+        description: Server URL
+        required: true
+        default: https://maverick-core-production.up.railway.app
+
+permissions:
+  contents: read
+
+jobs:
+  check:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    env:
+      URL: ${{ inputs.url }}
+    steps:
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+
+      - name: Health (waits for a cold start)
+        run: |
+          URL="${URL%/}"
+          for i in $(seq 1 24); do
+            code=$(curl -s -o health.json -w '%{http_code}' -m 40 "$URL/health" || echo 000)
+            echo "attempt $i: HTTP $code $(cat health.json 2>/dev/null)"
+            if [ "$code" = 200 ] && grep -q '"ready":true' health.json; then exit 0; fi
+            sleep 10
+          done
+          echo "::error::$URL/health never reported OpenCode ready"
+          exit 1
+
+      - name: Server info, web app and APK link
+        run: |
+          URL="${URL%/}"
+          echo "info: $(curl -sS -m 30 "$URL/api/info")"
+          curl -sS -m 30 -o index.html -w 'web app: HTTP %{http_code}, %{size_download} bytes\n' "$URL/"
+          grep -q '<div id="root">' index.html || { echo "::error::web app not served"; exit 1; }
+          curl -sS -m 30 -o /dev/null -w 'download: HTTP %{http_code} -> %{redirect_url}\n' "$URL/download"
+
+      - name: Pairing rejects a wrong code, API requires a token
+        run: |
+          URL="${URL%/}"
+          code=$(curl -sS -m 30 -o pair.json -w '%{http_code}' -X POST -H 'content-type: application/json' \
+            -d '{"code":"WRONG-CODE-0000","deviceName":"server-check"}' "$URL/api/pair")
+          echo "pair with a wrong code: HTTP $code $(cat pair.json)"
+          [ "$code" = 401 ] || { echo "::error::expected 401 (503 means ACCESS_CODE is not set)"; exit 1; }
+          code=$(curl -sS -m 30 -o /dev/null -w '%{http_code}' "$URL/api/chats")
+          echo "chats without a token: HTTP $code"
+          [ "$code" = 401 ] || { echo "::error::API is not protected"; exit 1; }
+
+      - name: Realtime WebSocket
+        run: |
+          node -e '
+            const url = process.env.URL.replace(/\/$/, "").replace(/^http/, "ws") + "/ws";
+            const ws = new WebSocket(url);
+            const done = (ok, msg) => { console.log(msg); process.exit(ok ? 0 : 1); };
+            setTimeout(() => done(false, "no response from " + url), 20000);
+            ws.onopen = () => ws.send(JSON.stringify({ type: "auth", token: "invalid" }));
+            ws.onmessage = (e) => console.log("message:", e.data);
+            ws.onclose = (e) => done(e.code === 4003, "closed with " + e.code + " " + e.reason + (e.code === 4003 ? " (expected: unpaired token rejected)" : ""));
+            ws.onerror = () => {};
+          '
