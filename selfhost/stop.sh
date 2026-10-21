@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
 # Maverick Bot: stop your own server on macOS or Linux.
-# Projects, chats and paired phones are kept for the next start.
+# Projects and chats are kept for the next start.
 #
 #   bash stop.sh
 set -u
@@ -16,5 +16,6 @@ if ! docker compose down; then
   exit 1
 fi
 echo
-echo "Maverick server stopped. Your projects, chats and paired phones are kept."
-echo "Start it again with:  bash start.sh   (it will get a new address)"
+echo "Maverick server stopped. Your projects and chats are kept."
+echo "Start it again with:  bash start.sh   It gets a new address, so sign out in the app"
+echo "(Settings > Sign out this device) and pair again with the new address and the same code."

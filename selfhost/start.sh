@@ -83,17 +83,25 @@ if [ "${GITHUB_ACTIONS:-}" = true ]; then
   done
 fi
 
-# ---------- 3. Build and start ----------
-say "Building and starting the server. The first time takes 5-15 minutes; later runs take seconds."
+# ---------- 3. Build and start, unless it is already running ----------
+# Re-running "up --build" can recreate running containers, which would cut off agent runs and
+# calls, so when the server is up this script only reads its current address.
+running() { docker compose ps --status running -q "$@" 2>/dev/null | grep -c .; }
 voice_note=""
-if ! docker compose up -d --build; then
-  say "Starting everything failed. Trying again without the voice engine (chat does not need it) ..."
-  if ! docker compose up -d --build core tunnel; then
-    docker compose ps -a
-    docker compose logs --tail 40 core tunnel
-    fail "The server could not be started. See the messages above."
+if [ "$(running core tunnel)" -ge 2 ]; then
+  say "The server is already running, so nothing is rebuilt or restarted. (To apply new files or a changed .env, run stop.sh first.)"
+  if [ "$(running voice)" -lt 1 ]; then voice_note="Voice calls are off: the voice engine is not running (chat works)."; fi
+else
+  say "Building and starting the server. The first time takes 5-15 minutes; later runs take seconds."
+  if ! docker compose up -d --build; then
+    say "Starting everything failed. Trying again without the voice engine (chat does not need it) ..."
+    if ! docker compose up -d --build core tunnel; then
+      docker compose ps -a
+      docker compose logs --tail 40 core tunnel
+      fail "The server could not be started. See the messages above."
+    fi
+    voice_note="Voice calls are off: the voice engine could not be built or started (chat works)."
   fi
-  voice_note="Voice calls are off: the voice engine could not be built or started (chat works)."
 fi
 
 # Runs curl inside the core container, so nothing extra is needed on this computer.
@@ -127,13 +135,10 @@ while [ "$i" -lt 60 ]; do
   sleep 3
   i=$((i + 1))
 done
-if [ -z "$host" ]; then
-  # Fallback: the address is also printed in the tunnel's log.
-  host="$(docker compose logs --no-color tunnel 2>/dev/null | grep -Eo 'https://[a-z0-9-]+\.trycloudflare\.com' | grep -v '://api\.' | tail -n 1 | sed 's#^https://##')"
-fi
+# No fallback to the tunnel's log: after a restart it still holds the old, dead address.
 if [ -z "$host" ]; then
   docker compose logs --tail 40 tunnel
-  fail "Could not get an address from Cloudflare. Check the internet connection, then run this script again."
+  fail "Could not get an address from Cloudflare. Check the internet connection, then run stop.sh and this script again."
 fi
 URL="https://$host"
 
@@ -161,16 +166,21 @@ printf '    Server URL:   %s\n' "$URL"
 printf '    Access code:  %s\n\n' "$ACCESS_CODE"
 printf '  In the Maverick Bot app, on the pairing screen tap "Server: ... change",\n'
 printf '  paste the Server URL, then enter the access code.\n'
+printf '  Already paired (to Railway or to an old address)? First open Settings >\n'
+printf '  "Sign out this device" to get back to the pairing screen.\n'
 printf '%s\n' "$LINE"
 if [ -n "$copied" ]; then printf '  The Server URL is copied: paste it into a message to your phone.\n'; fi
 if [ -n "$voice_note" ]; then printf '  %s\n' "$voice_note"; fi
 printf '  Keep this computer on and awake, with Docker running.\n'
-printf '  The address changes when the server or computer restarts: run this script again to see it.\n'
+printf '  The address changes when the server or computer restarts: run this script again to see it,\n'
+printf '  then sign out in the app and pair again with the new address and the same code.\n'
 printf '  Stop the server:  bash stop.sh\n\n'
 
 if [ -z "$reachable" ]; then
   printf 'WARNING: %s did not answer from the internet yet. Wait a minute, then open\n' "$URL" >&2
-  printf '%s/health in a browser: it should show {"ok":true,...}. If not, run this script again.\n\n' "$URL" >&2
+  printf '%s/health in a browser: it should show {"ok":true,...}. If not, run this script again.\n' "$URL" >&2
+  printf 'Some school, office and hotel networks block the tunnel (it needs outbound TCP port 7844):\n' >&2
+  printf 'then try another network, such as a phone hotspot.\n\n' >&2
   exit 3
 fi
 exit 0

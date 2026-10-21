@@ -110,6 +110,8 @@ printf '    Server URL:   %s\n' "$URL"
 printf '    Access code:  %s\n\n' "$ACCESS_CODE"
 printf '  In the Maverick Bot app, on the pairing screen tap "Server: ... change",\n'
 printf '  paste the Server URL, then enter the access code.\n'
+printf '  Already paired (to Railway or to another address)? First open Settings >\n'
+printf '  "Sign out this device" to get back to the pairing screen.\n'
 printf '==============================================================\033[0m\n\n'
 
 # GitHub stops an idle codespace. Requests from the phone do not count as activity, but terminal

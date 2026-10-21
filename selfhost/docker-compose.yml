@@ -1,7 +1,7 @@
 # Maverick Bot: run your own server on any computer with Docker. No account is needed anywhere.
 #
 # Use the start scripts rather than calling docker compose by hand:
-#   Windows: double-click start.cmd      macOS / Linux: bash start.sh
+#   Windows: double-click start-windows.cmd      macOS / Linux: bash start.sh
 # They create .env (access code and secrets) on the first run, start everything below and print
 # the public https address and access code to type into the app.
 #

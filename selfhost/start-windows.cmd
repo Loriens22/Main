@@ -3,7 +3,7 @@ rem Maverick Bot: double-click this file to start your own server on Windows.
 rem It runs start.ps1 with PowerShell. Keep the window open to read the address and code.
 if not exist "%~dp0start.ps1" (
   echo Please extract the ZIP file first: right-click it and choose "Extract All...",
-  echo then open the extracted folder and double-click selfhost\start.cmd there.
+  echo then open the extracted folder and double-click selfhost\start-windows there.
   pause
   exit /b 1
 )

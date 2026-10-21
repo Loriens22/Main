@@ -19,6 +19,11 @@ on:
 permissions:
   contents: read
 
+# "shell: bash" runs steps with -eo pipefail, so "start.sh | tee" fails when start.sh fails.
+defaults:
+  run:
+    shell: bash
+
 concurrency:
   group: selfhost-check-${{ github.ref }}
   cancel-in-progress: true
@@ -147,9 +152,11 @@ jobs:
           echo "voice preview (Kokoro TTS): HTTP $status, $size bytes, starts with $(head -c 4 preview.wav)"
           [ "$status" = 200 ] && [ "$(head -c 4 preview.wav)" = RIFF ] && [ "$size" -gt 10000 ] || { echo "::error::no speech audio"; exit 1; }
 
-      - name: Running start.sh again keeps the code and prints the same address
+      - name: Running start.sh again keeps the code, restarts nothing and prints the same address
         run: |
+          containers() { docker inspect -f '{{.Name}} {{.Id}} {{.State.StartedAt}}' $(docker ps -q --filter label=com.docker.compose.project=maverick) | sort; }
           before=$(sha256sum < selfhost/.env)
+          running=$(containers)
           cd selfhost
           ./start.sh 2>&1 | tee "$RUNNER_TEMP/start2.log"
           URL2=$(grep -Eo 'https://[a-z0-9-]+\.trycloudflare\.com' "$RUNNER_TEMP/start2.log" | grep -v '://api\.' | tail -n 1)
@@ -157,17 +164,27 @@ jobs:
           [ "$URL2" = "$URL" ] || { echo "::error::second run printed a different address"; exit 1; }
           [ "$(sha256sum < .env)" = "$before" ] || { echo "::error::.env changed"; exit 1; }
           echo ".env unchanged"
+          grep -q 'already running, so nothing is rebuilt or restarted' "$RUNNER_TEMP/start2.log" || { echo "::error::second run did not take the already-running path"; exit 1; }
+          if grep -Eq 'Recreate|Built' "$RUNNER_TEMP/start2.log"; then echo "::error::second run rebuilt or recreated containers"; exit 1; fi
+          [ "$(containers)" = "$running" ] || { echo "::error::containers were restarted"; diff <(echo "$running") <(containers); exit 1; }
+          echo "same containers, not restarted:"
+          echo "$running" | awk '{ print "  " $1 " " substr($2, 1, 12) " started " $3 }'
 
-      - name: The Windows script (start.ps1) under PowerShell 7 keeps the code and prints the same address
+      - name: The Windows script (start.ps1) under PowerShell 7 keeps the code, restarts nothing and prints the same address
         if: matrix.arch == 'x64'
         run: |
+          containers() { docker inspect -f '{{.Name}} {{.Id}} {{.State.StartedAt}}' $(docker ps -q --filter label=com.docker.compose.project=maverick) | sort; }
           before=$(sha256sum < selfhost/.env)
+          running=$(containers)
           pwsh -NoProfile -File selfhost/start.ps1 2>&1 | tee "$RUNNER_TEMP/start3.log"
           URL3=$(grep -Eo 'https://[a-z0-9-]+\.trycloudflare\.com' "$RUNNER_TEMP/start3.log" | grep -v '://api\.' | tail -n 1)
           echo "start.ps1 printed $URL3"
           [ "$URL3" = "$URL" ] || { echo "::error::start.ps1 printed a different address"; exit 1; }
           [ "$(sha256sum < selfhost/.env)" = "$before" ] || { echo "::error::start.ps1 rewrote an existing .env"; exit 1; }
           echo ".env unchanged"
+          grep -q 'already running, so nothing is rebuilt or restarted' "$RUNNER_TEMP/start3.log" || { echo "::error::start.ps1 did not take the already-running path"; exit 1; }
+          [ "$(containers)" = "$running" ] || { echo "::error::start.ps1 restarted containers"; exit 1; }
+          echo "start.ps1: same containers, not restarted"
 
       - name: Stop with stop.sh (data volume is kept)
         run: |
@@ -228,26 +245,26 @@ jobs:
             if ([IO.File]::ReadAllBytes($path) | Where-Object { $_ -gt 127 }) { Write-Host "::error file=$f::contains non-ASCII characters"; $bad++ }
             Write-Host "$f parsed: $($errors.Count) errors"
           }
-          foreach ($f in 'selfhost\start.cmd', 'selfhost\stop.cmd') {
+          foreach ($f in 'selfhost\start-windows.cmd', 'selfhost\stop-windows.cmd') {
             $text = [IO.File]::ReadAllText((Resolve-Path $f).Path)
             if ($text -match "[^`r]`n") { Write-Host "::error file=$f::has LF-only line endings"; $bad++ } else { Write-Host "$f has CRLF line endings" }
           }
           exit $bad
 
-      - name: start.cmd with this runner's Docker (Windows containers only) fails with a clear message
+      - name: start-windows.cmd with this runner's Docker (Windows containers only) fails with a clear message
         shell: pwsh
         run: |
           docker version --format 'Docker engine: {{.Server.Os}}/{{.Server.Arch}} {{.Server.Version}}' 2>&1 | Out-Host
-          cmd /c "selfhost\start.cmd" 2>&1 | Tee-Object -FilePath "$env:RUNNER_TEMP\real.log" | Out-Host
+          cmd /c "selfhost\start-windows.cmd" 2>&1 | Tee-Object -FilePath "$env:RUNNER_TEMP\real.log" | Out-Host
           $rc = $LASTEXITCODE
           $log = Get-Content "$env:RUNNER_TEMP\real.log" -Raw
-          Write-Host "start.cmd exit code: $rc"
+          Write-Host "start-windows.cmd exit code: $rc"
           if ($rc -eq 0) { Write-Host '::error::expected a failure: this runner cannot run Linux containers'; exit 1 }
           if ($log -notmatch 'Switch to Linux containers|Docker is not running|Docker is not installed|Docker Compose is missing') { Write-Host '::error::no friendly message'; exit 1 }
           Write-Host 'friendly message shown'
           exit 0
 
-      - name: Full start.cmd and stop.cmd run with Windows PowerShell 5.1 against a stand-in docker
+      - name: Full start-windows.cmd and stop-windows.cmd run with Windows PowerShell 5.1 against a stand-in docker
         shell: pwsh
         run: |
           # This runner cannot run Linux containers, so a stand-in docker answers the calls the
@@ -257,9 +274,15 @@ jobs:
           Set-Content -Encoding ASCII (Join-Path $fake 'docker.cmd') "@echo off`r`npowershell.exe -NoProfile -ExecutionPolicy Bypass -File `"%~dp0fake-docker.ps1`" %*`r`nexit /b %ERRORLEVEL%`r`n"
           Set-Content -Encoding ASCII (Join-Path $fake 'fake-docker.ps1') @'
           $a = $args -join ' '
-          Add-Content -Path "$env:RUNNER_TEMP\fake-calls.txt" -Value $a
+          $callLog = "$env:RUNNER_TEMP\fake-calls.txt"
+          $earlier = @(if (Test-Path $callLog) { Get-Content $callLog })
+          Add-Content -Path $callLog -Value $a
+          # "Running" after a compose up that no compose down has followed.
+          $running = [array]::LastIndexOf($earlier, 'compose up -d --build') -gt [array]::LastIndexOf($earlier, 'compose down')
           switch -Wildcard ($a) {
             'info' { exit 0 }
+            'compose ps --status running -q core tunnel' { if ($running) { 'id-core'; 'id-tunnel' }; exit 0 }
+            'compose ps --status running -q voice' { if ($running) { 'id-voice' }; exit 0 }
             'info --format*' { 'linux'; exit 0 }
             'compose version' { 'Docker Compose version v2 (stand-in)'; exit 0 }
             'compose up -d --build' { 'stand-in: compose up'; exit 0 }
@@ -272,9 +295,9 @@ jobs:
           '@
           Remove-Item -Force -ErrorAction SilentlyContinue selfhost\.env
           $env:PATH = "$fake;$env:PATH"
-          cmd /c "selfhost\start.cmd" 2>&1 | Tee-Object -FilePath "$env:RUNNER_TEMP\fake.log" | Out-Host
+          cmd /c "selfhost\start-windows.cmd" 2>&1 | Tee-Object -FilePath "$env:RUNNER_TEMP\fake.log" | Out-Host
           $rc = $LASTEXITCODE
-          Write-Host "start.cmd exit code: $rc"
+          Write-Host "start-windows.cmd exit code: $rc"
           Write-Host "docker calls made: $((Get-Content "$env:RUNNER_TEMP\fake-calls.txt") -join ' | ')"
           $log = Get-Content "$env:RUNNER_TEMP\fake.log" -Raw
           $bytes = [IO.File]::ReadAllBytes((Resolve-Path selfhost\.env).Path)
@@ -285,14 +308,21 @@ jobs:
             ($envText -cmatch '(?m)^SERVER_SECRET=[0-9a-f]{64}$') -and
             ($envText -cmatch '(?m)^VOICE_SECRET=[0-9a-f]{48}$') -and
             ($bytes[0] -ne 0xEF) -and (-not ($bytes -contains 13))
-          if (-not $ok) { Write-Host '::error::start.cmd did not complete the stand-in run correctly'; exit 1 }
+          if (-not $ok) { Write-Host '::error::start-windows.cmd did not complete the stand-in run correctly'; exit 1 }
           Write-Host '.env written by Windows PowerShell 5.1: valid code and secrets, UTF-8 without BOM, LF line ends'
-          cmd /c "selfhost\start.cmd" 2>&1 | Out-Host
-          if ($LASTEXITCODE -ne 0) { Write-Host '::error::second start.cmd run failed'; exit 1 }
+          $upCalls = @(Get-Content "$env:RUNNER_TEMP\fake-calls.txt" | Where-Object { $_ -like 'compose up*' }).Count
+          cmd /c "selfhost\start-windows.cmd" 2>&1 | Tee-Object -FilePath "$env:RUNNER_TEMP\fake2.log" | Out-Host
+          if ($LASTEXITCODE -ne 0) { Write-Host '::error::second start-windows.cmd run failed'; exit 1 }
           if ([Convert]::ToBase64String($bytes) -ne [Convert]::ToBase64String([IO.File]::ReadAllBytes((Resolve-Path selfhost\.env).Path))) { Write-Host '::error::second run rewrote .env'; exit 1 }
-          Write-Host 'second start.cmd run kept .env unchanged'
-          cmd /c "selfhost\stop.cmd" 2>&1 | Out-Host
-          if ($LASTEXITCODE -ne 0) { Write-Host '::error::stop.cmd failed'; exit 1 }
+          Write-Host 'second start-windows.cmd run kept .env unchanged'
+          $log2 = Get-Content "$env:RUNNER_TEMP\fake2.log" -Raw
+          $upCalls2 = @(Get-Content "$env:RUNNER_TEMP\fake-calls.txt" | Where-Object { $_ -like 'compose up*' }).Count
+          if (($log2 -notmatch 'already running, so nothing is rebuilt or restarted') -or ($upCalls2 -ne $upCalls) -or ($log2 -notmatch 'Server URL:   https://stand-in-words-here\.trycloudflare\.com')) {
+            Write-Host '::error::second start-windows.cmd run did not just read the address of the running server'; exit 1
+          }
+          Write-Host 'second start-windows.cmd run saw the running server: no compose up, same address printed'
+          cmd /c "selfhost\stop-windows.cmd" 2>&1 | Out-Host
+          if ($LASTEXITCODE -ne 0) { Write-Host '::error::stop-windows.cmd failed'; exit 1 }
           exit 0
 
   codespaces-script:

@@ -113,7 +113,7 @@ If Railway can't be used, run the same server on your own computer. You don't ne
 1. **Install Docker Desktop** (free) from https://www.docker.com/products/docker-desktop/. Open it once, click **Accept**, and skip signing in. On Windows, restart if the installer asks. On Linux you can run `curl -fsSL https://get.docker.com | sudo sh` instead.
 2. **Download the server files** and unzip them: https://github.com/Loriens22/Main/archive/refs/heads/ccr-b02444a3-nlojc9.zip (on Windows: right-click the ZIP → **Extract All**).
 3. **Start the server.**
-   - Windows: in the extracted folder, open `selfhost` and double-click `start.cmd`. If Windows shows "Windows protected your PC", click **More info** → **Run anyway**.
+   - Windows: in the extracted folder, open `selfhost` and double-click `start-windows` (`start-windows.cmd`). If Windows shows "Windows protected your PC", click **More info** → **Run anyway**.
    - macOS or Linux: open Terminal, type `bash ` (with a space), drag `selfhost/start.sh` into the window, and press Enter.
 
    The first start builds the server and takes 5–15 minutes. At the end it prints:
@@ -121,16 +121,19 @@ If Railway can't be used, run the same server on your own computer. You don't ne
        Server URL:   https://<random-words>.trycloudflare.com
        Access code:  MAV-XXXX-XXXX-XXXX
    ```
-4. **In the app:** on the pairing screen, tap **Server: … · change**, paste the Server URL, then enter the access code.
+4. **In the app:** on the pairing screen, tap **Server: … · change**, paste the Server URL, then enter the access code. If the app is already paired (to Railway or to an old address), first open **Settings** → **Sign out this device** to get back to the pairing screen.
+   - iPhone: open the Server URL in Safari, then Share → **Add to Home Screen**. The icon only works for that address, so add it again after every address change, or use [Codespaces](#without-installing-anything-github-codespaces), whose address stays the same.
 
 Good to know:
 - Keep the computer on, awake and online, with Docker running. Phones then reach it from anywhere.
-- The address changes whenever the server or the computer restarts; the access code stays the same. Run the start script again to see the current address, then change it in the app.
-- To stop the server, double-click `selfhost/stop.cmd` (Windows) or run `bash selfhost/stop.sh`. Projects, chats and paired phones are kept in the Docker volume `maverick_maverick-data`.
-- The access code and secrets are created once, in `selfhost/.env`. That file is git-ignored; `selfhost/.env.example` shows its format. Delete it to get a new code.
+- The address changes whenever the server or the computer restarts; the access code stays the same. Run the start script again to see the current address (when the server is already running, it doesn't restart anything). Then, in the app, open **Settings** → **Sign out this device**, tap **Server: … · change** on the pairing screen, paste the new Server URL and enter the same access code.
+- To stop the server, double-click `selfhost/stop-windows` (Windows) or run `bash selfhost/stop.sh`. Projects and chats are kept in the Docker volume `maverick_maverick-data`. The next start gets a new address, so the phone pairs again as above.
+- The access code and secrets are created once, in `selfhost/.env`. That file is git-ignored; `selfhost/.env.example` shows its format. Deleting it gives a new code but also a new `SERVER_SECRET`, so you would have to enter your GitHub token and provider keys again. To change only the code, edit the `ACCESS_CODE` line, then stop and start the server.
+- To update, download the ZIP again, copy `selfhost/.env` from the old folder into the new `selfhost` folder, stop the server, then start it from the new folder.
 - You need about 8 GB of RAM and 10 GB of free disk. On Windows, Docker Desktop also needs WSL 2 and virtualization turned on; its installer guides you.
 - Voice calls use about 520 MB of speech models, downloaded by the first build. If the voice engine can't be built, the script starts the server without it, and chat still works.
 - Cloudflare Quick Tunnels are meant for testing. They have no uptime guarantee, allow up to 200 requests at a time, and fall under the Cloudflare Online Services Terms of Use. For an always-on server, use Railway.
+- Through the tunnel, a request that takes longer than 100 seconds fails, so cloning a very large repository can show an error in the app while the server still finishes it. The tunnel also needs outbound TCP port 7844, which some school, office and hotel networks block.
 - `.github/workflows/selfhost-check.yml` runs this kit on every change to it. Through the public address, it checks health, pairing, the WebSocket, the free models and voice.
 
 ### Without installing anything: GitHub Codespaces
