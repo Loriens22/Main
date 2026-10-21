@@ -4,6 +4,10 @@ name: Check Maverick server
 # access code (this repository is public): pairing is checked with a wrong code,
 # which must be rejected with 401, proving that pairing is configured and working.
 on:
+  push:
+    branches: [main, ccr-b02444a3-nlojc9]
+    paths:
+      - '.github/workflows/server-check.yml'
   workflow_dispatch:
     inputs:
       url:
@@ -19,7 +23,7 @@ jobs:
     runs-on: ubuntu-latest
     timeout-minutes: 10
     env:
-      URL: ${{ inputs.url }}
+      URL: ${{ inputs.url || 'https://maverick-core-production.up.railway.app' }}
     steps:
       - uses: actions/setup-node@v4
         with:
