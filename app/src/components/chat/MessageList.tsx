@@ -2,6 +2,7 @@ import { memo, useMemo, useState } from 'react';
 import { Icon } from '@/components/Icon';
 import { clock, dayLabel } from '@/lib/format';
 import { renderMarkdown } from '@/lib/markdown';
+import { toneDot } from '@/lib/tone';
 import type { Agent, GroupRun, GroupUserMessage, Msg } from '@/lib/types';
 import type { Thread } from '@/state/store';
 import { ToolCard } from './ToolCard';
@@ -18,7 +19,7 @@ function Reasoning({ text, live }: { text: string; live: boolean }) {
   if (!text.trim()) return null;
   return (
     <div className="reasoning">
-      <button onClick={() => setOpen((v) => !v)} style={{ display: 'flex', alignItems: 'center', gap: 5, fontWeight: 560, fontSize: 12.5, color: 'var(--t3)' }}>
+      <button onClick={() => setOpen((v) => !v)} style={{ display: 'flex', alignItems: 'center', gap: 5, fontWeight: 500, fontSize: 12, color: 'var(--t3)' }}>
         <Icon name="brain" size={13} /> {live ? 'Thinking…' : 'Thought process'} <Icon name={open ? 'chevronDown' : 'chevron'} size={12} />
       </button>
       {open && <div style={{ marginTop: 6 }}>{text}</div>}
@@ -92,11 +93,13 @@ export const MessageView = memo(function MessageView({
   }
 
   const lastTextId = [...parts].reverse().find((p) => p.type === 'text')?.id;
+  // A file-editing tool row already states what changed; the summary patch pill would repeat it.
+  const editedByTool = parts.some((q) => q.type === 'tool' && ['write', 'edit', 'multiedit', 'patch', 'apply_patch'].includes(q.tool));
   return (
     <div className="msg-row msg-row--ai">
       {showAgentTag && agent && (
         <div className="agent-tag">
-          <i style={{ background: agent.color }} />
+          <i style={{ background: toneDot(agent.color) }} />
           {agent.name} <span>{agent.role}</span>
         </div>
       )}
@@ -119,6 +122,7 @@ export const MessageView = memo(function MessageView({
           case 'file':
             return <FileChip key={p.id} part={p} />;
           case 'patch':
+            if (editedByTool) return null;
             return (
               <div key={p.id} className="delegation" style={{ alignSelf: 'flex-start', margin: '4px 0' }}>
                 <Icon name="git" size={12} /> Changed {p.files?.length ?? 0} file{p.files?.length === 1 ? '' : 's'}
@@ -146,12 +150,12 @@ export const MessageView = memo(function MessageView({
           <Icon name="x" size={14} />
           <span style={{ flex: 1 }}>{errorText(msg.info.error)}</span>
           {onRetry && (
-            <button className="composer__chip" onClick={onRetry}>
+            <button className="btn btn--sm" onClick={onRetry}>
               Retry
             </button>
           )}
           {onSwitchModel && (
-            <button className="composer__chip" onClick={onSwitchModel}>
+            <button className="btn btn--sm" onClick={onSwitchModel}>
               Other model
             </button>
           )}

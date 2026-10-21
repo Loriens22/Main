@@ -120,8 +120,8 @@ export function ChatScreen({ chatId }: { chatId: string }) {
           ? `${latest.label}…`
           : 'Thinking…'
         : chat.kind === 'group'
-          ? `${chat.agents?.length ?? 0} agents · ${chat.projectName}`
-          : `${chat.projectName} · ${model?.name ?? chat.model.split('/').pop()}`;
+          ? `${chat.projectName} · ${chat.agents?.length ?? 0} agents`
+          : chat.projectName;
   const activeRun = chat.kind === 'group' ? [...(thread.runs ?? [])].reverse().find((r) => r) : undefined;
 
   return (
@@ -131,7 +131,7 @@ export function ChatScreen({ chatId }: { chatId: string }) {
           <Icon name="menu" size={18} stroke={2.2} />
         </Glass>
         <div className="chat-head__center">
-          <MascotAnchor id="maverick" size={84} />
+          <MascotAnchor id="maverick" size={64} />
           <Glass className="name-capsule" radius={999} refract blur={20} interactive onClick={goBack} role="button" aria-label="Back to chats">
             <span className="name-capsule__text">{chat.kind === 'group' ? chat.title : 'Maverick'}</span>
           </Glass>
@@ -145,7 +145,7 @@ export function ChatScreen({ chatId }: { chatId: string }) {
         </Glass>
       </header>
 
-      <div className="scroll" ref={scroller} onScroll={onScroll} style={{ paddingTop: 'calc(var(--safe-top) + 152px)' }}>
+      <div className="scroll" ref={scroller} onScroll={onScroll} style={{ paddingTop: 'calc(var(--safe-top) + 140px)' }}>
         <div className="messages content-max">
           {activeRun && <TaskBoard run={activeRun} agents={thread.agents ?? chat.agents ?? []} />}
           {thread.loading && !thread.loaded && (
@@ -156,7 +156,7 @@ export function ChatScreen({ chatId }: { chatId: string }) {
           {thread.error && (
             <div className="banner banner--err">
               <Icon name="wifiOff" size={15} /> <span style={{ flex: 1 }}>{thread.error}</span>
-              <button className="composer__chip" onClick={() => loadThread(chatId)}>
+              <button className="btn btn--sm" onClick={() => loadThread(chatId)}>
                 Retry
               </button>
             </div>
@@ -215,7 +215,7 @@ export function ChatScreen({ chatId }: { chatId: string }) {
               <Icon name="refresh" size={15} />
               <span style={{ flex: 1 }}>OpenCode is retrying the model request automatically. {thread.retry?.message}</span>
               {chat.kind === 'single' && (
-                <button className="composer__chip" onClick={() => setPicker(true)}>
+                <button className="btn btn--sm" onClick={() => setPicker(true)}>
                   Switch model
                 </button>
               )}
@@ -235,7 +235,7 @@ export function ChatScreen({ chatId }: { chatId: string }) {
       <AnimatePresence>
         {showJump && (
           <motion.div initial={{ opacity: 0, scale: 0.6 }} animate={{ opacity: 1, scale: 1 }} exit={{ opacity: 0, scale: 0.6 }} style={{ position: 'absolute', right: 0, bottom: 'calc(var(--safe-bottom) + 132px)', zIndex: 15 }}>
-            <Glass as="button" className="jump-btn" radius={999} refract interactive onClick={jump} aria-label="Scroll to latest" style={{ position: 'relative', right: 14 }}>
+            <Glass as="button" className="jump-btn" radius={999} refract interactive onClick={jump} aria-label="Scroll to latest" style={{ position: 'relative', right: 'max(14px, calc((100vw - 720px) / 2 + 14px))' }}>
               <Icon name="chevronDown" size={17} />
             </Glass>
           </motion.div>
@@ -302,7 +302,7 @@ function EmptyChat({ kind, onPick }: { kind: 'single' | 'group'; onPick: (t: str
       {list.map((s) => (
         <button key={s} className="option" onClick={() => onPick(s)} style={{ background: 'var(--s1)', boxShadow: 'inset 0 0 0 0.5px var(--line-2)' }}>
           <Icon name="sparkle" size={15} style={{ color: 'var(--t3)' }} />
-          <div className="option__main" style={{ fontSize: 14, color: 'var(--t2)' }}>
+          <div className="option__main" style={{ color: 'var(--t2)' }}>
             {s}
           </div>
         </button>

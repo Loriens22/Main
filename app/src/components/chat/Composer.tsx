@@ -2,6 +2,7 @@ import { useEffect, useRef, useState } from 'react';
 import { Icon } from '@/components/Icon';
 import { Glass } from '@/glass/Glass';
 import { haptic } from '@/lib/platform';
+import { toneDot } from '@/lib/tone';
 import type { Agent, Attachment, Chat, ModelInfo } from '@/lib/types';
 import { useStore } from '@/state/store';
 
@@ -98,38 +99,6 @@ export function Composer({
   return (
     <div className="composer-wrap content-max">
       <Glass className={`composer${expanded ? ' composer--expanded' : ''}`} radius={22} refract blur={24}>
-        <div className="composer__chips">
-          {chat.kind === 'single' ? (
-            <>
-              <button className="composer__chip" onClick={onPickModel} aria-label="Choose model">
-                <Icon name="sparkle" size={12} />
-                <span>{model?.name ?? chat.model.split('/').pop()}</span>
-                {model && <span className={`badge ${model.free ? 'badge--free' : 'badge--paid'}`}>{model.free ? 'Free' : 'Paid'}</span>}
-                <Icon name="chevronDown" size={11} />
-              </button>
-              <button className="composer__chip" onClick={() => setMode((m) => (m === 'build' ? 'plan' : 'build'))} aria-label="Toggle plan mode" title="Plan mode reads and plans without editing files">
-                <Icon name={mode === 'build' ? 'bolt' : 'list'} size={12} />
-                <span>{mode === 'build' ? 'Build' : 'Plan only'}</span>
-              </button>
-            </>
-          ) : (
-            <>
-              <button className={`composer__chip`} style={!target ? { background: 'rgba(255,255,255,0.14)', color: 'var(--t1)' } : undefined} onClick={() => setTarget(undefined)}>
-                <Icon name="users" size={12} /> <span>Whole team</span>
-              </button>
-              {agents?.map((a) => (
-                <button key={a.id} className="composer__chip" style={target === a.id ? { background: 'rgba(255,255,255,0.14)', color: 'var(--t1)' } : undefined} onClick={() => setTarget(target === a.id ? undefined : a.id)}>
-                  <span style={{ width: 6, height: 6, borderRadius: 3, background: a.color }} /> <span>@{a.name}</span>
-                </button>
-              ))}
-            </>
-          )}
-          {conn !== 'online' && (
-            <span className="composer__chip" style={{ color: 'var(--warn)' }}>
-              <Icon name="wifiOff" size={12} /> <span>{conn === 'unauthorized' ? 'Signed out' : 'Reconnecting'}</span>
-            </span>
-          )}
-        </div>
         {files.length > 0 && (
           <div className="attachments">
             {files.map((f, i) => (
@@ -147,7 +116,22 @@ export function Composer({
             {error}
           </div>
         )}
-        <div className="composer__row">
+        <textarea
+          ref={ta}
+          className="composer__input"
+          rows={1}
+          value={text}
+          placeholder={chat.kind === 'group' ? (target ? `Message @${agents?.find((a) => a.id === target)?.name}` : 'Give the team a goal…') : busy ? 'Maverick is working…' : 'Ask Maverick anything…'}
+          onChange={(e) => setText(e.target.value)}
+          onKeyDown={(e) => {
+            if (e.key === 'Enter' && !e.shiftKey && window.matchMedia('(pointer: fine)').matches) {
+              e.preventDefault();
+              void send();
+            }
+          }}
+          aria-label="Message"
+        />
+        <div className="composer__bar">
           <button className="composer__btn" onClick={() => fileInput.current?.click()} aria-label="Attach files">
             <Icon name="attach" size={18} />
           </button>
@@ -155,21 +139,38 @@ export function Composer({
             void onFiles(e.target.files);
             e.target.value = '';
           }} />
-          <textarea
-            ref={ta}
-            className="composer__input"
-            rows={1}
-            value={text}
-            placeholder={chat.kind === 'group' ? (target ? `Message @${agents?.find((a) => a.id === target)?.name}` : 'Give the team a goal…') : busy ? 'Maverick is working…' : 'Ask Maverick anything…'}
-            onChange={(e) => setText(e.target.value)}
-            onKeyDown={(e) => {
-              if (e.key === 'Enter' && !e.shiftKey && window.matchMedia('(pointer: fine)').matches) {
-                e.preventDefault();
-                void send();
-              }
-            }}
-            aria-label="Message"
-          />
+          <div className="composer__chips">
+            {chat.kind === 'single' ? (
+              <>
+                <button className="composer__chip" onClick={onPickModel} aria-label="Choose model">
+                  <Icon name="sparkle" size={12} />
+                  <span>{model?.name ?? chat.model.split('/').pop()}</span>
+                  {model && !model.free && <span style={{ color: 'var(--warn)' }}>Paid</span>}
+                  <Icon name="chevronDown" size={11} />
+                </button>
+                <button className="composer__chip" onClick={() => setMode((m) => (m === 'build' ? 'plan' : 'build'))} aria-label="Toggle plan mode" title="Plan mode reads and plans without editing files">
+                  <Icon name={mode === 'build' ? 'bolt' : 'list'} size={12} />
+                  <span>{mode === 'build' ? 'Build' : 'Plan only'}</span>
+                </button>
+              </>
+            ) : (
+              <>
+                <button className="composer__chip" aria-pressed={!target} onClick={() => setTarget(undefined)}>
+                  <Icon name="users" size={12} /> <span>Whole team</span>
+                </button>
+                {agents?.map((a) => (
+                  <button key={a.id} className="composer__chip" aria-pressed={target === a.id} onClick={() => setTarget(target === a.id ? undefined : a.id)}>
+                    <span style={{ width: 6, height: 6, borderRadius: 3, background: toneDot(a.color) }} /> <span>@{a.name}</span>
+                  </button>
+                ))}
+              </>
+            )}
+            {conn !== 'online' && (
+              <span className="composer__chip" style={{ color: 'var(--warn)' }}>
+                <Icon name="wifiOff" size={12} /> <span>{conn === 'unauthorized' ? 'Signed out' : 'Reconnecting'}</span>
+              </span>
+            )}
+          </div>
           {(text.split('\n').length > 2 || text.length > 120 || expanded) && (
             <button className="composer__btn" onClick={() => setExpanded((v) => !v)} aria-label={expanded ? 'Collapse editor' : 'Expand editor'}>
               <Icon name={expanded ? 'collapse' : 'expand'} size={16} />

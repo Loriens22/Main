@@ -148,7 +148,7 @@ function CallInner({ chatId: initialChat }: { chatId: string }) {
         <div className="call__captions selectable">
           {(partial || you) && <span className="you">“{partial || you}”</span>}
           {said}
-          {!partial && !you && !said && state === 'listening' && <span className="muted" style={{ fontWeight: 450, fontSize: 14 }}>Say something like “Create a new project called weather app” or “Run the tests and fix what fails”.</span>}
+          {!partial && !you && !said && state === 'listening' && <span className="muted" style={{ fontWeight: 400, fontSize: 15 }}>Say something like “Create a new project called weather app” or “Run the tests and fix what fails”.</span>}
         </div>
         <div className="call__activity">
           <AnimatePresence initial={false}>
@@ -190,11 +190,11 @@ function CallInner({ chatId: initialChat }: { chatId: string }) {
           <Icon name="phoneOff" size={24} />
         </Glass>
         <Glass as="button" className={`call__btn${typing ? ' call__btn--on' : ''}`} radius={999} refract interactive onClick={() => setTyping((v) => !v)} aria-label="Type a message">
-          <Icon name="edit" size={19} />
+          <Icon name="keyboard" size={20} />
         </Glass>
       </div>
       {state === 'speaking' && (
-        <div className="muted" style={{ fontSize: 11.5, marginTop: 10 }}>
+        <div className="muted" style={{ fontSize: 11, marginTop: 10 }}>
           Tap Maverick or just start talking to interrupt
         </div>
       )}

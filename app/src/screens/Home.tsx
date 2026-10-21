@@ -2,9 +2,9 @@ import { AnimatePresence, motion } from 'motion/react';
 import { useMemo, useRef, useState } from 'react';
 import { createPortal } from 'react-dom';
 import { Icon } from '@/components/Icon';
-import { Glass } from '@/glass/Glass';
 import { timeAgo } from '@/lib/format';
 import { haptic } from '@/lib/platform';
+import { toneDot, toneFill } from '@/lib/tone';
 import type { Chat } from '@/lib/types';
 import { MascotAnchor } from '@/mascot/MascotLayer';
 import { deleteChat, navigate, openSheet, patchChat, setPrefs, toast, useStore } from '@/state/store';
@@ -77,7 +77,7 @@ export function Home() {
             </button>
             {projects.map((p) => (
               <button key={p.id} className={`chip${prefs.projectFilter === p.id ? ' chip--active' : ''}`} onClick={() => setPrefs({ projectFilter: prefs.projectFilter === p.id ? null : p.id })}>
-                <span className="dot" style={{ background: p.color }} />
+                <span className="dot" style={{ background: toneDot(p.color) }} />
                 {p.name}
               </button>
             ))}
@@ -117,7 +117,7 @@ export function Home() {
             ? groupsByProject.map(([name, items]) => (
                 <div key={name}>
                   <div className="section-title">
-                    <span style={{ width: 6, height: 6, borderRadius: 3, background: items[0].projectColor, display: 'inline-block' }} /> {name}
+                    <span style={{ width: 6, height: 6, borderRadius: 3, background: toneDot(items[0].projectColor), display: 'inline-block' }} /> {name}
                   </div>
                   <div className="list">
                     {items.map((c) => (
@@ -151,7 +151,7 @@ function SortSheet({ open, onClose }: { open: boolean; onClose: () => void }) {
   if (!open) return null;
   return createPortal(
     <motion.div className="sheet-backdrop" initial={{ opacity: 0 }} animate={{ opacity: 1 }} onClick={onClose} style={{ display: 'grid', placeItems: 'center' }}>
-      <Glass className="card" variant="strong" radius={18} refract onClick={(e) => e.stopPropagation()} style={{ width: 240, padding: 6 }}>
+      <motion.div className="menu" role="menu" initial={{ opacity: 0, scale: 0.96 }} animate={{ opacity: 1, scale: 1 }} transition={{ duration: 0.16, ease: [0.2, 0.8, 0.2, 1] }} onClick={(e) => e.stopPropagation()} style={{ width: 240 }}>
         <div className="muted" style={{ fontSize: 12, padding: '6px 10px 2px' }}>Sort by</div>
         <div>
           {(['recent', 'name', 'project'] as const).map((s) => (
@@ -172,7 +172,7 @@ function SortSheet({ open, onClose }: { open: boolean; onClose: () => void }) {
             </button>
           ))}
         </div>
-      </Glass>
+      </motion.div>
     </motion.div>,
     document.body,
   );
@@ -184,7 +184,7 @@ function ChatAvatar({ chat }: { chat: Chat }) {
     return (
       <div className="avatar__stack">
         {agents.map((a, i) => (
-          <span key={a.id} style={{ background: a.color, left: i === 0 ? 0 : i === 1 ? 16 : 8, top: i === 2 ? 16 : i === 1 ? 4 : 0, zIndex: 3 - i }}>
+          <span key={a.id} style={{ background: toneFill(a.color), left: i === 0 ? 0 : i === 1 ? 16 : 8, top: i === 2 ? 16 : i === 1 ? 4 : 0, zIndex: 3 - i }}>
             {a.name[0]}
           </span>
         ))}
@@ -194,7 +194,7 @@ function ChatAvatar({ chat }: { chat: Chat }) {
   return (
     <div className="avatar avatar--star">
       <StarGlyph size={24} />
-      <span className="avatar__badge" style={{ background: chat.projectColor }} />
+      <span className="avatar__badge" style={{ background: toneDot(chat.projectColor) }} />
     </div>
   );
 }
@@ -222,6 +222,7 @@ function ChatRow({ chat }: { chat: Chat }) {
   const start = useRef<{ x: number; y: number; t: number; dx: number; locked?: 'x' | 'y' } | null>(null);
   const press = useRef<ReturnType<typeof setTimeout> | null>(null);
   const moved = useRef(false);
+  const multiProject = useStore((s) => !s.prefs.projectFilter && s.projects.length > 1);
 
   const onDown = (e: React.PointerEvent) => {
     start.current = { x: e.clientX, y: e.clientY, t: Date.now(), dx };
@@ -273,11 +274,11 @@ function ChatRow({ chat }: { chat: Chat }) {
   return (
     <motion.div layout initial={{ opacity: 0, height: 0 }} animate={{ opacity: 1, height: 'auto' }} exit={{ opacity: 0, height: 0 }} style={{ position: 'relative', overflow: 'hidden' }}>
       {dx < 0 && <div className="swipe-actions">
-        <button style={{ background: '#3a3a42' }} onClick={togglePin}>
+        <button style={{ background: 'var(--s4)' }} onClick={togglePin}>
           <Icon name="pin" size={17} />
           {chat.pinned ? 'Unpin' : 'Pin'}
         </button>
-        <button style={{ background: '#c93c44' }} onClick={remove}>
+        <button style={{ background: 'var(--danger-fill)' }} onClick={remove}>
           <Icon name="trash" size={17} />
           Delete
         </button>
@@ -313,24 +314,26 @@ function ChatRow({ chat }: { chat: Chat }) {
           ) : (
             <div className="row__preview">{chat.preview || 'No messages yet'}</div>
           )}
-          <div className="row__meta">
-            <span style={{ width: 5, height: 5, borderRadius: 3, background: chat.projectColor }} />
-            <span>{chat.projectName}</span>
-            {chat.kind === 'group' && (
-              <>
-                <span className="sep">·</span>
-                <span>{chat.agents?.length ?? 0} agents</span>
-              </>
-            )}
-            {chat.pendingApprovals > 0 && <span className="badge badge--warn">Needs approval</span>}
-            {chat.pinned && <Icon name="pin" size={11} style={{ color: 'var(--t3)', marginLeft: 'auto' }} />}
-          </div>
+          {(multiProject || chat.kind === 'group' || chat.pendingApprovals > 0 || chat.pinned) && (
+            <div className="row__meta">
+              <span style={{ width: 5, height: 5, borderRadius: 3, background: toneDot(chat.projectColor) }} />
+              <span>{chat.projectName}</span>
+              {chat.kind === 'group' && (
+                <>
+                  <span className="sep">·</span>
+                  <span>{chat.agents?.length ?? 0} agents</span>
+                </>
+              )}
+              {chat.pendingApprovals > 0 && <span className="badge badge--warn">Needs approval</span>}
+              {chat.pinned && <Icon name="pin" size={11} style={{ color: 'var(--t3)', marginLeft: 'auto' }} />}
+            </div>
+          )}
         </div>
       </button>
       {menu &&
         createPortal(
         <motion.div className="sheet-backdrop" initial={{ opacity: 0 }} animate={{ opacity: 1 }} onClick={() => setMenu(false)} style={{ display: 'grid', placeItems: 'center' }}>
-          <Glass className="card" variant="strong" radius={18} refract onClick={(e) => e.stopPropagation()} style={{ width: 250, padding: 6 }}>
+          <motion.div className="menu" role="menu" initial={{ opacity: 0, scale: 0.96 }} animate={{ opacity: 1, scale: 1 }} transition={{ duration: 0.16, ease: [0.2, 0.8, 0.2, 1] }} onClick={(e) => e.stopPropagation()} style={{ width: 250 }}>
             <div className="muted" style={{ fontSize: 12, padding: '6px 10px 2px', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
               {chat.title}
             </div>
@@ -354,7 +357,7 @@ function ChatRow({ chat }: { chat: Chat }) {
                 <div className="option__main">Delete chat</div>
               </button>
             </div>
-          </Glass>
+          </motion.div>
         </motion.div>,
           document.body,
         )}

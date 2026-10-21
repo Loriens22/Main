@@ -20,7 +20,7 @@ function Row({ icon, color, title, sub, right, onClick }: { icon: IconName; colo
         <div className="setting__title">{title}</div>
         {sub && <div className="setting__sub">{sub}</div>}
       </div>
-      {right ?? (onClick ? <Icon name="chevron" size={14} style={{ color: 'var(--t4)' }} /> : null)}
+      {right ?? (onClick ? <Icon name="chevron" size={14} style={{ color: 'var(--t3)' }} /> : null)}
     </C>
   );
 }
@@ -101,8 +101,8 @@ export function Settings() {
   return (
     <div className="screen">
       <div className="scroll" style={{ paddingBottom: 'calc(var(--safe-bottom) + 100px)' }}>
-        <div className="content-max" style={{ padding: '0 12px' }}>
-          <header className="home-head" style={{ padding: 'calc(var(--safe-top) + 10px) 4px 2px' }}>
+        <div className="content-max" style={{ padding: '0 16px' }}>
+          <header className="home-head" style={{ padding: 'calc(var(--safe-top) + 10px) 0 2px' }}>
             <h1 className="home-title">Settings</h1>
             <MascotAnchor id="sparky" size={52} />
           </header>
@@ -111,27 +111,32 @@ export function Settings() {
           <div className="group">
             <Row icon="globe" color="#3b82f6" title={apiBase().replace(/^https?:\/\//, '')} sub={conn === 'online' ? 'Connected' : conn === 'unauthorized' ? 'Signed out' : 'Connecting…'} right={<span className={`conn-dot${conn === 'online' ? '' : ' conn-dot--off'}`} />} />
             <Row icon="bolt" color="#8b5cf6" title="OpenCode" sub={diag ? `v${diag.opencode.version || '?'} · ${diag.opencode.ready ? 'ready' : 'starting'}` : '…'} />
-            <Row icon="mic" color="#ec4899" title="Voice engine" sub={diag ? (diag.voice.ok ? 'sherpa-onnx + Kokoro ready' : `Sleeping or unavailable${diag.voice.detail ? ` (${diag.voice.detail})` : ''} — wakes on call`) : '…'} />
+            <Row icon="mic" color="#ec4899" title="Voice engine" sub={diag ? (diag.voice.ok ? 'Ready' : `Sleeping or unavailable${diag.voice.detail ? ` (${diag.voice.detail})` : ''} — wakes on call`) : '…'} />
             {usage && (
-              <div className="setting" style={{ display: 'block' }}>
-                <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: 14 }}>
-                  <span style={{ fontWeight: 600 }}>Workspace storage</span>
-                  <span className="muted">
-                    {bytes(usage.usedBytes)}
-                    {usage.totalBytes ? ` of ${bytes(usage.totalBytes)}` : ''}
-                  </span>
-                </div>
-                {usage.totalBytes && (
-                  <div className="meter">
-                    <i style={{ width: `${Math.min(100, (usage.usedBytes / usage.totalBytes) * 100)}%` }} />
+              <div className="setting">
+                <span className="setting__icon">
+                  <Icon name="folder" size={15} />
+                </span>
+                <div className="setting__main">
+                  <div style={{ display: 'flex', justifyContent: 'space-between', gap: 8 }}>
+                    <span className="setting__title">Storage</span>
+                    <span className="setting__value">
+                      {bytes(usage.usedBytes)}
+                      {usage.totalBytes ? ` of ${bytes(usage.totalBytes)}` : ''}
+                    </span>
                   </div>
-                )}
+                  {!!usage.totalBytes && (
+                    <div className="meter" style={{ marginTop: 6 }}>
+                      <i style={{ width: `${Math.min(100, (usage.usedBytes / usage.totalBytes) * 100)}%` }} />
+                    </div>
+                  )}
+                </div>
               </div>
             )}
             <Row
               icon="refresh"
               color="#06b6d4"
-              title="Refresh everything"
+              title="Refresh status"
               onClick={async () => {
                 await refreshAll();
                 await refreshCatalog(true).catch(() => undefined);
@@ -147,17 +152,22 @@ export function Settings() {
               icon="sparkle"
               color="#22c55e"
               title="Default model"
-              sub={defaultModel ? `${defaultModel.name} · ${defaultModel.free ? 'Free' : 'Paid'}` : 'Server default'}
+              sub={defaultModel ? (defaultModel.free ? defaultModel.name : `${defaultModel.name} · Paid`) : 'Server default'}
               onClick={() => setModelPicker(true)}
             />
-            <Row icon="list" color="#14b8a6" title="Free models available" sub={`${catalog?.models.filter((m) => m.free && m.available).length ?? 0} discovered live from OpenCode Zen`} />
+            <Row icon="list" color="#14b8a6" title="Free models" right={<span className="setting__value">{catalog?.models.filter((m) => m.free && m.available).length ?? 0}</span>} />
             {providers.map((p) => (
               <Row
                 key={p.id}
                 icon="key"
                 color={p.connected ? '#f59e0b' : '#64748b'}
                 title={p.name}
-                sub={p.connected ? 'Key saved · paid models unlocked (always confirmed per chat)' : `Add key (${p.hint})`}
+                right={
+                  <>
+                    <span className={`setting__value${p.connected ? ' setting__value--ok' : ''}`}>{p.connected ? 'Connected' : 'Add key'}</span>
+                    <Icon name="chevron" size={14} style={{ color: 'var(--t3)' }} />
+                  </>
+                }
                 onClick={() => {
                   setKeyFor(p.id);
                   setKeyValue('');
@@ -169,7 +179,7 @@ export function Settings() {
             <div className="card" style={{ width: '100%', marginTop: 8 }}>
               <div className="card__title">API key for {providers.find((p) => p.id === keyFor)?.name}</div>
               <div className="card__body">Stored by OpenCode on your server only. The server restarts OpenCode to load it (running tasks are interrupted).</div>
-              <input className="field" style={{ marginTop: 10, height: 38 }} type="password" value={keyValue} onChange={(e) => setKeyValue(e.target.value)} placeholder="Paste key" autoComplete="off" />
+              <input className="field" style={{ marginTop: 10 }} type="password" value={keyValue} onChange={(e) => setKeyValue(e.target.value)} placeholder={`Paste key (${providers.find((p) => p.id === keyFor)?.hint ?? ''})`} autoComplete="off" />
               <div className="card__actions">
                 {providers.find((p) => p.id === keyFor)?.connected && (
                   <button
@@ -235,7 +245,7 @@ export function Settings() {
                 sub="Clone private repos, commit and push"
                 right={
                   <button
-                    className="composer__chip"
+                    className="btn btn--sm"
                     onClick={async () => {
                       await api('/api/github', { method: 'DELETE' });
                       await refreshAll();
@@ -257,14 +267,13 @@ export function Settings() {
                   </div>
                 </div>
                 <div style={{ display: 'flex', gap: 8, marginTop: 10 }}>
-                  <input className="field" style={{ height: 36, fontSize: 14 }} type="password" placeholder="github_pat_…" value={ghToken} onChange={(e) => setGhToken(e.target.value)} autoComplete="off" />
+                  <input className="field" type="password" placeholder="github_pat_…" value={ghToken} onChange={(e) => setGhToken(e.target.value)} autoComplete="off" />
                   <Glass
                     as="button"
                     className="btn"
                     radius={999}
                     variant="primary"
                     interactive
-                    style={{ height: 36 }}
                     disabled={!ghToken.trim()}
                     onClick={async () => {
                       try {
@@ -366,7 +375,7 @@ export function Settings() {
                 right={
                   !d.current ? (
                     <button
-                      className="composer__chip"
+                      className="btn btn--sm"
                       onClick={async () => {
                         await api(`/api/devices/${d.id}`, { method: 'DELETE' });
                         setDevices(await api('/api/devices'));

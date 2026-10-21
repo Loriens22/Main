@@ -5,20 +5,6 @@ import { refreshCatalog, toast, useStore } from '@/state/store';
 import { Icon } from './Icon';
 import { Sheet } from './Sheet';
 
-function Caps({ m }: { m: ModelInfo }) {
-  return (
-    <div className="caps">
-      {m.caps.tools && <span className="cap">Tools</span>}
-      {m.caps.reasoning && <span className="cap">Reasoning</span>}
-      {(m.caps.vision || m.caps.attachments) && <span className="cap">Vision</span>}
-      {m.caps.pdf && <span className="cap">PDF</span>}
-      {m.limit.context > 0 && <span className="cap">{compactNumber(m.limit.context)} context</span>}
-      {m.limit.output > 0 && <span className="cap">{compactNumber(m.limit.output)} out</span>}
-      {m.status && m.status !== 'active' && <span className="cap">{m.status}</span>}
-    </div>
-  );
-}
-
 /**
  * Lists the models the server discovered at runtime. Free models first; paid models are clearly
  * labelled with prices and need an explicit confirmation — nothing ever switches to them silently.
@@ -44,17 +30,14 @@ export function ModelPicker({ open, onClose, value, onPick }: { open: boolean; o
   };
 
   const row = (m: ModelInfo) => (
-    <button key={m.id} className="option" aria-selected={m.id === value} onClick={() => pick(m)} style={!m.available ? { opacity: 0.55 } : undefined}>
+    <button key={m.id} className="option" aria-selected={m.id === value} onClick={() => pick(m)} title={m.id} style={!m.available ? { opacity: 0.55 } : undefined}>
       <div className="option__main">
         <div className="option__title">
           {m.name}
-          <span className={`badge ${m.free ? 'badge--free' : 'badge--paid'}`}>{m.free ? 'Free' : `Paid · ${price(m.cost.input)}/${price(m.cost.output)} per 1M`}</span>
+          {!m.free && <span className="badge badge--paid">{`Paid · ${price(m.cost.input)}/${price(m.cost.output)}`}</span>}
           {!m.available && <span className="badge badge--muted">Needs key</span>}
         </div>
-        <div className="option__sub">
-          {m.providerName} · <span style={{ fontFamily: 'var(--mono)', fontSize: 11 }}>{m.id}</span>
-        </div>
-        <Caps m={m} />
+        <div className="option__sub">{[m.providerName, m.limit.context > 0 && `${compactNumber(m.limit.context)} context`, (m.caps.vision || m.caps.attachments) && 'Vision', !m.caps.tools && 'No tools', m.status && m.status !== 'active' && m.status].filter(Boolean).join(' · ')}</div>
       </div>
       {m.id === value && <Icon name="check" size={16} style={{ color: 'var(--accent)' }} />}
     </button>
@@ -80,7 +63,7 @@ export function ModelPicker({ open, onClose, value, onPick }: { open: boolean; o
         </button>
       }
     >
-      <input className="field" placeholder="Search models" value={q} onChange={(e) => setQ(e.target.value)} style={{ marginBottom: 4, height: 38 }} />
+      <input className="field" placeholder="Search models" value={q} onChange={(e) => setQ(e.target.value)} style={{ marginBottom: 4 }} />
       {confirm ? (
         <div className="card" style={{ width: '100%', boxShadow: 'inset 0 0 0 0.5px rgba(217,167,74,0.45)' }}>
           <div className="card__title">

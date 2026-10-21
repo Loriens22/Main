@@ -6,13 +6,14 @@ import { Glass } from '@/glass/Glass';
 import { api } from '@/lib/api';
 import { bytes } from '@/lib/format';
 import { haptic } from '@/lib/platform';
+import { toneDot, toneFill } from '@/lib/tone';
 import type { ApprovalMode, ModelInfo, Project } from '@/lib/types';
 import { closeSheet, createChat, createProject, deleteChat, goHome, navigate, patchChat, toast, useStore } from '@/state/store';
 
 const APPROVAL: { id: ApprovalMode; title: string; sub: string }[] = [
   { id: 'ask', title: 'Ask first', sub: 'Approve every file edit and command' },
   { id: 'auto-edit', title: 'Auto-edit', sub: 'Edits are automatic, commands need approval' },
-  { id: 'full', title: 'Full auto', sub: 'Runs everything (dangerous commands stay blocked)' },
+  { id: 'full', title: 'Full auto', sub: 'Runs everything except risky commands' },
 ];
 
 export function Sheets() {
@@ -69,7 +70,7 @@ function ProjectChooser({ value, onChange }: { value: string | null; onChange: (
         <div style={{ marginTop: 8, maxHeight: 220, overflowY: 'auto' }}>
           {projects.map((p: Project) => (
             <button key={p.id} className="option" aria-selected={value === p.id} onClick={() => onChange(p.id)}>
-              <span style={{ width: 12, height: 12, borderRadius: 6, background: p.color, flex: 'none' }} />
+              <span style={{ width: 12, height: 12, borderRadius: 6, background: toneDot(p.color), flex: 'none' }} />
               <div className="option__main">
                 <div className="option__title">{p.name}</div>
                 {p.repo && <div className="option__sub">github.com/{p.repo}</div>}
@@ -120,9 +121,9 @@ function ModelRow({ value, onClick }: { value: string | null; onClick: () => voi
       <Icon name="sparkle" size={15} style={{ color: 'var(--t3)' }} />
       <div className="option__main">
         <div className="option__title">
-          {m?.name ?? value ?? 'Loading models…'} {m && <span className={`badge ${m.free ? 'badge--free' : 'badge--paid'}`}>{m.free ? 'Free' : 'Paid'}</span>}
+          {m?.name ?? value ?? 'Loading models…'} {m && !m.free && <span className="badge badge--paid">Paid</span>}
         </div>
-        <div className="option__sub">{m ? `${m.providerName} · tap to change` : 'Free OpenCode models are discovered live'}</div>
+        <div className="option__sub">{m ? m.providerName : 'Free OpenCode models are discovered live'}</div>
       </div>
       <Icon name="chevron" size={16} />
     </button>
@@ -168,7 +169,17 @@ function NewChatSheet({ open }: { open: boolean }) {
   };
 
   return (
-    <Sheet open={open} onClose={closeSheet} title="New chat">
+    <Sheet
+      open={open}
+      onClose={closeSheet}
+      title="New chat"
+      footer={
+        <Glass as="button" className="btn btn--block" variant="primary" radius={999} interactive onClick={start} disabled={busy}>
+          {busy && <span className="spinner" />}
+          {busy ? (draft?.repo ? 'Cloning…' : 'Creating…') : 'Start chat'}
+        </Glass>
+      }
+    >
       <div className="label" style={{ marginTop: 4 }}>
         Project
       </div>
@@ -190,13 +201,10 @@ function NewChatSheet({ open }: { open: boolean }) {
               <div className="option__title">{a.title}</div>
               <div className="option__sub">{a.sub}</div>
             </div>
+            {approval === a.id && <Icon name="check" size={16} style={{ color: 'var(--accent)' }} />}
           </button>
         ))}
       </div>
-      <Glass as="button" className="btn btn--block" variant="primary" radius={999} interactive onClick={start} disabled={busy} style={{ marginTop: 18 }}>
-        {busy && <span className="spinner" />}
-        {busy ? (draft?.repo ? 'Cloning…' : 'Creating…') : 'Start chat'}
-      </Glass>
       <ModelPicker
         open={picker}
         onClose={() => setPicker(false)}
@@ -283,7 +291,18 @@ function NewGroupSheet({ open }: { open: boolean }) {
   const modelName = (id: string | null) => catalog?.models.find((m) => m.id === id)?.name ?? id ?? '—';
 
   return (
-    <Sheet open={open} onClose={closeSheet} title="New team" tall>
+    <Sheet
+      open={open}
+      onClose={closeSheet}
+      title="New team"
+      tall
+      footer={
+        <Glass as="button" className="btn btn--block" variant="primary" radius={999} interactive onClick={create} disabled={busy || agents.length < 2}>
+          {busy && <span className="spinner" />}
+          {busy ? 'Assembling…' : 'Create team'}
+        </Glass>
+      }
+    >
       <input className="field" placeholder="Team name (optional)" value={title} onChange={(e) => setTitle(e.target.value)} />
       <div className="label">Project</div>
       <ProjectChooser
@@ -298,19 +317,19 @@ function NewGroupSheet({ open }: { open: boolean }) {
         {agents.map((a, i) => (
           <div key={i} style={{ padding: 10, borderRadius: 14, background: 'var(--s2)', boxShadow: 'inset 0 0 0 0.5px var(--line)' }}>
             <div style={{ display: 'flex', gap: 10, alignItems: 'center' }}>
-              <button className="avatar" style={{ width: 32, height: 32, fontSize: 13, background: a.color }} onClick={() => update(i, { color: COLORS[(COLORS.indexOf(a.color) + 1) % COLORS.length] })} aria-label="Change color">
+              <button className="avatar" style={{ width: 32, height: 32, fontSize: 13, background: toneFill(a.color) }} onClick={() => update(i, { color: COLORS[(COLORS.indexOf(a.color) + 1) % COLORS.length] })} aria-label="Change color">
                 {a.name[0] ?? '?'}
               </button>
-              <input className="field" style={{ height: 34, flex: 1, fontSize: 14 }} value={a.name} onChange={(e) => update(i, { name: e.target.value })} aria-label="Agent name" />
+              <input className="field" style={{ height: 32, flex: 1 }} value={a.name} onChange={(e) => update(i, { name: e.target.value })} aria-label="Agent name" />
               {agents.length > 2 && (
-                <button className="icon-btn" onClick={() => setAgents((x) => x.filter((_, j) => j !== i))} aria-label="Remove agent">
+                <button className="icon-btn" style={{ width: 32, height: 32 }} onClick={() => setAgents((x) => x.filter((_, j) => j !== i))} aria-label="Remove agent">
                   <Icon name="trash" size={15} />
                 </button>
               )}
             </div>
-            <div style={{ display: 'flex', gap: 5, flexWrap: 'wrap', marginTop: 8 }}>
+            <div style={{ display: 'flex', gap: 6, flexWrap: 'nowrap', overflowX: 'auto', scrollbarWidth: 'none', margin: '8px -10px 0', padding: '0 10px' }}>
               {ROLE_PRESETS.map((r) => (
-                <button key={r.role} className="composer__chip" style={a.role === r.role ? { background: '#ececf1', color: '#0a0a0c' } : undefined} onClick={() => update(i, { role: r.role, instructions: r.instructions })}>
+                <button key={r.role} className="composer__chip" aria-pressed={a.role === r.role} onClick={() => update(i, { role: r.role, instructions: r.instructions })}>
                   {r.role}
                 </button>
               ))}
@@ -320,8 +339,14 @@ function NewGroupSheet({ open }: { open: boolean }) {
               <button className="composer__chip" onClick={() => setPickFor(i)}>
                 <Icon name="sparkle" size={13} /> <span>{modelName(a.model)}</span>
               </button>
-              <button className="composer__chip" style={a.isLead ? { background: 'rgba(255,255,255,0.14)', color: 'var(--t1)' } : undefined} onClick={() => update(i, { isLead: true })}>
-                {a.isLead ? '★ Lead' : 'Make lead'}
+              <button className="composer__chip" aria-pressed={a.isLead} onClick={() => update(i, { isLead: true })}>
+                {a.isLead ? (
+                  <>
+                    <Icon name="check" size={12} /> <span>Lead</span>
+                  </>
+                ) : (
+                  'Make lead'
+                )}
               </button>
             </div>
           </div>
@@ -329,7 +354,7 @@ function NewGroupSheet({ open }: { open: boolean }) {
         {agents.length < 6 && (
           <button
             className="option"
-            style={{ justifyContent: 'center', boxShadow: 'inset 0 0 0 0.5px var(--line-2)', color: 'var(--t2)', fontSize: 13.5 }}
+            style={{ justifyContent: 'center', boxShadow: 'inset 0 0 0 0.5px var(--line-2)', color: 'var(--t2)', fontSize: 13 }}
             onClick={() =>
               setAgents((x) => [...x, { name: NAMES[x.length] ?? `Agent ${x.length + 1}`, ...ROLE_PRESETS[Math.min(x.length, ROLE_PRESETS.length - 1)], model: settings?.defaultModel ?? catalog?.defaultModel ?? null, color: COLORS[x.length % COLORS.length], isLead: false }])
             }
@@ -340,7 +365,7 @@ function NewGroupSheet({ open }: { open: boolean }) {
       </div>
       <div className="label">Parallel agents · {concurrency}</div>
       <input type="range" min={1} max={4} value={concurrency} onChange={(e) => setConcurrency(Number(e.target.value))} aria-label="Concurrency" />
-      <div className="muted" style={{ fontSize: 12.5, margin: '4px 6px' }}>
+      <div className="muted" style={{ fontSize: 12, margin: '4px 6px' }}>
         How many teammates may work at the same time. Tasks touching the same files are sequenced by the lead. Free models have rate limits, so 1–2 is usually best.
       </div>
       <div className="label">Approvals</div>
@@ -351,10 +376,6 @@ function NewGroupSheet({ open }: { open: boolean }) {
           </button>
         ))}
       </div>
-      <Glass as="button" className="btn btn--block" variant="primary" radius={999} interactive onClick={create} disabled={busy || agents.length < 2} style={{ marginTop: 18 }}>
-        {busy && <span className="spinner" />}
-        {busy ? 'Assembling…' : 'Create team'}
-      </Glass>
       <ModelPicker
         open={pickFor !== null}
         onClose={() => setPickFor(null)}
@@ -467,23 +488,23 @@ function ChatMenuSheet({ open, chatId }: { open: boolean; chatId?: string }) {
       {tab === 'changes' && (
         <>
           {git?.isRepo && (
-            <div className="group" style={{ padding: 12, marginBottom: 10 }}>
-              <div style={{ display: 'flex', gap: 8, alignItems: 'center', fontWeight: 650 }}>
+            <div className="card" style={{ width: '100%', margin: '0 0 10px' }}>
+              <div style={{ display: 'flex', gap: 8, alignItems: 'center', fontWeight: 600 }}>
                 <Icon name="git" size={15} /> {git.branch || 'main'}
-                {git.remote && <span className="muted" style={{ fontSize: 12.5, fontWeight: 500 }}>· {git.remote.replace(/^https:\/\/github.com\//, '')}</span>}
+                {git.remote && <span className="muted" style={{ fontSize: 12, fontWeight: 500 }}>· {git.remote.replace(/^https:\/\/github.com\//, '')}</span>}
                 {git.ahead > 0 && <span className="badge badge--warn">{git.ahead} to push</span>}
               </div>
               <div className="muted" style={{ fontSize: 13, marginTop: 6 }}>
                 {git.files.length ? `${git.files.length} changed file${git.files.length === 1 ? '' : 's'}` : 'Working tree clean'}
               </div>
               {git.files.slice(0, 30).map((f: any) => (
-                <div key={f.path} style={{ fontFamily: 'var(--mono)', fontSize: 12.5, marginTop: 4 }}>
+                <div key={f.path} style={{ fontFamily: 'var(--mono)', fontSize: 12, marginTop: 4 }}>
                   <span style={{ color: f.status.includes('D') ? 'var(--danger)' : f.status.includes('?') || f.status.includes('A') ? 'var(--ok)' : 'var(--warn)' }}>{f.status.padEnd(2)}</span> {f.path}
                 </div>
               ))}
               {(git.files.length > 0 || git.ahead > 0) && (
                 <>
-                  <input className="field" style={{ marginTop: 10, height: 38, fontSize: 14 }} placeholder="Commit message" value={msg} onChange={(e) => setMsg(e.target.value)} />
+                  <input className="field" style={{ marginTop: 10 }} placeholder="Commit message" value={msg} onChange={(e) => setMsg(e.target.value)} />
                   <div className="card__actions">
                     <button className="btn" onClick={() => commit(false)} disabled={working || !git.files.length}>
                       Commit
@@ -494,13 +515,13 @@ function ChatMenuSheet({ open, chatId }: { open: boolean; chatId?: string }) {
                       </button>
                     )}
                   </div>
-                  {git.remote && !github.connected && <div className="muted" style={{ fontSize: 12.5, marginTop: 8 }}>Connect GitHub in Settings to push.</div>}
+                  {git.remote && !github.connected && <div className="muted" style={{ fontSize: 12, marginTop: 8 }}>Connect GitHub in Settings to push.</div>}
                 </>
               )}
               {git.commits?.length > 0 && (
                 <div style={{ marginTop: 12 }}>
                   {git.commits.slice(0, 5).map((c: any) => (
-                    <div key={c.hash} style={{ fontSize: 12.5, marginTop: 4 }}>
+                    <div key={c.hash} style={{ fontSize: 12, marginTop: 4 }}>
                       <span style={{ fontFamily: 'var(--mono)', color: 'var(--accent)' }}>{c.hash}</span> {c.subject} <span className="muted">· {c.when}</span>
                     </div>
                   ))}
@@ -535,6 +556,7 @@ function ChatMenuSheet({ open, chatId }: { open: boolean; chatId?: string }) {
                   <div className="option__title">{a.title}</div>
                   <div className="option__sub">{a.sub}</div>
                 </div>
+                {chat.approvalMode === a.id && <Icon name="check" size={16} style={{ color: 'var(--accent)' }} />}
               </button>
             ))}
           </div>
@@ -583,22 +605,27 @@ function RenameSheet({ open, chatId }: { open: boolean; chatId?: string }) {
     if (open && chat) setTitle(chat.title);
   }, [open, chat]);
   return (
-    <Sheet open={open} onClose={closeSheet} title="Rename chat">
+    <Sheet
+      open={open}
+      onClose={closeSheet}
+      title="Rename chat"
+      footer={
+        <Glass
+          as="button"
+          className="btn btn--block"
+          variant="primary"
+          radius={999}
+          interactive
+          onClick={async () => {
+            if (chatId) await patchChat(chatId, { title }).catch((e) => toast(e.message, 'error'));
+            closeSheet();
+          }}
+        >
+          Save
+        </Glass>
+      }
+    >
       <input className="field" value={title} onChange={(e) => setTitle(e.target.value)} autoFocus />
-      <Glass
-        as="button"
-        className="btn btn--block"
-        variant="primary"
-        radius={999}
-        interactive
-        style={{ marginTop: 14 }}
-        onClick={async () => {
-          if (chatId) await patchChat(chatId, { title }).catch((e) => toast(e.message, 'error'));
-          closeSheet();
-        }}
-      >
-        Save
-      </Glass>
     </Sheet>
   );
 }

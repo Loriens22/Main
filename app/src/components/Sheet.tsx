@@ -1,11 +1,10 @@
 import { AnimatePresence, motion, useDragControls, type PanInfo } from 'motion/react';
 import type { ReactNode } from 'react';
 import { createPortal } from 'react-dom';
-import { Glass } from '@/glass/Glass';
 import { Icon } from './Icon';
 
-/** Liquid Glass bottom sheet with drag-to-dismiss. */
-export function Sheet({ open, onClose, title, children, actions, tall }: { open: boolean; onClose: () => void; title?: ReactNode; children: ReactNode; actions?: ReactNode; tall?: boolean }) {
+/** Solid bottom sheet with drag-to-dismiss and an optional pinned footer for the primary action. */
+export function Sheet({ open, onClose, title, children, actions, footer, tall }: { open: boolean; onClose: () => void; title?: ReactNode; children: ReactNode; actions?: ReactNode; footer?: ReactNode; tall?: boolean }) {
   const drag = useDragControls();
   const onDragEnd = (_: unknown, info: PanInfo) => {
     if (info.offset.y > 120 || info.velocity.y > 600) onClose();
@@ -29,7 +28,7 @@ export function Sheet({ open, onClose, title, children, actions, tall }: { open:
             dragElastic={{ top: 0.05, bottom: 0.8 }}
             onDragEnd={onDragEnd}
           >
-            <Glass className="sheet" variant="strong" radius={22} blur={30} style={{ position: 'relative', height: tall ? '90vh' : undefined, borderRadius: '22px 22px 0 0' }} role="dialog" aria-modal="true">
+            <div className="sheet" role="dialog" aria-modal="true" style={{ height: tall ? '90vh' : undefined }}>
               <div onPointerDown={(e) => drag.start(e)} style={{ touchAction: 'none' }}>
                 <div className="sheet__grab" />
                 {title !== undefined && (
@@ -45,7 +44,8 @@ export function Sheet({ open, onClose, title, children, actions, tall }: { open:
                 )}
               </div>
               <div className="sheet__body">{children}</div>
-            </Glass>
+              {footer && <div className="sheet__foot">{footer}</div>}
+            </div>
           </motion.div>
         </>
       )}

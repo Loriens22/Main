@@ -2,6 +2,7 @@ import { useState } from 'react';
 import { Icon } from '@/components/Icon';
 import { haptic } from '@/lib/platform';
 import { cleanDiff } from '@/lib/format';
+import { toneFill } from '@/lib/tone';
 import type { Agent, GroupRun, PermissionRequest, QuestionRequest } from '@/lib/types';
 import { answerPermission, answerQuestion, toast } from '@/state/store';
 
@@ -38,7 +39,7 @@ export function PermissionCard({ chatId, req, agent }: { chatId: string; req: Pe
           Allow once
         </button>
         {req.always?.length > 0 && (
-          <button className="btn btn--ghost" onClick={() => reply('always')} disabled={busy} style={{ flexBasis: '100%', height: 30, fontSize: 12.5 }}>
+          <button className="btn btn--ghost" onClick={() => reply('always')} disabled={busy} style={{ flexBasis: '100%', height: 30, fontSize: 12 }}>
             Always allow {req.always.length === 1 && req.always[0] !== '*' ? `“${req.always[0].slice(0, 40)}”` : 'this kind of action'}
           </button>
         )}
@@ -68,13 +69,13 @@ export function QuestionCard({ chatId, req }: { chatId: string; req: QuestionReq
           <div className="card__body">{q.question}</div>
           <div style={{ display: 'flex', flexWrap: 'wrap', gap: 6, marginTop: 10 }}>
             {q.options.map((o) => (
-              <button key={o.label} className="composer__chip" style={sel[qi].includes(o.label) ? { background: '#ececf1', color: '#0a0a0c' } : undefined} onClick={() => toggle(qi, o.label, q.multiple)} title={o.description}>
+              <button key={o.label} className="composer__chip" aria-pressed={sel[qi].includes(o.label)} onClick={() => toggle(qi, o.label, q.multiple)} title={o.description}>
                 {o.label}
               </button>
             ))}
           </div>
           {q.custom !== false && (
-            <input className="field" style={{ marginTop: 10, height: 38, fontSize: 14 }} placeholder="Or type your own answer" value={custom[qi]} onChange={(e) => setCustom((c) => c.map((x, i) => (i === qi ? e.target.value : x)))} />
+            <input className="field" style={{ marginTop: 10 }} placeholder="Or type your own answer" value={custom[qi]} onChange={(e) => setCustom((c) => c.map((x, i) => (i === qi ? e.target.value : x)))} />
           )}
         </div>
       ))}
@@ -152,12 +153,12 @@ export function TaskBoard({ run, agents }: { run: GroupRun; agents: Agent[] }) {
       </button>
       {open && (
         <div style={{ marginTop: 8 }}>
-          {run.status === 'planning' && <div className="muted" style={{ fontSize: 12.5, padding: '4px 0' }}>The lead is reading the project and splitting the work…</div>}
+          {run.status === 'planning' && <div className="muted" style={{ fontSize: 12, padding: '4px 0' }}>The lead is reading the project and splitting the work…</div>}
           {run.tasks.map((t) => {
             const a = agents.find((x) => x.id === t.agentId);
             return (
               <div className="task" key={t.id}>
-                <span className="avatar" style={{ width: 22, height: 22, fontSize: 10, background: a?.color ?? 'var(--s3)' }}>
+                <span className="avatar" style={{ width: 22, height: 22, fontSize: 11, background: a ? toneFill(a.color) : 'var(--s3)' }}>
                   {a?.name[0] ?? '?'}
                 </span>
                 <div className="task__title">

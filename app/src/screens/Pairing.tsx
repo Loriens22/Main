@@ -45,13 +45,13 @@ export function Pairing() {
             <motion.h1 className="pair__title" initial={{ opacity: 0, y: 12 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.2 }}>
               Maverick
             </motion.h1>
-            <motion.p className="muted" style={{ fontSize: 14.5, margin: 0, maxWidth: 300, lineHeight: 1.45 }} initial={{ opacity: 0 }} animate={{ opacity: 1 }} transition={{ delay: 0.35 }}>
+            <motion.p className="muted" style={{ fontSize: 15, margin: 0, maxWidth: 300, lineHeight: 1.45 }} initial={{ opacity: 0 }} animate={{ opacity: 1 }} transition={{ delay: 0.35 }}>
               Your AI coding companion. Real code, real tests, on your own OpenCode server.
             </motion.p>
           </div>
-          <div className="pair__card content-max">
-            <div style={{ fontWeight: 620, fontSize: 15.5 }}>Connect your server</div>
-            <div className="muted" style={{ fontSize: 12.5, marginTop: -6, lineHeight: 1.45 }}>
+          <div className="pair__card">
+            <div style={{ fontWeight: 600, fontSize: 16 }}>Connect your server</div>
+            <div className="muted" style={{ fontSize: 12, marginTop: -6, lineHeight: 1.45 }}>
               Enter the access code from your Railway deployment (variable <code>ACCESS_CODE</code>).
             </div>
             <input
@@ -64,10 +64,10 @@ export function Pairing() {
               spellCheck={false}
               onKeyDown={(e) => e.key === 'Enter' && submit()}
               aria-label="Access code"
-              style={{ fontFamily: 'var(--mono)', letterSpacing: '0.06em', textAlign: 'center', fontSize: 15.5, height: 44 }}
+              style={{ fontFamily: 'var(--mono)', letterSpacing: '0.06em', textAlign: 'center', fontSize: 16, height: 44 }}
             />
             {advanced && (
-              <input className="field" style={{ fontSize: 14 }} value={server} onChange={(e) => setServer(e.target.value)} placeholder="https://your-server.up.railway.app" inputMode="url" autoCapitalize="off" autoCorrect="off" aria-label="Server URL" />
+              <input className="field" value={server} onChange={(e) => setServer(e.target.value)} placeholder="https://your-server.up.railway.app" inputMode="url" autoCapitalize="off" autoCorrect="off" aria-label="Server URL" />
             )}
             {err && (
               <div className="banner banner--err" style={{ width: '100%', margin: 0 }}>

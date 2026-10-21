@@ -22,29 +22,44 @@
   /* ---- text ---- */
   --t1: #f2f2f5;
   --t2: rgba(235, 235, 245, 0.66);
-  --t3: rgba(235, 235, 245, 0.42);
+  --t3: rgba(235, 235, 245, 0.5);
   --t4: rgba(235, 235, 245, 0.24);
+  --t-ph: rgba(235, 235, 245, 0.4); /* placeholders */
 
   /* ---- color: one calm accent, muted status hues ---- */
   --accent: #8aa6e0;
   --accent-strong: #6f8fd3;
   --me: #44609a; /* user bubble */
+  --primary: #44609a; /* primary actions match the bubble they create */
+  --primary-press: #3a5285;
+  --primary-ink: #ffffff;
   --ok: #5cc48a;
   --warn: #d9a74a;
   --danger: #ee5d5d;
+  --danger-fill: #d9434b;
   --flame: #e8894a;
 
   /* ---- Liquid Glass (dark) ---- */
-  --glass-fill: rgba(30, 30, 35, 0.5);
-  --glass-fill-thick: rgba(18, 18, 21, 0.84);
-  --glass-rim: rgba(255, 255, 255, 0.24);
-  --glass-rim-soft: rgba(255, 255, 255, 0.05);
-  --glass-shadow: 0 12px 32px -10px rgba(0, 0, 0, 0.8), 0 2px 8px rgba(0, 0, 0, 0.45);
+  --glass-fill: rgba(44, 44, 50, 0.6);
+  --glass-fill-thick: rgba(36, 36, 42, 0.9);
+  --glass-rim: rgba(255, 255, 255, 0.18);
+  --glass-rim-soft: rgba(255, 255, 255, 0.03);
+  --glass-shadow: 0 8px 24px -8px rgba(0, 0, 0, 0.6);
 
   /* light direction for the specular rim (follows device tilt) */
   --lg-angle: 160deg;
   --lg-x: 30%;
   --lg-y: 0%;
+
+  /* ---- type scale ---- */
+  --fs-2xs: 11px;
+  --fs-xs: 12px;
+  --fs-sm: 13px;
+  --fs-md: 15px;
+  --fs-lg: 16px;
+  --fs-xl: 17px;
+  --fs-2xl: 22px;
+  --fs-3xl: 28px;
 
   --r-xs: 8px;
   --r-s: 12px;
