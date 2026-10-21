@@ -158,13 +158,16 @@ jobs:
           [ "$(sha256sum < .env)" = "$before" ] || { echo "::error::.env changed"; exit 1; }
           echo ".env unchanged"
 
-      - name: The Windows script (start.ps1) under PowerShell 7 prints the same address
+      - name: The Windows script (start.ps1) under PowerShell 7 keeps the code and prints the same address
         if: matrix.arch == 'x64'
         run: |
+          before=$(sha256sum < selfhost/.env)
           pwsh -NoProfile -File selfhost/start.ps1 2>&1 | tee "$RUNNER_TEMP/start3.log"
           URL3=$(grep -Eo 'https://[a-z0-9-]+\.trycloudflare\.com' "$RUNNER_TEMP/start3.log" | grep -v '://api\.' | tail -n 1)
           echo "start.ps1 printed $URL3"
           [ "$URL3" = "$URL" ] || { echo "::error::start.ps1 printed a different address"; exit 1; }
+          [ "$(sha256sum < selfhost/.env)" = "$before" ] || { echo "::error::start.ps1 rewrote an existing .env"; exit 1; }
+          echo ".env unchanged"
 
       - name: Stop with stop.sh (data volume is kept)
         run: |
@@ -284,6 +287,10 @@ jobs:
             ($bytes[0] -ne 0xEF) -and (-not ($bytes -contains 13))
           if (-not $ok) { Write-Host '::error::start.cmd did not complete the stand-in run correctly'; exit 1 }
           Write-Host '.env written by Windows PowerShell 5.1: valid code and secrets, UTF-8 without BOM, LF line ends'
+          cmd /c "selfhost\start.cmd" 2>&1 | Out-Host
+          if ($LASTEXITCODE -ne 0) { Write-Host '::error::second start.cmd run failed'; exit 1 }
+          if ([Convert]::ToBase64String($bytes) -ne [Convert]::ToBase64String([IO.File]::ReadAllBytes((Resolve-Path selfhost\.env).Path))) { Write-Host '::error::second run rewrote .env'; exit 1 }
+          Write-Host 'second start.cmd run kept .env unchanged'
           cmd /c "selfhost\stop.cmd" 2>&1 | Out-Host
           if ($LASTEXITCODE -ne 0) { Write-Host '::error::stop.cmd failed'; exit 1 }
           exit 0

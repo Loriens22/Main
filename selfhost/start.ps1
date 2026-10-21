@@ -95,7 +95,9 @@ docker compose version > $null 2>&1
 if ($LASTEXITCODE -ne 0) { Fail 'Docker Compose is missing. Update Docker Desktop to the latest version.' }
 
 # ---------- 2. Access code and secrets (.env), created once and never overwritten ----------
-if (-not (Test-Path -LiteralPath $envFile) -or (Get-Item -LiteralPath $envFile).Length -eq 0) {
+# FileInfo rather than Get-Item: on macOS and Linux PowerShell treats ".env" as hidden.
+$envInfo = New-Object System.IO.FileInfo $envFile
+if (-not $envInfo.Exists -or $envInfo.Length -eq 0) {
   Say 'Creating your access code and secrets (selfhost\.env)'
   $letters = 'ABCDEFGHJKLMNPQRSTUVWXYZ23456789'
   $hex = '0123456789abcdef'
