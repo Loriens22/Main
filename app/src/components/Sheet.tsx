@@ -1,10 +1,27 @@
 import { AnimatePresence, motion, useDragControls, type PanInfo } from 'motion/react';
 import type { ReactNode } from 'react';
 import { createPortal } from 'react-dom';
+import { Glass } from '@/glass/Glass';
 import { Icon } from './Icon';
 
-/** Solid bottom sheet with drag-to-dismiss and an optional pinned footer for the primary action. */
-export function Sheet({ open, onClose, title, children, actions, footer, tall }: { open: boolean; onClose: () => void; title?: ReactNode; children: ReactNode; actions?: ReactNode; footer?: ReactNode; tall?: boolean }) {
+/** Dense Liquid Glass bottom sheet with drag-to-dismiss and an optional pinned footer for the primary action. */
+export function Sheet({
+  open,
+  onClose,
+  title,
+  children,
+  actions,
+  footer,
+  tall,
+}: {
+  open: boolean;
+  onClose: () => void;
+  title?: ReactNode;
+  children: ReactNode;
+  actions?: ReactNode;
+  footer?: ReactNode;
+  tall?: boolean;
+}) {
   const drag = useDragControls();
   const onDragEnd = (_: unknown, info: PanInfo) => {
     if (info.offset.y > 120 || info.velocity.y > 600) onClose();
@@ -28,7 +45,16 @@ export function Sheet({ open, onClose, title, children, actions, footer, tall }:
             dragElastic={{ top: 0.05, bottom: 0.8 }}
             onDragEnd={onDragEnd}
           >
-            <div className="sheet" role="dialog" aria-modal="true" style={{ height: tall ? '90vh' : undefined }}>
+            {/* No refraction: the sheet is dragged, so a measured displacement map would lag behind it. */}
+            <Glass
+              className="sheet"
+              variant="strong"
+              radius={22}
+              blur={30}
+              role="dialog"
+              aria-modal="true"
+              style={{ height: tall ? '90vh' : undefined, borderRadius: '22px 22px 0 0' }}
+            >
               <div onPointerDown={(e) => drag.start(e)} style={{ touchAction: 'none' }}>
                 <div className="sheet__grab" />
                 {title !== undefined && (
@@ -45,7 +71,7 @@ export function Sheet({ open, onClose, title, children, actions, footer, tall }:
               </div>
               <div className="sheet__body">{children}</div>
               {footer && <div className="sheet__foot">{footer}</div>}
-            </div>
+            </Glass>
           </motion.div>
         </>
       )}

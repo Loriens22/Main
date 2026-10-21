@@ -5,7 +5,7 @@ import { haptic } from '@/lib/platform';
 import { goHome, navigate, openSheet, useStore } from '@/state/store';
 import { Icon } from './Icon';
 
-/** Floating Liquid Glass navigation: Chats · (+) · Settings. The (+) opens a compact glass menu. */
+/** Floating Liquid Glass navigation: Chats · (+) · Settings. The (+) springs up two glass bubbles. */
 export function NavBar() {
   const route = useStore((s) => s.stack[s.stack.length - 1]);
   const [open, setOpen] = useState(false);
@@ -25,25 +25,26 @@ export function NavBar() {
           <>
             <motion.div className="plus-backdrop" initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} onClick={() => setOpen(false)} />
             <div className="plus-bubbles">
-              {/* No refraction here: the scale-in would size the SVG displacement map wrong. */}
-              <motion.div
-                style={{ transformOrigin: '50% 100%' }}
-                initial={{ opacity: 0, y: 10, scale: 0.94 }}
-                animate={{ opacity: 1, y: 0, scale: 1 }}
-                exit={{ opacity: 0, y: 6, scale: 0.96, transition: { duration: 0.12 } }}
-                transition={{ type: 'spring', stiffness: 520, damping: 40 }}
-              >
-                <Glass className="plus-menu" radius={16} blur={20} role="menu">
-                  <button className="plus-item" role="menuitem" onClick={() => pick('single')}>
-                    <Icon name="chats" size={18} />
-                    New chat
-                  </button>
-                  <button className="plus-item" role="menuitem" onClick={() => pick('group')}>
-                    <Icon name="users" size={18} />
-                    New team
-                  </button>
-                </Glass>
-              </motion.div>
+              {(
+                [
+                  { kind: 'single', label: 'New chat', icon: 'chats' },
+                  { kind: 'group', label: 'New group chat', icon: 'users' },
+                ] as const
+              ).map((b, i) => (
+                /* Translate and fade only: no scale, so the refraction map is measured at final size. */
+                <motion.div
+                  key={b.kind}
+                  initial={{ opacity: 0, y: 14 }}
+                  animate={{ opacity: 1, y: 0 }}
+                  exit={{ opacity: 0, y: 8, transition: { duration: 0.12 } }}
+                  transition={{ type: 'spring', stiffness: 480, damping: 32, delay: i * 0.05 }}
+                >
+                  <Glass as="button" className="plus-bubble" radius={999} blur={20} refract interactive onClick={() => pick(b.kind)}>
+                    <Icon name={b.icon} size={17} />
+                    <span>{b.label}</span>
+                  </Glass>
+                </motion.div>
+              ))}
             </div>
           </>
         )}

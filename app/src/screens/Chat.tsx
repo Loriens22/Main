@@ -235,7 +235,16 @@ export function ChatScreen({ chatId }: { chatId: string }) {
       <AnimatePresence>
         {showJump && (
           <motion.div initial={{ opacity: 0, scale: 0.6 }} animate={{ opacity: 1, scale: 1 }} exit={{ opacity: 0, scale: 0.6 }} style={{ position: 'absolute', right: 0, bottom: 'calc(var(--safe-bottom) + 132px)', zIndex: 15 }}>
-            <Glass as="button" className="jump-btn" radius={999} refract interactive onClick={jump} aria-label="Scroll to latest" style={{ position: 'relative', right: 'max(14px, calc((100vw - 720px) / 2 + 14px))' }}>
+            <Glass
+              as="button"
+              className="jump-btn"
+              radius={999}
+              refract
+              interactive
+              onClick={jump}
+              aria-label="Scroll to latest"
+              style={{ position: 'relative', right: 'max(14px, calc((100vw - 720px) / 2 + 14px))' }}
+            >
               <Icon name="chevronDown" size={17} />
             </Glass>
           </motion.div>

@@ -128,13 +128,12 @@ export const ToolCard = memo(function ToolCard({ part }: { part: any }) {
             <span style={{ color: 'var(--ok)' }}>+{fd.additions ?? 0}</span> <span style={{ color: 'var(--danger)' }}>−{fd.deletions ?? 0}</span>
           </span>
         ) : null}
+        {/* Success is the default, so only running and failed steps carry a state mark. */}
         {status === 'running' || status === 'pending' ? (
           <span className="tool__state--run spinner" />
         ) : failed ? (
           <Icon name="x" size={14} className="tool__state--err" />
-        ) : (
-          <Icon name="check" size={14} className="tool__state--ok" />
-        )}
+        ) : null}
         {body ? <Icon name={open ? 'chevronDown' : 'chevron'} size={13} style={{ color: 'var(--t3)' }} /> : null}
       </button>
       {open && body && <div className="tool__body">{body}</div>}

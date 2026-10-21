@@ -29,8 +29,11 @@
   /* ---- color: one calm accent, muted status hues ---- */
   --accent: #8aa6e0;
   --accent-strong: #6f8fd3;
+  --accent-tint: rgba(138, 166, 224, 0.14); /* selected fill */
+  --accent-ring: rgba(138, 166, 224, 0.45); /* selected hairline */
   --me: #44609a; /* user bubble */
   --primary: #44609a; /* primary actions match the bubble they create */
+  --primary-hover: #4d6ba8;
   --primary-press: #3a5285;
   --primary-ink: #ffffff;
   --ok: #5cc48a;
@@ -45,6 +48,7 @@
   --glass-rim: rgba(255, 255, 255, 0.18);
   --glass-rim-soft: rgba(255, 255, 255, 0.03);
   --glass-shadow: 0 8px 24px -8px rgba(0, 0, 0, 0.6);
+  --on-glass: rgba(255, 255, 255, 0.045); /* grouped content inside a glass sheet */
 
   /* light direction for the specular rim (follows device tilt) */
   --lg-angle: 160deg;

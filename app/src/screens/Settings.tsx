@@ -152,7 +152,7 @@ export function Settings() {
               icon="sparkle"
               color="#22c55e"
               title="Default model"
-              sub={defaultModel ? (defaultModel.free ? defaultModel.name : `${defaultModel.name} · Paid`) : 'Server default'}
+              sub={defaultModel ? `${defaultModel.name} · ${defaultModel.free ? 'Free' : 'Paid'}` : 'Server default'}
               onClick={() => setModelPicker(true)}
             />
             <Row icon="list" color="#14b8a6" title="Free models" right={<span className="setting__value">{catalog?.models.filter((m) => m.free && m.available).length ?? 0}</span>} />
@@ -161,7 +161,7 @@ export function Settings() {
                 key={p.id}
                 icon="key"
                 color={p.connected ? '#f59e0b' : '#64748b'}
-                title={p.name}
+                title={p.name.replace(/\s*\(.*\)\s*$/, '')}
                 right={
                   <>
                     <span className={`setting__value${p.connected ? ' setting__value--ok' : ''}`}>{p.connected ? 'Connected' : 'Add key'}</span>

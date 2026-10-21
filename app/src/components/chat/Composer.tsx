@@ -116,6 +116,19 @@ export function Composer({
             {error}
           </div>
         )}
+        {chat.kind === 'group' && (
+          // Who the message goes to gets its own row, so every teammate stays reachable.
+          <div className="composer__chips composer__chips--targets">
+            <button className="composer__chip" aria-pressed={!target} onClick={() => setTarget(undefined)}>
+              <Icon name="users" size={12} /> <span>Whole team</span>
+            </button>
+            {agents?.map((a) => (
+              <button key={a.id} className="composer__chip" aria-pressed={target === a.id} onClick={() => setTarget(target === a.id ? undefined : a.id)}>
+                <span style={{ width: 6, height: 6, borderRadius: 3, background: toneDot(a.color) }} /> <span>@{a.name}</span>
+              </button>
+            ))}
+          </div>
+        )}
         <textarea
           ref={ta}
           className="composer__input"
@@ -135,34 +148,30 @@ export function Composer({
           <button className="composer__btn" onClick={() => fileInput.current?.click()} aria-label="Attach files">
             <Icon name="attach" size={18} />
           </button>
-          <input ref={fileInput} type="file" multiple hidden accept="image/*,.txt,.md,.json,.csv,.js,.ts,.tsx,.jsx,.py,.html,.css,.pdf,.log,.yaml,.yml,.xml,.java,.kt,.swift,.go,.rs,.c,.cpp,.h,.sh" onChange={(e) => {
-            void onFiles(e.target.files);
-            e.target.value = '';
-          }} />
+          <input
+            ref={fileInput}
+            type="file"
+            multiple
+            hidden
+            accept="image/*,.txt,.md,.json,.csv,.js,.ts,.tsx,.jsx,.py,.html,.css,.pdf,.log,.yaml,.yml,.xml,.java,.kt,.swift,.go,.rs,.c,.cpp,.h,.sh"
+            onChange={(e) => {
+              void onFiles(e.target.files);
+              e.target.value = '';
+            }}
+          />
           <div className="composer__chips">
-            {chat.kind === 'single' ? (
+            {chat.kind === 'single' && (
               <>
                 <button className="composer__chip" onClick={onPickModel} aria-label="Choose model">
                   <Icon name="sparkle" size={12} />
                   <span>{model?.name ?? chat.model.split('/').pop()}</span>
-                  {model && !model.free && <span style={{ color: 'var(--warn)' }}>Paid</span>}
+                  {model && !model.free && <span style={{ color: 'var(--warn)', flex: 'none' }}>Paid</span>}
                   <Icon name="chevronDown" size={11} />
                 </button>
                 <button className="composer__chip" onClick={() => setMode((m) => (m === 'build' ? 'plan' : 'build'))} aria-label="Toggle plan mode" title="Plan mode reads and plans without editing files">
                   <Icon name={mode === 'build' ? 'bolt' : 'list'} size={12} />
                   <span>{mode === 'build' ? 'Build' : 'Plan only'}</span>
                 </button>
-              </>
-            ) : (
-              <>
-                <button className="composer__chip" aria-pressed={!target} onClick={() => setTarget(undefined)}>
-                  <Icon name="users" size={12} /> <span>Whole team</span>
-                </button>
-                {agents?.map((a) => (
-                  <button key={a.id} className="composer__chip" aria-pressed={target === a.id} onClick={() => setTarget(target === a.id ? undefined : a.id)}>
-                    <span style={{ width: 6, height: 6, borderRadius: 3, background: toneDot(a.color) }} /> <span>@{a.name}</span>
-                  </button>
-                ))}
               </>
             )}
             {conn !== 'online' && (

@@ -2,6 +2,7 @@ import { AnimatePresence, motion } from 'motion/react';
 import { useMemo, useRef, useState } from 'react';
 import { createPortal } from 'react-dom';
 import { Icon } from '@/components/Icon';
+import { Glass } from '@/glass/Glass';
 import { timeAgo } from '@/lib/format';
 import { haptic } from '@/lib/platform';
 import { toneDot, toneFill } from '@/lib/tone';
@@ -151,27 +152,38 @@ function SortSheet({ open, onClose }: { open: boolean; onClose: () => void }) {
   if (!open) return null;
   return createPortal(
     <motion.div className="sheet-backdrop" initial={{ opacity: 0 }} animate={{ opacity: 1 }} onClick={onClose} style={{ display: 'grid', placeItems: 'center' }}>
-      <motion.div className="menu" role="menu" initial={{ opacity: 0, scale: 0.96 }} animate={{ opacity: 1, scale: 1 }} transition={{ duration: 0.16, ease: [0.2, 0.8, 0.2, 1] }} onClick={(e) => e.stopPropagation()} style={{ width: 240 }}>
-        <div className="muted" style={{ fontSize: 12, padding: '6px 10px 2px' }}>Sort by</div>
-        <div>
-          {(['recent', 'name', 'project'] as const).map((s) => (
-            <button
-              key={s}
-              className="option"
-              aria-selected={sort === s}
-              onClick={() => {
-                haptic.tap();
-                setPrefs({ sort: s });
-                onClose();
-              }}
-            >
-              <div className="option__main">
-                <div className="option__title">{s === 'recent' ? 'Most recent' : s === 'name' ? 'Name' : 'Project'}</div>
-              </div>
-              {sort === s && <Icon name="check" size={16} style={{ color: 'var(--accent)' }} />}
-            </button>
-          ))}
-        </div>
+      {/* No refraction on menus: the scale-in would size the displacement map wrong. */}
+      <motion.div
+        role="dialog"
+        aria-modal="true"
+        aria-label="Sort chats"
+        initial={{ opacity: 0, scale: 0.96 }}
+        animate={{ opacity: 1, scale: 1 }}
+        transition={{ duration: 0.16, ease: [0.2, 0.8, 0.2, 1] }}
+        onClick={(e) => e.stopPropagation()}
+      >
+        <Glass className="menu" variant="strong" radius={16} blur={24} style={{ width: 240 }}>
+          <div className="muted" style={{ fontSize: 12, padding: '6px 10px 2px' }}>Sort by</div>
+          <div>
+            {(['recent', 'name', 'project'] as const).map((s) => (
+              <button
+                key={s}
+                className="option"
+                aria-selected={sort === s}
+                onClick={() => {
+                  haptic.tap();
+                  setPrefs({ sort: s });
+                  onClose();
+                }}
+              >
+                <div className="option__main">
+                  <div className="option__title">{s === 'recent' ? 'Most recent' : s === 'name' ? 'Name' : 'Project'}</div>
+                </div>
+                {sort === s && <Icon name="check" size={16} style={{ color: 'var(--accent)' }} />}
+              </button>
+            ))}
+          </div>
+        </Glass>
       </motion.div>
     </motion.div>,
     document.body,
@@ -180,11 +192,12 @@ function SortSheet({ open, onClose }: { open: boolean; onClose: () => void }) {
 
 function ChatAvatar({ chat }: { chat: Chat }) {
   if (chat.kind === 'group') {
-    const agents = (chat.agents ?? []).slice(0, 3);
+    // Two faces on a diagonal, the way messaging apps show a group.
+    const agents = (chat.agents ?? []).slice(0, 2);
     return (
       <div className="avatar__stack">
         {agents.map((a, i) => (
-          <span key={a.id} style={{ background: toneFill(a.color), left: i === 0 ? 0 : i === 1 ? 16 : 8, top: i === 2 ? 16 : i === 1 ? 4 : 0, zIndex: 3 - i }}>
+          <span key={a.id} style={{ background: toneFill(a.color), left: i ? 14 : 0, top: i ? 14 : 0, zIndex: 2 - i }}>
             {a.name[0]}
           </span>
         ))}
@@ -332,33 +345,43 @@ function ChatRow({ chat }: { chat: Chat }) {
       </button>
       {menu &&
         createPortal(
-        <motion.div className="sheet-backdrop" initial={{ opacity: 0 }} animate={{ opacity: 1 }} onClick={() => setMenu(false)} style={{ display: 'grid', placeItems: 'center' }}>
-          <motion.div className="menu" role="menu" initial={{ opacity: 0, scale: 0.96 }} animate={{ opacity: 1, scale: 1 }} transition={{ duration: 0.16, ease: [0.2, 0.8, 0.2, 1] }} onClick={(e) => e.stopPropagation()} style={{ width: 250 }}>
-            <div className="muted" style={{ fontSize: 12, padding: '6px 10px 2px', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
-              {chat.title}
-            </div>
-            <div>
-              <button className="option" onClick={togglePin}>
-                <Icon name="pin" size={16} />
-                <div className="option__main">{chat.pinned ? 'Unpin' : 'Pin to top'}</div>
-              </button>
-              <button
-                className="option"
-                onClick={() => {
-                  setMenu(false);
-                  openSheet('rename-chat', { chatId: chat.id });
-                }}
-              >
-                <Icon name="edit" size={16} />
-                <div className="option__main">Rename</div>
-              </button>
-              <button className="option" onClick={remove} style={{ color: 'var(--danger)' }}>
-                <Icon name="trash" size={16} />
-                <div className="option__main">Delete chat</div>
-              </button>
-            </div>
-          </motion.div>
-        </motion.div>,
+          <motion.div className="sheet-backdrop" initial={{ opacity: 0 }} animate={{ opacity: 1 }} onClick={() => setMenu(false)} style={{ display: 'grid', placeItems: 'center' }}>
+            <motion.div
+              role="dialog"
+              aria-modal="true"
+              aria-label={chat.title}
+              initial={{ opacity: 0, scale: 0.96 }}
+              animate={{ opacity: 1, scale: 1 }}
+              transition={{ duration: 0.16, ease: [0.2, 0.8, 0.2, 1] }}
+              onClick={(e) => e.stopPropagation()}
+            >
+              <Glass className="menu" variant="strong" radius={16} blur={24} style={{ width: 250 }}>
+                <div className="muted" style={{ fontSize: 12, padding: '6px 10px 2px', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
+                  {chat.title}
+                </div>
+                <div>
+                  <button className="option" onClick={togglePin}>
+                    <Icon name="pin" size={16} />
+                    <div className="option__main">{chat.pinned ? 'Unpin' : 'Pin to top'}</div>
+                  </button>
+                  <button
+                    className="option"
+                    onClick={() => {
+                      setMenu(false);
+                      openSheet('rename-chat', { chatId: chat.id });
+                    }}
+                  >
+                    <Icon name="edit" size={16} />
+                    <div className="option__main">Rename</div>
+                  </button>
+                  <button className="option" onClick={remove} style={{ color: 'var(--danger)' }}>
+                    <Icon name="trash" size={16} />
+                    <div className="option__main">Delete chat</div>
+                  </button>
+                </div>
+              </Glass>
+            </motion.div>
+          </motion.div>,
           document.body,
         )}
     </motion.div>

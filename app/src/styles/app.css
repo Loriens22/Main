@@ -255,8 +255,8 @@ kbd {
 .chip--active,
 .composer__chip[aria-pressed='true'] {
   color: var(--t1);
-  background: rgba(138, 166, 224, 0.16);
-  box-shadow: inset 0 0 0 0.5px rgba(138, 166, 224, 0.45);
+  background: var(--accent-tint);
+  box-shadow: inset 0 0 0 0.5px var(--accent-ring);
 }
 .chip:active:not(.chip--active),
 .composer__chip:active:not([aria-pressed='true']) {
@@ -320,7 +320,8 @@ kbd {
   background: var(--primary);
   color: var(--primary-ink);
 }
-.btn--primary:active {
+.btn--primary:active,
+.glass.glass--primary:active {
   background: var(--primary-press);
 }
 .btn--ghost {
@@ -637,8 +638,8 @@ textarea.field {
 }
 .avatar__stack span {
   position: absolute;
-  width: 24px;
-  height: 24px;
+  width: 26px;
+  height: 26px;
   border-radius: 50%;
   display: grid;
   place-items: center;
@@ -708,8 +709,8 @@ textarea.field {
   left: 0;
   right: 0;
   bottom: calc(-1 * (var(--safe-bottom) + 12px));
-  height: calc(var(--safe-bottom) + 96px);
-  background: linear-gradient(0deg, #000 0%, rgba(0, 0, 0, 0.85) 45%, rgba(0, 0, 0, 0) 100%);
+  height: calc(var(--safe-bottom) + 72px);
+  background: linear-gradient(0deg, rgba(0, 0, 0, 0.75) 0%, rgba(0, 0, 0, 0.4) 40%, rgba(0, 0, 0, 0) 100%);
   pointer-events: none;
   z-index: -1;
 }
@@ -769,39 +770,30 @@ textarea.field {
 .plus-bubbles {
   position: fixed;
   z-index: 31;
-  left: 0;
-  right: 0;
+  left: 16px;
+  right: 16px;
   bottom: calc(var(--safe-bottom) + 80px);
   display: flex;
   justify-content: center;
+  flex-wrap: wrap;
+  gap: 10px;
   pointer-events: none;
 }
-.plus-menu {
+.plus-bubble {
   pointer-events: auto;
-  width: 200px;
-  padding: 4px;
-  display: flex;
-  flex-direction: column;
-}
-.plus-item {
-  display: flex;
-  align-items: center;
-  gap: 10px;
-  width: 100%;
   height: 44px;
-  padding: 0 12px;
-  border-radius: 12px;
+  padding: 0 16px 0 14px;
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
   font-size: 15px;
   font-weight: 500;
   color: var(--t1);
-  text-align: left;
+  white-space: nowrap;
 }
-.plus-item svg {
+.plus-bubble svg {
   color: var(--t2);
   flex: none;
-}
-.plus-item:active {
-  background: rgba(255, 255, 255, 0.08);
 }
 
 /* =================================================================== */
@@ -827,7 +819,7 @@ textarea.field {
   content: '';
   position: absolute;
   inset: 0 0 -24px 0;
-  background: linear-gradient(180deg, #000 0, #000 calc(100% - 24px), rgba(0, 0, 0, 0) 100%);
+  background: linear-gradient(180deg, var(--bg) 0, var(--bg) calc(100% - 14px), rgba(0, 0, 0, 0) 100%);
   pointer-events: none;
   z-index: -1;
 }
@@ -1113,9 +1105,6 @@ textarea.field {
   text-overflow: ellipsis;
   font-family: var(--mono);
 }
-.tool__state--ok {
-  color: var(--ok);
-}
 .tool__state--err {
   color: var(--danger);
 }
@@ -1281,7 +1270,7 @@ textarea.field {
   content: '';
   position: absolute;
   inset: -28px 0 0 0;
-  background: linear-gradient(0deg, #000 35%, transparent);
+  background: linear-gradient(0deg, var(--bg) 35%, transparent);
   pointer-events: none;
   z-index: -1;
 }
@@ -1308,6 +1297,11 @@ textarea.field {
 .composer__chips::-webkit-scrollbar {
   display: none;
 }
+/* group chats: message targets on their own row above the text */
+.composer__chips--targets {
+  flex: none;
+  padding: 2px 2px 0;
+}
 .composer__chip {
   display: inline-flex;
   align-items: center;
@@ -1326,6 +1320,10 @@ textarea.field {
 .composer__chip span {
   overflow: hidden;
   text-overflow: ellipsis;
+}
+/* the model chip truncates before it can push Build/Plan under the fade */
+.composer__bar .composer__chip {
+  max-width: 130px;
 }
 .composer__input {
   display: block;
@@ -1422,8 +1420,6 @@ textarea.field {
   background: rgba(0, 0, 0, 0.6);
 }
 .sheet {
-  position: relative;
-  overflow: hidden;
   max-height: 92vh;
   display: flex;
   flex-direction: column;
@@ -1431,17 +1427,21 @@ textarea.field {
   padding-bottom: var(--safe-bottom);
   max-width: 560px;
   margin: 0 auto;
-  background: var(--s1);
-  box-shadow: inset 0 0.5px 0 rgba(255, 255, 255, 0.1);
 }
-@media (min-width: 600px) {
-  .sheet {
-    box-shadow: inset 0 0 0 0.5px var(--line-2);
-  }
-}
+/* grouped content sits one step above the glass sheet */
 .sheet .group,
 .sheet .card {
-  background: var(--s2);
+  background: var(--on-glass);
+}
+.sheet .option:active {
+  background: rgba(255, 255, 255, 0.06);
+}
+/* new group chat: every role preset stays visible, so the assigned one always shows */
+.role-chips {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  margin-top: 8px;
 }
 .sheet__grab {
   width: 36px;
@@ -1491,8 +1491,8 @@ textarea.field {
   background: var(--s3);
 }
 .option[aria-selected='true'] {
-  background: rgba(138, 166, 224, 0.14);
-  box-shadow: inset 0 0 0 0.5px rgba(138, 166, 224, 0.45);
+  background: var(--accent-tint);
+  box-shadow: inset 0 0 0 0.5px var(--accent-ring);
 }
 .group .option[aria-selected='true'] {
   box-shadow: none;
@@ -1501,14 +1501,9 @@ textarea.field {
   flex: 1;
   min-width: 0;
 }
-/* long-press and sort menus */
+/* long-press and sort menus (Glass strong supplies fill, rim and radius) */
 .menu {
   padding: 4px;
-  border-radius: 16px;
-  background: var(--s2);
-  box-shadow:
-    inset 0 0 0 0.5px var(--line-2),
-    0 18px 48px -12px rgba(0, 0, 0, 0.9);
 }
 .menu .option {
   border-radius: 12px;
@@ -1581,6 +1576,12 @@ button.setting:active {
 .setting__title {
   font-weight: 500;
   font-size: 15px;
+}
+/* rows with a trailing value stay one line; the title truncates before the value */
+.setting:has(> .setting__value) > .setting__main > .setting__title {
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
 }
 .setting__sub {
   font-size: 12px;
@@ -1913,22 +1914,30 @@ input[type='range'] {
   }
 }
 @media (hover: hover) and (pointer: fine) {
-  .row:hover,
-  button.setting:hover,
-  .option:hover:not([aria-selected='true']),
-  .tool__head:hover {
+  /* :not(:active) everywhere so a press always shows its own state */
+  .row:hover:not(:active) {
+    /* stays opaque: the row covers the swipe actions underneath */
+    background: linear-gradient(rgba(255, 255, 255, 0.04), rgba(255, 255, 255, 0.04)) var(--s1);
+  }
+  button.setting:hover:not(:active),
+  .option:hover:not([aria-selected='true']):not(:active),
+  .tool__head:hover:not(:active) {
     background-color: rgba(255, 255, 255, 0.04);
   }
-  .chip:hover:not(.chip--active),
-  .composer__chip:hover:not([aria-pressed='true']) {
+  .chip:hover:not(.chip--active):not(:active),
+  .composer__chip:hover:not([aria-pressed='true']):not(:active) {
     background: rgba(255, 255, 255, 0.08);
   }
-  .btn:hover {
+  .btn:not(.glass):not(.btn--ghost):not(.btn--primary):not(.btn--danger-text):hover:not(:active) {
     background: var(--s4);
   }
-  .btn--primary:hover,
-  .glass.glass--primary:hover {
-    background: #4d6ba8;
+  .btn--ghost:hover:not(:active),
+  .btn--danger-text:hover:not(:active) {
+    background: rgba(255, 255, 255, 0.05);
+  }
+  .btn--primary:hover:not(:active),
+  .glass.glass--primary:hover:not(:active):not([disabled]) {
+    background: var(--primary-hover);
   }
 }
 @media (prefers-reduced-motion: reduce) {

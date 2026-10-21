@@ -117,15 +117,15 @@ function ModelRow({ value, onClick }: { value: string | null; onClick: () => voi
   const catalog = useStore((s) => s.catalog);
   const m = catalog?.models.find((x) => x.id === value);
   return (
-    <button className="option" onClick={onClick} style={{ background: 'var(--s2)', boxShadow: 'inset 0 0 0 0.5px var(--line)' }}>
+    <button className="option" onClick={onClick} style={{ background: 'var(--on-glass)', boxShadow: 'inset 0 0 0 0.5px var(--line)' }}>
       <Icon name="sparkle" size={15} style={{ color: 'var(--t3)' }} />
       <div className="option__main">
         <div className="option__title">
           {m?.name ?? value ?? 'Loading models…'} {m && !m.free && <span className="badge badge--paid">Paid</span>}
         </div>
-        <div className="option__sub">{m ? m.providerName : 'Free OpenCode models are discovered live'}</div>
+        <div className="option__sub">{m ? `${m.providerName}${m.free ? ' · Free' : ''}` : 'Free OpenCode models are discovered live'}</div>
       </div>
-      <Icon name="chevron" size={16} />
+      <Icon name="chevron" size={14} style={{ color: 'var(--t3)' }} />
     </button>
   );
 }
@@ -294,16 +294,16 @@ function NewGroupSheet({ open }: { open: boolean }) {
     <Sheet
       open={open}
       onClose={closeSheet}
-      title="New team"
+      title="New group chat"
       tall
       footer={
         <Glass as="button" className="btn btn--block" variant="primary" radius={999} interactive onClick={create} disabled={busy || agents.length < 2}>
           {busy && <span className="spinner" />}
-          {busy ? 'Assembling…' : 'Create team'}
+          {busy ? 'Assembling…' : 'Create group chat'}
         </Glass>
       }
     >
-      <input className="field" placeholder="Team name (optional)" value={title} onChange={(e) => setTitle(e.target.value)} />
+      <input className="field" placeholder="Group chat name (optional)" value={title} onChange={(e) => setTitle(e.target.value)} />
       <div className="label">Project</div>
       <ProjectChooser
         value={projectId}
@@ -315,7 +315,7 @@ function NewGroupSheet({ open }: { open: boolean }) {
       <div className="label">Agents · {agents.length}</div>
       <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
         {agents.map((a, i) => (
-          <div key={i} style={{ padding: 10, borderRadius: 14, background: 'var(--s2)', boxShadow: 'inset 0 0 0 0.5px var(--line)' }}>
+          <div key={i} style={{ padding: 10, borderRadius: 14, background: 'var(--on-glass)', boxShadow: 'inset 0 0 0 0.5px var(--line)' }}>
             <div style={{ display: 'flex', gap: 10, alignItems: 'center' }}>
               <button className="avatar" style={{ width: 32, height: 32, fontSize: 13, background: toneFill(a.color) }} onClick={() => update(i, { color: COLORS[(COLORS.indexOf(a.color) + 1) % COLORS.length] })} aria-label="Change color">
                 {a.name[0] ?? '?'}
@@ -327,7 +327,7 @@ function NewGroupSheet({ open }: { open: boolean }) {
                 </button>
               )}
             </div>
-            <div style={{ display: 'flex', gap: 6, flexWrap: 'nowrap', overflowX: 'auto', scrollbarWidth: 'none', margin: '8px -10px 0', padding: '0 10px' }}>
+            <div className="role-chips">
               {ROLE_PRESETS.map((r) => (
                 <button key={r.role} className="composer__chip" aria-pressed={a.role === r.role} onClick={() => update(i, { role: r.role, instructions: r.instructions })}>
                   {r.role}

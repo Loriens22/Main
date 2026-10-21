@@ -34,10 +34,22 @@ export function ModelPicker({ open, onClose, value, onPick }: { open: boolean; o
       <div className="option__main">
         <div className="option__title">
           {m.name}
-          {!m.free && <span className="badge badge--paid">{`Paid · ${price(m.cost.input)}/${price(m.cost.output)}`}</span>}
+          {!m.free && <span className="badge badge--paid">{`Paid · ${price(m.cost.input)}/${price(m.cost.output)} per 1M`}</span>}
           {!m.available && <span className="badge badge--muted">Needs key</span>}
         </div>
-        <div className="option__sub">{[m.providerName, m.limit.context > 0 && `${compactNumber(m.limit.context)} context`, (m.caps.vision || m.caps.attachments) && 'Vision', !m.caps.tools && 'No tools', m.status && m.status !== 'active' && m.status].filter(Boolean).join(' · ')}</div>
+        <div className="option__sub">
+          {[
+            m.providerName,
+            m.limit.context > 0 && `${compactNumber(m.limit.context)} context`,
+            m.caps.reasoning && 'Reasoning',
+            (m.caps.vision || m.caps.attachments) && 'Vision',
+            m.caps.pdf && 'PDF',
+            !m.caps.tools && 'No tools',
+            m.status && m.status !== 'active' && m.status,
+          ]
+            .filter(Boolean)
+            .join(' · ')}
+        </div>
       </div>
       {m.id === value && <Icon name="check" size={16} style={{ color: 'var(--accent)' }} />}
     </button>
