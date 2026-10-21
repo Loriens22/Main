@@ -1,0 +1,341 @@
+name: Check self-host kit
+
+# Proves the no-account self-host kit (selfhost/) works from the public internet.
+# It runs selfhost/start.sh exactly as a user would, then, from outside the Docker network, talks to
+# the https://<words>.trycloudflare.com address that the script printed: health, pairing with the
+# generated access code, the realtime WebSocket, the free model list and voice.
+# The access code belongs to a throwaway server that is stopped at the end, and it is masked in
+# the logs anyway (this repository is public). The Windows scripts and the Codespaces script are
+# checked too.
+on:
+  push:
+    branches: [main, ccr-b02444a3-nlojc9]
+    paths:
+      - 'selfhost/**'
+      - '.devcontainer/**'
+      - '.github/workflows/selfhost-check.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: selfhost-check-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  docker-kit:
+    name: Docker kit via public tunnel (${{ matrix.arch }})
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - arch: x64
+            os: ubuntu-latest
+          - arch: arm64 # what Docker Desktop runs on Apple silicon Macs
+            os: ubuntu-24.04-arm
+    runs-on: ${{ matrix.os }}
+    timeout-minutes: 60
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+
+      - name: Start the server like a user (bash selfhost/start.sh)
+        run: |
+          bash selfhost/start.sh 2>&1 | tee "$RUNNER_TEMP/start1.log"
+          URL=$(grep -Eo 'https://[a-z0-9-]+\.trycloudflare\.com' "$RUNNER_TEMP/start1.log" | grep -v '://api\.' | tail -n 1)
+          [ -n "$URL" ] || { echo "::error::start.sh printed no trycloudflare address"; exit 1; }
+          grep -q 'Access code:  MAV-' "$RUNNER_TEMP/start1.log" || { echo "::error::start.sh printed no access code"; exit 1; }
+          echo "start.sh printed Server URL $URL"
+          echo "URL=$URL" >> "$GITHUB_ENV"
+
+      - name: Health through the public tunnel (from outside Docker)
+        run: |
+          H="${URL#https://}"
+          for i in $(seq 1 40); do
+            body=$(curl -sS -m 20 "$URL/health" 2>&1 || true)
+            case "$body" in *'"ready":true'*) echo "health through tunnel: $body"; exit 0 ;; esac
+            echo "attempt $i: DNS $(getent hosts "$H" | head -n 1 || true) -> ${body:0:200}"
+            sudo resolvectl flush-caches 2>/dev/null || true
+            sleep 5
+          done
+          echo "::error::$URL/health never reported OpenCode ready"
+          exit 1
+
+      - name: Pairing through the tunnel (CORS as the app sends it, wrong code, generated code)
+        run: |
+          CODE=$(sed -n 's/^ACCESS_CODE=//p' selfhost/.env | tr -d '\r')
+          echo "::add-mask::$CODE"
+          [[ "$CODE" =~ ^MAV-[A-Z2-9]{4}-[A-Z2-9]{4}-[A-Z2-9]{4}$ ]] || { echo "::error::access code has an unexpected format"; exit 1; }
+          echo "access code format: MAV-XXXX-XXXX-XXXX"
+
+          # The Android app runs on https://localhost, so its requests are cross-origin.
+          curl -sS -m 30 -o /dev/null -D preflight.txt -X OPTIONS -H 'Origin: https://localhost' \
+            -H 'Access-Control-Request-Method: POST' -H 'Access-Control-Request-Headers: content-type,authorization' "$URL/api/pair"
+          echo "CORS preflight: $(head -n 1 preflight.txt | tr -d '\r'), $(grep -i '^access-control-allow-origin' preflight.txt | tr -d '\r')"
+          grep -qi '^access-control-allow-origin: https://localhost' preflight.txt || { echo "::error::CORS preflight not allowed"; exit 1; }
+
+          status=$(curl -sS -m 30 -o wrong.json -w '%{http_code}' -H 'content-type: application/json' -H 'Origin: https://localhost' \
+            -d '{"code":"MAV-2222-2222-2222","deviceName":"selfhost-check"}' "$URL/api/pair")
+          echo "pair with a wrong code: HTTP $status $(cat wrong.json)"
+          [ "$status" = 401 ] || { echo "::error::a wrong code must get 401"; exit 1; }
+
+          curl -sS -m 30 -o pair.json -H 'content-type: application/json' -H 'Origin: https://localhost' \
+            -d "{\"code\":\"$CODE\",\"deviceName\":\"selfhost-check\",\"platform\":\"ci\"}" "$URL/api/pair"
+          node -e '
+            const fs = require("fs");
+            const r = JSON.parse(fs.readFileSync("pair.json", "utf8"));
+            if (!r.token) { console.log("::error::pairing failed: " + (r.error || "no token")); process.exit(1); }
+            console.log("::add-mask::" + r.token);
+            fs.writeFileSync(process.env.RUNNER_TEMP + "/token", r.token);
+            console.log("pairing ok: deviceId " + r.deviceId + ", token of " + r.token.length + " chars, server " + JSON.stringify(r.server));
+          '
+          rm -f pair.json
+
+      - name: Realtime WebSocket through the tunnel
+        run: |
+          node -e '
+            const token = require("fs").readFileSync(process.env.RUNNER_TEMP + "/token", "utf8");
+            const url = process.env.URL.replace(/^https:/, "wss:") + "/ws";
+            const ws = new WebSocket(url);
+            const done = (ok, msg) => { console.log(msg); process.exit(ok ? 0 : 1); };
+            setTimeout(() => done(false, "::error::no hello and pong from " + url + " within 30 s"), 30000);
+            ws.onopen = () => { console.log("connected to " + url); ws.send(JSON.stringify({ type: "auth", token })); };
+            ws.onmessage = (e) => {
+              const m = JSON.parse(String(e.data));
+              if (m.type === "hello") {
+                console.log("WebSocket hello: server " + m.server + ", opencode ready " + m.opencode);
+                ws.send(JSON.stringify({ type: "ping", t: 42 }));
+              } else if (m.type === "pong" && m.t === 42) done(true, "WebSocket ping -> pong ok");
+              else console.log("message: " + m.type);
+            };
+            ws.onclose = (e) => done(false, "::error::WebSocket closed with " + e.code + " " + e.reason);
+            ws.onerror = () => {};
+          '
+
+      - name: Free models through the tunnel
+        run: |
+          TOKEN=$(cat "$RUNNER_TEMP/token")
+          curl -sS -m 90 -H "authorization: Bearer $TOKEN" -o models.json "$URL/api/models"
+          node -e '
+            const c = JSON.parse(require("fs").readFileSync("models.json", "utf8"));
+            const all = c.models || [];
+            const free = all.filter((m) => m.free && m.available);
+            console.log("models: " + free.length + " free and ready, " + all.length + " listed, default " + c.defaultModel);
+            console.log("free: " + free.map((m) => m.id).join(", "));
+            if (!free.length) { console.log("::error::no free models"); process.exit(1); }
+          '
+
+      - name: Voice engine through the tunnel (core to voice with VOICE_SECRET)
+        run: |
+          TOKEN=$(cat "$RUNNER_TEMP/token")
+          for i in $(seq 1 36); do
+            h=$(curl -sS -m 20 -H "authorization: Bearer $TOKEN" "$URL/api/voice/health" || true)
+            case "$h" in *'"ok":true'*) break ;; esac
+            echo "voice health attempt $i: $h"
+            sleep 5
+          done
+          echo "voice health: $h"
+          voices=$(curl -sS -m 30 -H "authorization: Bearer $TOKEN" "$URL/api/voice/voices")
+          echo "voices: ${voices:0:200}"
+          status=$(curl -sS -m 120 -o preview.wav -w '%{http_code}' -H "authorization: Bearer $TOKEN" -H 'content-type: application/json' \
+            -d '{"text":"Hello from your own Maverick server."}' "$URL/api/voice/preview")
+          size=$(wc -c < preview.wav)
+          echo "voice preview (Kokoro TTS): HTTP $status, $size bytes, starts with $(head -c 4 preview.wav)"
+          [ "$status" = 200 ] && [ "$(head -c 4 preview.wav)" = RIFF ] && [ "$size" -gt 10000 ] || { echo "::error::no speech audio"; exit 1; }
+
+      - name: Running start.sh again keeps the code and prints the same address
+        run: |
+          before=$(sha256sum < selfhost/.env)
+          cd selfhost
+          ./start.sh 2>&1 | tee "$RUNNER_TEMP/start2.log"
+          URL2=$(grep -Eo 'https://[a-z0-9-]+\.trycloudflare\.com' "$RUNNER_TEMP/start2.log" | grep -v '://api\.' | tail -n 1)
+          echo "second run printed $URL2"
+          [ "$URL2" = "$URL" ] || { echo "::error::second run printed a different address"; exit 1; }
+          [ "$(sha256sum < .env)" = "$before" ] || { echo "::error::.env changed"; exit 1; }
+          echo ".env unchanged"
+
+      - name: The Windows script (start.ps1) under PowerShell 7 prints the same address
+        if: matrix.arch == 'x64'
+        run: |
+          pwsh -NoProfile -File selfhost/start.ps1 2>&1 | tee "$RUNNER_TEMP/start3.log"
+          URL3=$(grep -Eo 'https://[a-z0-9-]+\.trycloudflare\.com' "$RUNNER_TEMP/start3.log" | grep -v '://api\.' | tail -n 1)
+          echo "start.ps1 printed $URL3"
+          [ "$URL3" = "$URL" ] || { echo "::error::start.ps1 printed a different address"; exit 1; }
+
+      - name: Stop with stop.sh (data volume is kept)
+        run: |
+          bash selfhost/stop.sh
+          left=$(docker ps -q --filter label=com.docker.compose.project=maverick | wc -l)
+          echo "containers still running: $left"
+          [ "$left" = 0 ] || { echo "::error::stop.sh left containers running"; exit 1; }
+          docker volume ls --format '{{.Name}}' | grep -x maverick_maverick-data
+
+      - name: First run of start.ps1 (makes a new code) and stop.ps1, under PowerShell 7
+        if: matrix.arch == 'x64'
+        run: |
+          mv selfhost/.env "$RUNNER_TEMP/env.first"
+          pwsh -NoProfile -File selfhost/start.ps1 2>&1 | tee "$RUNNER_TEMP/start4.log"
+          grep -Eq '^ACCESS_CODE=MAV-[A-Z2-9]{4}-[A-Z2-9]{4}-[A-Z2-9]{4}$' selfhost/.env || { echo "::error::start.ps1 wrote no valid code"; exit 1; }
+          grep -Eq '^SERVER_SECRET=[0-9a-f]{64}$' selfhost/.env && grep -Eq '^VOICE_SECRET=[0-9a-f]{48}$' selfhost/.env || { echo "::error::bad secrets"; exit 1; }
+          if grep -q $'\r' selfhost/.env; then echo "::error::.env has CR characters"; exit 1; fi
+          cmp -s selfhost/.env "$RUNNER_TEMP/env.first" && { echo "::error::code was not regenerated"; exit 1; }
+          URL4=$(grep -Eo 'https://[a-z0-9-]+\.trycloudflare\.com' "$RUNNER_TEMP/start4.log" | grep -v '://api\.' | tail -n 1)
+          echo "start.ps1 printed $URL4"
+          for i in $(seq 1 30); do
+            body=$(curl -sS -m 20 "$URL4/health" 2>&1 || true)
+            case "$body" in *'"ok":true'*) echo "health through the new tunnel: $body"; break ;; esac
+            sleep 5
+          done
+          case "$body" in *'"ok":true'*) ;; *) echo "::error::$URL4 not reachable"; exit 1 ;; esac
+          pwsh -NoProfile -File selfhost/stop.ps1
+          [ "$(docker ps -q --filter label=com.docker.compose.project=maverick | wc -l)" = 0 ]
+
+      - name: Logs on failure
+        if: failure()
+        working-directory: selfhost
+        run: |
+          docker compose ps -a || true
+          docker compose logs --no-color --tail 150 || true
+
+      - name: Stop the server
+        if: always()
+        run: bash selfhost/stop.sh || true
+
+  windows-scripts:
+    name: Windows scripts under Windows PowerShell 5.1
+    runs-on: windows-latest
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Parse with Windows PowerShell 5.1; ASCII-only; CRLF batch files
+        shell: powershell
+        run: |
+          Write-Host "Windows PowerShell $($PSVersionTable.PSVersion)"
+          $bad = 0
+          foreach ($f in 'selfhost\start.ps1', 'selfhost\stop.ps1') {
+            $path = (Resolve-Path $f).Path
+            $tokens = $null; $errors = $null
+            [void][System.Management.Automation.Language.Parser]::ParseFile($path, [ref]$tokens, [ref]$errors)
+            foreach ($e in $errors) { Write-Host "::error file=$f,line=$($e.Extent.StartLineNumber)::$($e.Message)"; $bad++ }
+            if ([IO.File]::ReadAllBytes($path) | Where-Object { $_ -gt 127 }) { Write-Host "::error file=$f::contains non-ASCII characters"; $bad++ }
+            Write-Host "$f parsed: $($errors.Count) errors"
+          }
+          foreach ($f in 'selfhost\start.cmd', 'selfhost\stop.cmd') {
+            $text = [IO.File]::ReadAllText((Resolve-Path $f).Path)
+            if ($text -match "[^`r]`n") { Write-Host "::error file=$f::has LF-only line endings"; $bad++ } else { Write-Host "$f has CRLF line endings" }
+          }
+          exit $bad
+
+      - name: start.cmd with this runner's Docker (Windows containers only) fails with a clear message
+        shell: pwsh
+        run: |
+          docker version --format 'Docker engine: {{.Server.Os}}/{{.Server.Arch}} {{.Server.Version}}' 2>&1 | Out-Host
+          cmd /c "selfhost\start.cmd" 2>&1 | Tee-Object -FilePath "$env:RUNNER_TEMP\real.log" | Out-Host
+          $rc = $LASTEXITCODE
+          $log = Get-Content "$env:RUNNER_TEMP\real.log" -Raw
+          Write-Host "start.cmd exit code: $rc"
+          if ($rc -eq 0) { Write-Host '::error::expected a failure: this runner cannot run Linux containers'; exit 1 }
+          if ($log -notmatch 'Switch to Linux containers|Docker is not running|Docker is not installed|Docker Compose is missing') { Write-Host '::error::no friendly message'; exit 1 }
+          Write-Host 'friendly message shown'
+          exit 0
+
+      - name: Full start.cmd and stop.cmd run with Windows PowerShell 5.1 against a stand-in docker
+        shell: pwsh
+        run: |
+          # This runner cannot run Linux containers, so a stand-in docker answers the calls the
+          # scripts make. The Linux jobs above run the same flow against real Docker.
+          $fake = Join-Path $env:RUNNER_TEMP 'fakedocker'
+          New-Item -ItemType Directory -Force $fake | Out-Null
+          Set-Content -Encoding ASCII (Join-Path $fake 'docker.cmd') "@echo off`r`npowershell.exe -NoProfile -ExecutionPolicy Bypass -File `"%~dp0fake-docker.ps1`" %*`r`nexit /b %ERRORLEVEL%`r`n"
+          Set-Content -Encoding ASCII (Join-Path $fake 'fake-docker.ps1') @'
+          $a = $args -join ' '
+          Add-Content -Path "$env:RUNNER_TEMP\fake-calls.txt" -Value $a
+          switch -Wildcard ($a) {
+            'info' { exit 0 }
+            'info --format*' { 'linux'; exit 0 }
+            'compose version' { 'Docker Compose version v2 (stand-in)'; exit 0 }
+            'compose up -d --build' { 'stand-in: compose up'; exit 0 }
+            'compose down' { 'stand-in: compose down'; exit 0 }
+            '*tunnel:20241/quicktunnel' { '{"hostname":"stand-in-words-here.trycloudflare.com"}'; exit 0 }
+            '*127.0.0.1:8080/health' { '{"ok":true,"opencode":{"ready":true}}'; exit 0 }
+            '*trycloudflare.com/health' { '{"ok":true}'; exit 0 }
+            default { exit 9 }
+          }
+          '@
+          Remove-Item -Force -ErrorAction SilentlyContinue selfhost\.env
+          $env:PATH = "$fake;$env:PATH"
+          cmd /c "selfhost\start.cmd" 2>&1 | Tee-Object -FilePath "$env:RUNNER_TEMP\fake.log" | Out-Host
+          $rc = $LASTEXITCODE
+          Write-Host "start.cmd exit code: $rc"
+          Write-Host "docker calls made: $((Get-Content "$env:RUNNER_TEMP\fake-calls.txt") -join ' | ')"
+          $log = Get-Content "$env:RUNNER_TEMP\fake.log" -Raw
+          $bytes = [IO.File]::ReadAllBytes((Resolve-Path selfhost\.env).Path)
+          $envText = [Text.Encoding]::ASCII.GetString($bytes)
+          $ok = ($rc -eq 0) -and
+            ($log -match 'Server URL:   https://stand-in-words-here\.trycloudflare\.com') -and
+            ($envText -cmatch '(?m)^ACCESS_CODE=MAV-[A-Z2-9]{4}-[A-Z2-9]{4}-[A-Z2-9]{4}$') -and
+            ($envText -cmatch '(?m)^SERVER_SECRET=[0-9a-f]{64}$') -and
+            ($envText -cmatch '(?m)^VOICE_SECRET=[0-9a-f]{48}$') -and
+            ($bytes[0] -ne 0xEF) -and (-not ($bytes -contains 13))
+          if (-not $ok) { Write-Host '::error::start.cmd did not complete the stand-in run correctly'; exit 1 }
+          Write-Host '.env written by Windows PowerShell 5.1: valid code and secrets, UTF-8 without BOM, LF line ends'
+          cmd /c "selfhost\stop.cmd" 2>&1 | Out-Host
+          if ($LASTEXITCODE -ne 0) { Write-Host '::error::stop.cmd failed'; exit 1 }
+          exit 0
+
+  codespaces-script:
+    name: Codespaces start script (outside Codespaces)
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+
+      - name: Run .devcontainer/maverick-start.sh
+        env:
+          MAVERICK_KEEPALIVE: '0'
+        run: bash .devcontainer/maverick-start.sh 2>&1 | tee "$RUNNER_TEMP/cs.log"
+
+      - name: Health, pairing and models on localhost
+        run: |
+          for i in $(seq 1 60); do
+            body=$(curl -sS -m 5 http://127.0.0.1:8080/health || true)
+            case "$body" in *'"ready":true'*) break ;; esac
+            sleep 3
+          done
+          echo "health: $body"
+          case "$body" in *'"ready":true'*) ;; *) echo "::error::OpenCode never became ready"; exit 1 ;; esac
+          CODE=$(sed -n 's/^ACCESS_CODE=//p' .maverick-data/secrets.env)
+          echo "::add-mask::$CODE"
+          curl -sS -m 30 -o pair.json -H 'content-type: application/json' \
+            -d "{\"code\":\"$CODE\",\"deviceName\":\"codespaces-check\"}" http://127.0.0.1:8080/api/pair
+          node -e '
+            const fs = require("fs");
+            (async () => {
+              const r = JSON.parse(fs.readFileSync("pair.json", "utf8"));
+              if (!r.token) { console.log("::error::pairing failed: " + (r.error || "no token")); process.exit(1); }
+              console.log("::add-mask::" + r.token);
+              console.log("pairing ok: deviceId " + r.deviceId);
+              const c = await (await fetch("http://127.0.0.1:8080/api/models", { headers: { authorization: "Bearer " + r.token } })).json();
+              const free = (c.models || []).filter((m) => m.free && m.available);
+              console.log("models: " + free.length + " free and ready, default " + c.defaultModel);
+              if (!free.length) process.exit(1);
+            })();
+          '
+          rm -f pair.json
+
+      - name: Server log on failure
+        if: failure()
+        run: tail -n 100 .maverick-data/server.log || true
+
+      - name: Stop the server
+        if: always()
+        run: pkill -f 'node dist/index.js' || true

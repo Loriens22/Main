@@ -5,6 +5,7 @@ An AI coding companion for Android and iOS. You chat with real OpenCode coding a
 - **Android:** [download the APK](https://github.com/Loriens22/Main/releases/latest/download/maverick-bot.apk). Allow "install from this source" when you open it.
 - **iPhone/iPad:** open https://maverick-core-production.up.railway.app in Safari, then Share → Add to Home Screen.
 - **First launch:** enter the access code. It is in Railway → `maverick-bot` → `maverick-core` → Variables → `ACCESS_CODE`.
+- **No Railway?** [Run your own server](#run-your-own-server-no-account) on any computer with Docker. No account is needed.
 
 ## Architecture
 
@@ -104,6 +105,47 @@ Everything under `/api/*` needs `Authorization: Bearer <device token>`. On the `
 - **Cold starts.** With serverless sleep, a service sleeps after about 10 minutes without traffic. The next request wakes it, which can take up to a minute while OpenCode starts. Calls also wake the voice engine. If you want instant responses, turn sleep off in each service's Settings.
 - **Persistence.** Data lives on the volume: workspaces, the SQLite database, and OpenCode state. Redeploys keep it.
 - **Free models** can be rate-limited by their providers. The app says so and offers to retry or pick another free model. It never falls back to a paid model.
+
+## Run your own server (no account)
+
+If Railway can't be used, run the same server on your own computer. You don't need a new account: Docker Desktop works without signing in, and the public HTTPS address comes from a free Cloudflare Quick Tunnel, which needs no Cloudflare account.
+
+1. **Install Docker Desktop** (free) from https://www.docker.com/products/docker-desktop/. Open it once, click **Accept**, and skip signing in. On Windows, restart if the installer asks. On Linux you can run `curl -fsSL https://get.docker.com | sudo sh` instead.
+2. **Download the server files** and unzip them: https://github.com/Loriens22/Main/archive/refs/heads/ccr-b02444a3-nlojc9.zip (on Windows: right-click the ZIP → **Extract All**).
+3. **Start the server.**
+   - Windows: in the extracted folder, open `selfhost` and double-click `start.cmd`. If Windows shows "Windows protected your PC", click **More info** → **Run anyway**.
+   - macOS or Linux: open Terminal, type `bash ` (with a space), drag `selfhost/start.sh` into the window, and press Enter.
+
+   The first start builds the server and takes 5–15 minutes. At the end it prints:
+   ```
+       Server URL:   https://<random-words>.trycloudflare.com
+       Access code:  MAV-XXXX-XXXX-XXXX
+   ```
+4. **In the app:** on the pairing screen, tap **Server: … · change**, paste the Server URL, then enter the access code.
+
+Good to know:
+- Keep the computer on, awake and online, with Docker running. Phones then reach it from anywhere.
+- The address changes whenever the server or the computer restarts; the access code stays the same. Run the start script again to see the current address, then change it in the app.
+- To stop the server, double-click `selfhost/stop.cmd` (Windows) or run `bash selfhost/stop.sh`. Projects, chats and paired phones are kept in the Docker volume `maverick_maverick-data`.
+- The access code and secrets are created once, in `selfhost/.env`. That file is git-ignored; `selfhost/.env.example` shows its format. Delete it to get a new code.
+- You need about 8 GB of RAM and 10 GB of free disk. On Windows, Docker Desktop also needs WSL 2 and virtualization turned on; its installer guides you.
+- Voice calls use about 520 MB of speech models, downloaded by the first build. If the voice engine can't be built, the script starts the server without it, and chat still works.
+- Cloudflare Quick Tunnels are meant for testing. They have no uptime guarantee, allow up to 200 requests at a time, and fall under the Cloudflare Online Services Terms of Use. For an always-on server, use Railway.
+- `.github/workflows/selfhost-check.yml` runs this kit on every change to it. Through the public address, it checks health, pairing, the WebSocket, the free models and voice.
+
+### Without installing anything: GitHub Codespaces
+
+This uses your existing GitHub account and its free monthly Codespaces hours (about 60 hours a month on the 2-core machine).
+
+1. Open https://codespaces.new/Loriens22/Main/tree/ccr-b02444a3-nlojc9?quickstart=1 and click **Create codespace** (or **Resume** later).
+2. After 2–3 minutes, the terminal prints the Server URL (`https://<name>-8080.app.github.dev`) and the access code. Enter them in the app as above.
+
+Limits:
+- Only the chat server runs; voice calls are off.
+- A codespace stops after 30 minutes without activity, and after 12 hours in any case. To raise the idle limit to 240 minutes, set **Default idle timeout** at https://github.com/settings/codespaces. Requests from the phone don't count as activity, so while the app is connected the script prints a line every 3 minutes to keep the codespace awake.
+- To start it again, reopen the same link and choose **Resume**. The URL and the code stay the same.
+- GitHub makes the port private again on every restart, and the script makes it public again. If it can't, open the **PORTS** tab, right-click 8080, and choose **Port Visibility** → **Public**.
+- GitHub's terms allow Codespaces for development and testing, not as a permanent production host.
 
 ## Local development
 

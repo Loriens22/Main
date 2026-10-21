@@ -1,0 +1,4 @@
+# Shell scripts keep LF line endings, even in a Windows checkout: some run inside Linux containers.
+*.sh text eol=lf
+# Windows batch files get CRLF, also in GitHub's ZIP downloads.
+*.cmd text eol=crlf

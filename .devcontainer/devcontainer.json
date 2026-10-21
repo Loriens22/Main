@@ -1,0 +1,12 @@
+{
+  // Runs the Maverick server in a GitHub Codespace (no new account: uses your GitHub account's
+  // free monthly Codespaces hours). No "image" key, so GitHub's default image is used; it has
+  // Node 22, the gh CLI and free storage. The start script builds and runs the core server only
+  // (voice calls are off), makes port 8080 public and prints the address and access code.
+  "name": "Maverick server",
+  "forwardPorts": [8080],
+  "portsAttributes": {
+    "8080": { "label": "Maverick server", "onAutoForward": "silent" }
+  },
+  "postAttachCommand": "bash .devcontainer/maverick-start.sh"
+}

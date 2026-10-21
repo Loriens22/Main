@@ -17,3 +17,6 @@ app/ios/DerivedData/
 .vite/
 coverage/
 *.tsbuildinfo
+# Self-host kit and Codespaces: generated access code, secrets and server data
+selfhost/.env
+.maverick-data/

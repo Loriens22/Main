@@ -1,0 +1,67 @@
+# Maverick Bot: run your own server on any computer with Docker. No account is needed anywhere.
+#
+# Use the start scripts rather than calling docker compose by hand:
+#   Windows: double-click start.cmd      macOS / Linux: bash start.sh
+# They create .env (access code and secrets) on the first run, start everything below and print
+# the public https address and access code to type into the app.
+#
+# Nothing is published on this computer's network ports. The only way in is the public
+# Cloudflare Quick Tunnel address, which needs no Cloudflare account and changes whenever the
+# tunnel restarts (run the start script again to see the current one).
+name: maverick
+
+services:
+  core:
+    build:
+      context: ..
+      dockerfile: server/Dockerfile
+    restart: unless-stopped
+    environment:
+      ACCESS_CODE: ${ACCESS_CODE:-}
+      SERVER_SECRET: ${SERVER_SECRET:-}
+      VOICE_URL: http://voice:8090
+      VOICE_SECRET: ${VOICE_SECRET:-}
+      PORT: "8080"
+      SELFTEST: "0"
+    volumes:
+      - maverick-data:/data
+    healthcheck:
+      # Healthy once the gateway answers and its OpenCode server is ready.
+      test: ["CMD-SHELL", "curl -fsS -m 4 http://127.0.0.1:8080/health | grep -q '\"ready\":true'"]
+      interval: 5s
+      timeout: 6s
+      retries: 6
+      start_period: 5m
+
+  voice:
+    # Speech engine for voice calls (about 520 MB of models are downloaded on the first build).
+    # Optional: chat works without it.
+    build: ../voice
+    restart: unless-stopped
+    environment:
+      PORT: "8090"
+      VOICE_SECRET: ${VOICE_SECRET:-}
+      TTS_THREADS: "2"
+      ASR_THREADS: "1"
+    healthcheck:
+      test: ["CMD", "curl", "-fsS", "-m", "4", "http://127.0.0.1:8090/health"]
+      interval: 10s
+      timeout: 6s
+      retries: 6
+      start_period: 3m
+
+  tunnel:
+    # Cloudflare Quick Tunnel: gives core a random https://<words>.trycloudflare.com address.
+    # --protocol http2 uses TCP, so it also works on networks that block UDP (QUIC).
+    # The metrics server answers GET /quicktunnel with {"hostname":"..."}; it is reachable only
+    # inside this compose network, where the start scripts read it through the core container.
+    image: cloudflare/cloudflared:2026.9.3
+    restart: unless-stopped
+    command: tunnel --protocol http2 --metrics 0.0.0.0:20241 --url http://core:8080
+    depends_on:
+      core:
+        condition: service_healthy
+
+volumes:
+  # Projects, chats, paired phones and OpenCode state. Kept by stop and by rebuilds.
+  maverick-data: {}

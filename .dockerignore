@@ -5,3 +5,5 @@ app/ios
 voice
 .git
 *.log
+selfhost
+.maverick-data
