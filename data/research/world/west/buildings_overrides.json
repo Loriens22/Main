@@ -296,6 +296,139 @@
   ],
   "notes": ""
  },
+ "w225073102": {
+  "label": "Arena 8888 Sofia (formerly Arena Armeec), 12,373 seats, opened 30 July 2011",
+  "kind": "sports_hall",
+  "levels": 4,
+  "height_m": 30.0,
+  "roof": "flat",
+  "wall_hex": "#b8bbbd",
+  "accent_hex": "#44525c",
+  "roof_hex": "#8f9599",
+  "window": "curtain_wall",
+  "ground_floor": "columns",
+  "shop_signs": [
+   {
+    "text": "АРЕНА 8888",
+    "bg_hex": "#12263f",
+    "fg_hex": "#ffffff"
+   }
+  ],
+  "features": [
+   "137 x 113 m footprint at (1425,-248), 180 m NNE of the stop pole, behind the aviation monument",
+   "reinforced-concrete monolith under a bolted steel roof of 11,000 m2 (2000 t, 70,000 bolts), glazing systems and thermal insulation on the facade (sources); roof form low and domed; colours and exact height are NOT documented",
+   "architect Zheko Tilev; renamed Arena 8888 Sofia in 2022"
+  ],
+  "confidence": "low",
+  "sources": [
+   "https://en.wikipedia.org/wiki/Arena_Sofia (search snippet)",
+   "https://www.capital.bg/specialni_izdaniia/kapital_gradove/2019/05/14/3518324_dulgo_chakana_zala/",
+   "OSM footprint (levels 4)"
+  ],
+  "notes": "Pack height is 12.6 m (4 levels x 3.15) which is too low for a 12k arena; use 28-32 m."
+ },
+ "w224324410": {
+  "label": "Military unit 54800 / National Guard Unit compound building (2 storeys, 80 x 56 m)",
+  "kind": "other",
+  "levels": 2,
+  "height_m": 8.5,
+  "roof": "flat",
+  "wall_hex": "#c9c3ad",
+  "accent_hex": "#8a8470",
+  "roof_hex": "#6f6f68",
+  "window": "ribbon",
+  "ground_floor": "blank",
+  "shop_signs": [],
+  "features": [
+   "behind a fence and guard house on bul. Asen Yordanov"
+  ],
+  "confidence": "low",
+  "sources": [
+   "places list: МО поделение 54800, Asen Yordanov 2",
+   "OSM footprint"
+  ],
+  "notes": ""
+ },
+ "w505679378": {
+  "label": "18-storey residential tower (42.5 x 27.2 m), zh.k. Geo Milev side",
+  "kind": "modern_residential",
+  "levels": 18,
+  "height_m": 56.0,
+  "roof": "flat",
+  "wall_hex": "#d8d2c4",
+  "accent_hex": "#8d8a82",
+  "roof_hex": "#7a7a78",
+  "window": "balcony_bands",
+  "ground_floor": "lobby",
+  "shop_signs": [],
+  "features": [],
+  "confidence": "low",
+  "sources": [
+   "OSM levels=18"
+  ],
+  "notes": "Age unknown (post-2000 likely)."
+ },
+ "w207086240": {
+  "label": "Q Center office building, 9 storeys",
+  "kind": "glass_office",
+  "levels": 9,
+  "height_m": 32.0,
+  "roof": "flat",
+  "wall_hex": "#8fa0aa",
+  "accent_hex": "#4b5961",
+  "roof_hex": "#6c7378",
+  "window": "curtain_wall",
+  "ground_floor": "lobby",
+  "shop_signs": [
+   {
+    "text": "Q Center",
+    "bg_hex": "#16406f",
+    "fg_hex": "#ffffff"
+   }
+  ],
+  "features": [
+   "49 x 24 m"
+  ],
+  "confidence": "low",
+  "sources": [
+   "OSM name Q Center",
+   "inferred"
+  ],
+  "notes": ""
+ },
+ "w166204767": {
+  "label": "Low commercial building on bul. Asen Yordanov (Luxorica, Sport Stage, Pass Backstage)",
+  "kind": "other",
+  "levels": 1,
+  "height_m": 7.0,
+  "roof": "flat",
+  "wall_hex": "#cfcbc0",
+  "accent_hex": "#60686f",
+  "roof_hex": "#6b6b66",
+  "window": "shopfront_only",
+  "ground_floor": "shops",
+  "shop_signs": [
+   {
+    "text": "LUXORICA",
+    "bg_hex": "#2a2a2a",
+    "fg_hex": "#d4af37"
+   },
+   {
+    "text": "Sport Stage",
+    "bg_hex": "#d6291f",
+    "fg_hex": "#ffffff"
+   }
+  ],
+  "features": [
+   "78 x 51 m, 90 m north-west of the pole"
+  ],
+  "confidence": "low",
+  "sources": [
+   "places list",
+   "OSM footprint"
+  ],
+  "notes": ""
+ },
  "w286586366": {
   "label": "Block on the Metro parking, Tsarigradsko shosse 7 (BeerBox, El Rapido, Kafeyko kiosks on the lot)",
   "kind": "neoclassical_prewar",
@@ -578,6 +711,347 @@
   "confidence": "low",
   "sources": [
    "OSM roof tag"
+  ],
+  "notes": ""
+ },
+ "w113522280": {
+  "label": "4-storey block on the SW service lane, Tsarigradsko shosse 26 (Bulgarian Ski School, Arbikas office supplies)",
+  "kind": "panel_1960s",
+  "levels": 4,
+  "height_m": 12.5,
+  "roof": "flat",
+  "wall_hex": "#cbc5b6",
+  "accent_hex": "#9b9486",
+  "roof_hex": "#78787a",
+  "window": "balcony_bands",
+  "ground_floor": "shops",
+  "shop_signs": [
+   {
+    "text": "Арбикас",
+    "bg_hex": "#1d4f91",
+    "fg_hex": "#ffffff"
+   }
+  ],
+  "features": [
+   "46 x 11.8 m lamella, 16 m from pole 1696"
+  ],
+  "confidence": "low",
+  "sources": [
+   "places list (Tsarigradsko 26b, Mladost 1 52)",
+   "inferred (typology: 1960s 4-storey panel/brick lamella)"
+  ],
+  "notes": ""
+ },
+ "w113522347": {
+  "label": "6-storey panel slab (64 x 22 m) of zh.k. Iztok",
+  "kind": "panel_1970s",
+  "levels": 6,
+  "height_m": 18.0,
+  "roof": "flat",
+  "wall_hex": "#c4bfb2",
+  "accent_hex": "#918b7e",
+  "roof_hex": "#78787a",
+  "window": "loggia_bands",
+  "ground_floor": "shops",
+  "shop_signs": [
+   {
+    "text": "NN България",
+    "bg_hex": "#f58220",
+    "fg_hex": "#ffffff"
+   },
+   {
+    "text": "Sonya's Kitchen",
+    "bg_hex": "#3a3a3a",
+    "fg_hex": "#ffffff"
+   }
+  ],
+  "features": [],
+  "confidence": "low",
+  "sources": [
+   "places list",
+   "inferred (typology)"
+  ],
+  "notes": ""
+ },
+ "w113522278": {
+  "label": "10-storey point block (tower) of zh.k. Iztok",
+  "kind": "epk_tower",
+  "levels": 10,
+  "height_m": 30.0,
+  "roof": "flat",
+  "wall_hex": "#cfc9bb",
+  "accent_hex": "#9d968a",
+  "roof_hex": "#78787a",
+  "window": "loggia_bands",
+  "ground_floor": "entrances",
+  "shop_signs": [],
+  "features": [
+   "28.7 x 19.8 m"
+  ],
+  "confidence": "low",
+  "sources": [
+   "OSM levels=10, roof flat",
+   "inferred (typology)"
+  ],
+  "notes": ""
+ },
+ "w113522279": {
+  "label": "8-storey slab (81 x 13 m)",
+  "kind": "panel_insulated_patchwork",
+  "levels": 8,
+  "height_m": 24.0,
+  "roof": "flat",
+  "wall_hex": "#cbc6ba",
+  "accent_hex": "#8f8a7e",
+  "roof_hex": "#78787a",
+  "window": "loggia_bands",
+  "ground_floor": "shops",
+  "shop_signs": [
+   {
+    "text": "Postbank",
+    "bg_hex": "#f58220",
+    "fg_hex": "#ffffff"
+   },
+   {
+    "text": "Техномаркет",
+    "bg_hex": "#e30613",
+    "fg_hex": "#ffffff"
+   }
+  ],
+  "features": [
+   "Postbank branch bl.22 and Technomarket on Tsarigradsko 22-24"
+  ],
+  "confidence": "low",
+  "sources": [
+   "places list",
+   "inferred"
+  ],
+  "notes": ""
+ },
+ "w215735654": {
+  "label": "7-storey block of Iztok",
+  "kind": "panel_1970s",
+  "levels": 7,
+  "height_m": 21.0,
+  "roof": "flat",
+  "wall_hex": "#c5c0b3",
+  "accent_hex": "#928c80",
+  "roof_hex": "#78787a",
+  "window": "loggia_bands",
+  "ground_floor": "entrances",
+  "shop_signs": [],
+  "features": [],
+  "confidence": "low",
+  "sources": [
+   "inferred"
+  ],
+  "notes": ""
+ },
+ "w215735906": {
+  "label": "6-storey block of Iztok",
+  "kind": "panel_1970s",
+  "levels": 6,
+  "height_m": 18.0,
+  "roof": "flat",
+  "wall_hex": "#c8c3b6",
+  "accent_hex": "#958f83",
+  "roof_hex": "#78787a",
+  "window": "loggia_bands",
+  "ground_floor": "entrances",
+  "shop_signs": [],
+  "features": [],
+  "confidence": "low",
+  "sources": [
+   "inferred"
+  ],
+  "notes": ""
+ },
+ "w207898584": {
+  "label": "10-storey office / institute block on the NE side of Tsarigradsko shosse (pack height 30.6 m)",
+  "kind": "modernist_institutional",
+  "levels": 10,
+  "height_m": 30.6,
+  "roof": "flat",
+  "wall_hex": "#d3d0c5",
+  "accent_hex": "#7d8890",
+  "roof_hex": "#78787a",
+  "window": "ribbon",
+  "ground_floor": "lobby",
+  "shop_signs": [],
+  "features": [
+   "57 x 40 m, set back behind the service lane and a fence"
+  ],
+  "confidence": "low",
+  "sources": [
+   "OSM class office, 10 levels",
+   "inferred"
+  ],
+  "notes": "Not identified; could be a BAS institute or university block."
+ },
+ "w166203937": {
+  "label": "Business Centre Aktiv, Tsarigradsko shosse 101",
+  "kind": "glass_office",
+  "levels": 6,
+  "height_m": 24.0,
+  "roof": "flat",
+  "wall_hex": "#8c9ca6",
+  "accent_hex": "#4a5861",
+  "roof_hex": "#6c7378",
+  "window": "curtain_wall",
+  "ground_floor": "lobby",
+  "shop_signs": [
+   {
+    "text": "БЦ Актив",
+    "bg_hex": "#16406f",
+    "fg_hex": "#ffffff"
+   }
+  ],
+  "features": [
+   "52.8 x 42.2 m"
+  ],
+  "confidence": "low",
+  "sources": [
+   "https://www.capital.bg/biznes/imoti/2014/09/16/2382070_aktiv_propurtis_prodade_dushterna_kompaniia_za_137_mln/ (Tsarigradsko 101 = Aktiv BC)",
+   "inferred glass office"
+  ],
+  "notes": "Level count not found."
+ },
+ "w166203497": {
+  "label": "Institute of Molecular Biology (BAS) block",
+  "kind": "modernist_institutional",
+  "levels": 5,
+  "height_m": 18.0,
+  "roof": "flat",
+  "wall_hex": "#d0cbbc",
+  "accent_hex": "#98907f",
+  "roof_hex": "#78787a",
+  "window": "ribbon",
+  "ground_floor": "entrances",
+  "shop_signs": [],
+  "features": [
+   "77.9 x 31.6 m"
+  ],
+  "confidence": "low",
+  "sources": [
+   "OSM name",
+   "inferred"
+  ],
+  "notes": ""
+ },
+ "w364815103": {
+  "label": "Small roadside kiosk (10 x 7 m) next to the B stop 1695",
+  "kind": "kiosk",
+  "levels": 1,
+  "height_m": 3.4,
+  "roof": "flat",
+  "wall_hex": "#cfcac0",
+  "accent_hex": "#6a6a68",
+  "roof_hex": "#5d5d5a",
+  "window": "shopfront_only",
+  "ground_floor": "shops",
+  "shop_signs": [],
+  "features": [],
+  "confidence": "low",
+  "sources": [
+   "OSM footprint (retail)"
+  ],
+  "notes": ""
+ },
+ "w503832057": {
+  "label": "Small retail kiosk (5.7 x 3.7 m)",
+  "kind": "kiosk",
+  "levels": 1,
+  "height_m": 3.0,
+  "roof": "flat",
+  "wall_hex": "#c9c5bb",
+  "accent_hex": "#6a6a68",
+  "roof_hex": "#5d5d5a",
+  "window": "shopfront_only",
+  "ground_floor": "shops",
+  "shop_signs": [],
+  "features": [],
+  "confidence": "low",
+  "sources": [
+   "OSM footprint"
+  ],
+  "notes": ""
+ },
+ "w1211510966": {
+  "label": "Utility cabin (8.6 x 5.2 m) in the park strip",
+  "kind": "kiosk",
+  "levels": 1,
+  "height_m": 3.2,
+  "roof": "flat",
+  "wall_hex": "#a6a49d",
+  "accent_hex": "#6a6a68",
+  "roof_hex": "#5d5d5a",
+  "window": "shopfront_only",
+  "ground_floor": "blank",
+  "shop_signs": [],
+  "features": [],
+  "confidence": "low",
+  "sources": [
+   "OSM class service"
+  ],
+  "notes": ""
+ },
+ "w113522273": {
+  "label": "10-storey block (36.7 x 19.3 m)",
+  "kind": "epk_tower",
+  "levels": 10,
+  "height_m": 30.0,
+  "roof": "flat",
+  "wall_hex": "#cdc8ba",
+  "accent_hex": "#9a9488",
+  "roof_hex": "#78787a",
+  "window": "loggia_bands",
+  "ground_floor": "entrances",
+  "shop_signs": [],
+  "features": [],
+  "confidence": "low",
+  "sources": [
+   "OSM levels=10",
+   "inferred"
+  ],
+  "notes": ""
+ },
+ "w113514910": {
+  "label": "10-storey point block (26.4 x 18.9 m), flat roof",
+  "kind": "epk_tower",
+  "levels": 10,
+  "height_m": 30.0,
+  "roof": "flat",
+  "wall_hex": "#cec9bc",
+  "accent_hex": "#9b958a",
+  "roof_hex": "#78787a",
+  "window": "loggia_bands",
+  "ground_floor": "entrances",
+  "shop_signs": [],
+  "features": [],
+  "confidence": "low",
+  "sources": [
+   "OSM levels=10",
+   "inferred"
+  ],
+  "notes": ""
+ },
+ "w166204888": {
+  "label": "10-storey block (28.7 x 21 m)",
+  "kind": "epk_tower",
+  "levels": 10,
+  "height_m": 30.0,
+  "roof": "flat",
+  "wall_hex": "#cbc6b9",
+  "accent_hex": "#98928a",
+  "roof_hex": "#78787a",
+  "window": "loggia_bands",
+  "ground_floor": "entrances",
+  "shop_signs": [],
+  "features": [],
+  "confidence": "low",
+  "sources": [
+   "OSM levels=10",
+   "inferred"
   ],
   "notes": ""
  },
@@ -989,6 +1463,293 @@
    }
   ],
   "features": [],
+  "confidence": "low",
+  "sources": [
+   "places list",
+   "inferred"
+  ],
+  "notes": ""
+ },
+ "w111605519": {
+  "label": "Former Hotel Pliska (1969), since 2015 headquarters of Central Cooperative Bank (CCB), Tsarigradsko shosse 87",
+  "kind": "glass_office",
+  "levels": 16,
+  "height_m": 58.6,
+  "roof": "flat",
+  "wall_hex": "#8fa1ab",
+  "accent_hex": "#45545d",
+  "roof_hex": "#6c7378",
+  "window": "curtain_wall",
+  "ground_floor": "lobby",
+  "shop_signs": [
+   {
+    "text": "ЦКБ",
+    "bg_hex": "#0b4f9c",
+    "fg_hex": "#ffffff"
+   }
+  ],
+  "features": [
+   "tower: rotated rectangle about 36.5 x 18.7 m, long axis NE-SW (perpendicular to the boulevard), OSM part 18 levels / 58.6 m; sources say 14 floors + panoramic top floor (gradat.bg) or 16 floors / 70 m (hotelsbg, citybuild)",
+   "podium: 2 storeys, 7.4 m, irregular zig-zag outline about 70 x 50 m around the tower foot; the base was partly dug out for an underground car park",
+   "2013-15 conversion added a new hung aluminium-and-glass curtain-wall facade (gradat.bg 'Building of the Year 2015' entry); the project stresses the contrast between the horizontal low volume and the vertical tower",
+   "the old red neon 'PLISKA' roof sign is NOT confirmed to exist any more (hotel closed Oct 2012)"
+  ],
+  "confidence": "medium",
+  "sources": [
+   "https://gradat.bg/news/2015/11/20/2653887_preustroistvo_na_hotel_pliska_v_administrativna_sgrada",
+   "https://money.bg/archive/bivshiyat-hotel-pliska-stava-tsentrala-na-tskb.html",
+   "https://citybuild.bg/news/hotel-pliska-stava-administrativna",
+   "OSM footprint/parts (game pack parts 6563 tower, 6564 podium)"
+  ],
+  "notes": "Facade colour of the new glazing is inferred (blue-grey reflective glass with dark mullions); no photo available."
+ },
+ "w234538754": {
+  "label": "Block 10, zh.k. Iztok, Tsarigradsko shosse 12 (pharmacy, bank, key maker, design office on ground floor)",
+  "kind": "panel_insulated_patchwork",
+  "levels": 7,
+  "height_m": 21.0,
+  "roof": "flat",
+  "wall_hex": "#c9c3b4",
+  "accent_hex": "#8c8678",
+  "roof_hex": "#78787a",
+  "window": "loggia_bands",
+  "ground_floor": "shops",
+  "shop_signs": [
+   {
+    "text": "SOpharmacy",
+    "bg_hex": "#00843d",
+    "fg_hex": "#ffffff"
+   },
+   {
+    "text": "ПБ",
+    "bg_hex": "#e30613",
+    "fg_hex": "#ffffff"
+   }
+  ],
+  "features": [
+   "75.8 x 16.4 m slab, 7 storeys, long axis parallel to the boulevard, 55 m SW of the road centreline"
+  ],
+  "confidence": "low",
+  "sources": [
+   "places list (bl.10, Tsarigradsko 12 entrances A,V)",
+   "inferred (1970s large-panel typology; ETICS patchwork typical)"
+  ],
+  "notes": ""
+ },
+ "w313765405": {
+  "label": "Low shopping/gaming pavilion Tsarigradsko shosse 14 (SESAME Pliska casino, mobile shop, grill)",
+  "kind": "other",
+  "levels": 1,
+  "height_m": 5.5,
+  "roof": "flat",
+  "wall_hex": "#d9d6cd",
+  "accent_hex": "#55606a",
+  "roof_hex": "#6b6b66",
+  "window": "shopfront_only",
+  "ground_floor": "shops",
+  "shop_signs": [
+   {
+    "text": "SESAME",
+    "bg_hex": "#1b1b1b",
+    "fg_hex": "#f2c200"
+   },
+   {
+    "text": "yettel",
+    "bg_hex": "#2a1a5e",
+    "fg_hex": "#ffffff"
+   },
+   {
+    "text": "24 Grill",
+    "bg_hex": "#b3261e",
+    "fg_hex": "#ffffff"
+   }
+  ],
+  "features": [
+   "57.6 x 30.9 m single-storey commercial block on the SW side (right of the A bus), beside the underpass"
+  ],
+  "confidence": "low",
+  "sources": [
+   "places list",
+   "OSM footprint"
+  ],
+  "notes": ""
+ },
+ "w113522652": {
+  "label": "Billa supermarket, Tsarigradsko shosse 12",
+  "kind": "other",
+  "levels": 2,
+  "height_m": 8.0,
+  "roof": "flat",
+  "wall_hex": "#e8e4d8",
+  "accent_hex": "#c1272d",
+  "roof_hex": "#6b6b66",
+  "window": "shopfront_only",
+  "ground_floor": "shops",
+  "shop_signs": [
+   {
+    "text": "BILLA",
+    "bg_hex": "#ffd200",
+    "fg_hex": "#d71920"
+   }
+  ],
+  "features": [
+   "50 x 28 m, car park in front"
+  ],
+  "confidence": "low",
+  "sources": [
+   "OSM name Billa"
+  ],
+  "notes": ""
+ },
+ "w1231572974": {
+  "label": "Retail pavilion Tsarigradsko 10 (dm drogerie)",
+  "kind": "other",
+  "levels": 1,
+  "height_m": 5.0,
+  "roof": "flat",
+  "wall_hex": "#d8d4ca",
+  "accent_hex": "#606a73",
+  "roof_hex": "#6b6b66",
+  "window": "shopfront_only",
+  "ground_floor": "shops",
+  "shop_signs": [
+   {
+    "text": "dm",
+    "bg_hex": "#ffffff",
+    "fg_hex": "#d4002b"
+   }
+  ],
+  "features": [],
+  "confidence": "low",
+  "sources": [
+   "places list"
+  ],
+  "notes": ""
+ },
+ "w113522653": {
+  "label": "Retail pavilion at Tsarigradsko 12 (Pepco, Fredi)",
+  "kind": "other",
+  "levels": 1,
+  "height_m": 5.0,
+  "roof": "flat",
+  "wall_hex": "#d6d2c6",
+  "accent_hex": "#5a6670",
+  "roof_hex": "#6b6b66",
+  "window": "shopfront_only",
+  "ground_floor": "shops",
+  "shop_signs": [
+   {
+    "text": "PEPCO",
+    "bg_hex": "#0054a6",
+    "fg_hex": "#ffffff"
+   }
+  ],
+  "features": [],
+  "confidence": "low",
+  "sources": [
+   "places list"
+  ],
+  "notes": ""
+ },
+ "w111605480": {
+  "label": "7-storey slab behind the hotel (Tsarigradsko 89, Prelom str.)",
+  "kind": "panel_1970s",
+  "levels": 7,
+  "height_m": 21.0,
+  "roof": "flat",
+  "wall_hex": "#bdb8ac",
+  "accent_hex": "#8d887c",
+  "roof_hex": "#77777a",
+  "window": "loggia_bands",
+  "ground_floor": "entrances",
+  "shop_signs": [],
+  "features": [
+   "75 x 13 m"
+  ],
+  "confidence": "low",
+  "sources": [
+   "inferred (typology)"
+  ],
+  "notes": ""
+ },
+ "w166205032": {
+  "label": "4-storey apartment block N of the junction",
+  "kind": "brick_socialist",
+  "levels": 4,
+  "height_m": 13.5,
+  "roof": "flat",
+  "wall_hex": "#d2c6a8",
+  "accent_hex": "#a2967b",
+  "roof_hex": "#78787a",
+  "window": "balcony_bands",
+  "ground_floor": "entrances",
+  "shop_signs": [],
+  "features": [],
+  "confidence": "low",
+  "sources": [
+   "inferred"
+  ],
+  "notes": ""
+ },
+ "w166204880": {
+  "label": "Very long 6-storey slab (117 x 13 m) on the NE side",
+  "kind": "panel_1970s",
+  "levels": 6,
+  "height_m": 18.0,
+  "roof": "flat",
+  "wall_hex": "#bfbab0",
+  "accent_hex": "#8e897e",
+  "roof_hex": "#77777a",
+  "window": "loggia_bands",
+  "ground_floor": "entrances",
+  "shop_signs": [],
+  "features": [],
+  "confidence": "low",
+  "sources": [
+   "inferred (typology)"
+  ],
+  "notes": ""
+ },
+ "w111605509": {
+  "label": "6-storey slab (68 x 13 m) SE of the junction",
+  "kind": "panel_1970s",
+  "levels": 6,
+  "height_m": 18.0,
+  "roof": "flat",
+  "wall_hex": "#c0bbb0",
+  "accent_hex": "#8f8a7f",
+  "roof_hex": "#77777a",
+  "window": "loggia_bands",
+  "ground_floor": "entrances",
+  "shop_signs": [],
+  "features": [],
+  "confidence": "low",
+  "sources": [
+   "inferred (typology)"
+  ],
+  "notes": ""
+ },
+ "w1431636349": {
+  "label": "Apartment complex block south-east of the hotel (bl. 109 side)",
+  "kind": "panel_1970s",
+  "levels": 8,
+  "height_m": 24.0,
+  "roof": "flat",
+  "wall_hex": "#c3beb2",
+  "accent_hex": "#908b80",
+  "roof_hex": "#77777a",
+  "window": "loggia_bands",
+  "ground_floor": "shops",
+  "shop_signs": [
+   {
+    "text": "Пощенска станция",
+    "bg_hex": "#f2c200",
+    "fg_hex": "#1a1a1a"
+   }
+  ],
+  "features": [
+   "post office 1113 and restaurants on the ground floor (places list: bl. 109, Tsarigradsko 85)"
+  ],
   "confidence": "low",
   "sources": [
    "places list",

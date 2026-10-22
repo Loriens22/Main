@@ -80,6 +80,30 @@
   "wall_hex": "#c9ccce",
   "window": "ribbon"
  },
+ "r2264019": {
+  "accent_hex": "#8a8579",
+  "confidence": "low",
+  "features": [
+   "complex 184 x 155 m (13,168 m2) made of lecture blocks and sports halls (swimming pool, gym halls) around courtyards; 115 m east of the terminal loop behind a lawn, 330 m NE of stop 1606",
+   "sports halls read as taller windowless boxes (10-12 m) between 3-4-storey teaching wings (inferred)",
+   "plain concrete/render facade with the academy name signboard; university landuse polygon w1365682394 (26,655 m2) around it"
+  ],
+  "ground_floor": "lobby",
+  "height_m": 16.0,
+  "kind": "modernist_institutional",
+  "label": "Национална спортна академия „Васил Левски“ (НСА) — основна сграда и спортни зали, ул. Акад. Стефан Младенов 21",
+  "levels": 4,
+  "notes": "massing inferred from the outline; colours inferred",
+  "roof": "flat",
+  "roof_hex": "#66625c",
+  "shop_signs": [],
+  "sources": [
+   "OSM r2264019 outline; landuse w1365682394 name Национална спортна академия „Васил Левски“",
+   "https://en.wikipedia.org/wiki/National_Sports_Academy_%22Vasil_Levski%22 (via search: academy campus in Studentski grad)"
+  ],
+  "wall_hex": "#d6d1c4",
+  "window": "ribbon"
+ },
  "r2264042": {
   "accent_hex": "#6b5a4a",
   "confidence": "medium",
@@ -383,6 +407,25 @@
    "inferred: OSM/Overture class+levels+footprint, typology (area rule)"
   ],
   "wall_hex": "#e6dfcf",
+  "window": "punched_grid"
+ },
+ "w1173414617": {
+  "accent_hex": "#9b968a",
+  "confidence": "low",
+  "features": [],
+  "ground_floor": "blank",
+  "height_m": 3.5,
+  "kind": "other",
+  "label": "Сграда",
+  "levels": 1,
+  "notes": "auto-classified; no specific source found",
+  "roof": "flat",
+  "roof_hex": "#66625c",
+  "shop_signs": [],
+  "sources": [
+   "inferred: OSM/Overture class+levels+footprint, typology (area rule)"
+  ],
+  "wall_hex": "#d0cbbd",
   "window": "punched_grid"
  },
  "w1174500262": {
@@ -1235,6 +1278,33 @@
    "places: Pepco SOFIA, 9 Kliment Ohridski Blvd"
   ],
   "wall_hex": "#d6d0c4",
+  "window": "shopfront_only"
+ },
+ "w166109707": {
+  "accent_hex": "#8b8173",
+  "confidence": "medium",
+  "features": [
+   "54 x 29 m, 3 floors, electronics store with a large fascia sign and parking at the front"
+  ],
+  "ground_floor": "shops",
+  "height_m": 12.0,
+  "kind": "other",
+  "label": "„Денси“ — 3-етажен търговски обект, Ак. Стефан Младенов 90 (ДЕНСИ, easybox)",
+  "levels": 3,
+  "notes": "",
+  "roof": "flat",
+  "roof_hex": "#66625c",
+  "shop_signs": [
+   {
+    "bg_hex": "#d8232a",
+    "fg_hex": "#ffffff",
+    "text": "ДЕНСИ"
+   }
+  ],
+  "sources": [
+   "OSM name Денси levels=3; places: ДЕНСИ, easybox 1206 (stops/1606.json)"
+  ],
+  "wall_hex": "#d9d3c5",
   "window": "shopfront_only"
  },
  "w166109724": {
@@ -2127,6 +2197,234 @@
   "wall_hex": "#cfc9ba",
   "window": "ribbon"
  },
+ "w170128781": {
+  "accent_hex": "#9b968a",
+  "confidence": "low",
+  "features": [],
+  "ground_floor": "blank",
+  "height_m": 3.5,
+  "kind": "other",
+  "label": "Сграда",
+  "levels": 1,
+  "notes": "auto-classified; no specific source found",
+  "roof": "flat",
+  "roof_hex": "#66625c",
+  "shop_signs": [],
+  "sources": [
+   "inferred: OSM/Overture class+levels+footprint, typology (area rule)"
+  ],
+  "wall_hex": "#d0cbbd",
+  "window": "punched_grid"
+ },
+ "w170132159": {
+  "accent_hex": "#8a867b",
+  "confidence": "low",
+  "features": [],
+  "ground_floor": "garages",
+  "height_m": 3.5,
+  "kind": "industrial",
+  "label": "Производствена/складова сграда",
+  "levels": 1,
+  "notes": "auto-classified; no specific source found",
+  "roof": "flat",
+  "roof_hex": "#6a6862",
+  "shop_signs": [],
+  "sources": [
+   "inferred: OSM/Overture class+levels+footprint, typology (area rule)"
+  ],
+  "wall_hex": "#b3aea1",
+  "window": "shopfront_only"
+ },
+ "w170132162": {
+  "accent_hex": "#8a867b",
+  "confidence": "low",
+  "features": [],
+  "ground_floor": "garages",
+  "height_m": 3.5,
+  "kind": "industrial",
+  "label": "Производствена/складова сграда",
+  "levels": 1,
+  "notes": "auto-classified; no specific source found",
+  "roof": "flat",
+  "roof_hex": "#6a6862",
+  "shop_signs": [],
+  "sources": [
+   "inferred: OSM/Overture class+levels+footprint, typology (area rule)"
+  ],
+  "wall_hex": "#b3aea1",
+  "window": "shopfront_only"
+ },
+ "w170132163": {
+  "accent_hex": "#8a867b",
+  "confidence": "low",
+  "features": [],
+  "ground_floor": "garages",
+  "height_m": 3.5,
+  "kind": "industrial",
+  "label": "Производствена/складова сграда",
+  "levels": 1,
+  "notes": "auto-classified; no specific source found",
+  "roof": "flat",
+  "roof_hex": "#6a6862",
+  "shop_signs": [],
+  "sources": [
+   "inferred: OSM/Overture class+levels+footprint, typology (area rule)"
+  ],
+  "wall_hex": "#b3aea1",
+  "window": "shopfront_only"
+ },
+ "w170132164": {
+  "accent_hex": "#8a867b",
+  "confidence": "low",
+  "features": [],
+  "ground_floor": "garages",
+  "height_m": 3.5,
+  "kind": "industrial",
+  "label": "Производствена/складова сграда",
+  "levels": 1,
+  "notes": "auto-classified; no specific source found",
+  "roof": "flat",
+  "roof_hex": "#6a6862",
+  "shop_signs": [],
+  "sources": [
+   "inferred: OSM/Overture class+levels+footprint, typology (area rule)"
+  ],
+  "wall_hex": "#b3aea1",
+  "window": "shopfront_only"
+ },
+ "w170132165": {
+  "accent_hex": "#8a867b",
+  "confidence": "low",
+  "features": [],
+  "ground_floor": "garages",
+  "height_m": 7.0,
+  "kind": "industrial",
+  "label": "Производствена/складова сграда",
+  "levels": 2,
+  "notes": "auto-classified; no specific source found",
+  "roof": "flat",
+  "roof_hex": "#6a6862",
+  "shop_signs": [],
+  "sources": [
+   "inferred: OSM/Overture class+levels+footprint, typology (area rule)"
+  ],
+  "wall_hex": "#b3aea1",
+  "window": "shopfront_only"
+ },
+ "w170132168": {
+  "accent_hex": "#8a867b",
+  "confidence": "low",
+  "features": [],
+  "ground_floor": "garages",
+  "height_m": 3.5,
+  "kind": "industrial",
+  "label": "Производствена/складова сграда",
+  "levels": 1,
+  "notes": "auto-classified; no specific source found",
+  "roof": "flat",
+  "roof_hex": "#6a6862",
+  "shop_signs": [],
+  "sources": [
+   "inferred: OSM/Overture class+levels+footprint, typology (area rule)"
+  ],
+  "wall_hex": "#b3aea1",
+  "window": "shopfront_only"
+ },
+ "w170132170": {
+  "accent_hex": "#8a867b",
+  "confidence": "low",
+  "features": [],
+  "ground_floor": "garages",
+  "height_m": 3.5,
+  "kind": "industrial",
+  "label": "Производствена/складова сграда",
+  "levels": 1,
+  "notes": "auto-classified; no specific source found",
+  "roof": "flat",
+  "roof_hex": "#6a6862",
+  "shop_signs": [],
+  "sources": [
+   "inferred: OSM/Overture class+levels+footprint, typology (area rule)"
+  ],
+  "wall_hex": "#b3aea1",
+  "window": "shopfront_only"
+ },
+ "w170132171": {
+  "accent_hex": "#8a867b",
+  "confidence": "low",
+  "features": [],
+  "ground_floor": "garages",
+  "height_m": 3.5,
+  "kind": "industrial",
+  "label": "Производствена/складова сграда",
+  "levels": 1,
+  "notes": "auto-classified; no specific source found",
+  "roof": "flat",
+  "roof_hex": "#6a6862",
+  "shop_signs": [],
+  "sources": [
+   "inferred: OSM/Overture class+levels+footprint, typology (area rule)"
+  ],
+  "wall_hex": "#b3aea1",
+  "window": "shopfront_only"
+ },
+ "w170132172": {
+  "accent_hex": "#8a867b",
+  "confidence": "low",
+  "features": [],
+  "ground_floor": "garages",
+  "height_m": 3.5,
+  "kind": "industrial",
+  "label": "Производствена/складова сграда",
+  "levels": 1,
+  "notes": "auto-classified; no specific source found",
+  "roof": "flat",
+  "roof_hex": "#6a6862",
+  "shop_signs": [],
+  "sources": [
+   "inferred: OSM/Overture class+levels+footprint, typology (area rule)"
+  ],
+  "wall_hex": "#b3aea1",
+  "window": "shopfront_only"
+ },
+ "w170132175": {
+  "accent_hex": "#8a867b",
+  "confidence": "low",
+  "features": [],
+  "ground_floor": "garages",
+  "height_m": 3.5,
+  "kind": "industrial",
+  "label": "Производствена/складова сграда",
+  "levels": 1,
+  "notes": "auto-classified; no specific source found",
+  "roof": "flat",
+  "roof_hex": "#6a6862",
+  "shop_signs": [],
+  "sources": [
+   "inferred: OSM/Overture class+levels+footprint, typology (area rule)"
+  ],
+  "wall_hex": "#b3aea1",
+  "window": "shopfront_only"
+ },
+ "w220308282": {
+  "accent_hex": "#9d9a90",
+  "confidence": "low",
+  "features": [],
+  "ground_floor": "entrances",
+  "height_m": 25.0,
+  "kind": "panel_1970s",
+  "label": "Жилищен блок",
+  "levels": 8,
+  "notes": "auto-classified; no specific source found",
+  "roof": "flat",
+  "roof_hex": "#6b6862",
+  "shop_signs": [],
+  "sources": [
+   "inferred: OSM/Overture class+levels+footprint, typology (area rule)"
+  ],
+  "wall_hex": "#bcb8ac",
+  "window": "loggia_bands"
+ },
  "w220308740": {
   "accent_hex": "#9d9a90",
   "confidence": "low",
@@ -2220,6 +2518,67 @@
   "wall_hex": "#aeb6bb",
   "window": "shopfront_only"
  },
+ "w220309158": {
+  "accent_hex": "#8b8173",
+  "confidence": "medium",
+  "features": [
+   "49 x 35 m, 9 floors, OSM facade_material=brick: exposed red-brown brick with concrete balcony fronts"
+  ],
+  "ground_floor": "entrances",
+  "height_m": 28.0,
+  "kind": "brick_socialist",
+  "label": "9-етажен тухлен блок (Ак. Стефан Младенов)",
+  "levels": 9,
+  "notes": "",
+  "roof": "flat",
+  "roof_hex": "#66625c",
+  "shop_signs": [],
+  "sources": [
+   "OSM facade_material=brick levels=9 roof=flat (stops/1606.json)"
+  ],
+  "wall_hex": "#b5654a",
+  "window": "balcony_bands"
+ },
+ "w220309298": {
+  "accent_hex": "#9d9a90",
+  "confidence": "low",
+  "features": [
+   "39 x 32 m, stepped plan, 10 floors"
+  ],
+  "ground_floor": "entrances",
+  "height_m": 31.0,
+  "kind": "panel_1970s",
+  "label": "10-етажен блок (Ак. Стефан Младенов)",
+  "levels": 10,
+  "notes": "",
+  "roof": "flat",
+  "roof_hex": "#6b6862",
+  "shop_signs": [],
+  "sources": [
+   "OSM levels=10"
+  ],
+  "wall_hex": "#b8b6ac",
+  "window": "loggia_bands"
+ },
+ "w220310062": {
+  "accent_hex": "#a39f94",
+  "confidence": "low",
+  "features": [],
+  "ground_floor": "entrances",
+  "height_m": 22.0,
+  "kind": "panel_1960s",
+  "label": "Жилищен блок",
+  "levels": 7,
+  "notes": "auto-classified; no specific source found",
+  "roof": "flat",
+  "roof_hex": "#6b6862",
+  "shop_signs": [],
+  "sources": [
+   "inferred: OSM/Overture class+levels+footprint, typology (area rule)"
+  ],
+  "wall_hex": "#b3b1a6",
+  "window": "punched_grid"
+ },
  "w226067503": {
   "accent_hex": "#9d9a90",
   "confidence": "low",
@@ -2296,6 +2655,27 @@
   ],
   "wall_hex": "#b8b6ac",
   "window": "punched_grid"
+ },
+ "w226072369": {
+  "accent_hex": "#a7a49a",
+  "confidence": "low",
+  "features": [
+   "square-plan tower, 14 floors, balcony bands on all sides"
+  ],
+  "ground_floor": "entrances",
+  "height_m": 43.0,
+  "kind": "epk_tower",
+  "label": "14-етажна жилищна/студентска кула (28 x 28 m)",
+  "levels": 14,
+  "notes": "",
+  "roof": "flat",
+  "roof_hex": "#6b6862",
+  "shop_signs": [],
+  "sources": [
+   "OSM levels=14"
+  ],
+  "wall_hex": "#c3c0b6",
+  "window": "balcony_bands"
  },
  "w226073395": {
   "accent_hex": "#8b8173",
@@ -3661,6 +4041,27 @@
   "wall_hex": "#b8b6ac",
   "window": "balcony_bands"
  },
+ "w45358797": {
+  "accent_hex": "#a7a49a",
+  "confidence": "low",
+  "features": [
+   "square-plan tower, 14 floors, balcony bands on all sides"
+  ],
+  "ground_floor": "entrances",
+  "height_m": 43.0,
+  "kind": "epk_tower",
+  "label": "14-етажна жилищна/студентска кула (28 x 28 m)",
+  "levels": 14,
+  "notes": "",
+  "roof": "flat",
+  "roof_hex": "#6b6862",
+  "shop_signs": [],
+  "sources": [
+   "OSM levels=14"
+  ],
+  "wall_hex": "#c3c0b6",
+  "window": "balcony_bands"
+ },
  "w461483295": {
   "accent_hex": "#9b968a",
   "confidence": "low",
@@ -3992,6 +4393,25 @@
   "wall_hex": "#aeb6bb",
   "window": "shopfront_only"
  },
+ "w461976717": {
+  "accent_hex": "#a39f94",
+  "confidence": "low",
+  "features": [],
+  "ground_floor": "entrances",
+  "height_m": 16.0,
+  "kind": "panel_1960s",
+  "label": "Жилищен блок",
+  "levels": 5,
+  "notes": "auto-classified; no specific source found",
+  "roof": "flat",
+  "roof_hex": "#6b6862",
+  "shop_signs": [],
+  "sources": [
+   "inferred: OSM/Overture class+levels+footprint, typology (area rule)"
+  ],
+  "wall_hex": "#bcb8ac",
+  "window": "punched_grid"
+ },
  "w50372001": {
   "accent_hex": "#9d9a90",
   "confidence": "low",
@@ -4287,6 +4707,27 @@
    "inferred: OSM/Overture class+levels+footprint, typology (area rule)"
   ],
   "wall_hex": "#b3b1a6",
+  "window": "loggia_bands"
+ },
+ "w640607762": {
+  "accent_hex": "#b4afa2",
+  "confidence": "low",
+  "features": [
+   "partial ETICS insulation: pastel patches flat by flat, grey panel joints/loggia fronts show between them"
+  ],
+  "ground_floor": "entrances",
+  "height_m": 25.0,
+  "kind": "panel_insulated_patchwork",
+  "label": "Жилищен блок",
+  "levels": 8,
+  "notes": "auto-classified; no specific source found",
+  "roof": "flat",
+  "roof_hex": "#6b6862",
+  "shop_signs": [],
+  "sources": [
+   "inferred: OSM/Overture class+levels+footprint, typology (area rule)"
+  ],
+  "wall_hex": "#e6c9b0",
   "window": "loggia_bands"
  },
  "w640609442": {

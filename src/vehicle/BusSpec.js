@@ -7,12 +7,12 @@ export const BUS = {
   length: 17.98,
   width: 2.55,
   halfW: 1.275,
-  roofY: 2.96, // top of the body shell (without roof equipment)
-  podY: 3.34, // top of the CNG cylinder housings
-  skirtY: 0.27, // lower edge of the side skirts
+  roofY: 2.88, // top of the body shell (without roof equipment); datasheet body height 2.88
+  podY: 3.32, // top of the CNG cylinder housings
+  skirtY: 0.33, // lower edge of the side skirts
   floorY: 0.36, // passenger floor at the doors (low floor)
-  beltY: 1.02, // window sill line
-  windowTopY: 2.55,
+  beltY: 1.3, // window sill line (photo 3 camera fit: 1.29-1.37)
+  windowTopY: 2.68, // top of the side glazing; black strip 2.68-2.76 above it
   wheelR: 0.478, // 275/70 R22.5
   tyreW: 0.276,
   track: 2.1, // centre-to-centre of the front tyres
@@ -27,10 +27,11 @@ export const BUS = {
   steeringRatio: 21,
   doors: [
     // section, z of leading edge, z of trailing edge (section frame), side +1 = right
-    { id: 1, section: 'front', z0: -7.6, z1: -6.4 },
-    { id: 2, section: 'front', z0: -2.27, z1: -1.07 },
-    { id: 3, section: 'rear', z0: -4.29, z1: -3.09 },
-    { id: 4, section: 'rear', z0: -1.97, z1: -0.77 },
+    // door 4 is behind the rear axle, over the overhang (photo 3); see data/research/bus/exterior/exterior_spec.md
+    { id: 1, section: 'front', z0: -7.185, z1: -5.935 },
+    { id: 2, section: 'front', z0: -2.205, z1: -0.955 },
+    { id: 3, section: 'rear', z0: -2.05, z1: -0.8 },
+    { id: 4, section: 'rear', z0: 0.8, z1: 2.05 },
   ],
 };
 
