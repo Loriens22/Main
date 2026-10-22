@@ -285,6 +285,7 @@ export class BuildingBuilder {
     if (this._mats) return this._mats;
     const noise = makeNoiseTexture(256, 4242);
     const uniforms = {
+      uDebug: { value: 0 },
       uNight: { value: 0 }, // 0 day .. 1 night (lit windows)
       uWet: { value: 0 },
       tNoise: { value: noise },
@@ -294,7 +295,7 @@ export class BuildingBuilder {
     walls.onBeforeCompile = (sh) => {
       Object.assign(sh.uniforms, uniforms);
       sh.vertexShader = sh.vertexShader
-        .replace('#include <common>', '#include <common>\nattribute vec4 aFacade; varying vec4 vFac; varying vec2 vUvM; varying vec3 vWP;')
+        .replace('#include <common>', '#include <common>\nattribute vec4 aFacade; flat varying vec4 vFac; varying vec2 vUvM; varying vec3 vWP;')
         .replace('#include <uv_vertex>', '#include <uv_vertex>\nvFac = aFacade; vUvM = uv;')
         .replace('#include <worldpos_vertex>', '#include <worldpos_vertex>\nvWP = (modelMatrix * vec4(transformed, 1.0)).xyz;');
       sh.fragmentShader = sh.fragmentShader
@@ -403,11 +404,12 @@ function makeTileRoofMaterial(noise) {
 // Procedural facade shader. vUvM = (metres along the wall, metres above the
 // building base), vFac = (style, seed, wall height, floor height).
 const FACADE_GLSL = /* glsl */ `
-varying vec4 vFac;
+flat varying vec4 vFac;
 varying vec2 vUvM;
 varying vec3 vWP;
 uniform float uNight;
 uniform float uWet;
+uniform float uDebug;
 uniform sampler2D tNoise;
 struct FacadeOut { vec3 albedo; float rough; float metal; vec3 emissive; vec2 bump; float ao; };
 float h21(vec2 p) { p = fract(p * vec2(123.34, 456.21)); p += dot(p, p + 45.32); return fract(p.x * p.y); }
@@ -420,7 +422,7 @@ float boxMask(vec2 p, vec4 r, vec2 aa) {
 FacadeOut facade(vec2 uvm, vec4 fac, vec3 wallCol) {
   FacadeOut o;
   float style = floor(fac.x + 0.5);
-  float seed = fac.y;
+  float seed = floor(fac.y * 997.0 + 0.5) / 997.0; // quantised: hashes must not see interpolation noise
   float H = fac.z;
   float fh = fac.w;
   vec4 nz = texture2D(tNoise, vec2(uvm.x * 0.031 + seed * 7.0, uvm.y * 0.043));
@@ -558,7 +560,7 @@ FacadeOut facade(vec2 uvm, vec4 fac, vec3 wallCol) {
   vec3 tint = style > 2.5 && style < 3.5 ? vec3(0.13, 0.2, 0.24) : vec3(0.06, 0.08, 0.09);
   vec3 glassCol = mix(interior, tint, 0.5);
   alb = mix(alb, glassCol, glassMask);
-  float rough = mix(0.92, 0.06, glassMask);
+  float rough = mix(0.92, 0.17, glassMask);
   float metal = mix(0.0, style > 2.5 && style < 3.5 ? 0.75 : 0.45, glassMask);
   // recess shading and bump at window reveals
   float reveal = clamp(wm - inner, 0.0, 1.0);
@@ -578,6 +580,11 @@ FacadeOut facade(vec2 uvm, vec4 fac, vec3 wallCol) {
   o.emissive = mix(em, warm * gAvg * uNight * 0.3, lod);
   // rain darkening
   o.albedo *= 1.0 - uWet * 0.25 * (1.0 - glassMask);
+  if (uDebug > 0.5) { o.metal = 0.0; o.rough = 1.0; o.emissive = vec3(0.0); o.bump = vec2(0.0); o.ao = 1.0; }
+  if (uDebug > 0.5 && uDebug < 1.5) o.albedo = vec3(glassMask);
+  if (uDebug > 1.5 && uDebug < 2.5) o.albedo = vec3(inner, wm, mull);
+  if (uDebug > 2.5 && uDebug < 3.5) o.albedo = vec3(lod, aa * 10.0);
+  if (uDebug > 3.5 && uDebug < 4.5) o.albedo = vec3(fract(bx * 0.37), fract(fl * 0.29), rnd);
   return o;
 }
 `;

@@ -7,6 +7,7 @@ import { Hud } from '../ui/Hud.js';
 import { t } from '../ui/i18n.js';
 import { clamp, fwdX, fwdZ } from '../core/math.js';
 import { Scoring } from '../gameplay/Scoring.js';
+import { PassengerMode } from './PassengerMode.js';
 
 export class Game {
   constructor(ctx) {
@@ -39,8 +40,8 @@ export class Game {
     this.bus = null;
     if (this.extra) for (const b of this.extra) b.dispose();
     this.extra = [];
-    if (this.passenger) this.passenger.dispose();
-    this.passenger = null;
+    if (this.passengerMode) this.passengerMode.dispose();
+    this.passengerMode = null;
     if (this.traffic) this.traffic.reset();
     if (this.peds) this.peds.reset();
     this.hud.hideResult();
@@ -80,6 +81,7 @@ export class Game {
     bus.doors.open(null, 0);
     bus.lights.head = this.sky.night > 0.3;
     this.wireBus(bus);
+    bus.extraColliders = [(b) => (this.traffic ? this.traffic.collideBus(b) : null), (b) => this.collideSmall(b)];
     this.rig.setMode('cab');
     this.hud.setMode('driver');
     this.hud.show(true);
@@ -226,6 +228,17 @@ export class Game {
     }
     for (const e of bus.events.splice(0)) this.onStopEvent(bus, e);
     this.scoring.update(dt, bus, this.world);
+    // red light running
+    if (this.traffic && bus.signalsAhead) {
+      for (const sg of bus.signalsAhead) {
+        if (bus.prevFrontS != null && bus.prevFrontS < sg.s && bus.frontS >= sg.s && bus.frontS - bus.prevFrontS < 5) {
+          const st = this.traffic.signals.state(sg.node, sg.end);
+          if (st === 'R') this.scoring.add('redlight', -30, 'Преминахте на червен светофар!');
+        }
+      }
+    }
+    bus.prevFrontS = bus.frontS;
+    if (bus.kerbHit) { bus.kerbHit = false; this.audio.kerb(); this.rig.shake = 0.6; }
     for (const m of this.scoring.messages.splice(0)) this.hud.toast(m.text, m.bad);
     // --- checklist
     if (!this.checklistDone) {
@@ -260,10 +273,22 @@ export class Game {
     this.clear();
     this.mode = 'passenger';
     this.setEnvironment(opts.hour, opts.weather);
-    this.passengerMode = new this.PassengerMode(this, opts);
+    this.passengerMode = new PassengerMode(this, opts);
     this.hud.setMode('passenger');
     this.hud.show(true);
     this.emit('start', { mode: 'passenger' });
+  }
+
+  /** Bus vs small street objects (poles, trunks, shelters, parked cars). */
+  collideSmall(b) {
+    const grid = this.world.obstacles;
+    if (!grid) return null;
+    let best = null;
+    for (const box of b.boxes()) {
+      const c = grid.boxContact(box.cx, box.cz, box.fx, box.fz, box.hl, box.hw);
+      if (c && (!best || c.depth > best.depth)) best = c;
+    }
+    return best;
   }
 
   selectGear(g) {
@@ -448,7 +473,7 @@ export class Game {
       rpm: p.rpm, load: p.load, speed: p.v, engineOn: p.engineOn, surface, weather: this.weather,
       ambience: 1, parkFactor: this.parkFactor || 0.3, day: this.sky.dayFactor ?? 1, braking: p.brakeOut > 0.2,
       distToBus: this.camera.position.distanceTo(bus.model.front.position),
-      rearCabin: this.audio.zone === 'cabin' && this.passenger && this.passenger.section === 'rear',
+      rearCabin: this.audio.zone === 'cabin' && this.passengerMode && this.passengerMode.section === 'rear',
     });
     // random interior rattles over bumps
     if (Math.abs(p.v) > 4 && Math.random() < dt * (surface === 'asphalt' ? 0.5 : 3)) this.audio.rattle();

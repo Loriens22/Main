@@ -157,7 +157,7 @@ export class StreetFurniture {
       blue: new S({ color: 0x2e6fb8, roughness: 0.5 }),
       red: new S({ color: 0xb02020, roughness: 0.5 }),
       white: new S({ color: 0xeeeeea, roughness: 0.6 }),
-      glass: new THREE.MeshPhysicalMaterial({ color: 0xc8dde6, roughness: 0.05, transparent: true, opacity: 0.22, depthWrite: false, side: THREE.DoubleSide }),
+      glass: new THREE.MeshPhysicalMaterial({ color: 0xc8dde6, roughness: 0.14, transparent: true, opacity: 0.22, depthWrite: false, side: THREE.DoubleSide }),
       lens: new S({ color: 0xfff2d8, emissive: 0xffd9a0, emissiveIntensity: 0, roughness: 0.3 }),
       hedge: new S({ color: 0x35582e, roughness: 0.95 }),
       plaster: new S({ color: 0xcfc6b5, roughness: 0.9 }),
@@ -249,6 +249,7 @@ export class StreetFurniture {
       }
     }
     this.lampCount = placed.length;
+    this.polePositions = placed;
     return [...tall.meshes('lampsT'), ...small.meshes('lampsS'), ...glow.meshes('glow')];
   }
 

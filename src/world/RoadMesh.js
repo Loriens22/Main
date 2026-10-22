@@ -139,7 +139,7 @@ export class RoadMeshBuilder {
 }`)
           .replace('#include <roughnessmap_fragment>', `#include <roughnessmap_fragment>
 roughnessFactor = mix(roughnessFactor, roughnessFactor * 0.45, uWet);
-roughnessFactor = mix(roughnessFactor, 0.04, gPuddle);`)
+roughnessFactor = mix(roughnessFactor, 0.13, gPuddle);`)
           .replace('#include <normal_fragment_maps>', `#include <normal_fragment_maps>
 normal = normalize(mix(normal, normalize(vNormal), gPuddle));`);
       };

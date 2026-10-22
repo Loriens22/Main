@@ -215,6 +215,19 @@ async function busStudio({ R, scene, camera, sky, progress }) {
   bus.setSteer(Number(params.get('steer') || 0));
   for (const d of [1, 2, 3, 4]) bus.setDoor(d, Number(params.get('doors') || 0));
   bus.setLights({ head: true, left: false, interior: 1 });
+  // facade test buildings (one per style) for shader inspection
+  if (params.has('facades')) {
+    const { BuildingBuilder } = await import('./world/Buildings.js');
+    const hf = { heightAt: () => 0 };
+    const buildings = [];
+    for (let k = 0; k < 9; k++) {
+      const x0 = -60 + k * 14, z0 = 20;
+      buildings.push({ id: k, pts: Float32Array.from([x0, z0, x0 + 12, z0, x0 + 12, z0 + 10, x0, z0 + 10]), holes: [], h: 18 + (k % 3) * 6, minH: 0, style: k, roof: 'flat', inner: null, roofH: 0, levels: 0, part: false, landmark: null });
+    }
+    const bb = new BuildingBuilder({ world: { buildings, blocks: [] }, hf, quality: 'high' });
+    bb.build();
+    for (const g of bb.meshes()) scene.add(g);
+  }
   progress(1, '');
   document.getElementById('loading').classList.add('hidden');
   const api = {

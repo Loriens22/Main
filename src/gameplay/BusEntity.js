@@ -52,6 +52,27 @@ export class BusEntity {
     this.updateSigns();
     this.sHint = null;
     this.frontS = 0;
+    this.signalsAhead = this.findSignals();
+  }
+
+  /** Signalised junctions along the drive line with their stop-line positions. */
+  findSignals() {
+    const out = [];
+    const L = this.driveLine;
+    for (const n of this.world.roads.nodes.values()) {
+      if (!n.signal || !n.sorted) continue;
+      const near = L.nearest(n.x, n.z);
+      if (near.d > 12) continue;
+      const t = L.tangent(Math.max(0, near.s - 14), 6);
+      let best = null, bd = -2;
+      for (const e of n.sorted) {
+        const dot = -(e.d[0] * t.tx + e.d[1] * t.tz);
+        if (dot > bd) { bd = dot; best = e; }
+      }
+      if (!best || bd < 0.5) continue;
+      out.push({ s: near.s - (best.trim || 6) - 1.5, node: n, end: best });
+    }
+    return out.sort((a, b) => a.s - b.s);
   }
 
   updateSigns() {

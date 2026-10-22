@@ -1,0 +1,125 @@
+// Autonomous driver for buses not controlled by the player (passenger mode,
+// other buses on the line): pure-pursuit steering on the drive line, speed
+// planning for curves, stops and traffic, and the full stop procedure
+// (open doors, wait for boarding, two-beep close, depart).
+import { clamp } from '../core/math.js';
+import { BUS } from '../vehicle/BusSpec.js';
+
+export class AIBusDriver {
+  constructor(bus, { traffic = null, signals = null, peds = null, serveAll = false } = {}) {
+    this.bus = bus;
+    this.traffic = traffic;
+    this.signals = signals;
+    this.peds = peds;
+    this.serveAll = serveAll;
+    this.state = 'drive';
+    this.timer = 0;
+    this.vi = 0;
+    bus.phys.parkingBrake = false;
+    bus.phys.selector = 'D';
+    bus.phys.engineOn = true;
+  }
+
+  shouldServe(stop) {
+    if (!stop) return false;
+    if (this.serveAll || stop.isFirst || stop.isLast) return true;
+    const waiting = this.peds ? this.peds.waitingAt(stop) : 1;
+    const riders = (this.bus.riders || []).some((r) => r.dest === stop.index);
+    return waiting > 0 || riders || this.bus.stopRequested || this.bus.forceServe === stop.index;
+  }
+
+  update(dt) {
+    const bus = this.bus, p = bus.phys;
+    const line = bus.driveLine;
+    const ctl = { throttle: 0, brake: 0, steer: 0 };
+    // ---- steering: pure pursuit for the front axle
+    const fx = -Math.sin(p.yaw), fz = -Math.cos(p.yaw);
+    const ax = p.x + fx * BUS.wb1, az = p.z + fz * BUS.wb1;
+    const n = line.nearest(ax, az, this.sHint ?? null, this.sHint == null ? 0 : 60);
+    this.sHint = n.s;
+    const Ld = clamp(5 + Math.abs(p.v) * 0.9, 6, 20);
+    const tp = line.at(n.s + Ld);
+    const dx = tp.x - ax, dz = tp.z - az;
+    const alpha = Math.atan2(dx * -fz + dz * fx, dx * fx + dz * fz); // + = target to the right
+    const delta = Math.atan((2 * BUS.wb1 * Math.sin(-alpha)) / Math.max(4, Math.hypot(dx, dz)));
+    ctl.steer = clamp(delta / BUS.maxSteer, -1, 1);
+    // ---- speed planning
+    const q = bus.world.roads.query(p.x, p.z, 12);
+    let vDes = Math.min(((q && q.piece.speed) || 50) / 3.6, 13.5);
+    // curvature ahead
+    for (let d = 5; d <= 45; d += 10) {
+      const k = Math.abs(line.curvature(n.s + d, 6));
+      if (k > 1e-3) vDes = Math.min(vDes, Math.sqrt(1.4 / k) + d * 0.08);
+    }
+    // stop ahead
+    const next = bus.stops.nextStop;
+    let gap = Infinity;
+    if (next && this.state === 'drive' && this.shouldServe(next)) {
+      const d = next.frontS - bus.routeS;
+      if (d > -3) gap = Math.min(gap, d + 0.3);
+    }
+    // traffic signals along the drive line
+    if (this.signals && bus.signalsAhead) {
+      for (const sg of bus.signalsAhead) {
+        const d = sg.s - bus.frontS;
+        if (d < -2 || d > 70) continue;
+        const st = this.signals.state(sg.node, sg.end);
+        if (st !== 'G' && !(st === 'Y' && d < Math.abs(p.v) * 1.2)) gap = Math.min(gap, d - 1.5);
+        break;
+      }
+    }
+    // cars ahead
+    if (this.traffic) {
+      const [bx, bz] = p.frontPoint();
+      for (const c of this.traffic.cars) {
+        const rx = c.x - bx, rz = c.z - bz;
+        const along = rx * fx + rz * fz;
+        if (along < 0 || along > 40) continue;
+        if (Math.abs(-rx * fz + rz * fx) > 2.0) continue;
+        gap = Math.min(gap, along - c.len / 2 - 3);
+      }
+    }
+    if (gap < Infinity) vDes = Math.min(vDes, Math.sqrt(Math.max(0, 2 * 1.1 * Math.max(0, gap))));
+    // ---- stop procedure
+    const atStop = bus.stops.atStop >= 0;
+    if (this.state === 'drive' && atStop && Math.abs(p.v) < 0.2 && next && this.shouldServe(next)) {
+      this.state = 'opening';
+      bus.doors.open(null, p.v);
+      this.timer = 0;
+    }
+    if (this.state === 'opening') {
+      this.timer += dt;
+      vDes = 0;
+      if (bus.doors.doors.every((d) => d.state === 'open')) { this.state = 'dwell'; this.timer = 0; }
+    } else if (this.state === 'dwell') {
+      this.timer += dt;
+      vDes = 0;
+      const busy = (bus.boarding || 0) > 0;
+      if (busy) this.quiet = 0; else this.quiet = (this.quiet || 0) + dt;
+      const minDwell = next && next.isLast ? 8 : 5;
+      if (this.timer > minDwell && this.quiet > 1.8 && !bus.holdDoors) {
+        bus.doors.close();
+        this.state = 'closing';
+      }
+    } else if (this.state === 'closing') {
+      vDes = 0;
+      if (bus.doors.allClosed) { this.state = 'depart'; this.timer = 0; }
+      else if (bus.doors.doors.some((d) => d.state === 'open' && !d.closeRequested)) bus.doors.close();
+    } else if (this.state === 'depart') {
+      this.timer += dt;
+      if (this.timer > 0.8 || !atStop) this.state = 'drive';
+      vDes = this.timer > 0.6 ? vDes : 0;
+    }
+    // indicators when pulling in/out
+    bus.lights.right = this.state === 'drive' && next && this.shouldServe(next) && next.frontS - bus.routeS < 60 && next.frontS - bus.routeS > 2;
+    bus.lights.left = this.state === 'depart';
+    // ---- longitudinal PI control
+    const err = vDes - p.v;
+    this.vi = clamp(this.vi + err * dt * 0.3, -0.3, 0.4);
+    let u = err * 0.45 + this.vi;
+    if (vDes < 0.05 && p.v < 0.3) { u = -1; this.vi = 0; }
+    if (u > 0) ctl.throttle = clamp(u, 0, 0.75);
+    else ctl.brake = clamp(-u * 0.9, 0, 1);
+    return ctl;
+  }
+}
