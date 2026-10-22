@@ -4,7 +4,8 @@
 import * as THREE from 'three';
 import { BusEntity } from '../gameplay/BusEntity.js';
 import { AIBusDriver } from '../gameplay/AIBusDriver.js';
-import { BUS, SEATS, FRONT_Z, FRONT_BODY_END_Z, REAR_BODY_START_Z, REAR_Z } from '../vehicle/BusSpec.js';
+import { BUS, FRONT_Z, FRONT_BODY_END_Z, REAR_BODY_START_Z, REAR_Z } from '../vehicle/BusSpec.js';
+import { SEATS } from '../vehicle/BusLayout.js';
 import { clamp, damp } from '../core/math.js';
 import { t, L } from '../ui/i18n.js';
 

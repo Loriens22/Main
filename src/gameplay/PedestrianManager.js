@@ -5,7 +5,8 @@
 // doorway), riders seated/standing inside the bus who press STOP and alight.
 import * as THREE from 'three';
 import { mulberry32 } from '../core/rng.js';
-import { BUS, SEATS, STANDING, FRONT_Z } from '../vehicle/BusSpec.js';
+import { BUS, FRONT_Z } from '../vehicle/BusSpec.js';
+import { SEATS, STANDING } from '../vehicle/BusLayout.js';
 
 const SKIN = [0xf1c8a8, 0xe6b591, 0xd9a07c, 0xc68b62, 0xf3d2bd, 0xa86f4c];
 const HAIR = [0x1b1612, 0x3b2a1e, 0x6b4a2e, 0x9a7a52, 0xc9b38a, 0x8a8a88, 0x2a2420];

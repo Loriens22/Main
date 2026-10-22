@@ -42,5 +42,4 @@ export const FRONT_BODY_END_Z = HITCH_FRONT_Z - BUS.bellowsGap; // 1.30
 export const REAR_BODY_START_Z = HITCH_REAR_Z + BUS.bellowsGap; // -4.67
 export const REAR_Z = BUS.rearOverhang; // rear bumper, rear frame (3.405)
 
-// seat map and standing areas: see BusLayout.js (re-exported here for existing importers)
-export { SEATS, STANDING } from './BusLayout.js';
+// The seat map and standing areas live in BusLayout.js.

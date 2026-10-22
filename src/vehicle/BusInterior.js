@@ -4,7 +4,8 @@
 import * as THREE from 'three';
 import { mergeGeometries } from 'three/examples/jsm/utils/BufferGeometryUtils.js';
 import { RoundedBoxGeometry } from 'three/examples/jsm/geometries/RoundedBoxGeometry.js';
-import { BUS, SEATS, FRONT_Z, AXLE1_Z, HITCH_FRONT_Z, HITCH_REAR_Z, FRONT_BODY_END_Z, REAR_BODY_START_Z, REAR_Z } from './BusSpec.js';
+import { BUS, FRONT_Z, AXLE1_Z, HITCH_FRONT_Z, HITCH_REAR_Z, FRONT_BODY_END_Z, REAR_BODY_START_Z, REAR_Z } from './BusSpec.js';
+import { SEATS } from './BusLayout.js';
 import { makeFloor, makeVentGrille, makeMoquette, makePrioritySticker, makeSignSheet } from './BusTextures.js';
 import { HW, S_REAR_ORIGIN, sToFrontZ, sToRearZ, M, Parts, basis, box, clean, cyl, endOutline, extrude, openBox, outlineCap, outlineStrip, rectPath, rectShape, scaleUV, skirtShape, tube } from './BusGeom.js';
 
