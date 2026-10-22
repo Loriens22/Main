@@ -1,0 +1,625 @@
+{
+ "archetypes": {
+  "shelter_default": {
+   "description": "Sofia municipal bus shelter (modular frame, flat or slightly sloped roof, glazed back and one side, integral bench, advertising module at one end)",
+   "length_m": 4.9,
+   "depth_m": 1.7,
+   "height_m": 2.5,
+   "frame_hex": "#3c4146",
+   "glass_hex": "#b9cdd4",
+   "glass_alpha": 0.35,
+   "roof_hex": "#4a4f54",
+   "roof_overhang_m": 0.3,
+   "back_panels": "3 glass panels + 1 side panel; ad box (backlit city-light 1.2 x 1.75 m) on the end facing the walkway where the municipality allows (2026 programme: ad module only on the right panel)",
+   "bench": {
+    "length_m": 1.8,
+    "seat_height_m": 0.45,
+    "depth_m": 0.4,
+    "material": "slatted metal/wood",
+    "colour_hex": "#6b5a46"
+   },
+   "confidence": "low (design not verified; size from OSM footprints 4.9 x 1.7 m at Iztok, 6.1 x 2.1 m at Pliska)",
+   "sources": [
+    "OSM footprints in stops/1696.json, 1695.json, 2326.json, 2327.json",
+    "https://spasisofia.org/wp-content/uploads/2026/06/doklad_-programa-za-spirkonavesi.pdf (search snippet: modular anti-corrosion structures, solid opaque roof, 3 types by load)",
+    "https://www.bta.bg/bg/videos/37901 (135 new shelters on Tsarigradsko shosse among others)"
+   ]
+  },
+  "shelter_large": {
+   "length_m": 6.1,
+   "depth_m": 2.1,
+   "height_m": 2.6,
+   "frame_hex": "#3c4146",
+   "glass_hex": "#b9cdd4",
+   "note": "OSM 'shelter' polygon size at the Pliska stops"
+  },
+  "stop_sign_pole": {
+   "description": "galvanised round pole with the stop plate",
+   "pole_height_m": 3.2,
+   "pole_diameter_m": 0.076,
+   "pole_hex": "#8d9094",
+   "head_plate": {
+    "size_m": [
+     0.4,
+     0.6
+    ],
+    "background_hex": "#0b4f9c",
+    "pictogram": "white bus",
+    "code_text": "4-digit stop code (e.g. 1287) in white under the pictogram"
+   },
+   "name_plate": {
+    "size_m": [
+     0.6,
+     0.25
+    ],
+    "background_hex": "#ffffff",
+    "text_hex": "#111111",
+    "text": "stop name"
+   },
+   "line_plates": "small square plates with line numbers under the name plate (280 among them)",
+   "confidence": "low (shape/colours from memory, no source found)"
+  },
+  "eboard": {
+   "description": "real-time arrivals display (OSM departures_board=realtime)",
+   "size_m": [
+    0.75,
+    0.3,
+    0.08
+   ],
+   "mount": "on the shelter end panel or on the pole at 2.3 m",
+   "face_hex": "#0b0b0b",
+   "text_hex": "#ffb000",
+   "confidence": "low"
+  },
+  "bin": {
+   "description": "municipal litter bin on a post",
+   "diameter_m": 0.45,
+   "height_m": 0.95,
+   "colour_hex": "#2f4a38",
+   "confidence": "low"
+  },
+  "pavement": {
+   "default": "concrete tile slabs (40 x 40 cm, light grey #b9b5ac)",
+   "paving_stones_osm": "OSM tags many Sofia footways surface=paving_stones: use grey concrete or granite pavers #aaa69d",
+   "kerb": "granite kerb 15 cm, light grey #c7c4bc",
+   "confidence": "low"
+  }
+ },
+ "stops": [
+  {
+   "code": "1697",
+   "name": "СУ „Св. Климент Охридски“",
+   "direction": "A start / B end (terminal)",
+   "pole_xz": [
+    -1336.91,
+    -2803.41
+   ],
+   "side": "right (south)",
+   "offset_from_centreline_m": 5.11,
+   "osm_flags": {
+    "shelter": true,
+    "bench": true,
+    "bin": true,
+    "departures_board": "realtime"
+   },
+   "shelter_spec": "shelter_default",
+   "shelter_placement": "shelter 4.9 x 1.7 m parallel to the road, back panel 0.4 m from the wall, centred 2 m ahead of the pole; pole at the front end",
+   "bench": "inside shelter",
+   "bin": "one bin within 2 m of the pole",
+   "eboard": "realtime display on the pole/shelter end",
+   "bay_or_curb": "on-lane stop on a 6 m one-way street, no bay; the bus waits at the pole as layover (terminal)",
+   "pavement": "slab footway 4.7 m wide between kerb (3.4 m) and the university wall (8.1 m); OSM paving_stones",
+   "confidence": "low",
+   "kiosks": [
+    {
+     "name": "cafe 'При Музея'",
+     "xz": [
+      -1322.3,
+      -2810.5
+     ],
+     "note": "on the north pavement"
+    }
+   ],
+   "nearby_props": [
+    {
+     "type": "recycling container",
+     "xz": [
+      -1295.0,
+      -2804.2
+     ]
+    },
+    {
+     "type": "fire hydrant",
+     "xz": [
+      -1310.0,
+      -2794.9
+     ]
+    },
+    {
+     "type": "bike racks",
+     "xz": [
+      -1310.4,
+      -2762.8
+     ]
+    }
+   ]
+  },
+  {
+   "code": "0441",
+   "name": "Военна академия",
+   "direction": "A",
+   "pole_xz": [
+    -689.24,
+    -2628.2
+   ],
+   "side": "right (south)",
+   "offset_from_centreline_m": 5.18,
+   "osm_flags": {
+    "shelter": false,
+    "bench": false,
+    "bin": true,
+    "departures_board": "realtime"
+   },
+   "shelter_spec": null,
+   "shelter_placement": "NO shelter: only the pole (head plate + name plate + line plates), bin beside it",
+   "bench": "none (OSM bench=no)",
+   "bin": "one bin within 2 m of the pole",
+   "eboard": "realtime display on the pole/shelter end",
+   "bay_or_curb": "on-lane stop on a 6.8 m one-way street, no bay",
+   "pavement": "narrow 1.8 m footway in front of ground-floor shops; slab pavement",
+   "confidence": "low",
+   "nearby_props": [
+    {
+     "type": "container",
+     "xz": [
+      -678.6,
+      -2605.0
+     ]
+    },
+    {
+     "type": "benches (Havel square)",
+     "xz": [
+      [
+       -665.8,
+       -2613.6
+      ],
+      [
+       -661.4,
+       -2616.8
+      ],
+      [
+       -660.9,
+       -2611.7
+      ]
+     ]
+    }
+   ]
+  },
+  {
+   "code": "1287",
+   "name": "пл. Орлов мост",
+   "direction": "A",
+   "pole_xz": [
+    -1096.05,
+    -2279.14
+   ],
+   "side": "right (south-west, park side)",
+   "offset_from_centreline_m": 14.51,
+   "osm_flags": {
+    "shelter": true,
+    "bench": true,
+    "bin": true,
+    "departures_board": "realtime"
+   },
+   "shelter_spec": "shelter_default",
+   "shelter_placement": "shelter 4.9 x 1.7 m 1.5 m behind the pole, open side to the road",
+   "bench": "inside shelter",
+   "bin": "one bin within 2 m of the pole",
+   "eboard": "realtime display on the pole/shelter end",
+   "bay_or_curb": "bus lay-by (inferred) beside the 19 m trunk; pole 5 m beyond the road edge",
+   "pavement": "wide pavement, paving stones, footway at +16.3 m, trees at +21 m",
+   "confidence": "low",
+   "nearby_props": [
+    {
+     "type": "bin",
+     "offset_m": 12.5
+    }
+   ]
+  },
+  {
+   "code": "1288",
+   "name": "пл. Орлов мост",
+   "direction": "B",
+   "pole_xz": [
+    -1062.94,
+    -2292.38
+   ],
+   "side": "right (north-east)",
+   "offset_from_centreline_m": 19.72,
+   "osm_flags": {
+    "shelter": true,
+    "bench": true,
+    "bin": true,
+    "departures_board": "realtime"
+   },
+   "shelter_spec": "shelter_default",
+   "shelter_placement": "shelter 4.9 x 1.7 m behind the pole facing the road",
+   "bench": "inside shelter",
+   "bin": "one bin within 2 m of the pole",
+   "eboard": "realtime display on the pole/shelter end",
+   "bay_or_curb": "bus lay-by (inferred) 13.7 m beyond the 11 m carriageway edge, next to the Metro parking lot",
+   "pavement": "paved, 'Metro' parking lot kiosks 24 m away (BeerBox, El Rapido, Kafeyko at (-1065.7,-2316.1))",
+   "confidence": "low",
+   "kiosks": [
+    {
+     "name": "BeerBox / El Rapido / Kafeyko",
+     "xz": [
+      -1065.7,
+      -2316.1
+     ]
+    }
+   ]
+  },
+  {
+   "code": "2326",
+   "name": "Хотел Плиска",
+   "direction": "A",
+   "pole_xz": [
+    577.46,
+    -678.27
+   ],
+   "side": "right (south-west)",
+   "offset_from_centreline_m": 6.19,
+   "osm_flags": {
+    "shelter": true,
+    "bench": false,
+    "bin": true,
+    "departures_board": "realtime"
+   },
+   "shelter_spec": "shelter_default",
+   "shelter_placement": "OSM puts the 6.1 x 2.1 m shelter at (550.9,-684.8) behind the service lane; recommended placement: shelter parallel to the road 7.5-9.6 m from the carriageway centre, 3 m ahead of the pole (fits the 5 m strip)",
+   "bench": "none (OSM bench=no)",
+   "bin": "one bin within 2 m of the pole",
+   "eboard": "realtime display on the pole/shelter end",
+   "bay_or_curb": "on the carriageway edge: pole 0.7 m beyond the 11 m carriageway, guard fence 4.6 m behind; service lane beyond",
+   "pavement": "paving stones; 3-4 m strip then fence",
+   "confidence": "low",
+   "osm_structures": "see landmarks.json pliska_underpass_canopies",
+   "kiosks": [
+    {
+     "name": "CGM cabin 4.3 x 3.1 m",
+     "xz": [
+      563.4,
+      -670.0
+     ]
+    }
+   ]
+  },
+  {
+   "code": "2327",
+   "name": "Хотел Плиска",
+   "direction": "B",
+   "pole_xz": [
+    563.2,
+    -730.04
+   ],
+   "side": "right (north-east)",
+   "offset_from_centreline_m": 7.51,
+   "osm_flags": {
+    "shelter": true,
+    "bench": false,
+    "bin": true,
+    "departures_board": "realtime"
+   },
+   "shelter_spec": "shelter_default",
+   "shelter_placement": "6.1 x 2.1 m shelter parallel to the road 8-10 m from the carriageway centre, 3 m ahead of the pole (OSM polygons at (575.6,-743.9) and (588.4,-725.8))",
+   "bench": "none (OSM bench=no)",
+   "bin": "one bin within 2 m of the pole",
+   "eboard": "realtime display on the pole/shelter end",
+   "bay_or_curb": "on the carriageway edge, 2 m beyond the OSM kerb; service lane 14.2 m from the centre",
+   "pavement": "paving stones; plaza behind the service lane",
+   "confidence": "low",
+   "kiosks": [
+    {
+     "name": "CGM cabin 4.2 x 3.1 m",
+     "xz": [
+      596.5,
+      -728.3
+     ]
+    }
+   ]
+  },
+  {
+   "code": "1696",
+   "name": "ж.к. Изток",
+   "direction": "A",
+   "pole_xz": [
+    986.21,
+    -279.06
+   ],
+   "side": "right (south-west)",
+   "offset_from_centreline_m": 8.17,
+   "osm_flags": {
+    "shelter": true,
+    "bench": false,
+    "bin": true,
+    "departures_board": "realtime"
+   },
+   "shelter_spec": "shelter_default",
+   "shelter_placement": "OSM shelter 4.9 x 1.7 m at (949.0,-300.6): behind the service lane, 10.5 m back along the road; recommended: place a shelter parallel to the road at 9.5-11.2 m offset, ahead of the pole",
+   "bench": "none (OSM bench=no)",
+   "bin": "one bin within 2 m of the pole",
+   "eboard": "realtime display on the pole/shelter end",
+   "bay_or_curb": "on the carriageway edge: pole 2.7 m beyond the kerb, fence 2.6 m behind, service lane beyond",
+   "pavement": "paving stones footway at +15.7 m; strip 4 m wide between carriageway and fence",
+   "confidence": "low",
+   "osm_structures": [
+    {
+     "type": "shelter",
+     "centre_xz": [
+      949.0,
+      -300.6
+     ],
+     "size_m": [
+      4.9,
+      1.7
+     ]
+    },
+    {
+     "type": "roof",
+     "centre_xz": [
+      931.8,
+      -279.2
+     ],
+     "size_m": [
+      6.0,
+      2.8
+     ]
+    },
+    {
+     "type": "service cabin",
+     "centre_xz": [
+      933.9,
+      -275.9
+     ],
+     "size_m": [
+      8.6,
+      5.2
+     ]
+    }
+   ]
+  },
+  {
+   "code": "1695",
+   "name": "ж.к. Изток",
+   "direction": "B",
+   "pole_xz": [
+    983.99,
+    -323.48
+   ],
+   "side": "right (north-east)",
+   "offset_from_centreline_m": 8.34,
+   "osm_flags": {
+    "shelter": true,
+    "bench": true,
+    "bin": true,
+    "departures_board": "realtime"
+   },
+   "shelter_spec": "shelter_default",
+   "shelter_placement": "OSM shelter 4.9 x 1.7 m at (981.5,-342.3): 11.6 m behind the pole, 15 m ahead in the B direction; recommended: put it at 9.5-11.2 m offset next to the pole",
+   "bench": "inside shelter",
+   "bin": "one bin within 2 m of the pole",
+   "eboard": "realtime display on the pole/shelter end",
+   "bay_or_curb": "on the carriageway edge, 2.8 m beyond the kerb, fence 4 m behind",
+   "pavement": "paving stones; service lane 14 m from the centre",
+   "confidence": "low",
+   "osm_structures": [
+    {
+     "type": "shelter",
+     "centre_xz": [
+      981.5,
+      -342.3
+     ],
+     "size_m": [
+      4.9,
+      1.7
+     ]
+    }
+   ],
+   "kiosks": [
+    {
+     "name": "roadside kiosk 10.2 x 7.4 m",
+     "xz": [
+      1000.8,
+      -338.0
+     ]
+    }
+   ]
+  },
+  {
+   "code": "1258",
+   "name": "Площад на авиацията",
+   "direction": "B",
+   "pole_xz": [
+    1360.76,
+    -75.86
+   ],
+   "side": "right (north)",
+   "offset_from_centreline_m": 11.5,
+   "osm_flags": {
+    "shelter": true,
+    "bench": true,
+    "bin": true,
+    "departures_board": "realtime"
+   },
+   "shelter_spec": "shelter_default",
+   "shelter_placement": "shelter 4.9 x 1.7 m on the grass behind the footway, centred on the pole (no OSM polygon)",
+   "bench": "inside shelter",
+   "bin": "one bin within 2 m of the pole",
+   "eboard": "realtime display on the pole/shelter end",
+   "bay_or_curb": "stop on the 15 m two-way loop road, no bay; pole 3.4 m beyond the road edge behind a 2.2 m footway",
+   "pavement": "asphalt footway 2.2 m (7.9 m offset) then grass",
+   "confidence": "low",
+   "nearby_props": [
+    {
+     "type": "pedestrian crossing",
+     "xz": [
+      1339.9,
+      -86.8
+     ]
+    }
+   ]
+  },
+  {
+   "code": "0494",
+   "name": "Републикански невродиспансер",
+   "direction": "A",
+   "pole_xz": [
+    1008.44,
+    267.15
+   ],
+   "side": "right (north-west)",
+   "offset_from_centreline_m": 3.48,
+   "osm_flags": {
+    "shelter": true,
+    "bench": true,
+    "bin": true,
+    "departures_board": "realtime"
+   },
+   "shelter_spec": "shelter_default",
+   "shelter_placement": "shelter 4.9 x 1.7 m immediately behind the pole, open to the road (no OSM polygon)",
+   "bench": "inside shelter",
+   "bin": "one bin within 2 m of the pole",
+   "eboard": "realtime display on the pole/shelter end",
+   "bay_or_curb": "on the carriageway, pole 1.5 m beyond the kerb; no bay",
+   "pavement": "concrete slabs; footway 2.2 m wide at +4..5 m then grass/hospital forecourt",
+   "confidence": "low"
+  },
+  {
+   "code": "0492",
+   "name": "Републикански невродиспансер",
+   "direction": "B",
+   "pole_xz": [
+    1075.67,
+    230.65
+   ],
+   "side": "right (south-east)",
+   "offset_from_centreline_m": 2.22,
+   "osm_flags": {
+    "shelter": true,
+    "bench": true,
+    "bin": true,
+    "departures_board": "realtime"
+   },
+   "shelter_spec": "shelter_default",
+   "shelter_placement": "shelter 4.9 x 1.7 m immediately behind the pole, open to the road (no OSM polygon)",
+   "bench": "inside shelter",
+   "bin": "one bin within 2 m of the pole",
+   "eboard": "realtime display on the pole/shelter end",
+   "bay_or_curb": "on the carriageway, pole at the kerb; no bay",
+   "pavement": "concrete slabs; footway 2.2 m wide at +4..5 m then grass/hospital forecourt",
+   "confidence": "low"
+  },
+  {
+   "code": "2352",
+   "name": "Техническа библиотека",
+   "direction": "A",
+   "pole_xz": [
+    613.75,
+    527.1
+   ],
+   "side": "right (north-north-west)",
+   "offset_from_centreline_m": 5.22,
+   "osm_flags": {
+    "shelter": true,
+    "bench": true,
+    "bin": true,
+    "departures_board": "realtime"
+   },
+   "shelter_spec": "shelter_default",
+   "shelter_placement": "shelter 4.9 x 1.7 m behind the pole (no OSM polygon)",
+   "bench": "inside shelter",
+   "bin": "one bin within 2 m of the pole",
+   "eboard": "realtime display on the pole/shelter end",
+   "bay_or_curb": "on the carriageway, pole 0.2-0 m beyond the kerb; no bay",
+   "pavement": "concrete slabs; grass belt behind (B) / fenced compound with steps (A)",
+   "confidence": "low"
+  },
+  {
+   "code": "2351",
+   "name": "Техническа библиотека",
+   "direction": "B",
+   "pole_xz": [
+    704.01,
+    506.08
+   ],
+   "side": "right (south-south-east)",
+   "offset_from_centreline_m": 3.59,
+   "osm_flags": {
+    "shelter": true,
+    "bench": true,
+    "bin": true,
+    "departures_board": "realtime"
+   },
+   "shelter_spec": "shelter_default",
+   "shelter_placement": "shelter 4.9 x 1.7 m behind the pole (no OSM polygon)",
+   "bench": "inside shelter",
+   "bin": "one bin within 2 m of the pole",
+   "eboard": "realtime display on the pole/shelter end",
+   "bay_or_curb": "on the carriageway, pole 0.2-0 m beyond the kerb; no bay",
+   "pavement": "concrete slabs; grass belt behind (B) / fenced compound with steps (A)",
+   "confidence": "low"
+  },
+  {
+   "code": "0764",
+   "name": "НСБАЛ по онкология",
+   "direction": "A",
+   "pole_xz": [
+    498.51,
+    701.95
+   ],
+   "side": "right (west-south-west)",
+   "offset_from_centreline_m": 6.88,
+   "osm_flags": {
+    "shelter": true,
+    "bench": true,
+    "bin": true,
+    "departures_board": "realtime"
+   },
+   "shelter_spec": "shelter_default",
+   "shelter_placement": "shelter 4.9 x 1.7 m behind the pole (no OSM polygon); bin mapped at +7.3 m, vending machines at +16 and +24 m",
+   "bench": "inside shelter",
+   "bin": "one bin within 2 m of the pole",
+   "eboard": "realtime display on the pole/shelter end",
+   "bay_or_curb": "on the 7.5 m one-way carriageway, pole 2-3 m beyond the kerb; no bay",
+   "pavement": "footway 8.4 m offset; metro forecourt steps and bike racks behind",
+   "confidence": "low"
+  },
+  {
+   "code": "0761",
+   "name": "НСБАЛ по онкология",
+   "direction": "B",
+   "pole_xz": [
+    545.94,
+    731.19
+   ],
+   "side": "right (east-north-east)",
+   "offset_from_centreline_m": 5.93,
+   "osm_flags": {
+    "shelter": true,
+    "bench": true,
+    "bin": true,
+    "departures_board": "realtime"
+   },
+   "shelter_spec": "shelter_default",
+   "shelter_placement": "shelter 4.9 x 1.7 m behind the pole (no OSM polygon)",
+   "bench": "inside shelter",
+   "bin": "one bin within 2 m of the pole",
+   "eboard": "realtime display on the pole/shelter end",
+   "bay_or_curb": "on the 7.5 m one-way carriageway, pole 2-3 m beyond the kerb; no bay",
+   "pavement": "footway 9.2 m offset, grass verge",
+   "confidence": "low"
+  }
+ ],
+ "basis_note": "OSM flags and footprints (high); everything about design, colour and pavement is inferred (low) because no source describing Sofia shelter drawings was reachable. Offsets are from the bus carriageway centreline; positive = right of the bus."
+}

@@ -1,0 +1,1709 @@
+{
+ "_meta": {
+  "basis": "OSM tags per pole from src/data/route280.json (shelter/bench/bin/lit/departures_board/wheelchair), kerb gaps from the game world pack (world.pack) road widths, props from the same pack; shapes inferred from Sofia shelter descriptions (see landmarks.json stop_shelter_sofia_standard)",
+  "coordinate_system": "game metres: x east, z south",
+  "confidence": "tags high; geometry medium; designs/colours low"
+ },
+ "types": {
+  "stop_shelter_sofia_standard": "see landmarks.json id stop_shelter_sofia_standard (4.5 x 1.6 x 2.55 m, anthracite frame #3d4247, opaque roof #2d3135, glass #9fb4bd, ad light box 1.2 x 1.8 m, bench 1.9 m, LED board)",
+  "pole_standard": {
+   "tube_dia_m": 0.06,
+   "height_m": 3.0,
+   "color": "#8d9296",
+   "sign_top": "0.5 x 0.5 m blue #0b4ea2 with white bus pictogram",
+   "info_plate": "0.6 x 0.4 m white with black stop name, blue 4-digit code, red-framed line number 280",
+   "position": "0.6 m behind the kerb, 0.6 m before the shelter in travel direction"
+  },
+  "bench_freestanding": {
+   "length_m": 1.8,
+   "depth_m": 0.45,
+   "seat_h_m": 0.46,
+   "backrest_h_m": 0.85,
+   "frame": "#3d4247",
+   "slats": "#8a6a45 (wood) or steel #5b5f63"
+  },
+  "bin": {
+   "diameter_m": 0.4,
+   "height_m": 0.8,
+   "color": "#4b5a52",
+   "lid": "open top with a ring"
+  },
+  "led_board": {
+   "size_m": [
+    0.95,
+    0.3,
+    0.08
+   ],
+   "housing": "#15171a",
+   "text": "amber #ffb000, 3 rows: line / destination / minutes"
+  },
+  "kiosk_module": {
+   "size_m": [
+    5.2,
+    7.6,
+    3.2
+   ],
+   "roof": "flat",
+   "front": "glazed shopfront + 1 m awning"
+  }
+ },
+ "stops": {
+  "1740": {
+   "name": "Технически университет",
+   "direction": "A",
+   "pole_xz": [
+    578.51,
+    1386.17
+   ],
+   "road": "бул. Свети Климент Охридски",
+   "osm_node": "n639999984@15",
+   "travel_side": "right-hand pole (all poles are on the right of travel)",
+   "game_road": {
+    "class_": "secondary",
+    "width_m": 12.5,
+    "oneway": false,
+    "pole_to_centreline_m": 9.4,
+    "pole_gap_behind_kerb_m": 3.2,
+    "note": ""
+   },
+   "curb_type": "kerb, on-lane stop (no marked bay in the data)",
+   "curb_confidence": "low (inferred from road width and pole offset; no imagery)",
+   "pavement": {
+    "material": "grey concrete paving slabs, asphalt road (inferred)",
+    "width_behind_kerb_m": 3.2,
+    "confidence": "low"
+   },
+   "pole": {
+    "type": "steel_tube_stop_pole",
+    "diameter_m": 0.06,
+    "height_m": 3.0,
+    "color": "#8d9296",
+    "head": "blue 0.5 x 0.5 m bus-stop sign with white bus pictogram (Bulgarian road sign) above a white info plate 0.6 x 0.4 m: stop name, 4-digit code 1740, line 280",
+    "confidence": "low (inferred; no photo)"
+   },
+   "shelter": {
+    "present": false,
+    "type": null,
+    "length_m": null,
+    "source": "OSM shelter tag"
+   },
+   "bench": {
+    "present": false,
+    "type": null,
+    "source": "OSM bench tag"
+   },
+   "bin": {
+    "present": true,
+    "type": "round steel litter bin 0.4 m dia x 0.8 m on a short post, dark green/grey #4b5a52",
+    "confidence": "low"
+   },
+   "lighting": {
+    "lit": true,
+    "note": "street lamps on 8-10 m poles along the road; none mapped as props within 40 m"
+   },
+   "e_board": {
+    "present": true,
+    "type": "LED panel 0.95 x 0.30 m on its own slim post (2.6 m) next to the pole, amber text",
+    "source": "OSM departures_board=realtime",
+    "confidence": "medium-low"
+   },
+   "wheelchair": null,
+   "mapped_props_within_30m": [
+    {
+     "type": "atm",
+     "xz": [
+      560,
+      1382
+     ],
+     "dist_m": 19
+    }
+   ],
+   "extra": [
+    "3.4 m service driveway (flags=32) passes 2 m from the pole towards the TU shop pavilions",
+    "ATM POI 19 m behind-right at (560, 1382)"
+   ],
+   "kiosks_nearby": [],
+   "note": "board tag realtime but no shelter: put the LED board on its own slim post next to the pole"
+  },
+  "0617": {
+   "name": "Лесотехнически университет",
+   "direction": "A",
+   "pole_xz": [
+    628.68,
+    1756.69
+   ],
+   "road": "бул. Свети Климент Охридски",
+   "osm_node": "n1113186297@13",
+   "travel_side": "right-hand pole (all poles are on the right of travel)",
+   "game_road": {
+    "class_": "secondary",
+    "width_m": 7.5,
+    "oneway": true,
+    "pole_to_centreline_m": 5.5,
+    "pole_gap_behind_kerb_m": 1.8,
+    "note": ""
+   },
+   "curb_type": "kerb, on-lane stop (no marked bay in the data)",
+   "curb_confidence": "low (inferred from road width and pole offset; no imagery)",
+   "pavement": {
+    "material": "grey concrete paving slabs, asphalt road (inferred)",
+    "width_behind_kerb_m": 1.8,
+    "confidence": "low"
+   },
+   "pole": {
+    "type": "steel_tube_stop_pole",
+    "diameter_m": 0.06,
+    "height_m": 3.0,
+    "color": "#8d9296",
+    "head": "blue 0.5 x 0.5 m bus-stop sign with white bus pictogram (Bulgarian road sign) above a white info plate 0.6 x 0.4 m: stop name, 4-digit code 0617, line 280",
+    "confidence": "low (inferred; no photo)"
+   },
+   "shelter": {
+    "present": false,
+    "type": null,
+    "length_m": null,
+    "source": "OSM shelter tag"
+   },
+   "bench": {
+    "present": false,
+    "type": null,
+    "source": "OSM bench tag"
+   },
+   "bin": {
+    "present": true,
+    "type": "round steel litter bin 0.4 m dia x 0.8 m on a short post, dark green/grey #4b5a52",
+    "confidence": "low"
+   },
+   "lighting": {
+    "lit": true,
+    "note": "street lamps on 8-10 m poles along the road; none mapped as props within 40 m"
+   },
+   "e_board": {
+    "present": true,
+    "type": "LED panel 0.95 x 0.30 m on its own slim post (2.6 m) next to the pole, amber text",
+    "source": "OSM departures_board=realtime",
+    "confidence": "medium-low"
+   },
+   "wheelchair": null,
+   "mapped_props_within_30m": [
+    {
+     "type": "signal",
+     "xz": [
+      640,
+      1734
+     ],
+     "dist_m": 25
+    }
+   ],
+   "extra": [
+    "traffic signal for a pedestrian crossing 25 m behind-left at (640, 1734)"
+   ],
+   "kiosks_nearby": [],
+   "note": "pole only; tree belt (OSM forest) directly behind the pole"
+  },
+  "0800": {
+   "name": "ж.к. Дървеница",
+   "direction": "A",
+   "pole_xz": [
+    479.63,
+    1959.51
+   ],
+   "road": "8-ми декември",
+   "osm_node": "n676659856@16",
+   "travel_side": "right-hand pole (all poles are on the right of travel)",
+   "game_road": {
+    "class_": "tertiary",
+    "width_m": 6.8,
+    "oneway": true,
+    "pole_to_centreline_m": 5.0,
+    "pole_gap_behind_kerb_m": 1.6,
+    "note": ""
+   },
+   "curb_type": "kerb, on-lane stop (no marked bay in the data)",
+   "curb_confidence": "low (inferred from road width and pole offset; no imagery)",
+   "pavement": {
+    "material": "grey concrete paving slabs, asphalt road (inferred)",
+    "width_behind_kerb_m": 1.6,
+    "confidence": "low"
+   },
+   "pole": {
+    "type": "steel_tube_stop_pole",
+    "diameter_m": 0.06,
+    "height_m": 3.0,
+    "color": "#8d9296",
+    "head": "blue 0.5 x 0.5 m bus-stop sign with white bus pictogram (Bulgarian road sign) above a white info plate 0.6 x 0.4 m: stop name, 4-digit code 0800, line 280",
+    "confidence": "low (inferred; no photo)"
+   },
+   "shelter": {
+    "present": false,
+    "type": null,
+    "length_m": null,
+    "source": "OSM shelter tag"
+   },
+   "bench": {
+    "present": false,
+    "type": null,
+    "source": "OSM bench tag"
+   },
+   "bin": {
+    "present": true,
+    "type": "round steel litter bin 0.4 m dia x 0.8 m on a short post, dark green/grey #4b5a52",
+    "confidence": "low"
+   },
+   "lighting": {
+    "lit": true,
+    "note": "street lamps on 8-10 m poles along the road; none mapped as props within 40 m"
+   },
+   "e_board": {
+    "present": true,
+    "type": "LED panel 0.95 x 0.30 m on its own slim post (2.6 m) next to the pole, amber text",
+    "source": "OSM departures_board=realtime",
+    "confidence": "medium-low"
+   },
+   "wheelchair": null,
+   "mapped_props_within_30m": [
+    {
+     "type": "crossing",
+     "xz": [
+      462,
+      1981
+     ],
+     "dist_m": 28
+    },
+    {
+     "type": "crossing",
+     "xz": [
+      488,
+      1988
+     ],
+     "dist_m": 29
+    }
+   ],
+   "extra": [
+    "zebra crossings at (462, 1981) 28 m ahead-left and (488, 1988) 29 m behind-left"
+   ],
+   "kiosks_nearby": [],
+   "note": "pole only; wooded strip behind (OSM forest)"
+  },
+  "1691": {
+   "name": "УНСС",
+   "direction": "A",
+   "pole_xz": [
+    -368.73,
+    1846.34
+   ],
+   "road": "Акад. Стефан Младенов",
+   "osm_node": "n1805512674@13",
+   "travel_side": "right-hand pole (all poles are on the right of travel)",
+   "game_road": {
+    "class_": "tertiary",
+    "width_m": 9.5,
+    "oneway": false,
+    "pole_to_centreline_m": 9.0,
+    "pole_gap_behind_kerb_m": 4.2,
+    "note": ""
+   },
+   "curb_type": "kerb, on-lane stop (no marked bay in the data)",
+   "curb_confidence": "low (inferred from road width and pole offset; no imagery)",
+   "pavement": {
+    "material": "grey concrete paving slabs, asphalt road (inferred)",
+    "width_behind_kerb_m": 4.2,
+    "confidence": "low"
+   },
+   "pole": {
+    "type": "steel_tube_stop_pole",
+    "diameter_m": 0.06,
+    "height_m": 3.0,
+    "color": "#8d9296",
+    "head": "blue 0.5 x 0.5 m bus-stop sign with white bus pictogram (Bulgarian road sign) above a white info plate 0.6 x 0.4 m: stop name, 4-digit code 1691, line 280",
+    "confidence": "low (inferred; no photo)"
+   },
+   "shelter": {
+    "present": true,
+    "type": "stop_shelter_sofia_standard (landmarks.json)",
+    "length_m": 4.5,
+    "source": "OSM shelter tag"
+   },
+   "bench": {
+    "present": true,
+    "type": "inside the shelter: steel-slat bench 1.9 m",
+    "source": "OSM bench tag"
+   },
+   "bin": {
+    "present": true,
+    "type": "round steel litter bin 0.4 m dia x 0.8 m on a short post, dark green/grey #4b5a52",
+    "confidence": "low"
+   },
+   "lighting": {
+    "lit": true,
+    "note": "street lamps on 8-10 m poles along the road; none mapped as props within 40 m"
+   },
+   "e_board": {
+    "present": true,
+    "type": "LED panel 0.95 x 0.30 m on the shelter front post, amber text",
+    "source": "OSM departures_board=realtime",
+    "confidence": "medium-low"
+   },
+   "wheelchair": null,
+   "mapped_props_within_30m": [
+    {
+     "type": "bench",
+     "xz": [
+      -346,
+      1829
+     ],
+     "dist_m": 28
+    },
+    {
+     "type": "bin",
+     "xz": [
+      -370,
+      1858
+     ],
+     "dist_m": 12
+    },
+    {
+     "type": "bin",
+     "xz": [
+      -366,
+      1849
+     ],
+     "dist_m": 4
+    },
+    {
+     "type": "bin",
+     "xz": [
+      -364,
+      1833
+     ],
+     "dist_m": 14
+    },
+    {
+     "type": "signal",
+     "xz": [
+      -379,
+      1872
+     ],
+     "dist_m": 27
+    }
+   ],
+   "extra": [
+    "bins at (-366, 1849), (-370, 1858), (-364, 1833): three bins within 14 m",
+    "bench mapped at (-346, 1829), 28 m ahead-right",
+    "traffic signal at (-379, 1872), 27 m behind-left"
+   ],
+   "kiosks_nearby": [
+    "student chapel w166109747 50 m east",
+    "two 4 x 4 m park pergolas 90-100 m behind-right"
+   ],
+   "note": "shelter with bench, wide paved apron"
+  },
+  "0524": {
+   "name": "Детски дом",
+   "direction": "A",
+   "pole_xz": [
+    -431.21,
+    1702.0
+   ],
+   "road": "Доктор Йордан Йосифов",
+   "osm_node": "n635966475@20",
+   "travel_side": "right-hand pole (all poles are on the right of travel)",
+   "game_road": {
+    "class_": "tertiary",
+    "width_m": 9.5,
+    "oneway": false,
+    "pole_to_centreline_m": 8.0,
+    "pole_gap_behind_kerb_m": 3.2,
+    "note": ""
+   },
+   "curb_type": "kerb, on-lane stop (no marked bay in the data)",
+   "curb_confidence": "low (inferred from road width and pole offset; no imagery)",
+   "pavement": {
+    "material": "grey concrete paving slabs, asphalt road (inferred)",
+    "width_behind_kerb_m": 3.2,
+    "confidence": "low"
+   },
+   "pole": {
+    "type": "steel_tube_stop_pole",
+    "diameter_m": 0.06,
+    "height_m": 3.0,
+    "color": "#8d9296",
+    "head": "blue 0.5 x 0.5 m bus-stop sign with white bus pictogram (Bulgarian road sign) above a white info plate 0.6 x 0.4 m: stop name, 4-digit code 0524, line 280",
+    "confidence": "low (inferred; no photo)"
+   },
+   "shelter": {
+    "present": false,
+    "type": null,
+    "length_m": null,
+    "source": "OSM shelter tag"
+   },
+   "bench": {
+    "present": false,
+    "type": null,
+    "source": "OSM bench tag"
+   },
+   "bin": {
+    "present": true,
+    "type": "round steel litter bin 0.4 m dia x 0.8 m on a short post, dark green/grey #4b5a52",
+    "confidence": "low"
+   },
+   "lighting": {
+    "lit": true,
+    "note": "street lamps on 8-10 m poles along the road; none mapped as props within 40 m"
+   },
+   "e_board": {
+    "present": true,
+    "type": "LED panel 0.95 x 0.30 m on its own slim post (2.6 m) next to the pole, amber text",
+    "source": "OSM departures_board=realtime",
+    "confidence": "medium-low"
+   },
+   "wheelchair": null,
+   "mapped_props_within_30m": [
+    {
+     "type": "crossing",
+     "xz": [
+      -416,
+      1711
+     ],
+     "dist_m": 18
+    },
+    {
+     "type": "recycling",
+     "xz": [
+      -446,
+      1702
+     ],
+     "dist_m": 15
+    }
+   ],
+   "extra": [
+    "recycling bells at (-446, 1702), 15 m ahead",
+    "crossing at (-416, 1711), 18 m behind-left"
+   ],
+   "kiosks_nearby": [
+    "6 kiosk modules 5.2 x 7.6 m at 10-36 m north-east (see landmark yosifov_kiosk_modules)"
+   ],
+   "note": "pole only on a paved forecourt in front of the kiosks"
+  },
+  "1610": {
+   "name": "Спортна зала „Христо Ботев“",
+   "direction": "A",
+   "pole_xz": [
+    -798.16,
+    1981.77
+   ],
+   "road": "Акад. Борис Стефанов",
+   "osm_node": "n639932122@18",
+   "travel_side": "right-hand pole (all poles are on the right of travel)",
+   "game_road": {
+    "class_": "tertiary",
+    "width_m": 9.5,
+    "oneway": false,
+    "pole_to_centreline_m": 5.9,
+    "pole_gap_behind_kerb_m": 1.1,
+    "note": ""
+   },
+   "curb_type": "kerb, on-lane stop (no marked bay in the data)",
+   "curb_confidence": "low (inferred from road width and pole offset; no imagery)",
+   "pavement": {
+    "material": "grey concrete paving slabs, asphalt road (inferred)",
+    "width_behind_kerb_m": 1.1,
+    "confidence": "low"
+   },
+   "pole": {
+    "type": "steel_tube_stop_pole",
+    "diameter_m": 0.06,
+    "height_m": 3.0,
+    "color": "#8d9296",
+    "head": "blue 0.5 x 0.5 m bus-stop sign with white bus pictogram (Bulgarian road sign) above a white info plate 0.6 x 0.4 m: stop name, 4-digit code 1610, line 280",
+    "confidence": "low (inferred; no photo)"
+   },
+   "shelter": {
+    "present": true,
+    "type": "stop_shelter_sofia_standard (landmarks.json)",
+    "length_m": 4.5,
+    "source": "OSM shelter tag"
+   },
+   "bench": {
+    "present": true,
+    "type": "inside the shelter: steel-slat bench 1.9 m",
+    "source": "OSM bench tag"
+   },
+   "bin": {
+    "present": true,
+    "type": "round steel litter bin 0.4 m dia x 0.8 m on a short post, dark green/grey #4b5a52",
+    "confidence": "low"
+   },
+   "lighting": {
+    "lit": true,
+    "note": "street lamps on 8-10 m poles along the road; none mapped as props within 40 m"
+   },
+   "e_board": {
+    "present": true,
+    "type": "LED panel 0.95 x 0.30 m on the shelter front post, amber text",
+    "source": "OSM departures_board=realtime",
+    "confidence": "medium-low"
+   },
+   "wheelchair": "no",
+   "mapped_props_within_30m": [
+    {
+     "type": "crossing",
+     "xz": [
+      -788,
+      1957
+     ],
+     "dist_m": 27
+    },
+    {
+     "type": "container",
+     "xz": [
+      -803,
+      2010
+     ],
+     "dist_m": 29
+    },
+    {
+     "type": "signal",
+     "xz": [
+      -789,
+      1961
+     ],
+     "dist_m": 23
+    }
+   ],
+   "extra": [
+    "traffic signal (-789, 1961) and zebra (-788, 1957), 23-27 m behind",
+    "waste container at (-803, 2010), 29 m ahead"
+   ],
+   "kiosks_nearby": [
+    "pavement kiosks of Борис Стефанов 5-7 behind the shelter"
+   ],
+   "note": "shelter with bench; wheelchair no"
+  },
+  "0533": {
+   "name": "Детски ясли",
+   "direction": "A",
+   "pole_xz": [
+    -852.37,
+    2342.34
+   ],
+   "road": "Акад. Борис Стефанов",
+   "osm_node": "n679478621@16",
+   "travel_side": "right-hand pole (all poles are on the right of travel)",
+   "game_road": {
+    "class_": "tertiary",
+    "width_m": 9.5,
+    "oneway": false,
+    "pole_to_centreline_m": 1.6,
+    "pole_gap_behind_kerb_m": -3.2,
+    "note": "negative gap = the OSM node lies inside the game carriageway: put the pole 0.6 m behind the kerb instead"
+   },
+   "curb_type": "kerb, on-lane stop (no marked bay in the data)",
+   "curb_confidence": "low (inferred from road width and pole offset; no imagery)",
+   "pavement": {
+    "material": "grey concrete paving slabs, asphalt road (inferred)",
+    "width_behind_kerb_m": 0.0,
+    "confidence": "low"
+   },
+   "pole": {
+    "type": "steel_tube_stop_pole",
+    "diameter_m": 0.06,
+    "height_m": 3.0,
+    "color": "#8d9296",
+    "head": "blue 0.5 x 0.5 m bus-stop sign with white bus pictogram (Bulgarian road sign) above a white info plate 0.6 x 0.4 m: stop name, 4-digit code 0533, line 280",
+    "confidence": "low (inferred; no photo)"
+   },
+   "shelter": {
+    "present": false,
+    "type": null,
+    "length_m": null,
+    "source": "OSM shelter tag"
+   },
+   "bench": {
+    "present": false,
+    "type": null,
+    "source": "OSM bench tag"
+   },
+   "bin": {
+    "present": true,
+    "type": "round steel litter bin 0.4 m dia x 0.8 m on a short post, dark green/grey #4b5a52",
+    "confidence": "low"
+   },
+   "lighting": {
+    "lit": true,
+    "note": "street lamps on 8-10 m poles along the road; none mapped as props within 40 m"
+   },
+   "e_board": {
+    "present": false,
+    "type": null,
+    "source": "OSM: none",
+    "confidence": "medium-low"
+   },
+   "wheelchair": "no",
+   "mapped_props_within_30m": [],
+   "extra": [
+    "OSM node is 3.1 m inside the carriageway: place the pole at the west kerb"
+   ],
+   "kiosks_nearby": [
+    "kiosks of the Атанас Манчев junction 40-70 m behind-right"
+   ],
+   "note": "pole only, no board (departures_board none), wheelchair no"
+  },
+  "0741": {
+   "name": "Зимен дворец на спорта",
+   "direction": "A",
+   "pole_xz": [
+    -821.93,
+    2711.08
+   ],
+   "road": "Акад. Борис Стефанов",
+   "osm_node": "n676275998@16",
+   "travel_side": "right-hand pole (all poles are on the right of travel)",
+   "game_road": {
+    "class_": "tertiary",
+    "width_m": 9.5,
+    "oneway": false,
+    "pole_to_centreline_m": 1.1,
+    "pole_gap_behind_kerb_m": -3.6,
+    "note": "negative gap = the OSM node lies inside the game carriageway: put the pole 0.6 m behind the kerb instead"
+   },
+   "curb_type": "kerb, on-lane stop (no marked bay in the data)",
+   "curb_confidence": "low (inferred from road width and pole offset; no imagery)",
+   "pavement": {
+    "material": "grey concrete paving slabs, asphalt road (inferred)",
+    "width_behind_kerb_m": 0.0,
+    "confidence": "low"
+   },
+   "pole": {
+    "type": "steel_tube_stop_pole",
+    "diameter_m": 0.06,
+    "height_m": 3.0,
+    "color": "#8d9296",
+    "head": "blue 0.5 x 0.5 m bus-stop sign with white bus pictogram (Bulgarian road sign) above a white info plate 0.6 x 0.4 m: stop name, 4-digit code 0741, line 280",
+    "confidence": "low (inferred; no photo)"
+   },
+   "shelter": {
+    "present": false,
+    "type": null,
+    "length_m": null,
+    "source": "OSM shelter tag"
+   },
+   "bench": {
+    "present": false,
+    "type": null,
+    "source": "OSM bench tag"
+   },
+   "bin": {
+    "present": true,
+    "type": "round steel litter bin 0.4 m dia x 0.8 m on a short post, dark green/grey #4b5a52",
+    "confidence": "low"
+   },
+   "lighting": {
+    "lit": true,
+    "note": "street lamps on 8-10 m poles along the road; none mapped as props within 40 m"
+   },
+   "e_board": {
+    "present": true,
+    "type": "LED panel 0.95 x 0.30 m on its own slim post (2.6 m) next to the pole, amber text",
+    "source": "OSM departures_board=realtime",
+    "confidence": "medium-low"
+   },
+   "wheelchair": null,
+   "mapped_props_within_30m": [
+    {
+     "type": "crossing",
+     "xz": [
+      -823,
+      2734
+     ],
+     "dist_m": 23
+    },
+    {
+     "type": "container",
+     "xz": [
+      -799,
+      2693
+     ],
+     "dist_m": 29
+    },
+    {
+     "type": "bollard",
+     "xz": [
+      -811,
+      2707
+     ],
+     "dist_m": 12
+    }
+   ],
+   "extra": [
+    "bollards at (-811, 2707), 12 m east",
+    "zebra crossing (-823, 2734), 23 m ahead",
+    "container (-799, 2693), 29 m behind-left",
+    "OSM node is 3.6 m inside the carriageway: place the pole at the west kerb"
+   ],
+   "kiosks_nearby": [
+    "pavilions w65134340, w1375488360, w65134343 at 13-30 m on the right"
+   ],
+   "note": "pole only; real-time board tag"
+  },
+  "1606": {
+   "name": "СК на НСА",
+   "direction": "A",
+   "pole_xz": [
+    -555.18,
+    2783.33
+   ],
+   "road": "Акад. Стефан Младенов",
+   "osm_node": "n543546539@18",
+   "travel_side": "right-hand pole (all poles are on the right of travel)",
+   "game_road": {
+    "class_": "tertiary",
+    "width_m": 9.5,
+    "oneway": false,
+    "pole_to_centreline_m": 7.5,
+    "pole_gap_behind_kerb_m": 2.8,
+    "note": ""
+   },
+   "curb_type": "kerb, on-lane stop (no marked bay in the data)",
+   "curb_confidence": "low (inferred from road width and pole offset; no imagery)",
+   "pavement": {
+    "material": "grey concrete paving slabs, asphalt road (inferred)",
+    "width_behind_kerb_m": 2.8,
+    "confidence": "low"
+   },
+   "pole": {
+    "type": "steel_tube_stop_pole",
+    "diameter_m": 0.06,
+    "height_m": 3.0,
+    "color": "#8d9296",
+    "head": "blue 0.5 x 0.5 m bus-stop sign with white bus pictogram (Bulgarian road sign) above a white info plate 0.6 x 0.4 m: stop name, 4-digit code 1606, line 280",
+    "confidence": "low (inferred; no photo)"
+   },
+   "shelter": {
+    "present": false,
+    "type": null,
+    "length_m": null,
+    "source": "OSM shelter tag"
+   },
+   "bench": {
+    "present": false,
+    "type": null,
+    "source": "OSM bench tag"
+   },
+   "bin": {
+    "present": true,
+    "type": "round steel litter bin 0.4 m dia x 0.8 m on a short post, dark green/grey #4b5a52",
+    "confidence": "low"
+   },
+   "lighting": {
+    "lit": true,
+    "note": "street lamps on 8-10 m poles along the road; none mapped as props within 40 m"
+   },
+   "e_board": {
+    "present": false,
+    "type": null,
+    "source": "OSM: none",
+    "confidence": "medium-low"
+   },
+   "wheelchair": null,
+   "mapped_props_within_30m": [
+    {
+     "type": "container",
+     "xz": [
+      -571,
+      2780
+     ],
+     "dist_m": 16
+    }
+   ],
+   "extra": [
+    "waste container (-571, 2780), 16 m to the left"
+   ],
+   "kiosks_nearby": [
+    "Ак. Стефан Младенов 80 kiosk strip 43-80 m ahead-left"
+   ],
+   "note": "pole only, no board"
+  },
+  "1694": {
+   "name": "Студентски град",
+   "direction": "A",
+   "pole_xz": [
+    -484.98,
+    2488.96
+   ],
+   "road": null,
+   "osm_node": "n2644423639@11",
+   "travel_side": "right-hand pole (all poles are on the right of travel)",
+   "game_road": {
+    "class_": "service",
+    "width_m": 3.6,
+    "oneway": true,
+    "pole_to_centreline_m": 5.7,
+    "pole_gap_behind_kerb_m": 3.9,
+    "note": ""
+   },
+   "curb_type": "kerb, on-lane stop (no marked bay in the data)",
+   "curb_confidence": "low (inferred from road width and pole offset; no imagery)",
+   "pavement": {
+    "material": "grey concrete paving slabs, asphalt road (inferred)",
+    "width_behind_kerb_m": 3.9,
+    "confidence": "low"
+   },
+   "pole": {
+    "type": "steel_tube_stop_pole",
+    "diameter_m": 0.06,
+    "height_m": 3.0,
+    "color": "#8d9296",
+    "head": "blue 0.5 x 0.5 m bus-stop sign with white bus pictogram (Bulgarian road sign) above a white info plate 0.6 x 0.4 m: stop name, 4-digit code 1694, line 280",
+    "confidence": "low (inferred; no photo)"
+   },
+   "shelter": {
+    "present": true,
+    "type": "stop_shelter_sofia_standard (landmarks.json)",
+    "length_m": 4.5,
+    "source": "OSM shelter tag"
+   },
+   "bench": {
+    "present": false,
+    "type": null,
+    "source": "OSM bench tag"
+   },
+   "bin": {
+    "present": true,
+    "type": "round steel litter bin 0.4 m dia x 0.8 m on a short post, dark green/grey #4b5a52",
+    "confidence": "low"
+   },
+   "lighting": {
+    "lit": true,
+    "note": "street lamps on 8-10 m poles along the road; none mapped as props within 40 m"
+   },
+   "e_board": {
+    "present": false,
+    "type": null,
+    "source": "OSM: none",
+    "confidence": "medium-low"
+   },
+   "wheelchair": null,
+   "mapped_props_within_30m": [],
+   "extra": [
+    "spur road 3.6 m wide",
+    "Overture-only huts 12 x 7 m, 10 x 9 m, 16 x 6 m at 26-50 m"
+   ],
+   "kiosks_nearby": [],
+   "note": "shelter, no bench, no board (arrival stop)"
+  },
+  "1693": {
+   "name": "Студентски град",
+   "direction": "B",
+   "pole_xz": [
+    -440.51,
+    2473.87
+   ],
+   "road": null,
+   "osm_node": "n639932119@16",
+   "travel_side": "right-hand pole (all poles are on the right of travel)",
+   "game_road": {
+    "class_": "service",
+    "width_m": 3.6,
+    "oneway": true,
+    "pole_to_centreline_m": 4.4,
+    "pole_gap_behind_kerb_m": 2.6,
+    "note": ""
+   },
+   "curb_type": "kerb, on-lane stop (no marked bay in the data)",
+   "curb_confidence": "low (inferred from road width and pole offset; no imagery)",
+   "pavement": {
+    "material": "grey concrete paving slabs, asphalt road (inferred)",
+    "width_behind_kerb_m": 2.6,
+    "confidence": "low"
+   },
+   "pole": {
+    "type": "steel_tube_stop_pole",
+    "diameter_m": 0.06,
+    "height_m": 3.0,
+    "color": "#8d9296",
+    "head": "blue 0.5 x 0.5 m bus-stop sign with white bus pictogram (Bulgarian road sign) above a white info plate 0.6 x 0.4 m: stop name, 4-digit code 1693, line 280",
+    "confidence": "low (inferred; no photo)"
+   },
+   "shelter": {
+    "present": true,
+    "type": "stop_shelter_sofia_standard (landmarks.json)",
+    "length_m": 4.5,
+    "source": "OSM shelter tag"
+   },
+   "bench": {
+    "present": false,
+    "type": null,
+    "source": "OSM bench tag"
+   },
+   "bin": {
+    "present": true,
+    "type": "round steel litter bin 0.4 m dia x 0.8 m on a short post, dark green/grey #4b5a52",
+    "confidence": "low"
+   },
+   "lighting": {
+    "lit": true,
+    "note": "street lamps on 8-10 m poles along the road; none mapped as props within 40 m"
+   },
+   "e_board": {
+    "present": true,
+    "type": "LED panel 0.95 x 0.30 m on the shelter front post, amber text",
+    "source": "OSM departures_board=realtime",
+    "confidence": "medium-low"
+   },
+   "wheelchair": null,
+   "mapped_props_within_30m": [],
+   "extra": [
+    "15.8 x 5.8 m low roofed hut 5 m east (dispatcher/shelter)"
+   ],
+   "kiosks_nearby": [],
+   "note": "shelter with real-time board (departure stop), no bench"
+  },
+  "1609": {
+   "name": "СК на НСА",
+   "direction": "B",
+   "pole_xz": [
+    -570.87,
+    2796.4
+   ],
+   "road": "Акад. Стефан Младенов",
+   "osm_node": "n685401000@14",
+   "travel_side": "right-hand pole (all poles are on the right of travel)",
+   "game_road": {
+    "class_": "tertiary",
+    "width_m": 9.5,
+    "oneway": false,
+    "pole_to_centreline_m": 7.2,
+    "pole_gap_behind_kerb_m": 2.5,
+    "note": ""
+   },
+   "curb_type": "kerb, on-lane stop (no marked bay in the data)",
+   "curb_confidence": "low (inferred from road width and pole offset; no imagery)",
+   "pavement": {
+    "material": "grey concrete paving slabs, asphalt road (inferred)",
+    "width_behind_kerb_m": 2.5,
+    "confidence": "low"
+   },
+   "pole": {
+    "type": "steel_tube_stop_pole",
+    "diameter_m": 0.06,
+    "height_m": 3.0,
+    "color": "#8d9296",
+    "head": "blue 0.5 x 0.5 m bus-stop sign with white bus pictogram (Bulgarian road sign) above a white info plate 0.6 x 0.4 m: stop name, 4-digit code 1609, line 280",
+    "confidence": "low (inferred; no photo)"
+   },
+   "shelter": {
+    "present": false,
+    "type": null,
+    "length_m": null,
+    "source": "OSM shelter tag"
+   },
+   "bench": {
+    "present": false,
+    "type": null,
+    "source": "OSM bench tag"
+   },
+   "bin": {
+    "present": true,
+    "type": "round steel litter bin 0.4 m dia x 0.8 m on a short post, dark green/grey #4b5a52",
+    "confidence": "low"
+   },
+   "lighting": {
+    "lit": true,
+    "note": "street lamps on 8-10 m poles along the road; none mapped as props within 40 m"
+   },
+   "e_board": {
+    "present": true,
+    "type": "LED panel 0.95 x 0.30 m on its own slim post (2.6 m) next to the pole, amber text",
+    "source": "OSM departures_board=realtime",
+    "confidence": "medium-low"
+   },
+   "wheelchair": "yes",
+   "mapped_props_within_30m": [
+    {
+     "type": "container",
+     "xz": [
+      -571,
+      2780
+     ],
+     "dist_m": 16
+    }
+   ],
+   "extra": [
+    "waste container (-571, 2780), 16 m behind"
+   ],
+   "kiosks_nearby": [
+    "Ак. Стефан Младенов 80 kiosk strip 57-93 m behind-right"
+   ],
+   "note": "pole only with real-time board; wheelchair yes: raised kerb at the stop"
+  },
+  "0742": {
+   "name": "Зимен дворец на спорта",
+   "direction": "B",
+   "pole_xz": [
+    -814.79,
+    2743.85
+   ],
+   "road": "Акад. Борис Стефанов",
+   "osm_node": "n676276009@14",
+   "travel_side": "right-hand pole (all poles are on the right of travel)",
+   "game_road": {
+    "class_": "tertiary",
+    "width_m": 9.5,
+    "oneway": false,
+    "pole_to_centreline_m": 8.6,
+    "pole_gap_behind_kerb_m": 3.8,
+    "note": ""
+   },
+   "curb_type": "kerb, on-lane stop (no marked bay in the data)",
+   "curb_confidence": "low (inferred from road width and pole offset; no imagery)",
+   "pavement": {
+    "material": "grey concrete paving slabs, asphalt road (inferred)",
+    "width_behind_kerb_m": 3.8,
+    "confidence": "low"
+   },
+   "pole": {
+    "type": "steel_tube_stop_pole",
+    "diameter_m": 0.06,
+    "height_m": 3.0,
+    "color": "#8d9296",
+    "head": "blue 0.5 x 0.5 m bus-stop sign with white bus pictogram (Bulgarian road sign) above a white info plate 0.6 x 0.4 m: stop name, 4-digit code 0742, line 280",
+    "confidence": "low (inferred; no photo)"
+   },
+   "shelter": {
+    "present": false,
+    "type": null,
+    "length_m": null,
+    "source": "OSM shelter tag"
+   },
+   "bench": {
+    "present": true,
+    "type": "free-standing steel/wood slat bench 1.8 m beside the pole",
+    "source": "OSM bench tag"
+   },
+   "bin": {
+    "present": true,
+    "type": "round steel litter bin 0.4 m dia x 0.8 m on a short post, dark green/grey #4b5a52",
+    "confidence": "low"
+   },
+   "lighting": {
+    "lit": true,
+    "note": "street lamps on 8-10 m poles along the road; none mapped as props within 40 m"
+   },
+   "e_board": {
+    "present": true,
+    "type": "LED panel 0.95 x 0.30 m on its own slim post (2.6 m) next to the pole, amber text",
+    "source": "OSM departures_board=realtime",
+    "confidence": "medium-low"
+   },
+   "wheelchair": null,
+   "mapped_props_within_30m": [
+    {
+     "type": "crossing",
+     "xz": [
+      -823,
+      2734
+     ],
+     "dist_m": 12
+    },
+    {
+     "type": "atm",
+     "xz": [
+      -814,
+      2756
+     ],
+     "dist_m": 12
+    }
+   ],
+   "extra": [
+    "ATM POI (-814, 2756), 12 m behind",
+    "zebra crossing (-823, 2734), 12 m ahead-left",
+    "free-standing bench (OSM bench=yes) beside the pole"
+   ],
+   "kiosks_nearby": [
+    "three 5 x 4 m kiosks w1447340547/48/49 at 5-14 m behind-right",
+    "Winter Palace plaza 45 m east"
+   ],
+   "note": "bench without shelter: free-standing 1.8 m slat bench"
+  },
+  "0534": {
+   "name": "Детски ясли",
+   "direction": "B",
+   "pole_xz": [
+    -844.6,
+    2257.66
+   ],
+   "road": "Акад. Борис Стефанов",
+   "osm_node": "n679478646@17",
+   "travel_side": "right-hand pole (all poles are on the right of travel)",
+   "game_road": {
+    "class_": "tertiary",
+    "width_m": 9.5,
+    "oneway": false,
+    "pole_to_centreline_m": 5.9,
+    "pole_gap_behind_kerb_m": 1.1,
+    "note": ""
+   },
+   "curb_type": "kerb, on-lane stop (no marked bay in the data)",
+   "curb_confidence": "low (inferred from road width and pole offset; no imagery)",
+   "pavement": {
+    "material": "grey concrete paving slabs, asphalt road (inferred)",
+    "width_behind_kerb_m": 1.1,
+    "confidence": "low"
+   },
+   "pole": {
+    "type": "steel_tube_stop_pole",
+    "diameter_m": 0.06,
+    "height_m": 3.0,
+    "color": "#8d9296",
+    "head": "blue 0.5 x 0.5 m bus-stop sign with white bus pictogram (Bulgarian road sign) above a white info plate 0.6 x 0.4 m: stop name, 4-digit code 0534, line 280",
+    "confidence": "low (inferred; no photo)"
+   },
+   "shelter": {
+    "present": false,
+    "type": null,
+    "length_m": null,
+    "source": "OSM shelter tag"
+   },
+   "bench": {
+    "present": false,
+    "type": null,
+    "source": "OSM bench tag"
+   },
+   "bin": {
+    "present": true,
+    "type": "round steel litter bin 0.4 m dia x 0.8 m on a short post, dark green/grey #4b5a52",
+    "confidence": "low"
+   },
+   "lighting": {
+    "lit": true,
+    "note": "street lamps on 8-10 m poles along the road; none mapped as props within 40 m"
+   },
+   "e_board": {
+    "present": true,
+    "type": "LED panel 0.95 x 0.30 m on its own slim post (2.6 m) next to the pole, amber text",
+    "source": "OSM departures_board=realtime",
+    "confidence": "medium-low"
+   },
+   "wheelchair": "no",
+   "mapped_props_within_30m": [
+    {
+     "type": "atm",
+     "xz": [
+      -836,
+      2260
+     ],
+     "dist_m": 9
+    }
+   ],
+   "extra": [
+    "ATM POI at (-836, 2260), 9 m east"
+   ],
+   "kiosks_nearby": [
+    "31 x 10 m retail strip w461483295 at 14 m right"
+   ],
+   "note": "pole only with real-time board tag"
+  },
+  "1611": {
+   "name": "Спортна зала „Христо Ботев“",
+   "direction": "B",
+   "pole_xz": [
+    -775.22,
+    1907.0
+   ],
+   "road": "Акад. Борис Стефанов",
+   "osm_node": "n639932128@21",
+   "travel_side": "right-hand pole (all poles are on the right of travel)",
+   "game_road": {
+    "class_": "tertiary",
+    "width_m": 9.5,
+    "oneway": false,
+    "pole_to_centreline_m": 7.4,
+    "pole_gap_behind_kerb_m": 2.7,
+    "note": ""
+   },
+   "curb_type": "kerb, on-lane stop (no marked bay in the data)",
+   "curb_confidence": "low (inferred from road width and pole offset; no imagery)",
+   "pavement": {
+    "material": "grey concrete paving slabs, asphalt road (inferred)",
+    "width_behind_kerb_m": 2.7,
+    "confidence": "low"
+   },
+   "pole": {
+    "type": "steel_tube_stop_pole",
+    "diameter_m": 0.06,
+    "height_m": 3.0,
+    "color": "#8d9296",
+    "head": "blue 0.5 x 0.5 m bus-stop sign with white bus pictogram (Bulgarian road sign) above a white info plate 0.6 x 0.4 m: stop name, 4-digit code 1611, line 280",
+    "confidence": "low (inferred; no photo)"
+   },
+   "shelter": {
+    "present": true,
+    "type": "stop_shelter_sofia_standard (landmarks.json)",
+    "length_m": 4.5,
+    "source": "OSM shelter tag"
+   },
+   "bench": {
+    "present": false,
+    "type": null,
+    "source": "OSM bench tag"
+   },
+   "bin": {
+    "present": true,
+    "type": "round steel litter bin 0.4 m dia x 0.8 m on a short post, dark green/grey #4b5a52",
+    "confidence": "low"
+   },
+   "lighting": {
+    "lit": true,
+    "note": "street lamps on 8-10 m poles along the road; none mapped as props within 40 m"
+   },
+   "e_board": {
+    "present": true,
+    "type": "LED panel 0.95 x 0.30 m on the shelter front post, amber text",
+    "source": "OSM departures_board=realtime",
+    "confidence": "medium-low"
+   },
+   "wheelchair": "limited",
+   "mapped_props_within_30m": [
+    {
+     "type": "crossing",
+     "xz": [
+      -794,
+      1928
+     ],
+     "dist_m": 28
+    },
+    {
+     "type": "crossing",
+     "xz": [
+      -784,
+      1924
+     ],
+     "dist_m": 19
+    },
+    {
+     "type": "atm",
+     "xz": [
+      -794,
+      1917
+     ],
+     "dist_m": 21
+    },
+    {
+     "type": "signal",
+     "xz": [
+      -784,
+      1920
+     ],
+     "dist_m": 16
+    }
+   ],
+   "extra": [
+    "traffic signal (-784, 1920), zebra (-784, 1924) and (-794, 1928), 13-21 m behind",
+    "ATM POI (-794, 1917), 21 m behind-left"
+   ],
+   "kiosks_nearby": [],
+   "note": "shelter without bench; wheelchair limited"
+  },
+  "0530": {
+   "name": "Детски дом",
+   "direction": "B",
+   "pole_xz": [
+    -628.45,
+    1704.87
+   ],
+   "road": "Доктор Йордан Йосифов",
+   "osm_node": "n635966485@18",
+   "travel_side": "right-hand pole (all poles are on the right of travel)",
+   "game_road": {
+    "class_": "tertiary",
+    "width_m": 9.5,
+    "oneway": false,
+    "pole_to_centreline_m": 7.0,
+    "pole_gap_behind_kerb_m": 2.2,
+    "note": ""
+   },
+   "curb_type": "kerb, on-lane stop (no marked bay in the data)",
+   "curb_confidence": "low (inferred from road width and pole offset; no imagery)",
+   "pavement": {
+    "material": "grey concrete paving slabs, asphalt road (inferred)",
+    "width_behind_kerb_m": 2.2,
+    "confidence": "low"
+   },
+   "pole": {
+    "type": "steel_tube_stop_pole",
+    "diameter_m": 0.06,
+    "height_m": 3.0,
+    "color": "#8d9296",
+    "head": "blue 0.5 x 0.5 m bus-stop sign with white bus pictogram (Bulgarian road sign) above a white info plate 0.6 x 0.4 m: stop name, 4-digit code 0530, line 280",
+    "confidence": "low (inferred; no photo)"
+   },
+   "shelter": {
+    "present": true,
+    "type": "stop_shelter_sofia_standard (landmarks.json)",
+    "length_m": 4.5,
+    "source": "OSM shelter tag"
+   },
+   "bench": {
+    "present": true,
+    "type": "inside the shelter: steel-slat bench 1.9 m",
+    "source": "OSM bench tag"
+   },
+   "bin": {
+    "present": true,
+    "type": "round steel litter bin 0.4 m dia x 0.8 m on a short post, dark green/grey #4b5a52",
+    "confidence": "low"
+   },
+   "lighting": {
+    "lit": true,
+    "note": "street lamps on 8-10 m poles along the road; none mapped as props within 40 m"
+   },
+   "e_board": {
+    "present": true,
+    "type": "LED panel 0.95 x 0.30 m on the shelter front post, amber text",
+    "source": "OSM departures_board=realtime",
+    "confidence": "medium-low"
+   },
+   "wheelchair": "limited",
+   "mapped_props_within_30m": [
+    {
+     "type": "crossing",
+     "xz": [
+      -646,
+      1697
+     ],
+     "dist_m": 19
+    },
+    {
+     "type": "atm",
+     "xz": [
+      -632,
+      1708
+     ],
+     "dist_m": 5
+    }
+   ],
+   "extra": [
+    "crossing at (-646, 1697), 19 m behind-left",
+    "ATM POI at (-632, 1708), 5 m"
+   ],
+   "kiosks_nearby": [
+    "Hesburger/Stop Shop shop-front row 12-17 m ahead-right"
+   ],
+   "note": "shelter with bench; wheelchair limited"
+  },
+  "1692": {
+   "name": "УНСС",
+   "direction": "B",
+   "pole_xz": [
+    -274.99,
+    1904.53
+   ],
+   "road": "8-ми декември",
+   "osm_node": "n707982172@14",
+   "travel_side": "right-hand pole (all poles are on the right of travel)",
+   "game_road": {
+    "class_": "tertiary",
+    "width_m": 6.8,
+    "oneway": true,
+    "pole_to_centreline_m": 4.1,
+    "pole_gap_behind_kerb_m": 0.7,
+    "note": ""
+   },
+   "curb_type": "kerb, on-lane stop (no marked bay in the data)",
+   "curb_confidence": "low (inferred from road width and pole offset; no imagery)",
+   "pavement": {
+    "material": "grey concrete paving slabs, asphalt road (inferred)",
+    "width_behind_kerb_m": 0.7,
+    "confidence": "low"
+   },
+   "pole": {
+    "type": "steel_tube_stop_pole",
+    "diameter_m": 0.06,
+    "height_m": 3.0,
+    "color": "#8d9296",
+    "head": "blue 0.5 x 0.5 m bus-stop sign with white bus pictogram (Bulgarian road sign) above a white info plate 0.6 x 0.4 m: stop name, 4-digit code 1692, line 280",
+    "confidence": "low (inferred; no photo)"
+   },
+   "shelter": {
+    "present": true,
+    "type": "stop_shelter_sofia_standard (landmarks.json)",
+    "length_m": 4.5,
+    "source": "OSM shelter tag"
+   },
+   "bench": {
+    "present": true,
+    "type": "inside the shelter: steel-slat bench 1.9 m",
+    "source": "OSM bench tag"
+   },
+   "bin": {
+    "present": true,
+    "type": "round steel litter bin 0.4 m dia x 0.8 m on a short post, dark green/grey #4b5a52",
+    "confidence": "low"
+   },
+   "lighting": {
+    "lit": false,
+    "note": "unlit: no lamp near the shelter"
+   },
+   "e_board": {
+    "present": true,
+    "type": "LED panel 0.95 x 0.30 m on the shelter front post, amber text",
+    "source": "OSM departures_board=realtime",
+    "confidence": "medium-low"
+   },
+   "wheelchair": null,
+   "mapped_props_within_30m": [],
+   "extra": [
+    "lit=no in OSM: shelter unlit at night"
+   ],
+   "kiosks_nearby": [
+    "two 4 x 4 m park pergolas 54-64 m behind-right"
+   ],
+   "note": "shelter 0.7 m behind the kerb of a narrow 6.8 m one-way carriageway"
+  },
+  "0801": {
+   "name": "ж.к. Дървеница",
+   "direction": "B",
+   "pole_xz": [
+    340.38,
+    1958.65
+   ],
+   "road": "8-ми декември",
+   "osm_node": "n676659855@13",
+   "travel_side": "right-hand pole (all poles are on the right of travel)",
+   "game_road": {
+    "class_": "tertiary",
+    "width_m": 9.5,
+    "oneway": false,
+    "pole_to_centreline_m": 3.7,
+    "pole_gap_behind_kerb_m": -1.0,
+    "note": "negative gap = the OSM node lies inside the game carriageway: put the pole 0.6 m behind the kerb instead"
+   },
+   "curb_type": "kerb, on-lane stop (no marked bay in the data)",
+   "curb_confidence": "low (inferred from road width and pole offset; no imagery)",
+   "pavement": {
+    "material": "grey concrete paving slabs, asphalt road (inferred)",
+    "width_behind_kerb_m": 0.0,
+    "confidence": "low"
+   },
+   "pole": {
+    "type": "steel_tube_stop_pole",
+    "diameter_m": 0.06,
+    "height_m": 3.0,
+    "color": "#8d9296",
+    "head": "blue 0.5 x 0.5 m bus-stop sign with white bus pictogram (Bulgarian road sign) above a white info plate 0.6 x 0.4 m: stop name, 4-digit code 0801, line 280",
+    "confidence": "low (inferred; no photo)"
+   },
+   "shelter": {
+    "present": true,
+    "type": "stop_shelter_sofia_standard (landmarks.json)",
+    "length_m": 4.5,
+    "source": "OSM shelter tag"
+   },
+   "bench": {
+    "present": false,
+    "type": null,
+    "source": "OSM bench tag"
+   },
+   "bin": {
+    "present": true,
+    "type": "round steel litter bin 0.4 m dia x 0.8 m on a short post, dark green/grey #4b5a52",
+    "confidence": "low"
+   },
+   "lighting": {
+    "lit": true,
+    "note": "street lamps on 8-10 m poles along the road; none mapped as props within 40 m"
+   },
+   "e_board": {
+    "present": true,
+    "type": "LED panel 0.95 x 0.30 m on the shelter front post, amber text",
+    "source": "OSM departures_board=realtime",
+    "confidence": "medium-low"
+   },
+   "wheelchair": null,
+   "mapped_props_within_30m": [
+    {
+     "type": "crossing",
+     "xz": [
+      341,
+      1935
+     ],
+     "dist_m": 24
+    }
+   ],
+   "extra": [
+    "crossing at (341, 1935), 24 m to the left (north side)"
+   ],
+   "kiosks_nearby": [],
+   "note": "shelter without a mapped bench (bench=no)"
+  },
+  "0614": {
+   "name": "Лесотехнически университет",
+   "direction": "B",
+   "pole_xz": [
+    635.46,
+    1693.13
+   ],
+   "road": "бул. Свети Климент Охридски",
+   "osm_node": "n1113186231@13",
+   "travel_side": "right-hand pole (all poles are on the right of travel)",
+   "game_road": {
+    "class_": "secondary",
+    "width_m": 7.5,
+    "oneway": true,
+    "pole_to_centreline_m": 2.5,
+    "pole_gap_behind_kerb_m": -1.2,
+    "note": "negative gap = the OSM node lies inside the game carriageway: put the pole 0.6 m behind the kerb instead"
+   },
+   "curb_type": "kerb, on-lane stop (no marked bay in the data)",
+   "curb_confidence": "low (inferred from road width and pole offset; no imagery)",
+   "pavement": {
+    "material": "grey concrete paving slabs, asphalt road (inferred)",
+    "width_behind_kerb_m": 0.0,
+    "confidence": "low"
+   },
+   "pole": {
+    "type": "steel_tube_stop_pole",
+    "diameter_m": 0.06,
+    "height_m": 3.0,
+    "color": "#8d9296",
+    "head": "blue 0.5 x 0.5 m bus-stop sign with white bus pictogram (Bulgarian road sign) above a white info plate 0.6 x 0.4 m: stop name, 4-digit code 0614, line 280",
+    "confidence": "low (inferred; no photo)"
+   },
+   "shelter": {
+    "present": true,
+    "type": "stop_shelter_sofia_standard (landmarks.json)",
+    "length_m": 4.5,
+    "source": "OSM shelter tag"
+   },
+   "bench": {
+    "present": true,
+    "type": "inside the shelter: steel-slat bench 1.9 m",
+    "source": "OSM bench tag"
+   },
+   "bin": {
+    "present": true,
+    "type": "round steel litter bin 0.4 m dia x 0.8 m on a short post, dark green/grey #4b5a52",
+    "confidence": "low"
+   },
+   "lighting": {
+    "lit": true,
+    "note": "street lamps on 8-10 m poles along the road; none mapped as props within 40 m"
+   },
+   "e_board": {
+    "present": true,
+    "type": "LED panel 0.95 x 0.30 m on the shelter front post, amber text",
+    "source": "OSM departures_board=realtime",
+    "confidence": "medium-low"
+   },
+   "wheelchair": null,
+   "mapped_props_within_30m": [
+    {
+     "type": "crossing",
+     "xz": [
+      630,
+      1720
+     ],
+     "dist_m": 28
+    },
+    {
+     "type": "crossing",
+     "xz": [
+      637,
+      1719
+     ],
+     "dist_m": 26
+    },
+    {
+     "type": "signal",
+     "xz": [
+      629,
+      1717
+     ],
+     "dist_m": 24
+    },
+    {
+     "type": "stopsign",
+     "xz": [
+      645,
+      1706
+     ],
+     "dist_m": 16
+    }
+   ],
+   "extra": [
+    "traffic signal at (629, 1717) and two crossing nodes (637, 1719), (630, 1720), 26-28 m behind",
+    "regulatory stop sign at (645, 1706), 16 m behind-right"
+   ],
+   "kiosks_nearby": [],
+   "note": "shelter stands on the kerb line"
+  },
+  "1743": {
+   "name": "Технически университет",
+   "direction": "B",
+   "pole_xz": [
+    591.89,
+    1260.07
+   ],
+   "road": "бул. Свети Климент Охридски",
+   "osm_node": "n639999989@15",
+   "travel_side": "right-hand pole (all poles are on the right of travel)",
+   "game_road": {
+    "class_": "secondary",
+    "width_m": 12.5,
+    "oneway": false,
+    "pole_to_centreline_m": 8.1,
+    "pole_gap_behind_kerb_m": 1.8,
+    "note": ""
+   },
+   "curb_type": "kerb, on-lane stop (no marked bay in the data)",
+   "curb_confidence": "low (inferred from road width and pole offset; no imagery)",
+   "pavement": {
+    "material": "grey concrete paving slabs, asphalt road (inferred)",
+    "width_behind_kerb_m": 1.8,
+    "confidence": "low"
+   },
+   "pole": {
+    "type": "steel_tube_stop_pole",
+    "diameter_m": 0.06,
+    "height_m": 3.0,
+    "color": "#8d9296",
+    "head": "blue 0.5 x 0.5 m bus-stop sign with white bus pictogram (Bulgarian road sign) above a white info plate 0.6 x 0.4 m: stop name, 4-digit code 1743, line 280",
+    "confidence": "low (inferred; no photo)"
+   },
+   "shelter": {
+    "present": true,
+    "type": "stop_shelter_sofia_standard (landmarks.json)",
+    "length_m": 4.5,
+    "source": "OSM shelter tag"
+   },
+   "bench": {
+    "present": true,
+    "type": "inside the shelter: steel-slat bench 1.9 m",
+    "source": "OSM bench tag"
+   },
+   "bin": {
+    "present": true,
+    "type": "round steel litter bin 0.4 m dia x 0.8 m on a short post, dark green/grey #4b5a52",
+    "confidence": "low"
+   },
+   "lighting": {
+    "lit": true,
+    "note": "street lamps on 8-10 m poles along the road; none mapped as props within 40 m"
+   },
+   "e_board": {
+    "present": true,
+    "type": "LED panel 0.95 x 0.30 m on the shelter front post, amber text",
+    "source": "OSM departures_board=realtime",
+    "confidence": "medium-low"
+   },
+   "wheelchair": null,
+   "mapped_props_within_30m": [],
+   "extra": [
+    "5 m slip road 14 m east of the pole"
+   ],
+   "kiosks_nearby": [],
+   "note": "shelter 4.5 m with bench; lawn strip behind"
+  }
+ }
+}

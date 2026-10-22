@@ -61,7 +61,7 @@ The remaining items are secondary: ranges, distance model, missing sounds, pause
   if (loaded) { this.engine = new AudioWorkletNode(ctx, 'engine-processor', { outputChannelCount: [1] }); this.engine.connect(this.engineBus); }
   else { /* native-node engine, see below */ }
   ```
-- **Fix (recommended):** do not depend on AudioWorklet for the engine at all. `sound_design.md` section 3 specifies an engine built only from native nodes (PeriodicWave oscillators, filters, WaveShaper). That works on `file://`, old Safari and low-end Android, and it removes the 500 ms `addModule` wait. If the worklet is kept, it is only an optional quality upgrade behind the data-URL loader above.
+- **Fix (recommended):** do not depend on AudioWorklet for the engine at all. `sound_design.md` section 3 specifies an engine built only from native nodes (PeriodicWave oscillators, biquad filters and looped noise buffers; no AudioWorklet, no WaveShaper). That works on `file://`, old Safari and low-end Android, and it removes the 500 ms `addModule` wait. If the worklet is kept, it is only an optional quality upgrade behind the data-URL loader above.
 - **Fix (the fallback must not be silent):** whatever remains as a fallback needs a fundamental that a phone can play. Use at least the 150–400 Hz harmonics (the PeriodicWave recipe in `sound_design.md` section 3.2) and real gain, not `0.05`.
 
 ## A2. Engine spectrum is below 100 Hz — inaudible on a phone speaker — CRITICAL
@@ -162,7 +162,7 @@ In `src/main.js:100-104`, `onStart` already runs inside the click handler up to 
   - at 67 m, `nearBus` is 0.44 (-7 dB);
   - `PassengerMode.js:138-139` sets `g.bus` to the ridden or nearest bus only, so the other 280 buses (`g.extra`), the player's own passed-by bus and all AI cars make no sound.
 - Real city-bus engines are clearly audible at 150 m or more.
-- **Fix:** use an inverse-distance model per source with a floor. For each bus in `allBuses()`: `gain = clamp(8 / max(8, d), 0, 1)` (about -6 dB per doubling), plus a lowpass that closes with distance: `fc = 2600 * clamp(40/d, 0.25, 1)`. Add a small pool (max 3 engine voices = nearest 3 buses) and a Doppler-free pan from the camera's right vector. `sound_design.md` section 6 gives the numbers.
+- **Fix:** use an inverse-distance model per source with a floor. For each bus in `allBuses()`: `gain_dB = -7 - 20*log10(max(d, 6)/6) - 0.012*max(0, d-6)` (-6 dB per doubling from 6 m, -7 dB being the 6 m reference level), plus a low-pass that closes with distance: `fc = clamp(6500*(8/max(d, 8))^0.55, 900, 6500)`. Add a small pool (nearest 3 buses get a voice), a Doppler pitch shift (`1200*log2(343/(343-vr))` cents) and a stereo pan from the camera's right vector. `sound_design.md` section 6 gives the numbers.
 
 ### B2. No engine-start, shift, retarder, brake-release or kneeling sounds — HIGH (the request says "no good sound effects")
 - `Game.js:113` `bus.phys.onShift = () => {}` — gear shifts are silent. `ArticulatedBus.js` already calls `onShift(gear, 'up'|'down')`.
@@ -184,14 +184,14 @@ In `src/main.js:100-104`, `onStart` already runs inside the click handler up to 
 
 ### B5. Compressor ducks the mix because of the sub-bass — LOW/MEDIUM
 - `AudioManager.js:84-87`: `DynamicsCompressor` threshold -16 dB, ratio 4, default knee 30 dB, attack 3 ms, release 250 ms. The unit-gain worklet RMS is -5 to -0.5 dB (script `wk_sim.cjs`), and `update()` gives it `ev × zoneGain × 0.55`, so the compressor acts on LF energy that the phone cannot play, pulling down everything else (voice, beeps, road).
-- **Fix:** with the new engine spectrum (section 3 in `sound_design.md`), set threshold -10 dB, knee 12, ratio 3, attack 0.01 s, release 0.25 s. Keep the engine bus peak at -12 dBFS before the master.
+- **Fix:** with the new engine spectrum (section 3 in `sound_design.md`), set threshold -10 dB, knee 12, ratio 3, attack 0.01 s, release 0.25 s (section 2.3). The prototype voices peak at -0.9 dBFS (rear cabin, full load) and -6 dBFS (cab) before the master, so the compressor only trims transients.
 
 ### B6. `latencyHint: 'interactive'` on a busy phone — LOW/MEDIUM
 - `AudioManager.js:82`. Heavy WebGL frames on a mid-range phone can starve the audio thread (crackle, dropouts, iOS ~10 ms buffers).
 - **Fix:** `latencyHint: 'playback'` (a ~100–200 ms buffer is irrelevant for engine hum; one-shots should be scheduled by `ctx.currentTime` as they already are).
 
 ### B7. Per-source parameter issues — LOW
-- `AudioManager.js:249-250` compressor sound is a constant 160 Hz-band brown-noise "drone" at 0.09 while `compressorOn`. A real compressor chugs (2.4 Hz-ish piston strokes) and does not hum. Replace with the pulsed recipe in `sound_design.md` section 8.8.
+- `AudioManager.js:249-250` compressor sound is a constant 160 Hz-band brown-noise "drone" at 0.09 while `compressorOn`. A real compressor chugs (piston strokes at roughly 10-20 Hz at idle to cruise rpm, with valve chatter on top) and does not hum. Replace with the pulsed recipe in `sound_design.md` section 8.8.
 - `AudioManager.js:233` road noise is a bandpass at `250 + v*35` Hz with a white-noise buffer at gain `sv*0.22*0.55`. At 30 km/h that is -34 dBFS; at 50 km/h -31 dBFS (measured, cab, engine off). It needs +10 dB and a 2-band structure (low rumble 80–200 Hz plus mid hiss 800–2500 Hz) so it is audible on a phone.
 - `AudioManager.js:238` wind starts only above 6 m/s and tops out at (13.9-6)×0.006 = 0.047. It is fine as a background but not as the thing that tells the user the bus is moving.
 - `AudioManager.js:131-137` all loops use `playbackRate 0.9..1.1` random. This is fine, but the `noiseBuf` is 2.5 s of white noise (audible loop point when low-passed). Use 6 s of pink noise.

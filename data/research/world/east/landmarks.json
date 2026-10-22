@@ -1,0 +1,5370 @@
+{
+ "coordinate_system": "game metres: x east, z south, origin lat 42.669 lon 23.352; polygons are [x,z] pairs; heights above local ground; angles of oriented boxes are degrees from +x towards +z",
+ "landmarks": [
+  {
+   "id": "winter_palace",
+   "osm": "w43275106",
+   "name": "Зимен дворец на спорта (Winter Palace of Sport)",
+   "position": [
+    -727.4,
+    2776.1
+   ],
+   "dims": {
+    "centroid": [
+     -727.4,
+     2776.1
+    ],
+    "obb_size_m": [
+     102.4,
+     97.8
+    ],
+    "obb_angle_deg": 97,
+    "area_m2": 7278
+   },
+   "footprint_polygon": [
+    [
+     -682.6,
+     2800.7
+    ],
+    [
+     -687.3,
+     2795.3
+    ],
+    [
+     -682.8,
+     2763.3
+    ],
+    [
+     -674.3,
+     2755.7
+    ],
+    [
+     -688.1,
+     2740.3
+    ],
+    [
+     -698.6,
+     2728.6
+    ],
+    [
+     -707.2,
+     2736.3
+    ],
+    [
+     -740.7,
+     2732.3
+    ],
+    [
+     -745.1,
+     2727.3
+    ],
+    [
+     -752.2,
+     2733.5
+    ],
+    [
+     -754.5,
+     2730.9
+    ],
+    [
+     -768.4,
+     2743.1
+    ],
+    [
+     -765.9,
+     2745.9
+    ],
+    [
+     -768.9,
+     2748.6
+    ],
+    [
+     -772.4,
+     2751.6
+    ],
+    [
+     -769.0,
+     2755.5
+    ],
+    [
+     -771.6,
+     2791.7
+    ],
+    [
+     -778.2,
+     2797.4
+    ],
+    [
+     -775.9,
+     2800.1
+    ],
+    [
+     -775.3,
+     2800.8
+    ],
+    [
+     -754.7,
+     2824.7
+    ],
+    [
+     -748.3,
+     2819.2
+    ],
+    [
+     -715.0,
+     2819.3
+    ],
+    [
+     -710.3,
+     2824.5
+    ],
+    [
+     -703.5,
+     2818.5
+    ],
+    [
+     -701.5,
+     2820.8
+    ],
+    [
+     -687.9,
+     2808.7
+    ],
+    [
+     -689.6,
+     2806.8
+    ]
+   ],
+   "near_stops": [
+    "0741 (62 m)",
+    "0742 (43 m)",
+    "1606 (172 m)",
+    "1609 (158 m)"
+   ],
+   "summary": "Large octagon-like ice arena, flat roof, entrance forecourt facing west to ул. Акад. Борис Стефанов.",
+   "massing": [
+    {
+     "part": "main_hall",
+     "shape": "octagonal prism: offset the OSM outline inward by 10 m; about 78 m across",
+     "height_m": 18.0,
+     "roof": "flat with 0.8 m parapet; roof plant boxes (6 x 4 x 2 m) x 4",
+     "note": "heights inferred (arena clear height + trusses); OSM gives 2 levels and roof=flat",
+     "conf": "low"
+    },
+    {
+     "part": "foyer_ring",
+     "shape": "the 10 m wide band between the outline and the inset octagon",
+     "height_m": 7.0,
+     "roof": "flat",
+     "note": "lower ring with glazed foyer on the west (road) side, blank concrete on other sides; two storeys (OSM levels=2)",
+     "conf": "low"
+    },
+    {
+     "part": "entrance_canopy",
+     "shape": "box 22 x 8 m projecting 6 m from the west face, centred on the west side at z = 2776",
+     "height_m": 5.5,
+     "roof": "flat slab on 4 square columns",
+     "conf": "low"
+    },
+    {
+     "part": "plaza",
+     "shape": "paved forecourt between the road kerb (x about -819) and the west wall (x about -770): about 45 m deep x 80 m wide, grey concrete slabs, parking rows, 3-4 ticket/snack kiosks (5 x 4 m) along the road edge at x -815..-810",
+     "note": "kiosks are OSM way ids w1447340547/48/49",
+     "conf": "medium"
+    }
+   ],
+   "materials": {
+    "walls": "pale grey concrete / render #cfcbc3",
+    "foyer_glazing": "dark bronze-grey glass #4a4f55",
+    "accent_band": "blue-grey #6f7e8c under the parapet (inferred)",
+    "roof": "bitumen dark grey #6f7378"
+   },
+   "facts": [
+    "opened 1982",
+    "capacity 4,600",
+    "two ice sheets: main hall and a training hall (ice 56 x 26 m)",
+    "hosted ice hockey world championships 1994, 2002; 2026 Division II B",
+    "tenants: hockey clubs (Спартак, Левски), skating clubs, Mazzo club/restaurant, MVJ dance studio"
+   ],
+   "sources": [
+    "https://en.wikipedia.org/wiki/Winter_Sports_Palace",
+    "https://sofiaglobe.com/2018/12/23/ice-rinks-open-in-sofia-for-2018-19-winter-season/",
+    "OSM outline w43275106 (Overture bld.parquet)"
+   ],
+   "confidence": "footprint high; opening year/capacity medium (Wikipedia via search summary); heights and cladding low (inferred)"
+  },
+  {
+   "id": "botev_hall",
+   "osm": "w45196750",
+   "name": "Спортна зала „Христо Ботев“ (Hristo Botev Sports Hall)",
+   "position": [
+    -978.4,
+    1948.5
+   ],
+   "dims": {
+    "centroid": [
+     -978.4,
+     1948.5
+    ],
+    "obb_size_m": [
+     79.6,
+     64.3
+    ],
+    "obb_angle_deg": 93,
+    "area_m2": 3943
+   },
+   "footprint_polygon": [
+    [
+     -974.5,
+     1909.2
+    ],
+    [
+     -1009.4,
+     1924.4
+    ],
+    [
+     -1011.5,
+     1967.1
+    ],
+    [
+     -981.8,
+     1988.6
+    ],
+    [
+     -947.8,
+     1972.3
+    ],
+    [
+     -945.3,
+     1928.4
+    ]
+   ],
+   "near_stops": [
+    "1610 (150 m)",
+    "1611 (172 m)"
+   ],
+   "summary": "Hexagonal multifunctional hall of the Hristo Botev campus, about 66 m across, hidden behind dormitory blocks west of ул. Акад. Борис Стефанов.",
+   "massing": [
+    {
+     "part": "hall_volume",
+     "shape": "regular-ish hexagonal prism: OSM hexagon inset by 8 m (about 50 m across)",
+     "height_m": 14.0,
+     "roof": "very low hexagonal pyramid (rise 2 m) or flat",
+     "note": "height inferred",
+     "conf": "low"
+    },
+    {
+     "part": "ring_foyer",
+     "shape": "8 m wide band around the hall volume",
+     "height_m": 5.0,
+     "roof": "flat",
+     "conf": "low"
+    },
+    {
+     "part": "entrance",
+     "shape": "glazed vestibule 12 x 5 m on the east face (towards the street) with 6 steps",
+     "height_m": 4.5,
+     "conf": "low"
+    }
+   ],
+   "materials": {
+    "walls": "weathered pale concrete / render #cfcbc0",
+    "glazing": "dark ribbon #4a4f55",
+    "roof": "#6f7378"
+   },
+   "facts": [
+    "listed as one of two multifunctional halls of Studentski grad with the Winter Palace",
+    "gym club \"Body Check\" enters from the kindergarten side"
+   ],
+   "sources": [
+    "https://en.wikipedia.org/wiki/Studentski_grad,_Sofia (via search summary)",
+    "OSM w45196750",
+    "Wikidata Q76830767 (name variants only)"
+   ],
+   "confidence": "footprint high; everything else low (no image or description source reachable)"
+  },
+  {
+   "id": "unwe_main",
+   "osm": "r2264042",
+   "name": "УНСС — главна сграда (блокове А–F, Аула Максима, библиотека)",
+   "position": [
+    -262.0,
+    2040.0
+   ],
+   "dims": {
+    "obb_size_m": [
+     269,
+     173
+    ],
+    "bounds_xz": [
+     -372,
+     1956,
+     -152,
+     2187
+    ],
+    "area_m2": 15939
+   },
+   "footprint_polygon": [
+    [
+     -239,
+     1982
+    ],
+    [
+     -238,
+     1960
+    ],
+    [
+     -237,
+     1958
+    ],
+    [
+     -253,
+     1956
+    ],
+    [
+     -253,
+     1958
+    ],
+    [
+     -255,
+     1981
+    ],
+    [
+     -280,
+     1979
+    ],
+    [
+     -280,
+     1976
+    ],
+    [
+     -291,
+     1975
+    ],
+    [
+     -291,
+     1978
+    ],
+    [
+     -300,
+     1977
+    ],
+    [
+     -300,
+     1974
+    ],
+    [
+     -311,
+     1973
+    ],
+    [
+     -311,
+     1976
+    ],
+    [
+     -320,
+     1975
+    ],
+    [
+     -319,
+     1973
+    ],
+    [
+     -330,
+     1972
+    ],
+    [
+     -330,
+     1974
+    ],
+    [
+     -340,
+     1973
+    ],
+    [
+     -339,
+     1970
+    ],
+    [
+     -350,
+     1970
+    ],
+    [
+     -350,
+     1972
+    ],
+    [
+     -354,
+     1972
+    ],
+    [
+     -358,
+     1972
+    ],
+    [
+     -358,
+     1978
+    ],
+    [
+     -371,
+     1977
+    ],
+    [
+     -372,
+     1984
+    ],
+    [
+     -362,
+     1985
+    ],
+    [
+     -365,
+     2017
+    ],
+    [
+     -369,
+     2065
+    ],
+    [
+     -326,
+     2069
+    ],
+    [
+     -325,
+     2062
+    ],
+    [
+     -274,
+     2067
+    ],
+    [
+     -273,
+     2063
+    ],
+    [
+     -218,
+     2068
+    ],
+    [
+     -220,
+     2097
+    ],
+    [
+     -213,
+     2097
+    ],
+    [
+     -213,
+     2102
+    ],
+    [
+     -211,
+     2103
+    ],
+    [
+     -214,
+     2128
+    ],
+    [
+     -207,
+     2128
+    ],
+    [
+     -212,
+     2186
+    ],
+    [
+     -197,
+     2187
+    ],
+    [
+     -197,
+     2180
+    ],
+    [
+     -189,
+     2180
+    ],
+    [
+     -185,
+     2142
+    ],
+    [
+     -184,
+     2122
+    ],
+    [
+     -199,
+     2121
+    ],
+    [
+     -208,
+     2120
+    ],
+    [
+     -206,
+     2103
+    ],
+    [
+     -198,
+     2104
+    ],
+    [
+     -195,
+     2065
+    ],
+    [
+     -176,
+     2066
+    ],
+    [
+     -180,
+     2116
+    ],
+    [
+     -159,
+     2118
+    ],
+    [
+     -152,
+     2038
+    ],
+    [
+     -173,
+     2036
+    ],
+    [
+     -175,
+     2060
+    ],
+    [
+     -194,
+     2058
+    ],
+    [
+     -201,
+     2057
+    ],
+    [
+     -197,
+     2020
+    ],
+    [
+     -180,
+     2022
+    ],
+    [
+     -177,
+     1995
+    ],
+    [
+     -187,
+     1994
+    ],
+    [
+     -187,
+     1988
+    ]
+   ],
+   "courtyard_holes": [
+    [
+     [
+      -247,
+      2011
+     ],
+     [
+      -213,
+      2014
+     ],
+     [
+      -217,
+      2058
+     ],
+     [
+      -264,
+      2054
+     ],
+     [
+      -260,
+      2011
+     ],
+     [
+      -259,
+      2008
+     ],
+     [
+      -247,
+      2009
+     ]
+    ],
+    [
+     [
+      -321,
+      2013
+     ],
+     [
+      -320,
+      1996
+     ],
+     [
+      -308,
+      1998
+     ],
+     [
+      -281,
+      2000
+     ],
+     [
+      -273,
+      2000
+     ],
+     [
+      -275,
+      2028
+     ],
+     [
+      -276,
+      2039
+     ],
+     [
+      -323,
+      2035
+     ],
+     [
+      -323,
+      2030
+     ]
+    ]
+   ],
+   "near_stops": [
+    "1692 (56 m to the north wall)",
+    "1691 (125 m)"
+   ],
+   "summary": "Six-storey campus building (1971-1977, extended 1984-87): a broad front block along ул. 8-ми декември with a saw-tooth north facade, three wings stretching south around two courtyards.",
+   "massing": [
+    {
+     "part": "w1423489102 front-west block (largest)",
+     "centre": [
+      -343,
+      2032
+     ],
+     "obb_size_m": [
+      98,
+      94
+     ],
+     "angle_deg": 88,
+     "floors": 6,
+     "height_m": 21.4,
+     "roof": "flat",
+     "conf": "low"
+    },
+    {
+     "part": "w1423489101 north front block with saw-tooth facade on ул. 8-ми декември",
+     "centre": [
+      -318,
+      1985
+     ],
+     "obb_size_m": [
+      76,
+      25
+     ],
+     "angle_deg": 4,
+     "floors": 6,
+     "height_m": 21.4,
+     "roof": "flat",
+     "conf": "low"
+    },
+    {
+     "part": "w1423489095 inner wing",
+     "centre": [
+      -300,
+      2053
+     ],
+     "obb_size_m": [
+      54,
+      21
+     ],
+     "angle_deg": 5,
+     "floors": 6,
+     "height_m": 21.4,
+     "roof": "flat",
+     "conf": "low"
+    },
+    {
+     "part": "w1423489094 west annex",
+     "centre": [
+      -341,
+      2020
+     ],
+     "obb_size_m": [
+      28,
+      37
+     ],
+     "angle_deg": 93,
+     "floors": 6,
+     "height_m": 21.4,
+     "roof": "flat",
+     "conf": "low"
+    },
+    {
+     "part": "w1423489096 courtyard link wing",
+     "centre": [
+      -268,
+      2029
+     ],
+     "obb_size_m": [
+      53,
+      14
+     ],
+     "angle_deg": 95,
+     "floors": 5,
+     "height_m": 18.0,
+     "roof": "flat",
+     "conf": "low"
+    },
+    {
+     "part": "w1423489103 corner block",
+     "centre": [
+      -258,
+      1999
+     ],
+     "obb_size_m": [
+      23,
+      23
+     ],
+     "angle_deg": 5,
+     "floors": 6,
+     "height_m": 21.4,
+     "roof": "flat",
+     "conf": "low"
+    },
+    {
+     "part": "w1423489104 corner block",
+     "centre": [
+      -271,
+      1988
+     ],
+     "obb_size_m": [
+      25,
+      21
+     ],
+     "angle_deg": 5,
+     "floors": 6,
+     "height_m": 21.4,
+     "roof": "flat",
+     "conf": "low"
+    },
+    {
+     "part": "w1423489100 entrance wing",
+     "centre": [
+      -246,
+      1974
+     ],
+     "obb_size_m": [
+      16,
+      38
+     ],
+     "angle_deg": 5,
+     "floors": 6,
+     "height_m": 21.4,
+     "roof": "flat",
+     "conf": "low"
+    },
+    {
+     "part": "w1423489105 east block (Aula Maxima area, lower hall volume)",
+     "centre": [
+      -211,
+      1994
+     ],
+     "obb_size_m": [
+      53,
+      29
+     ],
+     "angle_deg": 6,
+     "floors": 3,
+     "height_m": 11.2,
+     "roof": "flat",
+     "conf": "low"
+    },
+    {
+     "part": "w1423489099 east link",
+     "centre": [
+      -221,
+      2005
+     ],
+     "obb_size_m": [
+      16,
+      51
+     ],
+     "angle_deg": 96,
+     "floors": 5,
+     "height_m": 18.0,
+     "roof": "flat",
+     "conf": "low"
+    },
+    {
+     "part": "w1423489093 east wing A",
+     "centre": [
+      -207,
+      2062
+     ],
+     "obb_size_m": [
+      88,
+      23
+     ],
+     "angle_deg": 95,
+     "floors": 6,
+     "height_m": 21.4,
+     "roof": "flat",
+     "conf": "low"
+    },
+    {
+     "part": "w629970752 east wing B",
+     "centre": [
+      -166,
+      2077
+     ],
+     "obb_size_m": [
+      80,
+      21
+     ],
+     "angle_deg": 95,
+     "floors": 6,
+     "height_m": 21.4,
+     "roof": "flat",
+     "conf": "low"
+    },
+    {
+     "part": "w1423489098 inner link",
+     "centre": [
+      -245,
+      2061
+     ],
+     "obb_size_m": [
+      56,
+      10
+     ],
+     "angle_deg": 5,
+     "floors": 5,
+     "height_m": 18.0,
+     "roof": "flat",
+     "conf": "low"
+    },
+    {
+     "part": "w1423489092 south-east wing",
+     "centre": [
+      -198,
+      2154
+     ],
+     "obb_size_m": [
+      66,
+      23
+     ],
+     "angle_deg": 95,
+     "floors": 6,
+     "height_m": 21.4,
+     "roof": "flat",
+     "conf": "low"
+    },
+    {
+     "part": "w1423489097 south link",
+     "centre": [
+      -208,
+      2119
+     ],
+     "obb_size_m": [
+      25,
+      14
+     ],
+     "angle_deg": 95,
+     "floors": 5,
+     "height_m": 18.0,
+     "roof": "flat",
+     "conf": "low"
+    },
+    {
+     "part": "w1423489106 east annex",
+     "centre": [
+      -184,
+      2009
+     ],
+     "obb_size_m": [
+      27,
+      18
+     ],
+     "angle_deg": 96,
+     "floors": 4,
+     "height_m": 14.6,
+     "roof": "flat",
+     "conf": "low"
+    },
+    {
+     "part": "w1164907848 service annex",
+     "centre": [
+      -185,
+      2062
+     ],
+     "obb_size_m": [
+      19,
+      7
+     ],
+     "angle_deg": 5,
+     "floors": 2,
+     "height_m": 7.8,
+     "roof": "flat",
+     "conf": "low"
+    },
+    {
+     "part": "north_front_sawtooth",
+     "shape": "9 vertical bays of 10-11 m between x -355 and -255 at z about 1972-1981, alternately projecting 2-3 m (stepped outline in the OSM polygon); model as projecting fins/pilasters 1.2 m wide every 10.5 m",
+     "height_m": 21.0,
+     "conf": "medium (outline) / low (fin detail)"
+    },
+    {
+     "part": "forecourt",
+     "shape": "lawns and paved plaza 45-55 m deep between the road kerb (z about 1908) and the north wall (z 1956-1985), diagonal path from stop 1692, flag masts, trees",
+     "conf": "medium"
+    }
+   ],
+   "materials": {
+    "walls": "pale precast panels and render #d9d6cc",
+    "window_bands": "dark brown-grey glass #6b5a4a, continuous bands 1.8 m high per floor",
+    "roof": "#66625c",
+    "colours_confidence": "low - inferred from 1970s institutional typology"
+   },
+   "facts": [
+    "first sod 18 Feb 1971",
+    "blocks A and B opened Oct 1975; E and F spring 1977",
+    "Aula Maxima (460 seats) and computing centre Dec 1984; library 1987 (renovated 2023)",
+    "New Academic Complex / Campus K: 4 floors, built 2017-2021 (separate building)",
+    "Oscar cafe on the 6th floor; Yo2DINNER and an ATM at the front"
+   ],
+   "sources": [
+    "https://www.unwe.bg/en/pages/310/material-facilities.html",
+    "https://www.unwe.bg/en/pages/314/maxima-aula.html",
+    "https://www.unwe.bg/en/pages/19831/new-academic-campus.html",
+    "OSM r2264042 + OSM/Overture building parts (bpart.parquet) w1423489092..106, w629970752"
+   ],
+   "confidence": "outline and part footprints high; dates medium-high (UNWE site via search); heights/cladding low"
+  },
+  {
+   "id": "nsa_complex",
+   "osm": "r2264019",
+   "name": "Национална спортна академия „Васил Левски“ — основна сграда и зали",
+   "position": [
+    -241.2,
+    2488.0
+   ],
+   "dims": {
+    "obb_size_m": [
+     183.7,
+     155.3
+    ],
+    "area_m2": 13168,
+    "bounds_xz": [
+     -326,
+     2398,
+     -158,
+     2576
+    ]
+   },
+   "footprint_polygon": [
+    [
+     -266,
+     2462
+    ],
+    [
+     -303,
+     2459
+    ],
+    [
+     -305,
+     2486
+    ],
+    [
+     -272,
+     2489
+    ],
+    [
+     -274,
+     2503
+    ],
+    [
+     -323,
+     2498
+    ],
+    [
+     -326,
+     2531
+    ],
+    [
+     -303,
+     2548
+    ],
+    [
+     -299,
+     2548
+    ],
+    [
+     -300,
+     2568
+    ],
+    [
+     -280,
+     2570
+    ],
+    [
+     -277,
+     2539
+    ],
+    [
+     -267,
+     2540
+    ],
+    [
+     -270,
+     2572
+    ],
+    [
+     -234,
+     2576
+    ],
+    [
+     -232,
+     2539
+    ],
+    [
+     -216,
+     2541
+    ],
+    [
+     -214,
+     2514
+    ],
+    [
+     -223,
+     2513
+    ],
+    [
+     -218,
+     2473
+    ],
+    [
+     -183,
+     2477
+    ],
+    [
+     -185,
+     2503
+    ],
+    [
+     -168,
+     2505
+    ],
+    [
+     -158,
+     2399
+    ],
+    [
+     -168,
+     2398
+    ],
+    [
+     -169,
+     2401
+    ],
+    [
+     -191,
+     2399
+    ],
+    [
+     -197,
+     2460
+    ],
+    [
+     -217,
+     2458
+    ],
+    [
+     -216,
+     2440
+    ],
+    [
+     -220,
+     2440
+    ],
+    [
+     -219,
+     2423
+    ],
+    [
+     -266,
+     2418
+    ],
+    [
+     -269,
+     2446
+    ],
+    [
+     -254,
+     2447
+    ],
+    [
+     -256,
+     2466
+    ],
+    [
+     -261,
+     2465
+    ],
+    [
+     -260,
+     2460
+    ],
+    [
+     -266,
+     2459
+    ]
+   ],
+   "courtyard_holes": [
+    [
+     [
+      -264,
+      2498
+     ],
+     [
+      -239,
+      2500
+     ],
+     [
+      -240,
+      2512
+     ],
+     [
+      -247,
+      2512
+     ],
+     [
+      -250,
+      2537
+     ],
+     [
+      -260,
+      2536
+     ],
+     [
+      -260,
+      2530
+     ],
+     [
+      -267,
+      2530
+     ]
+    ],
+    [
+     [
+      -263,
+      2486
+     ],
+     [
+      -261,
+      2469
+     ],
+     [
+      -256,
+      2470
+     ],
+     [
+      -238,
+      2472
+     ],
+     [
+      -239,
+      2488
+     ]
+    ]
+   ],
+   "near_stops": [
+    "1693 (119 m)",
+    "1694 (162 m)",
+    "1606 (333 m)"
+   ],
+   "summary": "Multi-wing academy complex around two courtyards; teaching wings (3-4 floors) plus tall windowless halls; seen across a lawn from the terminal loop.",
+   "massing": [
+    {
+     "part": "teaching_wings",
+     "shape": "all parts of the outline not listed below",
+     "floors": 4,
+     "height_m": 14.0,
+     "roof": "flat",
+     "conf": "low"
+    },
+    {
+     "part": "sports_halls",
+     "shape": "the three widest blocks of the outline (about 50 x 30 m near (-300,2540), (-255,2430) and (-175,2450))",
+     "height_m": 11.0,
+     "roof": "flat/low arch",
+     "conf": "low"
+    }
+   ],
+   "materials": {
+    "walls": "concrete / pale render #d6d1c4",
+    "window_bands": "#4a4f55",
+    "roof": "#66625c"
+   },
+   "facts": [
+    "academy campus polygon w1365682394 (26,655 m2) in OSM landuse",
+    "address ул. Акад. Стефан Младенов 21"
+   ],
+   "sources": [
+    "OSM r2264019, landuse w1365682394 (named Национална спортна академия „Васил Левски“)",
+    "https://en.wikipedia.org/wiki/National_Sports_Academy_%22Vasil_Levski%22 (via search summary)"
+   ],
+   "confidence": "footprint high; look low"
+  },
+  {
+   "id": "nsa_sports_grounds",
+   "name": "Спортни терени на НСА (стадион, писти, игрища)",
+   "position": [
+    -330,
+    2650
+   ],
+   "dims": {
+    "bounds_xz": [
+     -552,
+     2380,
+     -8,
+     2940
+    ]
+   },
+   "near_stops": [
+    "1606 (0-100 m to the east of the kerb)",
+    "1609",
+    "1693/1694 (south side)"
+   ],
+   "summary": "Open grass belt along the east side of ул. Акад. Стефан Младенов from the terminal to the Странски corner, with the athletics stadium and football/rugby/hockey pitches 70-260 m inside.",
+   "massing": [
+    {
+     "part": "athletics_track_stadium",
+     "osm": "r15071259",
+     "bounds_xz": [
+      -455,
+      2546,
+      -338,
+      2715
+     ],
+     "note": "track 3,711 m2 with the pitch w1126151267 [-439,2572,-347,2691] inside",
+     "conf": "high (extent), low (surface)"
+    },
+    {
+     "part": "football_rugby_pitch",
+     "osm": "w170124701",
+     "bounds_xz": [
+      -379,
+      2724,
+      -292,
+      2840
+     ],
+     "note": "rugby/football (OSM name Игрище за ръгби и футбол)",
+     "conf": "high (extent), low (surface)"
+    },
+    {
+     "part": "field_hockey_cricket_pitch",
+     "osm": "w170124699",
+     "bounds_xz": [
+      -485,
+      2750,
+      -395,
+      2885
+     ],
+     "note": "field hockey and cricket (OSM name)",
+     "conf": "high (extent), low (surface)"
+    },
+    {
+     "part": "pitch",
+     "osm": "w572744361",
+     "bounds_xz": [
+      -532,
+      2623,
+      -448,
+      2737
+     ],
+     "note": "pitch 7,509 m2",
+     "conf": "high (extent), low (surface)"
+    },
+    {
+     "part": "pitch",
+     "osm": "w170124703",
+     "bounds_xz": [
+      -298,
+      2713,
+      -213,
+      2826
+     ],
+     "note": "pitch 6,921 m2",
+     "conf": "high (extent), low (surface)"
+    },
+    {
+     "part": "track",
+     "osm": "r17860546",
+     "bounds_xz": [
+      -349,
+      2577,
+      -254,
+      2709
+     ],
+     "note": "track 2,600 m2",
+     "conf": "high (extent), low (surface)"
+    },
+    {
+     "part": "pitch",
+     "osm": "w59467113",
+     "bounds_xz": [
+      -332,
+      2584,
+      -261,
+      2693
+     ],
+     "note": "pitch 5,638 m2",
+     "conf": "high (extent), low (surface)"
+    },
+    {
+     "part": "track",
+     "osm": "r17860558",
+     "bounds_xz": [
+      -215,
+      2675,
+      -109,
+      2804
+     ],
+     "note": "track 1,514 m2",
+     "conf": "high (extent), low (surface)"
+    },
+    {
+     "part": "small_pitches",
+     "osm": "w170128801..805",
+     "bounds_xz": [
+      -132,
+      2492,
+      -28,
+      2764
+     ],
+     "note": "five 1,000-3,400 m2 pitches (tennis/basketball/volleyball sized)",
+     "conf": "high (extent), low (surface)"
+    },
+    {
+     "part": "fence",
+     "shape": "about 1.8 m wire/hedge fence along the road edge at x about -552 (inferred)",
+     "conf": "low"
+    },
+    {
+     "part": "surfaces",
+     "shape": "pitches green #6e9a4a, tracks red-brown #a3523a, grass belt #7f9f5a",
+     "conf": "low"
+    }
+   ],
+   "sources": [
+    "OSM landuse polygons (landuse.parquet: pitch/track/grass)"
+   ],
+   "confidence": "extent high; look low"
+  },
+  {
+   "id": "ltu_main",
+   "osm": "w169383001",
+   "name": "Лесотехнически университет — главна сграда",
+   "position": [
+    562.5,
+    1689.2
+   ],
+   "dims": {
+    "centroid": [
+     562.5,
+     1689.2
+    ],
+    "obb_size_m": [
+     121.2,
+     51.2
+    ],
+    "obb_angle_deg": 82,
+    "area_m2": 2642
+   },
+   "footprint_polygon": [
+    [
+     605.9,
+     1722.6
+    ],
+    [
+     573.7,
+     1727.3
+    ],
+    [
+     571.4,
+     1711.2
+    ],
+    [
+     558.4,
+     1621.1
+    ],
+    [
+     539.9,
+     1623.8
+    ],
+    [
+     557.2,
+     1743.7
+    ],
+    [
+     575.7,
+     1741.0
+    ],
+    [
+     575.4,
+     1738.7
+    ],
+    [
+     607.5,
+     1734.1
+    ]
+   ],
+   "near_stops": [
+    "0617 (31 m)",
+    "0614 (42 m)",
+    "0800 (250 m)"
+   ],
+   "summary": "L-shaped five-storey institutional slab behind a belt of trees; the main thing on the west side of the boulevard at the ЛТУ stops.",
+   "massing": [
+    {
+     "part": "main_slab",
+     "shape": "18.5 m deep x 122 m long, long axis N-S from (548,1622) to (566,1742)",
+     "floors": 5,
+     "height_m": 18.0,
+     "roof": "flat",
+     "conf": "low"
+    },
+    {
+     "part": "south_east_wing",
+     "shape": "34 x 12 m wing at z 1722-1741 projecting east to x 607",
+     "floors": 4,
+     "height_m": 15.0,
+     "roof": "flat",
+     "conf": "low"
+    },
+    {
+     "part": "tree_belt",
+     "shape": "OSM forest polygon w170124696 (x 347-620, z 1734-1969, 33 vertices) covers the grounds: dense mature trees between the road and the building, 15-20 m tall, broadleaf",
+     "polygon": [
+      [
+       418,
+       1771
+      ],
+      [
+       432,
+       1811
+      ],
+      [
+       382,
+       1831
+      ],
+      [
+       356,
+       1789
+      ],
+      [
+       354,
+       1791
+      ],
+      [
+       347,
+       1905
+      ],
+      [
+       396,
+       1909
+      ],
+      [
+       409,
+       1919
+      ],
+      [
+       408,
+       1940
+      ],
+      [
+       465,
+       1951
+      ],
+      [
+       498,
+       1959
+      ],
+      [
+       525,
+       1968
+      ],
+      [
+       533,
+       1969
+      ],
+      [
+       541,
+       1967
+      ],
+      [
+       552,
+       1952
+      ],
+      [
+       573,
+       1922
+      ],
+      [
+       593,
+       1888
+      ],
+      [
+       604,
+       1864
+      ],
+      [
+       611,
+       1841
+      ],
+      [
+       617,
+       1817
+      ],
+      [
+       617,
+       1809
+      ],
+      [
+       620,
+       1782
+      ],
+      [
+       620,
+       1757
+      ],
+      [
+       618,
+       1738
+      ],
+      [
+       558,
+       1748
+      ],
+      [
+       551,
+       1753
+      ],
+      [
+       542,
+       1753
+      ],
+      [
+       540,
+       1749
+      ],
+      [
+       537,
+       1734
+      ],
+      [
+       487,
+       1743
+      ]
+     ],
+     "conf": "high (existence)"
+    }
+   ],
+   "materials": {
+    "walls": "pale ochre plaster #dcd2b4 (inferred)",
+    "window_grid": "regular punched windows 1.6 x 1.4 m on a 3.2 m grid",
+    "roof": "#66625c",
+    "entrance": "portal with steps on the boulevard side (inferred)"
+   },
+   "sources": [
+    "OSM w169383001 outline; landuse w315470779 (university, Лесотехнически университет) and forest w170124696"
+   ],
+   "confidence": "outline high; look low"
+  },
+  {
+   "id": "xtmu_blocks",
+   "osm": "w169382971",
+   "name": "ХТМУ — Сграда А и В с градина-осмоъгълник",
+   "position": [
+    510.2,
+    1511.4
+   ],
+   "dims": {
+    "centroid": [
+     510.2,
+     1511.4
+    ],
+    "obb_size_m": [
+     203.3,
+     58.7
+    ],
+    "obb_angle_deg": 75,
+    "area_m2": 5143
+   },
+   "footprint_polygon": [
+    [
+     487.1,
+     1444.2
+    ],
+    [
+     481.0,
+     1410.1
+    ],
+    [
+     452.2,
+     1415.2
+    ],
+    [
+     454.6,
+     1428.5
+    ],
+    [
+     469.1,
+     1426.0
+    ],
+    [
+     472.8,
+     1446.7
+    ],
+    [
+     465.9,
+     1448.0
+    ],
+    [
+     469.2,
+     1466.3
+    ],
+    [
+     511.6,
+     1458.9
+    ],
+    [
+     520.5,
+     1509.1
+    ],
+    [
+     485.2,
+     1515.3
+    ],
+    [
+     487.7,
+     1529.4
+    ],
+    [
+     523.4,
+     1523.1
+    ],
+    [
+     527.7,
+     1547.5
+    ],
+    [
+     492.5,
+     1553.7
+    ],
+    [
+     495.1,
+     1568.5
+    ],
+    [
+     530.3,
+     1562.3
+    ],
+    [
+     534.6,
+     1586.9
+    ],
+    [
+     499.8,
+     1593.0
+    ],
+    [
+     501.9,
+     1605.0
+    ],
+    [
+     502.4,
+     1607.7
+    ],
+    [
+     551.5,
+     1599.1
+    ],
+    [
+     535.1,
+     1506.4
+    ],
+    [
+     530.3,
+     1507.2
+    ],
+    [
+     518.1,
+     1438.8
+    ]
+   ],
+   "near_stops": [
+    "1740 (80 m)",
+    "1743 (126 m)"
+   ],
+   "summary": "Comb of parallel wings (Сграда А) with an octagonal garden plaza in the courtyard; Сграда В (w169382973, 215 x 73 m at (410,1525)) lies behind it to the west.",
+   "massing": [
+    {
+     "part": "wings",
+     "shape": "5 parallel wings, each about 12-13 m wide and 30-50 m long, spaced 25 m, joined by a spine along the west; see polygon",
+     "floors": 5,
+     "height_m": 17.0,
+     "roof": "flat",
+     "conf": "low"
+    },
+    {
+     "part": "octagon_garden",
+     "shape": "octagonal paved plaza about 45-50 m across (outer) / 31 m (inner octagon) with 8 radial paths and a central round bed, centre (491,1489)",
+     "conf": "medium"
+    },
+    {
+     "part": "trees",
+     "shape": "rows of trees and lawn between the boulevard and the wings",
+     "conf": "medium"
+    }
+   ],
+   "materials": {
+    "walls": "pale grey/beige render #cfc9ba",
+    "window_bands": "#5c6165"
+   },
+   "sources": [
+    "OSM w169382971 (name Сграда А), w169382973 (Сграда В)",
+    "OSM footways forming the octagon (map render)"
+   ],
+   "confidence": "outline high; look low"
+  },
+  {
+   "id": "tu_campus_blocks",
+   "name": "ТУ-София — блокове 1-4 и библиотека (не се виждат от пътя)",
+   "position": [
+    250.0,
+    1400.0
+   ],
+   "near_stops": [
+    "1740 (214 m)",
+    "1743 (413 m)"
+   ],
+   "summary": "The campus blocks lie 215-450 m west of the boulevard behind the Prof. Bradistilov pavilions; modelled only as distant massing if needed.",
+   "massing": [
+    {
+     "part": "1-ви блок (Rectorate, comb of wings)",
+     "osm": "r16731924",
+     "floors": 5,
+     "height_m": 18.0,
+     "roof": "flat",
+     "centroid": [
+      306,
+      1331
+     ],
+     "obb_size_m": [
+      211.2,
+      108.6
+     ],
+     "obb_angle_deg": 5,
+     "area_m2": 7936,
+     "conf": "footprint high, height medium (OSM levels 5; library 2)"
+    },
+    {
+     "part": "2-ри блок",
+     "osm": "w169383000",
+     "floors": 5,
+     "height_m": 18.0,
+     "roof": "flat",
+     "centroid": [
+      217.6,
+      1319.5
+     ],
+     "obb_size_m": [
+      210.4,
+      42.2
+     ],
+     "obb_angle_deg": 94,
+     "area_m2": 4943,
+     "conf": "footprint high, height medium (OSM levels 5; library 2)"
+    },
+    {
+     "part": "3-ти блок",
+     "osm": "w169383032",
+     "floors": 5,
+     "height_m": 18.0,
+     "roof": "flat",
+     "centroid": [
+      225.5,
+      1497.7
+     ],
+     "obb_size_m": [
+      114.9,
+      68.6
+     ],
+     "obb_angle_deg": 5,
+     "area_m2": 5591,
+     "conf": "footprint high, height medium (OSM levels 5; library 2)"
+    },
+    {
+     "part": "4-ти блок",
+     "osm": "w169383033",
+     "floors": 5,
+     "height_m": 18.0,
+     "roof": "flat",
+     "centroid": [
+      216.7,
+      1560.6
+     ],
+     "obb_size_m": [
+      115.1,
+      70.2
+     ],
+     "obb_angle_deg": 5,
+     "area_m2": 4031,
+     "conf": "footprint high, height medium (OSM levels 5; library 2)"
+    },
+    {
+     "part": "Библиотека на ТУ",
+     "osm": "w807041614",
+     "floors": 2,
+     "height_m": 7.8,
+     "roof": "flat",
+     "centroid": [
+      235.9,
+      1265.4
+     ],
+     "obb_size_m": [
+      59.5,
+      20.9
+     ],
+     "obb_angle_deg": 95,
+     "area_m2": 1101,
+     "conf": "footprint high, height medium (OSM levels 5; library 2)"
+    }
+   ],
+   "other": [
+    {
+     "osm": "w169383035",
+     "name": "8-ми блок",
+     "centroid": [
+      187,
+      1852
+     ],
+     "obb": [
+      90,
+      77
+     ],
+     "floors": 2
+    },
+    {
+     "osm": "r2880716",
+     "name": "9-и блок",
+     "centroid": [
+      293,
+      1849
+     ],
+     "obb": [
+      110,
+      77
+     ],
+     "floors": 4
+    },
+    {
+     "osm": "w169383030",
+     "name": "10-ти блок",
+     "centroid": [
+      215,
+      1809
+     ],
+     "obb": [
+      50,
+      22
+     ]
+    },
+    {
+     "osm": "w170124711",
+     "name": "13-ти блок",
+     "centroid": [
+      276,
+      2105
+     ],
+     "obb": [
+      48,
+      43
+     ]
+    },
+    {
+     "osm": "w170133469",
+     "name": "12-ти блок",
+     "centroid": [
+      110,
+      1218
+     ],
+     "obb": [
+      92,
+      38
+     ],
+     "floors": 6
+    }
+   ],
+   "materials": {
+    "walls": "light grey concrete / render #cfc9ba",
+    "accent": "bands #8f8b80"
+   },
+   "sources": [
+    "OSM names and levels (Overture bld.parquet)",
+    "https://archgyan.com (via search summary: late-1960s, raw concrete, modular)"
+   ],
+   "confidence": "footprints high; look low"
+  },
+  {
+   "id": "student_chapel",
+   "osm": "w166109747",
+   "name": "Храм-параклис „Св. Йоан Рилски Чудотворец“",
+   "position": [
+    -319.7,
+    1859.3
+   ],
+   "dims": {
+    "centroid": [
+     -319.7,
+     1859.3
+    ],
+    "obb_size_m": [
+     12.0,
+     8.7
+    ],
+    "obb_angle_deg": 180,
+    "area_m2": 85
+   },
+   "footprint_polygon": [
+    [
+     -315.1,
+     1862.8
+    ],
+    [
+     -315.1,
+     1861.5
+    ],
+    [
+     -313.8,
+     1861.1
+    ],
+    [
+     -313.1,
+     1860.1
+    ],
+    [
+     -313.1,
+     1858.8
+    ],
+    [
+     -313.8,
+     1857.8
+    ],
+    [
+     -315.1,
+     1857.4
+    ],
+    [
+     -315.1,
+     1855.9
+    ],
+    [
+     -317.6,
+     1855.9
+    ],
+    [
+     -317.6,
+     1855.0
+    ],
+    [
+     -322.8,
+     1855.0
+    ],
+    [
+     -322.8,
+     1855.9
+    ],
+    [
+     -325.1,
+     1855.9
+    ],
+    [
+     -325.1,
+     1862.8
+    ],
+    [
+     -322.8,
+     1862.8
+    ],
+    [
+     -322.8,
+     1863.7
+    ],
+    [
+     -317.6,
+     1863.7
+    ],
+    [
+     -317.6,
+     1862.8
+    ]
+   ],
+   "near_stops": [
+    "1691 (50 m)",
+    "1692 (64 m)"
+   ],
+   "summary": "Tiny student chapel in the open park east of Ак. Стефан Младенов.",
+   "massing": [
+    {
+     "part": "nave",
+     "shape": "10.0 x 6.9 m, long axis east-west, x -325.1..-315.1, z 1855.9..1862.8",
+     "height_m": 5.0,
+     "roof": "gabled, ridge E-W, red clay tile #9a3b26, slope 35 deg",
+     "conf": "low"
+    },
+    {
+     "part": "apse",
+     "shape": "half-cylinder radius 2.0 on the east end (x -315.1..-313.1)",
+     "height_m": 3.6,
+     "roof": "half cone",
+     "conf": "medium (outline) / low"
+    },
+    {
+     "part": "porches",
+     "shape": "two 5.2 x 0.9 m door projections on the north and south long sides",
+     "height_m": 3.0,
+     "conf": "medium (outline)"
+    },
+    {
+     "part": "bell_gable_or_cupola",
+     "shape": "small cupola 1.6 x 1.6 m with a cross on the west gable, 2.5 m tall",
+     "conf": "low"
+    }
+   ],
+   "materials": {
+    "walls": "cream plaster #efe8d8",
+    "roof": "#9a3b26",
+    "trim": "#8b7355"
+   },
+   "sources": [
+    "OSM w166109747 outline; name from OSM and places"
+   ],
+   "confidence": "outline high; look low"
+  },
+  {
+   "id": "omv_station",
+   "osm": "w170124645",
+   "name": "Бензиностанция OMV (ул. 8-ми декември 3)",
+   "position": [
+    464.0,
+    1999.7
+   ],
+   "dims": {
+    "centroid": [
+     464.0,
+     1999.7
+    ],
+    "obb_size_m": [
+     20.5,
+     15.3
+    ],
+    "obb_angle_deg": 126,
+    "area_m2": 311
+   },
+   "footprint_polygon": [
+    [
+     464.4,
+     1987.4
+    ],
+    [
+     463.8,
+     1987.0
+    ],
+    [
+     451.9,
+     2003.3
+    ],
+    [
+     460.5,
+     2009.9
+    ],
+    [
+     464.3,
+     2012.2
+    ],
+    [
+     476.1,
+     1996.0
+    ],
+    [
+     474.9,
+     1995.1
+    ]
+   ],
+   "near_stops": [
+    "0800 (43 m)"
+   ],
+   "summary": "Flat canopy filling station with a small shop box and a price pylon on the south side of 8-ми декември.",
+   "massing": [
+    {
+     "part": "canopy",
+     "shape": "20.5 x 15.3 m, rotated 126 deg, flat roof at 5.0 m on 4 columns; white fascia with a blue stripe #0a4aa0",
+     "conf": "medium"
+    },
+    {
+     "part": "shop_box",
+     "shape": "9 x 5 m box at the south-east corner, height 3.4 m, glazed",
+     "conf": "low"
+    },
+    {
+     "part": "pylon",
+     "shape": "price pylon 6 m high, 1.0 x 0.3 m, at the road corner",
+     "conf": "low"
+    }
+   ],
+   "sources": [
+    "OSM w170124645 (canopy outline); places OMV, Еконтомат"
+   ],
+   "confidence": "outline high; look medium-low"
+  },
+  {
+   "id": "yosifov_kiosk_modules",
+   "name": "Редове павилиони на ул. Д-р Йордан Йосифов (модули 5.2 x 7.6 м)",
+   "position": [
+    -421.0,
+    1678.0
+   ],
+   "near_stops": [
+    "0524 (12-36 m north-east)"
+   ],
+   "summary": "Two rows of three identical one-storey kiosk modules plus a smaller one: the shop alley beside stop 0524.",
+   "massing": [
+    {
+     "part": "row_west",
+     "modules": [
+      {
+       "osm": "w65696356",
+       "centre": [
+        -430.8,
+        1685.1
+       ]
+      },
+      {
+       "osm": "w65696358",
+       "centre": [
+        -430.4,
+        1677.6
+       ]
+      },
+      {
+       "osm": "w65696344",
+       "centre": [
+        -430.0,
+        1670.1
+       ]
+      }
+     ],
+     "module_size_m": [
+      5.2,
+      7.6
+     ],
+     "height_m": 3.2,
+     "roof": "flat, 0.5 m eaves",
+     "front": "fully glazed shopfront with 1.0 m deep awning on the road side",
+     "conf": "medium"
+    },
+    {
+     "part": "row_east",
+     "modules": [
+      {
+       "osm": "w65696340",
+       "centre": [
+        -412.0,
+        1686.4
+       ]
+      },
+      {
+       "osm": "w65696310",
+       "centre": [
+        -411.6,
+        1679.0
+       ]
+      },
+      {
+       "osm": "w65696337",
+       "centre": [
+        -411.2,
+        1671.7
+       ]
+      }
+     ],
+     "module_size_m": [
+      7.4,
+      4.8
+     ],
+     "height_m": 3.2,
+     "conf": "medium"
+    },
+    {
+     "part": "terraces",
+     "shape": "open terraces with parasols and plastic tables in front of every module",
+     "conf": "low"
+    }
+   ],
+   "materials": {
+    "walls": "aluminium/sandwich panels in tenant colours (see shop_signs of the corresponding buildings_overrides entries)",
+    "fallback": "#aeb6bb"
+   },
+   "sources": [
+    "OSM way outlines (bld.parquet)",
+    "places list (AIM Travel USA etc.)"
+   ],
+   "confidence": "positions high; look low"
+  },
+  {
+   "id": "terminal_loop",
+   "name": "Крайна спирка Студентски град — обръщателна примка",
+   "position": [
+    -485.0,
+    2475.0
+   ],
+   "near_stops": [
+    "1694",
+    "1693"
+   ],
+   "summary": "Short 3.6 m service spur east of ул. Акад. Стефан Младенов with a turning circle; arrival stop 1694, departure stop 1693, return via the larger east-west street 25 m north.",
+   "geometry": {
+    "route_A_arrival": [
+     [
+      -545.2,
+      2473.4
+     ],
+     [
+      -501.1,
+      2464.9
+     ],
+     [
+      -492.9,
+      2473.4
+     ],
+     [
+      -481.0,
+      2484.8
+     ]
+    ],
+    "stop_1694_pole": [
+     -485.0,
+     2489.0
+    ],
+    "terminal_link": [
+     [
+      -481.0,
+      2484.8
+     ],
+     [
+      -479.4,
+      2486.4
+     ],
+     [
+      -468.1,
+      2490.1
+     ],
+     [
+      -458.4,
+      2488.2
+     ],
+     [
+      -452.2,
+      2485.0
+     ],
+     [
+      -447.9,
+      2480.4
+     ],
+     [
+      -445.1,
+      2474.1
+     ],
+     [
+      -445.0,
+      2473.4
+     ]
+    ],
+    "stop_1693_pole": [
+     -440.5,
+     2473.9
+    ],
+    "route_B_return": [
+     [
+      -445.0,
+      2473.4
+     ],
+     [
+      -444.3,
+      2467.4
+     ],
+     [
+      -445.7,
+      2461.4
+     ],
+     [
+      -447.7,
+      2456.8
+     ],
+     [
+      -451.2,
+      2452.9
+     ],
+     [
+      -457.3,
+      2447.7
+     ],
+     [
+      -516.1,
+      2449.0
+     ],
+     [
+      -531.9,
+      2449.2
+     ],
+     [
+      -541.6,
+      2449.3
+     ],
+     [
+      -544.3,
+      2462.3
+     ],
+     [
+      -545.2,
+      2473.4
+     ]
+    ],
+    "road_width_m": 3.6
+   },
+   "massing": [
+    {
+     "part": "shelter_1694",
+     "shape": "standard shelter 4.5 m (see stop_shelter_sofia_standard) beside the spur at (-485,2489), oriented along 134 deg",
+     "conf": "medium (existence), low (model)"
+    },
+    {
+     "part": "shelter_1693_and_hut",
+     "shape": "shelter at (-440.5,2473.9) plus a 15.8 x 5.8 m low roofed structure 5 m east (Overture-only footprint): model as a long open dispatcher shelter 15.8 x 3.0 m, height 2.6 m",
+     "conf": "low"
+    },
+    {
+     "part": "surfaces",
+     "shape": "asphalt spur, bare gravel/grass apron, kerb 0.15 m only on the stop side",
+     "conf": "low"
+    },
+    {
+     "part": "surroundings",
+     "shape": "rows of 2-storey light-industrial sheds 50-190 m north (w170132xxx series), lawn south and south-west, NSA main complex 115 m east",
+     "conf": "medium"
+    }
+   ],
+   "sources": [
+    "src/data/route280.json (path + terminalLinks)",
+    "OSM/Overture building footprints"
+   ],
+   "confidence": "geometry high (route data); look low"
+  },
+  {
+   "id": "stop_shelter_sofia_standard",
+   "name": "Спирков навес — стандартен 4.5 м (Sofia)",
+   "position": null,
+   "applies_to": [
+    "1743",
+    "0614",
+    "0801",
+    "1691",
+    "1692",
+    "0530",
+    "1610",
+    "1611",
+    "1694",
+    "1693"
+   ],
+   "summary": "Generic Sofia municipal bus shelter (modular steel/glass, opaque roof, advertising light box, bench, LED timetable board). Used wherever OSM maps shelter=yes. Not a verified model.",
+   "dims_m": {
+    "length": 4.5,
+    "depth": 1.6,
+    "height": 2.55,
+    "roof_overhang_front": 0.15,
+    "roof_thickness": 0.12
+   },
+   "massing": [
+    {
+     "part": "posts",
+     "shape": "4 posts 0.08 x 0.08 m, height 2.5 m at x=+-2.1, z=+-0.7 (local frame: x along the road, z away from the road)",
+     "color": "#3d4247"
+    },
+    {
+     "part": "roof",
+     "shape": "flat/slightly pitched (2 deg to the rear) opaque panel 4.6 x 1.75 x 0.12 m at y 2.50-2.62; upper face #2d3135, underside #d8d8d4",
+     "conf": "high (opaque roof stated in the Sofia 2026 programme report)"
+    },
+    {
+     "part": "rear_glass",
+     "shape": "3 glass panels 1.4 x 1.9 m, bottom at 0.15 m, thin aluminium frames, tint #9fb4bd alpha 0.35",
+     "color": "#9fb4bd"
+    },
+    {
+     "part": "end_glass",
+     "shape": "one side panel 1.4 x 1.9 m on the trailing end",
+     "color": "#9fb4bd"
+    },
+    {
+     "part": "ad_light_box",
+     "shape": "double-sided box 1.2 x 1.8 x 0.14 m at one end (the 2026 Sofia shelter programme report allows advertising modules only on the right side); illuminated at night (emissive 0.3)",
+     "color": "#2d3135"
+    },
+    {
+     "part": "bench",
+     "shape": "steel-slat bench 1.9 x 0.42 m, seat 0.46 m, back-rest 0.85 m, against the rear glass; present only where OSM bench=yes",
+     "color": "#5b5f63"
+    },
+    {
+     "part": "led_board",
+     "shape": "black housing 0.95 x 0.30 x 0.08 m on the front-left post at y 2.1-2.4, three rows of amber LED text (line, destination, minutes); present where departures_board=realtime",
+     "color": "#15171a"
+    },
+    {
+     "part": "name_board",
+     "shape": "stop-name strip 2.6 x 0.45 m on the roof front edge (optional)",
+     "conf": "low"
+    }
+   ],
+   "sources": [
+    "https://spasisofia.org/wp-content/uploads/2026/06/doklad_-programa-za-spirkonavesi.pdf (via search summary: modular, anti-corrosion materials, opaque roof, standard 4-5 m, double 8-10 m, ads only on the right side)",
+    "https://www.capital.bg/biznes/kompanii/2015/01/14/2453947_koncesiiata_na_spirkite_v_sofiia_trugva/ (three stop types: sign only, shelter, shelter+pavilion)",
+    "Sofia traffic ordinance (via search): single stop zone 20 m, width 3.5 m standard"
+   ],
+   "confidence": "dimensions and colours medium-low (inferred); opaque roof and 4-5 m length medium (municipal report)"
+  },
+  {
+   "id": "studentski_grad_venues",
+   "name": "Магазини, кафенета и клубове около спирките (от Overture places)",
+   "position": null,
+   "summary": "Named venues within 150 m of the poles for sign boards and terrace props. Coordinates are Overture place positions (+-10 m). Categories: bars/clubs, fast food, cafes, banks, shops.",
+   "clusters": {
+    "tu_gate_kl_ohridski": [
+     {
+      "name": "Smoke  Lounge and Pizza bar",
+      "cat": "restaurant",
+      "x": 577.8,
+      "z": 1368.2,
+      "addr": "Булевард Свети Климент Охридски 6",
+      "conf": 0.68,
+      "near_stop": "1740",
+      "dist_m": 18.0
+     },
+     {
+      "name": "ЦКБ АД Клон Дървеница",
+      "cat": "bank_or_credit_union",
+      "x": 578.8,
+      "z": 1364.9,
+      "addr": "бул.\"Св.Климент Охридски\" 8",
+      "conf": 0.8,
+      "near_stop": "1740",
+      "dist_m": 21.3
+     },
+     {
+      "name": "Cloud Car Service",
+      "cat": "automotive_service",
+      "x": 572.4,
+      "z": 1346.8,
+      "addr": "Булевард Свети Климент Охридски 8",
+      "conf": 0.58,
+      "near_stop": "1740",
+      "dist_m": 39.8
+     },
+     {
+      "name": "Joy Club",
+      "cat": "social_or_community_service",
+      "x": 541.9,
+      "z": 1368.6,
+      "addr": "Булевард Свети Климент Охридски 6Д",
+      "conf": 0.6,
+      "near_stop": "1740",
+      "dist_m": 40.6
+     },
+     {
+      "name": "MASQUERADE",
+      "cat": "personal_or_beauty_service",
+      "x": 611.1,
+      "z": 1355.1,
+      "addr": "bul. Kliment Ohridski 5",
+      "conf": 0.85,
+      "near_stop": "1740",
+      "dist_m": 45.0
+     },
+     {
+      "name": "Bar & Dinner Souvenir",
+      "cat": "restaurant",
+      "x": 549.5,
+      "z": 1336.0,
+      "addr": "Улица Професор Г. Брадистилов 3",
+      "conf": 0.53,
+      "near_stop": "1740",
+      "dist_m": 58.0
+     },
+     {
+      "name": "Nails by Verjinia",
+      "cat": "personal_or_beauty_service",
+      "x": 622.8,
+      "z": 1433.2,
+      "addr": "ul. Beli MEL",
+      "conf": 0.53,
+      "near_stop": "1740",
+      "dist_m": 64.6
+     },
+     {
+      "name": "Заложни къщи LOMBARD'S",
+      "cat": "second_hand_store",
+      "x": 614.8,
+      "z": 1439.7,
+      "addr": "Булевард Свети Климент Охридски 7",
+      "conf": 0.73,
+      "near_stop": "1740",
+      "dist_m": 64.7
+     },
+     {
+      "name": "Caramel Relax Bar & Dinner",
+      "cat": "bar",
+      "x": 560.3,
+      "z": 1323.3,
+      "addr": "ul. Professor Georgi Bradistilov номер 1",
+      "conf": 0.97,
+      "near_stop": "1740",
+      "dist_m": 65.5
+     },
+     {
+      "name": "The Burger Joint",
+      "cat": "restaurant",
+      "x": 519.2,
+      "z": 1357.2,
+      "addr": "ul. Professor Georgi Bradistilov 3",
+      "conf": 0.89,
+      "near_stop": "1740",
+      "dist_m": 66.0
+     },
+     {
+      "name": "SMOKE Lounge Bar",
+      "cat": "bar",
+      "x": 524.0,
+      "z": 1437.7,
+      "addr": "bul. Kliment Ohridski 8",
+      "conf": 0.87,
+      "near_stop": "1740",
+      "dist_m": 75.0
+     },
+     {
+      "name": "„Химично и биохимично инженерство“ с преподаване на френски език",
+      "cat": "college_university",
+      "x": 517.0,
+      "z": 1445.0,
+      "addr": "Булевард Свети Климент Охридски 8",
+      "conf": 0.63,
+      "near_stop": "1740",
+      "dist_m": 85.1
+     },
+     {
+      "name": "Алд-Гарден",
+      "cat": "hardware_home_and_garden_store",
+      "x": 509.9,
+      "z": 1334.9,
+      "addr": "ul. Professor Georgi Bradistilov №3А",
+      "conf": 0.55,
+      "near_stop": "1740",
+      "dist_m": 85.7
+     },
+     {
+      "name": "Tortilla Shack",
+      "cat": "fast_food_restaurant",
+      "x": 489.1,
+      "z": 1334.1,
+      "addr": "ul. Professor Georgi Bradistilov 3",
+      "conf": 0.7,
+      "near_stop": "1740",
+      "dist_m": 103.5
+     },
+     {
+      "name": "Papi fresh",
+      "cat": "coffee_shop",
+      "x": 496.5,
+      "z": 1320.0,
+      "addr": "ul. Professor Georgi Bradistilov 6",
+      "conf": 0.51,
+      "near_stop": "1740",
+      "dist_m": 105.4
+     },
+     {
+      "name": "Хамак парк Арабията",
+      "cat": "restaurant",
+      "x": 545.9,
+      "z": 1491.0,
+      "addr": "bul. Kliment Ohridski 8",
+      "conf": 0.82,
+      "near_stop": "1740",
+      "dist_m": 109.8
+     },
+     {
+      "name": "\"Басейн \"Октомври\"\"",
+      "cat": "swimming_pool",
+      "x": 474.1,
+      "z": 1349.9,
+      "addr": "",
+      "conf": 0.61,
+      "near_stop": "1740",
+      "dist_m": 110.5
+     },
+     {
+      "name": "Химикотехнологичен и металургичен университет - София /ХТМУ/",
+      "cat": "college_university",
+      "x": 494.6,
+      "z": 1463.4,
+      "addr": "Булевард Свети Климент Охридски 8",
+      "conf": 0.98,
+      "near_stop": "1740",
+      "dist_m": 114.0
+     },
+     {
+      "name": "Centre de réussite universitaire d'UTCM-Sofia",
+      "cat": "college_university",
+      "x": 494.6,
+      "z": 1463.4,
+      "addr": "Булевард Свети Климент Охридски 8",
+      "conf": 0.64,
+      "near_stop": "1740",
+      "dist_m": 114.0
+     },
+     {
+      "name": "Lavazza",
+      "cat": "cafe",
+      "x": 476.0,
+      "z": 1330.0,
+      "addr": "ул. Трайко Станоев, Sofia",
+      "conf": 0.89,
+      "near_stop": "1740",
+      "dist_m": 116.9
+     },
+     {
+      "name": "GSM Сервиз 24",
+      "cat": "electronics_store",
+      "x": 462.3,
+      "z": 1333.7,
+      "addr": "Технически университет София, ul. Professor Georgi Bradistilov",
+      "conf": 0.9,
+      "near_stop": "1740",
+      "dist_m": 127.5
+     },
+     {
+      "name": "СПОРТНА ЗАЛА ХТМУ",
+      "cat": "stadium_arena",
+      "x": 466.5,
+      "z": 1215.3,
+      "addr": "do tenis kortove HTMU",
+      "conf": 0.66,
+      "near_stop": "1743",
+      "dist_m": 133.1
+     },
+     {
+      "name": "Nkd Pizza",
+      "cat": "restaurant",
+      "x": 456.9,
+      "z": 1330.8,
+      "addr": "Улица Професор Г. Брадистилов 6",
+      "conf": 0.5,
+      "near_stop": "1740",
+      "dist_m": 133.6
+     },
+     {
+      "name": "Pepco SOFIA, 9 Kliment Ohridski Blvd",
+      "cat": "fashion_and_apparel_store",
+      "x": 623.6,
+      "z": 1516.7,
+      "addr": "9 Kliment Ohridski Blvd, 1784 SOFIA",
+      "conf": 0.8,
+      "near_stop": "1740",
+      "dist_m": 138.1
+     },
+     {
+      "name": "Minimart",
+      "cat": "convenience_store",
+      "x": 458.6,
+      "z": 1316.7,
+      "addr": null,
+      "conf": 0.8,
+      "near_stop": "1740",
+      "dist_m": 138.6
+     },
+     {
+      "name": "University of Chemical Technology and Metallurgy",
+      "cat": "college_university",
+      "x": 529.0,
+      "z": 1518.1,
+      "addr": "bul. Kliment Ohridski 8",
+      "conf": 0.72,
+      "near_stop": "1740",
+      "dist_m": 140.9
+     },
+     {
+      "name": "Chef Leila - Lebanese Restaurant/Ливански Ресторант/مطعم لبناني",
+      "cat": "restaurant",
+      "x": 450.2,
+      "z": 1304.5,
+      "addr": "Улица Професор Г. Брадистилов 6",
+      "conf": 0.97,
+      "near_stop": "1743",
+      "dist_m": 148.5
+     }
+    ],
+    "ltu_dabnitsa": [
+     {
+      "name": "Цветарски магазин Цветно ухание",
+      "cat": "flowers_and_gifts_store",
+      "x": 654.7,
+      "z": 1791.0,
+      "addr": "bul. Kliment Ohridski 17",
+      "conf": 0.82,
+      "near_stop": "0617",
+      "dist_m": 43.1
+     },
+     {
+      "name": "Специалност \"Екология и опазване на околната среда\" в ЛТУ",
+      "cat": "college_university",
+      "x": 590.0,
+      "z": 1697.4,
+      "addr": "Булевард Свети Климент Охридски 10",
+      "conf": 0.48,
+      "near_stop": "0617",
+      "dist_m": 70.8
+     },
+     {
+      "name": "АВАЛ - Car Audio & Multimedia",
+      "cat": "electronics_store",
+      "x": 665.7,
+      "z": 1829.6,
+      "addr": "Булевард Свети Климент Охридски 10",
+      "conf": 0.86,
+      "near_stop": "0617",
+      "dist_m": 81.8
+     },
+     {
+      "name": "Дървеница",
+      "cat": "fashion_and_apparel_store",
+      "x": 687.8,
+      "z": 1827.4,
+      "addr": "Улица Иван Боримечката 3",
+      "conf": 0.78,
+      "near_stop": "0617",
+      "dist_m": 92.2
+     },
+     {
+      "name": "Магазин Ф36: кв. „Дървеница“",
+      "cat": "food_and_beverage_store",
+      "x": 689.4,
+      "z": 1686.5,
+      "addr": "гр. София, бул. \"Св. Климент Охридски\" №15, п.к. 1756",
+      "conf": 0.8,
+      "near_stop": "0617",
+      "dist_m": 92.8
+     },
+     {
+      "name": "Фантаcтико Дървеница",
+      "cat": "food_and_beverage_store",
+      "x": 689.0,
+      "z": 1685.2,
+      "addr": "10 bulevard Kliment Ohridski",
+      "conf": 1.0,
+      "near_stop": "0617",
+      "dist_m": 93.5
+     },
+     {
+      "name": "University of Forestry",
+      "cat": "college_university",
+      "x": 556.6,
+      "z": 1696.5,
+      "addr": "bul. Kliment Ohridski 10",
+      "conf": 0.96,
+      "near_stop": "0617",
+      "dist_m": 93.9
+     },
+     {
+      "name": "Sweet paradise",
+      "cat": "fashion_and_apparel_store",
+      "x": 691.7,
+      "z": 1827.8,
+      "addr": "ul. Ivan Borimechkata 3а",
+      "conf": 0.41,
+      "near_stop": "0617",
+      "dist_m": 95.0
+     },
+     {
+      "name": "Рекорд",
+      "cat": "restaurant",
+      "x": 662.7,
+      "z": 1848.2,
+      "addr": "бул. Климент Охридски",
+      "conf": 0.53,
+      "near_stop": "0617",
+      "dist_m": 97.6
+     },
+     {
+      "name": "Агрономически факултет - София/Faculty of Agronomy - Sofia",
+      "cat": "college_university",
+      "x": 555.8,
+      "z": 1681.8,
+      "addr": "Булевард Свети Климент Охридски 10",
+      "conf": 0.56,
+      "near_stop": "0617",
+      "dist_m": 104.5
+     },
+     {
+      "name": "БГ Скара",
+      "cat": "restaurant",
+      "x": 663.5,
+      "z": 1855.8,
+      "addr": "Улица Иван Боримечката 3",
+      "conf": 0.54,
+      "near_stop": "0617",
+      "dist_m": 105.0
+     },
+     {
+      "name": "Dream Football",
+      "cat": "stadium_arena",
+      "x": 603.0,
+      "z": 1626.4,
+      "addr": "РД - изкуствени терени",
+      "conf": 0.52,
+      "near_stop": "0617",
+      "dist_m": 132.8
+     },
+     {
+      "name": "Sharmant",
+      "cat": "personal_or_beauty_service",
+      "x": 769.2,
+      "z": 1774.2,
+      "addr": "ul. Sofiysko Pole 1-3",
+      "conf": 0.92,
+      "near_stop": "0617",
+      "dist_m": 141.6
+     },
+     {
+      "name": "GTA Studio Barbershop",
+      "cat": "personal_or_beauty_service",
+      "x": 659.1,
+      "z": 1896.0,
+      "addr": "ж.к. Дървеница 50А",
+      "conf": 0.69,
+      "near_stop": "0617",
+      "dist_m": 142.6
+     },
+     {
+      "name": "Restaurant Vion",
+      "cat": "restaurant",
+      "x": 763.6,
+      "z": 1808.1,
+      "addr": "жк. Дървеница, ul. Sofiysko Pole 1-3",
+      "conf": 0.98,
+      "near_stop": "0617",
+      "dist_m": 144.4
+     },
+     {
+      "name": "Pizza Monterey",
+      "cat": "restaurant",
+      "x": 740.5,
+      "z": 1854.6,
+      "addr": "ul. Beli MEL 24",
+      "conf": 0.96,
+      "near_stop": "0617",
+      "dist_m": 148.6
+     }
+    ],
+    "dabnitsa_8_dekemvri": [
+     {
+      "name": "Force Fitness",
+      "cat": "gym",
+      "x": 497.7,
+      "z": 2004.9,
+      "addr": "ul. 8-mi dekemvri 1",
+      "conf": 0.98,
+      "near_stop": "0800",
+      "dist_m": 48.9
+     },
+     {
+      "name": "Къщата на Ян",
+      "cat": "restaurant",
+      "x": 497.3,
+      "z": 2025.3,
+      "addr": "ul. Professor Vitali Tadzher 12, 1700",
+      "conf": 0.97,
+      "near_stop": "0800",
+      "dist_m": 68.1
+     },
+     {
+      "name": "V.A Beauty Forever",
+      "cat": "personal_or_beauty_service",
+      "x": 548.2,
+      "z": 2022.1,
+      "addr": "Kliment ohtidski 27, bul. Kliment Ohridski 27",
+      "conf": 0.84,
+      "near_stop": "0800",
+      "dist_m": 92.8
+     },
+     {
+      "name": "Наша кухня",
+      "cat": "restaurant",
+      "x": 542.1,
+      "z": 2034.7,
+      "addr": "bul. Kliment Ohridski 27",
+      "conf": 0.79,
+      "near_stop": "0800",
+      "dist_m": 97.8
+     },
+     {
+      "name": "Shops VSDrinks",
+      "cat": "food_and_beverage_store",
+      "x": 561.5,
+      "z": 2018.4,
+      "addr": "bul. Kliment Ohridski 25",
+      "conf": 0.67,
+      "near_stop": "0800",
+      "dist_m": 100.9
+     },
+     {
+      "name": "SOS Auto Keys",
+      "cat": "automotive_service",
+      "x": 560.7,
+      "z": 2020.7,
+      "addr": "Булевард Свети Климент Охридски 25",
+      "conf": 0.57,
+      "near_stop": "0800",
+      "dist_m": 101.6
+     },
+     {
+      "name": "Сервиз за Теб ООД",
+      "cat": "electronics_store",
+      "x": 556.2,
+      "z": 2033.3,
+      "addr": "Булевард Андрей Ляпчев 9",
+      "conf": 0.66,
+      "near_stop": "0800",
+      "dist_m": 106.3
+     },
+     {
+      "name": "Pizzeria Spaccanapoli",
+      "cat": "restaurant",
+      "x": 515.1,
+      "z": 2065.9,
+      "addr": "bul. Kliment Ohridski 33",
+      "conf": 0.94,
+      "near_stop": "0800",
+      "dist_m": 112.1
+     },
+     {
+      "name": "Dilkinska PhiArtist",
+      "cat": "personal_or_beauty_service",
+      "x": 355.8,
+      "z": 2006.2,
+      "addr": "Булевард Свети Климент Охридски 23а",
+      "conf": 0.58,
+      "near_stop": "0800",
+      "dist_m": 132.3
+     },
+     {
+      "name": "Diani autodesign Ltd",
+      "cat": "automotive_service",
+      "x": 602.1,
+      "z": 2038.3,
+      "addr": "ul. Zheko voyvoda 5",
+      "conf": 0.67,
+      "near_stop": "0800",
+      "dist_m": 145.6
+     },
+     {
+      "name": "A&B Beauty Studio",
+      "cat": "personal_or_beauty_service",
+      "x": 579.6,
+      "z": 2069.3,
+      "addr": "Улица жеко войвода 8 1756",
+      "conf": 0.78,
+      "near_stop": "0800",
+      "dist_m": 148.5
+     },
+     {
+      "name": "Блок 8",
+      "cat": "lodging",
+      "x": 353.9,
+      "z": 2107.7,
+      "addr": "Студентски град",
+      "conf": 0.76,
+      "near_stop": "0801",
+      "dist_m": 149.7
+     }
+    ],
+    "unwe_polyclinic": [
+     {
+      "name": "Аптека Витания",
+      "cat": "pharmacy_and_drug_store",
+      "x": -387.2,
+      "z": 1861.2,
+      "addr": "ул. 8-ми декември",
+      "conf": 0.77,
+      "near_stop": "1691",
+      "dist_m": 23.7
+     },
+     {
+      "name": "Minimart",
+      "cat": "convenience_store",
+      "x": -393.9,
+      "z": 1852.7,
+      "addr": null,
+      "conf": 0.8,
+      "near_stop": "1691",
+      "dist_m": 26.0
+     },
+     {
+      "name": "Dr. Alexandrina Kocheva - Zabolekar",
+      "cat": "dental_clinic",
+      "x": -403.4,
+      "z": 1820.2,
+      "addr": "Влизате през главния вход на ДКЦ-V. Завивате наляво към асансьора в дъното, Качвате се с него на ет.4. Завивате надясно по тесния коридор, ulitsa Akademik Stefan Mladenov 8",
+      "conf": 0.8,
+      "near_stop": "1691",
+      "dist_m": 43.4
+     },
+     {
+      "name": "Юридически факултет на УНСС",
+      "cat": "college_university",
+      "x": -416.4,
+      "z": 1839.6,
+      "addr": "Студентски град",
+      "conf": 0.51,
+      "near_stop": "1691",
+      "dist_m": 48.1
+     },
+     {
+      "name": "VS studio HAIR & NAILS",
+      "cat": "personal_or_beauty_service",
+      "x": -343.5,
+      "z": 1890.7,
+      "addr": "ул.\"Осми декември \" блок 22А Студентски град ",
+      "conf": 0.58,
+      "near_stop": "1691",
+      "dist_m": 51.0
+     },
+     {
+      "name": "Д-р Христина Василева",
+      "cat": "dental_clinic",
+      "x": -399.8,
+      "z": 1804.4,
+      "addr": "ulitsa Akademik Stefan Mladenov 8",
+      "conf": 0.83,
+      "near_stop": "1691",
+      "dist_m": 52.2
+     },
+     {
+      "name": "University of National and World Economy",
+      "cat": "college_university",
+      "x": -258.6,
+      "z": 1965.7,
+      "addr": "ul. 8-mi dekemvri 19",
+      "conf": 0.75,
+      "near_stop": "1692",
+      "dist_m": 63.3
+     },
+     {
+      "name": "Yo2DINNER",
+      "cat": "fast_food_restaurant",
+      "x": -243.9,
+      "z": 1961.7,
+      "addr": "Улица 8-ми декември 3",
+      "conf": 0.53,
+      "near_stop": "1692",
+      "dist_m": 65.1
+     },
+     {
+      "name": "Impulse Healthy Bar",
+      "cat": "food_and_beverage_store",
+      "x": -425.6,
+      "z": 1878.4,
+      "addr": "улица 8ми декември (срещу UMBRELA bar)",
+      "conf": 0.56,
+      "near_stop": "1691",
+      "dist_m": 65.3
+     },
+     {
+      "name": "Аптека Студентска Поликлиника",
+      "cat": "pharmacy_and_drug_store",
+      "x": -437.8,
+      "z": 1846.3,
+      "addr": "ulitsa Akademik Stefan Mladenov 8",
+      "conf": 0.93,
+      "near_stop": "1691",
+      "dist_m": 69.1
+     },
+     {
+      "name": "Umbrella",
+      "cat": "bar",
+      "x": -418.2,
+      "z": 1900.1,
+      "addr": "ul. 8-mi dekemvri 25",
+      "conf": 1.0,
+      "near_stop": "1691",
+      "dist_m": 73.1
+     },
+     {
+      "name": "Баба Яга - Студентски град",
+      "cat": "restaurant",
+      "x": -445.1,
+      "z": 1881.8,
+      "addr": "жк Студентски град, София, България",
+      "conf": 0.57,
+      "near_stop": "1691",
+      "dist_m": 84.2
+     },
+     {
+      "name": "BMW Retrofit&Coding",
+      "cat": "automotive_service",
+      "x": -446.0,
+      "z": 1882.9,
+      "addr": "ул. Петър Увалиев 1 1700 Студентски Комплекс,София",
+      "conf": 0.57,
+      "near_stop": "1691",
+      "dist_m": 85.5
+     },
+     {
+      "name": "Т-Маркет",
+      "cat": "food_and_beverage_store",
+      "x": -454.4,
+      "z": 1816.8,
+      "addr": "гр.София, ул. Академик Жак Натан 11",
+      "conf": 0.8,
+      "near_stop": "1691",
+      "dist_m": 90.6
+     },
+     {
+      "name": "Lidl",
+      "cat": "food_and_beverage_store",
+      "x": -392.7,
+      "z": 1748.5,
+      "addr": "1A ул. Йордан Йосифов",
+      "conf": 1.0,
+      "near_stop": "1691",
+      "dist_m": 100.7
+     },
+     {
+      "name": "Еко Клуб УНСС",
+      "cat": "college_university",
+      "x": -171.3,
+      "z": 1904.0,
+      "addr": null,
+      "conf": 0.4,
+      "near_stop": "1692",
+      "dist_m": 103.7
+     },
+     {
+      "name": "ESN UNWE",
+      "cat": "college_university",
+      "x": -171.3,
+      "z": 1904.0,
+      "addr": "жк Студентски град 8",
+      "conf": 0.42,
+      "near_stop": "1692",
+      "dist_m": 103.7
+     },
+     {
+      "name": "Скара Български Ритми 2",
+      "cat": "restaurant",
+      "x": -169.7,
+      "z": 1904.0,
+      "addr": "Улица 8-ми декември 43",
+      "conf": 0.89,
+      "near_stop": "1692",
+      "dist_m": 105.3
+     },
+     {
+      "name": "Turkish Sofra Restaurant",
+      "cat": "restaurant",
+      "x": -477.5,
+      "z": 1858.2,
+      "addr": "ulitsa Akademik Stefan Mladenov 8",
+      "conf": 0.95,
+      "near_stop": "1691",
+      "dist_m": 109.4
+     },
+     {
+      "name": "Атлетик Фитнес Студентски град",
+      "cat": "gym",
+      "x": -446.5,
+      "z": 1766.6,
+      "addr": "Улица Д-р Йордан Йосифов 1",
+      "conf": 0.96,
+      "near_stop": "1691",
+      "dist_m": 111.4
+     },
+     {
+      "name": "Universitet za nacionalno i svetovno stopanstvo",
+      "cat": "college_university",
+      "x": -277.8,
+      "z": 2018.1,
+      "addr": null,
+      "conf": 0.95,
+      "near_stop": "1692",
+      "dist_m": 113.6
+     },
+     {
+      "name": "Катедра \"Маркетинг и стратегическо планиране\" - УНСС",
+      "cat": "college_university",
+      "x": -313.2,
+      "z": 1946.3,
+      "addr": "жк Студентски град 8",
+      "conf": 0.6,
+      "near_stop": "1691",
+      "dist_m": 114.3
+     },
+     {
+      "name": "УНСС, Аула Максима",
+      "cat": "college_university",
+      "x": -336.2,
+      "z": 2019.0,
+      "addr": "ж.к.Студентски град",
+      "conf": 0.79,
+      "near_stop": "1692",
+      "dist_m": 129.8
+     },
+     {
+      "name": "Nargile Bulgaria",
+      "cat": "food_and_beverage_store",
+      "x": -497.7,
+      "z": 1886.6,
+      "addr": "ul. 8-mi dekemvri 25",
+      "conf": 0.59,
+      "near_stop": "1691",
+      "dist_m": 135.1
+     },
+     {
+      "name": "Bamboo Urban",
+      "cat": "bar",
+      "x": -415.7,
+      "z": 1719.6,
+      "addr": "ulitsa Doctor Yordan Yosifov 1",
+      "conf": 1.0,
+      "near_stop": "1691",
+      "dist_m": 135.2
+     },
+     {
+      "name": "Suite Hotel Sofia",
+      "cat": "hotel",
+      "x": -448.5,
+      "z": 1729.2,
+      "addr": "1A Yordan Yossifov Str.",
+      "conf": 0.77,
+      "near_stop": "1691",
+      "dist_m": 141.7
+     },
+     {
+      "name": "Splendid",
+      "cat": "personal_or_beauty_service",
+      "x": -513.2,
+      "z": 1858.9,
+      "addr": "Улица Акад. Жак Натан 10",
+      "conf": 0.78,
+      "near_stop": "1691",
+      "dist_m": 145.0
+     },
+     {
+      "name": "Splendid Hair, Make Up & Nails",
+      "cat": "personal_or_beauty_service",
+      "x": -513.2,
+      "z": 1858.9,
+      "addr": "ul. Akademik Zhak Natan 11",
+      "conf": 0.79,
+      "near_stop": "1691",
+      "dist_m": 145.0
+     },
+     {
+      "name": "Aestheline Dermatology Clinic",
+      "cat": "personal_or_beauty_service",
+      "x": -441.7,
+      "z": 1720.6,
+      "addr": "ulitsa Doctor Yordan Yosifov N 1A",
+      "conf": 0.99,
+      "near_stop": "1691",
+      "dist_m": 145.4
+     },
+     {
+      "name": "Цветарски магазин Flowers by Romeo&Juliet",
+      "cat": "flowers_and_gifts_store",
+      "x": -506.8,
+      "z": 1894.1,
+      "addr": "ул. Академик Николай Стоянов",
+      "conf": 0.63,
+      "near_stop": "1691",
+      "dist_m": 146.1
+     },
+     {
+      "name": "KFC",
+      "cat": "fast_food_restaurant",
+      "x": -439.7,
+      "z": 1717.3,
+      "addr": "ulitsa Doctor Yordan Yosifov 1А",
+      "conf": 0.92,
+      "near_stop": "1691",
+      "dist_m": 147.3
+     },
+     {
+      "name": "Магазин за бутикови мъжки дрехи Bold and Beauty",
+      "cat": "fashion_and_apparel_store",
+      "x": -505.5,
+      "z": 1905.1,
+      "addr": "София. кв. Студентски Град, ул. „Висарион Белински“ 6",
+      "conf": 0.94,
+      "near_stop": "1691",
+      "dist_m": 148.9
+     },
+     {
+      "name": "Автосервиз Engine",
+      "cat": "automotive_service",
+      "x": -346.0,
+      "z": 1698.2,
+      "addr": "ulitsa Akademik Stefan Mladenov 5A",
+      "conf": 0.67,
+      "near_stop": "1691",
+      "dist_m": 149.9
+     }
+    ],
+    "yosifov_main_street": [
+     {
+      "name": "С2н5он стоп",
+      "cat": "food_and_beverage_store",
+      "x": -444.5,
+      "z": 1705.3,
+      "addr": "Улица Д-р Йордан Йосифов 4",
+      "conf": 0.94,
+      "near_stop": "0524",
+      "dist_m": 13.7
+     },
+     {
+      "name": "Go Grill",
+      "cat": "restaurant",
+      "x": -416.3,
+      "z": 1703.1,
+      "addr": "ulitsa Doctor Yordan Yosifov 2",
+      "conf": 0.41,
+      "near_stop": "0524",
+      "dist_m": 15.0
+     },
+     {
+      "name": "Colonel Apartment",
+      "cat": "lodging",
+      "x": -643.7,
+      "z": 1703.0,
+      "addr": "ulitsa Doctor Yordan Yosifov № 7, вх. 2, ап. 10",
+      "conf": 0.56,
+      "near_stop": "0530",
+      "dist_m": 15.4
+     },
+     {
+      "name": "Milano Restaurant&Club",
+      "cat": "lounge",
+      "x": -639.8,
+      "z": 1693.1,
+      "addr": "Ulitsa \"Doctor Yordan Yosifov\" 8",
+      "conf": 0.99,
+      "near_stop": "0530",
+      "dist_m": 16.4
+     },
+     {
+      "name": "Hesburger",
+      "cat": "fast_food_restaurant",
+      "x": -614.9,
+      "z": 1714.4,
+      "addr": "ул. „Йордан Йосифов“ 7, 1700 гр.София",
+      "conf": 0.8,
+      "near_stop": "0530",
+      "dist_m": 16.6
+     },
+     {
+      "name": "KFC",
+      "cat": "fast_food_restaurant",
+      "x": -439.7,
+      "z": 1717.3,
+      "addr": "ulitsa Doctor Yordan Yosifov 1А",
+      "conf": 0.92,
+      "near_stop": "0524",
+      "dist_m": 17.5
+     },
+     {
+      "name": "Aestheline Dermatology Clinic",
+      "cat": "personal_or_beauty_service",
+      "x": -441.7,
+      "z": 1720.6,
+      "addr": "ulitsa Doctor Yordan Yosifov N 1A",
+      "conf": 0.99,
+      "near_stop": "0524",
+      "dist_m": 21.4
+     },
+     {
+      "name": "royal chicken",
+      "cat": "fast_food_restaurant",
+      "x": -452.6,
+      "z": 1699.5,
+      "addr": "ulitsa Doctor Yordan Yosifov 2",
+      "conf": 0.66,
+      "near_stop": "0524",
+      "dist_m": 21.5
+     },
+     {
+      "name": "Bamboo Urban",
+      "cat": "bar",
+      "x": -415.7,
+      "z": 1719.6,
+      "addr": "ulitsa Doctor Yordan Yosifov 1",
+      "conf": 1.0,
+      "near_stop": "0524",
+      "dist_m": 23.5
+     },
+     {
+      "name": "Mido MAGIC HANDS BARBER SHOP",
+      "cat": "personal_or_beauty_service",
+      "x": -452.3,
+      "z": 1689.9,
+      "addr": "ulitsa Doctor Yordan Yosifov 2",
+      "conf": 0.68,
+      "near_stop": "0524",
+      "dist_m": 24.3
+     },
+     {
+      "name": "Smart Store",
+      "cat": "electronics_store",
+      "x": -613.9,
+      "z": 1678.6,
+      "addr": "ulitsa Doctor Yordan Yosifov 8",
+      "conf": 0.95,
+      "near_stop": "0530",
+      "dist_m": 30.0
+     },
+     {
+      "name": "Suite Hotel Sofia",
+      "cat": "hotel",
+      "x": -448.5,
+      "z": 1729.2,
+      "addr": "1A Yordan Yossifov Str.",
+      "conf": 0.77,
+      "near_stop": "0524",
+      "dist_m": 32.2
+     },
+     {
+      "name": "Студентски стол \"При БаБа\" /  Pri BaBa",
+      "cat": "cafe",
+      "x": -619.5,
+      "z": 1673.7,
+      "addr": "Улица 8-ми декември 25",
+      "conf": 0.88,
+      "near_stop": "0530",
+      "dist_m": 32.4
+     },
+     {
+      "name": "Истинска Сръбска Скара",
+      "cat": "restaurant",
+      "x": -462.9,
+      "z": 1690.1,
+      "addr": "ulitsa Doctor Yordan Yosifov",
+      "conf": 0.61,
+      "near_stop": "0524",
+      "dist_m": 33.9
+     },
+     {
+      "name": "Club Conte",
+      "cat": "bar",
+      "x": -597.9,
+      "z": 1689.1,
+      "addr": "ulitsa Doctor Yordan Yosifov 4",
+      "conf": 0.97,
+      "near_stop": "0530",
+      "dist_m": 34.4
+     },
+     {
+      "name": "Doner King",
+      "cat": "restaurant",
+      "x": -462.0,
+      "z": 1722.4,
+      "addr": "ulitsa Doctor Yordan Yosifov 2",
+      "conf": 0.42,
+      "near_stop": "0524",
+      "dist_m": 36.9
+     },
+     {
+      "name": "Synergy spot",
+      "cat": "personal_or_beauty_service",
+      "x": -412.2,
+      "z": 1670.3,
+      "addr": "Detski Dom",
+      "conf": 0.83,
+      "near_stop": "0524",
+      "dist_m": 37.0
+     },
+     {
+      "name": "Healthy Factory BG",
+      "cat": "fast_food_restaurant",
+      "x": -663.7,
+      "z": 1690.2,
+      "addr": "ulitsa Doctor Yordan Yosifov",
+      "conf": 0.65,
+      "near_stop": "0530",
+      "dist_m": 38.2
+     },
+     {
+      "name": "Modera Night Club",
+      "cat": "social_or_community_service",
+      "x": -600.7,
+      "z": 1674.4,
+      "addr": "ulitsa Doctor Yordan Yosifov 8",
+      "conf": 0.95,
+      "near_stop": "0530",
+      "dist_m": 41.2
+     },
+     {
+      "name": "Modera Game Club",
+      "cat": "cafe",
+      "x": -599.8,
+      "z": 1674.9,
+      "addr": "ulitsa Doctor Yordan Yosifov 8А",
+      "conf": 0.65,
+      "near_stop": "0530",
+      "dist_m": 41.5
+     },
+     {
+      "name": "PD Consult",
+      "cat": "electronics_store",
+      "x": -614.1,
+      "z": 1745.9,
+      "addr": "срещу клуб Conte, ulitsa Doctor Yordan Yosifov, пресечката, навътре, 30м, ulitsa Doctor Yordan Yosifov 7",
+      "conf": 0.67,
+      "near_stop": "0530",
+      "dist_m": 43.5
+     },
+     {
+      "name": "Chicho Burger",
+      "cat": "restaurant",
+      "x": -589.4,
+      "z": 1679.9,
+      "addr": "Гр. София, ул. Йордан Йосифов",
+      "conf": 0.54,
+      "near_stop": "0530",
+      "dist_m": 46.4
+     },
+     {
+      "name": "Палачинки Анибо",
+      "cat": "restaurant",
+      "x": -673.9,
+      "z": 1689.5,
+      "addr": "ulitsa Doctor Yordan Yosifov 8",
+      "conf": 0.53,
+      "near_stop": "0530",
+      "dist_m": 48.0
+     },
+     {
+      "name": "Mania-internet and game club",
+      "cat": "cafe",
+      "x": -481.6,
+      "z": 1697.0,
+      "addr": "Улица Д-р Йордан Йосифов 4",
+      "conf": 0.74,
+      "near_stop": "0524",
+      "dist_m": 50.6
+     },
+     {
+      "name": "The Shots",
+      "cat": "bar",
+      "x": -479.8,
+      "z": 1684.2,
+      "addr": "ulitsa Doctor Yordan Yosifov 4",
+      "conf": 0.76,
+      "near_stop": "0524",
+      "dist_m": 51.7
+     },
+     {
+      "name": "Cellparts.bg",
+      "cat": "electronics_store",
+      "x": -485.5,
+      "z": 1692.4,
+      "addr": "Улица Д-р Йордан Йосифов 3",
+      "conf": 0.53,
+      "near_stop": "0524",
+      "dist_m": 55.1
+     },
+     {
+      "name": "Mobira.bg",
+      "cat": "electronics_store",
+      "x": -485.5,
+      "z": 1692.4,
+      "addr": "Улица Д-р Йордан Йосифов 3",
+      "conf": 0.51,
+      "near_stop": "0524",
+      "dist_m": 55.1
+     },
+     {
+      "name": "Фитнес 33",
+      "cat": "gym",
+      "x": -687.1,
+      "z": 1713.8,
+      "addr": "ulitsa Doctor Yordan Yosifov 8",
+      "conf": 0.95,
+      "near_stop": "0530",
+      "dist_m": 59.3
+     },
+     {
+      "name": "Studio The One",
+      "cat": "personal_or_beauty_service",
+      "x": -686.5,
+      "z": 1718.3,
+      "addr": "ул. „Висарион Белински“ 2б",
+      "conf": 0.98,
+      "near_stop": "0530",
+      "dist_m": 59.6
+     },
+     {
+      "name": "ТОП СТАЙЛ",
+      "cat": "personal_or_beauty_service",
+      "x": -668.9,
+      "z": 1748.8,
+      "addr": "ул. „Висарион Белински“ 3",
+      "conf": 0.87,
+      "near_stop": "0530",
+      "dist_m": 59.7
+     },
+     {
+      "name": "Lidl",
+      "cat": "food_and_beverage_store",
+      "x": -392.7,
+      "z": 1748.5,
+      "addr": "1A ул. Йордан Йосифов",
+      "conf": 1.0,
+      "near_stop": "0524",
+      "dist_m": 60.4
+     },
+     {
+      "name": "Billa",
+      "cat": "food_and_beverage_store",
+      "x": -686.8,
+      "z": 1726.6,
+      "addr": "ул. „Висарион Белински“ 2Б",
+      "conf": 0.99,
+      "near_stop": "0530",
+      "dist_m": 62.3
+     },
+     {
+      "name": "Аптека Гален 13",
+      "cat": "pharmacy_and_drug_store",
+      "x": -494.5,
+      "z": 1686.6,
+      "addr": "ulitsa Doctor Yordan Yosifov 4",
+      "conf": 0.79,
+      "near_stop": "0524",
+      "dist_m": 65.1
+     },
+     {
+      "name": "Атлетик Фитнес Студентски град",
+      "cat": "gym",
+      "x": -446.5,
+      "z": 1766.6,
+      "addr": "Улица Д-р Йордан Йосифов 1",
+      "conf": 0.96,
+      "near_stop": "0524",
+      "dist_m": 66.4
+     },
+     {
+      "name": "Domino's Pizza",
+      "cat": "restaurant",
+      "x": -502.1,
+      "z": 1692.6,
+      "addr": "ulitsa Doctor Yordan Yosifov 4",
+      "conf": 0.9,
+      "near_stop": "0524",
+      "dist_m": 71.5
+     },
+     {
+      "name": "Aesthetic nails",
+      "cat": "personal_or_beauty_service",
+      "x": -699.3,
+      "z": 1693.0,
+      "addr": "Комплекс Белгравия, Улица Проф. Петър Джидров 2",
+      "conf": 0.58,
+      "near_stop": "0530",
+      "dist_m": 71.8
+     },
+     {
+      "name": "New Me Hair Saloon",
+      "cat": "personal_or_beauty_service",
+      "x": -689.7,
+      "z": 1744.3,
+      "addr": "Улица Д-р Йордан Йосифов 3",
+      "conf": 0.9,
+      "near_stop": "0530",
+      "dist_m": 72.8
+     },
+     {
+      "name": "Kebaboss",
+      "cat": "restaurant",
+      "x": -689.2,
+      "z": 1746.1,
+      "addr": "ул. Васарион Белински",
+      "conf": 0.4,
+      "near_stop": "0530",
+      "dist_m": 73.4
+     },
+     {
+      "name": "Joy Station",
+      "cat": "sport_or_fitness_facility",
+      "x": -411.2,
+      "z": 1629.6,
+      "addr": "ulitsa Akademik Stefan Mladenov 3",
+      "conf": 1.0,
+      "near_stop": "0524",
+      "dist_m": 75.1
+     },
+     {
+      "name": "Соларно студио Ultra Tan",
+      "cat": "personal_or_beauty_service",
+      "x": -513.3,
+      "z": 1702.4,
+      "addr": "Улица Д-р Йордан Йосифов 3",
+      "conf": 0.52,
+      "near_stop": "0524",
+      "dist_m": 82.1
+     },
+     {
+      "name": "Табуле",
+      "cat": "restaurant",
+      "x": -713.1,
+      "z": 1696.7,
+      "addr": "",
+      "conf": 0.66,
+      "near_stop": "0530",
+      "dist_m": 85.0
+     },
+     {
+      "name": "Автосервиз Engine",
+      "cat": "automotive_service",
+      "x": -346.0,
+      "z": 1698.2,
+      "addr": "ulitsa Akademik Stefan Mladenov 5A",
+      "conf": 0.67,
+      "near_stop": "0524",
+      "dist_m": 85.3
+     },
+     {
+      "name": "Club 35",
+      "cat": "bar",
+      "x": -720.1,
+      "z": 1677.1,
+      "addr": "Блок 35, ulitsa Doctor Yordan Yosifov",
+      "conf": 0.98,
+      "near_stop": "0530",
+      "dist_m": 95.8
+     },
+     {
+      "name": "Блок 22",
+      "cat": "lodging",
+      "x": -641.1,
+      "z": 1803.2,
+      "addr": "g.k. Studentski grad 22Б, 1700",
+      "conf": 0.53,
+      "near_stop": "0530",
+      "dist_m": 99.1
+     },
+     {
+      "name": "Modera Bar & Dinner - Sofia",
+      "cat": "cafe",
+      "x": -533.6,
+      "z": 1687.1,
+      "addr": "Улица Д-р Йордан Йосифов 8",
+      "conf": 0.94,
+      "near_stop": "0524",
+      "dist_m": 103.5
+     }
+    ],
+    "boris_stefanov_crossroads": [
+     {
+      "name": "Сиси стил",
+      "cat": "personal_or_beauty_service",
+      "x": -804.0,
+      "z": 2001.1,
+      "addr": "Улица Акад. Борис Стефанов 20",
+      "conf": 0.43,
+      "near_stop": "1610",
+      "dist_m": 20.2
+     },
+     {
+      "name": "The Bibimbap",
+      "cat": "restaurant",
+      "x": -820.1,
+      "z": 1996.4,
+      "addr": "",
+      "conf": 0.92,
+      "near_stop": "1610",
+      "dist_m": 26.4
+     },
+     {
+      "name": "София 17/ Студентски град",
+      "cat": "bank_or_credit_union",
+      "x": -785.4,
+      "z": 2013.1,
+      "addr": "ул. Aкад. Борис Стефанов 9",
+      "conf": 0.8,
+      "near_stop": "1610",
+      "dist_m": 33.8
+     },
+     {
+      "name": "Банка ДСК",
+      "cat": "bank_or_credit_union",
+      "x": -759.7,
+      "z": 1985.5,
+      "addr": "ж.к. Студентски град, ул. \"Акад. Борис Стефанов\" № 9",
+      "conf": 0.8,
+      "near_stop": "1610",
+      "dist_m": 38.6
+     },
+     {
+      "name": "Biliana Park Restaurant",
+      "cat": "restaurant",
+      "x": -785.3,
+      "z": 2018.4,
+      "addr": "Улица Акад. Борис Стефанов 9",
+      "conf": 0.77,
+      "near_stop": "1610",
+      "dist_m": 38.8
+     },
+     {
+      "name": "ПеТлЕтО - Студентски град",
+      "cat": "restaurant",
+      "x": -785.3,
+      "z": 2018.4,
+      "addr": "Улица Акад. Борис Стефанов 9",
+      "conf": 0.52,
+      "near_stop": "1610",
+      "dist_m": 38.8
+     },
+     {
+      "name": "Сладкарници Неделя",
+      "cat": "casual_eatery",
+      "x": -786.2,
+      "z": 1944.3,
+      "addr": "Улица Акад. Борис Стефанов 12",
+      "conf": 0.99,
+      "near_stop": "1610",
+      "dist_m": 39.3
+     },
+     {
+      "name": "UniCredit Bulbank (Студентски град)",
+      "cat": "bank_or_credit_union",
+      "x": -760.5,
+      "z": 1964.7,
+      "addr": "София, ул. Борис Стефанов 9А",
+      "conf": 0.77,
+      "near_stop": "1610",
+      "dist_m": 41.3
+     },
+     {
+      "name": "Bobalicious",
+      "cat": "non_alcoholic_beverage_venue",
+      "x": -773.3,
+      "z": 1947.6,
+      "addr": "ул. „акад. Борис Стефанов 7 ъгъла на ул. Акад. Стефанов, ul. 8-mi dekemvri 7 и",
+      "conf": 0.94,
+      "near_stop": "1610",
+      "dist_m": 42.3
+     },
+     {
+      "name": "Yettel",
+      "cat": "telecommunications_service",
+      "x": -803.5,
+      "z": 2032.9,
+      "addr": "212 София Студентски град",
+      "conf": 0.8,
+      "near_stop": "1610",
+      "dist_m": 51.4
+     },
+     {
+      "name": "Raffy - Студентски Град",
+      "cat": "casual_eatery",
+      "x": -755.5,
+      "z": 1952.3,
+      "addr": "8 - ми Декември",
+      "conf": 0.78,
+      "near_stop": "1610",
+      "dist_m": 51.8
+     },
+     {
+      "name": "The Corner Barber Shop",
+      "cat": "personal_or_beauty_service",
+      "x": -766.4,
+      "z": 1938.5,
+      "addr": "Улица Св. Климент Охридски 12",
+      "conf": 0.88,
+      "near_stop": "1610",
+      "dist_m": 53.7
+     },
+     {
+      "name": "Hockey Camel | Магазин за кънки и хокейна екипировка",
+      "cat": "sporting_goods_store",
+      "x": -828.0,
+      "z": 2028.4,
+      "addr": "Улица Акад. Борис Стефанов 20",
+      "conf": 0.92,
+      "near_stop": "1610",
+      "dist_m": 55.4
+     },
+     {
+      "name": "zeko turkısh foods",
+      "cat": "restaurant",
+      "x": -777.8,
+      "z": 1929.8,
+      "addr": "Studentski Grad",
+      "conf": 0.46,
+      "near_stop": "1610",
+      "dist_m": 55.8
+     },
+     {
+      "name": "Marrakesh club Sofia",
+      "cat": "lounge",
+      "x": -737.0,
+      "z": 1971.8,
+      "addr": "Улица 8-ми декември 45",
+      "conf": 0.42,
+      "near_stop": "1610",
+      "dist_m": 62.0
+     },
+     {
+      "name": "Shisha Mall",
+      "cat": "food_and_beverage_store",
+      "x": -738.8,
+      "z": 1963.3,
+      "addr": "ul. 8-mi dekemvri 45",
+      "conf": 0.5,
+      "near_stop": "1610",
+      "dist_m": 62.2
+     },
+     {
+      "name": "Urban Legend",
+      "cat": "bar",
+      "x": -736.6,
+      "z": 1965.5,
+      "addr": "ul. 8-mi dekemvri 45",
+      "conf": 0.99,
+      "near_stop": "1610",
+      "dist_m": 63.7
+     },
+     {
+      "name": "Mega Device GSM Accessories",
+      "cat": "electronics_store",
+      "x": -743.7,
+      "z": 1945.5,
+      "addr": "сградата на бар TABU, ul. 8-mi dekemvri 28",
+      "conf": 0.66,
+      "near_stop": "1610",
+      "dist_m": 65.4
+     },
+     {
+      "name": "TABU Shisha & Dinner",
+      "cat": "bar",
+      "x": -743.8,
+      "z": 1944.8,
+      "addr": "ul. 8-mi dekemvri 28",
+      "conf": 0.95,
+      "near_stop": "1610",
+      "dist_m": 65.7
+     },
+     {
+      "name": "Elif Food",
+      "cat": "restaurant",
+      "x": -732.8,
+      "z": 1966.0,
+      "addr": "Улица 8-ми декември 43",
+      "conf": 0.54,
+      "near_stop": "1610",
+      "dist_m": 67.2
+     },
+     {
+      "name": "Vandal",
+      "cat": "bar",
+      "x": -746.9,
+      "z": 1938.1,
+      "addr": "",
+      "conf": 0.83,
+      "near_stop": "1610",
+      "dist_m": 67.3
+     },
+     {
+      "name": "AUBG Executive MBA",
+      "cat": "college_university",
+      "x": -865.9,
+      "z": 1996.5,
+      "addr": "Улица Университетски парк 7",
+      "conf": 0.57,
+      "near_stop": "1610",
+      "dist_m": 69.3
+     },
+     {
+      "name": "Elieff Center for Education and Culture",
+      "cat": "education",
+      "x": -870.2,
+      "z": 1985.9,
+      "addr": "ul. Universitetski park 1",
+      "conf": 0.91,
+      "near_stop": "1610",
+      "dist_m": 72.2
+     },
+     {
+      "name": "Battery service Ltd.",
+      "cat": "electronics_store",
+      "x": -834.9,
+      "z": 2043.9,
+      "addr": "ulitsa Akademik Boris Stefanov 20B, на гърба на Yettel, ulitsa Akademik Boris Stefanov 20Б",
+      "conf": 0.49,
+      "near_stop": "1610",
+      "dist_m": 72.2
+     },
+     {
+      "name": "Фондация НАБИС / NALIS Foundation",
+      "cat": "social_or_community_service",
+      "x": -867.3,
+      "z": 2003.3,
+      "addr": "Улица Университетски парк 7",
+      "conf": 0.5,
+      "near_stop": "1610",
+      "dist_m": 72.4
+     },
+     {
+      "name": "Vivacom",
+      "cat": "telecommunications_service",
+      "x": -794.4,
+      "z": 2055.7,
+      "addr": "София, бул.Акад.Борис Стефанов 20",
+      "conf": 0.95,
+      "near_stop": "1610",
+      "dist_m": 74.0
+     },
+     {
+      "name": "Баш Наденицата",
+      "cat": "fast_food_restaurant",
+      "x": -777.0,
+      "z": 1910.3,
+      "addr": "ulitsa Akademik Boris Stefanov 7",
+      "conf": 0.92,
+      "near_stop": "1610",
+      "dist_m": 74.5
+     },
+     {
+      "name": "Bat Miro's Pancakes",
+      "cat": "restaurant",
+      "x": -775.7,
+      "z": 1910.7,
+      "addr": "ulitsa Akademik Boris Stefanov 7",
+      "conf": 0.78,
+      "near_stop": "1610",
+      "dist_m": 74.5
+     },
+     {
+      "name": "American University in Bulgaria",
+      "cat": "college_university",
+      "x": -874.4,
+      "z": 1990.8,
+      "addr": "ul. Universitetski park 1",
+      "conf": 0.86,
+      "near_stop": "1610",
+      "dist_m": 76.8
+     },
+     {
+      "name": "Taksim Döner",
+      "cat": "restaurant",
+      "x": -801.1,
+      "z": 1903.4,
+      "addr": "",
+      "conf": 0.51,
+      "near_stop": "1610",
+      "dist_m": 78.4
+     },
+     {
+      "name": "Дюнери Зоро",
+      "cat": "restaurant",
+      "x": -777.0,
+      "z": 1906.0,
+      "addr": "ulitsa Akademik Boris Stefanov",
+      "conf": 0.41,
+      "near_stop": "1610",
+      "dist_m": 78.7
+     },
+     {
+      "name": "No Boyzz Just Toyzz ECN1",
+      "cat": "fashion_and_apparel_store",
+      "x": -842.3,
+      "z": 2049.8,
+      "addr": "Улица Акад. Борис Стефанов 12",
+      "conf": 0.66,
+      "near_stop": "1610",
+      "dist_m": 81.1
+     },
+     {
+      "name": "Заложна Къща Косогама",
+      "cat": "second_hand_store",
+      "x": -775.1,
+      "z": 1902.9,
+      "addr": "ulitsa Akademik Boris Stefanov 5",
+      "conf": 0.59,
+      "near_stop": "1610",
+      "dist_m": 82.2
+     },
+     {
+      "name": "Mr. Palla Burger",
+      "cat": "restaurant",
+      "x": -769.3,
+      "z": 1903.2,
+      "addr": "ул. Акад. Борис Стефанов",
+      "conf": 0.77,
+      "near_stop": "1610",
+      "dist_m": 83.7
+     },
+     {
+      "name": "Artista Barber & Beauty Studio",
+      "cat": "personal_or_beauty_service",
+      "x": -702.8,
+      "z": 1865.0,
+      "addr": "ул. „Висарион Белински“ 8",
+      "conf": 0.6,
+      "near_stop": "1611",
+      "dist_m": 83.7
+     },
+     {
+      "name": "Pizza Pro",
+      "cat": "restaurant",
+      "x": -700.3,
+      "z": 1862.9,
+      "addr": "улица „Висарион Белински Област",
+      "conf": 0.72,
+      "near_stop": "1611",
+      "dist_m": 86.9
+     },
+     {
+      "name": "Maison’s Street Sofia",
+      "cat": "bar",
+      "x": -780.5,
+      "z": 1819.9,
+      "addr": "Улица Акад. Борис Стефанов 4",
+      "conf": 0.89,
+      "near_stop": "1611",
+      "dist_m": 87.3
+     },
+     {
+      "name": "Club Angel",
+      "cat": "dance_club",
+      "x": -715.3,
+      "z": 1953.5,
+      "addr": "ul. 8-mi dekemvri 43",
+      "conf": 0.51,
+      "near_stop": "1610",
+      "dist_m": 87.5
+     },
+     {
+      "name": "ARC Academy",
+      "cat": "education",
+      "x": -885.4,
+      "z": 1990.8,
+      "addr": "ul. Universitetski park 1",
+      "conf": 0.75,
+      "near_stop": "1610",
+      "dist_m": 87.7
+     },
+     {
+      "name": "Studio Paris",
+      "cat": "personal_or_beauty_service",
+      "x": -704.9,
+      "z": 1853.3,
+      "addr": "ул. „Висарион Белински“ 8",
+      "conf": 0.95,
+      "near_stop": "1611",
+      "dist_m": 88.5
+     },
+     {
+      "name": "Habibi lounge bar",
+      "cat": "bar",
+      "x": -709.9,
+      "z": 1845.6,
+      "addr": "Улица Висарон Белински 6",
+      "conf": 0.73,
+      "near_stop": "1611",
+      "dist_m": 89.6
+     },
+     {
+      "name": "Ego Resto Club",
+      "cat": "social_or_community_service",
+      "x": -785.2,
+      "z": 1817.5,
+      "addr": "ulitsa Akademik Boris Stefanov 4",
+      "conf": 0.98,
+      "near_stop": "1611",
+      "dist_m": 90.1
+     },
+     {
+      "name": "Megz",
+      "cat": "fashion_and_apparel_store",
+      "x": -758.4,
+      "z": 1900.3,
+      "addr": "\"ж.к. \"Студентски град\"\"",
+      "conf": 0.49,
+      "near_stop": "1610",
+      "dist_m": 90.7
+     },
+     {
+      "name": "Azzaro Night Club",
+      "cat": "dance_club",
+      "x": -709.0,
+      "z": 1957.0,
+      "addr": "ul. 8-mi dekemvri 43",
+      "conf": 0.86,
+      "near_stop": "1610",
+      "dist_m": 92.5
+     },
+     {
+      "name": "Underground Beauty Studio",
+      "cat": "personal_or_beauty_service",
+      "x": -698.0,
+      "z": 1849.7,
+      "addr": "Улица Акад. Жак Натан 10",
+      "conf": 0.93,
+      "near_stop": "1611",
+      "dist_m": 96.2
+     }
+    ],
+    "nursery_blocks": [
+     {
+      "name": "Автомивка Orange",
+      "cat": "automotive_service",
+      "x": -834.0,
+      "z": 2316.6,
+      "addr": "ул. Акад. Борис Стефанов",
+      "conf": 0.67,
+      "near_stop": "0533",
+      "dist_m": 31.6
+     },
+     {
+      "name": "Legendary Barbeque",
+      "cat": "restaurant",
+      "x": -863.7,
+      "z": 2297.0,
+      "addr": "ulitsa Akademik Boris Stefanov 14",
+      "conf": 0.46,
+      "near_stop": "0533",
+      "dist_m": 46.7
+     },
+     {
+      "name": "Лападунди",
+      "cat": "fast_food_restaurant",
+      "x": -822.1,
+      "z": 2300.5,
+      "addr": "Улица Акад. Борис Стефанов 21",
+      "conf": 0.91,
+      "near_stop": "0533",
+      "dist_m": 51.6
+     },
+     {
+      "name": "Diazepam - Храна за вкъщи",
+      "cat": "fast_food_restaurant",
+      "x": -896.0,
+      "z": 2302.8,
+      "addr": "Улица Атанас Манчев 15",
+      "conf": 0.49,
+      "near_stop": "0533",
+      "dist_m": 58.9
+     },
+     {
+      "name": "Студентски стол 33",
+      "cat": "restaurant",
+      "x": -815.9,
+      "z": 2284.9,
+      "addr": "Атанас Манчев",
+      "conf": 0.62,
+      "near_stop": "0533",
+      "dist_m": 68.0
+     },
+     {
+      "name": "Candiess.bg",
+      "cat": "fashion_and_apparel_store",
+      "x": -841.7,
+      "z": 2274.3,
+      "addr": "ulitsa Akademik Boris Stefanov 19",
+      "conf": 0.63,
+      "near_stop": "0533",
+      "dist_m": 68.9
+     },
+     {
+      "name": "SZ Style",
+      "cat": "personal_or_beauty_service",
+      "x": -918.5,
+      "z": 2318.5,
+      "addr": "ul. Atanas Manchev 15",
+      "conf": 0.79,
+      "near_stop": "0533",
+      "dist_m": 70.3
+     },
+     {
+      "name": "Via Perollini",
+      "cat": "restaurant",
+      "x": -916.4,
+      "z": 2302.8,
+      "addr": "ul. Atanas Manchev 22",
+      "conf": 0.76,
+      "near_stop": "0533",
+      "dist_m": 75.3
+     },
+     {
+      "name": "Bar Nargile",
+      "cat": "bar",
+      "x": -924.2,
+      "z": 2315.9,
+      "addr": "ul. Atanas Manchev 15",
+      "conf": 0.99,
+      "near_stop": "0533",
+      "dist_m": 76.5
+     },
+     {
+      "name": "Железария Студентски град\"501 стоки за дома и майстора\"ул.Атанас Иширков 11",
+      "cat": "hardware_home_and_garden_store",
+      "x": -929.6,
+      "z": 2325.0,
+      "addr": "Улица Атанас Манчев 15",
+      "conf": 0.75,
+      "near_stop": "0533",
+      "dist_m": 79.2
+     },
+     {
+      "name": "Paramidonna",
+      "cat": "restaurant",
+      "x": -929.6,
+      "z": 2325.0,
+      "addr": "Улица Атанас Манчев 15",
+      "conf": 0.5,
+      "near_stop": "0533",
+      "dist_m": 79.2
+     },
+     {
+      "name": "Hairstyles Nelly",
+      "cat": "personal_or_beauty_service",
+      "x": -929.6,
+      "z": 2325.0,
+      "addr": "ul.Hristo Chernopeev,10",
+      "conf": 0.56,
+      "near_stop": "0533",
+      "dist_m": 79.2
+     },
+     {
+      "name": "Fast Food Said",
+      "cat": "fast_food_restaurant",
+      "x": -929.6,
+      "z": 2325.0,
+      "addr": "Manchev & Ratkov Law Co, Улица Хан Аспарух 54",
+      "conf": 0.43,
+      "near_stop": "0533",
+      "dist_m": 79.2
+     },
+     {
+      "name": "Efbet Студентски Град",
+      "cat": "casino",
+      "x": -828.6,
+      "z": 2167.5,
+      "addr": "",
+      "conf": 0.68,
+      "near_stop": "0534",
+      "dist_m": 91.6
+     },
+     {
+      "name": "The KoD",
+      "cat": "personal_or_beauty_service",
+      "x": -842.2,
+      "z": 2246.2,
+      "addr": "ulitsa Akademik Boris Stefanov 17",
+      "conf": 0.93,
+      "near_stop": "0533",
+      "dist_m": 96.7
+     },
+     {
+      "name": "IVET. BG",
+      "cat": "fashion_and_apparel_store",
+      "x": -828.0,
+      "z": 2160.9,
+      "addr": "ulitsa Akademik Boris Stefanov 17",
+      "conf": 0.44,
+      "near_stop": "0534",
+      "dist_m": 98.2
+     },
+     {
+      "name": "Учебен център \"Василена\" ЕООД - шофьорски курсове",
+      "cat": "education",
+      "x": -940.4,
+      "z": 2295.3,
+      "addr": "ул. Жеко Войвода 33",
+      "conf": 0.77,
+      "near_stop": "0533",
+      "dist_m": 99.8
+     },
+     {
+      "name": "Club 40",
+      "cat": "bar",
+      "x": -937.8,
+      "z": 2201.7,
+      "addr": "жк Студентски град 40",
+      "conf": 0.4,
+      "near_stop": "0534",
+      "dist_m": 108.7
+     },
+     {
+      "name": "Mezcal bar de copas",
+      "cat": "bar",
+      "x": -965.1,
+      "z": 2392.6,
+      "addr": "Блок 38",
+      "conf": 0.95,
+      "near_stop": "0533",
+      "dist_m": 123.4
+     },
+     {
+      "name": "Asteri Hotels Hotel Chain",
+      "cat": "hotel",
+      "x": -902.6,
+      "z": 2227.3,
+      "addr": "Улица Проф. Станчо Ваклинов 6",
+      "conf": 0.76,
+      "near_stop": "0533",
+      "dist_m": 125.5
+     },
+     {
+      "name": "Fashion Boutique Maria Bella",
+      "cat": "fashion_and_apparel_store",
+      "x": -902.6,
+      "z": 2227.3,
+      "addr": "ул. Акад. Николай Стоянов №9, Sofia, Bulgaria",
+      "conf": 0.66,
+      "near_stop": "0533",
+      "dist_m": 125.5
+     },
+     {
+      "name": "Зимен Дворец на Спорта",
+      "cat": "stadium_arena",
+      "x": -902.6,
+      "z": 2227.3,
+      "addr": null,
+      "conf": 0.54,
+      "near_stop": "0533",
+      "dist_m": 125.5
+     },
+     {
+      "name": "Катедра \"Медии и обществени комуникации\" - УНСС",
+      "cat": "college_university",
+      "x": -902.6,
+      "z": 2227.3,
+      "addr": "Унивеситет за национално и световно стопанство",
+      "conf": 0.51,
+      "near_stop": "0533",
+      "dist_m": 125.5
+     },
+     {
+      "name": "Whiskey Bar",
+      "cat": "bar",
+      "x": -804.4,
+      "z": 2138.4,
+      "addr": "Улица Акад. Борис Стефанов 15",
+      "conf": 0.94,
+      "near_stop": "0534",
+      "dist_m": 125.9
+     },
+     {
+      "name": "Apart Hotel Academica",
+      "cat": "hotel",
+      "x": -819.7,
+      "z": 2132.6,
+      "addr": "Улица Акад. Борис Стефанов 17",
+      "conf": 0.68,
+      "near_stop": "0534",
+      "dist_m": 127.5
+     },
+     {
+      "name": "Магазин за цветя La Rose",
+      "cat": "flowers_and_gifts_store",
+      "x": -827.5,
+      "z": 2131.2,
+      "addr": "жк. Студентски град, ул. Акад. Борис Стефанов 15",
+      "conf": 0.77,
+      "near_stop": "0534",
+      "dist_m": 127.6
+     },
+     {
+      "name": "ЕК - Ремонт на челно стъкло.",
+      "cat": "automotive_service",
+      "x": -738.6,
+      "z": 2163.7,
+      "addr": "Прф.Рашо Рашев 4",
+      "conf": 0.55,
+      "near_stop": "0534",
+      "dist_m": 141.6
+     },
+     {
+      "name": "Блок 18 СУ",
+      "cat": "lodging",
+      "x": -733.0,
+      "z": 2424.2,
+      "addr": "Блок 18, ж.к. Студентски град 18",
+      "conf": 0.83,
+      "near_stop": "0533",
+      "dist_m": 144.7
+     },
+     {
+      "name": "Фантаcтико Студентски град - зала “Христо Ботев”",
+      "cat": "food_and_beverage_store",
+      "x": -852.0,
+      "z": 2110.8,
+      "addr": "22 улица акад. Борис Стефанов",
+      "conf": 0.99,
+      "near_stop": "0534",
+      "dist_m": 147.0
+     },
+     {
+      "name": "GG Films Фолио за автомобили",
+      "cat": "fashion_and_apparel_store",
+      "x": -748.5,
+      "z": 2145.1,
+      "addr": "Улица Професор Рашо Рашев 4",
+      "conf": 0.41,
+      "near_stop": "0534",
+      "dist_m": 148.0
+     },
+     {
+      "name": "Тайната Градина - Място за Семейство и Приятели",
+      "cat": "restaurant",
+      "x": -748.5,
+      "z": 2145.1,
+      "addr": "Улица Професор Рашо Рашев 4",
+      "conf": 0.98,
+      "near_stop": "0534",
+      "dist_m": 148.0
+     },
+     {
+      "name": "Sushi Point",
+      "cat": "restaurant",
+      "x": -848.9,
+      "z": 2108.7,
+      "addr": "Магазин Фантастико, ulitsa Akademik Boris Stefanov 12А",
+      "conf": 0.6,
+      "near_stop": "0534",
+      "dist_m": 149.0
+     }
+    ],
+    "winter_palace": [
+     {
+      "name": "IQOS Щанд Фантастико Ф22",
+      "cat": "food_and_beverage_store",
+      "x": -821.3,
+      "z": 2718.1,
+      "addr": "ул. Академик Борис Стефанов 22",
+      "conf": 0.85,
+      "near_stop": "0741",
+      "dist_m": 7.0
+     },
+     {
+      "name": "Povecheotdumi",
+      "cat": "flowers_and_gifts_store",
+      "x": -850.8,
+      "z": 2712.4,
+      "addr": "ж.к. Студентски град, ул. \"Храбър Попов\" ",
+      "conf": 0.83,
+      "near_stop": "0741",
+      "dist_m": 28.9
+     },
+     {
+      "name": "Хляб и мръвка",
+      "cat": "restaurant",
+      "x": -847.3,
+      "z": 2694.9,
+      "addr": "Улица Акад. Борис Стефанов 35",
+      "conf": 0.94,
+      "near_stop": "0741",
+      "dist_m": 30.1
+     },
+     {
+      "name": "GT-mobile - Добрият GSM сервиз",
+      "cat": "automotive_service",
+      "x": -853.7,
+      "z": 2714.3,
+      "addr": "Улица Проф. Арх. Храбър Попов 3",
+      "conf": 0.73,
+      "near_stop": "0741",
+      "dist_m": 31.9
+     },
+     {
+      "name": "Chinese Restaurant Classico",
+      "cat": "restaurant",
+      "x": -833.2,
+      "z": 2744.7,
+      "addr": "улица „акад. Борис Стефанов 58 Студентски град, бл. 58",
+      "conf": 0.93,
+      "near_stop": "0741",
+      "dist_m": 35.5
+     },
+     {
+      "name": "Minimart",
+      "cat": "convenience_store",
+      "x": -797.6,
+      "z": 2678.0,
+      "addr": null,
+      "conf": 0.8,
+      "near_stop": "0741",
+      "dist_m": 41.1
+     },
+     {
+      "name": "Kitaiski Resturant rathmans",
+      "cat": "restaurant",
+      "x": -831.0,
+      "z": 2751.8,
+      "addr": "",
+      "conf": 0.64,
+      "near_stop": "0741",
+      "dist_m": 41.7
+     },
+     {
+      "name": "Jinx Club - Virtual Reality Gaming Club",
+      "cat": "cafe",
+      "x": -791.7,
+      "z": 2678.3,
+      "addr": "Улица Акад. Борис Стефанов 35",
+      "conf": 0.61,
+      "near_stop": "0741",
+      "dist_m": 44.6
+     },
+     {
+      "name": "Ai Technology",
+      "cat": "electronics_store",
+      "x": -860.2,
+      "z": 2735.7,
+      "addr": "жк. Студентски град, бл.58, до вход В",
+      "conf": 0.95,
+      "near_stop": "0741",
+      "dist_m": 45.5
+     },
+     {
+      "name": "Protein House Sofia",
+      "cat": "restaurant",
+      "x": -833.7,
+      "z": 2758.9,
+      "addr": "Блок 58",
+      "conf": 0.84,
+      "near_stop": "0741",
+      "dist_m": 49.2
+     },
+     {
+      "name": "Механа Народна",
+      "cat": "restaurant",
+      "x": -872.3,
+      "z": 2704.4,
+      "addr": "гр. София, Студентски град,, 1734",
+      "conf": 0.98,
+      "near_stop": "0741",
+      "dist_m": 50.8
+     },
+     {
+      "name": "Studio 27",
+      "cat": "personal_or_beauty_service",
+      "x": -805.0,
+      "z": 2658.9,
+      "addr": "ulitsa Akademik Boris Stefanov 35",
+      "conf": 0.9,
+      "near_stop": "0741",
+      "dist_m": 54.9
+     },
+     {
+      "name": "Сръбския Ресторант - Belle Amie",
+      "cat": "bar",
+      "x": -877.2,
+      "z": 2715.0,
+      "addr": "Улица Проф. Арх. Храбър Попов 55Г",
+      "conf": 0.7,
+      "near_stop": "0741",
+      "dist_m": 55.4
+     },
+     {
+      "name": "Женско Царство",
+      "cat": "personal_or_beauty_service",
+      "x": -880.1,
+      "z": 2711.3,
+      "addr": "",
+      "conf": 0.47,
+      "near_stop": "0741",
+      "dist_m": 58.2
+     },
+     {
+      "name": "Galatasaray Fan Club Bulgaria",
+      "cat": "social_or_community_service",
+      "x": -795.3,
+      "z": 2655.9,
+      "addr": "Улица Акад. Борис Стефанов 35",
+      "conf": 0.41,
+      "near_stop": "0741",
+      "dist_m": 61.3
+     },
+     {
+      "name": "Магазин NISA - домашни потреби",
+      "cat": "hardware_home_and_garden_store",
+      "x": -840.7,
+      "z": 2771.2,
+      "addr": "срещу Зимния Дворец, ulitsa Akademik Boris Stefanov 58, вх.Б",
+      "conf": 0.49,
+      "near_stop": "0741",
+      "dist_m": 63.0
+     },
+     {
+      "name": "Минимаркет \"Вазови\"",
+      "cat": "food_and_beverage_store",
+      "x": -882.1,
+      "z": 2736.1,
+      "addr": "жк Студентски град 58б",
+      "conf": 0.87,
+      "near_stop": "0741",
+      "dist_m": 65.2
+     },
+     {
+      "name": "South Mall",
+      "cat": "shopping_mall",
+      "x": -801.0,
+      "z": 2643.6,
+      "addr": "ulitsa Akademik Boris Stefanov 35",
+      "conf": 0.94,
+      "near_stop": "0741",
+      "dist_m": 70.7
+     },
+     {
+      "name": "Tommy Fast & Tasty",
+      "cat": "restaurant",
+      "x": -843.5,
+      "z": 2779.7,
+      "addr": "жк Студентски град 58",
+      "conf": 0.55,
+      "near_stop": "0741",
+      "dist_m": 71.9
+     },
+     {
+      "name": "G Point",
+      "cat": "personal_or_beauty_service",
+      "x": -773.6,
+      "z": 2652.5,
+      "addr": "Магазин 7, до, Petar Uvaliev St 1, вх. Б",
+      "conf": 0.72,
+      "near_stop": "0741",
+      "dist_m": 75.9
+     },
+     {
+      "name": "Лесковацка Скара",
+      "cat": "restaurant",
+      "x": -897.8,
+      "z": 2705.4,
+      "addr": "ul. prof. Arhitekt Hrabar Popov",
+      "conf": 0.86,
+      "near_stop": "0741",
+      "dist_m": 76.1
+     },
+     {
+      "name": "Mazzo Club&Restaurant",
+      "cat": "restaurant",
+      "x": -755.4,
+      "z": 2748.1,
+      "addr": "Зимен дворец на спорта",
+      "conf": 0.88,
+      "near_stop": "0741",
+      "dist_m": 76.1
+     },
+     {
+      "name": "Angels of beauty",
+      "cat": "personal_or_beauty_service",
+      "x": -773.6,
+      "z": 2652.2,
+      "addr": "Petar Uvaliev St 1",
+      "conf": 0.6,
+      "near_stop": "0741",
+      "dist_m": 76.2
+     },
+     {
+      "name": "Щип-Щип",
+      "cat": "fast_food_restaurant",
+      "x": -835.5,
+      "z": 2787.7,
+      "addr": "ж.к. Студентски град 58",
+      "conf": 0.84,
+      "near_stop": "0741",
+      "dist_m": 77.8
+     },
+     {
+      "name": "ECHO Sport",
+      "cat": "sporting_goods_store",
+      "x": -763.4,
+      "z": 2657.0,
+      "addr": "Petar Uvaliev St 1",
+      "conf": 0.8,
+      "near_stop": "0741",
+      "dist_m": 79.7
+     },
+     {
+      "name": "𝒢𝒟 𝕄𝕒𝕜𝕖-𝕦𝕡",
+      "cat": "personal_or_beauty_service",
+      "x": -745.8,
+      "z": 2742.6,
+      "addr": "Комплекс Маунтин Вю, Улица Димитър Стефанов 11Д",
+      "conf": 0.53,
+      "near_stop": "0741",
+      "dist_m": 82.4
+     },
+     {
+      "name": "BORAL Street wear",
+      "cat": "fashion_and_apparel_store",
+      "x": -778.1,
+      "z": 2640.3,
+      "addr": "ulitsa Akademik Boris Stefanov 35",
+      "conf": 0.41,
+      "near_stop": "0741",
+      "dist_m": 83.3
+     },
+     {
+      "name": "Flowers Delivery La Roz",
+      "cat": "flowers_and_gifts_store",
+      "x": -834.5,
+      "z": 2796.3,
+      "addr": "Студентски град Бл.58 с/у Зимния Дворец Цветарски магазин Ла Роз",
+      "conf": 0.98,
+      "near_stop": "0741",
+      "dist_m": 86.1
+     },
+     {
+      "name": "Цветарски магазин La Rose",
+      "cat": "flowers_and_gifts_store",
+      "x": -834.5,
+      "z": 2796.3,
+      "addr": "жк Студентски град 58",
+      "conf": 0.99,
+      "near_stop": "0741",
+      "dist_m": 86.1
+     },
+     {
+      "name": "Good Girl",
+      "cat": "personal_or_beauty_service",
+      "x": -763.9,
+      "z": 2647.3,
+      "addr": "ulitsa Akademik Boris Stefanov 35",
+      "conf": 0.73,
+      "near_stop": "0741",
+      "dist_m": 86.2
+     },
+     {
+      "name": "Valentino Rich Men's Club",
+      "cat": "personal_or_beauty_service",
+      "x": -762.2,
+      "z": 2645.2,
+      "addr": "Petar Uvaliev St 1б",
+      "conf": 0.96,
+      "near_stop": "0741",
+      "dist_m": 88.9
+     },
+     {
+      "name": "GM Fitness Center",
+      "cat": "gym",
+      "x": -803.3,
+      "z": 2621.1,
+      "addr": "ulitsa Akademik Boris Stefanov 35",
+      "conf": 0.97,
+      "near_stop": "0741",
+      "dist_m": 91.9
+     },
+     {
+      "name": "Масажно-Козметично Студио Magnifico",
+      "cat": "personal_or_beauty_service",
+      "x": -803.2,
+      "z": 2620.4,
+      "addr": "ulitsa Akademik Boris Stefanov 35",
+      "conf": 0.89,
+      "near_stop": "0741",
+      "dist_m": 92.6
+     },
+     {
+      "name": "Luxor Gaming Club",
+      "cat": "casino",
+      "x": -801.5,
+      "z": 2620.6,
+      "addr": "ulitsa Akademik Boris Stefanov 35",
+      "conf": 0.49,
+      "near_stop": "0741",
+      "dist_m": 92.8
+     },
+     {
+      "name": "Daisy's Flowers",
+      "cat": "flowers_and_gifts_store",
+      "x": -826.4,
+      "z": 2816.4,
+      "addr": "тото пункт, Зимен дворец, Студентски град(срещу",
+      "conf": 0.88,
+      "near_stop": "0741",
+      "dist_m": 105.4
+     },
+     {
+      "name": "Urban Monkey",
+      "cat": "restaurant",
+      "x": -841.1,
+      "z": 2815.8,
+      "addr": "ulitsa Akademik Boris Stefanov",
+      "conf": 0.5,
+      "near_stop": "0741",
+      "dist_m": 106.5
+     },
+     {
+      "name": "Езиков Център Kurs",
+      "cat": "education",
+      "x": -800.8,
+      "z": 2602.9,
+      "addr": "ulitsa Akademik Boris Stefanov 35",
+      "conf": 0.6,
+      "near_stop": "0741",
+      "dist_m": 110.2
+     },
+     {
+      "name": "Mazzo Kids & Lounge",
+      "cat": "restaurant",
+      "x": -731.2,
+      "z": 2777.2,
+      "addr": "Зимен Дворец на Спорта",
+      "conf": 0.86,
+      "near_stop": "0741",
+      "dist_m": 112.3
+     },
+     {
+      "name": "Магазин MISS LUIS",
+      "cat": "fashion_and_apparel_store",
+      "x": -778.8,
+      "z": 2607.2,
+      "addr": null,
+      "conf": 0.42,
+      "near_stop": "0741",
+      "dist_m": 112.5
+     },
+     {
+      "name": "Зимен дворец на спорта (Winter Sports Palace)",
+      "cat": "skating_rink",
+      "x": -728.9,
+      "z": 2774.7,
+      "addr": "ул. Акад. Борис Стефанов",
+      "conf": 0.81,
+      "near_stop": "0741",
+      "dist_m": 112.7
+     },
+     {
+      "name": "MVJ Dance & Aerobic Studio",
+      "cat": "sport_or_fitness_facility",
+      "x": -731.7,
+      "z": 2781.3,
+      "addr": "Akad. Boris Stefanov Str.",
+      "conf": 0.88,
+      "near_stop": "0741",
+      "dist_m": 114.3
+     },
+     {
+      "name": "VR Line 69 Beauty Center",
+      "cat": "personal_or_beauty_service",
+      "x": -706.6,
+      "z": 2721.9,
+      "addr": "Petar Uvaliev St 1",
+      "conf": 0.87,
+      "near_stop": "0741",
+      "dist_m": 115.8
+     },
+     {
+      "name": "Салон \"Veselina Todorova\"",
+      "cat": "personal_or_beauty_service",
+      "x": -863.8,
+      "z": 2856.3,
+      "addr": "Улица Проф. Арх. Храбър Попов 3",
+      "conf": 0.93,
+      "near_stop": "0742",
+      "dist_m": 122.7
+     },
+     {
+      "name": "Спортен клуб Здрав дух в здраво тяло",
+      "cat": "gym",
+      "x": -708.0,
+      "z": 2813.5,
+      "addr": "Зимен дворец на спорта",
+      "conf": 0.53,
+      "near_stop": "0742",
+      "dist_m": 127.5
+     },
+     {
+      "name": "Палачинки Pancake House",
+      "cat": "restaurant",
+      "x": -845.2,
+      "z": 2837.2,
+      "addr": "ulitsa Akademik Boris Stefanov",
+      "conf": 0.8,
+      "near_stop": "0741",
+      "dist_m": 128.2
+     }
+    ],
+    "nsa_stefan_mladenov": [
+     {
+      "name": "Fresh and Fruits",
+      "cat": "smoothie_juice_bar",
+      "x": -581.6,
+      "z": 2738.4,
+      "addr": "ulitsa Akademik Stefan Mladenov 80",
+      "conf": 0.91,
+      "near_stop": "1606",
+      "dist_m": 52.1
+     },
+     {
+      "name": "SmartFit Kitchen",
+      "cat": "restaurant",
+      "x": -573.6,
+      "z": 2726.8,
+      "addr": "ulitsa Akademik Stefan Mladenov 80",
+      "conf": 0.65,
+      "near_stop": "1606",
+      "dist_m": 59.5
+     },
+     {
+      "name": "MS beauty",
+      "cat": "personal_or_beauty_service",
+      "x": -573.2,
+      "z": 2722.0,
+      "addr": "ulitsa Akademik Stefan Mladenov 80",
+      "conf": 0.72,
+      "near_stop": "1606",
+      "dist_m": 63.9
+     },
+     {
+      "name": "N&N Mobile GSM Сервиз и Аксесоари",
+      "cat": "electronics_store",
+      "x": -574.7,
+      "z": 2721.4,
+      "addr": "ulitsa Akademik Stefan Mladenov 80",
+      "conf": 0.71,
+      "near_stop": "1606",
+      "dist_m": 64.9
+     },
+     {
+      "name": "ProfiBar",
+      "cat": "restaurant",
+      "x": -573.9,
+      "z": 2719.4,
+      "addr": "ulitsa Akademik Stefan Mladenov 80",
+      "conf": 0.9,
+      "near_stop": "1606",
+      "dist_m": 66.6
+     },
+     {
+      "name": "Стадион НСА",
+      "cat": "stadium_arena",
+      "x": -568.9,
+      "z": 2715.8,
+      "addr": "",
+      "conf": 0.83,
+      "near_stop": "1606",
+      "dist_m": 68.9
+     },
+     {
+      "name": "ДЕНСИ",
+      "cat": "electronics_store",
+      "x": -609.9,
+      "z": 2829.7,
+      "addr": "Улица Академик Стефан Младенов 90",
+      "conf": 0.89,
+      "near_stop": "1606",
+      "dist_m": 71.7
+     },
+     {
+      "name": "Ресторант ЕЛА",
+      "cat": "restaurant",
+      "x": -576.5,
+      "z": 2703.6,
+      "addr": "Срещу арката на НСА, ulitsa Akademik Stefan Mladenov 80",
+      "conf": 0.44,
+      "near_stop": "1606",
+      "dist_m": 82.5
+     },
+     {
+      "name": "Queerwear",
+      "cat": "fashion_and_apparel_store",
+      "x": -628.8,
+      "z": 2897.7,
+      "addr": "ul. Professor Dr. Ivan Stranski 1 В",
+      "conf": 0.51,
+      "near_stop": "1606",
+      "dist_m": 136.0
+     },
+     {
+      "name": "Спортен клуб Здрав дух в здраво тяло",
+      "cat": "gym",
+      "x": -708.0,
+      "z": 2813.5,
+      "addr": "Зимен дворец на спорта",
+      "conf": 0.53,
+      "near_stop": "1609",
+      "dist_m": 138.2
+     },
+     {
+      "name": "Shido Fitness Centre",
+      "cat": "gym",
+      "x": -689.3,
+      "z": 2827.1,
+      "addr": "ul. Professor Dr. Ivan Stranski 61",
+      "conf": 0.89,
+      "near_stop": "1606",
+      "dist_m": 141.1
+     },
+     {
+      "name": "Dress up by V&A",
+      "cat": "fashion_and_apparel_store",
+      "x": -647.1,
+      "z": 2901.6,
+      "addr": "жк Студентски град 1",
+      "conf": 0.53,
+      "near_stop": "1606",
+      "dist_m": 149.8
+     }
+    ],
+    "terminal": [
+     {
+      "name": "Бутик за красота Божествена",
+      "cat": "personal_or_beauty_service",
+      "x": -551.6,
+      "z": 2492.5,
+      "addr": "ulitsa Akademik Stefan Mladenov",
+      "conf": 0.89,
+      "near_stop": "1694",
+      "dist_m": 66.7
+     },
+     {
+      "name": "Pricehockey Магазин за кънки и хокейна екипировка",
+      "cat": "sporting_goods_store",
+      "x": -438.6,
+      "z": 2541.7,
+      "addr": "ZImen Dvorec  Studentski Grad",
+      "conf": 0.63,
+      "near_stop": "1694",
+      "dist_m": 70.2
+     },
+     {
+      "name": "Zemira Bakery",
+      "cat": "casual_eatery",
+      "x": -564.6,
+      "z": 2503.4,
+      "addr": "ulitsa Akademik Stefan Mladenov 70",
+      "conf": 0.98,
+      "near_stop": "1694",
+      "dist_m": 80.9
+     },
+     {
+      "name": "Bizarre Bar and Dinner",
+      "cat": "lounge",
+      "x": -570.4,
+      "z": 2491.0,
+      "addr": "ulitsa Akademik Stefan Mladenov 68",
+      "conf": 0.94,
+      "near_stop": "1694",
+      "dist_m": 85.4
+     },
+     {
+      "name": "Lovely skin",
+      "cat": "personal_or_beauty_service",
+      "x": -575.0,
+      "z": 2525.1,
+      "addr": "ulitsa Akademik Stefan Mladenov 74",
+      "conf": 0.72,
+      "near_stop": "1694",
+      "dist_m": 97.0
+     },
+     {
+      "name": "Hotel Avenue",
+      "cat": "hotel",
+      "x": -581.2,
+      "z": 2518.3,
+      "addr": "Улица Академик Стефан Младенов 72",
+      "conf": 0.88,
+      "near_stop": "1694",
+      "dist_m": 100.6
+     },
+     {
+      "name": "Galix Sofia",
+      "cat": "shopping_mall",
+      "x": -577.0,
+      "z": 2549.4,
+      "addr": "Улица Академик Стефан Младенов 74",
+      "conf": 0.85,
+      "near_stop": "1694",
+      "dist_m": 110.1
+     },
+     {
+      "name": "соларно студио SUNBOX",
+      "cat": "personal_or_beauty_service",
+      "x": -586.1,
+      "z": 2537.2,
+      "addr": "Улица Академик Стефан Младенов 74",
+      "conf": 0.66,
+      "near_stop": "1694",
+      "dist_m": 112.0
+     },
+     {
+      "name": "HuQa Lounge & Sport",
+      "cat": "lounge",
+      "x": -582.8,
+      "z": 2425.9,
+      "addr": "ulitsa Professor Atanas Ishirkov 31",
+      "conf": 0.86,
+      "near_stop": "1694",
+      "dist_m": 116.4
+     },
+     {
+      "name": "Saliev Dental Care",
+      "cat": "dental_clinic",
+      "x": -585.8,
+      "z": 2427.1,
+      "addr": "ulitsa Professor Atanas Ishirkov 31",
+      "conf": 0.99,
+      "near_stop": "1694",
+      "dist_m": 118.3
+     },
+     {
+      "name": "Cutters Barber Club",
+      "cat": "personal_or_beauty_service",
+      "x": -544.3,
+      "z": 2379.9,
+      "addr": "ulitsa Akademik Stefan Mladenov 56",
+      "conf": 0.98,
+      "near_stop": "1694",
+      "dist_m": 124.1
+     },
+     {
+      "name": "HERMOSA beauty center",
+      "cat": "personal_or_beauty_service",
+      "x": -538.3,
+      "z": 2369.4,
+      "addr": "ulitsa Akademik Stefan Mladenov 56",
+      "conf": 0.73,
+      "near_stop": "1694",
+      "dist_m": 130.9
+     },
+     {
+      "name": "Soccer King Store",
+      "cat": "sporting_goods_store",
+      "x": -592.7,
+      "z": 2577.2,
+      "addr": "Mogila ",
+      "conf": 0.9,
+      "near_stop": "1694",
+      "dist_m": 139.2
+     },
+     {
+      "name": "Z Chef",
+      "cat": "restaurant",
+      "x": -592.7,
+      "z": 2577.2,
+      "addr": "Улица Академик Стефан Младенов 76",
+      "conf": 0.65,
+      "near_stop": "1694",
+      "dist_m": 139.2
+     },
+     {
+      "name": "Стена за катерене НСА (NSA Climbing)",
+      "cat": "sport_or_fitness_facility",
+      "x": -307.6,
+      "z": 2523.0,
+      "addr": "улица Проф. Атанас Иширков",
+      "conf": 0.97,
+      "near_stop": "1693",
+      "dist_m": 141.7
+     },
+     {
+      "name": "Its beauty Sofia",
+      "cat": "personal_or_beauty_service",
+      "x": -626.9,
+      "z": 2483.9,
+      "addr": "ulitsa Professor Atanas Ishirkov 24",
+      "conf": 0.67,
+      "near_stop": "1694",
+      "dist_m": 142.0
+     },
+     {
+      "name": "Bobi's Gym 61",
+      "cat": "gym",
+      "x": -292.6,
+      "z": 2451.8,
+      "addr": "Национална Спортна Академия \"Васил Левски\" Мултифункционална зала  Студентски град, София \\n\\n",
+      "conf": 0.98,
+      "near_stop": "1693",
+      "dist_m": 149.5
+     }
+    ]
+   },
+   "notable_chains": {
+    "KFC": {
+     "near": "0524",
+     "look": "red #e4002b / white"
+    },
+    "Hesburger": {
+     "near": "0530",
+     "look": "red/white"
+    },
+    "Lidl": {
+     "near": "0524",
+     "look": "blue #0050aa / yellow #fff200"
+    },
+    "Billa": {
+     "near": "0530 (ул. Висарион Белински 2Б)",
+     "look": "yellow/red"
+    },
+    "Fantastico": {
+     "near": "0617/0614, 1610, 0533",
+     "look": "red/white, brand colours from memory"
+    },
+    "DSK_bank": {
+     "near": "1610/1611",
+     "look": "green"
+    },
+    "UniCredit_Bulbank": {
+     "near": "1610/1611",
+     "look": "red/white"
+    },
+    "Yettel_Vivacom": {
+     "near": "1610 (Борис Стефанов 20)",
+     "look": "purple / red"
+    },
+    "OMV": {
+     "near": "0800",
+     "look": "blue/white"
+    },
+    "Pepco": {
+     "near": "1740",
+     "look": "blue/white"
+    }
+   },
+   "sources": [
+    "data/research/stops/<code>.json places lists (Overture Maps via OSM/Meta/MS sources)"
+   ],
+   "confidence": "positions medium; brand colours low (not verified)"
+  }
+ ]
+}

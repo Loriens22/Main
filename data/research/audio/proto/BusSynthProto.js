@@ -442,6 +442,14 @@
       });
       for (let i = 0; i < 4 + 3 * big; i++) OneShots.click(ctx, dest, t + 0.03 + i * (0.03 + 0.02 * ((i * 7) % 3)), B, { f: 1400 + 350 * ((i * 5) % 4), q: 5, peakDb: -33 + k, dur: 0.012 }); // loose panel / handrail rattle
     },
+    /** Articulation bellows + turntable: fabric/rubber creak (two gliding resonances) over a floor-plate rumble. Trigger when |d(articulation)/dt| > ~0.05 rad/s. */
+    bellowsCreak(ctx, dest, t, B, k) {
+      k = k || 0;
+      OneShots.glide(ctx, dest, t, B, { dur: 1.3, f0: 160, f1: 210, q: 1.2, peakDb: -20 + k, am: 11 });
+      OneShots.glide(ctx, dest, t + 0.05, B, { dur: 1.2, f0: 820, f1: 1100, q: 6, peakDb: -20 + k, am: 5 });
+      OneShots.glide(ctx, dest, t + 0.25, B, { dur: 0.9, f0: 1500, f1: 1250, q: 5, peakDb: -27 + k, am: 7 });
+      OneShots.click(ctx, dest, t + 1.1, B, { f: 600, q: 1.2, peakDb: -30 + k, dur: 0.03 }); // plate settles
+    },
     gearSelect(ctx, dest, t, B, k) { OneShots.clunk(ctx, dest, t, B, { f0: 240, f1: 100, peakDb: -20 + (k || 0) }); OneShots.click(ctx, dest, t + 0.005, B, { f: 1300, q: 2, peakDb: -16 + (k || 0), dur: 0.02 }); },
     starter(ctx, dest, t, B, k) { // crank 0.9 s then catch — pair with rpm automation (0 -> 230 rpm -> 920 -> 620)
       const os = ctx.createOscillator(); os.type = 'sawtooth'; os.frequency.setValueAtTime(95, t); os.frequency.linearRampToValueAtTime(150, t + 0.9);

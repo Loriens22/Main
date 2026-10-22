@@ -1756,5 +1756,914 @@
    "inferred"
   ],
   "notes": ""
+ },
+ "w166203418": {
+  "label": "UMBAL Sofiamed hospital, Block 1, Dr G. M. Dimitrov 16 (opened 9 May 2012)",
+  "kind": "modernist_institutional",
+  "levels": 6,
+  "height_m": 24.0,
+  "roof": "flat",
+  "wall_hex": "#dcdad2",
+  "accent_hex": "#5d7a8c",
+  "roof_hex": "#7c8286",
+  "window": "curtain_wall",
+  "ground_floor": "lobby",
+  "shop_signs": [
+   {
+    "text": "СОФИЯМЕД",
+    "bg_hex": "#0b4f9c",
+    "fg_hex": "#ffffff"
+   }
+  ],
+  "features": [
+   "98 x 70 m, flat roof, 6 storeys; modern hospital block with glazed bands and a canopy entrance (appearance inferred)",
+   "hospital complex = Block 1, Block 2 and a day clinic (DKC)"
+  ],
+  "confidence": "low",
+  "sources": [
+   "https://www.mh.government.bg/upload/6369/umbal_sofiiamed_ood_-_sofiia_07072023.pdf (complex = Block 1 + Block 2 + DKC at G.M. Dimitrov 16; opened 2012)",
+   "OSM footprint"
+  ],
+  "notes": ""
+ },
+ "w166204663": {
+  "label": "UMBAL Sofiamed, Block 2",
+  "kind": "modernist_institutional",
+  "levels": 6,
+  "height_m": 23.0,
+  "roof": "flat",
+  "wall_hex": "#dcdad2",
+  "accent_hex": "#5d7a8c",
+  "roof_hex": "#7c8286",
+  "window": "ribbon",
+  "ground_floor": "lobby",
+  "shop_signs": [],
+  "features": [
+   "50 x 20 m"
+  ],
+  "confidence": "low",
+  "sources": [
+   "OSM footprint (hospital, 6 levels, flat)"
+  ],
+  "notes": ""
+ },
+ "w1157191901": {
+  "label": "Medical centre building next to the stop (Dr Petko Hadzhilambrev)",
+  "kind": "modernist_institutional",
+  "levels": 3,
+  "height_m": 11.0,
+  "roof": "flat",
+  "wall_hex": "#d8d4c8",
+  "accent_hex": "#8a8a86",
+  "roof_hex": "#77777a",
+  "window": "punched_grid",
+  "ground_floor": "entrances",
+  "shop_signs": [],
+  "features": [
+   "30 x 23 m, 3 storeys"
+  ],
+  "confidence": "low",
+  "sources": [
+   "OSM class hospital",
+   "places list"
+  ],
+  "notes": ""
+ },
+ "w225238742": {
+  "label": "Iztok Tower (Alfa Finance), Dr G. M. Dimitrov 16A - glass office, 9 storeys",
+  "kind": "glass_office",
+  "levels": 9,
+  "height_m": 33.0,
+  "roof": "flat",
+  "wall_hex": "#86989f",
+  "accent_hex": "#3f4d55",
+  "roof_hex": "#6a7176",
+  "window": "curtain_wall",
+  "ground_floor": "lobby",
+  "shop_signs": [
+   {
+    "text": "Iztok Tower",
+    "bg_hex": "#1a2b3c",
+    "fg_hex": "#ffffff"
+   }
+  ],
+  "features": [
+   "57.7 x 28.9 m, facade_material glass in OSM",
+   "tenants: KEOS, SEEBURGER, VMware (Garitage Park next door)"
+  ],
+  "confidence": "medium",
+  "sources": [
+   "OSM tags (facade material glass, levels 9)",
+   "https://alfafinance.bg/en/projects/project/iztok-tower-sofia (9 levels above ground, 2 underground)"
+  ],
+  "notes": ""
+ },
+ "w305958058": {
+  "label": "7-storey block of Musagenitsa / Geo Milev (20 x 13 m at (970.7,274.5))",
+  "kind": "panel_1970s",
+  "levels": 7,
+  "height_m": 21.3,
+  "roof": "flat",
+  "wall_hex": "#c4bfb2",
+  "accent_hex": "#8f897d",
+  "roof_hex": "#77777a",
+  "window": "loggia_bands",
+  "ground_floor": "entrances",
+  "shop_signs": [],
+  "features": [
+   "south-west side of Dr G. M. Dimitrov, 40-125 m from pole 0494"
+  ],
+  "confidence": "low",
+  "sources": [
+   "inferred (typology: Musagenitsa / Geo Milev 1970s-80s large-panel, 7-8 storeys)"
+  ],
+  "notes": "Many such blocks are partly insulated in pastel colours."
+ },
+ "w505936966": {
+  "label": "8-storey block of Musagenitsa / Geo Milev (26 x 17 m at (957.8,285.7))",
+  "kind": "panel_insulated_patchwork",
+  "levels": 8,
+  "height_m": 24.2,
+  "roof": "flat",
+  "wall_hex": "#c4bfb2",
+  "accent_hex": "#8f897d",
+  "roof_hex": "#77777a",
+  "window": "loggia_bands",
+  "ground_floor": "entrances",
+  "shop_signs": [],
+  "features": [
+   "south-west side of Dr G. M. Dimitrov, 40-125 m from pole 0494"
+  ],
+  "confidence": "low",
+  "sources": [
+   "inferred (typology: Musagenitsa / Geo Milev 1970s-80s large-panel, 7-8 storeys)"
+  ],
+  "notes": "Many such blocks are partly insulated in pastel colours."
+ },
+ "w1431212069": {
+  "label": "8-storey block of Musagenitsa / Geo Milev (20 x 14 m at (944.7,297))",
+  "kind": "panel_insulated_patchwork",
+  "levels": 8,
+  "height_m": 24.2,
+  "roof": "flat",
+  "wall_hex": "#c4bfb2",
+  "accent_hex": "#8f897d",
+  "roof_hex": "#77777a",
+  "window": "loggia_bands",
+  "ground_floor": "entrances",
+  "shop_signs": [],
+  "features": [
+   "south-west side of Dr G. M. Dimitrov, 40-125 m from pole 0494"
+  ],
+  "confidence": "low",
+  "sources": [
+   "inferred (typology: Musagenitsa / Geo Milev 1970s-80s large-panel, 7-8 storeys)"
+  ],
+  "notes": "Many such blocks are partly insulated in pastel colours."
+ },
+ "w503535045": {
+  "label": "8-storey block of Musagenitsa / Geo Milev (20 x 13 m at (934.9,305.3))",
+  "kind": "panel_insulated_patchwork",
+  "levels": 8,
+  "height_m": 24.2,
+  "roof": "flat",
+  "wall_hex": "#c4bfb2",
+  "accent_hex": "#8f897d",
+  "roof_hex": "#77777a",
+  "window": "loggia_bands",
+  "ground_floor": "entrances",
+  "shop_signs": [],
+  "features": [
+   "south-west side of Dr G. M. Dimitrov, 40-125 m from pole 0494"
+  ],
+  "confidence": "low",
+  "sources": [
+   "inferred (typology: Musagenitsa / Geo Milev 1970s-80s large-panel, 7-8 storeys)"
+  ],
+  "notes": "Many such blocks are partly insulated in pastel colours."
+ },
+ "w305958056": {
+  "label": "8-storey block of Musagenitsa / Geo Milev (21 x 13 m at (924,261.4))",
+  "kind": "panel_insulated_patchwork",
+  "levels": 8,
+  "height_m": 24.2,
+  "roof": "flat",
+  "wall_hex": "#c4bfb2",
+  "accent_hex": "#8f897d",
+  "roof_hex": "#77777a",
+  "window": "loggia_bands",
+  "ground_floor": "entrances",
+  "shop_signs": [],
+  "features": [
+   "south-west side of Dr G. M. Dimitrov, 40-125 m from pole 0494"
+  ],
+  "confidence": "low",
+  "sources": [
+   "inferred (typology: Musagenitsa / Geo Milev 1970s-80s large-panel, 7-8 storeys)"
+  ],
+  "notes": "Many such blocks are partly insulated in pastel colours."
+ },
+ "w305958060": {
+  "label": "6-storey block of Musagenitsa / Geo Milev (27 x 19 m at (919.9,229.2))",
+  "kind": "panel_1970s",
+  "levels": 6,
+  "height_m": 18.4,
+  "roof": "flat",
+  "wall_hex": "#c4bfb2",
+  "accent_hex": "#8f897d",
+  "roof_hex": "#77777a",
+  "window": "loggia_bands",
+  "ground_floor": "entrances",
+  "shop_signs": [],
+  "features": [
+   "south-west side of Dr G. M. Dimitrov, 40-125 m from pole 0494"
+  ],
+  "confidence": "low",
+  "sources": [
+   "inferred (typology: Musagenitsa / Geo Milev 1970s-80s large-panel, 7-8 storeys)"
+  ],
+  "notes": "Many such blocks are partly insulated in pastel colours."
+ },
+ "w225239233": {
+  "label": "8-storey block of Musagenitsa / Geo Milev (30 x 22 m at (919.2,316.4))",
+  "kind": "panel_insulated_patchwork",
+  "levels": 8,
+  "height_m": 24.2,
+  "roof": "flat",
+  "wall_hex": "#c4bfb2",
+  "accent_hex": "#8f897d",
+  "roof_hex": "#77777a",
+  "window": "loggia_bands",
+  "ground_floor": "entrances",
+  "shop_signs": [],
+  "features": [
+   "south-west side of Dr G. M. Dimitrov, 40-125 m from pole 0494"
+  ],
+  "confidence": "low",
+  "sources": [
+   "inferred (typology: Musagenitsa / Geo Milev 1970s-80s large-panel, 7-8 storeys)"
+  ],
+  "notes": "Many such blocks are partly insulated in pastel colours."
+ },
+ "w503535047": {
+  "label": "8-storey block of Musagenitsa / Geo Milev (21 x 16 m at (905.4,303.4))",
+  "kind": "panel_insulated_patchwork",
+  "levels": 8,
+  "height_m": 24.2,
+  "roof": "flat",
+  "wall_hex": "#c4bfb2",
+  "accent_hex": "#8f897d",
+  "roof_hex": "#77777a",
+  "window": "loggia_bands",
+  "ground_floor": "entrances",
+  "shop_signs": [],
+  "features": [
+   "south-west side of Dr G. M. Dimitrov, 40-125 m from pole 0494"
+  ],
+  "confidence": "low",
+  "sources": [
+   "inferred (typology: Musagenitsa / Geo Milev 1970s-80s large-panel, 7-8 storeys)"
+  ],
+  "notes": "Many such blocks are partly insulated in pastel colours."
+ },
+ "w503528092": {
+  "label": "7-storey block of Musagenitsa / Geo Milev (23 x 18 m at (900.2,245.3))",
+  "kind": "panel_1970s",
+  "levels": 7,
+  "height_m": 21.3,
+  "roof": "flat",
+  "wall_hex": "#c4bfb2",
+  "accent_hex": "#8f897d",
+  "roof_hex": "#77777a",
+  "window": "loggia_bands",
+  "ground_floor": "entrances",
+  "shop_signs": [],
+  "features": [
+   "south-west side of Dr G. M. Dimitrov, 40-125 m from pole 0494"
+  ],
+  "confidence": "low",
+  "sources": [
+   "inferred (typology: Musagenitsa / Geo Milev 1970s-80s large-panel, 7-8 storeys)"
+  ],
+  "notes": "Many such blocks are partly insulated in pastel colours."
+ },
+ "w503535048": {
+  "label": "8-storey block of Musagenitsa / Geo Milev (22 x 17 m at (895.7,291.2))",
+  "kind": "panel_insulated_patchwork",
+  "levels": 8,
+  "height_m": 24.2,
+  "roof": "flat",
+  "wall_hex": "#c4bfb2",
+  "accent_hex": "#8f897d",
+  "roof_hex": "#77777a",
+  "window": "loggia_bands",
+  "ground_floor": "entrances",
+  "shop_signs": [],
+  "features": [
+   "south-west side of Dr G. M. Dimitrov, 40-125 m from pole 0494"
+  ],
+  "confidence": "low",
+  "sources": [
+   "inferred (typology: Musagenitsa / Geo Milev 1970s-80s large-panel, 7-8 storeys)"
+  ],
+  "notes": "Many such blocks are partly insulated in pastel colours."
+ },
+ "w225239049": {
+  "label": "7-storey block of Musagenitsa / Geo Milev (21 x 17 m at (890.8,259.1))",
+  "kind": "panel_1970s",
+  "levels": 7,
+  "height_m": 21.3,
+  "roof": "flat",
+  "wall_hex": "#c4bfb2",
+  "accent_hex": "#8f897d",
+  "roof_hex": "#77777a",
+  "window": "loggia_bands",
+  "ground_floor": "entrances",
+  "shop_signs": [],
+  "features": [
+   "south-west side of Dr G. M. Dimitrov, 40-125 m from pole 0494"
+  ],
+  "confidence": "low",
+  "sources": [
+   "inferred (typology: Musagenitsa / Geo Milev 1970s-80s large-panel, 7-8 storeys)"
+  ],
+  "notes": "Many such blocks are partly insulated in pastel colours."
+ },
+ "w503535049": {
+  "label": "8-storey block of Musagenitsa / Geo Milev (26 x 20 m at (885.4,276.5))",
+  "kind": "panel_insulated_patchwork",
+  "levels": 8,
+  "height_m": 24.2,
+  "roof": "flat",
+  "wall_hex": "#c4bfb2",
+  "accent_hex": "#8f897d",
+  "roof_hex": "#77777a",
+  "window": "loggia_bands",
+  "ground_floor": "entrances",
+  "shop_signs": [],
+  "features": [
+   "south-west side of Dr G. M. Dimitrov, 40-125 m from pole 0494"
+  ],
+  "confidence": "low",
+  "sources": [
+   "inferred (typology: Musagenitsa / Geo Milev 1970s-80s large-panel, 7-8 storeys)"
+  ],
+  "notes": "Many such blocks are partly insulated in pastel colours."
+ },
+ "w225238888": {
+  "label": "7-storey block of Musagenitsa / Geo Milev (44 x 15 m at (884.8,213.9))",
+  "kind": "panel_1970s",
+  "levels": 7,
+  "height_m": 21.3,
+  "roof": "flat",
+  "wall_hex": "#c4bfb2",
+  "accent_hex": "#8f897d",
+  "roof_hex": "#77777a",
+  "window": "loggia_bands",
+  "ground_floor": "entrances",
+  "shop_signs": [],
+  "features": [
+   "south-west side of Dr G. M. Dimitrov, 40-125 m from pole 0494"
+  ],
+  "confidence": "low",
+  "sources": [
+   "inferred (typology: Musagenitsa / Geo Milev 1970s-80s large-panel, 7-8 storeys)"
+  ],
+  "notes": "Many such blocks are partly insulated in pastel colours."
+ },
+ "w166112262": {
+  "label": "Very long 8-storey slab (206 x 14.5 m) on the north-east side of Dr G. M. Dimitrov",
+  "kind": "panel_insulated_patchwork",
+  "levels": 8,
+  "height_m": 24.0,
+  "roof": "flat",
+  "wall_hex": "#c8c3b5",
+  "accent_hex": "#8d887c",
+  "roof_hex": "#77777a",
+  "window": "loggia_bands",
+  "ground_floor": "shops",
+  "shop_signs": [],
+  "features": [
+   "206 m long, runs parallel to the boulevard 59 m from pole 0494",
+   "ground-floor shops and cafes along the service road (Kafe na Megdana, restaurant Trapeza, Hotel 4 Zona at No. 32)"
+  ],
+  "confidence": "low",
+  "sources": [
+   "inferred (typology: Musagenitsa / Geo Milev 1970s-80s large-panel, 7-8 storeys)"
+  ],
+  "notes": ""
+ },
+ "w166112274": {
+  "label": "Very long 8-storey slab (148 x 12.6 m), zh.k. Musagenitsa",
+  "kind": "panel_insulated_patchwork",
+  "levels": 8,
+  "height_m": 24.0,
+  "roof": "flat",
+  "wall_hex": "#c6c1b4",
+  "accent_hex": "#8d887c",
+  "roof_hex": "#77777a",
+  "window": "loggia_bands",
+  "ground_floor": "entrances",
+  "shop_signs": [],
+  "features": [
+   "148 m long"
+  ],
+  "confidence": "low",
+  "sources": [
+   "inferred (typology: Musagenitsa / Geo Milev 1970s-80s large-panel, 7-8 storeys)"
+  ],
+  "notes": ""
+ },
+ "w166112276": {
+  "label": "Very long 8-storey slab (130 x 17 m)",
+  "kind": "panel_1970s",
+  "levels": 8,
+  "height_m": 24.0,
+  "roof": "flat",
+  "wall_hex": "#c3beb1",
+  "accent_hex": "#8c877b",
+  "roof_hex": "#77777a",
+  "window": "loggia_bands",
+  "ground_floor": "entrances",
+  "shop_signs": [],
+  "features": [
+   "130 m long"
+  ],
+  "confidence": "low",
+  "sources": [
+   "inferred (typology: Musagenitsa / Geo Milev 1970s-80s large-panel, 7-8 storeys)"
+  ],
+  "notes": ""
+ },
+ "w166110840": {
+  "label": "17-storey slab (56 x 20 m) of Geo Milev",
+  "kind": "epk_tower",
+  "levels": 17,
+  "height_m": 50.0,
+  "roof": "flat",
+  "wall_hex": "#cdc8ba",
+  "accent_hex": "#9a9488",
+  "roof_hex": "#77777a",
+  "window": "loggia_bands",
+  "ground_floor": "entrances",
+  "shop_signs": [],
+  "features": [
+   "OSM levels=17"
+  ],
+  "confidence": "low",
+  "sources": [
+   "OSM levels=17",
+   "inferred (typology)"
+  ],
+  "notes": ""
+ },
+ "w1431209787": {
+  "label": "Small retail pavilion at the stop (11 x 4.2 m)",
+  "kind": "kiosk",
+  "levels": 1,
+  "height_m": 3.4,
+  "roof": "flat",
+  "wall_hex": "#c9c5bb",
+  "accent_hex": "#6a6a68",
+  "roof_hex": "#5d5d5a",
+  "window": "shopfront_only",
+  "ground_floor": "shops",
+  "shop_signs": [],
+  "features": [],
+  "confidence": "low",
+  "sources": [
+   "OSM footprint"
+  ],
+  "notes": ""
+ },
+ "r2920892": {
+  "label": "State agencies slab: Technical Library / National Centre for Information and Documentation, DAMTN, anti-trafficking commission - Dr G. M. Dimitrov 52-52A",
+  "kind": "modernist_institutional",
+  "levels": 7,
+  "height_m": 22.0,
+  "roof": "flat",
+  "wall_hex": "#d1cdc1",
+  "accent_hex": "#7f8b92",
+  "roof_hex": "#7a7a78",
+  "window": "ribbon",
+  "ground_floor": "lobby",
+  "shop_signs": [
+   {
+    "text": "ДАМТН",
+    "bg_hex": "#1d4f91",
+    "fg_hex": "#ffffff"
+   },
+   {
+    "text": "НЦИОД",
+    "bg_hex": "#2a2a2a",
+    "fg_hex": "#ffffff"
+   }
+  ],
+  "features": [
+   "171 x 50 m, 7 storeys, long ribbon-window slab 70 m north-west of the A pole, behind a fence",
+   "office use confirmed (agencies and a conference/training floor 'SASA Room' on 5th floor)"
+  ],
+  "confidence": "low",
+  "sources": [
+   "places list (Dr G. M. Dimitrov 52, 52A, 52B)",
+   "OSM relation r2920892, class office, 7 levels, flat roof"
+  ],
+  "notes": "Technical-library function is the stop's namesake; appearance inferred as 1970s-80s state office slab."
+ },
+ "w166110835": {
+  "label": "Very long 8-storey slab (210 x 14.4 m) on the south side of Dr G. M. Dimitrov",
+  "kind": "panel_insulated_patchwork",
+  "levels": 8,
+  "height_m": 24.0,
+  "roof": "flat",
+  "wall_hex": "#c5c0b3",
+  "accent_hex": "#8d887c",
+  "roof_hex": "#77777a",
+  "window": "loggia_bands",
+  "ground_floor": "entrances",
+  "shop_signs": [],
+  "features": [
+   "210 m long, 120 m south of pole 2352 behind a grass belt"
+  ],
+  "confidence": "low",
+  "sources": [
+   "inferred (typology: Musagenitsa / Geo Milev 1970s-80s large-panel, 7-8 storeys)"
+  ],
+  "notes": ""
+ },
+ "w362862995": {
+  "label": "Pro Hunter arms shop and restaurant, Dr G. M. Dimitrov 51 (2 storeys)",
+  "kind": "other",
+  "levels": 2,
+  "height_m": 8.0,
+  "roof": "flat",
+  "wall_hex": "#d5cfc0",
+  "accent_hex": "#5b4a3a",
+  "roof_hex": "#6b6b66",
+  "window": "shopfront_only",
+  "ground_floor": "shops",
+  "shop_signs": [
+   {
+    "text": "PRO HUNTER",
+    "bg_hex": "#2f4a2a",
+    "fg_hex": "#f0e3b8"
+   }
+  ],
+  "features": [
+   "39 x 16 m",
+   "hunting clothes, shooting range complex"
+  ],
+  "confidence": "low",
+  "sources": [
+   "places list (Pro Hunter at Dr G. M. Dimitrov 51)"
+  ],
+  "notes": ""
+ },
+ "w226059592": {
+  "label": "4-storey office block (24.7 x 18.5 m)",
+  "kind": "modernist_institutional",
+  "levels": 4,
+  "height_m": 14.0,
+  "roof": "flat",
+  "wall_hex": "#d4d0c4",
+  "accent_hex": "#818a90",
+  "roof_hex": "#77777a",
+  "window": "ribbon",
+  "ground_floor": "lobby",
+  "shop_signs": [],
+  "features": [],
+  "confidence": "low",
+  "sources": [
+   "OSM class office"
+  ],
+  "notes": ""
+ },
+ "w435213667": {
+  "label": "Industrial / warehouse building behind the fence (41 x 16 m at (545.3,461))",
+  "kind": "industrial",
+  "levels": 1,
+  "height_m": 7.0,
+  "roof": "flat",
+  "wall_hex": "#b6b2a6",
+  "accent_hex": "#8a867b",
+  "roof_hex": "#6e6e6a",
+  "window": "shopfront_only",
+  "ground_floor": "garages",
+  "shop_signs": [],
+  "features": [],
+  "confidence": "low",
+  "sources": [
+   "OSM class industrial"
+  ],
+  "notes": ""
+ },
+ "w166204150": {
+  "label": "Industrial / warehouse building behind the fence (42 x 19 m at (534.9,442.1))",
+  "kind": "industrial",
+  "levels": 1,
+  "height_m": 7.0,
+  "roof": "flat",
+  "wall_hex": "#b6b2a6",
+  "accent_hex": "#8a867b",
+  "roof_hex": "#6e6e6a",
+  "window": "shopfront_only",
+  "ground_floor": "garages",
+  "shop_signs": [],
+  "features": [],
+  "confidence": "low",
+  "sources": [
+   "OSM class industrial"
+  ],
+  "notes": ""
+ },
+ "w166204476": {
+  "label": "Industrial / warehouse building behind the fence (37 x 14 m at (614.6,407))",
+  "kind": "industrial",
+  "levels": 1,
+  "height_m": 7.0,
+  "roof": "flat",
+  "wall_hex": "#b6b2a6",
+  "accent_hex": "#8a867b",
+  "roof_hex": "#6e6e6a",
+  "window": "shopfront_only",
+  "ground_floor": "garages",
+  "shop_signs": [],
+  "features": [],
+  "confidence": "low",
+  "sources": [
+   "OSM class industrial"
+  ],
+  "notes": ""
+ },
+ "w226059861": {
+  "label": "Long 4-storey slab (147 x 15 m) near pole 2351",
+  "kind": "brick_socialist",
+  "levels": 4,
+  "height_m": 13.5,
+  "roof": "flat",
+  "wall_hex": "#d0c7ad",
+  "accent_hex": "#a29a82",
+  "roof_hex": "#7a7a78",
+  "window": "balcony_bands",
+  "ground_floor": "shops",
+  "shop_signs": [],
+  "features": [],
+  "confidence": "low",
+  "sources": [
+   "OSM levels=4",
+   "inferred"
+  ],
+  "notes": ""
+ },
+ "w166112087": {
+  "label": "Kindergarten complex (74.5 x 60.5 m)",
+  "kind": "modernist_institutional",
+  "levels": 2,
+  "height_m": 8.0,
+  "roof": "flat",
+  "wall_hex": "#e0d8c0",
+  "accent_hex": "#a8a08a",
+  "roof_hex": "#8a8a84",
+  "window": "punched_grid",
+  "ground_floor": "entrances",
+  "shop_signs": [],
+  "features": [],
+  "confidence": "low",
+  "sources": [
+   "OSM class kindergarten"
+  ],
+  "notes": ""
+ },
+ "w1504493455": {
+  "label": "Single-storey retail shed (61 x 35 m)",
+  "kind": "other",
+  "levels": 1,
+  "height_m": 6.0,
+  "roof": "flat",
+  "wall_hex": "#cfcbc0",
+  "accent_hex": "#60686f",
+  "roof_hex": "#6b6b66",
+  "window": "shopfront_only",
+  "ground_floor": "shops",
+  "shop_signs": [],
+  "features": [],
+  "confidence": "low",
+  "sources": [
+   "OSM footprint"
+  ],
+  "notes": ""
+ },
+ "w89456134": {
+  "label": "Metro G. M. Dimitrov - surface concourse pavilion at the stop (37.5 x 22.3 m)",
+  "kind": "other",
+  "levels": 1,
+  "height_m": 6.5,
+  "roof": "flat",
+  "wall_hex": "#c9cdd0",
+  "accent_hex": "#5d6a73",
+  "roof_hex": "#6a7176",
+  "window": "curtain_wall",
+  "ground_floor": "lobby",
+  "shop_signs": [
+   {
+    "text": "МЕТРО",
+    "bg_hex": "#0b4f9c",
+    "fg_hex": "#ffffff"
+   }
+  ],
+  "features": [
+   "station opened 8 May 2009 (M1; M4 added later), architect Kr. Andreev, granite wall panels inside",
+   "two surface concourses plus an underground link to the boulevard underpass"
+  ],
+  "confidence": "low",
+  "sources": [
+   "https://www.metropolitan.bg/en/scheme/operating-metro/gm-dimitrov (search snippet)",
+   "OSM footprint (name 'G. M. Dimitrov')"
+  ],
+  "notes": "Exterior colours not documented."
+ },
+ "w89456135": {
+  "label": "Metro G. M. Dimitrov - second concourse pavilion (33 x 22 m)",
+  "kind": "other",
+  "levels": 1,
+  "height_m": 6.5,
+  "roof": "flat",
+  "wall_hex": "#c9cdd0",
+  "accent_hex": "#5d6a73",
+  "roof_hex": "#6a7176",
+  "window": "curtain_wall",
+  "ground_floor": "lobby",
+  "shop_signs": [
+   {
+    "text": "МЕТРО",
+    "bg_hex": "#0b4f9c",
+    "fg_hex": "#ffffff"
+   }
+  ],
+  "features": [],
+  "confidence": "low",
+  "sources": [
+   "OSM footprint"
+  ],
+  "notes": ""
+ },
+ "w1112201198": {
+  "label": "Small service cabin (7.8 x 4.4 m)",
+  "kind": "kiosk",
+  "levels": 1,
+  "height_m": 3.2,
+  "roof": "flat",
+  "wall_hex": "#a6a49d",
+  "accent_hex": "#6a6a68",
+  "roof_hex": "#5d5d5a",
+  "window": "shopfront_only",
+  "ground_floor": "blank",
+  "shop_signs": [],
+  "features": [],
+  "confidence": "low",
+  "sources": [
+   "OSM footprint"
+  ],
+  "notes": ""
+ },
+ "w264358267": {
+  "label": "Petrol-station canopy (17 x 8 m)",
+  "kind": "kiosk",
+  "levels": 1,
+  "height_m": 5.0,
+  "roof": "flat",
+  "wall_hex": "#d8d8d4",
+  "accent_hex": "#c4161c",
+  "roof_hex": "#8c8c88",
+  "window": "shopfront_only",
+  "ground_floor": "blank",
+  "shop_signs": [
+   {
+    "text": "OMV",
+    "bg_hex": "#005eb8",
+    "fg_hex": "#ffffff"
+   }
+  ],
+  "features": [
+   "canopy of the OMV station at Dr G. M. Dimitrov 55"
+  ],
+  "confidence": "low",
+  "sources": [
+   "places list (OMV at No. 55)",
+   "OSM footprint class roof"
+  ],
+  "notes": ""
+ },
+ "w435213666": {
+  "label": "Petrol-station main canopy (24 x 19 m)",
+  "kind": "kiosk",
+  "levels": 1,
+  "height_m": 5.5,
+  "roof": "flat",
+  "wall_hex": "#d8d8d4",
+  "accent_hex": "#c4161c",
+  "roof_hex": "#8c8c88",
+  "window": "shopfront_only",
+  "ground_floor": "blank",
+  "shop_signs": [
+   {
+    "text": "OMV",
+    "bg_hex": "#005eb8",
+    "fg_hex": "#ffffff"
+   }
+  ],
+  "features": [],
+  "confidence": "low",
+  "sources": [
+   "places list",
+   "OSM footprint class roof"
+  ],
+  "notes": ""
+ },
+ "w166110289": {
+  "label": "OMV shop building (19 x 14 m)",
+  "kind": "kiosk",
+  "levels": 1,
+  "height_m": 4.0,
+  "roof": "flat",
+  "wall_hex": "#d8d8d4",
+  "accent_hex": "#c4161c",
+  "roof_hex": "#8c8c88",
+  "window": "shopfront_only",
+  "ground_floor": "shops",
+  "shop_signs": [
+   {
+    "text": "OMV",
+    "bg_hex": "#005eb8",
+    "fg_hex": "#ffffff"
+   }
+  ],
+  "features": [],
+  "confidence": "low",
+  "sources": [
+   "OSM name OMV"
+  ],
+  "notes": ""
+ },
+ "w166110834": {
+  "label": "Very long 8-storey slab (184 x 15 m) north-east of the junction",
+  "kind": "panel_insulated_patchwork",
+  "levels": 8,
+  "height_m": 24.0,
+  "roof": "flat",
+  "wall_hex": "#c8c3b6",
+  "accent_hex": "#8d887c",
+  "roof_hex": "#77777a",
+  "window": "loggia_bands",
+  "ground_floor": "entrances",
+  "shop_signs": [],
+  "features": [
+   "184 m long, 120 m from pole 0761"
+  ],
+  "confidence": "low",
+  "sources": [
+   "inferred (typology: Musagenitsa / Geo Milev 1970s-80s large-panel, 7-8 storeys)"
+  ],
+  "notes": ""
+ },
+ "w166110556": {
+  "label": "8-storey block (37 x 30 m), Studentski grad / Dianabad edge",
+  "kind": "panel_1970s",
+  "levels": 8,
+  "height_m": 24.0,
+  "roof": "flat",
+  "wall_hex": "#c3beb1",
+  "accent_hex": "#8c877b",
+  "roof_hex": "#77777a",
+  "window": "loggia_bands",
+  "ground_floor": "entrances",
+  "shop_signs": [],
+  "features": [],
+  "confidence": "low",
+  "sources": [
+   "inferred (typology: Musagenitsa / Geo Milev 1970s-80s large-panel, 7-8 storeys)"
+  ],
+  "notes": ""
+ },
+ "w439574832": {
+  "label": "Hospital outbuilding of the oncology campus (32 x 26 m)",
+  "kind": "modernist_institutional",
+  "levels": 3,
+  "height_m": 11.0,
+  "roof": "flat",
+  "wall_hex": "#dcd8cc",
+  "accent_hex": "#8a8a86",
+  "roof_hex": "#7a7a78",
+  "window": "ribbon",
+  "ground_floor": "entrances",
+  "shop_signs": [],
+  "features": [
+   "part of the hospital campus east of Sv. Kliment Ohridski blvd, 150 m south of pole 0761"
+  ],
+  "confidence": "low",
+  "sources": [
+   "OSM class hospital"
+  ],
+  "notes": ""
  }
 }

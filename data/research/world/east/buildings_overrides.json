@@ -1861,7 +1861,7 @@
   "accent_hex": "#9a8f78",
   "confidence": "low",
   "features": [
-   "long slab 125 x 52 m with an L-wing at the south end, set back about 60-90 m from the boulevard behind a lawn/park (ЛТУ garden / dendrarium)",
+   "L-shaped: a slab only about 18.5 m deep and 122 m long (long axis almost north-south, parallel to the boulevard) plus a 34 x 12 m east wing at its south end (OSM outline); nearest wall 31 m from stop 0617 and 42 m from stop 0614, behind a belt of mature trees (OSM forest polygon w170124696 covers the grounds)",
    "plastered pale ochre/cream facade, regular window grid, entrance portal with steps on the boulevard side (inferred)",
    "mature trees between building and road"
   ],
@@ -1879,7 +1879,7 @@
    "inferred: 1950s-60s institutional typology"
   ],
   "wall_hex": "#dcd2b4",
-  "window": "ribbon"
+  "window": "punched_grid"
  },
  "w169383035": {
   "accent_hex": "#8f8b80",
@@ -3902,7 +3902,7 @@
   "accent_hex": "#8d8a80",
   "confidence": "low",
   "features": [
-   "hexagonal plan, 6 sides of about 39 m (OSM outline area 3,943 m2, perimeter 234 m), 66 m across; 180-200 m west of the road, behind dormitory blocks",
+   "hexagonal plan, 6 sides of about 39 m (OSM outline area 3,943 m2, perimeter 234 m), 66 m across; 150 m west of stop 1610 and 172 m from stop 1611, behind dormitory blocks",
    "high windowless hall volume with a ring of lower foyer/service rooms around it; entrance side faces east toward Ак. Борис Стефанов via a paved plaza (inferred)",
    "flat or very low roof (OSM roof not given), weathered pale concrete/render",
    "listed as multifunctional hall for events; the gym \"Body Check\" and a fitness club enter from the kindergarten side"
