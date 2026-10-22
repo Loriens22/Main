@@ -36,9 +36,11 @@ def main():
         q = 'noloop&q=ultra&scene=bus&h=11&dest=Студентски град'
         r = subprocess.run(['node', os.path.join(ROOT, 'tools', 'shot.cjs'), html, out, q, json.dumps(steps)],
                            capture_output=True, text=True, timeout=600)
-        errs = [l for l in r.stdout.splitlines() if 'error' in l.lower() and 'GPU stall' not in l]
+        errs = [l for l in r.stdout.splitlines() if ('error' in l.lower() or 'TIMEOUT' in l) and 'GPU stall' not in l]
         if errs:
+            # a broken page renders the loading screen: never compare that silently
             print('\n'.join(errs[:10]))
+            sys.exit(f'page errors while rendering {name} - fix them first')
         photo = Image.open(os.path.join(REF, v['photo'])).convert('RGB')
         render = Image.open(os.path.join(out, f'render_{name}.png')).convert('RGB')
         H = 600
