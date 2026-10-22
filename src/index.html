@@ -1,0 +1,61 @@
+<!doctype html>
+<html lang="bg">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no, viewport-fit=cover">
+<meta name="theme-color" content="#0d1a12">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<meta name="description" content="Sofia Public Transport — Bus 280 simulator: MAN Lion's City G CNG on the real route СУ „Св. Климент Охридски“ – Студентски град.">
+<title>Sofia Public Transport — Bus 280</title>
+<link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 64 64'%3E%3Crect x='4' y='14' width='56' height='36' rx='8' fill='%23f5f5f0'/%3E%3Crect x='8' y='18' width='48' height='14' rx='3' fill='%23111'/%3E%3Ctext x='32' y='29.5' font-family='monospace' font-size='11' font-weight='700' text-anchor='middle' fill='%23ffae1a'%3E280%3C/text%3E%3Cpath d='M6 44c10-8 20 4 30-4s14 6 22-2v8H6z' fill='%233a9d4a'/%3E%3Ccircle cx='18' cy='50' r='5' fill='%23222'/%3E%3Ccircle cx='46' cy='50' r='5' fill='%23222'/%3E%3C/svg%3E">
+<style>
+:root{
+  --bg:#0b1510;--panel:rgba(14,22,18,.86);--panel2:rgba(26,38,31,.92);--line:rgba(255,255,255,.12);
+  --text:#eef3ee;--dim:#9fb0a4;--accent:#ffae1a;--accent2:#3fae5a;--danger:#ff5544;--ok:#5fd27a;
+  --led:#ffae1a;--safe-l:env(safe-area-inset-left,0px);--safe-r:env(safe-area-inset-right,0px);
+  --safe-t:env(safe-area-inset-top,0px);--safe-b:env(safe-area-inset-bottom,0px);
+  --ui-scale:1;
+}
+*{box-sizing:border-box;-webkit-tap-highlight-color:transparent}
+html,body{margin:0;height:100%;background:var(--bg);color:var(--text);overflow:hidden;
+  font-family:"Segoe UI",Roboto,"Helvetica Neue",Arial,sans-serif;touch-action:none;user-select:none;-webkit-user-select:none;overscroll-behavior:none}
+#app{position:fixed;inset:0}
+#gl{position:absolute;inset:0;width:100%;height:100%;display:block;outline:none}
+#ui{position:absolute;inset:0;pointer-events:none}
+#ui > *{pointer-events:auto}
+.hidden{display:none!important}
+button{font:inherit;color:inherit}
+/* loading */
+#loading{position:absolute;inset:0;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:18px;
+  background:radial-gradient(ellipse at 50% 30%,#1b3324 0%,#0b1510 70%);z-index:50}
+#loading .logo{width:min(420px,80vw)}
+#loading .bar{width:min(420px,80vw);height:6px;border-radius:3px;background:rgba(255,255,255,.08);overflow:hidden}
+#loading .bar i{display:block;height:100%;width:0;background:linear-gradient(90deg,var(--accent2),var(--accent));transition:width .2s}
+#loading .msg{color:var(--dim);font-size:14px;min-height:20px;text-align:center;padding:0 20px}
+.noscript{position:absolute;inset:0;display:flex;align-items:center;justify-content:center;font-size:18px}
+</style>
+</head>
+<body>
+<div id="app">
+  <canvas id="gl" tabindex="0"></canvas>
+  <div id="ui"></div>
+  <div id="loading">
+    <svg class="logo" viewBox="0 0 420 120" aria-label="Sofia Public Transport">
+      <rect x="2" y="20" width="150" height="80" rx="14" fill="#f4f4ef"/>
+      <rect x="12" y="30" width="130" height="30" rx="5" fill="#101010"/>
+      <text x="77" y="53" font-family="monospace" font-size="24" font-weight="700" text-anchor="middle" fill="#ffae1a">280</text>
+      <path d="M4 84c26-16 44 8 70-6s40 10 76-4v14c0 6-4 10-10 10H14C8 98 4 94 4 88z" fill="#3a9d4a"/>
+      <circle cx="38" cy="100" r="11" fill="#1d1d1d"/><circle cx="118" cy="100" r="11" fill="#1d1d1d"/>
+      <text x="170" y="56" font-size="30" font-weight="700" fill="#eef3ee" font-family="Segoe UI,Roboto,Arial">Градски транспорт</text>
+      <text x="170" y="92" font-size="30" font-weight="300" fill="#ffae1a" font-family="Segoe UI,Roboto,Arial">София · Sofia</text>
+    </svg>
+    <div class="bar"><i id="loadbar"></i></div>
+    <div class="msg" id="loadmsg">Зареждане…</div>
+  </div>
+  <noscript><div class="noscript">Играта изисква JavaScript и WebGL2. / This game requires JavaScript and WebGL2.</div></noscript>
+</div>
+<!--APP_SCRIPT-->
+</body>
+</html>
