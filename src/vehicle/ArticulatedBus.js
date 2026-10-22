@@ -233,7 +233,11 @@ export class ArticulatedBus {
         this.rx += c.nx * c.depth;
         this.rz += c.nz * c.depth;
         if (!this.lastCollision) this.lastCollision = { ...c, speed: Math.abs(this.v) };
-        this.v *= -0.08;
+        // stop only when driving into the obstacle; a graze or a touch from the
+        // side must not pin the bus (it could never pull away again)
+        const into = this.v * (fwdX(this.yaw) * c.nx + fwdZ(this.yaw) * c.nz);
+        if (into < -0.05 && c.depth > 0.002) this.v *= -0.08;
+        else this.v *= 0.97;
       }
     }
     const df = Math.hypot(this.x - ox, this.z - oz) * Math.sign(this.v || 1);

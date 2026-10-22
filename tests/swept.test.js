@@ -26,7 +26,7 @@ test('the swept area is about one bus wide on straight road', () => {
     if (Math.abs(L.curvature(s, 20)) > 1 / 400) continue;
     const p = L.at(s), t = L.tangent(s, 6);
     const rx = -t.tz, rz = t.tx; // right of travel
-    const inner = BUS.halfW + 0.2, outer = BUS.halfW + 1.6;
+    const inner = BUS.halfW + 0.2, outer = BUS.halfW + sweep.margin + 0.8;
     // the bus body just right of the line is covered...
     assert.ok(sweep.hits(p.x + rx * inner, p.z + rz * inner), `A s=${s} body not covered`);
     // ...but the pavement beyond it is not, unless the other direction is there
@@ -47,8 +47,9 @@ test('the inside of a tight turn is covered beyond the front-axle track (rear se
     const p = L.at(s), t = L.tangent(s, 6);
     // inside of the curve: k < 0 turns right, and right of travel is (-tz, tx)
     const sx = t.tz * Math.sign(k), sz = -t.tx * Math.sign(k);
-    const a = sweep.hits(p.x + sx * (BUS.halfW + 0.9), p.z + sz * (BUS.halfW + 0.9));
-    const b = sweep.hits(p.x - sx * (BUS.halfW + 0.9), p.z - sz * (BUS.halfW + 0.9));
+    const o = BUS.halfW + sweep.margin + 0.6; // beyond the body and the margin
+    const a = sweep.hits(p.x + sx * o, p.z + sz * o);
+    const b = sweep.hits(p.x - sx * o, p.z - sz * o);
     if (a && !b) found++;
     if (found > 3) break;
     s += 30;

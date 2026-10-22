@@ -17,6 +17,8 @@ const path = require('path');
   p.on('pageerror', (e) => logs.push(`[pageerror] ${e.message}\n${e.stack}`));
   const t0 = Date.now();
   await p.addInitScript(() => { window.__TEST_PRESERVE__ = true; });
+  // INIT_JS='...' runs before the page, e.g. to remove an API and test a fallback
+  if (process.env.INIT_JS) await p.addInitScript({ content: process.env.INIT_JS });
   await p.goto('file://' + path.resolve(html) + (query ? '?' + query : ''));
   try {
     await p.waitForFunction(() => window.__game && window.__game.ready, null, { timeout: 240000 });
@@ -26,7 +28,7 @@ const path = require('path');
   console.log('ready after', ((Date.now() - t0) / 1000).toFixed(1), 's');
   for (const s of steps) {
     if (s.eval) {
-      try { const r = await p.evaluate(s.eval); if (r !== undefined) console.log('eval:', JSON.stringify(r).slice(0, 2000)); }
+      try { const r = await p.evaluate(s.eval); if (r !== undefined) console.log('eval:', JSON.stringify(r).slice(0, 20000)); }
       catch (e) { logs.push('[eval error] ' + e.message); }
     }
     if (s.wait) await p.waitForTimeout(s.wait);

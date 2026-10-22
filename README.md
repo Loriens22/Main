@@ -7,6 +7,12 @@ browser with WebGL2. It works offline: no server, CDN or network access is neede
 
 ![Driver cab view](docs/screenshots/driver-cab.jpg)
 
+| | |
+| --- | --- |
+| ![Chase camera on бул. Цариградско шосе](docs/screenshots/driver-follow.jpg) | ![Boarding at Хотел Плиска in passenger mode](docs/screenshots/passenger-boarding.jpg) |
+| ![Inside the bus](docs/screenshots/passenger-interior.jpg) | ![Night on Цариградско шосе](docs/screenshots/night.jpg) |
+| ![Rain with the wipers running](docs/screenshots/rain-cab.jpg) | ![Phone landscape layout](docs/screenshots/mobile-driver.jpg) |
+
 ## Playing
 
 Open `index.html`, pick **Шофьор** (driver) or **Пътник** (passenger), choose direction,
@@ -64,6 +70,17 @@ its own AI driver. If you miss it, the next one follows.
 Inside, you can walk through the bellows into the rear section. Other passengers board,
 sit, stand and get off. The on-board display and the announcements give the next stop.
 
+### Browser support
+
+The game needs WebGL2: any current Chrome, Edge, Firefox or Safari (iOS 15+), desktop or
+mobile.
+
+- **Map decompression:** uses the browser's `DecompressionStream`. On older Safari and
+  WebViews a built-in JavaScript inflater takes over.
+- **Engine sound:** uses an AudioWorklet, with an oscillator fallback.
+- **Voice:** the Bulgarian voice depends on the voices installed on the device; see
+  [Announcements and voice](#announcements-and-voice).
+
 ### Touch devices
 
 Phones and tablets get on-screen controls automatically: a steering wheel, pedals, a
@@ -75,8 +92,8 @@ notched screens. Force the touch layout on desktop with `?touch`.
 
 | Setting | Options |
 | --- | --- |
-| Language | Bulgarian (default) or English UI |
-| Graphics | quality preset **Ultra / High / Balanced** (auto-detected on first start), render scale, FPS counter |
+| Language | Bulgarian (default) or English UI (БГ/EN button on the main menu) |
+| Graphics | quality preset **Ultra / High / Balanced** (auto-detected on first start, changeable on the trip setup screen), render scale, FPS counter |
 | Audio | master, engine, voice, ambience and effects volumes |
 | Voice | Bulgarian voice selection and a test button |
 | Door beep | frequency, with a test button |
@@ -121,7 +138,7 @@ The game never reads Bulgarian with an English voice. See [docs/AUDIO.md](docs/A
 
 ```sh
 npm install           # esbuild + three
-npm test              # unit tests (route, stops, announcements, doors, state machine)
+npm test              # unit tests: route, stops, announcements, doors, state machine, swept path, gzip fallback
 npm run build         # -> index.html and dist/sofia-bus-280.html (single file, ~2.2 MB)
 node build.mjs --dev  # unminified with inline source maps
 ```

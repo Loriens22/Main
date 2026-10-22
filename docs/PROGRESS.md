@@ -17,6 +17,10 @@ and pedestrians. The test harness is `tools/shot.cjs` in headless Chromium.
 
 The longest stops outside the stop procedure were red-light waits of 25–40 s.
 
+Near the Студентски град loop exit, a car and the bus could wait for each other. This
+resolved only when the car was removed after 40 s. Cars blocked by a bus now give up
+after 8 s, or 20 s while in view.
+
 Three bugs were found and fixed by these runs:
 
 - **Pole in the swept path.** A lamp pole stood in the bus's turning path on
@@ -28,6 +32,33 @@ Three bugs were found and fixed by these runs:
   timeout.
 - **Stop re-served.** After serving a stop, the AI still targeted it inside the 12 m
   departure window, and opened the doors again up to three times.
+
+### Terminal and return trip
+
+The terminal cycle was checked end to end in headless runs:
+
+1. The bus arrives at Студентски град (pole 1694).
+2. The signs switch to „280 СУ Св. Климент Охридски“ and the trip result appears.
+3. „Обратен курс“ starts the return trip. The bus closes its doors and drives the
+   turning loop.
+4. It stops 0.4 m from the departure pole (1693), serves it, and continues to СК на НСА.
+
+Bugs fixed on the way:
+
+- Route and AI tracking kept the previous direction's position.
+- A stop could count as passed while the bus was still 36 m away on the turning loop.
+- Doors left open at the start were never closed by the AI.
+- At the trip start the bus was placed 6 m past the first stop. It is now placed at the
+  stop, with the rear following the incoming terminal link.
+- That 6 m start error counted towards the stopping accuracy score; the first stop is no
+  longer scored.
+
+A keyboard/touch-input bot also drove the player's procedure for stop 1:
+
+- engine on, doors closed, parking brake off, D;
+- stopped 0.4 m from the pole ("Отлично спиране!");
+- opened the doors, closed them with the two-beep sequence, and departed;
+- scoring and penalties fired.
 
 ### Memory and performance
 
@@ -82,6 +113,16 @@ emulation. Screenshots are in `docs/screenshots/`.
   - lit windows and lamp pools.
 
 ### Other fixes
+
+- **Grazing contacts.** A zero-depth touch of a pole or tree during a full-lock turn
+  multiplied the bus's speed by −0.08 on every physics step. The bus was pinned for
+  over two minutes; this was found in deterministic full-route runs. Speed is now
+  damped only when the bus drives into an obstacle.
+- **Prop clearance.** The swept-path margin grew to 1.0 m, because drivers cut tight
+  corners slightly.
+- **Older browsers.** Browsers without `DecompressionStream` (Safari < 16.4) decode the
+  map with a built-in JavaScript gzip inflater. It is unit-tested byte for byte against
+  zlib on the real world pack.
 
 - Teleporting the bus no longer counts the skipped stops as missed.
 - The **K** key toggles automatic kneeling. The help text listed it before it existed.

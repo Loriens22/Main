@@ -9,7 +9,8 @@ import { BUS, FRONT_Z, FRONT_BODY_END_Z, REAR_BODY_START_Z, REAR_Z } from '../ve
 const CELL = 8;
 
 export class SweptPath {
-  constructor(route, { margin = 0.45, dirs = ['A', 'B'] } = {}) {
+  // the margin also covers drivers cutting tight corners a little (AI pursuit, players)
+  constructor(route, { margin = 1.0, dirs = ['A', 'B'] } = {}) {
     this.cells = new Map();
     this.margin = margin;
     for (const id of dirs) this.trace(buildDriveLine(route, id));

@@ -71,15 +71,31 @@ export class AIBusDriver {
         break;
       }
     }
-    // cars ahead
+    // cars in the way: test the car's box against the bus's own path ahead
+    // (follows the curve through turns and catches cars at the front corners)
     if (this.traffic) {
-      const [bx, bz] = p.frontPoint();
+      const sF = n.s + BUS.frontOverhang; // front bumper on the drive line
+      const probe = [];
+      for (let d = -1; d <= 40; d += 1.5) {
+        const q = line.at(sF + d), t = line.tangent(sF + d, 2);
+        probe.push([d, q.x, q.z, t.tx, t.tz]);
+      }
       for (const c of this.traffic.cars) {
-        const rx = c.x - bx, rz = c.z - bz;
-        const along = rx * fx + rz * fz;
-        if (along < 0 || along > 40) continue;
-        if (Math.abs(-rx * fz + rz * fx) > 2.0) continue;
-        if (along - c.len / 2 - 3 < gap) { gap = along - c.len / 2 - 3; this.why = `car ${c.id ?? ''} v=${(c.v ?? 0).toFixed(1)}`; }
+        if (Math.abs(c.x - p.x) > 55 || Math.abs(c.z - p.z) > 55) continue;
+        for (const [d, qx, qz, tx, tz] of probe) {
+          if (d - 2 >= gap) break;
+          // oncoming traffic keeps to its own lane: only a real overlap counts;
+          // a car ahead in the same direction gets a safety buffer
+          const dir = c.dx * tx + c.dz * tz;
+          const clear = BUS.halfW + (dir < -0.5 ? 0.05 : dir > 0.5 ? 0.35 : 0.2);
+          const ox = qx - c.x, oz = qz - c.z;
+          const lx = Math.abs(ox * c.dx + oz * c.dz) - c.len / 2, lz = Math.abs(-ox * c.dz + oz * c.dx) - c.wid / 2;
+          if (Math.hypot(Math.max(0, lx), Math.max(0, lz)) < clear) {
+            gap = d - 2;
+            this.why = `car v=${(c.v ?? 0).toFixed(1)}`;
+            break;
+          }
+        }
       }
     }
     if (gap < Infinity) vDes = Math.min(vDes, Math.sqrt(Math.max(0, 2 * 1.1 * Math.max(0, gap))));

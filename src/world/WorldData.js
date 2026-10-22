@@ -34,7 +34,9 @@ export async function loadWorldPack(progress = () => {}) {
     const stream = new Blob([bin]).stream().pipeThrough(new DecompressionStream('gzip'));
     text = await new Response(stream).text();
   } else {
-    throw new Error('DecompressionStream not supported (update your browser)');
+    // Safari < 16.4 and old WebViews: decode in JavaScript
+    const { gunzip } = await import('../core/inflate.js');
+    text = new TextDecoder().decode(gunzip(bin));
   }
   const p = JSON.parse(text);
   progress(0.06, L('Обработка на данните…', 'Processing the data…'));

@@ -287,10 +287,12 @@ export class TrafficManager {
     // buses (and anything box-shaped in the lane ahead)
     let byBus = false;
     for (const b of busBoxes) {
+      // an oncoming bus in its own lane is passed; only a bus across or in our lane stops us
+      const side = b.fx * fx + b.fz * fz < -0.5 ? 0.25 : 0.9;
       for (let d = 2; d <= 30; d += 2) {
         const px = car.x + fx * (car.len / 2 + d), pz = car.z + fz * (car.len / 2 + d);
         const lx = (px - b.cx) * b.fx + (pz - b.cz) * b.fz, lz = (px - b.cx) * -b.fz + (pz - b.cz) * b.fx;
-        if (Math.abs(lx) < b.hl + 0.5 && Math.abs(lz) < b.hw + 0.9) {
+        if (Math.abs(lx) < b.hl + 0.5 && Math.abs(lz) < b.hw + side) {
           if (d - 1 < gap) { gap = d - 1; vLead = 0; byBus = true; }
           break;
         }
