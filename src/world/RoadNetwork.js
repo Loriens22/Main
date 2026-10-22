@@ -97,10 +97,13 @@ export class RoadNetwork {
         const a = conns[k].at * L, b = conns[k + 1].at * L;
         if (b - a < 0.3) continue;
         const sp = subPolyline(pts, s, a, b);
+        // historic centre: paving stones are Sofia's yellow paving blocks
+        let surface = r.surface;
+        if ((surface === 'paving_stones' || surface === 'sett') && Math.hypot(sp[0] + 1300, sp[1] + 2700) < 900) surface = 'yellow_brick';
         const piece = {
           id: this.pieces.length,
           cls: r.cls, rank: CLASS_RANK[r.cls], width: r.width, hw: r.width / 2, oneway: r.oneway,
-          name: r.name, surface: r.surface, bridge: r.bridge, driveway: r.driveway, link: r.link, speed: r.speed || 50,
+          name: r.name, surface, bridge: r.bridge, driveway: r.driveway, link: r.link, speed: r.speed || 50,
           pts: sp, a: conns[k].id, b: conns[k + 1].id, trimA: 0, trimB: 0, extA: 0, extB: 0,
           minor: r.driveway || r.cls === 'service' || r.cls === 'unknown',
         };

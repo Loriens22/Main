@@ -1,0 +1,324 @@
+// Main menu, pre-game setup, settings, credits and pause screens.
+import { t, setLang, getLang } from './i18n.js';
+import { saveSettings, loadSave } from '../game/Settings.js';
+
+const LOGO = `<svg class="logo" viewBox="0 0 420 120" aria-label="Sofia Public Transport">
+<rect x="2" y="20" width="150" height="80" rx="14" fill="#f4f4ef"/><rect x="12" y="30" width="130" height="30" rx="5" fill="#101010"/>
+<text x="77" y="53" font-family="monospace" font-size="24" font-weight="700" text-anchor="middle" fill="#ffae1a">280</text>
+<path d="M4 84c26-16 44 8 70-6s40 10 76-4v14c0 6-4 10-10 10H14C8 98 4 94 4 88z" fill="#3a9d4a"/>
+<circle cx="38" cy="100" r="11" fill="#1d1d1d"/><circle cx="118" cy="100" r="11" fill="#1d1d1d"/>
+<text x="170" y="56" font-size="30" font-weight="700" fill="#eef3ee" font-family="Segoe UI,Roboto,Arial">Градски транспорт</text>
+<text x="170" y="92" font-size="30" font-weight="300" fill="#ffae1a" font-family="Segoe UI,Roboto,Arial">София · Sofia</text></svg>`;
+
+const ICON_WHEEL = '<svg class="ico" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="9"/><circle cx="12" cy="12" r="2.5"/><path d="M12 14.5V21M9.6 11.2 3.5 9.5M14.4 11.2l6.1-1.7"/></svg>';
+const ICON_PERSON = '<svg class="ico" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="5" r="2.5"/><path d="M12 8v7m0 0-3 6m3-6 3 6M7 11h10"/></svg>';
+
+export class Menu {
+  constructor(root, { settings, route, onStart, onSettingsChanged, voice }) {
+    this.root = root;
+    this.settings = settings;
+    this.route = route;
+    this.onStart = onStart;
+    this.onSettingsChanged = onSettingsChanged;
+    this.voice = voice;
+    this.el = document.createElement('div');
+    this.el.className = 'ui-root';
+    root.appendChild(this.el);
+    this.setup = { mode: 'driver', fleet: settings.fleet || '3145', dirId: 'A', weather: 'clear', hour: 10.5, stopIndex: 3, traffic: settings.traffic || 'medium' };
+  }
+
+  clear() {
+    this.el.innerHTML = '';
+  }
+
+  hide() {
+    this.clear();
+  }
+
+  main() {
+    this.clear();
+    const save = loadSave();
+    const m = document.createElement('div');
+    m.className = 'menu';
+    m.innerHTML = `<div class="col">
+      ${LOGO}
+      <div class="tag">${t('subtitle')}</div>
+      <button class="btn big primary" data-a="driver">${ICON_WHEEL}<span>${t('driver')}<small>MAN Lion's City G CNG · ${getLang() === 'bg' ? 'управлявайте линия 280' : 'drive line 280'}</small></span></button>
+      <button class="btn big green" data-a="passenger">${ICON_PERSON}<span>${t('passenger')}<small>${getLang() === 'bg' ? 'пътувайте като пътник' : 'ride as a passenger'}</small></span></button>
+      <button class="btn big" data-a="continue" ${save ? '' : 'disabled'}>▶<span>${t('cont')}<small>${save ? `${save.mode === 'driver' ? t('driver') : t('passenger')} · ${save.fleet}` : '—'}</small></span></button>
+      <div class="row"><button class="btn" data-a="settings">⚙ ${t('settings')}</button><button class="btn" data-a="credits">ⓘ ${t('credits')}</button>
+      <button class="btn" data-a="lang">${getLang() === 'bg' ? 'EN' : 'БГ'}</button></div>
+      <div class="foot">© OpenStreetMap contributors (ODbL) · Overture Maps · Mapzen Terrain Tiles.<br>Fan-made simulator; not affiliated with Sofia Urban Mobility Center or MAN Truck &amp; Bus.</div>
+    </div>`;
+    this.el.appendChild(m);
+    m.querySelector('[data-a=driver]').onclick = () => this.setupScreen('driver');
+    m.querySelector('[data-a=passenger]').onclick = () => this.setupScreen('passenger');
+    m.querySelector('[data-a=settings]').onclick = () => this.settingsScreen(() => this.main());
+    m.querySelector('[data-a=credits]').onclick = () => this.credits();
+    m.querySelector('[data-a=lang]').onclick = () => {
+      const l = getLang() === 'bg' ? 'en' : 'bg';
+      setLang(l);
+      this.settings.lang = l;
+      saveSettings(this.settings);
+      this.main();
+    };
+    const c = m.querySelector('[data-a=continue]');
+    if (save) c.onclick = () => this.onStart({ ...save, resume: true });
+  }
+
+  seg(field, options, onChange) {
+    const wrap = document.createElement('div');
+    wrap.className = 'seg';
+    for (const [val, label] of options) {
+      const b = document.createElement('button');
+      b.textContent = label;
+      b.className = this.setup[field] === val ? 'on' : '';
+      b.onclick = () => {
+        this.setup[field] = val;
+        [...wrap.children].forEach((x) => x.classList.remove('on'));
+        b.classList.add('on');
+        if (onChange) onChange(val);
+      };
+      wrap.appendChild(b);
+    }
+    return wrap;
+  }
+
+  field(label, node) {
+    const f = document.createElement('div');
+    f.className = 'field';
+    const l = document.createElement('label');
+    l.textContent = label;
+    f.append(l, node);
+    return f;
+  }
+
+  setupScreen(mode) {
+    this.setup.mode = mode;
+    this.main();
+    const p = document.createElement('div');
+    p.className = 'panel setup';
+    p.innerHTML = `<h2>${mode === 'driver' ? t('driver') : t('passenger')}</h2>`;
+    // bus
+    const bp = document.createElement('div');
+    bp.className = 'bus-pick';
+    for (const [n, plate, dep] of [['3145', 'CB 5696 HM', 'Земляне'], ['3153', 'CB 5713 HM', 'Земляне'], ['2319', 'CB 5720 HM', 'Дружба']]) {
+      const b = document.createElement('button');
+      b.innerHTML = `<b>${n}</b><small>${plate}</small>`;
+      b.className = this.setup.fleet === n ? 'on' : '';
+      b.onclick = () => {
+        this.setup.fleet = n;
+        [...bp.children].forEach((x) => x.classList.remove('on'));
+        b.classList.add('on');
+      };
+      void dep;
+      bp.appendChild(b);
+    }
+    p.appendChild(this.field(t('bus'), bp));
+    const dirOpts = [['A', '→ Студентски град'], ['B', '→ СУ „Св. Климент Охридски“']];
+    let stopSel = null;
+    const fillStops = () => {
+      if (!stopSel) return;
+      stopSel.innerHTML = '';
+      const d = this.route.direction(this.setup.dirId);
+      d.stops.slice(0, -1).forEach((s, i) => {
+        const o = document.createElement('option');
+        o.value = i;
+        o.textContent = `${s.name} (${s.code})`;
+        stopSel.appendChild(o);
+      });
+      this.setup.stopIndex = Math.min(this.setup.stopIndex, d.stops.length - 2);
+      stopSel.value = this.setup.stopIndex;
+    };
+    p.appendChild(this.field(mode === 'driver' ? t('terminal') : t('direction'), this.seg('dirId', dirOpts, fillStops)));
+    if (mode === 'passenger') {
+      stopSel = document.createElement('select');
+      stopSel.onchange = () => (this.setup.stopIndex = Number(stopSel.value));
+      p.appendChild(this.field(t('startStop'), stopSel));
+      fillStops();
+    }
+    p.appendChild(this.field(t('weather'), this.seg('weather', [['clear', t('clear')], ['cloudy', t('cloudy')], ['rain', t('rain')]])));
+    p.appendChild(this.field(t('time'), this.seg('hour', [[7.5, t('morning')], [12.5, t('noon')], [18.6, t('evening')], [21.8, t('night')]])));
+    p.appendChild(this.field(t('traffic'), this.seg('traffic', [['low', t('low')], ['medium', t('medium')], ['high', t('high')]])));
+    const q = { quality: this.settings.quality };
+    const qs = document.createElement('div');
+    qs.className = 'seg';
+    for (const [v, l] of [['ultra', 'Ultra'], ['high', 'High'], ['balanced', 'Balanced']]) {
+      const b = document.createElement('button');
+      b.textContent = l;
+      b.className = q.quality === v ? 'on' : '';
+      b.onclick = () => {
+        q.quality = v;
+        [...qs.children].forEach((x) => x.classList.remove('on'));
+        b.classList.add('on');
+      };
+      qs.appendChild(b);
+    }
+    p.appendChild(this.field(t('graphics'), qs));
+    const row = document.createElement('div');
+    row.className = 'row';
+    row.style.display = 'flex';
+    row.style.gap = '10px';
+    row.style.marginTop = 'auto';
+    const back = document.createElement('button');
+    back.className = 'btn';
+    back.textContent = t('back');
+    back.onclick = () => this.main();
+    const go = document.createElement('button');
+    go.className = 'btn primary';
+    go.style.flex = '1';
+    go.textContent = `${t('start')} ▶`;
+    go.onclick = () => {
+      this.settings.fleet = this.setup.fleet;
+      this.settings.traffic = this.setup.traffic;
+      const qualityChanged = q.quality !== this.settings.quality;
+      this.settings.quality = q.quality;
+      saveSettings(this.settings);
+      this.onStart({ ...this.setup, qualityChanged });
+    };
+    row.append(back, go);
+    p.appendChild(row);
+    this.el.appendChild(p);
+  }
+
+  settingsScreen(onBack) {
+    this.clear();
+    const s = this.settings;
+    const p = document.createElement('div');
+    p.className = 'panel setup';
+    p.style.left = '50%';
+    p.style.right = 'auto';
+    p.style.transform = 'translateX(-50%)';
+    p.innerHTML = `<h2>${t('settings')}</h2>`;
+    const slider = (key, label, min, max, step) => {
+      const i = document.createElement('input');
+      i.type = 'range';
+      i.min = min;
+      i.max = max;
+      i.step = step;
+      i.value = s[key];
+      i.oninput = () => {
+        s[key] = Number(i.value);
+        this.onSettingsChanged(s);
+      };
+      p.appendChild(this.field(label, i));
+    };
+    const toggle = (key, label) => {
+      const w = document.createElement('div');
+      w.className = 'seg';
+      for (const [v, l] of [[true, 'Да / On'], [false, 'Не / Off']]) {
+        const b = document.createElement('button');
+        b.textContent = l;
+        b.className = s[key] === v ? 'on' : '';
+        b.onclick = () => {
+          s[key] = v;
+          [...w.children].forEach((x) => x.classList.remove('on'));
+          b.classList.add('on');
+          this.onSettingsChanged(s);
+        };
+        w.appendChild(b);
+      }
+      p.appendChild(this.field(label, w));
+    };
+    slider('volMaster', `${t('volume')} · ${t('master')}`, 0, 1, 0.05);
+    slider('volEngine', t('engine'), 0, 1, 0.05);
+    slider('volVoice', t('voice'), 0, 1, 0.05);
+    slider('volAmbience', t('ambience'), 0, 1, 0.05);
+    slider('volSfx', t('sfx'), 0, 1, 0.05);
+    // voice selection
+    const vs = document.createElement('select');
+    const voices = this.voice.bulgarianVoices();
+    const o0 = document.createElement('option');
+    o0.value = '';
+    o0.textContent = voices.length ? 'Автоматично (женски глас, ако има)' : 'Няма български глас на устройството — само текст';
+    vs.appendChild(o0);
+    for (const v of voices) {
+      const o = document.createElement('option');
+      o.value = v.name;
+      o.textContent = `${v.name} (${v.lang})`;
+      vs.appendChild(o);
+    }
+    vs.value = s.voiceName || '';
+    vs.onchange = () => {
+      s.voiceName = vs.value;
+      this.voice.pickVoice();
+      this.onSettingsChanged(s);
+    };
+    p.appendChild(this.field(t('voiceSel'), vs));
+    const info = document.createElement('div');
+    info.style.color = 'var(--dim)';
+    info.style.fontSize = '.8em';
+    info.textContent = `Текущ глас: ${this.voice.describe()}`;
+    p.appendChild(info);
+    const test = document.createElement('button');
+    test.className = 'btn';
+    test.textContent = '▶ Тест: „Следваща спирка Военна академия.“';
+    test.onclick = () => this.onSettingsChanged(s, 'testVoice');
+    p.appendChild(test);
+    const tb = document.createElement('button');
+    tb.className = 'btn';
+    tb.textContent = '▶ Тест: сигнал при затваряне на вратите (бип-бип)';
+    tb.onclick = () => this.onSettingsChanged(s, 'testBeep');
+    p.appendChild(tb);
+    slider('beepFreq', `${t('beep')} — Hz`, 900, 3200, 50);
+    slider('sensitivity', t('sensitivity'), 0.3, 2.5, 0.1);
+    toggle('invertY', t('invertY'));
+    toggle('gyro', t('gyro'));
+    slider('controlsSize', t('controlsSize'), 0.75, 1.4, 0.05);
+    slider('renderScale', t('renderScale'), 0.5, 1, 0.05);
+    toggle('showFps', t('showFps'));
+    const back = document.createElement('button');
+    back.className = 'btn primary';
+    back.textContent = t('back');
+    back.onclick = () => {
+      saveSettings(s);
+      onBack();
+    };
+    p.appendChild(back);
+    this.el.appendChild(p);
+  }
+
+  credits() {
+    this.clear();
+    const p = document.createElement('div');
+    p.className = 'panel setup';
+    p.style.left = '50%';
+    p.style.right = 'auto';
+    p.style.transform = 'translateX(-50%)';
+    p.innerHTML = `<h2>${t('credits')}</h2>
+      <p><b>Sofia Public Transport — Bus 280</b><br>Независим фен проект / independent fan project.</p>
+      <p><b>Карта и спирки:</b> © OpenStreetMap contributors (ODbL 1.0), разпространено чрез Overture Maps Foundation (release 2026-10-21.0). Кодовете на спирките са официалните кодове на ЦГМ / sofiatraffic.bg.</p>
+      <p><b>Релеф:</b> Mapzen / AWS Terrain Tiles (SRTM, EU-DEM).</p>
+      <p><b>Автобус:</b> MAN Lion's City G CNG (A23) — процедурен 3D модел по референтни снимки; размери по публични данни (приблизителни).</p>
+      <p><b>Звук:</b> изцяло синтезиран в реално време (WebAudio). Гласът на съобщенията е българският глас на устройството или вградени лицензирани записи.</p>
+      <p><b>Технологии:</b> three.js (MIT), esbuild.</p>
+      <p style="color:var(--dim);font-size:.85em">MAN и Lion's City са търговски марки на MAN Truck &amp; Bus SE. Проектът не е свързан с MAN, Столичен автотранспорт или Центъра за градска мобилност.</p>`;
+    const back = document.createElement('button');
+    back.className = 'btn primary';
+    back.textContent = t('back');
+    back.onclick = () => this.main();
+    p.appendChild(back);
+    this.el.appendChild(p);
+  }
+
+  pause({ onResume, onMenu, onRestart, onCamera }) {
+    this.clear();
+    const w = document.createElement('div');
+    w.className = 'pause';
+    w.innerHTML = `<div class="panel"><h2 style="margin:0 0 6px">${t('paused')}</h2></div>`;
+    const panel = w.firstChild;
+    const add = (label, fn, cls = 'btn') => {
+      const b = document.createElement('button');
+      b.className = cls;
+      b.textContent = label;
+      b.onclick = fn;
+      panel.appendChild(b);
+    };
+    add(t('resume'), onResume, 'btn primary');
+    add(t('camera'), onCamera);
+    add(t('settings'), () => this.settingsScreen(() => this.pause({ onResume, onMenu, onRestart, onCamera })));
+    add(t('restart'), onRestart);
+    add(t('mainMenu'), onMenu);
+    this.el.appendChild(w);
+  }
+}

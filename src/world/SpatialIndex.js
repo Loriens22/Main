@@ -22,6 +22,16 @@ export class SegmentGrid {
       z0 = Math.min(z0, pts[i + 1]); z1 = Math.max(z1, pts[i + 1]);
     }
     this.polys.push({ pts, data, box: [x0, z0, x1, z1] });
+    // bbox index so points deep inside large footprints are found too
+    if (!this.pgrid) this.pgrid = new Map();
+    const C = 64;
+    for (let gx = Math.floor(x0 / C); gx <= Math.floor(x1 / C); gx++)
+      for (let gz = Math.floor(z0 / C); gz <= Math.floor(z1 / C); gz++) {
+        const key = this.k(gx, gz);
+        let a = this.pgrid.get(key);
+        if (!a) this.pgrid.set(key, (a = []));
+        a.push(id);
+      }
     const n = pts.length / 2;
     for (let i = 0; i < n; i++) {
       const j = (i + 1) % n;
@@ -67,8 +77,8 @@ export class SegmentGrid {
 
   /** Returns polygon id containing the point or -1. */
   pointInAny(x, z) {
-    for (const s of this.segsNear(x, z, this.cell)) if (this.inPoly(s[4], x, z)) return s[4];
-    // a point deep inside a large polygon may have no nearby segments: test candidates by bbox via ray
+    const a = this.pgrid && this.pgrid.get(this.k(Math.floor(x / 64), Math.floor(z / 64)));
+    if (a) for (const id of a) if (this.inPoly(id, x, z)) return id;
     return -1;
   }
 

@@ -112,17 +112,17 @@ export function makeAsphalt(size = 512, seed = 11) {
     const i = y * size + x;
     const g = grain[i];
     const stone = g > 0.93 ? (g - 0.93) * 6 : 0;
-    const crack = Math.abs(ridge[i] - 0.5) < 0.006 && n3[i] > 0.52 ? 1 : 0;
-    const patch = n3[i] > 0.66 ? 0.12 : 0;
-    let base = 58 + n1[i] * 26 + n2[i] * 18 + stone * 70 - crack * 30 - patch * 60;
-    o[0] = base * 0.98; o[1] = base; o[2] = base * 1.03;
+    const crack = Math.abs(ridge[i] - 0.5) < 0.004 && n3[i] > 0.58 ? 1 : 0;
+    const patch = n3[i] > 0.7 ? 0.12 : 0;
+    let base = 50 + n1[i] * 22 + n2[i] * 16 + stone * 60 - crack * 16 - patch * 40;
+    o[0] = base * 1.0; o[1] = base * 0.99; o[2] = base * 0.97;
     o[3] = 0.82 + n2[i] * 0.15 - stone * 0.3 + crack * 0.1 - patch * 0.15;
     o[4] = g * 0.6 + n2[i] * 0.8 - crack * 1.5;
   }, 2.2);
 }
 
 /** Sofia's yellow paving blocks (бул. Цар Освободител), 8 m tile. */
-export function makeYellowBricks(size = 512, seed = 23) {
+export function makeYellowBricks(size = 512, seed = 23, tintRGB = [196, 160, 62]) {
   const r = mulberry32(seed);
   const n1 = fbmField(size, 16, 4, seed);
   const rowsPerTile = 40; // 20 cm rows over 8 m
@@ -145,7 +145,7 @@ export function makeYellowBricks(size = 512, seed = 23) {
     if (mortar) {
       o[0] = 70; o[1] = 64; o[2] = 52; o[3] = 0.95; o[4] = 0;
     } else {
-      o[0] = 196 * k; o[1] = 160 * k; o[2] = 62 * k; o[3] = 0.55 + n1[i] * 0.25 - t * 0.1; o[4] = bevel;
+      o[0] = tintRGB[0] * k; o[1] = tintRGB[1] * k; o[2] = tintRGB[2] * k; o[3] = 0.55 + n1[i] * 0.25 - t * 0.1; o[4] = bevel;
     }
   }, 3.0);
 }

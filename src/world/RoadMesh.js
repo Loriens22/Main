@@ -103,7 +103,7 @@ export class RoadMeshBuilder {
     const q = this.quality;
     const sz = q === 'balanced' ? 256 : 512;
     const asph = makeAsphalt(sz), brick = makeYellowBricks(sz), pav = makePavers(sz), curb = makeCurb(256), grass = makeGrass(256), dirt = makeDirt(256);
-    const sett = makeYellowBricks(sz, 91);
+    const sett = makeYellowBricks(sz, 91, [128, 126, 120]);
     const noise = makeNoiseTexture(256);
     const wetUniform = { value: 0 };
     const roadPatch = (mat, kind) => {
@@ -153,7 +153,7 @@ normal = normalize(mix(normal, normalize(vNormal), gPuddle));`);
       wet: wetUniform,
       asphalt: roadPatch(std(asph, { normalScale: ns, polygonOffset: true, polygonOffsetFactor: -1, polygonOffsetUnits: -2 }), 'asphalt'),
       brick: roadPatch(std(brick, { polygonOffset: true, polygonOffsetFactor: -1, polygonOffsetUnits: -2 }), 'brick'),
-      sett: roadPatch(std(sett, { color: 0x8c8a84, polygonOffset: true, polygonOffsetFactor: -1, polygonOffsetUnits: -2 }), 'sett'),
+      sett: roadPatch(std(sett, { color: 0xffffff, polygonOffset: true, polygonOffsetFactor: -1, polygonOffsetUnits: -2 }), 'sett'),
       gravel: roadPatch(std(dirt, { color: 0xb8b0a0, polygonOffset: true, polygonOffsetFactor: -1, polygonOffsetUnits: -2 }), 'gravel'),
       sidewalk: roadPatch(std(pav, { polygonOffset: true, polygonOffsetFactor: -1, polygonOffsetUnits: -1 }), 'sidewalk'),
       footway: roadPatch(std(pav, { color: 0xd8d4cc, polygonOffset: true, polygonOffsetFactor: -1, polygonOffsetUnits: -1 }), 'footway'),
