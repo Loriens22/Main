@@ -68,7 +68,7 @@ export class BuildingBuilder {
     this.hf = hf;
     this.quality = quality;
     this.buckets = new TileBuckets(256, {
-      walls: { color: true, extra: { name: 'aFacade', size: 4 } },
+      walls: { color: true, extra: [{ name: 'aFacade', size: 4 }, { name: 'aFacade2', size: 4 }] },
       flat: { color: true }, tiles: { color: true }, metal: { color: true }, gold: {}, copper: {}, glassroof: {},
     });
     this.footprints = []; // for collision: {pts, h}
@@ -94,6 +94,8 @@ export class BuildingBuilder {
 
   styleOf(b) {
     const lm = b.landmark && LANDMARK_STYLE[b.landmark];
+    const rs = b.research;
+    if (rs && rs.wall != null) return { style: b.style, color: '#' + rs.wall.toString(16).padStart(6, '0') };
     if (lm) return { style: lm.style, color: lm.color };
     const pal = PALETTE[b.style] || PALETTE[0];
     const r = mulberry32(b.id * 7919 + 13);
@@ -115,7 +117,10 @@ export class BuildingBuilder {
     const seed = (hashStr(`${b.id}`) % 1000) / 1000;
     let floorH = style === STYLE.PANEL || style === STYLE.RENOVATED ? 2.8 : style === STYLE.CLASSIC || style === STYLE.STONE ? 3.5 : style === STYLE.GLASS ? 3.7 : style === STYLE.HOUSE ? 3.0 : style === STYLE.INDUSTRIAL ? 6.0 : 3.4;
     if (b.levels > 0 && b.minH === 0) floorH = Math.max(2.6, Math.min(4.2, b.h / b.levels));
-    const fac = [style, seed, b.h, floorH];
+    // aFacade = (style, seed, wall height, floor height); aFacade2 = researched (accent rgb packed, window
+    // pattern, ground floor, kind), -1 = unknown -> procedural defaults
+    const rs = b.research;
+    const fac = [style, seed, b.h, floorH, rs && rs.accent != null ? rs.accent : -1, rs ? rs.window : -1, rs ? rs.ground : -1, rs ? rs.kind : -1];
     const walls = this.buckets.get(cx, cz, 'walls');
     const vOff = b.minH > 0 ? b.minH : 0;
     this.extrudeRing(walls, outer, bottom, top, base, col, fac, vOff);
@@ -295,14 +300,14 @@ export class BuildingBuilder {
     walls.onBeforeCompile = (sh) => {
       Object.assign(sh.uniforms, uniforms);
       sh.vertexShader = sh.vertexShader
-        .replace('#include <common>', '#include <common>\nattribute vec4 aFacade; flat varying vec4 vFac; varying vec2 vUvM; varying vec3 vWP;')
-        .replace('#include <uv_vertex>', '#include <uv_vertex>\nvFac = aFacade; vUvM = uv;')
+        .replace('#include <common>', '#include <common>\nattribute vec4 aFacade; attribute vec4 aFacade2; flat varying vec4 vFac; flat varying vec4 vFac2; varying vec2 vUvM; varying vec3 vWP;')
+        .replace('#include <uv_vertex>', '#include <uv_vertex>\nvFac = aFacade; vFac2 = aFacade2; vUvM = uv;')
         .replace('#include <worldpos_vertex>', '#include <worldpos_vertex>\nvWP = (modelMatrix * vec4(transformed, 1.0)).xyz;');
       sh.fragmentShader = sh.fragmentShader
         .replace('#include <common>', `#include <common>
 ${FACADE_GLSL}`)
         .replace('#include <map_fragment>', `
-FacadeOut fo = facade(vUvM, vFac, vColor.rgb);
+FacadeOut fo = facade(vUvM, vFac, vFac2, vColor.rgb);
 diffuseColor.rgb = fo.albedo;`)
         .replace('#include <color_fragment>', '')
         .replace('#include <roughnessmap_fragment>', 'float roughnessFactor = fo.rough;')
@@ -318,7 +323,7 @@ diffuseColor.rgb = fo.albedo;`)
 reflectedLight.indirectDiffuse *= fo.ao;
 reflectedLight.indirectSpecular *= mix(1.0, fo.ao, 0.5);`);
     };
-    walls.customProgramCacheKey = () => 'facade-v3';
+    walls.customProgramCacheKey = () => 'facade-v4';
     const flat = new THREE.MeshStandardMaterial({ vertexColors: true, roughness: 0.95, metalness: 0 });
     const tilesMat = makeTileRoofMaterial(noise);
     const metal = new THREE.MeshStandardMaterial({ vertexColors: true, roughness: 0.45, metalness: 0.6 });
@@ -405,6 +410,7 @@ function makeTileRoofMaterial(noise) {
 // building base), vFac = (style, seed, wall height, floor height).
 const FACADE_GLSL = /* glsl */ `
 flat varying vec4 vFac;
+flat varying vec4 vFac2;
 varying vec2 vUvM;
 varying vec3 vWP;
 uniform float uNight;
@@ -419,9 +425,18 @@ float boxMask(vec2 p, vec4 r, vec2 aa) {
   vec2 b = 1.0 - smoothstep(r.zw - aa, r.zw + aa, p);
   return a.x * a.y * b.x * b.y;
 }
-FacadeOut facade(vec2 uvm, vec4 fac, vec3 wallCol) {
+vec3 unpackRGB(float v) {
+  vec3 c = vec3(floor(v / 65536.0), mod(floor(v / 256.0), 256.0), mod(v, 256.0)) / 255.0;
+  return pow(c, vec3(2.2)); // sRGB -> linear
+}
+FacadeOut facade(vec2 uvm, vec4 fac, vec4 fac2, vec3 wallCol) {
   FacadeOut o;
   float style = floor(fac.x + 0.5);
+  // researched data: accent colour (panel joints, trim, balcony fronts), window pattern, ground floor
+  bool hasAccent = fac2.x > -0.5;
+  vec3 accent = hasAccent ? unpackRGB(floor(fac2.x + 0.5)) : vec3(0.0);
+  float winPat = floor(fac2.y + 0.5); // -1 unknown, 0 punched, 1 ribbon, 2 curtain, 3 loggias, 4 balconies, 5 shopfront only
+  float gfl = floor(fac2.z + 0.5);    // -1 unknown, 0 shops, 1 lobby, 2 blank, 3 columns, 4 garages, 5 entrances
   float seed = floor(fac.y * 997.0 + 0.5) / 997.0; // quantised: hashes must not see interpolation noise
   float H = fac.z;
   float fh = fac.w;
@@ -436,6 +451,9 @@ FacadeOut facade(vec2 uvm, vec4 fac, vec3 wallCol) {
   if (uvm.y < 0.0) { o.albedo *= 0.75; return o; } // plinth / foundation
   float bayW = style < 1.5 ? 3.3 : style < 2.5 ? 2.9 : style < 3.5 ? 1.55 : style < 4.5 ? 3.6 : style < 5.5 ? 6.0 : style < 6.5 ? 1.25 : style < 7.5 ? 3.0 : 4.2;
   bool hasShop = (style > 1.5 && style < 2.5 && seed < 0.62) || (style > 6.5 && style < 7.5);
+  if (gfl > -0.5) hasShop = gfl < 0.5 || winPat > 4.5;
+  if (winPat > 0.5 && winPat < 1.5) bayW = 1.5;  // ribbon windows: narrow mullion rhythm
+  if (winPat > 1.5 && winPat < 2.5) bayW = 1.55; // curtain wall modules
   float gh = hasShop ? max(fh, 4.2) : fh;
   float u = uvm.x / bayW;
   float bx = floor(u);
@@ -476,6 +494,15 @@ FacadeOut facade(vec2 uvm, vec4 fac, vec3 wallCol) {
   } else {
     win = vec4(0.36, 0.2, 0.64, 0.82); frame = 0.06; frameCol = vec3(0.3, 0.25, 0.2);
   }
+  // researched window pattern overrides the style default (upper floors)
+  if (winPat > -0.5 && !ground) {
+    if (winPat < 0.5) { win = vec4(0.24, 0.28, 0.76, 0.84); balcony = 0.0; }
+    else if (winPat < 1.5) { win = vec4(0.0, 0.32, 1.0, 0.82); frame = 0.03; balcony = 0.0; }
+    else if (winPat < 2.5) { win = vec4(0.04, 0.06, 0.96, 1.0); frame = 0.025; frameCol = vec3(0.3, 0.32, 0.33); balcony = 0.0; }
+    else if (winPat < 3.5) { if (mod(bx, 3.0) < 1.5) { win = vec4(0.06, 0.02, 0.94, 0.97); balcony = 1.0; } else { win = vec4(0.25, 0.3, 0.75, 0.84); balcony = 0.0; } }
+    else if (winPat < 4.5) { win = vec4(0.08, 0.02, 0.92, 0.97); balcony = 1.0; }
+    else { win = vec4(0.0); balcony = 0.0; }
+  }
   // ground floor
   if (ground) {
     if (hasShop) {
@@ -486,6 +513,11 @@ FacadeOut facade(vec2 uvm, vec4 fac, vec3 wallCol) {
     } else if (style > 4.5 && style < 5.5) {
       win = vec4(0.12, 0.0, 0.88, 0.7); frameCol = vec3(0.5, 0.52, 0.5); // roller door
     }
+    if (gfl > 0.5 && gfl < 1.5) { win = vec4(0.08, 0.04, 0.92, 0.8); frame = 0.02; frameCol = vec3(0.22); } // lobby glazing
+    else if (gfl > 1.5 && gfl < 2.5) win = vec4(0.0);                                                       // blank plinth
+    else if (gfl > 2.5 && gfl < 3.5) { win = vec4(0.18, 0.0, 0.82, 0.86); frameCol = vec3(0.12); }         // colonnade shade
+    else if (gfl > 3.5 && gfl < 4.5) { win = vec4(0.1, 0.0, 0.9, 0.72); frameCol = vec3(0.55, 0.56, 0.55); } // garage doors
+    else if (gfl > 4.5 && gfl < 5.5) win = mod(bx, 4.0) < 0.5 ? vec4(0.3, 0.0, 0.7, 0.78) : vec4(0.32, 0.45, 0.68, 0.85);
   }
   // skip some windows on industrial / blank walls
   bool skip = (style > 4.5 && style < 5.5 && !ground && rnd > 0.55) || (style > 6.5 && style < 7.5 && !ground && rnd > 0.7);
@@ -506,9 +538,9 @@ FacadeOut facade(vec2 uvm, vec4 fac, vec3 wallCol) {
   // ---------------- wall detailing
   vec3 alb = wall;
   if (style < 1.5) {
-    // panel joints
+    // panel joints (researched accent colour where known)
     float j = max(1.0 - smoothstep(0.0, 0.012 + aa.x, min(lx, 1.0 - lx)), 1.0 - smoothstep(0.0, 0.02 + aa.y, min(ly, 1.0 - ly)));
-    alb *= 1.0 - j * 0.35;
+    alb = hasAccent ? mix(alb, accent, j * 0.8) : alb * (1.0 - j * 0.35);
     // exposed-aggregate texture
     alb *= 0.93 + nz2.b * 0.12;
   } else if (style < 2.5) {
@@ -547,6 +579,7 @@ FacadeOut facade(vec2 uvm, vec4 fac, vec3 wallCol) {
     float slab = boxMask(vec2(lx, ly), vec4(0.04, 0.0, 0.96, 0.4), aa);
     float glazed = step(0.45, rnd);
     vec3 parapet = mix(wall * 0.95, vec3(0.88, 0.88, 0.86), step(0.7, h21(vec2(bx, fl + 9.0))));
+    if (hasAccent) parapet = mix(accent, parapet, step(0.8, h21(vec2(bx, fl + 9.0)))); // owners re-clad some
     alb = mix(alb, parapet, slab);
     glassMask *= 1.0 - slab;
     glassMask *= mix(0.25, 1.0, glazed);

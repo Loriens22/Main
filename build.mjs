@@ -24,6 +24,12 @@ const options = {
 function emit(result) {
   const js = result.outputFiles[0].text.replace(/<\/script/gi, '<\\/script');
   const html = readFileSync('src/index.html', 'utf8').replace('<!--APP_SCRIPT-->', () => `<script>${js}</script>`);
+  // OUT=path writes only that file (parallel work must not clobber index.html)
+  if (process.env.OUT) {
+    writeFileSync(process.env.OUT, html);
+    console.log(`built ${process.env.OUT} (${(html.length / 1024 / 1024).toFixed(2)} MB)`);
+    return;
+  }
   mkdirSync('dist', { recursive: true });
   writeFileSync('dist/sofia-bus-280.html', html);
   writeFileSync('index.html', html);

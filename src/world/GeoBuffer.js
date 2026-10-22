@@ -8,7 +8,8 @@ export class GeoBuffer {
     this.uv = [];
     this.uv2 = uv2 ? [] : null;
     this.col = color ? [] : null;
-    this.extra = extra ? { name: extra.name, size: extra.size, data: [] } : null;
+    // extra per-vertex attributes: one {name, size} or a list of them (values passed concatenated)
+    this.extra = extra ? [].concat(extra).map((x) => ({ name: x.name, size: x.size, data: [] })) : null;
     this.idx = [];
     this.count = 0;
   }
@@ -19,7 +20,10 @@ export class GeoBuffer {
     this.uv.push(u, v);
     if (this.uv2) this.uv2.push(u2, v2);
     if (this.col) this.col.push(c ? c[0] : 1, c ? c[1] : 1, c ? c[2] : 1);
-    if (this.extra) for (let i = 0; i < this.extra.size; i++) this.extra.data.push(e ? e[i] : 0);
+    if (this.extra) {
+      let k = 0;
+      for (const x of this.extra) for (let i = 0; i < x.size; i++, k++) x.data.push(e ? e[k] ?? 0 : 0);
+    }
     return this.count++;
   }
 
@@ -43,7 +47,7 @@ export class GeoBuffer {
     g.setAttribute('uv', new THREE.Float32BufferAttribute(this.uv, 2));
     if (this.uv2) g.setAttribute('uv1', new THREE.Float32BufferAttribute(this.uv2, 2));
     if (this.col) g.setAttribute('color', new THREE.Float32BufferAttribute(this.col, 3));
-    if (this.extra) g.setAttribute(this.extra.name, new THREE.Float32BufferAttribute(this.extra.data, this.extra.size));
+    if (this.extra) for (const x of this.extra) g.setAttribute(x.name, new THREE.Float32BufferAttribute(x.data, x.size));
     g.setIndex(this.count > 65535 ? new THREE.Uint32BufferAttribute(this.idx, 1) : new THREE.Uint16BufferAttribute(this.idx, 1));
     g.computeBoundingSphere();
     g.computeBoundingBox();

@@ -60,6 +60,8 @@ export async function loadWorldPack(progress = () => {}) {
       cls: p.buildingClasses[b.c], style: b.k, name: b.n >= 0 ? p.names[b.n] : null,
       roof: b.r != null ? p.roofs[b.r] : 'flat', inner: b.i ? decodeLine(b.i) : null, roofH: (b.rh || 0) / 10,
       roofColor: b.col || null, levels: b.lv || 0, part: !!b.pt, landmark: b.lm || null,
+      // researched appearance (data/research/world): kind, wall/accent colour, windows, ground floor, signs
+      research: b.ov ? { kind: b.ov.kd ?? -1, wall: b.ov.wc ?? null, accent: b.ov.ac ?? null, window: b.ov.wn ?? -1, ground: b.ov.gf ?? -1, signs: b.ov.sg || [], label: b.ov.lb || null } : null,
     })),
     blocks: p.blocks,
     areas: p.areas.map((a) => ({ type: p.areaTypes[a.t], pts: decodeLine(a.p), holes: (a.o || []).map(decodeLine), layer: a.y })),

@@ -255,6 +255,91 @@ def make_bentry(g, height, minh, cls, roof, name, style, color, bid, levels, prt
     return out
 
 
+# ---------------------------------------------------------------- researched per-building data
+# data/research/world/*/buildings_overrides.json, keyed by OSM id ("w123", "r45"): what each building
+# really looks like (type, floors, colours, windows, ground floor, shop signs). See data/research/BRIEF.md.
+KINDS = ['panel_1960s', 'panel_1970s', 'panel_insulated_patchwork', 'epk_tower', 'brick_socialist', 'stalinist',
+         'neoclassical_prewar', 'modernist_institutional', 'glass_office', 'modern_residential', 'house',
+         'sports_hall', 'industrial', 'church', 'kiosk', 'hotel_modernist', 'other']
+KIND_STYLE = {'panel_1960s': 0, 'panel_1970s': 0, 'panel_insulated_patchwork': 1, 'epk_tower': 0,
+              'brick_socialist': 2, 'stalinist': 2, 'neoclassical_prewar': 2, 'modernist_institutional': 6,
+              'glass_office': 3, 'modern_residential': 1, 'house': 4, 'sports_hall': 7, 'industrial': 5,
+              'church': 8, 'kiosk': 7, 'hotel_modernist': 6}
+KIND_FLOOR_H = {'panel_1960s': 2.8, 'panel_1970s': 2.8, 'panel_insulated_patchwork': 2.8, 'epk_tower': 2.9,
+                'brick_socialist': 3.0, 'stalinist': 3.6, 'neoclassical_prewar': 3.8, 'modernist_institutional': 3.6,
+                'glass_office': 3.7, 'modern_residential': 3.0, 'house': 3.0, 'hotel_modernist': 3.2}
+WINDOWS = ['punched_grid', 'ribbon', 'curtain_wall', 'loggia_bands', 'balcony_bands', 'shopfront_only']
+GROUND = ['shops', 'lobby', 'blank', 'columns', 'garages', 'entrances']
+ROOF_ALIAS = {'shed': 'skillion'}
+CONF_RANK = {'high': 3, 'medium': 2, 'low': 1}
+OVR = {}
+_ovr_dir = os.path.join(os.path.dirname(__file__), '..', 'data', 'research', 'world')
+for sub in sorted(os.listdir(_ovr_dir)) if os.path.isdir(_ovr_dir) else []:
+    fn = os.path.join(_ovr_dir, sub, 'buildings_overrides.json')
+    if not os.path.exists(fn):
+        continue
+    for k, v in json.load(open(fn, encoding='utf-8')).items():
+        if not isinstance(v, dict):
+            continue
+        k = k.split('@')[0].strip()
+        old = OVR.get(k)
+        # two researchers may describe the same building: keep the more confident one
+        if old is None or CONF_RANK.get(v.get('confidence'), 0) >= CONF_RANK.get(old.get('confidence'), 0):
+            OVR[k] = v
+print('research overrides', len(OVR), file=sys.stderr)
+
+
+def hexint(h):
+    try:
+        return int(str(h).lstrip('#')[:6], 16)
+    except (TypeError, ValueError):
+        return None
+
+
+def osm_key(b):
+    rec = ((b.get('sources') or [{}])[0] or {}).get('record_id') or ''
+    return rec.split('@')[0]
+
+
+def apply_override(b, height, roof, style, levels, color):
+    """Returns (height, roof, style, levels, roof colour, compact override record or None)."""
+    o = OVR.get(osm_key(b))
+    if not o:
+        return height, roof, style, levels, color, None
+    kind = o.get('kind') if o.get('kind') in KINDS else None
+    lv = o.get('levels')
+    if isinstance(lv, (int, float)) and lv > 0:
+        levels = int(lv)
+    hm = o.get('height_m')
+    if isinstance(hm, (int, float)) and hm > 1:
+        height = float(hm)
+    elif levels:
+        height = levels * KIND_FLOOR_H.get(kind, 3.0) + 0.8
+    r = o.get('roof')
+    if r:
+        roof = ROOF_ALIAS.get(r, r) if r != 'flat' else None
+    if kind in KIND_STYLE:
+        style = KIND_STYLE[kind]
+    if o.get('roof_hex'):
+        color = o['roof_hex']
+    rec = {'kd': KINDS.index(kind) if kind else -1}
+    if hexint(o.get('wall_hex')) is not None:
+        rec['wc'] = hexint(o['wall_hex'])
+    if hexint(o.get('accent_hex')) is not None:
+        rec['ac'] = hexint(o['accent_hex'])
+    if o.get('window') in WINDOWS:
+        rec['wn'] = WINDOWS.index(o['window'])
+    if o.get('ground_floor') in GROUND:
+        rec['gf'] = GROUND.index(o['ground_floor'])
+    signs = [[str(x.get('text', ''))[:28], hexint(x.get('bg_hex')) or 0x1d4f91, hexint(x.get('fg_hex')) or 0xffffff]
+             for x in (o.get('shop_signs') or []) if isinstance(x, dict) and x.get('text')]
+    if signs:
+        rec['sg'] = signs[:6]
+    if o.get('label'):
+        rec['lb'] = str(o['label'])[:60]
+    return height, roof, style, levels, color, rec
+
+
 stop_pole = {}
 for dname in 'AB':
     for st in route['directions'][dname]['stops']:
@@ -316,6 +401,9 @@ for b in bl:
         roof = 'hipped'
     color = b.get('roof_color') if b.get('roof_color') else None
     levels = b.get('num_floors')
+    height, roof, style, levels, color, ovr = apply_override(b, height, roof, style, levels, color)
+    if ovr:
+        stats['researched'] += 1
     bparts = parts_by_bid.get(b['id']) if b.get('has_parts') else None
     if bparts:
         # Base outline is still emitted (low), parts carry the real massing.
@@ -330,17 +418,21 @@ for b in bl:
             if proof in ('dome', 'onion') and not col:
                 col = '#4f8a72' if pt.get('roof_material') == 'copper' else None
             ents = make_bentry(pg, ph, pmin, cls, proof, None, style, col, pt['id'], pt.get('num_floors'), True)
-            if b['id'] in lm_by_id:
-                for e in ents:
+            for e in ents:
+                if b['id'] in lm_by_id:
                     e['lm'] = lm_by_id[b['id']]
+                if ovr:
+                    e['ov'] = ovr
             buildings += ents
         stats['parts'] += len(bparts)
         if any((pt.get('min_height') or 0) == 0 and not pt.get('min_floor') for pt in bparts):
             continue
     ents = make_bentry(g, height, None, cls, roof, name, style, color, b['id'], levels)
-    if b['id'] in lm_by_id:
-        for e in ents:
+    for e in ents:
+        if b['id'] in lm_by_id:
             e['lm'] = lm_by_id[b['id']]
+        if ovr:
+            e['ov'] = ovr
     buildings += ents
     stats['bld'] += 1
 print('buildings', len(buildings), dict(stats), file=sys.stderr)
@@ -482,7 +574,7 @@ pack = dict(
              far=enc_grid(dem['far'], dem['far_meta'], 400.0, 1.0)),
 )
 raw = json.dumps(pack, ensure_ascii=False, separators=(',', ':')).encode()
-gz = gzip.compress(raw, 9)
+gz = gzip.compress(raw, 9, mtime=0)  # deterministic output
 os.makedirs(OUTDIR, exist_ok=True)
 open(f'{OUTDIR}/world.pack.b64', 'w').write(base64.b64encode(gz).decode())
 print('world pack: raw', len(raw), 'gz', len(gz), 'b64', len(base64.b64encode(gz)), file=sys.stderr)
