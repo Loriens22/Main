@@ -1,0 +1,1250 @@
+{
+  "title": "Sofia bus line 280 — route research manifest",
+  "generated": "2026-10-22",
+  "method": [
+    "Stops matched by their official Sofia Urban Mobility Center codes (OSM ref tag) in the Overture Maps 2026-10-21.0 release (OpenStreetMap derived).",
+    "Bus path routed independently per direction with an edge-based Dijkstra on drivable OSM roads, respecting one-way restrictions and banning U-turns.",
+    "Elevation from Terrarium DEM tiles (Mapzen / AWS open data, ~30 m SRTM-derived).",
+    "No Google Maps / Street View imagery or data was used."
+  ],
+  "licences": {
+    "roads_buildings_stops": "ODbL-1.0 — © OpenStreetMap contributors, via Overture Maps Foundation",
+    "elevation": "Mapzen Terrain Tiles (SRTM, GMTED, ETOPO1) — public domain / attribution"
+  },
+  "directions": {
+    "A": {
+      "from": "СУ „Св. Климент Охридски“",
+      "headsign": "Студентски град",
+      "lengthMeters": 10664,
+      "streets": [
+        "Шипка",
+        "Проф. Асен Златаров",
+        "бул. Евлоги и Христо Георгиеви",
+        "бул. Цариградско шосе",
+        "бул. Д-р Г. М. Димитров",
+        "бул. Свети Климент Охридски",
+        "8-ми декември",
+        "Акад. Стефан Младенов",
+        "Доктор Йордан Йосифов",
+        "Акад. Борис Стефанов",
+        "Проф. д-р Иван Странски"
+      ],
+      "stops": [
+        {
+          "order": 1,
+          "code": "1697",
+          "name": "СУ „Св. Климент Охридски“",
+          "speech": "Софийски университет „Свети Климент Охридски“",
+          "osmName": "Софийски университет \"Св. Климент Охридски\"",
+          "lat": 42.6942363,
+          "lon": 23.3356917,
+          "road": "Шипка",
+          "roadClass": "tertiary",
+          "arcLengthMeters": 0,
+          "distanceToNextMeters": 671,
+          "poleOffsetFromCentrelineMeters": 5.11,
+          "rightHandSide": true,
+          "amenities": {
+            "shelter": true,
+            "bench": true,
+            "bin": true,
+            "lit": true,
+            "departuresBoard": "realtime",
+            "wheelchair": "limited"
+          },
+          "source": {
+            "dataset": "OpenStreetMap via Overture Maps 2026-10-21.0",
+            "osm": "n2650751763@16",
+            "license": "ODbL-1.0"
+          },
+          "positionConfidence": "high (OSM node matched by official stop code)",
+          "amenityConfidence": "medium (OSM tags; not field-verified)",
+          "note": "Shared terminal pole for both directions at ул. Шипка by the SU rectorate. The turning manoeuvre between the two directions is modelled by terminalLinks (routed on real streets), not by reversing the path."
+        },
+        {
+          "order": 2,
+          "code": "0441",
+          "name": "Военна академия",
+          "speech": "Военна академия",
+          "osmName": "Военна академия",
+          "lat": 42.6926591,
+          "lon": 23.3435923,
+          "road": "Шипка",
+          "roadClass": "tertiary",
+          "arcLengthMeters": 671,
+          "distanceToNextMeters": 793,
+          "poleOffsetFromCentrelineMeters": 5.18,
+          "rightHandSide": true,
+          "amenities": {
+            "shelter": false,
+            "bench": false,
+            "bin": true,
+            "lit": true,
+            "departuresBoard": "realtime",
+            "wheelchair": null
+          },
+          "source": {
+            "dataset": "OpenStreetMap via Overture Maps 2026-10-21.0",
+            "osm": "n2650758994@12",
+            "license": "ODbL-1.0"
+          },
+          "positionConfidence": "high (OSM node matched by official stop code)",
+          "amenityConfidence": "medium (OSM tags; not field-verified)"
+        },
+        {
+          "order": 3,
+          "code": "1287",
+          "name": "пл. Орлов мост",
+          "speech": "Площад Орлов мост",
+          "osmName": "пл. Орлов мост",
+          "lat": 42.6895168,
+          "lon": 23.3386299,
+          "road": "бул. Цариградско шосе",
+          "roadClass": "trunk",
+          "arcLengthMeters": 1464,
+          "distanceToNextMeters": 2316,
+          "poleOffsetFromCentrelineMeters": 14.51,
+          "rightHandSide": true,
+          "amenities": {
+            "shelter": true,
+            "bench": true,
+            "bin": true,
+            "lit": true,
+            "departuresBoard": "realtime",
+            "wheelchair": null
+          },
+          "source": {
+            "dataset": "OpenStreetMap via Overture Maps 2026-10-21.0",
+            "osm": "n2618710946@17",
+            "license": "ODbL-1.0"
+          },
+          "positionConfidence": "high (OSM node matched by official stop code)",
+          "amenityConfidence": "medium (OSM tags; not field-verified)"
+        },
+        {
+          "order": 4,
+          "code": "2326",
+          "name": "Хотел Плиска",
+          "speech": "Хотел Плиска",
+          "osmName": "Хотел Плиска",
+          "lat": 42.6751058,
+          "lon": 23.3590442,
+          "road": "бул. Цариградско шосе",
+          "roadClass": "trunk",
+          "arcLengthMeters": 3780,
+          "distanceToNextMeters": 571,
+          "poleOffsetFromCentrelineMeters": 6.19,
+          "rightHandSide": true,
+          "amenities": {
+            "shelter": true,
+            "bench": false,
+            "bin": true,
+            "lit": true,
+            "departuresBoard": "realtime",
+            "wheelchair": "limited"
+          },
+          "source": {
+            "dataset": "OpenStreetMap via Overture Maps 2026-10-21.0",
+            "osm": "n676275956@21",
+            "license": "ODbL-1.0"
+          },
+          "positionConfidence": "high (OSM node matched by official stop code)",
+          "amenityConfidence": "medium (OSM tags; not field-verified)"
+        },
+        {
+          "order": 5,
+          "code": "1696",
+          "name": "ж.к. Изток",
+          "speech": "Жилищен комплекс Изток",
+          "osmName": "ж.к. Изток",
+          "lat": 42.6715121,
+          "lon": 23.3640303,
+          "road": "бул. Цариградско шосе",
+          "roadClass": "trunk",
+          "arcLengthMeters": 4351,
+          "distanceToNextMeters": 732,
+          "poleOffsetFromCentrelineMeters": 8.17,
+          "rightHandSide": true,
+          "amenities": {
+            "shelter": true,
+            "bench": false,
+            "bin": true,
+            "lit": true,
+            "departuresBoard": "realtime",
+            "wheelchair": null
+          },
+          "source": {
+            "dataset": "OpenStreetMap via Overture Maps 2026-10-21.0",
+            "osm": "n2251315950@18",
+            "license": "ODbL-1.0"
+          },
+          "positionConfidence": "high (OSM node matched by official stop code)",
+          "amenityConfidence": "medium (OSM tags; not field-verified)"
+        },
+        {
+          "order": 6,
+          "code": "0494",
+          "name": "Републикански невродиспансер",
+          "speech": "Републикански невродиспансер",
+          "osmName": "Републикански невродиспансер",
+          "lat": 42.6665951,
+          "lon": 23.3643015,
+          "road": "бул. Д-р Г. М. Димитров",
+          "roadClass": "primary",
+          "arcLengthMeters": 5083,
+          "distanceToNextMeters": 475,
+          "poleOffsetFromCentrelineMeters": 3.48,
+          "rightHandSide": true,
+          "amenities": {
+            "shelter": true,
+            "bench": true,
+            "bin": true,
+            "lit": true,
+            "departuresBoard": "realtime",
+            "wheelchair": "no"
+          },
+          "source": {
+            "dataset": "OpenStreetMap via Overture Maps 2026-10-21.0",
+            "osm": "n2644561894@11",
+            "license": "ODbL-1.0"
+          },
+          "positionConfidence": "high (OSM node matched by official stop code)",
+          "amenityConfidence": "medium (OSM tags; not field-verified)"
+        },
+        {
+          "order": 7,
+          "code": "2352",
+          "name": "Техническа библиотека",
+          "speech": "Техническа библиотека",
+          "osmName": "Техническа библиотека",
+          "lat": 42.664255,
+          "lon": 23.3594868,
+          "road": "бул. Д-р Г. М. Димитров",
+          "roadClass": "primary",
+          "arcLengthMeters": 5559,
+          "distanceToNextMeters": 296,
+          "poleOffsetFromCentrelineMeters": 5.22,
+          "rightHandSide": true,
+          "amenities": {
+            "shelter": true,
+            "bench": true,
+            "bin": true,
+            "lit": true,
+            "departuresBoard": "realtime",
+            "wheelchair": "no"
+          },
+          "source": {
+            "dataset": "OpenStreetMap via Overture Maps 2026-10-21.0",
+            "osm": "n2644552012@11",
+            "license": "ODbL-1.0"
+          },
+          "positionConfidence": "high (OSM node matched by official stop code)",
+          "amenityConfidence": "medium (OSM tags; not field-verified)"
+        },
+        {
+          "order": 8,
+          "code": "0764",
+          "name": "НСБАЛ по онкология",
+          "speech": "Онкологична болница",
+          "osmName": "Онкологична болница",
+          "lat": 42.662681,
+          "lon": 23.3580811,
+          "road": "бул. Свети Климент Охридски",
+          "roadClass": "secondary",
+          "arcLengthMeters": 5855,
+          "distanceToNextMeters": 702,
+          "poleOffsetFromCentrelineMeters": 6.88,
+          "rightHandSide": true,
+          "amenities": {
+            "shelter": true,
+            "bench": true,
+            "bin": true,
+            "lit": true,
+            "departuresBoard": "realtime",
+            "wheelchair": "yes"
+          },
+          "source": {
+            "dataset": "OpenStreetMap via Overture Maps 2026-10-21.0",
+            "osm": "n676275941@19",
+            "license": "ODbL-1.0"
+          },
+          "positionConfidence": "high (OSM node matched by official stop code)",
+          "amenityConfidence": "medium (OSM tags; not field-verified)",
+          "discrepancy": "Directive name \"НСБАЛ по онкология\"; the OSM stop node (same code 0764) is named \"Онкологична болница\". Signs and HUD show the directive name; the voice announcement currently uses the \"speech\" form \"Онкологична болница\". Which form the real on-board system speaks has not been verified."
+        },
+        {
+          "order": 9,
+          "code": "1740",
+          "name": "Технически университет",
+          "speech": "Технически университет",
+          "osmName": "Технически университет",
+          "lat": 42.6565217,
+          "lon": 23.359057,
+          "road": "бул. Свети Климент Охридски",
+          "roadClass": "secondary",
+          "arcLengthMeters": 6557,
+          "distanceToNextMeters": 374,
+          "poleOffsetFromCentrelineMeters": 9.39,
+          "rightHandSide": true,
+          "amenities": {
+            "shelter": false,
+            "bench": false,
+            "bin": true,
+            "lit": true,
+            "departuresBoard": "realtime",
+            "wheelchair": null
+          },
+          "source": {
+            "dataset": "OpenStreetMap via Overture Maps 2026-10-21.0",
+            "osm": "n639999984@15",
+            "license": "ODbL-1.0"
+          },
+          "positionConfidence": "high (OSM node matched by official stop code)",
+          "amenityConfidence": "medium (OSM tags; not field-verified)"
+        },
+        {
+          "order": 10,
+          "code": "0617",
+          "name": "Лесотехнически университет",
+          "speech": "Лесотехнически университет",
+          "osmName": "Лесотехнически университет",
+          "lat": 42.6531863,
+          "lon": 23.359669,
+          "road": "бул. Свети Климент Охридски",
+          "roadClass": "secondary",
+          "arcLengthMeters": 6931,
+          "distanceToNextMeters": 325,
+          "poleOffsetFromCentrelineMeters": 5.54,
+          "rightHandSide": true,
+          "amenities": {
+            "shelter": false,
+            "bench": false,
+            "bin": true,
+            "lit": true,
+            "departuresBoard": "realtime",
+            "wheelchair": null
+          },
+          "source": {
+            "dataset": "OpenStreetMap via Overture Maps 2026-10-21.0",
+            "osm": "n1113186297@13",
+            "license": "ODbL-1.0"
+          },
+          "positionConfidence": "high (OSM node matched by official stop code)",
+          "amenityConfidence": "medium (OSM tags; not field-verified)"
+        },
+        {
+          "order": 11,
+          "code": "0800",
+          "name": "ж.к. Дървеница",
+          "speech": "Жилищен комплекс Дървеница",
+          "osmName": "ж.к. Дървеница",
+          "lat": 42.6513605,
+          "lon": 23.3578508,
+          "road": "8-ми декември",
+          "roadClass": "tertiary",
+          "arcLengthMeters": 7256,
+          "distanceToNextMeters": 906,
+          "poleOffsetFromCentrelineMeters": 5.05,
+          "rightHandSide": true,
+          "amenities": {
+            "shelter": false,
+            "bench": false,
+            "bin": true,
+            "lit": true,
+            "departuresBoard": "realtime",
+            "wheelchair": null
+          },
+          "source": {
+            "dataset": "OpenStreetMap via Overture Maps 2026-10-21.0",
+            "osm": "n676659856@16",
+            "license": "ODbL-1.0"
+          },
+          "positionConfidence": "high (OSM node matched by official stop code)",
+          "amenityConfidence": "medium (OSM tags; not field-verified)"
+        },
+        {
+          "order": 12,
+          "code": "1691",
+          "name": "УНСС",
+          "speech": "Университет за национално и световно стопанство",
+          "osmName": "УНСС",
+          "lat": 42.6523792,
+          "lon": 23.3475021,
+          "road": "Акад. Стефан Младенов",
+          "roadClass": "tertiary",
+          "arcLengthMeters": 8162,
+          "distanceToNextMeters": 195,
+          "poleOffsetFromCentrelineMeters": 8.94,
+          "rightHandSide": true,
+          "amenities": {
+            "shelter": true,
+            "bench": true,
+            "bin": true,
+            "lit": true,
+            "departuresBoard": "realtime",
+            "wheelchair": null
+          },
+          "source": {
+            "dataset": "OpenStreetMap via Overture Maps 2026-10-21.0",
+            "osm": "n1805512674@13",
+            "license": "ODbL-1.0"
+          },
+          "positionConfidence": "high (OSM node matched by official stop code)",
+          "amenityConfidence": "medium (OSM tags; not field-verified)"
+        },
+        {
+          "order": 13,
+          "code": "0524",
+          "name": "Детски дом",
+          "speech": "Детски дом",
+          "osmName": "Детски дом",
+          "lat": 42.6536786,
+          "lon": 23.3467399,
+          "road": "Доктор Йордан Йосифов",
+          "roadClass": "tertiary",
+          "arcLengthMeters": 8357,
+          "distanceToNextMeters": 610,
+          "poleOffsetFromCentrelineMeters": 7.94,
+          "rightHandSide": true,
+          "amenities": {
+            "shelter": false,
+            "bench": false,
+            "bin": true,
+            "lit": true,
+            "departuresBoard": "realtime",
+            "wheelchair": null
+          },
+          "source": {
+            "dataset": "OpenStreetMap via Overture Maps 2026-10-21.0",
+            "osm": "n635966475@20",
+            "license": "ODbL-1.0"
+          },
+          "positionConfidence": "high (OSM node matched by official stop code)",
+          "amenityConfidence": "medium (OSM tags; not field-verified)"
+        },
+        {
+          "order": 14,
+          "code": "1610",
+          "name": "Спортна зала „Христо Ботев“",
+          "speech": "Спортна зала Христо Ботев",
+          "osmName": "Спортна зала Христо Ботев",
+          "lat": 42.6511601,
+          "lon": 23.3422637,
+          "road": "Акад. Борис Стефанов",
+          "roadClass": "tertiary",
+          "arcLengthMeters": 8967,
+          "distanceToNextMeters": 367,
+          "poleOffsetFromCentrelineMeters": 5.83,
+          "rightHandSide": true,
+          "amenities": {
+            "shelter": true,
+            "bench": true,
+            "bin": true,
+            "lit": true,
+            "departuresBoard": "realtime",
+            "wheelchair": "no"
+          },
+          "source": {
+            "dataset": "OpenStreetMap via Overture Maps 2026-10-21.0",
+            "osm": "n639932122@18",
+            "license": "ODbL-1.0"
+          },
+          "positionConfidence": "high (OSM node matched by official stop code)",
+          "amenityConfidence": "medium (OSM tags; not field-verified)"
+        },
+        {
+          "order": 15,
+          "code": "0533",
+          "name": "Детски ясли",
+          "speech": "Детски ясли",
+          "osmName": "Детски ясли",
+          "lat": 42.6479142,
+          "lon": 23.3416024,
+          "road": "Акад. Борис Стефанов",
+          "roadClass": "tertiary",
+          "arcLengthMeters": 9334,
+          "distanceToNextMeters": 376,
+          "poleOffsetFromCentrelineMeters": 1.62,
+          "rightHandSide": true,
+          "amenities": {
+            "shelter": false,
+            "bench": false,
+            "bin": true,
+            "lit": true,
+            "departuresBoard": null,
+            "wheelchair": "no"
+          },
+          "source": {
+            "dataset": "OpenStreetMap via Overture Maps 2026-10-21.0",
+            "osm": "n679478621@16",
+            "license": "ODbL-1.0"
+          },
+          "positionConfidence": "high (OSM node matched by official stop code)",
+          "amenityConfidence": "medium (OSM tags; not field-verified)"
+        },
+        {
+          "order": 16,
+          "code": "0741",
+          "name": "Зимен дворец на спорта",
+          "speech": "Зимен дворец на спорта",
+          "osmName": "Зимен дворец на спорта",
+          "lat": 42.6445948,
+          "lon": 23.3419737,
+          "road": "Акад. Борис Стефанов",
+          "roadClass": "tertiary",
+          "arcLengthMeters": 9710,
+          "distanceToNextMeters": 571,
+          "poleOffsetFromCentrelineMeters": 1.17,
+          "rightHandSide": true,
+          "amenities": {
+            "shelter": false,
+            "bench": false,
+            "bin": true,
+            "lit": true,
+            "departuresBoard": "realtime",
+            "wheelchair": null
+          },
+          "source": {
+            "dataset": "OpenStreetMap via Overture Maps 2026-10-21.0",
+            "osm": "n676275998@16",
+            "license": "ODbL-1.0"
+          },
+          "positionConfidence": "high (OSM node matched by official stop code)",
+          "amenityConfidence": "medium (OSM tags; not field-verified)"
+        },
+        {
+          "order": 17,
+          "code": "1606",
+          "name": "СК на НСА",
+          "speech": "Спортен комплекс на Националната спортна академия",
+          "osmName": "СК на НСА",
+          "lat": 42.6439444,
+          "lon": 23.3452277,
+          "road": "Акад. Стефан Младенов",
+          "roadClass": "tertiary",
+          "arcLengthMeters": 10281,
+          "distanceToNextMeters": 383,
+          "poleOffsetFromCentrelineMeters": 7.53,
+          "rightHandSide": true,
+          "amenities": {
+            "shelter": false,
+            "bench": false,
+            "bin": true,
+            "lit": true,
+            "departuresBoard": null,
+            "wheelchair": null
+          },
+          "source": {
+            "dataset": "OpenStreetMap via Overture Maps 2026-10-21.0",
+            "osm": "n543546539@18",
+            "license": "ODbL-1.0"
+          },
+          "positionConfidence": "high (OSM node matched by official stop code)",
+          "amenityConfidence": "medium (OSM tags; not field-verified)"
+        },
+        {
+          "order": 18,
+          "code": "1694",
+          "name": "Студентски град",
+          "speech": "Студентски град",
+          "osmName": "Студентски град",
+          "lat": 42.6465944,
+          "lon": 23.346084,
+          "road": null,
+          "roadClass": "service",
+          "arcLengthMeters": 10664,
+          "distanceToNextMeters": null,
+          "poleOffsetFromCentrelineMeters": 5.71,
+          "rightHandSide": true,
+          "amenities": {
+            "shelter": true,
+            "bench": false,
+            "bin": true,
+            "lit": true,
+            "departuresBoard": null,
+            "wheelchair": null
+          },
+          "source": {
+            "dataset": "OpenStreetMap via Overture Maps 2026-10-21.0",
+            "osm": "n2644423639@11",
+            "license": "ODbL-1.0"
+          },
+          "positionConfidence": "high (OSM node matched by official stop code)",
+          "amenityConfidence": "medium (OSM tags; not field-verified)",
+          "note": "Arrival pole inside the Студентски град turning loop; pinned to OSM way 1193785354 so the path uses the loop rather than a dead-end service stub."
+        }
+      ]
+    },
+    "B": {
+      "from": "Студентски град",
+      "headsign": "СУ Св. Климент Охридски",
+      "lengthMeters": 10307,
+      "streets": [
+        "Проф. Атанас Иширков",
+        "Акад. Стефан Младенов",
+        "Проф. д-р Иван Странски",
+        "Акад. Борис Стефанов",
+        "Доктор Йордан Йосифов",
+        "8-ми декември",
+        "бул. Свети Климент Охридски",
+        "бул. Д-р Г. М. Димитров",
+        "бул. Цариградско шосе",
+        "бул. Цар Освободител",
+        "бул. Васил Левски",
+        "Шипка"
+      ],
+      "stops": [
+        {
+          "order": 1,
+          "code": "1693",
+          "name": "Студентски град",
+          "speech": "Студентски град",
+          "osmName": "Студентски град",
+          "lat": 42.6467302,
+          "lon": 23.3466264,
+          "road": null,
+          "roadClass": "service",
+          "arcLengthMeters": 0,
+          "distanceToNextMeters": 463,
+          "poleOffsetFromCentrelineMeters": 4.48,
+          "rightHandSide": true,
+          "amenities": {
+            "shelter": true,
+            "bench": false,
+            "bin": true,
+            "lit": true,
+            "departuresBoard": "realtime",
+            "wheelchair": null
+          },
+          "source": {
+            "dataset": "OpenStreetMap via Overture Maps 2026-10-21.0",
+            "osm": "n639932119@16",
+            "license": "ODbL-1.0"
+          },
+          "positionConfidence": "high (OSM node matched by official stop code)",
+          "amenityConfidence": "medium (OSM tags; not field-verified)",
+          "note": "Departure pole in the same loop as 1694 (pinned to the same way)."
+        },
+        {
+          "order": 2,
+          "code": "1609",
+          "name": "СК на НСА",
+          "speech": "Спортен комплекс на Националната спортна академия",
+          "osmName": "СК на НСА",
+          "lat": 42.6438268,
+          "lon": 23.3450362,
+          "road": "Акад. Стефан Младенов",
+          "roadClass": "tertiary",
+          "arcLengthMeters": 463,
+          "distanceToNextMeters": 525,
+          "poleOffsetFromCentrelineMeters": 7.23,
+          "rightHandSide": true,
+          "amenities": {
+            "shelter": false,
+            "bench": false,
+            "bin": true,
+            "lit": true,
+            "departuresBoard": "realtime",
+            "wheelchair": "yes"
+          },
+          "source": {
+            "dataset": "OpenStreetMap via Overture Maps 2026-10-21.0",
+            "osm": "n685401000@14",
+            "license": "ODbL-1.0"
+          },
+          "positionConfidence": "high (OSM node matched by official stop code)",
+          "amenityConfidence": "medium (OSM tags; not field-verified)"
+        },
+        {
+          "order": 3,
+          "code": "0742",
+          "name": "Зимен дворец на спорта",
+          "speech": "Зимен дворец на спорта",
+          "osmName": "Зимен дворец на спорта",
+          "lat": 42.6442998,
+          "lon": 23.3420608,
+          "road": "Акад. Борис Стефанов",
+          "roadClass": "tertiary",
+          "arcLengthMeters": 988,
+          "distanceToNextMeters": 493,
+          "poleOffsetFromCentrelineMeters": 8.57,
+          "rightHandSide": true,
+          "amenities": {
+            "shelter": false,
+            "bench": true,
+            "bin": true,
+            "lit": true,
+            "departuresBoard": "realtime",
+            "wheelchair": null
+          },
+          "source": {
+            "dataset": "OpenStreetMap via Overture Maps 2026-10-21.0",
+            "osm": "n676276009@14",
+            "license": "ODbL-1.0"
+          },
+          "positionConfidence": "high (OSM node matched by official stop code)",
+          "amenityConfidence": "medium (OSM tags; not field-verified)"
+        },
+        {
+          "order": 4,
+          "code": "0534",
+          "name": "Детски ясли",
+          "speech": "Детски ясли",
+          "osmName": "Детски ясли",
+          "lat": 42.6486765,
+          "lon": 23.3416971,
+          "road": "Акад. Борис Стефанов",
+          "roadClass": "tertiary",
+          "arcLengthMeters": 1481,
+          "distanceToNextMeters": 359,
+          "poleOffsetFromCentrelineMeters": 5.93,
+          "rightHandSide": true,
+          "amenities": {
+            "shelter": false,
+            "bench": false,
+            "bin": true,
+            "lit": true,
+            "departuresBoard": "realtime",
+            "wheelchair": "no"
+          },
+          "source": {
+            "dataset": "OpenStreetMap via Overture Maps 2026-10-21.0",
+            "osm": "n679478646@17",
+            "license": "ODbL-1.0"
+          },
+          "positionConfidence": "high (OSM node matched by official stop code)",
+          "amenityConfidence": "medium (OSM tags; not field-verified)"
+        },
+        {
+          "order": 5,
+          "code": "1611",
+          "name": "Спортна зала „Христо Ботев“",
+          "speech": "Спортна зала Христо Ботев",
+          "osmName": "Спортна зала Христо Ботев",
+          "lat": 42.6518332,
+          "lon": 23.3425435,
+          "road": "Акад. Борис Стефанов",
+          "roadClass": "tertiary",
+          "arcLengthMeters": 1840,
+          "distanceToNextMeters": 336,
+          "poleOffsetFromCentrelineMeters": 7.46,
+          "rightHandSide": true,
+          "amenities": {
+            "shelter": true,
+            "bench": false,
+            "bin": true,
+            "lit": true,
+            "departuresBoard": "realtime",
+            "wheelchair": "limited"
+          },
+          "source": {
+            "dataset": "OpenStreetMap via Overture Maps 2026-10-21.0",
+            "osm": "n639932128@21",
+            "license": "ODbL-1.0"
+          },
+          "positionConfidence": "high (OSM node matched by official stop code)",
+          "amenityConfidence": "medium (OSM tags; not field-verified)"
+        },
+        {
+          "order": 6,
+          "code": "0530",
+          "name": "Детски дом",
+          "speech": "Детски дом",
+          "osmName": "Детски дом",
+          "lat": 42.6536527,
+          "lon": 23.3443339,
+          "road": "Доктор Йордан Йосифов",
+          "roadClass": "tertiary",
+          "arcLengthMeters": 2176,
+          "distanceToNextMeters": 541,
+          "poleOffsetFromCentrelineMeters": 6.97,
+          "rightHandSide": true,
+          "amenities": {
+            "shelter": true,
+            "bench": true,
+            "bin": true,
+            "lit": true,
+            "departuresBoard": "realtime",
+            "wheelchair": "limited"
+          },
+          "source": {
+            "dataset": "OpenStreetMap via Overture Maps 2026-10-21.0",
+            "osm": "n635966485@18",
+            "license": "ODbL-1.0"
+          },
+          "positionConfidence": "high (OSM node matched by official stop code)",
+          "amenityConfidence": "medium (OSM tags; not field-verified)"
+        },
+        {
+          "order": 7,
+          "code": "1692",
+          "name": "УНСС",
+          "speech": "Университет за национално и световно стопанство",
+          "osmName": "УНСС",
+          "lat": 42.6518554,
+          "lon": 23.3486455,
+          "road": "8-ми декември",
+          "roadClass": "tertiary",
+          "arcLengthMeters": 2717,
+          "distanceToNextMeters": 618,
+          "poleOffsetFromCentrelineMeters": 4.06,
+          "rightHandSide": true,
+          "amenities": {
+            "shelter": true,
+            "bench": true,
+            "bin": true,
+            "lit": false,
+            "departuresBoard": "realtime",
+            "wheelchair": null
+          },
+          "source": {
+            "dataset": "OpenStreetMap via Overture Maps 2026-10-21.0",
+            "osm": "n707982172@14",
+            "license": "ODbL-1.0"
+          },
+          "positionConfidence": "high (OSM node matched by official stop code)",
+          "amenityConfidence": "medium (OSM tags; not field-verified)"
+        },
+        {
+          "order": 8,
+          "code": "0801",
+          "name": "ж.к. Дървеница",
+          "speech": "Жилищен комплекс Дървеница",
+          "osmName": "ж.к. Дървеница",
+          "lat": 42.6513682,
+          "lon": 23.3561521,
+          "road": "8-ми декември",
+          "roadClass": "tertiary",
+          "arcLengthMeters": 3335,
+          "distanceToNextMeters": 545,
+          "poleOffsetFromCentrelineMeters": 3.77,
+          "rightHandSide": true,
+          "amenities": {
+            "shelter": true,
+            "bench": false,
+            "bin": true,
+            "lit": true,
+            "departuresBoard": "realtime",
+            "wheelchair": null
+          },
+          "source": {
+            "dataset": "OpenStreetMap via Overture Maps 2026-10-21.0",
+            "osm": "n676659855@13",
+            "license": "ODbL-1.0"
+          },
+          "positionConfidence": "high (OSM node matched by official stop code)",
+          "amenityConfidence": "medium (OSM tags; not field-verified)"
+        },
+        {
+          "order": 9,
+          "code": "0614",
+          "name": "Лесотехнически университет",
+          "speech": "Лесотехнически университет",
+          "osmName": "Лесотехнически университет",
+          "lat": 42.6537584,
+          "lon": 23.3597516,
+          "road": "бул. Свети Климент Охридски",
+          "roadClass": "secondary",
+          "arcLengthMeters": 3880,
+          "distanceToNextMeters": 438,
+          "poleOffsetFromCentrelineMeters": 2.56,
+          "rightHandSide": true,
+          "amenities": {
+            "shelter": true,
+            "bench": true,
+            "bin": true,
+            "lit": true,
+            "departuresBoard": "realtime",
+            "wheelchair": null
+          },
+          "source": {
+            "dataset": "OpenStreetMap via Overture Maps 2026-10-21.0",
+            "osm": "n1113186231@13",
+            "license": "ODbL-1.0"
+          },
+          "positionConfidence": "high (OSM node matched by official stop code)",
+          "amenityConfidence": "medium (OSM tags; not field-verified)"
+        },
+        {
+          "order": 10,
+          "code": "1743",
+          "name": "Технически университет",
+          "speech": "Технически университет",
+          "osmName": "Технически университет",
+          "lat": 42.6576568,
+          "lon": 23.3592202,
+          "road": "бул. Свети Климент Охридски",
+          "roadClass": "secondary",
+          "arcLengthMeters": 4318,
+          "distanceToNextMeters": 532,
+          "poleOffsetFromCentrelineMeters": 8.08,
+          "rightHandSide": true,
+          "amenities": {
+            "shelter": true,
+            "bench": true,
+            "bin": true,
+            "lit": true,
+            "departuresBoard": "realtime",
+            "wheelchair": null
+          },
+          "source": {
+            "dataset": "OpenStreetMap via Overture Maps 2026-10-21.0",
+            "osm": "n639999989@15",
+            "license": "ODbL-1.0"
+          },
+          "positionConfidence": "high (OSM node matched by official stop code)",
+          "amenityConfidence": "medium (OSM tags; not field-verified)"
+        },
+        {
+          "order": 11,
+          "code": "0761",
+          "name": "НСБАЛ по онкология",
+          "speech": "Онкологична болница",
+          "osmName": "Онкологична болница",
+          "lat": 42.6624178,
+          "lon": 23.3586596,
+          "road": "бул. Свети Климент Охридски",
+          "roadClass": "secondary",
+          "arcLengthMeters": 4850,
+          "distanceToNextMeters": 397,
+          "poleOffsetFromCentrelineMeters": 5.93,
+          "rightHandSide": true,
+          "amenities": {
+            "shelter": true,
+            "bench": true,
+            "bin": true,
+            "lit": true,
+            "departuresBoard": "realtime",
+            "wheelchair": "no"
+          },
+          "source": {
+            "dataset": "OpenStreetMap via Overture Maps 2026-10-21.0",
+            "osm": "n683400017@20",
+            "license": "ODbL-1.0"
+          },
+          "positionConfidence": "high (OSM node matched by official stop code)",
+          "amenityConfidence": "medium (OSM tags; not field-verified)",
+          "discrepancy": "As 0764 (opposite direction): OSM name \"Онкологична болница\"."
+        },
+        {
+          "order": 12,
+          "code": "2351",
+          "name": "Техническа библиотека",
+          "speech": "Техническа библиотека",
+          "osmName": "Техническа библиотека",
+          "lat": 42.6644443,
+          "lon": 23.3605879,
+          "road": "бул. Д-р Г. М. Димитров",
+          "roadClass": "primary",
+          "arcLengthMeters": 5247,
+          "distanceToNextMeters": 463,
+          "poleOffsetFromCentrelineMeters": 3.59,
+          "rightHandSide": true,
+          "amenities": {
+            "shelter": true,
+            "bench": true,
+            "bin": true,
+            "lit": true,
+            "departuresBoard": "realtime",
+            "wheelchair": "no"
+          },
+          "source": {
+            "dataset": "OpenStreetMap via Overture Maps 2026-10-21.0",
+            "osm": "n2644552011@11",
+            "license": "ODbL-1.0"
+          },
+          "positionConfidence": "high (OSM node matched by official stop code)",
+          "amenityConfidence": "medium (OSM tags; not field-verified)"
+        },
+        {
+          "order": 13,
+          "code": "0492",
+          "name": "Републикански невродиспансер",
+          "speech": "Републикански невродиспансер",
+          "osmName": "Републикански невродиспансер",
+          "lat": 42.6669237,
+          "lon": 23.3651215,
+          "road": "бул. Д-р Г. М. Димитров",
+          "roadClass": "primary",
+          "arcLengthMeters": 5710,
+          "distanceToNextMeters": 506,
+          "poleOffsetFromCentrelineMeters": 2.22,
+          "rightHandSide": true,
+          "amenities": {
+            "shelter": true,
+            "bench": true,
+            "bin": true,
+            "lit": true,
+            "departuresBoard": "realtime",
+            "wheelchair": "no"
+          },
+          "source": {
+            "dataset": "OpenStreetMap via Overture Maps 2026-10-21.0",
+            "osm": "n2644561889@11",
+            "license": "ODbL-1.0"
+          },
+          "positionConfidence": "high (OSM node matched by official stop code)",
+          "amenityConfidence": "medium (OSM tags; not field-verified)"
+        },
+        {
+          "order": 14,
+          "code": "1258",
+          "name": "Площад на авиацията",
+          "speech": "Площад на авиацията",
+          "osmName": "Площад на авиацията",
+          "lat": 42.6696829,
+          "lon": 23.3685992,
+          "road": null,
+          "roadClass": "primary",
+          "arcLengthMeters": 6216,
+          "distanceToNextMeters": 462,
+          "poleOffsetFromCentrelineMeters": 11.5,
+          "rightHandSide": true,
+          "amenities": {
+            "shelter": true,
+            "bench": true,
+            "bin": true,
+            "lit": true,
+            "departuresBoard": "realtime",
+            "wheelchair": "limited"
+          },
+          "source": {
+            "dataset": "OpenStreetMap via Overture Maps 2026-10-21.0",
+            "osm": "n1113087319@21",
+            "license": "ODbL-1.0"
+          },
+          "positionConfidence": "high (OSM node matched by official stop code)",
+          "amenityConfidence": "medium (OSM tags; not field-verified)",
+          "note": "Listed only in the direction B stop sequence (Студентски град → СУ) of the directive; direction A has no stop of this name."
+        },
+        {
+          "order": 15,
+          "code": "1695",
+          "name": "ж.к. Изток",
+          "speech": "Жилищен комплекс Изток",
+          "osmName": "ж.к. Изток",
+          "lat": 42.671912,
+          "lon": 23.3640032,
+          "road": "бул. Цариградско шосе",
+          "roadClass": "trunk",
+          "arcLengthMeters": 6678,
+          "distanceToNextMeters": 585,
+          "poleOffsetFromCentrelineMeters": 8.34,
+          "rightHandSide": true,
+          "amenities": {
+            "shelter": true,
+            "bench": true,
+            "bin": true,
+            "lit": true,
+            "departuresBoard": "realtime",
+            "wheelchair": null
+          },
+          "source": {
+            "dataset": "OpenStreetMap via Overture Maps 2026-10-21.0",
+            "osm": "n2251315949@16",
+            "license": "ODbL-1.0"
+          },
+          "positionConfidence": "high (OSM node matched by official stop code)",
+          "amenityConfidence": "medium (OSM tags; not field-verified)"
+        },
+        {
+          "order": 16,
+          "code": "2327",
+          "name": "Хотел Плиска",
+          "speech": "Хотел Плиска",
+          "osmName": "Хотел Плиска",
+          "lat": 42.6755718,
+          "lon": 23.3588702,
+          "road": "бул. Цариградско шосе",
+          "roadClass": "trunk",
+          "arcLengthMeters": 7263,
+          "distanceToNextMeters": 2248,
+          "poleOffsetFromCentrelineMeters": 7.51,
+          "rightHandSide": true,
+          "amenities": {
+            "shelter": true,
+            "bench": false,
+            "bin": true,
+            "lit": true,
+            "departuresBoard": "realtime",
+            "wheelchair": null
+          },
+          "source": {
+            "dataset": "OpenStreetMap via Overture Maps 2026-10-21.0",
+            "osm": "n676275876@19",
+            "license": "ODbL-1.0"
+          },
+          "positionConfidence": "high (OSM node matched by official stop code)",
+          "amenityConfidence": "medium (OSM tags; not field-verified)"
+        },
+        {
+          "order": 17,
+          "code": "1288",
+          "name": "пл. Орлов мост",
+          "speech": "Площад Орлов мост",
+          "osmName": "пл. Орлов мост",
+          "lat": 42.689636,
+          "lon": 23.3390337,
+          "road": "бул. Цариградско шосе",
+          "roadClass": "trunk",
+          "arcLengthMeters": 9512,
+          "distanceToNextMeters": 796,
+          "poleOffsetFromCentrelineMeters": 19.72,
+          "rightHandSide": true,
+          "amenities": {
+            "shelter": true,
+            "bench": true,
+            "bin": true,
+            "lit": true,
+            "departuresBoard": "realtime",
+            "wheelchair": "yes"
+          },
+          "source": {
+            "dataset": "OpenStreetMap via Overture Maps 2026-10-21.0",
+            "osm": "n2650760580@17",
+            "license": "ODbL-1.0"
+          },
+          "positionConfidence": "high (OSM node matched by official stop code)",
+          "amenityConfidence": "medium (OSM tags; not field-verified)"
+        },
+        {
+          "order": 18,
+          "code": "1697",
+          "name": "СУ „Св. Климент Охридски“",
+          "speech": "Софийски университет „Свети Климент Охридски“",
+          "osmName": "Софийски университет \"Св. Климент Охридски\"",
+          "lat": 42.6942363,
+          "lon": 23.3356917,
+          "road": "Шипка",
+          "roadClass": "tertiary",
+          "arcLengthMeters": 10307,
+          "distanceToNextMeters": null,
+          "poleOffsetFromCentrelineMeters": 5.11,
+          "rightHandSide": true,
+          "amenities": {
+            "shelter": true,
+            "bench": true,
+            "bin": true,
+            "lit": true,
+            "departuresBoard": "realtime",
+            "wheelchair": "limited"
+          },
+          "source": {
+            "dataset": "OpenStreetMap via Overture Maps 2026-10-21.0",
+            "osm": "n2650751763@16",
+            "license": "ODbL-1.0"
+          },
+          "positionConfidence": "high (OSM node matched by official stop code)",
+          "amenityConfidence": "medium (OSM tags; not field-verified)",
+          "note": "Shared terminal pole for both directions at ул. Шипка by the SU rectorate. The turning manoeuvre between the two directions is modelled by terminalLinks (routed on real streets), not by reversing the path."
+        }
+      ]
+    }
+  },
+  "landmarks": [
+    {
+      "name": "Софийски университет „Св. Климент Охридски“ (Ректорат)",
+      "modelled": "procedural",
+      "how": "OSM footprint with landmark style: rusticated base, portico with columns, statues of the Evlogi & Hristo Georgiev brothers approximated as pedestal figures",
+      "confidence": "medium"
+    },
+    {
+      "name": "Военна академия „Г. С. Раковски“",
+      "modelled": "procedural",
+      "how": "OSM footprint, classical palette, hip roof",
+      "confidence": "low"
+    },
+    {
+      "name": "Орлов мост (Eagles’ Bridge)",
+      "modelled": "procedural",
+      "how": "Four columns with bronze eagles at the real OSM node positions of the bridge corners; bridge railings on the Perlovska river crossing",
+      "confidence": "medium"
+    },
+    {
+      "name": "Yellow paving (жълти павета), бул. Цар Освободител / Орлов мост",
+      "modelled": "procedural",
+      "how": "Yellow paving texture where OSM surface=paving_stones/sett within ~900 m of the SU terminal",
+      "confidence": "medium"
+    },
+    {
+      "name": "бул. Цариградско шосе",
+      "modelled": "from data",
+      "how": "Multi-lane boulevard from OSM lanes/width with medians, signals and crossings",
+      "confidence": "medium"
+    },
+    {
+      "name": "Хотел Плиска",
+      "modelled": "procedural",
+      "how": "OSM footprint as tower; red \"ПЛИСКА\" roof sign",
+      "confidence": "medium"
+    },
+    {
+      "name": "ж.к. Изток / бул. Г. М. Димитров",
+      "modelled": "from data",
+      "how": "OSM building heights/levels; panel-block facade style chosen by footprint and height",
+      "confidence": "medium"
+    },
+    {
+      "name": "Технически университет",
+      "modelled": "from data",
+      "how": "OSM footprints + institutional facade style",
+      "confidence": "medium"
+    },
+    {
+      "name": "Лесотехнически университет",
+      "modelled": "from data",
+      "how": "OSM footprints + vegetation density from OSM landuse",
+      "confidence": "low"
+    },
+    {
+      "name": "ж.к. Дървеница",
+      "modelled": "from data",
+      "how": "OSM panel blocks",
+      "confidence": "medium"
+    },
+    {
+      "name": "УНСС",
+      "modelled": "from data",
+      "how": "OSM footprint, institutional style",
+      "confidence": "low"
+    },
+    {
+      "name": "Спортна зала „Христо Ботев“",
+      "modelled": "from data",
+      "how": "OSM footprint with flat roof",
+      "confidence": "low"
+    },
+    {
+      "name": "Зимен дворец на спорта",
+      "modelled": "from data",
+      "how": "OSM footprint and height",
+      "confidence": "low"
+    },
+    {
+      "name": "Национална спортна академия",
+      "modelled": "procedural",
+      "how": "OSM footprints; stadium light masts placed at OSM pitch corners",
+      "confidence": "low"
+    },
+    {
+      "name": "Студентски град",
+      "modelled": "from data",
+      "how": "OSM dormitory blocks and the bus turning loop",
+      "confidence": "medium"
+    },
+    {
+      "name": "Витоша (skyline)",
+      "modelled": "from data",
+      "how": "Far terrain from Terrarium DEM tiles (Mapzen/AWS open data)",
+      "confidence": "high"
+    }
+  ],
+  "unresolved": [
+    "Stop amenity tags (shelter, bench, real-time board) come from OSM and were not verified on site; some shelters may be missing or differ in design.",
+    "Lane counts and markings are inferred from OSM road class, width and lanes tags; exact turn-lane layouts at Орлов мост and Цариградско шосе junctions are simplified.",
+    "Traffic signal positions come from OSM highway=traffic_signals nodes; phase timings are generic (not the real Sofia programmes).",
+    "Building facades are procedural styles chosen per footprint; they are not photographic reconstructions. Heights come from OSM height/levels when present, otherwise estimated.",
+    "The in-game timetable is derived from distance (6.3 m/s average) plus 22 s per stop; it is not the official SKGT/ЦГМ schedule.",
+    "The \"НСБАЛ по онкология\" / \"Онкологична болница\" naming difference is unresolved (see stop notes)."
+  ]
+}

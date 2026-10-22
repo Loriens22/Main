@@ -8,6 +8,7 @@ import { SegmentGrid } from './SpatialIndex.js';
 import { TrafficManager } from '../gameplay/TrafficManager.js';
 import { PedestrianManager } from '../gameplay/PedestrianManager.js';
 import { WeatherFx } from '../render/WeatherFx.js';
+import { SweptPath } from '../gameplay/SweptPath.js';
 
 function routeLine(route) {
   const A = route.direction('A').path, B = route.direction('B').path;
@@ -22,6 +23,8 @@ function routeLine(route) {
 export async function buildExtras({ scene, world, route, quality }) {
   const out = { updaters: [] };
   const rl = routeLine(route);
+  // nothing may stand where the bus sweeps along its route
+  const sweep = (world.sweep = new SweptPath(route));
   const tileKey = (name) => name.split(':')[1];
   const safe = async (label, fn) => {
     try {
@@ -34,6 +37,7 @@ export async function buildExtras({ scene, world, route, quality }) {
   await safe('furniture', () => {
     const f = new StreetFurniture({ scene, world, route, quality });
     f.routeLine = rl;
+    f.sweep = sweep;
     for (const g of f.build()) {
       if (g.name.includes(':')) world.addToTile(tileKey(g.name), g);
       else scene.add(g);
@@ -45,6 +49,7 @@ export async function buildExtras({ scene, world, route, quality }) {
   await safe('vegetation', () => {
     const v = new Vegetation({ scene, world, quality });
     v.routeLine = rl;
+    v.sweep = sweep;
     v.place(world.roadBuilder.sidewalkInfo);
     for (const g of v.build()) world.addToTile(tileKey(g.name), g);
     out.vegetation = v;

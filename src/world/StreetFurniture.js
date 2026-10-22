@@ -215,7 +215,7 @@ export class StreetFurniture {
     for (let i = 0; i < L.length; i += 3) {
       const x = L[i] / 10, z = L[i + 1] / 10;
       const k = this.kerbFrame(x, z);
-      if (!k) continue;
+      if (!k || this.blocked(x, z, 0.2)) continue;
       const yaw = Math.atan2(k.out[0], k.out[1]); // arm (-z) points towards the road
       const bigRoad = k.hw > 4.5;
       (bigRoad ? tall : small).add(x, this.y(x, z), z, yaw);
@@ -239,7 +239,7 @@ export class StreetFurniture {
         const k = this.kerbFrame(pts[i], pts[i + 1]);
         if (!k) continue;
         const x = k.cx + k.out[0] * (k.hw + 0.55), z = k.cz + k.out[1] * (k.hw + 0.55);
-        if (near(x, z, 14) || this.world.bgrid.pointInAny(x, z) >= 0) continue;
+        if (near(x, z, 14) || this.world.bgrid.pointInAny(x, z) >= 0 || this.blocked(x, z, 0.2)) continue;
         const bigRoad = k.hw > 4.5;
         const yaw = Math.atan2(k.out[0], k.out[1]);
         (bigRoad ? tall : small).add(x, this.y(x, z), z, yaw);
@@ -273,6 +273,7 @@ export class StreetFurniture {
       const arr = P[key] || [];
       for (let i = 0; i < arr.length; i += 3) {
         const x = arr[i] / 10, z = arr[i + 1] / 10;
+        if (this.blocked(x, z, 0.8)) continue;
         let yaw = hash2(i, 5) * Math.PI * 2;
         if (key === 'bench') {
           const k = this.kerbFrame(x, z);
@@ -301,7 +302,7 @@ export class StreetFurniture {
         const t = (e.trim || 6) + 1.0;
         const lx = e.d[1], lz = -e.d[0];
         const x = n.x + e.d[0] * t + lx * (p.hw + 0.8), z = n.z + e.d[1] * t + lz * (p.hw + 0.8);
-        if (this.world.bgrid.pointInAny(x, z) >= 0) continue;
+        if (this.world.bgrid.pointInAny(x, z) >= 0 || this.blocked(x, z, 0.15)) continue;
         const yaw = Math.atan2(-e.d[0], -e.d[1]) + Math.PI; // head faces approaching traffic (+d)
         const y = this.y(x, z);
         pole.add(x, y, z, yaw);
@@ -388,6 +389,11 @@ export class StreetFurniture {
     return out;
   }
 
+  /** A prop at (x, z) would stand in the bus's swept path. */
+  blocked(x, z, r) {
+    return !!(this.sweep && this.sweep.hits(x, z, r));
+  }
+
   buildParkedCars() {
     const { types, bodyMat, trimMat } = carAssets();
     const rand = mulberry32(2026);
@@ -421,7 +427,7 @@ export class StreetFurniture {
             const off = Math.max(1.0, p.hw - 0.95);
             const x = ax + dx * t + dz * side * off, z = az + dz * t - dx * side * off;
             if (stops.some((s) => Math.abs(s.pole[0] - x) < 30 && Math.abs(s.pole[1] - z) < 30)) continue;
-            if (this.world.bgrid.pointInAny(x, z) >= 0) continue;
+            if (this.world.bgrid.pointInAny(x, z) >= 0 || this.blocked(x, z, 2.4)) continue;
             const ti = Math.floor(rand() * (types.length - 0.4));
             const yaw = Math.atan2(-dx, -dz) + (side < 0 ? Math.PI : 0);
             items[ti].push([x, this.y(x, z), z, yaw, carPaint(rand, rand() < 0.04)]);

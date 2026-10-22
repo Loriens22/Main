@@ -1,6 +1,8 @@
 // On-screen touch controls for phones/tablets. Multi-touch via pointer
 // events; every control captures its own pointer so steering, pedals and
 // look gestures work simultaneously without conflicts.
+import { L } from './i18n.js';
+
 export class TouchControls {
   constructor(root, input, game) {
     this.input = input;
@@ -155,25 +157,25 @@ export class TouchControls {
       p.addEventListener('pointerup', up);
       p.addEventListener('pointercancel', up);
     };
-    pedal('gas', 'ГАЗ', 'throttle');
-    pedal('brake', 'СПИР.', 'brake');
+    pedal('gas', L('ГАЗ', 'GAS'), 'throttle');
+    pedal('brake', L('СПИР.', 'BRAKE'), 'brake');
     const key = (code) => () => g.input.pressed.add(code);
     const btns = this.div('tc btns');
-    this.button(btns, 'Врати<br>⇔', (d) => d && key('KeyO')());
-    this.button(btns, 'Затв.<br>бип', (d) => d && key('KeyC')());
+    this.button(btns, L('Врати<br>⇔', 'Doors<br>⇔'), (d) => d && key('KeyO')());
+    this.button(btns, L('Затв.<br>бип', 'Close<br>beep'), (d) => d && key('KeyC')());
     this.button(btns, 'D', (d) => d && key('Digit1')());
     this.button(btns, 'N', (d) => d && key('Digit2')());
     this.button(btns, 'P', (d) => d && key('KeyP')(), 'red');
     this.button(btns, 'R', (d) => d && key('Digit3')());
     this.button(btns, '◐', (d) => d && key('KeyL')());
-    this.button(btns, 'Клаксон', (d) => (g.touchHorn = d));
+    this.button(btns, L('Клаксон', 'Horn'), (d) => (g.touchHorn = d));
     const lb = this.div('tc lbtns');
     this.button(lb, '◀', (d) => d && key('KeyQ')());
     this.button(lb, '⚠', (d) => d && key('KeyH')());
     this.button(lb, '▶', (d) => d && key('KeyE')());
-    this.button(lb, 'Чист.', (d) => d && key('KeyY')());
-    this.button(lb, 'Запал.', (d) => d && key('KeyI')());
-    this.button(lb, 'Курс', (d) => d && key('KeyR')());
+    this.button(lb, L('Чист.', 'Wipers'), (d) => d && key('KeyY')());
+    this.button(lb, L('Запал.', 'Engine'), (d) => d && key('KeyI')());
+    this.button(lb, L('Курс', 'Reset'), (d) => d && key('KeyR')());
     const top = this.div('tc top');
     this.button(top, '🎥', (d) => d && g.cycleCamera());
     this.button(top, '❚❚', (d) => d && g.emit('pause'));
@@ -210,9 +212,9 @@ export class TouchControls {
     stick.addEventListener('pointerup', up);
     stick.addEventListener('pointercancel', up);
     const pb = this.div('tc pbtns');
-    this.button(pb, 'Действие', (d) => d && g.input.pressed.add('KeyE'));
-    this.button(pb, 'СТОП', (d) => d && g.input.pressed.add('KeyB'), 'red');
-    this.button(pb, 'Държи се', (d) => (g.holdGrip = d));
+    this.button(pb, L('Действие', 'Action'), (d) => d && g.input.pressed.add('KeyE'));
+    this.button(pb, L('СТОП', 'STOP'), (d) => d && g.input.pressed.add('KeyB'), 'red');
+    this.button(pb, L('Държи се', 'Hold on'), (d) => (g.holdGrip = d));
     const top = this.div('tc top');
     top.style.right = 'calc(16px + var(--safe-r))';
     this.button(top, '🎥', (d) => d && g.cycleCamera());

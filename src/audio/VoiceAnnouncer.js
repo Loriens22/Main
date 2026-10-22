@@ -10,6 +10,7 @@
 //   3. No Bulgarian voice available: chime + on-screen text only — the game
 //      never substitutes an English voice reading Bulgarian text.
 import voiceClips from '../data/voice-clips.json';
+import { L } from '../ui/i18n.js';
 
 const FEMALE_HINTS = /kalina|калина|daria|дария|female|жен|google|natural/i;
 const MALE_HINTS = /ivan|иван|male(?!.*female)/i;
@@ -52,9 +53,9 @@ export class VoiceAnnouncer {
   }
 
   describe() {
-    if (this.status === 'clips') return 'Вградени записи (bg-BG)';
-    if (this.voice) return `${this.voice.name} (${this.voice.lang})${this.voiceIsFemale ? '' : ' — не е женски глас'}`;
-    return 'Няма инсталиран български глас — само текст';
+    if (this.status === 'clips') return L('Вградени записи (bg-BG)', 'Embedded recordings (bg-BG)');
+    if (this.voice) return `${this.voice.name} (${this.voice.lang})${this.voiceIsFemale ? '' : L(' — не е женски глас', ' — not a female voice')}`;
+    return L('Няма инсталиран български глас — само текст', 'No Bulgarian voice installed — text only');
   }
 
   /**

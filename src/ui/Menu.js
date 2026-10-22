@@ -1,14 +1,15 @@
 // Main menu, pre-game setup, settings, credits and pause screens.
-import { t, setLang, getLang } from './i18n.js';
+import { t, L, setLang, getLang } from './i18n.js';
 import { saveSettings, loadSave } from '../game/Settings.js';
 
-const LOGO = `<svg class="logo" viewBox="0 0 420 120" aria-label="Sofia Public Transport">
+// a function, not a constant: the text must follow the language chosen at runtime
+const logo = () => `<svg class="logo" viewBox="0 0 420 120" aria-label="${t('title')}">
 <rect x="2" y="20" width="150" height="80" rx="14" fill="#f4f4ef"/><rect x="12" y="30" width="130" height="30" rx="5" fill="#101010"/>
 <text x="77" y="53" font-family="monospace" font-size="24" font-weight="700" text-anchor="middle" fill="#ffae1a">280</text>
 <path d="M4 84c26-16 44 8 70-6s40 10 76-4v14c0 6-4 10-10 10H14C8 98 4 94 4 88z" fill="#3a9d4a"/>
 <circle cx="38" cy="100" r="11" fill="#1d1d1d"/><circle cx="118" cy="100" r="11" fill="#1d1d1d"/>
-<text x="170" y="56" font-size="30" font-weight="700" fill="#eef3ee" font-family="Segoe UI,Roboto,Arial">Градски транспорт</text>
-<text x="170" y="92" font-size="30" font-weight="300" fill="#ffae1a" font-family="Segoe UI,Roboto,Arial">София · Sofia</text></svg>`;
+<text x="170" y="56" font-size="30" font-weight="700" fill="#eef3ee" font-family="Segoe UI,Roboto,Arial">${L('Градски транспорт', 'Public Transport')}</text>
+<text x="170" y="92" font-size="30" font-weight="300" fill="#ffae1a" font-family="Segoe UI,Roboto,Arial">${L('София · Sofia', 'Sofia')}</text></svg>`;
 
 const ICON_WHEEL = '<svg class="ico" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="9"/><circle cx="12" cy="12" r="2.5"/><path d="M12 14.5V21M9.6 11.2 3.5 9.5M14.4 11.2l6.1-1.7"/></svg>';
 const ICON_PERSON = '<svg class="ico" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="5" r="2.5"/><path d="M12 8v7m0 0-3 6m3-6 3 6M7 11h10"/></svg>';
@@ -41,13 +42,13 @@ export class Menu {
     const m = document.createElement('div');
     m.className = 'menu';
     m.innerHTML = `<div class="col">
-      ${LOGO}
+      ${logo()}
       <div class="tag">${t('subtitle')}</div>
-      <button class="btn big primary" data-a="driver">${ICON_WHEEL}<span>${t('driver')}<small>MAN Lion's City G CNG · ${getLang() === 'bg' ? 'управлявайте линия 280' : 'drive line 280'}</small></span></button>
-      <button class="btn big green" data-a="passenger">${ICON_PERSON}<span>${t('passenger')}<small>${getLang() === 'bg' ? 'пътувайте като пътник' : 'ride as a passenger'}</small></span></button>
+      <button class="btn big primary" data-a="driver">${ICON_WHEEL}<span>${t('driver')}<small>MAN Lion's City G CNG · ${L('управлявайте линия 280', 'drive line 280')}</small></span></button>
+      <button class="btn big green" data-a="passenger">${ICON_PERSON}<span>${t('passenger')}<small>${L('пътувайте като пътник', 'ride as a passenger')}</small></span></button>
       <button class="btn big" data-a="continue" ${save ? '' : 'disabled'}>▶<span>${t('cont')}<small>${save ? `${save.mode === 'driver' ? t('driver') : t('passenger')} · ${save.fleet}` : '—'}</small></span></button>
       <div class="row"><button class="btn" data-a="settings">⚙ ${t('settings')}</button><button class="btn" data-a="credits">ⓘ ${t('credits')}</button>
-      <button class="btn" data-a="lang">${getLang() === 'bg' ? 'EN' : 'БГ'}</button></div>
+      <button class="btn" data-a="lang">${L('EN', 'БГ')}</button></div>
       <div class="foot">© OpenStreetMap contributors (ODbL) · Overture Maps · Mapzen Terrain Tiles.<br>Fan-made simulator; not affiliated with Sofia Urban Mobility Center or MAN Truck &amp; Bus.</div>
     </div>`;
     this.el.appendChild(m);
@@ -206,7 +207,7 @@ export class Menu {
     const toggle = (key, label) => {
       const w = document.createElement('div');
       w.className = 'seg';
-      for (const [v, l] of [[true, 'Да / On'], [false, 'Не / Off']]) {
+      for (const [v, l] of [[true, L('Да / On', 'On')], [false, L('Не / Off', 'Off')]]) {
         const b = document.createElement('button');
         b.textContent = l;
         b.className = s[key] === v ? 'on' : '';
@@ -230,7 +231,7 @@ export class Menu {
     const voices = this.voice.bulgarianVoices();
     const o0 = document.createElement('option');
     o0.value = '';
-    o0.textContent = voices.length ? 'Автоматично (женски глас, ако има)' : 'Няма български глас на устройството — само текст';
+    o0.textContent = voices.length ? L('Автоматично (женски глас, ако има)', 'Automatic (female voice if available)') : L('Няма български глас на устройството — само текст', 'No Bulgarian voice on this device — text only');
     vs.appendChild(o0);
     for (const v of voices) {
       const o = document.createElement('option');
@@ -248,16 +249,16 @@ export class Menu {
     const info = document.createElement('div');
     info.style.color = 'var(--dim)';
     info.style.fontSize = '.8em';
-    info.textContent = `Текущ глас: ${this.voice.describe()}`;
+    info.textContent = L(`Текущ глас: ${this.voice.describe()}`, `Current voice: ${this.voice.describe()}`);
     p.appendChild(info);
     const test = document.createElement('button');
     test.className = 'btn';
-    test.textContent = '▶ Тест: „Следваща спирка Военна академия.“';
+    test.textContent = L('▶ Тест: „Следваща спирка Военна академия.“', '▶ Test the announcement voice (Bulgarian)');
     test.onclick = () => this.onSettingsChanged(s, 'testVoice');
     p.appendChild(test);
     const tb = document.createElement('button');
     tb.className = 'btn';
-    tb.textContent = '▶ Тест: сигнал при затваряне на вратите (бип-бип)';
+    tb.textContent = L('▶ Тест: сигнал при затваряне на вратите (бип-бип)', '▶ Test: door closing warning (beep-beep)');
     tb.onclick = () => this.onSettingsChanged(s, 'testBeep');
     p.appendChild(tb);
     slider('beepFreq', `${t('beep')} — Hz`, 900, 3200, 50);
@@ -286,13 +287,13 @@ export class Menu {
     p.style.right = 'auto';
     p.style.transform = 'translateX(-50%)';
     p.innerHTML = `<h2>${t('credits')}</h2>
-      <p><b>Sofia Public Transport — Bus 280</b><br>Независим фен проект / independent fan project.</p>
-      <p><b>Карта и спирки:</b> © OpenStreetMap contributors (ODbL 1.0), разпространено чрез Overture Maps Foundation (release 2026-10-21.0). Кодовете на спирките са официалните кодове на ЦГМ / sofiatraffic.bg.</p>
-      <p><b>Релеф:</b> Mapzen / AWS Terrain Tiles (SRTM, EU-DEM).</p>
-      <p><b>Автобус:</b> MAN Lion's City G CNG (A23) — процедурен 3D модел по референтни снимки; размери по публични данни (приблизителни).</p>
-      <p><b>Звук:</b> изцяло синтезиран в реално време (WebAudio). Гласът на съобщенията е българският глас на устройството или вградени лицензирани записи.</p>
-      <p><b>Технологии:</b> three.js (MIT), esbuild.</p>
-      <p style="color:var(--dim);font-size:.85em">MAN и Lion's City са търговски марки на MAN Truck &amp; Bus SE. Проектът не е свързан с MAN, Столичен автотранспорт или Центъра за градска мобилност.</p>`;
+      <p><b>Sofia Public Transport — Bus 280</b><br>${L('Независим фен проект / independent fan project.', 'Independent fan project.')}</p>
+      <p>${L('<b>Карта и спирки:</b> © OpenStreetMap contributors (ODbL 1.0), разпространено чрез Overture Maps Foundation (release 2026-10-21.0). Кодовете на спирките са официалните кодове на ЦГМ / sofiatraffic.bg.', '<b>Map and stops:</b> © OpenStreetMap contributors (ODbL 1.0), distributed via the Overture Maps Foundation (release 2026-10-21.0). Stop codes are the official codes of the Sofia Urban Mobility Center / sofiatraffic.bg.')}</p>
+      <p>${L('<b>Релеф:</b>', '<b>Terrain:</b>')} Mapzen / AWS Terrain Tiles (SRTM, EU-DEM).</p>
+      <p>${L('<b>Автобус:</b> MAN Lion\'s City G CNG (A23) — процедурен 3D модел по референтни снимки; размери по публични данни (приблизителни).', '<b>Bus:</b> MAN Lion\'s City G CNG (A23) — procedural 3D model based on reference photos; dimensions from public data (approximate).')}</p>
+      <p>${L('<b>Звук:</b> изцяло синтезиран в реално време (WebAudio). Гласът на съобщенията е българският глас на устройството или вградени лицензирани записи.', '<b>Sound:</b> fully synthesised in real time (WebAudio). Announcements use the device\'s Bulgarian voice or bundled licensed recordings.')}</p>
+      <p>${L('<b>Технологии:</b>', '<b>Technology:</b>')} three.js (MIT), esbuild.</p>
+      <p style="color:var(--dim);font-size:.85em">${L('MAN и Lion\'s City са търговски марки на MAN Truck &amp; Bus SE. Проектът не е свързан с MAN, Столичен автотранспорт или Центъра за градска мобилност.', 'MAN and Lion\'s City are trademarks of MAN Truck &amp; Bus SE. This project is not affiliated with MAN, Stolichen Avtotransport or the Sofia Urban Mobility Center.')}</p>`;
     const back = document.createElement('button');
     back.className = 'btn primary';
     back.textContent = t('back');

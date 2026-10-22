@@ -4,11 +4,17 @@ import * as THREE from 'three';
 import { BusEntity } from '../gameplay/BusEntity.js';
 import { CameraRig, DRIVER_CAMS } from '../render/CameraRig.js';
 import { Hud } from '../ui/Hud.js';
-import { t } from '../ui/i18n.js';
+import { t, L } from '../ui/i18n.js';
 import { clamp, fwdX, fwdZ } from '../core/math.js';
 import { Scoring } from '../gameplay/Scoring.js';
 import { PassengerMode } from './PassengerMode.js';
 import { BusLightRig } from '../render/BusLights.js';
+
+const CAM_NAMES = {
+  cab: ['кабина', 'cab'], follow: ['отзад', 'chase'], front: ['отпред', 'front'],
+  side: ['отстрани', 'side'], joint: ['хармоника', 'articulation joint'], free: ['свободна', 'free'],
+};
+const camName = (m) => (CAM_NAMES[m] ? L(...CAM_NAMES[m]) : m);
 
 export class Game {
   constructor(ctx) {
@@ -102,7 +108,7 @@ export class Game {
       const listener = this.camera.position;
       const dist = listener.distanceTo(bus.model.front.position);
       if (dist < 200) this.audio.doorEvent(e);
-      if (bus.player && e.type === 'closeRequest') this.hud.toast('Вратите се затварят…');
+      if (bus.player && e.type === 'closeRequest') this.hud.toast(L('Вратите се затварят…', 'Doors closing…'));
     });
     bus.phys.onShift = () => {};
   }
@@ -141,6 +147,7 @@ export class Game {
     if (this.props) this.props.update(dt, this.focus, this.sky.night);
     if (this.weatherFx) this.weatherFx.update(dt, this.camera, this.bus);
     this.busLights.update(bus, this.sky.night);
+    for (const b of this.allBuses()) b.model.setDetail(b.model.front.position.distanceTo(listener));
     if (bus) this.updateAnnouncements(bus);
     this.updateAudio(dt);
   }
@@ -188,7 +195,7 @@ export class Game {
     // --- discrete controls
     if (I.hit('KeyI')) {
       p.engineOn = !p.engineOn;
-      this.hud.toast(p.engineOn ? 'Двигателят е запален' : 'Двигателят е изключен');
+      this.hud.toast(p.engineOn ? L('Двигателят е запален', 'Engine started') : L('Двигателят е изключен', 'Engine off'));
       if (p.engineOn) this.audio.hiss(0.3, 0.05, 900);
     }
     if (I.hit('Digit1') || I.hit('Numpad1')) this.selectGear('D');
@@ -206,13 +213,17 @@ export class Game {
     if (I.hit('KeyH')) bus.lights.hazard = !bus.lights.hazard;
     if (I.hit('KeyL')) bus.lights.head = !bus.lights.head;
     if (I.hit('KeyY')) bus.wiper.mode = (bus.wiper.mode + 1) % 3;
+    if (I.hit('KeyK')) {
+      p.autoKneel = p.autoKneel === false;
+      this.hud.toast(`${t('kneeling')}: ${p.autoKneel ? t('on') : t('off')}`);
+    }
     if (I.hit('KeyT')) {
       const modes = ['route', 'depot', 'off'];
       bus.display.mode = modes[(modes.indexOf(bus.display.mode) + 1) % 3];
       bus.updateSigns();
     }
     if (I.hit('KeyR') && Math.abs(p.v) < 1) this.recover();
-    if (I.hit('Tab')) this.hud.toast(`${t('camera')}: ${this.rig.cycle(DRIVER_CAMS)}`);
+    if (I.hit('Tab')) this.hud.toast(`${t('camera')}: ${camName(this.rig.cycle(DRIVER_CAMS))}`);
     this.audio.horn(I.keys.has('Space') || (this.touchHorn || false));
     // cancel indicator after the turn
     if ((bus.lights.left || bus.lights.right) && Math.abs(p.delta) > 0.25) bus._turning = true;
@@ -227,8 +238,8 @@ export class Game {
     if (p.lastCollision && p.lastCollision.speed > 0.6) {
       this.audio.crash(p.lastCollision.speed);
       this.rig.shake = 1;
-      this.scoring.add('collision', -Math.round(20 + p.lastCollision.speed * 10), 'Сблъсък!');
-      this.hud.toast('Сблъсък!', true);
+      this.scoring.add('collision', -Math.round(20 + p.lastCollision.speed * 10), L('Сблъсък!', 'Collision!'));
+      this.hud.toast(L('Сблъсък!', 'Collision!'), true);
     }
     for (const e of bus.events.splice(0)) this.onStopEvent(bus, e);
     this.scoring.update(dt, bus, this.world);
@@ -237,7 +248,7 @@ export class Game {
       for (const sg of bus.signalsAhead) {
         if (bus.prevFrontS != null && bus.prevFrontS < sg.s && bus.frontS >= sg.s && bus.frontS - bus.prevFrontS < 5) {
           const st = this.traffic.signals.state(sg.node, sg.end);
-          if (st === 'R') this.scoring.add('redlight', -30, 'Преминахте на червен светофар!');
+          if (st === 'R') this.scoring.add('redlight', -30, L('Преминахте на червен светофар!', 'You ran a red light!'));
         }
       }
     }
@@ -247,16 +258,16 @@ export class Game {
     // --- checklist
     if (!this.checklistDone) {
       const items = [
-        { label: 'Запали двигателя', key: 'I', done: p.engineOn },
-        { label: 'Затвори вратите', key: 'C', done: bus.doors.allClosed },
-        { label: 'Освободи ръчната спирачка', key: 'P', done: !p.parkingBrake },
-        { label: 'Включи D', key: '1', done: p.selector === 'D' },
+        { label: L('Запали двигателя', 'Start the engine'), key: 'I', done: p.engineOn },
+        { label: L('Затвори вратите', 'Close the doors'), key: 'C', done: bus.doors.allClosed },
+        { label: L('Освободи ръчната спирачка', 'Release the parking brake'), key: 'P', done: !p.parkingBrake },
+        { label: L('Включи D', 'Select D'), key: '1', done: p.selector === 'D' },
       ];
       this.hud.setChecklist(items);
       if (items.every((i) => i.done)) {
         this.checklistDone = true;
         this.hud.setChecklist(null);
-        this.hud.toast('Готови за тръгване — приятен път!');
+        this.hud.toast(L('Готови за тръгване — приятен път!', 'Ready to go — have a good trip!'));
       }
     }
     // --- camera & HUD
@@ -269,7 +280,7 @@ export class Game {
   }
 
   cycleCamera() {
-    if (this.mode === 'driver') this.hud.toast(`${t('camera')}: ${this.rig.cycle(DRIVER_CAMS)}`);
+    if (this.mode === 'driver') this.hud.toast(`${t('camera')}: ${camName(this.rig.cycle(DRIVER_CAMS))}`);
     else if (this.mode === 'passenger' && this.passengerMode) this.passengerMode.cycleCamera();
   }
 
@@ -298,7 +309,7 @@ export class Game {
   selectGear(g) {
     const p = this.bus.phys;
     if (g !== 'N' && Math.abs(p.v) > 0.6 && p.selector !== g && p.selector !== 'N') {
-      this.hud.toast('Спрете напълно, преди да смените посоката', true);
+      this.hud.toast(L('Спрете напълно, преди да смените посоката', 'Stop completely before changing direction'), true);
       return;
     }
     if (g === 'R' && Math.abs(p.v) > 0.3) return;
@@ -309,19 +320,19 @@ export class Game {
   openDoors(ids) {
     const bus = this.bus;
     if (Math.abs(bus.phys.v) > 0.5) {
-      this.hud.toast('Блокировка: вратите не се отварят в движение', true);
+      this.hud.toast(L('Блокировка: вратите не се отварят в движение', 'Interlock: doors cannot open while moving'), true);
       return;
     }
     bus.doors.open(ids, bus.phys.v);
     const near = bus.stops.atStop >= 0 || bus.stops.distanceToNext(bus.routeS) < 25;
-    if (!near && bus.stops.next > 0) this.scoring.add('doors', -5, 'Врати отворени извън спирка');
+    if (!near && bus.stops.next > 0) this.scoring.add('doors', -5, L('Врати отворени извън спирка', 'Doors opened away from a stop'));
   }
 
   /** Put the bus back on the drive line (when stuck). */
   recover() {
     const bus = this.bus;
     bus.placeAt(bus.frontS);
-    this.hud.toast('Автобусът е върнат на маршрута');
+    this.hud.toast(L('Автобусът е върнат на маршрута', 'Bus returned to the route'));
     this.scoring.add('recover', -10);
   }
 
@@ -336,7 +347,7 @@ export class Game {
       const err = e.error; // + = beyond the target
       const lat = Math.abs(bus.lateral);
       this.scoring.stopAccuracy(err, lat);
-      const q = Math.abs(err) < 3 ? 'Отлично спиране!' : Math.abs(err) < 7 ? 'Добро спиране' : 'Неточно спиране';
+      const q = Math.abs(err) < 3 ? L('Отлично спиране!', 'Perfect stop!') : Math.abs(err) < 7 ? L('Добро спиране', 'Good stop') : L('Неточно спиране', 'Imprecise stop');
       this.hud.toast(`${e.stop.name} — ${q}`);
     }
     if (e.type === 'served' && this.tripStart != null) {
@@ -345,7 +356,7 @@ export class Game {
     }
     if (e.type === 'passed' && this.mode === 'driver') {
       const waiting = this.peds ? this.peds.waitingAt(e.stop) : 0;
-      if (waiting > 0 || bus.stopRequested) this.scoring.add('skip', -25, `Пропусната спирка: ${e.stop.name}`);
+      if (waiting > 0 || bus.stopRequested) this.scoring.add('skip', -25, L(`Пропусната спирка: ${e.stop.name}`, `Missed stop: ${e.stop.name}`));
     }
     if (e.type === 'served' || e.type === 'passed') bus.stopRequested = false;
     if (e.type === 'terminal' && this.mode === 'driver') {

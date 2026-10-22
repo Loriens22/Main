@@ -13,7 +13,7 @@ export const STRINGS = {
     sfx: 'Ефекти', sensitivity: 'Чувствителност', gyro: 'Жироскопно управление', invertY: 'Обърната ос Y',
     showFps: 'Покажи FPS', renderScale: 'Резолюция', voiceSel: 'Глас за съобщенията', beep: 'Звук на вратите',
     controlsSize: 'Размер на бутоните', checklist: 'Подготовка', loading: 'Зареждане…', tripDone: 'Курсът е завършен',
-    score: 'Оценка', touchHint: 'Докоснете, за да започнете',
+    score: 'Оценка', touchHint: 'Докоснете, за да започнете', kneeling: 'Автоматично накланяне', on: 'вкл.', off: 'изкл.',
   },
   en: {
     title: 'Sofia Public Transport', subtitle: 'Line 280 · Sofia University – Studentski Grad',
@@ -28,7 +28,7 @@ export const STRINGS = {
     sfx: 'Effects', sensitivity: 'Sensitivity', gyro: 'Gyro steering', invertY: 'Invert Y axis',
     showFps: 'Show FPS', renderScale: 'Render scale', voiceSel: 'Announcement voice', beep: 'Door warning sound',
     controlsSize: 'Button size', checklist: 'Preparation', loading: 'Loading…', tripDone: 'Trip complete',
-    score: 'Score', touchHint: 'Tap to start',
+    score: 'Score', touchHint: 'Tap to start', kneeling: 'Automatic kneeling', on: 'on', off: 'off',
   },
 };
 
@@ -42,3 +42,5 @@ export function getLang() {
 export function t(key) {
   return (STRINGS[lang] && STRINGS[lang][key]) || STRINGS.bg[key] || key;
 }
+/** Inline one-off string: L('български', 'English'). */
+export const L = (bg, en) => (lang === 'en' ? en : bg);

@@ -7,6 +7,7 @@ import { RoadNetwork } from './RoadNetwork.js';
 import { RoadMeshBuilder } from './RoadMesh.js';
 import { BuildingBuilder } from './Buildings.js';
 import { SegmentGrid } from './SpatialIndex.js';
+import { L } from '../ui/i18n.js';
 
 const yieldFrame = () => new Promise((r) => setTimeout(r, 0));
 
@@ -31,13 +32,15 @@ export class World {
       this.tiles.set(key, t);
     }
     t.objs.push(obj);
+    obj.userData.cullK = CULL[obj.name.split(':')[0]] ?? 1;
     this.root.add(obj);
+    releaseAfterUpload(obj);
   }
 
   async build(progress = () => {}) {
     const d = this.data;
     const hf = (this.hf = new Heightfield(d.dem));
-    progress(0.1, 'Терен и релеф…');
+    progress(0.1, L('Терен и релеф…', 'Terrain and elevation…'));
     await yieldFrame();
     const splat = (this.splat = buildSplat(d, hf, this.quality === 'balanced' ? 6 : 4));
     const tmat = (this.terrainMaterial = createTerrainMaterial(splat, hf, this.quality));
@@ -52,23 +55,23 @@ export class World {
       }
     this.far = buildFarTerrain(hf);
     this.scene.add(this.far);
-    progress(0.2, 'Сгради (OpenStreetMap)…');
+    progress(0.2, L('Сгради (OpenStreetMap)…', 'Buildings (OpenStreetMap)…'));
     await yieldFrame();
     const bb = (this.buildingBuilder = new BuildingBuilder({ world: d, hf, quality: this.quality }));
     bb.build();
     // collision / occlusion index of footprints
     this.bgrid = new SegmentGrid(24);
     for (const f of bb.footprints) this.bgrid.addPolygon(f.pts, f);
-    progress(0.38, 'Улична мрежа и кръстовища…');
+    progress(0.38, L('Улична мрежа и кръстовища…', 'Street network and junctions…'));
     await yieldFrame();
     const net = (this.roads = new RoadNetwork(d));
     this.markSignals(net, d.props.signal || []);
-    progress(0.48, 'Платна, тротоари и маркировка…');
+    progress(0.48, L('Платна, тротоари и маркировка…', 'Carriageways, pavements and markings…'));
     await yieldFrame();
     const rb = (this.roadBuilder = new RoadMeshBuilder({ network: net, hf, buildings: this.bgrid, quality: this.quality }));
     rb.build();
     rb.zebras(d.props.crossing || []);
-    progress(0.62, 'Сглобяване на сцената…');
+    progress(0.62, L('Сглобяване на сцената…', 'Assembling the scene…'));
     await yieldFrame();
     for (const g of rb.meshes()) this.addToTile(g.name.split(':')[1], g);
     for (const g of bb.meshes()) this.addToTile(g.name.split(':')[1], g);
@@ -95,9 +98,12 @@ export class World {
     for (const t of this.tiles.values()) {
       const d = Math.hypot(t.cx - focus.x, t.cz - focus.z);
       const vis = d < dd + 200;
-      if (vis !== t.visible) {
+      // small things disappear sooner than buildings and roads
+      const band = Math.min(4, Math.floor(d / 64));
+      if (vis !== t.visible || band !== t.band) {
         t.visible = vis;
-        for (const o of t.objs) o.visible = vis;
+        t.band = band;
+        for (const o of t.objs) o.visible = vis && d < dd * o.userData.cullK + 200;
       }
       // shadows only near the camera
       const near = d < 380;
@@ -128,4 +134,28 @@ export class World {
       this.terrainMaterial.userData.uniforms.uWet.value = v;
     }
   }
+}
+
+/** Share of the draw distance at which each kind of tile object is still drawn. */
+const CULL = {
+  trees: 0.7, lampsT: 0.6, lampsS: 0.45, glow: 0.6, lines: 0.6, signals: 0.5, stop: 0.5, parked: 0.38,
+  bin: 0.3, container: 0.3, bench: 0.3, recycling: 0.3, hydrant: 0.3, bollard: 0.3,
+};
+
+/**
+ * Static world geometry is never read on the CPU after it reaches the GPU
+ * (collision and height queries use their own indices), so drop the typed
+ * arrays once uploaded. This halves the memory footprint on phones.
+ */
+function releaseAfterUpload(root) {
+  const free = function () { this.array = null; };
+  root.traverse((o) => {
+    if (!(o.isMesh || o.isLineSegments) || o.isInstancedMesh || o.userData.keepCPU) return;
+    const g = o.geometry;
+    if (!g || g.userData.released) return;
+    g.userData.released = true;
+    if (!g.boundingSphere) g.computeBoundingSphere();
+    for (const a of Object.values(g.attributes)) if (!a.isInterleavedBufferAttribute) a.onUpload(free);
+    if (g.index) g.index.onUpload(free);
+  });
 }

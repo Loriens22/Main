@@ -47,6 +47,9 @@ export class GeoBuffer {
     g.setIndex(this.count > 65535 ? new THREE.Uint32BufferAttribute(this.idx, 1) : new THREE.Uint16BufferAttribute(this.idx, 1));
     g.computeBoundingSphere();
     g.computeBoundingBox();
+    // the JS arrays are no longer needed (they cost ~4x the typed arrays)
+    this.pos = this.nrm = this.uv = this.idx = null;
+    this.uv2 = this.col = this.extra = null;
     return g;
   }
 }

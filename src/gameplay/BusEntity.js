@@ -227,6 +227,7 @@ export class BusEntity {
 
   dispose() {
     this.scene.remove(this.model.root);
+    this.model.dispose();
   }
 
   /** World position of a point given in a section's local frame. */

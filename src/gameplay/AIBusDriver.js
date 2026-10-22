@@ -54,9 +54,11 @@ export class AIBusDriver {
     // stop ahead
     const next = bus.stops.nextStop;
     let gap = Infinity;
-    if (next && this.state === 'drive' && this.shouldServe(next)) {
+    this.why = null; // what limits the speed (for debugging / tests)
+    const pending = next && !bus.stops.served.has(next.index) && this.shouldServe(next);
+    if (pending && this.state === 'drive') {
       const d = next.frontS - bus.routeS;
-      if (d > -3) gap = Math.min(gap, d + 0.3);
+      if (d > -3) { gap = Math.min(gap, d + 0.3); this.why = 'stop'; }
     }
     // traffic signals along the drive line
     if (this.signals && bus.signalsAhead) {
@@ -64,7 +66,7 @@ export class AIBusDriver {
         const d = sg.s - bus.frontS;
         if (d < -2 || d > 70) continue;
         const st = this.signals.state(sg.node, sg.end);
-        if (st !== 'G' && !(st === 'Y' && d < Math.abs(p.v) * 1.2)) gap = Math.min(gap, d - 1.5);
+        if (st !== 'G' && !(st === 'Y' && d < Math.abs(p.v) * 1.2) && d - 1.5 < gap) { gap = d - 1.5; this.why = `signal ${st}`; }
         break;
       }
     }
@@ -76,13 +78,13 @@ export class AIBusDriver {
         const along = rx * fx + rz * fz;
         if (along < 0 || along > 40) continue;
         if (Math.abs(-rx * fz + rz * fx) > 2.0) continue;
-        gap = Math.min(gap, along - c.len / 2 - 3);
+        if (along - c.len / 2 - 3 < gap) { gap = along - c.len / 2 - 3; this.why = `car ${c.id ?? ''} v=${(c.v ?? 0).toFixed(1)}`; }
       }
     }
     if (gap < Infinity) vDes = Math.min(vDes, Math.sqrt(Math.max(0, 2 * 1.1 * Math.max(0, gap))));
     // ---- stop procedure
     const atStop = bus.stops.atStop >= 0;
-    if (this.state === 'drive' && atStop && Math.abs(p.v) < 0.2 && next && this.shouldServe(next)) {
+    if (this.state === 'drive' && atStop && Math.abs(p.v) < 0.2 && pending) {
       this.state = 'opening';
       bus.doors.open(null, p.v);
       this.timer = 0;
@@ -90,7 +92,9 @@ export class AIBusDriver {
     if (this.state === 'opening') {
       this.timer += dt;
       vDes = 0;
-      if (bus.doors.doors.every((d) => d.state === 'open')) { this.state = 'dwell'; this.timer = 0; }
+      // a close request may have overtaken the opening: command them open again
+      if (bus.doors.doors.some((d) => d.state !== 'open' && d.state !== 'opening')) bus.doors.open(null, p.v);
+      if (bus.doors.doors.every((d) => d.state === 'open') || this.timer > 6) { this.state = 'dwell'; this.timer = 0; }
     } else if (this.state === 'dwell') {
       this.timer += dt;
       vDes = 0;
@@ -111,7 +115,7 @@ export class AIBusDriver {
       vDes = this.timer > 0.6 ? vDes : 0;
     }
     // indicators when pulling in/out
-    bus.lights.right = this.state === 'drive' && next && this.shouldServe(next) && next.frontS - bus.routeS < 60 && next.frontS - bus.routeS > 2;
+    bus.lights.right = !!(this.state === 'drive' && pending && next.frontS - bus.routeS < 60 && next.frontS - bus.routeS > 2);
     bus.lights.left = this.state === 'depart';
     // ---- longitudinal PI control
     const err = vDes - p.v;

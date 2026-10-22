@@ -73,6 +73,7 @@ export class Vegetation {
 
   okSpot(x, z, clearance = 1.6) {
     const w = this.world;
+    if (this.sweep && this.sweep.hits(x, z, 0.6)) return false;
     if (w.bgrid.pointInAny(x, z) >= 0) return false;
     for (const [dx, dz] of [[0, 0], [clearance, 0], [-clearance, 0], [0, clearance], [0, -clearance]])
       if (w.bgrid.pointInAny(x + dx, z + dz) >= 0) return false;

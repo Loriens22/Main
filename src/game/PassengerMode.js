@@ -6,6 +6,7 @@ import { BusEntity } from '../gameplay/BusEntity.js';
 import { AIBusDriver } from '../gameplay/AIBusDriver.js';
 import { BUS, SEATS, FRONT_Z, FRONT_BODY_END_Z, REAR_BODY_START_Z, REAR_Z } from '../vehicle/BusSpec.js';
 import { clamp, damp } from '../core/math.js';
+import { t, L } from '../ui/i18n.js';
 
 const EYE = 1.63;
 const HEADWAY = 230; // m upstream where the next bus is spawned
@@ -38,7 +39,7 @@ export class PassengerMode {
     const vx = -t.tx * 0.8 - rx * 0.6, vz = -t.tz * 0.8 - rz * 0.6;
     this.yaw = Math.atan2(-vx, -vz);
     this.spawnBus(this.startStop.frontS - 520);
-    game.hud.toast(`${this.startStop.name} — изчакайте автобус 280`, false, 5);
+    game.hud.toast(L(`${this.startStop.name} — изчакайте автобус 280`, `${this.startStop.name} — wait for bus 280`), false, 5);
     game.rig.shake = 0;
   }
 
@@ -68,7 +69,7 @@ export class PassengerMode {
 
   cycleCamera() {
     this.camMode = this.camMode === 'eyes' ? 'cinematic' : 'eyes';
-    this.game.hud.toast(this.camMode === 'eyes' ? 'Изглед: от първо лице' : 'Изглед: кинематографичен');
+    this.game.hud.toast(this.camMode === 'eyes' ? L('Изглед: от първо лице', 'View: first person') : L('Изглед: кинематографичен', 'View: cinematic'));
   }
 
   /** The bus the player is in (or the nearest one). */
@@ -90,7 +91,8 @@ export class PassengerMode {
     const first = this.buses[0];
     if (first && this.state === 'outside' && first.routeS > this.startStop.frontS + 40 && this.buses.length < 2) {
       const nb = this.spawnBus(this.startStop.frontS - HEADWAY - 300);
-      g.hud.toast(`Изпуснахте автобуса. Следващият 280 идва след ~${Math.round((HEADWAY + 300) / 8 / 60) + 1} мин`, false, 5);
+      const mins = Math.round((HEADWAY + 300) / 8 / 60) + 1;
+      g.hud.toast(L(`Изпуснахте автобуса. Следващият 280 идва след ~${mins} мин`, `You missed the bus. The next 280 arrives in ~${mins} min`), false, 5);
       void nb;
     }
     for (let i = this.buses.length - 1; i >= 0; i--) {
@@ -122,9 +124,9 @@ export class PassengerMode {
         dist: this.ride && next ? next.frontS - bus.routeS : bus.camDist, delay: null, stopRequested: bus.stopRequested,
         fps: g.settings.showFps ? g.fpsAcc.fps : null, quality: g.quality,
       });
-      g.hud.q.lbl.textContent = this.ride ? (bus.stops.atStop >= 0 ? 'Спирка' : 'Следваща спирка') : 'Автобус 280 — разстояние';
+      g.hud.q.lbl.textContent = this.ride ? (bus.stops.atStop >= 0 ? t('stop') : t('nextStop')) : L('Автобус 280 — разстояние', 'Bus 280 — distance');
       g.hud.q.name.textContent = this.ride ? (next ? next.name : '—') : `${bus.fleetLabel || 'MAN Lion\'s City G'} → ${bus.dir.headsign}`;
-      g.hud.q.dist.textContent = this.ride ? g.hud.q.dist.textContent : `${Math.round(bus.camDist)} м`;
+      g.hud.q.dist.textContent = this.ride ? g.hud.q.dist.textContent : L(`${Math.round(bus.camDist)} м`, `${Math.round(bus.camDist)} m`);
       this.mapT = (this.mapT || 0) - dt;
       if (this.mapT <= 0) {
         this.mapT = 0.15;
@@ -164,7 +166,7 @@ export class PassengerMode {
     this.pos.y = damp(this.pos.y || y, y, 12, dt);
     // prompt when a bus with open doors is close
     const near = this.buses.find((b) => b.doors.anyOpen && b.camDist < 15);
-    g.hud.setPrompt(near ? '<kbd>E</kbd>Качете се през отворената врата' : null);
+    g.hud.setPrompt(near ? L('<kbd>E</kbd>Качете се през отворената врата', '<kbd>E</kbd>Board through the open door') : null);
     const cam = g.camera;
     if (this.camMode === 'eyes') {
       const bob = Math.hypot(mx, mz) > 0 ? Math.sin(performance.now() * 0.009) * 0.025 : 0;
@@ -187,7 +189,7 @@ export class PassengerMode {
     this.yaw = Math.PI / 2; // facing into the bus (towards -x local)
     this.seat = -1;
     bus.forceServe = null;
-    this.game.hud.toast('Добре дошли в автобус 280!');
+    this.game.hud.toast(L('Добре дошли в автобус 280!', 'Welcome aboard bus 280!'));
     this.game.audio.setZone('cabin');
   }
 
@@ -207,7 +209,7 @@ export class PassengerMode {
       if (!bus.stopRequested) {
         bus.stopRequested = true;
         g.audio.stopBell();
-        g.hud.toast('Заявена спирка');
+        g.hud.toast(L('Заявена спирка', 'Stop requested'));
       }
     }
     // sitting / standing
@@ -224,7 +226,7 @@ export class PassengerMode {
         const seat = this.lookSeat(bus);
         if (seat >= 0) {
           const taken = (bus.riders || []).some((r) => r.seat === seat);
-          if (taken) g.hud.toast('Мястото е заето', true);
+          if (taken) g.hud.toast(L('Мястото е заето', 'This seat is taken'), true);
           else {
             this.state = 'seated';
             this.seat = seat;
@@ -270,9 +272,9 @@ export class PassengerMode {
         this.lx = nx;
         this.lz = clamp(nz, zMin, zMax);
       }
-      g.hud.setPrompt(this.lookSeat(bus) >= 0 ? '<kbd>E</kbd>Седни' : bus.doors.anyOpen ? 'Излезте през отворена врата · <kbd>B</kbd> СТОП' : '<kbd>B</kbd> СТОП · <kbd>G</kbd> дръж се');
+      g.hud.setPrompt(this.lookSeat(bus) >= 0 ? L('<kbd>E</kbd>Седни', '<kbd>E</kbd>Sit down') : bus.doors.anyOpen ? L('Излезте през отворена врата · <kbd>B</kbd> СТОП', 'Exit through an open door · <kbd>B</kbd> STOP') : L('<kbd>B</kbd> СТОП · <kbd>G</kbd> дръж се', '<kbd>B</kbd> STOP · <kbd>G</kbd> hold on'));
     } else {
-      g.hud.setPrompt('<kbd>E</kbd>Стани · <kbd>B</kbd> СТОП');
+      g.hud.setPrompt(L('<kbd>E</kbd>Стани · <kbd>B</kbd> СТОП', '<kbd>E</kbd>Stand up · <kbd>B</kbd> STOP'));
       if (!bus.riders.some((r) => r.player)) bus.riders.push({ player: true, seat: this.seat, dest: -1, look: null });
     }
     // camera inside: bus section frame + head offsets
@@ -309,7 +311,7 @@ export class PassengerMode {
     // passenger's own destination reached at the terminal
     if (bus.stops.finished && bus.doors.anyOpen && !this.toldTerminal) {
       this.toldTerminal = true;
-      g.hud.toast('Последна спирка — моля, слезте от автобуса', false, 5);
+      g.hud.toast(L('Последна спирка — моля, слезте от автобуса', 'Last stop — please leave the bus'), false, 5);
     }
   }
 
@@ -357,7 +359,7 @@ export class PassengerMode {
     this.ride = null;
     this.state = 'outside';
     this.startStop = bus.stops.atStop >= 0 ? bus.dir.stops[bus.stops.atStop] : this.startStop;
-    g.hud.toast(`Слязохте на спирка ${this.startStop.name}. Приятен ден!`, false, 4);
+    g.hud.toast(L(`Слязохте на спирка ${this.startStop.name}. Приятен ден!`, `You got off at ${this.startStop.name}. Have a nice day!`), false, 4);
   }
 
   cinematic(dt) {

@@ -242,7 +242,7 @@ export class ArticulatedBus {
     this.distR += dr;
 
     // ---------------- body motion (roll / pitch spring-dampers per section)
-    const kneelTarget = interlock && Math.abs(this.v) < 0.1 ? 1 : 0;
+    const kneelTarget = interlock && this.autoKneel !== false && Math.abs(this.v) < 0.1 ? 1 : 0;
     this.kneel += clamp(kneelTarget - this.kneel, -dt * 0.8, dt * 0.8);
     const rollTarget = [-this.aLat * 0.0065, -this.aLat * 0.0058];
     const pitchTarget = [this.aLong * 0.0035, this.aLong * 0.0025];

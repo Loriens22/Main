@@ -1094,6 +1094,26 @@ export class BusModel {
     for (const w of this.wipers) w.rotation.z = 1.5 - angle;
   }
 
+  /** The passenger interior is only seen through the windows: skip it from afar. */
+  setDetail(cameraDist) {
+    const show = cameraDist < 70;
+    if (this.interiorGroups && this.interiorGroups[0].visible !== show) for (const g of this.interiorGroups) g.visible = show;
+  }
+
+  /** Free GPU resources; every bus owns its geometry, materials and textures. */
+  dispose() {
+    const mats = new Set(), texs = new Set();
+    this.root.traverse((o) => {
+      if (o.geometry) o.geometry.dispose();
+      if (o.material) for (const m of [].concat(o.material)) mats.add(m);
+    });
+    for (const m of [...mats, ...Object.values(this.mats)]) {
+      for (const v of Object.values(m)) if (v && v.isTexture) texs.add(v);
+      m.dispose();
+    }
+    for (const t of texs) t.dispose();
+  }
+
   /** Ensures world matrices are up to date, then rebuilds the bellows. */
   afterPose() {
     this.root.updateMatrixWorld(true);

@@ -11,11 +11,12 @@ import { Game } from './game/Game.js';
 import { Menu } from './ui/Menu.js';
 import { Input } from './ui/Input.js';
 import { injectStyles } from './ui/styles.js';
-import { setLang } from './ui/i18n.js';
+import { setLang, L } from './ui/i18n.js';
 import { loadSettings, saveSettings, detectQuality, writeSave } from './game/Settings.js';
 import { AudioManager } from './audio/AudioManager.js';
 import { VoiceAnnouncer } from './audio/VoiceAnnouncer.js';
 import { GameStateManager } from './gameplay/GameStateManager.js';
+import { AIBusDriver } from './gameplay/AIBusDriver.js';
 
 const params = new URLSearchParams(location.search);
 
@@ -27,6 +28,7 @@ async function boot() {
   const progress = (p, txt) => {
     bar.style.width = `${Math.round(p * 100)}%`;
     if (txt) msg.textContent = txt;
+    if (params.has('memlog') && performance.memory) console.warn(`MEM ${p.toFixed(2)} ${Math.round(performance.memory.usedJSHeapSize / 1e6)}MB ${txt || ''}`);
   };
   const settings = loadSettings();
   if (!settings.quality) settings.quality = detectQuality();
@@ -34,7 +36,7 @@ async function boot() {
   saveSettings(settings);
   setLang(settings.lang);
   const quality = settings.quality;
-  if (!document.createElement('canvas').getContext('webgl2')) throw new Error('WebGL2 не се поддържа от този браузър / WebGL2 not supported');
+  if (!document.createElement('canvas').getContext('webgl2')) throw new Error(L('WebGL2 не се поддържа от този браузър / WebGL2 not supported', 'WebGL2 is not supported by this browser'));
   const R = new Renderer(canvas, quality);
   R.renderScale = settings.renderScale || 1;
   const scene = new THREE.Scene();
@@ -48,7 +50,7 @@ async function boot() {
   states.go('menu');
   const data = await loadWorldPack(progress);
   const world = await new World({ scene, data, quality, route }).build(progress);
-  progress(0.72, 'Растителност, улично обзавеждане и спирки…');
+  progress(0.72, L('Растителност, улично обзавеждане и спирки…', 'Vegetation, street furniture and stops…'));
   await new Promise((r) => setTimeout(r, 0));
   const extras = await import('./world/Extras.js').then((m) => m.buildExtras({ scene, world, data, route, quality, sky })).catch((e) => {
     console.error('extras failed', e);
@@ -65,7 +67,7 @@ async function boot() {
   if (extras.init) extras.init(game);
   sky.set(10.5, 'clear');
   world.setNight(sky.night);
-  progress(0.9, 'Компилиране на шейдърите…');
+  progress(0.9, L('Компилиране на шейдърите…', 'Compiling shaders…'));
   game.startAttract();
   game.update(0.016);
   R.renderer.compile(scene, camera);
@@ -157,7 +159,7 @@ async function boot() {
 
   menu.main();
   window.__game = {
-    game, menu, world, route, scene, camera, renderer: R, sky, audio, THREE, startMode, applyQuality, ready: true,
+    game, menu, world, route, scene, camera, renderer: R, sky, audio, THREE, startMode, applyQuality, ready: true, mods: { AIBusDriver },
     /** Test helper: advance the game deterministically with held keys / one-shot key presses. */
     sim(seconds, { hold = [], press = [] } = {}, dt = 1 / 30) {
       for (const k of press) input.pressed.add(k);
@@ -251,5 +253,5 @@ async function busStudio({ R, scene, camera, sky, progress }) {
 boot().catch((e) => {
   console.error(e);
   const m = document.getElementById('loadmsg');
-  if (m) m.textContent = `Грешка: ${e.message}`;
+  if (m) m.textContent = L(`Грешка: ${e.message}`, `Error: ${e.message}`);
 });

@@ -1,0 +1,115 @@
+{
+  "title": "MAN Lion's City G CNG — reference for the in-game model",
+  "vehicle": "MAN Lion's City 18 G CNG (articulated, 3 axles, 4 double doors), A23 generation, as seen in the reference photos supplied with the project directive",
+  "referencePhotos": [
+    {
+      "fleet": "3145",
+      "plate": "CB 5696 HM",
+      "view": "front three-quarter, at a stop"
+    },
+    {
+      "fleet": "3153",
+      "plate": "CB 5713 HM",
+      "view": "side / front"
+    },
+    {
+      "fleet": "2319",
+      "plate": "CB 5720 HM",
+      "view": "front three-quarter"
+    },
+    {
+      "view": "interior towards the rear (rear section, bellows turntable, seat layout, yellow grab rails)"
+    },
+    {
+      "view": "interior towards the front (driver's cab partition, validators, door 2 area)"
+    }
+  ],
+  "dimensions": {
+    "length_m": {
+      "value": 17.98,
+      "confidence": "medium",
+      "basis": "MAN published length for the 18 m articulated Lion's City G (about 18 m); exact value for this configuration not verified"
+    },
+    "width_m": {
+      "value": 2.55,
+      "confidence": "high",
+      "basis": "EU maximum width; MAN city buses are 2.55 m"
+    },
+    "height_m": {
+      "value": 3.34,
+      "confidence": "medium",
+      "basis": "including the CNG cylinder housings on the roof; estimated from photo proportions"
+    },
+    "wheelbase_axle1_axle2_m": {
+      "value": 5.105,
+      "confidence": "low",
+      "basis": "estimated from photo proportions against door widths"
+    },
+    "wheelbase_axle2_axle3_m": {
+      "value": 6.77,
+      "confidence": "low",
+      "basis": "estimated from photo proportions"
+    },
+    "front_overhang_m": {
+      "value": 2.7,
+      "confidence": "low",
+      "basis": "estimated from photos (door 1 ahead of the front axle)"
+    },
+    "rear_overhang_m": {
+      "value": 3.405,
+      "confidence": "low",
+      "basis": "derived so that the sum matches the overall length"
+    },
+    "tyres": {
+      "value": "275/70 R22.5",
+      "confidence": "medium",
+      "basis": "standard city-bus fitment; twin tyres on the driven rear axle"
+    },
+    "door_width_m": {
+      "value": 1.2,
+      "confidence": "medium",
+      "basis": "double inward-swinging doors, typical 1.2 m clear opening"
+    },
+    "floor_height_m": {
+      "value": 0.36,
+      "confidence": "medium",
+      "basis": "low-floor entry height with kneeling"
+    }
+  },
+  "drivetrain": {
+    "engine": {
+      "value": "MAN E2876 LUH, 12.8 l CNG inline-six, about 228 kW (as listed for the NG 313 CNG)",
+      "confidence": "low",
+      "basis": "type designation from the A23/NG 313 CNG model range; not verified for the Sofia vehicles. The game uses a generic CNG torque curve, not a certified engine map."
+    },
+    "gearbox": {
+      "value": "ZF EcoLife-style 6-speed automatic with torque converter and retarder",
+      "confidence": "low",
+      "basis": "a common fit for this model; the gearbox behaviour is simulated generically"
+    },
+    "driven_axle": "axle 3 (pusher configuration)"
+  },
+  "livery": {
+    "description": "white body, green/yellow/blue leaf graphics of the Sofia public transport livery on the lower body, black window band, amber LED destination signs",
+    "confidence": "medium",
+    "basis": "recreated as procedural graphics from the reference photos; not a copy of the operator's artwork"
+  },
+  "doorSequence": {
+    "implemented": "close request -> beep 1 -> beep 2 -> leaves move -> closed; obstruction makes the doors reopen and retry",
+    "timing_s": {
+      "beep1": 0.0,
+      "beep2": 0.42,
+      "closeStart": 0.95,
+      "closeDuration": 1.9,
+      "openDuration": 1.45
+    },
+    "confidence": "low",
+    "basis": "The two-beep pattern follows the directive. Beep frequency, length and spacing are synthesised and configurable in Settings; they are not a recording of the real bus."
+  },
+  "unverified": [
+    "Exact axle positions and overhangs (estimated from photographs).",
+    "Exact seat count and layout in every vehicle (the model uses one plausible layout matching the interior photos).",
+    "Engine and gearbox calibration.",
+    "Real door-warning sound (synthesised substitute)."
+  ]
+}

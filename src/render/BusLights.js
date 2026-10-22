@@ -14,8 +14,8 @@ export class BusLightRig {
     this.headTarget.position.set(0, -0.6, FRONT_Z - 22);
     this.head.target = this.headTarget;
     this.cabin = [new THREE.PointLight(0xeef2ff, 0, 8.5, 1.7), new THREE.PointLight(0xeef2ff, 0, 8.5, 1.7)];
-    this.cabin[0].position.set(0, 2.25, -3.3);
-    this.cabin[1].position.set(0, 2.25, -0.7);
+    this.cabin[0].position.set(0, 1.55, -3.3);
+    this.cabin[1].position.set(0, 1.55, -0.7);
     // parked off-scene until a bus is attached
     this.parking = new THREE.Group();
     scene.add(this.parking);
@@ -43,7 +43,7 @@ export class BusLightRig {
     }
     const dark = THREE.MathUtils.smoothstep(night, 0.2, 0.8);
     this.head.intensity = bus.lights.head ? 95 * (0.35 + 0.65 * dark) : 0;
-    const cabin = (bus.lights.interior ?? 1) > 0 ? 7 * dark : 0;
+    const cabin = (bus.lights.interior ?? 1) > 0 ? 2.6 * dark : 0;
     for (const l of this.cabin) l.intensity = cabin;
   }
 }

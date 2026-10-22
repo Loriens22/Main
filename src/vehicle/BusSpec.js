@@ -1,4 +1,4 @@
-// Dimensions of the MAN Lion's City G (A23, NG313 CNG), Sofia fleet 2018/19.
+// Dimensions of the MAN Lion's City G CNG (A23 generation) as photographed in Sofia.
 // Sources / confidence are documented in data/research/bus_reference.json.
 // Local frames: x = right, y = up, z = backwards (forward is -z).
 //   front section origin = middle axle (axle 2) centre on the ground

@@ -1,6 +1,7 @@
 // Decodes the embedded world pack (gzip + base64 JSON produced by
 // tools/build_world.py). Polylines are delta-encoded decimetres.
 import packB64 from '../data/world.pack.b64';
+import { L } from '../ui/i18n.js';
 
 function decodeLine(d) {
   const n = d.length >> 1;
@@ -26,7 +27,7 @@ function decodeGrid(g) {
 }
 
 export async function loadWorldPack(progress = () => {}) {
-  progress(0.02, 'Разопаковане на картата…');
+  progress(0.02, L('Разопаковане на картата…', 'Unpacking the map…'));
   const bin = Uint8Array.from(atob(packB64), (c) => c.charCodeAt(0));
   let text;
   if (typeof DecompressionStream !== 'undefined') {
@@ -36,7 +37,7 @@ export async function loadWorldPack(progress = () => {}) {
     throw new Error('DecompressionStream not supported (update your browser)');
   }
   const p = JSON.parse(text);
-  progress(0.06, 'Обработка на данните…');
+  progress(0.06, L('Обработка на данните…', 'Processing the data…'));
   const w = {
     attribution: p.attribution,
     names: p.names,

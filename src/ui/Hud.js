@@ -1,7 +1,7 @@
 // In-game HUD (DOM overlay): route badge, next stop, schedule, speed, gear,
 // doors, lamps, minimap, toasts, subtitles of announcements, checklist,
 // interaction prompts and trip results.
-import { t } from './i18n.js';
+import { t, L } from './i18n.js';
 
 const el = (tag, cls, html) => {
   const e = document.createElement(tag);
@@ -17,7 +17,7 @@ export class Hud {
     this.route = el('div', 'route');
     this.top = el('div', 'panel top', '<span class="badge">280</span><span class="dest"></span>');
     this.next = el('div', 'panel next', `<div class="lbl">${t('nextStop')}</div><div class="name">—</div><div class="meta"><span class="dist"></span><span class="sched"></span></div>`);
-    this.stopReq = el('div', 'stopreq', 'СТОП');
+    this.stopReq = el('div', 'stopreq', L('СТОП', 'STOP'));
     this.route.append(this.top, this.next, this.stopReq);
     this.dash = el('div', 'panel dash', `
       <div class="spd">0<small>${t('speed')}</small></div>
@@ -52,9 +52,23 @@ export class Hud {
     this.mode = mode;
     this.dash.style.display = mode === 'driver' ? '' : 'none';
     this.check.style.display = mode === 'driver' ? '' : 'none';
-    this.help.innerHTML = mode === 'driver'
-      ? '<b>W/S</b> газ / спирачка · <b>A/D</b> волан<br><b>1/2/3</b> D N R · <b>P</b> ръчна спирачка<br><b>O</b> отвори врати · <b>C</b> затвори (бип-бип)<br><b>Q/E</b> мигачи · <b>H</b> аварийни · <b>L</b> фарове<br><b>Y</b> чистачки · <b>Space</b> клаксон · <b>K</b> накланяне<br><b>Tab</b> камера · <b>мишка</b> оглеждане · <b>Esc</b> пауза'
-      : '<b>WASD</b> ходене · <b>мишка</b> оглеждане<br><b>E</b> действие (качи се / седни / стани / слез)<br><b>B</b> бутон СТОП · <b>Tab</b> камера · <b>Esc</b> пауза';
+    // labels built in the constructor: refresh them in case the language changed since
+    this.stopReq.textContent = L('СТОП', 'STOP');
+    this.q.spd.querySelector('small').textContent = t('speed');
+    this.help.innerHTML = (mode === 'driver'
+      ? [
+        L('<b>W/S</b> газ / спирачка · <b>A/D</b> волан', '<b>W/S</b> throttle / brake · <b>A/D</b> steer'),
+        L('<b>1/2/3</b> D N R · <b>P</b> ръчна спирачка', '<b>1/2/3</b> D N R · <b>P</b> parking brake'),
+        L('<b>O</b> отвори врати · <b>C</b> затвори (бип-бип)', '<b>O</b> open doors · <b>C</b> close (beep-beep)'),
+        L('<b>Q/E</b> мигачи · <b>H</b> аварийни · <b>L</b> фарове', '<b>Q/E</b> indicators · <b>H</b> hazards · <b>L</b> headlights'),
+        L('<b>Y</b> чистачки · <b>Space</b> клаксон · <b>K</b> накланяне', '<b>Y</b> wipers · <b>Space</b> horn · <b>K</b> kneeling'),
+        L('<b>Tab</b> камера · <b>мишка</b> оглеждане · <b>Esc</b> пауза', '<b>Tab</b> camera · <b>mouse</b> look · <b>Esc</b> pause'),
+      ]
+      : [
+        L('<b>WASD</b> ходене · <b>мишка</b> оглеждане', '<b>WASD</b> walk · <b>mouse</b> look'),
+        L('<b>E</b> действие (качи се / седни / стани / слез)', '<b>E</b> action (board / sit / stand / get off)'),
+        L('<b>B</b> бутон СТОП · <b>Tab</b> камера · <b>Esc</b> пауза', '<b>B</b> STOP button · <b>Tab</b> camera · <b>Esc</b> pause'),
+      ]).join('<br>');
   }
 
   show(on) {
@@ -100,7 +114,7 @@ export class Hud {
     q.dest.textContent = `→ ${s.headsign}`;
     q.name.textContent = s.nextStop || '—';
     q.lbl.textContent = s.atStop ? t('stop') : t('nextStop');
-    q.dist.textContent = s.dist != null && isFinite(s.dist) ? (s.dist > 1000 ? `${(s.dist / 1000).toFixed(1)} км` : `${Math.max(0, Math.round(s.dist))} м`) : '';
+    q.dist.textContent = s.dist != null && isFinite(s.dist) ? (s.dist > 1000 ? L(`${(s.dist / 1000).toFixed(1)} км`, `${(s.dist / 1000).toFixed(1)} km`) : L(`${Math.max(0, Math.round(s.dist))} м`, `${Math.max(0, Math.round(s.dist))} m`)) : '';
     if (s.delay != null) {
       const d = Math.round(s.delay);
       const m = Math.floor(Math.abs(d) / 60), sec = Math.abs(d) % 60;
@@ -185,7 +199,7 @@ export class Hud {
     const row = el('div', '');
     row.style.display = 'flex';
     row.style.gap = '10px';
-    const b1 = el('button', 'btn primary', 'Обратен курс ↩');
+    const b1 = el('button', 'btn primary', L('Обратен курс ↩', 'Return trip ↩'));
     b1.onclick = () => { this.hideResult(); onContinue(); };
     const b2 = el('button', 'btn', t('mainMenu'));
     b2.onclick = () => { this.hideResult(); onMenu(); };

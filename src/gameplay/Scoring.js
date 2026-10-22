@@ -1,6 +1,8 @@
 // Driving evaluation: smoothness (passenger comfort), stopping accuracy,
 // punctuality, speed limits, kerb strikes, collisions. No game-over —
 // only feedback and a trip summary.
+import { t, L } from '../ui/i18n.js';
+
 export class Scoring {
   constructor() {
     this.reset();
@@ -36,12 +38,12 @@ export class Scoring {
     this.stops.push(e);
     const pts = e < 2 ? 15 : e < 4 ? 8 : e < 8 ? 2 : -5;
     this.add('stops', pts);
-    if (lateral > 1.4) this.add('kerbGap', -4, 'Твърде далеч от бордюра');
+    if (lateral > 1.4) this.add('kerbGap', -4, L('Твърде далеч от бордюра', 'Too far from the kerb'));
   }
 
   punctuality(delay) {
     this.delays.push(delay);
-    if (delay < -60) this.add('early', -8, 'Подранихте — изчакайте по разписание');
+    if (delay < -60) this.add('early', -8, L('Подранихте — изчакайте по разписание', 'Running early — wait for your scheduled time'));
     else if (Math.abs(delay) < 90) this.add('punctual', 4);
   }
 
@@ -55,7 +57,7 @@ export class Scoring {
       this.comfortT += dt;
       if (this.comfortT > 0.6) {
         this.comfortT = -2;
-        this.add('comfort', -5, along > 2.2 ? (p.aLong < 0 ? 'Рязко спиране — пътниците падат!' : 'Рязко потегляне') : 'Твърде бързо в завоя');
+        this.add('comfort', -5, along > 2.2 ? (p.aLong < 0 ? L('Рязко спиране — пътниците падат!', 'Harsh braking — passengers are falling!') : L('Рязко потегляне', 'Harsh acceleration')) : L('Твърде бързо в завоя', 'Cornering too fast'));
       }
     } else this.comfortT = Math.max(0, this.comfortT - dt);
     // speeding (city limit 50 km/h unless the road says otherwise)
@@ -65,7 +67,7 @@ export class Scoring {
       this.speedT += dt;
       if (this.speedT > 3) {
         this.speedT = -5;
-        this.add('speed', -6, `Превишена скорост (${limit} км/ч)`);
+        this.add('speed', -6, L(`Превишена скорост (${limit} км/ч)`, `Speeding (${limit} km/h)`));
       }
     } else this.speedT = Math.max(0, this.speedT - dt);
     // kerb strikes: front wheels off the carriageway onto a raised kerb
@@ -75,7 +77,7 @@ export class Scoring {
         const wx = p.x + fx * 5.1 + rx * side * 1.15, wz = p.z + fz * 5.1 + rz * side * 1.15;
         if (!world.roads.onRoad(wx, wz, 0.25) && world.roads.onRoad(wx, wz, 3.0)) {
           this.kerbCooldown = 2.5;
-          this.add('kerb', -4, 'Удар в бордюра');
+          this.add('kerb', -4, L('Удар в бордюра', 'Kerb strike'));
           bus.kerbHit = true;
           break;
         }
@@ -91,14 +93,14 @@ export class Scoring {
     return {
       points: this.points,
       rows: [
-        ['Оценка', `${stars} (${Math.round(this.points)})`],
-        ['Обслужени спирки', String(this.stops.length)],
-        ['Средна точност на спиране', `${avgStop.toFixed(1)} м`],
-        ['Средно отклонение от графика', fmt(avgDelay)],
-        ['Комфорт', String(this.items.comfort || 0)],
-        ['Скорост', String(this.items.speed || 0)],
-        ['Бордюри / сблъсъци', `${this.items.kerb || 0} / ${this.items.collision || 0}`],
-        ['Изминато разстояние', `${(this.distance / 1000).toFixed(2)} км`],
+        [t('score'), `${stars} (${Math.round(this.points)})`],
+        [L('Обслужени спирки', 'Stops served'), String(this.stops.length)],
+        [L('Средна точност на спиране', 'Average stopping accuracy'), L(`${avgStop.toFixed(1)} м`, `${avgStop.toFixed(1)} m`)],
+        [L('Средно отклонение от графика', 'Average schedule deviation'), fmt(avgDelay)],
+        [L('Комфорт', 'Comfort'), String(this.items.comfort || 0)],
+        [L('Скорост', 'Speed'), String(this.items.speed || 0)],
+        [L('Бордюри / сблъсъци', 'Kerbs / collisions'), `${this.items.kerb || 0} / ${this.items.collision || 0}`],
+        [L('Изминато разстояние', 'Distance driven'), L(`${(this.distance / 1000).toFixed(2)} км`, `${(this.distance / 1000).toFixed(2)} km`)],
       ],
     };
   }

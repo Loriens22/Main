@@ -1,7 +1,8 @@
 // Procedural WebAudio sound design for the bus and the city. Every sound is
 // synthesised at runtime (no sample files): an AudioWorklet engine model
-// for the 12.8 l CNG inline-six, pneumatics, the MAN double-beep door
-// warning, indicator relay, tyre/road noise (incl. the cobbled yellow
+// for the 12.8 l CNG inline-six, pneumatics, a two-beep door warning
+// (synthesised and configurable, not a recording of the real bus), the
+// indicator relay, tyre/road noise (incl. the cobbled yellow
 // paving), wind, rain, city ambience, horn and the announcement chime.
 // Three listening zones (driver's cab, passenger cabin, exterior) change
 // filtering and levels.

@@ -7,7 +7,7 @@ const path = require('path');
 (async () => {
   const [html, outdir, query = '', stepsJson = '[]'] = process.argv.slice(2);
   const steps = JSON.parse(stepsJson);
-  const b = await chromium.launch({ args: ['--use-gl=angle', '--use-angle=swiftshader', '--enable-unsafe-swiftshader', '--ignore-gpu-blocklist', '--autoplay-policy=no-user-gesture-required'] });
+  const b = await chromium.launch({ args: ['--use-gl=angle', '--use-angle=swiftshader', '--enable-unsafe-swiftshader', '--ignore-gpu-blocklist', '--autoplay-policy=no-user-gesture-required', '--enable-precise-memory-info', '--js-flags=--expose-gc'] });
   const p = await b.newPage({ viewport: { width: 1280, height: 720 } });
   const logs = [];
   p.on('console', (m) => { if (['error', 'warning'].includes(m.type())) logs.push(`[${m.type()}] ${m.text()}`); });
