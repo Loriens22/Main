@@ -288,7 +288,8 @@ export class TrafficManager {
     let byBus = false;
     for (const b of busBoxes) {
       // an oncoming bus in its own lane is passed; only a bus across or in our lane stops us
-      const side = b.fx * fx + b.fz * fz < -0.5 ? 0.25 : 0.9;
+      // (a car in a turn swings across the bus's lane: keep the full margin then)
+      const side = b.fx * fx + b.fz * fz < -0.5 && !car.turn ? 0.25 : 0.9;
       for (let d = 2; d <= 30; d += 2) {
         const px = car.x + fx * (car.len / 2 + d), pz = car.z + fz * (car.len / 2 + d);
         const lx = (px - b.cx) * b.fx + (pz - b.cz) * b.fz, lz = (px - b.cx) * -b.fz + (pz - b.cz) * b.fx;

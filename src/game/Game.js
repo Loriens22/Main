@@ -235,11 +235,16 @@ export class Game {
     if (bus.indicatorOn !== wasInd && (bus.lights.left || bus.lights.right || bus.lights.hazard)) this.audio.indicatorTick(bus.indicatorOn);
     bus.syncVisual();
     // --- events
-    if (p.lastCollision && p.lastCollision.speed > 0.6) {
-      this.audio.crash(p.lastCollision.speed);
-      this.rig.shake = 1;
-      this.scoring.add('collision', -Math.round(20 + p.lastCollision.speed * 10), L('Сблъсък!', 'Collision!'));
-      this.hud.toast(L('Сблъсък!', 'Collision!'), true);
+    if (p.lastCollision) {
+      // one penalty per contact: a scrape along a pole lasts many frames
+      const fresh = this.time - (this.lastContactT ?? -9) > 1.5;
+      this.lastContactT = this.time;
+      if (fresh && p.lastCollision.speed > 0.6) {
+        this.audio.crash(p.lastCollision.speed);
+        this.rig.shake = 1;
+        this.scoring.add('collision', -Math.round(20 + p.lastCollision.speed * 10), L('Сблъсък!', 'Collision!'));
+        this.hud.toast(L('Сблъсък!', 'Collision!'), true);
+      }
     }
     for (const e of bus.events.splice(0)) this.onStopEvent(bus, e);
     this.scoring.update(dt, bus, this.world);

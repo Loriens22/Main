@@ -10,12 +10,22 @@ The newest entries are at the top.
 An AI driver drove each direction end to end, serving every stop, at noon with traffic
 and pedestrians. The test harness is `tools/shot.cjs` in headless Chromium.
 
-| Direction | Length | Time (simulated) | Stops served | Terminal reached | Collisions |
-| --- | --- | --- | --- | --- | --- |
-| A: СУ → Студентски град | 10.66 km | 25.4 min | 18 / 18 | yes | 0 |
-| B: Студентски град → СУ | 10.31 km | 25.8 min | 18 / 18 | yes | 1 (low speed, with traffic) |
+Final run, after all the fixes below. The simulation is deterministic: the same build
+gives the same result.
 
-The longest stops outside the stop procedure were red-light waits of 25–40 s.
+| Direction | Length | Time (simulated) | Stops served | Terminal reached | Longest halt | Contacts |
+| --- | --- | --- | --- | --- | --- | --- |
+| A: СУ → Студентски град | 10.66 km | 25.4 min | 18 / 18 | yes | 30 s (red light) | 1 brief touch by a turning car |
+| B: Студентски град → СУ | 10.31 km | 24.9 min | 18 / 18 | yes | 27 s (red light) | 2 brief touches by turning cars |
+
+Earlier runs exposed stalls of 135–455 s, all now fixed:
+
+- **Grazing contacts** pinned the bus (see "Other fixes").
+- **Oncoming deadlock.** The bus and an oncoming car queue each treated the other as
+  "in the way" on a narrow road. Both checks now know about direction. The AI tests
+  cars' oriented boxes against its own path ahead: tight clearance for oncoming cars,
+  a buffer for cars ahead. Cars keep their full margin only for a bus in their lane, or
+  while they are turning.
 
 Near the Студентски град loop exit, a car and the bus could wait for each other. This
 resolved only when the car was removed after 40 s. Cars blocked by a bus now give up
@@ -118,6 +128,8 @@ emulation. Screenshots are in `docs/screenshots/`.
   multiplied the bus's speed by −0.08 on every physics step. The bus was pinned for
   over two minutes; this was found in deterministic full-route runs. Speed is now
   damped only when the bus drives into an obstacle.
+- **Collision penalty.** It is applied once per contact. A scrape spans many frames and
+  must not be penalised on every one.
 - **Prop clearance.** The swept-path margin grew to 1.0 m, because drivers cut tight
   corners slightly.
 - **Older browsers.** Browsers without `DecompressionStream` (Safari < 16.4) decode the
