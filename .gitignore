@@ -2,3 +2,6 @@ node_modules/
 dist/
 *.parquet
 .cache/
+# research scratch: photo crops and rendered audio previews are derived and regenerable
+data/research/**/crops*/
+data/research/audio/previews/*.wav

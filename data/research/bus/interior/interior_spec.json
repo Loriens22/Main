@@ -1,0 +1,1658 @@
+{
+ "meta": {
+  "title": "MAN Lion's City G CNG (A23) Sofia - interior and driver's cab spec",
+  "frames": "Same frames as src/vehicle/BusSpec.js: x right (+), y up, z backwards (+), forward = -z. 'front' frame origin = middle axle centre on the ground; 'rear' frame origin = rear axle centre on the ground. All y values are ABSOLUTE heights above the ground in metres (floorY = 0.36) unless a key says 'above_floor'.",
+  "units": "metres, hex colours, degrees",
+  "code_state_checked": [
+   "src/vehicle/BusSpec.js",
+   "src/vehicle/BusLayout.js (SEATS, STANDING)",
+   "src/vehicle/BusInterior.js (buildInterior, seatGeometry, poles, buildCab)",
+   "src/vehicle/BusModel.js (signs)"
+  ],
+  "photos": {
+   "4": "user_ref_4.jpg 1824x1368: front section looking BACK (rearward) towards the bellows; camera ~1.6-1.7 m above the aisle floor; door 2 on the left of the picture (bus-right side)",
+   "5": "user_ref_5.jpg 1067x800: looking FORWARD to the driver's cab; bus-left (driver side) is the LEFT of the picture"
+  },
+  "exposure_note": "Both photos are under-exposed/cool-cast (white ceiling reads about #a19c90 in photo 5 and #706e6a in photo 4). 'photo_raw' hex = median of sampled pixels; 'albedo' hex = recommended material colour after exposure correction (x1.3-1.5 on lightness, neutralised). Never use photo_raw directly.",
+  "supplier_search": "WebSearch could not identify the seat supplier or the validator hardware vendor (many queries, EN+BG). WebFetch is blocked for man.eu/auto.cz/automotiveworld/mtc-man (DNS/policy). Seat identified by shell shape and the embossed MAN lion oval only.",
+  "confidence_scale": "high = measured on a photo and consistent in both photos; medium = measured/estimated from a photo with an assumed scale, or typology with a visible hint; low = typology only / not visible"
+ },
+ "seats": {
+  "model": {
+   "value": "MAN-branded hard-shell 'City' bus seat: one-piece light-grey plastic shell (pan + high backrest) with a DARK charcoal cap on top of the backrest that forms an arch-shaped grab handle (through-slot) and carries an embossed oval with a lion silhouette (MAN lion badge) on its rear face.",
+   "basis": "user photo 4 crops p4_seatL_grid/p4_seatpair_grid (front face), photo 5 crops p5_seat_left/p5_seat_right (rear face with embossed lion oval ~0.07x0.045 m); MAN brochure snippet via WebSearch: 'seats are cantilevered with no under-seat props' (older Lion's City brochure)",
+   "confidence": "high for appearance, low for supplier name (Kiel/Fainsa/Ster/Vogel NOT confirmed by any source)"
+  },
+  "dims_m": {
+   "shell_width": {
+    "v": 0.44,
+    "basis": "photo 4: cap width 275 px at ~2.0 m (f~1300 px) = 0.41-0.44; standard 0.44",
+    "conf": "medium"
+   },
+   "double_seat_width": {
+    "v": 0.9,
+    "basis": "two shells with a 0.01-0.015 m dark vertical gap (visible in photo 4 seatL crop)",
+    "conf": "medium"
+   },
+   "centres_x_outer_inner": {
+    "v": [
+     0.975,
+     0.515
+    ],
+    "basis": "aisle between double seats about 0.55-0.60 m (photo 4: 330 px/600 px/m = 0.55 m at row A); interior wall face at |x|=1.205",
+    "conf": "medium"
+   },
+   "pan_depth": {
+    "v": 0.43,
+    "basis": "inferred (typology) + photo proportions",
+    "conf": "medium"
+   },
+   "pan_thickness": {
+    "v": 0.03,
+    "conf": "low"
+   },
+   "pan_top_above_floor": {
+    "v": 0.445,
+    "basis": "typology; low-floor city seat 0.43-0.46",
+    "conf": "medium"
+   },
+   "backrest_height_above_pan": {
+    "v": 0.64,
+    "basis": "photo 4: backrest face = 400 px at 668 px/m = 0.60 m + cap",
+    "conf": "medium"
+   },
+   "top_of_cap_above_floor": {
+    "v": 1.085,
+    "basis": "photo 4 camera-height calibration (cap top 1.05-1.10)",
+    "conf": "medium",
+    "note": "current model is 1.17 = 8 cm too tall"
+   },
+   "backrest_rake_deg": {
+    "v": 10.5,
+    "basis": "typology + photo 4 (face tilted back); current model 11.5 is OK",
+    "conf": "medium"
+   },
+   "backrest_thickness": {
+    "v": 0.035,
+    "conf": "low"
+   },
+   "backrest_front_surface": "concave (dished) - slight lumbar bulge at y 0.62-0.75 above floor and side bolsters; visible curved highlight lines in photo 4",
+   "cap_height": {
+    "v": 0.16,
+    "basis": "photo 4: 120 px / 275 px of width -> 0.19; photo 5: 66/196 -> 0.15",
+    "conf": "medium"
+   },
+   "cap_lower_edge": "shallow smile curve: centre 0.015 m lower than the sides, soft 1-2 mm step to the shell (photo 4)",
+   "grab_slot": {
+    "width": 0.27,
+    "height_ends": 0.055,
+    "height_centre": 0.07,
+    "shape": "flat bottom edge, arched top edge (peak +0.015), fully rounded ends R=0.03; passes through the cap from front to back",
+    "centre_above_floor": 1.035,
+    "rim_above_slot": 0.03,
+    "side_walls": 0.08,
+    "basis": "photo 4: slot 170 px wide of 275 px (62%), photo 5: 138/196 (70%)",
+    "conf": "medium"
+   },
+   "top_corner_radius": {
+    "v": 0.11,
+    "basis": "photo 4/5 cap silhouette is a wide arch",
+    "conf": "medium"
+   },
+   "rear_recess_panel": {
+    "w": 0.3,
+    "h": 0.3,
+    "centre_above_floor": 0.72,
+    "radius": 0.06,
+    "note": "slightly lighter rounded-rectangle recess on the BACK face of the shell under the cap (photo 5 p5_seat_left); this is where optional upholstery inserts go",
+    "conf": "medium"
+   }
+  },
+  "side_profile_polyline_zy": {
+   "desc": "outline of the shell side view, seat-local frame: origin on the floor/podium below the pan centre, +z toward the backrest, y up (above the local floor). Closed polygon. Pan front lip at z=-0.23.",
+   "points": [
+    [
+     -0.225,
+     0.405
+    ],
+    [
+     -0.232,
+     0.432
+    ],
+    [
+     -0.222,
+     0.458
+    ],
+    [
+     -0.12,
+     0.452
+    ],
+    [
+     -0.02,
+     0.44
+    ],
+    [
+     0.1,
+     0.428
+    ],
+    [
+     0.18,
+     0.436
+    ],
+    [
+     0.215,
+     0.5
+    ],
+    [
+     0.238,
+     0.62
+    ],
+    [
+     0.258,
+     0.8
+    ],
+    [
+     0.285,
+     0.99
+    ],
+    [
+     0.305,
+     1.085
+    ],
+    [
+     0.345,
+     1.08
+    ],
+    [
+     0.34,
+     0.95
+    ],
+    [
+     0.305,
+     0.7
+    ],
+    [
+     0.25,
+     0.47
+    ],
+    [
+     0.205,
+     0.405
+    ],
+    [
+     0.205,
+     0.385
+    ],
+    [
+     -0.2,
+     0.385
+    ]
+   ],
+   "conf": "medium"
+  },
+  "front_outline_xy": {
+   "desc": "backrest silhouette seen from the front (x, y above floor)",
+   "points": [
+    [
+     -0.215,
+     0.46
+    ],
+    [
+     -0.222,
+     0.7
+    ],
+    [
+     -0.218,
+     0.95
+    ],
+    [
+     -0.205,
+     1.04
+    ],
+    [
+     -0.16,
+     1.082
+    ],
+    [
+     0,
+     1.088
+    ],
+    [
+     0.16,
+     1.082
+    ],
+    [
+     0.205,
+     1.04
+    ],
+    [
+     0.218,
+     0.95
+    ],
+    [
+     0.222,
+     0.7
+    ],
+    [
+     0.215,
+     0.46
+    ]
+   ],
+   "cap_boundary_y": "0.93 at the sides, 0.915 at the centre",
+   "conf": "medium"
+  },
+  "mounting": {
+   "type": "cantilever: pan and backrest are carried by a bracket on the side wall (below the window / on the wheel-arch podium side); no pedestal; floor visible under floor-level seats",
+   "aisle_side": [
+    "rows beside door areas: the aisle-side seat edge is held by a grey vertical stanchion (D 0.04) with a black two-bolt clamp (photo 4 stanchion crop)",
+    "front-row right pair (bus-left side, photo 4 x1200-1800): grey tubular C-hoop guard around the aisle edge of the seat from floor to the backrest top, 0.025 tube",
+    "podium seats: a small flat L-foot bracket (0.04 x 0.15 m, light grey) under the aisle-side pan corner bolted to the podium top (photo 4 p4_floor_mid at 650,200)"
+   ],
+   "armrest": "aisle-side rows of the left (bus-right) pair have a short padded grey fold-down armrest/bolster flap at the pan's aisle edge, 0.10 x 0.07 (photo 4 at 830-870,1170-1230)",
+   "basis": "photo 4 crops; MAN brochure snippet (cantilever)",
+   "confidence": "medium"
+  },
+  "materials": {
+   "shell": {
+    "photo_raw_lit": "#838c97",
+    "photo_raw_shaded": "#4f5966",
+    "photo_raw_sunlit_p5": "#b9bdbc",
+    "albedo": "#9a9fa5",
+    "roughness": 0.42,
+    "metalness": 0.0,
+    "note": "light-medium cool grey, satin plastic. Current model #8e9398 is close but looks blue-white because of the env map; keep metalness 0 and envMapIntensity <= 0.4"
+   },
+   "cap": {
+    "photo_raw_shaded": "#202128",
+    "photo_raw_lit": "#4a4f5b",
+    "albedo": "#3b3e45",
+    "roughness": 0.5,
+    "note": "dark charcoal; also the slot interior and the rim. Same colour on both seat faces"
+   },
+   "rear_embossed_logo": "oval 0.07 x 0.045 m, relief 0.001, lion silhouette; skip or draw as a darker oval decal",
+   "pan_surface": "same grey as the shell (photo 4: #5d6976 shaded), NOT dark navy",
+   "stanchion_clamp_black": "#16171a"
+  },
+  "moquette": {
+   "where": [
+    "backrest (and pad) of the flip-up seat in the wheelchair/pram bay on the bus-left wall (photo 4, x1310-1480,y700-920) - whole backrest is moquette, 0.39 wide x 0.52 tall, top corners R 0.08",
+    "a second folded seat visible further back at x1040-1090,y640-820 is dark charcoal (probably the same type, low)",
+    "NOT on the ordinary fixed seats (all photo 4/5 fixed seats are plain grey plastic, including the red-sticker priority seat)"
+   ],
+   "confidence_where": "medium",
+   "procedural_recipe": {
+    "base": "#08090b (near black; sampled median #040406)",
+    "dots": {
+     "colour": "#26292d",
+     "diameter_m": 0.004,
+     "pitch_m": 0.016,
+     "layout": "staggered (hex) grid over the whole surface"
+    },
+    "waves": {
+     "colour_peak": "#92b04c",
+     "colour_dark": "#4f6330",
+     "description": "olive/lime-green wavy horizontal lines, each ~0.004 m wide (varies 0.003-0.005), amplitude 0.012-0.02 m, wavelength 0.16-0.25 m, vertical spacing about 0.055 m (7-8 lines over the 0.5 m back), each line with its own random phase, slight overall tilt of +/-6 deg, some lines fade out toward the edges; a few short bright-green dashes near the edges",
+     "texture_tile_m": [
+      0.5,
+      0.5
+     ],
+     "roughness": 0.95
+    },
+    "basis": "photo 4 crops p4_moq/p4_seats_right (green line pixels median #47573e raw, 90th pct #7d8c77 raw in shade)"
+   }
+  },
+  "stickers": {
+   "priority_seat": {
+    "text": "Внимание! / Седалка за майки с деца, възрастни и хора с увреждания!",
+    "size_m": [
+     0.17,
+     0.25
+    ],
+    "layout": "red frame (#c8202c) with the word 'Внимание!' in white italic on red at the top, white panel, red disc D 0.12 with white pictograms (elderly person with cane, adult holding a child), 3 lines of dark-red italic text underneath",
+    "placement": "centre of the backrest FRONT face, top edge 0.17 m below the cap (centre ~0.78 m above floor); on the first double seat behind the cab/door 1 on the door side, a smaller copy 0.09x0.20 on the window glass next to it (photo 4 at x225-275,y890-1000)",
+    "photo_raw_red": "#a3222d",
+    "albedo_red": "#c8202c",
+    "conf": "high"
+   }
+  }
+ },
+ "seat_map": {
+  "convention": "yaw 0 = faces forward (-z), yaw pi = faces backward; floor_y is the ABSOLUTE height of the floor/podium top under the seat; seat pan top = floor_y + 0.445. z = seat pan centre. Same keys as SEATS in BusLayout.js (sec,x,z,yaw,fy,ins) -> fy = floor_y, ins = moquette.",
+  "total_seats": 48,
+  "front": 22,
+  "rear": 26,
+  "capacity_note": "Total seat count of the real Sofia A23 G could not be confirmed (generic A23 listings 41-47 seats; EGO-Ankara 18 m CNG: 36 seats / 116 standing). 48 here = 47 plus one optional low-confidence second folding seat (F-LF2); photo-based for the front section, typology for the rear.",
+  "changes_vs_BusLayout_js": [
+   "F-L1/F-L2/F-R1 yaw pi -> 0 (photo 5: they face forward)",
+   "folding seat yaw pi/2 -> 0 (pi/2 makes it face the left wall)",
+   "F-R5/F-R6: add the aisle seats (right podium is a DOUBLE seat, photo 4)",
+   "podium floor_y 0.66/0.62 -> 0.62 both, podium must reach the aisle edge |x|=0.295 (see walls_floor)"
+  ],
+  "seats": [
+   {
+    "id": "F-L1w",
+    "sec": "front",
+    "x": -0.975,
+    "z": -5.45,
+    "yaw": 0,
+    "floor_y": 0.62,
+    "kind": "fixed",
+    "mount": "podium_axle1",
+    "moquette": false,
+    "note": "first row behind the cab partition (photo 5: faces FORWARD, back with embossed lion oval seen) window seat",
+    "conf": "medium"
+   },
+   {
+    "id": "F-L1a",
+    "sec": "front",
+    "x": -0.515,
+    "z": -5.45,
+    "yaw": 0,
+    "floor_y": 0.62,
+    "kind": "fixed",
+    "mount": "podium_axle1",
+    "moquette": false,
+    "note": "first row behind the cab partition (photo 5: faces FORWARD, back with embossed lion oval seen) aisle seat",
+    "conf": "medium"
+   },
+   {
+    "id": "F-L2w",
+    "sec": "front",
+    "x": -0.975,
+    "z": -4.65,
+    "yaw": 0,
+    "floor_y": 0.62,
+    "kind": "fixed",
+    "mount": "podium_axle1",
+    "moquette": false,
+    "note": "photo 5 second row window seat",
+    "conf": "medium"
+   },
+   {
+    "id": "F-L2a",
+    "sec": "front",
+    "x": -0.515,
+    "z": -4.65,
+    "yaw": 0,
+    "floor_y": 0.62,
+    "kind": "fixed",
+    "mount": "podium_axle1",
+    "moquette": false,
+    "note": "photo 5 second row aisle seat",
+    "conf": "medium"
+   },
+   {
+    "id": "F-L3w",
+    "sec": "front",
+    "x": -0.975,
+    "z": -3.75,
+    "yaw": 0,
+    "floor_y": 0.36,
+    "kind": "fixed",
+    "mount": "wall_cantilever",
+    "moquette": false,
+    "note": "floor level, in front of the wheelchair bay (photo 4 foreground right pair, with C-hoop on the aisle edge) window seat",
+    "conf": "high"
+   },
+   {
+    "id": "F-L3a",
+    "sec": "front",
+    "x": -0.515,
+    "z": -3.75,
+    "yaw": 0,
+    "floor_y": 0.36,
+    "kind": "fixed",
+    "mount": "wall_cantilever",
+    "moquette": false,
+    "note": "floor level, in front of the wheelchair bay (photo 4 foreground right pair, with C-hoop on the aisle edge) aisle seat",
+    "conf": "high"
+   },
+   {
+    "id": "F-LF1",
+    "sec": "front",
+    "x": -0.98,
+    "z": -1.55,
+    "yaw": 0,
+    "floor_y": 0.36,
+    "kind": "folding",
+    "mount": "wall",
+    "moquette": true,
+    "note": "flip-up seat in the wheelchair/pram bay opposite door 2; faces FORWARD (photo 4 shows its moquette face looking rearward); grey U-hoop frame in front; z uncertain +/-0.8",
+    "conf": "medium"
+   },
+   {
+    "id": "F-LF2",
+    "sec": "front",
+    "x": -0.98,
+    "z": -0.95,
+    "yaw": 0,
+    "floor_y": 0.36,
+    "kind": "folding",
+    "mount": "wall",
+    "moquette": true,
+    "note": "possible second folding seat (dark seat back at photo 4 x1040-1090,y640-820)",
+    "conf": "low"
+   },
+   {
+    "id": "F-L4w",
+    "sec": "front",
+    "x": -0.975,
+    "z": 0.0,
+    "yaw": 0,
+    "floor_y": 0.62,
+    "kind": "fixed",
+    "mount": "podium_axle2",
+    "moquette": false,
+    "note": "photo 4: bus-left podium double seats at x1080-1330,y630-860 window seat",
+    "conf": "high"
+   },
+   {
+    "id": "F-L4a",
+    "sec": "front",
+    "x": -0.515,
+    "z": 0.0,
+    "yaw": 0,
+    "floor_y": 0.62,
+    "kind": "fixed",
+    "mount": "podium_axle2",
+    "moquette": false,
+    "note": "photo 4: bus-left podium double seats at x1080-1330,y630-860 aisle seat",
+    "conf": "high"
+   },
+   {
+    "id": "F-L5w",
+    "sec": "front",
+    "x": -0.975,
+    "z": 0.82,
+    "yaw": 0,
+    "floor_y": 0.62,
+    "kind": "fixed",
+    "mount": "podium_axle2",
+    "moquette": false,
+    "note": "second row on the axle-2 podium window seat",
+    "conf": "medium"
+   },
+   {
+    "id": "F-L5a",
+    "sec": "front",
+    "x": -0.515,
+    "z": 0.82,
+    "yaw": 0,
+    "floor_y": 0.62,
+    "kind": "fixed",
+    "mount": "podium_axle2",
+    "moquette": false,
+    "note": "second row on the axle-2 podium aisle seat",
+    "conf": "medium"
+   },
+   {
+    "id": "F-R1",
+    "sec": "front",
+    "x": 0.975,
+    "z": -5.45,
+    "yaw": 0,
+    "floor_y": 0.62,
+    "kind": "fixed",
+    "mount": "podium_axle1",
+    "moquette": false,
+    "note": "photo 5 seat with the woman: faces FORWARD directly behind door 1; single (door-1 landing on the aisle side)",
+    "conf": "medium"
+   },
+   {
+    "id": "F-R2",
+    "sec": "front",
+    "x": 0.975,
+    "z": -4.65,
+    "yaw": 0,
+    "floor_y": 0.62,
+    "kind": "fixed",
+    "mount": "podium_axle1",
+    "moquette": false,
+    "note": "single (inferred)",
+    "conf": "low"
+   },
+   {
+    "id": "F-R3w",
+    "sec": "front",
+    "x": 0.975,
+    "z": -3.7,
+    "yaw": 0,
+    "floor_y": 0.36,
+    "kind": "fixed",
+    "mount": "wall_cantilever",
+    "moquette": false,
+    "note": "photo 4 row A (red priority sticker on the backrest of the window-side seat... in the foreground-left pair), floor level window seat",
+    "conf": "high"
+   },
+   {
+    "id": "F-R3a",
+    "sec": "front",
+    "x": 0.515,
+    "z": -3.7,
+    "yaw": 0,
+    "floor_y": 0.36,
+    "kind": "fixed",
+    "mount": "wall_cantilever",
+    "moquette": false,
+    "note": "photo 4 row A (red priority sticker on the backrest of the window-side seat... in the foreground-left pair), floor level aisle seat",
+    "conf": "high"
+   },
+   {
+    "id": "F-R4w",
+    "sec": "front",
+    "x": 0.975,
+    "z": -2.9,
+    "yaw": 0,
+    "floor_y": 0.36,
+    "kind": "fixed",
+    "mount": "wall_cantilever",
+    "moquette": false,
+    "note": "photo 4 row B directly in front of door 2; yellow barrier tubes behind it window seat",
+    "conf": "high"
+   },
+   {
+    "id": "F-R4a",
+    "sec": "front",
+    "x": 0.515,
+    "z": -2.9,
+    "yaw": 0,
+    "floor_y": 0.36,
+    "kind": "fixed",
+    "mount": "wall_cantilever",
+    "moquette": false,
+    "note": "photo 4 row B directly in front of door 2; yellow barrier tubes behind it aisle seat",
+    "conf": "high"
+   },
+   {
+    "id": "F-R5w",
+    "sec": "front",
+    "x": 0.975,
+    "z": 0.0,
+    "yaw": 0,
+    "floor_y": 0.62,
+    "kind": "fixed",
+    "mount": "podium_axle2",
+    "moquette": false,
+    "note": "photo 4: bus-right podium DOUBLE seats at x650-920,y620-860 (current model has only the window seat) window seat",
+    "conf": "high"
+   },
+   {
+    "id": "F-R5a",
+    "sec": "front",
+    "x": 0.515,
+    "z": 0.0,
+    "yaw": 0,
+    "floor_y": 0.62,
+    "kind": "fixed",
+    "mount": "podium_axle2",
+    "moquette": false,
+    "note": "photo 4: bus-right podium DOUBLE seats at x650-920,y620-860 (current model has only the window seat) aisle seat",
+    "conf": "high"
+   },
+   {
+    "id": "F-R6w",
+    "sec": "front",
+    "x": 0.975,
+    "z": 0.82,
+    "yaw": 0,
+    "floor_y": 0.62,
+    "kind": "fixed",
+    "mount": "podium_axle2",
+    "moquette": false,
+    "note": "second row on the podium window seat",
+    "conf": "medium"
+   },
+   {
+    "id": "F-R6a",
+    "sec": "front",
+    "x": 0.515,
+    "z": 0.82,
+    "yaw": 0,
+    "floor_y": 0.62,
+    "kind": "fixed",
+    "mount": "podium_axle2",
+    "moquette": false,
+    "note": "second row on the podium aisle seat",
+    "conf": "medium"
+   },
+   {
+    "id": "R-L1w",
+    "sec": "rear",
+    "x": -0.975,
+    "z": -4.0,
+    "yaw": 3.14159,
+    "floor_y": 0.36,
+    "kind": "fixed",
+    "mount": "wall_cantilever",
+    "moquette": false,
+    "note": "rear-facing pair right behind the bellows (no photo; keep existing layout) window seat",
+    "conf": "low"
+   },
+   {
+    "id": "R-L1a",
+    "sec": "rear",
+    "x": -0.515,
+    "z": -4.0,
+    "yaw": 3.14159,
+    "floor_y": 0.36,
+    "kind": "fixed",
+    "mount": "wall_cantilever",
+    "moquette": false,
+    "note": "rear-facing pair right behind the bellows (no photo; keep existing layout) aisle seat",
+    "conf": "low"
+   },
+   {
+    "id": "R-L2w",
+    "sec": "rear",
+    "x": -0.975,
+    "z": -3.2,
+    "yaw": 0,
+    "floor_y": 0.36,
+    "kind": "fixed",
+    "mount": "wall_cantilever",
+    "moquette": false,
+    "note": " window seat",
+    "conf": "low"
+   },
+   {
+    "id": "R-L2a",
+    "sec": "rear",
+    "x": -0.515,
+    "z": -3.2,
+    "yaw": 0,
+    "floor_y": 0.36,
+    "kind": "fixed",
+    "mount": "wall_cantilever",
+    "moquette": false,
+    "note": " aisle seat",
+    "conf": "low"
+   },
+   {
+    "id": "R-L3w",
+    "sec": "rear",
+    "x": -0.975,
+    "z": -2.4,
+    "yaw": 0,
+    "floor_y": 0.36,
+    "kind": "fixed",
+    "mount": "wall_cantilever",
+    "moquette": false,
+    "note": " window seat",
+    "conf": "low"
+   },
+   {
+    "id": "R-L3a",
+    "sec": "rear",
+    "x": -0.515,
+    "z": -2.4,
+    "yaw": 0,
+    "floor_y": 0.36,
+    "kind": "fixed",
+    "mount": "wall_cantilever",
+    "moquette": false,
+    "note": " aisle seat",
+    "conf": "low"
+   },
+   {
+    "id": "R-L4w",
+    "sec": "rear",
+    "x": -0.975,
+    "z": -1.6,
+    "yaw": 0,
+    "floor_y": 0.62,
+    "kind": "fixed",
+    "mount": "podium_axle3",
+    "moquette": false,
+    "note": " window seat",
+    "conf": "low"
+   },
+   {
+    "id": "R-L4a",
+    "sec": "rear",
+    "x": -0.515,
+    "z": -1.6,
+    "yaw": 0,
+    "floor_y": 0.62,
+    "kind": "fixed",
+    "mount": "podium_axle3",
+    "moquette": false,
+    "note": " aisle seat",
+    "conf": "low"
+   },
+   {
+    "id": "R-L5w",
+    "sec": "rear",
+    "x": -0.975,
+    "z": -0.4,
+    "yaw": 0,
+    "floor_y": 0.82,
+    "kind": "fixed",
+    "mount": "podium_axle3",
+    "moquette": false,
+    "note": "over the driven rear axle / engine bay window seat",
+    "conf": "low"
+   },
+   {
+    "id": "R-L5a",
+    "sec": "rear",
+    "x": -0.515,
+    "z": -0.4,
+    "yaw": 0,
+    "floor_y": 0.82,
+    "kind": "fixed",
+    "mount": "podium_axle3",
+    "moquette": false,
+    "note": "over the driven rear axle / engine bay aisle seat",
+    "conf": "low"
+   },
+   {
+    "id": "R-L6w",
+    "sec": "rear",
+    "x": -0.975,
+    "z": 0.45,
+    "yaw": 0,
+    "floor_y": 0.82,
+    "kind": "fixed",
+    "mount": "podium_axle3",
+    "moquette": false,
+    "note": "over the driven rear axle / engine bay window seat",
+    "conf": "low"
+   },
+   {
+    "id": "R-L6a",
+    "sec": "rear",
+    "x": -0.515,
+    "z": 0.45,
+    "yaw": 0,
+    "floor_y": 0.82,
+    "kind": "fixed",
+    "mount": "podium_axle3",
+    "moquette": false,
+    "note": "over the driven rear axle / engine bay aisle seat",
+    "conf": "low"
+   },
+   {
+    "id": "R-L7w",
+    "sec": "rear",
+    "x": -0.975,
+    "z": 1.3,
+    "yaw": 0,
+    "floor_y": 0.82,
+    "kind": "fixed",
+    "mount": "podium_axle3",
+    "moquette": false,
+    "note": "over the driven rear axle / engine bay window seat",
+    "conf": "low"
+   },
+   {
+    "id": "R-L7a",
+    "sec": "rear",
+    "x": -0.515,
+    "z": 1.3,
+    "yaw": 0,
+    "floor_y": 0.82,
+    "kind": "fixed",
+    "mount": "podium_axle3",
+    "moquette": false,
+    "note": "over the driven rear axle / engine bay aisle seat",
+    "conf": "low"
+   },
+   {
+    "id": "R-R1",
+    "sec": "rear",
+    "x": 0.975,
+    "z": -2.55,
+    "yaw": 0,
+    "floor_y": 0.36,
+    "kind": "fixed",
+    "mount": "wall_cantilever",
+    "moquette": false,
+    "note": "between doors 3 and 4",
+    "conf": "low"
+   },
+   {
+    "id": "R-R2w",
+    "sec": "rear",
+    "x": 0.975,
+    "z": -0.4,
+    "yaw": 0,
+    "floor_y": 0.82,
+    "kind": "fixed",
+    "mount": "podium_axle3",
+    "moquette": false,
+    "note": " window seat",
+    "conf": "low"
+   },
+   {
+    "id": "R-R2a",
+    "sec": "rear",
+    "x": 0.515,
+    "z": -0.4,
+    "yaw": 0,
+    "floor_y": 0.82,
+    "kind": "fixed",
+    "mount": "podium_axle3",
+    "moquette": false,
+    "note": " aisle seat",
+    "conf": "low"
+   },
+   {
+    "id": "R-R3w",
+    "sec": "rear",
+    "x": 0.975,
+    "z": 0.45,
+    "yaw": 0,
+    "floor_y": 0.82,
+    "kind": "fixed",
+    "mount": "podium_axle3",
+    "moquette": false,
+    "note": " window seat",
+    "conf": "low"
+   },
+   {
+    "id": "R-R3a",
+    "sec": "rear",
+    "x": 0.515,
+    "z": 0.45,
+    "yaw": 0,
+    "floor_y": 0.82,
+    "kind": "fixed",
+    "mount": "podium_axle3",
+    "moquette": false,
+    "note": " aisle seat",
+    "conf": "low"
+   },
+   {
+    "id": "R-R4w",
+    "sec": "rear",
+    "x": 0.975,
+    "z": 1.3,
+    "yaw": 0,
+    "floor_y": 0.82,
+    "kind": "fixed",
+    "mount": "podium_axle3",
+    "moquette": false,
+    "note": " window seat",
+    "conf": "low"
+   },
+   {
+    "id": "R-R4a",
+    "sec": "rear",
+    "x": 0.515,
+    "z": 1.3,
+    "yaw": 0,
+    "floor_y": 0.82,
+    "kind": "fixed",
+    "mount": "podium_axle3",
+    "moquette": false,
+    "note": " aisle seat",
+    "conf": "low"
+   },
+   {
+    "id": "R-B1",
+    "sec": "rear",
+    "x": -0.96,
+    "z": 2.45,
+    "yaw": 0,
+    "floor_y": 0.82,
+    "kind": "bench_cluster",
+    "mount": "raised rear platform",
+    "moquette": false,
+    "note": "rear row of 5 individual shells (no moquette in the photos; current model puts moquette on #3)",
+    "conf": "low"
+   },
+   {
+    "id": "R-B2",
+    "sec": "rear",
+    "x": -0.48,
+    "z": 2.45,
+    "yaw": 0,
+    "floor_y": 0.82,
+    "kind": "bench_cluster",
+    "mount": "raised rear platform",
+    "moquette": false,
+    "note": "rear row of 5 individual shells (no moquette in the photos; current model puts moquette on #3)",
+    "conf": "low"
+   },
+   {
+    "id": "R-B3",
+    "sec": "rear",
+    "x": 0.0,
+    "z": 2.45,
+    "yaw": 0,
+    "floor_y": 0.82,
+    "kind": "bench_cluster",
+    "mount": "raised rear platform",
+    "moquette": false,
+    "note": "rear row of 5 individual shells (no moquette in the photos; current model puts moquette on #3)",
+    "conf": "low"
+   },
+   {
+    "id": "R-B4",
+    "sec": "rear",
+    "x": 0.48,
+    "z": 2.45,
+    "yaw": 0,
+    "floor_y": 0.82,
+    "kind": "bench_cluster",
+    "mount": "raised rear platform",
+    "moquette": false,
+    "note": "rear row of 5 individual shells (no moquette in the photos; current model puts moquette on #3)",
+    "conf": "low"
+   },
+   {
+    "id": "R-B5",
+    "sec": "rear",
+    "x": 0.96,
+    "z": 2.45,
+    "yaw": 0,
+    "floor_y": 0.82,
+    "kind": "bench_cluster",
+    "mount": "raised rear platform",
+    "moquette": false,
+    "note": "rear row of 5 individual shells (no moquette in the photos; current model puts moquette on #3)",
+    "conf": "low"
+   }
+  ]
+ },
+ "standing_areas": [
+  {
+   "id": "aisle_front",
+   "sec": "front",
+   "x": [
+    -0.27,
+    0.27
+   ],
+   "z": [
+    -5.7,
+    0.9
+   ],
+   "note": "aisle clear width 0.54-0.60 m between seat blocks (photo 4: 0.55 m at row A); only 0.47 m between the axle-2 podium edges",
+   "conf": "medium"
+  },
+  {
+   "id": "door1_landing",
+   "sec": "front",
+   "x": [
+    -0.27,
+    1.2
+   ],
+   "z": [
+    -7.6,
+    -6.2
+   ],
+   "conf": "medium"
+  },
+  {
+   "id": "door2_landing",
+   "sec": "front",
+   "x": [
+    -0.3,
+    1.2
+   ],
+   "z": [
+    -2.35,
+    -0.95
+   ],
+   "note": "right side landing between the two yellow stanchions",
+   "conf": "medium"
+  },
+  {
+   "id": "wheelchair_pram_bay",
+   "sec": "front",
+   "x": [
+    -1.2,
+    -0.3
+   ],
+   "z": [
+    -3.0,
+    -1.75
+   ],
+   "note": "opposite door 2; pictograms (wheelchair, pram, two blue rule discs) on the left wall glass; grey U-hoop and black-foam horizontal grab rail at y=1.0 frame it",
+   "conf": "medium"
+  },
+  {
+   "id": "turntable_zone",
+   "sec": "front",
+   "x": [
+    -0.55,
+    0.55
+   ],
+   "z": [
+    0.85,
+    2.55
+   ],
+   "note": "ribbed turntable plate D 1.7 centred on the hitch",
+   "conf": "medium"
+  },
+  {
+   "id": "aisle_rear",
+   "sec": "rear",
+   "x": [
+    -0.27,
+    0.27
+   ],
+   "z": [
+    -4.6,
+    2.2
+   ],
+   "conf": "low"
+  },
+  {
+   "id": "door3_landing",
+   "sec": "rear",
+   "x": [
+    -0.3,
+    1.2
+   ],
+   "z": [
+    -4.29,
+    -3.09
+   ],
+   "conf": "low"
+  },
+  {
+   "id": "door4_landing",
+   "sec": "rear",
+   "x": [
+    -0.3,
+    1.2
+   ],
+   "z": [
+    -1.97,
+    -0.77
+   ],
+   "conf": "low"
+  }
+ ],
+ "poles_and_rails": {
+  "colours": {
+   "grey": {
+    "photo_raw_p4": "#646b64 / #4d4d4f (shade)",
+    "photo_raw_p5": "#8c9195 (shade side) / #a2afbc (lit)",
+    "albedo": "#b3b7ba",
+    "roughness": 0.4,
+    "metalness": 0.25,
+    "note": "light-grey powder-coated tube, satin. NOT chrome and NOT blue: metalness<=0.3, envMapIntensity<=0.5 (the current pole material 0xa9adb0/metalness 0.75 mirrors the blue sky and renders blue)"
+   },
+   "yellow": {
+    "photo_raw": "#d4a413 (rail, shaded) ; #dbcb2c-#faf938 (floor strips, lit)",
+    "albedo_rail": "#f1b90f",
+    "albedo_floor_strip": "#f2e12c",
+    "roughness": 0.35,
+    "metalness": 0.0,
+    "note": "traffic-yellow rails (slightly orange), lemon-yellow floor edge strips"
+   },
+   "collars_and_clamps": {
+    "albedo": "#c3c6c8",
+    "desc": "cast pale-grey plastic/alu clamps, ellipsoid 0.075 x 0.06 x 0.05 at every stanchion/rail crossing; black 2-bolt clamp (#16171a) where tubes meet seats"
+   },
+   "foam_grip": {
+    "albedo": "#1d1d1f",
+    "desc": "black foam sleeve 0.30-0.40 m long on horizontal grab rails by the wheelchair bay (photo 4 x1290-1555,y880)"
+   }
+  },
+  "diameters_m": {
+   "vertical_stanchion": {
+    "v": 0.04,
+    "basis": "photo 4: 25 px at 600 px/m = 0.042; MAN uses 38-40",
+    "conf": "medium"
+   },
+   "longitudinal_rail": {
+    "v": 0.032,
+    "conf": "medium"
+   },
+   "door_yellow_rails": {
+    "v": 0.034,
+    "conf": "medium"
+   },
+   "arch_tubes": {
+    "v": 0.028,
+    "conf": "low"
+   },
+   "seat_c_hoop": {
+    "v": 0.025,
+    "conf": "low"
+   }
+  },
+  "longitudinal_rails": {
+   "desc": "one continuous rail per side along the whole saloon, above the aisle-side edge of the seats, bolted to the underside of the side duct; the rail's front end bends down 90 deg (R 0.12) into a vertical stanchion at the cab bulkhead / display (photo 5: left end at x285, right end at x810) and the rear end ditto at the bellows portal.",
+   "polyline_front_frame_right_side": [
+    [
+     0.66,
+     2.12,
+     -5.0
+    ],
+    [
+     0.66,
+     2.12,
+     1.15
+    ]
+   ],
+   "mirror_for_left": true,
+   "height_above_ground": 2.12,
+   "x": 0.66,
+   "note": "current model: x=0.62,y=2.05 straight tube + thin 0.012 hangers every 1.6 m; real rail is thicker (0.032), hung from the duct by short diagonal stays (D 0.025, 0.25 m) at ~1.6 m pitch",
+   "conf": "medium"
+  },
+  "candy_cane_arches": {
+   "desc": "most aisle stanchions do not end at the rail: above the clamp collar at the rail they continue as a swan-neck/arch that sweeps outward and up and is anchored in the lower edge of the side duct (photo 5 big arch at x930,y40-280; photo 4 right stanchion at x1240-1580,y10-400).",
+   "path_xy_above_floor_right_side": [
+    [
+     0.3,
+     0.0
+    ],
+    [
+     0.3,
+     1.7
+    ],
+    [
+     0.3,
+     2.05
+    ],
+    [
+     0.34,
+     2.22
+    ],
+    [
+     0.46,
+     2.35
+    ],
+    [
+     0.66,
+     2.44
+    ]
+   ],
+   "tube_d": 0.04,
+   "collar_at": [
+    0.3,
+    2.05
+   ],
+   "rail_collar_x": 0.66,
+   "usage": "on every second stanchion (about every 1.6 m); the others simply end in a collar under the rail",
+   "conf": "medium"
+  },
+  "vertical_stanchions": {
+   "rule": "grey, D 0.04, floor/podium-top to y=2.05, at the aisle edge of the seat blocks x=+/-0.30 (podium: +/-0.30 on the podium front edge)",
+   "front_section_right_x_0.30": [
+    -7.0,
+    -4.3,
+    -3.3,
+    -2.35,
+    -0.99,
+    -0.45,
+    0.95
+   ],
+   "front_section_left_x_-0.30": [
+    -5.0,
+    -3.45,
+    -1.85,
+    -0.45,
+    0.95
+   ],
+   "note": "x=-7.0/-2.35/-0.99 are the YELLOW door-edge poles at x=+0.98 (see below); right-side grey poles are at +0.30. Podium-front poles (z -0.45) end in a white button module (stop request for wheelchair users) 0.04 x 0.14 with two green LEDs at 0.05 above the podium top.",
+   "rear_section_x_0.30": [
+    -4.0,
+    -2.0,
+    0.0,
+    1.2,
+    2.2
+   ],
+   "rear_section_x_-0.30": [
+    -4.0,
+    -2.4,
+    -0.8,
+    0.45,
+    1.7,
+    2.2
+   ],
+   "conf": "medium for front (counted in photo 4/5), low for rear"
+  },
+  "horizontal_grab_rails": [
+   {
+    "where": "front, bus-left wheelchair bay: horizontal grey tube at y=1.00 from the aisle pole (x -0.30) to the left wall (x -1.20) at z=-2.9, with a black foam grip 0.35 long (photo 4 x1290-1555,y880)",
+    "conf": "medium"
+   },
+   {
+    "where": "ball-clamp + horizontal tube with black foam grip from the aisle stanchion across the seat back of the axle-2 podium rows, y=1.05, 0.40 m (photo 4 x1120-1240,y730-760)",
+    "conf": "medium"
+   },
+   {
+    "where": "small D-shaped grey wall handle 0.10 on the sidewall panel beside the first seat (photo 4 x155,y1115), y=0.95",
+    "conf": "medium"
+   }
+  ],
+  "yellow_parts": {
+   "door_poles": "every door has TWO vertical yellow poles (D 0.034, floor to ceiling duct) at the leading and trailing edge of the opening on the saloon side, x=+0.98 (0.22 m inside the sill), z = door.z0-0.08 and door.z1+0.08 (current model OK)",
+   "barrier_arcs": "behind the seat row in front of door 2 (and door 1): two crossing yellow tubes forming a barrier: one from the door-side pole top (y 1.05) bending out toward the window pillar and down; second lower tube crossing it (photo 4 x520-770,y750-860; crop p4_door_rail): polyline (x,y,z rel. to the door's leading pole) [0,1.05,0] -> [0.0,1.05,+0.15] arc R0.25 -> [0.25,0.85,+0.45]; and [0,0.80,0] -> [0.30,0.78,0.40]",
+   "door_leaf_handle": "yellow curved pull-handle on the inner face of each door leaf frame, 0.9 m long, arc R 0.25 at the top (photo 1 crop p1_door1: arc at the door-1 pillar)",
+   "floor_edge_strips": "yellow 0.045 m wide strips on the top edge of every podium (aisle edge and front edge, turning the corner), on the door sill/step edge, and on the cab platform step",
+   "ceiling": "yellow oval emergency-release pull 0.05 x 0.03 on the side duct above each door (photo 4 at 660,390), red indicator lamp 0.015 next to it",
+   "grey_not_yellow": "all other poles, rails, arches, collars; tube ends have small yellow plugs on some bars (photo 5 p5_right x815,y205)"
+  },
+  "straps": {
+   "shape": "closed narrow loop of thin grey webbing/cord (teardrop: 0.09 wide at the bottom, 0.36 long), hanging from a pale-grey plastic sleeve clip 0.05 long (#c9ccce) on the rail, plastic ring-less; colour #9aa0a4 slightly translucent; NOT the stiff circular rings of the current model",
+   "arrangement": "clusters of 3 straps (2 at rail ends) hanging at every stanchion/rail collar, side by side with 0.04 spacing, 0.4-0.5 m below the rail (loop bottom y~1.70); one cluster per ~1.6 m of rail = about 4 clusters per side per section; at the display bulkhead 4 straps",
+   "bottom_above_floor": 1.34,
+   "top_y": 2.1,
+   "conf": "medium"
+  }
+ },
+ "ceiling": {
+  "heights": {
+   "flat_centre_y": 2.74,
+   "duct_inner_edge_y": 2.7,
+   "duct_lower_edge_y_at_wall": 2.56,
+   "basis": "photo 4 camera-height calibration: far ceiling ~2.70 above floor would be 3.06 abs, impossible under roofY=2.96, so take interior height ~2.35-2.40 above the 0.36 floor; window head (windowTopY 2.55) = lower edge of the duct. Current model ceiling is at 2.48 (headroom 2.12 m) = 0.26 m too low",
+   "conf": "medium"
+  },
+  "flat_centre": {
+   "width": 1.46,
+   "colour": {
+    "photo_raw_p5": "#a19c90",
+    "albedo": "#d6d4cc"
+   },
+   "desc": "built from large flat panels with hairline seams every ~1.2 m across the bus and ~1.4 m along; a slightly lowered bulkhead header at the cab and at the bellows portal (curved arch, 0.15 deep)",
+   "roughness": 0.75
+  },
+  "side_ducts": {
+   "profile_xy_right_side": [
+    [
+     0.73,
+     2.72
+    ],
+    [
+     0.9,
+     2.68
+    ],
+    [
+     1.07,
+     2.62
+    ],
+    [
+     1.2,
+     2.56
+    ]
+   ],
+   "note": "sloping, softly convex panel from the flat centre edge down to the window head (photo 4/5). Left mirrors. The panel is light grey #d2d1c9",
+   "segments": "alternate along z in ~1.0 m panels: [pictogram panel][grille panel] ... separated by hairline seams; the panels follow the slope",
+   "grille": {
+    "desc": "rectangular perforated field (speaker/vent grille) 0.55 long x 0.34 wide in the slope, staggered rows of rounded rectangular slots: slot 0.012 x 0.005 m, row pitch 0.022, column pitch 0.017 -> 14 rows x 30 slots; slot colour #3d3f40 raw, albedo darker #4a4c4d; a second smaller 6x4 dot field (0.05x0.04) near the cab bulkhead and near each light",
+    "photo": "p4_ceiling_front/p4_ceiling_right/p5_ceilingleft",
+    "conf": "high for look, medium for sizes"
+   },
+   "pictogram_panel": "blue discs D 0.09 (#123a8a, white 'standing passenger holding on' figure), arranged as pairs (two overlapping discs 0.075 apart); 2 pairs per pictogram panel (left side, photo 4 x120-420,y60-250) ; next to the bulkhead one pair + a grey-white 'no leaning on door / hold the pole' hand-pictogram sticker 0.10 x 0.12 (photo 5 x120-205,y205-280)",
+   "info_label": "white label 0.12 x 0.18 with small text/QR on the right duct slope (photo 4 x1360-1410,y330-390)"
+  },
+  "light_panels": {
+   "desc": "rectangular frosted diffuser panels, slightly recessed, 0.55 long x 0.14 wide, mounted in the flat centre ceiling in ONE row on the bus-left half at x=-0.38 (photo 5 left of display; photo 4 right of axis) about every 2.0 m (3 visible in photo 5/4); not full-length strips at +/-0.72 as in the current model. Cool white (4000-4500 K), emissive #f4f8ff, intensity ~1.0; a second row on the right is NOT visible.",
+   "z_front_frame": [
+    -4.9,
+    -2.9,
+    -0.9,
+    1.0
+   ],
+   "z_rear_frame": [
+    -4.0,
+    -2.0,
+    0.0,
+    2.0
+   ],
+   "x": -0.38,
+   "y": 2.735,
+   "size": [
+    0.14,
+    0.55
+   ],
+   "conf": "medium"
+  },
+  "small_items": [
+   {
+    "what": "round ceiling sensor/camera D 0.04 (photo 4 at 1140,212 and 70,320)",
+    "x": [
+     0.1,
+     -0.05
+    ],
+    "y": 2.73
+   },
+   {
+    "what": "convex oval passenger mirror / dome camera housing 0.28 x 0.20, silver, hung under the ceiling above the bellows portal front end (photo 4 x810-915,y340-420) and a smaller one 0.15 further back (x905-950,y490-530); rim yellow/black",
+    "conf": "low"
+   },
+   {
+    "what": "roof hatch: NOT visible in either photo (flat ceiling panels only) - leave out, or one emergency roof hatch 0.5 x 0.5 grey at z_front=-2.6 (typology, low)",
+    "conf": "low"
+   },
+   {
+    "what": "emergency hammers: red plastic holders 0.10 x 0.04 on the window header at pillar positions (photo 5 at 0-60,295-325 and 1030-1067,340-365), 2 per side, y=2.50, x=+/-1.19",
+    "conf": "high"
+   },
+   {
+    "what": "yellow window-release tabs/clips 0.04 x 0.02 on the window header (photo 4 at 1545-1590,y520-555; 630-650,y545-555)",
+    "conf": "medium"
+   },
+   {
+    "what": "green emergency-exit pictogram stickers 0.06 x 0.12 on the window pillars and door glass (photo 4 at 665-690,y515-545)",
+    "conf": "high"
+   }
+  ]
+ },
+ "walls_floor": {
+  "side_wall": {
+   "lower_panel": {
+    "photo_raw": "#949ea1 lit / #535356 shade",
+    "albedo": "#cfd1cd",
+    "desc": "light-grey plastic panel from floor to window sill y=1.02, with a 0.06 soft rounded sill ledge on top (#c8cac6)"
+   },
+   "window_pillars": {
+    "albedo": "#d4d5d0",
+    "width": 0.11,
+    "depth": 0.1,
+    "desc": "light-grey, wide, rounded pillars between windows (photo 4 x300-340,y420-800); the previous model draws them thin and black"
+   },
+   "window_frames": {
+    "albedo": "#111315",
+    "desc": "black aluminium frames; each window has a lower fixed pane (sill 1.02 to 1.62) and an upper pane (1.66 to 2.52, sliding/tilt) separated by a black transom 0.07 high (photo 4 left: transoms at y440-470 and y520-560), glass dark-tinted (transmission ~60%)",
+    "conf": "medium"
+   }
+  },
+  "floor": {
+   "covering": {
+    "desc": "speckled grey rubber flooring (granite look): base mid-dark grey #5f656c with ~12% light-grey flecks #c4c8cc (1-3 mm) and ~5% black flecks #2c2f33; matte (roughness 0.9). In the photo the aisle floor in light reads #9da1a6-#dde0e5 and in shade #221e21",
+    "albedo_base": "#6a7077",
+    "tile_m": 0.5,
+    "conf": "high"
+   },
+   "edge_to_wall": "same material, no cove visible",
+   "current_model": "floor 0xc9d0d8 x map renders almost black navy: wrong"
+  },
+  "podiums": {
+   "top_y": {
+    "v": 0.62,
+    "above_floor": 0.26,
+    "basis": "photo 4: riser 90 px at 349 px/m = 0.26; arch must clear a R 0.478 wheel",
+    "conf": "medium"
+   },
+   "extent": "the podium covers the full width of the double seat: from the wall to the aisle edge x=+/-0.295; in z it spans the wheel arch +/-0.62 from the axle plus 0.15 front/rear: front axle podium z -6.0..-4.3 (axle1 at -5.105), middle axle podium z -0.85..1.30 (axle2 at 0)",
+   "riser": "vertical face with R 0.06 rounded outer corner, same speckled grey rubber as the floor (#6a7077); height 0.26; 0.01 grey nosing",
+   "yellow_edge": "0.045 strip along the aisle-side top edge AND the front edge, turning the corner (photo 4 right podium x1075-1210,y840-1040)",
+   "current_model": "0.5 m wide boxes at x=+/-0.97 (outer 0.72..1.22): the seats float, the aisle is 1.44 m instead of 0.55; riser has no yellow strips"
+  },
+  "aisle_between_podiums_m": {
+   "v": 0.47,
+   "basis": "photo 4: 165 px at 349 px/m (depth from camera height 1.68 and podium edge 1.42 m below the eye)",
+   "conf": "medium"
+  },
+  "turntable": {
+   "centre": "hitch (front frame z=+1.70, rear frame z=-5.07)",
+   "diameter": 1.7,
+   "colour": "#7d7a73 with dark grooves #2a2a2a",
+   "desc": "ribbed aluminium plate: ribs 0.012 wide every 0.025 running ACROSS the bus; thin black ring gap 0.015; visible in photo 4 at x920-1065,y900-980; top flush with floor_y+0.01. Current model D 1.9 flat #4b5157 (ok size, wrong colour/texture)",
+   "conf": "medium"
+  },
+  "bellows_interior": "dark charcoal ribbed tunnel (#26282a) with a lighter ceiling; portal header black arch 0.22 high with 'MAN' lettering in silver (0.20 x 0.05) on the rear-section front wall above the portal (photo 4 at 630-720,y495-515)",
+  "rear_platform_steps": "inferred (typology): 0.20 + 0.26 high steps with yellow nosing - keep current",
+  "cab_platform": "driver platform raised about 0.33 above the main floor (MAN: 330 mm), yellow nosing strip on its step edge (photo 5 at 492-503,y786-796)"
+ },
+ "doors_inside": {
+  "leaves": "two glazed leaves, black frame 0.035, upper and lower glass panes, sealing rubber at the meeting stile (current model OK); green emergency-exit pictograms (2 stacked, 0.06x0.12) at 1.55 on the leaf glass; door-frame header black.",
+  "pillars_inside": "light-grey wide pillars flank each door (0.11), yellow poles stand 0.22 inside the sill line",
+  "request_to_open_button": "round or rectangular push-button 0.06, on the yellow pole of doors 2-4 at y=1.05 above floor (red knob with yellow symbol on door 2 pole, photo 4 at 738,845); also doubles as stop request (see devices)",
+  "ramp_door2": "manual fold-out ramp stored in the door-2 sill; 0.80 x 0.90 plate, yellow edge; not visible in photos (typology, low)",
+  "door_height_clear": 2.0,
+  "current_model": "leaves + yellow handle cylinder 0.9 long on every leaf OK; missing yellow barrier arcs and the second pole structure"
+ },
+ "displays_devices": {
+  "interior_display": {
+   "desc": "large landscape LED destination/next-stop display hung from the ceiling at the cab bulkhead, facing the passengers: light-grey rounded-rectangle housing (#d4d3ce, corner R 0.04, frame 0.02) around a black glass face; face tilted 5 deg down toward the passengers",
+   "size_housing": [
+    0.95,
+    0.21,
+    0.1
+   ],
+   "size_face": [
+    0.9,
+    0.165
+   ],
+   "centre_x": -0.04,
+   "centre_y": 2.62,
+   "z_front_frame": -5.65,
+   "basis": "photo 5: housing 372 x 82 px; scale from stanchions at +/-0.65 -> 404 px/m -> 0.92 x 0.20 m",
+   "conf": "medium",
+   "content": "single line of amber dot-matrix text (#ffb12a on #0c0a08), char height 0.035, centred, uses only ~25% of the width for short words; current model: black box 1.1x0.2 hanging at y=2.3 with 2 lines of larger text - too low and wrong housing",
+   "rear_section": "a second identical display at the rear section front wall (z_rear -4.2) facing rearward - typology, low"
+  },
+  "validators": {
+   "desc": "Sofia e-ticket / open-loop EMV validators (BPC O-CITY + DSK Bank system, ~3,900 validators fleet-wide) are small black/anthracite units on a bracket on the yellow door-side stanchions; one at each door, mounted on the pole at the TRAILING edge of the door opening (rear pole), 1.10-1.25 m above the floor, facing the aisle/doorway; ~0.10 w x 0.19 h x 0.06 d, black bezel, small colour screen top, green/red LED bar, NFC symbol",
+   "evidence": "photo 1 crop p1_door1 (dark rounded unit on the pole inside door 1 at 185-240,470-540); photo 4 two dark upright blocks at the window pillar by door 2 (370-410,845-910) - low-contrast; vendor of the hardware not found in any source",
+   "colour": "#1c1d20 body, #2f6fd0 screen glow",
+   "conf": "low-medium",
+   "current_model": "box 0.14x0.24x0.1 at y=1.25 with yellow stripe - acceptable position, wrong aspect"
+  },
+  "stop_request_buttons": [
+   {
+    "type": "red round push-button D 0.06 with yellow bell/hand symbol on the yellow door poles at y=1.05 (photo 4 at 725-760,y825-865; raw #c04336)",
+    "albedo": "#d23a2c",
+    "conf": "medium"
+   },
+   {
+    "type": "white/grey module 0.04 x 0.14 with two green LEDs and Braille at the foot of the grey aisle poles on the podium front edge (photo 4 x1120,y1040-1070; p4_stanchion_L)",
+    "albedo": "#dfe1e0",
+    "conf": "medium"
+   },
+   {
+    "type": "dark half-disc pads D 0.08 on the aisle poles next to seat backs at y~1.0 (photo 4 at 735-760,y700-800 and 840-860,y690-720) - probably stop buttons or pole hinges",
+    "conf": "low"
+   }
+  ],
+  "red_emergency": "red items in photos are the hammer holders (see ceiling.small_items); door emergency release = yellow oval pull in the ceiling duct above each door",
+  "information_stickers": [
+   {
+    "text": "Внимание! Седалка за майки с деца, възрастни и хора с увреждания!",
+    "where": "priority seat backs (first seats behind door 1 and the first double seat in front of door 2) + window copy"
+   },
+   {
+    "text": "no-smoking header + 'При нарушения звънете на телефон 02 ... 71 11' + A4 white notice sheet 0.21 x 0.30 with fine print and 6 small icons",
+    "where": "cab partition glass, passenger side, y 1.40-1.95 (photo 5 at 130-380,y50-340)"
+   },
+   {
+    "text": "violet/white round 'Безплатен интернет' Wi-Fi sticker 0.12 x 0.05 and a red-ring 'no mobile phone' sign D 0.05",
+    "where": "below the notice on the partition (photo 5 at 150-345,y350-405)"
+   },
+   {
+    "text": "no-phone/no-smoking round signs D 0.05 (red ring) on the cab glass and the door-1 glass (photo 5 at 700,550; 1020,400)",
+    "where": "door-1 glass, cab screen"
+   },
+   {
+    "text": "blue wheelchair disc D 0.10, white pram square 0.10, two blue rule discs D 0.10 with tiny white text, yellow diagonal tape",
+    "where": "left wall glass at the wheelchair bay, y 1.15-1.40 (photo 4 at 1620-1700,y740-890)"
+   }
+  ]
+ },
+ "cab": {
+  "overview": "photo 5 (looking forward): driver (bus-left) sits on a platform ~0.33 above the main floor behind a dark-tinted glazed rear partition; to its right a clear driver screen and a small free-standing console; the dashboard is a navy-topped pad across the whole windscreen width; large light-grey panels below.",
+  "platform": {
+   "y": 0.69,
+   "yellow_nosing": true,
+   "basis": "MAN 330 mm statement (WebSearch snippet, man.eu 'driving comfort') + yellow strip at the console base in photo 5",
+   "conf": "medium",
+   "note": "the current model puts the driver's feet and the seat on the passenger floor (0.36)"
+  },
+  "partition": {
+   "rear_wall": {
+    "x": [
+     -1.2,
+     -0.45
+    ],
+    "z_front_frame": -5.86,
+    "lower_panel": {
+     "height": 0.85,
+     "colour": "#d7d8d3"
+    },
+    "upper_glass": {
+     "from_y": 1.25,
+     "to_y": 2.55,
+     "tint": "very dark smoked (#14181c, 85% opaque from the saloon side)",
+     "frame": "black"
+    },
+    "white_pillar": {
+     "x": -0.42,
+     "width": 0.1,
+     "colour": "#d9dad5"
+    },
+    "basis": "photo 5: black panel 280 px wide = 0.71 m at 392 px/m, tall 550 px = 1.4 m above the white lower panel",
+    "conf": "medium"
+   },
+   "aisle_side_screen": {
+    "x": -0.4,
+    "z_from": -7.0,
+    "z_to": -5.86,
+    "desc": "clear polycarbonate/glass screen from the console top (y 1.35) to the header (y 2.55) with a black vertical post; the cab 'door' is a clear panel with a grey curved pull handle 0.40 long on the pillar (photo 5 at 410-470,y460-660, light grey)",
+    "conf": "low-medium"
+   },
+   "console": {
+    "x": [
+     -0.4,
+     0.0
+    ],
+    "z": [
+     -6.9,
+     -6.3
+    ],
+    "top_y": 1.1,
+    "desc": "free-standing cabinet right of the driver: navy-blue top shelf (#1f3552 albedo; photo raw #49525f) with rounded front corner and a small black ticket/payment terminal on a stalk, a pen tray; lower body white (#d9dcd8) with a red extinguisher sticker and an 'emergency' black rocker; bottom yellow step strip",
+    "conf": "medium"
+   }
+  },
+  "dashboard": {
+   "top_pad": {
+    "albedo": "#22303f",
+    "photo_raw": "#464c4f/#49525f",
+    "desc": "dark navy/anthracite soft pad running full width under the windscreen, height 1.45 above ground at the front edge (0.76 above the cab platform), depth 0.45; behind/under it light-grey (#cfd2d3) lower panels (photo 5 x530-1000,y670-800 white/pale panels with fire extinguisher bracket (red #b3261e), red bucket, cloth)",
+    "conf": "medium"
+   },
+   "driver_panel": "VDV-style MAN driver's workplace: dark grey (#2b2e33) moulded binnacle in front of the driver with a round/rectangular instrument cluster 0.33 x 0.16 (2 analog gauges, central colour display, tell-tale rows), a lowered side panel at the driver's left (door-control buttons 1-4 + kneeling/ramp + hazard) and an angled panel at the right with rocker switches and the D-N-R pushbutton gearbox selector (3 square keys 0.03, key legends in white)",
+   "photo_evidence": "only the outside view (photo 3 crop p3_windscreen; photo 1 p1_windscreen) and the right dash edge in photo 5: black block with a gooseneck mic on the dash at the right of the driver (photo 3 at 1000-1060,y355-410)",
+   "conf": "low (layout) / medium (colours)",
+   "ball_knob": "black ball knob 0.05 on a stalk at the windscreen base right of the driver (photo 5 at 545-585,y598-632), probably the sun-blind pull or a mirror adjuster"
+  },
+  "steering_wheel": {
+   "diameter": 0.5,
+   "rim": 0.03,
+   "plane_tilt_from_horizontal_deg": 30,
+   "centre_above_platform": 0.8,
+   "centre_x": -0.74,
+   "colour": "#202124",
+   "spokes": 3,
+   "basis": "photo 3: nearly flat ellipse 90x35 px; MAN bus typology",
+   "conf": "medium (angle) / low (size)"
+  },
+  "driver_seat": {
+   "x": -0.74,
+   "desc": "air-suspended high-back seat, dark grey cloth (#2c2f33) with blue/navy bolsters (photo 5 shows a navy seat with a blue patterned cover at 655-700,y735-780), headrest, two armrests; seat pan 0.52 x 0.50 at 0.50 above the platform",
+   "conf": "low"
+  },
+  "sun_blind": {
+   "desc": "dark grey (#4a4d50) roller blind with a diamond/X cord pattern across the upper windscreen, covers the driver-side 55% (x -1.25..+0.10), pulled down 0.45 m from the header (photo 3 crop p3_windscreen at 610-1120,y40-240; photo 1)",
+   "conf": "high"
+  },
+  "ceiling_and_header": {
+   "desc": "cab ceiling light-grey; a closed grey header panel runs the full windscreen width, 0.20 deep, with the back of the front destination sign above it (not visible); the passenger monitoring mirror hangs from it",
+   "interior_mirror": {
+    "size": [
+     0.26,
+     0.1
+    ],
+    "x": -0.05,
+    "y": 2.32,
+    "z_front_frame": -6.2,
+    "desc": "elongated convex mirror, light-grey frame (#cfd0cc), shows the saloon; photo 5 at 470-565,y420-460",
+    "conf": "medium"
+   }
+  },
+  "windscreen_wiper_pivots": "two large wipers parked at the screen base (photo 5/3)",
+  "current_model_diffs": "dash is a black box at the floor; no raised platform; partition is a small white box + dark glass pane at 0.95 wide; console is a floating black box; display too low; no mirror, no sun blind visible from the inside"
+ },
+ "lighting": {
+  "ambient": {
+   "look": "bright, even, daylight-dominated; interior fill ~35% hemisphere light of the sky colour; ceiling/walls light-warm-grey",
+   "colour_temperature_K": "4000-4500 (cool white LED panels), daylight 5500-6500",
+   "basis": "photo 4/5: light panels read neutral-blueish white; saloon is evenly lit with soft shadows",
+   "conf": "medium"
+  },
+  "light_panels": "see ceiling.light_panels (single row, bus-left, 0.55x0.14 m, every ~2 m); emissive #f4f8ff intensity 1.0; at night add a RectAreaLight or PointLight 0.9 intensity, 4200 K, range 3.5 m per panel",
+  "other": "the ceiling gets a +0.06 emissive (current) - good; the cab has no extra lamp; display amber glows (#ffb12a)"
+ },
+ "diff_prioritised": [
+  {
+   "rank": 1,
+   "area": "seats",
+   "now": "flat rectangular plate with a small rounded slot inside the face, dark-blue cushion pad, backs 1.17 m tall, blue-white tinted",
+   "reality": "one-piece shell with a dark charcoal arch-shaped cap carrying a through handle-slot (0.27 x 0.06), dished face, plain light-grey pan, cap top at 1.085, MAN lion oval on the back, rear recess panel; cantilever (no legs)",
+   "fix": "rebuild seatGeometry() with the polyline + cap + slot given in seats.*; two materials seat (#9a9fa5) / seatCap (#3b3e45); remove 'cushion' pads except on the folding seat; remove the 'seatDark' pan"
+  },
+  {
+   "rank": 2,
+   "area": "podiums / floor",
+   "now": "0.5 m boxes at x=+/-0.97, near-black navy floor",
+   "reality": "podiums span wall to aisle edge (x=+/-0.295), 0.26 high, speckled grey rubber, yellow edge strips; floor speckled mid-grey; aisle 0.55 between seat blocks and 0.47 between podiums",
+   "fix": "podium boxes 0.905 wide (x 0.295..1.20) z per walls_floor.podiums; recolour floor texture (albedo #6a7077 + flecks); add yellow strips"
+  },
+  {
+   "rank": 3,
+   "area": "ceiling",
+   "now": "flat grey at y=2.48 + white sloping ducts with a thin vent line + two long light strips",
+   "reality": "ceiling ~2.74 abs; sloping side ducts in 1 m panels with perforated slot grilles (14x30 slots) and blue standing-passenger pictogram stickers; single row of 0.55x0.14 light panels on the bus-left",
+   "fix": "raise ceiling; replace vent texture; add pictogram decals; replace strips by panels"
+  },
+  {
+   "rank": 4,
+   "area": "poles, rails, straps",
+   "now": "thin blue-metal straight rails at 2.05 with rigid rings and thin hangers; 0.034 poles at x=+/-0.5 with red boxes",
+   "reality": "grey D 0.04 stanchions at |x|=0.30 with candy-cane arches into the duct, D 0.032 rail with pale-grey collars, narrow teardrop strap loops in clusters of 3, foam-grip horizontal bars; satin light-grey colour",
+   "fix": "see poles_and_rails; set pole material metalness 0.25, roughness 0.4, envMapIntensity 0.4"
+  },
+  {
+   "rank": 5,
+   "area": "seat facing and map",
+   "now": "front rows over axle 1 face backward, fold seat faces the wall, right axle-2 podium has single seats",
+   "reality": "all front seats face forward; right axle-2 podium double seats",
+   "fix": "apply seat_map.changes_vs_BusLayout_js (47 seats + 1 optional fold seat)"
+  },
+  {
+   "rank": 6,
+   "area": "walls and windows",
+   "now": "huge windows with thick black pillars, white wall block",
+   "reality": "light-grey wide pillars 0.11, black two-pane windows with transom, light-grey lower wall with sill ledge and small D-handles",
+   "fix": "see walls_floor.side_wall"
+  },
+  {
+   "rank": 7,
+   "area": "interior display and cab",
+   "now": "black box 1.1x0.2 at y=2.3, two-line text; dash/partition/console as boxes on the passenger floor",
+   "reality": "light-grey housing 0.95x0.21 at y~2.62 with a single line; driver platform +0.33 with yellow nosing, navy-topped dashboard, black glazed partition with notices, console, mirror, sun blind",
+   "fix": "see cab"
+  },
+  {
+   "rank": 8,
+   "area": "doors area",
+   "now": "poles + validators + simple cylinder handles",
+   "reality": "plus yellow barrier arcs behind the row in front of door 2, red stop knob, yellow release pull, emergency-exit pictograms",
+   "fix": "see poles_and_rails.yellow_parts, doors_inside"
+  },
+  {
+   "rank": 9,
+   "area": "turntable and bellows tunnel",
+   "now": "flat dark disc D 1.9",
+   "reality": "ribbed aluminium plate D 1.7 with ring gap, dark ribbed tunnel, MAN lettering over the portal",
+   "fix": "ribbed texture"
+  },
+  {
+   "rank": 10,
+   "area": "stickers and small details",
+   "now": "one priority sticker on the wrong seat, signs sheet",
+   "reality": "see displays_devices.information_stickers, hammer holders, etc.",
+   "fix": "decals"
+  }
+ ]
+}

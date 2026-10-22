@@ -1,0 +1,5044 @@
+{
+ "r1020109": {
+  "accent_hex": "#c46a3a",
+  "confidence": "low",
+  "features": [
+   "58 x 31 m, two floors, pastel plaster with coloured window frames",
+   "fenced play yard with trees (inferred)"
+  ],
+  "ground_floor": "lobby",
+  "height_m": 8.0,
+  "kind": "modernist_institutional",
+  "label": "Детска градина/ясла (до бившия Детски дом), Студентски град",
+  "levels": 2,
+  "notes": "stop name \"Детски дом\" comes from the former institution; building identity inferred",
+  "roof": "flat",
+  "roof_hex": "#66625c",
+  "shop_signs": [],
+  "sources": [
+   "OSM class=kindergarten"
+  ],
+  "wall_hex": "#ecdca8",
+  "window": "ribbon"
+ },
+ "r1022959": {
+  "accent_hex": "#9b968a",
+  "confidence": "low",
+  "features": [],
+  "ground_floor": "blank",
+  "height_m": 13.0,
+  "kind": "other",
+  "label": "ДКЦ 5",
+  "levels": 4,
+  "notes": "auto-classified; no specific source found",
+  "roof": "flat",
+  "roof_hex": "#66625c",
+  "shop_signs": [],
+  "sources": [
+   "inferred: OSM/Overture class+levels+footprint, typology (area rule)"
+  ],
+  "wall_hex": "#d0cbbd",
+  "window": "punched_grid"
+ },
+ "r2264008": {
+  "accent_hex": "#7f8b91",
+  "confidence": "low",
+  "features": [
+   "ground-floor cafe/office entrance",
+   "ribbon windows in dark frames over plaster"
+  ],
+  "ground_floor": "shops",
+  "height_m": 13.0,
+  "kind": "glass_office",
+  "label": "Малка офис/смесена сграда, ул. Брадистилов (4 ет.)",
+  "levels": 4,
+  "notes": "",
+  "roof": "flat",
+  "roof_hex": "#5c6165",
+  "shop_signs": [
+   {
+    "bg_hex": "#b3261e",
+    "fg_hex": "#ffffff",
+    "text": "The Burger Joint"
+   },
+   {
+    "bg_hex": "#455a64",
+    "fg_hex": "#ffffff",
+    "text": "Морско конче Кв.дървеница"
+   },
+   {
+    "bg_hex": "#00838f",
+    "fg_hex": "#ffffff",
+    "text": "Happy World - Work and Tr…"
+   }
+  ],
+  "sources": [
+   "OSM class=office levels=4",
+   "stops/1740.json places (address + business names)",
+   "signs: Overture places inside the footprint; colours are brand/category guesses"
+  ],
+  "wall_hex": "#c9ccce",
+  "window": "ribbon"
+ },
+ "r2264042": {
+  "accent_hex": "#6b5a4a",
+  "confidence": "medium",
+  "features": [
+   "complex 269 x 173 m: broad front block facing ул. 8-ми декември with a saw-tooth / stepped north facade, wings enclosing courtyards behind (OSM outline)",
+   "six floors (OSM); first sod 18 Feb 1971, blocks A and B opened Oct 1975, E and F spring 1977, Aula Maxima (460 seats) and computing centre Dec 1984, library 1987 (renovated 2023), New Academic Complex (4 floors, Campus K) 2021",
+   "precast concrete / pale render with continuous dark window bands (colours inferred from 1970s institutional typology)",
+   "forecourt of paved plaza, steps and lawns 45-60 m deep between the road and the main entrance",
+   "Oscar Cafe on the 6th floor, Yo2DINNER fast-food and an ATM at the front"
+  ],
+  "ground_floor": "lobby",
+  "height_m": 22.0,
+  "kind": "modernist_institutional",
+  "label": "УНСС — главна учебна сграда (блокове А–F, Аула Максима, библиотека), ул. 8-ми декември 19",
+  "levels": 6,
+  "notes": "footprint and dates are sourced; facade colour is not",
+  "roof": "flat",
+  "roof_hex": "#66625c",
+  "shop_signs": [
+   {
+    "bg_hex": "#1f4e79",
+    "fg_hex": "#ffffff",
+    "text": "УНСС"
+   }
+  ],
+  "sources": [
+   "https://www.unwe.bg/en/pages/310/material-facilities.html",
+   "https://www.unwe.bg/en/pages/314/maxima-aula.html",
+   "OSM relation r2264042 outline (stops/1692.json)",
+   "inferred: colours/materials from typology"
+  ],
+  "wall_hex": "#d9d6cc",
+  "window": "ribbon"
+ },
+ "r2880716": {
+  "accent_hex": "#8f8b80",
+  "confidence": "low",
+  "features": [
+   "110 x 77 m courtyard block",
+   "north of 8-ми декември, ~100 m from the road behind a lawn"
+  ],
+  "ground_floor": "lobby",
+  "height_m": 15.0,
+  "kind": "modernist_institutional",
+  "label": "ТУ-София, Блок 9 (Факултет по геология и миннотехнологии / ФДИБА)",
+  "levels": 4,
+  "notes": "",
+  "roof": "flat",
+  "roof_hex": "#66625c",
+  "shop_signs": [],
+  "sources": [
+   "OSM name 9-и блок; places: TU Sofia Block 10 / Aviation school (stops/0801.json)"
+  ],
+  "wall_hex": "#cfc9ba",
+  "window": "ribbon"
+ },
+ "w1055187511": {
+  "accent_hex": "#9d9a90",
+  "confidence": "low",
+  "features": [
+   "62 x 27 m, 10 floors, part of the stepped 7-10 floor slab ensemble along the boulevard",
+   "ground-floor shops (beauty room, laundry, tailor) with sign boards",
+   "loggia bands, solid gable ends"
+  ],
+  "ground_floor": "shops",
+  "height_m": 31.0,
+  "kind": "panel_1970s",
+  "label": "10-етажен блок с магазини, бул. Кл. Охридски 23 (Allexi's Beauty Room, Mr Jeff, Ваялет)",
+  "levels": 10,
+  "notes": "",
+  "roof": "flat",
+  "roof_hex": "#6b6862",
+  "shop_signs": [
+   {
+    "bg_hex": "#d6336c",
+    "fg_hex": "#ffffff",
+    "text": "Allexi's Beauty Room"
+   },
+   {
+    "bg_hex": "#1c7ed6",
+    "fg_hex": "#ffffff",
+    "text": "Mr Jeff"
+   }
+  ],
+  "sources": [
+   "OSM levels=10 (stops/0800.json)",
+   "stops/0800.json + stops/0801.json places (addresses, business names)",
+   "inferred: 1970s-80s large-panel typology"
+  ],
+  "wall_hex": "#b8b6ac",
+  "window": "loggia_bands"
+ },
+ "w1070225777": {
+  "accent_hex": "#a39f94",
+  "confidence": "low",
+  "features": [],
+  "ground_floor": "entrances",
+  "height_m": 19.0,
+  "kind": "panel_1960s",
+  "label": "Жилищен блок",
+  "levels": 6,
+  "notes": "auto-classified; no specific source found; levels inferred from footprint (OSM has none)",
+  "roof": "flat",
+  "roof_hex": "#6b6862",
+  "shop_signs": [],
+  "sources": [
+   "inferred: OSM/Overture class+levels+footprint, typology (area rule)"
+  ],
+  "wall_hex": "#c0bdb2",
+  "window": "punched_grid"
+ },
+ "w1070225778": {
+  "accent_hex": "#a8a090",
+  "confidence": "low",
+  "features": [],
+  "ground_floor": "entrances",
+  "height_m": 10.0,
+  "kind": "modern_residential",
+  "label": "Жилищен блок",
+  "levels": 3,
+  "notes": "auto-classified; no specific source found; levels inferred from footprint (OSM has none)",
+  "roof": "hipped",
+  "roof_hex": "#8a4b36",
+  "shop_signs": [],
+  "sources": [
+   "inferred: OSM/Overture class+levels+footprint, typology (area rule)"
+  ],
+  "wall_hex": "#e6dfcf",
+  "window": "punched_grid"
+ },
+ "w1102286775": {
+  "accent_hex": "#7b858c",
+  "confidence": "low",
+  "features": [],
+  "ground_floor": "shops",
+  "height_m": 4.0,
+  "kind": "kiosk",
+  "label": "Магазин/търговски обект",
+  "levels": 1,
+  "notes": "auto-classified; no specific source found",
+  "roof": "flat",
+  "roof_hex": "#5f666b",
+  "shop_signs": [],
+  "sources": [
+   "inferred: OSM/Overture class+levels+footprint, typology (area rule)"
+  ],
+  "wall_hex": "#aeb6bb",
+  "window": "shopfront_only"
+ },
+ "w1126001446": {
+  "accent_hex": "#9b968a",
+  "confidence": "low",
+  "features": [],
+  "ground_floor": "shops",
+  "height_m": 4.0,
+  "kind": "other",
+  "label": "Търговска/офис сграда",
+  "levels": 1,
+  "notes": "auto-classified; no specific source found; levels inferred from footprint (OSM has none)",
+  "roof": "flat",
+  "roof_hex": "#66625c",
+  "shop_signs": [
+   {
+    "bg_hex": "#b3261e",
+    "fg_hex": "#ffffff",
+    "text": "Story Bar & Dinner"
+   },
+   {
+    "bg_hex": "#1c1c1c",
+    "fg_hex": "#ff3b7f",
+    "text": "Milenkata"
+   }
+  ],
+  "sources": [
+   "inferred: OSM/Overture class+levels+footprint, typology (area rule)",
+   "signs: Overture places inside the footprint; colours are brand/category guesses"
+  ],
+  "wall_hex": "#d0cbbd",
+  "window": "shopfront_only"
+ },
+ "w1135326274": {
+  "accent_hex": "#9b968a",
+  "confidence": "low",
+  "features": [],
+  "ground_floor": "blank",
+  "height_m": 4.0,
+  "kind": "other",
+  "label": "Сграда",
+  "levels": 1,
+  "notes": "auto-classified; no specific source found",
+  "roof": "flat",
+  "roof_hex": "#66625c",
+  "shop_signs": [],
+  "sources": [
+   "inferred: OSM/Overture class+levels+footprint, typology (area rule)"
+  ],
+  "wall_hex": "#d0cbbd",
+  "window": "punched_grid"
+ },
+ "w1135326276": {
+  "accent_hex": "#7b858c",
+  "confidence": "low",
+  "features": [],
+  "ground_floor": "shops",
+  "height_m": 4.0,
+  "kind": "kiosk",
+  "label": "Търговска/офис сграда",
+  "levels": 1,
+  "notes": "auto-classified; no specific source found; levels inferred from footprint (OSM has none)",
+  "roof": "flat",
+  "roof_hex": "#5f666b",
+  "shop_signs": [
+   {
+    "bg_hex": "#2e7d32",
+    "fg_hex": "#ffffff",
+    "text": "Impulse Healthy Bar"
+   }
+  ],
+  "sources": [
+   "inferred: OSM/Overture class+levels+footprint, typology (area rule)",
+   "signs: Overture places inside the footprint; colours are brand/category guesses"
+  ],
+  "wall_hex": "#aeb6bb",
+  "window": "shopfront_only"
+ },
+ "w1164907843": {
+  "accent_hex": "#7a5c3a",
+  "confidence": "low",
+  "features": [
+   "open wooden pergola/gazebo in the park"
+  ],
+  "ground_floor": "blank",
+  "height_m": 3.0,
+  "kind": "kiosk",
+  "label": "Парков навес/беседка (4 x 4 m)",
+  "levels": 1,
+  "notes": "",
+  "roof": "hipped",
+  "roof_hex": "#6b4a2f",
+  "shop_signs": [],
+  "sources": [
+   "OSM building=shelter (civic)"
+  ],
+  "wall_hex": "#b79b7a",
+  "window": "shopfront_only"
+ },
+ "w1164907844": {
+  "accent_hex": "#7a5c3a",
+  "confidence": "low",
+  "features": [
+   "open wooden pergola/gazebo in the park"
+  ],
+  "ground_floor": "blank",
+  "height_m": 3.0,
+  "kind": "kiosk",
+  "label": "Парков навес/беседка (4 x 4 m)",
+  "levels": 1,
+  "notes": "",
+  "roof": "hipped",
+  "roof_hex": "#6b4a2f",
+  "shop_signs": [],
+  "sources": [
+   "OSM building=shelter (civic)"
+  ],
+  "wall_hex": "#b79b7a",
+  "window": "shopfront_only"
+ },
+ "w1173082843": {
+  "accent_hex": "#8b8173",
+  "confidence": "low",
+  "features": [],
+  "ground_floor": "entrances",
+  "height_m": 16.0,
+  "kind": "brick_socialist",
+  "label": "Жилищен блок",
+  "levels": 5,
+  "notes": "auto-classified; no specific source found; levels inferred from footprint (OSM has none)",
+  "roof": "flat",
+  "roof_hex": "#66625c",
+  "shop_signs": [],
+  "sources": [
+   "inferred: OSM/Overture class+levels+footprint, typology (area rule)"
+  ],
+  "wall_hex": "#d6ccb4",
+  "window": "punched_grid"
+ },
+ "w1173082844": {
+  "accent_hex": "#a8a090",
+  "confidence": "low",
+  "features": [],
+  "ground_floor": "entrances",
+  "height_m": 13.0,
+  "kind": "modern_residential",
+  "label": "Жилищен блок",
+  "levels": 4,
+  "notes": "auto-classified; no specific source found; levels inferred from footprint (OSM has none)",
+  "roof": "hipped",
+  "roof_hex": "#8a4b36",
+  "shop_signs": [],
+  "sources": [
+   "inferred: OSM/Overture class+levels+footprint, typology (area rule)"
+  ],
+  "wall_hex": "#e6dfcf",
+  "window": "punched_grid"
+ },
+ "w1174500262": {
+  "accent_hex": "#8a867b",
+  "confidence": "low",
+  "features": [],
+  "ground_floor": "garages",
+  "height_m": 3.5,
+  "kind": "industrial",
+  "label": "Паркинг",
+  "levels": 1,
+  "notes": "auto-classified; no specific source found",
+  "roof": "flat",
+  "roof_hex": "#6a6862",
+  "shop_signs": [],
+  "sources": [
+   "inferred: OSM/Overture class+levels+footprint, typology (area rule)"
+  ],
+  "wall_hex": "#b3aea1",
+  "window": "shopfront_only"
+ },
+ "w1193369651": {
+  "accent_hex": "#a8a090",
+  "confidence": "low",
+  "features": [],
+  "ground_floor": "entrances",
+  "height_m": 13.0,
+  "kind": "modern_residential",
+  "label": "Жилищен блок",
+  "levels": 4,
+  "notes": "auto-classified; no specific source found; levels inferred from footprint (OSM has none)",
+  "roof": "hipped",
+  "roof_hex": "#8a4b36",
+  "shop_signs": [],
+  "sources": [
+   "inferred: OSM/Overture class+levels+footprint, typology (area rule)"
+  ],
+  "wall_hex": "#e6dfcf",
+  "window": "punched_grid"
+ },
+ "w1199408986": {
+  "accent_hex": "#8b8173",
+  "confidence": "low",
+  "features": [],
+  "ground_floor": "entrances",
+  "height_m": 10.0,
+  "kind": "brick_socialist",
+  "label": "Жилищен блок",
+  "levels": 3,
+  "notes": "auto-classified; no specific source found; levels inferred from footprint (OSM has none)",
+  "roof": "flat",
+  "roof_hex": "#66625c",
+  "shop_signs": [],
+  "sources": [
+   "inferred: OSM/Overture class+levels+footprint, typology (area rule)"
+  ],
+  "wall_hex": "#d6ccb4",
+  "window": "punched_grid"
+ },
+ "w1216062359": {
+  "accent_hex": "#9b968a",
+  "confidence": "low",
+  "features": [],
+  "ground_floor": "blank",
+  "height_m": 3.5,
+  "kind": "other",
+  "label": "I&G Brokers",
+  "levels": 1,
+  "notes": "auto-classified; no specific source found",
+  "roof": "flat",
+  "roof_hex": "#66625c",
+  "shop_signs": [],
+  "sources": [
+   "inferred: OSM/Overture class+levels+footprint, typology (area rule)"
+  ],
+  "wall_hex": "#d0cbbd",
+  "window": "punched_grid"
+ },
+ "w1221552145": {
+  "accent_hex": "#8b8173",
+  "confidence": "low",
+  "features": [
+   "small shop box"
+  ],
+  "ground_floor": "shops",
+  "height_m": 4.0,
+  "kind": "kiosk",
+  "label": "Едноетажен търговски обект до бензиностанцията",
+  "levels": 1,
+  "notes": "",
+  "roof": "flat",
+  "roof_hex": "#66625c",
+  "shop_signs": [],
+  "sources": [
+   "OSM"
+  ],
+  "wall_hex": "#c9c3b4",
+  "window": "shopfront_only"
+ },
+ "w1225071803": {
+  "accent_hex": "#7b858c",
+  "confidence": "medium",
+  "features": [
+   "single-storey glazed shop pavilion at the kerb"
+  ],
+  "ground_floor": "shops",
+  "height_m": 3.6,
+  "kind": "kiosk",
+  "label": "Павилион (цветарски магазин „Цветно ухание“, бул. Кл. Охридски 17)",
+  "levels": 1,
+  "notes": "",
+  "roof": "flat",
+  "roof_hex": "#5f666b",
+  "shop_signs": [
+   {
+    "bg_hex": "#ad1457",
+    "fg_hex": "#ffffff",
+    "text": "Цветарски магазин Цветно …"
+   }
+  ],
+  "sources": [
+   "stops/0617.json + stops/0614.json places (addresses, business names)",
+   "signs: Overture places inside the footprint; colours are brand/category guesses"
+  ],
+  "wall_hex": "#aeb6bb",
+  "window": "shopfront_only"
+ },
+ "w1225071804": {
+  "accent_hex": "#7b858c",
+  "confidence": "medium",
+  "features": [
+   "single-storey glazed shop pavilion at the kerb"
+  ],
+  "ground_floor": "shops",
+  "height_m": 3.6,
+  "kind": "kiosk",
+  "label": "Павилион (Homemart / парти зала, бул. Кл. Охридски 17)",
+  "levels": 1,
+  "notes": "",
+  "roof": "flat",
+  "roof_hex": "#5f666b",
+  "shop_signs": [
+   {
+    "bg_hex": "#455a64",
+    "fg_hex": "#ffffff",
+    "text": "Парти зала кв.Дървеница"
+   }
+  ],
+  "sources": [
+   "stops/0617.json + stops/0614.json places (addresses, business names)",
+   "signs: Overture places inside the footprint; colours are brand/category guesses"
+  ],
+  "wall_hex": "#aeb6bb",
+  "window": "shopfront_only"
+ },
+ "w1246618627": {
+  "accent_hex": "#8b8173",
+  "confidence": "low",
+  "features": [
+   "21 x 20 m one-storey commercial"
+  ],
+  "ground_floor": "shops",
+  "height_m": 4.5,
+  "kind": "kiosk",
+  "label": "Едноетажен търговски обект",
+  "levels": 1,
+  "notes": "",
+  "roof": "flat",
+  "roof_hex": "#66625c",
+  "shop_signs": [
+   {
+    "bg_hex": "#b3261e",
+    "fg_hex": "#ffffff",
+    "text": "Хамак парк Арабията"
+   }
+  ],
+  "sources": [
+   "OSM class=retail levels=1",
+   "signs: Overture places inside the footprint; colours are brand/category guesses"
+  ],
+  "wall_hex": "#d6d0c4",
+  "window": "shopfront_only"
+ },
+ "w1249912793": {
+  "accent_hex": "#7b858c",
+  "confidence": "low",
+  "features": [],
+  "ground_floor": "shops",
+  "height_m": 4.0,
+  "kind": "kiosk",
+  "label": "Магазин/търговски обект",
+  "levels": 1,
+  "notes": "auto-classified; no specific source found; levels inferred from footprint (OSM has none)",
+  "roof": "flat",
+  "roof_hex": "#5f666b",
+  "shop_signs": [],
+  "sources": [
+   "inferred: OSM/Overture class+levels+footprint, typology (area rule)"
+  ],
+  "wall_hex": "#aeb6bb",
+  "window": "shopfront_only"
+ },
+ "w1249912794": {
+  "accent_hex": "#8b8173",
+  "confidence": "low",
+  "features": [
+   "large one-storey shop/market hall with parked cars in front"
+  ],
+  "ground_floor": "shops",
+  "height_m": 5.0,
+  "kind": "other",
+  "label": "Едноетажен търговски обект 47 x 37 m (ул. 8-ми декември)",
+  "levels": 1,
+  "notes": "",
+  "roof": "flat",
+  "roof_hex": "#66625c",
+  "shop_signs": [
+   {
+    "bg_hex": "#1c1c1c",
+    "fg_hex": "#ff3b7f",
+    "text": "Umbrella"
+   },
+   {
+    "bg_hex": "#455a64",
+    "fg_hex": "#ffffff",
+    "text": "Football Club Barocco Spo…"
+   }
+  ],
+  "sources": [
+   "OSM class=retail levels=1",
+   "signs: Overture places inside the footprint; colours are brand/category guesses"
+  ],
+  "wall_hex": "#d3cdbf",
+  "window": "shopfront_only"
+ },
+ "w1374164708": {
+  "accent_hex": "#7b858c",
+  "confidence": "low",
+  "features": [
+   "long covered walkway / bicycle-shelter roof on posts"
+  ],
+  "ground_floor": "blank",
+  "height_m": 3.2,
+  "kind": "kiosk",
+  "label": "Покрит навес (55 x 9 m) по ул. 8-ми декември",
+  "levels": 1,
+  "notes": "",
+  "roof": "flat",
+  "roof_hex": "#5f666b",
+  "shop_signs": [],
+  "sources": [
+   "OSM building=roof"
+  ],
+  "wall_hex": "#a8a8a0",
+  "window": "shopfront_only"
+ },
+ "w1374164709": {
+  "accent_hex": "#7b858c",
+  "confidence": "low",
+  "features": [
+   "long covered walkway / bicycle-shelter roof on posts"
+  ],
+  "ground_floor": "blank",
+  "height_m": 3.2,
+  "kind": "kiosk",
+  "label": "Покрит навес (55 x 9 m) по ул. 8-ми декември",
+  "levels": 1,
+  "notes": "",
+  "roof": "flat",
+  "roof_hex": "#5f666b",
+  "shop_signs": [],
+  "sources": [
+   "OSM building=roof"
+  ],
+  "wall_hex": "#a8a8a0",
+  "window": "shopfront_only"
+ },
+ "w1375488360": {
+  "accent_hex": "#7b858c",
+  "confidence": "low",
+  "features": [],
+  "ground_floor": "shops",
+  "height_m": 4.0,
+  "kind": "kiosk",
+  "label": "Магазин/търговски обект",
+  "levels": 1,
+  "notes": "auto-classified; no specific source found",
+  "roof": "flat",
+  "roof_hex": "#5f666b",
+  "shop_signs": [],
+  "sources": [
+   "inferred: OSM/Overture class+levels+footprint, typology (area rule)"
+  ],
+  "wall_hex": "#aeb6bb",
+  "window": "shopfront_only"
+ },
+ "w1427692132": {
+  "accent_hex": "#9b968a",
+  "confidence": "low",
+  "features": [],
+  "ground_floor": "blank",
+  "height_m": 3.5,
+  "kind": "other",
+  "label": "Сграда",
+  "levels": 1,
+  "notes": "auto-classified; no specific source found",
+  "roof": "flat",
+  "roof_hex": "#66625c",
+  "shop_signs": [],
+  "sources": [
+   "inferred: OSM/Overture class+levels+footprint, typology (area rule)"
+  ],
+  "wall_hex": "#d0cbbd",
+  "window": "punched_grid"
+ },
+ "w1427692134": {
+  "accent_hex": "#9b968a",
+  "confidence": "low",
+  "features": [],
+  "ground_floor": "blank",
+  "height_m": 3.5,
+  "kind": "other",
+  "label": "Сграда",
+  "levels": 1,
+  "notes": "auto-classified; no specific source found",
+  "roof": "flat",
+  "roof_hex": "#66625c",
+  "shop_signs": [],
+  "sources": [
+   "inferred: OSM/Overture class+levels+footprint, typology (area rule)"
+  ],
+  "wall_hex": "#d0cbbd",
+  "window": "punched_grid"
+ },
+ "w1427692135": {
+  "accent_hex": "#9aa2a8",
+  "confidence": "low",
+  "features": [
+   "comb-shaped plan 182 x 94 m, three floors",
+   "continuous ribbon windows",
+   "school yard with fence (inferred)"
+  ],
+  "ground_floor": "lobby",
+  "height_m": 12.5,
+  "kind": "modernist_institutional",
+  "label": "55 СОУ „Петко Каравелов“ (ул. Дабница 3)",
+  "levels": 3,
+  "notes": "",
+  "roof": "flat",
+  "roof_hex": "#66625c",
+  "shop_signs": [],
+  "sources": [
+   "OSM class=school levels=3",
+   "stops/1740.json places (address + business names)"
+  ],
+  "wall_hex": "#e0d6b8",
+  "window": "ribbon"
+ },
+ "w1444031137": {
+  "accent_hex": "#9b968a",
+  "confidence": "low",
+  "features": [],
+  "ground_floor": "blank",
+  "height_m": 25.0,
+  "kind": "other",
+  "label": "Сграда",
+  "levels": 8,
+  "notes": "auto-classified; no specific source found",
+  "roof": "flat",
+  "roof_hex": "#66625c",
+  "shop_signs": [],
+  "sources": [
+   "inferred: OSM/Overture class+levels+footprint, typology (area rule)"
+  ],
+  "wall_hex": "#d0cbbd",
+  "window": "punched_grid"
+ },
+ "w1447340547": {
+  "accent_hex": "#7b858c",
+  "confidence": "low",
+  "features": [],
+  "ground_floor": "shops",
+  "height_m": 4.0,
+  "kind": "kiosk",
+  "label": "Магазин/търговски обект",
+  "levels": 1,
+  "notes": "auto-classified; no specific source found; levels inferred from footprint (OSM has none)",
+  "roof": "flat",
+  "roof_hex": "#5f666b",
+  "shop_signs": [],
+  "sources": [
+   "inferred: OSM/Overture class+levels+footprint, typology (area rule)"
+  ],
+  "wall_hex": "#aeb6bb",
+  "window": "shopfront_only"
+ },
+ "w1447340548": {
+  "accent_hex": "#7b858c",
+  "confidence": "low",
+  "features": [],
+  "ground_floor": "shops",
+  "height_m": 4.0,
+  "kind": "kiosk",
+  "label": "Магазин/търговски обект",
+  "levels": 1,
+  "notes": "auto-classified; no specific source found; levels inferred from footprint (OSM has none)",
+  "roof": "flat",
+  "roof_hex": "#5f666b",
+  "shop_signs": [],
+  "sources": [
+   "inferred: OSM/Overture class+levels+footprint, typology (area rule)"
+  ],
+  "wall_hex": "#aeb6bb",
+  "window": "shopfront_only"
+ },
+ "w1447340549": {
+  "accent_hex": "#7b858c",
+  "confidence": "low",
+  "features": [],
+  "ground_floor": "shops",
+  "height_m": 4.0,
+  "kind": "kiosk",
+  "label": "Магазин/търговски обект",
+  "levels": 1,
+  "notes": "auto-classified; no specific source found; levels inferred from footprint (OSM has none)",
+  "roof": "flat",
+  "roof_hex": "#5f666b",
+  "shop_signs": [],
+  "sources": [
+   "inferred: OSM/Overture class+levels+footprint, typology (area rule)"
+  ],
+  "wall_hex": "#aeb6bb",
+  "window": "shopfront_only"
+ },
+ "w1447342747": {
+  "accent_hex": "#7b858c",
+  "confidence": "low",
+  "features": [],
+  "ground_floor": "shops",
+  "height_m": 4.0,
+  "kind": "kiosk",
+  "label": "Магазин/търговски обект",
+  "levels": 1,
+  "notes": "auto-classified; no specific source found; levels inferred from footprint (OSM has none)",
+  "roof": "flat",
+  "roof_hex": "#5f666b",
+  "shop_signs": [],
+  "sources": [
+   "inferred: OSM/Overture class+levels+footprint, typology (area rule)"
+  ],
+  "wall_hex": "#aeb6bb",
+  "window": "shopfront_only"
+ },
+ "w1447342748": {
+  "accent_hex": "#7b858c",
+  "confidence": "low",
+  "features": [],
+  "ground_floor": "shops",
+  "height_m": 3.5,
+  "kind": "kiosk",
+  "label": "Павилион",
+  "levels": 1,
+  "notes": "auto-classified; no specific source found",
+  "roof": "flat",
+  "roof_hex": "#5f666b",
+  "shop_signs": [],
+  "sources": [
+   "inferred: OSM/Overture class+levels+footprint, typology (area rule)"
+  ],
+  "wall_hex": "#aeb6bb",
+  "window": "shopfront_only"
+ },
+ "w1447342749": {
+  "accent_hex": "#7b858c",
+  "confidence": "low",
+  "features": [],
+  "ground_floor": "shops",
+  "height_m": 3.5,
+  "kind": "kiosk",
+  "label": "Павилион",
+  "levels": 1,
+  "notes": "auto-classified; no specific source found",
+  "roof": "flat",
+  "roof_hex": "#5f666b",
+  "shop_signs": [],
+  "sources": [
+   "inferred: OSM/Overture class+levels+footprint, typology (area rule)"
+  ],
+  "wall_hex": "#aeb6bb",
+  "window": "shopfront_only"
+ },
+ "w1447348003": {
+  "accent_hex": "#9b968a",
+  "confidence": "low",
+  "features": [],
+  "ground_floor": "blank",
+  "height_m": 3.5,
+  "kind": "other",
+  "label": "Сграда",
+  "levels": 1,
+  "notes": "auto-classified; no specific source found",
+  "roof": "flat",
+  "roof_hex": "#66625c",
+  "shop_signs": [],
+  "sources": [
+   "inferred: OSM/Overture class+levels+footprint, typology (area rule)"
+  ],
+  "wall_hex": "#d0cbbd",
+  "window": "punched_grid"
+ },
+ "w1447348004": {
+  "accent_hex": "#7b858c",
+  "confidence": "low",
+  "features": [],
+  "ground_floor": "shops",
+  "height_m": 4.0,
+  "kind": "kiosk",
+  "label": "Магазин/търговски обект",
+  "levels": 1,
+  "notes": "auto-classified; no specific source found; levels inferred from footprint (OSM has none)",
+  "roof": "flat",
+  "roof_hex": "#5f666b",
+  "shop_signs": [],
+  "sources": [
+   "inferred: OSM/Overture class+levels+footprint, typology (area rule)"
+  ],
+  "wall_hex": "#aeb6bb",
+  "window": "shopfront_only"
+ },
+ "w1467807317": {
+  "accent_hex": "#7b858c",
+  "confidence": "low",
+  "features": [],
+  "ground_floor": "shops",
+  "height_m": 4.0,
+  "kind": "kiosk",
+  "label": "Магазин/търговски обект",
+  "levels": 1,
+  "notes": "auto-classified; no specific source found; levels inferred from footprint (OSM has none)",
+  "roof": "flat",
+  "roof_hex": "#5f666b",
+  "shop_signs": [
+   {
+    "bg_hex": "#d6336c",
+    "fg_hex": "#ffffff",
+    "text": "ТОП СТАЙЛ"
+   },
+   {
+    "bg_hex": "#b3261e",
+    "fg_hex": "#ffffff",
+    "text": "ZENITH"
+   }
+  ],
+  "sources": [
+   "inferred: OSM/Overture class+levels+footprint, typology (area rule)",
+   "signs: Overture places inside the footprint; colours are brand/category guesses"
+  ],
+  "wall_hex": "#aeb6bb",
+  "window": "shopfront_only"
+ },
+ "w1473632083": {
+  "accent_hex": "#7b858c",
+  "confidence": "low",
+  "features": [],
+  "ground_floor": "shops",
+  "height_m": 4.0,
+  "kind": "kiosk",
+  "label": "Магазин/търговски обект",
+  "levels": 1,
+  "notes": "auto-classified; no specific source found; levels inferred from footprint (OSM has none)",
+  "roof": "flat",
+  "roof_hex": "#5f666b",
+  "shop_signs": [
+   {
+    "bg_hex": "#0a5ba8",
+    "fg_hex": "#ffffff",
+    "text": "София 17/ Студентски град"
+   },
+   {
+    "bg_hex": "#b3261e",
+    "fg_hex": "#ffffff",
+    "text": "Biliana Park Restaurant"
+   },
+   {
+    "bg_hex": "#b3261e",
+    "fg_hex": "#ffffff",
+    "text": "ПеТлЕтО - Студентски град"
+   }
+  ],
+  "sources": [
+   "inferred: OSM/Overture class+levels+footprint, typology (area rule)",
+   "signs: Overture places inside the footprint; colours are brand/category guesses"
+  ],
+  "wall_hex": "#aeb6bb",
+  "window": "shopfront_only"
+ },
+ "w1473632084": {
+  "accent_hex": "#9b968a",
+  "confidence": "low",
+  "features": [],
+  "ground_floor": "shops",
+  "height_m": 7.0,
+  "kind": "other",
+  "label": "Магазин/търговски обект",
+  "levels": 2,
+  "notes": "auto-classified; no specific source found; levels inferred from footprint (OSM has none)",
+  "roof": "flat",
+  "roof_hex": "#66625c",
+  "shop_signs": [
+   {
+    "bg_hex": "#b3261e",
+    "fg_hex": "#ffffff",
+    "text": "Biliana Park Restaurant"
+   },
+   {
+    "bg_hex": "#b3261e",
+    "fg_hex": "#ffffff",
+    "text": "ПеТлЕтО - Студентски град"
+   }
+  ],
+  "sources": [
+   "inferred: OSM/Overture class+levels+footprint, typology (area rule)",
+   "signs: Overture places inside the footprint; colours are brand/category guesses"
+  ],
+  "wall_hex": "#d0cbbd",
+  "window": "shopfront_only"
+ },
+ "w1482268430": {
+  "accent_hex": "#7b858c",
+  "confidence": "low",
+  "features": [],
+  "ground_floor": "shops",
+  "height_m": 4.0,
+  "kind": "kiosk",
+  "label": "Магазин/търговски обект",
+  "levels": 1,
+  "notes": "auto-classified; no specific source found; levels inferred from footprint (OSM has none)",
+  "roof": "flat",
+  "roof_hex": "#5f666b",
+  "shop_signs": [],
+  "sources": [
+   "inferred: OSM/Overture class+levels+footprint, typology (area rule)"
+  ],
+  "wall_hex": "#aeb6bb",
+  "window": "shopfront_only"
+ },
+ "w1482529291": {
+  "accent_hex": "#9b968a",
+  "confidence": "low",
+  "features": [],
+  "ground_floor": "blank",
+  "height_m": 3.5,
+  "kind": "other",
+  "label": "Сграда",
+  "levels": 1,
+  "notes": "auto-classified; no specific source found",
+  "roof": "flat",
+  "roof_hex": "#66625c",
+  "shop_signs": [],
+  "sources": [
+   "inferred: OSM/Overture class+levels+footprint, typology (area rule)"
+  ],
+  "wall_hex": "#d0cbbd",
+  "window": "punched_grid"
+ },
+ "w1482534680": {
+  "accent_hex": "#9b968a",
+  "confidence": "low",
+  "features": [],
+  "ground_floor": "shops",
+  "height_m": 4.0,
+  "kind": "other",
+  "label": "Магазин/търговски обект",
+  "levels": 1,
+  "notes": "auto-classified; no specific source found; levels inferred from footprint (OSM has none)",
+  "roof": "flat",
+  "roof_hex": "#66625c",
+  "shop_signs": [
+   {
+    "bg_hex": "#d6336c",
+    "fg_hex": "#ffffff",
+    "text": "Соларно Студио"
+   }
+  ],
+  "sources": [
+   "inferred: OSM/Overture class+levels+footprint, typology (area rule)",
+   "signs: Overture places inside the footprint; colours are brand/category guesses"
+  ],
+  "wall_hex": "#d0cbbd",
+  "window": "shopfront_only"
+ },
+ "w1482534681": {
+  "accent_hex": "#7b858c",
+  "confidence": "low",
+  "features": [],
+  "ground_floor": "shops",
+  "height_m": 4.0,
+  "kind": "kiosk",
+  "label": "Магазин/търговски обект",
+  "levels": 1,
+  "notes": "auto-classified; no specific source found; levels inferred from footprint (OSM has none)",
+  "roof": "flat",
+  "roof_hex": "#5f666b",
+  "shop_signs": [
+   {
+    "bg_hex": "#b3261e",
+    "fg_hex": "#ffffff",
+    "text": "Скара Български Ритми 2"
+   },
+   {
+    "bg_hex": "#d6336c",
+    "fg_hex": "#ffffff",
+    "text": "Соларно Студио"
+   }
+  ],
+  "sources": [
+   "inferred: OSM/Overture class+levels+footprint, typology (area rule)",
+   "signs: Overture places inside the footprint; colours are brand/category guesses"
+  ],
+  "wall_hex": "#aeb6bb",
+  "window": "shopfront_only"
+ },
+ "w1497054518": {
+  "accent_hex": "#9b968a",
+  "confidence": "low",
+  "features": [],
+  "ground_floor": "blank",
+  "height_m": 25.0,
+  "kind": "other",
+  "label": "Сграда",
+  "levels": 8,
+  "notes": "auto-classified; no specific source found",
+  "roof": "flat",
+  "roof_hex": "#66625c",
+  "shop_signs": [],
+  "sources": [
+   "inferred: OSM/Overture class+levels+footprint, typology (area rule)"
+  ],
+  "wall_hex": "#d0cbbd",
+  "window": "punched_grid"
+ },
+ "w1499316846": {
+  "accent_hex": "#7f8b91",
+  "confidence": "low",
+  "features": [
+   "small mixed-use/office block of the TU gate street"
+  ],
+  "ground_floor": "shops",
+  "height_m": 15.5,
+  "kind": "glass_office",
+  "label": "Малка офис сграда, ул. Брадистилов 6 (5 ет.)",
+  "levels": 5,
+  "notes": "",
+  "roof": "flat",
+  "roof_hex": "#5c6165",
+  "shop_signs": [
+   {
+    "bg_hex": "#5d4037",
+    "fg_hex": "#ffffff",
+    "text": "Papi fresh"
+   },
+   {
+    "bg_hex": "#455a64",
+    "fg_hex": "#ffffff",
+    "text": "Belvek"
+   },
+   {
+    "bg_hex": "#455a64",
+    "fg_hex": "#ffffff",
+    "text": "AndroidPal"
+   }
+  ],
+  "sources": [
+   "OSM levels",
+   "stops/1740.json places (address + business names)",
+   "signs: Overture places inside the footprint; colours are brand/category guesses"
+  ],
+  "wall_hex": "#c9ccce",
+  "window": "ribbon"
+ },
+ "w1548575973": {
+  "accent_hex": "#7b858c",
+  "confidence": "low",
+  "features": [],
+  "ground_floor": "shops",
+  "height_m": 4.0,
+  "kind": "kiosk",
+  "label": "Магазин/търговски обект",
+  "levels": 1,
+  "notes": "auto-classified; no specific source found; levels inferred from footprint (OSM has none)",
+  "roof": "flat",
+  "roof_hex": "#5f666b",
+  "shop_signs": [
+   {
+    "bg_hex": "#455a64",
+    "fg_hex": "#ffffff",
+    "text": "Детски магазин Барбарони"
+   }
+  ],
+  "sources": [
+   "inferred: OSM/Overture class+levels+footprint, typology (area rule)",
+   "signs: Overture places inside the footprint; colours are brand/category guesses"
+  ],
+  "wall_hex": "#aeb6bb",
+  "window": "shopfront_only"
+ },
+ "w166109630": {
+  "accent_hex": "#8f8b80",
+  "confidence": "low",
+  "features": [
+   "49 x 41 m, rotated 20 degrees against the street grid, set back on the ул. Университетски парк side"
+  ],
+  "ground_floor": "lobby",
+  "height_m": 14.0,
+  "kind": "modernist_institutional",
+  "label": "Университетска сграда (Университетски парк 1: Elieff Center, AUBG Executive MBA, ARC Academy, Hobelix Hub)",
+  "levels": 4,
+  "notes": "",
+  "roof": "flat",
+  "roof_hex": "#66625c",
+  "shop_signs": [],
+  "sources": [
+   "OSM class=university; places: American University in Bulgaria, Elieff Center, Hobelix Hub (stops/1610.json)"
+  ],
+  "wall_hex": "#dcd5c3",
+  "window": "ribbon"
+ },
+ "w166109672": {
+  "accent_hex": "#8b8173",
+  "confidence": "medium",
+  "features": [
+   "large single-storey retail box with signage band"
+  ],
+  "ground_floor": "shops",
+  "height_m": 5.0,
+  "kind": "kiosk",
+  "label": "Pepco, бул. Кл. Охридски 9 (едноетажна търговска кутия)",
+  "levels": 1,
+  "notes": "",
+  "roof": "flat",
+  "roof_hex": "#66625c",
+  "shop_signs": [
+   {
+    "bg_hex": "#0a4d9c",
+    "fg_hex": "#ffffff",
+    "text": "PEPCO"
+   }
+  ],
+  "sources": [
+   "places: Pepco SOFIA, 9 Kliment Ohridski Blvd"
+  ],
+  "wall_hex": "#d6d0c4",
+  "window": "shopfront_only"
+ },
+ "w166109724": {
+  "accent_hex": "#8a867b",
+  "confidence": "low",
+  "features": [],
+  "ground_floor": "garages",
+  "height_m": 3.5,
+  "kind": "industrial",
+  "label": "Склад",
+  "levels": 1,
+  "notes": "auto-classified; no specific source found",
+  "roof": "flat",
+  "roof_hex": "#6a6862",
+  "shop_signs": [],
+  "sources": [
+   "inferred: OSM/Overture class+levels+footprint, typology (area rule)"
+  ],
+  "wall_hex": "#b3aea1",
+  "window": "shopfront_only"
+ },
+ "w166109747": {
+  "accent_hex": "#8b7355",
+  "confidence": "low",
+  "features": [
+   "small student chapel about 12 x 9 m, plastered white/cream walls, red-tile pitched roof with a small cupola/cross (inferred)",
+   "stands 50 m east of the 1691 pole in the open park, with a paved forecourt"
+  ],
+  "ground_floor": "blank",
+  "height_m": 9.0,
+  "kind": "church",
+  "label": "Храм-параклис „Св. Йоан Рилски Чудотворец“, ул. Ак. Стефан Младенов 8",
+  "levels": 1,
+  "notes": "shape inferred from typical Bulgarian chapels",
+  "roof": "gabled",
+  "roof_hex": "#9a3b26",
+  "shop_signs": [],
+  "sources": [
+   "OSM name Параклис св. Иван Рилски; places: Храм-параклис Преподобни Йоан Рилски Чудотворец"
+  ],
+  "wall_hex": "#efe8d8",
+  "window": "punched_grid"
+ },
+ "w166109904": {
+  "accent_hex": "#8b8173",
+  "confidence": "low",
+  "features": [
+   "24 x 13 m brick/plaster apartment block"
+  ],
+  "ground_floor": "entrances",
+  "height_m": 13.0,
+  "kind": "brick_socialist",
+  "label": "4-етажна жилищна сграда (изток)",
+  "levels": 4,
+  "notes": "",
+  "roof": "flat",
+  "roof_hex": "#66625c",
+  "shop_signs": [],
+  "sources": [
+   "OSM levels=4"
+  ],
+  "wall_hex": "#d6ccb4",
+  "window": "punched_grid"
+ },
+ "w166109975": {
+  "accent_hex": "#9b968a",
+  "confidence": "low",
+  "features": [],
+  "ground_floor": "shops",
+  "height_m": 4.0,
+  "kind": "other",
+  "label": "Магазин/търговски обект",
+  "levels": 1,
+  "notes": "auto-classified; no specific source found; levels inferred from footprint (OSM has none)",
+  "roof": "flat",
+  "roof_hex": "#66625c",
+  "shop_signs": [
+   {
+    "bg_hex": "#5d4037",
+    "fg_hex": "#ffffff",
+    "text": "Simit Evi"
+   }
+  ],
+  "sources": [
+   "inferred: OSM/Overture class+levels+footprint, typology (area rule)",
+   "signs: Overture places inside the footprint; colours are brand/category guesses"
+  ],
+  "wall_hex": "#d0cbbd",
+  "window": "shopfront_only"
+ },
+ "w166110051": {
+  "accent_hex": "#8a867b",
+  "confidence": "low",
+  "features": [],
+  "ground_floor": "garages",
+  "height_m": 3.5,
+  "kind": "industrial",
+  "label": "Производствена/складова сграда",
+  "levels": 1,
+  "notes": "auto-classified; no specific source found",
+  "roof": "flat",
+  "roof_hex": "#6a6862",
+  "shop_signs": [],
+  "sources": [
+   "inferred: OSM/Overture class+levels+footprint, typology (area rule)"
+  ],
+  "wall_hex": "#b3aea1",
+  "window": "shopfront_only"
+ },
+ "w166110168": {
+  "accent_hex": "#7b858c",
+  "confidence": "low",
+  "features": [],
+  "ground_floor": "shops",
+  "height_m": 4.0,
+  "kind": "kiosk",
+  "label": "Магазин/търговски обект",
+  "levels": 1,
+  "notes": "auto-classified; no specific source found; levels inferred from footprint (OSM has none)",
+  "roof": "flat",
+  "roof_hex": "#5f666b",
+  "shop_signs": [
+   {
+    "bg_hex": "#b3261e",
+    "fg_hex": "#ffffff",
+    "text": "При Шопите"
+   },
+   {
+    "bg_hex": "#546e7a",
+    "fg_hex": "#ffffff",
+    "text": "Копирен Център и Книжарни…"
+   },
+   {
+    "bg_hex": "#1c1c1c",
+    "fg_hex": "#7c4dff",
+    "text": "Azzaro Night Club"
+   }
+  ],
+  "sources": [
+   "inferred: OSM/Overture class+levels+footprint, typology (area rule)",
+   "signs: Overture places inside the footprint; colours are brand/category guesses"
+  ],
+  "wall_hex": "#aeb6bb",
+  "window": "shopfront_only"
+ },
+ "w166110236": {
+  "accent_hex": "#8a867b",
+  "confidence": "low",
+  "features": [],
+  "ground_floor": "garages",
+  "height_m": 3.5,
+  "kind": "industrial",
+  "label": "Спомагателна постройка",
+  "levels": 1,
+  "notes": "auto-classified; no specific source found",
+  "roof": "flat",
+  "roof_hex": "#6a6862",
+  "shop_signs": [],
+  "sources": [
+   "inferred: OSM/Overture class+levels+footprint, typology (area rule)"
+  ],
+  "wall_hex": "#b3aea1",
+  "window": "shopfront_only"
+ },
+ "w166110294": {
+  "accent_hex": "#a39f94",
+  "confidence": "low",
+  "features": [
+   "66 x 16 m slab",
+   "ground-floor shops, pawn shop Lombard's",
+   "weathered grey panel facade, pavement-level shop signs"
+  ],
+  "ground_floor": "shops",
+  "height_m": 16.0,
+  "kind": "panel_1960s",
+  "label": "5-етажен блок с магазини, бул. Кл. Охридски 7 (Lombard's)",
+  "levels": 5,
+  "notes": "",
+  "roof": "flat",
+  "roof_hex": "#6b6862",
+  "shop_signs": [
+   {
+    "bg_hex": "#c62828",
+    "fg_hex": "#ffffff",
+    "text": "Заложни къщи LOMBARD'S"
+   }
+  ],
+  "sources": [
+   "OSM levels=5 (stops/1740.json)",
+   "stops/1740.json places (address + business names)",
+   "inferred: typology (1960s-70s large panel, 5 floors)"
+  ],
+  "wall_hex": "#bdb9ae",
+  "window": "punched_grid"
+ },
+ "w166110312": {
+  "accent_hex": "#8b8173",
+  "confidence": "medium",
+  "features": [
+   "long slab 56 x 15 m parallel to the boulevard",
+   "ground-floor shops and the post office 1756",
+   "upper floors with small balconies (inferred)"
+  ],
+  "ground_floor": "shops",
+  "height_m": 13.0,
+  "kind": "brick_socialist",
+  "label": "4-етажен блок с магазини, бул. Кл. Охридски 5 (пощенска станция 1756, Madlea, Masquerade, Den Don Design)",
+  "levels": 4,
+  "notes": "construction inferred",
+  "roof": "flat",
+  "roof_hex": "#66625c",
+  "shop_signs": [
+   {
+    "bg_hex": "#f2c200",
+    "fg_hex": "#1a1a1a",
+    "text": "Пощенска станция 1756"
+   },
+   {
+    "bg_hex": "#6a1b4d",
+    "fg_hex": "#ffffff",
+    "text": "MASQUERADE"
+   }
+  ],
+  "sources": [
+   "OSM levels=4, class=apartments (stops/1740.json)",
+   "stops/1740.json places (address + business names)"
+  ],
+  "wall_hex": "#d6ccb4",
+  "window": "punched_grid"
+ },
+ "w166110329": {
+  "accent_hex": "#8b8173",
+  "confidence": "medium",
+  "features": [
+   "36 x 20 m three-storey commercial block, bars and clubs at upper floors"
+  ],
+  "ground_floor": "shops",
+  "height_m": 11.0,
+  "kind": "brick_socialist",
+  "label": "Mania Business Center (ул. Йордан Йосифов 4: Mania интернет/гейм клуб, The Shots, Galaxy Barbershop, Domino's)",
+  "levels": 3,
+  "notes": "",
+  "roof": "flat",
+  "roof_hex": "#66625c",
+  "shop_signs": [
+   {
+    "bg_hex": "#e53935",
+    "fg_hex": "#ffffff",
+    "text": "Mania"
+   },
+   {
+    "bg_hex": "#1c1c1c",
+    "fg_hex": "#ffd600",
+    "text": "The Shots"
+   },
+   {
+    "bg_hex": "#006491",
+    "fg_hex": "#ffffff",
+    "text": "Domino's Pizza"
+   }
+  ],
+  "sources": [
+   "OSM name Mania Business Center levels=3 roof=flat",
+   "stops/0524.json + stops/0530.json places (addresses, business names)"
+  ],
+  "wall_hex": "#d6ccb4",
+  "window": "shopfront_only"
+ },
+ "w166110461": {
+  "accent_hex": "#8a867b",
+  "confidence": "low",
+  "features": [],
+  "ground_floor": "garages",
+  "height_m": 10.0,
+  "kind": "industrial",
+  "label": "Производствена/складова сграда",
+  "levels": 3,
+  "notes": "auto-classified; no specific source found",
+  "roof": "flat",
+  "roof_hex": "#6a6862",
+  "shop_signs": [],
+  "sources": [
+   "inferred: OSM/Overture class+levels+footprint, typology (area rule)"
+  ],
+  "wall_hex": "#b3aea1",
+  "window": "shopfront_only"
+ },
+ "w166110516": {
+  "accent_hex": "#9b968a",
+  "confidence": "low",
+  "features": [],
+  "ground_floor": "shops",
+  "height_m": 4.0,
+  "kind": "other",
+  "label": "Магазин/търговски обект",
+  "levels": 1,
+  "notes": "auto-classified; no specific source found; levels inferred from footprint (OSM has none)",
+  "roof": "flat",
+  "roof_hex": "#66625c",
+  "shop_signs": [],
+  "sources": [
+   "inferred: OSM/Overture class+levels+footprint, typology (area rule)"
+  ],
+  "wall_hex": "#d0cbbd",
+  "window": "shopfront_only"
+ },
+ "w166110587": {
+  "accent_hex": "#9b968a",
+  "confidence": "low",
+  "features": [],
+  "ground_floor": "shops",
+  "height_m": 4.0,
+  "kind": "other",
+  "label": "Магазин/търговски обект",
+  "levels": 1,
+  "notes": "auto-classified; no specific source found; levels inferred from footprint (OSM has none)",
+  "roof": "flat",
+  "roof_hex": "#66625c",
+  "shop_signs": [
+   {
+    "bg_hex": "#1c1c1c",
+    "fg_hex": "#ff3b7f",
+    "text": "Gio Premium Restoclub"
+   },
+   {
+    "bg_hex": "#455a64",
+    "fg_hex": "#ffffff",
+    "text": "Датамап Европа"
+   },
+   {
+    "bg_hex": "#455a64",
+    "fg_hex": "#ffffff",
+    "text": "Study Pro Bulgaria - Live…"
+   }
+  ],
+  "sources": [
+   "inferred: OSM/Overture class+levels+footprint, typology (area rule)",
+   "signs: Overture places inside the footprint; colours are brand/category guesses"
+  ],
+  "wall_hex": "#d0cbbd",
+  "window": "shopfront_only"
+ },
+ "w166110975": {
+  "accent_hex": "#a7a49a",
+  "confidence": "low",
+  "features": [
+   "63 x 17 m slab, 14 floors, the tallest slab near the stop",
+   "loggia bands on the long facade, solid gable ends",
+   "lift/stair core protruding on the roof"
+  ],
+  "ground_floor": "entrances",
+  "height_m": 43.0,
+  "kind": "epk_tower",
+  "label": "14-етажна жилищна сграда (Дървеница)",
+  "levels": 14,
+  "notes": "",
+  "roof": "flat",
+  "roof_hex": "#6b6862",
+  "shop_signs": [],
+  "sources": [
+   "OSM levels=14 (stops/0617.json)",
+   "inferred: 1980s 14-floor panel typology"
+  ],
+  "wall_hex": "#c3c0b6",
+  "window": "loggia_bands"
+ },
+ "w166112273": {
+  "accent_hex": "#a7a49a",
+  "confidence": "low",
+  "features": [
+   "26 x 22 m point tower, 16 floors, balcony bands"
+  ],
+  "ground_floor": "entrances",
+  "height_m": 49.0,
+  "kind": "epk_tower",
+  "label": "16-етажна жилищна кула (Дървеница)",
+  "levels": 16,
+  "notes": "",
+  "roof": "flat",
+  "roof_hex": "#6b6862",
+  "shop_signs": [],
+  "sources": [
+   "OSM levels=16"
+  ],
+  "wall_hex": "#c3c0b6",
+  "window": "loggia_bands"
+ },
+ "w169382971": {
+  "accent_hex": "#8f8b80",
+  "confidence": "low",
+  "features": [
+   "203 x 59 m comb of parallel wings with courtyards",
+   "octagonal garden pavilion/plaza in front (OSM paths)",
+   "tall trees between facade and road"
+  ],
+  "ground_floor": "lobby",
+  "height_m": 17.0,
+  "kind": "modernist_institutional",
+  "label": "ХТМУ, Сграда А (бул. Кл. Охридски 8)",
+  "levels": 5,
+  "notes": "levels assumed from TU-campus analogue (5)",
+  "roof": "flat",
+  "roof_hex": "#66625c",
+  "shop_signs": [],
+  "sources": [
+   "OSM name Сграда А, class=university",
+   "stops/1740.json places (address + business names)"
+  ],
+  "wall_hex": "#cfc9ba",
+  "window": "ribbon"
+ },
+ "w169382985": {
+  "accent_hex": "#7f8b91",
+  "confidence": "low",
+  "features": [
+   "small mixed-use/office block of the TU gate street"
+  ],
+  "ground_floor": "shops",
+  "height_m": 12.4,
+  "kind": "glass_office",
+  "label": "Малка сграда ул. Брадистилов (4 ет.)",
+  "levels": 4,
+  "notes": "",
+  "roof": "flat",
+  "roof_hex": "#5c6165",
+  "shop_signs": [
+   {
+    "bg_hex": "#ef6c00",
+    "fg_hex": "#ffffff",
+    "text": "Денима Про"
+   },
+   {
+    "bg_hex": "#00a94f",
+    "fg_hex": "#ffffff",
+    "text": "Банка ДСК"
+   },
+   {
+    "bg_hex": "#455a64",
+    "fg_hex": "#ffffff",
+    "text": "K.ГРУП ООД"
+   }
+  ],
+  "sources": [
+   "OSM levels",
+   "stops/1740.json places (address + business names)",
+   "signs: Overture places inside the footprint; colours are brand/category guesses"
+  ],
+  "wall_hex": "#c9ccce",
+  "window": "ribbon"
+ },
+ "w169382995": {
+  "accent_hex": "#7f8b91",
+  "confidence": "low",
+  "features": [
+   "small mixed-use/office block of the TU gate street"
+  ],
+  "ground_floor": "shops",
+  "height_m": 12.4,
+  "kind": "glass_office",
+  "label": "Малка сграда ул. Брадистилов (4 ет.)",
+  "levels": 4,
+  "notes": "",
+  "roof": "flat",
+  "roof_hex": "#5c6165",
+  "shop_signs": [
+   {
+    "bg_hex": "#b3261e",
+    "fg_hex": "#ffffff",
+    "text": "Kabbo Bar & Dinner"
+   },
+   {
+    "bg_hex": "#5d4037",
+    "fg_hex": "#ffffff",
+    "text": "NargiletoSofia"
+   }
+  ],
+  "sources": [
+   "OSM levels",
+   "stops/1740.json places (address + business names)",
+   "signs: Overture places inside the footprint; colours are brand/category guesses"
+  ],
+  "wall_hex": "#c9ccce",
+  "window": "ribbon"
+ },
+ "w169382996": {
+  "accent_hex": "#7f8b91",
+  "confidence": "low",
+  "features": [
+   "small mixed-use/office block of the TU gate street"
+  ],
+  "ground_floor": "shops",
+  "height_m": 6.2,
+  "kind": "other",
+  "label": "Търговска сграда (2 ет.) на ул. Брадистилов/Йозеф Мургаш",
+  "levels": 2,
+  "notes": "",
+  "roof": "flat",
+  "roof_hex": "#5c6165",
+  "shop_signs": [
+   {
+    "bg_hex": "#455a64",
+    "fg_hex": "#ffffff",
+    "text": "ZDRAVIS"
+   }
+  ],
+  "sources": [
+   "OSM levels",
+   "stops/1740.json places (address + business names)",
+   "signs: Overture places inside the footprint; colours are brand/category guesses"
+  ],
+  "wall_hex": "#cfc7b5",
+  "window": "shopfront_only"
+ },
+ "w169382999": {
+  "accent_hex": "#7f8b91",
+  "confidence": "low",
+  "features": [
+   "small mixed-use/office block of the TU gate street"
+  ],
+  "ground_floor": "shops",
+  "height_m": 15.5,
+  "kind": "glass_office",
+  "label": "Малка офис сграда, ул. Брадистилов 4 (5 ет.)",
+  "levels": 5,
+  "notes": "",
+  "roof": "flat",
+  "roof_hex": "#5c6165",
+  "shop_signs": [
+   {
+    "bg_hex": "#455a64",
+    "fg_hex": "#ffffff",
+    "text": "Pro-Ay Ti Kompyutarna pod…"
+   },
+   {
+    "bg_hex": "#455a64",
+    "fg_hex": "#ffffff",
+    "text": "Еконт Експрес"
+   },
+   {
+    "bg_hex": "#5d4037",
+    "fg_hex": "#ffffff",
+    "text": "Papi fresh"
+   }
+  ],
+  "sources": [
+   "OSM levels",
+   "stops/1740.json places (address + business names)",
+   "signs: Overture places inside the footprint; colours are brand/category guesses"
+  ],
+  "wall_hex": "#c9ccce",
+  "window": "ribbon"
+ },
+ "w169383001": {
+  "accent_hex": "#9a8f78",
+  "confidence": "low",
+  "features": [
+   "long slab 125 x 52 m with an L-wing at the south end, set back about 60-90 m from the boulevard behind a lawn/park (ЛТУ garden / dendrarium)",
+   "plastered pale ochre/cream facade, regular window grid, entrance portal with steps on the boulevard side (inferred)",
+   "mature trees between building and road"
+  ],
+  "ground_floor": "lobby",
+  "height_m": 18.0,
+  "kind": "modernist_institutional",
+  "label": "Лесотехнически университет (ЛТУ), главна сграда, бул. Кл. Охридски 10",
+  "levels": 5,
+  "notes": "floors and colour not verified; no photo source reachable",
+  "roof": "flat",
+  "roof_hex": "#66625c",
+  "shop_signs": [],
+  "sources": [
+   "OSM footprint w169383001 + places: University of Forestry, Агрономически факултет, Градинката на ЛТУ (stops/0617.json)",
+   "inferred: 1950s-60s institutional typology"
+  ],
+  "wall_hex": "#dcd2b4",
+  "window": "ribbon"
+ },
+ "w169383035": {
+  "accent_hex": "#8f8b80",
+  "confidence": "low",
+  "features": [
+   "90 x 77 m, 2 floors (OSM)"
+  ],
+  "ground_floor": "lobby",
+  "height_m": 9.0,
+  "kind": "modernist_institutional",
+  "label": "ТУ-София, Блок 8",
+  "levels": 2,
+  "notes": "",
+  "roof": "flat",
+  "roof_hex": "#66625c",
+  "shop_signs": [],
+  "sources": [
+   "OSM name 8-ми блок levels=2"
+  ],
+  "wall_hex": "#cfc9ba",
+  "window": "ribbon"
+ },
+ "w170124613": {
+  "accent_hex": "#a7a49a",
+  "confidence": "low",
+  "features": [
+   "about 35 x 25 m tower block, 12 floors, loggia bands"
+  ],
+  "ground_floor": "entrances",
+  "height_m": 37.0,
+  "kind": "epk_tower",
+  "label": "12-етажна жилищна кула, Дървеница/Студентски град",
+  "levels": 12,
+  "notes": "",
+  "roof": "flat",
+  "roof_hex": "#6b6862",
+  "shop_signs": [],
+  "sources": [
+   "OSM levels=12"
+  ],
+  "wall_hex": "#c3c0b6",
+  "window": "loggia_bands"
+ },
+ "w170124617": {
+  "accent_hex": "#a39f94",
+  "confidence": "low",
+  "features": [
+   "H-shaped plan 44 x 36 m",
+   "ground-floor shops facing the boulevard, upper floors student flats",
+   "weathered panel facade"
+  ],
+  "ground_floor": "shops",
+  "height_m": 16.0,
+  "kind": "panel_1960s",
+  "label": "Студентски град 7А — 5-етажен H-образен блок с магазини (ALF.BG, City Cash, Market Options Center)",
+  "levels": 5,
+  "notes": "",
+  "roof": "flat",
+  "roof_hex": "#6b6862",
+  "shop_signs": [
+   {
+    "bg_hex": "#455a64",
+    "fg_hex": "#ffffff",
+    "text": "Nail Art By Yonichka Panc…"
+   }
+  ],
+  "sources": [
+   "OSM levels=5; places at ж.к. Студентски град 7А",
+   "stops/0800.json + stops/0801.json places (addresses, business names)",
+   "signs: Overture places inside the footprint; colours are brand/category guesses"
+  ],
+  "wall_hex": "#bdb9ae",
+  "window": "punched_grid"
+ },
+ "w170124618": {
+  "accent_hex": "#a7a49a",
+  "confidence": "low",
+  "features": [
+   "about 35 x 25 m tower block, 12 floors, loggia bands"
+  ],
+  "ground_floor": "entrances",
+  "height_m": 37.0,
+  "kind": "epk_tower",
+  "label": "12-етажна жилищна кула, Дървеница/Студентски град",
+  "levels": 12,
+  "notes": "",
+  "roof": "flat",
+  "roof_hex": "#6b6862",
+  "shop_signs": [],
+  "sources": [
+   "OSM levels=12"
+  ],
+  "wall_hex": "#c3c0b6",
+  "window": "loggia_bands"
+ },
+ "w170124631": {
+  "accent_hex": "#9d9a90",
+  "confidence": "low",
+  "features": [
+   "79 x 55 m courtyard-shaped block, 8 floors",
+   "ground floor with KFC, Aestheline clinic, Bamboo Urban bar, Lidl access at the east end"
+  ],
+  "ground_floor": "shops",
+  "height_m": 25.0,
+  "kind": "panel_1970s",
+  "label": "8-етажен блок (ул. 8-ми декември/Йосифов; Suite Hotel Sofia, KFC, Lidl на партера)",
+  "levels": 8,
+  "notes": "",
+  "roof": "flat",
+  "roof_hex": "#6b6862",
+  "shop_signs": [
+   {
+    "bg_hex": "#e4002b",
+    "fg_hex": "#ffffff",
+    "text": "KFC"
+   },
+   {
+    "bg_hex": "#1c1c1c",
+    "fg_hex": "#ff3b7f",
+    "text": "Bamboo Urban"
+   }
+  ],
+  "sources": [
+   "OSM levels=8",
+   "stops/0524.json + stops/0530.json places (addresses, business names)"
+  ],
+  "wall_hex": "#b8b6ac",
+  "window": "loggia_bands"
+ },
+ "w170124644": {
+  "accent_hex": "#7b858c",
+  "confidence": "medium",
+  "features": [
+   "one-storey pavilion row on the TU gate street",
+   "glazed shopfronts, awnings and outdoor tables",
+   "sign boards in student-bar style"
+  ],
+  "ground_floor": "shops",
+  "height_m": 3.6,
+  "kind": "kiosk",
+  "label": "Павилион на ул. Брадистилов (магазини/сервизи)",
+  "levels": 1,
+  "notes": "row of single-storey pavilions in front of the TU Rectorate",
+  "roof": "flat",
+  "roof_hex": "#5f666b",
+  "shop_signs": [
+   {
+    "bg_hex": "#1f4e79",
+    "fg_hex": "#ffffff",
+    "text": "Techko"
+   }
+  ],
+  "sources": [
+   "stops/1740.json places (address + business names)"
+  ],
+  "wall_hex": "#aeb6bb",
+  "window": "shopfront_only"
+ },
+ "w170124645": {
+  "accent_hex": "#0a4aa0",
+  "confidence": "medium",
+  "features": [
+   "flat canopy over 4 pumps (25 x 16 m footprint), shop box beneath",
+   "OMV blue/white livery, price pylon",
+   "parcel locker (Еконтомат)"
+  ],
+  "ground_floor": "shops",
+  "height_m": 5.5,
+  "kind": "other",
+  "label": "Бензиностанция OMV, ул. 8-ми декември 3 (с Еконтомат)",
+  "levels": 1,
+  "notes": "",
+  "roof": "flat",
+  "roof_hex": "#d9d9d9",
+  "shop_signs": [
+   {
+    "bg_hex": "#0a4aa0",
+    "fg_hex": "#ffffff",
+    "text": "OMV"
+   }
+  ],
+  "sources": [
+   "places: OMV gas_station, Еконтомат (stops/0800.json)"
+  ],
+  "wall_hex": "#e8e8e8",
+  "window": "shopfront_only"
+ },
+ "w170124651": {
+  "accent_hex": "#7b858c",
+  "confidence": "medium",
+  "features": [
+   "one-storey pavilion row on the TU gate street",
+   "glazed shopfronts, awnings and outdoor tables",
+   "sign boards in student-bar style"
+  ],
+  "ground_floor": "shops",
+  "height_m": 3.6,
+  "kind": "kiosk",
+  "label": "Павилион на ул. Брадистилов (Nkd Pizza, Chef Leila)",
+  "levels": 1,
+  "notes": "row of single-storey pavilions in front of the TU Rectorate",
+  "roof": "flat",
+  "roof_hex": "#5f666b",
+  "shop_signs": [
+   {
+    "bg_hex": "#8e2b1f",
+    "fg_hex": "#ffffff",
+    "text": "Nkd Pizza"
+   }
+  ],
+  "sources": [
+   "stops/1740.json places (address + business names)"
+  ],
+  "wall_hex": "#aeb6bb",
+  "window": "shopfront_only"
+ },
+ "w170124652": {
+  "accent_hex": "#9d9a90",
+  "confidence": "low",
+  "features": [
+   "panel slab, ground-floor shops and gym",
+   "stepped heights along the boulevard"
+  ],
+  "ground_floor": "shops",
+  "height_m": 22.0,
+  "kind": "panel_1970s",
+  "label": "7-етажен блок ул. 8-ми декември 1 (Force Fitness, Zarimex, SAUER)",
+  "levels": 7,
+  "notes": "",
+  "roof": "flat",
+  "roof_hex": "#6b6862",
+  "shop_signs": [
+   {
+    "bg_hex": "#212121",
+    "fg_hex": "#ff9800",
+    "text": "Force Fitness"
+   },
+   {
+    "bg_hex": "#00a94f",
+    "fg_hex": "#ffffff",
+    "text": "Врати San Isidro бул.Клим…"
+   },
+   {
+    "bg_hex": "#212121",
+    "fg_hex": "#ff9800",
+    "text": "SAUER Bulgaria"
+   }
+  ],
+  "sources": [
+   "OSM levels",
+   "stops/0800.json + stops/0801.json places (addresses, business names)",
+   "inferred: typology",
+   "signs: Overture places inside the footprint; colours are brand/category guesses"
+  ],
+  "wall_hex": "#b8b6ac",
+  "window": "loggia_bands"
+ },
+ "w170124663": {
+  "accent_hex": "#7b858c",
+  "confidence": "medium",
+  "features": [
+   "one-storey pavilion row on the TU gate street",
+   "glazed shopfronts, awnings and outdoor tables",
+   "sign boards in student-bar style"
+  ],
+  "ground_floor": "shops",
+  "height_m": 3.6,
+  "kind": "kiosk",
+  "label": "Павилионен ред „Пазар ТУ“ (ул. Брадистилов 3: The Burger Joint, OffSide Sports bar & Hookah, Tortilla Shack, CashGo, Морско конче)",
+  "levels": 1,
+  "notes": "row of single-storey pavilions in front of the TU Rectorate",
+  "roof": "flat",
+  "roof_hex": "#5f666b",
+  "shop_signs": [
+   {
+    "bg_hex": "#c0392b",
+    "fg_hex": "#ffffff",
+    "text": "The Burger Joint"
+   },
+   {
+    "bg_hex": "#111111",
+    "fg_hex": "#ffd200",
+    "text": "OffSide Sports bar"
+   },
+   {
+    "bg_hex": "#2e7d32",
+    "fg_hex": "#ffffff",
+    "text": "Tortilla Shack"
+   }
+  ],
+  "sources": [
+   "stops/1740.json places (address + business names)"
+  ],
+  "wall_hex": "#aeb6bb",
+  "window": "shopfront_only"
+ },
+ "w170124711": {
+  "accent_hex": "#8f8b80",
+  "confidence": "low",
+  "features": [
+   "U-shaped 48 x 43 m"
+  ],
+  "ground_floor": "lobby",
+  "height_m": 14.0,
+  "kind": "modernist_institutional",
+  "label": "ТУ-София, Блок 13",
+  "levels": 4,
+  "notes": "",
+  "roof": "flat",
+  "roof_hex": "#66625c",
+  "shop_signs": [],
+  "sources": [
+   "OSM name 13-ти блок"
+  ],
+  "wall_hex": "#cfc9ba",
+  "window": "ribbon"
+ },
+ "w220308740": {
+  "accent_hex": "#9d9a90",
+  "confidence": "low",
+  "features": [
+   "large courtyard-shaped block"
+  ],
+  "ground_floor": "entrances",
+  "height_m": 25.0,
+  "kind": "panel_1970s",
+  "label": "8-етажен жилищен блок 109 x 67 m (зад павилионите на Борис Стефанов)",
+  "levels": 8,
+  "notes": "",
+  "roof": "flat",
+  "roof_hex": "#6b6862",
+  "shop_signs": [],
+  "sources": [
+   "OSM levels=8"
+  ],
+  "wall_hex": "#b8b6ac",
+  "window": "loggia_bands"
+ },
+ "w220308761": {
+  "accent_hex": "#9b968a",
+  "confidence": "low",
+  "features": [],
+  "ground_floor": "shops",
+  "height_m": 4.0,
+  "kind": "other",
+  "label": "Търговска/офис сграда",
+  "levels": 1,
+  "notes": "auto-classified; no specific source found",
+  "roof": "flat",
+  "roof_hex": "#66625c",
+  "shop_signs": [
+   {
+    "bg_hex": "#0d2b52",
+    "fg_hex": "#ffffff",
+    "text": "Ypi.bg"
+   },
+   {
+    "bg_hex": "#d6336c",
+    "fg_hex": "#ffffff",
+    "text": "Maskara beauty and art ce…"
+   },
+   {
+    "bg_hex": "#d6336c",
+    "fg_hex": "#ffffff",
+    "text": "Салон \"Veselina Todorova\""
+   }
+  ],
+  "sources": [
+   "inferred: OSM/Overture class+levels+footprint, typology (area rule)",
+   "signs: Overture places inside the footprint; colours are brand/category guesses"
+  ],
+  "wall_hex": "#d0cbbd",
+  "window": "shopfront_only"
+ },
+ "w220308787": {
+  "accent_hex": "#7b858c",
+  "confidence": "low",
+  "features": [],
+  "ground_floor": "shops",
+  "height_m": 4.0,
+  "kind": "kiosk",
+  "label": "Търговска/офис сграда",
+  "levels": 1,
+  "notes": "auto-classified; no specific source found",
+  "roof": "flat",
+  "roof_hex": "#5f666b",
+  "shop_signs": [
+   {
+    "bg_hex": "#d6336c",
+    "fg_hex": "#ffffff",
+    "text": "Салон \"Veselina Todorova\""
+   },
+   {
+    "bg_hex": "#d6336c",
+    "fg_hex": "#ffffff",
+    "text": "Maskara beauty and art ce…"
+   },
+   {
+    "bg_hex": "#0d2b52",
+    "fg_hex": "#ffffff",
+    "text": "Ypi.bg"
+   }
+  ],
+  "sources": [
+   "inferred: OSM/Overture class+levels+footprint, typology (area rule)",
+   "signs: Overture places inside the footprint; colours are brand/category guesses"
+  ],
+  "wall_hex": "#aeb6bb",
+  "window": "shopfront_only"
+ },
+ "w226067503": {
+  "accent_hex": "#9d9a90",
+  "confidence": "low",
+  "features": [
+   "25 x 12 m short slab",
+   "grey panel with horizontal joints"
+  ],
+  "ground_floor": "entrances",
+  "height_m": 22.0,
+  "kind": "panel_1970s",
+  "label": "7-етажен жилищен блок, бул. Кл. Охридски (запад от Фантастико)",
+  "levels": 7,
+  "notes": "",
+  "roof": "flat",
+  "roof_hex": "#6b6862",
+  "shop_signs": [],
+  "sources": [
+   "OSM levels=7"
+  ],
+  "wall_hex": "#b8b6ac",
+  "window": "punched_grid"
+ },
+ "w226068593": {
+  "accent_hex": "#8b8173",
+  "confidence": "low",
+  "features": [],
+  "ground_floor": "shops",
+  "height_m": 10.0,
+  "kind": "brick_socialist",
+  "label": "Магазин/търговски обект",
+  "levels": 3,
+  "notes": "auto-classified; no specific source found",
+  "roof": "flat",
+  "roof_hex": "#66625c",
+  "shop_signs": [
+   {
+    "bg_hex": "#455a64",
+    "fg_hex": "#ffffff",
+    "text": "The Lucky Grooming | Фриз…"
+   },
+   {
+    "bg_hex": "#4a148c",
+    "fg_hex": "#ffffff",
+    "text": "Дървеница"
+   },
+   {
+    "bg_hex": "#4a148c",
+    "fg_hex": "#ffffff",
+    "text": "Sweet paradise"
+   }
+  ],
+  "sources": [
+   "inferred: OSM/Overture class+levels+footprint, typology (area rule)",
+   "signs: Overture places inside the footprint; colours are brand/category guesses"
+  ],
+  "wall_hex": "#d6ccb4",
+  "window": "punched_grid"
+ },
+ "w226068611": {
+  "accent_hex": "#a39f94",
+  "confidence": "low",
+  "features": [],
+  "ground_floor": "entrances",
+  "height_m": 19.0,
+  "kind": "panel_1960s",
+  "label": "Жилищна сграда",
+  "levels": 6,
+  "notes": "auto-classified; no specific source found",
+  "roof": "flat",
+  "roof_hex": "#6b6862",
+  "shop_signs": [],
+  "sources": [
+   "inferred: OSM/Overture class+levels+footprint, typology (area rule)"
+  ],
+  "wall_hex": "#b8b6ac",
+  "window": "punched_grid"
+ },
+ "w226073395": {
+  "accent_hex": "#8b8173",
+  "confidence": "low",
+  "features": [],
+  "ground_floor": "entrances",
+  "height_m": 19.0,
+  "kind": "brick_socialist",
+  "label": "Жилищен блок",
+  "levels": 6,
+  "notes": "auto-classified; no specific source found",
+  "roof": "flat",
+  "roof_hex": "#66625c",
+  "shop_signs": [],
+  "sources": [
+   "inferred: OSM/Overture class+levels+footprint, typology (area rule)"
+  ],
+  "wall_hex": "#d6ccb4",
+  "window": "punched_grid"
+ },
+ "w234158492": {
+  "accent_hex": "#7b858c",
+  "confidence": "low",
+  "features": [],
+  "ground_floor": "shops",
+  "height_m": 4.0,
+  "kind": "kiosk",
+  "label": "Магазин/търговски обект",
+  "levels": 1,
+  "notes": "auto-classified; no specific source found; levels inferred from footprint (OSM has none)",
+  "roof": "flat",
+  "roof_hex": "#5f666b",
+  "shop_signs": [
+   {
+    "bg_hex": "#455a64",
+    "fg_hex": "#ffffff",
+    "text": "Учебен център \"Василена\" …"
+   }
+  ],
+  "sources": [
+   "inferred: OSM/Overture class+levels+footprint, typology (area rule)",
+   "signs: Overture places inside the footprint; colours are brand/category guesses"
+  ],
+  "wall_hex": "#aeb6bb",
+  "window": "shopfront_only"
+ },
+ "w234158493": {
+  "accent_hex": "#7b858c",
+  "confidence": "low",
+  "features": [],
+  "ground_floor": "shops",
+  "height_m": 4.0,
+  "kind": "kiosk",
+  "label": "Магазин/търговски обект",
+  "levels": 1,
+  "notes": "auto-classified; no specific source found; levels inferred from footprint (OSM has none)",
+  "roof": "flat",
+  "roof_hex": "#5f666b",
+  "shop_signs": [
+   {
+    "bg_hex": "#d6336c",
+    "fg_hex": "#ffffff",
+    "text": "SZ Style"
+   },
+   {
+    "bg_hex": "#ef6c00",
+    "fg_hex": "#ffffff",
+    "text": "Железария Студентски град…"
+   },
+   {
+    "bg_hex": "#d6336c",
+    "fg_hex": "#ffffff",
+    "text": "Hairstyles Nelly"
+   }
+  ],
+  "sources": [
+   "inferred: OSM/Overture class+levels+footprint, typology (area rule)",
+   "signs: Overture places inside the footprint; colours are brand/category guesses"
+  ],
+  "wall_hex": "#aeb6bb",
+  "window": "shopfront_only"
+ },
+ "w234158494": {
+  "accent_hex": "#7b858c",
+  "confidence": "low",
+  "features": [],
+  "ground_floor": "shops",
+  "height_m": 4.0,
+  "kind": "kiosk",
+  "label": "Магазин/търговски обект",
+  "levels": 1,
+  "notes": "auto-classified; no specific source found; levels inferred from footprint (OSM has none)",
+  "roof": "flat",
+  "roof_hex": "#5f666b",
+  "shop_signs": [
+   {
+    "bg_hex": "#455a64",
+    "fg_hex": "#ffffff",
+    "text": "Баба Яга"
+   }
+  ],
+  "sources": [
+   "inferred: OSM/Overture class+levels+footprint, typology (area rule)",
+   "signs: Overture places inside the footprint; colours are brand/category guesses"
+  ],
+  "wall_hex": "#aeb6bb",
+  "window": "shopfront_only"
+ },
+ "w234158495": {
+  "accent_hex": "#8b8173",
+  "confidence": "low",
+  "features": [
+   "26 x 15 m block next to the stop"
+  ],
+  "ground_floor": "shops",
+  "height_m": 10.5,
+  "kind": "brick_socialist",
+  "label": "Малка сграда с магазини до детските ясли (3 ет.)",
+  "levels": 3,
+  "notes": "",
+  "roof": "flat",
+  "roof_hex": "#66625c",
+  "shop_signs": [
+   {
+    "bg_hex": "#455a64",
+    "fg_hex": "#ffffff",
+    "text": "Автомивка Orange"
+   }
+  ],
+  "sources": [
+   "OSM",
+   "stops/0533.json + stops/0534.json places (addresses, business names)",
+   "signs: Overture places inside the footprint; colours are brand/category guesses"
+  ],
+  "wall_hex": "#d6ccb4",
+  "window": "punched_grid"
+ },
+ "w259110930": {
+  "accent_hex": "#b0a48e",
+  "confidence": "low",
+  "features": [],
+  "ground_floor": "blank",
+  "height_m": 8.3,
+  "kind": "house",
+  "label": "Жилищен блок",
+  "levels": 2,
+  "notes": "auto-classified; no specific source found",
+  "roof": "hipped",
+  "roof_hex": "#9a4e3a",
+  "shop_signs": [],
+  "sources": [
+   "inferred: OSM/Overture class+levels+footprint, typology (area rule)"
+  ],
+  "wall_hex": "#e4d6bd",
+  "window": "punched_grid"
+ },
+ "w259110931": {
+  "accent_hex": "#8b8173",
+  "confidence": "low",
+  "features": [],
+  "ground_floor": "entrances",
+  "height_m": 13.0,
+  "kind": "brick_socialist",
+  "label": "Жилищен блок",
+  "levels": 4,
+  "notes": "auto-classified; no specific source found",
+  "roof": "flat",
+  "roof_hex": "#66625c",
+  "shop_signs": [],
+  "sources": [
+   "inferred: OSM/Overture class+levels+footprint, typology (area rule)"
+  ],
+  "wall_hex": "#d6ccb4",
+  "window": "punched_grid"
+ },
+ "w259111846": {
+  "accent_hex": "#9b968a",
+  "confidence": "low",
+  "features": [],
+  "ground_floor": "blank",
+  "height_m": 3.5,
+  "kind": "other",
+  "label": "Сграда",
+  "levels": 1,
+  "notes": "auto-classified; no specific source found",
+  "roof": "flat",
+  "roof_hex": "#66625c",
+  "shop_signs": [],
+  "sources": [
+   "inferred: OSM/Overture class+levels+footprint, typology (area rule)"
+  ],
+  "wall_hex": "#d0cbbd",
+  "window": "punched_grid"
+ },
+ "w259111847": {
+  "accent_hex": "#a8a090",
+  "confidence": "low",
+  "features": [],
+  "ground_floor": "entrances",
+  "height_m": 13.0,
+  "kind": "modern_residential",
+  "label": "Жилищен блок",
+  "levels": 4,
+  "notes": "auto-classified; no specific source found; levels inferred from footprint (OSM has none)",
+  "roof": "hipped",
+  "roof_hex": "#8a4b36",
+  "shop_signs": [],
+  "sources": [
+   "inferred: OSM/Overture class+levels+footprint, typology (area rule)"
+  ],
+  "wall_hex": "#e6dfcf",
+  "window": "punched_grid"
+ },
+ "w259113010": {
+  "accent_hex": "#a39f94",
+  "confidence": "medium",
+  "features": [
+   "51 x 44 m block with an interior court; ground floor fully shop-fronted on the street side",
+   "weathered concrete panels (OSM facade_material=concrete)",
+   "Hesburger fast-food with red-white fascia at the corner"
+  ],
+  "ground_floor": "shops",
+  "height_m": 16.5,
+  "kind": "panel_1960s",
+  "label": "5-етажен блок Йордан Йосифов 7 (Hesburger, Stop Shop, Party Land, Toros Trade)",
+  "levels": 5,
+  "notes": "",
+  "roof": "flat",
+  "roof_hex": "#6b6862",
+  "shop_signs": [
+   {
+    "bg_hex": "#e2001a",
+    "fg_hex": "#ffffff",
+    "text": "Hesburger"
+   },
+   {
+    "bg_hex": "#ef6c00",
+    "fg_hex": "#ffffff",
+    "text": "Stop Shop"
+   },
+   {
+    "bg_hex": "#6a1b9a",
+    "fg_hex": "#ffffff",
+    "text": "Party Land"
+   }
+  ],
+  "sources": [
+   "OSM levels=5 roof=flat facade_material=concrete",
+   "stops/0524.json + stops/0530.json places (addresses, business names)"
+  ],
+  "wall_hex": "#c0bdb2",
+  "window": "punched_grid"
+ },
+ "w264161719": {
+  "accent_hex": "#b8232a",
+  "confidence": "medium",
+  "features": [
+   "68 x 47 m two-storey retail box with a glazed entrance, parking in front",
+   "red/yellow fascia sign band and roof-top letters (brand colours inferred)",
+   "parcel lockers (Easybox/Box Now) at the entrance"
+  ],
+  "ground_floor": "shops",
+  "height_m": 9.0,
+  "kind": "other",
+  "label": "Супермаркет „Фантастико“ Ф36, бул. Кл. Охридски 15",
+  "levels": 2,
+  "notes": "Fantastico facade colours from memory, low confidence",
+  "roof": "flat",
+  "roof_hex": "#66625c",
+  "shop_signs": [
+   {
+    "bg_hex": "#d8232a",
+    "fg_hex": "#ffffff",
+    "text": "ФАНТАСТИКО"
+   }
+  ],
+  "sources": [
+   "places: Фантастико Дървеница, easybox 1086, BOX NOW (stops/0617.json)",
+   "OSM name Фантастико, levels=2"
+  ],
+  "wall_hex": "#d9d3c5",
+  "window": "shopfront_only"
+ },
+ "w303594730": {
+  "accent_hex": "#8b8173",
+  "confidence": "low",
+  "features": [],
+  "ground_floor": "entrances",
+  "height_m": 16.0,
+  "kind": "brick_socialist",
+  "label": "Жилищна сграда",
+  "levels": 5,
+  "notes": "auto-classified; no specific source found; levels inferred from footprint (OSM has none)",
+  "roof": "flat",
+  "roof_hex": "#66625c",
+  "shop_signs": [],
+  "sources": [
+   "inferred: OSM/Overture class+levels+footprint, typology (area rule)"
+  ],
+  "wall_hex": "#d6ccb4",
+  "window": "punched_grid"
+ },
+ "w362863277": {
+  "accent_hex": "#7b858c",
+  "confidence": "low",
+  "features": [],
+  "ground_floor": "shops",
+  "height_m": 4.0,
+  "kind": "kiosk",
+  "label": "Магазин/търговски обект",
+  "levels": 1,
+  "notes": "auto-classified; no specific source found",
+  "roof": "flat",
+  "roof_hex": "#5f666b",
+  "shop_signs": [],
+  "sources": [
+   "inferred: OSM/Overture class+levels+footprint, typology (area rule)"
+  ],
+  "wall_hex": "#aeb6bb",
+  "window": "shopfront_only"
+ },
+ "w362863289": {
+  "accent_hex": "#9b968a",
+  "confidence": "low",
+  "features": [],
+  "ground_floor": "shops",
+  "height_m": 4.0,
+  "kind": "other",
+  "label": "Магазин/търговски обект",
+  "levels": 1,
+  "notes": "auto-classified; no specific source found; levels inferred from footprint (OSM has none)",
+  "roof": "flat",
+  "roof_hex": "#66625c",
+  "shop_signs": [
+   {
+    "bg_hex": "#1c1c1c",
+    "fg_hex": "#ff3b7f",
+    "text": "Urban Legend"
+   },
+   {
+    "bg_hex": "#b3261e",
+    "fg_hex": "#ffffff",
+    "text": "Elif Food"
+   },
+   {
+    "bg_hex": "#455a64",
+    "fg_hex": "#ffffff",
+    "text": "Marrakesh club Sofia"
+   }
+  ],
+  "sources": [
+   "inferred: OSM/Overture class+levels+footprint, typology (area rule)",
+   "signs: Overture places inside the footprint; colours are brand/category guesses"
+  ],
+  "wall_hex": "#d0cbbd",
+  "window": "shopfront_only"
+ },
+ "w362863291": {
+  "accent_hex": "#9b968a",
+  "confidence": "low",
+  "features": [],
+  "ground_floor": "shops",
+  "height_m": 4.0,
+  "kind": "other",
+  "label": "Магазин/търговски обект",
+  "levels": 1,
+  "notes": "auto-classified; no specific source found; levels inferred from footprint (OSM has none)",
+  "roof": "flat",
+  "roof_hex": "#66625c",
+  "shop_signs": [
+   {
+    "bg_hex": "#1c1c1c",
+    "fg_hex": "#7c4dff",
+    "text": "Azzaro Night Club"
+   },
+   {
+    "bg_hex": "#455a64",
+    "fg_hex": "#ffffff",
+    "text": "Кефо България ЕООД - въгл…"
+   },
+   {
+    "bg_hex": "#1c1c1c",
+    "fg_hex": "#7c4dff",
+    "text": "Club Angel"
+   }
+  ],
+  "sources": [
+   "inferred: OSM/Overture class+levels+footprint, typology (area rule)",
+   "signs: Overture places inside the footprint; colours are brand/category guesses"
+  ],
+  "wall_hex": "#d0cbbd",
+  "window": "shopfront_only"
+ },
+ "w362863292": {
+  "accent_hex": "#9b968a",
+  "confidence": "low",
+  "features": [],
+  "ground_floor": "shops",
+  "height_m": 4.0,
+  "kind": "other",
+  "label": "Магазин/търговски обект",
+  "levels": 1,
+  "notes": "auto-classified; no specific source found; levels inferred from footprint (OSM has none)",
+  "roof": "flat",
+  "roof_hex": "#66625c",
+  "shop_signs": [
+   {
+    "bg_hex": "#546e7a",
+    "fg_hex": "#ffffff",
+    "text": "Копирен Център и Книжарни…"
+   },
+   {
+    "bg_hex": "#d9480f",
+    "fg_hex": "#ffffff",
+    "text": "Green House"
+   },
+   {
+    "bg_hex": "#b3261e",
+    "fg_hex": "#ffffff",
+    "text": "Скара Български Ритми 2"
+   }
+  ],
+  "sources": [
+   "inferred: OSM/Overture class+levels+footprint, typology (area rule)",
+   "signs: Overture places inside the footprint; colours are brand/category guesses"
+  ],
+  "wall_hex": "#d0cbbd",
+  "window": "shopfront_only"
+ },
+ "w362863310": {
+  "accent_hex": "#a8a090",
+  "confidence": "low",
+  "features": [],
+  "ground_floor": "entrances",
+  "height_m": 19.0,
+  "kind": "modern_residential",
+  "label": "Жилищен блок",
+  "levels": 6,
+  "notes": "auto-classified; no specific source found",
+  "roof": "hipped",
+  "roof_hex": "#8a4b36",
+  "shop_signs": [],
+  "sources": [
+   "inferred: OSM/Overture class+levels+footprint, typology (area rule)"
+  ],
+  "wall_hex": "#e6dfcf",
+  "window": "punched_grid"
+ },
+ "w362863311": {
+  "accent_hex": "#7b858c",
+  "confidence": "low",
+  "features": [],
+  "ground_floor": "shops",
+  "height_m": 7.0,
+  "kind": "kiosk",
+  "label": "Магазин/търговски обект",
+  "levels": 2,
+  "notes": "auto-classified; no specific source found",
+  "roof": "flat",
+  "roof_hex": "#5f666b",
+  "shop_signs": [],
+  "sources": [
+   "inferred: OSM/Overture class+levels+footprint, typology (area rule)"
+  ],
+  "wall_hex": "#aeb6bb",
+  "window": "shopfront_only"
+ },
+ "w362863712": {
+  "accent_hex": "#9d9a90",
+  "confidence": "low",
+  "features": [
+   "panel slab, ground-floor shops and gym",
+   "stepped heights along the boulevard"
+  ],
+  "ground_floor": "shops",
+  "height_m": 22.0,
+  "kind": "panel_1970s",
+  "label": "7-етажен блок бул. Кл. Охридски 27 (Дрогерия VLP, Наша кухня)",
+  "levels": 7,
+  "notes": "",
+  "roof": "flat",
+  "roof_hex": "#6b6862",
+  "shop_signs": [
+   {
+    "bg_hex": "#2e7d32",
+    "fg_hex": "#ffffff",
+    "text": "Shops VSDrinks"
+   },
+   {
+    "bg_hex": "#455a64",
+    "fg_hex": "#ffffff",
+    "text": "SOS Auto Keys"
+   },
+   {
+    "bg_hex": "#1565c0",
+    "fg_hex": "#ffffff",
+    "text": "Сервиз за Теб ООД"
+   }
+  ],
+  "sources": [
+   "OSM levels",
+   "stops/0800.json + stops/0801.json places (addresses, business names)",
+   "inferred: typology",
+   "signs: Overture places inside the footprint; colours are brand/category guesses"
+  ],
+  "wall_hex": "#b8b6ac",
+  "window": "loggia_bands"
+ },
+ "w394021612": {
+  "accent_hex": "#8b8173",
+  "confidence": "low",
+  "features": [],
+  "ground_floor": "shops",
+  "height_m": 10.0,
+  "kind": "brick_socialist",
+  "label": "Търговска/офис сграда",
+  "levels": 3,
+  "notes": "auto-classified; no specific source found",
+  "roof": "flat",
+  "roof_hex": "#66625c",
+  "shop_signs": [
+   {
+    "bg_hex": "#455a64",
+    "fg_hex": "#ffffff",
+    "text": "Molly Shop"
+   },
+   {
+    "bg_hex": "#546e7a",
+    "fg_hex": "#ffffff",
+    "text": "Копирен Център Fresh"
+   }
+  ],
+  "sources": [
+   "inferred: OSM/Overture class+levels+footprint, typology (area rule)",
+   "signs: Overture places inside the footprint; colours are brand/category guesses"
+  ],
+  "wall_hex": "#d6ccb4",
+  "window": "punched_grid"
+ },
+ "w395674776": {
+  "accent_hex": "#8b8173",
+  "confidence": "low",
+  "features": [],
+  "ground_floor": "shops",
+  "height_m": 10.0,
+  "kind": "brick_socialist",
+  "label": "Търговска/офис сграда",
+  "levels": 3,
+  "notes": "auto-classified; no specific source found",
+  "roof": "flat",
+  "roof_hex": "#66625c",
+  "shop_signs": [
+   {
+    "bg_hex": "#b3261e",
+    "fg_hex": "#ffffff",
+    "text": "Механа Народна"
+   },
+   {
+    "bg_hex": "#d6336c",
+    "fg_hex": "#ffffff",
+    "text": "Женско Царство"
+   }
+  ],
+  "sources": [
+   "inferred: OSM/Overture class+levels+footprint, typology (area rule)",
+   "signs: Overture places inside the footprint; colours are brand/category guesses"
+  ],
+  "wall_hex": "#d6ccb4",
+  "window": "punched_grid"
+ },
+ "w43275106": {
+  "accent_hex": "#6f7e8c",
+  "confidence": "medium",
+  "features": [
+   "chamfered octagon-like plan (28 vertices), about 95 x 98 m, area 7,278 m2; two ice sheets: main hall (standard hockey rink, 4,600 seats) and a training hall ice 56 x 26 m",
+   "opened 1982; hosted ice hockey world championships (1994, 2002) and the 2026 Division II Group B",
+   "flat roof (OSM roof=flat), heavy concrete body with a lower foyer ring around the high hall volume (inferred)",
+   "paved plaza and parking 35-45 m between the road and the entrance, ticket kiosks and fan-club shops; Mazzo Club & Restaurant, Mazzo Kids & Lounge, MVJ Dance & Aerobic Studio and the hockey clubs (Спартак) operate in the building",
+   "entrance side faces west toward the road"
+  ],
+  "ground_floor": "lobby",
+  "height_m": 18.0,
+  "kind": "sports_hall",
+  "label": "Зимен дворец на спорта (Winter Palace of Sport), ул. Акад. Борис Стефанов",
+  "levels": 2,
+  "notes": "footprint, opening year, capacity and halls are sourced; facade finish is inferred",
+  "roof": "flat",
+  "roof_hex": "#6f7378",
+  "shop_signs": [
+   {
+    "bg_hex": "#1f4e79",
+    "fg_hex": "#ffffff",
+    "text": "ЗИМЕН ДВОРЕЦ НА СПОРТА"
+   }
+  ],
+  "sources": [
+   "https://en.wikipedia.org/wiki/Winter_Sports_Palace (via search summary: opened 1982, capacity 4,600, halls)",
+   "https://sofiaglobe.com/2018/12/23/ice-rinks-open-in-sofia-for-2018-19-winter-season/",
+   "OSM w43275106 outline + places (stops/0741.json)",
+   "inferred: cladding/colours"
+  ],
+  "wall_hex": "#cfcbc3",
+  "window": "ribbon"
+ },
+ "w439600357": {
+  "accent_hex": "#a8a090",
+  "confidence": "low",
+  "features": [
+   "small private clinic, 3 floors, plaster with dark window frames"
+  ],
+  "ground_floor": "lobby",
+  "height_m": 10.5,
+  "kind": "modern_residential",
+  "label": "Дерматологична клиника София (ул. Белимел 2А)",
+  "levels": 3,
+  "notes": "",
+  "roof": "flat",
+  "roof_hex": "#66625c",
+  "shop_signs": [],
+  "sources": [
+   "stops/1740.json places (address + business names)",
+   "OSM class=hospital levels=3"
+  ],
+  "wall_hex": "#e6dfcf",
+  "window": "punched_grid"
+ },
+ "w439600358": {
+  "accent_hex": "#8b8173",
+  "confidence": "low",
+  "features": [
+   "single-storey shop pavilion on the pavement edge"
+  ],
+  "ground_floor": "shops",
+  "height_m": 3.8,
+  "kind": "kiosk",
+  "label": "Едноетажен магазин/павилион (изток, бул. Кл. Охридски)",
+  "levels": 1,
+  "notes": "",
+  "roof": "flat",
+  "roof_hex": "#66625c",
+  "shop_signs": [],
+  "sources": [
+   "OSM class=retail levels=1"
+  ],
+  "wall_hex": "#c9c3b4",
+  "window": "shopfront_only"
+ },
+ "w439600360": {
+  "accent_hex": "#8b8173",
+  "confidence": "low",
+  "features": [
+   "single-storey shop pavilion on the pavement edge"
+  ],
+  "ground_floor": "shops",
+  "height_m": 3.8,
+  "kind": "kiosk",
+  "label": "Едноетажен магазин/павилион (изток, бул. Кл. Охридски)",
+  "levels": 1,
+  "notes": "",
+  "roof": "flat",
+  "roof_hex": "#66625c",
+  "shop_signs": [],
+  "sources": [
+   "OSM class=retail levels=1"
+  ],
+  "wall_hex": "#c9c3b4",
+  "window": "shopfront_only"
+ },
+ "w439600361": {
+  "accent_hex": "#a8a090",
+  "confidence": "low",
+  "features": [
+   "about 12 x 12 m point block, plastered, small balconies"
+  ],
+  "ground_floor": "entrances",
+  "height_m": 10.0,
+  "kind": "modern_residential",
+  "label": "Малка жилищна сграда (ул. Белимел / Бели мел, 3 ет.)",
+  "levels": 3,
+  "notes": "inferred small 1990s-2000s apartment house",
+  "roof": "flat",
+  "roof_hex": "#8a4b36",
+  "shop_signs": [],
+  "sources": [
+   "OSM levels"
+  ],
+  "wall_hex": "#e6dfcf",
+  "window": "punched_grid"
+ },
+ "w439600362": {
+  "accent_hex": "#8b8173",
+  "confidence": "low",
+  "features": [
+   "single-storey shop pavilion on the pavement edge"
+  ],
+  "ground_floor": "shops",
+  "height_m": 3.8,
+  "kind": "kiosk",
+  "label": "Едноетажен магазин/павилион (изток, бул. Кл. Охридски)",
+  "levels": 1,
+  "notes": "",
+  "roof": "flat",
+  "roof_hex": "#66625c",
+  "shop_signs": [
+   {
+    "bg_hex": "#455a64",
+    "fg_hex": "#ffffff",
+    "text": "Дерматологична Клиника Со…"
+   }
+  ],
+  "sources": [
+   "OSM class=retail levels=1",
+   "signs: Overture places inside the footprint; colours are brand/category guesses"
+  ],
+  "wall_hex": "#c9c3b4",
+  "window": "shopfront_only"
+ },
+ "w439600363": {
+  "accent_hex": "#a8a090",
+  "confidence": "low",
+  "features": [
+   "about 12 x 12 m point block, plastered, small balconies"
+  ],
+  "ground_floor": "entrances",
+  "height_m": 13.0,
+  "kind": "modern_residential",
+  "label": "Малка жилищна сграда (ул. Белимел / Бели мел, 4 ет.)",
+  "levels": 4,
+  "notes": "inferred small 1990s-2000s apartment house",
+  "roof": "flat",
+  "roof_hex": "#8a4b36",
+  "shop_signs": [],
+  "sources": [
+   "OSM levels"
+  ],
+  "wall_hex": "#e6dfcf",
+  "window": "punched_grid"
+ },
+ "w439600365": {
+  "accent_hex": "#a8a090",
+  "confidence": "low",
+  "features": [
+   "about 12 x 12 m point block, plastered, small balconies"
+  ],
+  "ground_floor": "entrances",
+  "height_m": 10.0,
+  "kind": "modern_residential",
+  "label": "Малка жилищна сграда (ул. Белимел / Бели мел, 3 ет.)",
+  "levels": 3,
+  "notes": "inferred small 1990s-2000s apartment house",
+  "roof": "flat",
+  "roof_hex": "#8a4b36",
+  "shop_signs": [],
+  "sources": [
+   "OSM levels"
+  ],
+  "wall_hex": "#e6dfcf",
+  "window": "punched_grid"
+ },
+ "w439600366": {
+  "accent_hex": "#a8a090",
+  "confidence": "low",
+  "features": [
+   "about 12 x 12 m point block, plastered, small balconies"
+  ],
+  "ground_floor": "entrances",
+  "height_m": 13.0,
+  "kind": "modern_residential",
+  "label": "Малка жилищна сграда (ул. Белимел / Бели мел, 4 ет.)",
+  "levels": 4,
+  "notes": "inferred small 1990s-2000s apartment house",
+  "roof": "flat",
+  "roof_hex": "#8a4b36",
+  "shop_signs": [],
+  "sources": [
+   "OSM levels"
+  ],
+  "wall_hex": "#e6dfcf",
+  "window": "punched_grid"
+ },
+ "w439600369": {
+  "accent_hex": "#b4afa2",
+  "confidence": "low",
+  "features": [
+   "partial ETICS insulation: pastel patches flat by flat, grey panel joints/loggia fronts show between them"
+  ],
+  "ground_floor": "entrances",
+  "height_m": 31.0,
+  "kind": "panel_insulated_patchwork",
+  "label": "Жилищен блок",
+  "levels": 10,
+  "notes": "auto-classified; no specific source found",
+  "roof": "flat",
+  "roof_hex": "#6b6862",
+  "shop_signs": [],
+  "sources": [
+   "inferred: OSM/Overture class+levels+footprint, typology (area rule)"
+  ],
+  "wall_hex": "#efe3c2",
+  "window": "loggia_bands"
+ },
+ "w439792183": {
+  "accent_hex": "#8a867b",
+  "confidence": "low",
+  "features": [],
+  "ground_floor": "garages",
+  "height_m": 3.5,
+  "kind": "industrial",
+  "label": "Спомагателна постройка",
+  "levels": 1,
+  "notes": "auto-classified; no specific source found",
+  "roof": "flat",
+  "roof_hex": "#6a6862",
+  "shop_signs": [],
+  "sources": [
+   "inferred: OSM/Overture class+levels+footprint, typology (area rule)"
+  ],
+  "wall_hex": "#b3aea1",
+  "window": "shopfront_only"
+ },
+ "w439792184": {
+  "accent_hex": "#8b8173",
+  "confidence": "low",
+  "features": [
+   "two-storey commercial block"
+  ],
+  "ground_floor": "shops",
+  "height_m": 8.0,
+  "kind": "other",
+  "label": "Малка офис/търговска сграда (Bulgartel, ул. Тинтява 13б)",
+  "levels": 2,
+  "notes": "",
+  "roof": "flat",
+  "roof_hex": "#66625c",
+  "shop_signs": [
+   {
+    "bg_hex": "#455a64",
+    "fg_hex": "#ffffff",
+    "text": "Bulgartel"
+   }
+  ],
+  "sources": [
+   "stops/0617.json + stops/0614.json places (addresses, business names)",
+   "signs: Overture places inside the footprint; colours are brand/category guesses"
+  ],
+  "wall_hex": "#cfc7b5",
+  "window": "shopfront_only"
+ },
+ "w439800193": {
+  "accent_hex": "#8b8173",
+  "confidence": "low",
+  "features": [],
+  "ground_floor": "entrances",
+  "height_m": 16.0,
+  "kind": "brick_socialist",
+  "label": "Жилищен блок",
+  "levels": 5,
+  "notes": "auto-classified; no specific source found",
+  "roof": "flat",
+  "roof_hex": "#66625c",
+  "shop_signs": [],
+  "sources": [
+   "inferred: OSM/Overture class+levels+footprint, typology (area rule)"
+  ],
+  "wall_hex": "#d6ccb4",
+  "window": "punched_grid"
+ },
+ "w442670144": {
+  "accent_hex": "#8a867b",
+  "confidence": "low",
+  "features": [],
+  "ground_floor": "garages",
+  "height_m": 3.5,
+  "kind": "industrial",
+  "label": "Навес за коли",
+  "levels": 1,
+  "notes": "auto-classified; no specific source found",
+  "roof": "flat",
+  "roof_hex": "#6a6862",
+  "shop_signs": [],
+  "sources": [
+   "inferred: OSM/Overture class+levels+footprint, typology (area rule)"
+  ],
+  "wall_hex": "#b3aea1",
+  "window": "shopfront_only"
+ },
+ "w442670145": {
+  "accent_hex": "#9b968a",
+  "confidence": "low",
+  "features": [],
+  "ground_floor": "shops",
+  "height_m": 4.0,
+  "kind": "other",
+  "label": "Магазин/търговски обект",
+  "levels": 1,
+  "notes": "auto-classified; no specific source found; levels inferred from footprint (OSM has none)",
+  "roof": "flat",
+  "roof_hex": "#66625c",
+  "shop_signs": [
+   {
+    "bg_hex": "#d6336c",
+    "fg_hex": "#ffffff",
+    "text": "Mido MAGIC HANDS BARBER S…"
+   },
+   {
+    "bg_hex": "#37474f",
+    "fg_hex": "#ffffff",
+    "text": "Crown Change"
+   },
+   {
+    "bg_hex": "#b3261e",
+    "fg_hex": "#ffffff",
+    "text": "Истинска Сръбска Скара"
+   }
+  ],
+  "sources": [
+   "inferred: OSM/Overture class+levels+footprint, typology (area rule)",
+   "signs: Overture places inside the footprint; colours are brand/category guesses"
+  ],
+  "wall_hex": "#d0cbbd",
+  "window": "shopfront_only"
+ },
+ "w442670146": {
+  "accent_hex": "#9d9a90",
+  "confidence": "low",
+  "features": [
+   "uninsulated large-panel dormitory: weathered grey concrete panels, dark window bands, graffiti at ground floor (typical Studentski grad)"
+  ],
+  "ground_floor": "entrances",
+  "height_m": 25.0,
+  "kind": "panel_1970s",
+  "label": "Студентско общежитие",
+  "levels": 8,
+  "notes": "auto-classified; no specific source found; levels inferred from footprint (OSM has none)",
+  "roof": "flat",
+  "roof_hex": "#6b6862",
+  "shop_signs": [],
+  "sources": [
+   "inferred: OSM/Overture class+levels+footprint, typology (area rule)"
+  ],
+  "wall_hex": "#c0bdb2",
+  "window": "balcony_bands"
+ },
+ "w442670147": {
+  "accent_hex": "#9b968a",
+  "confidence": "low",
+  "features": [],
+  "ground_floor": "shops",
+  "height_m": 4.0,
+  "kind": "other",
+  "label": "Магазин/търговски обект",
+  "levels": 1,
+  "notes": "auto-classified; no specific source found; levels inferred from footprint (OSM has none)",
+  "roof": "flat",
+  "roof_hex": "#66625c",
+  "shop_signs": [
+   {
+    "bg_hex": "#212121",
+    "fg_hex": "#ff9800",
+    "text": "LUCKY GYM"
+   }
+  ],
+  "sources": [
+   "inferred: OSM/Overture class+levels+footprint, typology (area rule)",
+   "signs: Overture places inside the footprint; colours are brand/category guesses"
+  ],
+  "wall_hex": "#d0cbbd",
+  "window": "shopfront_only"
+ },
+ "w442670158": {
+  "accent_hex": "#7b858c",
+  "confidence": "low",
+  "features": [],
+  "ground_floor": "shops",
+  "height_m": 4.0,
+  "kind": "kiosk",
+  "label": "Магазин/търговски обект",
+  "levels": 1,
+  "notes": "auto-classified; no specific source found; levels inferred from footprint (OSM has none)",
+  "roof": "flat",
+  "roof_hex": "#5f666b",
+  "shop_signs": [],
+  "sources": [
+   "inferred: OSM/Overture class+levels+footprint, typology (area rule)"
+  ],
+  "wall_hex": "#aeb6bb",
+  "window": "shopfront_only"
+ },
+ "w442670160": {
+  "accent_hex": "#9b968a",
+  "confidence": "low",
+  "features": [],
+  "ground_floor": "shops",
+  "height_m": 4.0,
+  "kind": "other",
+  "label": "Магазин/търговски обект",
+  "levels": 1,
+  "notes": "auto-classified; no specific source found",
+  "roof": "flat",
+  "roof_hex": "#66625c",
+  "shop_signs": [
+   {
+    "bg_hex": "#006491",
+    "fg_hex": "#ffffff",
+    "text": "Domino's Pizza"
+   }
+  ],
+  "sources": [
+   "inferred: OSM/Overture class+levels+footprint, typology (area rule)",
+   "signs: Overture places inside the footprint; colours are brand/category guesses"
+  ],
+  "wall_hex": "#d0cbbd",
+  "window": "shopfront_only"
+ },
+ "w442670161": {
+  "accent_hex": "#8a867b",
+  "confidence": "low",
+  "features": [],
+  "ground_floor": "garages",
+  "height_m": 3.5,
+  "kind": "industrial",
+  "label": "Паркинг",
+  "levels": 1,
+  "notes": "auto-classified; no specific source found",
+  "roof": "flat",
+  "roof_hex": "#6a6862",
+  "shop_signs": [],
+  "sources": [
+   "inferred: OSM/Overture class+levels+footprint, typology (area rule)"
+  ],
+  "wall_hex": "#b3aea1",
+  "window": "shopfront_only"
+ },
+ "w442670167": {
+  "accent_hex": "#7b858c",
+  "confidence": "low",
+  "features": [],
+  "ground_floor": "shops",
+  "height_m": 4.0,
+  "kind": "kiosk",
+  "label": "Магазин/търговски обект",
+  "levels": 1,
+  "notes": "auto-classified; no specific source found; levels inferred from footprint (OSM has none)",
+  "roof": "flat",
+  "roof_hex": "#5f666b",
+  "shop_signs": [],
+  "sources": [
+   "inferred: OSM/Overture class+levels+footprint, typology (area rule)"
+  ],
+  "wall_hex": "#aeb6bb",
+  "window": "shopfront_only"
+ },
+ "w442670172": {
+  "accent_hex": "#9b968a",
+  "confidence": "low",
+  "features": [],
+  "ground_floor": "shops",
+  "height_m": 4.0,
+  "kind": "other",
+  "label": "Магазин/търговски обект",
+  "levels": 1,
+  "notes": "auto-classified; no specific source found; levels inferred from footprint (OSM has none)",
+  "roof": "flat",
+  "roof_hex": "#66625c",
+  "shop_signs": [
+   {
+    "bg_hex": "#003e7e",
+    "fg_hex": "#ffffff",
+    "text": "dm България"
+   },
+   {
+    "bg_hex": "#5d4037",
+    "fg_hex": "#ffffff",
+    "text": "Modera Bar & Dinner - Sof…"
+   }
+  ],
+  "sources": [
+   "inferred: OSM/Overture class+levels+footprint, typology (area rule)",
+   "signs: Overture places inside the footprint; colours are brand/category guesses"
+  ],
+  "wall_hex": "#d0cbbd",
+  "window": "shopfront_only"
+ },
+ "w448948335": {
+  "accent_hex": "#8b8173",
+  "confidence": "medium",
+  "features": [
+   "ground floor continuous shopfronts with illuminated sign boards, bank branch at the corner",
+   "upper two floors plastered with small punched windows, AC units on facade",
+   "flat bituminous roof with a low parapet",
+   "pavement frontage directly at the stop (14 m from the pole)"
+  ],
+  "ground_floor": "shops",
+  "height_m": 11.5,
+  "kind": "brick_socialist",
+  "label": "Търговска сграда бул. Кл. Охридски 6 (ЦКБ Дървеница, Smoke Lounge, Mela Canela, Joy Club)",
+  "levels": 3,
+  "notes": "construction/colours inferred; occupants and level count from data",
+  "roof": "flat",
+  "roof_hex": "#66625c",
+  "shop_signs": [
+   {
+    "bg_hex": "#0a5ba8",
+    "fg_hex": "#ffffff",
+    "text": "ЦКБ"
+   },
+   {
+    "bg_hex": "#1b1b1b",
+    "fg_hex": "#f2b705",
+    "text": "SMOKE Lounge & Pizza bar"
+   },
+   {
+    "bg_hex": "#7a1f3d",
+    "fg_hex": "#ffffff",
+    "text": "Mela Canela"
+   }
+  ],
+  "sources": [
+   "OSM levels=3 (stops/1740.json)",
+   "stops/1740.json places (address + business names)",
+   "inferred: typology (1970s-80s commercial block)"
+  ],
+  "wall_hex": "#d6ccb4",
+  "window": "punched_grid"
+ },
+ "w450136681": {
+  "accent_hex": "#a8a090",
+  "confidence": "low",
+  "features": [],
+  "ground_floor": "entrances",
+  "height_m": 10.0,
+  "kind": "modern_residential",
+  "label": "Жилищен блок",
+  "levels": 3,
+  "notes": "auto-classified; no specific source found; levels inferred from footprint (OSM has none)",
+  "roof": "hipped",
+  "roof_hex": "#8a4b36",
+  "shop_signs": [],
+  "sources": [
+   "inferred: OSM/Overture class+levels+footprint, typology (area rule)"
+  ],
+  "wall_hex": "#e6dfcf",
+  "window": "punched_grid"
+ },
+ "w450136682": {
+  "accent_hex": "#a8a090",
+  "confidence": "low",
+  "features": [],
+  "ground_floor": "entrances",
+  "height_m": 13.0,
+  "kind": "modern_residential",
+  "label": "Жилищен блок",
+  "levels": 4,
+  "notes": "auto-classified; no specific source found; levels inferred from footprint (OSM has none)",
+  "roof": "hipped",
+  "roof_hex": "#8a4b36",
+  "shop_signs": [],
+  "sources": [
+   "inferred: OSM/Overture class+levels+footprint, typology (area rule)"
+  ],
+  "wall_hex": "#e6dfcf",
+  "window": "punched_grid"
+ },
+ "w450136684": {
+  "accent_hex": "#a8a090",
+  "confidence": "low",
+  "features": [],
+  "ground_floor": "entrances",
+  "height_m": 19.0,
+  "kind": "modern_residential",
+  "label": "Жилищен блок",
+  "levels": 6,
+  "notes": "auto-classified; no specific source found",
+  "roof": "hipped",
+  "roof_hex": "#8a4b36",
+  "shop_signs": [],
+  "sources": [
+   "inferred: OSM/Overture class+levels+footprint, typology (area rule)"
+  ],
+  "wall_hex": "#e6dfcf",
+  "window": "punched_grid"
+ },
+ "w450136687": {
+  "accent_hex": "#a39f94",
+  "confidence": "low",
+  "features": [],
+  "ground_floor": "entrances",
+  "height_m": 19.0,
+  "kind": "panel_1960s",
+  "label": "Жилищен блок",
+  "levels": 6,
+  "notes": "auto-classified; no specific source found; levels inferred from footprint (OSM has none)",
+  "roof": "flat",
+  "roof_hex": "#6b6862",
+  "shop_signs": [],
+  "sources": [
+   "inferred: OSM/Overture class+levels+footprint, typology (area rule)"
+  ],
+  "wall_hex": "#bcb8ac",
+  "window": "punched_grid"
+ },
+ "w450136692": {
+  "accent_hex": "#b4afa2",
+  "confidence": "low",
+  "features": [
+   "partial ETICS insulation: pastel patches flat by flat, grey panel joints/loggia fronts show between them"
+  ],
+  "ground_floor": "entrances",
+  "height_m": 19.0,
+  "kind": "panel_insulated_patchwork",
+  "label": "Жилищен блок",
+  "levels": 6,
+  "notes": "auto-classified; no specific source found; levels inferred from footprint (OSM has none)",
+  "roof": "flat",
+  "roof_hex": "#6b6862",
+  "shop_signs": [],
+  "sources": [
+   "inferred: OSM/Overture class+levels+footprint, typology (area rule)"
+  ],
+  "wall_hex": "#cbd8d6",
+  "window": "punched_grid"
+ },
+ "w45196750": {
+  "accent_hex": "#8d8a80",
+  "confidence": "low",
+  "features": [
+   "hexagonal plan, 6 sides of about 39 m (OSM outline area 3,943 m2, perimeter 234 m), 66 m across; 180-200 m west of the road, behind dormitory blocks",
+   "high windowless hall volume with a ring of lower foyer/service rooms around it; entrance side faces east toward Ак. Борис Стефанов via a paved plaza (inferred)",
+   "flat or very low roof (OSM roof not given), weathered pale concrete/render",
+   "listed as multifunctional hall for events; the gym \"Body Check\" and a fitness club enter from the kindergarten side"
+  ],
+  "ground_floor": "lobby",
+  "height_m": 15.0,
+  "kind": "sports_hall",
+  "label": "Спортна зала „Христо Ботев“ (шестоъгълна зала на Студентски град)",
+  "levels": 2,
+  "notes": "geometry exact; elevation and cladding unknown",
+  "roof": "flat",
+  "roof_hex": "#6f7378",
+  "shop_signs": [],
+  "sources": [
+   "OSM w45196750 outline (stops/1610.json); Wikipedia Studentski grad via search: \"two multifunctional halls, Hristo Botev and the Winter Palace of Sports\"",
+   "inferred: appearance"
+  ],
+  "wall_hex": "#cfcbc0",
+  "window": "ribbon"
+ },
+ "w45357521": {
+  "accent_hex": "#9b968a",
+  "confidence": "low",
+  "features": [],
+  "ground_floor": "shops",
+  "height_m": 7.0,
+  "kind": "other",
+  "label": "Търговска/офис сграда",
+  "levels": 2,
+  "notes": "auto-classified; no specific source found",
+  "roof": "flat",
+  "roof_hex": "#66625c",
+  "shop_signs": [
+   {
+    "bg_hex": "#212121",
+    "fg_hex": "#ff9800",
+    "text": "Joy Station"
+   },
+   {
+    "bg_hex": "#b3261e",
+    "fg_hex": "#ffffff",
+    "text": "My Choice Grill"
+   },
+   {
+    "bg_hex": "#212121",
+    "fg_hex": "#ff9800",
+    "text": "MegaXtreme Bowling - Joy …"
+   }
+  ],
+  "sources": [
+   "inferred: OSM/Overture class+levels+footprint, typology (area rule)",
+   "signs: Overture places inside the footprint; colours are brand/category guesses"
+  ],
+  "wall_hex": "#d0cbbd",
+  "window": "shopfront_only"
+ },
+ "w45357522": {
+  "accent_hex": "#7d7a72",
+  "confidence": "medium",
+  "features": [
+   "50 x 48 m flat-roofed canteen block of the 1970s, two floors",
+   "ground floor: canteen halls with a wide entrance canopy; first floor: clubs/bars with neon signs facing ул. Йордан Йосифов",
+   "weathered concrete/pale render, banners, graffiti, scooters and delivery bikes parked at the front"
+  ],
+  "ground_floor": "shops",
+  "height_m": 9.5,
+  "kind": "modernist_institutional",
+  "label": "Студентски стол 4 (ул. Йордан Йосифов 8) с нощни клубове (Modera Night Club, Modera Game Club, Milano)",
+  "levels": 2,
+  "notes": "floor count/colours inferred",
+  "roof": "flat",
+  "roof_hex": "#66625c",
+  "shop_signs": [
+   {
+    "bg_hex": "#8b1a1a",
+    "fg_hex": "#ffffff",
+    "text": "СТУДЕНТСКИ СТОЛ 4"
+   },
+   {
+    "bg_hex": "#1c1c1c",
+    "fg_hex": "#ff3b7f",
+    "text": "Modera Night Club"
+   },
+   {
+    "bg_hex": "#1c1c1c",
+    "fg_hex": "#ffd600",
+    "text": "Milano Restaurant&Club"
+   }
+  ],
+  "sources": [
+   "OSM name \"Стол 4\"; places: Студентски стол 4, Студентски стол „При БаБа“, Modera Night Club, Modera Game Club, Milano Restaurant&Club (stops/0530.json)",
+   "inferred: 1970s canteen typology"
+  ],
+  "wall_hex": "#cfc9bb",
+  "window": "ribbon"
+ },
+ "w45358774": {
+  "accent_hex": "#b4afa2",
+  "confidence": "low",
+  "features": [
+   "partial ETICS insulation: pastel patches flat by flat, grey panel joints/loggia fronts show between them"
+  ],
+  "ground_floor": "entrances",
+  "height_m": 25.0,
+  "kind": "panel_insulated_patchwork",
+  "label": "Жилищен блок",
+  "levels": 8,
+  "notes": "auto-classified; no specific source found",
+  "roof": "flat",
+  "roof_hex": "#6b6862",
+  "shop_signs": [],
+  "sources": [
+   "inferred: OSM/Overture class+levels+footprint, typology (area rule)"
+  ],
+  "wall_hex": "#c9d6e3",
+  "window": "loggia_bands"
+ },
+ "w45358775": {
+  "accent_hex": "#9d9a90",
+  "confidence": "low",
+  "features": [
+   "courtyard dormitory block"
+  ],
+  "ground_floor": "entrances",
+  "height_m": 25.0,
+  "kind": "panel_1970s",
+  "label": "Студентско общежитие 8 ет., 111 x 69 m (бл. 18/19)",
+  "levels": 8,
+  "notes": "",
+  "roof": "flat",
+  "roof_hex": "#6b6862",
+  "shop_signs": [],
+  "sources": [
+   "OSM levels=8 class=dormitory"
+  ],
+  "wall_hex": "#b8b6ac",
+  "window": "balcony_bands"
+ },
+ "w461483295": {
+  "accent_hex": "#9b968a",
+  "confidence": "low",
+  "features": [],
+  "ground_floor": "shops",
+  "height_m": 4.0,
+  "kind": "other",
+  "label": "Магазин/търговски обект",
+  "levels": 1,
+  "notes": "auto-classified; no specific source found; levels inferred from footprint (OSM has none)",
+  "roof": "flat",
+  "roof_hex": "#66625c",
+  "shop_signs": [
+   {
+    "bg_hex": "#d9480f",
+    "fg_hex": "#ffffff",
+    "text": "Mr.Potato-studentskigrad"
+   }
+  ],
+  "sources": [
+   "inferred: OSM/Overture class+levels+footprint, typology (area rule)",
+   "signs: Overture places inside the footprint; colours are brand/category guesses"
+  ],
+  "wall_hex": "#d0cbbd",
+  "window": "shopfront_only"
+ },
+ "w461483301": {
+  "accent_hex": "#7b858c",
+  "confidence": "low",
+  "features": [],
+  "ground_floor": "shops",
+  "height_m": 4.0,
+  "kind": "kiosk",
+  "label": "Магазин/търговски обект",
+  "levels": 1,
+  "notes": "auto-classified; no specific source found; levels inferred from footprint (OSM has none)",
+  "roof": "flat",
+  "roof_hex": "#5f666b",
+  "shop_signs": [],
+  "sources": [
+   "inferred: OSM/Overture class+levels+footprint, typology (area rule)"
+  ],
+  "wall_hex": "#aeb6bb",
+  "window": "shopfront_only"
+ },
+ "w461483302": {
+  "accent_hex": "#7b858c",
+  "confidence": "low",
+  "features": [],
+  "ground_floor": "shops",
+  "height_m": 4.0,
+  "kind": "kiosk",
+  "label": "Магазин/търговски обект",
+  "levels": 1,
+  "notes": "auto-classified; no specific source found; levels inferred from footprint (OSM has none)",
+  "roof": "flat",
+  "roof_hex": "#5f666b",
+  "shop_signs": [
+   {
+    "bg_hex": "#b3261e",
+    "fg_hex": "#ffffff",
+    "text": "Via Perollini"
+   }
+  ],
+  "sources": [
+   "inferred: OSM/Overture class+levels+footprint, typology (area rule)",
+   "signs: Overture places inside the footprint; colours are brand/category guesses"
+  ],
+  "wall_hex": "#aeb6bb",
+  "window": "shopfront_only"
+ },
+ "w461483310": {
+  "accent_hex": "#7b858c",
+  "confidence": "low",
+  "features": [],
+  "ground_floor": "shops",
+  "height_m": 4.0,
+  "kind": "kiosk",
+  "label": "Магазин/търговски обект",
+  "levels": 1,
+  "notes": "auto-classified; no specific source found; levels inferred from footprint (OSM has none)",
+  "roof": "flat",
+  "roof_hex": "#5f666b",
+  "shop_signs": [
+   {
+    "bg_hex": "#0277bd",
+    "fg_hex": "#ffffff",
+    "text": "Пералня Crystal"
+   },
+   {
+    "bg_hex": "#d9480f",
+    "fg_hex": "#ffffff",
+    "text": "Balkan Beast Fast Food"
+   },
+   {
+    "bg_hex": "#d9480f",
+    "fg_hex": "#ffffff",
+    "text": "Diazepam - Храна за вкъщи"
+   }
+  ],
+  "sources": [
+   "inferred: OSM/Overture class+levels+footprint, typology (area rule)",
+   "signs: Overture places inside the footprint; colours are brand/category guesses"
+  ],
+  "wall_hex": "#aeb6bb",
+  "window": "shopfront_only"
+ },
+ "w461483312": {
+  "accent_hex": "#7b858c",
+  "confidence": "low",
+  "features": [],
+  "ground_floor": "shops",
+  "height_m": 4.0,
+  "kind": "kiosk",
+  "label": "Магазин/търговски обект",
+  "levels": 1,
+  "notes": "auto-classified; no specific source found; levels inferred from footprint (OSM has none)",
+  "roof": "flat",
+  "roof_hex": "#5f666b",
+  "shop_signs": [],
+  "sources": [
+   "inferred: OSM/Overture class+levels+footprint, typology (area rule)"
+  ],
+  "wall_hex": "#aeb6bb",
+  "window": "shopfront_only"
+ },
+ "w461483313": {
+  "accent_hex": "#7b858c",
+  "confidence": "low",
+  "features": [],
+  "ground_floor": "shops",
+  "height_m": 4.0,
+  "kind": "kiosk",
+  "label": "Магазин/търговски обект",
+  "levels": 1,
+  "notes": "auto-classified; no specific source found; levels inferred from footprint (OSM has none)",
+  "roof": "flat",
+  "roof_hex": "#5f666b",
+  "shop_signs": [
+   {
+    "bg_hex": "#b3261e",
+    "fg_hex": "#ffffff",
+    "text": "Студентски стол 33"
+   }
+  ],
+  "sources": [
+   "inferred: OSM/Overture class+levels+footprint, typology (area rule)",
+   "signs: Overture places inside the footprint; colours are brand/category guesses"
+  ],
+  "wall_hex": "#aeb6bb",
+  "window": "shopfront_only"
+ },
+ "w461484846": {
+  "accent_hex": "#b4afa2",
+  "confidence": "low",
+  "features": [
+   "partial ETICS insulation: pastel patches flat by flat, grey panel joints/loggia fronts show between them"
+  ],
+  "ground_floor": "entrances",
+  "height_m": 19.0,
+  "kind": "panel_insulated_patchwork",
+  "label": "Жилищен блок",
+  "levels": 6,
+  "notes": "auto-classified; no specific source found; levels inferred from footprint (OSM has none)",
+  "roof": "flat",
+  "roof_hex": "#6b6862",
+  "shop_signs": [],
+  "sources": [
+   "inferred: OSM/Overture class+levels+footprint, typology (area rule)"
+  ],
+  "wall_hex": "#e3d0d0",
+  "window": "punched_grid"
+ },
+ "w461484847": {
+  "accent_hex": "#7b858c",
+  "confidence": "low",
+  "features": [],
+  "ground_floor": "shops",
+  "height_m": 4.0,
+  "kind": "kiosk",
+  "label": "Магазин/търговски обект",
+  "levels": 1,
+  "notes": "auto-classified; no specific source found; levels inferred from footprint (OSM has none)",
+  "roof": "flat",
+  "roof_hex": "#5f666b",
+  "shop_signs": [
+   {
+    "bg_hex": "#1c1c1c",
+    "fg_hex": "#7c4dff",
+    "text": "Access club"
+   },
+   {
+    "bg_hex": "#d6336c",
+    "fg_hex": "#ffffff",
+    "text": "Lash Academy Sofia"
+   }
+  ],
+  "sources": [
+   "inferred: OSM/Overture class+levels+footprint, typology (area rule)",
+   "signs: Overture places inside the footprint; colours are brand/category guesses"
+  ],
+  "wall_hex": "#aeb6bb",
+  "window": "shopfront_only"
+ },
+ "w461484848": {
+  "accent_hex": "#9b968a",
+  "confidence": "low",
+  "features": [],
+  "ground_floor": "shops",
+  "height_m": 4.0,
+  "kind": "other",
+  "label": "Магазин/търговски обект",
+  "levels": 1,
+  "notes": "auto-classified; no specific source found; levels inferred from footprint (OSM has none)",
+  "roof": "flat",
+  "roof_hex": "#66625c",
+  "shop_signs": [
+   {
+    "bg_hex": "#1c1c1c",
+    "fg_hex": "#ff3b7f",
+    "text": "Club Conte"
+   },
+   {
+    "bg_hex": "#b3261e",
+    "fg_hex": "#ffffff",
+    "text": "Chicho Burger"
+   },
+   {
+    "bg_hex": "#5d4037",
+    "fg_hex": "#ffffff",
+    "text": "Modera Game Club"
+   }
+  ],
+  "sources": [
+   "inferred: OSM/Overture class+levels+footprint, typology (area rule)",
+   "signs: Overture places inside the footprint; colours are brand/category guesses"
+  ],
+  "wall_hex": "#d0cbbd",
+  "window": "shopfront_only"
+ },
+ "w461484850": {
+  "accent_hex": "#9b968a",
+  "confidence": "low",
+  "features": [],
+  "ground_floor": "shops",
+  "height_m": 4.0,
+  "kind": "other",
+  "label": "Магазин/търговски обект",
+  "levels": 1,
+  "notes": "auto-classified; no specific source found; levels inferred from footprint (OSM has none)",
+  "roof": "flat",
+  "roof_hex": "#66625c",
+  "shop_signs": [
+   {
+    "bg_hex": "#1565c0",
+    "fg_hex": "#ffffff",
+    "text": "Smart Store"
+   },
+   {
+    "bg_hex": "#5d4037",
+    "fg_hex": "#ffffff",
+    "text": "Студентски стол \"При БаБа…"
+   },
+   {
+    "bg_hex": "#455a64",
+    "fg_hex": "#ffffff",
+    "text": "Студентски стол 4"
+   }
+  ],
+  "sources": [
+   "inferred: OSM/Overture class+levels+footprint, typology (area rule)",
+   "signs: Overture places inside the footprint; colours are brand/category guesses"
+  ],
+  "wall_hex": "#d0cbbd",
+  "window": "shopfront_only"
+ },
+ "w461484852": {
+  "accent_hex": "#9b968a",
+  "confidence": "low",
+  "features": [],
+  "ground_floor": "shops",
+  "height_m": 7.0,
+  "kind": "other",
+  "label": "Магазин/търговски обект",
+  "levels": 2,
+  "notes": "auto-classified; no specific source found; levels inferred from footprint (OSM has none)",
+  "roof": "flat",
+  "roof_hex": "#66625c",
+  "shop_signs": [
+   {
+    "bg_hex": "#212121",
+    "fg_hex": "#ff9800",
+    "text": "Ritmo Dance Studio"
+   },
+   {
+    "bg_hex": "#455a64",
+    "fg_hex": "#ffffff",
+    "text": "Издателство Изкуства"
+   },
+   {
+    "bg_hex": "#4a148c",
+    "fg_hex": "#ffffff",
+    "text": "МАГНИТ -Дрехи Втора Употр…"
+   }
+  ],
+  "sources": [
+   "inferred: OSM/Overture class+levels+footprint, typology (area rule)",
+   "signs: Overture places inside the footprint; colours are brand/category guesses"
+  ],
+  "wall_hex": "#d0cbbd",
+  "window": "shopfront_only"
+ },
+ "w461484854": {
+  "accent_hex": "#7b858c",
+  "confidence": "low",
+  "features": [],
+  "ground_floor": "shops",
+  "height_m": 4.0,
+  "kind": "kiosk",
+  "label": "Магазин/търговски обект",
+  "levels": 1,
+  "notes": "auto-classified; no specific source found; levels inferred from footprint (OSM has none)",
+  "roof": "flat",
+  "roof_hex": "#5f666b",
+  "shop_signs": [],
+  "sources": [
+   "inferred: OSM/Overture class+levels+footprint, typology (area rule)"
+  ],
+  "wall_hex": "#aeb6bb",
+  "window": "shopfront_only"
+ },
+ "w50372001": {
+  "accent_hex": "#9d9a90",
+  "confidence": "low",
+  "features": [
+   "uninsulated large-panel dormitory: weathered grey concrete panels, dark window bands, graffiti at ground floor (typical Studentski grad)"
+  ],
+  "ground_floor": "entrances",
+  "height_m": 25.0,
+  "kind": "panel_1970s",
+  "label": "Студентско общежитие",
+  "levels": 8,
+  "notes": "auto-classified; no specific source found",
+  "roof": "flat",
+  "roof_hex": "#6b6862",
+  "shop_signs": [],
+  "sources": [
+   "inferred: OSM/Overture class+levels+footprint, typology (area rule)"
+  ],
+  "wall_hex": "#b3b1a6",
+  "window": "balcony_bands"
+ },
+ "w53581221": {
+  "accent_hex": "#a8a69c",
+  "confidence": "low",
+  "features": [
+   "dormitory block with ETICS insulation in one pastel colour; balcony/loggia fronts and ground floor left grey"
+  ],
+  "ground_floor": "entrances",
+  "height_m": 22.0,
+  "kind": "panel_insulated_patchwork",
+  "label": "Студентско общежитие",
+  "levels": 7,
+  "notes": "auto-classified; no specific source found",
+  "roof": "flat",
+  "roof_hex": "#6b6862",
+  "shop_signs": [],
+  "sources": [
+   "inferred: OSM/Overture class+levels+footprint, typology (area rule)"
+  ],
+  "wall_hex": "#cbd8d6",
+  "window": "balcony_bands"
+ },
+ "w53581813": {
+  "accent_hex": "#9d9a90",
+  "confidence": "low",
+  "features": [
+   "uninsulated large-panel dormitory: weathered grey concrete panels, dark window bands, graffiti at ground floor (typical Studentski grad)"
+  ],
+  "ground_floor": "entrances",
+  "height_m": 25.0,
+  "kind": "panel_1970s",
+  "label": "Студентско общежитие",
+  "levels": 8,
+  "notes": "auto-classified; no specific source found",
+  "roof": "flat",
+  "roof_hex": "#6b6862",
+  "shop_signs": [],
+  "sources": [
+   "inferred: OSM/Overture class+levels+footprint, typology (area rule)"
+  ],
+  "wall_hex": "#aeaca3",
+  "window": "balcony_bands"
+ },
+ "w53655294": {
+  "accent_hex": "#9d9a90",
+  "confidence": "low",
+  "features": [
+   "uninsulated large-panel dormitory: weathered grey concrete panels, dark window bands, graffiti at ground floor (typical Studentski grad)"
+  ],
+  "ground_floor": "entrances",
+  "height_m": 25.0,
+  "kind": "panel_1970s",
+  "label": "Студентско общежитие",
+  "levels": 8,
+  "notes": "auto-classified; no specific source found",
+  "roof": "flat",
+  "roof_hex": "#6b6862",
+  "shop_signs": [],
+  "sources": [
+   "inferred: OSM/Overture class+levels+footprint, typology (area rule)"
+  ],
+  "wall_hex": "#bcb8ac",
+  "window": "balcony_bands"
+ },
+ "w53655325": {
+  "accent_hex": "#9d9a90",
+  "confidence": "low",
+  "features": [
+   "uninsulated large-panel dormitory: weathered grey concrete panels, dark window bands, graffiti at ground floor (typical Studentski grad)"
+  ],
+  "ground_floor": "entrances",
+  "height_m": 25.0,
+  "kind": "panel_1970s",
+  "label": "Студентско общежитие",
+  "levels": 8,
+  "notes": "auto-classified; no specific source found",
+  "roof": "flat",
+  "roof_hex": "#6b6862",
+  "shop_signs": [],
+  "sources": [
+   "inferred: OSM/Overture class+levels+footprint, typology (area rule)"
+  ],
+  "wall_hex": "#bcb8ac",
+  "window": "balcony_bands"
+ },
+ "w53825179": {
+  "accent_hex": "#8b8173",
+  "confidence": "low",
+  "features": [
+   "two-storey retail hall next to South Mall"
+  ],
+  "ground_floor": "shops",
+  "height_m": 8.0,
+  "kind": "other",
+  "label": "Двуетажен търговски обект 57 x 31 m (Борис Стефанов 35, партерна част на South Mall)",
+  "levels": 2,
+  "notes": "",
+  "roof": "flat",
+  "roof_hex": "#66625c",
+  "shop_signs": [
+   {
+    "bg_hex": "#b3261e",
+    "fg_hex": "#ffffff",
+    "text": "Хоремаг от едно време"
+   }
+  ],
+  "sources": [
+   "OSM class=retail levels=2 roof=flat",
+   "signs: Overture places inside the footprint; colours are brand/category guesses"
+  ],
+  "wall_hex": "#d3cdbf",
+  "window": "shopfront_only"
+ },
+ "w54395035": {
+  "accent_hex": "#a39f94",
+  "confidence": "low",
+  "features": [],
+  "ground_floor": "entrances",
+  "height_m": 19.0,
+  "kind": "panel_1960s",
+  "label": "Жилищен блок",
+  "levels": 6,
+  "notes": "auto-classified; no specific source found; levels inferred from footprint (OSM has none)",
+  "roof": "flat",
+  "roof_hex": "#6b6862",
+  "shop_signs": [],
+  "sources": [
+   "inferred: OSM/Overture class+levels+footprint, typology (area rule)"
+  ],
+  "wall_hex": "#b3b1a6",
+  "window": "punched_grid"
+ },
+ "w574814602": {
+  "accent_hex": "#8b8173",
+  "confidence": "medium",
+  "features": [
+   "50 x 40 m plastered block (OSM facade_material=plaster)"
+  ],
+  "ground_floor": "shops",
+  "height_m": 19.0,
+  "kind": "brick_socialist",
+  "label": "6-етажен блок (Ак. Ст. Младенов 50)",
+  "levels": 6,
+  "notes": "",
+  "roof": "flat",
+  "roof_hex": "#66625c",
+  "shop_signs": [
+   {
+    "bg_hex": "#455a64",
+    "fg_hex": "#ffffff",
+    "text": "Корейски магазин „ХанКанг…"
+   }
+  ],
+  "sources": [
+   "OSM facade_material=plaster levels=6",
+   "signs: Overture places inside the footprint; colours are brand/category guesses"
+  ],
+  "wall_hex": "#d9d0b8",
+  "window": "punched_grid"
+ },
+ "w58422453": {
+  "accent_hex": "#9d9a90",
+  "confidence": "low",
+  "features": [
+   "very long slab west of the road"
+  ],
+  "ground_floor": "entrances",
+  "height_m": 25.0,
+  "kind": "panel_1970s",
+  "label": "Студентски блок (8 ет., 138 x 39 м)",
+  "levels": 8,
+  "notes": "",
+  "roof": "flat",
+  "roof_hex": "#6b6862",
+  "shop_signs": [],
+  "sources": [
+   "OSM levels=8"
+  ],
+  "wall_hex": "#b8b6ac",
+  "window": "balcony_bands"
+ },
+ "w58422454": {
+  "accent_hex": "#9d9a90",
+  "confidence": "low",
+  "features": [],
+  "ground_floor": "entrances",
+  "height_m": 25.0,
+  "kind": "panel_1970s",
+  "label": "Жилищен блок",
+  "levels": 8,
+  "notes": "auto-classified; no specific source found",
+  "roof": "flat",
+  "roof_hex": "#6b6862",
+  "shop_signs": [],
+  "sources": [
+   "inferred: OSM/Overture class+levels+footprint, typology (area rule)"
+  ],
+  "wall_hex": "#b3b1a6",
+  "window": "loggia_bands"
+ },
+ "w614282368": {
+  "accent_hex": "#9b968a",
+  "confidence": "low",
+  "features": [],
+  "ground_floor": "blank",
+  "height_m": 3.5,
+  "kind": "other",
+  "label": "Сграда",
+  "levels": 1,
+  "notes": "auto-classified; no specific source found",
+  "roof": "flat",
+  "roof_hex": "#66625c",
+  "shop_signs": [],
+  "sources": [
+   "inferred: OSM/Overture class+levels+footprint, typology (area rule)"
+  ],
+  "wall_hex": "#d0cbbd",
+  "window": "punched_grid"
+ },
+ "w614283055": {
+  "accent_hex": "#8b8173",
+  "confidence": "low",
+  "features": [
+   "32 x 13 m slab, ground-floor convenience shops and offices"
+  ],
+  "ground_floor": "shops",
+  "height_m": 13.0,
+  "kind": "brick_socialist",
+  "label": "4-етажен блок с магазини, Ак. Стефан Младенов 10 (SilaBG, Southwestern Advantage)",
+  "levels": 4,
+  "notes": "",
+  "roof": "flat",
+  "roof_hex": "#66625c",
+  "shop_signs": [
+   {
+    "bg_hex": "#f9a825",
+    "fg_hex": "#1b1b1b",
+    "text": "Minimart"
+   },
+   {
+    "bg_hex": "#455a64",
+    "fg_hex": "#ffffff",
+    "text": "Southwestern Advantage Bu…"
+   },
+   {
+    "bg_hex": "#212121",
+    "fg_hex": "#ff9800",
+    "text": "Емил Цветков"
+   }
+  ],
+  "sources": [
+   "OSM levels=4 roof=flat",
+   "stops/1691.json + stops/1692.json places (addresses, business names)",
+   "signs: Overture places inside the footprint; colours are brand/category guesses"
+  ],
+  "wall_hex": "#d6ccb4",
+  "window": "punched_grid"
+ },
+ "w640605647": {
+  "accent_hex": "#9d9a90",
+  "confidence": "low",
+  "features": [],
+  "ground_floor": "entrances",
+  "height_m": 25.0,
+  "kind": "panel_1970s",
+  "label": "Жилищен блок",
+  "levels": 8,
+  "notes": "auto-classified; no specific source found; levels inferred from footprint (OSM has none)",
+  "roof": "flat",
+  "roof_hex": "#6b6862",
+  "shop_signs": [],
+  "sources": [
+   "inferred: OSM/Overture class+levels+footprint, typology (area rule)"
+  ],
+  "wall_hex": "#b3b1a6",
+  "window": "loggia_bands"
+ },
+ "w640609442": {
+  "accent_hex": "#9d9a90",
+  "confidence": "low",
+  "features": [],
+  "ground_floor": "entrances",
+  "height_m": 25.0,
+  "kind": "panel_1970s",
+  "label": "Жилищен блок",
+  "levels": 8,
+  "notes": "auto-classified; no specific source found; levels inferred from footprint (OSM has none)",
+  "roof": "flat",
+  "roof_hex": "#6b6862",
+  "shop_signs": [],
+  "sources": [
+   "inferred: OSM/Overture class+levels+footprint, typology (area rule)"
+  ],
+  "wall_hex": "#bcb8ac",
+  "window": "loggia_bands"
+ },
+ "w65134340": {
+  "accent_hex": "#7b858c",
+  "confidence": "medium",
+  "features": [
+   "11 x 8 m pavilion at the pole"
+  ],
+  "ground_floor": "shops",
+  "height_m": 4.0,
+  "kind": "kiosk",
+  "label": "„Промо Стейшън 2“ (Борис Стефанов 16: Mega Dance Center)",
+  "levels": 1,
+  "notes": "",
+  "roof": "flat",
+  "roof_hex": "#5f666b",
+  "shop_signs": [
+   {
+    "bg_hex": "#1565c0",
+    "fg_hex": "#ffffff",
+    "text": "Промо Стейшън"
+   },
+   {
+    "bg_hex": "#6a1b9a",
+    "fg_hex": "#ffffff",
+    "text": "Mega Dance Center"
+   }
+  ],
+  "sources": [
+   "OSM name Промо Стейшън 2; places: Mega Dance Center"
+  ],
+  "wall_hex": "#aeb6bb",
+  "window": "shopfront_only"
+ },
+ "w65134343": {
+  "accent_hex": "#8b8173",
+  "confidence": "medium",
+  "features": [
+   "14 x 12 m fast-food restaurant with terrace"
+  ],
+  "ground_floor": "shops",
+  "height_m": 4.5,
+  "kind": "kiosk",
+  "label": "„Хляб и мръвка“ — едноетажен ресторант на ъгъла (Борис Стефанов 35)",
+  "levels": 1,
+  "notes": "",
+  "roof": "flat",
+  "roof_hex": "#66625c",
+  "shop_signs": [
+   {
+    "bg_hex": "#b3261e",
+    "fg_hex": "#ffffff",
+    "text": "ХЛЯБ И МРЪВКА"
+   }
+  ],
+  "sources": [
+   "OSM name; places"
+  ],
+  "wall_hex": "#c9c3b4",
+  "window": "shopfront_only"
+ },
+ "w65134345": {
+  "accent_hex": "#b8232a",
+  "confidence": "medium",
+  "features": [
+   "58 x 51 m one-storey supermarket with a car park; red/yellow fascia (brand colours from memory)",
+   "Sushi Point, Easybox lockers on the front"
+  ],
+  "ground_floor": "shops",
+  "height_m": 6.5,
+  "kind": "other",
+  "label": "Супермаркет „Фантастико“ Ф22 (Ак. Борис Стефанов 12/22) — Студентски град",
+  "levels": 1,
+  "notes": "",
+  "roof": "flat",
+  "roof_hex": "#66625c",
+  "shop_signs": [
+   {
+    "bg_hex": "#d8232a",
+    "fg_hex": "#ffffff",
+    "text": "ФАНТАСТИКО"
+   }
+  ],
+  "sources": [
+   "OSM name Фантастико levels=1; places: Фантастико Студентски град - зала \"Христо Ботев\", Ф22"
+  ],
+  "wall_hex": "#d9d3c5",
+  "window": "shopfront_only"
+ },
+ "w65134351": {
+  "accent_hex": "#c46a3a",
+  "confidence": "low",
+  "features": [
+   "U/E-shaped one-to-two-storey nursery complex with courtyards and a fenced play yard",
+   "pastel plaster, coloured window frames, flat roof (typical Sofia 1970s nursery type project)",
+   "tree-lined fence along the street"
+  ],
+  "ground_floor": "lobby",
+  "height_m": 8.0,
+  "kind": "modernist_institutional",
+  "label": "Детски ясли / детска градина (комплекс 88 x 58 м), Ак. Борис Стефанов",
+  "levels": 2,
+  "notes": "height/colour inferred",
+  "roof": "flat",
+  "roof_hex": "#66625c",
+  "shop_signs": [],
+  "sources": [
+   "OSM class=kindergarten (stops/0533.json); stop name Детски ясли",
+   "inferred: typology"
+  ],
+  "wall_hex": "#ecdca8",
+  "window": "ribbon"
+ },
+ "w65134353": {
+  "accent_hex": "#9b968a",
+  "confidence": "low",
+  "features": [],
+  "ground_floor": "shops",
+  "height_m": 4.0,
+  "kind": "other",
+  "label": "En Dian",
+  "levels": 1,
+  "notes": "auto-classified; no specific source found; levels inferred from footprint (OSM has none)",
+  "roof": "flat",
+  "roof_hex": "#66625c",
+  "shop_signs": [
+   {
+    "bg_hex": "#455a64",
+    "fg_hex": "#ffffff",
+    "text": "En Dian"
+   }
+  ],
+  "sources": [
+   "inferred: OSM/Overture class+levels+footprint, typology (area rule)"
+  ],
+  "wall_hex": "#d0cbbd",
+  "window": "shopfront_only"
+ },
+ "w65134354": {
+  "accent_hex": "#a39f94",
+  "confidence": "low",
+  "features": [
+   "48 x 23 m block, 4 floors, telecom shops and sport store on the ground floor"
+  ],
+  "ground_floor": "shops",
+  "height_m": 13.5,
+  "kind": "panel_1960s",
+  "label": "Блок Ак. Борис Стефанов 20 (Yettel, Vivacom, Hockey Camel, Battery service)",
+  "levels": 4,
+  "notes": "",
+  "roof": "flat",
+  "roof_hex": "#6b6862",
+  "shop_signs": [
+   {
+    "bg_hex": "#6e1e8c",
+    "fg_hex": "#ffffff",
+    "text": "Yettel"
+   },
+   {
+    "bg_hex": "#e60000",
+    "fg_hex": "#ffffff",
+    "text": "Vivacom"
+   },
+   {
+    "bg_hex": "#1565c0",
+    "fg_hex": "#ffffff",
+    "text": "Hockey Camel"
+   }
+  ],
+  "sources": [
+   "OSM (levels inferred)",
+   "stops/1610.json + stops/1611.json places (addresses, business names)"
+  ],
+  "wall_hex": "#c0bdb2",
+  "window": "punched_grid"
+ },
+ "w65157403": {
+  "accent_hex": "#9b968a",
+  "confidence": "low",
+  "features": [],
+  "ground_floor": "blank",
+  "height_m": 3.5,
+  "kind": "other",
+  "label": "Club 35",
+  "levels": 1,
+  "notes": "auto-classified; no specific source found",
+  "roof": "flat",
+  "roof_hex": "#66625c",
+  "shop_signs": [],
+  "sources": [
+   "inferred: OSM/Overture class+levels+footprint, typology (area rule)"
+  ],
+  "wall_hex": "#d0cbbd",
+  "window": "punched_grid"
+ },
+ "w65622760": {
+  "accent_hex": "#8b8173",
+  "confidence": "low",
+  "features": [
+   "two floors, ground-floor bar/restaurant fronts with terrace",
+   "plastered, flat roof"
+  ],
+  "ground_floor": "shops",
+  "height_m": 8.0,
+  "kind": "other",
+  "label": "Двуетажна търговска сграда (ул. Брадистилов 3, Bar & Dinner Souvenir)",
+  "levels": 2,
+  "notes": "",
+  "roof": "flat",
+  "roof_hex": "#66625c",
+  "shop_signs": [
+   {
+    "bg_hex": "#2b2b2b",
+    "fg_hex": "#ffffff",
+    "text": "Bar & Dinner Souvenir"
+   }
+  ],
+  "sources": [
+   "stops/1740.json places (address + business names)",
+   "inferred: typology"
+  ],
+  "wall_hex": "#cfc7b5",
+  "window": "shopfront_only"
+ },
+ "w65652617": {
+  "accent_hex": "#a8a69c",
+  "confidence": "low",
+  "features": [
+   "dormitory block with ETICS insulation in one pastel colour; balcony/loggia fronts and ground floor left grey"
+  ],
+  "ground_floor": "entrances",
+  "height_m": 19.0,
+  "kind": "panel_insulated_patchwork",
+  "label": "Студентско общежитие",
+  "levels": 6,
+  "notes": "auto-classified; no specific source found; levels inferred from footprint (OSM has none)",
+  "roof": "flat",
+  "roof_hex": "#6b6862",
+  "shop_signs": [],
+  "sources": [
+   "inferred: OSM/Overture class+levels+footprint, typology (area rule)"
+  ],
+  "wall_hex": "#cbd8d6",
+  "window": "balcony_bands"
+ },
+ "w65696310": {
+  "accent_hex": "#7b858c",
+  "confidence": "low",
+  "features": [],
+  "ground_floor": "shops",
+  "height_m": 4.0,
+  "kind": "kiosk",
+  "label": "Магазин/търговски обект",
+  "levels": 1,
+  "notes": "auto-classified; no specific source found; levels inferred from footprint (OSM has none)",
+  "roof": "flat",
+  "roof_hex": "#5f666b",
+  "shop_signs": [
+   {
+    "bg_hex": "#37474f",
+    "fg_hex": "#ffffff",
+    "text": "MoneyGram"
+   },
+   {
+    "bg_hex": "#d6336c",
+    "fg_hex": "#ffffff",
+    "text": "Synergy spot"
+   }
+  ],
+  "sources": [
+   "inferred: OSM/Overture class+levels+footprint, typology (area rule)",
+   "signs: Overture places inside the footprint; colours are brand/category guesses"
+  ],
+  "wall_hex": "#aeb6bb",
+  "window": "shopfront_only"
+ },
+ "w65696337": {
+  "accent_hex": "#7b858c",
+  "confidence": "low",
+  "features": [],
+  "ground_floor": "shops",
+  "height_m": 4.0,
+  "kind": "kiosk",
+  "label": "Магазин/търговски обект",
+  "levels": 1,
+  "notes": "auto-classified; no specific source found; levels inferred from footprint (OSM has none)",
+  "roof": "flat",
+  "roof_hex": "#5f666b",
+  "shop_signs": [
+   {
+    "bg_hex": "#d6336c",
+    "fg_hex": "#ffffff",
+    "text": "Synergy spot"
+   },
+   {
+    "bg_hex": "#37474f",
+    "fg_hex": "#ffffff",
+    "text": "MoneyGram"
+   }
+  ],
+  "sources": [
+   "inferred: OSM/Overture class+levels+footprint, typology (area rule)",
+   "signs: Overture places inside the footprint; colours are brand/category guesses"
+  ],
+  "wall_hex": "#aeb6bb",
+  "window": "shopfront_only"
+ },
+ "w65696340": {
+  "accent_hex": "#7b858c",
+  "confidence": "low",
+  "features": [],
+  "ground_floor": "shops",
+  "height_m": 4.0,
+  "kind": "kiosk",
+  "label": "Магазин/търговски обект",
+  "levels": 1,
+  "notes": "auto-classified; no specific source found; levels inferred from footprint (OSM has none)",
+  "roof": "flat",
+  "roof_hex": "#5f666b",
+  "shop_signs": [
+   {
+    "bg_hex": "#37474f",
+    "fg_hex": "#ffffff",
+    "text": "MoneyGram"
+   }
+  ],
+  "sources": [
+   "inferred: OSM/Overture class+levels+footprint, typology (area rule)",
+   "signs: Overture places inside the footprint; colours are brand/category guesses"
+  ],
+  "wall_hex": "#aeb6bb",
+  "window": "shopfront_only"
+ },
+ "w65696344": {
+  "accent_hex": "#7b858c",
+  "confidence": "low",
+  "features": [],
+  "ground_floor": "shops",
+  "height_m": 4.0,
+  "kind": "kiosk",
+  "label": "Магазин/търговски обект",
+  "levels": 1,
+  "notes": "auto-classified; no specific source found; levels inferred from footprint (OSM has none)",
+  "roof": "flat",
+  "roof_hex": "#5f666b",
+  "shop_signs": [],
+  "sources": [
+   "inferred: OSM/Overture class+levels+footprint, typology (area rule)"
+  ],
+  "wall_hex": "#aeb6bb",
+  "window": "shopfront_only"
+ },
+ "w65696356": {
+  "accent_hex": "#7b858c",
+  "confidence": "low",
+  "features": [],
+  "ground_floor": "shops",
+  "height_m": 4.0,
+  "kind": "kiosk",
+  "label": "AIM Travel USA",
+  "levels": 1,
+  "notes": "auto-classified; no specific source found; levels inferred from footprint (OSM has none)",
+  "roof": "flat",
+  "roof_hex": "#5f666b",
+  "shop_signs": [
+   {
+    "bg_hex": "#455a64",
+    "fg_hex": "#ffffff",
+    "text": "AIM Travel USA"
+   }
+  ],
+  "sources": [
+   "inferred: OSM/Overture class+levels+footprint, typology (area rule)"
+  ],
+  "wall_hex": "#aeb6bb",
+  "window": "shopfront_only"
+ },
+ "w65696358": {
+  "accent_hex": "#7b858c",
+  "confidence": "low",
+  "features": [],
+  "ground_floor": "shops",
+  "height_m": 4.0,
+  "kind": "kiosk",
+  "label": "Магазин/търговски обект",
+  "levels": 1,
+  "notes": "auto-classified; no specific source found; levels inferred from footprint (OSM has none)",
+  "roof": "flat",
+  "roof_hex": "#5f666b",
+  "shop_signs": [],
+  "sources": [
+   "inferred: OSM/Overture class+levels+footprint, typology (area rule)"
+  ],
+  "wall_hex": "#aeb6bb",
+  "window": "shopfront_only"
+ },
+ "w66149375": {
+  "accent_hex": "#9b968a",
+  "confidence": "low",
+  "features": [],
+  "ground_floor": "shops",
+  "height_m": 4.0,
+  "kind": "other",
+  "label": "Търговска/офис сграда",
+  "levels": 1,
+  "notes": "auto-classified; no specific source found; levels inferred from footprint (OSM has none)",
+  "roof": "flat",
+  "roof_hex": "#66625c",
+  "shop_signs": [
+   {
+    "bg_hex": "#455a64",
+    "fg_hex": "#ffffff",
+    "text": "Спортна зала Огнянов"
+   },
+   {
+    "bg_hex": "#d6336c",
+    "fg_hex": "#ffffff",
+    "text": "Beauty 23"
+   },
+   {
+    "bg_hex": "#b3261e",
+    "fg_hex": "#ffffff",
+    "text": "Mariko Sushi Bar"
+   }
+  ],
+  "sources": [
+   "inferred: OSM/Overture class+levels+footprint, typology (area rule)",
+   "signs: Overture places inside the footprint; colours are brand/category guesses"
+  ],
+  "wall_hex": "#d0cbbd",
+  "window": "shopfront_only"
+ },
+ "w66149387": {
+  "accent_hex": "#7b858c",
+  "confidence": "low",
+  "features": [],
+  "ground_floor": "shops",
+  "height_m": 4.0,
+  "kind": "kiosk",
+  "label": "Търговска/офис сграда",
+  "levels": 1,
+  "notes": "auto-classified; no specific source found; levels inferred from footprint (OSM has none)",
+  "roof": "flat",
+  "roof_hex": "#5f666b",
+  "shop_signs": [
+   {
+    "bg_hex": "#e2001a",
+    "fg_hex": "#ffffff",
+    "text": "UniCredit Bulbank (Студен…"
+   }
+  ],
+  "sources": [
+   "inferred: OSM/Overture class+levels+footprint, typology (area rule)",
+   "signs: Overture places inside the footprint; colours are brand/category guesses"
+  ],
+  "wall_hex": "#aeb6bb",
+  "window": "shopfront_only"
+ },
+ "w66149392": {
+  "accent_hex": "#8b6f47",
+  "confidence": "medium",
+  "features": [
+   "28 x 20 m pavilion-style restaurant with a big terrace and garden tables facing the street"
+  ],
+  "ground_floor": "shops",
+  "height_m": 8.0,
+  "kind": "other",
+  "label": "Парк-ресторант „Биляна“ (Ак. Борис Стефанов 9: Biliana Park Restaurant, Петлето)",
+  "levels": 2,
+  "notes": "",
+  "roof": "flat",
+  "roof_hex": "#7a3e2b",
+  "shop_signs": [
+   {
+    "bg_hex": "#2e7d32",
+    "fg_hex": "#ffffff",
+    "text": "Биляна"
+   },
+   {
+    "bg_hex": "#b3261e",
+    "fg_hex": "#ffffff",
+    "text": "ПеТлЕтО"
+   }
+  ],
+  "sources": [
+   "OSM name Парк-ресторант Биляна; places: Biliana Park Restaurant, ПеТлЕтО (stops/1610.json)"
+  ],
+  "wall_hex": "#e8dfc7",
+  "window": "shopfront_only"
+ },
+ "w66479455": {
+  "accent_hex": "#6e7b85",
+  "confidence": "medium",
+  "features": [
+   "83 x 24 m, 9 floors (OSM), flat roof",
+   "shops, fast food and a fitness centre in the lower floors; offices, real-estate agencies, a gaming club and a coworking space above (Combo Consult, GM Fitness Center, Luxor Gaming Club, OvertAim South Coworking, ID Real Estate)",
+   "Easybox parcel locker at the entrance, banner signs on the facade"
+  ],
+  "ground_floor": "shops",
+  "height_m": 30.0,
+  "kind": "glass_office",
+  "label": "South Mall, ул. Акад. Борис Стефанов 35 (Studentski grad shopping/office slab)",
+  "levels": 9,
+  "notes": "cladding inferred",
+  "roof": "flat",
+  "roof_hex": "#5c6165",
+  "shop_signs": [
+   {
+    "bg_hex": "#c62828",
+    "fg_hex": "#ffffff",
+    "text": "SOUTH MALL"
+   },
+   {
+    "bg_hex": "#212121",
+    "fg_hex": "#ff9800",
+    "text": "GM Fitness Center"
+   },
+   {
+    "bg_hex": "#37474f",
+    "fg_hex": "#ffffff",
+    "text": "Fortuna Markets"
+   }
+  ],
+  "sources": [
+   "OSM name South Mall levels=9 roof=flat (stops/0741.json)",
+   "places at Akad. Boris Stefanov 35"
+  ],
+  "wall_hex": "#c9ccce",
+  "window": "ribbon"
+ },
+ "w66479457": {
+  "accent_hex": "#7b858c",
+  "confidence": "low",
+  "features": [],
+  "ground_floor": "shops",
+  "height_m": 4.0,
+  "kind": "kiosk",
+  "label": "Магазин/търговски обект",
+  "levels": 1,
+  "notes": "auto-classified; no specific source found; levels inferred from footprint (OSM has none)",
+  "roof": "flat",
+  "roof_hex": "#5f666b",
+  "shop_signs": [
+   {
+    "bg_hex": "#b3261e",
+    "fg_hex": "#ffffff",
+    "text": "Legendary Barbeque"
+   },
+   {
+    "bg_hex": "#4a148c",
+    "fg_hex": "#ffffff",
+    "text": "Alta Moda"
+   }
+  ],
+  "sources": [
+   "inferred: OSM/Overture class+levels+footprint, typology (area rule)",
+   "signs: Overture places inside the footprint; colours are brand/category guesses"
+  ],
+  "wall_hex": "#aeb6bb",
+  "window": "shopfront_only"
+ },
+ "w66479460": {
+  "accent_hex": "#8f8b80",
+  "confidence": "low",
+  "features": [],
+  "ground_floor": "lobby",
+  "height_m": 4.0,
+  "kind": "modernist_institutional",
+  "label": "Университетска сграда",
+  "levels": 1,
+  "notes": "auto-classified; no specific source found",
+  "roof": "flat",
+  "roof_hex": "#66625c",
+  "shop_signs": [],
+  "sources": [
+   "inferred: OSM/Overture class+levels+footprint, typology (area rule)"
+  ],
+  "wall_hex": "#d0cbbd",
+  "window": "ribbon"
+ },
+ "w696581928": {
+  "accent_hex": "#7a8288",
+  "confidence": "low",
+  "features": [
+   "recent new-build (OSM way id from the 2019+ range), plaster + grey window frames",
+   "glass balcony balustrades",
+   "set-back top floor (inferred)"
+  ],
+  "ground_floor": "lobby",
+  "height_m": 26.0,
+  "kind": "modern_residential",
+  "label": "Нова 8-етажна жилищна сграда (запад, зад бул. Кл. Охридски)",
+  "levels": 8,
+  "notes": "construction year inferred from OSM id range",
+  "roof": "flat",
+  "roof_hex": "#66625c",
+  "shop_signs": [],
+  "sources": [
+   "OSM levels=8"
+  ],
+  "wall_hex": "#e9e4d6",
+  "window": "balcony_bands"
+ },
+ "w766217167": {
+  "accent_hex": "#9d9a90",
+  "confidence": "low",
+  "features": [
+   "panel slab, ground-floor shops and gym",
+   "stepped heights along the boulevard"
+  ],
+  "ground_floor": "shops",
+  "height_m": 31.0,
+  "kind": "panel_1970s",
+  "label": "10-етажен блок бул. Кл. Охридски 25-27 (задно крило)",
+  "levels": 10,
+  "notes": "",
+  "roof": "flat",
+  "roof_hex": "#6b6862",
+  "shop_signs": [
+   {
+    "bg_hex": "#b3261e",
+    "fg_hex": "#ffffff",
+    "text": "Pizzeria Spaccanapoli"
+   },
+   {
+    "bg_hex": "#455a64",
+    "fg_hex": "#ffffff",
+    "text": "E-Point Bulgaria"
+   }
+  ],
+  "sources": [
+   "OSM levels",
+   "stops/0800.json + stops/0801.json places (addresses, business names)",
+   "inferred: typology",
+   "signs: Overture places inside the footprint; colours are brand/category guesses"
+  ],
+  "wall_hex": "#b8b6ac",
+  "window": "loggia_bands"
+ },
+ "w766217168": {
+  "accent_hex": "#9d9a90",
+  "confidence": "low",
+  "features": [
+   "panel slab, ground-floor shops and gym",
+   "stepped heights along the boulevard"
+  ],
+  "ground_floor": "shops",
+  "height_m": 31.0,
+  "kind": "panel_1970s",
+  "label": "10-етажен блок бул. Кл. Охридски 25-27",
+  "levels": 10,
+  "notes": "",
+  "roof": "flat",
+  "roof_hex": "#6b6862",
+  "shop_signs": [
+   {
+    "bg_hex": "#1565c0",
+    "fg_hex": "#ffffff",
+    "text": "Сервиз за Теб ООД"
+   },
+   {
+    "bg_hex": "#d6336c",
+    "fg_hex": "#ffffff",
+    "text": "Nails by Marieta Dimitrova"
+   },
+   {
+    "bg_hex": "#455a64",
+    "fg_hex": "#ffffff",
+    "text": "Veliana face"
+   }
+  ],
+  "sources": [
+   "OSM levels",
+   "stops/0800.json + stops/0801.json places (addresses, business names)",
+   "inferred: typology",
+   "signs: Overture places inside the footprint; colours are brand/category guesses"
+  ],
+  "wall_hex": "#b8b6ac",
+  "window": "loggia_bands"
+ },
+ "w89453923": {
+  "accent_hex": "#9b968a",
+  "confidence": "low",
+  "features": [],
+  "ground_floor": "shops",
+  "height_m": 4.0,
+  "kind": "other",
+  "label": "Магазин/търговски обект",
+  "levels": 1,
+  "notes": "auto-classified; no specific source found; levels inferred from footprint (OSM has none)",
+  "roof": "flat",
+  "roof_hex": "#66625c",
+  "shop_signs": [
+   {
+    "bg_hex": "#d6336c",
+    "fg_hex": "#ffffff",
+    "text": "Onix Tattoo"
+   },
+   {
+    "bg_hex": "#4a148c",
+    "fg_hex": "#ffffff",
+    "text": "VIP Boutique / Luxury fas…"
+   },
+   {
+    "bg_hex": "#455a64",
+    "fg_hex": "#ffffff",
+    "text": "Martinez Perfume La Bouti…"
+   }
+  ],
+  "sources": [
+   "inferred: OSM/Overture class+levels+footprint, typology (area rule)",
+   "signs: Overture places inside the footprint; colours are brand/category guesses"
+  ],
+  "wall_hex": "#d0cbbd",
+  "window": "shopfront_only"
+ },
+ "w923882046": {
+  "accent_hex": "#9d9a90",
+  "confidence": "low",
+  "features": [],
+  "ground_floor": "entrances",
+  "height_m": 25.0,
+  "kind": "panel_1970s",
+  "label": "Жилищен блок",
+  "levels": 8,
+  "notes": "auto-classified; no specific source found; levels inferred from footprint (OSM has none)",
+  "roof": "flat",
+  "roof_hex": "#6b6862",
+  "shop_signs": [],
+  "sources": [
+   "inferred: OSM/Overture class+levels+footprint, typology (area rule)"
+  ],
+  "wall_hex": "#c0bdb2",
+  "window": "loggia_bands"
+ }
+}

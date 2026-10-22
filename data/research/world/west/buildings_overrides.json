@@ -1,0 +1,999 @@
+{
+ "w346985944": {
+  "label": "Corner apartment block Shipka 52 / Asen Zlatarov (bakery Simid, Pentagram boutique) - building right behind the stop",
+  "kind": "neoclassical_prewar",
+  "levels": 5,
+  "height_m": 17.0,
+  "roof": "flat",
+  "wall_hex": "#d9c9a3",
+  "accent_hex": "#b3a17e",
+  "roof_hex": "#7d7d78",
+  "window": "balcony_bands",
+  "ground_floor": "shops",
+  "shop_signs": [
+   {
+    "text": "Пекарна Симид",
+    "bg_hex": "#c8832b",
+    "fg_hex": "#ffffff"
+   },
+   {
+    "text": "Pentagram",
+    "bg_hex": "#1c1c1c",
+    "fg_hex": "#ffffff"
+   }
+  ],
+  "features": [
+   "1930s-style plastered apartment house with shopfronts on Shipka",
+   "5 levels (OSM)",
+   "stands 9-18 m south of the road, directly behind the pole"
+  ],
+  "confidence": "low",
+  "sources": [
+   "places list (Shipka 52)",
+   "bazar.bg listings: Oborishte stock built 1930, brick",
+   "inferred (typology)"
+  ],
+  "notes": "Wall colour guessed (warm ochre plaster, typical for the quarter)."
+ },
+ "r17427683": {
+  "label": "Three-storey house at Shipka (right side of the stop)",
+  "kind": "house",
+  "levels": 3,
+  "height_m": 10.5,
+  "roof": "hipped",
+  "wall_hex": "#d6c0a0",
+  "accent_hex": "#a98f6f",
+  "roof_hex": "#9a5645",
+  "window": "punched_grid",
+  "ground_floor": "entrances",
+  "shop_signs": [],
+  "features": [
+   "pre-war town house, tiled hip roof, shutters"
+  ],
+  "confidence": "low",
+  "sources": [
+   "inferred (typology)"
+  ],
+  "notes": ""
+ },
+ "w301690630": {
+  "label": "5-storey apartment block opposite the stop (Shipka 41 side: shops REA 4, butcher, resin-table studio)",
+  "kind": "brick_socialist",
+  "levels": 5,
+  "height_m": 16.5,
+  "roof": "flat",
+  "wall_hex": "#d2c3a1",
+  "accent_hex": "#a59878",
+  "roof_hex": "#7b7b76",
+  "window": "balcony_bands",
+  "ground_floor": "shops",
+  "shop_signs": [
+   {
+    "text": "Месарница",
+    "bg_hex": "#8d1b1b",
+    "fg_hex": "#ffffff"
+   },
+   {
+    "text": "REA 4",
+    "bg_hex": "#f2c200",
+    "fg_hex": "#1a1a1a"
+   }
+  ],
+  "features": [
+   "north side of the road, 8 m from the centreline"
+  ],
+  "confidence": "low",
+  "sources": [
+   "places list (Shipka 41, 35)",
+   "inferred (typology)"
+  ],
+  "notes": ""
+ },
+ "w346985956": {
+  "label": "Hotel The Embassy Suites + bar Editori, Shipka 48",
+  "kind": "neoclassical_prewar",
+  "levels": 4,
+  "height_m": 15.0,
+  "roof": "flat",
+  "wall_hex": "#dbcfb2",
+  "accent_hex": "#b2a586",
+  "roof_hex": "#7d7d78",
+  "window": "punched_grid",
+  "ground_floor": "shops",
+  "shop_signs": [
+   {
+    "text": "Editóri",
+    "bg_hex": "#1b2a3a",
+    "fg_hex": "#ffffff"
+   },
+   {
+    "text": "Embassy Suites",
+    "bg_hex": "#2a2a2a",
+    "fg_hex": "#e8d9a8"
+   }
+  ],
+  "features": [],
+  "confidence": "low",
+  "sources": [
+   "places list (Shipka 48)",
+   "inferred"
+  ],
+  "notes": ""
+ },
+ "w301690631": {
+  "label": "Apartment block north of the stop (Prof. Asen Zlatarov 21-24 side)",
+  "kind": "brick_socialist",
+  "levels": 5,
+  "height_m": 16.5,
+  "roof": "flat",
+  "wall_hex": "#d4c5a4",
+  "accent_hex": "#a79a7a",
+  "roof_hex": "#7b7b76",
+  "window": "balcony_bands",
+  "ground_floor": "shops",
+  "shop_signs": [
+   {
+    "text": "La Pastaria",
+    "bg_hex": "#2e5e2e",
+    "fg_hex": "#ffffff"
+   }
+  ],
+  "features": [],
+  "confidence": "low",
+  "sources": [
+   "places list",
+   "inferred"
+  ],
+  "notes": ""
+ },
+ "w301690632": {
+  "label": "6-storey apartment block (Asen Zlatarov side)",
+  "kind": "brick_socialist",
+  "levels": 6,
+  "height_m": 19.0,
+  "roof": "flat",
+  "wall_hex": "#cfc2a6",
+  "accent_hex": "#a2967b",
+  "roof_hex": "#7b7b76",
+  "window": "balcony_bands",
+  "ground_floor": "entrances",
+  "shop_signs": [],
+  "features": [],
+  "confidence": "low",
+  "sources": [
+   "inferred (typology)"
+  ],
+  "notes": ""
+ },
+ "w301560806": {
+  "label": "7-storey apartment slab on Prof. Asen Zlatarov (east side)",
+  "kind": "brick_socialist",
+  "levels": 7,
+  "height_m": 22.0,
+  "roof": "flat",
+  "wall_hex": "#d0c3a8",
+  "accent_hex": "#9c9078",
+  "roof_hex": "#7b7b76",
+  "window": "balcony_bands",
+  "ground_floor": "shops",
+  "shop_signs": [
+   {
+    "text": "Troika",
+    "bg_hex": "#6b1020",
+    "fg_hex": "#ffffff"
+   }
+  ],
+  "features": [
+   "1960s-80s plastered block with restaurants on the ground floor"
+  ],
+  "confidence": "low",
+  "sources": [
+   "places list: restaurant Troika, Asen Zlatarov 21",
+   "inferred (typology)"
+  ],
+  "notes": ""
+ },
+ "w697520836": {
+  "label": "6-storey block on Shipka 43 (Food Folie, Happy Days toy shop)",
+  "kind": "brick_socialist",
+  "levels": 6,
+  "height_m": 19.0,
+  "roof": "flat",
+  "wall_hex": "#d6c6a2",
+  "accent_hex": "#a99b7a",
+  "roof_hex": "#7b7b76",
+  "window": "balcony_bands",
+  "ground_floor": "shops",
+  "shop_signs": [
+   {
+    "text": "Food Folie",
+    "bg_hex": "#f5f0e0",
+    "fg_hex": "#3a2a1a"
+   },
+   {
+    "text": "Happy Days",
+    "bg_hex": "#e04b8a",
+    "fg_hex": "#ffffff"
+   }
+  ],
+  "features": [],
+  "confidence": "low",
+  "sources": [
+   "places list (Shipka 43)",
+   "inferred"
+  ],
+  "notes": ""
+ },
+ "w346985952": {
+  "label": "Restaurant Troyantsite (low pavilion on Shipka 46)",
+  "kind": "kiosk",
+  "levels": 1,
+  "height_m": 3.8,
+  "roof": "flat",
+  "wall_hex": "#b8864a",
+  "accent_hex": "#6d4a24",
+  "roof_hex": "#4a3a2a",
+  "window": "shopfront_only",
+  "ground_floor": "shops",
+  "shop_signs": [
+   {
+    "text": "ТРОЯНЦИТЕ",
+    "bg_hex": "#4a2a14",
+    "fg_hex": "#f0d9a0"
+   }
+  ],
+  "features": [],
+  "confidence": "low",
+  "sources": [
+   "places list"
+  ],
+  "notes": ""
+ },
+ "w1164794976": {
+  "label": "Small retail pavilion on Shipka (Zodiac Burgers / Solo)",
+  "kind": "kiosk",
+  "levels": 1,
+  "height_m": 3.4,
+  "roof": "flat",
+  "wall_hex": "#cfcac0",
+  "accent_hex": "#6a6a68",
+  "roof_hex": "#5d5d5a",
+  "window": "shopfront_only",
+  "ground_floor": "shops",
+  "shop_signs": [
+   {
+    "text": "Zodiac Burgers",
+    "bg_hex": "#1a1a1a",
+    "fg_hex": "#f2c200"
+   }
+  ],
+  "features": [],
+  "confidence": "low",
+  "sources": [
+   "places list"
+  ],
+  "notes": ""
+ },
+ "w166218921": {
+  "label": "38th Primary School Vasil Aprilov (Shipka 40)",
+  "kind": "modernist_institutional",
+  "levels": 4,
+  "height_m": 15.0,
+  "roof": "flat",
+  "wall_hex": "#d9d1bb",
+  "accent_hex": "#b5ac92",
+  "roof_hex": "#82827c",
+  "window": "ribbon",
+  "ground_floor": "entrances",
+  "shop_signs": [],
+  "features": [
+   "school yard with pitches on the west side (OSM pitch areas at (-839,-2600),(-853,-2643))"
+  ],
+  "confidence": "low",
+  "sources": [
+   "places list: 38 Primary School Vasil Aprilov, Shipka 40",
+   "inferred"
+  ],
+  "notes": ""
+ },
+ "w286586366": {
+  "label": "Block on the Metro parking, Tsarigradsko shosse 7 (BeerBox, El Rapido, Kafeyko kiosks on the lot)",
+  "kind": "neoclassical_prewar",
+  "levels": 4,
+  "height_m": 15.5,
+  "roof": "hipped",
+  "wall_hex": "#d9c9a4",
+  "accent_hex": "#b1a07c",
+  "roof_hex": "#94503e",
+  "window": "punched_grid",
+  "ground_floor": "shops",
+  "shop_signs": [
+   {
+    "text": "BeerBox",
+    "bg_hex": "#f2c200",
+    "fg_hex": "#1a1a1a"
+   },
+   {
+    "text": "El Rapido",
+    "bg_hex": "#c0392b",
+    "fg_hex": "#ffffff"
+   }
+  ],
+  "features": [
+   "4 levels, hipped tile roof (OSM roof=hipped)",
+   "first block NE of the road after the bridge, 55 m from pole 1287"
+  ],
+  "confidence": "low",
+  "sources": [
+   "OSM footprint + roof tag",
+   "places list (Tsarigradsko shosse 7)",
+   "inferred (typology: 1930s-50s)"
+  ],
+  "notes": ""
+ },
+ "w286586361": {
+  "label": "Apartment block Tsarigradsko shosse 9 / 23 side (Institute for Progressive Education)",
+  "kind": "brick_socialist",
+  "levels": 5,
+  "height_m": 16.5,
+  "roof": "flat",
+  "wall_hex": "#d5c7a6",
+  "accent_hex": "#a79a7b",
+  "roof_hex": "#7b7b76",
+  "window": "balcony_bands",
+  "ground_floor": "shops",
+  "shop_signs": [],
+  "features": [],
+  "confidence": "low",
+  "sources": [
+   "places list",
+   "inferred (typology)"
+  ],
+  "notes": ""
+ },
+ "w869792054": {
+  "label": "Low apartment building next to the road",
+  "kind": "brick_socialist",
+  "levels": 4,
+  "height_m": 13.5,
+  "roof": "flat",
+  "wall_hex": "#d0c2a2",
+  "accent_hex": "#a39677",
+  "roof_hex": "#7b7b76",
+  "window": "punched_grid",
+  "ground_floor": "entrances",
+  "shop_signs": [],
+  "features": [],
+  "confidence": "low",
+  "sources": [
+   "inferred"
+  ],
+  "notes": ""
+ },
+ "w286586365": {
+  "label": "Small 3-storey villa-type house with hipped roof (Tsarigradsko shosse 5)",
+  "kind": "house",
+  "levels": 3,
+  "height_m": 11.0,
+  "roof": "hipped",
+  "wall_hex": "#d8c4a0",
+  "accent_hex": "#a98f6c",
+  "roof_hex": "#8f4d3b",
+  "window": "punched_grid",
+  "ground_floor": "shops",
+  "shop_signs": [
+   {
+    "text": "Нотариус",
+    "bg_hex": "#1d3557",
+    "fg_hex": "#ffffff"
+   }
+  ],
+  "features": [],
+  "confidence": "low",
+  "sources": [
+   "places list (notary at Tsarigradsko 5)",
+   "OSM roof tag"
+  ],
+  "notes": ""
+ },
+ "w286586360": {
+  "label": "2-storey pre-war house with hipped roof (Plc Air Cargo, Tsarigradsko 3)",
+  "kind": "house",
+  "levels": 2,
+  "height_m": 8.5,
+  "roof": "hipped",
+  "wall_hex": "#d6c2a0",
+  "accent_hex": "#a58b69",
+  "roof_hex": "#8f4d3b",
+  "window": "punched_grid",
+  "ground_floor": "entrances",
+  "shop_signs": [],
+  "features": [],
+  "confidence": "low",
+  "sources": [
+   "OSM roof tag",
+   "places list"
+  ],
+  "notes": ""
+ },
+ "w286585778": {
+  "label": "4-storey hipped-roof block on Tsar Ivan Asen II (Art cafe)",
+  "kind": "neoclassical_prewar",
+  "levels": 4,
+  "height_m": 14.5,
+  "roof": "hipped",
+  "wall_hex": "#dccdaa",
+  "accent_hex": "#b3a37f",
+  "roof_hex": "#94503e",
+  "window": "punched_grid",
+  "ground_floor": "shops",
+  "shop_signs": [
+   {
+    "text": "Арт кафе",
+    "bg_hex": "#3b2a1a",
+    "fg_hex": "#f1e3c3"
+   }
+  ],
+  "features": [],
+  "confidence": "low",
+  "sources": [
+   "OSM roof tag",
+   "places list"
+  ],
+  "notes": ""
+ },
+ "w184622424": {
+  "label": "Long 5-storey apartment slab, Tsar Ivan Asen II 1-6 (Generali, dental clinic, travel agency)",
+  "kind": "brick_socialist",
+  "levels": 5,
+  "height_m": 17.0,
+  "roof": "flat",
+  "wall_hex": "#d3c5a4",
+  "accent_hex": "#a69979",
+  "roof_hex": "#7b7b76",
+  "window": "balcony_bands",
+  "ground_floor": "shops",
+  "shop_signs": [
+   {
+    "text": "Generali",
+    "bg_hex": "#c8102e",
+    "fg_hex": "#ffffff"
+   },
+   {
+    "text": "Дентален кабинет",
+    "bg_hex": "#1d6fa5",
+    "fg_hex": "#ffffff"
+   }
+  ],
+  "features": [
+   "62 x 28 m footprint"
+  ],
+  "confidence": "low",
+  "sources": [
+   "places list",
+   "inferred (typology)"
+  ],
+  "notes": ""
+ },
+ "w286586363": {
+  "label": "4-storey apartment block (Tsarigradsko 15, Evrista Language Academy)",
+  "kind": "brick_socialist",
+  "levels": 4,
+  "height_m": 13.5,
+  "roof": "flat",
+  "wall_hex": "#d6c8a8",
+  "accent_hex": "#a89b7c",
+  "roof_hex": "#7b7b76",
+  "window": "balcony_bands",
+  "ground_floor": "shops",
+  "shop_signs": [],
+  "features": [],
+  "confidence": "low",
+  "sources": [
+   "places list",
+   "inferred"
+  ],
+  "notes": ""
+ },
+ "w286589195": {
+  "label": "6-storey apartment block near Victor Hugo / Tsarigradsko 15",
+  "kind": "brick_socialist",
+  "levels": 6,
+  "height_m": 19.0,
+  "roof": "flat",
+  "wall_hex": "#cfc3a6",
+  "accent_hex": "#a2967a",
+  "roof_hex": "#7b7b76",
+  "window": "balcony_bands",
+  "ground_floor": "shops",
+  "shop_signs": [],
+  "features": [],
+  "confidence": "low",
+  "sources": [
+   "inferred (typology)"
+  ],
+  "notes": ""
+ },
+ "w219697169": {
+  "label": "Restaurant 'Старецът и морето' on Lake Ariana (single-storey pavilion)",
+  "kind": "kiosk",
+  "levels": 1,
+  "height_m": 5.0,
+  "roof": "hipped",
+  "wall_hex": "#e0d3b8",
+  "accent_hex": "#6d5a3c",
+  "roof_hex": "#7a4a38",
+  "window": "shopfront_only",
+  "ground_floor": "shops",
+  "shop_signs": [
+   {
+    "text": "Старецът и морето",
+    "bg_hex": "#173a5e",
+    "fg_hex": "#ffffff"
+   }
+  ],
+  "features": [
+   "on the lakeside, west of the stop, inside Borisova gradina"
+  ],
+  "confidence": "low",
+  "sources": [
+   "places list; OSM name"
+  ],
+  "notes": ""
+ },
+ "w219696376": {
+  "label": "Ariana hall (restaurant/event pavilion at Lake Ariana)",
+  "kind": "kiosk",
+  "levels": 1,
+  "height_m": 6.0,
+  "roof": "flat",
+  "wall_hex": "#d8d2c4",
+  "accent_hex": "#7d776a",
+  "roof_hex": "#6b6b66",
+  "window": "curtain_wall",
+  "ground_floor": "shops",
+  "shop_signs": [],
+  "features": [
+   "glazed hall at the lake"
+  ],
+  "confidence": "low",
+  "sources": [
+   "OSM name 'Ariana hall'"
+  ],
+  "notes": ""
+ },
+ "w286583368": {
+  "label": "Large 4-storey residential block with hipped roof (Tsar Ivan Asen II 13, SW of the junction)",
+  "kind": "neoclassical_prewar",
+  "levels": 4,
+  "height_m": 15.0,
+  "roof": "hipped",
+  "wall_hex": "#d9c8a2",
+  "accent_hex": "#aa9a76",
+  "roof_hex": "#8d4a39",
+  "window": "punched_grid",
+  "ground_floor": "entrances",
+  "shop_signs": [],
+  "features": [],
+  "confidence": "low",
+  "sources": [
+   "OSM roof tag"
+  ],
+  "notes": ""
+ },
+ "r17925652": {
+  "label": "Sofia University - Rectorate complex (north wing on Shipka, central block, side wings)",
+  "kind": "modernist_institutional",
+  "levels": 5,
+  "height_m": 19.0,
+  "roof": "flat",
+  "wall_hex": "#d8cfb6",
+  "accent_hex": "#b3a78b",
+  "roof_hex": "#86867f",
+  "window": "punched_grid",
+  "ground_floor": "entrances",
+  "shop_signs": [],
+  "features": [
+   "North wing (1972-85) is a ~100 m x 26 m slab whose face stands on the south pavement of Shipka, ~5 m behind the stop pole (OSM building:part 18.6 m)",
+   "Rectorate central block (OSM part, 6 levels, 20.2 m) is 65-90 m SW of the pole behind the wing and is NOT visible from Shipka; it faces the Tsar Osvoboditel / Vasil Levski corner",
+   "Georgiev brothers bronze seated statues are on the front (SW) side, not on Shipka"
+  ],
+  "confidence": "low",
+  "sources": [
+   "https://bg.wikipedia.org/wiki/%D0%A0%D0%B5%D0%BA%D1%82%D0%BE%D1%80%D0%B0%D1%82_%D0%BD%D0%B0_%D0%A1%D0%BE%D1%84%D0%B8%D0%B9%D1%81%D0%BA%D0%B8%D1%8F_%D1%83%D0%BD%D0%B8%D0%B2%D0%B5%D1%80%D1%81%D0%B8%D1%82%D0%B5%D1%82 (search snippet: north wing facing ul. Shipka 1972-85)",
+   "https://www.sofia.bg/web/sofia-municipality/w/sofia-university-st-kliment-ohridski- (monument of national importance, 1924-34, Georgiev brothers)",
+   "inferred: colours of the north wing from typology (pale stone-clad 1970s-80s university slab) - not photographed"
+  ],
+  "notes": "Position/footprints measured from the game pack (parts 1898 north wing, 1901 central block, 1895 south block). Footprint heights come from OSM; colours are inferred."
+ },
+ "r3899540": {
+  "label": "Sofia University Library (Universitetska biblioteka), ul. Sv. Kliment Ohridski 4",
+  "kind": "neoclassical_prewar",
+  "levels": 3,
+  "height_m": 13.0,
+  "roof": "flat",
+  "wall_hex": "#d9ceb3",
+  "accent_hex": "#b5a98c",
+  "roof_hex": "#8a8a84",
+  "window": "punched_grid",
+  "ground_floor": "entrances",
+  "shop_signs": [],
+  "features": [
+   "tall arched/rectangular reading-room windows on the upper floors (inferred)",
+   "stands inside the SU block, 68 m S of the stop pole, behind the north wing and the fence - barely visible from Shipka"
+  ],
+  "confidence": "low",
+  "sources": [
+   "https://libsu.uni-sofia.bg/UB/?p=1301 (purpose-built library opened 16.12.1934)",
+   "inferred: same stone family as the Rectorate"
+  ],
+  "notes": "Pack height of this part is 9.6 m; real building is taller than the 3 OSM levels suggest only if it has double-height reading rooms - keep 12-13 m."
+ },
+ "w157740213": {
+  "label": "National Library St. Cyril and Methodius (NBKM), Vasil Levski 88",
+  "kind": "stalinist",
+  "levels": 4,
+  "height_m": 22.0,
+  "roof": "flat",
+  "wall_hex": "#cdbd9b",
+  "accent_hex": "#9c8f76",
+  "roof_hex": "#7c7770",
+  "window": "punched_grid",
+  "ground_floor": "columns",
+  "shop_signs": [],
+  "features": [
+   "1953 monumental block by Vasilyov and Tsolov, stone-clad, symmetrical, tall rhythmic windows",
+   "faces Vasil Levski blvd (west); from the Shipka pole only its south/east flank is seen, ~35 m NNE across the road and a raised garden with steps"
+  ],
+  "confidence": "low",
+  "sources": [
+   "https://cenl.org/?p=681 (88 Vasil Levski; current building opened 1953)",
+   "https://www.bta.bg/bg/galleries/lik/363000",
+   "inferred: Stalinist-classical stone clad block; colour guessed"
+  ],
+  "notes": "OSM footprint is 73 x 69 m; pack carries only two parts of it (12.6 m and 7.4 m high) near Shipka, the tall main mass lies further north-west."
+ },
+ "w680883918": {
+  "label": "National Academy of Arts (NHA), ul. Shipka 1",
+  "kind": "neoclassical_prewar",
+  "levels": 4,
+  "height_m": 17.0,
+  "roof": "hipped",
+  "wall_hex": "#d6c3a0",
+  "accent_hex": "#b4a07f",
+  "roof_hex": "#8c5a44",
+  "window": "punched_grid",
+  "ground_floor": "entrances",
+  "shop_signs": [
+   {
+    "text": "Кафе Академията",
+    "bg_hex": "#3a2a20",
+    "fg_hex": "#f0e0c0"
+   }
+  ],
+  "features": [
+   "west end of Shipka, behind the bus after departure",
+   "cafe/gallery on ground floor (Galeria Akademia, Nomo del Arte)"
+  ],
+  "confidence": "low",
+  "sources": [
+   "places list (Shipka 1: NHA library, cafe Akademiyata, Nomo del Arte)",
+   "inferred: interwar institutional block, plaster"
+  ],
+  "notes": "Visible only when the bus arrives from the west (return direction)."
+ },
+ "w155447785": {
+  "label": "Shipka 6 - Union of Bulgarian Artists building (SBH Shipka 6 gallery, betahaus, bars, offices)",
+  "kind": "modernist_institutional",
+  "levels": 5,
+  "height_m": 19.5,
+  "roof": "flat",
+  "wall_hex": "#cfc9bd",
+  "accent_hex": "#8f8b82",
+  "roof_hex": "#7d7d78",
+  "window": "ribbon",
+  "ground_floor": "shops",
+  "shop_signs": [
+   {
+    "text": "СБХ Шипка 6",
+    "bg_hex": "#222222",
+    "fg_hex": "#ffffff"
+   },
+   {
+    "text": "Bar de Rouge",
+    "bg_hex": "#6b1020",
+    "fg_hex": "#ffffff"
+   },
+   {
+    "text": "betahaus",
+    "bg_hex": "#f2f2f2",
+    "fg_hex": "#222222"
+   }
+  ],
+  "features": [
+   "gallery windows on the ground floor",
+   "corner building at Shipka and ul. Sv. Kliment Ohridski, right side of the bus 60 m ahead"
+  ],
+  "confidence": "low",
+  "sources": [
+   "places list: addresses Shipka 6 (SBH, betahaus, Bar de Rouge, EXE, Euronet)",
+   "inferred (typology): 1960s-70s cultural/office block, plaster+concrete"
+  ],
+  "notes": "Construction type not found in any source."
+ },
+ "w155447792": {
+  "label": "Apartment block ul. Sv. Kliment Ohridski 2 (Glassdove gallery)",
+  "kind": "neoclassical_prewar",
+  "levels": 3,
+  "height_m": 13.0,
+  "roof": "hipped",
+  "wall_hex": "#dcccaa",
+  "accent_hex": "#b8a888",
+  "roof_hex": "#9a5a45",
+  "window": "punched_grid",
+  "ground_floor": "shops",
+  "shop_signs": [
+   {
+    "text": "Glassdove",
+    "bg_hex": "#1f1f1f",
+    "fg_hex": "#ffffff"
+   }
+  ],
+  "features": [
+   "small interwar apartment house, plaster, painted shutters"
+  ],
+  "confidence": "low",
+  "sources": [
+   "places list (ul. Sv. Kliment Ohridski 2)",
+   "inferred (typology)"
+  ],
+  "notes": ""
+ },
+ "w697074415": {
+  "label": "Apartment house ul. Sv. Kliment Ohridski 4",
+  "kind": "neoclassical_prewar",
+  "levels": 3,
+  "height_m": 12.5,
+  "roof": "hipped",
+  "wall_hex": "#d8c9a8",
+  "accent_hex": "#b4a583",
+  "roof_hex": "#8f5844",
+  "window": "punched_grid",
+  "ground_floor": "shops",
+  "shop_signs": [
+   {
+    "text": "Music M",
+    "bg_hex": "#2b2b2b",
+    "fg_hex": "#ffffff"
+   }
+  ],
+  "features": [],
+  "confidence": "low",
+  "sources": [
+   "places list",
+   "inferred (typology)"
+  ],
+  "notes": ""
+ },
+ "w166653823": {
+  "label": "Apartment block ul. Sv. Kliment Ohridski 6-8",
+  "kind": "brick_socialist",
+  "levels": 5,
+  "height_m": 17.5,
+  "roof": "flat",
+  "wall_hex": "#d2c4a2",
+  "accent_hex": "#a79a7b",
+  "roof_hex": "#808079",
+  "window": "balcony_bands",
+  "ground_floor": "shops",
+  "shop_signs": [
+   {
+    "text": "Скритото",
+    "bg_hex": "#3a4a3a",
+    "fg_hex": "#ffffff"
+   },
+   {
+    "text": "Supernovabrand",
+    "bg_hex": "#202020",
+    "fg_hex": "#ffffff"
+   }
+  ],
+  "features": [],
+  "confidence": "low",
+  "sources": [
+   "places list",
+   "inferred (typology: 1950s-60s centre block)"
+  ],
+  "notes": ""
+ },
+ "w155447776": {
+  "label": "Apartment block Shipka 12 (shops: PopShop, Foto Svyat, 100 Grams of Sweets, florist)",
+  "kind": "brick_socialist",
+  "levels": 5,
+  "height_m": 17.5,
+  "roof": "flat",
+  "wall_hex": "#d4c6a4",
+  "accent_hex": "#a89b7c",
+  "roof_hex": "#7f7f79",
+  "window": "balcony_bands",
+  "ground_floor": "shops",
+  "shop_signs": [
+   {
+    "text": "PopShop",
+    "bg_hex": "#d6291f",
+    "fg_hex": "#ffffff"
+   },
+   {
+    "text": "ФОТО СВЯТ",
+    "bg_hex": "#1c4f9a",
+    "fg_hex": "#ffffff"
+   },
+   {
+    "text": "100 Grams of Sweets",
+    "bg_hex": "#e87aa6",
+    "fg_hex": "#ffffff"
+   },
+   {
+    "text": "Изненада",
+    "bg_hex": "#2e7d32",
+    "fg_hex": "#ffffff"
+   }
+  ],
+  "features": [
+   "continuous ground-floor shopfronts along Shipka"
+  ],
+  "confidence": "low",
+  "sources": [
+   "places list (Shipka 12)",
+   "inferred (typology)"
+  ],
+  "notes": ""
+ },
+ "w697074414": {
+  "label": "Apartment block ul. Krakra 12 (Beautecary, Bowen therapy)",
+  "kind": "brick_socialist",
+  "levels": 5,
+  "height_m": 17.0,
+  "roof": "flat",
+  "wall_hex": "#d6c8a6",
+  "accent_hex": "#a99c7e",
+  "roof_hex": "#7f7f79",
+  "window": "balcony_bands",
+  "ground_floor": "shops",
+  "shop_signs": [
+   {
+    "text": "The Beautecary",
+    "bg_hex": "#f0e6d8",
+    "fg_hex": "#3b2f2f"
+   }
+  ],
+  "features": [],
+  "confidence": "low",
+  "sources": [
+   "places list",
+   "inferred (typology)"
+  ],
+  "notes": ""
+ },
+ "w697074413": {
+  "label": "Apartment block ul. Krakra 14 (Optika Onyx, Three Little Words)",
+  "kind": "brick_socialist",
+  "levels": 5,
+  "height_m": 17.0,
+  "roof": "flat",
+  "wall_hex": "#d0c2a0",
+  "accent_hex": "#a39677",
+  "roof_hex": "#7f7f79",
+  "window": "balcony_bands",
+  "ground_floor": "shops",
+  "shop_signs": [
+   {
+    "text": "Оптика Оникс",
+    "bg_hex": "#1b1b1b",
+    "fg_hex": "#ffffff"
+   }
+  ],
+  "features": [],
+  "confidence": "low",
+  "sources": [
+   "places list",
+   "inferred (typology)"
+  ],
+  "notes": ""
+ },
+ "w155447789": {
+  "label": "Crystal Palace Boutique Hotel, Shipka 14",
+  "kind": "neoclassical_prewar",
+  "levels": 6,
+  "height_m": 22.0,
+  "roof": "flat",
+  "wall_hex": "#dccfb0",
+  "accent_hex": "#b3a384",
+  "roof_hex": "#7d7d78",
+  "window": "punched_grid",
+  "ground_floor": "lobby",
+  "shop_signs": [
+   {
+    "text": "Crystal Palace",
+    "bg_hex": "#1a1a2e",
+    "fg_hex": "#e8d9a8"
+   }
+  ],
+  "features": [
+   "hotel in a historic-looking building (listing: 6 floors; OSM: 7 levels)"
+  ],
+  "confidence": "low",
+  "sources": [
+   "https://friendlyplanet.com/hotels/crystal-palace-hotel-sofia/ (6 floors)",
+   "inferred style"
+  ],
+  "notes": ""
+ },
+ "w155447773": {
+  "label": "Villa-type office / gallery block ul. Krakra 11 (Galerie Space Architecton, theorem Rooms)",
+  "kind": "neoclassical_prewar",
+  "levels": 4,
+  "height_m": 14.5,
+  "roof": "hipped",
+  "wall_hex": "#d5c5a2",
+  "accent_hex": "#ab9c7c",
+  "roof_hex": "#8f5a45",
+  "window": "punched_grid",
+  "ground_floor": "entrances",
+  "shop_signs": [],
+  "features": [],
+  "confidence": "low",
+  "sources": [
+   "places list",
+   "inferred"
+  ],
+  "notes": ""
+ },
+ "w697074412": {
+  "label": "Small concrete service kiosk on the Shipka pavement",
+  "kind": "kiosk",
+  "levels": 1,
+  "height_m": 3.0,
+  "roof": "flat",
+  "wall_hex": "#9c9a94",
+  "accent_hex": "#6e6c67",
+  "roof_hex": "#6a6a66",
+  "window": "shopfront_only",
+  "ground_floor": "blank",
+  "shop_signs": [],
+  "features": [
+   "4.8 x 4.5 m, OSM material concrete"
+  ],
+  "confidence": "low",
+  "sources": [
+   "OSM footprint"
+  ],
+  "notes": "Probably a transformer or utility box."
+ },
+ "w697852045": {
+  "label": "Book kiosk / pavilion (Universitetska knizharnitsa)",
+  "kind": "kiosk",
+  "levels": 1,
+  "height_m": 3.2,
+  "roof": "flat",
+  "wall_hex": "#b8c4c9",
+  "accent_hex": "#5b6b73",
+  "roof_hex": "#59636a",
+  "window": "shopfront_only",
+  "ground_floor": "shops",
+  "shop_signs": [
+   {
+    "text": "Книжарница",
+    "bg_hex": "#1d4f91",
+    "fg_hex": "#ffffff"
+   }
+  ],
+  "features": [],
+  "confidence": "low",
+  "sources": [
+   "places list",
+   "inferred"
+  ],
+  "notes": ""
+ }
+}

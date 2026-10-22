@@ -1,0 +1,340 @@
+{
+  "title": "MAN Lion's City G CNG (A23 facelift) - exterior spec for the three.js bus model",
+  "bus": "MAN Lion's City G CNG, 18 m articulated, 3 axles, 4 double doors on the right side; Sofia, Stolichen Avtotransport; photos: fleet 3145 (CB 5696 HM), 3153 (CB 5713 HM), 2319 (CB 5720 HM)",
+  "how_to_read": {
+    "confidence": "high = two independent sources or directly measured and cross-checked; medium = one source or one photo measurement (+/-0.1 m); low = inferred (typology / proportions) or +/-0.3 m",
+    "basis_tags": {
+      "P1/P2/P3": "user photo 1/2/3 (measured in crops)",
+      "P3cam": "metric back-projection with a pinhole camera fitted to photo 3 (registration plate + 3 wheel ground points; residual 2-3 px; plate frame assumed 0.54 x 0.15 m with its bottom edge 0.33 m above ground). Heights/lateral positions +/-0.05..0.1 m near the front, +/-0.3 m along the far end of the bus",
+      "P2rect / P1rect": "photo 2 / photo 1 perspective-rectified onto the plane of the registration plate (valid for the flat centre of the lower front only; crops/rect_p2_lower.png, crops/rect_p1_lower.png)",
+      "WEB": "web search results (see sources)",
+      "INF": "inferred from MAN typology / proportions"
+    },
+    "frames": {
+      "bus_xyz": "x = +right (kerb / door side), y = up from the ground, z = backwards. +x is the image-LEFT side in a front view.",
+      "S": "distance in metres BEHIND the front face plane, measured along the FRONT section. BusSpec front frame: z = -7.805 + S (FRONT_Z = -(2.7+5.105)). Axle 1 at S=2.70, axle 2 at S=7.805 (z=0)",
+      "rear_frame": "BusSpec rear frame: origin = axle 3 centre on the ground, z backwards (+). Rear face at z=+3.405.",
+      "front_elevation": "lists named (x, Y) are in the bus frame: x>0 = bus right = image-left when looking at the bus from the front"
+    },
+    "which_side_is_which": {
+      "photo_1": "shows the bus RIGHT (kerb, door) side. Door 1 is open at image-left of the windscreen. (The brief labels it 'front-left'; it is the right side.)",
+      "photo_3": "shows the bus RIGHT (kerb, door) side, front section and rear section behind the bellows",
+      "photo_2": "shows the bus LEFT (driver) side: no doors on this side, big uninterrupted window band, flap panel ahead of the front wheel; the compact tall black mirror box at image-right is the LEFT mirror; the ram's horn at image-left is the RIGHT mirror",
+      "conclusion": "The curved 'ram's horn' arm mirror is ONLY on the RIGHT (kerb) side. The LEFT (driver) mirror is a compact two-segment rectangular box bolted straight to the A-pillar corner. The game model currently puts identical ram's-horn arms on both sides - wrong."
+    }
+  },
+  "sources": [
+    {"id": "S1", "what": "MAN Lion's City G datasheet (Peter Hirschler, Dec 2014, bahnbus.at) as quoted by search: length 17.98 m, width 2.5(5) m, height 2.88 m (diesel, no roof tanks), wheelbase 5.11 m + 6.77 m, overhang 2.67 m front / 3.46 m rear, turning circle 23.39 m, seats 40 / standing 122, kerb weight 16,960 kg, 'Tueren: 3 oder 4 pneumatische doppelbreite Innen- oder Aussenschwenktueren'", "url": "https://www.bahnbus.lima-city.de/technischedaten/MAN%20Lion's%20City%20G.pdf", "note": "the PDF itself is not fetchable (DNS blocked in the sandbox); figures come from the search-result summary"},
+    {"id": "S2", "what": "Lion's City GL CNG used-bus listings: total height 3,320 mm, width 2,550 mm (CNG roof tanks)", "url": "https://www.truckscout24.com/tsp/ts-208-28-862"},
+    {"id": "S3", "what": "Bus & Coach Buyer review of Lion's City G/GL CNG: 12.8 l E2876 CNG, 228 kW (310 hp), headroom 2,328 mm; eight aluminium composite cylinders (214 l each, 1,712 l total, 200 bar) under the roof fairing", "url": "https://www.busandcoachbuyer.com/?p=9030"},
+    {"id": "S4", "what": "Ankara EGO order: nine 205 l aluminium tanks on the roof of the Lion's City G CNG (other batch)", "url": "https://cbwmagazine.com/?p=6352"},
+    {"id": "S5", "what": "Sofia Municipality portal: 126 articulated MAN Lion's City G CNG, first 49 in 2014, the other 77 in 2015; later 60 more articulated MAN Lion's City G CNG announced for early 2019 'like the first 126'. Line 204 gets 18 m MAN Lion's City G with about 190 places (vs 100 before), Euro 6", "url": "https://www.sofia.bg/en/w/novi-avtobusi-man-po-linia-204"},
+    {"id": "S6", "what": "Capital.bg 2013-2014: tender for 126 methane buses won by MAN Truck & Bus, 66.5 m BGN excl. VAT (contract 66,553,050 BGN per economynews.bg), financed from the OP Environment; buses are Euro 6, air-conditioned, with a mechanical ramp for wheelchairs/prams", "url": "https://www.capital.bg/politika_i_ikonomika/bulgaria/2013/10/16/2162275_germanska_kompaniia_nai-veroiatno_shte_dostavi_novite/"},
+    {"id": "S7", "what": "Wikipedia 'Public buses in Sofia' (via search summary): 186 MAN Lion's City G CNG A23 in the Sofia fleet (126 + 60). BUSPHOTO lists Sofia fleet 3105 as 'MAN A23 Lion's City G NG313 CNG'", "url": "https://en.wikipedia.org/wiki/Public_buses_in_Sofia"},
+    {"id": "S8", "what": "Kuhn Fachmedien 2018: Lion's City G/GL are low-floor articulated buses with the engine lying in the rear overhang (Heckmotor)", "url": "https://regiotrans.kuhn-fachmedien.de/"},
+    {"id": "BLOCKED", "what": "WebFetch could not resolve ANY host in this sandbox (getaddrinfo ENOTFOUND: sofia.bg, kamioni.bg, busphoto.eu, man.eu, mtc-man.com, capital.bg, seenews.com, bahnbus.lima-city.de); curl via the proxy gets 403 on capital.bg. Only WebSearch summaries were usable. MAN brochure PDFs could therefore not be read directly."}
+  ],
+  "fleet_and_order": {
+    "order": {"value": "126 articulated Lion's City G CNG (A23), Euro 6, MAN Truck & Bus; first 49 delivered 2014, remaining 77 in 2015; plus 60 later (2019) of the same type, 186 in total in the Sofia fleet", "basis": "S5, S6, S7", "confidence": "medium"},
+    "version": {"value": "NG 313 CNG (A23 platform, 'Lion's City G', 18 m) - NOT the 18.75 m GL (A40)", "basis": "S7 (BUSPHOTO 3105 = NG313 CNG), S1 length 17.98 m, photos show 3 axles and 4 doors", "confidence": "medium"},
+    "model_year": {"value": "2014/2015 build for the first 126; the user's plates CB 5696/5713/5720 HM and fleet numbers 3145, 3153, 2319 cannot be tied to a delivery year from the available sources (the 2019 batch is visually the same type)", "basis": "INF", "confidence": "low"},
+    "seats": {"value": "datasheet (diesel G): 40 seats + 122 standing; Sofia line-204 release: about 190 places total. Interior agent owns the seat map.", "basis": "S1, S5", "confidence": "low"},
+    "engine": {"value": "MAN E2876 LUH 6-cyl 12.8 l CNG, 228 kW (310 hp), rear-mounted lying engine", "basis": "S3, S8", "confidence": "medium"}
+  },
+  "overall": {
+    "length_m": {"value": 17.98, "basis": "S1", "confidence": "high"},
+    "width_m": {"value": 2.55, "basis": "S2 (listing) / EU limit; S1 quotes 2.5 - body width without mirrors 2.55 used", "confidence": "medium"},
+    "height_front_header_top_m": {"value": 2.86, "basis": "P3cam: top edge of the black front header at 2.80 (right) .. 2.89 (left); matches S1 body height 2.88", "confidence": "medium"},
+    "height_side_roof_edge_m": {"value": 2.80, "basis": "P3cam: white roof-edge rail top over the windows at 2.73-2.78", "confidence": "medium"},
+    "height_with_cng_pods_m": {"value": 3.32, "basis": "S2 (GL CNG 3,320 mm); BusSpec has 3.34", "confidence": "medium"},
+    "ground_clearance_skirt_m": {"value": 0.33, "basis": "P3cam: lower edge of the white side panels 0.31..0.36 along the front section (BusSpec skirtY 0.27 is too low)", "confidence": "medium"},
+    "ground_clearance_front_bumper_m": {"value": 0.31, "basis": "P3cam / P2rect: bumper lower edge 0.03 m under the plate frame bottom (0.33)", "confidence": "low"},
+    "floor_height_at_doors_m": {"value": 0.33, "basis": "P3cam: door threshold strips at Y = 0.31-0.38 (kneeling OFF). BusSpec floorY 0.36 fine", "confidence": "medium"},
+    "axles": {
+      "axle1_S": {"value": 2.70, "basis": "S1 front overhang 2.67; keep BusSpec 2.70", "confidence": "high"},
+      "axle2_S": {"value": 7.805, "basis": "S1 wheelbase 5.11 (BusSpec 5.105)", "confidence": "high"},
+      "axle3_from_axle2": {"value": 6.77, "basis": "S1", "confidence": "high"},
+      "rear_overhang_m": {"value": 3.46, "basis": "S1 (BusSpec 3.405 so that the sum is 17.98; either is fine)", "confidence": "medium"},
+      "track_front_m": {"value": 2.10, "basis": "tyre centre to tyre centre, typical; outer tyre face about 0.085 m inside the side wall (P1: wheel clearly recessed in the arch)", "confidence": "low"},
+      "tyres": {"value": "275/70 R22.5 (diameter 0.955 m, radius 0.478); rear axle twin tyres", "basis": "BusSpec/typology; P3 shows twin tyres on axle 3", "confidence": "medium"}
+    },
+    "articulation_joint": {
+      "hitch_behind_axle2_m": {"value": 1.7, "basis": "kept from BusSpec; no independent measurement. Front section body ends ~1.3 m behind axle 2, rear section starts ~0.8 m later", "confidence": "low"},
+      "visible_bellows_length_straight_m": {"value": 0.9, "basis": "P3: bellows band is 35 px wide at ~38 px/m along the bus => 0.9-1.0 m", "confidence": "low"}
+    },
+    "front_corner_radius_plan_m": {"value": 0.50, "basis": "P2/P3: lower white corner is a large-radius wrap-around, flat centre panel only about +/-0.78 m wide, then the corner module; upper (header) corners about 0.30", "confidence": "low"},
+    "side_wall_tumblehome": {"value": "x = 1.275 from Y 0.33 to 1.30; leaning inwards to 1.255 at Y 2.0 and 1.235 at Y 2.65 (about 2 degrees); roof radius about 0.20 from Y 2.78", "basis": "P3: body outline is about 4% narrower at the header than at the belt", "confidence": "low"}
+  },
+  "front": {
+    "note": "All numbers: x = bus frame (+ = bus right = image-left), Y above ground, face plane S = 0 unless stated. P3cam = back-projected; P2rect cross-checks the lower part.",
+    "lower_front_colours": {"white_zones": "everything below Y 1.0 except the grille, the plate and the lamp lenses (about 75 % of the lower front is WHITE)", "black_zones": "grille trapezoid, windscreen base band (Y 1.0-1.22), the LED header (Y 2.30-2.86), the mirror housings, the door/A-pillar frames", "basis": "P1, P2, P3", "confidence": "high"},
+    "face_profile": {
+      "centre_panel": "flat, vertical, |x| <= 0.78, from bumper bottom Y 0.31 to the chrome strip Y 1.00; carries grille, MAN letters, plate, fleet number, lion emblem",
+      "corner_modules": "outside |x| = 0.78 the face wraps back in a radius of about 0.5 m; a vertical seam (visible as a curved line, P2rect u = +/-780 mm) separates the centre bumper from the corner modules; the corner modules carry the headlamp + indicator/fog units and (right side only) the three blue pictograms",
+      "bumper_lower_edge": "Y 0.31 centre, rising to about 0.40 at the corners; the lower valance is a separate white moulding below the grille with a straight seam at Y about 0.50 (grille bottom)",
+      "basis": "P2rect, P3", "confidence": "medium"
+    },
+    "grille_black_polygon": {
+      "points_x_Y": [[0.77, 0.785], [-0.78, 0.785], [-0.64, 0.525], [-0.52, 0.495], [0.52, 0.495], [0.62, 0.525]],
+      "description": "gloss-black trapezoid, side edges slant inwards by about 0.14 m over 0.26 m, lower corners chamfered; very fine horizontal texture; a thin vertical chrome/grey bar is visible at both lower-outer edges. Plane about 0.01-0.02 m behind the white face (recessed).",
+      "basis": "P3cam (TL +0.77/0.78, TR -0.78/0.78, BL +0.60/0.54, BR -0.63/0.51) and P2rect (top u -725..+752 mm at v 445 => Y 0.775; bottom v 165 => Y 0.495)",
+      "confidence": "high"
+    },
+    "man_letters": {"size_m": [0.51, 0.10], "centre_x_Y": [0.0, 0.69], "style": "3D satin-chrome extended bold sans 'MAN' (A without crossbar-style, MAN corporate type), raised 0.01 m; colour #b9bcbe with darker bevel #6f7377", "basis": "P3cam (x +/-0.255, Y 0.64-0.74), P2rect (605-935 px => 0.50 m wide, 93 mm tall)", "confidence": "high"},
+    "chrome_strip": {
+      "description": "thin polished-chrome moulding (about 0.02 m thick) running full width along the top edge of the white lower front, directly under the black windscreen base band. It is horizontal at Y 1.00 for |x| from 0.14 to 0.92 and forms a shallow downward gull-wing / 'V' pocket 0.34 m wide and 0.07 m deep in the centre which holds the lion emblem.",
+      "x_range": [0.92, -0.88], "Y_top": 1.00, "pocket_depth_m": 0.07,
+      "emblem": {"centre_x_Y": [0.0, 0.94], "size_m": [0.22, 0.09], "style": "chrome stylised lion (MAN lion) set into the strip, darker recessed background", "colour": "#d5d9dc chrome with #2a2c30 recess"},
+      "basis": "P3cam, P2rect, P1rect", "confidence": "high"
+    },
+    "plate": {"frame_size_m": [0.54, 0.15], "plate_size_m": [0.52, 0.112], "centre_x_Y": [0.0, 0.405], "bottom_Y": 0.33, "style": "Bulgarian EU plate: blue band + 'BG' on the left (bus right), black frame/holder with a dark text strip under the plate", "basis": "P1/P2/P3 plate corner measurements", "confidence": "high"},
+    "fleet_number": {
+      "text": "per bus, 4 digits (3145, 3153, 2319)",
+      "digit_height_m": 0.135, "text_block_width_m": 0.36,
+      "x_range": [0.75, 0.38], "baseline_Y": 0.78, "top_Y": 0.915,
+      "font": "heavy upright condensed grotesque (looks like a bold DIN-Engschrift / Arial Narrow Bold), black #0b0b0b, stroke about 0.02 m, digit width about 0.075 m, gap 0.012 m",
+      "placement": "sits directly on top of the grille's upper edge, ending 0.38 m right of the centreline, on the right half of the face",
+      "basis": "P3cam, P2rect (digits 138 mm tall, 352 mm wide for '3153')", "confidence": "high"
+    },
+    "pictograms_blue": {
+      "count": 3, "order_from_corner_inwards": ["pram", "wheelchair", "walking person"],
+      "diameter_m": 0.14, "pitch_m": 0.145, "centres_x": [1.23, 1.09, 0.94], "centre_Y": 0.84,
+      "colours": {"disc": "#1560b5 (sampled in shade #0e3177..#093a6e)", "glyph": "#ffffff"},
+      "note": "only on the RIGHT half of the face, on the curved corner module (they follow the surface, so they look elliptical from the front). White thin rim. P2 shows only wheelchair + person because the pram disc is on the wrapped part.",
+      "basis": "P3cam, P1rect, P2rect", "confidence": "high"
+    },
+    "cng_diamond": {"shape": "green square rotated 45 degrees, white border line, white text 'CNG', corners rounded", "diagonal_m": 0.125, "centre_x_Y": [0.45, 1.08], "colours": {"fill": "#1d8a5a (sampled #10503c..#2d5e52 in shade)", "border_and_text": "#ffffff"}, "note": "on the black base band, 0.08 m above the chrome strip, on the RIGHT of the centreline (the game has it on the left at x=-0.32 - wrong side)", "basis": "P1 (x about +0.40), P2rect (u=-392 mm), P3cam (+0.56)", "confidence": "high"},
+    "route_card_in_windscreen": {"description": "paper/plastic route-number card behind the glass, lower passenger-side corner: cream-white card with black bold digits (e.g. '85', '204'), thin dark outline", "size_m": [0.35, 0.22], "x_range": [1.11, 0.76], "Y_range": [1.17, 1.36], "basis": "P3, P1", "confidence": "medium"},
+    "windscreen": {
+      "type": "one large panoramic glass with wrap-around outer corners, dark (reflective), no centre mullion; thin black frit border about 0.04 m",
+      "glass_Y_range": [1.22, 2.32], "height_m": 1.10,
+      "outline_front_view_x_Y": [[-0.95, 1.22], [0.95, 1.22], [1.06, 1.45], [1.12, 1.8], [1.12, 2.15], [1.02, 2.32], [-1.02, 2.32], [-1.12, 2.15], [-1.12, 1.8], [-1.06, 1.45]],
+      "curvature": "plan: flat for |x| < 0.9 (S about 0.15 at the bottom), outer 0.25 m curve back to S about 0.45 at |x| = 1.12; side view: raked back about 8 degrees (top edge about 0.15 m behind the bottom edge) with a slight convex bulge; bottom corners swept radius about 0.38 m, top corners radius about 0.15 m",
+      "tint": "glass reads almost black (#0b0f14..#12202a), strong environment reflections, little interior visible; the game's windscreen (opacity 0.16) lets the whole cab show through - should be about 0.55-0.65 opaque",
+      "basis": "P3cam, P2, P1", "confidence": "medium"
+    },
+    "black_base_band": {"Y_range": [1.00, 1.22], "description": "glossy black shelf under the glass carrying the CNG diamond, the wiper pivots and the parked wipers; it is part of the black windscreen surround and runs round the corner to the A-pillar", "colour": "#0d0f12", "basis": "P2/P3", "confidence": "medium"},
+    "black_header_with_led_sign": {
+      "housing_Y_range": [2.30, 2.86], "housing_x_range": [-1.27, 1.27], "overhang_m": "top edge overhangs the glass by about 0.05; looks like a glossy black 'visor' with rounded top corners (R about 0.25 in plan)",
+      "led_matrix": {
+        "active_width_m": 1.72, "active_height_m": 0.32, "Y_range": [2.36, 2.68], "x_range": [0.86, -0.86],
+        "rows_cols_inferred": "24 rows x about 128 columns, dot pitch about 0.013 m (text in photo 2 is about 21 dots tall)",
+        "text_cap_height_m": 0.25, "text_Y_range": [2.38, 2.63],
+        "layout": "route number (digits 'cap height 0.25 m', about 0.17 m per digit) left-aligned at x = +0.84; destination text starts about 0.35 m to its right; both bold proportional LED font; example 'Y204  Goce Delchev', '85  Varbnitsa 2'",
+        "colours": {"lit_core": "#ffa31a", "lit_hot_centre": "#ffd27a", "lit_halo": "#c8630a", "unlit_dots": "#171310 on #0a0a0c", "note": "bright amber/orange, not yellow (sampled brightest pixels #f7c47c P2, #f29c68 P3; true emitter about #ff9a1a)"}
+      },
+      "frame": "thin dark-grey bezel 0.03 m around the matrix, glass front, strong reflections",
+      "basis": "P3cam (matrix Y 2.29-2.78 incl. bezel, digits 2.38-2.63, x +/-0.91), P2 (dot pitch)", "confidence": "medium"
+    },
+    "headlamps": {
+      "units": "one rectangular unit per side set into a white rounded-rectangle recess in the corner module",
+      "right_unit_bus_right": {"x_range": [0.95, 1.22], "Y_range": [0.64, 0.78]},
+      "left_unit_bus_left": {"x_range": [-0.94, -1.21], "Y_range": [0.64, 0.78]},
+      "size_m": [0.27, 0.14], "recess_size_m": [0.34, 0.20], "corner_radius_m": 0.02,
+      "inner_layout": "clear polycarbonate lens in one piece with a dark-grey (#4a4d52) frame; two optical cells: OUTER cell (towards the corner) about 0.11 m wide with a round chrome reflector and visible bulb (main beam), INNER cell about 0.16 m wide with a larger rectangular reflector / second projector (dipped beam). Halogen units - no LED DRL ring or strip visible.",
+      "light_colours": "dipped/main: white #fff6e0; reflectors silver #c9ccd0",
+      "basis": "P2 headlamp_R crop, P3cam", "confidence": "medium"
+    },
+    "indicator_and_fog_units": {
+      "size_m": [0.25, 0.075], "right_unit_x_range": [0.92, 1.18], "left_unit_x_range": [-0.92, -1.18], "Y_range": [0.49, 0.58],
+      "layout": "inner 60 % = clear lens with fine vertical ribs (front fog lamp / cornering lamp), outer 40 % = amber indicator lens #e07b0a (sampled #a84e07 in shade); both in one white rounded recess; the amber part is on the OUTER end on both sides",
+      "basis": "P2rect (ribbed 897-1100 mm, amber 1090-1250 mm), P3", "confidence": "medium"
+    },
+    "front_marker": "small orange-red side-marker repeaters at the corner module sides (P3: 0.10 x 0.06 m at Y about 1.15 on the right panel next to door 1)",
+    "bumper": {"colour": "body white", "shape": "centre module |x|<0.78 vertical face with lower edge straight at Y 0.31 and a slight forward lip; corner modules wrap round and rise; no black rubber bumper strip is visible - the whole bumper is painted white", "basis": "P2, P3", "confidence": "medium"},
+    "wipers": {
+      "count": 2, "type": "tandem/parallel arms with long blades, pivots on the black base band",
+      "passenger_wiper_bus_right": {"pivot_x_Y": [1.02, 1.24], "length_m": 0.95, "parked": "arm + blade lying almost horizontally along the glass bottom edge, pointing towards the centre (blade at Y about 1.26-1.30, from x = +0.95 to +0.08)"},
+      "driver_wiper_bus_left": {"pivot_x_Y": [-0.72, 1.22], "length_m": 1.0, "parked": "arm angled up about 18-20 degrees towards bus-right (blade from the pivot across to about x = +0.1 at Y about 1.5) - visible as the diagonal dark line over the windscreen in P1, P2 and P3"},
+      "colour": "matte black #14161a",
+      "basis": "P2 windscreen crop, P1, P3", "confidence": "low"
+    },
+    "mirrors": {
+      "right_ram_horn": {
+        "side": "RIGHT (kerb side, +x) only",
+        "root_on_A_pillar_x_Y_S": [1.15, 2.62, 0.30],
+        "arm_path_x_Y_S": [[1.15, 2.62, 0.30], [1.30, 2.56, 0.12], [1.46, 2.52, -0.10], [1.58, 2.46, -0.32], [1.58, 2.36, -0.40]],
+        "arm_section_m": [0.09, 0.06],
+        "head": {"centre_x_Y_S": [1.53, 2.10, -0.40], "size_w_h_d_m": [0.26, 0.58, 0.14], "Y_range": [1.82, 2.40], "shape": "long bean / capsule, convex outer shell, mirror glass faces backwards-inwards", "glass_colour": "#59626a"},
+        "description": "the arm leaves the roof corner above the A-pillar (just under the LED header), runs outwards AND forwards in a smooth horizontal arc about 0.45 m long, bends down at the outer end (inner radius about 0.12 m) and the mirror head hangs 0.58 m long, with its centre about 0.4 m ahead of the face plane and 0.25 m outboard of the body side",
+        "colour": "satin black plastic #15171a with slightly lighter grey seam lines",
+        "basis": "P3cam + P2 cross-check (outboard 0.25 m, forward about 0.4-0.5 m, head Y 1.84-2.38, arm top 2.52)", "confidence": "low-medium"
+      },
+      "left_driver_box": {
+        "side": "LEFT (driver side, -x)",
+        "description": "tall rectangular two-segment housing bolted directly to the roof corner / A-pillar, no long arm: upper segment (main mirror) and a shorter lower segment (wide-angle) with a visible horizontal seam; rounded vertical edges",
+        "size_w_h_d_m": [0.25, 0.68, 0.14], "Y_range": [1.78, 2.46], "centre_x_S": [-1.34, 0.10],
+        "upper_segment_Y_range": [2.04, 2.46], "lower_segment_Y_range": [1.78, 2.04],
+        "colour": "satin black #181a1d", "basis": "P2 p2_mirror_driver crop, P3cam", "confidence": "medium"
+      }
+    },
+    "front_other": {
+      "lion_badge_on_side_band": "small silver 'Lion's City' script + MAN lion on the black upper side band, right side, about 0.4 m behind the windscreen (P1), about 0.15 x 0.05 m",
+      "towing_eye": "not visible",
+      "roof_front": "the white pod starts about 1.7 m behind the face and its nose slopes down towards the black header (the header top edge is visibly lower than the pod crown)"
+    }
+  },
+  "side": {
+    "belt_and_bands": {
+      "lower_white_panel_Y": [0.33, 1.30], "glazed_black_band_Y": [1.30, 2.68], "black_frame_strip_Y": [2.68, 2.76], "white_roof_fairing_from_Y": 2.76,
+      "note": "the sill (belt) is at 1.30 m, NOT 1.02 m as in BusSpec: the white lower panel is about 40 % of the body height. Windows are tall and black from 1.30 to 2.68 with a thin black frame, then white roof fairing. Door headers at Y 2.45 with a black transom glass above to 2.68.",
+      "basis": "P3cam (belt 1.29-1.37 measured on 10 points; window top 2.63-2.78)", "confidence": "medium"
+    },
+    "wheel_arches": {"radius_m": 0.60, "centre_Y": 0.477, "apex_Y": 1.08, "arch_S_ranges": "axle1 2.10-3.30, axle2 7.21-8.41; rear frame z -0.60..+0.60", "description": "large circular open arches with black inner liner; the white body panel around the arch has a plain edge (no wide flare); about 0.15 m of the tyre/rim face sits inside the line of the side wall", "basis": "P3cam (arch apex 1.09-1.15), P1, P3", "confidence": "medium"},
+    "right_side_front_section": {
+      "frame_note": "S from the front face; BusSpec z = -7.805 + S",
+      "elements": [
+        {"name": "door 1", "S_range": [0.62, 1.87], "z_front_frame": [-7.185, -5.935], "width_m": 1.25, "basis": "P3cam jambs at 0.69/1.85 (corr.), P1; BusSpec has -7.6..-6.4 which is 0.42 m too far forward", "confidence": "medium"},
+        {"name": "white panel door1->arch1 with two amber side lamps", "S_range": [1.87, 2.10], "lamps": "upper orange lamp 0.10x0.06 at Y 1.15, lower red-orange lamp at Y 0.55"},
+        {"name": "wheel arch 1", "S_range": [2.10, 3.30]},
+        {"name": "service flap (probably CNG filling flap)", "S_range": [3.55, 3.98], "Y_range": [0.36, 0.90], "description": "hairline-outlined rectangular flap 0.43 x 0.54 m with a black slotted handle edge at the top; flush", "basis": "P3cam, P1", "confidence": "medium (flap), low (that it is the CNG flap)"},
+        {"name": "lower white panel with leaf cluster and logo", "S_range": [3.30, 5.45], "note": "carries the leaf cluster (see livery) and the Sofia logo at S 4.4"},
+        {"name": "window pane W1 (carries the side LED sign at its top)", "S_range": [1.95, 2.95]},
+        {"name": "pillar", "S_range": [2.95, 3.12], "width_m": 0.08},
+        {"name": "window pane W2 with top hopper", "S_range": [3.15, 4.50], "hopper": "top-hinged hopper sash Y 2.22-2.62, S 3.55-4.50"},
+        {"name": "pillar", "S_range": [4.50, 4.68], "width_m": 0.10},
+        {"name": "window pane W3 (narrow, sticker with route no.)", "S_range": [4.70, 5.45]},
+        {"name": "door 2", "S_range": [5.60, 6.85], "z_front_frame": [-2.205, -0.955], "width_m": 1.25, "basis": "P3cam jambs 5.52/6.94; matches BusSpec -2.27..-1.07 within 0.1 m", "confidence": "medium"},
+        {"name": "narrow white panel + arch 2 start", "S_range": [6.85, 7.21]},
+        {"name": "wheel arch 2", "S_range": [7.21, 8.41]},
+        {"name": "window pane W4 above arch 2 to the bellows", "S_range": [7.05, 8.95], "note": "one wide pane (sticker/notice on the glass)"}
+      ],
+      "side_led_sign": {"S_range": [2.05, 3.05], "Y_range": [2.48, 2.68], "x": 1.27, "description": "orange LED matrix behind the glass at the top of pane W1, text 'Route-number + destination' one line, text height about 0.17 m (the model has it 0.2 m too low at Y 2.38)", "basis": "P3cam, P1", "confidence": "medium"},
+      "priority_stickers": "blue rectangular sticker with white pram/wheelchair pictograms, about 0.4 x 0.18 m, on the glass just behind each door's rear jamb at Y 1.4-1.6 (P3: S about 1.9-2.3 and 5.4); a white 'no entry/standing' style notice at the front pillar of door 2",
+      "markers": "red-orange/amber rectangular marker lamps 0.09 x 0.05 m, low on each lower panel near its ends at Y about 0.45-0.55 (P3: 6+ visible along the lower edge) - the model's 3.1 m spacing at Y 0.42 is acceptable"
+    },
+    "right_side_rear_section_rear_frame_z": {
+      "elements": [
+        {"name": "bellows panel / protective plates", "z_range": [-5.07, -4.67]},
+        {"name": "lower white panel with leaf cluster + logo", "z_range": [-4.60, -2.15]},
+        {"name": "window panes", "z_range": [-4.55, -2.15], "note": "2 panes, pillar near z -3.4, upper part black glazing as everywhere"},
+        {"name": "door 3 (ahead of axle 3)", "z_range": [-2.05, -0.80], "width_m": 1.25, "basis": "P3 (rear section zoom): jambs at 226 and 248 px, 17 px/m => 0.82..2.1 m ahead of axle 3. NOTE: BusSpec has door 3 at -4.29..-3.09 and door 4 at -1.97..-0.77, i.e. door 4 sits where door 3 really is.", "confidence": "medium"},
+        {"name": "wheel arch 3", "z_range": [-0.60, 0.60]},
+        {"name": "window pane above the arch (small)", "z_range": [-0.55, 0.60]},
+        {"name": "door 4 (BEHIND axle 3, over the rear overhang)", "z_range": [0.80, 2.05], "width_m": 1.25, "basis": "P3 zoom p3_s_rear.png: a full-height glazed double door with header at the same height as door 3 and a threshold strip at floor level stands behind the rear wheel; jambs at 200.5 and 182 px", "confidence": "medium (that it exists and is behind the axle), low (+/-0.3 m position)"},
+        {"name": "engine bay side louvres", "z_range": [2.15, 3.0], "description": "tall white panel with vertical slots Y 0.45-1.25 (0.55 x 0.8 m, P3) and a black louvre band at Y 1.35-1.75 above it in the window band; this is the engine-air intake on both sides of the tail"}
+      ]
+    },
+    "left_side": {
+      "doors": "none",
+      "windows": "continuous black window band from the A-pillar to the bellows on the front section and across the rear section, panes about 1.3-1.5 m with 0.08-0.10 m pillars, top hoppers on alternate panes",
+      "front_flap": {"S_range": [0.85, 1.75], "Y_range": [0.36, 1.00], "description": "rectangular service flap (battery/electrics) ahead of the front wheel arch (P2: big hairline rectangle 0.45 m wide)", "confidence": "low"},
+      "livery": "leaf clusters on the lower white panels like the right side (P2 shows leaves along the belt behind the front axle)"
+    },
+    "doors": {
+      "type": "double-leaf, INWARD-swinging (leaves fold into the vehicle; with door 1 open in P1 no leaves are visible outside, only the black frame and the yellow grab rail)",
+      "leaf": "each leaf about 0.62 m wide with a black anodised frame about 0.05 m wide, upper pane Y 1.25-2.40 and lower pane Y 0.45-1.15 (both glazed, tinted), centre meeting stile with black rubber seal; no outside handles",
+      "frame": "black aluminium portal: front pillar about 0.10-0.12 m wide (very prominent at door 1, it is the A-pillar), rear pillar 0.08; header Y about 2.45; silver/stainless threshold strip with a step at Y 0.33",
+      "interior_visible": "yellow (#d8b02a) curved grab rail at the front jamb of each door; sample P1 #b59422",
+      "opening_height_m": 2.05,
+      "basis": "P1, P3, S1", "confidence": "medium"
+    },
+    "wheels": {
+      "rim": "silver steel disc wheel (#b5bac0 lit), dished, 10 elongated hand-holes, 10 nut studs on a raised hub ring, dark centre; PAINTED SILVER not chrome",
+      "tyre": "black #0a0b0b, plain sidewalls, no white lettering visible",
+      "front_wheels_steer": "yes", "basis": "P1, P3 zoom", "confidence": "medium"
+    }
+  },
+  "livery": {
+    "summary": "Leaves HANG DOWN from the belt line (the sill, Y = 1.30) like a fringe / curtain of broad drooping leaves with pointed tips; they are NOT grass blades growing up from the skirt. The upper edge of each leaf is cut straight by the sill line. Tips point down; the lowest tips reach about Y 1.0-1.05, i.e. the leaves occupy only the top 0.2-0.33 m of the 0.97 m white panel. The rest of the lower panel (Y 0.33-1.0) is plain white except the logo and flaps.",
+    "leaf_shape": "pointed oval (teardrop) with a rounded broad end at the top and a sharp tip at the bottom; some leaves are fat with a rounded bottom",
+    "leaf_size_m": {"length": [0.18, 0.33], "width": [0.18, 0.40], "mean_length": 0.26, "mean_width": 0.28},
+    "leaf_orientation": "hang vertically, tilt random +/-15 degrees; leaves at the cluster ends lean outwards",
+    "density_and_overlap": "about 5-6 leaves per metre of cluster, overlapping by 30-40 % in 2-3 layers (dark ones behind, light ones in front); a 2.2 m panel carries about 12 visible leaves",
+    "outline": "every leaf has a pale cream-white outline (about 0.012 m) and a lighter central vein on some, so overlapping leaves are separated by thin white lines",
+    "colours": {
+      "dark_teal_green": "#1f5e44 (shaded #0b3822)",
+      "mid_green": "#3d8f55",
+      "light_grass_green": "#6fb35a",
+      "pale_yellow_green_highlight": "#9ccc6a",
+      "outline_vein": "#eef3e8",
+      "sampling_note": "photo samples under cool/evening light were #2a6a41 #336850 #4b8259 #4c8061 #629563 #82aa87 (P1/P3); the paint is a saturated leaf green family in 4 tones"
+    },
+    "right_side_cluster_layout": [
+      {"panel": "door 1 -> arch 1 (S 1.87-2.10)", "leaves": "none"},
+      {"panel": "above arch 1 (S 2.10-3.30)", "leaves": "none, bare white (P1 and P3: leaf cluster stops at the arch front edge)"},
+      {"panel": "arch 1 -> door 2 (S 3.30-5.45), the big panel", "leaves": "full cluster, about 12 leaves, S 3.40-5.40"},
+      {"panel": "door 2 -> bellows (S 6.85-8.95)", "leaves": "small cluster of about 5-6 leaves at S 6.95-7.60, over the arch-2 front area"},
+      {"panel": "rear section: bellows -> door 3 (z -4.60..-2.15)", "leaves": "full cluster about 10 leaves"},
+      {"panel": "rear section: above arch 3 / between door 3 and door 4 (z -0.80..+0.80)", "leaves": "small cluster about 4-5 leaves"},
+      {"panel": "doors, behind door 4", "leaves": "none"}
+    ],
+    "logo": "small multicoloured vertical logo (red-orange face, yellow and green/blue elements; looks like the Sofia Urban Mobility Centre mark) about 0.17 m wide x 0.30 m tall, at Y 0.60-0.90, centred under the big leaf cluster at S 4.4 on the front-section panel and again on the rear-section panel; low confidence on its identity",
+    "other_decals": "white small notice stickers on the window glass and door pillars; blue priority sticker; route card in the windscreen; the 'MAN Lion's City' badge on the black side band at the front",
+    "fleet_number_on_side": "a small black fleet number (about 0.12 m tall, white background-free) on the upper-right of the first window behind the bellows on the RIGHT side (P3: '2319' at the front-section rear window top, rotated with the perspective); the same on the rear face (inferred)",
+    "basis": "P1 leaf zoom, P3 leaf zoom, P3 side crops", "confidence": "medium (shape/placement), low (exact counts)"
+  },
+  "roof": {
+    "cng_cylinders": {"count": 8, "volume_each_l": 214, "basis": "S3 (eight aluminium composite cylinders 214 l) - the Sofia buses' cylinder count is not confirmed, S4 mentions nine for Ankara", "confidence": "low"},
+    "front_pod": {
+      "S_range": [1.7, 8.4], "z_front_frame": [-6.1, 0.6], "width_m": 2.20, "top_Y": 3.32, "base_Y": 2.80,
+      "shape": "one long white fairing, flat/gently crowned top (crown 0.03 m), convex shoulders with radius about 0.30, sides sloping in from 1.10 at the base to about 1.00 at the top; front end tapers down to the header over about 0.5 m, rear end is a rounded vertical cap (radius about 0.3) ending about 0.7 m before the bellows; smooth, no visible hatches or ribs (the game's black seam lines every 1.15 m are not in the photos)",
+      "colour": "gloss white #eeefee (same paint as the body), slightly bluish in shade",
+      "basis": "P3 (pod from x 362 to header), P1, S2", "confidence": "medium (length/height), low (end shapes)"
+    },
+    "rear_pod": {"z_rear_frame": [-4.4, -0.8], "width_m": 2.1, "top_Y": 3.20, "base_Y": 2.80, "note": "the rear-section roof in P3 stands taller than a bare roof at the tail (silhouette about 0.35 m above the roof edge) so a lower pod / equipment fairing exists there; exact length unknown", "confidence": "low"},
+    "roof_edge_fairing": "white rail 0.08-0.15 m high running the length of the body above the black window band (Y 2.68-2.80) and rounding into the roof",
+    "ac_units": "no separate AC unit visible from the front section; the rear section roof has a flat vented hatch near the tail (inferred from typology, low)",
+    "hatches": "not visible in the photos"
+  },
+  "bellows_turntable": {
+    "colour": "light aluminium-grey, satin: lit faces #a5a8a8, grooves/shaded #6e7173 (P1 sample #949fa2, P3 #6c6b67 in shade) - NOT dark charcoal #26282a as in the model",
+    "form": "smooth-looking cover with only 2-3 broad vertical folds visible from the side (fold pitch about 0.3-0.35 m), not 14 narrow folds; vertical white-grey side protection plate at each side of the joint",
+    "height_m": "from Y 0.40 to the roof edge 2.78, same width as the body minus 0.04 m each side",
+    "visible_length_m": 0.9, "basis": "P3 crop p3_rear_section, P1 crop p1_left_rear", "confidence": "low-medium"
+  },
+  "rear_end": {
+    "status": "NOT visible in photos 1-3 (only the tail side louvres); everything below is INFERRED from MAN Lion's City typology and the rear-engine layout (S8). No usable web photo description was found (search returned only used-bus listings).",
+    "face": {"plane_z": 3.405, "corner_radius_plan_m": 0.40, "top_rake": "top edge about 0.15 m forward of the bottom", "confidence": "low"},
+    "rear_window": "likely a small rectangular black window or none at all (the engine hatch dominates the lower 2/3); the model's tall full-width glass (Y 1.18-2.5) is probably wrong - use a 1.4 x 0.45 m dark panel at Y 1.95-2.40 or a plain white face",
+    "engine_hatch": "large white hatch with a black louvred grille field about 1.3 x 0.5 m centred at Y 1.0 (inferred)",
+    "tail_lamps": "tall narrow vertical LED clusters at both rear corners (red, with amber indicator and white reverse segments) about 0.12 x 0.55 m, upper edge at Y 1.5",
+    "rear_led_sign": "route-number LED display, top left of the rear face as seen from behind (bus left), about 0.45 x 0.18 m at Y 2.3-2.5 (model has x=+0.4, Y=2.36)",
+    "plate": "rear plate on the engine hatch, centre Y about 0.62",
+    "bumper": "white painted bumper, lower edge Y about 0.45 with a black rubber step/strip",
+    "side_louvres": "confirmed in P3: white slotted panel on the lower side of the tail (z +2.15..+3.0, Y 0.45-1.25) and a black louvre band at Y 1.35-1.75 on both sides"
+  },
+  "materials_and_colours": {
+    "paint_body": {"hex": "#f1f1ec", "note": "near-white (RAL 9016-like). Photos: #cdd1d4 (P3 shade, up to #ebeced highlights), #bebab7/#cecac6 (P2 warm cloudy), #abc0ce..#c1d6e0 (P1 blue skylight). Glossy: clearcoat, roughness 0.25-0.32, strong sky reflections. The game's #f1f2ee is right.", "confidence": "medium"},
+    "glass_side_and_black_zones": {"hex": "#0c0e12", "note": "side glass is dark tinted, nearly black with strong mirror reflections (reflectivity about 0.6, opacity about 0.85, only faint interior visible); the interior shows mainly through door glass and the front windscreen at low sun", "confidence": "medium"},
+    "black_plastic_gloss": {"hex": "#0d0f12", "use": "base band, header, grille, door frames"},
+    "black_plastic_satin": {"hex": "#15171a", "use": "mirror housings, wipers, lamp bezels"},
+    "chrome": {"hex": "#d5d9dc", "use": "strip, lion emblem, MAN letters (satin #b9bcbe)", "metalness": 1.0, "roughness": 0.12},
+    "led_amber": "#ff9a1a emitter, +bloom",
+    "indicator_amber": "#e07b0a",
+    "side_marker": "#d9501e (orange-red) 0.09 x 0.05 m",
+    "wheel_silver": "#b5bac0 (rim), tyre #0a0b0b",
+    "yellow_rail": "#d8b02a",
+    "bellows": "#a5a8a8 / #6e7173",
+    "pod_white": "#eeefee",
+    "pictogram_blue": "#1560b5",
+    "cng_green": "#1d8a5a"
+  },
+  "diff_current_model_vs_reality": [
+    {"rank": 1, "area": "front: windscreen / header proportions", "current": "windscreen Y 0.97-2.55 (1.58 m tall), black destination band Y 2.55-2.86 (0.31 m), LED 1.9 x 0.23 at Y 2.7, black band below the screen Y 0.80-0.97", "reality": "glass Y 1.22-2.32 (1.10 m), black base band Y 1.00-1.22, black LED header Y 2.30-2.86 (0.56 m tall) with the matrix 1.72 x 0.32 at Y 2.36-2.68", "files": "BusModel.js buildFront (outlineStrip ... 0.8/0.97/windowTopY/2.86), buildSigns (fmesh)"},
+    {"rank": 2, "area": "front: the lower face", "current": "grille = one 1.05 x 0.30 textured plane at Y 0.62; lamps = round emissive discs + black trapezoids at x about +/-0.5-0.9 and fog discs at x +/-0.78; big white rounded box underneath; render reads mostly black", "reality": "white face with a gloss-black trapezoid grille 1.55 wide x 0.29 tall (Y 0.495-0.785), chrome MAN letters 0.51 x 0.10, rectangular headlamp units 0.27 x 0.14 at x +/-0.95..1.22 (Y 0.64-0.78) on the white corner modules, indicator/fog units under them, chrome gull-wing strip at Y 1.0 with lion emblem", "files": "BusModel.js buildFront (grille, badge, headlamp clusters), BusTextures.makeManGrille/makeLionBadge"},
+    {"rank": 3, "area": "side: window sill (belt) height", "current": "beltY 1.02, windows 1.02-2.55 with a white band above, doors up to 2.47", "reality": "belt 1.30, windows 1.30-2.68 (black), roof fairing from 2.76; lower white panel is 0.97 m tall", "files": "BusSpec.js beltY/windowTopY; BusModel.windowBand/sideBody, skirtShape(y1)"},
+    {"rank": 4, "area": "livery", "current": "makeLivery draws grass-like blades growing UP from the bottom of the skirt texture, 12 evenly spaced clusters over 18 m, 0.45-1.05 of skirt height, narrow (width 12-22 % of length)", "reality": "broad pointed leaves HANGING from the belt line, 0.18-0.33 m long x 0.18-0.40 m wide, 3-4 greens with cream outlines, one cluster per white panel (none over doors or arch 1), logo below", "files": "BusTextures.makeLivery; mapping in BusModel.makeMaterials (livery.repeat/offset with skirtY..beltY)"},
+    {"rank": 5, "area": "doors 3 and 4", "current": "rear section doors at z -4.29..-3.09 and -1.97..-0.77 (both ahead of axle 3)", "reality": "door 3 at z -2.05..-0.80 (ahead of axle 3) and door 4 at +0.80..+2.05 (behind axle 3, over the rear overhang); door 1 should be at S 0.62-1.87 (z -7.185..-5.935) instead of -7.6..-6.4", "files": "BusSpec.js doors[]; BusLayout.js/BusInterior.js poles & standing areas that use the door z"},
+    {"rank": 6, "area": "mirrors", "current": "two identical thin-tube ram's horns, heads 0.5 m tall ellipsoids at Y 2.2, mirrored on both sides", "reality": "RIGHT: one ram's horn (arm top Y 2.52-2.6, head 0.26x0.58 at x 1.53, S -0.4); LEFT: compact tall black two-segment box 0.25x0.68 at x -1.34 hugging the A-pillar", "files": "BusModel.js buildFront (mirrors loop)"},
+    {"rank": 7, "area": "decals", "current": "CNG diamond at x=-0.32 (bus left); pictogram discs 0.094 m; fleet number font 150 px Arial Narrow in a shared sheet", "reality": "CNG diamond at x=+0.45 (right of centre), Y 1.08, 0.125 m; pictograms 0.14 m at x 1.23/1.09/0.94, Y 0.84; fleet number 0.135 m digits right of the centreline just above the grille", "files": "BusModel.js buildFront (dec, cng planes), BusTextures.makeFrontDecals"},
+    {"rank": 8, "area": "bellows colour and folds", "current": "dark charcoal #26282a, 14 narrow folds", "reality": "light aluminium grey #a5a8a8 with 2-3 broad folds", "files": "BusModel.js makeMaterials(bellows), buildBellows (folds=14)"},
+    {"rank": 9, "area": "windscreen glass", "current": "opacity 0.16, interior fully visible", "reality": "dark reflective glass, interior barely visible from outside (opacity about 0.6, colour #0b0f14)", "files": "BusModel.js mats.windscreen"},
+    {"rank": 10, "area": "skirt height and arches", "current": "skirtY 0.27, arch radius 0.535, black rubber lip 0.05 along the bottom", "reality": "lower edge 0.33, arch radius 0.60 (apex 1.08), plain white bottom edge with a thin dark underbody, no obvious rubber lip", "files": "BusSpec.js skirtY; BusGeom.skirtShape R=0.535"},
+    {"rank": 11, "area": "roof pods", "current": "front pod 2.24 x 6.65 m, S 1.2-7.85, black seams every 1.15 m, rear pod 3.9 m long with a rounded box", "reality": "front pod S 1.7-8.4, width 2.2, smooth, nose tapering to the header; rear pod about 3.6 m, top 3.2", "files": "BusModel.js roof()"},
+    {"rank": 12, "area": "wipers", "current": "two identical 0.95 m arms, pivots at x 0.95 and -0.2, Y 1.0", "reality": "pivots at x +1.02 (passenger) and -0.72 (driver), Y 1.22-1.24; passenger arm parked horizontal, driver arm parked angled up about 18 degrees", "files": "BusModel.js buildFront (wipers)"},
+    {"rank": 13, "area": "side LED sign", "current": "1.15 x 0.15 at Y 2.38, S about 2.3 (z -5.5)", "reality": "1.0 x 0.2 at Y 2.48-2.68, S 2.05-3.05 (inside the top of the first pane)", "files": "BusModel.js buildSigns (smesh)"},
+    {"rank": 14, "area": "front plan outline", "current": "rounded rectangle radius 0.24 for the whole height, windscreen 0.07 rake", "reality": "flat centre panel |x|<0.78 + radius 0.5 corners on the lower body, panoramic wrap-around screen, 8 degree rake", "files": "BusGeom.endOutline, BusModel.buildFront"},
+    {"rank": 15, "area": "rear end (unverified)", "current": "full-width rear glass Y 1.18-2.5 with louvres below", "reality": "unknown - likely much less glass, tall engine hatch, vertical tail lamps; tail side louvre panels confirmed", "files": "BusModel.js buildRear"},
+    {"rank": 16, "area": "door leaves", "current": "black frame with two glass panes, horizontal rail at 47 %", "reality": "similar - keep; add silver threshold strip, black rubber seals, front pillar 0.11 m wide", "files": "BusModel.js addDoor"}
+  ],
+  "open_questions": [
+    "Exact pod end shapes and the rear-section pod length (only seen at a grazing angle).",
+    "Rear end details (no rear photo) - ask the user for one rear 3/4 photo if the rear matters.",
+    "Whether the front windscreen is one or two pieces (assumed one, no centre mullion visible in P1-P3).",
+    "Exact position of the ram's-horn head (+/-0.15 m) - triangulated from two photos with a fitted camera.",
+    "Delivery batch (2014/15 vs 2019) of fleet 3145/3153/2319; plates 'CB .... HM' not mapped to a year.",
+    "Sofia logo identity on the lower panels; low value for the model."
+  ],
+  "crops_written": "data/research/bus/exterior/crops/ (p1_*, p2_*, p3_* crops; rect_p1/2/3*.png = plate-plane rectified fronts with a 100 mm grid; p3_s_* = side-plane zooms; p3_leaves_zoom.png, p1_leaves_zoom.png = livery leaves)"
+}
