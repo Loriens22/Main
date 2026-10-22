@@ -106,15 +106,32 @@ export class RoadMeshBuilder {
     const sett = makeYellowBricks(sz, 91, [128, 126, 120]);
     const noise = makeNoiseTexture(256);
     const wetUniform = { value: 0 };
+    const timeUniform = { value: 0 };
     const roadPatch = (mat, kind) => {
-      mat.userData.uniforms = { uWet: wetUniform, tNoise: { value: noise } };
+      mat.userData.uniforms = { uWet: wetUniform, uTime: timeUniform, tNoise: { value: noise } };
       mat.onBeforeCompile = (sh) => {
         Object.assign(sh.uniforms, mat.userData.uniforms);
         sh.vertexShader = sh.vertexShader
           .replace('#include <common>', '#include <common>\nattribute vec2 uv1; varying vec2 vLane; varying vec3 vWP;')
           .replace('#include <worldpos_vertex>', '#include <worldpos_vertex>\nvLane = uv1; vWP = (modelMatrix*vec4(transformed,1.0)).xyz;');
         sh.fragmentShader = sh.fragmentShader
-          .replace('#include <common>', '#include <common>\nuniform float uWet; uniform sampler2D tNoise; varying vec2 vLane; varying vec3 vWP; float gPuddle;')
+          .replace('#include <common>', `#include <common>
+uniform float uWet, uTime; uniform sampler2D tNoise; varying vec2 vLane; varying vec3 vWP; float gPuddle;
+// expanding raindrop rings on standing water; returns a world-space xz slope
+vec2 ripples(vec2 p) {
+  vec2 g = vec2(0.0);
+  for (int k = 0; k < 2; k++) {
+    vec2 q = p * (k == 0 ? 2.3 : 3.1) + float(k) * 17.3;
+    vec2 c = floor(q), f = fract(q);
+    float h = fract(sin(dot(c, vec2(127.1, 311.7))) * 43758.5453);
+    float t = fract(uTime * (0.9 + h * 0.5) + h * 7.0);
+    vec2 d = f - (0.25 + 0.5 * vec2(h, fract(h * 13.7)));
+    float r = length(d) + 1e-4;
+    float w = sin((r - t * 0.45) * 55.0) * smoothstep(0.0, 0.05, t * 0.45 - r + 0.05) * (1.0 - t) * smoothstep(0.42, 0.0, r);
+    g += d / r * w;
+  }
+  return g;
+}`)
           .replace('#include <map_fragment>', `#include <map_fragment>
 {
   vec4 nz = texture2D(tNoise, vWP.xz / 61.0);
@@ -133,7 +150,7 @@ export class RoadMeshBuilder {
   float edge = smoothstep(1.2, 0.0, vLane.y);
   diffuseColor.rgb *= 1.0 - edge * 0.22;
   ` : ''}
-  gPuddle = smoothstep(0.58, 0.66, nz.b + nz2.a * 0.25) * uWet;
+  gPuddle = smoothstep(${kind === 'asphalt' ? '0.58, 0.66' : '0.66, 0.72'}, nz.b + nz2.a * 0.25) * uWet;
   diffuseColor.rgb *= mix(1.0, 0.55, uWet);
   diffuseColor.rgb = mix(diffuseColor.rgb, diffuseColor.rgb * 0.45, gPuddle);
 }`)
@@ -141,7 +158,11 @@ export class RoadMeshBuilder {
 roughnessFactor = mix(roughnessFactor, roughnessFactor * 0.45, uWet);
 roughnessFactor = mix(roughnessFactor, 0.13, gPuddle);`)
           .replace('#include <normal_fragment_maps>', `#include <normal_fragment_maps>
-normal = normalize(mix(normal, normalize(vNormal), gPuddle));`);
+normal = normalize(mix(normal, normalize(vNormal), gPuddle));
+if (gPuddle > 0.01) {
+  vec2 rg = ripples(vWP.xz);
+  normal = normalize(normal + (viewMatrix * vec4(rg.x, 0.0, rg.y, 0.0)).xyz * 0.22 * gPuddle);
+}`);
       };
       mat.customProgramCacheKey = () => `road-${kind}`;
       return mat;
@@ -151,6 +172,7 @@ normal = normalize(mix(normal, normalize(vNormal), gPuddle));`);
     const ns = new THREE.Vector2(0.8, 0.8);
     this._mats = {
       wet: wetUniform,
+      time: timeUniform,
       asphalt: roadPatch(std(asph, { normalScale: ns, polygonOffset: true, polygonOffsetFactor: -1, polygonOffsetUnits: -2 }), 'asphalt'),
       brick: roadPatch(std(brick, { polygonOffset: true, polygonOffsetFactor: -1, polygonOffsetUnits: -2 }), 'brick'),
       sett: roadPatch(std(sett, { color: 0xffffff, polygonOffset: true, polygonOffsetFactor: -1, polygonOffsetUnits: -2 }), 'sett'),
@@ -166,16 +188,18 @@ normal = normalize(mix(normal, normalize(vNormal), gPuddle));`);
     };
     // paint wear via noise
     const paint = this._mats.paint;
-    paint.userData.uniforms = { tNoise: { value: noise } };
+    paint.userData.uniforms = { tNoise: { value: noise }, uWet: wetUniform };
     paint.onBeforeCompile = (sh) => {
       Object.assign(sh.uniforms, paint.userData.uniforms);
       sh.vertexShader = sh.vertexShader.replace('#include <common>', '#include <common>\nvarying vec3 vWP;').replace('#include <worldpos_vertex>', '#include <worldpos_vertex>\nvWP=(modelMatrix*vec4(transformed,1.0)).xyz;');
       sh.fragmentShader = sh.fragmentShader
-        .replace('#include <common>', '#include <common>\nuniform sampler2D tNoise; varying vec3 vWP;')
+        .replace('#include <common>', '#include <common>\nuniform sampler2D tNoise; uniform float uWet; varying vec3 vWP;')
         .replace('#include <map_fragment>', `#include <map_fragment>
 { vec4 n = texture2D(tNoise, vWP.xz / 3.0); vec4 n2 = texture2D(tNoise, vWP.xz / 0.7);
   float wear = smoothstep(0.35, 0.7, n.g * 0.7 + n2.r * 0.5);
-  diffuseColor.rgb = mix(diffuseColor.rgb, vec3(0.3), wear * 0.55); }`);
+  diffuseColor.rgb = mix(diffuseColor.rgb, vec3(0.3), wear * 0.55);
+  diffuseColor.rgb *= 1.0 - uWet * 0.3; }`)
+        .replace('#include <roughnessmap_fragment>', '#include <roughnessmap_fragment>\nroughnessFactor = mix(roughnessFactor, 0.28, uWet);');
     };
     paint.customProgramCacheKey = () => 'paint';
     return this._mats;

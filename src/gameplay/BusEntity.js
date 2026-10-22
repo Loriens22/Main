@@ -98,6 +98,15 @@ export class BusEntity {
     this.sHint = null;
     this.routeHint = null;
     this.prev = null;
+    // a teleport is not a missed stop: resume the stop sequence from here
+    const win = this.stops.opts.arriveWindow;
+    let idx = this.dir.stops.findIndex((st) => st.frontS > s - win);
+    if (idx < 0) idx = this.dir.stops.length - 1;
+    if (idx !== this.stops.next || this.stops.log.length) {
+      this.stops.reset(idx);
+      this.announcer.startTrip();
+      for (let i = 0; i <= idx; i++) this.announcer.nextAnnounced.add(i);
+    }
     this.syncVisual(1);
   }
 

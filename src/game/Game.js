@@ -8,6 +8,7 @@ import { t } from '../ui/i18n.js';
 import { clamp, fwdX, fwdZ } from '../core/math.js';
 import { Scoring } from '../gameplay/Scoring.js';
 import { PassengerMode } from './PassengerMode.js';
+import { BusLightRig } from '../render/BusLights.js';
 
 export class Game {
   constructor(ctx) {
@@ -15,6 +16,7 @@ export class Game {
     this.rig = new CameraRig(this.camera, this.world);
     this.hud = new Hud(this.uiRoot);
     this.hud.setMapRoads(this.world.roads);
+    this.busLights = new BusLightRig(this.scene);
     this.hud.show(false);
     this.mode = 'attract';
     this.paused = false;
@@ -131,12 +133,14 @@ export class Game {
     const listener = this.camera.position;
     this.focus.copy(listener);
     this.world.updateVisibility(this.focus);
+    this.world.tick(dt);
     this.sky.follow(this.focus);
     this.sky.tick(dt);
     if (this.traffic) this.traffic.update(dt, this.focus, this.allBuses());
     if (this.peds) this.peds.update(dt, this.focus, this.camera);
     if (this.props) this.props.update(dt, this.focus, this.sky.night);
     if (this.weatherFx) this.weatherFx.update(dt, this.camera, this.bus);
+    this.busLights.update(bus, this.sky.night);
     if (bus) this.updateAnnouncements(bus);
     this.updateAudio(dt);
   }

@@ -48,7 +48,7 @@ export class WeatherFx {
           p.y = uCam.y + 18.0 - fall * 40.0;
           p.xz += uWind * (1.0 - fall) * 2.0;
           if (seed.w < 0.0) p += vec3(uWind.x, 9.0, uWind.y) * -0.055;
-          vA = 0.55;
+          vA = 0.4;
           if (inBox(p, uBoxA, uExtA) || inBox(p, uBoxB, uExtB)) vA = 0.0;
           gl_Position = projectionMatrix * viewMatrix * vec4(p, 1.0);
         }`,
@@ -77,41 +77,56 @@ export class WeatherFx {
       fragmentShader: /* glsl */ `
         uniform float uTime, uRain; uniform sampler2D uWipe; varying vec2 vUv;
         float h(vec2 p){ p = fract(p*vec2(123.34,345.45)); p += dot(p,p+34.23); return fract(p.x*p.y); }
-        // wiper pivots at the bottom of the screen (uv space), sweeping arcs
-        float wipedAfter(vec2 uv, float birth) {
-          vec2 piv = uv.x < 0.5 ? vec2(0.28, 0.0) : vec2(0.78, 0.0);
-          vec2 d = (uv - piv) * vec2(2.2, 1.6);
-          if (length(d) > 1.05) return 0.0;
-          float ang = atan(d.x, d.y); // -pi/2..pi/2
-          float idx = clamp((ang + 1.6) / 3.2, 0.0, 1.0);
-          float last = texture2D(uWipe, vec2(idx, 0.5)).r;
-          return step(birth, last);
+        // time the wiper blade last passed over this point (two pivots, arms
+        // sweeping from horizontal (-x) to vertical); -100 if never
+        float lastWipe(vec2 m) {
+          float best = -100.0;
+          for (int i = 0; i < 2; i++) {
+            vec2 d = m - (i == 0 ? vec2(0.95, 1.0) : vec2(-0.2, 1.0));
+            float r = length(d);
+            if (r > 0.97 || r < 0.12 || d.y < -0.03 || d.x > 0.03) continue;
+            float phi = atan(-d.x, d.y);
+            best = max(best, texture2D(uWipe, vec2(clamp(phi / 1.6, 0.0, 1.0), 0.5)).r);
+          }
+          return best;
         }
         void main() {
+          vec2 m = vec2((vUv.x - 0.5) * 2.36, vUv.y * 1.5 + 1.02);
+          float wiped = lastWipe(m);
           vec4 col = vec4(0.0);
-          for (int layer = 0; layer < 2; layer++) {
-            float sc = layer == 0 ? 26.0 : 11.0;
-            vec2 g = vUv * vec2(sc * 2.0, sc);
+          for (int layer = 0; layer < 3; layer++) {
+            float sc = layer == 0 ? 30.0 : layer == 1 ? 14.0 : 7.0;
+            vec2 g = vUv * vec2(sc * 1.6, sc);
             vec2 id = floor(g);
             vec2 f = fract(g) - 0.5;
             float r = h(id + float(layer) * 7.0);
-            float period = 1.5 + r * 5.0;
+            float period = 1.2 + r * 4.0;
             float birth = floor((uTime + r * 40.0) / period) * period - r * 40.0;
+            if (wiped > birth) continue;            // swept away since it landed
+            if (r > uRain * (layer == 2 ? 0.35 : 0.8)) continue;
+            vec2 off = vec2(h(id + 3.1) - 0.5, h(id + 5.7) - 0.5) * 0.5;
+            // big drops slowly run down the glass
             float age = uTime - birth;
-            vec2 off = vec2(h(id + 3.1) - 0.5, h(id + 5.7) - 0.5) * 0.6;
-            vec2 q = (f - off) * vec2(2.0, 1.0);
-            float size = (layer == 0 ? 0.12 : 0.18) * (0.6 + r * 0.6);
-            float d = length(q);
-            float drop = smoothstep(size, size * 0.6, d) * step(r, uRain * 0.85);
-            drop *= 1.0 - wipedAfter(vUv, birth);
-            float hl = smoothstep(size * 0.5, 0.0, length(q - vec2(-size * 0.3, size * 0.35)));
-            col += vec4(vec3(0.75 + hl * 0.6), drop * (0.22 + hl * 0.4));
+            if (layer == 2) off.y -= min(age * 0.06 * r, 0.3);
+            vec2 q = (f - off) * vec2(1.6, 1.0);
+            float size = (layer == 0 ? 0.13 : layer == 1 ? 0.17 : 0.2) * (0.6 + r * 0.6);
+            float d = length(q * vec2(1.0, layer == 2 ? 0.8 : 1.0));
+            float body = smoothstep(size, size * 0.78, d);
+            if (body <= 0.0) continue;
+            float rim = smoothstep(size * 0.35, size * 0.95, d);
+            float hl = smoothstep(size * 0.32, 0.0, length(q - vec2(-size * 0.28, size * 0.34)));
+            // a drop is a tiny lens: darker refracted rim, bright specular glint
+            vec3 c = mix(vec3(0.62, 0.66, 0.7), vec3(0.08, 0.09, 0.1), rim * 0.85);
+            c = mix(c, vec3(1.8), hl);
+            float a = body * (0.3 + rim * 0.4 + hl * 0.5);
+            col.rgb = mix(col.rgb, c, a);
+            col.a = max(col.a, a);
           }
-          gl_FragColor = vec4(col.rgb / max(col.a, 1e-3), min(col.a, 0.55));
+          gl_FragColor = vec4(col.rgb, min(col.a, 0.7));
         }`,
+      side: THREE.DoubleSide,
     });
     this.screen = new THREE.Mesh(new THREE.PlaneGeometry(2.36, 1.5), mat);
-    this.screen.rotation.y = Math.PI;
     this.screen.position.set(0, 1.77, FRONT_Z + 0.07);
     this.screen.visible = false;
     this.screen.renderOrder = 10;
@@ -143,11 +158,15 @@ export class WeatherFx {
     if (bus && this.screen.parent !== bus.model.front) bus.model.front.add(this.screen);
     this.screen.visible = this.weather === 'rain' && !!bus;
     if (bus && bus.wiper) {
-      // record when each angular bucket was last swept by the wiper blades
+      // record when each angular bucket was last swept by the blades (arm
+      // angle from vertical = 1.5 - wiper angle); fill the span covered
+      // since the previous frame so fast sweeps leave no gaps
       const ang = bus.wiper.mode > 0 ? Math.sin(Math.min(1, (bus.wiper.phase % 1) * 1.6) * Math.PI) * 1.45 : 0;
-      const k = Math.floor(((1.5 - ang) / Math.PI) * 63 + 0.5);
+      const k = Math.round(((1.5 - ang) / 1.6) * 63);
+      const k0 = this.prevK ?? k;
       const t = this.wsUniforms.uTime.value;
-      for (let j = Math.max(0, 63 - k - 2); j <= Math.min(63, 63 - k + 2); j++) this.wipe[j] = t;
+      for (let j = Math.max(0, Math.min(k, k0) - 1); j <= Math.min(63, Math.max(k, k0) + 1); j++) this.wipe[j] = t;
+      this.prevK = k;
       this.wipeTex.needsUpdate = true;
     }
   }

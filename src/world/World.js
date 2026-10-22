@@ -117,6 +117,10 @@ export class World {
     if (this.materials) this.materials.buildings.uniforms.uNight.value = v;
   }
 
+  tick(dt) {
+    if (this.materials && this.materials.roads.time) this.materials.roads.time.value = (this.materials.roads.time.value + dt) % 1000;
+  }
+
   setWet(v) {
     if (this.materials) {
       this.materials.roads.wet.value = v;

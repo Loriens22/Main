@@ -30,12 +30,23 @@ export class SkySystem {
     // tame the HDR sun disc so it does not flood the bloom pass
     this.sky.material.fragmentShader = this.sky.material.fragmentShader
       .replace('760.0 * sundisc', '60.0 * sundisc')
-      .replace('gl_FragColor = vec4( texColor, 1.0 );', 'gl_FragColor = vec4( texColor * skyScale, 1.0 );')
-      .replace('uniform vec3 up;', 'uniform vec3 up;\nuniform float skyScale;');
+      .replace('gl_FragColor = vec4( texColor, 1.0 );', `
+      // overcast deck (rain): a low, uniform stratus layer with soft darker
+      // billows that hides the Preetham sky; values are display-linear
+      if ( overcast > 0.0 ) {
+        float hy = direction.y;
+        vec2 ouv = direction.xz / max( hy + 0.15, 0.06 );
+        float on = fbm( ouv * 1.1 + time * 0.0035, time * 0.0015 ) * 0.5 + 0.5;
+        float big = noise( ouv * 0.28 + time * 0.0008 ) * 0.5 + 0.5;
+        vec3 oc = overcastCol * ( 0.62 + 0.5 * on * ( 0.6 + 0.8 * big ) );
+        oc *= mix( 1.12, 0.78, clamp( hy * 1.6, 0.0, 1.0 ) );
+        texColor = mix( texColor, oc / skyScale, overcast );
+      }
+      gl_FragColor = vec4( texColor * skyScale, 1.0 );`)
+      .replace(/void main\(\)/, 'uniform float skyScale;\nuniform float overcast;\nuniform vec3 overcastCol;\nvoid main()');
     this.sky.material.uniforms.skyScale = { value: 0.22 };
-    if (!this.sky.material.fragmentShader.includes('uniform float skyScale')) {
-      this.sky.material.fragmentShader = 'uniform float skyScale;\n' + this.sky.material.fragmentShader;
-    }
+    this.sky.material.uniforms.overcast = { value: 0 };
+    this.sky.material.uniforms.overcastCol = { value: new THREE.Color(0.4, 0.42, 0.45) };
     const u = this.sky.material.uniforms;
     u.turbidity.value = 4.5;
     u.rayleigh.value = 1.6;
@@ -174,9 +185,12 @@ export class SkySystem {
       this.sun.intensity = 0.25;
       this.hemi.color.setRGB(0.18, 0.22, 0.34);
       this.hemi.groundColor.setRGB(0.08, 0.07, 0.07);
-      this.hemi.intensity = 0.7;
+      this.hemi.intensity = 0.55;
     }
     this.stars.material.opacity = weather === 'clear' ? night * 0.9 : 0;
+    // overcast deck: grey by day, faint sodium-tinted city glow at night
+    u.overcast.value = weather === 'rain' ? 0.97 : 0;
+    u.overcastCol.value.setRGB(0.36, 0.38, 0.41).multiplyScalar(0.06 + 0.94 * day).lerp(new THREE.Color(0.03, 0.022, 0.018), night);
     // fog colour ~ horizon
     const fogDay = cloudy ? new THREE.Color(0xb7bec4) : new THREE.Color(0xc4d2de);
     const fogDusk = new THREE.Color(0xd6a47c);
