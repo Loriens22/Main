@@ -1,7 +1,7 @@
 // All UI styles (injected once). Responsive for phones (landscape & portrait),
 // foldables and display cut-outs via env(safe-area-inset-*).
 export const CSS = /* css */ `
-.ui-root{position:absolute;inset:0;pointer-events:none;font-size:calc(14px*var(--ui-scale))}
+.ui-root{position:absolute;inset:0;pointer-events:none;z-index:5;font-size:calc(14px*var(--ui-scale))}
 .ui-root *{pointer-events:auto}
 .panel{background:var(--panel);border:1px solid var(--line);border-radius:14px;backdrop-filter:blur(10px);-webkit-backdrop-filter:blur(10px);box-shadow:0 10px 40px rgba(0,0,0,.35)}
 .btn{appearance:none;border:1px solid var(--line);background:rgba(255,255,255,.06);color:var(--text);border-radius:12px;padding:12px 18px;font-weight:600;cursor:pointer;transition:background .15s,transform .1s,border-color .15s;font-size:1em;touch-action:manipulation}
@@ -11,6 +11,7 @@ export const CSS = /* css */ `
 .btn.primary:hover{background:linear-gradient(180deg,#ffc04a,#ff9a0d)}
 .btn.green{background:linear-gradient(180deg,#48b562,#2f8f45);border-color:#6fd187}
 .btn:disabled{opacity:.4;cursor:default}
+/* stacking: HUD < touch controls (z 2) < menus / pause (z 5) < trip result (z 6) */
 /* ---------- main menu */
 .menu{position:absolute;inset:0;display:flex;align-items:stretch;justify-content:space-between;gap:24px;
   padding:calc(24px + var(--safe-t)) calc(24px + var(--safe-r)) calc(24px + var(--safe-b)) calc(24px + var(--safe-l));
@@ -28,6 +29,8 @@ export const CSS = /* css */ `
 .menu .foot{color:var(--dim);font-size:.75em;margin-top:8px;line-height:1.4}
 .setup{position:absolute;right:calc(24px + var(--safe-r));top:calc(24px + var(--safe-t));bottom:calc(24px + var(--safe-b));width:min(460px,92vw);padding:20px;overflow:auto;display:flex;flex-direction:column;gap:14px}
 .setup h2{margin:0;font-size:1.3em}
+.setup,.menu,.menu .col,.hud .result{touch-action:pan-y;-webkit-overflow-scrolling:touch}
+.setup .go-row{position:sticky;bottom:-20px;margin:0 -20px -20px;padding:12px 20px 20px;background:linear-gradient(180deg,rgba(14,22,17,0),#0e1611 12px);z-index:2}
 .field{display:flex;flex-direction:column;gap:6px}
 .field label{font-size:.8em;color:var(--dim);text-transform:uppercase;letter-spacing:.06em}
 .seg{display:flex;flex-wrap:wrap;gap:6px}
@@ -90,7 +93,7 @@ select{background:#16211b;color:var(--text);border:1px solid var(--line);border-
 .hud .prompt kbd{font-family:monospace;background:rgba(255,255,255,.15);padding:2px 7px;border-radius:5px;margin-right:6px}
 .hud .help{position:absolute;right:calc(12px + var(--safe-r));bottom:calc(12px + var(--safe-b));padding:10px 12px;font-size:.78em;line-height:1.55;color:var(--dim);max-width:280px}
 .hud .help b{color:var(--text)}
-.hud .result{position:absolute;left:50%;top:50%;transform:translate(-50%,-50%);padding:22px 26px;min-width:min(420px,90vw);max-height:calc(100% - 20px - var(--safe-t) - var(--safe-b));overflow:auto;pointer-events:auto}
+.hud .result{position:absolute;z-index:6;left:50%;top:50%;transform:translate(-50%,-50%);padding:22px 26px;min-width:min(420px,90vw);max-height:calc(100% - 20px - var(--safe-t) - var(--safe-b));overflow:auto;pointer-events:auto}
 .hud .result *{pointer-events:auto}
 .hud .result h2{margin:0 0 10px}
 .hud .result table{width:100%;border-collapse:collapse;margin:8px 0 14px}
@@ -103,7 +106,7 @@ select{background:#16211b;color:var(--text);border:1px solid var(--line);border-
 .pause{position:absolute;inset:0;display:flex;align-items:center;justify-content:center;background:rgba(0,0,0,.45)}
 .pause .panel{padding:24px;display:flex;flex-direction:column;gap:10px;min-width:260px}
 /* ---------- touch controls */
-.touch{position:absolute;inset:0;pointer-events:none}
+.touch{position:absolute;inset:0;pointer-events:none;z-index:2}
 .touch .tc{position:absolute;pointer-events:auto;touch-action:none;user-select:none}
 .touch .wheel{left:calc(16px + var(--safe-l));bottom:calc(16px + var(--safe-b));width:calc(150px*var(--tc));height:calc(150px*var(--tc));border-radius:50%;
   background:radial-gradient(circle,rgba(0,0,0,0) 52%,rgba(20,24,26,.75) 53%,rgba(20,24,26,.75) 70%,rgba(0,0,0,0) 71%),radial-gradient(circle,rgba(30,34,36,.6) 18%,transparent 19%);
@@ -170,6 +173,7 @@ select{background:#16211b;color:var(--text);border:1px solid var(--line);border-
   .menu .big .ico{width:28px;height:28px}
   .menu .foot{font-size:.62em;margin-top:2px}
   .setup{top:calc(10px + var(--safe-t));bottom:calc(10px + var(--safe-b));padding:14px;gap:10px}
+  .setup .go-row{bottom:-14px;margin:0 -14px -14px;padding:10px 14px 14px}
 }
 @media (orientation:portrait) and (pointer:coarse){
   .hud .route{max-width:70vw}

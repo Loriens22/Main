@@ -31,6 +31,40 @@ const path = require('path');
       try { const r = await p.evaluate(s.eval); if (r !== undefined) console.log('eval:', JSON.stringify(r).slice(0, 20000)); }
       catch (e) { logs.push('[eval error] ' + e.message); }
     }
+    // real input (hit-tested like a finger or mouse), unlike element.click() in eval
+    if (s.tap) {
+      try { await p.tap(s.tap, { timeout: 25000 }); console.log('tap ok:', s.tap); }
+      catch (e) { logs.push('[tap failed] ' + s.tap + ': ' + e.message.split('\n').slice(0, 14).join(' | ')); }
+    }
+    if (s.touchAt) { await p.touchscreen.tap(s.touchAt[0], s.touchAt[1]); console.log('touch at', s.touchAt.join(',')); }
+    // {drag: [x1, y1, x2, y2]}: mouse drag (desktop look-around)
+    if (s.drag) {
+      const [x1, y1, x2, y2] = s.drag;
+      await p.mouse.move(x1, y1); await p.mouse.down();
+      for (let i = 1; i <= 8; i++) { await p.mouse.move(x1 + ((x2 - x1) * i) / 8, y1 + ((y2 - y1) * i) / 8); await p.waitForTimeout(16); }
+      await p.mouse.up(); console.log('drag ok');
+    }
+    // {hold: {sel, ms, dx, dy}}: press a finger on the element, optionally drag by (dx, dy), hold, release
+    if (s.hold) {
+      const box = await p.locator(s.hold.sel).first().boundingBox().catch(() => null);
+      if (!box) logs.push('[hold failed] no element ' + s.hold.sel);
+      else {
+        const cdp = await p.context().newCDPSession(p);
+        const x = box.x + box.width / 2 + (s.hold.ox || 0), y = box.y + box.height / 2 + (s.hold.oy || 0);
+        const pt = (px, py) => [{ x: px, y: py, id: 7, radiusX: 4, radiusY: 4, force: 1 }];
+        await cdp.send('Input.dispatchTouchEvent', { type: 'touchStart', touchPoints: pt(x, y) });
+        const steps = 8, dx = s.hold.dx || 0, dy = s.hold.dy || 0;
+        for (let i = 1; i <= steps && (dx || dy); i++) {
+          await cdp.send('Input.dispatchTouchEvent', { type: 'touchMove', touchPoints: pt(x + (dx * i) / steps, y + (dy * i) / steps) });
+          await p.waitForTimeout(16);
+        }
+        if (s.hold.during) { const r = await p.evaluate(s.hold.during); console.log('during hold:', JSON.stringify(r)); }
+        await p.waitForTimeout(s.hold.ms || 300);
+        if (s.hold.before) { const r = await p.evaluate(s.hold.before); console.log('before release:', JSON.stringify(r)); }
+        await cdp.send('Input.dispatchTouchEvent', { type: 'touchEnd', touchPoints: [] });
+        console.log('hold ok:', s.hold.sel);
+      }
+    }
     if (s.wait) await p.waitForTimeout(s.wait);
     if (s.shot) await p.screenshot({ path: path.join(outdir, s.shot), ...(/\.jpe?g$/.test(s.shot) ? { type: 'jpeg', quality: 84 } : {}) });
   }

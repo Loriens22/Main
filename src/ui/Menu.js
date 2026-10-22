@@ -157,7 +157,7 @@ export class Menu {
     }
     p.appendChild(this.field(t('graphics'), qs));
     const row = document.createElement('div');
-    row.className = 'row';
+    row.className = 'row go-row'; // stays visible at the bottom while the options scroll
     row.style.display = 'flex';
     row.style.gap = '10px';
     row.style.marginTop = 'auto';
