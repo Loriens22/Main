@@ -120,6 +120,8 @@ export class AIBusDriver {
     } else if (this.state === 'dwell') {
       this.timer += dt;
       vDes = 0;
+      // timetable hold (a bus waiting at the terminal for its departure time)
+      if (bus.holdFor > 0) { bus.holdFor = Math.max(0, bus.holdFor - dt); this.timer = 0; }
       const busy = (bus.boarding || 0) > 0;
       if (busy) this.quiet = 0; else this.quiet = (this.quiet || 0) + dt;
       const minDwell = next && next.isLast ? 8 : 5;

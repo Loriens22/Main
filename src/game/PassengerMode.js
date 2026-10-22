@@ -9,7 +9,8 @@ import { clamp, damp } from '../core/math.js';
 import { t, L } from '../ui/i18n.js';
 
 const EYE = 1.63;
-const HEADWAY = 230; // m upstream where the next bus is spawned
+const HEADWAY_S = 120; // a 280 every ~2 minutes: the next one after you get off or miss one
+const AVG_SPEED = 9.5; // m/s between stops when the bus only stops where needed (measured headless)
 
 export class PassengerMode {
   constructor(game, opts) {
@@ -38,12 +39,34 @@ export class PassengerMode {
     this.pos = new THREE.Vector3(c.x + rx * off - t.tx * 7, 0, c.z + rz * off - t.tz * 7);
     const vx = -t.tx * 0.8 - rx * 0.6, vz = -t.tz * 0.8 - rz * 0.6;
     this.yaw = Math.atan2(-vx, -vz);
-    this.spawnBus(this.startStop.frontS - 520);
+    this.scheduleBus(70);
     game.hud.toast(L(`${this.startStop.name} — изчакайте автобус 280`, `${this.startStop.name} — wait for bus 280`), false, 5);
     game.rig.shake = 0;
   }
 
-  spawnBus(s) {
+  /** Send the next bus so that it reaches the player's stop in about `eta` seconds. */
+  scheduleBus(eta) {
+    const stop = this.startStop;
+    let s = stop.frontS - eta * AVG_SPEED;
+    let hold = 0;
+    if (s < 0) { hold = -s / AVG_SPEED; s = 0; } // it departs from the terminal a bit later
+    const bus = this.spawnBus(s, { hold });
+    bus.target = stop;
+    return bus;
+  }
+
+  /** Buses of the player's direction that have not reached the player's stop yet. */
+  approaching() {
+    const st = this.startStop;
+    return this.buses.filter((b) => b !== this.ride && b.dirId === this.dirId && b.routeS != null && b.routeS < st.frontS - 3 && !b.stops.served.has(st.index));
+  }
+
+  /** Seconds until the bus reaches the player's stop (rough, from distance and terminal wait). */
+  etaOf(bus) {
+    return Math.max(0, (bus.holdFor || 0) + (this.startStop.frontS - (bus.routeS ?? 0)) / AVG_SPEED);
+  }
+
+  spawnBus(s, { hold = 0 } = {}) {
     const g = this.game;
     const fleets = ['3145', '3153', '2319'];
     const bus = new BusEntity({ scene: g.scene, world: g.world, route: g.route, dirId: this.dirId, fleet: fleets[this.buses.length % 3], quality: g.quality });
@@ -53,14 +76,21 @@ export class PassengerMode {
     while (idx < dir.stops.length - 1 && dir.stops[idx].frontS < s + 5) idx++;
     bus.stops.next = idx;
     bus.placeAt(Math.max(0, s));
+    bus.routeS = Math.max(0, s); // known before its first update (ETA, scheduling)
     bus.lights.head = g.sky.night > 0.3;
     bus.driver = new AIBusDriver(bus, { traffic: g.traffic, signals: g.traffic && g.traffic.signals, peds: g.peds });
+    if (s <= 0) {
+      // waiting at the terminal with the doors open until its departure time
+      bus.holdFor = hold;
+      bus.doors.open(null, 0);
+      bus.driver.state = 'dwell';
+    }
     bus.forceServe = this.startStop.index;
     g.wireBus(bus);
     if (g.peds) g.peds.attachBus(bus);
     // a few riders already on board
     if (g.peds) for (let i = 0; i < 6 + Math.floor(Math.random() * 10); i++) bus.riders.push({ look: g.peds.newLook(), dest: Math.min(dir.stops.length - 1, idx + Math.floor(Math.random() * (dir.stops.length - idx))), seat: g.peds.freeSeat(bus), anim: Math.random() * 10 });
-    bus.phys.v = 9;
+    bus.phys.v = s > 0 ? 9 : 0;
     this.buses.push(bus);
     g.extra = this.buses.filter((b) => b !== g.bus);
     if (!g.bus) g.bus = bus;
@@ -87,25 +117,25 @@ export class PassengerMode {
       bus.syncVisual();
       for (const e of bus.events.splice(0)) g.onStopEvent(bus, e);
     }
-    // manage bus lifecycle: spawn the next bus once the current one has passed the start stop
-    const first = this.buses[0];
-    if (first && this.state === 'outside' && first.routeS > this.startStop.frontS + 40 && this.buses.length < 2) {
-      const nb = this.spawnBus(this.startStop.frontS - HEADWAY - 300);
-      const mins = Math.round((HEADWAY + 300) / 8 / 60) + 1;
-      g.hud.toast(L(`Изпуснахте автобуса. Следващият 280 идва след ~${mins} мин`, `You missed the bus. The next 280 arrives in ~${mins} min`), false, 5);
-      void nb;
+    // the service: while the player waits there is always a 280 on its way, and it stops for them
+    if (this.state === 'outside') for (const b of this.approaching()) b.forceServe = this.startStop.index;
+    if (this.state === 'outside' && !this.approaching().length) {
+      const missed = this.buses.some((b) => b.dirId === this.dirId && b.target === this.startStop && b.routeS > this.startStop.frontS + 30);
+      this.scheduleBus(HEADWAY_S);
+      if (missed) g.hud.toast(L(`Изпуснахте автобуса. Следващият 280 идва след ${HEADWAY_S / 60} мин`, `You missed the bus. The next 280 arrives in ${HEADWAY_S / 60} min`), false, 5);
     }
     for (let i = this.buses.length - 1; i >= 0; i--) {
       const b = this.buses[i];
       const far = b.camDist > 900;
-      if (b !== this.ride && (b.stops.finished || (far && b.routeS > this.startStop.frontS + 300))) {
+      const gone = b.dirId !== this.dirId || b.routeS > this.startStop.frontS + 300;
+      if (b !== this.ride && (b.stops.finished || (far && gone))) {
         if (g.peds) g.peds.detachBus(b);
         b.dispose();
         this.buses.splice(i, 1);
       }
     }
-    if (!this.buses.length) this.spawnBus(this.startStop.frontS - HEADWAY);
-    g.bus = this.ride || this.buses[0];
+    const coming = this.state === 'outside' ? this.approaching().sort((a, b) => this.etaOf(a) - this.etaOf(b))[0] : null;
+    g.bus = this.ride || coming || this.buses[0];
     g.extra = this.buses.filter((b) => b !== g.bus);
     // look
     this.yaw -= inp.lookX;
@@ -124,9 +154,19 @@ export class PassengerMode {
         dist: this.ride && next ? next.frontS - bus.routeS : bus.camDist, delay: null, stopRequested: bus.stopRequested,
         fps: g.settings.showFps ? g.fpsAcc.fps : null, quality: g.quality,
       });
-      g.hud.q.lbl.textContent = this.ride ? (bus.stops.atStop >= 0 ? t('stop') : t('nextStop')) : L('Автобус 280 — разстояние', 'Bus 280 — distance');
-      g.hud.q.name.textContent = this.ride ? (next ? next.name : '—') : `${bus.fleetLabel || 'MAN Lion\'s City G'} → ${bus.dir.headsign}`;
-      g.hud.q.dist.textContent = this.ride ? g.hud.q.dist.textContent : L(`${Math.round(bus.camDist)} м`, `${Math.round(bus.camDist)} m`);
+      g.hud.q.lbl.textContent = this.ride ? (bus.stops.atStop >= 0 ? t('stop') : t('nextStop')) : L(`Следващ 280 · ${this.startStop.name}`, `Next 280 · ${this.startStop.name}`);
+      g.hud.q.name.textContent = this.ride ? (next ? next.name : '—') : `→ ${bus.dir.headsign}`;
+      if (!this.ride) {
+        const atStop = bus.target === this.startStop && bus.stops.atStop === this.startStop.index;
+        const eta = this.etaOf(bus);
+        const mm = Math.floor(eta / 60), ss = Math.floor(eta % 60);
+        g.hud.q.dist.textContent = atStop ? L('На спирката — качете се!', 'At the stop — get on!') : eta < 20 ? L('Пристига…', 'Arriving…') : `${mm}:${String(ss).padStart(2, '0')} ${L('мин', 'min')} · ${Math.round(bus.camDist)} ${L('м', 'm')}`;
+        this.boardT = (this.boardT || 0) - dt;
+        if (this.boardT <= 0 && g.furniture && g.furniture.setBoard) {
+          this.boardT = 1;
+          g.furniture.setBoard(this.startStop.code, atStop || eta < 20 ? 0 : Math.ceil(eta / 60));
+        }
+      }
       this.mapT = (this.mapT || 0) - dt;
       if (this.mapT <= 0) {
         this.mapT = 0.15;
@@ -359,7 +399,18 @@ export class PassengerMode {
     this.ride = null;
     this.state = 'outside';
     this.startStop = bus.stops.atStop >= 0 ? bus.dir.stops[bus.stops.atStop] : this.startStop;
-    g.hud.toast(L(`Слязохте на спирка ${this.startStop.name}. Приятен ден!`, `You got off at ${this.startStop.name}. Have a nice day!`), false, 4);
+    const here = this.startStop.name;
+    if (this.startStop.isLast) {
+      // end of the line: the next 280 leaves from the departure stop of the other direction
+      this.dirId = g.route.other(this.dirId);
+      this.startStop = g.route.direction(this.dirId).stops[0];
+    }
+    // the next 280 is ~2 minutes behind (keep one that is already closer)
+    const soon = this.approaching().filter((b) => this.etaOf(b) < HEADWAY_S + 30);
+    const nb = soon.length ? soon.sort((a, b) => this.etaOf(a) - this.etaOf(b))[0] : this.scheduleBus(HEADWAY_S);
+    nb.forceServe = this.startStop.index;
+    const mins = Math.max(1, Math.round(this.etaOf(nb) / 60));
+    g.hud.toast(L(`Слязохте на спирка ${here}. Следващият 280 идва след ${mins} мин.`, `You got off at ${here}. The next 280 arrives in ${mins} min.`), false, 5);
   }
 
   cinematic(dt) {

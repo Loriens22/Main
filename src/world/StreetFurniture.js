@@ -574,19 +574,33 @@ export class StreetFurniture {
     c.width = 256;
     c.height = 96;
     const g = c.getContext('2d');
-    g.fillStyle = '#050505';
-    g.fillRect(0, 0, 256, 96);
-    g.fillStyle = '#ffae1a';
-    g.font = 'bold 26px "Arial Narrow", Arial';
-    g.fillText('280', 10, 38);
-    g.fillText(`${2 + (Number(st.code) % 9)} мин`, 170, 38);
-    g.font = '20px "Arial Narrow", Arial';
-    g.fillText(st.dir === 'A' ? 'Студентски град' : 'СУ Св. Кл. Охридски', 10, 76);
     const tex = new THREE.CanvasTexture(c);
     tex.colorSpace = THREE.SRGBColorSpace;
+    const draw = (mins) => {
+      g.fillStyle = '#050505';
+      g.fillRect(0, 0, 256, 96);
+      g.fillStyle = '#ffae1a';
+      g.font = 'bold 26px "Arial Narrow", Arial';
+      g.fillText('280', 10, 38);
+      g.fillText(mins <= 0 ? 'сега' : `${mins} мин`, 170, 38);
+      g.font = '20px "Arial Narrow", Arial';
+      g.fillText(st.dir === 'A' ? 'Студентски град' : 'СУ Св. Кл. Охридски', 10, 76);
+      tex.needsUpdate = true;
+    };
+    draw(2 + (Number(st.code) % 9));
+    this.boards = this.boards || new Map();
+    this.boards.set(st.code, { draw, last: null });
     const mesh = new THREE.Mesh(new THREE.PlaneGeometry(0.8, 0.3), new THREE.MeshBasicMaterial({ map: tex, color: new THREE.Color(1.6, 1.6, 1.6) }));
     mesh.rotation.y = Math.PI;
     return mesh;
+  }
+
+  /** Live countdown on a stop's departure board (passenger mode). */
+  setBoard(code, mins) {
+    const b = this.boards && this.boards.get(code);
+    if (!b || b.last === mins) return;
+    b.last = mins;
+    b.draw(mins);
   }
 
   setNight(n) {

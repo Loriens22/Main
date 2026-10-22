@@ -1,0 +1,2201 @@
+{
+ "stop": {
+  "code": "0741",
+  "name": "Зимен дворец на спорта",
+  "lat": 42.6445948,
+  "lon": 23.3419737,
+  "pole": [
+   -821.93,
+   2711.08
+  ],
+  "road": "Акад. Борис Стефанов",
+  "uses": [
+   "A15"
+  ]
+ },
+ "note": "x east, z south, metres from the game origin (lat 42.669, lon 23.352). dist = metres from the stop pole.",
+ "buildings": [
+  {
+   "overture": "3b7d0a1d-3d55-4c1e-9790-3eb8a9682a0f",
+   "osm": "w65134340@8",
+   "lat": 42.644618,
+   "lon": 23.341819,
+   "x": -834.6,
+   "z": 2708.6,
+   "size_m": [
+    10.8,
+    8.4
+   ],
+   "levels": null,
+   "height": null,
+   "cls": "commercial",
+   "subtype": "commercial",
+   "name": "Промо Стейшън 2",
+   "roof": null,
+   "roof_color": null,
+   "facade_color": null,
+   "facade_material": null,
+   "dist": 12.9
+  },
+  {
+   "overture": "d6f1b9f2-726b-4b46-9eed-2afd4c040c83",
+   "osm": null,
+   "lat": 42.644727,
+   "lon": 23.341843,
+   "x": -832.6,
+   "z": 2696.4,
+   "size_m": [
+    9.6,
+    7.7
+   ],
+   "levels": null,
+   "height": null,
+   "cls": null,
+   "subtype": null,
+   "name": null,
+   "roof": null,
+   "roof_color": null,
+   "facade_color": null,
+   "facade_material": null,
+   "dist": 18.1
+  },
+  {
+   "overture": "a9f49f4f-ccce-45c0-aa27-9b43cf4e7102",
+   "osm": "w1375488360@3",
+   "lat": 42.644678,
+   "lon": 23.342197,
+   "x": -803.6,
+   "z": 2701.8,
+   "size_m": [
+    8.9,
+    6.5
+   ],
+   "levels": 1,
+   "height": null,
+   "cls": "retail",
+   "subtype": "commercial",
+   "name": null,
+   "roof": "flat",
+   "roof_color": null,
+   "facade_color": null,
+   "facade_material": null,
+   "dist": 20.5
+  },
+  {
+   "overture": "128e00fe-ca25-4199-957a-760e08b30c1b",
+   "osm": "w65134343@8",
+   "lat": 42.64474,
+   "lon": 23.341664,
+   "x": -847.3,
+   "z": 2694.9,
+   "size_m": [
+    14.4,
+    11.9
+   ],
+   "levels": 1,
+   "height": null,
+   "cls": "retail",
+   "subtype": "commercial",
+   "name": "Хляб и мръвка",
+   "roof": "flat",
+   "roof_color": null,
+   "facade_color": null,
+   "facade_material": null,
+   "dist": 30.1
+  },
+  {
+   "overture": "d80ceb42-ba92-461f-83dc-18659bafd1fb",
+   "osm": "w1447340549@2",
+   "lat": 42.644276,
+   "lon": 23.342109,
+   "x": -810.8,
+   "z": 2746.5,
+   "size_m": [
+    5.0,
+    4.2
+   ],
+   "levels": null,
+   "height": null,
+   "cls": "retail",
+   "subtype": "commercial",
+   "name": null,
+   "roof": null,
+   "roof_color": null,
+   "facade_color": null,
+   "facade_material": null,
+   "dist": 37.1
+  },
+  {
+   "overture": "a540e304-ca8d-4372-bdd2-23f76e948c93",
+   "osm": "w1447348004@1",
+   "lat": 42.644686,
+   "lon": 23.341494,
+   "x": -861.3,
+   "z": 2700.9,
+   "size_m": [
+    8.3,
+    3.6
+   ],
+   "levels": null,
+   "height": null,
+   "cls": "retail",
+   "subtype": "commercial",
+   "name": null,
+   "roof": null,
+   "roof_color": null,
+   "facade_color": null,
+   "facade_material": null,
+   "dist": 40.7
+  },
+  {
+   "overture": "74d9a092-e063-42be-ab31-ad8cb6f8019b",
+   "osm": "w1447340548@3",
+   "lat": 42.644231,
+   "lon": 23.342107,
+   "x": -811.0,
+   "z": 2751.5,
+   "size_m": [
+    6.3,
+    4.3
+   ],
+   "levels": null,
+   "height": null,
+   "cls": "retail",
+   "subtype": "commercial",
+   "name": null,
+   "roof": null,
+   "roof_color": null,
+   "facade_color": null,
+   "facade_material": null,
+   "dist": 41.9
+  },
+  {
+   "overture": "af31a0d2-0212-4461-a599-b907dc14d635",
+   "osm": "w1447340547@3",
+   "lat": 42.644183,
+   "lon": 23.34211,
+   "x": -810.8,
+   "z": 2756.8,
+   "size_m": [
+    5.5,
+    4.5
+   ],
+   "levels": null,
+   "height": null,
+   "cls": "retail",
+   "subtype": "commercial",
+   "name": null,
+   "roof": null,
+   "roof_color": null,
+   "facade_color": null,
+   "facade_material": null,
+   "dist": 47.1
+  },
+  {
+   "overture": "05bbd0a1-ffcb-4bd5-b9bc-4738533d6a1b",
+   "osm": "w53825179@7",
+   "lat": 42.644927,
+   "lon": 23.341538,
+   "x": -857.6,
+   "z": 2674.2,
+   "size_m": [
+    57.5,
+    30.8
+   ],
+   "levels": 2,
+   "height": null,
+   "cls": "retail",
+   "subtype": "commercial",
+   "name": null,
+   "roof": "flat",
+   "roof_color": null,
+   "facade_color": null,
+   "facade_material": null,
+   "dist": 51.3
+  },
+  {
+   "overture": "f99192ff-ac08-4dba-97ba-d868e5fc077e",
+   "osm": "w395674776@2",
+   "lat": 42.644684,
+   "lon": 23.341342,
+   "x": -873.7,
+   "z": 2701.1,
+   "size_m": [
+    20.2,
+    9.7
+   ],
+   "levels": 3,
+   "height": null,
+   "cls": "commercial",
+   "subtype": "commercial",
+   "name": null,
+   "roof": null,
+   "roof_color": null,
+   "facade_color": null,
+   "facade_material": null,
+   "dist": 52.7
+  },
+  {
+   "overture": "2c2a561b-1708-4f02-8104-fdd334dbab83",
+   "osm": "w1447348003@1",
+   "lat": 42.644705,
+   "lon": 23.341169,
+   "x": -887.9,
+   "z": 2698.8,
+   "size_m": [
+    8.7,
+    8.3
+   ],
+   "levels": null,
+   "height": null,
+   "cls": null,
+   "subtype": null,
+   "name": null,
+   "roof": null,
+   "roof_color": null,
+   "facade_color": null,
+   "facade_material": null,
+   "dist": 67.1
+  },
+  {
+   "overture": "00d4d223-f050-41f0-90d1-8cad93d76dda",
+   "osm": "w220308740@11",
+   "lat": 42.64404,
+   "lon": 23.341456,
+   "x": -864.4,
+   "z": 2772.7,
+   "size_m": [
+    109.0,
+    67.0
+   ],
+   "levels": 8,
+   "height": null,
+   "cls": "apartments",
+   "subtype": "residential",
+   "name": null,
+   "roof": null,
+   "roof_color": null,
+   "facade_color": null,
+   "facade_material": null,
+   "dist": 74.8
+  },
+  {
+   "overture": "29b9170c-37e6-4303-a101-2318d02c9c12",
+   "osm": "w66479455@9",
+   "lat": 42.645259,
+   "lon": 23.342398,
+   "x": -787.2,
+   "z": 2637.3,
+   "size_m": [
+    83.0,
+    23.8
+   ],
+   "levels": 9,
+   "height": null,
+   "cls": "commercial",
+   "subtype": "commercial",
+   "name": "South Mall",
+   "roof": "flat",
+   "roof_color": null,
+   "facade_color": null,
+   "facade_material": null,
+   "dist": 81.5
+  },
+  {
+   "overture": "39c5636f-405d-433c-b046-1b5aeadd0212",
+   "osm": "w1447342749@1",
+   "lat": 42.643746,
+   "lon": 23.34203,
+   "x": -817.3,
+   "z": 2805.3,
+   "size_m": [
+    5.0,
+    2.3
+   ],
+   "levels": null,
+   "height": null,
+   "cls": "kiosk",
+   "subtype": "commercial",
+   "name": null,
+   "roof": null,
+   "roof_color": null,
+   "facade_color": null,
+   "facade_material": null,
+   "dist": 94.3
+  },
+  {
+   "overture": "d451eda8-8349-4403-9013-6c83b2265474",
+   "osm": "w1174500262@3",
+   "lat": 42.644664,
+   "lon": 23.343134,
+   "x": -726.8,
+   "z": 2703.4,
+   "size_m": [
+    54.7,
+    15.1
+   ],
+   "levels": null,
+   "height": null,
+   "cls": "parking",
+   "subtype": "outbuilding",
+   "name": null,
+   "roof": null,
+   "roof_color": null,
+   "facade_color": null,
+   "facade_material": null,
+   "dist": 95.4
+  },
+  {
+   "overture": "5995ac4c-d319-4fd1-b0b8-19aec8c46e35",
+   "osm": "w1447342748@1",
+   "lat": 42.643728,
+   "lon": 23.34203,
+   "x": -817.3,
+   "z": 2807.4,
+   "size_m": [
+    5.0,
+    1.8
+   ],
+   "levels": null,
+   "height": null,
+   "cls": "kiosk",
+   "subtype": "commercial",
+   "name": null,
+   "roof": null,
+   "roof_color": null,
+   "facade_color": null,
+   "facade_material": null,
+   "dist": 96.4
+  },
+  {
+   "overture": "779ae270-469f-4ded-bde3-74ae8a9d484d",
+   "osm": "w640609442@4",
+   "lat": 42.645003,
+   "lon": 23.343035,
+   "x": -734.9,
+   "z": 2665.7,
+   "size_m": [
+    71.2,
+    57.1
+   ],
+   "levels": null,
+   "height": null,
+   "cls": "apartments",
+   "subtype": "residential",
+   "name": null,
+   "roof": null,
+   "roof_color": null,
+   "facade_color": null,
+   "facade_material": null,
+   "dist": 98.2
+  },
+  {
+   "overture": "4a4c0719-bc80-40dc-ae39-6e2e5ad9e57d",
+   "osm": "w1447342747@1",
+   "lat": 42.643703,
+   "lon": 23.342027,
+   "x": -817.6,
+   "z": 2810.1,
+   "size_m": [
+    4.7,
+    3.7
+   ],
+   "levels": null,
+   "height": null,
+   "cls": "retail",
+   "subtype": "commercial",
+   "name": null,
+   "roof": null,
+   "roof_color": null,
+   "facade_color": null,
+   "facade_material": null,
+   "dist": 99.1
+  },
+  {
+   "overture": "3a85f510-90b7-43fc-a035-9252c429266c",
+   "osm": "w1444031137@3",
+   "lat": 42.644939,
+   "lon": 23.340794,
+   "x": -918.7,
+   "z": 2672.8,
+   "size_m": [
+    54.9,
+    54.3
+   ],
+   "levels": 8,
+   "height": null,
+   "cls": null,
+   "subtype": null,
+   "name": null,
+   "roof": "flat",
+   "roof_color": null,
+   "facade_color": null,
+   "facade_material": null,
+   "dist": 104.1
+  },
+  {
+   "overture": "ca962891-fa38-4031-a0e2-12b0f1ece620",
+   "osm": "w43275106@11",
+   "lat": 42.644009,
+   "lon": 23.343126,
+   "x": -727.4,
+   "z": 2776.1,
+   "size_m": [
+    103.3,
+    97.6
+   ],
+   "levels": 2,
+   "height": null,
+   "cls": "sports_centre",
+   "subtype": "entertainment",
+   "name": "Зимен дворец на спорта",
+   "roof": "flat",
+   "roof_color": null,
+   "facade_color": null,
+   "facade_material": null,
+   "dist": 114.7
+  },
+  {
+   "overture": "9901cc03-fd9a-45de-9ba8-e53a8560e067",
+   "osm": "w394021612@1",
+   "lat": 42.644458,
+   "lon": 23.340558,
+   "x": -938.0,
+   "z": 2726.2,
+   "size_m": [
+    12.1,
+    11.3
+   ],
+   "levels": 3,
+   "height": null,
+   "cls": "commercial",
+   "subtype": "commercial",
+   "name": null,
+   "roof": null,
+   "roof_color": null,
+   "facade_color": null,
+   "facade_material": null,
+   "dist": 117.1
+  },
+  {
+   "overture": "369ada79-03d7-46dc-b203-052fc70ac579",
+   "osm": "w640605647@3",
+   "lat": 42.645643,
+   "lon": 23.341789,
+   "x": -837.1,
+   "z": 2594.7,
+   "size_m": [
+    91.0,
+    38.4
+   ],
+   "levels": null,
+   "height": null,
+   "cls": "apartments",
+   "subtype": "residential",
+   "name": null,
+   "roof": null,
+   "roof_color": null,
+   "facade_color": null,
+   "facade_material": null,
+   "dist": 117.4
+  },
+  {
+   "overture": "be26e222-97f3-4b78-a80c-352d61f8788b",
+   "osm": "w1497054518@2",
+   "lat": 42.644686,
+   "lon": 23.340527,
+   "x": -940.5,
+   "z": 2700.9,
+   "size_m": [
+    37.1,
+    12.9
+   ],
+   "levels": 8,
+   "height": null,
+   "cls": null,
+   "subtype": null,
+   "name": null,
+   "roof": "flat",
+   "roof_color": null,
+   "facade_color": null,
+   "facade_material": null,
+   "dist": 119.0
+  },
+  {
+   "overture": "fef1d306-f201-4e98-8098-f7d2cd5fb0ca",
+   "osm": "w259110930@5",
+   "lat": 42.643572,
+   "lon": 23.341144,
+   "x": -889.9,
+   "z": 2824.7,
+   "size_m": [
+    21.9,
+    17.7
+   ],
+   "levels": 2,
+   "height": null,
+   "cls": "apartments",
+   "subtype": "residential",
+   "name": null,
+   "roof": null,
+   "roof_color": null,
+   "facade_color": null,
+   "facade_material": null,
+   "dist": 132.4
+  },
+  {
+   "overture": "e4f79f71-6df7-4b34-a4af-1e241ac6e605",
+   "osm": "w166110236@4",
+   "lat": 42.643403,
+   "lon": 23.342125,
+   "x": -809.5,
+   "z": 2843.5,
+   "size_m": [
+    16.4,
+    10.8
+   ],
+   "levels": null,
+   "height": null,
+   "cls": "service",
+   "subtype": "service",
+   "name": null,
+   "roof": null,
+   "roof_color": null,
+   "facade_color": null,
+   "facade_material": null,
+   "dist": 133.0
+  },
+  {
+   "overture": "598eda68-f140-4a9b-bab8-de2cee794286",
+   "osm": "w259110931@6",
+   "lat": 42.643684,
+   "lon": 23.34085,
+   "x": -914.0,
+   "z": 2812.2,
+   "size_m": [
+    27.9,
+    18.1
+   ],
+   "levels": 4,
+   "height": null,
+   "cls": "apartments",
+   "subtype": "residential",
+   "name": null,
+   "roof": null,
+   "roof_color": null,
+   "facade_color": null,
+   "facade_material": null,
+   "dist": 136.8
+  },
+  {
+   "overture": "53fa742a-781a-4157-bae9-cb45325c3744",
+   "osm": "w394021611@3",
+   "lat": 42.644469,
+   "lon": 23.340287,
+   "x": -960.2,
+   "z": 2725.0,
+   "size_m": [
+    32.8,
+    11.2
+   ],
+   "levels": 4,
+   "height": null,
+   "cls": "residential",
+   "subtype": "residential",
+   "name": null,
+   "roof": null,
+   "roof_color": null,
+   "facade_color": null,
+   "facade_material": null,
+   "dist": 139.0
+  },
+  {
+   "overture": "9420c297-91dc-4ac5-aa5c-2abaa21875f2",
+   "osm": "w220308787@3",
+   "lat": 42.643311,
+   "lon": 23.341453,
+   "x": -864.6,
+   "z": 2853.7,
+   "size_m": [
+    8.1,
+    4.4
+   ],
+   "levels": 1,
+   "height": null,
+   "cls": "commercial",
+   "subtype": "commercial",
+   "name": null,
+   "roof": null,
+   "roof_color": null,
+   "facade_color": null,
+   "facade_material": null,
+   "dist": 148.9
+  },
+  {
+   "overture": "b716dc1f-805a-4289-bc69-989dcac1a106",
+   "osm": "w166110051@4",
+   "lat": 42.643271,
+   "lon": 23.342356,
+   "x": -790.6,
+   "z": 2858.1,
+   "size_m": [
+    37.9,
+    17.8
+   ],
+   "levels": null,
+   "height": null,
+   "cls": "industrial",
+   "subtype": "industrial",
+   "name": null,
+   "roof": null,
+   "roof_color": null,
+   "facade_color": null,
+   "facade_material": null,
+   "dist": 150.3
+  },
+  {
+   "overture": "d1941094-6ca5-408e-9f26-6911e3f63bd6",
+   "osm": "w259110926@3",
+   "lat": 42.643704,
+   "lon": 23.340573,
+   "x": -936.8,
+   "z": 2810.0,
+   "size_m": [
+    24.0,
+    6.7
+   ],
+   "levels": 3,
+   "height": null,
+   "cls": "kindergarten",
+   "subtype": "education",
+   "name": null,
+   "roof": null,
+   "roof_color": null,
+   "facade_color": null,
+   "facade_material": null,
+   "dist": 151.6
+  },
+  {
+   "overture": "ed214b25-39c7-48f0-b438-2cb13744d7cb",
+   "osm": "w394615355@2",
+   "lat": 42.644705,
+   "lon": 23.340117,
+   "x": -974.1,
+   "z": 2698.9,
+   "size_m": [
+    24.9,
+    12.5
+   ],
+   "levels": 1,
+   "height": null,
+   "cls": "commercial",
+   "subtype": "commercial",
+   "name": null,
+   "roof": null,
+   "roof_color": null,
+   "facade_color": null,
+   "facade_material": null,
+   "dist": 152.7
+  },
+  {
+   "overture": "1bdeca81-98df-4663-a40e-ac3751f4a024",
+   "osm": "w66477504@5",
+   "lat": 42.645616,
+   "lon": 23.340726,
+   "x": -924.2,
+   "z": 2597.6,
+   "size_m": [
+    53.3,
+    47.0
+   ],
+   "levels": 4,
+   "height": null,
+   "cls": "university",
+   "subtype": "education",
+   "name": "ЛТУ Факултет ветеринарна медицина - Агрономически факултет",
+   "roof": null,
+   "roof_color": null,
+   "facade_color": null,
+   "facade_material": null,
+   "dist": 152.8
+  },
+  {
+   "overture": "30d8cf31-f8e8-4443-b313-7a81ce34c565",
+   "osm": "w220308761@3",
+   "lat": 42.643249,
+   "lon": 23.341576,
+   "x": -854.5,
+   "z": 2860.6,
+   "size_m": [
+    25.6,
+    14.8
+   ],
+   "levels": 1,
+   "height": null,
+   "cls": "commercial",
+   "subtype": "commercial",
+   "name": null,
+   "roof": null,
+   "roof_color": null,
+   "facade_color": null,
+   "facade_material": null,
+   "dist": 153.0
+  },
+  {
+   "overture": "2dfdca44-16ae-4a0b-b150-ea64461d7e7d",
+   "osm": "w394615356@2",
+   "lat": 42.64498,
+   "lon": 23.340159,
+   "x": -970.7,
+   "z": 2668.2,
+   "size_m": [
+    44.2,
+    19.4
+   ],
+   "levels": 1,
+   "height": null,
+   "cls": "commercial",
+   "subtype": "commercial",
+   "name": null,
+   "roof": null,
+   "roof_color": null,
+   "facade_color": null,
+   "facade_material": null,
+   "dist": 154.8
+  },
+  {
+   "overture": "76e719ee-3f8b-4524-a0eb-39362e1200d2",
+   "osm": "w259110922@2",
+   "lat": 42.643345,
+   "lon": 23.3411,
+   "x": -893.5,
+   "z": 2849.9,
+   "size_m": [
+    23.1,
+    21.5
+   ],
+   "levels": null,
+   "height": null,
+   "cls": "retail",
+   "subtype": "commercial",
+   "name": null,
+   "roof": null,
+   "roof_color": null,
+   "facade_color": null,
+   "facade_material": null,
+   "dist": 156.2
+  },
+  {
+   "overture": "2ae3b449-b8fc-4692-97aa-ba4afa8f015a",
+   "osm": "w45358775@13",
+   "lat": 42.643739,
+   "lon": 23.340431,
+   "x": -948.4,
+   "z": 2806.2,
+   "size_m": [
+    110.7,
+    68.9
+   ],
+   "levels": 8,
+   "height": null,
+   "cls": "dormitory",
+   "subtype": "residential",
+   "name": null,
+   "roof": "flat",
+   "roof_color": null,
+   "facade_color": null,
+   "facade_material": null,
+   "dist": 158.2
+  },
+  {
+   "overture": "29bace00-332c-4c0b-87de-97c99cac321f",
+   "osm": null,
+   "lat": 42.645933,
+   "lon": 23.341211,
+   "x": -884.4,
+   "z": 2562.4,
+   "size_m": [
+    29.5,
+    16.6
+   ],
+   "levels": null,
+   "height": null,
+   "cls": null,
+   "subtype": null,
+   "name": null,
+   "roof": null,
+   "roof_color": null,
+   "facade_color": null,
+   "facade_material": null,
+   "dist": 161.3
+  },
+  {
+   "overture": "faec24da-b144-4dfe-b908-798b5c14e158",
+   "osm": "w166110137@4",
+   "lat": 42.643279,
+   "lon": 23.342853,
+   "x": -749.9,
+   "z": 2857.2,
+   "size_m": [
+    56.5,
+    33.2
+   ],
+   "levels": null,
+   "height": null,
+   "cls": "sports_centre",
+   "subtype": "entertainment",
+   "name": null,
+   "roof": null,
+   "roof_color": null,
+   "facade_color": null,
+   "facade_material": null,
+   "dist": 162.9
+  },
+  {
+   "overture": "7d6ee0f5-284d-48bc-885c-396d87977dab",
+   "osm": "w1135959764@4",
+   "lat": 42.646052,
+   "lon": 23.342428,
+   "x": -784.7,
+   "z": 2549.2,
+   "size_m": [
+    63.4,
+    33.4
+   ],
+   "levels": 7,
+   "height": null,
+   "cls": "apartments",
+   "subtype": "residential",
+   "name": null,
+   "roof": "flat",
+   "roof_color": null,
+   "facade_color": null,
+   "facade_material": "plaster",
+   "dist": 166.1
+  },
+  {
+   "overture": "0c388eb1-326a-46e4-9eb9-5fa1d90e67d1",
+   "osm": "w461980377@6",
+   "lat": 42.643132,
+   "lon": 23.341344,
+   "x": -873.5,
+   "z": 2873.6,
+   "size_m": [
+    53.8,
+    9.2
+   ],
+   "levels": null,
+   "height": null,
+   "cls": "retail",
+   "subtype": "commercial",
+   "name": null,
+   "roof": null,
+   "roof_color": null,
+   "facade_color": null,
+   "facade_material": null,
+   "dist": 170.5
+  },
+  {
+   "overture": "de05cdc4-7eb1-4ce7-84ed-1cf869644c99",
+   "osm": "w1444031136@2",
+   "lat": 42.645424,
+   "lon": 23.340151,
+   "x": -971.3,
+   "z": 2619.0,
+   "size_m": [
+    40.3,
+    12.1
+   ],
+   "levels": null,
+   "height": null,
+   "cls": "university",
+   "subtype": "education",
+   "name": null,
+   "roof": null,
+   "roof_color": null,
+   "facade_color": null,
+   "facade_material": null,
+   "dist": 175.5
+  },
+  {
+   "overture": "303e530e-5f85-493a-a203-d85990a57948",
+   "osm": "w166110065@5",
+   "lat": 42.646038,
+   "lon": 23.342884,
+   "x": -747.3,
+   "z": 2550.8,
+   "size_m": [
+    41.8,
+    28.2
+   ],
+   "levels": null,
+   "height": null,
+   "cls": "industrial",
+   "subtype": "industrial",
+   "name": null,
+   "roof": null,
+   "roof_color": null,
+   "facade_color": null,
+   "facade_material": null,
+   "dist": 176.8
+  },
+  {
+   "overture": "dea04f49-6c7d-469f-9961-481fcb5f3a89",
+   "osm": "w394021608@1",
+   "lat": 42.644497,
+   "lon": 23.339708,
+   "x": -1007.7,
+   "z": 2722.0,
+   "size_m": [
+    19.3,
+    18.0
+   ],
+   "levels": 1,
+   "height": null,
+   "cls": "commercial",
+   "subtype": "commercial",
+   "name": null,
+   "roof": null,
+   "roof_color": null,
+   "facade_color": null,
+   "facade_material": null,
+   "dist": 186.1
+  },
+  {
+   "overture": "5ee4b076-0624-498f-9853-ddf825f0654c",
+   "osm": "w65134344@5",
+   "lat": 42.645152,
+   "lon": 23.339819,
+   "x": -998.5,
+   "z": 2649.2,
+   "size_m": [
+    14.2,
+    10.1
+   ],
+   "levels": null,
+   "height": null,
+   "cls": "commercial",
+   "subtype": "commercial",
+   "name": null,
+   "roof": null,
+   "roof_color": null,
+   "facade_color": null,
+   "facade_material": null,
+   "dist": 187.1
+  },
+  {
+   "overture": "2c58732d-5693-42bc-8c3a-7a11100f4f52",
+   "osm": "w394021609@4",
+   "lat": 42.644358,
+   "lon": 23.339677,
+   "x": -1010.2,
+   "z": 2737.4,
+   "size_m": [
+    15.9,
+    10.1
+   ],
+   "levels": 2,
+   "height": null,
+   "cls": "commercial",
+   "subtype": "commercial",
+   "name": null,
+   "roof": null,
+   "roof_color": null,
+   "facade_color": null,
+   "facade_material": null,
+   "dist": 190.1
+  },
+  {
+   "overture": "7b66ede1-ee57-4a13-ab03-7b3fda99d564",
+   "osm": "w394021607@3",
+   "lat": 42.644782,
+   "lon": 23.339664,
+   "x": -1011.2,
+   "z": 2690.3,
+   "size_m": [
+    29.1,
+    29.0
+   ],
+   "levels": 2,
+   "height": null,
+   "cls": "commercial",
+   "subtype": "commercial",
+   "name": null,
+   "roof": null,
+   "roof_color": null,
+   "facade_color": null,
+   "facade_material": null,
+   "dist": 190.4
+  },
+  {
+   "overture": "562777ff-f530-4b14-8011-5f7345bb04ca",
+   "osm": "w394021610@2",
+   "lat": 42.644293,
+   "lon": 23.339681,
+   "x": -1009.9,
+   "z": 2744.6,
+   "size_m": [
+    12.0,
+    6.0
+   ],
+   "levels": 1,
+   "height": null,
+   "cls": "commercial",
+   "subtype": "commercial",
+   "name": null,
+   "roof": null,
+   "roof_color": null,
+   "facade_color": null,
+   "facade_material": null,
+   "dist": 190.9
+  },
+  {
+   "overture": "89b152cf-2abd-4927-9499-5e1c198a59b8",
+   "osm": "w65134342@5",
+   "lat": 42.643284,
+   "lon": 23.340463,
+   "x": -945.7,
+   "z": 2856.7,
+   "size_m": [
+    25.0,
+    9.6
+   ],
+   "levels": null,
+   "height": null,
+   "cls": "commercial",
+   "subtype": "commercial",
+   "name": "Evergreen",
+   "roof": null,
+   "roof_color": null,
+   "facade_color": null,
+   "facade_material": null,
+   "dist": 191.1
+  },
+  {
+   "overture": "1bb2e03f-896d-4a4d-bef7-21132f848c6c",
+   "osm": "w461980373@2",
+   "lat": 42.642857,
+   "lon": 23.341973,
+   "x": -822.0,
+   "z": 2904.1,
+   "size_m": [
+    12.8,
+    10.1
+   ],
+   "levels": null,
+   "height": null,
+   "cls": "retail",
+   "subtype": "commercial",
+   "name": null,
+   "roof": null,
+   "roof_color": null,
+   "facade_color": null,
+   "facade_material": null,
+   "dist": 193.0
+  },
+  {
+   "overture": "2b969622-be07-4f1c-b026-9faca257b613",
+   "osm": "w395678184@4",
+   "lat": 42.64633,
+   "lon": 23.341416,
+   "x": -867.7,
+   "z": 2518.3,
+   "size_m": [
+    21.1,
+    8.9
+   ],
+   "levels": 4,
+   "height": null,
+   "cls": "office",
+   "subtype": "commercial",
+   "name": null,
+   "roof": null,
+   "roof_color": null,
+   "facade_color": null,
+   "facade_material": null,
+   "dist": 198.1
+  }
+ ],
+ "places": [
+  {
+   "name": "IQOS Щанд Фантастико Ф22",
+   "cat": "food_and_beverage_store",
+   "x": -821.3,
+   "z": 2718.1,
+   "addr": "ул. Академик Борис Стефанов 22",
+   "conf": 0.85,
+   "dist": 7.0
+  },
+  {
+   "name": "Mega Dance Center",
+   "cat": "dance_club",
+   "x": -829.5,
+   "z": 2695.9,
+   "addr": "ulitsa Akademik Boris Stefanov 16",
+   "conf": 0.25,
+   "dist": 17.0
+  },
+  {
+   "name": "СОФИЯ - АКАД. БОРИС СТЕФАНОВ",
+   "cat": "storage_facility",
+   "x": -829.1,
+   "z": 2692.7,
+   "addr": "гр. София жк Студентски град ул. Акад. Борис Стефанов No 16 (ЗАВЕДЕНИЕ ХЛЯБ И МРЪВКА)",
+   "conf": 0.8,
+   "dist": 19.7
+  },
+  {
+   "name": "Povecheotdumi",
+   "cat": "flowers_and_gifts_store",
+   "x": -850.8,
+   "z": 2712.4,
+   "addr": "ж.к. Студентски град, ул. \"Храбър Попов\" ",
+   "conf": 0.83,
+   "dist": 28.9
+  },
+  {
+   "name": "Хляб и мръвка",
+   "cat": "restaurant",
+   "x": -847.3,
+   "z": 2694.9,
+   "addr": "Улица Акад. Борис Стефанов 35",
+   "conf": 0.94,
+   "dist": 30.1
+  },
+  {
+   "name": "GT-mobile - Добрият GSM сервиз",
+   "cat": "automotive_service",
+   "x": -853.7,
+   "z": 2714.3,
+   "addr": "Улица Проф. Арх. Храбър Попов 3",
+   "conf": 0.73,
+   "dist": 31.9
+  },
+  {
+   "name": "Chinese Restaurant Classico",
+   "cat": "restaurant",
+   "x": -833.2,
+   "z": 2744.7,
+   "addr": "улица „акад. Борис Стефанов 58 Студентски град, бл. 58",
+   "conf": 0.93,
+   "dist": 35.5
+  },
+  {
+   "name": "Minimart",
+   "cat": "convenience_store",
+   "x": -797.6,
+   "z": 2678.0,
+   "addr": null,
+   "conf": 0.8,
+   "dist": 41.1
+  },
+  {
+   "name": "Kitaiski Resturant rathmans",
+   "cat": "restaurant",
+   "x": -831.0,
+   "z": 2751.8,
+   "addr": "",
+   "conf": 0.64,
+   "dist": 41.7
+  },
+  {
+   "name": "Jinx Club - Virtual Reality Gaming Club",
+   "cat": "cafe",
+   "x": -791.7,
+   "z": 2678.3,
+   "addr": "Улица Акад. Борис Стефанов 35",
+   "conf": 0.61,
+   "dist": 44.6
+  },
+  {
+   "name": "Studio Encanto",
+   "cat": "personal_or_beauty_service",
+   "x": -864.9,
+   "z": 2723.3,
+   "addr": "до вход В, Блок 58",
+   "conf": 0.34,
+   "dist": 44.7
+  },
+  {
+   "name": "Ai Technology",
+   "cat": "electronics_store",
+   "x": -860.2,
+   "z": 2735.7,
+   "addr": "жк. Студентски град, бл.58, до вход В",
+   "conf": 0.95,
+   "dist": 45.5
+  },
+  {
+   "name": "Innologica",
+   "cat": "event_or_party_service",
+   "x": -786.9,
+   "z": 2679.6,
+   "addr": "ulitsa Akademik Boris Stefanov 35",
+   "conf": 0.3,
+   "dist": 47.1
+  },
+  {
+   "name": "Protein House Sofia",
+   "cat": "restaurant",
+   "x": -833.7,
+   "z": 2758.9,
+   "addr": "Блок 58",
+   "conf": 0.84,
+   "dist": 49.2
+  },
+  {
+   "name": "Механа Народна",
+   "cat": "restaurant",
+   "x": -872.3,
+   "z": 2704.4,
+   "addr": "гр. София, Студентски град,, 1734",
+   "conf": 0.98,
+   "dist": 50.8
+  },
+  {
+   "name": "Хоремаг от едно време",
+   "cat": "restaurant",
+   "x": -867.7,
+   "z": 2686.4,
+   "addr": "",
+   "conf": 0.39,
+   "dist": 52.0
+  },
+  {
+   "name": "Studio 27",
+   "cat": "personal_or_beauty_service",
+   "x": -805.0,
+   "z": 2658.9,
+   "addr": "ulitsa Akademik Boris Stefanov 35",
+   "conf": 0.9,
+   "dist": 54.9
+  },
+  {
+   "name": "Сръбския Ресторант - Belle Amie",
+   "cat": "bar",
+   "x": -877.2,
+   "z": 2715.0,
+   "addr": "Улица Проф. Арх. Храбър Попов 55Г",
+   "conf": 0.7,
+   "dist": 55.4
+  },
+  {
+   "name": "Женско Царство",
+   "cat": "personal_or_beauty_service",
+   "x": -880.1,
+   "z": 2711.3,
+   "addr": "",
+   "conf": 0.47,
+   "dist": 58.2
+  },
+  {
+   "name": "Galatasaray Fan Club Bulgaria",
+   "cat": "social_or_community_service",
+   "x": -795.3,
+   "z": 2655.9,
+   "addr": "Улица Акад. Борис Стефанов 35",
+   "conf": 0.41,
+   "dist": 61.3
+  },
+  {
+   "name": "Магазин NISA - домашни потреби",
+   "cat": "hardware_home_and_garden_store",
+   "x": -840.7,
+   "z": 2771.2,
+   "addr": "срещу Зимния Дворец, ulitsa Akademik Boris Stefanov 58, вх.Б",
+   "conf": 0.49,
+   "dist": 63.0
+  },
+  {
+   "name": "Минимаркет \"Вазови\"",
+   "cat": "food_and_beverage_store",
+   "x": -882.1,
+   "z": 2736.1,
+   "addr": "жк Студентски град 58б",
+   "conf": 0.87,
+   "dist": 65.2
+  },
+  {
+   "name": "Caffe Gioia - Кафе Джоя България",
+   "cat": null,
+   "x": -882.1,
+   "z": 2736.1,
+   "addr": "жк Студентски град 58",
+   "conf": 0.47,
+   "dist": 65.2
+  },
+  {
+   "name": "South Mall",
+   "cat": "shopping_mall",
+   "x": -801.0,
+   "z": 2643.6,
+   "addr": "ulitsa Akademik Boris Stefanov 35",
+   "conf": 0.94,
+   "dist": 70.7
+  },
+  {
+   "name": "Tommy Fast & Tasty",
+   "cat": "restaurant",
+   "x": -843.5,
+   "z": 2779.7,
+   "addr": "жк Студентски град 58",
+   "conf": 0.55,
+   "dist": 71.9
+  },
+  {
+   "name": "G Point",
+   "cat": "personal_or_beauty_service",
+   "x": -773.6,
+   "z": 2652.5,
+   "addr": "Магазин 7, до, Petar Uvaliev St 1, вх. Б",
+   "conf": 0.72,
+   "dist": 75.9
+  },
+  {
+   "name": "Лесковацка Скара",
+   "cat": "restaurant",
+   "x": -897.8,
+   "z": 2705.4,
+   "addr": "ul. prof. Arhitekt Hrabar Popov",
+   "conf": 0.86,
+   "dist": 76.1
+  },
+  {
+   "name": "Mazzo Club&Restaurant",
+   "cat": "restaurant",
+   "x": -755.4,
+   "z": 2748.1,
+   "addr": "Зимен дворец на спорта",
+   "conf": 0.88,
+   "dist": 76.1
+  },
+  {
+   "name": "Angels of beauty",
+   "cat": "personal_or_beauty_service",
+   "x": -773.6,
+   "z": 2652.2,
+   "addr": "Petar Uvaliev St 1",
+   "conf": 0.6,
+   "dist": 76.2
+  },
+  {
+   "name": "Щип-Щип",
+   "cat": "fast_food_restaurant",
+   "x": -835.5,
+   "z": 2787.7,
+   "addr": "ж.к. Студентски град 58",
+   "conf": 0.84,
+   "dist": 77.8
+  },
+  {
+   "name": "ID Real Estate Agency",
+   "cat": "real_estate_service",
+   "x": -800.4,
+   "z": 2636.2,
+   "addr": "ulitsa Akademik Boris Stefanov 35",
+   "conf": 0.48,
+   "dist": 77.9
+  },
+  {
+   "name": "Combo Consult",
+   "cat": "professional_service",
+   "x": -804.2,
+   "z": 2634.8,
+   "addr": "Улица Акад. Борис Стефанов 35",
+   "conf": 0.53,
+   "dist": 78.3
+  },
+  {
+   "name": "easybox 1239 Саут Мол",
+   "cat": "storage_facility",
+   "x": -795.5,
+   "z": 2637.0,
+   "addr": "ул. Акад. Борис Стефанов 35",
+   "conf": 0.8,
+   "dist": 78.7
+  },
+  {
+   "name": "Architecture by Belova",
+   "cat": null,
+   "x": -794.5,
+   "z": 2636.8,
+   "addr": "35, Akad. Boris Stefanov str.",
+   "conf": 0.53,
+   "dist": 79.2
+  },
+  {
+   "name": "ECHO Sport",
+   "cat": "sporting_goods_store",
+   "x": -763.4,
+   "z": 2657.0,
+   "addr": "Petar Uvaliev St 1",
+   "conf": 0.8,
+   "dist": 79.7
+  },
+  {
+   "name": "Fortuna Markets",
+   "cat": "financial_service",
+   "x": -785.5,
+   "z": 2638.3,
+   "addr": "Улица Акад. Борис Стефанов 35",
+   "conf": 0.39,
+   "dist": 81.4
+  },
+  {
+   "name": "𝒢𝒟 𝕄𝕒𝕜𝕖-𝕦𝕡",
+   "cat": "personal_or_beauty_service",
+   "x": -745.8,
+   "z": 2742.6,
+   "addr": "Комплекс Маунтин Вю, Улица Димитър Стефанов 11Д",
+   "conf": 0.53,
+   "dist": 82.4
+  },
+  {
+   "name": "BORAL Street wear",
+   "cat": "fashion_and_apparel_store",
+   "x": -778.1,
+   "z": 2640.3,
+   "addr": "ulitsa Akademik Boris Stefanov 35",
+   "conf": 0.41,
+   "dist": 83.3
+  },
+  {
+   "name": "BodySpot",
+   "cat": "sport_league",
+   "x": -744.4,
+   "z": 2677.4,
+   "addr": "Petar Uvaliev St 1",
+   "conf": 0.8,
+   "dist": 84.5
+  },
+  {
+   "name": "Jiu-Jitsu & MMA Academy",
+   "cat": "sport_or_recreation_club",
+   "x": -797.0,
+   "z": 2630.1,
+   "addr": "ShiDo Fitness - ШиДо Фитнес",
+   "conf": 0.59,
+   "dist": 84.7
+  },
+  {
+   "name": "Flowers Delivery La Roz",
+   "cat": "flowers_and_gifts_store",
+   "x": -834.5,
+   "z": 2796.3,
+   "addr": "Студентски град Бл.58 с/у Зимния Дворец Цветарски магазин Ла Роз",
+   "conf": 0.98,
+   "dist": 86.1
+  },
+  {
+   "name": "Цветарски магазин La Rose",
+   "cat": "flowers_and_gifts_store",
+   "x": -834.5,
+   "z": 2796.3,
+   "addr": "жк Студентски град 58",
+   "conf": 0.99,
+   "dist": 86.1
+  },
+  {
+   "name": "Good Girl",
+   "cat": "personal_or_beauty_service",
+   "x": -763.9,
+   "z": 2647.3,
+   "addr": "ulitsa Akademik Boris Stefanov 35",
+   "conf": 0.73,
+   "dist": 86.2
+  },
+  {
+   "name": "ТИМЕДА - Агенция за недвижими имоти",
+   "cat": "real_estate_service",
+   "x": -794.1,
+   "z": 2628.6,
+   "addr": "ulitsa Akademik Boris Stefanov 35, ет.1, офис 18",
+   "conf": 0.52,
+   "dist": 87.0
+  },
+  {
+   "name": "Kristina Panayotowa - Phibrows Artist&Lashmaker",
+   "cat": "wellness_service",
+   "x": -758.6,
+   "z": 2650.4,
+   "addr": "Петър Увалиев 1",
+   "conf": 0.52,
+   "dist": 87.7
+  },
+  {
+   "name": "Valentino Rich Men's Club",
+   "cat": "personal_or_beauty_service",
+   "x": -762.2,
+   "z": 2645.2,
+   "addr": "Petar Uvaliev St 1б",
+   "conf": 0.96,
+   "dist": 88.9
+  },
+  {
+   "name": "GM Fitness Center",
+   "cat": "gym",
+   "x": -803.3,
+   "z": 2621.1,
+   "addr": "ulitsa Akademik Boris Stefanov 35",
+   "conf": 0.97,
+   "dist": 91.9
+  },
+  {
+   "name": "HT Engineering",
+   "cat": "building_or_construction_service",
+   "x": -795.4,
+   "z": 2622.7,
+   "addr": "ulitsa Akademik Boris Stefanov 35",
+   "conf": 0.23,
+   "dist": 92.3
+  },
+  {
+   "name": "Масажно-Козметично Студио Magnifico",
+   "cat": "personal_or_beauty_service",
+   "x": -803.2,
+   "z": 2620.4,
+   "addr": "ulitsa Akademik Boris Stefanov 35",
+   "conf": 0.89,
+   "dist": 92.6
+  },
+  {
+   "name": "LegalConsult.bg",
+   "cat": "attorney_or_law_firm",
+   "x": -803.1,
+   "z": 2620.3,
+   "addr": "ulitsa Akademik Boris Stefanov 35",
+   "conf": 0.32,
+   "dist": 92.7
+  },
+  {
+   "name": "Luxor Gaming Club",
+   "cat": "casino",
+   "x": -801.5,
+   "z": 2620.6,
+   "addr": "ulitsa Akademik Boris Stefanov 35",
+   "conf": 0.49,
+   "dist": 92.8
+  },
+  {
+   "name": "Сий Гравити",
+   "cat": "real_estate_service",
+   "x": -795.8,
+   "z": 2621.7,
+   "addr": "ж.к, ulitsa Akademik Boris Stefanov 35, ет. 2",
+   "conf": 0.29,
+   "dist": 93.1
+  },
+  {
+   "name": "OvertAim South Coworking",
+   "cat": "event_or_party_service",
+   "x": -802.7,
+   "z": 2619.6,
+   "addr": "ulitsa Akademik Boris Stefanov 35",
+   "conf": 0.94,
+   "dist": 93.5
+  },
+  {
+   "name": "Българска Е-комерс Асоциация",
+   "cat": "social_or_community_service",
+   "x": -803.0,
+   "z": 2618.0,
+   "addr": "ulitsa Akademik Boris Stefanov 35",
+   "conf": 0.13,
+   "dist": 95.0
+  },
+  {
+   "name": "Лин.Ю",
+   "cat": "shopping",
+   "x": -821.5,
+   "z": 2613.6,
+   "addr": "ulitsa Akademik Boris Stefanov 38",
+   "conf": 0.21,
+   "dist": 97.5
+  },
+  {
+   "name": "Daisy's Flowers",
+   "cat": "flowers_and_gifts_store",
+   "x": -826.4,
+   "z": 2816.4,
+   "addr": "тото пункт, Зимен дворец, Студентски град(срещу",
+   "conf": 0.88,
+   "dist": 105.4
+  },
+  {
+   "name": "Urban Monkey",
+   "cat": "restaurant",
+   "x": -841.1,
+   "z": 2815.8,
+   "addr": "ulitsa Akademik Boris Stefanov",
+   "conf": 0.5,
+   "dist": 106.5
+  },
+  {
+   "name": "Езиков Център Kurs",
+   "cat": "education",
+   "x": -800.8,
+   "z": 2602.9,
+   "addr": "ulitsa Akademik Boris Stefanov 35",
+   "conf": 0.6,
+   "dist": 110.2
+  },
+  {
+   "name": "Mazzo Kids & Lounge",
+   "cat": "restaurant",
+   "x": -731.2,
+   "z": 2777.2,
+   "addr": "Зимен Дворец на Спорта",
+   "conf": 0.86,
+   "dist": 112.3
+  },
+  {
+   "name": "Река България ЕООД",
+   "cat": null,
+   "x": -778.8,
+   "z": 2607.2,
+   "addr": "Улица Акад. Борис Стефанов 35",
+   "conf": 0.6,
+   "dist": 112.5
+  },
+  {
+   "name": "Магазин MISS LUIS",
+   "cat": "fashion_and_apparel_store",
+   "x": -778.8,
+   "z": 2607.2,
+   "addr": null,
+   "conf": 0.42,
+   "dist": 112.5
+  },
+  {
+   "name": "Cane Corso Lion's Blood Kennel",
+   "cat": "animal_or_pet_service",
+   "x": -778.8,
+   "z": 2607.2,
+   "addr": "Улица Акад. Борис Стефанов 35",
+   "conf": 0.64,
+   "dist": 112.5
+  },
+  {
+   "name": "ДИДПРОЕКТ",
+   "cat": "design_service",
+   "x": -778.8,
+   "z": 2607.2,
+   "addr": "Улица Акад. Борис Стефанов 35",
+   "conf": 0.45,
+   "dist": 112.5
+  },
+  {
+   "name": "Зимен дворец на спорта (Winter Sports Palace)",
+   "cat": "skating_rink",
+   "x": -728.9,
+   "z": 2774.7,
+   "addr": "ул. Акад. Борис Стефанов",
+   "conf": 0.81,
+   "dist": 112.7
+  },
+  {
+   "name": "MVJ Dance & Aerobic Studio",
+   "cat": "sport_or_fitness_facility",
+   "x": -731.7,
+   "z": 2781.3,
+   "addr": "Akad. Boris Stefanov Str.",
+   "conf": 0.88,
+   "dist": 114.3
+  },
+  {
+   "name": "VR Line 69 Beauty Center",
+   "cat": "personal_or_beauty_service",
+   "x": -706.6,
+   "z": 2721.9,
+   "addr": "Petar Uvaliev St 1",
+   "conf": 0.87,
+   "dist": 115.8
+  },
+  {
+   "name": "Gold Ice-Infinity - Ice Skating Club / голд айс инфинити",
+   "cat": "sports_and_recreation",
+   "x": -741.3,
+   "z": 2795.1,
+   "addr": "Гр. София, Зимен дворец на спорта",
+   "conf": 0.64,
+   "dist": 116.4
+  },
+  {
+   "name": "Molly Shop",
+   "cat": "shopping",
+   "x": -938.4,
+   "z": 2723.3,
+   "addr": "Улица Проф. Арх. Храбър Попов 3",
+   "conf": 0.48,
+   "dist": 117.1
+  },
+  {
+   "name": "Sports Club Stars of Sofia",
+   "cat": "sport_league",
+   "x": -724.7,
+   "z": 2777.3,
+   "addr": "Winter Palace of Sport",
+   "conf": 0.58,
+   "dist": 117.6
+  },
+  {
+   "name": "SHUN DOJO",
+   "cat": "sport_team",
+   "x": -696.2,
+   "z": 2695.2,
+   "addr": "Улица Академик Стефан Младенов 9",
+   "conf": 0.86,
+   "dist": 126.7
+  },
+  {
+   "name": "Копирен Център Fresh",
+   "cat": "printing_service",
+   "x": -949.3,
+   "z": 2718.6,
+   "addr": "ul. prof. Arhitekt Hrabar Popov 3",
+   "conf": 0.75,
+   "dist": 127.6
+  },
+  {
+   "name": "Cattleya.Y - Luxury Handmade Bags",
+   "cat": null,
+   "x": -851.9,
+   "z": 2587.1,
+   "addr": null,
+   "conf": 0.57,
+   "dist": 127.6
+  },
+  {
+   "name": "Gentle Paws Grooming",
+   "cat": "animal_or_pet_service",
+   "x": -895.3,
+   "z": 2815.7,
+   "addr": "ul. Professor Dr. Ivan Stranski 3Б",
+   "conf": 0.6,
+   "dist": 127.8
+  },
+  {
+   "name": "Палачинки Pancake House",
+   "cat": "restaurant",
+   "x": -845.2,
+   "z": 2837.2,
+   "addr": "ulitsa Akademik Boris Stefanov",
+   "conf": 0.8,
+   "dist": 128.2
+  },
+  {
+   "name": "Хокеен Клуб Левски София",
+   "cat": "sport_league",
+   "x": -697.0,
+   "z": 2749.5,
+   "addr": "Зимен дворец на спорта",
+   "conf": 0.5,
+   "dist": 130.7
+  },
+  {
+   "name": "Мохито кафе",
+   "cat": "cafe",
+   "x": -886.1,
+   "z": 2825.8,
+   "addr": "",
+   "conf": 0.53,
+   "dist": 131.4
+  },
+  {
+   "name": "Viking Work and Travel",
+   "cat": "travel_service",
+   "x": -898.0,
+   "z": 2821.4,
+   "addr": "ul. Professor Dr. Ivan Stranski 3Б",
+   "conf": 0.46,
+   "dist": 134.0
+  },
+  {
+   "name": "\"Хранителен Магазин \"Баба Яга\"\"",
+   "cat": "food_and_drink",
+   "x": -877.0,
+   "z": 2834.3,
+   "addr": "ж.к. Студентски град",
+   "conf": 0.58,
+   "dist": 135.0
+  },
+  {
+   "name": "Железария Студентски град",
+   "cat": "shopping",
+   "x": -894.4,
+   "z": 2826.0,
+   "addr": "Улица Професор Др. Иван Странски 3Б",
+   "conf": 0.54,
+   "dist": 135.9
+  },
+  {
+   "name": "Сладкарница Дайски",
+   "cat": "casual_eatery",
+   "x": -921.2,
+   "z": 2809.1,
+   "addr": "",
+   "conf": 0.55,
+   "dist": 139.5
+  },
+  {
+   "name": "BS PRINT-Изработка и печат на тениски,чаши,стикери и реклама по поръчка",
+   "cat": null,
+   "x": -895.7,
+   "z": 2832.2,
+   "addr": "Улица Професор Др. Иван Странски 3Б",
+   "conf": 0.64,
+   "dist": 141.8
+  },
+  {
+   "name": "New Friends Travel",
+   "cat": "travel_service",
+   "x": -923.9,
+   "z": 2811.6,
+   "addr": "Улица Професор Др. Иван Странски 3Г",
+   "conf": 0.67,
+   "dist": 143.2
+  },
+  {
+   "name": "Maskara beauty and art center",
+   "cat": "personal_or_beauty_service",
+   "x": -858.7,
+   "z": 2850.6,
+   "addr": "ж.к. Студентски град 58",
+   "conf": 0.91,
+   "dist": 144.3
+  },
+  {
+   "name": "Fitholic Студентски Град",
+   "cat": "food_and_beverage_store",
+   "x": -966.5,
+   "z": 2718.0,
+   "addr": "магазин, ul. prof. Arhitekt Hrabar Popov 3",
+   "conf": 0.28,
+   "dist": 144.7
+  },
+  {
+   "name": "Магазин за Алкохол и цигари ICE SHOP",
+   "cat": "wholesaler",
+   "x": -789.1,
+   "z": 2565.7,
+   "addr": "ул. „акад. Борис Стефанов 33, Магазин 3",
+   "conf": 0.53,
+   "dist": 149.0
+  },
+  {
+   "name": "Студио за красота \"Donna\"",
+   "cat": "arts_crafts_and_hobby_store",
+   "x": -971.5,
+   "z": 2726.4,
+   "addr": "Улица Проф. Арх. Храбър Попов 3",
+   "conf": 0.88,
+   "dist": 150.4
+  },
+  {
+   "name": "Каймакановата къща кв. Студентски град ",
+   "cat": "restaurant",
+   "x": -971.8,
+   "z": 2692.9,
+   "addr": "жк Студентски град 54б",
+   "conf": 0.76,
+   "dist": 151.0
+  },
+  {
+   "name": "Салон \"Veselina Todorova\"",
+   "cat": "personal_or_beauty_service",
+   "x": -863.8,
+   "z": 2856.3,
+   "addr": "Улица Проф. Арх. Храбър Попов 3",
+   "conf": 0.93,
+   "dist": 151.1
+  },
+  {
+   "name": "Cocolina Beauty Shop",
+   "cat": "wellness_service",
+   "x": -974.7,
+   "z": 2707.3,
+   "addr": "ж.к Студентски град; ул. Проф. Архит. Храбър Попов с/у бл.55",
+   "conf": 0.49,
+   "dist": 152.8
+  },
+  {
+   "name": "Ypi.bg",
+   "cat": "real_estate_service",
+   "x": -859.9,
+   "z": 2859.4,
+   "addr": "Улица Професор Др. Иван Странски 1",
+   "conf": 0.49,
+   "dist": 153.1
+  },
+  {
+   "name": "Спортен клуб Здрав дух в здраво тяло",
+   "cat": "gym",
+   "x": -708.0,
+   "z": 2813.5,
+   "addr": "Зимен дворец на спорта",
+   "conf": 0.53,
+   "dist": 153.2
+  },
+  {
+   "name": "Fitness Fast Food Arny",
+   "cat": "restaurant",
+   "x": -975.4,
+   "z": 2731.3,
+   "addr": "",
+   "conf": 0.71,
+   "dist": 154.8
+  },
+  {
+   "name": "Arnold Food - Студентски Град",
+   "cat": "restaurant",
+   "x": -977.2,
+   "z": 2719.9,
+   "addr": "ul. prof. Arhitekt Hrabar Popov 3, 1734 1734",
+   "conf": 0.68,
+   "dist": 155.5
+  },
+  {
+   "name": "YES BET - Студентски град",
+   "cat": "casino",
+   "x": -902.4,
+   "z": 2844.3,
+   "addr": "ul. Professor Dr. Ivan Stranski 3Б",
+   "conf": 0.9,
+   "dist": 155.6
+  },
+  {
+   "name": "Art Line Academy",
+   "cat": "personal_or_beauty_service",
+   "x": -811.1,
+   "z": 2553.6,
+   "addr": "ulitsa Akademik Boris Stefanov 38",
+   "conf": 0.92,
+   "dist": 157.9
+  },
+  {
+   "name": "Movie Flats",
+   "cat": "private_lodging",
+   "x": -798.4,
+   "z": 2554.7,
+   "addr": "ulitsa Akademik Boris Stefanov 33",
+   "conf": 0.67,
+   "dist": 158.1
+  },
+  {
+   "name": "Lilly Art Salon",
+   "cat": "personal_or_beauty_service",
+   "x": -789.6,
+   "z": 2555.3,
+   "addr": "ulitsa Akademik Boris Stefanov 33",
+   "conf": 0.26,
+   "dist": 159.1
+  },
+  {
+   "name": "Корпус Д ЛТУ",
+   "cat": "campus_building",
+   "x": -942.9,
+   "z": 2605.9,
+   "addr": "Улица Професор Атанас Иширков 9",
+   "conf": 0.85,
+   "dist": 160.3
+  },
+  {
+   "name": "Condera – Инвестиционно и индустриално проектиране",
+   "cat": "building_or_construction_service",
+   "x": -982.8,
+   "z": 2718.3,
+   "addr": "ul. prof. Arhitekt Hrabar Popov 3, вх. Б",
+   "conf": 0.2,
+   "dist": 161.0
+  },
+  {
+   "name": "Копирен Център Кинтек",
+   "cat": "printing_service",
+   "x": -832.0,
+   "z": 2872.0,
+   "addr": "Студентски град, бл. 61, вх. Б",
+   "conf": 0.64,
+   "dist": 161.2
+  },
+  {
+   "name": "Fashion Box Style",
+   "cat": "personal_or_beauty_service",
+   "x": -889.3,
+   "z": 2859.1,
+   "addr": "Улица Професор Др. Иван Странски 1в",
+   "conf": 0.55,
+   "dist": 162.6
+  },
+  {
+   "name": "Кафе \"авеню\" - Студентски Град",
+   "cat": "cafe",
+   "x": -977.3,
+   "z": 2660.0,
+   "addr": "жк Студентски град 54",
+   "conf": 0.77,
+   "dist": 163.6
+  },
+  {
+   "name": "Shahrayar Premium Fast Food",
+   "cat": "fast_food_restaurant",
+   "x": -981.5,
+   "z": 2674.4,
+   "addr": "ул. „Васко Абаджиев“",
+   "conf": 0.92,
+   "dist": 163.7
+  },
+  {
+   "name": "Desislava Ilieva - Beauty Factory",
+   "cat": "personal_or_beauty_service",
+   "x": -844.7,
+   "z": 2548.8,
+   "addr": "Desislava Ilieva - Beauty Factory ",
+   "conf": 0.83,
+   "dist": 163.9
+  },
+  {
+   "name": "Cafe Avenue",
+   "cat": "restaurant",
+   "x": -984.2,
+   "z": 2687.1,
+   "addr": "54-V g.k Studentski grad 54V",
+   "conf": 0.76,
+   "dist": 164.0
+  },
+  {
+   "name": "BHerba",
+   "cat": "health_care",
+   "x": -898.5,
+   "z": 2857.1,
+   "addr": "Улица Професор Др. Иван Странски 3",
+   "conf": 0.42,
+   "dist": 164.9
+  },
+  {
+   "name": "Capella Bar",
+   "cat": "bar",
+   "x": -898.5,
+   "z": 2857.1,
+   "addr": "Улица Професор Др. Иван Странски 3",
+   "conf": 0.59,
+   "dist": 164.9
+  },
+  {
+   "name": "Център за Градска Мобилност",
+   "cat": "travel_service",
+   "x": -984.3,
+   "z": 2677.3,
+   "addr": "ул. „Васко Абаджиев“",
+   "conf": 0.52,
+   "dist": 165.8
+  },
+  {
+   "name": "Golden Grosh (Златният Грошъ)",
+   "cat": "restaurant",
+   "x": -980.5,
+   "z": 2658.9,
+   "addr": "Студентски град 54",
+   "conf": 0.77,
+   "dist": 166.9
+  },
+  {
+   "name": "Pigeon Express",
+   "cat": "shipping_or_delivery_service",
+   "x": -851.1,
+   "z": 2546.4,
+   "addr": "обл. София (столица), гр. София, улица АКАД.БОРИС СТЕФАНОВ, № 38",
+   "conf": 0.8,
+   "dist": 167.2
+  },
+  {
+   "name": "Barber Shop Escobar",
+   "cat": "personal_or_beauty_service",
+   "x": -878.1,
+   "z": 2872.5,
+   "addr": "ul. Professor Dr. Ivan Stranski 1 В",
+   "conf": 0.69,
+   "dist": 170.9
+  },
+  {
+   "name": "BullHomes",
+   "cat": "corporate_or_business_office",
+   "x": -865.2,
+   "z": 2545.8,
+   "addr": null,
+   "conf": 0.57,
+   "dist": 170.9
+  },
+  {
+   "name": "The Sweet House",
+   "cat": "casual_eatery",
+   "x": -881.3,
+   "z": 2874.2,
+   "addr": "ul. Professor Dr. Ivan Stranski 1",
+   "conf": 0.22,
+   "dist": 173.6
+  },
+  {
+   "name": "Sex Shop Cleopatra",
+   "cat": "adult_entertainment_venue",
+   "x": -857.1,
+   "z": 2881.1,
+   "addr": "ul. Professor Dr. Ivan Stranski 1 В",
+   "conf": 0.81,
+   "dist": 173.6
+  },
+  {
+   "name": "СУШИ СТРИЙТ / Sushi Street",
+   "cat": "restaurant",
+   "x": -995.5,
+   "z": 2688.3,
+   "addr": "ul. prof. Arhitekt Hrabar Popov 1734",
+   "conf": 0.92,
+   "dist": 175.1
+  },
+  {
+   "name": "Shido Fitness Centre",
+   "cat": "gym",
+   "x": -689.3,
+   "z": 2827.1,
+   "addr": "ul. Professor Dr. Ivan Stranski 61",
+   "conf": 0.89,
+   "dist": 176.2
+  },
+  {
+   "name": "Salon Inspire-Studentski grad",
+   "cat": "personal_or_beauty_service",
+   "x": -866.2,
+   "z": 2540.4,
+   "addr": "Улица Професор Атанас Иширков 13",
+   "conf": 0.78,
+   "dist": 176.3
+  },
+  {
+   "name": "Barber House - Студенски град | Бръснарница | Бръснар",
+   "cat": "personal_or_beauty_service",
+   "x": -889.9,
+   "z": 2875.0,
+   "addr": "ul. Professor Dr. Ivan Stranski 1",
+   "conf": 0.94,
+   "dist": 177.5
+  },
+  {
+   "name": "Пералня Deep Clean",
+   "cat": "laundry_service",
+   "x": -1000.2,
+   "z": 2684.3,
+   "addr": "търговски комплекс New Avenue, ул. „Васко Абаджиев“",
+   "conf": 0.23,
+   "dist": 180.3
+  },
+  {
+   "name": "Джей Ес Прити Стайл ЕООД",
+   "cat": "personal_or_beauty_service",
+   "x": -999.8,
+   "z": 2743.0,
+   "addr": "ул. „Васко Абаджиев“",
+   "conf": 0.48,
+   "dist": 180.7
+  }
+ ]
+}

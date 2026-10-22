@@ -1,0 +1,581 @@
+{
+ "stop": {
+  "code": "1258",
+  "name": "Площад на авиацията",
+  "lat": 42.6696829,
+  "lon": 23.3685992,
+  "pole": [
+   1360.76,
+   -75.86
+  ],
+  "road": null,
+  "uses": [
+   "B13"
+  ]
+ },
+ "note": "x east, z south, metres from the game origin (lat 42.669, lon 23.352). dist = metres from the stop pole.",
+ "buildings": [
+  {
+   "overture": "940e4832-882f-4b15-8928-7e2b65f5a102",
+   "osm": null,
+   "lat": 42.670277,
+   "lon": 23.369024,
+   "x": 1395.6,
+   "z": -141.9,
+   "size_m": [
+    5.3,
+    3.5
+   ],
+   "levels": null,
+   "height": null,
+   "cls": null,
+   "subtype": null,
+   "name": null,
+   "roof": null,
+   "roof_color": null,
+   "facade_color": null,
+   "facade_material": null,
+   "dist": 74.7
+  },
+  {
+   "overture": "a563b2c8-ddd8-4d2d-b8b1-ceb01972bf31",
+   "osm": "w166204767@9",
+   "lat": 42.670313,
+   "lon": 23.367907,
+   "x": 1304.0,
+   "z": -145.9,
+   "size_m": [
+    78.2,
+    50.9
+   ],
+   "levels": null,
+   "height": null,
+   "cls": "commercial",
+   "subtype": "commercial",
+   "name": null,
+   "roof": null,
+   "roof_color": null,
+   "facade_color": null,
+   "facade_material": null,
+   "dist": 90.2
+  },
+  {
+   "overture": "55b91d29-5595-4cd2-89de-3fdbe371661e",
+   "osm": null,
+   "lat": 42.670627,
+   "lon": 23.368994,
+   "x": 1393.1,
+   "z": -180.7,
+   "size_m": [
+    6.8,
+    4.5
+   ],
+   "levels": null,
+   "height": null,
+   "cls": null,
+   "subtype": null,
+   "name": null,
+   "roof": null,
+   "roof_color": null,
+   "facade_color": null,
+   "facade_material": null,
+   "dist": 109.7
+  },
+  {
+   "overture": "e6327074-c7ed-43f4-9984-0ba0efd36d1d",
+   "osm": "w1459578130@1",
+   "lat": 42.670304,
+   "lon": 23.367411,
+   "x": 1263.4,
+   "z": -144.9,
+   "size_m": [
+    36.3,
+    29.9
+   ],
+   "levels": null,
+   "height": null,
+   "cls": null,
+   "subtype": null,
+   "name": null,
+   "roof": null,
+   "roof_color": null,
+   "facade_color": null,
+   "facade_material": null,
+   "dist": 119.4
+  },
+  {
+   "overture": "c29361da-3f0c-48ca-992e-40e2a845d496",
+   "osm": "w224324410@3",
+   "lat": 42.669171,
+   "lon": 23.370088,
+   "x": 1482.8,
+   "z": -19.0,
+   "size_m": [
+    80.4,
+    55.7
+   ],
+   "levels": 2,
+   "height": null,
+   "cls": null,
+   "subtype": null,
+   "name": null,
+   "roof": null,
+   "roof_color": null,
+   "facade_color": null,
+   "facade_material": null,
+   "dist": 134.6
+  },
+  {
+   "overture": "4beea11e-495b-4ebc-88ec-58bd66fac22f",
+   "osm": "w467648189@4",
+   "lat": 42.670202,
+   "lon": 23.36699,
+   "x": 1228.8,
+   "z": -133.5,
+   "size_m": [
+    18.1,
+    10.1
+   ],
+   "levels": null,
+   "height": null,
+   "cls": "commercial",
+   "subtype": "commercial",
+   "name": null,
+   "roof": null,
+   "roof_color": null,
+   "facade_color": null,
+   "facade_material": null,
+   "dist": 144.0
+  },
+  {
+   "overture": "340de030-7a79-4fae-a529-f8d267fe9e68",
+   "osm": null,
+   "lat": 42.670927,
+   "lon": 23.368104,
+   "x": 1320.1,
+   "z": -214.1,
+   "size_m": [
+    4.0,
+    2.6
+   ],
+   "levels": null,
+   "height": null,
+   "cls": null,
+   "subtype": null,
+   "name": null,
+   "roof": null,
+   "roof_color": null,
+   "facade_color": null,
+   "facade_material": null,
+   "dist": 144.1
+  },
+  {
+   "overture": "db4ee15b-85a7-4da4-b0c5-0d2cfc71fb64",
+   "osm": "w467648193@3",
+   "lat": 42.670423,
+   "lon": 23.367025,
+   "x": 1231.7,
+   "z": -158.1,
+   "size_m": [
+    27.0,
+    14.7
+   ],
+   "levels": null,
+   "height": null,
+   "cls": "commercial",
+   "subtype": "commercial",
+   "name": null,
+   "roof": null,
+   "roof_color": null,
+   "facade_color": null,
+   "facade_material": null,
+   "dist": 153.0
+  },
+  {
+   "overture": "b488bb3e-c47e-4cbe-97c4-e56c00e909b7",
+   "osm": "w467648188@3",
+   "lat": 42.670977,
+   "lon": 23.367868,
+   "x": 1300.9,
+   "z": -219.6,
+   "size_m": [
+    14.4,
+    7.4
+   ],
+   "levels": null,
+   "height": null,
+   "cls": "service",
+   "subtype": "service",
+   "name": null,
+   "roof": null,
+   "roof_color": null,
+   "facade_color": null,
+   "facade_material": null,
+   "dist": 155.7
+  },
+  {
+   "overture": "4deb4863-1cfa-4f81-94e9-bfe966f6f2ee",
+   "osm": null,
+   "lat": 42.67105,
+   "lon": 23.367725,
+   "x": 1289.1,
+   "z": -227.7,
+   "size_m": [
+    5.0,
+    3.1
+   ],
+   "levels": null,
+   "height": null,
+   "cls": null,
+   "subtype": null,
+   "name": null,
+   "roof": null,
+   "roof_color": null,
+   "facade_color": null,
+   "facade_material": null,
+   "dist": 167.9
+  },
+  {
+   "overture": "880fc19a-d9b3-41f1-8367-6be6dac3dc26",
+   "osm": "w505679378@1",
+   "lat": 42.668783,
+   "lon": 23.370451,
+   "x": 1512.6,
+   "z": 24.1,
+   "size_m": [
+    42.5,
+    27.2
+   ],
+   "levels": 18,
+   "height": null,
+   "cls": "apartments",
+   "subtype": "residential",
+   "name": null,
+   "roof": null,
+   "roof_color": null,
+   "facade_color": null,
+   "facade_material": null,
+   "dist": 181.8
+  },
+  {
+   "overture": "6bf1d684-b07e-43cc-a2b9-bb65f532e62a",
+   "osm": "w225073102@14",
+   "lat": 42.671236,
+   "lon": 23.36936,
+   "x": 1423.1,
+   "z": -248.4,
+   "size_m": [
+    137.1,
+    112.9
+   ],
+   "levels": 4,
+   "height": null,
+   "cls": null,
+   "subtype": null,
+   "name": "Арена 8888 София",
+   "roof": null,
+   "roof_color": null,
+   "facade_color": null,
+   "facade_material": null,
+   "dist": 183.5
+  },
+  {
+   "overture": "2b865716-6d92-48d3-9adb-6ae00da04e06",
+   "osm": "w207086240@9",
+   "lat": 42.668799,
+   "lon": 23.366703,
+   "x": 1205.3,
+   "z": 22.3,
+   "size_m": [
+    49.3,
+    23.8
+   ],
+   "levels": 9,
+   "height": null,
+   "cls": "commercial",
+   "subtype": "commercial",
+   "name": "Q Center",
+   "roof": null,
+   "roof_color": null,
+   "facade_color": null,
+   "facade_material": null,
+   "dist": 183.9
+  },
+  {
+   "overture": "fb7bf4c7-6d97-4320-ab44-43db5d01791c",
+   "osm": "w1552289097@1",
+   "lat": 42.671061,
+   "lon": 23.367157,
+   "x": 1242.5,
+   "z": -229.0,
+   "size_m": [
+    4.5,
+    3.3
+   ],
+   "levels": null,
+   "height": null,
+   "cls": "industrial",
+   "subtype": "industrial",
+   "name": null,
+   "roof": null,
+   "roof_color": null,
+   "facade_color": null,
+   "facade_material": null,
+   "dist": 193.5
+  }
+ ],
+ "places": [
+  {
+   "name": "LUXORICA",
+   "cat": "shopping",
+   "x": 1378.9,
+   "z": -133.3,
+   "addr": "Булевард Асен Йорданов 1а",
+   "conf": 0.28,
+   "dist": 60.2
+  },
+  {
+   "name": "Спортна гимнастика за деца и любители ЦСКА",
+   "cat": "sport_or_fitness_facility",
+   "x": 1378.9,
+   "z": -133.3,
+   "addr": "Булевард Асен Йорданов 1",
+   "conf": 0.84,
+   "dist": 60.2
+  },
+  {
+   "name": "Sport Stage",
+   "cat": "sporting_goods_store",
+   "x": 1378.9,
+   "z": -133.3,
+   "addr": "Булевард Асен Йорданов 1",
+   "conf": 0.8,
+   "dist": 60.2
+  },
+  {
+   "name": "Web&Soul Art Space",
+   "cat": "arts_and_entertainment",
+   "x": 1384.0,
+   "z": -139.2,
+   "addr": "Булевард Евлоги и Христо Георгиеви 38",
+   "conf": 0.51,
+   "dist": 67.5
+  },
+  {
+   "name": "Pass Backstage",
+   "cat": "amusement_park",
+   "x": 1384.0,
+   "z": -139.2,
+   "addr": "Булевард Асен Йорданов 1",
+   "conf": 0.59,
+   "dist": 67.5
+  },
+  {
+   "name": "Площад На Авиацията",
+   "cat": "public_transit_facility_or_service",
+   "x": 1300.1,
+   "z": -30.4,
+   "addr": "",
+   "conf": 0.75,
+   "dist": 75.8
+  },
+  {
+   "name": "Pandora",
+   "cat": "fashion_and_apparel_store",
+   "x": 1312.5,
+   "z": 5.6,
+   "addr": "The Mall, Tsarigradsko Shousse Blvd. 115B",
+   "conf": 0.8,
+   "dist": 94.7
+  },
+  {
+   "name": "OMV",
+   "cat": "gas_station",
+   "x": 1275.7,
+   "z": -17.4,
+   "addr": "Tsarigradsko Shosse Blvd. 123A",
+   "conf": 0.85,
+   "dist": 103.2
+  },
+  {
+   "name": "Salon Horeca",
+   "cat": "event_or_party_service",
+   "x": 1428.2,
+   "z": -184.3,
+   "addr": "Булевард Асен Йорданов 1",
+   "conf": 0.29,
+   "dist": 127.7
+  },
+  {
+   "name": "Автомивка Капитолия",
+   "cat": "automotive_service",
+   "x": 1229.7,
+   "z": -51.5,
+   "addr": "4ти км",
+   "conf": 0.69,
+   "dist": 133.3
+  },
+  {
+   "name": "Пункт за Годишни Технически Прегледи",
+   "cat": "automotive_service",
+   "x": 1349.0,
+   "z": 71.2,
+   "addr": "Булевард Цариградско шосе 4",
+   "conf": 0.66,
+   "dist": 147.5
+  },
+  {
+   "name": "МО поделение \"54800\"",
+   "cat": "atm",
+   "x": 1496.4,
+   "z": -12.7,
+   "addr": "бул. Асен Йорданов 2, Национална гвардейска част, София",
+   "conf": 0.8,
+   "dist": 149.6
+  },
+  {
+   "name": "Академия Респонса / Academy Responsa",
+   "cat": "college_university",
+   "x": 1197.7,
+   "z": -81.4,
+   "addr": "Tzarigradsko shose Blvd  24",
+   "conf": 0.82,
+   "dist": 163.2
+  },
+  {
+   "name": "Арена Армеец София",
+   "cat": "stadium_arena",
+   "x": 1407.3,
+   "z": -234.5,
+   "addr": "Улица Цар Асен 1",
+   "conf": 0.97,
+   "dist": 165.3
+  },
+  {
+   "name": "EKO 4 km",
+   "cat": "atm",
+   "x": 1309.1,
+   "z": 89.0,
+   "addr": "Tsarigradsko shosse Blvd., 4 km",
+   "conf": 0.8,
+   "dist": 172.8
+  },
+  {
+   "name": "HUGO Store",
+   "cat": "fashion_and_apparel_store",
+   "x": 1395.6,
+   "z": 98.3,
+   "addr": "булевард „Цариградско шосе“ 115z",
+   "conf": 0.85,
+   "dist": 177.6
+  },
+  {
+   "name": "Котенцата от \"Арена Армеец\"",
+   "cat": "sports_and_recreation",
+   "x": 1439.1,
+   "z": -243.3,
+   "addr": "Улица Иван Шишман 18",
+   "conf": 0.53,
+   "dist": 184.9
+  },
+  {
+   "name": "Любо Киров / Lubo Kirov",
+   "cat": "arts_and_entertainment",
+   "x": 1423.6,
+   "z": -251.8,
+   "addr": null,
+   "conf": 0.12,
+   "dist": 186.8
+  },
+  {
+   "name": "Зала Армеец",
+   "cat": "music_venue",
+   "x": 1421.5,
+   "z": -257.8,
+   "addr": null,
+   "conf": 0.7,
+   "dist": 191.8
+  },
+  {
+   "name": "\"Спирка \"Спортна Зала \"Арена Армеец\"\" 2616\"",
+   "cat": "travel_and_transportation",
+   "x": 1485.2,
+   "z": -224.5,
+   "addr": "",
+   "conf": 0.59,
+   "dist": 193.9
+  },
+  {
+   "name": "Спирка  Площад на авиацията  1257",
+   "cat": "public_transit_facility_or_service",
+   "x": 1276.0,
+   "z": 103.1,
+   "addr": "ж.к.  Гео Милев",
+   "conf": 0.58,
+   "dist": 198.0
+  },
+  {
+   "name": "Oriflame",
+   "cat": "personal_care_and_beauty_store",
+   "x": 1267.7,
+   "z": 99.4,
+   "addr": "Булевард Д-р Г. М. Димитров 1",
+   "conf": 0.39,
+   "dist": 198.4
+  },
+  {
+   "name": "NitroTiger",
+   "cat": "food_and_beverage_store",
+   "x": 1263.0,
+   "z": 99.5,
+   "addr": "pl. Ploshtad na aviaciata, bulevard „Doctor G. M. Dimitrov“ 1",
+   "conf": 0.69,
+   "dist": 200.8
+  },
+  {
+   "name": "OKOL Lake Park",
+   "cat": "hotel",
+   "x": 1420.7,
+   "z": -269.3,
+   "addr": "Булевард Цариградско шосе 4",
+   "conf": 0.88,
+   "dist": 202.5
+  },
+  {
+   "name": "СОФИЯ - ЕКО ЦАРИГРАДСКО ШОСЕ",
+   "cat": "storage_facility",
+   "x": 1329.4,
+   "z": 126.1,
+   "addr": "гр. София бул. Цариградско шосе 4-ТИ КМ.",
+   "conf": 0.8,
+   "dist": 204.4
+  },
+  {
+   "name": "RentEvent",
+   "cat": "hardware_home_and_garden_store",
+   "x": 1314.9,
+   "z": -278.2,
+   "addr": "Boulevard Tsarigradsko shose 105",
+   "conf": 0.42,
+   "dist": 207.5
+  },
+  {
+   "name": "EKO",
+   "cat": "gas_station",
+   "x": 1348.4,
+   "z": 132.4,
+   "addr": "София, бул. “Цариградско шосе”, кръговото на 4-и км, София",
+   "conf": 0.95,
+   "dist": 208.6
+  },
+  {
+   "name": "Pulse Arena",
+   "cat": "gym",
+   "x": 1247.9,
+   "z": 106.9,
+   "addr": "Винарово колело, Бул. Д-Р Г. М. Димитров, pl. Ploshtad na aviaciata",
+   "conf": 0.99,
+   "dist": 214.8
+  }
+ ]
+}

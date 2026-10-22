@@ -1,0 +1,1467 @@
+{
+ "stop": {
+  "code": "0800",
+  "name": "ж.к. Дървеница",
+  "lat": 42.6513605,
+  "lon": 23.3578508,
+  "pole": [
+   479.63,
+   1959.51
+  ],
+  "road": "8-ми декември",
+  "uses": [
+   "A10"
+  ]
+ },
+ "note": "x east, z south, metres from the game origin (lat 42.669, lon 23.352). dist = metres from the stop pole.",
+ "buildings": [
+  {
+   "overture": "d5798ef8-3056-4cbc-aca8-83ca4eae254f",
+   "osm": "w170124645@11",
+   "lat": 42.650999,
+   "lon": 23.35766,
+   "x": 464.0,
+   "z": 1999.7,
+   "size_m": [
+    25.0,
+    16.0
+   ],
+   "levels": null,
+   "height": null,
+   "cls": "roof",
+   "subtype": "outbuilding",
+   "name": null,
+   "roof": null,
+   "roof_color": null,
+   "facade_color": null,
+   "facade_material": null,
+   "dist": 43.1
+  },
+  {
+   "overture": "32dd2b79-2f1e-4238-84af-44f9e08bd889",
+   "osm": "w170124652@5",
+   "lat": 42.65093,
+   "lon": 23.358069,
+   "x": 497.6,
+   "z": 2007.4,
+   "size_m": [
+    36.5,
+    18.9
+   ],
+   "levels": 7,
+   "height": null,
+   "cls": "apartments",
+   "subtype": "residential",
+   "name": null,
+   "roof": null,
+   "roof_color": null,
+   "facade_color": null,
+   "facade_material": null,
+   "dist": 51.2
+  },
+  {
+   "overture": "749c40a7-63fd-4ec8-869a-f41fd9bb5a1c",
+   "osm": "w1221552145@3",
+   "lat": 42.650907,
+   "lon": 23.357525,
+   "x": 453.0,
+   "z": 2009.9,
+   "size_m": [
+    14.5,
+    9.5
+   ],
+   "levels": 1,
+   "height": null,
+   "cls": "retail",
+   "subtype": "commercial",
+   "name": null,
+   "roof": null,
+   "roof_color": null,
+   "facade_color": null,
+   "facade_material": null,
+   "dist": 57.0
+  },
+  {
+   "overture": "b897569c-bed8-40b1-8d6b-ff2dbd50461e",
+   "osm": "w1193369651@4",
+   "lat": 42.650781,
+   "lon": 23.357923,
+   "x": 485.5,
+   "z": 2023.8,
+   "size_m": [
+    20.8,
+    13.9
+   ],
+   "levels": null,
+   "height": null,
+   "cls": "apartments",
+   "subtype": "residential",
+   "name": null,
+   "roof": null,
+   "roof_color": null,
+   "facade_color": null,
+   "facade_material": null,
+   "dist": 64.6
+  },
+  {
+   "overture": "0c9da08a-90f8-474e-a595-e04e20e5c119",
+   "osm": null,
+   "lat": 42.650521,
+   "lon": 23.357275,
+   "x": 432.4,
+   "z": 2052.8,
+   "size_m": [
+    6.4,
+    5.1
+   ],
+   "levels": null,
+   "height": null,
+   "cls": null,
+   "subtype": null,
+   "name": null,
+   "roof": null,
+   "roof_color": null,
+   "facade_color": null,
+   "facade_material": null,
+   "dist": 104.6
+  },
+  {
+   "overture": "6230c6c2-6f4a-4a73-a90c-f116381eb3ce",
+   "osm": "w362863712@4",
+   "lat": 42.650815,
+   "lon": 23.358897,
+   "x": 565.4,
+   "z": 2020.0,
+   "size_m": [
+    35.1,
+    16.5
+   ],
+   "levels": 7,
+   "height": null,
+   "cls": "apartments",
+   "subtype": "residential",
+   "name": null,
+   "roof": null,
+   "roof_color": null,
+   "facade_color": null,
+   "facade_material": null,
+   "dist": 105.0
+  },
+  {
+   "overture": "7048bb8f-d559-440b-a64f-3d77bd4cd51a",
+   "osm": "w766217168@5",
+   "lat": 42.650586,
+   "lon": 23.35866,
+   "x": 545.9,
+   "z": 2045.6,
+   "size_m": [
+    38.8,
+    17.0
+   ],
+   "levels": 10,
+   "height": null,
+   "cls": "apartments",
+   "subtype": "residential",
+   "name": null,
+   "roof": null,
+   "roof_color": null,
+   "facade_color": null,
+   "facade_material": null,
+   "dist": 108.6
+  },
+  {
+   "overture": "097ffa5b-6b9d-4208-b3e1-455385f51c80",
+   "osm": "w1199408986@3",
+   "lat": 42.650375,
+   "lon": 23.357587,
+   "x": 458.0,
+   "z": 2068.9,
+   "size_m": [
+    32.0,
+    9.4
+   ],
+   "levels": null,
+   "height": null,
+   "cls": "apartments",
+   "subtype": "residential",
+   "name": null,
+   "roof": null,
+   "roof_color": null,
+   "facade_color": null,
+   "facade_material": null,
+   "dist": 111.5
+  },
+  {
+   "overture": "2730debd-96a6-45f6-8d63-dc1d0dbc371e",
+   "osm": "w170124613@6",
+   "lat": 42.650533,
+   "lon": 23.357067,
+   "x": 415.4,
+   "z": 2051.5,
+   "size_m": [
+    37.0,
+    24.4
+   ],
+   "levels": 12,
+   "height": null,
+   "cls": "apartments",
+   "subtype": "residential",
+   "name": null,
+   "roof": null,
+   "roof_color": null,
+   "facade_color": null,
+   "facade_material": null,
+   "dist": 112.2
+  },
+  {
+   "overture": "4f90b3ef-ba91-4f89-8d63-f32b1b184d66",
+   "osm": "w1055187511@6",
+   "lat": 42.651133,
+   "lon": 23.359262,
+   "x": 595.3,
+   "z": 1984.8,
+   "size_m": [
+    62.4,
+    27.3
+   ],
+   "levels": 10,
+   "height": null,
+   "cls": "apartments",
+   "subtype": "residential",
+   "name": null,
+   "roof": null,
+   "roof_color": null,
+   "facade_color": null,
+   "facade_material": null,
+   "dist": 118.4
+  },
+  {
+   "overture": "c125943a-b096-4874-a3a2-d71b33571639",
+   "osm": "w170124617@5",
+   "lat": 42.650857,
+   "lon": 23.356575,
+   "x": 375.1,
+   "z": 2015.4,
+   "size_m": [
+    43.9,
+    36.3
+   ],
+   "levels": null,
+   "height": null,
+   "cls": "apartments",
+   "subtype": "residential",
+   "name": null,
+   "roof": null,
+   "roof_color": null,
+   "facade_color": null,
+   "facade_material": null,
+   "dist": 118.5
+  },
+  {
+   "overture": "b3ea8df1-1d23-4632-9ff3-8679d2c38f90",
+   "osm": null,
+   "lat": 42.650689,
+   "lon": 23.358975,
+   "x": 571.8,
+   "z": 2034.1,
+   "size_m": [
+    7.9,
+    4.2
+   ],
+   "levels": null,
+   "height": null,
+   "cls": null,
+   "subtype": null,
+   "name": null,
+   "roof": null,
+   "roof_color": null,
+   "facade_color": null,
+   "facade_material": null,
+   "dist": 118.6
+  },
+  {
+   "overture": "ec7f1902-40aa-4f78-8aba-1b4dff25c99a",
+   "osm": "w766217167@5",
+   "lat": 42.650361,
+   "lon": 23.358433,
+   "x": 527.4,
+   "z": 2070.5,
+   "size_m": [
+    33.4,
+    17.0
+   ],
+   "levels": 10,
+   "height": null,
+   "cls": "apartments",
+   "subtype": "residential",
+   "name": null,
+   "roof": null,
+   "roof_color": null,
+   "facade_color": null,
+   "facade_material": null,
+   "dist": 120.8
+  },
+  {
+   "overture": "caae2a1b-561a-4188-8a33-ab413bbc8f6c",
+   "osm": "w766217169@6",
+   "lat": 42.650216,
+   "lon": 23.358291,
+   "x": 515.7,
+   "z": 2086.7,
+   "size_m": [
+    19.0,
+    11.8
+   ],
+   "levels": 6,
+   "height": null,
+   "cls": "apartments",
+   "subtype": "residential",
+   "name": null,
+   "roof": null,
+   "roof_color": null,
+   "facade_color": null,
+   "facade_material": null,
+   "dist": 132.2
+  },
+  {
+   "overture": "6f81fe00-891d-49c2-b5ea-45464464e769",
+   "osm": null,
+   "lat": 42.651488,
+   "lon": 23.359505,
+   "x": 615.2,
+   "z": 1945.4,
+   "size_m": [
+    6.1,
+    5.1
+   ],
+   "levels": null,
+   "height": null,
+   "cls": null,
+   "subtype": null,
+   "name": null,
+   "roof": null,
+   "roof_color": null,
+   "facade_color": null,
+   "facade_material": null,
+   "dist": 136.3
+  },
+  {
+   "overture": "7d2ea280-a7b8-4974-849a-4844ff80381b",
+   "osm": "w362863715@5",
+   "lat": 42.650636,
+   "lon": 23.359196,
+   "x": 589.9,
+   "z": 2039.9,
+   "size_m": [
+    22.6,
+    15.5
+   ],
+   "levels": 6,
+   "height": null,
+   "cls": "apartments",
+   "subtype": "residential",
+   "name": null,
+   "roof": null,
+   "roof_color": null,
+   "facade_color": null,
+   "facade_material": null,
+   "dist": 136.5
+  },
+  {
+   "overture": "94c68ada-cd74-437f-8034-2d93c7ca3163",
+   "osm": "w1184854554@5",
+   "lat": 42.650131,
+   "lon": 23.35821,
+   "x": 509.0,
+   "z": 2096.1,
+   "size_m": [
+    18.7,
+    12.0
+   ],
+   "levels": 6,
+   "height": null,
+   "cls": "apartments",
+   "subtype": "residential",
+   "name": null,
+   "roof": null,
+   "roof_color": null,
+   "facade_color": null,
+   "facade_material": null,
+   "dist": 139.7
+  },
+  {
+   "overture": "76c955ec-ff52-4d79-a949-07e2b118864c",
+   "osm": null,
+   "lat": 42.650585,
+   "lon": 23.356348,
+   "x": 356.4,
+   "z": 2045.6,
+   "size_m": [
+    4.6,
+    4.0
+   ],
+   "levels": null,
+   "height": null,
+   "cls": null,
+   "subtype": null,
+   "name": null,
+   "roof": null,
+   "roof_color": null,
+   "facade_color": null,
+   "facade_material": null,
+   "dist": 150.3
+  },
+  {
+   "overture": "f30fd9fb-09fc-44e3-ba1b-5379ea62b456",
+   "osm": "w362863711@5",
+   "lat": 42.650332,
+   "lon": 23.359087,
+   "x": 580.9,
+   "z": 2073.8,
+   "size_m": [
+    26.4,
+    17.2
+   ],
+   "levels": 7,
+   "height": null,
+   "cls": "apartments",
+   "subtype": "residential",
+   "name": null,
+   "roof": null,
+   "roof_color": null,
+   "facade_color": null,
+   "facade_material": null,
+   "dist": 152.7
+  },
+  {
+   "overture": "0e4c7da1-8497-43c1-9e02-3628f868a18a",
+   "osm": "w477669450@2",
+   "lat": 42.650469,
+   "lon": 23.359276,
+   "x": 596.4,
+   "z": 2058.5,
+   "size_m": [
+    3.4,
+    2.7
+   ],
+   "levels": null,
+   "height": null,
+   "cls": "service",
+   "subtype": "service",
+   "name": null,
+   "roof": null,
+   "roof_color": null,
+   "facade_color": null,
+   "facade_material": null,
+   "dist": 153.1
+  },
+  {
+   "overture": "89648f7a-97df-41e8-a6bb-367395be6c03",
+   "osm": null,
+   "lat": 42.650092,
+   "lon": 23.358615,
+   "x": 542.2,
+   "z": 2100.4,
+   "size_m": [
+    3.9,
+    2.8
+   ],
+   "levels": null,
+   "height": null,
+   "cls": null,
+   "subtype": null,
+   "name": null,
+   "roof": null,
+   "roof_color": null,
+   "facade_color": null,
+   "facade_material": null,
+   "dist": 154.2
+  },
+  {
+   "overture": "6de56db1-f28d-496a-a2e8-193941f2b30a",
+   "osm": "w1184854555@5",
+   "lat": 42.649991,
+   "lon": 23.358166,
+   "x": 505.5,
+   "z": 2111.6,
+   "size_m": [
+    32.4,
+    16.8
+   ],
+   "levels": 5,
+   "height": null,
+   "cls": "apartments",
+   "subtype": "residential",
+   "name": null,
+   "roof": null,
+   "roof_color": null,
+   "facade_color": null,
+   "facade_material": null,
+   "dist": 154.3
+  },
+  {
+   "overture": "9e2d1925-3258-4203-b370-d12646d4c43d",
+   "osm": "w259255371@5",
+   "lat": 42.651005,
+   "lon": 23.359677,
+   "x": 629.3,
+   "z": 1998.9,
+   "size_m": [
+    32.9,
+    15.8
+   ],
+   "levels": 6,
+   "height": null,
+   "cls": "apartments",
+   "subtype": "residential",
+   "name": null,
+   "roof": null,
+   "roof_color": null,
+   "facade_color": null,
+   "facade_material": null,
+   "dist": 154.8
+  },
+  {
+   "overture": "6718b84d-36e7-4870-be62-70954d95ac7f",
+   "osm": "w477669449@2",
+   "lat": 42.650555,
+   "lon": 23.359455,
+   "x": 611.1,
+   "z": 2049.0,
+   "size_m": [
+    4.4,
+    2.6
+   ],
+   "levels": null,
+   "height": null,
+   "cls": "service",
+   "subtype": "service",
+   "name": null,
+   "roof": null,
+   "roof_color": null,
+   "facade_color": null,
+   "facade_material": null,
+   "dist": 159.0
+  },
+  {
+   "overture": "7e54f717-adb7-4366-b4ca-39fbef6138ed",
+   "osm": null,
+   "lat": 42.652794,
+   "lon": 23.357533,
+   "x": 453.6,
+   "z": 1800.3,
+   "size_m": [
+    6.4,
+    4.3
+   ],
+   "levels": null,
+   "height": null,
+   "cls": null,
+   "subtype": null,
+   "name": null,
+   "roof": null,
+   "roof_color": null,
+   "facade_color": null,
+   "facade_material": null,
+   "dist": 161.3
+  },
+  {
+   "overture": "d1fee7d5-327d-492f-87c3-aea6b58847de",
+   "osm": "w1193299197@2",
+   "lat": 42.650104,
+   "lon": 23.358853,
+   "x": 561.8,
+   "z": 2099.1,
+   "size_m": [
+    30.5,
+    14.9
+   ],
+   "levels": 8,
+   "height": null,
+   "cls": null,
+   "subtype": null,
+   "name": null,
+   "roof": null,
+   "roof_color": null,
+   "facade_color": null,
+   "facade_material": null,
+   "dist": 162.0
+  },
+  {
+   "overture": "f260285e-c7ab-447d-9e5b-dda5d81253df",
+   "osm": null,
+   "lat": 42.652819,
+   "lon": 23.357613,
+   "x": 460.1,
+   "z": 1797.5,
+   "size_m": [
+    3.9,
+    3.6
+   ],
+   "levels": null,
+   "height": null,
+   "cls": null,
+   "subtype": null,
+   "name": null,
+   "roof": null,
+   "roof_color": null,
+   "facade_color": null,
+   "facade_material": null,
+   "dist": 163.2
+  },
+  {
+   "overture": "d5b2e56f-45fc-4b2f-8261-2dbfaff7fae5",
+   "osm": null,
+   "lat": 42.652845,
+   "lon": 23.357726,
+   "x": 469.4,
+   "z": 1794.6,
+   "size_m": [
+    7.3,
+    4.7
+   ],
+   "levels": null,
+   "height": null,
+   "cls": null,
+   "subtype": null,
+   "name": null,
+   "roof": null,
+   "roof_color": null,
+   "facade_color": null,
+   "facade_material": null,
+   "dist": 165.2
+  },
+  {
+   "overture": "18707bfe-fb41-43db-82f9-9b9a93fabed8",
+   "osm": "w1547902747@1",
+   "lat": 42.650752,
+   "lon": 23.359737,
+   "x": 634.2,
+   "z": 2027.1,
+   "size_m": [
+    49.0,
+    5.4
+   ],
+   "levels": null,
+   "height": null,
+   "cls": "carport",
+   "subtype": "outbuilding",
+   "name": null,
+   "roof": null,
+   "roof_color": null,
+   "facade_color": null,
+   "facade_material": null,
+   "dist": 168.7
+  },
+  {
+   "overture": "1e7478cf-f7cd-4a22-8f3a-dfc67e47e3f9",
+   "osm": "w362863716@5",
+   "lat": 42.649969,
+   "lon": 23.3587,
+   "x": 549.2,
+   "z": 2114.1,
+   "size_m": [
+    17.9,
+    13.6
+   ],
+   "levels": 6,
+   "height": null,
+   "cls": "apartments",
+   "subtype": "residential",
+   "name": null,
+   "roof": null,
+   "roof_color": null,
+   "facade_color": null,
+   "facade_material": null,
+   "dist": 169.5
+  },
+  {
+   "overture": "e679bd8d-eea1-4ea9-8989-ab3fa9af8ebe",
+   "osm": "w1547902748@1",
+   "lat": 42.65056,
+   "lon": 23.359647,
+   "x": 626.9,
+   "z": 2048.4,
+   "size_m": [
+    31.2,
+    4.0
+   ],
+   "levels": null,
+   "height": null,
+   "cls": "carport",
+   "subtype": "outbuilding",
+   "name": null,
+   "roof": null,
+   "roof_color": null,
+   "facade_color": null,
+   "facade_material": null,
+   "dist": 172.0
+  },
+  {
+   "overture": "7ba755ce-3d7d-448e-bdb5-4b30d3c38aba",
+   "osm": "w1214464164@2",
+   "lat": 42.649802,
+   "lon": 23.358034,
+   "x": 494.7,
+   "z": 2132.6,
+   "size_m": [
+    34.6,
+    6.8
+   ],
+   "levels": null,
+   "height": null,
+   "cls": "industrial",
+   "subtype": "industrial",
+   "name": null,
+   "roof": null,
+   "roof_color": null,
+   "facade_color": null,
+   "facade_material": null,
+   "dist": 173.7
+  },
+  {
+   "overture": "ea49cb4c-84d5-4d84-b34b-b05a8476e77e",
+   "osm": "w1075693051@6",
+   "lat": 42.649899,
+   "lon": 23.358614,
+   "x": 542.2,
+   "z": 2121.9,
+   "size_m": [
+    17.3,
+    8.4
+   ],
+   "levels": 6,
+   "height": null,
+   "cls": "apartments",
+   "subtype": "residential",
+   "name": null,
+   "roof": null,
+   "roof_color": null,
+   "facade_color": null,
+   "facade_material": null,
+   "dist": 174.0
+  },
+  {
+   "overture": "72cf4e9c-16a1-44d0-bc3d-869be4f1a248",
+   "osm": "w477669452@5",
+   "lat": 42.649846,
+   "lon": 23.358456,
+   "x": 529.2,
+   "z": 2127.7,
+   "size_m": [
+    30.2,
+    17.4
+   ],
+   "levels": 6,
+   "height": null,
+   "cls": "apartments",
+   "subtype": "residential",
+   "name": null,
+   "roof": null,
+   "roof_color": null,
+   "facade_color": null,
+   "facade_material": null,
+   "dist": 175.3
+  },
+  {
+   "overture": "a3393330-f35a-4fff-a787-52adb5210095",
+   "osm": "w166110696@8",
+   "lat": 42.650402,
+   "lon": 23.359566,
+   "x": 620.3,
+   "z": 2066.0,
+   "size_m": [
+    25.8,
+    18.7
+   ],
+   "levels": 7,
+   "height": null,
+   "cls": "apartments",
+   "subtype": "residential",
+   "name": null,
+   "roof": null,
+   "roof_color": null,
+   "facade_color": null,
+   "facade_material": null,
+   "dist": 176.4
+  },
+  {
+   "overture": "b05bcba3-34ac-4cd9-955d-e68a227d955b",
+   "osm": "w1184854556@5",
+   "lat": 42.650241,
+   "lon": 23.359465,
+   "x": 612.0,
+   "z": 2083.9,
+   "size_m": [
+    23.3,
+    19.2
+   ],
+   "levels": 7,
+   "height": null,
+   "cls": "apartments",
+   "subtype": "residential",
+   "name": null,
+   "roof": null,
+   "roof_color": null,
+   "facade_color": null,
+   "facade_material": null,
+   "dist": 181.6
+  },
+  {
+   "overture": "502f6c6f-a00a-4b40-ad9e-461894f0eb2c",
+   "osm": "w1184854557@5",
+   "lat": 42.650108,
+   "lon": 23.359336,
+   "x": 601.4,
+   "z": 2098.7,
+   "size_m": [
+    23.2,
+    18.4
+   ],
+   "levels": 7,
+   "height": null,
+   "cls": "apartments",
+   "subtype": "residential",
+   "name": null,
+   "roof": null,
+   "roof_color": null,
+   "facade_color": null,
+   "facade_material": null,
+   "dist": 184.9
+  },
+  {
+   "overture": "2adacb23-7ba7-4909-ba45-615b0d555163",
+   "osm": "w259255372@5",
+   "lat": 42.650844,
+   "lon": 23.360018,
+   "x": 657.3,
+   "z": 2016.8,
+   "size_m": [
+    31.0,
+    16.9
+   ],
+   "levels": 6,
+   "height": null,
+   "cls": "apartments",
+   "subtype": "residential",
+   "name": null,
+   "roof": null,
+   "roof_color": null,
+   "facade_color": null,
+   "facade_material": null,
+   "dist": 186.7
+  },
+  {
+   "overture": "665b7751-013b-48b3-a33c-71c9979f4651",
+   "osm": "w1184854558@5",
+   "lat": 42.649989,
+   "lon": 23.35922,
+   "x": 591.9,
+   "z": 2111.9,
+   "size_m": [
+    22.6,
+    15.3
+   ],
+   "levels": 7,
+   "height": null,
+   "cls": "apartments",
+   "subtype": "residential",
+   "name": null,
+   "roof": null,
+   "roof_color": null,
+   "facade_color": null,
+   "facade_material": null,
+   "dist": 189.3
+  },
+  {
+   "overture": "2f9ec350-031a-4898-bc77-b52286f24f64",
+   "osm": "w439807736@6",
+   "lat": 42.649877,
+   "lon": 23.359075,
+   "x": 580.0,
+   "z": 2124.3,
+   "size_m": [
+    14.6,
+    9.6
+   ],
+   "levels": 4,
+   "height": null,
+   "cls": "office",
+   "subtype": "commercial",
+   "name": null,
+   "roof": null,
+   "roof_color": null,
+   "facade_color": null,
+   "facade_material": null,
+   "dist": 193.0
+  },
+  {
+   "overture": "4908e4a2-910d-46f5-a2b0-46fb6d688f15",
+   "osm": "w170124618@8",
+   "lat": 42.649907,
+   "lon": 23.356445,
+   "x": 364.4,
+   "z": 2120.9,
+   "size_m": [
+    33.9,
+    27.3
+   ],
+   "levels": 12,
+   "height": null,
+   "cls": "apartments",
+   "subtype": "residential",
+   "name": null,
+   "roof": null,
+   "roof_color": null,
+   "facade_color": null,
+   "facade_material": null,
+   "dist": 198.3
+  },
+  {
+   "overture": "f4576a3f-eba8-4ceb-9b75-61cebdce25d7",
+   "osm": "w169382989@2",
+   "lat": 42.652997,
+   "lon": 23.356866,
+   "x": 398.9,
+   "z": 1777.7,
+   "size_m": [
+    36.8,
+    13.1
+   ],
+   "levels": null,
+   "height": null,
+   "cls": "university",
+   "subtype": "education",
+   "name": null,
+   "roof": null,
+   "roof_color": null,
+   "facade_color": null,
+   "facade_material": null,
+   "dist": 198.9
+  }
+ ],
+ "places": [
+  {
+   "name": "София 24/7 Еконтомат - ОМВ 8-ми декември",
+   "cat": "storage_facility",
+   "x": 459.3,
+   "z": 1998.4,
+   "addr": "1 ул. 8-ми декември",
+   "conf": 0.8,
+   "dist": 43.9
+  },
+  {
+   "name": "OMV",
+   "cat": "gas_station",
+   "x": 463.3,
+   "z": 2003.4,
+   "addr": "3 8-mi Dekemvri St.",
+   "conf": 1.0,
+   "dist": 46.8
+  },
+  {
+   "name": "SAUER Bulgaria",
+   "cat": "sport_or_fitness_facility",
+   "x": 497.6,
+   "z": 2002.9,
+   "addr": "Улица 8-ми декември 1",
+   "conf": 0.37,
+   "dist": 47.0
+  },
+  {
+   "name": "VBL Trade-Smart Solutions",
+   "cat": "professional_service",
+   "x": 497.6,
+   "z": 2002.9,
+   "addr": "Улица 8-ми декември 1",
+   "conf": 0.79,
+   "dist": 47.0
+  },
+  {
+   "name": "Force Fitness",
+   "cat": "gym",
+   "x": 497.7,
+   "z": 2004.9,
+   "addr": "ul. 8-mi dekemvri 1",
+   "conf": 0.98,
+   "dist": 48.9
+  },
+  {
+   "name": "Врати San Isidro бул.Климент Охридски 12",
+   "cat": "manufacturer",
+   "x": 500.8,
+   "z": 2005.5,
+   "addr": "ul. 8-mi dekemvri 1",
+   "conf": 0.78,
+   "dist": 50.6
+  },
+  {
+   "name": "Zarimex",
+   "cat": "specialty_store",
+   "x": 515.0,
+   "z": 2004.7,
+   "addr": "ul. 8-mi dekemvri 1",
+   "conf": 0.99,
+   "dist": 57.4
+  },
+  {
+   "name": "Major No Pain / Майор No Pain",
+   "cat": "physical_medicine_and_rehabilitation",
+   "x": 496.7,
+   "z": 2019.4,
+   "addr": "ul. 8-mi dekemvri",
+   "conf": 0.29,
+   "dist": 62.3
+  },
+  {
+   "name": "Къщата на Ян",
+   "cat": "restaurant",
+   "x": 497.3,
+   "z": 2025.3,
+   "addr": "ul. Professor Vitali Tadzher 12, 1700",
+   "conf": 0.97,
+   "dist": 68.1
+  },
+  {
+   "name": "Дрогерия VLP",
+   "cat": "personal_care_and_beauty_store",
+   "x": 546.9,
+   "z": 2022.3,
+   "addr": "bul. Kliment Ohridski 27",
+   "conf": 0.62,
+   "dist": 92.0
+  },
+  {
+   "name": "V.A Beauty Forever",
+   "cat": "personal_or_beauty_service",
+   "x": 548.2,
+   "z": 2022.1,
+   "addr": "Kliment ohtidski 27, bul. Kliment Ohridski 27",
+   "conf": 0.84,
+   "dist": 92.8
+  },
+  {
+   "name": "Наша кухня",
+   "cat": "restaurant",
+   "x": 542.1,
+   "z": 2034.7,
+   "addr": "bul. Kliment Ohridski 27",
+   "conf": 0.79,
+   "dist": 97.8
+  },
+  {
+   "name": "Пералня Bubbles Wash",
+   "cat": "laundry_service",
+   "x": 472.5,
+   "z": 2059.0,
+   "addr": "ul. Professor Vitali Tadzher 5",
+   "conf": 0.59,
+   "dist": 99.7
+  },
+  {
+   "name": "Shops VSDrinks",
+   "cat": "food_and_beverage_store",
+   "x": 561.5,
+   "z": 2018.4,
+   "addr": "bul. Kliment Ohridski 25",
+   "conf": 0.67,
+   "dist": 100.9
+  },
+  {
+   "name": "SOS Locksmith",
+   "cat": "home_service",
+   "x": 560.7,
+   "z": 2020.7,
+   "addr": "Булевард Свети Климент Охридски 25",
+   "conf": 0.26,
+   "dist": 101.6
+  },
+  {
+   "name": "SOS Auto Keys",
+   "cat": "automotive_service",
+   "x": 560.7,
+   "z": 2020.7,
+   "addr": "Булевард Свети Климент Охридски 25",
+   "conf": 0.57,
+   "dist": 101.6
+  },
+  {
+   "name": "SAT engineering",
+   "cat": "building_or_construction_service",
+   "x": 560.7,
+   "z": 2020.7,
+   "addr": "Булевард Свети Климент Охридски 25",
+   "conf": 0.38,
+   "dist": 101.6
+  },
+  {
+   "name": "Allexi's Beauty Room",
+   "cat": "personal_care_and_beauty_store",
+   "x": 581.4,
+   "z": 1978.2,
+   "addr": "bul. Kliment Ohridski 23А",
+   "conf": 0.96,
+   "dist": 103.5
+  },
+  {
+   "name": "Шивашко ателие Ваялет",
+   "cat": "home_service",
+   "x": 580.2,
+   "z": 1988.8,
+   "addr": "bul. Kliment Ohridski 23В",
+   "conf": 0.58,
+   "dist": 104.7
+  },
+  {
+   "name": "Mr Jeff",
+   "cat": "laundry_service",
+   "x": 583.1,
+   "z": 1975.3,
+   "addr": "bul. Kliment Ohridski 23",
+   "conf": 0.55,
+   "dist": 104.7
+  },
+  {
+   "name": "Veliana face",
+   "cat": "wellness_service",
+   "x": 537.3,
+   "z": 2047.1,
+   "addr": "Булевард Свети Климент Охридски 27",
+   "conf": 0.27,
+   "dist": 104.9
+  },
+  {
+   "name": "Nails by Marieta Dimitrova",
+   "cat": "personal_or_beauty_service",
+   "x": 547.6,
+   "z": 2039.5,
+   "addr": "ж.к Дървеница",
+   "conf": 0.32,
+   "dist": 105.0
+  },
+  {
+   "name": "Сервиз за Теб ООД",
+   "cat": "electronics_store",
+   "x": 556.2,
+   "z": 2033.3,
+   "addr": "Булевард Андрей Ляпчев 9",
+   "conf": 0.66,
+   "dist": 106.3
+  },
+  {
+   "name": "E-Point Bulgaria",
+   "cat": null,
+   "x": 516.0,
+   "z": 2062.9,
+   "addr": "Булевард Свети Климент Охридски 39a",
+   "conf": 0.46,
+   "dist": 109.6
+  },
+  {
+   "name": "Pizzeria Spaccanapoli",
+   "cat": "restaurant",
+   "x": 515.1,
+   "z": 2065.9,
+   "addr": "bul. Kliment Ohridski 33",
+   "conf": 0.94,
+   "dist": 112.1
+  },
+  {
+   "name": "Nail Art By Yonichka Pancheva",
+   "cat": "wellness_service",
+   "x": 379.6,
+   "z": 2012.9,
+   "addr": "жк Студентски град 7А",
+   "conf": 0.38,
+   "dist": 113.4
+  },
+  {
+   "name": "BabyGalix Sofia бебешки магазин ",
+   "cat": "shopping",
+   "x": 600.9,
+   "z": 1977.3,
+   "addr": "Булевард Свети Климент Охридски 23",
+   "conf": 0.27,
+   "dist": 122.6
+  },
+  {
+   "name": "ALF.BG",
+   "cat": "fashion_and_apparel_store",
+   "x": 355.8,
+   "z": 2006.2,
+   "addr": null,
+   "conf": 0.08,
+   "dist": 132.3
+  },
+  {
+   "name": "Beyond Book - Уникален Подарък за Всеки Повод",
+   "cat": "shopping",
+   "x": 355.8,
+   "z": 2006.2,
+   "addr": null,
+   "conf": 0.32,
+   "dist": 132.3
+  },
+  {
+   "name": "City Cash - Студентски град",
+   "cat": "b2b_office_and_professional_service",
+   "x": 355.8,
+   "z": 2006.2,
+   "addr": "Студентски град ",
+   "conf": 0.53,
+   "dist": 132.3
+  },
+  {
+   "name": "Dilkinska PhiArtist",
+   "cat": "personal_or_beauty_service",
+   "x": 355.8,
+   "z": 2006.2,
+   "addr": "Булевард Свети Климент Охридски 23а",
+   "conf": 0.58,
+   "dist": 132.3
+  },
+  {
+   "name": "Market Options Center",
+   "cat": "shopping",
+   "x": 355.8,
+   "z": 2006.2,
+   "addr": null,
+   "conf": 0.17,
+   "dist": 132.3
+  },
+  {
+   "name": "Магазин Акумулатори \"Дървеница\"",
+   "cat": "shopping",
+   "x": 613.0,
+   "z": 1937.0,
+   "addr": "Булевард Свети Климент Охридски 19",
+   "conf": 0.71,
+   "dist": 135.3
+  },
+  {
+   "name": "COCO Wellness and sun",
+   "cat": null,
+   "x": 506.0,
+   "z": 2097.2,
+   "addr": "Булевард Свети Климент Охридски 31",
+   "conf": 0.84,
+   "dist": 140.2
+  },
+  {
+   "name": "Diani autodesign Ltd",
+   "cat": "automotive_service",
+   "x": 602.1,
+   "z": 2038.3,
+   "addr": "ul. Zheko voyvoda 5",
+   "conf": 0.67,
+   "dist": 145.6
+  },
+  {
+   "name": "Имотико ООД",
+   "cat": "real_estate_service",
+   "x": 600.5,
+   "z": 2045.5,
+   "addr": "ul. Zheko voyvoda 4",
+   "conf": 0.92,
+   "dist": 148.3
+  },
+  {
+   "name": "A&B Beauty Studio",
+   "cat": "personal_or_beauty_service",
+   "x": 579.6,
+   "z": 2069.3,
+   "addr": "Улица жеко войвода 8 1756",
+   "conf": 0.78,
+   "dist": 148.5
+  },
+  {
+   "name": "BMW Map and Coding Upgrade",
+   "cat": "professional_service",
+   "x": 625.8,
+   "z": 1987.3,
+   "addr": "ul. Zheko voyvoda 2",
+   "conf": 0.46,
+   "dist": 148.8
+  },
+  {
+   "name": "Grand Cuts barbershop",
+   "cat": "personal_or_beauty_service",
+   "x": 514.1,
+   "z": 2108.7,
+   "addr": "bul. Kliment Ohridski",
+   "conf": 0.85,
+   "dist": 153.1
+  },
+  {
+   "name": "Терзийски-Дент",
+   "cat": "dental_clinic",
+   "x": 633.2,
+   "z": 1980.5,
+   "addr": "ul. Zheko voyvoda 1",
+   "conf": 0.9,
+   "dist": 155.0
+  },
+  {
+   "name": "Cattleya.Y - Luxury Handmade Bags",
+   "cat": null,
+   "x": 585.4,
+   "z": 2074.0,
+   "addr": null,
+   "conf": 0.51,
+   "dist": 155.9
+  },
+  {
+   "name": "Nikeli Event Management",
+   "cat": "event_or_party_service",
+   "x": 603.4,
+   "z": 2073.2,
+   "addr": "1756 кв. Дървеница, ul. Zheko voyvoda 5",
+   "conf": 0.54,
+   "dist": 168.1
+  },
+  {
+   "name": "The One Auto Spa",
+   "cat": "automotive_service",
+   "x": 493.5,
+   "z": 2129.5,
+   "addr": "bul. Kliment Ohridski 39",
+   "conf": 0.8,
+   "dist": 170.6
+  },
+  {
+   "name": "Благоев Сървей",
+   "cat": "b2b_service",
+   "x": 601.8,
+   "z": 2083.6,
+   "addr": "ж.к.Дървеница, ул.Жеко Войвода №5, вх.3, Офис №8",
+   "conf": 0.33,
+   "dist": 174.1
+  },
+  {
+   "name": "Azares",
+   "cat": "education",
+   "x": 655.9,
+   "z": 2016.4,
+   "addr": "Улица Яна 1",
+   "conf": 0.61,
+   "dist": 185.2
+  },
+  {
+   "name": "Студентски Град",
+   "cat": "lodging",
+   "x": 382.2,
+   "z": 2120.6,
+   "addr": "ul. Professor Vitali Tadzher 8",
+   "conf": 0.33,
+   "dist": 188.3
+  },
+  {
+   "name": "GTA Studio Barbershop",
+   "cat": "personal_or_beauty_service",
+   "x": 659.1,
+   "z": 1896.0,
+   "addr": "ж.к. Дървеница 50А",
+   "conf": 0.69,
+   "dist": 190.4
+  },
+  {
+   "name": "VZ Concept",
+   "cat": "community_and_government",
+   "x": 664.8,
+   "z": 2013.6,
+   "addr": "ul. Yana 5",
+   "conf": 0.2,
+   "dist": 192.9
+  },
+  {
+   "name": "Блок 8",
+   "cat": "lodging",
+   "x": 353.9,
+   "z": 2107.7,
+   "addr": "Студентски град",
+   "conf": 0.76,
+   "dist": 194.3
+  },
+  {
+   "name": "Pigeon Express",
+   "cat": "shipping_or_delivery_service",
+   "x": 654.1,
+   "z": 1873.1,
+   "addr": "обл. София (столица), гр. София, ж.к. ДЪРВЕНИЦА, бл. 50А",
+   "conf": 0.8,
+   "dist": 194.7
+  },
+  {
+   "name": "Satori By Roni",
+   "cat": "complementary_and_alternative_medicine",
+   "x": 364.8,
+   "z": 2121.7,
+   "addr": "ul “John Lenon” 8",
+   "conf": 0.28,
+   "dist": 198.7
+  },
+  {
+   "name": "Healthy Factory Company",
+   "cat": "manufacturer",
+   "x": 654.5,
+   "z": 1860.3,
+   "addr": "ul. Ivan Borimechkata 1",
+   "conf": 0.25,
+   "dist": 201.1
+  },
+  {
+   "name": "Студио за опънати тавани Reopri",
+   "cat": null,
+   "x": 679.6,
+   "z": 1894.0,
+   "addr": "жк Дървеница 50",
+   "conf": 0.38,
+   "dist": 210.4
+  },
+  {
+   "name": "БГ Скара",
+   "cat": "restaurant",
+   "x": 663.5,
+   "z": 1855.8,
+   "addr": "Улица Иван Боримечката 3",
+   "conf": 0.54,
+   "dist": 211.1
+  },
+  {
+   "name": "Книжарница ТРИО",
+   "cat": "books_music_and_video_store",
+   "x": 677.6,
+   "z": 1882.7,
+   "addr": "50-A,, g.k Darvenitsa 50A",
+   "conf": 0.29,
+   "dist": 212.3
+  },
+  {
+   "name": "YSP Job Solution - Bulgaria",
+   "cat": "professional_service",
+   "x": 683.2,
+   "z": 1894.1,
+   "addr": "жк Дървеница 50",
+   "conf": 0.57,
+   "dist": 213.8
+  },
+  {
+   "name": "Рекорд",
+   "cat": "restaurant",
+   "x": 662.7,
+   "z": 1848.2,
+   "addr": "бул. Климент Охридски",
+   "conf": 0.53,
+   "dist": 214.3
+  },
+  {
+   "name": "TUCAN Tattoo Studio",
+   "cat": "personal_or_beauty_service",
+   "x": 696.4,
+   "z": 1972.1,
+   "addr": "ul. Yana 3Б",
+   "conf": 0.94,
+   "dist": 217.1
+  }
+ ]
+}

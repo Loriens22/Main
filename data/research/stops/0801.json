@@ -1,0 +1,781 @@
+{
+ "stop": {
+  "code": "0801",
+  "name": "ж.к. Дървеница",
+  "lat": 42.6513682,
+  "lon": 23.3561521,
+  "pole": [
+   340.38,
+   1958.65
+  ],
+  "road": "8-ми декември",
+  "uses": [
+   "B7"
+  ]
+ },
+ "note": "x east, z south, metres from the game origin (lat 42.669, lon 23.352). dist = metres from the stop pole.",
+ "buildings": [
+  {
+   "overture": "c125943a-b096-4874-a3a2-d71b33571639",
+   "osm": "w170124617@5",
+   "lat": 42.650857,
+   "lon": 23.356575,
+   "x": 375.1,
+   "z": 2015.4,
+   "size_m": [
+    43.9,
+    36.3
+   ],
+   "levels": null,
+   "height": null,
+   "cls": "apartments",
+   "subtype": "residential",
+   "name": null,
+   "roof": null,
+   "roof_color": null,
+   "facade_color": null,
+   "facade_material": null,
+   "dist": 66.5
+  },
+  {
+   "overture": "76c955ec-ff52-4d79-a949-07e2b118864c",
+   "osm": null,
+   "lat": 42.650585,
+   "lon": 23.356348,
+   "x": 356.4,
+   "z": 2045.6,
+   "size_m": [
+    4.6,
+    4.0
+   ],
+   "levels": null,
+   "height": null,
+   "cls": null,
+   "subtype": null,
+   "name": null,
+   "roof": null,
+   "roof_color": null,
+   "facade_color": null,
+   "facade_material": null,
+   "dist": 88.4
+  },
+  {
+   "overture": "37e5b067-a88f-4005-9751-009f25d1fa73",
+   "osm": "w614282368@1",
+   "lat": 42.650922,
+   "lon": 23.355044,
+   "x": 249.5,
+   "z": 2008.2,
+   "size_m": [
+    14.2,
+    7.1
+   ],
+   "levels": null,
+   "height": null,
+   "cls": null,
+   "subtype": null,
+   "name": null,
+   "roof": null,
+   "roof_color": null,
+   "facade_color": null,
+   "facade_material": null,
+   "dist": 103.5
+  },
+  {
+   "overture": "2730debd-96a6-45f6-8d63-dc1d0dbc371e",
+   "osm": "w170124613@6",
+   "lat": 42.650533,
+   "lon": 23.357067,
+   "x": 415.4,
+   "z": 2051.5,
+   "size_m": [
+    37.0,
+    24.4
+   ],
+   "levels": 12,
+   "height": null,
+   "cls": "apartments",
+   "subtype": "residential",
+   "name": null,
+   "roof": null,
+   "roof_color": null,
+   "facade_color": null,
+   "facade_material": null,
+   "dist": 119.4
+  },
+  {
+   "overture": "fd78e808-c32b-4adf-8823-f62f657923a0",
+   "osm": "r2880716@3",
+   "lat": 42.652359,
+   "lon": 23.355575,
+   "x": 293.1,
+   "z": 1848.6,
+   "size_m": [
+    110.0,
+    76.7
+   ],
+   "levels": null,
+   "height": null,
+   "cls": "university",
+   "subtype": "education",
+   "name": "9-и блок",
+   "roof": null,
+   "roof_color": null,
+   "facade_color": null,
+   "facade_material": null,
+   "dist": 119.8
+  },
+  {
+   "overture": "749c40a7-63fd-4ec8-869a-f41fd9bb5a1c",
+   "osm": "w1221552145@3",
+   "lat": 42.650907,
+   "lon": 23.357525,
+   "x": 453.0,
+   "z": 2009.9,
+   "size_m": [
+    14.5,
+    9.5
+   ],
+   "levels": 1,
+   "height": null,
+   "cls": "retail",
+   "subtype": "commercial",
+   "name": null,
+   "roof": null,
+   "roof_color": null,
+   "facade_color": null,
+   "facade_material": null,
+   "dist": 123.7
+  },
+  {
+   "overture": "d5798ef8-3056-4cbc-aca8-83ca4eae254f",
+   "osm": "w170124645@11",
+   "lat": 42.650999,
+   "lon": 23.35766,
+   "x": 464.0,
+   "z": 1999.7,
+   "size_m": [
+    25.0,
+    16.0
+   ],
+   "levels": null,
+   "height": null,
+   "cls": "roof",
+   "subtype": "outbuilding",
+   "name": null,
+   "roof": null,
+   "roof_color": null,
+   "facade_color": null,
+   "facade_material": null,
+   "dist": 130.3
+  },
+  {
+   "overture": "0c9da08a-90f8-474e-a595-e04e20e5c119",
+   "osm": null,
+   "lat": 42.650521,
+   "lon": 23.357275,
+   "x": 432.4,
+   "z": 2052.8,
+   "size_m": [
+    6.4,
+    5.1
+   ],
+   "levels": null,
+   "height": null,
+   "cls": null,
+   "subtype": null,
+   "name": null,
+   "roof": null,
+   "roof_color": null,
+   "facade_color": null,
+   "facade_material": null,
+   "dist": 131.7
+  },
+  {
+   "overture": "b897569c-bed8-40b1-8d6b-ff2dbd50461e",
+   "osm": "w1193369651@4",
+   "lat": 42.650781,
+   "lon": 23.357923,
+   "x": 485.5,
+   "z": 2023.8,
+   "size_m": [
+    20.8,
+    13.9
+   ],
+   "levels": null,
+   "height": null,
+   "cls": "apartments",
+   "subtype": "residential",
+   "name": null,
+   "roof": null,
+   "roof_color": null,
+   "facade_color": null,
+   "facade_material": null,
+   "dist": 159.1
+  },
+  {
+   "overture": "3138e853-77f8-4b61-89ff-3a83d25b6327",
+   "osm": "w170124711@7",
+   "lat": 42.650053,
+   "lon": 23.355363,
+   "x": 275.7,
+   "z": 2104.8,
+   "size_m": [
+    47.9,
+    42.9
+   ],
+   "levels": null,
+   "height": null,
+   "cls": "university",
+   "subtype": "education",
+   "name": "13-ти блок",
+   "roof": null,
+   "roof_color": null,
+   "facade_color": null,
+   "facade_material": null,
+   "dist": 159.8
+  },
+  {
+   "overture": "097ffa5b-6b9d-4208-b3e1-455385f51c80",
+   "osm": "w1199408986@3",
+   "lat": 42.650375,
+   "lon": 23.357587,
+   "x": 458.0,
+   "z": 2068.9,
+   "size_m": [
+    32.0,
+    9.4
+   ],
+   "levels": null,
+   "height": null,
+   "cls": "apartments",
+   "subtype": "residential",
+   "name": null,
+   "roof": null,
+   "roof_color": null,
+   "facade_color": null,
+   "facade_material": null,
+   "dist": 161.2
+  },
+  {
+   "overture": "4908e4a2-910d-46f5-a2b0-46fb6d688f15",
+   "osm": "w170124618@8",
+   "lat": 42.649907,
+   "lon": 23.356445,
+   "x": 364.4,
+   "z": 2120.9,
+   "size_m": [
+    33.9,
+    27.3
+   ],
+   "levels": 12,
+   "height": null,
+   "cls": "apartments",
+   "subtype": "residential",
+   "name": null,
+   "roof": null,
+   "roof_color": null,
+   "facade_color": null,
+   "facade_material": null,
+   "dist": 164.0
+  },
+  {
+   "overture": "32dd2b79-2f1e-4238-84af-44f9e08bd889",
+   "osm": "w170124652@5",
+   "lat": 42.65093,
+   "lon": 23.358069,
+   "x": 497.6,
+   "z": 2007.4,
+   "size_m": [
+    36.5,
+    18.9
+   ],
+   "levels": 7,
+   "height": null,
+   "cls": "apartments",
+   "subtype": "residential",
+   "name": null,
+   "roof": null,
+   "roof_color": null,
+   "facade_color": null,
+   "facade_material": null,
+   "dist": 164.6
+  },
+  {
+   "overture": "f50069e4-5871-415b-b90a-317d084d6f64",
+   "osm": null,
+   "lat": 42.652917,
+   "lon": 23.356492,
+   "x": 368.2,
+   "z": 1786.6,
+   "size_m": [
+    17.3,
+    6.6
+   ],
+   "levels": null,
+   "height": null,
+   "cls": null,
+   "subtype": null,
+   "name": null,
+   "roof": null,
+   "roof_color": null,
+   "facade_color": null,
+   "facade_material": null,
+   "dist": 174.3
+  },
+  {
+   "overture": "b27936ed-022e-4edf-8fba-a9547321392f",
+   "osm": null,
+   "lat": 42.652974,
+   "lon": 23.355884,
+   "x": 318.4,
+   "z": 1780.2,
+   "size_m": [
+    9.6,
+    6.4
+   ],
+   "levels": null,
+   "height": null,
+   "cls": null,
+   "subtype": null,
+   "name": null,
+   "roof": null,
+   "roof_color": null,
+   "facade_color": null,
+   "facade_material": null,
+   "dist": 179.8
+  },
+  {
+   "overture": "93089114-4e48-4788-8c35-ee1bf6f3c339",
+   "osm": "w169383035@5",
+   "lat": 42.652329,
+   "lon": 23.354279,
+   "x": 186.8,
+   "z": 1852.0,
+   "size_m": [
+    89.4,
+    76.9
+   ],
+   "levels": 2,
+   "height": null,
+   "cls": "university",
+   "subtype": "education",
+   "name": "8-ми блок",
+   "roof": null,
+   "roof_color": null,
+   "facade_color": null,
+   "facade_material": null,
+   "dist": 187.0
+  },
+  {
+   "overture": "f4576a3f-eba8-4ceb-9b75-61cebdce25d7",
+   "osm": "w169382989@2",
+   "lat": 42.652997,
+   "lon": 23.356866,
+   "x": 398.9,
+   "z": 1777.7,
+   "size_m": [
+    36.8,
+    13.1
+   ],
+   "levels": null,
+   "height": null,
+   "cls": "university",
+   "subtype": "education",
+   "name": null,
+   "roof": null,
+   "roof_color": null,
+   "facade_color": null,
+   "facade_material": null,
+   "dist": 190.2
+  },
+  {
+   "overture": "7e54f717-adb7-4366-b4ca-39fbef6138ed",
+   "osm": null,
+   "lat": 42.652794,
+   "lon": 23.357533,
+   "x": 453.6,
+   "z": 1800.3,
+   "size_m": [
+    6.4,
+    4.3
+   ],
+   "levels": null,
+   "height": null,
+   "cls": null,
+   "subtype": null,
+   "name": null,
+   "roof": null,
+   "roof_color": null,
+   "facade_color": null,
+   "facade_material": null,
+   "dist": 194.7
+  },
+  {
+   "overture": "9f244f75-e587-4248-8c7f-8709316c7994",
+   "osm": "w169383030@4",
+   "lat": 42.652719,
+   "lon": 23.354622,
+   "x": 215.0,
+   "z": 1808.6,
+   "size_m": [
+    51.0,
+    21.8
+   ],
+   "levels": null,
+   "height": null,
+   "cls": "university",
+   "subtype": "education",
+   "name": "10-ти блок",
+   "roof": null,
+   "roof_color": null,
+   "facade_color": null,
+   "facade_material": null,
+   "dist": 195.5
+  }
+ ],
+ "places": [
+  {
+   "name": "ALF.BG",
+   "cat": "fashion_and_apparel_store",
+   "x": 355.8,
+   "z": 2006.2,
+   "addr": null,
+   "conf": 0.08,
+   "dist": 50.0
+  },
+  {
+   "name": "Beyond Book - Уникален Подарък за Всеки Повод",
+   "cat": "shopping",
+   "x": 355.8,
+   "z": 2006.2,
+   "addr": null,
+   "conf": 0.32,
+   "dist": 50.0
+  },
+  {
+   "name": "City Cash - Студентски град",
+   "cat": "b2b_office_and_professional_service",
+   "x": 355.8,
+   "z": 2006.2,
+   "addr": "Студентски град ",
+   "conf": 0.53,
+   "dist": 50.0
+  },
+  {
+   "name": "Dilkinska PhiArtist",
+   "cat": "personal_or_beauty_service",
+   "x": 355.8,
+   "z": 2006.2,
+   "addr": "Булевард Свети Климент Охридски 23а",
+   "conf": 0.58,
+   "dist": 50.0
+  },
+  {
+   "name": "Market Options Center",
+   "cat": "shopping",
+   "x": 355.8,
+   "z": 2006.2,
+   "addr": null,
+   "conf": 0.17,
+   "dist": 50.0
+  },
+  {
+   "name": "Nail Art By Yonichka Pancheva",
+   "cat": "wellness_service",
+   "x": 379.6,
+   "z": 2012.9,
+   "addr": "жк Студентски град 7А",
+   "conf": 0.38,
+   "dist": 66.9
+  },
+  {
+   "name": "София 24/7 Еконтомат - ОМВ 8-ми декември",
+   "cat": "storage_facility",
+   "x": 459.3,
+   "z": 1998.4,
+   "addr": "1 ул. 8-ми декември",
+   "conf": 0.8,
+   "dist": 125.4
+  },
+  {
+   "name": "OMV",
+   "cat": "gas_station",
+   "x": 463.3,
+   "z": 2003.4,
+   "addr": "3 8-mi Dekemvri St.",
+   "conf": 1.0,
+   "dist": 130.8
+  },
+  {
+   "name": "Блок 8",
+   "cat": "lodging",
+   "x": 353.9,
+   "z": 2107.7,
+   "addr": "Студентски град",
+   "conf": 0.76,
+   "dist": 149.7
+  },
+  {
+   "name": "TU Sofia Racing Team",
+   "cat": "college_university",
+   "x": 264.0,
+   "z": 1815.3,
+   "addr": "ul. Rosario 1",
+   "conf": 0.48,
+   "dist": 162.4
+  },
+  {
+   "name": "SAUER Bulgaria",
+   "cat": "sport_or_fitness_facility",
+   "x": 497.6,
+   "z": 2002.9,
+   "addr": "Улица 8-ми декември 1",
+   "conf": 0.37,
+   "dist": 163.3
+  },
+  {
+   "name": "VBL Trade-Smart Solutions",
+   "cat": "professional_service",
+   "x": 497.6,
+   "z": 2002.9,
+   "addr": "Улица 8-ми декември 1",
+   "conf": 0.79,
+   "dist": 163.3
+  },
+  {
+   "name": "Force Fitness",
+   "cat": "gym",
+   "x": 497.7,
+   "z": 2004.9,
+   "addr": "ul. 8-mi dekemvri 1",
+   "conf": 0.98,
+   "dist": 164.0
+  },
+  {
+   "name": "Satori By Roni",
+   "cat": "complementary_and_alternative_medicine",
+   "x": 364.8,
+   "z": 2121.7,
+   "addr": "ul “John Lenon” 8",
+   "conf": 0.28,
+   "dist": 164.9
+  },
+  {
+   "name": "Пералня Bubbles Wash",
+   "cat": "laundry_service",
+   "x": 472.5,
+   "z": 2059.0,
+   "addr": "ul. Professor Vitali Tadzher 5",
+   "conf": 0.59,
+   "dist": 165.9
+  },
+  {
+   "name": "Врати San Isidro бул.Климент Охридски 12",
+   "cat": "manufacturer",
+   "x": 500.8,
+   "z": 2005.5,
+   "addr": "ul. 8-mi dekemvri 1",
+   "conf": 0.78,
+   "dist": 167.1
+  },
+  {
+   "name": "Студентски Град",
+   "cat": "lodging",
+   "x": 382.2,
+   "z": 2120.6,
+   "addr": "ul. Professor Vitali Tadzher 8",
+   "conf": 0.33,
+   "dist": 167.3
+  },
+  {
+   "name": "Major No Pain / Майор No Pain",
+   "cat": "physical_medicine_and_rehabilitation",
+   "x": 496.7,
+   "z": 2019.4,
+   "addr": "ul. 8-mi dekemvri",
+   "conf": 0.29,
+   "dist": 167.7
+  },
+  {
+   "name": "Къщата на Ян",
+   "cat": "restaurant",
+   "x": 497.3,
+   "z": 2025.3,
+   "addr": "ul. Professor Vitali Tadzher 12, 1700",
+   "conf": 0.97,
+   "dist": 170.5
+  },
+  {
+   "name": "Zarimex",
+   "cat": "specialty_store",
+   "x": 515.0,
+   "z": 2004.7,
+   "addr": "ul. 8-mi dekemvri 1",
+   "conf": 0.99,
+   "dist": 180.6
+  },
+  {
+   "name": "RoboClub.bg",
+   "cat": "college_university",
+   "x": 266.4,
+   "z": 1793.4,
+   "addr": "Технически университет 9",
+   "conf": 0.37,
+   "dist": 181.1
+  },
+  {
+   "name": "Спрейтех БГ",
+   "cat": "manufacturer",
+   "x": 222.2,
+   "z": 1809.6,
+   "addr": "Лесотехнически университет, Булевард Свети Климент Охридски 10",
+   "conf": 0.52,
+   "dist": 190.2
+  },
+  {
+   "name": "Катедра „Въздушен транспорт”",
+   "cat": "campus_building",
+   "x": 222.2,
+   "z": 1809.6,
+   "addr": "Булевард Свети Климент Охридски 8",
+   "conf": 0.84,
+   "dist": 190.2
+  },
+  {
+   "name": "НИЛ Аерокосмическа Техника и Технологии",
+   "cat": "college_university",
+   "x": 222.2,
+   "z": 1809.6,
+   "addr": "Технически университет 10",
+   "conf": 0.35,
+   "dist": 190.2
+  },
+  {
+   "name": "Технически Университет - София, Блок 10 (Факултет по Геология и Оръживане на Мините)",
+   "cat": "college_university",
+   "x": 226.4,
+   "z": 1799.1,
+   "addr": "Блок 10, bul. Kliment Ohridski 8, Етаж 2",
+   "conf": 0.46,
+   "dist": 196.1
+  },
+  {
+   "name": "Танцов комплекс \"Dance Fashion\"",
+   "cat": "sports_and_recreation",
+   "x": 140.2,
+   "z": 1989.3,
+   "addr": "улица \"8-ми Декември\", Спортен комплекс \"Бонсист\"",
+   "conf": 0.59,
+   "dist": 202.5
+  },
+  {
+   "name": "Microsoft IT Academy to FDIBA at TU",
+   "cat": "college_university",
+   "x": 214.9,
+   "z": 1799.7,
+   "addr": "",
+   "conf": 0.92,
+   "dist": 202.5
+  },
+  {
+   "name": "E-Point Bulgaria",
+   "cat": null,
+   "x": 516.0,
+   "z": 2062.9,
+   "addr": "Булевард Свети Климент Охридски 39a",
+   "conf": 0.46,
+   "dist": 204.2
+  },
+  {
+   "name": "Pizzeria Spaccanapoli",
+   "cat": "restaurant",
+   "x": 515.1,
+   "z": 2065.9,
+   "addr": "bul. Kliment Ohridski 33",
+   "conf": 0.94,
+   "dist": 205.0
+  },
+  {
+   "name": "Висша школа „Авиация”",
+   "cat": "specialty_school",
+   "x": 217.1,
+   "z": 1791.9,
+   "addr": "бул. „Климент Охридски” 8, Технически университет, блок 10, кабинет 10114",
+   "conf": 0.27,
+   "dist": 207.4
+  },
+  {
+   "name": "UNWE sport",
+   "cat": "gym",
+   "x": 150.3,
+   "z": 2055.0,
+   "addr": "ul.8-mi dekemvri",
+   "conf": 0.71,
+   "dist": 213.1
+  },
+  {
+   "name": "KIA Motors",
+   "cat": "auto_dealer",
+   "x": 172.2,
+   "z": 2091.9,
+   "addr": "бул. 8-ми декември",
+   "conf": 0.78,
+   "dist": 214.6
+  },
+  {
+   "name": "Наша кухня",
+   "cat": "restaurant",
+   "x": 542.1,
+   "z": 2034.7,
+   "addr": "bul. Kliment Ohridski 27",
+   "conf": 0.79,
+   "dist": 215.6
+  },
+  {
+   "name": "COCO Wellness and sun",
+   "cat": null,
+   "x": 506.0,
+   "z": 2097.2,
+   "addr": "Булевард Свети Климент Охридски 31",
+   "conf": 0.84,
+   "dist": 215.9
+  },
+  {
+   "name": "Veliana face",
+   "cat": "wellness_service",
+   "x": 537.3,
+   "z": 2047.1,
+   "addr": "Булевард Свети Климент Охридски 27",
+   "conf": 0.27,
+   "dist": 215.9
+  },
+  {
+   "name": "Дрогерия VLP",
+   "cat": "personal_care_and_beauty_store",
+   "x": 546.9,
+   "z": 2022.3,
+   "addr": "bul. Kliment Ohridski 27",
+   "conf": 0.62,
+   "dist": 216.1
+  },
+  {
+   "name": "V.A Beauty Forever",
+   "cat": "personal_or_beauty_service",
+   "x": 548.2,
+   "z": 2022.1,
+   "addr": "Kliment ohtidski 27, bul. Kliment Ohridski 27",
+   "conf": 0.84,
+   "dist": 217.3
+  },
+  {
+   "name": "Green Castle Bulgaria",
+   "cat": "building_or_construction_service",
+   "x": 135.6,
+   "z": 2037.1,
+   "addr": "ul. 8-mi dekemvri 21",
+   "conf": 0.57,
+   "dist": 219.3
+  }
+ ]
+}
