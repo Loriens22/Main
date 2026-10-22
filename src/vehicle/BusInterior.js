@@ -6,10 +6,54 @@ import { mergeGeometries } from 'three/examples/jsm/utils/BufferGeometryUtils.js
 import { RoundedBoxGeometry } from 'three/examples/jsm/geometries/RoundedBoxGeometry.js';
 import { BUS, FRONT_Z, AXLE1_Z, HITCH_FRONT_Z, HITCH_REAR_Z, FRONT_BODY_END_Z, REAR_BODY_START_Z, REAR_Z } from './BusSpec.js';
 import { SEATS } from './BusLayout.js';
+import { LedSign } from './LedSign.js';
 import { makeFloor, makeVentGrille, makeMoquette, makePrioritySticker, makeSignSheet } from './BusInteriorTextures.js';
 import { HW, S_REAR_ORIGIN, sToFrontZ, sToRearZ, M, Parts, basis, box, clean, cyl, endOutline, extrude, openBox, outlineCap, outlineStrip, rectPath, rectShape, scaleUV, skirtShape, tube } from './BusGeom.js';
 
 export const InteriorMixin = {
+  /** Materials used only by the passenger interior and the cab (merged into this.mats). */
+  interiorMaterials() {
+    const S = THREE.MeshStandardMaterial;
+    const floorTex = makeFloor();
+    floorTex.repeat.set(0.6, 0.6);
+    const vent = makeVentGrille();
+    const moq = makeMoquette();
+    moq.repeat.set(2.5, 2.5);
+    return {
+      floor: new S({ map: floorTex, color: 0xc9d0d8, roughness: 0.85 }),
+      wall: new S({ color: 0xd4d7d8, roughness: 0.6 }),
+      ceiling: new S({ color: 0xeceeed, roughness: 0.7, emissive: 0xffffff, emissiveIntensity: 0.06 }),
+      vent: new S({ map: vent, roughness: 0.6 }),
+      seat: new S({ color: 0x8e9398, roughness: 0.45, metalness: 0.05 }),
+      seatDark: new S({ color: 0x6c7176, roughness: 0.7 }),
+      moquette: new S({ map: moq, roughness: 0.95 }),
+      pole: new S({ color: 0xa9adb0, roughness: 0.32, metalness: 0.75 }),
+      strap: new S({ color: 0x9b9fa3, roughness: 0.5, metalness: 0.4 }),
+      dash: new S({ color: 0x2b2d2f, roughness: 0.85, envMapIntensity: 0.3 }),
+      lightStrip: new S({ color: 0xffffff, emissive: 0xf4f6ff, emissiveIntensity: 1.2, roughness: 0.4 }),
+      sticker: new S({ map: makePrioritySticker(), roughness: 0.6, polygonOffset: true, polygonOffsetFactor: -2 }),
+      signs: new S({ map: makeSignSheet(), roughness: 0.6, polygonOffset: true, polygonOffsetFactor: -2 }),
+    };
+  },
+
+  /** Next-stop LED displays hanging from the ceiling (this.signs.interior). */
+  buildInteriorSigns() {
+    // interior next-stop display (two faces: towards the passengers)
+    const inner = new LedSign(192, 16, 6);
+    this.signs.interior = inner;
+    const imat = new THREE.MeshBasicMaterial({ map: inner.texture, color: new THREE.Color(1, 1, 1).multiplyScalar(1.6) });
+    const imesh = new THREE.Mesh(new THREE.PlaneGeometry(1.04, 0.15), imat);
+    imesh.position.set(0, 2.3, FRONT_Z + 2.05);
+    this.front.add(imesh);
+    // rear section interior display
+    const imesh2 = new THREE.Mesh(new THREE.PlaneGeometry(1.04, 0.15), imat);
+    imesh2.position.set(0, 2.3, REAR_BODY_START_Z + 0.5);
+    this.rear.add(imesh2);
+    const box2 = new THREE.Mesh(box(1.1, 0.2, 0.08, 0.02), this.mats.plastic);
+    box2.position.set(0, 2.3, REAR_BODY_START_Z + 0.45);
+    this.rear.add(box2);
+  },
+
   /* ------------------------------------------------------------------ interior */
   buildInterior() {
     const fp = new Parts();
