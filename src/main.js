@@ -98,12 +98,14 @@ async function boot() {
       saveSettings(s);
     },
     onStart: async (opts) => {
+      if (settings.gyro) input.enableGyro(true); // inside the tap, for the iOS permission prompt
       await audio.start();
       menu.hide();
       startMode(opts);
     },
   });
   document.documentElement.style.setProperty('--tc', settings.controlsSize || 1);
+  if (settings.gyro) input.enableGyro(true);
 
   const startMode = (opts) => {
     if (states.state !== 'loading') {

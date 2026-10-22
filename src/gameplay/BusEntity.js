@@ -51,6 +51,7 @@ export class BusEntity {
     else this.display.setDirection(dirId);
     this.updateSigns();
     this.sHint = null;
+    this.routeHint = null; // the new direction's path has its own arc lengths
     this.frontS = 0;
     this.signalsAhead = this.findSignals();
   }
@@ -84,12 +85,35 @@ export class BusEntity {
   placeAt(s) {
     const L = this.driveLine;
     const frontToAxle2 = BUS.frontOverhang + BUS.wb1;
-    const a = L.at(Math.max(0, s - frontToAxle2));
-    const b = L.at(Math.max(0, s - frontToAxle2) + 3);
+    // route distance -> drive-line distance (the lane offset changes arc lengths in bends)
+    const rp = this.dir.path.at(Math.min(s, this.dir.path.length));
+    const ds = Math.min(L.nearest(rp.x, rp.z, Math.min(s, L.length), 400).s, L.length);
+    // the route starts at the first stop: behind it, follow the terminal link
+    // that leads into this direction (the turning loop / approach street)
+    const p0 = L.at(0), t0 = L.tangent(0, 4);
+    let lead = [[p0.x, p0.z], ...[...(this.route.terminalLinks[this.dirId === 'A' ? 'BtoA' : 'AtoB'] || [])].reverse()];
+    let leadLen = 0;
+    for (let i = 1; i < lead.length; i++) leadLen += Math.hypot(lead[i][0] - lead[i - 1][0], lead[i][1] - lead[i - 1][1]);
+    if (leadLen < 12) lead = [[p0.x, p0.z], [p0.x - t0.tx * 10, p0.z - t0.tz * 10]]; // no real lead-in: straight back
+    const at = (sv) => {
+      if (sv >= 0) return L.at(sv);
+      let rest = -sv;
+      for (let i = 1; i < lead.length; i++) {
+        const [ax, az] = lead[i - 1], [bx, bz] = lead[i];
+        const seg = Math.hypot(bx - ax, bz - az);
+        if (seg < 1e-6) continue;
+        // beyond the last point keep going in the last segment's direction
+        if (seg >= rest || i === lead.length - 1) return { x: ax + ((bx - ax) * rest) / seg, z: az + ((bz - az) * rest) / seg };
+        rest -= seg;
+      }
+      return { x: p0.x + t0.tx * sv, z: p0.z + t0.tz * sv };
+    };
+    const a = at(ds - frontToAxle2);
+    const b = at(ds - frontToAxle2 + 3);
     const yaw = Math.atan2(-(b.x - a.x), -(b.z - a.z));
     this.phys.reset(a.x, a.z, yaw);
     // settle the trailer along the path
-    const c = L.at(Math.max(0, s - frontToAxle2 - HITCH_FRONT_Z - 5.07));
+    const c = at(ds - frontToAxle2 - HITCH_FRONT_Z - 5.07);
     const [hx, hz] = this.phys.hitch();
     const dx = hx - c.x, dz = hz - c.z, dl = Math.hypot(dx, dz) || 1;
     this.phys.rx = hx - (dx / dl) * this.phys.L2;
@@ -157,11 +181,18 @@ export class BusEntity {
     // stop logic uses the route centre line arc length (stops are defined there)
     const c = this.dir.path.nearest(fx, fz, this.routeHint ?? null, this.routeHint == null ? 0 : 90);
     this.routeHint = c.s;
-    this.routeS = c.s;
-    this.stops.update({ frontS: c.s, speed: p.v, doorsOpen: this.doors.anyOpen, dt });
+    // still on the turning loop before the start of this direction: negative distance
+    let rs = c.s, off = c.d;
+    if (c.s < 0.5 && c.d > 5) {
+      const p0 = this.dir.path.at(0);
+      rs = c.s - Math.hypot(fx - p0.x, fz - p0.z);
+      off = 0;
+    }
+    this.routeS = rs;
+    this.stops.update({ frontS: rs, speed: p.v, doorsOpen: this.doors.anyOpen, dt, offRoute: off });
     this.announcer.update({
       nextIndex: this.stops.next,
-      distanceToNext: this.stops.distanceToNext(c.s),
+      distanceToNext: this.stops.distanceToNext(rs),
       speed: Math.abs(p.v),
       doorsOpen: this.doors.anyOpen,
     });

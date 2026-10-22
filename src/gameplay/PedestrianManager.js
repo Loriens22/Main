@@ -420,6 +420,8 @@ export class PedestrianManager {
         const g = sec === 'front' ? bus.model.front : bus.model.rear;
         q.setFromAxisAngle(up, yaw);
         base.compose(local, q, one).premultiply(g.matrixWorld);
+        // never draw someone the camera (the player's eyes) is standing inside
+        if (camPos && Math.hypot(base.elements[12] - camPos.x, base.elements[14] - camPos.z) < 0.55 && Math.abs(base.elements[13] + 1.6 - camPos.y) < 1) continue;
         r.anim = (r.anim || 0) + 0.016;
         this.writeHuman(n++, base, r.look, this.pose(r, mode));
       }

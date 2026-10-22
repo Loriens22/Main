@@ -65,12 +65,17 @@ export class Input {
 
   enableGyro(on) {
     this.gyro.enabled = on;
+    this.gyro.beta0 = null; // re-centre on the current hold
+    // iOS asks for motion permission; this must run inside a user gesture (the settings toggle)
+    const DOE = window.DeviceOrientationEvent;
+    if (on && DOE && typeof DOE.requestPermission === 'function') DOE.requestPermission().catch(() => {});
     if (on && !this._gyroBound) {
       this._gyroBound = true;
       window.addEventListener('deviceorientation', (e) => {
         if (!this.gyro.enabled || e.beta == null) return;
         // landscape: tilting the phone like a wheel changes beta
-        const v = (window.orientation === 90 ? -1 : 1) * e.beta;
+        const angle = (screen.orientation && screen.orientation.angle) ?? window.orientation ?? 0;
+        const v = (angle === 90 ? -1 : 1) * e.beta;
         if (this.gyro.beta0 == null) this.gyro.beta0 = v;
         this.gyro.value = clamp((v - this.gyro.beta0) / 35, -1, 1);
       });

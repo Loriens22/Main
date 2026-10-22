@@ -108,7 +108,7 @@ export class Game {
       const listener = this.camera.position;
       const dist = listener.distanceTo(bus.model.front.position);
       if (dist < 200) this.audio.doorEvent(e);
-      if (bus.player && e.type === 'closeRequest') this.hud.toast(L('Вратите се затварят…', 'Doors closing…'));
+      if (bus.player && e.type === 'closeRequest' && this.time - (this.lastCloseToast ?? -9) > 2) this.lastCloseToast = this.time, this.hud.toast(L('Вратите се затварят…', 'Doors closing…'));
     });
     bus.phys.onShift = () => {};
   }
@@ -342,7 +342,7 @@ export class Game {
       this.tripStart = this.time;
       this.scoring.tripStart(this.time);
     }
-    if (e.type === 'arrived' && this.mode === 'driver') {
+    if (e.type === 'arrived' && this.mode === 'driver' && e.index > 0) { // the trip starts at stop 0
       // front door alignment with the stop pole
       const err = e.error; // + = beyond the target
       const lat = Math.abs(bus.lateral);

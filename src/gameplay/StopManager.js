@@ -15,6 +15,7 @@ export class StopManager {
       passDistance: 22, // m past an unserved stop => passed/skipped
       stoppedSpeed: 0.35, // m/s
       approachDistance: 160,
+      maxOffRoute: 8, // m from the route line: farther away is not "at the stop"
       ...opts,
     };
     this.listeners = [];
@@ -54,7 +55,7 @@ export class StopManager {
   /**
    * @param {object} st {frontS, speed, doorsOpen, dt}
    */
-  update({ frontS, speed, doorsOpen, dt = 0 }) {
+  update({ frontS, speed, doorsOpen, dt = 0, offRoute = 0 }) {
     if (this.finished) return;
     const stops = this.dir.stops;
     const o = this.opts;
@@ -67,7 +68,7 @@ export class StopManager {
       this.emit('approach', this.next, { distance: d });
     }
 
-    const inWindow = Math.abs(d) <= o.arriveWindow;
+    const inWindow = Math.abs(d) <= o.arriveWindow && offRoute <= o.maxOffRoute;
     const stopped = Math.abs(speed) < o.stoppedSpeed;
     if (inWindow && stopped && this.atStop !== this.next) {
       this.atStop = this.next;
@@ -99,7 +100,7 @@ export class StopManager {
         return;
       }
     }
-    if (this.atStop !== this.next && -d > o.passDistance) {
+    if (this.atStop !== this.next && -d > o.passDistance && offRoute <= o.maxOffRoute) {
       const idx = this.next;
       this.next++;
       if (this.served.has(idx)) this.emit('departed', idx);

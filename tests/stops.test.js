@@ -43,3 +43,16 @@ test('stopping and waiting does not advance the stop counter twice', () => {
   assert.equal(sm.next, 4);
   assert.equal(sm.log.filter((e) => e.type === 'departed').length, 1);
 });
+
+test('a bus far off the route line neither arrives at nor passes a stop', () => {
+  const dir = makeRoute().direction('B');
+  const sm = new StopManager(dir);
+  // on the turning loop, 36 m from the line, projected beyond stop 0
+  sm.update({ frontS: dir.stops[0].frontS + 50, speed: 0, doorsOpen: true, dt: 0.1, offRoute: 36 });
+  assert.equal(sm.next, 0);
+  assert.equal(sm.atStop, -1);
+  // back on the line at the pole: arrives and is served
+  sm.update({ frontS: dir.stops[0].frontS, speed: 0, doorsOpen: true, dt: 0.1, offRoute: 1 });
+  assert.equal(sm.atStop, 0);
+  assert.ok(sm.served.has(0));
+});

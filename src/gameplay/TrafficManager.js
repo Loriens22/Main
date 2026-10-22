@@ -252,7 +252,11 @@ export class TrafficManager {
     const want = Math.min(this.maxCars, Math.round(this.target * this.density * (this.night ? 0.55 : 1)));
     for (let i = this.cars.length - 1; i >= 0; i--) {
       const c = this.cars[i];
-      if (Math.hypot(c.x - focus.x, c.z - focus.z) > this.radius + 40 || c.stuck > 40) this.cars.splice(i, 1);
+      const dist = Math.hypot(c.x - focus.x, c.z - focus.z);
+      // a car and a bus waiting for each other never resolve: the car gives up
+      // (quickly when it is far from the camera, later if it is in view)
+      const deadlock = c.busWait > (dist > 60 ? 8 : 20);
+      if (dist > this.radius + 40 || c.stuck > 40 || deadlock) this.cars.splice(i, 1);
     }
     let spawned = 0;
     while (this.cars.length < want && spawned++ < 3) if (!this.spawn(focus)) break;
@@ -281,12 +285,13 @@ export class TrafficManager {
       if (g < gap) { gap = g; vLead = o.v; }
     }
     // buses (and anything box-shaped in the lane ahead)
+    let byBus = false;
     for (const b of busBoxes) {
       for (let d = 2; d <= 30; d += 2) {
         const px = car.x + fx * (car.len / 2 + d), pz = car.z + fz * (car.len / 2 + d);
         const lx = (px - b.cx) * b.fx + (pz - b.cz) * b.fz, lz = (px - b.cx) * -b.fz + (pz - b.cz) * b.fx;
         if (Math.abs(lx) < b.hl + 0.5 && Math.abs(lz) < b.hw + 0.9) {
-          if (d - 1 < gap) { gap = d - 1; vLead = 0; }
+          if (d - 1 < gap) { gap = d - 1; vLead = 0; byBus = true; }
           break;
         }
       }
@@ -322,6 +327,7 @@ export class TrafficManager {
     car.brake = acc < -0.5;
     car.v = Math.max(0, car.v + acc * dt);
     if (car.v < 0.1) car.stuck += dt; else car.stuck = 0;
+    car.busWait = byBus && car.v < 0.1 ? (car.busWait || 0) + dt : 0;
     const ds = car.v * dt;
     // advance
     if (car.turn) {

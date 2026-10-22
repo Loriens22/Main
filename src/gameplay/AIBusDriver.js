@@ -31,6 +31,7 @@ export class AIBusDriver {
   update(dt) {
     const bus = this.bus, p = bus.phys;
     const line = bus.driveLine;
+    if (line !== this.line) { this.line = line; this.sHint = null; } // new trip direction
     const ctl = { throttle: 0, brake: 0, steer: 0 };
     // ---- steering: pure pursuit for the front axle
     const fx = -Math.sin(p.yaw), fz = -Math.cos(p.yaw);
@@ -84,6 +85,11 @@ export class AIBusDriver {
     if (gap < Infinity) vDes = Math.min(vDes, Math.sqrt(Math.max(0, 2 * 1.1 * Math.max(0, gap))));
     // ---- stop procedure
     const atStop = bus.stops.atStop >= 0;
+    // doors left open (e.g. at the terminal where the trip starts): dwell, then close them
+    if (this.state === 'drive' && bus.doors.anyOpen && Math.abs(p.v) < 0.2) {
+      this.state = 'dwell';
+      this.timer = 0;
+    }
     if (this.state === 'drive' && atStop && Math.abs(p.v) < 0.2 && pending) {
       this.state = 'opening';
       bus.doors.open(null, p.v);
