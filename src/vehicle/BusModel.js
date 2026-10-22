@@ -866,13 +866,14 @@ export class BusModel {
     back.translate(0, 0.45, 0.2);
     const pan = new RoundedBoxGeometry(0.44, 0.06, 0.42, 2, 0.025);
     pan.translate(0, 0.43, 0.0);
-    const shell = mergeGeometries([back.toNonIndexed(), pan.toNonIndexed()].map(clean));
+    const flat = (g) => (g.index ? g.toNonIndexed() : g);
+    const shell = mergeGeometries([back, pan].map(flat).map(clean));
     const cushionB = new RoundedBoxGeometry(0.36, 0.42, 0.025, 2, 0.01);
     cushionB.rotateX(-0.2);
     cushionB.translate(0, 0.74, 0.175);
     const cushionS = new RoundedBoxGeometry(0.38, 0.02, 0.34, 2, 0.008);
     cushionS.translate(0, 0.47, -0.02);
-    const cushion = mergeGeometries([cushionB.toNonIndexed(), cushionS.toNonIndexed()].map(clean));
+    const cushion = mergeGeometries([cushionB, cushionS].map(flat).map(clean));
     this._seat = { shell, cushion };
     return shell && this._seat;
   }

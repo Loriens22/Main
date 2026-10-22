@@ -1,6 +1,6 @@
 // Headless verification: loads the built single-file game in Chromium
 // (SwiftShader WebGL2), collects console errors and takes screenshots.
-//   node tools/shot.cjs <html> <outdir> '<query>' '<json steps>'
+//   [VIEWPORT=844x390 MOBILE=1] node tools/shot.cjs <html> <outdir> '<query>' '<json steps>'
 // steps: [{"eval": "js expression", "wait": ms, "shot": "name.png"}, ...]
 const { chromium } = require('/opt/node22/lib/node_modules/playwright');
 const path = require('path');
@@ -8,7 +8,10 @@ const path = require('path');
   const [html, outdir, query = '', stepsJson = '[]'] = process.argv.slice(2);
   const steps = JSON.parse(stepsJson);
   const b = await chromium.launch({ args: ['--use-gl=angle', '--use-angle=swiftshader', '--enable-unsafe-swiftshader', '--ignore-gpu-blocklist', '--autoplay-policy=no-user-gesture-required', '--enable-precise-memory-info', '--js-flags=--expose-gc'] });
-  const p = await b.newPage({ viewport: { width: 1280, height: 720 } });
+  // VIEWPORT=844x390 MOBILE=1 emulates a phone (touch, device scale factor 3)
+  const [vw, vh] = (process.env.VIEWPORT || '1280x720').split('x').map(Number);
+  const mobile = !!process.env.MOBILE;
+  const p = await b.newPage({ viewport: { width: vw, height: vh }, ...(mobile ? { isMobile: true, hasTouch: true, deviceScaleFactor: 2 } : {}) });
   const logs = [];
   p.on('console', (m) => { if (['error', 'warning'].includes(m.type())) logs.push(`[${m.type()}] ${m.text()}`); });
   p.on('pageerror', (e) => logs.push(`[pageerror] ${e.message}\n${e.stack}`));
@@ -27,7 +30,7 @@ const path = require('path');
       catch (e) { logs.push('[eval error] ' + e.message); }
     }
     if (s.wait) await p.waitForTimeout(s.wait);
-    if (s.shot) await p.screenshot({ path: path.join(outdir, s.shot) });
+    if (s.shot) await p.screenshot({ path: path.join(outdir, s.shot), ...(/\.jpe?g$/.test(s.shot) ? { type: 'jpeg', quality: 84 } : {}) });
   }
   console.log(logs.slice(0, 40).join('\n') || 'no console errors');
   await b.close();

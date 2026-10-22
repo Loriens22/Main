@@ -5,7 +5,7 @@ driven with a MAN Lion's City G CNG articulated bus. The whole game is **one HTM
 (`index.html`, also copied to `dist/sofia-bus-280.html`). Open it in a desktop or mobile
 browser with WebGL2. It works offline: no server, CDN or network access is needed.
 
-![modes](docs/screenshots/driver-cab.png)
+![Driver cab view](docs/screenshots/driver-cab.jpg)
 
 ## Playing
 
@@ -122,7 +122,7 @@ The game never reads Bulgarian with an English voice. See [docs/AUDIO.md](docs/A
 ```sh
 npm install           # esbuild + three
 npm test              # unit tests (route, stops, announcements, doors, state machine)
-npm run build         # -> index.html and dist/sofia-bus-280.html (single file, ~10 MB)
+npm run build         # -> index.html and dist/sofia-bus-280.html (single file, ~2.2 MB)
 node build.mjs --dev  # unminified with inline source maps
 ```
 

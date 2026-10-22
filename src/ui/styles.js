@@ -21,6 +21,8 @@ export const CSS = /* css */ `
 .menu .big{font-size:1.15em;padding:16px 20px;text-align:left;display:flex;align-items:center;gap:14px}
 .menu .big .ico{width:34px;height:34px;flex:none}
 .menu .big small{display:block;font-weight:400;color:var(--dim);font-size:.78em;margin-top:2px}
+.menu .big.primary small{color:rgba(27,20,6,.72)}
+.menu .big.green small{color:rgba(255,255,255,.78)}
 .menu .row{display:flex;gap:10px}
 .menu .row .btn{flex:1}
 .menu .foot{color:var(--dim);font-size:.75em;margin-top:8px;line-height:1.4}
@@ -67,7 +69,7 @@ select{background:#16211b;color:var(--text);border:1px solid var(--line);border-
 .lamp{width:26px;height:26px;border-radius:50%;display:grid;place-items:center;font-size:.7em;font-weight:800;background:rgba(255,255,255,.05);color:rgba(255,255,255,.25)}
 .lamp.on{color:#fff}
 .lamp.p.on{background:#c0392b}.lamp.ind.on{background:#2f8f45}.lamp.hl.on{background:#2d6cdf}.lamp.sb.on{background:#d68910}
-.hud .toast{position:absolute;left:50%;top:calc(18% + var(--safe-t));transform:translateX(-50%);padding:10px 18px;font-weight:600;opacity:0;transition:opacity .3s;text-align:center;max-width:80vw}
+.hud .toast{position:absolute;left:50%;top:calc(18% + var(--safe-t));transform:translateX(-50%);width:max-content;padding:10px 18px;font-weight:600;opacity:0;transition:opacity .3s;text-align:center;max-width:80vw}
 .hud .toast.show{opacity:1}
 .hud .toast.bad{border-color:#ff5544}
 .hud .sub{position:absolute;left:50%;bottom:calc(92px + var(--safe-b));transform:translateX(-50%);background:#0d0d0b;border:2px solid #2b2a24;border-radius:8px;
@@ -83,12 +85,12 @@ select{background:#16211b;color:var(--text);border:1px solid var(--line);border-
 .hud .map{position:absolute;right:calc(12px + var(--safe-r));top:calc(12px + var(--safe-t));width:190px;height:190px;border-radius:14px;overflow:hidden}
 .hud .map canvas{width:100%;height:100%}
 .hud .fps{position:absolute;right:calc(14px + var(--safe-r));top:calc(208px + var(--safe-t));font-family:monospace;font-size:.75em;color:var(--dim)}
-.hud .prompt{position:absolute;left:50%;bottom:calc(40% + var(--safe-b));transform:translateX(-50%);padding:10px 16px;font-weight:600;display:none}
+.hud .prompt{position:absolute;left:50%;bottom:calc(40% + var(--safe-b));transform:translateX(-50%);width:max-content;max-width:90vw;padding:10px 16px;font-weight:600;display:none}
 .hud .prompt.show{display:block}
 .hud .prompt kbd{font-family:monospace;background:rgba(255,255,255,.15);padding:2px 7px;border-radius:5px;margin-right:6px}
 .hud .help{position:absolute;right:calc(12px + var(--safe-r));bottom:calc(12px + var(--safe-b));padding:10px 12px;font-size:.78em;line-height:1.55;color:var(--dim);max-width:280px}
 .hud .help b{color:var(--text)}
-.hud .result{position:absolute;left:50%;top:50%;transform:translate(-50%,-50%);padding:22px 26px;min-width:min(420px,90vw);pointer-events:auto}
+.hud .result{position:absolute;left:50%;top:50%;transform:translate(-50%,-50%);padding:22px 26px;min-width:min(420px,90vw);max-height:calc(100% - 20px - var(--safe-t) - var(--safe-b));overflow:auto;pointer-events:auto}
 .hud .result *{pointer-events:auto}
 .hud .result h2{margin:0 0 10px}
 .hud .result table{width:100%;border-collapse:collapse;margin:8px 0 14px}
@@ -119,6 +121,7 @@ select{background:#16211b;color:var(--text);border:1px solid var(--line);border-
 .touch .b{height:calc(46px*var(--tc));border-radius:12px;background:rgba(20,24,26,.72);border:1px solid rgba(255,255,255,.2);color:#fff;font-weight:700;font-size:.78em;display:grid;place-items:center;text-align:center;line-height:1.05}
 .touch .b.on{background:rgba(255,174,26,.35);border-color:#ffae1a}
 .touch .b.red{background:rgba(200,16,46,.6)}
+.touch .b.sm{font-size:.62em;letter-spacing:-.01em}
 .touch .top{top:calc(10px + var(--safe-t));right:calc(214px + var(--safe-r));display:flex;gap:6px}
 .touch .stick{left:calc(20px + var(--safe-l));bottom:calc(20px + var(--safe-b));width:calc(140px*var(--tc));height:calc(140px*var(--tc));border-radius:50%;background:rgba(20,24,26,.45);border:2px solid rgba(255,255,255,.2)}
 .touch .stick i{position:absolute;left:50%;top:50%;width:46%;height:46%;margin:-23% 0 0 -23%;border-radius:50%;background:rgba(255,255,255,.35)}
@@ -132,14 +135,55 @@ select{background:#16211b;color:var(--text);border:1px solid var(--line);border-
   .menu{flex-direction:column;justify-content:flex-start;background:rgba(6,12,9,.78);overflow:auto}
   .setup{position:static;width:100%;max-height:none}
 }
-@media (pointer:coarse){
-  .hud .dash{bottom:auto;top:calc(10px + var(--safe-t));padding:6px 12px;transform:translateX(-50%) scale(.85)}
-  .hud .check{bottom:auto;top:calc(140px + var(--safe-t))}
-  .hud .sub{bottom:calc(190px + var(--safe-b));font-size:1em}
+/* ---------- touch layout: wheel bottom-left, pedals bottom-right, dash between them */
+.is-touch .hud .help,.is-touch .hud .lamps{display:none}
+.is-touch .hud .dash{bottom:calc(10px + var(--safe-b));padding:6px 12px;transform:translateX(-50%) scale(.85);transform-origin:50% 100%}
+.is-touch .hud .sub{bottom:calc(78px + var(--safe-b));font-size:1em;max-width:56vw}
+.is-touch .hud .route{max-width:min(320px,30vw)}
+.is-touch .hud .route .top,.is-touch .hud .next{padding:6px 10px}
+.is-touch .hud .next .name{white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.is-touch .hud .map{width:110px;height:110px}
+.is-touch .hud .fps{top:calc(128px + var(--safe-t))}
+.is-touch .hud .toast{top:calc(60px + var(--safe-t));max-width:36vw;padding:8px 12px}
+/* the preparation checklist shrinks to one chip: the next step */
+.is-touch .hud .check{left:50%;top:calc(10px + var(--safe-t));bottom:auto;transform:translateX(-50%);min-width:0;max-width:40vw;padding:6px 12px;display:flex;align-items:center;gap:10px;white-space:nowrap}
+.is-touch .hud .check h4{margin:0}
+.is-touch .hud .check div.done,.is-touch .hud .check div:not(.done) ~ div,.is-touch .hud .check kbd{display:none}
+.is-touch .touch .top{top:calc(10px + var(--safe-t));right:calc(128px + var(--safe-r));flex-direction:column}
+@media (max-height:520px){
+  :root{--ui-scale:.84}
+  .touch .wheel{width:calc(132px*var(--tc));height:calc(132px*var(--tc))}
+  .touch .pedal{height:calc(104px*var(--tc));width:calc(62px*var(--tc))}
+  .touch .brake{right:calc(84px*var(--tc) + 16px + var(--safe-r))}
+  .touch .b{height:calc(40px*var(--tc))}
+  .touch .btns{grid-template-columns:repeat(4,calc(42px*var(--tc)));bottom:calc(104px*var(--tc) + 22px + var(--safe-b))}
+  .touch .lbtns{grid-template-columns:repeat(3,calc(42px*var(--tc)));bottom:calc(132px*var(--tc) + 22px + var(--safe-b))}
+  .touch .stick{width:calc(120px*var(--tc));height:calc(120px*var(--tc))}
+  .touch .pbtns .b{width:calc(84px*var(--tc))}
+  .is-touch .hud .map{width:96px;height:96px}
+  .is-touch .touch .top{right:calc(114px + var(--safe-r))}
+  .menu{padding:calc(10px + var(--safe-t)) calc(14px + var(--safe-r)) calc(10px + var(--safe-b)) calc(14px + var(--safe-l))}
+  .menu .col{justify-content:flex-start;gap:8px;overflow-y:auto;max-width:380px}
+  .menu .logo{max-width:230px;margin-bottom:0}
+  .menu .tag{margin:-2px 0 4px}
+  .menu .big{padding:10px 14px}
+  .menu .big .ico{width:28px;height:28px}
+  .menu .foot{font-size:.62em;margin-top:2px}
+  .setup{top:calc(10px + var(--safe-t));bottom:calc(10px + var(--safe-b));padding:14px;gap:10px}
 }
 @media (orientation:portrait) and (pointer:coarse){
   .hud .route{max-width:70vw}
   .hud .map{display:none}
+}
+/* portrait phones: the controls fill the bottom, so the instruments stack under the route card */
+@media (orientation:portrait){
+  .is-touch .hud .map{display:none}
+  .is-touch .hud .route{max-width:calc(100vw - 96px - var(--safe-l) - var(--safe-r))}
+  .is-touch .touch .top{right:calc(12px + var(--safe-r))}
+  .is-touch .hud .dash{top:calc(150px + var(--safe-t));bottom:auto;transform:translateX(-50%) scale(.8);transform-origin:50% 0}
+  .is-touch .hud .check{top:calc(206px + var(--safe-t));max-width:88vw}
+  .is-touch .hud .toast{top:calc(252px + var(--safe-t));max-width:88vw}
+  .is-touch .hud .sub{bottom:auto;top:calc(300px + var(--safe-t));max-width:92vw}
 }
 `;
 

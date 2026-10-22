@@ -9,6 +9,7 @@ export class TouchControls {
     this.game = game;
     this.el = document.createElement('div');
     this.el.className = 'touch';
+    this.root = root;
     root.appendChild(this.el);
     this.mode = 'none';
   }
@@ -77,6 +78,7 @@ export class TouchControls {
   setMode(mode) {
     this.mode = mode;
     this.clear();
+    this.root.classList.toggle('is-touch', mode !== 'none');
     if (mode === 'none') return;
     this.input.touch.active = true;
     if (mode === 'driver') this.driver();
@@ -167,8 +169,8 @@ export class TouchControls {
     this.button(btns, 'N', (d) => d && key('Digit2')());
     this.button(btns, 'P', (d) => d && key('KeyP')(), 'red');
     this.button(btns, 'R', (d) => d && key('Digit3')());
-    this.button(btns, '◐', (d) => d && key('KeyL')());
-    this.button(btns, L('Клаксон', 'Horn'), (d) => (g.touchHorn = d));
+    this.button(btns, L('Фарове', 'Lights'), (d) => d && key('KeyL')(), 'sm');
+    this.button(btns, L('Клаксон', 'Horn'), (d) => (g.touchHorn = d), 'sm');
     const lb = this.div('tc lbtns');
     this.button(lb, '◀', (d) => d && key('KeyQ')());
     this.button(lb, '⚠', (d) => d && key('KeyH')());
@@ -216,7 +218,6 @@ export class TouchControls {
     this.button(pb, L('СТОП', 'STOP'), (d) => d && g.input.pressed.add('KeyB'), 'red');
     this.button(pb, L('Държи се', 'Hold on'), (d) => (g.holdGrip = d));
     const top = this.div('tc top');
-    top.style.right = 'calc(16px + var(--safe-r))';
     this.button(top, '🎥', (d) => d && g.cycleCamera());
     this.button(top, '❚❚', (d) => d && g.emit('pause'));
   }

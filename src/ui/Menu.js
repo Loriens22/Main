@@ -8,7 +8,7 @@ const logo = () => `<svg class="logo" viewBox="0 0 420 120" aria-label="${t('tit
 <text x="77" y="53" font-family="monospace" font-size="24" font-weight="700" text-anchor="middle" fill="#ffae1a">280</text>
 <path d="M4 84c26-16 44 8 70-6s40 10 76-4v14c0 6-4 10-10 10H14C8 98 4 94 4 88z" fill="#3a9d4a"/>
 <circle cx="38" cy="100" r="11" fill="#1d1d1d"/><circle cx="118" cy="100" r="11" fill="#1d1d1d"/>
-<text x="170" y="56" font-size="30" font-weight="700" fill="#eef3ee" font-family="Segoe UI,Roboto,Arial">${L('Градски транспорт', 'Public Transport')}</text>
+<text x="170" y="56" font-size="30" font-weight="700" fill="#eef3ee" font-family="Segoe UI,Roboto,Arial" textLength="244" lengthAdjust="spacingAndGlyphs">${L('Градски транспорт', 'Public Transport')}</text>
 <text x="170" y="92" font-size="30" font-weight="300" fill="#ffae1a" font-family="Segoe UI,Roboto,Arial">${L('София · Sofia', 'Sofia')}</text></svg>`;
 
 const ICON_WHEEL = '<svg class="ico" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="9"/><circle cx="12" cy="12" r="2.5"/><path d="M12 14.5V21M9.6 11.2 3.5 9.5M14.4 11.2l6.1-1.7"/></svg>';
