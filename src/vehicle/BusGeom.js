@@ -6,6 +6,7 @@ import { RoundedBoxGeometry } from 'three/examples/jsm/geometries/RoundedBoxGeom
 import { BUS, FRONT_Z } from './BusSpec.js';
 
 export const HW = BUS.halfW;
+export const ARCH_R = 0.6; // wheel arch radius (spec 4.6)
 export const S_REAR_ORIGIN = BUS.frontOverhang + BUS.wb1 + BUS.wb2; // distance front bumper -> axle 3 (14.575)
 export const sToFrontZ = (s) => FRONT_Z + s;
 export const sToRearZ = (s) => s - S_REAR_ORIGIN;
@@ -108,7 +109,7 @@ function rectPath(x0, y0, x1, y1, r = 0) {
 /** Side skirt between s0..s1 (distance from bus front) with semicircular wheel-arch cut-outs. */
 function skirtShape(s0, s1, arches, y0 = BUS.skirtY, y1 = BUS.beltY) {
   const sh = new THREE.Shape();
-  const R = 0.535, cy = BUS.wheelR;
+  const R = ARCH_R, cy = BUS.wheelR;
   const dy = cy - y0, dx = Math.sqrt(R * R - dy * dy), ang = Math.asin(dy / R);
   sh.moveTo(s0, y0);
   for (const a of [...arches].sort((p, q) => p - q)) {
@@ -213,4 +214,169 @@ function scaleUV(g, su, sv) {
   for (let i = 0; i < uv.count; i++) uv.setXY(i, uv.getX(i) * su, uv.getY(i) * sv);
 }
 
+
+/* ------------------------------------------------------------------ numeric helpers */
+const clamp = (v, a, b) => Math.min(b, Math.max(a, v));
+const lerp = (a, b, t) => a + (b - a) * t;
+const sstep = (a, b, x) => {
+  const t = clamp((x - a) / (b - a), 0, 1);
+  return t * t * (3 - 2 * t);
+};
+
+/** Monotone cubic (Fritsch-Carlson) interpolation through (xs, ys): returns f(x), clamped outside. */
+function pchip(xs, ys) {
+  const n = xs.length, h = [], d = [], m = new Array(n);
+  for (let i = 0; i < n - 1; i++) { h[i] = xs[i + 1] - xs[i]; d[i] = (ys[i + 1] - ys[i]) / h[i]; }
+  m[0] = d[0];
+  m[n - 1] = d[n - 2];
+  for (let i = 1; i < n - 1; i++) {
+    if (d[i - 1] * d[i] <= 0) m[i] = 0;
+    else {
+      const w1 = 2 * h[i] + h[i - 1], w2 = h[i] + 2 * h[i - 1];
+      m[i] = (w1 + w2) / (w1 / d[i - 1] + w2 / d[i]);
+    }
+  }
+  return (x) => {
+    if (x <= xs[0]) return ys[0];
+    if (x >= xs[n - 1]) return ys[n - 1];
+    let i = 0;
+    while (x > xs[i + 1]) i++;
+    const t = (x - xs[i]) / h[i], t2 = t * t, t3 = t2 * t;
+    return (2 * t3 - 3 * t2 + 1) * ys[i] + (t3 - 2 * t2 + t) * h[i] * m[i] + (-2 * t3 + 3 * t2) * ys[i + 1] + (t3 - t2) * h[i] * m[i + 1];
+  };
+}
+
+/**
+ * Parametric grid surface: fn(u, v) -> [x, y, z] for u, v in 0..1. Triangles are wound so that
+ * the normal is e_u x e_v (reversed with flip). uvRect = [u0, v0, u1, v1] remaps the texture coordinates.
+ */
+function surfaceGrid(nu, nv, fn, { flip = false, uvRect = [0, 0, 1, 1] } = {}) {
+  const n = (nu + 1) * (nv + 1);
+  const pos = new Float32Array(n * 3), uv = new Float32Array(n * 2);
+  let k = 0;
+  for (let j = 0; j <= nv; j++) {
+    for (let i = 0; i <= nu; i++) {
+      const p = fn(i / nu, j / nv);
+      pos[k * 3] = p[0]; pos[k * 3 + 1] = p[1]; pos[k * 3 + 2] = p[2];
+      uv[k * 2] = lerp(uvRect[0], uvRect[2], i / nu);
+      uv[k * 2 + 1] = lerp(uvRect[1], uvRect[3], j / nv);
+      k++;
+    }
+  }
+  const idx = [];
+  for (let j = 0; j < nv; j++) {
+    for (let i = 0; i < nu; i++) {
+      const a = j * (nu + 1) + i, b = a + 1, c = a + nu + 1, d = c + 1;
+      if (!flip) idx.push(a, b, c, b, d, c);
+      else idx.push(a, c, b, b, c, d);
+    }
+  }
+  const g = new THREE.BufferGeometry();
+  g.setAttribute('position', new THREE.BufferAttribute(pos, 3));
+  g.setAttribute('uv', new THREE.BufferAttribute(uv, 2));
+  g.setIndex(idx);
+  g.computeVertexNormals();
+  return g;
+}
+
+/** Flips triangle winding (and normals) of an indexed geometry whose faces point towards (cx, cy, cz). */
+function orientOutward(g, cx, cy, cz) {
+  const p = g.attributes.position, idx = g.index.array;
+  let score = 0;
+  for (let t = 0; t < idx.length; t += 3) {
+    const a = idx[t], b = idx[t + 1], c = idx[t + 2];
+    const ax = p.getX(a), ay = p.getY(a), az = p.getZ(a);
+    const e1x = p.getX(b) - ax, e1y = p.getY(b) - ay, e1z = p.getZ(b) - az;
+    const e2x = p.getX(c) - ax, e2y = p.getY(c) - ay, e2z = p.getZ(c) - az;
+    const nx = e1y * e2z - e1z * e2y, ny = e1z * e2x - e1x * e2z, nz = e1x * e2y - e1y * e2x;
+    score += nx * (ax - cx) + ny * (ay - cy) + nz * (az - cz);
+  }
+  if (score < 0) {
+    for (let t = 0; t < idx.length; t += 3) { const b = idx[t + 1]; idx[t + 1] = idx[t + 2]; idx[t + 2] = b; }
+  }
+  g.computeVertexNormals();
+  return g;
+}
+
+/**
+ * Loft through closed rings of 3D points (all rings with the same count). Returns [body, ...caps]
+ * (each a separate geometry so the caps keep flat normals); faces are oriented outwards automatically.
+ */
+function loftRings(rings, { capStart = true, capEnd = true } = {}) {
+  const M = rings[0].length, K = rings.length;
+  const pos = [];
+  for (const r of rings) for (const q of r) pos.push(q[0], q[1], q[2]);
+  const idx = [];
+  for (let k = 0; k < K - 1; k++) {
+    for (let j = 0; j < M; j++) {
+      const j1 = (j + 1) % M;
+      const a = k * M + j, b = k * M + j1, c = (k + 1) * M + j, d = (k + 1) * M + j1;
+      idx.push(a, b, c, b, d, c);
+    }
+  }
+  const body = new THREE.BufferGeometry();
+  body.setAttribute('position', new THREE.Float32BufferAttribute(pos, 3));
+  body.setIndex(idx);
+  let cx = 0, cy = 0, cz = 0;
+  for (const r of rings) for (const q of r) { cx += q[0]; cy += q[1]; cz += q[2]; }
+  const cnt = K * M;
+  cx /= cnt; cy /= cnt; cz /= cnt;
+  orientOutward(body, cx, cy, cz);
+  const out = [body];
+  for (const [on, ring] of [[capStart, rings[0]], [capEnd, rings[K - 1]]]) {
+    if (!on) continue;
+    const p = [], ii = [];
+    let mx = 0, my = 0, mz = 0;
+    for (const q of ring) { p.push(q[0], q[1], q[2]); mx += q[0]; my += q[1]; mz += q[2]; }
+    p.push(mx / M, my / M, mz / M);
+    for (let j = 0; j < M; j++) ii.push(j, (j + 1) % M, M);
+    const cap = new THREE.BufferGeometry();
+    cap.setAttribute('position', new THREE.Float32BufferAttribute(p, 3));
+    cap.setIndex(ii);
+    orientOutward(cap, cx, cy, cz);
+    out.push(cap);
+  }
+  return out;
+}
+
+/** Tube with an elliptical, varying section along a smooth path. secFn(t) -> [halfWidth, halfHeight]. */
+function sweep(points, secFn, segs = 24, rad = 10) {
+  const curve = new THREE.CatmullRomCurve3(points.map((p) => new THREE.Vector3(...p)), false, 'centripetal');
+  const fr = curve.computeFrenetFrames(segs, false);
+  const rings = [];
+  const P = new THREE.Vector3();
+  for (let i = 0; i <= segs; i++) {
+    const t = i / segs;
+    curve.getPointAt(t, P);
+    const [a, b] = secFn(t);
+    const ring = [];
+    for (let j = 0; j < rad; j++) {
+      const ang = (j / rad) * Math.PI * 2;
+      const ca = Math.cos(ang) * a, sb = Math.sin(ang) * b;
+      ring.push([P.x + fr.normals[i].x * ca + fr.binormals[i].x * sb, P.y + fr.normals[i].y * ca + fr.binormals[i].y * sb, P.z + fr.normals[i].z * ca + fr.binormals[i].z * sb]);
+    }
+    rings.push(ring);
+  }
+  return loftRings(rings);
+}
+
+/** Super-ellipsoid (rx, ry, rz) with exponents e1 (vertical) and e2 (horizontal); smaller = squarer. */
+function superEllipsoid(rx, ry, rz, e1 = 0.6, e2 = 0.6, nu = 20, nv = 12) {
+  const sp = (v, e) => Math.sign(v) * Math.pow(Math.abs(v), e);
+  const g = surfaceGrid(nu, nv, (u, v) => {
+    const th = -Math.PI / 2 + Math.PI * v, ph = -Math.PI + 2 * Math.PI * u;
+    return [rx * sp(Math.cos(th), e1) * sp(Math.cos(ph), e2), ry * sp(Math.sin(th), e1), rz * sp(Math.cos(th), e1) * sp(Math.sin(ph), e2)];
+  });
+  return orientOutward(g, 0, 0, 0);
+}
+
+/** Axis-aligned box rotated about z by `tilt` (tumblehome), centre (x, y, z). */
+function tiltBox(w, h, d, x, y, z, tilt = 0) {
+  const g = new THREE.BoxGeometry(w, h, d);
+  g.rotateZ(tilt);
+  g.translate(x, y, z);
+  return g;
+}
+
+export { clamp, lerp, sstep, pchip, surfaceGrid, orientOutward, loftRings, sweep, superEllipsoid, tiltBox };
 export { M, Parts, basis, box, clean, cyl, endOutline, extrude, openBox, outlineCap, outlineStrip, rectPath, rectShape, scaleUV, skirtShape, tube };

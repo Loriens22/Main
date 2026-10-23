@@ -32,7 +32,7 @@ export class ShopSigns {
 
   /** Packs the sign faces into atlases (shelf packing); returns [{canvas, rects}] */
   pack() {
-    const low = this.quality === 'low';
+    const low = this.quality === 'low' || this.quality === 'balanced'; // phones: one atlas
     const ppm = low ? 44 : 62; // atlas pixels per metre of sign
     const rowH = Math.round(BOARD_H * ppm);
     const maxAtlases = low ? 1 : 2;

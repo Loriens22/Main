@@ -98,8 +98,9 @@ async function boot() {
       saveSettings(s);
     },
     onStart: async (opts) => {
+      const audioReady = audio.start(); // creates and resumes the AudioContext synchronously, inside the tap (iOS/Android)
       if (settings.gyro) input.enableGyro(true); // inside the tap, for the iOS permission prompt
-      await audio.start();
+      await audioReady;
       menu.hide();
       startMode(opts);
     },

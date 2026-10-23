@@ -330,7 +330,8 @@ export class TrafficManager {
     car.brake = acc < -0.5;
     car.v = Math.max(0, car.v + acc * dt);
     if (car.v < 0.1) car.stuck += dt; else car.stuck = 0;
-    car.busWait = byBus && car.v < 0.1 ? (car.busWait || 0) + dt : 0;
+    // creeping at a bus that waits for us is a deadlock too
+    car.busWait = byBus && car.v < 1.0 ? (car.busWait || 0) + dt : 0;
     const ds = car.v * dt;
     // advance
     if (car.turn) {

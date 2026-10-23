@@ -9,6 +9,7 @@ import { clamp, fwdX, fwdZ } from '../core/math.js';
 import { Scoring } from '../gameplay/Scoring.js';
 import { PassengerMode } from './PassengerMode.js';
 import { BusLightRig } from '../render/BusLights.js';
+import { GameAudio } from '../audio/GameAudio.js';
 
 const CAM_NAMES = {
   cab: ['кабина', 'cab'], follow: ['отзад', 'chase'], front: ['отпред', 'front'],
@@ -31,6 +32,7 @@ export class Game {
     this.focus = new THREE.Vector3();
     this.listeners = [];
     this.voiceBusy = false;
+    this.gameAudio = new GameAudio(this); // sound events and listener for every bus (src/audio)
     this.voice.onSubtitle = (m) => this.hud.subtitle(m.display ? `${m.kind === 'next' ? t('nextStop') : t('stop')}: ${m.display}` : m.text, 7);
   }
 
@@ -105,12 +107,10 @@ export class Game {
 
   wireBus(bus) {
     bus.doors.on((e) => {
-      const listener = this.camera.position;
-      const dist = listener.distanceTo(bus.model.front.position);
-      if (dist < 200) this.audio.doorEvent(e);
+      this.gameAudio.door(bus, e);
       if (bus.player && e.type === 'closeRequest' && this.time - (this.lastCloseToast ?? -9) > 2) this.lastCloseToast = this.time, this.hud.toast(L('Вратите се затварят…', 'Doors closing…'));
     });
-    bus.phys.onShift = () => {};
+    bus.phys.onShift = (gear, dir) => this.gameAudio.shift(bus, gear, dir);
   }
 
   /** Called each frame with real dt. */
@@ -126,6 +126,7 @@ export class Game {
     }
     const inp = this.input.poll(dt);
     if (this.input.hit('Escape') && this.mode !== 'attract') this.emit('pause');
+    this.audio.setPaused(this.paused); // silence (and suspend) the sound while the pause menu is up
     if (this.paused) {
       this.input.endFrame();
       return;
@@ -196,14 +197,12 @@ export class Game {
     if (I.hit('KeyI')) {
       p.engineOn = !p.engineOn;
       this.hud.toast(p.engineOn ? L('Двигателят е запален', 'Engine started') : L('Двигателят е изключен', 'Engine off'));
-      if (p.engineOn) this.audio.hiss(0.3, 0.05, 900);
     }
     if (I.hit('Digit1') || I.hit('Numpad1')) this.selectGear('D');
     if (I.hit('Digit2') || I.hit('Numpad2')) this.selectGear('N');
     if (I.hit('Digit3') || I.hit('Numpad3')) this.selectGear('R');
     if (I.hit('KeyP')) {
-      p.parkingBrake = !p.parkingBrake;
-      this.audio.hiss(p.parkingBrake ? 0.5 : 0.8, p.parkingBrake ? 0.15 : 0.32, p.parkingBrake ? 2200 : 3000);
+      p.parkingBrake = !p.parkingBrake; // the brake hiss comes from GameAudio (parking brake edge)
     }
     if (I.hit('KeyO')) this.openDoors(null);
     if (I.hit('KeyF')) this.openDoors([1]);
@@ -230,9 +229,7 @@ export class Game {
     if (bus._turning && Math.abs(p.delta) < 0.05) { bus.lights.left = bus.lights.right = false; bus._turning = false; }
     // --- continuous
     const controls = { throttle: inp.throttle, brake: inp.brake, steer: inp.steer };
-    const wasInd = bus.indicatorOn;
     bus.update(dt, controls);
-    if (bus.indicatorOn !== wasInd && (bus.lights.left || bus.lights.right || bus.lights.hazard)) this.audio.indicatorTick(bus.indicatorOn);
     bus.syncVisual();
     // --- events
     if (p.lastCollision) {
@@ -319,7 +316,7 @@ export class Game {
     }
     if (g === 'R' && Math.abs(p.v) > 0.3) return;
     p.selector = g;
-    this.audio.tone(g === 'R' ? 700 : 1100, 0.06, { type: 'sine', gain: 0.05 });
+    this.audio.gearSelect(g);
   }
 
   openDoors(ids) {
@@ -484,19 +481,7 @@ export class Game {
   }
 
   updateAudio(dt) {
-    const bus = this.bus;
-    if (!bus) return;
-    const p = bus.phys;
-    const piece = this.world.roads.query(p.x, p.z, 12);
-    const surface = piece ? (piece.piece.surface === 'yellow_brick' ? 'brick' : piece.piece.surface === 'sett' || piece.piece.surface === 'paving_stones' ? 'sett' : 'asphalt') : 'asphalt';
-    this.audio.update(dt, {
-      rpm: p.rpm, load: p.load, speed: p.v, engineOn: p.engineOn, surface, weather: this.weather,
-      ambience: 1, parkFactor: this.parkFactor || 0.3, day: this.sky.dayFactor ?? 1, braking: p.brakeOut > 0.2,
-      distToBus: this.camera.position.distanceTo(bus.model.front.position),
-      rearCabin: this.audio.zone === 'cabin' && this.passengerMode && this.passengerMode.section === 'rear',
-    });
-    // random interior rattles over bumps
-    if (Math.abs(p.v) > 4 && Math.random() < dt * (surface === 'asphalt' ? 0.5 : 3)) this.audio.rattle();
+    this.gameAudio.update(dt);
   }
 
   render() {

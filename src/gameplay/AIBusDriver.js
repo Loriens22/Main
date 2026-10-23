@@ -40,6 +40,12 @@ export class AIBusDriver {
     this.sHint = n.s;
     const Ld = clamp(5 + Math.abs(p.v) * 0.9, 6, 20);
     const tp = line.at(n.s + Ld);
+    // squeeze towards the kerb for oncoming traffic on narrow streets (up to 0.9 m)
+    const sq = (this.squeeze || 0) * 0.9;
+    if (sq > 0) {
+      const tt = line.tangent(n.s + Ld, 2);
+      tp.x += -tt.tz * sq; tp.z += tt.tx * sq;
+    }
     const dx = tp.x - ax, dz = tp.z - az;
     const alpha = Math.atan2(dx * -fz + dz * fx, dx * fx + dz * fz); // + = target to the right
     const delta = Math.atan((2 * BUS.wb1 * Math.sin(-alpha)) / Math.max(4, Math.hypot(dx, dz)));
@@ -78,8 +84,9 @@ export class AIBusDriver {
       const probe = [];
       for (let d = -1; d <= 40; d += 1.5) {
         const q = line.at(sF + d), t = line.tangent(sF + d, 2);
-        probe.push([d, q.x, q.z, t.tx, t.tz]);
+        probe.push([d, q.x - t.tz * sq, q.z + t.tx * sq, t.tx, t.tz]);
       }
+      let oncoming = false;
       for (const c of this.traffic.cars) {
         if (Math.abs(c.x - p.x) > 55 || Math.abs(c.z - p.z) > 55) continue;
         for (const [d, qx, qz, tx, tz] of probe) {
@@ -93,10 +100,12 @@ export class AIBusDriver {
           if (Math.hypot(Math.max(0, lx), Math.max(0, lz)) < clear) {
             gap = d - 2;
             this.why = `car v=${(c.v ?? 0).toFixed(1)}`;
+            if (dir < -0.5) oncoming = true;
             break;
           }
         }
       }
+      this.squeeze = clamp((this.squeeze || 0) + (oncoming ? dt * 0.6 : -dt * 0.15), 0, 1);
     }
     if (gap < Infinity) vDes = Math.min(vDes, Math.sqrt(Math.max(0, 2 * 1.1 * Math.max(0, gap))));
     // ---- stop procedure

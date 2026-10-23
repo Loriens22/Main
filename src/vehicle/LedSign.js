@@ -25,7 +25,7 @@ export class LedSign {
     this.texture.colorSpace = THREE.SRGBColorSpace;
     this.texture.anisotropy = 4;
     this.texture.minFilter = THREE.LinearMipmapLinearFilter;
-    this.on = '#ffb020';
+    this.on = '#ff9a1a';
     this.key = '';
     this.scroll = 0;
   }
@@ -60,11 +60,11 @@ export class LedSign {
 
   paint(bits) {
     const g = this.ctx, dot = this.dot;
-    g.fillStyle = '#0b0b09';
+    g.fillStyle = '#0a0a0c';
     g.fillRect(0, 0, this.canvas.width, this.canvas.height);
     const r = dot * 0.36;
     // unlit LEDs
-    g.fillStyle = '#25231c';
+    g.fillStyle = '#171310';
     for (let y = 0; y < this.rows; y++)
       for (let x = 0; x < this.cols; x++) {
         if (bits[y * this.cols + x]) continue;
@@ -73,7 +73,7 @@ export class LedSign {
         g.fill();
       }
     // lit LEDs with halo
-    g.fillStyle = 'rgba(255,150,20,0.25)';
+    g.fillStyle = 'rgba(200,99,10,0.30)';
     for (let y = 0; y < this.rows; y++)
       for (let x = 0; x < this.cols; x++) {
         if (!bits[y * this.cols + x]) continue;
@@ -89,6 +89,15 @@ export class LedSign {
         g.arc(x * dot + dot / 2, y * dot + dot / 2, r, 0, Math.PI * 2);
         g.fill();
       }
+    // hot centre of every lit LED
+    g.fillStyle = '#ffd27a';
+    for (let y = 0; y < this.rows; y++)
+      for (let x = 0; x < this.cols; x++) {
+        if (!bits[y * this.cols + x]) continue;
+        g.beginPath();
+        g.arc(x * dot + dot / 2, y * dot + dot / 2, r * 0.45, 0, Math.PI * 2);
+        g.fill();
+      }
     this.texture.needsUpdate = true;
   }
 
@@ -98,15 +107,19 @@ export class LedSign {
     if (key === this.key) return;
     this.key = key;
     const rows = this.rows, cols = this.cols;
-    const numW = number ? Math.round(cols * 0.2) : 0;
+    const numW = number ? Math.round(cols * (cols < 100 ? 0.27 : 0.2)) : 0;
     const segs = [];
-    if (number) segs.push({ text: number, x: 0, y: rows - 1, size: rows + 2, weight: 800, maxW: numW - 3, align: 'center' });
+    // cap height about 75 % of the matrix (spec: 0.25 m text on a 0.32 m matrix)
+    const sz = Math.round(rows * 1.08), base = rows - Math.max(2, Math.round(rows * 0.12));
+    if (number) segs.push({ text: number, x: 0, y: base, size: sz + 1, weight: 800, maxW: numW - 3, align: 'center' });
     const avail = cols - numW - 1;
     const g = this.mctx;
-    g.font = `700 ${rows - 3}px Arial, sans-serif`;
+    g.font = `700 ${sz}px Arial, sans-serif`;
     const w1 = g.measureText(text).width;
-    if (w1 * 0.82 <= avail) {
-      segs.push({ text, x: numW + 1, y: rows - 3, size: rows - 3, condensed: 0.82, maxW: avail, align: 'center' });
+    const fit = avail / Math.max(1, w1);
+    if (fit >= 0.45) {
+      // single line, condensed as far as needed (down to 45 %)
+      segs.push({ text, x: numW + 1, y: base, size: sz, condensed: Math.min(0.82, fit), maxW: avail, align: 'left' });
     } else {
       // split into two lines at the space nearest the middle
       const words = text.split(' ');

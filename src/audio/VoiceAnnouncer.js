@@ -25,11 +25,27 @@ export class VoiceAnnouncer {
     this.clips = voiceClips || {};
     this.onSubtitle = () => {};
     this.status = 'pending';
+    this.primed = false;
+    // iOS Safari ignores speak() until one call was made inside a user gesture: the AudioManager runs this in the first tap
+    if (audio.gestureHooks) audio.gestureHooks.push(() => this.prime());
     if (this.synth) {
       const load = () => this.pickVoice();
       load();
       if (this.synth.addEventListener) this.synth.addEventListener('voiceschanged', load);
       else this.synth.onvoiceschanged = load;
+    }
+  }
+
+  /** Warm up speechSynthesis inside a user gesture (silent, empty utterance). */
+  prime() {
+    if (this.primed || !this.synth) return;
+    this.primed = true;
+    try {
+      const u = new SpeechSynthesisUtterance('');
+      u.volume = 0;
+      this.synth.speak(u);
+    } catch (e) {
+      /* no speech on this device */
     }
   }
 
@@ -62,8 +78,16 @@ export class VoiceAnnouncer {
    * Plays one announcement message {text, display, kind}. Calls done() when
    * finished. volume 0..1 depends on where the listener is.
    */
-  play(msg, volume, done) {
+  play(msg, volume, done0) {
     const chimeDur = this.audio.chime();
+    this.audio.announcementDuck(true); // the engine drops 3 dB while the chime and the voice play
+    let ended = false;
+    const done = () => {
+      if (ended) return;
+      ended = true;
+      this.audio.announcementDuck(false);
+      done0();
+    };
     this.onSubtitle(msg);
     const after = (ms, fn) => setTimeout(fn, ms);
     after(chimeDur * 1000, () => {

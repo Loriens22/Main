@@ -6,6 +6,7 @@ import * as THREE from 'three';
 import { mergeGeometries } from 'three/examples/jsm/utils/BufferGeometryUtils.js';
 import { mulberry32, hash2 } from '../core/rng.js';
 import { carAssets, carPaint } from './CarModels.js';
+import { buildStopHardware } from './StopHardware.js';
 
 function clean(g) {
   g = g.index ? g.toNonIndexed() : g;
@@ -76,68 +77,6 @@ function glowTexture() {
   return t;
 }
 
-function textTexture(lines, w = 512, h = 96, bg = '#0b2f6b', fg = '#ffffff') {
-  const c = document.createElement('canvas');
-  c.width = w;
-  c.height = h;
-  const g = c.getContext('2d');
-  g.fillStyle = bg;
-  g.fillRect(0, 0, w, h);
-  g.fillStyle = fg;
-  g.textBaseline = 'middle';
-  lines.forEach((ln, i) => {
-    let size = ln.size || 40;
-    g.font = `${ln.weight || 700} ${size}px Roboto, Arial, sans-serif`;
-    while (g.measureText(ln.text).width > w - 24 && size > 12) {
-      size -= 2;
-      g.font = `${ln.weight || 700} ${size}px Roboto, Arial, sans-serif`;
-    }
-    g.fillStyle = ln.color || fg;
-    g.textAlign = ln.align || 'left';
-    g.fillText(ln.text, ln.align === 'center' ? w / 2 : ln.align === 'right' ? w - 12 : 14, ln.y ?? ((i + 0.5) * h) / lines.length);
-  });
-  const t = new THREE.CanvasTexture(c);
-  t.colorSpace = THREE.SRGBColorSpace;
-  t.anisotropy = 4;
-  return t;
-}
-
-function adTexture(seed) {
-  // generic city / nature posters (no third-party brands)
-  const c = document.createElement('canvas');
-  c.width = 256;
-  c.height = 384;
-  const g = c.getContext('2d');
-  const r = mulberry32(seed);
-  const themes = [
-    ['#1d5e8c', '#7fb8d8', 'Витоша', 'Природен парк'], ['#3a7d34', '#a7d48a', 'Борисова градина', 'Зелена София'],
-    ['#8c2f1d', '#e8a87c', 'Театър', 'Сезон 2026/27'], ['#2d2d6b', '#9c8be0', 'Музика в парка', 'Всеки петък'],
-    ['#0f6b5e', '#7fd8c4', 'Карай колело', 'Велоалеи в София'],
-  ];
-  const th = themes[Math.floor(r() * themes.length)];
-  const grd = g.createLinearGradient(0, 0, 0, 384);
-  grd.addColorStop(0, th[1]);
-  grd.addColorStop(1, th[0]);
-  g.fillStyle = grd;
-  g.fillRect(0, 0, 256, 384);
-  g.fillStyle = 'rgba(255,255,255,0.18)';
-  g.beginPath();
-  g.moveTo(0, 300);
-  for (let x = 0; x <= 256; x += 16) g.lineTo(x, 230 - Math.sin(x * 0.03 + r() * 3) * 40 - r() * 20);
-  g.lineTo(256, 384);
-  g.lineTo(0, 384);
-  g.fill();
-  g.fillStyle = '#fff';
-  g.font = 'bold 34px Roboto, Arial';
-  g.textAlign = 'center';
-  g.fillText(th[2], 128, 80);
-  g.font = '22px Roboto, Arial';
-  g.fillText(th[3], 128, 116);
-  const t = new THREE.CanvasTexture(c);
-  t.colorSpace = THREE.SRGBColorSpace;
-  return t;
-}
-
 export class StreetFurniture {
   constructor({ scene, world, route, quality }) {
     this.scene = scene;
@@ -185,12 +124,14 @@ export class StreetFurniture {
 
   build() {
     const out = [];
+    // stops first: shelters, poles and bins reserve their ground in the swept-path index so
+    // lamps, bins, parked cars and trees keep clear of them
+    out.push(...this.buildStops());
     out.push(...this.buildLamps());
     out.push(...this.buildSmallProps());
     out.push(...this.buildSignals());
     out.push(...this.buildLines());
     out.push(...this.buildParkedCars());
-    out.push(...this.buildStops());
     return out;
   }
 
@@ -471,128 +412,9 @@ export class StreetFurniture {
     return out;
   }
 
-  /** Route 280 stops: shelters (where mapped), stop poles and boards. */
+  /** Route 280 stops: shelters, poles, plates, e-boards, bins and benches (see StopHardware.js). */
   buildStops() {
-    const m = this.mats;
-    const out = [];
-    const seen = new Set();
-    const shelterParts = {
-      darkMetal: [T(box(0.08, 2.5, 0.08), -2.1, 1.25, -0.65), T(box(0.08, 2.5, 0.08), 2.1, 1.25, -0.65), T(box(0.08, 2.5, 0.08), -2.1, 1.25, 0.65), T(box(0.08, 2.5, 0.08), 2.1, 1.25, 0.65),
-        T(box(4.5, 0.12, 1.75), 0, 2.56, 0), T(box(4.4, 0.06, 0.06), 0, 0.1, 0.68)],
-      white: [T(box(4.3, 0.02, 1.6), 0, 2.49, 0)],
-      metal: [T(box(2.0, 0.05, 0.38), 0.4, 0.46, 0.42), T(box(0.05, 0.45, 0.3), -0.55, 0.23, 0.42), T(box(0.05, 0.45, 0.3), 1.35, 0.23, 0.42)],
-    };
-    const shelterGeo = Object.fromEntries(Object.entries(shelterParts).map(([k, v]) => [k, mergeGeometries(v.map(clean))]));
-    const glassGeo = mergeGeometries([T(box(4.1, 2.0, 0.02), 0, 1.35, 0.64), T(box(0.02, 2.0, 1.2), -2.08, 1.35, 0.0)].map(clean));
-    const add = (geo, mat, mx, cast = true) => {
-      const mesh = new THREE.Mesh(geo, mat);
-      mesh.applyMatrix4(mx);
-      mesh.castShadow = cast;
-      mesh.receiveShadow = true;
-      return mesh;
-    };
-    this.stopObjects = [];
-    for (const dir of Object.values(this.route.dirs)) {
-      for (const st of dir.stops) {
-        if (seen.has(st.code)) continue;
-        seen.add(st.code);
-        const [px, pz] = st.pole;
-        const k = this.kerbFrame(px, pz);
-        if (!k) continue;
-        // orientation: the travel direction of this stop's direction
-        const near = dir.path.nearest(px, pz);
-        const tg = dir.path.tangent(near.s, 5);
-        const fx = tg.tx, fz = tg.tz; // travel direction
-        const ox = -fz * -1, oz = fx * -1; // away from road = right of travel => (-tz, tx)
-        const rx = -fz, rz = fx;
-        void ox; void oz;
-        const kerb = Math.max(k.hw + 0.3, near.d);
-        const baseX = near.d >= 0 ? dir.path.at(near.s).x : px, baseZ = dir.path.at(near.s).z;
-        const g = new THREE.Group();
-        g.name = `stop:${Math.floor(px / 256)},${Math.floor(pz / 256)}`;
-        // stop pole at the kerb + 0.6 m (position of the OSM node, clamped to the pavement)
-        const poleOff = Math.max(kerb + 0.6, near.d);
-        const polX = baseX + rx * poleOff, polZ = baseZ + rz * poleOff;
-        const yaw = Math.atan2(-fx, -fz);
-        const py = this.y(polX, polZ);
-        const pole = new THREE.Mesh(cyl(0.04, 0.045, 3.2, 8), m.metal);
-        pole.position.set(polX, py + 1.6, polZ);
-        g.add(pole);
-        const plateTex = textTexture([
-          { text: 'А  СПИРКА', size: 34, align: 'center', y: 34, color: '#0b2f6b' },
-          { text: st.name, size: 26, align: 'center', y: 86, color: '#111' },
-          { text: `${st.code}`, size: 30, align: 'center', y: 128, color: '#0b2f6b' },
-          { text: '280', size: 34, align: 'center', y: 172, color: '#c8102e' },
-        ], 256, 200, '#f4f4f0', '#111');
-        const plate = new THREE.Mesh(new THREE.PlaneGeometry(0.55, 0.43), new THREE.MeshStandardMaterial({ map: plateTex, roughness: 0.6, side: THREE.DoubleSide }));
-        plate.position.set(polX, py + 2.85, polZ);
-        plate.rotation.y = yaw + Math.PI / 2;
-        g.add(plate);
-        // shelter
-        if (st.shelter) {
-          const sOff = Math.max(kerb + 1.55, poleOff + 0.6);
-          const sx = baseX + rx * sOff - fx * 4.5, sz = baseZ + rz * sOff - fz * 4.5;
-          const sy = this.y(sx, sz) + Math.max(0, this.y(baseX + rx * kerb, baseZ + rz * kerb) + 0.22 - this.y(sx, sz));
-          // local frame: x along the road (travel dir), +z away from the road
-          const mx = new THREE.Matrix4().makeBasis(new THREE.Vector3(fx, 0, fz), new THREE.Vector3(0, 1, 0), new THREE.Vector3(rx, 0, rz)).setPosition(sx, sy, sz);
-          for (const [k2, geo] of Object.entries(shelterGeo)) g.add(add(geo, m[k2], mx));
-          g.add(add(glassGeo, m.glass, mx, false));
-          // ad light box at the trailing end
-          const ad = new THREE.Mesh(box(0.14, 1.8, 1.25), [m.darkMetal, m.darkMetal, m.darkMetal, m.darkMetal,
-            new THREE.MeshStandardMaterial({ map: adTexture(Number(st.code)), emissive: 0xffffff, emissiveMap: adTexture(Number(st.code)), emissiveIntensity: 0.25 }),
-            new THREE.MeshStandardMaterial({ map: adTexture(Number(st.code) + 7), emissive: 0xffffff, emissiveMap: adTexture(Number(st.code) + 7), emissiveIntensity: 0.25 })]);
-          ad.position.set(2.32, 1.35, 0.05);
-          ad.rotation.y = Math.PI / 2;
-          ad.applyMatrix4(mx);
-          ad.castShadow = true;
-          g.add(ad);
-          this.adMats = (this.adMats || []).concat([ad.material[4], ad.material[5]]);
-          // name board on the roof edge
-          const nameTex = textTexture([{ text: st.name, size: 44, y: 34 }, { text: `${st.code} · 280`, size: 28, y: 78, color: '#ffd28a' }], 512, 96);
-          const nb = new THREE.Mesh(new THREE.PlaneGeometry(2.6, 0.48), new THREE.MeshStandardMaterial({ map: nameTex, roughness: 0.5, side: THREE.DoubleSide }));
-          nb.position.set(0, 2.9, -0.85);
-          nb.rotation.y = Math.PI;
-          nb.applyMatrix4(mx);
-          g.add(nb);
-          // real-time departures LED board (mapped as departures_board=realtime)
-          if (st.departuresBoard) {
-            const dep = this.departureBoard(st);
-            dep.position.set(-1.4, 2.2, 0.55);
-            dep.applyMatrix4(mx);
-            g.add(dep);
-          }
-          this.stopObjects.push({ code: st.code, shelter: [sx, sy, sz], dir: [fx, fz], out: [rx, rz] });
-        } else this.stopObjects.push({ code: st.code, shelter: null, dir: [fx, fz], out: [rx, rz], pole: [polX, polZ] });
-        out.push(g);
-      }
-    }
-    return out;
-  }
-
-  departureBoard(st) {
-    const c = document.createElement('canvas');
-    c.width = 256;
-    c.height = 96;
-    const g = c.getContext('2d');
-    const tex = new THREE.CanvasTexture(c);
-    tex.colorSpace = THREE.SRGBColorSpace;
-    const draw = (mins) => {
-      g.fillStyle = '#050505';
-      g.fillRect(0, 0, 256, 96);
-      g.fillStyle = '#ffae1a';
-      g.font = 'bold 26px "Arial Narrow", Arial';
-      g.fillText('280', 10, 38);
-      g.fillText(mins <= 0 ? 'сега' : `${mins} мин`, 170, 38);
-      g.font = '20px "Arial Narrow", Arial';
-      g.fillText(st.dir === 'A' ? 'Студентски град' : 'СУ Св. Кл. Охридски', 10, 76);
-      tex.needsUpdate = true;
-    };
-    draw(2 + (Number(st.code) % 9));
-    this.boards = this.boards || new Map();
-    this.boards.set(st.code, { draw, last: null });
-    const mesh = new THREE.Mesh(new THREE.PlaneGeometry(0.8, 0.3), new THREE.MeshBasicMaterial({ map: tex, color: new THREE.Color(1.6, 1.6, 1.6) }));
-    mesh.rotation.y = Math.PI;
-    return mesh;
+    return buildStopHardware(this);
   }
 
   /** Live countdown on a stop's departure board (passenger mode). */
@@ -606,6 +428,7 @@ export class StreetFurniture {
   setNight(n) {
     this.mats.lens.emissiveIntensity = n > 0.3 ? 6 : 0;
     this.glowMat.opacity = Math.max(0, (n - 0.3) / 0.7) * 0.85;
-    for (const m of this.adMats || []) m.emissiveIntensity = 0.2 + n * 1.2;
+    for (const m of this.adMats || []) m.emissiveIntensity = 0.18 + n * 1.1;
+    for (const m of this.stopStrips || []) m.emissiveIntensity = n > 0.3 ? 3 : 0;
   }
 }
