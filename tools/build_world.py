@@ -20,6 +20,12 @@ DATADIR, ROUTE, DEM, OUTDIR = sys.argv[1:5]
 route = json.load(open(ROUTE))
 route_lines = [LineString(route['directions'][k]['path']) for k in 'AB']
 route_union = route_lines[0].union(route_lines[1])
+# everything the bus drives on, including the turn-around loops at the terminals
+bus_lines = route_lines + [LineString(v) for v in (route.get('terminalLinks') or {}).values() if len(v) > 1]
+bus_zone = bus_lines[0].union(bus_lines[1])
+for bl_ in bus_lines[2:]:
+    bus_zone = bus_zone.union(bl_)
+bus_zone = bus_zone.buffer(3.0)
 corridor_near = route_union.buffer(450)
 corridor_mid = route_union.buffer(900)
 
@@ -69,6 +75,7 @@ YELLOW_BRICK = {'бул. Цар Освободител', 'Цар Освобод�
 
 segs = pq.read_table(f'{DATADIR}/seg.parquet').to_pylist()
 roads = []
+stats_bus_roads = []
 rails = []
 for r in segs:
     g = proj(wkb.loads(r['geometry']))
@@ -104,6 +111,12 @@ for r in segs:
                  and not (a['when'] or {}).get('mode') and a['between'] is None
                  for a in r['access_restrictions'] or [])
     width = road_width(cls, oneway, r['width_rules'], sub)
+    if width < 6.5 and g.length > 4 and g.intersection(bus_zone).length > 0.6 * g.length:
+        # spurs and loops a bus uses (terminal at Студентски град) are paved for an 18 m articulated bus
+        width = 7.0
+        if cls in ('unknown', 'footway', 'path', 'pedestrian'):
+            cls = 'service'
+        stats_bus_roads.append(r['id'])
     surface = 'paved'
     for sr in r['road_surface'] or []:
         if sr['between'] is None:
@@ -126,7 +139,7 @@ for r in segs:
 cid = {}
 for rd in roads:
     rd['cn'] = [[cid.setdefault(c, len(cid)), a] for c, a in rd['cn']]
-print('roads', len(roads), 'rails', len(rails), file=sys.stderr)
+print('roads', len(roads), 'rails', len(rails), 'widened for the bus', len(stats_bus_roads), file=sys.stderr)
 
 # ---------------------------------------------------------------- buildings
 BCLASS = ['apartments', 'detached', 'house', 'retail', 'office', 'residential', 'service', 'industrial',
