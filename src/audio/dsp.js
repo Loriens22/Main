@@ -241,7 +241,7 @@ export function shotOffsetDb(kind, L, o) {
     const D = kind === 'doorHiss' ? DOOR.hiss : DOOR.beep;
     if (out) return d > D.far ? null : { db: D.out + shotDistanceDb(d), lp: d > 8 ? outsideLowpassHz(d) : 0 };
     if (L.zone === 'cab') return { db: kind === 'doorHiss' ? (o.door === 1 ? D.cab1 : D.cabOther) : D.cab, lp: 0 };
-    const sec = DOOR_SECTION[o.door] || 'front', same = sec === L.section;
+    const sec = o.sec || DOOR_SECTION[o.door] || 'front', same = sec === L.section;
     if (kind === 'doorHiss') return { db: same ? D.same : D.other, lp: same ? 0 : 2500 };
     return { db: same ? (L.section === 'front' ? D.sameFront : D.sameRear) : D.other, lp: same ? 0 : 2500 };
   }

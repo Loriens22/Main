@@ -6,19 +6,19 @@
 // cuts corners like a real articulated bus and can jack-knife in reverse
 // (the articulation-angle protection then brakes the bus, as the MAN ATC does).
 //
-// Longitudinal motion: CNG engine torque curve, ZF EcoLife-style 6-speed
-// automatic with torque converter, retarder, service/parking/bus-stop brake,
-// rolling/aero/grade resistance and creep.
-import { BUS, HITCH_FRONT_Z, HITCH_REAR_Z } from './BusSpec.js';
+// Longitudinal motion: engine torque curve, automatic gearbox with torque
+// converter, retarder, service/parking/bus-stop brake, rolling/aero/grade
+// resistance and creep. Everything vehicle-specific (dimensions, torque curve,
+// gear ratios, mass) comes from the vehicle spec (Vehicles.js); a rigid bus
+// (spec.articulated false) keeps its "rear section" glued to the front one, so
+// rx/rz/yawR always describe the body behind the last axle and callers need no
+// special case.
+import { BUS } from './BusSpec.js';
+import { frames } from './frames.js';
 import { clamp, wrapAngle, fwdX, fwdZ } from '../core/math.js';
 
 const G = 9.81;
 export const GEARS = [3.364, 1.909, 1.421, 1.0, 0.72, 0.615];
-const REVERSE_RATIO = 4.18;
-const FINAL = 6.2;
-const IDLE = 620;
-const MAX_RPM = 2200;
-const GOVERNED_SPEED = 70 / 3.6;
 
 /** MAN E2876 LUH (CNG, 12.8 l, 228 kW) — approximate full-load torque (Nm). */
 export function engineTorque(rpm) {
@@ -29,12 +29,36 @@ export function engineTorque(rpm) {
   return 900;
 }
 
+const MAN_SPEC = {
+  articulated: true,
+  dims: BUS,
+  physics: { massEmpty: 17600, torque: engineTorque, idle: 620, maxRpm: 2200, gears: GEARS, final: 6.2, reverse: 4.18, governed: 70 / 3.6, aeroArea: 8.2 },
+};
+
 export class ArticulatedBus {
   constructor(opts = {}) {
-    this.L1 = BUS.wb1;
-    this.c = HITCH_FRONT_Z; // hitch behind axle 2
-    this.L2 = -HITCH_REAR_Z; // hitch to axle 3
-    this.massEmpty = 17600;
+    const spec = opts.spec || MAN_SPEC;
+    const d = spec.dims, P = spec.physics, F = frames(spec);
+    this.spec = spec;
+    this.dims = d;
+    this.articulated = spec.articulated !== false;
+    this.L1 = d.wb1;
+    this.c = this.articulated ? F.hitchFront : 0; // hitch behind axle 2
+    this.L2 = this.articulated ? -F.hitchRear : 0; // hitch to axle 3
+    this.torque = P.torque;
+    this.gears = P.gears;
+    this.final = P.final;
+    this.reverseRatio = P.reverse;
+    this.idle = P.idle;
+    this.maxRpm = P.maxRpm;
+    this.governed = P.governed;
+    this.aeroArea = P.aeroArea;
+    this.massEmpty = P.massEmpty;
+    // body extents per section (section z, forward is -z) for the collision boxes
+    this.box = this.articulated
+      ? [{ c: -(F.frontZ + F.frontEnd) / 2, hl: (F.frontEnd - F.frontZ) / 2 }, { c: -(F.rearStart + F.rearZ) / 2, hl: (F.rearZ - F.rearStart) / 2 }]
+      : [{ c: -(F.frontZ + F.rearZ) / 2, hl: (F.rearZ - F.frontZ) / 2 }];
+    this.hw = d.halfW + 0.005;
     this.passengers = 0;
     this.heightAt = opts.heightAt || (() => 0);
     this.collide = opts.collide || null; // (state) => {nx,nz,depth} | null
@@ -56,7 +80,7 @@ export class ArticulatedBus {
     this.yawR = yaw;
     this.v = 0;
     this.delta = 0;
-    this.rpm = IDLE;
+    this.rpm = this.idle;
     this.gear = 1;
     this.selector = 'N'; // 'D' | 'N' | 'R'
     this.shiftTimer = 0;
@@ -90,7 +114,7 @@ export class ArticulatedBus {
 
   /** Front bumper position along the heading. */
   frontPoint() {
-    const d = -(-BUS.frontOverhang - BUS.wb1); // 7.805 ahead of axle 2
+    const d = this.dims.frontOverhang + this.dims.wb1; // bumper ahead of axle 2 (rigid: rear axle)
     return [this.x + fwdX(this.yaw) * d, this.z + fwdZ(this.yaw) * d];
   }
 
@@ -105,7 +129,7 @@ export class ArticulatedBus {
   step(dt, ctl) {
     // ---------------- steering (power steering rate limit, speed sensitive)
     const sp = Math.abs(this.v);
-    const maxSteer = BUS.maxSteer * clamp(1 - sp / 30, 0.28, 1);
+    const maxSteer = this.dims.maxSteer * clamp(1 - sp / 30, 0.28, 1);
     const target = clamp(ctl.steer, -1, 1) * maxSteer;
     const rate = 0.55 + 0.6 * clamp(1 - sp / 10, 0, 1); // rad/s at the wheels
     this.delta += clamp(target - this.delta, -rate * dt, rate * dt);
@@ -120,8 +144,10 @@ export class ArticulatedBus {
     if (this.parkingBrake) throttle = Math.min(throttle, 0.15);
     const dirSign = this.selector === 'R' ? -1 : 1;
     const inGear = this.selector === 'D' || this.selector === 'R';
-    const ratio = this.selector === 'R' ? REVERSE_RATIO : GEARS[this.gear - 1];
-    const wheelRpm = (Math.abs(this.v) / BUS.wheelR) * (60 / (2 * Math.PI));
+    const IDLE = this.idle, MAX_RPM = this.maxRpm, FINAL = this.final, nG = this.gears.length;
+    const ratio = this.selector === 'R' ? this.reverseRatio : this.gears[this.gear - 1];
+    const wheelR = this.dims.wheelR;
+    const wheelRpm = (Math.abs(this.v) / wheelR) * (60 / (2 * Math.PI));
     const lockedRpm = wheelRpm * ratio * FINAL;
     // torque converter: engine can run above the locked speed (slip) at low road speed
     const stallRpm = IDLE + throttle * 1150;
@@ -137,17 +163,17 @@ export class ArticulatedBus {
     if (inGear && this.engineOn) {
       const slipRatio = lockup ? 1 : clamp(lockedRpm / Math.max(this.rpm, 1), 0, 1);
       const tcMult = lockup ? 1 : 1 + 1.15 * (1 - slipRatio); // converter torque multiplication
-      const engT = throttle > 0 ? engineTorque(this.rpm) * throttle : 0;
+      const engT = throttle > 0 ? this.torque(this.rpm) * throttle : 0;
       const creepT = !lockup ? 260 * (1 - slipRatio) * (brake > 0.05 ? 0 : 1) : 0; // idle creep
       const shiftCut = this.shiftTimer > 0 ? 0.35 : 1;
-      drive = ((engT * tcMult + creepT) * ratio * FINAL * 0.9 * shiftCut) / BUS.wheelR;
-      if (this.selector === 'D' && Math.abs(this.v) > GOVERNED_SPEED) drive *= 0.1;
+      drive = ((engT * tcMult + creepT) * ratio * FINAL * 0.9 * shiftCut) / wheelR;
+      if (this.selector === 'D' && Math.abs(this.v) > this.governed) drive *= 0.1;
       if (this.rpm > MAX_RPM) drive *= 0.2;
       // transmission shifting
       if (this.selector === 'D') {
         this.shiftTimer = Math.max(0, this.shiftTimer - dt);
         const upAt = 1250 + throttle * 650;
-        if (this.shiftTimer <= 0 && this.gear < 6 && lockedRpm > upAt) {
+        if (this.shiftTimer <= 0 && this.gear < nG && lockedRpm > upAt) {
           this.gear++;
           this.shiftTimer = 0.45;
           this.onShift && this.onShift(this.gear, 'up');
@@ -163,7 +189,7 @@ export class ArticulatedBus {
     const slope = this.slope || 0; // rise per metre along the heading
     const grade = m * G * (slope / Math.sqrt(1 + slope * slope));
     const roll = 0.0085 * m * G;
-    const aero = 0.5 * 1.2 * 0.68 * 8.2 * this.v * this.v;
+    const aero = 0.5 * 1.2 * 0.68 * this.aeroArea * this.v * this.v;
     // brakes: first quarter of the pedal = retarder only, then service brake
     const retarder = this.selector === 'D' && Math.abs(this.v) > 1.5 ? clamp(brake / 0.25, 0, 1) * 1.1 * m : 0;
     const service = clamp((brake - 0.12) / 0.88, 0, 1) * 6.8 * m;
@@ -176,7 +202,7 @@ export class ArticulatedBus {
     if (this.holdTimer > 0 && throttle < 0.05 && Math.abs(this.v) < 0.3) brakeF = Math.max(brakeF, 2.0 * m);
     // jack-knife protection (articulation angle control)
     const art = this.articulation;
-    if (Math.abs(art) > BUS.maxArticulation - 0.06 && this.v < 0) brakeF = Math.max(brakeF, 5 * m), (this.jackknife = true);
+    if (this.articulated && Math.abs(art) > this.dims.maxArticulation - 0.06 && this.v < 0) brakeF = Math.max(brakeF, 5 * m), (this.jackknife = true);
     else this.jackknife = false;
     const Fdrive = drive * dirSign;
     const Fres = -grade; // along the travel direction (+v = forwards)
@@ -207,20 +233,26 @@ export class ArticulatedBus {
     this.z += fwdZ(this.yaw) * this.v * dt;
     this.aLat = this.v * omega;
     // trailer follows the hitch
-    const [hx, hz] = this.hitch();
     const orx = this.rx, orz = this.rz;
-    let dx = hx - this.rx, dz = hz - this.rz;
-    const dl = Math.hypot(dx, dz) || 1;
-    this.rx = hx - (dx / dl) * this.L2;
-    this.rz = hz - (dz / dl) * this.L2;
-    this.yawR = Math.atan2(-(hx - this.rx), -(hz - this.rz));
-    // articulation limit
-    const a2 = wrapAngle(this.yaw - this.yawR);
-    if (Math.abs(a2) > BUS.maxArticulation) {
-      const lim = this.yaw - Math.sign(a2) * BUS.maxArticulation;
-      this.yawR = lim;
-      this.rx = hx - fwdX(lim) * this.L2;
-      this.rz = hz - fwdZ(lim) * this.L2;
+    if (this.articulated) {
+      const [hx, hz] = this.hitch();
+      let dx = hx - this.rx, dz = hz - this.rz;
+      const dl = Math.hypot(dx, dz) || 1;
+      this.rx = hx - (dx / dl) * this.L2;
+      this.rz = hz - (dz / dl) * this.L2;
+      this.yawR = Math.atan2(-(hx - this.rx), -(hz - this.rz));
+      // articulation limit
+      const a2 = wrapAngle(this.yaw - this.yawR);
+      if (Math.abs(a2) > this.dims.maxArticulation) {
+        const lim = this.yaw - Math.sign(a2) * this.dims.maxArticulation;
+        this.yawR = lim;
+        this.rx = hx - fwdX(lim) * this.L2;
+        this.rz = hz - fwdZ(lim) * this.L2;
+      }
+    } else {
+      this.rx = this.x;
+      this.rz = this.z;
+      this.yawR = this.yaw;
     }
     // ---------------- collisions against static geometry
     this.lastCollision = null;
@@ -259,14 +291,15 @@ export class ArticulatedBus {
     }
   }
 
-  /** Oriented boxes of both sections in world space for collision tests. */
+  /** Oriented boxes of the sections (one for a rigid bus) in world space for collision tests. */
   boxes() {
-    const fx = fwdX(this.yaw), fz = fwdZ(this.yaw);
-    const rfx = fwdX(this.yawR), rfz = fwdZ(this.yawR);
-    // front: from bumper (-7.805) to body end (1.3) in section z => centre at -3.25 (z backwards)
-    return [
-      { cx: this.x + fx * 3.25, cz: this.z + fz * 3.25, fx, fz, hl: 4.55, hw: 1.28 },
-      { cx: this.rx + rfx * 0.63, cz: this.rz + rfz * 0.63, fx: rfx, fz: rfz, hl: 4.04, hw: 1.28 },
-    ];
+    const fx = fwdX(this.yaw), fz = fwdZ(this.yaw), [bf, br] = this.box, hw = this.hw;
+    // MAN front: bumper (-7.805) to body end (1.3) in section z => centre 3.25 ahead of axle 2
+    const out = [{ cx: this.x + fx * bf.c, cz: this.z + fz * bf.c, fx, fz, hl: bf.hl, hw }];
+    if (br) {
+      const rfx = fwdX(this.yawR), rfz = fwdZ(this.yawR);
+      out.push({ cx: this.rx + rfx * br.c, cz: this.rz + rfz * br.c, fx: rfx, fz: rfz, hl: br.hl, hw });
+    }
+    return out;
   }
 }

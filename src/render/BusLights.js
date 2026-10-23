@@ -4,6 +4,7 @@
 // changes the scene's light count, which would recompile every shader.
 import * as THREE from 'three';
 import { FRONT_Z } from '../vehicle/BusSpec.js';
+import { frames } from '../vehicle/frames.js';
 
 export class BusLightRig {
   constructor(scene) {
@@ -30,8 +31,21 @@ export class BusLightRig {
       for (const o of [this.head, this.headTarget, ...this.cabin]) this.parking.add(o);
       return;
     }
+    // headlights at this bus's bumper; one ceiling light per section (two along a rigid saloon)
+    const F = frames(bus.spec);
+    this.head.position.set(0, 0.85, F.frontZ - 0.15);
+    this.headTarget.position.set(0, -0.6, F.frontZ - 22);
     bus.model.front.add(this.head, this.headTarget, this.cabin[0]);
-    bus.model.rear.add(this.cabin[1]);
+    if (bus.spec.articulated) {
+      this.cabin[0].position.set(0, 1.55, -3.3);
+      this.cabin[1].position.set(0, 1.55, -0.7);
+      bus.model.rear.add(this.cabin[1]);
+    } else {
+      const L = F.rearZ - F.frontZ;
+      this.cabin[0].position.set(0, 1.55, F.frontZ + L * 0.32);
+      this.cabin[1].position.set(0, 1.55, F.frontZ + L * 0.72);
+      bus.model.front.add(this.cabin[1]);
+    }
   }
 
   update(bus, night) {

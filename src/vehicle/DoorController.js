@@ -1,6 +1,6 @@
-// Pneumatic passenger doors of the MAN Lion's City G with the characteristic
-// two-beep closing warning:
-//   close request -> beep 1 -> beep 2 -> doors begin closing -> fully closed.
+// Pneumatic passenger doors with the closing warning of the vehicle type
+// (MAN Lion's City G: two beeps; other buses: see doorWarning in their spec):
+//   close request -> beep 1 .. beep n -> doors begin closing -> fully closed.
 // Pure state machine (time-stepped); audio/animation subscribe to events.
 
 export const DOOR_TIMING = {
@@ -12,6 +12,16 @@ export const DOOR_TIMING = {
   reopenRetry: 2.5, // s after an obstruction reopen before the next automatic attempt
   maxOpenSpeed: 0.5, // m/s — interlock: doors cannot open above this speed
 };
+
+/** Door timing for a vehicle's closing warning {beeps, ms, times?, closeStart?}. */
+export function doorTiming(warn) {
+  if (!warn) return DOOR_TIMING;
+  const len = (warn.ms || 200) / 1000;
+  const gap = Math.max(len + 0.14, 0.26);
+  const beepTimes = warn.times || Array.from({ length: warn.beeps || 2 }, (_, i) => i * gap);
+  const closeStartAt = warn.closeStart ?? beepTimes[beepTimes.length - 1] + len + 0.3;
+  return { ...DOOR_TIMING, beepTimes, beep1At: beepTimes[0], beep2At: beepTimes[1] ?? beepTimes[0], closeStartAt };
+}
 
 export class Door {
   constructor(id, timing = DOOR_TIMING) {
@@ -82,17 +92,13 @@ export class Door {
         }
         break;
       case 'warning': {
-        const prev = this.timer;
         this.timer += dt;
-        if (this.beeps === 0 && this.timer >= t.beep1At) {
-          this.beeps = 1;
-          this.emit('beep', { n: 1 });
+        const bt = t.beepTimes || [t.beep1At, t.beep2At];
+        while (this.beeps < bt.length && this.timer >= bt[this.beeps]) {
+          this.beeps++;
+          this.emit('beep', { n: this.beeps });
         }
-        if (this.beeps === 1 && prev < t.beep2At && this.timer >= t.beep2At) {
-          this.beeps = 2;
-          this.emit('beep', { n: 2 });
-        }
-        if (this.beeps === 2 && this.timer >= t.closeStartAt) {
+        if (this.beeps >= bt.length && this.timer >= t.closeStartAt) {
           this.state = 'closing';
           this.emit('closingStart');
         }

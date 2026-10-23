@@ -5,8 +5,7 @@
 // doorway), riders seated/standing inside the bus who press STOP and alight.
 import * as THREE from 'three';
 import { mulberry32 } from '../core/rng.js';
-import { BUS, FRONT_Z } from '../vehicle/BusSpec.js';
-import { SEATS, STANDING } from '../vehicle/BusLayout.js';
+import { FRONT_Z } from '../vehicle/BusSpec.js';
 
 const SKIN = [0xf1c8a8, 0xe6b591, 0xd9a07c, 0xc68b62, 0xf3d2bd, 0xa86f4c];
 const HAIR = [0x1b1612, 0x3b2a1e, 0x6b4a2e, 0x9a7a52, 0xc9b38a, 0x8a8a88, 0x2a2420];
@@ -175,9 +174,9 @@ export class PedestrianManager {
 
   /** World position of a door threshold (outside) of a bus. */
   doorPoint(bus, door, out = 0.7) {
-    const d = BUS.doors.find((q) => q.id === door.id);
+    const d = bus.spec.doors.find((q) => q.id === door.id);
     const sec = d.section === 'front' ? bus.model.front : bus.model.rear;
-    const v = new THREE.Vector3(BUS.halfW + out, 0, (d.z0 + d.z1) / 2).applyMatrix4(sec.matrixWorld);
+    const v = new THREE.Vector3(bus.spec.dims.halfW + out, 0, (d.z0 + d.z1) / 2).applyMatrix4(sec.matrixWorld);
     return v;
   }
 
@@ -315,7 +314,7 @@ export class PedestrianManager {
 
   freeSeat(bus) {
     const used = new Set((bus.riders || []).map((r) => r.seat));
-    const free = SEATS.map((_, i) => i).filter((i) => !used.has(i));
+    const free = bus.spec.layout.seats.map((_, i) => i).filter((i) => !used.has(i));
     if (free.length && this.rand() < 0.85) return free[Math.floor(this.rand() * free.length)];
     return -1 - Math.floor(this.rand() * 40); // standing
   }
@@ -399,22 +398,23 @@ export class PedestrianManager {
     for (const bus of this.buses) {
       const riders = bus.riders || [];
       if (bus.hideRiders) continue;
+      const { seats: SEATS, standing: STANDING } = bus.spec.layout, floorY = bus.spec.dims.floorY;
       for (const r of riders) {
         if (n >= this.max) break;
         if (!r.look) continue;
         let sec, local, yaw, mode;
-        if (r.seat >= 0) {
+        if (r.seat >= 0 && SEATS[r.seat]) {
           const s = SEATS[r.seat];
           sec = s.sec;
           local = new THREE.Vector3(s.x, s.fy - 0.05, s.z + 0.08);
           yaw = s.yaw;
           mode = 'sit';
         } else {
-          const k = -r.seat - 1;
+          const k = r.seat >= 0 ? r.seat : -r.seat - 1;
           const area = STANDING[k % STANDING.length];
           sec = area.sec;
           const fx = ((k * 0.37) % 1), fz = ((k * 0.61) % 1);
-          local = new THREE.Vector3(area.x0 + (area.x1 - area.x0) * fx, BUS.floorY, area.z0 + (area.z1 - area.z0) * fz);
+          local = new THREE.Vector3(area.x0 + (area.x1 - area.x0) * fx, floorY, area.z0 + (area.z1 - area.z0) * fz);
           yaw = (k % 3) * 0.8;
           mode = 'hold';
         }

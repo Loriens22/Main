@@ -1,4 +1,4 @@
-"""Build Route 280 path geometry for both directions.
+"""Build the path geometry of a bus line (280, 64, ...) for both directions.
 
 Inputs: Overture segments (seg.parquet) and infrastructure (infra.parquet)
 extracted with overture_extract.py. Stops are matched by their official
@@ -8,7 +8,7 @@ road graph, respecting one-way restrictions and banning U-turns. Each
 direction is routed independently (they use different stop poles and, in
 places, different streets).
 
-usage: python3 tools/build_route.py <datadir> <out.json>
+usage: python3 tools/build_route.py <datadir> <out.json> [line]   (stop lists: tools/lines.py)
 """
 import sys, json, math, heapq, collections
 import pyarrow.parquet as pq
@@ -16,54 +16,13 @@ import shapely.wkb as wkb
 sys.path.insert(0, __file__.rsplit('/', 1)[0])
 from geo import to_xz, ORIGIN_LAT, ORIGIN_LON
 from roadspec import road_width
+from lines import LINES
 
 DATADIR, OUT = sys.argv[1], sys.argv[2]
 
-# Official stop sequences (sofiatraffic.bg codes) from the project directive.
-DIR_A = [
-    ('1697', 'СУ „Св. Климент Охридски“', 'Софийски университет „Свети Климент Охридски“'),
-    ('0441', 'Военна академия', 'Военна академия'),
-    ('1287', 'пл. Орлов мост', 'Площад Орлов мост'),
-    ('2326', 'Хотел Плиска', 'Хотел Плиска'),
-    ('1696', 'ж.к. Изток', 'Жилищен комплекс Изток'),
-    ('0494', 'Републикански невродиспансер', 'Републикански невродиспансер'),
-    ('2352', 'Техническа библиотека', 'Техническа библиотека'),
-    ('0764', 'НСБАЛ по онкология', 'Онкологична болница'),
-    ('1740', 'Технически университет', 'Технически университет'),
-    ('0617', 'Лесотехнически университет', 'Лесотехнически университет'),
-    ('0800', 'ж.к. Дървеница', 'Жилищен комплекс Дървеница'),
-    ('1691', 'УНСС', 'Университет за национално и световно стопанство'),
-    ('0524', 'Детски дом', 'Детски дом'),
-    ('1610', 'Спортна зала „Христо Ботев“', 'Спортна зала Христо Ботев'),
-    ('0533', 'Детски ясли', 'Детски ясли'),
-    ('0741', 'Зимен дворец на спорта', 'Зимен дворец на спорта'),
-    ('1606', 'СК на НСА', 'Спортен комплекс на Националната спортна академия'),
-    ('1694', 'Студентски град', 'Студентски град'),
-]
-DIR_B = [
-    ('1693', 'Студентски град', 'Студентски град'),
-    ('1609', 'СК на НСА', 'Спортен комплекс на Националната спортна академия'),
-    ('0742', 'Зимен дворец на спорта', 'Зимен дворец на спорта'),
-    ('0534', 'Детски ясли', 'Детски ясли'),
-    ('1611', 'Спортна зала „Христо Ботев“', 'Спортна зала Христо Ботев'),
-    ('0530', 'Детски дом', 'Детски дом'),
-    ('1692', 'УНСС', 'Университет за национално и световно стопанство'),
-    ('0801', 'ж.к. Дървеница', 'Жилищен комплекс Дървеница'),
-    ('0614', 'Лесотехнически университет', 'Лесотехнически университет'),
-    ('1743', 'Технически университет', 'Технически университет'),
-    ('0761', 'НСБАЛ по онкология', 'Онкологична болница'),
-    ('2351', 'Техническа библиотека', 'Техническа библиотека'),
-    ('0492', 'Републикански невродиспансер', 'Републикански невродиспансер'),
-    ('1258', 'Площад на авиацията', 'Площад на авиацията'),
-    ('1695', 'ж.к. Изток', 'Жилищен комплекс Изток'),
-    ('2327', 'Хотел Плиска', 'Хотел Плиска'),
-    ('1288', 'пл. Орлов мост', 'Площад Орлов мост'),
-    ('1697', 'СУ „Св. Климент Охридски“', 'Софийски университет „Свети Климент Охридски“'),
-]
-
-# Stops whose pole sits inside a bus turning loop: pin them to the loop way
-# (OSM way id) so the bus enters the terminal loop instead of a side stub.
-STOP_WAY_HINT = {'1694': 'w1193785354', '1693': 'w1193785354'}
+LINE = sys.argv[3] if len(sys.argv) > 3 else '280'
+CFG = LINES[LINE]
+DIR_A, DIR_B, STOP_WAY_HINT = CFG['A'], CFG['B'], CFG.get('wayHint', {})
 
 DRIVABLE = {'trunk': 1.0, 'primary': 1.0, 'secondary': 1.05, 'tertiary': 1.15,
             'unclassified': 1.4, 'residential': 1.7, 'living_street': 3.0,
@@ -276,11 +235,13 @@ def route(edges, adj, start, goal):
 
 def build_direction(edges, adj, stops_def, stop_idx, label):
     snapped = []
-    for code, disp, speech in stops_def:
+    for entry in stops_def:
+        code, disp, speech = entry[:3]
+        req = len(entry) > 3 and entry[3] == 'request'
         r, tags = stop_idx[code]
         g = wkb.loads(r['geometry']).centroid
         p = to_xz(g.x, g.y)
-        snapped.append(dict(code=code, name=disp, speech=speech, osm_name=r['names']['primary'], lat=g.y, lon=g.x,
+        snapped.append(dict(code=code, name=disp, speech=speech, request=req, osm_name=r['names']['primary'], lat=g.y, lon=g.x,
                             pole=p, tags=tags, osm=r['sources'][0]['record_id'], cands=snap_stop(edges, p, STOP_WAY_HINT.get(code))))
     # choose candidate combination greedily with routing feasibility
     chosen = [None] * len(snapped)
@@ -326,7 +287,8 @@ def build_direction(edges, adj, stops_def, stop_idx, label):
         c = chosen[i]
         e = edges[c[1]]
         out_stops.append(dict(
-            id=f'{label}-{i:02d}-{s["code"]}', code=s['code'], name=s['name'], speech=s['speech'],
+            id=f'{LINE}-{label}-{i:02d}-{s["code"]}', code=s['code'], name=s['name'], speech=s['speech'],
+            request=s['request'],
             osmName=s['osm_name'], lat=round(s['lat'], 7), lon=round(s['lon'], 7),
             pole=[round(s['pole'][0], 2), round(s['pole'][1], 2)],
             s=round(stop_s[i], 2), road=e['seg']['name'], roadClass=e['seg']['cls'],
@@ -375,12 +337,14 @@ def main():
     for d in (A, B):
         d.pop('_end'); d.pop('_start')
     out = dict(
-        line='280', terminalLinks=links, mode='bus', operator='Столичен електротранспорт / Столичен автотранспорт (Sofia)',
+        line=LINE, terminalLinks=links, mode='bus', operator=CFG['operator'],
         origin=dict(lat=ORIGIN_LAT, lon=ORIGIN_LON),
         directions=dict(
-            A=dict(id='A', from_='СУ „Св. Климент Охридски“', headsign='Студентски град', **A),
-            B=dict(id='B', from_='Студентски град', headsign='СУ Св. Климент Охридски', **B)),
+            A=dict(id='A', from_=CFG['fromA'], headsign=CFG['headsignA'], **A),
+            B=dict(id='B', from_=CFG['fromB'], headsign=CFG['headsignB'], **B)),
     )
+    if CFG.get('notes'):
+        out['notes'] = CFG['notes']
     json.dump(out, open(OUT, 'w'), ensure_ascii=False)
     for k in ('A', 'B'):
         d = out['directions'][k]

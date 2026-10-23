@@ -2,7 +2,7 @@
 // pulled in front of building walls so they never clip through the city.
 import * as THREE from 'three';
 import { clamp, damp } from '../core/math.js';
-import { BUS, FRONT_Z, REAR_Z } from '../vehicle/BusSpec.js';
+import { BUS, REAR_Z } from '../vehicle/BusSpec.js';
 
 export const DRIVER_CAMS = ['cab', 'follow', 'front', 'side', 'joint', 'free'];
 export const PASSENGER_CAMS = ['eyes', 'cinematic'];
@@ -100,16 +100,17 @@ export class CameraRig {
         want = this.tmp.set(base.x + bx * d, base.y + 5.5 + this.pitch * -8, base.z + bz * d);
         look2 = this.tmp2.set(base.x + fx * 6, base.y + 2, base.z + fz * 6);
       } else if (this.mode === 'front') {
-        const d = 14;
-        want = this.tmp.set(base.x + fx * (Math.abs(FRONT_Z) + d), base.y + 2.4, base.z + fz * (Math.abs(FRONT_Z) + d));
+        const d = 14 + bus.spec.dims.frontOverhang + bus.spec.dims.wb1; // from the front frame origin past the bumper
+        want = this.tmp.set(base.x + fx * d, base.y + 2.4, base.z + fz * d);
         look2 = this.tmp2.set(base.x + fx * 2, base.y + 1.6, base.z + fz * 2);
       } else if (this.mode === 'side') {
         const rx = -fz, rz = fx;
         want = this.tmp.set(base.x + rx * 11 + fx * 2, base.y + 2.2, base.z + rz * 11 + fz * 2);
         look2 = this.tmp2.set(base.x + fx * 1, base.y + 1.5, base.z + fz * 1);
       } else if (this.mode === 'joint') {
-        // above and behind the articulation, looking at the bellows/rear section
-        const hx = base.x - fx * 1.7, hz = base.z - fz * 1.7;
+        // above and behind the articulation, looking at the bellows/rear section (rigid bus: the rear)
+        const hb = bus.phys.articulated ? bus.phys.c : 1.5;
+        const hx = base.x - fx * hb, hz = base.z - fz * hb;
         const rx = -fz, rz = fx;
         want = this.tmp.set(hx + rx * 3.2 + fx * 4, base.y + 4.6, hz + rz * 3.2 + fz * 4);
         look2 = this.tmp2.set(hx - fx * 3, base.y + 1.2, hz - fz * 3);

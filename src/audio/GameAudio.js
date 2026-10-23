@@ -6,6 +6,15 @@
 import { clamp, cabinProx, ENGINE_Z, cullGain, panFor, shotOffsetDb, startRpm, START_DURATION, stepAir } from './dsp.js';
 
 const FWD = (yaw) => [-Math.sin(yaw), -Math.cos(yaw)]; // same convention as core/math fwdX/fwdZ
+const RIGID_SPLIT_Z = -4.0; // rigid bus: front/rear half boundary, rear-axle frame (just ahead of the middle door)
+const engineZ = (bus) => bus.spec.audio.engineZ ?? ENGINE_Z;
+/** Acoustic section of a door: its body section, or on a rigid bus the half it opens into. */
+function doorZone(bus, id) {
+  const d = bus.spec.doors.find((q) => q.id === id);
+  if (!d) return 'front';
+  if (bus.spec.articulated) return d.section;
+  return (d.z0 + d.z1) / 2 < RIGID_SPLIT_Z ? 'front' : 'rear';
+}
 const SKIP_DOOR_EVENTS = new Set(['closeRequest', 'opened', 'closed']); // part of the open/close recipes
 
 export class GameAudio {
@@ -47,16 +56,18 @@ export class GameAudio {
     const [fx, fz] = FWD(p.yaw), [rfx, rfz] = FWD(p.yawR);
     if (interior) {
       L.zone = zone; L.dist = 0; L.pan = 0; L.radial = 0; L.cull = 1;
-      // listener in the rear section frame (x right, z backwards): distance to the engine and which section
+      // listener in the rear section frame (x right, z backwards): distance to the engine and which
+      // section (a rigid bus is split into a front and a rear half at RIGID_SPLIT_Z for the door sounds)
       const dx = cam.x - p.rx, dz = cam.z - p.rz;
       const lz = -(dx * rfx + dz * rfz), lx = dx * -rfz + dz * rfx;
-      L.prox = zone === 'cab' ? 0 : cabinProx(Math.hypot(lx, lz - ENGINE_Z));
-      L.section = zone === 'cab' || lz < -4.9 ? 'front' : 'rear';
+      L.prox = zone === 'cab' ? 0 : cabinProx(Math.hypot(lx, lz - engineZ(bus)));
+      L.section = zone === 'cab' || lz < (p.articulated ? 0.17 - p.L2 : RIGID_SPLIT_Z) ? 'front' : 'rear';
       return L;
     }
     // outside: nearest point of the body between the middle of the front section and the engine
-    const ax = p.x + fx * 3.25, az = p.z + fz * 3.25; // middle of the front section
-    const bx = p.rx - rfx * ENGINE_Z, bz = p.rz - rfz * ENGINE_Z; // engine behind the rear axle
+    const fc = p.box[0].c, ez = engineZ(bus);
+    const ax = p.x + fx * fc, az = p.z + fz * fc; // middle of the front section
+    const bx = p.rx - rfx * ez, bz = p.rz - rfz * ez; // engine behind the rear axle
     const sx = bx - ax, sz = bz - az, len2 = sx * sx + sz * sz || 1;
     const u = clamp(((cam.x - ax) * sx + (cam.z - az) * sz) / len2, 0, 1);
     const px = ax + sx * u, pz = az + sz * u, py = bus.model.front.position.y + 1.2;
@@ -104,7 +115,7 @@ export class GameAudio {
       const kind = e.type === 'beep' ? 'doorBeep' : 'doorHiss';
       let sum = 0, best = null;
       for (const id of doors) {
-        const w = shotOffsetDb(kind, L, { door: id });
+        const w = shotOffsetDb(kind, L, { door: id, sec: doorZone(bus, id) });
         if (!w) continue;
         sum += Math.pow(10, w.db / 10);
         if (!best || w.db > best.db) best = w;
@@ -212,7 +223,7 @@ export class GameAudio {
       const rpm = cranking ? startRpm(st.startT, p.rpm) : p.rpm;
       const retarder = p.selector === 'D' && Math.abs(p.v) > 1.5 ? clamp((p.brakeOut || 0) / 0.25, 0, 1) : 0;
       S.buses.push({
-        id: st.id, focus: bus === g.bus, interior: L.zone !== 'out', zone: L.zone, prox: L.prox, dist: L.dist, radial: L.radial, pan: L.pan, cull: L.cull,
+        id: st.id, profile: bus.spec.audio.profile, focus: bus === g.bus, interior: L.zone !== 'out', zone: L.zone, prox: L.prox, dist: L.dist, radial: L.radial, pan: L.pan, cull: L.cull,
         rpm, load: cranking && st.startT < 1.5 ? 0.05 : p.load, speed: p.v, engineOn: !!p.engineOn || p.rpm > 120, retarder, surface: st.surface, comp: st.comp,
       });
       if (bus === g.bus) {

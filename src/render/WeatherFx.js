@@ -2,6 +2,7 @@
 // interior) and raindrops on the windscreen that the wipers clear.
 import * as THREE from 'three';
 import { FRONT_Z } from '../vehicle/BusSpec.js';
+import { frames } from '../vehicle/frames.js';
 
 export class WeatherFx {
   constructor({ scene, quality }) {
@@ -155,7 +156,10 @@ export class WeatherFx {
       } else e[i].value.set(0, 0, -1e9);
     }
     // windscreen drops follow the player's bus front section
-    if (bus && this.screen.parent !== bus.model.front) bus.model.front.add(this.screen);
+    if (bus && this.screen.parent !== bus.model.front) {
+      bus.model.front.add(this.screen);
+      this.screen.position.z = frames(bus.spec).frontZ + 0.07;
+    }
     this.screen.visible = this.weather === 'rain' && !!bus;
     if (bus && bus.wiper) {
       // record when each angular bucket was last swept by the blades (arm

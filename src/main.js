@@ -6,7 +6,7 @@ import { loadWorldPack } from './world/WorldData.js';
 import { World } from './world/World.js';
 import { Renderer } from './render/Renderer.js';
 import { SkySystem } from './render/SkySystem.js';
-import { BusModel } from './vehicle/BusModel.js';
+import { vehicleSpec, frames } from './vehicle/Vehicles.js';
 import { Game } from './game/Game.js';
 import { Menu } from './ui/Menu.js';
 import { Input } from './ui/Input.js';
@@ -113,7 +113,7 @@ async function boot() {
       if (states.can('loading')) states.go('loading');
     }
     if (opts.qualityChanged || (opts.quality && opts.quality !== R.quality)) applyQuality(settings.quality);
-    const env = { hour: opts.hour ?? 10.5, weather: opts.weather || 'clear', fleet: opts.fleet || '3145', dirId: opts.dirId || 'A', traffic: opts.traffic || 'medium' };
+    const env = { hour: opts.hour ?? 10.5, weather: opts.weather || 'clear', vehicle: opts.vehicle || 'man', fleet: opts.fleet || null, dirId: opts.dirId || 'A', traffic: opts.traffic || 'medium' };
     if (game.traffic) game.traffic.setDensity(env.traffic);
     if (opts.mode === 'passenger') game.startPassenger({ ...env, stopIndex: opts.stopIndex ?? 3 });
     else game.startDriver(env);
@@ -177,7 +177,7 @@ async function boot() {
       return b ? { v: +(b.phys.v * 3.6).toFixed(1), gear: b.phys.selector + b.phys.gear, s: Math.round(b.routeS), next: b.stops.next, off: +b.offRoute.toFixed(1), doors: b.doors.doors.map((d) => d.state[0]).join('') } : null;
     },
   };
-  if (params.get('autostart')) menu.hide(), startMode({ mode: params.get('autostart'), dirId: params.get('dir') || 'A', hour: Number(params.get('h') || 10.5), weather: params.get('w') || 'clear', stopIndex: Number(params.get('stop') || 3), fleet: params.get('fleet') || '3145' });
+  if (params.get('autostart')) menu.hide(), startMode({ mode: params.get('autostart'), dirId: params.get('dir') || 'A', hour: Number(params.get('h') || 10.5), weather: params.get('w') || 'clear', stopIndex: Number(params.get('stop') || 3), vehicle: params.get('veh') || 'man', fleet: params.get('fleet') || (params.get('veh') && params.get('veh') !== 'man' ? null : '3145') });
 
   // main loop
   let last = performance.now();
@@ -202,23 +202,25 @@ async function busStudio({ R, scene, camera, sky, progress }) {
   ground.receiveShadow = true;
   scene.add(ground);
   sky.set(Number(params.get('h') || 11), params.get('w') || 'clear');
-  const bus = new BusModel({ fleet: params.get('fleet') || '3145' });
+  // ?veh=man|conecto|procity|yutong picks the vehicle type
+  const spec = vehicleSpec(params.get('veh') || 'man'), F = frames(spec);
+  const bus = spec.create({ fleet: params.get('fleet') || spec.fleets[0].fleet, quality: params.get('q') || 'high', interior: true });
   scene.add(bus.root);
-  bus.setDestination('280', params.get('dest') || 'Студентски град');
+  bus.setDestination(params.get('line') || spec.lines[0], params.get('dest') || 'Студентски град');
   bus.setInteriorText('Следваща спирка:', 'Военна академия');
   const art = Number(params.get('art') || 0);
   const placeSections = (phi) => {
     bus.front.position.set(0, 0, 0);
     bus.front.rotation.set(0, 0, 0);
-    const hf = new THREE.Vector3(0, 0, 1.7);
-    bus.rear.rotation.set(0, phi, 0);
-    const off = new THREE.Vector3(0, 0, -5.07).applyEuler(bus.rear.rotation);
+    const hf = new THREE.Vector3(0, 0, F.hitchFront);
+    bus.rear.rotation.set(0, spec.articulated ? phi : 0, 0);
+    const off = new THREE.Vector3(0, 0, F.hitchRear).applyEuler(bus.rear.rotation);
     bus.rear.position.copy(hf).sub(off);
     bus.afterPose();
   };
   placeSections(art);
   bus.setSteer(Number(params.get('steer') || 0));
-  for (const d of [1, 2, 3, 4]) bus.setDoor(d, Number(params.get('doors') || 0));
+  for (const d of spec.doors) bus.setDoor(d.id, Number(params.get('doors') || 0));
   bus.setLights({ head: true, left: false, interior: 1 });
   // facade test buildings (one per style) for shader inspection
   if (params.has('facades')) {
@@ -236,7 +238,7 @@ async function busStudio({ R, scene, camera, sky, progress }) {
   progress(1, '');
   document.getElementById('loading').classList.add('hidden');
   const api = {
-    THREE, scene, camera, bus, sky, renderer: R, placeSections,
+    THREE, scene, camera, bus, spec, frames: F, sky, renderer: R, placeSections,
     look(x, y, z, tx, ty, tz, fov = 50) {
       camera.fov = fov;
       camera.aspect = R.canvas.clientWidth / R.canvas.clientHeight;

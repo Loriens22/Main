@@ -71,7 +71,7 @@ export class Game {
     this.clear();
     this.mode = 'attract';
     this.hud.show(false);
-    const bus = (this.bus = new BusEntity({ scene: this.scene, world: this.world, route: this.route, dirId: 'A', fleet: this.settings.fleet || '3145', quality: this.quality }));
+    const bus = (this.bus = new BusEntity({ scene: this.scene, world: this.world, route: this.route, dirId: 'A', vehicle: this.settings.vehicle || 'man', fleet: this.settings.vehicle && this.settings.vehicle !== 'man' ? null : this.settings.fleet || '3145', quality: this.quality }));
     bus.placeAt(this.route.direction('A').stops[0].frontS + 1);
     bus.doors.open(null, 0);
     bus.lights.head = this.sky.night > 0.3;
@@ -83,7 +83,7 @@ export class Game {
     this.mode = 'driver';
     this.setEnvironment(opts.hour, opts.weather);
     const dirId = opts.dirId || 'A';
-    const bus = (this.bus = new BusEntity({ scene: this.scene, world: this.world, route: this.route, dirId, fleet: opts.fleet, quality: this.quality, player: true }));
+    const bus = (this.bus = new BusEntity({ scene: this.scene, world: this.world, route: this.route, dirId, vehicle: opts.vehicle || 'man', fleet: opts.fleet, quality: this.quality, player: true }));
     bus.placeAt(bus.dir.stops[0].frontS);
     bus.phys.parkingBrake = true;
     bus.phys.selector = 'N';
@@ -425,6 +425,18 @@ export class Game {
     const m = bus.model;
     const c = m.dashCanvas, g = c.getContext('2d');
     const p = bus.phys;
+    // a vehicle with its own instrument cluster draws it (models/README.md: drawDash)
+    if (m.drawDash) {
+      m.drawDash(g, {
+        w: c.width, h: c.height, speedKmh: p.speedKmh, rpm: p.rpm, maxRpm: p.maxRpm, selector: p.selector, gear: p.gear,
+        parking: p.parkingBrake, stopBrake: p.stopBrake, doorsOpen: bus.doors.anyOpen, head: bus.lights.head,
+        indL: bus.indicatorOn && (bus.lights.left || bus.lights.hazard), indR: bus.indicatorOn && (bus.lights.right || bus.lights.hazard),
+        engineOn: p.engineOn, pressure: this.audio.pressure || 9, retarder: p.selector === 'D' && Math.abs(p.v) > 1.5 && p.brakeOut > 0.02,
+        kneel: p.kneel, time: this.time, hour: this.hour,
+      });
+      m.dashTex.needsUpdate = true;
+      return;
+    }
     g.fillStyle = '#060708';
     g.fillRect(0, 0, 512, 256);
     const dial = (cx, val, max, label, ticks) => {

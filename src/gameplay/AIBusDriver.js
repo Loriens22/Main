@@ -3,7 +3,6 @@
 // planning for curves, stops and traffic, and the full stop procedure
 // (open doors, wait for boarding, two-beep close, depart).
 import { clamp } from '../core/math.js';
-import { BUS } from '../vehicle/BusSpec.js';
 
 export class AIBusDriver {
   constructor(bus, { traffic = null, signals = null, peds = null, serveAll = false } = {}) {
@@ -33,9 +32,10 @@ export class AIBusDriver {
     const line = bus.driveLine;
     if (line !== this.line) { this.line = line; this.sHint = null; } // new trip direction
     const ctl = { throttle: 0, brake: 0, steer: 0 };
+    const D = p.dims; // this bus's dimensions (vehicle spec)
     // ---- steering: pure pursuit for the front axle
     const fx = -Math.sin(p.yaw), fz = -Math.cos(p.yaw);
-    const ax = p.x + fx * BUS.wb1, az = p.z + fz * BUS.wb1;
+    const ax = p.x + fx * D.wb1, az = p.z + fz * D.wb1;
     const n = line.nearest(ax, az, this.sHint ?? null, this.sHint == null ? 0 : 60);
     this.sHint = n.s;
     const Ld = clamp(5 + Math.abs(p.v) * 0.9, 6, 20);
@@ -48,8 +48,8 @@ export class AIBusDriver {
     }
     const dx = tp.x - ax, dz = tp.z - az;
     const alpha = Math.atan2(dx * -fz + dz * fx, dx * fx + dz * fz); // + = target to the right
-    const delta = Math.atan((2 * BUS.wb1 * Math.sin(-alpha)) / Math.max(4, Math.hypot(dx, dz)));
-    ctl.steer = clamp(delta / BUS.maxSteer, -1, 1);
+    const delta = Math.atan((2 * D.wb1 * Math.sin(-alpha)) / Math.max(4, Math.hypot(dx, dz)));
+    ctl.steer = clamp(delta / D.maxSteer, -1, 1);
     // ---- speed planning
     const q = bus.world.roads.query(p.x, p.z, 12);
     let vDes = Math.min(((q && q.piece.speed) || 50) / 3.6, 13.5);
@@ -80,7 +80,7 @@ export class AIBusDriver {
     // cars in the way: test the car's box against the bus's own path ahead
     // (follows the curve through turns and catches cars at the front corners)
     if (this.traffic) {
-      const sF = n.s + BUS.frontOverhang; // front bumper on the drive line
+      const sF = n.s + D.frontOverhang; // front bumper on the drive line
       const probe = [];
       for (let d = -1; d <= 40; d += 1.5) {
         const q = line.at(sF + d), t = line.tangent(sF + d, 2);
@@ -94,7 +94,7 @@ export class AIBusDriver {
           // oncoming traffic keeps to its own lane: only a real overlap counts;
           // a car ahead in the same direction gets a safety buffer
           const dir = c.dx * tx + c.dz * tz;
-          const clear = BUS.halfW + (dir < -0.5 ? 0.05 : dir > 0.5 ? 0.35 : 0.2);
+          const clear = D.halfW + (dir < -0.5 ? 0.05 : dir > 0.5 ? 0.35 : 0.2);
           const ox = qx - c.x, oz = qz - c.z;
           const lx = Math.abs(ox * c.dx + oz * c.dz) - c.len / 2, lz = Math.abs(-ox * c.dz + oz * c.dx) - c.wid / 2;
           if (Math.hypot(Math.max(0, lx), Math.max(0, lz)) < clear) {
@@ -150,6 +150,27 @@ export class AIBusDriver {
     // indicators when pulling in/out
     bus.lights.right = !!(this.state === 'drive' && pending && next.frontS - bus.routeS < 60 && next.frontS - bus.routeS > 2);
     bus.lights.left = this.state === 'depart';
+    // ---- recovery: wedged against something static (a kerb post or a building corner after a knock
+    // or a swerve) the bus cannot drive forwards: back up a few metres steering towards the line
+    if (this.reverseT > 0) {
+      this.reverseT -= dt;
+      p.selector = 'R';
+      const done = this.reverseT <= 0 || Math.abs(p.distF - this.revFrom) > 4;
+      if (!done) {
+        this.why = 'recover';
+        return { throttle: Math.abs(p.v) < 1.2 ? 0.35 : 0, brake: Math.abs(p.v) < 1.2 ? 0 : 0.3, steer: -ctl.steer };
+      }
+      this.reverseT = 0;
+      p.selector = 'D';
+      this.vi = 0;
+    }
+    const trying = this.state === 'drive' && vDes > 2 && Math.abs(p.v) < 0.4 && !(this.why && this.why.startsWith('car'));
+    this.stuckT = trying ? (this.stuckT || 0) + dt : 0;
+    if (this.stuckT > 4) {
+      this.stuckT = 0;
+      this.reverseT = 4;
+      this.revFrom = p.distF;
+    }
     // ---- longitudinal PI control
     const err = vDes - p.v;
     this.vi = clamp(this.vi + err * dt * 0.3, -0.3, 0.4);

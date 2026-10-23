@@ -9,7 +9,7 @@ const path = require('path');
   const p = await b.newPage({ viewport: { width: 480, height: 270 } });
   const errs = [];
   p.on('pageerror', (e) => errs.push(e.message));
-  await p.goto('file://' + path.resolve(html) + `?noloop&q=balanced&autostart=driver&dir=${dir}&stop=0&h=12`);
+  await p.goto('file://' + path.resolve(html) + `?noloop&q=balanced&autostart=driver&dir=${dir}&stop=0&h=12${process.env.VEH ? '&veh=' + process.env.VEH : ''}`);
   await p.waitForFunction(() => window.__game && window.__game.ready, null, { timeout: 240000 });
   await p.evaluate(() => {
     const G = __game, g = G.game, bus = g.bus;

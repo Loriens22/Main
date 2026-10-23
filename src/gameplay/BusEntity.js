@@ -1,9 +1,8 @@
 // A bus in the world: physics + 3D model + doors + route state + signs.
 import * as THREE from 'three';
 import { ArticulatedBus } from '../vehicle/ArticulatedBus.js';
-import { BusModel } from '../vehicle/BusModel.js';
-import { DoorSystem } from '../vehicle/DoorController.js';
-import { BUS, HITCH_FRONT_Z } from '../vehicle/BusSpec.js';
+import { DoorSystem, doorTiming } from '../vehicle/DoorController.js';
+import { vehicleSpec } from '../vehicle/Vehicles.js';
 import { StopManager } from './StopManager.js';
 import { AnnouncementManager } from './AnnouncementManager.js';
 import { DestinationDisplay } from './DestinationDisplay.js';
@@ -13,18 +12,24 @@ import { fwdX, fwdZ, clamp } from '../core/math.js';
 const FIXED = 1 / 120;
 
 export class BusEntity {
-  constructor({ scene, world, route, dirId = 'A', fleet = '3145', quality = 'high', player = false }) {
+  constructor({ scene, world, route, dirId = 'A', vehicle = 'man', fleet = null, quality = 'high', player = false, serviceNo = 0 }) {
     this.scene = scene;
     this.world = world;
     this.route = route;
     this.player = player;
-    this.model = new BusModel({ fleet, quality, interior: true });
+    this.serviceNo = serviceNo;
+    // everything vehicle-specific comes from the spec: model, dimensions, doors, physics, sound
+    this.spec = vehicleSpec(vehicle);
+    this.vehicle = this.spec.id;
+    this.fleet = fleet || this.spec.fleets[0].fleet;
+    this.model = this.spec.create({ fleet: this.fleet, quality, interior: true });
     scene.add(this.model.root);
     this.phys = new ArticulatedBus({
+      spec: this.spec,
       heightAt: (x, z) => world.hf.heightAt(x, z),
       collide: (b) => this.collideStatic(b),
     });
-    this.doors = new DoorSystem([1, 2, 3, 4]);
+    this.doors = new DoorSystem(this.spec.doors.map((d) => d.id), doorTiming(this.spec.doorWarning));
     this.lights = { head: false, left: false, right: false, hazard: false, interior: 1 };
     this.wiper = { mode: 0, phase: 0 };
     this.blink = 0;
@@ -84,7 +89,7 @@ export class BusEntity {
   /** Place the bus on its drive line with the front at arc length s. */
   placeAt(s) {
     const L = this.driveLine;
-    const frontToAxle2 = BUS.frontOverhang + BUS.wb1;
+    const frontToAxle2 = this.spec.dims.frontOverhang + this.spec.dims.wb1;
     // route distance -> drive-line distance (the lane offset changes arc lengths in bends)
     const rp = this.dir.path.at(Math.min(s, this.dir.path.length));
     const ds = Math.min(L.nearest(rp.x, rp.z, Math.min(s, L.length), 400).s, L.length);
@@ -113,12 +118,14 @@ export class BusEntity {
     const yaw = Math.atan2(-(b.x - a.x), -(b.z - a.z));
     this.phys.reset(a.x, a.z, yaw);
     // settle the trailer along the path
-    const c = at(ds - frontToAxle2 - HITCH_FRONT_Z - 5.07);
-    const [hx, hz] = this.phys.hitch();
-    const dx = hx - c.x, dz = hz - c.z, dl = Math.hypot(dx, dz) || 1;
-    this.phys.rx = hx - (dx / dl) * this.phys.L2;
-    this.phys.rz = hz - (dz / dl) * this.phys.L2;
-    this.phys.yawR = Math.atan2(-dx, -dz);
+    if (this.phys.articulated) {
+      const c = at(ds - frontToAxle2 - this.phys.c - this.phys.L2);
+      const [hx, hz] = this.phys.hitch();
+      const dx = hx - c.x, dz = hz - c.z, dl = Math.hypot(dx, dz) || 1;
+      this.phys.rx = hx - (dx / dl) * this.phys.L2;
+      this.phys.rz = hz - (dz / dl) * this.phys.L2;
+      this.phys.yawR = Math.atan2(-dx, -dz);
+    }
     this.sHint = null;
     this.routeHint = null;
     this.prev = null;
@@ -231,21 +238,28 @@ export class BusEntity {
     const hf = this.world.hf;
     const fx = fwdX(yaw), fz = fwdZ(yaw);
     const rgx = -fz, rgz = fx;
+    const wb1 = this.spec.dims.wb1;
     const h2 = hf.heightAt(x, z);
-    const h1 = hf.heightAt(x + fx * BUS.wb1, z + fz * BUS.wb1);
+    const h1 = hf.heightAt(x + fx * wb1, z + fz * wb1);
     const hl = hf.heightAt(x - rgx, z - rgz), hr = hf.heightAt(x + rgx, z + rgz);
-    const pitchF = Math.atan2(h1 - h2, BUS.wb1);
+    const pitchF = Math.atan2(h1 - h2, wb1);
     const rollF = Math.atan2(hr - hl, 2);
     const kneel = p.kneel * 0.028;
     const m = this.model;
     m.front.position.set(x, h2 - p.kneel * 0.04, z);
     m.front.rotation.set(pitchF + lerp(q.pitch[0], p.pitch[0]), yaw, rollF + lerp(q.roll[0], p.roll[0]) - kneel, 'YXZ');
-    const rfx = fwdX(yawR), rfz = fwdZ(yawR);
-    const h3 = hf.heightAt(rx, rz);
-    const hh = hf.heightAt(rx + rfx * 5.07, rz + rfz * 5.07);
-    const pitchR = Math.atan2(hh - h3, 5.07);
-    m.rear.position.set(rx, h3, rz);
-    m.rear.rotation.set(pitchR + lerp(q.pitch[1], p.pitch[1]), yawR, rollF * 0.5 + lerp(q.roll[1], p.roll[1]), 'YXZ');
+    if (p.articulated) {
+      const rfx = fwdX(yawR), rfz = fwdZ(yawR), L2 = p.L2;
+      const h3 = hf.heightAt(rx, rz);
+      const hh = hf.heightAt(rx + rfx * L2, rz + rfz * L2);
+      const pitchR = Math.atan2(hh - h3, L2);
+      m.rear.position.set(rx, h3, rz);
+      m.rear.rotation.set(pitchR + lerp(q.pitch[1], p.pitch[1]), yawR, rollF * 0.5 + lerp(q.roll[1], p.roll[1]), 'YXZ');
+    } else {
+      // rigid bus: the (empty) rear group rides with the body so section-relative code keeps working
+      m.rear.position.copy(m.front.position);
+      m.rear.rotation.copy(m.front.rotation);
+    }
     m.setSteer(p.delta);
     m.spin(p.distF, p.distR);
     for (const d of this.doors.doors) m.setDoor(d.id, d.openness);

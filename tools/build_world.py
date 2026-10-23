@@ -365,8 +365,18 @@ LANDMARK_NAMES = [('Александър Невски', 'alexander_nevsky'), ('�
                   ('Софарма', 'sopharma'), ('Hyatt', 'hyatt'), ('Sofia Tech', 'tech_one')]
 # Landmarks identified by proximity to a stop pole (unnamed in OSM).
 LANDMARK_NEAR = [('1697', 140, 'su_rectorate'), ('0441', 170, 'military_academy')]
+# the same for the other lines (filled as their landmarks are built)
+LINE_LANDMARK_NAMES = {'64': []}
+LINE_LANDMARK_NEAR = {'64': []}
+LINE = route.get('line', '280')
+if LINE != '280':
+    # these hand-built landmarks are on line 280; another line's pack must not grab namesakes
+    # (a school called "Христо Ботев", a hotel "Плиска" elsewhere in town)
+    LANDMARK_NAMES, LANDMARK_NEAR = LINE_LANDMARK_NAMES.get(LINE, []), LINE_LANDMARK_NEAR.get(LINE, [])
 lm_by_id = {}
 for code, rad, lm in LANDMARK_NEAR:
+    if code not in stop_pole:
+        continue
     best = None
     for b in bl:
         g = proj(wkb.loads(b['geometry']))
@@ -512,7 +522,8 @@ for x in land:
             trees += [q(g.x), q(g.y)]
     elif x['class'] == 'tree_row':
         if g.distance(route_union) < 700:
-            tree_rows.append(enc_line(list(g.coords)))
+            # mapped as a line, occasionally as a closed area: plant along its outline
+            tree_rows.append(enc_line(list(g.exterior.coords if g.geom_type == 'Polygon' else g.coords)))
     elif x['class'] in ('wood', 'forest'):
         add_area('forest', g, 1)
     elif x['class'] in ('scrub', 'shrub', 'shrubbery', 'heath'):

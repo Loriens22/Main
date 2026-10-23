@@ -6,7 +6,8 @@ near grid: 16 m spacing over the detailed corridor, Gaussian-smoothed to
 far grid : 250 m spacing, +-24 km, used for the distant backdrop (Vitosha,
            Lyulin, Stara Planina foothills).
 
-usage: python3 tools/build_dem.py <cachedir> <out.npz>
+usage: python3 tools/build_dem.py <cachedir> <out.npz> [x0 z0 x1 z1]   (near grid bounds, local metres;
+       default: the line 280 corridor)
 """
 import sys, os, math, io, urllib.request
 import numpy as np
@@ -76,8 +77,10 @@ def gauss(g, sigma_cells):
     return p
 
 
-near_x0, near_z0, near_dx = -2800.0, -3800.0, 16.0
-near_nx, near_nz = int(5600 / near_dx) + 1, int(7700 / near_dx) + 1
+near_dx = 16.0
+bx0, bz0, bx1, bz1 = (float(v) for v in sys.argv[3:7]) if len(sys.argv) > 6 else (-2800.0, -3800.0, 2800.0, 3900.0)
+near_x0, near_z0 = bx0, bz0
+near_nx, near_nz = int((bx1 - bx0) / near_dx) + 1, int((bz1 - bz0) / near_dx) + 1
 near = gauss(grid(near_x0, near_z0, near_dx, near_nx, near_nz, 14), 1.6)
 far_x0 = far_z0 = -24000.0
 far_dx = 250.0
