@@ -4,6 +4,7 @@
 import { Vegetation } from './Vegetation.js';
 import { StreetFurniture } from './StreetFurniture.js';
 import { Landmarks } from './Landmarks.js';
+import { ShopSigns } from './ShopSigns.js';
 import { SegmentGrid } from './SpatialIndex.js';
 import { TrafficManager } from '../gameplay/TrafficManager.js';
 import { PedestrianManager } from '../gameplay/PedestrianManager.js';
@@ -54,6 +55,11 @@ export async function buildExtras({ scene, world, route, quality }) {
     for (const g of v.build()) world.addToTile(tileKey(g.name), g);
     out.vegetation = v;
   });
+  await safe('shop signs', () => {
+    const s = new ShopSigns({ world, quality });
+    for (const g of s.build()) world.addToTile(tileKey(g.name), g);
+    out.signs = s;
+  });
   await safe('landmarks', () => {
     const l = new Landmarks({ world, route });
     for (const g of l.build(world.buildingBuilder.crosses || [])) world.addToTile(tileKey(g.name), g);
@@ -90,6 +96,7 @@ export async function buildExtras({ scene, world, route, quality }) {
       if (out.vegetation) out.vegetation.time.value += dt;
       if (out.furniture) out.furniture.setNight(night);
       if (out.landmarks) out.landmarks.setNight(night);
+      if (out.signs) out.signs.setNight(night);
       if (out.traffic && out.traffic.furnitureHook == null && out.furniture) out.traffic.furnitureHook = true;
       if (out.traffic) out.traffic.setNight(night);
       if (out.peds) out.peds.night = night > 0.5;

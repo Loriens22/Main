@@ -57,7 +57,7 @@ export class World {
     this.scene.add(this.far);
     progress(0.2, L('Сгради (OpenStreetMap)…', 'Buildings (OpenStreetMap)…'));
     await yieldFrame();
-    const bb = (this.buildingBuilder = new BuildingBuilder({ world: d, hf, quality: this.quality }));
+    const bb = (this.buildingBuilder = new BuildingBuilder({ world: d, hf, quality: this.quality, route: this.route }));
     bb.build();
     // collision / occlusion index of footprints
     this.bgrid = new SegmentGrid(24);
@@ -139,7 +139,7 @@ export class World {
 /** Share of the draw distance at which each kind of tile object is still drawn. */
 const CULL = {
   trees: 0.7, lampsT: 0.6, lampsS: 0.45, glow: 0.6, lines: 0.6, signals: 0.5, stop: 0.5, parked: 0.38,
-  bin: 0.3, container: 0.3, bench: 0.3, recycling: 0.3, hydrant: 0.3, bollard: 0.3,
+  bin: 0.3, container: 0.3, bench: 0.3, recycling: 0.3, hydrant: 0.3, bollard: 0.3, signs: 0.4, bdetail: 0.4,
 };
 
 /**

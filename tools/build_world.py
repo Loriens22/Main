@@ -370,6 +370,7 @@ print('landmarks', {v: k[:8] for k, v in lm_by_id.items()}, file=sys.stderr)
 
 buildings = []
 blocks = []
+sign_bld = []  # (footprint, height, override) near the route, for shop signs
 stats = collections.Counter()
 for b in bl:
     if b.get('is_underground'):
@@ -428,6 +429,8 @@ for b in bl:
         if any((pt.get('min_height') or 0) == 0 and not pt.get('min_floor') for pt in bparts):
             continue
     ents = make_bentry(g, height, None, cls, roof, name, style, color, b['id'], levels)
+    if g.distance(route_union) < 75:
+        sign_bld.append((g, height, ovr, len(buildings), ents))
     for e in ents:
         if b['id'] in lm_by_id:
             e['lm'] = lm_by_id[b['id']]
@@ -562,6 +565,161 @@ def enc_grid(g, meta, base, scale):
                 d=d.tolist())
 
 
+# ---------------------------------------------------------------- shop signs
+# Real businesses near the route (Overture places: Meta, Foursquare, AllThePlaces...) and the signs
+# the researchers listed per building, mounted on the facade nearest to the business.
+SIGN_CATS = {
+    'restaurant', 'bar', 'cafe', 'coffee_shop', 'fast_food_restaurant', 'casual_eatery', 'food_and_beverage_store',
+    'convenience_store', 'fashion_and_apparel_store', 'pharmacy_and_drug_store', 'bank_or_credit_union',
+    'electronics_store', 'flowers_and_gifts_store', 'personal_care_and_beauty_store', 'books_music_and_video_store',
+    'sporting_goods_store', 'shopping', 'hardware_home_and_garden_store', 'personal_or_beauty_service', 'bakery',
+    'grocery_store', 'supermarket', 'pizzeria', 'pub', 'dance_club', 'gym', 'optician', 'jewelry_store', 'pet_store',
+    'mobile_phone_store', 'betting_shop', 'casino', 'hotel', 'dental_clinic', 'shipping_or_delivery_service',
+    'travel_service', 'arts_crafts_and_hobby_store', 'toy_store', 'shoe_store', 'liquor_store', 'tobacco_shop',
+    'butcher_shop', 'pastry_shop', 'ice_cream_shop', 'tea_room', 'department_store', 'furniture_store',
+}
+# brand colours (background, text); everything else gets a category colour
+BRANDS = [
+    ('lidl', 0x0050aa, 0xfff000), ('billa', 0xffe500, 0xd6001c), ('kaufland', 0xe10915, 0xffffff),
+    ('фантастико', 0x00813d, 0xffffff), ('fantastico', 0x00813d, 0xffffff), ('т-маркет', 0xe30613, 0xffffff),
+    ('t-market', 0xe30613, 0xffffff), ('cba', 0xe2001a, 0xffffff), ('minimart', 0x1b8f3a, 0xffffff),
+    ('дск', 0x006a4d, 0xffffff), ('dsk', 0x006a4d, 0xffffff), ('unicredit', 0xe2001a, 0xffffff),
+    ('пощенска банка', 0xc8102e, 0xffffff), ('postbank', 0xc8102e, 0xffffff), ('fibank', 0x003d7c, 0xffffff),
+    ('първа инвестиционна', 0x003d7c, 0xffffff), ('обб', 0x0a3a7a, 0xffffff), ('ubb', 0x0a3a7a, 0xffffff),
+    ('централна кооперативна', 0x00843d, 0xffffff), ('raiffeisen', 0xfff200, 0x111111), ('procredit', 0xd52b1e, 0xffffff),
+    ('sopharmacy', 0x00a651, 0xffffff), ('субра', 0xd71920, 0xffffff), ('марешки', 0xe30613, 0xffffff),
+    ('profarma', 0x0097d7, 0xffffff), ('профарма', 0x0097d7, 0xffffff), ('аптек', 0x009a44, 0xffffff),
+    ("mcdonald", 0xda291c, 0xffc72c), ('kfc', 0xe4002b, 0xffffff), ('hesburger', 0xc8102e, 0xffffff),
+    ("domino", 0x006491, 0xffffff), ('starbucks', 0x00704a, 0xffffff), ('costa', 0x6d1f37, 0xffffff),
+    ('happy', 0xffd200, 0x7a1416), ('a1', 0xe30613, 0xffffff), ('yettel', 0xb4ff00, 0x111111),
+    ('vivacom', 0x5a2d82, 0xffffff), ('speedy', 0xd71920, 0xffffff), ('еконт', 0x1b4b9b, 0xffffff),
+    ('econt', 0x1b4b9b, 0xffffff), ('български пощи', 0xffcc00, 0x1d3b7a), ('efbet', 0x0a8a3c, 0xffffff),
+    ('eurofootball', 0x0b4ea2, 0xffffff), ('palms bet', 0x7a1a8c, 0xffffff), ('winbet', 0xf5a800, 0x111111),
+    ('dm ', 0xffffff, 0x1b3a8a), ('lilly', 0xe4007c, 0xffffff), ('пеликан', 0x004b93, 0xffffff),
+    ('технополис', 0xf28c00, 0xffffff), ('technopolis', 0xf28c00, 0xffffff), ('zora', 0x003f8a, 0xffffff),
+    ('shell', 0xffd500, 0xdd1d21), ('omv', 0x002f6c, 0xffffff), ('лукойл', 0xd52b1e, 0xffffff), ('lukoil', 0xd52b1e, 0xffffff),
+    ('eko', 0x003b7d, 0xffffff), ('petrol', 0x0068b4, 0xffffff), ('пицария', 0x9e1b1b, 0xffffff),
+    ('100 грама', 0xd4006f, 0xffffff), ('неделя', 0x7a2a7f, 0xffffff), ('березка', 0x2a6b2a, 0xffffff),
+]
+CAT_COL = {
+    'pharmacy_and_drug_store': (0x009a44, 0xffffff), 'bank_or_credit_union': (0x123c6e, 0xffffff),
+    'restaurant': (0x3a2418, 0xf2d38a), 'bar': (0x161616, 0xf5c242), 'cafe': (0x4a2f22, 0xffffff),
+    'coffee_shop': (0x4a2f22, 0xffffff), 'fast_food_restaurant': (0xc8102e, 0xffffff),
+    'casual_eatery': (0x8a1c1c, 0xffffff), 'food_and_beverage_store': (0x1b6f3a, 0xffffff),
+    'convenience_store': (0x1b6f3a, 0xffffff), 'fashion_and_apparel_store': (0x111111, 0xffffff),
+    'personal_or_beauty_service': (0xf2f2f2, 0x7a1f5c), 'personal_care_and_beauty_store': (0xf2f2f2, 0x7a1f5c),
+    'electronics_store': (0x0d3b66, 0xffffff), 'flowers_and_gifts_store': (0xffffff, 0x2e7d32),
+    'dental_clinic': (0xffffff, 0x0b6aa2), 'hotel': (0x1f1f2e, 0xe8c66a), 'gym': (0x111111, 0xff5a1f),
+    'shipping_or_delivery_service': (0xd71920, 0xffffff), 'betting_shop': (0x0a8a3c, 0xffffff),
+}
+KIOSK_KD = KINDS.index('kiosk')
+
+
+def sign_style(text, cat):
+    t = text.lower()
+    for key, bg, fg in BRANDS:
+        if key in t:
+            return bg, fg
+    return CAT_COL.get(cat, (0xf4f1ea, 0x1d2b4f))
+
+
+def clean_text(n):
+    n = ' '.join(str(n).replace('„', '').replace('“', '').replace('"', '').replace('«', '').replace('»', '').split())
+    n = n.split(' - ')[0].split(' | ')[0].split(', ')[0].strip()
+    if n.endswith('…') or len(n) > 24:  # cut at a word boundary
+        words, out = n.rstrip('…').split(), ''
+        for w in words:
+            if len(out) + len(w) + 1 > 24:
+                break
+            out = (out + ' ' + w).strip()
+        n = out
+    low = n.lower()
+    if low.startswith(('ul.', 'ул.', 'бул.', 'bul.')) or '@' in n or 'http' in low or 'www.' in low:
+        return ''
+    return n
+
+
+def sign_text(p):
+    br = ((p.get('brand') or {}).get('names') or {}).get('primary')
+    n = br if br and len(br) < 26 and not br.lower().startswith(('easybox', 'box now')) else (p['names'] or {}).get('primary') or ''
+    return clean_text(n)
+
+
+def facade_slot(poly, pt):
+    """Nearest point on the footprint ring, its outward normal and the ring position (m)."""
+    ring = poly.exterior
+    d = ring.project(pt)
+    q0 = ring.interpolate(d)
+    a = ring.interpolate(max(0.0, d - 0.3)); b2 = ring.interpolate(min(ring.length, d + 0.3))
+    tx, tz = b2.x - a.x, b2.y - a.y
+    L = math.hypot(tx, tz) or 1.0
+    nx, nz = tz / L, -tx / L
+    if poly.contains(Point(q0.x + nx * 0.4, q0.y + nz * 0.4)):
+        nx, nz = -nx, -nz
+    # usable straight run around the slot (for the sign width)
+    return q0.x, q0.y, nx, nz, d
+
+
+from shapely import STRtree
+signs = []
+if sign_bld:
+    tree = STRtree([sb[0] for sb in sign_bld])
+    used = collections.defaultdict(list)  # building index -> [(ring pos, half width, text)]
+
+    def place_sign(bi, pt, text, bg, fg, prio):
+        poly, height, ovr, pidx, ents = sign_bld[bi]
+        if not text or len(used[bi]) >= 7 or any(t.lower() == text.lower() for _, _, t in used[bi]):
+            return False
+        x, z, nx, nz, d = facade_slot(poly, pt)
+        w = max(1.6, min(7.5, 0.9 + 0.3 * len(text)))
+        L = poly.exterior.length
+        for _ in range(6):  # slide along the facade away from neighbouring signs
+            clash = [(p0, hw) for p0, hw, _ in used[bi] if abs(p0 - d) < hw + w / 2 + 0.4]
+            if not clash:
+                break
+            p0, hw = clash[0]
+            d = (p0 + (hw + w / 2 + 0.5) * (1 if d >= p0 else -1)) % L
+            x, z, nx, nz, d = facade_slot(poly, poly.exterior.interpolate(d))
+        else:
+            return False
+        used[bi].append((d, w / 2, text))
+        kiosk = 1 if ovr and ovr.get('kd') == KIOSK_KD else 0
+        if not ovr:  # a business with a sign: the ground floor is a shopfront
+            for e in ents:
+                e.setdefault('ov', {'kd': -1, 'gf': 0})
+        signs.append([q(x), q(z), int(round(nx * 100)), int(round(nz * 100)), int(round(w * 10)), nid(text), bg, fg,
+                      pidx, kiosk, prio])
+        return True
+
+    # 1) the researchers' signs, on the wall nearest the bus route
+    for bi, (poly, height, ovr, pidx, ents) in enumerate(sign_bld):
+        for text, bg, fg in (ovr or {}).get('sg', []):
+            near = route_union.interpolate(route_union.project(poly.centroid))
+            place_sign(bi, near, clean_text(text), bg, fg, 2)
+    # 2) businesses from Overture places, at their own position
+    pl = pq.read_table(f'{DATADIR}/places.parquet', columns=['geometry', 'names', 'brand', 'confidence', 'operating_status',
+                                                              'basic_category']).to_pylist()
+    pl.sort(key=lambda p: -(p['confidence'] or 0))
+    for p in pl:
+        if p['operating_status'] not in (None, 'open') or (p['confidence'] or 0) < 0.55:
+            continue
+        brand = bool(p.get('brand'))
+        if p['basic_category'] not in SIGN_CATS and not brand:
+            continue
+        pt = proj(wkb.loads(p['geometry']))
+        if pt.distance(route_union) > 75:
+            continue
+        cand = tree.query(pt, predicate='dwithin', distance=9)
+        if len(cand) == 0:
+            continue
+        bi = min(cand, key=lambda i: sign_bld[i][0].distance(pt))
+        text = sign_text(p)
+        if len(text) < 2:
+            continue
+        bg, fg = sign_style(text, p['basic_category'])
+        place_sign(int(bi), pt, text, bg, fg, 1 if brand else 0)
+print('shop signs', len(signs), file=sys.stderr)
+
 pack = dict(
     v=1, origin=dict(lat=ORIGIN_LAT, lon=ORIGIN_LON),
     attribution='© OpenStreetMap contributors (ODbL) via Overture Maps Foundation release 2026-10-21.0; '
@@ -569,7 +727,7 @@ pack = dict(
     names=names, roadClasses=ROAD_CLASSES, surfaces=SURF + ['yellow_brick'], buildingClasses=BCLASS,
     areaTypes=AREA_T, roofs=ROOF,
     roads=roads, rails=rails, buildings=buildings, blocks=blocks, areas=areas, trees=trees, treeRows=tree_rows,
-    waterLines=water_lines, props={k: v for k, v in props.items()}, lines={k: v for k, v in lines_infra.items()},
+    waterLines=water_lines, signs=signs, props={k: v for k, v in props.items()}, lines={k: v for k, v in lines_infra.items()},
     dem=dict(near=enc_grid(dem['near'], dem['near_meta'], 500.0, 10.0),
              far=enc_grid(dem['far'], dem['far_meta'], 400.0, 1.0)),
 )

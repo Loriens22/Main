@@ -64,6 +64,7 @@ export async function loadWorldPack(progress = () => {}) {
       research: b.ov ? { kind: b.ov.kd ?? -1, wall: b.ov.wc ?? null, accent: b.ov.ac ?? null, window: b.ov.wn ?? -1, ground: b.ov.gf ?? -1, signs: b.ov.sg || [], label: b.ov.lb || null } : null,
     })),
     blocks: p.blocks,
+    signs: p.signs || [], // [x, z, nx, nz, width, name, bg, fg, building, kiosk, priority] (dm, cm)
     areas: p.areas.map((a) => ({ type: p.areaTypes[a.t], pts: decodeLine(a.p), holes: (a.o || []).map(decodeLine), layer: a.y })),
     trees: p.trees.map((v) => v / 10),
     treeRows: p.treeRows.map(decodeLine),
