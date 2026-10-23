@@ -465,8 +465,14 @@ export function facadeTexture(key, spec) {
           const x = cx - ww / 2;
           if (night) {
             if (!lit[li]) continue;
-            g.fillStyle = rnd() < 0.5 ? '#ffd9a0' : '#ffe9c4';
+            // a lit room: warm ceiling glow fading down, sometimes a drawn curtain
+            const k = rnd();
+            const gr = g.createLinearGradient(0, wy, 0, wy + wh);
+            gr.addColorStop(0, k < 0.5 ? '#f0c27a' : k < 0.85 ? '#f6dcae' : '#cfe0ff');
+            gr.addColorStop(1, k < 0.5 ? '#6e4a26' : k < 0.85 ? '#806650' : '#56627a');
+            g.fillStyle = gr;
             g.fillRect(x, wy, ww, wh);
+            if (rnd() < 0.35) { g.fillStyle = 'rgba(40,28,18,0.55)'; g.fillRect(x, wy, ww * 0.28, wh); g.fillRect(x + ww * 0.72, wy, ww * 0.28, wh); }
             continue;
           }
           const fr = s.frame * px;

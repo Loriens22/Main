@@ -9,8 +9,9 @@ browser with WebGL2. It works offline: no server, CDN or network access is neede
 
 | | |
 | --- | --- |
-| ![Chase camera on бул. Цариградско шосе](docs/screenshots/driver-follow.jpg) | ![Boarding at Хотел Плиска in passenger mode](docs/screenshots/passenger-boarding.jpg) |
-| ![Inside the bus](docs/screenshots/passenger-interior.jpg) | ![Night on Цариградско шосе](docs/screenshots/night.jpg) |
+| ![The bus next to the user's reference photos](docs/screenshots/bus-vs-photos.jpg) | ![Boarding at Хотел Плиска in passenger mode](docs/screenshots/passenger-boarding.jpg) |
+| ![Seated inside the bus](docs/screenshots/passenger-interior.jpg) | ![Real shop signs at УНСС](docs/screenshots/shop-signs.jpg) |
+| ![Panel blocks with real balconies in Студентски град](docs/screenshots/balconies.jpg) | ![Night at the university](docs/screenshots/night.jpg) |
 | ![Rain with the wipers running](docs/screenshots/rain-cab.jpg) | ![Phone landscape layout](docs/screenshots/mobile-driver.jpg) |
 
 ## Playing
@@ -55,14 +56,15 @@ fleet number, time of day and weather, then start.
 
 ### Passenger mode
 
-You start on the pavement at a real stop on the line. The next bus 280 arrives with
-its own AI driver. If you miss it, the next one follows.
+You start on the pavement at a real stop on the line. A bus 280 arrives about every
+two minutes with its own AI driver; the HUD and the stop's e-board count down its arrival.
+If you miss it, or after you get off, the next one is already on its way.
 
 | Key | Action |
 | --- | --- |
 | WASD | walk |
 | mouse | look |
-| E | board when near an open door; sit or stand inside; get off at an open door |
+| E | board when near an open door; inside, sit (aimed seat or the nearest free one) or stand up; get off when standing in an open doorway |
 | B | stop request (bell) |
 | G | hold on |
 | Tab | eyes or cinematic camera |
@@ -139,8 +141,17 @@ The game never reads Bulgarian with an English voice. See [docs/AUDIO.md](docs/A
 ```sh
 npm install           # esbuild + three
 npm test              # unit tests: route, stops, announcements, doors, state machine, swept path, gzip fallback
-npm run build         # -> index.html and dist/sofia-bus-280.html (single file, ~2.2 MB)
+npm run build         # -> index.html and dist/sofia-bus-280.html (single file, ~2.4 MB)
 node build.mjs --dev  # unminified with inline source maps
+```
+
+Checks in headless Chromium (SwiftShader):
+
+```sh
+bash tools/smoke.sh index.html                 # driver, passenger and bus studio load without errors
+node tools/route_check.cjs index.html A        # AI drives a whole direction, every stop must be served
+python3 tools/compare_bus.py index.html out/   # the bus next to the reference photos
+python3 tools/stop_views.py index.html out/ 1691 2326   # street views at stop poles
 ```
 
 Rebuilding the map data from scratch (Python 3 with `pyarrow`, `shapely`, `numpy`,
@@ -163,8 +174,17 @@ node tools/make_manifest.mjs
   coordinates, sources, amenities, confidence and open discrepancies. Unresolved points
   are listed there honestly; for example, the building facades are procedural, not
   photographic.
-- **Bus model:** `data/research/bus_reference.json` documents the dimensions and
-  behaviour used for the bus, including what is estimated rather than verified.
+- **Bus model:** measured from the user's five reference photos (camera fits, rectified
+  front elevations): `data/research/bus/exterior/exterior_spec.md` and
+  `data/research/bus/interior/interior_spec.md` give every dimension and colour with its
+  basis and confidence. `python3 tools/compare_bus.py` renders the model next to the
+  photos. The rear end is not in any photo and is typology only.
+- **Buildings and stops:** researched stop by stop (`data/research/world/`): 329
+  buildings typed (construction, floors, colours, windows, ground floor), landmarks,
+  stop furniture. Most ordinary blocks are typed by typology and marked low confidence;
+  no photographs could be fetched in the build environment.
+- **Shop signs:** 666 real businesses within 75 m of the route (Overture places and the
+  stop research), mounted on the building they are in.
 
 ## Code layout
 
@@ -173,9 +193,9 @@ node tools/make_manifest.mjs
 | `src/core` | projection, maths, path sampling, seeded random |
 | `src/gameplay` | route data, stop manager, announcements, destination display, bus entity, AI driver, traffic, pedestrians, scoring, state machine (pure logic is unit-tested) |
 | `src/vehicle` | bus dimensions, articulated physics, door controller, procedural bus model, LED dot-matrix signs |
-| `src/world` | heightfield, terrain, road network and meshes, buildings (facade shader), street furniture, vegetation, landmarks, spatial index |
+| `src/world` | heightfield, terrain, road network and meshes, buildings (archetype facade shader, real balconies, shop signs), street furniture and stop hardware, vegetation, landmarks, spatial index |
 | `src/render` | renderer and post-processing, sky, cameras, procedural textures, weather, bus lights |
-| `src/audio` | procedural engine (AudioWorklet), doors, ambience, chime; voice announcer |
+| `src/audio` | synthesised bus sound (native Web Audio nodes: engine, gearbox, road, air system), five listener zones, all buses audible with distance and Doppler, door and brake one-shots, ambience; voice announcer |
 | `src/ui` | HUD, menus, input, touch controls, i18n |
 | `src/game` | game modes, settings |
 | `tools` | data pipeline, headless screenshot harness, manifest and announcement generators |

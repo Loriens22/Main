@@ -3,6 +3,127 @@
 A concise record of what was built, how it was verified, and what is still open.
 The newest entries are at the top.
 
+## 2026-10-23 — rebuild after the first play test
+
+Feedback: the bus was not 1:1 with the photos (architecture, details, seats); the
+buildings did not match reality, especially around the stops; after getting off there
+should be another bus within about two minutes; the bus had no proper sound, none at all
+while moving.
+
+### Research (data/research/)
+
+- **Bus exterior.** Pinhole cameras were fitted to photos 1–3 (plate corners, wheel
+  contacts), and the lower fronts were rectified onto the plate plane. Findings:
+  - belt 1.30 m, not 1.02;
+  - windscreen 1.22–2.32 m, black LED header 2.30–2.86 m with a 1.72 × 0.32 m matrix;
+  - door 1 sits 0.42 m further back; door 4 is behind the rear axle;
+  - ram's-horn mirror on the right only, compact box mirror on the left;
+  - the leaves hang down from the belt;
+  - bellows are light aluminium grey.
+- **Interior.** Measured from photos 4 and 5:
+  - hard-shell grey seats with a charcoal cap and a grab slot, cantilevered from the wall;
+  - podiums with yellow edges, 47 seats;
+  - moquette only on the wheelchair-bay seat;
+  - stanchions and rails, raised cab.
+- **World.** Every stop pole (35) has a note covering what you see on each side, the
+  stop furniture, and a building table. There are 329 building overrides
+  (construction, floors, colours, windows, ground floor, shop signs), 34 landmarks, and
+  stop hardware per pole.
+- **Sound.** Root causes of the silence (below), a measured prototype and a sound design.
+
+### Bus
+
+- **Exterior** rebuilt to the survey. Run `tools/compare_bus.py` for side-by-side images.
+- **Interior and cab** rebuilt to the interior spec.
+- **Static parts merged.** Plain-colour parts are merged into vertex-coloured meshes
+  (142 → 98 meshes, identical render).
+- **Distance detail.**
+  - Small trim is hidden beyond 140 m.
+  - The interior is hidden beyond 70 m and casts no sun shadows.
+- **Driver's view** checked: the screen post now sits beside the driver's head, and the
+  sun blind is rolled up.
+
+### Sound
+
+Root causes:
+
+1. **The engine worklet could not load from `file://`.** Chromium rejects `blob:`
+   module URLs there, so the game fell back to a 32 Hz tone at −34 dBFS.
+2. **94 % of the engine energy was below 100 Hz**, which phones cannot play.
+3. **iOS was never unlocked inside the tap.**
+
+Now:
+
+- **Engine.** A native-node engine (no worklet): PeriodicWave firing harmonics,
+  formants, roar, injector tick and turbo. Gearbox, road, wind, bellows and the air
+  system are separate layers.
+- **Listener zones.** Five: cab, front, rear, and outside near and far.
+- **Outside.** Every bus is audible from outside with distance, Doppler and pan.
+- **One-shots.** Door, brake and kneel sounds are wired to game events.
+- **Start-up.** The AudioContext is created and resumed inside the tap. On iOS a
+  playback audio session is set. The context recovers after interruptions and is
+  silent while paused.
+
+Measured from the real game (offline render of driver mode, cab zone):
+
+| | RMS | Phone-weighted |
+| --- | --- | --- |
+| Idle | −22.9 dBFS | −29.5 dBFS |
+| 30 km/h | −21.7 dBFS | −26.7 dBFS |
+| 50 km/h | −17.3 dBFS | −22.0 dBFS |
+
+Phone-weighted means after a 250 Hz high-pass. In passenger mode, the approaching bus
+rises from the ambience floor (−35 dBFS phone) to −26 dBFS at the stop.
+
+### World
+
+- **Shop signs.** 666 real shop signs (Overture places plus the research) on the
+  facades of the buildings the businesses are in, lit at night.
+- **Facade shader.** It draws the researched archetypes:
+  - 1960s and 1970s panel blocks with sealed joints, loggias open or glazed by owners,
+    and ETICS insulation patchwork per flat;
+  - EPK towers, plastered socialist brick, Stalinist and pre-war classical, modernist
+    ribbon windows, curtain walls, modern residential, kiosks;
+  - staircases with entrance doors;
+  - AC units and satellite dishes;
+  - parallax room interiors behind every window, curtains and blinds.
+- **Real 3D geometry within 65 m of the route.** Balconies (slab, parapet or railing,
+  owner glazing), entrance canopies with steps, cornices and copings. The geometry
+  mirrors the shader's cell plan through a shared integer hash.
+- **Landmarks and stop hardware.**
+  - Landmarks: Rectorate, Eagles' Bridge, Aviation monument, Arena 8888, Winter Palace,
+    Hristo Botev hall, campuses.
+  - Stop hardware: Sofia shelters per stop, poles at the kerb, e-boards with live
+    minutes.
+- **Терминал Студентски град.** The spur and turn-around loop are paved 7 m wide for the
+  bus.
+
+### Passenger mode
+
+- **Service frequency.** A bus every ~2 minutes, with a live ETA on the HUD and on the
+  stop's e-board.
+- **After getting off,** the next bus is already scheduled.
+- **Inside the bus,** E takes the nearest free seat; you get off from an open doorway.
+
+### Verification
+
+- **Full-route drives with the AI driver** (`tools/route_check.cjs`):
+  - A: 18/18 stops in 26 min;
+  - B: 18/18 in 24 min.
+- **Fixes found by those drives:**
+  - The AI bus now squeezes towards the kerb for oncoming cars on narrow streets.
+  - A car creeping at a waiting bus now counts as a deadlock and gives way.
+- **Checks:** unit tests, `tools/smoke.sh`, phone layout at 844×390.
+
+### Still open
+
+- **Facade accuracy.** Most ordinary blocks are typed by typology (low confidence). No
+  photos of them could be fetched: hosts such as Wikipedia, OSM and Mapillary are
+  blocked by this environment's network policy.
+- **Bus rear.** It is typology only, because none of the photos shows it.
+- **Real-device testing.** Frame rate on phones, and iOS audio with the silent switch.
+- **Female Bulgarian voice clips** are still not bundled (see AUDIO.md).
+
 ## 2026-10-22 — verification pass
 
 ### Full-route drives

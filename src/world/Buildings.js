@@ -550,8 +550,8 @@ vec3 roomColor(vec3 rt, vec2 pe, vec2 sz, float depth, float rs, float kindR, fl
   float fade = mix(1.0, 0.45, clamp(p.z / depth, 0.0, 1.0));
   vec3 warm = kindR > 0.5 ? vec3(1.0, 0.97, 0.9) : vec3(1.0, 0.78, 0.5);
   vec3 dayL = c * fade * day * (kindR > 0.5 && kindR < 1.5 ? 0.1 : kindR > 1.5 ? 0.1 : 0.08);
-  float kL = kindR > 0.5 && kindR < 1.5 ? 0.13 : kindR > 1.5 ? 0.3 : 0.9;
-  vec3 nightL = c * fade * warm * lit * kL + warm * lamp * lit * (kindR > 0.5 ? 0.3 : 2.0);
+  float kL = kindR > 0.5 && kindR < 1.5 ? 0.13 : kindR > 1.5 ? 0.3 : 0.42;
+  vec3 nightL = c * fade * warm * lit * kL + warm * lamp * lit * (kindR > 0.5 ? 0.3 : 0.8);
   return dayL + nightL + warm * lamp * day * 0.05 * step(0.5, kindR);
 }
 FacadeOut facade(vec2 uvm, vec4 fac, vec4 fac2, vec3 wallCol) {
@@ -881,7 +881,7 @@ FacadeOut facade(vec2 uvm, vec4 fac, vec4 fac2, vec3 wallCol) {
     vec2 wl = (vec2(lx, ly) - win.xy) / max(win.zw - win.xy, vec2(0.01));
     float curtain = cr < 0.45 ? 0.5 : cr < 0.55 ? step(0.5, fract(wl.y * 14.0)) * 0.8 * step(wl.y, 0.6 + cr * 0.4) : cr < 0.75 ? step(abs(wl.x - 0.5), 0.5) * (1.0 - smoothstep(0.18, 0.22, min(wl.x, 1.0 - wl.x))) : 0.0;
     vec3 cc = cr < 0.45 ? vec3(0.85, 0.84, 0.8) : cr < 0.55 ? vec3(0.78, 0.76, 0.7) : pastel(fract(cr * 7.0)) * 0.7;
-    interior = mix(interior, cc * (day * 0.13 + lit * vec3(1.0, 0.8, 0.55) * 0.85), curtain);
+    interior = mix(interior, cc * (day * 0.13 + lit * vec3(1.0, 0.8, 0.55) * 0.42), curtain);
   }
   vec3 tint = roomKind > 1.5 && (ar > 7.5 && ar < 8.5 || winPat > 1.5 && winPat < 2.5) ? vec3(0.06, 0.1, 0.12) : vec3(0.025, 0.03, 0.035);
   alb = mix(alb, tint, glassMask);
