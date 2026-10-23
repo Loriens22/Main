@@ -63,10 +63,12 @@ export function addCabParts(p, low) {
   note('a4', 0.21, 0.3, -0.8, 2.12);
   note('wifi', 0.12, 0.05, -0.88, 1.8);
   note('noPhone', 0.05, 0.05, -0.68, 1.8);
-  // ---- aisle-side clear driver screen with black post and two curved pull handles
-  p.add('glass', quad('x', zf + 0.8, pzp - 0.1, 1.35, 2.55, -0.4, true));
-  p.add('frame', box(0.04, 1.25, 0.04), M(-0.4, 1.95, zf + 0.8));
-  p.add('frame', box(0.04, 0.04, pzp - 0.1 - zf - 0.8), M(-0.4, 1.35, (zf + 0.8 + pzp - 0.1) / 2));
+  // ---- aisle-side clear driver screen with black post and two curved pull handles; it runs from the
+  // partition forward to beside the driver's head, so its post never stands in the forward view
+  const sz0 = -6.3;
+  p.add('glass', quad('x', sz0, pzp - 0.1, 1.35, 2.55, -0.4, true));
+  p.add('frame', box(0.04, 1.25, 0.04), M(-0.4, 1.95, sz0));
+  p.add('frame', box(0.04, 0.04, pzp - 0.1 - sz0), M(-0.4, 1.35, (sz0 + pzp - 0.1) / 2));
   for (const [y0, y1] of [[1.5, 1.9], [2.05, 2.35]]) {
     const h = smooth([[-0.37, y0, pzp - 0.05], [-0.32, y0 + 0.08, pzp - 0.05], [-0.32, y1 - 0.08, pzp - 0.05], [-0.37, y1, pzp - 0.05]], 10);
     p.add('pole', sweep(h, 0.015, 6, { caps: true }));
@@ -94,7 +96,7 @@ export function addCabParts(p, low) {
   p.add('wall', box(0.28, 0.1, 0.03), M(-0.05, 2.32, zf + 1.4));
   p.add('mirrorIn', quad('z', -0.18, 0.08, 2.275, 2.365, zf + 1.4 + 0.0155, true));
   for (const dx of [-0.1, 0.0]) p.add('plastic', rod([dx, HEADER_Y, zf + 1.4], [dx, 2.37, zf + 1.4], 0.008, 5));
-  p.add('blind', box(1.35, 0.46, 0.012), M(-0.575, 2.2, zf + 0.42));
+  p.add('blind', box(1.35, 0.1, 0.012), M(-0.575, 2.37, zf + 0.42)); // sun blind, rolled almost up
   p.add('blind', rod([-1.25, 2.43, zf + 0.42], [0.1, 2.43, zf + 0.42], 0.02, 8));
 }
 
