@@ -16,6 +16,7 @@ import { FrontMixin, facePatch, colsBetween, hwAt } from './BusFront.js';
 import { SideMixin } from './BusSides.js';
 import { RearMixin, REAR_ROOF_END, rearPatch } from './BusRear.js';
 import { RunningMixin } from './BusRunning.js';
+import { bakeStatic } from './BusBake.js';
 
 export const FLEET = {
   3145: { plate: 'CB 5696 HM', depot: 'Земляне' },
@@ -25,6 +26,9 @@ export const FLEET = {
 
 // meshes that never need to cast shadows (thin decals, glass, lamps, small trim)
 const NO_SHADOW = new Set(['decals', 'leaves', 'plate', 'badge', 'chrome', 'satinChrome', 'lampFrame', 'headlamp', 'ribLens', 'lensClear', 'marker', 'indicatorL', 'indicatorR', 'tail', 'brake', 'reverse', 'mirror', 'louvreWhite', 'louvreDark', 'grille', 'windscreen', 'windscreenIn', 'glassOut', 'glassIn']);
+
+// small trim that is invisible beyond ~140 m (fewer draw calls for distant buses)
+const SMALL_TRIM = new Set(['decals', 'badge', 'plate', 'lampFrame', 'ribLens', 'lensClear', 'grille', 'louvreWhite', 'louvreDark', 'satinChrome', 'chrome', 'routeCard', 'mirror']);
 
 export class BusModel {
   constructor({ fleet = '3145', quality = 'high', interior = true } = {}) {
@@ -53,6 +57,8 @@ export class BusModel {
     }
     this.buildSigns();
     this.wiperAngle = 0;
+    // one mesh per material state instead of one per colour (materials changed at runtime stay apart)
+    this.bakeStats = bakeStatic(this.root, new Set([...Object.values(this.lightMats), this.mats.stopBtn, this.mats.lightStrip]));
   }
 
   makeMaterials() {
@@ -255,10 +261,19 @@ export class BusModel {
     for (const w of this.wipers) w.piv.rotation.z = w.park + w.sweep * angle;
   }
 
-  /** The passenger interior is only seen through the windows: skip it from afar. */
+  /** The passenger interior is only seen through the windows: skip it from afar; small trim beyond 140 m. */
   setDetail(cameraDist) {
     const show = cameraDist < 70;
     if (this.interiorGroups && this.interiorGroups[0].visible !== show) for (const g of this.interiorGroups) g.visible = show;
+    const trim = cameraDist < 140;
+    if (this.trimShown !== trim) {
+      this.trimShown = trim;
+      if (!this.trimMeshes) {
+        this.trimMeshes = [];
+        this.root.traverse((o) => { if (o.isMesh && SMALL_TRIM.has(o.name)) this.trimMeshes.push(o); });
+      }
+      for (const m of this.trimMeshes) m.visible = trim;
+    }
   }
 
   /** Free GPU resources; every bus owns its geometry and materials (the leaf atlas is shared). */
