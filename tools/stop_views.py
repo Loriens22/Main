@@ -6,14 +6,15 @@ For each stop pole it renders four views and writes one contact sheet `stop_<cod
   ahead    - from the pole, looking along the direction of travel
   approach - the driver's view 45 m before the stop
 
-usage: python3 tools/stop_views.py <game.html> <outdir> <stop code>... [--h=11]
+usage: python3 tools/stop_views.py <game.html> <outdir> <stop code>... [--h=11] [--line=280|64]
   build a private copy first:  OUT=/path/test.html node build.mjs --dev
 """
 import json, math, os, subprocess, sys
 from PIL import Image, ImageDraw, ImageFont
 
 ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
-ROUTE = json.load(open(os.path.join(ROOT, 'src', 'data', 'route280.json'), encoding='utf-8'))
+LINE = next((a.split('=', 1)[1] for a in sys.argv[1:] if a.startswith('--line=')), '280')
+ROUTE = json.load(open(os.path.join(ROOT, 'src', 'data', f'route{LINE}.json'), encoding='utf-8'))
 
 
 def find_stop(code):
@@ -73,7 +74,7 @@ def main():
                 fov, round(c[0], 2), round(c[0], 2), round(c[2], 2), c[1], round(c[2], 2),
                 round(t[0], 2), round(t[0], 2), round(t[2], 2), t[1], round(t[2], 2))
             steps.append({'eval': js, 'shot': f'{code}_{name}.jpg'})
-        q = f"noloop&q={opts.get('q', 'high')}&autostart=passenger&dir={dname}&stop={idx}&h={opts.get('h', '11')}"
+        q = f"noloop&q={opts.get('q', 'high')}&line={LINE}&autostart=passenger&dir={dname}&stop={idx}&h={opts.get('h', '11')}"
         r = subprocess.run(['node', os.path.join(ROOT, 'tools', 'shot.cjs'), html, out, q, json.dumps(steps)],
                            capture_output=True, text=True, timeout=900)
         errs = [l for l in r.stdout.splitlines() if ('error' in l.lower() or 'TIMEOUT' in l) and 'GPU stall' not in l]
