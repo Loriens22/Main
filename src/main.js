@@ -1,6 +1,7 @@
 // Sofia Public Transport — Bus 280. Entry point: boot, load the world, menus.
 import * as THREE from 'three';
-import routeJson from './data/route280.json';
+import route280 from './data/route280.json';
+import route64 from './data/route64.json';
 import { Route280 } from './gameplay/Route280Data.js';
 import { loadWorldPack } from './world/WorldData.js';
 import { World } from './world/World.js';
@@ -19,6 +20,8 @@ import { GameStateManager } from './gameplay/GameStateManager.js';
 import { AIBusDriver } from './gameplay/AIBusDriver.js';
 
 const params = new URLSearchParams(location.search);
+/** Route data of the playable lines; the world of one line is loaded per session (?line= or the menu). */
+const ROUTES = { 280: route280, 64: route64 };
 
 async function boot() {
   injectStyles();
@@ -44,11 +47,12 @@ async function boot() {
   R.setupPost(scene, camera);
   R.resize();
   const sky = new SkySystem(R.renderer, scene, quality);
-  const route = new Route280(routeJson);
+  const line = ROUTES[params.get('line')] ? params.get('line') : ROUTES[settings.line] ? String(settings.line) : '280';
+  const route = new Route280(ROUTES[line]);
   if (params.get('scene') === 'bus') return busStudio({ R, scene, camera, sky, progress });
   const states = new GameStateManager();
   states.go('menu');
-  const data = await loadWorldPack(progress);
+  const data = await loadWorldPack(progress, line);
   const world = await new World({ scene, data, quality, route }).build(progress);
   progress(0.72, L('Растителност, улично обзавеждане и спирки…', 'Vegetation, street furniture and stops…'));
   await new Promise((r) => setTimeout(r, 0));

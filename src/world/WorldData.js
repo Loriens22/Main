@@ -1,6 +1,10 @@
 // Decodes the embedded world pack (gzip + base64 JSON produced by
 // tools/build_world.py). Polylines are delta-encoded decimetres.
-import packB64 from '../data/world.pack.b64';
+import pack280 from '../data/world.pack.b64';
+import pack64 from '../data/world64.pack.b64';
+
+/** Embedded world pack of each playable line (tools/build_world.py). */
+const PACKS = { 280: pack280, 64: pack64 };
 import { L } from '../ui/i18n.js';
 
 function decodeLine(d) {
@@ -26,9 +30,9 @@ function decodeGrid(g) {
   return { x0: g.x0, z0: g.z0, dx: g.dx, nx: g.nx, nz: g.nz, h: out };
 }
 
-export async function loadWorldPack(progress = () => {}) {
+export async function loadWorldPack(progress = () => {}, line = '280') {
   progress(0.02, L('Разопаковане на картата…', 'Unpacking the map…'));
-  const bin = Uint8Array.from(atob(packB64), (c) => c.charCodeAt(0));
+  const bin = Uint8Array.from(atob(PACKS[line] || PACKS[280]), (c) => c.charCodeAt(0));
   let text;
   if (typeof DecompressionStream !== 'undefined') {
     const stream = new Blob([bin]).stream().pipeThrough(new DecompressionStream('gzip'));

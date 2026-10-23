@@ -1,4 +1,4 @@
-// Route 280 bus-stop hardware (the Sofia municipal standard as far as the research
+// Bus-stop hardware of the line played (the Sofia municipal standard as far as the research
 // found it): modular anthracite-framed shelters (opaque roof, glazed back and one end,
 // back-lit city-light ad box on the other end, slat bench, LED departure board), the
 // galvanised round stop pole with the blue bus sign, the stop-name plate and the line-280
@@ -30,7 +30,20 @@ const OPT = {
   1695: { backLimit: 5.0 },
 };
 
-const DEST = { A: 'Студентски град', B: 'СУ Св. Кл. Охридски' };
+// line number and short destinations on the plates and e-boards (set by configureStops for the line played)
+let LINE_NO = '280';
+let DEST = { A: 'Студентски град', B: 'СУ Св. Кл. Охридски' };
+const SHORT_DEST = { 'СУ Св. Климент Охридски': 'СУ Св. Кл. Охридски' };
+
+/** Line shown on the stop hardware: route = Route280 (line, direction headsigns). */
+export function configureStops(route) {
+  LINE_NO = String(route.line || '280');
+  DEST = {};
+  for (const id of ['A', 'B']) {
+    const h = route.direction(id).headsign;
+    DEST[id] = SHORT_DEST[h] || h;
+  }
+}
 
 // ------------------------------------------------------------------ textures
 function headSignTexture(code) {
@@ -114,7 +127,7 @@ function linePlateTexture() {
   g.font = '700 104px Roboto, Arial, sans-serif';
   g.textAlign = 'center';
   g.textBaseline = 'middle';
-  g.fillText('280', 128, 100);
+  g.fillText(LINE_NO, 128, 100);
   return toTexture(c, { repeat: false, aniso: 8 });
 }
 
@@ -186,7 +199,7 @@ function boardTexture(st, dirId) {
     g.fillStyle = '#ffae1a';
     g.textAlign = 'left';
     g.font = '700 46px "Arial Narrow", Arial, sans-serif';
-    g.fillText('280', 14, 82);
+    g.fillText(LINE_NO, 14, 82);
     g.font = '700 25px "Arial Narrow", Arial, sans-serif';
     g.fillText(DEST[dirId], 100, 72);
     g.textAlign = 'right';
@@ -332,6 +345,7 @@ function surfaceY(sf, x, z, kx, kz, gap, swW) {
 }
 
 export function buildStopHardware(sf) {
+  if (sf.route) configureStops(sf.route);
   const world = sf.world, route = sf.route;
   const out = [];
   const seen = new Set();

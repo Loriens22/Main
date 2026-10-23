@@ -6,7 +6,7 @@ import * as THREE from 'three';
 import { TileBuckets } from './GeoBuffer.js';
 import { hashStr, mulberry32 } from '../core/rng.js';
 import { makeNoiseTexture } from '../render/Textures.js';
-import { REPLACED } from './LandmarkData.js';
+import { replacedFor } from './LandmarkData.js';
 import { addFacadeDetail, detailMaterials } from './FacadeDetail.js';
 
 export const STYLE = { PANEL: 0, RENOVATED: 1, CLASSIC: 2, GLASS: 3, HOUSE: 4, INDUSTRIAL: 5, INSTITUTIONAL: 6, COMMERCIAL: 7, STONE: 8 };
@@ -120,7 +120,7 @@ export class BuildingBuilder {
     const top = base + b.h;
     if (top - bottom < 0.5) return;
     const cx = centroidX(outer), cz = centroidZ(outer);
-    if (REPLACED.some((r) => Math.hypot(r.x - cx, r.z - cz) < (r.r || 4))) return; // hand-built in Landmarks.js
+    if (replacedFor(this.world.line).some((r) => Math.hypot(r.x - cx, r.z - cz) < (r.r || 4))) return; // hand-built in Landmarks.js
     const col = hexToRgb(color);
     const seed = (hashStr(`${b.id}`) % 1000) / 1000;
     let floorH = style === STYLE.PANEL || style === STYLE.RENOVATED ? 2.8 : style === STYLE.CLASSIC || style === STYLE.STONE ? 3.5 : style === STYLE.GLASS ? 3.7 : style === STYLE.HOUSE ? 3.0 : style === STYLE.INDUSTRIAL ? 6.0 : 3.4;

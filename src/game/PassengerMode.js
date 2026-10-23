@@ -39,7 +39,7 @@ export class PassengerMode {
     const vx = -t.tx * 0.8 - rx * 0.6, vz = -t.tz * 0.8 - rz * 0.6;
     this.yaw = Math.atan2(-vx, -vz);
     this.scheduleBus(70);
-    game.hud.toast(L(`${this.startStop.name} — изчакайте автобус 280`, `${this.startStop.name} — wait for bus 280`), false, 5);
+    game.hud.toast(L(`${this.startStop.name} — изчакайте автобус ${game.route.line}`, `${this.startStop.name} — wait for bus ${game.route.line}`), false, 5);
     game.rig.shake = 0;
   }
 
@@ -121,7 +121,7 @@ export class PassengerMode {
     if (this.state === 'outside' && !this.approaching().length) {
       const missed = this.buses.some((b) => b.dirId === this.dirId && b.target === this.startStop && b.routeS > this.startStop.frontS + 30);
       this.scheduleBus(HEADWAY_S);
-      if (missed) g.hud.toast(L(`Изпуснахте автобуса. Следващият 280 идва след ${HEADWAY_S / 60} мин`, `You missed the bus. The next 280 arrives in ${HEADWAY_S / 60} min`), false, 5);
+      if (missed) g.hud.toast(L(`Изпуснахте автобуса. Следващият ${g.route.line} идва след ${HEADWAY_S / 60} мин`, `You missed the bus. The next ${g.route.line} arrives in ${HEADWAY_S / 60} min`), false, 5);
     }
     for (let i = this.buses.length - 1; i >= 0; i--) {
       const b = this.buses[i];
@@ -153,7 +153,7 @@ export class PassengerMode {
         dist: this.ride && next ? next.frontS - bus.routeS : bus.camDist, delay: null, stopRequested: bus.stopRequested,
         fps: g.settings.showFps ? g.fpsAcc.fps : null, quality: g.quality,
       });
-      g.hud.q.lbl.textContent = this.ride ? (bus.stops.atStop >= 0 ? t('stop') : t('nextStop')) : L(`Следващ 280 · ${this.startStop.name}`, `Next 280 · ${this.startStop.name}`);
+      g.hud.q.lbl.textContent = this.ride ? (bus.stops.atStop >= 0 ? t('stop') : t('nextStop')) : L(`Следващ ${g.route.line} · ${this.startStop.name}`, `Next ${g.route.line} · ${this.startStop.name}`);
       g.hud.q.name.textContent = this.ride ? (next ? next.name : '—') : `→ ${bus.dir.headsign}`;
       if (!this.ride) {
         const atStop = bus.target === this.startStop && bus.stops.atStop === this.startStop.index;
@@ -229,7 +229,7 @@ export class PassengerMode {
     this.seat = -1;
     this.insideT = 0;
     bus.forceServe = null;
-    this.game.hud.toast(L('Добре дошли в автобус 280!', 'Welcome aboard bus 280!'));
+    this.game.hud.toast(L(`Добре дошли в автобус ${this.game.route.line}!`, `Welcome aboard bus ${this.game.route.line}!`));
     this.game.audio.setZone('cabin');
   }
 
@@ -428,7 +428,7 @@ export class PassengerMode {
     const nb = soon.length ? soon.sort((a, b) => this.etaOf(a) - this.etaOf(b))[0] : this.scheduleBus(HEADWAY_S);
     nb.forceServe = this.startStop.index;
     const mins = Math.max(1, Math.round(this.etaOf(nb) / 60));
-    g.hud.toast(L(`Слязохте на спирка ${here}. Следващият 280 идва след ${mins} мин.`, `You got off at ${here}. The next 280 arrives in ${mins} min.`), false, 5);
+    g.hud.toast(L(`Слязохте на спирка ${here}. Следващият ${g.route.line} идва след ${mins} мин.`, `You got off at ${here}. The next ${g.route.line} arrives in ${mins} min.`), false, 5);
   }
 
   cinematic(dt) {

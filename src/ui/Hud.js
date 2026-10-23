@@ -11,6 +11,11 @@ const el = (tag, cls, html) => {
 };
 
 export class Hud {
+  /** Line number on the route badge. */
+  setLine(n) {
+    this.top.querySelector('.badge').textContent = String(n);
+  }
+
   constructor(root) {
     this.root = el('div', 'hud');
     root.appendChild(this.root);
@@ -128,6 +133,12 @@ export class Hud {
       const g = s.selector;
       q.gear.forEach((e, i) => e.classList.toggle('on', ['D', 'N', 'R'][i] === g));
       q.gear[0].textContent = g === 'D' ? `D${s.gear}` : 'D';
+      if (q.doors.length !== s.doors.length) {
+        // a 3-door rigid bus or a 4-door articulated one
+        const box = this.dash.querySelector('.doors');
+        box.innerHTML = s.doors.map((_, i) => `<span>${i + 1}</span>`).join('');
+        q.doors = [...box.querySelectorAll('span')];
+      }
       q.doors.forEach((e, i) => {
         const st = s.doors[i];
         e.classList.toggle('open', st !== 'closed');

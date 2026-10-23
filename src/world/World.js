@@ -17,6 +17,8 @@ export class World {
     this.data = data;
     this.quality = quality;
     this.route = route;
+    this.line = (route && route.line) || '280'; // which line's world this is (landmarks, replaced buildings)
+    data.line = this.line;
     this.tiles = new Map(); // key -> {group objects[], cx, cz}
     this.root = new THREE.Group();
     this.root.name = 'world';

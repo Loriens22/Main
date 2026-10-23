@@ -53,12 +53,20 @@ export const REPLACED = [
   { x: -411.2, z: 1671.7, r: 2.5, note: 'Yosifov kiosk modules, east row' },
 ];
 
+import { REPLACED64 } from './landmarks64/data.js';
+
+/** Replaced buildings of a line's world. */
+export function replacedFor(line) {
+  return String(line) === '64' ? REPLACED64 : REPLACED;
+}
+
 const cx = (p) => { let s = 0; for (let i = 0; i < p.length; i += 2) s += p[i]; return s / (p.length / 2); };
 const cz = (p) => { let s = 0; for (let i = 1; i < p.length; i += 2) s += p[i]; return s / (p.length / 2); };
 
 /** Pack buildings (world.data.buildings) that REPLACED removes from the OSM massing; with the matching entry. */
 export function replacedBuildings(world) {
   const out = [];
+  const REPLACED = replacedFor(world.line);
   for (const b of world.data.buildings) {
     if (!b.pts || b.pts.length < 6) continue;
     const x = cx(b.pts), z = cz(b.pts);

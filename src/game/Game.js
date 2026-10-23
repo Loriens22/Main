@@ -22,6 +22,7 @@ export class Game {
     Object.assign(this, ctx); // renderer, scene, camera, sky, world, route, audio, voice, input, settings, uiRoot
     this.rig = new CameraRig(this.camera, this.world);
     this.hud = new Hud(this.uiRoot);
+    this.hud.setLine(this.route.line);
     this.hud.setMapRoads(this.world.roads);
     this.busLights = new BusLightRig(this.scene);
     this.hud.show(false);
@@ -99,7 +100,7 @@ export class Game {
     this.tripStart = null;
     this.trips = 0;
     this.checklistDone = false;
-    this.hud.toast(`${t('driver')} · 280 → ${bus.dir.headsign}`);
+    this.hud.toast(`${t('driver')} · ${this.route.line} → ${bus.dir.headsign}`);
     if (this.traffic) this.traffic.setFocusBus(bus);
     if (this.peds) this.peds.attachBus(bus, true);
     this.emit('start', { mode: 'driver' });
@@ -377,7 +378,7 @@ export class Game {
       bus.updateSigns();
       this.scoring.reset();
       this.tripStart = null;
-      this.hud.toast(`280 → ${bus.dir.headsign}`);
+      this.hud.toast(`${this.route.line} → ${bus.dir.headsign}`);
     }, () => this.emit('menu'));
   }
 

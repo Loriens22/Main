@@ -1,4 +1,4 @@
-// Hand-built landmarks along Route 280, added on top of (or instead of) the OSM massing:
+// Hand-built landmarks along the line being played (line 280 below, line 64 in landmarks64/), added on top of (or instead of) the OSM massing:
 // Sofia University Rectorate and wings, the National Library, the Eagles' Bridge columns,
 // the CCB tower (ex Hotel Pliska) with the Pliska underpass canopies, the Aviation monument,
 // Arena 8888, the Winter Palace, the Hristo Botev hall, the UNWE saw-tooth front, the student
@@ -11,6 +11,16 @@ import { ensureFootprints, replacedBuildings } from './LandmarkData.js';
 import { buildRectorate, buildNbkm, buildEagleBridge, buildKlimentMonument, buildHavelHeart } from './LandmarkCity.js';
 import { buildPliska, buildAviation, buildArena, buildMetro, buildPliskaCanopies, buildGuardFences } from './LandmarkRoad.js';
 import { buildWinterPalace, buildBotevHall, buildUnwe, buildLtu, buildChapel, buildOmv, buildKiosks, buildTerminalHut } from './LandmarkCampus.js';
+import { JOBS_64 } from './landmarks64/index.js';
+
+/** Landmark jobs of line 280: [name, (ctx) => item(s)]. */
+export const JOBS_280 = [
+  ['rectorate', buildRectorate], ['nbkm', (c) => buildNbkm({ ...c, parts: c.partsOf(/^NBKM/) })],
+  ['eagles', buildEagleBridge], ['kliment', buildKlimentMonument], ['havel', buildHavelHeart],
+  ['pliska', buildPliska], ['guardFences', buildGuardFences], ['pliskaCanopies', buildPliskaCanopies], ['aviation', buildAviation], ['arena', buildArena], ['metro', buildMetro],
+  ['winterPalace', buildWinterPalace], ['botev', buildBotevHall], ['unwe', buildUnwe], ['ltu', buildLtu], ['chapel', buildChapel], ['omv', buildOmv], ['kiosks', buildKiosks], ['terminalHut', buildTerminalHut],
+];
+const JOBS = { 280: JOBS_280, 64: JOBS_64 };
 
 export class Landmarks {
   constructor({ world, route }) {
@@ -30,13 +40,9 @@ export class Landmarks {
     const world = this.world;
     ensureFootprints(world);
     const rep = replacedBuildings(world);
+    const line = (this.route && this.route.line) || '280';
     const ctx = { world, M: this.M, route: this.route, y: (x, z) => world.hf.heightAt(x, z), quality: world.quality, replaced: rep, partsOf: (re) => rep.filter((r) => re.test(r.entry.note)) };
-    const jobs = [
-      ['rectorate', buildRectorate], ['nbkm', (c) => buildNbkm({ ...c, parts: c.partsOf(/^NBKM/) })],
-      ['eagles', buildEagleBridge], ['kliment', buildKlimentMonument], ['havel', buildHavelHeart],
-      ['pliska', buildPliska], ['guardFences', buildGuardFences], ['pliskaCanopies', buildPliskaCanopies], ['aviation', buildAviation], ['arena', buildArena], ['metro', buildMetro],
-      ['winterPalace', buildWinterPalace], ['botev', buildBotevHall], ['unwe', buildUnwe], ['ltu', buildLtu], ['chapel', buildChapel], ['omv', buildOmv], ['kiosks', buildKiosks], ['terminalHut', buildTerminalHut],
-    ];
+    const jobs = JOBS[line] || [];
     const g = new THREE.Group();
     for (const [name, fn] of jobs) {
       try {
