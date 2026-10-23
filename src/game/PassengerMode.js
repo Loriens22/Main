@@ -5,7 +5,7 @@ import * as THREE from 'three';
 import { BusEntity } from '../gameplay/BusEntity.js';
 import { AIBusDriver } from '../gameplay/AIBusDriver.js';
 import { BUS, FRONT_Z, FRONT_BODY_END_Z, REAR_BODY_START_Z, REAR_Z } from '../vehicle/BusSpec.js';
-import { SEATS } from '../vehicle/BusLayout.js';
+import { SEATS, aisleFloorY, REAR_BULKHEAD_Z } from '../vehicle/BusLayout.js';
 import { clamp, damp } from '../core/math.js';
 import { t, L } from '../ui/i18n.js';
 
@@ -225,10 +225,11 @@ export class PassengerMode {
     this.ride = bus;
     this.state = 'standing';
     this.section = d.section;
-    this.lx = BUS.halfW - 0.55;
+    this.lx = BUS.halfW - 0.95; // one step inside, on the door landing
     this.lz = (d.z0 + d.z1) / 2;
     this.yaw = Math.PI / 2; // facing into the bus (towards -x local)
     this.seat = -1;
+    this.insideT = 0;
     bus.forceServe = null;
     this.game.hud.toast(L('Добре дошли в автобус 280!', 'Welcome aboard bus 280!'));
     this.game.audio.setZone('cabin');
@@ -236,9 +237,7 @@ export class PassengerMode {
 
   // ---------------------------------------------------------------- inside
   floorAt(sec, z) {
-    if (sec === 'rear' && z > -0.45) return BUS.floorY + 0.46;
-    if (sec === 'rear' && z > -0.75) return BUS.floorY + 0.2;
-    return BUS.floorY;
+    return aisleFloorY(sec, z); // low floor throughout (BusLayout.js)
   }
 
   updateInside(dt, inp) {
@@ -254,6 +253,8 @@ export class PassengerMode {
       }
     }
     // sitting / standing
+    this.insideT = (this.insideT || 0) + dt;
+    let eUsed = false;
     if (I.hit('KeyE')) {
       if (this.state === 'seated') {
         this.state = 'standing';
@@ -264,8 +265,13 @@ export class PassengerMode {
         bus.riders = bus.riders.filter((r) => r.player !== true);
         this.seat = -1;
       } else {
-        const seat = this.lookSeat(bus);
+        let seat = this.lookSeat(bus);
+        // not aiming at a seat: right after boarding (or away from an open door) E takes the nearest free seat;
+        // at an open door after a while it means "get off" (handled below)
+        const atDoor = bus.doors.anyOpen && this.lx > BUS.halfW - 0.75;
+        if (seat < 0 && (!atDoor || (this.insideT || 0) < 2)) seat = this.nearestFreeSeat(bus, 3.2);
         if (seat >= 0) {
+          eUsed = true;
           const taken = (bus.riders || []).some((r) => r.seat === seat);
           if (taken) g.hud.toast(L('Мястото е заето', 'This seat is taken'), true);
           else {
@@ -294,11 +300,13 @@ export class PassengerMode {
         const d = BUS.doors.find((q) => q.id === dd.id);
         return d.section === this.section && dd.state === 'open' && nz > d.z0 && nz < d.z1;
       });
-      if (door && (nx > BUS.halfW - 0.3 || (I.hit('KeyE') && nx > BUS.halfW - 1.2))) return this.exit(bus, door);
+      if (door && (nx > BUS.halfW - 0.3 || (I.hit('KeyE') && !eUsed && nx > BUS.halfW - 0.75))) return this.exit(bus, door);
       // walkable area
-      const zMin = this.section === 'front' ? FRONT_Z + 2.1 : REAR_BODY_START_Z - 0.3;
-      const zMax = this.section === 'front' ? FRONT_BODY_END_Z + 0.4 : REAR_Z - 0.4;
-      nx = clamp(nx, -1.05, door ? BUS.halfW : 1.05);
+      // front: door-1 landing beside the driver's cab down to FRONT_Z + 0.75; rear: up to the engine bulkhead
+      const zMin = this.section === 'front' ? FRONT_Z + 0.75 : REAR_BODY_START_Z - 0.3;
+      const zMax = this.section === 'front' ? FRONT_BODY_END_Z + 0.4 : REAR_BULKHEAD_Z - 0.3;
+      nx = clamp(nx, this.section === 'front' && nz < -5.75 ? 0.2 : -1.05, door ? BUS.halfW : 1.05); // the cab occupies the left
+      void REAR_Z;
       // seats are obstacles
       for (const s of SEATS) {
         if (s.sec !== this.section) continue;
@@ -370,6 +378,17 @@ export class PassengerMode {
     this.section = to;
     this.lx = clamp(l.x, -0.9, 0.9);
     this.lz = l.z;
+  }
+
+  /** Nearest seat in this section that nobody occupies, within maxD metres (or -1). */
+  nearestFreeSeat(bus, maxD) {
+    let best = -1, bd = maxD;
+    SEATS.forEach((st, i) => {
+      if (st.sec !== this.section || (bus.riders || []).some((r) => r.seat === i)) return;
+      const d = Math.hypot(st.x - this.lx, st.z - this.lz);
+      if (d < bd) { bd = d; best = i; }
+    });
+    return best;
   }
 
   lookSeat(bus) {

@@ -1,7 +1,7 @@
 // Headless verification: loads the built single-file game in Chromium
 // (SwiftShader WebGL2), collects console errors and takes screenshots.
 //   [VIEWPORT=844x390 MOBILE=1] node tools/shot.cjs <html> <outdir> '<query>' '<json steps>'
-// steps: [{"eval": "js expression", "wait": ms, "shot": "name.png"}, ...]
+// steps: [{"eval": "js expression", "wait": ms, "shot": "name.png", "canvas": "webgl-only.jpg"}, ...]
 const { chromium } = require('/opt/node22/lib/node_modules/playwright');
 const path = require('path');
 (async () => {
@@ -66,7 +66,12 @@ const path = require('path');
       }
     }
     if (s.wait) await p.waitForTimeout(s.wait);
-    if (s.shot) await p.screenshot({ path: path.join(outdir, s.shot), ...(/\.jpe?g$/.test(s.shot) ? { type: 'jpeg', quality: 84 } : {}) });
+    if (s.shot) await p.screenshot({ path: path.join(outdir, s.shot), timeout: 120000, ...(/\.jpe?g$/.test(s.shot) ? { type: 'jpeg', quality: 84 } : {}) });
+    // {canvas: "name.jpg"}: the WebGL canvas only (no HUD), read back directly - for very slow frames
+    if (s.canvas) {
+      const url = await p.evaluate((jpg) => document.querySelector('canvas').toDataURL(jpg ? 'image/jpeg' : 'image/png', 0.88), /\.jpe?g$/.test(s.canvas));
+      require('fs').writeFileSync(path.join(outdir, s.canvas), Buffer.from(url.split(',')[1], 'base64'));
+    }
   }
   console.log(logs.slice(0, 40).join('\n') || 'no console errors');
   await b.close();

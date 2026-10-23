@@ -59,6 +59,8 @@ export class BusModel {
     this.wiperAngle = 0;
     // one mesh per material state instead of one per colour (materials changed at runtime stay apart)
     this.bakeStats = bakeStatic(this.root, new Set([...Object.values(this.lightMats), this.mats.stopBtn, this.mats.lightStrip]));
+    // the body already shadows the cabin: interior parts only receive shadows (big saving in the shadow pass)
+    for (const g of this.interiorGroups || []) g.traverse((o) => { if (o.isMesh) o.castShadow = false; });
   }
 
   makeMaterials() {
