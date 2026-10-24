@@ -50,6 +50,10 @@ export class AIBusDriver {
     const alpha = Math.atan2(dx * -fz + dz * fx, dx * fx + dz * fz); // + = target to the right
     const delta = Math.atan((2 * D.wb1 * Math.sin(-alpha)) / Math.max(4, Math.hypot(dx, dz)));
     ctl.steer = clamp(delta / D.maxSteer, -1, 1);
+    // target beside or behind the axle (a hairpin taken short, a bus pushed off its line): pure pursuit
+    // would steer almost straight and drive away from the line, so turn on full lock towards it instead
+    const behind = Math.cos(alpha) < 0.15;
+    if (behind) ctl.steer = Math.sin(-alpha) >= 0 ? 1 : -1;
     // ---- speed planning
     const q = bus.world.roads.query(p.x, p.z, 12);
     let vDes = Math.min(((q && q.piece.speed) || 50) / 3.6, 13.5);
@@ -58,6 +62,7 @@ export class AIBusDriver {
       const k = Math.abs(line.curvature(n.s + d, 6));
       if (k > 1e-3) vDes = Math.min(vDes, Math.sqrt(1.4 / k) + d * 0.08);
     }
+    if (behind) vDes = Math.min(vDes, 2.2);
     // stop ahead
     const next = bus.stops.nextStop;
     let gap = Infinity;
@@ -106,6 +111,20 @@ export class AIBusDriver {
         }
       }
       this.squeeze = clamp((this.squeeze || 0) + (oncoming ? dt * 0.6 : -dt * 0.15), 0, 1);
+      // off the line or turning hard, the probe along the line misses what is straight ahead of the
+      // bus: test a box along its own heading too (cars queued at the far side of a tight turn)
+      if (bus.offRoute > 1.5 || Math.abs(ctl.steer) > 0.45) {
+        const [bx0, bz0] = p.frontPoint();
+        for (let d = 0; d <= 9 && d - 1 < gap; d += 1.5) {
+          const qx = bx0 + fx * d, qz = bz0 + fz * d;
+          for (const c of this.traffic.cars) {
+            if (Math.abs(c.x - qx) > 8 || Math.abs(c.z - qz) > 8) continue;
+            const ox = qx - c.x, oz = qz - c.z;
+            const lx = Math.abs(ox * c.dx + oz * c.dz) - c.len / 2, lz = Math.abs(-ox * c.dz + oz * c.dx) - c.wid / 2;
+            if (Math.hypot(Math.max(0, lx), Math.max(0, lz)) < D.halfW + 0.3) { gap = Math.min(gap, d - 1); this.why = `car ahead v=${(c.v ?? 0).toFixed(1)}`; break; }
+          }
+        }
+      }
     }
     if (gap < Infinity) vDes = Math.min(vDes, Math.sqrt(Math.max(0, 2 * 1.1 * Math.max(0, gap))));
     // ---- stop procedure
@@ -155,7 +174,7 @@ export class AIBusDriver {
     if (this.reverseT > 0) {
       this.reverseT -= dt;
       p.selector = 'R';
-      const done = this.reverseT <= 0 || Math.abs(p.distF - this.revFrom) > 4;
+      const done = this.reverseT <= 0 || Math.abs(p.distF - this.revFrom) > this.revDist;
       if (!done) {
         this.why = 'recover';
         return { throttle: Math.abs(p.v) < 1.2 ? 0.35 : 0, brake: Math.abs(p.v) < 1.2 ? 0 : 0.3, steer: -ctl.steer };
@@ -164,11 +183,18 @@ export class AIBusDriver {
       p.selector = 'D';
       this.vi = 0;
     }
-    const trying = this.state === 'drive' && vDes > 2 && Math.abs(p.v) < 0.4 && !(this.why && this.why.startsWith('car'));
+    const waitingCar = !!(this.why && this.why.startsWith('car'));
+    const trying = this.state === 'drive' && vDes > 2 && Math.abs(p.v) < 0.4 && !waitingCar;
     this.stuckT = trying ? (this.stuckT || 0) + dt : 0;
-    if (this.stuckT > 4) {
+    // off the line and nose to nose with a car that waits for the bus: neither moves, so back off
+    this.carWaitT = waitingCar && Math.abs(p.v) < 0.3 && bus.offRoute > 2.5 ? (this.carWaitT || 0) + dt : 0;
+    if (this.stuckT > 4 || this.carWaitT > 12) {
+      const astray = bus.offRoute > 3 || behind;
       this.stuckT = 0;
-      this.reverseT = 4;
+      this.carWaitT = 0;
+      // a knock: a few metres; a missed hairpin: a longer back-and-forth like a three-point turn
+      this.reverseT = astray ? 8 : 4;
+      this.revDist = astray ? 8 : 4;
       this.revFrom = p.distF;
     }
     // ---- longitudinal PI control

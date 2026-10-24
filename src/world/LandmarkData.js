@@ -76,11 +76,16 @@ export const REPLACED = [
   { x: -785.7, z: 2329.6, r: 2.5, id: 521, note: 'Nursery complex behind the Detski yasli stops' },
 ];
 
-import { REPLACED64 } from './landmarks64/data.js';
+import { REPLACED64, LINE_MASKS64 } from './landmarks64/data.js';
 
 /** Replaced buildings of a line's world. */
 export function replacedFor(line) {
   return String(line) === '64' ? REPLACED64 : REPLACED;
+}
+
+/** Circles in which a hand-built landmark redraws the OSM fences / walls ({x, z, r}). */
+export function lineMasksFor(line) {
+  return String(line) === '64' ? LINE_MASKS64 : [];
 }
 
 const cx = (p) => { let s = 0; for (let i = 0; i < p.length; i += 2) s += p[i]; return s / (p.length / 2); };

@@ -7,6 +7,7 @@ import { mergeGeometries } from 'three/examples/jsm/utils/BufferGeometryUtils.js
 import { mulberry32, hash2 } from '../core/rng.js';
 import { carAssets, carPaint } from './CarModels.js';
 import { buildStopHardware } from './StopHardware.js';
+import { lineMasksFor } from './LandmarkData.js';
 
 function clean(g) {
   g = g.index ? g.toNonIndexed() : g;
@@ -333,13 +334,15 @@ export class StreetFurniture {
     const m = this.mats;
     const out = [];
     const L = this.world.data.lines;
+    const masks = lineMasksFor(this.world.line);
+    this.masked = (x, z) => masks.some((m) => Math.hypot(x - m.x, z - m.z) < m.r);
     const make = (lines, h, mat, thick) => {
       const geos = [];
       for (const p of lines) {
         for (let i = 0; i < p.length - 2; i += 2) {
           const ax = p[i], az = p[i + 1], bx = p[i + 2], bz = p[i + 3];
           const len = Math.hypot(bx - ax, bz - az);
-          if (len < 0.3) continue;
+          if (len < 0.3 || this.masked((ax + bx) / 2, (az + bz) / 2)) continue;
           const g = box(thick, h, len);
           g.rotateY(Math.atan2(bx - ax, bz - az));
           const cx = (ax + bx) / 2, cz = (az + bz) / 2;
@@ -382,6 +385,7 @@ export class StreetFurniture {
         const ax = p[i], az = p[i + 1], bx = p[i + 2], bz = p[i + 3];
         const len = Math.hypot(bx - ax, bz - az);
         if (len < 0.05) continue;
+        if (this.masked((ax + bx) / 2, (az + bz) / 2)) { u += len / PANEL; continue; }
         const ya = this.y(ax, az) - 0.05, yb = this.y(bx, bz) - 0.05;
         const u1 = u + len / PANEL;
         pos.push(ax, ya, az, bx, yb, bz, bx, yb + H, bz, ax, ya, az, bx, yb + H, bz, ax, ya + H, az);

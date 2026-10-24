@@ -649,6 +649,9 @@ FacadeOut facade(vec2 uvm, vec4 fac, vec4 fac2, vec3 wallCol) {
     alb *= 1.0 - jt * 0.15;
   } else if (ar > 6.5 && ar < 7.5) {
     alb *= 0.94 + nzf.r * 0.1; // concrete
+    // modernist institutes (hospitals, faculties, ministries) vary: half carry pale enamel spandrel
+    // panels under strip windows, the rest punched windows between plastered piers
+    if (fract(seed * 13.7) < 0.5 && !ground) alb = mix(alb, pastel(fract(seed * 5.3)) * 0.93, (1.0 - smoothstep(0.29, 0.31, ly)) * 0.85);
   }
   // ---------------- openings
   vec4 win = vec4(0.27, 0.28, 0.73, 0.83);
@@ -676,7 +679,10 @@ FacadeOut facade(vec2 uvm, vec4 fac, vec4 fac2, vec3 wallCol) {
   } else if (ar < 6.5) {
     win = vec4(0.3, 0.18, 0.7, 0.86); frame = 0.05; frameCol = colRnd > 0.6 ? srgb(0.42, 0.3, 0.2) : srgb(0.95, 0.95, 0.94);
   } else if (ar < 7.5) {
-    win = vec4(0.0, 0.34, 1.0, 0.84); frame = 0.03; frameCol = srgb(0.32, 0.33, 0.34); roomKind = 2.0; depth = 6.0;
+    float iv = fract(seed * 13.7);
+    win = iv < 0.5 ? vec4(0.0, 0.32, 1.0, 0.84) : vec4(0.13, 0.28, 0.87, 0.84);
+    frame = 0.03; roomKind = 2.0; depth = 6.0;
+    frameCol = fract(seed * 7.1) < 0.45 ? srgb(0.9, 0.9, 0.88) : srgb(0.32, 0.33, 0.34);
   } else if (ar < 8.5) {
     win = vec4(0.03, 0.08, 0.97, 1.0); frame = 0.02; frameCol = srgb(0.3, 0.32, 0.33); roomKind = 2.0; depth = 7.0;
   } else if (ar < 9.5) {
@@ -751,7 +757,7 @@ FacadeOut facade(vec2 uvm, vec4 fac, vec4 fac2, vec3 wallCol) {
   // mullions / transoms
   float mull = 0.0;
   if (ar > 7.5 && ar < 8.5 || winPat > 1.5 && winPat < 2.5) mull = max(lineMask(fract(u) - 0.5, 0.48, aa.x * 2.0 + 0.01) * 0.0, lineMask(fract(u * 1.0) - 0.0, 0.006, aa.x));
-  if (!ground && loggia < 0.5 && !stair && (block || ar > 4.5 && ar < 6.5 || ar > 9.5 && ar < 10.5)) {
+  if (!ground && loggia < 0.5 && !stair && (block || ar > 4.5 && ar < 7.5 || ar > 9.5 && ar < 10.5)) {
     float midx = (win.x + win.z) * 0.5;
     mull = max(mull, lineMask(lx - midx, 0.008, 0.004 + aa.x));
     mull = max(mull, lineMask(ly - mix(win.y, win.w, 0.72), 0.01, 0.004 + aa.y) * step(win.x, lx) * step(lx, win.z));

@@ -137,7 +137,9 @@ LINES = {
         operator='Столичен електротранспорт / Столичен автотранспорт (Sofia)',
     ),
     '64': dict(
-        A=A64, B=B64, wayHint={},
+        # 1591 (Скиорката, direction A) stands beside Иваница Данчев after the turn at the junction, not on the
+        # approach (Севастократор Калоян, 27 m away): the greedy cost picked the shorter approach leg otherwise
+        A=A64, B=B64, wayHint={'1591': 'r17031852'},
         fromA='Зоопарка', headsignA='Център по хигиена',
         fromB='Център по хигиена', headsignB='Зоопарка',
         operator='Столичен автотранспорт (Sofia)',
