@@ -3,6 +3,77 @@
 A concise record of what was built, how it was verified, and what is still open.
 The newest entries are at the top.
 
+## 2026-10-24 — expansion 2.0: line 64, three more buses, dispatch, landmarks
+
+### Milestones
+
+1. **Vehicle framework.** A registry of bus specs (`src/vehicle/Vehicles.js`): dimensions,
+   doors, seat layout, physics (torque curve, gearbox, mass, steering lock), engine sound
+   profile, door warning, fleet numbers. Rigid and articulated physics share one model;
+   the AI, cameras, lights, audio zones and passengers read the spec of the bus they are on.
+2. **Buses.** Mercedes-Benz Conecto G (280), BMC Procity 12 CNG and Yutong ZK6126HGA (64)
+   built after the reference photos, each with its own cab and instrument cluster
+   (VDO round gauges on the Conecto, LCD clusters on the BMC and the Yutong), seats, poles,
+   floors and liveries. Sources and approximations: `src/vehicle/models/*/NOTES.md`.
+3. **Line 64.** Both directions routed on the real street network from the official stop
+   codes (A 35 stops, 16.4 km; B 33 stops, 15.8 km), request stops flagged, a terrain and
+   world pack of its own. Stop 1591 (Скиорката) was snapped to the approach road 27 m from
+   its pole; a way hint now puts it after the turn, 10 m from the pole.
+4. **Dispatch.** Per service, 50 / 50 by default, a share slider and a seed in the menu;
+   `?seed=` and `?veh=` for tests. MAN and Conecto never run on 64, Procity and Yutong never
+   on 280 (unit-tested).
+5. **Announcements.** Both directions of 64 in Bulgarian, „Спирка по желание.“ at request
+   stops, a pronunciation dictionary for abbreviations and numbers (unit-tested). A
+   passenger waiting down the street no longer gets the approaching bus's interior
+   announcement as a subtitle and chime.
+6. **Landmarks.** Line 280: the Oncology hospital, Sofiamed, the Technical Library, ХТМУ,
+   TU Block 1, the NSA gate, a kindergarten and a nursery. Line 64: metro Vitosha's stair
+   entrances, Paradise Center, the National Centre of Public Health and Analyses and the
+   Sv. Sofia lung hospital at the terminus, the zoo's western entrance at the other
+   terminus, the public perimeter of the Boyana Residence, the Boyana film studio gate,
+   Боянско ханче, the Boyana and Dragalevtsi cemeteries with the Dragalevtsi chapel, and the
+   Ring Road gantries. Sources and unverified details:
+   `data/research/line64/landmarks/NOTES.md`, `data/research/world/institutions280/NOTES.md`.
+7. **World.** No building may wall in the bus's lane (OSM footprints are clipped to the
+   carriageway); garden walls, fences and trees in the villa districts; OSM fences render
+   as see-through mesh panels instead of solid slabs; modernist institutional facades vary
+   per building.
+8. **AI driver.** Full lock when its target is beside or behind it (hairpins), a car probe
+   along its own heading when off its line, a longer three-point back-up when wedged.
+
+### Verification
+
+Full trips with the AI driver on the final build (`tools/route_check.cjs`, every stop
+must be served, simulated time):
+
+| Line | Bus | Direction A | Direction B |
+| --- | --- | --- | --- |
+| 280 | MAN Lion's City G | 18 / 18, 25 min | 18 / 18, 25 min |
+| 280 | Mercedes Conecto G | 18 / 18, 25 min | 18 / 18, 32 min |
+| 64 | BMC Procity 12 CNG | 35 / 35, 40 min | 33 / 33, 37 min |
+| 64 | Yutong ZK6126HGA | 35 / 35, 42 min | 33 / 33, 38 min |
+
+Before the AI fix the Procity wedged at the Скиорката junction on 64 A (the route turns
+back there through 135°) and drove 100 m off the line; it now passes it every time.
+
+Draw calls on line 64 at Balanced: 530–640 per frame, 0.54–0.59 M triangles (line 280:
+500–750).
+
+Audio (cab, real game, headless): every bus is audible with no clipping (peaks −2 to
+−4 dBFS); the CNG buses on 64 run about 3 dB quieter than the diesel Conecto at 30 km/h.
+
+Phone layout (844 × 390): driver mode on 64 in rain and passenger mode at night load
+without errors with the touch controls in place.
+
+### Still open
+
+- The Yutong's fleet numbers are placeholders; the exact engines and gearboxes of the
+  Sofia builds are approximate.
+- Landmark styling on line 64 is inferred where no source could be reached (listed per
+  landmark in the notes). Boyana Church and Bulgaria Mall keep their OSM massing.
+- The female Bulgarian voice still depends on the device (no TTS credentials for the
+  embedded clips).
+
 ## 2026-10-23 — rebuild after the first play test
 
 Feedback: the bus was not 1:1 with the photos (architecture, details, seats); the

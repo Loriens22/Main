@@ -1,6 +1,6 @@
 // Bundles src/ into ONE self-contained HTML file (index.html at the repo root
-// and dist/sofia-bus-280.html). Three.js, the Route 280 data and the world
-// pack are all inlined, so the game runs offline from a single file.
+// and dist/sofia-public-transport.html). Three.js, the route data of both lines and the world
+// packs are all inlined, so the game runs offline from a single file.
 import * as esbuild from 'esbuild';
 import { readFileSync, writeFileSync, mkdirSync } from 'node:fs';
 
@@ -31,7 +31,7 @@ function emit(result) {
     return;
   }
   mkdirSync('dist', { recursive: true });
-  writeFileSync('dist/sofia-bus-280.html', html);
+  writeFileSync('dist/sofia-public-transport.html', html);
   writeFileSync('index.html', html);
   console.log(`built index.html (${(html.length / 1024 / 1024).toFixed(2)} MB)`);
 }

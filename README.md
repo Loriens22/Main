@@ -1,23 +1,51 @@
-# Sofia Public Transport — Bus 280
+# Sofia Public Transport — lines 280 and 64
 
-A 3D bus simulator of Sofia bus line **280**, СУ „Св. Климент Охридски“ ↔ Студентски град,
-driven with a MAN Lion's City G CNG articulated bus. The whole game is **one HTML file**
-(`index.html`, also copied to `dist/sofia-bus-280.html`). Open it in a desktop or mobile
-browser with WebGL2. It works offline: no server, CDN or network access is needed.
+A 3D bus simulator of two Sofia bus lines, with four bus types modelled after reference photos:
+
+| Line | Route | Length | Stops | Buses (dispatched per service) |
+| --- | --- | --- | --- | --- |
+| **280** | СУ „Св. Климент Охридски“ ↔ Студентски град | 10.7 / 10.3 km | 18 / 18 | MAN Lion's City G CNG and Mercedes-Benz Conecto G (orange, diesel) |
+| **64** | Зоопарка ↔ Център по хигиена | 16.4 / 15.8 km | 35 / 33 | BMC Procity 12 CNG and Yutong ZK6126HGA (orange CNG) |
+
+The whole game is **one HTML file** (`index.html`, also copied to
+`dist/sofia-public-transport.html`). Open it in a desktop or mobile browser with WebGL2. It
+works offline: no server, CDN or network access is needed.
 
 ![Driver cab view](docs/screenshots/driver-cab.jpg)
 
 | | |
 | --- | --- |
-| ![The bus next to the user's reference photos](docs/screenshots/bus-vs-photos.jpg) | ![Boarding at Хотел Плиска in passenger mode](docs/screenshots/passenger-boarding.jpg) |
-| ![Seated inside the bus](docs/screenshots/passenger-interior.jpg) | ![Real shop signs at УНСС](docs/screenshots/shop-signs.jpg) |
-| ![Panel blocks with real balconies in Студентски град](docs/screenshots/balconies.jpg) | ![Night at the university](docs/screenshots/night.jpg) |
-| ![Rain with the wipers running](docs/screenshots/rain-cab.jpg) | ![Phone landscape layout](docs/screenshots/mobile-driver.jpg) |
+| ![Yutong ZK6126HGA at the Зоопарка terminus of line 64](docs/screenshots/yutong-zoo.jpg) | ![BMC Procity CNG at the Център по хигиена terminus](docs/screenshots/procity-hygiene.jpg) |
+| ![Mercedes Conecto G at the University on line 280](docs/screenshots/conecto-280.jpg) | ![Line and vehicle choice in the menu](docs/screenshots/menu-lines.jpg) |
+| ![National Centre of Public Health and Analyses, Geshov blvd.](docs/screenshots/hygiene-centre.jpg) | ![The zoo's western entrance on Srebarna](docs/screenshots/zoo-west-entrance.jpg) |
+| ![Боянско ханче](docs/screenshots/boyansko-hanche.jpg) | ![Dragalevtsi cemetery gate and florist](docs/screenshots/dragalevtsi-cemetery.jpg) |
+| ![The bus next to the user's reference photos](docs/screenshots/bus-vs-photos.jpg) | ![Seated inside the bus](docs/screenshots/passenger-interior.jpg) |
+| ![Night at the university](docs/screenshots/night.jpg) | ![Phone landscape layout](docs/screenshots/mobile-driver.jpg) |
 
 ## Playing
 
-Open `index.html`, pick **Шофьор** (driver) or **Пътник** (passenger), choose direction,
-fleet number, time of day and weather, then start.
+Open `index.html`, pick the **line** (64 or 280) on the main menu, then **Шофьор** (driver)
+or **Пътник** (passenger). On the setup screen choose the bus, the direction, the weather,
+the time of day, the traffic density and the graphics preset, then start. Switching line
+reloads the page with that line's map.
+
+### Buses and dispatch
+
+Each line has its own fleet; a bus never appears on the other line.
+
+| Bus | Line | Type | Engine | Doors | Cab |
+| --- | --- | --- | --- | --- | --- |
+| MAN Lion's City G CNG | 280 | 18 m articulated | CNG | 4 | dial cluster, two-beep door warning |
+| Mercedes-Benz Conecto G (O 345 G) | 280 | 18 m articulated | diesel (OM 457) | 3 | VDO round gauges, single buzzer |
+| BMC Procity 12 CNG | 64 | 12 m rigid | CNG (Cummins ISL G) | 3 | LCD cluster |
+| Yutong ZK6126HGA | 64 | 12 m rigid | CNG | 3 | LCD cluster |
+
+Each bus has its own dimensions, door positions, physics (torque curve, gearbox, mass,
+steering lock), engine sound profile and door warning. In the menu, pick one bus or
+**Случаен** (random). Random dispatch decides **per service**: every new trip (your next run
+in driver mode, every bus that comes in passenger mode) draws a bus from the line's fleet,
+by default 50 / 50. The **share slider** changes the split and the **seed** field makes the
+sequence reproducible (the same seed gives the same buses in the same order).
 
 ### Driver mode
 
@@ -25,8 +53,11 @@ fleet number, time of day and weather, then start.
   parking brake (**P**), then select **D** (**1**).
 - **Stops:** pull in to the kerb at each stop with the front door at the stop pole,
   open the doors (**O**), wait for boarding and alighting, then close them (**C**).
-- **Door closing:** close request → beep 1 → beep 2 → the leaves close. Anyone in the
-  doorway makes them reopen.
+- **Request stops** (line 64: Скиорката, Резиденция Бояна, Гробищен парк Бояна): the HUD and
+  the announcement say „по желание“. Stop only when somebody waits there or a passenger
+  presses STOP; driving past an empty request stop costs nothing.
+- **Door closing:** close request → the bus's warning (beeps or buzzer) → the leaves close.
+  Anyone in the doorway makes them reopen.
 - **Interlock:** while any door is open, the throttle is cut and the bus-stop brake holds
   the bus.
 - **Scoring:** comfort (jerk and lateral g), speed limits, kerb strikes, stop accuracy,
@@ -40,7 +71,7 @@ fleet number, time of day and weather, then start.
 | A / D | steer |
 | 1 / 2 / 3 | D / N / R |
 | P | parking brake |
-| O / C | open doors / close doors (two beeps) |
+| O / C | open doors / close doors |
 | F | open the front door only |
 | Q / E | indicators |
 | H | hazard lights |
@@ -51,26 +82,28 @@ fleet number, time of day and weather, then start.
 | R | recover onto the route (when stopped) |
 | Space | horn |
 | Tab | camera (cab, follow, front, side, articulation joint, free) |
-| mouse | look around |
+| mouse | look around (look down for the instrument cluster) |
 | Esc | pause |
 
 ### Passenger mode
 
-You start on the pavement at a real stop on the line. A bus 280 arrives about every
-two minutes with its own AI driver; the HUD and the stop's e-board count down its arrival.
-If you miss it, or after you get off, the next one is already on its way.
+You start on the pavement at a real stop on the chosen line. A bus arrives about every
+two minutes with its own AI driver (which bus it is follows the dispatch setting); the HUD
+and the stop's e-board count down its arrival. If you miss it, or after you get off, the
+next one is already on its way.
 
 | Key | Action |
 | --- | --- |
 | WASD | walk |
 | mouse | look |
 | E | board when near an open door; inside, sit (aimed seat or the nearest free one) or stand up; get off when standing in an open doorway |
-| B | stop request (bell) |
+| B | stop request (bell) — needed to get off at a request stop |
 | G | hold on |
 | Tab | eyes or cinematic camera |
 
-Inside, you can walk through the bellows into the rear section. Other passengers board,
-sit, stand and get off. The on-board display and the announcements give the next stop.
+Inside the articulated buses you can walk through the bellows into the rear section.
+Other passengers board, sit, stand and get off. The on-board display and the
+announcements give the next stop.
 
 ### Browser support
 
@@ -94,11 +127,13 @@ notched screens. Force the touch layout on desktop with `?touch`.
 
 | Setting | Options |
 | --- | --- |
+| Line | 64 or 280 (main menu) |
+| Bus | per line: one bus type or random, with the share slider and the dispatch seed |
 | Language | Bulgarian (default) or English UI (БГ/EN button on the main menu) |
 | Graphics | quality preset **Ultra / High / Balanced** (auto-detected on first start, changeable on the trip setup screen), render scale, FPS counter |
 | Audio | master, engine, voice, ambience and effects volumes |
 | Voice | Bulgarian voice selection and a test button |
-| Door beep | frequency, with a test button |
+| Door beep | frequency of the MAN's beep, with a test button (the other buses use their own warning) |
 | Controls | mouse sensitivity, invert Y, gyro steering on phones, touch control size |
 
 Settings and progress are stored in `localStorage` in the browser.
@@ -107,6 +142,9 @@ URL parameters for testing:
 
 | Parameter | Effect |
 | --- | --- |
+| `line=64\|280` | line (and its map) |
+| `veh=man\|conecto\|procity\|yutong` | force a bus (must belong to the line) |
+| `seed=abc` | reproducible random dispatch |
 | `q=ultra\|high\|balanced` | quality preset |
 | `h=21.5` | time of day |
 | `w=clear\|cloudy\|rain` | weather |
@@ -115,16 +153,21 @@ URL parameters for testing:
 | `stop=N` | passenger start stop |
 | `fleet=3145` | fleet number |
 | `touch` | force touch controls |
-| `scene=bus` | bus model studio |
+| `scene=bus` | bus model studio (with `veh=`) |
 | `memlog` | log heap per loading stage |
 
 ## Announcements and voice
 
-The stop announcements are in Bulgarian:
+The stop announcements are in Bulgarian, for both directions of both lines:
 
 - **„Следваща спирка X.“** shortly after leaving a stop.
 - **„Спирка X.“** on approach. The trigger distance grows with speed, and messages
   never overlap.
+- At a request stop the announcement adds **„Спирка по желание.“**
+
+A pronunciation dictionary (`src/audio/pronounce.js`) expands abbreviations and numbers
+before speaking: „ж.к.“ → „жилищен комплекс“, „в.з.“ → „вилна зона“, „бул.“ → „булевард“,
+„ул. 10“ → „улица десет“, „Акад.“ → „академик“ and so on.
 
 The voice is chosen in this order:
 
@@ -140,25 +183,26 @@ The game never reads Bulgarian with an English voice. See [docs/AUDIO.md](docs/A
 
 ```sh
 npm install           # esbuild + three
-npm test              # unit tests: route, stops, announcements, doors, state machine, swept path, gzip fallback
-npm run build         # -> index.html and dist/sofia-bus-280.html (single file, ~2.4 MB)
+npm test              # unit tests: route, stops, announcements, doors, dispatch, pronunciation, state machine, swept path, gzip fallback
+npm run build         # -> index.html and dist/sofia-public-transport.html (single file)
 node build.mjs --dev  # unminified with inline source maps
 ```
 
 Checks in headless Chromium (SwiftShader):
 
 ```sh
-bash tools/smoke.sh index.html                 # driver, passenger and bus studio load without errors
-node tools/route_check.cjs index.html A        # AI drives a whole direction, every stop must be served
-python3 tools/compare_bus.py index.html out/   # the bus next to the reference photos
-python3 tools/stop_views.py index.html out/ 1691 2326   # street views at stop poles
+bash tools/smoke.sh index.html                                # driver, passenger and bus studio load without errors
+LINE=64 VEH=procity node tools/route_check.cjs index.html A    # AI drives a whole direction, every stop must be served
+python3 tools/compare_bus.py index.html out/                  # the MAN next to the reference photos
+python3 tools/stop_views.py index.html out/ 2342 2764 --line=64   # street views at stop poles
 ```
 
 Rebuilding the map data from scratch (Python 3 with `pyarrow`, `shapely`, `numpy`,
 `Pillow`) downloads Overture Maps and terrain tiles:
 
 ```sh
-npm run data          # tools/rebuild_data.sh
+npm run data          # tools/rebuild_data.sh (line 280)
+python3 tools/build_route.py <datadir> src/data/route64.json 64   # line 64 route and stops
 node tools/make_manifest.mjs
 ```
 
@@ -167,24 +211,27 @@ node tools/make_manifest.mjs
 - **Map data:** roads, buildings, stops, signals, crossings, trees and land use come from
   **OpenStreetMap** via **Overture Maps** (ODbL, © OpenStreetMap contributors).
 - **Elevation:** Mapzen/AWS Terrarium tiles.
-- **Stops:** matched by their official stop codes.
-- **Routing:** each direction is routed independently on the real one-way street network.
-- **No Google data:** no Google Maps or Street View imagery or data is used.
-- **Research manifest:** `data/research/route280_manifest.json` lists every stop with
-  coordinates, sources, amenities, confidence and open discrepancies. Unresolved points
-  are listed there honestly; for example, the building facades are procedural, not
-  photographic.
-- **Bus model:** measured from the user's five reference photos (camera fits, rectified
-  front elevations): `data/research/bus/exterior/exterior_spec.md` and
-  `data/research/bus/interior/interior_spec.md` give every dimension and colour with its
-  basis and confidence. `python3 tools/compare_bus.py` renders the model next to the
-  photos. The rear end is not in any photo and is typology only.
-- **Buildings and stops:** researched stop by stop (`data/research/world/`): 329
-  buildings typed (construction, floors, colours, windows, ground floor), landmarks,
-  stop furniture. Most ordinary blocks are typed by typology and marked low confidence;
-  no photographs could be fetched in the build environment.
-- **Shop signs:** 666 real businesses within 75 m of the route (Overture places and the
-  stop research), mounted on the building they are in.
+- **Stops:** matched by their official stop codes; each direction is routed independently
+  on the real one-way street network.
+- **Line 64:** the stop lists of both directions, the request stops and the terminus
+  arrangement (direction B ends at stop 0749 on the zoo loop, direction A starts at 2764)
+  are documented with their sources in `data/research/line64/README.md`.
+- **No Google data:** no Google Maps or Street View imagery or data is used, and no
+  photograph is used as a texture: every texture is drawn procedurally.
+- **Buses:** measured from the reference photos supplied with the request. Each model has
+  a `NOTES.md` in `src/vehicle/models/<bus>/` that separates measured numbers, published
+  data and approximations. The Yutong's fleet numbers are placeholders.
+- **Landmarks:** hand-built on their OSM footprints along both lines — hospitals,
+  universities and the sports academy on 280; the metro station Vitosha, Paradise Center,
+  the National Centre of Public Health and Analyses, the zoo's western entrance, Боянско
+  ханче, the Boyana and Dragalevtsi cemeteries, the Boyana film studio gate and the Ring Road
+  gantries on 64. The Boyana Residence is modelled only as its public perimeter along the
+  road. What is verified and what is inferred is listed in
+  `data/research/line64/landmarks/NOTES.md` and `data/research/world/institutions280/NOTES.md`.
+- **Buildings and stops:** researched stop by stop on line 280 (`data/research/world/`).
+  Elsewhere buildings are typed by typology and marked low confidence.
+- **Shop signs:** real businesses near the route (Overture places), mounted on the
+  building they are in.
 
 ## Code layout
 
@@ -192,13 +239,13 @@ node tools/make_manifest.mjs
 | --- | --- |
 | `src/core` | projection, maths, path sampling, seeded random |
 | `src/gameplay` | route data, stop manager, announcements, destination display, bus entity, AI driver, traffic, pedestrians, scoring, state machine (pure logic is unit-tested) |
-| `src/vehicle` | bus dimensions, articulated physics, door controller, procedural bus model, LED dot-matrix signs |
-| `src/world` | heightfield, terrain, road network and meshes, buildings (archetype facade shader, real balconies, shop signs), street furniture and stop hardware, vegetation, landmarks, spatial index |
+| `src/vehicle` | vehicle registry and dispatch (`Vehicles.js`), articulated / rigid physics, door controller, LED signs; `models/` holds the four bus models |
+| `src/world` | heightfield, terrain, road network and meshes, buildings (archetype facade shader, real balconies, shop signs), street furniture and stop hardware, vegetation, landmarks (`landmarks64/` for line 64), spatial index |
 | `src/render` | renderer and post-processing, sky, cameras, procedural textures, weather, bus lights |
-| `src/audio` | synthesised bus sound (native Web Audio nodes: engine, gearbox, road, air system), five listener zones, all buses audible with distance and Doppler, door and brake one-shots, ambience; voice announcer |
+| `src/audio` | synthesised bus sound with per-bus engine profiles, five listener zones, all buses audible with distance and Doppler, door and brake one-shots, ambience; voice announcer and pronunciation dictionary |
 | `src/ui` | HUD, menus, input, touch controls, i18n |
 | `src/game` | game modes, settings |
-| `tools` | data pipeline, headless screenshot harness, manifest and announcement generators |
+| `tools` | data pipeline, headless screenshot and route-check harness, manifest and announcement generators |
 | `tests` | `node --test` unit tests |
 
 Progress log: [docs/PROGRESS.md](docs/PROGRESS.md).
@@ -208,5 +255,7 @@ Progress log: [docs/PROGRESS.md](docs/PROGRESS.md).
 - **Code:** in this repository.
 - **Map data:** © OpenStreetMap contributors, ODbL 1.0, via Overture Maps Foundation.
 - **Three.js:** MIT.
-- **Livery and logos:** the bus livery, lion badge and graphics are drawn procedurally
-  as an approximation for this simulator. They are not the operator's or MAN's artwork.
+- **Liveries and logos:** the bus liveries, badges and graphics are drawn procedurally as
+  an approximation for this simulator. They are not the operators' or manufacturers'
+  artwork. This is a fan-made simulator, not affiliated with Sofia's Urban Mobility Center,
+  the operators or the bus manufacturers.

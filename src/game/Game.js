@@ -188,13 +188,15 @@ export class Game {
     if (this.voiceBusy) return;
     const msg = bus.announcer.pump();
     if (!msg) return;
-    this.voiceBusy = true;
+    if (this.mode === 'driver' || this.mode === 'passenger') bus.model.setInteriorText(msg.kind === 'next' ? 'Следваща спирка:' : 'Спирка:', msg.display);
     const vol = this.audio.zone === 'outside' ? Math.max(0, 0.35 - this.camera.position.distanceTo(bus.model.front.position) / 80) : 1;
+    // a passenger waiting down the street cannot hear the bus's interior announcement: no chime, no subtitle
+    if (vol < 0.05) { bus.announcer.ended(); return; }
+    this.voiceBusy = true;
     this.voice.play(msg, vol, () => {
       bus.announcer.ended();
       this.voiceBusy = false;
     });
-    if (this.mode === 'driver' || this.mode === 'passenger') bus.model.setInteriorText(msg.kind === 'next' ? 'Следваща спирка:' : 'Спирка:', msg.display);
   }
 
   updateAttract(dt) {
