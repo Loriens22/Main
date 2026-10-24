@@ -32,8 +32,8 @@ export function addCabParts(p, low, model) {
   // ---- dashboard: body, light-grey top across the screen width, dark binnacle and side panels
   p.add('dash', box(2.34, 1.16 - FY, 0.52), M(0, (1.16 + FY) / 2, zf + 0.32));
   p.add('dashTop', box(2.34, 0.06, 0.54), M(0, 1.19, zf + 0.33));
-  p.add('dashPad', box(0.7, 0.2, 0.34), M(DX, 1.27, zf + 0.42)); // binnacle
-  p.add('dashPad', box(0.76, 0.03, 0.14), M(DX, 1.385, zf + 0.5)); // hood
+  p.add('dashPad', box(0.7, 0.2, 0.3), M(DX, 1.27, zf + 0.38)); // binnacle: the cluster sits on its driver-side face
+  p.add('dashPad', box(0.76, 0.03, 0.16), M(DX, 1.4, zf + 0.53)); // hood shading the cluster
   p.add('dashPad', box(0.3, 0.12, 0.4), M(-1.08, 1.27, zf + 0.5)); // left switch pod
   p.add('dashPad', box(0.34, 0.14, 0.34), M(-0.34, 1.27, zf + 0.5)); // right switch pod with the selector buttons
   if (!low) {
@@ -114,8 +114,8 @@ export const CabMixin = {
     const clMat = new THREE.MeshBasicMaterial({ map: this.dashTex, toneMapped: false });
     clMat.color.setScalar(0.92);
     const cl = new THREE.Mesh(new THREE.PlaneGeometry(0.34, 0.17), clMat);
-    cl.position.set(DX, 1.318, zf + 0.5);
-    cl.rotation.x = -0.52;
+    cl.position.set(DX, 1.29, zf + 0.545);
+    cl.rotation.x = -0.38;
     this.front.add(cl);
     this.cluster = cl;
     // steering wheel: D 0.50, three spokes with a BMC hub, one merged mesh; plane tilted about 57 degrees from vertical
