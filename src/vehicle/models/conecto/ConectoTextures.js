@@ -275,9 +275,10 @@ export function makeVent() {
 export function makeMoquette(kind = 'pad') {
   const [c, g] = canvas(256, 256);
   const r = mulberry32(kind === 'pad' ? 31 : 77);
-  const base = kind === 'pad' ? '#6d7f9c' : '#233f8f';
-  const dark = kind === 'pad' ? '#2f4676' : '#12276a';
-  const light = kind === 'pad' ? '#9db0c9' : '#3c5cb0';
+  // ref04: worn blue-grey moquette (backs) and a darker, slightly bluer cushion
+  const base = kind === 'pad' ? '#5f6b7b' : '#3e4c69';
+  const dark = kind === 'pad' ? '#3a4556' : '#27314a';
+  const light = kind === 'pad' ? '#8794a5' : '#5d6c8b';
   g.fillStyle = base;
   g.fillRect(0, 0, 256, 256);
   for (let i = 0; i < 90; i++) {

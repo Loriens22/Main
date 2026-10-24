@@ -117,7 +117,7 @@ export class ConectoModel {
       frame: new S({ color: 0x15171a, roughness: 0.6 }),
       ceiling: new S({ map: ceil, color: 0xffffff, roughness: 0.85, emissive: 0xc9c6bb, emissiveIntensity: 0.1 }),
       lightStrip: new S({ color: 0xf4f0e2, emissive: 0xfff2d4, emissiveIntensity: 1.0, roughness: 0.5 }),
-      seat: new S({ color: 0xc4c8ca, roughness: 0.45, envMapIntensity: 0.5 }),
+      seat: new S({ color: 0x7c8185, roughness: 0.45, envMapIntensity: 0.5 }), // ref04: grey shells
       seatDark: new S({ color: 0x2b2d30, roughness: 0.55 }),
       moqPad: new S({ map: moqPad, roughness: 0.95 }),
       moqCush: new S({ map: moqCush, roughness: 0.95 }),
@@ -139,6 +139,8 @@ export class ConectoModel {
     // the scene's blue ambient turns neutral greys blue: warm interior albedos a little
     const warm = new THREE.Color(1.12, 1.0, 0.86);
     for (const k of ['wall', 'wallDark', 'seat', 'cabPanel', 'dashPanel']) this.mats[k].color.multiply(warm);
+    // the moquette and the floor are textured: a warmer tint keeps the blue-grey cloth of ref04 from turning royal blue
+    for (const k of ['moqPad', 'moqCush', 'floor']) this.mats[k].color.setRGB(1.04, 0.95, 0.8);
     this.lightMats = { head: this.mats.headlamp, brake: this.mats.brake, tail: this.mats.tail, reverse: this.mats.reverse, left: this.mats.indicatorL, right: this.mats.indicatorR };
   }
 

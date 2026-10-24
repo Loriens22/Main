@@ -50,7 +50,7 @@ export const InteriorMixin = {
       ceiling: new S({ map: ceil, color: 0xffffff, roughness: 0.8, emissive: 0xd6d4cc, emissiveIntensity: 0.08 }),
       cove: new S({ map: cove, color: 0xffffff, roughness: 0.75, emissive: 0xd4d3cb, emissiveIntensity: 0.06 }),
       lightStrip: new S({ color: 0xf4f8ff, emissive: 0xf4f8ff, emissiveIntensity: 1.0, roughness: 0.5 }),
-      seat: new S({ color: 0x70777e, roughness: 0.5, envMapIntensity: 0.5 }),
+      seat: new S({ color: 0x4d5359, roughness: 0.5, envMapIntensity: 0.5 }),
       pad: new S({ map: fabric, color: 0xffffff, roughness: 0.95, envMapIntensity: 0.3, side: THREE.DoubleSide }),
       pole: new S({ color: 0xc6cacd, roughness: 0.3, metalness: 0.6, envMapIntensity: 0.6 }),
       strap: new S({ color: 0x15171a, roughness: 0.6, side: THREE.DoubleSide }),

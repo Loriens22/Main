@@ -189,7 +189,7 @@ export const BodyMixin = {
       }
     }
     // ---- underbody pan between the tyres
-    parts.add('underbody', box(1.7, 0.12, L.s1 - L.s0 - 0.2), M(0, skirt + 0.06, (L.s0 + L.s1) / 2));
+    parts.add('underbody', box(1.7, 0.12, L.s1 - L.s0 - 0.2), M(0, D.floorY - 0.075, (L.s0 + L.s1) / 2)); // below the saloon floor
     return L;
   },
 

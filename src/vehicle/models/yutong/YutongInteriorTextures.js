@@ -45,7 +45,7 @@ function pictogram(g, kind, cx, cy, r) {
 /* ------------------------------------------------------------------ registration plate */
 export function makeFloorTex() {
   const [c, g] = canvas(512, 512);
-  g.fillStyle = '#55595b';
+  g.fillStyle = '#404447';
   g.fillRect(0, 0, 512, 512);
   const r = mulberry32(21);
   const fleck = (n, col, s0, s1) => {

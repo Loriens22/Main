@@ -404,11 +404,15 @@ export const BodyMixin = {
   /* ------------------------------------------------------------------ underbody */
   underbody(p) {
     const zA = FZ + 0.5, zB = RZ - 0.5;
-    p.add('underbody', box(1.9, 0.12, zB - zA), M(0, K.skirtY + 0.06, (zA + zB) / 2));
+    p.add('underbody', box(1.9, 0.12, zB - zA), M(0, K.floorY - 0.075, (zA + zB) / 2)); // below the saloon floor
     // axle beams and the rear differential housing, visible below the skirts
-    p.add('underbody', new THREE.CylinderGeometry(0.06, 0.06, 1.9, 10).rotateZ(Math.PI / 2), M(0, K.wheelR, K.axleF));
-    p.add('underbody', new THREE.CylinderGeometry(0.08, 0.08, 1.8, 10).rotateZ(Math.PI / 2), M(0, K.wheelR, K.axleR));
-    p.add('underbody', new THREE.SphereGeometry(0.2, 12, 8), M(0, K.wheelR - 0.05, K.axleR));
+    // portal axles: the beams run under the podiums only, the dropped centre stays below the low aisle floor
+    for (const sg of [-1, 1]) {
+      p.add('underbody', new THREE.CylinderGeometry(0.06, 0.06, 0.55, 10).rotateZ(Math.PI / 2), M(sg * 0.98, K.wheelR, K.axleF));
+      p.add('underbody', new THREE.CylinderGeometry(0.08, 0.08, 0.5, 10).rotateZ(Math.PI / 2), M(sg * 1.0, K.wheelR, K.axleR));
+    }
+    p.add('underbody', box(1.5, 0.12, 0.2), M(0, 0.2, K.axleF));
+    p.add('underbody', new THREE.SphereGeometry(0.14, 12, 8), M(0, 0.17, K.axleR));
     // front and rear dark valances below the bumpers
     p.add('underbody', box(2.0, 0.14, 0.4), M(0, 0.4, FZ + 0.35));
     p.add('underbody', box(2.0, 0.14, 0.4), M(0, 0.4, RZ - 0.4));

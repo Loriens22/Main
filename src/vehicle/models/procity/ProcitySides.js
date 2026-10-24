@@ -153,7 +153,7 @@ export const SideMixin = {
       }
     }
     // ---- underbody pan between the tyres
-    parts.add('underbody', box(1.7, 0.12, z1 - z0 - 0.2), M(0, D.skirtY + 0.06, (z0 + z1) / 2));
+    parts.add('underbody', box(1.7, 0.12, z1 - z0 - 0.2), M(0, D.floorY - 0.075, (z0 + z1) / 2)); // below the saloon floor
   },
 
   /** Fills a white panel [a, b] with fringe sprites hanging from the belt line. */
@@ -242,7 +242,7 @@ export const SideMixin = {
   },
 
   roofEquipment(parts) {
-    const zp0 = FRONT_Z + 0.58, zp1 = -3.35;
+    const zp0 = FRONT_Z + 0.58, zp1 = -2.75; // ref07 / ref11: the gas housing reaches back to about the middle door
     const pod = this.roofPod(parts, zp0, zp1, 2.16, D.podY - ROOF, 0.3, 0.46, 0.6);
     // perforated ventilation panel on the sloping front face of the pod
     const hsAt = (t) => Math.sqrt(1 - Math.pow(1 - t, 2));
@@ -260,10 +260,10 @@ export const SideMixin = {
       parts.add('leaves', surfaceGrid(1, 1, (u, v) => [x, pod.base + 0.06 + v * sh, pod.z0 + 1.15 + (side > 0 ? 0.5 - u : u - 0.5) * sw + sw / 2], { uvRect: lv.cngBus }));
     }
     // A/C unit behind the pod: low rounded box with a ribbed top
-    const ac = this.roofPod(parts, -3.3, -1.25, 1.95, 0.26, 0.1, 0.22, 0.22);
-    parts.add('louvreWhite', surfaceGrid(1, 1, (u, v) => [lerp(0.7, -0.7, u), ac.base + 0.262, lerp(-3.0, -1.5, v)], { uvRect: [0, 0, 1.5, 2.2] }));
+    const ac = this.roofPod(parts, -2.7, -0.95, 1.95, 0.26, 0.1, 0.22, 0.22);
+    parts.add('louvreWhite', surfaceGrid(1, 1, (u, v) => [lerp(0.7, -0.7, u), ac.base + 0.262, lerp(-2.4, -1.2, v)], { uvRect: [0, 0, 1.5, 2.2] }));
     // second vented box and the roof hatch at the tail, shark-fin antenna
-    this.roofPod(parts, -1.15, 0.15, 1.5, 0.12, 0.05, 0.12, 0.12);
+    this.roofPod(parts, -0.85, 0.35, 1.5, 0.12, 0.05, 0.12, 0.12);
     parts.add('paint', box(1.3, 0.09, 0.9, 0.03), M(-0.1, ROOF + 0.045, 1.55));
     parts.add('louvreDark', surfaceGrid(1, 1, (u, v) => [lerp(0.5, -0.7, u), ROOF + 0.092, lerp(1.2, 1.9, v)], { uvRect: [0, 0, 1.2, 0.8] }));
     const fin = new THREE.BoxGeometry(0.06, 0.1, 0.22);
