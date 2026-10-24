@@ -11,6 +11,9 @@ import { ensureFootprints, replacedBuildings } from './LandmarkData.js';
 import { buildRectorate, buildNbkm, buildEagleBridge, buildKlimentMonument, buildHavelHeart } from './LandmarkCity.js';
 import { buildPliska, buildAviation, buildArena, buildMetro, buildPliskaCanopies, buildGuardFences } from './LandmarkRoad.js';
 import { buildWinterPalace, buildBotevHall, buildUnwe, buildLtu, buildChapel, buildOmv, buildKiosks, buildTerminalHut } from './LandmarkCampus.js';
+import { buildOncology, buildSofiamed } from './LandmarkInstitutionsMed.js';
+import { buildTechLibrary, buildHtmu, buildTu, buildNsa } from './LandmarkInstitutionsEdu.js';
+import { buildKindergarten, buildNursery } from './LandmarkInstitutionsKids.js';
 import { JOBS_64 } from './landmarks64/index.js';
 
 /** Landmark jobs of line 280: [name, (ctx) => item(s)]. */
@@ -19,6 +22,9 @@ export const JOBS_280 = [
   ['eagles', buildEagleBridge], ['kliment', buildKlimentMonument], ['havel', buildHavelHeart],
   ['pliska', buildPliska], ['guardFences', buildGuardFences], ['pliskaCanopies', buildPliskaCanopies], ['aviation', buildAviation], ['arena', buildArena], ['metro', buildMetro],
   ['winterPalace', buildWinterPalace], ['botev', buildBotevHall], ['unwe', buildUnwe], ['ltu', buildLtu], ['chapel', buildChapel], ['omv', buildOmv], ['kiosks', buildKiosks], ['terminalHut', buildTerminalHut],
+  // institutional landmarks (src/world/LandmarkInstitutions*.js)
+  ['oncology', buildOncology], ['sofiamed', buildSofiamed], ['techLibrary', buildTechLibrary], ['htmu', buildHtmu], ['tu', buildTu], ['nsa', buildNsa],
+  ['kindergarten', buildKindergarten], ['nursery', buildNursery],
 ];
 const JOBS = { 280: JOBS_280, 64: JOBS_64 };
 

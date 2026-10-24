@@ -77,6 +77,40 @@ function glowTexture() {
   return t;
 }
 
+/**
+ * Welded "3D" mesh fence panel, the common Sofia fence: 2.5 m wide, 1.6 m high, 200 x 50 mm mesh
+ * (drawn a little coarser so it survives mipmapping), two V bends, a 60 mm post at each joint.
+ * White wires on a clear canvas; the material colour paints them. Wires average to ~30 %
+ * coverage, so a fence far away reads as a thin green veil, not a wall.
+ */
+function meshFenceTexture() {
+  const W = 256, H = 256;
+  const c = document.createElement('canvas');
+  c.width = W;
+  c.height = H;
+  const g = c.getContext('2d');
+  g.clearRect(0, 0, W, H);
+  g.fillStyle = '#fff';
+  for (let x = 10; x < W - 6; x += 20.4) g.fillRect(Math.round(x), 6, 2, H - 10); // verticals
+  for (let y = 8; y < H - 2; y += 10) g.fillRect(4, y, W - 8, 2); // horizontals
+  // V bends: a doubled wire with a shaded lip
+  for (const y of [70, 172]) {
+    g.fillRect(4, y - 3, W - 8, 3);
+    g.fillStyle = '#bbb';
+    g.fillRect(4, y, W - 8, 3);
+    g.fillStyle = '#fff';
+  }
+  // posts with cap and a clamp per bend
+  g.fillRect(0, 0, 4, H);
+  g.fillRect(W - 4, 0, 4, H);
+  g.fillStyle = '#ccc';
+  for (const y of [28, 120, 214]) g.fillRect(0, y, 7, 6), g.fillRect(W - 7, y, 7, 6);
+  const t = new THREE.CanvasTexture(c);
+  t.wrapS = THREE.RepeatWrapping;
+  t.anisotropy = 4;
+  return t;
+}
+
 export class StreetFurniture {
   constructor({ scene, world, route, quality }) {
     this.scene = scene;
@@ -102,6 +136,11 @@ export class StreetFurniture {
       plaster: new S({ color: 0xcfc6b5, roughness: 0.9 }),
       fence: new S({ color: 0x3d4a3f, roughness: 0.6, metalness: 0.4 }),
     };
+    // mesh panels: RAL 6005 green and RAL 7016 anthracite, the two usual powder coats
+    const fm = meshFenceTexture();
+    const panel = (color) => new S({ color, map: fm, roughness: 0.55, metalness: 0.35, transparent: true, alphaTest: 0.04, side: THREE.DoubleSide });
+    this.mats.fenceGreen = panel(0x2f5a3f);
+    this.mats.fenceGrey = panel(0x4a5054);
     this.glowMat = new THREE.MeshBasicMaterial({ map: glowTexture(), transparent: true, opacity: 0, blending: THREE.AdditiveBlending, depthWrite: false, polygonOffset: true, polygonOffsetFactor: -4 });
     this.groups = [];
   }
@@ -322,11 +361,61 @@ export class StreetFurniture {
         out.push(gg);
       }
     };
-    make(L.fence || [], 1.6, m.fence, 0.05);
+    out.push(...this.buildMeshFences(L.fence || []));
     make(L.wall || [], 1.9, m.plaster, 0.25);
     make(L.retaining_wall || [], 1.2, m.concrete, 0.3);
     make(L.hedge || [], 1.2, m.hedge, 0.8);
     make(L.guard_rail || [], 0.75, m.metal, 0.08);
+    return out;
+  }
+
+  /** OSM fences as see-through mesh panels: one terrain-following double-sided strip per line. */
+  buildMeshFences(lines) {
+    const H = 1.6, PANEL = 2.5;
+    const sets = { fenceGreen: [], fenceGrey: [] };
+    for (const p of lines) {
+      if (p.length < 4) continue;
+      const key = hash2(Math.round(p[0]), Math.round(p[1])) < 0.62 ? 'fenceGreen' : 'fenceGrey';
+      const pos = [], uv = [];
+      let u = 0;
+      for (let i = 0; i < p.length - 2; i += 2) {
+        const ax = p[i], az = p[i + 1], bx = p[i + 2], bz = p[i + 3];
+        const len = Math.hypot(bx - ax, bz - az);
+        if (len < 0.05) continue;
+        const ya = this.y(ax, az) - 0.05, yb = this.y(bx, bz) - 0.05;
+        const u1 = u + len / PANEL;
+        pos.push(ax, ya, az, bx, yb, bz, bx, yb + H, bz, ax, ya, az, bx, yb + H, bz, ax, ya + H, az);
+        uv.push(u, 0, u1, 0, u1, 1, u, 0, u1, 1, u, 1);
+        u = u1;
+      }
+      if (!pos.length) continue;
+      const g = new THREE.BufferGeometry();
+      g.setAttribute('position', new THREE.Float32BufferAttribute(pos, 3));
+      g.setAttribute('uv', new THREE.Float32BufferAttribute(uv, 2));
+      g.computeVertexNormals();
+      sets[key].push(g);
+    }
+    const out = [];
+    for (const [k, geos] of Object.entries(sets)) {
+      // chunk by 256 m tile so culling and transparent sorting stay local
+      const tiles = new Map();
+      for (const g of geos) {
+        g.computeBoundingSphere();
+        const c = g.boundingSphere.center, key = `${Math.floor(c.x / 256)},${Math.floor(c.z / 256)}`;
+        let a = tiles.get(key);
+        if (!a) tiles.set(key, (a = []));
+        a.push(g);
+      }
+      for (const [key, list] of tiles) {
+        const mesh = new THREE.Mesh(mergeGeometries(list), this.mats[k]);
+        mesh.receiveShadow = true;
+        mesh.name = k;
+        const gg = new THREE.Group();
+        gg.name = `lines:${key}`;
+        gg.add(mesh);
+        out.push(gg);
+      }
+    }
     return out;
   }
 

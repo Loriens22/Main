@@ -51,6 +51,29 @@ export const REPLACED = [
   { x: -412.0, z: 1686.4, r: 2.5, note: 'Yosifov kiosk modules, east row' },
   { x: -411.6, z: 1679.0, r: 2.5, note: 'Yosifov kiosk modules, east row' },
   { x: -411.2, z: 1671.7, r: 2.5, note: 'Yosifov kiosk modules, east row' },
+  // --- National Oncology Hospital (НСБАЛ по онкология): main L-shaped block, ward towers, pavilions, outpatient wing
+  { x: 668.5, z: 934.1, r: 2.5, id: 4909, note: 'Oncology hospital main block' },
+  { x: 613.0, z: 1008.2, r: 2.5, id: 4912, note: 'Oncology hospital ward tower (5 floors)' },
+  { x: 691.8, z: 1046.0, r: 2.5, id: 4916, note: 'Oncology hospital ward tower (5 floors, south)' },
+  { x: 646.5, z: 905.0, r: 2.5, id: 4911, note: 'Oncology hospital pavilion (3 floors)' },
+  { x: 609.9, z: 882.2, r: 2.5, id: 4901, note: 'Oncology hospital pavilion (3 floors, north)' },
+  { x: 613.9, z: 983.4, r: 2.5, id: 4913, note: 'Oncology hospital pavilion (service block)' },
+  { x: 644.5, z: 889.6, r: 2.5, id: 4907, note: 'Oncology hospital outpatient wing (pitched roof)' },
+  // --- UMBAL Sofiamed (Dr G. M. Dimitrov 16): Block 1, Block 2 and the medical centre beside the stop 0494 / 0492
+  { x: 995.5, z: 209.8, r: 2.5, id: 5831, note: 'Sofiamed Block 1' },
+  { x: 943.8, z: 187.5, r: 2.5, id: 5832, note: 'Sofiamed Block 2' },
+  { x: 950.8, z: 251.0, r: 2.5, id: 5875, note: 'Sofiamed medical centre by the stop' },
+  // --- Technical library / National Centre for Information and Documentation slab (Dr G. M. Dimitrov 52-52A)
+  { x: 553.3, z: 484.8, r: 2.5, id: 5935, note: 'Technical library slab (NCID, DAMTN)' },
+  // --- ХТМУ buildings A and B on the boulevard, TU Block 1 east slab closing ul. Prof. Bradistilov
+  { x: 499.9, z: 1503.8, r: 2.5, id: 5028, note: 'HTMU building A' },
+  { x: 477.0, z: 1159.8, r: 2.5, id: 4890, note: 'HTMU building B' },
+  { x: 362.8, z: 1333.2, r: 2.5, id: 4863, note: 'TU Block 1 (Rectorate) east slab' },
+  // --- National Sports Academy main complex
+  { x: -244.1, z: 2485.5, r: 2.5, id: 408, note: 'NSA main complex' },
+  // --- children's institutions of Studentski grad
+  { x: -507.2, z: 1741.0, r: 2.5, id: 4658, note: 'Kindergarten behind the Detski dom stops' },
+  { x: -785.7, z: 2329.6, r: 2.5, id: 521, note: 'Nursery complex behind the Detski yasli stops' },
 ];
 
 import { REPLACED64 } from './landmarks64/data.js';
