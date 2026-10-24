@@ -67,8 +67,9 @@ export class PassengerMode {
 
   spawnBus(s, { hold = 0 } = {}) {
     const g = this.game;
-    const fleets = ['3145', '3153', '2319'];
-    const bus = new BusEntity({ scene: g.scene, world: g.world, route: g.route, dirId: this.dirId, fleet: fleets[this.buses.length % 3], quality: g.quality });
+    // each service gets its bus from the line's dispatcher (MAN/Conecto on 280, BMC/Yutong on 64)
+    const sv = g.nextService(this.opts.vehicle && this.opts.vehicle !== 'random' ? this.opts.vehicle : null);
+    const bus = new BusEntity({ scene: g.scene, world: g.world, route: g.route, dirId: this.dirId, vehicle: sv.vehicle, fleet: sv.fleet, quality: g.quality, serviceNo: sv.serviceNo });
     // advance the stop counter to where the bus is placed
     const dir = bus.dir;
     let idx = 0;
@@ -149,12 +150,17 @@ export class PassengerMode {
     if (bus) {
       const next = bus.stops.nextStop;
       g.hud.update(dt, {
-        headsign: bus.dir.headsign, nextStop: next ? next.name : '—', atStop: bus.stops.atStop >= 0,
+        headsign: bus.dir.headsign, nextStop: next ? next.name : '—', request: !!(next && next.request), atStop: bus.stops.atStop >= 0,
         dist: this.ride && next ? next.frontS - bus.routeS : bus.camDist, delay: null, stopRequested: bus.stopRequested,
         fps: g.settings.showFps ? g.fpsAcc.fps : null, quality: g.quality,
       });
-      g.hud.q.lbl.textContent = this.ride ? (bus.stops.atStop >= 0 ? t('stop') : t('nextStop')) : L(`Следващ ${g.route.line} · ${this.startStop.name}`, `Next ${g.route.line} · ${this.startStop.name}`);
+      g.hud.q.lbl.textContent = this.ride ? (bus.stops.atStop >= 0 ? t('stop') : t('nextStop')) + (next && next.request ? L(' · по желание', ' · request stop') : '') : L(`Следващ ${g.route.line} · ${this.startStop.name}`, `Next ${g.route.line} · ${this.startStop.name}`);
       g.hud.q.name.textContent = this.ride ? (next ? next.name : '—') : `→ ${bus.dir.headsign}`;
+      // a request stop ahead: the bus only stops there if somebody presses STOP (or waits at it)
+      if (this.ride && next && next.request && this.toldRequest !== `${bus.dirId}${next.index}` && next.frontS - bus.routeS < 400 && !bus.stopRequested) {
+        this.toldRequest = `${bus.dirId}${next.index}`;
+        g.hud.toast(L(`${next.name} е спирка по желание — натиснете СТОП (B), за да слезете`, `${next.name} is a request stop — press STOP (B) to get off`), false, 5);
+      }
       if (!this.ride) {
         const atStop = bus.target === this.startStop && bus.stops.atStop === this.startStop.index;
         const eta = this.etaOf(bus);

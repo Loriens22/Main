@@ -74,7 +74,8 @@ export class Scoring {
     if (this.kerbCooldown <= 0 && Math.abs(p.v) > 0.8 && q) {
       const fx = -Math.sin(p.yaw), fz = -Math.cos(p.yaw), rx = -fz, rz = fx;
       for (const side of [1, -1]) {
-        const wx = p.x + fx * 5.1 + rx * side * 1.15, wz = p.z + fz * 5.1 + rz * side * 1.15;
+        const wb = p.dims ? p.dims.wb1 : 5.1;
+        const wx = p.x + fx * wb + rx * side * 1.15, wz = p.z + fz * wb + rz * side * 1.15;
         if (!world.roads.onRoad(wx, wz, 0.25) && world.roads.onRoad(wx, wz, 3.0)) {
           this.kerbCooldown = 2.5;
           this.add('kerb', -4, L('Удар в бордюра', 'Kerb strike'));

@@ -122,7 +122,9 @@ export class GameAudio {
       }
       if (!best) continue;
       const db = Math.min(10 * Math.log10(sum), best.db + 3); // several doors: louder, but not by the full sum
-      this.audio.doorEvent(e, { db, lp: best.lp, pan: L.zone === 'out' ? L.pan : 0 });
+      // the closing warning of this vehicle type (the MAN's follows the settings slider)
+      const w = bus.spec.doorWarning;
+      this.audio.doorEvent(e, { db, lp: best.lp, pan: L.zone === 'out' ? L.pan : 0, warn: bus.spec.id === 'man' ? null : w });
     }
   }
 

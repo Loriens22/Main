@@ -1,11 +1,18 @@
 // Main menu, pre-game setup, settings, credits and pause screens.
 import { t, L, setLang, getLang } from './i18n.js';
 import { saveSettings, loadSave } from '../game/Settings.js';
+import { lineVehicles, vehicleSpec } from '../vehicle/Vehicles.js';
+
+/** The playable lines: number, termini (Bulgarian, English). */
+export const LINE_INFO = {
+  280: { bg: 'СУ „Св. Климент Охридски“ – Студентски град', en: 'Sofia University – Studentski Grad', sbg: 'СУ – Студентски град', sen: 'University – Studentski Grad' },
+  64: { bg: 'Зоопарка – Център по хигиена', en: 'Zoo – Hygiene Centre', sbg: 'Зоопарка – Център по хигиена', sen: 'Zoo – Hygiene Centre' },
+};
 
 // a function, not a constant: the text must follow the language chosen at runtime
-const logo = () => `<svg class="logo" viewBox="0 0 420 120" aria-label="${t('title')}">
+const logo = (line = '280') => `<svg class="logo" viewBox="0 0 420 120" aria-label="${t('title')}">
 <rect x="2" y="20" width="150" height="80" rx="14" fill="#f4f4ef"/><rect x="12" y="30" width="130" height="30" rx="5" fill="#101010"/>
-<text x="77" y="53" font-family="monospace" font-size="24" font-weight="700" text-anchor="middle" fill="#ffae1a">280</text>
+<text x="77" y="53" font-family="monospace" font-size="24" font-weight="700" text-anchor="middle" fill="#ffae1a">${line}</text>
 <path d="M4 84c26-16 44 8 70-6s40 10 76-4v14c0 6-4 10-10 10H14C8 98 4 94 4 88z" fill="#3a9d4a"/>
 <circle cx="38" cy="100" r="11" fill="#1d1d1d"/><circle cx="118" cy="100" r="11" fill="#1d1d1d"/>
 <text x="170" y="56" font-size="30" font-weight="700" fill="#eef3ee" font-family="Segoe UI,Roboto,Arial" textLength="244" lengthAdjust="spacingAndGlyphs">${L('Градски транспорт', 'Public Transport')}</text>
@@ -15,8 +22,9 @@ const ICON_WHEEL = '<svg class="ico" viewBox="0 0 24 24" fill="none" stroke="cur
 const ICON_PERSON = '<svg class="ico" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="5" r="2.5"/><path d="M12 8v7m0 0-3 6m3-6 3 6M7 11h10"/></svg>';
 
 export class Menu {
-  constructor(root, { settings, route, onStart, onSettingsChanged, voice }) {
+  constructor(root, { settings, route, onStart, onSettingsChanged, voice, onLine }) {
     this.root = root;
+    this.onLine = onLine || (() => {});
     this.settings = settings;
     this.route = route;
     this.onStart = onStart;
@@ -25,7 +33,8 @@ export class Menu {
     this.el = document.createElement('div');
     this.el.className = 'ui-root';
     root.appendChild(this.el);
-    this.setup = { mode: 'driver', fleet: settings.fleet || '3145', dirId: 'A', weather: 'clear', hour: 10.5, stopIndex: 3, traffic: settings.traffic || 'medium' };
+    this.line = String(route.line);
+    this.setup = { mode: 'driver', vehicle: settings[`vehicle${this.line}`] || 'random', fleet: settings.fleet || '3145', dirId: 'A', weather: 'clear', hour: 10.5, stopIndex: 3, traffic: settings.traffic || 'medium' };
   }
 
   clear() {
@@ -39,19 +48,30 @@ export class Menu {
   main() {
     this.clear();
     const save = loadSave();
+    const line = this.line;
+    const info = LINE_INFO[line] || LINE_INFO[280];
+    const fleetNames = lineVehicles(line).map((id) => vehicleSpec(id).short).join(' · ');
     const m = document.createElement('div');
     m.className = 'menu';
     m.innerHTML = `<div class="col">
-      ${logo()}
-      <div class="tag">${t('subtitle')}</div>
-      <button class="btn big primary" data-a="driver">${ICON_WHEEL}<span>${t('driver')}<small>MAN Lion's City G CNG · ${L('управлявайте линия 280', 'drive line 280')}</small></span></button>
+      ${logo(line)}
+      <div class="tag">${L(`Линия ${line} · ${info.bg}`, `Line ${line} · ${info.en}`)}</div>
+      <div class="seg line-pick">${Object.keys(LINE_INFO).map((n) => `<button data-line="${n}" class="${n === line ? 'on' : ''}"><b>${n}</b> <small>${L(LINE_INFO[n].sbg, LINE_INFO[n].sen)}</small></button>`).join('')}</div>
+      <button class="btn big primary" data-a="driver">${ICON_WHEEL}<span>${t('driver')}<small>${fleetNames} · ${L(`управлявайте линия ${line}`, `drive line ${line}`)}</small></span></button>
       <button class="btn big green" data-a="passenger">${ICON_PERSON}<span>${t('passenger')}<small>${L('пътувайте като пътник', 'ride as a passenger')}</small></span></button>
-      <button class="btn big" data-a="continue" ${save ? '' : 'disabled'}>▶<span>${t('cont')}<small>${save ? `${save.mode === 'driver' ? t('driver') : t('passenger')} · ${save.fleet}` : '—'}</small></span></button>
+      <button class="btn big" data-a="continue" ${save ? '' : 'disabled'}>▶<span>${t('cont')}<small>${save ? `${save.mode === 'driver' ? t('driver') : t('passenger')} · ${L('линия', 'line')} ${save.line || 280}` : '—'}</small></span></button>
       <div class="row"><button class="btn" data-a="settings">⚙ ${t('settings')}</button><button class="btn" data-a="credits">ⓘ ${t('credits')}</button>
       <button class="btn" data-a="lang">${L('EN', 'БГ')}</button></div>
-      <div class="foot">© OpenStreetMap contributors (ODbL) · Overture Maps · Mapzen Terrain Tiles.<br>Fan-made simulator; not affiliated with Sofia Urban Mobility Center or MAN Truck &amp; Bus.</div>
+      <div class="foot">© OpenStreetMap contributors (ODbL) · Overture Maps · Mapzen Terrain Tiles.<br>Fan-made simulator; not affiliated with Sofia Urban Mobility Center or the bus manufacturers.</div>
     </div>`;
     this.el.appendChild(m);
+    for (const b of m.querySelectorAll('[data-line]')) {
+      b.onclick = () => {
+        if (b.dataset.line === line) return;
+        b.innerHTML += ` <small>${L('зареждане…', 'loading…')}</small>`;
+        this.onLine(b.dataset.line); // the other line's world is loaded fresh (page reload)
+      };
+    }
     m.querySelector('[data-a=driver]').onclick = () => this.setupScreen('driver');
     m.querySelector('[data-a=passenger]').onclick = () => this.setupScreen('passenger');
     m.querySelector('[data-a=settings]').onclick = () => this.settingsScreen(() => this.main());
@@ -64,7 +84,7 @@ export class Menu {
       this.main();
     };
     const c = m.querySelector('[data-a=continue]');
-    if (save) c.onclick = () => this.onStart({ ...save, resume: true });
+    if (save) c.onclick = () => (String(save.line || 280) !== line ? this.onLine(String(save.line)) : this.onStart({ ...save, resume: true }));
   }
 
   seg(field, options, onChange) {
@@ -100,23 +120,64 @@ export class Menu {
     const p = document.createElement('div');
     p.className = 'panel setup';
     p.innerHTML = `<h2>${mode === 'driver' ? t('driver') : t('passenger')}</h2>`;
-    // bus
-    const bp = document.createElement('div');
-    bp.className = 'bus-pick';
-    for (const [n, plate, dep] of [['3145', 'CB 5696 HM', 'Земляне'], ['3153', 'CB 5713 HM', 'Земляне'], ['2319', 'CB 5720 HM', 'Дружба']]) {
-      const b = document.createElement('button');
-      b.innerHTML = `<b>${n}</b><small>${plate}</small>`;
-      b.className = this.setup.fleet === n ? 'on' : '';
-      b.onclick = () => {
-        this.setup.fleet = n;
-        [...bp.children].forEach((x) => x.classList.remove('on'));
-        b.classList.add('on');
-      };
-      void dep;
-      bp.appendChild(b);
-    }
-    p.appendChild(this.field(t('bus'), bp));
-    const dirOpts = [['A', '→ Студентски град'], ['B', '→ СУ „Св. Климент Охридски“']];
+    // bus: one of the line's vehicle types (with a fleet number) or a random dispatch per service
+    const line = this.line;
+    const ids = lineVehicles(line);
+    if (this.setup.vehicle !== 'random' && !ids.includes(this.setup.vehicle)) this.setup.vehicle = 'random';
+    const busBox = document.createElement('div');
+    const fleetBox = document.createElement('div');
+    const drawFleet = () => {
+      fleetBox.innerHTML = '';
+      const v = this.setup.vehicle;
+      if (v === 'random') {
+        // share of the first type when dispatching at random, and the seed that makes a day reproducible
+        const a = vehicleSpec(ids[0]).short, b = vehicleSpec(ids[1]).short;
+        const r = document.createElement('input');
+        r.type = 'range';
+        r.min = 0;
+        r.max = 100;
+        r.step = 5;
+        r.value = Math.round((this.settings[`share${line}`] ?? 0.5) * 100);
+        const lab = document.createElement('div');
+        lab.className = 'share-lab';
+        const upd = () => (lab.textContent = `${a} ${r.value}% · ${b} ${100 - r.value}%`);
+        r.oninput = () => {
+          this.settings[`share${line}`] = Number(r.value) / 100;
+          upd();
+        };
+        upd();
+        fleetBox.append(this.field(L('Разпределение', 'Distribution'), r), lab);
+        const seed = document.createElement('input');
+        seed.type = 'text';
+        seed.inputMode = 'numeric';
+        seed.placeholder = L('случаен', 'random');
+        seed.value = this.settings.dispatchSeed ?? '';
+        seed.oninput = () => (this.settings.dispatchSeed = seed.value.replace(/[^0-9]/g, ''));
+        fleetBox.append(this.field(L('Seed на разпределението (по избор)', 'Dispatch seed (optional)'), seed));
+        return;
+      }
+      const spec = vehicleSpec(v);
+      const bp = document.createElement('div');
+      bp.className = 'bus-pick';
+      if (!spec.fleets.some((f) => f.fleet === this.setup.fleet)) this.setup.fleet = spec.fleets[0].fleet;
+      for (const f of spec.fleets) {
+        const b = document.createElement('button');
+        b.innerHTML = `<b>${f.fleet}</b><small>${f.plate}</small>`;
+        b.className = this.setup.fleet === f.fleet ? 'on' : '';
+        b.onclick = () => {
+          this.setup.fleet = f.fleet;
+          [...bp.children].forEach((x) => x.classList.remove('on'));
+          b.classList.add('on');
+        };
+        bp.appendChild(b);
+      }
+      fleetBox.appendChild(this.field(L('Гаражен номер', 'Fleet number'), bp));
+    };
+    busBox.appendChild(this.seg('vehicle', [...ids.map((id) => [id, vehicleSpec(id).short]), ['random', L('Случаен', 'Random')]], drawFleet));
+    p.appendChild(this.field(t('bus'), busBox));
+    p.appendChild(fleetBox);
+    drawFleet();
+    const dirOpts = ['A', 'B'].map((id) => [id, `→ ${this.route.direction(id).headsign}`]);
     let stopSel = null;
     const fillStops = () => {
       if (!stopSel) return;
@@ -170,7 +231,8 @@ export class Menu {
     go.style.flex = '1';
     go.textContent = `${t('start')} ▶`;
     go.onclick = () => {
-      this.settings.fleet = this.setup.fleet;
+      this.settings[`vehicle${line}`] = this.setup.vehicle;
+      if (this.setup.vehicle === 'man') this.settings.fleet = this.setup.fleet;
       this.settings.traffic = this.setup.traffic;
       const qualityChanged = q.quality !== this.settings.quality;
       this.settings.quality = q.quality;
@@ -253,7 +315,7 @@ export class Menu {
     p.appendChild(info);
     const test = document.createElement('button');
     test.className = 'btn';
-    test.textContent = L('▶ Тест: „Следваща спирка Военна академия.“', '▶ Test the announcement voice (Bulgarian)');
+    test.textContent = L('▶ Тест: „Следваща спирка …“', '▶ Test the announcement voice (Bulgarian)');
     test.onclick = () => this.onSettingsChanged(s, 'testVoice');
     p.appendChild(test);
     const tb = document.createElement('button');
@@ -287,13 +349,13 @@ export class Menu {
     p.style.right = 'auto';
     p.style.transform = 'translateX(-50%)';
     p.innerHTML = `<h2>${t('credits')}</h2>
-      <p><b>Sofia Public Transport — Bus 280</b><br>${L('Независим фен проект / independent fan project.', 'Independent fan project.')}</p>
+      <p><b>Sofia Public Transport — ${L('линии 280 и 64', 'lines 280 and 64')}</b><br>${L('Независим фен проект / independent fan project.', 'Independent fan project.')}</p>
       <p>${L('<b>Карта и спирки:</b> © OpenStreetMap contributors (ODbL 1.0), разпространено чрез Overture Maps Foundation (release 2026-10-21.0). Кодовете на спирките са официалните кодове на ЦГМ / sofiatraffic.bg.', '<b>Map and stops:</b> © OpenStreetMap contributors (ODbL 1.0), distributed via the Overture Maps Foundation (release 2026-10-21.0). Stop codes are the official codes of the Sofia Urban Mobility Center / sofiatraffic.bg.')}</p>
       <p>${L('<b>Релеф:</b>', '<b>Terrain:</b>')} Mapzen / AWS Terrain Tiles (SRTM, EU-DEM).</p>
-      <p>${L('<b>Автобус:</b> MAN Lion\'s City G CNG (A23) — процедурен 3D модел по референтни снимки; размери по публични данни (приблизителни).', '<b>Bus:</b> MAN Lion\'s City G CNG (A23) — procedural 3D model based on reference photos; dimensions from public data (approximate).')}</p>
+      <p>${L('<b>Автобуси:</b> MAN Lion\'s City G CNG, Mercedes-Benz Conecto G, BMC Procity CNG, Yutong ZK6126HGA — процедурни 3D модели по референтни снимки; размери по публични данни (приблизителни).', '<b>Buses:</b> MAN Lion\'s City G CNG, Mercedes-Benz Conecto G, BMC Procity CNG, Yutong ZK6126HGA — procedural 3D models based on reference photos; dimensions from public data (approximate).')}</p>
       <p>${L('<b>Звук:</b> изцяло синтезиран в реално време (WebAudio). Гласът на съобщенията е българският глас на устройството или вградени лицензирани записи.', '<b>Sound:</b> fully synthesised in real time (WebAudio). Announcements use the device\'s Bulgarian voice or bundled licensed recordings.')}</p>
       <p>${L('<b>Технологии:</b>', '<b>Technology:</b>')} three.js (MIT), esbuild.</p>
-      <p style="color:var(--dim);font-size:.85em">${L('MAN и Lion\'s City са търговски марки на MAN Truck &amp; Bus SE. Проектът не е свързан с MAN, Столичен автотранспорт или Центъра за градска мобилност.', 'MAN and Lion\'s City are trademarks of MAN Truck &amp; Bus SE. This project is not affiliated with MAN, Stolichen Avtotransport or the Sofia Urban Mobility Center.')}</p>`;
+      <p style="color:var(--dim);font-size:.85em">${L('MAN, Lion\'s City, Mercedes-Benz, Conecto, BMC, Procity и Yutong са търговски марки на съответните притежатели. Проектът не е свързан с производителите, Столичен автотранспорт или Центъра за градска мобилност.', 'MAN, Lion\'s City, Mercedes-Benz, Conecto, BMC, Procity and Yutong are trademarks of their owners. This project is not affiliated with the manufacturers, Stolichen Avtotransport or the Sofia Urban Mobility Center.')}</p>`;
     const back = document.createElement('button');
     back.className = 'btn primary';
     back.textContent = t('back');

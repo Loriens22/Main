@@ -11,6 +11,7 @@
 //      never substitutes an English voice reading Bulgarian text.
 import voiceClips from '../data/voice-clips.json';
 import { L } from '../ui/i18n.js';
+import { pronounce } from './pronounce.js';
 
 const FEMALE_HINTS = /kalina|калина|daria|дария|female|жен|google|natural/i;
 const MALE_HINTS = /ivan|иван|male(?!.*female)/i;
@@ -99,7 +100,7 @@ export class VoiceAnnouncer {
       if (this.synth && this.voice && volume > 0.02) {
         try {
           this.synth.cancel();
-          const u = new SpeechSynthesisUtterance(msg.text);
+          const u = new SpeechSynthesisUtterance(pronounce(msg.text));
           u.voice = this.voice;
           u.lang = this.voice.lang || 'bg-BG';
           u.rate = this.settings.voiceRate ?? 0.93;

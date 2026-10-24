@@ -6,6 +6,7 @@
 // change-filtered parameter writes.
 import { dB, clamp, lerp, firingWave, lopeWave, pulseWave, zoneFor, dopplerCents } from './dsp.js';
 import { Events } from './OneShots.js';
+import { engineProfile } from './EngineProfiles.js';
 
 // write an AudioParam target only when it moved (the game calls setState 12-20 times a second)
 function setP(p, v, t, tc, eps) {
@@ -145,10 +146,30 @@ export class BusVoice {
       }
     }
 
+    this.setProfile('man_cng');
     this.z = zoneFor({ zone: 'out', dist: 6 });
     this.boost = 0; this.lastT = 0; this.armed = false; this.lastFlutter = -9;
     this.attached = null;
     this.setListener(0, { zone: 'out', dist: 6 });
+  }
+
+  /** Retune the voice for an engine type (EngineProfiles.js); called when the voice changes bus. */
+  setProfile(name) {
+    if (name === this.profName) return;
+    this.profName = name;
+    const P = (this.P = engineProfile(name)), c = this.ctx, B = this.B;
+    const wave = (k, sl, n, r) => B[k] || (B[k] = firingWave(c, sl, n, r));
+    this.oIdle.setPeriodicWave(wave(`waveIdle_${name}`, P.slopes[0], 40, 16));
+    this.oLoad.setPeriodicWave(wave(`waveLoad_${name}`, P.slopes[1], 48, 26));
+    const t = c.currentTime;
+    P.fm.forEach(([f, q, g], i) => {
+      this.fm[i].frequency.setValueAtTime(f, t);
+      this.fm[i].Q.setValueAtTime(q, t);
+      this.fm[i].gain.setValueAtTime(g, t);
+    });
+    if (this.wobA) this.wobA.gain.setValueAtTime(P.wobble[0], t);
+    if (this.wobB) this.wobB.gain.setValueAtTime(P.wobble[1], t);
+    if (this.tick) { this.tick.bp.frequency.setValueAtTime(P.tickF, t); this.tick.bp.Q.setValueAtTime(P.tickQ, t); }
   }
 
   attach(dest) {
@@ -199,6 +220,8 @@ export class BusVoice {
   /** Drive the voice. s: {rpm, load 0..1, speed m/s, retarder 0..1, surface, engineOn, comp bool} */
   setState(t, s) {
     const tc = 0.05, rpm = Math.max(0, s.rpm), load = clamp(s.load, 0, 1), v = Math.abs(s.speed), on = s.engineOn !== false && rpm > 120;
+    if (s.profile && s.profile !== this.profName) this.setProfile(s.profile);
+    const P = this.P;
     const z = this.z, dt = Math.max(0, t - this.lastT); this.lastT = t;
     const fc = rpm / 120, ff = rpm / 20;
     const setF = (p, f) => setP(p, Math.max(0.5, f), t, tc, 0.001);
@@ -207,12 +230,12 @@ export class BusVoice {
     const lw = clamp(load * 1.15, 0, 1);
     setP(this.gIdle.gain, (1 - lw) * 0.9, t, 0.08);
     setP(this.gLoad.gain, lw * 1.0, t, 0.08);
-    if (this.gLope) setP(this.gLope.gain, lerp(0.22, 0.07, lw) * (rpm < 900 ? 1.15 : 1), t, 0.1);
-    const toneDb = lerp(-4, -3.5, lw) + (rpm < 900 ? 0 : 1.5 * clamp((rpm - 900) / 900, 0, 1));
+    if (this.gLope) setP(this.gLope.gain, lerp(0.22, 0.07, lw) * (rpm < 900 ? 1.15 : 1) * P.lope, t, 0.1);
+    const toneDb = lerp(-4, -3.5, lw) + (rpm < 900 ? 0 : 1.5 * clamp((rpm - 900) / 900, 0, 1)) + P.tone;
     setP(this.engGain.gain, on ? dB(toneDb) : 0, t, 0.06);
     setP(this.fmLp.frequency, 1300 + 2400 * lw, t, 0.1, 0.01);
-    setP(this.gIntake.gain, on ? dB(lerp(-21, -10, lw)) : 0, t, 0.1);
-    setP(this.intakeBp.frequency, 280 + 220 * lw, t, 0.1, 0.01);
+    setP(this.gIntake.gain, on ? dB(lerp(-21, -10, lw) + P.intake) : 0, t, 0.1);
+    setP(this.intakeBp.frequency, lerp(P.intakeF[0], P.intakeF[1], lw), t, 0.1, 0.01);
 
     // tyres (levels are for 50 km/h = 13.9 m/s)
     const vr = Math.max(v, 0.01), k = clamp(Math.pow(vr / 13.9, 1.35), 0, 3.2), brick = s.surface === 'brick' || s.surface === 'sett' ? 1 : 0;
@@ -224,18 +247,19 @@ export class BusVoice {
 
     setF(this.oAM.frequency, ff);
     // combustion roar / tick
-    this.roar.bp.frequency.setTargetAtTime(700 + 1000 * lw, t, 0.1);
-    setP(this.roar.out.gain, on ? dB(lerp(-21, -12, lw)) : 0, t, 0.08);
-    setP(this.tick.out.gain, on ? dB(lerp(-27, -19, lw)) : 0, t, 0.08);
+    this.roar.bp.frequency.setTargetAtTime(lerp(P.roarF[0], P.roarF[1], lw), t, 0.1);
+    setP(this.roar.out.gain, on ? dB(lerp(-21, -12, lw) + P.roar) : 0, t, 0.08);
+    // ignition tick (CNG) or injector clatter (diesel: loudest at idle)
+    setP(this.tick.out.gain, on ? dB(lerp(-27 + P.tickIdle, -19 + P.tick, lw)) : 0, t, 0.08);
     // turbo (boost lags the pedal: 0.35 s up, 0.9 s down)
     const bt = clamp((load - 0.15) / 0.85, 0, 1) * clamp((rpm - 800) / 700, 0, 1);
     this.boost += (bt - this.boost) * (1 - Math.exp(-dt / (bt > this.boost ? 0.35 : 0.9)));
     const bo = this.boost, spooled = bo > 0.02 ? 1 : 0;
-    setF(this.turboO.frequency, 2600 + 3400 * bo);
-    setP(this.gTurbo.gain, on ? dB(-50 + 18 * bo + z.turbo) * spooled : 0, t, 0.05);
+    setF(this.turboO.frequency, lerp(P.turboF[0], P.turboF[1], bo));
+    setP(this.gTurbo.gain, on ? dB(-50 + 18 * bo + z.turbo + P.turbo) * spooled : 0, t, 0.05);
     if (this.gTurboN) {
       setP(this.turboBp.frequency, 2400 + 1600 * bo, t, 0.1, 0.01);
-      setP(this.gTurboN.gain, on ? dB(-44 + 14 * bo + z.turbo) * spooled : 0, t, 0.08);
+      setP(this.gTurboN.gain, on ? dB(-44 + 14 * bo + z.turbo + P.turbo * 0.6) * spooled : 0, t, 0.08);
     }
     if (this.flutterOn) {
       if (bo > 0.5) this.armed = true;
@@ -243,14 +267,14 @@ export class BusVoice {
     }
     // gearbox + axle whine
     const drive = clamp(0.35 + load, 0, 1.2);
-    const fg = 19 * rpm / 60, fa = 13 * 2.064 * v;
+    const fg = P.gbxOrder * rpm / 60, fa = 13 * 2.064 * v;
     setF(this.gbxO.frequency, fg);
-    setP(this.gGbx.gain, on && v > 0.8 ? dB(-46 + z.whine + 6 * (drive - 0.35)) : 0, t, 0.1);
+    setP(this.gGbx.gain, on && v > 0.8 ? dB(-46 + z.whine + 6 * (drive - 0.35) + P.gbx) : 0, t, 0.1);
     setF(this.axO.frequency, fa);
     const axAmt = clamp((v - 1.5) / 6, 0, 1);
     setP(this.gAx.gain, dB(-47 + z.whine) * axAmt * (load < 0.05 ? 1.6 : 1), t, 0.1);
     if (this.gbxO2) {
-      setF(this.gbxO2.frequency, 2 * fg); setP(this.gGbx2.gain, on && v > 0.8 ? dB(-52 + z.whine + 6 * (drive - 0.35)) : 0, t, 0.1);
+      setF(this.gbxO2.frequency, 2 * fg); setP(this.gGbx2.gain, on && v > 0.8 ? dB(-52 + z.whine + 6 * (drive - 0.35) + P.gbx) : 0, t, 0.1);
       setF(this.axO2.frequency, 2 * fa); setP(this.gAx2.gain, dB(-55 + z.whine) * axAmt, t, 0.1);
     }
     const ret = clamp(s.retarder || 0, 0, 1);

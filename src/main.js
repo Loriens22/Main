@@ -37,6 +37,7 @@ async function boot() {
   if (!settings.quality) settings.quality = detectQuality();
   if (params.get('q')) settings.quality = params.get('q');
   saveSettings(settings);
+  if (params.has('seed')) settings.dispatchSeed = params.get('seed'); // test/debug: reproducible dispatch (not saved)
   setLang(settings.lang);
   const quality = settings.quality;
   if (!document.createElement('canvas').getContext('webgl2')) throw new Error(L('WebGL2 не се поддържа от този браузър / WebGL2 not supported', 'WebGL2 is not supported by this browser'));
@@ -81,6 +82,15 @@ async function boot() {
   let touchUI = null;
   const menu = new Menu(uiRoot, {
     settings, route, voice,
+    // another line: its world is a different map, loaded fresh
+    onLine: (n) => {
+      settings.line = String(n);
+      saveSettings(settings);
+      const u = new URL(location.href);
+      for (const k of ['autostart', 'dir', 'stop', 'veh', 'fleet']) u.searchParams.delete(k);
+      u.searchParams.set('line', String(n));
+      location.href = u.toString();
+    },
     onSettingsChanged: (s, action) => {
       audio.applyVolumes();
       input.sensitivity = s.sensitivity;
@@ -96,7 +106,10 @@ async function boot() {
           if (action === 'testBeep') {
             audio.doorBeep(1);
             setTimeout(() => audio.doorBeep(2), 420);
-          } else voice.play({ text: 'Следваща спирка Военна академия.', display: 'Военна академия', kind: 'next' }, 1, () => {});
+          } else {
+            const st = route.direction('A').stops[1];
+            voice.play({ text: `Следваща спирка ${st.speech || st.name}.`, display: st.name, kind: 'next' }, 1, () => {});
+          }
         });
       }
       saveSettings(s);
@@ -117,13 +130,13 @@ async function boot() {
       if (states.can('loading')) states.go('loading');
     }
     if (opts.qualityChanged || (opts.quality && opts.quality !== R.quality)) applyQuality(settings.quality);
-    const env = { hour: opts.hour ?? 10.5, weather: opts.weather || 'clear', vehicle: opts.vehicle || 'man', fleet: opts.fleet || null, dirId: opts.dirId || 'A', traffic: opts.traffic || 'medium' };
+    const env = { hour: opts.hour ?? 10.5, weather: opts.weather || 'clear', vehicle: opts.vehicle || settings[`vehicle${line}`] || 'random', fleet: opts.fleet || null, dirId: opts.dirId || 'A', traffic: opts.traffic || 'medium' };
     if (game.traffic) game.traffic.setDensity(env.traffic);
-    if (opts.mode === 'passenger') game.startPassenger({ ...env, stopIndex: opts.stopIndex ?? 3 });
+    if (opts.mode === 'passenger') game.startPassenger({ ...env, vehicle: opts.vehicle || 'random', stopIndex: opts.stopIndex ?? 3 });
     else game.startDriver(env);
     game.lastStart = { ...opts };
     states.go('playing');
-    writeSave({ mode: opts.mode, ...env, stopIndex: opts.stopIndex });
+    writeSave({ mode: opts.mode, line, ...env, stopIndex: opts.stopIndex });
     if (touchUI) touchUI.setMode(opts.mode);
   };
 
@@ -181,7 +194,7 @@ async function boot() {
       return b ? { v: +(b.phys.v * 3.6).toFixed(1), gear: b.phys.selector + b.phys.gear, s: Math.round(b.routeS), next: b.stops.next, off: +b.offRoute.toFixed(1), doors: b.doors.doors.map((d) => d.state[0]).join('') } : null;
     },
   };
-  if (params.get('autostart')) menu.hide(), startMode({ mode: params.get('autostart'), dirId: params.get('dir') || 'A', hour: Number(params.get('h') || 10.5), weather: params.get('w') || 'clear', stopIndex: Number(params.get('stop') || 3), vehicle: params.get('veh') || 'man', fleet: params.get('fleet') || (params.get('veh') && params.get('veh') !== 'man' ? null : '3145') });
+  if (params.get('autostart')) menu.hide(), startMode({ mode: params.get('autostart'), dirId: params.get('dir') || 'A', hour: Number(params.get('h') || 10.5), weather: params.get('w') || 'clear', stopIndex: Number(params.get('stop') || 3), vehicle: params.get('veh') || (line === '280' && params.get('autostart') === 'driver' ? 'man' : 'random'), fleet: params.get('fleet') || null });
 
   // main loop
   let last = performance.now();

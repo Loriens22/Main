@@ -74,13 +74,25 @@ export function doorSection(spec, id) {
   return d ? d.section : 'front';
 }
 
+/** Vehicle types a line may dispatch (ids), in menu order. */
+export function lineVehicles(line) {
+  return (LINE_FLEETS[line] || LINE_FLEETS[280]).map((v) => v.id);
+}
+
 /**
  * Picks a vehicle for a service: deterministic for a given (seed, service number) pair, so a service keeps
- * its bus for the whole trip and a debug seed reproduces a whole day of dispatches.
+ * its bus for the whole trip and a debug seed reproduces a whole day of dispatches. A choice that is not
+ * 'random' (and belongs to the line) is always used; shares = {id: weight} overrides the line's default
+ * distribution (a vehicle never runs on a line that does not list it).
  */
-export function dispatchVehicle(line, serviceNo, seed = 0, choice = 'random') {
-  const list = LINE_FLEETS[line] || LINE_FLEETS[280];
+export function dispatchVehicle(line, serviceNo, seed = 0, choice = 'random', shares = null) {
+  let list = LINE_FLEETS[line] || LINE_FLEETS[280];
   if (choice && choice !== 'random' && list.some((v) => v.id === choice)) return choice;
+  if (shares) {
+    const w = list.map((v) => Math.max(0, shares[v.id] ?? v.share));
+    const sum = w.reduce((a, b) => a + b, 0);
+    if (sum > 0) list = list.map((v, i) => ({ id: v.id, share: w[i] / sum }));
+  }
   let h = (Math.imul(serviceNo + 1, 0x9e3779b1) ^ Math.imul(seed + 7, 0x85ebca6b)) >>> 0;
   h ^= h >>> 15; h = Math.imul(h, 0x2c1b3c6d) >>> 0; h ^= h >>> 12;
   const u = (h >>> 8) / 16777216;
@@ -95,5 +107,5 @@ export function dispatchVehicle(line, serviceNo, seed = 0, choice = 'random') {
 /** A fleet number and plate of that vehicle type for a service (stable per service). */
 export function fleetFor(id, serviceNo) {
   const f = vehicleSpec(id).fleets;
-  return f[Math.abs(serviceNo) % f.length];
+  return f[Math.abs(Math.floor(serviceNo)) % f.length];
 }

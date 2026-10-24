@@ -10,6 +10,7 @@ export const DEFAULT_ANNOUNCE = {
   minGapAfterNext: 25, // m — if the bus is this close, a pending "next" is dropped
   terminalSuffix: 'Последна спирка.',
   enableTerminalSuffix: true,
+  requestSuffix: 'Спирка по желание.', // the bus stops only on request (STOP button) or for waiting passengers
 };
 
 export class AnnouncementManager {
@@ -36,7 +37,8 @@ export class AnnouncementManager {
   }
 
   textNext(stop) {
-    return `Следваща спирка ${stop.speech || stop.name}.`;
+    const t = `Следваща спирка ${stop.speech || stop.name}.`;
+    return stop.request ? `${t} ${this.opts.requestSuffix}` : t;
   }
 
   textArrival(stop) {

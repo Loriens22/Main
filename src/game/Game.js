@@ -8,6 +8,7 @@ import { t, L } from '../ui/i18n.js';
 import { clamp, fwdX, fwdZ } from '../core/math.js';
 import { Scoring } from '../gameplay/Scoring.js';
 import { PassengerMode } from './PassengerMode.js';
+import { dispatchVehicle, fleetFor, lineVehicles, vehicleSpec } from '../vehicle/Vehicles.js';
 import { BusLightRig } from '../render/BusLights.js';
 import { GameAudio } from '../audio/GameAudio.js';
 
@@ -45,6 +46,26 @@ export class Game {
     this.listeners.push(fn);
   }
 
+  /**
+   * The bus of the next service on this line: {serviceNo, vehicle, fleet}. With 'random' the vehicle type
+   * is dispatched per service (deterministic for the dispatch seed: settings.dispatchSeed, else this
+   * session's seed) using the line's share setting; a service keeps its bus for the whole trip.
+   */
+  nextService(choice = null) {
+    const line = String(this.route.line);
+    const s = this.settings;
+    if (this.serviceCounter == null) this.serviceCounter = 0;
+    if (this.sessionSeed == null) this.sessionSeed = Math.floor(Math.random() * 1e6);
+    const serviceNo = this.serviceCounter++;
+    const fixed = String(s.dispatchSeed ?? '').trim();
+    const seed = fixed !== '' && Number.isFinite(Number(fixed)) ? Number(fixed) : this.sessionSeed;
+    const ids = lineVehicles(line);
+    const share = Number(s[`share${line}`] ?? 0.5);
+    const shares = { [ids[0]]: share, [ids[1]]: 1 - share };
+    const vehicle = dispatchVehicle(line, serviceNo, seed, choice ?? s[`vehicle${line}`] ?? 'random', shares);
+    return { serviceNo, vehicle, fleet: fleetFor(vehicle, serviceNo + seed).fleet, seed };
+  }
+
   /** Remove the current bus and all mode state. */
   clear() {
     if (this.bus) this.bus.dispose();
@@ -72,7 +93,8 @@ export class Game {
     this.clear();
     this.mode = 'attract';
     this.hud.show(false);
-    const bus = (this.bus = new BusEntity({ scene: this.scene, world: this.world, route: this.route, dirId: 'A', vehicle: this.settings.vehicle || 'man', fleet: this.settings.vehicle && this.settings.vehicle !== 'man' ? null : this.settings.fleet || '3145', quality: this.quality }));
+    const sv = this.nextService();
+    const bus = (this.bus = new BusEntity({ scene: this.scene, world: this.world, route: this.route, dirId: 'A', vehicle: sv.vehicle, fleet: sv.fleet, quality: this.quality, serviceNo: sv.serviceNo }));
     bus.placeAt(this.route.direction('A').stops[0].frontS + 1);
     bus.doors.open(null, 0);
     bus.lights.head = this.sky.night > 0.3;
@@ -84,7 +106,11 @@ export class Game {
     this.mode = 'driver';
     this.setEnvironment(opts.hour, opts.weather);
     const dirId = opts.dirId || 'A';
-    const bus = (this.bus = new BusEntity({ scene: this.scene, world: this.world, route: this.route, dirId, vehicle: opts.vehicle || 'man', fleet: opts.fleet, quality: this.quality, player: true }));
+    // the bus: the one chosen in the menu, or the one dispatched to this service
+    const choice = opts.vehicle && opts.vehicle !== 'random' && lineVehicles(this.route.line).includes(opts.vehicle) ? opts.vehicle : 'random';
+    const sv = this.nextService(choice);
+    const fleet = choice !== 'random' && opts.fleet && vehicleSpec(sv.vehicle).fleets.some((f) => f.fleet === String(opts.fleet)) ? String(opts.fleet) : sv.fleet;
+    const bus = (this.bus = new BusEntity({ scene: this.scene, world: this.world, route: this.route, dirId, vehicle: sv.vehicle, fleet, quality: this.quality, player: true, serviceNo: sv.serviceNo }));
     bus.placeAt(bus.dir.stops[0].frontS);
     bus.phys.parkingBrake = true;
     bus.phys.selector = 'N';
@@ -100,7 +126,7 @@ export class Game {
     this.tripStart = null;
     this.trips = 0;
     this.checklistDone = false;
-    this.hud.toast(`${t('driver')} · ${this.route.line} → ${bus.dir.headsign}`);
+    this.hud.toast(`${t('driver')} · ${this.route.line} → ${bus.dir.headsign} · ${bus.spec.short} #${bus.fleet}`);
     if (this.traffic) this.traffic.setFocusBus(bus);
     if (this.peds) this.peds.attachBus(bus, true);
     this.emit('start', { mode: 'driver' });
@@ -395,7 +421,7 @@ export class Game {
     }
     this.hud.update(dt, {
       headsign: bus.dir.headsign,
-      nextStop: next ? next.name : bus.dir.headsign,
+      nextStop: next ? next.name : bus.dir.headsign, request: !!(next && next.request),
       atStop: bus.stops.atStop >= 0,
       dist: next ? next.frontS - bus.routeS : null,
       delay,

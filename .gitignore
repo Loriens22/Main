@@ -6,3 +6,4 @@ dist/
 data/research/**/crops*/
 data/research/audio/previews/*.wav
 __pycache__/
+.claude/worktrees/

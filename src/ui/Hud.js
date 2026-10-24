@@ -118,7 +118,7 @@ export class Hud {
     const q = this.q;
     q.dest.textContent = `→ ${s.headsign}`;
     q.name.textContent = s.nextStop || '—';
-    q.lbl.textContent = s.atStop ? t('stop') : t('nextStop');
+    q.lbl.textContent = (s.atStop ? t('stop') : t('nextStop')) + (s.request ? L(' · по желание', ' · request stop') : '');
     q.dist.textContent = s.dist != null && isFinite(s.dist) ? (s.dist > 1000 ? L(`${(s.dist / 1000).toFixed(1)} км`, `${(s.dist / 1000).toFixed(1)} km`) : L(`${Math.max(0, Math.round(s.dist))} м`, `${Math.max(0, Math.round(s.dist))} m`)) : '';
     if (s.delay != null) {
       const d = Math.round(s.delay);

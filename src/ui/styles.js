@@ -36,6 +36,12 @@ export const CSS = /* css */ `
 .seg{display:flex;flex-wrap:wrap;gap:6px}
 .seg button{flex:1 1 auto;min-width:64px;padding:9px 10px;border-radius:10px;border:1px solid var(--line);background:rgba(255,255,255,.05);color:var(--text);cursor:pointer;font:inherit;font-size:.9em}
 .seg button.on{background:rgba(255,174,26,.18);border-color:var(--accent);color:#ffd28a}
+.line-pick{margin:4px 0 2px}
+.line-pick button{display:flex;flex-direction:column;align-items:center;gap:2px;padding:8px 10px}
+.line-pick button b{font-size:1.35em;font-family:monospace;color:#ffae1a}
+.line-pick button small{font-size:.72em;color:var(--dim);line-height:1.2}
+.share-lab{font-size:.8em;color:var(--dim);margin:-2px 0 8px}
+.field input[type=text]{width:100%;box-sizing:border-box;padding:9px 10px;border-radius:10px;border:1px solid var(--line);background:rgba(255,255,255,.06);color:var(--text);font:inherit}
 select,input[type=range]{width:100%;font:inherit}
 select{background:#16211b;color:var(--text);border:1px solid var(--line);border-radius:10px;padding:10px}
 .bus-pick{display:grid;grid-template-columns:repeat(3,1fr);gap:8px}

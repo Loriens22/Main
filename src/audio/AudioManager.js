@@ -407,7 +407,7 @@ export class AudioManager {
       case 'opening':
         Events.doorOpen(this.ctx, o.dest, o.t, this.bufs, o.k); this.duckAmb(1.8); break;
       case 'beep':
-        this.beep(o, e.n);
+        this.beep(o, e.n, where && where.warn);
         break;
       case 'closingStart':
         Events.doorClose(this.ctx, o.dest, o.t, this.bufs, o.k); this.duckAmb(2.4); break;
@@ -418,10 +418,11 @@ export class AudioManager {
     }
   }
 
-  beep(o, n) {
+  beep(o, n, warn = null) {
     const s = this.settings;
     void n; // the real pitch pattern of beep 1 and 2 is unconfirmed: both use the configured pitch
-    const g = Events.doorBeep(this.ctx, o.dest, o.t, this.bufs, o.k, s.beepFreq ?? 1850, s.beepDur ?? 0.24);
+    // warn = {freq, ms} of a vehicle with its own buzzer (Conecto: one long buzz, BMC/Yutong: short beeps)
+    const g = Events.doorBeep(this.ctx, o.dest, o.t, this.bufs, o.k, warn ? warn.freq : s.beepFreq ?? 1850, warn ? warn.ms / 1000 : s.beepDur ?? 0.24);
     if (this.zone !== 'outside' && g) { const send = this.ctx.createGain(); send.gain.value = dB(-8); g.connect(send); send.connect(this.reverb); }
   }
 

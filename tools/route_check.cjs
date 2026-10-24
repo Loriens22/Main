@@ -1,6 +1,6 @@
 // Drives the player's bus along a whole direction with the AI driver (headless) and checks
 // that every stop is served: doors open at each stop, nothing stalls, the trip ends at the terminal.
-//   node tools/route_check.cjs <game.html> [A|B] [maxMinutes]
+//   [VEH=conecto|procity|yutong] [LINE=64] [SEED=n] node tools/route_check.cjs <game.html> [A|B] [maxMinutes]
 const { chromium } = require('/opt/node22/lib/node_modules/playwright');
 const path = require('path');
 (async () => {
@@ -9,7 +9,7 @@ const path = require('path');
   const p = await b.newPage({ viewport: { width: 480, height: 270 } });
   const errs = [];
   p.on('pageerror', (e) => errs.push(e.message));
-  await p.goto('file://' + path.resolve(html) + `?noloop&q=balanced&autostart=driver&dir=${dir}&stop=0&h=12${process.env.VEH ? '&veh=' + process.env.VEH : ''}`);
+  await p.goto('file://' + path.resolve(html) + `?noloop&q=balanced&autostart=driver&dir=${dir}&stop=0&h=12${process.env.VEH ? '&veh=' + process.env.VEH : ''}${process.env.LINE ? '&line=' + process.env.LINE : ''}${process.env.SEED ? '&seed=' + process.env.SEED : ''}`);
   await p.waitForFunction(() => window.__game && window.__game.ready, null, { timeout: 240000 });
   await p.evaluate(() => {
     const G = __game, g = G.game, bus = g.bus;

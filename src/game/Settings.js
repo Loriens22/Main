@@ -9,6 +9,12 @@ export const DEFAULTS = {
   voiceName: '', voiceRate: 0.93,
   beepFreq: 1850, beepDur: 0.24,
   fleet: '3145', traffic: 'medium',
+  // lines and dispatch: the line played, the bus per line ('random' = dispatched per service),
+  // the share of the first vehicle type of each line when random, and an optional fixed seed
+  line: '280',
+  vehicle280: 'random', vehicle64: 'random',
+  share280: 0.5, share64: 0.5,
+  dispatchSeed: '',
 };
 
 const KEY = 'sofia280.settings.v1';
