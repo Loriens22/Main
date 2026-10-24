@@ -26,6 +26,28 @@ bus_zone = bus_lines[0].union(bus_lines[1])
 for bl_ in bus_lines[2:]:
     bus_zone = bus_zone.union(bl_)
 bus_zone = bus_zone.buffer(3.0)
+# The carriageway the bus drives on: each direction's centre line buffered by its half width (the bus,
+# kept inside its half of the road by the lane offset, never leaves it). Mapped building footprints
+# that overhang it (OSM geometry offsets on narrow villa streets) would wall the bus in; they are
+# clipped back to it. Terminal links get a fixed width.
+def _carriageway():
+    from shapely.ops import unary_union
+    pieces = []
+    for k in 'AB':
+        d = route['directions'][k]
+        pts, lane = d['path'], d['lane']
+        for i in range(len(pts) - 1):
+            if pts[i] == pts[i + 1]:
+                continue
+            hw = min(max(lane[min(i, len(lane) - 1)][0] / 10, 3.0), 7.5) + 0.25
+            pieces.append(LineString([pts[i], pts[i + 1]]).buffer(hw, cap_style=1, resolution=2))
+    for v in (route.get('terminalLinks') or {}).values():
+        if len(v) > 1:
+            pieces.append(LineString(v).buffer(3.6, resolution=2))
+    return unary_union(pieces)
+
+
+bus_clear = _carriageway()
 corridor_near = route_union.buffer(450)
 corridor_mid = route_union.buffer(900)
 
@@ -401,6 +423,11 @@ for b in bl:
     g = proj(wkb.loads(b['geometry']))
     if not g.is_valid:
         g = g.buffer(0)
+    if g.intersects(bus_clear):
+        g = g.difference(bus_clear)
+        stats['clipped by the carriageway'] += 1
+        if g.is_empty or g.area < 6:
+            continue
     c = g.centroid
     if not corridor_mid.contains(c) and g.distance(route_union) > 900:
         stats['far'] += 1
@@ -433,6 +460,12 @@ for b in bl:
         # Base outline is still emitted (low), parts carry the real massing.
         for pt in bparts:
             pg = proj(wkb.loads(pt['geometry']))
+            if not pg.is_valid:
+                pg = pg.buffer(0)
+            if pg.intersects(bus_clear):
+                pg = pg.difference(bus_clear)
+                if pg.is_empty:
+                    continue
             ph = pt.get('height') or ((pt.get('num_floors') or 0) * 3.2 + 1 if pt.get('num_floors') else height)
             pmin = pt.get('min_height') or ((pt.get('min_floor') or 0) * 3.2 if pt.get('min_floor') else 0)
             if ph <= pmin:

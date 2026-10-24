@@ -5,6 +5,7 @@ import { Vegetation } from './Vegetation.js';
 import { StreetFurniture } from './StreetFurniture.js';
 import { Landmarks } from './Landmarks.js';
 import { ShopSigns } from './ShopSigns.js';
+import { buildPlotWalls } from './PlotWalls.js';
 import { SegmentGrid } from './SpatialIndex.js';
 import { TrafficManager } from '../gameplay/TrafficManager.js';
 import { PedestrianManager } from '../gameplay/PedestrianManager.js';
@@ -31,7 +32,7 @@ export async function buildExtras({ scene, world, route, quality }) {
     try {
       await fn();
     } catch (e) {
-      console.error(`[extras] ${label} failed`, e);
+      console.error(`[extras] ${label} failed`, (e && e.stack) || e);
     }
     await new Promise((r) => setTimeout(r, 0));
   };
@@ -46,6 +47,13 @@ export async function buildExtras({ scene, world, route, quality }) {
     out.furniture = f;
     world.parkedBoxes = f.parkedBoxes;
     world.stopObjects = f.stopObjects;
+  });
+  // garden walls and fences of the detached houses (villa districts), before the trees
+  await safe('plot walls', () => {
+    const r = buildPlotWalls({ world, route, sweep, quality });
+    for (const g of r.groups) world.addToTile(tileKey(g.name), g);
+    out.plotWalls = r.plots;
+    world.gardenTrees = r.gardens;
   });
   await safe('vegetation', () => {
     const v = new Vegetation({ scene, world, quality });

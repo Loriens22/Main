@@ -160,6 +160,11 @@ export class Vegetation {
         if (this.okSpot(x, z, 1.2)) this.add(x, z, sp, 0.9);
       }
     }
+    // 5. garden trees of the villa plots (PlotWalls.js): fruit trees, limes, conifers
+    for (const [x, z, sc] of w.gardenTrees || []) {
+      if (hash2(Math.round(x * 3), Math.round(z * 3)) > density) continue;
+      if (this.okSpot(x, z, 1.0)) this.add(x, z, null, sc);
+    }
     const max = this.quality === 'balanced' ? 9000 : this.quality === 'high' ? 16000 : 24000;
     if (this.trees.length > max) {
       // keep the trees nearest to the route
