@@ -1,11 +1,12 @@
-// Yutong ZK6126HGA (CNG, per Yutong Bulgaria) in the orange Sofia livery with white leaves.
-// Reference photos: data/research/ref_photos/v2/ref12..15_yutong.jpg. Approximate until measured.
-import { autoLayout } from '../autoLayout.js';
+// Yutong ZK6126HGA (CNG, Euro 6) in the orange Sofia livery with white leaf ornaments.
+// Reference photos: data/research/ref_photos/v2/ref12..15_yutong.jpg. Dimensions measured on them (NOTES.md).
+import { K, FY } from './consts.js';
+import { buildLayout } from './layout.js';
 
 const dims = {
-  length: 12.0, width: 2.5, halfW: 1.25, roofY: 2.95, podY: 3.25, skirtY: 0.33, floorY: 0.34,
-  beltY: 1.1, windowTopY: 2.55, wheelR: 0.478, track: 2.05,
-  frontOverhang: 2.55, wb1: 6.1, rearOverhang: 3.35, wb2: 0, hitchBehindAxle2: 0, bellowsGap: 0,
+  length: K.rearZ - K.frontZ, width: 2.5, halfW: K.hw, roofY: K.roofY, podY: K.rearPodY, skirtY: K.skirtY, floorY: FY,
+  beltY: K.beltY, windowTopY: K.winTopY, wheelR: K.wheelR, track: 2.06,
+  frontOverhang: -K.frontZ + K.axleF, wb1: -K.axleF, rearOverhang: K.rearZ, wb2: 0, hitchBehindAxle2: 0, bellowsGap: 0,
   maxSteer: 0.72, maxArticulation: 0, steeringRatio: 20,
 };
 
@@ -16,11 +17,8 @@ const spec = {
   lines: ['64'],
   articulated: false,
   dims,
-  doors: [
-    { id: 1, section: 'front', z0: -8.36, z1: -7.16 },
-    { id: 2, section: 'front', z0: -2.25, z1: -1.05 },
-    { id: 3, section: 'front', z0: 0.9, z1: 2.1 },
-  ],
+  // measured on ref13: front door ahead of the steered axle, middle door ahead of the rear axle, rear door behind it
+  doors: K.doors.map((d) => ({ ...d })),
   look: { body: 0xf28a1c, roof: 0xf28a1c, window: 0x08090b, lower: 0x111213, stripe: null, seat: 0xa7adb2, pole: 0xc9cdd0, floor: 0x3e4246, led: '#ff9a1a' },
   // CNG six-cylinder (~8.4 l, ~240 kW), 6-speed automatic (approximate)
   physics: {
@@ -30,7 +28,8 @@ const spec = {
   },
   audio: { profile: 'yutong_cng' },
   doorWarning: { beeps: 3, freq: 2300, ms: 100 },
+  // placeholders: no real Sofia fleet numbers / plates could be verified (NOTES.md)
   fleets: [{ fleet: '1501', plate: 'СВ 4501 НВ' }, { fleet: '1502', plate: 'СВ 4502 НВ' }, { fleet: '1503', plate: 'СВ 4503 НВ' }],
 };
-spec.layout = autoLayout(spec, { bay: { sec: 'front', side: 'L', z0: -2.4, z1: -1.0 } });
+spec.layout = buildLayout(spec);
 export default spec;
