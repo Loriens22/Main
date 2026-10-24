@@ -335,7 +335,17 @@ export class StreetFurniture {
     const out = [];
     const L = this.world.data.lines;
     const masks = lineMasksFor(this.world.line);
-    this.masked = (x, z) => masks.some((m) => Math.hypot(x - m.x, z - m.z) < m.r);
+    const nearLine = (pts, x, z) => {
+      let best = Infinity;
+      for (let i = 0; i + 3 < pts.length; i += 2) {
+        const ax = pts[i], az = pts[i + 1], dx = pts[i + 2] - ax, dz = pts[i + 3] - az;
+        const t = Math.max(0, Math.min(1, ((x - ax) * dx + (z - az) * dz) / (dx * dx + dz * dz || 1e-9)));
+        best = Math.min(best, Math.hypot(x - ax - dx * t, z - az - dz * t));
+      }
+      return best;
+    };
+    // a mask is a circle {x, z, r} or a polyline {pts: [x, z, ...], d} that a landmark redraws
+    this.masked = (x, z) => masks.some((m) => (m.pts ? nearLine(m.pts, x, z) < (m.d || 1.5) : Math.hypot(x - m.x, z - m.z) < m.r));
     const make = (lines, h, mat, thick) => {
       const geos = [];
       for (const p of lines) {

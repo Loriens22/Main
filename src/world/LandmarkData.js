@@ -83,7 +83,7 @@ export function replacedFor(line) {
   return String(line) === '64' ? REPLACED64 : REPLACED;
 }
 
-/** Circles in which a hand-built landmark redraws the OSM fences / walls ({x, z, r}). */
+/** Where a hand-built landmark redraws the OSM fences / walls: circles {x, z, r} or polylines {pts, d}. */
 export function lineMasksFor(line) {
   return String(line) === '64' ? LINE_MASKS64 : [];
 }

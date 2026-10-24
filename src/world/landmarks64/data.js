@@ -23,10 +23,19 @@ export const REPLACED64 = [
   { x: -3352.5, z: 3845.3, r: 2.5, id: 8747, note: 'Dragalevtsi cemetery chapel' },
 ];
 
+/** The stretch of the Boyana Residence park fence (OSM) that runs along the road past stops 1439 / 1448. */
+export const RESIDENCE_FENCE = [
+  -6974.0, 2173.8, -6975.0, 2191.1, -6957.0, 2202.5, -6940.1, 2214.4, -6927.3, 2221.0, -6914.0, 2226.8,
+  -6898.2, 2232.0, -6881.2, 2236.1, -6866.2, 2238.8, -6848.7, 2240.2, -6825.8, 2240.2, -6797.8, 2238.4,
+  -6712.5, 2232.5, -6650.2, 2214.2, -6446.0, 2200.5,
+];
+
 /**
- * OSM fence / wall lines that a hand-built landmark redraws (its own fence, gate or wall): any OSM
- * line segment whose midpoint lies inside one of these circles is left out of the street furniture.
+ * OSM fence / wall lines that a hand-built landmark redraws (its own fence, gate or wall): an OSM line
+ * segment whose midpoint lies inside a circle {x, z, r} or within d of a polyline {pts, d} is left out
+ * of the street furniture.
  */
 export const LINE_MASKS64 = [
   { x: -1966, z: 1090, r: 9, note: 'zoo west entrance: pavilion and gate in the fence line' },
+  { pts: RESIDENCE_FENCE, d: 1.5, note: 'Boyana Residence: the park fence along the road' },
 ];
