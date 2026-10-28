@@ -266,8 +266,8 @@ def torus(name, c, axis, R, r, m=None, segs=32, rsegs=8):
     return o
 
 
-def tube(name, pts, r, m=None, segs=8, res=4, caps=True):
-    """Swept tube through wall-frame points (smooth Bezier, auto handles)."""
+def tube(name, pts, r, m=None, segs=8, res=4, caps=True, cyclic=False):
+    """Swept tube through wall-frame points (smooth Bezier, auto handles); cyclic closes the loop."""
     cu = bpy.data.curves.new(name + '_c', 'CURVE')
     cu.dimensions = '3D'
     cu.bevel_depth = r
@@ -279,6 +279,7 @@ def tube(name, pts, r, m=None, segs=8, res=4, caps=True):
     for bp, p in zip(sp.bezier_points, pts):
         bp.co = W(*p)
         bp.handle_left_type = bp.handle_right_type = 'AUTO'
+    sp.use_cyclic_u = cyclic
     o = bpy.data.objects.new(name + '_tmp', cu)
     bpy.context.scene.collection.objects.link(o)
     dg = bpy.context.evaluated_depsgraph_get()
@@ -517,3 +518,72 @@ def export_glb(objs, path, jpeg_quality=88):
                               export_tangents=True, export_image_format='JPEG', export_jpeg_quality=jpeg_quality,
                               export_materials='EXPORT', export_yup=True, export_texcoords=True, export_normals=True,
                               export_extras=True)
+
+
+def lathe(name, prof, segs=48, m=None, a0=0.0, a1=2 * math.pi, axis='x', smooth=True, close=True):
+    """Surface of revolution about the piece's x axis (three.js frame) from a profile [(r, x), ...];
+    a full turn shares its seam vertices, a partial one (a0..a1) is open."""
+    full = close and abs(a1 - a0 - 2 * math.pi) < 1e-6
+    n = segs if full else segs + 1
+    bm = bmesh.new()
+    rings = []
+    for i in range(n):
+        a = a0 + (a1 - a0) * i / segs
+        ring = []
+        for r, x in prof:
+            # three.js (x, r cos a, r sin a) -> wall frame (t, u, n)
+            ring.append(bm.verts.new(W(x, r * math.cos(a), r * math.sin(a))))
+        rings.append(ring)
+    for i in range(segs):
+        A, B = rings[i], rings[(i + 1) % n]
+        for j in range(len(prof) - 1):
+            try:
+                bm.faces.new((A[j], A[j + 1], B[j + 1], B[j]))
+            except ValueError:
+                pass
+    if full:
+        bmesh.ops.remove_doubles(bm, verts=bm.verts, dist=1e-6)
+    bmesh.ops.recalc_face_normals(bm, faces=bm.faces)
+    me = bpy.data.meshes.new(name)
+    bm.to_mesh(me)
+    bm.free()
+    if smooth:
+        for p in me.polygons:
+            p.use_smooth = True
+    return _obj(name, me, m)
+
+
+def render_preview(objs, path, d=(0.55, -1.0, 0.35), res=512, lens=50, zoom=1.25, target=None):
+    """Cycles still of the given objects (modelling check); d = view direction in Blender axes."""
+    sc = bpy.context.scene
+    mn = Vector((1e9, 1e9, 1e9)); mx = Vector((-1e9, -1e9, -1e9))
+    for o in objs:
+        for v in o.data.vertices:
+            p = o.matrix_world @ v.co
+            mn = Vector((min(mn.x, p.x), min(mn.y, p.y), min(mn.z, p.z))); mx = Vector((max(mx.x, p.x), max(mx.y, p.y), max(mx.z, p.z)))
+    c = Vector(target) if target else (mn + mx) / 2
+    size = max((mx - mn).length, 0.2)
+    cam = bpy.data.cameras.new('cam')
+    co = bpy.data.objects.new('cam', cam)
+    sc.collection.objects.link(co)
+    dv = Vector(d).normalized()
+    co.location = c + dv * size * zoom
+    co.rotation_euler = (-dv).to_track_quat('-Z', 'Y').to_euler()
+    cam.lens = lens
+    cam.clip_start = 0.01
+    sc.camera = co
+    sun = bpy.data.lights.new('sun', 'SUN')
+    sun.energy = 4
+    so = bpy.data.objects.new('sun', sun)
+    so.rotation_euler = (0.8, 0.2, 0.6)
+    sc.collection.objects.link(so)
+    sc.world.use_nodes = True
+    sc.world.node_tree.nodes['Background'].inputs['Color'].default_value = (0.55, 0.62, 0.7, 1)
+    sc.world.node_tree.nodes['Background'].inputs['Strength'].default_value = 0.8
+    sc.render.resolution_x = sc.render.resolution_y = res
+    sc.cycles.samples = 24
+    sc.render.filepath = path
+    sc.render.image_settings.file_format = 'JPEG'
+    bpy.ops.render.render(write_still=True)
+    for o in (co, so):
+        bpy.data.objects.remove(o)

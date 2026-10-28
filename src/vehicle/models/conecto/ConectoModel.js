@@ -5,6 +5,8 @@
 // Interior: ConectoInterior.js (saloon, seats, poles), ConectoCab.js (driver's cab, instrument cluster).
 // Frames: x right, y up, z backwards; front section origin = middle axle, rear section origin = rear axle.
 import * as THREE from 'three';
+import { disposeModel } from '../../BusKit.js';
+import { glassMaterial, occludeInterior } from '../../Glass.js';
 import { LedSign } from '../../LedSign.js';
 import { bakeStatic } from '../../BusBake.js';
 import { frames } from '../../frames.js';
@@ -54,13 +56,14 @@ export class ConectoModel {
     this.buildSigns();
     this.bakeStats = bakeStatic(this.root, new Set([...Object.values(this.lightMats), this.mats.stopBtn, this.mats.lightStrip]));
     for (const g of this.interiorGroups || []) g.traverse((o) => { if (o.isMesh) o.castShadow = false; });
+    occludeInterior(this);
   }
 
   makeMaterials() {
     const L = this.look;
     const S = THREE.MeshStandardMaterial, P = THREE.MeshPhysicalMaterial;
-    const lacquer = { roughness: 0.3, metalness: 0.05, clearcoat: 0.8, clearcoatRoughness: 0.1 };
-    const glassBase = { roughness: 0.1, metalness: 0.15, transparent: true, depthWrite: false };
+    // twenty-year-old paint: a softer, weaker gloss than the new buses (the photos show saturated orange even at grazing angles)
+    const lacquer = { roughness: 0.42, metalness: 0.02, clearcoat: 0.35, clearcoatRoughness: 0.24 };
     const [hlMap, hlEmi] = makeHeadCluster(false);
     const dec = makeDecals(this.fleet);
     this.decalRects = dec.rects;
@@ -86,11 +89,11 @@ export class ConectoModel {
       chrome: new S({ color: 0xd5d9dc, roughness: 0.12, metalness: 1 }),
       satinChrome: new S({ color: 0xb9bcbe, roughness: 0.35, metalness: 1 }),
       steel: new S({ color: 0xc6c9cb, roughness: 0.3, metalness: 0.9 }),
-      glass: new P({ color: 0x0f181c, ...glassBase, opacity: 0.5, side: THREE.DoubleSide, envMapIntensity: 1.6 }),
-      glassOut: new P({ color: 0x050607, ...glassBase, opacity: 0.93, side: THREE.FrontSide, envMapIntensity: 0.7 }),
-      glassIn: new P({ color: 0x0f181c, ...glassBase, opacity: 0.42, side: THREE.BackSide, envMapIntensity: 0.6 }),
-      windscreen: new P({ color: 0x080b0f, ...glassBase, opacity: 0.62, side: THREE.FrontSide, envMapIntensity: 2.0 }),
-      windscreenIn: new P({ color: 0x0f181c, ...glassBase, opacity: 0.08, side: THREE.BackSide, envMapIntensity: 0.4 }),
+      glass: glassMaterial({ color: 0x0f181c, transmit: 0.5, side: THREE.DoubleSide }),
+      glassOut: glassMaterial({ color: 0x050607, transmit: 0.32, side: THREE.FrontSide }),
+      glassIn: glassMaterial({ color: 0x0f181c, transmit: 0.62, side: THREE.BackSide, env: 0.2 }),
+      windscreen: glassMaterial({ color: 0x080b0f, transmit: 0.55, side: THREE.FrontSide }),
+      windscreenIn: glassMaterial({ color: 0x0f181c, transmit: 0.85, side: THREE.BackSide, env: 0.2 }),
       lensClear: new P({ color: 0xffffff, roughness: 0.05, metalness: 0, transparent: true, opacity: 0.16, depthWrite: false, clearcoat: 1, envMapIntensity: 1.4 }),
       headlamp: new S({ map: hlMap, emissiveMap: hlEmi, emissive: 0xffffff, emissiveIntensity: 0, roughness: 0.3, metalness: 0.3 }),
       indicatorL: new S({ color: 0xe07b0a, roughness: 0.3, emissive: 0xff8a00, emissiveIntensity: 0 }),
@@ -257,16 +260,8 @@ export class ConectoModel {
   }
 
   dispose() {
-    const mats = new Set(), texs = new Set();
-    this.root.traverse((o) => {
-      if (o.geometry) o.geometry.dispose();
-      if (o.material) for (const m of [].concat(o.material)) mats.add(m);
-    });
-    for (const m of [...mats, ...Object.values(this.mats)]) {
-      for (const v of Object.values(m)) if (v && v.isTexture) texs.add(v);
-      m.dispose();
-    }
-    for (const t of texs) t.dispose();
+    // the Blender kit's geometry, material and textures are shared by every bus and stay alive
+    disposeModel(this.root, Object.values(this.mats));
     for (const s of Object.values(this.signs)) if (s && s.texture) s.texture.dispose();
     if (this.dashTex) this.dashTex.dispose();
   }

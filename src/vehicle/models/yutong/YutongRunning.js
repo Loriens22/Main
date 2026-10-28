@@ -7,6 +7,7 @@ import { M, Parts, basis, box, extrude, rectPath, rectShape } from '../../BusGeo
 import { rod } from '../../BusInteriorGeom.js';
 import { frontPos, frontS } from './surfaces.js';
 import { decUV } from './YutongTextures.js';
+import { kitWheel } from '../../BusKit.js';
 
 const HW = K.hw;
 const DOOR_TOP = 2.38; // top of the leaves
@@ -64,6 +65,9 @@ export const RunningMixin = {
   },
 
   makeWheel(twin) {
+    // polished aluminium wheels with loose-nut indicators (ref12)
+    const kw = kitWheel(twin, { kind: 'alu', spacing: 0.3, R: K.wheelR });
+    if (kw) return kw;
     const g = new THREE.Group();
     const geo = this.wheelGeometry();
     const m = this.mats;

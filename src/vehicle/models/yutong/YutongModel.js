@@ -3,6 +3,8 @@
 // YutongLamps.js / YutongRunning.js, the saloon in YutongInterior.js and the driver's cab in YutongCab.js.
 // Reference photos: data/research/ref_photos/v2/ref12..15_yutong.jpg; numbers and sources: NOTES.md.
 import * as THREE from 'three';
+import { disposeModel } from '../../BusKit.js';
+import { glassMaterial, occludeInterior } from '../../Glass.js';
 import { K } from './consts.js';
 import { LedSign } from '../../LedSign.js';
 import { Parts } from '../../BusGeom.js';
@@ -53,6 +55,7 @@ export class YutongModel {
     this.bakeStats = bakeStatic(this.root, new Set([...Object.values(this.lightMats), this.mats.stopBtn, this.mats.lightStrip]));
     // the body already shadows the cabin: interior parts only receive shadows
     for (const g of this.interiorGroups || []) g.traverse((o) => { if (o.isMesh) o.castShadow = false; });
+    occludeInterior(this);
   }
 
   makeMaterials() {
@@ -60,7 +63,6 @@ export class YutongModel {
     const [hlMap, hlEmi] = makeHeadlampTex();
     const P = THREE.MeshPhysicalMaterial, S = THREE.MeshStandardMaterial;
     const lacquer = { roughness: 0.3, metalness: 0.05, clearcoat: 0.8, clearcoatRoughness: 0.1 };
-    const glassBase = { roughness: 0.1, metalness: 0.15, transparent: true, depthWrite: false, polygonOffset: true, polygonOffsetFactor: -1, polygonOffsetUnits: -1 };
     this.mats = {
       paint: new P({ color: 0xf07a14, ...lacquer }),
       roofPaint: new P({ color: 0xf07a14, ...lacquer }),
@@ -73,12 +75,12 @@ export class YutongModel {
       tyre: new S({ color: 0x0c0d0d, roughness: 0.9, side: THREE.DoubleSide }),
       rim: new S({ color: 0xb8bdc2, roughness: 0.38, metalness: 0.85 }),
       chrome: new S({ color: 0xd5d9dc, roughness: 0.12, metalness: 1 }),
-      glassOut: new P({ color: 0x040506, ...glassBase, opacity: 0.93, side: THREE.FrontSide, envMapIntensity: 0.7 }),
-      glassIn: new P({ color: 0x0f181c, ...glassBase, opacity: 0.4, side: THREE.BackSide, envMapIntensity: 0.6 }),
-      glassDoor: new P({ color: 0x07090b, ...glassBase, opacity: 0.8, side: THREE.DoubleSide, envMapIntensity: 1.2 }),
-      glassClear: new P({ color: 0x1a2328, ...glassBase, opacity: 0.45, side: THREE.DoubleSide, envMapIntensity: 1.2 }),
-      windscreen: new P({ color: 0x080b0f, ...glassBase, opacity: 0.7, side: THREE.FrontSide, envMapIntensity: 2.0 }),
-      windscreenIn: new P({ color: 0x0f181c, ...glassBase, opacity: 0.08, side: THREE.BackSide, envMapIntensity: 0.4 }),
+      glassOut: glassMaterial({ color: 0x040506, transmit: 0.32, side: THREE.FrontSide, polygonOffset: true, polygonOffsetFactor: -1, polygonOffsetUnits: -1 }),
+      glassIn: glassMaterial({ color: 0x0f181c, transmit: 0.62, side: THREE.BackSide, env: 0.2, polygonOffset: true, polygonOffsetFactor: -1, polygonOffsetUnits: -1 }),
+      glassDoor: glassMaterial({ color: 0x07090b, transmit: 0.4, side: THREE.DoubleSide, polygonOffset: true, polygonOffsetFactor: -1, polygonOffsetUnits: -1 }),
+      glassClear: glassMaterial({ color: 0x1a2328, transmit: 0.6, side: THREE.DoubleSide, polygonOffset: true, polygonOffsetFactor: -1, polygonOffsetUnits: -1 }),
+      windscreen: glassMaterial({ color: 0x080b0f, transmit: 0.55, side: THREE.FrontSide, polygonOffset: true, polygonOffsetFactor: -1, polygonOffsetUnits: -1 }),
+      windscreenIn: glassMaterial({ color: 0x0f181c, transmit: 0.85, side: THREE.BackSide, env: 0.2, polygonOffset: true, polygonOffsetFactor: -1, polygonOffsetUnits: -1 }),
       lensClear: new P({ color: 0xffffff, roughness: 0.05, metalness: 0, transparent: true, opacity: 0.16, depthWrite: false, clearcoat: 1, envMapIntensity: 1.4 }),
       headlamp: new S({ map: hlMap, emissiveMap: hlEmi, emissive: 0xffffff, emissiveIntensity: 0, roughness: 0.3, metalness: 0.4 }),
       lampFrame: new S({ color: 0x2c2f33, roughness: 0.5 }),
@@ -197,16 +199,8 @@ export class YutongModel {
   }
 
   dispose() {
-    const mats = new Set(), texs = new Set();
-    this.root.traverse((o) => {
-      if (o.geometry) o.geometry.dispose();
-      if (o.material) for (const m of [].concat(o.material)) mats.add(m);
-    });
-    for (const m of [...mats, ...Object.values(this.mats)]) {
-      for (const v of Object.values(m)) if (v && v.isTexture && !(v.userData && v.userData.shared)) texs.add(v);
-      m.dispose();
-    }
-    for (const t of texs) t.dispose();
+    // the Blender kit's geometry, material and textures are shared by every bus and stay alive
+    disposeModel(this.root, Object.values(this.mats));
   }
 
   afterPose() {

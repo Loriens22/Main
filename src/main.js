@@ -8,6 +8,7 @@ import { World } from './world/World.js';
 import { Renderer } from './render/Renderer.js';
 import { SkySystem } from './render/SkySystem.js';
 import { vehicleSpec, frames } from './vehicle/Vehicles.js';
+import { loadBusKit } from './vehicle/BusKit.js';
 import { Game } from './game/Game.js';
 import { Menu } from './ui/Menu.js';
 import { Input } from './ui/Input.js';
@@ -50,7 +51,9 @@ async function boot() {
   const sky = new SkySystem(R.renderer, scene, quality);
   const line = ROUTES[params.get('line')] ? params.get('line') : ROUTES[settings.line] ? String(settings.line) : '280';
   const route = new Route280(ROUTES[line]);
-  if (params.get('scene') === 'bus') return busStudio({ R, scene, camera, sky, progress });
+  // Blender-modelled bus parts: parsed while the world loads, ready before the first bus is built
+  const busKit = loadBusKit();
+  if (params.get('scene') === 'bus') return busKit.then(() => busStudio({ R, scene, camera, sky, progress }));
   const states = new GameStateManager();
   states.go('menu');
   const data = await loadWorldPack(progress, line);
@@ -67,6 +70,7 @@ async function boot() {
   input.sensitivity = settings.sensitivity;
   input.invertY = settings.invertY;
   const uiRoot = document.getElementById('ui');
+  await busKit;
   const game = new Game({ renderer: R, scene, camera, sky, world, route, audio, voice, input, settings, uiRoot, quality });
   Object.assign(game, extras);
   if (extras.init) extras.init(game);
@@ -262,6 +266,7 @@ async function busStudio({ R, scene, camera, sky, progress }) {
       camera.updateProjectionMatrix();
       camera.position.set(x, y, z);
       camera.lookAt(tx, ty, tz);
+      R.setInterior(Math.abs(x) < 1.27 && y > 0.3 && y < 2.9 && z > F.frontZ && z < 13);
       sky.follow(new THREE.Vector3(0, 0, 0));
       bus.afterPose();
       R.render();

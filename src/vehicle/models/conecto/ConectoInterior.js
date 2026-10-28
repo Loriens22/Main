@@ -8,6 +8,7 @@ import * as THREE from 'three';
 import { LedSign } from '../../LedSign.js';
 import { Parts, M, box, quad, texBox, profileStrip, rod, tube, smooth, roundRectShape, decal } from './geom.js';
 import { seatPieces, foldPieces } from './ConectoSeat.js';
+import { busKit, kitSeats, kitInstances } from '../../BusKit.js';
 import { AISLE_X, WALL_X, POD_H, PLAT_Z0 } from './layout.js';
 
 export const CEIL_Y = 2.64;
@@ -41,6 +42,12 @@ export const InteriorMixin = {
     this.addDisplayHousings(fp, rp);
     const f = fp.build(this.mats, { castShadow: false });
     const r = rp.build(this.mats, { castShadow: false });
+    for (const [g, sec] of [[f, 'front'], [r, 'rear']]) {
+      const im = kitSeats('seat_conecto', this._kitSeats[sec]);
+      if (im) g.add(im);
+      const iv = this._kitValidators && kitInstances('validator', this._kitValidators[sec]);
+      if (iv) g.add(iv);
+    }
     this.front.add(f);
     this.rear.add(r);
     this.interiorGroups = [f, r];
@@ -249,11 +256,15 @@ export const InteriorMixin = {
     const P = seatPieces(this.quality);
     const Fd = foldPieces();
     const m4 = new THREE.Matrix4();
+    const kit = !!busKit();
+    this._kitSeats = { front: [], rear: [] };
     for (const s of this.spec.layout.seats) {
       const parts = s.sec === 'front' ? fp : rp;
       m4.makeRotationY(s.yaw).setPosition(s.x, s.fy, s.z);
       const src = s.kind === 'fold' ? Fd : P;
-      for (const [k, list] of Object.entries(src)) for (const g of list) parts.add(k, g, m4.clone());
+      // Blender-modelled shell with its moquette pad, cushion and grab handle (kit_bus.glb), instanced per section
+      if (kit && s.kind !== 'fold') this._kitSeats[s.sec].push(s);
+      else for (const [k, list] of Object.entries(src)) for (const g of list) parts.add(k, g, m4.clone());
       // wall bracket under window seats
       if (Math.abs(s.x) > 0.8 && s.kind !== 'fold') parts.add('seatDark', box(0.2, 0.025, 0.12), M(s.x + Math.sign(s.x) * 0.15, s.fy + 0.33, s.z));
       if (s.sticker && Math.abs(s.x) > 0.8 && s.kind !== 'fold') {
@@ -315,10 +326,13 @@ export const InteriorMixin = {
       const top = smooth([[X, 2.36, zl], [X - 0.1, 2.46, zl + 0.2], [X - 0.1, 2.46, (zl + zt) / 2], [X - 0.1, 2.46, zt - 0.2], [X, 2.36, zt]], 14);
       void top;
       // validator on the rear pole of each door (blue terminal with dark screen)
-      const vg = new THREE.PlaneGeometry(0.12, 0.2);
-      vg.rotateY(-Math.PI / 2 + 0.25);
-      parts.add('validator', vg, M(X - 0.075, 1.18, zt));
-      parts.add('frame', box(0.07, 0.24, 0.045), M(X - 0.045, 1.18, zt + 0.02));
+      if (busKit()) (this._kitValidators || (this._kitValidators = { front: [], rear: [] }))[sec].push({ x: X, y: 1.28, z: zt, yaw: Math.PI / 2 });
+      else {
+        const vg = new THREE.PlaneGeometry(0.12, 0.2);
+        vg.rotateY(-Math.PI / 2 + 0.25);
+        parts.add('validator', vg, M(X - 0.075, 1.18, zt));
+        parts.add('frame', box(0.07, 0.24, 0.045), M(X - 0.045, 1.18, zt + 0.02));
+      }
       // door-open button
       const bt = new THREE.CylinderGeometry(0.025, 0.025, 0.02, 12);
       bt.rotateZ(Math.PI / 2);

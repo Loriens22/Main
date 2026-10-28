@@ -526,7 +526,32 @@ export class Game {
   }
 
   render() {
+    this.renderer.setInterior(this.cameraInBus());
     this.renderer.render();
+  }
+
+  /** True while the camera is inside the saloon or cab of the driven / ridden bus (or another one nearby). */
+  cameraInBus() {
+    const c = this.camera.position;
+    const p = this._camLocal || (this._camLocal = new THREE.Vector3());
+    for (const b of [this.bus, ...(this.extra || [])]) {
+      const m = b && b.model;
+      if (!m || !m.interiorGroups) continue;
+      if (!m._cabinBoxes) {
+        // section-frame bounds of each interior group (computed once per bus)
+        m._cabinBoxes = m.interiorGroups.map((g) => {
+          const box = new THREE.Box3();
+          g.traverse((o) => { if (o.isMesh && o.geometry && !o.isInstancedMesh) { if (!o.geometry.boundingBox) o.geometry.computeBoundingBox(); box.union(o.geometry.boundingBox); } });
+          return { g, box };
+        });
+      }
+      for (const { g, box } of m._cabinBoxes) {
+        p.copy(c);
+        g.parent.worldToLocal(p);
+        if (Math.abs(p.x) < 1.27 && p.y > box.min.y && p.y < box.max.y + 0.2 && p.z > box.min.z && p.z < box.max.z) return true;
+      }
+    }
+    return false;
   }
 }
 

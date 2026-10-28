@@ -71,6 +71,7 @@ export class Renderer {
       // around seats and poles inside the bus
       ao.updateGtaoMaterial({ radius: 2.0, distanceExponent: 1.3, thickness: 6.0, scale: 1.8, samples: this.quality === 'ultra' ? 16 : 10, distanceFallOff: 0.6, screenSpaceRadius: false });
       ao.updatePdMaterial({ lumaPhi: 10, depthPhi: 2, normalPhi: 3, radius: 5, rings: 2, samples: this.quality === 'ultra' ? 12 : 8 });
+      this.aoInterior = false;
       ao.blendIntensity = 0.9;
       this.composer.addPass(ao);
     } else this.ao = null;
@@ -125,6 +126,17 @@ export class Renderer {
       this.camera.aspect = w / h;
       this.camera.updateProjectionMatrix();
     }
+  }
+
+  /**
+   * Inside a bus the street-scale AO radius (2 m) darkens the whole low ceiling in blotches: use a cabin-scale
+   * radius (contact shading round seats, poles and window frames) while the camera is in a saloon or cab.
+   */
+  setInterior(on) {
+    if (!this.ao || this.aoInterior === on) return;
+    this.aoInterior = on;
+    this.ao.updateGtaoMaterial(on ? { radius: 0.35, thickness: 0.8, scale: 1.2, distanceFallOff: 1.0 } : { radius: 2.0, thickness: 6.0, scale: 1.8, distanceFallOff: 0.6 });
+    this.ao.updatePdMaterial(on ? { radius: 3 } : { radius: 5 });
   }
 
   render() {

@@ -4,6 +4,7 @@ import * as THREE from 'three';
 import spec from './spec.js';
 import { M, box } from '../../BusGeom.js';
 import { sweep, rod, fillet, smooth } from '../../BusInteriorGeom.js';
+import { busKit } from '../../BusKit.js';
 import { FY, PODIUM_Y, AISLE_X, WALL_X, podiums, cabPartitionZ, rearWallZ } from './layout.js';
 import { signUV } from './ProcityTextures.js';
 
@@ -26,8 +27,12 @@ function baseY(pods, side, z) {
   return FY;
 }
 
-function strap(parts, x, z) {
-  // black triangular grab loop on a sleeve clip
+function strap(parts, x, z, model) {
+  // black grab handle on a webbing strap: the Blender-modelled one when the kit is loaded (instanced by the interior)
+  if (busKit()) {
+    (model._kitStraps || (model._kitStraps = [])).push({ x, y: RAIL_Y, z });
+    return;
+  }
   const y0 = RAIL_Y - 0.03;
   const R = [[0, 0], [0.02, -0.1], [0.045, -0.22], [0.06, -0.33], [0.05, -0.4], [0.02, -0.43]];
   const loop = [...R, [0, -0.44], ...R.slice(1).reverse().map(([a, b]) => [-a, b])].map(([a, b]) => [x + a, y0 + b, z]);
@@ -64,7 +69,7 @@ export function buildPoles(model, parts) {
     // black clamp beside the seat
     parts.add('frame', box(0.05, 0.09, 0.05), M(x, yb + 0.72, z));
     const n = low ? 2 : 3;
-    for (let k = 0; k < n; k++) strap(parts, sg * RAIL_X, z + (k - (n - 1) / 2) * 0.05);
+    for (let k = 0; k < n; k++) strap(parts, sg * RAIL_X, z + (k - (n - 1) / 2) * 0.07, model);
   };
   for (const z of [-5.95, -4.2, -1.95, -0.05, 1.5]) stan(-1, z);
   for (const z of [-5.0, -4.3, -1.3, 0.05]) stan(1, z);
@@ -85,16 +90,19 @@ export function buildPoles(model, parts) {
     const knob = new THREE.CylinderGeometry(0.03, 0.03, 0.03, 14);
     knob.rotateZ(Math.PI / 2);
     parts.add('stopBtn', knob, M(YP_X - 0.04, 1.05, zl));
-    // validator beside the trailing pole: black body with blue edge and touch screen
+    // validator beside the trailing pole on its own short pole, facing the aisle (ref09: blue frame, black glass)
     if (!first) {
       const zv = dr.z1 + 0.22;
-      parts.add('validator', box(0.075, 0.3, 0.14, 0.012), M(YP_X - 0.2, 1.22, zv));
-      parts.add('validatorBlue', box(0.012, 0.3, 0.14), M(YP_X - 0.2 + 0.044, 1.22, zv));
-      const sc = decal(0.11, 0.2, 'valScreen');
-      sc.rotateY(-Math.PI / 2);
-      parts.add('signs', sc, M(YP_X - 0.2 - 0.0395, 1.25, zv));
-      parts.add('pole', rod([YP_X - 0.2, FY, zv + 0.08], [YP_X - 0.2, 1.4, zv + 0.08], 0.017, 8));
-      parts.add('pole', rod([YP_X - 0.2, 1.4, zv + 0.08], [YP_X - 0.2, 1.4, zv], 0.012, 6));
+      parts.add('pole', rod([YP_X - 0.2, FY, zv + 0.08], [YP_X - 0.2, 1.48, zv + 0.08], 0.017, 8));
+      if (busKit()) (model._kitValidators || (model._kitValidators = [])).push({ x: YP_X - 0.2, y: 1.28, z: zv + 0.08, yaw: Math.PI / 2 });
+      else {
+        parts.add('validator', box(0.075, 0.3, 0.14, 0.012), M(YP_X - 0.2, 1.22, zv));
+        parts.add('validatorBlue', box(0.012, 0.3, 0.14), M(YP_X - 0.2 + 0.044, 1.22, zv));
+        const sc = decal(0.11, 0.2, 'valScreen');
+        sc.rotateY(-Math.PI / 2);
+        parts.add('signs', sc, M(YP_X - 0.2 - 0.0395, 1.25, zv));
+        parts.add('pole', rod([YP_X - 0.2, 1.4, zv + 0.08], [YP_X - 0.2, 1.4, zv], 0.012, 6));
+      }
     }
     // yellow sill strip
     parts.add('stripYellow', box(0.05, 0.004, dr.z1 - dr.z0), M(WALL_X - 0.02, FY + 0.002, (dr.z0 + dr.z1) / 2));

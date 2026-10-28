@@ -4,6 +4,7 @@ import * as THREE from 'three';
 import { mergeGeometries } from 'three/examples/jsm/utils/BufferGeometryUtils.js';
 import { M, Parts, basis, box, extrude, rectPath, rectShape } from '../../BusGeom.js';
 import spec from './spec.js';
+import { kitWheel } from '../../BusKit.js';
 
 const D = spec.dims, HW = D.halfW;
 const DOOR_TOP = 2.42;
@@ -64,6 +65,8 @@ export const RunningMixin = {
   },
 
   makeWheel(twin, front) {
+    const kw = kitWheel(twin, { kind: 'steel', spacing: 0.31, R: D.wheelR });
+    if (kw) return kw;
     const g = new THREE.Group();
     const geo = this.wheelGeometry();
     const m = this.mats;

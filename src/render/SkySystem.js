@@ -76,15 +76,41 @@ export class SkySystem {
       uZenith: { value: new THREE.Color(0x5d8ccc) }, uHorizon: { value: new THREE.Color(0xc9d8e6) },
       uGround: { value: new THREE.Color(0x4b4842) }, uSun: { value: new THREE.Vector3(0, 1, 0) },
       uSunCol: { value: new THREE.Color(1, 0.95, 0.85) }, uSunAmt: { value: 1.0 },
+      uCity: { value: 1.0 }, uLit: { value: new THREE.Color(0.6, 0.57, 0.52) }, uShade: { value: new THREE.Color(0.2, 0.2, 0.21) },
+      uTree: { value: new THREE.Color(0.05, 0.07, 0.04) }, uWin: { value: 0.0 },
     };
     this.envSky = new THREE.Mesh(new THREE.SphereGeometry(800, 32, 16), new THREE.ShaderMaterial({
       side: THREE.BackSide, depthWrite: false, uniforms: this.envUniforms,
       vertexShader: 'varying vec3 vDir; void main(){ vDir = normalize(position); gl_Position = projectionMatrix*modelViewMatrix*vec4(position,1.0); }',
-      fragmentShader: `uniform vec3 uZenith,uHorizon,uGround,uSunCol,uSun; uniform float uSunAmt; varying vec3 vDir;
+      // A street-level skyline (blocks, trees, lit and shaded facades with window rows) hides the low sky, so
+      // paint and glass reflect a city instead of white haze at grazing angles, as in photographs.
+      fragmentShader: `uniform vec3 uZenith,uHorizon,uGround,uSunCol,uSun,uLit,uShade,uTree; uniform float uSunAmt,uCity,uWin; varying vec3 vDir;
+        float hsh(float n){ return fract(sin(n*12.9898)*43758.5453); }
         void main(){ vec3 d=normalize(vDir); float h=d.y;
           vec3 c = h>0.0 ? mix(uHorizon,uZenith,pow(clamp(h,0.0,1.0),0.55)) : mix(uHorizon*0.8,uGround,clamp(-h*6.0,0.0,1.0));
           float s = max(dot(d,normalize(uSun)),0.0);
           c += uSunCol*(pow(s,64.0)*2.5 + pow(s,6.0)*0.25)*uSunAmt;
+          if (uCity > 0.0 && h > -0.03) {
+            float az = atan(d.z, d.x) * 15.28; // 96 bays round the horizon
+            float i = floor(az), f = fract(az);
+            float tall = step(0.22, hsh(i + 3.1));
+            float hb = (0.12 + 0.42 * hsh(i) * hsh(i + 9.7)) * tall;
+            float ht = 0.11 + 0.05 * sin(az * 2.3 + 6.0 * hsh(floor(az * 0.5))) + 0.03 * sin(az * 9.1);
+            if (h < max(hb, ht) * uCity) {
+              if (hb > ht && h < hb * uCity) {
+                // facade facing the viewer: lit when it faces the sun
+                vec2 n = -normalize(d.xz);
+                float lit = clamp(dot(n, normalize(uSun.xz + vec2(1e-4))) * 1.4, 0.0, 1.0) * uSunAmt;
+                vec3 alb = mix(vec3(0.85, 0.8, 0.72), vec3(0.62, 0.64, 0.66), hsh(i + 1.7));
+                vec3 fc = alb * mix(uShade, uLit, lit);
+                // window rows and columns
+                float row = fract(h * 95.0 / max(0.25, hb * 3.0)), col = fract(f * 5.0);
+                float win = step(0.42, row) * step(0.2, col) * step(col, 0.8);
+                fc = mix(fc, uShade * 0.45 + uWin * vec3(1.0, 0.78, 0.45) * step(0.55, hsh(i * 7.0 + floor(h * 95.0) + floor(f * 5.0) * 0.37)), win * 0.75);
+                c = fc;
+              } else c = uTree * (0.7 + 0.6 * hsh(floor(az * 3.0) + floor(h * 60.0)));
+            }
+          }
           gl_FragColor=vec4(c,1.0); }`,
     }));
     this.envScene.add(this.envSky);
@@ -216,7 +242,12 @@ export class SkySystem {
     eu.uGround.value.setRGB(0.24 * day + 0.02, 0.23 * day + 0.02, 0.21 * day + 0.025);
     eu.uSunCol.value.copy(sunCol);
     eu.uSunAmt.value = day * cloudK;
-    if (night > 0.5) { eu.uZenith.value.setRGB(0.02, 0.03, 0.06); eu.uHorizon.value.setRGB(0.07, 0.07, 0.09); }
+    // skyline: shaded facades about a third of the horizon radiance, sunlit ones near it
+    eu.uShade.value.copy(fc).multiplyScalar(0.13 + 0.07 * (cloudy ? 1 : 0));
+    eu.uLit.value.copy(fc).multiplyScalar(cloudy ? 0.26 : 0.42).multiply(sunCol);
+    eu.uTree.value.setRGB(0.035, 0.05, 0.03).multiplyScalar(0.25 + 0.75 * day);
+    eu.uWin.value = night * 0.35;
+    if (night > 0.5) { eu.uZenith.value.setRGB(0.02, 0.03, 0.06); eu.uHorizon.value.setRGB(0.07, 0.07, 0.09); eu.uShade.value.setRGB(0.015, 0.015, 0.02); eu.uLit.value.copy(eu.uShade.value); }
     this.updateEnv();
   }
 

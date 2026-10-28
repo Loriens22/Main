@@ -11,6 +11,7 @@ import {
 } from './BusInteriorTextures.js';
 import { M, Parts, box } from './BusGeom.js';
 import { seatPieces, foldSeatPieces } from './BusSeat.js';
+import { busKit, kitSeats, kitInstances } from './BusKit.js';
 import { texBox, quad, profileStrip, decal, sweep, rod, fillet } from './BusInteriorGeom.js';
 import { buildPoles } from './BusPoles.js';
 import { addCabParts, buildCabInterior, CAB_PARTITION_Z } from './BusCab.js';
@@ -63,7 +64,7 @@ export const InteriorMixin = {
       seatPanel: new S({ color: 0xa6abb1, roughness: 0.45, envMapIntensity: 0.5 }),
       moquette: new S({ map: moq, roughness: 0.95 }),
       pole: new S({ color: 0xa9adb0, roughness: 0.42, metalness: 0.25, envMapIntensity: 0.35 }),
-      strap: new S({ color: 0x9aa0a4, roughness: 0.6, side: THREE.DoubleSide }),
+      strap: new S({ color: 0x7e8387, roughness: 0.75, side: THREE.DoubleSide }),
       railYellow: new S({ color: 0xf1b90f, roughness: 0.4, metalness: 0.1, envMapIntensity: 0.5 }),
       stripYellow: new S({ color: 0xf2e12c, roughness: 0.7 }),
       redPlastic: new S({ color: 0xc43a30, roughness: 0.5 }),
@@ -119,6 +120,12 @@ export const InteriorMixin = {
     for (const ext of [this.frontExterior, this.rearExterior]) lowerUnderbodyPan(ext);
     const f = fp.build(this.mats, { castShadow: false });
     const r = rp.build(this.mats, { castShadow: false });
+    for (const [g, sec] of [[f, 'front'], [r, 'rear']]) {
+      const im = kitSeats('seat_man', this._kitSeats[sec]);
+      if (im) g.add(im);
+      const iv = this._kitValidators && kitInstances('validator', this._kitValidators[sec]);
+      if (iv) g.add(iv);
+    }
     this.front.add(f);
     this.rear.add(r);
     this.interiorGroups = [f, r];
@@ -326,6 +333,9 @@ export const InteriorMixin = {
     const F = foldSeatPieces(this.quality);
     const m4 = new THREE.Matrix4();
     const blocks = new Map();
+    // Blender-modelled shells (kit_bus.glb), instanced per section; the procedural shell is the fallback
+    const kit = !!busKit();
+    const kitList = (this._kitSeats = { front: [], rear: [] });
     for (const s of SEATS) {
       const parts = s.sec === 'front' ? fp : rp;
       m4.makeRotationY(s.yaw).setPosition(s.x, s.fy, s.z);
@@ -339,11 +349,14 @@ export const InteriorMixin = {
         parts.add('frame', box(0.04, 0.1, 0.06), M(s.x - 0.215, s.fy + 0.8, s.z + 0.28));
         continue;
       }
-      parts.add('seat', P.shell, m4.clone());
-      parts.add('seatCap', P.cap, m4.clone());
-      if (!low) {
-        parts.add('seatCap', P.mark, m4.clone());
-        parts.add('seatPanel', P.panel, m4.clone());
+      if (kit) kitList[s.sec].push(s);
+      else {
+        parts.add('seat', P.shell, m4.clone());
+        parts.add('seatCap', P.cap, m4.clone());
+        if (!low) {
+          parts.add('seatCap', P.mark, m4.clone());
+          parts.add('seatPanel', P.panel, m4.clone());
+        }
       }
       if (s.sticker) parts.add('sticker', P.sticker, m4.clone());
       const key = `${s.sec}|${s.z}|${s.yaw}|${s.bench ? 0 : Math.sign(s.x)}`;

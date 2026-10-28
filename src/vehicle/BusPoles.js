@@ -5,6 +5,7 @@ import { BUS } from './BusSpec.js';
 import { SEATS, PODIUMS, PODIUM_Y, AISLE_X, WALL_X } from './BusLayout.js';
 import { M, box } from './BusGeom.js';
 import { sweep, rod, fillet, smooth, decal } from './BusInteriorGeom.js';
+import { busKit } from './BusKit.js';
 
 const FY = BUS.floorY;
 export const RAIL_Y = 2.48; // overhead rail height (just under the sloped duct, photos 4 and 5)
@@ -98,13 +99,17 @@ export function buildPoles(model, parts, sec) {
     const knob = new THREE.CylinderGeometry(0.03, 0.03, 0.03, 14);
     knob.rotateZ(Math.PI / 2);
     parts.add('stopBtn', knob, M(YP_X - 0.04, 1.05, zl));
-    // validator on the trailing pole: bracket + body + colour screen
-    parts.add('frame', box(0.07, 0.19, 0.1), M(YP_X - 0.06, 1.17, zt));
-    parts.add('frame', box(0.05, 0.03, 0.03), M(YP_X - 0.03, 1.17, zt));
-    const sc = decal(0.05, 0.05, 'valScreen');
-    sc.rotateY(Math.PI);
-    sc.rotateX(-0.5);
-    parts.add('signs', sc, M(YP_X - 0.06, 1.23, zt - 0.052));
+    // validator on the trailing pole, facing the aisle: the Blender-modelled Sofia validator when the kit is
+    // loaded (instanced by the interior), else bracket + body + colour screen
+    if (busKit()) (model._kitValidators || (model._kitValidators = { front: [], rear: [] }))[sec].push({ x: YP_X, y: 1.3, z: zt, yaw: Math.PI / 2 });
+    else {
+      parts.add('frame', box(0.07, 0.19, 0.1), M(YP_X - 0.06, 1.17, zt));
+      parts.add('frame', box(0.05, 0.03, 0.03), M(YP_X - 0.03, 1.17, zt));
+      const sc = decal(0.05, 0.05, 'valScreen');
+      sc.rotateY(Math.PI);
+      sc.rotateX(-0.5);
+      parts.add('signs', sc, M(YP_X - 0.06, 1.23, zt - 0.052));
+    }
     // yellow floor edge strip at the sill
     parts.add('stripYellow', box(0.05, 0.004, d.z1 - d.z0), M(WALL_X - 0.02, FY + 0.002, (d.z0 + d.z1) / 2));
     // barrier tubes behind the row in front of the door: two crossing curved yellow bars
@@ -122,6 +127,6 @@ function strap(parts, x, z) {
   const y0 = RAIL_Y - 0.03;
   const R = [[0, 0], [0.012, -0.12], [0.028, -0.26], [0.043, -0.42], [0.038, -0.52], [0.012, -0.57]];
   const loop = [...R, [0, -0.58], ...R.slice(1).reverse().map(([a, b]) => [-a, b])].map(([a, b]) => [x + a, y0 + b, z]);
-  parts.add('strap', sweep(smooth(loop, 14, true), 0.0048, 4, { closed: true }));
+  parts.add('strap', sweep(smooth(loop, 14, true), 0.0062, 5, { closed: true }));
   parts.add('pole', box(0.022, 0.05, 0.026), M(x, RAIL_Y - 0.03, z));
 }

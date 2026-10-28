@@ -4,6 +4,7 @@ import * as THREE from 'three';
 import { mergeGeometries } from 'three/examples/jsm/utils/BufferGeometryUtils.js';
 import { BUS, HITCH_FRONT_Z, HITCH_REAR_Z, FRONT_BODY_END_Z, REAR_BODY_START_Z } from './BusSpec.js';
 import { HW, M, Parts, basis, box, extrude, rectPath, rectShape } from './BusGeom.js';
+import { kitWheel } from './BusKit.js';
 
 const DOOR_TOP = 2.41; // top of the door opening (header above)
 const DOOR_FOOT = 0.38; // bottom of the leaves, just above the threshold
@@ -55,6 +56,9 @@ export const RunningMixin = {
   },
 
   makeWheel(twin) {
+    // Blender-modelled tyre and steel wheel (kit_bus.glb); the procedural wheel below is the fallback
+    const kw = kitWheel(twin, { kind: 'steel', spacing: 0.31, R: BUS.wheelR });
+    if (kw) return kw;
     const g = new THREE.Group();
     const geo = this.wheelGeometry();
     const m = this.mats;

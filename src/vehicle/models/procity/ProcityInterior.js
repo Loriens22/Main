@@ -10,6 +10,7 @@ import spec from './spec.js';
 import { FY, PODIUM_Y, AISLE_X, WALL_X, HOUSING_X, HOUSING_HALF, REAR_PLATFORM, cabPartitionZ, rearWallZ } from './layout.js';
 import { makeFloorTex, makeCeilTex, makeCoveTex, makeSeatFabric, makeSignSheet, makeBlind } from './ProcityTextures.js';
 import { seatPieces, foldSeatPieces } from './ProcitySeat.js';
+import { busKit, kitSeats, kitInstances } from '../../BusKit.js';
 import { buildPoles, decal } from './ProcityPoles.js';
 import { addCabParts } from './ProcityCab.js';
 import { PANES } from './ProcitySides.js';
@@ -100,6 +101,13 @@ export const InteriorMixin = {
     buildPoles(this, p);
     addCabParts(p, low, this);
     const g = p.build(this.mats, { castShadow: false });
+    const im = kitSeats('seat_procity', this._kitSeats);
+    if (im) g.add(im);
+    // Blender-modelled hand straps (black, ref10) and Sofia validators
+    const st = this._kitStraps && kitInstances('strap', this._kitStraps, { color: 0x404448 });
+    if (st) g.add(st);
+    const iv = this._kitValidators && kitInstances('validator', this._kitValidators);
+    if (iv) g.add(iv);
     this.front.add(g);
     this.interiorGroups = [g];
   },
@@ -235,11 +243,17 @@ export const InteriorMixin = {
     const F = foldSeatPieces();
     const m4 = new THREE.Matrix4();
     const blocks = new Map();
+    const kit = !!busKit();
+    this._kitSeats = [];
     for (const s of spec.layout.seats) {
       m4.makeRotationY(s.yaw).setPosition(s.x, s.fy, s.z);
       const set = s.kind === 'fold' ? F : P;
-      for (const g of set.shell) parts.add('seat', g, m4.clone());
-      for (const g of set.pad) parts.add('pad', g, m4.clone());
+      // Blender-modelled shell (kit_bus.glb), instanced; the procedural shell and pad are the fallback
+      if (kit && s.kind !== 'fold') this._kitSeats.push(s);
+      else {
+        for (const g of set.shell) parts.add('seat', g, m4.clone());
+        for (const g of set.pad) parts.add('pad', g, m4.clone());
+      }
       const key = `${s.z}|${s.yaw}|${s.kind === 'bench' ? 0 : Math.sign(s.x)}`;
       if (!blocks.has(key)) blocks.set(key, []);
       blocks.get(key).push(s);
