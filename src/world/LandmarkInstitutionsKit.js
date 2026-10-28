@@ -6,6 +6,7 @@
 import * as THREE from 'three';
 import { mulberry32 } from '../core/rng.js';
 import { orient, makeCanvas, toTexture, cached, pointInPoly, bbox } from './LandmarkGeometry.js';
+import { facadeEdge } from './LandmarkFacade.js';
 
 // ------------------------------------------------------------------ small helpers
 export const ground = (world, pts) => {
@@ -166,7 +167,7 @@ export function instFacadeTexture(key, spec) {
       }
       return toTexture(c);
     };
-    return { map: draw(false), emissive: draw(true), w: s.bayW * s.bays, h: s.floorH * s.floors, inst: { bayW: s.bayW, bays: s.bays, floorH: s.floorH, floors: s.floors } };
+    return { map: draw(false), emissive: draw(true), w: s.bayW * s.bays, h: s.floorH * s.floors, inst: { bayW: s.bayW, bays: s.bays, floorH: s.floorH, floors: s.floors }, spec: s };
   });
 }
 
@@ -234,7 +235,37 @@ export function facadeMat(M, key, spec, rough = 0.85) {
   const t = instFacadeTexture('in:' + key, spec);
   M.facade(key, t, rough);
   M.m[key].userData.inst = t.inst;
+  M.m[key].userData.spec = t.spec;
   return t.inst;
+}
+
+const lin = (hex) => new THREE.Color(hex);
+
+/**
+ * The real-geometry version of a facadeMat spec (LandmarkFacade.js): openings with reveals, frames,
+ * mullions and sills, stone surrounds, rusticated lower floors, slab bands on ribbon facades.
+ */
+function realSpec(M, key) {
+  const mat = M.m[key];
+  if (mat.userData.real) return mat.userData.real;
+  const s = mat.userData.spec;
+  const ribbon = s.style === 'ribbon', arch = s.style === 'arch', dbl = s.style === 'double';
+  const wall = M.lf(s.ashlar ? 'ashlar' : 'plaster', ribbon ? s.spandrel : s.wall, s.seed);
+  const trim = M.lf('trim', s.surround || s.sill || s.pier || s.wall, s.seed + 1);
+  const g2 = lin(s.glass2 || '#a2b4c2');
+  const real = {
+    wall, wallTile: M.tile(wall), bayW: dbl ? s.bayW / 2 : s.bayW, endPier: 0.3,
+    depth: ribbon ? 0.16 : s.ashlar ? 0.32 : 0.24,
+    frame: M.lfColor(s.frame, 0.45, 0.1), glass: M.lfGlass('public', g2.getHex()), sill: M.lf('trim', s.sill || s.wall, s.seed + 2), reveal: wall,
+    surround: s.surround ? { w: s.surroundW || 0.12, d: 0.05, key: trim, head: s.keystone && arch ? 'keystone' : s.lintel ? 'cornice' : null } : null,
+    win: { w: s.win[0], h: s.win[1], sill: s.sillY, arch, cols: s.mull, rows: s.win[1] > 1.4 ? 2 : 1, frameW: Math.max(0.04, s.fr) },
+    rustic: s.rustic ? { floors: s.rustic.floors, key: M.lf('rustic', s.wall, s.seed + 3) } : null,
+    band: ribbon ? { h: 0.22, d: 0.07, key: M.lf('trim', s.pier || s.wall, s.seed + 4) } : s.band ? { h: s.bandH, d: 0.06, key: M.lf('trim', s.band, s.seed + 5) } : null,
+    floorH: s.floorH,
+  };
+  if (real.rustic) M.tiles = { ...(M.tiles || {}), [real.rustic.key]: M.tile(real.rustic.key) };
+  mat.userData.real = real;
+  return real;
 }
 
 // ------------------------------------------------------------------ plain materials with tint
@@ -281,6 +312,15 @@ export function bayRing(b, M, key, poly, y0, nFloors, o = {}) {
   for (const e of edges) {
     const k = typeof key === 'function' ? key(e) : key;
     if (!k) continue;
+    if (M.m[k].userData.spec && !o.flat && M.realFacades !== false) {
+      // real openings in the wall instead of the painted grid
+      const R = realSpec(M, k);
+      const storeys = [];
+      for (let f = 0; f < nFloors; f++) storeys.push({ h: R.floorH, win: R.win, wall: R.rustic && f < R.rustic.floors ? R.rustic.key : undefined });
+      const bands = R.band ? storeys.slice(1).map((_, f) => ({ y: (f + 1) * R.floorH - R.band.h / 2, h: R.band.h, d: R.band.d, key: R.band.key })) : [];
+      facadeEdge(b, e.ax, e.az, e.bx, e.bz, y0, { ...R, storeys, height: nFloors * R.floorH, bands, tiles: M.tiles }, 0, (o.seed || 7) * 97 + e.i);
+      continue;
+    }
     const s = M.m[k].userData.inst;
     const nb = Math.max(1, Math.round(e.L / s.bayW));
     const h = nFloors * s.floorH;

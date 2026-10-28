@@ -33,6 +33,8 @@ export class Landmarks {
     this.world = world;
     this.route = route;
     this.M = new LandmarkMaterials();
+    // real window openings on the landmark facades; phones keep the painted ones
+    this.M.realFacades = world.quality !== 'balanced' && world.quality !== 'low';
     this.mats = this.M.m;
     this.stats = { triangles: 0, items: {} };
   }

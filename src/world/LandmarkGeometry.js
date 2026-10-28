@@ -379,7 +379,7 @@ export class MeshBuilder {
       g.computeBoundingSphere();
       const m = new THREE.Mesh(g, mat);
       m.name = k;
-      const noShadow = mat.transparent || /^(glass|water|decal|paint)/.test(k);
+      const noShadow = mat.transparent || /^(glass|water|decal|paint|lfGlass|lfc:)/.test(k); // window glass and frames sit in the reveals' shadow anyway
       m.castShadow = opts.cast !== false && !noShadow;
       m.receiveShadow = true;
       out.push(m);

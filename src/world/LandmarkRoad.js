@@ -5,6 +5,7 @@
 import * as THREE from 'three';
 import { MeshBuilder, orient, centroid, scalePoly, obb, signTexture } from './LandmarkGeometry.js';
 import { eagle } from './LandmarkSculpture.js';
+import { curtainWall } from './LandmarkFacade.js';
 
 const ground = (world, pts) => {
   let mn = Infinity, sum = 0;
@@ -30,12 +31,21 @@ export function buildPliska({ world, M }) {
   const gp = ground(world, PODIUM);
   // 2-storey zig-zag podium: ribbon glazing, aluminium fascia
   const pb = gp.avg, ptop = pb + 7.4;
-  b.ring('pliskaPodium', PODIUM, gp.min - 0.6, ptop - 0.7, { tw: rb[0], th: rb[1], v0: pb });
+  const real = M.realFacades !== false;
+  const alu = M.lfColor('#b4bcc1', 0.32, 0.75), glass = M.lfGlass('public', 0x9fb8c8, true), spand = M.lfColor('#5f717d', 0.2, 0.7);
+  if (real) {
+    b.ring('podiumAl', PODIUM, gp.min - 0.6, pb + 0.05, { tw: 4, th: 4 });
+    curtainWall(b, PODIUM, pb, { height: ptop - 0.7 - pb, bayW: 1.5, floorH: 3.35, glass, mullion: alu, spandrel: spand, mullD: 0.16, spandH: 0.55 });
+  } else b.ring('pliskaPodium', PODIUM, gp.min - 0.6, ptop - 0.7, { tw: rb[0], th: rb[1], v0: pb });
   b.ring('podiumAl', PODIUM, ptop - 0.7, ptop + 0.5, { tw: 4, th: 4 });
   b.cap('roofBitumen', PODIUM, ptop + 0.5, { s: 4 });
   // 58.6 m tower: curtain wall, aluminium crown, roof plant
   const base = g.avg, top = base + 58.6;
-  b.ring('pliskaTower', TOWER, g.min - 0.6, top, { tw: ct[0], th: ct[1], v0: base });
+  if (real) {
+    // aluminium-glass curtain wall (2015): 1.5 m modules, mullion fins, opaque spandrel glass at each slab
+    b.ring('podiumAl', TOWER, g.min - 0.6, base + 0.05, { tw: 4, th: 4 });
+    curtainWall(b, TOWER, base, { height: top - base, bayW: 1.5, floorH: 3.66, glass, mullion: alu, spandrel: spand, mullD: 0.22, spandH: 0.95 });
+  } else b.ring('pliskaTower', TOWER, g.min - 0.6, top, { tw: ct[0], th: ct[1], v0: base });
   b.ring('podiumAl', TOWER, top, top + 1.1, { tw: 4, th: 4 });
   b.cap('roofBitumen', TOWER, top + 1.1, { s: 4 });
   const [cx, cz] = centroid(TOWER);
@@ -168,7 +178,10 @@ export function buildArena({ world, M, y, partsOf, replaced }) {
     const base = g.avg, bot = g.min - 0.6;
     const [cx, cz] = centroid(poly);
     // glazed foyer storey, concrete cornice, insulated panel bowl with a dark concourse band, low steel dome
-    b.ring('arenaGlass', poly, bot, base + 9, { tw: gl[0], th: gl[1], v0: base });
+    if (M.realFacades !== false) {
+      b.ring('podiumAl', poly, bot, base + 0.05, { tw: 4, th: 4 });
+      curtainWall(b, poly, base, { height: 9, bayW: 1.5, floorH: 4.5, glass: M.lfGlass('public', 0x8a9ba6, true), mullion: M.lfColor('#aeb4b8', 0.35, 0.7), spandrel: M.lfColor('#5c666c', 0.3, 0.5), mullD: 0.18, spandH: 0 });
+    } else b.ring('arenaGlass', poly, bot, base + 9, { tw: gl[0], th: gl[1], v0: base });
     b.ring('podiumAl', poly, base + 9, base + 9.6, { tw: 4, th: 4 });
     const up = scalePoly(poly, cx, cz, 0.965);
     b.cap('concrete', poly, base + 9.6, { s: 4 });

@@ -5,6 +5,7 @@
 import * as THREE from 'three';
 import { MeshBuilder, orient, centroid } from './LandmarkGeometry.js';
 import { eagle, lion, seatedFigure, standingFigure } from './LandmarkSculpture.js';
+import { facade } from './LandmarkFacade.js';
 
 const ground = (world, pts) => {
   let mn = Infinity, sum = 0;
@@ -40,12 +41,32 @@ export function buildRectorate({ world, M, y }) {
   {
     const g = ground(world, CENTRAL);
     const base = g.avg, bot = g.min - 0.6, top = base + 20.2;
-    const band = (key, tile, y0, y1) => b.ring(key, CENTRAL, base + y0, base + y1, { tw: tile[0], th: tile[1], v0: base + y0 });
-    b.ring('rust', CENTRAL, bot, base + 4.6, { tw: rust[0], th: rust[1], v0: base });
-    band('nob', nob, 4.6, 10.8);
-    band('sec', sec, 10.8, 16.0);
-    band('att', att, 16.0, 20.2);
-    b.cap('roofDark', CENTRAL, top, { s: 4 });
+    if (M.realFacades === false) {
+      const band = (key, tile, y0, y1) => b.ring(key, CENTRAL, base + y0, base + y1, { tw: tile[0], th: tile[1], v0: base + y0 });
+      b.ring('rust', CENTRAL, bot, base + 4.6, { tw: rust[0], th: rust[1], v0: base });
+      band('nob', nob, 4.6, 10.8);
+      band('sec', sec, 10.8, 16.0);
+      band('att', att, 16.0, 20.2);
+    } else {
+      // rusticated ground floor with small arched windows, the piano nobile with tall arched windows under
+      // pediments, a second floor of plain windows, the attic storey with square windows
+      const stone = M.lf('ashlar', '#ddcfa6', 21), rustic = M.lf('rustic', '#cfbd8d', 22), trim = M.lf('trim', '#e8dcbc', 23);
+      facade(b, CENTRAL, base, {
+        height: 20.2, wall: stone, wallTile: M.tile(stone), tiles: { [rustic]: M.tile(rustic) }, bayW: 4.2, endPier: 1.6, depth: 0.4,
+        frame: M.lfColor('#e9e4d4', 0.5, 0.05), glass: M.lfGlass('public', 0xb0bcc2), sill: trim, reveal: trim,
+        storeys: [
+          { h: 4.6, wall: rustic, win: { w: 1.1, h: 2.1, sill: 1.2, arch: true, cols: 2, rows: 2 }, surround: { w: 0.18, d: 0.07, key: trim, head: 'keystone' } },
+          { h: 6.2, win: { w: 1.6, h: 3.7, sill: 1.15, arch: true, cols: 2, rows: 3 }, surround: { w: 0.2, d: 0.08, key: trim, head: 'pediment' } },
+          { h: 5.2, win: { w: 1.3, h: 2.5, sill: 1.2, cols: 2, rows: 2 }, surround: { w: 0.16, d: 0.06, key: trim, head: 'cornice' } },
+          { h: 4.2, win: { w: 0.95, h: 0.95, sill: 1.6, cols: 1, rows: 1 }, surround: { w: 0.12, d: 0.05, key: trim } },
+        ],
+        plinth: { h: 0.8, d: 0.12, key: 'granite' },
+        pilasters: { every: 1, w: 0.7, d: 0.14, key: stone, from: 1, capital: true },
+        bands: [{ y: 4.6, h: 0.45, d: 0.22, key: trim }, { y: 15.95, h: 0.3, d: 0.15, key: trim }],
+        cornice: { h: 0.9, d: 0.6, key: trim, steps: 3 }, seed: 21,
+      });
+    }
+    b.cap('roofDark', CENTRAL, top + (M.realFacades === false ? 0 : 0.9), { s: 4 });
     // pitched crown along the front (mansard-like) and a parapet line
     const A = [-1425.1, -2739.5], B = [-1420.3, -2702.6];
     const L = Math.hypot(B[0] - A[0], B[1] - A[1]);
@@ -134,11 +155,25 @@ export function buildRectorate({ world, M, y }) {
   const wingShell = (poly, h, entrances) => {
     const g = ground(world, poly);
     const base = g.avg, bot = g.min - 0.6, top = base + h;
-    b.ring('wing', poly, bot, top, { tw: wing[0], th: wing[1], v0: base });
+    if (M.realFacades === false) {
+      b.ring('wing', poly, bot, top, { tw: wing[0], th: wing[1], v0: base });
+      b.ring('stoneTrim', poly, base + h - 1.2, base + h - 1.0, { tw: 4, th: 4, o: 0 });
+    } else {
+      // stone-clad slab: five storeys of tall windows in deep reveals, a band under the top floor
+      const stone = M.lf('ashlar', '#ddd3ba', 24), trim = M.lf('trim', '#e6dcc2', 25);
+      const fl = h / 5;
+      facade(b, poly, base, {
+        height: h, wall: stone, wallTile: M.tile(stone), bayW: 3.8, endPier: 1.4, depth: 0.36,
+        frame: M.lfColor('#3c3f42', 0.45, 0.4), glass: M.lfGlass('public', 0xaab8c0), sill: trim, reveal: stone, surround: null,
+        storeys: [0, 1, 2, 3, 4].map((k) => ({ h: fl, win: { w: 1.35, h: 2.15, sill: k === 0 ? 1.0 : 0.85, cols: 2, rows: 2 } })),
+        plinth: { h: 0.9, d: 0.1, key: 'granite' }, bands: [{ y: h - 1.2, h: 0.22, d: 0.12, key: trim }], seed: 24 + Math.round(base),
+        // the doors on the Shipka front replace windows there
+        skip: () => false,
+      });
+    }
     b.cap('roofBitumen', poly, top, { s: 4 });
-    // parapet + cornice band on the street edges
+    // parapet on the street edges
     b.ring('stoneTrim', poly, top, top + 0.7, { tw: 4, th: 4 });
-    b.ring('stoneTrim', poly, base + h - 1.2, base + h - 1.0, { tw: 4, th: 4, o: 0 });
     for (const e of entrances || []) {
       const [ax, az, bx, bz] = e.edge;
       const L = Math.hypot(bx - ax, bz - az), dx = (bx - ax) / L, dz = (bz - az) / L;
@@ -165,24 +200,101 @@ export function buildRectorate({ world, M, y }) {
 }
 
 // ------------------------------------------------------------------ National Library (NBKM)
+// The 1953 stone-clad block of Vasilyov & Tsolov: rusticated ground storey with arched openings, three
+// storeys of tall windows between pilasters, string course, stepped cornice and attic; the main front with
+// its portal faces west (Vasil Levski), the flank the buses on Shipka pass faces south. The two pack parts
+// (west block, taller east block) share a plain party wall. Details beyond "symmetrical, tall rhythmic
+// windows, stone" are not documented (research confidence low).
 export function buildNbkm({ world, M, parts }) {
   if (!parts.length) return null;
   const b = new MeshBuilder();
-  const tile = M.stoneWall('nbkm', 'nbkm', { bayW: 3.4, floorH: 5.4, bays: 4, floors: 2, wall: '#cdbd9b', trim: '#a8996f', win: [1.5, 3.3], sill: 0.9, ashlar: { w: 1.3, h: 0.65 }, seed: 13, lit: 0.25 });
+  const stone = M.lf('ashlar', '#d8ceb6', 3), rustic = M.lf('rustic', '#c8bc9f', 4), trim = M.lf('trim', '#e3dac4', 5);
+  const glass = M.lfGlass('public', 0xaab6bb), frame = M.lfColor('#3e3832', 0.45, 0.3), door = M.lfColor('#2c241d', 0.5, 0.2);
   let cx = 0, cz = 0;
-  for (const { b: bd } of parts) {
-    const poly = orient(bd.pts);
+  const polys = parts.map(({ b: bd }) => orient(bd.pts));
+  // an edge lying on another part's outline is a party wall
+  const shared = (pi) => (i, L, ax, az, bx, bz) => {
+    const mx = (ax + bx) / 2, mz = (az + bz) / 2;
+    return polys.some((q, qi) => qi !== pi && distToPoly(q, mx, mz) < 1.5);
+  };
+  parts.forEach(({ b: bd }, pi) => {
+    const poly = polys[pi];
     const g = ground(world, poly);
-    const h = bd.h; // heights from the researched pack overrides (22 m, 4 floors for the main OSM way)
-    const top = g.avg + h;
-    b.ring('nbkm', poly, g.min - 0.6, top, { tw: tile[0], th: tile[1], v0: g.avg });
-    b.cap('roofDark', poly, top, { s: 4 });
-    b.ring('stoneTrim', poly, top, top + 0.8, { tw: 4, th: 4 });
-    b.ring('stoneTrim', poly, top - 1.4, top - 1.1, { tw: 4, th: 4 });
+    const H = bd.h >= 20 ? 21 : 17.4; // the taller east block (stacks) over the 4-storey front block
+    const upper = (H - 5.4 - 1.0) / 3;
+    const storeys = [
+      { h: 5.4, wall: rustic, win: { w: 1.7, h: 3.0, sill: 1.3, arch: true, cols: 2, rows: 2 }, surround: { w: 0.22, d: 0.08, key: trim, head: 'keystone' } },
+      { h: upper, win: { w: 1.55, h: upper - 1.2, sill: 0.75, cols: 2, rows: 3 } },
+      { h: upper, win: { w: 1.55, h: upper - 1.3, sill: 0.8, cols: 2, rows: 3 } },
+      { h: upper, win: { w: 1.55, h: upper - 1.6, sill: 0.85, cols: 2, rows: 2 }, surround: { w: 0.14, d: 0.05, key: trim } },
+      { h: 1.0, blank: true },
+    ];
+    const top = facade(b, poly, g.avg, {
+      height: H, wall: stone, wallTile: M.tile(stone), tiles: { [rustic]: M.tile(rustic) }, storeys, bayW: 3.5, endPier: 2.4, depth: 0.42,
+      frame, glass, sill: trim, reveal: trim, door, doorGlass: glass,
+      surround: { w: 0.16, d: 0.06, key: trim, head: 'cornice' },
+      plinth: { h: 0.75, d: 0.14, key: 'granite' },
+      pilasters: { every: 1, w: 0.62, d: 0.16, key: stone, from: 1, capital: true },
+      bands: [{ y: 5.4, h: 0.4, d: 0.2, key: trim }, { y: H - 1.0, h: 0.25, d: 0.1, key: trim }],
+      cornice: { h: 1.0, d: 0.75, key: trim, steps: 3 }, attic: { h: 1.1, key: stone },
+      skip: shared(pi), seed: 40 + pi,
+      // the portal: three tall arched doors in the middle of the west front
+      doors: (i, L, ax, az, bx, bz) => {
+        const nx = (bz - az) / L;
+        if (nx > -0.8 || L < 30) return [];
+        return [0.4, 0.5, 0.6].map((at) => ({ at, w: 2.0, h: 4.6, arch: 1.0 }));
+      },
+    });
+    b.cap('roofDark', poly, top - 1.1 + 0.02, { s: 4 });
+    // west front: the portal frontispiece, steps, and the monument of the two saints on the forecourt
+    const n = poly.length / 2;
+    for (let i = 0; i < n; i++) {
+      const j = (i + 1) % n;
+      const ax = poly[2 * i], az = poly[2 * i + 1], bx = poly[2 * j], bz = poly[2 * j + 1];
+      const L = Math.hypot(bx - ax, bz - az), tx = (bx - ax) / L, tz = (bz - az) / L;
+      if (tz > -0.8 || L < 30) continue; // outward normal (tz, -tx) must point west
+      b.push((ax + bx) / 2, g.avg, (az + bz) / 2, Math.atan2(tz, -tx));
+      // frontispiece: four pilasters rising through two storeys, entablature with the library's name band
+      for (const x of [-4.6, -1.55, 1.55, 4.6]) {
+        b.box(trim, x, 0.75, 0.55, 0.95, 9.6, 0.5, 0, {});
+        b.box(trim, x, 0.75, 0.6, 1.15, 0.5, 0.6, 0, {});
+        b.box(trim, x, 10.0, 0.6, 1.15, 0.45, 0.6, 0, {});
+      }
+      b.box(trim, 0, 10.35, 0.55, 11.0, 1.3, 0.75, 0, {});
+      b.box(stone, 0, 11.65, 0.45, 11.4, 0.35, 0.95, 0, {});
+      // steps up to the doors
+      for (let k = 0; k < 5; k++) b.box('graniteLight', 0, -0.4 + k * 0.17, 1.6 - k * 0.32, 12 - k * 0.3, 0.17 + 0.4 * (k === 0), 3.2 - k * 0.64, 0, {});
+      // the monument (1972) on the forecourt: two robed figures on a stepped granite pedestal
+      b.push(0, 0, 24, 0);
+      b.box('graniteLight', 0, -0.3, 0, 6.2, 0.6, 4.4, 0, {});
+      b.box('granite', 0, 0.3, 0, 4.6, 0.5, 3.0, 0, {});
+      b.box('granite', 0, 0.8, 0, 3.4, 2.6, 1.9, 0, {});
+      b.push(-0.65, 3.4, 0, Math.PI);
+      standingFigure(b, 'bronze', 3.4);
+      b.pop();
+      b.push(0.65, 3.4, 0.05, Math.PI);
+      standingFigure(b, 'bronze', 3.3);
+      b.pop();
+      b.box('bronze', 0, 5.2, -0.45, 0.9, 0.62, 0.1, 0, {}); // the open book with the alphabet held between them
+      b.pop();
+      b.pop();
+    }
     const c = centroid(poly);
     cx += c[0]; cz += c[1];
-  }
+  });
   return done(b, M, cx / parts.length, cz / parts.length);
+}
+
+function distToPoly(p, x, z) {
+  let d = Infinity;
+  const n = p.length / 2;
+  for (let i = 0; i < n; i++) {
+    const j = (i + 1) % n;
+    const ax = p[2 * i], az = p[2 * i + 1], bx = p[2 * j] - ax, bz = p[2 * j + 1] - az;
+    const k = Math.max(0, Math.min(1, ((x - ax) * bx + (z - az) * bz) / (bx * bx + bz * bz || 1)));
+    d = Math.min(d, Math.hypot(x - ax - bx * k, z - az - bz * k));
+  }
+  return d;
 }
 
 // ------------------------------------------------------------------ Eagles' Bridge

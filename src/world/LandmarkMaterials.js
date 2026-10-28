@@ -2,6 +2,7 @@
 // of their texture in userData.tile so builders can map UVs in metres.
 import * as THREE from 'three';
 import { facadeTexture, curtainTexture, panelTexture, ribbonGlassTexture, plasterTexture, tileRoofTexture, graniteTexture } from './LandmarkGeometry.js';
+import { surface, glassAtlas } from './LandmarkSurfaces.js';
 
 export class LandmarkMaterials {
   constructor() {
@@ -84,6 +85,46 @@ export class LandmarkMaterials {
     mat.userData.tile = tile;
     this.m[key] = mat;
     return tile;
+  }
+
+  /**
+   * Tiling PBR surface for the real-geometry facades (LandmarkFacade.js): kind = ashlar | rustic | plaster |
+   * concrete | trim | travertine. Returns the material key; its tile size (m) is tile(key).
+   */
+  lf(kind, color, seed = 1) {
+    const key = `lf:${kind}:${color}:${seed}`;
+    if (!this.m[key]) {
+      const t = surface(kind, color, seed);
+      const mat = new THREE.MeshStandardMaterial({ map: t.map, normalMap: t.normalMap, roughnessMap: t.roughnessMap, roughness: 1, metalness: 0 });
+      mat.normalScale.set(1, 1);
+      mat.userData.tile = t.tile;
+      this.m[key] = mat;
+    }
+    return key;
+  }
+
+  /** Window glass with rooms behind it (atlas cells picked per window), lit at night; reflective = coated curtain-wall glass. */
+  lfGlass(kind = 'public', tint = 0x9fb0b8, reflective = false) {
+    const key = `lfGlass:${kind}:${tint}:${reflective ? 1 : 0}`;
+    if (!this.m[key]) {
+      const a = glassAtlas(kind);
+      // reflective (coated curtain-wall glass): the sky dominates, the rooms show faintly
+      const mat = new THREE.MeshStandardMaterial({ map: a.map, color: tint, emissiveMap: a.emissiveMap, emissive: 0xffffff, emissiveIntensity: 0, roughness: reflective ? 0.03 : 0.04, metalness: reflective ? 0.8 : 0.35, envMapIntensity: reflective ? 1.25 : 1.6 });
+      this.m[key] = mat;
+      this.night.push(mat);
+    }
+    return key;
+  }
+
+  /** Painted or anodised window frames, doors, railings. */
+  lfColor(color, rough = 0.5, metal = 0) {
+    const key = `lfc:${color}:${rough}:${metal}`;
+    if (!this.m[key]) this.m[key] = new THREE.MeshStandardMaterial({ color, roughness: rough, metalness: metal });
+    return key;
+  }
+
+  tile(key) {
+    return (this.m[key] && this.m[key].userData.tile) || [2, 2];
   }
 
   setNight(n) {

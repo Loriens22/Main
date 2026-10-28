@@ -3,6 +3,7 @@
 // flagpoles, the LTU main building portal, the student chapel, the OMV station and the rows of
 // kiosk modules on ul. Yordan Yosifov. Sources: data/research/world/east/landmarks.json.
 import * as THREE from 'three';
+import { curtainWall } from './LandmarkFacade.js';
 import { MeshBuilder, orient, centroid, hull, scalePoly, obb, signTexture } from './LandmarkGeometry.js';
 
 const ground = (world, pts) => {
@@ -28,12 +29,19 @@ export function buildWinterPalace({ world, M, y }) {
   const base = g.avg, bot = g.min - 0.6;
   const [cx, cz] = centroid(WP);
   // two-storey foyer ring following the OSM outline: glazed on the west (road) side, blank concrete elsewhere
-  b.ring((e) => (e.nx < -0.45 ? 'wpGlass' : 'wpConcrete'), WP, bot, base + 7, { tw: 6, th: 3.5, v0: base });
+  const real = M.realFacades !== false;
+  const conc = real ? M.lf('concrete', '#d3cfc6', 61) : 'wpConcrete', ct = real ? M.tile(conc) : [6, 6];
+  if (real) {
+    // the glazed west foyer: two storeys of real mullions in front of the glass; blank precast panels elsewhere
+    b.ring((e) => (e.nx < -0.45 ? null : conc), WP, bot, base + 7, { tw: ct[0], th: ct[1], v0: base });
+    b.ring((e) => (e.nx < -0.45 ? 'concreteDark' : null), WP, bot, base + 0.05, { tw: 4, th: 4 });
+    curtainWall(b, WP, base, { height: 7, bayW: 1.5, floorH: 3.5, glass: M.lfGlass('public', 0x8c9aa3), mullion: M.lfColor('#2b2e31', 0.4, 0.5), spandrel: M.lfColor('#3f454a', 0.4, 0.3), mullD: 0.16, spandH: 0.35, only: (e) => e.nx < -0.45 });
+  } else b.ring((e) => (e.nx < -0.45 ? 'wpGlass' : 'wpConcrete'), WP, bot, base + 7, { tw: 6, th: 3.5, v0: base });
   b.cap('roofBitumen', WP, base + 7, { s: 4 });
   b.ring('concrete', WP, base + 7, base + 7.5, { tw: 4, th: 4 });
   // main hall: the outline's hull pulled in by about 10 m, 18 m high, blue-grey band under the parapet
   const H = scalePoly(hull(WP), cx, cz, 0.8);
-  b.ring('wpConcrete', H, base + 7, base + 16.6, { tw: cn[0], th: cn[1], v0: base });
+  b.ring(conc, H, base + 7, base + 16.6, { tw: real ? ct[0] : cn[0], th: real ? ct[1] : cn[1], v0: base });
   b.ring('wpBand', H, base + 16.6, base + 17.6, { tw: 4, th: 4 });
   b.ring('concrete', H, base + 17.6, base + 18.8, { tw: 4, th: 4 });
   b.cap('roofBitumen', H, base + 17.6, { s: 4 });
@@ -56,8 +64,15 @@ export function buildBotevHall({ world, M }) {
   const g = ground(world, BOTEV);
   const base = g.avg, bot = g.min - 0.6;
   const [cx, cz] = centroid(BOTEV);
-  b.ring('botevConcrete', BOTEV, bot, base + 4.2, { tw: cn[0], th: cn[1], v0: base });
-  b.ring('botevGlass', BOTEV, base + 1.0, base + 3.8, { tw: gl[0], th: gl[1], v0: base + 1.0, flip: false });
+  if (M.realFacades !== false) {
+    const conc = M.lf('concrete', '#d0ccc1', 62), ct = M.tile(conc);
+    b.ring(conc, BOTEV, bot, base + 1.0, { tw: ct[0], th: ct[1], v0: base });
+    b.ring(conc, BOTEV, base + 3.8, base + 4.2, { tw: ct[0], th: ct[1], v0: base });
+    curtainWall(b, BOTEV, base + 1.0, { height: 2.8, bayW: 1.5, floorH: 2.8, glass: M.lfGlass('public', 0x8c9aa3), mullion: M.lfColor('#2b2e31', 0.4, 0.5), spandrel: 'concrete', mullD: 0.12, spandH: 0 });
+  } else {
+    b.ring('botevConcrete', BOTEV, bot, base + 4.2, { tw: cn[0], th: cn[1], v0: base });
+    b.ring('botevGlass', BOTEV, base + 1.0, base + 3.8, { tw: gl[0], th: gl[1], v0: base + 1.0, flip: false });
+  }
   b.ring('concrete', BOTEV, base + 4.2, base + 5.0, { tw: 4, th: 4 });
   b.cap('roofBitumen', BOTEV, base + 5.0, { s: 4 });
   const hexIn = scalePoly(BOTEV, cx, cz, 0.78);
