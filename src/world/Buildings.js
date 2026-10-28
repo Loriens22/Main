@@ -7,7 +7,8 @@ import { TileBuckets } from './GeoBuffer.js';
 import { hashStr, mulberry32 } from '../core/rng.js';
 import { makeNoiseTexture } from '../render/Textures.js';
 import { replacedFor } from './LandmarkData.js';
-import { addFacadeDetail, detailMaterials } from './FacadeDetail.js';
+import { addFacadeDetail, addRoofKit, detailMaterials } from './FacadeDetail.js';
+import { KitPlacer } from './FacadeKit.js';
 
 export const STYLE = { PANEL: 0, RENOVATED: 1, CLASSIC: 2, GLASS: 3, HOUSE: 4, INDUSTRIAL: 5, INSTITUTIONAL: 6, COMMERCIAL: 7, STONE: 8 };
 
@@ -73,6 +74,8 @@ export class BuildingBuilder {
     this.detailPaths = route && quality !== 'low' ? ['A', 'B'].map((d) => route.direction(d).path) : null;
     this.detailRange = quality === 'ultra' ? 90 : quality === 'high' ? 65 : 40;
     this.detailCount = 0;
+    // Blender kit pieces (AC units, dishes, downpipes, roof rooms, awnings...) on the same buildings
+    this.kit = this.detailPaths ? new KitPlacer(256, quality === 'balanced') : null;
     this.buckets = new TileBuckets(256, {
       walls: { color: true, extra: [{ name: 'aFacade', size: 4 }, { name: 'aFacade2', size: 4 }] },
       flat: { color: true }, tiles: { color: true }, metal: { color: true }, gold: {}, copper: {}, glassroof: {},
@@ -134,9 +137,10 @@ export class BuildingBuilder {
     const walls = this.buckets.get(cx, cz, 'walls');
     const vOff = b.minH > 0 ? b.minH : 0;
     this.extrudeRing(walls, outer, bottom, top, base, col, fac, vOff);
+    const K = detail && this.kit && !b.landmark ? { placer: this.kit, tx: cx, tz: cz, researched: !!rs } : null;
     if (detail) {
       const acc = rs && rs.accent != null ? hexToRgb('#' + rs.accent.toString(16).padStart(6, '0')) : null;
-      this.detailCount += addFacadeDetail((m) => this.buckets.get(cx, cz, m), outer, fac, (v) => base + v, col, acc);
+      this.detailCount += addFacadeDetail((m) => this.buckets.get(cx, cz, m), outer, fac, (v) => base + v, col, acc, K);
     }
     for (let h of b.holes) {
       if (h.length < 6) continue;
@@ -148,6 +152,7 @@ export class BuildingBuilder {
     if (b.roof === 'dome' || b.roof === 'onion' || b.roof === 'round') this.dome(b, outer, top, cx, cz);
     else if (b.inner && b.roofH > 0) this.hipRoof(outer, b.inner, top, b.roofH, cx, cz, roofKind);
     else this.flatRoof(outer, b.holes, top, cx, cz, roofKind, b, style);
+    if (K && !b.holes.length && b.roof !== 'dome' && b.roof !== 'onion' && b.roof !== 'round') addRoofKit(K, outer, fac, top, b.inner && b.roofH > 0 ? b.inner : null, b.roofH);
     if (b.minH === 0) this.footprints.push({ pts: outer, top, bottom, id: b.id, landmark: b.landmark });
   }
 
@@ -208,7 +213,9 @@ export class BuildingBuilder {
       return;
     }
     const all = contour.concat(...hs);
-    const tint = kind === 'metal' ? [0.55, 0.57, 0.58] : [0.42 + (b.id % 7) * 0.012, 0.41, 0.4];
+    // bitumen membrane, grey or (on many slabs) silver aluminium paint
+    const silver = b.id % 5 < 2;
+    const tint = kind === 'metal' ? [0.55, 0.57, 0.58] : silver ? [0.36 + (b.id % 7) * 0.01, 0.36, 0.355] : [0.13 + (b.id % 7) * 0.008, 0.13, 0.125];
     const ids = all.map((v) => buf.vertex(v.x, top, v.y, 0, 1, 0, v.x / 6, v.y / 6, 0, 0, tint));
     for (const t of tris) buf.tri(ids[t[0]], ids[t[2]], ids[t[1]]);
     // rooftop structures on taller flat-roofed buildings
@@ -836,7 +843,7 @@ FacadeOut facade(vec2 uvm, vec4 fac, vec4 fac2, vec3 wallCol) {
     o.ao *= 1.0 - (1.0 - smoothstep(0.0, 0.05, ly)) * 0.0 + (loggia > 1.5 ? -0.25 * (1.0 - smoothstep(0.96, 1.0, ly)) * step(0.96, ly) : 0.0);
   }
   // ---------------- small details on residential slabs: AC units, satellite dishes
-  if (block && !ground && !top && !lastPartial && !stair && lod < 0.9) {
+  if (block && !ground && !top && !lastPartial && !stair && lod < 0.9 && !detail) { // near the route they are Blender models (FacadeKit.js)
     float acR = h31(vec3(bx, fl, seed * 5.0 + 8.0));
     if (acR < 0.16) {
       vec4 ac = acR < 0.08 ? vec4(0.74, 0.04, 0.95, 0.27) : vec4(0.05, 0.04, 0.26, 0.27);

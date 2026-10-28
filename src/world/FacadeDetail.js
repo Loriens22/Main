@@ -76,6 +76,243 @@ export function columnType(plan, bx) {
   return t;
 }
 
+/** Window rectangle (cell units) and loggia type of an upper-floor bay, as the shader sets them; null = no window. */
+export function upperWindow(plan, bx) {
+  const { ar, winPat, seedI } = plan;
+  const colRnd = hcell(bx, 0, seedI, 1);
+  let win = [0.27, 0.28, 0.73, 0.83], loggia = 0;
+  if (ar === 0) { win = [0.28, 0.3, 0.72, 0.8]; if (colRnd < 0.3) { win = [0.1, 0, 0.9, 0.82]; loggia = 2; } }
+  else if (ar <= 2) { if (colRnd < 0.48) { win = [0.05, 0, 0.95, 0.94]; loggia = 1; } else win = colRnd < 0.62 ? [0.36, 0.34, 0.64, 0.8] : [0.2, 0.28, 0.8, 0.82]; }
+  else if (ar === 3) { if (colRnd < 0.55) { win = [0.04, 0, 0.96, 0.95]; loggia = 1; } else win = [0.22, 0.28, 0.78, 0.84]; }
+  else if (ar === 4) { if (colRnd < 0.38) { win = [0.08, 0, 0.92, 0.85]; loggia = 2; } }
+  else if (ar === 5) win = [0.3, 0.2, 0.7, 0.84];
+  else if (ar === 6) win = [0.3, 0.18, 0.7, 0.86];
+  else if (ar === 7) win = [0.13, 0.28, 0.87, 0.84];
+  else if (ar === 9) { win = [0.14, 0.08, 0.86, 0.9]; if (colRnd < 0.5) { win = [0.05, 0, 0.95, 0.92]; loggia = 2; } }
+  else if (ar === 10) win = [0.32, 0.32, 0.68, 0.8];
+  else if (ar === 13) win = [0.36, 0.2, 0.64, 0.82];
+  else if (ar === 15) { win = [0.12, 0.25, 0.88, 0.85]; if (colRnd < 0.6) loggia = 2; }
+  else if (ar === 16) win = [0.2, 0.35, 0.8, 0.75];
+  else return null; // curtain walls, sheds, kiosks
+  if (winPat >= 0) {
+    if (winPat === 0) { win = [0.24, 0.28, 0.76, 0.84]; loggia = 0; }
+    else if (winPat === 1) { win = [0, 0.32, 1, 0.82]; loggia = 0; }
+    else if (winPat === 3) { if (colRnd < 0.5) { win = [0.05, 0, 0.95, 0.94]; loggia = 1; } else { win = [0.25, 0.3, 0.75, 0.84]; loggia = 0; } }
+    else if (winPat === 4) { win = [0.08, 0, 0.92, 0.9]; loggia = 2; }
+    else return null;
+  }
+  return { win, loggia };
+}
+
+// ---------------------------------------------------------------- kit placement (FacadeKit.js)
+// Direction to the TV satellites seen from Sofia (azimuth ~190°): dishes hang only on walls facing it.
+const SAT = [-0.174, 0.985];
+const SAT_YAW = Math.atan2(SAT[0], SAT[1]);
+const lin = (r, g, b) => [r, g, b].map((v) => Math.pow(v, 2.2));
+const AWNING = [lin(0.16, 0.36, 0.2), lin(0.55, 0.1, 0.1), lin(0.12, 0.2, 0.42), lin(0.86, 0.78, 0.6), lin(0.8, 0.32, 0.1), lin(0.26, 0.27, 0.29), lin(0.62, 0.14, 0.24), lin(0.9, 0.9, 0.88)]
+  .map((c) => c.map((v) => v / 0.75)); // the fabric's own albedo is ~0.75 linear
+const PIPE = [null, null, lin(0.5, 0.33, 0.22).map((v) => v / 0.27), lin(0.9, 0.9, 0.88).map((v) => v / 0.27)];
+const wrapPi = (a) => Math.atan2(Math.sin(a), Math.cos(a));
+
+/** The walls of a CCW ring in the facade frame of the shader (u0 = snapped facade coordinate at the start). */
+function wallsOf(outer) {
+  const n = outer.length / 2, out = [];
+  let u = 0;
+  for (let i = 0; i < n; i++) {
+    const j = (i + 1) % n;
+    const ax = outer[2 * i], az = outer[2 * i + 1], dx = outer[2 * j] - ax, dz = outer[2 * j + 1] - az;
+    const L = Math.hypot(dx, dz);
+    if (L < 0.05) continue;
+    const u0 = Math.round(u * 10) / 10;
+    u += L + 0.7;
+    out.push({ i, ax, az, L, u0, t: [dx / L, dz / L], nrm: [dz / L, -dx / L] });
+  }
+  for (let k = 0; k < out.length; k++) {
+    const p = out[(k + out.length - 1) % out.length], w = out[k];
+    w.convexStart = p.t[0] * w.t[1] - p.t[1] * w.t[0] > 0.2 && p.L > 2.5;
+  }
+  return out;
+}
+
+function inside(ring, x, z) {
+  let c = false;
+  const n = ring.length / 2;
+  for (let i = 0, j = n - 1; i < n; j = i++) {
+    const xi = ring[2 * i], zi = ring[2 * i + 1], xj = ring[2 * j], zj = ring[2 * j + 1];
+    if (zi > z !== zj > z && x < ((xj - xi) * (z - zi)) / (zj - zi) + xi) c = !c;
+  }
+  return c;
+}
+
+function edgeDist(ring, x, z) {
+  let d = Infinity;
+  const n = ring.length / 2;
+  for (let i = 0; i < n; i++) {
+    const j = (i + 1) % n;
+    const ax = ring[2 * i], az = ring[2 * i + 1], bx = ring[2 * j] - ax, bz = ring[2 * j + 1] - az;
+    const l2 = bx * bx + bz * bz || 1;
+    const k = Math.max(0, Math.min(1, ((x - ax) * bx + (z - az) * bz) / l2));
+    d = Math.min(d, Math.hypot(x - ax - bx * k, z - az - bz * k));
+  }
+  return d;
+}
+
+/** Downpipe from the shoe at the pavement to the hopper under the roof edge; axis 0.1 m off the wall. */
+function pipeRun(put, uu, H, col) {
+  const v0 = 0.5, vTop = H - 0.48;
+  if (vTop - v0 < 1.5) return;
+  put('pipeShoe', uu, 0, 0.1, 1, 1, 1, col);
+  const n = Math.max(1, Math.round((vTop - v0) / 2)), s = (vTop - v0) / (2 * n);
+  for (let k = 0; k < n; k++) {
+    put('pipe', uu, v0 + 2 * s * k, 0.1, 1, s, 1, col);
+    put('pipeClamp', uu, v0 + 2 * s * k + 1.75 * s, 0.1, 1, 1, 1, col);
+  }
+  put('pipeHead', uu, vTop, 0.1, 1, 1, 1, col);
+}
+
+/** Kit pieces on one wall: downpipes, AC units, satellite dishes, entrance lamps, shop awnings. */
+function kitWall(K, plan, w, yAt) {
+  const { ar, bayW, fh, H, gh, plinth, block, shops, seedI } = plan;
+  const { t, nrm, L, u0 } = w;
+  const yaw = Math.atan2(nrm[0], nrm[1]);
+  const put = (piece, uu, v, n, sx = 1, sy = 1, sz = 1, col = null, yw = yaw) => {
+    const x = w.ax + t[0] * (uu - u0) + nrm[0] * n, z = w.az + t[1] * (uu - u0) + nrm[1] * n;
+    K.placer.add(K.tx, K.tz, piece, x, yAt(v), z, yw, sx, sy, sz, col);
+  };
+  // downpipes: on the convex corner this wall starts at, and on the piers of long classical facades
+  const piped = ar === 4 || ar === 5 || ar === 6 || ar === 9 || ar === 10 || ar === 13 || ar === 15 || ar === 16;
+  if (piped && H > 3.5 && L > 3) {
+    const col = PIPE[Math.floor(hcell(0, 0, seedI, 26) * 4)];
+    if (w.convexStart && hcell(w.i, 7, seedI, 25) < 0.75) pipeRun(put, u0 + 0.22, H, col);
+    if ((ar === 5 || ar === 6 || ar === 13) && L > 14) {
+      let last = u0;
+      for (let k = Math.ceil((u0 + 4) / bayW); k * bayW < u0 + L - 4; k++) {
+        if (k * bayW - last > 9 && hcell(k, 5, seedI, 27) < 0.3) { pipeRun(put, k * bayW, H, col); last = k * bayW; }
+      }
+    }
+  }
+  const facesSat = nrm[0] * SAT[0] + nrm[1] * SAT[1] > 0.3;
+  const headYaw = yaw + Math.max(-0.85, Math.min(0.85, wrapPi(SAT_YAW - yaw)));
+  const acP = ar <= 3 ? 0.11 : ar === 4 || ar === 9 || ar === 15 ? 0.15 : ar === 5 || ar === 6 || ar === 13 ? 0.1 : ar === 7 ? 0.08 : ar === 10 || ar === 16 ? 0.06 : 0;
+  const dishP = facesSat ? (block ? 0.06 : 0.03) : 0;
+  const awnings = shops && !K.researched && gh >= 3.6;
+  for (let bx = Math.ceil((u0 + 0.05) / bayW); (bx + 1) * bayW <= u0 + L - 0.05; bx++) {
+    const uc = (bx + 0.5) * bayW;
+    const type = columnType(plan, bx);
+    if (type === -1) {
+      if (block && !shops && H > 8) {
+        put('lamp', uc, plinth + 2.2, 0);
+        put('lampGlass', uc, plinth + 2.2, 0);
+      }
+      continue;
+    }
+    if (awnings && hcell(Math.floor(bx / 3), 0, seedI, 41) < 0.4) {
+      const col = AWNING[Math.floor(hcell(Math.floor(bx / 3), 1, seedI, 42) * AWNING.length)];
+      const sx = (bayW * 0.98) / 2.12;
+      put('awning', uc, gh * 0.745, 0, sx, 1, 1, col);
+      put('awningFrame', uc, gh * 0.745, 0, sx);
+    }
+    const wnd = upperWindow(plan, bx);
+    if (!wnd || (!acP && !dishP)) continue;
+    const { win, loggia } = wnd;
+    const depth = ar === 9 ? 1.4 : ar === 4 ? 1.1 : 1.0, hw = bayW * 0.44;
+    const balcony = loggia === 2 && block;
+    for (let fl = 0; gh + (fl + 1) * fh <= H - 0.35; fl++) {
+      const v0 = gh + fl * fh;
+      const r = hcell(bx, fl, seedI, 21);
+      const side = hcell(bx, fl, seedI, 22) < 0.5 ? -1 : 1;
+      if (r < acP) {
+        if (balcony) put('ac', uc + side * (hw - 0.47), v0 + 0.22, depth + 0.01);
+        else if (loggia === 1) put('ac', uc + side * bayW * 0.22, v0 + 0.14, 0);
+        else if (loggia === 0) {
+          const right = (1 - win[2]) * bayW, left = win[0] * bayW;
+          if (Math.max(left, right) >= 0.92) {
+            const useRight = right > left + 0.05 || (Math.abs(right - left) <= 0.05 && side > 0);
+            put('ac', bx * bayW + (useRight ? (win[2] + 1) / 2 : win[0] / 2) * bayW, v0 + ((win[1] + win[3]) / 2) * fh - 0.3, 0);
+          } else if (win[1] * fh >= 0.72) put('ac', uc + side * 0.12 * bayW, v0 + win[1] * fh - 0.66, 0);
+        }
+      } else if (r > 1 - dishP) {
+        let uu, v, n;
+        if (balcony) { uu = uc + side * (hw - 0.22); v = v0 + 0.72; n = depth + 0.01; }
+        else if (loggia === 1) { uu = uc + side * bayW * 0.3; v = v0 + 0.62; n = 0; }
+        else {
+          const right = (1 - win[2]) * bayW, left = win[0] * bayW;
+          if (Math.max(left, right) < 0.7) continue;
+          uu = bx * bayW + (right >= left ? (win[2] + 1) / 2 : win[0] / 2) * bayW; v = v0 + ((win[1] + win[3]) / 2) * fh; n = 0;
+        }
+        put('dishMount', uu, v, n);
+        put('dishHead', uu, v, n + 0.45, 1, 1, 1, null, headYaw);
+      }
+    }
+  }
+}
+
+/**
+ * Roof kit of a building along the route: lift machine rooms above the staircases of tall slabs, vent
+ * heads, mushroom vents, TV masts and condenser rows on flat roofs; a chimney on hipped roofs.
+ */
+export function addRoofKit(K, outer, fac, top, inner, roofH) {
+  const plan = planOf(fac);
+  const { ar, bayW, H, block, seedI } = plan;
+  const walls = wallsOf(outer);
+  if (!walls.length) return;
+  const W = walls.reduce((a, b) => (b.L > a.L ? b : a));
+  const yaw = Math.atan2(W.nrm[0], W.nrm[1]);
+  const add = (piece, x, y, z, yw = yaw, s = 1, col = null) => K.placer.add(K.tx, K.tz, piece, x, y, z, yw, s, s, s, col);
+  const spot = (uu, inset) => [W.ax + W.t[0] * (uu - W.u0) - W.nrm[0] * inset, W.az + W.t[1] * (uu - W.u0) - W.nrm[1] * inset];
+  const fits = (p, r) => inside(outer, p[0], p[1]) && edgeDist(outer, p[0], p[1]) > r;
+  if (inner && roofH > 0) {
+    if (hcell(1, 1, seedI, 60) > 0.85) return;
+    let cx = 0, cz = 0;
+    const n = inner.length / 2;
+    for (let i = 0; i < n; i++) { cx += inner[2 * i]; cz += inner[2 * i + 1]; }
+    cx /= n; cz /= n;
+    const f = 0.62 + hcell(1, 2, seedI, 61) * 0.2, uu = W.u0 + W.L * (0.3 + hcell(1, 3, seedI, 62) * 0.4);
+    const m = spot(uu, 0);
+    const x = m[0] + (cx - m[0]) * f, z = m[1] + (cz - m[1]) * f;
+    add('chimney', x, top + roofH * f - 0.35, z);
+    return;
+  }
+  const lifts = [];
+  if (block && H > 14 && ar < 9.5) {
+    for (let bx = Math.ceil(W.u0 / bayW); (bx + 1) * bayW <= W.u0 + W.L; bx++) {
+      if (columnType(plan, bx) !== -1) continue;
+      const p = spot((bx + 0.5) * bayW, 3.6);
+      if (!fits(p, 1.75)) continue;
+      add('liftroom', p[0], top, p[1]);
+      lifts.push(p);
+      if (hcell(bx, 70, seedI, 63) < 0.45) add('antenna', p[0] + W.t[0] * 1.0, top + 2.63, p[1] + W.t[1] * 1.0, yaw + hcell(bx, 71, seedI, 64) * 6.28);
+    }
+  }
+  const clear = (p, r) => lifts.every((q) => Math.hypot(q[0] - p[0], q[1] - p[1]) > r);
+  if (block) {
+    for (let bx = Math.ceil(W.u0 / bayW); (bx + 1) * bayW <= W.u0 + W.L; bx++) {
+      if (columnType(plan, bx) === -1 || hcell(bx, 50, seedI, 51) > 0.4) continue;
+      const p = spot((bx + 0.5) * bayW, 2.0 + hcell(bx, 51, seedI, 52) * 2.5);
+      if (fits(p, 0.7) && clear(p, 2.6)) add('vent', p[0], top, p[1]);
+    }
+  }
+  const nm = 1 + Math.floor(hcell(2, 2, seedI, 53) * (W.L > 20 ? 5 : 3));
+  for (let k = 0; k < nm; k++) {
+    const p = spot(W.u0 + W.L * (0.08 + 0.84 * hcell(k, 3, seedI, 54)), 1.0 + hcell(k, 4, seedI, 55) * 6);
+    if (fits(p, 0.5) && clear(p, 2.2)) add('mushroom', p[0], top, p[1]);
+  }
+  const na = block ? (H > 14 ? 1 : 2) : hcell(3, 3, seedI, 56) < 0.55 ? 1 : 0;
+  for (let k = 0; k < na; k++) {
+    const p = spot(W.u0 + W.L * (0.15 + 0.7 * hcell(k, 5, seedI, 57)), 1.5 + hcell(k, 6, seedI, 58) * 4);
+    if (fits(p, 0.6) && clear(p, 2.5)) add('antenna', p[0], top, p[1], hcell(k, 7, seedI, 59) * 6.28);
+  }
+  // condenser rows on offices, institutes and shops
+  if ((ar === 7 || ar === 8 || ar === 16 || ar === 11) && hcell(4, 4, seedI, 65) < 0.7) {
+    const nc = 2 + Math.floor(hcell(4, 5, seedI, 66) * 4);
+    const u1 = W.u0 + W.L * (0.2 + 0.3 * hcell(4, 6, seedI, 67));
+    for (let k = 0; k < nc; k++) {
+      const p = spot(u1 + k * 1.1, 2.6);
+      if (fits(p, 0.6)) add('ac', p[0], top + 0.4, p[1], yaw + Math.PI);
+    }
+  }
+}
+
 // ---------------------------------------------------------------- materials
 function railTexture() {
   // one 0.12 m bay of a painted steel railing: top rail, bottom rail, one bar
@@ -159,10 +396,12 @@ function panel(buf, x0, z0, x1, z1, y0, y1, nx, nz, col, uScale = 1) {
 /**
  * Adds the detail geometry of one building.
  *  get(material) -> GeoBuffer for this building's tile; outer = CCW footprint ring (flat x,z);
- *  yAt(v) = world height of facade coordinate v; wallCol = linear rgb of the wall.
+ *  yAt(v) = world height of facade coordinate v; wallCol = linear rgb of the wall;
+ *  K = {placer, tx, tz, researched} to place Blender kit pieces (FacadeKit.js) as well.
  */
-export function addFacadeDetail(get, outer, fac, yAt, wallCol, accent) {
+export function addFacadeDetail(get, outer, fac, yAt, wallCol, accent, K = null) {
   const plan = planOf(fac);
+  if (K) for (const w of wallsOf(outer)) kitWall(K, plan, w, yAt);
   const { ar, bayW, fh, H, gh, plinth, block, shops, seedI } = plan;
   const flat = get('dflat'), rail = get('rail'), glazing = get('glazing');
   const n = outer.length / 2;

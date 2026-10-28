@@ -6,6 +6,7 @@ import { buildSplat, createTerrainMaterial, buildNearTerrainChunk, buildFarTerra
 import { RoadNetwork } from './RoadNetwork.js';
 import { RoadMeshBuilder } from './RoadMesh.js';
 import { BuildingBuilder } from './Buildings.js';
+import { loadKit } from './FacadeKit.js';
 import { SegmentGrid } from './SpatialIndex.js';
 import { L } from '../ui/i18n.js';
 
@@ -41,6 +42,8 @@ export class World {
 
   async build(progress = () => {}) {
     const d = this.data;
+    // the Blender kit decodes (GLB + atlas textures) while the terrain and buildings are generated
+    const kitP = this.quality !== 'low' && this.route ? loadKit().catch((e) => { console.warn('facade kit:', e); return null; }) : null;
     const hf = (this.hf = new Heightfield(d.dem));
     progress(0.1, L('Терен и релеф…', 'Terrain and elevation…'));
     await yieldFrame();
@@ -84,6 +87,8 @@ export class World {
     await yieldFrame();
     for (const g of rb.meshes()) this.addToTile(g.name.split(':')[1], g);
     for (const g of bb.meshes()) this.addToTile(g.name.split(':')[1], g);
+    const kit = (this.kit = kitP && (await kitP));
+    if (kit && bb.kit) for (const g of bb.kit.meshes(kit)) this.addToTile(g.name.split(':')[1], g);
     this.materials = { roads: rb.materials(), buildings: bb.materials() };
     return this;
   }
@@ -118,7 +123,7 @@ export class World {
       const near = d < 380;
       if (t.near !== near) {
         t.near = near;
-        for (const o of t.objs) o.traverse((m) => { if (m.isMesh && m.name !== 'terrain') m.castShadow = near && !/^(asphalt|brick|sett|sidewalk|paint|footway|path|median|flat|curb|glow|lens|terrain)$/.test(m.name); });
+        for (const o of t.objs) o.traverse((m) => { if (m.isMesh && m.name !== 'terrain') m.castShadow = near && !/^(asphalt|brick|sett|sidewalk|paint|footway|path|median|flat|curb|glow|lens|terrain|kit_(pipe\w*|antenna|mushroom|lamp\w*|dish\w+))$/.test(m.name); });
       }
     }
   }
@@ -130,6 +135,7 @@ export class World {
 
   setNight(v) {
     if (this.materials) this.materials.buildings.uniforms.uNight.value = v;
+    if (this.kit) this.kit.glass.emissiveIntensity = v * 2.2;
   }
 
   tick(dt) {
@@ -148,7 +154,7 @@ export class World {
 /** Share of the draw distance at which each kind of tile object is still drawn. */
 const CULL = {
   trees: 0.7, lampsT: 0.6, lampsS: 0.45, glow: 0.6, lines: 0.6, signals: 0.5, stop: 0.5, parked: 0.38,
-  bin: 0.3, container: 0.3, bench: 0.3, recycling: 0.3, hydrant: 0.3, bollard: 0.3, signs: 0.4, bdetail: 0.4, plotwalls: 0.45,
+  bin: 0.3, container: 0.3, bench: 0.3, recycling: 0.3, hydrant: 0.3, bollard: 0.3, signs: 0.4, bdetail: 0.4, bkit: 0.28, bkits: 0.12, plotwalls: 0.45,
 };
 
 /**
