@@ -27,7 +27,7 @@ export function glassMaterial({ color = 0x0b0e11, transmit = 0.5, side = THREE.F
 }
 
 /** Ambient/environment light reaching the cabin, relative to outside. */
-export const CABIN_AMBIENT = 0.62;
+export const CABIN_AMBIENT = 0.34;
 
 /**
  * Scales the indirect light of every material used only inside the cabin (interior groups, cab). Materials

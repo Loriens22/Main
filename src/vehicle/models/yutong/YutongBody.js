@@ -254,12 +254,14 @@ export const BodyMixin = {
         // RingGeometry spans angles [0, PI] (upper half) in its local xy plane; after the rotation the local x runs along -z (right) / +z (left): mirror-symmetric, so fine
         p.add('matteBlack', ring, rm);
         const phi = Math.asin((K.wheelR - K.skirtY) / (K.archR - 0.01));
-        const liner = new THREE.CylinderGeometry(K.archR - 0.01, K.archR - 0.01, 0.5, 28, 1, true, -phi, Math.PI + 2 * phi);
+        // the closing disc sits 2 cm outboard of the saloon's wheel-housing wall (|x| 0.73): coplanar, the two
+        // z-fought and the disc's triangle fan showed through the podium side inside the bus
+        const liner = new THREE.CylinderGeometry(K.archR - 0.01, K.archR - 0.01, 0.48, 28, 1, true, -phi, Math.PI + 2 * phi);
         liner.rotateZ(Math.PI / 2);
-        p.add('underbody', liner, M(side * (HW - 0.27), K.wheelR, az));
+        p.add('underbody', liner, M(side * (HW - 0.26), K.wheelR, az));
         const disc = new THREE.CircleGeometry(K.archR - 0.01, 28, -phi, Math.PI + 2 * phi);
         disc.rotateY(Math.PI / 2);
-        p.add('underbody', disc, M(side * (HW - 0.52), K.wheelR, az));
+        p.add('underbody', disc, M(side * (HW - 0.5), K.wheelR, az));
       }
       // ---- glazed band ---------------------------------------------------
       const panes = side > 0 ? K.panesR : K.panesL;
@@ -408,8 +410,9 @@ export const BodyMixin = {
     // axle beams and the rear differential housing, visible below the skirts
     // portal axles: the beams run under the podiums only, the dropped centre stays below the low aisle floor
     for (const sg of [-1, 1]) {
-      p.add('underbody', new THREE.CylinderGeometry(0.06, 0.06, 0.55, 10).rotateZ(Math.PI / 2), M(sg * 0.98, K.wheelR, K.axleF));
-      p.add('underbody', new THREE.CylinderGeometry(0.08, 0.08, 0.5, 10).rotateZ(Math.PI / 2), M(sg * 1.0, K.wheelR, K.axleR));
+      // axle stubs end inside the wheel hubs (they stuck out of the modelled hub caps)
+      p.add('underbody', new THREE.CylinderGeometry(0.06, 0.06, 0.4, 10).rotateZ(Math.PI / 2), M(sg * 0.72, K.wheelR, K.axleF));
+      p.add('underbody', new THREE.CylinderGeometry(0.08, 0.08, 0.4, 10).rotateZ(Math.PI / 2), M(sg * 0.7, K.wheelR, K.axleR));
     }
     p.add('underbody', box(1.5, 0.12, 0.2), M(0, 0.2, K.axleF));
     p.add('underbody', new THREE.SphereGeometry(0.14, 12, 8), M(0, 0.17, K.axleR));

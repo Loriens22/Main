@@ -356,8 +356,22 @@ export function makeLionBadge() {
 /** Headlamp unit 0.27 x 0.14 m for the bus RIGHT side (outer cell on the left): [colour map, emissive map]. */
 export function makeHeadlampTex() {
   const W = 540, H = 280, outerW = 220;
-  const mk = (emissive) => {
+  // rm: roughness (G) / metalness (B) map - the reflector bowls are polished metal, so they pick up the street
+  const mk = (emissive, rm = false) => {
     const [c, g] = canvas(W, H);
+    if (rm) {
+      g.fillStyle = 'rgb(0,90,0)';
+      g.fillRect(0, 0, W, H);
+      g.fillStyle = 'rgb(0,60,0)';
+      g.fillRect(outerW - 6, 0, 12, H);
+      g.fillStyle = 'rgb(0,22,255)';
+      g.beginPath(); g.arc(outerW / 2, H / 2, 98, 0, Math.PI * 2); g.fill();
+      const ix = outerW + 14, iw = W - ix - 12;
+      g.beginPath(); g.roundRect ? g.roundRect(ix, 24, iw, H - 48, 22) : g.rect(ix, 24, iw, H - 48); g.fill();
+      g.fillStyle = 'rgb(0,70,0)';
+      g.beginPath(); g.ellipse(outerW / 2 + 6, H / 2 - 4, 20, 26, 0, 0, Math.PI * 2); g.fill();
+      return tex(c, { aniso: 8, srgb: false });
+    }
     g.fillStyle = emissive ? '#000' : '#d9dee2';
     g.fillRect(0, 0, W, H);
     if (!emissive) {
@@ -392,7 +406,7 @@ export function makeHeadlampTex() {
     g.beginPath(); g.moveTo(ix + 8, H / 2); g.lineTo(ix + iw - 8, H / 2); g.stroke();
     return tex(c, { aniso: 8 });
   };
-  return [mk(false), mk(true)];
+  return [mk(false), mk(true), mk(false, true)];
 }
 
 /** Ribbed clear lens of the fog / cornering lamp (0.15 x 0.075 m). */

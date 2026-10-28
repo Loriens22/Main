@@ -12,7 +12,7 @@ import {
 import { M, Parts, box } from './BusGeom.js';
 import { seatPieces, foldSeatPieces } from './BusSeat.js';
 import { busKit, kitSeats, kitInstances } from './BusKit.js';
-import { texBox, quad, profileStrip, decal, sweep, rod, fillet } from './BusInteriorGeom.js';
+import { texBox, quad, profileStrip, decal, sweep, rod, fillet, floorPlate } from './BusInteriorGeom.js';
 import { buildPoles } from './BusPoles.js';
 import { addCabParts, buildCabInterior, CAB_PARTITION_Z } from './BusCab.js';
 
@@ -138,8 +138,8 @@ export const InteriorMixin = {
     const zE = isF ? FRONT_BODY_END_Z : REAR_BULKHEAD_Z; // floor end
     const doors = BUS.doors.filter((d) => d.section === sec);
     const axles = isF ? [-BUS.wb1, 0] : [0];
-    // ---- floor (speckled rubber, 2 tiles per metre)
-    parts.add('floor', quad('y', -1.22, 1.22, zS, zE, FY, true, 2));
+    // ---- floor (speckled rubber, 2 tiles per metre), kept out of the wheel arches
+    floorPlate(parts, 1.22, zS, zE, FY, axles, HOUSING_X, HOUSING_HALF);
     // ---- podiums over the wheel arches (wall to aisle edge, yellow edge strips)
     for (const p of PODIUMS.filter((q) => q.sec === sec)) this.podium(parts, p);
     // ---- lower side walls (floor to the sill), cut at doors and wheel housings
@@ -262,8 +262,9 @@ export const InteriorMixin = {
     };
     // aisle step (x AISLE_X .. housing) over the whole length; wall side beyond the housing
     bx(AISLE_X, HOUSING_X, z0, z1);
-    bx(HOUSING_X, WALL_X + 0.01, z0, hz0);
-    bx(HOUSING_X, WALL_X + 0.01, hz1, z1);
+    // (kept 4 cm clear of the wheel arch: their top edge showed through the arch as a plate across the tyre)
+    bx(HOUSING_X, WALL_X - 0.01, z0, hz0 - 0.04);
+    bx(HOUSING_X, WALL_X - 0.01, hz1 + 0.04, z1);
     // closed housing (inner face, ends, top) over the wheel
     const topY = HOUSING_Y;
     parts.add('wall', quad('x', hz0, hz1, PODIUM_Y, topY, sg * HOUSING_X, sg < 0));

@@ -133,13 +133,29 @@ export class Renderer {
    * radius (contact shading round seats, poles and window frames) while the camera is in a saloon or cab.
    */
   setInterior(on) {
+    this.interior = on;
     if (!this.ao || this.aoInterior === on) return;
     this.aoInterior = on;
     this.ao.updateGtaoMaterial(on ? { radius: 0.35, thickness: 0.8, scale: 1.2, distanceFallOff: 1.0 } : { radius: 2.0, thickness: 6.0, scale: 1.8, distanceFallOff: 0.6 });
     this.ao.updatePdMaterial(on ? { radius: 3 } : { radius: 5 });
   }
 
+  /**
+   * Eye adaptation: a bus saloon gets a fraction of the daylight (Glass.js CABIN_AMBIENT), so from the street the
+   * windows look dark, as in photographs; inside, the exposure opens up over about a second and the street
+   * outside the windows burns brighter instead. The sky system sets the base exposure; the gain rides on it.
+   */
+  adaptExposure() {
+    const r = this.renderer;
+    if (r.toneMappingExposure !== this._applied) this._base = r.toneMappingExposure;
+    const target = this.interior ? 1.75 : 1;
+    this._gain = this._gain == null ? target : this._gain + (target - this._gain) * 0.06;
+    if (Math.abs(this._gain - target) < 0.002) this._gain = target;
+    r.toneMappingExposure = this._applied = this._base * this._gain;
+  }
+
   render() {
+    this.adaptExposure();
     if (this.composer) this.composer.render();
     else this.renderer.render(this.scene, this.camera);
   }

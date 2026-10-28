@@ -5,6 +5,7 @@
 // validators, red stop buttons, a partition panel with a red rail behind door 1, the turntable at the
 // articulation. Section frames as in the exterior.
 import * as THREE from 'three';
+import { floorPlate } from '../../BusInteriorGeom.js';
 import { LedSign } from '../../LedSign.js';
 import { Parts, M, box, quad, texBox, profileStrip, rod, tube, smooth, roundRectShape, decal } from './geom.js';
 import { seatPieces, foldPieces } from './ConectoSeat.js';
@@ -64,10 +65,10 @@ export const InteriorMixin = {
     const wtop = D.windowTopY;
     // ---- floor (stud rubber), with the raised engine platform and its stairs in the rear section
     if (isF) {
-      parts.add('floor', quad('y', -1.19, 1.19, zS, zE, FY, true, 2));
+      floorPlate(parts, 1.19, zS, zE, FY, axles, HOUSING_X, HOUSING_HALF);
     } else {
       const zp = PLAT_Z0;
-      parts.add('floor', quad('y', -1.19, 1.19, zS, zp, FY, true, 2));
+      floorPlate(parts, 1.19, zS, zp, FY, axles, HOUSING_X, HOUSING_HALF);
       const H = L.platformY - FY;
       for (let i = 0; i < 3; i++) {
         const z0 = zp + 0.2 * i, h = (H * (i + 1)) / 3;

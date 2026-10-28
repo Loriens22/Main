@@ -267,6 +267,7 @@ async function busStudio({ R, scene, camera, sky, progress }) {
       camera.position.set(x, y, z);
       camera.lookAt(tx, ty, tz);
       R.setInterior(Math.abs(x) < 1.27 && y > 0.3 && y < 2.9 && z > F.frontZ && z < 13);
+      R._gain = null; // stills: no adaptation delay
       sky.follow(new THREE.Vector3(0, 0, 0));
       bus.afterPose();
       R.render();

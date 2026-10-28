@@ -22,7 +22,7 @@ function tex(c, { srgb = true, repeat = false, aniso = 8 } = {}) {
 /** Speckled grey rubber floor: base, ~12 % light flecks, ~5 % black flecks. 512 px = 0.5 m (repeat 2 per metre). */
 export function makeFloor() {
   const [c, g] = canvas(512, 512);
-  g.fillStyle = '#6a7077';
+  g.fillStyle = '#6c6d6e'; // neutral mid grey (photos 4, 5); was blue-grey
   g.fillRect(0, 0, 512, 512);
   const r = mulberry32(17);
   const fleck = (n, col, smin, smax) => {
@@ -32,8 +32,8 @@ export function makeFloor() {
       for (const ox of [0, x > 480 ? -512 : 0]) for (const oy of [0, y > 480 ? -512 : 0]) g.fillRect(x + ox, y + oy, s, s * (0.6 + r() * 0.8));
     }
   };
-  fleck(2600, 'rgba(120,126,133,0.55)', 1, 3);
-  fleck(5200, '#c4c8cc', 1, 3);
+  fleck(2600, 'rgba(126,127,128,0.55)', 1, 3);
+  fleck(5200, '#c6c7c8', 1, 3);
   fleck(2300, '#2c2f33', 1, 3);
   return tex(c, { repeat: true });
 }

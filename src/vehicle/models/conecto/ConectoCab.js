@@ -21,9 +21,15 @@ export const CabMixin = {
     p.add('stripYellow', box(0.045, 0.004, PART_Z - fz - 0.3), M(-0.345, CAB_Y + 0.002, (PART_Z + fz + 0.3) / 2));
     p.add('stripYellow', box(0.006, 0.045, PART_Z - fz - 0.3), M(-0.322, CAB_Y - 0.0225, (PART_Z + fz + 0.3) / 2));
     // ---- dashboard: grey body, dark grained top across the full width, raised hood in front of the driver
-    p.add('cabPanel', box(2.36, 1.0 - FY, 0.5), M(0, (1.0 + FY) / 2, fz + 0.32));
-    p.add('dashTop', box(2.38, 0.12, 0.62), M(0, 1.06, fz + 0.38));
-    p.add('dash', box(2.3, 0.05, 0.22), M(0, 1.15, fz + 0.15));
+    // the nose curves back from |x| 0.95 (skin 0.19 m behind the face at |x| 1.17): the outer ends of the dash
+    // start further back so they stay inside the body (they showed through the front corners)
+    p.add('cabPanel', box(2.06, 1.0 - FY, 0.5), M(0, (1.0 + FY) / 2, fz + 0.32));
+    p.add('dashTop', box(2.08, 0.12, 0.62), M(0, 1.06, fz + 0.38));
+    for (const sg of [-1, 1]) {
+      p.add('cabPanel', box(0.15, 1.0 - FY, 0.3), M(sg * 1.105, (1.0 + FY) / 2, fz + 0.42));
+      p.add('dashTop', box(0.15, 0.12, 0.4), M(sg * 1.105, 1.06, fz + 0.49));
+    }
+    p.add('dash', box(1.96, 0.05, 0.22), M(0, 1.15, fz + 0.16));
     // driver binnacle (hood) with the instrument cluster
     p.add('dash', box(0.7, 0.2, 0.3), M(DX, 1.27, fz + 0.58));
     p.add('dash', box(0.74, 0.035, 0.14), M(DX, 1.385, fz + 0.69));

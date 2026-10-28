@@ -120,11 +120,12 @@ export const FrontMixin = {
     const z0 = FRONT_Z;
     for (const sg of [1, -1]) {
       // bent arm from the A-pillar top corner: out, then a short stalk to the head
-      const path = [[sg * 1.2, 2.5, z0 + 0.52], [sg * 1.3, 2.52, z0 + 0.5], [sg * 1.42, 2.52, z0 + 0.44], [sg * 1.52, 2.5, z0 + 0.36], [sg * 1.55, 2.44, z0 + 0.33]];
+      // heads close to the A-pillars (ref06: nothing reaches far beyond the body outline)
+      const path = [[sg * 1.2, 2.5, z0 + 0.52], [sg * 1.28, 2.52, z0 + 0.5], [sg * 1.36, 2.52, z0 + 0.44], [sg * 1.42, 2.5, z0 + 0.36], [sg * 1.44, 2.44, z0 + 0.33]];
       for (const g of sweep(path, (t) => [0.03 + 0.012 * t, 0.026 + 0.012 * t], 24, 12)) parts.add('satin', g);
       parts.add('satin', box(0.12, 0.1, 0.12, 0.03), M(sg * 1.2, 2.5, z0 + 0.54)); // root boss
       // head: tall black box, slightly rounded, facing the driver
-      const hm = new THREE.Matrix4().makeRotationY(-sg * 0.12).setPosition(sg * 1.56, 2.2, z0 + 0.34);
+      const hm = new THREE.Matrix4().makeRotationY(-sg * 0.12).setPosition(sg * 1.45, 2.2, z0 + 0.34);
       parts.add('satin', box(0.2, 0.4, 0.11, 0.035), hm);
       const g1 = new THREE.PlaneGeometry(0.17, 0.2); g1.translate(0, 0.08, 0.0565);
       const g2 = new THREE.PlaneGeometry(0.17, 0.11); g2.translate(0, -0.12, 0.0565);

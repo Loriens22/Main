@@ -236,17 +236,18 @@ export const FrontMixin = {
     }
     // ---- LEFT (-x): heavy bracket on the A-pillar corner, big rectangular head (ref01)
     {
-      const path = [[-1.2, 2.5, z0 + 0.62], [-1.32, 2.56, z0 + 0.5], [-1.42, 2.58, z0 + 0.36], [-1.46, 2.5, z0 + 0.3]];
+      // close to the A-pillar: from the right-hand side (ref02) nothing shows beyond the body outline
+      const path = [[-1.2, 2.5, z0 + 0.66], [-1.3, 2.55, z0 + 0.56], [-1.37, 2.56, z0 + 0.46], [-1.39, 2.48, z0 + 0.42]];
       for (const g of ellSweep(path, (t) => [0.024, 0.03], 16, 10)) parts.add('satin', g);
-      parts.add('satin', box(0.1, 0.12, 0.13, 0.02), M(-1.2, 2.5, z0 + 0.62));
-      const head = new RoundedBoxGeometry(0.24, 0.5, 0.1, 3, 0.04);
-      const hm = new THREE.Matrix4().makeRotationY(-0.2).setPosition(-1.5, 2.22, z0 + 0.26);
+      parts.add('satin', box(0.1, 0.12, 0.13, 0.02), M(-1.2, 2.5, z0 + 0.66));
+      const head = new RoundedBoxGeometry(0.22, 0.46, 0.1, 3, 0.04);
+      const hm = new THREE.Matrix4().makeRotationY(-0.2).setPosition(-1.41, 2.18, z0 + 0.4);
       parts.add('satin', head, hm);
       const g1 = new THREE.PlaneGeometry(0.2, 0.34); g1.translate(0, 0.06, 0.0515);
       const g2 = new THREE.PlaneGeometry(0.2, 0.1); g2.translate(0, -0.185, 0.0515);
       parts.add('mirror', g1, hm);
       parts.add('mirror', g2, hm);
-      parts.add('satin', rodTo([-1.46, 2.5, z0 + 0.3], [-1.5, 2.4, z0 + 0.26], 0.018));
+      parts.add('satin', rodTo([-1.39, 2.48, z0 + 0.42], [-1.41, 2.38, z0 + 0.4], 0.018));
     }
   },
 

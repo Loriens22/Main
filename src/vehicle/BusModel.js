@@ -7,7 +7,7 @@
 // glazing, portals, leaves, roof, pods), BusRear.js, BusRunning.js (wheels,
 // doors, bellows). Interior: BusInterior.js. Reference: data/research/bus/exterior/exterior_spec.md
 import * as THREE from 'three';
-import { disposeModel } from './BusKit.js';
+import { disposeModel, kitInstances } from './BusKit.js';
 import { glassMaterial, occludeInterior } from './Glass.js';
 import { BUS, FRONT_Z, AXLE1_Z, HITCH_FRONT_Z, HITCH_REAR_Z, FRONT_BODY_END_Z, REAR_BODY_START_Z, REAR_Z } from './BusSpec.js';
 import { LedSign } from './LedSign.js';
@@ -72,7 +72,7 @@ export class BusModel {
     this.leafSize = atlas.size;
     const decals = makeFrontDecals(this.fleet);
     this.decalRects = decals.rects;
-    const [hlMap, hlEmi] = makeHeadlampTex();
+    const [hlMap, hlEmi, hlRM] = makeHeadlampTex();
     const P = THREE.MeshPhysicalMaterial;
     const S = THREE.MeshStandardMaterial;
     const lacquer = { roughness: 0.3, metalness: 0.05, clearcoat: 0.8, clearcoatRoughness: 0.1 };
@@ -98,12 +98,12 @@ export class BusModel {
       satinChrome: new S({ color: 0xb9bcbe, roughness: 0.35, metalness: 1 }),
       // generic glass (door leaves, cab partition); the body glazing is split into an outer and an inner layer
       glass: glassMaterial({ color: 0x0f181c, transmit: 0.5, side: THREE.DoubleSide }),
-      glassOut: glassMaterial({ color: 0x040506, transmit: 0.32, side: THREE.FrontSide }),
-      glassIn: glassMaterial({ color: 0x0f181c, transmit: 0.62, side: THREE.BackSide, env: 0.2 }),
-      windscreen: glassMaterial({ color: 0x080b0f, transmit: 0.55, side: THREE.FrontSide }),
-      windscreenIn: glassMaterial({ color: 0x0f181c, transmit: 0.85, side: THREE.BackSide, env: 0.2 }),
+      glassOut: glassMaterial({ color: 0x040506, transmit: 0.2, side: THREE.FrontSide }),
+      glassIn: glassMaterial({ color: 0x0f181c, transmit: 0.42, side: THREE.BackSide, env: 0.2 }),
+      windscreen: glassMaterial({ color: 0x080b0f, transmit: 0.45, side: THREE.FrontSide }),
+      windscreenIn: glassMaterial({ color: 0x0f181c, transmit: 0.72, side: THREE.BackSide, env: 0.2 }),
       lensClear: new P({ color: 0xffffff, roughness: 0.05, metalness: 0, transparent: true, opacity: 0.16, depthWrite: false, clearcoat: 1, envMapIntensity: 1.4 }),
-      headlamp: new S({ map: hlMap, emissiveMap: hlEmi, emissive: 0xffffff, emissiveIntensity: 0, roughness: 0.3, metalness: 0.4 }),
+      headlamp: new S({ map: hlMap, emissiveMap: hlEmi, emissive: 0xffffff, emissiveIntensity: 0, roughnessMap: hlRM, metalnessMap: hlRM, roughness: 1, metalness: 1 }),
       lampFrame: new S({ color: 0x4a4d52, roughness: 0.5 }),
       ribLens: new S({ map: makeRibLens(), roughness: 0.4 }),
       indicatorL: new S({ color: 0xe07b0a, roughness: 0.3, emissive: 0xff8a00, emissiveIntensity: 0 }),
@@ -156,6 +156,10 @@ export class BusModel {
     this.addAxle(this.front, 0, false, false);
     for (const d of BUS.doors.filter((q) => q.section === 'front')) this.addDoor(this.front, d);
     const grp = this.finish(parts);
+    if (this._kitMirrors) {
+      const km = kitInstances(this._kitMirrors, [{ x: 0, y: 0, z: FRONT_Z }], { castShadow: true });
+      if (km) grp.add(km);
+    }
     this.front.add(grp);
     this.frontExterior = grp;
     this.buildWipers();

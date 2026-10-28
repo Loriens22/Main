@@ -162,3 +162,23 @@ export function polyGeo(points, holes = []) {
   for (const h of holes) s.holes.push(new THREE.Path(h.map((p) => new THREE.Vector2(p[0], p[1]))));
   return new THREE.ShapeGeometry(s, 4);
 }
+
+/**
+ * Saloon floor plate: |x| <= xo from z0 to z1 at height y, narrowed to |x| <= hx beside the wheel housings
+ * (axle +- hh), so the plate does not run through the wheel arches and show across the tyres.
+ */
+export function floorPlate(parts, xo, z0, z1, y, axles, hx, hh, key = 'floor') {
+  parts.add(key, quad('y', -hx, hx, z0, z1, y, true, 2));
+  let a = z0;
+  const spans = [];
+  for (const az of [...axles].sort((p, q) => p - q)) {
+    if (az + hh < z0 || az - hh > z1) continue;
+    spans.push([a, Math.max(a, az - hh)]);
+    a = Math.min(z1, az + hh);
+  }
+  spans.push([a, z1]);
+  for (const [za, zb] of spans) {
+    if (zb - za < 0.02) continue;
+    for (const sg of [-1, 1]) parts.add(key, quad('y', sg > 0 ? hx : -xo, sg > 0 ? xo : -hx, za, zb, y, true, 2));
+  }
+}

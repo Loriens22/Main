@@ -7,6 +7,7 @@
 import * as THREE from 'three';
 import { RoundedBoxGeometry } from 'three/examples/jsm/geometries/RoundedBoxGeometry.js';
 import { BUS, FRONT_Z } from './BusSpec.js';
+import { busKit } from './BusKit.js';
 import { HW, M, Parts, basis, box, surfaceGrid, pchip, lerp, sstep, clamp, sweep, superEllipsoid } from './BusGeom.js';
 
 /* ------------------------------------------------------------------ the front surface */
@@ -20,7 +21,7 @@ const sHdr = pchip([0, 1.0, 1.08, 1.16, 1.22, 1.255, HW], [0, 0, 0.04, 0.13, 0.2
 
 export const FACE = {
   chromeY: 1.0, // top of the white face
-  bandTop: 1.22, // top of the black base band = bottom of the glass
+  bandTop: 1.16, // top of the black base band = bottom of the glass (the CNG diamond reaches the frit, photo 2)
   glassTop: 2.32,
   hdrBot: 2.3,
   hdrTop: 2.86,
@@ -189,11 +190,26 @@ export const FrontMixin = {
         parts.add('black', g);
       }
     }
-    // ---------------------------------------------------- black base band and A-pillar corner frame
-    parts.add('black', facePatch({ xs: COLS, y0: FACE.chromeY, y1: FACE.bandTop, nv: 4, scale: true }));
+    // ---------------------------------------------------- black base band between the white shoulders
+    // The black band under the glass ends where the chrome strip ends (|x| 0.92) and widens to the glass corners;
+    // outside it the white corner modules rise to the A-pillars (photos 1-3).
+    {
+      const xb = (Y) => lerp(0.92, 1.0, clamp((Y - FACE.chromeY) / (FACE.bandTop - FACE.chromeY), 0, 1));
+      parts.add('black', surfaceGrid(24, 4, (u, v) => {
+        const Y = lerp(FACE.chromeY, FACE.bandTop, v);
+        return facePos(lerp(xb(Y), -xb(Y), u), Y);
+      }));
+      const left = COLS.filter((x) => x >= 0), right = COLS.filter((x) => x <= 0);
+      for (const [xs, sgn] of [[left, 1], [right, -1]]) {
+        parts.add('paint', facePatch({ xs, y0: FACE.chromeY, y1: FACE.bandTop, nv: 4, clip: xb, clipSign: sgn }));
+        // the shoulder goes on rising round the corner to the A-pillar, over the black frame beside the glass
+        const xw = (Y) => 1.0 + (HW - 1.0) * Math.pow(clamp((Y - FACE.bandTop) / 0.16, 0, 1), 0.7);
+        parts.add('paint', facePatch({ xs, y0: FACE.bandTop, y1: FACE.bandTop + 0.16, nv: 4, clip: xw, clipSign: sgn, off: 0.0006 }));
+      }
+    }
     // ---------------------------------------------------- panoramic windscreen (single raked pane, dark and reflective)
     {
-      const gw = pchip([1.22, 1.45, 1.8, 2.15, 2.32], [0.95, 1.06, 1.12, 1.12, 1.02]);
+      const gw = pchip([1.16, 1.42, 1.8, 2.15, 2.32], [0.95, 1.06, 1.12, 1.12, 1.02]);
       // black frame beside the glass: left and right pieces clipped by the glass outline (the pane itself stays see-through)
       const left = COLS.filter((x) => x >= 0), right = COLS.filter((x) => x <= 0);
       for (const [xs, sgn] of [[left, 1], [right, -1]]) {
@@ -201,7 +217,7 @@ export const FrontMixin = {
       }
       const Nc = 44, Nr = 14;
       const mk = () => surfaceGrid(Nc, Nr, (u, v) => {
-        const Y = lerp(1.2205, 2.2995, v);
+        const Y = lerp(FACE.bandTop + 0.0005, 2.2995, v);
         const x = gw(Y) * Math.sin((1 - 2 * u) * Math.PI / 2);
         return facePos(x, Y, 0.002);
       });
@@ -291,6 +307,11 @@ export const FrontMixin = {
   },
 
   mirrors(parts) {
+    // Blender-modelled ram's horn and left box mirror (kit_bus.glb), added by buildFront
+    if (busKit() && busKit().pieces.mirrorsMan) {
+      this._kitMirrors = 'mirrorsMan';
+      return;
+    }
     const z0 = FRONT_Z;
     // ---- RIGHT: ram's horn on a swept arm (out and forward, then down into the bean-shaped head)
     {
@@ -330,8 +351,8 @@ export const FrontMixin = {
   buildWipers() {
     this.wipers = [];
     const defs = [
-      { x: 1.02, y: 1.255, len: 0.95, park: Math.PI, sweep: -1 }, // passenger: parked horizontal towards the centre
-      { x: -0.72, y: 1.245, len: 1.0, park: 0.33, sweep: 1 }, // driver: parked rising about 19 degrees towards bus-right
+      { x: 1.02, y: 1.195, len: 0.95, park: Math.PI, sweep: -1 }, // passenger: parked horizontal towards the centre
+      { x: -0.72, y: 1.185, len: 1.0, park: 0.33, sweep: 1 }, // driver: parked rising about 19 degrees towards bus-right
     ];
     const rake = Math.atan(FACE.rake / (FACE.glassTop - FACE.bandTop));
     for (const d of defs) {

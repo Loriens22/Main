@@ -433,6 +433,11 @@ class Atlas:
             im.colorspace_settings.name = 'Non-Color' if key != 'albedo' else 'Linear Rec.709'
             im.pixels.foreach_set(np.tile(np.array(fill, dtype=np.float32), w * h))
             self.node.image = im
+            # Cycles weights the diffuse pass by (1 - metallic): bake the albedo of metals with metallic 0
+            # (otherwise polished aluminium and silver paint come out black)
+            for m, _, _ in saved:
+                b = _bsdf(m)
+                b.inputs['Metallic'].default_value = 0.0 if key == 'albedo' else m.get('metal', b.inputs['Metallic'].default_value)
             if key == 'rm':
                 for m, _, _ in saved:
                     b = _bsdf(m)
@@ -452,6 +457,7 @@ class Atlas:
             b = _bsdf(m)
             b.inputs['Emission Color'].default_value = c
             b.inputs['Emission Strength'].default_value = s_
+            b.inputs['Metallic'].default_value = m.get('metal', b.inputs['Metallic'].default_value)
         lo.visible_diffuse = lo.visible_glossy = lo.visible_shadow = lo.visible_transmission = True
         # move the islands from the cell square into the atlas
         for d in lo.data.uv_layers.active.data:

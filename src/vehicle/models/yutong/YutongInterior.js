@@ -6,7 +6,7 @@
 import * as THREE from 'three';
 import { LedSign } from '../../LedSign.js';
 import { M, Parts, box } from '../../BusGeom.js';
-import { texBox, quad, profileStrip, sweep, rod, fillet } from '../../BusInteriorGeom.js';
+import { texBox, quad, profileStrip, sweep, rod, fillet, floorPlate } from '../../BusInteriorGeom.js';
 import spec from './spec.js';
 import { FY, PODIUM_Y, AISLE_X, WALL_X, HOUSING_X, HOUSING_HALF, REAR_PLATFORM, cabPartitionZ, rearWallZ } from './layout.js';
 import { makeFloorTex, makeCeilTex, makeCoveTex, makeSeatFabric, makeSignSheet, makeBlind } from './YutongInteriorTextures.js';
@@ -125,7 +125,7 @@ export const InteriorMixin = {
     const doors = spec.doors;
     const axles = [-D.wb1, 0];
     // ---- floor
-    parts.add('floor', quad('y', -1.2, 1.2, zS, zE, FY, true, 2));
+    floorPlate(parts, 1.2, zS, zE, FY, axles, HOUSING_X, HOUSING_HALF);
     // ---- wheel-arch podiums
     for (const pd of spec.layout.podiums) this.podium(parts, pd);
     // ---- lower side walls (floor to sill), cut at doors and wheel housings

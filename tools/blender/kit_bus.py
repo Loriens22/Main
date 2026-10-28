@@ -101,10 +101,11 @@ def M():
     return {
         'rubber': mat('rubber', (0.028, 0.028, 0.03), 0.86, noise=0.12, nscale=60, bump=0.15, bscale=900),
         'rubberSide': mat('rubberSide', (0.034, 0.034, 0.036), 0.7, noise=0.1, nscale=40),
-        'silver': mat('silver', (0.62, 0.63, 0.64), 0.42, 0.3, noise=0.04, nscale=30),
+        'silver': mat('silver', (0.66, 0.67, 0.68), 0.4, 0.3, noise=0.04, nscale=30),
         'silverDirt': mat('silverDirt', (0.5, 0.5, 0.49), 0.5, 0.45, noise=0.12, nscale=25, grime=0.25),
         'zinc': mat('zinc', (0.56, 0.56, 0.54), 0.4, 1.0, noise=0.08, nscale=200),
-        'alu': mat('alu', (0.86, 0.87, 0.88), 0.16, 1.0, noise=0.03, nscale=50),
+        # polished aluminium, but not a mirror: road film and brushing spread the reflections (ref12 reads bright)
+        'alu': mat('alu', (0.84, 0.85, 0.86), 0.3, 0.85, noise=0.05, nscale=50),
         'drum': mat('drum', (0.05, 0.046, 0.042), 0.8, 0.3, noise=0.3, nscale=30),
         'hubBlack': mat('hubBlack', (0.03, 0.03, 0.03), 0.55),
         'indicator': mat('indicator', (0.8, 0.22, 0.03), 0.45),
@@ -127,6 +128,8 @@ def M():
         'valScreen': mat('valScreen', (0.02, 0.05, 0.12), 0.1),
         'valText': mat('valText', (0.75, 0.78, 0.8), 0.3),
         'valLed': mat('valLed', (0.05, 0.6, 0.1), 0.3),
+        'mirrorBody': mat('mirrorBody', (0.022, 0.023, 0.025), 0.42, bump=0.03, bscale=2500),
+        'mirrorGlass': mat('mirrorGlass', (0.75, 0.77, 0.78), 0.04, 1.0),
     }
 
 
@@ -224,6 +227,7 @@ def tyre(m):
             cut.append(obox('cut', ((x0 + x1) / 2, cc.y * 0.4795, cc.z * 0.4795), (1, 0, 0), (0, cc.y, cc.z), (0, tt.y, tt.z),
                             (x1 - x0) / 2 + 0.002, 0.009, 0.0035 if off == 0 else 0.0022))
     cutter = join(cut, 'cutter')
+    outward(cutter)
     md = hi_half.modifiers.new('b', 'BOOLEAN')
     md.operation = 'DIFFERENCE'
     md.object = cutter
@@ -307,11 +311,24 @@ def slot_cutters(n, r, rlen, w, x0, x1, phase=0.0, round_holes=False):
     return join(cs, 'cutter')
 
 
+def outward(o):
+    """Consistent outward normals on a closed shell (the bake casts along them)."""
+    bm = bmesh.new()
+    bm.from_mesh(o.data)
+    bmesh.ops.recalc_face_normals(bm, faces=bm.faces)
+    bm.to_mesh(o.data)
+    bm.free()
+    return o
+
+
 def cut(o, cutter):
+    # obox() with a left-handed axis set builds an inside-out box: as a cutter it removed the whole disc
+    outward(cutter)
     md = o.modifiers.new('b', 'BOOLEAN')
     md.operation = 'DIFFERENCE'
     md.object = cutter
     md.solver = 'EXACT'
+    md.use_self = True  # the slot cutters are overlapping box + end cylinders
     apply_mods(o)
     bpy.data.objects.remove(cutter)
     return o
@@ -337,19 +354,20 @@ def wheel_disc(m, kind):
     if alu:
         disc_prof = [(r_, x + 0.006) for r_, x in disc_prof]
     rim_hi = lathe('rim', rim_prof, 192, face)
-    disc_hi = lathe('disc', disc_prof, 192, face)
-    # thickness for the disc so the hand holes have walls
+    # the disc as a closed section (front face, inner edge, back face) turned into a closed shell, so the
+    # boolean hand holes cut a proper solid (a solidified open surface came out of the boolean in pieces)
     th = 0.008 if not alu else 0.016
-    sol = disc_hi.modifiers.new('s', 'SOLIDIFY')
-    sol.thickness = th
-    sol.offset = 0
-    apply_mods(disc_hi)
+    closed = [(r_, x + th / 2) for r_, x in disc_prof] + [(r_, x - th / 2) for r_, x in reversed(disc_prof)]
+    closed.append(closed[0])
+    disc_hi = lathe('disc', closed, 192, face)
+    outward(disc_hi)
     hx = (disc_prof[2][1] + disc_prof[3][1]) / 2
     if alu:
         cutter = slot_cutters(10, 0.215, 0.0, 0.026, hx - 0.03, hx + 0.03, phase=math.pi / 10, round_holes=True)
     else:
         cutter = slot_cutters(10, 0.214, 0.07, 0.016, hx - 0.03, hx + 0.03, phase=math.pi / 10)
     cut(disc_hi, cutter)
+    outward(disc_hi)
     # hub: drum / hub body behind the disc, hub cap in front
     hub_x = disc_prof[5][1]
     parts = [rim_hi, disc_hi]
@@ -362,7 +380,7 @@ def wheel_disc(m, kind):
     else:
         cap = lathe('cap', [(0.108, hub_x), (0.098, hub_x + 0.012), (0.088, hub_x + 0.03), (0.082, hub_x + 0.06), (0.07, hub_x + 0.07), (0.0, hub_x + 0.073)], 96, m['zinc'])
     parts.append(cap)
-    nx = disc_prof[3][1] + th / 2  # nuts seat on the flat ring at the bolt circle
+    nx = disc_prof[3][1] + th / 2  # nuts seat on the flat ring at the bolt circle (front face of the disc)
     nuts = ring_copies(nut('nut', m['zinc'], nx, washer=not alu), 10, PCD)
     parts += nuts
     if alu:
@@ -376,11 +394,8 @@ def wheel_disc(m, kind):
     hi = parts
     # ---- low-poly: lathe of the visible surfaces, real hand holes, hex nuts
     lo_parts = [lathe('rimLo', rim_prof[6:], 40, face)]
-    dlo = lathe('discLo', disc_prof, 40, face)
-    sol = dlo.modifiers.new('s', 'SOLIDIFY')
-    sol.thickness = th
-    sol.offset = 0
-    apply_mods(dlo)
+    dlo = lathe('discLo', closed, 40, face)
+    outward(dlo)
     if alu:
         cutter = slot_cutters(10, 0.215, 0.0, 0.026, hx - 0.03, hx + 0.03, phase=math.pi / 10, round_holes=True)
     else:
@@ -388,6 +403,7 @@ def wheel_disc(m, kind):
     for o in cutter.data.polygons:
         o.use_smooth = False
     cut(dlo, cutter)
+    outward(dlo)
     lo_parts.append(dlo)
     lo_parts.append(lathe('drumLo', [(0.25, hub_x - 0.03), (0.2, hub_x - 0.03), (0.11, hub_x - 0.025)], 24, m['drum']))
     if rear:
@@ -778,6 +794,167 @@ def validator(m):
     return hi, lo
 
 
+# ------------------------------------------------------------------ mirrors (bus frame: origin on the ground under
+# the centre of the front face, so the game places them at (0, 0, frontZ) without rotation)
+def catmull(P, n):
+    """n+1 points along an open Catmull-Rom spline through P (Vectors)."""
+    out = []
+    N = len(P)
+    for i in range(n + 1):
+        t = i / n * (N - 1)
+        k = min(int(t), N - 2)
+        f = t - k
+        p0, p1, p2, p3 = P[max(0, k - 1)], P[k], P[k + 1], P[min(N - 1, k + 2)]
+        out.append(0.5 * ((2 * p1) + (-p0 + p2) * f + (2 * p0 - 5 * p1 + 4 * p2 - p3) * f * f + (-p0 + 3 * p1 - 3 * p2 + p3) * f * f * f))
+    return out
+
+
+def sweep_var(name, ctrl, radii, m, n=40, ring=16, up=(0, 1, 0), caps=True):
+    """Tube along a Catmull-Rom spline through ctrl (piece frame) with an elliptical section whose half axes
+    radii(t) = (a, b) vary along it (a across, b along the frame normal derived from `up`)."""
+    P = catmull([Vector(c) for c in ctrl], n)
+    upv = Vector(up)
+    bm = bmesh.new()
+    rings = []
+    for i, p in enumerate(P):
+        tg = (P[min(i + 1, n)] - P[max(i - 1, 0)]).normalized()
+        side = tg.cross(upv)
+        if side.length < 1e-4:
+            side = tg.cross(Vector((1, 0, 0)))
+        side.normalize()
+        nrm = side.cross(tg).normalized()
+        a, b = radii(i / n)
+        rg = []
+        for j in range(ring):
+            ang = 2 * math.pi * j / ring
+            q = p + side * (a * math.cos(ang)) + nrm * (b * math.sin(ang))
+            rg.append(bm.verts.new(W(q.x, q.y, q.z)))
+        rings.append(rg)
+    for i in range(n):
+        A, B = rings[i], rings[i + 1]
+        for j in range(ring):
+            bm.faces.new((A[j], A[(j + 1) % ring], B[(j + 1) % ring], B[j]))
+    if caps:
+        bm.faces.new(rings[0][::-1])
+        bm.faces.new(rings[-1])
+    bmesh.ops.recalc_face_normals(bm, faces=bm.faces)
+    me = bpy.data.meshes.new(name)
+    bm.to_mesh(me)
+    bm.free()
+    for p_ in me.polygons:
+        p_.use_smooth = True
+    o = bpy.data.objects.new(name, me)
+    bpy.context.scene.collection.objects.link(o)
+    me.materials.append(m)
+    return o
+
+
+def shell_head(name, w, h, d, m, ex=0.42, ey=0.6, n=40):
+    """Rounded mirror housing: superellipsoid w x h x d (piece frame axes), centred on the origin."""
+    bm = bmesh.new()
+    rows = []
+    for i in range(n // 2 + 1):
+        phi = -math.pi / 2 + math.pi * i / (n // 2)
+        row = []
+        for j in range(n):
+            th = 2 * math.pi * j / n
+            cp, sp_ = math.cos(phi), math.sin(phi)
+            ct, st = math.cos(th), math.sin(th)
+            sgn = lambda v: (v > 0) - (v < 0)
+            x = w / 2 * sgn(cp) * abs(cp) ** ey * sgn(ct) * abs(ct) ** ex
+            z = d / 2 * sgn(cp) * abs(cp) ** ey * sgn(st) * abs(st) ** ex
+            y = h / 2 * sgn(sp_) * abs(sp_) ** ey
+            row.append(bm.verts.new(W(x, y, z)))
+        rows.append(row)
+    for i in range(len(rows) - 1):
+        for j in range(n):
+            try:
+                bm.faces.new((rows[i][j], rows[i][(j + 1) % n], rows[i + 1][(j + 1) % n], rows[i + 1][j]))
+            except ValueError:
+                pass
+    bmesh.ops.remove_doubles(bm, verts=bm.verts, dist=1e-6)
+    bmesh.ops.recalc_face_normals(bm, faces=bm.faces)
+    me = bpy.data.meshes.new(name)
+    bm.to_mesh(me)
+    bm.free()
+    for p_ in me.polygons:
+        p_.use_smooth = True
+    o = bpy.data.objects.new(name, me)
+    bpy.context.scene.collection.objects.link(o)
+    me.materials.append(m)
+    return o
+
+
+def place(o, rot_y=0.0, rot_z=0.0, rot_x=0.0, at=(0, 0, 0)):
+    """Rotates a piece-frame object (three.js axes: y up, z back) and moves it to `at`."""
+    # three.js axes in Blender: x -> X, y -> Z, z -> -Y
+    R = Matrix.Rotation(rot_y, 4, 'Z') @ Matrix.Rotation(-rot_z, 4, 'Y') @ Matrix.Rotation(rot_x, 4, 'X')
+    o.data.transform(R)
+    o.data.transform(Matrix.Translation(W(*at)))
+    return o
+
+
+def mirror_glass(name, w, h, cz, m, r=0.02):
+    """Mirror glass: thin rounded plate (front face towards +z) centred at (0, cz) of the head frame."""
+    g = rrect_prism(name, 0.0, cz, w, h, r, -0.003, 0.003, m, n=5)
+    return g
+
+
+def head_with_glass(m, w, h, d, glasses, name='head'):
+    """Housing with the mirror glasses set into its back face (+z, towards the bus side / driver)."""
+    sh = shell_head(name, w, h, d, m['mirrorBody'])
+    parts = [sh]
+    for (gw, gh, gy) in glasses:
+        # recess the glass: cut a shallow pocket, then the glass plate in it
+        cutter = rrect_prism('pk', 0.0, gy, gw + 0.012, gh + 0.012, 0.024, d / 2 - 0.012, d / 2 + 0.1)
+        md = sh.modifiers.new('b', 'BOOLEAN')
+        md.operation = 'DIFFERENCE'
+        md.object = cutter
+        md.solver = 'EXACT'
+        apply_mods(sh)
+        bpy.data.objects.remove(cutter)
+        gl = rrect_prism('gl', 0.0, gy, gw, gh, 0.02, d / 2 - 0.012, d / 2 - 0.006, m['mirrorGlass'])
+        parts.append(gl)
+    return parts
+
+
+def mirrors_man(m):
+    """MAN Lion's City: ram's horn on the right (door side) - a thick arm from the header corner sweeping out
+    and forwards, then down into a tall head; compact two-part box on the left A-pillar (exterior_spec 3.10)."""
+    blk = m['mirrorBody']
+    parts = []
+    # right: arm from the root boss on the header corner (frame: z = 0 at the front face)
+    arm = [(1.15, 2.6, 0.36), (1.28, 2.645, 0.24), (1.44, 2.64, 0.04), (1.58, 2.58, -0.17), (1.66, 2.47, -0.33), (1.67, 2.36, -0.43)]
+    parts.append(sweep_var('armR', arm, lambda t: (0.05 + 0.065 * t ** 2.0, 0.044 + 0.05 * t ** 2.0), blk, n=48, ring=18, up=(0, 1, 0)))
+    parts.append(shell_head('rootR', 0.13, 0.11, 0.16, blk))
+    place(parts[-1], at=(1.18, 2.6, 0.34))
+    head = head_with_glass(m, 0.24, 0.58, 0.14, [(0.2, 0.29, 0.1), (0.18, 0.15, -0.15)], 'headR')
+    for o in head:
+        place(o, rot_y=-0.12, rot_z=-0.08, at=(1.645, 2.11, -0.44))
+    parts += head
+    # left: two stacked rounded boxes on a bracket bolted to the A-pillar corner
+    for (cy, hh, ww) in ((2.25, 0.42, 0.25), (1.91, 0.26, 0.23)):
+        hd = head_with_glass(m, ww, hh, 0.14, [(ww - 0.05, hh - 0.06, 0.0)], 'headL')
+        for o in hd:
+            place(o, rot_y=0.12, at=(-1.34, cy, 0.1))
+        parts += hd
+    br = box('brL', -1.32, -1.2, 1.9, 2.36, 0.22, 0.34, blk, bev=0.02, segs=2)
+    parts.append(br)
+    hi = parts
+    lo = join([dup(o) for o in parts], 'mirrorsMan')
+    md = lo.modifiers.new('dec', 'DECIMATE')
+    md.ratio = 0.3
+    apply_mods(lo)
+    return hi, lo
+
+
+def dup(o):
+    c = o.copy()
+    c.data = o.data.copy()
+    bpy.context.scene.collection.objects.link(c)
+    return c
+
+
 # ------------------------------------------------------------------ table
 def P_tyre(m):
     return tyre(m)
@@ -800,11 +977,14 @@ PIECES = {
     'seat_yutong': (lambda m: seat_hard(m, 'yutong'), (1536, 768, 512, 512), 40, False, 0.02),
     'strap': (strap, (0, 1280, 256, 256), 50, False, 0.01),
     'validator': (validator, (256, 1280, 256, 512), 40, False, 0.015),
+    'mirrorsMan': (mirrors_man, (512, 1280, 512, 512), 40, False, 0.02),
 }
 
 
+AO_DIST = {'wheelSteel': 0.05, 'wheelSteelRear': 0.06, 'wheelAlu': 0.05, 'wheelAluRear': 0.06, 'tyre': 0.08}
+
 # preview directions (Blender axes: -y is three.js +z, i.e. behind a seat)
-VIEWS = {'seat': ((0.8, 1.0, 0.5), (0.5, -1.0, 0.25)), 'strap': ((0.2, 1.0, 0.1), (1.0, 0.3, 0.1)), 'validator': ((0.5, 1.0, 0.2), (1.0, -0.4, 0.2))}
+VIEWS = {'mirrorsMan': ((0.4, 1.0, 0.25), (0.6, -1.0, 0.3)), 'seat': ((0.8, 1.0, 0.5), (0.5, -1.0, 0.25)), 'strap': ((0.2, 1.0, 0.1), (1.0, 0.3, 0.1)), 'validator': ((0.5, 1.0, 0.2), (1.0, -0.4, 0.2))}
 
 
 def main():
@@ -825,8 +1005,13 @@ def main():
             for o in los:
                 o.hide_render = True
             views = VIEWS.get(name.split('_')[0], ((1.0, -0.45, 0.3), (0.25, -1.0, 0.1)))
-            render_preview(hi, os.path.join(render, f'{name}.jpg'), d=views[0])
-            render_preview(hi, os.path.join(render, f'{name}_b.jpg'), d=views[1], zoom=0.9)
+            if name.startswith('mirrors'):
+                # one close view per side (three.js frame targets)
+                for k, (tx, d) in enumerate(((1.45, (0.5, 1.0, 0.2)), (1.45, (0.2, -1.0, 0.25)), (-1.3, (-0.6, 1.0, 0.2)))):
+                    render_preview(hi, os.path.join(render, f'{name}_{k}.jpg'), d=d, zoom=0.32, target=W(tx, 2.25, -0.1))
+            else:
+                render_preview(hi, os.path.join(render, f'{name}.jpg'), d=views[0])
+                render_preview(hi, os.path.join(render, f'{name}_b.jpg'), d=views[1], zoom=0.9)
             if not preview:
                 for o in hi + [lo]:
                     bpy.data.objects.remove(o)
@@ -837,6 +1022,8 @@ def main():
             atlas.unwrap(lo, cell)
         for o in hi:
             o.hide_render = False
+        # wheels sit deep in the tyre: a short AO reach keeps the discs silver as in the photos
+        bpy.context.scene.world.light_settings.distance = AO_DIST.get(name, 0.12)
         atlas.bake(lo, hi, cell, extrusion=0.012, ray=ray)
         if name == 'tyre':
             lo = finish_tyre(lo)

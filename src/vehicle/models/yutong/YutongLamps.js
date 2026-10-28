@@ -95,14 +95,15 @@ export const LampMixin = {
     const z0 = K.frontZ;
     for (const sg of [1, -1]) {
       // lattice arm swept out and forward from the upper A-pillar, ending in the hanging head
-      const path = [[sg * 1.2, 2.56, z0 + 0.42], [sg * 1.32, 2.56, z0 + 0.22], [sg * 1.46, 2.53, z0 - 0.08], [sg * 1.54, 2.5, z0 - 0.34]];
-      for (const g of sweep(path, (t) => [0.02 + 0.02 * t, 0.03 + 0.02 * t], 20, 10)) p.add('satin', g);
-      const path2 = [[sg * 1.2, 2.42, z0 + 0.46], [sg * 1.34, 2.4, z0 + 0.22], [sg * 1.5, 2.36, z0 - 0.1], [sg * 1.55, 2.34, z0 - 0.32]];
+      // the heads hang just outside the body line, a hand's width ahead of the windscreen corners (ref12)
+      const path = [[sg * 1.2, 2.56, z0 + 0.42], [sg * 1.3, 2.57, z0 + 0.24], [sg * 1.38, 2.55, z0 + 0.0], [sg * 1.42, 2.5, z0 - 0.2]];
+      for (const g of sweep(path, (t) => [0.022 + 0.022 * t, 0.032 + 0.022 * t], 20, 10)) p.add('satin', g);
+      const path2 = [[sg * 1.2, 2.42, z0 + 0.46], [sg * 1.31, 2.41, z0 + 0.24], [sg * 1.39, 2.38, z0 + 0.0], [sg * 1.43, 2.35, z0 - 0.18]];
       for (const g of sweep(path2, () => [0.012, 0.012], 14, 6)) p.add('satin', g);
       p.add('satin', box(0.14, 0.2, 0.2, 0.03), M(sg * 1.2, 2.48, z0 + 0.45)); // root boss on the pillar
       // head: tall rounded shell, mirror faces rearwards
       const head = new RoundedBoxGeometry(0.2, 0.52, 0.13, 3, 0.05);
-      const hm = new THREE.Matrix4().makeRotationY(sg * 0.12).setPosition(sg * 1.56, 2.17, z0 - 0.4);
+      const hm = new THREE.Matrix4().makeRotationY(sg * 0.12).setPosition(sg * 1.44, 2.17, z0 - 0.26);
       p.add('satin', head, hm);
       const m1 = new THREE.PlaneGeometry(0.17, 0.3); m1.translate(0, 0.06, 0.0665);
       const m2 = new THREE.PlaneGeometry(0.17, 0.14); m2.translate(0, -0.19, 0.0665);
