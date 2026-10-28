@@ -618,13 +618,15 @@ for b in bl:
         if any((pt.get('min_height') or 0) == 0 and not pt.get('min_floor') for pt in bparts):
             continue
     penthouse = []
-    if btype == 'modern' and not ovr and roof is None and height > 17 and 250 < area < 3500 and h01(b['id'] + 'p') < 0.75:
-        # the top storey (two on taller buildings) set back behind a terrace, as new buildings in Sofia have it
+    villa_top = btype == 'villa' and not ovr and roof is None and height > 5.5 and 90 < area < 700 and h01(b['id'] + 'p') < 0.5
+    if (btype == 'modern' and not ovr and roof is None and height > 17 and 250 < area < 3500 and h01(b['id'] + 'p') < 0.75) or villa_top:
+        # the top storey (two on taller buildings) set back behind a terrace, as new buildings in Sofia have it;
+        # flat-roofed villas the same with a smaller top floor
         ntop = 2 if height > 36 else 1
-        inset = 1.8 + h01(b['id'] + 's') * 1.2
+        inset = (1.4 + h01(b['id'] + 's') * 1.0) if villa_top else (1.8 + h01(b['id'] + 's') * 1.2)
         top_g = g.buffer(-inset, join_style=2)
         if top_g.geom_type == 'Polygon' and top_g.area > 0.35 * area:
-            base_h = height - ntop * 3.05
+            base_h = height - ntop * (3.1 if villa_top else 3.05)
             penthouse = make_bentry(top_g, height, base_h, cls, None, None, style, None, b['id'] + ':ph', None, True)
             height = base_h
             stats['setback penthouses'] += 1
