@@ -51,20 +51,33 @@ export function makePlate(text = 'С 8385 НС') {
 /** Three-lens headlamp unit (0.40 x 0.15 m): grey housing, outer main lamp, amber indicator, inner main lamp. [colour, emissive] */
 export function makeHeadCluster(mirror = false) {
   const W = 640, H = 240;
-  const mk = (em) => {
+  const L0 = [[110, 120, 88, 'main'], [320, 120, 54, 'amber'], [520, 120, 82, 'main']];
+  const mk = (em, rm = false) => {
     const [c, g] = canvas(W, H);
-    g.fillStyle = em ? '#000' : '#4c4f53';
+    if (rm) {
+      // roughness (G) / metalness (B): satin-chrome housing (ref02 reads light silver), polished reflectors
+      g.fillStyle = 'rgb(0,90,150)';
+      g.fillRect(0, 0, W, H);
+      const L = L0.map((q) => q.slice());
+      if (mirror) L.reverse().forEach((q, i) => { q[0] = [110, 320, 520][i]; });
+      for (const [cx, cy, r, kind] of L) {
+        g.fillStyle = kind === 'amber' ? 'rgb(0,40,0)' : 'rgb(0,22,255)';
+        g.beginPath(); g.arc(cx, cy, r, 0, Math.PI * 2); g.fill();
+      }
+      return tex(c, { aniso: 8, srgb: false });
+    }
+    g.fillStyle = em ? '#000' : '#9da2a6';
     g.fillRect(0, 0, W, H);
     if (!em) {
       const lg = g.createLinearGradient(0, 0, 0, H);
-      lg.addColorStop(0, '#6a6e72'); lg.addColorStop(0.5, '#4a4d51'); lg.addColorStop(1, '#2f3134');
+      lg.addColorStop(0, '#c9cdd0'); lg.addColorStop(0.5, '#a7acb0'); lg.addColorStop(1, '#7d8286');
       g.fillStyle = lg;
       g.beginPath();
       if (g.roundRect) g.roundRect(0, 0, W, H, 40); else g.rect(0, 0, W, H);
       g.fill();
     }
     // lens centres: big, small amber, big (mirror flips the order for the other side)
-    const L = [[110, 120, 88, 'main'], [320, 120, 54, 'amber'], [520, 120, 82, 'main']];
+    const L = L0.map((q) => q.slice());
     if (mirror) L.reverse().forEach((q, i) => { q[0] = [110, 320, 520][i]; });
     for (const [cx, cy, r, kind] of L) {
       const rg = g.createRadialGradient(cx - r * 0.25, cy - r * 0.3, 4, cx, cy, r);
@@ -80,7 +93,7 @@ export function makeHeadCluster(mirror = false) {
     }
     return tex(c, { aniso: 8 });
   };
-  return [mk(false), mk(true)];
+  return [mk(false), mk(true), mk(false, true)];
 }
 
 /** Decal atlas: fleet number, star, CONECTO badge, hazard film, priority sticker, small fleet numbers. */
@@ -319,7 +332,7 @@ export function makeFloor() {
 /** Ceiling panel: light warm grey, faint seams (repeat). */
 export function makeCeiling() {
   const [c, g] = canvas(256, 256);
-  g.fillStyle = '#c9c6bb';
+  g.fillStyle = '#bdbebb'; // light grey ceiling (ref04, ref05), not cream
   g.fillRect(0, 0, 256, 256);
   const r = mulberry32(5);
   for (let i = 0; i < 700; i++) { const v = 190 + r() * 40; g.fillStyle = `rgba(${v},${v - 3},${v - 10},0.14)`; g.fillRect(r() * 256, r() * 256, 1.5, 1.5); }

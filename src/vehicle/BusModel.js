@@ -102,7 +102,7 @@ export class BusModel {
       glassIn: glassMaterial({ color: 0x0f181c, transmit: 0.42, side: THREE.BackSide, env: 0.2 }),
       windscreen: glassMaterial({ color: 0x080b0f, transmit: 0.45, side: THREE.FrontSide }),
       windscreenIn: glassMaterial({ color: 0x0f181c, transmit: 0.72, side: THREE.BackSide, env: 0.2 }),
-      lensClear: new P({ color: 0xffffff, roughness: 0.05, metalness: 0, transparent: true, opacity: 0.16, depthWrite: false, clearcoat: 1, envMapIntensity: 1.4 }),
+      lensClear: new P({ color: 0xffffff, roughness: 0.05, metalness: 0, transparent: true, opacity: 0.09, depthWrite: false, clearcoat: 1, envMapIntensity: 0.9 }),
       headlamp: new S({ map: hlMap, emissiveMap: hlEmi, emissive: 0xffffff, emissiveIntensity: 0, roughnessMap: hlRM, metalnessMap: hlRM, roughness: 1, metalness: 1 }),
       lampFrame: new S({ color: 0x4a4d52, roughness: 0.5 }),
       ribLens: new S({ map: makeRibLens(), roughness: 0.4 }),

@@ -63,16 +63,13 @@ export function makeFloorTex() {
 
 /** Ceiling tile, off-white with hairline seams: 256 px = 1.2 m along z. */
 export function makeCeilTex() {
+  // perforated aluminium panels (ref15): silver with a fine hole grid, a plain border at the panel seams
   const [c, g] = canvas(256, 256);
-  g.fillStyle = '#dedcd4';
+  g.fillStyle = '#c8ccce';
   g.fillRect(0, 0, 256, 256);
-  const r = mulberry32(9);
-  for (let i = 0; i < 700; i++) {
-    const v = 205 + r() * 30;
-    g.fillStyle = `rgba(${v},${v - 2},${v - 8},0.13)`;
-    g.fillRect(r() * 256, r() * 256, 1.5, 1.5);
-  }
-  g.strokeStyle = '#bdbbb2';
+  g.fillStyle = 'rgba(70,74,78,0.55)';
+  for (let y = 14; y < 244; y += 5) for (let x = 14 + ((y / 5) % 2) * 2.5; x < 244; x += 5) g.fillRect(x, y, 1.6, 1.6);
+  g.strokeStyle = '#a7abad';
   g.lineWidth = 2;
   g.beginPath(); g.moveTo(0, 1); g.lineTo(256, 1); g.moveTo(1, 0); g.lineTo(1, 256); g.stroke();
   return tex(c, { repeat: true });

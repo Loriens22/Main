@@ -148,7 +148,7 @@ export class Renderer {
   adaptExposure() {
     const r = this.renderer;
     if (r.toneMappingExposure !== this._applied) this._base = r.toneMappingExposure;
-    const target = this.interior ? 1.75 : 1;
+    const target = this.interior ? 1.5 : 1;
     this._gain = this._gain == null ? target : this._gain + (target - this._gain) * 0.06;
     if (Math.abs(this._gain - target) < 0.002) this._gain = target;
     r.toneMappingExposure = this._applied = this._base * this._gain;

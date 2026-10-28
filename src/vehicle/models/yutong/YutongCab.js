@@ -5,6 +5,7 @@
 // next-stop display and convex mirror, sun blind. No cab photo of the Sofia Yutong was available: the layout follows
 // ref06 / ref08 / ref10 (what is visible through the windscreen and over the partition) and bus typology.
 import * as THREE from 'three';
+import { kitMesh } from '../../BusKit.js';
 import { mergeGeometries } from 'three/examples/jsm/utils/BufferGeometryUtils.js';
 import { M, box } from '../../BusGeom.js';
 import { quad, rod } from '../../BusInteriorGeom.js';
@@ -131,7 +132,7 @@ export const CabMixin = {
     }
     pieces.push(new THREE.CylinderGeometry(0.06, 0.07, 0.05, 18).rotateX(Math.PI / 2));
     const flat = pieces.map((g) => { const n = g.index ? g.toNonIndexed() : g; for (const k of Object.keys(n.attributes)) if (!['position', 'normal', 'uv'].includes(k)) n.deleteAttribute(k); return n; });
-    sw.add(new THREE.Mesh(mergeGeometries(flat), this.mats.dashPad));
+    sw.add(kitMesh('steeringWheel') || new THREE.Mesh(mergeGeometries(flat), this.mats.dashPad));
     // silver hub badge
     const badge = new THREE.Mesh(new THREE.CircleGeometry(0.035, 16), this.mats.satinChrome);
     badge.position.z = 0.0265;

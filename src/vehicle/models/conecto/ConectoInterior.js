@@ -150,12 +150,18 @@ export const InteriorMixin = {
       const prof = DUCT.map(([x, y]) => [side * x, y]);
       parts.add('ceiling', profileStrip(prof, cz0, cz1, 0.8, side > 0));
     }
-    // lamps: warm white strips down the centre line
-    const lz = isF ? [-5.4, -3.6, -1.8, 0.2] : [-2.6, -0.8, 1.0, 2.6];
+    // lamps: round downlights in dark rims down the centre line (ref04)
+    const lz = isF ? [-5.4, -4.0, -2.6, -1.2, 0.2] : [-2.6, -1.2, 0.2, 1.6, 2.8];
     for (const z of lz) {
-      if (z < cz0 + 0.4 || z > cz1 - 0.4) continue;
-      parts.add('lightStrip', box(0.16, 0.012, 0.75), M(0, CEIL_Y - 0.006, z));
-      parts.add('frame', box(0.2, 0.006, 0.79), M(0, CEIL_Y - 0.003, z));
+      if (z < cz0 + 0.3 || z > cz1 - 0.3) continue;
+      const disc = new THREE.CircleGeometry(0.085, 20);
+      disc.rotateX(Math.PI / 2);
+      parts.add('lightStrip', disc, M(0, CEIL_Y - 0.012, z));
+      const rim = new THREE.CylinderGeometry(0.11, 0.115, 0.012, 24, 1, true);
+      parts.add('frame', rim, M(0, CEIL_Y - 0.006, z));
+      const back = new THREE.RingGeometry(0.085, 0.115, 24);
+      back.rotateX(Math.PI / 2);
+      parts.add('frame', back, M(0, CEIL_Y - 0.011, z));
     }
     // CCTV domes and the pale roof-hatch cover
     if (!this.lite) {

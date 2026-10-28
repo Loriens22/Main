@@ -66,7 +66,7 @@ export class ProcityModel {
     this.liverySize = atlas.size;
     const decals = makeDecalSheet(this.fleet);
     this.decalRects = decals.rects;
-    const [hlMap, hlEmi] = makeHeadCluster();
+    const [hlMap, hlEmi, hlRM] = makeHeadCluster();
     const P = THREE.MeshPhysicalMaterial, S = THREE.MeshStandardMaterial;
     const lacquer = { roughness: 0.3, metalness: 0.05, clearcoat: 0.8, clearcoatRoughness: 0.1 };
     // route number card behind the windscreen (lower passenger corner), redrawn by setDestination
@@ -94,8 +94,8 @@ export class ProcityModel {
       glassIn: glassMaterial({ color: 0x0f181c, transmit: 0.42, side: THREE.BackSide, env: 0.2 }),
       windscreen: glassMaterial({ color: 0x080b0f, transmit: 0.45, side: THREE.FrontSide }),
       windscreenIn: glassMaterial({ color: 0x0f181c, transmit: 0.72, side: THREE.BackSide, env: 0.2 }),
-      lensClear: new P({ color: 0xffffff, roughness: 0.05, metalness: 0, transparent: true, opacity: 0.14, depthWrite: false, clearcoat: 1, envMapIntensity: 1.4 }),
-      headlamp: new S({ map: hlMap, emissiveMap: hlEmi, emissive: 0xffffff, emissiveIntensity: 0, roughness: 0.3, metalness: 0.4 }),
+      lensClear: new P({ color: 0xffffff, roughness: 0.05, metalness: 0, transparent: true, opacity: 0.08, depthWrite: false, clearcoat: 1, envMapIntensity: 0.9 }),
+      headlamp: new S({ map: hlMap, emissiveMap: hlEmi, emissive: 0xffffff, emissiveIntensity: 0, roughnessMap: hlRM, metalnessMap: hlRM, roughness: 1, metalness: 1 }),
       drl: new S({ color: 0xffffff, emissive: 0xffffff, emissiveIntensity: 0.6 }),
       lampFrame: new S({ color: 0x4a4d52, roughness: 0.5 }),
       lampGrey: new S({ map: makeTailCluster(), roughness: 0.45, metalness: 0.2 }),

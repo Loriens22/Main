@@ -129,6 +129,17 @@ export function kitInstances(piece, list, { color = null, castShadow = false } =
   return im;
 }
 
+/** One kit piece as a plain mesh (shared geometry and material), or null without the kit. */
+export function kitMesh(piece, { castShadow = false } = {}) {
+  const K = KIT;
+  if (!K || !K.pieces[piece]) return null;
+  const mesh = new THREE.Mesh(K.pieces[piece], K.material);
+  mesh.name = `kit_${piece}`;
+  mesh.castShadow = castShadow;
+  mesh.receiveShadow = true;
+  return mesh;
+}
+
 /**
  * Frees one bus's GPU resources but keeps what the kit (and other shared assets) own.
  * extra: more materials to release (the model's material table).

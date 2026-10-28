@@ -64,7 +64,7 @@ export class ConectoModel {
     const S = THREE.MeshStandardMaterial, P = THREE.MeshPhysicalMaterial;
     // twenty-year-old paint: a softer, weaker gloss than the new buses (the photos show saturated orange even at grazing angles)
     const lacquer = { roughness: 0.42, metalness: 0.02, clearcoat: 0.35, clearcoatRoughness: 0.24 };
-    const [hlMap, hlEmi] = makeHeadCluster(false);
+    const [hlMap, hlEmi, hlRM] = makeHeadCluster(false);
     const dec = makeDecals(this.fleet);
     this.decalRects = dec.rects;
     const moqPad = makeMoquette('pad'), moqCush = makeMoquette('cushion');
@@ -92,10 +92,10 @@ export class ConectoModel {
       glass: glassMaterial({ color: 0x0f181c, transmit: 0.5, side: THREE.DoubleSide }),
       glassOut: glassMaterial({ color: 0x050607, transmit: 0.2, side: THREE.FrontSide }),
       glassIn: glassMaterial({ color: 0x0f181c, transmit: 0.42, side: THREE.BackSide, env: 0.2 }),
-      windscreen: glassMaterial({ color: 0x080b0f, transmit: 0.45, side: THREE.FrontSide }),
+      windscreen: glassMaterial({ color: 0x080b0f, transmit: 0.36, side: THREE.FrontSide }),
       windscreenIn: glassMaterial({ color: 0x0f181c, transmit: 0.72, side: THREE.BackSide, env: 0.2 }),
-      lensClear: new P({ color: 0xffffff, roughness: 0.05, metalness: 0, transparent: true, opacity: 0.16, depthWrite: false, clearcoat: 1, envMapIntensity: 1.4 }),
-      headlamp: new S({ map: hlMap, emissiveMap: hlEmi, emissive: 0xffffff, emissiveIntensity: 0, roughness: 0.3, metalness: 0.3 }),
+      lensClear: new P({ color: 0xffffff, roughness: 0.05, metalness: 0, transparent: true, opacity: 0.09, depthWrite: false, clearcoat: 1, envMapIntensity: 0.9 }),
+      headlamp: new S({ map: hlMap, emissiveMap: hlEmi, emissive: 0xffffff, emissiveIntensity: 0, roughnessMap: hlRM, metalnessMap: hlRM, roughness: 1, metalness: 1 }),
       indicatorL: new S({ color: 0xe07b0a, roughness: 0.3, emissive: 0xff8a00, emissiveIntensity: 0 }),
       indicatorR: new S({ color: 0xe07b0a, roughness: 0.3, emissive: 0xff8a00, emissiveIntensity: 0 }),
       tail: new S({ color: 0x6a0b0b, roughness: 0.3, emissive: 0xff1a0a, emissiveIntensity: 0.6 }),
@@ -118,7 +118,7 @@ export class ConectoModel {
       wall: new S({ color: 0xb4bab8, roughness: 0.6 }),
       wallDark: new S({ color: 0x6f7472, roughness: 0.7 }),
       frame: new S({ color: 0x15171a, roughness: 0.6 }),
-      ceiling: new S({ map: ceil, color: 0xffffff, roughness: 0.85, emissive: 0xc9c6bb, emissiveIntensity: 0.1 }),
+      ceiling: new S({ map: ceil, color: 0xffffff, roughness: 0.85, emissive: 0xc9c6bb, emissiveIntensity: 0.03 }),
       lightStrip: new S({ color: 0xf4f0e2, emissive: 0xfff2d4, emissiveIntensity: 1.0, roughness: 0.5 }),
       seat: new S({ color: 0x7c8185, roughness: 0.45, envMapIntensity: 0.5 }), // ref04: grey shells
       seatDark: new S({ color: 0x2b2d30, roughness: 0.55 }),

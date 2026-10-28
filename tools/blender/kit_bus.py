@@ -130,6 +130,9 @@ def M():
         'valLed': mat('valLed', (0.05, 0.6, 0.1), 0.3),
         'mirrorBody': mat('mirrorBody', (0.022, 0.023, 0.025), 0.42, bump=0.03, bscale=2500),
         'mirrorGlass': mat('mirrorGlass', (0.75, 0.77, 0.78), 0.04, 1.0),
+        'leather': mat('leather', (0.025, 0.025, 0.027), 0.62, bump=0.35, bscale=2600),
+        'wheelPlastic': mat('wheelPlastic', (0.03, 0.032, 0.035), 0.5, bump=0.05, bscale=3000),
+        'wheelPad': mat('wheelPad', (0.022, 0.023, 0.025), 0.7, bump=0.15, bscale=1800),
     }
 
 
@@ -955,6 +958,46 @@ def dup(o):
     return c
 
 
+# ------------------------------------------------------------------ steering wheel
+def steering_wheel(m):
+    """City-bus steering wheel, D 0.50: leather rim with finger grips, three spokes (4, 8 and 6 o'clock) and a
+    large padded hub with a round badge. Piece frame: wheel plane x-y, axis +z towards the driver."""
+    leather, plast, pad = m['leather'], m['wheelPlastic'], m['wheelPad']
+    parts = []
+    rim = torus('rim', (0, 0, 0), (0, 0, 1), 0.235, 0.0165, leather, segs=96, rsegs=14)
+    # flatten the section slightly (oval grip) and add finger grips on the inside
+    rim.data.transform(Matrix.Diagonal((1.0, 0.85, 1.0, 1)))  # Blender y = three -z: squash front-to-back
+    parts.append(rim)
+    for i in range(40):
+        a = 2 * math.pi * i / 40
+        if abs(math.sin(a) + 0.35) < 0.25:  # no grips where the spokes join
+            continue
+        r = 0.2235
+        g = shell_head('grip', 0.007, 0.012, 0.016, leather)
+        g.data.transform(Matrix.Rotation(-a + math.pi / 2, 4, 'Y'))  # three z-axis -> Blender -Y axis
+        g.data.transform(Matrix.Translation(W(r * math.cos(a), r * math.sin(a), 0.0)))
+        parts.append(g)
+    # spokes: tapering flat bars from the hub to the rim
+    for ang in (-0.32, math.pi + 0.32, -math.pi / 2):
+        ca, sa = math.cos(ang), math.sin(ang)
+        pts = [(0.07 * ca, 0.07 * sa, 0.012), (0.15 * ca, 0.15 * sa, 0.004), (0.226 * ca, 0.226 * sa, 0.0)]
+        parts.append(sweep_var('spoke', pts, lambda t: (0.03 - 0.012 * t, 0.009), plast, n=12, ring=12, up=(0, 0, 1)))
+    # hub pad: rounded block towards the driver, with a raised rim and a round badge
+    hub = shell_head('hub', 0.18, 0.14, 0.06, pad, ex=0.35, ey=0.45)
+    place(hub, at=(0, -0.01, 0.03))
+    parts.append(hub)
+    badge = cyl('badge', (0, -0.005, 0.059), (0, -0.005, 0.0645), 0.03, m['zinc'], segs=32)
+    parts.append(badge)
+    col = cyl('boss', (0, 0, -0.07), (0, 0, 0.0), 0.04, plast, segs=24)
+    parts.append(col)
+    hi = parts
+    lo = join([dup(o) for o in parts if o.name.split('.')[0] != 'grip'], 'steeringWheel')
+    md = lo.modifiers.new('dec', 'DECIMATE')
+    md.ratio = 0.35
+    apply_mods(lo)
+    return hi, lo
+
+
 # ------------------------------------------------------------------ table
 def P_tyre(m):
     return tyre(m)
@@ -978,13 +1021,14 @@ PIECES = {
     'strap': (strap, (0, 1280, 256, 256), 50, False, 0.01),
     'validator': (validator, (256, 1280, 256, 512), 40, False, 0.015),
     'mirrorsMan': (mirrors_man, (512, 1280, 512, 512), 40, False, 0.02),
+    'steeringWheel': (steering_wheel, (1024, 1280, 512, 512), 40, False, 0.015),
 }
 
 
 AO_DIST = {'wheelSteel': 0.05, 'wheelSteelRear': 0.06, 'wheelAlu': 0.05, 'wheelAluRear': 0.06, 'tyre': 0.08}
 
 # preview directions (Blender axes: -y is three.js +z, i.e. behind a seat)
-VIEWS = {'mirrorsMan': ((0.4, 1.0, 0.25), (0.6, -1.0, 0.3)), 'seat': ((0.8, 1.0, 0.5), (0.5, -1.0, 0.25)), 'strap': ((0.2, 1.0, 0.1), (1.0, 0.3, 0.1)), 'validator': ((0.5, 1.0, 0.2), (1.0, -0.4, 0.2))}
+VIEWS = {'steeringWheel': ((0.2, -0.6, 1.0), (0.8, 0.5, 0.3)), 'mirrorsMan': ((0.4, 1.0, 0.25), (0.6, -1.0, 0.3)), 'seat': ((0.8, 1.0, 0.5), (0.5, -1.0, 0.25)), 'strap': ((0.2, 1.0, 0.1), (1.0, 0.3, 0.1)), 'validator': ((0.5, 1.0, 0.2), (1.0, -0.4, 0.2))}
 
 
 def main():

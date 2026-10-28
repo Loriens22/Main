@@ -352,8 +352,17 @@ export function makeSilverBand() {
  */
 export function makeHeadCluster() {
   const W = 340, H = 460;
-  const mk = (em) => {
+  const mk = (em, rm = false) => {
     const [c, g] = canvas(W, H);
+    if (rm) {
+      // roughness (G) / metalness (B): matte black housing, polished reflector bowls and LED bezels
+      g.fillStyle = 'rgb(0,150,0)';
+      g.fillRect(0, 0, W, H);
+      g.fillStyle = 'rgb(0,25,255)';
+      for (const cy of [130, 250]) { g.beginPath(); g.arc(130, cy, 62, 0, Math.PI * 2); g.fill(); }
+      for (let i = 0; i < 5; i++) { g.beginPath(); g.arc(270 - i * 4, 150 + i * 36, 13, 0, Math.PI * 2); g.fill(); }
+      return tex(c, { aniso: 8, srgb: false });
+    }
     g.fillStyle = em ? '#000' : '#0c0d0f';
     g.fillRect(0, 0, W, H);
     // outer end is on the left (towards the corner), LED column on the right (towards the centre)
@@ -373,7 +382,7 @@ export function makeHeadCluster() {
     }
     return tex(c, { aniso: 8 });
   };
-  return [mk(false), mk(true)];
+  return [mk(false), mk(true), mk(false, true)];
 }
 
 /** Rear lamp cluster (0.13 x 0.34 m, light-grey housing): red lens above, reverse lens below. */

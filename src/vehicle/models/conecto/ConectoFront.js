@@ -176,7 +176,7 @@ export const FrontMixin = {
     parts.add('decals', facePatch({ xs: colsBetween(0.1, -0.1, 4), y0: 0.795, y1: 0.995, nv: 1, off: 0.003, uv: dr.star }));
     parts.add('decals', facePatch({ xs: colsBetween(-0.33, -0.76, 8), y0: 0.78, y1: 0.866, nv: 1, off: 0.0025, uv: dr.badge }));
     {
-      const xa = fleetLeft ? -0.84 : 1.2, xb = fleetLeft ? -1.2 : 0.84;
+      const xa = fleetLeft ? -0.68 : 1.04, xb = fleetLeft ? -1.04 : 0.68; // centred about 0.86 m off the axis (ref01, ref02)
       parts.add('decals', facePatch({ xs: colsBetween(Math.max(xa, xb), Math.min(xa, xb), 8), y0: 0.91, y1: 1.045, nv: 1, off: 0.0025, uv: dr.fleet }));
     }
     // ---------------------------------------------------- lamp units (three lenses), fog lamps, corner repeaters

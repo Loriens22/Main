@@ -51,7 +51,7 @@ export const InteriorMixin = {
       wallLight: new S({ color: 0xc9cbc4, roughness: 0.6 }),
       frame: new S({ color: 0x15171a, roughness: 0.6 }),
       pillar: new S({ color: 0x8c9196, roughness: 0.55 }),
-      ceiling: new S({ map: ceil, color: 0xffffff, roughness: 0.8, emissive: 0xd6d4cc, emissiveIntensity: 0.08 }),
+      ceiling: new S({ map: ceil, color: 0xffffff, roughness: 0.45, metalness: 0.35, emissive: 0xd6d4cc, emissiveIntensity: 0.06 }),
       cove: new S({ map: cove, color: 0xffffff, roughness: 0.75, emissive: 0xd4d3cb, emissiveIntensity: 0.06 }),
       lightStrip: new S({ color: 0xf4f8ff, emissive: 0xf4f8ff, emissiveIntensity: 1.0, roughness: 0.5 }),
       seat: new S({ color: 0x9da3a8, roughness: 0.45, envMapIntensity: 0.5 }),
@@ -183,6 +183,15 @@ export const InteriorMixin = {
         parts.add('lightStrip', box(0.045, 0.012, 1.3), M(side * 0.745, CEIL_Y - 0.006, z + 0.65));
         parts.add('frame', box(0.07, 0.006, 1.34), M(side * 0.745, CEIL_Y - 0.0025, z + 0.65));
       }
+    }
+    // round lights and speaker grilles down the middle of the perforated ceiling (ref15)
+    for (let z = cz0 + 0.8; z < cz1 - 0.5; z += 1.5) {
+      const disc = new THREE.CircleGeometry(0.06, 18);
+      disc.rotateX(Math.PI / 2);
+      parts.add('lightStrip', disc, M(-0.3, CEIL_Y - 0.008, z));
+      const ring = new THREE.RingGeometry(0.06, 0.078, 18);
+      ring.rotateX(Math.PI / 2);
+      parts.add('satinChrome', ring, M(-0.3, CEIL_Y - 0.007, z));
     }
     if (!low) {
       for (const z of [-5.4, -1.8, 1.3]) parts.add('frame', new THREE.SphereGeometry(0.04, 10, 6, 0, Math.PI * 2, 0, Math.PI / 2), new THREE.Matrix4().makeRotationX(Math.PI).setPosition(0.12, CEIL_Y, z));

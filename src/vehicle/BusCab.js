@@ -2,6 +2,7 @@
 // yellow nosing, smoked partition with notices, clear driver screen, console, navy dashboard pad with
 // light-grey lower panels, instrument cluster, steering wheel, seat, interior mirror, sun blind.
 import * as THREE from 'three';
+import { kitMesh } from './BusKit.js';
 import { BUS, FRONT_Z } from './BusSpec.js';
 import { CAB_Y } from './BusLayout.js';
 import { mergeGeometries } from 'three/examples/jsm/utils/BufferGeometryUtils.js';
@@ -130,7 +131,8 @@ export function buildCabInterior(m) {
   }
   pieces.push(new THREE.CylinderGeometry(0.055, 0.065, 0.05, 16).rotateX(Math.PI / 2));
   const flat = pieces.map((g) => { const n = g.index ? g.toNonIndexed() : g; for (const k of Object.keys(n.attributes)) if (!['position', 'normal', 'uv'].includes(k)) n.deleteAttribute(k); return n; });
-  sw.add(new THREE.Mesh(mergeGeometries(flat), m.mats.dash));
+  // Blender-modelled wheel (kit_bus.glb: leather rim with grips, three spokes, padded hub), else the merged one
+  sw.add(kitMesh('steeringWheel') || new THREE.Mesh(mergeGeometries(flat), m.mats.dash));
   m.steeringWheel = sw;
   m.front.add(sw);
   // eye point of the seated driver (head height above the raised platform)

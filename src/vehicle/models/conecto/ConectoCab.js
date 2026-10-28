@@ -3,6 +3,7 @@
 // switch panel, ticket desk, three-spoke steering wheel, cloth driver's seat, glazed partition behind the
 // driver with a clear screen along the aisle, the white route-number card in the windscreen corner.
 import * as THREE from 'three';
+import { kitMesh } from '../../BusKit.js';
 import { mergeGeometries } from 'three/examples/jsm/utils/BufferGeometryUtils.js';
 import { M, box, quad, texBox, rod, tube, smooth, mergeFlat, decal } from './geom.js';
 import { canvas, tex } from './ConectoTextures.js';
@@ -118,7 +119,7 @@ export const CabMixin = {
       pieces.push(sp);
     }
     pieces.push(new THREE.CylinderGeometry(0.06, 0.07, 0.055, 16).rotateX(Math.PI / 2));
-    sw.add(new THREE.Mesh(mergeGeometries(mergeFlat(pieces), false), this.mats.dash));
+    sw.add(kitMesh('steeringWheel') || new THREE.Mesh(mergeGeometries(mergeFlat(pieces), false), this.mats.dash));
     this.steeringWheel = sw;
     this.front.add(sw);
     // route-number card in the lower bus-right corner of the windscreen (white card, black digits)

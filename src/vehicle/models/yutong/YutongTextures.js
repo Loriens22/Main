@@ -369,8 +369,19 @@ export function makePlate(text = 'СВ 1234 НВ') {
 /** Front lamp unit 0.40 x 0.13 m for the bus RIGHT side (outer cell at the left of the picture): [colour, emissive]. */
 export function makeHeadlampTex() {
   const W = 512, H = 168;
-  const mk = (emi) => {
+  const mk = (emi, rm = false) => {
     const [c, g] = canvas(W, H);
+    if (rm) {
+      // roughness (G) / metalness (B): chrome-lined interior, polished reflectors, plastic indicator strip
+      g.fillStyle = 'rgb(0,50,200)';
+      g.fillRect(0, 0, W, H);
+      g.fillStyle = 'rgb(0,18,255)';
+      for (const cx of [86, 206]) { g.beginPath(); g.arc(cx, 68, 52, 0, Math.PI * 2); g.fill(); }
+      g.fillStyle = 'rgb(0,120,0)';
+      g.fillRect(0, H - 22, W, 22);
+      rr(g, 290, 40, 200, 26, 8); g.fill();
+      return tex(c, { aniso: 8, srgb: false });
+    }
     g.fillStyle = emi ? '#000' : '#cfd5da';
     g.fillRect(0, 0, W, H);
     if (!emi) {
@@ -398,7 +409,7 @@ export function makeHeadlampTex() {
     g.beginPath(); g.moveTo(272, 8); g.lineTo(272, H - 24); g.stroke();
     return tex(c, { aniso: 8 });
   };
-  return [mk(false), mk(true)];
+  return [mk(false), mk(true), mk(false, true)];
 }
 
 /** Dark louvre panel (rear engine hatch / radiator intake): charcoal base with columns of black slots. 1024 x 512 = 1.2 x 0.6 m. */

@@ -15,8 +15,9 @@ export const FrontMixin = {
     const dr = this.decalRects;
     const left = COLS.filter((x) => x >= 0), right = COLS.filter((x) => x <= 0);
     // ---------------------------------------------------- white lower face (bumper and cheeks)
-    parts.add('paint', facePatch({ xs: COLS, y0: 0.34, y1: 0.8, nv: 3 }));
-    parts.add('paint', facePatch({ xs: COLS, y0: 0.8, y1: FACE.bandTop, nv: 6 }));
+    // fine rows: the bumper is curved in profile and coarse chords poked through the black mask above
+    parts.add('paint', facePatch({ xs: COLS, y0: 0.34, y1: 0.8, nv: 14 }));
+    parts.add('paint', facePatch({ xs: COLS, y0: 0.8, y1: FACE.bandTop, nv: 10 }));
     // dark pan under the bumper
     {
       const xs = COLS;
@@ -29,7 +30,7 @@ export const FrontMixin = {
     }
     // ---------------------------------------------------- black mask between the lamp clusters, silver band, base band
     const maskX = (n) => colsBetween(0.93, -0.93, n);
-    parts.add('black', facePatch({ xs: maskX(14), y0: (x) => MASK0 + 0.05 * sstep(0.55, 0.93, Math.abs(x)), y1: BAND0, nv: 2, off: 0.002 }));
+    parts.add('black', facePatch({ xs: maskX(28), y0: (x) => MASK0 + 0.05 * sstep(0.55, 0.93, Math.abs(x)), y1: BAND0, nv: 6, off: 0.003 }));
     parts.add('silver', facePatch({ xs: colsBetween(1.2, -1.2, 36), y0: (x) => BAND0 + (Math.abs(x) > 0.93 ? rise(x) * 0.9 : 0), y1: (x) => BAND1 + rise(x), nv: 1, off: 0.003, uv: [0, 0, 1, 1] }));
     parts.add('black', facePatch({ xs: COLS, y0: (x) => BAND1 + rise(x), y1: FACE.bandTop, nv: 3, off: 0.002, scale: false }));
     // seam between silver band and mask: thin dark line
@@ -77,7 +78,8 @@ export const FrontMixin = {
     parts.add('black', facePatch({ xs: colsBetween(0.275, -0.275, 4), y0: 0.395, y1: 0.53, nv: 1, off: 0.003 }));
     parts.add('plate', facePatch({ xs: colsBetween(0.26, -0.26, 4), y0: 0.405, y1: 0.52, nv: 1, off: 0.0045 }));
     parts.add('decals', facePatch({ xs: colsBetween(0.70, 0.36, 8), y0: 0.62, y1: 0.78, nv: 1, off: 0.004, uv: dr.fleetFront }));
-    parts.add('decals', facePatch({ xs: colsBetween(0.74, 0.28, 10), y0: 1.075, y1: 1.235, nv: 1, off: 0.004, uv: dr.picto }));
+    // pictograms on the black band above the silver one (they were half covered by it)
+    parts.add('decals', facePatch({ xs: colsBetween(0.74, 0.28, 10), y0: 1.135, y1: 1.295, nv: 1, off: 0.004, uv: dr.picto }));
     parts.add('decals', facePatch({ xs: colsBetween(0.68, 0.46, 4), y0: 0.385, y1: 0.505, nv: 1, off: 0.003, uv: dr.diamond }));
     parts.add('decals', facePatch({ xs: colsBetween(0.11, -0.11, 6), y0: 0.86, y1: 0.945, nv: 1, off: 0.0045, uv: dr.bmcFront }));
     // route card behind the glass (lower passenger corner)
@@ -105,7 +107,7 @@ export const FrontMixin = {
       parts.add('headlamp', facePatch({ xs: span(sg, 0.93, 1.255, 12), y0: yb, y1: yt, nv: 2, off: 0.0035, uv }));
       parts.add('lensClear', facePatch({ xs: span(sg, 0.93, 1.255, 12), y0: yb, y1: yt, nv: 2, off: 0.0065 }));
       // lower corner recess with the small round lamp (indicator)
-      parts.add('black', facePatch({ xs: span(sg, 0.93, 1.2, 8), y0: 0.4, y1: 0.52, nv: 1, off: 0.003 }));
+      parts.add('black', facePatch({ xs: span(sg, 0.93, 1.2, 24), y0: 0.4, y1: 0.52, nv: 3, off: 0.005 }));
       const [px, py, pz] = facePos(sg * 1.1, 0.46, 0.006);
       const g = new THREE.CircleGeometry(0.034, 14);
       g.rotateY(Math.PI);
