@@ -29,12 +29,13 @@ export async function loadKit() {
 }
 
 const _m = new THREE.Matrix4(), _q = new THREE.Quaternion(), _p = new THREE.Vector3(), _s = new THREE.Vector3();
-const UP = new THREE.Vector3(0, 1, 0);
+const _q2 = new THREE.Quaternion();
+const UP = new THREE.Vector3(0, 1, 0), FWD = new THREE.Vector3(0, 0, 1);
 
 // small pieces: drawn only from nearer tiles and without sun shadows (World.updateVisibility)
-const SMALL = new Set(['pipeClamp', 'pipeHead', 'pipeShoe', 'mushroom', 'lamp', 'lampGlass', 'dishMount']);
+const SMALL = new Set(['pipeClamp', 'pipeHead', 'pipeShoe', 'mushroom', 'lamp', 'lampGlass', 'dishMount', 'flowerBox', 'gasPipe', 'gasBox', 'windowGrille']);
 // phones ('balanced'): the smallest and most numerous pieces are left out, half the TV masts
-const LITE_SKIP = new Set(['pipeClamp', 'mushroom']);
+const LITE_SKIP = new Set(['pipeClamp', 'mushroom', 'windowGrille', 'gasPipe']);
 
 /** Collects instances per tile and piece while the buildings are generated. */
 export class KitPlacer {
@@ -50,8 +51,9 @@ export class KitPlacer {
    * One instance. Local frame of every piece: +x along the wall, +y up, +z out of the wall (or the facing
    * of a roof item); yaw turns local +z to the world direction (sin yaw, cos yaw) in (x, z).
    * tx, tz = where the instance is binned (the building's centroid, so a building stays in one tile).
+   * tilt = rotation about the local +z (wall normal) before the yaw.
    */
-  add(tx, tz, piece, x, y, z, yaw, sx = 1, sy = 1, sz = 1, color = null) {
+  add(tx, tz, piece, x, y, z, yaw, sx = 1, sy = 1, sz = 1, color = null, tilt = 0) {
     if (this.lite && (LITE_SKIP.has(piece) || (piece === 'antenna' && this.nAntenna++ % 2))) return;
     const k = `${Math.floor(tx / this.tileSize)},${Math.floor(tz / this.tileSize)}`;
     let t = this.tiles.get(k);
@@ -59,6 +61,7 @@ export class KitPlacer {
     let e = t.get(piece);
     if (!e) t.set(piece, (e = { m: [], c: null }));
     _q.setFromAxisAngle(UP, yaw);
+    if (tilt) _q.multiply(_q2.setFromAxisAngle(FWD, tilt)); // turn about the wall normal first (vertical gas risers)
     _m.compose(_p.set(x, y, z), _q, _s.set(sx, sy, sz));
     for (let i = 0; i < 16; i++) e.m.push(_m.elements[i]);
     if (color) {

@@ -1,7 +1,9 @@
 # Facade and roof kit for the buildings along the bus routes, modelled in Blender:
 #   split-AC outdoor unit, satellite dish (head + wall mount), drainpipe set (pipe, clamp, hopper, shoe),
 #   rooftop TV antenna, panel-block ventilation head, mushroom vent, lift machine room,
-#   folding-arm shop awning (fabric + frame), entrance bulkhead lamp, brick chimney.
+#   folding-arm shop awning (fabric + frame), entrance bulkhead lamp, brick chimney,
+#   ground-floor window grille, roller-shutter housing and closed shutter, two balcony drying racks with
+#   washing, geranium window box, gas regulator cabinet and yellow gas pipe.
 # Each piece is a detailed high-poly model (bevels, grilles, fins, slots, fabric folds, brick courses)
 # baked onto a game low-poly: albedo, tangent-space normals, ambient occlusion (with the wall / roof it
 # sits on as occluder), roughness and metalness -> one 1024 px atlas. Output: src/data/kit_facade.glb
@@ -47,6 +49,11 @@ def M():
         alu=mat('alu', (0.74, 0.75, 0.76), 0.45, 0.45),
         anth=mat('anth', (0.17, 0.18, 0.19), 0.45, 0.4),
         glassFrost=mat('glassFrost', (0.9, 0.9, 0.86), 0.3),
+        steelPaint=mat('steelPaint', (0.82, 0.82, 0.8), 0.5, 0.2, noise=0.08, nscale=40),
+        shutterAlu=mat('shutterAlu', (0.68, 0.69, 0.7), 0.45, 0.4, noise=0.1, nscale=12, grime=0.25),
+        terracotta=mat('terracotta', (0.55, 0.24, 0.13), 0.8, 0.0, noise=0.12, nscale=30),
+        soil=mat('soil', (0.12, 0.08, 0.05), 0.95),
+        gasYellow=mat('gasYellow', (0.85, 0.62, 0.06), 0.5, 0.1, noise=0.1, nscale=20, grime=0.18),
         brick=mat_brick('brick', (0.42, 0.18, 0.11), (0.5, 0.24, 0.15), (0.6, 0.58, 0.54)),
     )
 
@@ -479,6 +486,232 @@ def chimney(m):
     return hi, join(lo, 'chimney'), roof_plane()
 
 
+def window_grille(m):
+    """Welded window bars of a ground-floor flat (1.2 x 1.4 m, scaled to the window): frame, six bars,
+    a band and the half-sun over the top that is everywhere on Sofia's ground floors. Origin: bottom centre."""
+    W_, H_, n0, n1 = 0.6, 1.4, 0.035, 0.05
+    hi, lo = [], []
+
+    def bar(name, p0, p1, r, flat=False):
+        hi.append(cyl(name, p0, p1, r, m['steelPaint'], segs=4 if not flat else 4, smooth=False))
+        lo.append(cyl('l' + name, p0, p1, r * 1.25, segs=4, smooth=False, caps=False))
+    nc = (n0 + n1) / 2
+    for t in (-W_, W_):
+        bar(f'g_side{t}', (t, 0, nc), (t, H_, nc), 0.012)
+    for u in (0.0, H_):
+        bar(f'g_rail{u}', (-W_ - 0.012, u, nc), (W_ + 0.012, u, nc), 0.012)
+    for k in range(1, 6):
+        t = -W_ + 2 * W_ * k / 6
+        bar(f'g_v{k}', (t, 0, nc), (t, H_ * 0.78, nc), 0.008)
+    bar('g_band', (-W_, H_ * 0.32, nc), (W_, H_ * 0.32, nc), 0.009)
+    bar('g_band2', (-W_, H_ * 0.78, nc), (W_, H_ * 0.78, nc), 0.009)
+    # half sun: arc and rays
+    R = W_ * 0.85
+    arc = [(R * math.cos(math.pi * k / 12), H_ * 0.78 + R * 0.36 * math.sin(math.pi * k / 12), nc) for k in range(13)]
+    hi.append(tube('g_arc', arc, 0.008, m['steelPaint'], segs=8, res=3))
+    lo.append(tube('l_arc', arc[::2], 0.011, segs=4, res=1, caps=False))
+    for k in range(1, 6):
+        a = math.pi * k / 6
+        p1 = (R * math.cos(a), H_ * 0.78 + R * 0.36 * math.sin(a), nc)
+        bar(f'g_ray{k}', (0, H_ * 0.78, nc), p1, 0.007)
+    hi.append(cyl('g_hub', (0, H_ * 0.78, n0), (0, H_ * 0.78, n1 + 0.005), 0.05, m['steelPaint'], segs=16))
+    for t in (-W_, W_):
+        for u in (0.05, H_ - 0.05):
+            hi.append(cyl(f'g_anc{t}{u}', (t, u, 0.0), (t, u, n0), 0.01, m['steelPaint'], segs=6))
+    return hi, join(lo, 'windowGrille'), wall_plane()
+
+
+def shutter_box(m):
+    """Roller-shutter housing over a shopfront (1 m wide, the game scales it) with the two guide rails
+    (2 m, scaled to the opening). Origin: centre of the top of the opening."""
+    hi = []
+    prof = box('sb_box', -0.5, 0.5, 0.0, 0.24, 0.0, 0.2, m['shutterAlu'], bev=0.06, segs=4)
+    hi.append(prof)
+    for t in (-0.505, 0.505):
+        hi.append(box(f'sb_cap{t}', t - 0.006, t + 0.006, 0.0, 0.245, 0.0, 0.205, m['shutterAlu'], bev=0.004))
+    for t in (-0.47, 0.47):
+        hi.append(box(f'sb_rail{t}', t - 0.025, t + 0.025, -2.0, 0.0, 0.0, 0.05, m['shutterAlu'], bev=0.004))
+        hi.append(box(f'sb_slot{t}', t - 0.008, t + 0.008, -2.0, 0.0, 0.045, 0.052, m['acDark']))
+    lo = [box('l_sb', -0.511, 0.511, 0.0, 0.246, 0.0, 0.206)]
+    for t in (-0.47, 0.47):
+        lo.append(box(f'l_sbr{t}', t - 0.026, t + 0.026, -2.0, 0.0, 0.0, 0.053))
+    return hi, join(lo, 'shutterBox'), wall_plane()
+
+
+def shutter_panel(m):
+    """A closed roller shutter: 1 x 1 m of 55 mm aluminium slats with a bottom bar (scaled to the opening)."""
+    verts, faces = [], []
+    ns, nt = 18, 2
+    for j in range(ns * 4 + 1):
+        u = -1.0 + 0.95 * j / (ns * 4)
+        k = j % 4
+        n = 0.03 + (0.008 if k in (1, 2) else 0.0)
+        for i in range(nt + 1):
+            verts.append((-0.47 + 0.94 * i / nt, u, n))
+    for j in range(ns * 4):
+        for i in range(nt):
+            a = j * (nt + 1) + i
+            faces.append((a, a + 1, a + nt + 2, a + nt + 1))
+    hi = [from_pydata('sp_slats', verts, faces, m['shutterAlu'], smooth=False),
+          box('sp_bar', -0.47, 0.47, -1.0, -0.94, 0.02, 0.055, m['shutterAlu'], bev=0.006),
+          box('sp_lock', -0.04, 0.04, -0.995, -0.955, 0.055, 0.06, m['silver'])]
+    lo = [box('l_sp', -0.47, 0.47, -1.0, 0.0, 0.028, 0.056)]
+    return hi, join(lo, 'shutterPanel'), wall_plane()
+
+
+def clothes(m, variant):
+    """Drying rack hooked over a balcony parapet (1.8 m, five wires) with the washing on it."""
+    import random
+    rnd = random.Random(7 + variant)
+    hi, lo = [], []
+    for t in (-0.88, 0.88):
+        hi.append(box(f'cr_hook{t}', t - 0.012, t + 0.012, -0.12, 0.03, -0.06, 0.0, m['galv']))
+        hi.append(box(f'cr_arm{t}', t - 0.012, t + 0.012, 0.0, 0.03, -0.06, 0.56, m['galv']))
+        lo.append(box(f'l_cra{t}', t - 0.015, t + 0.015, -0.121, 0.032, -0.061, 0.562))
+    for k in range(5):
+        n = 0.11 + k * 0.11
+        hi.append(cyl(f'cr_w{k}', (-0.88, 0.03, n), (0.88, 0.03, n), 0.0025, m['insul'], segs=6))
+        lo.append(cyl(f'l_crw{k}', (-0.88, 0.03, n), (0.88, 0.03, n), 0.005, segs=3, smooth=False, caps=False))
+    cols = [(0.75, 0.12, 0.12), (0.12, 0.25, 0.6), (0.9, 0.9, 0.88), (0.85, 0.7, 0.2), (0.25, 0.55, 0.3), (0.85, 0.45, 0.6),
+            (0.2, 0.2, 0.22), (0.5, 0.65, 0.85), (0.92, 0.92, 0.95), (0.6, 0.35, 0.2)]
+    k = 0
+    for wi in range(5):
+        n = 0.11 + wi * 0.11
+        t = -0.82
+        while t < 0.78:
+            kind = rnd.random()
+            if kind < 0.3:
+                w, h = 0.45 + rnd.random() * 0.25, 0.55 + rnd.random() * 0.25   # towel / sheet
+            elif kind < 0.6:
+                w, h = 0.5, 0.65                                                 # shirt
+            elif kind < 0.8:
+                w, h = 0.36, 0.85                                                # trousers
+            else:
+                w, h = 0.12, 0.22                                                # socks
+            if t + w > 0.84:
+                break
+            if rnd.random() < 0.35 and wi % 2:
+                t += w * 0.7
+                continue
+            col = cols[rnd.randrange(len(cols))]
+            name = f'cl{variant}_{k}'
+            mm = mat(f'cloth_{col}', col, 0.9, 0.0, noise=0.08, nscale=30, bump=0.1, bscale=500)
+            # drape: hung over the wire, folded both sides; ripples across
+            verts, faces = [], []
+            NT, NU = 8, 6
+            for side in (-1, 1):
+                for j in range(NU + 1):
+                    for i in range(NT + 1):
+                        tt = t + w * i / NT
+                        uu = 0.03 - h * 0.5 * j / NU
+                        nn = n + side * (0.004 + 0.012 * j / NU) + 0.008 * math.sin(i * 1.7 + k) * j / NU
+                        verts.append((tt, uu, nn))
+            base = (NT + 1) * (NU + 1)
+            for j in range(NU):
+                for i in range(NT):
+                    a = j * (NT + 1) + i
+                    faces.append((a, a + 1, a + NT + 2, a + NT + 1))
+                    b = base + a
+                    faces.append((b, b + NT + 1, b + NT + 2, b + 1))
+            o = from_pydata(name, verts, faces, mm, smooth=True)
+            if kind >= 0.3 and kind < 0.6:
+                # shirt sleeves
+                for sx in (t - 0.1, t + w):
+                    hi.append(box(f'{name}s{sx}', sx, sx + 0.1, -0.2, 0.03, n - 0.012, n + 0.012, mm))
+            hi.append(o)
+            # low: a thin slab per garment, both faces
+            lo.append(box(f'l_{name}', t, t + w, 0.03 - h * 0.5 - 0.005, 0.035, n - 0.02, n + 0.02))
+            k += 1
+            t += w + 0.03 + rnd.random() * 0.05
+    return hi, join(lo, f'clothes{"AB"[variant]}'), wall_plane()
+
+
+def flower_box(m):
+    """Window box with geraniums hooked on a parapet or sill (0.85 m): a dense mound of leaves on a dark core
+    with red and pink flower heads on top."""
+    import random
+    rnd = random.Random(11)
+    hi = [box('fb_box', -0.42, 0.42, -0.18, 0.0, 0.02, 0.22, m['terracotta'], bev=0.012),
+          box('fb_rim', -0.43, 0.43, -0.015, 0.0, 0.01, 0.23, m['terracotta'], bev=0.006)]
+    for t in (-0.3, 0.3):
+        hi.append(box(f'fb_hook{t}', t - 0.012, t + 0.012, -0.02, 0.04, -0.05, 0.03, m['galv']))
+    leaf = mat('leaf', (0.1, 0.26, 0.07), 0.6, 0.0, noise=0.25, nscale=25)
+    leaf2 = mat('leaf2', (0.17, 0.36, 0.1), 0.6, 0.0, noise=0.25, nscale=25)
+    core = mat('leafCore', (0.04, 0.1, 0.03), 0.8)
+    red = mat('geranium', (0.78, 0.05, 0.06), 0.55, 0.0, noise=0.15, nscale=40)
+    pink = mat('geraniumP', (0.88, 0.32, 0.5), 0.55, 0.0, noise=0.15, nscale=40)
+
+    def mound(name, grow, nt, na, mm):
+        verts, faces = [], []
+        for i in range(nt + 1):
+            t = -0.41 + 0.82 * i / nt
+            end = max(0.25, 1 - (abs(t) / 0.43) ** 6)
+            for j in range(na + 1):
+                ang = math.pi * j / na
+                verts.append((t, -0.01 + (0.2 * end + grow) * math.sin(ang), 0.12 - (0.1 + grow) * math.cos(ang)))
+        for i in range(nt):
+            for j in range(na):
+                q = i * (na + 1) + j
+                faces.append((q, q + na + 1, q + na + 2, q + 1))
+        return from_pydata(name, verts, faces, mm, smooth=True)
+
+    hi.append(mound('fb_core', 0.0, 24, 12, core))
+    for k in range(260):
+        t = -0.4 + 0.8 * rnd.random()
+        ang = math.pi * (0.08 + 0.84 * rnd.random())
+        end = max(0.25, 1 - (abs(t) / 0.43) ** 6)
+        c = Vector((t, -0.01 + 0.2 * end * math.sin(ang), 0.12 - 0.1 * math.cos(ang)))
+        nrm = Vector((rnd.uniform(-0.3, 0.3), math.sin(ang), -math.cos(ang))).normalized()
+        p0 = c + nrm * rnd.uniform(0.0, 0.025)
+        r = 0.032 + rnd.random() * 0.022
+        hi.append(cyl(f'fb_l{k}', tuple(p0), tuple(p0 + nrm * 0.004), r, leaf if k % 3 else leaf2, segs=7))
+    for k in range(40):
+        t = -0.37 + 0.74 * rnd.random()
+        ang = math.pi * (0.22 + 0.56 * rnd.random())
+        end = max(0.25, 1 - (abs(t) / 0.43) ** 6)
+        c = Vector((t, -0.01 + 0.2 * end * math.sin(ang) + 0.03, 0.12 - 0.1 * math.cos(ang)))
+        mm = red if variant_red(k) else pink
+        for q in range(6):
+            o = Vector((rnd.uniform(-0.025, 0.025), rnd.uniform(0.0, 0.02), rnd.uniform(-0.025, 0.025)))
+            hi.append(cyl(f'fb_f{k}{q}', tuple(c + o), tuple(c + o + Vector((0, 0.024, 0))), 0.021, mm, segs=6, r1=0.008))
+    lo = [box('l_fb', -0.431, 0.431, -0.181, 0.0, -0.051, 0.231), mound('l_fbh', 0.035, 6, 5, None)]
+    return hi, join(lo, 'flowerBox'), wall_plane()
+
+
+def variant_red(k):
+    return k % 4 != 3
+
+
+def gas_box(m):
+    """Gas regulator cabinet at a block entrance (0.55 x 0.65 x 0.3 m), Overgas yellow, with louvres."""
+    hi = [box('gb_body', -0.275, 0.275, 0.0, 0.65, 0.0, 0.3, m['gasYellow'], bev=0.01),
+          box('gb_door', -0.25, 0.25, 0.03, 0.62, 0.3, 0.31, m['gasYellow'], bev=0.004),
+          box('gb_roof', -0.29, 0.29, 0.65, 0.68, -0.0, 0.33, m['gasYellow'], bev=0.006),
+          cyl('gb_lock', (0.2, 0.33, 0.31), (0.2, 0.33, 0.32), 0.012, m['silver'], segs=12),
+          box('gb_plate', -0.12, 0.12, 0.45, 0.53, 0.31, 0.313, m['plastic']),
+          cyl('gb_in', (0.0, -0.3, 0.12), (0.0, 0.0, 0.12), 0.024, m['gasYellow'], segs=12),
+          cyl('gb_out', (0.0, 0.68, 0.12), (0.0, 0.95, 0.12), 0.024, m['gasYellow'], segs=12)]
+    for k in range(5):
+        u = 0.1 + k * 0.025
+        hi.append(box(f'gb_lv{k}', -0.15, 0.15, u, u + 0.008, 0.31, 0.318, m['acDark']))
+    lo = [box('l_gb', -0.276, 0.276, 0.0, 0.651, 0.0, 0.311), box('l_gbr', -0.291, 0.291, 0.65, 0.681, 0.0, 0.331),
+          cyl('l_gbi', (0.0, -0.3, 0.12), (0.0, 0.0, 0.12), 0.028, segs=6, smooth=False),
+          cyl('l_gbo', (0.0, 0.68, 0.12), (0.0, 0.95, 0.12), 0.028, segs=6, smooth=False)]
+    return hi, join(lo, 'gasBox'), wall_plane()
+
+
+def gas_pipe(m):
+    """2 m of yellow steel gas pipe (Ø 48 mm) along a wall, axis 0.08 m off it, with a clamp."""
+    hi = [cyl('gp_p', (-1.0, 0, 0), (1.0, 0, 0), 0.024, m['gasYellow'], segs=24),
+          cyl('gp_j', (0.94, 0, 0), (1.0, 0, 0), 0.027, m['gasYellow'], segs=24),
+          cyl('gp_c', (-0.015, 0, 0), (0.015, 0, 0), 0.029, m['galv'], segs=24),
+          box('gp_b', -0.012, 0.012, -0.01, 0.01, -0.08, -0.025, m['galv'])]
+    lo = [cyl('l_gp', (-1.0, 0, 0), (1.0, 0, 0), 0.03, segs=6), box('l_gpb', -0.013, 0.013, -0.011, 0.011, -0.081, -0.024)]
+    occ = wall_plane()
+    occ.location = W(0, 0, -0.08)
+    return hi, join(lo, 'gasPipe'), occ
+
+
 # name -> (builder, atlas cell (x, y, w, h) px in a 1024 atlas, smoothing angle for the low-poly,
 #          mounting: faces against the wall / roof are never seen and are dropped from the low-poly)
 PIECES = {
@@ -498,7 +731,17 @@ PIECES = {
     'antenna': (antenna, (512, 640, 256, 128), 40, 'roof'),
     'lamp': (lamp, (896, 640, 64, 64), 35, 'wall'),
     'lampGlass': (lamp_glass, (960, 640, 64, 64), 70, 'wall'),
+    'clothesA': (lambda m: clothes(m, 0), (0, 768, 256, 256), 50, None),
+    'clothesB': (lambda m: clothes(m, 1), (256, 768, 256, 256), 50, None),
+    'flowerBox': (flower_box, (512, 768, 256, 128), 60, 'wall'),
+    'windowGrille': (window_grille, (512, 896, 128, 128), 40, None),
+    'shutterBox': (shutter_box, (640, 896, 128, 128), 40, 'wall'),
+    'shutterPanel': (shutter_panel, (768, 768, 128, 128), 40, 'wall'),
+    'gasBox': (gas_box, (768, 896, 128, 128), 40, 'wall'),
+    'gasPipe': (gas_pipe, (896, 768, 128, 128), 60, None),
 }
+# how deep under the low-poly the bake looks for the high-poly (m)
+RAY = {'vent': 0.14, 'liftroom': 0.08, 'ac': 0.08, 'flowerBox': 0.1}
 AGAINST = {
     'wall': lambda c, n: n[2] < -0.9 and c[2] < 0.12,
     'roof': lambda c, n: n[1] < -0.9 and c[1] < 0.01,
@@ -526,7 +769,7 @@ def main():
         sharpen(lo, ang)
         triangulate(lo)
         atlas.unwrap(lo, cell)
-        atlas.bake(lo, hi, cell, extrusion=0.03 if name in ('liftroom', 'vent') else 0.015, ray=0.14 if name == 'vent' else 0.08 if name in ('liftroom', 'ac') else 0.05)
+        atlas.bake(lo, hi, cell, extrusion=0.03 if name in ('liftroom', 'vent') else 0.015, ray=RAY.get(name, 0.05))
         print(f'{name}: high {sum(tri_count(o) for o in hi)} tris -> low {tri_count(lo)} tris', flush=True)
         for o in hi + occ:
             bpy.data.objects.remove(o)

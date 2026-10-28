@@ -112,6 +112,7 @@ const lin = (r, g, b) => [r, g, b].map((v) => Math.pow(v, 2.2));
 const AWNING = [lin(0.16, 0.36, 0.2), lin(0.55, 0.1, 0.1), lin(0.12, 0.2, 0.42), lin(0.86, 0.78, 0.6), lin(0.8, 0.32, 0.1), lin(0.26, 0.27, 0.29), lin(0.62, 0.14, 0.24), lin(0.9, 0.9, 0.88)]
   .map((c) => c.map((v) => v / 0.75)); // the fabric's own albedo is ~0.75 linear
 const PIPE = [null, null, lin(0.5, 0.33, 0.22).map((v) => v / 0.27), lin(0.9, 0.9, 0.88).map((v) => v / 0.27)];
+const GRILLE = [lin(0.12, 0.12, 0.12), lin(0.12, 0.12, 0.12), lin(0.92, 0.92, 0.9), lin(0.16, 0.26, 0.18), lin(0.36, 0.22, 0.14)].map((c) => c.map((v) => v / 0.64));
 const wrapPi = (a) => Math.atan2(Math.sin(a), Math.cos(a));
 
 /** The walls of a CCW ring in the facade frame of the shader (u0 = snapped facade coordinate at the start). */
@@ -175,9 +176,9 @@ function kitWall(K, plan, w, yAt) {
   const { ar, bayW, fh, H, gh, plinth, block, shops, seedI } = plan;
   const { t, nrm, L, u0 } = w;
   const yaw = Math.atan2(nrm[0], nrm[1]);
-  const put = (piece, uu, v, n, sx = 1, sy = 1, sz = 1, col = null, yw = yaw) => {
+  const put = (piece, uu, v, n, sx = 1, sy = 1, sz = 1, col = null, yw = yaw, tilt = 0) => {
     const x = w.ax + t[0] * (uu - u0) + nrm[0] * n, z = w.az + t[1] * (uu - u0) + nrm[1] * n;
-    K.placer.add(K.tx, K.tz, piece, x, yAt(v), z, yw, sx, sy, sz, col);
+    K.placer.add(K.tx, K.tz, piece, x, yAt(v), z, yw, sx, sy, sz, col, tilt);
   };
   // downpipes: on the convex corner this wall starts at, and on the piers of long classical facades
   const piped = ar === 4 || ar === 5 || ar === 6 || ar === 9 || ar === 10 || ar === 13 || ar === 15 || ar === 16;
@@ -188,6 +189,22 @@ function kitWall(K, plan, w, yAt) {
       let last = u0;
       for (let k = Math.ceil((u0 + 4) / bayW); k * bayW < u0 + L - 4; k++) {
         if (k * bayW - last > 9 && hcell(k, 5, seedI, 27) < 0.3) { pipeRun(put, k * bayW, H, col); last = k * bayW; }
+      }
+    }
+  }
+  // yellow gas main along the walls with entrances, a regulator cabinet and riser at each entrance
+  if (block && !shops && H > 8 && plinth > 0.2 && hcell(0, 0, seedI, 35) < 0.3 && L > 8) {
+    const stairs = [];
+    for (let bx = Math.ceil((u0 + 0.05) / bayW); (bx + 1) * bayW <= u0 + L - 0.05; bx++) if (columnType(plan, bx) === -1) stairs.push((bx + 0.5) * bayW);
+    if (stairs.length) {
+      const vg = plinth + fh - 0.12, a = u0 + 0.4, b = u0 + L - 0.4;
+      const n = Math.max(1, Math.round((b - a) / 2)), seg = (b - a) / n;
+      for (let k = 0; k < n; k++) put('gasPipe', a + seg * (k + 0.5), vg, 0.08, seg / 2, 1, 1);
+      for (const us of stairs) {
+        const ub = us + bayW * 0.42;
+        put('gasBox', ub, 0.35, 0);
+        const r0 = 1.3, len = vg - r0;
+        if (len > 0.4) put('gasPipe', ub, r0 + len / 2, 0.12, len / 2, 1, 1, null, yaw, Math.PI / 2);
       }
     }
   }
@@ -211,10 +228,22 @@ function kitWall(K, plan, w, yAt) {
       const sx = (bayW * 0.98) / 2.12;
       put('awning', uc, gh * 0.745, 0, sx, 1, 1, col);
       put('awningFrame', uc, gh * 0.745, 0, sx);
+    } else if (shops && gh >= 3.6 && hcell(bx, -1, seedI, 33) < 0.55) {
+      // roller shutter over the shop window (0.06..0.72 of the storey); some are down
+      const top = gh * 0.72, h = gh * 0.66, w = bayW * 0.9;
+      put('shutterBox', uc, top, 0, w, h / 2.0);
+      const r = hcell(bx, -1, seedI, 34);
+      if (r < 0.1) put('shutterPanel', uc, top, 0, w, r < 0.06 ? h : h * 0.35);
     }
     const wnd = upperWindow(plan, bx);
-    if (!wnd || (!acP && !dishP)) continue;
+    if (!wnd) continue;
     const { win, loggia } = wnd;
+    // bars over the ground-floor windows of the flats
+    if (block && !shops && loggia === 0 && plinth > 0.2 && hcell(bx, -1, seedI, 31) < 0.55) {
+      const ww = (win[2] - win[0]) * bayW, wh = (win[3] - win[1]) * fh;
+      put('windowGrille', bx * bayW + ((win[0] + win[2]) / 2) * bayW, plinth + win[1] * fh, 0, ww / 1.224, wh / 1.4, 1, GRILLE[Math.floor(hcell(bx, -1, seedI, 32) * GRILLE.length)]);
+    }
+    if (!acP && !dishP) continue;
     const depth = ar === 9 ? 1.4 : ar === 4 ? 1.1 : 1.0, hw = bayW * 0.44;
     const balcony = loggia === 2 && block;
     for (let fl = 0; gh + (fl + 1) * fh <= H - 0.35; fl++) {
@@ -231,6 +260,14 @@ function kitWall(K, plan, w, yAt) {
             put('ac', bx * bayW + (useRight ? (win[2] + 1) / 2 : win[0] / 2) * bayW, v0 + ((win[1] + win[3]) / 2) * fh - 0.3, 0);
           } else if (win[1] * fh >= 0.72) put('ac', uc + side * 0.12 * bayW, v0 + win[1] * fh - 0.66, 0);
         }
+      } else if (r < acP + 0.1 && (balcony || loggia === 1)) {
+        // the washing out on the rack, or a geranium box, on the parapet
+        const n = balcony ? depth + 0.01 : 0, top = balcony ? v0 + 1.0 : v0 + 0.4 * fh;
+        const q = hcell(bx, fl, seedI, 24);
+        if (q < 0.62) put(q < 0.31 ? 'clothesA' : 'clothesB', uc, top, n, Math.min(1, (bayW * 0.8) / 1.8));
+        else put('flowerBox', uc + side * bayW * 0.18, top, n);
+      } else if (loggia === 0 && r < acP + 0.04 && win[1] * fh > 0.5) {
+        put('flowerBox', bx * bayW + ((win[0] + win[2]) / 2) * bayW, v0 + win[1] * fh, 0.02, Math.min(1.3, ((win[2] - win[0]) * bayW) / 0.86));
       } else if (r > 1 - dishP) {
         let uu, v, n;
         if (balcony) { uu = uc + side * (hw - 0.22); v = v0 + 0.72; n = depth + 0.01; }
