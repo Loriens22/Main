@@ -5,11 +5,29 @@ import { RenderPass } from 'three/examples/jsm/postprocessing/RenderPass.js';
 import { UnrealBloomPass } from 'three/examples/jsm/postprocessing/UnrealBloomPass.js';
 import { OutputPass } from 'three/examples/jsm/postprocessing/OutputPass.js';
 import { SMAAPass } from 'three/examples/jsm/postprocessing/SMAAPass.js';
+import { GTAOPass } from 'three/examples/jsm/postprocessing/GTAOPass.js';
+
+/**
+ * Ground-truth ambient occlusion from the beauty pass's own depth buffer (normals rebuilt from depth):
+ * no second scene render, so draw calls stay flat and alpha-tested leaves occlude only where they are
+ * opaque. scale < 1 computes AO at a fraction of the resolution (the blend upsamples it).
+ */
+class SceneGTAOPass extends GTAOPass {
+  constructor(scene, camera, w, h, depthTexture, scale) {
+    super(scene, camera, Math.max(1, Math.round(w * scale)), Math.max(1, Math.round(h * scale)));
+    this.aoScale = scale;
+    this.setGBuffer(depthTexture);
+  }
+
+  setSize(w, h) {
+    super.setSize(Math.max(1, Math.round(w * this.aoScale)), Math.max(1, Math.round(h * this.aoScale)));
+  }
+}
 
 export const PRESETS = {
-  ultra: { pixelRatioMax: 2, antialias: true, bloom: true, smaa: true, shadows: true, shadowMap: 4096 },
-  high: { pixelRatioMax: 1.5, antialias: true, bloom: true, smaa: false, shadows: true, shadowMap: 2048 },
-  balanced: { pixelRatioMax: 1, antialias: false, bloom: false, smaa: false, shadows: true, shadowMap: 1024 },
+  ultra: { pixelRatioMax: 2, antialias: true, bloom: true, smaa: true, shadows: true, shadowMap: 4096, ao: 1 },
+  high: { pixelRatioMax: 1.5, antialias: true, bloom: true, smaa: false, shadows: true, shadowMap: 2048, ao: 0.5 },
+  balanced: { pixelRatioMax: 1, antialias: false, bloom: false, smaa: false, shadows: true, shadowMap: 1024, ao: 0 },
 };
 
 export class Renderer {
@@ -40,9 +58,22 @@ export class Renderer {
     this.camera = camera;
     if (!this.preset.bloom) return;
     const size = this.renderer.getDrawingBufferSize(new THREE.Vector2());
-    const rt = new THREE.WebGLRenderTarget(size.x, size.y, { type: THREE.HalfFloatType, samples: this.quality === 'ultra' ? 4 : 2 });
+    const depth = new THREE.DepthTexture(size.x, size.y);
+    depth.type = THREE.UnsignedIntType;
+    const rt = new THREE.WebGLRenderTarget(size.x, size.y, { type: THREE.HalfFloatType, samples: this.quality === 'ultra' ? 4 : 2, depthTexture: depth });
     this.composer = new EffectComposer(this.renderer, rt);
+    // both ping-pong buffers share the depth texture, whichever one the scene lands in
+    this.composer.renderTarget2.depthTexture = depth;
     this.composer.addPass(new RenderPass(scene, camera));
+    if (this.preset.ao && this.aoEnabled !== false) {
+      const ao = (this.ao = new SceneGTAOPass(scene, camera, size.x, size.y, depth, this.preset.ao));
+      // world-space radius ~1 m: contact shadow at kerbs, under eaves and balconies, in window reveals,
+      // around seats and poles inside the bus
+      ao.updateGtaoMaterial({ radius: 2.0, distanceExponent: 1.3, thickness: 6.0, scale: 1.8, samples: this.quality === 'ultra' ? 16 : 10, distanceFallOff: 0.6, screenSpaceRadius: false });
+      ao.updatePdMaterial({ lumaPhi: 10, depthPhi: 2, normalPhi: 3, radius: 5, rings: 2, samples: this.quality === 'ultra' ? 12 : 8 });
+      ao.blendIntensity = 0.9;
+      this.composer.addPass(ao);
+    } else this.ao = null;
     this.bloom = new UnrealBloomPass(new THREE.Vector2(size.x / 2, size.y / 2), 0.45, 0.4, 2.6);
     this.composer.addPass(this.bloom);
     this.composer.addPass(new OutputPass());

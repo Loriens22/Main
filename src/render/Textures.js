@@ -184,6 +184,170 @@ export function makeCurb(size = 256, seed = 41) {
   }, 1.5);
 }
 
+/**
+ * Pavement of 40 x 40 cm concrete slabs (4 m tile): chamfered edges, every slab tilted and tinted a
+ * little differently, the odd replaced (darker) slab, dirt in the joints, exposed-aggregate speckle.
+ */
+export function makeSlabs(size = 512, seed = 137, base = [156, 154, 148]) {
+  const r = mulberry32(seed);
+  const n1 = fbmField(size, 8, 5, seed);
+  const n2 = fbmField(size, 64, 2, seed + 3);
+  const n3 = fbmField(size, 16, 3, seed + 9);
+  const cells = 10;
+  const slab = [];
+  for (let i = 0; i < cells * cells; i++) slab.push({ t: r(), tx: r() - 0.5, ty: r() - 0.5, old: r() < 0.06, crack: r() < 0.05 ? r() : -1 });
+  const grain = new Float32Array(size * size);
+  for (let i = 0; i < grain.length; i++) grain[i] = r();
+  return buildSet(size, (x, y, o) => {
+    const i = y * size + x;
+    const fx = (x / size) * cells, fy = (y / size) * cells;
+    const cx = Math.floor(fx), cy = Math.floor(fy);
+    const lx = fx - cx, ly = fy - cy;
+    const e = Math.min(lx, 1 - lx, ly, 1 - ly);
+    const S = slab[cy * cells + cx];
+    const joint = e < 0.018;
+    const cham = Math.min(1, e / 0.05);
+    const crack = S.crack >= 0 && Math.abs(lx - ly * (0.4 + S.crack) - 0.3 * S.crack) < 0.008 + n2[i] * 0.004;
+    const speck = grain[i] > 0.86 ? (grain[i] - 0.86) * 3 : 0;
+    const k = (S.old ? 0.82 : 0.92 + S.t * 0.12) + n1[i] * 0.12 - n2[i] * 0.05 + speck * 0.25 - (n3[i] > 0.66 ? 0.07 : 0);
+    if (joint) {
+      const d = 70 + n1[i] * 30;
+      o[0] = d; o[1] = d * 0.95; o[2] = d * 0.85; o[3] = 0.98; o[4] = -0.3;
+    } else {
+      o[0] = base[0] * k; o[1] = base[1] * k; o[2] = base[2] * k * (S.old ? 1.03 : 1);
+      if (crack) { o[0] *= 0.6; o[1] *= 0.6; o[2] *= 0.6; }
+      // edge wear: chamfers catch dirt
+      const dirt = 1 - cham;
+      o[0] -= dirt * 22; o[1] -= dirt * 22; o[2] -= dirt * 24;
+      o[3] = 0.82 + n2[i] * 0.12 - speck * 0.1;
+      o[4] = cham * 0.55 + (S.tx * (lx - 0.5) + S.ty * (ly - 0.5)) * 0.25 + grain[i] * 0.08 - (crack ? 0.4 : 0);
+    }
+  }, 2.6);
+}
+
+/**
+ * Concrete pavers 20 x 10 cm in running bond (residential pavements, car parks): 4 m tile, bevelled
+ * blocks, a few colours from different batches, sand in the joints.
+ */
+export function makeBlockPavers(size = 512, seed = 151, base = [150, 146, 138]) {
+  const r = mulberry32(seed);
+  const n1 = fbmField(size, 8, 5, seed);
+  const n2 = fbmField(size, 64, 2, seed + 5);
+  const rows = 40, cols = 20; // 10 cm rows, 20 cm blocks over 4 m
+  const tint = new Float32Array(rows * cols * 2);
+  for (let i = 0; i < tint.length; i++) tint[i] = r();
+  return buildSet(size, (x, y, o) => {
+    const i = y * size + x;
+    const fy = (y / size) * rows;
+    const row = Math.floor(fy);
+    const fx = (x / size) * cols + (row % 2) * 0.5;
+    const col = Math.floor(fx);
+    const lx = fx - col, ly = fy - row;
+    const ex = Math.min(lx, 1 - lx) * 2, ey = Math.min(ly, 1 - ly);
+    const e = Math.min(ex, ey);
+    const t = tint[(row * cols + (col % cols)) % tint.length];
+    if (e < 0.05) {
+      const d = 96 + n1[i] * 26;
+      o[0] = d; o[1] = d * 0.93; o[2] = d * 0.8; o[3] = 0.98; o[4] = -0.2;
+    } else {
+      const k = 0.86 + t * 0.2 + n1[i] * 0.12 - n2[i] * 0.06;
+      const warm = t > 0.82 ? 1.06 : 1;
+      o[0] = base[0] * k * warm; o[1] = base[1] * k; o[2] = base[2] * k / warm;
+      o[3] = 0.78 + n2[i] * 0.15;
+      o[4] = Math.min(1, e / 0.16) * 0.6 + n2[i] * 0.12;
+    }
+  }, 3.2);
+}
+
+/**
+ * Kerb stones along a kerb profile. u: 8 stones of 1 m per tile; v: across the profile
+ * (0 = foot of the face at the road, 0.42 = top of the face, 0.5 = end of the chamfer, 1 = back edge).
+ */
+export function makeKerbStone(seed = 163) {
+  const W = 512, H = 64;
+  const r = mulberry32(seed);
+  const n1 = fbmField(W, 16, 4, seed);
+  const stones = [];
+  for (let i = 0; i < 8; i++) stones.push({ t: r(), chip: r() < 0.3 ? r() : -1 });
+  const albedo = new Uint8Array(W * H * 4), rough = new Uint8Array(W * H * 4);
+  for (let y = 0; y < H; y++)
+    for (let x = 0; x < W; x++) {
+      const v = y / (H - 1);
+      const u = (x / W) * 8, st = Math.floor(u), lu = u - st;
+      const S = stones[st];
+      const joint = Math.min(lu, 1 - lu) < 0.008;
+      const g = r();
+      const speck = g > 0.8 ? (g - 0.8) * 2.2 : g < 0.06 ? -0.35 : 0;
+      let k = 0.88 + S.t * 0.14 + n1[(y * 8 % W) * W + x] * 0.12 + speck * 0.3;
+      // road grime on the face, polished wear on the chamfer
+      if (v < 0.42) k *= 0.72 + v * 0.55;
+      else if (v < 0.5) k *= 1.08;
+      if (S.chip >= 0 && Math.abs(lu - S.chip) < 0.03 && v > 0.4 && v < 0.55) k *= 0.75;
+      const c = joint ? 70 : 168 * k;
+      const i = (y * W + x) * 4;
+      albedo[i] = clamp255(c); albedo[i + 1] = clamp255(c * 0.99); albedo[i + 2] = clamp255(c * 0.96); albedo[i + 3] = 255;
+      rough[i] = 255; rough[i + 1] = clamp255((joint ? 0.95 : 0.66 + g * 0.12) * 255); rough[i + 3] = 255;
+    }
+  const mk = (data, srgb) => {
+    const t = new THREE.DataTexture(data, W, H, THREE.RGBAFormat);
+    t.wrapS = THREE.RepeatWrapping; t.wrapT = THREE.ClampToEdgeWrapping;
+    t.magFilter = THREE.LinearFilter; t.minFilter = THREE.LinearMipmapLinearFilter; t.generateMipmaps = true; t.anisotropy = 8;
+    if (srgb) t.colorSpace = THREE.SRGBColorSpace;
+    t.needsUpdate = true;
+    return t;
+  };
+  return { map: mk(albedo, true), roughnessMap: mk(rough, false) };
+}
+
+/** Yellow tactile warning paving (truncated domes), 0.6 m tile. */
+export function makeTactile(size = 256, seed = 171) {
+  const n1 = fbmField(size, 8, 3, seed);
+  const per = 10;
+  return buildSet(size, (x, y, o) => {
+    const i = y * size + x;
+    const fx = (x / size) * per, fy = (y / size) * per;
+    const dx = fx - Math.floor(fx) - 0.5, dy = fy - Math.floor(fy) - 0.5;
+    const d = Math.hypot(dx, dy);
+    const dome = d < 0.3 ? Math.sqrt(Math.max(0, 1 - (d / 0.3) ** 2)) : 0;
+    const tile = Math.min((x / size) * 2 % 1, 1 - ((x / size) * 2 % 1), (y / size) * 2 % 1, 1 - ((y / size) * 2 % 1)) < 0.012;
+    const k = 0.88 + n1[i] * 0.16 - (dome > 0 ? 0 : 0.05);
+    o[0] = tile ? 90 : 222 * k; o[1] = tile ? 82 : 178 * k; o[2] = tile ? 40 : 44 * k;
+    o[3] = 0.62 + (dome > 0 ? -0.1 : 0.1);
+    o[4] = dome * 1.2 - (tile ? 0.5 : 0);
+  }, 6.0);
+}
+
+/** Cast-iron street furniture set into the road: kind 'grate' (kerb gully, 0.5 x 0.35 m) or 'manhole' (round). */
+export function makeIronCover(kind) {
+  const S = 256;
+  const cv = document.createElement('canvas');
+  cv.width = cv.height = S;
+  const g = cv.getContext('2d');
+  g.clearRect(0, 0, S, S);
+  const iron = (a) => `rgba(${40 + a},${39 + a},${37 + a},1)`;
+  if (kind === 'grate') {
+    g.fillStyle = iron(18); g.fillRect(0, 0, S, S);
+    g.fillStyle = iron(30); g.fillRect(8, 8, S - 16, S - 16);
+    g.fillStyle = '#0b0b0b';
+    for (let k = 0; k < 9; k++) g.fillRect(24 + k * 24, 26, 12, S - 52);
+    g.fillStyle = iron(6); g.fillRect(S / 2 - 4, 8, 8, S - 16);
+  } else {
+    g.beginPath(); g.arc(S / 2, S / 2, S / 2 - 2, 0, Math.PI * 2); g.fillStyle = iron(26); g.fill();
+    g.beginPath(); g.arc(S / 2, S / 2, S / 2 - 16, 0, Math.PI * 2); g.fillStyle = iron(14); g.fill();
+    g.save(); g.beginPath(); g.arc(S / 2, S / 2, S / 2 - 18, 0, Math.PI * 2); g.clip();
+    g.strokeStyle = iron(34); g.lineWidth = 5;
+    for (let k = -12; k <= 12; k++) { g.beginPath(); g.moveTo(S / 2 + k * 11 - 140, 0); g.lineTo(S / 2 + k * 11 + 140, S); g.stroke(); g.beginPath(); g.moveTo(S / 2 + k * 11 + 140, 0); g.lineTo(S / 2 + k * 11 - 140, S); g.stroke(); }
+    g.restore();
+    g.beginPath(); g.arc(S / 2, S / 2, 54, 0, Math.PI * 2); g.fillStyle = iron(22); g.fill();
+    g.fillStyle = iron(44); g.font = 'bold 22px Arial, sans-serif'; g.textAlign = 'center'; g.textBaseline = 'middle';
+    g.fillText('СОФИЙСКА', S / 2, S / 2 - 12); g.fillText('ВОДА', S / 2, S / 2 + 14);
+  }
+  const t = new THREE.CanvasTexture(cv);
+  t.colorSpace = THREE.SRGBColorSpace;
+  t.anisotropy = 4;
+  return t;
+}
+
 /** Terrain detail layers: grass, dirt, forest litter, urban gravel. 8 m tiles. */
 export function makeGrass(size = 512, seed = 53) {
   const n1 = fbmField(size, 8, 5, seed);

@@ -71,8 +71,15 @@ export class World {
     progress(0.48, L('Платна, тротоари и маркировка…', 'Carriageways, pavements and markings…'));
     await yieldFrame();
     const rb = (this.roadBuilder = new RoadMeshBuilder({ network: net, hf, buildings: this.bgrid, quality: this.quality }));
+    rb.setCrossings(d.props.crossing || []);
     rb.build();
-    rb.zebras(d.props.crossing || []);
+    rb.zebras();
+    if (this.route) {
+      rb.busStopMarkings(Object.values(this.route.dirs).flatMap((dd) => dd.stops.map((st) => {
+        const a = dd.path.at(st.s), t = dd.path.tangent(st.s, 4);
+        return { x: a.x, z: a.z, rx: -t.tz, rz: t.tx };
+      })));
+    }
     progress(0.62, L('Сглобяване на сцената…', 'Assembling the scene…'));
     await yieldFrame();
     for (const g of rb.meshes()) this.addToTile(g.name.split(':')[1], g);
