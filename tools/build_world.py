@@ -9,9 +9,11 @@ usage: python3 tools/build_world.py <datadir> <route.json> <dem.npz> <outdir>
 import sys, os, json, math, gzip, base64, hashlib, collections
 import numpy as np
 import pyarrow.parquet as pq
+from shapely.prepared import prep
+from shapely.geometry import shape
 import shapely.wkb as wkb
 from shapely.geometry import LineString, Point, Polygon, MultiPolygon
-from shapely.ops import transform
+from shapely.ops import transform, unary_union
 sys.path.insert(0, os.path.dirname(__file__))
 from geo import to_xz, ORIGIN_LAT, ORIGIN_LON
 from roadspec import road_width
@@ -97,6 +99,7 @@ YELLOW_BRICK = {'бул. Цар Освободител', 'Цар Освобод�
 
 segs = pq.read_table(f'{DATADIR}/seg.parquet').to_pylist()
 roads = []
+main_lines = []  # boulevards: new buildings along them are taller (neighbourhood profiles, 'main')
 stats_bus_roads = []
 rails = []
 for r in segs:
@@ -153,6 +156,8 @@ for r in segs:
     f = (1 if oneway else 0) | (2 if 'is_bridge' in flags else 0) | (8 if 'is_link' in flags else 0) | \
         (16 if sub == 'crosswalk' else 0) | (32 if sub in ('driveway', 'parking_aisle') else 0) | \
         (64 if 'is_covered' in flags else 0)
+    if cls in ('motorway', 'trunk', 'primary', 'secondary'):
+        main_lines.append(g)
     roads.append(dict(c=ROAD_CLASSES.index(cls), w=int(round(width * 10)), n=nid(name), f=f,
                       s=(SURF + ['yellow_brick']).index(surface) if surface in SURF + ['yellow_brick'] else 0,
                       l=lvl, v=speed or 0, p=enc_line(list(g.coords)),
@@ -234,6 +239,115 @@ def facade_style(cls, height, p, hs, b):
     if cls in ('office',):
         return 3 if hs < 0.4 else 6
     return 2 if hs < 0.35 else (1 if hs < 0.6 else 0)
+
+
+# ---------------------------------------------------------------- neighbourhoods (data/research/world/neighbourhoods.json)
+# What the buildings of each neighbourhood are: the type mix of its multi-storey residential buildings and of
+# its houses, and storeys for buildings without a height. A building's own footprint then decides: long
+# 10-13 m deep slabs and square towers read as socialist blocks, irregular or deep plans as new buildings.
+STYLE_OF_TYPE = {'panel': 0, 'brick': 12, 'stalinist': 13, 'interwar': 11, 'modern': 9, 'villa': 10, 'house': 4, 'office': 3}
+_nb_dir = os.path.join(os.path.dirname(__file__), '..', 'data', 'research', 'world')
+NBJ = json.load(open(os.path.join(_nb_dir, 'neighbourhoods.json'), encoding='utf-8'))
+
+
+def _profile(name):
+    pr = NBJ['profiles'].get(name)
+    for _ in range(4):
+        if pr and 'same_as' in pr:
+            pr = NBJ['profiles'].get(pr['same_as'])
+    return pr
+
+
+HOODS = []
+for f in json.load(open(os.path.join(_nb_dir, 'neighbourhoods.geojson'), encoding='utf-8'))['features']:
+    pr = _profile(f['properties']['name'])
+    if not pr:
+        continue
+    gx = transform(lambda x, y, z=None: to_xz(x, y), shape(f['geometry']))
+    HOODS.append((gx.area, f['properties']['name'], prep(gx), pr))
+HOODS.sort(key=lambda h: h[0])  # the smallest (most specific) area that contains a building wins
+
+
+def hood_of(p):
+    for _, name, pg, pr in HOODS:
+        if pg.contains(p):
+            return name, pr
+    return None, NBJ['default']
+
+
+def shape_cues(g):
+    """Footprint depth / length (minimum rotated rectangle), rectangularity, corner count."""
+    if g.geom_type != 'Polygon':
+        g = max(g.geoms, key=lambda x: x.area) if hasattr(g, 'geoms') else g
+    mrr = g.minimum_rotated_rectangle
+    cs = list(mrr.exterior.coords)
+    a, b2 = math.dist(cs[0], cs[1]), math.dist(cs[1], cs[2])
+    depth, length = min(a, b2), max(a, b2)
+    rect = g.area / max(mrr.area, 1e-6)
+    nv = len(g.simplify(0.6).exterior.coords) - 1
+    return depth, length, rect, nv
+
+
+def pick(weights, u):
+    tot = sum(weights.values())
+    acc = 0.0
+    for k, w in weights.items():
+        acc += w / tot
+        if u <= acc:
+            return k
+    return list(weights)[-1]
+
+
+RESIDENTIAL = ('apartments', 'residential', 'dormitory')
+HOUSES = ('house', 'detached', 'semidetached_house')
+
+
+def classify(b, g, cls, c, hs, on_main):
+    """Building type (panel, brick, interwar, modern, villa, house...) from its neighbourhood and footprint;
+    None for buildings this does not judge (offices, schools, sheds...). Also the storeys to assume when OSM
+    gives no height."""
+    name, pr = hood_of(c)
+    area = g.area
+    nf = b.get('num_floors') or (round(b['height'] / 3.0) if b.get('height') else None)
+    depth, length, rect, nv = shape_cues(g)
+    house_like = cls in HOUSES or (cls in ('other', None) and area < 230 and (nf or 2) <= 3)
+    if house_like:
+        t = pick(dict(pr.get('houses', {'house': 1})), h01(b['id'] + 'h'))
+        return t, name, pr, None
+    if cls not in RESIDENTIAL and not (cls in ('other', None) and area >= 230):
+        return None, name, pr, None
+    w = dict(pr['mix'])
+    slab = rect > 0.86 and 9.0 <= depth <= 13.8 and length >= 2.2 * depth
+    tower = rect > 0.82 and depth >= 14.5 and length / max(depth, 1) < 1.4 and (nf or 0) >= 9
+    irregular = rect < 0.8 or nv >= 12
+    if slab:
+        for k, m in (('panel', 2.6), ('brick', 1.8), ('interwar', 1.2), ('modern', 0.45)):
+            if k in w:
+                w[k] *= m
+    if tower and 'panel' in w:
+        w['panel'] *= 3.0
+    if irregular:
+        for k, m in (('modern', 2.2), ('interwar', 1.3), ('panel', 0.25)):
+            if k in w:
+                w[k] *= m
+    if depth > 15.5 and not tower:
+        for k, m in (('modern', 1.6), ('panel', 0.5)):
+            if k in w:
+                w[k] *= m
+    if pr.get('lowrise') and (nf or 0) <= 5:
+        w = {k: v for k, v in w.items() if k not in ('panel',)} or {'modern': 1}
+    t = pick(w, h01(b['id'] + 't'))
+    floors = None
+    if not nf:
+        for amax, lo, hi in pr.get('floors', [[99999, 4, 8]]):
+            if area <= amax:
+                floors = lo + int(h01(b['id'] + 'f') * (hi - lo + 0.999))
+                break
+        if on_main and t in ('modern', 'office'):
+            floors += int(h01(b['id'] + 'm') * (pr.get('main', 0) + 0.999))
+        if t == 'panel':
+            floors = max(floors, 6)
+    return t, name, pr, floors
 
 
 bl = pq.read_table(f'{DATADIR}/bld.parquet').to_pylist()
@@ -413,6 +527,7 @@ for b in bl:
             lm_by_id[b['id']] = lm
 print('landmarks', {v: k[:8] for k, v in lm_by_id.items()}, file=sys.stderr)
 
+main_zone = prep(unary_union(main_lines).buffer(40)) if main_lines else prep(Point(0, 0).buffer(0.01))
 buildings = []
 blocks = []
 sign_bld = []  # (footprint, height, override) near the route, for shop signs
@@ -446,7 +561,25 @@ for b in bl:
     hs = h01(b['id'])
     style = facade_style(cls, height, c, hs, b)
     roof = b.get('roof_shape')
-    if roof is None and cls in ('house', 'detached', 'semidetached_house') and area < 400:
+    btype, hood, prof, floors = classify(b, g, b['class'], c, hs, main_zone.contains(c)) if b['id'] not in lm_by_id else (None, None, None, None)
+    if btype:
+        style = STYLE_OF_TYPE[btype]
+        if btype == 'panel' and h01(b['id'] + 'r') < 0.35:
+            style = 1  # insulated with ETICS since the 2000s
+        fh = {'modern': 3.05, 'villa': 3.1, 'house': 2.9, 'interwar': 3.4, 'stalinist': 3.5, 'brick': 2.95, 'panel': 2.8, 'office': 3.7}[btype]
+        if floors:
+            height = floors * fh + (1.0 if btype in ('modern', 'office') and floors > 3 else 0.5)
+        stats['type ' + btype] += 1
+        stats['hood ' + (hood or '-')] += 1
+    if roof is None and cls in ('house', 'detached', 'semidetached_house') and area < 400 and btype != 'villa':
+        roof = 'hipped'
+    if roof is None and btype == 'villa' and area < 500 and h01(b['id'] + 'v') < 0.55:
+        roof = 'hipped'  # about half the new villas have low hipped roofs, the rest flat roofs with terraces
+    if roof is None and btype == 'house' and area < 400:
+        roof = 'hipped'
+    if roof is None and btype == 'modern' and prof and prof.get('lowrise') and height < 17 and area < 900 and h01(b['id'] + 'v') < 0.5:
+        roof = 'hipped'  # low-rise complexes in the villa quarters
+    if roof is None and btype == 'interwar' and area < 1400 and h01(b['id'] + 'v') < 0.6:
         roof = 'hipped'
     if roof is None and style == 2 and height < 22 and area < 1600 and hs < 0.55:
         roof = 'hipped'
@@ -484,7 +617,22 @@ for b in bl:
         stats['parts'] += len(bparts)
         if any((pt.get('min_height') or 0) == 0 and not pt.get('min_floor') for pt in bparts):
             continue
+    penthouse = []
+    if btype == 'modern' and not ovr and roof is None and height > 17 and 250 < area < 3500 and h01(b['id'] + 'p') < 0.75:
+        # the top storey (two on taller buildings) set back behind a terrace, as new buildings in Sofia have it
+        ntop = 2 if height > 36 else 1
+        inset = 1.8 + h01(b['id'] + 's') * 1.2
+        top_g = g.buffer(-inset, join_style=2)
+        if top_g.geom_type == 'Polygon' and top_g.area > 0.35 * area:
+            base_h = height - ntop * 3.05
+            penthouse = make_bentry(top_g, height, base_h, cls, None, None, style, None, b['id'] + ':ph', None, True)
+            height = base_h
+            stats['setback penthouses'] += 1
     ents = make_bentry(g, height, None, cls, roof, name, style, color, b['id'], levels)
+    if penthouse:
+        for e in ents:
+            e['tr'] = 1  # roof terrace with a glass guard round it
+        buildings += penthouse
     if g.distance(route_union) < 75:
         sign_bld.append((g, height, ovr, len(buildings), ents))
     for e in ents:

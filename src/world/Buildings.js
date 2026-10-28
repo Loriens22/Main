@@ -10,7 +10,7 @@ import { replacedFor } from './LandmarkData.js';
 import { addFacadeDetail, addRoofKit, detailMaterials } from './FacadeDetail.js';
 import { KitPlacer } from './FacadeKit.js';
 
-export const STYLE = { PANEL: 0, RENOVATED: 1, CLASSIC: 2, GLASS: 3, HOUSE: 4, INDUSTRIAL: 5, INSTITUTIONAL: 6, COMMERCIAL: 7, STONE: 8 };
+export const STYLE = { PANEL: 0, RENOVATED: 1, CLASSIC: 2, GLASS: 3, HOUSE: 4, INDUSTRIAL: 5, INSTITUTIONAL: 6, COMMERCIAL: 7, STONE: 8, MODERN: 9, VILLA: 10, INTERWAR: 11, BRICK: 12, STALINIST: 13 };
 
 const PALETTE = {
   0: ['#b9b7af', '#aaa89f', '#c3bfb4', '#b3ada2', '#a6a49d'],
@@ -22,6 +22,14 @@ const PALETTE = {
   6: ['#cfcabd', '#dcd6c6', '#c8c3b6', '#d7d1c0', '#bdb9ae'],
   7: ['#d6d0c4', '#c7c2b8', '#e0dacf', '#b8b4ab'],
   8: ['#d8d0bd', '#cfc6b0', '#e0d8c6'],
+  // new buildings (1995-2025): white, warm and cool light greys, sand
+  9: ['#efeeea', '#e7e5df', '#f3f0e7', '#dcdcd8', '#ece5d6', '#d9d6ce', '#f5f3ee', '#d1d5d6', '#e9e1d2', '#c9c7c1'],
+  10: ['#f2eee5', '#e9e1d0', '#efe9df', '#dcd2c1', '#f6f3ed', '#e4d7c2', '#d9d4ca'],
+  // interwar 'кооперации': ochres, creams, faded pinks and greys of the lime renders
+  11: ['#e2d3ae', '#d9c49a', '#e6dccb', '#cdbb9c', '#e8d6b8', '#d6c8b0', '#c9b8a4', '#e1cfb5', '#d8c3b1', '#cfc8b8'],
+  // socialist brick blocks: plastered greys and beiges
+  12: ['#cbc5b8', '#d6cdb9', '#bfb9ad', '#d8d2c4', '#c7bca9', '#d0cabd'],
+  13: ['#d9cdb0', '#cfbf9e', '#e2d6bb', '#d4c6a8'],
 };
 
 const LANDMARK_STYLE = {
@@ -126,7 +134,8 @@ export class BuildingBuilder {
     if (replacedFor(this.world.line).some((r) => Math.hypot(r.x - cx, r.z - cz) < (r.r || 4))) return; // hand-built in Landmarks.js
     const col = hexToRgb(color);
     const seed = (hashStr(`${b.id}`) % 1000) / 1000;
-    let floorH = style === STYLE.PANEL || style === STYLE.RENOVATED ? 2.8 : style === STYLE.CLASSIC || style === STYLE.STONE ? 3.5 : style === STYLE.GLASS ? 3.7 : style === STYLE.HOUSE ? 3.0 : style === STYLE.INDUSTRIAL ? 6.0 : 3.4;
+    let floorH = style === STYLE.PANEL || style === STYLE.RENOVATED ? 2.8 : style === STYLE.CLASSIC || style === STYLE.STONE ? 3.5 : style === STYLE.GLASS ? 3.7 : style === STYLE.HOUSE ? 3.0 : style === STYLE.INDUSTRIAL ? 6.0
+      : style === STYLE.MODERN ? 3.05 : style === STYLE.VILLA ? 3.1 : style === STYLE.INTERWAR ? 3.4 : style === STYLE.BRICK ? 2.95 : style === STYLE.STALINIST ? 3.5 : 3.4;
     if (b.levels > 0 && b.minH === 0) floorH = Math.max(2.6, Math.min(4.2, b.h / b.levels));
     // aFacade = (style, seed, wall height, floor height); aFacade2 = researched (accent rgb packed, window
     // pattern, ground floor, kind), -1 = unknown -> procedural defaults
@@ -140,7 +149,7 @@ export class BuildingBuilder {
     const K = detail && this.kit && !b.landmark ? { placer: this.kit, tx: cx, tz: cz, researched: !!rs } : null;
     if (detail) {
       const acc = rs && rs.accent != null ? hexToRgb('#' + rs.accent.toString(16).padStart(6, '0')) : null;
-      this.detailCount += addFacadeDetail((m) => this.buckets.get(cx, cz, m), outer, fac, (v) => base + v, col, acc, K);
+      this.detailCount += addFacadeDetail((m) => this.buckets.get(cx, cz, m), outer, fac, (v) => base + v, col, acc, K, { terrace: b.terrace, walls });
     }
     for (let h of b.holes) {
       if (h.length < 6) continue;
@@ -229,6 +238,30 @@ export class BuildingBuilder {
     let inn = inner;
     if (signedArea(inn) < 0) inn = reverse(inn);
     const buf = this.buckets.get(cx, cz, kind === 'gold' ? 'gold' : kind === 'metal' ? 'metal' : 'tiles');
+    // eaves: the roof planes run on past the walls by ~0.55 m, closed by a soffit and a fascia board
+    const inset = meanInset(outer, inn);
+    const eave = Math.min(0.6, inset * 0.3), drop = eave * (rh / Math.max(inset, 0.5));
+    const eaveRing = eave > 0.1 ? offsetRing(outer, eave) : null;
+    if (eaveRing) {
+      const fl = this.buckets.get(cx, cz, 'flat');
+      const n = outer.length / 2, ye = top - drop;
+      const soffit = [0.86, 0.84, 0.8], fascia = kind === 'metal' ? [0.45, 0.47, 0.48] : [0.32, 0.22, 0.15];
+      for (let i = 0; i < n; i++) {
+        const j = (i + 1) % n;
+        const ax = outer[2 * i], az = outer[2 * i + 1], bx = outer[2 * j], bz = outer[2 * j + 1];
+        const ex = eaveRing[2 * i], ez = eaveRing[2 * i + 1], fx = eaveRing[2 * j], fz = eaveRing[2 * j + 1];
+        const s0 = fl.vertex(ax, ye, az, 0, -1, 0, 0, 0, 0, 0, soffit), s1 = fl.vertex(bx, ye, bz, 0, -1, 0, 0, 0, 0, 0, soffit);
+        const s2 = fl.vertex(fx, ye, fz, 0, -1, 0, 0, 0, 0, 0, soffit), s3 = fl.vertex(ex, ye, ez, 0, -1, 0, 0, 0, 0, 0, soffit);
+        fl.idx.push(s0, s2, s1, s0, s3, s2); // seen from below
+        const L = Math.hypot(fx - ex, fz - ez) || 1, nx = (fz - ez) / L, nz = -(fx - ex) / L;
+        const f0 = fl.vertex(ex, ye - 0.2, ez, nx, 0, nz, 0, 0, 0, 0, fascia), f1 = fl.vertex(fx, ye - 0.2, fz, nx, 0, nz, 0, 0, 0, 0, fascia);
+        const f2 = fl.vertex(fx, ye + 0.04, fz, nx, 0, nz, 0, 0, 0, 0, fascia), f3 = fl.vertex(ex, ye + 0.04, ez, nx, 0, nz, 0, 0, 0, 0, fascia);
+        fl.idx.push(f0, f2, f1, f0, f3, f2);
+      }
+      outer = eaveRing;
+      top = top - drop;
+      rh += drop;
+    }
     const contour = toVec2(outer);
     const hole = toVec2(reverse(inn));
     let tris;
@@ -358,7 +391,7 @@ diffuseColor.rgb = fo.albedo;`)
 reflectedLight.indirectDiffuse *= fo.ao;
 reflectedLight.indirectSpecular *= mix(1.0, fo.ao, 0.5);`);
     };
-    walls.customProgramCacheKey = () => 'facade-v5';
+    walls.customProgramCacheKey = () => 'facade-v6';
     const flat = new THREE.MeshStandardMaterial({ vertexColors: true, roughness: 0.95, metalness: 0 });
     const tilesMat = makeTileRoofMaterial(noise);
     const metal = new THREE.MeshStandardMaterial({ vertexColors: true, roughness: 0.45, metalness: 0.6 });
@@ -395,6 +428,45 @@ reflectedLight.indirectSpecular *= mix(1.0, fo.ao, 0.5);`);
     }
     return out;
   }
+}
+
+/** Average distance from the footprint's edge midpoints to the ridge outline (the roof's horizontal run). */
+function meanInset(outer, inner) {
+  const n = outer.length / 2, m = inner.length / 2;
+  let sum = 0;
+  for (let i = 0; i < n; i++) {
+    const j = (i + 1) % n;
+    const mx = (outer[2 * i] + outer[2 * j]) / 2, mz = (outer[2 * i + 1] + outer[2 * j + 1]) / 2;
+    let d = Infinity;
+    for (let k = 0; k < m; k++) {
+      const l = (k + 1) % m;
+      const ax = inner[2 * k], az = inner[2 * k + 1], bx = inner[2 * l] - ax, bz = inner[2 * l + 1] - az;
+      const t = Math.max(0, Math.min(1, ((mx - ax) * bx + (mz - az) * bz) / (bx * bx + bz * bz || 1)));
+      d = Math.min(d, Math.hypot(mx - ax - bx * t, mz - az - bz * t));
+    }
+    sum += d;
+  }
+  return sum / n;
+}
+
+/** Mitred outward offset of a CCW ring (outward normal of edge (dx, dz) is (dz, -dx)). */
+function offsetRing(p, d) {
+  const n = p.length / 2;
+  const out = new Float32Array(p.length);
+  for (let i = 0; i < n; i++) {
+    const h = (i + n - 1) % n, j = (i + 1) % n;
+    let ax = p[2 * i] - p[2 * h], az = p[2 * i + 1] - p[2 * h + 1], bx = p[2 * j] - p[2 * i], bz = p[2 * j + 1] - p[2 * i + 1];
+    const la = Math.hypot(ax, az) || 1, lb = Math.hypot(bx, bz) || 1;
+    const n1x = az / la, n1z = -ax / la, n2x = bz / lb, n2z = -bx / lb;
+    let mx = n1x + n2x, mz = n1z + n2z;
+    const ml = Math.hypot(mx, mz) || 1;
+    mx /= ml; mz /= ml;
+    const cos = mx * n1x + mz * n1z;
+    const k = Math.min(2.0, 1 / Math.max(cos, 0.3));
+    out[2 * i] = p[2 * i] + mx * d * k;
+    out[2 * i + 1] = p[2 * i + 1] + mz * d * k;
+  }
+  return out;
 }
 
 function t2(i, n) {
@@ -486,8 +558,8 @@ vec3 unpackRGB(float v) {
 vec3 srgb(float r, float g, float b) { return pow(vec3(r, g, b), vec3(2.2)); }
 // archetypes (= research kinds): 0 panel 1960s, 1 panel 1970s, 2 insulated panel patchwork, 3 EPK tower,
 // 4 socialist brick (plastered), 5 Stalinist, 6 pre-war neoclassical, 7 modernist institutional,
-// 8 glass office, 9 modern residential, 10 house, 11 sports hall, 12 industrial, 13 church/stone,
-// 14 kiosk / pavilion, 15 modernist hotel, 16 commercial
+// 8 glass office, 9 modern residential (1995-2025), 10 house, 11 sports hall, 12 industrial, 13 church/stone,
+// 14 kiosk / pavilion, 15 modernist hotel, 16 commercial, 17 modern villa, 18 interwar apartment building
 float archOf(float style, float kind, float H, float seedI) {
   if (kind > -0.5 && kind < 15.5) return kind;
   if (style < 0.5) return H > 17.0 ? (seedI < 450.0 ? 2.0 : 1.0) : (seedI < 350.0 ? 2.0 : 0.0);
@@ -498,7 +570,12 @@ float archOf(float style, float kind, float H, float seedI) {
   if (style < 5.5) return 12.0;
   if (style < 6.5) return 7.0;
   if (style < 7.5) return 16.0;
-  return 13.0;
+  if (style < 8.5) return 13.0;
+  if (style < 9.5) return 9.0;   // modern residential
+  if (style < 10.5) return 17.0; // villa
+  if (style < 11.5) return 18.0; // interwar
+  if (style < 12.5) return 4.0;  // socialist brick
+  return 5.0;                    // Stalinist
 }
 vec3 pastel(float h) {
   // ETICS render colours seen on Sofia blocks
@@ -590,11 +667,13 @@ FacadeOut facade(vec2 uvm, vec4 fac, vec4 fac2, vec3 wallCol) {
   if (uvm.y < 0.0) { o.albedo *= 0.75; return o; } // foundation below the base
   // ---------------- grid
   float bayW = ar < 0.5 ? 3.0 : ar < 2.5 ? 3.6 : ar < 3.5 ? 3.0 : ar < 4.5 ? 3.2 : ar < 5.5 ? 3.4 : ar < 6.5 ? 2.9 :
-               ar < 7.5 ? 1.5 : ar < 8.5 ? 1.55 : ar < 9.5 ? 3.4 : ar < 10.5 ? 3.6 : ar < 12.5 ? 6.0 : ar < 13.5 ? 4.2 : ar < 14.5 ? 2.4 : ar < 15.5 ? 1.8 : 3.0;
+               ar < 7.5 ? 1.5 : ar < 8.5 ? 1.55 : ar < 9.5 ? 3.4 : ar < 10.5 ? 3.6 : ar < 12.5 ? 6.0 : ar < 13.5 ? 4.2 : ar < 14.5 ? 2.4 : ar < 15.5 ? 1.8 : ar < 16.5 ? 3.0 : ar < 17.5 ? 4.0 : 2.8;
   if (winPat > 0.5 && winPat < 1.5) bayW = 1.5;
   if (winPat > 1.5 && winPat < 2.5) bayW = 1.55;
-  bool shops = gfl > -0.5 ? (gfl < 0.5 || winPat > 4.5) : ((ar > 5.5 && ar < 6.5 && seedI < 620.0) || ar > 15.5 || ar > 13.5 && ar < 14.5);
-  float plinth = block && !shops ? 0.9 : 0.0;          // raised ground floor with basement windows
+  bool shops = gfl > -0.5 ? (gfl < 0.5 || winPat > 4.5) : ((ar > 5.5 && ar < 6.5 && seedI < 620.0) || (ar > 15.5 && ar < 16.5) || ar > 13.5 && ar < 14.5 ||
+               (ar > 8.5 && ar < 9.5 && seedI < 330.0) || (ar > 17.5 && seedI < 600.0));
+  bool modern = ar > 8.5 && ar < 9.5, villa = ar > 16.5 && ar < 17.5, interwar = ar > 17.5;
+  float plinth = block && !shops ? (modern ? 0.45 : 0.9) : (interwar && !shops ? 0.6 : 0.0); // raised ground floor (basement windows on the old slabs)
   float gh = shops ? max(fh, 4.2) : plinth + fh;
   if (ar > 13.5 && ar < 14.5) gh = H;                   // kiosk: one storey
   float u = uvm.x / bayW;
@@ -635,6 +714,42 @@ FacadeOut facade(vec2 uvm, vec4 fac, vec4 fac2, vec3 wallCol) {
       o.ao *= mix(0.86, 1.0, smoothstep(0.0, 0.06, edge)); // edge of the 10 cm insulation board
       o.bump.y += (1.0 - smoothstep(0.0, 0.05, min(ly, 1.0 - ly) * fh)) * 0.25 * (ly > 0.5 ? 1.0 : -1.0) * (1.0 - lod);
     }
+  } else if (modern) {
+    // smooth render with crisp shadow joints at the slabs; cladding on accent columns and on some ground floors:
+    // wood-look HPL boards, anthracite panels, light fibre-cement or brick slips (one choice per building)
+    alb *= 0.97 + nzf.g * 0.04;
+    if (!ground) alb *= 1.0 - lineMask(ly * fh - 0.02, 0.012, 0.01) * 0.25;
+    float cladKind = floor(fract(seed * 7.31) * 4.0);
+    float accSel = h21(vec2(floor(bx / 2.0) * 1.37 + 0.5, seed * 31.0 + 7.0));
+    bool clad = (!ground && accSel < 0.26) || (ground && fract(seed * 3.17) < 0.45);
+    if (clad) {
+      vec2 q = vec2(uvm.x, uvm.y);
+      vec3 cc;
+      if (cladKind < 0.5) { float bd = fract(q.x / 0.16); cc = mix(srgb(0.46, 0.3, 0.18), srgb(0.55, 0.37, 0.22), h21(vec2(floor(q.x / 0.16), seed))) * (1.0 - 0.35 * lineMask(bd - 0.5, 0.47, 0.02)); }
+      else if (cladKind < 1.5) { cc = srgb(0.19, 0.2, 0.21) * (1.0 - 0.3 * max(lineMask(fract(q.x / 1.2) - 0.5, 0.49, 0.01), lineMask(fract(q.y / 0.6) - 0.5, 0.48, 0.01))); }
+      else if (cladKind < 2.5) { cc = srgb(0.7, 0.71, 0.7) * (0.97 + nzf.r * 0.05) * (1.0 - 0.25 * max(lineMask(fract(q.x / 1.2) - 0.5, 0.49, 0.008), lineMask(fract(q.y / 2.4) - 0.5, 0.495, 0.006))); }
+      else { float row = floor(q.y / 0.075); float bk = fract(q.x / 0.24 + mod(row, 2.0) * 0.5); cc = mix(srgb(0.55, 0.3, 0.2), srgb(0.62, 0.38, 0.26), h21(vec2(floor(q.x / 0.24), row))) * (1.0 - 0.3 * max(lineMask(fract(q.y / 0.075) - 0.5, 0.42, 0.02), lineMask(bk - 0.5, 0.47, 0.02))); }
+      alb = cc;
+      o.rough = cladKind < 1.5 ? 0.6 : 0.85;
+    }
+  } else if (villa) {
+    // warm render, a random-ashlar stone base on the garden floor
+    alb *= 0.96 + nzf.g * 0.05;
+    if (ground && hcell(floor(bx / 2.0), 0.0, seedI, 12u) < 0.45) {
+      vec2 q = uvm / vec2(0.42, 0.24);
+      float row = floor(q.y);
+      vec2 c = vec2(fract(q.x + h21(vec2(row, seed)) + mod(row, 2.0) * 0.37), fract(q.y));
+      vec3 st = mix(srgb(0.62, 0.56, 0.47), srgb(0.75, 0.7, 0.6), h21(vec2(floor(q.x + mod(row, 2.0) * 0.37), row + seed)));
+      alb = st * (1.0 - 0.35 * max(lineMask(c.x - 0.5, 0.46, 0.04), lineMask(c.y - 0.5, 0.44, 0.06)));
+      o.bump += vec2(c.x - 0.5, c.y - 0.5) * 0.08 * (1.0 - lod);
+    }
+  } else if (interwar) {
+    // lime plaster: rusticated ground floor, a string course over it, slab bands, a deep cornice zone
+    alb *= 0.94 + nzf.g * 0.08;
+    if (ground && !shops) alb *= 1.0 - lineMask(fract(uvm.y / 0.5) - 0.5, 0.03, 0.02) * 0.2;
+    if (!ground) alb = mix(alb, alb * 1.08, lineMask(ly * fh - 0.1, 0.1, 0.02));
+    if (abs(uvm.y - gh) < 0.22) alb *= 1.1;
+    if (uvm.y > H - 1.0) alb *= 1.1 - 0.3 * lineMask(uvm.y - (H - 1.0), 0.04, 0.02);
   } else if (ar < 4.5 || (ar > 8.5 && ar < 10.5) || ar > 14.5) {
     // plaster: slab edge bands per floor, slight roughness variation
     alb *= 0.95 + nzf.g * 0.07;
@@ -693,8 +808,12 @@ FacadeOut facade(vec2 uvm, vec4 fac, vec4 fac2, vec3 wallCol) {
   } else if (ar < 8.5) {
     win = vec4(0.03, 0.08, 0.97, 1.0); frame = 0.02; frameCol = srgb(0.3, 0.32, 0.33); roomKind = 2.0; depth = 7.0;
   } else if (ar < 9.5) {
-    win = vec4(0.14, 0.08, 0.86, 0.9); frame = 0.03; frameCol = srgb(0.25, 0.26, 0.27);
-    if (colRnd < 0.5) { win = vec4(0.05, 0.0, 0.95, 0.92); loggia = 2.0; }
+    // modern: living rooms glazed to the floor behind a balcony, bedrooms over a parapet, French windows with a
+    // glass guard; anthracite frames on most buildings
+    frame = 0.03; frameCol = fract(seed * 3.7) < 0.75 ? srgb(0.19, 0.2, 0.21) : srgb(0.93, 0.93, 0.92);
+    if (colRnd < 0.42) { win = vec4(0.06, 0.0, 0.94, 0.9); loggia = 2.0; }
+    else if (colRnd < 0.74) win = vec4(0.18, 0.28, 0.82, 0.88);
+    else win = vec4(0.3, 0.02, 0.7, 0.9);
   } else if (ar < 10.5) {
     win = vec4(0.32, 0.32, 0.68, 0.8); frame = 0.05;
   } else if (ar < 12.5) {
@@ -706,8 +825,18 @@ FacadeOut facade(vec2 uvm, vec4 fac, vec4 fac2, vec3 wallCol) {
   } else if (ar < 15.5) {
     win = vec4(0.12, 0.25, 0.88, 0.85); frame = 0.04; frameCol = srgb(0.85, 0.86, 0.86);
     if (colRnd < 0.6) loggia = 2.0;
-  } else {
+  } else if (ar < 16.5) {
     win = vec4(0.2, 0.35, 0.8, 0.75);
+  } else if (ar < 17.5) {
+    // villa: big openings, a blank wall here and there
+    frame = 0.035; frameCol = fract(seed * 5.3) < 0.6 ? srgb(0.19, 0.2, 0.21) : srgb(0.36, 0.25, 0.16);
+    win = colRnd < 0.22 ? vec4(0.0) : vec4(0.16, 0.26, 0.84, 0.9);
+    if (colRnd < 0.22) skipWin = true;
+    if (colRnd > 0.62) { win = vec4(0.1, 0.0, 0.9, 0.9); loggia = 2.0; }
+  } else {
+    // interwar: tall double casements with a transom, plaster surrounds; small iron balconies on some columns
+    win = vec4(0.28, 0.22, 0.72, 0.86); frame = 0.05; frameCol = fract(seed * 4.1) < 0.65 ? srgb(0.93, 0.92, 0.88) : srgb(0.4, 0.28, 0.18);
+    if (colRnd < 0.22) { win = vec4(0.3, 0.0, 0.7, 0.86); loggia = 2.0; }
   }
   // researched window pattern overrides (upper floors)
   if (winPat > -0.5 && !ground) {
@@ -747,6 +876,7 @@ FacadeOut facade(vec2 uvm, vec4 fac, vec4 fac2, vec3 wallCol) {
     else if (gfl > 1.5 && gfl < 2.5) skipWin = true;
     else if (gfl > 2.5 && gfl < 3.5) { win = vec4(0.18, 0.0, 0.82, 0.86); frameCol = srgb(0.12, 0.12, 0.12); }
     else if (gfl > 3.5 && gfl < 4.5) { win = vec4(0.1, 0.0, 0.9, 0.72); frameCol = srgb(0.55, 0.56, 0.55); skipWin = true; }
+    if (villa && !basement) { win = colRnd < 0.3 ? vec4(0.3, 0.0, 0.7, 0.9) : vec4(0.08, 0.0, 0.92, 0.92); frame = 0.03; skipWin = false; }
     if (stair && !basement && !shops) {
       // entrance: door from street level (steps up to the raised floor) and a concrete canopy
       float lyE = uvm.y / (plinth + 2.4);
@@ -758,7 +888,7 @@ FacadeOut facade(vec2 uvm, vec4 fac, vec4 fac2, vec3 wallCol) {
   }
   if (top || lastPartial) skipWin = true;
   if (ar > 10.5 && ar < 12.5 && !ground && rnd > 0.55) skipWin = true;
-  if (ar > 15.5 && !ground && rnd > 0.8) skipWin = true;
+  if (ar > 15.5 && ar < 16.5 && !ground && rnd > 0.8) skipWin = true;
   // ---------------- window recess (parallax): the glass sits rec metres behind the wall plane. Through
   // the opening the eye sees the window (frame, glass, room) where its ray meets the glass plane, and the
   // reveals - lit sill, jambs, shadowed lintel soffit - where it meets the sides of the opening first.
@@ -766,7 +896,7 @@ FacadeOut facade(vec2 uvm, vec4 fac, vec4 fac2, vec3 wallCol) {
   vec3 nWR = normalize(vWN);
   vec3 tWR = normalize(vec3(-nWR.z, 0.0, nWR.x));
   vec3 rtR = vec3(dot(vdirR, tWR), vdirR.y, -dot(vdirR, nWR));
-  float rec = (loggia > 0.5 || skipWin) ? 0.0 : ar < 3.5 ? 0.18 : ar < 4.5 ? 0.24 : ar < 6.5 ? 0.32 : ar < 7.5 ? 0.16 : ar < 8.5 ? 0.03 : ar < 9.5 ? 0.12 : ar < 10.5 ? 0.16 : ar < 13.5 ? 0.3 : 0.12;
+  float rec = (loggia > 0.5 || skipWin) ? 0.0 : ar < 3.5 ? 0.18 : ar < 4.5 ? 0.24 : ar < 6.5 ? 0.32 : ar < 7.5 ? 0.16 : ar < 8.5 ? 0.03 : ar < 9.5 ? 0.12 : ar < 10.5 ? 0.16 : ar < 13.5 ? 0.3 : ar < 16.5 ? 0.12 : ar < 17.5 ? 0.1 : 0.3;
   if (ground && shops) rec = 0.12;
   if (basement) rec = 0.1;
   rec *= 1.0 - lod;
@@ -777,7 +907,7 @@ FacadeOut facade(vec2 uvm, vec4 fac, vec4 fac2, vec3 wallCol) {
   // mullions / transoms (in the glass plane)
   float mull = 0.0;
   if (ar > 7.5 && ar < 8.5 || winPat > 1.5 && winPat < 2.5) mull = lineMask(fract(gp.x), 0.006, aa.x);
-  if (!ground && loggia < 0.5 && !stair && (block || ar > 4.5 && ar < 7.5 || ar > 9.5 && ar < 10.5)) {
+  if (!ground && loggia < 0.5 && !stair && (block || ar > 4.5 && ar < 7.5 || ar > 9.5 && ar < 10.5 || interwar)) {
     float midx = (win.x + win.z) * 0.5;
     mull = max(mull, lineMask(gp.x - midx, 0.008, 0.004 + aa.x));
     mull = max(mull, lineMask(gp.y - mix(win.y, win.w, 0.72), 0.01, 0.004 + aa.y) * step(win.x, gp.x) * step(gp.x, win.z));
@@ -873,11 +1003,13 @@ FacadeOut facade(vec2 uvm, vec4 fac, vec4 fac2, vec3 wallCol) {
     alb = mix(alb, signCol, band * step(0.35, h21(vec2(floor(bx / 3.0), seed))));
   }
   // window surrounds on classical facades
-  if ((ar > 4.5 && ar < 6.5) && !ground && !skipWin) {
+  if ((ar > 4.5 && ar < 6.5 || interwar) && !ground && !skipWin) {
     float surround = boxMask(vec2(lx, ly), win - vec4(0.04, 0.03, -0.04, -0.09), aa) - wm;
     alb = mix(alb, alb * 1.12 + 0.03, clamp(surround, 0.0, 1.0));
     if (fl < 0.5 && ar > 5.5) alb = mix(alb, alb * 1.15 + 0.03, boxMask(vec2(lx, ly), vec4(win.x - 0.05, win.w + 0.02, win.z + 0.05, win.w + 0.09), aa)); // pediment
   }
+  // roller-shutter boxes over the windows of new buildings
+  if (modern && !ground && loggia < 0.5 && !skipWin && !stair) alb = mix(alb, srgb(0.86, 0.86, 0.84), boxMask(vec2(lx, ly), vec4(win.x, win.w, win.z, win.w + 0.06), aa));
   // window sills
   if (!ground && loggia < 0.5 && !skipWin && block) alb = mix(alb, srgb(0.78, 0.78, 0.76), boxMask(vec2(lx, ly), vec4(win.x - 0.03, win.y - 0.035, win.z + 0.03, win.y), aa));
   // entrance canopy

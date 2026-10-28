@@ -33,10 +33,15 @@ export function archOf(style, kind, H, seedI) {
   if (style === 5) return 12;
   if (style === 6) return 7;
   if (style === 7) return 16;
-  return 13;
+  if (style === 8) return 13;
+  if (style === 9) return 9;   // modern residential
+  if (style === 10) return 17; // villa
+  if (style === 11) return 18; // interwar
+  if (style === 12) return 4;  // socialist brick
+  return 5;                    // Stalinist
 }
 
-const BAY = [3.0, 3.6, 3.6, 3.0, 3.2, 3.4, 2.9, 1.5, 1.55, 3.4, 3.6, 6.0, 6.0, 4.2, 2.4, 1.8, 3.0];
+const BAY = [3.0, 3.6, 3.6, 3.0, 3.2, 3.4, 2.9, 1.5, 1.55, 3.4, 3.6, 6.0, 6.0, 4.2, 2.4, 1.8, 3.0, 4.0, 2.8];
 
 /** The facade layout the shader uses for one building. fac = aFacade + aFacade2 values. */
 export function planOf(fac) {
@@ -48,8 +53,8 @@ export function planOf(fac) {
   if (winPat === 1) bayW = 1.5;
   if (winPat === 2) bayW = 1.55;
   const block = ar <= 4 || ar === 9 || ar === 15;
-  const shops = gfl > -0.5 ? gfl === 0 || winPat === 5 : (ar === 6 && seedI < 620) || ar > 15.5 || ar === 14;
-  const plinth = block && !shops ? 0.9 : 0;
+  const shops = gfl > -0.5 ? gfl === 0 || winPat === 5 : (ar === 6 && seedI < 620) || ar === 16 || ar === 14 || (ar === 9 && seedI < 330) || (ar === 18 && seedI < 600);
+  const plinth = block && !shops ? (ar === 9 ? 0.45 : 0.9) : ar === 18 && !shops ? 0.6 : 0;
   let gh = shops ? Math.max(fh, 4.2) : plinth + fh;
   if (ar === 14) gh = H;
   const stairN = Math.max(3, Math.floor(21 / Math.fround(bayW)));
@@ -66,8 +71,10 @@ export function columnType(plan, bx) {
   else if (ar === 1 || ar === 2) t = r < 0.48 ? 1 : 0;
   else if (ar === 3) t = r < 0.55 ? 1 : 0;
   else if (ar === 4) t = r < 0.38 ? 2 : 0;
-  else if (ar === 9) t = r < 0.5 ? 2 : 0;
+  else if (ar === 9) t = r < 0.42 ? 2 : 0;
   else if (ar === 15) t = r < 0.6 ? 2 : 0;
+  else if (ar === 17) t = r > 0.62 ? 2 : 0;
+  else if (ar === 18) t = r < 0.22 ? 2 : 0;
   if (winPat >= 0) {
     if (winPat <= 2 || winPat === 5) t = 0;
     else if (winPat === 3) t = r < 0.5 ? 1 : 0;
@@ -88,11 +95,13 @@ export function upperWindow(plan, bx) {
   else if (ar === 5) win = [0.3, 0.2, 0.7, 0.84];
   else if (ar === 6) win = [0.3, 0.18, 0.7, 0.86];
   else if (ar === 7) win = [0.13, 0.28, 0.87, 0.84];
-  else if (ar === 9) { win = [0.14, 0.08, 0.86, 0.9]; if (colRnd < 0.5) { win = [0.05, 0, 0.95, 0.92]; loggia = 2; } }
+  else if (ar === 9) { if (colRnd < 0.42) { win = [0.06, 0, 0.94, 0.9]; loggia = 2; } else win = colRnd < 0.74 ? [0.18, 0.28, 0.82, 0.88] : [0.3, 0.02, 0.7, 0.9]; }
   else if (ar === 10) win = [0.32, 0.32, 0.68, 0.8];
   else if (ar === 13) win = [0.36, 0.2, 0.64, 0.82];
   else if (ar === 15) { win = [0.12, 0.25, 0.88, 0.85]; if (colRnd < 0.6) loggia = 2; }
   else if (ar === 16) win = [0.2, 0.35, 0.8, 0.75];
+  else if (ar === 17) { if (colRnd < 0.22) return null; win = [0.16, 0.26, 0.84, 0.9]; if (colRnd > 0.62) { win = [0.1, 0, 0.9, 0.9]; loggia = 2; } }
+  else if (ar === 18) { win = [0.28, 0.22, 0.72, 0.86]; if (colRnd < 0.22) { win = [0.3, 0, 0.7, 0.86]; loggia = 2; } }
   else return null; // curtain walls, sheds, kiosks
   if (winPat >= 0) {
     if (winPat === 0) { win = [0.24, 0.28, 0.76, 0.84]; loggia = 0; }
@@ -181,7 +190,7 @@ function kitWall(K, plan, w, yAt) {
     K.placer.add(K.tx, K.tz, piece, x, yAt(v), z, yw, sx, sy, sz, col, tilt);
   };
   // downpipes: on the convex corner this wall starts at, and on the piers of long classical facades
-  const piped = ar === 4 || ar === 5 || ar === 6 || ar === 9 || ar === 10 || ar === 13 || ar === 15 || ar === 16;
+  const piped = ar === 4 || ar === 5 || ar === 6 || ar === 9 || ar === 10 || ar === 13 || ar === 15 || ar === 16 || ar === 17 || ar === 18;
   if (piped && H > 3.5 && L > 3) {
     const col = PIPE[Math.floor(hcell(0, 0, seedI, 26) * 4)];
     if (w.convexStart && hcell(w.i, 7, seedI, 25) < 0.75) pipeRun(put, u0 + 0.22, H, col);
@@ -193,7 +202,7 @@ function kitWall(K, plan, w, yAt) {
     }
   }
   // yellow gas main along the walls with entrances, a regulator cabinet and riser at each entrance
-  if (block && !shops && H > 8 && plinth > 0.2 && hcell(0, 0, seedI, 35) < 0.3 && L > 8) {
+  if (block && ar !== 9 && !shops && H > 8 && plinth > 0.2 && hcell(0, 0, seedI, 35) < 0.3 && L > 8) {
     const stairs = [];
     for (let bx = Math.ceil((u0 + 0.05) / bayW); (bx + 1) * bayW <= u0 + L - 0.05; bx++) if (columnType(plan, bx) === -1) stairs.push((bx + 0.5) * bayW);
     if (stairs.length) {
@@ -210,7 +219,7 @@ function kitWall(K, plan, w, yAt) {
   }
   const facesSat = nrm[0] * SAT[0] + nrm[1] * SAT[1] > 0.3;
   const headYaw = yaw + Math.max(-0.85, Math.min(0.85, wrapPi(SAT_YAW - yaw)));
-  const acP = ar <= 3 ? 0.11 : ar === 4 || ar === 9 || ar === 15 ? 0.15 : ar === 5 || ar === 6 || ar === 13 ? 0.1 : ar === 7 ? 0.08 : ar === 10 || ar === 16 ? 0.06 : 0;
+  const acP = ar <= 3 ? 0.11 : ar === 4 || ar === 15 ? 0.15 : ar === 9 ? 0.1 : ar === 5 || ar === 6 || ar === 13 || ar === 18 ? 0.1 : ar === 7 ? 0.08 : ar === 10 || ar === 16 || ar === 17 ? 0.06 : 0;
   const dishP = facesSat ? (block ? 0.06 : 0.03) : 0;
   const awnings = shops && !K.researched && gh >= 3.6;
   for (let bx = Math.ceil((u0 + 0.05) / bayW); (bx + 1) * bayW <= u0 + L - 0.05; bx++) {
@@ -239,13 +248,14 @@ function kitWall(K, plan, w, yAt) {
     if (!wnd) continue;
     const { win, loggia } = wnd;
     // bars over the ground-floor windows of the flats
-    if (block && !shops && loggia === 0 && plinth > 0.2 && hcell(bx, -1, seedI, 31) < 0.55) {
+    if (block && ar !== 9 && !shops && loggia === 0 && plinth > 0.2 && hcell(bx, -1, seedI, 31) < 0.55) {
       const ww = (win[2] - win[0]) * bayW, wh = (win[3] - win[1]) * fh;
       put('windowGrille', bx * bayW + ((win[0] + win[2]) / 2) * bayW, plinth + win[1] * fh, 0, ww / 1.224, wh / 1.4, 1, GRILLE[Math.floor(hcell(bx, -1, seedI, 32) * GRILLE.length)]);
     }
     if (!acP && !dishP) continue;
-    const depth = ar === 9 ? 1.4 : ar === 4 ? 1.1 : 1.0, hw = bayW * 0.44;
-    const balcony = loggia === 2 && block;
+    const depth = ar === 9 ? 1.6 : ar === 17 ? 1.4 : ar === 18 ? 0.8 : ar === 4 ? 1.1 : 1.0;
+    const hw = ar === 9 || ar === 17 ? bayW * 0.5 : ar === 18 ? bayW * 0.3 : bayW * 0.44;
+    const balcony = loggia === 2 && (block || ar === 17 || ar === 18);
     for (let fl = 0; gh + (fl + 1) * fh <= H - 0.35; fl++) {
       const v0 = gh + fl * fh;
       const r = hcell(bx, fl, seedI, 21);
@@ -436,7 +446,7 @@ function panel(buf, x0, z0, x1, z1, y0, y1, nx, nz, col, uScale = 1) {
  *  yAt(v) = world height of facade coordinate v; wallCol = linear rgb of the wall;
  *  K = {placer, tx, tz, researched} to place Blender kit pieces (FacadeKit.js) as well.
  */
-export function addFacadeDetail(get, outer, fac, yAt, wallCol, accent, K = null) {
+export function addFacadeDetail(get, outer, fac, yAt, wallCol, accent, K = null, opts = {}) {
   const plan = planOf(fac);
   if (K) for (const w of wallsOf(outer)) kitWall(K, plan, w, yAt);
   const { ar, bayW, fh, H, gh, plinth, block, shops, seedI } = plan;
@@ -459,7 +469,7 @@ export function addFacadeDetail(get, outer, fac, yAt, wallCol, accent, K = null)
     // cornice and ground-floor string course on classical facades; a thin coping on the rest
     if (L > 2) {
       const [mx, mz] = at(u0 + L / 2);
-      if (ar === 5 || ar === 6 || ar === 13) {
+      if (ar === 5 || ar === 6 || ar === 13 || ar === 18) {
         box(flat, mx + nrm[0] * 0.16, yAt(H - 0.28), mz + nrm[1] * 0.16, t, nrm, L / 2 + 0.3, 0.28, 0.16, light(1.06));
         box(flat, mx + nrm[0] * 0.24, yAt(H - 0.62), mz + nrm[1] * 0.24, t, nrm, L / 2 + 0.24, 0.07, 0.08, light(1.1));
         if (gh > 3 && H > gh + 3) box(flat, mx + nrm[0] * 0.07, yAt(gh + 0.08), mz + nrm[1] * 0.07, t, nrm, L / 2 + 0.07, 0.1, 0.07, light(1.08));
@@ -469,7 +479,40 @@ export function addFacadeDetail(get, outer, fac, yAt, wallCol, accent, K = null)
         box(flat, mx + nrm[0] * 0.03, yAt(H + 0.04), mz + nrm[1] * 0.03, t, nrm, L / 2 + 0.03, 0.06, 0.05, srgb(0.62, 0.62, 0.6)); // parapet coping
       }
     }
-    if (!block) continue;
+    // roof terrace in front of a set-back top storey: glass guard on the parapet edge
+    if (opts.terrace && L > 1.2) {
+      const p0 = at(u0), p1 = at(u0 + L), yb = yAt(H + 0.1);
+      panel(glazing, p0[0] + nrm[0] * 0.02, p0[1] + nrm[1] * 0.02, p1[0] + nrm[0] * 0.02, p1[1] + nrm[1] * 0.02, yb, yb + 1.05, nrm[0], nrm[1], srgb(0.72, 0.8, 0.84), 1 / 1.2);
+      const [mx, mz] = at(u0 + L / 2);
+      box(flat, mx + nrm[0] * 0.02, yb + 1.07, mz + nrm[1] * 0.02, t, nrm, L / 2, 0.025, 0.025, srgb(0.7, 0.71, 0.72), false);
+    }
+    // interwar bay windows (еркери): a box projecting from the first floor to below the top one; its front is
+    // drawn by the facade shader (same window grid), sides, corbel and roof in plaster
+    if (ar === 18 && opts.walls && L > 9 && H > gh + 2.5 * fh) {
+      const nE = Math.floor((H - gh - 0.4) / fh) - 1;
+      const cols = Math.floor((L - 0.1) / bayW);
+      const places = cols >= 7 ? [0.28, 0.72] : cols >= 3 ? [0.5] : [];
+      for (const f of places) {
+        if (hcell(Math.round(f * 10), 3, seedI, 71) > 0.8) continue;
+        const ub = Math.round((u0 + L * f) / bayW) * bayW; // centred on a pier: two windows on its front
+        const w = bayW * 1.8, d = 0.85, ua = ub - w / 2, uz = ub + w / 2;
+        if (ua < u0 + 0.6 || uz > u0 + L - 0.6) continue;
+        const vb = gh, vt = gh + nE * fh;
+        const A = at(ua), B = at(uz);
+        const Ao = [A[0] + nrm[0] * (d + 0.004), A[1] + nrm[1] * (d + 0.004)], Bo = [B[0] + nrm[0] * (d + 0.004), B[1] + nrm[1] * (d + 0.004)];
+        const W = opts.walls;
+        const va = W.vertex(Ao[0], yAt(vb), Ao[1], nrm[0], 0, nrm[1], ua, vb, 0, 0, wallCol, fac);
+        const vbv = W.vertex(Bo[0], yAt(vb), Bo[1], nrm[0], 0, nrm[1], uz, vb, 0, 0, wallCol, fac);
+        const vc = W.vertex(Bo[0], yAt(vt), Bo[1], nrm[0], 0, nrm[1], uz, vt, 0, 0, wallCol, fac);
+        const vd = W.vertex(Ao[0], yAt(vt), Ao[1], nrm[0], 0, nrm[1], ua, vt, 0, 0, wallCol, fac);
+        W.idx.push(va, vc, vbv, va, vd, vc);
+        const [mx, mz] = at(ub);
+        box(flat, mx + nrm[0] * d / 2, (yAt(vb) + yAt(vt)) / 2, mz + nrm[1] * d / 2, t, nrm, w / 2, (vt - vb) / 2, d / 2, light(1.0));
+        box(flat, mx + nrm[0] * (d / 2 + 0.03), yAt(vb) - 0.12, mz + nrm[1] * (d / 2 + 0.03), t, nrm, w / 2 + 0.06, 0.12, d / 2 + 0.03, light(1.04));
+        box(flat, mx + nrm[0] * (d / 2 + 0.05), yAt(vt) + 0.08, mz + nrm[1] * (d / 2 + 0.05), t, nrm, w / 2 + 0.1, 0.08, d / 2 + 0.05, light(1.08));
+      }
+    }
+    if (!block && ar !== 17 && ar !== 18) continue;
     // bay columns fully on this wall
     for (let bx = Math.ceil((u0 + 0.05) / bayW); (bx + 1) * bayW <= u0 + L - 0.05; bx++) {
       const type = columnType(plan, bx);
@@ -489,18 +532,22 @@ export function addFacadeDetail(get, outer, fac, yAt, wallCol, accent, K = null)
         continue;
       }
       if (type !== 2) continue;
-      const depth = ar === 9 ? 1.4 : ar === 4 ? 1.1 : 1.0;
-      const hw = bayW * 0.44;
+      const depth = ar === 9 ? 1.6 : ar === 17 ? 1.4 : ar === 18 ? 0.8 : ar === 4 ? 1.1 : 1.0;
+      // new buildings: neighbouring balconies join into one cantilevered band (railing only at its ends)
+      const band = ar === 9 || ar === 17;
+      const prevB = band && columnType(plan, bx - 1) === 2 && (bx - 1) * bayW >= u0 + 0.05;
+      const nextB = band && columnType(plan, bx + 1) === 2 && (bx + 2) * bayW <= u0 + L - 0.05;
+      const hw = band ? bayW * 0.5 : ar === 18 ? bayW * 0.3 : bayW * 0.44;
       for (let fl = 0; gh + (fl + 1) * fh <= H - 0.35; fl++) {
         const v0 = gh + fl * fh;
         const y0 = yAt(v0);
         const pr = hcell(bx, fl, seedI, 9);
-        const enclosed = hcell(bx, fl, seedI, 3) < (ar < 3.5 ? 0.6 : 0.45);
-        // slab
-        box(flat, cx + nrm[0] * depth / 2, y0 - 0.07, cz + nrm[1] * depth / 2, t, nrm, hw, 0.08, depth / 2, srgb(0.66, 0.66, 0.64));
+        const enclosed = ar < 9 && hcell(bx, fl, seedI, 3) < (ar < 3.5 ? 0.6 : 0.45);
+        // slab (thin, crisp edge on new buildings)
+        box(flat, cx + nrm[0] * depth / 2, y0 - (band ? 0.1 : 0.07), cz + nrm[1] * depth / 2, t, nrm, hw, band ? 0.11 : 0.08, depth / 2, band ? srgb(0.92, 0.92, 0.9) : srgb(0.66, 0.66, 0.64));
         // parapet: concrete panel (panel blocks, filled-in), glass (modern) or steel railing
         const fx = cx + nrm[0] * (depth - 0.03), fz = cz + nrm[1] * (depth - 0.03);
-        const solid = panelBld || ar === 15 || (ar === 4 && pr > 0.55);
+        const solid = !band && ar !== 18 && (panelBld || ar === 15 || (ar === 4 && pr > 0.55));
         if (solid) {
           let col = panelBld ? (pr < 0.6 ? light(0.97) : srgb(0.86, 0.86, 0.84)) : light(1.0);
           if (accent && panelBld && pr < 0.75) col = accent;
@@ -510,14 +557,19 @@ export function addFacadeDetail(get, outer, fac, yAt, wallCol, accent, K = null)
             box(flat, sx, y0 + 0.5, sz, t, nrm, 0.04, 0.5, depth / 2, col, false);
           }
         } else {
-          const col = ar === 9 ? srgb(0.55, 0.62, 0.65) : RAIL[Math.floor(pr * 3) % 3];
-          const buf = ar === 9 ? glazing : rail;
-          const sc = ar === 9 ? 1 / 0.85 : 1 / 0.12;
+          // glass guards on new buildings, painted iron on the old ones
+          const glassG = band || ar === 9;
+          const col = glassG ? srgb(0.72, 0.8, 0.84) : ar === 18 ? RAIL[0] : RAIL[Math.floor(pr * 3) % 3];
+          const buf = glassG ? glazing : rail;
+          const sc = glassG ? 1 / 1.2 : 1 / 0.12;
           const p0 = [fx - t[0] * hw, fz - t[1] * hw], p1 = [fx + t[0] * hw, fz + t[1] * hw];
           const w0 = [cx - t[0] * hw, cz - t[1] * hw], w1 = [cx + t[0] * hw, cz + t[1] * hw];
-          panel(buf, p0[0], p0[1], p1[0], p1[1], y0, y0 + 1.0, nrm[0], nrm[1], col, sc);
-          panel(buf, w0[0], w0[1], p0[0], p0[1], y0, y0 + 1.0, -t[0], -t[1], col, sc);
-          panel(buf, p1[0], p1[1], w1[0], w1[1], y0, y0 + 1.0, t[0], t[1], col, sc);
+          const gh2 = glassG ? 1.05 : 1.0;
+          panel(buf, p0[0], p0[1], p1[0], p1[1], y0, y0 + gh2, nrm[0], nrm[1], col, sc);
+          if (!prevB) panel(buf, w0[0], w0[1], p0[0], p0[1], y0, y0 + gh2, -t[0], -t[1], col, sc);
+          if (!nextB) panel(buf, p1[0], p1[1], w1[0], w1[1], y0, y0 + gh2, t[0], t[1], col, sc);
+          // stainless top rail over the glass
+          if (glassG) box(flat, fx, y0 + gh2 + 0.02, fz, t, nrm, hw, 0.025, 0.025, srgb(0.7, 0.71, 0.72), false);
         }
         // glazing put in by the owners, from the parapet to the slab above
         if (enclosed && ar !== 9) {
