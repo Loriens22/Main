@@ -752,17 +752,30 @@ FacadeOut facade(vec2 uvm, vec4 fac, vec4 fac2, vec3 wallCol) {
   if (top || lastPartial) skipWin = true;
   if (ar > 10.5 && ar < 12.5 && !ground && rnd > 0.55) skipWin = true;
   if (ar > 15.5 && !ground && rnd > 0.8) skipWin = true;
-  float wm = skipWin ? 0.0 : boxMask(vec2(lx, ly), win, aa);
-  float inner = skipWin ? 0.0 : boxMask(vec2(lx, ly), win + vec4(frame, frame * 1.2, -frame, -frame * 1.2), aa);
-  // mullions / transoms
+  // ---------------- window recess (parallax): the glass sits rec metres behind the wall plane. Through
+  // the opening the eye sees the window (frame, glass, room) where its ray meets the glass plane, and the
+  // reveals - lit sill, jambs, shadowed lintel soffit - where it meets the sides of the opening first.
+  vec3 vdirR = normalize(vWP - cameraPosition);
+  vec3 nWR = normalize(vWN);
+  vec3 tWR = normalize(vec3(-nWR.z, 0.0, nWR.x));
+  vec3 rtR = vec3(dot(vdirR, tWR), vdirR.y, -dot(vdirR, nWR));
+  float rec = (loggia > 0.5 || skipWin) ? 0.0 : ar < 3.5 ? 0.18 : ar < 4.5 ? 0.24 : ar < 6.5 ? 0.32 : ar < 7.5 ? 0.16 : ar < 8.5 ? 0.03 : ar < 9.5 ? 0.12 : ar < 10.5 ? 0.16 : ar < 13.5 ? 0.3 : 0.12;
+  if (ground && shops) rec = 0.12;
+  if (basement) rec = 0.1;
+  rec *= 1.0 - lod;
+  vec2 gp = vec2(lx, ly) + rtR.xy * (rec / max(rtR.z, 0.25)) / vec2(bayW, max(cellH, 0.1));
+  float wm = skipWin ? 0.0 : boxMask(vec2(lx, ly), win, aa); // the opening in the wall plane
+  float wmG = skipWin ? 0.0 : boxMask(gp, win, aa) * wm;      // ... and the window seen through it
+  float inner = skipWin ? 0.0 : boxMask(gp, win + vec4(frame, frame * 1.2, -frame, -frame * 1.2), aa) * wm;
+  // mullions / transoms (in the glass plane)
   float mull = 0.0;
-  if (ar > 7.5 && ar < 8.5 || winPat > 1.5 && winPat < 2.5) mull = max(lineMask(fract(u) - 0.5, 0.48, aa.x * 2.0 + 0.01) * 0.0, lineMask(fract(u * 1.0) - 0.0, 0.006, aa.x));
+  if (ar > 7.5 && ar < 8.5 || winPat > 1.5 && winPat < 2.5) mull = lineMask(fract(gp.x), 0.006, aa.x);
   if (!ground && loggia < 0.5 && !stair && (block || ar > 4.5 && ar < 7.5 || ar > 9.5 && ar < 10.5)) {
     float midx = (win.x + win.z) * 0.5;
-    mull = max(mull, lineMask(lx - midx, 0.008, 0.004 + aa.x));
-    mull = max(mull, lineMask(ly - mix(win.y, win.w, 0.72), 0.01, 0.004 + aa.y) * step(win.x, lx) * step(lx, win.z));
+    mull = max(mull, lineMask(gp.x - midx, 0.008, 0.004 + aa.x));
+    mull = max(mull, lineMask(gp.y - mix(win.y, win.w, 0.72), 0.01, 0.004 + aa.y) * step(win.x, gp.x) * step(gp.x, win.z));
   }
-  if (ground && shops) mull = max(mull, lineMask(fract(lx * 2.0) - 0.0, 0.006, aa.x * 2.0));
+  if (ground && shops) mull = max(mull, lineMask(fract(gp.x * 2.0) - 0.0, 0.006, aa.x * 2.0));
   float glassMask = inner * (1.0 - mull);
   // ---------------- loggias and balconies
   float parapet = 0.0;
@@ -862,8 +875,12 @@ FacadeOut facade(vec2 uvm, vec4 fac, vec4 fac2, vec3 wallCol) {
   if (!ground && loggia < 0.5 && !skipWin && block) alb = mix(alb, srgb(0.78, 0.78, 0.76), boxMask(vec2(lx, ly), vec4(win.x - 0.03, win.y - 0.035, win.z + 0.03, win.y), aa));
   // entrance canopy
   if (canopy > 0.0) { alb = mix(alb, srgb(0.7, 0.7, 0.68), canopy); o.ao *= 1.0 - canopy * 0.2; }
-  // window frame
-  alb = mix(alb, frameCol, clamp(wm - glassMask, 0.0, 1.0));
+  // window frame (in the glass plane) and the reveals around it
+  float revealR = clamp(wm - wmG, 0.0, 1.0);
+  alb = mix(alb, frameCol, clamp(wmG - glassMask, 0.0, 1.0));
+  vec3 revCol = wall * (gp.y < win.y ? 0.95 : gp.y > win.w ? 0.4 : 0.68);
+  alb = mix(alb, revCol, revealR);
+  o.ao *= 1.0 - revealR * 0.12;
   // ---------------- glass: room interiors and reflections
   float roomId = h31(vec3(bx, fl, seed * 13.0 + 5.0));
   float lit = step(roomId, uNight * (ground && shops ? 0.95 : roomKind > 1.5 ? 0.3 : 0.45));
@@ -875,7 +892,7 @@ FacadeOut facade(vec2 uvm, vec4 fac, vec4 fac2, vec3 wallCol) {
   vec3 tW = normalize(vec3(-nW.z, 0.0, nW.x));
   vec3 rt = vec3(dot(vdir, tW), vdir.y, -dot(vdir, nW));
   if (glassMask > 0.001 && uInterior > 0.5 && lod < 0.95) {
-    vec2 pe = vec2(lx * bayW, ly * cellH);
+    vec2 pe = vec2(gp.x * bayW, gp.y * cellH);
     float shopLit = roomKind > 0.5 && roomKind < 1.5 ? 0.12 * day + uNight : lit; // shops are lit, dimmer than daylight
     interior = roomColor(rt, pe, vec2(bayW, cellH), depth, roomId, roomKind, shopLit, day);
   } else {
@@ -884,7 +901,7 @@ FacadeOut facade(vec2 uvm, vec4 fac, vec4 fac2, vec3 wallCol) {
   // curtains and blinds in homes
   if (roomKind < 0.5 && !ground) {
     float cr = h31(vec3(bx, fl, seed * 29.0));
-    vec2 wl = (vec2(lx, ly) - win.xy) / max(win.zw - win.xy, vec2(0.01));
+    vec2 wl = (gp - win.xy) / max(win.zw - win.xy, vec2(0.01));
     float curtain = cr < 0.45 ? 0.5 : cr < 0.55 ? step(0.5, fract(wl.y * 14.0)) * 0.8 * step(wl.y, 0.6 + cr * 0.4) : cr < 0.75 ? step(abs(wl.x - 0.5), 0.5) * (1.0 - smoothstep(0.18, 0.22, min(wl.x, 1.0 - wl.x))) : 0.0;
     vec3 cc = cr < 0.45 ? vec3(0.85, 0.84, 0.8) : cr < 0.55 ? vec3(0.78, 0.76, 0.7) : pastel(fract(cr * 7.0)) * 0.7;
     interior = mix(interior, cc * (day * 0.13 + lit * vec3(1.0, 0.8, 0.55) * 0.42), curtain);
@@ -895,7 +912,7 @@ FacadeOut facade(vec2 uvm, vec4 fac, vec4 fac2, vec3 wallCol) {
   float metal = mix(0.0, ar > 7.5 && ar < 8.5 ? 0.6 : 0.0, glassMask);
   o.rough = min(o.rough, rough);
   // recess shading and bump at the window reveals
-  float reveal = clamp(wm - inner, 0.0, 1.0);
+  float reveal = clamp(wmG - inner, 0.0, 1.0);
   vec2 cwin = vec2((win.x + win.z) * 0.5, (win.y + win.w) * 0.5);
   o.bump += (vec2(lx, ly) - cwin) * reveal * 0.35 * (1.0 - lod) * (1.0 - smoothstep(0.15, 0.4, max(aa.x, aa.y) * 4.0));
   o.ao *= 1.0 - inner * 0.12 * (1.0 - lod);
