@@ -15,6 +15,7 @@ import { buildOncology, buildSofiamed } from './LandmarkInstitutionsMed.js';
 import { buildTechLibrary, buildHtmu, buildTu, buildNsa } from './LandmarkInstitutionsEdu.js';
 import { buildKindergarten, buildNursery } from './LandmarkInstitutionsKids.js';
 import { JOBS_64 } from './landmarks64/index.js';
+import { LandmarkKit } from './LandmarkKit.js';
 
 /** Landmark jobs of line 280: [name, (ctx) => item(s)]. */
 export const JOBS_280 = [
@@ -29,9 +30,10 @@ export const JOBS_280 = [
 const JOBS = { 280: JOBS_280, 64: JOBS_64 };
 
 export class Landmarks {
-  constructor({ world, route }) {
+  constructor({ world, route, kit = null }) {
     this.world = world;
     this.route = route;
+    this.kit = kit ? new LandmarkKit(kit) : null; // Blender sculpture and ornament (LandmarkKit.js)
     this.M = new LandmarkMaterials();
     // real window openings on the landmark facades; phones keep the painted ones
     this.M.realFacades = world.quality !== 'balanced' && world.quality !== 'low';
@@ -49,14 +51,16 @@ export class Landmarks {
     ensureFootprints(world);
     const rep = replacedBuildings(world);
     const line = (this.route && this.route.line) || '280';
-    const ctx = { world, M: this.M, route: this.route, y: (x, z) => world.hf.heightAt(x, z), quality: world.quality, replaced: rep, partsOf: (re) => rep.filter((r) => re.test(r.entry.note)) };
+    const ctx = { world, M: this.M, route: this.route, y: (x, z) => world.hf.heightAt(x, z), quality: world.quality, replaced: rep, partsOf: (re) => rep.filter((r) => re.test(r.entry.note)), kit: this.kit };
     const jobs = JOBS[line] || [];
     const g = new THREE.Group();
     for (const [name, fn] of jobs) {
       try {
         const r = fn(ctx);
+        const extra = this.kit ? this.kit.meshes() : [];
         if (!r) continue;
         const list = Array.isArray(r) ? r : [r];
+        if (extra.length) list[0].meshes.push(...extra);
         for (const it of list) {
           const gg = new THREE.Group();
           gg.name = `landmark:${Math.floor(it.x / 256)},${Math.floor(it.z / 256)}`;

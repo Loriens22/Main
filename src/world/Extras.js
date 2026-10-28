@@ -4,6 +4,7 @@
 import { Vegetation } from './Vegetation.js';
 import { StreetFurniture } from './StreetFurniture.js';
 import { Landmarks } from './Landmarks.js';
+import { loadLandmarkKit } from './LandmarkKit.js';
 import { ShopSigns } from './ShopSigns.js';
 import { buildPlotWalls } from './PlotWalls.js';
 import { SegmentGrid } from './SpatialIndex.js';
@@ -68,8 +69,9 @@ export async function buildExtras({ scene, world, route, quality }) {
     for (const g of s.build()) world.addToTile(tileKey(g.name), g);
     out.signs = s;
   });
-  await safe('landmarks', () => {
-    const l = new Landmarks({ world, route });
+  await safe('landmarks', async () => {
+    const kit = await loadLandmarkKit().catch((e) => { console.warn('landmark kit:', e); return null; });
+    const l = new Landmarks({ world, route, kit });
     for (const g of l.build(world.buildingBuilder.crosses || [])) world.addToTile(tileKey(g.name), g);
     out.landmarks = l;
   });

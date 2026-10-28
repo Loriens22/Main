@@ -137,7 +137,7 @@ function wingBody(b, key, w, d, H) {
   b.quad(key, [xs, 0, -as], [xs, 0, as], [xs, ys, as], [xs, ys, -as]);
 }
 
-export function buildAviation({ world, M, y, replaced }) {
+export function buildAviation({ world, M, y, replaced, kit }) {
   const b = new MeshBuilder();
   const wings = replaced.filter((r) => /Aviation/.test(r.entry.note));
   const [px, pz] = PILLAR;
@@ -146,9 +146,12 @@ export function buildAviation({ world, M, y, replaced }) {
   b.push(px, gy, pz, 0);
   b.box('graniteLight', 0, -0.2, 0, 3.6, 0.55, 2.4, 0, { tw: 4, th: 4 });
   b.frustum('granite', 0, 0.35, 0, 1.2, 2.4, 0.6, 1.2, 10.6, 0, { tw: 4, th: 4 });
-  b.push(0, 10.95, 0, 0);
-  eagle(b, 'brass', 2.5);
-  b.pop();
+  if (kit) kit.put(b, 'eagle', 0, 10.95 - 0.15 * 1.45, 0, 0, 1.45);
+  else {
+    b.push(0, 10.95, 0, 0);
+    eagle(b, 'brass', 2.5);
+    b.pop();
+  }
   b.pop();
   // the two wing-shaped bodies of 4.6 m and 3.0 m, apex towards the pillar
   for (const { b: bd } of wings) {

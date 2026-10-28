@@ -29,7 +29,7 @@ function wingFacades(M) {
   return M.stoneWall('wing', 'suWing', { bayW: 3.8, floorH: 3.72, bays: 4, floors: 2, wall: '#d6c8a4', trim: '#b3a27c', win: [1.35, 2.15], sill: 0.85, ashlar: { w: 1.2, h: 0.62 }, seed: 5, lit: 0.28 });
 }
 
-export function buildRectorate({ world, M, y }) {
+export function buildRectorate({ world, M, y, kit }) {
   const b = new MeshBuilder();
   const wing = wingFacades(M);
   const rust = M.stoneWall('rust', 'suRust', { bayW: 4.2, floorH: 4.6, bays: 4, floors: 1, wall: '#cdb985', trim: '#b9a070', win: [1.05, 2.1], sill: 1.2, arch: true, ashlar: { w: 1.4, h: 0.58, line: 'rgba(0,0,0,0.24)' }, seed: 8, lit: 0.2 });
@@ -102,17 +102,23 @@ export function buildRectorate({ world, M, y }) {
     // statues of Socrates and Plato in the niches
     for (const sx of [-1, 1]) {
       b.box('granite', sx * 5.75, FL, 0.75, 1.2, 1.0, 0.9, 0, { tw: 4, th: 4 });
-      b.push(sx * 5.75, FL + 1.0, 0.75, 0);
-      standingFigure(b, 'bronze', 2.7);
-      b.pop();
+      if (kit) kit.put(b, 'figureStanding', sx * 5.75, FL + 1.0, 0.75, 0, 2.7);
+      else {
+        b.push(sx * 5.75, FL + 1.0, 0.75, 0);
+        standingFigure(b, 'bronze', 2.7);
+        b.pop();
+      }
     }
-    // four engaged columns (Corinthian order, simplified) on pedestals
+    // four engaged columns (Corinthian order) on pedestals: Blender base, fluted shaft and capital
     for (const cx of [-7.9, -3.6, 3.6, 7.9]) {
       b.box('stoneLight', cx, FL, 2.1, 1.3, 0.9, 1.3, 0, {});
-      b.cyl('stoneLight', cx, FL + 0.9, 2.1, 0.62, 0.55, 0.28, 14);
-      b.cyl('stoneLight', cx, FL + 1.18, 2.1, 0.52, 0.42, 8.4, 16);
-      b.cyl('stoneLight', cx, FL + 9.58, 2.1, 0.44, 0.64, 0.55, 16);
-      b.box('stoneLight', cx, FL + 10.13, 2.1, 1.4, 0.2, 1.4, 0, {});
+      if (kit) kit.column(b, cx, FL + 0.9, 2.1, 0.48, FL + 10.33);
+      else {
+        b.cyl('stoneLight', cx, FL + 0.9, 2.1, 0.62, 0.55, 0.28, 14);
+        b.cyl('stoneLight', cx, FL + 1.18, 2.1, 0.52, 0.42, 8.4, 16);
+        b.cyl('stoneLight', cx, FL + 9.58, 2.1, 0.44, 0.64, 0.55, 16);
+        b.box('stoneLight', cx, FL + 10.13, 2.1, 1.4, 0.2, 1.4, 0, {});
+      }
     }
     // entablature + attic with inscription panel, statue plinths and balustrade
     const E0 = FL + 10.33;
@@ -124,9 +130,12 @@ export function buildRectorate({ world, M, y }) {
     b.quad('bronze', [-3.1, T0 + 0.5, 1.51], [3.1, T0 + 0.5, 1.51], [3.1, T0 + 2.1, 1.51], [-3.1, T0 + 2.1, 1.51]);
     for (const cx of [-7.9, -3.6, 3.6, 7.9]) {
       b.box('stoneLight', cx, T0 + 2.6, 1.0, 1.1, 1.0, 1.1, 0, {});
-      b.push(cx, T0 + 3.6, 1.0, 0);
-      standingFigure(b, 'bronze', 1.9);
-      b.pop();
+      if (kit) kit.put(b, 'figureStanding', cx, T0 + 3.6, 1.0, 0, 1.9);
+      else {
+        b.push(cx, T0 + 3.6, 1.0, 0);
+        standingFigure(b, 'bronze', 1.9);
+        b.pop();
+      }
     }
     b.box('stoneLight', 0, T0 + 2.6, 0.9, 2 * AW - 0.4, 0.8, 0.5, 0, {});
     // stair: 8 steps, 15.8 m wide, rising to the ground-floor level; cheek walls
@@ -141,12 +150,21 @@ export function buildRectorate({ world, M, y }) {
     }
     // lions on plinths at the foot of the stair, donors' statues in front
     for (const sx of [-1, 1]) {
-      b.push(sx * 8.3, 0, 6.9, 0);
-      lion(b, 'graniteLight', 'graniteLight', 0.95);
-      b.pop();
-      b.push(sx * 4.6, 0, 8.3, 0);
-      seatedFigure(b, 'bronze', 'graniteLight', 0.85);
-      b.pop();
+      if (kit) {
+        // lions on the cheek-wall plinths, the donors in their armchairs on granite pedestals
+        b.box('graniteLight', sx * 8.3, 0, 6.9, 0.95, 0.85, 1.9, 0, { tw: 4, th: 4 });
+        b.box('graniteLight', sx * 8.3, 0.85, 6.9, 1.05, 0.1, 2.0, 0, { tw: 4, th: 4 });
+        kit.put(b, 'lion', sx * 8.3, 0.95, 6.9 + 0.95, 0, 0.95);
+        b.box('graniteLight', sx * 4.6, 0, 8.3, 1.4, 1.1, 1.3, 0, { tw: 4, th: 4 });
+        kit.put(b, 'figureSeated', sx * 4.6, 1.1, 8.25, 0, 1.45);
+      } else {
+        b.push(sx * 8.3, 0, 6.9, 0);
+        lion(b, 'graniteLight', 'graniteLight', 0.95);
+        b.pop();
+        b.push(sx * 4.6, 0, 8.3, 0);
+        seatedFigure(b, 'bronze', 'graniteLight', 0.85);
+        b.pop();
+      }
     }
     b.pop();
   }
@@ -205,7 +223,7 @@ export function buildRectorate({ world, M, y }) {
 // its portal faces west (Vasil Levski), the flank the buses on Shipka pass faces south. The two pack parts
 // (west block, taller east block) share a plain party wall. Details beyond "symmetrical, tall rhythmic
 // windows, stone" are not documented (research confidence low).
-export function buildNbkm({ world, M, parts }) {
+export function buildNbkm({ world, M, parts, kit }) {
   if (!parts.length) return null;
   const b = new MeshBuilder();
   const stone = M.lf('ashlar', '#d8ceb6', 3), rustic = M.lf('rustic', '#c8bc9f', 4), trim = M.lf('trim', '#e3dac4', 5);
@@ -269,12 +287,17 @@ export function buildNbkm({ world, M, parts }) {
       b.box('graniteLight', 0, -0.3, 0, 6.2, 0.6, 4.4, 0, {});
       b.box('granite', 0, 0.3, 0, 4.6, 0.5, 3.0, 0, {});
       b.box('granite', 0, 0.8, 0, 3.4, 2.6, 1.9, 0, {});
-      b.push(-0.65, 3.4, 0, Math.PI);
-      standingFigure(b, 'bronze', 3.4);
-      b.pop();
-      b.push(0.65, 3.4, 0.05, Math.PI);
-      standingFigure(b, 'bronze', 3.3);
-      b.pop();
+      if (kit) {
+        kit.put(b, 'figureStanding', -0.7, 3.4, 0, Math.PI, 3.4);
+        kit.put(b, 'figureStanding', 0.7, 3.4, 0.05, Math.PI, 3.3);
+      } else {
+        b.push(-0.65, 3.4, 0, Math.PI);
+        standingFigure(b, 'bronze', 3.4);
+        b.pop();
+        b.push(0.65, 3.4, 0.05, Math.PI);
+        standingFigure(b, 'bronze', 3.3);
+        b.pop();
+      }
       b.box('bronze', 0, 5.2, -0.45, 0.9, 0.62, 0.1, 0, {}); // the open book with the alphabet held between them
       b.pop();
       b.pop();
@@ -300,7 +323,7 @@ function distToPoly(p, x, z) {
 // ------------------------------------------------------------------ Eagles' Bridge
 const EAGLES = [[-1183.2, -2401.7], [-1175.5, -2394.6], [-1196.1, -2375.7], [-1203.7, -2382.8]];
 
-export function buildEagleBridge({ world, M, y }) {
+export function buildEagleBridge({ world, M, y, kit }) {
   const b = new MeshBuilder();
   // road axis NW-SE: from the pair direction
   const dx = EAGLES[1][0] - EAGLES[0][0], dz = EAGLES[1][1] - EAGLES[0][1];
@@ -326,9 +349,12 @@ export function buildEagleBridge({ world, M, y }) {
     b.box('granite', 0, 4.95, 0, 1.6, 0.28, 1.6, 0, { tw: 4, th: 4 });
     b.box('graniteLight', 0, 5.23, 0, 1.45, 0.14, 1.45, 0, { tw: 4, th: 4 });
     b.sphere('graniteLight', 0, 5.65, 0, 0.45, 1, 1, 1, 14);
-    b.push(0, 6.02, 0, 0);
-    eagle(b, 'bronze', 2.0);
-    b.pop();
+    if (kit) kit.put(b, 'eagle', 0, 6.1 - 0.15 * 1.2, 0, 0, 1.2); // the Blender eagle, talons on the ball
+    else {
+      b.push(0, 6.02, 0, 0);
+      eagle(b, 'bronze', 2.0);
+      b.pop();
+    }
     b.pop();
   };
   EAGLES.forEach(([x, z], i) => {
@@ -352,7 +378,7 @@ export function buildEagleBridge({ world, M, y }) {
 }
 
 // ------------------------------------------------------------------ monuments
-export function buildKlimentMonument({ M, y }) {
+export function buildKlimentMonument({ M, y, kit }) {
   const b = new MeshBuilder();
   const x = -1469, z = -2840, gy = y(x, z);
   b.push(x, gy, z, 0);
@@ -361,7 +387,8 @@ export function buildKlimentMonument({ M, y }) {
   b.box('granite', 0, 0.54, 0, 1.9, 2.6, 1.9, 0, { tw: 4, th: 4 });
   b.box('graniteLight', 0, 3.14, 0, 2.2, 0.25, 2.2, 0, { tw: 4, th: 4 });
   b.push(0, 3.39, 0, Math.atan2(1, 0.15));
-  standingFigure(b, 'bronze', 2.7);
+  if (kit) kit.put(b, 'figureStanding', 0, 0, 0, 0, 2.7);
+  else standingFigure(b, 'bronze', 2.7);
   b.pop();
   b.pop();
   return done(b, M, x, z);
