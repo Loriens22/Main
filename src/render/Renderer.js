@@ -136,8 +136,10 @@ export class Renderer {
     this.interior = on;
     if (!this.ao || this.aoInterior === on) return;
     this.aoInterior = on;
-    this.ao.updateGtaoMaterial(on ? { radius: 0.35, thickness: 0.8, scale: 1.2, distanceFallOff: 1.0 } : { radius: 2.0, thickness: 6.0, scale: 1.8, distanceFallOff: 0.6 });
-    this.ao.updatePdMaterial(on ? { radius: 3 } : { radius: 5 });
+    // cabin: short radius and a light blend, else the rails and their brackets leave dark halos on the ceiling
+    this.ao.updateGtaoMaterial(on ? { radius: 0.22, thickness: 0.4, scale: 1.0, distanceFallOff: 1.0 } : { radius: 2.0, thickness: 6.0, scale: 1.8, distanceFallOff: 0.6 });
+    this.ao.updatePdMaterial(on ? { radius: 2 } : { radius: 5 });
+    this.ao.blendIntensity = on ? 0.6 : 0.9;
   }
 
   /**

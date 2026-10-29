@@ -22,6 +22,13 @@ function rearZ(ax, Y) {
 function rearPt(x, Y) {
   return [x, rearZ((Math.abs(x) * 1.25) / hwAt(Y), Y)];
 }
+/** z of the outer rear surface at real lateral position |x| (beyond the side wall: the full corner), height Y. */
+export function rearSkinZ(rz, ax, Y) {
+  state.rz = rz;
+  return rearZ(Math.min(1.25, (ax * 1.25) / hwAt(Y)), Y);
+}
+/** Where the plan corners begin (top of the rear face). */
+export const rearCornerZ = (rz) => rz - RAKE - CORNER;
 export function rearPos(x, Y, off = 0) {
   const [px, pz] = rearPt(x, Y);
   if (!off) return [px, Y, pz];

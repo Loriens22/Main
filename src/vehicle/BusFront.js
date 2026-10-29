@@ -201,10 +201,11 @@ export const FrontMixin = {
       }));
       const left = COLS.filter((x) => x >= 0), right = COLS.filter((x) => x <= 0);
       for (const [xs, sgn] of [[left, 1], [right, -1]]) {
-        parts.add('paint', facePatch({ xs, y0: FACE.chromeY, y1: FACE.bandTop, nv: 4, clip: xb, clipSign: sgn }));
+        // dense rows: the clipped edge follows the grid diagonals and turned into a staircase with 4 rows
+        parts.add('paint', facePatch({ xs, y0: FACE.chromeY, y1: FACE.bandTop, nv: 12, clip: xb, clipSign: sgn }));
         // the shoulder goes on rising round the corner to the A-pillar, over the black frame beside the glass
         const xw = (Y) => 1.0 + (HW - 1.0) * Math.pow(clamp((Y - FACE.bandTop) / 0.16, 0, 1), 0.7);
-        parts.add('paint', facePatch({ xs, y0: FACE.bandTop, y1: FACE.bandTop + 0.16, nv: 4, clip: xw, clipSign: sgn, off: 0.0006 }));
+        parts.add('paint', facePatch({ xs, y0: FACE.bandTop, y1: FACE.bandTop + 0.16, nv: 20, clip: xw, clipSign: sgn, off: 0.0006 }));
       }
     }
     // ---------------------------------------------------- panoramic windscreen (single raked pane, dark and reflective)

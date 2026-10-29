@@ -31,7 +31,9 @@ export const FrontMixin = {
     // ---------------------------------------------------- black mask between the lamp clusters, silver band, base band
     const maskX = (n) => colsBetween(0.93, -0.93, n);
     parts.add('black', facePatch({ xs: maskX(28), y0: (x) => MASK0 + 0.05 * sstep(0.55, 0.93, Math.abs(x)), y1: BAND0, nv: 6, off: 0.003 }));
-    parts.add('silver', facePatch({ xs: colsBetween(1.2, -1.2, 36), y0: (x) => BAND0 + (Math.abs(x) > 0.93 ? rise(x) * 0.9 : 0), y1: (x) => BAND1 + rise(x), nv: 1, off: 0.003, uv: [0, 0, 1, 1] }));
+    // several rows: the band wraps the corners, where the face curves in both directions and a single row of
+    // chords sank under the white paint
+    parts.add('silver', facePatch({ xs: colsBetween(1.2, -1.2, 48), y0: (x) => BAND0 + (Math.abs(x) > 0.93 ? rise(x) * 0.9 : 0), y1: (x) => BAND1 + rise(x), nv: 6, off: 0.003, uv: [0, 0, 1, 1] }));
     parts.add('black', facePatch({ xs: COLS, y0: (x) => BAND1 + rise(x), y1: FACE.bandTop, nv: 3, off: 0.002, scale: false }));
     // seam between silver band and mask: thin dark line
     parts.add('matteBlack', facePatch({ xs: colsBetween(0.93, -0.93, 8), y0: BAND0 - 0.004, y1: BAND0 + 0.002, nv: 1, off: 0.004 }));

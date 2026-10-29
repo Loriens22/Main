@@ -6,7 +6,7 @@
 import * as THREE from 'three';
 import { LedSign } from '../../LedSign.js';
 import { M, Parts, box } from '../../BusGeom.js';
-import { texBox, quad, profileStrip, sweep, rod, fillet, floorPlate } from '../../BusInteriorGeom.js';
+import { texBox, quad, profileStrip, sweep, rod, fillet, floorPlate, clipRear, clipFront } from '../../BusInteriorGeom.js';
 import spec from './spec.js';
 import { FY, PODIUM_Y, AISLE_X, WALL_X, HOUSING_X, HOUSING_HALF, REAR_PLATFORM, cabPartitionZ, rearWallZ } from './layout.js';
 import { makeFloorTex, makeCeilTex, makeCoveTex, makeSeatFabric, makeSignSheet, makeBlind } from './YutongInteriorTextures.js';
@@ -15,6 +15,7 @@ import { busKit, kitSeats, kitInstances } from '../../BusKit.js';
 import { buildPoles, decal } from './YutongPoles.js';
 import { addCabParts } from './YutongCab.js';
 import { K } from './consts.js';
+import { hwAt, rearD, frontS } from './surfaces.js';
 
 const PANES = { right: K.panesR, left: K.panesL };
 const FRONT_Z = K.frontZ;
@@ -104,6 +105,10 @@ export const InteriorMixin = {
     this.seats(p, low);
     buildPoles(this, p);
     addCabParts(p, low, this);
+    // the body's plan corners curve in before the rear wall and behind the bumper: keep the cabin inside the skin
+    const pa = (ax, y) => Math.min(K.hw, (ax * K.hw) / hwAt(y));
+    clipRear(p, K.rearZ - K.rr - 0.2, (ax, y) => K.rearZ - rearD(pa(ax, y), y) - 0.04);
+    clipFront(p, K.frontZ + K.rf + 0.3, (ax, y) => K.frontZ + frontS(pa(ax, y), y) + 0.03);
     const g = p.build(this.mats, { castShadow: false });
     // light-grey shells, the priority seats in dark grey (ref15)
     const dark = new THREE.Color(0.42, 0.43, 0.45), light = new THREE.Color(1, 1, 1);

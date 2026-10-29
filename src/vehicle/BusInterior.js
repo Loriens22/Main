@@ -9,10 +9,11 @@ import { LedSign } from './LedSign.js';
 import {
   makeFloor, makeMoquette, makePrioritySticker, makeSignSheet, makeDuct, makeCeilingPanel, makeTurntable,
 } from './BusInteriorTextures.js';
-import { M, Parts, box } from './BusGeom.js';
+import { HW, M, Parts, box } from './BusGeom.js';
 import { seatPieces, foldSeatPieces } from './BusSeat.js';
 import { busKit, kitSeats, kitInstances } from './BusKit.js';
-import { texBox, quad, profileStrip, decal, sweep, rod, fillet, floorPlate } from './BusInteriorGeom.js';
+import { texBox, quad, profileStrip, decal, sweep, rod, fillet, floorPlate, clipFront } from './BusInteriorGeom.js';
+import { faceS, hwAt } from './BusFront.js';
 import { buildPoles } from './BusPoles.js';
 import { addCabParts, buildCabInterior, CAB_PARTITION_Z } from './BusCab.js';
 
@@ -116,6 +117,8 @@ export const InteriorMixin = {
       parts.add('wall', roundedHousing(0.95 * d.k, 0.21 * d.k, 0.1 * d.k), new THREE.Matrix4().makeRotationX(DISPLAY_TILT).setPosition(d.x, d.y, d.z));
     }
     addCabParts(fp, low);
+    // the dash and cab side panels reached past the curved corners of the nose: keep the cabin inside the skin
+    clipFront(fp, FRONT_Z + 0.6, (ax, y) => FRONT_Z + faceS(Math.min(HW, (ax * HW) / hwAt(y)), y) + 0.03);
     // defensive: the exterior's underbody pan must not poke above the passenger floor (it hid the floor)
     for (const ext of [this.frontExterior, this.rearExterior]) lowerUnderbodyPan(ext);
     const f = fp.build(this.mats, { castShadow: false });

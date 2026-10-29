@@ -5,7 +5,7 @@
 import * as THREE from 'three';
 import { LedSign } from '../../LedSign.js';
 import { M, Parts, box } from '../../BusGeom.js';
-import { texBox, quad, profileStrip, sweep, rod, fillet, floorPlate } from '../../BusInteriorGeom.js';
+import { texBox, quad, profileStrip, sweep, rod, fillet, floorPlate, clipRear, clipFront } from '../../BusInteriorGeom.js';
 import spec from './spec.js';
 import { FY, PODIUM_Y, AISLE_X, WALL_X, HOUSING_X, HOUSING_HALF, REAR_PLATFORM, cabPartitionZ, rearWallZ } from './layout.js';
 import { makeFloorTex, makeCeilTex, makeCoveTex, makeSeatFabric, makeSignSheet, makeBlind } from './ProcityTextures.js';
@@ -14,7 +14,7 @@ import { busKit, kitSeats, kitInstances } from '../../BusKit.js';
 import { buildPoles, decal } from './ProcityPoles.js';
 import { addCabParts } from './ProcityCab.js';
 import { PANES } from './ProcitySides.js';
-import { FRONT_Z } from './ProcityHull.js';
+import { FRONT_Z, HW, hwAt, rearZ, faceS, REAR_ROOF_END } from './ProcityHull.js';
 
 const D = spec.dims;
 export const CEIL_Y = 2.66; // flat centre of the ceiling
@@ -100,6 +100,9 @@ export const InteriorMixin = {
     this.seats(p, low);
     buildPoles(this, p);
     addCabParts(p, low, this);
+    // the body's plan corners curve in before the rear wall and behind the bumper: keep the cabin inside the skin
+    clipRear(p, REAR_ROOF_END - 0.1, (ax, y) => rearZ(Math.min(HW, (ax * HW) / hwAt(y)), y) - 0.04);
+    clipFront(p, FRONT_Z + 0.6, (ax, y) => FRONT_Z + faceS(Math.min(HW, (ax * HW) / hwAt(y)), y) + 0.03);
     const g = p.build(this.mats, { castShadow: false });
     const im = kitSeats('seat_procity', this._kitSeats);
     if (im) g.add(im);

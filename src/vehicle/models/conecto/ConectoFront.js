@@ -51,6 +51,11 @@ function facePt(x, Y) {
   return [x, ctx.fz + faceS(ax, Y)];
 }
 
+/** z of the outer front surface for a nose plane at fz, real lateral position |x| (beyond the side: the corner). */
+export function faceSkinZ(fz, ax, Y) {
+  return fz + faceS(Math.min(HW, (ax * HW) / hwAt(Y)), Y);
+}
+
 /** Point on the surface pushed `off` metres along the outward normal. */
 export function facePos(x, Y, off = 0) {
   const [px, pz] = facePt(x, Y);

@@ -182,3 +182,39 @@ export function floorPlate(parts, xo, z0, z1, y, axles, hx, hh, key = 'floor') {
     for (const sg of [-1, 1]) parts.add(key, quad('y', sg > 0 ? hx : -xo, sg > 0 ? xo : -hx, za, zb, y, true, 2));
   }
 }
+
+/**
+ * Keeps the cabin inside the rounded rear corners of the body. Walls, coves and platforms are built to the full
+ * cabin width up to the rear wall, but the body's plan corners curve in before it, so their outer ends would poke
+ * through the skin. Every vertex behind zFrom is moved forward to limit(|x|, y) (the largest z the inside may
+ * reach there) when it lies beyond it. Long panels end up as chords of the convex corner, i.e. inside it; the
+ * normals are kept (the moved faces turn by a few degrees at most).
+ */
+export function clipRear(parts, zFrom, limit) {
+  for (const list of parts.map.values()) {
+    for (const g of list) {
+      const p = g.attributes.position;
+      for (let i = 0; i < p.count; i++) {
+        const z = p.getZ(i);
+        if (z <= zFrom) continue;
+        const zl = limit(Math.abs(p.getX(i)), p.getY(i));
+        if (z > zl) p.setZ(i, zl);
+      }
+    }
+  }
+}
+
+/** The same at the front end: vertices ahead of zFrom are moved back to limit(|x|, y), the smallest z allowed. */
+export function clipFront(parts, zFrom, limit) {
+  for (const list of parts.map.values()) {
+    for (const g of list) {
+      const p = g.attributes.position;
+      for (let i = 0; i < p.count; i++) {
+        const z = p.getZ(i);
+        if (z >= zFrom) continue;
+        const zl = limit(Math.abs(p.getX(i)), p.getY(i));
+        if (z < zl) p.setZ(i, zl);
+      }
+    }
+  }
+}

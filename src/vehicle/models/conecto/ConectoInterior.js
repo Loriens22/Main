@@ -5,7 +5,9 @@
 // validators, red stop buttons, a partition panel with a red rail behind door 1, the turntable at the
 // articulation. Section frames as in the exterior.
 import * as THREE from 'three';
-import { floorPlate } from '../../BusInteriorGeom.js';
+import { floorPlate, clipRear, clipFront } from '../../BusInteriorGeom.js';
+import { faceSkinZ } from './ConectoFront.js';
+import { rearSkinZ, rearCornerZ } from './ConectoRear.js';
 import { LedSign } from '../../LedSign.js';
 import { Parts, M, box, quad, texBox, profileStrip, rod, tube, smooth, roundRectShape, decal } from './geom.js';
 import { seatPieces, foldPieces } from './ConectoSeat.js';
@@ -41,6 +43,11 @@ export const InteriorMixin = {
     this.poles(rp, 'rear');
     this.cabParts(fp);
     this.addDisplayHousings(fp, rp);
+    // the body's plan corners curve in before the rear wall and behind the nose: keep the cabin inside the skin
+    const rz = this.F.rearZ;
+    clipRear(rp, rearCornerZ(rz) - 0.1, (ax, y) => rearSkinZ(rz, ax, y) - 0.04);
+    const fz = this.F.frontZ;
+    clipFront(fp, fz + 0.6, (ax, y) => faceSkinZ(fz, ax, y) + 0.03);
     const f = fp.build(this.mats, { castShadow: false });
     const r = rp.build(this.mats, { castShadow: false });
     for (const [g, sec] of [[f, 'front'], [r, 'rear']]) {
