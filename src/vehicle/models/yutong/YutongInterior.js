@@ -57,7 +57,7 @@ export const InteriorMixin = {
       lightStrip: new S({ color: 0xf4f8ff, emissive: 0xf4f8ff, emissiveIntensity: 1.0, roughness: 0.5 }),
       seat: new S({ color: 0x9da3a8, roughness: 0.45, envMapIntensity: 0.5 }),
       pad: new S({ map: fabric, color: 0xffffff, roughness: 0.95, envMapIntensity: 0.3, side: THREE.DoubleSide }),
-      pole: new S({ color: 0x9fa5aa, roughness: 0.35, metalness: 0.65, envMapIntensity: 0.6 }),
+      pole: new S({ color: 0xc2c7cb, roughness: 0.32, metalness: 0.55, envMapIntensity: 0.6 }), // light satin silver (ref15)
       strap: new S({ color: 0x15171a, roughness: 0.6, side: THREE.DoubleSide }),
       railYellow: new S({ color: 0xf1b90f, roughness: 0.4, metalness: 0.1, envMapIntensity: 0.5 }),
       stripYellow: new S({ color: 0xf2e12c, roughness: 0.7 }),

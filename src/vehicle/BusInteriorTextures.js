@@ -22,7 +22,7 @@ function tex(c, { srgb = true, repeat = false, aniso = 8 } = {}) {
 /** Speckled grey rubber floor: base, ~12 % light flecks, ~5 % black flecks. 512 px = 0.5 m (repeat 2 per metre). */
 export function makeFloor() {
   const [c, g] = canvas(512, 512);
-  g.fillStyle = '#6c6d6e'; // neutral mid grey (photos 4, 5); was blue-grey
+  g.fillStyle = '#8b8d8f'; // light neutral grey with fine low-contrast flecks (photo 4: smooth, not asphalt-like)
   g.fillRect(0, 0, 512, 512);
   const r = mulberry32(17);
   const fleck = (n, col, smin, smax) => {
@@ -32,9 +32,9 @@ export function makeFloor() {
       for (const ox of [0, x > 480 ? -512 : 0]) for (const oy of [0, y > 480 ? -512 : 0]) g.fillRect(x + ox, y + oy, s, s * (0.6 + r() * 0.8));
     }
   };
-  fleck(2600, 'rgba(126,127,128,0.55)', 1, 3);
-  fleck(5200, '#c6c7c8', 1, 3);
-  fleck(2300, '#2c2f33', 1, 3);
+  fleck(2600, 'rgba(150,152,154,0.6)', 1, 2.5);
+  fleck(4200, 'rgba(196,198,200,0.7)', 0.8, 2);
+  fleck(1800, 'rgba(70,73,77,0.6)', 0.8, 2);
   return tex(c, { repeat: true });
 }
 
@@ -83,12 +83,13 @@ export function makeDuct() {
   passengerDisc(g, 172, 142, 30, -1);
   passengerDisc(g, 330, 112, 30, -1);
   passengerDisc(g, 372, 142, 30, 1);
-  // grille field: 14 rows x 30 staggered slots
-  const gx = 512 + 110, gy = 60;
-  g.fillStyle = '#4a4c4d';
-  for (let row = 0; row < 14; row++) for (let col = 0; col < 30; col++) {
-    const x = gx + col * 8.7 + (row % 2) * 4.3, y = gy + row * 11.3;
-    g.fillRect(x, y, 5.5, 2.8);
+  // grille field (photos 4, 5): 8 rows of dark 16 x 6 mm slots, each row shifted along, so the field is a
+  // parallelogram about 0.75 x 0.22 m
+  const gx = 512 + 60, gy = 72;
+  g.fillStyle = '#232527';
+  for (let row = 0; row < 8; row++) for (let col = 0; col < 28; col++) {
+    const x = gx + col * 12.3 + row * 6, y = gy + row * 14.4;
+    g.fillRect(x, y, 8.2, 3.1);
   }
   // small dot grille next to the seam, and fixing screws
   g.fillStyle = '#6a6c6d';

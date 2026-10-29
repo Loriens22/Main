@@ -155,7 +155,8 @@ export const InteriorMixin = {
     parts.add('ceiling', cu);
     for (const side of [-1, 1]) {
       const prof = DUCT.map(([x, y]) => [side * x, y]);
-      parts.add('ceiling', profileStrip(prof, cz0, cz1, 0.8, side > 0));
+      // the side ducts are separate grey mouldings, a shade darker than the ceiling panels (ref04)
+      parts.add('wall', profileStrip(prof, cz0, cz1, 0.8, side > 0));
     }
     // lamps: round downlights in dark rims down the centre line (ref04)
     const lz = isF ? [-5.4, -4.0, -2.6, -1.2, 0.2] : [-2.6, -1.2, 0.2, 1.6, 2.8];

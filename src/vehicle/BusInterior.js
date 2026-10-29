@@ -20,7 +20,18 @@ import { addCabParts, buildCabInterior, CAB_PARTITION_Z } from './BusCab.js';
 const FY = BUS.floorY;
 export const CEIL_Y = 2.76; // flat centre of the ceiling
 export const HEADER_Y = 2.52; // lowered header / cab ceiling
-const DUCT = [[0.73, 2.76], [0.82, 2.745], [0.92, 2.715], [1.02, 2.675], [1.12, 2.625], [1.2, 2.59], [1.255, 2.575]]; // right side duct profile (x, y)
+// right side duct profile (x, y): the slope panels start at the window head (2.50) and are steep near the wall
+// (photos 4 and 5: a large grey panel with the pictograms and the slot grilles above each window)
+const DUCT = [[0.73, 2.76], [0.82, 2.745], [0.92, 2.705], [1.02, 2.655], [1.12, 2.59], [1.2, 2.53], [1.255, 2.5]];
+const WIN_HEAD_Y = 2.5;
+/** Height of the duct's surface at |x|. */
+function ductY(ax) {
+  for (let i = 1; i < DUCT.length; i++) {
+    const [x0, y0] = DUCT[i - 1], [x1, y1] = DUCT[i];
+    if (ax <= x1) return y0 + ((y1 - y0) * (Math.max(ax, x0) - x0)) / (x1 - x0);
+  }
+  return DUCT[DUCT.length - 1][1];
+}
 const HOUSING_X = 0.74; // inner face of the wheel housing (the arch liner disc of the exterior stands at 0.755)
 const HOUSING_HALF = 0.64; // half length of the wheel housing around the axle
 const HOUSING_Y = 1.045; // top of the wheel housing (the window seat pan rests on it)
@@ -164,7 +175,7 @@ export const InteriorMixin = {
       }
     }
     // ---- window pillars (light grey, 0.11 wide, 0.10 deep) and the black transom
-    const pillarH = 2.58 - BUS.beltY;
+    const pillarH = WIN_HEAD_Y - BUS.beltY;
     const ranges = (side) => {
       const cuts = side > 0 ? doors.map((d) => [d.z0, d.z1]) : [];
       const out = [];
@@ -185,7 +196,7 @@ export const InteriorMixin = {
     }
     // door posts: light-grey pillars flanking each door
     for (const d of doors) {
-      for (const z of [d.z0 - 0.06, d.z1 + 0.06]) parts.add('wall', box(0.1, 2.58 - FY, 0.11), M(1.205, (2.58 + FY) / 2, z));
+      for (const z of [d.z0 - 0.06, d.z1 + 0.06]) parts.add('wall', box(0.1, WIN_HEAD_Y - FY, 0.11), M(1.205, (WIN_HEAD_Y + FY) / 2, z));
       // green exit pictograms on the pillars' faces
       for (const z of [d.z0 - 0.06, d.z1 + 0.06]) {
         const g = decal(0.06, 0.12, 'exit');
@@ -212,7 +223,9 @@ export const InteriorMixin = {
       const prof = DUCT.map(([x, y]) => [side * x, y]);
       parts.add('duct', profileStrip(prof, cz0, cz1, 0.5, side > 0));
       // wall return above the window head
-      parts.add('wall', quad('x', cz0, cz1, 2.575, 2.9, side * 1.255, side < 0));
+      parts.add('wall', quad('x', cz0, cz1, WIN_HEAD_Y, 2.9, side * 1.255, side < 0));
+      // its outer face is black: seen from the street through the top of the glazing (above the window head)
+      parts.add('frame', quad('x', cz0, cz1, WIN_HEAD_Y, 2.9, side * 1.258, side > 0));
     }
     // light panels: one row on the bus-left half, 0.55 x 0.14 at x -0.38
     const lz = isF ? [-4.9, -2.9, -0.9, 0.95] : [-4.0, -2.0, 0.0, 2.0];
@@ -226,8 +239,8 @@ export const InteriorMixin = {
       for (const z of isF ? [-3.9, -1.9, 0.2] : [-3.3, -0.8, 1.2]) parts.add('frame', new THREE.CylinderGeometry(0.02, 0.02, 0.01, 10), M(0.1, CEIL_Y - 0.003, z));
       for (const side of [-1, 1]) for (const z of isF ? [-5.1, -0.4] : [-4.2, 1.2]) {
         if (side > 0 && doors.some((d) => z > d.z0 - 0.1 && z < d.z1 + 0.1)) continue;
-        parts.add('redPlastic', box(0.06, 0.04, 0.1), M(side * 1.2, 2.52, z));
-        parts.add('railYellow', box(0.025, 0.02, 0.04), M(side * 1.2, 2.5, z + 0.1));
+        parts.add('redPlastic', box(0.06, 0.04, 0.1), M(side * 1.2, WIN_HEAD_Y - 0.04, z));
+        parts.add('railYellow', box(0.025, 0.02, 0.04), M(side * 1.2, WIN_HEAD_Y - 0.06, z + 0.1));
       }
       // yellow emergency-release pull in the duct above each door, with a red lamp
       for (const d of doors) {
@@ -235,8 +248,8 @@ export const InteriorMixin = {
         const pull = new THREE.CylinderGeometry(0.035, 0.035, 0.012, 14);
         pull.scale(1, 1, 0.65);
         pull.rotateZ(0.5);
-        parts.add('railYellow', pull, M(0.96, 2.688, zc));
-        parts.add('redPlastic', box(0.03, 0.01, 0.015), M(0.98, 2.69, zc + 0.12));
+        parts.add('railYellow', pull, M(0.96, ductY(0.96) - 0.007, zc));
+        parts.add('redPlastic', box(0.03, 0.01, 0.015), M(0.98, ductY(0.98) - 0.006, zc + 0.12));
       }
     }
     // ---- end walls

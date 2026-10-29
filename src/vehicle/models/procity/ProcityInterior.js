@@ -44,7 +44,7 @@ export const InteriorMixin = {
     const fabric = makeSeatFabric();
     const mats = {
       floor: new S({ map: floor, color: 0xffffff, roughness: 0.92 }),
-      wall: new S({ color: 0xa3ab9f, roughness: 0.6 }),
+      wall: new S({ color: 0xadb0af, roughness: 0.6 }), // neutral light grey (ref09); the green-grey read olive once warmed
       wallLight: new S({ color: 0xc9cbc4, roughness: 0.6 }),
       frame: new S({ color: 0x15171a, roughness: 0.6 }),
       pillar: new S({ color: 0x555b60, roughness: 0.55 }),

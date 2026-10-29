@@ -110,7 +110,8 @@ def M():
         'hubBlack': mat('hubBlack', (0.03, 0.03, 0.03), 0.55),
         'indicator': mat('indicator', (0.8, 0.22, 0.03), 0.45),
         # seats (linear albedo)
-        'seatGrey': mat_split('seatGrey', (0.33, 0.35, 0.37), (0.043, 0.047, 0.055), 0.42, 0.915, 0.015),
+        # top band mid-grey: photo 4 measures it at about 0.4 x the backrest (sRGB 80,85,95 against 120,130,142)
+        'seatGrey': mat_split('seatGrey', (0.33, 0.35, 0.37), (0.125, 0.135, 0.16), 0.42, 0.915, 0.015),
         'seatProcity': mat_split('seatProcity', (0.045, 0.05, 0.056), (0.2, 0.215, 0.23), 0.42, 0.95, 0.0, w=0.43),
         'seatCap': mat('seatCap', (0.043, 0.047, 0.055), 0.45, bump=0.05, bscale=1500),
         'seatPanel': mat('seatPanel', (0.38, 0.4, 0.42), 0.5, bump=0.05, bscale=1500),
