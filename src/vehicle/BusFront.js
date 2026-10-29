@@ -294,14 +294,14 @@ export const FrontMixin = {
     // columns for the magnitude interval [a, b] on side sg, running from the viewer's left to the right
     const span = (sg, a, b, n) => (sg > 0 ? colsBetween(b, a, n) : colsBetween(-a, -b, n));
     for (const sg of [1, -1]) {
-      // headlamp 0.27 x 0.14: white recess, dark frame, two-cell lens (outer cell towards the corner)
+      // headlamp 0.29 x 0.12 in a white recess with a shaded lip, two-bowl clear lens (outer cell towards the corner)
       parts.add('paint', facePatch({ xs: span(sg, 0.92, 1.26, 8), y0: 0.62, y1: 0.8, nv: 2, off: 0.0015 }));
-      parts.add('lampFrame', facePatch({ xs: span(sg, 0.935, 1.235, 8), y0: 0.635, y1: 0.785, nv: 2, off: 0.003 }));
+      parts.add('lampRecess', facePatch({ xs: span(sg, 0.925, 1.24, 8), y0: 0.637, y1: 0.787, nv: 2, off: 0.003 }));
       const uv = sg > 0 ? [0, 0, 1, 1] : [1, 0, 0, 1];
-      parts.add('headlamp', facePatch({ xs: span(sg, 0.95, 1.22, 12), y0: 0.64, y1: 0.78, nv: 2, off: 0.0055, uv }));
-      parts.add('lensClear', facePatch({ xs: span(sg, 0.95, 1.22, 12), y0: 0.64, y1: 0.78, nv: 2, off: 0.009 }));
+      parts.add('headlamp', facePatch({ xs: span(sg, 0.94, 1.228, 12), y0: 0.652, y1: 0.772, nv: 2, off: 0.0055, uv }));
+      parts.add('lensClear', facePatch({ xs: span(sg, 0.94, 1.228, 12), y0: 0.652, y1: 0.772, nv: 2, off: 0.009 }));
       // indicator / fog unit 0.25 x 0.075: clear ribbed inner 60 %, amber outer end
-      parts.add('lampFrame', facePatch({ xs: span(sg, 0.905, 1.185, 8), y0: 0.485, y1: 0.58, nv: 1, off: 0.003 }));
+      parts.add('lampRecess', facePatch({ xs: span(sg, 0.905, 1.185, 8), y0: 0.485, y1: 0.58, nv: 1, off: 0.003 }));
       parts.add('ribLens', facePatch({ xs: span(sg, 0.92, 1.07, 6), y0: 0.49, y1: 0.575, nv: 1, off: 0.0055 }));
       parts.add(sg > 0 ? 'indicatorR' : 'indicatorL', facePatch({ xs: span(sg, 1.07, 1.17, 4), y0: 0.49, y1: 0.575, nv: 1, off: 0.0055 }));
     }

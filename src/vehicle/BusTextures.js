@@ -355,55 +355,47 @@ export function makeLionBadge() {
 /* ------------------------------------------------------------------ lamps */
 /** Headlamp unit 0.27 x 0.14 m for the bus RIGHT side (outer cell on the left): [colour map, emissive map]. */
 export function makeHeadlampTex() {
-  const W = 540, H = 280, outerW = 220;
-  // rm: roughness (G) / metalness (B) map - the reflector bowls are polished metal, so they pick up the street
+  // clear lens over two round chrome reflector bowls (outer one smaller, inner one with a bulb cap) and a small
+  // dark lamp module between them, as on the Sofia buses (photo 2)
+  const W = 540, H = 280;
+  const bowls = [[132, 140, 100], [392, 140, 112]];
+  // rm: roughness (G) / metalness (B) map - polished but not mirror-black bowls: they show the lit lens interior
   const mk = (emissive, rm = false) => {
     const [c, g] = canvas(W, H);
     if (rm) {
-      g.fillStyle = 'rgb(0,90,0)';
+      g.fillStyle = 'rgb(0,70,90)';
       g.fillRect(0, 0, W, H);
-      g.fillStyle = 'rgb(0,60,0)';
-      g.fillRect(outerW - 6, 0, 12, H);
-      g.fillStyle = 'rgb(0,22,255)';
-      g.beginPath(); g.arc(outerW / 2, H / 2, 98, 0, Math.PI * 2); g.fill();
-      const ix = outerW + 14, iw = W - ix - 12;
-      g.beginPath(); g.roundRect ? g.roundRect(ix, 24, iw, H - 48, 22) : g.rect(ix, 24, iw, H - 48); g.fill();
-      g.fillStyle = 'rgb(0,70,0)';
-      g.beginPath(); g.ellipse(outerW / 2 + 6, H / 2 - 4, 20, 26, 0, 0, Math.PI * 2); g.fill();
+      g.fillStyle = 'rgb(0,40,150)';
+      for (const [cx, cy, r] of bowls) { g.beginPath(); g.arc(cx, cy, r, 0, Math.PI * 2); g.fill(); }
+      g.fillStyle = 'rgb(0,120,0)';
+      g.fillRect(250, 104, 26, 72);
       return tex(c, { aniso: 8, srgb: false });
     }
-    g.fillStyle = emissive ? '#000' : '#d9dee2';
-    g.fillRect(0, 0, W, H);
-    if (!emissive) {
-      // clear lens with a faint blue tint, dark frame divider between the two cells
-      const lg = g.createLinearGradient(0, 0, W, H);
-      lg.addColorStop(0, '#e8eef2'); lg.addColorStop(1, '#b9c4cb');
+    if (emissive) { g.fillStyle = '#000'; g.fillRect(0, 0, W, H); } else {
+      const lg = g.createLinearGradient(0, 0, 0, H);
+      lg.addColorStop(0, '#dfe4e8'); lg.addColorStop(0.5, '#b4bcc2'); lg.addColorStop(1, '#cfd5d9');
       g.fillStyle = lg;
       g.fillRect(0, 0, W, H);
-      g.fillStyle = '#34373b';
-      g.fillRect(outerW - 6, 0, 12, H);
     }
-    // outer cell: round chrome reflector with visible bulb
-    const cx = outerW / 2, cy = H / 2;
-    const rg = g.createRadialGradient(cx - 14, cy - 18, 6, cx, cy, 98);
-    if (emissive) { rg.addColorStop(0, '#fff'); rg.addColorStop(0.5, '#b8b0a0'); rg.addColorStop(1, '#201c18'); }
-    else { rg.addColorStop(0, '#f5f7f8'); rg.addColorStop(0.35, '#a8aeb3'); rg.addColorStop(0.7, '#6a7076'); rg.addColorStop(1, '#2c2f33'); }
-    g.fillStyle = rg;
-    g.beginPath(); g.arc(cx, cy, 98, 0, Math.PI * 2); g.fill();
-    g.fillStyle = emissive ? '#fff' : '#fff6d8';
-    g.beginPath(); g.ellipse(cx + 6, cy - 4, 20, 26, 0, 0, Math.PI * 2); g.fill();
-    if (!emissive) { g.fillStyle = '#1a1a1c'; g.beginPath(); g.arc(cx + 4, cy + 2, 8, 0, Math.PI * 2); g.fill(); }
-    // inner cell: larger rectangular faceted reflector
-    const ix = outerW + 14, iw = W - ix - 12;
-    const fg = g.createLinearGradient(ix, 0, ix + iw, H);
-    if (emissive) { fg.addColorStop(0, '#9a9488'); fg.addColorStop(0.5, '#fff'); fg.addColorStop(1, '#8a857a'); }
-    else { fg.addColorStop(0, '#80868b'); fg.addColorStop(0.4, '#e6e9eb'); fg.addColorStop(0.55, '#9ca3a8'); fg.addColorStop(1, '#565b60'); }
-    g.fillStyle = fg;
-    g.beginPath(); g.roundRect ? g.roundRect(ix, 24, iw, H - 48, 22) : g.rect(ix, 24, iw, H - 48); g.fill();
-    g.strokeStyle = emissive ? 'rgba(0,0,0,0.5)' : 'rgba(40,44,48,0.45)';
-    g.lineWidth = 3;
-    for (let i = 1; i < 4; i++) { g.beginPath(); g.moveTo(ix + (iw * i) / 4, 28); g.lineTo(ix + (iw * i) / 4, H - 28); g.stroke(); }
-    g.beginPath(); g.moveTo(ix + 8, H / 2); g.lineTo(ix + iw - 8, H / 2); g.stroke();
+    for (const [cx, cy, r] of bowls) {
+      const rg = g.createRadialGradient(cx - r * 0.25, cy - r * 0.3, r * 0.05, cx, cy, r);
+      if (emissive) { rg.addColorStop(0, '#fff'); rg.addColorStop(0.55, '#c8c0b0'); rg.addColorStop(1, '#2a2620'); }
+      else { rg.addColorStop(0, '#ffffff'); rg.addColorStop(0.3, '#d2d8dc'); rg.addColorStop(0.62, '#8b9399'); rg.addColorStop(0.85, '#c9cfd3'); rg.addColorStop(1, '#6d747a'); }
+      g.fillStyle = rg;
+      g.beginPath(); g.arc(cx, cy, r, 0, Math.PI * 2); g.fill();
+      // facet rings of the reflector
+      if (!emissive) {
+        g.strokeStyle = 'rgba(70,76,82,0.35)'; g.lineWidth = 2;
+        for (const k of [0.45, 0.7]) { g.beginPath(); g.arc(cx, cy, r * k, 0, Math.PI * 2); g.stroke(); }
+      }
+      // bulb cap
+      g.fillStyle = emissive ? '#fff' : '#f4f1e6';
+      g.beginPath(); g.arc(cx + 4, cy - 2, r * 0.17, 0, Math.PI * 2); g.fill();
+      if (!emissive) { g.fillStyle = '#3a3d41'; g.beginPath(); g.arc(cx + 4, cy - 2, r * 0.07, 0, Math.PI * 2); g.fill(); }
+    }
+    // small dark lamp module between the bowls
+    g.fillStyle = emissive ? '#000' : '#2a2d31';
+    g.fillRect(250, 104, 26, 72);
     return tex(c, { aniso: 8 });
   };
   return [mk(false), mk(true), mk(false, true)];

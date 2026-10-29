@@ -27,10 +27,10 @@ export const FLEET = {
 };
 
 // meshes that never need to cast shadows (thin decals, glass, lamps, small trim)
-const NO_SHADOW = new Set(['decals', 'leaves', 'plate', 'badge', 'chrome', 'satinChrome', 'lampFrame', 'headlamp', 'ribLens', 'lensClear', 'marker', 'indicatorL', 'indicatorR', 'tail', 'brake', 'reverse', 'mirror', 'louvreWhite', 'louvreDark', 'grille', 'windscreen', 'windscreenIn', 'glassOut', 'glassIn']);
+const NO_SHADOW = new Set(['decals', 'leaves', 'plate', 'badge', 'chrome', 'satinChrome', 'lampFrame', 'lampRecess', 'headlamp', 'ribLens', 'lensClear', 'marker', 'indicatorL', 'indicatorR', 'tail', 'brake', 'reverse', 'mirror', 'louvreWhite', 'louvreDark', 'grille', 'windscreen', 'windscreenIn', 'glassOut', 'glassIn']);
 
 // small trim that is invisible beyond ~140 m (fewer draw calls for distant buses)
-const SMALL_TRIM = new Set(['decals', 'badge', 'plate', 'lampFrame', 'ribLens', 'lensClear', 'grille', 'louvreWhite', 'louvreDark', 'satinChrome', 'chrome', 'routeCard', 'mirror']);
+const SMALL_TRIM = new Set(['decals', 'badge', 'plate', 'lampFrame', 'lampRecess', 'ribLens', 'lensClear', 'grille', 'louvreWhite', 'louvreDark', 'satinChrome', 'chrome', 'routeCard', 'mirror']);
 
 export class BusModel {
   constructor({ fleet = '3145', quality = 'high', interior = true } = {}) {
@@ -105,6 +105,8 @@ export class BusModel {
       lensClear: new P({ color: 0xffffff, roughness: 0.05, metalness: 0, transparent: true, opacity: 0.09, depthWrite: false, clearcoat: 1, envMapIntensity: 0.9 }),
       headlamp: new S({ map: hlMap, emissiveMap: hlEmi, emissive: 0xffffff, emissiveIntensity: 0, roughnessMap: hlRM, metalnessMap: hlRM, roughness: 1, metalness: 1 }),
       lampFrame: new S({ color: 0x4a4d52, roughness: 0.5 }),
+      // walls of the white recesses round the front lamps (photo 2: no dark frame, a shaded lip)
+      lampRecess: new S({ color: 0xa9aeb3, roughness: 0.55 }),
       ribLens: new S({ map: makeRibLens(), roughness: 0.4 }),
       indicatorL: new S({ color: 0xe07b0a, roughness: 0.3, emissive: 0xff8a00, emissiveIntensity: 0 }),
       indicatorR: new S({ color: 0xe07b0a, roughness: 0.3, emissive: 0xff8a00, emissiveIntensity: 0 }),
