@@ -67,8 +67,9 @@ export function addCabParts(p, low, model) {
   note('notice', 0.24, 0.34, -0.85, 1.9);
   note('yellow', 0.1, 0.14, -0.62, 1.55);
   note('tariff', 0.15, 0.1, -1.05, 1.5);
-  // ---- clear driver screen on the aisle side, from the partition to beside the driver's head
-  const sz0 = zf + 1.0;
+  // ---- clear driver screen on the aisle side, from the partition to beside the driver's head; it starts level
+  // with the driver's eye (zf + 1.45), so its front post stays out of the forward view
+  const sz0 = Math.min(zf + 1.5, zp - 0.35);
   p.add('glassClear', quad('x', sz0, zp - 0.1, 1.35, 2.45, -0.4, true));
   p.add('frame', box(0.04, 1.1, 0.04), M(-0.4, 1.9, sz0));
   p.add('frame', box(0.04, 0.04, zp - 0.1 - sz0), M(-0.4, 1.35, (sz0 + zp - 0.1) / 2));

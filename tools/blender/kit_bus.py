@@ -987,7 +987,8 @@ def steering_wheel(m):
     hub = shell_head('hub', 0.18, 0.14, 0.06, pad, ex=0.35, ey=0.45)
     place(hub, at=(0, -0.01, 0.03))
     parts.append(hub)
-    badge = cyl('badge', (0, -0.005, 0.059), (0, -0.005, 0.0645), 0.03, m['zinc'], segs=32)
+    # small satin badge: a polished zinc disc read as a chrome ball in the driver's view
+    badge = cyl('badge', (0, -0.005, 0.059), (0, -0.005, 0.0625), 0.02, m['silver'], segs=32)
     parts.append(badge)
     col = cyl('boss', (0, 0, -0.07), (0, 0, 0.0), 0.04, plast, segs=24)
     parts.append(col)

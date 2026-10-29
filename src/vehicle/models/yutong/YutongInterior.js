@@ -74,7 +74,8 @@ export const InteriorMixin = {
       glassSmoked: new S({ color: 0x0d1115, roughness: 0.18, metalness: 0.2, transparent: true, opacity: 0.86, depthWrite: false, envMapIntensity: 0.8 }),
       glassScreen: new S({ color: 0x9db4bd, roughness: 0.1, metalness: 0.1, transparent: true, opacity: 0.14, depthWrite: false, side: THREE.DoubleSide }),
       mirrorIn: new S({ color: 0x8c979d, roughness: 0.1, metalness: 1 }),
-      blind: new S({ map: makeBlind(), roughness: 0.9, transparent: true, opacity: 0.62, side: THREE.DoubleSide }),
+      // dark smoked roller-blind mesh (ref06): the light one read as a white sheet across the driver's view
+      blind: new S({ map: makeBlind(), color: 0x3c4146, roughness: 0.9, transparent: true, opacity: 0.7, side: THREE.DoubleSide }),
       plastic: new S({ color: 0x2a2d30, roughness: 0.55 }),
       stopBtn: new S({ color: 0xf0b414, roughness: 0.4, emissive: 0xff3010, emissiveIntensity: 0 }),
       satinChrome: new S({ color: 0xb9bcbe, roughness: 0.35, metalness: 1 }),
