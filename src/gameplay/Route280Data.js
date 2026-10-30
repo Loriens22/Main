@@ -34,6 +34,15 @@ export class Route280 {
       };
     }
     this.terminalLinks = json.terminalLinks || {};
+    // tram lines: the vehicle runs on the track (no kerb lane), the gauge and the track network round the line
+    this.mode = json.mode || 'bus';
+    this.gauge = json.gauge || null;
+    this.tracks = json.tracks || [];
+    this.switches = json.switches || [];
+  }
+
+  get isTram() {
+    return this.mode === 'tram';
   }
 
   direction(id) {
@@ -56,6 +65,7 @@ export class Route280 {
 
   /** Lateral offset (m, to the right of the path centre line) of the kerb-side lane centre. */
   laneOffset(id, s, atStop = false) {
+    if (this.mode === 'tram') return 0;
     const { halfWidth } = this.laneInfo(id, s);
     const busHalf = 1.28;
     const gap = atStop ? 0.25 : 0.55;

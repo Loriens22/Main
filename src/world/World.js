@@ -1,6 +1,7 @@
 // Assembles the 3D city from the world pack and manages tile visibility (LOD /
 // streaming around the camera).
 import * as THREE from 'three';
+import { buildTramInfrastructure } from './TramTracks.js';
 import { Heightfield } from './Heightfield.js';
 import { buildSplat, createTerrainMaterial, buildNearTerrainChunk, buildFarTerrain } from './Terrain.js';
 import { RoadNetwork } from './RoadNetwork.js';
@@ -87,6 +88,8 @@ export class World {
     await yieldFrame();
     for (const g of rb.meshes()) this.addToTile(g.name.split(':')[1], g);
     for (const g of bb.meshes()) this.addToTile(g.name.split(':')[1], g);
+    // tram lines: track (rails, track panels or ballast and sleepers) and the overhead line
+    if (this.route && this.route.isTram) this.tramInfra = buildTramInfrastructure(this);
     const kit = (this.kit = kitP && (await kitP));
     if (kit && bb.kit) for (const g of bb.kit.meshes(kit)) this.addToTile(g.name.split(':')[1], g);
     this.materials = { roads: rb.materials(), buildings: bb.materials() };

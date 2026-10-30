@@ -2,6 +2,7 @@
 import * as THREE from 'three';
 import route280 from './data/route280.json';
 import route64 from './data/route64.json';
+import route12 from './data/route12.json';
 import { Route280 } from './gameplay/Route280Data.js';
 import { loadWorldPack } from './world/WorldData.js';
 import { World } from './world/World.js';
@@ -23,7 +24,7 @@ import { AIBusDriver } from './gameplay/AIBusDriver.js';
 
 const params = new URLSearchParams(location.search);
 /** Route data of the playable lines; the world of one line is loaded per session (?line= or the menu). */
-const ROUTES = { 280: route280, 64: route64 };
+const ROUTES = { 280: route280, 64: route64, 12: route12 };
 
 async function boot() {
   injectStyles();

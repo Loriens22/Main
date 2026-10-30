@@ -2,9 +2,10 @@
 // tools/build_world.py). Polylines are delta-encoded decimetres.
 import pack280 from '../data/world.pack.b64';
 import pack64 from '../data/world64.pack.b64';
+import pack12 from '../data/world12.pack.b64';
 
 /** Embedded world pack of each playable line (tools/build_world.py). */
-const PACKS = { 280: pack280, 64: pack64 };
+const PACKS = { 280: pack280, 64: pack64, 12: pack12 };
 import { L } from '../ui/i18n.js';
 
 function decodeLine(d) {
