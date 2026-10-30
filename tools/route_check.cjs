@@ -1,6 +1,7 @@
 // Drives the player's bus along a whole direction with the AI driver (headless) and checks
 // that every stop is served: doors open at each stop, nothing stalls, the trip ends at the terminal.
-//   [VEH=conecto|procity|yutong] [LINE=64] [SEED=n] node tools/route_check.cjs <game.html> [A|B] [maxMinutes]
+//   [VEH=conecto|procity|yutong|schindler|t6m] [LINE=64|12] [SEED=n] node tools/route_check.cjs <game.html> [A|B] [maxMinutes]
+// A tram is driven by the AI tram driver; collisions and derailment-protection trips are counted.
 const { chromium } = require('/opt/node22/lib/node_modules/playwright');
 const path = require('path');
 (async () => {
@@ -13,6 +14,22 @@ const path = require('path');
   await p.waitForFunction(() => window.__game && window.__game.ready, null, { timeout: 240000 });
   await p.evaluate(() => {
     const G = __game, g = G.game, bus = g.bus;
+    window.__events = { collisions: 0 };
+    if (bus.isTram) {
+      const ai = new G.mods.AITramDriver(bus, { traffic: g.traffic, signals: g.traffic && g.traffic.signals, peds: g.peds, serveAll: true });
+      bus.extraColliders = [(b) => (g.traffic ? g.traffic.collideBus(b) : null)];
+      g.updateDriver = (dt) => {
+        bus.update(dt, ai.update(dt));
+        bus.syncVisual();
+        if (bus.phys.lastCollision) { window.__events.collisions++; bus.phys.lastCollision = null; }
+        for (const e of bus.events.splice(0)) g.onStopEvent(bus, e);
+        g.rig.updateBus(dt, bus, { lookX: 0, lookY: 0 });
+      };
+      window.__ai = ai;
+      window.__log = [];
+      bus.doors.on((e) => { if (e.type === 'opened') window.__log.push({ t: +g.time.toFixed(0), stop: bus.stops.atStop }); });
+      return;
+    }
     const ai = new G.mods.AIBusDriver(bus, { traffic: g.traffic, signals: g.traffic && g.traffic.signals, peds: g.peds, serveAll: true });
     const orig = g.input.poll.bind(g.input);
     g.input.poll = (dt) => {
@@ -32,7 +49,8 @@ const path = require('path');
       __game.sim(60);
       return { s: Math.round(bus.routeS), next: bus.stops.next, served: [...bus.stops.served].sort((a, c) => a - c), why: __ai.why, state: __ai.state, v: +(bus.phys.v * 3.6).toFixed(1), off: +bus.offRoute.toFixed(1), score: g.scoring ? Math.round(g.scoring.total || 0) : null };
     });
-    console.log(`${m + 1} min: s=${r.s} next=${r.next} served=${r.served.length}/${last + 1} v=${r.v} ${r.state} ${r.why || ''} off=${r.off}`);
+    const col = await p.evaluate(() => window.__events.collisions);
+    console.log(`${m + 1} min: s=${r.s} next=${r.next} served=${r.served.length}/${last + 1} v=${r.v} ${r.state} ${r.why || ''} off=${r.off}${col ? ` collisions=${col}` : ''}`);
     if (r.served.includes(last)) { console.log(`TRIP DONE in ${m + 1} min, served ${r.served.length}/${last + 1}: ${r.served.join(',')}`); break; }
     stuck = r.s === prevS ? stuck + 1 : 0;
     prevS = r.s;

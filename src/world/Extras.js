@@ -28,6 +28,7 @@ export async function buildExtras({ scene, world, route, quality }) {
   const rl = routeLine(route);
   // nothing may stand where the bus sweeps along its route
   const sweep = (world.sweep = new SweptPath(route));
+  if (route.isTram) sweep.addTracks(route.tracks); // and nothing on any tram track round the line
   const tileKey = (name) => name.split(':')[1];
   const safe = async (label, fn) => {
     try {

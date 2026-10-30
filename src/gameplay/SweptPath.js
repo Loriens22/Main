@@ -55,6 +55,28 @@ export class SweptPath {
     }
   }
 
+  /**
+   * Tram tracks round a tram line (route.tracks: polylines of the whole network, other lines included): a
+   * corridor of half width hw along every track, so no tree, lamp post or parked car stands on the rails.
+   */
+  addTracks(tracks, hw = 1.7) {
+    for (const t of tracks || []) {
+      const P = t.pts;
+      for (let i = 0; i + 1 < P.length; i++) {
+        const [ax, az] = P[i], [bx, bz] = P[i + 1];
+        const L = Math.hypot(bx - ax, bz - az);
+        if (L < 0.05) continue;
+        const fx = (bx - ax) / L, fz = (bz - az) / L;
+        // long segments in pieces so each box lands in the cells it covers
+        const n = Math.ceil(L / CELL);
+        for (let k = 0; k < n; k++) {
+          const c = ((k + 0.5) / n) * L;
+          this.addBox(ax + fx * c, az + fz * c, fx, fz, L / n / 2 + 0.3, hw);
+        }
+      }
+    }
+  }
+
   /** True if a disc of radius r at (x, z) intersects the swept area. */
   hits(x, z, r = 0) {
     const ci = Math.floor(x / CELL), cj = Math.floor(z / CELL);

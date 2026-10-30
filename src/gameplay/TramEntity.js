@@ -178,12 +178,14 @@ export class TramEntity {
       p.slope = (L.y(sc + 4) - L.y(sc - 4)) / 8;
       p.wet = this.world.wet || 0;
       p.step(FIXED, { interlock: this.doors.interlockActive });
-      // a car fouling the track: the tram cannot swerve, it stops against it
+      // a car fouling the track ahead: the tram cannot swerve, it stops against it (a car that runs into the
+      // side or the back of the tram is the car's business: its contact normal does not oppose the motion)
       if (this.extraColliders && Math.abs(p.v) > 0.05) {
         this.pose(p.s);
+        const sg = Math.sign(p.v), fx = -Math.sin(p.yaw) * sg, fz = -Math.cos(p.yaw) * sg;
         for (const fn of this.extraColliders) {
           const c = fn(p);
-          if (c) {
+          if (c && (c.nx == null || c.nx * fx + c.nz * fz < -0.6)) {
             p.lastCollision = { speed: Math.abs(p.v), depth: c.depth };
             p.s -= Math.sign(p.v) * Math.min(0.2, c.depth || 0.05);
             p.v = 0;
@@ -233,6 +235,27 @@ export class TramEntity {
     } else this.model.setWiper(0);
     this.model.setStopRequested(this.stopRequested);
     if (this.model.setPantograph) this.model.setPantograph(p.pantoH, this.wireHeight(p.s));
+  }
+
+  /**
+   * Cars have to clear tram tracks: a car that has stood on the track just ahead of the stopped tram for 12 s
+   * drives off (the traffic manager removes it), so a car waiting for the tram and the tram waiting for the car
+   * never lock each other.
+   */
+  clearTrack(traffic, dt) {
+    const p = this.phys;
+    if (!traffic || Math.abs(p.v) > 0.3) { this.blockT = 0; return; }
+    let blocker = null;
+    for (const c of traffic.cars) {
+      if (Math.abs(c.x - p.x) > 30 || Math.abs(c.z - p.z) > 30 || (c.v ?? 0) > 0.2) continue;
+      const n = this.line.nearest(c.x, c.z, p.s + 10, 25);
+      if (n.d < 2.4 && n.s > p.s - 1 && n.s < p.s + 20) { blocker = c; break; }
+    }
+    this.blockT = blocker ? (this.blockT || 0) + dt : 0;
+    if (blocker && this.blockT > 12) {
+      blocker.stuck = 100;
+      this.blockT = 0;
+    }
   }
 
   /** Contact wire height above the rail head at the pantograph (constant on line 12). */

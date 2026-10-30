@@ -202,5 +202,16 @@ LINES = {
         fromB='пл. Журналист', headsignB='кв. Илиянци',
         operator='Столичен електротранспорт (Sofia)',
         notes='Regular route. Terminal loops at кв. Илиянци and пл. Журналист.',
+        # route variants: separate from the regular route, each with its own validity and (verified) stop list
+        variants=[dict(
+            id='12-diversion-2026-10', label='Временна промяна (ремонт на бул. Княгиня Мария Луиза)',
+            labelEn='Temporary diversion (reconstruction of Knyaginya Maria Luiza Blvd)',
+            validFrom='2026-10-13', validTo='2026-11-03',
+            via=['ул. Алабин', 'бул. Христо Ботев', 'бул. Княгиня Мария Луиза'],
+            source='https://www.bta.bg/bg/news/213996-Vremenno-se-promenya-dvizhenieto',
+            status='unverified', stops=None,
+            note='Kept apart from the default route. The stop list and path of the diversion could not be verified '
+                 '(sofiatraffic.bg, sofia.bg unreachable); the game runs the regular route until a verified variant file is added.',
+        )],
     ),
 }

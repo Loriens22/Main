@@ -46,6 +46,15 @@ export class Menu {
     this.clear();
   }
 
+  /** A temporary diversion valid today: say so (the game runs the regular route; see Route280Data.variants). */
+  variantNote() {
+    const today = new Date().toISOString().slice(0, 10);
+    const v = this.route.variantsOn ? this.route.variantsOn(today)[0] : null;
+    if (!v) return '';
+    const d = (x) => x.split('-').reverse().join('.');
+    return `<div class="tag" style="opacity:.8;font-size:.8em">${L(`${v.label} ${d(v.validFrom)}–${d(v.validTo)}: играта кара редовния маршрут`, `${v.labelEn} ${d(v.validFrom)}–${d(v.validTo)}: the game runs the regular route`)}</div>`;
+  }
+
   main() {
     this.clear();
     const save = loadSave();
@@ -57,6 +66,7 @@ export class Menu {
     m.innerHTML = `<div class="col">
       ${logo(line)}
       <div class="tag">${L(`Линия ${line} · ${info.bg}`, `Line ${line} · ${info.en}`)}</div>
+      ${this.variantNote()}
       <div class="seg line-pick">${Object.keys(LINE_INFO).map((n) => `<button data-line="${n}" class="${n === line ? 'on' : ''}"><b>${n}</b> <small>${L(LINE_INFO[n].sbg, LINE_INFO[n].sen)}</small></button>`).join('')}</div>
       <button class="btn big primary" data-a="driver">${ICON_WHEEL}<span>${t('driver')}<small>${fleetNames} · ${L(`управлявайте линия ${line}`, `drive line ${line}`)}</small></span></button>
       <button class="btn big green" data-a="passenger">${ICON_PERSON}<span>${t('passenger')}<small>${L('пътувайте като пътник', 'ride as a passenger')}</small></span></button>

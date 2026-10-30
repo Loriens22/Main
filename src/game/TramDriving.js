@@ -90,6 +90,7 @@ export function updateTramDriver(game, dt, inp) {
   bus.model.setController(p.notch > 0 ? p.notch / P.notches : p.notch / P.brakeNotches);
   // --- continuous
   bus.update(dt, { notch: p.notch });
+  bus.clearTrack(game.traffic, dt);
   bus.syncVisual();
   // --- derailment protection: a tram far over the limit in a curve or over points brakes itself
   const lim = bus.limit;

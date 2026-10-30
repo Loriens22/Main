@@ -39,6 +39,14 @@ export class Route280 {
     this.gauge = json.gauge || null;
     this.tracks = json.tracks || [];
     this.switches = json.switches || [];
+    // route variants (temporary diversions): data only, separate from the regular route above. A variant is
+    // used only when it carries its own verified stop list and path (status 'verified').
+    this.variants = json.variants || [];
+  }
+
+  /** Variants valid on a date (YYYY-MM-DD), verified or not. */
+  variantsOn(date) {
+    return this.variants.filter((v) => (!v.validFrom || date >= v.validFrom) && (!v.validTo || date <= v.validTo));
   }
 
   get isTram() {

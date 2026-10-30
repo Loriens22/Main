@@ -406,6 +406,8 @@ def main():
     )
     if CFG.get('notes'):
         out['notes'] = CFG['notes']
+    if CFG.get('variants'):
+        out['variants'] = CFG['variants']
     json.dump(out, open(OUT, 'w'), ensure_ascii=False)
     print(f'{len(tracks)} track edges round the line ({sum(t["street"] for t in tracks)} street running), {len(switches)} switches', file=sys.stderr)
     for k in ('A', 'B'):

@@ -124,6 +124,13 @@ select{background:#16211b;color:var(--text);border:1px solid var(--line);border-
 .touch .pedal.brake i{background:rgba(255,80,60,.5)}
 .touch .pedal span{position:relative;font-size:.75em;font-weight:700;margin-bottom:6px;color:rgba(255,255,255,.75)}
 .touch .gas{right:calc(16px + var(--safe-r))}
+.touch .lever{right:calc(24px + var(--safe-r));bottom:calc(16px + var(--safe-b));width:calc(64px*var(--tc));height:calc(150px*var(--tc));border-radius:14px;background:rgba(20,24,26,.72);border:2px solid rgba(255,255,255,.2)}
+.touch .lever::after{content:'';position:absolute;left:8%;right:8%;top:50%;height:2px;background:rgba(255,255,255,.45)}
+.touch .lever i{position:absolute;left:0;right:0}
+.touch .lever i.pw{background:rgba(127,224,143,.38)}
+.touch .lever i.br{background:rgba(255,80,60,.42)}
+.touch .lever b{position:absolute;left:-8%;right:-8%;height:calc(18px*var(--tc));margin-top:calc(-9px*var(--tc));border-radius:6px;background:#2b2f33;border:2px solid #ffae1a}
+.touch .lever span{position:absolute;left:0;right:0;top:-1.6em;text-align:center;font-weight:800;color:#fff;text-shadow:0 1px 2px #000}
 .touch .brake{right:calc(96px*var(--tc) + 16px + var(--safe-r))}
 .touch .btns{right:calc(16px + var(--safe-r));bottom:calc(150px*var(--tc) + 22px + var(--safe-b));display:grid;grid-template-columns:repeat(4,calc(46px*var(--tc)));gap:6px}
 .touch .lbtns{left:calc(16px + var(--safe-l));bottom:calc(150px*var(--tc) + 26px + var(--safe-b));display:grid;grid-template-columns:repeat(3,calc(46px*var(--tc)));gap:6px}

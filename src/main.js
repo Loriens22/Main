@@ -21,6 +21,7 @@ import { AudioManager } from './audio/AudioManager.js';
 import { VoiceAnnouncer } from './audio/VoiceAnnouncer.js';
 import { GameStateManager } from './gameplay/GameStateManager.js';
 import { AIBusDriver } from './gameplay/AIBusDriver.js';
+import { AITramDriver } from './gameplay/AITramDriver.js';
 
 const params = new URLSearchParams(location.search);
 /** Route data of the playable lines; the world of one line is loaded per session (?line= or the menu). */
@@ -185,7 +186,7 @@ async function boot() {
 
   menu.main();
   window.__game = {
-    game, menu, world, route, scene, camera, renderer: R, sky, audio, THREE, startMode, applyQuality, ready: true, mods: { AIBusDriver },
+    game, menu, world, route, scene, camera, renderer: R, sky, audio, THREE, startMode, applyQuality, ready: true, mods: { AIBusDriver, AITramDriver },
     /** Test helper: advance the game deterministically with held keys / one-shot key presses. */
     sim(seconds, { hold = [], press = [] } = {}, dt = 1 / 30) {
       for (const k of press) input.pressed.add(k);

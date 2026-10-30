@@ -5,6 +5,7 @@
 import { clamp } from '../core/math.js';
 
 const BRAKE = 0.9; // planned service deceleration (m/s²)
+const BRAKE_STOP = 0.7; // to a stand (stops, signals, obstacles): margin for the brake build-up (~0.7 s)
 
 export class AITramDriver {
   constructor(bus, { traffic = null, signals = null, peds = null, others = null, serveAll = false } = {}) {
@@ -37,6 +38,7 @@ export class AITramDriver {
     const bus = this.bus, p = bus.phys, L = bus.line;
     const s = p.s;
     const ctl = { throttle: 0, brake: 0 };
+    bus.clearTrack(this.traffic, dt);
     // ---- speed planning: limits ahead reached with a constant service deceleration
     let vDes = bus.limit ? bus.limit.v : 12;
     for (let d = 6; d <= 90; d += 6) {
@@ -51,7 +53,7 @@ export class AITramDriver {
     if (pending && this.state === 'drive') {
       // aim half a metre short of the stop mark; a small overshoot still counts (StopManager arrive window)
       const d = next.frontS - s;
-      if (d > -6) { gap = Math.min(gap, Math.max(0, d - 0.5)); this.why = 'stop'; }
+      if (d > -12) { gap = Math.min(gap, Math.max(0, d - 1.0)); this.why = 'stop'; }
     }
     if (this.signals && bus.signalsAhead) {
       for (const sg of bus.signalsAhead) {
@@ -87,7 +89,7 @@ export class AITramDriver {
         if (d > 0 && d < 120 && d - 8 < gap) { gap = d - 8; this.why = 'tram ahead'; }
       }
     }
-    if (gap < Infinity) vDes = Math.min(vDes, Math.sqrt(Math.max(0, 2 * BRAKE * Math.max(0, gap))));
+    if (gap < Infinity) vDes = Math.min(vDes, Math.sqrt(Math.max(0, 2 * BRAKE_STOP * Math.max(0, gap))));
     // ---- stop procedure (as the bus driver)
     const atStop = bus.stops.atStop >= 0;
     if (this.state === 'drive' && bus.doors.anyOpen && Math.abs(p.v) < 0.2) { this.state = 'dwell'; this.timer = 0; }
@@ -128,6 +130,8 @@ export class AITramDriver {
     const err = vDes - p.v;
     this.vi = clamp(this.vi + err * dt * 0.25, -0.3, 0.35);
     let u = err * (err < 0 ? 0.7 : 0.4) + this.vi;
+    // above the braking curve: brake hard at once (the brakes take a moment to build up)
+    if (err < -1.2) { u = -1; this.vi = Math.min(this.vi, 0); }
     // the last metres: brake firmly to a stand (and hold it)
     if (vDes < 0.3 && p.v < 2.5) { u = -1; this.vi = 0; }
     if (u > 0) ctl.throttle = clamp(u, 0, 0.85);
