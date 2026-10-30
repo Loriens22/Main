@@ -3,6 +3,65 @@
 A concise record of what was built, how it was verified, and what is still open.
 The newest entries are at the top.
 
+## 2026-10-30 — Expansion 3.0: tram line 12 (кв. Илиянци ↔ пл. Журналист)
+
+Request: tram line 12 with the Schindler/Siemens Be 4/6 S (photos 1–6) and the T6M-700 (photos
+7–10), 50 / 50 per service, 1 009 mm track, overhead line, rail physics, a tram cab, passenger
+mode, announcements, the regular 21-stop route per direction with a separate variant for the
+temporary diversion, the landmarks along the line, mobile controls, all existing features kept.
+
+### Built
+
+- **Data:** `tools/build_tram_route.py` routes each direction on the OSM tram tracks between the
+  stop positions matched by code (no turn over 40° at a node), through both terminal loops;
+  street-running flags, 1 177 track edges and 238 switches round the line; world pack of 13 974
+  buildings; 22 neighbourhood profiles for the districts on the line. Route variants are data
+  (`variants` in `route12.json`), apart from the regular route.
+- **Infrastructure:** rails, grooves and concrete slab on street track, ballast, sleepers and
+  Vignole rails elsewhere, poles with brackets or cross-spans, contact wire and droppers
+  (`TramTracks.js`); trees, lamps and parked cars kept off every track (`SweptPath.addTracks`).
+- **Rail dynamics** (`TramDynamics.js`): the track line of a direction; supports placed so the
+  chord between them equals the body (sections meet at their joints on curves); the carried
+  low-floor module solved between the end sections; notched controller, adhesion and slip,
+  sanding, rheostatic and friction brakes, magnetic track brakes, Davis resistance, gradient,
+  door interlock, main switch, pantograph.
+- **TramEntity:** the BusEntity interface (camera, scoring, passengers, pedestrians, sound and
+  traffic work unchanged); speed limits from line, road, curves and points; derailment
+  protection; head-on contacts with cars stop the tram; cars clear the track.
+- **Models** (`src/vehicle/trams/`): shells with real window and door openings, folding doors,
+  cab fronts and rear ends, destination blinds / number boxes, bogies posed on the rails,
+  single-arm (Schindler) and diamond (T6M) pantographs raised to the wire, bellows, saloons from
+  the seat maps (Schindler 2+1 blue moquette, low-floor module with steps; T6M grey plastic,
+  orange poles, fan heaters), cabs with the controller and the instrument panel.
+- **Gameplay:** tram driver controls and checklist, HUD notch display and line speed, AI tram
+  driver (speed planning from the limits ahead, stops, signals, cars, the tram ahead), passenger
+  mode across all sections, menu entry with the diversion notice, touch controls with a
+  controller lever.
+- **Sound** (`TramVoice.js`): gear whine, the Schindler's chopper, the T6M's DC motor and
+  contactor steps, rolling noise darker on street track, rail joints per bogie, flange squeal in
+  tight curves, brake squeal, the gong.
+- **Central Station** hand-built on its footprint (`landmarks12/station.js`).
+
+### Verified
+
+- `npm test`: 45 tests, including `tests/tram.test.js` (dispatch, specs, joints on 25 m and
+  18 m curves, bogies on the rails, traction, stopping distances, adhesion, track line).
+- Route check (AI tram, every stop served): Schindler A 21/21 in 31 min, T6M A 21/21 in
+  34 min, T6M B 21/21 in 27 min (game time).
+- Driver mode with both trams (start-up, notches, braking), passenger mode (boarding, walking
+  through the gangway, riding), offline audio levels (cab −25 dB at 30 km/h, peaks below −3 dB).
+
+### Open
+
+- Landmarks along the line other than Central Station (Граф Игнатиев, пл. Славейков, пл.
+  Гарибалди, пл. Македония, УАСГ, пл. Журналист, Стоков базар Илиянци, Пета градска болница) are
+  OSM massing with the neighbourhood-typed facades.
+- The diversion variant needs a verified stop list and path before it can be driven.
+- Tram stops use the existing stop hardware on the OSM platforms; dedicated island platforms
+  with tram shelters are not modelled.
+- Unity and Unreal Engine 5 are not used (not available here, and neither can export into the
+  single offline HTML file); the trams are procedural three.js geometry, not Blender kit parts.
+
 ## 2026-10-30 — Blender: buildings, landmarks, buses and baked bus lighting
 
 Requests: a large upgrade of the buildings (the main ones on both lines in detail), the buses

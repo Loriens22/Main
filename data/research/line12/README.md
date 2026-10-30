@@ -28,8 +28,10 @@ construction (`railway=construction`, ways w261526277, w23062705, w96478611, w26
 needs them; `build_tram_route.py` adds rails under construction that join the tram network.
 
 **Temporary diversion (13 October – 3 November 2026, Княгиня Мария Луиза reconstruction).** Not part of
-the default route. The route-variant data model keeps directions separate, so a variant can be added as
-its own route file with its own verified stop list and dates.
+the default route. It is stored as a route variant (`variants` in `src/data/route12.json`, from
+`tools/lines.py`) with its dates, the streets named in the BTA notice and `status: unverified`; the
+game shows a notice in the menu while it is valid and keeps running the regular route. A variant is
+driven only once it has its own verified stop list and path.
 
 Track gauge: 1 009 mm (Sofia narrow gauge; line 12 runs on the narrow-gauge network).
 
@@ -47,10 +49,24 @@ road carriageway), 238 switch and crossing nodes (track nodes of degree ≥ 3).
   bogie centre distances 2 × 6 400 mm, axle spacing in the bogie 1 750 mm (tram-bus-basel.ch portrait).
 - Low-floor middle section 7 750 mm (wound fibre-composite body bolted to a welded steel underframe)
   inserted 1997–99 by Adtranz Pratteln (same source).
-- **Estimated for the model** (from photos 1–4, no reachable drawing): front section 13.4 m with the cab
-  and two powered bogies (centres 3.8 m and 10.2 m behind the front end), the low-floor module 7.75 m
-  carried between the sections, rear section 7.0 m on one trailing bogie, total ≈ 28.2 m; width 2.20 m;
-  single-ended (cab at the front, doors on the right side, rear window). Be 4/6: 6 axles, 4 powered.
+- **Estimated for the model** (photos 1, 4–6; no reachable drawing): the front half keeps its
+  powered bogie 3.785 m behind the front end and the former Jacobs bogie (unpowered) at 10.185 m
+  under its rear end; the 7.75 m module is carried between the halves; the rear half runs on its
+  powered bogie 6.4 m behind its front joint. Sections 10.4 + 7.75 + 9.65 m with 0.4 m joints,
+  28.6 m in all (the original 20.37 m plus the module and the joints); width 2.20 m. The window
+  and door counts in photos 4–6 (left side: cab window and five windows on the front section;
+  right side: door 1 behind the cab, two windows, door 2, windows) fit end sections of about
+  10 m; an earlier estimate of 13.3 m for the front section was revised. Door positions:
+  1.6–2.4 m (door 1, single leaf), 6.3–7.6 m, 14.4–15.7 m (low-floor module), 21.35–22.65 m.
+  Single-ended (cab at the front, doors on the right, rear window). Be 4/6: 6 axles, 4 powered.
+- **Read from the photos:** flat cab front with one large windscreen, black destination box with
+  two white blinds (number above, destination below), louvred roof box behind it, white belt line
+  round the front and along the sides that dips under the low windows of the middle module,
+  raised roof fairings, black window gaskets with top-hung hoppers, folding doors with long
+  windows and yellow step edges, central lamp housing with the fleet number beside it, red-tipped
+  coupler, mirrors on swan-neck arms, single-arm pantograph above the cab; inside 2+1 blue
+  moquette seats with grab handles, stainless poles, blue validators, orange stop buttons, ribbed
+  dark floor, steps up from the low-floor module (photos 2, 3).
 
 ### T6M-700 (photos 7–10), blue / orange / white
 
@@ -61,12 +77,20 @@ road carriageway), 238 switch and crossing nodes (track nodes of degree ≥ 3).
 - **Estimated for the model** (from photos 7–9): two equal sections on three bogies (outer bogies and a
   Jacobs bogie under the joint), four double doors (two per section) on the right side, single cab,
   rear window with route display, diamond pantograph on the front section.
+- **Read from the photos:** blue window band and roof, orange lower body, white skirt; flat front with
+  a large raked windscreen and the line number box at its top; round headlamps at the corners of the
+  orange band; black fleet number; black bumper bar; side windows with small top hoppers; folding
+  doors with two windows per panel; rear window with the number box, red tail lamps; inside single
+  grey plastic seats, orange poles, grey walls and floor, round fan heaters by the doors (photo 7).
+- 32 seats (bg.wikipedia via search summary): the seat map has 32.
 
 ## Landmarks along the line (sources and status)
 
-- **Централна гара** (Sofia Central Station): building of 1974 (competition won by a team led by Hans
-  Gericke), brutalist, white marble facing, renovated 2014–2016; the old locomotive and parts of the
-  mosaic kept. Massing from the OSM footprint.
+- **Централна гара** (Sofia Central Station): building of 1974, brutalist, white stone facing,
+  renovated 2014–2016. Hand-built on the OSM footprint (pack building 10703, 258 x 59 m): glazed hall
+  behind a colonnade under a heavy white roof fascia with the station name and a clock, entrance
+  canopy over the forecourt. The facade composition is estimated (no reachable drawings or
+  licensed imagery).
 - **пл. Славейков**: bronze sculpture of Petko and Pencho Slaveykov on a bench, the open-air book market
   (132 tables after the 1998 renovation), the Sofia City Library building on the square, a former
   fountain spot.

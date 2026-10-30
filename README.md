@@ -1,11 +1,13 @@
-# Sofia Public Transport — lines 280 and 64
+# Sofia Public Transport — lines 280, 64 and tram 12
 
-A 3D bus simulator of two Sofia bus lines, with four bus types modelled after reference photos:
+A 3D public transport simulator of two Sofia bus lines and tram line 12, with four bus types and two
+tram types modelled after reference photos:
 
 | Line | Route | Length | Stops | Buses (dispatched per service) |
 | --- | --- | --- | --- | --- |
 | **280** | СУ „Св. Климент Охридски“ ↔ Студентски град | 10.7 / 10.3 km | 18 / 18 | MAN Lion's City G CNG and Mercedes-Benz Conecto G (orange, diesel) |
 | **64** | Зоопарка ↔ Център по хигиена | 16.4 / 15.8 km | 35 / 33 | BMC Procity 12 CNG and Yutong ZK6126HGA (orange CNG) |
+| **12** (tram) | кв. Илиянци ↔ пл. Журналист | 10.0 / 9.9 km | 21 / 21 | Schindler/Siemens Be 4/6 S (green) and T6M-700 (blue / orange / white) |
 
 The whole game is **one HTML file** (`index.html`, also copied to
 `dist/sofia-public-transport.html`). Open it in a desktop or mobile browser with WebGL2. It
@@ -21,12 +23,14 @@ works offline: no server, CDN or network access is needed.
 | ![Боянско ханче](docs/screenshots/boyansko-hanche.jpg) | ![Dragalevtsi cemetery gate and florist](docs/screenshots/dragalevtsi-cemetery.jpg) |
 | ![The four buses next to the reference photos (photo left, game right)](docs/screenshots/bus-vs-photos.jpg) | ![Cabin without and with the Blender light bake](docs/screenshots/bus-light-bake.jpg) |
 | ![Night at the university](docs/screenshots/night.jpg) | ![Phone landscape layout](docs/screenshots/mobile-driver.jpg) |
-| ![Seated inside the bus](docs/screenshots/passenger-interior.jpg) | |
+| ![Seated inside the bus](docs/screenshots/passenger-interior.jpg) | ![Schindler Be 4/6 S on line 12 at a stop in Илиянци](docs/screenshots/tram-schindler-12.jpg) |
+| ![T6M-700 under the overhead line](docs/screenshots/tram-t6m-700.jpg) | ![Tram cab: controller and instruments](docs/screenshots/tram-cab.jpg) |
+| ![Schindler saloon, 2+1 blue seats](docs/screenshots/tram-schindler-interior.jpg) | ![Central Station from the forecourt](docs/screenshots/central-station.jpg) |
 
 ## Playing
 
-Open `index.html`, pick the **line** (64 or 280) on the main menu, then **Шофьор** (driver)
-or **Пътник** (passenger). On the setup screen choose the bus, the direction, the weather,
+Open `index.html`, pick the **line** (280, 64 or tram 12) on the main menu, then **Шофьор**
+(driver) or **Пътник** (passenger). On the setup screen choose the vehicle, the direction, the weather,
 the time of day, the traffic density and the graphics preset, then start. Switching line
 reloads the page with that line's map.
 
@@ -86,6 +90,38 @@ sequence reproducible (the same seed gives the same buses in the same order).
 | mouse | look around (look down for the instrument cluster) |
 | Esc | pause |
 
+### Trams (line 12)
+
+| Tram | Built | Body | Floor | Doors | Control |
+| --- | --- | --- | --- | --- | --- |
+| Schindler/Siemens Be 4/6 S (ex Basel) | 1990/91, low-floor module 1997–99 | three sections, 28.6 m (estimated), 2.20 m wide | high, low-floor middle module | 4 folding (door 1 single-leaf) | chopper, 4 power / 4 brake notches |
+| T6M-700 | 1985–1989, Sofia | two sections on three bogies, 20.75 m, 2.25 m wide | high, three steps | 4 double folding | resistance controller, 5 notches with contactor steps |
+
+Both run on the 1 009 mm track of the line, under the contact wire, dispatched per service like
+the buses (50 / 50 by default). A tram has one degree of freedom: it follows its track through
+the street-running sections, the ballasted sections and both terminal loops. Each body section
+sits on its bogies (the Schindler's low-floor module is carried between the end sections), the
+bogies turn under the body, the bellows follow, the pantograph rides on the wire.
+
+- **Before departing:** main switch (**I**), raise the pantograph (**U**, about 2.5 s), close the
+  doors (**C**), release the parking brake (**P**), direction forward (**1**).
+- **Controller:** **W** / **S** step it one notch towards power or braking (held keys repeat),
+  **N** returns it to zero. Traction needs the pantograph on the wire, closed doors and a
+  direction; it is limited by adhesion (wet rails slip, **Z** sands). Electric braking at speed,
+  the friction brake to a stand.
+- **Emergency brake** (**X**): magnetic track brakes, about 2.7 m/s².
+- **Speed limits:** the line speed, the road's limit on street track, curves (from the track
+  curvature) and points (30 km/h). Far over the limit in a curve or over points, the derailment
+  protection applies the emergency brake.
+- **Stops:** stop with the front at the stop mark, open the doors (**O**), close them (**C**);
+  the door warning is the tram's own (Schindler three beeps, T6M one tone).
+- **Bell** (**Space**) and **horn** (**B**, held).
+- Cars must clear the track: a car that keeps standing on the rails in front of a waiting tram
+  drives off after a while.
+
+Passengers board through any open door and walk through all sections (two steps up from the
+Schindler's low-floor module into the end sections).
+
 ### Passenger mode
 
 You start on the pavement at a real stop on the chosen line. A bus arrives about every
@@ -120,7 +156,9 @@ mobile.
 ### Touch devices
 
 Phones and tablets get on-screen controls automatically: a steering wheel, pedals, a
-gear selector, door buttons and a camera button for the driver, and a walk stick plus
+gear selector, door buttons and a camera button for the driver (in a tram: a controller lever
+that stays where you leave it, emergency brake, bell, horn, sand, main switch, pantograph and
+direction buttons), and a walk stick plus
 action buttons for the passenger. The controls respect the safe areas of
 notched screens. Force the touch layout on desktop with `?touch`.
 
@@ -253,6 +291,17 @@ BLENDER_PY=python bash tools/bake_bus_lightmaps.sh      # light bake of all four
 - **Line 64:** the stop lists of both directions, the request stops and the terminus
   arrangement (direction B ends at stop 0749 on the zoo loop, direction A starts at 2764)
   are documented with their sources in `data/research/line64/README.md`.
+- **Line 12 (tram):** stop codes from the request, matched to the OSM tram stop positions;
+  the path routed on the OSM tram tracks (1 009 mm) through both terminal loops; tracks that
+  OSM still tags as under construction at Central Station are included because the route
+  needs them. The temporary diversion of 13 October – 3 November 2026 is kept as a separate,
+  unverified route variant (its stop list could not be checked); the game runs the regular
+  route. Details and sources: `data/research/line12/README.md`.
+- **Trams:** modelled from the reference photos only (Schindler: photos 1–6, T6M-700: photos
+  7–10, `data/research/ref_photos/trams/`). Lengths, bogie and door positions not given by a
+  reachable source are estimates from the photos and are marked so in `TramSpecs.js` and the
+  research notes. Central Station is hand-built on its OSM footprint; its facade composition
+  is estimated.
 - **No Google data:** no Google Maps or Street View imagery or data is used, and no
   photograph is used as a texture: every texture is drawn procedurally, in code or baked in
   Blender from procedural materials.
@@ -276,13 +325,13 @@ BLENDER_PY=python bash tools/bake_bus_lightmaps.sh      # light bake of all four
 | Folder | Contents |
 | --- | --- |
 | `src/core` | projection, maths, path sampling, seeded random |
-| `src/gameplay` | route data, stop manager, announcements, destination display, bus entity, AI driver, traffic, pedestrians, scoring, state machine (pure logic is unit-tested) |
-| `src/vehicle` | vehicle registry and dispatch (`Vehicles.js`), articulated / rigid physics, door controller, LED signs; `models/` holds the four bus models |
-| `src/world` | heightfield, terrain, road network and meshes, buildings (archetype facade shader, real balconies, shop signs), street furniture and stop hardware, vegetation, landmarks (`landmarks64/` for line 64), spatial index |
+| `src/gameplay` | route data (with route variants), stop manager, announcements, destination display, bus and tram entities (`VehicleFactory.js` picks one), AI bus and tram drivers, traffic, pedestrians, scoring, state machine (pure logic is unit-tested) |
+| `src/vehicle` | vehicle registry and dispatch (`Vehicles.js`), articulated / rigid physics, door controller, LED signs; `models/` holds the four bus models, `trams/` the tram specs, rail dynamics (`TramDynamics.js`: track line, section and bogie placement, traction and brakes) and the Schindler and T6M-700 models |
+| `src/world` | heightfield, terrain, road network and meshes, buildings (archetype facade shader, real balconies, shop signs), street furniture and stop hardware, vegetation, tram tracks and overhead line (`TramTracks.js`), landmarks (`landmarks64/`, `landmarks12/`), spatial index |
 | `src/render` | renderer and post-processing, sky, cameras, procedural textures, weather, bus lights |
-| `src/audio` | synthesised bus sound with per-bus engine profiles, five listener zones, all buses audible with distance and Doppler, door and brake one-shots, ambience; voice announcer and pronunciation dictionary |
+| `src/audio` | synthesised bus sound with per-bus engine profiles, the tram voice (`TramVoice.js`: gear whine, chopper or DC motor, rolling noise, rail joints, squeal, gong), five listener zones, all buses audible with distance and Doppler, door and brake one-shots, ambience; voice announcer and pronunciation dictionary |
 | `src/ui` | HUD, menus, input, touch controls, i18n |
-| `src/game` | game modes, settings |
+| `src/game` | game modes, tram driving (`TramDriving.js`), settings |
 | `tools` | data pipeline, headless screenshot and route-check harness, manifest and announcement generators; `tools/blender` the Blender kits and the bus light bake |
 | `tests` | `node --test` unit tests |
 
