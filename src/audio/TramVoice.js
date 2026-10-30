@@ -49,13 +49,13 @@ export class TramVoice {
     this.out = G(1);
     this.zIn.connect(this.zHp); this.zHp.connect(this.zP[0]); this.zP[0].connect(this.zP[1]); this.zP[1].connect(this.zP[2]); this.zP[2].connect(this.zLp);
     this.zLp.connect(this.zGain); this.zGain.connect(this.zPan); this.zPan.connect(this.out);
-    this.engGrp = G(dB(9)); this.engGrp.connect(this.zIn);
-    this.roadGrp = G(dB(16)); this.roadGrp.connect(this.zIn);
+    this.engGrp = G(dB(20)); this.engGrp.connect(this.zIn);
+    this.roadGrp = G(dB(27)); this.roadGrp.connect(this.zIn);
     // gear mesh whine (two partials) and motor
     this.mesh = OSC('sine', 300); this.gMesh = G(0); this.mesh.connect(this.gMesh); this.gMesh.connect(this.engGrp);
     this.mesh2 = OSC('sine', 600); this.gMesh2 = G(0); this.mesh2.connect(this.gMesh2); this.gMesh2.connect(this.engGrp);
     this.dopOscs.push(this.mesh, this.mesh2);
-    this.rumO = OSC('sawtooth', 40); this.rumLp = BQ('lowpass', 260, 0.9); this.gRum = G(0);
+    this.rumO = OSC('sawtooth', 120); this.rumLp = BQ('lowpass', 700, 0.9); this.gRum = G(0);
     this.rumO.connect(this.rumLp); this.rumLp.connect(this.gRum); this.gRum.connect(this.engGrp);
     this.dopOscs.push(this.rumO);
     // rolling noise: low roar and the brighter rail hiss
@@ -72,9 +72,10 @@ export class TramVoice {
       this.mgO.connect(this.mgLp); this.mgLp.connect(this.gMg); this.gMg.connect(this.engGrp);
       this.dopOscs.push(this.chop, this.aux, this.mgO);
       // flange squeal (two partials with a tremolo) and the brake squeal
-      this.sq = OSC('sine', 3900); this.sq2 = OSC('sine', 7650); this.gSq = G(0);
-      this.trem = OSC('sine', 6.5); this.tremG = G(0.35); this.trem.connect(this.tremG); this.tremG.connect(this.gSq.gain);
-      this.sq.connect(this.gSq); this.sq2.connect(this.gSq); this.gSq.connect(this.roadGrp);
+      // the tremolo has its own stage (1 +- 0.35) ahead of the level, so a silent squeal stays silent
+      this.sq = OSC('sine', 3900); this.sq2 = OSC('sine', 7650); this.sqAm = G(1); this.gSq = G(0);
+      this.trem = OSC('sine', 6.5); this.tremG = G(0.35); this.trem.connect(this.tremG); this.tremG.connect(this.sqAm.gain);
+      this.sq.connect(this.sqAm); this.sq2.connect(this.sqAm); this.sqAm.connect(this.gSq); this.gSq.connect(this.roadGrp);
       this.bk = OSC('sine', 2750); this.gBk = G(0); this.bk.connect(this.gBk); this.gBk.connect(this.roadGrp);
       this.dopOscs.push(this.sq, this.sq2, this.bk);
     }
@@ -118,7 +119,7 @@ export class TramVoice {
     z.p.forEach((q, i) => { setP(this.zP[i].frequency, q[0], t, tc, 0.01); setP(this.zP[i].gain, q[1], t, tc, 0.01); setP(this.zP[i].Q, q[2], t, tc, 0.01); });
     setP(this.zLp.frequency, z.lp, t, tc, 0.01);
     setP(this.zGain.gain, dB(z.gain) * (L.cull == null ? 1 : L.cull), t, 0.08, 0.01);
-    setP(this.roadGrp.gain, dB(16 + z.road), t, 0.08, 0.01);
+    setP(this.roadGrp.gain, dB(27 + z.road), t, 0.08, 0.01);
     if (this.zPan.pan) setP(this.zPan.pan, clamp(L.pan || 0, -1, 1), t, 0.1, 0.02);
     const cents = L.zone === 'out' ? dopplerCents(L.radial) : 0;
     for (const o of this.dopOscs) setP(o.detune, cents, t, 0.05, 0.02);
@@ -137,9 +138,9 @@ export class TramVoice {
     const meshAmt = clamp((v - 0.6) / 4, 0, 1);
     setP(this.gMesh.gain, dB(P.meshGain + z.whine + 7 * work) * meshAmt, t, 0.1);
     setP(this.gMesh2.gain, dB(P.meshGain - 8 + z.whine + 6 * work) * meshAmt, t, 0.1);
-    // DC motor rumble (T6M) follows the motor speed
-    setP(this.rumO.frequency, Math.max(8, motorRps * 2), t, tc, 0.01);
-    setP(this.gRum.gain, dB(P.rumble + 9 * work) * clamp(v / 2, 0, 1), t, 0.1);
+    // DC motor (T6M): the slot / commutator hum follows the motor speed (above 120 Hz from ~15 km/h)
+    setP(this.rumO.frequency, Math.max(20, motorRps * 6), t, tc, 0.01);
+    setP(this.gRum.gain, dB(P.rumble - 4 + 9 * work) * clamp(v / 2, 0, 1), t, 0.1);
     // rolling noise (levels for 40 km/h); the concrete slab of street track is darker and quieter
     const k = clamp(Math.pow(Math.max(v, 0.01) / 11, 1.4), 0, 3), street = s.street ? 1 : 0;
     setP(this.gRollLo.gain, dB(-15 - street * 2) * k * clamp(v / 1.0, 0, 1), t, 0.12);
