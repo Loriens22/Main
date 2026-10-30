@@ -3,6 +3,100 @@
 A concise record of what was built, how it was verified, and what is still open.
 The newest entries are at the top.
 
+## 2026-10-30 — Blender: buildings, landmarks, buses and baked bus lighting
+
+Requests: a large upgrade of the buildings (the main ones on both lines in detail), the buses
+one-to-one with the reference photos inside and out, better kerbs, road markings and graphics,
+architecture that matches each neighbourhood (Кръстова вада: new 2005–2025 buildings, some tall),
+all of it built "with Blender and Unity / Unreal Engine 5".
+
+### Tools
+
+Unity and Unreal Engine 5 are not used: neither is available in the build environment, Unreal
+Engine 5 has no web export, and a Unity WebGL build is a separate player, not a scene inside the
+single offline HTML file. Blender 5.2 (`bpy`) is the modelling and baking tool; three.js loads its
+output. Four scripts in `tools/blender/` (README, *3D assets made in Blender*):
+
+- `kit_facade.py`: facade and roof kit along the routes (24 pieces, one atlas, 570 KB).
+- `kit_landmark.py`: sculpture and ornament for the landmarks (one atlas, 630 KB).
+- `kit_bus.py`: tyres, steel and aluminium wheels, the seat shells of the four buses, straps,
+  the Sofia validator, the MAN mirrors and the steering wheel (2048 atlas, 2.4 MB).
+- `bake_bus_light.py`: Cycles light bake of the static body and cabin of every bus.
+
+### Graphics, roads and buildings
+
+- GTAO ambient occlusion from the scene's depth buffer (full resolution on Ultra, half on High,
+  off on Balanced); a cabin-scale profile while the camera is inside a bus.
+- Kerbs as real stones with dropped kerbs and tactile bands at crossings; slab and block paving;
+  gully grates and manhole covers; yellow zig-zags at the stops of the line.
+- Facade windows sit in a recess with parallax reveals; the facade kit is placed from the
+  facade shader's own cell plan (units under windows, dishes on walls facing the satellites,
+  downpipes on corners, lift rooms over staircases).
+- Buildings typed by neighbourhood (`data/research/world/neighbourhoods.json`,
+  `NEIGHBOURHOODS.md`): Кръстова вада and Манастирски ливади are new buildings with cladding
+  accents, glazed balconies and a set-back top floor; Бояна and Драгалевци villas and low-rise
+  complexes; the centre interwar buildings; Стрелбище, Хиподрума, Младост and Дървеница keep
+  their panel blocks.
+- Landmarks get real window openings, stone surrounds, pilasters and curtain walls with
+  mullions, and the Blender sculpture.
+
+### Buses
+
+- Matched-camera comparison with the reference photos (camera fitted to each photo), then fixes
+  per bus: MAN white shoulders rising to the A-pillars, windscreen down to 1.16 m, headlamps with
+  two chrome bowls, ram's-horn mirror; Procity front cleaned up (band and lamp clusters); Conecto
+  fleet number and lenses; interiors after the cabin photos (MAN ducts with slot grilles, light
+  floor, grey seat tops; Procity neutral walls; Yutong silver poles and perforated ceiling;
+  Conecto downlights and ducts).
+- Glass with a Fresnel term (see-through square-on, mirror-like at grazing angles), a street
+  skyline in the environment map, darker glazing outside and eye adaptation inside.
+- Cabins kept inside the skin: flat panels, dashboards and rear walls built to the full cabin
+  width stood out of the rounded corners as slabs (`clipFront` / `clipRear`).
+- Mirrored parts had correct normals but reversed winding, so the renderer drew the inner far
+  wall of every pole, strap and rail tube; `Parts.add` now turns such triangles.
+- Driver's view: the clear screen beside the driver no longer stands in the windscreen, satin
+  wheel badge, smoked sun blinds.
+- **Baked lighting** (`src/vehicle/BusLightmap.js`): the static meshes of each bus are unwrapped
+  into a lightmap atlas, exported, lit in Cycles by a uniform sky with three diffuse bounces, and
+  the result is applied as the ambient-occlusion map of those parts. The cabin's sky light now
+  falls off from the windows to the aisle, under the seats and into the door wells instead of
+  being one constant; the body gets contact shading in the arches, door recesses and round the
+  roof equipment. Two detail levels per bus (Ultra/High and Balanced); the geometry signature
+  keeps a stale bake from being applied.
+
+### Verification
+
+- `npm test`: 38 / 38 (new: lightmap layout determinism, bounds, signature, detail levels);
+  `tools/smoke.sh`: driver, passenger and bus studio load without errors.
+- Full trips with the AI driver (`tools/route_check.cjs`, on the build before the light bake,
+  which changes no physics): MAN 280 A 18 / 18 in 25 min, Conecto 280 B 18 / 18 in 32 min,
+  Procity 64 A 35 / 35 in 40 min, Yutong 64 B 33 / 33 in 38 min.
+- Light bake (`tools/bake_bus_lightmaps.sh`, Cycles on 4 CPU cores, 128 samples at 2048 px for
+  Ultra / High, 96 at 1024 px for Balanced; about 100 s per bus at 2048):
+
+  | Bus | Baked meshes (High) | Charts (High) | Texels per metre (2048 / 1024) | Maps (2048 + 1024) |
+  | --- | --- | --- | --- | --- |
+  | MAN Lion's City G | 44 | 3383 | 61 / 22 | 328 + 198 KB |
+  | Mercedes Conecto G | 37 | 4110 | 60 / 19 | 398 + 257 KB |
+  | BMC Procity | 27 | 2541 | 72 / 27 | 276 + 160 KB |
+  | Yutong ZK6126HGA | 24 | 2269 | 81 / 29 | 262 + 158 KB |
+
+  The maps apply in the game on High and Balanced for every bus (checked through
+  `model.lightmapped`); the open-sky reference square bakes to exactly 1.0.
+- Draw calls and triangles per frame in the cab at the start of the route at noon, shadow pass
+  included: line 280 (MAN) High 1093 / 1.57 M, Balanced 631 / 0.80 M; line 64 (Procity) High
+  1058 / 1.15 M, Balanced 601 / 0.64 M. That is more than on 10-24 (280 High 848 / 0.71 M): the
+  facade kit, kerbstones, paving and landmark detail; the light bake adds no draw call.
+
+### Still open
+
+- The bake holds sky light only; the sunlit floor and seats would also throw light onto the
+  ceiling, which the game approximates by applying 80 % of the baked cabin shading.
+- The instanced Blender pieces inside the cabin (seats, straps, validators) are not in the
+  lightmap; they keep the uniform cabin factor and their own baked contact shading.
+- A change to a bus model needs a new bake (`tools/bake_bus_lightmaps.sh`); until then that bus
+  falls back to its unbaked lighting.
+
 ## 2026-10-24 — expansion 2.0: line 64, three more buses, dispatch, landmarks
 
 ### Milestones

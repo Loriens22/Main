@@ -11,6 +11,7 @@ import { LedSign } from '../../LedSign.js';
 import { makeLouvre, canvas, tex } from '../../BusTextures.js';
 import { Parts } from '../../BusGeom.js';
 import { bakeStatic } from '../../BusBake.js';
+import { applyBusLightmap } from '../../BusLightmap.js';
 import {
   makeLiveryAtlas, makeDecalSheet, makePlate, makeSilverBand, makeHeadCluster, makeTailCluster,
 } from './ProcityTextures.js';
@@ -57,6 +58,8 @@ export class ProcityModel {
     this.buildSigns();
     this.bakeStats = bakeStatic(this.root, new Set([...Object.values(this.lightMats), this.mats.stopBtn, this.mats.lightStrip, this.mats.drl]));
     for (const g of this.interiorGroups || []) g.traverse((o) => { if (o.isMesh) o.castShadow = false; });
+    // sky light and its bounces baked in Blender (Cycles) for the static body and cabin
+    applyBusLightmap(this, 'procity');
     occludeInterior(this);
   }
 

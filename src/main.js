@@ -9,6 +9,7 @@ import { Renderer } from './render/Renderer.js';
 import { SkySystem } from './render/SkySystem.js';
 import { vehicleSpec, frames } from './vehicle/Vehicles.js';
 import { loadBusKit } from './vehicle/BusKit.js';
+import { loadBusLightmaps, exportLightmapScene } from './vehicle/BusLightmap.js';
 import { Game } from './game/Game.js';
 import { Menu } from './ui/Menu.js';
 import { Input } from './ui/Input.js';
@@ -52,7 +53,7 @@ async function boot() {
   const line = ROUTES[params.get('line')] ? params.get('line') : ROUTES[settings.line] ? String(settings.line) : '280';
   const route = new Route280(ROUTES[line]);
   // Blender-modelled bus parts: parsed while the world loads, ready before the first bus is built
-  const busKit = loadBusKit();
+  const busKit = Promise.all([loadBusKit(), loadBusLightmaps()]);
   if (params.get('scene') === 'bus') return busKit.then(() => busStudio({ R, scene, camera, sky, progress }));
   const states = new GameStateManager();
   states.go('menu');
@@ -260,6 +261,8 @@ async function busStudio({ R, scene, camera, sky, progress }) {
   document.getElementById('loading').classList.add('hidden');
   const api = {
     THREE, scene, camera, bus, spec, frames: F, sky, renderer: R, placeSections,
+    /** tools/bus_lightmap_export.cjs: the bake scene of this bus (Blender light bake). */
+    lightmapScene: (size) => exportLightmapScene(bus, size),
     look(x, y, z, tx, ty, tz, fov = 50) {
       camera.fov = fov;
       camera.aspect = R.canvas.clientWidth / R.canvas.clientHeight;

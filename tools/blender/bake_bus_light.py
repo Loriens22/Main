@@ -1,0 +1,227 @@
+# Light bake for the bus models in Blender (Cycles): the sky light and its bounces on the static body and cabin
+# of one bus, written as a grey lightmap that the game applies as the ambient-occlusion map of those parts
+# (src/vehicle/BusLightmap.js). It does for the buses what baked lighting does in Unreal or Unity.
+#
+# Input: the bake scene exported from the game by tools/bus_lightmap_export.cjs (lit meshes with their
+# lightmap UVs, albedo and normals; every other opaque part as an occluder). The scene is lit by a uniform
+# white sky of radiance 1 and nothing else, so an unshadowed surface receives exactly 1 whatever it faces: the
+# bake is the fraction of the open-sky light that reaches each point, bounces included (Cycles diffuse pass,
+# direct + indirect, no albedo). Glass is not in the scene: the sky comes in through the window openings; the
+# tint of the glazing is applied in the game (CABIN_GLAZING in Glass.js).
+#
+# Output: src/data/lightmaps/<bus>_<variant>.webp (sRGB-encoded, so the darks keep their steps) and .json
+# (atlas size, texels per metre, the geometry signature), and src/data/lightmaps/index.js listing all maps.
+#
+#   blenv/bin/python tools/blender/bake_bus_light.py <scene.json> [--samples 128] [--preview out.png]
+import base64
+import json
+import math
+import os
+import sys
+import time
+
+import bpy
+import numpy as np
+
+ROOT = os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
+OUT_DIR = os.path.join(ROOT, 'src', 'data', 'lightmaps')
+
+
+def arr(s, dtype=np.float32):
+    return np.frombuffer(base64.b64decode(s), dtype=dtype)
+
+
+def to_blender(p):
+    """three.js (x, y, z) -> Blender (x, -z, y)."""
+    p = p.reshape(-1, 3)
+    out = np.empty_like(p)
+    out[:, 0], out[:, 1], out[:, 2] = p[:, 0], -p[:, 2], p[:, 1]
+    return out
+
+
+def soup_mesh(name, pos, col, uv=None, nrm=None):
+    """Triangle soup (3 vertices per triangle, in order) as a Blender mesh; loop i is vertex i."""
+    v = to_blender(pos)
+    n = len(v)
+    me = bpy.data.meshes.new(name)
+    me.vertices.add(n)
+    me.vertices.foreach_set('co', v.ravel())
+    me.loops.add(n)
+    me.loops.foreach_set('vertex_index', np.arange(n, dtype=np.int32))
+    me.polygons.add(n // 3)
+    me.polygons.foreach_set('loop_start', np.arange(0, n, 3, dtype=np.int32))
+    me.update(calc_edges=True)
+    me.validate(clean_customdata=False)
+    if uv is not None:
+        layer = me.uv_layers.new(name='lm')
+        layer.data.foreach_set('uv', uv.astype(np.float32).ravel())
+    ca = me.color_attributes.new('alb', 'FLOAT_COLOR', 'POINT')
+    rgba = np.ones((n, 4), np.float32)
+    rgba[:, :3] = np.clip(col.reshape(-1, 3), 0.0, 1.0)
+    ca.data.foreach_set('color', rgba.ravel())
+    if nrm is not None:
+        nb = to_blender(nrm)
+        ln = np.linalg.norm(nb, axis=1, keepdims=True)
+        nb = nb / np.maximum(ln, 1e-8)
+        me.polygons.foreach_set('use_smooth', np.ones(n // 3, dtype=bool))
+        me.normals_split_custom_set_from_vertices(nb.tolist())
+    ob = bpy.data.objects.new(name, me)
+    bpy.context.scene.collection.objects.link(ob)
+    return ob
+
+
+def diffuse_material(name, image=None):
+    m = bpy.data.materials.new(name)
+    m.use_nodes = True
+    nt = m.node_tree
+    for nd in list(nt.nodes):
+        nt.nodes.remove(nd)
+    out = nt.nodes.new('ShaderNodeOutputMaterial')
+    bsdf = nt.nodes.new('ShaderNodeBsdfDiffuse')
+    att = nt.nodes.new('ShaderNodeAttribute')
+    att.attribute_name = 'alb'
+    nt.links.new(att.outputs['Color'], bsdf.inputs['Color'])
+    nt.links.new(bsdf.outputs['BSDF'], out.inputs['Surface'])
+    if image is not None:
+        tex = nt.nodes.new('ShaderNodeTexImage')
+        tex.image = image
+        uvn = nt.nodes.new('ShaderNodeUVMap')
+        uvn.uv_map = 'lm'
+        nt.links.new(uvn.outputs['UV'], tex.inputs['Vector'])
+        nt.nodes.active = tex
+        tex.select = True
+    return m
+
+
+def blur_masked(img, mask, sigma):
+    """Gaussian blur that only mixes covered texels (normalised convolution), separable."""
+    r = max(1, int(math.ceil(2.5 * sigma)))
+    k = np.exp(-0.5 * (np.arange(-r, r + 1) / sigma) ** 2).astype(np.float32)
+    k /= k.sum()
+
+    def conv(a):
+        pa = np.pad(a, ((r, r), (0, 0)), mode='edge')
+        a = sum(k[i] * pa[i:i + a.shape[0]] for i in range(2 * r + 1))
+        pa = np.pad(a, ((0, 0), (r, r)), mode='edge')
+        return sum(k[i] * pa[:, i:i + a.shape[1]] for i in range(2 * r + 1))
+
+    num = conv(img * mask)
+    den = conv(mask)
+    out = np.where(den > 1e-4, num / np.maximum(den, 1e-4), img)
+    return np.where(mask > 0, out, img)
+
+
+def srgb(x):
+    x = np.clip(x, 0.0, 1.0)
+    return np.where(x <= 0.0031308, 12.92 * x, 1.055 * np.power(x, 1 / 2.4) - 0.055)
+
+
+def write_index():
+    keys = sorted(f[:-5] for f in os.listdir(OUT_DIR) if f.endswith('.webp') and os.path.exists(os.path.join(OUT_DIR, f[:-5] + '.json')))
+    lines = ['// Generated by tools/blender/bake_bus_light.py: the baked bus lightmaps (see src/vehicle/BusLightmap.js).']
+    for k in keys:
+        lines.append(f"import {k}_img from './{k}.webp';")
+        lines.append(f"import {k}_meta from './{k}.json';")
+    lines.append('')
+    lines.append('export default {')
+    for k in keys:
+        lines.append(f'  {k}: {{ img: {k}_img, meta: {k}_meta }},')
+    lines.append('};')
+    with open(os.path.join(OUT_DIR, 'index.js'), 'w') as f:
+        f.write('\n'.join(lines) + '\n')
+    return keys
+
+
+def main():
+    argv = sys.argv[1:]
+    src = argv[0]
+    samples = int(argv[argv.index('--samples') + 1]) if '--samples' in argv else 128
+    preview = argv[argv.index('--preview') + 1] if '--preview' in argv else None
+    d = json.load(open(src))
+    S, reserve, pad = d['size'], d['reserve'], d['pad']
+    key = f"{d['bus']}_{d['variant']}"
+    t0 = time.time()
+
+    bpy.ops.wm.read_factory_settings(use_empty=True)
+    sc = bpy.context.scene
+    sc.render.engine = 'CYCLES'
+    sc.cycles.device = 'CPU'
+    sc.cycles.samples = samples
+    sc.cycles.use_denoising = False
+    sc.cycles.max_bounces = 4
+    sc.cycles.diffuse_bounces = 3
+    sc.cycles.glossy_bounces = 0
+    sc.cycles.transmission_bounces = 0
+    sc.cycles.transparent_max_bounces = 0
+    w = bpy.data.worlds.new('sky')
+    w.use_nodes = True
+    bg = w.node_tree.nodes['Background']
+    bg.inputs['Color'].default_value = (1, 1, 1, 1)
+    bg.inputs['Strength'].default_value = 1.0
+    sc.world = w
+
+    img = bpy.data.images.new('lightmap', S, S, alpha=True, float_buffer=True)
+    img.colorspace_settings.name = 'Non-Color'
+    img.pixels.foreach_set(np.zeros(S * S * 4, np.float32))
+    lit_mat = diffuse_material('lit', img)
+    occ_mat = diffuse_material('occ')
+
+    # lit meshes (one object) + a reference square in open sky mapped onto the reserved block
+    pos = [arr(o['pos']) for o in d['lit']]
+    uv = [arr(o['uv']) for o in d['lit']]
+    col = [arr(o['col']) for o in d['lit']]
+    nrm = [arr(o['nrm']) for o in d['lit']]
+    r = (reserve - 1.0) / S
+    # winding and normal both face up (three.js +y)
+    far = np.array([[500, 500, 500], [500, 500, 501], [501, 500, 501], [500, 500, 500], [501, 500, 501], [501, 500, 500]], np.float32)
+    pos.append(far.ravel())
+    lo = 0.5 / S
+    uv.append(np.array([[lo, lo], [lo, r], [r, r], [lo, lo], [r, r], [r, lo]], np.float32).ravel())
+    col.append(np.full(18, 0.8, np.float32))
+    nrm.append(np.tile(np.array([0, 1, 0], np.float32), 6))
+    lit = soup_mesh('lit', np.concatenate(pos), np.concatenate(col), np.concatenate(uv), np.concatenate(nrm))
+    lit.data.materials.append(lit_mat)
+    occ = soup_mesh('occ', np.concatenate([arr(o['pos']) for o in d['occ']]), np.concatenate([arr(o['col']) for o in d['occ']]))
+    occ.data.materials.append(occ_mat)
+    print(f'{key}: scene {len(lit.data.polygons)} baked + {len(occ.data.polygons)} occluding triangles, {time.time() - t0:.1f}s', flush=True)
+
+    for o in sc.objects:
+        o.select_set(False)
+    lit.select_set(True)
+    bpy.context.view_layer.objects.active = lit
+    bk = sc.render.bake
+    bk.margin_type = 'EXTEND'
+    bk.target = 'IMAGE_TEXTURES'
+    t1 = time.time()
+    bpy.ops.object.bake(type='DIFFUSE', pass_filter={'DIRECT', 'INDIRECT'}, margin=pad, use_clear=False)
+    print(f'{key}: Cycles bake {samples} samples {time.time() - t1:.1f}s', flush=True)
+
+    px = np.empty(S * S * 4, np.float32)
+    img.pixels.foreach_get(px)
+    px = px.reshape(S, S, 4)  # row 0 = bottom (v = 0)
+    lum = 0.2126 * px[..., 0] + 0.7152 * px[..., 1] + 0.0722 * px[..., 2]
+    mask = (px[..., 3] > 0.5).astype(np.float32)
+    print('reserve rgba', px[0:reserve, 0:reserve].reshape(-1, 4).mean(0), 'lum pct 50/90/99', np.percentile(lum[mask > 0], [50, 90, 99]), flush=True)
+    ref = float(np.median(lum[1:reserve - 1, 1:reserve - 1]))
+    print(f'{key}: open-sky reference {ref:.4f}, coverage {mask.mean():.3f}', flush=True)
+    lm = lum / max(ref, 1e-6)
+    lm = blur_masked(lm, mask, 1.2)
+    lm[:reserve, :reserve] = 1.0
+    lm = np.where(mask > 0, lm, 1.0)
+    enc = (srgb(lm) * 255 + 0.5).astype(np.uint8)[::-1]  # file rows top-down
+
+    from PIL import Image
+    os.makedirs(OUT_DIR, exist_ok=True)
+    Image.fromarray(enc, 'L').save(os.path.join(OUT_DIR, key + '.webp'), quality=82, method=6)
+    meta = {'size': S, 'scale': round(d['scale'], 3), 'signature': d['signature'], 'samples': samples,
+            'mean': round(float(lm[mask > 0].mean()), 3)}
+    with open(os.path.join(OUT_DIR, key + '.json'), 'w') as f:
+        json.dump(meta, f)
+    if preview:
+        Image.fromarray(enc, 'L').save(preview)
+    keys = write_index()
+    print(f'{key}: wrote {key}.webp ({os.path.getsize(os.path.join(OUT_DIR, key + ".webp")) // 1024} KB), mean {meta["mean"]}, '
+          f'index: {", ".join(keys)}; total {time.time() - t0:.0f}s', flush=True)
+
+
+main()

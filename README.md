@@ -19,8 +19,9 @@ works offline: no server, CDN or network access is needed.
 | ![Mercedes Conecto G at the University on line 280](docs/screenshots/conecto-280.jpg) | ![Line and vehicle choice in the menu](docs/screenshots/menu-lines.jpg) |
 | ![National Centre of Public Health and Analyses, Geshov blvd.](docs/screenshots/hygiene-centre.jpg) | ![The zoo's western entrance on Srebarna](docs/screenshots/zoo-west-entrance.jpg) |
 | ![Боянско ханче](docs/screenshots/boyansko-hanche.jpg) | ![Dragalevtsi cemetery gate and florist](docs/screenshots/dragalevtsi-cemetery.jpg) |
-| ![The bus next to the user's reference photos](docs/screenshots/bus-vs-photos.jpg) | ![Seated inside the bus](docs/screenshots/passenger-interior.jpg) |
+| ![The four buses next to the reference photos (photo left, game right)](docs/screenshots/bus-vs-photos.jpg) | ![Cabin without and with the Blender light bake](docs/screenshots/bus-light-bake.jpg) |
 | ![Night at the university](docs/screenshots/night.jpg) | ![Phone landscape layout](docs/screenshots/mobile-driver.jpg) |
+| ![Seated inside the bus](docs/screenshots/passenger-interior.jpg) | |
 
 ## Playing
 
@@ -183,7 +184,7 @@ The game never reads Bulgarian with an English voice. See [docs/AUDIO.md](docs/A
 
 ```sh
 npm install           # esbuild + three
-npm test              # unit tests: route, stops, announcements, doors, dispatch, pronunciation, state machine, swept path, gzip fallback
+npm test              # unit tests: route, stops, announcements, doors, dispatch, pronunciation, state machine, swept path, gzip fallback, lightmap layout
 npm run build         # -> index.html and dist/sofia-public-transport.html (single file)
 node build.mjs --dev  # unminified with inline source maps
 ```
@@ -206,6 +207,42 @@ python3 tools/build_route.py <datadir> src/data/route64.json 64   # line 64 rout
 node tools/make_manifest.mjs
 ```
 
+## 3D assets made in Blender
+
+The game is one offline HTML file drawn by three.js (WebGL2). Unity and Unreal Engine 5 are not
+used: neither is available in the build environment, Unreal Engine 5 has no web export, and a Unity
+WebGL build is a separate multi-file player, not a scene inside this single file. **Blender 5.2**
+(its Python module `bpy`) does the offline modelling and baking instead, and three.js loads the
+results:
+
+| Script | Output | What it makes |
+| --- | --- | --- |
+| `tools/blender/kit_facade.py` | `src/data/kit_facade.glb` | facade and roof pieces for the buildings along the routes: split-AC units, dishes, downpipes, TV masts, vents, lift rooms, awnings, lamps, chimneys, roller shutters, window bars, washing racks, window boxes, gas pipes |
+| `tools/blender/kit_landmark.py` | `src/data/kit_landmark.glb` | sculpture and ornament for the landmarks: bronze eagles, stone lions, robed and seated figures, Corinthian capitals, fluted shafts, column bases, balusters |
+| `tools/blender/kit_bus.py` | `src/data/kit_bus.glb` | bus parts: 275/70 R22.5 tyre, steel and polished aluminium wheels, the seat shells of all four buses, hand straps, the Sofia validator, the MAN mirrors, the steering wheel |
+| `tools/blender/bake_bus_light.py` | `src/data/lightmaps/*.webp` | baked light for the body and cabin of every bus (Cycles) |
+
+Every kit piece is a detailed high-poly model (bevels, lettering, tread, grilles, fabric relief)
+baked onto a game mesh: albedo with contact shading, a normal map, ambient occlusion,
+roughness and metalness, in one atlas per kit.
+
+The **bus light bake** does for the buses what baked lighting does in Unreal or Unity. Each bus
+is exported from the game (`tools/bus_lightmap_export.cjs`), lit in Cycles by a uniform sky with
+three diffuse bounces, and the fraction of the open-sky light that reaches every point of the body
+and the cabin is stored in a lightmap. In the game it scales the sky and environment light of those
+parts while the sun and its shadows stay live: dark under the seats and in the door wells, bright
+beside the windows, contact shading round the bumpers, the wheel arches and the roof pods. The
+lightmap UVs are computed from the geometry (`src/vehicle/BusLightmap.js`) the same way at export
+and at run time, so they are not stored. A signature of the geometry is baked with each map. After a
+change to a bus model, bake again; until then, a map that no longer matches is ignored and the bus
+keeps its unbaked lighting.
+
+```sh
+pip install bpy==5.2.3 numpy pillow                    # Python 3.13
+python tools/blender/kit_bus.py                         # one kit (also kit_facade.py, kit_landmark.py)
+BLENDER_PY=python bash tools/bake_bus_lightmaps.sh      # light bake of all four buses (about 20 min on 4 cores)
+```
+
 ## Data and accuracy
 
 - **Map data:** roads, buildings, stops, signals, crossings, trees and land use come from
@@ -217,7 +254,8 @@ node tools/make_manifest.mjs
   arrangement (direction B ends at stop 0749 on the zoo loop, direction A starts at 2764)
   are documented with their sources in `data/research/line64/README.md`.
 - **No Google data:** no Google Maps or Street View imagery or data is used, and no
-  photograph is used as a texture: every texture is drawn procedurally.
+  photograph is used as a texture: every texture is drawn procedurally, in code or baked in
+  Blender from procedural materials.
 - **Buses:** measured from the reference photos supplied with the request. Each model has
   a `NOTES.md` in `src/vehicle/models/<bus>/` that separates measured numbers, published
   data and approximations. The Yutong's fleet numbers are placeholders.
@@ -245,7 +283,7 @@ node tools/make_manifest.mjs
 | `src/audio` | synthesised bus sound with per-bus engine profiles, five listener zones, all buses audible with distance and Doppler, door and brake one-shots, ambience; voice announcer and pronunciation dictionary |
 | `src/ui` | HUD, menus, input, touch controls, i18n |
 | `src/game` | game modes, settings |
-| `tools` | data pipeline, headless screenshot and route-check harness, manifest and announcement generators |
+| `tools` | data pipeline, headless screenshot and route-check harness, manifest and announcement generators; `tools/blender` the Blender kits and the bus light bake |
 | `tests` | `node --test` unit tests |
 
 Progress log: [docs/PROGRESS.md](docs/PROGRESS.md).

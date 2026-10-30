@@ -14,7 +14,7 @@ const options = {
   minify: !dev,
   sourcemap: dev ? 'inline' : false,
   target: ['es2020', 'safari15'],
-  loader: { '.b64': 'text', '.json': 'json', '.glsl': 'text', '.glb': 'binary' },
+  loader: { '.b64': 'text', '.json': 'json', '.glsl': 'text', '.glb': 'binary', '.webp': 'binary' },
   legalComments: 'none',
   write: false,
   define: { __BUILD_TIME__: JSON.stringify(new Date().toISOString()) },

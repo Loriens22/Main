@@ -9,6 +9,7 @@ import { K } from './consts.js';
 import { LedSign } from '../../LedSign.js';
 import { Parts } from '../../BusGeom.js';
 import { bakeStatic } from '../../BusBake.js';
+import { applyBusLightmap } from '../../BusLightmap.js';
 import { frames } from '../../frames.js';
 import { canvas, tex, makeOrnamentAtlas, makeDecalSheet, makePlate, makeHeadlampTex, makeLouvrePanel, makeVent } from './YutongTextures.js';
 import { frontPatch, colsBetween } from './surfaces.js';
@@ -55,6 +56,8 @@ export class YutongModel {
     this.bakeStats = bakeStatic(this.root, new Set([...Object.values(this.lightMats), this.mats.stopBtn, this.mats.lightStrip]));
     // the body already shadows the cabin: interior parts only receive shadows
     for (const g of this.interiorGroups || []) g.traverse((o) => { if (o.isMesh) o.castShadow = false; });
+    // sky light and its bounces baked in Blender (Cycles) for the static body and cabin
+    applyBusLightmap(this, 'yutong');
     occludeInterior(this);
   }
 

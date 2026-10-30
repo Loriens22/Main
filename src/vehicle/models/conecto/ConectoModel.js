@@ -9,6 +9,7 @@ import { disposeModel } from '../../BusKit.js';
 import { glassMaterial, occludeInterior } from '../../Glass.js';
 import { LedSign } from '../../LedSign.js';
 import { bakeStatic } from '../../BusBake.js';
+import { applyBusLightmap } from '../../BusLightmap.js';
 import { frames } from '../../frames.js';
 import { Parts } from './geom.js';
 import { makePlate, makeHeadCluster, makeDecals, makeVent, makeMoquette, makeFloor, makeCeiling, makeTurntable, makeValidator, makeDashGrain } from './ConectoTextures.js';
@@ -56,6 +57,8 @@ export class ConectoModel {
     this.buildSigns();
     this.bakeStats = bakeStatic(this.root, new Set([...Object.values(this.lightMats), this.mats.stopBtn, this.mats.lightStrip]));
     for (const g of this.interiorGroups || []) g.traverse((o) => { if (o.isMesh) o.castShadow = false; });
+    // sky light and its bounces baked in Blender (Cycles) for the static body and cabin
+    applyBusLightmap(this, 'conecto');
     occludeInterior(this);
   }
 

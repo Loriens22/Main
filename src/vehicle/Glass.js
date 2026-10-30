@@ -28,6 +28,16 @@ export function glassMaterial({ color = 0x0b0e11, transmit = 0.5, side = THREE.F
 
 /** Ambient/environment light reaching the cabin, relative to outside. */
 export const CABIN_AMBIENT = 0.34;
+/**
+ * The same for parts with the Blender light bake (BusLightmap.js): the bake already holds how much sky each
+ * point sees through the window openings and the bounces; what is left is the tint of the glazing.
+ */
+export const CABIN_GLAZING = 0.9;
+/**
+ * Share of the baked cabin shading that is applied (aoMapIntensity): the bake holds sky light only, while the
+ * sunlit floor and seats of a real bus also throw light onto the ceiling and into the aisle.
+ */
+export const CABIN_BAKE = 0.8;
 
 /**
  * Scales the indirect light of every material used only inside the cabin (interior groups, cab). Materials
@@ -67,15 +77,17 @@ export function occludeInterior(model, k = CABIN_AMBIENT, warm = new THREE.Color
     for (const m of mats) {
       if (skip(m) || patched.has(m)) continue;
       patched.add(m);
+      const f = m.userData.lightmapped ? CABIN_GLAZING : k;
+      if (m.userData.lightmapped) m.aoMapIntensity = CABIN_BAKE;
       const prev = m.onBeforeCompile;
       m.onBeforeCompile = (sh, r) => {
         if (prev) prev(sh, r);
         sh.fragmentShader = sh.fragmentShader.replace('#include <aomap_fragment>', `#include <aomap_fragment>
-          reflectedLight.indirectDiffuse *= ${k.toFixed(3)};
-          reflectedLight.indirectSpecular *= ${k.toFixed(3)};`);
+          reflectedLight.indirectDiffuse *= ${f.toFixed(3)};
+          reflectedLight.indirectSpecular *= ${f.toFixed(3)};`);
       };
       const key = m.customProgramCacheKey ? m.customProgramCacheKey.bind(m) : () => '';
-      m.customProgramCacheKey = () => `${key()}|cabin${k}`;
+      m.customProgramCacheKey = () => `${key()}|cabin${f}`;
       m.needsUpdate = true;
     }
   }

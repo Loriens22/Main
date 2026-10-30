@@ -19,6 +19,7 @@ import { SideMixin } from './BusSides.js';
 import { RearMixin, REAR_ROOF_END, rearPatch } from './BusRear.js';
 import { RunningMixin } from './BusRunning.js';
 import { bakeStatic } from './BusBake.js';
+import { applyBusLightmap } from './BusLightmap.js';
 
 export const FLEET = {
   3145: { plate: 'CB 5696 HM', depot: 'Земляне' },
@@ -63,6 +64,8 @@ export class BusModel {
     this.bakeStats = bakeStatic(this.root, new Set([...Object.values(this.lightMats), this.mats.stopBtn, this.mats.lightStrip]));
     // the body already shadows the cabin: interior parts only receive shadows (big saving in the shadow pass)
     for (const g of this.interiorGroups || []) g.traverse((o) => { if (o.isMesh) o.castShadow = false; });
+    // sky light and its bounces baked in Blender (Cycles) for the static body and cabin
+    applyBusLightmap(this, 'man');
     occludeInterior(this);
   }
 

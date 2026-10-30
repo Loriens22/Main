@@ -11,6 +11,30 @@ export const S_REAR_ORIGIN = BUS.frontOverhang + BUS.wb1 + BUS.wb2; // distance 
 export const sToFrontZ = (s) => FRONT_Z + s;
 export const sToRearZ = (s) => s - S_REAR_ORIGIN;
 
+/**
+ * Turns every triangle whose winding disagrees with its vertex normals. Mirrored parts (a negative scale in
+ * the matrix or on the geometry) keep correct normals but reversed winding, so the renderer culled their outer
+ * faces and drew the inner far wall instead, and the light bake saw the inside of the tube.
+ */
+function orientToNormals(g) {
+  const p = g.attributes.position, n = g.attributes.normal;
+  if (!p || !n || p.count % 3) return;
+  const P = p.array, N = n.array;
+  const attrs = Object.values(g.attributes);
+  for (let t = 0; t < p.count; t += 3) {
+    const a = 3 * t, b = a + 3, c = a + 6;
+    const ux = P[b] - P[a], uy = P[b + 1] - P[a + 1], uz = P[b + 2] - P[a + 2];
+    const vx = P[c] - P[a], vy = P[c + 1] - P[a + 1], vz = P[c + 2] - P[a + 2];
+    const fx = uy * vz - uz * vy, fy = uz * vx - ux * vz, fz = ux * vy - uy * vx;
+    const d = fx * (N[a] + N[b] + N[c]) + fy * (N[a + 1] + N[b + 1] + N[c + 1]) + fz * (N[a + 2] + N[b + 2] + N[c + 2]);
+    if (d >= 0) continue;
+    for (const at of attrs) {
+      const s = at.itemSize, A = at.array, i1 = (t + 1) * s, i2 = (t + 2) * s;
+      for (let k = 0; k < s; k++) { const tmp = A[i1 + k]; A[i1 + k] = A[i2 + k]; A[i2 + k] = tmp; }
+    }
+  }
+}
+
 /** Collects geometry per material and merges it. */
 class Parts {
   constructor() {
@@ -23,6 +47,7 @@ class Parts {
     if (!g.attributes.uv) g.setAttribute('uv', new THREE.Float32BufferAttribute(new Float32Array((g.attributes.position.count) * 2), 2));
     if (!g.attributes.normal) g.computeVertexNormals();
     if (m) g.applyMatrix4(m);
+    orientToNormals(g);
     let a = this.map.get(key);
     if (!a) this.map.set(key, (a = []));
     a.push(g);
