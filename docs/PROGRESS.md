@@ -40,22 +40,24 @@ temporary diversion, the landmarks along the line, mobile controls, all existing
 - **Sound** (`TramVoice.js`): gear whine, the Schindler's chopper, the T6M's DC motor and
   contactor steps, rolling noise darker on street track, rail joints per bogie, flange squeal in
   tight curves, brake squeal, the gong.
-- **Central Station** hand-built on its footprint (`landmarks12/station.js`).
+- **Central Station** hand-built on its footprint (`landmarks12/station.js`); **пл. Славейков**
+  with the bronze bench of Petko and Pencho Slaveykov and the book market stalls
+  (`landmarks12/slaveykov.js`).
 
 ### Verified
 
 - `npm test`: 45 tests, including `tests/tram.test.js` (dispatch, specs, joints on 25 m and
   18 m curves, bogies on the rails, traction, stopping distances, adhesion, track line).
-- Route check (AI tram, every stop served): Schindler A 21/21 in 31 min, T6M A 21/21 in
-  34 min, T6M B 21/21 in 27 min (game time).
+- Route check (AI tram, every stop served): Schindler A 21/21 in 31 min, Schindler B 21/21 in
+  27 min, T6M A 21/21 in 34 min, T6M B 21/21 in 27 min (game time).
 - Driver mode with both trams (start-up, notches, braking), passenger mode (boarding, walking
   through the gangway, riding), offline audio levels (cab −25 dB at 30 km/h, peaks below −3 dB).
 
 ### Open
 
-- Landmarks along the line other than Central Station (Граф Игнатиев, пл. Славейков, пл.
-  Гарибалди, пл. Македония, УАСГ, пл. Журналист, Стоков базар Илиянци, Пета градска болница) are
-  OSM massing with the neighbourhood-typed facades.
+- Landmarks along the line other than Central Station and пл. Славейков (Граф Игнатиев's
+  buildings, пл. Гарибалди, пл. Македония, УАСГ, пл. Журналист, Стоков базар Илиянци, Пета
+  градска болница) are OSM massing with the neighbourhood-typed facades.
 - The diversion variant needs a verified stop list and path before it can be driven.
 - Tram stops use the existing stop hardware on the OSM platforms; dedicated island platforms
   with tram shelters are not modelled.

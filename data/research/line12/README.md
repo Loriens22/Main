@@ -93,7 +93,9 @@ road carriageway), 238 switch and crossing nodes (track nodes of degree ≥ 3).
   licensed imagery).
 - **пл. Славейков**: bronze sculpture of Petko and Pencho Slaveykov on a bench, the open-air book market
   (132 tables after the 1998 renovation), the Sofia City Library building on the square, a former
-  fountain spot.
+  fountain spot. In the game: the sculpture at the OSM artwork point (the figures simplified, their
+  pose estimated) and up to 132 stalls in rows inside the square's OSM outline, kept off the roads and
+  the tram tracks.
 - **пл. Македония**: the КНСБ building (пл. Македония 1, congress centre "Глобус"); several tram lines
   cross the square (бул. Македония, бул. Христо Ботев, Алабин).
 - **пл. Гарибалди, Граф Игнатиев, УАСГ, Пета градска болница, пл. Журналист, Стоков базар Илиянци**:

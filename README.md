@@ -300,8 +300,9 @@ BLENDER_PY=python bash tools/bake_bus_lightmaps.sh      # light bake of all four
 - **Trams:** modelled from the reference photos only (Schindler: photos 1–6, T6M-700: photos
   7–10, `data/research/ref_photos/trams/`). Lengths, bogie and door positions not given by a
   reachable source are estimates from the photos and are marked so in `TramSpecs.js` and the
-  research notes. Central Station is hand-built on its OSM footprint; its facade composition
-  is estimated.
+  research notes. Central Station and пл. Славейков (the Slaveykovs' bench sculpture and the
+  book market) are hand-built on their OSM footprints; the station's facade composition is
+  estimated.
 - **No Google data:** no Google Maps or Street View imagery or data is used, and no
   photograph is used as a texture: every texture is drawn procedurally, in code or baked in
   Blender from procedural materials.
