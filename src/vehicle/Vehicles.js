@@ -26,6 +26,7 @@ import { frames } from './frames.js';
 import conecto from './models/conecto/index.js';
 import procity from './models/procity/index.js';
 import yutong from './models/yutong/index.js';
+import { TRAMS } from './trams/TramSpecs.js';
 
 const MAN_FRONT_Z = -(BUS.frontOverhang + BUS.wb1);
 
@@ -54,12 +55,14 @@ export const MAN = {
   create: (o) => new BusModel(o),
 };
 
-export const VEHICLES = { man: MAN, conecto, procity, yutong };
+// trams (kind 'tram'): TramEntity instead of BusEntity, see src/vehicle/trams
+export const VEHICLES = { man: MAN, conecto, procity, yutong, ...TRAMS };
 
 /** Vehicles a line dispatches, with default shares (sum 1). */
 export const LINE_FLEETS = {
   280: [{ id: 'man', share: 0.5 }, { id: 'conecto', share: 0.5 }],
   64: [{ id: 'procity', share: 0.5 }, { id: 'yutong', share: 0.5 }],
+  12: [{ id: 'schindler', share: 0.5 }, { id: 't6m', share: 0.5 }],
 };
 
 export { frames };

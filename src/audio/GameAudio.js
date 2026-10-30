@@ -12,7 +12,7 @@ const engineZ = (bus) => bus.spec.audio.engineZ ?? ENGINE_Z;
 function doorZone(bus, id) {
   const d = bus.spec.doors.find((q) => q.id === id);
   if (!d) return 'front';
-  if (bus.spec.articulated) return d.section;
+  if (bus.spec.articulated) return d.section === 'front' ? 'front' : 'rear'; // a tram's middle module: the rear zone
   return (d.z0 + d.z1) / 2 < RIGID_SPLIT_Z ? 'front' : 'rear';
 }
 const SKIP_DOOR_EVENTS = new Set(['closeRequest', 'opened', 'closed']); // part of the open/close recipes
@@ -128,6 +128,12 @@ export class GameAudio {
     }
   }
 
+  /** A notch of a tram's controller: the contactors of the T6M's resistance controller clack. */
+  notch(bus, n, prev) {
+    if (!this.audio.ready || !bus.spec.physics.steps || n === prev) return;
+    this.audio.contactor(this.where(bus, 'gear'));
+  }
+
   /** phys.onShift of every bus. */
   shift(bus, gear, dir) {
     if (!this.audio.ready) return;
@@ -224,10 +230,25 @@ export class GameAudio {
       const cranking = st.startT < START_DURATION;
       const rpm = cranking ? startRpm(st.startT, p.rpm) : p.rpm;
       const retarder = p.selector === 'D' && Math.abs(p.v) > 1.5 ? clamp((p.brakeOut || 0) / 0.25, 0, 1) : 0;
-      S.buses.push({
+      const entry = {
         id: st.id, profile: bus.spec.audio.profile, focus: bus === g.bus, interior: L.zone !== 'out', zone: L.zone, prox: L.prox, dist: L.dist, radial: L.radial, pan: L.pan, cull: L.cull,
         rpm, load: cranking && st.startT < 1.5 ? 0.05 : p.load, speed: p.v, engineOn: !!p.engineOn || p.rpm > 120, retarder, surface: st.surface, comp: st.comp,
-      });
+      };
+      if (bus.isTram) {
+        // the tram voice (TramVoice.js): traction, braking, curve, street track, bogies over the rail joints
+        Object.assign(entry, {
+          kind: 'tram', engineOn: !!p.engineOn, brake: p.brakeOut || 0, curv: bus.line.curvature(p.s - 3, 4), street: bus.line.streetAt(p.s),
+          dist: p.distF, bogies: st.bogies || (st.bogies = [...new Set(bus.spec.sections.flatMap((q) => q.supports.filter((x) => x.kind === 'bogie').map((x) => x.d)))]),
+          wb: bus.spec.bogies.wheelbase,
+        });
+        entry.dist = L.dist; // listener distance (the travelled distance is passed as `travel`)
+        entry.travel = p.distF;
+        if ((bus.bellRing || 0) > (st.bell || 0)) {
+          st.bell = bus.bellRing;
+          if (a.ready) a.tramBell(this.where(bus, 'bell') || { db: L.zone === 'out' ? -6 : 0 }, bus.spec.audio.profile);
+        }
+      }
+      S.buses.push(entry);
       if (bus === g.bus) {
         a.pressure = st.pressure; a.compressorOn = st.comp;
         // suspension bumps (Poisson) are the strongest "we are moving" cue on a phone

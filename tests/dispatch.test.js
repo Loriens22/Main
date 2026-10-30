@@ -41,6 +41,7 @@ test('a configured distribution is honoured; a fixed choice always wins', () => 
 test('every vehicle spec is complete and consistent', () => {
   for (const [id, s] of Object.entries(VEHICLES)) {
     assert.equal(s.id, id);
+    if (s.kind === 'tram') continue; // tests/tram.test.js
     const F = frames(s);
     assert.ok(F.frontZ < -5, `${id} front bumper`);
     assert.ok(Math.abs((s.articulated ? -F.frontZ + F.hitchFront - F.hitchRear + F.rearZ : -F.frontZ + F.rearZ) - s.dims.length) < 0.6, `${id} length ${s.dims.length}`);

@@ -2,14 +2,18 @@
 // walk through both articulated sections, sit or stand, press STOP and get
 // off. The bus is driven by the AI; if you miss it, the next one comes.
 import * as THREE from 'three';
-import { BusEntity } from '../gameplay/BusEntity.js';
+import { createVehicle } from '../gameplay/VehicleFactory.js';
 import { AIBusDriver } from '../gameplay/AIBusDriver.js';
+import { AITramDriver } from '../gameplay/AITramDriver.js';
 import { clamp, damp } from '../core/math.js';
 import { t, L } from '../ui/i18n.js';
 
 const EYE = 1.63;
 const HEADWAY_S = 120; // a 280 every ~2 minutes: the next one after you get off or miss one
 const AVG_SPEED = 9.5; // m/s between stops when the bus only stops where needed (measured headless)
+
+/** 'автобус' / 'трамвай' and their forms for the line's vehicles. */
+const word = (route) => (route.isTram ? { n: 'трамвай', the: 'трамвая', en: 'tram' } : { n: 'автобус', the: 'автобуса', en: 'bus' });
 
 export class PassengerMode {
   constructor(game, opts) {
@@ -39,7 +43,8 @@ export class PassengerMode {
     const vx = -t.tx * 0.8 - rx * 0.6, vz = -t.tz * 0.8 - rz * 0.6;
     this.yaw = Math.atan2(-vx, -vz);
     this.scheduleBus(70);
-    game.hud.toast(L(`${this.startStop.name} — изчакайте автобус ${game.route.line}`, `${this.startStop.name} — wait for bus ${game.route.line}`), false, 5);
+    const W = word(game.route);
+    game.hud.toast(L(`${this.startStop.name} — изчакайте ${W.n} ${game.route.line}`, `${this.startStop.name} — wait for ${W.en} ${game.route.line}`), false, 5);
     game.rig.shake = 0;
   }
 
@@ -69,7 +74,7 @@ export class PassengerMode {
     const g = this.game;
     // each service gets its bus from the line's dispatcher (MAN/Conecto on 280, BMC/Yutong on 64)
     const sv = g.nextService(this.opts.vehicle && this.opts.vehicle !== 'random' ? this.opts.vehicle : null);
-    const bus = new BusEntity({ scene: g.scene, world: g.world, route: g.route, dirId: this.dirId, vehicle: sv.vehicle, fleet: sv.fleet, quality: g.quality, serviceNo: sv.serviceNo });
+    const bus = createVehicle({ scene: g.scene, world: g.world, route: g.route, dirId: this.dirId, vehicle: sv.vehicle, fleet: sv.fleet, quality: g.quality, serviceNo: sv.serviceNo });
     // advance the stop counter to where the bus is placed
     const dir = bus.dir;
     let idx = 0;
@@ -78,7 +83,8 @@ export class PassengerMode {
     bus.placeAt(Math.max(0, s));
     bus.routeS = Math.max(0, s); // known before its first update (ETA, scheduling)
     bus.lights.head = g.sky.night > 0.3;
-    bus.driver = new AIBusDriver(bus, { traffic: g.traffic, signals: g.traffic && g.traffic.signals, peds: g.peds });
+    const ai = { traffic: g.traffic, signals: g.traffic && g.traffic.signals, peds: g.peds, others: () => this.buses };
+    bus.driver = bus.isTram ? new AITramDriver(bus, ai) : new AIBusDriver(bus, ai);
     if (s <= 0) {
       // waiting at the terminal with the doors open until its departure time
       bus.holdFor = hold;
@@ -122,7 +128,8 @@ export class PassengerMode {
     if (this.state === 'outside' && !this.approaching().length) {
       const missed = this.buses.some((b) => b.dirId === this.dirId && b.target === this.startStop && b.routeS > this.startStop.frontS + 30);
       this.scheduleBus(HEADWAY_S);
-      if (missed) g.hud.toast(L(`Изпуснахте автобуса. Следващият ${g.route.line} идва след ${HEADWAY_S / 60} мин`, `You missed the bus. The next ${g.route.line} arrives in ${HEADWAY_S / 60} min`), false, 5);
+      const W = word(g.route);
+      if (missed) g.hud.toast(L(`Изпуснахте ${W.the}. Следващият ${g.route.line} идва след ${HEADWAY_S / 60} мин`, `You missed the ${W.en}. The next ${g.route.line} arrives in ${HEADWAY_S / 60} min`), false, 5);
     }
     for (let i = this.buses.length - 1; i >= 0; i--) {
       const b = this.buses[i];
@@ -235,7 +242,8 @@ export class PassengerMode {
     this.seat = -1;
     this.insideT = 0;
     bus.forceServe = null;
-    this.game.hud.toast(L(`Добре дошли в автобус ${this.game.route.line}!`, `Welcome aboard bus ${this.game.route.line}!`));
+    const W = word(this.game.route);
+    this.game.hud.toast(L(`Добре дошли в ${W.n} ${this.game.route.line}!`, `Welcome aboard ${W.en} ${this.game.route.line}!`));
     this.game.audio.setZone('cabin');
   }
 
@@ -249,7 +257,7 @@ export class PassengerMode {
     const I = g.input;
     const bus = this.ride;
     const SEATS = bus.spec.layout.seats, HW = bus.spec.dims.halfW;
-    const secObj = () => (this.section === 'front' ? bus.model.front : bus.model.rear);
+    const secObj = () => bus.model[this.section] || bus.model.front;
     if (I.hit('KeyB')) {
       if (!bus.stopRequested) {
         bus.stopRequested = true;
@@ -319,9 +327,11 @@ export class PassengerMode {
         if (d < 0.36 && d > 1e-4) { nx = s.x + (dx / d) * 0.36; nz = s.z + (dz / d) * 0.36; }
       }
       // cross the articulation
-      const art = bus.spec.articulated;
-      if (art && this.section === 'front' && nz > zMax) this.switchSection(bus, 'rear', nx, nz);
-      else if (art && this.section === 'rear' && nz < zMin) this.switchSection(bus, 'front', nx, nz);
+      // through the gangway into the next / previous section (two on a bus, three on the Schindler tram)
+      const order = bus.isTram ? bus.spec.sections.map((q) => q.id) : bus.spec.articulated ? ['front', 'rear'] : ['front'];
+      const si = order.indexOf(this.section);
+      if (nz > zMax && si >= 0 && si < order.length - 1) this.switchSection(bus, order[si + 1], nx, nz);
+      else if (nz < zMin && si > 0) this.switchSection(bus, order[si - 1], nx, nz);
       else {
         this.lx = nx;
         this.lz = clamp(nz, zMin, zMax);
@@ -365,14 +375,15 @@ export class PassengerMode {
     // passenger's own destination reached at the terminal
     if (bus.stops.finished && bus.doors.anyOpen && !this.toldTerminal) {
       this.toldTerminal = true;
-      g.hud.toast(L('Последна спирка — моля, слезте от автобуса', 'Last stop — please leave the bus'), false, 5);
+      const W = word(g.route);
+      g.hud.toast(L(`Последна спирка — моля, слезте от ${W.the}`, `Last stop — please leave the ${W.en}`), false, 5);
     }
   }
 
   switchSection(bus, to, lx, lz) {
     // convert through world space so the position is continuous across the bellows
-    const from = this.section === 'front' ? bus.model.front : bus.model.rear;
-    const dest = to === 'front' ? bus.model.front : bus.model.rear;
+    const from = bus.model[this.section] || bus.model.front;
+    const dest = bus.model[to] || bus.model.front;
     const w = new THREE.Vector3(lx, 1, lz).applyMatrix4(from.matrixWorld);
     const l = dest.worldToLocal(w);
     const qa = new THREE.Quaternion(), qb = new THREE.Quaternion();
@@ -415,7 +426,7 @@ export class PassengerMode {
     const g = this.game;
     const p = g.peds.doorPoint(bus, door, 1.0);
     this.pos.set(p.x, g.world.hf.heightAt(p.x, p.z) + 0.22, p.z);
-    const sec = bus.spec.doors.find((q) => q.id === door.id).section === 'front' ? bus.model.front : bus.model.rear;
+    const sec = bus.model[bus.spec.doors.find((q) => q.id === door.id).section] || bus.model.front;
     const q = new THREE.Quaternion();
     sec.getWorldQuaternion(q);
     this.yaw = new THREE.Euler().setFromQuaternion(q, 'YXZ').y - Math.PI / 2;

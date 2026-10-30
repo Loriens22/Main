@@ -225,14 +225,31 @@ async function busStudio({ R, scene, camera, sky, progress }) {
   ground.receiveShadow = true;
   scene.add(ground);
   sky.set(Number(params.get('h') || 11), params.get('w') || 'clear');
-  // ?veh=man|conecto|procity|yutong picks the vehicle type
+  // ?veh=man|conecto|procity|yutong|schindler|t6m picks the vehicle type
   const spec = vehicleSpec(params.get('veh') || 'man'), F = frames(spec);
   const bus = spec.create({ fleet: params.get('fleet') || spec.fleets[0].fleet, quality: params.get('q') || 'high', interior: true });
   scene.add(bus.root);
   bus.setDestination(params.get('line') || spec.lines[0], params.get('dest') || 'Студентски град');
   bus.setInteriorText('Следваща спирка:', 'Военна академия');
   const art = Number(params.get('art') || 0);
+  // a tram: every section on a straight track, or on a curve of radius ?curve= (metres, + right)
+  const placeTram = async (radius) => {
+    const { placeSections: place, bogiePoses } = await import('./vehicle/trams/TramDynamics.js');
+    const line = {
+      at: (s) => (radius ? { x: radius * (1 - Math.cos(s / radius)), z: -radius * Math.sin(s / radius) } : { x: 0, z: -s }),
+      y: () => 0,
+    };
+    const poses = place(spec, line, 0);
+    for (const sec of spec.sections) {
+      const q = poses[sec.id];
+      bus[sec.id].position.set(q.x, q.y, q.z);
+      bus[sec.id].rotation.set(q.pitch, q.yaw, 0, 'YXZ');
+    }
+    bus.placeBogiePoses(bogiePoses(spec, line, 0));
+    bus.afterPose();
+  };
   const placeSections = (phi) => {
+    if (spec.kind === 'tram') return placeTram(phi ? 1 / phi : 0);
     bus.front.position.set(0, 0, 0);
     bus.front.rotation.set(0, 0, 0);
     const hf = new THREE.Vector3(0, 0, F.hitchFront);
@@ -241,7 +258,7 @@ async function busStudio({ R, scene, camera, sky, progress }) {
     bus.rear.position.copy(hf).sub(off);
     bus.afterPose();
   };
-  placeSections(art);
+  await placeSections(art);
   bus.setSteer(Number(params.get('steer') || 0));
   for (const d of spec.doors) bus.setDoor(d.id, Number(params.get('doors') || 0));
   bus.setLights({ head: true, left: false, interior: 1 });

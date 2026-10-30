@@ -60,7 +60,16 @@ export class Hud {
     // labels built in the constructor: refresh them in case the language changed since
     this.stopReq.textContent = L('СТОП', 'STOP');
     this.q.spd.querySelector('small').textContent = t('speed');
-    this.help.innerHTML = (mode === 'driver'
+    this.help.innerHTML = (mode === 'driver' && this.tram
+      ? [
+        L('<b>W/S</b> контролер: тяга / спирачка (стъпки) · <b>N</b> нула · <b>X</b> аварийна', '<b>W/S</b> controller: power / brake notches · <b>N</b> zero · <b>X</b> emergency'),
+        L('<b>I</b> главен прекъсвач · <b>U</b> пантограф · <b>1/2/3</b> напред / 0 / назад', '<b>I</b> main switch · <b>U</b> pantograph · <b>1/2/3</b> forward / 0 / reverse'),
+        L('<b>P</b> ръчна спирачка · <b>O</b> отвори врати · <b>C</b> затвори', '<b>P</b> parking brake · <b>O</b> open doors · <b>C</b> close'),
+        L('<b>Space</b> звънец · <b>B</b> клаксон · <b>Z</b> пясък · <b>L</b> светлини', '<b>Space</b> bell · <b>B</b> horn · <b>Z</b> sand · <b>L</b> lights'),
+        L('<b>Q/E</b> мигачи · <b>H</b> аварийни · <b>Y</b> чистачки', '<b>Q/E</b> indicators · <b>H</b> hazards · <b>Y</b> wipers'),
+        L('<b>Tab</b> камера · <b>мишка</b> оглеждане · <b>Esc</b> пауза', '<b>Tab</b> camera · <b>mouse</b> look · <b>Esc</b> pause'),
+      ]
+      : mode === 'driver'
       ? [
         L('<b>W/S</b> газ / спирачка · <b>A/D</b> волан', '<b>W/S</b> throttle / brake · <b>A/D</b> steer'),
         L('<b>1/2/3</b> D N R · <b>P</b> ръчна спирачка', '<b>1/2/3</b> D N R · <b>P</b> parking brake'),
@@ -132,7 +141,7 @@ export class Hud {
       q.spd.firstChild.nodeValue = String(Math.round(s.speed));
       const g = s.selector;
       q.gear.forEach((e, i) => e.classList.toggle('on', ['D', 'N', 'R'][i] === g));
-      q.gear[0].textContent = g === 'D' ? `D${s.gear}` : 'D';
+      q.gear[0].textContent = s.gearText && g === 'D' ? s.gearText : g === 'D' ? `D${s.gear}` : 'D';
       if (q.doors.length !== s.doors.length) {
         // a 3-door rigid bus or a 4-door articulated one
         const box = this.dash.querySelector('.doors');

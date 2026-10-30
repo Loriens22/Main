@@ -36,7 +36,13 @@ export class BusLightRig {
     this.head.position.set(0, 0.85, F.frontZ - 0.15);
     this.headTarget.position.set(0, -0.6, F.frontZ - 22);
     bus.model.front.add(this.head, this.headTarget, this.cabin[0]);
-    if (bus.spec.articulated) {
+    if (bus.isTram) {
+      // one ceiling light in the first and in the last section
+      const secs = bus.spec.sections, last = secs[secs.length - 1];
+      this.cabin[0].position.set(0, 2.2, secs[0].length * 0.6);
+      this.cabin[1].position.set(0, 2.2, last.length * 0.5);
+      bus.model[last.id].add(this.cabin[1]);
+    } else if (bus.spec.articulated) {
       this.cabin[0].position.set(0, 1.55, -3.3);
       this.cabin[1].position.set(0, 1.55, -0.7);
       bus.model.rear.add(this.cabin[1]);

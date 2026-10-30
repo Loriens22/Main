@@ -13,6 +13,7 @@
 // 'interrupted' / 'suspended' / page-hide by itself. Design notes: data/research/audio/.
 import { makeBuffers, dB, toDb, clamp, selectVoices, audioProfile } from './dsp.js';
 import { BusVoice } from './BusVoice.js';
+import { TramVoice } from './TramVoice.js';
 import { OneShots, Events } from './OneShots.js';
 
 const GESTURES = ['pointerup', 'touchend', 'mouseup', 'click', 'keydown'];
@@ -289,15 +290,17 @@ export class AudioManager {
 
   // ------------------------------------------------------------- voice pool
   /** A pooled bus voice: the first one is the full voice (focus bus), the others are lite. */
-  getVoice(full) {
+  getVoice(full, kind = 'bus') {
     const prof = this.profile();
-    let e = this.pool.find((x) => x.full === full && !x.busId && x.slim === (full && prof.slim));
+    let e = this.pool.find((x) => x.full === full && x.kind === kind && !x.busId && x.slim === (full && prof.slim));
     if (e) return e;
-    const old = this.pool.find((x) => x.full === full && !x.busId); // built for another quality preset
+    const old = this.pool.find((x) => x.full === full && !x.busId); // built for another quality preset or vehicle kind
     if (old) { old.voice.dispose(); this.pool.splice(this.pool.indexOf(old), 1); }
     if (this.pool.filter((x) => x.full === full).length >= (full ? 1 : 2)) return null;
-    const voice = new BusVoice(this.ctx, this.bufs, { lite: !full, slim: full && prof.slim, flutter: prof.flutter });
-    e = { voice, full, slim: full && prof.slim, busId: null };
+    const voice = kind === 'tram'
+      ? new TramVoice(this.ctx, this.bufs, { lite: !full })
+      : new BusVoice(this.ctx, this.bufs, { lite: !full, slim: full && prof.slim, flutter: prof.flutter });
+    e = { voice, full, kind, slim: full && prof.slim, busId: null };
     this.pool.push(e);
     return e;
   }
@@ -319,13 +322,15 @@ export class AudioManager {
   updateVoices(t, S) {
     const prof = this.profile();
     const cands = [];
+    const kinds = new Map();
+    for (const b of S.buses) kinds.set(b.id, b.kind || 'bus');
     for (const b of S.buses) if (b.interior || b.focus || b.cull > 0) cands.push({ id: b.id, dist: b.dist, focus: b.focus, interior: b.interior });
     const chosen = selectVoices(cands, prof.maxVoices, new Set(this.assign.keys()));
     const fullId = chosen.length ? chosen[0] : null;
     for (const [id, e] of [...this.assign]) if (!chosen.includes(id) || e.full !== (id === fullId)) this.releaseVoice(id);
     for (const id of chosen) {
       if (this.assign.has(id)) continue;
-      const e = this.getVoice(id === fullId);
+      const e = this.getVoice(id === fullId, kinds.get(id));
       if (!e) continue;
       e.busId = id;
       this.assign.set(id, e);
@@ -447,6 +452,49 @@ export class AudioManager {
     this.lastBell = performance.now();
     Events.stopBell(this.ctx, o.dest, o.t, this.bufs, o.k, this.settings.bellStyle);
     this.duckAmb(1.2);
+  }
+
+  /**
+   * Tram gong: a struck bell (inharmonic partials, ~1 s decay). Schindler: the bright electric gong (two
+   * strokes), T6M: the lower mechanical foot gong.
+   */
+  tramBell(where, kind = 'tram_schindler') {
+    const o = this.shot(where);
+    if (!o) return;
+    const c = this.ctx, lin = Math.pow(10, o.k / 20);
+    const f0 = kind === 'tram_t6m' ? 690 : 1020;
+    const strokes = kind === 'tram_t6m' ? [0] : [0, 0.22];
+    for (const dt of strokes) {
+      const t = o.t + dt;
+      for (const [r, a, d] of [[1, 1, 1.1], [2.76, 0.5, 0.6], [5.4, 0.25, 0.35], [8.93, 0.12, 0.2]]) {
+        const osc = c.createOscillator();
+        osc.frequency.value = f0 * r;
+        const g = c.createGain();
+        g.gain.setValueAtTime(0, t);
+        g.gain.linearRampToValueAtTime(0.16 * a * lin, t + 0.003);
+        g.gain.exponentialRampToValueAtTime(0.0003, t + d);
+        osc.connect(g); g.connect(o.dest);
+        osc.start(t); osc.stop(t + d + 0.05);
+      }
+    }
+  }
+
+  /** Contactors of a resistance controller (T6M): a sharp clack and a thump at every notch. */
+  contactor(where) {
+    const o = this.shot(where);
+    if (!o) return;
+    const c = this.ctx, t = o.t, lin = Math.pow(10, o.k / 20);
+    const src = c.createBufferSource();
+    src.buffer = this.bufs.white;
+    const bp = c.createBiquadFilter();
+    bp.type = 'bandpass'; bp.frequency.value = 1700; bp.Q.value = 1.2;
+    const g = c.createGain();
+    g.gain.setValueAtTime(0, t);
+    g.gain.linearRampToValueAtTime(0.35 * lin, t + 0.002);
+    g.gain.exponentialRampToValueAtTime(0.0005, t + 0.05);
+    src.connect(bp); bp.connect(g); g.connect(o.dest);
+    src.start(t, Math.random(), 0.08);
+    this.thump(0.25 * lin, 70);
   }
 
   brakeEvent(kind, where) {

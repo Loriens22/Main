@@ -57,10 +57,12 @@ export class TrackLine {
     const street = trackFlags(route);
     const n = Math.ceil(this.P.length / 2) + 1;
     this.railY = new Float32Array(n);
+    this.street = new Uint8Array(n);
     const tmp = {};
     for (let i = 0; i < n; i++) {
       this.P.at(i * 2, tmp);
       const st = street(tmp.x, tmp.z);
+      this.street[i] = st ? 1 : 0;
       this.railY[i] = hf.heightAt(tmp.x, tmp.z) + (st ? ROAD_Y + 0.01 : BED_RAIL);
     }
   }
@@ -81,6 +83,12 @@ export class TrackLine {
     const r = this.P.nearest(x, z, sHint == null ? null : sHint + this.s0, win);
     r.s -= this.s0;
     return r;
+  }
+
+  /** True where the track lies in the carriageway (street running). */
+  streetAt(s) {
+    const i = Math.max(0, Math.min(this.street.length - 1, Math.round((s + this.s0) / 2)));
+    return this.street[i] === 1;
   }
 
   /** Rail head height at s (interpolated). */
@@ -144,6 +152,39 @@ function sectionPoint(pose, d0, d) {
   return [pose.x + pose.ux * k, pose.y + pose.uy * k, pose.z + pose.uz * k];
 }
 
+/** Arc position behind sa at which the straight distance to the track point at sa is L (a rigid body). */
+function chordBehind(line, sa, L) {
+  const A = pointAt(line, sa);
+  let sb = sa - L;
+  for (let k = 0; k < 3; k++) {
+    const B = pointAt(line, sb);
+    sb -= L - Math.hypot(B[0] - A[0], B[1] - A[1], B[2] - A[2]);
+  }
+  return sb;
+}
+
+/**
+ * Track arc positions of the supports that rest on the track (bogies, joints over a Jacobs bogie): d -> s.
+ * The first support of the front section is at s - d; each further one where the chord from the previous
+ * support of its section equals the body's distance (on a curve slightly more track than body).
+ */
+export function supportArcs(spec, line, s, out = new Map()) {
+  out.clear();
+  const car = spec.carried;
+  for (const sec of spec.sections) {
+    if (car && (sec.id === car.section || sec.supports.some((q) => q.kind === 'joint'))) continue;
+    const [a, b] = sec.supports;
+    const sa = out.has(a.d) ? out.get(a.d) : s - a.d;
+    out.set(a.d, sa);
+    if (!out.has(b.d)) out.set(b.d, chordBehind(line, sa, b.d - a.d));
+  }
+  // the bogie under a section that hangs on a carried module (its position along the track is approximate)
+  for (const sec of spec.sections) for (const q of sec.supports) if (q.kind === 'bogie' && !out.has(q.d)) out.set(q.d, s - q.d);
+  return out;
+}
+
+const ARCS = new Map();
+
 /**
  * Places every section for the front end at arc length s: {id: pose}. Sections on two track supports sit on
  * their chord; a carried module (Schindler) hangs between the front section's rear joint and a joint solved
@@ -151,10 +192,11 @@ function sectionPoint(pose, d0, d) {
  */
 export function placeSections(spec, line, s, out = {}) {
   const car = spec.carried;
+  const arcs = supportArcs(spec, line, s, ARCS);
   for (const sec of spec.sections) {
     if (car && (sec.id === car.section || sec.supports.some((q) => q.kind === 'joint'))) continue;
     const [a, b] = sec.supports;
-    out[sec.id] = chordPose(sec.d0, a.d, pointAt(line, s - a.d), b.d, pointAt(line, s - b.d));
+    out[sec.id] = chordPose(sec.d0, a.d, pointAt(line, arcs.get(a.d)), b.d, pointAt(line, arcs.get(b.d)));
   }
   if (car) {
     const front = spec.sections[0];
@@ -162,7 +204,7 @@ export function placeSections(spec, line, s, out = {}) {
     const J1 = sectionPoint(out[front.id], front.d0, j1);
     const rear = spec.sections.find((q) => q.supports.some((p) => p.kind === 'joint' && Math.abs(p.d - j2) < 1e-6) && q.id !== car.section);
     const bog = rear.supports.find((q) => q.kind === 'bogie');
-    const B = pointAt(line, s - bog.d);
+    const B = pointAt(line, arcs.get(bog.d));
     const r1 = j2 - j1, r2 = bog.d - j2;
     const guess = pointAt(line, s - j2);
     const J2 = circleMeet(J1, r1, B, r2, guess);
@@ -171,6 +213,30 @@ export function placeSections(spec, line, s, out = {}) {
     out[mid.id] = chordPose(mid.d0, j1, J1, j2, J2);
     out[rear.id] = chordPose(rear.d0, j2, J2, bog.d, B);
   }
+  return out;
+}
+
+/** Poses of the bogies for the front end at s: [{d, x, y, z, yaw, pitch}] (each on the chord of its axles). */
+export function bogiePoses(spec, line, s, out = []) {
+  const wb = spec.bogies.wheelbase;
+  const arcs = supportArcs(spec, line, s, ARCS);
+  let i = 0;
+  const seen = new Set();
+  for (const sec of spec.sections) {
+    for (const q of sec.supports) {
+      if (q.kind !== 'bogie' || seen.has(q.d)) continue;
+      seen.add(q.d);
+      const c = arcs.get(q.d);
+      const A = pointAt(line, c + wb / 2), B = pointAt(line, c - wb / 2);
+      const pz = chordPose(q.d - wb / 2, q.d - wb / 2, A, q.d + wb / 2, B);
+      const o = out[i] || (out[i] = {});
+      o.d = q.d;
+      o.x = (A[0] + B[0]) / 2; o.y = (A[1] + B[1]) / 2; o.z = (A[2] + B[2]) / 2;
+      o.yaw = pz.yaw; o.pitch = pz.pitch;
+      i++;
+    }
+  }
+  out.length = i;
   return out;
 }
 
@@ -208,7 +274,7 @@ export class TramPhysics {
     this.a = 0;
     this.notch = 0; // -brakeNotches..notches (integer)
     this.force = 0; // smoothed traction / brake demand fraction (-1..1)
-    this.selector = 'N'; // F (shown as D) / N / R
+    this.selector = 'N'; // D (forward) / N / R
     this.engineOn = false; // main switch
     this.pantoUp = true;
     this.pantoH = 1; // 0 = lowered, 1 = on the wire
@@ -222,6 +288,50 @@ export class TramPhysics {
     this.currentA = 0;
     this.stepJerk = 0;
     this.lastStep = 0;
+    // the fields a bus exposes (camera, sounds, scoring, passengers read them; set by TramEntity)
+    this.articulated = true;
+    this.dims = spec.dims;
+    this.x = 0; this.z = 0; this.yaw = 0; // front section: front end on the track, heading
+    this.rx = 0; this.rz = 0; this.yawR = 0; // last section
+    this.aLong = 0; this.aLat = 0;
+    this.delta = 0; this.kneel = 0; this.stopBrake = false; this.brakeOut = 0;
+    this.rpm = 0; this.load = 0; this.gear = 0; this.passengers = 0;
+    this.distF = 0; this.distR = 0;
+    this.lastCollision = null;
+    const first = spec.sections[0], last = spec.sections[spec.sections.length - 1];
+    this.c = first.d1 + 0.2; // front end -> first joint
+    this.L2 = 0.17; // GameAudio: the listener is in the rear section when it is behind its front end
+    this.box = [{ c: -first.length / 2, hl: first.length / 2 }, { c: -last.length / 2, hl: last.length / 2 }];
+    this.poses = {};
+  }
+
+  get speedKmh() {
+    return Math.abs(this.v) * 3.6;
+  }
+
+  get articulation() {
+    let d = this.yaw - this.yawR;
+    while (d > Math.PI) d -= 2 * Math.PI;
+    while (d < -Math.PI) d += 2 * Math.PI;
+    return d;
+  }
+
+  /** Front end of the tram (world x, z). */
+  frontPoint() {
+    return [this.x, this.z];
+  }
+
+  /** One oriented box per body section (world space) for collision and occlusion tests. */
+  boxes() {
+    const out = [];
+    for (const sec of this.spec.sections) {
+      const q = this.poses[sec.id];
+      if (!q) continue;
+      const h = Math.hypot(q.ux, q.uz) || 1, fx = -q.ux / h, fz = -q.uz / h; // forward
+      const hl = sec.length / 2;
+      out.push({ cx: q.x - fx * hl, cz: q.z - fz * hl, fx, fz, hl, hw: this.spec.dims.halfW });
+    }
+    return out;
   }
 
   get dirSign() {
@@ -239,7 +349,8 @@ export class TramPhysics {
   step(dt, { interlock = false } = {}) {
     const P = this.P;
     const m = this.mass;
-    const target = this.notchFraction(this.notch);
+    // the player's notched controller, or a continuous demand (the AI driver)
+    const target = this.analog != null ? Math.max(-1, Math.min(1, this.analog)) : this.notchFraction(this.notch);
     // contactor ramp: power rises over ~0.6 s, brakes over ~0.4 s
     const rate = target > this.force ? (target > 0 ? 1.6 : 2.5) : 2.5;
     this.force += Math.max(-rate * dt, Math.min(rate * dt, target - this.force));
@@ -249,9 +360,10 @@ export class TramPhysics {
     const av = Math.abs(this.v);
     if (canPower && this.force > 0) {
       Ftr = this.force * P.traction(av) * sign;
-      if (av > P.vmax) Ftr *= Math.max(0, 1 - (av - P.vmax) / 1.5);
+      // speed governor: the traction fades out over the last 0.6 m/s below and above vmax
+      if (av > P.vmax - 0.3) Ftr *= Math.max(0, 1 - (av - P.vmax + 0.3) / 0.6);
       // adhesion of the powered axles
-      const mu = 0.24 - 0.09 * this.wet;
+      const mu = 0.24 - 0.09 * this.wet + (this.sand ? 0.07 : 0);
       const lim = mu * m * P.poweredMassShare * g;
       if (Math.abs(Ftr) > lim) {
         this.slip = Math.min(1, this.slip + dt * 3);
@@ -284,13 +396,15 @@ export class TramPhysics {
         acc -= brakeA;
       }
     } else {
-      // standing: brakes hold up to their force, otherwise roll off
-      if (dec > 0 && Math.abs(acc) < dec + 0.5) {
+      // standing: brakes hold up to their force, the rolling resistance of the bogies holds a tram that
+      // nothing pushes (A of the Davis formula), otherwise it rolls off
+      const push = Math.abs(Ftr + Fg);
+      if ((dec > 0 && Math.abs(acc) < dec + 0.5) || (Ftr === 0 && push < A)) {
         this.v = 0;
         acc = 0;
       } else this.v += acc * dt;
     }
-    if (this.emergency && Math.abs(this.v) < 0.02) this.emergency = false;
+    if (this.emergency && this.v === 0) this.emergency = false;
     this.a = acc;
     this.s += this.v * dt;
     // motor load / line current for the sounds and the ammeter
@@ -302,5 +416,12 @@ export class TramPhysics {
       this.lastStep = this.notch;
     }
     this.stepJerk = Math.max(0, this.stepJerk - dt * 4);
+    // what the sounds and the instruments read: traction motor speed (gear ratio ~6.9), load, brake
+    this.rpm = (av / this.spec.bogies.wheelR) * 6.9 * (60 / (2 * Math.PI));
+    this.load = this.motorLoad;
+    this.brakeOut = Math.max(0, -this.force) + (this.emergency ? 1 : 0);
+    this.gear = this.notch;
+    this.distF += this.v * dt;
+    this.distR = this.distF;
   }
 }

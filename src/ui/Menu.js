@@ -7,6 +7,7 @@ import { lineVehicles, vehicleSpec } from '../vehicle/Vehicles.js';
 export const LINE_INFO = {
   280: { bg: 'СУ „Св. Климент Охридски“ – Студентски град', en: 'Sofia University – Studentski Grad', sbg: 'СУ – Студентски град', sen: 'University – Studentski Grad' },
   64: { bg: 'Зоопарка – Център по хигиена', en: 'Zoo – Hygiene Centre', sbg: 'Зоопарка – Център по хигиена', sen: 'Zoo – Hygiene Centre' },
+  12: { bg: 'кв. Илиянци – пл. Журналист (трамвай)', en: 'Iliyantsi – Zhurnalist Square (tram)', sbg: 'Илиянци – пл. Журналист', sen: 'Iliyantsi – Zhurnalist Sq.' },
 };
 
 // a function, not a constant: the text must follow the language chosen at runtime
@@ -162,7 +163,7 @@ export class Menu {
       if (!spec.fleets.some((f) => f.fleet === this.setup.fleet)) this.setup.fleet = spec.fleets[0].fleet;
       for (const f of spec.fleets) {
         const b = document.createElement('button');
-        b.innerHTML = `<b>${f.fleet}</b><small>${f.plate}</small>`;
+        b.innerHTML = `<b>${f.fleet}</b><small>${f.plate || spec.short}</small>`;
         b.className = this.setup.fleet === f.fleet ? 'on' : '';
         b.onclick = () => {
           this.setup.fleet = f.fleet;
@@ -174,7 +175,7 @@ export class Menu {
       fleetBox.appendChild(this.field(L('Гаражен номер', 'Fleet number'), bp));
     };
     busBox.appendChild(this.seg('vehicle', [...ids.map((id) => [id, vehicleSpec(id).short]), ['random', L('Случаен', 'Random')]], drawFleet));
-    p.appendChild(this.field(t('bus'), busBox));
+    p.appendChild(this.field(vehicleSpec(ids[0]).kind === 'tram' ? L('Трамвай', 'Tram') : t('bus'), busBox));
     p.appendChild(fleetBox);
     drawFleet();
     const dirOpts = ['A', 'B'].map((id) => [id, `→ ${this.route.direction(id).headsign}`]);
@@ -349,7 +350,7 @@ export class Menu {
     p.style.right = 'auto';
     p.style.transform = 'translateX(-50%)';
     p.innerHTML = `<h2>${t('credits')}</h2>
-      <p><b>Sofia Public Transport — ${L('линии 280 и 64', 'lines 280 and 64')}</b><br>${L('Независим фен проект / independent fan project.', 'Independent fan project.')}</p>
+      <p><b>Sofia Public Transport — ${L('линии 280, 64 и трамвай 12', 'lines 280, 64 and tram 12')}</b><br>${L('Независим фен проект / independent fan project.', 'Independent fan project.')}</p>
       <p>${L('<b>Карта и спирки:</b> © OpenStreetMap contributors (ODbL 1.0), разпространено чрез Overture Maps Foundation (release 2026-10-21.0). Кодовете на спирките са официалните кодове на ЦГМ / sofiatraffic.bg.', '<b>Map and stops:</b> © OpenStreetMap contributors (ODbL 1.0), distributed via the Overture Maps Foundation (release 2026-10-21.0). Stop codes are the official codes of the Sofia Urban Mobility Center / sofiatraffic.bg.')}</p>
       <p>${L('<b>Релеф:</b>', '<b>Terrain:</b>')} Mapzen / AWS Terrain Tiles (SRTM, EU-DEM).</p>
       <p>${L('<b>Автобуси:</b> MAN Lion\'s City G CNG, Mercedes-Benz Conecto G, BMC Procity CNG, Yutong ZK6126HGA — процедурни 3D модели по референтни снимки; размери по публични данни (приблизителни).', '<b>Buses:</b> MAN Lion\'s City G CNG, Mercedes-Benz Conecto G, BMC Procity CNG, Yutong ZK6126HGA — procedural 3D models based on reference photos; dimensions from public data (approximate).')}</p>

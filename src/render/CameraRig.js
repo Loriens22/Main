@@ -89,11 +89,15 @@ export class CameraRig {
     } else {
       cam.fov = damp(cam.fov, 55, 4, dt);
       const fx = -Math.sin(this.smoothYaw), fz = -Math.cos(this.smoothYaw);
-      const base = m.front.position;
+      const front = m.front.position;
+      // a tram's front section frame starts at its front end: the side and orbit cameras aim at its middle
+      const base = bus.isTram && (this.mode === 'side' || this.mode === 'free')
+        ? (this._mid || (this._mid = new THREE.Vector3())).copy(front).addScaledVector(this.tmp.set(fx, 0, fz), -Math.min(10, bus.spec.dims.length * 0.35))
+        : front;
       let want;
       let look2;
       if (this.mode === 'follow') {
-        const d = this.dist + sp * 0.15;
+        const d = this.dist + sp * 0.15 + (bus.isTram ? bus.spec.dims.length * 0.65 - 6 : 0);
         const a = this.yaw;
         const cx = Math.cos(a), sx = Math.sin(a);
         const bx = -fx * cx - fz * sx, bz = fx * sx - fz * cx;

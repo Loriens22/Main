@@ -62,7 +62,8 @@ export class Scoring {
     } else this.comfortT = Math.max(0, this.comfortT - dt);
     // speeding (city limit 50 km/h unless the road says otherwise)
     const q = world.roads.query(p.x, p.z, 15);
-    const limit = q && q.piece.speed ? q.piece.speed : 50;
+    // a tram keeps the line speed of its track (road limit on street track, curves, points)
+    const limit = bus.isTram ? Math.round(bus.limit.v * 3.6) : q && q.piece.speed ? q.piece.speed : 50;
     if (p.speedKmh > limit + 6) {
       this.speedT += dt;
       if (this.speedT > 3) {
@@ -71,7 +72,7 @@ export class Scoring {
       }
     } else this.speedT = Math.max(0, this.speedT - dt);
     // kerb strikes: front wheels off the carriageway onto a raised kerb
-    if (this.kerbCooldown <= 0 && Math.abs(p.v) > 0.8 && q) {
+    if (!bus.isTram && this.kerbCooldown <= 0 && Math.abs(p.v) > 0.8 && q) {
       const fx = -Math.sin(p.yaw), fz = -Math.cos(p.yaw), rx = -fz, rz = fx;
       for (const side of [1, -1]) {
         const wb = p.dims ? p.dims.wb1 : 5.1;

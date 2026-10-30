@@ -146,6 +146,7 @@ export class World {
   }
 
   setWet(v) {
+    this.wet = v; // rail adhesion of the trams
     if (this.materials) {
       this.materials.roads.wet.value = v;
       this.materials.buildings.uniforms.uWet.value = v;

@@ -1,7 +1,8 @@
 // Game orchestration: modes (driver / passenger / attract), the main update
 // loop, scoring, timetable, announcements and audio routing.
 import * as THREE from 'three';
-import { BusEntity } from '../gameplay/BusEntity.js';
+import { createVehicle } from '../gameplay/VehicleFactory.js';
+import { updateTramDriver, tramChecklist } from './TramDriving.js';
 import { CameraRig, DRIVER_CAMS } from '../render/CameraRig.js';
 import { Hud } from '../ui/Hud.js';
 import { t, L } from '../ui/i18n.js';
@@ -94,7 +95,7 @@ export class Game {
     this.mode = 'attract';
     this.hud.show(false);
     const sv = this.nextService();
-    const bus = (this.bus = new BusEntity({ scene: this.scene, world: this.world, route: this.route, dirId: 'A', vehicle: sv.vehicle, fleet: sv.fleet, quality: this.quality, serviceNo: sv.serviceNo }));
+    const bus = (this.bus = createVehicle({ scene: this.scene, world: this.world, route: this.route, dirId: 'A', vehicle: sv.vehicle, fleet: sv.fleet, quality: this.quality, serviceNo: sv.serviceNo }));
     bus.placeAt(this.route.direction('A').stops[0].frontS + 1);
     bus.doors.open(null, 0);
     bus.lights.head = this.sky.night > 0.3;
@@ -110,16 +111,18 @@ export class Game {
     const choice = opts.vehicle && opts.vehicle !== 'random' && lineVehicles(this.route.line).includes(opts.vehicle) ? opts.vehicle : 'random';
     const sv = this.nextService(choice);
     const fleet = choice !== 'random' && opts.fleet && vehicleSpec(sv.vehicle).fleets.some((f) => f.fleet === String(opts.fleet)) ? String(opts.fleet) : sv.fleet;
-    const bus = (this.bus = new BusEntity({ scene: this.scene, world: this.world, route: this.route, dirId, vehicle: sv.vehicle, fleet, quality: this.quality, player: true, serviceNo: sv.serviceNo }));
+    const bus = (this.bus = createVehicle({ scene: this.scene, world: this.world, route: this.route, dirId, vehicle: sv.vehicle, fleet, quality: this.quality, player: true, serviceNo: sv.serviceNo }));
     bus.placeAt(bus.dir.stops[0].frontS);
     bus.phys.parkingBrake = true;
     bus.phys.selector = 'N';
     bus.phys.engineOn = false;
+    if (bus.isTram) { bus.phys.pantoUp = false; bus.phys.pantoH = 0; }
     bus.doors.open(null, 0);
     bus.lights.head = this.sky.night > 0.3;
     this.wireBus(bus);
     bus.extraColliders = [(b) => (this.traffic ? this.traffic.collideBus(b) : null), (b) => this.collideSmall(b)];
     this.rig.setMode('cab');
+    this.hud.tram = !!bus.isTram;
     this.hud.setMode('driver');
     this.hud.show(true);
     this.scoring = new Scoring();
@@ -219,6 +222,7 @@ export class Game {
   }
 
   updateDriver(dt, inp) {
+    if (this.bus.isTram) return updateTramDriver(this, dt, inp); // rail-bound controls (TramDriving.js)
     const bus = this.bus;
     const p = bus.phys;
     const I = this.input;
@@ -431,6 +435,8 @@ export class Game {
       speed: p.speedKmh,
       selector: p.selector,
       gear: p.gear,
+      gearText: bus.isTram ? (p.emergency ? 'EB' : p.notch > 0 ? `P${p.notch}` : p.notch < 0 ? `B${-p.notch}` : 'D0') : null,
+      limit: bus.isTram ? Math.round(bus.limit.v * 3.6) : null,
       doors: bus.doors.doors.map((d) => d.state),
       indL: (bus.lights.left || bus.lights.hazard) && bus.indicatorOn,
       indR: (bus.lights.right || bus.lights.hazard) && bus.indicatorOn,

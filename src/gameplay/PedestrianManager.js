@@ -175,7 +175,7 @@ export class PedestrianManager {
   /** World position of a door threshold (outside) of a bus. */
   doorPoint(bus, door, out = 0.7) {
     const d = bus.spec.doors.find((q) => q.id === door.id);
-    const sec = d.section === 'front' ? bus.model.front : bus.model.rear;
+    const sec = bus.model[d.section] || bus.model.front;
     const v = new THREE.Vector3(bus.spec.dims.halfW + out, 0, (d.z0 + d.z1) / 2).applyMatrix4(sec.matrixWorld);
     return v;
   }
@@ -414,11 +414,11 @@ export class PedestrianManager {
           const area = STANDING[k % STANDING.length];
           sec = area.sec;
           const fx = ((k * 0.37) % 1), fz = ((k * 0.61) % 1);
-          local = new THREE.Vector3(area.x0 + (area.x1 - area.x0) * fx, floorY, area.z0 + (area.z1 - area.z0) * fz);
+          local = new THREE.Vector3(area.x0 + (area.x1 - area.x0) * fx, area.fy ?? floorY, area.z0 + (area.z1 - area.z0) * fz);
           yaw = (k % 3) * 0.8;
           mode = 'hold';
         }
-        const g = sec === 'front' ? bus.model.front : bus.model.rear;
+        const g = bus.model[sec] || bus.model.front;
         q.setFromAxisAngle(up, yaw);
         base.compose(local, q, one).premultiply(g.matrixWorld);
         // never draw someone the camera (the player's eyes) is standing inside
