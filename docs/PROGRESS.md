@@ -3,6 +3,15 @@
 A concise record of what was built, how it was verified, and what is still open.
 The newest entries are at the top.
 
+## 2026-10-31 — Fix: Start button out of reach on small screens
+
+On screens up to 820 px wide (phones in portrait, small phones in landscape) the passenger and driver
+options panel and the settings panel lost their scroll container and ran off the bottom of the
+screen, so Start could not be reached (passenger mode on 320×568, 360×640, 375×667, 568×320, 640×360,
+740×360). The panel now covers the screen inside the safe areas and scrolls by itself, with Start
+pinned at the bottom. Checked with touch swipes at 15 screen sizes from 320×568 to 1280×720: Start
+(and Back in the settings) reachable on all.
+
 ## 2026-10-31 — Line 12: rails, poles, tram floors, more detail, landmarks, shops
 
 Requests: rails sitting on kerbs or on each other, poles passing through the trams, wheels visible

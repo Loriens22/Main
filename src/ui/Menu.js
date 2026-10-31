@@ -259,10 +259,7 @@ export class Menu {
     this.clear();
     const s = this.settings;
     const p = document.createElement('div');
-    p.className = 'panel setup';
-    p.style.left = '50%';
-    p.style.right = 'auto';
-    p.style.transform = 'translateX(-50%)';
+    p.className = 'panel setup center';
     p.innerHTML = `<h2>${t('settings')}</h2>`;
     const slider = (key, label, min, max, step) => {
       const i = document.createElement('input');
@@ -355,10 +352,7 @@ export class Menu {
   credits() {
     this.clear();
     const p = document.createElement('div');
-    p.className = 'panel setup';
-    p.style.left = '50%';
-    p.style.right = 'auto';
-    p.style.transform = 'translateX(-50%)';
+    p.className = 'panel setup center';
     p.innerHTML = `<h2>${t('credits')}</h2>
       <p><b>Sofia Public Transport — ${L('линии 280, 64 и трамвай 12', 'lines 280, 64 and tram 12')}</b><br>${L('Независим фен проект / independent fan project.', 'Independent fan project.')}</p>
       <p>${L('<b>Карта и спирки:</b> © OpenStreetMap contributors (ODbL 1.0), разпространено чрез Overture Maps Foundation (release 2026-10-21.0). Кодовете на спирките са официалните кодове на ЦГМ / sofiatraffic.bg.', '<b>Map and stops:</b> © OpenStreetMap contributors (ODbL 1.0), distributed via the Overture Maps Foundation (release 2026-10-21.0). Stop codes are the official codes of the Sofia Urban Mobility Center / sofiatraffic.bg.')}</p>

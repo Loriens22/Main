@@ -28,6 +28,7 @@ export const CSS = /* css */ `
 .menu .row .btn{flex:1}
 .menu .foot{color:var(--dim);font-size:.75em;margin-top:8px;line-height:1.4}
 .setup{position:absolute;right:calc(24px + var(--safe-r));top:calc(24px + var(--safe-t));bottom:calc(24px + var(--safe-b));width:min(460px,92vw);padding:20px;overflow:auto;display:flex;flex-direction:column;gap:14px}
+.setup.center{left:50%;right:auto;transform:translateX(-50%)}
 .setup h2{margin:0;font-size:1.3em}
 .setup,.menu,.menu .col,.hud .result{touch-action:pan-y;-webkit-overflow-scrolling:touch}
 .setup .go-row{position:sticky;bottom:-20px;margin:0 -20px -20px;padding:12px 20px 20px;background:linear-gradient(180deg,rgba(14,22,17,0),#0e1611 12px);z-index:2}
@@ -149,7 +150,8 @@ select{background:#16211b;color:var(--text);border:1px solid var(--line);border-
   .hud .map{width:130px;height:130px}
   .hud .fps{top:calc(148px + var(--safe-t))}
   .menu{flex-direction:column;justify-content:flex-start;background:rgba(6,12,9,.78);overflow:auto}
-  .setup{position:static;width:100%;max-height:none}
+  /* the options panel covers the screen and scrolls on its own (it is not inside the scrolling menu) */
+  .setup,.setup.center{left:calc(10px + var(--safe-l));right:calc(10px + var(--safe-r));top:calc(10px + var(--safe-t));bottom:calc(10px + var(--safe-b));width:auto;transform:none;overscroll-behavior:contain}
 }
 /* ---------- touch layout: wheel bottom-left, pedals bottom-right, dash between them */
 .is-touch .hud .help,.is-touch .hud .lamps{display:none}
