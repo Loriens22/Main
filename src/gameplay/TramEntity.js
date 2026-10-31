@@ -15,9 +15,9 @@ const SWITCH_LIMIT = 30 / 3.6; // over points and crossings (the diverging track
 const CURVE_ACC = 1.0; // m/s² lateral at the curve limit (comfort); derailment protection trips well above it
 
 /** Track line of a direction, built once per route (it is the same for every tram). */
-function trackLine(route, dirId, hf) {
+function trackLine(route, dirId, hf, railAt = null) {
   const c = route._trackLines || (route._trackLines = {});
-  return c[dirId] || (c[dirId] = new TrackLine(route, dirId, hf));
+  return c[dirId] || (c[dirId] = new TrackLine(route, dirId, hf, railAt));
 }
 
 /** Switches on a direction's track: arc lengths where the tram runs over points. */
@@ -62,7 +62,7 @@ export class TramEntity {
     this.dirId = dirId;
     this.dir = this.route.direction(dirId);
     const was = this.line ? [this.phys.x, this.phys.z] : null;
-    this.line = trackLine(this.route, dirId, this.world.hf);
+    this.line = trackLine(this.route, dirId, this.world.hf, this.world.tramRailAt || null);
     // a new trip: the tram stays where it is (at the terminal), now on the track line of the new direction,
     // which runs in from the end of the old one through the loop
     if (was) {

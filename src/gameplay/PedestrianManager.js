@@ -196,13 +196,32 @@ export class PedestrianManager {
     }
     const target = Math.round(this.walkerTarget * (this.night ? 0.35 : 1) * (this.rain ? 0.6 : 1));
     for (let k = 0; k < 2 && this.peds.filter((p) => p.kind === 'walk').length < target; k++) this.spawnWalker(focus);
+    // vehicle bodies are solid: a walker whose next step would be inside a tram or bus waits for it to pass
+    this.vehBoxes = this.buses.flatMap((b) => b.phys.boxes());
     for (const p of this.peds) this.stepPed(p, dt);
     // bus interaction
     for (const bus of this.buses) this.busInteraction(bus, dt);
     this.render(camera);
   }
 
+  /** True if (x, z) lies inside a vehicle body (with a small margin). */
+  inVehicle(x, z, m = 0.35) {
+    for (const b of this.vehBoxes || []) {
+      const dx = x - b.cx, dz = z - b.cz;
+      if (Math.abs(dx * b.fx + dz * b.fz) < b.hl + m && Math.abs(-dx * b.fz + dz * b.fx) < b.hw + m) return true;
+    }
+    return false;
+  }
+
   stepPed(p, dt) {
+    if (p.kind === 'walk' && p.state === 'walk') {
+      // look one step ahead along the pavement: wait while a vehicle stands across it
+      const pts = p.sw.pts, j = p.i + p.dir;
+      if (j >= 0 && j < pts.length / 2) {
+        const dx = pts[2 * j] - p.x, dz = pts[2 * j + 1] - p.z, d = Math.hypot(dx, dz) || 1;
+        if (this.inVehicle(p.x + (dx / d) * 0.6, p.z + (dz / d) * 0.6)) { p.anim += dt * 0.6; return; }
+      }
+    }
     p.anim += dt * (p.state === 'walk' || p.state === 'toDoor' || p.state === 'leave' ? p.look.speed * 3.0 : 0.6);
     if (p.state === 'walk' && p.kind === 'walk') {
       const pts = p.sw.pts;

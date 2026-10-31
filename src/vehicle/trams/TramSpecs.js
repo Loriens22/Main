@@ -141,7 +141,7 @@ function bays(list, sec, xs, fy) {
   const hi = SCHINDLER.dims.floorY, lo = SCHINDLER.dims.lowFloorY;
   const F = [[2.0, 1], [2.85, 0], [3.85, 1], [4.7, 0], [5.7, 1], [6.55, 0], [7.55, 1], [8.4, 0], [9.4, 1]];
   const FR = [[2.9, 1], [3.75, 0], [4.75, 1], [5.6, 0], [8.15, 1], [9.0, 0], [9.9, 0]];
-  const MID = [[1.25, 1], [2.1, 0], [5.6, 1], [6.45, 0]];
+  const MID = [[1.6, 1], [2.45, 0], [5.3, 1], [6.15, 0]];
   const R = [[0.75, 1], [1.6, 0], [2.6, 1], [3.45, 0], [4.45, 1], [5.3, 0], [6.3, 1], [7.15, 0], [8.15, 1], [9.0, 0]];
   const RR = [[0.75, 1], [1.6, 0], [4.3, 1], [5.15, 0], [6.15, 1], [7.0, 0], [8.0, 1], [8.85, 0]];
   const seats = [
@@ -160,8 +160,9 @@ function bays(list, sec, xs, fy) {
     // the low-floor module: two steps up at each end to the high floor of the end sections
     aisleFloorY: (sec, z) => {
       if (sec !== 'middle') return hi;
-      if (z < 0.45 || z > ML - 0.45) return hi;
-      if (z < 0.9 || z > ML - 0.9) return (hi + lo) / 2;
+      // the raised ends clear the wheels of the bogie under the joint (its rear axle reaches 0.6 m into the module)
+      if (z < 0.8 || z > ML - 0.8) return hi;
+      if (z < 1.25 || z > ML - 1.25) return (hi + lo) / 2;
       return lo;
     },
     walk: {

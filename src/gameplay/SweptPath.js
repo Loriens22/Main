@@ -79,6 +79,8 @@ export class SweptPath {
 
   /** True if a disc of radius r at (x, z) intersects the swept area. */
   hits(x, z, r = 0) {
+    // a tram line's world: the swept envelope of every tram track (TramTracks.js)
+    if (this.extra && this.extra(x, z, r)) return true;
     const ci = Math.floor(x / CELL), cj = Math.floor(z / CELL);
     for (let i = ci - 1; i <= ci + 1; i++)
       for (let j = cj - 1; j <= cj + 1; j++) {

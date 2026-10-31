@@ -14,6 +14,7 @@ export const GAUGE = 1.009;
 export const WIRE_H = 5.6; // contact wire above the rail head
 const RAIL_C = GAUGE / 2 + 0.03; // rail head centre lines (inner face at gauge / 2)
 const ROAD_Y = 0.07;
+const PAVED_Y = 0.22; // pavements, squares and paved medians (RoadMesh: road 0.07 + kerb 0.15)
 const BED_H = 0.3; // ballast bed top above the terrain
 const STEP = 1.5;
 const TILE = 256;
@@ -133,6 +134,26 @@ function ribbon(S, l0, l1, yAt, vScale = 2, uRange = [0, 1]) {
   return g;
 }
 
+/** Vertical face at lateral offset l from the top (yTop) down to the ground (yLow), facing outwards (side sg). */
+function skirt(S, l, yTop, yLow, sg) {
+  const pos = [], idx = [];
+  for (let i = 0; i < S.length; i++) {
+    const p = S[i];
+    const x = p.x - p.tz * l, z = p.z + p.tx * l;
+    pos.push(x, yTop(p), z, x, Math.min(yTop(p) - 0.02, yLow(p) - 0.05), z);
+    if (i) {
+      const a = 2 * (i - 1);
+      if (sg > 0) idx.push(a, a + 1, a + 2, a + 1, a + 3, a + 2);
+      else idx.push(a, a + 2, a + 1, a + 1, a + 2, a + 3);
+    }
+  }
+  const g = new THREE.BufferGeometry();
+  g.setAttribute('position', new THREE.Float32BufferAttribute(pos, 3));
+  g.setIndex(idx);
+  g.computeVertexNormals();
+  return g;
+}
+
 /** Profile [[lateral, dy], ...] swept along samples (closed = false), normals from the geometry. */
 function sweepProfile(S, offset, prof, yAt) {
   const pos = [], idx = [];
@@ -155,6 +176,70 @@ function sweepProfile(S, offset, prof, yAt) {
   return g;
 }
 
+/* ------------------------------------------------------------------ clearance */
+/**
+ * Half width of the space a tram sweeps round a track sample: half the body (1.125 m) and the mirrors, plus the
+ * swing-out of the front overhang on curves (a (a + c) / 2R, about 1 m on a 20 m radius) and a margin.
+ */
+export function envelopeHalfWidth(k) {
+  return 1.75 + Math.min(1.25, Math.abs(k) * 24);
+}
+
+/** Spatial hash of rendered track samples: rail height, clearance and nearest-track queries. */
+class TrackIndex {
+  constructor(cell = 4) {
+    this.cell = cell;
+    this.map = new Map();
+  }
+
+  key(i, j) {
+    return i * 100003 + j;
+  }
+
+  add(p) {
+    const k = this.key(Math.floor(p.x / this.cell), Math.floor(p.z / this.cell));
+    let a = this.map.get(k);
+    if (!a) this.map.set(k, (a = []));
+    a.push(p);
+  }
+
+  /** Samples within r of (x, z). */
+  near(x, z, r, fn) {
+    const c = this.cell, n = Math.ceil(r / c);
+    const ci = Math.floor(x / c), cj = Math.floor(z / c);
+    for (let i = ci - n; i <= ci + n; i++)
+      for (let j = cj - n; j <= cj + n; j++) {
+        const a = this.map.get(this.key(i, j));
+        if (a) for (const p of a) fn(p);
+      }
+  }
+
+  /** Nearest sample within maxD (or null). */
+  nearest(x, z, maxD = 2.5) {
+    let best = null, bd = maxD * maxD;
+    this.near(x, z, maxD, (p) => {
+      const d = (p.x - x) ** 2 + (p.z - z) ** 2;
+      if (d < bd) { bd = d; best = p; }
+    });
+    return best;
+  }
+
+  /** True if a disc of radius r at (x, z) reaches into the tram envelope of any track. */
+  hits(x, z, r = 0) {
+    let hit = false;
+    this.near(x, z, 4.5 + r, (p) => {
+      if (hit) return;
+      // lateral distance from the sample's tangent line, limited to the sample's own stretch
+      const dx = x - p.x, dz = z - p.z;
+      const lon = dx * p.tx + dz * p.tz;
+      if (Math.abs(lon) > STEP * 0.75 + r) return;
+      const lat = Math.abs(-dx * p.tz + dz * p.tx);
+      if (lat < envelopeHalfWidth(p.k) + r) hit = true;
+    });
+    return hit;
+  }
+}
+
 /* ------------------------------------------------------------------ builder */
 export function buildTramInfrastructure(world) {
   const route = world.route;
@@ -163,6 +248,7 @@ export function buildTramInfrastructure(world) {
   const lite = world.quality === 'balanced' || world.quality === 'low';
   const mats = {
     slab: new THREE.MeshStandardMaterial({ map: slabTexture(), roughness: 0.9, polygonOffset: true, polygonOffsetFactor: -2, polygonOffsetUnits: -2 }),
+    skirt: new THREE.MeshStandardMaterial({ color: 0x8a8883, roughness: 0.9 }),
     groove: new THREE.MeshStandardMaterial({ color: 0x141414, roughness: 0.95, polygonOffset: true, polygonOffsetFactor: -3, polygonOffsetUnits: -3 }),
     railHead: new THREE.MeshStandardMaterial({ color: 0xb9bcbe, roughness: 0.22, metalness: 0.9, polygonOffset: true, polygonOffsetFactor: -4, polygonOffsetUnits: -4 }),
     rail: new THREE.MeshStandardMaterial({ color: 0x6a4f3c, roughness: 0.75, metalness: 0.3 }),
@@ -180,7 +266,7 @@ export function buildTramInfrastructure(world) {
     (b[key] = b[key] || []).push(g);
   };
   const sleepers = new Map(); // tile -> [matrix]
-  const poles = []; // {x, z, y, h, ax, az, al} pole + arm towards (ax, az), arm length al
+  const poles = []; // {x, z, y, h, ax, az, wy} pole and the wire point its arm holds
   const wireSegs = new Map(); // tile -> [x, y, z, ...]
   const addWire = (a, b) => {
     const tk = `${Math.floor(a[0] / TILE)},${Math.floor(a[2] / TILE)}`;
@@ -189,127 +275,182 @@ export function buildTramInfrastructure(world) {
     arr.push(...a, ...b);
   };
 
-  // spatial hash of all track samples (which side has a neighbouring track, pole spacing)
-  const allSamples = [];
+  // ---- samples with curvature; tracks of the line itself first (they win where two edges overlap)
+  const onLine = (() => {
+    const dirs = ['A', 'B'].map((id) => route.direction(id).path);
+    return (x, z) => dirs.some((P) => P.nearest(x, z).d < 1.2);
+  })();
   const tracks = route.tracks.map((t, i) => {
     const S = resample(t.pts);
-    for (const p of S) allSamples.push([p.x, p.z, i]);
-    return { ...t, S, i };
+    for (let j = 0; j < S.length; j++) {
+      const a = S[Math.max(0, j - 2)], b = S[Math.min(S.length - 1, j + 2)];
+      const cross = a.tx * b.tz - a.tz * b.tx, dot = a.tx * b.tx + a.tz * b.tz;
+      const ds = Math.max(0.5, b.s - a.s);
+      S[j].k = Math.atan2(cross, dot) / ds;
+      S[j].t = i;
+    }
+    let own = 0;
+    for (let j = 0; j < S.length; j += 4) if (onLine(S[j].x, S[j].z)) own++;
+    return { ...t, S, i, own: own / Math.max(1, Math.ceil(S.length / 4)) };
   });
-  const H = new Map();
-  const hk = (x, z) => `${Math.floor(x / 6)},${Math.floor(z / 6)}`;
-  for (const p of allSamples) {
-    const k = hk(p[0], p[1]);
-    if (!H.has(k)) H.set(k, []);
-    H.get(k).push(p);
-  }
-  const otherTrackSide = (p, self) => {
-    // +1: a different track lies to the right within 5 m, -1: to the left, 0: none
-    let best = 0, bd = 5;
-    for (let gx = -1; gx <= 1; gx++)
-      for (let gz = -1; gz <= 1; gz++) {
-        const arr = H.get(`${Math.floor(p.x / 6) + gx},${Math.floor(p.z / 6) + gz}`);
-        if (!arr) continue;
-        for (const q of arr) {
-          if (q[2] === self) continue;
-          const dx = q[0] - p.x, dz = q[1] - p.z;
-          const lat = dx * -p.tz + dz * p.tx, lon = dx * p.tx + dz * p.tz;
-          if (Math.abs(lon) > 3 || Math.abs(lat) < 1.6) continue;
-          if (Math.abs(lat) < bd) { bd = Math.abs(lat); best = Math.sign(lat); }
-        }
-      }
-    return best;
-  };
-  const poleHash = new Set();
-  const nearPole = (x, z) => {
-    const k = `${Math.floor(x / 9)},${Math.floor(z / 9)}`;
-    if (poleHash.has(k)) return true;
-    poleHash.add(k);
-    return false;
-  };
+  tracks.sort((a, b) => b.own - a.own);
 
+  // ---- points and duplicated OSM edges: a stretch that lies on an already drawn track (same direction,
+  // within 0.6 m) is not drawn again; the diverging track starts where it leaves the other one
+  const index = new TrackIndex(4);
   for (const t of tracks) {
     const S = t.S;
-    if (S.length < 2) continue;
-    const mid = S[Math.floor(S.length / 2)];
-    // chunks of ~40 m so tiles and culling stay fine-grained
-    for (let c0 = 0; c0 < S.length - 1; c0 += 26) {
-      const C = S.slice(c0, Math.min(S.length, c0 + 27));
-      if (C.length < 2) continue;
-      const cx = C[Math.floor(C.length / 2)].x, cz = C[Math.floor(C.length / 2)].z;
+    const covered = S.map((p) => {
+      let c = false;
+      index.near(p.x, p.z, 1.2, (q) => {
+        if (c || q.t === t.i) return;
+        const dot = Math.abs(p.tx * q.tx + p.tz * q.tz);
+        if (dot > 0.9 && Math.hypot(q.x - p.x, q.z - p.z) < 0.6) c = true;
+      });
+      return c;
+    });
+    const runs = [];
+    let r0 = -1;
+    for (let j = 0; j <= S.length; j++) {
+      const free = j < S.length && !covered[j];
+      if (free && r0 < 0) r0 = j;
+      if (!free && r0 >= 0) {
+        // one sample into the covered stretch joins the diverging rails to the main track
+        const a = Math.max(0, r0 - 1), b = Math.min(S.length - 1, j);
+        if (b - a >= 2) runs.push([a, b]);
+        r0 = -1;
+      }
+    }
+    t.runs = runs;
+    // the rail head along each sample: street track on whatever surface is there (the road, or the paving
+    // of a square or a median), ballast track on its bed
+    for (const p of S) {
+      const g = groundY(p.x, p.z);
       if (t.street) {
-        const y = (p) => groundY(p.x, p.z) + ROAD_Y + 0.006;
-        push(cx, cz, 'slab', ribbon(C, -1.25, 1.25, (p) => y(p), 2, [0, 1]));
-        for (const sg of [-1, 1]) {
-          const c = sg * RAIL_C;
-          push(cx, cz, 'railHead', ribbon(C, c - 0.028, c + 0.028, (p) => y(p) + 0.004, 4));
-          // the groove on the inside of the head
-          const g0 = c - sg * 0.028, g1 = c - sg * 0.064;
-          push(cx, cz, 'groove', ribbon(C, Math.min(g0, g1), Math.max(g0, g1), (p) => y(p) + 0.003, 4));
-        }
-      } else {
-        const gy = (p) => groundY(p.x, p.z);
-        // ballast bed: shoulders sloping to the ground, flat top
-        const bed = [[-1.75, 0], [-1.35, BED_H], [1.35, BED_H], [1.75, 0]];
-        const bg = sweepProfile(C, 0, bed, (p) => gy(p));
-        const uv = [];
-        for (let i = 0; i < C.length; i++) for (const u of [0, 0.12, 0.88, 1]) uv.push(u, C[i].s / 2.5);
-        bg.setAttribute('uv', new THREE.Float32BufferAttribute(uv, 2));
-        push(cx, cz, 'ballast', bg);
-        // Vignole rails on the sleepers: foot, web, head
-        // clockwise seen along the track (over the top from left to right), like the bed profile
-        const prof = [[-0.06, 0], [-0.008, 0.012], [-0.008, 0.11], [-0.03, 0.12], [-0.03, 0.15], [0.03, 0.15], [0.03, 0.12], [0.008, 0.11], [0.008, 0.012], [0.06, 0]];
-        for (const sg of [-1, 1]) push(cx, cz, 'rail', sweepProfile(C, sg * RAIL_C, prof, (p) => gy(p) + BED_H + 0.07));
-        if (!lite) {
-          let list = sleepers.get(`${Math.floor(cx / TILE)},${Math.floor(cz / TILE)}`);
-          if (!list) sleepers.set(`${Math.floor(cx / TILE)},${Math.floor(cz / TILE)}`, (list = []));
-          const m = new THREE.Matrix4();
-          for (let i = 0; i < C.length - 1; i++) {
-            const p = C[i];
-            for (let f = 0; f < STEP; f += 0.65) {
-              const x = p.x + p.tx * f, z = p.z + p.tz * f;
-              m.makeRotationY(Math.atan2(p.tx, p.tz)).setPosition(x, gy(p) + BED_H + 0.035, z);
-              list.push(m.clone());
+        const rx = -p.tz, rz = p.tx;
+        const road = roads.onRoad(p.x, p.z, 0) && roads.onRoad(p.x + rx * 0.6, p.z + rz * 0.6, 0) && roads.onRoad(p.x - rx * 0.6, p.z - rz * 0.6, 0);
+        p.top = g + (road ? ROAD_Y : PAVED_Y) + 0.006;
+      } else p.top = g + BED_H;
+    }
+    // no dips: the surface of a sample is the highest within 3 m (gentle ramps between road and paving)
+    if (t.street) {
+      const tops = S.map((p) => p.top);
+      for (let j = 0; j < S.length; j++) {
+        let m = -Infinity;
+        for (let d = -2; d <= 2; d++) { const q = S[j + d]; if (q) m = Math.max(m, tops[j + d] - groundY(q.x, q.z) + groundY(S[j].x, S[j].z)); }
+        S[j].top = m;
+      }
+    }
+    for (const [a, b] of runs) for (let j = a; j <= b; j++) {
+      const p = S[j];
+      p.rail = t.street ? p.top + 0.004 : p.top + 0.22;
+      index.add(p);
+    }
+  }
+  world.tramIndex = index;
+  /** Rail head height of the nearest drawn track (the tram physics rides on what is drawn). */
+  world.tramRailAt = (x, z) => {
+    const p = index.nearest(x, z, 2.5);
+    return p ? p.rail : null;
+  };
+  /** True if a disc of radius r at (x, z) would reach into a tram's swept envelope. */
+  world.tramClearance = (x, z, r = 0) => index.hits(x, z, r);
+
+  for (const t of tracks) {
+    for (const [ra, rb] of t.runs) {
+      const S = t.S.slice(ra, rb + 1);
+      if (S.length < 2) continue;
+      // chunks of ~40 m so tiles and culling stay fine-grained
+      for (let c0 = 0; c0 < S.length - 1; c0 += 26) {
+        const C = S.slice(c0, Math.min(S.length, c0 + 27));
+        if (C.length < 2) continue;
+        const cx = C[Math.floor(C.length / 2)].x, cz = C[Math.floor(C.length / 2)].z;
+        if (t.street) {
+          const y = (p) => p.top;
+          push(cx, cz, 'slab', ribbon(C, -1.25, 1.25, y, 2, [0, 1]));
+          // concrete edges where the track panel stands above the ground beside it (paving over a road, a median)
+          for (const sg of [-1, 1]) {
+            push(cx, cz, 'skirt', skirt(C, sg * 1.25, (p) => p.top, (p) => groundY(p.x - p.tz * sg * 1.3, p.z + p.tx * sg * 1.3), sg));
+          }
+          for (const sg of [-1, 1]) {
+            const c = sg * RAIL_C;
+            push(cx, cz, 'railHead', ribbon(C, c - 0.028, c + 0.028, (p) => p.top + 0.004, 4));
+            const g0 = c - sg * 0.028, g1 = c - sg * 0.064;
+            push(cx, cz, 'groove', ribbon(C, Math.min(g0, g1), Math.max(g0, g1), (p) => p.top + 0.003, 4));
+          }
+        } else {
+          const gy = (p) => groundY(p.x, p.z);
+          const bed = [[-1.75, 0], [-1.35, BED_H], [1.35, BED_H], [1.75, 0]];
+          const bg = sweepProfile(C, 0, bed, (p) => gy(p));
+          const uv = [];
+          for (let i = 0; i < C.length; i++) for (const u of [0, 0.12, 0.88, 1]) uv.push(u, C[i].s / 2.5);
+          bg.setAttribute('uv', new THREE.Float32BufferAttribute(uv, 2));
+          push(cx, cz, 'ballast', bg);
+          const prof = [[-0.06, 0], [-0.008, 0.012], [-0.008, 0.11], [-0.03, 0.12], [-0.03, 0.15], [0.03, 0.15], [0.03, 0.12], [0.008, 0.11], [0.008, 0.012], [0.06, 0]];
+          for (const sg of [-1, 1]) push(cx, cz, 'rail', sweepProfile(C, sg * RAIL_C, prof, (p) => gy(p) + BED_H + 0.07));
+          if (!lite) {
+            let list = sleepers.get(`${Math.floor(cx / TILE)},${Math.floor(cz / TILE)}`);
+            if (!list) sleepers.set(`${Math.floor(cx / TILE)},${Math.floor(cz / TILE)}`, (list = []));
+            const m = new THREE.Matrix4();
+            for (let i = 0; i < C.length - 1; i++) {
+              const p = C[i];
+              for (let f = 0; f < STEP; f += 0.65) {
+                const x = p.x + p.tx * f, z = p.z + p.tz * f;
+                m.makeRotationY(Math.atan2(p.tx, p.tz)).setPosition(x, gy(p) + BED_H + 0.035, z);
+                list.push(m.clone());
+              }
             }
           }
         }
       }
     }
+  }
 
-    // ---- overhead line: supports every ~30 m (7.5 m pull-offs between), staggered +-0.15 m
-    const railY = (p) => (t.street ? groundY(p.x, p.z) + ROAD_Y + 0.01 : groundY(p.x, p.z) + BED_H + 0.22);
-    let prev = null;
-    let k = 0;
-    for (let i = 0; i < S.length; i += 5) {
-      const p = S[i];
-      const stag = (k++ % 2 ? 1 : -1) * 0.15;
-      const wp = [p.x - p.tz * stag, railY(p) + WIRE_H, p.z + p.tx * stag];
-      if (prev) addWire(prev, wp);
-      prev = wp;
-      if ((k - 1) % 4 !== 0) continue;
-      if (nearPole(p.x, p.z)) continue;
-      // pole side: the kerb in the street, else away from the neighbouring track
-      let side = -otherTrackSide(p, t.i) || 1;
-      let lat = 3.0;
-      if (t.street && roads) {
-        const q = roads.query(p.x, p.z, 25);
-        if (q) {
-          // centre-line point and the side of the track relative to it
-          const ax = q.piece.pts[q.i], az = q.piece.pts[q.i + 1];
-          const px = ax + (q.piece.pts[q.i + 2] - ax) * q.t, pz = az + (q.piece.pts[q.i + 3] - az) * q.t;
-          const ox = p.x - px, oz = p.z - pz;
-          const latC = ox * -p.tz + oz * p.tx; // track offset from the road centre (right +)
-          const s0 = Math.abs(latC) > 0.6 ? Math.sign(latC) : side;
-          side = s0;
-          lat = Math.max(2.4, q.piece.hw + 0.6 - Math.abs(latC));
+  // ---- overhead line over every drawn stretch: supports every ~30 m (pull-offs every 7.5 m), staggered
+  // +-0.15 m; each pole stands outside the swept envelope of every track (its own and the neighbours')
+  const poleHash = new Set();
+  const nearPole = (x, z) => poleHash.has(`${Math.floor(x / 9)},${Math.floor(z / 9)}`);
+  const markPole = (x, z) => poleHash.add(`${Math.floor(x / 9)},${Math.floor(z / 9)}`);
+  for (const t of tracks) {
+    for (const [ra, rb] of t.runs) {
+      const S = t.S.slice(ra, rb + 1);
+      let prev = null;
+      let k = 0;
+      for (let i = 0; i < S.length; i += 5) {
+        const p = S[i];
+        const stag = (k++ % 2 ? 1 : -1) * 0.15;
+        const wp = [p.x - p.tz * stag, p.rail + WIRE_H, p.z + p.tx * stag];
+        if (prev) addWire(prev, wp);
+        prev = wp;
+        if ((k - 1) % 4 !== 0 || nearPole(p.x, p.z)) continue;
+        // candidate spots: the kerb side in the street, then both sides at growing distances
+        const cands = [];
+        if (t.street && roads) {
+          const q = roads.query(p.x, p.z, 25);
+          if (q) {
+            const ax = q.piece.pts[q.i], az = q.piece.pts[q.i + 1];
+            const px = ax + (q.piece.pts[q.i + 2] - ax) * q.t, pz = az + (q.piece.pts[q.i + 3] - az) * q.t;
+            const latC = (p.x - px) * -p.tz + (p.z - pz) * p.tx;
+            const side = Math.abs(latC) > 0.6 ? Math.sign(latC) : 1;
+            cands.push([side, q.piece.hw + 0.6 - Math.abs(latC)]);
+          }
+        }
+        for (const lat of [2.6, 3.2, 3.8, 4.5]) for (const side of [1, -1]) cands.push([side, lat]);
+        for (const [side, lat] of cands) {
+          if (lat < 2.2) continue;
+          const bx = p.x - p.tz * side * lat, bz = p.z + p.tx * side * lat;
+          if (index.hits(bx, bz, 0.18)) continue;
+          if (world.bgrid && world.bgrid.boxContact && world.bgrid.boxContact(bx, bz, 1, 0, 0.3, 0.3)) continue;
+          if (roads && roads.onRoad(bx, bz, 0.3)) continue; // never in a traffic lane
+          markPole(p.x, p.z);
+          poles.push({ x: bx, z: bz, y: groundY(bx, bz) + (t.street ? 0.2 : 0), h: p.rail + WIRE_H + 0.9 - groundY(bx, bz), ax: wp[0], az: wp[2], wy: wp[1] });
+          break;
         }
       }
-      const bx = p.x - p.tz * side * lat, bz = p.z + p.tx * side * lat;
-      if (world.bgrid && world.bgrid.boxContact && world.bgrid.boxContact(bx, bz, 1, 0, 0.3, 0.3)) continue;
-      poles.push({ x: bx, z: bz, y: groundY(bx, bz) + (t.street ? 0.2 : 0), h: railY(p) + WIRE_H + 0.9 - groundY(bx, bz), ax: wp[0], az: wp[2], wy: wp[1] });
     }
-    void mid;
   }
+
+  world.tramPoles = poles;
 
   // ---- meshes per tile
   const out = [];

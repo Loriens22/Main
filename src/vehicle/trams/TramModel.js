@@ -15,6 +15,7 @@ import { LedSign } from '../LedSign.js';
 import { makeFloor, drawTramDash } from './TramTextures.js';
 
 export const GAUGE = 1.009;
+const STEP_D = 0.22; // tread depth of the door steps (two treads stay outboard of the wheels)
 const UP = new THREE.Vector3(0, 1, 0);
 
 /** Rounded-rectangle path in the (u, v) plane, counter-clockwise. */
@@ -102,6 +103,32 @@ export function profileStrip(profile, z0, z1, flip = false) {
   g.setAttribute('position', new THREE.Float32BufferAttribute(pos, 3));
   g.computeVertexNormals();
   return g;
+}
+
+/**
+ * Floor pieces between z0 and z1 for a floor height function: [{z0, z1, y, riser}], sampled every 5 cm with
+ * integer steps (the last piece always ends at z1).
+ */
+export function floorPieces(fy, z0, z1) {
+  const out = [];
+  const n = Math.max(1, Math.round((z1 - z0) / 0.05));
+  let a = z0, ya = fy(z0);
+  for (let k = 1; k <= n; k++) {
+    const z = k === n ? z1 : z0 + ((z1 - z0) * k) / n;
+    const y = fy(Math.min(z, z1 - 1e-4));
+    if (Math.abs(y - ya) > 0.01 || k === n) {
+      const piece = { z0: a, z1: z, y: ya };
+      if (Math.abs(y - ya) > 0.01) {
+        const lo = Math.min(y, ya), hi = Math.max(y, ya);
+        piece.riser = { y: (lo + hi) / 2, h: hi - lo, z, dz: 0 };
+      }
+      out.push(piece);
+      if (k === n && Math.abs(y - ya) > 0.01 && z < z1) out.push({ z0: z, z1, y });
+      a = z;
+      ya = y;
+    }
+  }
+  return out;
 }
 
 /** Cylinder mesh stretched between two points (unit cylinder along y, radius in the mesh scale). */
@@ -386,6 +413,11 @@ export class TramModel {
       const o = extrudeMapped(sh, 0.03, front ? (u, v, w) => [u, v, z + w] : (u, v, w) => [u, v, z - w], !front);
       for (const g of Object.values(o)) p.add(this.cfg.roofMat || 'roof', g);
     };
+    // rain gutter along the eave (a drip rail the length of the section)
+    if (this.cfg.gutter !== false) {
+      const gx = this.sideX(B, B.eaveY) + 0.012;
+      for (const sx of [-1, 1]) p.add(this.cfg.gutterMat || 'rubber', box(0.03, 0.04, zb - za), M(sx * gx, B.eaveY - 0.03, (za + zb) / 2));
+    }
     if (i === 0 && za > 0) capAt(za, true);
     if (i === n - 1 && zb < sec.length) capAt(zb, false);
     const right = prof, left = prof.map(([x, y]) => [-x, y]);
@@ -428,7 +460,10 @@ export class TramModel {
   /** Body underside: belly pan, side valance below the skirt, equipment boxes between the bogies. */
   underframe(p, sec, B) {
     const L = sec.length;
-    p.add('under', box(B.hw * 2 - 0.08, 0.04, L - 0.1), M(0, B.skirtY + 0.03, L / 2));
+    // below the lowest step and the lowest floor of the section (the step wells reach down to doorBot)
+    let low = B.doorBot;
+    for (let z = 0.2; z < L; z += 0.5) low = Math.min(low, this.floorY(sec, z));
+    p.add('under', box(B.hw * 2 - 0.08, 0.04, L - 0.1), M(0, low - 0.08, L / 2));
     const boxes = this.cfg.underBoxes ? this.cfg.underBoxes(sec, B) : [];
     for (const [z0, z1, h, w = 1.6] of boxes) p.add('under', box(w, h, z1 - z0), M(0, B.skirtY - h / 2 + 0.01, (z0 + z1) / 2));
   }
@@ -447,12 +482,33 @@ export class TramModel {
       const hingeZ = e > 0 ? d.z0 : d.z1;
       const a = new THREE.Group();
       a.position.set(B.hw - 0.035, 0, hingeZ);
+      if (this.cfg.doorSwing === 'out') {
+        // outward-swinging leaf (Schindler, photo 4): one panel on a pivot at the jamb, opening out of the body
+        a.add(this.doorPanel(B, W, e, 1));
+        group.add(a);
+        folds.push({ a, b: null, e, out: true });
+        continue;
+      }
       const b = new THREE.Group();
       b.position.set(0, 0, (e * W) / 2);
       a.add(this.doorPanel(B, W / 2, e, 0), b);
       b.add(this.doorPanel(B, W / 2, e, 1));
       group.add(a);
       folds.push({ a, b, e });
+    }
+    // fixed outer step under the door with the yellow edge (Schindler: photos 4, 6)
+    if (this.cfg.outerStep) {
+      const p = new Parts();
+      p.add('under', box(0.26, 0.05, d.z1 - d.z0 + 0.1), M(B.hw + 0.09, B.doorBot - 0.08, (d.z0 + d.z1) / 2));
+      p.add('stepEdge', box(0.05, 0.052, d.z1 - d.z0 + 0.1), M(B.hw + 0.2, B.doorBot - 0.08, (d.z0 + d.z1) / 2));
+      p.add('under', box(0.04, 0.16, d.z1 - d.z0 + 0.1), M(B.hw + 0.21, B.doorBot - 0.2, (d.z0 + d.z1) / 2));
+      group.add(p.build(this.mats));
+    }
+    // door lamp beside the opening (lit while the doors are released)
+    if (this.cfg.doorLamp) {
+      const lamp = new THREE.Mesh(new THREE.BoxGeometry(0.03, 0.09, 0.06), this.mats.indicatorR);
+      lamp.position.set(B.hw + 0.01, this.cfg.doorLamp, d.z1 + 0.14);
+      group.add(lamp);
     }
     this.doorFolds[d.id] = folds;
     this.doorLeaves[d.id] = folds.map((f) => ({ pivot: f.a, end: f.e }));
@@ -487,6 +543,7 @@ export class TramModel {
     const s = openness < 0.5 ? 2 * openness * openness : 1 - Math.pow(-2 * openness + 2, 2) / 2;
     const th = s * 1.38; // the panels fold to ~80 degrees
     for (const f of folds) {
+      if (f.out) { f.a.rotation.y = f.e * s * 1.62; continue; } // swing out to ~93 degrees
       f.a.rotation.y = -f.e * th;
       f.b.rotation.y = f.e * 2 * th;
     }
@@ -751,26 +808,40 @@ export class TramModel {
     const xi = B.hw - B.wall - 0.01;
     const zs = sec === this.spec.sections[0] ? (this.cfg.cab || {}).wallZ ?? 2.1 : 0.02;
     const ze = L - 0.02;
-    // floor: piecewise from the floor profile (steps at the ends of a low-floor module)
+    // step wells at the high-floor doors: only the outer strip of the body, clear of the wheels inboard
+    const wells = [];
+    for (const d of this.spec.doors.filter((q) => q.section === sec.id)) {
+      const drop = this.floorY(sec, (d.z0 + d.z1) / 2) - B.doorBot;
+      if (drop < 0.12) continue;
+      const n = Math.max(1, Math.round(drop / 0.22));
+      wells.push({ d, drop, n, w: STEP_D * n });
+    }
+    // floor: piecewise from the floor profile (steps at the ends of a low-floor module), open over the wells
     const steps = this.floorSteps(sec);
     for (const s of steps) {
-      p.add(sec.lowFloor && s.y < 0.6 ? 'lowFloor' : 'floor', box(xi * 2, 0.04, s.z1 - s.z0), M(0, s.y - 0.02, (s.z0 + s.z1) / 2));
+      const mat = sec.lowFloor && s.y < 0.6 ? 'lowFloor' : 'floor';
+      const cuts = [s.z0, s.z1];
+      for (const w of wells) for (const z of [w.d.z0, w.d.z1]) if (z > s.z0 && z < s.z1) cuts.push(z);
+      cuts.sort((a, b) => a - b);
+      for (let c = 0; c + 1 < cuts.length; c++) {
+        const a = cuts[c], b = cuts[c + 1];
+        if (b - a < 1e-3) continue;
+        const w = wells.find((q) => (a + b) / 2 > q.d.z0 && (a + b) / 2 < q.d.z1);
+        const xr = w ? xi - w.w : xi;
+        p.add(mat, box(xr + xi, 0.04, b - a), M((xr - xi) / 2, s.y - 0.02, (a + b) / 2));
+      }
       if (s.riser) p.add('wall', box(xi * 2, s.riser.h, 0.03), M(0, s.riser.y, s.riser.z));
       if (s.riser) p.add('stepEdge', box(xi * 2, 0.02, 0.04), M(0, s.riser.y + s.riser.h / 2, s.riser.z + s.riser.dz));
     }
-    // step wells at the doors of a high floor
-    for (const d of this.spec.doors.filter((q) => q.section === sec.id)) {
-      const fy = this.floorY(sec, (d.z0 + d.z1) / 2);
-      const drop = fy - B.doorBot;
-      if (drop < 0.12) continue;
-      const n = Math.max(1, Math.round(drop / 0.22));
-      const depth = 0.3;
+    for (const { d, drop, n } of wells) {
+      const depth = STEP_D;
       for (let k = 0; k < n; k++) {
+        // tread k (from the bottom) lies k treads in from the door; its riser rises to the next one inboard
         const y = B.doorBot + (drop * k) / n;
-        const x0 = xi - depth * (n - k);
-        p.add('floor', box(xi - x0, 0.03, d.z1 - d.z0), M((xi + x0) / 2, y + 0.015, (d.z0 + d.z1) / 2));
-        p.add('stepEdge', box(0.04, 0.02, d.z1 - d.z0), M(x0 + 0.02, y + 0.035, (d.z0 + d.z1) / 2));
-        p.add('wall', box(0.02, drop / n, d.z1 - d.z0), M(x0, y + drop / n / 2 + 0.015, (d.z0 + d.z1) / 2));
+        const xo = xi - depth * k, xin = xi - depth * (k + 1);
+        p.add('floor', box(xo - xin, 0.03, d.z1 - d.z0), M((xo + xin) / 2, y + 0.015, (d.z0 + d.z1) / 2));
+        p.add('stepEdge', box(0.04, 0.02, d.z1 - d.z0), M(xo - 0.02, y + 0.035, (d.z0 + d.z1) / 2));
+        p.add('wall', box(0.02, drop / n, d.z1 - d.z0), M(xin, y + drop / n / 2 + 0.015, (d.z0 + d.z1) / 2));
       }
       // the well side walls and the handrails at the doors
       p.add('wall', box(depth * n, drop, 0.03), M(xi - (depth * n) / 2, B.doorBot + drop / 2, d.z0 - 0.02));
@@ -804,27 +875,11 @@ export class TramModel {
     this.interiorGroups.push(g);
   }
 
-  /** Floor pieces of a section: [{z0, z1, y, riser}] from layout.aisleFloorY sampled every 5 cm. */
+  /** Floor pieces of a section: [{z0, z1, y, riser}] from layout.aisleFloorY sampled every 5 cm (to the end). */
   floorSteps(sec) {
     const L = sec.length;
     const zs = sec === this.spec.sections[0] ? (this.cfg.cab || {}).wallZ ?? 2.1 : 0;
-    const out = [];
-    let z0 = zs, y0 = this.floorY(sec, zs);
-    for (let z = zs + 0.05; z <= L + 1e-6; z += 0.05) {
-      const y = this.floorY(sec, Math.min(z, L - 1e-4));
-      if (Math.abs(y - y0) > 0.01 || z >= L - 1e-6) {
-        const zEnd = z >= L - 1e-6 ? L : z;
-        const piece = { z0, z1: zEnd, y: y0 };
-        if (Math.abs(y - y0) > 0.01) {
-          const lo = Math.min(y, y0), hi = Math.max(y, y0);
-          piece.riser = { y: (lo + hi) / 2, h: hi - lo, z: zEnd, dz: y > y0 ? 0.0 : -0.0 };
-        }
-        out.push(piece);
-        z0 = zEnd;
-        y0 = y;
-      }
-    }
-    return out;
+    return floorPieces((z) => this.floorY(sec, z), zs, L);
   }
 
   /** Poles of a section: [[z, x, stopButton, validator]] (the model may override). */

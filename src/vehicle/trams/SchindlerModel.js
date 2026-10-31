@@ -21,8 +21,8 @@ const H = { hopper: 0.34 }; // top-hung hopper in the upper part of a side windo
 // windows [z0, z1, opts] in the section frames, from the photos (estimated spacing)
 const WINDOWS = {
   front: {
-    left: [[0.42, 1.4, { bot: 1.48, r: 0.12 }], [1.6, 3.2, H], [3.35, 5.0, H], [5.15, 6.8, H], [6.95, 8.55, H], [8.7, 10.25, H]],
-    right: [[0.42, 1.4, { bot: 1.48, r: 0.12 }], [2.6, 4.15, H], [4.3, 6.1, H], [7.8, 9.0, H], [9.15, 10.25, H]],
+    left: [[0.42, 1.4, { bot: 1.48, r: 0.12, mullion: 0.92 }], [1.6, 3.2, H], [3.35, 5.0, H], [5.15, 6.8, H], [6.95, 8.55, H], [8.7, 10.25, H]],
+    right: [[0.42, 1.4, { bot: 1.48, r: 0.12, mullion: 0.92 }], [2.6, 4.15, H], [4.3, 6.1, H], [7.8, 9.0, H], [9.15, 10.25, H]],
   },
   middle: {
     left: [[0.5, 2.1, { r: 0.16 }], [2.25, 3.85, { r: 0.16 }], [4.0, 5.6, { r: 0.16 }], [5.75, 7.25, { r: 0.16 }]],
@@ -82,6 +82,9 @@ export class SchindlerModel extends TramModel {
       ceilY: 3.02, // 2.16 m above the high floor
       underBoxes: (sec) => sec.id === 'front' ? [[5.0, 8.6, 0.22, 1.5]] : sec.id === 'rear' ? [[0.8, 4.2, 0.24, 1.5], [4.6, 5.6, 0.18, 1.2]] : [[1.2, 6.5, 0.12, 1.7]],
       panto: { type: 'single', sec: 'front', z: 1.95, baseY: 3.44, a: 1.38, b: 1.62, headZ: -0.2 },
+      doorSwing: 'out', // outward-swinging leaves (photo 4)
+      outerStep: true,
+      doorLamp: 1.78,
       gangway: { w: 1.25, h: 2.0 },
       cab: { wallZ: spec.cab.wallZ, deskZ: 0.42, eyeX: spec.cab.eye[0], extra: (p, sec, B, fy, m) => m.cabExtra(p, sec, B, fy) },
       poles: (sec, m) => m.poles(sec),
@@ -125,11 +128,12 @@ export class SchindlerModel extends TramModel {
     // rake: the windscreen leans back 0.12 m over its height; the box above stands vertical again
     const rake = (y) => (y <= 1.48 ? 0 : y >= 2.58 ? 0.12 : ((y - 1.48) / 1.1) * 0.12);
     const P = (i, y) => [pts[i][0], y, pts[i][1] + rake(y)];
-    const strip = (y0, y1, mat, pick = () => true) => {
+    const strip = (y0, y1, mat, pick = () => true, off = 0) => {
       const pos = [];
       for (let i = 0; i + 1 < pts.length; i++) {
         if (!pick((pts[i][0] + pts[i + 1][0]) / 2)) continue;
         const a0 = P(i, y0), b0 = P(i + 1, y0), a1 = P(i, y1), b1 = P(i + 1, y1);
+        if (off) for (const v of [a0, b0, a1, b1]) v[2] -= off * (1 - Math.max(0, Math.abs(v[0]) - (HW - rc)) / rc);
         // outline runs left -> right seen from the front: (b0 - a0) x (a1 - a0) points forwards (-z)
         pos.push(...a0, ...a1, ...b0, ...b0, ...a1, ...b1);
       }
@@ -141,8 +145,23 @@ export class SchindlerModel extends TramModel {
     };
     const inGlass = (x) => Math.abs(x) < wsHalf - 0.001;
     const inFrame = (x) => Math.abs(x) < wsHalf + 0.001;
-    // lower front: skirt to the belt, white belt line round the front
-    strip(B.skirtY, 1.38, 'paint');
+    // lower front: proud below the knee-height crease (photo 6), then up to the belt, white belt line round it
+    strip(B.skirtY, 0.73, 'paint', () => true, 0.03);
+    {
+      // the crease: a narrow ledge joining the proud lower panel to the face above
+      const pos = [];
+      for (let i = 0; i + 1 < pts.length; i++) {
+        const a = P(i, 0.73), b = P(i + 1, 0.73);
+        const k = (v) => 0.03 * (1 - Math.max(0, Math.abs(v[0]) - (HW - rc)) / rc);
+        const a2 = [a[0], a[1], a[2] - k(a)], b2 = [b[0], b[1], b[2] - k(b)];
+        pos.push(...a2, ...a, ...b2, ...b2, ...a, ...b);
+      }
+      const g = new THREE.BufferGeometry();
+      g.setAttribute('position', new THREE.Float32BufferAttribute(pos, 3));
+      g.computeVertexNormals();
+      p.add('paint', g);
+    }
+    strip(0.73, 1.38, 'paint');
     strip(1.38, 1.43, 'stripe');
     strip(1.43, 1.5, 'paint');
     // windscreen: black frame, glass, corner pillars in body colour
@@ -178,11 +197,12 @@ export class SchindlerModel extends TramModel {
     for (const g of Object.values(capG)) p.add('roof', g);
     // destination box: black frame proud of the front, the two white blinds (buildSigns), above the windscreen
     const dz = rake(2.7) - 0.05;
-    p.add('black', box(1.36, 0.5, 0.12), M(0.05, 2.83, dz + 0.04));
+    p.add('black', box(1.86, 0.5, 0.12), M(0, 2.83, dz + 0.04));
     this.blindZ = dz + 0.04 - 0.06 - 0.004; // the blinds just ahead of the box (buildSigns)
     // louvred roof box above the cab (photos 4-6) with the ventilation grille at the front and sides
-    p.add('grille', box(1.72, 0.3, 1.25), M(0, 3.25, 0.82));
-    p.add('roof', box(1.76, 0.04, 1.3), M(0, 3.42, 0.82));
+    // the roof box over the cab: narrower than the body, louvres across its front (photos 5, 6)
+    p.add('grille', box(1.42, 0.42, 1.3), M(0, 3.18, 0.84));
+    p.add('roof', box(1.46, 0.04, 1.34), M(0, 3.6, 0.84));
     p.add('roof', box(1.9, 0.18, 0.2), M(0, 3.12, 0.1));
     // central lamp housing below the windscreen with the headlamp (photo 6), fleet number beside it
     p.add('paint', box(0.44, 0.78, 0.08, 0.02), M(0, 0.98, -0.035));
@@ -212,6 +232,8 @@ export class SchindlerModel extends TramModel {
     p.add('red', box(0.12, 0.08, 0.04), M(-0.1, 0.6, -0.4));
     p.add('red', box(0.12, 0.08, 0.04), M(0.1, 0.6, -0.4));
     p.add('under', box(1.9, 0.12, 0.3), M(0, B.skirtY - 0.06, 0.35));
+    // builder's plate (white, lower front on the tram's left: photo 6)
+    p.add('stripe', box(0.3, 0.07, 0.01), M(-0.52, 0.6, -0.035));
   }
 
   /** Rear end with a large rear window, the line number box, tail lamps (not in the photos: estimated). */
@@ -271,8 +293,9 @@ export class SchindlerModel extends TramModel {
     const f = this.front;
     const blind = makeBlindDisplay();
     const bm = new THREE.MeshBasicMaterial({ map: blind.tex, toneMapped: true });
-    const front = new THREE.Mesh(new THREE.PlaneGeometry(1.24, 0.42), bm);
-    front.position.set(0.05, 2.83, this.blindZ);
+    // the blinds fill the tram's left two thirds of the box (photo 6)
+    const front = new THREE.Mesh(new THREE.PlaneGeometry(1.2, 0.42), bm);
+    front.position.set(-0.25, 2.83, this.blindZ);
     front.rotation.y = Math.PI;
     f.add(front);
     // route card in the first right-hand window and the rear window

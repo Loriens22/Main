@@ -56,16 +56,29 @@ export class T6MModel extends TramModel {
       jointMat: 'paint',
       cab: { wallZ: spec.cab.wallZ, deskZ: 0.5, seatZ: 1.32, eyeX: spec.cab.eye[0] },
       poles: (sec, m) => m.poles(sec),
-      heaters: (p, sec) => {
-        // round fan heaters under the seats by the doors (photo 7)
-        for (const d of spec.doors.filter((q) => q.section === sec.id)) {
-          const g = cyl(0.16, 0.24, 18);
-          g.rotateZ(Math.PI / 2);
-          p.add('heater', g, M(-0.72, 0.9 + 0.2, (d.z0 + d.z1) / 2));
-          p.add('black', cyl(0.12, 0.25, 14).rotateZ(Math.PI / 2), M(-0.72 + 0.01, 1.1, (d.z0 + d.z1) / 2));
-        }
-      },
+      heaters: (p, sec, B, m) => m.heaters(p, sec),
     });
+  }
+
+  /**
+   * Fan heaters (photo 7): a grey drum lying along the car under the first seat behind each door, its round
+   * grille facing the aisle end, on two feet.
+   */
+  heaters(p, sec) {
+    const fy = this.spec.dims.floorY;
+    const seats = this.spec.layout.seats.filter((q) => q.sec === sec.id && q.x > 0);
+    for (const d of this.spec.doors.filter((q) => q.section === sec.id)) {
+      const st = seats.filter((q) => q.z > d.z1).sort((a, b) => a.z - b.z)[0];
+      if (!st || st.z - d.z1 > 1.2) continue;
+      const drum = cyl(0.13, 0.4, 18);
+      drum.rotateX(Math.PI / 2);
+      p.add('heater', drum, M(st.x, fy + 0.19, st.z));
+      const grille = cyl(0.105, 0.01, 18);
+      grille.rotateX(Math.PI / 2);
+      p.add('black', grille, M(st.x, fy + 0.19, st.z - 0.205));
+      for (let k = -2; k <= 2; k++) p.add('heater', box(0.2, 0.012, 0.012), M(st.x, fy + 0.19 + k * 0.04, st.z - 0.212));
+      for (const dz of [-0.12, 0.12]) p.add('steel', box(0.22, 0.06, 0.04), M(st.x, fy + 0.03, st.z + dz));
+    }
   }
 
   poles(sec) {
@@ -83,6 +96,7 @@ export class T6MModel extends TramModel {
       bumper: new THREE.MeshStandardMaterial({ color: 0x141516, roughness: 0.7 }),
       coupler: new THREE.MeshStandardMaterial({ color: 0x5c5f61, roughness: 0.6, metalness: 0.5 }),
       resistor: new THREE.MeshStandardMaterial({ color: 0x5f6466, roughness: 0.7, metalness: 0.3 }),
+      chrome: new THREE.MeshStandardMaterial({ color: 0xd9dde0, roughness: 0.15, metalness: 1.0 }),
     };
   }
 
@@ -123,9 +137,27 @@ export class T6MModel extends TramModel {
     const rake = (y) => (y <= 1.48 ? 0 : y >= 2.66 ? 0.1 : ((y - 1.48) / 1.18) * 0.1);
     const S = this.endStrips(p, pts, (dz, y) => dz + rake(y), true);
     const inG = (x) => Math.abs(x) < ws - 0.05, inF = (x) => Math.abs(x) < ws;
-    S(B.skirtY, 0.72, 'paint3');
-    S(0.72, B.beltY, 'paint2');
-    S(B.beltY, 1.5, 'paint');
+    // the livery on the front (photo 10): white skirt, then the orange band sweeping from the belt line at the
+    // corners down to 0.8 m in the middle, blue above it round the headlamps and the number
+    const sweep = (x) => 0.8 + 0.66 * Math.pow(Math.min(1, Math.abs(x) / HW), 2.2);
+    const band = (lo, hi, mat) => {
+      const pos = [];
+      for (let i = 0; i + 1 < pts.length; i++) {
+        const xa = pts[i][0], xb = pts[i + 1][0];
+        const ya0 = lo(xa), yb0 = lo(xb), ya1 = hi(xa), yb1 = hi(xb);
+        if (ya1 - ya0 < 1e-3 && yb1 - yb0 < 1e-3) continue;
+        const a0 = [xa, ya0, pts[i][1] + rake(ya0)], b0 = [xb, yb0, pts[i + 1][1] + rake(yb0)];
+        const a1 = [xa, ya1, pts[i][1] + rake(ya1)], b1 = [xb, yb1, pts[i + 1][1] + rake(yb1)];
+        pos.push(...a0, ...a1, ...b0, ...b0, ...a1, ...b1);
+      }
+      const g = new THREE.BufferGeometry();
+      g.setAttribute('position', new THREE.Float32BufferAttribute(pos, 3));
+      g.computeVertexNormals();
+      p.add(mat, g);
+    };
+    band(() => B.skirtY, () => 0.69, 'paint3');
+    band(() => 0.69, (x) => Math.min(B.beltY, sweep(x)), 'paint2');
+    band((x) => Math.min(B.beltY, sweep(x)), () => 1.5, 'paint');
     S(1.5, 1.55, 'rubber', inF);
     S(1.5, 1.55, 'paint', (x) => !inF(x));
     S(1.55, 2.62, 'screen', inG);
@@ -142,18 +174,20 @@ export class T6MModel extends TramModel {
     inner(2.67, B.eaveY, 'dash');
     // headlamps (round, at the bottom corners of the orange band) and the small lamps beside them (photos 8, 10)
     for (const sx of [-1, 1]) {
+      // round headlamps in chrome rings in the blue above the sweep, round amber indicators outboard (photo 10)
       const x = sx * 0.78, z = 0.04 * (x / HW) ** 2;
-      p.add('rubber', cyl(0.11, 0.05, 20).rotateX(Math.PI / 2), M(x, 0.86, z - 0.01));
-      p.add('headlamp', cyl(0.085, 0.03, 20).rotateX(Math.PI / 2), M(x, 0.86, z - 0.03));
-      p.add('marker', cyl(0.04, 0.03, 12).rotateX(Math.PI / 2), M(sx * 0.55, 0.86, 0.04 * (0.55 / HW) ** 2 - 0.012));
-      p.add(sx < 0 ? 'indicatorL' : 'indicatorR', box(0.1, 0.06, 0.03), M(sx * 0.96, 1.08, 0.04 * (0.96 / HW) ** 2 + 0.01 - 0.02));
+      p.add('chrome', cyl(0.115, 0.05, 24).rotateX(Math.PI / 2), M(x, 1.17, z - 0.01));
+      p.add('headlamp', cyl(0.092, 0.03, 24).rotateX(Math.PI / 2), M(x, 1.17, z - 0.035));
+      const xi2 = sx * 0.98, zi = 0.04 * (0.98 / HW) ** 2;
+      p.add('rubber', cyl(0.07, 0.04, 16).rotateX(Math.PI / 2), M(xi2, 1.31, zi + 0.02 - 0.03));
+      p.add(sx < 0 ? 'indicatorL' : 'indicatorR', cyl(0.055, 0.03, 16).rotateX(Math.PI / 2), M(xi2, 1.31, zi - 0.03));
       // mirror on an arm at the cab corner
       p.add('black', box(0.05, 0.05, 0.42), M(sx * (HW + 0.06), 2.35, 0.05));
       p.add('black', box(0.15, 0.28, 0.05, 0.02), M(sx * (HW + 0.2), 2.15, -0.14));
       p.add('black', box(0.2, 0.04, 0.04), M(sx * (HW + 0.11), 2.35, -0.14));
     }
-    // black bumper bar across the skirt with the coupler pocket
-    p.add('bumper', box(1.5, 0.16, 0.12, 0.05), M(0, 0.56, -0.03));
+    // black bumper bar across the orange / white line with the coupler pocket below (photo 10)
+    p.add('bumper', box(1.15, 0.12, 0.12, 0.05), M(0, 0.68, -0.03));
     p.add('coupler', box(0.2, 0.14, 0.35), M(0, 0.4, -0.1));
     p.add('under', box(2.0, 0.1, 0.3), M(0, B.skirtY - 0.05, 0.3));
   }
@@ -231,7 +265,7 @@ export class T6MModel extends TramModel {
     const dm = this.mats.decal.clone();
     dm.map = num;
     const front = new THREE.Mesh(new THREE.PlaneGeometry(0.34, 0.13), dm);
-    front.position.set(0, 1.08, -0.004);
+    front.position.set(0, 1.24, -0.004);
     front.rotation.y = Math.PI;
     f.add(front);
     const rear = new THREE.Mesh(new THREE.PlaneGeometry(0.34, 0.13), dm);

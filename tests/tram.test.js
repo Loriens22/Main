@@ -133,3 +133,28 @@ test('the track line of line 12 starts at the first stop and runs through both l
     assert.ok([...L.street].some((v) => v === 1) && [...L.street].some((v) => v === 0), `${dir} street and ballast track`);
   }
 });
+
+test('every tram section has a floor over its whole length, above the bogies', async () => {
+  const { floorPieces } = await import('../src/vehicle/trams/TramModel.js');
+  for (const s of TRAMS) {
+    for (const sec of s.sections) {
+      const z0 = sec === s.sections[0] ? s.cab.wallZ : 0;
+      const pieces = floorPieces((z) => s.layout.aisleFloorY(sec.id, z), z0, sec.length);
+      assert.ok(pieces.length >= 1, `${s.id} ${sec.id} has floor`);
+      assert.ok(Math.abs(pieces[0].z0 - z0) < 1e-9 && Math.abs(pieces[pieces.length - 1].z1 - sec.length) < 1e-9, `${s.id} ${sec.id} floor from ${z0} to the end`);
+      for (let i = 1; i < pieces.length; i++) assert.ok(Math.abs(pieces[i].z0 - pieces[i - 1].z1) < 1e-9, `${s.id} ${sec.id} no gap`);
+      // the floor above every wheel of every bogie (wheel top 0.68 m + 0.08 m)
+      const wb = s.bogies.wheelbase, R = s.bogies.wheelR;
+      for (const q of s.sections.flatMap((x) => x.supports).filter((x) => x.kind === 'bogie')) {
+        for (const ax of [q.d - wb / 2, q.d + wb / 2]) {
+          for (const dz of [-R, 0, R]) {
+            const z = ax + dz - sec.d0;
+            if (z < z0 || z > sec.length) continue;
+            const y = s.layout.aisleFloorY(sec.id, z);
+            assert.ok(y > 2 * R + 0.08, `${s.id} ${sec.id} floor ${y} over the wheel at d=${(ax + dz).toFixed(2)}`);
+          }
+        }
+      }
+    }
+  }
+});

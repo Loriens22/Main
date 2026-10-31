@@ -12,7 +12,8 @@ const BED_RAIL = 0.3 + 0.22; // ballast bed + sleeper + rail (TramTracks.js)
  * still need track at the start, the tram runs into the loop at the end). s = 0 at the first stop.
  */
 export class TrackLine {
-  constructor(route, dirId, hf) {
+  /** railAt(x, z): rail head height of the drawn track (TramTracks.js), or null to derive it here. */
+  constructor(route, dirId, hf, railAt = null) {
     const other = route.other(dirId);
     const dir = route.direction(dirId), od = route.direction(other);
     const inLink = route.terminalLinks[dirId === 'A' ? 'BtoA' : 'AtoB'] || [];
@@ -63,7 +64,8 @@ export class TrackLine {
       this.P.at(i * 2, tmp);
       const st = street(tmp.x, tmp.z);
       this.street[i] = st ? 1 : 0;
-      this.railY[i] = hf.heightAt(tmp.x, tmp.z) + (st ? ROAD_Y + 0.01 : BED_RAIL);
+      const drawn = railAt ? railAt(tmp.x, tmp.z) : null;
+      this.railY[i] = drawn != null ? drawn : hf.heightAt(tmp.x, tmp.z) + (st ? ROAD_Y + 0.01 : BED_RAIL);
     }
   }
 
