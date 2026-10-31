@@ -96,12 +96,30 @@ road carriageway), 238 switch and crossing nodes (track nodes of degree ≥ 3).
   fountain spot. In the game: the sculpture at the OSM artwork point (the figures simplified, their
   pose estimated) and up to 132 stalls in rows inside the square's OSM outline, kept off the roads and
   the tram tracks.
+- **храм „Свети Седмочисленици“** (Graf Ignatiev 25): the former Black Mosque (16th century),
+  converted into a church in 1901-1903 by Alexander Pomerantsev, Yordan Milanov and Petko Momchilov
+  (neo-Byzantine); consecrated 27 July 1903. OSM: the hall, the dome part and the separate bell tower
+  (18 m) at the north-west corner. In the game: banded stone and brick hall, lead dome on a windowed
+  drum, east apse, narthex with three arches, the bell tower at its OSM position; proportions estimated.
+- **УАСГ** (bul. Hristo Smirnenski 1): OSM "Нова сграда" (twelve storeys, 36.6 m, three parts and a
+  podium) and "Ректорат" (four storeys). Founded 1942 (VTU). Facades typed and estimated (late-modernist
+  slab with ribbon windows; punched windows on the older wing).
+- **Ministry of Agriculture** (bul. Hristo Botev 55, architect Nikola Lazarov): on the line near пл.
+  Македония; not hand-built yet (its footprint is split in the pack).
+- **Sofia City Library** (пл. Славейков, architect Victoria Angelova): on the square; not hand-built
+  (the building could not be identified with certainty in the footprints).
 - **пл. Македония**: the КНСБ building (пл. Македония 1, congress centre "Глобус"); several tram lines
   cross the square (бул. Македония, бул. Христо Ботев, Алабин).
 - **пл. Гарибалди, Граф Игнатиев, УАСГ, Пета градска болница, пл. Журналист, Стоков базар Илиянци**:
   massing and position from OSM; facade details inferred from the building type (marked in the code).
 
 ## Sources
+
+- [Seven Saints Church, Sofia (Wikipedia, via search summary)](https://en.wikipedia.org/wiki/Seven_Saints_Church,_Sofia),
+  [BTA gallery: the church](https://www.bta.bg/bg/galleries/archive/231413)
+- [Capital: the City Library renovation](https://www.capital.bg/politika_i_ikonomika/bulgaria/2019/08/09/3414913_stolichnata_biblioteka_se_remontira_avariino_predi/)
+- [Ministry of Agriculture, Food and Forestry (Wikipedia, via search summary)](https://en.wikipedia.org/wiki/Ministry_of_Agriculture,_Food_and_Forestry_(Bulgaria))
+- [nasledstvo.bg: УАСГ](https://www.nasledstvo.bg/en/partner/c-universitet-po-arhitektura-stroitelstvo-i-geodeziya/)
 
 - [Basel Be 4/6 659–686 «Guggummere» (tram-bus-basel.ch)](https://wp.tram-bus-basel.ch/2019/04/06/be-4-6-659-686-guggummere/)
 - [BVB press release, January 2017: shipment of the Guggummere to Sofia](https://www.bvb.ch/wp-content/bvb/Dokumente/Medienmitteilungen/2017/20170117_Start_Versand_Guggummere_fuer_Sofia.pdf)

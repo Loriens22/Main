@@ -26,6 +26,8 @@ works offline: no server, CDN or network access is needed.
 | ![Seated inside the bus](docs/screenshots/passenger-interior.jpg) | ![Schindler Be 4/6 S on line 12 at a stop in Илиянци](docs/screenshots/tram-schindler-12.jpg) |
 | ![T6M-700 under the overhead line](docs/screenshots/tram-t6m-700.jpg) | ![Tram cab: controller and instruments](docs/screenshots/tram-cab.jpg) |
 | ![Schindler saloon, 2+1 blue seats](docs/screenshots/tram-schindler-interior.jpg) | ![Central Station from the forecourt](docs/screenshots/central-station.jpg) |
+| ![Храм „Свети Седмочисленици“ on Граф Игнатиев](docs/screenshots/seven-saints-church.jpg) | ![A café front with its interior behind the glass](docs/screenshots/shop-fronts-cafe.jpg) |
+| ![Line 12 street track on the paving, poles clear of the trams](docs/screenshots/line12-tracks.jpg) | ![A row of shop fronts, a shop interior behind the glass](docs/screenshots/shop-fronts.jpg) |
 
 ## Playing
 
@@ -98,7 +100,8 @@ sequence reproducible (the same seed gives the same buses in the same order).
 | T6M-700 | 1985–1989, Sofia | two sections on three bogies, 20.75 m, 2.25 m wide | high, three steps | 4 double folding | resistance controller, 5 notches with contactor steps |
 
 Both run on the 1 009 mm track of the line, under the contact wire, dispatched per service like
-the buses (50 / 50 by default). A tram has one degree of freedom: it follows its track through
+the buses (50 / 50 by default). Their body, saloon and cab carry a Blender (Cycles) light bake,
+like the buses. A tram has one degree of freedom: it follows its track through
 the street-running sections, the ballasted sections and both terminal loops. Each body section
 sits on its bogies (the Schindler's low-floor module is carried between the end sections), the
 bogies turn under the body, the bellows follow, the pantograph rides on the wire.
@@ -300,9 +303,13 @@ BLENDER_PY=python bash tools/bake_bus_lightmaps.sh      # light bake of all four
 - **Trams:** modelled from the reference photos only (Schindler: photos 1–6, T6M-700: photos
   7–10, `data/research/ref_photos/trams/`). Lengths, bogie and door positions not given by a
   reachable source are estimates from the photos and are marked so in `TramSpecs.js` and the
-  research notes. Central Station and пл. Славейков (the Slaveykovs' bench sculpture and the
-  book market) are hand-built on their OSM footprints; the station's facade composition is
-  estimated.
+  research notes. Hand-built on their OSM footprints: Central Station, пл. Славейков (the
+  Slaveykovs' bench sculpture and the book market), храм „Свети Седмочисленици“ (the former
+  Black Mosque, with its separate bell tower) and the УАСГ twelve-storey block and rectorate;
+  facade compositions and proportions not given by a source are estimated.
+- **Shops:** every business sign along the line has a glazed shop front with a room behind
+  it (interior mapping: shelves, counters, floor and ceiling drawn per kind of shop, chosen
+  from the name), lit at night; cafés and bakeries have awnings.
 - **No Google data:** no Google Maps or Street View imagery or data is used, and no
   photograph is used as a texture: every texture is drawn procedurally, in code or baked in
   Blender from procedural materials.
@@ -328,7 +335,7 @@ BLENDER_PY=python bash tools/bake_bus_lightmaps.sh      # light bake of all four
 | `src/core` | projection, maths, path sampling, seeded random |
 | `src/gameplay` | route data (with route variants), stop manager, announcements, destination display, bus and tram entities (`VehicleFactory.js` picks one), AI bus and tram drivers, traffic, pedestrians, scoring, state machine (pure logic is unit-tested) |
 | `src/vehicle` | vehicle registry and dispatch (`Vehicles.js`), articulated / rigid physics, door controller, LED signs; `models/` holds the four bus models, `trams/` the tram specs, rail dynamics (`TramDynamics.js`: track line, section and bogie placement, traction and brakes) and the Schindler and T6M-700 models |
-| `src/world` | heightfield, terrain, road network and meshes, buildings (archetype facade shader, real balconies, shop signs), street furniture and stop hardware, vegetation, tram tracks and overhead line (`TramTracks.js`), landmarks (`landmarks64/`, `landmarks12/`), spatial index |
+| `src/world` | heightfield, terrain, road network and meshes, buildings (archetype facade shader, real balconies, shop signs, shop fronts with interiors), street furniture and stop hardware, vegetation, tram tracks, overhead line and the tram clearance envelope (`TramTracks.js`), landmarks (`landmarks64/`, `landmarks12/`), spatial index |
 | `src/render` | renderer and post-processing, sky, cameras, procedural textures, weather, bus lights |
 | `src/audio` | synthesised bus sound with per-bus engine profiles, the tram voice (`TramVoice.js`: gear whine, chopper or DC motor, rolling noise, rail joints, squeal, gong), five listener zones, all buses audible with distance and Doppler, door and brake one-shots, ambience; voice announcer and pronunciation dictionary |
 | `src/ui` | HUD, menus, input, touch controls, i18n |

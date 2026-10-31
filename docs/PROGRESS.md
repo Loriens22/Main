@@ -3,6 +3,49 @@
 A concise record of what was built, how it was verified, and what is still open.
 The newest entries are at the top.
 
+## 2026-10-31 — Line 12: rails, poles, tram floors, more detail, landmarks, shops
+
+Requests: rails sitting on kerbs or on each other, poles passing through the trams, wheels visible
+inside the trams, trams without colliders, more detailed trams one-to-one with the photos, the main
+buildings of line 12 one-to-one after research, shops with real exteriors and interiors.
+
+### Fixed
+
+- **Rails:** where the tram corridor is not a road (squares, medians, the Triangle loop, Граф
+  Игнатиев) the world laid paving and kerbs over it and the street track ran underneath. The track
+  panel now sits on whatever surface is there (road level in the carriageway, paving level
+  elsewhere, ramps between, concrete edges where it stands above the ground) and the tram physics
+  rides on the drawn rail height. Where two OSM edges overlap (points, duplicated ways: 41 pairs over
+  8 m) the track is drawn once.
+- **Poles:** catenary poles were placed only away from their own track; 130 stood inside a tram
+  body somewhere on the line. A curve-aware envelope of every track (half body, mirrors, swing-out
+  of the overhang) now keeps catenary poles, lamps, signals, trees, shelters and parked cars out;
+  a sweep of both trams along both directions finds none inside.
+- **Wheels inside:** the T6M's saloon floor was never emitted (the floor loop missed the end of the
+  section), so the bogies showed; floors are built to the end of every section (unit test over
+  every wheel). The round fan heaters, which looked like wheels, are now drums under the seat as in
+  photo 7. Step wells cut the floor, stay outboard of the wheels, treads the right way round.
+- **Colliders:** pedestrians wait for a tram standing across their way (the player, cars and the
+  trams themselves already used the body boxes).
+
+### Built
+
+- Schindler: outward-swinging doors with fixed outer steps (photo 4), the destination box across
+  the front with the blinds to the left, narrower roof box, knee-height crease, builder's plate,
+  split cab windows, door lamps. T6M: the orange sweep of the front livery, chrome-ringed
+  headlamps, round indicators, bumper bar (photo 10). Rain gutters on both.
+- Blender (Cycles) light bake of both trams (`tools/bake_bus_lightmaps.sh schindler t6m`).
+- Landmarks: храм „Свети Седмочисленици“ (all three OSM parts), УАСГ twelve-storey block (three
+  parts and the podium) and rectorate.
+- Shop fronts with interiors (`ShopFronts.js`): 845 shop fronts in the line 12 world.
+
+### Research (sources in data/research/line12/README.md)
+
+The searches gave the history of the church (1902 conversion, architects), the City Library's
+architect and the Ministry of Agriculture's address and architect; no reachable source gave
+drawings or facade descriptions of the UASG buildings, the КНСБ building or "TELUS Tower", so their
+facades are typed from the building class and marked estimated.
+
 ## 2026-10-30 — Expansion 3.0: tram line 12 (кв. Илиянци ↔ пл. Журналист)
 
 Request: tram line 12 with the Schindler/Siemens Be 4/6 S (photos 1–6) and the T6M-700 (photos

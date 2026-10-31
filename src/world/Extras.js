@@ -6,6 +6,7 @@ import { StreetFurniture } from './StreetFurniture.js';
 import { Landmarks } from './Landmarks.js';
 import { loadLandmarkKit } from './LandmarkKit.js';
 import { ShopSigns } from './ShopSigns.js';
+import { ShopFronts } from './ShopFronts.js';
 import { buildPlotWalls } from './PlotWalls.js';
 import { SegmentGrid } from './SpatialIndex.js';
 import { TrafficManager } from '../gameplay/TrafficManager.js';
@@ -74,6 +75,12 @@ export async function buildExtras({ scene, world, route, quality }) {
     for (const g of s.build()) world.addToTile(tileKey(g.name), g);
     out.signs = s;
   });
+  // the shop fronts under the signs, with their interiors behind the glass (not on phones)
+  if (quality !== 'balanced' && quality !== 'low') await safe('shop fronts', () => {
+    const f = new ShopFronts({ world, signs: out.signs ? out.signs.signs : [], quality });
+    for (const g of f.build()) world.addToTile(tileKey(g.name), g);
+    out.shopFronts = f;
+  });
   await safe('landmarks', async () => {
     const kit = await loadLandmarkKit().catch((e) => { console.warn('landmark kit:', e); return null; });
     const l = new Landmarks({ world, route, kit });
@@ -112,6 +119,7 @@ export async function buildExtras({ scene, world, route, quality }) {
       if (out.furniture) out.furniture.setNight(night);
       if (out.landmarks) out.landmarks.setNight(night);
       if (out.signs) out.signs.setNight(night);
+      if (out.shopFronts) out.shopFronts.setNight(night);
       if (out.traffic && out.traffic.furnitureHook == null && out.furniture) out.traffic.furnitureHook = true;
       if (out.traffic) out.traffic.setNight(night);
       if (out.peds) out.peds.night = night > 0.5;
