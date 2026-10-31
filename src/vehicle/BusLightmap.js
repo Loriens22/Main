@@ -40,6 +40,8 @@ function litEligible(m) {
 export function litMeshes(model) {
   const out = [];
   for (const sec of model.root.children) {
+    // a tram's bogies turn under the body: they occlude in the bake but are not baked themselves
+    if (/^bogie@/.test(sec.name)) continue;
     for (const g of sec.children) {
       if (!g.isGroup || g.children.length < 3 || !g.children.every((m) => m.isMesh)) continue;
       for (const m of g.children) if (litEligible(m)) out.push(m);
@@ -352,7 +354,9 @@ export function loadBusLightmaps() {
  * (doors, wipers) sample the white block, i.e. stay as before.
  */
 export function applyBusLightmap(model, bus) {
-  const key = `${bus}_${variantOf(model.quality)}`;
+  // a vehicle whose geometry is the same in every preset (the trams) has one map, the full one
+  let key = `${bus}_${variantOf(model.quality)}`;
+  if (!MAPS.has(key) && MAPS.has(`${bus}_full`)) key = `${bus}_full`;
   const entry = MAPS.get(key);
   if (!entry) return false;
   const meshes = litMeshes(model);

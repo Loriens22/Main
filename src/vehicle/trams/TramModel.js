@@ -11,6 +11,7 @@
 import * as THREE from 'three';
 import { Parts, M, box, cyl } from '../BusGeom.js';
 import { glassMaterial, occludeInterior } from '../Glass.js';
+import { applyBusLightmap } from '../BusLightmap.js';
 import { LedSign } from '../LedSign.js';
 import { makeFloor, drawTramDash } from './TramTextures.js';
 
@@ -193,6 +194,8 @@ export class TramModel {
     if (interior) for (const s of spec.sections) this.buildInterior(s);
     this.buildCab();
     this.buildSigns();
+    // Blender (Cycles) light bake of the static body, saloon and cab (tools/bake_bus_lightmaps.sh)
+    applyBusLightmap(this, spec.id);
     occludeInterior(this);
   }
 

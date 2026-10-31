@@ -11,6 +11,10 @@ import procity_balanced_img from './procity_balanced.webp';
 import procity_balanced_meta from './procity_balanced.json';
 import procity_full_img from './procity_full.webp';
 import procity_full_meta from './procity_full.json';
+import schindler_full_img from './schindler_full.webp';
+import schindler_full_meta from './schindler_full.json';
+import t6m_full_img from './t6m_full.webp';
+import t6m_full_meta from './t6m_full.json';
 import yutong_balanced_img from './yutong_balanced.webp';
 import yutong_balanced_meta from './yutong_balanced.json';
 import yutong_full_img from './yutong_full.webp';
@@ -23,6 +27,8 @@ export default {
   man_full: { img: man_full_img, meta: man_full_meta },
   procity_balanced: { img: procity_balanced_img, meta: procity_balanced_meta },
   procity_full: { img: procity_full_img, meta: procity_full_meta },
+  schindler_full: { img: schindler_full_img, meta: schindler_full_meta },
+  t6m_full: { img: t6m_full_img, meta: t6m_full_meta },
   yutong_balanced: { img: yutong_balanced_img, meta: yutong_balanced_meta },
   yutong_full: { img: yutong_full_img, meta: yutong_full_meta },
 };
