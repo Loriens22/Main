@@ -3,10 +3,14 @@ import conecto_balanced_img from './conecto_balanced.webp';
 import conecto_balanced_meta from './conecto_balanced.json';
 import conecto_full_img from './conecto_full.webp';
 import conecto_full_meta from './conecto_full.json';
+import inekon_full_img from './inekon_full.webp';
+import inekon_full_meta from './inekon_full.json';
 import man_balanced_img from './man_balanced.webp';
 import man_balanced_meta from './man_balanced.json';
 import man_full_img from './man_full.webp';
 import man_full_meta from './man_full.json';
+import pesa_full_img from './pesa_full.webp';
+import pesa_full_meta from './pesa_full.json';
 import procity_balanced_img from './procity_balanced.webp';
 import procity_balanced_meta from './procity_balanced.json';
 import procity_full_img from './procity_full.webp';
@@ -23,8 +27,10 @@ import yutong_full_meta from './yutong_full.json';
 export default {
   conecto_balanced: { img: conecto_balanced_img, meta: conecto_balanced_meta },
   conecto_full: { img: conecto_full_img, meta: conecto_full_meta },
+  inekon_full: { img: inekon_full_img, meta: inekon_full_meta },
   man_balanced: { img: man_balanced_img, meta: man_balanced_meta },
   man_full: { img: man_full_img, meta: man_full_meta },
+  pesa_full: { img: pesa_full_img, meta: pesa_full_meta },
   procity_balanced: { img: procity_balanced_img, meta: procity_balanced_meta },
   procity_full: { img: procity_full_img, meta: procity_full_meta },
   schindler_full: { img: schindler_full_img, meta: schindler_full_meta },

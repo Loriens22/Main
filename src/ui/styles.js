@@ -182,6 +182,7 @@ select{background:#16211b;color:var(--text);border:1px solid var(--line);border-
   .is-touch .touch .top{right:calc(114px + var(--safe-r))}
   .menu{padding:calc(10px + var(--safe-t)) calc(14px + var(--safe-r)) calc(10px + var(--safe-b)) calc(14px + var(--safe-l))}
   .menu .col{justify-content:flex-start;gap:8px;overflow-y:auto;max-width:380px}
+  .menu .col>*{flex-shrink:0} /* the column scrolls; its items (the logo) keep their size */
   .menu .logo{max-width:230px;margin-bottom:0}
   .menu .tag{margin:-2px 0 4px}
   .menu .big{padding:10px 14px}

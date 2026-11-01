@@ -294,11 +294,18 @@ export class PedestrianManager {
           const dist = Math.hypot(dp.x - p.x, dp.z - p.z);
           if (!best || dist < best.dist) best = { d, dp, dist };
         }
-        if (best && best.dist < 26) { p.state = 'toDoor'; p.door = best.d; }
+        if (best && best.dist < 26) { p.state = 'toDoor'; p.door = best.d; p.bus = bus; }
+      }
+      // a stop can be served by two trams at once (lines sharing a stop code): each boards only its own
+      if (p.state === 'toDoor' && p.bus && p.bus !== bus) {
+        if (p.bus.stops.atStop >= 0 && (p.door.state === 'open' || p.door.state === 'opening')) continue;
+        p.state = 'wait'; // that tram has left: wait for the next one
+        p.bus = null;
+        continue;
       }
       if (p.state === 'toDoor') {
         boarding++;
-        if (p.door.state !== 'open' && p.door.state !== 'opening') { p.state = 'wait'; continue; }
+        if (p.door.state !== 'open' && p.door.state !== 'opening') { p.state = 'wait'; p.bus = null; continue; }
         const dp = this.doorPoint(bus, p.door, 0.6);
         const dx = dp.x - p.x, dz = dp.z - p.z, d = Math.hypot(dx, dz);
         const step = p.look.speed * dt * 1.1;

@@ -10,7 +10,7 @@ import { MeshBuilder, orient } from '../LandmarkGeometry.js';
 import { ground, done, edgesOf, mat, std, signMat, roofPlant, canopy, doors } from '../LandmarkInstitutionsKit.js';
 import { off } from './kit7.js';
 
-function millMats(M) {
+export function millMats(M) {
   if (M.m.l7mcGlass) return;
   M.curtain('l7mcGlass', { bayW: 1.5, floorH: 3.5, bays: 8, floors: 4, glass: '#6e8796', glass2: '#b9cbd5', mullion: '#9aa6ad', spandrel: '#7f8c93', sp: 0.0, lit: 0.42, seed: 61 }, 'mcGlass');
   M.curtain('l7mcGlass2', { bayW: 1.5, floorH: 3.5, bays: 8, floors: 4, glass: '#5f7686', glass2: '#a4b8c4', mullion: '#c9d0d4', spandrel: '#d7dcdf', sp: 0.9, lit: 0.35, seed: 62 }, 'mcGlass2');
@@ -37,7 +37,7 @@ function bar(b, key, p, q, w, nx, nz) {
 }
 
 /** A glass tower on footprint Q from y0 to y1: curtain walls, white slab bands every `band` m, corner fins, roof. */
-function tower(b, M, Q, y0, y1, { key = 'l7mcGlass', band = 3.5, lattice = false, crown = 0 } = {}) {
+export function tower(b, M, Q, y0, y1, { key = 'l7mcGlass', band = 3.5, lattice = false, crown = 0 } = {}) {
   const [tw, th] = M.m[key].userData.tile;
   b.ring(key, Q, y0, y1 - crown, { tw, th, v0: y0 });
   // white slab bands proud of the glass

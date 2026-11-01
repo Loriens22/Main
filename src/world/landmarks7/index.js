@@ -6,6 +6,7 @@ import { buildNdk } from './ndk.js';
 import { buildMillennium } from './millennium.js';
 import { buildFifthHospital } from './hospital.js';
 import { buildMetroEntrances } from './metro.js';
+import { buildBulgariaMall } from './mall.js';
 
 export const JOBS_7 = [
   ['centralStation', buildCentralStation],
@@ -13,4 +14,5 @@ export const JOBS_7 = [
   ['millennium', buildMillennium],
   ['fifthHospital', buildFifthHospital],
   ['metro', buildMetroEntrances],
+  ['bulgariaMall', buildBulgariaMall],
 ];

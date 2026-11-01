@@ -83,7 +83,7 @@ export class PassengerMode {
     bus.placeAt(Math.max(0, s));
     bus.routeS = Math.max(0, s); // known before its first update (ETA, scheduling)
     bus.lights.head = g.sky.night > 0.3;
-    const ai = { traffic: g.traffic, signals: g.traffic && g.traffic.signals, peds: g.peds, others: () => this.buses };
+    const ai = { traffic: g.traffic, signals: g.traffic && g.traffic.signals, peds: g.peds, others: () => g.allBuses() };
     bus.driver = bus.isTram ? new AITramDriver(bus, ai) : new AIBusDriver(bus, ai);
     if (s <= 0) {
       // waiting at the terminal with the doors open until its departure time

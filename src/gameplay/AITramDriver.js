@@ -71,7 +71,7 @@ export class AITramDriver {
         if (Math.abs(c.x - p.x) > 70 || Math.abs(c.z - p.z) > 70) continue;
         const n = L.nearest(c.x, c.z, s + 25, 40);
         const ahead = n.s - s;
-        if (ahead < -1 || ahead > 60) continue;
+        if (ahead < -3 || ahead > 60) continue; // a car across the very front of the tram counts too
         // lateral clearance of the car's box to the track centre line
         const t = L.tangent(n.s, 2);
         const ox = c.x - L.at(n.s).x, oz = c.z - L.at(n.s).z;
@@ -80,16 +80,33 @@ export class AITramDriver {
         if (lat - across < hw && ahead - c.len / 2 - 2 < gap) { gap = ahead - c.len / 2 - 2; this.why = `car v=${(c.v ?? 0).toFixed(1)}`; }
       }
     }
-    // the tram ahead on the same track
+    // the tram ahead on the same track: of this direction by its position on the line, of any other direction or
+    // line (shared tracks) by its sections lying on this track ahead
     if (this.others) {
       for (const o of this.others()) {
-        if (o === bus || !o.isTram || o.dirId !== bus.dirId) continue;
-        const tail = o.phys.s - o.spec.dims.length;
-        const d = tail - s;
-        if (d > 0 && d < 120 && d - 8 < gap) { gap = d - 8; this.why = 'tram ahead'; }
+        if (o === bus || !o.isTram) continue;
+        if (o.route === bus.route && o.dirId === bus.dirId) {
+          const tail = o.phys.s - o.spec.dims.length;
+          const d = tail - s;
+          if (d > 0 && d < 120 && d - 8 < gap) { gap = d - 8; this.why = 'tram ahead'; }
+          continue;
+        }
+        if (!o.phys.poses || Math.hypot(o.phys.x - p.x, o.phys.z - p.z) > 160) continue;
+        for (const sec of o.spec.sections) {
+          const q = o.phys.poses[sec.id];
+          if (!q) continue;
+          for (const k of [0, 0.5, 1]) {
+            const x = q.x + q.ux * sec.length * k, z = q.z + q.uz * sec.length * k;
+            const n = L.nearest(x, z, s + 40, 140);
+            const d = n.s - s;
+            if (n.d < 1.6 && d > 0 && d < 120 && d - 8 < gap) { gap = d - 8; this.why = 'tram ahead'; }
+          }
+        }
       }
     }
     if (gap < Infinity) vDes = Math.min(vDes, Math.sqrt(Math.max(0, 2 * BRAKE_STOP * Math.max(0, gap))));
+    // just stopped against something on the track: wait for it to clear instead of nudging it again
+    if (bus.blockedT > 0) { vDes = 0; this.why = this.why || 'blocked'; }
     // ---- stop procedure (as the bus driver)
     const atStop = bus.stops.atStop >= 0;
     if (this.state === 'drive' && bus.doors.anyOpen && Math.abs(p.v) < 0.2) { this.state = 'dwell'; this.timer = 0; }
@@ -110,7 +127,8 @@ export class AITramDriver {
       const busy = (bus.boarding || 0) > 0;
       this.quiet = busy ? 0 : (this.quiet || 0) + dt;
       const minDwell = next && next.isLast ? 8 : 5;
-      if (this.timer > minDwell && this.quiet > 1.8 && !bus.holdDoors) {
+      // the doors close once nobody boards or alights any more (and in any case after two minutes)
+      if ((this.timer > minDwell && this.quiet > 1.8 && !bus.holdDoors) || this.timer > 120) {
         bus.doors.close();
         this.state = 'closing';
       }

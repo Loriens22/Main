@@ -171,6 +171,7 @@ export class TramEntity {
     // the pantograph rises in ~2.5 s and drops in ~1 s
     p.pantoH = p.pantoUp ? Math.min(1, p.pantoH + dt * 0.4) : Math.max(0, p.pantoH - dt);
     this.bellT = Math.max(0, (this.bellT || 0) - dt);
+    this.blockedT = Math.max(0, (this.blockedT || 0) - dt);
     if ((this.bellRing || 0) > (this.bellDone || 0)) { this.bellDone = this.bellRing; this.bellT = 0.6; }
     while (this.acc >= FIXED) {
       this.prevS = p.s;
@@ -187,6 +188,7 @@ export class TramEntity {
           const c = fn(p);
           if (c && (c.nx == null || c.nx * fx + c.nz * fz < -0.6)) {
             p.lastCollision = { speed: Math.abs(p.v), depth: c.depth };
+            this.blockedT = 2.5; // the AI driver waits this long before it moves off again
             p.s -= Math.sign(p.v) * Math.min(0.2, c.depth || 0.05);
             p.v = 0;
             break;

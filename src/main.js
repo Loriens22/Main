@@ -23,6 +23,7 @@ import { VoiceAnnouncer } from './audio/VoiceAnnouncer.js';
 import { GameStateManager } from './gameplay/GameStateManager.js';
 import { AIBusDriver } from './gameplay/AIBusDriver.js';
 import { AITramDriver } from './gameplay/AITramDriver.js';
+import { SharedTrams } from './gameplay/SharedTrams.js';
 
 const params = new URLSearchParams(location.search);
 /** Route data of the playable lines; the world of one line is loaded per session (?line= or the menu). */
@@ -78,6 +79,8 @@ async function boot() {
   const game = new Game({ renderer: R, scene, camera, sky, world, route, audio, voice, input, settings, uiRoot, quality });
   Object.assign(game, extras);
   if (extras.init) extras.init(game);
+  // line 7 shares the tracks of line 12 from пл. Македония to Триъгълника: line 12's trams run there too
+  if (line === '7' && !params.has('noshared')) game.shared = new SharedTrams(game, new Route280(ROUTES[12]));
   sky.set(10.5, 'clear');
   world.setNight(sky.night);
   progress(0.9, L('Компилиране на шейдърите…', 'Compiling shaders…'));

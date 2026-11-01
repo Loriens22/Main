@@ -75,6 +75,7 @@ export class Game {
     this.extra = [];
     if (this.passengerMode) this.passengerMode.dispose();
     this.passengerMode = null;
+    if (this.shared) this.shared.reset();
     if (this.traffic) this.traffic.reset();
     if (this.peds) this.peds.reset();
     this.hud.hideResult();
@@ -121,6 +122,7 @@ export class Game {
     bus.lights.head = this.sky.night > 0.3;
     this.wireBus(bus);
     bus.extraColliders = [(b) => (this.traffic ? this.traffic.collideBus(b) : null), (b) => this.collideSmall(b)];
+    if (bus.isTram) bus.extraColliders.push((p) => this.collideTrams(bus, p));
     this.rig.setMode('cab');
     this.hud.tram = !!bus.isTram;
     this.hud.setMode('driver');
@@ -164,6 +166,8 @@ export class Game {
     if (this.mode === 'driver') this.updateDriver(dt, inp);
     else if (this.mode === 'passenger') this.passengerMode.update(dt, inp);
     else this.updateAttract(dt);
+    // trams of another line on the shared tracks (line 12 on line 7's corridor)
+    if (this.shared && this.mode !== 'attract') this.shared.update(dt);
     this.input.endFrame();
     // shared systems
     const bus = this.bus;
@@ -183,8 +187,42 @@ export class Game {
     this.updateAudio(dt);
   }
 
+  /**
+   * The driven tram against the other trams (passenger-mode services, other lines on shared tracks): its front
+   * corners inside another tram's section box. The contact normal opposes the motion (the tram stops).
+   */
+  collideTrams(bus, p) {
+    const f = p.poses && p.poses[bus.spec.sections[0].id];
+    if (!f) return null;
+    const sg = Math.sign(p.v) || 1;
+    const hw = bus.spec.dims.halfW;
+    // front end (or the rear end when reversing): centre and corners
+    const last = bus.spec.sections[bus.spec.sections.length - 1], r = p.poses[last.id];
+    const pts = sg > 0
+      ? [[f.x, f.z], [f.x - f.uz * hw, f.z + f.ux * hw], [f.x + f.uz * hw, f.z - f.ux * hw]]
+      : [[r.x + r.ux * last.length, r.z + r.uz * last.length]];
+    for (const o of this.allBuses()) {
+      if (o === bus || !o.isTram || !o.phys.poses) continue;
+      if (Math.hypot(o.phys.x - f.x, o.phys.z - f.z) > o.spec.dims.length + bus.spec.dims.length + 5) continue;
+      for (const sec of o.spec.sections) {
+        const q = o.phys.poses[sec.id];
+        if (!q) continue;
+        const oh = o.spec.dims.halfW;
+        for (const [x, z] of pts) {
+          const dx = x - q.x, dz = z - q.z;
+          const along = dx * q.ux + dz * q.uz, lat = -dx * q.uz + dz * q.ux;
+          if (along > -0.05 && along < sec.length + 0.05 && Math.abs(lat) < oh) {
+            const fx = -Math.sin(p.yaw) * sg, fz = -Math.cos(p.yaw) * sg;
+            return { nx: -fx, nz: -fz, depth: 0.08 };
+          }
+        }
+      }
+    }
+    return null;
+  }
+
   allBuses() {
-    return [this.bus, ...(this.extra || [])].filter(Boolean);
+    return [this.bus, ...(this.extra || []), ...(this.shared ? this.shared.trams : [])].filter(Boolean);
   }
 
   updateAnnouncements(bus) {

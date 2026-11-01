@@ -1,13 +1,14 @@
-# Sofia Public Transport — lines 280, 64 and tram 12
+# Sofia Public Transport — lines 280, 64 and trams 12 and 7
 
-A 3D public transport simulator of two Sofia bus lines and tram line 12, with four bus types and two
-tram types modelled after reference photos:
+A 3D public transport simulator of two Sofia bus lines and tram lines 12 and 7, with four bus types and
+four tram types modelled after reference photos:
 
 | Line | Route | Length | Stops | Buses (dispatched per service) |
 | --- | --- | --- | --- | --- |
 | **280** | СУ „Св. Климент Охридски“ ↔ Студентски град | 10.7 / 10.3 km | 18 / 18 | MAN Lion's City G CNG and Mercedes-Benz Conecto G (orange, diesel) |
 | **64** | Зоопарка ↔ Център по хигиена | 16.4 / 15.8 km | 35 / 33 | BMC Procity 12 CNG and Yutong ZK6126HGA (orange CNG) |
 | **12** (tram) | кв. Илиянци ↔ пл. Журналист | 10.0 / 9.9 km | 21 / 21 | Schindler/Siemens Be 4/6 S (green) and T6M-700 (blue / orange / white) |
+| **7** (tram) | кв. Манастирски ливади – запад ↔ Метростанция „Хан Кубрат“ | 8.9 / 8.9 km | 18 / 18 | PESA Swing 122NaSF and Inekon T8M-700IT (blue / yellow / white) |
 
 The whole game is **one HTML file** (`index.html`, also copied to
 `dist/sofia-public-transport.html`). Open it in a desktop or mobile browser with WebGL2. It
@@ -28,10 +29,13 @@ works offline: no server, CDN or network access is needed.
 | ![Schindler saloon, 2+1 blue seats](docs/screenshots/tram-schindler-interior.jpg) | ![Central Station from the forecourt](docs/screenshots/central-station.jpg) |
 | ![Храм „Свети Седмочисленици“ on Граф Игнатиев](docs/screenshots/seven-saints-church.jpg) | ![A café front with its interior behind the glass](docs/screenshots/shop-fronts-cafe.jpg) |
 | ![Line 12 street track on the paving, poles clear of the trams](docs/screenshots/line12-tracks.jpg) | ![A row of shop fronts, a shop interior behind the glass](docs/screenshots/shop-fronts.jpg) |
+| ![PESA Swing 122NaSF on line 7](docs/screenshots/tram-pesa-swing.jpg) | ![Inekon T8M-700IT on line 7](docs/screenshots/tram-inekon-t8m.jpg) |
+| ![Inside the PESA Swing: orange poles and loops, striped glass screens](docs/screenshots/tram-pesa-interior.jpg) | ![НДК from the plaza: the Sun over the entrance, flags and fountains](docs/screenshots/ndk.jpg) |
+| ![НДК and the Millennium Center towers from the air](docs/screenshots/ndk-millennium.jpg) | ![A line 12 tram on the tracks it shares with line 7](docs/screenshots/line7-shared-tracks.jpg) |
 
 ## Playing
 
-Open `index.html`, pick the **line** (280, 64 or tram 12) on the main menu, then **Шофьор**
+Open `index.html`, pick the **line** (280, 64, tram 12 or tram 7) on the main menu, then **Шофьор**
 (driver) or **Пътник** (passenger). On the setup screen choose the vehicle, the direction, the weather,
 the time of day, the traffic density and the graphics preset, then start. Switching line
 reloads the page with that line's map.
@@ -92,19 +96,25 @@ sequence reproducible (the same seed gives the same buses in the same order).
 | mouse | look around (look down for the instrument cluster) |
 | Esc | pause |
 
-### Trams (line 12)
+### Trams (lines 12 and 7)
 
-| Tram | Built | Body | Floor | Doors | Control |
-| --- | --- | --- | --- | --- | --- |
-| Schindler/Siemens Be 4/6 S (ex Basel) | 1990/91, low-floor module 1997–99 | three sections, 28.6 m (estimated), 2.20 m wide | high, low-floor middle module | 4 folding (door 1 single-leaf) | chopper, 4 power / 4 brake notches |
-| T6M-700 | 1985–1989, Sofia | two sections on three bogies, 20.75 m, 2.25 m wide | high, three steps | 4 double folding | resistance controller, 5 notches with contactor steps |
+| Tram | Line | Built | Body | Floor | Doors | Control |
+| --- | --- | --- | --- | --- | --- | --- |
+| Schindler/Siemens Be 4/6 S (ex Basel) | 12 | 1990/91, low-floor module 1997–99 | three sections, 28.6 m (estimated), 2.20 m wide | high, low-floor middle module | 4 folding (door 1 single-leaf) | chopper, 4 power / 4 brake notches |
+| T6M-700 | 12 | 1985–1989, Sofia | two sections on three bogies, 20.75 m, 2.25 m wide | high, three steps | 4 double folding | resistance controller, 5 notches with contactor steps |
+| PESA Swing 122NaSF | 7 | 2013–2021, Bydgoszcz | five sections on three fixed bogies, 30.12 m, 2.30 m wide, cabs at both ends | 100 % low floor, seats over the wheels on podiums | 6 per side, sliding plug (two single, four double) | IGBT inverters and four 105 kW asynchronous motors, 7 power / 5 brake positions |
+| Inekon T8M-700IT | 7 | 2009, a T6M-700 with an Inekon low-floor centre section | three sections on four bogies, 26.62 m, 2.25 m wide | high end sections, low centre section (360 mm entrance, steps inside) | 5 double folding | Cegelec TV Europulse converter, 5 notches |
 
-Both run on the 1 009 mm track of the line, under the contact wire, dispatched per service like
-the buses (50 / 50 by default). Their body, saloon and cab carry a Blender (Cycles) light bake,
+Each pair runs on the 1 009 mm track of its line, under the contact wire, dispatched per service like
+the buses (50 / 50 by default). On line 7 the trams of line 12 also run on the tracks the two lines
+share (пл. Македония – Триъгълника), with their own stops and destinations; every tram sees the trams
+of either line on the track ahead. Their body, saloon and cab carry a Blender (Cycles) light bake,
 like the buses. A tram has one degree of freedom: it follows its track through
 the street-running sections, the ballasted sections and both terminal loops. Each body section
 sits on its bogies (the Schindler's low-floor module is carried between the end sections), the
-bogies turn under the body, the bellows follow, the pantograph rides on the wire.
+bogies turn under the body, the bellows follow, the pantograph rides on the wire. The PESA's sections 1, 3
+and 5 stand on their fixed bogies and sections 2 and 4 hang between them; the T8M-700IT's low-floor centre
+section hangs between its two end sections.
 
 - **Before departing:** main switch (**I**), raise the pantograph (**U**, about 2.5 s), close the
   doors (**C**), release the parking brake (**P**), direction forward (**1**).
@@ -117,13 +127,15 @@ bogies turn under the body, the bellows follow, the pantograph rides on the wire
   curvature) and points (30 km/h). Far over the limit in a curve or over points, the derailment
   protection applies the emergency brake.
 - **Stops:** stop with the front at the stop mark, open the doors (**O**), close them (**C**);
-  the door warning is the tram's own (Schindler three beeps, T6M one tone).
+  the door warning is the tram's own (Schindler three beeps, T6M one tone, PESA four short beeps, T8M-700IT
+  two tones).
 - **Bell** (**Space**) and **horn** (**B**, held).
 - Cars must clear the track: a car that keeps standing on the rails in front of a waiting tram
   drives off after a while.
 
 Passengers board through any open door and walk through all sections (two steps up from the
-Schindler's low-floor module into the end sections).
+Schindler's low-floor module into the end sections, four steps between the T8M-700IT's low centre section and
+its high-floor ends; the PESA is level throughout).
 
 ### Passenger mode
 
@@ -261,7 +273,7 @@ results:
 | `tools/blender/kit_facade.py` | `src/data/kit_facade.glb` | facade and roof pieces for the buildings along the routes: split-AC units, dishes, downpipes, TV masts, vents, lift rooms, awnings, lamps, chimneys, roller shutters, window bars, washing racks, window boxes, gas pipes |
 | `tools/blender/kit_landmark.py` | `src/data/kit_landmark.glb` | sculpture and ornament for the landmarks: bronze eagles, stone lions, robed and seated figures, Corinthian capitals, fluted shafts, column bases, balusters |
 | `tools/blender/kit_bus.py` | `src/data/kit_bus.glb` | bus parts: 275/70 R22.5 tyre, steel and polished aluminium wheels, the seat shells of all four buses, hand straps, the Sofia validator, the MAN mirrors, the steering wheel |
-| `tools/blender/bake_bus_light.py` | `src/data/lightmaps/*.webp` | baked light for the body and cabin of every bus (Cycles) |
+| `tools/blender/bake_bus_light.py` | `src/data/lightmaps/*.webp` | baked light for the body and cabin of every bus and tram (Cycles) |
 
 Every kit piece is a detailed high-poly model (bevels, lettering, tread, grilles, fabric relief)
 baked onto a game mesh: albedo with contact shading, a normal map, ambient occlusion,
@@ -281,7 +293,8 @@ keeps its unbaked lighting.
 ```sh
 pip install bpy==5.2.3 numpy pillow                    # Python 3.13
 python tools/blender/kit_bus.py                         # one kit (also kit_facade.py, kit_landmark.py)
-BLENDER_PY=python bash tools/bake_bus_lightmaps.sh      # light bake of all four buses (about 20 min on 4 cores)
+BLENDER_PY=python bash tools/bake_bus_lightmaps.sh      # light bake of the buses and trams (about 25 min on 4 cores)
+BLENDER_PY=python bash tools/bake_bus_lightmaps.sh pesa inekon   # only the line 7 trams (about 2 min)
 ```
 
 ## Data and accuracy
@@ -300,8 +313,18 @@ BLENDER_PY=python bash tools/bake_bus_lightmaps.sh      # light bake of all four
   needs them. The temporary diversion of 13 October – 3 November 2026 is kept as a separate,
   unverified route variant (its stop list could not be checked); the game runs the regular
   route. Details and sources: `data/research/line12/README.md`.
+- **Line 7 (tram):** all 36 stop codes of the request matched to their OSM tram stop positions; the path
+  routed on the OSM tram tracks through both terminal loops (Хан Кубрат 390 m, Манастирски ливади – запад
+  166 m); the corridor from пл. Македония to Триъгълника is line 12's, and line 12's trams run there. The
+  2026 changes for the reconstruction of бул. Княгиня Мария Луиза are stored as unverified variants (both
+  over, no published stop list). Hand-built on their OSM building parts: НДК (Vratsa limestone, bronze glass,
+  Chapkanov's Sun, terraces, the staircase, flags and the fountain jets of the plaza), the Millennium Center
+  with the Grand Hotel Millennium tower, МБАЛ „Княгиня Клементина“ (the former Пета градска болница), Bulgaria
+  Mall and its towers, the metro entrances; Central Station shared with line 12. Facade compositions without
+  a source are estimated. Details and sources: `data/research/line7/README.md`.
 - **Trams:** modelled from the reference photos only (Schindler: photos 1–6, T6M-700: photos
-  7–10, `data/research/ref_photos/trams/`). Lengths, bogie and door positions not given by a
+  7–10, `data/research/ref_photos/trams/`; PESA Swing: photos 1–5 and T8M-700IT: photos 6–10 of the line 7
+  request). Lengths, bogie and door positions not given by a
   reachable source are estimates from the photos and are marked so in `TramSpecs.js` and the
   research notes. Hand-built on their OSM footprints: Central Station, пл. Славейков (the
   Slaveykovs' bench sculpture and the book market), храм „Свети Седмочисленици“ (the former
@@ -333,11 +356,11 @@ BLENDER_PY=python bash tools/bake_bus_lightmaps.sh      # light bake of all four
 | Folder | Contents |
 | --- | --- |
 | `src/core` | projection, maths, path sampling, seeded random |
-| `src/gameplay` | route data (with route variants), stop manager, announcements, destination display, bus and tram entities (`VehicleFactory.js` picks one), AI bus and tram drivers, traffic, pedestrians, scoring, state machine (pure logic is unit-tested) |
-| `src/vehicle` | vehicle registry and dispatch (`Vehicles.js`), articulated / rigid physics, door controller, LED signs; `models/` holds the four bus models, `trams/` the tram specs, rail dynamics (`TramDynamics.js`: track line, section and bogie placement, traction and brakes) and the Schindler and T6M-700 models |
-| `src/world` | heightfield, terrain, road network and meshes, buildings (archetype facade shader, real balconies, shop signs, shop fronts with interiors), street furniture and stop hardware, vegetation, tram tracks, overhead line and the tram clearance envelope (`TramTracks.js`), landmarks (`landmarks64/`, `landmarks12/`), spatial index |
+| `src/gameplay` | route data (with route variants), stop manager, announcements, destination display, bus and tram entities (`VehicleFactory.js` picks one), AI bus and tram drivers, the trams of another line on shared tracks (`SharedTrams.js`), traffic, pedestrians, scoring, state machine (pure logic is unit-tested) |
+| `src/vehicle` | vehicle registry and dispatch (`Vehicles.js`), articulated / rigid physics, door controller, LED signs; `models/` holds the four bus models, `trams/` the tram specs, rail dynamics (`TramDynamics.js`: track line, section and bogie placement including sections on one fixed bogie and hung sections, traction and brakes) and the Schindler, T6M-700, PESA Swing and T8M-700IT models |
+| `src/world` | heightfield, terrain, road network and meshes, buildings (archetype facade shader, real balconies, shop signs, shop fronts with interiors), street furniture and stop hardware, vegetation, tram tracks, overhead line and the tram clearance envelope (`TramTracks.js`), landmarks (`landmarks64/`, `landmarks12/`, `landmarks7/`), spatial index |
 | `src/render` | renderer and post-processing, sky, cameras, procedural textures, weather, bus lights |
-| `src/audio` | synthesised bus sound with per-bus engine profiles, the tram voice (`TramVoice.js`: gear whine, chopper or DC motor, rolling noise, rail joints, squeal, gong), five listener zones, all buses audible with distance and Doppler, door and brake one-shots, ambience; voice announcer and pronunciation dictionary |
+| `src/audio` | synthesised bus sound with per-bus engine profiles, the tram voice (`TramVoice.js`: gear whine, chopper, DC motor or VVVF inverter, cooling fans, rolling noise, rail joints, squeal, gong), five listener zones, all buses audible with distance and Doppler, door and brake one-shots, ambience; voice announcer and pronunciation dictionary |
 | `src/ui` | HUD, menus, input, touch controls, i18n |
 | `src/game` | game modes, tram driving (`TramDriving.js`), settings |
 | `tools` | data pipeline, headless screenshot and route-check harness, manifest and announcement generators; `tools/blender` the Blender kits and the bus light bake |

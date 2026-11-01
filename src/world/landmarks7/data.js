@@ -26,4 +26,11 @@ export const REPLACED7 = [
   { x: -3284.6, z: -4920.1, r: 2, id: 11342, note: 'Fifth City Hospital ward slab main', h: 23.4 },
   { x: -3221.2, z: -4941.8, r: 2, id: 11343, note: 'Fifth City Hospital treatment block', h: 13.8 },
   { x: -3259.6, z: -4966.8, r: 2, id: 11344, note: 'Fifth City Hospital south slab', h: 23.4 },
+  // --- Bulgaria Mall and its towers (stops 2211 / 2212): the OSM building parts
+  { x: -5150.2, z: 595.4, r: 2, id: 1585, note: 'Bulgaria Mall body north', h: 25 },
+  { x: -5201.8, z: 576.1, r: 2, id: 1586, note: 'Bulgaria Mall body west', h: 25 },
+  { x: -5188.2, z: 550.3, r: 2, id: 1590, note: 'Bulgaria Mall atrium', h: 30 },
+  { x: -5247.1, z: 541.0, r: 2, id: 1588, note: 'Bulgaria Mall South tower', h: 85 },
+  { x: -5117.6, z: 559.0, r: 2, id: 1587, note: 'Bulgaria Mall North tower', h: 56 },
+  { x: -5146.9, z: 545.1, r: 2, id: 1589, note: 'Bulgaria Mall North tower low', h: 48 },
 ];

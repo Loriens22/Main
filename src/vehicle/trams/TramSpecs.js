@@ -169,7 +169,7 @@ export const PESA = {
     { id: 6, section: 'rear', d0: 27.22, d1: 28.12, leaves: 1 },
   ],
   doorsBothSides: true,
-  cab: { eye: [-0.12, 2.02, 1.48], d: 1.48, wallZ: 1.9 },
+  cab: { eye: [-0.12, 1.78, 1.42], d: 1.42, wallZ: 1.9 }, // seated on the low floor (0.38 m)
   physics: {
     massEmpty: 39500, // estimated (five-section 30 m Swing)
     poweredMassShare: 0.66, // two powered bogies of three

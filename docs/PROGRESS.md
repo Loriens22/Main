@@ -3,6 +3,59 @@
 A concise record of what was built, how it was verified, and what is still open.
 The newest entries are at the top.
 
+## 2026-11-01 — Expansion 4.0: tram line 7 (кв. Манастирски ливади – запад ↔ Метростанция „Хан Кубрат“)
+
+Request: tram line 7 with the PESA Swing 122NaSF (photos 1–5) and the Inekon T8M-700IT (photos 6–10),
+50 / 50 dispatch, all 18 stops per direction with their direction codes, the corridor shared with line 12,
+NDK, the Grand Hotel Millennium, бул. България, Central Station, Пета градска болница, Хан Кубрат, markets
+and shops, neighbourhood building types, announcements.
+
+### Built
+
+- **Data:** the 36 stop codes matched to their OSM tram stop positions; the route on the OSM tram tracks,
+  8.93 km each way through the loops at Хан Кубрат (390 m) and Манастирски ливади – запад (166 m); terrain
+  grid and world pack (14 586 buildings typed by neighbourhood, 598 shop signs); building profiles for the
+  corridor (Белите брези revised, five added as estimates); the 2026 changes on бул. Княгиня Мария Луиза as
+  unverified variants.
+- **Kinematics:** sections on one fixed bogie and sections hung between their neighbours' joints; on 25 m and
+  18 m curves every joint stays within 2–3 cm (unit test).
+- **PESA Swing 122NaSF:** five sections on three fixed low-floor bogies (independent wheels, motors along
+  the frame), cabs at both ends, sliding plug doors on both sides, louvred bogie covers, the lofted cab with
+  the panoramic windscreen, lamps on chrome lines, LED displays front, rear and sides, "SWING Sofia" and
+  "pesa" on the windows; inside the orange poles and hanging loops, the dark blue accents, the striped glass
+  screens at the doors, information screens, 41 seats with the wheels under podiums; VVVF inverter sound,
+  four-beep door warning, its own gong.
+- **Inekon T8M-700IT:** raked angular cab with the yellow-green LED display, three-lamp housings, the
+  orange rising on the cab sides, the low centre section with the V-dip in the livery and its ramp, five
+  folding doors with yellow handrails behind the glass, four steps up into the high-floor ends, the rear
+  with its window and round red lamps, diamond pantograph and roof equipment; chopper sound.
+- **Blender:** Cycles light bake of both trams (`tools/bake_bus_lightmaps.sh pesa inekon`).
+- **Shared tracks:** line 12's trams run on line 7's world between пл. Македония and Триъгълника with their
+  own stops (`SharedTrams.js`); trams see the trams of either line on the track ahead; the driven tram stops
+  against another tram.
+- **Landmarks:** НДК (six OSM parts: stone, bronze glass leaning out, the crown, the glazed portal with
+  Chapkanov's Sun, terraces, staircase, flags, fountain jets), the Millennium Center (hotel tower with the
+  lattice and the glazed crown, office and residential towers, the base with the hotel entrance), МБАЛ
+  „Княгиня Клементина“ (the former Пета градска болница), Bulgaria Mall and its towers, the metro entrances;
+  Central Station shared with line 12.
+- **AI:** a tram that touched a car waits for it to clear instead of nudging it again (an Inekon run had
+  37 contacts at Петте кьошета before, none after).
+
+### Verified
+
+- Unit tests: 48 pass (new: line 7 dispatch, seat count, suspended sections on curves, the low-floor
+  wheels under the podiums).
+- Whole route with the AI driver, all stops served: PESA A 18/18 (26 min), PESA B 18/18 (25 min), Inekon A
+  18/18 (24 min), Inekon B (see below).
+- Line 7 loads in driver mode (high) and passenger mode (balanced) without errors; a passenger rides a
+  PESA through all five sections.
+
+### Estimated (no reachable drawings or photographs)
+
+Section lengths, bogie and door positions of both trams beyond the published lengths, the PESA's mass and
+the Inekon's traction power; the facade compositions of NDK, the Millennium Center, the hospital and the
+mall. Details and sources: `data/research/line7/README.md`.
+
 ## 2026-10-31 — Fix: Start button out of reach on small screens
 
 On screens up to 820 px wide (phones in portrait, small phones in landscape) the passenger and driver
