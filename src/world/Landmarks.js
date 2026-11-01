@@ -32,8 +32,9 @@ export const JOBS_280 = [
 const JOBS = { 280: JOBS_280, 64: JOBS_64, 12: JOBS_12, 7: JOBS_7 };
 
 export class Landmarks {
-  constructor({ world, route, kit = null }) {
+  constructor({ world, route, kit = null, heroes = null }) {
     this.world = world;
+    this.heroes = heroes; // Blender hero buildings of the line (HeroBuildings.js)
     this.route = route;
     this.kit = kit ? new LandmarkKit(kit) : null; // Blender sculpture and ornament (LandmarkKit.js)
     this.M = new LandmarkMaterials();
@@ -53,7 +54,7 @@ export class Landmarks {
     ensureFootprints(world);
     const rep = replacedBuildings(world);
     const line = (this.route && this.route.line) || '280';
-    const ctx = { world, M: this.M, route: this.route, y: (x, z) => world.hf.heightAt(x, z), quality: world.quality, replaced: rep, partsOf: (re) => rep.filter((r) => re.test(r.entry.note)), kit: this.kit };
+    const ctx = { world, M: this.M, route: this.route, y: (x, z) => world.hf.heightAt(x, z), quality: world.quality, replaced: rep, partsOf: (re) => rep.filter((r) => re.test(r.entry.note)), kit: this.kit, heroes: this.heroes };
     const jobs = JOBS[line] || [];
     const g = new THREE.Group();
     for (const [name, fn] of jobs) {

@@ -7,6 +7,7 @@ import { buildMillennium } from './millennium.js';
 import { buildFifthHospital } from './hospital.js';
 import { buildMetroEntrances } from './metro.js';
 import { buildBulgariaMall } from './mall.js';
+import { heroItem } from '../HeroBuildings.js';
 
 export const JOBS_7 = [
   ['centralStation', buildCentralStation],
@@ -14,5 +15,7 @@ export const JOBS_7 = [
   ['millennium', buildMillennium],
   ['fifthHospital', buildFifthHospital],
   ['metro', buildMetroEntrances],
-  ['bulgariaMall', buildBulgariaMall],
+  // Blender hero models (tools/blender/hero), the procedural builders as fallback
+  ['bulgariaMall', (ctx) => heroItem(ctx.heroes, 'mall', ctx.M) || buildBulgariaMall(ctx)],
+  ['billa', (ctx) => heroItem(ctx.heroes, 'billa', ctx.M)],
 ];

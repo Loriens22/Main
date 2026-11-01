@@ -5,6 +5,7 @@ import { Vegetation } from './Vegetation.js';
 import { StreetFurniture } from './StreetFurniture.js';
 import { Landmarks } from './Landmarks.js';
 import { loadLandmarkKit } from './LandmarkKit.js';
+import { loadHeroes } from './HeroBuildings.js';
 import { ShopSigns } from './ShopSigns.js';
 import { ShopFronts } from './ShopFronts.js';
 import { buildPlotWalls } from './PlotWalls.js';
@@ -82,8 +83,11 @@ export async function buildExtras({ scene, world, route, quality }) {
     out.shopFronts = f;
   });
   await safe('landmarks', async () => {
-    const kit = await loadLandmarkKit().catch((e) => { console.warn('landmark kit:', e); return null; });
-    const l = new Landmarks({ world, route, kit });
+    const [kit, heroes] = await Promise.all([
+      loadLandmarkKit().catch((e) => { console.warn('landmark kit:', e); return null; }),
+      loadHeroes(route && route.line).catch((e) => { console.warn('hero buildings:', e); return {}; }),
+    ]);
+    const l = new Landmarks({ world, route, kit, heroes });
     for (const g of l.build(world.buildingBuilder.crosses || [])) world.addToTile(tileKey(g.name), g);
     out.landmarks = l;
   });

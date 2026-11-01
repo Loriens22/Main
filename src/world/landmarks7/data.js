@@ -33,4 +33,11 @@ export const REPLACED7 = [
   { x: -5247.1, z: 541.0, r: 2, id: 1588, note: 'Bulgaria Mall South tower', h: 85 },
   { x: -5117.6, z: 559.0, r: 2, id: 1587, note: 'Bulgaria Mall North tower', h: 56 },
   { x: -5146.9, z: 545.1, r: 2, id: 1589, note: 'Bulgaria Mall North tower low', h: 48 },
+  // the rest of the mall outline (entrance block at the crossing, shopping floors; tools/build_world.py part remainders)
+  { x: -5198.9, z: 535.9, r: 3, id: 1600, note: 'Bulgaria Mall remainder', h: 25 },
+  // --- BILLA, бул. „България“ 55 (OSM way 203333240): the store, its pylon and canopies (hero model only)
+  { x: -5124.6, z: 431.3, r: 3, id: 1649, note: 'BILLA store', h: 8.6, hero: 'billa' },
+  { x: -5200.3, z: 394.2, r: 2, id: 1646, note: 'BILLA pylon', h: 11, hero: 'billa' },
+  { x: -5176.4, z: 410.8, r: 2, id: 1648, note: 'BILLA canopy', h: 8, hero: 'billa', noCollide: true },
+  { x: -5096.0, z: 391.8, r: 2, id: 1647, note: 'BILLA yard canopy', h: 7.4, hero: 'billa', noCollide: true },
 ];

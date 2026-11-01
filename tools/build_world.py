@@ -615,8 +615,19 @@ for b in bl:
                     e['ov'] = ovr
             buildings += ents
         stats['parts'] += len(bparts)
-        if any((pt.get('min_height') or 0) == 0 and not pt.get('min_floor') for pt in bparts):
-            continue
+        ground = [pt for pt in bparts if (pt.get('min_height') or 0) == 0 and not pt.get('min_floor')]
+        if ground:
+            # (every part is cut out of the rest: a raised part is a canopy or bridge with open space below it)
+            ground = [proj(wkb.loads(pt['geometry'])).buffer(0) for pt in bparts]
+            # the parts standing on the ground replace the outline where they are; where the mapped parts leave
+            # most of a building uncovered (a supermarket mapped only as its pylon and canopy, a mall whose
+            # entrance block has no part) the rest of the outline is still emitted at the building's height
+            rest = g.difference(unary_union(ground).buffer(0.05, join_style=2))
+            rest = MultiPolygon([q for q in getattr(rest, 'geoms', [rest]) if q.geom_type == 'Polygon' and q.area > 40]) if not rest.is_empty else rest
+            if rest.is_empty or rest.area < 0.12 * area:
+                continue
+            stats['part remainders'] += 1
+            g = rest.geoms[0] if len(rest.geoms) == 1 else rest
     penthouse = []
     villa_top = btype == 'villa' and not ovr and roof is None and height > 5.5 and 90 < area < 700 and h01(b['id'] + 'p') < 0.5
     if (btype == 'modern' and not ovr and roof is None and height > 17 and 250 < area < 3500 and h01(b['id'] + 'p') < 0.75) or villa_top:
