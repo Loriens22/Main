@@ -6,6 +6,7 @@ import { StreetFurniture } from './StreetFurniture.js';
 import { Landmarks } from './Landmarks.js';
 import { loadLandmarkKit } from './LandmarkKit.js';
 import { loadHeroes } from './HeroBuildings.js';
+import { CityExtras, loadStreetKit } from './CityExtras.js';
 import { ShopSigns } from './ShopSigns.js';
 import { ShopFronts } from './ShopFronts.js';
 import { buildPlotWalls } from './PlotWalls.js';
@@ -82,6 +83,14 @@ export async function buildExtras({ scene, world, route, quality }) {
     for (const g of f.build()) world.addToTile(tileKey(g.name), g);
     out.shopFronts = f;
   });
+  // playgrounds, park furniture, shop terraces, roof gardens, murals (Blender street kit)
+  if (quality !== 'low') await safe('city extras', async () => {
+    const kit = await loadStreetKit();
+    const c = new CityExtras({ world, route, routeLine: rl, kit, trees: out.vegetation ? out.vegetation.trees : [], signs: out.signs ? out.signs.signs : [], quality });
+    c.build();
+    for (const g of c.groups()) world.addToTile(tileKey(g.name), g);
+    out.cityExtras = c;
+  });
   await safe('landmarks', async () => {
     const [kit, heroes] = await Promise.all([
       loadLandmarkKit().catch((e) => { console.warn('landmark kit:', e); return null; }),
@@ -122,6 +131,7 @@ export async function buildExtras({ scene, world, route, quality }) {
       if (out.vegetation) out.vegetation.time.value += dt;
       if (out.furniture) out.furniture.setNight(night);
       if (out.landmarks) out.landmarks.setNight(night);
+      if (out.cityExtras) out.cityExtras.setNight(night);
       if (out.signs) out.signs.setNight(night);
       if (out.shopFronts) out.shopFronts.setNight(night);
       if (out.traffic && out.traffic.furnitureHook == null && out.furniture) out.traffic.furnitureHook = true;

@@ -274,10 +274,32 @@ results:
 | `tools/blender/kit_landmark.py` | `src/data/kit_landmark.glb` | sculpture and ornament for the landmarks: bronze eagles, stone lions, robed and seated figures, Corinthian capitals, fluted shafts, column bases, balusters |
 | `tools/blender/kit_bus.py` | `src/data/kit_bus.glb` | bus parts: 275/70 R22.5 tyre, steel and polished aluminium wheels, the seat shells of all four buses, hand straps, the Sofia validator, the MAN mirrors, the steering wheel |
 | `tools/blender/bake_bus_light.py` | `src/data/lightmaps/*.webp` | baked light for the body and cabin of every bus and tram (Cycles) |
+| `tools/blender/hero/ndk.py` | `src/data/hero/ndk.*` | the NDK and the north half of its park: stone towers, bronze glass behind the white fins, the sun panel, the upper storey, copper roofs, terraces, the fountain court, the flags, the cascade with its lit jets, herringbone edges, beds and globe lamps |
+| `tools/blender/hero/millennium.py` | `src/data/hero/millennium.*` | Millennium Center: the hotel tower with the zig-zag frame and sky bar, the base with the lattice, fins, canopy, shops and flags, the office tower with the ДЗИ / ОББ crown, the residential tower's balconies |
+| `tools/blender/hero/btv.py` | `src/data/hero/btv.*` | the NDK administrative tower (bTV Media Group): concrete trays, ribbon windows, AC units, the roof frame and its lettering |
+| `tools/blender/hero/mall.py` | `src/data/hero/mall.*` | Bulgaria Mall: towers and slab with balcony stacks, the pixel-clad podium with its signs, the glass entrance block with the BULGARIA MALL canopy and the letters along Каблешков, cafe, billboard |
+| `tools/blender/hero/billa.py` | `src/data/hero/billa.*` | BILLA at бул. България 55: the store with its signs, banner, entrance and interior, the pylon at the tram stop, the canopies |
+| `tools/blender/kit_street.py` | `src/data/kit_street.glb` | playgrounds, park furniture (gazebo, pergola, drinking fountain, fitness bars, table tennis, flower beds, lanterns, kiosk), the props in front of the shops, roof-garden pieces |
 
 Every kit piece is a detailed high-poly model (bevels, lettering, tread, grilles, fabric relief)
 baked onto a game mesh: albedo with contact shading, a normal map, ambient occlusion,
 roughness and metalness, in one atlas per kit.
+
+The **hero buildings** (`tools/blender/hero/`) are modelled on the OSM footprints of the world pack and on
+the same terrain triangles as the game (`herolib.py`), in game coordinates. Each face's material name tells
+the game what to draw on it (`src/world/HeroBuildings.js`): curtain walls with lit windows at night, stone and
+panel cladding with joints, signs drawn on canvas, glowing letters and lamps, glass, water, rooms behind
+shop windows. Shop and building names are real three-dimensional letters (Blender text converted to
+mesh). Cycles bakes the ambient occlusion of every recess, fin, ledge and railing into a lightmap on a
+second UV set, and `tools/optimize_glb.mjs` quantizes the GLB and compresses it with meshopt (the five
+heroes take 1.9 MB of geometry and 0.9 MB of AO maps). The **street kit** keeps its colours and the
+occlusion Cycles bakes for each piece in vertex colours, so every playground, park and shop piece shares
+one material; `src/world/CityExtras.js` places them in the OSM playgrounds and parks, along the park paths
+and in front of the shops by kind, adds roof gardens and paints original murals on blank gable walls.
+
+The building outlines come from OpenStreetMap through Overture. Where only some parts of a building are
+mapped (BILLA at бул. България 55 had only its pylon and canopy), `tools/build_world.py` keeps the rest of the
+outline instead of dropping the building.
 
 The **bus light bake** does for the buses what baked lighting does in Unreal or Unity. Each bus
 is exported from the game (`tools/bus_lightmap_export.cjs`), lit in Cycles by a uniform sky with
@@ -291,8 +313,9 @@ change to a bus model, bake again; until then, a map that no longer matches is i
 keeps its unbaked lighting.
 
 ```sh
-pip install bpy==5.2.3 numpy pillow                    # Python 3.13
-python tools/blender/kit_bus.py                         # one kit (also kit_facade.py, kit_landmark.py)
+pip install bpy==5.2.3 numpy pillow shapely            # Python 3.13
+python tools/blender/kit_bus.py                         # one kit (also kit_facade.py, kit_landmark.py, kit_street.py)
+python tools/blender/hero/ndk.py                        # one hero building (also millennium.py, btv.py, mall.py, billa.py; --preview renders views)
 BLENDER_PY=python bash tools/bake_bus_lightmaps.sh      # light bake of the buses and trams (about 25 min on 4 cores)
 BLENDER_PY=python bash tools/bake_bus_lightmaps.sh pesa inekon   # only the line 7 trams (about 2 min)
 ```

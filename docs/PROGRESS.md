@@ -3,6 +3,81 @@
 A concise record of what was built, how it was verified, and what is still open.
 The newest entries are at the top.
 
+## 2026-11-01 — Hero buildings in Blender, BILLA, parks, shops and murals
+
+Request: much more detailed NDK, Grand Hotel Millennium and Bulgaria Mall, the missing BILLA next to the mall,
+more diverse residential buildings, parks and shops inside and out, built in Blender, in stages, with
+research; the user then supplied photographs of the mall and BILLA, the Millennium Center and the bTV tower,
+and the NDK.
+
+### Stages
+
+1. **Research:** photo hosts are blocked here, so facts come from search summaries and the
+   user's photographs (sources in `data/research/heroes/README.md`). BILLA was found in the place data
+   at бул. „България“ 55, inside OSM way 203333240, a retail building the world builder had dropped.
+2. **NDK** (`tools/blender/hero/ndk.py`): the palace on its six OSM parts.
+   - Stone towers, bronze glass behind white fins with stepped ends, the ledge band, the sun panel.
+   - The upper storey under the cornice, vaulted skylights, copper roofs and stage towers, the terraces.
+   - The fountain court with its sphere and jets, the flags, the screen.
+   - The cascade to the north with paired lit jets, herringbone edges, planting beds and globe lamps.
+3. **Millennium Center and the bTV tower** (`millennium.py`, `btv.py`), from photographs 4–6.
+   - The hotel's zig-zag frame, ledges, sky bar and helipad.
+   - The base with the lattice, fins, canopy, shops and flags.
+   - The office tower's ДЗИ / ОББ crown and the residential tower's balconies.
+   - The NDK administrative tower with its concrete trays, ribbon windows, AC units and roof lettering.
+4. **Bulgaria Mall and BILLA** (`mall.py`, `billa.py`), from photographs 1–3.
+   - The mall: towers and slab with terrace stacks, the pixel-clad podium with its letters and shop signs,
+     the glass entrance block with the BULGARIA MALL canopy and café, the freestanding letters, the
+     billboard.
+   - BILLA: the store, banner, poster, umbrellas, entrance with the supermarket behind the glass, the
+     pylon with its letters and tenants, the canopies.
+   - `tools/build_world.py` now keeps the part of an outline its mapped parts leave uncovered, which
+     restored BILLA, the mall's entrance block and 38 other buildings on line 7.
+5. **Residential:** original murals on the blank gables of tall slab blocks (65 on line 7) and roof gardens
+   with planters, pergolas and deck chairs on some flat roofs.
+6. **Parks:** the Blender street kit (`tools/blender/kit_street.py`, 30 pieces, vertex colours with baked
+   occlusion), placed by `src/world/CityExtras.js` in the OSM playgrounds and parks near the route.
+   - Playground sets: swings, slide towers, spring riders, sandboxes, see-saws, carousels, climbing
+     pyramids.
+   - Park furniture: gazebos, pergolas, drinking fountains, flower beds, fitness bars, table tennis,
+     kiosks, bins.
+   - Lanterns along the park paths.
+7. **Shops:** the props in front of each real shop by its kind: café terraces with parasols, sandwich
+   boards, fruit stands and freezers, florists' buckets, the green pharmacy cross, bank ATMs, entrance
+   planters. The hero buildings' shop windows have rooms behind them: a café, a lobby, fashion with
+   mannequins and racks, a supermarket with shelves and checkouts.
+
+### Pipeline
+
+- `tools/blender/hero/herolib.py` reads the world pack's footprints and terrain (the same triangles as the
+  game) and builds in game coordinates.
+  - Material names tell the game what to draw: curtain walls with lit windows at night, panels, stone,
+    signs, glows, glass, water, interiors.
+  - Real 3D letters come from Blender text.
+  - Cycles bakes ambient occlusion to a second UV set.
+- `tools/optimize_glb.mjs` (gltf-transform + meshopt) shrinks the GLBs, for example the mall from 3.5 MB to
+  588 KB. It drops the UV sets a material does not use and quantizes the rest.
+- `src/world/HeroBuildings.js` and `HeroStyle.js` load them and map materials. The procedural landmark
+  builders stay as fallbacks.
+- Sizes: NDK 360 KB + 251 KB AO, Millennium 489 + 187, bTV 345 + 97, mall 588 + 253, BILLA 176 + 66, street
+  kit 182 KB.
+
+### Verified
+
+- Blender previews from the photographs' viewpoints, then in-game screenshots of each building.
+  - From бул. „Тодор Каблешков“ and from the tram stop on бул. „България“ (mall, BILLA, pylon).
+  - From бул. „Витоша“ (hotel entrance, bTV tower).
+  - From the north along the cascade, from the north-west, and from street level near the tram (NDK).
+- Playgrounds, a gazebo with a flower bed, café terraces, murals and roof gardens in game.
+- Lines 280, 64 and 12 load with the city extras.
+- Unit tests 48 / 48.
+
+### Open
+
+- The road tunnel under the NDK plaza is not modelled: бул. „Ген. Скобелев“ crosses the plaza at grade as in
+  the map data, and the fountain basin round that crossing is left out.
+- The street kit and murals cover the corridor of each line (about 140–380 m either side), not the whole map.
+
 ## 2026-11-01 — Expansion 4.0: tram line 7 (кв. Манастирски ливади – запад ↔ Метростанция „Хан Кубрат“)
 
 Request: tram line 7 with the PESA Swing 122NaSF (photos 1–5) and the Inekon T8M-700IT (photos 6–10),
