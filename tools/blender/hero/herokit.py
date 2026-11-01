@@ -37,7 +37,7 @@ def text3d(hb, mat, text, x, y, z, cap, depth, font='sans', align='CENTER', side
     cu.align_x = align
     cu.space_character = spacing
     cu.resolution_u = res
-    cu.fill_mode = 'FULL' if back else 'FRONT'  # letters on a wall need no back
+    cu.fill_mode = 'BOTH' if back else 'FRONT'  # letters on a wall need no back
     ob = bpy.data.objects.new('txt', cu)
     bpy.context.scene.collection.objects.link(ob)
     dg = bpy.context.evaluated_depsgraph_get()

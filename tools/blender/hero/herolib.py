@@ -390,6 +390,11 @@ class HB:
             for j in range(m - 1):
                 self.F.append(([A[j], B[j], B[j + 1], A[j + 1]], mat, False, None))
 
+    def soffit(self, mat, x0, x1, y, z0, z1):
+        """Horizontal face facing down over x0..x1, z0..z1 at height y (frame coordinates)."""
+        x0, x1 = sorted((x0, x1)); z0, z1 = sorted((z0, z1))
+        self.face(mat, [(x0, y, z0), (x1, y, z0), (x1, y, z1), (x0, y, z1)])
+
     def sign(self, mat, x0, y0, x1, y1, z=0.0):
         """A sign face in the frame's x-y plane at z, facing +z, UVs 0..1."""
         self.face(mat, [(x0, y0, z), (x1, y0, z), (x1, y1, z), (x0, y1, z)], uv=[(0, 0), (1, 0), (1, 1), (0, 1)])

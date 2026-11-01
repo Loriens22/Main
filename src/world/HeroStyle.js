@@ -9,12 +9,20 @@ export const HERO_CURTAINS = {
   mallBlue: { tex: { bayW: 1.5, floorH: 3.6, bays: 8, floors: 4, ppm: 28, glass: '#6e93c0', glass2: '#c6daef', mullion: '#7f8fa1', spandrel: '#5d7da3', sp: 1.0, lit: 0.5, seed: 81 }, metal: 0.35, rough: 0.08, env: 1.25 },
   mallBlueDark: { tex: { bayW: 1.5, floorH: 3.6, bays: 8, floors: 4, ppm: 28, glass: '#1d2c40', glass2: '#4d6584', mullion: '#33404f', spandrel: '#1a2636', sp: 1.0, lit: 0.35, seed: 82 }, metal: 0.8, rough: 0.05, env: 1.3 },
   mallBox: { tex: { bayW: 1.5, floorH: 2.4, bays: 8, floors: 5, ppm: 28, glass: '#c4d6d4', glass2: '#eef5f4', mullion: '#f4f6f6', spandrel: '#d5e2e0', sp: 0.25, lit: 0.7, seed: 83 }, metal: 0.35, rough: 0.08, env: 1.2 },
+  // Millennium Center: deep blue hotel glass, the dark band behind the zig-zag frame, the sky bar, the base
+  millBlue: { tex: { bayW: 1.5, floorH: 3.37, bays: 8, floors: 4, ppm: 28, glass: '#2f5fa8', glass2: '#8fb4e6', mullion: '#5b6f8a', spandrel: '#2a4f8a', sp: 0.9, lit: 0.55, seed: 85 }, metal: 0.35, rough: 0.06, env: 1.3 },
+  millBlueDark: { tex: { bayW: 1.5, floorH: 3.37, bays: 8, floors: 4, ppm: 28, glass: '#15284a', glass2: '#3d5a86', mullion: '#2a3548', spandrel: '#13213c', sp: 0.9, lit: 0.4, seed: 86 }, metal: 0.5, rough: 0.05, env: 1.3 },
+  millSky: { tex: { bayW: 2.4, floorH: 3.5, bays: 6, floors: 2, ppm: 28, glass: '#3e5d80', glass2: '#9cb6d0', mullion: '#e8eaea', spandrel: '#cfd6dc', sp: 0.2, lit: 0.95, seed: 87 }, metal: 0.3, rough: 0.05, env: 1.2 },
+  millPodium: { tex: { bayW: 1.8, floorH: 3.9, bays: 6, floors: 3, ppm: 28, glass: '#2a5592', glass2: '#7fa5d8', mullion: '#55657a', spandrel: '#284a7c', sp: 0.6, lit: 0.6, seed: 88 }, metal: 0.35, rough: 0.07, env: 1.2 },
+  // the bTV tower's ribbon windows
+  btvRibbon: { tex: { bayW: 1.25, floorH: 1.8, bays: 8, floors: 2, ppm: 32, glass: '#4a5a64', glass2: '#9eb1bc', mullion: '#9aa0a5', spandrel: '#4a5a64', sp: 0.0, lit: 0.5, seed: 89 }, metal: 0.25, rough: 0.12, env: 1.0 },
   mallPodium: { tex: { bayW: 2.0, floorH: 3.4, bays: 6, floors: 2, ppm: 28, glass: '#26323a', glass2: '#55697a', mullion: '#20272c', spandrel: '#2b343a', sp: 0.4, lit: 0.75, seed: 84 }, metal: 0.6, rough: 0.1, env: 1.1 },
 };
 
 /** pn:<preset> — panel cladding (panelTexture specs, metres). */
 export const HERO_PANELS = {
   // BILLA: silver-grey horizontal sandwich panels
+  millRib: { tex: { w: 4, h: 4, ppm: 32, base: '#d9dbda', joint: 'rgba(90,95,100,0.45)', cols: 1, rows: 16, noise: 0.03, seed: 92 }, rough: 0.5, metal: 0.1 },
   billaClad: { tex: { w: 6, h: 6, ppm: 32, base: '#b7bcc0', joint: 'rgba(55,60,66,0.55)', cols: 1, rows: 6, noise: 0.05, seed: 91 }, rough: 0.45, metal: 0.45, env: 1.1 },
 };
 
@@ -27,6 +35,9 @@ export const HERO_GLOW = {
   shopLight: { color: 0xfff4e0, night: 2.4, day: 1.3 },
   pendant: { color: 0xffd8a0, night: 2.4, day: 1.0 },
   screen: { color: 0x9fd0ff, night: 1.4, day: 0.7 },
+  millBlue: { color: 0x3a6dff, night: 1.8, day: 0.15 },
+  gold: { color: 0xffc870, night: 1.6, day: 0.1 },
+  btvNavy: { color: 0x5a86ff, night: 1.4, day: 0.0 },
 };
 
 /** Interior surfaces behind shop glass: lit evenly day and night (no AO), emissive fraction of their colour. */
@@ -89,6 +100,30 @@ export const HERO_SIGNS = {
       g.strokeStyle = 'rgba(0,0,0,0.25)';
       g.lineWidth = 3;
       for (const y of [170, 340]) { g.beginPath(); g.moveTo(20, y); g.lineTo(w - 20, y); g.stroke(); }
+    },
+  },
+  // Grand Hotel Millennium: the round M mark beside the doors, the flags, the rooftop helipad
+  millLogo: {
+    w: 256, h: 256, nightI: 1.0,
+    lines: [],
+    draw: (g, w) => {
+      g.fillStyle = '#f2f2f2'; g.fillRect(0, 0, w, w);
+      g.strokeStyle = '#1f3c9c'; g.lineWidth = 14; g.beginPath(); g.arc(w / 2, w / 2, w * 0.42, 0, Math.PI * 2); g.stroke();
+      g.fillStyle = '#1f3c9c'; g.font = '700 150px Georgia, serif'; g.textAlign = 'center'; g.textBaseline = 'middle'; g.fillText('M', w / 2, w / 2 + 8);
+    },
+  },
+  flagBG: { w: 192, h: 128, glow: false, lines: [], draw: (g, w, h) => { const c = ['#ffffff', '#00966e', '#d62612']; c.forEach((col, i) => { g.fillStyle = col; g.fillRect(0, (i * h) / 3, w, h / 3 + 1); }); } },
+  flagEU: {
+    w: 192, h: 128, glow: false, bg: '#003399', lines: [],
+    draw: (g, w, h) => { g.fillStyle = '#ffcc00'; for (let k = 0; k < 12; k++) { const a = (k / 12) * Math.PI * 2; g.beginPath(); g.arc(w / 2 + Math.cos(a) * 38, h / 2 + Math.sin(a) * 38, 6, 0, Math.PI * 2); g.fill(); } },
+  },
+  flagMill: { w: 192, h: 128, glow: false, bg: '#5b2a86', lines: [{ text: 'M', size: 80, color: '#e8d6a6', y: 68, weight: 700, family: 'Georgia, serif' }] },
+  helipad: {
+    w: 256, h: 256, glow: false, bg: '#3d4245', lines: [],
+    draw: (g, w) => {
+      g.strokeStyle = '#f2f2f2'; g.lineWidth = 10; g.beginPath(); g.arc(w / 2, w / 2, w * 0.4, 0, Math.PI * 2); g.stroke();
+      g.fillStyle = '#f2f2f2'; g.font = '900 130px Arial, sans-serif'; g.textAlign = 'center'; g.textBaseline = 'middle'; g.fillText('H', w / 2, w / 2 + 6);
+      g.strokeStyle = '#e8c21a'; g.lineWidth = 6; g.strokeRect(8, 8, w - 16, w - 16);
     },
   },
   mallScreen: {

@@ -35,6 +35,8 @@ export const REPLACED7 = [
   { x: -5146.9, z: 545.1, r: 2, id: 1589, note: 'Bulgaria Mall North tower low', h: 48 },
   // the rest of the mall outline (entrance block at the crossing, shopping floors; tools/build_world.py part remainders)
   { x: -5198.9, z: 535.9, r: 3, id: 1600, note: 'Bulgaria Mall remainder', h: 25 },
+  // --- the NDK administrative tower (bTV Media Group) at Пенчо Славейков / Витоша (hero model only)
+  { x: -2968.0, z: -1591.0, r: 3, id: 6671, note: 'bTV tower (NDK administrative building)', h: 54.6, hero: 'btv' },
   // --- BILLA, бул. „България“ 55 (OSM way 203333240): the store, its pylon and canopies (hero model only)
   { x: -5124.6, z: 431.3, r: 3, id: 1649, note: 'BILLA store', h: 8.6, hero: 'billa' },
   { x: -5200.3, z: 394.2, r: 2, id: 1646, note: 'BILLA pylon', h: 11, hero: 'billa' },

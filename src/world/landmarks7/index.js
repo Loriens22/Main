@@ -12,7 +12,8 @@ import { heroItem } from '../HeroBuildings.js';
 export const JOBS_7 = [
   ['centralStation', buildCentralStation],
   ['ndk', buildNdk],
-  ['millennium', buildMillennium],
+  ['millennium', (ctx) => heroItem(ctx.heroes, 'millennium', ctx.M) || buildMillennium(ctx)],
+  ['btv', (ctx) => heroItem(ctx.heroes, 'btv', ctx.M)],
   ['fifthHospital', buildFifthHospital],
   ['metro', buildMetroEntrances],
   // Blender hero models (tools/blender/hero), the procedural builders as fallback
