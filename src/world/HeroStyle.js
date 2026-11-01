@@ -14,6 +14,11 @@ export const HERO_CURTAINS = {
   millBlueDark: { tex: { bayW: 1.5, floorH: 3.37, bays: 8, floors: 4, ppm: 28, glass: '#15284a', glass2: '#3d5a86', mullion: '#2a3548', spandrel: '#13213c', sp: 0.9, lit: 0.4, seed: 86 }, metal: 0.5, rough: 0.05, env: 1.3 },
   millSky: { tex: { bayW: 2.4, floorH: 3.5, bays: 6, floors: 2, ppm: 28, glass: '#3e5d80', glass2: '#9cb6d0', mullion: '#e8eaea', spandrel: '#cfd6dc', sp: 0.2, lit: 0.95, seed: 87 }, metal: 0.3, rough: 0.05, env: 1.2 },
   millPodium: { tex: { bayW: 1.8, floorH: 3.9, bays: 6, floors: 3, ppm: 28, glass: '#2a5592', glass2: '#7fa5d8', mullion: '#55657a', spandrel: '#284a7c', sp: 0.6, lit: 0.6, seed: 88 }, metal: 0.35, rough: 0.07, env: 1.2 },
+  // NDK: dark bronze glass between the stone towers, the ground-floor lobby, the upper storey, the annexes' ribbons
+  ndkBronze: { tex: { bayW: 1.8, floorH: 4.6, bays: 6, floors: 3, ppm: 26, glass: '#3a3027', glass2: '#7a6a58', mullion: '#2a221b', spandrel: '#30271f', sp: 0.5, lit: 0.55, seed: 93 }, metal: 0.45, rough: 0.07, env: 1.2 },
+  ndkLobby: { tex: { bayW: 2.4, floorH: 3.5, bays: 5, floors: 2, ppm: 26, glass: '#3d3428', glass2: '#80705c', mullion: '#221c16', spandrel: '#221c16', sp: 0.1, lit: 0.95, seed: 94 }, metal: 0.35, rough: 0.07, env: 1.1 },
+  ndkDrum: { tex: { bayW: 1.6, floorH: 4.0, bays: 8, floors: 1, ppm: 26, glass: '#2e2720', glass2: '#6a5d4e', mullion: '#1f1a15', spandrel: '#1f1a15', sp: 0.0, lit: 0.9, seed: 95 }, metal: 0.4, rough: 0.06, env: 1.2 },
+  ndkRibbon: { tex: { bayW: 1.5, floorH: 2.0, bays: 8, floors: 1, ppm: 26, glass: '#2f2a24', glass2: '#6a5f52', mullion: '#1c1916', spandrel: '#1c1916', sp: 0.0, lit: 0.5, seed: 96 }, metal: 0.3, rough: 0.1, env: 1.0 },
   // the bTV tower's ribbon windows
   btvRibbon: { tex: { bayW: 1.25, floorH: 1.8, bays: 8, floors: 2, ppm: 32, glass: '#4a5a64', glass2: '#9eb1bc', mullion: '#9aa0a5', spandrel: '#4a5a64', sp: 0.0, lit: 0.5, seed: 89 }, metal: 0.25, rough: 0.12, env: 1.0 },
   mallPodium: { tex: { bayW: 2.0, floorH: 3.4, bays: 6, floors: 2, ppm: 28, glass: '#26323a', glass2: '#55697a', mullion: '#20272c', spandrel: '#2b343a', sp: 0.4, lit: 0.75, seed: 84 }, metal: 0.6, rough: 0.1, env: 1.1 },
@@ -22,6 +27,7 @@ export const HERO_CURTAINS = {
 /** pn:<preset> — panel cladding (panelTexture specs, metres). */
 export const HERO_PANELS = {
   // BILLA: silver-grey horizontal sandwich panels
+  ndkStone: { tex: { w: 3, h: 3, ppm: 30, base: '#e4e0d6', joint: 'rgba(90,84,74,0.32)', cols: 2, rows: 2, noise: 0.06, seed: 97, stain: 0.05 }, rough: 0.7 },
   millRib: { tex: { w: 4, h: 4, ppm: 32, base: '#d9dbda', joint: 'rgba(90,95,100,0.45)', cols: 1, rows: 16, noise: 0.03, seed: 92 }, rough: 0.5, metal: 0.1 },
   billaClad: { tex: { w: 6, h: 6, ppm: 32, base: '#b7bcc0', joint: 'rgba(55,60,66,0.55)', cols: 1, rows: 6, noise: 0.05, seed: 91 }, rough: 0.45, metal: 0.45, env: 1.1 },
 };
@@ -38,6 +44,10 @@ export const HERO_GLOW = {
   millBlue: { color: 0x3a6dff, night: 1.8, day: 0.15 },
   gold: { color: 0xffc870, night: 1.6, day: 0.1 },
   btvNavy: { color: 0x5a86ff, night: 1.4, day: 0.0 },
+  jet: { color: 0xd8fff0, night: 2.6, day: 0.0 },
+  globe: { color: 0xffb060, night: 3.0, day: 0.0 },
+  uplight: { color: 0xfff6e8, night: 2.6, day: 0.0 },
+  led: { color: 0xfff0d0, night: 2.2, day: 0.0 },
 };
 
 /** Interior surfaces behind shop glass: lit evenly day and night (no AO), emissive fraction of their colour. */
@@ -125,6 +135,12 @@ export const HERO_SIGNS = {
       g.fillStyle = '#f2f2f2'; g.font = '900 130px Arial, sans-serif'; g.textAlign = 'center'; g.textBaseline = 'middle'; g.fillText('H', w / 2, w / 2 + 6);
       g.strokeStyle = '#e8c21a'; g.lineWidth = 6; g.strokeRect(8, 8, w - 16, w - 16);
     },
+  },
+  flagSofia: { w: 192, h: 128, glow: false, lines: [], draw: (g, w, h) => { g.fillStyle = '#ffffff'; g.fillRect(0, 0, w, h); g.fillStyle = '#0a7a3a'; g.fillRect(0, h * 0.62, w, h * 0.38); g.fillStyle = '#e8c21a'; g.fillRect(0, h * 0.5, w, h * 0.12); g.fillStyle = '#c4161c'; g.beginPath(); g.arc(w * 0.3, h * 0.33, h * 0.18, 0, Math.PI * 2); g.fill(); } },
+  ndkScreen: {
+    w: 512, h: 288, bg: '#101418', nightI: 1.4,
+    lines: [{ text: 'НДК', size: 96, color: '#ffffff', y: 110, weight: 800 }, { text: 'Национален дворец на културата', size: 30, color: '#e8c060', y: 200, weight: 600 }],
+    draw: (g, w, h) => { const gr = g.createLinearGradient(0, 0, w, 0); gr.addColorStop(0, 'rgba(200,40,60,0.5)'); gr.addColorStop(1, 'rgba(40,80,200,0.4)'); g.fillStyle = gr; g.fillRect(0, h - 40, w, 40); },
   },
   mallScreen: {
     w: 512, h: 256, bg: '#1a1f4a', nightI: 1.4,

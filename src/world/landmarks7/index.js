@@ -11,7 +11,7 @@ import { heroItem } from '../HeroBuildings.js';
 
 export const JOBS_7 = [
   ['centralStation', buildCentralStation],
-  ['ndk', buildNdk],
+  ['ndk', (ctx) => heroItem(ctx.heroes, 'ndk', ctx.M) || buildNdk(ctx)],
   ['millennium', (ctx) => heroItem(ctx.heroes, 'millennium', ctx.M) || buildMillennium(ctx)],
   ['btv', (ctx) => heroItem(ctx.heroes, 'btv', ctx.M)],
   ['fifthHospital', buildFifthHospital],

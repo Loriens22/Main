@@ -11,10 +11,14 @@ import millennium_meta from './millennium.json';
 import btv_glb from './btv.glb';
 import btv_ao from './btv_ao.webp';
 import btv_meta from './btv.json';
+import ndk_glb from './ndk.glb';
+import ndk_ao from './ndk_ao.webp';
+import ndk_meta from './ndk.json';
 
 export default {
   mall: { glb: mall_glb, ao: mall_ao, meta: mall_meta },
   billa: { glb: billa_glb, ao: billa_ao, meta: billa_meta },
   millennium: { glb: millennium_glb, ao: millennium_ao, meta: millennium_meta },
   btv: { glb: btv_glb, ao: btv_ao, meta: btv_meta },
+  ndk: { glb: ndk_glb, ao: ndk_ao, meta: ndk_meta },
 };
