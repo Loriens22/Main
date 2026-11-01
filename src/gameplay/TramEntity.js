@@ -184,8 +184,14 @@ export class TramEntity {
       if (this.extraColliders && Math.abs(p.v) > 0.05) {
         this.pose(p.s);
         const sg = Math.sign(p.v), fx = -Math.sin(p.yaw) * sg, fz = -Math.cos(p.yaw) * sg;
+        // only the leading section can run into something (a car beside a rear section on a curve is the car's)
+        const all = p.boxes();
+        const lead = sg > 0 ? all[0] : all[all.length - 1];
+        const probe = this._probe || (this._probe = { boxes: () => [this._probe.box] });
+        probe.box = lead;
+        probe.poses = p.poses; probe.v = p.v; probe.yaw = p.yaw; probe.x = p.x; probe.z = p.z;
         for (const fn of this.extraColliders) {
-          const c = fn(p);
+          const c = fn(probe);
           if (c && (c.nx == null || c.nx * fx + c.nz * fz < -0.6)) {
             p.lastCollision = { speed: Math.abs(p.v), depth: c.depth };
             this.blockedT = 2.5; // the AI driver waits this long before it moves off again

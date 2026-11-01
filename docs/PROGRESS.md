@@ -38,17 +38,24 @@ and shops, neighbourhood building types, announcements.
   lattice and the glazed crown, office and residential towers, the base with the hotel entrance), МБАЛ
   „Княгиня Клементина“ (the former Пета градска болница), Bulgaria Mall and its towers, the metro entrances;
   Central Station shared with line 12.
-- **AI:** a tram that touched a car waits for it to clear instead of nudging it again (an Inekon run had
-  37 contacts at Петте кьошета before, none after).
+- **AI and contacts:** a tram that touched a car waits for it to clear instead of nudging it again; only
+  the leading section can run into a car (a car beside a rear section on a curve no longer stops the tram).
+  An Inekon run had 37 contacts at Петте кьошета and a PESA run 14 before Македония; now 1-4 a trip.
+- **Shared stop codes:** with a line 7 and a line 12 tram at the same stop (1254 and others), each boarded
+  passenger belongs to the tram they walk to; before, both trams waited for each other's passengers and one
+  stood at Пета градска болница with its doors open (found by the route check). The AI closes its doors
+  after two minutes at the latest.
 
 ### Verified
 
 - Unit tests: 48 pass (new: line 7 dispatch, seat count, suspended sections on curves, the low-floor
   wheels under the podiums).
-- Whole route with the AI driver, all stops served: PESA A 18/18 (26 min), PESA B 18/18 (25 min), Inekon A
-  18/18 (24 min), Inekon B (see below).
-- Line 7 loads in driver mode (high) and passenger mode (balanced) without errors; a passenger rides a
-  PESA through all five sections.
+- Whole route with the AI driver, all stops served, with line 12's trams on the shared stretch: PESA A
+  18/18 (26 min), PESA B 18/18 (25 min, 1 contact with a car), Inekon A 18/18 (27 min, 4 contacts), Inekon B
+  18/18 (27 min, 2 contacts).
+- The production file loads without errors on line 7 (driver, high; passenger, balanced, at night), line
+  12 and line 280; a passenger rides a PESA through all five sections; the menu fits phones in portrait and
+  landscape with the fourth line.
 
 ### Estimated (no reachable drawings or photographs)
 
