@@ -100,37 +100,6 @@ export class T6MModel extends TramModel {
     };
   }
 
-  /** Front band strips across a flat end following its plan outline. */
-  endStrips(p, pts, toZ, front) {
-    return (y0, y1, mat, pick = () => true) => {
-      const pos = [];
-      for (let i = 0; i + 1 < pts.length; i++) {
-        if (!pick((pts[i][0] + pts[i + 1][0]) / 2)) continue;
-        const a0 = [pts[i][0], y0, toZ(pts[i][1], y0)], b0 = [pts[i + 1][0], y0, toZ(pts[i + 1][1], y0)];
-        const a1 = [pts[i][0], y1, toZ(pts[i][1], y1)], b1 = [pts[i + 1][0], y1, toZ(pts[i + 1][1], y1)];
-        if (front) pos.push(...a0, ...a1, ...b0, ...b0, ...a1, ...b1);
-        else pos.push(...a0, ...b0, ...a1, ...b0, ...b1, ...a1);
-      }
-      if (!pos.length) return;
-      const g = new THREE.BufferGeometry();
-      g.setAttribute('position', new THREE.Float32BufferAttribute(pos, 3));
-      g.computeVertexNormals();
-      p.add(mat, g);
-    };
-  }
-
-  /** Corner caps over a rounded end at the eave. */
-  endCap(p, pts, toZ, zIn, B, front) {
-    const cap = new THREE.Shape();
-    cap.moveTo(pts[0][0], toZ(pts[0][1], B.eaveY));
-    for (let i = 1; i < pts.length; i++) cap.lineTo(pts[i][0], toZ(pts[i][1], B.eaveY));
-    cap.lineTo(HW - 0.05, zIn);
-    cap.lineTo(-HW + 0.05, zIn);
-    cap.closePath();
-    const o = extrudeMapped(cap, 0.04, (u, v, w) => [u, B.eaveY + w, v], front);
-    for (const g of Object.values(o)) p.add('roof', g);
-  }
-
   buildFront(p, sec, B) {
     const ws = 0.98;
     const { pts } = endOutline(HW, 0.18, 0.04, 6, [-ws, -ws + 0.05, ws - 0.05, ws, -0.78, 0.78]);

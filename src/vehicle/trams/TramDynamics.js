@@ -169,9 +169,21 @@ function chordBehind(line, sa, L) {
  * Track arc positions of the supports that rest on the track (bogies, joints over a Jacobs bogie): d -> s.
  * The first support of the front section is at s - d; each further one where the chord from the previous
  * support of its section equals the body's distance (on a curve slightly more track than body).
+ * Suspended layouts (spec.kinematics 'suspended': PESA Swing, T8M-700IT): every bogie section starts at s - d of
+ * its first bogie; a second bogie of the same section lies on the chord behind it.
  */
 export function supportArcs(spec, line, s, out = new Map()) {
   out.clear();
+  if (spec.kinematics === 'suspended') {
+    for (const sec of spec.sections) {
+      const bs = sec.supports.filter((q) => q.kind === 'bogie');
+      if (!bs.length) continue;
+      const sa = s - bs[0].d;
+      out.set(bs[0].d, sa);
+      if (bs[1]) out.set(bs[1].d, chordBehind(line, sa, bs[1].d - bs[0].d));
+    }
+    return out;
+  }
   const car = spec.carried;
   for (const sec of spec.sections) {
     if (car && (sec.id === car.section || sec.supports.some((q) => q.kind === 'joint'))) continue;
@@ -193,6 +205,7 @@ const ARCS = new Map();
  * from the rear section's bogie (two circles in plan).
  */
 export function placeSections(spec, line, s, out = {}) {
+  if (spec.kinematics === 'suspended') return placeSuspended(spec, line, s, out);
   const car = spec.carried;
   const arcs = supportArcs(spec, line, s, ARCS);
   for (const sec of spec.sections) {
@@ -214,6 +227,40 @@ export function placeSections(spec, line, s, out = {}) {
     const mid = spec.sections.find((q) => q.id === car.section);
     out[mid.id] = chordPose(mid.d0, j1, J1, j2, J2);
     out[rear.id] = chordPose(rear.d0, j2, J2, bog.d, B);
+  }
+  return out;
+}
+
+/**
+ * Multi-articulated layouts: a section on two bogies sits on their chord; a section on one fixed bogie (PESA
+ * Swing: the bogie frame is bolted to the body, it does not turn) takes the heading of its wheelsets, i.e. the
+ * chord of its two axles; a suspended section (no bogie) hangs between the joint points of its neighbours. The
+ * small mismatch between a suspended section's length and the distance of those points on a curve is what the
+ * joints and bellows take up.
+ */
+function placeSuspended(spec, line, s, out) {
+  const arcs = supportArcs(spec, line, s, ARCS);
+  const wb = spec.bogies.wheelbase;
+  const secs = spec.sections;
+  for (const sec of secs) {
+    const bs = sec.supports.filter((q) => q.kind === 'bogie');
+    if (bs.length === 2) {
+      out[sec.id] = chordPose(sec.d0, bs[0].d, pointAt(line, arcs.get(bs[0].d)), bs[1].d, pointAt(line, arcs.get(bs[1].d)));
+    } else if (bs.length === 1) {
+      const c = arcs.get(bs[0].d);
+      out[sec.id] = chordPose(sec.d0, bs[0].d - wb / 2, pointAt(line, c + wb / 2), bs[0].d + wb / 2, pointAt(line, c - wb / 2));
+    }
+  }
+  for (let i = 0; i < secs.length; i++) {
+    const sec = secs[i];
+    if (sec.supports.some((q) => q.kind === 'bogie')) continue;
+    const [ja, jb] = sec.supports;
+    const prev = secs[i - 1], next = secs[i + 1];
+    const A = sectionPoint(out[prev.id], prev.d0, ja.d), B = sectionPoint(out[next.id], next.d0, jb.d);
+    const q = (out[sec.id] = chordPose(sec.d0, ja.d, A, jb.d, B));
+    // centred between the two joint points: the joints share the small length mismatch on a curve
+    const M = sectionPoint(q, sec.d0, (ja.d + jb.d) / 2);
+    q.x += (A[0] + B[0]) / 2 - M[0]; q.y += (A[1] + B[1]) / 2 - M[1]; q.z += (A[2] + B[2]) / 2 - M[2];
   }
   return out;
 }

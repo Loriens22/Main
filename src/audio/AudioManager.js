@@ -462,8 +462,9 @@ export class AudioManager {
     const o = this.shot(where);
     if (!o) return;
     const c = this.ctx, lin = Math.pow(10, o.k / 20);
-    const f0 = kind === 'tram_t6m' ? 690 : 1020;
-    const strokes = kind === 'tram_t6m' ? [0] : [0, 0.22];
+    // T6M / T8M-700IT: the lower mechanical foot gong; Schindler and PESA: bright electric gongs (two strokes)
+    const f0 = { tram_t6m: 690, tram_inekon: 720, tram_pesa: 1180 }[kind] || 1020;
+    const strokes = kind === 'tram_t6m' || kind === 'tram_inekon' ? [0] : kind === 'tram_pesa' ? [0, 0.17] : [0, 0.22];
     for (const dt of strokes) {
       const t = o.t + dt;
       for (const [r, a, d] of [[1, 1, 1.1], [2.76, 0.5, 0.6], [5.4, 0.25, 0.35], [8.93, 0.12, 0.2]]) {

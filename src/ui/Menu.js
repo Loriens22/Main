@@ -8,6 +8,7 @@ export const LINE_INFO = {
   280: { bg: 'СУ „Св. Климент Охридски“ – Студентски град', en: 'Sofia University – Studentski Grad', sbg: 'СУ – Студентски град', sen: 'University – Studentski Grad' },
   64: { bg: 'Зоопарка – Център по хигиена', en: 'Zoo – Hygiene Centre', sbg: 'Зоопарка – Център по хигиена', sen: 'Zoo – Hygiene Centre' },
   12: { bg: 'кв. Илиянци – пл. Журналист (трамвай)', en: 'Iliyantsi – Zhurnalist Square (tram)', sbg: 'Илиянци – пл. Журналист', sen: 'Iliyantsi – Zhurnalist Sq.' },
+  7: { bg: 'кв. Манастирски ливади – запад – Метростанция „Хан Кубрат“ (трамвай)', en: 'Manastirski Livadi West – Han Kubrat Metro (tram)', sbg: 'Манастирски ливади – Хан Кубрат', sen: 'Manastirski Livadi – Han Kubrat' },
 };
 
 // a function, not a constant: the text must follow the language chosen at runtime

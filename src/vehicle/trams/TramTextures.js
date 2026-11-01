@@ -221,3 +221,96 @@ export function drawTramDash(g, s) {
 }
 
 export { THREE };
+
+/** Seat moquette with confetti dots of several colours (PESA blue-grey, photo 5; T8M grey "carnival", photo 9). */
+export function makeConfetti(base = '#3b4659', colors = ['#d8a43a', '#c9504a', '#5aa0d8', '#e8e2d0'], density = 900, seed0 = 11) {
+  const [c, g] = canvas(128, 128);
+  g.fillStyle = base;
+  g.fillRect(0, 0, 128, 128);
+  let seed = seed0;
+  const rnd = () => ((seed = (seed * 16807) % 2147483647) / 2147483647);
+  for (let i = 0; i < density; i++) {
+    g.fillStyle = colors[Math.floor(rnd() * colors.length)];
+    g.globalAlpha = 0.35 + rnd() * 0.45;
+    g.fillRect(rnd() * 128, rnd() * 128, 1 + rnd() * 1.6, 1 + rnd() * 1.6);
+  }
+  g.globalAlpha = 1;
+  return tex(c, { repeat: true });
+}
+
+/** Safety glass of the screens beside the doors: white diagonal bands on clear glass (PESA, photo 5). */
+export function makeStripedGlass() {
+  const [c, g] = canvas(128, 256);
+  g.clearRect(0, 0, 128, 256);
+  g.fillStyle = 'rgba(190,215,230,0.18)';
+  g.fillRect(0, 0, 128, 256);
+  g.strokeStyle = 'rgba(245,250,255,0.85)';
+  g.lineWidth = 9;
+  for (let k = -4; k < 12; k++) {
+    g.beginPath();
+    g.moveTo(-10, k * 30);
+    g.lineTo(140, k * 30 - 70);
+    g.stroke();
+  }
+  const t = tex(c);
+  return t;
+}
+
+/** White lettering on glass or paint (transparent background): [{text, size, x, y, weight, italic}] on w x h. */
+export function makeLettering(lines, { w = 512, h = 128, color = '#ffffff' } = {}) {
+  const [c, g] = canvas(w, h);
+  g.clearRect(0, 0, w, h);
+  g.fillStyle = color;
+  g.textBaseline = 'alphabetic';
+  for (const L of lines) {
+    g.font = `${L.italic ? 'italic ' : ''}${L.weight || 700} ${L.size}px Arial, Helvetica, sans-serif`;
+    g.textAlign = L.align || 'left';
+    g.fillText(L.text, L.x, L.y);
+  }
+  return tex(c);
+}
+
+/**
+ * Passenger information screen (PESA photo 4: line badge, date and the next stops on a light page).
+ * Returns {tex, draw(number, stops)}.
+ */
+export function makeInfoScreen({ w = 512, h = 288 } = {}) {
+  const [c, g] = canvas(w, h);
+  const t = tex(c);
+  const draw = (number = '', stops = []) => {
+    g.fillStyle = '#f4f6f8';
+    g.fillRect(0, 0, w, h);
+    g.fillStyle = '#f0a020';
+    g.fillRect(0, 0, 120, 92);
+    g.fillStyle = '#1b2430';
+    g.font = 'bold 30px Arial, sans-serif';
+    g.textAlign = 'center';
+    g.fillText('tram', 60, 34);
+    g.font = 'bold 50px Arial, sans-serif';
+    g.fillText(String(number), 60, 82);
+    g.fillStyle = '#f2c230';
+    g.fillRect(0, 92, 120, 70);
+    g.fillStyle = '#1b2430';
+    g.font = 'bold 20px Arial, sans-serif';
+    const d = new Date();
+    g.fillText(`${String(d.getDate()).padStart(2, '0')}.${String(d.getMonth() + 1).padStart(2, '0')}.${d.getFullYear()}`, 60, 124);
+    g.textAlign = 'left';
+    g.fillStyle = '#c62f2f';
+    g.fillRect(140, 46, w - 160, 4);
+    stops.slice(0, 5).forEach((st, i) => {
+      g.fillStyle = i === 0 ? '#c62f2f' : '#33404f';
+      g.beginPath();
+      g.arc(160 + i * 72, 48, i === 0 ? 10 : 7, 0, Math.PI * 2);
+      g.fill();
+      g.save();
+      g.translate(156 + i * 72, 70);
+      g.rotate(0.55);
+      g.font = `${i === 0 ? 'bold ' : ''}18px Arial, sans-serif`;
+      g.fillText(st, 0, 0);
+      g.restore();
+    });
+    t.needsUpdate = true;
+  };
+  draw();
+  return { tex: t, draw };
+}

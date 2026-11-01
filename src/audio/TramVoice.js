@@ -5,7 +5,7 @@
 //   rail: rolling noise of steel wheels on steel rails (darker on street track in a concrete slab), the
 //     "da-dum" of every bogie over each rail joint of the ballasted track, flange squeal in tight curves and
 //     the friction brake squeal in the last metres before the stop.
-// Profiles: 'tram_schindler', 'tram_t6m'. Inputs per frame (GameAudio): speed, load (power), brake, curv
+// Profiles: 'tram_schindler', 'tram_t6m' (line 12), 'tram_pesa', 'tram_inekon' (line 7). Inputs per frame (GameAudio): speed, load (power), brake, curv
 // (1/m), street (bool), engineOn (main switch), bogies (distances from the front, m), travel (distance run, m).
 import { dB, clamp, zoneFor, dopplerCents } from './dsp.js';
 
@@ -23,6 +23,14 @@ export const TRAM_PROFILES = {
   // resistance control and series DC motors: no electronic whine, a motor rumble and louder gears; the
   // motor-generator hums while the main switch is on
   tram_t6m: { chopper: 0, chopGain: -90, rumble: -40, mesh: 15, meshGain: -35, aux: 0, auxGain: -90, mg: 100, joints: 1.25, squeal: 3400 },
+  // PESA Swing: IGBT inverters and asynchronous motors (VVVF): the switching tone at the carrier frequency when
+  // starting, then a tone rising with the motor frequency; quiet helical gears, converter / cooling fan hum;
+  // fixed bogies squeal more in the curves, the low-floor wheels thump less over the joints
+  tram_pesa: { chopper: 0, chopGain: -90, rumble: -72, mesh: 19, meshGain: -44, aux: 2650, auxGain: -51, mg: 0, joints: 0.8, squeal: 4300,
+    vvvf: { carrier: 1250, k: 7.5, gain: -31 }, fan: -46 },
+  // T8M-700IT: DC motors on the Cegelec TV Europulse IGBT chopper: a steady chopper whine in traction and
+  // electric braking over the motor rumble (softer than the T6M's resistance control), static converter hum
+  tram_inekon: { chopper: 520, chopGain: -29, rumble: -47, mesh: 15, meshGain: -37, aux: 3300, auxGain: -52, mg: 0, joints: 1.15, squeal: 3500 },
 };
 const RATIO = 6.9, R = 0.33, RAIL = 12.5; // gear ratio, wheel radius, rail length between joints
 
@@ -78,6 +86,13 @@ export class TramVoice {
       this.sq.connect(this.sqAm); this.sq2.connect(this.sqAm); this.sqAm.connect(this.gSq); this.gSq.connect(this.roadGrp);
       this.bk = OSC('sine', 2750); this.gBk = G(0); this.bk.connect(this.gBk); this.gBk.connect(this.roadGrp);
       this.dopOscs.push(this.sq, this.sq2, this.bk);
+      // VVVF inverter tones (PESA): the carrier and the rising motor-frequency harmonic; cooling fan noise
+      this.vvC = OSC('triangle', 1250); this.gVvC = G(0); this.vvC.connect(this.gVvC); this.gVvC.connect(this.engGrp);
+      this.vvM = OSC('sawtooth', 200); this.vvBp = BQ('bandpass', 800, 4); this.gVvM = G(0);
+      this.vvM.connect(this.vvBp); this.vvBp.connect(this.gVvM); this.gVvM.connect(this.engGrp);
+      const nf = SRC(bufs.pink); this.fanBp = BQ('bandpass', 900, 1.2); this.gFan = G(0);
+      nf.connect(this.fanBp); this.fanBp.connect(this.gFan); this.gFan.connect(this.engGrp);
+      this.dopOscs.push(this.vvC, this.vvM);
     }
     this.P = TRAM_PROFILES.tram_schindler;
     this.prof = 'tram_schindler';
@@ -163,6 +178,22 @@ export class TramVoice {
     setP(this.aux.frequency, P.aux || 1, t, 0.3);
     setP(this.gMg.gain, on && P.mg ? dB(-44 + z.whine * 0.4) : 0, t, 0.4);
     setP(this.mgO.frequency, P.mg || 1, t, 0.3);
+    // VVVF: below ~20 km/h the fixed carrier dominates; the motor harmonic climbs with the speed and fades out
+    // in the constant-power range; both follow the motor current (traction and electric braking)
+    const V = P.vvvf;
+    if (V) {
+      const live = work > 0.05 ? 1 : 0;
+      setP(this.vvC.frequency, V.carrier, t, tc);
+      setP(this.gVvC.gain, dB(V.gain + 10 * work) * live * clamp((6 - v) / 4, 0.15, 1), t, 0.08);
+      const fe = Math.max(30, motorRps * 2 * V.k * 4); // stator frequency harmonics
+      setP(this.vvM.frequency, fe, t, tc, 0.003);
+      setP(this.vvBp.frequency, clamp(fe, 200, 3000), t, tc, 0.01);
+      setP(this.gVvM.gain, dB(V.gain - 2 + 12 * work) * live * clamp(v / 1.2, 0, 1) * clamp((19 - v) / 6, 0.25, 1), t, 0.08);
+    } else {
+      setP(this.gVvC.gain, 0, t, 0.1);
+      setP(this.gVvM.gain, 0, t, 0.1);
+    }
+    setP(this.gFan.gain, on && P.fan ? dB(P.fan + z.whine * 0.4) : 0, t, 0.5);
     // flange squeal above ~1/60 m curvature
     const sqAmt = clamp((Math.abs(s.curv || 0) - 1 / 60) * 60, 0, 1) * clamp((v - 1.5) / 3, 0, 1) * clamp((9 - v) / 3 + 0.4, 0.2, 1);
     setP(this.sq.frequency, P.squeal + 120 * Math.sin(t * 0.7), t, 0.2);

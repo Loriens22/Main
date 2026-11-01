@@ -1,5 +1,5 @@
 {
- "about": "What the buildings of each neighbourhood along lines 64, 280 and tram 12 are, for tools/build_world.py. Polygons: neighbourhoods.geojson (Overture divisions, OSM-derived, ODbL). 'mix' = share of multi-storey residential buildings by type when OSM says nothing; footprint shape then decides building by building (long 10-13 m deep slabs and square towers read as panel blocks, irregular deep plans as new buildings). 'floors' = storeys for buildings without a height: [[max footprint m2, min, max], ...]; 'main' adds storeys on the boulevards. 'houses' = mix for detached houses. Types: panel (large-panel blocks 1965-1990: Bs-69 slabs, EPK towers), brick (socialist brick / monolithic blocks 1950-1980), stalinist (1948-1958), interwar (1920-1944 'кооперации': plaster, bay windows, cornices, tiled roofs), modern (1995-2025 residential: render with cladding accents, large windows, glass balconies, setback top floors), villa (post-1990 detached house: render, stone, large windows, flat or low roof), house (older detached house, tiled roof), office (modern office).",
+ "about": "What the buildings of each neighbourhood along lines 64, 280 and trams 12 and 7 are, for tools/build_world.py. Polygons: neighbourhoods.geojson (Overture divisions, OSM-derived, ODbL). 'mix' = share of multi-storey residential buildings by type when OSM says nothing; footprint shape then decides building by building (long 10-13 m deep slabs and square towers read as panel blocks, irregular deep plans as new buildings). 'floors' = storeys for buildings without a height: [[max footprint m2, min, max], ...]; 'main' adds storeys on the boulevards. 'houses' = mix for detached houses. Types: panel (large-panel blocks 1965-1990: Bs-69 slabs, EPK towers), brick (socialist brick / monolithic blocks 1950-1980), stalinist (1948-1958), interwar (1920-1944 'кооперации': plaster, bay windows, cornices, tiled roofs), modern (1995-2025 residential: render with cladding accents, large windows, glass balconies, setback top floors), villa (post-1990 detached house: render, stone, large windows, flat or low roof), house (older detached house, tiled roof), office (modern office).",
  "types": [
   "panel",
   "brick",
@@ -268,9 +268,9 @@
   },
   "ж.к. Белите брези": {
    "mix": {
-    "panel": 0.5,
-    "brick": 0.3,
-    "modern": 0.2
+    "panel": 0.45,
+    "brick": 0.25,
+    "modern": 0.3
    },
    "houses": {
     "house": 0.8,
@@ -289,7 +289,7 @@
     ]
    ],
    "main": 2,
-   "note": "1960s-70s blocks, EPK towers up to 15 storeys (OSM median 11), new infill."
+   "note": "Triangle between бул. България, бул. Гоце Делчев and ул. Кюстендил (with ж.к. Мотописта on бул. България): first brick and panel blocks in the early 1960s, EPK blocks of the 1980s and single-family houses in the south part, new residential after 1990, much of it along бул. България; EPK towers up to 15 storeys (OSM median 11)."
   },
   "ж.к. Красно село": {
    "mix": {
@@ -1182,6 +1182,88 @@
    ],
    "main": 1,
    "note": "Panel estate."
+  },
+  "ж.к. Бъкстон": {
+   "mix": {
+    "panel": 0.6,
+    "brick": 0.15,
+    "modern": 0.25
+   },
+   "houses": {
+    "house": 0.8,
+    "villa": 0.2
+   },
+   "floors": [
+    [
+     400,
+     5,
+     8
+    ],
+    [
+     99999,
+     7,
+     12
+    ]
+   ],
+   "main": 2,
+   "note": "Estimated (no reachable description): 1970s-80s panel blocks of the Бъкстон-Павлово area west of бул. Гоце Делчев, older houses, new residential along the boulevards."
+  },
+  "ж.к. Славия": {
+   "mix": {
+    "panel": 0.65,
+    "brick": 0.15,
+    "modern": 0.2
+   },
+   "houses": {
+    "house": 0.8,
+    "villa": 0.2
+   },
+   "floors": [
+    [
+     400,
+     5,
+     8
+    ],
+    [
+     99999,
+     7,
+     12
+    ]
+   ],
+   "main": 2,
+   "note": "Estimated: 1970s-80s panel estate west of бул. Гоце Делчев (same building types as Борово)."
+  },
+  "кв. Крива река": {
+   "mix": {
+    "brick": 0.45,
+    "panel": 0.2,
+    "interwar": 0.1,
+    "modern": 0.25
+   },
+   "houses": {
+    "house": 0.9,
+    "villa": 0.1
+   },
+   "floors": [
+    [
+     300,
+     3,
+     5
+    ],
+    [
+     99999,
+     5,
+     8
+    ]
+   ],
+   "main": 1,
+   "note": "Estimated: small quarter by the railway north of the centre: older houses, 1950s-70s brick blocks, new infill (same types as Банишора)."
+  },
+  "ж.к. Зона Б-19": {
+   "same_as": "ж.к. Зона Б-18"
+  },
+  "ж.к. Южен парк": {
+   "same_as": "ж.к. Иван Вазов"
   }
  },
  "default": {
@@ -1219,6 +1301,8 @@
   "https://en.wikipedia.org/wiki/Panel_building",
   "OSM/Overture building:levels per neighbourhood within 120 m of the routes (see NEIGHBOURHOODS.md)",
   "https://www.capital.bg/biznes/imoti/2026/02/09/4879321_pazarut_na_industrialni_ploshti_v_bulgariia_ochakva/",
-  "https://bazar.bg/obiava-53347818/prodava-partsel-gr-sofiia-iliiantsi"
+  "https://bazar.bg/obiava-53347818/prodava-partsel-gr-sofiia-iliiantsi",
+  "https://bg.wikipedia.org/wiki/Белите_брези_(квартал) (via search summary)",
+  "https://imotsofia.com/къде/квартали-на-софия/ (via search summary)"
  ]
 }

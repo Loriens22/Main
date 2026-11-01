@@ -191,6 +191,18 @@ export class TramModel {
     this.buildPantograph();
     this.buildBellows();
     for (const s of spec.sections) for (const d of spec.doors.filter((q) => q.section === s.id)) this.buildDoor(s, d);
+    // doors on the left side too (PESA): the same leaves in a mirrored group, closed (every platform is on the right)
+    if (spec.doorsBothSides) {
+      for (const s of spec.sections) {
+        const ds = spec.doors.filter((q) => q.section === s.id);
+        if (!ds.length) continue;
+        const mg = new THREE.Group();
+        mg.scale.x = -1;
+        mg.name = `${s.id}LeftDoors`;
+        this[s.id].add(mg);
+        for (const d of ds) this.buildDoor(s, d, mg);
+      }
+    }
     if (interior) for (const s of spec.sections) this.buildInterior(s);
     this.buildCab();
     this.buildSigns();
@@ -299,7 +311,7 @@ export class TramModel {
   sideWall(p, sec, side, B) {
     const [za, zb] = this.sideSpan(sec, B);
     const t = B.wall;
-    const doors = side > 0 ? this.spec.doors.filter((d) => d.section === sec.id) : [];
+    const doors = side > 0 || this.spec.doorsBothSides ? this.spec.doors.filter((d) => d.section === sec.id) : [];
     const wins = ((this.cfg.windows || {})[sec.id] || {})[side > 0 ? 'right' : 'left'] || [];
     const cuts = doors.map((d) => [d.z0 - 0.04, d.z1 + 0.04]).sort((a, b) => a[0] - b[0]);
     const spans = [];
@@ -312,7 +324,7 @@ export class TramModel {
     const flip = side < 0;
     const lowMap = (u, v, w) => [side * (B.hw - w), v, u];
     const upMap = (u, v, w) => [side * (this.sideX(B, v) - w), v, u];
-    const bands = this.cfg.bands ? this.cfg.bands(sec, side, B) : [{ y0: B.skirtY, y1: B.beltY, mat: 'paint' }];
+    const bandsAt = (z0, z1) => (this.cfg.bands ? this.cfg.bands(sec, side, B, z0, z1) : [{ y0: B.skirtY, y1: B.beltY, mat: 'paint' }]);
     const upMat = this.cfg.upperMat ? this.cfg.upperMat(sec, side) : 'paint';
     const addParts = (o, outerMat) => {
       if (o.outer) p.add(outerMat, o.outer);
@@ -320,7 +332,7 @@ export class TramModel {
       if (o.reveal) p.add(outerMat, o.reveal);
     };
     for (const [a, b] of spans) {
-      for (const bd of bands) {
+      for (const bd of bandsAt(a, b)) {
         const sh = roundRect(new THREE.Shape(), a, bd.y0, b, bd.y1, 0);
         addParts(extrudeMapped(sh, t, lowMap, flip), bd.mat);
       }
@@ -471,13 +483,81 @@ export class TramModel {
     for (const [z0, z1, h, w = 1.6] of boxes) p.add('under', box(w, h, z1 - z0), M(0, B.skirtY - h / 2 + 0.01, (z0 + z1) / 2));
   }
 
+  /** Band strips across a rounded end following its plan outline pts [[x, dz]]; toZ(dz, y) -> section z. */
+  endStrips(p, pts, toZ, front) {
+    return (y0, y1, mat, pick = () => true) => {
+      const pos = [];
+      for (let i = 0; i + 1 < pts.length; i++) {
+        if (!pick((pts[i][0] + pts[i + 1][0]) / 2)) continue;
+        const a0 = [pts[i][0], y0, toZ(pts[i][1], y0)], b0 = [pts[i + 1][0], y0, toZ(pts[i + 1][1], y0)];
+        const a1 = [pts[i][0], y1, toZ(pts[i][1], y1)], b1 = [pts[i + 1][0], y1, toZ(pts[i + 1][1], y1)];
+        if (front) pos.push(...a0, ...a1, ...b0, ...b0, ...a1, ...b1);
+        else pos.push(...a0, ...b0, ...a1, ...b0, ...b1, ...a1);
+      }
+      if (!pos.length) return;
+      const g = new THREE.BufferGeometry();
+      g.setAttribute('position', new THREE.Float32BufferAttribute(pos, 3));
+      g.computeVertexNormals();
+      p.add(mat, g);
+    };
+  }
+
+  /** Corner caps over a rounded end at the eave. */
+  endCap(p, pts, toZ, zIn, B, front) {
+    const cap = new THREE.Shape();
+    cap.moveTo(pts[0][0], toZ(pts[0][1], B.eaveY));
+    for (let i = 1; i < pts.length; i++) cap.lineTo(pts[i][0], toZ(pts[i][1], B.eaveY));
+    cap.lineTo(B.hw - 0.05, zIn);
+    cap.lineTo(-B.hw + 0.05, zIn);
+    cap.closePath();
+    const o = extrudeMapped(cap, 0.04, (u, v, w) => [u, B.eaveY + w, v], front);
+    for (const g of Object.values(o)) p.add('roof', g);
+  }
+
+  /**
+   * Lofted end (a curved cab nose): levels [{y, zc, hw}] from the bottom up, each a plan outline from -hw to hw
+   * whose middle is zc from the end and whose sides run back to `back` (superellipse corners, tangent to the
+   * side walls); mat(x, y, u) picks the material of each quad (u = |x| / hw). atRear: the outline mirrored to
+   * the far end of a section of length L. Returns the outline sampler.
+   */
+  loftEnd(p, levels, back, mat, { n = 24, ex = 2.6, atRear = false, L = 0, flip = false } = {}) {
+    const zAt = (lv, u) => back - (back - lv.zc) * Math.pow(Math.max(0, 1 - Math.pow(Math.min(1, u), ex)), 1 / 2);
+    const us = [];
+    for (let k = 0; k <= n; k++) us.push(-1 + (2 * k) / n);
+    const P = (lv, u) => {
+      const z = zAt(lv, Math.abs(u));
+      return [u * lv.hw, lv.y, atRear ? L - z : z];
+    };
+    const groups = new Map();
+    for (let j = 0; j + 1 < levels.length; j++) {
+      const A = levels[j], Bv = levels[j + 1];
+      for (let k = 0; k + 1 < us.length; k++) {
+        const a0 = P(A, us[k]), b0 = P(A, us[k + 1]), a1 = P(Bv, us[k]), b1 = P(Bv, us[k + 1]);
+        const um = Math.abs((us[k] + us[k + 1]) / 2), xm = ((us[k] + us[k + 1]) / 2) * (A.hw + Bv.hw) / 2;
+        const m = mat(xm, (A.y + Bv.y) / 2, um, j);
+        if (!m) continue;
+        if (!groups.has(m)) groups.set(m, []);
+        const pos = groups.get(m);
+        if (atRear === flip) pos.push(...a0, ...a1, ...b0, ...b0, ...a1, ...b1);
+        else pos.push(...a0, ...b0, ...a1, ...b0, ...b1, ...a1);
+      }
+    }
+    for (const [m, pos] of groups) {
+      const g = new THREE.BufferGeometry();
+      g.setAttribute('position', new THREE.Float32BufferAttribute(pos, 3));
+      g.computeVertexNormals();
+      p.add(m, g);
+    }
+    return (lv, u) => P(lv, u);
+  }
+
   // ------------------------------------------------------------------ doors
   /** Folding door: each leaf two panels, hinged at the jamb, the free edge running in the guide at the door line. */
-  buildDoor(sec, d) {
+  buildDoor(sec, d, mirror = null) {
     const B = this.body(sec);
     const leaves = d.leaves || 2;
     const W = (d.z1 - d.z0) / leaves;
-    const group = this[sec.id];
+    const group = mirror || this[sec.id];
     const folds = [];
     for (let k = 0; k < leaves; k++) {
       // hinge at the jamb: leaf 0 at z0 opening towards +z; leaf 1 at z1 towards -z
@@ -485,6 +565,13 @@ export class TramModel {
       const hingeZ = e > 0 ? d.z0 : d.z1;
       const a = new THREE.Group();
       a.position.set(B.hw - 0.035, 0, hingeZ);
+      if (this.cfg.doorSwing === 'plug') {
+        // sliding plug door (PESA): the leaf moves out of the opening, then slides along the outside of the body
+        a.add(this.doorPanel(B, W, e, 1));
+        group.add(a);
+        folds.push({ a, b: null, e, plug: true, x0: a.position.x, z0: hingeZ, W });
+        continue;
+      }
       if (this.cfg.doorSwing === 'out') {
         // outward-swinging leaf (Schindler, photo 4): one panel on a pivot at the jamb, opening out of the body
         a.add(this.doorPanel(B, W, e, 1));
@@ -499,6 +586,7 @@ export class TramModel {
       group.add(a);
       folds.push({ a, b, e });
     }
+    if (mirror) return; // the left doors stay closed: no steps, lamps or state
     // fixed outer step under the door with the yellow edge (Schindler: photos 4, 6)
     if (this.cfg.outerStep) {
       const p = new Parts();
@@ -536,6 +624,15 @@ export class TramModel {
     if (wb.bot2 != null) p.add('glass', shapeMapped(roundRect(new THREE.Shape(), 0.07, wb.bot2, w - 0.07, wb.top2, wb.r), gmap, e < 0));
     // rubber edge seal on the free edge, grab handle inside
     p.add('rubber', box(0.05, y1 - y0, 0.03), M(0, (y0 + y1) / 2, e * (w - 0.012)));
+    // painted handrails across the inside of the glass (T8M-700IT: yellow diagonal bars, photo 7)
+    if (this.cfg.doorBars) {
+      for (const [ya, yb] of [[y0 + 0.35, y0 + 0.95], [y0 + 1.05, y0 + 1.65]]) {
+        const len = Math.hypot(w - 0.2, yb - ya);
+        const bar = cyl(0.014, len, 6);
+        bar.rotateX(Math.atan2(w - 0.2, yb - ya) * (e > 0 ? 1 : -1));
+        p.add(this.cfg.doorBars, bar, M(-0.06, (ya + yb) / 2, e * (w / 2)));
+      }
+    }
     if (which === 1) p.add('pole', cyl(0.014, 0.9, 8), M(-0.06, 1.25, e * (w - 0.12)));
     return p.build(this.mats, { castShadow: false });
   }
@@ -547,6 +644,12 @@ export class TramModel {
     const th = s * 1.38; // the panels fold to ~80 degrees
     for (const f of folds) {
       if (f.out) { f.a.rotation.y = f.e * s * 1.62; continue; } // swing out to ~93 degrees
+      if (f.plug) {
+        // out by 6 cm in the first fifth of the travel, then along the body by the leaf width
+        f.a.position.x = f.x0 + 0.06 * Math.min(1, openness * 5);
+        f.a.position.z = f.z0 - f.e * f.W * 0.96 * Math.max(0, (s - 0.12) / 0.88);
+        continue;
+      }
       f.a.rotation.y = -f.e * th;
       f.b.rotation.y = f.e * 2 * th;
     }
@@ -585,10 +688,25 @@ export class TramModel {
         // sand pipe at the leading wheel
         p.add('black', cyl(0.015, 0.35, 6), M(sx * (GAUGE / 2 + 0.06), 0.22, -wb / 2 - R - 0.05));
       }
-      // transom and bolster
-      p.add('bogie', box(fx * 2, 0.16, 0.36), M(0, R + 0.06, 0));
-      p.add('bogie', box(1.3, 0.1, 0.5), M(0, R + 0.25, 0));
-      if (q.powered) {
+      const lowFloor = this.spec.bogies.lowFloor;
+      if (lowFloor) {
+        // low-floor bogie (PESA): a cranked transom under the aisle, the frame bolted to the body (no bolster);
+        // each side's wheels driven by a motor and gearbox lying along the frame outside the wheels
+        p.add('bogie', box(fx * 2, 0.1, 0.4), M(0, 0.17, 0));
+        if (q.powered) {
+          for (const sx of [-1, 1]) {
+            const m = cyl(0.13, 0.7, 14);
+            m.rotateX(Math.PI / 2);
+            p.add('steel', m, M(sx * (fx + 0.16), R + 0.02, 0));
+            for (const sz of [-1, 1]) p.add('steel', box(0.16, 0.26, 0.3), M(sx * (fx + 0.12), R, sz * (wb / 2 - 0.25)));
+          }
+        }
+      } else {
+        // transom and bolster
+        p.add('bogie', box(fx * 2, 0.16, 0.36), M(0, R + 0.06, 0));
+        p.add('bogie', box(1.3, 0.1, 0.5), M(0, R + 0.25, 0));
+      }
+      if (q.powered && !lowFloor) {
         // traction motors across the bogie with their gearboxes on the axles
         for (const sz of [-1, 1]) {
           const m = cyl(0.19, 0.62, 16);
@@ -620,9 +738,18 @@ export class TramModel {
             wp.add('black', box(0.012, 0.04, 0.04), M(wx + sx * 0.06, Math.cos(a) * R * 0.5, Math.sin(a) * R * 0.5));
           }
         }
-        const ax = cyl(0.065, GAUGE + 0.1, 12);
-        ax.rotateZ(Math.PI / 2);
-        wp.add('steel', ax);
+        if (!lowFloor) {
+          const ax = cyl(0.065, GAUGE + 0.1, 12);
+          ax.rotateZ(Math.PI / 2);
+          wp.add('steel', ax);
+        } else {
+          // stub axles of the independent wheels, the portal axle bridge low under the aisle
+          for (const sx of [-1, 1]) {
+            const st = cyl(0.06, 0.24, 10);
+            st.rotateZ(Math.PI / 2);
+            wp.add('steel', st, M(sx * (GAUGE / 2 - 0.05), 0, 0));
+          }
+        }
         spin.add(wp.build(this.mats));
         g.add(spin);
         sets.push(spin);

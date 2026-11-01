@@ -3,6 +3,7 @@ import * as THREE from 'three';
 import route280 from './data/route280.json';
 import route64 from './data/route64.json';
 import route12 from './data/route12.json';
+import route7 from './data/route7.json';
 import { Route280 } from './gameplay/Route280Data.js';
 import { loadWorldPack } from './world/WorldData.js';
 import { World } from './world/World.js';
@@ -25,7 +26,7 @@ import { AITramDriver } from './gameplay/AITramDriver.js';
 
 const params = new URLSearchParams(location.search);
 /** Route data of the playable lines; the world of one line is loaded per session (?line= or the menu). */
-const ROUTES = { 280: route280, 64: route64, 12: route12 };
+const ROUTES = { 280: route280, 64: route64, 12: route12, 7: route7 };
 
 async function boot() {
   injectStyles();

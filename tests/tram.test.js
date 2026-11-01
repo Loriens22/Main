@@ -26,14 +26,25 @@ test('line 12 dispatches the Schindler and the T6M-700 half and half', () => {
   for (let n = 0; n < 500; n++) assert.ok(!['schindler', 't6m'].includes(dispatchVehicle('280', n, 3)));
 });
 
+test('line 7 dispatches the PESA Swing and the T8M-700IT half and half; line 12 keeps its trams', () => {
+  assert.deepEqual(lineVehicles('7'), ['pesa', 'inekon']);
+  const c = {};
+  for (let n = 0; n < 4000; n++) { const v = dispatchVehicle('7', n, 3); c[v] = (c[v] || 0) + 1; }
+  assert.ok(Math.abs(c.pesa / 4000 - 0.5) < 0.04, JSON.stringify(c));
+  for (let n = 0; n < 500; n++) assert.ok(['schindler', 't6m'].includes(dispatchVehicle('12', n, 3)));
+  assert.equal(VEHICLES.pesa.layout.seats.length, 41, 'PESA Swing: 41 seats');
+  assert.ok(Math.abs(VEHICLES.pesa.dims.length - 30.12) < 1e-9 && Math.abs(VEHICLES.inekon.dims.length - 26.62) < 1e-9);
+});
+
 test('tram specs: contiguous sections, doors inside their sections, seat map, frames', () => {
-  assert.equal(TRAMS.length, 2);
+  assert.equal(TRAMS.length, 4);
   for (const s of TRAMS) {
     const secs = s.sections;
     assert.equal(secs[0].d0, 0, `${s.id} starts at its front end`);
     assert.ok(Math.abs(secs[secs.length - 1].d1 - s.dims.length) < 1e-6, `${s.id} length`);
-    for (let i = 1; i < secs.length; i++) assert.ok(Math.abs(secs[i].d0 - secs[i - 1].d1 - 0.4) < 1e-6, `${s.id} joint gap`);
-    for (const sec of secs) assert.equal(sec.supports.length, 2, `${s.id} ${sec.id} two supports`);
+    for (let i = 1; i < secs.length; i++) { const gap = secs[i].d0 - secs[i - 1].d1; assert.ok(gap > 0.25 && gap < 0.5, `${s.id} joint gap ${gap}`); }
+    // two track supports, or one fixed bogie / two joints in the suspended layouts
+    for (const sec of secs) assert.ok(sec.supports.length === 2 || (s.kinematics === 'suspended' && sec.supports.length === 1 && sec.supports[0].fixed), `${s.id} ${sec.id} supports`);
     for (const d of s.doors) {
       const sec = secs.find((q) => q.id === d.section);
       assert.ok(d.z0 > 0 && d.z1 < sec.length && d.z1 > d.z0, `${s.id} door ${d.id}`);
@@ -54,9 +65,12 @@ test('sections meet at their joints on straight and curved track; bogies sit on 
       const poses = placeSections(s, line, 0);
       for (let i = 1; i < s.sections.length; i++) {
         const A = s.sections[i - 1], B = s.sections[i];
-        const J = B.supports[0].d; // the joint (or Jacobs bogie) shared by the two sections
+        // the joint (or Jacobs bogie) shared by the two sections
+        const J = B.supports[0].kind === 'joint' || B.supports[0].jacobs ? B.supports[0].d : A.supports[A.supports.length - 1].kind === 'joint' ? A.supports[A.supports.length - 1].d : (A.d1 + B.d0) / 2;
         const pa = pt(poses[A.id], A.d0, J), pb = pt(poses[B.id], B.d0, J);
-        assert.ok(Math.hypot(pa[0] - pb[0], pa[1] - pb[1]) < 0.02, `${s.id} R=${R} joint ${A.id}/${B.id}: ${pa} vs ${pb}`);
+        // a suspended section's joints take up the small length mismatch of its two neighbours on a curve
+        const tol = s.kinematics === 'suspended' && (A.supports[0].kind === 'joint' || B.supports[0].kind === 'joint') ? 0.03 : 0.02;
+        assert.ok(Math.hypot(pa[0] - pb[0], pa[1] - pb[1]) < tol, `${s.id} R=${R} joint ${A.id}/${B.id}: ${pa} vs ${pb}`);
       }
       for (const b of bogiePoses(s, line, 0)) {
         const r = R ? Math.hypot(b.x - R, b.z) : Math.abs(b.x);
@@ -64,8 +78,8 @@ test('sections meet at their joints on straight and curved track; bogies sit on 
         assert.ok(Math.abs(r - Math.abs(R)) < 0.03, `${s.id} R=${R} bogie at ${b.d}: ${r}`);
       }
       // the front end swings out of the curve by the overhang ahead of the first bogie (a(a + c) / 2R)
-      const f = poses[s.sections[0].id], [b1, b2] = s.sections[0].supports;
-      const over = R ? (b1.d * (b1.d + b2.d - b1.d)) / (2 * Math.abs(R)) : 0;
+      const f = poses[s.sections[0].id], [b1, b2 = b1] = s.sections[0].supports;
+      const over = R ? (b1.d * b2.d) / (2 * Math.abs(R)) : 0;
       const off = R ? Math.hypot(f.x - R, f.z) - Math.abs(R) : Math.abs(f.x);
       assert.ok(Math.abs(off - over) < 0.15, `${s.id} R=${R} front overhang ${off.toFixed(2)} expected ${over.toFixed(2)}`);
     }
@@ -150,6 +164,11 @@ test('every tram section has a floor over its whole length, above the bogies', a
           for (const dz of [-R, 0, R]) {
             const z = ax + dz - sec.d0;
             if (z < z0 || z > sec.length) continue;
+            if (s.bogies.lowFloor) {
+              // 100 % low floor: the wheels stand under the seat podiums beside the aisle (no axle under the aisle)
+              assert.ok((s.layout.podiums || []).some((q) => q.sec === sec.id && z >= q.z0 && z <= q.z1), `${s.id} ${sec.id} podium over the wheel at d=${(ax + dz).toFixed(2)}`);
+              continue;
+            }
             const y = s.layout.aisleFloorY(sec.id, z);
             assert.ok(y > 2 * R + 0.08, `${s.id} ${sec.id} floor ${y} over the wheel at d=${(ax + dz).toFixed(2)}`);
           }

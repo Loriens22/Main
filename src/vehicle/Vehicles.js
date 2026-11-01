@@ -63,6 +63,7 @@ export const LINE_FLEETS = {
   280: [{ id: 'man', share: 0.5 }, { id: 'conecto', share: 0.5 }],
   64: [{ id: 'procity', share: 0.5 }, { id: 'yutong', share: 0.5 }],
   12: [{ id: 'schindler', share: 0.5 }, { id: 't6m', share: 0.5 }],
+  7: [{ id: 'pesa', share: 0.5 }, { id: 'inekon', share: 0.5 }],
 };
 
 export { frames };

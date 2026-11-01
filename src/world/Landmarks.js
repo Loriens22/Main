@@ -16,6 +16,7 @@ import { buildTechLibrary, buildHtmu, buildTu, buildNsa } from './LandmarkInstit
 import { buildKindergarten, buildNursery } from './LandmarkInstitutionsKids.js';
 import { JOBS_64 } from './landmarks64/index.js';
 import { JOBS_12 } from './landmarks12/index.js';
+import { JOBS_7 } from './landmarks7/index.js';
 import { LandmarkKit } from './LandmarkKit.js';
 
 /** Landmark jobs of line 280: [name, (ctx) => item(s)]. */
@@ -28,7 +29,7 @@ export const JOBS_280 = [
   ['oncology', buildOncology], ['sofiamed', buildSofiamed], ['techLibrary', buildTechLibrary], ['htmu', buildHtmu], ['tu', buildTu], ['nsa', buildNsa],
   ['kindergarten', buildKindergarten], ['nursery', buildNursery],
 ];
-const JOBS = { 280: JOBS_280, 64: JOBS_64, 12: JOBS_12 };
+const JOBS = { 280: JOBS_280, 64: JOBS_64, 12: JOBS_12, 7: JOBS_7 };
 
 export class Landmarks {
   constructor({ world, route, kit = null }) {
