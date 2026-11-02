@@ -159,6 +159,35 @@ function bbox(p) {
   return [x0, z0, x1, z1];
 }
 
+/**
+ * "Is (x, z) within d of the route?" for many points: the route sampled every 12 m into 64 m cells (Path.nearest
+ * scans the whole route for points far from it, which made placement crawl on the long lines).
+ */
+class RouteNear {
+  constructor(route) {
+    this.cells = new Map();
+    for (const id of ['A', 'B']) {
+      const P = route.direction(id).path;
+      for (let s = 0; s <= P.length; s += 12) {
+        const q = P.at(s);
+        const k = `${Math.floor(q.x / 64)},${Math.floor(q.z / 64)}`;
+        if (!this.cells.has(k)) this.cells.set(k, []);
+        this.cells.get(k).push(q.x, q.z);
+      }
+    }
+  }
+
+  near(x, z, d) {
+    const r = Math.ceil(d / 64), ix = Math.floor(x / 64), iz = Math.floor(z / 64), d2 = (d + 6) * (d + 6);
+    for (let a = -r; a <= r; a++) for (let b = -r; b <= r; b++) {
+      const c = this.cells.get(`${ix + a},${iz + b}`);
+      if (!c) continue;
+      for (let i = 0; i < c.length; i += 2) if ((c[i] - x) ** 2 + (c[i + 1] - z) ** 2 < d2) return true;
+    }
+    return false;
+  }
+}
+
 /** Occupied circles on a coarse grid. */
 class Occ {
   constructor() { this.g = new Map(); }
@@ -186,6 +215,7 @@ export class CityExtras {
     this.muralQuads = new Map(); // tile -> style -> [verts]
     this.occ = new Occ();
     for (const t of trees) this.occ.add(t.x, t.z, 1.2);
+    this.routeNear = new RouteNear(route);
     this.stats = {};
   }
 
@@ -216,10 +246,11 @@ export class CityExtras {
   }
 
   near(x, z, d) {
-    return this.rl.nearest(x, z).d < d;
+    return this.routeNear.near(x, z, d);
   }
 
   build() {
+    const t0 = performance.now();
     const w = this.world, d = w.data, hf = w.hf;
     const rnd = mulberry32(4242);
     // playgrounds
@@ -264,7 +295,8 @@ export class CityExtras {
       }
     }
     // lanterns along the footways through parks near the route
-    const green = d.areas.filter((a) => (a.type === 'park' || a.type === 'garden') && a.pts.length >= 6);
+    const green = d.areas.filter((a) => (a.type === 'park' || a.type === 'garden') && a.pts.length >= 6).map((a) => ({ pts: a.pts, bb: bbox(a.pts) }));
+    const inGreen = (x, z) => green.some((a) => x >= a.bb[0] && x <= a.bb[2] && z >= a.bb[1] && z <= a.bb[3] && inPoly(a.pts, x, z));
     for (const r of d.roads) {
       if (!/footway|path|pedestrian/.test(r.cls)) continue;
       const p = r.pts;
@@ -277,7 +309,7 @@ export class CityExtras {
           const nx = -(bz - az) / L, nz = (bx - ax) / L;
           const lx = x + nx * 1.6, lz = z + nz * 1.6;
           if (!this.near(lx, lz, 260)) continue;
-          if (!green.some((a) => inPoly(a.pts, lx, lz))) continue;
+          if (!inGreen(lx, lz)) continue;
           if (w.roads.onRoad(lx, lz, 0.4) || !this.occ.free(lx, lz, 0.6)) continue;
           this.occ.add(lx, lz, 0.6);
           this.put('parkLamp', lx, hf.heightAt(lx, lz), lz, 0);
@@ -288,7 +320,7 @@ export class CityExtras {
     this.shops(rnd);
     this.roofGardens(rnd);
     this.murals(rnd);
-    console.info('[city extras]', JSON.stringify(this.stats));
+    console.info('[city extras]', JSON.stringify(this.stats), `${(performance.now() - t0).toFixed(0)} ms`);
   }
 
   /** Props in front of the shops, by the kind of shop. */

@@ -1,5 +1,5 @@
 // Shrinks a GLB exported from Blender for embedding in the single-file game: welds vertices, quantizes positions
-// (16 bit), normals (8 bit) and the lightmap UVs (TEXCOORD_1, 16 bit) and compresses the buffers with meshopt
+// (14 bit), normals (8 bit) and the lightmap UVs (TEXCOORD_1, 12 bit) and compresses the buffers with meshopt
 // (EXT_meshopt_compression, decoded in the game by three's MeshoptDecoder). TEXCOORD_0 (metres for the tiling
 // materials, encoded into [0, 1] by herolib.py) is quantized to 16 bit as well.
 //   node tools/optimize_glb.mjs in.glb out.glb

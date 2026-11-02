@@ -32,6 +32,9 @@ works offline: no server, CDN or network access is needed.
 | ![PESA Swing 122NaSF on line 7](docs/screenshots/tram-pesa-swing.jpg) | ![Inekon T8M-700IT on line 7](docs/screenshots/tram-inekon-t8m.jpg) |
 | ![Inside the PESA Swing: orange poles and loops, striped glass screens](docs/screenshots/tram-pesa-interior.jpg) | ![НДК from the plaza: the Sun over the entrance, flags and fountains](docs/screenshots/ndk.jpg) |
 | ![НДК and the Millennium Center towers from the air](docs/screenshots/ndk-millennium.jpg) | ![A line 12 tram on the tracks it shares with line 7](docs/screenshots/line7-shared-tracks.jpg) |
+| ![Bulgaria Mall from бул. Тодор Каблешков (Blender hero model)](docs/screenshots/hero-mall.jpg) | ![BILLA and its pylon at the tram stop on бул. България](docs/screenshots/hero-billa.jpg) |
+| ![Grand Hotel Millennium: the zig-zag frame, the lattice over the entrance](docs/screenshots/hero-millennium.jpg) | ![The bTV Media Group tower (NDK administrative building)](docs/screenshots/hero-btv.jpg) |
+| ![A playground and a park gazebo near the route](docs/screenshots/city-park.jpg) | ![A mural on the gable of a panel block](docs/screenshots/city-mural.jpg) |
 
 ## Playing
 

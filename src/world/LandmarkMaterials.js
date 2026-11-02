@@ -129,7 +129,7 @@ export class LandmarkMaterials {
 
   setNight(n) {
     const on = n > 0.3 ? 0.8 : 0;
-    for (const m of this.night) m.emissiveIntensity = on ? (m.userData.nightI ?? on) : (m.userData.dayI || 0);
+    for (const m of this.night) m.emissiveIntensity = on ? (m.userData?.nightI ?? on) : (m.userData?.dayI || 0);
     this.m.lamp.emissiveIntensity = n > 0.3 ? 4 : 0;
   }
 }
