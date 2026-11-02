@@ -2,7 +2,7 @@
 // tower and the NDK, each a GLB (quantized + meshopt) with a baked ambient-occlusion map on its second UV set.
 // The material NAMES in the GLB say what the game puts on each surface (tools/blender/hero/herolib.py):
 //   cw:<preset>  curtain wall with lit windows at night    lf:<kind>:<#hex>  tiling stone / concrete
-//   pn:<preset>  panel cladding with joints
+//   pn:<preset>  panel cladding with joints                lit:<id>          plain by day, floodlit at night
 //   sign:<id>    sign drawn here                          glow:<id>         emissive at night
 //   glass:<id>   transparent glazing                      water             fountain water
 //   std:<id>     the GLB's own colour / roughness / metalness
@@ -103,6 +103,13 @@ function resolve(name, src, M, ao, cache) {
     m.name = name;
     cache.set(name, m);
     return m;
+  } else if (kind === 'lit') {
+    // an ordinary surface by day (occlusion, shadows) that is lit at night: floodlit fins, lit pool floors
+    const g = HERO_GLOW[a] || {};
+    m = new THREE.MeshStandardMaterial({ color: src.color, roughness: src.roughness, metalness: src.metalness, emissive: g.color ?? 0xffffff, emissiveIntensity: 0 });
+    m.userData.nightI = g.night ?? 0.8;
+    m.userData.dayI = 0;
+    M.night.push(m);
   } else if (kind === 'glow') {
     const g = HERO_GLOW[a] || {};
     m = new THREE.MeshStandardMaterial({ color: src.color, roughness: g.rough ?? 0.4, metalness: 0, emissive: g.color ?? src.color, emissiveIntensity: g.day ?? 0 });

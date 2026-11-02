@@ -48,6 +48,9 @@ export const HERO_GLOW = {
   globe: { color: 0xffb060, night: 3.0, day: 0.0 },
   uplight: { color: 0xfff6e8, night: 2.6, day: 0.0 },
   led: { color: 0xfff0d0, night: 2.2, day: 0.0 },
+  // lit:<id> (HeroBuildings.js): the NDK's floodlit fins, the fountains' floors lit from under the water
+  fin: { color: 0xfff3e2, night: 0.85 },
+  pool: { color: 0x7fffd8, night: 1.4 },
 };
 
 /** Interior surfaces behind shop glass: lit evenly day and night (no AO), emissive fraction of their colour. */

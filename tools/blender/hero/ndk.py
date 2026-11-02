@@ -69,13 +69,14 @@ hb.mat('cw:ndkLobby', (0.2, 0.17, 0.13), 0.08, 0.4)
 hb.mat('cw:ndkDrum', (0.15, 0.13, 0.11), 0.06, 0.5)
 hb.mat('cw:ndkRibbon', (0.18, 0.16, 0.13), 0.1, 0.4)
 hb.mat('std:white', (0.9, 0.89, 0.86), 0.5)
-hb.mat('std:fin', (0.92, 0.91, 0.88), 0.45)
+hb.mat('lit:fin', (0.92, 0.91, 0.88), 0.45)
 hb.mat('std:cornice', (0.22, 0.17, 0.13), 0.5, 0.3)
 hb.mat('std:copper', (0.27, 0.43, 0.36), 0.55, 0.3)
 hb.mat('std:bronze', (0.18, 0.13, 0.09), 0.35, 0.8)
 hb.mat('std:roof', (0.62, 0.61, 0.58), 0.9)
 hb.mat('std:paving', (0.74, 0.72, 0.68), 0.85)
 hb.mat('std:pavingDark', (0.42, 0.40, 0.38), 0.85)
+hb.mat('lit:pool', (0.42, 0.52, 0.50), 0.6)
 hb.mat('std:herring', (0.80, 0.76, 0.72), 0.7)
 hb.mat('std:herringDark', (0.36, 0.33, 0.31), 0.7)
 hb.mat('std:bed', (0.12, 0.10, 0.08), 0.95)
@@ -200,7 +201,7 @@ for e in E:
             s = 4.0 + (L - 8.0) * (k + 0.5) / nf
             t = abs((k + 0.5) / nf - 0.5) * 2  # 0 in the middle, 1 at the ends
             bot = max(yb + 0.5, TOPB - 13.0 - 9.0 * t + (k % 2) * 1.2)
-            hb.box('std:fin', s, bot, 0.55, 1.5, TOPB - bot, 1.1, bottom=True)
+            hb.box('lit:fin', s, bot, 0.55, 1.5, TOPB - bot, 1.1, bottom=True)
             hb.face('glow:uplight', [(s - 0.5, bot - 0.02, 0.2), (s + 0.5, bot - 0.02, 0.2), (s + 0.5, bot - 0.02, 0.9), (s - 0.5, bot - 0.02, 0.9)])
     hb.pop()
     K.mullions(hb, e, yb, TOPB, 1.8, 'std:cornice', depth=0.1, w=0.07, rows=[yb + k * 4.6 for k in range(1, 6)])
@@ -321,7 +322,7 @@ def basin(P, rim=0.7, depth=0.35, jets=0, seed=1):
         hb.pop()
     wy = top - rim * 0.55
     hb.cap('water', Q, wy)
-    hb.cap('std:pavingDark', Q, wy - depth)
+    hb.cap('lit:pool', Q, wy - depth)
     return Q, wy
 
 

@@ -12,6 +12,7 @@
 #         lf:<kind>:<#hex>  tiling stone / concrete / plaster with normal map, UV0 in metres
 #         sign:<id>     a sign drawn by the game, UV0 0..1 over the sign face
 #         glow:<id>     emissive at night (LED lines, lit soffits, lamps)
+#         lit:<id>      a plain surface by day (occlusion, shadows) that is floodlit at night
 #         glass:<id>    transparent glazing
 #         water         fountain water
 #         std:<id>      plain PBR (colour / roughness / metalness exported with the GLB)

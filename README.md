@@ -35,6 +35,7 @@ works offline: no server, CDN or network access is needed.
 | ![Bulgaria Mall from бул. Тодор Каблешков (Blender hero model)](docs/screenshots/hero-mall.jpg) | ![BILLA and its pylon at the tram stop on бул. България](docs/screenshots/hero-billa.jpg) |
 | ![Grand Hotel Millennium: the zig-zag frame, the lattice over the entrance](docs/screenshots/hero-millennium.jpg) | ![The bTV Media Group tower (NDK administrative building)](docs/screenshots/hero-btv.jpg) |
 | ![A playground and a park gazebo near the route](docs/screenshots/city-park.jpg) | ![A mural on the gable of a panel block](docs/screenshots/city-mural.jpg) |
+| ![The NDK at night: floodlit fins, the lit fountain court](docs/screenshots/ndk-night.jpg) | |
 
 ## Playing
 

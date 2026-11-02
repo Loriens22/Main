@@ -69,7 +69,10 @@ and the NDK.
   - From бул. „Витоша“ (hotel entrance, bTV tower).
   - From the north along the cascade, from the north-west, and from street level near the tram (NDK).
 - Playgrounds, a gazebo with a flower bed, café terraces, murals and roof gardens in game.
-- Lines 280, 64 and 12 load with the city extras.
+- Lines 280, 64, 12 and 7 load with the city extras in the production file with no errors; line 64 first
+  exposed a crash (glow proxies without `userData` in the night list) and a slow route-distance query, both
+  fixed.
+- At night the NDK's fins are floodlit and the fountain floors lit from under the water (`lit:` materials).
 - Unit tests 48 / 48.
 
 ### Open
