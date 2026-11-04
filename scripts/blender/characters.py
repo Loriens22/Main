@@ -70,8 +70,26 @@ def build_armature(name, bones):
     return ob
 
 
-def skin_weights(mesh_ob, bones, bone_radius, overrides=None):
-    """Weight = (r_b / d)^8 over the nearest bones (radius-normalised distance)."""
+def chain_groups(names):
+    """Limb chains: a vertex may only blend between bones of the chain that owns
+    its nearest bone (stops hands inheriting thigh motion, legs the belly...)."""
+    G = []
+    for sd in ('L', 'R'):
+        arm = {n for n in names if n.endswith('.' + sd) and n.split('.')[0] in ('clav', 'uparm', 'farm', 'hand', 'finger', 'thumb', 'arm')}
+        leg = {n for n in names if n.endswith('.' + sd) and n.split('.')[0] in ('thigh', 'shin', 'foot', 'toe', 'meta')}
+        arm |= {n for n in ('chest',) if n in names}
+        leg |= {n for n in ('hips', 'pelvis') if n in names}
+        G += [arm, leg]
+    core = {n for n in names if '.' not in n}
+    core |= {n for n in names if n.split('.')[0] in ('clav', 'uparm', 'thigh', 'arm')}
+    G.append(core)
+    return G
+
+
+def skin_weights(mesh_ob, bones, bone_radius, overrides=None, hint=None):
+    """Weight = (r_b / d)^8 over the nearest bones (radius-normalised distance),
+    restricted to the limb chain of the nearest bone."""
+    groups_ = chain_groups([b[0] for b in bones])
     me = mesh_ob.data
     groups = {bn: mesh_ob.vertex_groups.new(name=bn) for bn, *_ in bones}
     segs = [(bn, Vector(h), Vector(t)) for bn, h, t, _ in bones]
@@ -87,14 +105,77 @@ def skin_weights(mesh_ob, bones, bone_radius, overrides=None):
             d = seg_dist(v.co, a, b) / bone_radius.get(bn, 0.05)
             ws.append((1.0 / (d ** 8 + 1e-6), bn))
         ws.sort(reverse=True)
-        ws = ws[:3]
+        near = ws[0][1]
+        allowed = set().union(*[g for g in groups_ if near in g]) or {near}
+        if hint:
+            h = hint(v.co)
+            if h:
+                allowed = {n for n in h if n in bone_radius or any(n == b[0] for b in bones)}
+                ws = [w for w in ws if w[1] in allowed] or ws
+        ws = [w for w in ws if w[1] in allowed][:3]
         tot = sum(w for w, _ in ws)
         for w, bn in ws:
             if w / tot > 0.02:
                 groups[bn].add([v.index], w / tot, 'REPLACE')
 
 
+def bone_uv(mesh_ob, bones):
+    """Cylindrical UVs around each vertex's dominant bone (units: metres), so
+    fabric textures (knit, denim) tile at physical scale."""
+    me = mesh_ob.data
+    gi = {g.index: g.name for g in mesh_ob.vertex_groups}
+    segs = {bn: (Vector(h), Vector(t)) for bn, h, t, _ in bones}
+    dom = []
+    for v in me.vertices:
+        best, bw = None, -1
+        for g in v.groups:
+            if g.weight > bw and gi.get(g.group) in segs:
+                best, bw = gi[g.group], g.weight
+        dom.append(best)
+    uvl = me.uv_layers.new(name='UVMap') if not me.uv_layers else me.uv_layers[0]
+    for poly in me.polygons:
+        # one bone per face keeps the seam handling simple
+        votes = {}
+        for vi in poly.vertices:
+            votes[dom[vi]] = votes.get(dom[vi], 0) + 1
+        bn = max(votes, key=votes.get)
+        if bn is None:
+            continue
+        a, b = segs[bn]
+        ax = (b - a).normalized()
+        ref = Vector((0, -1, 0)) if abs(ax.y) < 0.9 else Vector((0, 0, 1))
+        x1 = ref.cross(ax).normalized()
+        y1 = ax.cross(x1)
+        angs = []
+        for li in poly.loop_indices:
+            co = me.vertices[me.loops[li].vertex_index].co - a
+            angs.append(math.atan2(co.dot(y1), co.dot(x1)))
+        # unwrap across the seam
+        base = angs[0]
+        for k, li in enumerate(poly.loop_indices):
+            an = angs[k]
+            while an - base > math.pi:
+                an -= 2 * math.pi
+            while an - base < -math.pi:
+                an += 2 * math.pi
+            co = me.vertices[me.loops[li].vertex_index].co - a
+            rr = (co - ax * co.dot(ax)).length
+            uvl.data[li].uv = (an * max(rr, 0.03), co.dot(ax) + (a.z if abs(ax.z) > 0.5 else 0))
+
+
+def finalize_colors(ob):
+    me = ob.data
+    for a in list(me.color_attributes):
+        if a.name != 'Col':
+            me.color_attributes.remove(a)
+    if 'Col' in me.color_attributes:
+        me.color_attributes.active_color_name = 'Col'
+        me.color_attributes.render_color_index = 0
+        me.color_attributes.active_color_index = 0
+
+
 def bind(mesh_ob, rig):
+    finalize_colors(mesh_ob)
     mod = mesh_ob.modifiers.new('arm', 'ARMATURE')
     mod.object = rig
     mesh_ob.parent = rig
@@ -216,6 +297,8 @@ def sculpt_head(name, c, dims, P, materials):
             wild = 1 + (0.11 * math.sin(X * 23 + U * 7) * math.sin(U * 19) + 0.05 * math.sin(X * 61) if style != 'short' else 0.012 * math.sin(X * 40) * math.sin(U * 37))
             r = bulk * wild
             Fw2 = Fw if Fw < 0.45 else 0.45 + (Fw - 0.45) * 0.62
+            if Fw2 < -0.2:
+                Fw2 *= 1.07  # follow the occiput bulge of the skull
             if style != 'short' and U < -0.1:
                 X *= 1.25  # mane widens over shoulders
                 Fw2 = min(Fw2, 0.1) - 0.15
@@ -271,7 +354,9 @@ def human(name, P, materials):
             f'toe{sd}': (sx * 0.112, -0.135, 0.03),
             f'clav{sd}': (sx * 0.06, 0.012, 1.44), f'shoulder{sd}': (sx * 0.185, 0.015, 1.425), f'uarm{sd}': (sx * 0.205, 0.02, 1.29),
             f'elbow{sd}': (sx * 0.222, 0.03, 1.15), f'farm{sd}': (sx * 0.232, 0.018, 1.04), f'wrist{sd}': (sx * 0.24, 0.0, 0.915),
-            f'palm{sd}': (sx * 0.246, -0.006, 0.86), f'fing{sd}': (sx * 0.248, -0.014, 0.775),
+            f'palm{sd}': (sx * 0.246, -0.006, 0.858), f'fing{sd}': (sx * 0.247, -0.03, 0.758),
+            f'mid{sd}': (sx * 0.249, -0.01, 0.75), f'ring{sd}': (sx * 0.249, 0.01, 0.756), f'pink{sd}': (sx * 0.247, 0.026, 0.772),
+            f'kn1{sd}': (sx * 0.247, -0.027, 0.832), f'kn2{sd}': (sx * 0.249, -0.009, 0.828), f'kn3{sd}': (sx * 0.249, 0.009, 0.83), f'kn4{sd}': (sx * 0.247, 0.025, 0.836),
             f'thumbb{sd}': (sx * 0.232, -0.022, 0.895), f'thumb{sd}': (sx * 0.226, -0.042, 0.85),
         })
     J = {k: (v[0] * (girth ** 0.3 if abs(v[0]) > 0.05 and k[:3] in ('sho', 'uar', 'elb', 'far', 'wri', 'pal', 'fin', 'thu') else 1), v[1], v[2] * s) for k, v in J.items()}
@@ -280,16 +365,18 @@ def human(name, P, materials):
         E += [('pelvis', f'hip{sd}'), (f'hip{sd}', f'thigh{sd}'), (f'thigh{sd}', f'knee{sd}'), (f'knee{sd}', f'calf{sd}'),
               (f'calf{sd}', f'ankle{sd}'), (f'ankle{sd}', f'ball{sd}'), (f'ball{sd}', f'toe{sd}'),
               ('chest', f'clav{sd}'), (f'clav{sd}', f'shoulder{sd}'), (f'shoulder{sd}', f'uarm{sd}'), (f'uarm{sd}', f'elbow{sd}'),
-              (f'elbow{sd}', f'farm{sd}'), (f'farm{sd}', f'wrist{sd}'), (f'wrist{sd}', f'palm{sd}'), (f'palm{sd}', f'fing{sd}'),
+              (f'elbow{sd}', f'farm{sd}'), (f'farm{sd}', f'wrist{sd}'), (f'wrist{sd}', f'palm{sd}'), (f'palm{sd}', f'kn1{sd}'), (f'kn1{sd}', f'fing{sd}'), (f'palm{sd}', f'kn2{sd}'), (f'kn2{sd}', f'mid{sd}'),
+              (f'palm{sd}', f'kn3{sd}'), (f'kn3{sd}', f'ring{sd}'), (f'palm{sd}', f'kn4{sd}'), (f'kn4{sd}', f'pink{sd}'),
               (f'wrist{sd}', f'thumbb{sd}'), (f'thumbb{sd}', f'thumb{sd}')]
     g, b = girth, belly
-    Rr = {'pelvis': (0.155 * g, 0.105 * g), 'spine': (0.145 * g * b, 0.105 * g * b), 'chest': (0.165 * g, 0.108 * g), 'neck': 0.058 * g ** 0.5, 'headb': 0.054}
+    Rr = {'pelvis': (0.155 * g, 0.105 * g), 'spine': (0.145 * g * b, 0.105 * g * b), 'chest': (0.165 * g, 0.108 * g), 'neck': 0.064 * g ** 0.5, 'headb': 0.06}
     for sd in 'LR':
         Rr.update({
             f'hip{sd}': 0.085 * g, f'thigh{sd}': 0.074 * g, f'knee{sd}': 0.05 * g ** 0.5, f'calf{sd}': 0.054 * g ** 0.6, f'ankle{sd}': 0.034,
             f'ball{sd}': (0.042, 0.026), f'toe{sd}': (0.036, 0.022),
             f'clav{sd}': 0.06 * g, f'shoulder{sd}': 0.056 * g, f'uarm{sd}': 0.047 * g, f'elbow{sd}': 0.037 * g ** 0.5, f'farm{sd}': 0.04 * g ** 0.6,
-            f'wrist{sd}': 0.027, f'palm{sd}': (0.018, 0.04), f'fing{sd}': (0.012, 0.03), f'thumbb{sd}': 0.013, f'thumb{sd}': 0.0105,
+            f'wrist{sd}': 0.026, f'palm{sd}': (0.017, 0.03), f'fing{sd}': 0.0072, f'mid{sd}': 0.0074, f'ring{sd}': 0.007, f'pink{sd}': 0.0062,
+            f'kn1{sd}': 0.0095, f'kn2{sd}': 0.0098, f'kn3{sd}': 0.0093, f'kn4{sd}': 0.0085, f'thumbb{sd}': 0.0115, f'thumb{sd}': 0.0085,
         })
     body = skin_body(name + '_body', J, E, Rr, 'pelvis', levels=2)
     # head
@@ -331,7 +418,7 @@ def human(name, P, materials):
     rad = {'hips': 0.15, 'spine': 0.14, 'chest': 0.15, 'neck': 0.06, 'head': 0.12}
     for sd in 'LR':
         rad.update({f'thigh.{sd}': 0.085, f'shin.{sd}': 0.055, f'foot.{sd}': 0.04, f'toe.{sd}': 0.03, f'clav.{sd}': 0.06,
-                    f'uparm.{sd}': 0.05, f'farm.{sd}': 0.04, f'hand.{sd}': 0.03, f'finger.{sd}': 0.015, f'thumb.{sd}': 0.013})
+                    f'uparm.{sd}': 0.05, f'farm.{sd}': 0.04, f'hand.{sd}': 0.05, f'finger.{sd}': 0.025, f'thumb.{sd}': 0.016})
     rig = build_armature(name, bones)
     # materials on body faces by region
     me = body.data
@@ -418,7 +505,15 @@ def human(name, P, materials):
         if v.co.z > head_z + 0.012 or (v.co.z > head_z - 0.02 and abs(v.co.y + 0.02) < 0.15 and abs(v.co.x) < 0.09 and v.co.z > J['neck'][2] + 0.05):
             return {'head': 1.0}
         return None
-    skin_weights(body, bones, rad, ov)
+    def arm_hint(co):
+        # in the bind pose the arms hang outside the hips: never let a hand or
+        # forearm vertex blend with a leg bone
+        if abs(co.x) > 0.2 * (girth ** 0.3) and co.z < 1.2 * s:
+            sd = 'L' if co.x > 0 else 'R'
+            return {f'uparm.{sd}', f'farm.{sd}', f'hand.{sd}', f'finger.{sd}', f'thumb.{sd}'}
+        return None
+    skin_weights(body, bones, rad, ov, arm_hint)
+    bone_uv(body, bones)
     # shape keys for face
     body.shape_key_add(name='Basis')
     mo = body.shape_key_add(name='MouthOpen')
