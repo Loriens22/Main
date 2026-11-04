@@ -37,7 +37,9 @@ export mode (`?export=1&w=1920&h=1080`) and call `window.__film.renderAt(t)` for
 write each one atomically to `frames/seq/NNNNN.jpg`; existing frames are skipped, so the render
 resumes after any interruption (`bash scripts/export/launch_detached.sh` restarts it), and a
 single scene can be re-rendered by deleting its frame range. `encode.sh` then muxes the sequence
-with the soundtrack (AAC 192 kb/s) into H.264 High/yuv420p with `+faststart`.
+with the soundtrack (AAC 192 kb/s) into H.264 High/yuv420p with `+faststart` — two-pass at
+~4.5 Mb/s after a light `hqdn3d` temporal denoise, because the per-frame film grain would
+otherwise make a constant-quality encode ~0.5 GB.
 `split_parts.py` byte-splits the MP4 into ≤14 MB parts; the page re-joins them into one Blob that
 is byte-identical to the file (SHA-256 in `manifest.json`).
 
