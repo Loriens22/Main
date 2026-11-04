@@ -33,10 +33,13 @@ Controls: play/pause (space), scrub, chapter buttons, mute, optional Bulgarian/E
 
 `render_all.sh` starts three headless-Chromium workers (Playwright) that open the built page in
 export mode (`?export=1&w=1920&h=1080`) and call `window.__film.renderAt(t)` for every frame
-`t = n / 24`; JPEG frames are piped into FFmpeg, the segments are concatenated, the soundtrack is
-muxed (AAC 192 kb/s) and the result is written as H.264 High/yuv420p with `+faststart`.
-`split_parts.py` byte-splits it into ≤14 MB parts; the page re-joins them into one Blob that is
-byte-identical to the MP4 (SHA-256 in `manifest.json`).
+`t = n / 24`. Workers interleave frames across the whole film (worker k renders n ≡ k mod 3) and
+write each one atomically to `frames/seq/NNNNN.jpg`; existing frames are skipped, so the render
+resumes after any interruption (`bash scripts/export/launch_detached.sh` restarts it), and a
+single scene can be re-rendered by deleting its frame range. `encode.sh` then muxes the sequence
+with the soundtrack (AAC 192 kb/s) into H.264 High/yuv420p with `+faststart`.
+`split_parts.py` byte-splits the MP4 into ≤14 MB parts; the page re-joins them into one Blob that
+is byte-identical to the file (SHA-256 in `manifest.json`).
 
 Single stills for review: `node scripts/export/render_frames.mjs --times 3,23.5,92.5 --w 960 --h 540 --out shots`.
 

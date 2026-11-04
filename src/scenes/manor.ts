@@ -198,7 +198,9 @@ export class ManorScene {
     // composed atlas: 16x4 spine cells on top, a paper band and a cover band below
     const img = A.tex.books.image as HTMLImageElement;
     const tex = canvasTex(2048, 1152, (g, w, h) => {
+      (g as any).filter = 'brightness(1.45) saturate(1.1)';
       g.drawImage(img, 0, 0, 2048, 1024);
+      (g as any).filter = 'none';
       g.fillStyle = '#e4d6b4'; g.fillRect(0, 1024, 1024, 128);
       for (let i = 0; i < 400; i++) { g.fillStyle = `rgba(150,120,80,${0.05 + Math.random() * 0.08})`; g.fillRect(Math.random() * 1024, 1024 + Math.random() * 128, 30, 1); }
       g.fillStyle = '#4a2a1a'; g.fillRect(1024, 1024, 1024, 128);
@@ -263,7 +265,7 @@ export class ManorScene {
     g.setAttribute('uv', new THREE.Float32BufferAttribute(U, 2));
     g.setAttribute('color', new THREE.Float32BufferAttribute(C, 3));
     g.setIndex(I);
-    const books = new THREE.Mesh(g, new THREE.MeshStandardMaterial({ map: tex, vertexColors: true, roughness: 0.6, metalness: 0.08 }));
+    const books = new THREE.Mesh(g, new THREE.MeshStandardMaterial({ map: tex, vertexColors: true, roughness: 0.48, metalness: 0.12 }));
     books.receiveShadow = true;
     this.scene.add(books);
   }
@@ -515,7 +517,7 @@ export class ManorScene {
     s.add(sun);
     this.sun = sun;
     // sky + warm floor bounce (replaces separate fill/bounce point lights)
-    s.add(new THREE.HemisphereLight(0xffe2bc, 0x6a4028, 1.25));
+    s.add(new THREE.HemisphereLight(0xffe2bc, 0x6a4028, 1.45));
     s.add(new THREE.AmbientLight(0xffd8b0, 0.18));
     this.tvLight = new THREE.PointLight(0xcfe0ff, 0, 7, 1.6);
     this.tvLight.position.set(2.45, 1.08, 0.5);

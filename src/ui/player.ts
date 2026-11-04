@@ -219,10 +219,12 @@ export class Player {
       const blob = await this.fetchVideo();
       const filename = 'Happy_birthday_Matex_1080p.mp4';
       const cl = (window as any).claude;
-      const dl = cl?.use ? await cl.use('downloads') : null;
-      if (dl) {
+      if (cl?.use) {
+        // inside the claude.ai viewer: page-initiated downloads are blocked, so use the capability
+        const dl = await cl.use('downloads');
+        if (!dl) { this.status('Saving files is not available in this view — open the film on claude.ai to download the MP4.'); return; }
         try { await dl.save({ filename, data: blob }); this.status('Saved Happy_birthday_Matex_1080p.mp4'); }
-        catch (e: any) { this.status(e?.code === 'declined' ? 'Download cancelled.' : `Download unavailable here (${e?.code || 'error'}).`); }
+        catch (e: any) { this.status(e?.code === 'declined' ? 'Download cancelled.' : e?.code === 'rate_limited' ? 'A save prompt is already open.' : `Download unavailable here (${e?.code || 'error'}).`); }
       } else {
         const a = document.createElement('a');
         a.href = URL.createObjectURL(blob); a.download = filename;
