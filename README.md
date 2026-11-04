@@ -44,6 +44,9 @@ otherwise make a constant-quality encode ~0.5 GB.
 is byte-identical to the file (SHA-256 in `manifest.json`).
 
 Single stills for review: `node scripts/export/render_frames.mjs --times 3,23.5,92.5 --w 960 --h 540 --out shots`.
+Framing check for Act I (no rendering — projects the man's head/hips/hands and the CRT into every
+camera and flags anything that leaves the frame):
+`node scripts/export/framing_check.mjs --dist dist --from 10 --to 44 --step 0.5`.
 
 ## Determinism
 
