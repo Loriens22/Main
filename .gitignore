@@ -7,3 +7,4 @@ artifact/
 public/assets/models/*.glb.txt
 __pycache__/
 dist_dev/
+public/assets/film/
