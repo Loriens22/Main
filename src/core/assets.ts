@@ -43,8 +43,23 @@ export async function loadAssets(base: string, onProgress: (f: number, label: st
     });
   });
   const jobs: Promise<void>[] = [];
+  // Models ship as base64 text (.glb.txt) because the artifact host only serves
+  // standard web types; fall back to the binary .glb during local development.
+  const loadModel = async (m: string) => {
+    try {
+      const r = await fetch(`${base}assets/models/${m}.glb.txt`);
+      if (!r.ok) throw new Error(String(r.status));
+      const b64 = (await r.text()).trim();
+      const bin = atob(b64);
+      const bytes = new Uint8Array(bin.length);
+      for (let i = 0; i < bin.length; i++) bytes[i] = bin.charCodeAt(i);
+      return await gl.parseAsync(bytes.buffer, `${base}assets/models/`);
+    } catch (e) {
+      return gl.loadAsync(`${base}assets/models/${m}.glb`);
+    }
+  };
   for (const m of MODELS) {
-    jobs.push(gl.loadAsync(`${base}assets/models/${m}.glb`).then((g) => { A.gltf[m] = g; tick(m); }).catch((e) => { missing.push(m + '.glb'); console.error(e); tick(m); }));
+    jobs.push(loadModel(m).then((g) => { A.gltf[m] = g; tick(m); }).catch((e) => { missing.push(m + '.glb'); console.error(e); tick(m); }));
   }
   for (const [k, p] of Object.entries(TEX)) {
     jobs.push(loadTex(`${base}assets/textures/${p}`, !NON_COLOR.test(k)).then((t) => { A.tex[k] = t; tick(k); }));

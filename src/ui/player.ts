@@ -29,7 +29,7 @@ export class Player {
   constructor(private D: Director, private canvas: HTMLCanvasElement, private base: string) {
     this.audio = new Audio();
     this.audio.preload = 'auto';
-    this.audio.src = `${base}assets/audio/soundtrack.m4a`;
+    this.audio.src = `${base}assets/audio/soundtrack.mp3`;
     this.audio.addEventListener('error', () => { this.audioOk = false; this.status('Soundtrack unavailable — playing silently.'); });
     this.audio.addEventListener('ended', () => this.pause());
     this.$('scrub').max = String(T.duration);

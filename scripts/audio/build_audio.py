@@ -702,6 +702,7 @@ def main():
     sf.write(wav, mix, SR, subtype='PCM_24')
     m4a = os.path.join(OUT, 'soundtrack.m4a')
     subprocess.run(['ffmpeg', '-y', '-loglevel', 'error', '-i', wav, '-c:a', 'aac', '-b:a', '192k', m4a], check=True)
+    subprocess.run(['ffmpeg', '-y', '-loglevel', 'error', '-i', wav, '-c:a', 'libmp3lame', '-b:a', '192k', m4a.replace('.m4a', '.mp3')], check=True)
     peak = float(np.abs(mix).max())
     rms = float(np.sqrt(np.mean(mix ** 2)))
     print(f'done: {wav} peak {20*np.log10(peak+1e-9):.1f} dBFS, rms {20*np.log10(rms+1e-9):.1f} dBFS')

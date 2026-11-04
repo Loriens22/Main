@@ -11,7 +11,7 @@ data = open(src, 'rb').read()
 CH = 14 * 1024 * 1024
 parts = []
 for i in range(0, len(data), CH):
-    name = f'part-{i // CH:02d}.bin'
+    name = f'part-{i // CH:02d}.mp4'
     open(os.path.join(out, name), 'wb').write(data[i:i + CH])
     parts.append({'file': name, 'bytes': len(data[i:i + CH])})
 json.dump({'name': os.path.basename(src), 'bytes': len(data), 'sha256': hashlib.sha256(data).hexdigest(), 'parts': parts}, open(os.path.join(out, 'manifest.json'), 'w'), indent=1)

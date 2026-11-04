@@ -231,4 +231,6 @@ def export_glb(path, objects, morph=True, skins=True):
         bpy.ops.export_scene.gltf(**kw, export_vertex_color='ACTIVE')
     except TypeError:
         bpy.ops.export_scene.gltf(**kw)
+    import base64
+    open(path + '.txt', 'w').write(base64.b64encode(open(path, 'rb').read()).decode())
     print('exported', path)
