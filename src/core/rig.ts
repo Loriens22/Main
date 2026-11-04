@@ -22,13 +22,15 @@ export class Rig {
     const rootQi = root.getWorldQuaternion(new THREE.Quaternion()).invert();
     root.traverse((o: any) => {
       if (o.isBone) {
-        // glTF loader strips '.' from node names: 'uparm.R' -> 'uparmR'
-        this.bones[o.name] = o;
-        this.rest[o.name] = o.quaternion.clone();
-        this.restPos[o.name] = o.position.clone();
+        // glTF loader strips '.' from node names ('uparm.R' -> 'uparmR') and
+        // de-duplicates names across rigs in one file ('uparmR_3')
+        const nm = this.bones[o.name.replace(/_\d+$/, '')] ? o.name : o.name.replace(/_\d+$/, '');
+        this.bones[nm] = o;
+        this.rest[nm] = o.quaternion.clone();
+        this.restPos[nm] = o.position.clone();
         const wq = o.getWorldQuaternion(new THREE.Quaternion());
-        this.C[o.name] = rootQi.clone().multiply(wq);
-        this.Ci[o.name] = this.C[o.name].clone().invert();
+        this.C[nm] = rootQi.clone().multiply(wq);
+        this.Ci[nm] = this.C[nm].clone().invert();
       }
       if (o.isSkinnedMesh) {
         if (!this.mesh) this.mesh = o;
@@ -43,6 +45,7 @@ export class Rig {
 
   reset() {
     for (const n in this.bones) {
+      if (!this.rest[n]) continue;
       this.bones[n].quaternion.copy(this.rest[n]);
       this.bones[n].position.copy(this.restPos[n]);
     }

@@ -80,6 +80,7 @@ export class Director {
     if (t >= b.whiteout - 0.35 && t < b.whiteout) {
       u.uFadeColor.value.copy(WHITE); u.uFade.value = sstep(t, b.whiteout - 0.35, b.whiteout - 0.02);
       this.post.bloom.strength += 2.0 * u.uFade.value;
+      this.post.bloom.enabled = true;
     }
     // ---- Act III -> IV: white fades into deep black space
     const c = T.cosmos;

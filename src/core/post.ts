@@ -136,6 +136,7 @@ export function applyGrade(p: Post, g: Grade) {
   u.uCA.value = g.ca ?? 0.0012;
   u.uPaper.value = g.paper ?? 0;
   p.bloom.strength = g.bloom ?? 0.3;
+  p.bloom.enabled = p.bloom.strength > 0.001;
   p.bloom.radius = g.bloomRadius ?? 0.5;
   p.bloom.threshold = g.bloomThreshold ?? 0.85;
 }
