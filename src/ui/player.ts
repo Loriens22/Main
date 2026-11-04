@@ -113,6 +113,7 @@ export class Player {
     (this.$('video') as HTMLVideoElement).pause();
     this.$('play').innerHTML = '&#9654;';
     this.$('play').setAttribute('aria-label', 'Play');
+    if (this.mode === 'rt') this.D.render(this.t);
   }
 
   seek(t: number) {

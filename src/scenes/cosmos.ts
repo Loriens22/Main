@@ -9,10 +9,15 @@ const C = () => T.cosmos;
 
 /** the same smooth field drives the shader dissolve and the dust emission */
 function dissolveField(x: number, y: number, z: number) {
-  x *= 2.6; y *= 2.6; z *= 2.6;
-  return 0.5 + 0.22 * Math.sin(x * 7.3 + Math.sin(y * 5.1)) + 0.18 * Math.sin(y * 9.7 + z * 4.3) + 0.1 * Math.sin((x + z) * 15.0);
+  // starts along the outer edges and the two hinge seams, then breaks inward
+  const e = Math.min(1.095 - Math.abs(x), 0.78 - Math.abs(y)) / 0.6;
+  const sm = Math.min(Math.abs(x - 0.365), Math.abs(x + 0.365)) / 0.25 + 0.1;
+  const st = Math.min(1, Math.max(0, Math.min(e, sm)));
+  const qx = x * 2.6, qy = y * 2.6, qz = z * 2.6;
+  const n = 0.5 + 0.22 * Math.sin(qx * 7.3 + Math.sin(qy * 5.1)) + 0.18 * Math.sin(qy * 9.7 + qz * 4.3) + 0.1 * Math.sin((qx + qz) * 15.0);
+  return 0.6 * st + 0.4 * n;
 }
-const FIELD_GLSL = `float dField(vec3 p){ p *= 2.6; return 0.5 + 0.22*sin(p.x*7.3 + sin(p.y*5.1)) + 0.18*sin(p.y*9.7 + p.z*4.3) + 0.1*sin((p.x+p.z)*15.0); }`;
+const FIELD_GLSL = `float dField(vec3 p){ float e = min(1.095 - abs(p.x), 0.78 - abs(p.y)) / 0.6; float sm = min(abs(p.x - 0.365), abs(p.x + 0.365)) / 0.25 + 0.1; float st = clamp(min(e, sm), 0.0, 1.0); vec3 q = p * 2.6; float n = 0.5 + 0.22*sin(q.x*7.3 + sin(q.y*5.1)) + 0.18*sin(q.y*9.7 + q.z*4.3) + 0.1*sin((q.x+q.z)*15.0); return 0.6*st + 0.4*n; }`;
 
 export class CosmosScene {
   scene = new THREE.Scene();
@@ -37,7 +42,7 @@ export class CosmosScene {
   flames: THREE.Mesh[] = [];
   splat!: THREE.Object3D;
   stage!: THREE.Mesh;
-  finalCam = { p: new THREE.Vector3(0.85, 1.75, 6.7), l: new THREE.Vector3(0, -0.22, 0) };
+  finalCam = { p: new THREE.Vector3(-0.95, 1.85, -7.9), l: new THREE.Vector3(0, -0.3, 0) };
 
   constructor(private A: Assets, private renderer: THREE.WebGLRenderer) {
     const s = this.scene;
@@ -317,7 +322,7 @@ export class CosmosScene {
       novaLight = Math.max(novaLight, k);
     });
     this.rimRed.intensity = (1.2 + novaLight * 4) * pulse(t, c.xt.t0, c.xt.dissolve[1], 1.5);
-    this.rimViolet.intensity = 3.2 * sstep(t, c.purple[0], c.xt2.t0 + 2);
+    this.rimViolet.intensity = 2.0 * sstep(t, c.purple[0], c.xt2.t0 + 2);
     // ---- Mate XT (red)
     this.updateXT(t);
     // ---- Mate XT 2 (purple)
@@ -392,7 +397,7 @@ export class CosmosScene {
     let th1 = mix(Math.PI, 0.0, sstep2(t, c.openP1[0], c.openP1[1]));
     let th3 = mix(Math.PI, 0.0, sstep2(t, c.openP3[0], c.openP3[1]));
     const v = sstep2(t, c.vpose[0], c.vpose[1]);
-    th1 = mix(th1, 0.95, v); th3 = mix(th3, 0.95, v);  // final Image-17 wing V
+    th1 = mix(th1, 0.62, v); th3 = mix(th3, 0.62, v);  // final Image-17 wing V
     r.resetParts();
     r.setFold([th1, th3]);
     const asm = clamp(lin(t, c.t0, c.asmEnd));
@@ -401,42 +406,39 @@ export class CosmosScene {
     const lit = sstep(t, c.openP1[0] + 0.4, c.openP3[1]);
     r.panelLit.value.set(lit, lit, lit);
     r.brightness.value = 1.05;
-    // orientation: camera side (back) during assembly -> front as wings open -> back for the V hero
-    let ry = mix(Math.PI + 0.6, Math.PI - 0.2, sstep(t, c.t0, c.asmEnd));
-    ry = mix(ry, 0.0, sstep(t, c.openP1[0] + 0.2, c.openP3[1]));
+    // the device stays put (screen toward +z); the camera travels around it
     const hover = Math.sin(t * 0.6) * 0.025;
     r.root.position.set(0, hover + v * 0.42, 0);
+    r.root.rotation.set(-0.03, 0, 0, 'YXZ');
     if (t < C().purple[0] + 1) return;
+    const back = Math.PI - 0.55;
     if (t < c.asmEnd) {
       const u = lin(t, c.t0, c.asmEnd);
-      this.orbitCam(new THREE.Vector3(0, mix(0.4, 0, u), 0), mix(1.8, 4.9, easeInOut(u)), mix(Math.PI + 0.7, Math.PI + 0.1, u), mix(0.3, 0.1, u), mix(75, 50, u));
-      r.root.rotation.set(-0.05, ry, 0, 'YXZ');
+      this.orbitCam(new THREE.Vector3(0, mix(0.4, 0, u), 0), mix(1.9, 5.0, easeInOut(u)), mix(Math.PI + 0.7, back, u), mix(0.3, 0.3, u), mix(72, 45, u));
     } else if (t < c.orbit[0]) {
+      // wings unfold from behind the centre body, seen from an elevated rear 3/4 (Image 17 family)
       const u = lin(t, c.asmEnd, c.orbit[0]);
-      const az = mix(Math.PI + 0.1, 0.0, sstep(t, c.openP1[0] - 0.4, c.openP3[1]));
-      r.root.rotation.set(-0.04, 0, 0, 'YXZ');
-      this.orbitCam(new THREE.Vector3(0, 0, 0), mix(4.9, 5.6, u), az + (ry - 0) * 0, 0.08, 45);
+      this.orbitCam(new THREE.Vector3(0, 0, 0), mix(5.0, 5.6, u), back, mix(0.3, 0.22, u), 45);
     } else if (t < c.vpose[0]) {
-      // gentle 360° with two macro inserts (camera facets, brocade/hinge edge)
-      const u = lin(t, c.orbit[0], c.vpose[0] - 0.3);
-      r.root.rotation.set(-0.03, 0, 0, 'YXZ');
-      const macro1 = pulse(u, 0.42, 0.58, 0.05), macro2 = pulse(u, 0.72, 0.84, 0.04);
-      const az = easeInOut(u) * Math.PI * 2;
-      const dist = mix(5.6, 1.15, macro1) * (1 - macro2) + 1.35 * macro2;
-      const tgt = new THREE.Vector3(0, mix(0, 0.48, macro1), 0).lerp(new THREE.Vector3(-0.72, -0.2, 0), macro2);
-      this.orbitCam(tgt, dist, az, 0.1 + 0.15 * Math.sin(u * Math.PI), mix(45, 70, Math.max(macro1, macro2)));
+      // gentle 360°: front reveal (Image 19), macro on frame/screen edge, macro on the faceted camera
+      const u = lin(t, c.orbit[0], c.vpose[0] - 0.2);
+      const e = easeInOut(u);
+      const az = back + e * (Math.PI * 2 + 0.55 - 0.55);
+      const macroA = pulse(u, 0.36, 0.48, 0.04), macroB = pulse(u, 0.8, 0.93, 0.04);
+      const tgt = new THREE.Vector3(0, 0, 0).lerp(new THREE.Vector3(-1.0, -0.25, 0.02), macroA).lerp(new THREE.Vector3(0, 0.48, 0), macroB);
+      const dist = mix(5.6, 1.5, macroA) * (1 - macroB) + 1.2 * macroB;
+      this.orbitCam(tgt, dist, az, 0.12 + 0.12 * Math.sin(u * Math.PI), mix(45, 68, Math.max(macroA, macroB)));
     } else {
-      // final hero: elevated, slightly frontal 3/4 of the BACK (Image 17), wings receding
-      r.root.rotation.set(0, Math.PI, 0, 'YXZ');
+      // final hero: elevated, slightly frontal 3/4 of the BACK (Image 17); wings recede into a V
       const fc = this.finalCam;
       const u = sstep(t, c.vpose[0], c.vpose[1]);
-      const from = new THREE.Vector3(0, 0.4, 5.6);
+      const from = new THREE.Vector3(Math.sin(back + Math.PI * 2) * 5.6, 0.12 * 5.6, Math.cos(back + Math.PI * 2) * 5.6);
       const p = from.lerp(fc.p, easeInOut(u));
+      p.x += Math.sin(t * 0.15) * 0.05 * u;
       const l = new THREE.Vector3(0, 0, 0).lerp(fc.l, u);
-      p.x += Math.sin(t * 0.15) * 0.06 * u;
       this.camera.position.copy(p);
       this.camera.lookAt(l);
-      this.camera.filmGauge = 36; this.camera.setFocalLength(40);
+      this.camera.filmGauge = 36; this.camera.setFocalLength(mix(45, 40, u));
     }
   }
 
@@ -444,8 +446,8 @@ export class CosmosScene {
     const c = C();
     const fc = this.finalCam;
     const textY = -0.52;
-    this.text1.update(t, c.text1[0], c.text1[1], new THREE.Vector3(0, textY, 0.5), px, this.camera);
-    this.text2.update(t, c.text2, c.end + 5, new THREE.Vector3(0, textY, 0.5), px, this.camera);
+    this.text1.update(t, c.text1[0], c.text1[1], new THREE.Vector3(0, textY, -0.5), px, this.camera);
+    this.text2.update(t, c.text2, c.end + 5, new THREE.Vector3(0, textY, -0.5), px, this.camera);
     // cake: falls beneath the words, lands on an invisible stage, squashes a little
     const ti = c.cakeImpact, td = c.cakeDrop;
     const vis = t >= td;
@@ -461,8 +463,8 @@ export class CosmosScene {
       const tau = t - ti;
       y = restY + Math.max(0, Math.sin(Math.min(tau, 0.42) / 0.42 * Math.PI)) * 0.09 * Math.exp(-tau * 2); // little rebound
     }
-    this.cake.position.set(0.02, y, 0.65);
-    this.cake.rotation.set(0, 0.35 + (t < ti ? (ti - t) * 0.6 : 0), t < ti ? (ti - t) * 0.08 : 0);
+    this.cake.position.set(-0.02, y, -0.65);
+    this.cake.rotation.set(0, Math.PI + 0.35 + (t < ti ? (ti - t) * 0.6 : 0), t < ti ? (ti - t) * 0.08 : 0);
     const tau = Math.max(0, t - ti);
     const squash = t < ti ? 0 : 0.36 + 0.55 * Math.exp(-tau * 5.5) * Math.cos(tau * 17);
     const lean = t < ti ? 0 : 0.5 * Math.exp(-tau * 3) * Math.sin(tau * 11);
@@ -482,9 +484,9 @@ export class CosmosScene {
     this.splat.visible = t > ti;
     this.splat.scale.set(0.3 + sk * 0.9, 1, 0.3 + sk * 1.1);
     this.splat.position.set(0.11 + sk * 0.03, 0.002, 0.02);
-    this.stage.position.set(0.02, restY - 0.005, 0.65);
-    this.cakeSpot.position.set(1.2, restY + 4.5, 3.2);
-    this.cakeSpot.target.position.set(0.02, restY, 0.65);
+    this.stage.position.set(-0.02, restY - 0.005, -0.65);
+    this.cakeSpot.position.set(-1.2, restY + 4.5, -3.2);
+    this.cakeSpot.target.position.set(-0.02, restY, -0.65);
   }
 
   grade(t: number): Grade {

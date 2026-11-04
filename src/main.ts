@@ -30,7 +30,7 @@ async function boot() {
   const canvas = document.getElementById('film') as HTMLCanvasElement;
   const W = EXPORT ? +(Q.get('w') || 1920) : 1280;
   const H = EXPORT ? +(Q.get('h') || 1080) : 720;
-  const renderer = new THREE.WebGLRenderer({ canvas, antialias: false, preserveDrawingBuffer: EXPORT, powerPreference: 'high-performance' });
+  const renderer = new THREE.WebGLRenderer({ canvas, antialias: false, preserveDrawingBuffer: true, powerPreference: 'high-performance' });
   renderer.setPixelRatio(1);
   renderer.setSize(W, H, false);
   renderer.shadowMap.enabled = true;
@@ -49,7 +49,13 @@ async function boot() {
   const logo = new LogoTexture();
   const want = (k: string) => !ONLY || ONLY === k;
   const S: any = {};
-  if (want('manor')) S.manor = new ManorScene(A, renderer, logo);
+  if (want('manor')) {
+    S.manor = new ManorScene(A, renderer, logo);
+    try {
+      const r = await fetch(`${BASE}assets/audio/lipsync.json`);
+      if (r.ok) S.manor.man.lips = await r.json();
+    } catch (e) { console.warn('lipsync unavailable', e); }
+  }
   if (want('manor') || want('tv')) S.tv = new TvSpace(logo);
   setLoad(0.88, 'Painting the garden');
   await new Promise((r) => setTimeout(r, 0));

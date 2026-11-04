@@ -130,7 +130,7 @@ export class FoldScene {
   private camAt(p: number[], l: number[], f = 50) {
     const c = this.camera;
     // tighter, product-ad framing: pull the lens in toward the subject
-    const k = 0.74;
+    const k = 0.86;
     c.position.set(l[0] + (p[0] - l[0]) * k, l[1] + (p[1] - l[1]) * k, l[2] + (p[2] - l[2]) * k);
     c.lookAt(l[0], l[1], l[2]);
     c.filmGauge = 36; c.setFocalLength(f);

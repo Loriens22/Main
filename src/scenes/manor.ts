@@ -274,7 +274,7 @@ export class ManorScene {
     const sky = new THREE.Mesh(new THREE.PlaneGeometry(60, 30), new THREE.ShaderMaterial({
       uniforms: {}, depthWrite: false,
       vertexShader: 'varying vec2 vUv; void main(){vUv=uv; gl_Position=projectionMatrix*modelViewMatrix*vec4(position,1.0);}',
-      fragmentShader: 'varying vec2 vUv; void main(){ vec3 a=vec3(1.9,1.7,1.35); vec3 b=vec3(0.75,0.95,1.25); gl_FragColor=vec4(mix(a,b,smoothstep(0.25,0.9,vUv.y)),1.0);}',
+      fragmentShader: 'varying vec2 vUv; void main(){ vec3 a=vec3(1.6,1.45,1.15); vec3 b=vec3(0.7,0.88,1.15); gl_FragColor=vec4(mix(a,b,smoothstep(0.25,0.9,vUv.y)),1.0);}',
     }));
     sky.position.set(0, 8, -22);
     s.add(sky);
@@ -437,11 +437,7 @@ export class ManorScene {
       else if (n.includes('TV_Glass')) {
         o.material = this.crt;
         o.castShadow = false;
-        // reflective glass shell over the phosphor
-        const shell = new THREE.Mesh(o.geometry, new THREE.MeshPhysicalMaterial({ color: 0x000000, roughness: 0.06, metalness: 0, clearcoat: 1, transparent: true, blending: THREE.AdditiveBlending, depthWrite: false, envMapIntensity: 1.1 }));
-        shell.userData.roomReflect = true;
-        shell.position.z = 0.0015;
-        o.add(shell);
+        // glass reflections are computed inside the phosphor shader (see crt.ts)
       } else if (n.includes('TV_Lamp')) o.material = new THREE.MeshStandardMaterial({ color: 0x400806, emissive: 0xff2010, emissiveIntensity: 0 });
       else o.material = new THREE.MeshStandardMaterial({ color: n.includes('Grille') ? 0x241a14 : 0x161210, roughness: 0.55 });
       if (o.name.startsWith('TV_btn')) btns.push(o);
@@ -593,7 +589,7 @@ export class ManorScene {
   buildMan() {
     const A = this.A;
     const man = SkeletonUtils.clone(A.gltf.man.scene);
-    const knit = new THREE.MeshPhysicalMaterial({ map: rep(A.tex.knit, 7, 7), normalMap: rep(A.tex.knitN, 7, 7), normalScale: new THREE.Vector2(1.4, 1.4), roughness: 0.95, color: 0xffffff, sheen: 1.0, sheenColor: new THREE.Color(0.9, 0.25, 0.25), sheenRoughness: 0.6 });
+    const knit = new THREE.MeshPhysicalMaterial({ normalMap: rep(A.tex.knitN, 5, 5), normalScale: new THREE.Vector2(0.65, 0.65), roughness: 0.95, color: 0x9e1a20, sheen: 1.0, sheenColor: new THREE.Color(0.9, 0.25, 0.25), sheenRoughness: 0.6 });
     const denim = new THREE.MeshStandardMaterial({ map: rep(A.tex.denim, 5, 5), normalMap: rep(A.tex.denimN, 5, 5), roughness: 0.9 });
     const skin = new THREE.MeshPhysicalMaterial({ vertexColors: true, color: new THREE.Color(0.6, 0.47, 0.42), roughness: 0.52, sheen: 0.5, sheenColor: new THREE.Color(0.75, 0.3, 0.22), sheenRoughness: 0.5, clearcoat: 0.08, clearcoatRoughness: 0.6 });
     const hair = new THREE.MeshStandardMaterial({ color: 0x2a1c14, roughness: 0.7, side: THREE.DoubleSide });
@@ -631,10 +627,10 @@ export class ManorScene {
       new Track([{ t: 11, p: [0.08, 1.6, 3.62], l: [0.12, 1.42, -3.9], f: 30 }, { t: 14.2, p: [0.6, 1.6, 3.2], l: [1.6, 1.25, 0.9], f: 32 }, { t: 17.3, p: [2.5, 1.5, 2.3], l: [2.55, 1.18, 0.78], f: 40 }]),
       new Track([{ t: 17.3, p: [2.5, 1.5, 2.3], l: [2.55, 1.18, 0.78], f: 40 }, { t: 18.2, p: [2.47, 1.3, 1.58], l: [2.72, 1.13, 0.84], f: 50 }, { t: 21.7, p: [2.5, 1.32, 1.52], l: [2.72, 1.13, 0.84], f: 50 }]),
       new Track([{ t: 21.7, p: [2.5, 1.32, 1.52], l: [2.72, 1.13, 0.84], f: 50 }, { t: 22.4, p: [1.55, 1.6, 2.5], l: [2.3, 1.55, 0.78], f: 48 }, { t: 26.6, p: [1.62, 1.59, 2.38], l: [2.3, 1.55, 0.78], f: 50 }]),
-      new Track([{ t: 26.6, p: [1.62, 1.59, 2.38], l: [2.3, 1.55, 0.78], f: 50 }, { t: 27.6, p: [1.0, 1.44, -0.05], l: [2.7, 1.1, 0.55], f: 36 }, { t: m.turn, p: [0.85, 1.42, -0.2], l: [2.7, 1.08, 0.55], f: 38 }]),
+      new Track([{ t: 26.6, p: [1.0, 1.44, -0.05], l: [2.7, 1.1, 0.55], f: 36 }, { t: m.turn, p: [0.85, 1.42, -0.2], l: [2.7, 1.08, 0.55], f: 38 }]),
       new Track([{ t: m.turn, p: [0.85, 1.42, -0.2], l: [2.7, 1.08, 0.55], f: 38 }, { t: 35.5, p: [0.5, 1.42, 3.1], l: [-0.6, 1.0, 0.9], f: 32 }, { t: 38.3, p: [-0.2, 1.38, 3.25], l: [-1.9, 0.95, 1.0], f: 34 }]),
-      new Track([{ t: 38.3, p: [-2.32, 1.5, 2.35], l: [2.7, 1.05, 0.55], f: 34 }, { t: m.pushStart, p: [-2.26, 1.48, 2.22], l: [2.7, 1.06, 0.52], f: 35 }], (x) => x),
-      new Track([{ t: m.pushStart, p: [-2.26, 1.48, 2.22], l: [2.7, 1.06, 0.52], f: 35 }, { t: 42.6, p: [0.1, 1.22, 1.2], l: [2.8, 1.065, 0.52], f: 35 }, { t: 43.7, p: [2.2, 1.068, 0.53], l: [3.4, 1.065, 0.515], f: 35 }, { t: m.glassCross, p: [2.69, 1.065, 0.515], l: [3.6, 1.065, 0.515], f: 35 }], (x) => x * x * (3 - 2 * x) * 0.6 + x * x * 0.4),
+      new Track([{ t: 38.3, p: [-2.66, 1.78, 2.2], l: [0.0, 0.92, 0.72], f: 20 }, { t: m.pushStart, p: [-2.6, 1.76, 2.14], l: [0.1, 0.94, 0.72], f: 20 }], (x) => x),
+      new Track([{ t: m.pushStart, p: [-2.6, 1.76, 2.14], l: [0.1, 0.94, 0.72], f: 20 }, { t: 42.6, p: [0.1, 1.22, 1.2], l: [2.8, 1.065, 0.52], f: 32 }, { t: 43.7, p: [2.2, 1.068, 0.53], l: [3.4, 1.065, 0.515], f: 35 }, { t: m.glassCross, p: [2.69, 1.065, 0.515], l: [3.6, 1.065, 0.515], f: 35 }], (x) => x * x * (3 - 2 * x) * 0.6 + x * x * 0.4),
     ];
   }
 
@@ -663,7 +659,7 @@ export class ManorScene {
     u.uBright.value = logoOn ? 1.12 : 0.85;
     if (this.tvLamp) ((this.tvLamp as any).material as THREE.MeshStandardMaterial).emissiveIntensity = on ? 3 : 0;
     const flick = 0.85 + 0.15 * Math.sin(t * 61) * Math.sin(t * 23);
-    this.tvLight.intensity = on ? (logoOn ? 2.6 : 1.4 * flick) * sstep(t, m.tvOn, m.tvOn + 0.6) : 0;
+    this.tvLight.intensity = on ? (logoOn ? 1.0 : 0.55 * flick) * sstep(t, m.tvOn, m.tvOn + 0.6) : 0;
     // camera dive: let the shafts dim slightly for the silhouette shot
     this.shaftMat.uniforms.uInt.value = 1 - 0.25 * sstep(t, 38.2, 39.0);
     this.man.update(t);
@@ -675,7 +671,7 @@ export class ManorScene {
     return {
       exposure: 1.0 - 0.15 * sstep(t, 38.2, 39.0) + 0.1 * dive,
       lift: [0.018, 0.011, 0.0], gamma: [1.0, 0.985, 0.95], gain: [1.05, 1.0, 0.9],
-      sat: 1.06, contrast: 1.06, vignette: 0.42, grain: 0.032, ca: 0.0012, bloom: 0.42, bloomRadius: 0.55, bloomThreshold: 0.82,
+      sat: 1.06, contrast: 1.07, vignette: 0.42, grain: 0.032, ca: 0.0012, bloom: 0.2, bloomRadius: 0.5, bloomThreshold: 0.98,
     };
   }
 }

@@ -23,55 +23,66 @@ function rot4(p: number[], a: number, b: number, c: number) {
 }
 
 let brainPaths: { pts: number[][]; w: number }[] | null = null;
+/** side-view cerebrum outline (x right = occipital, y down), unit ~1.2 wide */
 function brainOutline(u: number) {
-  // closed side-view brain outline, u in [0,1)
   const a = u * Math.PI * 2;
-  const r = 1 + 0.06 * Math.cos(a * 2) - 0.1 * Math.max(0, Math.sin(a - 0.6)) ** 3 * 2.2;
-  return [Math.cos(a) * 1.25 * r, -Math.sin(a) * 0.86 * r * (Math.sin(a) < 0 ? 0.78 : 1)];
+  // base: wider at the back, frontal lobe rounded, temporal lobe dips below
+  let rx = 1.18, ry = 0.82;
+  const c = Math.cos(a), s = Math.sin(a);
+  let r = 1 + 0.07 * Math.cos(2 * a - 0.3) + 0.04 * Math.cos(3 * a + 0.5);
+  if (s > 0) { // lower half: flatten under the frontal lobe, temporal bulge, notch before cerebellum
+    r *= 0.86 + 0.1 * Math.exp(-((a - 2.25) ** 2) / 0.12) - 0.16 * Math.exp(-((a - 0.95) ** 2) / 0.05);
+  }
+  return [c * rx * r, s * ry * r];
 }
 function insideBrain(x: number, y: number) {
-  const a = Math.atan2(-y / (y > 0 ? 0.78 * 0.86 : 0.86), x / 1.25);
-  const u = ((a / (Math.PI * 2)) % 1 + 1) % 1;
-  const [bx, by] = brainOutline(u);
-  return x * x + y * y < (bx * bx + by * by) * 0.93;
+  const a = Math.atan2(y / 0.82, x / 1.18);
+  const [bx, by] = brainOutline(((a / (Math.PI * 2)) % 1 + 1) % 1);
+  return (x * x + y * y) < (bx * bx + by * by) * 0.9;
 }
 function buildBrain() {
   const R = rng(4242);
   const paths: { pts: number[][]; w: number }[] = [];
   const outline: number[][] = [];
-  for (let i = 0; i <= 120; i++) outline.push(brainOutline(i / 120));
-  paths.push({ pts: outline, w: 3.4 });
-  // central (lateral) sulcus & temporal lobe line
-  const sy: number[][] = [];
-  for (let i = 0; i <= 30; i++) { const t = i / 30; sy.push([-0.55 + t * 1.15, 0.12 + t * 0.32 + Math.sin(t * 9) * 0.03]); }
-  paths.push({ pts: sy, w: 2.6 });
-  // gyri: meandering curves (random walks with curvature) clipped to the outline
-  for (let k = 0; k < 46; k++) {
-    let x = R.range(-1.05, 1.05), y = R.range(-0.7, 0.55);
-    if (!insideBrain(x, y)) continue;
-    let ang = R.range(0, Math.PI * 2);
-    const pts: number[][] = [[x, y]];
-    const n = 18 + Math.floor(R() * 26);
-    let curv = R.range(-0.5, 0.5);
-    for (let i = 0; i < n; i++) {
-      curv += R.range(-0.35, 0.35);
-      curv = clamp(curv, -0.9, 0.9);
-      ang += curv;
-      x += Math.cos(ang) * 0.055; y += Math.sin(ang) * 0.055;
-      if (!insideBrain(x, y)) break;
-      pts.push([x, y]);
+  for (let i = 0; i <= 160; i++) outline.push(brainOutline(i / 160));
+  paths.push({ pts: outline, w: 4.2 });
+  // gyri: concentric meanders following the cortex at several insets
+  for (let ring = 1; ring <= 4; ring++) {
+    const inset = 1 - ring * 0.16;
+    let seg: number[][] = [];
+    const freq = 14 + ring * 5;
+    for (let i = 0; i <= 260; i++) {
+      const u = i / 260;
+      const [bx, by] = brainOutline(u);
+      const wob = 0.045 * Math.sin(u * Math.PI * 2 * freq + ring * 1.7) + 0.02 * Math.sin(u * Math.PI * 2 * freq * 2.3);
+      const x = bx * (inset + wob), y = by * (inset + wob);
+      const gap = Math.sin(u * Math.PI * 2 * (3 + ring) + ring) > 0.72; // broken sulci
+      if (gap || !insideBrain(x, y)) { if (seg.length > 6) paths.push({ pts: seg, w: 2.0 }); seg = []; continue; }
+      seg.push([x, y]);
     }
-    if (pts.length > 4) paths.push({ pts, w: 1.6 + R() * 1.0 });
+    if (seg.length > 6) paths.push({ pts: seg, w: 2.0 });
   }
-  // cerebellum: fine parallel arcs
-  for (let k = 0; k < 7; k++) {
-    const pts: number[][] = [];
-    for (let i = 0; i <= 20; i++) { const a = -0.2 + (i / 20) * 1.9; pts.push([0.7 + Math.cos(a) * (0.08 + k * 0.035), 0.56 + Math.sin(a) * (0.05 + k * 0.024)]); }
-    paths.push({ pts, w: 1.2 });
+  // lateral (Sylvian) fissure and central sulcus
+  const syl: number[][] = [];
+  for (let i = 0; i <= 30; i++) { const t = i / 30; syl.push([-0.62 + t * 1.1, 0.36 - t * 0.3 + Math.sin(t * 8) * 0.025]); }
+  paths.push({ pts: syl, w: 3.2 });
+  const cen: number[][] = [];
+  for (let i = 0; i <= 26; i++) { const t = i / 26; cen.push([0.02 + t * 0.2 + Math.sin(t * 10) * 0.03, -0.78 + t * 0.85]); }
+  paths.push({ pts: cen, w: 3.0 });
+  void R;
+  // cerebellum: small lobe with fine parallel folia
+  const cbx = 0.78, cby = 0.62;
+  const cb: number[][] = [];
+  for (let i = 0; i <= 60; i++) { const a = (i / 60) * Math.PI * 2; cb.push([cbx + Math.cos(a) * 0.36, cby + Math.sin(a) * 0.2]); }
+  paths.push({ pts: cb, w: 3.0 });
+  for (let k = 1; k <= 5; k++) {
+    const f: number[][] = [];
+    for (let i = 0; i <= 30; i++) { const a = Math.PI * (0.05 + 0.9 * i / 30); f.push([cbx + Math.cos(a) * 0.34 * (1 - k * 0.15), cby - 0.02 + Math.sin(a) * 0.2 * (1 - k * 0.15) * 0.9]); }
+    paths.push({ pts: f, w: 1.4 });
   }
   // brain stem
-  paths.push({ pts: [[0.35, 0.55], [0.38, 0.8], [0.42, 0.98]], w: 2.6 });
-  paths.push({ pts: [[0.55, 0.6], [0.53, 0.82], [0.54, 0.98]], w: 2.6 });
+  paths.push({ pts: [[0.28, 0.58], [0.3, 0.78], [0.36, 1.0]], w: 3.0 });
+  paths.push({ pts: [[0.48, 0.64], [0.47, 0.82], [0.5, 1.0]], w: 3.0 });
   return paths;
 }
 
@@ -79,15 +90,15 @@ export function drawLogo(g: CanvasRenderingContext2D, W: number, H: number, t: n
   if (!brainPaths) brainPaths = buildBrain();
   g.fillStyle = '#fbfaf6';
   g.fillRect(0, 0, W, H);
-  const cx = W / 2, cy = H * 0.41, S = H * 0.22;
+  const cx = W / 2, cy = H * 0.43, S = H * 0.19;
   // tesseract
-  const a = 0.6 + t * 0.21, b = 0.35 + t * 0.13, c = 0.2 + t * 0.07;
+  const a = 0.1 + t * 0.09, b = 0.06 + t * 0.05, c = 0.03 + t * 0.03;
   const P = VERTS4.map((v) => {
     const r = rot4(v, a, b, c);
-    const k = 1 / (2.8 - r[3]);
+    const k = 1 / (3.2 - r[3]);
     let x = r[0] * k, y = r[1] * k, z = r[2] * k;
     // gentle 3D presentation rotation
-    const ry = 0.55 + Math.sin(t * 0.1) * 0.1, rx = -0.38;
+    const ry = 0.62 + Math.sin(t * 0.1) * 0.08, rx = -0.42;
     [x, z] = [x * Math.cos(ry) + z * Math.sin(ry), -x * Math.sin(ry) + z * Math.cos(ry)];
     [y, z] = [y * Math.cos(rx) - z * Math.sin(rx), y * Math.sin(rx) + z * Math.cos(rx)];
     const pk = 3.2 / (3.2 - z);
@@ -106,7 +117,7 @@ export function drawLogo(g: CanvasRenderingContext2D, W: number, H: number, t: n
   g.globalAlpha = 1;
   for (const p of P) { g.beginPath(); g.arc(p[0], p[1], 3.2 + (p[2] + 0.6) * 2, 0, Math.PI * 2); g.fillStyle = '#0b0b0c'; g.fill(); }
   // brain (white body occludes the cube lines behind it slightly)
-  const bs = S * 0.62;
+  const bs = S * 0.78;
   const bx = cx - bs * 0.05, by = cy - bs * 0.02;
   g.save();
   g.translate(bx, by);
@@ -175,7 +186,8 @@ export function crtMaterial(logo: THREE.Texture) {
       varying vec2 vUv; varying vec3 vN; varying vec3 vV;
       float hash(vec2 p){ p = fract(p*vec2(443.897,441.423)); p += dot(p, p.yx+19.19); return fract((p.x+p.y)*p.x); }
       void main(){
-        vec2 c = vUv - 0.5;
+        vec2 uvS = vec2(1.0 - vUv.x, vUv.y);   // tube UVs run right-to-left once mounted
+        vec2 c = uvS - 0.5;
         // superellipse tube mask
         float tube = pow(abs(c.x)/0.5, 4.5) + pow(abs(c.y)/0.5, 4.5);
         float edge = 1.0 - smoothstep(0.80, 1.0, tube);
@@ -195,14 +207,20 @@ export function crtMaterial(logo: THREE.Texture) {
         float bar = 0.75 + 0.25 * sin((uv.y + uTime * 0.37) * 6.2831);
         vec3 snow = vec3(n) * bar;
         vec3 col = mix(logo * uLogo, snow, uStatic);
-        float sl = sin(vUv.y * 250.0 * 3.14159); col *= 0.8 + 0.2 * sl * sl;
+        float sl = sin(uvS.y * 250.0 * 3.14159); col *= 0.8 + 0.2 * sl * sl;
         // phosphor bloom at power-on
         col += vec3(0.8, 0.9, 1.0) * (1.0 - vh) * hw * 2.0 * (1.0 - smoothstep(0.0, 0.02, abs(c.y)));
         col *= m * edge * uBright;
-        // dark glass base + slight centre glow when off
-        vec3 base = vec3(0.022, 0.026, 0.026) * edge;
+        // dark glass base + reflections of the sunlit windows on the curved tube
+        vec3 base = vec3(0.02, 0.024, 0.024) * edge;
         float fres = pow(1.0 - max(dot(vN, vV), 0.0), 3.0);
-        gl_FragColor = vec4(base + col + fres * 0.04, 1.0);
+        vec3 Rf = reflect(-vV, normalize(vN));
+        vec3 wdir = normalize(vec3(-0.55, 0.28, -0.79));
+        float wl = max(dot(Rf, wdir), 0.0);
+        float pane = step(0.08, fract(Rf.y * 9.0)) * step(0.08, fract(Rf.z * 7.0 + Rf.x * 3.0));
+        vec3 refl = vec3(1.0, 0.86, 0.66) * pow(wl, 28.0) * (0.25 + 0.75 * pane) * 1.4;
+        refl += vec3(0.5, 0.36, 0.24) * fres * 0.25;
+        gl_FragColor = vec4(base + col + refl * edge, 1.0);
       }`,
   });
 }
@@ -262,6 +280,10 @@ export class TvSpace {
     this.points.frustumCulled = false;
     this.scene.add(this.points);
   }
+  grade(_t: number) {
+    return { exposure: 1.0, gain: [1.22, 1.22, 1.2], sat: 1.0, contrast: 1.0, vignette: 0.12, grain: 0.035, ca: 0.002, bloom: 0.25, bloomThreshold: 0.95 };
+  }
+
   update(t: number) {
     const tc = T.manor.glassCross;
     this.logo.update(t);
