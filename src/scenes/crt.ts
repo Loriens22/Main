@@ -110,12 +110,12 @@ export function drawLogo(g: CanvasRenderingContext2D, W: number, H: number, t: n
   for (const [i, j] of sorted) {
     const depth = (P[i][2] + P[j][2]) * 0.5;
     const inner = (P[i][3] + P[j][3]) * 0.5;
-    g.lineWidth = 2.2 + (depth + 0.6) * 3.2 + (inner > 0 ? 0.8 : 0);
+    g.lineWidth = (2.2 + (depth + 0.6) * 3.2 + (inner > 0 ? 0.8 : 0)) * 1.45 * (H / 768);
     g.globalAlpha = 0.55 + clamp(depth + 0.5) * 0.45;
     g.beginPath(); g.moveTo(P[i][0], P[i][1]); g.lineTo(P[j][0], P[j][1]); g.stroke();
   }
   g.globalAlpha = 1;
-  for (const p of P) { g.beginPath(); g.arc(p[0], p[1], 3.2 + (p[2] + 0.6) * 2, 0, Math.PI * 2); g.fillStyle = '#0b0b0c'; g.fill(); }
+  for (const p of P) { g.beginPath(); g.arc(p[0], p[1], (3.2 + (p[2] + 0.6) * 2) * 1.35 * (H / 768), 0, Math.PI * 2); g.fillStyle = '#0b0b0c'; g.fill(); }
   // brain (white body occludes the cube lines behind it slightly)
   const bs = S * 0.78;
   const bx = cx - bs * 0.05, by = cy - bs * 0.02;
@@ -128,7 +128,7 @@ export function drawLogo(g: CanvasRenderingContext2D, W: number, H: number, t: n
   g.fill();
   g.strokeStyle = '#0b0b0c';
   for (const path of brainPaths) {
-    g.lineWidth = path.w * (H / 768);
+    g.lineWidth = path.w * 1.35 * (H / 768);
     g.beginPath();
     path.pts.forEach((p, i) => (i ? g.lineTo(p[0] * bs, p[1] * bs) : g.moveTo(p[0] * bs, p[1] * bs)));
     g.stroke();
@@ -185,8 +185,9 @@ export function crtMaterial(logo: THREE.Texture) {
       uniform sampler2D tLogo; uniform float uTime, uPower, uStatic, uLogo, uBright, uHold;
       varying vec2 vUv; varying vec3 vN; varying vec3 vV;
       float hash(vec2 p){ p = fract(p*vec2(443.897,441.423)); p += dot(p, p.yx+19.19); return fract((p.x+p.y)*p.x); }
+      float hashu(vec2 p){ uvec2 q = uvec2(ivec2(p) + 65536) * uvec2(1597334673u, 3812015801u); uint n = (q.x ^ q.y) * 1597334673u; n ^= n >> 16; return float(n) * (1.0 / 4294967295.0); }
       void main(){
-        vec2 uvS = vec2(1.0 - vUv.x, vUv.y);   // tube UVs run right-to-left once mounted
+        vec2 uvS = vec2(vUv.x, 1.0 - vUv.y);   // the tube's UVs are rotated 180 degrees once mounted: flip v only
         vec2 c = uvS - 0.5;
         // superellipse tube mask
         float tube = pow(abs(c.x)/0.5, 4.5) + pow(abs(c.y)/0.5, 4.5);
@@ -197,15 +198,16 @@ export function crtMaterial(logo: THREE.Texture) {
         float m = (1.0 - smoothstep(0.5*hw - 0.01, 0.5*hw + 0.002, abs(c.x))) * (1.0 - smoothstep(0.5*max(vh,0.006) - 0.004, 0.5*max(vh,0.006) + 0.004, abs(c.y)));
         // horizontal hold flutter + rolling bar
         float row = floor(uv.y * 260.0);
-        float jitter = (hash(vec2(row, floor(uTime * 28.0))) - 0.5) * 0.03 * uStatic + sin(uv.y * 40.0 + uTime * 23.0) * 0.004 * uHold;
+        float jitter = (hashu(vec2(row, floor(uTime * 28.0))) - 0.5) * 0.03 * uStatic + sin(uv.y * 40.0 + uTime * 23.0) * 0.004 * uHold;
         vec2 uvl = vec2(uv.x + jitter, fract(uv.y + uHold * uTime * 0.31));
         vec3 logo;
         logo.r = texture2D(tLogo, uvl + vec2(0.0015, 0.0)).r;
         logo.g = texture2D(tLogo, uvl).g;
         logo.b = texture2D(tLogo, uvl - vec2(0.0015, 0.0)).b;
-        float n = hash(floor(uv * vec2(330.0, 250.0)) + floor(uTime * 50.0) * vec2(7.0, 13.0));
+        float n = hashu(floor(uv * vec2(330.0, 250.0)) + floor(uTime * 50.0) * vec2(7.0, 13.0));
         float bar = 0.75 + 0.25 * sin((uv.y + uTime * 0.37) * 6.2831);
         vec3 snow = vec3(n) * bar;
+        logo = smoothstep(vec3(0.1), vec3(0.9), logo);   // keep the thin ink lines black through the phosphor glow
         vec3 col = mix(logo * uLogo, snow, uStatic);
         float sl = sin(uvS.y * 250.0 * 3.14159); col *= 0.8 + 0.2 * sl * sl;
         // phosphor bloom at power-on
@@ -243,6 +245,7 @@ export class TvSpace {
       vertexShader: `varying vec2 vUv; void main(){ vUv=uv; gl_Position = projectionMatrix*modelViewMatrix*vec4(position,1.0);} `,
       fragmentShader: `uniform sampler2D tLogo; uniform float uDis, uTime; varying vec2 vUv;
         float hash(vec2 p){ p = fract(p*vec2(443.897,441.423)); p += dot(p, p.yx+19.19); return fract((p.x+p.y)*p.x); }
+      float hashu(vec2 p){ uvec2 q = uvec2(ivec2(p) + 65536) * uvec2(1597334673u, 3812015801u); uint n = (q.x ^ q.y) * 1597334673u; n ^= n >> 16; return float(n) * (1.0 / 4294967295.0); }
         float vnoise(vec2 p){ vec2 i=floor(p), f=fract(p); f=f*f*(3.0-2.0*f); return mix(mix(hash(i),hash(i+vec2(1,0)),f.x), mix(hash(i+vec2(0,1)),hash(i+vec2(1,1)),f.x), f.y); }
         void main(){ vec3 c = texture2D(tLogo, vUv).rgb; float n = vnoise(vUv*vec2(24.0,18.0))*0.6 + vnoise(vUv*80.0)*0.4;
           float k = smoothstep(uDis - 0.08, uDis, n); float sl = sin(vUv.y*260.0*3.14159); float scan = 0.86 + 0.14*sl*sl;

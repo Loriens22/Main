@@ -280,12 +280,26 @@ def sculpt_head(name, c, dims, P, materials):
     # hair cap
     style = P.get('hair', 'short')
     bm = bmesh.new()
-    bmesh.ops.create_uvsphere(bm, u_segments=48, v_segments=32, radius=1.0)
+    bmesh.ops.create_uvsphere(bm, u_segments=96 if style == 'short' else 48, v_segments=64 if style == 'short' else 32, radius=1.0)
     kill = []
     for v in bm.verts:
         X, Fw, U = v.co.x, -v.co.y, v.co.z
         if style == 'short':
-            line = 0.44 if Fw > 0.55 else (0.2 if Fw > 0.25 else (0.02 if Fw > -0.2 else -0.38))
+            # continuous hairline: forehead -> temples -> above the ears -> nape
+            a = math.atan2(Fw, abs(X))  # +pi/2 front, 0 side, -pi/2 back
+            line = 0.02 + 0.36 * sstep(0.35, 1.25, a) + 0.08 * math.exp(-((a - 0.55) / 0.22) ** 2) - 0.4 * sstep(-0.25, -1.0, a)
+            line += 0.025 * math.sin(X * 31) * math.sin(Fw * 17)  # slightly irregular
+            d = U - line
+            if d < -0.16:
+                kill.append(v)
+                continue
+            r = (1.035 + 0.04 * max(0, U)) * (1 + 0.012 * math.sin(X * 40) * math.sin(U * 37))
+            r = 0.9 + (r - 0.9) * sstep(-0.12, 0.03, d)  # sink under the skin below the line
+            Fw2 = Fw if Fw < 0.45 else 0.45 + (Fw - 0.45) * 0.62
+            if Fw2 < -0.2:
+                Fw2 *= 1.07
+            v.co = Vector((c[0] + X * wx * r, c[1] - Fw2 * fdep * r, c[2] + U * hz * r + 0.006))
+            continue
         elif style == 'bald':
             line = 0.55 if Fw > -0.2 else 0.0
         else:  # long / wild
@@ -370,9 +384,12 @@ def human(name, P, materials):
               (f'wrist{sd}', f'thumbb{sd}'), (f'thumbb{sd}', f'thumb{sd}')]
     g, b = girth, belly
     Rr = {'pelvis': (0.155 * g, 0.105 * g), 'spine': (0.145 * g * b, 0.105 * g * b), 'chest': (0.165 * g, 0.108 * g), 'neck': 0.064 * g ** 0.5, 'headb': 0.06}
+    if P.get('modern'):
+        Rr.update(neck=0.079 * g ** 0.5, headb=0.062)
+    lg = 1.13 if P.get('modern') else 1.0  # jeans: fuller legs
     for sd in 'LR':
         Rr.update({
-            f'hip{sd}': 0.085 * g, f'thigh{sd}': 0.074 * g, f'knee{sd}': 0.05 * g ** 0.5, f'calf{sd}': 0.054 * g ** 0.6, f'ankle{sd}': 0.034,
+            f'hip{sd}': 0.085 * g * lg, f'thigh{sd}': 0.074 * g * lg, f'knee{sd}': 0.05 * g ** 0.5 * lg, f'calf{sd}': 0.054 * g ** 0.6 * lg, f'ankle{sd}': 0.034 * (1 + (lg - 1) * 0.4),
             f'ball{sd}': (0.042, 0.026), f'toe{sd}': (0.036, 0.022),
             f'clav{sd}': 0.06 * g, f'shoulder{sd}': 0.056 * g, f'uarm{sd}': 0.047 * g, f'elbow{sd}': 0.037 * g ** 0.5, f'farm{sd}': 0.04 * g ** 0.6,
             f'wrist{sd}': 0.026, f'palm{sd}': (0.017, 0.03), f'fing{sd}': 0.0072, f'mid{sd}': 0.0074, f'ring{sd}': 0.007, f'pink{sd}': 0.0062,
@@ -380,7 +397,7 @@ def human(name, P, materials):
         })
     body = skin_body(name + '_body', J, E, Rr, 'pelvis', levels=2)
     # head
-    hc = (0, -0.014, J['headb'][2] + 0.075 * s)
+    hc = (0, -0.014, J['headb'][2] + (0.067 if P.get('modern') else 0.075) * s)
     head_objs = sculpt_head(name, hc, (0.08 * P.get('headw', 1.0), 0.1, 0.112), P, materials)
     # shirt collar (modern)
     extra = []
@@ -388,7 +405,7 @@ def human(name, P, materials):
         bm = bmesh.new()
         n = 40
         rings = []
-        for k, (rr, zz) in enumerate([(0.07, 1.47 * s), (0.064, 1.5 * s), (0.071, 1.518 * s)]):
+        for k, (rr, zz) in enumerate([(0.086, 1.47 * s), (0.080, 1.5 * s), (0.087, 1.518 * s)]):
             rings.append([bm.verts.new(Vector((math.cos(2 * math.pi * i / n) * rr * 1.05, 0.006 + math.sin(2 * math.pi * i / n) * rr * 0.95, zz + (0.012 * max(0, -math.sin(2 * math.pi * i / n)) if k == 2 else 0)))) for i in range(n)])
         for k in range(2):
             for i in range(n):
@@ -422,6 +439,16 @@ def human(name, P, materials):
     rig = build_armature(name, bones)
     # materials on body faces by region
     me = body.data
+    if P.get('modern'):
+        bm = bmesh.new()
+        bm.from_mesh(me)
+        for zc in (0.115, 0.925, 0.935, 0.955, 0.965, 1.5):
+            geom = bm.verts[:] + bm.edges[:] + bm.faces[:]
+            bmesh.ops.bisect_plane(bm, geom=geom, dist=1e-5, plane_co=(0, 0, zc * s), plane_no=(0, 0, 1))
+        bm.to_mesh(me)
+        bm.free()
+        for p_ in me.polygons:
+            p_.use_smooth = True
     for k in ('Skin', 'Top', 'Bottom', 'Shoes', 'Shirt'):
         me.materials.append(materials[k])
     zs = lambda z: z / s
@@ -647,7 +674,7 @@ def build_and_export(out, preview):
     # the man
     M = human_materials('Man_', True)
     man = human('Man', dict(modern=True, h=1.0, girth=1.04, belly=1.06, skin=(0.8, 0.58, 0.46), hair='short', stubble=0.85,
-                            iris=(0.25, 0.15, 0.07), nose=1.1), M)
+                            iris=(0.25, 0.15, 0.07), nose=1.1, jaw=0.55, headw=1.05), M)
     export_glb(os.path.join(out, 'man.glb'), [man])
     rigs = []
     for i, Pp in enumerate(PEOPLE):

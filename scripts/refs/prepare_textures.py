@@ -230,14 +230,15 @@ def lerp_col(t, stops):
 def walnut(S=1024):
     y, x = np.mgrid[0:S, 0:S].astype(np.float32) / S
     warp = fbm(S, S, 5, 3, seed=11)
-    rings = np.sin((x * 38 + warp * 7.5 + fbm(S, S, 4, 2, seed=12) * 2) * math.pi) * 0.5 + 0.5
+    # soft figured grain: few low-contrast rings (strong rings read as zebra stripes on camera)
+    rings = np.sin((x * 20 + warp * 4.0 + fbm(S, S, 4, 2, seed=12) * 1.2) * math.pi) * 0.5 + 0.5
     fine = fbm(S, S, 6, 64, seed=13)
-    streak = ndimage.gaussian_filter(rng.random((S, S)).astype(np.float32), (14, 0.6))
+    streak = ndimage.gaussian_filter(rng.random((S, S)).astype(np.float32), (18, 0.7))
     streak = (streak - streak.mean()) / (streak.std() + 1e-6)
-    t = 0.35 + rings ** 2.2 * 0.35 + streak * 0.05 + fine * 0.18
+    t = 0.44 + rings ** 1.6 * 0.15 + streak * 0.055 + fine * 0.13
     col = lerp_col(t, [(0, (28, 15, 8)), (0.45, (66, 38, 20)), (0.7, (98, 60, 32)), (1, (128, 84, 48))])
     rough = 0.38 + fine * 0.18 - rings * 0.08
-    h = rings * 0.4 + streak * 0.08 + fine * 0.3
+    h = rings * 0.18 + streak * 0.1 + fine * 0.3
     save(to_img(col), 'pbr/walnut_albedo.jpg')
     save(to_img(np.dstack([rough] * 3)), 'pbr/walnut_rough.jpg')
     save(normal_from_height(h, 3.0), 'pbr/walnut_normal.jpg')
@@ -351,13 +352,13 @@ def knit(S=512):
     cu = (x / S * cols) % 1
     cv = (y / S * rows) % 1
     side = np.where(cu < 0.5, cu * 2, (1 - cu) * 2)
-    loop = np.exp(-((cv - side * 0.6 - 0.2) ** 2) / 0.04) * np.sin(np.clip(side, 0, 1) * math.pi) ** 0.4
+    loop = np.exp(-((cv - side * 0.6 - 0.2) ** 2) / 0.04) * np.maximum(np.sin(np.clip(side, 0, 1) * math.pi), 0) ** 0.4
     fuzz = fbm(S, S, 4, 64, seed=51)
     h = loop * 0.85 + fuzz * 0.25
     base = np.array([150, 18, 22], np.float32) / 255
-    col = base[None, None, :] * (0.55 + h[..., None] * 0.6)
+    col = base[None, None, :] * (0.78 + h[..., None] * 0.3)
     save(to_img(col), 'pbr/knit_albedo.jpg')
-    save(normal_from_height(ndimage.gaussian_filter(h, 0.6), 5.0), 'pbr/knit_normal.jpg')
+    save(normal_from_height(ndimage.gaussian_filter(h, 0.9), 3.2), 'pbr/knit_normal.jpg')
 
 
 def denim(S=512):

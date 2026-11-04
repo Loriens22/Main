@@ -591,7 +591,8 @@ export class ManorScene {
   buildMan() {
     const A = this.A;
     const man = SkeletonUtils.clone(A.gltf.man.scene);
-    const knit = new THREE.MeshPhysicalMaterial({ normalMap: rep(A.tex.knitN, 5, 5), normalScale: new THREE.Vector2(0.65, 0.65), roughness: 0.95, color: 0x9e1a20, sheen: 1.0, sheenColor: new THREE.Color(0.9, 0.25, 0.25), sheenRoughness: 0.6 });
+    // chunky knit at ~14 mm per loop: finer ribs alias into moire stripes at 1080p
+    const knit = new THREE.MeshPhysicalMaterial({ map: rep(A.tex.knit, 2.2, 2.2), normalMap: rep(A.tex.knitN, 2.2, 2.2), normalScale: new THREE.Vector2(0.45, 0.45), roughness: 0.97, color: 0xffffff, sheen: 0.8, sheenColor: new THREE.Color(0.85, 0.3, 0.28), sheenRoughness: 0.7 });
     const denim = new THREE.MeshStandardMaterial({ map: rep(A.tex.denim, 5, 5), normalMap: rep(A.tex.denimN, 5, 5), roughness: 0.9 });
     const skin = new THREE.MeshPhysicalMaterial({ vertexColors: true, color: new THREE.Color(0.6, 0.47, 0.42), roughness: 0.52, sheen: 0.5, sheenColor: new THREE.Color(0.75, 0.3, 0.22), sheenRoughness: 0.5, clearcoat: 0.08, clearcoatRoughness: 0.6 });
     const hair = new THREE.MeshStandardMaterial({ color: 0x2a1c14, roughness: 0.7, side: THREE.DoubleSide });
@@ -626,11 +627,16 @@ export class ManorScene {
     const m = T.manor;
     return [
       new Track([{ t: 0, p: [0.18, 1.62, 4.3], l: [-0.1, 1.45, -4], f: 30 }, { t: 11, p: [0.08, 1.6, 3.62], l: [0.12, 1.42, -3.9], f: 30 }], (x) => x),
-      new Track([{ t: 11, p: [0.08, 1.6, 3.62], l: [0.12, 1.42, -3.9], f: 30 }, { t: 14.2, p: [0.6, 1.6, 3.2], l: [1.6, 1.25, 0.9], f: 32 }, { t: 17.3, p: [2.5, 1.5, 2.3], l: [2.55, 1.18, 0.78], f: 40 }]),
-      new Track([{ t: 17.3, p: [2.5, 1.5, 2.3], l: [2.55, 1.18, 0.78], f: 40 }, { t: 18.2, p: [2.47, 1.3, 1.58], l: [2.72, 1.13, 0.84], f: 50 }, { t: 21.7, p: [2.5, 1.32, 1.52], l: [2.72, 1.13, 0.84], f: 50 }]),
-      new Track([{ t: 21.7, p: [2.5, 1.32, 1.52], l: [2.72, 1.13, 0.84], f: 50 }, { t: 22.4, p: [1.55, 1.6, 2.5], l: [2.3, 1.55, 0.78], f: 48 }, { t: 26.6, p: [1.62, 1.59, 2.38], l: [2.3, 1.55, 0.78], f: 50 }]),
-      new Track([{ t: 26.6, p: [1.0, 1.44, -0.05], l: [2.7, 1.1, 0.55], f: 36 }, { t: m.turn, p: [0.85, 1.42, -0.2], l: [2.7, 1.08, 0.55], f: 38 }]),
-      new Track([{ t: m.turn, p: [0.85, 1.42, -0.2], l: [2.7, 1.08, 0.55], f: 38 }, { t: 35.5, p: [0.5, 1.42, 3.1], l: [-0.6, 1.0, 0.9], f: 32 }, { t: 38.3, p: [-0.2, 1.38, 3.25], l: [-1.9, 0.95, 1.0], f: 34 }]),
+      // the man walks in past the camera; the look target follows him (see follow())
+      new Track([{ t: 11, p: [0.08, 1.6, 3.62], l: [0.12, 1.42, -3.9], f: 30 }, { t: 14.2, p: [0.3, 1.62, 3.5], l: [1.4, 1.38, 1.3], f: 30 }, { t: 16.4, p: [0.85, 1.6, 3.15], l: [2.2, 1.3, 0.85], f: 34 }, { t: 17.3, p: [1.05, 1.59, 3.0], l: [2.3, 1.28, 0.8], f: 36 }]),
+      // cut in: the hand on the physical buttons
+      new Track([{ t: 17.3, p: [2.42, 1.36, 1.86], l: [2.72, 1.15, 0.84], f: 44 }, { t: 18.2, p: [2.47, 1.3, 1.58], l: [2.72, 1.13, 0.84], f: 50 }, { t: 21.9, p: [2.5, 1.32, 1.52], l: [2.72, 1.13, 0.84], f: 50 }]),
+      // cut: medium close-up for line 1
+      new Track([{ t: 21.9, p: [1.5, 1.6, 2.56], l: [2.3, 1.55, 0.78], f: 46 }, { t: 26.6, p: [1.62, 1.59, 2.38], l: [2.3, 1.55, 0.78], f: 50 }]),
+      // over-the-shoulder two-shot: the man and the screen (static -> logo), slow push
+      new Track([{ t: 26.6, p: [0.35, 1.68, -0.95], l: [2.45, 1.2, 0.58], f: 32 }, { t: m.turn, p: [0.6, 1.64, -0.72], l: [2.45, 1.27, 0.58], f: 36 }], (x) => x),
+      // he turns and crosses to the sofa; the camera pans with him (follow())
+      new Track([{ t: m.turn, p: [0.75, 1.52, 3.45], l: [2.2, 1.32, 0.75], f: 32 }, { t: 35.4, p: [0.4, 1.5, 3.35], l: [0.4, 1.3, 1.25], f: 32 }, { t: 36.95, p: [0.0, 1.45, 3.3], l: [-1.5, 1.15, 1.05], f: 33 }, { t: 38.3, p: [-0.2, 1.38, 3.25], l: [-1.9, 0.95, 1.0], f: 34 }], (x) => x),
       new Track([{ t: 38.3, p: [-2.66, 1.78, 2.2], l: [0.0, 0.92, 0.72], f: 20 }, { t: m.pushStart, p: [-2.6, 1.76, 2.14], l: [0.1, 0.94, 0.72], f: 20 }], (x) => x),
       new Track([{ t: m.pushStart, p: [-2.6, 1.76, 2.14], l: [0.1, 0.94, 0.72], f: 20 }, { t: 42.6, p: [0.1, 1.22, 1.2], l: [2.8, 1.065, 0.52], f: 32 }, { t: 43.7, p: [2.2, 1.068, 0.53], l: [3.4, 1.065, 0.515], f: 35 }, { t: m.glassCross, p: [2.69, 1.065, 0.515], l: [3.6, 1.065, 0.515], f: 35 }], (x) => x * x * (3 - 2 * x) * 0.6 + x * x * 0.4),
     ];
@@ -639,7 +645,9 @@ export class ManorScene {
   update(t: number) {
     const m = T.manor;
     const cam = this.camera;
-    evalTracks(this.tracks, t, cam);
+    this.man.update(t);
+    const r = evalTracks(this.tracks, t, cam);
+    this.follow(t, r.l, cam);
     cam.updateProjectionMatrix();
     for (const mm of this.swayMats) { const sh = (mm as any).userData.shader; if (sh) sh.uniforms.uTime.value = t; }
     const px = this.renderer.getDrawingBufferSize(new THREE.Vector2()).y / (2 * Math.tan(THREE.MathUtils.degToRad(cam.fov) / 2));
@@ -664,7 +672,16 @@ export class ManorScene {
     this.tvLight.intensity = on ? (logoOn ? 1.0 : 0.55 * flick) * sstep(t, m.tvOn, m.tvOn + 0.6) : 0;
     // camera dive: let the shafts dim slightly for the silhouette shot
     this.shaftMat.uniforms.uInt.value = 1 - 0.25 * sstep(t, 38.2, 39.0);
-    this.man.update(t);
+  }
+
+  /** Subject follow: blend the track's look target toward the man's chest so the
+   *  operator keeps him framed while he walks (entrance and the walk to the sofa). */
+  follow(t: number, l: number[], cam: THREE.PerspectiveCamera) {
+    const m = T.manor;
+    const w = 0.82 * sstep(t, 13.1, 14.3) * (1 - sstep(t, 16.5, 17.3)) + 0.75 * sstep(t, m.turn + 0.1, m.turn + 0.8) * (1 - sstep(t, 37.4, 38.3));
+    if (w <= 0) return;
+    const g = this.man.group.position;
+    cam.lookAt(mix(l[0], g.x, w), mix(l[1], g.y + 1.32, w), mix(l[2], g.z, w));
   }
 
   grade(t: number): Grade {

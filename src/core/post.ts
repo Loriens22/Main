@@ -37,6 +37,8 @@ const FinalShader = {
     uniform vec3 uLift, uGamma, uGain, uFadeColor;
     varying vec2 vUv;
     float hash(vec2 p){ p = fract(p*vec2(443.897,441.423)); p += dot(p, p.yx+19.19); return fract((p.x+p.y)*p.x); }
+    // integer hash: the float hash above loses all precision for large inputs (snow turned flat grey)
+    float hashu(vec2 p){ uvec2 q = uvec2(ivec2(p) + 65536) * uvec2(1597334673u, 3812015801u); uint n = (q.x ^ q.y) * 1597334673u; n ^= n >> 16; return float(n) * (1.0 / 4294967295.0); }
     vec3 aces(vec3 x){ const float a=2.51; const float b=0.03; const float c=2.43; const float d=0.59; const float e=0.14; return clamp((x*(a*x+b))/(x*(c*x+d)+e),0.0,1.0); }
     vec3 toSRGB(vec3 c){ return mix(c*12.92, 1.055*pow(c, vec3(1.0/2.4))-0.055, step(0.0031308, c)); }
     void main(){
@@ -72,9 +74,9 @@ const FinalShader = {
       // analog snow
       if (uStatic > 0.0) {
         vec2 px = floor(vUv * uRes / 2.0);
-        float n = hash(px + floor(uTime * 60.0) * vec2(17.0, 61.0));
+        float n = hashu(px + floor(uTime * 60.0) * vec2(17.0, 61.0));
         float band = smoothstep(0.0, 1.0, sin(vUv.y * 9.0 + uTime * 11.0) * 0.5 + 0.5) * 0.25;
-        float line = step(0.985, hash(vec2(floor(vUv.y * uRes.y / 3.0), floor(uTime * 30.0)))) * 0.5;
+        float line = step(0.985, hashu(vec2(floor(vUv.y * uRes.y / 3.0), floor(uTime * 30.0)))) * 0.5;
         vec3 snow = vec3(clamp(n * 1.1 + band - 0.1 + line, 0.0, 1.0));
         col = mix(col, mix(snow, max(snow, vec3(uStaticBase)), uStaticBase * 0.6), uStatic);
       }
