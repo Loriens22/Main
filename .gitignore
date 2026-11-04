@@ -3,3 +3,5 @@ dist/
 frames/
 *.log
 .DS_Store
+artifact/
+public/assets/models/*.glb.txt

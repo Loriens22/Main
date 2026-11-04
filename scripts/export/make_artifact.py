@@ -15,6 +15,13 @@ DIST = os.path.join(ROOT, 'dist')
 OUT = os.path.join(ROOT, 'artifact')
 os.makedirs(OUT, exist_ok=True)
 
+# The artifact host serves only web media types, so models travel as base64 text next to the .glb
+import base64
+MODELS = os.path.join(DIST, 'assets', 'models')
+for fn in sorted(os.listdir(MODELS)) if os.path.isdir(MODELS) else []:
+    if fn.endswith('.glb') and not os.path.exists(os.path.join(MODELS, fn + '.txt')):
+        open(os.path.join(MODELS, fn + '.txt'), 'w').write(base64.b64encode(open(os.path.join(MODELS, fn), 'rb').read()).decode())
+
 html = open(os.path.join(DIST, 'index.html'), encoding='utf-8').read()
 head = re.search(r'<head>(.*?)</head>', html, re.S).group(1)
 body = re.search(r'<body>(.*?)</body>', html, re.S).group(1)
