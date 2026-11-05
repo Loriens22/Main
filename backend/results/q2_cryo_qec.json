@@ -103,5 +103,40 @@
   "label": "aurora_x3.0",
   "s": 3.0,
   "max_seconds": 900
+ },
+ {
+  "code": "bb72",
+  "n": 72,
+  "k": 12,
+  "d": 6,
+  "rounds": 6,
+  "noise": {
+   "p2": 0.0012302220860257859,
+   "p1": 0.0004868147240171907,
+   "p_idle": 0.0004868147240171907,
+   "p_idle_meas": 0.004563888037661163,
+   "p_meas": 0.0028468765869414346,
+   "p_reset": 0.005,
+   "f_herald": 0.0
+  },
+  "shots": 4907,
+  "errors": 100,
+  "block_error": 0.02037905033625433,
+  "lo": 0.016784634528908476,
+  "hi": 0.024723851511447622,
+  "block_error_per_round": 0.0034257135074459155,
+  "per_logical_qubit_per_round": 0.00028592534049998175,
+  "dem_columns": 2232,
+  "dem_detectors": 252,
+  "seconds": 33.44628405570984,
+  "cnot_layers_per_round": 12,
+  "z_layers": 6,
+  "x_layers": 6,
+  "qubits": 144,
+  "heralds": 0,
+  "set": "cryo",
+  "label": "conventional",
+  "s": 1.0,
+  "max_seconds": 900
  }
 ]
