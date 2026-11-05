@@ -183,3 +183,24 @@ describe('router', () => {
     }
   });
 });
+
+import { ansatzHEA, ansatzPC, energyHEANoisy, energySV, nelderMead } from '../src/quantum/variational';
+import { makeDataset, vqcProb, vqcProbNoisy } from '../src/quantum/ml';
+
+describe('variational modules', () => {
+  const chem = JSON.parse(readFileSync(new URL('../public/data/chemistry.json', import.meta.url), 'utf8'));
+  const row = chem.rows.find((r: any) => Math.abs(r.R - 0.7) < 1e-9);
+  it('VQE particle-conserving ansatz reaches FCI from the exported Pauli Hamiltonian', () => {
+    const res = nelderMead((x) => energySV(ansatzPC(x[0]), row.pauli_terms), [0.1], { iters: 300, step: 0.5 });
+    expect(res.fx).toBeCloseTo(row.E_fci, 7);
+  });
+  it('noiseless density-matrix energy equals statevector energy (HEA)', () => {
+    const x = Array.from({ length: 12 }, (_, i) => 0.3 * i - 1.1);
+    expect(energyHEANoisy(x, row.pauli_terms, 0, 0)).toBeCloseTo(energySV(ansatzHEA(x), row.pauli_terms), 10);
+  });
+  it('noisy VQC with zero noise equals the statevector model; datasets are seeded', () => {
+    const th = Array.from({ length: 12 }, (_, i) => Math.sin(i));
+    expect(vqcProbNoisy([0.3, -0.4], th, 3, 0, 0)).toBeCloseTo(vqcProb([0.3, -0.4], th, 3), 12);
+    expect(makeDataset('moons', 5)).toEqual(makeDataset('moons', 5));
+  });
+});

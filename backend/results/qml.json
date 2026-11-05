@@ -3321,9 +3321,9 @@
    },
    {
     "n_qubits": 2,
-    "map": "bandwidth-scaled (x/\u221an)",
-    "mean": 0.3250160699041048,
-    "var": 0.06017685499931588
+    "map": "bandwidth-scaled (angles \u00d7 1/n)",
+    "mean": 0.3136836462783206,
+    "var": 0.06417224669100582
    },
    {
     "n_qubits": 3,
@@ -3333,9 +3333,9 @@
    },
    {
     "n_qubits": 3,
-    "map": "bandwidth-scaled (x/\u221an)",
-    "mean": 0.1607936411057344,
-    "var": 0.022318334009726087
+    "map": "bandwidth-scaled (angles \u00d7 1/n)",
+    "mean": 0.1955609491052548,
+    "var": 0.0353041479780574
    },
    {
     "n_qubits": 4,
@@ -3345,9 +3345,9 @@
    },
    {
     "n_qubits": 4,
-    "map": "bandwidth-scaled (x/\u221an)",
-    "mean": 0.08055148326566625,
-    "var": 0.007635081236342287
+    "map": "bandwidth-scaled (angles \u00d7 1/n)",
+    "mean": 0.1320301815392029,
+    "var": 0.021519801777877417
    },
    {
     "n_qubits": 5,
@@ -3357,9 +3357,9 @@
    },
    {
     "n_qubits": 5,
-    "map": "bandwidth-scaled (x/\u221an)",
-    "mean": 0.039756503315221715,
-    "var": 0.0019877326374929684
+    "map": "bandwidth-scaled (angles \u00d7 1/n)",
+    "mean": 0.11519987716199956,
+    "var": 0.026191913509816683
    },
    {
     "n_qubits": 6,
@@ -3369,9 +3369,9 @@
    },
    {
     "n_qubits": 6,
-    "map": "bandwidth-scaled (x/\u221an)",
-    "mean": 0.018690545591482827,
-    "var": 0.0006401775689684835
+    "map": "bandwidth-scaled (angles \u00d7 1/n)",
+    "mean": 0.12169112381628563,
+    "var": 0.01993985725648419
    },
    {
     "n_qubits": 7,
@@ -3381,9 +3381,9 @@
    },
    {
     "n_qubits": 7,
-    "map": "bandwidth-scaled (x/\u221an)",
-    "mean": 0.010942476936776989,
-    "var": 0.0002592242735084277
+    "map": "bandwidth-scaled (angles \u00d7 1/n)",
+    "mean": 0.12482298249046309,
+    "var": 0.016177242106701597
    },
    {
     "n_qubits": 8,
@@ -3393,9 +3393,9 @@
    },
    {
     "n_qubits": 8,
-    "map": "bandwidth-scaled (x/\u221an)",
-    "mean": 0.0052902976976420876,
-    "var": 6.698282645050808e-05
+    "map": "bandwidth-scaled (angles \u00d7 1/n)",
+    "mean": 0.08315280726471339,
+    "var": 0.011065460127338339
    },
    {
     "n_qubits": 9,
@@ -3405,9 +3405,9 @@
    },
    {
     "n_qubits": 9,
-    "map": "bandwidth-scaled (x/\u221an)",
-    "mean": 0.0032994673450257397,
-    "var": 3.474898211679654e-05
+    "map": "bandwidth-scaled (angles \u00d7 1/n)",
+    "mean": 0.11707554664600725,
+    "var": 0.015215554453002718
    },
    {
     "n_qubits": 10,
@@ -3417,9 +3417,9 @@
    },
    {
     "n_qubits": 10,
-    "map": "bandwidth-scaled (x/\u221an)",
-    "mean": 0.001257576034622573,
-    "var": 4.482181323569851e-06
+    "map": "bandwidth-scaled (angles \u00d7 1/n)",
+    "mean": 0.13250548526692094,
+    "var": 0.014717701874585778
    },
    {
     "n_qubits": 11,
@@ -3429,9 +3429,9 @@
    },
    {
     "n_qubits": 11,
-    "map": "bandwidth-scaled (x/\u221an)",
-    "mean": 0.0005920991842381281,
-    "var": 1.4592891581927832e-06
+    "map": "bandwidth-scaled (angles \u00d7 1/n)",
+    "mean": 0.13854048987401152,
+    "var": 0.012670573750633548
    },
    {
     "n_qubits": 12,
@@ -3441,12 +3441,12 @@
    },
    {
     "n_qubits": 12,
-    "map": "bandwidth-scaled (x/\u221an)",
-    "mean": 0.00033956443395451787,
-    "var": 6.582557601903546e-07
+    "map": "bandwidth-scaled (angles \u00d7 1/n)",
+    "mean": 0.14734999997417977,
+    "var": 0.01304489833161385
    }
   ],
-  "reference": "Thanasilp et al., Nat. Commun. 15, 5200 (2024)"
+  "reference": "Thanasilp et al., Nat. Commun. 15, 5200 (2024); bandwidth: Shaydulin & Wild, PRA 106, 042407 (2022)"
  },
  "noise": {
   "rows": [

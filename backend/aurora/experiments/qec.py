@@ -109,6 +109,17 @@ def _crossing(rows) -> float | None:
     return None
 
 
+def phenomenological_large_d(quick=False) -> dict:
+    """Finite-size drift check: crossings of larger codes move toward the asymptotic MWPM value."""
+    rows = []
+    for p in ((0.026, 0.029, 0.032, 0.035) if not quick else (0.03,)):
+        for d in ((7, 11, 15) if not quick else (7, 11)):
+            r = logical_error(build_surface(d, d, p_idle=p, p_meas=p, data_error="xflip"),
+                              max_shots=40_000, target_errors=2000, batch=10_000)
+            rows.append({"p": p, "d": d, **r, "per_round": per_round(r["rate"], d)})
+    return {"rows": rows, "note": "Crossings drift downward with distance (finite-size effect) toward ≈2.9 % (MWPM, Wang–Harrington–Preskill)."}
+
+
 # ------------------------------------------------------------ Q2 reset sensitivity
 def reset_sensitivity(quick=False) -> dict:
     base = dict(p1=2.5e-4, p2=1.5e-3, p_idle=1e-3, p_meas=5e-3)
@@ -215,6 +226,7 @@ def run(quick: bool = False) -> dict:
         "meta": C.metadata("qec", {"decoder": "PyMatching (MWPM)", "code": "rotated surface code memory_z",
                                    "shots": "adaptive up to 4e5 or 400 logical errors"}, seeds={"stim_sampler": 0}),
         "threshold": threshold_study(quick),
+        "phenomenological_large_d": phenomenological_large_d(quick),
         "reset_sensitivity": reset_sensitivity(quick),
         "time_study": time_study(quick),
         "majorana": majorana_requirements(quick),

@@ -153,16 +153,17 @@ def vqc_experiment(quick=False) -> dict:
 
 # ------------------------------------------------------------- quantum kernels
 def zz_feature_state(x: np.ndarray, reps: int = 2, scale: float = 1.0) -> np.ndarray:
+    """ZZ feature map; ``scale`` is the kernel bandwidth multiplying EVERY encoding angle
+    (Shaydulin & Wild, PRA 106, 042407 (2022)), so scale -> 0 drives the kernel to 1."""
     n = len(x)
     psi = Q.zero_state(n)
-    xs = scale * x
     for _ in range(reps):
         for q in range(n):
             psi = Q.apply_1q(psi, Q.H, q, n)
-            psi = Q.apply_1q(psi, Q.rz(2 * xs[q]), q, n)
+            psi = Q.apply_1q(psi, Q.rz(2 * scale * x[q]), q, n)
         for a in range(n - 1):
             b = a + 1
-            psi = Q.apply_rzz(psi, 2 * (math.pi - xs[a]) * (math.pi - xs[b]), a, b, n)
+            psi = Q.apply_rzz(psi, 2 * scale * (math.pi - x[a]) * (math.pi - x[b]), a, b, n)
     return psi
 
 
@@ -197,11 +198,11 @@ def concentration_experiment(quick=False) -> dict:
     rows = []
     for n in (range(2, 13) if not quick else range(2, 7)):
         X = rng.uniform(0, 2 * math.pi, size=(40, n))
-        for label, scale in (("unscaled ZZ map", 1.0), ("bandwidth-scaled (x/√n)", 1 / math.sqrt(n))):
+        for label, scale in (("unscaled ZZ map", 1.0), ("bandwidth-scaled (angles × 1/n)", 1 / n)):
             K = kernel_matrix(X, X, reps=2, scale=scale)
             off = K[np.triu_indices_from(K, 1)]
             rows.append({"n_qubits": n, "map": label, "mean": float(off.mean()), "var": float(off.var())})
-    return {"rows": rows, "reference": "Thanasilp et al., Nat. Commun. 15, 5200 (2024)"}
+    return {"rows": rows, "reference": "Thanasilp et al., Nat. Commun. 15, 5200 (2024); bandwidth: Shaydulin & Wild, PRA 106, 042407 (2022)"}
 
 
 # ----------------------------------------------------------------- noise vs VQC

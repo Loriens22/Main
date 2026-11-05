@@ -112,5 +112,9 @@ if __name__ == "__main__":
     fns = {"installation": shot_installation, "cryostat": shot_cryostat, "package": lambda: shot_package(False),
            "exploded": lambda: shot_package(True), "chip": shot_chip}
     for w in which:
-        p = fns[w]()
-        print("rendered", p, webp(Path(p)))
+        p = Path(fns[w]())
+        out = webp(p)
+        keep = K.ROOT / "blender" / "out" / "renders_png"
+        keep.mkdir(parents=True, exist_ok=True)
+        p.replace(keep / p.name)  # PNG masters stay out of the web bundle
+        print("rendered", out)
