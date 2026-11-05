@@ -30,6 +30,7 @@ const fmtNum = (v: number) => {
 };
 
 function makeScale(d0: number, d1: number, r0: number, r1: number, log: boolean, fmt?: (v: number) => string): Scale {
+  if (!(d1 > d0)) { if (log) { const c = d0 > 0 ? d0 : 1; d0 = c / 2; d1 = c * 2; } else { const c = isFinite(d0) ? d0 : 0; d0 = c - 1; d1 = c + 1; } }
   if (log) {
     const l0 = Math.log10(d0), l1 = Math.log10(d1);
     const f = ((v: number) => r0 + ((Math.log10(Math.max(v, 1e-300)) - l0) / (l1 - l0)) * (r1 - r0)) as Scale;

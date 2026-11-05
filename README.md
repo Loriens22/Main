@@ -61,7 +61,7 @@ No hardware was fabricated or measured; device parameters are assumptions or tar
 
 A second study proposes a full machine: **Toroid**, a superconducting chip that embeds the gross bivariate-bicycle code [[144,12,12]] on a two-tier die stack, and **AURORA-CRYO**, a cooling and wiring architecture designed around it. Like the first study, it is a design study, and every number is simulated, modelled or sourced.
 
-**Live site:** LIVE_Q2_URL (3D explorer of the refrigerator, module and chip; in-browser BP-OSD decoder lab; cooling lab; results; research paper; comparison with other platforms). It is private to its owner until shared.
+**Live site:** https://claude.ai/artifact/4214a2hrtrSfkyqC9UmwdP (3D explorer of the refrigerator, module and chip; in-browser BP-OSD decoder lab; cooling lab; results; research paper; comparison with other platforms). It is private to its owner until shared.
 
 | Result (simulated or modelled) | Value |
 |---|---|
@@ -72,6 +72,7 @@ A second study proposes a full machine: **Toroid**, a superconducting chip that 
 | Dual-rail vs transmon at equal transmon count | dual-rail affords only 0.85–1.8× raw error → negative result, transmons kept |
 | AURORA-CRYO coherence model | T_φ,thermal 121 → 796 µs; T₂ 95 → 343 µs |
 | Qubits per refrigerator (model) | 727 (coax + RT control) → 5,901 (AURORA-CRYO with 12 W extra 4 K cooling) |
+| Cooling → logical error (same simulator) | gross: 1.5e-5 (conventional budget) → 1.8e-6 (AURORA-CRYO budget) per logical qubit per round |
 | Radiation (20 dies) | unmitigated MTBF ≈ 0.2 s; a one-day run needs p_fail ≲ 2e-6 per impact (open risk) |
 
 ```bash

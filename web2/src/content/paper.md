@@ -1,6 +1,6 @@
 **AURORA-Q project · design study · November 2026.** Prepared with AI assistance (Claude, Anthropic). No hardware was fabricated or measured. Every number is graded as reported literature, simulation (this work), analytical model or engineering proposal; the source ledger is `research/sources.md`, sections 10–14.
 
-> **Abstract.** We propose AURORA-Q2, a superconducting quantum computer architecture built around the gross bivariate-bicycle code [[144,12,12]] [^1] and a refrigerator designed for it. **Toroid**, the chip, uses a placement that makes four of each qubit's six couplings nearest-neighbour on a 24 × 12 grid. The qubit die then carries 540 couplers with zero crossings, and the remaining 324 couplers (288 long-range, 36 torus wrap-around) fit in two Manhattan routing layers of a flip-chip interposer with at most 11 tracks per channel. Straight-line routing would have needed 13 layers. **AURORA-CRYO**, the cooling architecture, moves control to 4 K cryo-CMOS, carries qubit drive on optical fibre, puts cavity attenuators on every input at the mixing chamber, and protects the dies against quasiparticle bursts. In circuit-level simulations with one circuit family, one noise model and one decoder (Stim + BP-OSD) for all codes, the gross code reaches 6.9 × 10⁻⁵ logical error per logical qubit per round at physical error p = 0.2 % and 6.6 × 10⁻⁴ at p = 0.3 %. Matching it with a surface code takes d = 13: 337 instead of 24 physical qubits per logical qubit, a 14× overhead advantage. Converting most gate errors into heralded erasures improves the gross code up to 150×. Dual-rail erasure qubits, however, tolerate only 0.85–1.8× higher raw error than transmons at equal transmon count, so Toroid keeps transmons and treats dual-rail as an upgrade path. An analytical model of AURORA-CRYO predicts thermal-photon dephasing falling from 121 µs to 796 µs (T₂ from 95 µs to 343 µs) and about 5,900 qubits per large-format refrigerator: 20 Toroid modules and 192 logical memory qubits, against about 730 qubits for coax with room-temperature control. Radiation bursts remain the dominant open risk. A one-day computation on 20 dies needs a per-impact logical failure probability ≲ 2 × 10⁻⁶ at a surface site.
+> **Abstract.** We propose AURORA-Q2, a superconducting quantum computer architecture built around the gross bivariate-bicycle code [[144,12,12]] [^1] and a refrigerator designed for it. **Toroid**, the chip, uses a placement that makes four of each qubit's six couplings nearest-neighbour on a 24 × 12 grid. The qubit die then carries 540 couplers with zero crossings, and the remaining 324 couplers (288 long-range, 36 torus wrap-around) fit in two Manhattan routing layers of a flip-chip interposer with at most 11 tracks per channel. Straight-line routing would have needed 13 layers. **AURORA-CRYO**, the cooling architecture, moves control to 4 K cryo-CMOS, carries qubit drive on optical fibre, puts cavity attenuators on every input at the mixing chamber, and protects the dies against quasiparticle bursts. In circuit-level simulations with one circuit family, one noise model and one decoder (Stim + BP-OSD) for all codes, the gross code reaches 6.9 × 10⁻⁵ logical error per logical qubit per round at physical error p = 0.2 % and 6.6 × 10⁻⁴ at p = 0.3 %. Matching it with a surface code takes d = 13: 337 instead of 24 physical qubits per logical qubit, a 14× overhead advantage. Converting most gate errors into heralded erasures improves the gross code up to 150×. Dual-rail erasure qubits, however, tolerate only 0.85–1.8× higher raw error than transmons at equal transmon count, so Toroid keeps transmons and treats dual-rail as an upgrade path. An analytical model of AURORA-CRYO predicts thermal-photon dephasing falling from 121 µs to 796 µs (T₂ from 95 µs to 343 µs). Fed through the same simulator, its noise budget lowers the gross code's logical error 8–17× relative to a conventional cryostat budget, to about 10⁻⁶ per logical qubit per round. The model also predicts about 5,900 qubits per large-format refrigerator: 20 Toroid modules and 192 logical memory qubits, against about 730 qubits for coax with room-temperature control. Radiation bursts remain the dominant open risk. A one-day computation on 20 dies needs a per-impact logical failure probability ≲ 2 × 10⁻⁶ at a surface site.
 
 ## 1. Introduction
 
@@ -104,7 +104,15 @@ The layout engine confirms a planar die (540 couplers, 0 crossings) and 324 inte
 
 ### 5.6 Cooling → logical error
 
-{{CRYO_QEC}}
+We fed both noise budgets from Section 5.5, unchanged and untuned, into the same memory simulator.
+
+| Code | Conventional budget | AURORA-CRYO budget | improvement |
+|---|---|---|---|
+| gross [[144,12,12]] | 1.5 × 10⁻⁵ (18 failures / 17,152 shots) | **1.8 × 10⁻⁶** measured (4 / 30,208; 95 % upper bound 4.7 × 10⁻⁶); 8.8 × 10⁻⁷ from a fit of the ×2 and ×3 scaled budgets | 8–17× |
+| bb72 [[72,12,6]] | 2.9 × 10⁻⁴ (100 / 4,907) | 3.4 × 10⁻⁵ (100 / 40,456) | 8× |
+| surface d = 7 | 3.7 × 10⁻⁴ (100 / 38,668) | 8.6 × 10⁻⁶ (18 / 300,000) | 43× |
+
+*Logical error per logical qubit per round (simulated).* Under either budget, the gross code beats surface d = 7 with 4× fewer qubits per logical qubit: about 25× better under the conventional budget and about 5–10× under AURORA-CRYO. The surface code gains more from the cooling design (43×) because its d-round experiment is dominated by data idle error during measurement and reset, which AURORA-CRYO cuts about 4×. For the gross code, AURORA-CRYO brings memory to about 10⁻⁶ per logical qubit per round. A 12-qubit module then fails about once per 8 × 10⁴ rounds (≈ 0.1 s at a 1.24 µs cycle). That is enough for memory and benchmarking, but long algorithms will need the two-gross code (d = 18) or lower physical error. We did not run the scaled budgets for bb72 and surface codes, or the surface d = 9 budget runs; none of these comparisons needs them.
 
 ### 5.7 Refrigerator capacity
 
@@ -127,7 +135,8 @@ With 0.1 impacts per cm² per second (assumption, consistent with "every few sec
 |---|---|---|
 | Physical qubits | 5,760 in 20 modules (≤ 5,901 modelled capacity) | model |
 | Logical memory | 16 × 12 = 192 logical qubits | proposal |
-| Memory error (uniform p = 0.2 %) | 6.9 × 10⁻⁵ per logical qubit per round | simulated |
+| Memory error, uniform p = 0.2 % | 6.9 × 10⁻⁵ per logical qubit per round | simulated |
+| Memory error, AURORA-CRYO noise budget | 1.8 × 10⁻⁶ per logical qubit per round (4 failures; fit 8.8 × 10⁻⁷) | simulated |
 | Syndrome cycle | ≈ 1.24 µs interleaved (design) | proposal |
 | Decoding | Relay-BP, FPGA, < 240 ns per 12-cycle window (reported estimate) | literature |
 | Qubits per logical (system) | 5,760 / 192 = 30 | proposal |

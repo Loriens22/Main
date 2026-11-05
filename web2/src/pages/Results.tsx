@@ -93,7 +93,7 @@ export default function Results() {
                 ...cq[c].filter((x: any) => x.label === 'conventional').map((x: any) => ({ name: 'Conventional cryo', v: Math.max(x.ler, 1e-9), lo: x.lo, hi: x.hi })),
                 ...cq[c].filter((x: any) => x.label === 'aurora_x1.0').map((x: any) => ({ name: 'AURORA-CRYO', v: Math.max(x.errors > 0 ? x.ler : (x.extrapolated ?? x.hi), 1e-9), lo: x.errors > 0 ? x.lo : undefined, hi: x.errors > 0 ? x.hi : undefined })),
               ],
-            }))} caption="Both budgets come from the same coherence model (Cooling Lab, section 2). Where AURORA-CRYO produced too few failures to measure, the bar shows a fit of runs with the whole budget scaled ×1.5–3 (labelled in the table below)." />
+            }))} caption="Both budgets come from the same coherence model (Cooling Lab, section 2). The gross code under AURORA-CRYO had only 4 failures; the table also gives a fit from runs with the whole budget scaled ×2 and ×3." />
             <div className="table-wrap" style={{ marginTop: '0.8rem' }}>
               <table>
                 <thead><tr><th>Code</th><th>Budget</th><th className="num">shots</th><th className="num">failures</th><th className="num">error / qubit / round</th></tr></thead>
