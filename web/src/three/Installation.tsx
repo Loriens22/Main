@@ -1,7 +1,8 @@
-import { Html, OrbitControls, useGLTF } from '@react-three/drei';
+import { Html, OrbitControls } from '@react-three/drei';
 import { useFrame, useThree, type ThreeEvent } from '@react-three/fiber';
 import { useEffect, useMemo, useRef } from 'react';
 import * as THREE from 'three';
+import { loadGLB, useGLB } from './glb';
 import type { OrbitControls as OrbitImpl } from 'three-stdlib';
 import { STAGE_TEMPS } from '../data/components';
 
@@ -46,7 +47,7 @@ function tempColor(k: number) {
 }
 
 export function InstallationModel(p: Props) {
-  const gltf = useGLTF(INSTALLATION_URL, false, false);
+  const gltf = useGLB(INSTALLATION_URL);
   const root = gltf.scene;
   const controls = useRef<OrbitImpl>(null);
   const { camera } = useThree();
@@ -60,6 +61,7 @@ export function InstallationModel(p: Props) {
       if (o.userData?.component && !String(o.userData.component).startsWith('pkg_') && !String(o.userData.component).startsWith('chip_')) {
         const ex = o.userData.explode as number[] | undefined;
         comps.push({ node: o, base: o.position.clone(), ex: new THREE.Vector3(...(ex ?? [0, 0, 0])), id: o.userData.component, shield: !!o.userData.shield });
+        if (o.userData.shield) o.visible = false; // hidden from the very first frame; effects below may reveal them
       }
       if ((o as THREE.Mesh).isMesh) {
         const m = o as THREE.Mesh;
@@ -178,4 +180,4 @@ function SignalFlow() {
   );
 }
 
-useGLTF.preload(INSTALLATION_URL, false, false);
+loadGLB(INSTALLATION_URL);

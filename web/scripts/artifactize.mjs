@@ -7,7 +7,7 @@ const dist = new URL('../dist/', import.meta.url).pathname;
 const out = new URL('../dist-artifact/', import.meta.url).pathname;
 if (existsSync(out)) rmSync(out, { recursive: true });
 mkdirSync(out, { recursive: true });
-cpSync(dist, out, { recursive: true });
+cpSync(dist, out, { recursive: true, filter: (src) => !src.endsWith('.glb') });
 
 let html = readFileSync(join(dist, 'index.html'), 'utf8');
 const css = [...html.matchAll(/<link rel="stylesheet"[^>]*href="(\.\/assets\/[^"]+\.css)"[^>]*>/g)];

@@ -4,6 +4,10 @@
 
 > **AURORA-Q is a design study, not a fabricated quantum computer.** All quantum results are simulations (browser engine validated against Qiskit/Aer; Stim + PyMatching for QEC; QuTiP for reset physics). Every claim on the site and in the report is graded as *reported literature*, *simulated (this work)*, *analytical model*, *engineering proposal*, *contested* or *negative result*.
 
+## Live platform
+
+**https://claude.ai/artifact/PvqLPMwbhB2j5bLreAyXQi**: the full site (3D explorer and digital twin, Quantum Lab, Quantum AI lab, architecture, report, benchmarks, docs). It is private to its owner until shared from the page's Share menu. Everything runs client-side; the Python backend is optional for local use.
+
 ## What is in this repository
 
 | Path | Contents |

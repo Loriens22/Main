@@ -11,3 +11,4 @@ blender/textures/
 web/public/renders/*.png
 *.egg-info/
 .DS_Store
+web/public/models/*.glb.json

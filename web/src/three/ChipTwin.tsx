@@ -1,10 +1,11 @@
 // Digital twin of the AURORA-Q T1 die. Qubit/coupler activity is driven by the routed schedule of the
 // circuit you executed (real engine output) — never by a canned animation.
 
-import { Html, OrbitControls, useGLTF } from '@react-three/drei';
+import { Html, OrbitControls } from '@react-three/drei';
 import { useFrame } from '@react-three/fiber';
 import { useEffect, useMemo, useRef } from 'react';
 import * as THREE from 'three';
+import { loadGLB, useGLB } from './glb';
 import type { TwinRun } from '../lib/store';
 import { clbitMarginals } from '../lib/twin';
 
@@ -18,14 +19,14 @@ export interface ChipLayout {
 }
 
 const COL = {
-  idle: new THREE.Color('#9db0d0'), used: new THREE.Color('#2f6cff'), g1: new THREE.Color('#7fb0ff'), g2: new THREE.Color('#b9a2ff'),
+  idle: new THREE.Color('#5577b8'), used: new THREE.Color('#2f6cff'), g1: new THREE.Color('#7fb0ff'), g2: new THREE.Color('#b9a2ff'),
   meas: new THREE.Color('#e8c27a'), reset: new THREE.Color('#3ecf8e'), swap: new THREE.Color('#ff8f6b'),
 };
 
 export function ChipTwinModel({ layout, twin, time, explode, onHover, showInterposer }: {
   layout: ChipLayout; twin: TwinRun | null; time: number; explode: number; onHover?: (q: number | null) => void; showInterposer: boolean;
 }) {
-  const gltf = useGLTF(CHIP_URL, false, false);
+  const gltf = useGLB(CHIP_URL);
   const scene = useMemo(() => gltf.scene, [gltf]);
   const rings = useRef<THREE.InstancedMesh>(null);
   const glow = useRef<THREE.InstancedMesh>(null);
@@ -122,17 +123,17 @@ export function ChipTwinModel({ layout, twin, time, explode, onHover, showInterp
   return (
     <>
       <primitive object={scene} scale={S} />
-      <instancedMesh ref={rings} args={[undefined, undefined, pos.length]} onPointerMove={(e) => { e.stopPropagation(); onHover?.(e.instanceId ?? null); }} onPointerOut={() => onHover?.(null)}>
+      <instancedMesh ref={rings} renderOrder={10} args={[undefined, undefined, pos.length]} onPointerMove={(e) => { e.stopPropagation(); onHover?.(e.instanceId ?? null); }} onPointerOut={() => onHover?.(null)}>
         <ringGeometry args={[0.03, 0.038, 32]} />
-        <meshBasicMaterial toneMapped={false} transparent opacity={0.95} side={THREE.DoubleSide} />
+        <meshBasicMaterial toneMapped={false} transparent opacity={0.95} side={THREE.DoubleSide} depthTest={false} depthWrite={false} />
       </instancedMesh>
-      <instancedMesh ref={glow} args={[undefined, undefined, pos.length]}>
+      <instancedMesh ref={glow} renderOrder={11} args={[undefined, undefined, pos.length]}>
         <circleGeometry args={[0.027, 32]} />
-        <meshBasicMaterial toneMapped={false} transparent opacity={0.85} side={THREE.DoubleSide} blending={THREE.AdditiveBlending} depthWrite={false} />
+        <meshBasicMaterial toneMapped={false} transparent opacity={0.85} side={THREE.DoubleSide} blending={THREE.AdditiveBlending} depthWrite={false} depthTest={false} />
       </instancedMesh>
-      <lineSegments ref={lines}>
+      <lineSegments ref={lines} renderOrder={12}>
         <bufferGeometry />
-        <lineBasicMaterial color="#b9a2ff" toneMapped={false} linewidth={2} />
+        <lineBasicMaterial color="#b9a2ff" toneMapped={false} linewidth={2} depthTest={false} />
       </lineSegments>
       <OrbitControls makeDefault target={[0, 0, 0]} enableDamping minDistance={0.25} maxDistance={6} maxPolarAngle={Math.PI * 0.49} />
     </>
@@ -148,4 +149,4 @@ export function QubitTag({ layout, q }: { layout: ChipLayout; q: number }) {
   );
 }
 
-useGLTF.preload(CHIP_URL, false, false);
+loadGLB(CHIP_URL);

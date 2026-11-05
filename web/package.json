@@ -5,7 +5,7 @@
   "type": "module",
   "scripts": {
     "dev": "vite",
-    "build": "tsc --noEmit && vite build && node scripts/artifactize.mjs",
+    "build": "node scripts/pack-models.mjs && tsc --noEmit && vite build && node scripts/artifactize.mjs",
     "test": "vitest run",
     "typecheck": "tsc --noEmit"
   },

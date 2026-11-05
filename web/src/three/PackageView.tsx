@@ -1,7 +1,8 @@
-import { OrbitControls, useGLTF } from '@react-three/drei';
+import { OrbitControls } from '@react-three/drei';
 import { useFrame, type ThreeEvent } from '@react-three/fiber';
 import { useEffect, useMemo, useRef } from 'react';
 import * as THREE from 'three';
+import { loadGLB, useGLB } from './glb';
 
 export const PACKAGE_URL = 'models/aurora_package.glb';
 const S = 0.02; // mm -> scene units
@@ -15,7 +16,7 @@ function nearestComponent(o: THREE.Object3D | null): string | null {
 }
 
 export function PackageModel({ explode, selected, onSelect, hideLid }: { explode: number; selected: string | null; onSelect: (id: string | null) => void; hideLid: boolean }) {
-  const gltf = useGLTF(PACKAGE_URL, false, false);
+  const gltf = useGLB(PACKAGE_URL);
   const scene = gltf.scene;
   const ex = useRef(0);
   const comps = useMemo(() => {
@@ -57,4 +58,4 @@ export function PackageModel({ explode, selected, onSelect, hideLid }: { explode
   );
 }
 
-useGLTF.preload(PACKAGE_URL, false, false);
+loadGLB(PACKAGE_URL);
