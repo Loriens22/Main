@@ -1,0 +1,14 @@
+{
+ "files": [
+  "aurora_lattice.json",
+  "chemistry.json",
+  "engine_connectivity.json",
+  "mitigation.json",
+  "qec.json",
+  "qml.json",
+  "reset.json",
+  "scalability.json",
+  "topologies.json"
+ ],
+ "generated": "2026-11-05T12:37:45Z"
+}

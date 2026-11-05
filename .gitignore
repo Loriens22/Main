@@ -1,0 +1,13 @@
+node_modules/
+web/dist/
+web/dist-artifact/
+__pycache__/
+*.pyc
+.pytest_cache/
+backend/aurora.sqlite3
+backend/results/*.log
+blender/out/
+blender/textures/
+web/public/renders/*.png
+*.egg-info/
+.DS_Store

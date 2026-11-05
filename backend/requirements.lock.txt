@@ -1,0 +1,14 @@
+bpy==5.2.3
+fastapi==0.162.0
+networkx==3.7
+numpy==2.5.3
+pydantic==2.13.5
+PyMatching==2.4.0
+pyscf==2.15.0
+qiskit==2.6.1
+qiskit-aer==0.18.2
+qutip==5.3.1
+scikit-learn==1.9.1
+scipy==1.18.1
+stim==1.16.0
+uvicorn==0.54.0

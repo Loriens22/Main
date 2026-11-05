@@ -1,0 +1,191 @@
+{
+ "meta": {
+  "experiment": "scalability",
+  "generated_utc": "2026-11-05T12:34:49+00:00",
+  "params": {
+   "tile": {
+    "qubits": 120,
+    "couplers": 218,
+    "reset_elements": 120,
+    "feedlines": 12
+   },
+   "wiring": {
+    "xy_drive_lines_per_qubit": 1.0,
+    "coupler_flux_lines_per_coupler": 1.0,
+    "reset_lines_per_qubit": 0.25,
+    "readout_lines_per_feedline": 2.0,
+    "note": "Line counts follow the published element counts of a Nighthawk-class tile; multiplexing ratios are assumptions."
+   },
+   "routing_overhead": 2.0
+  },
+  "seeds": null,
+  "environment": {
+   "python": "3.13.18",
+   "platform": "Linux-6.18.44-fc-v236-x86_64-with-glibc2.39",
+   "qiskit": "2.6.1",
+   "qiskit_aer": "0.18.2",
+   "stim": "1.16.0",
+   "pymatching": "2.4.0",
+   "numpy": "2.5.3",
+   "scipy": "1.18.1",
+   "scikit_learn": "1.9.1"
+  },
+  "nature_of_results": "simulation / analytical model \u2014 not measurements on physical AURORA-Q hardware"
+ },
+ "fit": {
+  "A": 0.05416125955692674,
+  "Lambda": 9.415974645103105,
+  "source": "fit to qec.json (aurora_q_target, aurora_overlapped)",
+  "points": [
+   {
+    "d": 3,
+    "eps": 0.0005699828473241242
+   },
+   {
+    "d": 5,
+    "eps": 7.452221092901778e-05
+   },
+   {
+    "d": 7,
+    "eps": 6.428819401549379e-06
+   }
+  ]
+ },
+ "rows": [
+  {
+   "target_eps_per_op": 1e-06,
+   "d": 11,
+   "logical_qubits": 1,
+   "physical_per_logical_surface": 241,
+   "total_physical_surface": 482,
+   "tiles_surface": 5,
+   "lines_surface": 1960.0,
+   "gross_code_physical": 576,
+   "tiles_gross": 5
+  },
+  {
+   "target_eps_per_op": 1e-06,
+   "d": 11,
+   "logical_qubits": 10,
+   "physical_per_logical_surface": 241,
+   "total_physical_surface": 4820,
+   "tiles_surface": 41,
+   "lines_surface": 16072.0,
+   "gross_code_physical": 576,
+   "tiles_gross": 5
+  },
+  {
+   "target_eps_per_op": 1e-06,
+   "d": 11,
+   "logical_qubits": 100,
+   "physical_per_logical_surface": 241,
+   "total_physical_surface": 48200,
+   "tiles_surface": 402,
+   "lines_surface": 157584.0,
+   "gross_code_physical": 5184,
+   "tiles_gross": 44
+  },
+  {
+   "target_eps_per_op": 1e-06,
+   "d": 11,
+   "logical_qubits": 1000,
+   "physical_per_logical_surface": 241,
+   "total_physical_surface": 482000,
+   "tiles_surface": 4017,
+   "lines_surface": 1574664.0,
+   "gross_code_physical": 48384,
+   "tiles_gross": 404
+  },
+  {
+   "target_eps_per_op": 1e-09,
+   "d": 19,
+   "logical_qubits": 1,
+   "physical_per_logical_surface": 721,
+   "total_physical_surface": 1442,
+   "tiles_surface": 13,
+   "lines_surface": 5096.0,
+   "gross_code_physical": 576,
+   "tiles_gross": 5
+  },
+  {
+   "target_eps_per_op": 1e-09,
+   "d": 19,
+   "logical_qubits": 10,
+   "physical_per_logical_surface": 721,
+   "total_physical_surface": 14420,
+   "tiles_surface": 121,
+   "lines_surface": 47432.0,
+   "gross_code_physical": 576,
+   "tiles_gross": 5
+  },
+  {
+   "target_eps_per_op": 1e-09,
+   "d": 19,
+   "logical_qubits": 100,
+   "physical_per_logical_surface": 721,
+   "total_physical_surface": 144200,
+   "tiles_surface": 1202,
+   "lines_surface": 471184.0,
+   "gross_code_physical": 5184,
+   "tiles_gross": 44
+  },
+  {
+   "target_eps_per_op": 1e-09,
+   "d": 19,
+   "logical_qubits": 1000,
+   "physical_per_logical_surface": 721,
+   "total_physical_surface": 1442000,
+   "tiles_surface": 12017,
+   "lines_surface": 4710664.0,
+   "gross_code_physical": 48384,
+   "tiles_gross": 404
+  },
+  {
+   "target_eps_per_op": 1e-12,
+   "d": 25,
+   "logical_qubits": 1,
+   "physical_per_logical_surface": 1249,
+   "total_physical_surface": 2498,
+   "tiles_surface": 21,
+   "lines_surface": 8232.0,
+   "gross_code_physical": 576,
+   "tiles_gross": 5
+  },
+  {
+   "target_eps_per_op": 1e-12,
+   "d": 25,
+   "logical_qubits": 10,
+   "physical_per_logical_surface": 1249,
+   "total_physical_surface": 24980,
+   "tiles_surface": 209,
+   "lines_surface": 81928.0,
+   "gross_code_physical": 576,
+   "tiles_gross": 5
+  },
+  {
+   "target_eps_per_op": 1e-12,
+   "d": 25,
+   "logical_qubits": 100,
+   "physical_per_logical_surface": 1249,
+   "total_physical_surface": 249800,
+   "tiles_surface": 2082,
+   "lines_surface": 816144.0,
+   "gross_code_physical": 5184,
+   "tiles_gross": 44
+  },
+  {
+   "target_eps_per_op": 1e-12,
+   "d": 25,
+   "logical_qubits": 1000,
+   "physical_per_logical_surface": 1249,
+   "total_physical_surface": 2498000,
+   "tiles_surface": 20817,
+   "lines_surface": 8160264.0,
+   "gross_code_physical": 48384,
+   "tiles_gross": 404
+  }
+ ],
+ "lines_per_tile": 392.0,
+ "gross_code_reference": "[[144,12,12]] uses 288 physical qubits for 12 logical (Bravyi et al., Nature 627, 778 (2024)); requires degree-6 connectivity that the AURORA-Q square tile does NOT provide without long-range couplers.",
+ "runtime_s": 0.0008969306945800781
+}

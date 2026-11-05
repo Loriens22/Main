@@ -1,0 +1,24 @@
+[project]
+name = "aurora-q"
+version = "1.0.0"
+description = "AURORA-Q research backend: quantum simulation, QEC, architecture experiments and API"
+requires-python = ">=3.11"
+dependencies = [
+  "qiskit>=2.1", "qiskit-aer>=0.17", "stim>=1.14", "pymatching>=2.2", "numpy>=2.0", "scipy>=1.13",
+  "scikit-learn>=1.5", "networkx>=3.3", "pyscf>=2.6", "qutip>=5.0", "fastapi>=0.115", "uvicorn[standard]>=0.30",
+  "pydantic>=2.7",
+]
+
+[project.optional-dependencies]
+ibm = ["qiskit-ibm-runtime>=0.40"]
+test = ["pytest>=8", "httpx>=0.27"]
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+
+[build-system]
+requires = ["setuptools>=69"]
+build-backend = "setuptools.build_meta"
+
+[tool.setuptools.packages.find]
+include = ["aurora*"]
