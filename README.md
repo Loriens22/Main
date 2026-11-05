@@ -54,3 +54,32 @@ cd blender && python build_parts.py && python build_installation.py && python re
 ## Limitations
 
 No hardware was fabricated or measured; device parameters are assumptions or targets. Vendor pages were read through a search service's sourced digests rather than directly (see `research/sources.md`). Noise models are Markovian Pauli/thermal approximations. See §17 of the report.
+
+---
+
+# AURORA-Q2: Toroid chip + AURORA-CRYO cooling architecture
+
+A second study proposes a full machine: **Toroid**, a superconducting chip that embeds the gross bivariate-bicycle code [[144,12,12]] on a two-tier die stack, and **AURORA-CRYO**, a cooling and wiring architecture designed around it. Like the first study, it is a design study, and every number is simulated, modelled or sourced.
+
+**Live site:** LIVE_Q2_URL (3D explorer of the refrigerator, module and chip; in-browser BP-OSD decoder lab; cooling lab; results; research paper; comparison with other platforms). It is private to its owner until shared.
+
+| Result (simulated or modelled) | Value |
+|---|---|
+| Gross-code logical error per logical qubit per round, p = 0.2 % / 0.3 % | 6.9e-5 / 6.6e-4 (Stim + BP-OSD) |
+| Surface code needed to match it | d = 13 → 337 vs 24 physical qubits per logical qubit (14×) |
+| Toroid die / interposer | 540 nearest-neighbour couplers, 0 crossings / 324 couplers in 2 Manhattan layers, ≤ 11 tracks per channel (straight routing would need 13 layers) |
+| Heralded erasures (gross, p = 0.5 %) | 6× / 49× / 150× lower error at 50 / 90 / 97.5 % of CNOT errors heralded |
+| Dual-rail vs transmon at equal transmon count | dual-rail affords only 0.85–1.8× raw error → negative result, transmons kept |
+| AURORA-CRYO coherence model | T_φ,thermal 121 → 796 µs; T₂ 95 → 343 µs |
+| Qubits per refrigerator (model) | 727 (coax + RT control) → 5,901 (AURORA-CRYO with 12 W extra 4 K cooling) |
+| Radiation (20 dies) | unmitigated MTBF ≈ 0.2 s; a one-day run needs p_fail ≲ 2e-6 per impact (open risk) |
+
+```bash
+cd backend && python -m pytest tests/test_q2.py
+python -m aurora.q2.study qec && python -m aurora.q2.study cryo
+python -m aurora.q2.resources && python -m aurora.q2.export
+cd ../blender && python build_q2.py && python render_q2.py all 64
+cd ../web2 && npm test && npm run build      # dist-artifact/ is the published site
+```
+
+Files: `backend/aurora/q2/` (codes, memory circuits, cryo models, layout, analysis), `blender/aurora3d/q2chip.py`, `q2system.py`, `web2/` (site), `research/sources.md` sections 10–14.

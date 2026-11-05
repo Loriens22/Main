@@ -50,7 +50,7 @@ export default function Explore() {
   const [selected, setSelected] = useState<string | null>(null);
   const [comps, setComps] = useState<{ id: string; label: string; shield: boolean }[]>([]);
   const [overlay, setOverlay] = useState<'all' | 'long' | 'none'>('all');
-  const [qubit, setQubit] = useState<string | null>('L37');
+  const [qubit, setQubit] = useState<string | null>('L40');
   const quality = useStore((s) => s.quality);
   const setQuality = useStore((s) => s.setQuality);
   const { data: layout } = useData<Layout>('q2_layout');

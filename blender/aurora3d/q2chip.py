@@ -394,7 +394,7 @@ def build_toroid(parent=None, origin=(0, 0, 0), mats=None, lod=2):
             ip.add(K.box(0.16, 0.3, 0.01, matrix=K.T(x, sy * (H / 2 + 0.2), z_ip + 0.385), uv=None), M["gold"])
     ip.build()
     tsv = [K.T(-W / 2 + 0.4 + i * (W - 0.8) / 47, sy * (H / 2 + 0.2), z_ip + 0.19) for i in range(48) for sy in (-1, 1)]
-    tsv += [K.T((i - R / 2 + 0.5) * p * 2, (j - C / 2 + 0.5) * p * 2, z_ip + 0.19) for i in range(R // 2) for j in range(C // 2)]
+    tsv += [K.T((i - R / 4 + 0.5) * p * 2, (j - C / 4 + 0.5) * p * 2, z_ip + 0.19) for i in range(R // 2) for j in range(C // 2)]
     K.instances("q2_tsv", K.cylinder(0.025, 0.38, segments=10, uv=None), M["copper"], tsv, ip.node)
     return root, L, {"tracks": maxt, "track_pitch_mm": tp, "vias": len(vias), "signal_bumps": len(sb),
                      "ground_bumps": len(gb)}

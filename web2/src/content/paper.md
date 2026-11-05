@@ -73,7 +73,7 @@ The MXC carries 20 module positions on copper cold fingers: 16 memory modules (1
 
 *Logical error per logical qubit per round (simulated).* The surface code's suppression factor across d = 5–9 is Λ = 2.88, 1.84 and 1.48 at p = 0.2, 0.3 and 0.4 % and collapses to about 1 above 0.5 %. This places the threshold of our schedule and decoder near 0.5–0.6 %, lower than the 0.7 % reported for the optimised depth-7 BB cycle [^1], as expected for a deeper circuit. At every p below threshold the gross code beats surface d = 9 while using 6.7× fewer qubits per logical qubit.
 
-A power-law fit of the gross code over p = 0.2–0.4 % gives ε ∝ p^5.6. Extrapolated to p = 10⁻³ this predicts about 1.4 × 10⁻⁶ per logical qubit per round. That value is an extrapolation over a factor of two in p with only three points, and should be read as an order of magnitude.
+A power-law fit of the gross code over p = 0.2–0.4 % gives an exponent of 5.6. Extrapolated to p = 10⁻³ this predicts about 1.4 × 10⁻⁶ per logical qubit per round. That value is an extrapolation over a factor of two in p with only three points, and should be read as an order of magnitude.
 
 ### 5.2 Equal-error overhead
 
