@@ -330,6 +330,37 @@ def curve_tube(points, radius, closed=False, res_u=4, bevel_res=2, ribbon_width=
     return bm
 
 
+def flat_strip(points, width, thickness, wdir, samples=8):
+    """Flat ribbon (e.g. flex cable) along a smooth path with a fixed width direction."""
+    P = [Vector(p) for p in points]
+    pts = []
+    for i in range(len(P) - 1):
+        p0 = P[i - 1] if i > 0 else P[i]
+        p1, p2 = P[i], P[i + 1]
+        p3 = P[i + 2] if i + 2 < len(P) else P[i + 1]
+        for k in range(samples):
+            t = k / samples
+            t2, t3 = t * t, t * t * t
+            pts.append(0.5 * ((2 * p1) + (-p0 + p2) * t + (2 * p0 - 5 * p1 + 4 * p2 - p3) * t2 + (-p0 + 3 * p1 - 3 * p2 + p3) * t3))
+    pts.append(P[-1])
+    w = Vector(wdir).normalized()
+    bm = bmesh.new()
+    rings = []
+    for i, c in enumerate(pts):
+        tan = (pts[min(i + 1, len(pts) - 1)] - pts[max(i - 1, 0)]).normalized()
+        n = tan.cross(w)
+        n = n.normalized() if n.length > 1e-9 else Vector((0, 0, 1))
+        hw, ht = w * (width / 2), n * (thickness / 2)
+        rings.append([bm.verts.new(c - hw + ht), bm.verts.new(c + hw + ht), bm.verts.new(c + hw - ht), bm.verts.new(c - hw - ht)])
+    for a, b in zip(rings[:-1], rings[1:]):
+        for k in range(4):
+            bm.faces.new((a[k], a[(k + 1) % 4], b[(k + 1) % 4], b[k]))
+    bm.faces.new(rings[0][::-1])
+    bm.faces.new(rings[-1])
+    _finish(bm, 40.0, None)
+    return bm
+
+
 def text_mesh(body: str, size: float, depth: float, font=FONT_BOLD, align="CENTER", matrix=None):
     cu = bpy.data.curves.new("txt", "FONT")
     cu.body = body

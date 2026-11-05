@@ -130,3 +130,62 @@ Legend: **[P]** primary source (vendor paper/blog/peer-reviewed), **[S]** second
 - E. Tang, *A quantum-inspired classical algorithm for recommendation systems*, STOC 2019.
 - M. X. Goemans, D. P. Williamson, J. ACM 42, 1115 (1995).
 - M. A. Nielsen, I. L. Chuang, *Quantum Computation and Quantum Information*, CUP (2010).
+
+---
+
+# AURORA-Q2 extension (Toroid chip + AURORA-CRYO), verified 2026-11-05
+
+Same grading as above (**P** = primary or primary-derived, **S** = secondary, **M** = someone else's model or estimate, not a measurement). All entries were checked this session through a search service's sourced digests. Pages were not opened directly, so numbers flagged *(digest)* should be checked against the PDF before external use.
+
+## 10. qLDPC architecture, decoding and logic
+
+| Fact | Source | Grade |
+|---|---|---|
+| *Tour de gross: a modular quantum computer based on bivariate bicycle codes* (IBM, 3 Jun 2025): code modules of 12 logical qubits, gross [[144,12,12]] and two-gross [[288,12,18]] codes, logical processing units (LPUs) attached to each module perform selective logical measurements by qLDPC surgery; claims ~10× larger logical circuits per physical qubit than surface-code architectures | arXiv:2506.03094 | P |
+| IBM Loon (12 Nov 2025): experimental processor with multiple low-loss routing layers for long-range on-chip couplers ("c-couplers"); real-time qLDPC decoding in < 480 ns; Nighthawk announced alongside (120 qubits, 218 tunable couplers) | IBM newsroom 2025-11-12; SiliconANGLE, HPCwire | P/S |
+| Relay-BP (Müller et al., IBM): BP with disordered, partly negative memory strengths; *Improved belief propagation is sufficient for real-time decoding of quantum memory* | arXiv:2506.01779 | P |
+| FPGA Relay-BP for the gross code: 24 ns per BP iteration; estimated < 240 ns average per 12-cycle window (AMD VU19P, int4 split X/Z) | arXiv:2510.21600 | P |
+| IBM Starling: 200 logical qubits, 10⁸ operations, 2029, Poughkeepsie; "roughly 10,000 physical qubits" (IBM representatives, via Live Science); Blue Jay 2033: 2,000 logical qubits, 10⁹ operations | press coverage of the 10 Jun 2025 roadmap | S |
+| Gidney, Shutty, Jones, *Magic state cultivation: growing T states as cheap as CNOT gates*: inside one surface-code patch; cost ≈ a lattice-surgery CNOT of similar reliability; 4×10⁻¹¹ logical error at 5×10⁻⁴ circuit noise | arXiv:2409.17595 | P |
+
+## 11. Erasure and bosonic qubits
+
+| Fact | Source | Grade |
+|---|---|---|
+| Levine et al., *Demonstrating a long-coherence dual-rail erasure qubit using tunable transmons*, PRX 14, 011051 (2024): erasure ≈ 2.19(2)×10⁻³ per single-qubit gate, residual errors ≈ 40× lower; mid-circuit erasure check adds < 0.1 % dephasing; ms-scale coherence in the dual-rail subspace | arXiv:2307.08737 | P |
+| AWS Ocelot (Putterman et al., Nature 2025): 5 cat data qubits + 4 transmon ancillas (+ buffer modes), outer repetition code d = 5; logical error ≈ 1.75 %/cycle (d=3) → 1.65 %/cycle (d=5); AWS claims up to 90 % QEC overhead reduction (company claim). The digest garbled the paper title. | Amazon Science blog; Physics World | P/S |
+
+## 12. Cryogenic engineering, wiring and control
+
+| Fact | Source | Grade |
+|---|---|---|
+| Lecocq et al., *Control and readout of a superconducting qubit using a photonic link*, Nature 591, 575 (2021): photodiode at 20 mK; passive load **14 nW per 0.085″ stainless-steel coax** (measured) against a typical ~20 µW MXC cooling power; with fibre, active optical dissipation becomes the limit | arXiv:2009.01167 | P |
+| Wang et al., *Cavity attenuators for superconducting qubits*, PR Applied 11, 014031 (2019): MXC-thermalised dissipative cavity; T₂E/2T₁ = 1.0 (+0.0/−0.1); residual readout-cavity photon population **≤ 2×10⁻⁴** | arXiv:1807.04849 | P |
+| Cryo-CMOS at 4 K: IBM 14 nm FinFET controller ≈ **23 mW/qubit**, EPC 7.76×10⁻⁴ (comparable to room-temperature control); Bardin et al. 28 nm bulk CMOS **< 2 mW/qubit**; Intel 22 nm controller addressing 128 frequency-multiplexed qubits over 4 channels | IBM Research publication page; digests | P *(digest)* |
+| Hybrid photonic/CMOS controller proposal: 0.905 mW per control channel (model), 3.448 mW for a normalised cryo-CMOS reference | arXiv:2606.10114 | M |
+| Flexible striplines: about an order of magnitude higher cabling density without thermal overload (Paluch et al.); flex with integrated attenuators/filters equivalent to coax for transmon pulses (Monarkha et al., Bluefors/Delft Circuits) | arXiv:2410.01053; arXiv:2405.09211 | P |
+| Semi-rigid coax at the MXC: practical limit ≈ **140 qubits** with engineering margin | arXiv:2502.01945 | M |
+| Bluefors KIDE: 10 mK base; **> 90 µW at 20 mK, > 3,000 µW at 100 mK** (three sections); 1.6 m² base flange; > 4,000 RF lines; 500 kg payload; three dilution units each equal to an XLD1000sl (30 µW at 20 mK, 1,000 µW at 100 mK); nine pulse tubes; positioned for > 1,000 qubits (company claim) | bluefors.com KIDE page | P (company) |
+| Third-party KIDE thermal model: ≈ 6 W at 4 K, ≈ 90 W at 50 K | arXiv:2608.00990 | M |
+| Kawabata review, *Integration and resource estimation of cryoelectronics for superconducting FTQCs*: tens of µW at 10–20 mK shared by processor, wiring and base-stage electronics; heterogeneous cryo-CMOS (4 K) + superconducting logic | arXiv:2601.03922 | P (review) |
+| Quantum-circuit refrigerator (Tan et al., Nat. Commun. 8, 15189 (2017)): photon-assisted NIS tunnelling, tunable dissipation; follow-up: qubit reset from 100 % to a few % in < 100 ns, non-exponential (APS March 2023); Sevriuk et al., APL 2022 | PMC5424155; APS abstract | P |
+
+## 13. Radiation, quasiparticles, coherence
+
+| Fact | Source | Grade |
+|---|---|---|
+| McEwen et al., *Resolving catastrophic error bursts from cosmic rays in large arrays of superconducting qubits*, Nat. Phys. 18, 107 (2022): impacts make chip-wide correlated error bursts via phonons → quasiparticles; Google blog: an impact roughly **every few seconds** | arXiv:2104.05219; Google Research blog (Jan 2022) | P |
+| McEwen et al., *Resisting high-energy impact events through gap engineering in superconducting qubit arrays*, PRL 133, 240601 (2024): strongly gap-engineered qubits show **no T1 degradation** during impacts and resist optical QP poisoning | arXiv:2402.15644 | P |
+| Vepsäläinen et al., Nature 584, 551 (2020): ionizing radiation raises QP density and would limit such qubits to **ms-range coherence**; lead shielding gives a modest improvement | arXiv:2001.09190 | P |
+| Cardani et al., Nat. Commun. 12 (2021), doi:10.1038/s41467-021-23032-z: underground (Gran Sasso) with lead shielding, **QP burst rate × 1/50**, dissipation up to × 1/4 | arXiv:2005.02286 | P |
+| Fluxonium: Somoroff et al. (arXiv:2103.08578) T₂* = 1.48 ± 0.13 ms, 1Q fidelity > 0.9999; Ding et al., PRX 13, 031035 (2023): 99.9 % 2Q gates with a transmon coupler (digest) | arXiv; phys.org | P/S |
+
+## 14. Foundational references used in models (standard results, not re-verified this session)
+
+- G. Catelani et al., PRL 106, 077002 (2011) and PRB 84, 064517 (2011): quasiparticle relaxation Γ = x_qp·√(2ω₁₀Δ/(π²ħ)).
+- A. A. Clerk, D. W. Utami, PRA 75, 042302 (2007): thermal-photon dephasing; low-n limit Γφ = n̄κ·4χ²/(κ² + 4χ²).
+- P. Panteleev, G. Kalachev (2021); J. Roffe et al., *Decoding across the quantum LDPC code landscape*, PRR 2, 043423 (2020) (BP-OSD, `ldpc` package).
+- A. Kubica et al., *Erasure qubits: overcoming the T1 limit in superconducting circuits*, PRX 13, 041022 (2023); Y. Wu et al., *Erasure conversion for fault-tolerant quantum computing in alkaline earth Rydberg atom arrays*, Nat. Commun. 13, 4657 (2022).
+- J.-H. Yeh et al., *Microwave attenuators for use with quantum devices below 100 mK*, J. Appl. Phys. 121, 224501 (2017).
+- J. M. Martinis, *Saving superconducting quantum processors from decay and correlated errors generated by gamma and cosmic rays*, npj Quantum Inf. 7, 90 (2021) (phonon down-conversion / normal-metal traps).
+- F. Henriques et al., *Phonon traps reduce the quasiparticle density in superconducting circuits*, APL 115, 212601 (2019).

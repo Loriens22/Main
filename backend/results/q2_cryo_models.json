@@ -1,0 +1,527 @@
+{
+ "architectures": {
+  "conventional": {
+   "label": "Conventional (coax + room-temperature electronics)",
+   "chain": [
+    {
+     "name": "300 K source",
+     "n": 892.4980557469379
+    },
+    {
+     "name": "4 K",
+     "n": 20.2244817542647,
+     "dB": 20,
+     "T_eff": 4.0
+    },
+    {
+     "name": "Cold plate 100 mK",
+     "n": 0.23788974095444812,
+     "dB": 20,
+     "T_eff": 0.1
+    },
+    {
+     "name": "MXC 10 mK",
+     "n": 0.002946001952441955,
+     "dB": 20,
+     "T_eff": 0.045
+    }
+   ],
+   "n_readout": 0.002966001952441955,
+   "n_line_model": 0.002966001952441955,
+   "Gamma_phi_thermal": 18635.939888649256,
+   "Tphi_thermal": 5.365975668386214e-05,
+   "Gamma_qp": 1187.506347765739,
+   "T1_qp": 0.0008421007617192723,
+   "T1": 0.0002952023988558897,
+   "T2": 4.80083886496999e-05,
+   "P_excited_thermal": 0.013134145318290658,
+   "cycle_time": 2.46e-06,
+   "noise": {
+    "p2": 0.0018514067741848997,
+    "p1": 0.0009009378494565998,
+    "p_idle": 0.0009009378494565998,
+    "p_idle_meas": 0.008446292338655624,
+    "p_meas": 0.0028468765869414346,
+    "p_reset": 0.005,
+    "f_herald": 0.0
+   }
+  },
+  "aurora": {
+   "label": "AURORA-CRYO",
+   "chain": [
+    {
+     "name": "300 K source",
+     "n": 892.4980557469379
+    },
+    {
+     "name": "4 K (cryo-CMOS output)",
+     "n": 20.2244817542647,
+     "dB": 20,
+     "T_eff": 4.0
+    },
+    {
+     "name": "Cold plate 100 mK",
+     "n": 0.23788974095444812,
+     "dB": 20,
+     "T_eff": 0.1
+    },
+    {
+     "name": "MXC cavity attenuator",
+     "n": 0.0024164328496481375,
+     "dB": 20,
+     "T_eff": 0.033
+    }
+   ],
+   "n_readout": 0.0024264328496481375,
+   "n_line_model": 0.0024264328496481375,
+   "Gamma_phi_thermal": 15245.727229767073,
+   "Tphi_thermal": 6.559214820841827e-05,
+   "Gamma_qp": 118.7506347765739,
+   "T1_qp": 0.008421007617192723,
+   "T1": 0.0004312667282984297,
+   "T2": 5.9153737589617355e-05,
+   "P_excited_thermal": 0.002085923737348662,
+   "cycle_time": 2.16e-06,
+   "noise": {
+    "p2": 0.0016838686718726186,
+    "p1": 0.0007225791145817458,
+    "p_idle": 0.0007225791145817458,
+    "p_idle_meas": 0.005419343359363093,
+    "p_meas": 0.0025796876586941433,
+    "p_reset": 0.002,
+    "f_herald": 0.0
+   }
+  }
+ },
+ "heat": {
+  "conventional": {
+   "system": "conventional",
+   "label": "Coax + room-temperature control",
+   "limits": {
+    "50 K": 5294,
+    "4 K": 727,
+    "Still": 6666,
+    "Cold plate": 2608,
+    "MXC": 1607,
+    "Line count": 941
+   },
+   "max_qubits": 727,
+   "limiting": "4 K",
+   "per_qubit_W": {
+    "50 K": 0.0085,
+    "4 K": 0.004125,
+    "Still": 6.75e-06,
+    "Cold plate": 5.75e-07,
+    "MXC": 2.8e-08
+   }
+  },
+  "flex": {
+   "system": "flex",
+   "label": "Superconducting flex + room-temperature control",
+   "limits": {
+    "50 K": 26470,
+    "4 K": 1237,
+    "Still": 52941,
+    "Cold plate": 17910,
+    "MXC": 7826,
+    "Line count": 9411
+   },
+   "max_qubits": 1237,
+   "limiting": "4 K",
+   "per_qubit_W": {
+    "50 K": 0.0017000000000000001,
+    "4 K": 0.002425,
+    "Still": 8.499999999999999e-07,
+    "Cold plate": 8.374999999999999e-08,
+    "MXC": 5.75e-09
+   }
+  },
+  "aurora": {
+   "system": "aurora",
+   "label": "AURORA-CRYO (4 K cryo-CMOS + flex + photonic drive)",
+   "limits": {
+    "50 K": 34615,
+    "4 K": 1967,
+    "Still": 69230,
+    "Cold plate": 25531,
+    "MXC": 8571,
+    "Line count": 12307
+   },
+   "max_qubits": 1967,
+   "limiting": "4 K",
+   "per_qubit_W": {
+    "50 K": 0.0013000000000000002,
+    "4 K": 0.001525,
+    "Still": 6.499999999999999e-07,
+    "Cold plate": 5.8749999999999993e-08,
+    "MXC": 5.250000000000001e-09
+   }
+  }
+ },
+ "heat_cmos_sweep": [
+  {
+   "cmos_mW": 0.25,
+   "base": 3870,
+   "plus12W": 8571
+  },
+  {
+   "cmos_mW": 0.5,
+   "base": 2926,
+   "plus12W": 8571
+  },
+  {
+   "cmos_mW": 1.0,
+   "base": 1967,
+   "plus12W": 5901
+  },
+  {
+   "cmos_mW": 2.0,
+   "base": 1188,
+   "plus12W": 3564
+  },
+  {
+   "cmos_mW": 5.0,
+   "base": 542,
+   "plus12W": 1628
+  },
+  {
+   "cmos_mW": 10.0,
+   "base": 285,
+   "plus12W": 855
+  },
+  {
+   "cmos_mW": 23.0,
+   "base": 127,
+   "plus12W": 382
+  }
+ ],
+ "heat_curves": {
+  "conventional": [
+   {
+    "n": 100,
+    "50 K": 0.8500000000000001,
+    "4 K": 0.41250000000000003,
+    "Still": 0.000675,
+    "Cold plate": 5.7499999999999995e-05,
+    "MXC": 2.8e-06
+   },
+   {
+    "n": 300,
+    "50 K": 2.55,
+    "4 K": 1.2374999999999998,
+    "Still": 0.002025,
+    "Cold plate": 0.0001725,
+    "MXC": 8.400000000000001e-06
+   },
+   {
+    "n": 1000,
+    "50 K": 8.5,
+    "4 K": 4.125,
+    "Still": 0.00675,
+    "Cold plate": 0.000575,
+    "MXC": 2.8e-05
+   },
+   {
+    "n": 3000,
+    "50 K": 25.5,
+    "4 K": 12.375,
+    "Still": 0.020250000000000004,
+    "Cold plate": 0.0017249999999999998,
+    "MXC": 8.4e-05
+   },
+   {
+    "n": 10000,
+    "50 K": 85.0,
+    "4 K": 41.25,
+    "Still": 0.0675,
+    "Cold plate": 0.005749999999999999,
+    "MXC": 0.00028
+   }
+  ],
+  "flex": [
+   {
+    "n": 100,
+    "50 K": 0.17,
+    "4 K": 0.24250000000000002,
+    "Still": 8.499999999999999e-05,
+    "Cold plate": 8.375e-06,
+    "MXC": 5.75e-07
+   },
+   {
+    "n": 300,
+    "50 K": 0.51,
+    "4 K": 0.7275,
+    "Still": 0.00025499999999999996,
+    "Cold plate": 2.5125e-05,
+    "MXC": 1.725e-06
+   },
+   {
+    "n": 1000,
+    "50 K": 1.7000000000000002,
+    "4 K": 2.425,
+    "Still": 0.00085,
+    "Cold plate": 8.375e-05,
+    "MXC": 5.75e-06
+   },
+   {
+    "n": 3000,
+    "50 K": 5.1000000000000005,
+    "4 K": 7.275,
+    "Still": 0.0025499999999999997,
+    "Cold plate": 0.00025125,
+    "MXC": 1.725e-05
+   },
+   {
+    "n": 10000,
+    "50 K": 17.0,
+    "4 K": 24.25,
+    "Still": 0.008499999999999999,
+    "Cold plate": 0.0008374999999999999,
+    "MXC": 5.75e-05
+   }
+  ],
+  "aurora": [
+   {
+    "n": 100,
+    "50 K": 0.13,
+    "4 K": 0.15250000000000002,
+    "Still": 6.5e-05,
+    "Cold plate": 5.874999999999999e-06,
+    "MXC": 5.250000000000001e-07
+   },
+   {
+    "n": 300,
+    "50 K": 0.39000000000000007,
+    "4 K": 0.4575,
+    "Still": 0.00019499999999999997,
+    "Cold plate": 1.7624999999999998e-05,
+    "MXC": 1.5750000000000002e-06
+   },
+   {
+    "n": 1000,
+    "50 K": 1.3000000000000003,
+    "4 K": 1.5250000000000001,
+    "Still": 0.00065,
+    "Cold plate": 5.874999999999999e-05,
+    "MXC": 5.2500000000000006e-06
+   },
+   {
+    "n": 3000,
+    "50 K": 3.9000000000000004,
+    "4 K": 4.575,
+    "Still": 0.00195,
+    "Cold plate": 0.00017624999999999997,
+    "MXC": 1.5750000000000003e-05
+   },
+   {
+    "n": 10000,
+    "50 K": 13.000000000000002,
+    "4 K": 15.25,
+    "Still": 0.006500000000000001,
+    "Cold plate": 0.0005874999999999999,
+    "MXC": 5.25e-05
+   }
+  ]
+ },
+ "params": {
+  "ARCH": {
+   "conventional": {
+    "label": "Conventional (coax + room-temperature electronics)",
+    "readout_f": 7000000000.0,
+    "qubit_f": 4500000000.0,
+    "chain": [
+     {
+      "name": "4 K",
+      "T": 4.0,
+      "T_eff": 4.0,
+      "dB": 20
+     },
+     {
+      "name": "Cold plate 100 mK",
+      "T": 0.1,
+      "T_eff": 0.1,
+      "dB": 20
+     },
+     {
+      "name": "MXC 10 mK",
+      "T": 0.01,
+      "T_eff": 0.045,
+      "dB": 20
+     }
+    ],
+    "out_line_n": 2e-05,
+    "T_eff_qubit": 0.05,
+    "x_qp": 3e-08,
+    "T1_dielectric": 0.0005,
+    "T1_purcell": 0.005,
+    "Tphi_other": 0.002,
+    "p2_control": 0.0005,
+    "p_sep": 0.002,
+    "p_reset": 0.005,
+    "t_2q": 6e-08,
+    "t_layer": 8e-08,
+    "t_meas": 5e-07,
+    "t_reset": 2.5e-07
+   },
+   "aurora": {
+    "label": "AURORA-CRYO",
+    "readout_f": 7000000000.0,
+    "qubit_f": 4500000000.0,
+    "chain": [
+     {
+      "name": "4 K (cryo-CMOS output)",
+      "T": 4.0,
+      "T_eff": 4.0,
+      "dB": 20
+     },
+     {
+      "name": "Cold plate 100 mK",
+      "T": 0.1,
+      "T_eff": 0.1,
+      "dB": 20
+     },
+     {
+      "name": "MXC cavity attenuator",
+      "T": 0.01,
+      "T_eff": 0.033,
+      "dB": 20
+     }
+    ],
+    "out_line_n": 1e-05,
+    "n_floor": 0.0002,
+    "T_eff_qubit": 0.035,
+    "x_qp": 3e-09,
+    "T1_dielectric": 0.0005,
+    "T1_purcell": 0.005,
+    "Tphi_other": 0.002,
+    "p2_control": 0.0006,
+    "p_sep": 0.002,
+    "p_reset": 0.002,
+    "t_2q": 6e-08,
+    "t_layer": 8e-08,
+    "t_meas": 5e-07,
+    "t_reset": 1e-07
+   }
+  },
+  "CAPACITY": {
+   "50 K": 90.0,
+   "4 K": 6.0,
+   "Still": 0.09,
+   "Cold plate": 0.003,
+   "MXC": 9e-05
+  },
+  "MARGIN": 0.5,
+  "LINE_CAPACITY": 4000,
+  "WIRING": {
+   "coax_ss": {
+    "50 K": 0.002,
+    "4 K": 0.0005,
+    "Still": 3e-06,
+    "Cold plate": 3e-07,
+    "MXC": 1.4e-08
+   },
+   "coax_nbti": {
+    "50 K": 0.002,
+    "4 K": 0.0005,
+    "Still": 1e-06,
+    "Cold plate": 6e-08,
+    "MXC": 3e-09
+   },
+   "flex": {
+    "50 K": 0.0004,
+    "4 K": 0.0001,
+    "Still": 2e-07,
+    "Cold plate": 1.5e-08,
+    "MXC": 1e-09
+   }
+  },
+  "SYSTEMS": {
+   "conventional": {
+    "label": "Coax + room-temperature control",
+    "lines": [
+     [
+      "coax_ss",
+      1.0
+     ],
+     [
+      "coax_nbti",
+      3.0
+     ],
+     [
+      "coax_ss",
+      0.25
+     ]
+    ],
+    "line_slots_per_qubit": 4.25,
+    "density": 1.0,
+    "active": {
+     "MXC": 1.5e-09,
+     "Cold plate": 2e-08,
+     "4 K": 0.002
+    },
+    "cmos_4k": 0.0
+   },
+   "flex": {
+    "label": "Superconducting flex + room-temperature control",
+    "lines": [
+     [
+      "flex",
+      4.25
+     ]
+    ],
+    "line_slots_per_qubit": 4.25,
+    "density": 10.0,
+    "active": {
+     "MXC": 1.5e-09,
+     "Cold plate": 2e-08,
+     "4 K": 0.002
+    },
+    "cmos_4k": 0.0
+   },
+   "aurora": {
+    "label": "AURORA-CRYO (4 K cryo-CMOS + flex + photonic drive)",
+    "lines": [
+     [
+      "flex",
+      3.0
+     ],
+     [
+      "flex",
+      0.25
+     ]
+    ],
+    "line_slots_per_qubit": 3.25,
+    "density": 10.0,
+    "active": {
+     "MXC": 2e-09,
+     "Cold plate": 1e-08,
+     "4 K": 0.0002
+    },
+    "cmos_4k": 0.001
+   }
+  },
+  "RAD": {
+   "flux_per_cm2_s": 0.1,
+   "burst_duration_s": 0.025
+  },
+  "RAD_SCENARIOS": {
+   "conventional": {
+    "label": "Ungapped Al junctions, surface lab",
+    "p_fail": 1.0,
+    "rate_factor": 1.0
+   },
+   "gap": {
+    "label": "Strong gap engineering + phonon traps",
+    "p_fail": 0.001,
+    "rate_factor": 1.0
+   },
+   "gap_underground": {
+    "label": "Gap engineering + underground, Pb-shielded",
+    "p_fail": 0.001,
+    "rate_factor": 0.02
+   }
+  },
+  "KAPPA_2pi_MHz": 2.0,
+  "CHI_2pi_MHz": 1.0
+ }
+}

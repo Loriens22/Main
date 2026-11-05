@@ -12,3 +12,8 @@ web/public/renders/*.png
 *.egg-info/
 .DS_Store
 web/public/models/*.glb.json
+web2/node_modules
+web2/dist/
+web2/dist-artifact/
+web2/public/models/*.glb.json
+web2/public/renders/*.png
