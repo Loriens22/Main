@@ -208,5 +208,40 @@
   "label": "conventional",
   "s": 1.0,
   "max_seconds": 900
+ },
+ {
+  "code": "gross144",
+  "n": 144,
+  "k": 12,
+  "d": 12,
+  "rounds": 6,
+  "noise": {
+   "p2": 0.0016890465235454987,
+   "p1": 0.0003260310156969993,
+   "p_idle": 0.0003260310156969993,
+   "p_idle_meas": 0.0024452326177274945,
+   "p_meas": 0.0051593753173882866,
+   "p_reset": 0.004,
+   "f_herald": 0.0
+  },
+  "shots": 15360,
+  "errors": 29,
+  "block_error": 0.0018880208333333333,
+  "lo": 0.001314927185294747,
+  "hi": 0.0027102119439709436,
+  "block_error_per_round": 0.0003149179681252168,
+  "per_logical_qubit_per_round": 2.6246952642861032e-05,
+  "dem_columns": 4464,
+  "dem_detectors": 504,
+  "seconds": 905.0582914352417,
+  "cnot_layers_per_round": 12,
+  "z_layers": 6,
+  "x_layers": 6,
+  "qubits": 288,
+  "heralds": 0,
+  "set": "cryo",
+  "label": "aurora_x2.0",
+  "s": 2.0,
+  "max_seconds": 900
  }
 ]
