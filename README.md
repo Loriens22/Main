@@ -61,7 +61,7 @@ No hardware was fabricated or measured; device parameters are assumptions or tar
 
 A second study proposes a full machine: **Toroid**, a superconducting chip that embeds the gross bivariate-bicycle code [[144,12,12]] on a two-tier die stack, and **AURORA-CRYO**, a cooling and wiring architecture designed around it. Like the first study, it is a design study, and every number is simulated, modelled or sourced.
 
-**Live site:** https://claude.ai/artifact/4214a2hrtrSfkyqC9UmwdP (3D explorer of the refrigerator, module and chip; in-browser BP-OSD decoder lab; cooling lab; results; research paper; comparison with other platforms). It is private to its owner until shared.
+**Public site (GitHub Pages):** https://loriens22.github.io/Main/ — anyone can open it. Also at https://claude.ai/artifact/4214a2hrtrSfkyqC9UmwdP (3D explorer of the refrigerator, module and chip; in-browser BP-OSD decoder lab; cooling lab; results; research paper; comparison with other platforms). The GitHub Pages copy is served from the `gh-pages` branch (built from `web2/`).
 
 | Result (simulated or modelled) | Value |
 |---|---|
