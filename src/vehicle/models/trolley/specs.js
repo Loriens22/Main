@@ -8,7 +8,7 @@ import { solarisLayout, ikarusLayout } from './layout.js';
 
 const solarisDims = (gen) => ({
   length: 18.0, width: 2.55, halfW: 1.275, roofY: 3.05, podY: 3.12, skirtY: 0.3, floorY: 0.34,
-  beltY: gen === 4 ? 1.02 : 1.08, windowTopY: 2.6, wheelR: 0.48, track: 2.1,
+  beltY: 1.1, windowTopY: 2.64, wheelR: 0.48, track: 2.1,
   frontOverhang: 2.71, wb1: 5.9, wb2: 6.0, rearOverhang: 3.39, hitchBehindAxle2: 1.75, bellowsGap: 0.55,
   maxSteer: 0.68, maxArticulation: 0.92, steeringRatio: 20,
 });
@@ -35,13 +35,15 @@ export const SOLARIS4 = {
     { id: 4, section: 'rear', z0: 0.82, z1: 2.07 },
   ],
   doorType: 'plug',
-  look: { body: 0xf2a91c, blue: 0x3a94d8, roof: 0x45a6e2, window: 0x07090b, lower: 0x3a94d8, seat: 0x2e3238, seatFabric: 0x1f3f8f, pole: 0xd2241c, floor: 0x7d8186, bellows: 0x8a8c8e, led: '#ffb21a' },
+  // colours measured on ref02 / ref09 / ref13 (hue clustering of the sunlit panels): sky blue over the belt and on
+  // the roof, orange-yellow panel band, blue skirt; dark grey saloon, blue moquette, red stanchions (ref06)
+  look: { body: 0x4cb0ea, band: 0xffa30a, roof: 0x4cb0ea, window: 0x07090b, lower: 0x4cb0ea, seat: 0x2e3238, seatFabric: 0x1d3fa6, pole: 0xd2241c, floor: 0x3e4246, bellows: 0x9a9c9e, led: '#ffb21a' },
   physics: {
     massEmpty: 19000, aeroArea: 8.0,
     electric: { power: 250e3, force: 31e3, regen: 36e3, vmax: 65, ramp: 0.7, ratio: 11.6, steps: 0 },
   },
   trolley: {
-    base: [[-0.3, 3.38, -3.05], [0.3, 3.38, -3.05]], length: 6.15, hook: [3.05, 3.32], maxLateral: 4.4, autoLower: true,
+    base: [[-0.3, 3.38, -3.05], [0.3, 3.38, -3.05]], length: 6.15, hook: [2.45, 3.62], maxLateral: 4.4, autoLower: true,
     battery: { kWh: 30, usable: 0.8, power: 95e3, vmax: 35 },
   },
   audio: { profile: 'trolley_solaris4' },
@@ -64,13 +66,14 @@ export const SOLARIS3 = {
     { id: 4, section: 'rear', z0: 0.85, z1: 2.1 },
   ],
   doorType: 'plug',
-  look: { body: 0xf4b41e, blue: 0x4590d2, roof: 0x4b9ad8, window: 0x07090b, lower: 0x4590d2, seat: 0x6f7378, seatFabric: 0x2d2f86, pole: 0xe2401c, floor: 0x8f9396, bellows: 0x8c8f92, led: '#ffa600' },
+  // ref08 / ref17: lemon-yellow panel band, the same sky blue; light grey saloon, violet-blue moquette (ref03, ref10)
+  look: { body: 0x47a6dd, band: 0xffc214, roof: 0x47a6dd, window: 0x07090b, lower: 0x47a6dd, seat: 0x6f7378, seatFabric: 0x2d2f86, pole: 0xe2401c, floor: 0x8f9396, bellows: 0x9ea1a3, led: '#ffa600' },
   physics: {
     massEmpty: 18500, aeroArea: 8.1,
     electric: { power: 240e3, force: 30e3, regen: 32e3, vmax: 65, ramp: 0.9, ratio: 11.6, steps: 0 },
   },
   trolley: {
-    base: [[-0.3, 3.36, -3.0], [0.3, 3.36, -3.0]], length: 6.1, hook: [3.0, 3.3], maxLateral: 4.3, autoLower: true,
+    base: [[-0.3, 3.36, -3.0], [0.3, 3.36, -3.0]], length: 6.1, hook: [2.45, 3.62], maxLateral: 4.3, autoLower: true,
     battery: null, retrievers: true,
   },
   audio: { profile: 'trolley_solaris3' },
@@ -88,7 +91,7 @@ export const IKARUS = {
   historical: true,
   dims: {
     length: 16.5, width: 2.5, halfW: 1.25, roofY: 3.0, podY: 3.05, skirtY: 0.42, floorY: 0.88,
-    beltY: 1.58, windowTopY: 2.62, wheelR: 0.5, track: 2.06,
+    beltY: 1.52, windowTopY: 2.6, wheelR: 0.5, track: 2.06,
     frontOverhang: 2.55, wb1: 5.4, wb2: 5.65, rearOverhang: 2.9, hitchBehindAxle2: 1.6, bellowsGap: 0.5,
     maxSteer: 0.62, maxArticulation: 0.88, steeringRatio: 22,
   },
@@ -102,7 +105,8 @@ export const IKARUS = {
   ],
   doorType: 'fold',
   boardTime: 1.5, // s per passenger through a door: three steps up to the 0.88 m floor (estimate; low floor: 0.9 s)
-  look: { body: 0xf1ae17, blue: 0x3a6fb4, roof: 0xf1ae17, window: 0x0b0d0f, lower: 0x3a6fb4, seat: 0x4b5157, seatFabric: null, pole: 0xe8891a, floor: 0x5b5f63, bellows: 0x2b2d2f, led: '#c8ff2a' },
+  // ref11 / ref18: deep yellow body, muted blue lower band; light grey saloon, orange stanchions (ref14, ref15)
+  look: { body: 0xf2a91e, band: 0xf2a91e, roof: 0xf2a91e, window: 0x0b0d0f, lower: 0x4579a8, seat: 0x4b5157, seatFabric: null, pole: 0xe8891a, floor: 0x6f7377, bellows: 0x2b2d2f, led: '#c8ff2a' },
   physics: {
     massEmpty: 16200, aeroArea: 8.4,
     electric: { power: 170e3, force: 24e3, regen: 20e3, vmax: 60, ramp: 1.6, ratio: 12.5, steps: 9, shake: 1 },

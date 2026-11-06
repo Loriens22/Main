@@ -86,6 +86,12 @@ export const DoorsMixin = {
     p.add('black', box(0.035, 0.05, w), M(0, y0 + 1.0, 0)); // transom between the panes
     // rubber edge where the leaves meet
     p.add('rubber', box(0.045, h, 0.025), M(0, yc, -end * (w / 2 - 0.012)));
+    // Solaris III: yellow-black hazard stripe along the bottom of each leaf (ref17)
+    if (this.G.gen === 3) {
+      const hz = new THREE.PlaneGeometry(w - 0.02, 0.1);
+      hz.rotateY(Math.PI / 2);
+      p.add('hazard', hz, M(0.02, y0 + 0.07, 0));
+    }
     // glass
     for (const [a, b] of [[y0 + 0.24, y0 + 0.975], [y0 + 1.025, y1 - fw]]) {
       const g = new THREE.PlaneGeometry(w - 2 * fw, b - a);
@@ -99,24 +105,41 @@ export const DoorsMixin = {
     return p.build(this.mats, { castShadow: false });
   },
 
-  /** One narrow folding leaf of the Ikarus doors: aluminium frame, glazed top and bottom; spans dirZ * w. */
+  /**
+   * One narrow folding leaf of the Ikarus doors (ref07, ref14, ref18): a yellow panel with two tall oval windows
+   * in black rubber (the upper one longer), spanning dirZ * w from its hinge edge; outer face at x = 0.
+   */
   foldLeaf(w, y0, y1, dirZ) {
     const p = new Parts();
-    const h = y1 - y0, yc = (y0 + y1) / 2, zc = dirZ * w / 2;
-    const fw = 0.04;
-    p.add('alu', box(0.03, fw, w - 0.01), M(0, y1 - fw / 2, zc));
-    p.add('alu', box(0.03, fw, w - 0.01), M(0, y0 + fw / 2, zc));
-    p.add('alu', box(0.03, h, fw), M(0, yc, dirZ * fw / 2));
-    p.add('alu', box(0.03, h, fw), M(0, yc, dirZ * (w - fw / 2)));
-    p.add('alu', box(0.03, 0.06, w - 0.01), M(0, y0 + 0.62, zc));
-    p.add('rubber', box(0.035, h, 0.018), M(0, yc, dirZ * (w - 0.004)));
-    for (const [a, b] of [[y0 + fw, y0 + 0.59], [y0 + 0.65, y1 - fw]]) {
-      const g = new THREE.PlaneGeometry(w - 2 * fw, b - a);
-      g.rotateY(Math.PI / 2);
-      p.add('glass', g, M(0.002, (a + b) / 2, zc));
+    const stadium = (path, u0, u1, v0, v1) => {
+      const r = (u1 - u0) / 2, uc = (u0 + u1) / 2;
+      path.moveTo(u1, v0 + r);
+      path.lineTo(u1, v1 - r);
+      path.absarc(uc, v1 - r, r, 0, Math.PI, false);
+      path.lineTo(u0, v0 + r);
+      path.absarc(uc, v0 + r, r, Math.PI, 2 * Math.PI, false);
+      return path;
+    };
+    const wins = [[0.16, 0.86], [0.98, y1 - y0 - 0.14]].map(([a, b]) => [w * 0.3, w * 0.7, y0 + a, y0 + b]);
+    // map shape (u along the leaf, v = height) onto the leaf plane: u -> dirZ * z, extrusion inwards (-x)
+    const mtx = new THREE.Matrix4().makeBasis(new THREE.Vector3(0, 0, dirZ), new THREE.Vector3(0, 1, 0), new THREE.Vector3(-1, 0, 0));
+    const panel = new THREE.Shape();
+    panel.moveTo(0.004, y0); panel.lineTo(w - 0.004, y0); panel.lineTo(w - 0.004, y1); panel.lineTo(0.004, y1); panel.closePath();
+    for (const [u0, u1, v0, v1] of wins) panel.holes.push(stadium(new THREE.Path(), u0, u1, v0, v1));
+    p.add('paint', new THREE.ExtrudeGeometry(panel, { depth: 0.03, bevelEnabled: false, curveSegments: 10 }), mtx);
+    // the inner face of the leaf: light grey painted metal (ref14)
+    p.add('wall', new THREE.ShapeGeometry(panel, 10), new THREE.Matrix4().makeTranslation(-0.032, 0, 0).multiply(mtx));
+    for (const [u0, u1, v0, v1] of wins) {
+      // rubber rim and the glass in it
+      const rim = stadium(new THREE.Shape(), u0 - 0.018, u1 + 0.018, v0 - 0.018, v1 + 0.018);
+      rim.holes.push(stadium(new THREE.Path(), u0, u1, v0, v1));
+      p.add('rubber', new THREE.ExtrudeGeometry(rim, { depth: 0.04, bevelEnabled: false, curveSegments: 10 }), new THREE.Matrix4().makeTranslation(0.008, 0, 0).multiply(mtx));
+      p.add('glass', new THREE.ShapeGeometry(stadium(new THREE.Shape(), u0, u1, v0, v1), 10), new THREE.Matrix4().makeTranslation(-0.012, 0, 0).multiply(mtx));
     }
-    // the vertical door shaft on the hinge edge (the air engine turns it)
-    p.add('steel', box(0.04, h + 0.1, 0.04), M(-0.03, yc, 0));
+    // rubber edge where the leaves meet, the vertical door shaft on the hinge edge, a grab rail inside
+    p.add('rubber', box(0.035, y1 - y0, 0.018), M(-0.01, (y0 + y1) / 2, dirZ * (w - 0.004)));
+    p.add('steel', box(0.04, y1 - y0 + 0.1, 0.04), M(-0.04, (y0 + y1) / 2, 0));
+    p.add('pole', box(0.025, 0.7, 0.025), M(-0.07, y0 + 1.2, dirZ * w * 0.5));
     return p.build(this.mats, { castShadow: false });
   },
 

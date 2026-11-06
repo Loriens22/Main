@@ -87,8 +87,12 @@ export class TrolleyModel {
     const S = THREE.MeshStandardMaterial, P = THREE.MeshPhysicalMaterial;
     const paint = G.old ? { roughness: 0.46, metalness: 0.02, clearcoat: 0.25, clearcoatRoughness: 0.3 } : { roughness: 0.3, metalness: 0.03, clearcoat: 0.8, clearcoatRoughness: 0.08 };
     this.mats = {
+      // livery roles: paint = the upper body and roof band (Solaris sky blue, Ikarus yellow), band = the panel band
+      // under the windows (Solaris orange / yellow), blue = the lower band / skirt
       paint: new P({ color: L.body, ...paint }),
-      blue: new P({ color: L.blue, ...paint }),
+      band: new P({ color: L.band ?? L.body, ...paint }),
+      blue: new P({ color: L.lower, ...paint }),
+      acSilver: new S({ color: G.old ? 0xb9bdbf : 0xc4c8cb, roughness: 0.42, metalness: 0.55 }),
       roof: new P({ color: L.roof, roughness: 0.4, metalness: 0.03, clearcoat: 0.4, clearcoatRoughness: 0.2 }),
       black: new P({ color: 0x0a0b0d, roughness: 0.32, metalness: 0.1, clearcoat: 0.5, clearcoatRoughness: 0.15, envMapIntensity: 0.5 }),
       matteBlack: new S({ color: 0x141618, roughness: 0.82 }),
@@ -97,12 +101,15 @@ export class TrolleyModel {
       underbody: new S({ color: 0x0d0d0e, roughness: 0.95, side: THREE.DoubleSide }),
       tyre: new S({ color: 0x0c0d0d, roughness: 0.9 }),
       rim: new S({ color: 0xa9adb0, roughness: 0.45, metalness: 0.7 }),
-      alu: new S({ color: 0xb8bcbf, roughness: 0.35, metalness: 0.85 }),
+      // satin silver trim (the Solaris III lamp band, the Ikarus vent frames): a light metallic grey that does not
+      // turn dark in the environment reflection
+      alu: new S({ color: 0xc9cdd0, roughness: 0.32, metalness: 0.45 }),
       chrome: new S({ color: 0xd3d7da, roughness: 0.15, metalness: 1 }),
       steel: new S({ color: 0x6d7175, roughness: 0.45, metalness: 0.8 }),
       grille: new S({ color: 0x232527, roughness: 0.7, metalness: 0.3 }),
       glass: glassMaterial({ color: 0x0b1216, transmit: G.old ? 0.6 : 0.42, side: THREE.DoubleSide }),
-      glassOut: glassMaterial({ color: 0x050607, transmit: G.old ? 0.45 : 0.24, side: THREE.FrontSide }),
+      // the Solaris glazing reads as dark mirror glass in the photos; the Ikarus windows are clearer
+      glassOut: glassMaterial({ color: 0x040506, transmit: G.old ? 0.42 : 0.1, side: THREE.FrontSide }),
       glassIn: glassMaterial({ color: 0x0f181c, transmit: 0.55, side: THREE.BackSide, env: 0.2 }),
       windscreen: glassMaterial({ color: 0x080b0f, transmit: 0.5, side: THREE.FrontSide }),
       windscreenIn: glassMaterial({ color: 0x0f181c, transmit: 0.75, side: THREE.BackSide, env: 0.2 }),
@@ -115,8 +122,14 @@ export class TrolleyModel {
       brake: new S({ color: 0x7a0c0c, roughness: 0.3, emissive: 0xff1a0a, emissiveIntensity: 0 }),
       reverse: new S({ color: 0xdedede, roughness: 0.3, emissive: 0xffffff, emissiveIntensity: 0 }),
       marker: new S({ color: 0xd9a21e, roughness: 0.4, emissive: 0xff9a10, emissiveIntensity: 0.2 }),
-      plate: new S({ map: makePlate(this.plate), roughness: 0.5 }),
+      plate: new S({ map: makePlate(this.fleet, G), roughness: 0.5 }),
       decals: new S({ map: makeDecals(this.fleet, G), transparent: true, alphaTest: 0.4, roughness: 0.4, polygonOffset: true, polygonOffsetFactor: -2, polygonOffsetUnits: -2 }),
+      frontDecal: new S({ map: makeFrontDecal(this.fleet, G), transparent: true, alphaTest: 0.3, roughness: 0.4, polygonOffset: true, polygonOffsetFactor: -2, polygonOffsetUnits: -2 }),
+      rearDecal: new S({ map: makeRearDecal(this.fleet, G), transparent: true, alphaTest: 0.3, roughness: 0.4, polygonOffset: true, polygonOffsetFactor: -2, polygonOffsetUnits: -2 }),
+      poleOut: new S({ color: G.poleColor ?? 0x2f3236, roughness: 0.45, metalness: G.old ? 0.1 : 0.55 }),
+      poleTip: new S({ color: G.poleTip ?? 0xf2c21a, roughness: 0.5 }),
+      chromeDrum: new S({ color: 0xc9cdd0, roughness: 0.22, metalness: 0.95 }),
+      hazard: new S({ map: makeHazard(), roughness: 0.6 }),
       ledBack: new S({ color: 0x050505, roughness: 0.6 }),
       // ---- interior
       floor: new S({ map: makeFloor(L.floor), roughness: 0.88 }),
@@ -279,12 +292,16 @@ export class TrolleyModel {
       turret.add(arm);
       const root = tkMesh('poleRoot', { castShadow: true });
       if (root) arm.add(root);
-      const tube = tkMesh('poleTube', { castShadow: true });
-      if (tube) {
-        tube.scale.set(1, 1, L);
-        arm.add(tube);
-      } else {
-        arm.add(new THREE.Mesh(new THREE.CylinderGeometry(0.025, 0.034, L, 10).rotateX(Math.PI / 2).translate(0, 0, L / 2), this.mats.matteBlack));
+      // the pole tube in its paint (Solaris IV light grey, Solaris III grey with a yellow insulated end, Ikarus
+      // orange), tapering towards the head
+      const tipL = this.G.poleTip ? 1.5 : 0;
+      const tube = new THREE.Mesh(new THREE.CylinderGeometry(0.026, 0.035, L - 0.3 - tipL, 12).rotateX(Math.PI / 2).translate(0, 0, 0.3 + (L - 0.3 - tipL) / 2), this.mats.poleOut);
+      tube.castShadow = true;
+      arm.add(tube);
+      if (tipL) {
+        const tip = new THREE.Mesh(new THREE.CylinderGeometry(0.024, 0.026, tipL, 12).rotateX(Math.PI / 2).translate(0, 0, L - tipL / 2), this.mats.poleTip);
+        tip.castShadow = true;
+        arm.add(tip);
       }
       const head = new THREE.Group();
       head.position.set(0, 0, L);
@@ -294,13 +311,17 @@ export class TrolleyModel {
       else head.add(new THREE.Mesh(new THREE.BoxGeometry(0.06, 0.06, 0.32).translate(0, 0.05, -0.03), this.mats.steel));
       // rope: retriever (Solaris III) or the pull rope to the tail (Ikarus)
       let rope = null;
-      if (T.retrievers || T.ropes) {
+      if (T.retrievers || T.ropes || this.G.hookFrame) {
         rope = new THREE.Mesh(new THREE.CylinderGeometry(0.006, 0.006, 1, 5, 1, true).translate(0, 0.5, 0), this.mats.rubber);
         rope.castShadow = false;
         this.rear.add(rope);
         this.ropes.push(rope);
       }
-      const anchor = T.retrievers ? new THREE.Vector3(b[0] * 1.3, 2.72, this.F.rearZ + 0.12) : new THREE.Vector3(b[0] * 2.6, 1.15, this.F.rearZ + 0.03);
+      // rope anchors: Solaris III retriever drums on the rear panel, Ikarus reels on the rear wall, Solaris IV the
+      // catcher frame over the rear end
+      const anchor = this.G.old ? new THREE.Vector3(b[0] * 0.73, 1.38, this.F.rearZ + 0.1)
+        : T.retrievers ? new THREE.Vector3(b[0] * 1.2, 1.22, this.F.rearZ + 0.12)
+          : new THREE.Vector3(b[0], D.roofY + 0.45, this.F.rearZ - 0.3);
       const q = new THREE.Quaternion(), qa = new THREE.Quaternion(), e = new THREE.Euler();
       const tip = new THREE.Vector3(), up = new THREE.Vector3(0, 1, 0);
       const onPose = (pp) => {
@@ -332,14 +353,32 @@ export class TrolleyModel {
   /** Roof equipment from the kit: hooks, retrievers, louvres, fans, resistors (positions from the design). */
   buildRoofKit() {
     const T = this.spec.trolley, G = this.G;
+    const p = new Parts();
     for (const b of T.base) {
-      const h = tkMesh('poleHook', { castShadow: true });
-      if (h) { h.position.set(b[0], G.hookRoofY ?? this.D.roofY, T.hook[0]); this.rear.add(h); }
+      if (!G.hookFrame) {
+        const h = tkMesh('poleHook', { castShadow: true });
+        if (h) { h.position.set(b[0], G.hookRoofY ?? this.D.roofY, T.hook[0]); this.rear.add(h); }
+      }
+      const z = this.F.rearZ;
       if (T.retrievers) {
-        const r = tkMesh('retriever', { castShadow: true });
-        if (r) { r.position.set(b[0] * 1.3, 2.72, this.F.rearZ + 0.12); r.rotation.y = Math.PI; this.rear.add(r); }
+        // Solaris III: chrome retriever drums on the yellow rear panel (ref08)
+        const x = b[0] * 1.2;
+        p.add('chromeDrum', new THREE.CylinderGeometry(0.11, 0.11, 0.14, 24).rotateX(Math.PI / 2), M(x, 1.22, z + 0.07));
+        p.add('chromeDrum', new THREE.CylinderGeometry(0.115, 0.115, 0.02, 24).rotateX(Math.PI / 2), M(x, 1.22, z + 0.14));
+        for (let k = 0; k < 6; k++) p.add('steel', box(0.012, 0.012, 0.03), M(x + Math.cos(k) * 0.09, 1.22 + Math.sin(k) * 0.09, z + 0.155));
+        p.add('satin', new THREE.CylinderGeometry(0.03, 0.03, 0.04, 12).rotateX(Math.PI / 2), M(x, 1.22, z + 0.17));
+      } else if (G.old) {
+        // Ikarus: black rope reels on the rear wall (ref11)
+        const x = b[0] * 0.73;
+        p.add('satin', new THREE.CylinderGeometry(0.1, 0.1, 0.1, 20).rotateX(Math.PI / 2), M(x, 1.38, z + 0.05));
+        p.add('matteBlack', new THREE.CylinderGeometry(0.08, 0.06, 0.04, 20).rotateX(Math.PI / 2), M(x, 1.38, z + 0.12));
       }
     }
+    if (G.old) {
+      // the low dark box the Ikarus pole bases stand on
+      p.add('satin', box(1.1, 0.12, 0.9, 0.02), M(0, this.D.roofY + 0.06, T.base[0][2]));
+    }
+    this.rear.add(p.build(this.mats));
     for (const it of G.roofKit || []) {
       const m = tkMesh(it.piece, { castShadow: true });
       if (!m) continue;
@@ -417,7 +456,7 @@ export class TrolleyModel {
   }
 
   setWiper(angle) {
-    for (const w of this.wipers || []) w.pivot.rotation.z = w.dir * angle;
+    for (const w of this.wipers || []) w.pivot.rotation.z = (w.rest || 0) + w.dir * angle;
   }
 
   /**
@@ -468,42 +507,135 @@ function canvas(w, h) {
   return c;
 }
 
-/** Bulgarian number plate: 'CA' + fleet-derived number (the real plates are not shown in the photos). */
-function makePlate(text) {
-  const c = canvas(256, 56), g = c.getContext('2d');
-  g.fillStyle = '#f4f4f0';
-  g.fillRect(0, 0, 256, 56);
-  g.fillStyle = '#1f4fa8';
-  g.fillRect(0, 0, 30, 56);
-  g.fillStyle = '#fff';
-  g.font = 'bold 15px sans-serif';
-  g.fillText('BG', 4, 46);
+/** The fleet-number plate on the bumper (ref09, ref13: white plate; ref17, ref08: blue plate). */
+function makePlate(text, G) {
+  const c = canvas(256, 64), g = c.getContext('2d');
+  g.fillStyle = G && G.gen === 3 ? '#4aa3d6' : '#f4f6f6';
+  g.fillRect(0, 0, 256, 64);
+  g.strokeStyle = '#1b1b1b';
+  g.lineWidth = 4;
+  g.strokeRect(3, 3, 250, 58);
   g.fillStyle = '#111';
-  g.font = 'bold 36px sans-serif';
+  g.font = 'bold 46px Arial, "DejaVu Sans", sans-serif';
   g.textAlign = 'center';
-  g.fillText(`CA ${String(text).padStart(4, '0')} TM`, 143, 42);
+  g.textBaseline = 'middle';
+  g.fillText(String(text), 128, 34);
   const t = new THREE.CanvasTexture(c);
   t.colorSpace = THREE.SRGBColorSpace;
   return t;
 }
 
-/**
- * Side decals: fleet number by the front door and on the rear, the operator's name in blue letters on the
- * lower panel (the photos show the fleet numbers in black on the yellow sides).
- */
+/** Side decal: the fleet number in small black digits (ref02, ref09, ref17, ref18). */
 function makeDecals(fleet, G) {
-  const c = canvas(1024, 256), g = c.getContext('2d');
-  g.clearRect(0, 0, 1024, 256);
+  const c = canvas(512, 128), g = c.getContext('2d');
+  g.clearRect(0, 0, 512, 128);
   g.fillStyle = '#111';
-  g.font = 'bold 120px sans-serif';
-  g.textAlign = 'left';
-  g.fillText(fleet, 20, 120);
-  g.fillStyle = G.decalBlue || '#1d4f9a';
-  g.font = 'bold 54px sans-serif';
-  g.fillText('СТОЛИЧЕН ЕЛЕКТРОТРАНСПОРТ', 20, 220);
+  g.font = `bold ${G.old ? 104 : 96}px Arial, "DejaVu Sans", sans-serif`;
+  g.textAlign = 'center';
+  g.textBaseline = 'middle';
+  g.fillText(fleet, 256, 68);
   const t = new THREE.CanvasTexture(c);
   t.colorSpace = THREE.SRGBColorSpace;
   t.anisotropy = 4;
+  return t;
+}
+
+/** Accessibility pictograms in blue circles (Solaris IV) or squares (Solaris III). */
+function pictograms(g, x, y, s, round) {
+  const icons = ['wheelchair', 'pram', 'person'].slice(0, round ? 3 : 2);
+  icons.forEach((ic, i) => {
+    const cx = x + i * (s * 1.12) + s / 2, cy = y + s / 2;
+    g.fillStyle = '#1f5fb4';
+    if (round) { g.beginPath(); g.arc(cx, cy, s / 2, 0, Math.PI * 2); g.fill(); } else g.fillRect(cx - s / 2, cy - s / 2, s, s);
+    g.strokeStyle = '#ffffff';
+    g.fillStyle = '#ffffff';
+    g.lineWidth = s * 0.08;
+    g.beginPath();
+    g.arc(cx, cy - s * 0.26, s * 0.08, 0, Math.PI * 2);
+    g.fill();
+    if (ic === 'wheelchair') { g.beginPath(); g.arc(cx - s * 0.02, cy + s * 0.12, s * 0.2, 0.3, Math.PI * 2 - 0.6); g.stroke(); g.fillRect(cx - s * 0.05, cy - s * 0.15, s * 0.08, s * 0.25); }
+    else if (ic === 'pram') { g.beginPath(); g.arc(cx, cy + s * 0.02, s * 0.18, Math.PI, 0); g.fill(); g.fillRect(cx - s * 0.2, cy + s * 0.02, s * 0.4, s * 0.06); g.beginPath(); g.arc(cx - s * 0.12, cy + s * 0.2, s * 0.06, 0, Math.PI * 2); g.arc(cx + s * 0.12, cy + s * 0.2, s * 0.06, 0, Math.PI * 2); g.fill(); }
+    else { g.fillRect(cx - s * 0.08, cy - s * 0.14, s * 0.16, s * 0.3); g.fillRect(cx - s * 0.08, cy + s * 0.14, s * 0.06, s * 0.2); g.fillRect(cx + s * 0.02, cy + s * 0.14, s * 0.06, s * 0.2); }
+  });
+}
+
+/** The green mascot sticker on the front of the Solaris (a stylised dinosaur, ref02 / ref13 / ref17). */
+function mascot(g, x, y, s) {
+  g.fillStyle = '#5cc23a';
+  g.beginPath();
+  g.ellipse(x + s * 0.45, y + s * 0.55, s * 0.3, s * 0.18, -0.4, 0, Math.PI * 2);
+  g.fill();
+  g.beginPath();
+  g.ellipse(x + s * 0.72, y + s * 0.22, s * 0.12, s * 0.1, 0, 0, Math.PI * 2);
+  g.fill();
+  g.fillRect(x + s * 0.62, y + s * 0.25, s * 0.08, s * 0.3);
+  g.beginPath();
+  g.moveTo(x + s * 0.18, y + s * 0.62); g.lineTo(x - s * 0.05, y + s * 0.85); g.lineTo(x + s * 0.25, y + s * 0.7); g.fill();
+}
+
+/**
+ * Front decal over the coloured front panel (ref02, ref13, ref17, ref18): pictograms, the fleet number, the
+ * manufacturer's round badge and the mascot on the Solaris; the fleet number on the Ikarus. 1024 x 256 = the
+ * decal strip's width x height.
+ */
+function makeFrontDecal(fleet, G) {
+  const c = canvas(1024, 256), g = c.getContext('2d');
+  g.clearRect(0, 0, 1024, 256);
+  if (G.old) {
+    // the fleet number large on the front left (ref18: about 0.45 m wide)
+    g.fillStyle = '#111';
+    g.font = 'bold 230px Arial, "DejaVu Sans", sans-serif';
+    g.textBaseline = 'middle';
+    g.fillText(fleet, 330, 136, 560);
+  } else {
+    pictograms(g, 40, 64, 60, G.gen === 4);
+    g.fillStyle = '#111';
+    g.font = 'bold 92px Arial, "DejaVu Sans", sans-serif';
+    g.textBaseline = 'middle';
+    g.fillText(fleet, G.gen === 4 ? 250 : 210, 112);
+    // manufacturer's round badge (no lettering)
+    const bx = 560, by = 104;
+    if (G.gen === 4) {
+      g.fillStyle = '#1f6fc0'; g.beginPath(); g.ellipse(bx, by, 62, 30, 0, 0, Math.PI * 2); g.fill();
+      g.strokeStyle = '#d8e8f6'; g.lineWidth = 5; g.beginPath(); g.ellipse(bx, by, 50, 22, 0, 0, Math.PI * 2); g.stroke();
+      g.fillStyle = '#ffffff'; g.beginPath(); g.arc(bx, by, 14, 0, Math.PI * 2); g.fill();
+    } else {
+      g.fillStyle = '#111'; g.beginPath(); g.arc(bx, by - 12, 26, 0, Math.PI * 2); g.fill();
+      g.fillStyle = '#f0b812'; g.beginPath(); g.arc(bx, by - 12, 16, 0, Math.PI * 2); g.fill();
+      g.fillStyle = '#111'; g.fillRect(bx - 50, by + 24, 100, 12);
+    }
+    mascot(g, 820, 40, 150);
+  }
+  const t = new THREE.CanvasTexture(c);
+  t.colorSpace = THREE.SRGBColorSpace;
+  t.anisotropy = 8;
+  return t;
+}
+
+/** Rear decal: the fleet number (Solaris over the tow-hook cover, Ikarus right of the centre; ref09, ref11). */
+function makeRearDecal(fleet, G) {
+  const c = canvas(512, 128), g = c.getContext('2d');
+  g.clearRect(0, 0, 512, 128);
+  g.fillStyle = '#111';
+  g.font = 'bold 100px Arial, "DejaVu Sans", sans-serif';
+  g.textAlign = 'center';
+  g.textBaseline = 'middle';
+  g.fillText(fleet, 256, 66);
+  const t = new THREE.CanvasTexture(c);
+  t.colorSpace = THREE.SRGBColorSpace;
+  t.anisotropy = 4;
+  return t;
+}
+
+/** Yellow-black diagonal hazard stripes. */
+function makeHazard() {
+  const c = canvas(256, 32), g = c.getContext('2d');
+  g.fillStyle = '#f2c21a';
+  g.fillRect(0, 0, 256, 32);
+  g.fillStyle = '#151515';
+  for (let x = -32; x < 288; x += 32) { g.beginPath(); g.moveTo(x, 32); g.lineTo(x + 16, 32); g.lineTo(x + 32, 0); g.lineTo(x + 16, 0); g.fill(); }
+  const t = new THREE.CanvasTexture(c);
+  t.colorSpace = THREE.SRGBColorSpace;
   return t;
 }
 

@@ -1,9 +1,13 @@
-// Sides and roof of the line-9 trolleybuses: painted lower panels with wheel arches, the blue lower band of the
-// Sofia livery, the glazed band (black frame with the panes set flush, tilting top lights on the Urbino III
-// and sliding vents on the Ikarus), door portals with their rubber surrounds, the painted roof edge, the roof
-// fairings over the traction equipment and the frames closing the bodies at the bellows.
+// Sides and roof of the line-9 trolleybuses, laid out from the reference photographs (designs.js):
+//   Solaris IV / III: the blue skirt panel (cut round the wheel arches) under the orange / yellow panel band, whose
+//     arch cut-outs are wider so the blue shows as a broad surround round every arch (ref02, ref09, ref13, ref17);
+//     the black glazed band with flush panes and dark top-light bars; the sky-blue band over the windows and the
+//     roof; long lofted roof fairings, the silver air-conditioning units, the tubular pole catcher frame.
+//   Ikarus 280.92F: yellow body, the blue lower band up to the arch tops with a black rub strip on its edge and
+//     louvred equipment grilles in it; separate windows in black rubber between yellow pillars, sliding top vents
+//     (ref07, ref11, ref18); the grey louvred box on the roof, roof hatches, the amber marker lamps.
 import * as THREE from 'three';
-import { Parts, M, box, gaps, panelShape, sidePanel, loftSection, roofEdge, frameRect, extrude, rectShape, rectPath } from './geom.js';
+import { Parts, M, box, gaps, panelShape, sidePanel, loftSection, roofEdge, frameRect, extrude, rectShape, rectPath, fairingGeom } from './geom.js';
 
 export const BodyMixin = {
   /** z extent of a section's straight sides (the ends own the rounded corners). */
@@ -13,7 +17,7 @@ export const BodyMixin = {
   },
 
   buildSides(p, sec) {
-    const D = this.D, G = this.G, F = this.F;
+    const D = this.D, G = this.G;
     const [zA, zB] = this.sideRange(sec);
     const hw = D.halfW, skirt = D.skirtY, belt = D.beltY, wtop = D.windowTopY, R = D.wheelR;
     const axles = sec === 'front' ? [-D.wb1, 0] : [0];
@@ -22,21 +26,34 @@ export const BodyMixin = {
       const name = side > 0 ? 'right' : 'left';
       const dr = side > 0 ? doors : [];
       const holes = dr.map((d) => [d.z0 - 0.06, d.z1 + 0.06]);
-      // ---- lower panels (paint) and the blue band
+      // ---- lower body: the base panel and the coloured band over it
       for (const [a, b] of gaps(zA, zB, holes)) {
         if (b - a < 0.08) continue;
-        p.add('paint', sidePanel(panelShape(a, b, skirt, belt, axles, G.archR, R), side, hw, 0.03, 0.004));
-        // the blue band stops at the wheel arches (it is lower than the arch tops)
-        for (const [c, e] of gaps(a, b, axles.map((x) => [x - G.archR - 0.01, x + G.archR + 0.01]))) {
-          if (e - c > 0.04) p.add('blue', sidePanel(panelShape(c, e, skirt, G.bandTop), side, hw + 0.005, 0.006));
+        if (!G.old) {
+          // Solaris: blue skirt panel to the belt, the orange / yellow band laid over it from bandTop with wider
+          // arch cut-outs (the blue surround of the arches)
+          p.add('blue', sidePanel(panelShape(a, b, skirt, belt, axles, G.archR, R), side, hw, 0.03, 0.004));
+          p.add('band', sidePanel(panelShape(a, b, G.bandTop, belt - 0.005, axles, G.archR + G.archBand, R), side, hw + 0.0045, 0.006));
+        } else {
+          // Ikarus: yellow body, the blue band up to the arch tops, the black rub strip on its upper edge
+          p.add('paint', sidePanel(panelShape(a, b, skirt, belt, axles, G.archR, R), side, hw, 0.03, 0.004));
+          p.add('blue', sidePanel(panelShape(a, b, skirt, G.bandTop, axles, G.archR, R), side, hw + 0.0045, 0.006));
+          for (const [c, e] of gaps(a, b, axles.map((x) => [x - G.archR - 0.05, x + G.archR + 0.05]))) {
+            if (e - c > 0.05) p.add('rubber', box(0.022, 0.045, e - c), M(side * (hw + 0.012), G.bandTop + 0.01, (c + e) / 2));
+          }
         }
         // sill under the panels between the arches
         for (const [c, e] of gaps(a, b, axles.map((x) => [x - G.archR, x + G.archR]))) {
           if (e - c > 0.05) p.add('underbody', box(0.4, 0.1, e - c), M(side * (hw - 0.22), skirt - 0.04, (c + e) / 2));
         }
-        if (G.old) {
-          // Ikarus: aluminium rub strips at the bumper line and under the windows
-          for (const y of [0.78, belt - 0.07]) p.add('alu', box(0.02, 0.05, b - a - 0.04), M(side * (hw + 0.01), y, (a + b) / 2));
+      }
+      // Ikarus: louvred grilles of the electrical equipment in the blue band (ref18)
+      if (G.old) {
+        const grilles = sec === 'front' ? [-4.2, -1.55] : [-1.55];
+        for (const gz of grilles) {
+          if (holes.some(([u, v]) => gz + 0.35 > u && gz - 0.35 < v)) continue;
+          p.add('grille', box(0.012, 0.36, 0.5), M(side * (hw + 0.008), 0.66, gz));
+          for (let k = 0; k < 7; k++) p.add('blue', box(0.02, 0.018, 0.48), M(side * (hw + 0.014), 0.52 + k * 0.045, gz));
         }
       }
       // ---- wheel arches: black lips and liners
@@ -46,9 +63,9 @@ export const BodyMixin = {
         const pts = [];
         for (let i = 0; i <= n; i++) {
           const t = -phi + (i / n) * (Math.PI + 2 * phi);
-          pts.push(new THREE.Vector3(side * (hw + 0.01), R + Math.sin(t) * (A + 0.01), az + Math.cos(t) * (A + 0.01)));
+          pts.push(new THREE.Vector3(side * (hw + 0.006), R + Math.sin(t) * (A + 0.005), az + Math.cos(t) * (A + 0.005)));
         }
-        p.add('rubber', new THREE.TubeGeometry(new THREE.CatmullRomCurve3(pts), 32, 0.02, 6, false));
+        p.add('rubber', new THREE.TubeGeometry(new THREE.CatmullRomCurve3(pts), 32, 0.016, 6, false));
         const liner = new THREE.CylinderGeometry(A - 0.01, A - 0.01, 0.55, 28, 1, true, -phi, Math.PI + 2 * phi);
         liner.rotateZ(Math.PI / 2);
         p.add('underbody', liner, M(side * (hw - 0.29), R, az));
@@ -58,88 +75,120 @@ export const BodyMixin = {
       }
       // ---- glazed band
       const panes = G.panes[sec][name];
-      const bandHoles = [...holes];
-      for (const [a, b] of gaps(zA, zB, bandHoles)) {
+      const paneY = (kind) => [kind === 'cab' && !G.old ? belt - 0.16 : belt + (G.old ? 0.06 : 0.03), wtop - (G.old ? 0.08 : 0.04)];
+      for (const [a, b] of gaps(zA, zB, holes)) {
         if (b - a < 0.06) continue;
         const sh = rectShape(a, belt, b, wtop);
-        for (const pn of panes) {
-          const [p0, p1, kind] = pn;
-          if (p0 < a - 1e-3 || p1 > b + 1e-3) continue;
-          const y0 = kind === 'cab' && !G.old ? belt - 0.18 : belt + 0.04;
-          sh.holes.push(rectPath(p0, y0, p1, wtop - 0.05, G.paneR));
+        for (const [p0, p1, kind] of panes) {
+          const q0 = Math.max(p0, a + 0.02), q1 = Math.min(p1, b - 0.02);
+          if (q1 - q0 < 0.2) continue;
+          const [y0, y1] = paneY(kind);
+          sh.holes.push(rectPath(q0, y0, q1, y1, G.paneR));
         }
-        p.add('black', sidePanel(sh, side, hw - G.tumble, 0.035));
+        // Solaris: the black frit band the panes sit in; Ikarus: yellow pillars between rubber-set windows
+        p.add(G.old ? 'paint' : 'black', sidePanel(sh, side, hw - G.tumble, G.old ? 0.012 : 0.035));
       }
-      for (const [p0, p1, kind] of panes) {
-        const y0 = kind === 'cab' && !G.old ? belt - 0.18 : belt + 0.04, y1 = wtop - 0.05;
+      for (const [p0raw, p1raw, kind] of panes) {
+        const p0 = Math.max(p0raw, zA + 0.02), p1 = Math.min(p1raw, zB - 0.02);
+        if (p1 - p0 < 0.2) continue;
+        const [y0, y1] = paneY(kind);
         const w = p1 - p0, h = y1 - y0, zc = (p0 + p1) / 2, yc = (y0 + y1) / 2;
         const x = side * (hw - G.tumble + 0.004);
         const out = new THREE.PlaneGeometry(w, h);
         out.rotateY(side > 0 ? Math.PI / 2 : -Math.PI / 2);
-        p.add('glassOut', out, M(x, yc, zc));
+        p.add('glassOut', out, M(x - side * (G.old ? 0.012 : 0), yc, zc));
         const inn = new THREE.PlaneGeometry(w, h);
         inn.rotateY(side > 0 ? Math.PI / 2 : -Math.PI / 2);
         p.add('glassIn', inn, M(x - side * 0.03, yc, zc));
+        if (G.old) {
+          // black rubber gasket round the window
+          const fr = frameRect(p0 - 0.03, y0 - 0.03, p1 + 0.03, y1 + 0.03, 0.05, G.paneR + 0.03, 0.025);
+          p.add('rubber', fr, side > 0
+            ? new THREE.Matrix4().makeBasis(new THREE.Vector3(0, 0, 1), new THREE.Vector3(0, 1, 0), new THREE.Vector3(1, 0, 0)).setPosition(hw - G.tumble - 0.012, 0, 0)
+            : new THREE.Matrix4().makeBasis(new THREE.Vector3(0, 0, 1), new THREE.Vector3(0, 1, 0), new THREE.Vector3(-1, 0, 0)).setPosition(-hw + G.tumble + 0.012, 0, 0));
+        }
         if (G.hopper > 0 && kind !== 'cab') {
-          // top light / sliding vent: a frame bar across the pane
+          // top light / sliding vent: a frame bar across the pane (and the vent's centre stile on the Ikarus)
           const yb = y1 - G.hopper;
-          p.add(G.old ? 'alu' : 'black', box(0.03, 0.035, w), M(side * (hw - G.tumble + 0.012), yb, zc));
-          if (G.old) {
-            // Ikarus: two sliding vent panes in an aluminium frame, rubber-set lower pane
-            p.add('alu', box(0.025, 0.025, 0.03), M(side * (hw - G.tumble + 0.014), (yb + y1) / 2, zc));
-            p.add('rubber', box(0.02, 0.02, w + 0.02), M(side * (hw - G.tumble + 0.01), y0 - 0.01, zc));
-          }
+          p.add(G.old ? 'alu' : 'satin', box(0.03, G.old ? 0.03 : 0.022, w), M(side * (hw - G.tumble + 0.008), yb, zc));
+          if (G.old) p.add('alu', box(0.025, G.hopper - 0.02, 0.03), M(side * (hw - G.tumble + 0.01), (yb + y1) / 2, zc));
         }
         if (kind === 'cab' && !G.old) {
           // driver's sliding window: a vertical frame bar
-          p.add('black', box(0.03, h, 0.03), M(side * (hw - G.tumble + 0.01), yc, p0 + w * 0.45));
+          p.add('satin', box(0.03, h, 0.03), M(side * (hw - G.tumble + 0.01), yc, p0 + w * 0.45));
         }
       }
-      // ---- door portals: rubber surrounds, the header over the door
+      // ---- door portals: rubber surrounds, the header over the door, the threshold
       for (const d of dr) {
         const top = G.doorTop;
-        const fr = frameRect(d.z0 - 0.07, skirt - 0.02, d.z1 + 0.07, top + 0.06, 0.07, 0.05, 0.04);
+        const fr = frameRect(d.z0 - 0.07, skirt - 0.02, d.z1 + 0.07, top + 0.06, G.old ? 0.04 : 0.07, 0.05, 0.04);
         const m = new THREE.Matrix4().makeBasis(new THREE.Vector3(0, 0, 1), new THREE.Vector3(0, 1, 0), new THREE.Vector3(-1, 0, 0)).setPosition(hw + 0.012, 0, 0);
-        p.add('rubber', fr, m);
-        // header between the door top and the window top (black glass look on the Solaris, paint on the Ikarus)
-        p.add(G.old ? 'paint' : 'black', box(0.035, wtop - top - 0.06, d.z1 - d.z0 + 0.14), M(hw - 0.015, (wtop + top + 0.06) / 2, (d.z0 + d.z1) / 2));
-        // door step edge (yellow) and the threshold
-        p.add('yellowEdge', box(0.06, 0.012, d.z1 - d.z0), M(hw - 0.06, G.old ? 0.36 : D.floorY + 0.003, (d.z0 + d.z1) / 2));
+        p.add(G.old ? 'paint' : 'black', fr, m);
+        if (wtop - top - 0.06 > 0.02) p.add(G.old ? 'paint' : 'black', box(0.035, wtop - top - 0.06, d.z1 - d.z0 + 0.14), M(hw - 0.015, (wtop + top + 0.06) / 2, (d.z0 + d.z1) / 2));
+        p.add('yellowEdge', box(0.08, 0.025, d.z1 - d.z0), M(hw - 0.04, G.old ? 0.37 : D.floorY + 0.005, (d.z0 + d.z1) / 2));
         p.add('steel', box(0.12, 0.02, d.z1 - d.z0), M(hw - 0.1, G.old ? 0.345 : D.floorY - 0.008, (d.z0 + d.z1) / 2));
       }
-      // ---- fleet number and operator lettering on the lower panel
-      const dz = sec === 'front' ? -4.7 : 1.2;
-      if (sec === 'front' || G.old) {
-        const dg = new THREE.PlaneGeometry(1.6, 0.4);
-        dg.rotateY(side > 0 ? Math.PI / 2 : -Math.PI / 2);
-        p.add('decals', dg, M(side * (hw + 0.009), G.old ? 1.2 : 0.82, dz));
-      }
+      // ---- fleet number on the side (small black digits: on the panel band of the Solaris, under the windows
+      // of the Ikarus)
+      const dz = sec === 'front' ? (G.old ? -2.75 : -3.2) : (G.old ? 1.6 : 1.4);
+      const dg = new THREE.PlaneGeometry(0.64, 0.16);
+      dg.rotateY(side > 0 ? Math.PI / 2 : -Math.PI / 2);
+      p.add('decals', dg, M(side * (hw + 0.012), G.old ? 1.32 : 0.92, dz));
     }
-    // ---- painted roof edge and roof over the whole section
-    const edge = loftSection(roofEdge(hw, wtop, D.roofY, G.roofEdgeR, 7, G.tumble), zA, zB);
-    p.add('paint', edge);
-    // gutter line above the windows
+    // ---- the band over the windows and the roof (sky blue on the Solaris, yellow on the Ikarus)
+    p.add('paint', loftSection(roofEdge(hw, wtop, D.roofY, G.roofEdgeR, 8, G.tumble), zA, zB));
     for (const side of [1, -1]) p.add('satin', box(0.02, 0.015, zB - zA), M(side * (hw - G.tumble + 0.005), wtop + 0.01, (zA + zB) / 2));
     // ---- underfloor: dark tray between the axles (seen from outside under the skirt)
     p.add('underbody', box(hw * 2 - 0.3, 0.05, zB - zA), M(0, skirt - 0.06, (zA + zB) / 2));
-    if (G.old) {
-      // Ikarus: the high floor shows the frame and the equipment boxes under the body
-      for (const side of [1, -1]) p.add('underbody', box(0.12, 0.25, zB - zA - 1.2), M(side * 0.45, 0.5, (zA + zB) / 2));
-    }
+    if (G.old) for (const side of [1, -1]) p.add('underbody', box(0.12, 0.25, zB - zA - 1.2), M(side * 0.45, 0.5, (zA + zB) / 2));
   },
 
-  /** Roof fairings over the traction equipment (rounded boxes). */
+  /** Roof equipment: lofted fairings, air-conditioning units with their louvres, the pole catcher frame. */
   buildRoof(p, sec) {
-    const D = this.D;
-    for (const f of this.G.fairings.filter((q) => q.sec === sec)) {
-      const len = f.z1 - f.z0;
-      p.add(f.mat, box(f.w, f.h + 0.04, len, f.r), M(0, D.roofY + f.h / 2 - 0.02, (f.z0 + f.z1) / 2));
-      // dark seam where the fairing meets the roof
-      p.add('satin', box(f.w + 0.01, 0.02, len + 0.01), M(0, D.roofY + 0.01, (f.z0 + f.z1) / 2));
+    const D = this.D, G = this.G;
+    for (const f of G.fairings.filter((q) => q.sec === sec)) {
+      const y0 = D.roofY - 0.02 + (f.y || 0);
+      p.add(f.mat, fairingGeom(f.z0, f.z1, f.w, f.h + 0.02, f.r, y0, { rampF: f.rampF ?? 0.05, rampR: f.rampR ?? 0.05 }));
+      if (f.louvres) {
+        // louvres: dark grilles with slats on both sides (and the front of the Solaris III cab pod)
+        const len = f.z1 - f.z0;
+        const n = Math.max(1, Math.floor(len / 0.45));
+        for (const sx of [-1, 1]) {
+          for (let k = 0; k < n; k++) {
+            const zc = f.z0 + (len * (k + 0.5)) / n;
+            p.add('grille', box(0.012, f.h * 0.5, len / n - 0.08), M(sx * (f.w / 2 + 0.002), y0 + f.h * 0.45, zc));
+            for (let j = 0; j < 4; j++) p.add(f.mat, box(0.02, 0.012, len / n - 0.1), M(sx * (f.w / 2 + 0.008), y0 + f.h * 0.27 + j * f.h * 0.12, zc));
+          }
+        }
+        if (G.gen === 3 && sec === 'front' && f.z0 < -7) {
+          for (let k = 0; k < 4; k++) p.add('grille', box(0.26, f.h * 0.42, 0.02), M(-0.48 + k * 0.32, y0 + f.h * 0.48, f.z0 + 0.06));
+        }
+      }
     }
     if (sec === 'rear') {
-      // insulated roof walkway under the poles (anti-slip strip) and the cable duct to the converters
+      // anti-slip walkway strip along the poles
       p.add('satin', box(0.5, 0.01, 2.6), M(0, D.roofY + 0.006, this.spec.trolley.base[0][2] + 1.6));
+      // the tubular pole catcher frame over the rear end, with its two cane hooks (Solaris, ref08 / ref09)
+      const H = G.hookFrame;
+      if (H) {
+        const y = D.roofY + H.h, r = 0.022;
+        const loop = [[-0.72, H.z0], [0.72, H.z0], [0.78, H.z0 + 0.12], [0.78, H.z1 - 0.12], [0.72, H.z1], [-0.72, H.z1], [-0.78, H.z1 - 0.12], [-0.78, H.z0 + 0.12]];
+        const pts = loop.map(([x, z]) => new THREE.Vector3(x, y, z));
+        p.add('satin', new THREE.TubeGeometry(new THREE.CatmullRomCurve3(pts, true, 'catmullrom', 0.1), 48, r, 6, true));
+        for (const [x, z] of [[-0.7, H.z0 + 0.05], [0.7, H.z0 + 0.05], [-0.7, H.z1 - 0.05], [0.7, H.z1 - 0.05]]) {
+          p.add('satin', new THREE.CylinderGeometry(r, r * 1.3, H.h, 8), M(x, D.roofY + H.h / 2, z));
+        }
+        for (const b of this.spec.trolley.base) {
+          const x = b[0], zh = H.z0 + 0.08;
+          const hook = [new THREE.Vector3(x, y, zh), new THREE.Vector3(x, y + 0.22, zh - 0.02), new THREE.Vector3(x, y + 0.3, zh + 0.08), new THREE.Vector3(x, y + 0.22, zh + 0.16)];
+          p.add('satin', new THREE.TubeGeometry(new THREE.CatmullRomCurve3(hook), 16, 0.02, 6, false));
+          p.add('rubber', box(0.06, 0.03, 0.12), M(x, y + 0.1, zh + 0.02));
+        }
+      }
+    }
+    // Ikarus: amber marker lamps along the front roof edge (ref18)
+    if (G.markers && sec === 'front') {
+      for (let k = 0; k < 5; k++) p.add('marker', box(0.09, 0.05, 0.06, 0.015), M(-0.6 + k * 0.3, D.roofY + 0.02, this.F.frontZ + 0.18));
     }
   },
 

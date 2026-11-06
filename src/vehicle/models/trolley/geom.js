@@ -17,27 +17,112 @@ export function gaps(a, b, ranges) {
 
 /**
  * Side panel outline in the (z, y) plane between z0 and z1 from y0 to y1, with wheel-arch cut-outs of radius
- * archR round the axles (wheel centres at height cy). Arches only partly inside [z0, z1] are clipped.
+ * archR round the axles (wheel centres at height cy). Arches only partly inside [z0, z1] (next to a door) are
+ * clipped; an arch reaching above y1 cuts the panel through.
  */
 export function panelShape(z0, z1, y0, y1, axles = [], archR = 0.62, cy = 0.48) {
-  const sh = new THREE.Shape();
   const dy = cy - y0;
-  sh.moveTo(z0, y0);
+  const bottom = [[z0, y0]];
   if (dy < archR) {
-    const dx = Math.sqrt(archR * archR - dy * dy), ang = Math.asin(dy / archR);
+    const dx = Math.sqrt(archR * archR - dy * dy);
     for (const a of [...axles].sort((p, q) => p - q)) {
-      if (a + dx < z0 || a - dx > z1) continue;
-      if (a - dx < z0 || a + dx > z1) continue; // the doors sit between the arches: no partial arches needed
-      sh.lineTo(a - dx, y0);
-      sh.absarc(a, cy, archR, Math.PI + ang, -ang, true);
-      sh.lineTo(a + dx, y0);
+      const za = Math.max(z0, a - dx), zb = Math.min(z1, a + dx);
+      if (zb - za < 0.02) continue;
+      const n = 20;
+      for (let i = 0; i <= n; i++) {
+        const z = za + ((zb - za) * i) / n;
+        const u = Math.min(1, Math.abs(z - a) / archR);
+        const y = Math.min(y1, cy + archR * Math.sqrt(Math.max(0, 1 - u * u)));
+        if (i === 0 && za > z0) bottom.push([za, y0]);
+        bottom.push([z, Math.max(y0, y)]);
+        if (i === n && zb < z1) bottom.push([zb, y0]);
+      }
     }
   }
-  sh.lineTo(z1, y0);
+  bottom.push([z1, y0]);
+  const sh = new THREE.Shape();
+  sh.moveTo(bottom[0][0], bottom[0][1]);
+  for (let i = 1; i < bottom.length; i++) sh.lineTo(bottom[i][0], bottom[i][1]);
   sh.lineTo(z1, y1);
   sh.lineTo(z0, y1);
   sh.closePath();
   return sh;
+}
+
+/** A strip following a bowed end outline between x0 and x1 (for decals on the front and the rear), UVs 0..1. */
+export function endDecal(hw, r, bulge, zBase, dir, y0, y1, x0, x1, n = 16) {
+  const pos = [], uv = [], idx = [];
+  const dzAt = (x) => {
+    const ax = Math.abs(x), flat = hw - r;
+    if (ax <= flat) { const u = x / flat; return -bulge * (1 - u * u); }
+    const t = Math.min(1, (ax - flat) / r);
+    return r - Math.sqrt(Math.max(0, r * r - (t * r) * (t * r)));
+  };
+  for (let i = 0; i <= n; i++) {
+    const x = x0 + ((x1 - x0) * i) / n;
+    const z = zBase - dir * (dzAt(x) - 0.006);
+    for (const [y, v] of [[y0, 0], [y1, 1]]) { pos.push(x, y, z); uv.push(dir < 0 ? 1 - i / n : i / n, v); }
+  }
+  for (let i = 0; i < n; i++) {
+    const a = 2 * i, b = a + 1, c = a + 2, d = a + 3;
+    if (dir < 0) idx.push(a, b, c, c, b, d);
+    else idx.push(a, c, b, c, d, b);
+  }
+  const g = new THREE.BufferGeometry();
+  g.setAttribute('position', new THREE.Float32BufferAttribute(pos, 3));
+  g.setAttribute('uv', new THREE.Float32BufferAttribute(uv, 2));
+  g.setIndex(idx);
+  g.computeVertexNormals();
+  return g;
+}
+
+/**
+ * Roof fairing lofted along z: a rounded-shoulder cross-section (width w, corner radius r) whose height follows
+ * h(z) (ramps down at the ends). Base at y0.
+ */
+export function fairingGeom(z0, z1, w, h, r, y0, { rampF = 0.5, rampR = 0.5, steps = 18 } = {}) {
+  const hw = w / 2;
+  const prof = (H) => {
+    const rr = Math.min(r, H * 0.9, hw * 0.5);
+    const pts = [[hw, 0]];
+    for (let i = 0; i <= 6; i++) { const a = (i / 6) * (Math.PI / 2); pts.push([hw - rr + Math.cos(a) * rr, H - rr + Math.sin(a) * rr]); }
+    const right = pts;
+    const left = right.map(([x, y]) => [-x, y]).reverse();
+    return [...right, ...left];
+  };
+  const zs = [];
+  for (let i = 0; i <= steps; i++) zs.push(z0 + ((z1 - z0) * i) / steps);
+  const Hz = (z) => {
+    const f = Math.min(1, (z - z0) / Math.max(1e-3, rampF)), b = Math.min(1, (z1 - z) / Math.max(1e-3, rampR));
+    const k = Math.min(f, b);
+    return Math.max(0.02, h * Math.sin((k * Math.PI) / 2));
+  };
+  const rows = zs.map((z) => prof(Hz(z)).map(([x, y]) => [x, y0 + y, z]));
+  const n = rows[0].length;
+  const pos = [], idx = [];
+  for (const row of rows) for (const p of row) pos.push(...p);
+  for (let i = 0; i < rows.length - 1; i++) {
+    for (let j = 0; j < n - 1; j++) {
+      const a = i * n + j, b = a + 1, c = a + n, d = c + 1;
+      idx.push(a, b, c, b, d, c);
+    }
+  }
+  // end caps
+  for (const [ri, flip] of [[0, true], [rows.length - 1, false]]) {
+    const base = pos.length / 3;
+    const row = rows[ri];
+    const cx = 0, cy = y0 + 0.01, cz = row[0][2];
+    pos.push(cx, cy, cz);
+    for (let j = 0; j < n - 1; j++) {
+      if (flip) idx.push(base, ri * n + j + 1, ri * n + j);
+      else idx.push(base, ri * n + j, ri * n + j + 1);
+    }
+  }
+  const g = new THREE.BufferGeometry();
+  g.setAttribute('position', new THREE.Float32BufferAttribute(pos, 3));
+  g.setIndex(idx);
+  g.computeVertexNormals();
+  return g;
 }
 
 /**

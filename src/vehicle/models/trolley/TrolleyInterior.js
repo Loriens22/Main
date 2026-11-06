@@ -7,7 +7,7 @@
 //     plastic seats (singles on the left, pairs on the right), orange stanchions, beige walls.
 // Seats come from the seat map (spec.layout) as instances of the Blender-modelled shells (kit_trolley.glb).
 import * as THREE from 'three';
-import { Parts, M, box, gaps, rod, panelShape, sidePanel } from './geom.js';
+import { Parts, M, box, gaps, rod, panelShape, sidePanel, rectShape, rectPath } from './geom.js';
 import { tkInstances } from './TrolleyKit.js';
 import { busKit, kitInstances, kitMesh } from '../../BusKit.js';
 
@@ -115,17 +115,37 @@ export const InteriorMixin = {
         // luggage-rail style trim strip and the advertising frames over the windows
         p.add('trim', box(0.05, 0.03, b - a), M(side * (xi - 0.06), wtop + 0.02, (a + b) / 2));
       }
+      // inner lining of the window band, cut round the panes (Ikarus: grey painted metal, ref14; Solaris: the dark
+      // trim of the glazing, ref06 / ref10)
       const panes = G.panes[sec][side > 0 ? 'right' : 'left'];
-      for (let i = 0; i < panes.length - 1; i++) {
-        const zc = (panes[i][1] + panes[i + 1][0]) / 2;
-        p.add('trim', box(0.05, wtop - belt, 0.09), M(side * (xi - 0.02), (belt + wtop) / 2, zc));
+      const sideHoles = side > 0 ? doors.map((d) => [d.z0 - 0.06, d.z1 + 0.06]) : [];
+      for (const [a, b] of gaps(z0, z1, sideHoles)) {
+        if (b - a < 0.06) continue;
+        const sh = rectShape(a, belt, b, wtop);
+        for (const [p0, p1, kind] of panes) {
+          const q0 = Math.max(p0, a + 0.02), q1 = Math.min(p1, b - 0.02);
+          if (q1 - q0 < 0.2) continue;
+          const y0 = kind === 'cab' && !G.old ? belt - 0.16 : belt + (G.old ? 0.06 : 0.03), y1 = wtop - (G.old ? 0.08 : 0.04);
+          sh.holes.push(rectPath(q0, y0, q1, y1, G.paneR));
+        }
+        p.add(G.old ? 'wall' : 'trim', sidePanel(sh, side, hw - G.tumble - (G.old ? 0.013 : 0.037), 0.006));
       }
     }
     // ---- ceiling: panels, the two light strips, air ducts
     p.add('ceiling', box(xi * 2, 0.02, z1 - z0), M(0, ceilY, (z0 + z1) / 2));
     for (const side of [1, -1]) {
-      p.add('trim', box(0.36, 0.1, z1 - z0), M(side * (xi - 0.2), ceilY - 0.05, (z0 + z1) / 2)); // duct
-      p.add('lightStrip', box(0.1, 0.015, z1 - z0 - 0.4), M(side * (xi - 0.44), ceilY - 0.01, (z0 + z1) / 2));
+      p.add(G.old ? 'ceiling' : 'trim', box(0.36, 0.1, z1 - z0), M(side * (xi - 0.2), ceilY - 0.05, (z0 + z1) / 2)); // duct / cove
+      if (G.old) {
+        // Ikarus: fluorescent tubes in rectangular diffuser housings, one every couple of metres (ref14)
+        for (let z = z0 + 1.0; z < z1 - 0.8; z += 2.1) {
+          p.add('trim', box(0.2, 0.05, 1.0), M(side * (xi - 0.44), ceilY - 0.03, z));
+          p.add('lightStrip', box(0.16, 0.012, 0.94), M(side * (xi - 0.44), ceilY - 0.06, z));
+        }
+      } else p.add('lightStrip', box(0.1, 0.015, z1 - z0 - 0.4), M(side * (xi - 0.44), ceilY - 0.01, (z0 + z1) / 2));
+    }
+    if (G.old) {
+      // roof ventilation hatches in the ceiling
+      for (const hz of isF ? [-5.95, -2.3] : [0.85]) p.add('trim', box(0.9, 0.04, 0.75), M(0, ceilY - 0.02, hz));
     }
     // ---- ends of the saloon: cab partition (front), rear wall (rear)
     if (isF) {
@@ -136,7 +156,10 @@ export const InteriorMixin = {
       p.add('pole', rod([-0.2, FY, cz + 0.06], [-0.2, ceilY, cz + 0.06], 0.02));
       p.add('pole', rod([-hw + 0.1, FY + 1.0, cz + 0.06], [-0.2, FY + 1.0, cz + 0.06], 0.018));
     } else {
-      p.add('wall', box(xi * 2, ceilY - FY, 0.03), M(0, (ceilY + FY) / 2, z1 + 0.02));
+      // rear wall of the saloon, kept inside the rounded rear corners of the body
+      const rw = hw - G.bodyR - 0.04;
+      p.add('wall', box(rw * 2, ceilY - FY, 0.03), M(0, (ceilY + FY) / 2, z1 - 0.04));
+      for (const sx of [-1, 1]) p.add('wall', box(0.03, ceilY - FY, G.bodyR + 0.1), M(sx * (rw + 0.01), (ceilY + FY) / 2, z1 - 0.12));
     }
     // wheelchair bay (low floor): wall pad and the request button opposite door 2
     if (isF && !L.steps) {
@@ -172,7 +195,7 @@ export const InteriorMixin = {
       const y0 = s.fy;
       p.add('pole', rod([x, y0, s.z - 0.24], [x, railY, s.z - 0.24], 0.02));
       // stop button (red) on the stanchion
-      p.add('stopBtn', box(0.05, 0.07, 0.035), M(x - Math.sign(s.x) * 0.03, FY + 1.45, s.z - 0.24));
+      p.add('stopBtn', box(0.03, 0.045, 0.03), M(x - Math.sign(s.x) * 0.025, FY + 1.45, s.z - 0.24));
     }
     // door poles with validators and the door-open buttons
     for (const d of this.spec.doors.filter((q) => q.section === sec)) {
@@ -180,13 +203,7 @@ export const InteriorMixin = {
       for (const z of [d.z0 - 0.1, d.z1 + 0.1]) p.add('pole', rod([X, FY, z], [X, railY, z], 0.021));
       p.add('pole', rod([X, railY, d.z0 - 0.1], [X, railY, d.z1 + 0.1], 0.019));
       this._validators[sec].push({ x: X, y: FY + 0.42, z: d.z1 + 0.1, yaw: Math.PI / 2 });
-      p.add('stopBtn', box(0.035, 0.06, 0.05), M(X - 0.03, FY + 0.27 + 0.9, d.z0 - 0.1));
-    }
-    // horizontal grab rail along the standing area (aisle side of the right seats)
-    for (const st of L.standing || []) {
-      if (st.sec !== sec || st.x1 - st.x0 < 0.5) continue;
-      const x = st.x0 > 0 ? st.x0 : st.x1;
-      p.add('pole', rod([x, FY + 0.92, st.z0], [x, FY + 0.92, st.z1], 0.016));
+      p.add('stopBtn', box(0.03, 0.045, 0.035), M(X - 0.025, FY + 1.17, d.z0 - 0.1));
     }
     // interior display housings: a sign under the ceiling at the front and over door 3
     if (isF) p.add('dashSoft', box(1.12, 0.22, 0.08), M(0, this.G.interiorSignY ?? D.windowTopY - 0.18, F.frontZ + this.G.interiorSignZ + 0.05));

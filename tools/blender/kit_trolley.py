@@ -61,14 +61,17 @@ def M():
         'heatRust': mat('heatRust', (0.24, 0.14, 0.08), 0.75, 0.3, noise=0.3, nscale=80, grime=0.3),
         # seats (linear albedo); Solaris IV: dark shells, blue fabric (images 4-6); Solaris III: grey shells,
         # dark violet-blue fabric (images 9-10); Ikarus refurbished: grey plastic shells (images 16-17)
-        'shellS4': mat('shellS4', (0.03, 0.033, 0.038), 0.45, bump=0.05, bscale=1500),
-        'fabricS4': mat('fabricS4', (0.018, 0.045, 0.2), 0.95, noise=0.25, nscale=700, bump=0.35, bscale=1600),
+        # ref06 / ref16: mid-grey shells, royal-blue moquette with a darker block pattern
+        'shellS4': mat('shellS4', (0.1, 0.105, 0.115), 0.42, bump=0.05, bscale=1500),
+        'fabricS4': moquette_blocks('fabricS4', (0.025, 0.085, 0.46), (0.012, 0.035, 0.22)),
         'shellS3': mat('shellS3', (0.15, 0.16, 0.17), 0.42, noise=0.03, nscale=80, bump=0.05, bscale=1500),
         'fabricS3': mat('fabricS3', (0.03, 0.03, 0.17), 0.95, noise=0.3, nscale=650, bump=0.35, bscale=1500),
-        'shellIk': mat('shellIk', (0.075, 0.085, 0.095), 0.4, noise=0.04, nscale=60, bump=0.05, bscale=1600),
+        # ref14: charcoal vinyl seats
+        'shellIk': mat('shellIk', (0.045, 0.05, 0.055), 0.5, noise=0.08, nscale=60, bump=0.12, bscale=1600),
         'seatFrame': mat('seatFrame', (0.5, 0.51, 0.52), 0.35, 0.85, noise=0.06, nscale=40),
         'handleDark': mat('handleDark', (0.04, 0.042, 0.045), 0.5),
-        'handleOrange': mat('handleOrange', (0.62, 0.22, 0.02), 0.4, noise=0.05, nscale=60),
+        # ref14: the Ikarus seats' grab handles are yellow
+        'handleOrange': mat('handleOrange', (0.78, 0.55, 0.02), 0.4, noise=0.05, nscale=60),
         'mirrorBody': mat('mirrorBody', (0.022, 0.023, 0.025), 0.42, bump=0.03, bscale=2500),
         'mirrorGlass': mat('mirrorGlass', (0.75, 0.77, 0.78), 0.04, 1.0),
         'lampBlack': mat('lampBlack', (0.012, 0.013, 0.015), 0.3, 0.1),
@@ -77,6 +80,38 @@ def M():
         'lensClear': mat('lensClear', (0.55, 0.57, 0.6), 0.06, 0.3),
         'ledDrl': mat('ledDrl', (0.85, 0.86, 0.88), 0.25),
     }
+
+
+def moquette_blocks(name, col, dark):
+    """Bus moquette with a coarse block pattern (Solaris IV seats, ref06): base colour with darker squares."""
+    m = bpy.data.materials.new(name)
+    m.use_nodes = True
+    nt = m.node_tree
+    b = nt.nodes['Principled BSDF']
+    b.inputs['Roughness'].default_value = 0.95
+    m['rough'], m['metal'] = 0.95, 0.0
+    tc = nt.nodes.new('ShaderNodeTexCoord')
+    vor = nt.nodes.new('ShaderNodeTexVoronoi')
+    vor.feature = 'F1'
+    vor.distance = 'CHEBYCHEV'
+    vor.inputs['Scale'].default_value = 22
+    nt.links.new(tc.outputs['Object'], vor.inputs['Vector'])
+    ramp = nt.nodes.new('ShaderNodeValToRGB')
+    ramp.color_ramp.elements[0].position = 0.45
+    ramp.color_ramp.elements[0].color = (*col, 1)
+    ramp.color_ramp.elements[1].position = 0.5
+    ramp.color_ramp.elements[1].color = (*dark, 1)
+    nt.links.new(vor.outputs['Color'], ramp.inputs['Fac'])
+    nt.links.new(ramp.outputs['Color'], b.inputs['Base Color'])
+    nz = nt.nodes.new('ShaderNodeTexNoise')
+    nz.inputs['Scale'].default_value = 1400
+    nt.links.new(tc.outputs['Object'], nz.inputs['Vector'])
+    bp = nt.nodes.new('ShaderNodeBump')
+    bp.inputs['Strength'].default_value = 0.35
+    bp.inputs['Distance'].default_value = 0.001
+    nt.links.new(nz.outputs['Fac'], bp.inputs['Height'])
+    nt.links.new(bp.outputs['Normal'], b.inputs['Normal'])
+    return m
 
 
 # ------------------------------------------------------------------ helpers
@@ -449,12 +484,12 @@ def seat_padded(m, shell, fabric, name, handle='dark', W=0.44):
     o = bevel_mod(o, 0.0045, 3, 35)
     parts = [o]
     if fabric is not None:
-        pad_pts = [p for p in resample(face, 60) if 0.52 <= p[1] <= 0.95]
+        pad_pts = [p for p in resample(face, 60) if 0.5 <= p[1] <= 0.97]
         bm = bmesh.new()
         nxp = 13
         rows = []
         for j in range(nxp):
-            x = -0.17 + 0.34 * j / (nxp - 1)
+            x = -0.185 + 0.37 * j / (nxp - 1)
             rows.append([bm.verts.new(W_(x, y, z - 0.004)) for (z, y) in pad_pts])
         for j in range(nxp - 1):
             for i in range(len(pad_pts) - 1):
