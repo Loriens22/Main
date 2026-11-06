@@ -5,7 +5,8 @@
 //   rail: rolling noise of steel wheels on steel rails (darker on street track in a concrete slab), the
 //     "da-dum" of every bogie over each rail joint of the ballasted track, flange squeal in tight curves and
 //     the friction brake squeal in the last metres before the stop.
-// Profiles: 'tram_schindler', 'tram_t6m' (line 12), 'tram_pesa', 'tram_inekon' (line 7). Inputs per frame (GameAudio): speed, load (power), brake, curv
+// Profiles: 'tram_schindler', 'tram_t6m' (line 12), 'tram_pesa', 'tram_inekon' (line 7); the trolleybuses of line 9
+// ('trolley_solaris4', 'trolley_solaris3', 'trolley_ikarus') use the same voice on rubber tyres. Inputs per frame (GameAudio): speed, load (power), brake, curv
 // (1/m), street (bool), engineOn (main switch), bogies (distances from the front, m), travel (distance run, m).
 import { dB, clamp, zoneFor, dopplerCents } from './dsp.js';
 
@@ -31,6 +32,20 @@ export const TRAM_PROFILES = {
   // T8M-700IT: DC motors on the Cegelec TV Europulse IGBT chopper: a steady chopper whine in traction and
   // electric braking over the motor rumble (softer than the T6M's resistance control), static converter hum
   tram_inekon: { chopper: 520, chopGain: -29, rumble: -47, mesh: 15, meshGain: -37, aux: 3300, auxGain: -52, mg: 0, joints: 1.15, squeal: 3500 },
+  // ---- trolleybuses (line 9): rubber tyres (no rail joints, no flange squeal), wheel radius and gear ratio of
+  // their own. Characters as described for the Sofia vehicles (Expansion 5.0):
+  // Škoda 27Tr Solaris IV: IGBT traction converter and asynchronous motor, "a modern gentle sound": a soft
+  // inverter tone, very quiet gears, static converter and cooling fans
+  trolley_solaris4: { chopper: 0, chopGain: -90, rumble: -78, mesh: 17, meshGain: -50, aux: 3150, auxGain: -57, mg: 0, joints: 0, squeal: 0,
+    tyre: true, R: 0.48, ratio: 11.6, vvvf: { carrier: 2050, k: 6, gain: -38 }, fan: -51 },
+  // Škoda 27Tr Solaris III: also asynchronous traction, "modern but much noisier": a louder, lower switching
+  // tone and motor whine, louder gears and fans
+  trolley_solaris3: { chopper: 0, chopGain: -90, rumble: -64, mesh: 17, meshGain: -41, aux: 2500, auxGain: -50, mg: 0, joints: 0, squeal: 0,
+    tyre: true, R: 0.48, ratio: 11.6, vvvf: { carrier: 1120, k: 6, gain: -28 }, fan: -45 },
+  // Ikarus 280.92F: Ganz DC traction motor on a resistance (contactor) controller: "a noisy roar", the motor-
+  // generator humming all the time, loud gears; contactor clacks on every notch (GameAudio.notch)
+  trolley_ikarus: { chopper: 0, chopGain: -90, rumble: -31, mesh: 13, meshGain: -33, aux: 0, auxGain: -90, mg: 88, mgGain: -37, joints: 0, squeal: 0,
+    tyre: true, R: 0.5, ratio: 12.5, roar: -30 },
 };
 const RATIO = 6.9, R = 0.33, RAIL = 12.5; // gear ratio, wheel radius, rail length between joints
 
@@ -93,6 +108,9 @@ export class TramVoice {
       const nf = SRC(bufs.pink); this.fanBp = BQ('bandpass', 900, 1.2); this.gFan = G(0);
       nf.connect(this.fanBp); this.fanBp.connect(this.gFan); this.gFan.connect(this.engGrp);
       this.dopOscs.push(this.vvC, this.vvM);
+      // DC motor roar (Ikarus trolleybus): band-passed brown-ish noise following the motor speed
+      const nr = SRC(bufs.pink); this.roarBp = BQ('bandpass', 180, 1.1); this.roarLp = BQ('lowpass', 900, 0.7); this.gRoar = G(0);
+      nr.connect(this.roarBp); this.roarBp.connect(this.roarLp); this.roarLp.connect(this.gRoar); this.gRoar.connect(this.engGrp);
     }
     this.P = TRAM_PROFILES.tram_schindler;
     this.prof = 'tram_schindler';
@@ -144,7 +162,7 @@ export class TramVoice {
     if (s.profile) this.setProfile(s.profile);
     const P = this.P, z = this.z, tc = 0.06;
     const v = Math.abs(s.speed || 0), load = clamp(s.load || 0, 0, 1), brake = clamp(s.brake || 0, 0, 1.5), on = s.engineOn !== false;
-    const motorRps = (v / R) * RATIO / (2 * Math.PI);
+    const motorRps = (v / (P.R || R)) * (P.ratio || RATIO) / (2 * Math.PI);
     const work = Math.max(load, Math.min(1, brake) * (v > 2 ? 0.8 : 0)); // electric braking loads the motors too
     // gear mesh
     const fm = Math.max(1, motorRps * P.mesh);
@@ -158,13 +176,22 @@ export class TramVoice {
     setP(this.gRum.gain, dB(P.rumble - 4 + 9 * work) * clamp(v / 2, 0, 1), t, 0.1);
     // rolling noise (levels for 40 km/h); the concrete slab of street track is darker and quieter
     const k = clamp(Math.pow(Math.max(v, 0.01) / 11, 1.4), 0, 3), street = s.street ? 1 : 0;
-    setP(this.gRollLo.gain, dB(-15 - street * 2) * k * clamp(v / 1.0, 0, 1), t, 0.12);
-    setP(this.rollLo.frequency, 280 + 14 * v, t, 0.15, 0.01);
-    setP(this.gRollHi.gain, dB(-24 - street * 5) * k * clamp(v / 1.5, 0, 1), t, 0.12);
-    setP(this.rollHi.frequency, 1400 + 70 * v, t, 0.15, 0.01);
+    if (P.tyre) {
+      // rubber tyres on asphalt (cobbles: rougher and louder): a broadband roar and the tread hiss
+      const rough = s.surface === 'brick' ? 4 : 0;
+      setP(this.gRollLo.gain, dB(-18 + rough) * k * clamp(v / 1.0, 0, 1), t, 0.12);
+      setP(this.rollLo.frequency, 210 + 9 * v, t, 0.15, 0.01);
+      setP(this.gRollHi.gain, dB(-31 + rough) * k * clamp(v / 1.5, 0, 1), t, 0.12);
+      setP(this.rollHi.frequency, 900 + 38 * v, t, 0.15, 0.01);
+    } else {
+      setP(this.gRollLo.gain, dB(-15 - street * 2) * k * clamp(v / 1.0, 0, 1), t, 0.12);
+      setP(this.rollLo.frequency, 280 + 14 * v, t, 0.15, 0.01);
+      setP(this.gRollHi.gain, dB(-24 - street * 5) * k * clamp(v / 1.5, 0, 1), t, 0.12);
+      setP(this.rollHi.frequency, 1400 + 70 * v, t, 0.15, 0.01);
+    }
     // rail joints of the ballasted track: every bogie, both axles
     if (s.travel != null) {
-      if (this.lastDist != null && !street && v > 0.8) {
+      if (this.lastDist != null && !street && v > 0.8 && P.joints > 0) {
         const a = Math.floor(this.lastDist / RAIL), b = Math.floor(s.travel / RAIL);
         if (b !== a && Math.abs(s.travel - this.lastDist) < 30) this.joint(t, v, s.bogies || [3, 10], s.wb || 1.8);
       }
@@ -176,7 +203,7 @@ export class TramVoice {
     setP(this.gChop.gain, P.chopper ? dB(P.chopGain + 14 * work) * (work > 0.05 ? 1 : 0) : 0, t, 0.08);
     setP(this.gAux.gain, on && P.aux ? dB(P.auxGain + z.whine * 0.5) : 0, t, 0.3);
     setP(this.aux.frequency, P.aux || 1, t, 0.3);
-    setP(this.gMg.gain, on && P.mg ? dB(-44 + z.whine * 0.4) : 0, t, 0.4);
+    setP(this.gMg.gain, on && P.mg ? dB((P.mgGain ?? -44) + z.whine * 0.4) : 0, t, 0.4);
     setP(this.mgO.frequency, P.mg || 1, t, 0.3);
     // VVVF: below ~20 km/h the fixed carrier dominates; the motor harmonic climbs with the speed and fades out
     // in the constant-power range; both follow the motor current (traction and electric braking)
@@ -194,13 +221,18 @@ export class TramVoice {
       setP(this.gVvM.gain, 0, t, 0.1);
     }
     setP(this.gFan.gain, on && P.fan ? dB(P.fan + z.whine * 0.4) : 0, t, 0.5);
-    // flange squeal above ~1/60 m curvature
-    const sqAmt = clamp((Math.abs(s.curv || 0) - 1 / 60) * 60, 0, 1) * clamp((v - 1.5) / 3, 0, 1) * clamp((9 - v) / 3 + 0.4, 0.2, 1);
-    setP(this.sq.frequency, P.squeal + 120 * Math.sin(t * 0.7), t, 0.2);
-    setP(this.sq2.frequency, P.squeal * 1.96, t, 0.2);
+    // DC traction roar of the old trolleybus: the commutator motor's broadband growl under current
+    if (P.roar) {
+      setP(this.gRoar.gain, dB(P.roar + 10 * work) * clamp(v / 1.5, 0, 1) * (0.25 + 0.75 * work), t, 0.09);
+      setP(this.roarBp.frequency, 140 + motorRps * 5.5, t, 0.1, 0.01);
+    } else setP(this.gRoar.gain, 0, t, 0.1);
+    // flange squeal above ~1/60 m curvature (rail vehicles only)
+    const sqAmt = P.squeal ? clamp((Math.abs(s.curv || 0) - 1 / 60) * 60, 0, 1) * clamp((v - 1.5) / 3, 0, 1) * clamp((9 - v) / 3 + 0.4, 0.2, 1) : 0;
+    setP(this.sq.frequency, (P.squeal || 3900) + 120 * Math.sin(t * 0.7), t, 0.2);
+    setP(this.sq2.frequency, (P.squeal || 3900) * 1.96, t, 0.2);
     setP(this.gSq.gain, dB(-30) * sqAmt, t, 0.15);
     // friction brake squeal as the tram comes to a stop
-    const bkAmt = brake > 0.25 && v > 0.15 && v < 2.2 ? clamp((2.2 - v) / 1.2, 0, 1) : 0;
+    const bkAmt = brake > 0.25 && v > 0.15 && v < 2.2 ? clamp((2.2 - v) / 1.2, 0, 1) * (P.tyre ? 0.25 : 1) : 0;
     setP(this.gBk.gain, dB(-38) * bkAmt, t, 0.1);
   }
 

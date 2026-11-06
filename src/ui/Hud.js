@@ -28,7 +28,8 @@ export class Hud {
       <div class="spd">0<small>${t('speed')}</small></div>
       <div class="gear"><span>D</span><span>N</span><span class="r">R</span></div>
       <div class="doors"><span>1</span><span>2</span><span>3</span><span>4</span></div>
-      <div class="lamps"><span class="lamp ind l">◀</span><span class="lamp p">P</span><span class="lamp sb">Ⓢ</span><span class="lamp hl">◐</span><span class="lamp ind r">▶</span></div>`);
+      <div class="lamps"><span class="lamp ind l">◀</span><span class="lamp p">P</span><span class="lamp sb">Ⓢ</span><span class="lamp hl">◐</span><span class="lamp ind r">▶</span></div>
+      <div class="tpow" style="display:none"><span class="pole pl">╱</span><span class="pole pr">╱</span><span class="lamp volt">V</span><span class="bat"><i></i><b></b></span></div>`);
     this.toastEl = el('div', 'panel toast');
     this.sub = el('div', 'sub');
     this.check = el('div', 'panel check');
@@ -47,6 +48,8 @@ export class Hud {
       spd: this.dash.querySelector('.spd'), gear: [...this.dash.querySelectorAll('.gear span')], doors: [...this.dash.querySelectorAll('.doors span')],
       il: this.dash.querySelector('.lamp.l'), ir: this.dash.querySelector('.lamp.r'), p: this.dash.querySelector('.lamp.p'),
       sb: this.dash.querySelector('.lamp.sb'), hl: this.dash.querySelector('.lamp.hl'),
+      tpow: this.dash.querySelector('.tpow'), poles: [...this.dash.querySelectorAll('.tpow .pole')], volt: this.dash.querySelector('.lamp.volt'),
+      bat: this.dash.querySelector('.tpow .bat'),
       dest: this.top.querySelector('.dest'), name: this.next.querySelector('.name'), dist: this.next.querySelector('.dist'),
       sched: this.next.querySelector('.sched'), lbl: this.next.querySelector('.lbl'),
     };
@@ -68,6 +71,15 @@ export class Hud {
         L('<b>Space</b> звънец · <b>B</b> клаксон · <b>Z</b> пясък · <b>L</b> светлини', '<b>Space</b> bell · <b>B</b> horn · <b>Z</b> sand · <b>L</b> lights'),
         L('<b>Q/E</b> мигачи · <b>H</b> аварийни · <b>Y</b> чистачки', '<b>Q/E</b> indicators · <b>H</b> hazards · <b>Y</b> wipers'),
         L('<b>Tab</b> камера · <b>мишка</b> оглеждане · <b>Esc</b> пауза', '<b>Tab</b> camera · <b>mouse</b> look · <b>Esc</b> pause'),
+      ]
+      : mode === 'driver' && this.trolley
+      ? [
+        L('<b>W/S</b> тяга / спирачка · <b>A/D</b> волан', '<b>W/S</b> power / brake · <b>A/D</b> steer'),
+        L('<b>I</b> главен прекъсвач · <b>U</b> щанги горе / долу', '<b>I</b> main switch · <b>U</b> trolley poles up / down'),
+        L('<b>1/2/3</b> D N R · <b>P</b> ръчна спирачка · <b>T</b> табела', '<b>1/2/3</b> D N R · <b>P</b> parking brake · <b>T</b> destination sign'),
+        L('<b>O</b> отвори врати · <b>C</b> затвори', '<b>O</b> open doors · <b>C</b> close'),
+        L('<b>Q/E</b> мигачи · <b>H</b> аварийни · <b>L</b> фарове · <b>Y</b> чистачки', '<b>Q/E</b> indicators · <b>H</b> hazards · <b>L</b> headlights · <b>Y</b> wipers'),
+        L('<b>Space</b> клаксон · <b>Tab</b> камера · <b>Esc</b> пауза', '<b>Space</b> horn · <b>Tab</b> camera · <b>Esc</b> pause'),
       ]
       : mode === 'driver'
       ? [
@@ -158,6 +170,20 @@ export class Hud {
       q.p.classList.toggle('on', s.parking);
       q.sb.classList.toggle('on', s.stopBrake);
       q.hl.classList.toggle('on', s.head);
+      // trolleybus: the two poles (on the wire / moving / off), line voltage, traction battery
+      const T = s.trolley;
+      q.tpow.style.display = T ? '' : 'none';
+      if (T) {
+        q.poles.forEach((e, i) => { e.className = `pole ${i ? 'pr' : 'pl'} ${T.poles[i]}`; });
+        q.volt.classList.toggle('on', T.line);
+        q.volt.classList.toggle('bat', !T.line && T.onBattery);
+        q.bat.style.display = T.battery == null ? 'none' : '';
+        if (T.battery != null) {
+          q.bat.firstChild.style.width = `${Math.round(T.battery * 100)}%`;
+          q.bat.lastChild.textContent = `${Math.round(T.battery * 100)}%`;
+          q.bat.classList.toggle('low', T.battery < 0.2);
+        }
+      }
     }
     if (s.fps != null) this.fps.textContent = `${s.fps.toFixed(0)} FPS · ${s.quality}`;
   }

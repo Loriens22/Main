@@ -159,7 +159,7 @@ export class TouchControls {
       p.addEventListener('pointerup', up);
       p.addEventListener('pointercancel', up);
     };
-    pedal('gas', L('ГАЗ', 'GAS'), 'throttle');
+    pedal('gas', g.bus && g.bus.isTrolley ? L('ТЯГА', 'POWER') : L('ГАЗ', 'GAS'), 'throttle');
     pedal('brake', L('СПИР.', 'BRAKE'), 'brake');
     const key = (code) => () => g.input.pressed.add(code);
     const btns = this.div('tc btns');
@@ -176,7 +176,13 @@ export class TouchControls {
     this.button(lb, '⚠', (d) => d && key('KeyH')());
     this.button(lb, '▶', (d) => d && key('KeyE')());
     this.button(lb, L('Чист.', 'Wipers'), (d) => d && key('KeyY')());
-    this.button(lb, L('Запал.', 'Engine'), (d) => d && key('KeyI')());
+    const trolley = !!(g.bus && g.bus.isTrolley);
+    this.button(lb, trolley ? L('Прекъсв.', 'Main sw.') : L('Запал.', 'Engine'), (d) => d && key('KeyI')());
+    if (trolley) {
+      // trolleybus: poles up / down and the destination sign (preparation steps)
+      this.button(lb, L('Щанги', 'Poles'), (d) => d && key('KeyU')(), 'red');
+      this.button(lb, L('Табела', 'Sign'), (d) => d && key('KeyT')());
+    }
     this.button(lb, L('Курс', 'Reset'), (d) => d && key('KeyR')());
     const top = this.div('tc top');
     this.button(top, '🎥', (d) => d && g.cycleCamera());

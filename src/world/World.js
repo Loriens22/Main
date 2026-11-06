@@ -2,6 +2,7 @@
 // streaming around the camera).
 import * as THREE from 'three';
 import { buildTramInfrastructure } from './TramTracks.js';
+import { buildTrolleyWires } from './TrolleyWires.js';
 import { Heightfield } from './Heightfield.js';
 import { buildSplat, createTerrainMaterial, buildNearTerrainChunk, buildFarTerrain } from './Terrain.js';
 import { RoadNetwork } from './RoadNetwork.js';
@@ -90,6 +91,8 @@ export class World {
     for (const g of bb.meshes()) this.addToTile(g.name.split(':')[1], g);
     // tram lines: track (rails, track panels or ballast and sleepers) and the overhead line
     if (this.route && this.route.isTram) this.tramInfra = buildTramInfrastructure(this);
+    // trolleybus lines: the dual contact wire over each direction, its poles, hangers and crossings
+    if (this.route && this.route.isTrolley) this.trolleyInfra = buildTrolleyWires(this);
     const kit = (this.kit = kitP && (await kitP));
     if (kit && bb.kit) for (const g of bb.kit.meshes(kit)) this.addToTile(g.name.split(':')[1], g);
     this.materials = { roads: rb.materials(), buildings: bb.materials() };

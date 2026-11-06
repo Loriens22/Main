@@ -1,13 +1,14 @@
 // Main menu, pre-game setup, settings, credits and pause screens.
 import { t, L, setLang, getLang } from './i18n.js';
 import { saveSettings, loadSave } from '../game/Settings.js';
-import { lineVehicles, vehicleSpec } from '../vehicle/Vehicles.js';
+import { lineVehicles, vehicleSpec, LINE_FLEETS } from '../vehicle/Vehicles.js';
 
 /** The playable lines: number, termini (Bulgarian, English). */
 export const LINE_INFO = {
   280: { bg: 'СУ „Св. Климент Охридски“ – Студентски град', en: 'Sofia University – Studentski Grad', sbg: 'СУ – Студентски град', sen: 'University – Studentski Grad' },
   64: { bg: 'Зоопарка – Център по хигиена', en: 'Zoo – Hygiene Centre', sbg: 'Зоопарка – Център по хигиена', sen: 'Zoo – Hygiene Centre' },
   12: { bg: 'кв. Илиянци – пл. Журналист (трамвай)', en: 'Iliyantsi – Zhurnalist Square (tram)', sbg: 'Илиянци – пл. Журналист', sen: 'Iliyantsi – Zhurnalist Sq.' },
+  9: { bg: 'ж.к. Борово – пл. Сточна гара (тролейбус)', en: 'Borovo – Stochna Gara Square (trolleybus)', sbg: 'Борово – Сточна гара', sen: 'Borovo – Stochna Gara' },
   7: { bg: 'кв. Манастирски ливади – запад – Метростанция „Хан Кубрат“ (трамвай)', en: 'Manastirski Livadi West – Han Kubrat Metro (tram)', sbg: 'Манастирски ливади – Хан Кубрат', sen: 'Manastirski Livadi – Han Kubrat' },
 };
 
@@ -138,10 +139,82 @@ export class Menu {
     if (this.setup.vehicle !== 'random' && !ids.includes(this.setup.vehicle)) this.setup.vehicle = 'random';
     const busBox = document.createElement('div');
     const fleetBox = document.createElement('div');
+    const drawShares = () => {
+      const S = this.settings;
+      const modeKey = `fleetMode${line}`, wKey = `shares${line}`;
+      const hasHist = ids.some((id) => vehicleSpec(id).historical);
+      const box = document.createElement('div');
+      const modes = [['mixed', L('Смесен', 'Mixed')], ['modern', L('Само съвременни', 'Modern only')]];
+      if (hasHist) modes.push(['historical', L('Исторически', 'Historical')]);
+      const seg = document.createElement('div');
+      seg.className = 'seg';
+      const sliders = document.createElement('div');
+      const drawSliders = () => {
+        sliders.innerHTML = '';
+        if ((S[modeKey] || 'mixed') !== 'mixed') {
+          const lab = document.createElement('div');
+          lab.className = 'share-lab';
+          const pick = ids.filter((id) => !!vehicleSpec(id).historical === (S[modeKey] === 'historical'));
+          lab.textContent = pick.map((id) => `${vehicleSpec(id).short} ${Math.round(100 / pick.length)}%`).join(' · ');
+          sliders.appendChild(lab);
+          return;
+        }
+        const def = Object.fromEntries((LINE_FLEETS[line] || []).map((v) => [v.id, v.share]));
+        const w = Object.assign({}, def, S[wKey] || {});
+        const lab = document.createElement('div');
+        lab.className = 'share-lab';
+        const upd = () => {
+          const sum = ids.reduce((a, id) => a + Math.max(0, w[id] ?? 0), 0) || 1;
+          lab.textContent = ids.map((id) => `${vehicleSpec(id).short} ${Math.round((100 * Math.max(0, w[id] ?? 0)) / sum)}%`).join(' · ');
+        };
+        for (const id of ids) {
+          const r = document.createElement('input');
+          r.type = 'range';
+          r.min = 0;
+          r.max = 100;
+          r.step = 1;
+          r.value = Math.round((w[id] ?? 0) * 100);
+          r.oninput = () => {
+            w[id] = Number(r.value) / 100;
+            S[wKey] = { ...w };
+            upd();
+          };
+          sliders.appendChild(this.field(vehicleSpec(id).short, r));
+        }
+        upd();
+        sliders.appendChild(lab);
+      };
+      for (const [val, label] of modes) {
+        const b = document.createElement('button');
+        b.textContent = label;
+        b.className = (S[modeKey] || 'mixed') === val ? 'on' : '';
+        b.onclick = () => {
+          S[modeKey] = val;
+          [...seg.children].forEach((x) => x.classList.remove('on'));
+          b.classList.add('on');
+          drawSliders();
+        };
+        seg.appendChild(b);
+      }
+      box.append(this.field(L('Режим на парка', 'Fleet mode'), seg), sliders);
+      drawSliders();
+      fleetBox.appendChild(box);
+      const seed = document.createElement('input');
+      seed.type = 'text';
+      seed.inputMode = 'numeric';
+      seed.placeholder = L('случаен', 'random');
+      seed.value = S.dispatchSeed ?? '';
+      seed.oninput = () => (S.dispatchSeed = seed.value.replace(/[^0-9]/g, ''));
+      fleetBox.append(this.field(L('Seed на разпределението (по избор)', 'Dispatch seed (optional)'), seed));
+    };
     const drawFleet = () => {
       fleetBox.innerHTML = '';
       const v = this.setup.vehicle;
       if (v === 'random') {
+        if (ids.length > 2) {
+          drawShares();
+          return;
+        }
         // share of the first type when dispatching at random, and the seed that makes a day reproducible
         const a = vehicleSpec(ids[0]).short, b = vehicleSpec(ids[1]).short;
         const r = document.createElement('input');
@@ -186,7 +259,7 @@ export class Menu {
       fleetBox.appendChild(this.field(L('Гаражен номер', 'Fleet number'), bp));
     };
     busBox.appendChild(this.seg('vehicle', [...ids.map((id) => [id, vehicleSpec(id).short]), ['random', L('Случаен', 'Random')]], drawFleet));
-    p.appendChild(this.field(vehicleSpec(ids[0]).kind === 'tram' ? L('Трамвай', 'Tram') : t('bus'), busBox));
+    p.appendChild(this.field(vehicleSpec(ids[0]).kind === 'tram' ? L('Трамвай', 'Tram') : vehicleSpec(ids[0]).kind === 'trolleybus' ? L('Тролейбус', 'Trolleybus') : t('bus'), busBox));
     p.appendChild(fleetBox);
     drawFleet();
     const dirOpts = ['A', 'B'].map((id) => [id, `→ ${this.route.direction(id).headsign}`]);
@@ -210,6 +283,12 @@ export class Menu {
       stopSel.onchange = () => (this.setup.stopIndex = Number(stopSel.value));
       p.appendChild(this.field(t('startStop'), stopSel));
       fillStops();
+    }
+    if (mode === 'driver' && vehicleSpec(ids[0]).kind === 'trolleybus') {
+      // trolley poles: beginner = the poles stay on the wire and come back up by themselves after a stop;
+      // advanced = they come off the wire in fast bends and over badly taken frogs, and the driver re-poles
+      this.setup.trolleyMode = this.settings.trolleyMode || 'beginner';
+      p.appendChild(this.field(L('Токоприемни щанги', 'Trolley poles'), this.seg('trolleyMode', [['beginner', L('Начинаещ (автоматично)', 'Beginner (automatic)')], ['advanced', L('Реалистичен (изпадане от жицата)', 'Realistic (dewirements)')]])));
     }
     p.appendChild(this.field(t('weather'), this.seg('weather', [['clear', t('clear')], ['cloudy', t('cloudy')], ['rain', t('rain')]])));
     p.appendChild(this.field(t('time'), this.seg('hour', [[7.5, t('morning')], [12.5, t('noon')], [18.6, t('evening')], [21.8, t('night')]])));
@@ -246,6 +325,7 @@ export class Menu {
       this.settings[`vehicle${line}`] = this.setup.vehicle;
       if (this.setup.vehicle === 'man') this.settings.fleet = this.setup.fleet;
       this.settings.traffic = this.setup.traffic;
+      if (this.setup.trolleyMode) this.settings.trolleyMode = this.setup.trolleyMode;
       const qualityChanged = q.quality !== this.settings.quality;
       this.settings.quality = q.quality;
       saveSettings(this.settings);

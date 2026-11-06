@@ -9,7 +9,7 @@ import { t, L } from '../ui/i18n.js';
 import { clamp, fwdX, fwdZ } from '../core/math.js';
 import { Scoring } from '../gameplay/Scoring.js';
 import { PassengerMode } from './PassengerMode.js';
-import { dispatchVehicle, fleetFor, lineVehicles, vehicleSpec } from '../vehicle/Vehicles.js';
+import { dispatchVehicle, fleetFor, lineVehicles, lineShares, vehicleSpec } from '../vehicle/Vehicles.js';
 import { BusLightRig } from '../render/BusLights.js';
 import { GameAudio } from '../audio/GameAudio.js';
 
@@ -60,9 +60,7 @@ export class Game {
     const serviceNo = this.serviceCounter++;
     const fixed = String(s.dispatchSeed ?? '').trim();
     const seed = fixed !== '' && Number.isFinite(Number(fixed)) ? Number(fixed) : this.sessionSeed;
-    const ids = lineVehicles(line);
-    const share = Number(s[`share${line}`] ?? 0.5);
-    const shares = { [ids[0]]: share, [ids[1]]: 1 - share };
+    const shares = lineShares(line, s);
     const vehicle = dispatchVehicle(line, serviceNo, seed, choice ?? s[`vehicle${line}`] ?? 'random', shares);
     return { serviceNo, vehicle, fleet: fleetFor(vehicle, serviceNo + seed).fleet, seed };
   }
@@ -112,12 +110,20 @@ export class Game {
     const choice = opts.vehicle && opts.vehicle !== 'random' && lineVehicles(this.route.line).includes(opts.vehicle) ? opts.vehicle : 'random';
     const sv = this.nextService(choice);
     const fleet = choice !== 'random' && opts.fleet && vehicleSpec(sv.vehicle).fleets.some((f) => f.fleet === String(opts.fleet)) ? String(opts.fleet) : sv.fleet;
-    const bus = (this.bus = createVehicle({ scene: this.scene, world: this.world, route: this.route, dirId, vehicle: sv.vehicle, fleet, quality: this.quality, player: true, serviceNo: sv.serviceNo }));
+    const advanced = (opts.trolleyMode || this.settings.trolleyMode) === 'advanced';
+    const trolleyOpts = { realistic: advanced, autoRecover: !advanced };
+    const bus = (this.bus = createVehicle({ scene: this.scene, world: this.world, route: this.route, dirId, vehicle: sv.vehicle, fleet, quality: this.quality, player: true, serviceNo: sv.serviceNo, trolleyOpts }));
     bus.placeAt(bus.dir.stops[0].frontS);
     bus.phys.parkingBrake = true;
     bus.phys.selector = 'N';
     bus.phys.engineOn = false;
     if (bus.isTram) { bus.phys.pantoUp = false; bus.phys.pantoH = 0; }
+    if (bus.isTrolley) {
+      // a trolleybus is prepared from cold: poles on their hooks, destination sign dark
+      bus.trolley.snapDown();
+      bus.display.mode = 'off';
+      bus.updateSigns();
+    }
     bus.doors.open(null, 0);
     bus.lights.head = this.sky.night > 0.3;
     this.wireBus(bus);
@@ -125,6 +131,7 @@ export class Game {
     if (bus.isTram) bus.extraColliders.push((p) => this.collideTrams(bus, p));
     this.rig.setMode('cab');
     this.hud.tram = !!bus.isTram;
+    this.hud.trolley = !!bus.isTrolley;
     this.hud.setMode('driver');
     this.hud.show(true);
     this.scoring = new Scoring();
@@ -143,6 +150,8 @@ export class Game {
       if (bus.player && e.type === 'closeRequest' && this.time - (this.lastCloseToast ?? -9) > 2) this.lastCloseToast = this.time, this.hud.toast(L('Вратите се затварят…', 'Doors closing…'));
     });
     bus.phys.onShift = (gear, dir) => this.gameAudio.shift(bus, gear, dir);
+    // trolleybus with a contactor controller (Ikarus): the contactors clack on every notch
+    if (bus.isTrolley) bus.phys.onNotch = (n, prev) => this.gameAudio.notch(bus, n, prev);
   }
 
   /** Called each frame with real dt. */
@@ -267,8 +276,10 @@ export class Game {
     // --- discrete controls
     if (I.hit('KeyI')) {
       p.engineOn = !p.engineOn;
-      this.hud.toast(p.engineOn ? L('Двигателят е запален', 'Engine started') : L('Двигателят е изключен', 'Engine off'));
+      if (bus.isTrolley) this.hud.toast(p.engineOn ? L('Главният прекъсвач е включен', 'Main switch on') : L('Главният прекъсвач е изключен', 'Main switch off'));
+      else this.hud.toast(p.engineOn ? L('Двигателят е запален', 'Engine started') : L('Двигателят е изключен', 'Engine off'));
     }
+    if (bus.isTrolley && I.hit('KeyU')) this.togglePoles();
     if (I.hit('Digit1') || I.hit('Numpad1')) this.selectGear('D');
     if (I.hit('Digit2') || I.hit('Numpad2')) this.selectGear('N');
     if (I.hit('Digit3') || I.hit('Numpad3')) this.selectGear('R');
@@ -328,7 +339,26 @@ export class Game {
     bus.prevFrontS = bus.frontS;
     if (bus.kerbHit) { bus.kerbHit = false; this.audio.kerb(); this.rig.shake = 0.6; }
     for (const m of this.scoring.messages.splice(0)) this.hud.toast(m.text, m.bad);
+    if (bus.isTrolley) this.trolleyEvents(bus);
     // --- checklist
+    if (!this.checklistDone && bus.isTrolley) {
+      const T = bus.trolley;
+      const items = [
+        { label: L('Включи главния прекъсвач', 'Switch on the main switch'), key: 'I', done: p.engineOn },
+        { label: L('Вдигни щангите', 'Raise the trolley poles'), key: 'U', done: T.up },
+        { label: L('Провери захранването', 'Check the line power'), key: 'V', done: T.line && p.engineOn },
+        { label: L('Включи табелата', 'Set the destination sign'), key: 'T', done: bus.display.mode === 'route' },
+        { label: L('Затвори вратите', 'Close the doors'), key: 'C', done: bus.doors.allClosed },
+        { label: L('Освободи ръчната спирачка', 'Release the parking brake'), key: 'P', done: !p.parkingBrake },
+        { label: L('Включи D', 'Select D'), key: '1', done: p.selector === 'D' },
+      ];
+      this.hud.setChecklist(items);
+      if (items.every((i) => i.done)) {
+        this.checklistDone = true;
+        this.hud.setChecklist(null);
+        this.hud.toast(L('Готови за тръгване — приятен път!', 'Ready to go — have a good trip!'));
+      }
+    }
     if (!this.checklistDone) {
       const items = [
         { label: L('Запали двигателя', 'Start the engine'), key: 'I', done: p.engineOn },
@@ -350,6 +380,47 @@ export class Game {
     this.hud.cross.classList.remove('show');
     this.updateDriverHud(dt);
     this.updateDashboard(bus);
+  }
+
+  /** Trolley poles up / down (key U, touch button). */
+  togglePoles() {
+    const T = this.bus && this.bus.trolley;
+    if (!T) return;
+    const goingDown = T.poles.some((q) => q.state === 'up' || q.state === 'raising');
+    if (goingDown && Math.abs(this.bus.phys.v) > 1.5) {
+      this.hud.toast(L('Спрете, преди да свалите щангите', 'Stop before lowering the poles'), true);
+      return;
+    }
+    T.manualDown = goingDown;
+    T.toggle();
+    this.hud.toast(goingDown ? L('Щангите се свалят', 'Lowering the trolley poles') : this.bus.spec.trolley.ropes
+      ? L('Щангите се вдигат с въжетата', 'Raising the poles with the ropes')
+      : L('Щангите се вдигат', 'Raising the trolley poles'));
+  }
+
+  /** Toasts and score for what the poles did this frame (the events are consumed by GameAudio). */
+  trolleyEvents(bus) {
+    const T = bus.trolley;
+    for (const e of T.events) {
+      if (e === 'raised' && T.up) this.hud.toast(L('Щангите са на жицата — има напрежение', 'Poles on the wire — line power on'));
+      else if (e === 'nowire') this.hud.toast(L('Няма контактна мрежа над тролейбуса!', 'No overhead wire above the trolleybus!'), true);
+      else if (e === 'dewire') {
+        this.hud.toast(T.autoRecover
+          ? L('Щанга изскочи от жицата! Спрете — ще се вдигне сама', 'A pole came off the wire! Stop — it will be re-poled')
+          : bus.spec.trolley.ropes
+            ? L('Щанга изскочи! Спрете, свалете (U) и вдигнете отново с въжетата', 'Dewired! Stop, lower (U) and re-pole with the ropes')
+            : L('Щанга изскочи! Спрете и вдигнете щангите (U)', 'Dewired! Stop and raise the poles (U)'), true);
+        if (this.scoring && !T.autoRecover) this.scoring.add('dewire', -15, L('Изпадане от жицата', 'Dewirement'));
+      }
+    }
+    // driving off the wire on the battery (Solaris IV) / with no power at all
+    const p = bus.phys;
+    if (T.onBattery && !this.batteryToastShown) { this.batteryToastShown = true; this.hud.toast(L('Автономен ход на батерия', 'Running on the traction battery')); }
+    if (T.line) this.batteryToastShown = false;
+    if (!T.line && !T.onBattery && p.engineOn && this.input.keys.has('KeyW') && this.time - (this.noPowerToastT ?? -9) > 4) {
+      this.noPowerToastT = this.time;
+      this.hud.toast(L('Няма захранване — вдигнете щангите (U)', 'No power — raise the trolley poles (U)'), true);
+    }
   }
 
   cycleCamera() {
@@ -475,6 +546,10 @@ export class Game {
       gear: p.gear,
       gearText: bus.isTram ? (p.emergency ? 'EB' : p.notch > 0 ? `P${p.notch}` : p.notch < 0 ? `B${-p.notch}` : 'D0') : null,
       limit: bus.isTram ? Math.round(bus.limit.v * 3.6) : null,
+      trolley: bus.isTrolley ? {
+        poles: bus.trolley.poles.map((q) => q.state), line: bus.trolley.line, onBattery: !!bus.trolley.onBattery,
+        battery: bus.trolley.battery ? bus.trolley.battery.soc : null,
+      } : null,
       doors: bus.doors.doors.map((d) => d.state),
       indL: (bus.lights.left || bus.lights.hazard) && bus.indicatorOn,
       indR: (bus.lights.right || bus.lights.hazard) && bus.indicatorOn,

@@ -79,6 +79,14 @@ select{background:#16211b;color:var(--text);border:1px solid var(--line);border-
 .lamp{width:26px;height:26px;border-radius:50%;display:grid;place-items:center;font-size:.7em;font-weight:800;background:rgba(255,255,255,.05);color:rgba(255,255,255,.25)}
 .lamp.on{color:#fff}
 .lamp.p.on{background:#c0392b}.lamp.ind.on{background:#2f8f45}.lamp.hl.on{background:#2d6cdf}.lamp.sb.on{background:#d68910}
+.hud .tpow{display:flex;gap:6px;align-items:center;margin-top:6px}
+.tpow .pole{width:22px;height:26px;border-radius:6px;display:grid;place-items:center;font-weight:900;background:rgba(255,255,255,.05);color:rgba(255,255,255,.25)}
+.tpow .pole.up{background:#2f8f45;color:#fff}.tpow .pole.raising,.tpow .pole.lowering{background:#d68910;color:#fff}
+.tpow .pole.dewired{background:#c0392b;color:#fff;animation:blink .5s steps(2) infinite}
+.lamp.volt.on{background:#2d6cdf}.lamp.volt.bat{background:#8e44ad;color:#fff}
+.tpow .bat{position:relative;width:64px;height:16px;border:2px solid rgba(255,255,255,.4);border-radius:4px;overflow:hidden}
+.tpow .bat i{position:absolute;left:0;top:0;bottom:0;background:#27ae60}.tpow .bat.low i{background:#c0392b}
+.tpow .bat b{position:absolute;inset:0;font-size:.62em;display:grid;place-items:center;color:#fff}
 .hud .toast{position:absolute;left:50%;top:calc(18% + var(--safe-t));transform:translateX(-50%);width:max-content;padding:10px 18px;font-weight:600;opacity:0;transition:opacity .3s;text-align:center;max-width:80vw}
 .hud .toast.show{opacity:1}
 .hud .toast.bad{border-color:#ff5544}

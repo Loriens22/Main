@@ -45,15 +45,22 @@ export class ArticulatedBus {
     this.L1 = d.wb1;
     this.c = this.articulated ? F.hitchFront : 0; // hitch behind axle 2
     this.L2 = this.articulated ? -F.hitchRear : 0; // hitch to axle 3
-    this.torque = P.torque;
-    this.gears = P.gears;
-    this.final = P.final;
-    this.reverseRatio = P.reverse;
-    this.idle = P.idle;
-    this.maxRpm = P.maxRpm;
-    this.governed = P.governed;
+    // (an electric spec has no engine or gearbox: neutral defaults keep the shared code paths valid)
+    this.torque = P.torque || (() => 0);
+    this.gears = P.gears || [1];
+    this.final = P.final || 1;
+    this.reverseRatio = P.reverse || 1;
+    this.idle = P.idle ?? 0;
+    this.maxRpm = P.maxRpm || 6500;
+    this.governed = P.governed || (P.electric ? P.electric.vmax / 3.6 : 70 / 3.6);
     this.aeroArea = P.aeroArea;
     this.massEmpty = P.massEmpty;
+    // trolleybus: electric traction (no gearbox) fed from the overhead line or a battery; the trolley system
+    // sets powerAvail (0..1) and powerLimit (W, battery) every step
+    this.electric = P.electric || null;
+    this.powerAvail = 1;
+    this.powerLimit = Infinity;
+    this.speedLimit = Infinity;
     // body extents per section (section z, forward is -z) for the collision boxes
     this.box = this.articulated
       ? [{ c: -(F.frontZ + F.frontEnd) / 2, hl: (F.frontEnd - F.frontZ) / 2 }, { c: -(F.rearStart + F.rearZ) / 2, hl: (F.rearZ - F.rearStart) / 2 }]
@@ -102,6 +109,9 @@ export class ArticulatedBus {
     this.load = 0;
     this.throttleOut = 0;
     this.brakeOut = 0;
+    this.traction = 0; // electric: ramped traction command 0..1
+    this.notch = 0; // electric with a stepped controller (Ikarus): current notch
+    this.motorPower = 0; // W drawn by the traction motor (negative: regenerating)
   }
 
   get articulation() {
@@ -160,7 +170,31 @@ export class ArticulatedBus {
     this.rpm += (rpmTarget - this.rpm) * clamp(dt * 6, 0, 1);
     if (!this.engineOn) this.rpm = Math.max(0, this.rpm - 900 * dt);
     let drive = 0;
-    if (inGear && this.engineOn) {
+    const E = this.electric;
+    if (E) {
+      // ---- electric traction: the controller ramps the command (stepped on a resistance/chopper controller),
+      // force limited by adhesion/current up to the base speed, then by power; nothing when the supply is off
+      const vabs = Math.abs(this.v);
+      const cmd = inGear && this.engineOn ? throttle : 0;
+      this.traction += clamp(cmd - this.traction, -dt / (E.ramp * 0.5), dt / E.ramp);
+      let t = this.traction;
+      if (E.steps) {
+        const n = Math.round(t * E.steps);
+        if (n !== this.notch) {
+          const prev = this.notch;
+          this.notch = n;
+          this.onNotch && this.onNotch(n, prev);
+        }
+        t = n / E.steps;
+      }
+      const avail = this.powerAvail;
+      const P = Math.min(E.power, this.powerLimit) * avail;
+      let F = t > 0 && avail > 0 ? Math.min(E.force * avail, P / Math.max(vabs, 1.2)) * t : 0;
+      if (vabs > Math.min(E.vmax, this.speedLimit) / 3.6) F *= 0.05;
+      drive = F;
+      this.motorPower = F * vabs;
+      this.rpm = (vabs / wheelR) * (60 / (2 * Math.PI)) * (E.ratio || 11);
+    } else if (inGear && this.engineOn) {
       const slipRatio = lockup ? 1 : clamp(lockedRpm / Math.max(this.rpm, 1), 0, 1);
       const tcMult = lockup ? 1 : 1 + 1.15 * (1 - slipRatio); // converter torque multiplication
       const engT = throttle > 0 ? this.torque(this.rpm) * throttle : 0;
@@ -191,7 +225,9 @@ export class ArticulatedBus {
     const roll = 0.0085 * m * G;
     const aero = 0.5 * 1.2 * 0.68 * this.aeroArea * this.v * this.v;
     // brakes: first quarter of the pedal = retarder only, then service brake
-    const retarder = this.selector === 'D' && Math.abs(this.v) > 1.5 ? clamp(brake / 0.25, 0, 1) * 1.1 * m : 0;
+    // (electric: the first quarter of the pedal is the electric brake, regenerating into the line)
+    const retarder = this.selector === 'D' && Math.abs(this.v) > 1.5 ? clamp(brake / 0.25, 0, 1) * (E ? E.regen : 1.1 * m) : 0;
+    if (E && retarder > 0) this.motorPower = -retarder * Math.abs(this.v) * 0.7;
     const service = clamp((brake - 0.12) / 0.88, 0, 1) * 6.8 * m;
     let brakeF = service + retarder;
     if (this.parkingBrake) brakeF = Math.max(brakeF, 4.5 * m);
@@ -221,7 +257,7 @@ export class ArticulatedBus {
     this.aLong = (this.v - prevV) / dt;
     this.throttleOut = throttle;
     this.brakeOut = brake;
-    this.load = inGear && this.engineOn ? clamp(throttle * (lockup ? 1 : 0.8) + Math.max(0, grade) / (m * 2), 0, 1) : throttle * 0.3;
+    this.load = E ? this.traction * this.powerAvail : inGear && this.engineOn ? clamp(throttle * (lockup ? 1 : 0.8) + Math.max(0, grade) / (m * 2), 0, 1) : throttle * 0.3;
 
     // ---------------- kinematics
     const understeer = 1 / (1 + 0.0016 * this.v * this.v);

@@ -53,6 +53,11 @@ export class Route280 {
     return this.mode === 'tram';
   }
 
+  /** A trolleybus line: buses on the road under a dual overhead contact wire. */
+  get isTrolley() {
+    return this.mode === 'trolleybus';
+  }
+
   direction(id) {
     const d = this.dirs[id];
     if (!d) throw new Error(`unknown direction ${id}`);

@@ -4,6 +4,7 @@ import route280 from './data/route280.json';
 import route64 from './data/route64.json';
 import route12 from './data/route12.json';
 import route7 from './data/route7.json';
+import route9 from './data/route9.json';
 import { Route280 } from './gameplay/Route280Data.js';
 import { loadWorldPack } from './world/WorldData.js';
 import { World } from './world/World.js';
@@ -11,6 +12,7 @@ import { Renderer } from './render/Renderer.js';
 import { SkySystem } from './render/SkySystem.js';
 import { vehicleSpec, frames } from './vehicle/Vehicles.js';
 import { loadBusKit } from './vehicle/BusKit.js';
+import { loadTrolleyKit } from './vehicle/models/trolley/TrolleyKit.js';
 import { loadBusLightmaps, exportLightmapScene } from './vehicle/BusLightmap.js';
 import { Game } from './game/Game.js';
 import { Menu } from './ui/Menu.js';
@@ -27,7 +29,7 @@ import { SharedTrams } from './gameplay/SharedTrams.js';
 
 const params = new URLSearchParams(location.search);
 /** Route data of the playable lines; the world of one line is loaded per session (?line= or the menu). */
-const ROUTES = { 280: route280, 64: route64, 12: route12, 7: route7 };
+const ROUTES = { 280: route280, 64: route64, 12: route12, 7: route7, 9: route9 };
 
 async function boot() {
   injectStyles();
@@ -57,7 +59,7 @@ async function boot() {
   const line = ROUTES[params.get('line')] ? params.get('line') : ROUTES[settings.line] ? String(settings.line) : '280';
   const route = new Route280(ROUTES[line]);
   // Blender-modelled bus parts: parsed while the world loads, ready before the first bus is built
-  const busKit = Promise.all([loadBusKit(), loadBusLightmaps()]);
+  const busKit = Promise.all([loadBusKit(), loadBusLightmaps(), loadTrolleyKit()]);
   if (params.get('scene') === 'bus') return busKit.then(() => busStudio({ R, scene, camera, sky, progress }));
   const states = new GameStateManager();
   states.go('menu');

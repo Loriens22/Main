@@ -408,14 +408,24 @@ export class AudioManager {
   doorEvent(e, where) {
     const o = this.shot(where);
     if (!o) return;
+    const warn = where && where.warn;
+    const old = warn && warn.kind === 'buzzer'; // Ikarus 280.92F: folding doors on an air engine
     switch (e.type) {
       case 'opening':
-        Events.doorOpen(this.ctx, o.dest, o.t, this.bufs, o.k); this.duckAmb(1.8); break;
+        if (old) Events.doorOpenOld(this.ctx, o.dest, o.t, this.bufs, o.k, warn.openDur || 1.7);
+        else Events.doorOpen(this.ctx, o.dest, o.t, this.bufs, o.k);
+        // Solaris IV / III: the same warning pattern plays while the doors open as while they close
+        if (warn && warn.onOpen) (warn.times || [0]).forEach((dt, i) => this.beep({ ...o, t: o.t + dt }, i + 1, warn));
+        this.duckAmb(1.8);
+        break;
       case 'beep':
-        this.beep(o, e.n, where && where.warn);
+        this.beep(o, e.n, warn);
         break;
       case 'closingStart':
-        Events.doorClose(this.ctx, o.dest, o.t, this.bufs, o.k); this.duckAmb(2.4); break;
+        if (old) Events.doorCloseOld(this.ctx, o.dest, o.t, this.bufs, o.k, warn.closeDur || 1.15);
+        else Events.doorClose(this.ctx, o.dest, o.t, this.bufs, o.k);
+        this.duckAmb(2.4);
+        break;
       case 'obstruction':
         Events.doorObstruct(this.ctx, o.dest, o.t, this.bufs, o.k); break;
       default: // closeRequest (the beeps follow at once), opened and closed are part of the recipes above
@@ -427,7 +437,11 @@ export class AudioManager {
     const s = this.settings;
     void n; // the real pitch pattern of beep 1 and 2 is unconfirmed: both use the configured pitch
     // warn = {freq, ms} of a vehicle with its own buzzer (Conecto: one long buzz, BMC/Yutong: short beeps)
-    const g = Events.doorBeep(this.ctx, o.dest, o.t, this.bufs, o.k, warn ? warn.freq : s.beepFreq ?? 1850, warn ? warn.ms / 1000 : s.beepDur ?? 0.24);
+    // per-beep durations (Solaris: "tit-tit-tiit-tiit", "tiiiit, tiiiit, tiiit, tiit"), else one length
+    const dur = warn ? (warn.durs ? warn.durs[Math.min(warn.durs.length, Math.max(1, n || 1)) - 1] : (warn.ms || 240) / 1000) : s.beepDur ?? 0.24;
+    const g = warn && warn.kind === 'buzzer'
+      ? Events.buzzerOld(this.ctx, o.dest, o.t, this.bufs, o.k, warn.freq, dur)
+      : Events.doorBeep(this.ctx, o.dest, o.t, this.bufs, o.k, warn ? warn.freq : s.beepFreq ?? 1850, dur);
     if (this.zone !== 'outside' && g) { const send = this.ctx.createGain(); send.gain.value = dB(-8); g.connect(send); send.connect(this.reverb); }
   }
 
@@ -496,6 +510,71 @@ export class AudioManager {
     src.connect(bp); bp.connect(g); g.connect(o.dest);
     src.start(t, Math.random(), 0.08);
     this.thump(0.25 * lin, 70);
+  }
+
+  /**
+   * Trolley pole sounds (where = 'roof' offsets). raising: the pneumatic cylinders release the springs (Solaris)
+   * or the conductor lets the rope run (Ikarus); raised: the shoes clack onto the wire with a small arc;
+   * dewire: the pole flies up and bangs against its stop, the retriever reel whirs; spark: arcing under load.
+   */
+  poleEvent(kind, where, T = {}) {
+    const o = this.shot(where);
+    if (!o) return;
+    const c = this.ctx, B = this.bufs, k = o.k, t = o.t;
+    const S = OneShots;
+    switch (kind) {
+      case 'raising':
+        if (T.ropes) {
+          S.glide(c, o.dest, t, B, { dur: 2.2, f0: 900, f1: 600, q: 2.5, peakDb: -34 + k, am: 13 }); // rope through the catcher
+        } else {
+          S.hiss(c, o.dest, t, B, { dur: 1.4, f0: 3600, f1: 2200, q: 0.8, peakDb: -24 + k, attack: 0.02, tau: 0.5 });
+          S.glide(c, o.dest, t + 0.1, B, { dur: 2.2, f0: 420, f1: 300, q: 2, peakDb: -36 + k, am: 9 });
+        }
+        break;
+      case 'raised':
+        S.click(c, o.dest, t, B, { f: 3200, q: 2, peakDb: -20 + k, dur: 0.012 });
+        S.click(c, o.dest, t + 0.06, B, { f: 2600, q: 2, peakDb: -23 + k, dur: 0.012 });
+        S.thump(c, o.dest, t, { f0: 260, f1: 160, peakDb: -26 + k, dur: 0.05 });
+        this.arc(o, 0.08, -26);
+        break;
+      case 'lowering':
+        S.hiss(c, o.dest, t, B, { dur: 1.1, f0: 3000, f1: 1800, q: 0.9, peakDb: -26 + k, attack: 0.02, tau: 0.4 });
+        break;
+      case 'lowered':
+        S.clunk(c, o.dest, t, B, { f0: 140, f1: 80, peakDb: -20 + k, clickF: 900 });
+        break;
+      case 'dewire':
+        this.arc(o, 0.18, -14);
+        S.thump(c, o.dest, t + 0.25, { f0: 120, f1: 55, peakDb: -12 + k, dur: 0.18 });
+        S.click(c, o.dest, t + 0.25, B, { f: 1400, q: 0.9, peakDb: -14 + k, dur: 0.05 });
+        for (let i = 0; i < 5; i++) S.click(c, o.dest, t + 0.32 + i * 0.07, B, { f: 2000 + Math.random() * 1500, q: 2, peakDb: -24 + k - i * 2, dur: 0.02 });
+        if (!T.ropes) S.glide(c, o.dest, t + 0.3, B, { dur: 0.9, f0: 1200, f1: 700, q: 3, peakDb: -30 + k, am: 40 }); // retriever reel
+        break;
+      case 'spark':
+        this.arc(o, 0.07, -22);
+        break;
+      case 'nowire':
+        S.beep(c, o.dest, t, B, { f: 1200, dur: 0.5, peakDb: -20 });
+        break;
+      default:
+        break;
+    }
+  }
+
+  /** Electric arc: crackling, gated white noise with a 'zzt' hum. */
+  arc(o, dur, peakDb) {
+    const c = this.ctx, t = o.t, lin = dB(peakDb + o.k) / 0.25;
+    const src = c.createBufferSource(); src.buffer = this.bufs.white; src.loop = true;
+    const hp = c.createBiquadFilter(); hp.type = 'highpass'; hp.frequency.value = 1800;
+    const g = c.createGain();
+    g.gain.setValueAtTime(0, t);
+    for (let x = 0; x < dur; x += 0.008) g.gain.setValueAtTime(Math.random() < 0.55 ? lin * (0.4 + Math.random() * 0.6) : 0, t + x);
+    g.gain.setValueAtTime(0, t + dur);
+    src.connect(hp); hp.connect(g); g.connect(o.dest);
+    src.start(t, Math.random() * 3); src.stop(t + dur + 0.05);
+    const os = c.createOscillator(); os.type = 'sawtooth'; os.frequency.value = 100;
+    const og = c.createGain(); og.gain.setValueAtTime(lin * 0.05, t); og.gain.linearRampToValueAtTime(0, t + dur);
+    os.connect(og); og.connect(o.dest); os.start(t); os.stop(t + dur + 0.02);
   }
 
   brakeEvent(kind, where) {

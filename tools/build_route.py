@@ -311,12 +311,14 @@ def build_direction(edges, adj, stops_def, stop_idx, label):
 def main():
     infra = pq.read_table(f'{DATADIR}/infra.parquet').to_pylist()
     stop_idx = {}
-    for r in infra:
-        if r['class'] != 'bus_stop':
-            continue
-        tags = dict(r['source_tags'] or [])
-        if 'ref' in tags:
-            stop_idx.setdefault(tags['ref'], (r, tags))
+    # bus_stop poles first; a stop mapped only as a platform (1939 ул. Дунав, line 9) is taken from those
+    for cls in ('bus_stop', 'platform'):
+        for r in infra:
+            if r['class'] != cls:
+                continue
+            tags = dict(r['source_tags'] or [])
+            if 'ref' in tags:
+                stop_idx.setdefault(tags['ref'], (r, tags))
     segs = load_segments()
     edges, adj = build_graph(segs)
     print(f'{len(segs)} segments, {len(edges)} edges', file=sys.stderr)
@@ -337,7 +339,7 @@ def main():
     for d in (A, B):
         d.pop('_end'); d.pop('_start')
     out = dict(
-        line=LINE, terminalLinks=links, mode='bus', operator=CFG['operator'],
+        line=LINE, terminalLinks=links, mode=CFG.get('mode', 'bus'), operator=CFG['operator'],
         origin=dict(lat=ORIGIN_LAT, lon=ORIGIN_LON),
         directions=dict(
             A=dict(id='A', from_=CFG['fromA'], headsign=CFG['headsignA'], **A),

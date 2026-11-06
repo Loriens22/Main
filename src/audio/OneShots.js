@@ -115,6 +115,56 @@ export const Events = {
     OneShots.click(ctx, dest, t + 1.9, B, { f: 300, q: 1, peakDb: -22 + k, dur: 0.06 });
     OneShots.hiss(ctx, dest, t + 1.92, B, { dur: 0.2, f0: 3800, f1: 2800, q: 1, peakDb: -28 + k, attack: 0.006, tau: 0.06 });
   },
+  /**
+   * Ikarus 280.92F folding doors opening: the air engine's continuous hiss for the whole swing, the four
+   * leaves rattling in their hinges, and a knock as they hit the stops.
+   */
+  doorOpenOld(ctx, dest, t, B, k, dur = 1.7) {
+    k = k || 0;
+    OneShots.click(ctx, dest, t, B, { f: 1300, q: 2, peakDb: -18 + k, dur: 0.02 });
+    OneShots.thump(ctx, dest, t, { f0: 160, f1: 90, peakDb: -18 + k, dur: 0.08 });
+    // continuous valve hiss (two bands, the lower one carries the 'whoosh')
+    OneShots.glide(ctx, dest, t + 0.02, B, { dur, f0: 4200, f1: 3300, q: 0.7, peakDb: -15 + k, am: 7 });
+    OneShots.hiss(ctx, dest, t + 0.02, B, { dur, f0: 1800, f1: 1200, q: 0.6, peakDb: -19 + k, attack: 0.05, tau: dur * 0.7 });
+    // leaf rattle: irregular knocks along the swing
+    for (let i = 0; i < 9; i++) {
+      const tt = t + 0.15 + (i / 9) * (dur - 0.25) + Math.random() * 0.07;
+      OneShots.click(ctx, dest, tt, B, { f: 500 + Math.random() * 700, q: 1.4, peakDb: -27 + k + Math.random() * 4, dur: 0.03 });
+    }
+    OneShots.thump(ctx, dest, t + dur, { f0: 120, f1: 60, peakDb: -16 + k, dur: 0.14 });
+    OneShots.click(ctx, dest, t + dur, B, { f: 650, q: 1, peakDb: -20 + k, dur: 0.05 });
+    OneShots.click(ctx, dest, t + dur + 0.09, B, { f: 900, q: 1.3, peakDb: -26 + k, dur: 0.04 });
+  },
+  /** Ikarus doors closing "menacingly": a loud blast of air, the leaves swing in fast and slam, then rattle. */
+  doorCloseOld(ctx, dest, t, B, k, dur = 1.15) {
+    k = k || 0;
+    OneShots.click(ctx, dest, t, B, { f: 1500, q: 2, peakDb: -17 + k, dur: 0.02 });
+    OneShots.hiss(ctx, dest, t + 0.01, B, { dur: dur + 0.2, f0: 4600, f1: 2400, q: 0.6, peakDb: -12 + k, attack: 0.015, tau: 0.5 });
+    OneShots.glide(ctx, dest, t + 0.05, B, { dur, f0: 700, f1: 420, q: 1.6, peakDb: -26 + k, am: 31 });
+    // the slam and the rattle of the four leaves settling
+    OneShots.thump(ctx, dest, t + dur, { f0: 110, f1: 45, peakDb: -10 + k, dur: 0.2 });
+    OneShots.click(ctx, dest, t + dur, B, { f: 380, q: 0.8, peakDb: -13 + k, dur: 0.09 });
+    for (let i = 0; i < 6; i++) {
+      const tt = t + dur + 0.06 + i * 0.045 + Math.random() * 0.02;
+      OneShots.click(ctx, dest, tt, B, { f: 700 + Math.random() * 900, q: 1.5, peakDb: -21 + k - i * 1.5, dur: 0.025 });
+    }
+    OneShots.hiss(ctx, dest, t + dur + 0.05, B, { dur: 0.45, f0: 3800, f1: 2600, q: 1, peakDb: -22 + k, attack: 0.006, tau: 0.15 });
+  },
+  /** Ikarus closing buzzer: a loud, harsh electromechanical "beeeep" (a buzzer, not a piezo). */
+  buzzerOld(ctx, dest, t, B, k, f, dur) {
+    const pk = dB(-11 + (k || 0));
+    const os = ctx.createOscillator(); os.type = 'sawtooth'; os.frequency.value = f || 880;
+    const os2 = ctx.createOscillator(); os2.type = 'square'; os2.frequency.value = (f || 880) / 2 + 3;
+    const g2 = ctx.createGain(); g2.gain.value = 0.35;
+    const bp = ctx.createBiquadFilter(); bp.type = 'bandpass'; bp.frequency.value = (f || 880) * 1.6; bp.Q.value = 1.1;
+    const lp = ctx.createBiquadFilter(); lp.type = 'lowpass'; lp.frequency.value = 4200;
+    const g = ctx.createGain();
+    g.gain.setValueAtTime(TINY, t); g.gain.linearRampToValueAtTime(pk, t + 0.01);
+    g.gain.setValueAtTime(pk, t + dur - 0.03); g.gain.linearRampToValueAtTime(TINY, t + dur);
+    os.connect(bp); os2.connect(g2); g2.connect(bp); bp.connect(lp); lp.connect(g); g.connect(dest);
+    os.start(t); os2.start(t); os.stop(t + dur + 0.05); os2.stop(t + dur + 0.05);
+    return g;
+  },
   /** Stop-request bell. style 'dingdong' (default) or 'ding'. */
   stopBell(ctx, dest, t, B, k, style) {
     k = k || 0;

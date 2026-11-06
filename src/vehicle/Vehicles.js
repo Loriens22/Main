@@ -27,6 +27,7 @@ import conecto from './models/conecto/index.js';
 import procity from './models/procity/index.js';
 import yutong from './models/yutong/index.js';
 import { TRAMS } from './trams/TramSpecs.js';
+import { TROLLEYS } from './models/trolley/index.js';
 
 const MAN_FRONT_Z = -(BUS.frontOverhang + BUS.wb1);
 
@@ -56,7 +57,8 @@ export const MAN = {
 };
 
 // trams (kind 'tram'): TramEntity instead of BusEntity, see src/vehicle/trams
-export const VEHICLES = { man: MAN, conecto, procity, yutong, ...TRAMS };
+// trolleybuses (kind 'trolleybus'): BusEntity with TrolleyPoles, see src/vehicle/models/trolley
+export const VEHICLES = { man: MAN, conecto, procity, yutong, ...TRAMS, ...TROLLEYS };
 
 /** Vehicles a line dispatches, with default shares (sum 1). */
 export const LINE_FLEETS = {
@@ -64,6 +66,8 @@ export const LINE_FLEETS = {
   64: [{ id: 'procity', share: 0.5 }, { id: 'yutong', share: 0.5 }],
   12: [{ id: 'schindler', share: 0.5 }, { id: 't6m', share: 0.5 }],
   7: [{ id: 'pesa', share: 0.5 }, { id: 'inekon', share: 0.5 }],
+  // one third each (Expansion 5.0); the historical Ikarus takes the remainder so the shares sum to 1
+  9: [{ id: 'solaris4', share: 0.3333 }, { id: 'solaris3', share: 0.3333 }, { id: 'ikarus', share: 0.3334 }],
 };
 
 export { frames };
@@ -106,6 +110,28 @@ export function dispatchVehicle(line, serviceNo, seed = 0, choice = 'random', sh
     if (u < acc) return v.id;
   }
   return list[list.length - 1].id;
+}
+
+/**
+ * Dispatch weights of a line from the settings ({id: weight}, or null for the line's defaults).
+ *   two types:   settings.share<line> = share of the first type (0..1)
+ *   more types:  settings.fleetMode<line> = 'mixed' (settings.shares<line> = {id: weight}, else the defaults)
+ *                | 'modern' (only the types that are not historical) | 'historical' (only the historical ones)
+ */
+export function lineShares(line, settings = {}) {
+  const ids = lineVehicles(line);
+  if (ids.length === 2) {
+    const share = Number(settings[`share${line}`] ?? 0.5);
+    return { [ids[0]]: share, [ids[1]]: 1 - share };
+  }
+  const mode = settings[`fleetMode${line}`] || 'mixed';
+  if (mode === 'modern' || mode === 'historical') {
+    const want = mode === 'historical';
+    const w = Object.fromEntries(ids.map((id) => [id, !!vehicleSpec(id).historical === want ? 1 : 0]));
+    return Object.values(w).some((x) => x > 0) ? w : null;
+  }
+  const custom = settings[`shares${line}`];
+  return custom && typeof custom === 'object' ? { ...custom } : null;
 }
 
 /** A fleet number and plate of that vehicle type for a service (stable per service). */

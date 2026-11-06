@@ -130,7 +130,7 @@ export class GameAudio {
 
   /** A notch of a tram's controller: the contactors of the T6M's resistance controller clack. */
   notch(bus, n, prev) {
-    if (!this.audio.ready || !bus.spec.physics.steps || n === prev) return;
+    if (!this.audio.ready || !(bus.spec.physics.steps || (bus.spec.physics.electric && bus.spec.physics.electric.steps)) || n === prev) return;
     this.audio.contactor(this.where(bus, 'gear'));
   }
 
@@ -150,11 +150,22 @@ export class GameAudio {
       st.kneel = p.kneel || 0; st.ind = !!bus.indicatorOn; st.art = p.articulation || 0;
       return;
     }
-    // engine start / stop
+    // engine start / stop (a trolleybus: the main switch clacks in, no starter)
     if (p.engineOn !== st.engineOn) {
       st.engineOn = !!p.engineOn;
-      if (st.engineOn) { st.startT = 0; if (on) a.engineStart(this.where(bus, 'starter')); }
+      if (bus.isTrolley) { st.startT = Infinity; if (on) a.contactor(this.where(bus, 'gear')); }
+      else if (st.engineOn) { st.startT = 0; if (on) a.engineStart(this.where(bus, 'starter')); }
       else { st.startT = Infinity; if (on) a.engineStop(this.where(bus, 'engine')); }
+    }
+    // trolley poles: raising, the shoes meeting the wire, dewirements, arcing at crossings
+    if (bus.trolley && bus.trolley.events.length) {
+      const ev = bus.trolley.events;
+      if (on) {
+        const w = this.where(bus, 'roof');
+        const kinds = new Set(ev);
+        for (const k of kinds) a.poleEvent(k, w, bus.spec.trolley);
+      }
+      ev.length = 0;
     }
     if (st.startT < START_DURATION) st.startT += dt;
     // parking brake and bus-stop brake (hiss when they apply or release)
@@ -234,7 +245,15 @@ export class GameAudio {
         id: st.id, profile: bus.spec.audio.profile, focus: bus === g.bus, interior: L.zone !== 'out', zone: L.zone, prox: L.prox, dist: L.dist, radial: L.radial, pan: L.pan, cull: L.cull,
         rpm, load: cranking && st.startT < 1.5 ? 0.05 : p.load, speed: p.v, engineOn: !!p.engineOn || p.rpm > 120, retarder, surface: st.surface, comp: st.comp,
       };
-      if (bus.isTram) {
+      if (bus.isTrolley) {
+        // a trolleybus uses the tram voice on rubber tyres (TramVoice trolley_* profiles): traction / electric
+        // braking only while the poles are on the wire (or on the Solaris IV battery)
+        const live = (p.powerAvail || 0) > 0;
+        Object.assign(entry, {
+          kind: 'tram', engineOn: !!p.engineOn && live, brake: live ? p.brakeOut || 0 : 0, load: live ? p.load : 0, curv: 0, street: true,
+          bogies: [], wb: 0, travel: p.distF,
+        });
+      } else if (bus.isTram) {
         // the tram voice (TramVoice.js): traction, braking, curve, street track, bogies over the rail joints
         Object.assign(entry, {
           kind: 'tram', engineOn: !!p.engineOn, brake: p.brakeOut || 0, curv: bus.line.curvature(p.s - 3, 4), street: bus.line.streetAt(p.s),

@@ -7,12 +7,13 @@ import { StopManager } from './StopManager.js';
 import { AnnouncementManager } from './AnnouncementManager.js';
 import { DestinationDisplay } from './DestinationDisplay.js';
 import { buildDriveLine } from './DriveLine.js';
+import { TrolleyPoles } from '../vehicle/TrolleyPoles.js';
 import { fwdX, fwdZ, clamp } from '../core/math.js';
 
 const FIXED = 1 / 120;
 
 export class BusEntity {
-  constructor({ scene, world, route, dirId = 'A', vehicle = 'man', fleet = null, quality = 'high', player = false, serviceNo = 0 }) {
+  constructor({ scene, world, route, dirId = 'A', vehicle = 'man', fleet = null, quality = 'high', player = false, serviceNo = 0, trolleyOpts = {} }) {
     this.scene = scene;
     this.world = world;
     this.route = route;
@@ -30,6 +31,9 @@ export class BusEntity {
       collide: (b) => this.collideStatic(b),
     });
     this.doors = new DoorSystem(this.spec.doors.map((d) => d.id), doorTiming(this.spec.doorWarning));
+    // trolleybus: two trolley poles on the overhead wire feed the electric traction (TrolleyPoles.js)
+    this.isTrolley = !!this.spec.trolley;
+    if (this.isTrolley) this.trolley = new TrolleyPoles(this, world, { realistic: !!trolleyOpts.realistic, autoRecover: trolleyOpts.autoRecover !== false });
     this.lights = { head: false, left: false, right: false, hazard: false, interior: 1 };
     this.wiper = { mode: 0, phase: 0 };
     this.blink = 0;
@@ -129,6 +133,7 @@ export class BusEntity {
     this.sHint = null;
     this.routeHint = null;
     this.prev = null;
+    if (this.trolley) this.trolley.snapUp(); // a service starts with its poles on the wire
     // a teleport is not a missed stop: resume the stop sequence from here
     const win = this.stops.opts.arriveWindow;
     let idx = this.dir.stops.findIndex((st) => st.frontS > s - win);
@@ -174,6 +179,7 @@ export class BusEntity {
       this.doors.update(FIXED);
       this.acc -= FIXED;
     }
+    if (this.trolley) this.trolley.update(Math.min(dt, 0.1));
     // route progress (front bumper projected on the drive line)
     const [fx, fz] = p.frontPoint();
     const n = this.driveLine.nearest(fx, fz, this.sHint, this.sHint == null ? 0 : 90);
@@ -260,10 +266,34 @@ export class BusEntity {
       m.rear.position.copy(m.front.position);
       m.rear.rotation.copy(m.front.rotation);
     }
+    // body shake of the old Ikarus trolleybus (spec.physics.electric.shake): worn suspension and the DC drive
+    // judder the body, more under power, with an occasional jolt
+    const E = this.spec.physics.electric;
+    if (E && E.shake) {
+      const v = Math.abs(p.v), tr = p.traction || 0, now = (this.shakeClock = (this.shakeClock || 0) + 1 / 60);
+      if (v > 2 && Math.random() < 0.004 * E.shake * (1 + tr)) this.jolt = 1;
+      this.jolt = (this.jolt || 0) * 0.9;
+      const a = E.shake * clamp(v / 8, 0, 1) * (0.0035 + 0.007 * tr + 0.012 * this.jolt);
+      const r = a * (Math.sin(now * 17.3) * 0.6 + Math.sin(now * 29.1 + 1.3) * 0.4);
+      const pi = a * 0.6 * (Math.sin(now * 13.7 + 0.4) * 0.7 + Math.sin(now * 23.9) * 0.3);
+      m.front.rotation.z += r;
+      m.front.rotation.x += pi;
+      if (p.articulated) { m.rear.rotation.z -= r * 0.8; m.rear.rotation.x += pi * 0.7; }
+      m.front.position.y += a * 2.2 * Math.sin(now * 21.7);
+    }
     m.setSteer(p.delta);
     m.spin(p.distF, p.distR);
     for (const d of this.doors.doors) m.setDoor(d.id, d.openness);
     m.afterPose();
+    if (this.trolley) this.trolley.pose();
+    // door signal lamps (Solaris IV: LEDs beside the doors; Solaris III: red lamp over each door inside)
+    if (m.setDoorSignal) {
+      const stopped = Math.abs(p.v) < 0.3;
+      for (const d of this.doors.doors) {
+        const moving = d.state === 'opening' || d.state === 'warning' || d.state === 'closing';
+        m.setDoorSignal(d.id, moving ? 'flash' : d.state === 'open' ? 'open' : stopped && p.stopBrake ? 'released' : 'off');
+      }
+    }
   }
 
   get speed() {
@@ -271,6 +301,7 @@ export class BusEntity {
   }
 
   dispose() {
+    if (this.trolley) this.trolley.dispose();
     this.scene.remove(this.model.root);
     this.model.dispose();
   }

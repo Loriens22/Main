@@ -647,7 +647,9 @@ for b in bl:
             e['tr'] = 1  # roof terrace with a glass guard round it
         buildings += penthouse
     if g.distance(route_union) < 75:
-        sign_bld.append((g, height, ovr, len(buildings), ents))
+        # a remainder in pieces signs on its largest piece
+        gs = max(g.geoms, key=lambda q: q.area) if g.geom_type == 'MultiPolygon' else g
+        sign_bld.append((gs, height, ovr, len(buildings), ents))
     for e in ents:
         if b['id'] in lm_by_id:
             e['lm'] = lm_by_id[b['id']]
@@ -865,6 +867,8 @@ def sign_text(p):
 
 def facade_slot(poly, pt):
     """Nearest point on the footprint ring, its outward normal and the ring position (m)."""
+    if poly.geom_type == 'MultiPolygon':  # a part remainder in pieces: the piece nearest the place
+        poly = min(poly.geoms, key=lambda q: q.distance(pt))
     ring = poly.exterior
     d = ring.project(pt)
     q0 = ring.interpolate(d)

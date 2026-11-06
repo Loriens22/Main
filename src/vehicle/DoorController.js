@@ -13,14 +13,19 @@ export const DOOR_TIMING = {
   maxOpenSpeed: 0.5, // m/s — interlock: doors cannot open above this speed
 };
 
-/** Door timing for a vehicle's closing warning {beeps, ms, times?, closeStart?}. */
+/** Door timing for a vehicle's closing warning {beeps, ms, times?, durs?, closeStart?, openDur?, closeDur?}. */
 export function doorTiming(warn) {
   if (!warn) return DOOR_TIMING;
   const len = (warn.ms || 200) / 1000;
   const gap = Math.max(len + 0.14, 0.26);
   const beepTimes = warn.times || Array.from({ length: warn.beeps || 2 }, (_, i) => i * gap);
-  const closeStartAt = warn.closeStart ?? beepTimes[beepTimes.length - 1] + len + 0.3;
-  return { ...DOOR_TIMING, beepTimes, beep1At: beepTimes[0], beep2At: beepTimes[1] ?? beepTimes[0], closeStartAt };
+  const last = beepTimes.length - 1;
+  const lastLen = warn.durs ? warn.durs[Math.min(last, warn.durs.length - 1)] : len;
+  const closeStartAt = warn.closeStart ?? beepTimes[last] + lastLen + 0.3;
+  const t = { ...DOOR_TIMING, beepTimes, beep1At: beepTimes[0], beep2At: beepTimes[1] ?? beepTimes[0], closeStartAt };
+  if (warn.openDur) t.openDuration = warn.openDur;
+  if (warn.closeDur) t.closeDuration = warn.closeDur;
+  return t;
 }
 
 export class Door {

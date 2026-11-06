@@ -221,6 +221,7 @@ const SHOT = {
   engine:   { v: [-6, -6, 0, 0], far: 100 },
   crash:    { v: [0, 0, 0, 0], far: 120 },
   bell:     { v: [-3, 0, 0, null], far: 0 },
+  roof:     { v: [-9, -7, -4, 0], far: 120 }, // trolley poles on the roof: raising, dewiring, arcing
 };
 // door-related kinds depend on the source door's section relative to the listener
 const DOOR = {
