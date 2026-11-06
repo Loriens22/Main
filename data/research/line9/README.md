@@ -42,8 +42,15 @@ differs between photos, so the values are averaged and slightly brightened for t
 - Solaris III front: blue bumper to 0.64 m (round fog lamps, blue plate), silver band to 0.8 m with four round lamps
   at each corner, yellow flap to 1.04 m. Rear: silver strip with three lamps a side, yellow panel with the two
   chrome rope-retriever drums, black glazed upper half.
-- Roofs: Solaris IV one long fairing over the front section with a silver air-conditioning unit at its front, the
-  pole-base fairing behind the bellows with a long tail; Solaris III a blue cab air-conditioning pod with black
+- Solaris IV sides (ref02 close-ups): raised blue fender mouldings hug each tyre (arch opening about 1.04 m high) and
+  peak just above the window line; a vertical leg behind the wheel, a front leg leaning back towards it. They break
+  the orange band into separate panels between the fenders and the doors. Rear (ref09): orange panel to about 1.7 m,
+  a tow-hook cover about 1.05 m wide.
+- Roofs: Solaris IV a shroud whose leaning sides rise from the window line (2.5 m) to a crease at about 3.2 m, level
+  with the top of the front cap, so the windscreen and sign glass reach almost to the roof (ref13). Over the front
+  section it carries slanted dark-glass panels and the silver air-conditioning unit; behind the bellows sits a raised
+  pole-base box; further back the black glazing rises towards the rear under the shroud, which rounds down into the
+  black glazed rear (ref09). Solaris III a blue cab air-conditioning pod with black
   louvres, a silver box, six converter covers, the pole-base fairing and the saloon unit; both with a black tubular
   pole catcher frame with two hooks over the rear. Poles: light grey (IV), grey with a yellow insulated end (III).
 - Ikarus: yellow body, separate windows in black rubber between yellow pillars with sliding top vents, the blue
@@ -51,7 +58,9 @@ differs between photos, so the values are averaged and slightly brightened for t
   windows per leaf, orange poles, a grey louvred box on the roof, amber marker lamps on the front roof edge; the
   flat Sofia front (black band and grille slot under the windscreen, three-lamp chrome clusters, grille 'smile',
   fleet number front right); the yellow rear with a large rubber-set window, tall red lamps and two rope reels.
-- Saloons: Solaris IV dark grey with red stanchions and royal-blue block-pattern moquette on grey shells (ref06);
+- Doors: the Solaris IV leaves swing inwards; the Solaris III has outward plug doors.
+- Saloons: Solaris IV light grey walls and sloped ceiling coves with continuous LED strips, red stanchions,
+  royal-blue block-pattern moquette on grey shells, large blue-framed validators at the doors (ref01, ref06, ref16);
   Solaris III light grey, orange-red stanchions, violet-blue moquette (ref10); Ikarus light grey painted metal,
   orange stanchions, charcoal vinyl seats with yellow grab handles, fluorescent lamp housings, roof hatches (ref14).
 
