@@ -24,45 +24,67 @@ const SOLARIS_PANES = {
 const solaris = (gen) => ({
   gen,
   old: false,
-  bodyR: 0.22, // plan radius of the body corners
-  roofEdgeR: 0.3,
+  // Urbino IV: sharper, more angular corners than the rounded Urbino III (ref02, ref09, ref13)
+  bodyR: gen === 4 ? 0.12 : 0.22, // plan radius of the body corners
+  roofEdgeR: gen === 4 ? 0.16 : 0.3,
   tumble: 0.025,
   bandTop: gen === 4 ? 0.6 : 0.62, // top of the blue skirt, bottom of the coloured panel band
   archBand: 0.13, // width of the blue surround round each wheel arch
+  // Solaris IV: raised blue fenders reaching just over the window line (offsets from the axle: the rear leg, the
+  // front leg at the band bottom and at the belt; estimated from ref02)
+  archCut: gen === 4 ? { rear: 0.68, front0: 0.66, front1: 0.4, rise: 0.05 } : null,
   panes: SOLARIS_PANES,
   paneR: 0.03,
   glazing: 'flush', // black glazed band, panes set flush in it
   hopper: gen === 3 ? 0.3 : 0.26, // tilting top lights (dark bars across the panes)
-  doorTop: 2.52,
-  archR: 0.62,
+  doorTop: gen === 4 ? 2.42 : 2.52,
+  archR: gen === 4 ? 0.56 : 0.62, // the Solaris IV fenders hug the tyres (ref02)
   // interior: Solaris IV dark grey saloon with red stanchions (ref01, ref06, ref16); Solaris III light grey with
   // orange-red stanchions (ref03, ref10)
-  wall: gen === 4 ? 0x50555b : 0xa5aaae,
-  ceiling: gen === 4 ? 0x3a3e43 : 0xd2d5d6,
-  trim: gen === 4 ? 0x24272b : 0x70757a,
+  // daylight photographs of the Solaris IV saloon (ref01, ref16): light grey ceiling and wall panels, dark grey
+  // window frames and podium sides
+  wall: gen === 4 ? 0xb8bdc1 : 0xa5aaae,
+  ceiling: gen === 4 ? 0xcfd3d5 : 0xd2d5d6,
+  trim: gen === 4 ? 0x52575c : 0x70757a,
   decalBlue: '#1d58b0',
   // front: blue bumper -> coloured panel -> black frame and windscreen -> black sign band -> blue roof cap
   front: gen === 4
-    ? { bumper: 0.5, panelTop: 0.95, wsBottom: 1.02, wsTop: 2.55, signTop: 2.93, rake: 0.1, bulge: 0.06, lampY: 0.5, lampDy: -0.3 }
+    ? { bumper: 0.55, panelTop: 0.98, wsBottom: 1.03, wsTop: 2.55, signTop: 3.02, rake: 0.1, bulge: 0.06, lampY: 0.5, lampDy: -0.3 }
     : { bumper: 0.64, silver: 0.8, panelTop: 1.04, wsBottom: 1.1, wsTop: 2.5, signTop: 2.92, rake: 0.09, bulge: 0.06, lampY: 0.72, lampDy: -0.14 },
   // rear: blue bumper -> (lamp strip) -> coloured panel -> black glazed upper part
   rear: gen === 4
-    ? { bumper: 0.62, strip: 0.75, panelTop: 1.42, winTop: 2.95 }
+    ? { bumper: 0.64, strip: 0.8, panelTop: 1.72, winTop: 3.05 }
     : { bumper: 0.8, strip: 0.93, panelTop: 1.48, winTop: 2.95 },
-  frontSign: { w: 1.85, h: 0.27, y: gen === 4 ? 2.75 : 2.72, dz: 0.15 },
+  frontSign: { w: gen === 4 ? 1.7 : 1.85, h: 0.27, y: gen === 4 ? 2.8 : 2.72, dz: 0.15 },
   sideSign: { w: 1.05, h: 0.2, y: 2.4, z: -6.3 },
-  rearSign: { w: 0.4, h: 0.2, x: 0.0, y: 2.78, dz: 0.012 },
+  rearSign: { w: 0.4, h: 0.2, x: 0.0, y: gen === 4 ? 2.86 : 2.78, dz: 0.012 },
   interiorSignZ: 1.85,
   hookRoofY: 3.05,
   // roof equipment (ref02, ref09, ref13 / ref08, ref17)
+  // Urbino IV roof shroud: the sides rise from the window top (2.5 m) in tall, slightly leaning faces to a crease at
+  // about 3.2 m (ref13: the top of the front cap, the sign glass reaching it), then a nearly flat roof. The front
+  // section is shrouded from the front cap to the bellows, with slanted dark glass panels set into the shroud over
+  // the front part (ref02 close-up); over the rear section the shroud sides are blue round the pole bases and black
+  // glass behind them, rising towards the rear, where the shroud rounds down into the black glazed rear end (ref09)
+  shroud: gen === 4 ? {
+    top: 3.2,
+    parts: [
+      { sec: 'front', z0: -8.6, z1: 1.2, rampF: 0.01, rampR: 0.3, capF: false },
+      { sec: 'rear', z0: -3.7, z1: 3.4, rampF: 0.12, rampR: 0.85, capR: false, blackFrom: -2.45, blackRise: [0.4, 0.82] },
+    ],
+    // [side, bottom edge z0 -> z1, lean forwards at the top]
+    inserts: [
+      [1, -6.3, -8.3, 0.28], [1, -4.5, -5.95, 0.28],
+      [-1, -6.95, -8.3, 0.28], [-1, -4.5, -5.95, 0.28],
+    ],
+    insertY: [0.02, 0.5], // above the window top, relative
+  } : null,
   fairings: gen === 4
     ? [
-      // one long converter fairing over the front section, low at the windscreen, sloping off at the bellows
-      { sec: 'front', z0: -8.35, z1: -0.25, h: 0.38, w: 2.3, r: 0.2, rampF: 1.3, rampR: 0.9, mat: 'roof' },
-      // the silver louvred air-conditioning unit on its front end
-      { sec: 'front', z0: -7.45, z1: -6.15, h: 0.2, w: 1.55, r: 0.05, y: 0.36, mat: 'acSilver', louvres: true },
-      // the pole base fairing behind the bellows and its long tail
-      { sec: 'rear', z0: -3.62, z1: -0.2, h: 0.34, w: 2.2, r: 0.18, rampF: 0.35, rampR: 1.1, mat: 'roof' },
+      // the silver louvred air-conditioning unit on the front of the shroud (ref13)
+      { sec: 'front', z0: -7.75, z1: -6.1, h: 0.2, w: 1.6, r: 0.05, y: 0.18, mat: 'acSilver', louvres: true },
+      // the raised box over the pole bases behind the bellows, as wide as the shroud top (ref09, ref13)
+      { sec: 'rear', z0: -3.66, z1: -2.45, h: 0.2, w: 2.0, r: 0.05, y: 0.19, rampF: 0.08, rampR: 0.04, mat: 'paint' },
     ]
     : [
       // air-conditioning pod over the cab: blue cover with black louvres
@@ -95,6 +117,7 @@ export const DESIGNS = {
     tumble: 0.01,
     bandTop: 1.0, // the blue lower band reaches the top of the wheel arches (ref11, ref18)
     archBand: 0,
+    archCut: null,
     panes: {
       front: {
         right: [[-6.3, -5.25], [-5.12, -4.07], [-3.95, -3.42], [-1.98, -0.98], [-0.86, 0.14], [0.26, 1.0]],

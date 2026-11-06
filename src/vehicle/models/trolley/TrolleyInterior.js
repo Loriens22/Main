@@ -11,10 +11,21 @@ import { Parts, M, box, gaps, rod, panelShape, sidePanel, rectShape, rectPath } 
 import { tkInstances } from './TrolleyKit.js';
 import { busKit, kitInstances, kitMesh } from '../../BusKit.js';
 
+/** A flat strip from (x0, y0) to (x1, y1) in the cross-section, running from za to zb; faces both ways. */
+function slab(x0, y0, x1, y1, za, zb) {
+  const pos = [x0, y0, za, x1, y1, za, x0, y0, zb, x1, y1, zb];
+  const g = new THREE.BufferGeometry();
+  g.setAttribute('position', new THREE.Float32BufferAttribute(pos, 3));
+  g.setIndex([0, 1, 2, 1, 3, 2, 0, 2, 1, 1, 2, 3]);
+  g.computeVertexNormals();
+  return g;
+}
+
 export const InteriorMixin = {
   buildInterior() {
     const groups = [];
     this._validators = { front: [], rear: [] };
+    this._straps = { front: [], rear: [] };
     for (const sec of ['front', 'rear']) {
       const p = new Parts();
       this.saloon(p, sec);
@@ -37,6 +48,8 @@ export const InteriorMixin = {
       if (busKit()) {
         const iv = kitInstances('validator', this._validators[sec]);
         if (iv) g.add(iv);
+        const is = kitInstances('strap', this._straps[sec], { color: 0x9da3a8 });
+        if (is) g.add(is);
       }
       this.sec(sec).add(g);
       groups.push(g);
@@ -84,6 +97,16 @@ export const InteriorMixin = {
         }
       }
     }
+    // ---- low floor: the wheel housings come up through the floor under the podium seats; grey covers hide the
+    // black arch liners (ref16)
+    if (!L.steps) {
+      for (const az of isF ? [-D.wb1, 0] : [0]) {
+        for (const side of [1, -1]) {
+          const top = D.wheelR + G.archR + 0.02, len = (G.archR + 0.05) * 2;
+          p.add('wall', box(0.58, top - FY, len, 0.07), M(side * (xi - 0.27), (top + FY) / 2, az));
+        }
+      }
+    }
     // ---- wheel-arch podiums and the raised rear platform (low-floor Solaris)
     for (const q of L.podiums || []) {
       if (q.sec !== sec) continue;
@@ -107,7 +130,7 @@ export const InteriorMixin = {
       for (const [a, b] of gaps(z0, z1, holes)) {
         // lower wall panel, cut round the wheel arches (the arch liners sit behind it)
         p.add('wall', sidePanel(panelShape(a, b, FY, belt + 0.02, axles, G.archR + 0.03, D.wheelR), side, xi + 0.015, 0.02));
-        p.add('trim', box(0.12, 0.03, b - a), M(side * (xi - 0.05), belt + 0.02, (a + b) / 2)); // window sill
+        p.add('trim', box(G.gen === 4 ? 0.06 : 0.12, 0.03, b - a), M(side * (xi - (G.gen === 4 ? 0.02 : 0.05)), belt + 0.02, (a + b) / 2)); // window sill
         p.add('trim', box(0.06, 0.08, b - a), M(side * (xi - 0.02), FY + 0.04, (a + b) / 2)); // skirting
       }
       for (const [a, b] of gaps(z0, z1, holes.map(([u, v]) => [u, v]))) {
@@ -134,6 +157,14 @@ export const InteriorMixin = {
     // ---- ceiling: panels, the two light strips, air ducts
     p.add('ceiling', box(xi * 2, 0.02, z1 - z0), M(0, ceilY, (z0 + z1) / 2));
     for (const side of [1, -1]) {
+      if (G.gen === 4) {
+        // Solaris IV (ref01, ref06, ref16): light grey coves slope from the band over the windows up to the flat
+        // centre of the ceiling, with a continuous bright LED strip along their inner edge
+        p.add('ceiling', slab(side * (xi - 0.035), ceilY - 0.3, side * 0.84, ceilY - 0.07, z0, z1));
+        p.add('lightStrip', slab(side * 0.84, ceilY - 0.07, side * 0.66, ceilY - 0.016, z0 + 0.15, z1 - 0.15));
+        p.add('trim', slab(side * 0.66, ceilY - 0.016, side * 0.6, ceilY - 0.004, z0, z1));
+        continue;
+      }
       p.add(G.old ? 'ceiling' : 'trim', box(0.36, 0.1, z1 - z0), M(side * (xi - 0.2), ceilY - 0.05, (z0 + z1) / 2)); // duct / cove
       if (G.old) {
         // Ikarus: fluorescent tubes in rectangular diffuser housings, one every couple of metres (ref14)
@@ -150,9 +181,10 @@ export const InteriorMixin = {
     // ---- ends of the saloon: cab partition (front), rear wall (rear)
     if (isF) {
       const cz = L.walk.front.cabZ;
-      p.add('trim', box(hw - 0.25, 1.0, 0.04), M(-(hw + 0.25) / 2 + 0.0, FY + 0.5, cz + 0.06)); // partition, lower part
-      const gp = new THREE.PlaneGeometry(hw - 0.3, 0.8);
-      p.add('glass', gp, M(-(hw + 0.25) / 2, FY + 1.42, cz + 0.06));
+      const ph = G.gen === 4 ? 1.35 : 1.0; // Solaris IV: tall white partition behind the driver (ref01)
+      p.add(G.gen === 4 ? 'cabWhite' : 'trim', box(hw - 0.25, ph, 0.04), M(-(hw + 0.25) / 2 + 0.0, FY + ph / 2, cz + 0.06)); // partition, lower part
+      const gp = new THREE.PlaneGeometry(hw - 0.3, 1.8 - ph);
+      p.add('glass', gp, M(-(hw + 0.25) / 2, FY + ph + (1.8 - ph) / 2, cz + 0.06));
       p.add('pole', rod([-0.2, FY, cz + 0.06], [-0.2, ceilY, cz + 0.06], 0.02));
       p.add('pole', rod([-hw + 0.1, FY + 1.0, cz + 0.06], [-0.2, FY + 1.0, cz + 0.06], 0.018));
     } else {
@@ -163,15 +195,106 @@ export const InteriorMixin = {
     }
     // wheelchair bay (low floor): wall pad and the request button opposite door 2
     if (isF && !L.steps) {
-      p.add('trim', box(0.06, 0.55, 0.9), M(-xi + 0.03, FY + 0.75, -2.0));
+      // the backrest board (Solaris IV: white, with a black grab bar along its top, ref01)
+      p.add(G.gen === 4 ? 'cabWhite' : 'trim', box(0.06, 0.55, 0.9, G.gen === 4 ? 0.02 : 0), M(-xi + 0.03, FY + 0.75, -2.0));
+      if (G.gen === 4) p.add('black', box(0.05, 0.05, 0.86, 0.02), M(-xi + 0.08, FY + 1.06, -2.0));
       p.add('stopBtn', box(0.02, 0.06, 0.06), M(-xi + 0.07, FY + 0.95, -1.45));
       const sign = box(0.005, 0.18, 0.18);
       p.add('blue', sign, M(-xi + 0.065, FY + 1.35, -2.0));
     }
   },
 
+  /**
+   * Solaris saloon fittings (ref01, ref06, ref16 / ref03, ref10): a stanchion at every seat row on the aisle side,
+   * its top curving out to the ceiling rail; the two ceiling rails with hand straps over the standing areas; yellow
+   * stop-request boxes and red buttons on the stanchions; red grab hoops beside the seats at the doors; the curved
+   * rails round the articulation; heater grilles in the podiums and along the walls; ceiling vents.
+   */
+  solarisFittings(p, sec) {
+    const D = this.D, F = this.F, L = this.spec.layout, G = this.G;
+    const hw = D.halfW, FY = D.floorY, ceilY = D.roofY - 0.14;
+    const xi = hw - 0.07;
+    const isF = sec === 'front';
+    const z0 = isF ? F.frontZ + 1.6 : F.rearStart + 0.15, z1 = isF ? F.frontEnd - 0.12 : F.rearZ - 0.6;
+    const railY = ceilY - 0.3, railX = 0.6;
+    const tube = (pts, r = 0.019, key = 'pole') => p.add(key, new THREE.TubeGeometry(new THREE.CatmullRomCurve3(pts.map((q) => new THREE.Vector3(...q))), Math.max(8, pts.length * 6), r, 8, false));
+    for (const side of [1, -1]) tube([[side * railX, railY, z0], [side * railX, railY, z1]], 0.017);
+    // stanchions at the aisle end of every seat row
+    const rows = new Map();
+    for (const st of L.seats) {
+      if (st.sec !== sec || st.kind === 'bench' || st.z < z0 - 0.2 || st.z > z1 + 0.2) continue;
+      const key = `${Math.sign(st.x)}|${st.z.toFixed(2)}`;
+      if (!rows.has(key) || Math.abs(st.x) < Math.abs(rows.get(key).x)) rows.set(key, st);
+    }
+    let k = 0;
+    for (const st of [...rows.values()].sort((a, b) => a.z - b.z)) {
+      k++;
+      const sd = Math.sign(st.x) || 1;
+      const x = sd * (Math.abs(st.x) - 0.25), z = st.z + 0.26 * (Math.cos(st.yaw || 0) >= 0 ? 1 : -1);
+      // floor (or podium) -> straight up -> the bend out to the ceiling rail
+      tube([[x, st.fy, z], [x, railY - 0.42, z], [x + sd * 0.06, railY - 0.16, z], [sd * railX, railY, z]], 0.019);
+      if (k % 2 === 0) {
+        p.add('yellowEdge', box(0.07, 0.12, 0.05, 0.01), M(x - sd * 0.05, FY + 1.42, z));
+        p.add('stopBtn', box(0.012, 0.04, 0.04), M(x - sd * 0.085, FY + 1.42, z));
+      } else p.add('stopBtn', box(0.03, 0.045, 0.03), M(x - sd * 0.03, FY + 1.3, z));
+    }
+    // hand straps on the rails over the standing areas (Blender kit strap, grey)
+    const straps = [];
+    for (const side of [1, -1]) for (let z = z0 + 0.3; z < z1 - 0.2; z += 0.42) {
+      const nearDoor = this.spec.doors.some((d) => d.section === sec && z > d.z0 - 0.8 && z < d.z1 + 0.8);
+      if (nearDoor || (side < 0 && isF && z > -3.4 && z < -1.2)) straps.push({ x: side * railX, y: railY, z, yaw: 0 });
+    }
+    this._straps[sec].push(...straps);
+    // door poles with validators, the rail over each door, red grab hoops on the seats beside the door
+    for (const d of this.spec.doors.filter((q) => q.section === sec)) {
+      const X = hw - 0.36;
+      for (const z of [d.z0 - 0.1, d.z1 + 0.1]) tube([[X, FY, z], [X, railY - 0.2, z], [X - 0.1, railY - 0.04, z], [railX, railY, z]], 0.021);
+      tube([[X, railY - 0.12, d.z0 - 0.1], [X, railY - 0.12, d.z1 + 0.1]], 0.018);
+      if (G.gen === 4) {
+        // Solaris IV: the tall validator with the blue frame and the screen on the pole at the front of each door,
+        // facing back along the aisle (ref06, ref16)
+        const vz = d.z0 - 0.1 + 0.06, vy = FY + 1.22;
+        p.add('validatorBlue', box(0.17, 0.36, 0.06, 0.025), M(X - 0.02, vy, vz));
+        p.add('black', box(0.12, 0.17, 0.008), M(X - 0.02, vy + 0.06, vz + 0.031));
+        p.add('dash', box(0.12, 0.09, 0.012), M(X - 0.02, vy - 0.11, vz + 0.03));
+        p.add('steel', box(0.04, 0.05, 0.04), M(X, vy, d.z0 - 0.1));
+      } else this._validators[sec].push({ x: X, y: FY + 0.42, z: d.z1 + 0.1, yaw: Math.PI / 2 });
+      p.add('stopBtn', box(0.03, 0.045, 0.035), M(X - 0.025, FY + 1.17, d.z0 - 0.1));
+      p.add('yellowEdge', box(0.07, 0.12, 0.05, 0.01), M(X - 0.05, FY + 1.42, d.z1 + 0.1));
+      for (const z of [d.z0 - 0.32, d.z1 + 0.32]) tube([[0.62, FY + 0.45, z], [0.62, FY + 0.95, z], [0.62, FY + 1.05, z + (z < d.z0 ? -0.12 : 0.12)], [0.62, FY + 0.95, z + (z < d.z0 ? -0.24 : 0.24)], [0.62, FY + 0.55, z + (z < d.z0 ? -0.24 : 0.24)]], 0.016);
+    }
+    // the articulation: curved rails on both sides of the turntable (ref01)
+    const za = isF ? F.frontEnd - 0.08 : F.rearStart + 0.08, dz = isF ? -1 : 1;
+    for (const side of [1, -1]) {
+      tube([[side * 0.92, FY + 0.3, za], [side * 0.92, FY + 1.5, za], [side * 0.86, FY + 1.75, za + dz * 0.15], [side * 0.8, FY + 1.5, za + dz * 0.32], [side * 0.8, FY + 0.6, za + dz * 0.32]], 0.02);
+    }
+    // heater grilles along the walls and on the podium faces, vents in the ceiling
+    for (const side of [1, -1]) {
+      // (not over the wheel arches, which come up through the wall there)
+      const arches = (isF ? [-D.wb1, 0] : [0]).map((az) => [az - G.archR - 0.08, az + G.archR + 0.08]);
+      const holes = [...(side > 0 ? this.spec.doors.filter((d) => d.section === sec).map((d) => [d.z0 - 0.1, d.z1 + 0.1]) : []), ...arches];
+      for (const [a, b] of gaps(isF ? F.frontZ + 1.0 : F.rearStart + 0.15, isF ? F.frontEnd - 0.1 : F.rearZ - 0.3, holes)) if (b - a > 0.3) p.add('grille', box(0.02, 0.12, b - a - 0.1), M(side * (xi - 0.03), FY + 0.12, (a + b) / 2));
+    }
+    for (const q of L.podiums || []) {
+      if (q.sec !== sec) continue;
+      const xa = q.side > 0 ? 0.28 : -0.28;
+      p.add('grille', box(0.012, (L.podiumY - FY) * 0.55, (q.z1 - q.z0) * 0.6), M(xa - q.side * 0.004, FY + (L.podiumY - FY) * 0.5, (q.z0 + q.z1) / 2));
+    }
+    for (let z = z0 + 0.5; z < z1 - 0.3; z += 1.6) {
+      // Solaris IV: light grey vent panels in a thin dark frame (ref01); Solaris III: dark grilles
+      if (G.gen === 4) {
+        p.add('trim', box(0.52, 0.008, 0.24), M(0, ceilY - 0.006, z));
+        p.add('wall', box(0.46, 0.01, 0.18), M(0, ceilY - 0.01, z));
+      } else p.add('grille', box(0.5, 0.012, 0.22), M(0, ceilY - 0.012, z));
+    }
+    // interior display under the ceiling at the front (and the logo panel over the articulation)
+    if (isF) p.add('dashSoft', box(1.12, 0.22, 0.08), M(0, G.interiorSignY ?? D.windowTopY - 0.18, F.frontZ + G.interiorSignZ + 0.05));
+    p.add('dash', box(0.9, 0.22, 0.04), M(0, ceilY - 0.14, za + dz * 0.03));
+  },
+
   /** Stanchions by the seats, door poles with validators and buttons, ceiling rails, stop buttons. */
   stanchions(p, sec) {
+    if (!this.G.old) return this.solarisFittings(p, sec);
     const D = this.D, F = this.F, L = this.spec.layout;
     const hw = D.halfW, FY = D.floorY, ceilY = D.roofY - 0.14;
     const xi = hw - 0.07;

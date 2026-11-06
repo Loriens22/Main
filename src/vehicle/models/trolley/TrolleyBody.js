@@ -7,7 +7,7 @@
 //     louvred equipment grilles in it; separate windows in black rubber between yellow pillars, sliding top vents
 //     (ref07, ref11, ref18); the grey louvred box on the roof, roof hatches, the amber marker lamps.
 import * as THREE from 'three';
-import { Parts, M, box, gaps, panelShape, sidePanel, loftSection, roofEdge, frameRect, extrude, rectShape, rectPath, fairingGeom } from './geom.js';
+import { Parts, M, box, gaps, panelShape, sidePanel, loftSection, roofEdge, frameRect, extrude, rectShape, rectPath, fairingGeom, shroudGeom, shroudInsert, fenderShape } from './geom.js';
 
 export const BodyMixin = {
   /** z extent of a section's straight sides (the ends own the rounded corners). */
@@ -33,7 +33,30 @@ export const BodyMixin = {
           // Solaris: blue skirt panel to the belt, the orange / yellow band laid over it from bandTop with wider
           // arch cut-outs (the blue surround of the arches)
           p.add('blue', sidePanel(panelShape(a, b, skirt, belt, axles, G.archR, R), side, hw, 0.03, 0.004));
-          p.add('band', sidePanel(panelShape(a, b, G.bandTop, belt - 0.005, axles, G.archR + G.archBand, R), side, hw + 0.0045, 0.006));
+          if (G.archCut) {
+            // Solaris IV (ref02): the raised blue fender round every arch reaches the window line, so the orange band
+            // is broken into separate panels between the fenders and the doors
+            const AC = G.archCut;
+            const y0 = G.bandTop, y1 = belt - 0.005;
+            const cuts = axles.map((ax) => ({ f0: ax - AC.front0, f1: ax - AC.front1, r: ax + AC.rear })).sort((u, v) => u.r - v.r);
+            const pieces = [];
+            let L = [a, a];
+            for (const c of cuts) {
+              if (c.r <= a) continue;
+              if (Math.min(c.f0, c.f1) >= b) break;
+              pieces.push([L, [Math.min(c.f0, b), Math.min(c.f1, b)]]);
+              L = [Math.max(c.r, a), Math.max(c.r, a)];
+            }
+            pieces.push([L, [b, b]]);
+            for (const [[l0, l1], [r0, r1]] of pieces) {
+              if (Math.max(r0 - l0, r1 - l1) < 0.04) continue;
+              const sh = new THREE.Shape();
+              sh.moveTo(l0, y0); sh.lineTo(Math.max(l0, r0), y0); sh.lineTo(Math.max(l1, r1), y1); sh.lineTo(l1, y1); sh.closePath();
+              p.add('band', sidePanel(sh, side, hw + 0.0045, 0.006));
+            }
+          } else {
+            p.add('band', sidePanel(panelShape(a, b, G.bandTop, belt - 0.005, axles, G.archR + G.archBand, R), side, hw + 0.0045, 0.006));
+          }
         } else {
           // Ikarus: yellow body, the blue band up to the arch tops, the black rub strip on its upper edge
           p.add('paint', sidePanel(panelShape(a, b, skirt, belt, axles, G.archR, R), side, hw, 0.03, 0.004));
@@ -56,14 +79,17 @@ export const BodyMixin = {
           for (let k = 0; k < 7; k++) p.add('blue', box(0.02, 0.018, 0.48), M(side * (hw + 0.014), 0.52 + k * 0.045, gz));
         }
       }
-      // ---- wheel arches: black lips and liners
+      // ---- wheel arches: (Solaris IV raised blue fenders,) black lips and liners
+      if (G.archCut) {
+        for (const az of axles) p.add('blue', sidePanel(fenderShape(az, G.archR, R, skirt, G.bandTop, belt, G.archCut), side, hw + 0.006, 0.012, 0.006));
+      }
       for (const az of axles) {
         const n = 24, A = G.archR;
         const phi = Math.asin(Math.min(1, (R - skirt) / A));
         const pts = [];
         for (let i = 0; i <= n; i++) {
           const t = -phi + (i / n) * (Math.PI + 2 * phi);
-          pts.push(new THREE.Vector3(side * (hw + 0.006), R + Math.sin(t) * (A + 0.005), az + Math.cos(t) * (A + 0.005)));
+          pts.push(new THREE.Vector3(side * (hw + (G.archCut ? 0.016 : 0.006)), R + Math.sin(t) * (A + 0.005), az + Math.cos(t) * (A + 0.005)));
         }
         p.add('rubber', new THREE.TubeGeometry(new THREE.CatmullRomCurve3(pts), 32, 0.016, 6, false));
         const liner = new THREE.CylinderGeometry(A - 0.01, A - 0.01, 0.55, 28, 1, true, -phi, Math.PI + 2 * phi);
@@ -135,8 +161,29 @@ export const BodyMixin = {
       dg.rotateY(side > 0 ? Math.PI / 2 : -Math.PI / 2);
       p.add('decals', dg, M(side * (hw + 0.012), G.old ? 1.32 : 0.92, dz));
     }
-    // ---- the band over the windows and the roof (sky blue on the Solaris, yellow on the Ikarus)
-    p.add('paint', loftSection(roofEdge(hw, wtop, D.roofY, G.roofEdgeR, 8, G.tumble), zA, zB));
+    // ---- the band over the windows and the roof (sky blue on the Solaris, yellow on the Ikarus); the Solaris IV
+    // has its tall roof shroud with the slanted glass panels instead, and black glazing up to the roof behind it
+    const SH = G.shroud;
+    const part = SH && SH.parts.find((q) => q.sec === sec);
+    if (part) {
+      const s0 = Math.max(zA, part.z0), s1 = Math.min(zB, part.z1);
+      // over the rear section the sides behind the pole-base box are black glass, its top edge rising rearwards
+      const bf = part.blackFrom, br = part.blackRise;
+      const cut = bf == null ? null : (z, h) => (z < bf ? wtop : wtop + (h - wtop) * (br[0] + (br[1] - br[0]) * Math.min(1, (z - bf) / Math.max(0.1, s1 - bf))));
+      const { geom, lower } = shroudGeom(s0, s1, wtop, hw - G.tumble, SH.top, D.roofY, { rampF: part.rampF, rampR: part.rampR, capF: part.capF ?? true, capR: part.capR ?? true, cut, breaks: bf == null ? [] : [bf] });
+      p.add('paint', geom);
+      if (lower) p.add('darkGlass', lower);
+      if (sec === 'front') {
+        for (const [side, zb0, zb1, lean] of SH.inserts) {
+          p.add('darkGlass', shroudInsert(side, zb0, zb1, wtop + SH.insertY[0], wtop + SH.insertY[1], lean, wtop, SH.top, hw - G.tumble));
+        }
+      }
+      for (const [a, b] of gaps(zA, zB, [[s0, s1]])) {
+        if (b - a > 0.02) p.add('paint', loftSection(roofEdge(hw, wtop, D.roofY, G.roofEdgeR, 8, G.tumble), a, b));
+      }
+    } else {
+      p.add('paint', loftSection(roofEdge(hw, wtop, D.roofY, G.roofEdgeR, 8, G.tumble), zA, zB));
+    }
     for (const side of [1, -1]) p.add('satin', box(0.02, 0.015, zB - zA), M(side * (hw - G.tumble + 0.005), wtop + 0.01, (zA + zB) / 2));
     // ---- underfloor: dark tray between the axles (seen from outside under the skirt)
     p.add('underbody', box(hw * 2 - 0.3, 0.05, zB - zA), M(0, skirt - 0.06, (zA + zB) / 2));

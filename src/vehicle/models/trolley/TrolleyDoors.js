@@ -34,6 +34,23 @@ export const DoorsMixin = {
           pairs.push({ a, b, end });
         }
         this.doorAnim[d.id] = { kind: 'fold', pairs };
+      } else if (this.spec.doorType === 'swing') {
+        // ---- Solaris IV: inward-swinging leaves turning on columns at the outer jambs into the vestibule
+        const w = width / 2;
+        const leaves = [];
+        for (const end of [-1, 1]) {
+          const hingeZ = end < 0 ? d.z0 : d.z1;
+          const pivot = new THREE.Group();
+          pivot.position.set(hw - 0.05, 0, hingeZ);
+          const leaf = this.plugLeaf(w, y0, y1, end);
+          leaf.position.set(0, 0, -end * (w / 2));
+          pivot.add(leaf);
+          // the column the leaf turns on
+          pivot.add(new THREE.Mesh(new THREE.CylinderGeometry(0.022, 0.022, y1 - y0 + 0.1, 10).translate(0, (y0 + y1) / 2, 0), this.mats.steel));
+          group.add(pivot);
+          leaves.push({ pivot, end });
+        }
+        this.doorAnim[d.id] = { kind: 'swing', leaves };
       } else {
         // ---- Solaris plug doors
         const w = width / 2;
@@ -147,7 +164,10 @@ export const DoorsMixin = {
     const A = this.doorAnim[id];
     if (!A) return;
     const o = clamp01(openness);
-    if (A.kind === 'plug') {
+    if (A.kind === 'swing') {
+      const th = sstep(o) * 1.55;
+      for (const l of A.leaves) l.pivot.rotation.y = l.end * th;
+    } else if (A.kind === 'plug') {
       const out = sstep(clamp01(o / 0.28)) * 0.1;
       const slide = sstep(clamp01((o - 0.18) / 0.82)) * A.w * 0.93;
       for (const l of A.leaves) l.g.position.set(this.D.halfW - 0.02 + out, 0, l.zClosed + l.end * slide);

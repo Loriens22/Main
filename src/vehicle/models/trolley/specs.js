@@ -8,7 +8,7 @@ import { solarisLayout, ikarusLayout } from './layout.js';
 
 const solarisDims = (gen) => ({
   length: 18.0, width: 2.55, halfW: 1.275, roofY: 3.05, podY: 3.12, skirtY: 0.3, floorY: 0.34,
-  beltY: 1.1, windowTopY: 2.64, wheelR: 0.48, track: 2.1,
+  beltY: 1.1, windowTopY: gen === 4 ? 2.5 : 2.64, wheelR: 0.48, track: 2.1,
   frontOverhang: 2.71, wb1: 5.9, wb2: 6.0, rearOverhang: 3.39, hitchBehindAxle2: 1.75, bellowsGap: 0.55,
   maxSteer: 0.68, maxArticulation: 0.92, steeringRatio: 20,
 });
@@ -34,16 +34,16 @@ export const SOLARIS4 = {
     { id: 3, section: 'rear', z0: -3.5, z1: -2.25 },
     { id: 4, section: 'rear', z0: 0.82, z1: 2.07 },
   ],
-  doorType: 'plug',
+  doorType: 'swing', // inward-swinging leaves (the Solaris III has outward plug doors)
   // colours measured on ref02 / ref09 / ref13 (hue clustering of the sunlit panels): sky blue over the belt and on
   // the roof, orange-yellow panel band, blue skirt; dark grey saloon, blue moquette, red stanchions (ref06)
-  look: { body: 0x4cb0ea, band: 0xffa30a, roof: 0x4cb0ea, window: 0x07090b, lower: 0x4cb0ea, seat: 0x2e3238, seatFabric: 0x1d3fa6, pole: 0xd2241c, floor: 0x3e4246, bellows: 0x9a9c9e, led: '#ffb21a' },
+  look: { body: 0x4cb0ea, band: 0xffa30a, roof: 0x4cb0ea, window: 0x07090b, lower: 0x4cb0ea, seat: 0x2e3238, seatFabric: 0x1d3fa6, pole: 0xd2241c, floor: 0x5d6165, bellows: 0x9a9c9e, led: '#ffb21a' },
   physics: {
     massEmpty: 19000, aeroArea: 8.0,
     electric: { power: 250e3, force: 31e3, regen: 36e3, vmax: 65, ramp: 0.7, ratio: 11.6, steps: 0 },
   },
   trolley: {
-    base: [[-0.3, 3.38, -3.05], [0.3, 3.38, -3.05]], length: 6.15, hook: [2.45, 3.62], maxLateral: 4.4, autoLower: true,
+    base: [[-0.3, 3.7, -3.05], [0.3, 3.7, -3.05]], length: 6.15, hook: [2.45, 3.62], maxLateral: 4.4, autoLower: true,
     battery: { kWh: 30, usable: 0.8, power: 95e3, vmax: 35 },
   },
   audio: { profile: 'trolley_solaris4' },

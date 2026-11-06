@@ -11,7 +11,7 @@
 //     with a grille slot under the windscreen, three-lamp clusters, a black grille 'smile', fog lamps, the fleet
 //     number; the yellow rear with a large rubber-set window, tall red lamps and the rope reels.
 import * as THREE from 'three';
-import { M, box, endOutline, endBand, endDecal, frameRect } from './geom.js';
+import { M, box, endOutline, endBand, endDecal, frameRect, SHROUD_LEAN } from './geom.js';
 import { tkMesh } from './TrolleyKit.js';
 
 /** Inset of the outline near the roof so the ends meet the rounded roof edge of the sides. */
@@ -102,21 +102,30 @@ export const EndsMixin = {
       }
       // black frame round the windscreen and the sign band
       p.add('black', endBand(endOutline(hw + 0.003, r, 8, bulge), z0 - 0.001, -1, Fr.panelTop, Fr.wsBottom + 0.02, { rows: 1 }));
+      // Solaris IV: the glass reaches the shroud crease, the front narrowing with the leaning shroud sides above the
+      // window line (ref13); the thin blue cap over it is level with the shroud top
+      const SH = G.shroud, wtop = D.windowTopY;
+      const topY = SH ? SH.top + 0.035 : roofY;
+      const lean = SH ? (y) => (y <= wtop ? 0 : SHROUD_LEAN * Math.pow(Math.min(1, (y - wtop) / (SH.top - wtop)), 1.8)) : null;
+      const capInset = SH ? lean : inset;
       const wsOl = endOutline(hw - 0.004, r, 8, bulge);
-      p.add('windscreen', endBand(wsOl, z0, -1, Fr.wsBottom, Fr.wsTop, { rake, rows: 6, curveOut: 0.01 }));
-      p.add('windscreenIn', endBand(wsOl, z0 + 0.012, -1, Fr.wsBottom, Fr.wsTop, { rake, rows: 6, curveOut: 0.01 }));
+      p.add('windscreen', endBand(wsOl, z0, -1, Fr.wsBottom, Fr.wsTop, { rake, rows: 6, curveOut: 0.01, inset: lean }));
+      p.add('windscreenIn', endBand(wsOl, z0 + 0.012, -1, Fr.wsBottom, Fr.wsTop, { rake, rows: 6, curveOut: 0.01, inset: lean }));
       // sign band: dark glass with the black divider under it (the LED sign sits behind it)
-      p.add('black', endBand(endOutline(hw + 0.002, r, 8, bulge), z0 + rake - 0.004, -1, Fr.wsTop - 0.01, Fr.wsTop + 0.05, { rows: 1 }));
-      p.add('windscreen', endBand(ol, z0 + rake, -1, Fr.wsTop + 0.05, Fr.signTop, { rake: 0.03, rows: 2 }));
-      p.add('black', endBand(endOutline(hw - 0.01, r, 8, bulge), z0 + rake + 0.1, -1, Fr.wsTop, Fr.signTop, { rake: 0.03, rows: 1 }));
+      p.add('black', endBand(endOutline(hw + 0.002, r, 8, bulge), z0 + rake - 0.004, -1, Fr.wsTop - 0.01, Fr.wsTop + 0.05, { rows: 1, inset: lean }));
+      p.add('windscreen', endBand(ol, z0 + rake, -1, Fr.wsTop + 0.05, Fr.signTop, { rake: 0.03, rows: 3, inset: lean }));
+      p.add('black', endBand(endOutline(hw - 0.01, r, 8, bulge), z0 + rake + 0.1, -1, Fr.wsTop, Fr.signTop, { rake: 0.03, rows: 3, inset: lean }));
       // the sky-blue roof cap over the front
-      p.add('paint', endBand(ol, z0 + rake + 0.03, -1, Fr.signTop, roofY, { rake: 0.04, rows: 3, inset }));
-      p.add('paint', endCap(ol, z0 + rake + 0.03, -1, roofY, zSide, G.roofEdgeR, 0.04));
+      p.add('paint', endBand(ol, z0 + rake + 0.03, -1, Fr.signTop, topY, { rake: 0.04, rows: 3, inset: capInset }));
+      p.add('paint', endCap(ol, z0 + rake + 0.03, -1, topY, zSide, capInset(topY), 0.04));
       // black corner pillars from the panel to the roof cap
       for (const sx of [-1, 1]) {
         const pil = [];
-        for (let i = 0; i <= 6; i++) { const t = i / 6; pil.push(new THREE.Vector3(sx * (hw - 0.03), Fr.panelTop + (Fr.signTop - Fr.panelTop) * t, z0 + r * 0.6 + (rake + 0.02) * t)); }
-        p.add('black', new THREE.TubeGeometry(new THREE.CatmullRomCurve3(pil), 8, 0.05, 6, false));
+        for (let i = 0; i <= 8; i++) {
+          const t = i / 8, y = Fr.panelTop + (Fr.signTop - Fr.panelTop) * t, k = lean ? lean(y) : 0;
+          pil.push(new THREE.Vector3(sx * (hw - 0.03 - k), y, z0 + r * 0.6 + (rake + 0.02) * t + k * 0.6));
+        }
+        p.add('black', new THREE.TubeGeometry(new THREE.CatmullRomCurve3(pil), 10, 0.05, 6, false));
       }
       // decals on the panel, the plate on the bumper
       p.add('frontDecal', endDecal(hw, r, bulge, z0, -1, Fr.panelTop - 0.36, Fr.panelTop - 0.06, -1.05, 1.05));
@@ -210,22 +219,28 @@ export const EndsMixin = {
       }
       p.add('band', endBand(ol, z1, 1, Rr.strip, Rr.panelTop, { rows: 2 }));
       // black glazed upper half: the frame, the rear window, the route display at the top
-      p.add('black', endBand(ol, z1, 1, Rr.panelTop, Rr.winTop, { rows: 2 }));
+      p.add('black', endBand(ol, z1, 1, Rr.panelTop, Math.min(Rr.winTop, roofY), { rows: 3, inset: Rr.winTop >= roofY - 0.01 ? inset : null }));
       const gl = new THREE.PlaneGeometry(hw * 2 - 0.5, Rr.winTop - Rr.panelTop - 0.5);
       p.add('glassOut', gl, M(0, (Rr.panelTop + Rr.winTop) / 2 - 0.1, z1 + 0.004));
       const gi = new THREE.PlaneGeometry(hw * 2 - 0.5, Rr.winTop - Rr.panelTop - 0.5);
       gi.rotateY(Math.PI);
       p.add('glassIn', gi, M(0, (Rr.panelTop + Rr.winTop) / 2 - 0.1, z1 - 0.03));
-      for (const sx of [-1, 1]) p.add('tail', box(0.12, 0.04, 0.01), M(sx * 0.95, Rr.winTop - 0.06, z1 + 0.008));
-      p.add('paint', endBand(ol, z1, 1, Rr.winTop, roofY, { rows: 3, inset }));
-      p.add('paint', endCap(ol, z1, 1, roofY, zSide, G.roofEdgeR, 0));
+      for (const sx of [-1, 1]) p.add('tail', box(0.12, 0.04, 0.01), M(sx * 0.95, Math.min(Rr.winTop, roofY) - 0.08, z1 + 0.008));
+      const cap = 'paint';
+      if (Rr.winTop < roofY - 0.01) p.add(cap, endBand(ol, z1, 1, Rr.winTop, roofY, { rows: 3, inset }));
+      p.add(cap, endCap(ol, z1, 1, roofY, zSide, G.roofEdgeR, 0));
       if (G.gen === 4) {
         // the domed tow-hook cover in the orange panel (ref09)
-        p.add('band', box(0.62, 0.22, 0.09, 0.06), M(0, Rr.strip + 0.2, z1 + 0.03));
-        for (const sx of [-1, 1]) p.add('satin', new THREE.CylinderGeometry(0.018, 0.018, 0.02, 10).rotateX(Math.PI / 2), M(sx * 0.2, Rr.strip + 0.2, z1 + 0.08));
+        // a wide rounded cover (about 1.05 x 0.38 m, estimated from ref09) with a slimmer raised centre and two
+        // round fasteners
+        p.add('band', box(1.05, 0.38, 0.06, 0.1), M(0, Rr.strip + 0.37, z1 + 0.02));
+        p.add('band', box(0.86, 0.26, 0.05, 0.08), M(0, Rr.strip + 0.37, z1 + 0.06));
+        p.add('satin', box(0.86, 0.008, 0.012), M(0, Rr.strip + 0.18, z1 + 0.05));
+        p.add('satin', new THREE.CylinderGeometry(0.035, 0.035, 0.012, 16).rotateX(Math.PI / 2), M(0, Rr.strip + 0.37, z1 + 0.09));
+        for (const sx of [-1, 1]) p.add('satin', new THREE.CylinderGeometry(0.018, 0.018, 0.02, 10).rotateX(Math.PI / 2), M(sx * 0.3, Rr.strip + 0.3, z1 + 0.09));
       }
-      p.add('rearDecal', new THREE.PlaneGeometry(0.5, 0.125), M(0, G.gen === 4 ? Rr.strip + 0.45 : Rr.strip + 0.42, z1 + 0.011));
-      p.add('plate', box(0.5, 0.12, 0.008), M(0, G.gen === 4 ? 0.45 : 0.5, z1 + 0.012));
+      p.add('rearDecal', new THREE.PlaneGeometry(0.5, 0.125), M(0, G.gen === 4 ? Rr.strip + 0.76 : Rr.strip + 0.42, z1 + 0.011));
+      p.add('plate', box(0.5, 0.12, 0.008), M(0, G.gen === 4 ? 0.52 : 0.5, z1 + 0.012));
     } else {
       // ---- Ikarus: yellow rear, a large rubber-set window, tall red lamps (ref11)
       const ww = 1.95, w0 = Rr.winBottom, w1 = Rr.winTop;

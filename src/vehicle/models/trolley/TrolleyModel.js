@@ -96,6 +96,8 @@ export class TrolleyModel {
       roof: new P({ color: L.roof, roughness: 0.4, metalness: 0.03, clearcoat: 0.4, clearcoatRoughness: 0.2 }),
       black: new P({ color: 0x0a0b0d, roughness: 0.32, metalness: 0.1, clearcoat: 0.5, clearcoatRoughness: 0.15, envMapIntensity: 0.5 }),
       matteBlack: new S({ color: 0x141618, roughness: 0.82 }),
+      // opaque dark mirror glass: the Solaris IV shroud panels and the black glazing over the rear section (ref02, ref09)
+      darkGlass: new P({ color: 0x080b0e, roughness: 0.05, metalness: 0.25, clearcoat: 1, clearcoatRoughness: 0.03, envMapIntensity: 1.25 }),
       satin: new S({ color: 0x1b1d20, roughness: 0.5, metalness: 0.15 }),
       rubber: new S({ color: 0x121314, roughness: 0.9 }),
       underbody: new S({ color: 0x0d0d0e, roughness: 0.95, side: THREE.DoubleSide }),
@@ -144,6 +146,8 @@ export class TrolleyModel {
       lightStrip: new S({ color: 0xf4f8ff, emissive: 0xf4f8ff, emissiveIntensity: 1 }),
       stopBtn: new S({ color: 0xc8102e, roughness: 0.4, emissive: 0xff1010, emissiveIntensity: 0 }),
       yellowEdge: new S({ color: 0xf0c419, roughness: 0.5 }),
+      cabWhite: new S({ color: 0xe9ebec, roughness: 0.55 }),
+      validatorBlue: new S({ color: 0x2a7ad6, roughness: 0.35 }),
       bellows: new S({ color: 0xffffff, vertexColors: true, roughness: 0.75, metalness: 0.05, side: THREE.DoubleSide }),
       turntable: new S({ color: 0x6b6f72, roughness: 0.5, metalness: 0.5 }),
       pantoInsulator: new S({ color: 0x3d1408, roughness: 0.3 }),

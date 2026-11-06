@@ -49,6 +49,27 @@ export function panelShape(z0, z1, y0, y1, axles = [], archR = 0.62, cy = 0.48) 
   return sh;
 }
 
+/**
+ * Solaris IV wheel-arch fender (ref02 close-ups): a raised U-shaped moulding round the arch opening (centre ax, cy,
+ * radius A) from the skirt bottom y0: a vertical rear leg at ax + rear, a top just above the belt, a front leg whose
+ * outer edge runs from ax - front1 at the belt to ax - front0 at bandTop and then straight down. Shape in (z, y).
+ */
+export function fenderShape(ax, A, cy, y0, bandTop, belt, { rear, front0, front1, rise = 0.05 }) {
+  const t0 = Math.asin(Math.max(-1, Math.min(1, (y0 - cy) / A)));
+  const zr = ax + rear, zf0 = ax - front0, zf1 = ax - front1;
+  const s = new THREE.Shape();
+  s.moveTo(zr, y0);
+  s.lineTo(zr, belt + rise * 0.3);
+  s.bezierCurveTo(zr - 0.08, belt + rise * 1.15, ax + 0.2, belt + rise, ax - 0.05, belt + rise);
+  s.quadraticCurveTo(zf1 - 0.06, belt + rise, zf1, belt - 0.03);
+  s.lineTo(zf0, bandTop);
+  s.lineTo(zf0, y0);
+  s.lineTo(ax - A * Math.cos(t0), y0);
+  s.absarc(ax, cy, A, Math.PI - t0, t0, true);
+  s.lineTo(zr, y0);
+  return s;
+}
+
 /** A strip following a bowed end outline between x0 and x1 (for decals on the front and the rear), UVs 0..1. */
 export function endDecal(hw, r, bulge, zBase, dir, y0, y1, x0, x1, n = 16) {
   const pos = [], uv = [], idx = [];
@@ -272,4 +293,129 @@ export function frameRect(x0, y0, x1, y1, w, r, depth) {
   h.lineTo(a1, b0 + ri); h.quadraticCurveTo(a1, b0, a1 - ri, b0); h.closePath();
   s.holes.push(h);
   return new THREE_.ExtrudeGeometry(s, { depth, bevelEnabled: false, curveSegments: 6 });
+}
+
+/**
+ * Solaris IV roof shroud (ref02, ref09, ref13): the body side rises above the windows in a tall convex surface
+ * that curves in to a flat roof, its height following top(z) (ramps at the ends). Returns {geom, x(y, H)}.
+ * hw = half width at the window top (after tumblehome).
+ */
+export function shroudX(y, wtop, H, hw) {
+  const t = Math.max(0, Math.min(1, (y - wtop) / Math.max(1e-3, H - wtop)));
+  return hw - SHROUD_LEAN * Math.pow(t, 1.8);
+}
+// how far the shroud sides lean in from the window top to the roof crease (ref02, ref13: nearly flat, angular sides)
+export const SHROUD_LEAN = 0.2;
+
+/**
+ * The Solaris IV roof shroud between z0 and z1: tall, slightly leaning sides from the window top `wtop` up to a crease
+ * at height H, then a nearly flat top; it ramps down to `base` over rampF / rampR at its ends. Optional `cut(z, h)`
+ * splits the sides: below the cut height they are returned separately as `lower` (the black glazing that rises to
+ * the roof over the rear section, ref09). capF / capR close the ends; `breaks` adds rows at those z (sharp steps).
+ */
+export function shroudGeom(z0, z1, wtop, hw, H, base, { rampF = 0.5, rampR = 0.5, steps = 28, n = 8, n1 = 4, capF = true, capR = true, cut = null, breaks = [] } = {}) {
+  const Hz = (z) => {
+    const f = Math.min(1, (z - z0) / Math.max(1e-3, rampF)), b = Math.min(1, (z1 - z) / Math.max(1e-3, rampR));
+    const k = Math.max(0, Math.min(f, b));
+    return base + (H - base) * (1 - Math.pow(1 - k, 2));
+  };
+  const zs = [];
+  for (let i = 0; i <= steps; i++) zs.push(z0 + ((z1 - z0) * i) / steps);
+  for (const zb of breaks) if (zb > z0 && zb < z1) zs.push(zb - 0.01, zb);
+  zs.sort((a, b) => a - b);
+  const rowsU = [], rowsL = [], rowsR = [], caps = [];
+  for (const z of zs) {
+    const h = Hz(z);
+    const yc = cut ? Math.max(wtop, Math.min(h, cut(z, h))) : wtop;
+    // right side from the cut up to the crease, over the top to the centre; then mirrored down the left side
+    const up = [];
+    for (let i = 0; i <= n; i++) {
+      const y = yc + ((h - yc) * i) / n;
+      up.push([shroudX(y, wtop, h, hw), y]);
+    }
+    up.push([hw - SHROUD_LEAN - 0.22, h + 0.035], [0, h + 0.05]);
+    const upper = [...up, ...up.slice(0, -1).map(([x, y]) => [-x, y]).reverse()];
+    rowsU.push(upper.map(([x, y]) => [x, y, z]));
+    const low = [];
+    for (let i = 0; i <= n1; i++) {
+      const y = wtop + ((yc - wtop) * i) / n1;
+      low.push([shroudX(y, wtop, h, hw), y]);
+    }
+    rowsR.push(low.map(([x, y]) => [x, y, z]));
+    rowsL.push(low.map(([x, y]) => [-x, y, z]).reverse());
+    caps.push([...low.slice(0, -1), ...upper, ...low.slice(0, -1).map(([x, y]) => [-x, y]).reverse()].map(([x, y]) => [x, y, z]));
+  }
+  const loft = (rows, pos, idx) => {
+    const m = rows[0].length, o = pos.length / 3;
+    for (const row of rows) for (const q of row) pos.push(...q);
+    for (let i = 0; i < rows.length - 1; i++) {
+      for (let j = 0; j < m - 1; j++) {
+        const a = o + i * m + j, b = a + 1, c = a + m, d = c + 1;
+        idx.push(a, b, c, b, d, c);
+      }
+    }
+  };
+  // the end caps only close the shroud above the roof line (base - 0.1): below it is the saloon and the passage
+  // through the bellows
+  const capY = base - 0.1;
+  const fan = (rowAll, front, pos, idx) => {
+    const z = rowAll[0][2], h = Hz(z);
+    if (h <= capY + 0.01) return;
+    const xc = shroudX(capY, wtop, h, hw);
+    const row = [[xc, capY, z], ...rowAll.filter((q) => q[1] > capY + 1e-4), [-xc, capY, z]];
+    const o = pos.length / 3;
+    pos.push(0, capY, z);
+    for (const q of row) pos.push(...q);
+    for (let j = 0; j < row.length - 1; j++) {
+      if (front) idx.push(o, o + 2 + j, o + 1 + j);
+      else idx.push(o, o + 1 + j, o + 2 + j);
+    }
+  };
+  const mk = (pos, idx) => {
+    const g = new THREE.BufferGeometry();
+    g.setAttribute('position', new THREE.Float32BufferAttribute(pos, 3));
+    g.setIndex(idx);
+    g.computeVertexNormals();
+    return g;
+  };
+  const pu = [], iu = [];
+  loft(rowsU, pu, iu);
+  if (capF) fan(caps[0], true, pu, iu);
+  if (capR) fan(caps[caps.length - 1], false, pu, iu);
+  let lower = null;
+  if (cut) {
+    const pl = [], il = [];
+    loft(rowsR, pl, il);
+    loft(rowsL, pl, il);
+    lower = mk(pl, il);
+  }
+  return { geom: mk(pu, iu), lower, Hz };
+}
+
+/**
+ * A slanted glass panel set into the side of the shroud: bottom edge from zb0 to zb1 at height y0, top edge at y1
+ * shifted forwards by `lean` (a parallelogram leaning towards the front, ref02). side +1 right / -1 left.
+ */
+export function shroudInsert(side, zb0, zb1, y0, y1, lean, wtop, H, hw, nu = 8, nv = 6) {
+  const pos = [], idx = [];
+  for (let j = 0; j <= nv; j++) {
+    const v = j / nv, y = y0 + (y1 - y0) * v;
+    const x = side * (shroudX(y, wtop, H, hw) + 0.008);
+    for (let i = 0; i <= nu; i++) {
+      const u = i / nu;
+      pos.push(x, y, zb0 + (zb1 - zb0) * u - lean * v);
+    }
+  }
+  for (let j = 0; j < nv; j++) {
+    for (let i = 0; i < nu; i++) {
+      const a = j * (nu + 1) + i, b = a + 1, c = a + nu + 1, d = c + 1;
+      if ((side > 0) === (zb1 > zb0)) idx.push(a, c, b, b, c, d);
+      else idx.push(a, b, c, b, d, c);
+    }
+  }
+  const g = new THREE.BufferGeometry();
+  g.setAttribute('position', new THREE.Float32BufferAttribute(pos, 3));
+  g.setIndex(idx);
+  g.computeVertexNormals();
+  return g;
 }
