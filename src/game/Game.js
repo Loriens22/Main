@@ -482,6 +482,13 @@ export class Game {
 
   onStopEvent(bus, e) {
     const sched = this.route.schedule(bus.dirId);
+    // the timetable and the score belong to the driven vehicle; the AI services of passenger mode only feed the
+    // stop logic below (pedestrians)
+    if (this.mode !== 'driver' || !this.scoring) {
+      if (e.type === 'served' || e.type === 'passed') bus.stopRequested = false;
+      if (this.peds) this.peds.onStopEvent(bus, e);
+      return;
+    }
     if (e.type === 'departed' && e.index === 0 && this.tripStart == null) {
       this.tripStart = this.time;
       this.scoring.tripStart(this.time);

@@ -51,6 +51,10 @@ export const HERO_GLOW = {
   // lit:<id> (HeroBuildings.js): the NDK's floodlit fins, the fountains' floors lit from under the water
   fin: { color: 0xfff3e2, night: 0.85 },
   pool: { color: 0x7fffd8, night: 1.4 },
+  // Alexander Nevsky Cathedral: warm floodlighting on the walls, the gilded domes glowing
+  nevsky: { color: 0xffe2b8, night: 0.5 },
+  nevskyTrim: { color: 0xfff0d8, night: 0.55 },
+  nevskyGold: { color: 0xffc46a, night: 0.75 },
 };
 
 /** Interior surfaces behind shop glass: lit evenly day and night (no AO), emissive fraction of their colour. */

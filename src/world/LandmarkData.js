@@ -79,10 +79,11 @@ export const REPLACED = [
 import { REPLACED64, LINE_MASKS64 } from './landmarks64/data.js';
 import { REPLACED12 } from './landmarks12/data.js';
 import { REPLACED7 } from './landmarks7/data.js';
+import { REPLACED9 } from './landmarks9/data.js';
 
 /** Replaced buildings of a line's world. */
 export function replacedFor(line) {
-  return { 64: REPLACED64, 12: REPLACED12, 7: REPLACED7 }[String(line)] || REPLACED;
+  return { 64: REPLACED64, 12: REPLACED12, 7: REPLACED7, 9: REPLACED9 }[String(line)] || REPLACED;
 }
 
 /** Where a hand-built landmark redraws the OSM fences / walls: circles {x, z, r} or polylines {pts, d}. */

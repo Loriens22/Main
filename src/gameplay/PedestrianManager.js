@@ -278,7 +278,7 @@ export class PedestrianManager {
         const door = doorsOpen[Math.floor(this.rand() * doorsOpen.length)];
         const pIn = this.doorPoint(bus, door, -0.4), pOut = this.doorPoint(bus, door, 2.5);
         this.peds.push({ kind: 'alight', x: pIn.x, z: pIn.z, yaw: 0, look: r.look, state: 'leave', goal: { x: pOut.x, z: pOut.z }, anim: 0, door, bus });
-        bus.boardTimer = 0.9;
+        bus.boardTimer = bus.spec.boardTime ?? 0.9;
         bus.phys.passengers = riders.length;
       }
     }
@@ -311,6 +311,14 @@ export class PedestrianManager {
         const step = p.look.speed * dt * 1.1;
         if (d < 1.2) p.door.obstructed = true;
         if (d <= step + 0.05) {
+          // a high floor (Ikarus 280.92F: three steps up to 0.88 m) holds each rider in the door for a moment
+          const climb = (bus.spec.boardTime ?? 0.9) - 0.9;
+          if (climb > 0 && p.climb == null) p.climb = climb;
+          if (p.climb > 0) {
+            p.climb -= dt;
+            p.door.obstructed = true;
+            continue;
+          }
           // step in
           p.state = 'gone';
           riders.push({ look: p.look, dest: this.pickDest(bus, atStop), seat: this.freeSeat(bus), anim: this.rand() * 10 });

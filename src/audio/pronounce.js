@@ -31,6 +31,13 @@ const RULES = [
   [AC('УНСС'), 'У Н С С'],
   [AC('ТУ'), 'Технически университет'],
   [AC('ЛТУ'), 'Лесотехнически университет'],
+  [rx('ив\\.'), 'Иван'],
+  [rx('ев\\.'), 'Евстратиев'],
+  [AC('УМБАЛ'), 'университетска болница'],
+  [AC('ДКЦ'), 'диагностично-консултативен център'],
+  [AC('СОУ'), 'средно училище'],
+  [AC('ВМА'), 'Военномедицинска академия'],
+  [AC('НДК'), 'Национален дворец на културата'],
   [AC('АД'), 'а де'],
   [AC('ЕАД'), 'е а де'],
 ];
@@ -47,9 +54,22 @@ export function numberWords(n) {
   return r ? `${hw}${r < 20 || r % 10 === 0 ? ' и ' : ' '}${numberWords(r)}` : hw;
 }
 
+const ORD = ['', 'първ', 'втор', 'трет', 'четвърт', 'пет', 'шест', 'седм', 'осм', 'девет', 'десет', 'единадесет', 'дванадесет', 'тринадесет', 'четиринадесет', 'петнадесет', 'шестнадесет', 'седемнадесет', 'осемнадесет', 'деветнадесет'];
+const ORD_TENS = ['', '', 'двадесет', 'тридесет', 'четиридесет', 'петдесет', 'шестдесет', 'седемдесет', 'осемдесет', 'деветдесет'];
+
+/** Ordinal number in words (1-99) with the ending of the written suffix: 20-ти -> двадесети, 36-то -> тридесет и шесто. */
+export function ordinalWords(n, suffix) {
+  const end = /[оo]$/.test(suffix) ? 'о' : /[аa]$/.test(suffix) ? 'а' : 'и';
+  if (n < 20) return ORD[n] + end;
+  const t = Math.floor(n / 10), u = n % 10;
+  return u ? `${TENS[t]} и ${ORD[u]}${end}` : ORD_TENS[t] + end;
+}
+
 /** Text as the voice should read it. */
 export function pronounce(text) {
   let t = String(text || '');
+  // ordinals first ("20-ти ДКЦ", "36-то СОУ"), before the numbers are read as cardinals
+  t = t.replace(/(?<![\p{L}\p{N}])(\d{1,2})-(ти|ри|ви|ми|то|ро|во|мо|та|ра|ва|ма)(?![\p{L}\p{N}])/gu, (m, d, suf) => ordinalWords(Number(d), suf));
   for (const [re, w] of RULES) t = t.replace(re, w);
   t = t.replace(/[„“”"«»]/g, '').replace(/\s+[–—-]\s+/g, ', ');
   t = t.replace(/(?<![\p{L}\p{N}])(\d{1,3})(?![\p{L}\p{N}])/gu, (m, d) => numberWords(Number(d)));

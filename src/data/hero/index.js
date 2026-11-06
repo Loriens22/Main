@@ -14,6 +14,9 @@ import btv_meta from './btv.json';
 import ndk_glb from './ndk.glb';
 import ndk_ao from './ndk_ao.webp';
 import ndk_meta from './ndk.json';
+import nevsky_glb from './nevsky.glb';
+import nevsky_ao from './nevsky_ao.webp';
+import nevsky_meta from './nevsky.json';
 
 export default {
   mall: { glb: mall_glb, ao: mall_ao, meta: mall_meta },
@@ -21,4 +24,5 @@ export default {
   millennium: { glb: millennium_glb, ao: millennium_ao, meta: millennium_meta },
   btv: { glb: btv_glb, ao: btv_ao, meta: btv_meta },
   ndk: { glb: ndk_glb, ao: ndk_ao, meta: ndk_meta },
+  nevsky: { glb: nevsky_glb, ao: nevsky_ao, meta: nevsky_meta },
 };

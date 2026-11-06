@@ -101,6 +101,7 @@ export const IKARUS = {
     { id: 4, section: 'rear', z0: 1.2, z1: 2.4 },
   ],
   doorType: 'fold',
+  boardTime: 1.5, // s per passenger through a door: three steps up to the 0.88 m floor (estimate; low floor: 0.9 s)
   look: { body: 0xf1ae17, blue: 0x3a6fb4, roof: 0xf1ae17, window: 0x0b0d0f, lower: 0x3a6fb4, seat: 0x4b5157, seatFabric: null, pole: 0xe8891a, floor: 0x5b5f63, bellows: 0x2b2d2f, led: '#c8ff2a' },
   physics: {
     massEmpty: 16200, aeroArea: 8.4,
