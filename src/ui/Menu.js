@@ -8,6 +8,7 @@ export const LINE_INFO = {
   280: { bg: 'СУ „Св. Климент Охридски“ – Студентски град', en: 'Sofia University – Studentski Grad', sbg: 'СУ – Студентски град', sen: 'University – Studentski Grad' },
   64: { bg: 'Зоопарка – Център по хигиена', en: 'Zoo – Hygiene Centre', sbg: 'Зоопарка – Център по хигиена', sen: 'Zoo – Hygiene Centre' },
   12: { bg: 'кв. Илиянци – пл. Журналист (трамвай)', en: 'Iliyantsi – Zhurnalist Square (tram)', sbg: 'Илиянци – пл. Журналист', sen: 'Iliyantsi – Zhurnalist Sq.' },
+  84: { bg: 'ул. Ген. Гурко – Летище София Терминал 2', en: 'Gen. Gurko St – Sofia Airport Terminal 2', sbg: 'ул. Ген. Гурко – Летище Т2', sen: 'Gen. Gurko St – Airport T2' },
   9: { bg: 'ж.к. Борово – пл. Сточна гара (тролейбус)', en: 'Borovo – Stochna Gara Square (trolleybus)', sbg: 'Борово – Сточна гара', sen: 'Borovo – Stochna Gara' },
   7: { bg: 'кв. Манастирски ливади – запад – Метростанция „Хан Кубрат“ (трамвай)', en: 'Manastirski Livadi West – Han Kubrat Metro (tram)', sbg: 'Манастирски ливади – Хан Кубрат', sen: 'Manastirski Livadi – Han Kubrat' },
 };

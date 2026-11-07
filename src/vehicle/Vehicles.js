@@ -68,6 +68,7 @@ export const LINE_FLEETS = {
   7: [{ id: 'pesa', share: 0.5 }, { id: 'inekon', share: 0.5 }],
   // one third each (Expansion 5.0); the historical Ikarus takes the remainder so the shares sum to 1
   9: [{ id: 'solaris4', share: 0.3333 }, { id: 'solaris3', share: 0.3333 }, { id: 'ikarus', share: 0.3334 }],
+  84: [{ id: 'yutong', share: 1 }],
 };
 
 export { frames };

@@ -80,9 +80,13 @@ import { REPLACED64, LINE_MASKS64 } from './landmarks64/data.js';
 import { REPLACED12 } from './landmarks12/data.js';
 import { REPLACED7 } from './landmarks7/data.js';
 import { REPLACED9 } from './landmarks9/data.js';
+import { REPLACED84, SHARED_280 } from './landmarks84/data.js';
+
+let _replaced84 = null;
 
 /** Replaced buildings of a line's world. */
 export function replacedFor(line) {
+  if (String(line) === '84') return (_replaced84 ||= [...REPLACED.filter((r) => SHARED_280.test(r.note)), ...REPLACED84]);
   return { 64: REPLACED64, 12: REPLACED12, 7: REPLACED7, 9: REPLACED9 }[String(line)] || REPLACED;
 }
 

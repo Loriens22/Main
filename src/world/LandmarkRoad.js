@@ -233,16 +233,17 @@ export function buildMetro({ world, M, y, replaced }) {
 // ------------------------------------------------------------------ Tsarigradsko shosse guard fence (Pliska - Iztok)
 /** Continuous W-beam guard fence 10.6 m right of each carriageway centre between the Pliska and Iztok stops,
  *  with gaps where a road crosses (service-lane connections, crossings). Chunked every 110 m. */
-export function buildGuardFences({ world, M, y, route }) {
+export function buildGuardFences({ world, M, y, route, guardRange = [3300, 4551] }) {
   const A = route.direction('A').path, Bp = route.direction('B').path;
   const ranges = [];
-  ranges.push({ path: A, s0: 3300, s1: 4551 });
+  const [g0, g1] = guardRange; // stretch of direction A's path (line 280 default; line 84 passes the same fence)
+  ranges.push({ path: A, s0: g0, s1: g1 });
   // direction B: the stretch that runs alongside A's section
   let cur = null;
   for (let s = 0; s <= Bp.length; s += 10) {
     const p = Bp.at(s, {});
     const n = A.nearest(p.x, p.z);
-    const inside = n.s >= 3300 && n.s <= 4551 && n.d < 40;
+    const inside = n.s >= g0 && n.s <= g1 && n.d < 40;
     if (inside) { if (!cur) cur = { path: Bp, s0: s, s1: s }; cur.s1 = s; } else if (cur) { ranges.push(cur); cur = null; }
   }
   if (cur) ranges.push(cur);

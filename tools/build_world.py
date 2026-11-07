@@ -502,8 +502,10 @@ LANDMARK_NAMES = [('Александър Невски', 'alexander_nevsky'), ('�
 # Landmarks identified by proximity to a stop pole (unnamed in OSM).
 LANDMARK_NEAR = [('1697', 140, 'su_rectorate'), ('0441', 170, 'military_academy')]
 # the same for the other lines (filled as their landmarks are built)
-LINE_LANDMARK_NAMES = {'64': []}
-LINE_LANDMARK_NEAR = {'64': []}
+LINE_LANDMARK_NAMES = {'64': [], '84': LANDMARK_NAMES}
+# line 84 shares the centre of line 280 (СУ, пл. Орлов мост, Хотел Плиска, ж.к. Изток): the same OSM footprints get the
+# same hand-built landmarks; the rectorate is found from the line-84 СУ pole (1700, on бул. Васил Левски)
+LINE_LANDMARK_NEAR = {'64': [], '84': [('1700', 200, 'su_rectorate')]}
 LINE = route.get('line', '280')
 if LINE != '280':
     # these hand-built landmarks are on line 280; another line's pack must not grab namesakes
