@@ -43,8 +43,10 @@ The model covers the terminal (#8056), the central hall (#8052-8055), the canopi
 - **Drawn, not copied:** the embroidery pattern on the car park roof is drawn in the style of the photographed one.
 - **Generic aircraft:** the airliners are generic narrow-bodies with no airline markings.
 - **Terrain:** the 16 m elevation grid sloped about 10 m across the forecourt. `tools/terrain_pads.py` levels the
-  terminal, curbside and apron to game y 7.0 (`tools/pads84.json`), with a 48 m blend. Run it again after
-  rebuilding `world84.pack.b64`.
+  terminal, curbside, apron and the first and last 160 m of the bus paths to game y 7.0 (`tools/pads84.json`),
+  with a 110 m blend. It also grades the departure road (direction B, 150-420 m) evenly at about 4 %; the
+  first version left 17-20 % ramps at the path ends, which a loaded SOR could not climb. Apply it once to a
+  freshly built `world84.pack.b64`.
 
 ### Central Cooperative Bank tower, ex Hotel Pliska (`ccb.py`; shared with line 280)
 
@@ -80,6 +82,50 @@ The model covers the terminal (#8056), the central hall (#8052-8055), the canopi
 
   These are higher than OSM's 9.6 m and 24.6 m.
 - **Removed:** a strip mapped in front of the right wing (#7418) does not appear in the photographs.
+
+## Gameplay checks
+
+### Luggage passengers (`src/gameplay/PedestrianManager.js`)
+
+- **Airport stops:** Terminal 1 and Terminal 2 (not the „Летищен център“ business park). There, larger crowds wait
+  and about 80 % pull a wheeled suitcase.
+- **Elsewhere:** on stops before the terminals, about 18 % of riders carry luggage and ride to Terminal 2. Walkers
+  within 380 m of the terminals carry one about half the time.
+- **Boarding:** lifting the case in or out holds the passenger in the doorway 1.3 s longer. Inside, most of them
+  stand beside the case.
+- **Arrivals:** passengers arriving at the airport ride into town (mostly to the centre) or across to Terminal 1.
+
+### Announcements
+
+All 39 stops have a spoken form and read cleanly (`tests/announcements84.test.js`):
+
+- РВД → „Ер Ве Де“, Р-т → „Ресторант“;
+- бл. 108 → „Блок сто и осем“, Дружба-1 → „Дружба едно“;
+- Терминал 2 → „Терминал две“, „Св. Анна“ → „Света Анна“;
+- „Последна спирка“ only at the termini.
+
+`tools/generate_announcements.py list` now covers every line, so clips can be recorded for line 84.
+
+### Full-route tests (AI driving the player's bus, traffic and signals on, every stop served)
+
+| Bus | Direction | Stops | Time | Battery | Net energy |
+| --- | --- | --- | --- | --- | --- |
+| SOR EBN 11 | A | 19/19 | 1600 s | 79.2 % → 68.1 % | 1.40 kWh/km |
+| SOR EBN 11 | B | 20/20 | 1680 s | 79.2 % → 67.9 % | 1.39 kWh/km |
+| Yutong E12 | A | 19/19 | 1460 s | 79.2 % → 74.9 % | 1.25 kWh/km |
+| Yutong E12 | B | 20/20 | 1640 s | 79.2 % → 73.9 % | 1.50 kWh/km |
+| Yutong ZK6126HGA (CNG) | A | 19/19 | 1500 s | – | – |
+| Yutong ZK6126HGA (CNG) | B | 20/20 | 1620 s | – | – |
+
+- **Announcements in the runs:** every "next stop" and "stop" message played once, in order.
+- **Faults found and fixed:**
+  - The first terrain pad left 17-20 % ramps at both path ends. The SOR could not leave Terminal 2 and the
+    E12 rolled back there; the pad and road grading above fixed this.
+  - Direction A ended on the main road, 18.75 m from the Terminal 2 stop pole. `tools/route84_t2_curb.py`
+    now ends it at the departures curb, 0.8 m from the pole.
+  - An OSM strip (#8038) mapped over the curb road was solid; it no longer is.
+- **Remaining contacts:** a few low-speed bumps with traffic cars, which come from the general AI driver and
+  traffic behaviour, not from line 84.
 
 ## Vehicles
 

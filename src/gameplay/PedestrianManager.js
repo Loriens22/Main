@@ -1,16 +1,25 @@
 // Pedestrians and bus passengers. Articulated low-poly people rendered with
 // one InstancedMesh per body part (procedural walk cycle, sitting, standing).
-// Behaviours: sidewalk walkers, people waiting at Route 280 stops, boarding
+// Behaviours: sidewalk walkers, people waiting at the stops, boarding
 // through the nearest open door (blocking the closing doors while in the
 // doorway), riders seated/standing inside the bus who press STOP and alight.
+// Air travellers (line 84): most people at the airport stops, some of those
+// riding towards the airport and walkers near the terminals pull a wheeled
+// suitcase; lifting it in and out holds them in the doorway a little longer,
+// and inside they keep it beside them.
 import * as THREE from 'three';
 import { mulberry32 } from '../core/rng.js';
 import { FRONT_Z } from '../vehicle/BusSpec.js';
+import { RoundedBoxGeometry } from 'three/examples/jsm/geometries/RoundedBoxGeometry.js';
 
 const SKIN = [0xf1c8a8, 0xe6b591, 0xd9a07c, 0xc68b62, 0xf3d2bd, 0xa86f4c];
 const HAIR = [0x1b1612, 0x3b2a1e, 0x6b4a2e, 0x9a7a52, 0xc9b38a, 0x8a8a88, 0x2a2420];
 const TOPS = [0x2b3a55, 0x6e2a2a, 0x2f4d3b, 0x1f1f22, 0x8a8d90, 0xb5651d, 0x50606e, 0x7a3d6b, 0xd8d2c4, 0x3d5a80, 0x9b2c2c, 0x445544];
 const LEGS = [0x23314d, 0x1c1c1e, 0x3a3f45, 0x5a6b85, 0x6e604c, 0x2b2b2b];
+const CASES = [0x1d1f22, 0x24324f, 0x8a1c22, 0xb7bcc1, 0x2c6e6a, 0x5a2d6b, 0xd0a020, 0x3b3f45, 0xc9cdd1, 0x6b4a2e];
+/** Stops serving the airport terminals. */
+export const isAirportStop = (st) => /Летище(?!\p{L})|Терминал/u.test(st.name || ''); // not „Летищен център“
+const LUGGAGE_BOARD = 1.3; // s extra in the doorway to lift a suitcase in or out
 
 function partGeo(w, h, d, r = 0.04) {
   const g = new THREE.CapsuleGeometry(Math.min(w, d) / 2, Math.max(0.01, h - Math.min(w, d)), 3, 8);
@@ -31,7 +40,19 @@ const PARTS = [
   ['legLL', () => { const g = partGeo(0.12, 0.46, 0.12); const f = new THREE.BoxGeometry(0.1, 0.07, 0.24).translate(0, -0.47, -0.05); return mergeTwo(g, f); }, 'legs'],
   ['legLR', () => { const g = partGeo(0.12, 0.46, 0.12); const f = new THREE.BoxGeometry(0.1, 0.07, 0.24).translate(0, -0.47, -0.05); return mergeTwo(g, f); }, 'legs'],
   ['bag', () => new THREE.BoxGeometry(0.28, 0.36, 0.13).translate(0, 0.3, 0.16), 'bag'],
+  ['case', () => suitcaseGeo(), 'case'],
 ];
+
+/** A wheeled cabin suitcase: rounded shell, two wheels and the telescopic handle on the back (-z), wheels at the origin. */
+function suitcaseGeo() {
+  const parts = [];
+  parts.push(new RoundedBoxGeometry(0.42, 0.6, 0.25, 2, 0.05).translate(0, 0.36, 0.02));
+  for (const y of [0.2, 0.36, 0.52]) parts.push(new THREE.BoxGeometry(0.43, 0.012, 0.255).translate(0, y, 0.02)); // shell ribs
+  for (const x of [-0.16, 0.16]) parts.push(new THREE.CylinderGeometry(0.035, 0.035, 0.03, 8).rotateZ(Math.PI / 2).translate(x, 0.035, -0.08));
+  for (const x of [-0.11, 0.11]) parts.push(new THREE.BoxGeometry(0.018, 0.46, 0.018).translate(x, 0.84, -0.1));
+  parts.push(new THREE.BoxGeometry(0.26, 0.03, 0.035).translate(0, 1.07, -0.1));
+  return parts.reduce((a, b) => (a ? mergeTwo(a, b) : b), null);
+}
 
 function mergeTwo(a, b) {
   const ga = a.index ? a.toNonIndexed() : a, gb = b.index ? b.toNonIndexed() : b;
@@ -76,6 +97,31 @@ export class PedestrianManager {
     this.sidewalks = (world.roadBuilder.sidewalkInfo || []).filter((s) => s.pts.length >= 6 && s.width > 1.4);
     this.stopCrowds = new Map(); // stop code -> [peds]
     this.campus = [[300, 1500], [-300, 1900], [-700, 2600], [-1350, -2780]]; // TU, UNSS, NSA/Studentski grad, SU
+    // airport stops and the stops from which a later stop of the same direction serves a terminal
+    this.airports = [];
+    this.towardAirport = new Set();
+    for (const d of Object.values(route.dirs || {})) {
+      const last = d.stops.reduce((m, st, i) => (isAirportStop(st) ? i : m), -1);
+      for (const st of d.stops) {
+        if (isAirportStop(st)) this.airports.push(st.pole);
+        else if (st.index < last) this.towardAirport.add(st);
+      }
+    }
+  }
+
+  /** A wheeled suitcase for this person (an air traveller walks a little slower). */
+  giveLuggage(look) {
+    look.lug = CASES[Math.floor(this.rand() * CASES.length)];
+    look.speed *= 0.86;
+    if (this.rand() < 0.5) look.bag = null;
+    return look;
+  }
+
+  /** Distance to the nearest airport stop (Infinity on lines without one). */
+  airportDistance(x, z) {
+    let d = Infinity;
+    for (const [px, pz] of this.airports) d = Math.min(d, Math.hypot(px - x, pz - z));
+    return d;
   }
 
   newLook() {
@@ -122,6 +168,7 @@ export class PedestrianManager {
       for (const [cx, cz] of this.campus) campus = Math.max(campus, 1 - Math.hypot(x - cx, z - cz) / 600);
       const look = this.newLook();
       if (campus > 0.3 && this.rand() < campus) look.bag = 0x2b4a6a;
+      if (this.airportDistance(x, z) < 380 && this.rand() < 0.55) this.giveLuggage(look);
       this.peds.push({ kind: 'walk', sw, i, t: 0, dir: this.rand() < 0.5 ? 1 : -1, x, z, yaw: 0, look, state: 'walk', anim: look.phase });
       return;
     }
@@ -155,13 +202,16 @@ export class PedestrianManager {
     }
     for (const st of wanted) {
       if (this.stopCrowds.has(st.code) || st.isLast) continue;
-      let busy = /университет|УНСС|Студентски|СУ|Технически|НСА/.test(st.name) ? 6 : 3;
+      const airport = isAirportStop(st);
+      let busy = /университет|УНСС|Студентски|СУ|Технически|НСА/.test(st.name) ? 6 : airport ? 7 : 3;
       if (this.night) busy = Math.ceil(busy / 2);
-      const n = Math.floor(this.rand() * (busy + 1)) + (st.isFirst ? 2 : 0);
+      const n = Math.floor(this.rand() * (busy + 1)) + (st.isFirst ? 2 : 0) + (airport ? 2 : 0);
       const crowd = [];
       for (let k = 0; k < n; k++) {
         const pos = this.stopPosition(st, k);
-        crowd.push({ kind: 'stop', stop: st, x: pos.x, z: pos.z, yaw: pos.yaw, look: this.newLook(), state: 'wait', anim: this.rand() * 10 });
+        const look = this.newLook();
+        if (airport ? this.rand() < 0.8 : this.towardAirport.has(st) && this.rand() < 0.18) this.giveLuggage(look);
+        crowd.push({ kind: 'stop', stop: st, x: pos.x, z: pos.z, yaw: pos.yaw, look, state: 'wait', anim: this.rand() * 10 });
       }
       this.stopCrowds.set(st.code, crowd);
     }
@@ -278,7 +328,7 @@ export class PedestrianManager {
         const door = doorsOpen[Math.floor(this.rand() * doorsOpen.length)];
         const pIn = this.doorPoint(bus, door, -0.4), pOut = this.doorPoint(bus, door, 2.5);
         this.peds.push({ kind: 'alight', x: pIn.x, z: pIn.z, yaw: 0, look: r.look, state: 'leave', goal: { x: pOut.x, z: pOut.z }, anim: 0, door, bus });
-        bus.boardTimer = bus.spec.boardTime ?? 0.9;
+        bus.boardTimer = (bus.spec.boardTime ?? 0.9) + (r.look && r.look.lug ? LUGGAGE_BOARD : 0);
         bus.phys.passengers = riders.length;
       }
     }
@@ -312,7 +362,7 @@ export class PedestrianManager {
         if (d < 1.2) p.door.obstructed = true;
         if (d <= step + 0.05) {
           // a high floor (Ikarus 280.92F: three steps up to 0.88 m) holds each rider in the door for a moment
-          const climb = (bus.spec.boardTime ?? 0.9) - 0.9;
+          const climb = (bus.spec.boardTime ?? 0.9) - 0.9 + (p.look.lug ? LUGGAGE_BOARD : 0);
           if (climb > 0 && p.climb == null) p.climb = climb;
           if (p.climb > 0) {
             p.climb -= dt;
@@ -321,7 +371,7 @@ export class PedestrianManager {
           }
           // step in
           p.state = 'gone';
-          riders.push({ look: p.look, dest: this.pickDest(bus, atStop), seat: this.freeSeat(bus), anim: this.rand() * 10 });
+          riders.push({ look: p.look, dest: this.pickDest(bus, atStop, p.look), seat: this.freeSeat(bus, p.look), anim: this.rand() * 10 });
           bus.phys.passengers = riders.length;
         } else {
           p.x += (dx / d) * step;
@@ -338,18 +388,32 @@ export class PedestrianManager {
     bus.boarding = boarding + riders.filter((r) => r.dest === atStop.index).length;
   }
 
-  pickDest(bus, from) {
+  pickDest(bus, from, look = null) {
     const n = bus.dir.stops.length;
     const lo = from.index + 1;
+    if (look && look.lug) {
+      const stops = bus.dir.stops;
+      const later = stops.filter((st) => st.index >= lo && isAirportStop(st)).map((st) => st.index);
+      if (!isAirportStop(from) && later.length) return later[later.length - 1]; // flying out: to the terminal
+      if (isAirportStop(from)) {
+        if (later.length && this.rand() < 0.15) return later[0]; // changing terminals
+        // arrived: into town, most of them to the centre (the last stops of the line)
+        const first = Math.max(lo, (later.length ? later[later.length - 1] : from.index) + 1);
+        if (first >= n) return n - 1;
+        if (this.rand() < 0.6) return Math.max(first, n - 1 - Math.floor(this.rand() * Math.min(8, n - first)));
+        return Math.min(n - 1, first + Math.floor(this.rand() * (n - first)));
+      }
+    }
     // students travel to Studentski grad / universities more often
     if (this.rand() < 0.35) return n - 1;
     return Math.min(n - 1, lo + Math.floor(this.rand() * (n - lo)));
   }
 
-  freeSeat(bus) {
+  freeSeat(bus, look = null) {
     const used = new Set((bus.riders || []).map((r) => r.seat));
     const free = bus.spec.layout.seats.map((_, i) => i).filter((i) => !used.has(i));
-    if (free.length && this.rand() < 0.85) return free[Math.floor(this.rand() * free.length)];
+    // with a big suitcase most travellers stay standing by it in the open areas
+    if (free.length && this.rand() < (look && look.lug ? 0.4 : 0.85)) return free[Math.floor(this.rand() * free.length)];
     return -1 - Math.floor(this.rand() * 40); // standing
   }
 
@@ -378,8 +442,9 @@ export class PedestrianManager {
     return { legL: sway, legR: -sway, kneeL: -0.02, kneeR: -0.02, armL: 0.05, armR: mode === 'hold' ? 2.6 : 0.05, elbow: mode === 'hold' ? 0.2 : 0.12, bob: 0, lean: 0 };
   }
 
-  writeHuman(idx, base, look, pose) {
+  writeHuman(idx, base, look, pose, mode = 'stand') {
     const parts = this.parts;
+    if (look.lug && mode === 'walk') { pose.armR = -0.32; pose.elbow = 0.05; } // pulling the suitcase behind
     const M = this.M, T = this.T, R = this.R;
     const set = (k, m) => parts[k].im.setMatrixAt(idx, m);
     const sc = look.scale;
@@ -405,10 +470,18 @@ export class PedestrianManager {
     }
     // bag (hidden by scaling to zero when the person has none)
     set(11, look.bag ? torso : T.makeScale(0, 0, 0));
+    // suitcase: pulled behind on its wheels while walking, standing beside its owner otherwise
+    if (look.lug) {
+      const c = this.root.clone();
+      if (mode === 'walk') c.multiply(T.makeTranslation(0.27, 0, 0.62)).multiply(R.makeRotationX(-0.72));
+      else if (mode === 'sit') c.multiply(T.makeTranslation(0.55, -0.02, -0.42)).multiply(R.makeRotationY(1.4));
+      else c.multiply(T.makeTranslation(0.42, 0, -0.06)).multiply(R.makeRotationY(0.35));
+      set(12, c);
+    } else set(12, T.makeScale(0, 0, 0));
     const C = this.C;
     for (let k = 0; k < parts.length; k++) {
       const slot = parts[k].slot;
-      C.setHex(slot === 'bag' ? look.bag || 0 : look[slot]);
+      C.setHex(slot === 'bag' ? look.bag || 0 : slot === 'case' ? look.lug || 0 : look[slot]);
       parts[k].im.setColorAt(idx, C);
     }
   }
@@ -424,7 +497,7 @@ export class PedestrianManager {
       if (camPos && Math.abs(p.x - camPos.x) + Math.abs(p.z - camPos.z) > 190) return;
       q.setFromAxisAngle(up, p.yaw || 0);
       base.compose(pos.set(p.x, hf.heightAt(p.x, p.z) + 0.22, p.z), q, one);
-      this.writeHuman(n++, base, p.look, this.pose(p, mode));
+      this.writeHuman(n++, base, p.look, this.pose(p, mode), mode);
     };
     for (const p of this.peds) emit(p, 'walk');
     for (const crowd of this.stopCrowds.values()) for (const p of crowd) emit(p, p.state === 'toDoor' ? 'walk' : 'stand');
@@ -458,7 +531,7 @@ export class PedestrianManager {
         // never draw someone the camera (the player's eyes) is standing inside
         if (camPos && Math.hypot(base.elements[12] - camPos.x, base.elements[14] - camPos.z) < 0.55 && Math.abs(base.elements[13] + 1.6 - camPos.y) < 1) continue;
         r.anim = (r.anim || 0) + 0.016;
-        this.writeHuman(n++, base, r.look, this.pose(r, mode));
+        this.writeHuman(n++, base, r.look, this.pose(r, mode), mode);
       }
     }
     for (const p of this.parts) {

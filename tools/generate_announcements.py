@@ -6,8 +6,8 @@ clips once with a licensed neural TTS voice, or record them with a human
 speaker, and embed them into src/data/voice-clips.json. The next
 `node build.mjs` then inlines them into the single HTML file.
 
-The message texts must match AnnouncementManager.js exactly:
-    "Следваща спирка <speech>."
+The message texts must match AnnouncementManager.js exactly, for every line (src/data/route*.json):
+    "Следваща спирка <speech>."             (+ " Спирка по желание." at request stops)
     "Спирка <speech>."                      (+ " Последна спирка." at terminals)
 
 usage:
@@ -25,28 +25,31 @@ Generated audio goes to assets/voice/ (mp3, 24 kHz mono) and is embedded as
 base64 data URLs. Check the TTS provider's licence terms before
 redistributing the generated audio.
 """
-import base64, csv, hashlib, json, os, sys, urllib.request
+import base64, csv, glob, hashlib, json, os, sys, urllib.request
 
 ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
-ROUTE = os.path.join(ROOT, 'src', 'data', 'route280.json')
+ROUTES = sorted(glob.glob(os.path.join(ROOT, 'src', 'data', 'route*.json')))
 OUT_JSON = os.path.join(ROOT, 'src', 'data', 'voice-clips.json')
 OUT_DIR = os.path.join(ROOT, 'assets', 'voice')
 TERMINAL_SUFFIX = 'Последна спирка.'
+REQUEST_SUFFIX = 'Спирка по желание.'
 
 
 def messages():
-    route = json.load(open(ROUTE, encoding='utf-8'))
     out = []
-    for d in route['directions'].values():
-        stops = d['stops']
-        for i, st in enumerate(stops):
-            speech = st.get('speech') or st['name']
-            if i > 0:
-                out.append(f'Следваща спирка {speech}.')
-                t = f'Спирка {speech}.'
-                if i == len(stops) - 1:
-                    t += ' ' + TERMINAL_SUFFIX
-                out.append(t)
+    for path in ROUTES:
+        route = json.load(open(path, encoding='utf-8'))
+        for d in route['directions'].values():
+            stops = d['stops']
+            for i, st in enumerate(stops):
+                speech = st.get('speech') or st['name']
+                if i > 0:
+                    n = f'Следваща спирка {speech}.'
+                    out.append(f'{n} {REQUEST_SUFFIX}' if st.get('request') else n)
+                    t = f'Спирка {speech}.'
+                    if i == len(stops) - 1:
+                        t += ' ' + TERMINAL_SUFFIX
+                    out.append(t)
     return list(dict.fromkeys(out))
 
 
