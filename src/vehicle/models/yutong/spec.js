@@ -14,7 +14,7 @@ const spec = {
   id: 'yutong',
   name: 'Yutong ZK6126HGA',
   short: 'Yutong ZK6126',
-  lines: ['64'],
+  lines: ['64', '84'], // also the third bus of line 84 (Expansion 6.0), unchanged
   articulated: false,
   dims,
   // measured on ref13: front door ahead of the steered axle, middle door ahead of the rear axle, rear door behind it

@@ -79,6 +79,14 @@ def M():
         'lensAmber': mat('lensAmber', (0.75, 0.32, 0.02), 0.2),
         'lensClear': mat('lensClear', (0.55, 0.57, 0.6), 0.06, 0.3),
         'ledDrl': mat('ledDrl', (0.85, 0.86, 0.88), 0.25),
+        # line 84 (Expansion 6.0). SOR EBN 11 (images 5-6): mid-grey shells, royal-blue moquette with lime-green
+        # rounded squares and rows of white dots; Yutong E12 (image 10): light-grey one-piece shells with a charcoal
+        # insert on the back and an orange grab handle at the aisle-side top corner
+        'shellSor': mat('shellSor', (0.25, 0.265, 0.28), 0.42, noise=0.03, nscale=80, bump=0.05, bscale=1500),
+        'fabricSor': moquette_sor('fabricSor'),
+        'shellE12': mat('shellE12', (0.52, 0.54, 0.57), 0.4, noise=0.025, nscale=80, bump=0.04, bscale=1500),
+        'insertE12': mat('insertE12', (0.035, 0.037, 0.04), 0.55, bump=0.06, bscale=1600),
+        'handleE12': mat('handleE12', (0.85, 0.3, 0.02), 0.38, noise=0.04, nscale=60),
     }
 
 
@@ -108,6 +116,65 @@ def moquette_blocks(name, col, dark):
     nt.links.new(tc.outputs['Object'], nz.inputs['Vector'])
     bp = nt.nodes.new('ShaderNodeBump')
     bp.inputs['Strength'].default_value = 0.35
+    bp.inputs['Distance'].default_value = 0.001
+    nt.links.new(nz.outputs['Fac'], bp.inputs['Height'])
+    nt.links.new(bp.outputs['Normal'], b.inputs['Normal'])
+    return m
+
+
+def moquette_sor(name, tile=0.15, N=256):
+    """SOR moquette (images 5-6): royal blue with a fine darker dot grid, lime-green rounded squares (outlines) and
+    rows of white dots, drawn into an image tile and box-projected in object space (tile = metres per repeat)."""
+    import numpy as np
+    img = bpy.data.images.new(name + 'Tile', N, N, alpha=False)
+    c = np.zeros((N, N, 3), dtype=np.float32)
+    srgb = lambda h: [int(h[i:i + 2], 16) / 255 for i in (1, 3, 5)]
+    c[:] = srgb('#1f5cbc')
+    yy, xx = np.mgrid[0:N, 0:N]
+    c[((xx % 8) < 3) & ((yy % 8) < 3)] = srgb('#174a9b')  # fine dark dot grid
+    lime, white = srgb('#a7d23a'), srgb('#e9eef4')
+
+    def rsq(cx, cy, w, h, r, t):
+        dx = np.maximum(np.abs(xx - cx) - (w / 2 - r), 0)
+        dy = np.maximum(np.abs(yy - cy) - (h / 2 - r), 0)
+        d = np.sqrt(dx * dx + dy * dy) - r
+        c[(d < 0) & (d > -t)] = lime
+    # two rows of rounded squares of mixed sizes, and white dot trios between them
+    for row, y in enumerate((48, 176)):
+        x = 16 if row == 0 else 80
+        for k, w in enumerate((40, 30, 40, 26)):
+            rsq((x + w / 2) % N, y, w, w * 0.82, 7, 4)
+            x += w + 26
+        for k in range(4):
+            cx = (x + k * 13) % N
+            c[((xx - cx) ** 2 + (yy - (y + 64) % N) ** 2) < 16] = white
+    for k in range(5):
+        cx = 30 + k * 11
+        c[((xx - cx) ** 2 + (yy - 112) ** 2) < 12] = white
+    px = np.concatenate([c[::-1], np.ones((N, N, 1), dtype=np.float32)], axis=2)
+    img.pixels.foreach_set(px.ravel())
+    img.pack()
+    m = bpy.data.materials.new(name)
+    m.use_nodes = True
+    nt = m.node_tree
+    b = nt.nodes['Principled BSDF']
+    b.inputs['Roughness'].default_value = 0.95
+    m['rough'], m['metal'] = 0.95, 0.0
+    tc = nt.nodes.new('ShaderNodeTexCoord')
+    mp = nt.nodes.new('ShaderNodeMapping')
+    mp.inputs['Scale'].default_value = (1 / tile, 1 / tile, 1 / tile)
+    nt.links.new(tc.outputs['Object'], mp.inputs['Vector'])
+    it = nt.nodes.new('ShaderNodeTexImage')
+    it.image = img
+    it.projection = 'BOX'
+    it.projection_blend = 0.25
+    nt.links.new(mp.outputs['Vector'], it.inputs['Vector'])
+    nt.links.new(it.outputs['Color'], b.inputs['Base Color'])
+    nz = nt.nodes.new('ShaderNodeTexNoise')
+    nz.inputs['Scale'].default_value = 1400
+    nt.links.new(tc.outputs['Object'], nz.inputs['Vector'])
+    bp = nt.nodes.new('ShaderNodeBump')
+    bp.inputs['Strength'].default_value = 0.3
     bp.inputs['Distance'].default_value = 0.001
     nt.links.new(nz.outputs['Fac'], bp.inputs['Height'])
     nt.links.new(bp.outputs['Normal'], b.inputs['Normal'])
@@ -536,6 +603,48 @@ def seat_ikarus(m):
     return [hi], lo
 
 
+def seat_e12(m, hand=1):
+    """Yutong E12 (image 10): light-grey one-piece plastic shell with a moulded hand hole, a charcoal insert panel
+    on the back of the backrest and an orange grab handle at the top corner on the aisle side (hand = +1: +x)."""
+    face = [(-0.23, 0.425), (-0.224, 0.455), (-0.1, 0.447), (0.05, 0.436), (0.165, 0.44), (0.205, 0.5), (0.228, 0.64), (0.25, 0.82), (0.272, 0.98), (0.288, 1.04), (0.302, 1.06)]
+    rear = [(0.302, 1.06), (0.326, 1.054), (0.334, 1.03), (0.326, 0.92), (0.292, 0.7), (0.244, 0.48), (0.2, 0.405), (0.2, 0.386), (-0.2, 0.386), (-0.227, 0.405), (-0.23, 0.425)]
+    o = seat_loft('seatHi', face, rear, 0.44, m['shellE12'], corner=0.12, dish=(0.01, 0.012))
+    from kit_bus import stadium_prism
+    sl = stadium_prism('slot', -0.1, 0.1, 0.975, 1.018, 1.026, 0.1, 0.5, 0.02)
+    md = o.modifiers.new('b', 'BOOLEAN'); md.operation = 'DIFFERENCE'; md.object = sl; md.solver = 'EXACT'
+    apply_mods(o)
+    bpy.data.objects.remove(sl)
+    o = bevel_mod(o, 0.0045, 3, 35)
+    parts = [o]
+    # charcoal insert on the back: a pad following the rear face of the backrest
+    pts = [(z + 0.004, y) for (z, y) in resample(rear, 60) if 0.52 <= y <= 0.93]
+    bm = bmesh.new()
+    nxp = 11
+    rows = []
+    for j in range(nxp):
+        x = -0.17 + 0.34 * j / (nxp - 1)
+        rows.append([bm.verts.new(W_(x, y, z)) for (z, y) in pts])
+    for j in range(nxp - 1):
+        for i in range(len(pts) - 1):
+            bm.faces.new((rows[j][i + 1], rows[j + 1][i + 1], rows[j + 1][i], rows[j][i]))
+    me = bpy.data.meshes.new('ins')
+    bm.to_mesh(me)
+    bm.free()
+    ins = bpy.data.objects.new('ins', me)
+    bpy.context.scene.collection.objects.link(ins)
+    me.materials.append(m['insertE12'])
+    sol = ins.modifiers.new('s', 'SOLIDIFY'); sol.thickness = 0.006; sol.offset = 1
+    apply_mods(ins)
+    parts.append(bevel_mod(ins, 0.002, 2, 40))
+    # orange grab handle over the aisle-side top corner
+    x = hand * 0.2
+    parts.append(tube('grab', [(x, 0.985, 0.3), (x + hand * 0.015, 1.07, 0.305), (x + hand * 0.012, 1.11, 0.312)], 0.0135, m['handleE12'], segs=12))
+    parts.append(box('grabFoot', x - 0.025, x + 0.025, 0.97, 1.0, 0.29, 0.33, m['handleE12'], bev=0.006, segs=2))
+    hi = join(parts, 'seatHi')
+    lo = decimate_copy(hi, 0.1, 'seat_e12' if hand > 0 else 'seat_e12m')
+    return [hi], lo
+
+
 # ------------------------------------------------------------------ mirrors
 def mirrors_solaris(m):
     """Solaris Urbino 18 mirrors (both generations in Sofia): on the right a long arm from the roof corner
@@ -675,6 +784,10 @@ PIECES = {
     'headS4': (heads_s4, (1024, 1152, 512, 256), 40, 0.02),
     'headS3': (heads_s3, (1024, 1408, 512, 256), 40, 0.02),
     'headIkarus': (heads_ikarus, (1536, 1152, 512, 256), 40, 0.02),
+    # line 84 (Expansion 6.0)
+    'seat_sor': (lambda m: seat_padded(m, m['shellSor'], m['fabricSor'], 'seat_sor'), (0, 1664, 384, 384), 40, 0.02),
+    'seat_e12': (lambda m: seat_e12(m, 1), (384, 1664, 384, 384), 40, 0.02),
+    'seat_e12m': (lambda m: seat_e12(m, -1), (768, 1664, 384, 384), 40, 0.02),
 }
 
 VIEWS = {'seat': ((0.8, 1.0, 0.5), (0.5, -1.0, 0.25)), 'mirrors': ((0.6, 1.0, 0.25), (0.4, -1.0, 0.3)), 'head': ((0.2, 1.0, 0.15), (0.6, 1.0, 0.5))}

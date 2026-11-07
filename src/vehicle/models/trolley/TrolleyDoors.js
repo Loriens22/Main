@@ -86,6 +86,17 @@ export const DoorsMixin = {
         const m = p.build({ lamp: mat, house: this.mats.trim }, { castShadow: false });
         group.add(m);
         this.doorSignals[d.id] = { kind: 'lamp', mat };
+      } else if (warn.kind === 'white') {
+        // Yutong E12: a white lamp over the door inside and outside, lit while the door is open (described by the
+        // user); one material per door so each door's lamps follow their own door
+        const mat = this.mats.doorWhite.clone();
+        const p = new Parts();
+        p.add('lamp', box(0.06, 0.05, 0.3, 0.015), M(hw - 0.24, G.doorTop + 0.1, zc)); // inside, over the door
+        p.add('house', box(0.08, 0.02, 0.34), M(hw - 0.24, G.doorTop + 0.14, zc));
+        p.add('lamp', box(0.02, 0.05, 0.24, 0.01), M(hw + 0.024, G.doorTop + 0.1, zc)); // outside, on the header
+        const m = p.build({ lamp: mat, house: this.mats.trim }, { castShadow: false });
+        group.add(m);
+        this.doorSignals[d.id] = { kind: 'white', mat };
       }
     }
   },

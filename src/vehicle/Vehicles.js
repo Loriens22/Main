@@ -28,6 +28,7 @@ import procity from './models/procity/index.js';
 import yutong from './models/yutong/index.js';
 import { TRAMS } from './trams/TramSpecs.js';
 import { TROLLEYS } from './models/trolley/index.js';
+import { EBUSES } from './models/ebus/index.js';
 
 const MAN_FRONT_Z = -(BUS.frontOverhang + BUS.wb1);
 
@@ -58,7 +59,7 @@ export const MAN = {
 
 // trams (kind 'tram'): TramEntity instead of BusEntity, see src/vehicle/trams
 // trolleybuses (kind 'trolleybus'): BusEntity with TrolleyPoles, see src/vehicle/models/trolley
-export const VEHICLES = { man: MAN, conecto, procity, yutong, ...TRAMS, ...TROLLEYS };
+export const VEHICLES = { man: MAN, conecto, procity, yutong, ...TRAMS, ...TROLLEYS, ...EBUSES };
 
 /** Vehicles a line dispatches, with default shares (sum 1). */
 export const LINE_FLEETS = {
@@ -68,7 +69,8 @@ export const LINE_FLEETS = {
   7: [{ id: 'pesa', share: 0.5 }, { id: 'inekon', share: 0.5 }],
   // one third each (Expansion 5.0); the historical Ikarus takes the remainder so the shares sum to 1
   9: [{ id: 'solaris4', share: 0.3333 }, { id: 'solaris3', share: 0.3333 }, { id: 'ikarus', share: 0.3334 }],
-  84: [{ id: 'yutong', share: 1 }],
+  // Expansion 6.0: one third each by default; the SOR EBN 11 is the 2017 demonstrator (historical)
+  84: [{ id: 'sor', share: 0.3333 }, { id: 'e12', share: 0.3333 }, { id: 'yutong', share: 0.3334 }],
 };
 
 export { frames };

@@ -15,7 +15,7 @@ import { M, box, endOutline, endBand, endDecal, frameRect, SHROUD_LEAN } from '.
 import { tkMesh } from './TrolleyKit.js';
 
 /** Inset of the outline near the roof so the ends meet the rounded roof edge of the sides. */
-function roofInset(roofY, R) {
+export function roofInset(roofY, R) {
   return (y) => {
     const t = y - (roofY - R);
     return t <= 0 ? 0 : R - Math.sqrt(Math.max(0, R * R - t * t));
@@ -23,7 +23,7 @@ function roofInset(roofY, R) {
 }
 
 /** Flat cap at height y closing an end between its outline (with inset k) and the start of the sides. */
-function endCap(outline, zBase, dir, y, zSide, k, rake) {
+export function endCap(outline, zBase, dir, y, zSide, k, rake) {
   const pts = outline.map(([x, dz]) => [Math.sign(x) * Math.max(0, Math.abs(x) - k), zBase - dir * (dz + rake + k * 0.6)]);
   const hwk = Math.abs(pts[0][0]);
   const s = new THREE.Shape();
@@ -43,7 +43,7 @@ function endCap(outline, zBase, dir, y, zSide, k, rake) {
 }
 
 /** z of an end outline at x (front: dir -1, the body towards +z). */
-function zAt(hw, r, bulge, zBase, dir, x) {
+export function zAt(hw, r, bulge, zBase, dir, x) {
   const ax = Math.abs(x), flat = hw - r;
   let dz;
   if (ax <= flat) { const u = x / flat; dz = -bulge * (1 - u * u); } else { const t = Math.min(1, (ax - flat) / r); dz = r - Math.sqrt(Math.max(0, r * r - (t * r) ** 2)); }
@@ -51,7 +51,7 @@ function zAt(hw, r, bulge, zBase, dir, x) {
 }
 
 /** A disc lamp facing out of an end (front: -z), radius r, at (x, y) on the outline, proud by d. */
-function lamp(p, key, x, y, z, r, dir, d = 0.006) {
+export function lamp(p, key, x, y, z, r, dir, d = 0.006) {
   const c = new THREE.CircleGeometry(r, 20);
   if (dir < 0) c.rotateY(Math.PI);
   p.add(key, c, M(x, y, z - dir * -d));
@@ -59,6 +59,8 @@ function lamp(p, key, x, y, z, r, dir, d = 0.006) {
 
 export const EndsMixin = {
   buildFront(p) {
+    if (this.G.ends === 'sor') return this.buildFrontSor(p);
+    if (this.G.ends === 'e12') return this.buildFrontE12(p);
     const D = this.D, G = this.G, F = this.F, Fr = G.front;
     const hw = D.halfW, r = G.bodyR, z0 = F.frontZ, roofY = D.roofY, bulge = Fr.bulge;
     const ol = endOutline(hw, r, 8, bulge);
@@ -195,6 +197,8 @@ export const EndsMixin = {
   },
 
   buildRearEnd(p) {
+    if (this.G.ends === 'sor') return this.buildRearSor(p);
+    if (this.G.ends === 'e12') return this.buildRearE12(p);
     const D = this.D, G = this.G, F = this.F, Rr = G.rear;
     const hw = D.halfW, r = G.bodyR, z1 = F.rearZ, roofY = D.roofY;
     const ol = endOutline(hw, r, 8, 0.0);

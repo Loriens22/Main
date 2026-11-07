@@ -23,13 +23,20 @@ import { BodyMixin } from './TrolleyBody.js';
 import { EndsMixin } from './TrolleyEnds.js';
 import { DoorsMixin } from './TrolleyDoors.js';
 import { InteriorMixin } from './TrolleyInterior.js';
+import { EbusEndsMixin } from '../ebus/EbusEnds.js';
+import { EbusBodyMixin } from '../ebus/EbusBody.js';
+import { EbusInteriorMixin } from '../ebus/EbusInterior.js';
+import { EbusMaterialsMixin } from '../ebus/EbusMaterials.js';
 
 export class TrolleyModel {
   constructor(spec, { fleet = null, quality = 'high', interior = true } = {}) {
     this.spec = spec;
     this.D = spec.dims;
     this.F = frames(spec);
-    this.G = DESIGNS[spec.id];
+    // a design object on the spec (the battery buses of line 84) or one of the trolleybus designs
+    this.G = spec.design || DESIGNS[spec.id];
+    // rigid buses (line 84): one body section in the front frame (origin = rear axle), no bellows, no poles
+    this.rigid = spec.articulated === false;
     this.fleet = String(fleet || spec.fleets[0].fleet);
     this.plate = (spec.fleets.find((f) => f.fleet === this.fleet) || spec.fleets[0]).plate;
     this.quality = quality;
@@ -48,22 +55,24 @@ export class TrolleyModel {
     this.signs = {};
     this.doorSignals = {};
     this.makeMaterials();
-    for (const sec of ['front', 'rear']) {
+    for (const sec of this.rigid ? ['front'] : ['front', 'rear']) {
       const p = new Parts();
       this.buildSides(p, sec);
       this.buildRoof(p, sec);
       if (sec === 'front') this.buildFront(p);
-      else this.buildRearEnd(p);
-      this.buildBellowsFrame(p, sec);
+      if (sec === 'rear' || this.rigid) this.buildRearEnd(p);
+      if (!this.rigid) this.buildBellowsFrame(p, sec);
       const g = p.build(this.mats);
       g.name = `${sec}Body`;
       this.sec(sec).add(g);
       this.buildAxles(sec);
       this.buildDoors(sec);
     }
-    this.buildBellows();
-    this.buildRoofKit();
-    this.buildPoles();
+    if (!this.rigid) this.buildBellows();
+    if (spec.trolley) {
+      this.buildRoofKit();
+      this.buildPoles();
+    }
     if (interior) {
       this.buildInterior();
       this.buildCab();
@@ -79,7 +88,7 @@ export class TrolleyModel {
   }
 
   sec(name) {
-    return name === 'rear' ? this.rear : this.front;
+    return name === 'rear' && !this.rigid ? this.rear : this.front;
   }
 
   makeMaterials() {
@@ -152,6 +161,7 @@ export class TrolleyModel {
       turntable: new S({ color: 0x6b6f72, roughness: 0.5, metalness: 0.5 }),
       pantoInsulator: new S({ color: 0x3d1408, roughness: 0.3 }),
     };
+    if (G.ends) this.makeEbusMaterials(); // the line-84 battery buses' decals and fittings
     this.lightMats = { head: this.mats.headlamp, brake: this.mats.brake, tail: this.mats.tail, reverse: this.mats.reverse, left: this.mats.indicatorL, right: this.mats.indicatorR };
   }
 
@@ -479,6 +489,10 @@ export class TrolleyModel {
       else if (state === 'open') { col = 0x19ff4a; k = 2.4; }
     } else if (s.kind === 'lamp') {
       if (state === 'flash') { col = 0xff1a0a; k = Math.sin(now * Math.PI * 2.2) > 0 ? 3.2 : 0.05; }
+    } else if (s.kind === 'white') {
+      // Yutong E12: the white lamp over the door, inside and outside, lit from the moment the door starts to open
+      // until it is closed again
+      if (state === 'flash' || state === 'open') { col = 0xffffff; k = 2.6; }
     }
     if (col != null) s.mat.emissive.setHex(col);
     s.mat.emissiveIntensity = k;
@@ -493,7 +507,7 @@ export class TrolleyModel {
 
   afterPose() {
     this.root.updateMatrixWorld(true);
-    this.updateBellows();
+    if (this.bellows) this.updateBellows();
   }
 
   dispose() {
@@ -501,7 +515,7 @@ export class TrolleyModel {
   }
 }
 
-Object.assign(TrolleyModel.prototype, BodyMixin, EndsMixin, DoorsMixin, InteriorMixin);
+Object.assign(TrolleyModel.prototype, BodyMixin, EndsMixin, DoorsMixin, InteriorMixin, EbusEndsMixin, EbusBodyMixin, EbusInteriorMixin, EbusMaterialsMixin);
 
 // ------------------------------------------------------------------ textures
 function canvas(w, h) {

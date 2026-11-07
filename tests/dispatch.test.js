@@ -48,10 +48,14 @@ test('every vehicle spec is complete and consistent', () => {
     assert.ok(s.doors.length >= 2 && s.doors.every((d) => d.z1 > d.z0), `${id} doors`);
     if (!s.articulated) assert.ok(s.doors.every((d) => d.section === 'front'), `${id} rigid doors`);
     assert.ok(s.layout.seats.length > 15, `${id} seats`);
+    const E = s.physics.electric;
     if (s.kind === 'trolleybus') {
-      const E = s.physics.electric;
       assert.ok(E && E.power > 100e3 && E.force >= 20e3 && E.vmax >= 50, `${id} electric traction`);
       assert.ok(s.trolley && s.trolley.base.length === 2 && s.trolley.length > 5, `${id} trolley poles`);
+    } else if (E) {
+      // battery-electric buses (line 84): traction motor and a finite traction battery with depot charging
+      assert.ok(E.power > 100e3 && E.force >= 14e3 && E.vmax >= 50, `${id} electric traction`);
+      assert.ok(s.battery && s.battery.kWh > 100 && s.battery.usable < 1 && s.battery.charge && s.battery.charge.kW > 0, `${id} traction battery`);
     } else assert.ok(s.physics.gears.length >= 4 && s.physics.torque(1300) > 500, `${id} drivetrain`);
     assert.ok(s.fleets.length && fleetFor(id, 3).fleet, `${id} fleet`);
     assert.ok(Object.values(LINE_FLEETS).some((l) => l.some((v) => v.id === id)), `${id} runs on a line`);

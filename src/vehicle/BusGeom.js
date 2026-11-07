@@ -74,7 +74,8 @@ const M = (x = 0, y = 0, z = 0) => new THREE.Matrix4().makeTranslation(x, y, z);
 const basis = (e1, e2, e3, t) => new THREE.Matrix4().makeBasis(new THREE.Vector3(...e1), new THREE.Vector3(...e2), new THREE.Vector3(...e3)).setPosition(...t);
 
 function box(w, h, d, r = 0) {
-  return r > 0 ? new RoundedBoxGeometry(w, h, d, 2, Math.min(r, w / 2, h / 2, d / 2)) : new THREE.BoxGeometry(w, h, d);
+  // the radius stays just under half the thinnest side: at exactly half, RoundedBoxGeometry divides by zero (NaN)
+  return r > 0 ? new RoundedBoxGeometry(w, h, d, 2, Math.min(r, 0.48 * Math.min(w, h, d))) : new THREE.BoxGeometry(w, h, d);
 }
 
 /** Box without some faces (order: +x, -x, +y, -y, +z, -z). */

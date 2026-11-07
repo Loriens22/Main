@@ -26,16 +26,19 @@ export const InteriorMixin = {
     const groups = [];
     this._validators = { front: [], rear: [] };
     this._straps = { front: [], rear: [] };
-    for (const sec of ['front', 'rear']) {
+    for (const sec of this.rigid ? ['front'] : ['front', 'rear']) {
       const p = new Parts();
       this.saloon(p, sec);
       this.stanchions(p, sec);
       const g = p.build(this.mats, { castShadow: false });
       g.name = `${sec}Saloon`;
       const L = this.spec.layout;
-      const seats = L.seats.filter((s) => s.sec === sec).map((s) => ({ x: s.x, y: s.fy, z: s.z, yaw: s.yaw || 0 }));
-      const im = tkInstances(this.G.seatPiece, seats);
-      if (im) g.add(im);
+      const seats = L.seats.filter((s) => s.sec === sec).map((s) => ({ x: s.x, y: s.fy, z: s.z, yaw: s.yaw || 0, src: s }));
+      // one kit piece for all seats, or a piece per seat (the E12's handle on the aisle side)
+      const SP = this.G.seatPiece, byPiece = new Map();
+      for (const s of seats) { const k = typeof SP === 'function' ? SP(s.src) : SP; if (!byPiece.has(k)) byPiece.set(k, []); byPiece.get(k).push(s); }
+      const ims = [...byPiece].map(([k, list]) => tkInstances(k, list));
+      if (ims.every(Boolean)) for (const im of ims) g.add(im);
       else {
         const sp = new Parts();
         for (const s of seats) {
@@ -57,12 +60,31 @@ export const InteriorMixin = {
     this.interiorGroups = groups;
   },
 
+  /** Splits [z0, z1] at the wheel housings of a section: [a, b, halfWidth] with the housing's inner side as the
+   *  half width over an axle and the wall elsewhere. */
+  archSplit(sec, z0, z1) {
+    const D = this.D, hw = D.halfW, xi = hw - 0.07, xIn = hw - 0.6, ha = this.G.archR + 0.06;
+    const axles = sec === 'front' ? [-D.wb1, 0] : [0];
+    const out = [];
+    let z = z0;
+    for (const ax of axles.sort((u, v) => u - v)) {
+      const a = Math.max(z0, ax - ha), b = Math.min(z1, ax + ha);
+      if (b <= a) continue;
+      if (a > z) out.push([z, a, xi]);
+      out.push([a, b, xIn]);
+      z = b;
+    }
+    if (z1 > z) out.push([z, z1, xi]);
+    return out.filter(([a, b]) => b - a > 0.01);
+  },
+
   /** Floor, podiums, steps, walls, ceiling with its light strips, cab partition. */
   saloon(p, sec) {
     const D = this.D, F = this.F, G = this.G, L = this.spec.layout;
     const hw = D.halfW, FY = D.floorY, wtop = D.windowTopY, belt = D.beltY;
     const isF = sec === 'front';
-    const z0 = isF ? F.frontZ + 0.35 : F.rearStart + 0.04, z1 = isF ? F.frontEnd - 0.04 : F.rearZ - 0.12;
+    const isR = !isF || this.rigid; // the saloon ends here (rigid buses: one section)
+    const z0 = isF ? F.frontZ + 0.35 : F.rearStart + 0.04, z1 = isR ? F.rearZ - 0.12 : F.frontEnd - 0.04;
     const xi = hw - 0.07; // inner face of the side walls
     const doors = this.spec.doors.filter((d) => d.section === sec);
     const ceilY = D.roofY - 0.14;
@@ -85,7 +107,8 @@ export const InteriorMixin = {
         for (const z of [d.z0 + 0.04, d.z1 - 0.04]) p.add('pole', rod([xi - 0.05, 0.9, z], [wellX + 0.05, 1.6, z], 0.016));
       }
     } else {
-      p.add('floor', box(xi * 2, 0.02, z1 - z0), M(0, FY - 0.01, (z0 + z1) / 2));
+      // the floor stops at the wheel housings' inner sides over the axles (the wheels show through the arches)
+      for (const [a, b, w] of this.archSplit(sec, z0, z1)) p.add('floor', box(w * 2, 0.02, b - a), M(0, FY - 0.01, (a + b) / 2));
     }
     // ---- high floor (Ikarus): the wheel housings stand up through the floor
     if (L.steps) {
@@ -102,8 +125,11 @@ export const InteriorMixin = {
     if (!L.steps) {
       for (const az of isF ? [-D.wb1, 0] : [0]) {
         for (const side of [1, -1]) {
-          const top = D.wheelR + G.archR + 0.02, len = (G.archR + 0.05) * 2;
-          p.add('wall', box(0.58, top - FY, len, 0.07), M(side * (xi - 0.27), (top + FY) / 2, az));
+          // the housing's inner side and top (the arch liner and the wheel are outboard of it)
+          const top = D.wheelR + G.archR + 0.02, len = (G.archR + 0.05) * 2, xIn = hw - 0.6;
+          p.add('wall', box(0.03, top - FY, len, 0.012), M(side * xIn, (top + FY) / 2, az));
+          p.add('wall', box(xi - xIn, 0.03, len, 0.012), M(side * (xi + xIn) / 2, top, az));
+          for (const e of [-1, 1]) p.add('wall', box(xi - xIn, top - FY, 0.03, 0.012), M(side * (xi + xIn) / 2, (top + FY) / 2, az + e * len / 2)); // ends
         }
       }
     }
@@ -111,15 +137,25 @@ export const InteriorMixin = {
     for (const q of L.podiums || []) {
       if (q.sec !== sec) continue;
       const h = L.podiumY - FY, xa = q.side > 0 ? 0.28 : -xi, xb = q.side > 0 ? xi : -0.28;
-      p.add('trim', box(xb - xa, h, q.z1 - q.z0, 0.02), M((xa + xb) / 2, FY + h / 2, (q.z0 + q.z1) / 2));
-      p.add('floor', box(xb - xa - 0.02, 0.012, q.z1 - q.z0 - 0.02), M((xa + xb) / 2, FY + h + 0.004, (q.z0 + q.z1) / 2));
+      // over the wheel the podium stops at the housing's inner side (the wheel turns outboard of it, seen through
+      // the arch); elsewhere it reaches the wall
+      const ax = q.axle ?? 0, ha = G.archR + 0.06, xIn = hw - 0.6;
+      for (const [c, e] of [[q.z0, Math.min(q.z1, ax - ha)], [Math.max(q.z0, ax - ha), Math.min(q.z1, ax + ha)], [Math.max(q.z0, ax + ha), q.z1]]) {
+        if (e - c < 0.02) continue;
+        const over = c >= ax - ha - 1e-6 && e <= ax + ha + 1e-6;
+        const x0 = over && q.side < 0 ? -xIn : xa, x1 = over && q.side > 0 ? xIn : xb;
+        p.add('trim', box(x1 - x0, h, e - c, 0.02), M((x0 + x1) / 2, FY + h / 2, (c + e) / 2));
+        p.add('floor', box(x1 - x0 - 0.02, 0.012, e - c - 0.01), M((x0 + x1) / 2, FY + h + 0.004, (c + e) / 2));
+      }
       p.add('yellowEdge', box(0.012, 0.012, q.z1 - q.z0), M(q.side > 0 ? xa + 0.006 : xb - 0.006, FY + h + 0.006, (q.z0 + q.z1) / 2));
     }
-    if (sec === 'rear' && L.platformY > FY + 0.05) {
+    if (isR && L.platformY > FY + 0.05) {
       const zp = L.platformZ, h = L.platformY - FY;
       p.add('trim', box(xi * 2, h / 2, 0.3), M(0, FY + h / 4, zp + 0.15));
-      p.add('trim', box(xi * 2, h, z1 - zp - 0.3), M(0, FY + h / 2, (zp + 0.3 + z1) / 2));
-      p.add('floor', box(xi * 2, 0.012, z1 - zp - 0.3), M(0, FY + h + 0.006, (zp + 0.3 + z1) / 2));
+      for (const [a, b, w] of this.archSplit(sec, zp + 0.3, z1)) {
+        p.add('trim', box(w * 2, h, b - a), M(0, FY + h / 2, (a + b) / 2));
+        p.add('floor', box(w * 2, 0.012, b - a), M(0, FY + h + 0.006, (a + b) / 2));
+      }
       p.add('yellowEdge', box(xi * 2, 0.012, 0.03), M(0, FY + h + 0.008, zp + 0.31));
       p.add('yellowEdge', box(xi * 2, 0.012, 0.03), M(0, FY + h / 2 + 0.008, zp + 0.01));
     }
@@ -131,7 +167,7 @@ export const InteriorMixin = {
         // lower wall panel, cut round the wheel arches (the arch liners sit behind it)
         p.add('wall', sidePanel(panelShape(a, b, FY, belt + 0.02, axles, G.archR + 0.03, D.wheelR), side, xi + 0.015, 0.02));
         p.add('trim', box(G.gen === 4 ? 0.06 : 0.12, 0.03, b - a), M(side * (xi - (G.gen === 4 ? 0.02 : 0.05)), belt + 0.02, (a + b) / 2)); // window sill
-        p.add('trim', box(0.06, 0.08, b - a), M(side * (xi - 0.02), FY + 0.04, (a + b) / 2)); // skirting
+        for (const [c, e, w] of this.archSplit(sec, a, b)) if (w > hw - 0.5) p.add('trim', box(0.06, 0.08, e - c), M(side * (xi - 0.02), FY + 0.04, (c + e) / 2)); // skirting
       }
       for (const [a, b] of gaps(z0, z1, holes.map(([u, v]) => [u, v]))) {
         p.add('wall', box(0.03, ceilY - wtop + 0.04, b - a), M(side * (xi - 0.03), (ceilY + wtop) / 2, (a + b) / 2));
@@ -157,7 +193,7 @@ export const InteriorMixin = {
     // ---- ceiling: panels, the two light strips, air ducts
     p.add('ceiling', box(xi * 2, 0.02, z1 - z0), M(0, ceilY, (z0 + z1) / 2));
     for (const side of [1, -1]) {
-      if (G.gen === 4) {
+      if (G.coves ?? G.gen === 4) {
         // Solaris IV (ref01, ref06, ref16): light grey coves slope from the band over the windows up to the flat
         // centre of the ceiling, with a continuous bright LED strip along their inner edge
         p.add('ceiling', slab(side * (xi - 0.035), ceilY - 0.3, side * 0.84, ceilY - 0.07, z0, z1));
@@ -181,13 +217,15 @@ export const InteriorMixin = {
     // ---- ends of the saloon: cab partition (front), rear wall (rear)
     if (isF) {
       const cz = L.walk.front.cabZ;
-      const ph = G.gen === 4 ? 1.35 : 1.0; // Solaris IV: tall white partition behind the driver (ref01)
-      p.add(G.gen === 4 ? 'cabWhite' : 'trim', box(hw - 0.25, ph, 0.04), M(-(hw + 0.25) / 2 + 0.0, FY + ph / 2, cz + 0.06)); // partition, lower part
+      const cw = G.cabWhite ?? G.gen === 4;
+      const ph = cw ? 1.35 : 1.0; // Solaris IV, Yutong E12: tall white partition behind the driver (ref01)
+      p.add(cw ? 'cabWhite' : 'trim', box(hw - 0.25, ph, 0.04), M(-(hw + 0.25) / 2 + 0.0, FY + ph / 2, cz + 0.06)); // partition, lower part
       const gp = new THREE.PlaneGeometry(hw - 0.3, 1.8 - ph);
       p.add('glass', gp, M(-(hw + 0.25) / 2, FY + ph + (1.8 - ph) / 2, cz + 0.06));
       p.add('pole', rod([-0.2, FY, cz + 0.06], [-0.2, ceilY, cz + 0.06], 0.02));
       p.add('pole', rod([-hw + 0.1, FY + 1.0, cz + 0.06], [-0.2, FY + 1.0, cz + 0.06], 0.018));
-    } else {
+    }
+    if (isR) {
       // rear wall of the saloon, kept inside the rounded rear corners of the body
       const rw = hw - G.bodyR - 0.04;
       p.add('wall', box(rw * 2, ceilY - FY, 0.03), M(0, (ceilY + FY) / 2, z1 - 0.04));
@@ -196,11 +234,14 @@ export const InteriorMixin = {
     // wheelchair bay (low floor): wall pad and the request button opposite door 2
     if (isF && !L.steps) {
       // the backrest board (Solaris IV: white, with a black grab bar along its top, ref01)
-      p.add(G.gen === 4 ? 'cabWhite' : 'trim', box(0.06, 0.55, 0.9, G.gen === 4 ? 0.02 : 0), M(-xi + 0.03, FY + 0.75, -2.0));
-      if (G.gen === 4) p.add('black', box(0.05, 0.05, 0.86, 0.02), M(-xi + 0.08, FY + 1.06, -2.0));
-      p.add('stopBtn', box(0.02, 0.06, 0.06), M(-xi + 0.07, FY + 0.95, -1.45));
+      // the bay is the standing area on the left (the Solaris: opposite door 2 at z -2)
+      const bay = G.livery && L.standing.find((a) => a.x1 < 0), bz = bay ? (bay.z0 + bay.z1) / 2 : -2.0;
+      const wb = G.wheelchairBoard ?? G.gen === 4;
+      p.add(wb ? 'cabWhite' : 'trim', box(0.06, 0.55, 0.9, wb ? 0.02 : 0), M(-xi + 0.03, FY + 0.75, bz));
+      if (wb) p.add('black', box(0.05, 0.05, 0.86, 0.02), M(-xi + 0.08, FY + 1.06, bz));
+      p.add('stopBtn', box(0.02, 0.06, 0.06), M(-xi + 0.07, FY + 0.95, bz + 0.55));
       const sign = box(0.005, 0.18, 0.18);
-      p.add('blue', sign, M(-xi + 0.065, FY + 1.35, -2.0));
+      p.add(G.livery ? 'validatorBlue' : 'blue', sign, M(-xi + 0.065, FY + 1.35, bz));
     }
   },
 
@@ -294,6 +335,7 @@ export const InteriorMixin = {
 
   /** Stanchions by the seats, door poles with validators and buttons, ceiling rails, stop buttons. */
   stanchions(p, sec) {
+    if (this.G.fittings) return this[this.G.fittings](p, sec); // the battery buses' own fittings (EbusInterior.js)
     if (!this.G.old) return this.solarisFittings(p, sec);
     const D = this.D, F = this.F, L = this.spec.layout;
     const hw = D.halfW, FY = D.floorY, ceilY = D.roofY - 0.14;

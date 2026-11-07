@@ -13,6 +13,7 @@ export const BodyMixin = {
   /** z extent of a section's straight sides (the ends own the rounded corners). */
   sideRange(sec) {
     const F = this.F, r = this.G.bodyR;
+    if (this.rigid) return [F.frontZ + r, F.rearZ - r];
     return sec === 'front' ? [F.frontZ + r, F.frontEnd] : [F.rearStart, F.rearZ - r];
   },
 
@@ -54,7 +55,8 @@ export const BodyMixin = {
               sh.moveTo(l0, y0); sh.lineTo(Math.max(l0, r0), y0); sh.lineTo(Math.max(l1, r1), y1); sh.lineTo(l1, y1); sh.closePath();
               p.add('band', sidePanel(sh, side, hw + 0.0045, 0.006));
             }
-          } else {
+          } else if (belt - 0.005 - G.bandTop > 0.02) {
+            // (the Yutong E12 has no band: its white lower body reaches the glazing)
             p.add('band', sidePanel(panelShape(a, b, G.bandTop, belt - 0.005, axles, G.archR + G.archBand, R), side, hw + 0.0045, 0.006));
           }
         } else {
@@ -101,7 +103,7 @@ export const BodyMixin = {
       }
       // ---- glazed band
       const panes = G.panes[sec][name];
-      const paneY = (kind) => [kind === 'cab' && !G.old ? belt - 0.16 : belt + (G.old ? 0.06 : 0.03), wtop - (G.old ? 0.08 : 0.04)];
+      const paneY = (kind) => [kind === 'cab' && !G.old ? belt - 0.16 : belt + (G.old ? 0.06 : 0.03), (G.paneTop ?? wtop) - (G.old ? 0.08 : 0.04)];
       for (const [a, b] of gaps(zA, zB, holes)) {
         if (b - a < 0.06) continue;
         const sh = rectShape(a, belt, b, wtop);
@@ -114,7 +116,7 @@ export const BodyMixin = {
         // Solaris: the black frit band the panes sit in; Ikarus: yellow pillars between rubber-set windows
         p.add(G.old ? 'paint' : 'black', sidePanel(sh, side, hw - G.tumble, G.old ? 0.012 : 0.035));
       }
-      for (const [p0raw, p1raw, kind] of panes) {
+      for (const [pi, [p0raw, p1raw, kind]] of panes.entries()) {
         const p0 = Math.max(p0raw, zA + 0.02), p1 = Math.min(p1raw, zB - 0.02);
         if (p1 - p0 < 0.2) continue;
         const [y0, y1] = paneY(kind);
@@ -133,7 +135,7 @@ export const BodyMixin = {
             ? new THREE.Matrix4().makeBasis(new THREE.Vector3(0, 0, 1), new THREE.Vector3(0, 1, 0), new THREE.Vector3(1, 0, 0)).setPosition(hw - G.tumble - 0.012, 0, 0)
             : new THREE.Matrix4().makeBasis(new THREE.Vector3(0, 0, 1), new THREE.Vector3(0, 1, 0), new THREE.Vector3(-1, 0, 0)).setPosition(-hw + G.tumble + 0.012, 0, 0));
         }
-        if (G.hopper > 0 && kind !== 'cab') {
+        if (G.hopper > 0 && kind !== 'cab' && (!G.hopperEvery || pi % G.hopperEvery === 1)) {
           // top light / sliding vent: a frame bar across the pane (and the vent's centre stile on the Ikarus)
           const yb = y1 - G.hopper;
           p.add(G.old ? 'alu' : 'satin', box(0.03, G.old ? 0.03 : 0.022, w), M(side * (hw - G.tumble + 0.008), yb, zc));
@@ -156,10 +158,12 @@ export const BodyMixin = {
       }
       // ---- fleet number on the side (small black digits: on the panel band of the Solaris, under the windows
       // of the Ikarus)
-      const dz = sec === 'front' ? (G.old ? -2.75 : -3.2) : (G.old ? 1.6 : 1.4);
-      const dg = new THREE.PlaneGeometry(0.64, 0.16);
-      dg.rotateY(side > 0 ? Math.PI / 2 : -Math.PI / 2);
-      p.add('decals', dg, M(side * (hw + 0.012), G.old ? 1.32 : 0.92, dz));
+      if (!G.livery) {
+        const dz = sec === 'front' ? (G.old ? -2.75 : -3.2) : (G.old ? 1.6 : 1.4);
+        const dg = new THREE.PlaneGeometry(0.64, 0.16);
+        dg.rotateY(side > 0 ? Math.PI / 2 : -Math.PI / 2);
+        p.add('decals', dg, M(side * (hw + 0.012), G.old ? 1.32 : 0.92, dz));
+      }
     }
     // ---- the band over the windows and the roof (sky blue on the Solaris, yellow on the Ikarus); the Solaris IV
     // has its tall roof shroud with the slanted glass panels instead, and black glazing up to the roof behind it
@@ -188,6 +192,7 @@ export const BodyMixin = {
     // ---- underfloor: dark tray between the axles (seen from outside under the skirt)
     p.add('underbody', box(hw * 2 - 0.3, 0.05, zB - zA), M(0, skirt - 0.06, (zA + zB) / 2));
     if (G.old) for (const side of [1, -1]) p.add('underbody', box(0.12, 0.25, zB - zA - 1.2), M(side * 0.45, 0.5, (zA + zB) / 2));
+    if (G.livery) this.ebusSides(p, sec); // line-84 battery buses: stripes, livery, lettering (ebus/EbusBody.js)
   },
 
   /** Roof equipment: lofted fairings, air-conditioning units with their louvres, the pole catcher frame. */
@@ -212,7 +217,7 @@ export const BodyMixin = {
         }
       }
     }
-    if (sec === 'rear') {
+    if (sec === 'rear' && this.spec.trolley) {
       // anti-slip walkway strip along the poles
       p.add('satin', box(0.5, 0.01, 2.6), M(0, D.roofY + 0.006, this.spec.trolley.base[0][2] + 1.6));
       // the tubular pole catcher frame over the rear end, with its two cane hooks (Solaris, ref08 / ref09)
