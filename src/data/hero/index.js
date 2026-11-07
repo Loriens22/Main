@@ -17,6 +17,9 @@ import ndk_meta from './ndk.json';
 import nevsky_glb from './nevsky.glb';
 import nevsky_ao from './nevsky_ao.webp';
 import nevsky_meta from './nevsky.json';
+import airport_glb from './airport.glb';
+import airport_ao from './airport_ao.webp';
+import airport_meta from './airport.json';
 
 export default {
   mall: { glb: mall_glb, ao: mall_ao, meta: mall_meta },
@@ -25,4 +28,5 @@ export default {
   btv: { glb: btv_glb, ao: btv_ao, meta: btv_meta },
   ndk: { glb: ndk_glb, ao: ndk_ao, meta: ndk_meta },
   nevsky: { glb: nevsky_glb, ao: nevsky_ao, meta: nevsky_meta },
+  airport: { glb: airport_glb, ao: airport_ao, meta: airport_meta },
 };

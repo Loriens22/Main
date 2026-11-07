@@ -8,6 +8,7 @@ import { heroItem } from '../HeroBuildings.js';
 
 export const JOBS_84 = [
   ['nevsky', (ctx) => heroItem(ctx.heroes, 'nevsky', ctx.M)],
+  ['airport', (ctx) => heroItem(ctx.heroes, 'airport', ctx.M)],
   ['rectorate', buildRectorate], ['nbkm', (c) => buildNbkm({ ...c, parts: c.partsOf(/^NBKM/) })],
   ['eagles', buildEagleBridge], ['kliment', buildKlimentMonument], ['havel', buildHavelHeart],
   ['pliska', buildPliska], ['pliskaCanopies', buildPliskaCanopies], ['aviation', buildAviation], ['arena', buildArena],

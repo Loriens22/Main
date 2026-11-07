@@ -319,3 +319,69 @@ def mannequin(hb, x, z, cloth, yaw=0.0):
     hb.cyl('int:skin', 0, 1.82, 0, 0.04, 0.08, segs=5, top=False)
     hb.sphere('int:skin', (0, 1.99, 0), 0.105, segs=7, rings=4)
     hb.pop()
+
+
+# ------------------------------------------------------------------ free-form surfaces (lofts, oriented faces, fins)
+def newell(pts):
+    """Normal (unnormalized) of a planar-ish polygon of 3D points."""
+    import numpy as np
+    n = np.zeros(3)
+    for i in range(len(pts)):
+        a, b = pts[i], pts[(i + 1) % len(pts)]
+        n += np.array([(a[1] - b[1]) * (a[2] + b[2]), (a[2] - b[2]) * (a[0] + b[0]), (a[0] - b[0]) * (a[1] + b[1])])
+    return n
+
+
+def oface(hb, mat, pts, out, uv=None, smooth=False):
+    """Face turned towards `out` (a direction in the current frame). uv: per-vertex (u, v) in metres for tiling
+    materials (curtain walls, panels) or 0..1 for sign: materials (pass sign=True through uv already in 0..1 /
+    100); stored as explicit UVs."""
+    import numpy as np
+    pts = [tuple(float(c) for c in p) for p in pts]
+    if float(np.dot(newell(pts), np.asarray(out, dtype=float))) < 0:
+        pts = pts[::-1]
+        uv = uv[::-1] if uv is not None else None
+    hb.face(mat, pts, uv=None if uv is None else [(u / 100.0, v / 100.0) for u, v in uv], smooth=smooth)
+
+
+def sface(hb, mat, pts, out):
+    """A sign face (4 points: bottom-left, bottom-right, top-right, top-left as seen from `out`), UVs 0..1."""
+    oface(hb, mat, pts, out, uv=[(0, 0), (100, 0), (100, 100), (0, 100)])
+
+
+def loft(hb, mat, rings, outs, uvs=None, smooth=False, closed=False):
+    """Quads between consecutive rings (lists of 3D points of equal length). outs[j]: the outward direction at
+    column j (turns each quad); uvs[k][j]: (u, v) in metres per vertex (optional)."""
+    n = len(rings[0])
+    for k in range(len(rings) - 1):
+        A, B = rings[k], rings[k + 1]
+        for j in range(n if closed else n - 1):
+            j2 = (j + 1) % n
+            pts = [A[j], A[j2], B[j2], B[j]]
+            uv = None if uvs is None else [uvs[k][j], uvs[k][j2], uvs[k + 1][j2], uvs[k + 1][j]]
+            o = [(outs[j][c] + outs[j2][c]) / 2 for c in range(3)]
+            oface(hb, mat, pts, o, uv=uv, smooth=smooth)
+
+
+def fin(hb, mat, p, q, w, d, out):
+    """A flat bar from p to q standing proud of a surface by d (front face w wide plus its two sides; the back
+    and the ends are hidden against the surface)."""
+    import numpy as np
+    p = np.asarray(p, dtype=float); q = np.asarray(q, dtype=float); o = np.asarray(out, dtype=float)
+    o = o / (np.linalg.norm(o) or 1)
+    t = q - p
+    s = np.cross(t, o)
+    ls = np.linalg.norm(s)
+    if ls < 1e-9:
+        return
+    s = s / ls * (w / 2)
+    a0, a1, b0, b1 = p - s, p + s, q - s, q + s
+    oface(hb, mat, [a0 + o * d, a1 + o * d, b1 + o * d, b0 + o * d], o)
+    oface(hb, mat, [a0, a0 + o * d, b0 + o * d, b0], -s)
+    oface(hb, mat, [a1, b1, b1 + o * d, a1 + o * d], s)
+
+
+def ball_tree(hb, x, z, h, r, crown='std:topiary', trunk='std:trunk', y=0.0):
+    """Clipped ball tree (topiary) on a stem."""
+    hb.cyl(trunk, x, y, z, 0.05, h - r * 0.8, segs=5, top=False)
+    hb.sphere(crown, (x, y + h, z), r, segs=9, rings=6)

@@ -22,6 +22,13 @@ export const HERO_CURTAINS = {
   // the bTV tower's ribbon windows
   btvRibbon: { tex: { bayW: 1.25, floorH: 1.8, bays: 8, floors: 2, ppm: 32, glass: '#4a5a64', glass2: '#9eb1bc', mullion: '#9aa0a5', spandrel: '#4a5a64', sp: 0.0, lit: 0.5, seed: 89 }, metal: 0.25, rough: 0.12, env: 1.0 },
   mallPodium: { tex: { bayW: 2.0, floorH: 3.4, bays: 6, floors: 2, ppm: 28, glass: '#26323a', glass2: '#55697a', mullion: '#20272c', spandrel: '#2b343a', sp: 0.4, lit: 0.75, seed: 84 }, metal: 0.6, rough: 0.1, env: 1.1 },
+  // Sofia Airport Terminal 2: the pale turquoise hall glazing (3 m bays, transoms), the green-blue panes of the
+  // glass prow, the pier's gate lounges, the dark tower cab and the ribbon windows of the service blocks
+  t2Glass: { tex: { bayW: 3.0, floorH: 2.7, bays: 6, floors: 4, ppm: 26, glass: '#7aa6aa', glass2: '#d3e9e8', mullion: '#c9cfd2', spandrel: '#a8c6c7', sp: 0.12, lit: 0.85, seed: 141 }, metal: 0.35, rough: 0.06, env: 1.3 },
+  t2Vault: { tex: { bayW: 1.5, floorH: 1.9, bays: 8, floors: 4, ppm: 28, glass: '#3d7c84', glass2: '#a6d8d3', mullion: '#d7dcdc', spandrel: '#4d8b90', sp: 0.0, lit: 0.6, seed: 142 }, metal: 0.45, rough: 0.05, env: 1.35 },
+  t2Pier: { tex: { bayW: 3.0, floorH: 5.8, bays: 6, floors: 2, ppm: 24, glass: '#4d6f7c', glass2: '#a3c0cc', mullion: '#c0c6c9', spandrel: '#7d96a0', sp: 0.3, lit: 0.6, seed: 143 }, metal: 0.4, rough: 0.06, env: 1.2 },
+  t2Cab: { tex: { bayW: 2.0, floorH: 3.8, bays: 6, floors: 1, ppm: 28, glass: '#1d2a33', glass2: '#5b7484', mullion: '#cfd4d6', spandrel: '#1d2a33', sp: 0.0, lit: 0.7, seed: 144 }, metal: 0.5, rough: 0.05, env: 1.3 },
+  t2Band: { tex: { bayW: 1.8, floorH: 3.0, bays: 8, floors: 2, ppm: 26, glass: '#33454f', glass2: '#7d95a3', mullion: '#c8cdd0', spandrel: '#56666f', sp: 0.2, lit: 0.5, seed: 145 }, metal: 0.4, rough: 0.08, env: 1.1 },
 };
 
 /** pn:<preset> — panel cladding (panelTexture specs, metres). */
@@ -30,6 +37,13 @@ export const HERO_PANELS = {
   ndkStone: { tex: { w: 3, h: 3, ppm: 30, base: '#e4e0d6', joint: 'rgba(90,84,74,0.32)', cols: 2, rows: 2, noise: 0.06, seed: 97, stain: 0.05 }, rough: 0.7 },
   millRib: { tex: { w: 4, h: 4, ppm: 32, base: '#d9dbda', joint: 'rgba(90,95,100,0.45)', cols: 1, rows: 16, noise: 0.03, seed: 92 }, rough: 0.5, metal: 0.1 },
   billaClad: { tex: { w: 6, h: 6, ppm: 32, base: '#b7bcc0', joint: 'rgba(55,60,66,0.55)', cols: 1, rows: 6, noise: 0.05, seed: 91 }, rough: 0.45, metal: 0.45, env: 1.1 },
+  // Sofia Airport Terminal 2: standing-seam roofs (0.5 m seams), white square cladding, the striped canopy soffit,
+  // the grey louvred block behind the glass prow, granite paving under the canopies
+  t2Seam: { tex: { w: 6, h: 6, ppm: 24, base: '#a3a8ac', joint: 'rgba(70,75,80,0.5)', cols: 12, rows: 1, noise: 0.03, seed: 146 }, rough: 0.42, metal: 0.45, env: 1.1 },
+  t2Panel: { tex: { w: 3.6, h: 3.6, ppm: 30, base: '#e4e7e8', joint: 'rgba(80,85,90,0.42)', cols: 3, rows: 3, noise: 0.03, seed: 147 }, rough: 0.35, metal: 0.15 },
+  t2Soffit: { tex: { w: 4, h: 4, ppm: 30, base: '#eceeed', joint: 'rgba(90,95,100,0.32)', cols: 20, rows: 1, noise: 0.02, seed: 148 }, rough: 0.5 },
+  t2Louvre: { tex: { w: 3, h: 3, ppm: 32, base: '#8f969b', joint: 'rgba(38,42,46,0.65)', cols: 1, rows: 15, noise: 0.04, seed: 149 }, rough: 0.45, metal: 0.4 },
+  paving: { tex: { w: 3, h: 3, ppm: 30, base: '#b9b5ac', joint: 'rgba(70,68,62,0.45)', cols: 5, rows: 5, noise: 0.08, seed: 150 }, rough: 0.85 },
 };
 
 /** glow:<id> — emissive colour, intensity at night and by day (lit interiors, LED letters). */
@@ -55,6 +69,8 @@ export const HERO_GLOW = {
   nevsky: { color: 0xffe2b8, night: 0.5 },
   nevskyTrim: { color: 0xfff0d8, night: 0.55 },
   nevskyGold: { color: 0xffc46a, night: 0.75 },
+  // the navy letters over the Terminal 2 entrance, lit white-blue at night
+  t2Navy: { color: 0x9cc0ff, night: 1.3, day: 0.0 },
 };
 
 /** Interior surfaces behind shop glass: lit evenly day and night (no AO), emissive fraction of their colour. */
@@ -149,6 +165,43 @@ export const HERO_SIGNS = {
     lines: [{ text: 'НДК', size: 96, color: '#ffffff', y: 110, weight: 800 }, { text: 'Национален дворец на културата', size: 30, color: '#e8c060', y: 200, weight: 600 }],
     draw: (g, w, h) => { const gr = g.createLinearGradient(0, 0, w, 0); gr.addColorStop(0, 'rgba(200,40,60,0.5)'); gr.addColorStop(1, 'rgba(40,80,200,0.4)'); g.fillStyle = gr; g.fillRect(0, h - 40, w, 40); },
   },
+  // the plain navy plaque at the corner of the Terminal 2 entrance block (initials in a generic typeface)
+  t2Emblem: {
+    w: 256, h: 256, nightI: 1.0, lines: [],
+    draw: (g, w) => {
+      g.fillStyle = '#1b2a6e';
+      g.beginPath(); g.roundRect ? g.roundRect(6, 6, w - 12, w - 12, 34) : g.rect(6, 6, w - 12, w - 12); g.fill();
+      g.strokeStyle = '#e8eef8'; g.lineWidth = 8;
+      g.beginPath(); g.roundRect ? g.roundRect(22, 22, w - 44, w - 44, 26) : g.rect(22, 22, w - 44, w - 44); g.stroke();
+      g.fillStyle = '#ffffff'; g.font = '800 120px Arial, sans-serif'; g.textAlign = 'center'; g.textBaseline = 'middle';
+      g.fillText('SA', w / 2, w / 2 + 6);
+    },
+  },
+  // the paved roof plaza of the car park in front of Terminal 2: a large cross-stitch embroidery motif (шевица) in
+  // terracotta and pale green squares (pattern drawn here in the style of the photographed one)
+  shevitsa: {
+    w: 1024, h: 1024, glow: false, bg: '#b9b5ac', lines: [],
+    draw: (g, w) => {
+      const N = 33, c = 16, cell = w / N;
+      const red = '#d0603f', green = '#bcd7a0';
+      const put = (i, j, col) => { g.fillStyle = col; g.fillRect(i * cell + 1, j * cell + 1, cell - 2, cell - 2); };
+      for (let j = 0; j < N; j++) for (let i = 0; i < N; i++) {
+        const dx = Math.abs(i - c), dy = Math.abs(j - c), m = dx + dy;
+        let col = null;
+        if (m <= 3) col = red; // the central star
+        else if (m === 5 && (dx === 0 || dy === 0 || dx === dy || Math.abs(dx - dy) === 1)) col = green;
+        else if ((dx === 0 && dy <= 15) || (dy === 0 && dx <= 15)) col = green; // the cross through the middle
+        else if (Math.abs(dx - 9) + Math.abs(dy - 9) <= 2) col = red; // four diamonds
+        else if (Math.abs(dx - 9) + Math.abs(dy - 9) === 4) col = red; // their outlines
+        else if ((dx === dy) && dx >= 4 && dx <= 6) col = green; // diagonal stitches
+        else if ((dx === 13 && dy <= 6 && dy % 2 === 0) || (dy === 13 && dx <= 6 && dx % 2 === 0)) col = red; // border hooks
+        else if (dx >= 13 && dy >= 13 && (dx + dy) % 2 === 0 && dx <= 15 && dy <= 15) col = green; // corner rosettes
+        if (col) put(i, j, col);
+      }
+    },
+  },
+  // the Sofia metro station mark: a red letter M on white
+  metroM: { w: 128, h: 128, nightI: 1.0, bg: '#ffffff', lines: [{ text: 'M', size: 104, color: '#d0151c', y: 66, weight: 900 }] },
   mallScreen: {
     w: 512, h: 256, bg: '#1a1f4a', nightI: 1.4,
     lines: [{ text: 'BULGARIA MALL', size: 52, color: '#ffffff', y: 92, weight: 800 }, { text: 'Магазини • Кино • Ресторанти', size: 30, color: '#ffd84a', y: 170, weight: 600 }],
