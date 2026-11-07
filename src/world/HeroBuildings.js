@@ -19,7 +19,7 @@ import { HERO_SIGNS, HERO_CURTAINS, HERO_GLOW, HERO_INTERIOR, HERO_PANELS } from
 const UV_RANGE = 1024, SIGN_UV = 100; // tools/blender/hero/herolib.py
 
 /** Hero buildings of each line. */
-export const HERO_LINES = { 7: ['mall', 'billa', 'millennium', 'btv', 'ndk'], 9: ['nevsky', 'ndk', 'millennium', 'btv'], 84: ['nevsky', 'airport'] };
+export const HERO_LINES = { 7: ['mall', 'billa', 'millennium', 'btv', 'ndk'], 9: ['nevsky', 'bas', 'ndk', 'millennium', 'btv'], 84: ['nevsky', 'bas', 'airport', 'ccb', 'mfa', 'themall'], 280: ['ccb', 'mfa'] };
 
 async function decodeAo(bytes) {
   const url = URL.createObjectURL(new Blob([bytes], { type: 'image/webp' }));

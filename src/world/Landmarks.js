@@ -9,7 +9,7 @@ import * as THREE from 'three';
 import { LandmarkMaterials } from './LandmarkMaterials.js';
 import { ensureFootprints, replacedBuildings } from './LandmarkData.js';
 import { buildRectorate, buildNbkm, buildEagleBridge, buildKlimentMonument, buildHavelHeart } from './LandmarkCity.js';
-import { buildPliska, buildAviation, buildArena, buildMetro, buildPliskaCanopies, buildGuardFences } from './LandmarkRoad.js';
+import { buildCcb, buildAviation, buildArena, buildMetro, buildPliskaCanopies, buildGuardFences } from './LandmarkRoad.js';
 import { buildWinterPalace, buildBotevHall, buildUnwe, buildLtu, buildChapel, buildOmv, buildKiosks, buildTerminalHut } from './LandmarkCampus.js';
 import { buildOncology, buildSofiamed } from './LandmarkInstitutionsMed.js';
 import { buildTechLibrary, buildHtmu, buildTu, buildNsa } from './LandmarkInstitutionsEdu.js';
@@ -20,12 +20,13 @@ import { JOBS_7 } from './landmarks7/index.js';
 import { JOBS_9 } from './landmarks9/index.js';
 import { JOBS_84 } from './landmarks84/index.js';
 import { LandmarkKit } from './LandmarkKit.js';
+import { heroItem } from './HeroBuildings.js';
 
 /** Landmark jobs of line 280: [name, (ctx) => item(s)]. */
 export const JOBS_280 = [
   ['rectorate', buildRectorate], ['nbkm', (c) => buildNbkm({ ...c, parts: c.partsOf(/^NBKM/) })],
   ['eagles', buildEagleBridge], ['kliment', buildKlimentMonument], ['havel', buildHavelHeart],
-  ['pliska', buildPliska], ['guardFences', buildGuardFences], ['pliskaCanopies', buildPliskaCanopies], ['aviation', buildAviation], ['arena', buildArena], ['metro', buildMetro],
+  ['pliska', buildCcb], ['mfa', (ctx) => heroItem(ctx.heroes, 'mfa', ctx.M)], ['guardFences', buildGuardFences], ['pliskaCanopies', buildPliskaCanopies], ['aviation', buildAviation], ['arena', buildArena], ['metro', buildMetro],
   ['winterPalace', buildWinterPalace], ['botev', buildBotevHall], ['unwe', buildUnwe], ['ltu', buildLtu], ['chapel', buildChapel], ['omv', buildOmv], ['kiosks', buildKiosks], ['terminalHut', buildTerminalHut],
   // institutional landmarks (src/world/LandmarkInstitutions*.js)
   ['oncology', buildOncology], ['sofiamed', buildSofiamed], ['techLibrary', buildTechLibrary], ['htmu', buildHtmu], ['tu', buildTu], ['nsa', buildNsa],

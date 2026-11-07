@@ -17,9 +17,11 @@ export const REPLACED = [
   // --- National Library St Cyril and Methodius (2 pack parts)
   { x: -1311.7, z: -2868.6, r: 2.5, id: 2594, note: 'NBKM main block' },
   { x: -1287.6, z: -2863.4, r: 2.5, id: 2593, note: 'NBKM east block' },
+  // --- Ministry of Foreign Affairs, ул. „Александър Жендов“ 2 (Blender hero model, shared with line 84)
+  { x: 170.0, z: -1299.2, r: 2.0, id: 7574, note: 'MFA ministry', h: 21.5, hero: 'mfa' },
   // --- ex Hotel Pliska = CCB headquarters (curtain-wall tower + 2-storey podium)
-  { x: 630.1, z: -714.7, r: 2.5, id: 6563, note: 'CCB tower (ex Hotel Pliska)' },
-  { x: 645.4, z: -715.0, r: 2.5, id: 6564, note: 'CCB podium' },
+  { x: 630.1, z: -714.7, r: 2.5, id: 6563, note: 'CCB tower (ex Hotel Pliska)', h: 63.5, hero: 'ccb' },
+  { x: 645.4, z: -715.0, r: 2.5, id: 6564, note: 'CCB podium', h: 8.0, hero: 'ccb' },
   // --- Pliska underpass: stair canopies, shelters and CGM cabins (OSM polygons drawn as boxes in the pack)
   { x: 558.7, z: -679.1, r: 2.0, note: 'Pliska A canopy 1' },
   { x: 543.3, z: -694.2, r: 2.0, note: 'Pliska A canopy 2' },

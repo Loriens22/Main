@@ -20,6 +20,18 @@ import nevsky_meta from './nevsky.json';
 import airport_glb from './airport.glb';
 import airport_ao from './airport_ao.webp';
 import airport_meta from './airport.json';
+import ccb_glb from './ccb.glb';
+import ccb_ao from './ccb_ao.webp';
+import ccb_meta from './ccb.json';
+import mfa_glb from './mfa.glb';
+import mfa_ao from './mfa_ao.webp';
+import mfa_meta from './mfa.json';
+import bas_glb from './bas.glb';
+import bas_ao from './bas_ao.webp';
+import bas_meta from './bas.json';
+import themall_glb from './themall.glb';
+import themall_ao from './themall_ao.webp';
+import themall_meta from './themall.json';
 
 export default {
   mall: { glb: mall_glb, ao: mall_ao, meta: mall_meta },
@@ -29,4 +41,8 @@ export default {
   ndk: { glb: ndk_glb, ao: ndk_ao, meta: ndk_meta },
   nevsky: { glb: nevsky_glb, ao: nevsky_ao, meta: nevsky_meta },
   airport: { glb: airport_glb, ao: airport_ao, meta: airport_meta },
+  ccb: { glb: ccb_glb, ao: ccb_ao, meta: ccb_meta },
+  mfa: { glb: mfa_glb, ao: mfa_ao, meta: mfa_meta },
+  bas: { glb: bas_glb, ao: bas_ao, meta: bas_meta },
+  themall: { glb: themall_glb, ao: themall_ao, meta: themall_meta },
 };

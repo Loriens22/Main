@@ -21,6 +21,9 @@ export const REPLACED9 = [
   ...REPLACED64.filter((r) => /^(NCPHA|Lung hospital)/.test(r.note)),
   // --- Храм-паметник „Св. Александър Невски“ (stops 1264 / 1265), Blender hero model
   ...NEVSKY.map(([x, z, h, part]) => ({ x, z, r: 1.5, note: `Alexander Nevsky Cathedral ${part}`, h, hero: 'nevsky' })),
+  // --- Българска академия на науките, ул. „15-ти ноември“ 1 (Blender hero model, shared with line 84)
+  ...[[-1629.0, -2840.6, 22.0, 'central block'], [-1633.3, -2866.4, 17.0, 'north wing'], [-1648.1, -2816.7, 17.0, 'south wing']]
+    .map(([x, z, h, part]) => ({ x, z, r: 1.5, note: `BAS ${part}`, h, hero: 'bas' })),
   // --- ВМА, бул. „Св. Георги Софийски“ 3 (stop 0419 / 0418): the hospital tower and its podium wings (Overture
   // place "Военномедицинска академия - ВМА" falls inside the tower's footprint)
   { x: -3950.4, z: -1671.2, r: 2, id: 3987, note: 'VMA tower', h: 55.4 },

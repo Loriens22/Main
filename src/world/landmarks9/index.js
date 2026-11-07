@@ -10,6 +10,7 @@ import { buildVma, buildAleksandrovska, buildSatirical, buildSchool36 } from './
 export const JOBS_9 = [
   // Blender hero models (tools/blender/hero): the cathedral is the line's flagship
   ['nevsky', (ctx) => heroItem(ctx.heroes, 'nevsky', ctx.M)],
+  ['bas', (ctx) => heroItem(ctx.heroes, 'bas', ctx.M)],
   ['ndk', (ctx) => heroItem(ctx.heroes, 'ndk', ctx.M) || buildNdk(ctx)],
   ['millennium', (ctx) => heroItem(ctx.heroes, 'millennium', ctx.M) || buildMillennium(ctx)],
   ['btv', (ctx) => heroItem(ctx.heroes, 'btv', ctx.M)],

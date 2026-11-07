@@ -6,8 +6,8 @@
 import { REPLACED9 } from '../landmarks9/data.js';
 
 /** Line 280 landmarks within sight of the line 84 path (Sofia University, the National Library, the CCB tower and
- *  Pliska blocks, the Aviation monument, Arena 8888, Sofiamed). */
-export const SHARED_280 = /^(SU |NBKM|CCB|Pliska|Aviation monument|Arena 8888|Sofiamed)/;
+ *  Pliska blocks, the Ministry of Foreign Affairs, the Aviation monument, Arena 8888, Sofiamed). */
+export const SHARED_280 = /^(SU |NBKM|CCB|MFA|Pliska|Aviation monument|Arena 8888|Sofiamed)/;
 
 // Летище София, Терминал 2 (stops 2454 / 2455): the terminal and its pier, the central hall parts, the curbside
 // canopies, the control tower on its base, the car park in front and the metro station - one Blender hero model
@@ -19,7 +19,17 @@ const AIRPORT = [
   [5263.1, -2156.0, 7.5, 'metro station'],
 ];
 
+// The Mall, бул. „Цариградско шосе“ 115 (stops 1194 / 1196 / 2593): the mall, its west tower and the office
+// towers along its south-east side - one Blender hero model
+const THEMALL = [
+  [2513.7, 969.2, 13.8, 'mall'], [2458.2, 904.6, 31.0, 'west tower'], [2645.6, 905.2, 21.6, 'tower 1'], [2606.3, 946.1, 24.6, 'tower 2'],
+  [2567.8, 987.1, 27.6, 'tower 3'], [2529.0, 1027.4, 39.6, 'tower 4'], [2520.0, 1035.3, 48.6, 'tower 5'],
+  // a strip mapped in front of the right wing that the photographs do not show (cars park there)
+  [2505.5, 984.2, 0.0, 'front strip'],
+];
+
 export const REPLACED84 = [
-  ...REPLACED9.filter((r) => r.hero === 'nevsky'),
+  ...THEMALL.map(([x, z, h, part]) => ({ x, z, r: 1.5, note: `The Mall ${part}`, h, hero: 'themall', ...(h ? {} : { noCollide: true }) })),
+  ...REPLACED9.filter((r) => r.hero === 'nevsky' || r.hero === 'bas'),
   ...AIRPORT.map(([x, z, h, part]) => ({ x, z, r: 1.5, note: `Sofia Airport ${part}`, h, hero: 'airport' })),
 ];

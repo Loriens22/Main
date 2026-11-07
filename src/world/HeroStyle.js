@@ -28,6 +28,23 @@ export const HERO_CURTAINS = {
   t2Vault: { tex: { bayW: 1.5, floorH: 1.9, bays: 8, floors: 4, ppm: 28, glass: '#3d7c84', glass2: '#a6d8d3', mullion: '#d7dcdc', spandrel: '#4d8b90', sp: 0.0, lit: 0.6, seed: 142 }, metal: 0.45, rough: 0.05, env: 1.35 },
   t2Pier: { tex: { bayW: 3.0, floorH: 5.8, bays: 6, floors: 2, ppm: 24, glass: '#4d6f7c', glass2: '#a3c0cc', mullion: '#c0c6c9', spandrel: '#7d96a0', sp: 0.3, lit: 0.6, seed: 143 }, metal: 0.4, rough: 0.06, env: 1.2 },
   t2Cab: { tex: { bayW: 2.0, floorH: 3.8, bays: 6, floors: 1, ppm: 28, glass: '#1d2a33', glass2: '#5b7484', mullion: '#cfd4d6', spandrel: '#1d2a33', sp: 0.0, lit: 0.7, seed: 144 }, metal: 0.5, rough: 0.05, env: 1.3 },
+  // the CCB tower (ex Hotel Pliska): deep blue reflective glass in the grey frame, the darker recessed first floor
+  // and penthouse, the podium's ribbon and shop glazing
+  ccbBlue: { tex: { bayW: 1.5, floorH: 3.2, bays: 8, floors: 4, ppm: 28, glass: '#2d5b9e', glass2: '#9cc0ec', mullion: '#3f5269', spandrel: '#2d5b9e', sp: 0.0, lit: 0.45, seed: 151 }, metal: 0.55, rough: 0.05, env: 1.35 },
+  ccbDark: { tex: { bayW: 1.5, floorH: 3.2, bays: 8, floors: 2, ppm: 28, glass: '#14253f', glass2: '#4d6d95', mullion: '#2b3647', spandrel: '#14253f', sp: 0.0, lit: 0.5, seed: 152 }, metal: 0.6, rough: 0.05, env: 1.3 },
+  ccbPodium: { tex: { bayW: 1.5, floorH: 2.1, bays: 8, floors: 2, ppm: 28, glass: '#1f3d66', glass2: '#7393bf', mullion: '#2b3647', spandrel: '#1f3d66', sp: 0.0, lit: 0.7, seed: 153 }, metal: 0.5, rough: 0.06, env: 1.25 },
+  // the Ministry of Foreign Affairs: two-pane windows between the fins (2.35 m bays), the courtyard windows, the
+  // dark lobby glazing under the canopy
+  mfaWin: { tex: { bayW: 2.35, floorH: 1.9, bays: 6, floors: 2, ppm: 28, glass: '#2d3a44', glass2: '#7d93a3', mullion: '#d9d5cb', spandrel: '#2d3a44', sp: 0.0, lit: 0.55, seed: 156 }, metal: 0.4, rough: 0.08, env: 1.1 },
+  mfaInner: { tex: { bayW: 2.35, floorH: 1.9, bays: 6, floors: 2, ppm: 26, glass: '#3a464f', glass2: '#8a9ca8', mullion: '#d9d5cb', spandrel: '#3a464f', sp: 0.0, lit: 0.45, seed: 157 }, metal: 0.3, rough: 0.1, env: 1.0 },
+  mfaLobby: { tex: { bayW: 2.4, floorH: 4.2, bays: 6, floors: 2, ppm: 24, glass: '#1f2a31', glass2: '#5e7381', mullion: '#2a2d30', spandrel: '#1f2a31', sp: 0.0, lit: 0.9, seed: 158 }, metal: 0.5, rough: 0.06, env: 1.2 },
+  // The Mall (Цариградско шосе): dark shop glazing, the entrance hall's clear glass, the terrace floor, the blue
+  // and blue-green office towers
+  themallShop: { tex: { bayW: 2.5, floorH: 4.2, bays: 6, floors: 1, ppm: 26, glass: '#26343e', glass2: '#6b8597', mullion: '#2c3034', spandrel: '#26343e', sp: 0.0, lit: 0.95, seed: 160 }, metal: 0.4, rough: 0.06, env: 1.2 },
+  themallHall: { tex: { bayW: 2.4, floorH: 2.9, bays: 6, floors: 3, ppm: 26, glass: '#3e5a6c', glass2: '#a8c4d4', mullion: '#9aa3aa', spandrel: '#3e5a6c', sp: 0.0, lit: 0.9, seed: 161 }, metal: 0.4, rough: 0.05, env: 1.3 },
+  themallTerrace: { tex: { bayW: 1.8, floorH: 2.7, bays: 6, floors: 2, ppm: 26, glass: '#2f3d47', glass2: '#7d93a3', mullion: '#3a3f44', spandrel: '#2f3d47', sp: 0.0, lit: 0.85, seed: 162 }, metal: 0.4, rough: 0.07, env: 1.2 },
+  themallTower: { tex: { bayW: 1.5, floorH: 3.6, bays: 8, floors: 4, ppm: 26, glass: '#2c5a9a', glass2: '#9bc2ee', mullion: '#5b6f86', spandrel: '#2c5a9a', sp: 0.0, lit: 0.45, seed: 163 }, metal: 0.55, rough: 0.05, env: 1.35 },
+  themallTower2: { tex: { bayW: 1.5, floorH: 3.6, bays: 8, floors: 4, ppm: 26, glass: '#2c5f74', glass2: '#9ccad8', mullion: '#5b7480', spandrel: '#2c5f74', sp: 0.0, lit: 0.45, seed: 164 }, metal: 0.55, rough: 0.05, env: 1.3 },
   t2Band: { tex: { bayW: 1.8, floorH: 3.0, bays: 8, floors: 2, ppm: 26, glass: '#33454f', glass2: '#7d95a3', mullion: '#c8cdd0', spandrel: '#56666f', sp: 0.2, lit: 0.5, seed: 145 }, metal: 0.4, rough: 0.08, env: 1.1 },
 };
 
@@ -39,6 +56,14 @@ export const HERO_PANELS = {
   billaClad: { tex: { w: 6, h: 6, ppm: 32, base: '#b7bcc0', joint: 'rgba(55,60,66,0.55)', cols: 1, rows: 6, noise: 0.05, seed: 91 }, rough: 0.45, metal: 0.45, env: 1.1 },
   // Sofia Airport Terminal 2: standing-seam roofs (0.5 m seams), white square cladding, the striped canopy soffit,
   // the grey louvred block behind the glass prow, granite paving under the canopies
+  // the CCB tower: grey aluminium cladding (horizontal panels), grey granite on the podium
+  ccbGrey: { tex: { w: 4.8, h: 3.2, ppm: 28, base: '#9ea3a8', joint: 'rgba(60,64,70,0.5)', cols: 3, rows: 4, noise: 0.03, seed: 154 }, rough: 0.4, metal: 0.35, env: 1.1 },
+  ccbStone: { tex: { w: 3.6, h: 3.6, ppm: 28, base: '#8b8d90', joint: 'rgba(40,42,45,0.45)', cols: 3, rows: 4, noise: 0.08, seed: 155 }, rough: 0.6 },
+  // the Ministry of Foreign Affairs plaza: light granite slabs
+  mfaPaving: { tex: { w: 3, h: 3, ppm: 30, base: '#c9c7c2', joint: 'rgba(80,80,78,0.35)', cols: 3, rows: 2, noise: 0.06, seed: 159 }, rough: 0.75 },
+  // The Mall: dark grey cladding panels and the lighter grey bands
+  mallGrey: { tex: { w: 4.8, h: 3.2, ppm: 26, base: '#4c5056', joint: 'rgba(25,27,30,0.55)', cols: 3, rows: 2, noise: 0.04, seed: 165 }, rough: 0.45, metal: 0.35, env: 1.0 },
+  mallGreyLight: { tex: { w: 4.8, h: 1.6, ppm: 26, base: '#8a8f95', joint: 'rgba(40,42,46,0.5)', cols: 3, rows: 1, noise: 0.03, seed: 166 }, rough: 0.4, metal: 0.35 },
   t2Seam: { tex: { w: 6, h: 6, ppm: 24, base: '#a3a8ac', joint: 'rgba(70,75,80,0.5)', cols: 12, rows: 1, noise: 0.03, seed: 146 }, rough: 0.42, metal: 0.45, env: 1.1 },
   t2Panel: { tex: { w: 3.6, h: 3.6, ppm: 30, base: '#e4e7e8', joint: 'rgba(80,85,90,0.42)', cols: 3, rows: 3, noise: 0.03, seed: 147 }, rough: 0.35, metal: 0.15 },
   t2Soffit: { tex: { w: 4, h: 4, ppm: 30, base: '#eceeed', joint: 'rgba(90,95,100,0.32)', cols: 20, rows: 1, noise: 0.02, seed: 148 }, rough: 0.5 },
@@ -51,6 +76,7 @@ export const HERO_GLOW = {
   red: { color: 0xff2a1a, night: 2.0, day: 0.12 },
   yellow: { color: 0xffc81a, night: 2.0, day: 0.12 },
   white: { color: 0xffffff, night: 1.6, day: 0.05 },
+  orange: { color: 0xff8a1a, night: 2.0, day: 0.15 },
   steel: { color: 0xdfeeff, night: 1.1, day: 0 },
   shopLight: { color: 0xfff4e0, night: 2.4, day: 1.3 },
   pendant: { color: 0xffd8a0, night: 2.4, day: 1.0 },
@@ -71,6 +97,7 @@ export const HERO_GLOW = {
   nevskyGold: { color: 0xffc46a, night: 0.75 },
   // the navy letters over the Terminal 2 entrance, lit white-blue at night
   t2Navy: { color: 0x9cc0ff, night: 1.3, day: 0.0 },
+  ccbNavy: { color: 0x9cc0ff, night: 1.4, day: 0.0 },
 };
 
 /** Interior surfaces behind shop glass: lit evenly day and night (no AO), emissive fraction of their colour. */
@@ -176,6 +203,132 @@ export const HERO_SIGNS = {
       g.fillStyle = '#ffffff'; g.font = '800 120px Arial, sans-serif'; g.textAlign = 'center'; g.textBaseline = 'middle';
       g.fillText('SA', w / 2, w / 2 + 6);
     },
+  },
+  // the round emblem before the bank's name on the CCB tower (plain mark, not the bank's logo)
+  ccbEmblem: {
+    w: 256, h: 256, nightI: 1.0, lines: [],
+    draw: (g, w) => {
+      g.clearRect(0, 0, w, w);
+      g.fillStyle = '#9ea3a8'; g.fillRect(0, 0, w, w);
+      g.fillStyle = '#1d2f78'; g.beginPath(); g.arc(w / 2, w / 2, w * 0.46, 0, Math.PI * 2); g.fill();
+      g.strokeStyle = '#ffffff'; g.lineWidth = 12; g.beginPath(); g.arc(w / 2, w / 2, w * 0.3, 0, Math.PI * 2); g.stroke();
+      g.fillStyle = '#ffffff'; g.beginPath(); g.arc(w / 2, w / 2, w * 0.1, 0, Math.PI * 2); g.fill();
+    },
+  },
+  // the state arms over the Ministry of Foreign Affairs entrance (cast bronze relief, drawn plainly: crowned shield
+  // with a rampant lion)
+  mfaArms: {
+    w: 256, h: 230, glow: false, lines: [],
+    draw: (g, w, h) => {
+      g.fillStyle = '#e4dfd3'; g.fillRect(0, 0, w, h);
+      const br = '#7a5a2c', hi = '#b48a4a';
+      g.fillStyle = br;
+      // crown
+      g.beginPath(); g.moveTo(78, 52); g.lineTo(90, 18); g.lineTo(108, 40); g.lineTo(128, 8); g.lineTo(148, 40); g.lineTo(166, 18); g.lineTo(178, 52); g.closePath(); g.fill();
+      // shield
+      g.beginPath(); g.moveTo(70, 62); g.lineTo(186, 62); g.lineTo(186, 140); g.quadraticCurveTo(186, 200, 128, 222); g.quadraticCurveTo(70, 200, 70, 140); g.closePath(); g.fill();
+      g.fillStyle = hi;
+      g.beginPath(); g.moveTo(80, 72); g.lineTo(176, 72); g.lineTo(176, 138); g.quadraticCurveTo(176, 190, 128, 210); g.quadraticCurveTo(80, 190, 80, 138); g.closePath(); g.fill();
+      // the lion (a simple rampant silhouette)
+      g.fillStyle = br;
+      g.beginPath(); g.ellipse(128, 140, 22, 36, -0.35, 0, Math.PI * 2); g.fill();
+      g.beginPath(); g.arc(142, 100, 15, 0, Math.PI * 2); g.fill();
+      g.fillRect(104, 160, 10, 34); g.fillRect(130, 166, 10, 30); g.fillRect(146, 112, 26, 8); g.fillRect(150, 128, 22, 7);
+      g.beginPath(); g.moveTo(104, 150); g.quadraticCurveTo(84, 140, 92, 112); g.lineTo(98, 114); g.quadraticCurveTo(94, 136, 108, 144); g.fill();
+      // supporters' hint: two lions' manes at the sides
+      g.fillStyle = br; g.beginPath(); g.arc(40, 130, 22, 0, Math.PI * 2); g.fill(); g.beginPath(); g.arc(216, 130, 22, 0, Math.PI * 2); g.fill();
+    },
+  },
+  flagNATO: {
+    w: 192, h: 128, glow: false, bg: '#004990', lines: [],
+    draw: (g, w, h) => {
+      const cx = w / 2, cy = h / 2;
+      g.strokeStyle = '#ffffff'; g.lineWidth = 2.5;
+      g.beginPath(); g.arc(cx, cy, 30, 0, Math.PI * 2); g.stroke();
+      for (const a of [0, Math.PI / 2, Math.PI, Math.PI * 1.5]) { g.beginPath(); g.moveTo(cx + Math.cos(a) * 36, cy + Math.sin(a) * 36); g.lineTo(cx + Math.cos(a) * 56, cy + Math.sin(a) * 56); g.stroke(); }
+      g.fillStyle = '#ffffff';
+      for (const a of [0, Math.PI / 2, Math.PI, Math.PI * 1.5]) {
+        g.beginPath(); g.moveTo(cx, cy); g.lineTo(cx + Math.cos(a - 0.35) * 12, cy + Math.sin(a - 0.35) * 12); g.lineTo(cx + Math.cos(a) * 34, cy + Math.sin(a) * 34); g.closePath(); g.fill();
+      }
+    },
+  },
+  // the Academy of Sciences pediment: the arms in white stucco relief on the ochre tympanum (drawn plainly: a
+  // cartouche with a shield between two figures' scrolls)
+  basRelief: {
+    w: 256, h: 240, glow: false, lines: [],
+    draw: (g, w, h) => {
+      g.fillStyle = '#e6c97c'; g.fillRect(0, 0, w, h);
+      const wh = '#f4efe2', sh = 'rgba(120,90,40,0.35)';
+      const blob = (x, y, rx, ry, rot = 0) => { g.beginPath(); g.ellipse(x, y, rx, ry, rot, 0, Math.PI * 2); g.fill(); };
+      g.fillStyle = sh; blob(131, 126, 70, 96); blob(70, 150, 34, 60, 0.4); blob(192, 150, 34, 60, -0.4);
+      g.fillStyle = wh; blob(128, 122, 68, 94); blob(66, 146, 32, 58, 0.4); blob(190, 146, 32, 58, -0.4);
+      blob(128, 30, 30, 18); blob(100, 214, 28, 14); blob(156, 214, 28, 14);
+      g.strokeStyle = sh; g.lineWidth = 4;
+      g.beginPath(); g.moveTo(98, 70); g.lineTo(158, 70); g.lineTo(158, 140); g.quadraticCurveTo(158, 180, 128, 192); g.quadraticCurveTo(98, 180, 98, 140); g.closePath(); g.stroke();
+      g.beginPath(); g.ellipse(128, 128, 18, 30, 0, 0, Math.PI * 2); g.stroke();
+      for (const [x, y] of [[60, 110], [196, 110], [70, 190], [186, 190]]) { g.beginPath(); g.arc(x, y, 12, 0.5, 5.5); g.stroke(); }
+    },
+  },
+  // The Mall: the stripe bar under the name (colour blocks drawn here), the tenants' names beside the entrance
+  // hall and on its front as plain lettering (generic typefaces, no logos), two posters with generic artwork
+  themallBar: {
+    w: 512, h: 48, nightI: 1.2, lines: [],
+    draw: (g, w, h) => {
+      const cols = ['#e5332a', '#f28c1c', '#f7c51c', '#8cc63f', '#20a9a0', '#1f7ac2', '#5a4fa2', '#b0388f', '#e04c8c', '#f28c1c', '#20a9a0', '#1f7ac2'];
+      let x = 0, k = 0;
+      while (x < w) { const bw = 14 + ((k * 37) % 23); g.fillStyle = cols[k % cols.length]; g.fillRect(x, 0, bw - 3, h); x += bw; k++; }
+    },
+  },
+  themallSignsL: {
+    w: 512, h: 512, bg: '#4c5056', nightI: 1.1, lines: [],
+    draw: (g, w) => {
+      const box = (x, y, bw, bh, bg) => { g.fillStyle = bg; g.fillRect(x, y, bw, bh); };
+      const txt = (t, x, y, size, col, weight = 800, family = 'Arial, sans-serif', align = 'center') => { g.font = `${weight} ${size}px ${family}`; g.fillStyle = col; g.textAlign = align; g.textBaseline = 'middle'; g.fillText(t, x, y); };
+      txt('H&M', 330, 60, 64, '#e2231a', 900, 'Georgia, serif');
+      txt('Peek&Cloppenburg', 256, 150, 44, '#ffffff', 800);
+      box(40, 200, 200, 60, '#ffffff'); txt('ZARA', 140, 231, 46, '#111111', 700, 'Georgia, serif');
+      box(260, 205, 200, 50, '#1b1b1b'); txt('Massimo Dutti', 360, 231, 24, '#ffffff', 600, 'Georgia, serif');
+      txt('house', 150, 300, 40, '#ffffff', 900);
+      txt('ESPRIT', 360, 300, 40, '#e3342f', 700);
+      txt('HUMANIC', 150, 360, 34, '#ffffff', 800);
+      txt('terranova', 360, 360, 34, '#ffffff', 600);
+      box(60, 410, 390, 60, '#2a2d31'); txt('RESERVED', 255, 441, 40, '#ffffff', 600);
+    },
+  },
+  themallSignsR: {
+    w: 512, h: 512, bg: '#4c5056', nightI: 1.1, lines: [],
+    draw: (g, w) => {
+      const box = (x, y, bw, bh, bg) => { g.fillStyle = bg; g.fillRect(x, y, bw, bh); };
+      const txt = (t, x, y, size, col, weight = 800, family = 'Arial, sans-serif') => { g.font = `${weight} ${size}px ${family}`; g.fillStyle = col; g.textAlign = 'center'; g.textBaseline = 'middle'; g.fillText(t, x, y); };
+      box(20, 30, 472, 70, '#ffffff'); txt('TECHNOPOLIS', 256, 66, 50, '#e2231a', 900);
+      box(20, 120, 230, 60, '#d71920'); txt('NEW YORKER', 135, 151, 30, '#ffffff', 900);
+      box(262, 120, 230, 60, '#ffffff'); txt('PLAYGROUND', 377, 151, 30, '#222222', 900);
+      box(20, 200, 230, 60, '#111111'); txt('MOHITO', 135, 231, 34, '#ffffff', 600);
+      box(262, 200, 230, 60, '#ffffff'); txt('INTERSPORT', 377, 231, 30, '#0a4ea2', 900);
+      box(20, 280, 230, 70, '#111111'); txt('CCC', 135, 316, 44, '#f39200', 900);
+      box(262, 280, 230, 70, '#009a44'); txt('DEICHMANN', 377, 316, 30, '#ffffff', 800);
+      box(20, 370, 472, 60, '#ffffff'); txt('LC WAIKIKI', 256, 401, 40, '#1d4f9c', 900);
+      box(20, 450, 472, 50, '#e6007e'); txt('dm', 256, 476, 38, '#ffffff', 900);
+    },
+  },
+  themallHallSigns: {
+    w: 1024, h: 64, bg: '#2b3036', nightI: 1.1, lines: [],
+    draw: (g, w, h) => {
+      const txt = (t, x, size, col, weight = 800, family = 'Arial, sans-serif') => { g.font = `${weight} ${size}px ${family}`; g.fillStyle = col; g.textAlign = 'center'; g.textBaseline = 'middle'; g.fillText(t, x, h / 2 + 2); };
+      g.fillStyle = '#ffffff'; g.fillRect(40, 10, 250, 44);
+      txt('TOMMY HILFIGER', 165, 26, '#14284b', 800);
+      txt('MANGO', 450, 40, '#ffffff', 300, 'Georgia, serif');
+      txt('Хиполенд', 700, 36, '#f7c51c', 900);
+      txt('dm', 900, 38, '#e6007e', 900);
+    },
+  },
+  themallPoster1: {
+    w: 256, h: 220, nightI: 1.0, bg: '#2f6db5', lines: [{ text: 'Нова колекция', size: 26, color: '#ffffff', y: 190, weight: 800 }],
+    draw: (g) => { g.fillStyle = '#f2b8a0'; g.beginPath(); g.arc(90, 90, 46, 0, Math.PI * 2); g.fill(); g.fillStyle = '#e8536b'; g.fillRect(40, 120, 100, 50); g.fillStyle = '#ffd34d'; g.beginPath(); g.arc(190, 70, 30, 0, Math.PI * 2); g.fill(); },
+  },
+  themallPoster2: {
+    w: 256, h: 220, nightI: 1.0, bg: '#1f2a44', lines: [{ text: 'Кино • Ресторанти', size: 24, color: '#ffd34d', y: 190, weight: 800 }],
+    draw: (g) => { g.fillStyle = '#e8a33d'; g.beginPath(); g.ellipse(128, 95, 80, 55, 0, 0, Math.PI * 2); g.fill(); g.fillStyle = '#7a3e1d'; g.fillRect(56, 98, 144, 14); g.fillStyle = '#5fae3b'; g.fillRect(56, 84, 144, 10); },
   },
   // the paved roof plaza of the car park in front of Terminal 2: a large cross-stitch embroidery motif (шевица) in
   // terracotta and pale green squares (pattern drawn here in the style of the photographed one)

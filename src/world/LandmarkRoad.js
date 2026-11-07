@@ -6,6 +6,7 @@ import * as THREE from 'three';
 import { MeshBuilder, orient, centroid, scalePoly, obb, signTexture } from './LandmarkGeometry.js';
 import { eagle } from './LandmarkSculpture.js';
 import { curtainWall } from './LandmarkFacade.js';
+import { heroItem } from './HeroBuildings.js';
 
 const ground = (world, pts) => {
   let mn = Infinity, sum = 0;
@@ -22,6 +23,11 @@ const done = (b, M, x, z) => ({ x, z, meshes: b.meshes(M.m), tris: b.triangles }
 // ------------------------------------------------------------------ CCB tower (ex Hotel Pliska)
 const TOWER = [610.7, -708.0, 636.1, -734.3, 649.6, -721.3, 624.2, -695.1];
 const PODIUM = [636.1, -734.3, 610.7, -708.0, 609.6, -709.1, 644.5, -745.2, 649.7, -740.2, 649.0, -739.5, 679.4, -710.3, 672.0, -702.7, 673.6, -701.1, 646.9, -673.4, 624.2, -695.1, 649.6, -721.3];
+
+/** The CCB tower: the Blender hero model (tools/blender/hero/ccb.py) when loaded, else the procedural one below. */
+export function buildCcb(ctx) {
+  return heroItem(ctx.heroes, 'ccb', ctx.M) || buildPliska(ctx);
+}
 
 export function buildPliska({ world, M }) {
   const b = new MeshBuilder();
