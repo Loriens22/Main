@@ -57,6 +57,8 @@ export const EbusMaterialsMixin = {
     m.gripStrap = new S({ color: 0x2b2e33, roughness: 0.8 });
     m.hazardRail = new S({ map: stripeTexture(), roughness: 0.35, metalness: 0.1 });
     m.doorWhite = new S({ color: 0xdfe4e8, roughness: 0.3, emissive: 0xffffff, emissiveIntensity: 0 });
+    m.doorBtnG = new S({ color: 0x2f9e44, roughness: 0.4, emissive: 0x2f9e44, emissiveIntensity: 0.25 });
+    m.signLcd = new S({ color: 0x1a1000, roughness: 0.3, emissive: 0xffa21a, emissiveIntensity: 0.9 });
     m.rail = new S({ color: G.railColor || 0xc9cdd1, roughness: 0.28, metalness: G.livery === 'sor' ? 0.85 : 0.35 });
     m.ebusNumber = decal(sideNumberTexture(fleet, '#ffffff'));
     m.ebusNumberDark = decal(sideNumberTexture(fleet, '#2b2e31'));

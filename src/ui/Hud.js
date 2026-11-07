@@ -29,7 +29,8 @@ export class Hud {
       <div class="gear"><span>D</span><span>N</span><span class="r">R</span></div>
       <div class="doors"><span>1</span><span>2</span><span>3</span><span>4</span></div>
       <div class="lamps"><span class="lamp ind l">◀</span><span class="lamp p">P</span><span class="lamp sb">Ⓢ</span><span class="lamp hl">◐</span><span class="lamp ind r">▶</span></div>
-      <div class="tpow" style="display:none"><span class="pole pl">╱</span><span class="pole pr">╱</span><span class="lamp volt">V</span><span class="bat"><i></i><b></b></span></div>`);
+      <div class="tpow" style="display:none"><span class="pole pl">╱</span><span class="pole pr">╱</span><span class="lamp volt">V</span><span class="bat"><i></i><b></b></span></div>
+      <div class="evpow" style="display:none"><span class="bat"><i></i><b></b></span><span class="rng"></span><span class="kw"><i class="m"></i><i class="g"></i><b></b></span><span class="tc"></span><span class="lamp evw"></span></div>`);
     this.toastEl = el('div', 'panel toast');
     this.sub = el('div', 'sub');
     this.check = el('div', 'panel check');
@@ -50,6 +51,8 @@ export class Hud {
       sb: this.dash.querySelector('.lamp.sb'), hl: this.dash.querySelector('.lamp.hl'),
       tpow: this.dash.querySelector('.tpow'), poles: [...this.dash.querySelectorAll('.tpow .pole')], volt: this.dash.querySelector('.lamp.volt'),
       bat: this.dash.querySelector('.tpow .bat'),
+      ev: this.dash.querySelector('.evpow'), evBat: this.dash.querySelector('.evpow .bat'), evRng: this.dash.querySelector('.evpow .rng'),
+      evKw: this.dash.querySelector('.evpow .kw'), evTc: this.dash.querySelector('.evpow .tc'), evW: this.dash.querySelector('.evpow .evw'),
       dest: this.top.querySelector('.dest'), name: this.next.querySelector('.name'), dist: this.next.querySelector('.dist'),
       sched: this.next.querySelector('.sched'), lbl: this.next.querySelector('.lbl'),
     };
@@ -183,6 +186,26 @@ export class Hud {
           q.bat.lastChild.textContent = `${Math.round(T.battery * 100)}%`;
           q.bat.classList.toggle('low', T.battery < 0.2);
         }
+      }
+    }
+    // battery-electric bus (line 84): state of charge, range, traction / regenerative power, cell temperature
+    const E = s.ev;
+    if (q.ev) {
+      q.ev.style.display = E ? '' : 'none';
+      if (E) {
+        const pct = Math.round(E.soc * 100);
+        q.evBat.firstChild.style.width = `${pct}%`;
+        q.evBat.lastChild.textContent = E.charging ? `⚡ ${pct}%` : `${pct}%`;
+        q.evBat.classList.toggle('low', E.soc < 0.2);
+        q.evRng.textContent = `${Math.round(E.range)} km`;
+        const kw = Math.round(E.kw);
+        const [m, g, b] = q.evKw.children;
+        m.style.width = `${Math.min(100, Math.max(0, kw) / E.maxKw * 100) / 2}%`;
+        g.style.width = `${Math.min(100, Math.max(0, -kw) / E.maxRegenKw * 100) / 2}%`;
+        b.textContent = `${kw} kW`;
+        q.evTc.textContent = `${Math.round(E.temp)}°C`;
+        q.evW.textContent = E.warn;
+        q.evW.className = `lamp evw${E.warn ? ' on' : ''}`;
       }
     }
     if (s.fps != null) this.fps.textContent = `${s.fps.toFixed(0)} FPS · ${s.quality}`;

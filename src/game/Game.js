@@ -112,7 +112,13 @@ export class Game {
     const fleet = choice !== 'random' && opts.fleet && vehicleSpec(sv.vehicle).fleets.some((f) => f.fleet === String(opts.fleet)) ? String(opts.fleet) : sv.fleet;
     const advanced = (opts.trolleyMode || this.settings.trolleyMode) === 'advanced';
     const trolleyOpts = { realistic: advanced, autoRecover: !advanced };
-    const bus = (this.bus = createVehicle({ scene: this.scene, world: this.world, route: this.route, dirId, vehicle: sv.vehicle, fleet, quality: this.quality, player: true, serviceNo: sv.serviceNo, trolleyOpts }));
+    // battery buses: the outside temperature drives heating / air conditioning and the cells (an assumed autumn day
+    // in Sofia unless the settings give one); the charge left from the previous duty unless the menu sets it
+    const night = opts.hour < 7 || opts.hour > 20;
+    const ambient = this.settings.ambientC ?? (opts.weather === 'snow' ? -3 : opts.weather === 'rain' ? 9 : night ? 8 : 15);
+    const batteryOpts = { ambient, soc: opts.soc ?? null };
+    if (batteryOpts.soc == null) delete batteryOpts.soc;
+    const bus = (this.bus = createVehicle({ scene: this.scene, world: this.world, route: this.route, dirId, vehicle: sv.vehicle, fleet, quality: this.quality, player: true, serviceNo: sv.serviceNo, trolleyOpts, batteryOpts }));
     bus.placeAt(bus.dir.stops[0].frontS);
     bus.phys.parkingBrake = true;
     bus.phys.selector = 'N';
@@ -280,6 +286,7 @@ export class Game {
       else this.hud.toast(p.engineOn ? L('Двигателят е запален', 'Engine started') : L('Двигателят е изключен', 'Engine off'));
     }
     if (bus.isTrolley && I.hit('KeyU')) this.togglePoles();
+    if (bus.battery && I.hit('KeyV')) this.toggleCharging();
     if (I.hit('Digit1') || I.hit('Numpad1')) this.selectGear('D');
     if (I.hit('Digit2') || I.hit('Numpad2')) this.selectGear('N');
     if (I.hit('Digit3') || I.hit('Numpad3')) this.selectGear('R');
@@ -340,6 +347,7 @@ export class Game {
     if (bus.kerbHit) { bus.kerbHit = false; this.audio.kerb(); this.rig.shake = 0.6; }
     for (const m of this.scoring.messages.splice(0)) this.hud.toast(m.text, m.bad);
     if (bus.isTrolley) this.trolleyEvents(bus);
+    if (bus.battery) this.batteryEvents(bus, dt);
     // --- checklist
     if (!this.checklistDone && bus.isTrolley) {
       const T = bus.trolley;
@@ -383,6 +391,53 @@ export class Game {
   }
 
   /** Trolley poles up / down (key U, touch button). */
+  /**
+   * Depot charging of a battery bus (simulated, see BatterySystem): only standing at a terminal with the parking
+   * brake applied; there is no charger at the line-84 stops, so the game stands in for the drive to the depot
+   * charger and runs the charge 60 times faster (one second per minute) while showing the real duration.
+   */
+  toggleCharging() {
+    const bus = this.bus, B = bus.battery, p = bus.phys;
+    if (this.depotCharging) {
+      this.depotCharging = false;
+      B.stopCharging();
+      this.hud.toast(L('Зарядното е изключено', 'Charger disconnected'));
+      return;
+    }
+    const n = bus.dir.stops.length, i = bus.stops.atStop;
+    const terminal = i === 0 || i === n - 1 || bus.stops.next >= n;
+    if (Math.abs(p.v) > 0.3 || !p.parkingBrake || !terminal) {
+      this.hud.toast(L('Зареждане: на крайната спирка, спрян, с ръчна спирачка (P)', 'Charging: at a terminal, stopped, parking brake on (P)'), true);
+      return;
+    }
+    this.depotCharging = true;
+    const min = B.chargeMinutes(1);
+    this.hud.toast(L(`Депо — зареждане (симулация, ${bus.spec.battery.charge.kW} kW): до 100% за ~${min} мин`, `Depot charging (simulated, ${bus.spec.battery.charge.kW} kW): full in about ${min} min`));
+  }
+
+  /** Battery warnings, and the charge while the depot charger is connected. */
+  batteryEvents(bus, dt) {
+    const B = bus.battery, p = bus.phys;
+    if (this.depotCharging) {
+      if (Math.abs(p.v) > 0.3 || !p.parkingBrake) { this.depotCharging = false; B.stopCharging(); this.hud.toast(L('Зарядното е изключено', 'Charger disconnected'), true); }
+      else {
+        B.charge(dt * 60);
+        if (B.soc >= 0.999) { this.depotCharging = false; B.stopCharging(); this.hud.toast(L('Батерията е заредена', 'Battery fully charged')); }
+      }
+    }
+    const lvl = B.soc < 0.05 ? 2 : B.soc < 0.2 ? 1 : 0;
+    if (lvl > (this.batteryLevelShown || 0)) {
+      this.hud.toast(lvl === 2 ? L('Критично нисък заряд — мощността е ограничена', 'Battery critically low — power limited') : L('Нисък заряд на батерията', 'Battery low'), true);
+    }
+    this.batteryLevelShown = lvl;
+    const regenCut = B.warnings.includes('regenLimited');
+    if (regenCut && !this.regenToastShown && Math.abs(p.v) > 3) {
+      this.regenToastShown = true;
+      this.hud.toast(L('Рекуперацията е ограничена (пълна или студена батерия)', 'Regenerative braking limited (full or cold battery)'));
+    }
+    if (!regenCut) this.regenToastShown = false;
+  }
+
   togglePoles() {
     const T = this.bus && this.bus.trolley;
     if (!T) return;
@@ -556,6 +611,11 @@ export class Game {
       trolley: bus.isTrolley ? {
         poles: bus.trolley.poles.map((q) => q.state), line: bus.trolley.line, onBattery: !!bus.trolley.onBattery,
         battery: bus.trolley.battery ? bus.trolley.battery.soc : null,
+      } : null,
+      ev: bus.battery ? {
+        soc: bus.battery.soc, range: bus.battery.rangeKm, kw: bus.battery.power / 1000, temp: bus.battery.temp,
+        maxKw: bus.spec.battery.maxDischarge / 1000, maxRegenKw: bus.spec.battery.maxRegen / 1000, charging: bus.battery.charging,
+        warn: bus.battery.warnings.includes('critical') ? '!!' : bus.battery.warnings.includes('hot') ? 'T°' : bus.battery.warnings.includes('regenLimited') ? 'REG' : bus.battery.warnings.includes('low') ? 'LOW' : '',
       } : null,
       doors: bus.doors.doors.map((d) => d.state),
       indL: (bus.lights.left || bus.lights.hazard) && bus.indicatorOn,

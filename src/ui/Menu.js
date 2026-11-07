@@ -146,7 +146,8 @@ export class Menu {
       const hasHist = ids.some((id) => vehicleSpec(id).historical);
       const box = document.createElement('div');
       const modes = [['mixed', L('Смесен', 'Mixed')], ['modern', L('Само съвременни', 'Modern only')]];
-      if (hasHist) modes.push(['historical', L('Исторически', 'Historical')]);
+      // line 84: the SOR EBN 11 demonstrator of spring 2017 (a historical recreation, not today's fleet)
+      if (hasHist) modes.push(['historical', line === '84' ? L('Историческа демонстрация (SOR, 2017)', 'Historical demonstration (SOR, 2017)') : L('Исторически', 'Historical')]);
       const seg = document.createElement('div');
       seg.className = 'seg';
       const sliders = document.createElement('div');

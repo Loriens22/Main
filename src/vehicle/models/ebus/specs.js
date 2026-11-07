@@ -54,7 +54,7 @@ export const SOR = {
   battery: {
     kWh: 172, usable: 0.85, chem: 'LiFePO4', maxDischarge: 190e3, maxRegen: 80e3, cellsRef: '180 x 300 Ah (Winston)',
     // the demonstrator charged from a plug at the depot (estimated 80 kW); no charger at the line-84 stops
-    charge: { kind: 'plug', kW: 80 }, aux: 2.4e3, hvac: { heat: 11e3, cool: 9e3 }, driveEff: 0.86, regenEff: 0.72,
+    charge: { kind: 'plug', kW: 80 }, aux: 2.4e3, hvac: { heat: 11e3, cool: 9e3 }, driveEff: 0.86, regenEff: 0.85,
     thermal: { capacity: 3.2e6, cooling: 260, heatK: 2.2e-7 },
   },
   audio: { profile: 'ebus_sor' },
@@ -91,11 +91,11 @@ export const E12 = {
   physics: {
     massEmpty: 13600, aeroArea: 7.6,
     // permanent-magnet motor 215 kW, 3 500 N m (Wikipedia); tractive force limited by adhesion (estimated)
-    electric: { power: 215e3, cont: 150e3, force: 24e3, regen: 26e3, vmax: 70, ramp: 0.5, ratio: 9.5, steps: 0 },
+    electric: { power: 215e3, cont: 150e3, force: 21e3, regen: 26e3, vmax: 70, ramp: 0.5, ratio: 9.5, steps: 0 },
   },
   battery: {
     kWh: 374, usable: 0.9, chem: 'LiFePO4', maxDischarge: 320e3, maxRegen: 160e3,
-    charge: { kind: 'plug', kW: 150 }, aux: 2.8e3, hvac: { heat: 14e3, cool: 13e3 }, driveEff: 0.9, regenEff: 0.78,
+    charge: { kind: 'plug', kW: 150 }, aux: 2.8e3, hvac: { heat: 14e3, cool: 13e3 }, driveEff: 0.9, regenEff: 0.9,
     thermal: { capacity: 6.5e6, cooling: 420, heatK: 1.2e-7 },
   },
   audio: { profile: 'ebus_e12' },

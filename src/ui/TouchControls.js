@@ -183,6 +183,11 @@ export class TouchControls {
       this.button(lb, L('Щанги', 'Poles'), (d) => d && key('KeyU')(), 'red');
       this.button(lb, L('Табела', 'Sign'), (d) => d && key('KeyT')());
     }
+    if (g.bus && g.bus.battery) {
+      // battery-electric bus: the destination sign and the (simulated) depot charger at a terminal
+      this.button(lb, L('Табела', 'Sign'), (d) => d && key('KeyT')());
+      this.button(lb, L('Заряд.', 'Charge'), (d) => d && key('KeyV')(), 'red');
+    }
     this.button(lb, L('Курс', 'Reset'), (d) => d && key('KeyR')());
     const top = this.div('tc top');
     this.button(top, '🎥', (d) => d && g.cycleCamera());

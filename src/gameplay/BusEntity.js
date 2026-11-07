@@ -8,12 +8,13 @@ import { AnnouncementManager } from './AnnouncementManager.js';
 import { DestinationDisplay } from './DestinationDisplay.js';
 import { buildDriveLine } from './DriveLine.js';
 import { TrolleyPoles } from '../vehicle/TrolleyPoles.js';
+import { BatterySystem } from '../vehicle/BatterySystem.js';
 import { fwdX, fwdZ, clamp } from '../core/math.js';
 
 const FIXED = 1 / 120;
 
 export class BusEntity {
-  constructor({ scene, world, route, dirId = 'A', vehicle = 'man', fleet = null, quality = 'high', player = false, serviceNo = 0, trolleyOpts = {} }) {
+  constructor({ scene, world, route, dirId = 'A', vehicle = 'man', fleet = null, quality = 'high', player = false, serviceNo = 0, trolleyOpts = {}, batteryOpts = {} }) {
     this.scene = scene;
     this.world = world;
     this.route = route;
@@ -34,6 +35,13 @@ export class BusEntity {
     // trolleybus: two trolley poles on the overhead wire feed the electric traction (TrolleyPoles.js)
     this.isTrolley = !!this.spec.trolley;
     if (this.isTrolley) this.trolley = new TrolleyPoles(this, world, { realistic: !!trolleyOpts.realistic, autoRecover: trolleyOpts.autoRecover !== false });
+    // battery-electric bus (line 84): the traction battery limits power and regeneration (BatterySystem.js); a
+    // service starts with 70-95 % charge unless the options say otherwise
+    if (this.spec.battery && !this.isTrolley) {
+      const soc = batteryOpts.soc ?? 0.7 + ((serviceNo * 0.37) % 1) * 0.25;
+      this.battery = new BatterySystem(this.spec, { soc, ambient: batteryOpts.ambient ?? 14, hvac: batteryOpts.hvac || 'auto' });
+      this.model.battery = this.battery; // the instrument cluster shows it (EbusCab.drawDash)
+    }
     this.lights = { head: false, left: false, right: false, hazard: false, interior: 1 };
     this.wiper = { mode: 0, phase: 0 };
     this.blink = 0;
@@ -177,6 +185,12 @@ export class BusEntity {
       p.slope = (h1 - h0) / 4;
       p.step(FIXED, { ...controls, interlock: this.doors.interlockActive });
       this.doors.update(FIXED);
+      if (this.battery) {
+        const L = this.battery.step(FIXED, p, { doorsOpen: !this.doors.allClosed, passengers: p.passengers || 0 });
+        p.powerLimit = L.powerLimit;
+        p.regenLimit = L.regenLimit;
+        p.powerAvail = this.battery.soc > 0.02 ? 1 : 0;
+      }
       this.acc -= FIXED;
     }
     if (this.trolley) this.trolley.update(Math.min(dt, 0.1));

@@ -87,6 +87,14 @@ select{background:#16211b;color:var(--text);border:1px solid var(--line);border-
 .tpow .bat{position:relative;width:64px;height:16px;border:2px solid rgba(255,255,255,.4);border-radius:4px;overflow:hidden}
 .tpow .bat i{position:absolute;left:0;top:0;bottom:0;background:#27ae60}.tpow .bat.low i{background:#c0392b}
 .tpow .bat b{position:absolute;inset:0;font-size:.62em;display:grid;place-items:center;color:#fff}
+.hud .evpow{display:flex;gap:6px;align-items:center;margin-top:6px;font-size:.78em;color:#e8efe9}
+.evpow .bat{position:relative;width:70px;height:16px;border:2px solid rgba(255,255,255,.45);border-radius:4px;overflow:hidden}
+.evpow .bat i{position:absolute;left:0;top:0;bottom:0;background:#27ae60}.evpow .bat.low i{background:#c0392b}
+.evpow .bat b{position:absolute;inset:0;font-size:.78em;display:grid;place-items:center;color:#fff}
+.evpow .kw{position:relative;width:96px;height:14px;border-radius:3px;background:rgba(255,255,255,.08);overflow:hidden}
+.evpow .kw .m{position:absolute;left:50%;top:0;bottom:0;background:#e67e22}.evpow .kw .g{position:absolute;right:50%;top:0;bottom:0;background:#2ecc71}
+.evpow .kw b{position:absolute;inset:0;display:grid;place-items:center;font-size:.85em}
+.evpow .evw{min-width:0;padding:0 4px}.evpow .evw.on{background:#c0392b;color:#fff}
 .hud .toast{position:absolute;left:50%;top:calc(18% + var(--safe-t));transform:translateX(-50%);width:max-content;padding:10px 18px;font-weight:600;opacity:0;transition:opacity .3s;text-align:center;max-width:80vw}
 .hud .toast.show{opacity:1}
 .hud .toast.bad{border-color:#ff5544}

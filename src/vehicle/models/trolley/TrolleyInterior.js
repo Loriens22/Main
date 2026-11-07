@@ -377,6 +377,7 @@ export const InteriorMixin = {
 
   /** Driver's cab: dashboard with the instrument cluster, steering wheel (kit), driver's seat. */
   buildCab() {
+    if (this.G.ends) return this.buildEbusCab(); // the line-84 battery buses (ebus/EbusCab.js)
     const D = this.D, F = this.F, G = this.G, L = this.spec.layout;
     const fz = F.frontZ, FY = D.floorY;
     const CAB_Y = G.old ? FY + 0.12 : FY + 0.2; // driver's platform

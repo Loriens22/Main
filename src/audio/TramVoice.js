@@ -46,6 +46,15 @@ export const TRAM_PROFILES = {
   // generator humming all the time, loud gears; contactor clacks on every notch (GameAudio.notch)
   trolley_ikarus: { chopper: 0, chopGain: -90, rumble: -31, mesh: 13, meshGain: -33, aux: 0, auxGain: -90, mg: 88, mgGain: -37, joints: 0, squeal: 0,
     tyre: true, R: 0.5, ratio: 12.5, roar: -30 },
+  // ---- battery buses (line 84), on the same voice:
+  // SOR EBN 11 (2016): asynchronous traction motor on an IGBT inverter: the switching tone when pulling away and
+  // a whine rising with the motor frequency, audible gears of the central drive, the converter and cooling fans
+  ebus_sor: { chopper: 0, chopGain: -90, rumble: -70, mesh: 16, meshGain: -42, aux: 2800, auxGain: -53, mg: 0, joints: 0, squeal: 0,
+    tyre: true, R: 0.48, ratio: 11.5, vvvf: { carrier: 1600, k: 7, gain: -31 }, fan: -48 },
+  // Yutong E12: permanent-magnet motor: a smoother, higher whine and a quieter inverter, quiet gears, the
+  // battery cooling and air-conditioning fans
+  ebus_e12: { chopper: 0, chopGain: -90, rumble: -80, mesh: 19, meshGain: -49, aux: 3400, auxGain: -56, mg: 0, joints: 0, squeal: 0,
+    tyre: true, R: 0.48, ratio: 9.5, vvvf: { carrier: 4000, k: 9, gain: -39 }, fan: -51 },
 };
 const RATIO = 6.9, R = 0.33, RAIL = 12.5; // gear ratio, wheel radius, rail length between joints
 

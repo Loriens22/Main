@@ -413,6 +413,7 @@ export class AudioManager {
     switch (e.type) {
       case 'opening':
         if (old) Events.doorOpenOld(this.ctx, o.dest, o.t, this.bufs, o.k, warn.openDur || 1.7);
+        else if (warn && warn.doorSound) Events.doorElectric(this.ctx, o.dest, o.t, this.bufs, o.k, { loud: warn.doorSound === 'electricLoud', dur: (warn.openDur || 1.7) - 0.1 });
         else Events.doorOpen(this.ctx, o.dest, o.t, this.bufs, o.k);
         // Solaris IV / III: the same warning pattern plays while the doors open as while they close
         if (warn && warn.onOpen) (warn.times || [0]).forEach((dt, i) => this.beep({ ...o, t: o.t + dt }, i + 1, warn));
@@ -423,6 +424,7 @@ export class AudioManager {
         break;
       case 'closingStart':
         if (old) Events.doorCloseOld(this.ctx, o.dest, o.t, this.bufs, o.k, warn.closeDur || 1.15);
+        else if (warn && warn.doorSound) Events.doorElectric(this.ctx, o.dest, o.t, this.bufs, o.k, { loud: warn.doorSound === 'electricLoud', closing: true, dur: (warn.closeDur || 1.9) - 0.1 });
         else Events.doorClose(this.ctx, o.dest, o.t, this.bufs, o.k);
         this.duckAmb(2.4);
         break;

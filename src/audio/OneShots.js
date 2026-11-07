@@ -94,6 +94,20 @@ export const Events = {
     OneShots.thump(ctx, dest, t + 0.13 + gl, { f0: 150, f1: 70, peakDb: -19 + k, dur: 0.12 });
     OneShots.click(ctx, dest, t + 0.13 + gl, B, { f: 800, q: 1.2, peakDb: -24 + k, dur: 0.02 });
   },
+  /**
+   * Electric door drives of the line-84 battery buses (described by the user): no air hiss.
+   *   quiet (SOR EBN 11): a soft motor whirr while the plug leaves swing out and slide, a light latch click
+   *   loud (Yutong E12): a louder geared motor drone while the leaves swing in, a firm stop, and on closing the
+   *   slight thump of the rubber seal at the end
+   */
+  doorElectric(ctx, dest, t, B, k, { loud = false, closing = false, dur = 1.8 } = {}) {
+    k = (k || 0) + (loud ? 4 : -3);
+    OneShots.click(ctx, dest, t, B, { f: loud ? 1400 : 2200, q: 3, peakDb: -26 + k, dur: 0.012 });
+    OneShots.glide(ctx, dest, t + 0.04, B, { dur, f0: loud ? 260 : 340, f1: loud ? 210 : 300, q: loud ? 1.6 : 2.6, peakDb: (loud ? -24 : -33) + k, am: loud ? 36 : 18 });
+    OneShots.glide(ctx, dest, t + 0.04, B, { dur, f0: loud ? 1250 : 1650, f1: loud ? 1050 : 1500, q: 4, peakDb: (loud ? -33 : -42) + k, am: 0 });
+    OneShots.click(ctx, dest, t + 0.06 + dur, B, { f: loud ? 700 : 1500, q: 1.5, peakDb: -24 + k, dur: 0.03 });
+    if (closing) OneShots.thump(ctx, dest, t + 0.06 + dur, { f0: loud ? 120 : 160, f1: 60, peakDb: (loud ? -18 : -27) + k, dur: 0.12 });
+  },
   /** Safety edge: the closing door reverses, then runs the open sound with a short glide. */
   doorObstruct(ctx, dest, t, B, k) {
     k = k || 0;

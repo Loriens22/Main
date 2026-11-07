@@ -60,6 +60,7 @@ export class ArticulatedBus {
     this.electric = P.electric || null;
     this.powerAvail = 1;
     this.powerLimit = Infinity;
+    this.regenLimit = Infinity; // W the traction battery can take back (battery-electric buses)
     this.speedLimit = Infinity;
     // body extents per section (section z, forward is -z) for the collision boxes
     this.box = this.articulated
@@ -226,7 +227,7 @@ export class ArticulatedBus {
     const aero = 0.5 * 1.2 * 0.68 * this.aeroArea * this.v * this.v;
     // brakes: first quarter of the pedal = retarder only, then service brake
     // (electric: the first quarter of the pedal is the electric brake, regenerating into the line)
-    const retarder = this.selector === 'D' && Math.abs(this.v) > 1.5 ? clamp(brake / 0.25, 0, 1) * (E ? E.regen : 1.1 * m) : 0;
+    const retarder = this.selector === 'D' && Math.abs(this.v) > 1.5 ? clamp(brake / 0.25, 0, 1) * (E ? Math.min(E.regen, this.regenLimit / (Math.abs(this.v) * 0.7)) : 1.1 * m) : 0;
     if (E && retarder > 0) this.motorPower = -retarder * Math.abs(this.v) * 0.7;
     const service = clamp((brake - 0.12) / 0.88, 0, 1) * 6.8 * m;
     let brakeF = service + retarder;

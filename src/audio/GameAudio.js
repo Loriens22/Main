@@ -153,7 +153,7 @@ export class GameAudio {
     // engine start / stop (a trolleybus: the main switch clacks in, no starter)
     if (p.engineOn !== st.engineOn) {
       st.engineOn = !!p.engineOn;
-      if (bus.isTrolley) { st.startT = Infinity; if (on) a.contactor(this.where(bus, 'gear')); }
+      if (bus.isTrolley || bus.battery) { st.startT = Infinity; if (on) a.contactor(this.where(bus, 'gear')); }
       else if (st.engineOn) { st.startT = 0; if (on) a.engineStart(this.where(bus, 'starter')); }
       else { st.startT = Infinity; if (on) a.engineStop(this.where(bus, 'engine')); }
     }
@@ -245,9 +245,10 @@ export class GameAudio {
         id: st.id, profile: bus.spec.audio.profile, focus: bus === g.bus, interior: L.zone !== 'out', zone: L.zone, prox: L.prox, dist: L.dist, radial: L.radial, pan: L.pan, cull: L.cull,
         rpm, load: cranking && st.startT < 1.5 ? 0.05 : p.load, speed: p.v, engineOn: !!p.engineOn || p.rpm > 120, retarder, surface: st.surface, comp: st.comp,
       };
-      if (bus.isTrolley) {
+      if (bus.isTrolley || bus.battery) {
         // a trolleybus uses the tram voice on rubber tyres (TramVoice trolley_* profiles): traction / electric
-        // braking only while the poles are on the wire (or on the Solaris IV battery)
+        // braking only while the poles are on the wire (or on the Solaris IV battery); the battery buses of line 84
+        // too (ebus_* profiles), with power while the battery has charge
         const live = (p.powerAvail || 0) > 0;
         Object.assign(entry, {
           kind: 'tram', engineOn: !!p.engineOn && live, brake: live ? p.brakeOut || 0 : 0, load: live ? p.load : 0, curv: 0, street: true,

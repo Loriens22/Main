@@ -27,6 +27,7 @@ import { EbusEndsMixin } from '../ebus/EbusEnds.js';
 import { EbusBodyMixin } from '../ebus/EbusBody.js';
 import { EbusInteriorMixin } from '../ebus/EbusInterior.js';
 import { EbusMaterialsMixin } from '../ebus/EbusMaterials.js';
+import { EbusCabMixin } from '../ebus/EbusCab.js';
 
 export class TrolleyModel {
   constructor(spec, { fleet = null, quality = 'high', interior = true } = {}) {
@@ -515,7 +516,7 @@ export class TrolleyModel {
   }
 }
 
-Object.assign(TrolleyModel.prototype, BodyMixin, EndsMixin, DoorsMixin, InteriorMixin, EbusEndsMixin, EbusBodyMixin, EbusInteriorMixin, EbusMaterialsMixin);
+Object.assign(TrolleyModel.prototype, BodyMixin, EndsMixin, DoorsMixin, InteriorMixin, EbusEndsMixin, EbusBodyMixin, EbusInteriorMixin, EbusMaterialsMixin, EbusCabMixin);
 
 // ------------------------------------------------------------------ textures
 function canvas(w, h) {
