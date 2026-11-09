@@ -179,6 +179,17 @@ PALETTE = {
     "leather_brown": dict(color=(0.25, 0.14, 0.08), rough=0.6),
     # earth / buildings
     "wood_siding": dict(color=(0.72, 0.70, 0.64), rough=0.85),
+    "clapboard": dict(color=(0.74, 0.73, 0.69), rough=0.88),
+    "shingle_dark": dict(color=(0.20, 0.20, 0.195), rough=0.95),
+    "shingle_dusty": dict(color=(0.47, 0.44, 0.39), rough=0.97),
+    "wood_board": dict(color=(0.36, 0.26, 0.17), rough=0.85),
+    "wood_gray": dict(color=(0.42, 0.40, 0.37), rough=0.9),
+    "screen_mesh": dict(color=(0.05, 0.05, 0.05), rough=0.6, alpha=0.55),
+    "sand_dust": dict(color=(0.60, 0.55, 0.46), rough=0.97),
+    "firewood": dict(color=(0.55, 0.43, 0.30), rough=0.9),
+    "bark": dict(color=(0.22, 0.18, 0.14), rough=0.95),
+    "poly_blue": dict(color=(0.10, 0.25, 0.52), rough=0.45),
+    "enamel_white": dict(color=(0.80, 0.80, 0.77), rough=0.3),
     "wood_trim": dict(color=(0.78, 0.77, 0.72), rough=0.8),
     "wood_floor": dict(color=(0.42, 0.30, 0.19), rough=0.6),
     "wood_dark": dict(color=(0.25, 0.17, 0.10), rough=0.6),
@@ -919,6 +930,30 @@ def preview(path, cam_loc, target=(0, 0, 0), res=(960, 540), lens=35, samples=24
     for o in hidden:
         o.hide_render = False
     print(f"[kit] preview -> {path}")
+
+
+def preview_textures(spec):
+    """Preview only (call after export): give named materials their runtime albedo textures in Cycles.
+    spec: {material: (texture file stem, metres per tile or None for explicit UVs)}."""
+    tdir = os.path.normpath(os.path.join(os.path.dirname(os.path.abspath(__file__)), "..", "..", "public", "assets", "textures"))
+    for mname, (stem, tile) in spec.items():
+        m = bpy.data.materials.get(mname)
+        if m is None or m.node_tree is None:
+            continue
+        nt = m.node_tree
+        bsdf = next((n for n in nt.nodes if n.type == "BSDF_PRINCIPLED"), None)
+        if bsdf is None:
+            continue
+        img = bpy.data.images.load(os.path.join(tdir, stem + ".jpg"), check_existing=True)
+        tex = nt.nodes.new("ShaderNodeTexImage")
+        tex.image = img
+        uvn = nt.nodes.new("ShaderNodeUVMap")
+        mp = nt.nodes.new("ShaderNodeMapping")
+        sc = 1.0 / tile if tile else 1.0
+        mp.inputs["Scale"].default_value = (sc, sc, 1)
+        nt.links.new(uvn.outputs[0], mp.inputs[0])
+        nt.links.new(mp.outputs[0], tex.inputs[0])
+        nt.links.new(tex.outputs[0], bsdf.inputs["Base Color"])
 
 
 def remove_preview_rig():

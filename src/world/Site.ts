@@ -18,6 +18,8 @@ export interface DoorRt {
   sound: 'wood' | 'hatch' | 'blast' | 'airlock' | 'car' | 'elevator';
   locked?: () => string | null; // returns reason when locked
   onChange?: (open: boolean) => void;
+  /** id of a door this one moves with (e.g. a screen door that follows the main door); not separately usable */
+  follow?: string;
 }
 
 export interface LightGroup {
@@ -193,9 +195,17 @@ export class Site {
       t: 0,
       speed: type === 'rolldoor' ? 0.35 : type === 'hatch' ? 0.6 : 1.4,
       sound: type === 'hatch' ? 'hatch' : type === 'rolldoor' ? 'blast' : this.opts.doorSound ?? 'wood',
+      follow: n.userData.follow,
       ...opts,
     };
     this.doors.set(id, d);
+    if (n.userData.startOpen && d.kind === 'hinge') {
+      d.open = true;
+      d.t = 1;
+      n.quaternion.copy(d.baseQ).multiply(new THREE.Quaternion().setFromAxisAngle(new THREE.Vector3(0, 1, 0), d.angle));
+      this.opts.frame.physics.setDoorOpen(id, true);
+    }
+    if (d.follow) return d; // moved by its leader door (screen doors)
     this.register({
       id: `${this.opts.name}:${id}`,
       targets: [n],
@@ -237,6 +247,11 @@ export class Site {
     this.game.audio.door(d.sound, wp);
     if (d.open) this.opts.frame.physics.setDoorOpen(id, true);
     d.onChange?.(d.open);
+    for (const f of this.doors.values()) {
+      if (f.follow !== id) continue;
+      f.open = d.open;
+      if (f.open) this.opts.frame.physics.setDoorOpen(f.id, true);
+    }
   }
 
   update(dt: number) {

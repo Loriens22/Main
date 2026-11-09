@@ -319,6 +319,121 @@ def terrain():
     save_rgb("corn_canopy_a.jpg", col)
 
 
+def clapboard():
+    """Weathered painted clapboard for real 3D lap boards (farmhouse, images 1-2). Tile = 32 boards x 0.115 m
+    exposure = 3.68 m square (large tile so the peel pattern does not visibly repeat); rows are aligned with the geometry's global course grid (z = k * 0.115 m).
+    Image rows increase with world height (glTF V flip + three.js flipY), so each board's butt edge is the
+    top row of its band. Paint peels along the grain and stops at board edges; bare wood is silver-grey."""
+    n = 2048
+    K = 32
+    R = n / K
+    rows = np.arange(n)
+    band = np.floor(rows / R).astype(int)
+    inband = (rows / R) - band                      # 0 at butt (bottom edge in world), 1 at top
+    r = np.random.default_rng(1101)
+    board_tone = r.uniform(-0.035, 0.035, K)[band][:, None]
+    board_peel = r.uniform(0.0, 1.0, K)[band][:, None]
+    # grain: noise stretched strongly along the board (x)
+    g1 = spectral(n, 1.4, 1102, lo=2)
+    g2 = spectral(n, 1.0, 1103, lo=6)
+    grain = norm01(np.repeat(g1[::16, :], 16, axis=0)) * 0.5 + g2 * 0.5
+    streak = norm01(np.repeat(spectral(n, 1.2, 1104, lo=3)[::32, :], 32, axis=0))
+    # peel mask: horizontally stretched blobs, more on some boards, biased toward the lower half of boards
+    pn = spectral(n, 2.0, 1105, lo=2)
+    pn = np.asarray(Image.fromarray((pn * 255).astype(np.uint8)).resize((n // 10, n)).resize((n, n), Image.BILINEAR), dtype=np.float32) / 255
+    pn2 = spectral(n, 1.6, 1106, lo=6)
+    thr = 0.63 - board_peel * 0.2 + (inband[:, None] * 0.05)
+    peel = np.clip(((pn * 0.75 + pn2 * 0.25) - thr) * 14, 0, 1)
+    peel = np.asarray(Image.fromarray((peel * 255).astype(np.uint8)).filter(ImageFilter.GaussianBlur(0.8)), dtype=np.float32) / 255
+    edge = np.clip(peel * (1 - peel) * 4, 0, 1)    # lifted paint rim
+    paint = np.array([0.84, 0.835, 0.79])
+    bare = np.array([0.63, 0.61, 0.57])
+    p = paint[None, None, :] * (0.93 + grain[..., None] * 0.07 + board_tone[..., None])
+    b = bare[None, None, :] * (0.80 + grain[..., None] * 0.30 + streak[..., None] * 0.1)
+    # chalky thinning paint: grain shows through as grey streaks before the paint is fully gone
+    thin = np.clip((streak * 0.6 + pn2 * 0.4 - 0.4) * 2.0, 0, 1)[..., None] * (0.35 + grain[..., None] * 0.65)
+    p = p * (1 - thin * 0.42) + b * thin * 0.42
+    col = p * (1 - peel[..., None]) + b * peel[..., None]
+    col *= (1 - edge[..., None] * 0.18)
+    # dirt in the lap shadow just under each butt (top of each band) and broad grime
+    lap = np.exp(-inband * 22)[:, None]
+    big = spectral(n, 2.6, 1107, lo=1)
+    col *= (1 - lap[..., None] * 0.22) * (1 - big[..., None] * 0.08)
+    save_rgb("clapboard_a.jpg", col)
+    # normal: grain relief on bare wood, paint thickness step, slight cupping of each board
+    cup = (np.sin(inband * math.pi) * 0.25)[:, None] * np.ones((1, n))
+    h = cup + (1 - peel) * 0.18 + grain * 0.05 * (0.4 + peel)
+    save_rgb("clapboard_n.jpg", height_to_normal(h, 3.0))
+
+
+def shingles():
+    """Three-tab asphalt shingles. Tile = 1.0 m (u) x 8 courses x 0.14 m (v = 1.12 m); the roof generator writes
+    explicit UVs u = s / 1.0, v = up-slope / 1.12 so courses line up with geometry. Butt edge = top row of a band.
+    Writes a dark weathered variant (main roof) and a dust-covered variant (wing and porch roofs, image 2)."""
+    n = 1024
+    K = 8
+    R = n // K
+    r = np.random.default_rng(1201)
+    X = np.arange(n)[None, :].repeat(n, 0)
+    Y = np.arange(n)[:, None].repeat(n, 1)
+    band = Y // R
+    vin = (Y - band * R) / R                         # 0 at butt edge, 1 at the top of the exposure
+    tabw = n / 3.0
+    offs = np.array([(k % 2) * 0.5 + r.uniform(-0.08, 0.08) for k in range(K)]) * tabw
+    xs = (X + offs[band]) % n
+    tab = np.floor(xs / tabw).astype(int)
+    fx = (xs / tabw) - tab
+    slot = (np.minimum(fx, 1 - fx) * tabw < 2.6) & (vin < 0.86)
+    # one full shingle per metre: a butt joint where the 3rd tab ends (same as a slot)
+    tid = band * 7 + tab
+    tone = r.uniform(-1, 1, K * 7 + 8)[tid]
+    granule = spectral(n, 0.35, 1202, lo=200)
+    mott = spectral(n, 2.3, 1203, lo=1)
+    mott2 = spectral(n, 1.6, 1204, lo=4)
+    base = 0.215 + tone * 0.026 + (mott - 0.5) * 0.10 + (mott2 - 0.5) * 0.05 + (granule - 0.5) * 0.05
+    # occasional granule-loss / stained tabs (lighter) and a few missing tabs (black felt)
+    stain = r.uniform(0, 1, K * 7 + 8)[tid]
+    base = np.where(stain > 0.9, base + 0.05 + (mott - 0.5) * 0.08, base)
+    missing = stain < 0.025
+    shadow = np.exp(-vin * 18) * 0.55                 # under the course above (at the butt line)
+    v = base * (1 - shadow)
+    v = np.where(slot, 0.035, v)
+    v = np.where(missing & (vin < 0.92), 0.05 + granule * 0.02, v)
+    col = np.stack([v * 1.0, v * 0.985, v * 0.96], -1)
+    save_rgb("shingle_a.jpg", col)
+    # dusty variant: fine sand settles in slots, along butt lines and in broad drifts
+    dn = spectral(n, 2.2, 1205, lo=1)
+    dust = np.clip(0.55 + (dn - 0.5) * 0.9 + np.exp(-vin * 10) * 0.2 + slot * 0.3 + (granule - 0.5) * 0.25, 0, 1)
+    dcol = np.array([0.60, 0.555, 0.48])
+    col2 = col * (1 - dust[..., None] * 0.9) + dcol[None, None] * (0.86 + mott2[..., None] * 0.22) * dust[..., None] * 0.9
+    col2 *= (1 - np.exp(-vin * 18)[..., None] * 0.25)
+    save_rgb("shingle_dusty_a.jpg", col2)
+    h = (1 - vin) * 0.35 * (~slot) + granule * 0.08 - slot * 0.2
+    save_rgb("shingle_n.jpg", height_to_normal(h.astype(np.float32), 2.5))
+
+
+def wood_weathered():
+    """Silver-grey sun-weathered boards (porch deck, skirt, rafters, steps). Tile 1 m; grain runs along V
+    (vertical in the image) — deck boards and rafters run along the box-projected V axis."""
+    n = 1024
+    r = np.random.default_rng(1301)
+    x = np.arange(n)
+    plank = (x // (n // 10))                                  # ~0.1 m board widths across U
+    ptone = r.uniform(-0.06, 0.06, 12)[plank][None, :]
+    g = spectral(n, 1.2, 1302, lo=3)
+    grain = norm01(np.repeat(g[:, ::1][::64, :], 64, axis=0))   # stretched along V
+    fine = norm01(np.repeat(spectral(n, 0.8, 1303, lo=20)[::16, :], 16, axis=0))
+    knots = (spectral(n, 1.0, 1304, lo=30) > 0.86).astype(np.float32)
+    knots = np.asarray(Image.fromarray((knots * 255).astype(np.uint8)).filter(ImageFilter.GaussianBlur(2.0)), dtype=np.float32) / 255
+    base = np.array([0.50, 0.48, 0.44])
+    v = 0.78 + grain * 0.18 + fine * 0.1 - knots * 0.25 + ptone
+    stain = spectral(n, 2.4, 1305, lo=1)
+    col = base[None, None, :] * v[..., None] * (1 - stain[..., None] * 0.15)
+    col = col * np.array([1.0, 0.99, 0.97])[None, None, :] + np.array([0.02, 0.015, 0.0])[None, None, :] * grain[..., None]
+    save_rgb("wood_weathered_a.jpg", col)
+    save_rgb("wood_weathered_n.jpg", height_to_normal(grain * 0.4 + fine * 0.25 - knots * 0.3, 2.5))
+
+
 def noise_rgba():
     """Generic tileable noise for shaders (clouds, water, dust, terrain variation)."""
     n = 512
@@ -327,6 +442,11 @@ def noise_rgba():
 
 
 if __name__ == "__main__":
-    for fn in (grime, panels, fabric, quilt, ribbed, tiles, concrete, wood_siding, wood_floor, brushed, rust, grate,
+    only = [a for a in sys.argv[1:]]
+    if only:
+        for nm in only:
+            globals()[nm]()
+        sys.exit(0)
+    for fn in (clapboard, shingles, wood_weathered, grime, panels, fabric, quilt, ribbed, tiles, concrete, wood_siding, wood_floor, brushed, rust, grate,
                hexmesh, nets, terrain, noise_rgba):
         fn()

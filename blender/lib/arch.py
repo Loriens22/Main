@@ -197,6 +197,108 @@ def gable_wall(name, xa, xb, y, z_eave, z_ridge, thick, m, parts=None, inner=Fal
     return o
 
 
+# ------------------------------------------------------------------------------------------- lapped courses
+def lap_surface(name, O, U, Vd, N, v0, v1, intervals, e, butt, m, top=0.003, grid0=0.0, uv=None, min_w=0.02):
+    """Real 3D lapped courses (clapboard siding, shingle roofing) on a planar surface.
+    Surface point p(s, v, t) = O + U*s + Vd*v + N*t, with U along the courses, Vd up the surface, N outward.
+    Courses sit on a global grid (v = grid0 + k*e) clipped to [v0, v1]; each course is a tilted strip whose bottom
+    (butt) edge stands `butt` proud and whose top edge is `top` proud, so every course casts a real shadow line.
+    intervals(v) -> [(s0, s1), ...] gives the covered spans at height v (gables, openings, roof lines); spans are
+    evaluated at both edges of a course so raked ends follow sloped edges exactly.
+    uv=(Tu, Tv) writes explicit UVs (u = s/Tu, v = v/Tv) for course-aligned textures; None leaves UVs to uv_box."""
+    import bmesh as _bm
+    O, U, Vd, N = V(O), V(U).normalized(), V(Vd).normalized(), V(N).normalized()
+    bm = _bm.new()
+    uvl = bm.loops.layers.uv.new("UVMap") if uv else None
+
+    def P(s_, v_, t_):
+        return O + U * s_ + Vd * v_ + N * t_
+
+    def face(pts, want, st):
+        vs = [bm.verts.new(p) for p in pts]
+        f = bm.faces.new(vs)
+        f.normal_update()
+        if f.normal.dot(want) < 0:
+            f.normal_flip()
+            st = list(reversed(st))
+        if uvl is not None:
+            for lp, (s_, v_) in zip(f.loops, st):
+                lp[uvl].uv = (s_ / uv[0], v_ / uv[1])
+        return f
+
+    k = math.floor((v0 - grid0) / e + 1e-6)
+    while True:
+        cb = max(v0, grid0 + k * e)
+        ct = min(v1, grid0 + (k + 1) * e)
+        k += 1
+        if cb >= v1 - 1e-6:
+            break
+        if ct - cb < 0.008:
+            continue
+        Ib = intervals(cb + 1e-4)
+        It = intervals(ct - 1e-4)
+        if len(Ib) != len(It):
+            Ib = It = intervals((cb + ct) / 2)
+        for (sb0, sb1), (st0, st1) in zip(Ib, It):
+            if sb1 - sb0 < min_w and st1 - st0 < min_w:
+                continue
+            if st1 < st0:
+                st0 = st1 = (st0 + st1) / 2
+            tb = butt
+            tt = top
+            A, B, C, D = P(sb0, cb, tb), P(sb1, cb, tb), P(st1, ct, tt), P(st0, ct, tt)
+            A0, B0, C0, D0 = P(sb0, cb, 0), P(sb1, cb, 0), P(st1, ct, 0), P(st0, ct, 0)
+            if (C - D).length > 1e-4:
+                face([A, B, C, D], N, [(sb0, cb), (sb1, cb), (st1, ct), (st0, ct)])
+            else:
+                face([A, B, C], N, [(sb0, cb), (sb1, cb), (st1, ct)])
+            face([A0, B0, B, A], -Vd, [(sb0, cb - 0.01), (sb1, cb - 0.01), (sb1, cb), (sb0, cb)])
+            if (D - D0).length > 1e-4:
+                face([A0, A, D, D0], -U, [(sb0, cb - 0.01), (sb0, cb), (st0, ct), (st0, ct - 0.01)])
+                face([B0, B, C, C0], U, [(sb1, cb - 0.01), (sb1, cb), (st1, ct), (st1, ct - 0.01)])
+    return kit.from_bmesh(name, bm, (m,))
+
+
+def span_cut(spans, a, b):
+    """Remove [a, b] from a list of (s0, s1) spans."""
+    out = []
+    for (s0, s1) in spans:
+        if b <= s0 or a >= s1:
+            out.append((s0, s1))
+            continue
+        if a > s0:
+            out.append((s0, a))
+        if b < s1:
+            out.append((b, s1))
+    return out
+
+
+def clapboard_wall(name, a, b, z0, z1, cuts=(), parts=None, e=0.115, butt=0.024, gable=None, extra=None, m="clapboard", s_pad=(0.0, 0.0)):
+    """Lap siding on the outside of a wall whose outer face runs from plan point a to b (outside = right-hand side,
+    i.e. CCW building footprints). cuts: (centre_along, width, z_bottom, z_top) holes (window/door casings).
+    gable=(z_eave, z_ridge, inset) makes a triangular gable field. extra(z, spans) may further trim spans."""
+    d, L = _dir(a, b)
+    Nn = V((d.y, -d.x, 0))
+
+    def intervals(z):
+        if gable:
+            ze, zr, inset = gable
+            hw = max(0.0, (L / 2) * (zr - z) / (zr - ze) - inset)
+            sp = [(max(s_pad[0], L / 2 - hw), min(L - s_pad[1], L / 2 + hw))] if hw > 0.01 else []
+        else:
+            sp = [(s_pad[0], L - s_pad[1])]
+        for (c, w, zb, zt) in cuts:
+            if zb <= z <= zt:
+                sp = span_cut(sp, c - w / 2, c + w / 2)
+        if extra:
+            sp = extra(z, sp)
+        return sp
+    o = lap_surface(name, (a[0], a[1], 0), (d.x, d.y, 0), (0, 0, 1), Nn, z0, z1, intervals, e, butt, m)
+    if parts is not None:
+        parts.append(o)
+    return o
+
+
 # ------------------------------------------------------------------------------------------- furniture
 def table(name, loc, w=1.6, d=0.9, h=0.76, m="wood_dark", rot=0.0, parts=None):
     x, y, z = loc

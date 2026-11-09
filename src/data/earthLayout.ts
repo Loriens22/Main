@@ -92,6 +92,8 @@ export const FIELDS: FieldDef[] = [
   { id: 5, rect: [740, -1400, 1975, 226], rowDir: 'z', crop: 'corn' },
   { id: 6, rect: [2035, -1300, 3100, 222], rowDir: 'z', crop: 'corn' },
   { id: 7, rect: [-1600, -1200, -680, 226], rowDir: 'x', crop: 'corn' },
+  // small field right up against the farmyard south-west of the house (reference image 2 viewpoint)
+  { id: 8, rect: [-52, 30, -8, 230], rowDir: 'z', crop: 'corn' },
 ];
 
 /** Neighbouring farmsteads (house positions); generic farm buildings placed around them. */

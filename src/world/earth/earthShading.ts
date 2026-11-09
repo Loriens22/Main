@@ -75,7 +75,10 @@ export function earthShading(gen: EarthGen, mats: MaterialLibrary, harvest: THRE
         col = mix(col, rock * vec3(0.95, 0.92, 0.88), rockW);
         // mountain grass/scrub tint
         col = mix(col, col * vec3(0.55, 0.62, 0.45), alt * (1.0 - rockW) * smoothstep(0.35, 0.65, meso.a + macro.b * 0.4) * 0.85);
-        col = mix(col, gravel * vec3(0.95, 0.88, 0.78), mk.b * smoothstep(0.25, 0.75, micro.g * 0.6 + meso.b * 0.6) * 0.95);
+        // farmyards: compacted pale dust over dirt, a little gravel showing through in wheel-worn patches
+        vec3 yardDust = mix(soil * vec3(1.05, 1.0, 0.93), vec3(0.53, 0.49, 0.43), 0.55) * (0.9 + 0.16 * micro.b);
+        vec3 yardCol = mix(yardDust, gravel * vec3(0.92, 0.86, 0.78), 0.35 * smoothstep(0.55, 0.85, micro.g * 0.6 + meso.b * 0.6));
+        col = mix(col, yardCol, mk.b * 0.97);
         vec3 roadCol = mk.g > 0.75 ? gravel * 0.55 : mk.g > 0.4 ? soil * vec3(1.1, 1.0, 0.9) : gravel * vec3(0.98, 0.9, 0.8);
         col = mix(col, roadCol, mk.r * 0.85);
         // dust accumulation from storms
@@ -85,7 +88,7 @@ export function earthShading(gen: EarthGen, mats: MaterialLibrary, harvest: THRE
         // detail normal (tangent frame aligned to world X)
         vec3 dn;
         if (rockW > 0.5) dn = texture2D(tRockN, uv / 9.0).xyz * 2.0 - 1.0;
-        else if (mk.b + mk.r > 0.5) dn = texture2D(tGravelN, uv / 3.0).xyz * 2.0 - 1.0;
+        else if (mk.r > 0.5) dn = texture2D(tGravelN, uv / 3.0).xyz * 2.0 - 1.0;
         else dn = mix(texture2D(tSoilN, uv / 4.0).xyz, texture2D(tGrassN, uv / 3.5).xyz, g) * 2.0 - 1.0;
         dn.xy *= (1.0 - far) * 0.9;
         vec3 tng = normalize(cross(n, vec3(0.0, 0.0, 1.0)));

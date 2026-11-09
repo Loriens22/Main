@@ -1,0 +1,10 @@
+await game.startCreative(false);
+game.cinematic = null;
+const p = game.player;
+const V = p.pos.constructor;
+p.enterFrame(p.frame, new V(2.2, 0.6, 1.2), 0);
+p.heading.set(-1, 0, 0.55).normalize();
+p.pitch = -0.05;
+game.zone.site?.setGroup?.('living', true);
+const site = game.zone.content?.farm ?? null;
+return p.pos.toArray();
