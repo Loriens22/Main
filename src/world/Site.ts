@@ -51,6 +51,8 @@ export class Site {
   readonly groups = new Map<string, LightGroup>();
   readonly rooms: { name: string; box: THREE.Box3 }[] = [];
   readonly interactables: Interactable[] = [];
+  /** physics colliders created for each collision node (by node name) — used for moving platforms */
+  readonly colliderMap = new Map<string, import('@dimforge/rapier3d-compat').Collider[]>();
   private inv = new THREE.Matrix4();
 
   constructor(readonly game: Game, readonly inst: ModelInstance, readonly opts: SiteOptions) {
@@ -81,7 +83,15 @@ export class Site {
 
   private setup() {
     const { frame, lightPool } = this.opts;
-    if ((this.opts.colliders ?? 'all') !== 'none') frame.physics.addModelColliders(this.inst, this.opts.placement, this.opts.colliders === undefined ? 'all' : (this.opts.colliders as any), { site: this.opts.name });
+    const filter = this.opts.colliders ?? 'all';
+    if (filter !== 'none') {
+      for (const c of this.inst.colliders) {
+        if (filter === 'interior' && c.exterior) continue;
+        if (filter === 'exterior' && !c.exterior) continue;
+        const cols = frame.physics.addColliderDesc(this.inst, c, this.opts.placement, { site: this.opts.name });
+        this.colliderMap.set(c.node.name, cols);
+      }
+    }
     // hide helper volumes
     this.root.traverse((o) => {
       if (o.name.startsWith('ROOM_') || o.name.endsWith('_hit') || o.name.startsWith('COL_')) {

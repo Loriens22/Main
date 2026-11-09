@@ -160,6 +160,8 @@ export class Renderer {
   private height = 1;
   private exposure = 1;
   private lastCamQuat = new THREE.Quaternion();
+  private lastCamPos = new THREE.Vector3(1e9, 0, 0);
+  snapNext = false;
   readonly fx: ScreenFx = { dust: 0, fade: 0, fadeColor: new THREE.Color(0, 0, 0), visor: 0, shake: 0, warp: 0, exposure: 1 };
   readonly pmrem: THREE.PMREMGenerator;
   readonly maxAnisotropy: number;
@@ -266,7 +268,12 @@ export class Renderer {
     }
     // exposure adaptation toward the zone's target
     const target = this.fx.exposure;
-    this.exposure += (target - this.exposure) * Math.min(1, dt * 1.5);
+    // eye adaptation; snaps instantly when the camera teleports (fast travel, spawns)
+    const jumped = camera.position.distanceTo(this.lastCamPos) > 25;
+    this.lastCamPos.copy(camera.position);
+    if (jumped || this.snapNext) this.exposure = target;
+    else this.exposure += (target - this.exposure) * Math.min(1, dt * 1.5);
+    this.snapNext = false;
     this.gl.toneMappingExposure = this.exposure;
 
     const u = this.grade.material.uniforms;

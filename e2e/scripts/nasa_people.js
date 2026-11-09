@@ -1,0 +1,10 @@
+await game.startCreative(false);
+game.cinematic = null;
+game.zone.content.spawnAt('nasa_mc');
+const p = game.player;
+const n = game.zone.content.nasa;
+p.pos.set(n.origin.x - 30, n.origin.y + 1.8, n.origin.z - 86);
+p.noclip = true;
+p.heading.set(-1, 0, 0.25).normalize(); p.pitch = -0.1;
+game.renderer.snapNext = true;
+return { npcs: game.zone.content.people.npcs.map(n => n.state.id + ':' + n.pos.toArray().map(v=>Math.round(v)).join(',')) };

@@ -69,12 +69,12 @@ export function earthShading(gen: EarthGen, mats: MaterialLibrary, harvest: THRE
           col = mix(col, fieldCol, mk.a);
         }
         float slope = 1.0 - n.y;
-        float rockW = smoothstep(0.24, 0.46, slope + (meso.r - 0.5) * 0.18);
+        float rockW = smoothstep(0.13, 0.33, slope + (meso.r - 0.5) * 0.22 + (micro.g - 0.5) * 0.08);
         float alt = smoothstep(60.0, 220.0, p.y + (macro.g - 0.5) * 80.0);
         rockW = max(rockW, alt * smoothstep(0.08, 0.2, slope) * 0.85);
         col = mix(col, rock * vec3(0.95, 0.92, 0.88), rockW);
         // mountain grass/scrub tint
-        col = mix(col, col * vec3(0.82, 0.9, 0.78), alt * (1.0 - rockW) * 0.5);
+        col = mix(col, col * vec3(0.55, 0.62, 0.45), alt * (1.0 - rockW) * smoothstep(0.35, 0.65, meso.a + macro.b * 0.4) * 0.85);
         col = mix(col, gravel * vec3(0.95, 0.88, 0.78), mk.b * smoothstep(0.25, 0.75, micro.g * 0.6 + meso.b * 0.6) * 0.95);
         vec3 roadCol = mk.g > 0.75 ? gravel * 0.55 : mk.g > 0.4 ? soil * vec3(1.1, 1.0, 0.9) : gravel * vec3(0.98, 0.9, 0.8);
         col = mix(col, roadCol, mk.r * 0.85);

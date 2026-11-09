@@ -72,7 +72,7 @@ export const NASA = {
   /** portal: centre of the blast-door opening at road level; tunnel runs north (−Z) */
   portal: { x: 2900, z: -3150, level: 0 }, // level filled from terrain at runtime
   /** silo centre (vertical axis) inside the mountain */
-  silo: { x: 2900, z: -3470 },
+  silo: { x: 2900, z: -3350 },
   parking: [[2875, -3090], [2885, -3092], [2915, -3092], [2925, -3090]] as [number, number][],
 };
 

@@ -69,9 +69,15 @@ export class EarthGen {
       const ridge = n.ridged(wx / 2600 + 11, wz / 2600 - 7, 4, 2.0, 0.45);
       const soft = 0.5 + 0.5 * n.fbm(wx / 1700, wz / 1700, 4);
       const bulk = 60 + 330 * (0.55 * soft + 0.45 * ridge * ridge) * (0.45 + 0.55 * smoothstep(300, 3500, d));
-      const face = smoothstep(-30, 220, d); // foothill rise right behind the portal
-      h += m * bulk + face * 55;
-      h += m * 10 * n.fbm(x / 160, z / 160, 3);
+      const face = smoothstep(-20, 170, d); // steep front-range escarpment
+      h += m * bulk + face * (95 + 40 * n.fbm(x / 420 + 2.3, z / 420 - 1.1, 3));
+      h += face * 22 * n.ridged(x / 110 + 5.1, z / 110 - 3.3, 4, 2.1, 0.5) + m * 10 * n.fbm(x / 160, z / 160, 3);
+    }
+    // steep hillside behind the facility portal so the tunnel and halls are deep under rock
+    const lx = x - NASA.portal.x, ly = -(z - NASA.portal.z);
+    if (ly > -2 && Math.abs(lx) < 90) {
+      const hill = smoothstep(-1, 10, ly) * 30 * (1 - smoothstep(30, 90, Math.abs(lx)));
+      h += hill * (1 - smoothstep(120, 260, ly));
     }
     // distant ranges on the horizon (west/south/east), beyond ~16 km: low, hazy, rounded (image 1)
     const cx = 1450, cz = -1450;
@@ -86,11 +92,12 @@ export class EarthGen {
     const T = EARTH_TERRAIN;
     // ---- sites flattened into the terrain
     this.portalLevel = this.baseHeight(NASA.portal.x, NASA.portal.z + 30);
-    this.siloTop = this.portalLevel + 128;
+    // the silo shaft runs from 35 m below the portal up to the natural terrain (at least 60 m above the portal)
+    this.siloTop = Math.max(this.baseHeight(NASA.silo.x, NASA.silo.z), this.portalLevel + 60);
     this.flats.push(
       { x: 0, z: 0, r: 0, rect: [62, 46], feather: 30, yard: 0.7 }, // farm yard
       { x: -30, z: -30, r: 0, rect: [22, 18], feather: 12, yard: 0.8 }, // barn pad
-      { x: NASA.portal.x, z: NASA.portal.z + 45, r: 0, rect: [55, 60], feather: 25, h: this.portalLevel, yard: 0.7 }, // forecourt
+      { x: NASA.portal.x, z: NASA.portal.z + 36, r: 0, rect: [32, 37], feather: 12, h: this.portalLevel, yard: 0.0 }, // forecourt (quarried cut)
       { x: NASA.gate.pos[0], z: NASA.gate.pos[2], r: 18, feather: 20, yard: 0.5 },
       { x: NASA.silo.x, z: NASA.silo.z, r: 34, feather: 40, h: this.siloTop, yard: 0.0 },
     );

@@ -116,7 +116,7 @@ export class EarthContent {
       p.enterFrame(g, s, FARM_SPAWN.yaw);
       return true;
     }
-    if (at === 'nasa' || at === 'nasa_gate') {
+    if (at.startsWith('nasa')) {
       const nasa = (this as any).nasa;
       if (nasa?.spawn(at)) return true;
       const pos = new THREE.Vector3(NASA.portal.x, 0, NASA.portal.z + 40);
@@ -152,7 +152,7 @@ export class EarthContent {
 
   interiorExposure(): number {
     if (!this.indoorRoom) return 1;
-    return this.indoorRoom.startsWith('nasa') ? 0.35 : 0.55;
+    return this.indoorRoom.startsWith('nasa') ? 0.6 : 0.6;
   }
 
   musicMood(): MusicMood {
