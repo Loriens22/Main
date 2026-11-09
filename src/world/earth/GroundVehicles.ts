@@ -60,6 +60,8 @@ export class GroundVehicle implements Controllable {
   readonly heading = new THREE.Vector3(0, 0, -1);
   lights = false;
   headlights: THREE.SpotLight[] = [];
+  /** lens meshes that glow with the lights (userData.lamp = 'head' | 'tail') */
+  lampMats: { kind: string; mat: THREE.MeshStandardMaterial }[] = [];
   blockedT = 0;
   tankFill = 0;
   wearReported = false;
@@ -107,6 +109,14 @@ export class GroundVehicle implements Controllable {
       sl.target = t;
       this.headlights.push(sl);
     }
+    this.root.traverse((o) => {
+      const mesh = o as THREE.Mesh;
+      const kind = (o.userData.lamp ?? o.parent?.userData.lamp) as string | undefined;
+      if (!mesh.isMesh || !kind) return;
+      const mat = (mesh.material as THREE.MeshStandardMaterial).clone();
+      mesh.material = mat;
+      this.lampMats.push({ kind, mat });
+    });
     const ai = (state.data.task as Task | undefined) ?? null;
     const fix = (t: Task) => {
       if (t.path) t.cum = cumulative(t.path);
@@ -213,6 +223,10 @@ export class GroundVehicle implements Controllable {
     this.lights = on;
     this.state.lights = on;
     for (const l of this.headlights) l.intensity = on ? 60 : 0;
+    for (const { kind, mat } of this.lampMats) {
+      mat.emissive.set(kind === 'tail' ? 0xff1a08 : 0xfff2dc);
+      mat.emissiveIntensity = on ? (kind === 'tail' ? 2.5 : 6) : 0;
+    }
   }
 
   camera(cam: THREE.PerspectiveCamera, dt: number) {
@@ -338,7 +352,7 @@ export class GroundVehicle implements Controllable {
     this.doorT = THREE.MathUtils.damp(this.doorT, doorOpen ? 1 : 0, 6, dt);
     this.doors.forEach((d, i) => {
       const side = d.userData.side ?? (i === 0 ? -1 : 1);
-      d.quaternion.copy(this.doorBase[i]).multiply(tmpQ.setFromAxisAngle(UP, -side * 1.1 * this.doorT));
+      d.quaternion.copy(this.doorBase[i]).multiply(tmpQ.setFromAxisAngle(UP, side * 1.1 * this.doorT)); // leaf runs aft from a front hinge: +side swings it outward
     });
     // fuel & wear
     const moved = this.root.position.distanceTo(this.lastPos);

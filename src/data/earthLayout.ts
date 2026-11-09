@@ -12,7 +12,8 @@ function yawQuat(a: number): Quat {
 export const FARM_SPAWN = { pos: [-4, 0, 26] as Vec3, yaw: 0.15 };
 
 export const FARM_VEHICLE_SPOTS: Record<string, { pos: Vec3; quat: Quat }> = {
-  pickup: { pos: [11, 0, 12], quat: yawQuat(-Math.PI / 2 + 0.2) },
+  // parked nose-out at the east end of the porch (reference image 2)
+  pickup: { pos: [4.8, 0, 10.4], quat: yawQuat(Math.PI - 0.3) },
   tractor1: { pos: [-22, 0, 19], quat: yawQuat(0.05) },
   tractor2: { pos: [-9.5, 0, 21], quat: yawQuat(-0.08) },
   combine1: { pos: [26, 0, 20], quat: yawQuat(0.0) },
