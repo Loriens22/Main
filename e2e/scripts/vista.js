@@ -1,0 +1,10 @@
+await game.startCreative(false);
+game.cinematic = null;
+const p = game.player;
+const V = p.pos.constructor;
+p.enterFrame(p.frame, new V(120, game.zone.height(120, 70) + 0.05, 70), 0);
+p.heading.set(-0.85, 0, -0.55).normalize();
+p.pitch = 0.0;
+p.noclip = true;
+p.pos.y += 1.4;
+return p.pos.toArray();

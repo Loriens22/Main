@@ -1,0 +1,10 @@
+await game.startCreative(false);
+game.cinematic = null;
+const vs = game.zone.content.vehicles;
+const pk = vs.list.find(v => v.id === 'pickup');
+pk.enter();
+pk.cycleCamera();
+game.input.virtMove.set(0.15, 1);
+game.step(90, 1/30);
+game.input.virtMove.set(0, 0);
+return { pos: pk.root.position.toArray().map(v => +v.toFixed(1)), speed: +pk.speed.toFixed(2), rem: Math.round(pk.remainingRoute()), tasks: vs.list.map(v => v.id + ':' + v.task.label) };

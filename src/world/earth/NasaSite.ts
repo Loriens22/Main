@@ -1,0 +1,7 @@
+import type { EarthContent } from './EarthContent';
+// TEMPORARY STUB — replaced by the full implementation
+export class NasaSite {
+  constructor(readonly content: EarthContent) {}
+  async load() {}
+  update(_dt: number, _dtEarth: number) {}
+}
