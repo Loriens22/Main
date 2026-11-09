@@ -36,6 +36,8 @@ export class EarthGen {
   readonly flats: Flat[] = [];
   field!: HeightField;
   mask!: THREE.DataTexture; // RGBA8 over the near map
+  /** conifer forest density (0..255) over the northern part of the near map, 8 m texels */
+  forest!: { data: Uint8Array; w: number; h: number; x0: number; z0: number; cell: number; tex: THREE.DataTexture };
   maskRes = 2048;
   portalLevel = 0;
   siloTop = 0;
@@ -141,6 +143,81 @@ export class EarthGen {
     this.field = new HeightField(near, far, 400);
     progress?.(0.7, 'surface masks');
     this.buildMask(near);
+    progress?.(0.85, 'forest');
+    this.buildForest(near);
+  }
+
+  /** Forest density 0..1 (bilinear) — 0 outside the baked region. */
+  forestDensity(x: number, z: number): number {
+    const f = this.forest;
+    const fx = (x - f.x0) / f.cell - 0.5, fz = (z - f.z0) / f.cell - 0.5;
+    const i = Math.floor(fx), j = Math.floor(fz);
+    if (i < 0 || j < 0 || i >= f.w - 1 || j >= f.h - 1) return 0;
+    const tx = fx - i, tz = fz - j;
+    const d = f.data, w = f.w;
+    const a = d[j * w + i], b = d[j * w + i + 1], c = d[(j + 1) * w + i], e = d[(j + 1) * w + i + 1];
+    return ((a * (1 - tx) + b * tx) * (1 - tz) + (c * (1 - tx) + e * tx) * tz) / 255;
+  }
+
+  /**
+   * Dense conifer forest: all of the front range plus a foothill belt around the facility so the last kilometres of
+   * the access road run through trees. Meadows and clumps break it up; cliffs, the highest ridges, fields, sites and
+   * road corridors are cleared.
+   */
+  private buildForest(hm: Heightmap) {
+    const T = EARTH_TERRAIN;
+    const w = 1024, h = 512, cell = 8;
+    const x0 = T.center[0] - T.size / 2, z0 = T.center[1] - T.size / 2;
+    const data = new Uint8Array(w * h);
+    for (let j = 0; j < h; j++) {
+      const z = z0 + (j + 0.5) * cell;
+      for (let i = 0; i < w; i++) {
+        const x = x0 + (i + 0.5) * cell;
+        const d = this.frontDist(x, z);
+        if (d < -2000) continue;
+        const along = (x - this.frontP.x) * -this.frontN.y + (z - this.frontP.y) * this.frontN.x;
+        const mtn = smoothstep(-60, 120, d);
+        const belt = (1 - smoothstep(700, 1900, -d)) * (1 - smoothstep(1800, 4200, Math.abs(along)));
+        let v = Math.max(mtn, belt);
+        if (v <= 0.001) continue;
+        v *= smoothstep(-0.58, -0.36, this.n2.fbm(x / 420 + 7.7, z / 420 - 3.1, 3)); // meadows
+        v *= 0.86 + 0.14 * smoothstep(-0.1, 0.35, this.noise.fbm(x / 140 - 2.2, z / 140 + 5.5, 2)); // clumps
+        if (mtn < 1) {
+          const edge = smoothstep(-0.25, 0.15, this.n2.fbm(x / 260 - 9.1, z / 260 + 1.7, 3) + (belt - 0.5) * 0.8);
+          v *= mtn + (1 - mtn) * edge; // ragged forest edge on the plains
+        }
+        const hh = hm.sample(x, z);
+        const gx = hm.sample(x + 6, z) - hm.sample(x - 6, z), gz = hm.sample(x, z + 6) - hm.sample(x, z - 6);
+        const slope = Math.hypot(gx, gz) / 12;
+        v *= 1 - smoothstep(1.1, 1.6, slope); // bare cliffs
+        v *= 1 - smoothstep(470, 600, hh - this.portalLevel); // thin out on the highest ridges
+        data[j * w + i] = Math.round(Math.min(1, v) * 255);
+      }
+    }
+    const clearRect = (cx: number, cz: number, hx: number, hz: number, feather: number) => {
+      const i0 = Math.max(0, Math.floor((cx - hx - feather - x0) / cell)), i1 = Math.min(w - 1, Math.ceil((cx + hx + feather - x0) / cell));
+      const j0 = Math.max(0, Math.floor((cz - hz - feather - z0) / cell)), j1 = Math.min(h - 1, Math.ceil((cz + hz + feather - z0) / cell));
+      for (let j = j0; j <= j1; j++) for (let i = i0; i <= i1; i++) {
+        const x = x0 + (i + 0.5) * cell, z = z0 + (j + 0.5) * cell;
+        const dx = Math.max(0, Math.abs(x - cx) - hx), dz = Math.max(0, Math.abs(z - cz) - hz);
+        const k = smoothstep(0, feather, Math.hypot(dx, dz));
+        data[j * w + i] = Math.round(data[j * w + i] * k);
+      }
+    };
+    for (const f of FIELDS) clearRect((f.rect[0] + f.rect[2]) / 2, (f.rect[1] + f.rect[3]) / 2, (f.rect[2] - f.rect[0]) / 2 + 10, (f.rect[3] - f.rect[1]) / 2 + 10, 20);
+    for (const f of this.flats) {
+      const hx = f.rect ? f.rect[0] : f.r, hz = f.rect ? f.rect[1] : f.r;
+      clearRect(f.x, f.z, hx + 6, hz + 6, 14);
+    }
+    for (const road of this.roads) {
+      const half = road.width / 2 + 5;
+      for (let k = 0; k < road.pts.length; k += 2) clearRect(road.pts[k][0], road.pts[k][1], half, half, 9);
+    }
+    const tex = new THREE.DataTexture(data, w, h, THREE.RedFormat, THREE.UnsignedByteType);
+    tex.minFilter = THREE.LinearFilter;
+    tex.magFilter = THREE.LinearFilter;
+    tex.needsUpdate = true;
+    this.forest = { data, w, h, x0, z0, cell, tex };
   }
 
   private flatHeight(x: number, z: number): number | null {

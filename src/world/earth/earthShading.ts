@@ -26,11 +26,14 @@ export function earthShading(gen: EarthGen, mats: MaterialLibrary, harvest: THRE
       uHarvestRect: { value: harvestRect },
       uDust: { value: 0 },
       uWet: { value: 0 },
+      tForest: { value: gen.forest.tex },
+      uForestRect: { value: new THREE.Vector4(gen.forest.x0, gen.forest.z0, gen.forest.w * gen.forest.cell, gen.forest.h * gen.forest.cell) },
     },
     glsl: /* glsl */ `
       uniform sampler2D tMask; uniform vec4 uMaskRect;
       uniform sampler2D tSoilA, tSoilN, tGrassA, tGrassN, tRockA, tRockN, tGravelA, tGravelN, tNoise, tCanopy, tHarvest;
       uniform vec4 uHarvestRect; uniform float uDust, uWet;
+      uniform sampler2D tForest; uniform vec4 uForestRect;
       vec3 sampleDual(sampler2D t, vec2 uv, float s1, float s2, float k) {
         return mix(texture2D(t, uv / s1).rgb, texture2D(t, uv / s2 + 0.37).rgb, k);
       }
@@ -73,6 +76,16 @@ export function earthShading(gen: EarthGen, mats: MaterialLibrary, harvest: THRE
         float alt = smoothstep(60.0, 220.0, p.y + (macro.g - 0.5) * 80.0);
         rockW = max(rockW, alt * smoothstep(0.08, 0.2, slope) * 0.85);
         col = mix(col, rock * vec3(0.95, 0.92, 0.88), rockW);
+        // conifer forest: needle litter and moss under the trees; dark canopy colour far away where trees thin out
+        vec2 fuv = (p.xz - uForestRect.xy) / uForestRect.zw;
+        float fd = (fuv.x > 0.0 && fuv.y > 0.0 && fuv.x < 1.0 && fuv.y < 1.0) ? texture2D(tForest, fuv).r : 0.0;
+        if (fd > 0.01) {
+          vec3 litter = mix(soil * vec3(0.32, 0.27, 0.2), vec3(0.075, 0.066, 0.042), 0.7) * (0.75 + 0.45 * micro.r);
+          litter = mix(litter, vec3(0.085, 0.115, 0.055), 0.4 * smoothstep(0.4, 0.8, meso.g));
+          col = mix(col, litter, smoothstep(0.1, 0.5, fd) * (1.0 - rockW * 0.6));
+          float canopy = smoothstep(0.2, 0.7, fd) * smoothstep(500.0, 2200.0, dist);
+          col = mix(col, vec3(0.04, 0.06, 0.04) * (0.8 + 0.4 * macro.g), canopy * 0.9);
+        }
         // mountain grass/scrub tint
         col = mix(col, col * vec3(0.55, 0.62, 0.45), alt * (1.0 - rockW) * smoothstep(0.35, 0.65, meso.a + macro.b * 0.4) * 0.85);
         // farmyards: compacted pale dust over dirt, a little gravel showing through in wheel-worn patches

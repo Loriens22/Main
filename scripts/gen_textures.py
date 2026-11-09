@@ -434,6 +434,113 @@ def wood_weathered():
     save_rgb("wood_weathered_n.jpg", height_to_normal(grain * 0.4 + fine * 0.25 - knots * 0.3, 2.5))
 
 
+def _branch_card(name, seed, kind):
+    """Needle sprig on transparent background for branch cards. U runs from the trunk (left) to the tip (right),
+    V across the branch. Drawn at 2x and downsampled for anti-aliasing."""
+    W, H, S = 512, 256, 2
+    r = np.random.default_rng(seed)
+    img = Image.new("RGBA", (W * S, H * S), (0, 0, 0, 0))
+    d = ImageDraw.Draw(img)
+    cy = H * S / 2
+
+    def needle_col(dark=False):
+        if kind == "pine":
+            g = r.uniform(0.24, 0.36); return (int(255 * g * 0.6), int(255 * g), int(255 * g * 0.42), 255)
+        g = r.uniform(0.17, 0.30) * (0.7 if dark else 1.0)
+        return (int(255 * g * 0.55), int(255 * g), int(255 * g * 0.62), 255)
+
+    def stem_pts(x0, y0, ang, L, curv):
+        pts = []
+        n = max(4, int(L / 6))
+        for i in range(n + 1):
+            t = i / n
+            a = ang + curv * t
+            if i == 0:
+                pts.append((x0, y0)); continue
+            px, py = pts[-1]
+            pts.append((px + math.cos(a) * L / n, py + math.sin(a) * L / n))
+        return pts
+
+    def needles_along(pts, nl, spread, step, width, dark=False):
+        for i in range(1, len(pts)):
+            (ax, ay), (bx, by) = pts[i - 1], pts[i]
+            seg = math.hypot(bx - ax, by - ay)
+            ang = math.atan2(by - ay, bx - ax)
+            k = 0.0
+            while k < seg:
+                px, py = ax + (bx - ax) * k / seg, ay + (by - ay) * k / seg
+                for side in (-1, 1):
+                    a = ang + side * spread * r.uniform(0.75, 1.15)
+                    L = nl * r.uniform(0.7, 1.15)
+                    d.line([(px, py), (px + math.cos(a) * L, py + math.sin(a) * L)], fill=needle_col(dark), width=width)
+                k += step * r.uniform(0.7, 1.3)
+
+    main = stem_pts(6, cy, r.uniform(-0.05, 0.05), W * S * 0.96, r.uniform(-0.1, 0.1))
+    shoots = []
+    x = 30 * S
+    side = 1
+    while x < W * S * 0.9:
+        t = x / (W * S)
+        idx = min(len(main) - 1, int(t * (len(main) - 1)))
+        bx, by = main[idx]
+        L = (1 - t) * H * S * 0.42 + 18 * S
+        shoots.append(stem_pts(bx, by, side * r.uniform(0.6, 0.95), L, -side * r.uniform(0.1, 0.4)))
+        x += r.uniform(22, 34) * S * (1 - 0.4 * t)
+        side = -side
+    if kind == "pine":
+        # long needles in tufts at the ends of the shoots, bare-ish twigs
+        for pts in [main] + shoots:
+            d.line(pts, fill=(78, 56, 40, 255), width=3 * S)
+        for pts in shoots + [main]:
+            for j in range(int(len(pts) * 0.5), len(pts), 2):
+                px, py = pts[j]
+                for q in range(6):
+                    a = r.uniform(0, 2 * math.pi)
+                    L = r.uniform(16, 30) * S
+                    d.line([(px, py), (px + math.cos(a) * L, py + math.sin(a) * L * 0.8)], fill=needle_col(), width=2 * S)
+    else:
+        for pts in shoots + [main]:      # dark under-layer for volume
+            needles_along(pts, 11 * S, 1.0, 3 * S, 4 * S, dark=True)
+        for pts in [main] + shoots:
+            d.line(pts, fill=(70, 52, 38, 255), width=3 * S)
+        for pts in shoots + [main]:
+            needles_along(pts, 10 * S, 0.9, 2.2 * S, 2 * S)
+    img = img.resize((W, H), Image.LANCZOS)
+    # bleed colour into transparent texels so mipmaps don't darken edges
+    a = np.asarray(img, dtype=np.float32) / 255
+    rgb = a[..., :3]
+    al = a[..., 3:4]
+    blur = np.asarray(Image.fromarray((rgb * al * 255).astype(np.uint8)).filter(ImageFilter.GaussianBlur(6)), dtype=np.float32) / 255
+    wb = np.asarray(Image.fromarray((al[..., 0] * 255).astype(np.uint8)).filter(ImageFilter.GaussianBlur(6)), dtype=np.float32)[..., None] / 255
+    fill = blur / np.maximum(wb, 1e-3)
+    out = np.concatenate([rgb * al + fill * (1 - al), al], -1)
+    save_rgba(name, out)
+
+
+def trees():
+    _branch_card("conifer_branch_rgba.png", 1401, "spruce")
+    _branch_card("pine_branch_rgba.png", 1402, "pine")
+    # spruce/fir bark: vertical scaly plates (tile 1 m x 2 m)
+    n = 512
+    x = np.arange(n)
+    furrow = spectral(n, 1.6, 1403, lo=3)
+    furrow = norm01(np.repeat(furrow[::64, :], 64, axis=0) * 0.7 + spectral(n, 1.2, 1404, lo=10) * 0.3)
+    plates = spectral(n, 1.0, 1405, lo=16)
+    h = furrow * 0.7 + plates * 0.3
+    col = np.array([0.33, 0.27, 0.22])[None, None] * (0.55 + h[..., None] * 0.6)
+    save_rgb("bark_a.jpg", col)
+    save_rgb("bark_n.jpg", height_to_normal(h, 4.0))
+    # ponderosa bark: orange-brown puzzle plates with dark crevices
+    cr = spectral(n, 1.4, 1406, lo=6)
+    cells = np.abs(np.sin(cr * 18.0))
+    crev = (cells < 0.18).astype(np.float32)
+    crev = np.asarray(Image.fromarray((crev * 255).astype(np.uint8)).filter(ImageFilter.GaussianBlur(1.5)), dtype=np.float32) / 255
+    base = np.array([0.46, 0.33, 0.25])[None, None] * (0.8 + spectral(n, 1.6, 1407, lo=4)[..., None] * 0.35)
+    col = base * (1 - crev[..., None] * 0.75)
+    save_rgb("bark_pine_a.jpg", col)
+    save_rgb("bark_pine_n.jpg", height_to_normal(1 - crev + plates * 0.2, 4.0))
+
+
 def noise_rgba():
     """Generic tileable noise for shaders (clouds, water, dust, terrain variation)."""
     n = 512
@@ -447,6 +554,6 @@ if __name__ == "__main__":
         for nm in only:
             globals()[nm]()
         sys.exit(0)
-    for fn in (clapboard, shingles, wood_weathered, grime, panels, fabric, quilt, ribbed, tiles, concrete, wood_siding, wood_floor, brushed, rust, grate,
+    for fn in (clapboard, shingles, wood_weathered, trees, grime, panels, fabric, quilt, ribbed, tiles, concrete, wood_siding, wood_floor, brushed, rust, grate,
                hexmesh, nets, terrain, noise_rgba):
         fn()

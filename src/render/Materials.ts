@@ -135,6 +135,12 @@ const RECIPES: Record<string, Recipe> = {
   plate_white: { color: C(0.78, 0.78, 0.74), rough: 0.4, weather: { grime: 0.6, streak: 0.4 } },
   plastic_gray: { color: C(0.22, 0.22, 0.23), rough: 0.5, weather: { grime: 0.4 } },
   chrome_dull: { color: C(0.72, 0.72, 0.71), rough: 0.32, metal: 1, weather: { grime: 0.55, grimeTint: new THREE.Color(0.7, 0.62, 0.5), scratch: 0.25, streak: 0.3 } },
+  needles_spruce: { color: C(0.82, 0.9, 0.86), map: 'conifer_branch_rgba', mapRepeat: 1, alphaTest: 0.42, rough: 0.82, side: THREE.DoubleSide, weather: false },
+  needles_fir: { color: C(0.95, 1.05, 0.92), map: 'conifer_branch_rgba', mapRepeat: 1, alphaTest: 0.42, rough: 0.82, side: THREE.DoubleSide, weather: false },
+  needles_pine: { color: C(0.95, 1.0, 0.9), map: 'pine_branch_rgba', mapRepeat: 1, alphaTest: 0.42, rough: 0.8, side: THREE.DoubleSide, weather: false },
+  bark_spruce: { color: 0xffffff, map: 'bark_a', mapRepeat: 1, rough: 0.95, normal: 'bark_n', normalScale: 1.2, normalRepeat: 1, weather: false },
+  bark_pine: { color: 0xffffff, map: 'bark_pine_a', mapRepeat: 1, rough: 0.93, normal: 'bark_pine_n', normalScale: 1.2, normalRepeat: 1, weather: false },
+  snag_wood: { color: C(1.35, 1.35, 1.35), map: 'bark_a', mapRepeat: 1, rough: 0.95, normal: 'bark_n', normalScale: 1.0, normalRepeat: 1, weather: false },
   wood_siding: { color: 0xffffff, map: 'wood_siding_a', mapRepeat: 0.62, rough: 0.86, normal: 'wood_siding_n', normalScale: 1.0, normalRepeat: 0.62, weather: { grime: 0.18, grimeScale: 0.12, streak: 0.22, scratch: 0 } },
   wood_trim: { color: C(0.78, 0.77, 0.72), rough: 0.8, normal: 'fabric_n', normalScale: 0.2, normalRepeat: 1, weather: { grime: 0.5, streak: 0.4, scratch: 0 } },
   wood_floor: { color: 0xffffff, map: 'wood_floor_a', mapRepeat: 0.4, rough: 0.55, normal: 'wood_floor_n', normalScale: 0.6, normalRepeat: 0.4, weather: { grime: 0.25, scratch: 0.2 } },
@@ -202,7 +208,7 @@ export class MaterialLibrary {
       t.repeat.set(repeat, repeat);
       t.needsUpdate = true;
     } else {
-      const ext = name === 'grate' || name === 'net' || name === 'noise' ? 'png' : 'jpg';
+      const ext = name === 'grate' || name === 'net' || name === 'noise' || name.endsWith('_rgba') ? 'png' : 'jpg';
       t = this.loader.load(TEX_BASE + name + '.' + ext);
       t.wrapS = t.wrapT = THREE.RepeatWrapping;
       t.colorSpace = srgb ? THREE.SRGBColorSpace : THREE.NoColorSpace;
@@ -242,7 +248,7 @@ export class MaterialLibrary {
     if (r.alphaMap) {
       params.alphaMap = this.tex(r.alphaMap, false, r.mapRepeat ?? 1);
       params.alphaTest = r.alphaTest ?? 0.5;
-    }
+    } else if (r.alphaTest !== undefined) params.alphaTest = r.alphaTest;
     if (r.emissive) {
       params.emissive = new THREE.Color(...r.emissive);
       params.emissiveIntensity = r.emissiveIntensity ?? 1;

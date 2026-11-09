@@ -90,6 +90,7 @@ export class EarthContent {
     // subsystems are loaded lazily so a missing asset never blocks the zone
     const loaders: [string, () => Promise<EarthSubsystem | null>][] = [
       ['corn', async () => new (await import('./Corn')).CornFields(this)],
+      ['forest', async () => { const f = new (await import('./Forest')).Forest(this); await f.load(); (this as any).forest = f; return f; }],
       ['vehicles', async () => { const v = new (await import('./GroundVehicles')).GroundVehicles(this); await v.load(); (this as any).vehicles = v; return v; }],
       ['facility', async () => { const n = new (await import('./NasaSite')).NasaSite(this); await n.load(); (this as any).nasa = n; return n; }],
       ['people', async () => { const n = new (await import('./EarthPeople')).EarthPeople(this); await n.load(); (this as any).people = n; return n; }],
