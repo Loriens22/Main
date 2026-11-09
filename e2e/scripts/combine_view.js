@@ -1,0 +1,12 @@
+await game.startCreative(false);
+game.cinematic = null;
+const vs = game.zone.content.vehicles;
+const c = vs.list.find(v => v.id === 'combine1');
+const cp = c.root.position;
+const p = game.player;
+const V = p.pos.constructor;
+const x = cp.x - 9, z = cp.z + 11;
+p.enterFrame(p.frame, new V(x, game.zone.height(x, z) + 0.05, z), 0);
+p.heading.set(cp.x - x, 0, cp.z - 1.5 - z).normalize();
+p.pitch = 0.08;
+return [cp.x, cp.z];
