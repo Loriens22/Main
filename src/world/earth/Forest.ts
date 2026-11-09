@@ -154,7 +154,12 @@ export class Forest implements EarthSubsystem {
     // normals point up/out so the crossed quads shade evenly like a canopy
     const n = geo.getAttribute('normal') as THREE.BufferAttribute;
     for (let i = 0; i < n.count; i++) n.setXYZ(i, 0, 1, 0);
-    const mat = new THREE.MeshStandardMaterial({ map: tex, alphaTest: 0.45, side: THREE.DoubleSide, roughness: 1, metalness: 0, color: new THREE.Color(0.9, 0.95, 0.9) });
+    const mat = new THREE.MeshStandardMaterial({ map: tex, alphaTest: 0.45, side: THREE.DoubleSide, roughness: 1, metalness: 0, color: new THREE.Color(0.52, 0.56, 0.52) });
+    // both faces keep the shared up/out normal (three.js would flip it for back faces and light them from below)
+    mat.onBeforeCompile = (sh) => {
+      sh.fragmentShader = sh.fragmentShader.replace('#include <normal_fragment_begin>', '#include <normal_fragment_begin>\nnormal = normalize(vNormal);');
+    };
+    mat.customProgramCacheKey = () => 'tree-impostor';
     return { geo, mat };
   }
 

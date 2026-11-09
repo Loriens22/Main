@@ -210,8 +210,8 @@ export class EarthGen {
       clearRect(f.x, f.z, hx + 6, hz + 6, 14);
     }
     for (const road of this.roads) {
-      const half = road.width / 2 + 5;
-      for (let k = 0; k < road.pts.length; k += 2) clearRect(road.pts[k][0], road.pts[k][1], half, half, 9);
+      const half = road.width / 2 + 2.5;
+      for (let k = 0; k < road.pts.length; k += 2) clearRect(road.pts[k][0], road.pts[k][1], half, half, 7);
     }
     const tex = new THREE.DataTexture(data, w, h, THREE.RedFormat, THREE.UnsignedByteType);
     tex.minFilter = THREE.LinearFilter;
