@@ -1,6 +1,6 @@
 import * as THREE from 'three';
 import { SolarSystem, helio } from '../render/SolarSystem';
-import { BODIES } from '../data/bodies';
+import { BODIES, tidallyLocked } from '../data/bodies';
 import { gmst } from './earthFrame';
 import type { V3 } from './kepler';
 
@@ -34,7 +34,7 @@ export function makeSite(body: string, lat: number, lon: number): SurfaceSite {
 export function bodyRot(id: string, t: number): THREE.Matrix3 {
   const def = BODIES[id];
   let lock: THREE.Vector3 | undefined;
-  if (def?.parent && def.parent !== 'sun' && def.circ) {
+  if (def?.parent && tidallyLocked(id)) {
     const s = helio(id, t).r, p = helio(def.parent, t).r;
     lock = new THREE.Vector3(p[0] - s[0], p[1] - s[1], p[2] - s[2]).normalize();
   }

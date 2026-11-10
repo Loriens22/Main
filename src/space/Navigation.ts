@@ -1,4 +1,4 @@
-import { BODIES } from '../data/bodies';
+import { BODIES, systemCentre } from '../data/bodies';
 import { bodyState } from './ephemeris';
 import { lambert, propagate, norm, sub, type V3 } from './kepler';
 import { eclToThree } from '../render/SolarSystem';
@@ -31,10 +31,16 @@ export interface TransferPlan {
   r0: V3 | null;
   v0: V3 | null;
   local: boolean;
+  /** gravitational parameter of the cruise arc's central body (Sun or Gargantua) */
+  mu?: number;
 }
 
 /** Destinations offered by the navigation computer. */
 export const DESTINATIONS = ['mercury', 'venus', 'earth', 'moon', 'mars', 'phobos', 'jupiter', 'io', 'europa', 'ganymede', 'callisto', 'saturn', 'enceladus', 'titan', 'wormhole', 'uranus', 'titania', 'neptune', 'triton'];
+export const GARG_DESTINATIONS = ['wormhole_g', 'miller', 'mann', 'edmunds'];
+export function destinations(system: string) {
+  return system === 'gargantua' ? GARG_DESTINATIONS : DESTINATIONS;
+}
 
 /** Parking-orbit radius around a body (m): low for small worlds, outside rings/radiation-heavy zones for giants. */
 export function parkRadius(id: string) {
@@ -52,6 +58,9 @@ export function parkRadius(id: string) {
     case 'neptune': return b.radius * 2.2;
     case 'titan': return b.radius + 1200e3; // above the haze
     case 'phobos': case 'deimos': return b.radius + 8e3;
+    case 'miller': return b.radius + 500e3;
+    case 'mann': return b.radius + 400e3;
+    case 'edmunds': return b.radius + 420e3;
     default: return b.kind === 'moon' ? b.radius + Math.max(120e3, b.radius * 0.15) : b.radius * 1.5;
   }
 }
@@ -61,7 +70,7 @@ export function planetOf(id: string) {
   const b = BODIES[id];
   if (!b) return id;
   if (id === 'wormhole') return 'saturn';
-  return b.parent && b.parent !== 'sun' ? b.parent : id;
+  return b.parent && b.parent !== 'sun' && b.parent !== 'gargantua' ? b.parent : id;
 }
 
 function vEsc(mu: number, r: number, vinf: number) {
@@ -99,10 +108,12 @@ export function planTransfer(from: string, to: string, t0: number, profile: 'eff
     return { from, to, profile, tDep: t0 + prep, tArr: t0 + prep + tof, dvDep: legA.dv, dvArr: legB.dv, dv, vinfDep: 0, vinfArr: 0, r0: null, v0: null, local: true };
   }
   const A = BODIES[pa], B = BODIES[pb];
-  const aA = A.el![0] * 1.495978707e11, aB = B.el![0] * 1.495978707e11;
+  if (A.system !== B.system) return null; // the wormhole joins the systems: no conic between them
+  const MU_SUN = BODIES[systemCentre(A.system)].mu;
+  const aA = A.el ? A.el[0] * 1.495978707e11 : A.circ!.r, aB = B.el ? B.el[0] * 1.495978707e11 : B.circ!.r;
   const tH = Math.PI * Math.sqrt(Math.pow((aA + aB) / 2, 3) / MU_SUN);
   const synodic = Math.abs(1 / (1 / Math.sqrt(aA ** 3 / MU_SUN) - 1 / Math.sqrt(aB ** 3 / MU_SUN))) * 2 * Math.PI;
-  const window = profile === 'efficient' ? Math.min(synodic * 1.05, 3 * YEAR) : 45 * DAY;
+  const window = profile === 'efficient' ? Math.min(synodic * 1.05, 3 * YEAR) : A.system === 'gargantua' ? 120 * DAY : 45 * DAY;
   const tofs: number[] = [];
   if (profile === 'efficient') for (let k = 0.55; k <= 1.45; k += 0.05) tofs.push(tH * k);
   else for (let k = 0.12; k <= 1.0; k += 0.02) tofs.push(tH * k);
@@ -127,7 +138,7 @@ export function planTransfer(from: string, to: string, t0: number, profile: 'eff
       const cost = profile === 'efficient' ? dv + ((tDep - t0) / (30 * DAY)) * 40 + (tof / YEAR) * 150 : tof / DAY + (tDep - t0) / DAY + dv / 2000;
       if (cost < bestCost) {
         bestCost = cost;
-        best = { from, to, profile, tDep, tArr: tDep + tof, dvDep, dvArr, dv, vinfDep: vinfA, vinfArr: vinfB, r0: eclToThree(sa.r), v0: eclToThree(sol.v1), local: false };
+        best = { from, to, profile, tDep, tArr: tDep + tof, dvDep, dvArr, dv, vinfDep: vinfA, vinfArr: vinfB, r0: eclToThree(sa.r), v0: eclToThree(sol.v1), local: false, mu: MU_SUN };
       }
     }
   }
@@ -136,7 +147,7 @@ export function planTransfer(from: string, to: string, t0: number, profile: 'eff
 
 /** Heliocentric cruise state (three frame) of a planned transfer at time t. */
 export function cruiseState(plan: TransferPlan, t: number): { r: V3; v: V3 } {
-  return propagate(plan.r0!, plan.v0!, MU_SUN, Math.max(0, Math.min(t, plan.tArr) - plan.tDep));
+  return propagate(plan.r0!, plan.v0!, plan.mu ?? MU_SUN, Math.max(0, Math.min(t, plan.tArr) - plan.tDep));
 }
 
 export function fmtDuration(s: number) {

@@ -487,7 +487,60 @@ def rings():
     print("[planets] saturn rings")
 
 
+# ===================================================================================================== Gargantua system
+def miller():
+    """Shallow global ocean: grey-teal water, long tidal swell crests (white foam lines) circling the sub-Gargantua
+    point, sparse grey cloud. aux: R clouds, G water mask (all ocean), B 0 — rendered in the 'earth' mode for glint."""
+    LAT, LON, P, w, h = grid(1024, 512)
+    X, Y, Z = P
+    n1, n2 = fbm(P, 4.0, 5, 501), fbm(P, 14.0, 4, 503)
+    # angular distance from the sub-Gargantua point (lon 0, lat 0): the tidal bulge is centred there
+    d = np.arccos(np.clip(X, -1, 1))
+    crest = 0.5 + 0.5 * np.sin(d * 46.0 + 3.0 * (n1 - 0.5))
+    foam = smooth(0.93, 0.995, crest) * (0.55 + 0.45 * n2)
+    shallow = smooth(0.45, 0.75, fbm(P, 2.5, 5, 507))
+    rgb = mix(C(0.1, 0.16, 0.2), C(0.2, 0.3, 0.33), shallow * 0.7) * (0.9 + 0.2 * n2[..., None])
+    rgb = mix(rgb, C(0.82, 0.86, 0.88), foam * 0.75)
+    cloud = smooth(0.58, 0.78, fbm(P, 3.5, 6, 509)) * 0.55
+    aux = np.stack([cloud, np.ones_like(cloud) * 0.92, np.zeros_like(cloud)], -1)
+    save("miller", rgb, aux)
+
+
+def mann():
+    """Frozen world: wind-scoured ice sheets, blue crevasse fields, grey moraine bands, frozen cloud banks."""
+    LAT, LON, P, w, h = grid(1024, 512)
+    n1, n2 = fbm(P, 3.0, 6, 521), fbm(P, 16.0, 5, 523)
+    ridges = 1 - np.abs(2 * fbm((P[0] * 1.0, P[1] * 2.5, P[2] * 1.0), 9.0, 4, 525) - 1)
+    crev = smooth(0.82, 0.95, ridges)
+    rgb = mix(C(0.86, 0.88, 0.9), C(0.66, 0.7, 0.75), smooth(0.4, 0.7, n1) * 0.6)
+    rgb = mix(rgb, C(0.45, 0.58, 0.7), crev * 0.55)
+    rgb = mix(rgb, C(0.5, 0.49, 0.48), smooth(0.66, 0.78, fbm(P, 6.0, 4, 527)) * 0.5)
+    rgb *= (0.92 + 0.14 * n2[..., None])
+    Hm = (0.6 * (n1 - 0.5) + 0.25 * ridges).astype(np.float32)
+    save("mann", rgb, height_aux(Hm))
+
+
+def edmunds():
+    """Rocky desert: ochre sand seas, dark basalt plateaus, pale dry lake beds, a faint water-ice cap."""
+    LAT, LON, P, w, h = grid(1024, 512)
+    la = np.degrees(LAT)
+    n1, n2 = fbm(P, 3.0, 6, 541), fbm(P, 18.0, 5, 543)
+    WL, WO = warp(LAT, LON, P, 545, amp_deg=9.0, freq=3.0)
+    rock = smooth(0.52, 0.68, fbm(P, 4.5, 6, 547))
+    lakes = smooth(0.7, 0.8, fbm(P, 7.0, 4, 549)) * (1 - rock)
+    rgb = mix(C(0.72, 0.52, 0.32), C(0.82, 0.64, 0.42), smooth(0.4, 0.65, n1))
+    rgb = mix(rgb, C(0.3, 0.24, 0.2), rock * 0.8)
+    rgb = mix(rgb, C(0.86, 0.82, 0.74), lakes * 0.7)
+    rgb *= (0.9 + 0.2 * n2[..., None])
+    rgb = mix(rgb, C(0.9, 0.9, 0.92), smooth(74, 82, np.abs(la) + 3 * (n1 - 0.5)))
+    A = np.zeros(LAT.shape, np.float32)
+    Hm = (0.5 * rock + 0.3 * (n1 - 0.5) - 0.2 * lakes).astype(np.float32)
+    craters(Hm, A, LAT, LON, 160 if not DRAFT else 40, 0.4, 3.0, 551, depth=0.5, young=0.1, albedo_amp=0.03)
+    save("edmunds", rgb + A[..., None] * 0.5, height_aux(Hm))
+
+
 BUILDERS = {
+    "miller": miller, "mann": mann, "edmunds": edmunds,
     "moon": moon, "mercury": mercury, "venus": venus, "mars": mars, "jupiter": jupiter, "saturn": saturn, "uranus": uranus,
     "neptune": neptune, "io": io, "europa": europa, "ganymede": ganymede, "callisto": callisto, "titan": titan, "rings": rings,
     "enceladus": lambda: icy("enceladus", 401, (0.95, 0.96, 0.97), n=400, rmax=3.0, extra=_enceladus),

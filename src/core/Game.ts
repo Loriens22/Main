@@ -133,11 +133,11 @@ export class Game {
   }
 
   /** Travel to another location (zone swap) with a fade. */
-  async goTo(id: LocationId, spawn: SpawnSpec = {}, opts: { fade?: number; card?: boolean } = {}) {
+  async goTo(id: LocationId, spawn: SpawnSpec = {}, opts: { fade?: number; card?: boolean; color?: THREE.Color; fadeIn?: number } = {}) {
     if (this.zoneLoading) return;
     this.zoneLoading = true;
     const fade = opts.fade ?? 1.0;
-    await this.fadeTo(1, fade);
+    await this.fadeTo(1, fade, opts.color);
     this.setControl(null);
     this.cinematic = null;
     const from = this.zone?.id ?? null;
@@ -156,7 +156,7 @@ export class Game {
     this.ui.hideLoading();
     this.events.emit('zoneChanged', { from, to: id });
     this.zoneLoading = false;
-    await this.fadeTo(0, fade);
+    await this.fadeTo(0, opts.fadeIn ?? fade, opts.color);
     if (opts.card !== false && this.zone) {
       const d = (this.zone as Zone).describe();
       this.ui.locationCard(d.name, d.sub);

@@ -1,7 +1,7 @@
 import * as THREE from 'three';
 import type { MaterialLibrary } from './Materials';
 import { SURFACES } from '../data/landing';
-import { BODIES, AU } from '../data/bodies';
+import { BODIES, AU, tidallyLocked } from '../data/bodies';
 import { bodyState } from '../space/ephemeris';
 import type { V3 } from '../space/kepler';
 
@@ -74,6 +74,10 @@ const LOOKS: Record<string, Look> = {
   titania: { mode: 'rocky', tex: 'planet_titania', aux: true, bump: 1.1 },
   neptune: { mode: 'gas', tex: 'planet_neptune', limb: 0.45, atmo: { km: 1000, ray: [1.2e-4, 2.4e-4, 4.6e-4], mie: 1e-4, hr: 50, hm: 25, tint: [0.7, 0.85, 1], sunI: 7 } },
   triton: { mode: 'rocky', tex: 'planet_triton', aux: true, bump: 0.9 },
+  // Gargantua system (lit by the accretion disk)
+  miller: { mode: 'earth', tex: 'planet_miller', aux: true, atmo: { km: 110, ray: [3.6e-3, 5.4e-3, 8.4e-3], mie: 3.5e-3, hr: 8, hm: 2, tint: [0.92, 0.94, 0.96], sunI: 9 } },
+  mann: { mode: 'rocky', tex: 'planet_mann', aux: true, bump: 0.7, atmo: { km: 80, ray: [2.6e-3, 3.4e-3, 5.0e-3], mie: 4.5e-3, hr: 9, hm: 3, tint: [0.96, 0.98, 1], sunI: 8 } },
+  edmunds: { mode: 'rocky', tex: 'planet_edmunds', aux: true, bump: 0.9, atmo: { km: 100, ray: [5.2e-3, 12e-3, 29e-3], mie: 2.4e-3, hr: 8, hm: 1.3, sunI: 10 } },
 };
 
 const VERT = /* glsl */ `
@@ -414,7 +418,7 @@ export class SolarSystem {
         ringTex.wrapS = ringTex.wrapT = THREE.ClampToEdgeWrapping;
         ringTex.colorSpace = THREE.SRGBColorSpace;
       }
-      const texel = id === 'earth' ? new THREE.Vector2(1 / 4096, 1 / 2048) : look.mode === 'rocky' && ['moon', 'mercury', 'mars'].includes(id) ? new THREE.Vector2(1 / 2048, 1 / 1024) : new THREE.Vector2(1 / 1024, 1 / 512);
+      const texel = id === 'earth' ? new THREE.Vector2(1 / 4096, 1 / 2048) : ['miller', 'mann', 'edmunds'].includes(id) ? new THREE.Vector2(1 / 1024, 1 / 512) : look.mode === 'rocky' && ['moon', 'mercury', 'mars'].includes(id) ? new THREE.Vector2(1 / 2048, 1 / 1024) : new THREE.Vector2(1 / 1024, 1 / 512);
       const mat = new THREE.ShaderMaterial({
         vertexShader: VERT, fragmentShader: FRAG, side: THREE.BackSide, transparent: true, depthWrite: false, depthTest: false,
         blending: THREE.CustomBlending, blendSrc: THREE.OneFactor, blendDst: THREE.OneMinusSrcAlphaFactor,
@@ -500,9 +504,11 @@ export class SolarSystem {
   }
 
   /** Game-scaled solar flux factor at a heliocentric distance (physical 1/r² softened for readable images). */
-  static flux(rMeters: number) {
-    return Math.pow(AU / Math.max(rMeters, 1e9), 0.7);
+  static flux(rMeters: number, ref = AU) {
+    return Math.pow(ref / Math.max(rMeters, 1e9), 0.7);
   }
+  /** flux reference distance: 1 AU around the Sun; Gargantua's disk is far brighter (lights planets at ~10¹³ m) */
+  fluxRef = AU;
 
   /** Body-fixed rotation: three equatorial → three body-fixed (x = prime meridian, y = north pole, −z = 90° E). */
   static bodyFrame(id: string, t: number, gmstAngle?: number, lockDir?: THREE.Vector3): { rot: THREE.Matrix3; pole: THREE.Vector3 } {
@@ -554,11 +560,11 @@ export class SolarSystem {
       const toSun = new THREE.Vector3(-s.r[0], -s.r[1], -s.r[2]);
       const dSun = toSun.length();
       (u.uSun.value as THREE.Vector3).copy(toSun.normalize());
-      u.uSunL.value = SolarSystem.flux(dSun);
+      u.uSunL.value = SolarSystem.flux(dSun, this.fluxRef);
       u.uTime.value = time;
       const parent = BODIES[b.id]?.parent;
       let lock: THREE.Vector3 | undefined;
-      if (parent && parent !== 'sun' && BODIES[b.id].circ) {
+      if (parent && tidallyLocked(b.id)) {
         const ps = this.state(parent);
         lock = new THREE.Vector3(ps.r[0] - s.r[0], ps.r[1] - s.r[1], ps.r[2] - s.r[2]).normalize();
       }

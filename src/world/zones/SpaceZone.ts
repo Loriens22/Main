@@ -5,9 +5,11 @@ import type { Game } from '../../core/Game';
 import type { RenderLayer } from '../../render/Renderer';
 import type { ModelInstance } from '../../render/Assets';
 import { Starfield, SunDisc } from '../../render/Globe';
-import { SolarSystem, WormholeLens, helio } from '../../render/SolarSystem';
-import { BODIES } from '../../data/bodies';
-import { planTransfer, cruiseState, parkRadius, planetOf, fmtDuration, DESTINATIONS, type TransferPlan } from '../../space/Navigation';
+import { SolarSystem, WormholeLens, helio, eclToThree } from '../../render/SolarSystem';
+import { Gargantua, AlienSky } from '../../render/Gargantua';
+import { BODIES, systemCentre } from '../../data/bodies';
+import { planTransfer, cruiseState, parkRadius, planetOf, fmtDuration, destinations, type TransferPlan } from '../../space/Navigation';
+import { MILLER_FACTOR } from '../../core/MissionClock';
 import { MissionClock } from '../../core/MissionClock';
 import { G0 } from '../../data/vehicles';
 import { Spacecraft, type FlightEnv } from '../../vehicles/Spacecraft';
@@ -38,6 +40,8 @@ const S2_SPEC: SpacecraftSpec = {
   rcsTorque: [2e7, 2e7, 8e6], rcsIsp: 300, inertia: [2.4e7, 2.4e7, 9e5], dragArea: 12, liftCoef: 0, length: 40, crew: 4, powerDraw: 0, gearHeight: 0, dockPorts: [], label: 'UPPER STAGE',
 };
 const RANGER_WET = 41000;
+/** Gargantua's disk lights its planets like a much brighter sun: flux reference distance (m) */
+const GARG_FLUX_REF = 6e12;
 const AXIS_Z = new THREE.Vector3(0, 0, 1);
 
 interface DockedBody {
@@ -57,6 +61,10 @@ export default class SpaceZone extends Zone implements ProxHost {
   readonly farCam = new THREE.PerspectiveCamera(60, 1, 1, 3e5);
   system!: SolarSystem;
   lens!: WormholeLens;
+  gargantua: Gargantua | null = null;
+  alienSky: AlienSky | null = null;
+  /** star system the zone was built for */
+  sys: 'sol' | 'gargantua' = 'sol';
   stars!: Starfield;
   sunDisc!: SunDisc;
   sun!: THREE.DirectionalLight;
@@ -119,12 +127,25 @@ export default class SpaceZone extends Zone implements ProxHost {
     const game = this.game;
     const mats = game.materials;
     progress(0.1, 'Earth');
-    this.system = new SolarSystem(mats);
+    this.sys = game.state.system === 'gargantua' ? 'gargantua' : 'sol';
+    const garg = this.sys === 'gargantua';
+    this.system = new SolarSystem(mats, garg ? ['miller', 'mann', 'edmunds'] : undefined);
+    if (garg) {
+      this.system.fluxRef = GARG_FLUX_REF;
+      this.alienSky = new AlienSky();
+      this.far.add(this.alienSky.mesh);
+      // disk plane: tilted from the planets' orbital plane so the inner worlds pass above and below it
+      const sysN = new THREE.Vector3(...eclToThree([0, 0, 1]));
+      const diskN = sysN.clone().applyAxisAngle(new THREE.Vector3(1, 0, 0), 0.18).normalize();
+      this.gargantua = new Gargantua(BODIES.gargantua.radius / 1000, diskN);
+      this.far.add(this.gargantua.mesh);
+    }
     this.far.add(this.system.group);
     this.lens = new WormholeLens();
     this.far.add(this.lens.mesh);
     this.stars = new Starfield();
     this.far.add(this.stars.group);
+    this.stars.group.visible = !garg;
     this.sunDisc = new SunDisc();
     this.far.add(this.sunDisc.mesh);
     // near-field lighting: the Sun, earthshine and a trace of ambient
@@ -247,7 +268,8 @@ export default class SpaceZone extends Zone implements ProxHost {
       return { name: 'ENDURANCE', sub: `${room} · ${g.toFixed(2)} g · ${where}` };
     }
     if (this.r1Docked) return { name: 'ENDURANCE', sub: `Docked · ${where}` };
-    return { name: PRIMARY.id === 'sun' ? 'INTERPLANETARY SPACE' : `${(BODIES[PRIMARY.id]?.name ?? '').toUpperCase()} ORBIT`, sub: s ? `Ranger 1 · ${(s.alt / 1000).toFixed(0)} km` : where };
+    const free = PRIMARY.id === this.centre() ? (this.sys === 'gargantua' ? 'GARGANTUA SYSTEM' : 'INTERPLANETARY SPACE') : `${(BODIES[PRIMARY.id]?.name ?? '').toUpperCase()} ORBIT`;
+    return { name: free, sub: s ? `Ranger 1 · ${(s.alt / 1000).toFixed(0)} km` : where };
   }
 
   /** Where the Endurance is, for status lines. */
@@ -257,7 +279,7 @@ export default class SpaceZone extends Zone implements ProxHost {
       const pl = d.cruise as TransferPlan;
       return `Cruise to ${BODIES[pl.to]?.name ?? pl.to} · ${fmtDuration(Math.max(0, pl.tArr - this.game.state.clock.earthTime))} to go`;
     }
-    if (d.hold) return 'Station-keeping at the Anomaly, near Saturn';
+    if (d.hold) return (d.hold as { target: string }).target === 'wormhole_g' ? 'Station-keeping at the Anomaly, Gargantua side' : 'Station-keeping at the Anomaly, near Saturn';
     const alt = this.ePos ? Math.hypot(...this.ePos) - PRIMARY.R : 0;
     return `${BODIES[PRIMARY.id]?.name ?? PRIMARY.id} orbit ${alt > 1e7 ? (alt / 1e6).toFixed(0) + ' 000 km' : (alt / 1000).toFixed(0) + ' km'}`;
   }
@@ -300,8 +322,9 @@ export default class SpaceZone extends Zone implements ProxHost {
     if (d.cruise) return cruiseState(d.cruise as TransferPlan, t);
     if (d.hold) {
       const h = d.hold as { target: string; offset: V3 };
-      const w = helio(h.target, t).r, sP = helio(PRIMARY.id, t).r;
-      return { r: [w[0] - sP[0] + h.offset[0], w[1] - sP[1] + h.offset[1], w[2] - sP[2] + h.offset[2]], v: [0, 0, 0] };
+      const W = helio(h.target, t), P = helio(PRIMARY.id, t);
+      const w = W.r, sP = P.r;
+      return { r: [w[0] - sP[0] + h.offset[0], w[1] - sP[1] + h.offset[1], w[2] - sP[2] + h.offset[2]], v: [W.v[0] - P.v[0], W.v[1] - P.v[1], W.v[2] - P.v[2]] };
     }
     const o = d.orbit as { r0: V3; v0: V3; t0: number };
     return propagate(o.r0, o.v0, PRIMARY.mu, t - o.t0);
@@ -485,7 +508,8 @@ export default class SpaceZone extends Zone implements ProxHost {
     const st = game.state.vehicles.ranger1;
     this.tSim = t;
     const ed = game.state.vehicles.endurance.data;
-    this.applyPrimary(ed.cruise ? 'sun' : ed.hold ? 'saturn' : ((ed.orbit as { body?: string } | undefined)?.body ?? 'earth'));
+    const holdT = (ed.hold as { target?: string } | undefined)?.target;
+    this.applyPrimary(ed.cruise ? this.centre() : ed.hold ? (holdT === 'wormhole_g' ? 'gargantua' : 'saturn') : ((ed.orbit as { body?: string } | undefined)?.body ?? 'earth'));
     let at = spec.at ?? (st.docked ? 'docked' : 'orbit');
     // 'endurance' / 'endurance:<room>' — aboard, with Ranger 1 docked at the forward port
     let aboardAt: string | null = null;
@@ -573,6 +597,7 @@ export default class SpaceZone extends Zone implements ProxHost {
     this.syncRoots();
     this.seatPlayer();
     if (resume === 'orbit-insertion') this.control.setAutopilot(new OrbitInsertion(this, resumeAp));
+    if (game.state.flags.emerge) setTimeout(() => this.emerge(), 0);
     if (aboardAt) {
       this.game.setControl(null);
       this.boardEndurance(aboardAt);
@@ -762,7 +787,14 @@ export default class SpaceZone extends Zone implements ProxHost {
     return rel && rel.dist < 5000 ? 1 : 100;
   }
 
+  /** central body of the current star system (patched conics during cruise) */
+  centre() {
+    return systemCentre(this.sys);
+  }
+
   clockContext() {
+    // Miller orbit sits deep in Gargantua's well: the film's one hour ≈ seven Earth years
+    if (PRIMARY.id === 'miller') return { playerDilation: MILLER_FACTOR, enduranceDilation: MILLER_FACTOR };
     return {};
   }
 
@@ -873,7 +905,7 @@ export default class SpaceZone extends Zone implements ProxHost {
   private checkSurface() {
     const alt = this.env.altitude(this.craft.pos);
     const id = PRIMARY.id;
-    if (id === 'sun') return;
+    if (id === this.centre()) return;
     if (isLandable(id)) {
       if (alt < handoverAltitude(id, PRIMARY.R)) this.handToSurface();
       return;
@@ -995,8 +1027,8 @@ export default class SpaceZone extends Zone implements ProxHost {
   /** Body the Endurance is currently parked at (or 'sun' in cruise). */
   parkedAt() {
     const d = this.game.state.vehicles.endurance.data;
-    if (d.cruise) return 'sun';
-    if (d.hold) return 'wormhole';
+    if (d.cruise) return this.centre();
+    if (d.hold) return (d.hold as { target: string }).target;
     return PRIMARY.id;
   }
 
@@ -1066,7 +1098,7 @@ export default class SpaceZone extends Zone implements ProxHost {
       const key = `${here}>${to}>${profile}`;
       let plan = this.navCache.get(key);
       if (plan === undefined) {
-        plan = planTransfer(here === 'wormhole' ? 'saturn' : here, to, game.state.clock.earthTime, profile, Math.min(80e3, this.enduranceDv() * 0.6));
+        plan = planTransfer(here === 'wormhole' ? 'saturn' : here, to, game.state.clock.earthTime, profile, Math.min(this.sys === 'gargantua' ? 110e3 : 80e3, this.enduranceDv() * 0.7));
         this.navCache.set(key, plan);
       }
       detail.innerHTML = '';
@@ -1084,19 +1116,30 @@ export default class SpaceZone extends Zone implements ProxHost {
           h('span', {}, 'Δv departure / capture'), h('span', {}, `${(plan.dvDep / 1000).toFixed(2)} / ${(plan.dvArr / 1000).toFixed(2)} km/s`),
           h('span', {}, 'v∞ departure / arrival'), h('span', {}, plan.local ? 'local transfer' : `${(plan.vinfDep / 1000).toFixed(2)} / ${(plan.vinfArr / 1000).toFixed(2)} km/s`),
           h('span', {}, 'Propellant'), h('span', {}, `${Math.round(prop / 1000).toLocaleString()} t of ${Math.round(game.state.vehicles.endurance.fuel / 1000).toLocaleString()} t`),
-          h('span', {}, 'Parking orbit'), h('span', {}, to === 'wormhole' ? 'station-keeping 6 km from the Anomaly' : `${((parkRadius(to) - BODIES[to].radius) / 1000).toFixed(0)} km altitude`),
+          h('span', {}, 'Parking orbit'), h('span', {}, to === 'wormhole' || to === 'wormhole_g' ? 'station-keeping 6 km from the Anomaly' : `${((parkRadius(to) - BODIES[to].radius) / 1000).toFixed(0)} km altitude`),
         ));
       const go = game.ui.button('ENGAGE', () => { game.ui.closeAllPanels(); this.engage(plan!); }, 'btn primary');
       go.disabled = !this.r1Docked || prop > game.state.vehicles.endurance.fuel;
       detail.append(h('div', { style: { marginTop: '10px' } }, go, !this.r1Docked ? h('span', { class: 'status-warn', style: { marginLeft: '10px' } }, 'Dock Ranger 1 first') : ''));
     };
-    for (const id of DESTINATIONS) {
-      if (id === here || (here === 'wormhole' && id === 'wormhole')) continue;
+    // the Anomaly: traverse to the other side
+    if (here === 'wormhole' || here === 'wormhole_g') {
+      const other = here === 'wormhole' ? 'the Gargantua system' : 'the Solar System, near Saturn';
+      const tc = h('div', { class: 'card' }, h('h3', {}, 'THE ANOMALY — TRAVERSE'),
+        h('div', { class: 'dim', style: { fontSize: '12px' } }, `Fly the Endurance into the throat. A traversable wormhole (speculative physics): the far mouth opens in ${other}. Ranger 1 must be docked.`));
+      const go = game.ui.button('ENTER THE WORMHOLE', () => { game.ui.closeAllPanels(); void this.traverse(); }, 'btn primary');
+      go.disabled = !this.r1Docked;
+      tc.append(h('div', { style: { marginTop: '10px' } }, go));
+      b.append(tc);
+    }
+    const AUm = 1.496e11;
+    for (const id of destinations(this.sys)) {
+      if (id === here) continue;
       const bd = BODIES[id];
       const pa = planetOf(id);
-      const dist = Math.hypot(...(() => { const a = helio(pa, t).r, c = helio(planetOf(here === 'wormhole' ? 'saturn' : here === 'sun' ? 'earth' : here), t).r; return [a[0] - c[0], a[1] - c[1], a[2] - c[2]] as V3; })());
+      const dist = Math.hypot(...(() => { const a = helio(pa, t).r, c = helio(planetOf(here === 'wormhole' ? 'saturn' : here === 'sun' ? 'earth' : here === 'gargantua' ? 'wormhole_g' : here), t).r; return [a[0] - c[0], a[1] - c[1], a[2] - c[2]] as V3; })());
       const row = h('div', { class: 'item' },
-        h('span', {}, h('b', {}, bd.name), h('span', { class: 'dim', style: { marginLeft: '8px', fontSize: '12px' } }, `${bd.kind === 'moon' ? 'moon of ' + BODIES[bd.parent!].name : bd.kind}${pa !== planetOf(here === 'wormhole' ? 'saturn' : here) ? ` · ${(dist / 1.496e11).toFixed(2)} AU` : ' · local'}`)),
+        h('span', {}, h('b', {}, bd.name), h('span', { class: 'dim', style: { marginLeft: '8px', fontSize: '12px' } }, `${bd.kind === 'moon' ? 'moon of ' + BODIES[bd.parent!].name : bd.kind}${pa !== planetOf(here === 'wormhole' ? 'saturn' : here) ? ` · ${(dist / AUm).toFixed(2)} AU` : ' · local'}`)),
         h('span', {}, game.ui.button('EFFICIENT', () => show(id, 'efficient'), 'btn'), game.ui.button('FAST', () => show(id, 'fast'), 'btn')));
       list.append(row);
     }
@@ -1157,6 +1200,122 @@ export default class SpaceZone extends Zone implements ProxHost {
     });
   }
 
+  /**
+   * Through the Anomaly: the Endurance closes on the throat (the lens swells until the other galaxy fills the
+   * view), the screen warps, a white-out — and the zone is rebuilt on the other side, emerging from the far mouth.
+   */
+  async traverse() {
+    const game = this.game;
+    const d = game.state.vehicles.endurance.data;
+    const hold = d.hold as { target: string; offset: V3 } | undefined;
+    if (this.navBusy || !hold || !this.r1Docked) return;
+    this.navBusy = true;
+    const from = hold.target;
+    const off0 = new THREE.Vector3(...hold.offset);
+    this.say('computer', 'Committing to the Anomaly. All hands, secure for transit.');
+    game.log('mission', 'NAV', `Entering the wormhole — ${MissionClock.formatDate(game.state.clock.earthTime)}.`);
+    const fx = game.renderer.fx;
+    await new Promise<void>((resolve) => {
+      let tt = 0;
+      this.burnTarget = 0.6;
+      game.playCinematic({
+        blocking: true,
+        update: (dt, cam) => {
+          tt += dt;
+          const k = THREE.MathUtils.smoothstep(tt, 0, 11);
+          const o = off0.clone().multiplyScalar(1 - k);
+          hold.offset = [o.x, o.y, o.z];
+          this.updateEndurance(this.game.state.clock.earthTime);
+          this.syncRoots();
+          // chase camera behind the ship, looking at the throat
+          const toThroat = off0.clone().negate().normalize();
+          const side = new THREE.Vector3(0, 1, 0).cross(toThroat).normalize();
+          cam.position.copy(this.eRoot.position).addScaledVector(toThroat, -260 + 120 * k).addScaledVector(side, 70 * (1 - k)).add(new THREE.Vector3(0, 55 * (1 - k) + 12, 0));
+          cam.up.set(0, 1, 0);
+          cam.lookAt(this.eRoot.position.clone().addScaledVector(toThroat, 400));
+          cam.updateMatrixWorld();
+          fx.warp = THREE.MathUtils.smoothstep(tt, 7, 12.5) * 1.4;
+          fx.shake = THREE.MathUtils.smoothstep(tt, 6, 11) * 0.7;
+          if (tt > 9.5 && tt - dt <= 9.5) this.say('ward', 'Here we go.');
+          if (tt >= 12.8) {
+            resolve();
+            return false;
+          }
+          return true;
+        },
+      });
+    });
+    await game.fadeTo(1, 0.9, new THREE.Color(1, 1, 1));
+    fx.warp = 0;
+    fx.shake = 0;
+    this.burnTarget = 0;
+    // the far mouth: hold 6 km out on the side facing the new system's centre
+    const toSys = from === 'wormhole' ? 'gargantua' : 'sol';
+    const exit = from === 'wormhole' ? 'wormhole_g' : 'wormhole';
+    const t = game.state.clock.earthTime;
+    game.state.system = toSys;
+    const w = helio(exit, t).r;
+    const off = new THREE.Vector3(-w[0], -w[1], -w[2]).normalize().multiplyScalar(6e3);
+    d.hold = { target: exit, offset: [off.x, off.y, off.z] };
+    delete d.orbit;
+    game.state.endurance.nav.parkBody = exit;
+    game.state.flags.emerge = exit;
+    if (!game.state.discoveries.includes('traversed_wormhole')) game.state.discoveries.push('traversed_wormhole');
+    if (toSys === 'gargantua') game.state.mission.stage = 'gargantua';
+    this.navBusy = false;
+    const at = this.aboard ? 'endurance:command' : 'docked';
+    await game.goTo('space', { at }, { fade: 0, color: new THREE.Color(1, 1, 1), fadeIn: 3 });
+  }
+
+  /** After a traversal: the Endurance drifts out of the far mouth (camera off to the side, the new sky behind). */
+  private emerge() {
+    const game = this.game;
+    const d = game.state.vehicles.endurance.data;
+    const hold = d.hold as { target: string; offset: V3 } | undefined;
+    if (!hold) return;
+    delete game.state.flags.emerge;
+    const off1 = new THREE.Vector3(...hold.offset);
+    let tt = 0;
+    const garg = this.sys === 'gargantua';
+    game.playCinematic({
+      blocking: true,
+      skippable: true,
+      skip: () => (tt = 99),
+      update: (dt, cam) => {
+        tt += dt;
+        const k = THREE.MathUtils.smoothstep(tt, 0, 9);
+        const o = off1.clone().multiplyScalar(0.02 + 0.98 * k);
+        hold.offset = [o.x, o.y, o.z];
+        this.updateEndurance(game.state.clock.earthTime);
+        this.syncRoots();
+        const out = off1.clone().normalize();
+        const side = new THREE.Vector3(0, 1, 0).cross(out).normalize();
+        // camera outside the mouth (the lens sphere is ~1 km): the ship slides out of the throat, then the view
+        // moves in behind it as it heads for its hold point with the system's centre (Gargantua) ahead
+        const throatPt = this.eRoot.position.clone().addScaledVector(out, -o.length());
+        const pan = THREE.MathUtils.smoothstep(tt, 4.5, 10);
+        const camA = throatPt.clone().addScaledVector(side, 6200).addScaledVector(out, 5200).add(new THREE.Vector3(0, 900, 0));
+        const camB = this.eRoot.position.clone().addScaledVector(out, -260).addScaledVector(side, 90).add(new THREE.Vector3(0, 38, 0));
+        cam.position.copy(camA).lerp(camB, pan);
+        cam.up.set(0, 1, 0);
+        const look = this.eRoot.position.clone().lerp(this.eRoot.position.clone().addScaledVector(out, 3000), pan * 0.9);
+        cam.lookAt(look);
+        cam.fov = THREE.MathUtils.lerp(14, game.settings.graphics.fov, pan);
+        cam.updateProjectionMatrix();
+        cam.updateMatrixWorld();
+        if (tt > 2 && tt - dt <= 2) this.say('sato', garg ? 'Gargantua…' : 'Saturn. We are home side.');
+        if (tt > 6 && tt - dt <= 6) this.say('computer', garg ? 'Transit complete. Navigation is mapping the Gargantua system: Miller, Mann, Edmunds.' : 'Transit complete. Solar System navigation restored.');
+        if (tt >= 11) {
+          hold.offset = [off1.x, off1.y, off1.z];
+          cam.fov = game.settings.graphics.fov;
+          cam.updateProjectionMatrix();
+          return false;
+        }
+        return true;
+      },
+    });
+  }
+
   private async skipTo(tTarget: number, msg: string) {
     const game = this.game;
     const dt = tTarget - game.state.clock.earthTime;
@@ -1203,7 +1362,7 @@ export default class SpaceZone extends Zone implements ProxHost {
     delete d.orbit;
     delete d.hold;
     d.cruise = plan;
-    this.switchPrimary('sun');
+    this.switchPrimary(this.centre());
     game.state.endurance.nav.program = 'coast';
     game.state.mission.stage = game.state.mission.stage === 'docked' ? 'solar' : game.state.mission.stage;
     await game.fadeTo(0, 0.6);
@@ -1218,15 +1377,16 @@ export default class SpaceZone extends Zone implements ProxHost {
     this.navBusy = true;
     const t = game.state.clock.earthTime;
     const to = plan.to;
-    const body = to === 'wormhole' ? 'saturn' : to;
+    const throat = to === 'wormhole' || to === 'wormhole_g';
+    const body = to === 'wormhole' ? 'saturn' : to === 'wormhole_g' ? 'gargantua' : to;
     await game.fadeTo(1, 0.5);
     delete d.cruise;
     this.switchPrimary(body);
-    if (to === 'wormhole') {
-      // station-keeping 6 km sunward of the Anomaly (the mouth is ~2 km across)
-      const w = helio('wormhole', t).r;
+    if (throat) {
+      // station-keeping 6 km from the Anomaly (the mouth is ~2 km across), on the side facing the system's centre
+      const w = helio(to, t).r;
       const off = new THREE.Vector3(-w[0], -w[1], -w[2]).normalize().multiplyScalar(6e3);
-      d.hold = { target: 'wormhole', offset: [off.x, off.y, off.z] };
+      d.hold = { target: to, offset: [off.x, off.y, off.z] };
       delete d.orbit;
     } else {
       // circular parking orbit, inclined to the body's equator (rings and poles in view at the giants)
@@ -1245,7 +1405,7 @@ export default class SpaceZone extends Zone implements ProxHost {
     }
     game.state.endurance.nav.program = 'parking';
     game.state.endurance.nav.parkBody = body;
-    game.state.endurance.nav.parkRadius = to === 'wormhole' ? 0 : parkRadius(body);
+    game.state.endurance.nav.parkRadius = throat ? 0 : parkRadius(body);
     game.state.endurance.nav.dvUsed += plan.dv;
     game.state.vehicles.endurance.fuel = Math.max(0, game.state.vehicles.endurance.fuel - this.propFor(plan.dvArr));
     if (!game.state.discoveries.includes(`visited_${to}`)) game.state.discoveries.push(`visited_${to}`);
@@ -1253,9 +1413,10 @@ export default class SpaceZone extends Zone implements ProxHost {
     this.updateEndurance(t);
     this.syncRoots();
     await game.fadeTo(0, 0.5);
-    await this.burnCinematic(7, `Capture burn — ${(plan.dvArr / 1000).toFixed(1)} kilometres per second. ${to === 'wormhole' ? 'Holding position at the Anomaly.' : `Entering orbit around ${BODIES[body]?.name}.`}`);
+    await this.burnCinematic(7, `Capture burn — ${(plan.dvArr / 1000).toFixed(1)} kilometres per second. ${throat ? 'Holding position at the Anomaly.' : `Entering orbit around ${BODIES[body]?.name}.`}`);
     game.log('mission', 'NAV', `Arrived at ${BODIES[to]?.name} — ${MissionClock.formatDate(game.state.clock.earthTime)}.`);
     this.say('sato', to === 'wormhole' ? 'There it is. A sphere — a hole in space. It is beautiful.' : `${BODIES[to]?.name}. ${BODIES[to]?.info ?? ''}`);
+    if (to === 'miller') this.say('computer', 'Caution: gravitational time dilation in Miller orbit — one hour here is about seven years on Earth.');
     this.navBusy = false;
   }
 
@@ -1405,34 +1566,43 @@ export default class SpaceZone extends Zone implements ProxHost {
     const cam = game.camera;
     // far layer: the whole Solar System around the camera (heliocentric, kilometre units, scaled space)
     const camW: V3 = [this.origin[0] + cam.position.x, this.origin[1] + cam.position.y, this.origin[2] + cam.position.z];
-    const ph = PRIMARY.id === 'sun' ? [0, 0, 0] : helio(PRIMARY.id, t).r;
+    const ph = helio(PRIMARY.id, t).r;
     const camH: V3 = [ph[0] + camW[0], ph[1] + camW[1], ph[2] + camW[2]];
+    const garg = this.sys === 'gargantua';
     this.system.update(t, camH, gmst(t), this.time, game.renderer.canvas.clientHeight / THREE.MathUtils.degToRad(cam.fov));
-    const wh = helio('wormhole', t).r;
+    const wh = helio(garg ? 'wormhole_g' : 'wormhole', t).r;
     this.lens.update(new THREE.Vector3((wh[0] - camH[0]) / 1000, (wh[1] - camH[1]) / 1000, (wh[2] - camH[2]) / 1000), game.renderer.gl, this.far, dt);
     const sunDist = Math.hypot(camH[0], camH[1], camH[2]);
     const sunDir = new THREE.Vector3(-camH[0], -camH[1], -camH[2]).normalize();
-    this.flux = SolarSystem.flux(sunDist);
-    this.sunDisc.update(sunDir);
-    this.sunDisc.mesh.scale.setScalar(THREE.MathUtils.clamp((50000 * (6.957e8 / sunDist)) / 0.038 / 6500, 0.03, 4));
+    this.flux = SolarSystem.flux(sunDist, garg ? GARG_FLUX_REF : undefined);
+    if (garg) {
+      // the light source is Gargantua's accretion disk; the sky is another galaxy
+      this.gargantua!.update(new THREE.Vector3(-camH[0], -camH[1], -camH[2]), this.time, 1);
+      this.sunDisc.mesh.visible = false;
+    } else {
+      this.sunDisc.update(sunDir);
+      this.sunDisc.mesh.scale.setScalar(THREE.MathUtils.clamp((50000 * (6.957e8 / sunDist)) / 0.038 / 6500, 0.03, 4));
+    }
     // eclipse: is the Sun hidden by the Earth (with a soft penumbra through the atmosphere)?
     const pos = new THREE.Vector3(...camW);
     const b = pos.dot(sunDir);
     const perp = pos.clone().addScaledVector(sunDir, -b).length();
     const pr = PRIMARY.R, at = Math.max(PRIMARY.top * 0.4, 5e3);
-    this.sunVis = PRIMARY.id === 'sun' || b > 0 ? 1 : THREE.MathUtils.smoothstep(perp, pr + at * 0.1, pr + at);
-    const sunsetTint = PRIMARY.id === 'sun' || b > 0 || PRIMARY.rho0 === 0 ? 0 : 1 - THREE.MathUtils.smoothstep(perp, pr + at, pr + at * 3);
-    this.sun.color.setRGB(1, 0.96 - 0.35 * sunsetTint, 0.92 - 0.6 * sunsetTint);
+    const atCentre = PRIMARY.id === this.centre();
+    this.sunVis = atCentre || b > 0 ? 1 : THREE.MathUtils.smoothstep(perp, pr + at * 0.1, pr + at);
+    const sunsetTint = atCentre || b > 0 || PRIMARY.rho0 === 0 ? 0 : 1 - THREE.MathUtils.smoothstep(perp, pr + at, pr + at * 3);
+    if (garg) this.sun.color.setRGB(1, 0.84 - 0.3 * sunsetTint, 0.66 - 0.4 * sunsetTint);
+    else this.sun.color.setRGB(1, 0.96 - 0.35 * sunsetTint, 0.92 - 0.6 * sunsetTint);
     this.sun.intensity = 3.2 * this.sunVis * this.flux;
-    this.sunDisc.mesh.visible = this.sunVis > 0.02;
+    if (!garg) this.sunDisc.mesh.visible = this.sunVis > 0.02;
     const focus = this.focusPoint();
     this.sun.target.position.copy(focus);
     this.sun.position.copy(focus).addScaledVector(sunDir, 150);
     this.sun.target.updateMatrixWorld();
     // planetshine from the sunlit primary (fraction of the sky it fills × its albedo colour)
     const rHat = pos.clone().normalize();
-    const day = PRIMARY.id === 'sun' ? 0 : THREE.MathUtils.smoothstep(rHat.dot(sunDir), -0.35, 0.55);
-    const fill = PRIMARY.id === 'sun' ? 0 : 1 - Math.sqrt(Math.max(0, 1 - (PRIMARY.R / pos.length()) ** 2));
+    const day = atCentre ? 0 : THREE.MathUtils.smoothstep(rHat.dot(sunDir), -0.35, 0.55);
+    const fill = atCentre ? 0 : 1 - Math.sqrt(Math.max(0, 1 - (PRIMARY.R / pos.length()) ** 2));
     const pc = BODIES[PRIMARY.id]?.color ?? [0.3, 0.4, 0.6];
     this.earthLight.position.copy(rHat).negate();
     this.earthLight.color.setRGB(pc[0] * 0.6 + 0.1, pc[1] * 0.6 + 0.1, pc[2] * 0.6 + 0.12);
@@ -1445,6 +1615,7 @@ export default class SpaceZone extends Zone implements ProxHost {
     const look = cam.getWorldDirection(new THREE.Vector3());
     const earthInView = THREE.MathUtils.smoothstep(look.dot(rHat.clone().negate()), -0.2, 0.5) * day;
     this.stars.setVisibility(this.sunVis > 0.5 ? 0.35 * (1 - 0.8 * earthInView) : 1);
+    if (this.alienSky) this.alienSky.mat.uniforms.uK.value = this.sunVis > 0.5 ? 0.45 * (1 - 0.7 * earthInView) : 1;
     if (this.eclipseLast >= 0 && (this.sunVis > 0.5 ? 1 : 0) !== this.eclipseLast) this.game.notify(this.sunVis > 0.5 ? 'Orbital sunrise' : `Entering ${BODIES[PRIMARY.id]?.name ?? 'the planet'}'s shadow`, 'info', 3);
     this.eclipseLast = this.sunVis > 0.5 ? 1 : 0;
     // reflections: refresh a small environment from the far layer every few seconds

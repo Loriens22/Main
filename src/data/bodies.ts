@@ -58,12 +58,34 @@ export const BODIES: Record<string, BodyDef> = {
   triton: { id: 'triton', name: 'Triton', system: 'sol', kind: 'moon', radius: 1.3534e6, mu: 1.428e12, parent: 'neptune', circ: { r: 3.5476e8, period: -5.877 * D, inc: 157 * deg, phase: 2.2 }, rotation: 5.877 * D, tilt: 0, color: [0.75, 0.72, 0.7], info: 'Retrograde captured moon with nitrogen geysers.' },
   wormhole: { id: 'wormhole', name: 'The Anomaly', system: 'sol', kind: 'wormhole', radius: 1000, mu: 5e9, parent: 'saturn', rotation: 0, tilt: 0, color: [0.8, 0.85, 1], info: 'A spherical gravitational lens ~2 km across, co-orbiting Saturn. Speculative physics: modelled as a traversable throat.' },
   // ------------------------------------------------------------------------------------------- Gargantua system (fictional)
-  gargantua: { id: 'gargantua', name: 'Gargantua', system: 'gargantua', kind: 'blackhole', radius: 2.954e11, mu: 1.32712e28, parent: null, rotation: 0, tilt: 0, color: [0, 0, 0], info: 'Supermassive rotating black hole, ~10⁸ solar masses, near-extremal spin (film parameters).' },
-  wormhole_g: { id: 'wormhole_g', name: 'The Anomaly (exit)', system: 'gargantua', kind: 'wormhole', radius: 1000, mu: 5e9, parent: 'gargantua', circ: { r: 9.0e13, period: 2.2e9, phase: 2.6 }, rotation: 0, tilt: 0, color: [0.8, 0.85, 1], info: 'Exit throat of the wormhole.' },
-  miller: { id: 'miller', name: 'Miller', system: 'gargantua', kind: 'ocean', radius: 7.2e6, mu: 6.61e14, parent: 'gargantua', circ: { r: 1.77e12, period: 6.4e6, phase: 0.4 }, rotation: 6.4e6, tilt: 0.02, atmosphere: { height: 110e3, color: [0.7, 0.75, 0.78], density: 1.2 }, surface: 'miller', color: [0.45, 0.52, 0.56], info: 'Shallow global ocean, 130 % Earth gravity. Tidally locked; colossal tidal waves. 1 hour ≈ 7 Earth years.' },
-  mann: { id: 'mann', name: 'Mann', system: 'gargantua', kind: 'frozen', radius: 5.1e6, mu: 2.04e14, parent: 'gargantua', circ: { r: 1.18e13, period: 1.6e8, phase: 3.3 }, rotation: 97200, tilt: 0.3, atmosphere: { height: 80e3, color: [0.85, 0.88, 0.92], density: 0.9 }, surface: 'mann', color: [0.82, 0.84, 0.86], info: 'Frozen world with ammonia atmosphere and frozen clouds. 80 % Earth gravity.' },
-  edmunds: { id: 'edmunds', name: 'Edmunds', system: 'gargantua', kind: 'desert', radius: 6.1e6, mu: 3.47e14, parent: 'gargantua', circ: { r: 2.07e13, period: 3.7e8, phase: 5.2 }, rotation: 79200, tilt: 0.38, atmosphere: { height: 100e3, color: [0.6, 0.75, 0.95], density: 1 }, surface: 'edmunds', color: [0.62, 0.5, 0.38], info: 'Rocky desert world, breathable traces, 95 % Earth gravity. Edmunds’ beacon went silent.' },
+  gargantua: { id: 'gargantua', name: 'Gargantua', system: 'gargantua', kind: 'blackhole', radius: 2.954e11, mu: 2.0e22, parent: null, rotation: 0, tilt: 0, color: [0, 0, 0], info: 'Supermassive rotating black hole, ~10⁸ solar masses, near-extremal spin (film parameters).' },
+  wormhole_g: { id: 'wormhole_g', name: 'The Anomaly (exit)', system: 'gargantua', kind: 'wormhole', radius: 1000, mu: 5e9, parent: 'gargantua', circ: { r: 8.9e12, period: 0, phase: 2.6, inc: 0.05 }, rotation: 0, tilt: 0, color: [0.8, 0.85, 1], info: 'Exit throat of the wormhole.' },
+  miller: { id: 'miller', name: 'Miller', system: 'gargantua', kind: 'ocean', radius: 7.2e6, mu: 6.61e14, parent: 'gargantua', circ: { r: 1.77e12, period: 0, phase: 0.4 }, rotation: 6.4e6, tilt: 0.02, atmosphere: { height: 110e3, color: [0.7, 0.75, 0.78], density: 1.2 }, surface: 'miller', color: [0.45, 0.52, 0.56], info: 'Shallow global ocean, 130 % Earth gravity. Tidally locked; colossal tidal waves. 1 hour ≈ 7 Earth years.' },
+  mann: { id: 'mann', name: 'Mann', system: 'gargantua', kind: 'frozen', radius: 5.1e6, mu: 2.04e14, parent: 'gargantua', circ: { r: 6.5e12, period: 0, phase: 3.3 }, rotation: 97200, tilt: 0.3, atmosphere: { height: 80e3, color: [0.85, 0.88, 0.92], density: 0.9 }, surface: 'mann', color: [0.82, 0.84, 0.86], info: 'Frozen world with ammonia atmosphere and frozen clouds. 80 % Earth gravity.' },
+  edmunds: { id: 'edmunds', name: 'Edmunds', system: 'gargantua', kind: 'desert', radius: 6.1e6, mu: 3.47e14, parent: 'gargantua', circ: { r: 1.18e13, period: 0, phase: 5.2 }, rotation: 79200, tilt: 0.38, atmosphere: { height: 100e3, color: [0.6, 0.75, 0.95], density: 1 }, surface: 'edmunds', color: [0.62, 0.5, 0.38], info: 'Rocky desert world, breathable traces, 95 % Earth gravity. Edmunds’ beacon went silent.' },
 };
+
+/**
+ * Gargantua's orbital dynamics use a game-scale gravitational parameter (BODIES.gargantua.mu): the horizon radius
+ * (and so the look) is that of a 10⁸ M☉ hole, but orbital speeds of 15–110 km/s keep transfers within the
+ * Endurance's ~160 km/s. Periods follow from that μ so the ephemeris and the navigation agree.
+ */
+for (const id of ['miller', 'mann', 'edmunds', 'wormhole_g']) {
+  const c = BODIES[id].circ!;
+  c.period = 2 * Math.PI * Math.sqrt((c.r * c.r * c.r) / BODIES.gargantua.mu);
+}
+BODIES.miller.rotation = BODIES.miller.circ!.period;
+
+/** Rotation locked to the parent (moons and Miller): the prime meridian faces the parent body. */
+export function tidallyLocked(id: string) {
+  const b = BODIES[id];
+  return !!b?.circ && !!b.parent && b.parent !== 'sun' && (b.kind === 'moon' || id === 'miller');
+}
+
+/** The body at the centre of a star system (heliocentric frame origin). */
+export function systemCentre(system: string) {
+  return system === 'gargantua' ? 'gargantua' : 'sun';
+}
 
 export const SOL_PLANETS = ['mercury', 'venus', 'earth', 'mars', 'jupiter', 'saturn', 'uranus', 'neptune'];
 export const GARG_PLANETS = ['miller', 'mann', 'edmunds'];
