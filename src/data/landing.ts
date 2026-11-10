@@ -110,7 +110,7 @@ export const SURFACES: Record<string, SurfaceDef> = {
     sites: [{ name: 'Inktomi rays', lat: -14, lon: -112, note: 'Young bright-rayed crater.' }],
   },
   titan: {
-    style: 'titan', relief: 900, rocks: 0.35, craters: 0.05, tint: [1, 1, 1], temp: '−179 °C · 1.5 bar',
+    style: 'titan', relief: 900, rocks: 0.35, craters: 0.05, tint: [0.52, 0.42, 0.33], temp: '−179 °C · 1.5 bar',
     sites: [
       { name: 'Huygens landing plain', lat: -10.6, lon: -167.7, note: 'Rounded ice pebbles on a damp floodplain.' },
       { name: 'Belet dune sea', lat: -6, lon: 100, note: 'Equatorial longitudinal dunes of organic sand.' },

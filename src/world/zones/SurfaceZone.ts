@@ -271,7 +271,7 @@ export default class SurfaceZone extends Zone implements SurfaceAPHost {
     const g = new THREE.Vector3(...this.env.gravity(this.craft.pos)).length() / 9.81;
     const ll = localLatLon(this.site, this.craft.pos);
     const where = `${Math.abs(ll.lat).toFixed(2)}°${ll.lat >= 0 ? 'N' : 'S'} ${Math.abs(ll.lon).toFixed(2)}°${ll.lon >= 0 ? 'E' : 'W'}`;
-    if (this.craft.landed || agl < 3) return { name: b.name.toUpperCase(), sub: `${this.targetName} · ${where} · ${g.toFixed(2)} g · ${this.def.temp}` };
+    if (this.craft.landed || agl < 3) return { name: b.name.toUpperCase(), sub: `${this.targetName} · ${where} · ${g < 0.05 ? g.toFixed(4) : g.toFixed(2)} g · ${this.def.temp}` };
     return { name: `${b.name.toUpperCase()} — DESCENT`, sub: `${(agl / 1000).toFixed(1)} km above ${this.targetName}` };
   }
 
@@ -369,7 +369,8 @@ export default class SurfaceZone extends Zone implements SurfaceAPHost {
   /** Craft pose resting on its gear at (x, z) with heading `yaw` (rad from north). */
   private landedPose(x: number, z: number, yaw: number) {
     const n = this.gen.field.normal(x, z, 4);
-    const y = this.gen.field.height(x, z) + SPECS.ranger.gearHeight + 0.02;
+    // resting on the gear (a few millimetres of compression, so contact holds even in milli-g gravity)
+    const y = this.gen.field.height(x, z) + SPECS.ranger.gearHeight - 0.004;
     const q = new THREE.Quaternion().setFromUnitVectors(new THREE.Vector3(0, 1, 0), n).multiply(new THREE.Quaternion().setFromAxisAngle(new THREE.Vector3(0, 1, 0), yaw));
     return { pos: [x, y, z] as V3, q };
   }

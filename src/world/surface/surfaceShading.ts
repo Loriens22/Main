@@ -256,8 +256,8 @@ export function surfaceShading(gen: SurfaceGen, mats: MaterialLibrary): TerrainS
     } else {
       // Titan: dark organic sands, pale water-ice pebbles
       alb *= 0.8 + 0.3 * big;
-      float peb = smoothstep(0.66, 0.74, sNoise(wpos.xz * 4.0)) * clamp(1.0 - fp * 3.0, 0.0, 1.0);
-      alb = mix(alb, vec3(0.7, 0.6, 0.45), peb * 0.5);
+      float peb = smoothstep(0.74, 0.8, sNoise(wpos.xz * 12.0)) * clamp(1.0 - fp * 10.0, 0.0, 1.0);
+      alb = mix(alb, vec3(0.62, 0.55, 0.45), peb * 0.35);
     }
     o.albedo = clamp(alb, 0.0, 1.0);
     o.rough = rough;

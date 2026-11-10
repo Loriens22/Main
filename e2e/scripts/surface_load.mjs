@@ -1,0 +1,7 @@
+// Quick load check of the surface zone for BODY at its first named site: probe + one exterior shot.
+const BODY = process.env.BODY ?? 'phobos';
+const probe = `const z = game.zone; const c = z.craft; const g = new (game.camera.position.constructor)(...z.env.gravity(c.pos)).length(); return { id: z.id, style: z.def.style, pos: c.pos.map((v) => +v.toFixed(1)), g: +g.toFixed(4), landed: c.landed, nan: c.pos.some((v) => !Number.isFinite(v)), maps: [z.gen.near.size, z.gen.mid.size, z.gen.far.size].map((v) => Math.round(v)), where: z.describe().sub };`;
+export const steps = [
+  { js: `await game.startCreative(false); game.cinematic = null; const L = await import('/src/data/landing.ts'); const s = L.SURFACES['${BODY}'].sites[0]; const v = game.state.vehicles.ranger1; v.data.surface = { body: '${BODY}', lat: s.lat, lon: s.lon, name: s.name }; v.landed = true; await game.goTo('surface', { at: 'landed' }, { fade: 0 }); return s.name;`, wait: 2000, frames: 30, probe },
+  { js: `const z = game.zone; const cam = game.camera; game.cinematic = { blocking: true, update: () => true }; const r = z.r1Root.position.clone(); cam.fov = 60; cam.updateProjectionMatrix(); cam.position.copy(r).add(new cam.position.constructor(-18, 0, 14)); cam.position.y = z.gen.field.height(cam.position.x, cam.position.z) + 2; cam.lookAt(r); cam.updateMatrixWorld(true); return 1;`, frames: 2, shot: 'load_' + BODY, probe },
+];
