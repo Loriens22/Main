@@ -541,6 +541,73 @@ def trees():
     save_rgb("bark_pine_n.jpg", height_to_normal(1 - crev + plates * 0.2, 4.0))
 
 
+def screen_ui():
+    """Atlas of 4x4 mission-control style UI panels (≈0.6 m each at the runtime repeat): telemetry plots, bar
+    graphs, text columns, orbit/radar plots and status grids on dark navy. Used as the emissive map of monitors."""
+    n, k = 1024, 4
+    c = n // k
+    r = np.random.default_rng(1501)
+    img = Image.new("RGB", (n, n), (4, 9, 16))
+    d = ImageDraw.Draw(img)
+    pal = [(70, 200, 230), (90, 230, 140), (240, 175, 60), (220, 230, 240), (230, 90, 70)]
+    for gy in range(k):
+        for gx in range(k):
+            x0, y0 = gx * c + 6, gy * c + 6
+            x1, y1 = x0 + c - 12, y0 + c - 12
+            d.rectangle([x0, y0, x1, y1], outline=(30, 60, 90), width=2)
+            d.rectangle([x0 + 2, y0 + 2, x1 - 2, y0 + 16], fill=(16, 38, 62))
+            for t in range(r.integers(3, 7)):
+                tx = x0 + 6 + t * 26
+                d.line([(tx, y0 + 9), (tx + r.integers(8, 20), y0 + 9)], fill=(150, 190, 220), width=3)
+            kind = (gx + gy * 3 + r.integers(0, 2)) % 5
+            col = pal[r.integers(0, len(pal))]
+            if kind == 0:   # line plots on a grid
+                for q in range(6):
+                    yy = y0 + 24 + q * (y1 - y0 - 30) / 6
+                    d.line([(x0 + 4, yy), (x1 - 4, yy)], fill=(18, 40, 60), width=1)
+                for curve in range(3):
+                    cc = pal[(curve + gx) % 4]
+                    pts = []
+                    ph = r.uniform(0, 6)
+                    amp = r.uniform(10, 40)
+                    for i in range(60):
+                        t = i / 59
+                        pts.append((x0 + 6 + t * (x1 - x0 - 12), (y0 + y1) / 2 + 10 + math.sin(t * 5.0 + ph + curve) * amp + math.sin(t * 13 + ph * 2) * amp * 0.25 + r.normal(0, 1.2)))
+                    d.line(pts, fill=cc, width=2)
+            elif kind == 1:   # bar chart
+                nb = 14
+                for i in range(nb):
+                    h = r.uniform(0.15, 0.9) * (y1 - y0 - 40)
+                    bx = x0 + 8 + i * (x1 - x0 - 16) / nb
+                    d.rectangle([bx, y1 - 6 - h, bx + (x1 - x0 - 16) / nb - 4, y1 - 6], fill=col)
+            elif kind == 2:   # text columns
+                for row in range(14):
+                    yy = y0 + 26 + row * 15
+                    for colx in (0, 1):
+                        L = r.integers(20, 100)
+                        xx = x0 + 8 + colx * (c // 2)
+                        d.line([(xx, yy), (xx + L, yy)], fill=pal[3] if r.random() < 0.8 else pal[2], width=4)
+            elif kind == 3:   # orbit / radar plot
+                cx, cy = (x0 + x1) / 2, (y0 + y1) / 2 + 8
+                for rr in (30, 60, 90):
+                    d.ellipse([cx - rr, cy - rr * 0.8, cx + rr, cy + rr * 0.8], outline=(30, 80, 110), width=1)
+                d.ellipse([cx - 12, cy - 12, cx + 12, cy + 12], fill=(40, 110, 170))
+                a0 = r.uniform(0, 6)
+                d.arc([cx - 95, cy - 60, cx + 95, cy + 60], start=0, end=300, fill=pal[2], width=2)
+                d.ellipse([cx + 90 * math.cos(a0) - 4, cy + 55 * math.sin(a0) - 4, cx + 90 * math.cos(a0) + 4, cy + 55 * math.sin(a0) + 4], fill=pal[4])
+            else:   # status grid
+                for row in range(6):
+                    for colx in range(5):
+                        bx = x0 + 10 + colx * 46
+                        by = y0 + 30 + row * 34
+                        on = r.random()
+                        fc = pal[1] if on < 0.7 else pal[2] if on < 0.92 else pal[4]
+                        d.rectangle([bx, by, bx + 38, by + 24], outline=fc, width=2)
+                        d.line([(bx + 6, by + 12), (bx + 30, by + 12)], fill=fc, width=3)
+    a = np.asarray(img.filter(ImageFilter.GaussianBlur(0.6)), dtype=np.float32) / 255
+    save_rgb("screen_ui_a.jpg", a, q=92)
+
+
 def noise_rgba():
     """Generic tileable noise for shaders (clouds, water, dust, terrain variation)."""
     n = 512
@@ -554,6 +621,6 @@ if __name__ == "__main__":
         for nm in only:
             globals()[nm]()
         sys.exit(0)
-    for fn in (clapboard, shingles, wood_weathered, trees, grime, panels, fabric, quilt, ribbed, tiles, concrete, wood_siding, wood_floor, brushed, rust, grate,
+    for fn in (clapboard, shingles, wood_weathered, trees, screen_ui, grime, panels, fabric, quilt, ribbed, tiles, concrete, wood_siding, wood_floor, brushed, rust, grate,
                hexmesh, nets, terrain, noise_rgba):
         fn()

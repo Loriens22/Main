@@ -30,6 +30,7 @@ interface Recipe {
   alphaMap?: string;
   emissive?: [number, number, number];
   emissiveIntensity?: number;
+  emissiveMap?: string;
   opacity?: number;
   transmission?: number;
   clearcoat?: number;
@@ -105,8 +106,9 @@ const RECIPES: Record<string, Recipe> = {
   switch_panel: { color: C(0.09, 0.09, 0.09), rough: 0.5, weather: { grime: 0.2 } },
   emit_warm: { color: C(1, 0.88, 0.7), emissive: C(1.0, 0.82, 0.6), emissiveIntensity: 6, rough: 0.5, weather: false },
   emit_cool: { color: C(0.85, 0.92, 1), emissive: C(0.82, 0.9, 1.0), emissiveIntensity: 6, rough: 0.5, weather: false },
-  emit_screen: { color: C(0.05, 0.3, 0.45), emissive: C(0.25, 0.7, 1.0), emissiveIntensity: 1.6, rough: 0.2, weather: false },
-  emit_screen_amber: { color: C(0.4, 0.25, 0.05), emissive: C(1.0, 0.6, 0.15), emissiveIntensity: 1.6, rough: 0.3, weather: false },
+  // monitors show a procedural telemetry UI atlas (≈0.6 m per panel on metre-scale UVs)
+  emit_screen: { color: C(0.02, 0.025, 0.03), emissive: C(1, 1, 1), emissiveMap: 'screen_ui_a', mapRepeat: 1 / 2.4, emissiveIntensity: 1.5, rough: 0.15, weather: false },
+  emit_screen_amber: { color: C(0.02, 0.02, 0.02), emissive: C(1.0, 0.72, 0.4), emissiveMap: 'screen_ui_a', mapRepeat: 1 / 2.4, emissiveIntensity: 1.4, rough: 0.15, weather: false },
   emit_red: { color: C(1, 0.1, 0.05), emissive: C(1, 0.08, 0.04), emissiveIntensity: 8, weather: false },
   emit_green: { color: C(0.1, 1, 0.2), emissive: C(0.1, 1, 0.25), emissiveIntensity: 5, weather: false },
   emit_white: { color: C(1, 1, 1), emissive: C(1, 1, 1), emissiveIntensity: 10, weather: false },
@@ -134,6 +136,7 @@ const RECIPES: Record<string, Recipe> = {
   rubber_mat: { color: C(0.05, 0.05, 0.05), rough: 0.92, normal: 'ribbed_n', normalScale: 0.5, normalRepeat: 6, weather: { grime: 0.6, grimeTint: new THREE.Color(4, 3.6, 3) } },
   plate_white: { color: C(0.78, 0.78, 0.74), rough: 0.4, weather: { grime: 0.6, streak: 0.4 } },
   plastic_gray: { color: C(0.22, 0.22, 0.23), rough: 0.5, weather: { grime: 0.4 } },
+  carpet_gray: { color: C(0.16, 0.17, 0.2), rough: 0.96, normal: 'fabric_n', normalScale: 0.9, normalRepeat: 3, weather: { grime: 0.3, scratch: 0 } },
   chrome_dull: { color: C(0.72, 0.72, 0.71), rough: 0.32, metal: 1, weather: { grime: 0.55, grimeTint: new THREE.Color(0.7, 0.62, 0.5), scratch: 0.25, streak: 0.3 } },
   needles_spruce: { color: C(0.82, 0.9, 0.86), map: 'conifer_branch_rgba', mapRepeat: 1, alphaTest: 0.42, rough: 0.82, side: THREE.DoubleSide, weather: false },
   needles_fir: { color: C(0.95, 1.05, 0.92), map: 'conifer_branch_rgba', mapRepeat: 1, alphaTest: 0.42, rough: 0.82, side: THREE.DoubleSide, weather: false },
@@ -253,6 +256,7 @@ export class MaterialLibrary {
       params.emissive = new THREE.Color(...r.emissive);
       params.emissiveIntensity = r.emissiveIntensity ?? 1;
     }
+    if (r.emissiveMap) params.emissiveMap = this.tex(r.emissiveMap, true, r.mapRepeat ?? 1);
     if (r.opacity !== undefined && r.opacity < 1) {
       params.transparent = true;
       params.opacity = r.opacity;

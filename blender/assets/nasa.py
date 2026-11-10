@@ -29,19 +29,19 @@ def col(name, c, s, rz=0.0, par=None, **kw):
     return arch.col_box(name, c, s, rz, par, **kw)
 
 
-def light_strip(P, L, lights, par, x, y, z, length, along="y", group="tunnel", every=8, kind="cool", lamp_m="emit_cool"):
+def light_strip(P, L, lights, par, x, y, z, length, along="y", group="tunnel", every=8, kind="cool", lamp_m="emit_cool", intensity=6, distance=14):
     if along == "y":
         P.append(box("strip_housing", (0.35, length, 0.12), loc=(x, y, z + 0.06), m="metal_dark"))
         L.append(box(f"lampE|{group}|s", (0.22, length - 0.1, 0.03), loc=(x, y, z - 0.01), m=lamp_m))
         n = max(1, int(length / every))
         for k in range(n):
-            lights.append(empty(f"light_{group}_{len(lights)}", loc=(x, y - length / 2 + (k + 0.5) * length / n, z - 0.6), parent=par, light=kind, group=group, intensity=6, distance=14))
+            lights.append(empty(f"light_{group}_{len(lights)}", loc=(x, y - length / 2 + (k + 0.5) * length / n, z - 0.6), parent=par, light=kind, group=group, intensity=intensity, distance=distance))
     else:
         P.append(box("strip_housing", (length, 0.35, 0.12), loc=(x, y, z + 0.06), m="metal_dark"))
         L.append(box(f"lampE|{group}|s", (length - 0.1, 0.22, 0.03), loc=(x, y, z - 0.01), m=lamp_m))
         n = max(1, int(length / every))
         for k in range(n):
-            lights.append(empty(f"light_{group}_{len(lights)}", loc=(x - length / 2 + (k + 0.5) * length / n, y, z - 0.6), parent=par, light=kind, group=group, intensity=6, distance=14))
+            lights.append(empty(f"light_{group}_{len(lights)}", loc=(x - length / 2 + (k + 0.5) * length / n, y, z - 0.6), parent=par, light=kind, group=group, intensity=intensity, distance=distance))
 
 
 def screen(name, par, loc, size, rot=(0, 0, 0), m="emit_screen"):
@@ -70,11 +70,41 @@ def console_desk(P, x, y, z, rot, w=2.4):
     P.append(box("cdesk_top", (w + 0.05, 0.95, 0.04), loc=Q(0, 0.02, 0.77), rot=(0, 0, rot), m="console_beige", bevel=0.01))
     P.append(box("cdesk_back", (w, 0.25, 0.55), loc=Q(0, 0.38, 1.05), rot=(-0.25, 0, rot), m="console_dark", bevel=0.02))
     for k in range(int(w / 0.8)):
-        P.append(box("cmon", (0.62, 0.05, 0.42), loc=Q(-w / 2 + 0.4 + k * 0.8, 0.3, 1.1), rot=(-0.25, 0, rot), m="plastic_dark", bevel=0.01))
-        P.append(box("cscr", (0.56, 0.01, 0.36), loc=Q(-w / 2 + 0.4 + k * 0.8, 0.27, 1.1), rot=(-0.25, 0, rot), m="emit_screen" if R.random() < 0.7 else "emit_screen_amber"))
+        mx = -w / 2 + 0.4 + k * 0.8
+        P.append(box("cmon", (0.62, 0.05, 0.42), loc=Q(mx, 0.13, 1.13), rot=(-0.12, 0, rot), m="plastic_dark", bevel=0.01))
+        P.append(box("cscr", (0.57, 0.01, 0.37), loc=Q(mx, 0.102, 1.13), rot=(-0.12, 0, rot), m="emit_screen" if R.random() < 0.7 else "emit_screen_amber"))
+        P.append(box("cmon_stand", (0.06, 0.05, 0.2), loc=Q(mx, 0.16, 0.88), rot=(0, 0, rot), m="metal_dark"))
+        P.append(box("cmon_foot", (0.25, 0.18, 0.015), loc=Q(mx, 0.16, 0.795), rot=(0, 0, rot), m="metal_dark"))
         P.append(box("ckey", (0.45, 0.16, 0.03), loc=Q(-w / 2 + 0.4 + k * 0.8, -0.15, 0.8), rot=(0, 0, rot), m="plastic_dark"))
     for k in range(int(w / 0.8)):
         arch.chair("cchair", Q(-w / 2 + 0.4 + k * 0.8, -0.85, 0), rot + PI, "plastic_dark", P)
+
+
+def console_props(P, x, y, z, rot, w):
+    """Per-console clutter: gooseneck lamps, headsets, phones, binders, mugs, status LEDs, PCs under the desk."""
+    c, s = math.cos(rot), math.sin(rot)
+
+    def Q(lx, ly, lz):
+        return (x + lx * c - ly * s, y + lx * s + ly * c, z + lz)
+    n = int(w / 0.8)
+    for k in range(n):
+        lx = -w / 2 + 0.4 + k * 0.8
+        P.append(box("pc_tower", (0.2, 0.45, 0.42), loc=Q(lx, 0.15, 0.21), rot=(0, 0, rot), m="plastic_dark", bevel=0.01))
+        P.append(box("mouse", (0.06, 0.1, 0.03), loc=Q(lx + 0.3, -0.18, 0.805), rot=(0, 0, rot), m="plastic_dark", bevel=0.01))
+        if R.random() < 0.55:
+            P.append(cyl("mug", 0.04, 0.1, loc=Q(lx - 0.32, -0.25, 0.84), m=R.choice(["ceramic_white", "warning_red", "pipe_blue"]), verts=12))
+        if R.random() < 0.5:
+            P.append(box("binder", (0.06, 0.3, 0.25), loc=Q(lx + 0.25, 0.22, 0.915), rot=(0.1, 0, rot), m=R.choice(["pipe_blue", "warning_red", "console_beige", "plastic_dark"])))
+        if R.random() < 0.6:
+            P.append(kit.torus("headset", 0.07, 0.008, loc=Q(lx - 0.15, -0.3, 0.81), rot=(PI / 2, 0, rot), m="plastic_dark", seg=12, rseg=4))
+        for j in range(4):
+            P.append(box("status_led", (0.02, 0.01, 0.01), loc=Q(lx - 0.2 + j * 0.06, 0.28, 0.79), rot=(0, 0, rot), m=R.choice(["emit_green", "emit_green", "emit_red"])))
+    for k in range(2):
+        lx = -w / 2 + 0.2 + k * (w - 0.4)
+        P.append(cyl("lamp_base", 0.06, 0.02, loc=Q(lx, 0.25, 0.79), m="metal_dark", verts=12))
+        P.append(kit.tube("lamp_neck", [Q(lx, 0.25, 0.8), Q(lx, 0.2, 1.05), Q(lx, 0.05, 1.15)], 0.006, m="metal_dark", seg=5))
+        P.append(cyl("lamp_head", 0.04, 0.05, loc=Q(lx, 0.03, 1.13), m="metal_dark", verts=10))
+    P.append(box("phone", (0.2, 0.18, 0.06), loc=Q(w / 2 - 0.3, 0.15, 0.82), rot=(0, 0, rot), m="plastic_dark", bevel=0.01))
 
 
 def nasa():
@@ -237,7 +267,7 @@ def nasa():
         zt = t * 0.45
         if t > 0:
             P.append(box("tier", (7.5, 34, zt), loc=(x0 + 3.75, 82, zt / 2), m="int_floor", bevel=0.01))
-            P.append(box("tier_edge", (0.08, 34, 0.05), loc=(x0, 82, zt), m="emit_cool"))
+            P.append(box("tier_edge", (0.1, 34, 0.05), loc=(x0, 82, zt), m="metal_brushed"))
             col(f"COL_tier{t}", (x0 + 3.75, 82, zt / 2), (7.5, 34, zt), 0, root)
         for row_y in (68.5, 75.5, 88.5, 95.5):
             console_desk(P, x0 + 3.0, row_y, zt, PI / 2, w=4.8)
@@ -258,9 +288,54 @@ def nasa():
     arch.chair("dir_chair", (-26.6, 84, 1.8), -PI / 2, "leather_brown", P)
     for k in range(6):
         for row in range(2):
-            light_strip(P, L, lights, root, -66 + k * 7.5, 72 + row * 20, MH - 0.05, 6, "y", "mc", every=6, kind="cool")
+            light_strip(P, L, lights, root, -66 + k * 7.5, 72 + row * 20, MH - 0.05, 6, "y", "mc", every=6, kind="cool", intensity=11, distance=20)
     rv = box("ROOM_nasa_mc", (MX1 - MX0, MY1 - MY0, MH), loc=((MX0 + MX1) / 2, (MY0 + MY1) / 2, MH / 2), m="frame_black", par=root, room="nasa_mc")
     rv.hide_render = True
+    # ---- mission control finish: carpet tiers, tier rails, acoustic wall panels, ceiling grid, clocks, console clutter
+    for t in range(4):
+        x0 = -62 + t * 7.5
+        zt = t * 0.45
+        P.append(box("mc_carpet", (7.4, 33.8, 0.012), loc=(x0 + 3.75, 82, zt + 0.006), m="carpet_gray"))
+        if t > 0:
+            for k in range(9):
+                yy = 66 + k * 4.0
+                if 80 < yy < 84:
+                    continue
+                P.append(cyl("tier_rail_post", 0.025, 0.9, loc=(x0 - 0.25, yy, zt - 0.45 + 0.45 + 0.45), m="metal_brushed", verts=8))
+            for (y0_, y1_) in ((65.5, 80.5), (83.5, 98.5)):
+                P.append(cyl("tier_rail", 0.025, y1_ - y0_, loc=(x0 - 0.25, (y0_ + y1_) / 2, zt + 0.9), rot=(PI / 2, 0, 0), m="metal_brushed", verts=8))
+        for row_y in (68.5, 75.5, 88.5, 95.5):
+            console_props(P, x0 + 3.0, row_y, zt, PI / 2, 4.8)
+    for (wall, a0, a1, fixed, axis) in (("n", MX0 + 1, MX1 - 1, MY1 - 0.32, "x"), ("s", MX0 + 1, MX1 - 1, MY0 + 0.32, "x"), ("e", MY0 + 1, MY1 - 1, MX1 - 0.32, "y")):
+        nseg = int((a1 - a0) / 2.4)
+        for k in range(nseg):
+            u = a0 + 1.2 + k * 2.4
+            if axis == "y" and 79 < u < 85:
+                continue
+            for j in range(3):
+                zc = 1.4 + j * 1.75
+                m = "int_panel_mid" if (k + j) % 3 else "int_panel_dark"
+                if axis == "x":
+                    P.append(box("acoustic", (2.3, 0.06, 1.65), loc=(u, fixed, zc), m=m, bevel=0.01))
+                else:
+                    P.append(box("acoustic", (0.06, 2.3, 1.65), loc=(fixed, u, zc), m=m, bevel=0.01))
+    for k in range(int((MX1 - MX0) / 1.2)):
+        P.append(box("ceil_tbar", (0.04, MY1 - MY0, 0.04), loc=(MX0 + 0.6 + k * 1.2, 82, MH - 0.02), m="metal_brushed"))
+    for k in range(int((MY1 - MY0) / 1.2)):
+        P.append(box("ceil_tbar", (MX1 - MX0, 0.04, 0.04), loc=((MX0 + MX1) / 2, MY0 + 0.6 + k * 1.2, MH - 0.02), m="metal_brushed"))
+    for (x, y) in ((-62, 66), (-54, 98), (-46, 66), (-38, 98), (-30, 66)):
+        P.append(box("diffuser", (0.6, 0.6, 0.05), loc=(x, y, MH - 0.05), m="steel_painted_white"))
+        for j in range(4):
+            P.append(box("diffuser_slot", (0.5, 0.02, 0.055), loc=(x, y - 0.18 + j * 0.12, MH - 0.05), m="frame_black"))
+    P.append(box("ceil_tray", (MX1 - MX0 - 2, 0.4, 0.08), loc=((MX0 + MX1) / 2, 82, MH - 0.6), m="steel_galv"))
+    for k in range(6):
+        P.append(cyl("tray_hanger", 0.01, 0.55, loc=(MX0 + 4 + k * 8, 82, MH - 0.3), m="metal_gray", verts=6))
+    for k in range(5):   # world clocks above the screen wall
+        yy = 74 + k * 4
+        P.append(box("clock", (0.15, 1.8, 0.5), loc=(MX0 + 0.75, yy, 8.4), m="console_dark", bevel=0.01))
+        P.append(box("clock_digits", (0.02, 1.5, 0.3), loc=(MX0 + 0.84, yy, 8.4), m="emit_red"))
+        P.append(box("clock_label", (0.02, 1.2, 0.08), loc=(MX0 + 0.84, yy, 8.05), m="plastic_white"))
+
     # stations (interactive terminals) — iid identifies the data shown
     stations = [("mc_telemetry", (-58.5, 68.5)), ("mc_orbits", (-58.5, 75.5)), ("mc_fuel", (-58.5, 88.5)), ("mc_crew", (-58.5, 95.5)),
                 ("mc_config", (-51, 68.5)), ("mc_saturn", (-51, 75.5)), ("mc_wormhole", (-51, 88.5)), ("mc_planets", (-51, 95.5)),

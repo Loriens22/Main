@@ -419,6 +419,7 @@ export class NasaSite {
     const tex = new THREE.CanvasTexture(canvas);
     tex.colorSpace = THREE.SRGBColorSpace;
     tex.anisotropy = 4;
+    tex.flipY = false; // glTF already flips V: with three's default flipY the canvas would show upside down
     mesh.material = new THREE.MeshBasicMaterial({ map: tex, toneMapped: false });
     const name = mesh.name;
     const draw = name === 'screen_mc_main' || name === 'screen_atrium' ? drawOrbitScreen(this) : name.startsWith('screen_mc_') ? drawTelemetry(this, name) : drawGeneric(this, name);
