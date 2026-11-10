@@ -26,6 +26,8 @@ export interface LadderRef {
   b: THREE.Vector3; // top
   exitA: THREE.Vector3;
   exitB: THREE.Vector3;
+  /** frame-local direction from the climber toward the rungs (the player faces the ladder) */
+  face?: THREE.Vector3;
 }
 
 const _v = new THREE.Vector3();
@@ -172,7 +174,15 @@ export class Player {
     this.ladder = l;
     this.mode = 'ladder';
     const ab = _v.copy(l.b).sub(l.a);
-    this.ladderT = THREE.MathUtils.clamp(_v2.copy(this.pos).sub(l.a).dot(ab) / ab.lengthSq(), 0, 1);
+    // never grab exactly at an end: 0 / 1 mean 'stepped off' in updateLadder
+    this.ladderT = THREE.MathUtils.clamp(_v2.copy(this.pos).sub(l.a).dot(ab) / ab.lengthSq(), 0.03, 0.97);
+    this.removeCollider();
+    if (l.face) {
+      this.up.copy(ab).normalize();
+      this.heading.copy(l.face);
+      this.orthoHeading();
+      this.pitch = 0;
+    }
   }
 
   update(dt: number, input: Input, opts: { sprintAllowed?: boolean } = {}) {

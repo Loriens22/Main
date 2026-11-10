@@ -18,6 +18,10 @@ import { SITE } from '../../space/astro';
 import { CHARACTERS, CREW } from '../../data/characters';
 import { Humanoid } from '../../npc/Humanoid';
 import { h } from '../../ui/UI';
+import { Site } from '../Site';
+import { LightPool } from '../../render/LightPool';
+import type { Interactable } from '../../interact/Interaction';
+import type { LadderRef } from '../../player/Player';
 
 const STACK_COM = 25; // m, stack centre of mass above the base (same as the launch sequence)
 const S2_SPEC: SpacecraftSpec = {
@@ -61,6 +65,13 @@ export default class SpaceZone extends Zone implements ProxHost {
   eInst!: ModelInstance;
   eModel!: CraftModel;
   readonly eRoot = new THREE.Group();
+  /** rotating Endurance body frame (spin gravity ω²r about the model +Z axis) and its walkable interior */
+  eFrame!: Frame;
+  site!: Site;
+  lightPool!: LightPool;
+  aboard = false;
+  /** soft fill inside the modules (bounce light from the white linings) */
+  readonly interiorFill = new THREE.HemisphereLight(0xe8eef5, 0x3a3c40, 0);
   ePos: V3 = [0, 0, 0];
   eVel: V3 = [0, 0, 0];
   readonly eQLvlh = new THREE.Quaternion();
@@ -115,12 +126,38 @@ export default class SpaceZone extends Zone implements ProxHost {
     this.earthLight = new THREE.HemisphereLight(0x6f8fbf, 0x000000, 0.4);
     this.scene.add(this.earthLight);
     this.scene.add(new THREE.AmbientLight(0x101418, 0.25));
+    this.scene.add(this.interiorFill);
     progress(0.3, 'Endurance');
     this.eInst = await game.assets.instance('endurance');
     this.eRoot.add(this.eInst.root);
     this.eRoot.name = 'endurance';
     this.scene.add(this.eRoot);
     this.eModel = new CraftModel(this.eInst, 'endurance');
+    progress(0.4, 'Endurance interior');
+    this.eFrame = this.addFrame(new Frame('endurance', this.eRoot, (l, o) => {
+      const w = this.game.state.endurance.omega;
+      return o.set(l.x * w * w, l.y * w * w, 0);
+    }, 'Endurance'));
+    this.eFrame.surfaceFn = () => 'metal';
+    this.lightPool = new LightPool(this.eRoot, game.settings.graphics.shadowQuality >= 2 ? 8 : 6);
+    const intInst = await game.assets.instance('endurance_int');
+    this.site = new Site(game, intInst, {
+      name: 'endurance', frame: this.eFrame, parent: this.eRoot, placement: new THREE.Matrix4(), lightPool: this.lightPool, groupsOn: ['*'],
+      handlers: { ladder: (n, site) => this.ladderInteract(n, site) },
+    });
+    intInst.root.traverse((o) => {
+      const m = o as THREE.Mesh;
+      if (m.isMesh && m.visible) {
+        m.castShadow = true;
+        m.receiveShadow = true;
+      }
+    });
+    // indicator LEDs and lit screens are small: keep them from blooming the whole room
+    for (const [name, g] of this.site.groups) {
+      if (!g.material) continue;
+      g.material.emissiveIntensity = name === 'panel' ? 1.4 : name.startsWith('deck') || name.startsWith('ring') ? 2.6 : 3;
+    }
+    this.addReboard();
     this.eInst.root.traverse((o) => {
       const m = o as THREE.Mesh;
       if (m.isMesh) {
@@ -189,6 +226,11 @@ export default class SpaceZone extends Zone implements ProxHost {
 
   describe() {
     const s = this.craft ? orbitSummary(this.craft.pos, this.craft.vel) : null;
+    const room = this.roomHere?.();
+    if (room) {
+      const g = this.eFrame.gravity(this.game.player.pos, new THREE.Vector3()).length() / 9.81;
+      return { name: 'ENDURANCE', sub: `${room} · ${g.toFixed(2)} g` };
+    }
     if (this.r1Docked) return { name: 'ENDURANCE', sub: 'Docked · Earth orbit 420 km' };
     return { name: 'EARTH ORBIT', sub: s ? `Ranger 1 · ${(s.alt / 1000).toFixed(0)} km` : 'Low Earth orbit' };
   }
@@ -405,7 +447,14 @@ export default class SpaceZone extends Zone implements ProxHost {
     const t = game.state.clock.earthTime;
     const st = game.state.vehicles.ranger1;
     this.tSim = t;
-    const at = spec.at ?? (st.docked ? 'docked' : 'orbit');
+    let at = spec.at ?? (st.docked ? 'docked' : 'orbit');
+    // 'endurance' / 'endurance:<room>' — aboard, with Ranger 1 docked at the forward port
+    let aboardAt: string | null = null;
+    if (at.startsWith('endurance')) {
+      const room = at.split(':')[1] ?? 'hub';
+      aboardAt = ({ hub: 'spawn_hub', command: 'spawn_command', galley: 'spawn_hab3', quarters: 'spawn_hab0', cryo: 'spawn_cryo' } as Record<string, string>)[room] ?? 'spawn_hub';
+      at = 'docked';
+    }
     let r: V3, v: V3;
     let q = new THREE.Quaternion();
     let stack = false;
@@ -467,6 +516,10 @@ export default class SpaceZone extends Zone implements ProxHost {
     this.updateEndurance(t);
     this.syncRoots();
     this.seatPlayer();
+    if (aboardAt) {
+      this.game.setControl(null);
+      this.boardEndurance(aboardAt);
+    }
   }
 
   /** Upper stage + adapter under Ranger 1 until the stage is spent. */
@@ -570,10 +623,7 @@ export default class SpaceZone extends Zone implements ProxHost {
     this.control.dockingCamNode = this.r1Inst.nodes.get('dock_rear') ?? null;
     this.control.infoFn = () => this.hudInfo();
     this.control.exitFn = () => {
-      if (this.r1Docked) {
-        this.say('computer', 'Hatch to the Endurance hub is sealed until the transfer tunnel is pressurised.');
-        return false;
-      }
+      if (this.r1Docked) return this.boardEndurance();
       game.notify('You cannot leave the pilot seat in flight.', 'warn', 2);
       return false;
     };
@@ -743,9 +793,93 @@ export default class SpaceZone extends Zone implements ProxHost {
         this.spent = null;
       }
     }
+    // interior: rotating-frame physics, lamps, doors
+    if (this.game.player.frame === this.eFrame) this.eFrame.physics.step(dt);
+    this.aboard = this.game.player.frame === this.eFrame;
+    this.site.update(dt);
+    this.lightPool.update(dt, this.game.camera.position);
     this.updateSky(dt);
   }
   private reentryWarned = false;
+
+  // ===================================================================================================== aboard the Endurance
+  private localOf(name: string) {
+    const n = this.site.node(name);
+    return n ? new THREE.Vector3().setFromMatrixPosition(this.site.local(n)) : null;
+  }
+
+  private ladderInteract(n: THREE.Object3D, site: Site): Interactable | null {
+    const id = n.userData.iid as string;
+    const get = (k: string) => site.node(`${id}_${k}`);
+    const a = get('a'), b = get('b');
+    if (!a || !b) return null;
+    const lp = (o: THREE.Object3D | null, fb: THREE.Object3D) => new THREE.Vector3().setFromMatrixPosition(site.local(o ?? fb));
+    const ref: LadderRef = { id, frame: this.eFrame, a: lp(a, a), b: lp(b, b), exitA: lp(get('ea'), a), exitB: lp(get('eb'), b) };
+    if (a.userData.fx !== undefined) {
+      // Blender (x, y, z) → frame-local three (x, z, −y)
+      ref.face = new THREE.Vector3(a.userData.fx, a.userData.fz, -a.userData.fy).normalize();
+    }
+    const len = ref.a.distanceTo(ref.b);
+    return {
+      id: `endu_${id}`, targets: [n], range: 2.6,
+      label: () => (this.game.player.mode === 'ladder' ? null : `Climb ladder (${len.toFixed(0)} m)`),
+      use: () => this.game.player.grabLadder(ref),
+    };
+  }
+
+  /** Iris door at the forward port: board Ranger 1 again. */
+  private addReboard() {
+    const n = this.site.node('iris_fwd');
+    if (!n) return;
+    const hit = new THREE.Mesh(new THREE.BoxGeometry(2.0, 2.0, 0.8), new THREE.MeshBasicMaterial({ visible: false }));
+    hit.userData.owned = true;
+    n.add(hit);
+    this.game.interaction.add({
+      id: 'endu_board_r1', targets: [hit], range: 3,
+      label: () => (this.r1Docked && this.aboard ? 'Forward iris — board Ranger 1 (pilot seat)' : null),
+      enabled: () => this.r1Docked && this.aboard,
+      use: () => this.reboard(),
+    });
+  }
+
+  /** Leave the pilot seat through the docking tunnel into the hub (microgravity on the spin axis). */
+  boardEndurance(at = 'spawn_hub'): boolean {
+    const game = this.game;
+    const pos = this.localOf(at) ?? new THREE.Vector3(0, 1.2, 0);
+    game.player.seat = null;
+    game.player.enterFrame(this.eFrame, pos, 0, at === 'spawn_hub' ? 'float' : 'walk');
+    this.aboard = true;
+    game.audio.door('airlock');
+    game.state.player.frame = 'endurance';
+    if (at === 'spawn_hub') this.say('computer', 'Transfer tunnel pressurised. Welcome aboard. Spin gravity: one g at the deck floors.');
+    return true;
+  }
+
+  private reboard() {
+    const game = this.game;
+    const seat = this.r1Inst.nodes.get('seat_pilot');
+    const eye = this.r1Inst.nodes.get('seat_pilot_eye');
+    if (!seat || !eye) return;
+    game.player.sit({ id: 'ranger1_pilot', anchor: seat, eye, frame: this.r1Frame, exit: () => new THREE.Vector3(0, 0.6, 2), yawLimit: 1.6 });
+    game.player.mode = 'seat';
+    this.aboard = false;
+    game.audio.door('airlock');
+    game.setControl(this.control);
+  }
+
+  /** Room name for the status line. */
+  private roomHere(): string | null {
+    if (!this.aboard) return null;
+    const r = this.site.roomAt(this.game.player.pos.clone().add(this.game.player.up.clone().multiplyScalar(1.0)));
+    if (!r) return 'Ring corridor';
+    const names: Record<string, string> = { hub: 'Central hub (microgravity)', spoke3: 'Spoke — habitat side', spoke9: 'Spoke — command side', deck_9: 'Command module — flight deck', deck_3: 'Habitat module — galley', deck_0: 'Habitat module — crew quarters', deck_6: 'Cryo-lab' };
+    if (names[r]) return names[r];
+    if (r.startsWith('ring_')) {
+      const k = +r.slice(5);
+      return `Ring vestibule ${k} — ${({ habitat: 'habitat', pod: 'landing pod', engine: 'engine module', cryo: 'cryo-lab', command: 'command module' } as Record<string, string>)[['habitat', 'pod', 'engine', 'habitat', 'engine', 'pod', 'cryo', 'pod', 'engine', 'command', 'engine', 'pod'][k]]}`;
+    }
+    return r;
+  }
 
   private syncRoots() {
     const o = this.origin;
@@ -797,9 +931,10 @@ export default class SpaceZone extends Zone implements ProxHost {
     const day = THREE.MathUtils.smoothstep(rHat.dot(sunDir), -0.35, 0.55);
     this.earthLight.position.copy(rHat).negate();
     this.earthLight.color.setRGB(0.32, 0.42, 0.6);
-    this.earthLight.intensity = 0.08 + 0.75 * day;
+    this.earthLight.intensity = (0.08 + 0.75 * day) * (this.aboard ? 0.12 : 1);
     // exposure: adapt in orbital night
-    this.exposure = THREE.MathUtils.damp(this.exposure, this.sunVis > 0.5 ? 1.0 : 2.2, 1.5, dt);
+    this.exposure = THREE.MathUtils.damp(this.exposure, this.aboard ? 0.95 : this.sunVis > 0.5 ? 1.0 : 2.2, 1.5, dt);
+    this.interiorFill.intensity = this.aboard ? 0.55 : 0;
     // stars wash out when the sunlit Earth or the Sun is in view (camera exposure), full in orbital night
     const look = cam.getWorldDirection(new THREE.Vector3());
     const earthInView = THREE.MathUtils.smoothstep(look.dot(rHat.clone().negate()), -0.2, 0.5) * day;
@@ -844,7 +979,7 @@ export default class SpaceZone extends Zone implements ProxHost {
     this.envRT?.dispose();
     this.envRT = this.game.renderer.pmrem.fromScene(this.envScene, 0, 0.1, 100);
     this.scene.environment = this.envRT.texture;
-    this.scene.environmentIntensity = 0.6;
+    this.scene.environmentIntensity = this.aboard ? 0.18 : 0.6;
   }
 
   private focusPoint() {

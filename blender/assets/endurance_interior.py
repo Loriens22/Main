@@ -257,7 +257,7 @@ def ladder(F, gid, t, y, r_top, r_bot, side="y+", exit_top=None, exit_bot=None):
         rr = r_top + i * (r_bot - r_top) / max(1, n)
         B(F, "lad_rung", t - off, t + off, y - 0.018, y + 0.018, rr - 0.018, rr + 0.018, "metal_brushed")
     # ladder empties (frame-local positions, player climbs from a (bottom) to b (top))
-    empty(f"lad_{gid}_a", loc=F.p(t, y + d * 0.42, r_bot), parent=ROOT)
+    empty(f"lad_{gid}_a", loc=F.p(t, y + d * 0.42, r_bot), parent=ROOT, fx=-d * F.a.x, fy=-d * F.a.y, fz=-d * F.a.z)
     empty(f"lad_{gid}_b", loc=F.p(t, y + d * 0.42, r_top), parent=ROOT)
     eb = exit_bot or (t, y + d * 0.9, r_bot)
     et = exit_top or (t, y + d * 0.9, r_top)
@@ -513,21 +513,25 @@ def spoke_interior(s):
         L.append(kit.torus(f"lampE|{grp}|ring", 1.24, 0.02, loc=(s * (xx + 0.12), 0, 0), rot=(0, PI / 2, 0), m="emit_cool", seg=32, rseg=4))
         LIGHTS.append(empty(f"light_{grp}_{len(LIGHTS)}", loc=(s * xx, 0, 0), parent=ROOT, light="cool", group=grp, intensity=2.5, distance=5.0))
     # ladder along the tube wall, continuing down into the vestibule to its floor (one straight line, radial)
-    lt = -1.0     # module-frame tangential offset of the ladder line
-    lad_y = 0.0
+    lt = -1.12    # rungs against the tube wall (module-frame tangential offset); rungs run along the axial direction
+    stand = -0.62 # the climber's line, toward the spoke axis
     for sgn in (-1, 1):
-        B(F, "sp_stile", lt + sgn * 0.22 - 0.025, lt + sgn * 0.22 + 0.025, lad_y - 0.62, lad_y - 0.57, x0, VFLOOR, "metal_brushed")
+        B(F, "sp_stile", lt - 0.03, lt + 0.03, sgn * 0.22 - 0.025, sgn * 0.22 + 0.025, x0, VFLOOR, "metal_brushed")
+        for j in range(6):   # stand-off brackets to the wall
+            rr = x0 + 1.0 + j * (VFLOOR - x0 - 2.0) / 5
+            B(F, "sp_bracket", lt - 0.16, lt, sgn * 0.22 - 0.02, sgn * 0.22 + 0.02, rr - 0.03, rr + 0.03, "metal_dark")
     nr = int((VFLOOR - x0) / 0.3)
     for i in range(nr + 1):
         rr = x0 + i * (VFLOOR - x0) / nr
-        B(F, "sp_rung", lt - 0.22, lt + 0.22, lad_y - 0.62, lad_y - 0.57, rr - 0.018, rr + 0.018, "metal_brushed")
+        B(F, "sp_rung", lt - 0.018, lt + 0.018, -0.22, 0.22, rr - 0.018, rr + 0.018, "metal_brushed")
     gid = f"s{k}"
-    empty(f"lad_{gid}_a", loc=F.p(lt, lad_y - 0.2, VFLOOR), parent=ROOT)
-    empty(f"lad_{gid}_b", loc=F.p(lt, lad_y - 0.2, x0 - 0.2), parent=ROOT)
-    empty(f"lad_{gid}_ea", loc=F.p(lt - 0.8, lad_y + 0.8, VFLOOR), parent=ROOT)
+    face = -F.t
+    empty(f"lad_{gid}_a", loc=F.p(stand, 0.0, VFLOOR), parent=ROOT, fx=face.x, fy=face.y, fz=face.z)
+    empty(f"lad_{gid}_b", loc=F.p(stand, 0.0, x0 - 0.2), parent=ROOT)
+    empty(f"lad_{gid}_ea", loc=F.p(stand + 0.6, 0.8, VFLOOR), parent=ROOT)
     empty(f"lad_{gid}_eb", loc=(s * 1.8, 0.0, 0.0), parent=ROOT)
-    hit = box(f"lad_{gid}_hit", (0.7, 0.4, VFLOOR - x0), m="frame_black")
-    oriented(hit, F, lt, lad_y - 0.4, (x0 + VFLOOR) / 2)
+    hit = box(f"lad_{gid}_hit", (0.6, 0.7, VFLOOR - x0), m="frame_black")
+    oriented(hit, F, (lt + stand) / 2, 0.0, (x0 + VFLOOR) / 2)
     hit.parent = ROOT
     hit["interact"] = "ladder"
     hit["iid"] = f"lad_{gid}"

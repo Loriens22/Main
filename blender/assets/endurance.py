@@ -132,6 +132,24 @@ def holed_panel(P, F, name, normal, ra, ya, rr, h1, h2, m):
                 F.box(P, name, a0, a1, b0, b1, r0, r1, m)
 
 
+def multi_holed(P, F, name, tr, yr, rr, holes, m):
+    """Front/back panel (constant y) spanning t × r with several rectangular openings (t0, t1, r0, r1)."""
+    (t0, t1), (y0, y1), (r0, r1) = tr, yr, rr
+    cuts = sorted({r0, r1, *[h[2] for h in holes], *[h[3] for h in holes]})
+    for i in range(len(cuts) - 1):
+        b0, b1 = cuts[i], cuts[i + 1]
+        if b1 - b0 < 1e-4:
+            continue
+        active = sorted([(h[0], h[1]) for h in holes if h[2] <= b0 + 1e-6 and h[3] >= b1 - 1e-6])
+        x = t0
+        for (h0, h1) in active:
+            if h0 - x > 1e-4:
+                F.box(P, name, x, h0, y0, y1, b0, b1, m)
+            x = max(x, h1)
+        if t1 - x > 1e-4:
+            F.box(P, name, x, t1, y0, y1, b0, b1, m)
+
+
 def window(P, G, c, u, v, n, hw, hh, frame="metal_gunmetal"):
     P.append(obox("win_frame", c, u, v, n, -hw - 0.07, hw + 0.07, -hh - 0.07, hh + 0.07, -0.02, 0.06, frame))
     G.append(obox("win", c, u, v, n, -hw, hw, -hh, hh, -0.02, 0.075, "glass_dark"))
@@ -148,7 +166,14 @@ def module(P, G, root, k):
         holed_panel(P, F, "shell_ceiling", "r", (-HT, HT), (YB, YF), (RV, RV + WALL), HATCH[0:2], HATCH[2:4], W)
     else:
         F.box(P, "shell_ceiling", -HT, HT, YB, YF, RV, RV + WALL, W)
-    F.box(P, "shell_front", -HT, HT, YF - WALL, YF, RV, RO, W)
+    # front shell with real openings behind the deck windows (so they can be seen through from inside)
+    if kind == "command":
+        holes = [(-3.0 + i * 1.5 - 0.5, -3.0 + i * 1.5 + 0.5, 28.99, 29.49) for i in range(5)]
+    elif kind in ("habitat", "cryo"):
+        holes = [(-3.55, -3.05, 29.5, 30.0), (-3.55, -3.05, 30.3, 30.8)]
+    else:
+        holes = []
+    multi_holed(P, F, "shell_front", (-HT, HT), (YF - WALL, YF), (RV, RO), holes, W)
     F.box(P, "shell_back", -HT, HT, YB, YB + WALL, RV, RO, W)
     for s in (-1, 1):
         F.box(P, "shell_end", s * HT - (WALL if s > 0 else 0), s * HT + (0 if s > 0 else WALL), YB, YF, RV, RO, W)
@@ -352,7 +377,14 @@ def spoke(P, G, s):
     x0, x1 = 4.6, RI
 
     def cx(a, b, rad, m, nm, verts=36):
-        P.append(cyl(nm, rad, b - a, loc=(s * (a + b) / 2, 0, 0), rot=(0, PI / 2, 0), m=m, verts=verts))
+        # open-ended (no caps): the crew tube runs through the middle (interior lining r 1.3)
+        P.append(cyl(nm, rad, b - a, loc=(s * (a + b) / 2, 0, 0), rot=(0, PI / 2, 0), m=m, verts=verts, cap=False))
+
+    def ring_x(x, r0, r1, m):
+        o = kit.poly_ring("spoke_step", kit.circle_pts(r1, 36), kit.circle_pts(r0, 36), -0.01, 0.01, m=m)
+        o.rotation_euler = (0, PI / 2, 0)
+        o.location = (s * x, 0, 0)
+        P.append(o)
     # white segments separated by recessed darker necks (refs 3/4)
     for (a, b) in ((x0, 8.6), (9.2, 13.4), (14.0, 18.2)):
         cx(a, b, 1.45, W, "spoke_seg")
@@ -362,9 +394,14 @@ def spoke(P, G, s):
             xx = a + (b - a) * i / 4
             P.append(kit.torus("spoke_seam", 1.45, 0.025, loc=(s * xx, 0, 0), rot=(0, PI / 2, 0), m="hull_seam", seg=36, rseg=4))
     for (a, b) in ((8.6, 9.2), (13.4, 14.0)):
-        cx(a, b, 1.15, "metal_gunmetal", "spoke_neck")
-    cx(18.2, x1, 1.2, "metal_gunmetal", "spoke_neck")
+        cx(a, b, 1.36, "metal_gunmetal", "spoke_neck")
+        ring_x(a, 1.36, 1.55, FRAME)
+        ring_x(b, 1.36, 1.55, FRAME)
+    cx(18.2, x1, 1.38, "metal_gunmetal", "spoke_neck")
+    ring_x(18.2, 1.36, 1.55, FRAME)
     cx(x1 - 0.5, x1, 1.75, FRAME, "spoke_root")
+    ring_x(x1 - 0.5, 1.36, 1.75, FRAME)
+    ring_x(x0, 1.34, 1.55, FRAME)
     # conduits and an EVA rail along the spoke
     for (dy, dz) in ((1.38, 0.5), (-1.38, -0.5)):
         P.append(cyl("spoke_conduit", 0.1, x1 - x0, loc=(s * (x0 + x1) / 2, dy, dz), rot=(0, PI / 2, 0), m="metal_gunmetal", verts=8))
@@ -378,10 +415,14 @@ def spoke(P, G, s):
 
 def hub(P, G, root):
     # central body: a drum along the spoke axis with chamfered ends
-    P.append(cyl("hub_drum", 2.5, 7.2, rot=(0, PI / 2, 0), m=W, verts=48))
+    P.append(cyl("hub_drum", 2.5, 7.2, rot=(0, PI / 2, 0), m=W, verts=48, cap=False))
     for s in (-1, 1):
-        P.append(cyl("hub_flange", 2.72, 0.3, loc=(s * 3.55, 0, 0), rot=(0, PI / 2, 0), m=FRAME, verts=48))
-        P.append(cyl("hub_cone", 2.45, 1.0, r2=1.6, loc=(s * 4.2, 0, 0), rot=(0, s * PI / 2, 0), m=W, verts=40))
+        P.append(cyl("hub_flange", 2.72, 0.3, loc=(s * 3.55, 0, 0), rot=(0, PI / 2, 0), m=FRAME, verts=48, cap=False))
+        fr = kit.poly_ring("hub_endplate", kit.circle_pts(2.72, 48), kit.circle_pts(1.34, 48), -0.02, 0.02, m=FRAME)
+        fr.rotation_euler = (0, PI / 2, 0)
+        fr.location = (s * 3.7, 0, 0)
+        P.append(fr)
+        P.append(cyl("hub_cone", 2.45, 1.0, r2=1.6, loc=(s * 4.2, 0, 0), rot=(0, s * PI / 2, 0), m=W, verts=40, cap=False))
         P.append(kit.torus("hub_rib", 2.5, 0.05, loc=(s * 1.8, 0, 0), rot=(0, PI / 2, 0), m=FRAME, seg=48, rseg=4))
     # cupola windows between the ports
     for kk in range(4):
