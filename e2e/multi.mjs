@@ -14,7 +14,20 @@ const { steps } = await import(pathToFileURL(path.resolve(stepsPath)).href);
 const url = process.env.GAME_URL ?? 'http://localhost:5173/';
 fs.mkdirSync(outDir, { recursive: true });
 const browser = await chromium.launch({ args: ['--use-angle=swiftshader', '--enable-unsafe-swiftshader', '--ignore-gpu-blocklist', '--autoplay-policy=no-user-gesture-required'] });
-const page = await browser.newPage({ viewport: { width: +w, height: +h }, deviceScaleFactor: 1 });
+const page = await browser.newPage({ viewport: { width: +w, height: +h }, deviceScaleFactor: 1, hasTouch: !!process.env.TOUCH });
+// synthetic multi-touch for touch-control tests: __touch(selectorOrElement, 'touchstart'|'touchmove'|'touchend', x, y, id)
+await page.addInitScript(() => {
+  window.__touch = (target, type, x, y, id = 1) => {
+    const el = typeof target === 'string' ? document.querySelector(target) : target;
+    if (!el) return false;
+    const r = el.getBoundingClientRect();
+    const cx = x ?? r.left + r.width / 2, cy = y ?? r.top + r.height / 2;
+    const t = new Touch({ identifier: id, target: el, clientX: cx, clientY: cy, pageX: cx, pageY: cy });
+    const list = type === 'touchend' || type === 'touchcancel' ? [] : [t];
+    el.dispatchEvent(new TouchEvent(type, { bubbles: true, cancelable: true, touches: list, targetTouches: list, changedTouches: [t] }));
+    return true;
+  };
+});
 page.setDefaultTimeout(900000);
 const logs = [];
 page.on('console', (m) => { if (['error', 'warning'].includes(m.type()) || m.text().startsWith('[T]')) logs.push(`[${m.type()}] ${m.text()}`); });

@@ -302,169 +302,291 @@ export class UI {
 }
 
 // ============================================================================================ touch
+export type TouchMode = 'walk' | 'float' | 'ladder' | 'seat' | 'drive' | 'flight' | 'ui' | 'cinematic';
+
+export interface TouchHost {
+  menu(): void;
+  /** skip the running cinematic (if skippable) */
+  skip(): void;
+  fullscreen(): void;
+}
+
+interface StickState {
+  el: HTMLElement;
+  knob: HTMLElement;
+  id: number | null;
+  cx: number;
+  cy: number;
+  apply: (dx: number, dy: number) => void;
+}
+
+/**
+ * On-screen controls for touch devices. One layout per control context, chosen every frame from what the player is
+ * doing (Game.syncTouch): on foot, floating in zero-g, on a ladder, seated, driving, flying, a panel open or a
+ * cinematic. Every button maps to the same input action as its keyboard binding (no touch-only behaviour), plus:
+ *   • the look area: drag to look; a quick tap uses whatever is under the finger (doors, switches, screens);
+ *   • flight: left stick = pitch/roll, right stick = RCS translation (up/down drives VTOL hover thrust),
+ *     an absolute throttle slider (synced back from the craft, so autopilot throttle shows), yaw and fore/aft buttons.
+ */
 export class TouchControls {
   readonly el: HTMLElement;
-  private stick: HTMLElement;
-  private knob: HTMLElement;
   private look: HTMLElement;
   private btns: HTMLElement;
   private tbar: HTMLElement;
   private throttle: HTMLElement;
-  private stickId: number | null = null;
+  private throttleFill: HTMLElement;
+  private throttleLabel: HTMLElement;
+  private skipBtn: HTMLElement;
+  private left: StickState;
+  private right: StickState;
   private lookId: number | null = null;
   private lookLast = { x: 0, y: 0 };
-  private stickCenter = { x: 0, y: 0 };
-  mode: 'walk' | 'drive' | 'flight' | 'seat' | 'ui' = 'walk';
+  private lookStart = { x: 0, y: 0, t: 0, moved: 0 };
+  private throttleId: number | null = null;
+  mode: TouchMode = 'walk';
   throttleValue = 0;
+  /** extra layout hints from the active zone/vehicle (e.g. VTOL craft label UP/DOWN as HOVER) */
+  private vtol = false;
 
-  constructor(private input: Input, private onMenu: () => void) {
-    this.knob = h('i');
-    this.stick = h('div', { class: 'stick' }, this.knob);
+  constructor(private input: Input, private host: TouchHost) {
     this.look = h('div', { class: 'look' });
     this.btns = h('div', { class: 'btns' });
     this.tbar = h('div', { class: 'tbar' });
-    this.throttle = h('div', { class: 'throttle' }, h('i'));
-    this.el = h('div', { class: 'touch' }, this.look, this.stick, this.throttle, this.btns, this.tbar);
+    this.throttleFill = h('i');
+    this.throttleLabel = h('b', {}, '0%');
+    this.throttle = h('div', { class: 'throttle' }, this.throttleFill, this.throttleLabel, h('span', {}, 'THR'));
+    this.skipBtn = h('button', { class: 'skip' }, 'SKIP ▸▸');
+    this.skipBtn.addEventListener('touchstart', (e) => { e.preventDefault(); this.host.skip(); }, { passive: false });
+    this.left = this.makeStick('stick l', (dx, dy) => {
+      if (this.mode === 'flight') {
+        this.input.virtFlight.roll = dx;
+        this.input.virtFlight.pitch = dy;
+      } else this.input.virtMove.set(dx, -dy);
+    });
+    this.right = this.makeStick('stick r', (dx, dy) => {
+      this.input.virtFlight.tx = dx;
+      this.input.virtFlight.ty = -dy;
+    });
+    this.el = h('div', { class: 'touch' }, this.look, this.left.el, this.right.el, this.throttle, this.btns, this.tbar, this.skipBtn);
     document.getElementById('ui')!.append(this.el);
-    this.bindStick();
     this.bindLook();
     this.bindThrottle();
-    this.setMode('walk');
-    window.addEventListener('touchstart', () => this.enable(), { passive: true, once: false });
+    this.setMode('walk', true);
+    window.addEventListener('touchstart', () => this.enable(), { passive: true });
   }
 
   enable() {
     if (!this.input.touchActive) {
       this.input.touchActive = true;
       this.el.classList.add('on');
+      document.body.classList.add('touch-ui');
     }
+  }
+
+  /** keyboard used on a hybrid device: hide the overlay until the next touch */
+  disable() {
+    if (!this.el.classList.contains('on')) return;
+    this.el.classList.remove('on');
+    document.body.classList.remove('touch-ui');
+    this.releaseAll();
   }
 
   setScale(s: number) {
     this.el.style.setProperty('--ts', String(s));
   }
 
-  setMode(mode: TouchControls['mode']) {
-    if (mode === this.mode && this.btns.childElementCount) return;
-    this.mode = mode;
-    this.el.classList.toggle('flight', mode === 'flight');
-    this.btns.innerHTML = '';
-    this.tbar.innerHTML = '';
-    const b = (label: string, action: string, hold = false) => {
-      const el = h('button', {}, label);
-      el.addEventListener('touchstart', (e) => {
-        e.preventDefault();
-        if (hold) this.input.virtualHold(action, true);
-        this.input.virtualPress(action);
-      }, { passive: false });
-      el.addEventListener('touchend', (e) => {
-        e.preventDefault();
-        if (hold) this.input.virtualHold(action, false);
-      }, { passive: false });
-      return el;
-    };
-    const menu = h('button', {}, 'MENU');
-    menu.addEventListener('touchstart', (e) => { e.preventDefault(); this.onMenu(); }, { passive: false });
-    this.tbar.append(menu, b('VIEW', 'view'), b('MAP', 'computer'));
-    this.stick.style.display = mode === 'ui' || mode === 'seat' ? 'none' : '';
-    if (mode === 'walk') {
-      this.btns.append(b('JUMP', 'jump'), b('USE', 'interact'), b('RUN', 'sprint', true), b('CROUCH', 'crouch', true), b('ENTER', 'vehicle'), b('CREW', 'crew'));
-    } else if (mode === 'drive') {
-      this.btns.append(b('BRAKE', 'brake', true), b('EXIT', 'vehicle'), b('CAM', 'camera'));
-    } else if (mode === 'flight') {
-      this.btns.append(b('◀ROLL', 'rollLeft', true), b('UP', 'transUp', true), b('ROLL▶', 'rollRight', true), b('SAS', 'sas'), b('DOWN', 'transDown', true), b('GEAR', 'gear'), b('AUTO', 'autopilot'), b('CAM', 'camera'), b('EXIT', 'vehicle'));
-      this.tbar.append(b('COCKPIT', 'cockpitMode'));
-    } else if (mode === 'seat') {
-      this.btns.append(b('USE', 'interact'), b('STAND', 'vehicle'), b('PANEL', 'cockpitMode'));
+  /** Flight-state feedback (called by the active FlightControl every frame). */
+  syncFlight(throttle: number, vtol: boolean) {
+    if (this.throttleId === null && Math.abs(throttle - this.throttleValue) > 0.004) this.showThrottle(throttle);
+    if (vtol !== this.vtol) {
+      this.vtol = vtol;
+      if (this.mode === 'flight') this.setMode('flight', true);
     }
   }
 
-  private bindStick() {
-    const s = this.stick;
-    s.addEventListener('touchstart', (e) => {
+  setMode(mode: TouchMode, force = false) {
+    if (mode === this.mode && !force) return;
+    if (mode !== this.mode) this.releaseAll();
+    this.mode = mode;
+    for (const m of ['walk', 'float', 'ladder', 'seat', 'drive', 'flight', 'ui', 'cinematic']) this.el.classList.toggle(m, m === mode);
+    this.btns.innerHTML = '';
+    this.tbar.innerHTML = '';
+    const b = (label: string, action: string, hold = false, cls = '') => {
+      const el = h('button', { class: cls }, label);
+      el.dataset.action = action;
+      el.addEventListener('touchstart', (e) => {
+        e.preventDefault();
+        el.classList.add('down');
+        if (hold) this.input.virtualHold(action, true);
+        this.input.virtualPress(action);
+      }, { passive: false });
+      const up = (e: TouchEvent) => {
+        e.preventDefault();
+        el.classList.remove('down');
+        if (hold) this.input.virtualHold(action, false);
+      };
+      el.addEventListener('touchend', up, { passive: false });
+      el.addEventListener('touchcancel', up, { passive: false });
+      return el;
+    };
+    const fn = (label: string, f: () => void, cls = '') => {
+      const el = h('button', { class: cls }, label);
+      el.addEventListener('touchstart', (e) => { e.preventDefault(); f(); }, { passive: false });
+      return el;
+    };
+    if (mode === 'ui' || mode === 'cinematic') return;
+    const warp = [b('◂◂', 'timeWarpDown', false, 'sm'), b('▸▸', 'timeWarpUp', false, 'sm')];
+    this.tbar.append(fn('MENU', () => this.host.menu()), b('COMP', 'computer'));
+    if (mode === 'walk') {
+      this.tbar.append(b('VIEW', 'view'), b('LIGHT', 'flashlight'), b('HELMET', 'helmet'), ...warp, fn('⛶', () => this.host.fullscreen(), 'sm'));
+      this.btns.append(b('CROUCH', 'crouch', true), b('USE', 'interact', false, 'big'), b('JUMP', 'jump'), b('RUN', 'sprint', true), b('ENTER', 'vehicle'), b('CREW', 'crew'));
+    } else if (mode === 'float') {
+      this.tbar.append(b('VIEW', 'view'), b('LIGHT', 'flashlight'), ...warp, fn('⛶', () => this.host.fullscreen(), 'sm'));
+      this.btns.append(b('DOWN', 'crouch', true), b('USE', 'interact', false, 'big'), b('UP', 'jump', true), b('FAST', 'sprint', true), b('CREW', 'crew'));
+    } else if (mode === 'ladder') {
+      this.tbar.append(b('LIGHT', 'flashlight'), fn('⛶', () => this.host.fullscreen(), 'sm'));
+      this.btns.append(b('USE', 'interact', false, 'big'), b('LET GO', 'jump'));
+    } else if (mode === 'seat') {
+      this.tbar.append(b('CREW', 'crew'), ...warp, fn('⛶', () => this.host.fullscreen(), 'sm'));
+      this.btns.append(b('PANEL', 'cockpitMode'), b('USE', 'interact', false, 'big'), b('STAND', 'vehicle'));
+    } else if (mode === 'drive') {
+      this.tbar.append(b('VIEW', 'view'), b('LIGHTS', 'flashlight'), fn('⛶', () => this.host.fullscreen(), 'sm'));
+      this.btns.append(b('BRAKE', 'brake', true, 'big'), b('BOOST', 'sprint', true), b('CAM', 'camera'), b('EXIT', 'vehicle'));
+    } else if (mode === 'flight') {
+      this.tbar.append(b('AUTO', 'autopilot', false, 'hi'), b('SAS', 'sas'), b('RCS', 'rcs'), b('GEAR', 'gear'), b('CAM', 'camera'), b('PANEL', 'cockpitMode'), ...warp, b('EXIT', 'vehicle'));
+      // right cluster around the translation stick: yaw on the sides, fore/aft above, throttle shortcuts below
+      this.btns.append(
+        b('◀ YAW', 'yawLeft', true), b(this.vtol ? 'FWD' : 'FWD', 'transFwd', true), b('YAW ▶', 'yawRight', true),
+        b('CUT', 'throttleCut', false, 'sm'), b('AFT', 'transBack', true), b('MAX', 'throttleMax', false, 'sm'),
+      );
+      if (this.vtol) this.right.el.dataset.label = 'HOVER ▲▼ · SLIDE ◀▶';
+      else this.right.el.dataset.label = 'RCS TRANSLATE';
+    }
+  }
+
+  /** Lift every held virtual action / axis (mode change, panel opened). */
+  private releaseAll() {
+    for (const s of [this.left, this.right]) {
+      s.id = null;
+      s.knob.style.transform = '';
+    }
+    this.lookId = null;
+    this.throttleId = null;
+    const v = this.input.virtFlight;
+    v.pitch = v.roll = v.yaw = v.tx = v.ty = v.tz = v.throttle = 0;
+    v.throttleSet = null;
+    this.input.virtMove.set(0, 0);
+    for (const a of ['jump', 'crouch', 'sprint', 'brake', 'transFwd', 'transBack', 'yawLeft', 'yawRight']) this.input.virtualHold(a, false);
+  }
+
+  private makeStick(cls: string, apply: (dx: number, dy: number) => void): StickState {
+    const knob = h('i');
+    const el = h('div', { class: cls }, knob);
+    const st: StickState = { el, knob, id: null, cx: 0, cy: 0, apply };
+    const move = (x: number, y: number) => {
+      const r = el.getBoundingClientRect().width / 2;
+      let dx = (x - st.cx) / r, dy = (y - st.cy) / r;
+      const l = Math.hypot(dx, dy);
+      if (l > 1) { dx /= l; dy /= l; }
+      knob.style.transform = `translate(${dx * r * 0.6}px, ${dy * r * 0.6}px)`;
+      // small dead zone, then a gentle curve for fine control near centre
+      const curve = (v: number) => (Math.abs(v) < 0.08 ? 0 : Math.sign(v) * Math.pow((Math.abs(v) - 0.08) / 0.92, 1.4));
+      apply(curve(dx), curve(dy));
+    };
+    el.addEventListener('touchstart', (e) => {
       e.preventDefault();
       const t = e.changedTouches[0];
-      this.stickId = t.identifier;
-      const r = s.getBoundingClientRect();
-      this.stickCenter = { x: r.left + r.width / 2, y: r.top + r.height / 2 };
-      this.moveStick(t.clientX, t.clientY);
+      st.id = t.identifier;
+      const r = el.getBoundingClientRect();
+      st.cx = r.left + r.width / 2;
+      st.cy = r.top + r.height / 2;
+      move(t.clientX, t.clientY);
     }, { passive: false });
-    s.addEventListener('touchmove', (e) => {
+    el.addEventListener('touchmove', (e) => {
       e.preventDefault();
-      for (const t of Array.from(e.changedTouches)) if (t.identifier === this.stickId) this.moveStick(t.clientX, t.clientY);
+      for (const t of Array.from(e.changedTouches)) if (t.identifier === st.id) move(t.clientX, t.clientY);
     }, { passive: false });
     const end = (e: TouchEvent) => {
       for (const t of Array.from(e.changedTouches)) {
-        if (t.identifier === this.stickId) {
-          this.stickId = null;
-          this.input.virtMove.set(0, 0);
-          this.input.virtFlight.pitch = 0;
-          this.input.virtFlight.roll = 0;
-          this.knob.style.transform = '';
-        }
+        if (t.identifier !== st.id) continue;
+        st.id = null;
+        knob.style.transform = '';
+        apply(0, 0);
       }
     };
-    s.addEventListener('touchend', end);
-    s.addEventListener('touchcancel', end);
-  }
-
-  private moveStick(x: number, y: number) {
-    const r = this.stick.getBoundingClientRect().width / 2;
-    let dx = (x - this.stickCenter.x) / r;
-    let dy = (y - this.stickCenter.y) / r;
-    const l = Math.hypot(dx, dy);
-    if (l > 1) { dx /= l; dy /= l; }
-    this.knob.style.transform = `translate(${dx * r * 0.6}px, ${dy * r * 0.6}px)`;
-    if (this.mode === 'flight') {
-      this.input.virtFlight.roll = dx;
-      this.input.virtFlight.pitch = dy;
-    } else this.input.virtMove.set(dx, -dy);
+    el.addEventListener('touchend', end);
+    el.addEventListener('touchcancel', end);
+    return st;
   }
 
   private bindLook() {
     const l = this.look;
     l.addEventListener('touchstart', (e) => {
+      e.preventDefault();
+      if (this.lookId !== null) return;
       const t = e.changedTouches[0];
       this.lookId = t.identifier;
       this.lookLast = { x: t.clientX, y: t.clientY };
-      this.input.pointer.set((t.clientX / innerWidth) * 2 - 1, -(t.clientY / innerHeight) * 2 + 1);
-    }, { passive: true });
+      this.lookStart = { x: t.clientX, y: t.clientY, t: performance.now(), moved: 0 };
+    }, { passive: false });
     l.addEventListener('touchmove', (e) => {
+      e.preventDefault();
       for (const t of Array.from(e.changedTouches)) {
         if (t.identifier !== this.lookId) continue;
         const dx = t.clientX - this.lookLast.x, dy = t.clientY - this.lookLast.y;
         this.lookLast = { x: t.clientX, y: t.clientY };
+        this.lookStart.moved = Math.max(this.lookStart.moved, Math.hypot(t.clientX - this.lookStart.x, t.clientY - this.lookStart.y));
         const k = 0.0045 * this.input.controls.mouseSensitivity;
-        if (this.mode === 'flight') {
-          this.input.virtFlight.yaw = THREE_clamp(-dx * 0.05, -1, 1);
-        } else this.input.virtLook.set(this.input.virtLook.x - dx * k, this.input.virtLook.y - dy * k);
+        const inv = this.input.controls.invertY ? -1 : 1;
+        this.input.virtLook.set(this.input.virtLook.x - dx * k, this.input.virtLook.y - dy * k * inv);
       }
-    }, { passive: true });
+    }, { passive: false });
     const end = (e: TouchEvent) => {
       for (const t of Array.from(e.changedTouches)) {
-        if (t.identifier === this.lookId) {
-          this.lookId = null;
-          this.input.virtFlight.yaw = 0;
+        if (t.identifier !== this.lookId) continue;
+        this.lookId = null;
+        // a quick, still tap acts on whatever is under the finger
+        if (e.type === 'touchend' && this.lookStart.moved < 12 && performance.now() - this.lookStart.t < 350) {
+          this.input.pointer.set((t.clientX / innerWidth) * 2 - 1, -(t.clientY / innerHeight) * 2 + 1);
           this.input.pointerClicked = true;
+          this.input.tapped = true;
         }
       }
     };
     l.addEventListener('touchend', end);
+    l.addEventListener('touchcancel', end);
+  }
+
+  private showThrottle(v: number) {
+    this.throttleValue = v;
+    this.throttleFill.style.height = `${v * 100}%`;
+    this.throttleLabel.textContent = `${Math.round(v * 100)}%`;
   }
 
   private bindThrottle() {
     const th = this.throttle;
     const set = (y: number) => {
       const r = th.getBoundingClientRect();
-      const v = Math.max(0, Math.min(1, 1 - (y - r.top) / r.height));
-      this.throttleValue = v;
-      (th.firstElementChild as HTMLElement).style.height = `${v * 100}%`;
+      let v = Math.max(0, Math.min(1, 1 - (y - r.top - 6) / (r.height - 12)));
+      if (v < 0.03) v = 0;
+      if (v > 0.97) v = 1;
+      this.showThrottle(v);
+      this.input.virtFlight.throttleSet = v;
     };
-    th.addEventListener('touchstart', (e) => { e.preventDefault(); set(e.changedTouches[0].clientY); }, { passive: false });
-    th.addEventListener('touchmove', (e) => { e.preventDefault(); set(e.changedTouches[0].clientY); }, { passive: false });
+    th.addEventListener('touchstart', (e) => {
+      e.preventDefault();
+      const t = e.changedTouches[0];
+      this.throttleId = t.identifier;
+      set(t.clientY);
+    }, { passive: false });
+    th.addEventListener('touchmove', (e) => {
+      e.preventDefault();
+      for (const t of Array.from(e.changedTouches)) if (t.identifier === this.throttleId) set(t.clientY);
+    }, { passive: false });
+    const end = (e: TouchEvent) => {
+      for (const t of Array.from(e.changedTouches)) if (t.identifier === this.throttleId) this.throttleId = null;
+    };
+    th.addEventListener('touchend', end);
+    th.addEventListener('touchcancel', end);
   }
-}
-
-function THREE_clamp(v: number, a: number, b: number) {
-  return Math.max(a, Math.min(b, v));
 }

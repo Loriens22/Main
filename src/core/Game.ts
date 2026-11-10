@@ -73,7 +73,17 @@ export class Game {
     this.audio = new AudioEngine(this.settings.audio);
     this.ui = new UI(this.input);
     this.ui.audio = this.audio;
-    this.touch = new TouchControls(this.input, () => this.toggleMenu());
+    this.touch = new TouchControls(this.input, {
+      menu: () => this.toggleMenu(),
+      skip: () => {
+        if (this.cinematic?.skippable) this.cinematic.skip?.();
+      },
+      fullscreen: () => {
+        const d = document as Document & { webkitFullscreenElement?: Element };
+        if (d.fullscreenElement || d.webkitFullscreenElement) void document.exitFullscreen?.();
+        else void document.documentElement.requestFullscreen?.({ navigationUI: 'hide' }).catch(() => {});
+      },
+    });
     this.touch.setScale(this.settings.controls.touchScale);
     this.camera = new THREE.PerspectiveCamera(this.settings.graphics.fov, this.renderer.aspect, 0.05, 30000);
     this.state = newGameState();
@@ -205,10 +215,28 @@ export class Game {
   setControl(c: Controllable | null) {
     this.control = c;
     this.input.context = c ? c.context : this.player.mode === 'seat' ? 'seat' : 'walk';
-    this.touch.setMode(c ? (c.context === 'flight' ? 'flight' : c.context === 'drive' ? 'drive' : 'seat') : this.player.mode === 'seat' ? 'seat' : 'walk');
+    this.syncTouch();
     this.ui.vhud.innerHTML = '';
     this.ui.layer.innerHTML = '';
     this.cockpitMode = false;
+  }
+
+  /** Pick the on-screen touch layout from what the player is doing right now. */
+  syncTouch() {
+    if (!this.input.touchActive) {
+      this.touch.disable();
+      return;
+    }
+    const p = this.player;
+    const mode = this.ui.panelOpen || this.ui.dialogueOpen || this.phase !== 'playing'
+      ? 'ui'
+      : this.cinematic?.blocking
+        ? 'cinematic'
+        : this.control
+          ? this.control.context === 'flight' ? 'flight' : this.control.context === 'drive' ? 'drive' : 'seat'
+          : p.mode === 'seat' ? 'seat' : p.mode === 'float' ? 'float' : p.mode === 'ladder' ? 'ladder' : 'walk';
+    this.touch.setMode(mode);
+    this.touch.el.classList.toggle('skippable', !!this.cinematic?.skippable);
   }
 
   playCinematic(c: Cinematic) {
@@ -382,6 +410,7 @@ export class Game {
       this.menuT += dt;
       (z as any).menuUpdate?.(dt, this.camera, this.menuT);
       z.update(dt, dt);
+      this.syncTouch();
       this.renderFrame(dt);
       return;
     }
@@ -444,7 +473,6 @@ export class Game {
           if (this.player.mode === 'seat' && input.pressed('vehicle') && !uiBlocked) {
             this.player.stand();
             this.input.context = 'walk';
-            this.touch.setMode('walk');
           }
         }
       }
@@ -464,7 +492,7 @@ export class Game {
 
     // ---- interaction
     if (!this.control && !this.cinematic && !uiBlocked && !this.ui.dialogueOpen) {
-      const ndc = this.cockpitMode || (!input.locked && !input.touchActive && this.player.mode === 'seat') ? input.pointer : undefined;
+      const ndc = this.cockpitMode || input.tapped || (!input.locked && !input.touchActive && this.player.mode === 'seat') ? input.pointer : undefined;
       const f = this.interaction.update(this.camera, this.player.mode === 'seat' ? 2.2 : 3.0, ndc);
       this.ui.setCrosshair(!this.cockpitMode, !!f);
       this.ui.prompt(f ? f.label() : null);
@@ -485,6 +513,9 @@ export class Game {
       this.ui.setCrosshair(!this.control && !this.cinematic);
     }
     this.control?.hud?.(dt);
+    // on foot the input context follows the player's posture (zones may change it outside setControl, e.g. boarding)
+    if (!this.control) this.input.context = this.player.mode === 'seat' ? 'seat' : 'walk';
+    this.syncTouch();
 
     // ---- status line
     this.updateStatus();

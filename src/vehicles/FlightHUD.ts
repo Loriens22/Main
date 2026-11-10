@@ -28,7 +28,7 @@ export class FlightHUD {
   readonly canvas: HTMLCanvasElement;
   private g: CanvasRenderingContext2D;
 
-  constructor(parent: HTMLElement) {
+  constructor(private parent: HTMLElement) {
     this.canvas = document.createElement('canvas');
     this.canvas.className = 'flighthud';
     parent.append(this.canvas);
@@ -39,8 +39,13 @@ export class FlightHUD {
     this.canvas.remove();
   }
 
+  /** compact layout for touch screens: blocks move to the top corners, clear of the on-screen sticks and buttons */
+  compact = false;
+
   draw(craft: Spacecraft, env: FlightEnv, cam: THREE.PerspectiveCamera, info: HudInfo) {
     const c = this.canvas;
+    // the HUD layer is cleared whenever control changes hands; the active controller re-attaches its canvas
+    if (!c.isConnected) this.parent.append(c);
     const dpr = Math.min(2, window.devicePixelRatio || 1);
     const W = c.clientWidth, H = c.clientHeight;
     if (c.width !== Math.round(W * dpr) || c.height !== Math.round(H * dpr)) {
@@ -105,6 +110,12 @@ export class FlightHUD {
         g.stroke();
         g.setLineDash([]);
       }
+    }
+    const cpt = this.compact;
+    if (cpt) {
+      this.drawCompact(craft, env, info, W, H, spd, alt, vs);
+      if (info.target) this.drawDocking(info.target, W, H);
+      return;
     }
     // --- left block: speed / altitude / vertical speed
     const lx = 26, ly = H * 0.36;
@@ -180,8 +191,8 @@ export class FlightHUD {
       const km = (m: number) => (isFinite(m) ? `${(m / 1000).toFixed(0)} km` : 'ESCAPE');
       g.fillText(`Ap ${km(o.ap)}`, W - 210, oy + 24);
       g.fillText(`Pe ${km(o.pe)}`, W - 210, oy + 40);
-      g.fillText(`T  ${isFinite(o.period) ? (o.period / 60).toFixed(1) + ' min' : '—'}`, W - 210, oy + 56);
-      g.fillText(`i  ${((o.inc * 180) / Math.PI).toFixed(1)}°`, W - 210, oy + 72);
+      g.fillText(`T  ${fmtPeriod(o.period)}`, W - 210, oy + 56);
+      g.fillText(`i  ${o.inc.toFixed(1)}°`, W - 210, oy + 72);
     }
     // --- title / autopilot / messages
     g.textAlign = 'center';
@@ -200,6 +211,84 @@ export class FlightHUD {
     g.textAlign = 'left';
     // --- docking display
     if (info.target) this.drawDocking(info.target, W, H);
+  }
+
+  /** Touch layout: speed/altitude top-left under the status line, propellant/orbit top-right under the button bar. */
+  private drawCompact(craft: Spacecraft, env: FlightEnv, info: HudInfo, W: number, H: number, spd: number, alt: number, vs: number) {
+    const g = this.g;
+    const dim = 'rgba(236,235,230,0.62)', fg = '#ecebe6', accent = 'rgba(159,212,234,0.92)';
+    const lx = 12, ly = 74;
+    g.font = '9px JetBrains Mono, monospace';
+    g.fillStyle = dim;
+    g.fillText(env.density(craft.pos) > 1e-4 ? 'AIRSPEED' : 'ORBITAL VEL', lx, ly);
+    g.fillStyle = fg;
+    g.font = '15px Michroma, sans-serif';
+    g.fillText(`${spd < 10000 ? spd.toFixed(1) : (spd / 1000).toFixed(2) + 'k'} m/s`, lx, ly + 19);
+    g.font = '9px JetBrains Mono, monospace';
+    g.fillStyle = dim;
+    g.fillText('ALTITUDE', lx, ly + 36);
+    g.fillStyle = fg;
+    g.font = '13px Michroma, sans-serif';
+    g.fillText(alt < 1e5 ? `${alt.toFixed(0)} m` : `${(alt / 1000).toFixed(1)} km`, lx, ly + 53);
+    g.font = '9px JetBrains Mono, monospace';
+    g.fillStyle = dim;
+    g.fillText(`V/S ${vs >= 0 ? '+' : ''}${vs.toFixed(1)} m/s`, lx, ly + 68);
+    if (craft.spec.vtolThrust > 0) {
+      g.fillText('VTOL', lx, ly + 84);
+      g.strokeStyle = 'rgba(236,235,230,0.35)';
+      g.strokeRect(lx + 32, ly + 77, 60, 6);
+      g.fillStyle = 'rgba(159,212,234,0.85)';
+      g.fillRect(lx + 32, ly + 77, 60 * craft.vtol, 6);
+    }
+    // right column
+    const rx = W - 168, ry = 64;
+    const frac = craft.state.fuelMax > 0 ? craft.state.fuel / craft.state.fuelMax : 0;
+    g.fillStyle = dim;
+    g.fillText(`PROP ${Math.round(frac * 100)}% · Δv ${(craft.deltaV() / 1000).toFixed(2)} km/s`, rx, ry);
+    g.strokeStyle = 'rgba(236,235,230,0.35)';
+    g.strokeRect(rx, ry + 5, 156, 4);
+    g.fillStyle = frac < 0.1 ? '#ef7d6a' : frac < 0.25 ? '#e8c070' : accent;
+    g.fillRect(rx, ry + 5, 156 * frac, 4);
+    let y = ry + 22;
+    if (info.orbit) {
+      const o = info.orbit;
+      const km = (m: number) => (isFinite(m) ? `${(m / 1000).toFixed(0)}` : '∞');
+      g.fillStyle = fg;
+      g.fillText(`${o.body} ${km(o.pe)}×${km(o.ap)} km · i ${o.inc.toFixed(0)}°`, rx, y);
+      y += 13;
+    }
+    const flags: [string, boolean][] = [['SAS ' + craft.sas.toUpperCase(), craft.sas !== 'off'], ['RCS', craft.rcsOn], ['GEAR', craft.gearDown]];
+    let fx = rx;
+    for (const [t, on] of flags) {
+      g.fillStyle = on ? accent : 'rgba(236,235,230,0.35)';
+      g.fillText(t, fx, y);
+      fx += g.measureText(t).width + 10;
+    }
+    y += 13;
+    if (info.timeWarp && info.timeWarp !== 1) {
+      g.fillStyle = '#e8c070';
+      g.fillText(`TIME ×${info.timeWarp}`, rx, y);
+      y += 13;
+    }
+    for (const [k, v] of (info.extra ?? []).slice(0, 3)) {
+      g.fillStyle = dim;
+      g.fillText(k, rx, y);
+      g.fillStyle = fg;
+      g.fillText(v, rx + 56, y);
+      y += 12;
+    }
+    g.textAlign = 'center';
+    g.font = '10px Michroma, sans-serif';
+    if (info.autopilot) {
+      g.fillStyle = '#9fd4ea';
+      g.fillText(`AUTOPILOT · ${info.autopilot}`, W / 2, 66);
+    }
+    g.font = '11px Inter, sans-serif';
+    info.messages.slice(0, 3).forEach((m, i) => {
+      g.fillStyle = 'rgba(236,235,230,0.85)';
+      g.fillText(m, W / 2, H - 70 + i * 15);
+    });
+    g.textAlign = 'left';
   }
 
   private marker(x: number, y: number, col: string, kind: 'pro' | 'retro') {
@@ -225,7 +314,7 @@ export class FlightHUD {
   private drawDocking(t: HudTarget, W: number, H: number) {
     const g = this.g;
     const cx = W / 2, cy = H / 2;
-    const R = Math.min(W, H) * 0.18;
+    const R = Math.min(W, H) * (this.compact ? 0.15 : 0.18);
     g.strokeStyle = 'rgba(159,212,234,0.5)';
     g.beginPath(); g.arc(cx, cy, R, 0, Math.PI * 2); g.stroke();
     g.beginPath(); g.arc(cx, cy, R * 0.25, 0, Math.PI * 2); g.stroke();
@@ -234,7 +323,7 @@ export class FlightHUD {
     const closing = -t.relVel.dot(t.relPos.clone().normalize());
     const lat = t.lateral ?? 0;
     const ok = (b: boolean) => (b ? '#8fd6a2' : '#e8c070');
-    g.font = '12px JetBrains Mono, monospace';
+    g.font = this.compact ? '10px JetBrains Mono, monospace' : '12px JetBrains Mono, monospace';
     const lines: [string, string, boolean][] = [
       ['TARGET', t.name, true],
       ['RANGE', range < 1000 ? `${range.toFixed(2)} m` : `${(range / 1000).toFixed(2)} km`, true],
@@ -245,9 +334,17 @@ export class FlightHUD {
     ];
     lines.forEach(([k, v, good], i) => {
       g.fillStyle = 'rgba(236,235,230,0.6)';
-      g.fillText(k, cx + R + 24, cy - R + 14 + i * 18);
+      const step = this.compact ? 14 : 18, kx = this.compact ? cx - R - 150 : cx + R + 24;
+      g.fillText(k, kx, cy - R + 14 + i * step);
       g.fillStyle = ok(good);
-      g.fillText(v, cx + R + 104, cy - R + 14 + i * 18);
+      g.fillText(v, kx + (this.compact ? 64 : 80), cy - R + 14 + i * step);
     });
   }
+}
+
+function fmtPeriod(s: number) {
+  if (!isFinite(s)) return '—';
+  if (s < 3 * 3600) return `${(s / 60).toFixed(1)} min`;
+  if (s < 3 * 86400) return `${(s / 3600).toFixed(1)} h`;
+  return `${(s / 86400).toFixed(1)} d`;
 }

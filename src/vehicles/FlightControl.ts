@@ -90,7 +90,7 @@ export class FlightControl implements Controllable {
   control(dt: number, input: Input) {
     const c = this.craft;
     const f = input.flight;
-    const manual = Math.abs(f.pitch) + Math.abs(f.yaw) + Math.abs(f.roll) + Math.abs(f.tx) + Math.abs(f.ty) + Math.abs(f.tz) + Math.abs(f.throttle) > 0.05;
+    const manual = Math.abs(f.pitch) + Math.abs(f.yaw) + Math.abs(f.roll) + Math.abs(f.tx) + Math.abs(f.ty) + Math.abs(f.tz) + Math.abs(f.throttle) > 0.05 || f.throttleSet !== null;
     if (this.autopilot && manual && !this.autopilot.allowManual) {
       this.say('Manual input — autopilot disengaged');
       this.setAutopilot(null);
@@ -100,14 +100,15 @@ export class FlightControl implements Controllable {
       c.rcsR.set(f.pitch, f.yaw, f.roll);
       c.rcsT.set(f.tx, f.ty, -f.tz);
       c.throttle = THREE.MathUtils.clamp(c.throttle + f.throttle * this.manualThrottleRate * dt, 0, 1);
+      if (f.throttleSet !== null) c.throttle = f.throttleSet;
       if (input.pressed('throttleMax')) c.throttle = 1;
       if (input.pressed('throttleCut')) c.throttle = 0;
-      // VTOL: on craft with ventral thrusters, translate-up drives hover thrust
+      // VTOL: on craft with ventral thrusters, translate-up/down (keys, stick or touch pad) drives hover thrust
       if (c.spec.vtolThrust > 0) {
-        const want = input.held('transUp') ? 1 : input.held('transDown') ? 0 : null;
-        if (want !== null) c.vtol = THREE.MathUtils.damp(c.vtol, want, 3, dt);
+        const want = f.ty > 0.25 ? Math.min(1, f.ty) : f.ty < -0.25 ? 0 : null;
+        if (want !== null) c.vtol = THREE.MathUtils.damp(c.vtol, want, 3 * Math.abs(f.ty), dt);
         else if (input.held('brake')) c.vtol = THREE.MathUtils.damp(c.vtol, 0, 6, dt);
-        if (input.held('transUp') || input.held('transDown')) c.rcsT.y = 0;
+        if (Math.abs(f.ty) > 0.25) c.rcsT.y = 0;
       }
     }
     if (input.pressed('sas')) {
@@ -233,6 +234,7 @@ export class FlightControl implements Controllable {
   }
 
   hud() {
+    if (this.game.input.touchActive) this.game.touch.syncFlight(this.craft.throttle, this.craft.spec.vtolThrust > 0);
     const extra = this.infoFn?.() ?? {};
     const info: HudInfo = {
       title: this.title,
@@ -241,6 +243,7 @@ export class FlightControl implements Controllable {
       timeWarp: this.game.clock.timeScale * this.timeScale,
       ...extra,
     };
+    this.hudView.compact = this.game.input.touchActive;
     this.hudView.draw(this.craft, this.env, this.game.camera, info);
     this.updateAudio();
   }

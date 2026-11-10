@@ -22,9 +22,11 @@ export class Input {
   context: InputContext = 'walk';
   readonly move = new THREE.Vector2(); // x = right, y = forward (-1..1)
   readonly look = new THREE.Vector2(); // radians this frame (yaw, pitch)
-  readonly flight = { pitch: 0, yaw: 0, roll: 0, tx: 0, ty: 0, tz: 0, throttle: 0 };
+  readonly flight = { pitch: 0, yaw: 0, roll: 0, tx: 0, ty: 0, tz: 0, throttle: 0, throttleSet: null as number | null };
   readonly pointer = new THREE.Vector2(); // NDC
   pointerClicked = false;
+  /** a quick touch tap on the look area this frame (pointer holds its position) */
+  tapped = false;
   wheel = 0;
   locked = false;
   gamepadActive = false;
@@ -41,7 +43,7 @@ export class Input {
   private mouseDY = 0;
   readonly virtMove = new THREE.Vector2();
   readonly virtLook = new THREE.Vector2();
-  readonly virtFlight = { pitch: 0, roll: 0, yaw: 0, throttle: 0 };
+  readonly virtFlight = { pitch: 0, roll: 0, yaw: 0, throttle: 0, tx: 0, ty: 0, tz: 0, throttleSet: null as number | null };
   private bindingIndex = new Map<string, Set<string>>();
 
   constructor(private canvas: HTMLCanvasElement, public controls: ControlSettings) {
@@ -215,10 +217,16 @@ export class Input {
       f.roll += this.virtFlight.roll;
       f.yaw += this.virtFlight.yaw;
       f.throttle += this.virtFlight.throttle;
+      f.tx += this.virtFlight.tx;
+      f.ty += this.virtFlight.ty;
+      f.tz += this.virtFlight.tz;
       for (const key of ['pitch', 'yaw', 'roll', 'tx', 'ty', 'tz', 'throttle'] as const) f[key] = THREE.MathUtils.clamp(f[key], -1, 1);
+      f.throttleSet = this.virtFlight.throttleSet;
     } else {
       f.pitch = f.yaw = f.roll = f.tx = f.ty = f.tz = f.throttle = 0;
+      f.throttleSet = null;
     }
+    this.virtFlight.throttleSet = null;
   }
 
   /** Called at frame end. */
@@ -227,6 +235,7 @@ export class Input {
     this.up.clear();
     this.virtPressed.clear();
     this.pointerClicked = false;
+    this.tapped = false;
     this.wheel = 0;
   }
 }
