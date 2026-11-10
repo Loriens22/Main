@@ -2,7 +2,51 @@
 
 ## Status (latest first)
 
-### The Solar System (this pass)
+### Landing everywhere, the wormhole, Gargantua, mobile controls (this pass)
+Verified headless (SwiftShader) unless marked otherwise:
+- **Universal landing** — `world/zones/SurfaceZone.ts` serves every landable body (`data/landing.ts`: Moon, Mercury,
+  Mars, Phobos, Deimos, Io, Europa, Ganymede, Callisto, Mimas, Enceladus, Dione, Rhea, Titan, Iapetus, Titania, Triton,
+  Miller, Mann, Edmunds; named sites per body). Frame: the landing site's tangent frame (`space/surfaceFrame.ts`,
+  X east / Y up / Z south, body centre at (0, −R, 0)); terrain heights include the sphere's curvature, gravity is radial
+  plus centrifugal, Coriolis enters through `FlightEnv.fictitious`, so orbital motion stays exact through the descent and
+  velocities are relative to the rotating surface. The sky is the full Solar-System renderer from the camera.
+  - Terrain (`world/surface/SurfaceGen.ts`, `surfaceShading.ts`): orbital height map × relief + procedural landforms by
+    style; crater octaves 0.75 m–25 km with a production function and degradation states, the same integer hash on the
+    CPU (height maps, physics) and GPU (octaves below the map resolution, analytic bowl shadows); near 4 m / mid 32 m /
+    far maps with double-buffered streaming; per-pixel normals, regolith micro-relief, dithered height-map shadow march
+    (crater rims, hills, horizon); boulders with colliders (`Rocks.ts`); plume dust; Mars/Titan/Gargantua-world sky
+    domes with aerial fog; Miller's knee-deep sea (curved wave-normal water over a rippled seabed).
+  - Guidance (`space/Landing.ts`): DeorbitLanding (Lambert search to an approach gate up-range of the site),
+    PoweredDescent (E-guidance braking on the main engine; velocity-profile VTOL approach with altitude-priority hover
+    allocation, tilt limits scaled to gravity and RCS trim; vertical terminal descent), LandHere, AscentToOrbit.
+    Handovers: orbit → surface below `handoverAltitude` (site from the autopilot, or the braking point of a manual
+    descent), surface → orbit on the way up with OrbitInsertion resuming. Gas giants and Venus are fatal below the clouds.
+  - Measured: Moon orbit → deorbit → descent → touchdown 0.0 m from Mare Tranquillitatis target → ascent → 41 × 55 km
+    orbit (19.0 t → 12.0 t → 8.2 t propellant). Touchdown test from 450 m with 30 m/s drift: 0.1 m off target.
+  - Landed Ranger is a walkable site: stand up, cabin door, rear hatch, ladder; helmet visor outside the cabin.
+- **Orbital close-ups** — rocky-body shader adds a 0.25–8 km crater field in body-fixed 3-D cells (one layer at the
+  surface), bowl shadows near the terminator and immature-ejecta brightening (Moon/Mars from 130–400 km are now crisp).
+- **The wormhole** — `traverse()` from either mouth (navigation tab): approach, lens fills the view, warp, white-out,
+  zone rebuilt on the far side, emergence cinematic. `render/Gargantua.ts`: per-pixel Schwarzschild photon paths
+  (shadow, photon ring, lensed sky from the geometry), thin disk with Shakura–Sunyaev profile, sheared turbulence,
+  Doppler beaming and redshift; another galaxy as the sky.
+- **Gargantua system** — game-scale gravitational parameter (2×10²² m³/s²; orbital speeds 26–106 km/s inside the
+  Endurance's ~160 km/s; periods derived from it). Miller 6 Rs (tidally locked), Mann 22 Rs, exit throat 30 Rs, Edmunds
+  40 Rs. Lambert navigation around Gargantua (fast transfers ≈ 3–9 years under cryosleep, ≈105–110 km/s; efficient is
+  cheaper and slower), holds follow the moving throat, Miller orbit and surface run on Miller time (1 h ≈ 7 years).
+- **Mobile controls** — per-mode layouts chosen every frame (walk, float, ladder, seat, drive, flight, panels,
+  cinematics with SKIP); flight: pitch/roll stick, RCS translation stick (up/down = hover thrust), absolute throttle
+  slider synced from the craft, yaw/fore-aft/CUT/MAX, top bar (autopilot, SAS, RCS, gear, camera, cockpit panel, warp,
+  exit); tap-to-use; compact flight HUD on touch screens; fullscreen. Verified with synthetic multi-touch at 844×390.
+- Fixes: flight HUD canvas was removed by `setControl` (never visible); inclination shown in degrees once; input
+  context stuck on 'seat' after spawning aboard; HUD canvases drew on unpresented frames (stepped tests leaked GBs);
+  body-relative orbit thresholds (safe altitude, insertion target, free-orbit spawn); vacuum coasting disabled inside
+  atmospheres (entry drag is integrated).
+- Regression re-run: Earth docking approach, full rendezvous + dock, Earth orbit insertion (275 × 290 km).
+- Not yet: Earth re-entry/landing back at the NASA site; Miller's giant tidal waves; landers (only Ranger 1 flies);
+  the traversal's opening frames are dark-ish; GPU cost of the black hole at full screen on weak devices.
+
+### The Solar System
 - Maps (`scripts/gen_planets.py`, public/assets/textures/planet_*): Moon (real mare layout, ray craters Tycho/Copernicus/
   Kepler/Aristarchus, South Pole–Aitken), Mercury (Caloris), Venus cloud tops (super-rotation chevrons), Mars (albedo
   regions incl. the southern dark belt, Syrtis Major, Acidalium; Tharsis volcanoes, Valles Marineris, Hellas, Argyre,
@@ -110,12 +154,14 @@ Realism pass results (all rebuilt in Blender scripts, checked with Cycles previe
   `Plume.ts`, `CraftModel.ts`, `FlightHUD.ts`, `FlightControl.ts`, `world/earth/Launch.ts` (not yet wired into EarthZone).
 
 ### Next
-1. Wormhole traversal and the Gargantua system (black-hole shader, Miller/Mann/Edmunds approach).
-2. Crew aboard the Endurance (NPCs walking the ring), interior detail pass, animated iris doors.
-4. Planet zones (Miller, Mann, Edmunds), Lander model, universal landing.
-5. Docs, tests, screenshots.
+1. Earth return: re-entry corridor and landing back at the NASA site.
+2. Miller's tidal waves (moving water mountains), Mann and Edmunds story content, the Lander.
+3. Crew aboard the Endurance (NPCs walking the ring), interior detail pass, animated iris doors.
+4. Performance tiers for the black-hole and terrain shaders on mobile GPUs.
 
 ## Conventions
+- `e2e/run.sh steps.mjs outDir w h` starts and stops the Vite server for one run (TOUCH=1 for touch, MEMLOG=1 logs RSS).
+  Steps support `untilJs`/`max`/`chunk` to advance until a condition holds.
 - `game.step(n, dt)` and `game.running=false` give deterministic tests. `e2e/shot.mjs out.png script.js frames` saves screenshots;
   `e2e/multi.mjs steps.mjs outDir` runs a step list (js / frames / shot / probe). Keep renders per run few with the forest in view.
 - Exposure snaps on camera jumps. Screens refresh at 2 Hz.
