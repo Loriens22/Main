@@ -203,6 +203,8 @@ PALETTE = {
     "plastic_gray": dict(color=(0.22, 0.22, 0.23), rough=0.5),
     "chrome_dull": dict(color=(0.75, 0.75, 0.74), metal=1.0, rough=0.3),
     "carpet_gray": dict(color=(0.16, 0.17, 0.2), rough=0.95),
+    "lander_silver": dict(color=(0.62, 0.63, 0.66), metal=0.7, rough=0.38),
+    "lander_graphite": dict(color=(0.16, 0.15, 0.18), metal=0.5, rough=0.55),
     "needles_spruce": dict(color=(0.11, 0.19, 0.12), rough=0.85),
     "needles_fir": dict(color=(0.14, 0.24, 0.13), rough=0.85),
     "needles_pine": dict(color=(0.20, 0.30, 0.13), rough=0.85),

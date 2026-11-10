@@ -136,6 +136,8 @@ const RECIPES: Record<string, Recipe> = {
   rubber_mat: { color: C(0.05, 0.05, 0.05), rough: 0.92, normal: 'ribbed_n', normalScale: 0.5, normalRepeat: 6, weather: { grime: 0.6, grimeTint: new THREE.Color(4, 3.6, 3) } },
   plate_white: { color: C(0.78, 0.78, 0.74), rough: 0.4, weather: { grime: 0.6, streak: 0.4 } },
   plastic_gray: { color: C(0.22, 0.22, 0.23), rough: 0.5, weather: { grime: 0.4 } },
+  lander_silver: { color: C(0.6, 0.61, 0.64), rough: 0.36, metal: 0.75, normal: 'panel_n', normalScale: 0.5, normalRepeat: 0.6, weather: { grime: 0.35, scratch: 0.35, streak: 0.25 } },
+  lander_graphite: { color: C(0.15, 0.14, 0.17), rough: 0.55, metal: 0.5, normal: 'panel_n', normalScale: 0.45, normalRepeat: 0.6, weather: { grime: 0.3, grimeTint: new THREE.Color(1.6, 1.5, 1.6), scratch: 0.35, scratchColor: new THREE.Color(0.45, 0.43, 0.48), streak: 0.2 } },
   carpet_gray: { color: C(0.16, 0.17, 0.2), rough: 0.96, normal: 'fabric_n', normalScale: 0.9, normalRepeat: 3, weather: { grime: 0.3, scratch: 0 } },
   chrome_dull: { color: C(0.72, 0.72, 0.71), rough: 0.32, metal: 1, weather: { grime: 0.55, grimeTint: new THREE.Color(0.7, 0.62, 0.5), scratch: 0.25, streak: 0.3 } },
   needles_spruce: { color: C(0.82, 0.9, 0.86), map: 'conifer_branch_rgba', mapRepeat: 1, alphaTest: 0.42, rough: 0.82, side: THREE.DoubleSide, weather: false },
