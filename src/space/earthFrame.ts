@@ -52,6 +52,7 @@ export interface PrimaryBody { id: string; mu: number; R: number; rho0: number; 
 const ATMOS: Record<string, [number, number, number]> = {
   earth: [1.225, 8500, 160e3], mars: [0.02, 11100, 150e3], venus: [65, 15900, 250e3], titan: [5.4, 40000, 600e3],
   jupiter: [0.16, 27000, 1000e3], saturn: [0.19, 59500, 1000e3], uranus: [0.42, 27700, 800e3], neptune: [0.45, 19700, 800e3],
+  miller: [1.4, 8500, 110e3], mann: [1.0, 9000, 80e3], edmunds: [1.1, 8500, 100e3],
 };
 export const PRIMARY: PrimaryBody = { id: 'earth', mu: MU_EARTH, R: R_EARTH, rho0: 1.225, H: 8500, top: 160e3 };
 export function setPrimary(id: string, mu: number, R: number) {

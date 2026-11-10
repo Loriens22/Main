@@ -2,7 +2,7 @@
  * Landable bodies: surface style, relief scale of the orbital height maps, named landing sites.
  * Sites use planetocentric latitude / east longitude, matching the body maps (scripts/gen_planets.py).
  */
-export type SurfaceStyle = 'lunar' | 'mercury' | 'mars' | 'icy' | 'europa' | 'io' | 'titan' | 'rubble';
+export type SurfaceStyle = 'lunar' | 'mercury' | 'mars' | 'icy' | 'europa' | 'io' | 'titan' | 'rubble' | 'desert' | 'glacier' | 'ocean';
 
 export interface LandingSite {
   name: string;
@@ -133,6 +133,25 @@ export const SURFACES: Record<string, SurfaceDef> = {
     sites: [
       { name: 'Cantaloupe terrain', lat: 15, lon: 0, note: 'Dimpled ice of the northern plains.' },
       { name: 'Southern cap geysers', lat: -45, lon: 30, note: 'Nitrogen geyser streaks over the pink cap.' },
+    ],
+  },
+  // ------------------------------------------------------------------------------------------- Gargantua system
+  miller: {
+    style: 'ocean', relief: 0, rocks: 0, craters: 0, tint: [1, 1, 1], temp: '+14 °C · 130 % g · 1 h ≈ 7 Earth years',
+    sites: [{ name: 'Miller beacon', lat: 2, lon: 18, note: 'Knee-deep water to the horizon. The beacon fell silent hours ago — local hours.' }],
+  },
+  mann: {
+    style: 'glacier', relief: 3500, rocks: 0.25, craters: 0.05, tint: [1, 1, 1], temp: '−48 °C · ammonia traces',
+    sites: [
+      { name: 'Mann camp glacier', lat: 34, lon: 120, note: 'Wind-scoured ice under frozen cloud banks.' },
+      { name: 'Crevasse field', lat: -12, lon: -30, note: 'Blue ice fractures, treacherous footing.' },
+    ],
+  },
+  edmunds: {
+    style: 'desert', relief: 4500, rocks: 0.55, craters: 0.2, tint: [1, 1, 1], temp: '+18 °C · thin breathable traces',
+    sites: [
+      { name: 'Edmunds beacon', lat: 12, lon: 40, note: 'Rocky desert valley; the beacon signal came from here.' },
+      { name: 'Dry lake bed', lat: -24, lon: -70, note: 'Pale salt flats between basalt mesas.' },
     ],
   },
 };

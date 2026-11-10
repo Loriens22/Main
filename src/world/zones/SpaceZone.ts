@@ -825,7 +825,9 @@ export default class SpaceZone extends Zone implements ProxHost {
         this.updateEndurance(t);
         if (this.control.autopilot) this.control.runAutopilot(hStep);
         const thrust = this.craft.throttle > 0 || this.craft.rcsT.lengthSq() > 1e-6 || this.craft.attRate !== null;
-        const canCoast = !thrust && (this.control.autopilot ? this.control.maxStep > 0.05 : rem > 0.5);
+        // analytic Kepler coasting only in vacuum (inside an atmosphere the drag must be integrated)
+        const inAir = PRIMARY.rho0 > 0 && this.env.altitude(this.craft.pos) < PRIMARY.top;
+        const canCoast = !thrust && !inAir && (this.control.autopilot ? this.control.maxStep > 0.05 : rem > 0.5);
         if (canCoast) {
           hStep = Math.min(rem, this.control.autopilot ? this.control.maxStep : 2);
           const p = propagate(this.craft.pos as V3, this.craft.vel as V3, PRIMARY.mu, hStep);
@@ -1608,7 +1610,7 @@ export default class SpaceZone extends Zone implements ProxHost {
     this.earthLight.color.setRGB(pc[0] * 0.6 + 0.1, pc[1] * 0.6 + 0.1, pc[2] * 0.6 + 0.12);
     this.earthLight.intensity = (0.05 + 2.2 * day * fill) * this.flux * (this.aboard ? 0.12 : 1);
     // exposure: eye adaptation to the local sunlight and to orbital night
-    const base = THREE.MathUtils.clamp(1 / Math.pow(this.flux, 0.75), 1, 4);
+    const base = THREE.MathUtils.clamp(1 / Math.pow(this.flux, 0.75), 0.4, 4);
     this.exposure = THREE.MathUtils.damp(this.exposure, this.aboard ? 0.95 : this.sunVis > 0.5 ? base : 2.2 * base, 1.5, dt);
     this.interiorFill.intensity = this.aboard ? 0.55 : 0;
     // stars wash out when the sunlit Earth or the Sun is in view (camera exposure), full in orbital night

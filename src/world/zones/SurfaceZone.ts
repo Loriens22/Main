@@ -5,7 +5,8 @@ import type { Game } from '../../core/Game';
 import type { RenderLayer } from '../../render/Renderer';
 import type { ModelInstance } from '../../render/Assets';
 import { Starfield, SunDisc } from '../../render/Globe';
-import { SolarSystem, helio } from '../../render/SolarSystem';
+import { SolarSystem, helio, eclToThree } from '../../render/SolarSystem';
+import { Gargantua, AlienSky } from '../../render/Gargantua';
 import { BODIES } from '../../data/bodies';
 import { SURFACES, handoverAltitude, type SurfaceDef } from '../../data/landing';
 import { SPECS } from '../../data/vehicles';
@@ -13,6 +14,7 @@ import { Spacecraft, type FlightEnv } from '../../vehicles/Spacecraft';
 import { FlightControl } from '../../vehicles/FlightControl';
 import { CraftModel } from '../../vehicles/CraftModel';
 import { gmst, orbitSummary } from '../../space/earthFrame';
+import { MILLER_FACTOR } from '../../core/MissionClock';
 import type { V3 } from '../../space/kepler';
 import { makeSite, inertialToLocal, localToInertial, localToInertialRot, localOmega, localToBF, localLatLon, bodyRot, type SurfaceSite } from '../../space/surfaceFrame';
 import { PoweredDescent, LandHere, AscentToOrbit, brakingDistance, type SurfaceAPHost } from '../../space/Landing';
@@ -99,6 +101,11 @@ export default class SurfaceZone extends Zone implements SurfaceAPHost {
   private envT = 0;
   private dustT = 0;
   private dust: THREE.Points | null = null;
+  /** in the Gargantua system: the black hole, its galaxy, its disk-lit planets */
+  garg = false;
+  gargantua: Gargantua | null = null;
+  alienSky: AlienSky | null = null;
+  water: THREE.Mesh | null = null;
 
   constructor(game: Game) {
     super(game);
@@ -150,7 +157,7 @@ export default class SurfaceZone extends Zone implements SurfaceAPHost {
       const cen = new THREE.Vector3().crossVectors(w, new THREE.Vector3().crossVectors(w, o)).negate();
       return o.multiplyScalar(-mu / (r * r * r)).add(cen);
     }, body.name));
-    this.ground.surfaceFn = () => (this.def.style === 'icy' || this.def.style === 'europa' ? 'ice' : 'dirt');
+    this.ground.surfaceFn = () => (this.def.style === 'ocean' ? 'water' : this.def.style === 'icy' || this.def.style === 'europa' || this.def.style === 'glacier' ? 'ice' : 'dirt');
     this.ground.pressurizedFn = (l) => this.cabinPressurised(l);
     this.env = this.makeEnv();
     // light
@@ -166,10 +173,20 @@ export default class SurfaceZone extends Zone implements SurfaceAPHost {
     this.scene.add(this.hemi);
     // far layer
     progress(0.65, 'sky');
-    this.system = new SolarSystem(game.materials);
+    this.garg = body.system === 'gargantua';
+    this.system = new SolarSystem(game.materials, this.garg ? ['miller', 'mann', 'edmunds'] : undefined);
+    if (this.garg) {
+      this.system.fluxRef = 6e12;
+      this.alienSky = new AlienSky();
+      this.far.add(this.alienSky.mesh);
+      const sysN = new THREE.Vector3(...eclToThree([0, 0, 1]));
+      this.gargantua = new Gargantua(BODIES.gargantua.radius / 1000, sysN.applyAxisAngle(new THREE.Vector3(1, 0, 0), 0.18).normalize());
+      this.far.add(this.gargantua.mesh);
+    }
     this.far.add(this.system.group);
     this.stars = new Starfield();
     this.far.add(this.stars.group);
+    this.stars.group.visible = !this.garg;
     this.sunDisc = new SunDisc();
     this.far.add(this.sunDisc.mesh);
     // Ranger 1
@@ -198,11 +215,12 @@ export default class SurfaceZone extends Zone implements SurfaceAPHost {
     progress(0.85, 'boulders');
     const rc = this.map.lumAt(sd.lat, sd.lon);
     const style = this.def.style;
-    const rockColor = style === 'mars' ? new THREE.Color(0.32, 0.2, 0.14) : style === 'icy' || style === 'europa' ? new THREE.Color(0.7, 0.7, 0.72) : style === 'titan' ? new THREE.Color(0.5, 0.42, 0.3) : new THREE.Color().setScalar(THREE.MathUtils.clamp(rc * 0.5, 0.08, 0.32));
+    const rockColor = style === 'mars' ? new THREE.Color(0.32, 0.2, 0.14) : style === 'desert' ? new THREE.Color(0.2, 0.16, 0.13) : style === 'icy' || style === 'europa' || style === 'glacier' ? new THREE.Color(0.7, 0.7, 0.72) : style === 'titan' ? new THREE.Color(0.5, 0.42, 0.3) : new THREE.Color().setScalar(THREE.MathUtils.clamp(rc * 0.5, 0.08, 0.32));
     this.rocks = new Rocks(this.gen, rockColor);
     this.scene.add(this.rocks.group);
     this.buildDust();
     this.buildSkyDome();
+    if (this.def.style === 'ocean') this.buildWater();
     progress(1, 'ready');
   }
 
@@ -287,6 +305,12 @@ export default class SurfaceZone extends Zone implements SurfaceAPHost {
     const r = new THREE.Vector3(c.pos[0] - this.center.x, c.pos[1] - this.center.y, c.pos[2] - this.center.z);
     const v = new THREE.Vector3(...c.vel).add(new THREE.Vector3().crossVectors(this.omegaL, r));
     return orbitSummary(r.toArray() as V3, v.toArray() as V3, mu, R);
+  }
+
+  clockContext() {
+    // on Miller (and with the Endurance parked in Miller orbit) one hour is about seven Earth years
+    if (this.site.body === 'miller') return { playerDilation: MILLER_FACTOR, enduranceDilation: MILLER_FACTOR };
+    return {};
   }
 
   maxTimeWarp() {
@@ -759,6 +783,62 @@ export default class SurfaceZone extends Zone implements SurfaceAPHost {
     this.scene.fog = new THREE.FogExp2(new THREE.Color(...atm.horizon), atm.fog);
   }
 
+  // ===================================================================================================== water (Miller)
+  private waveTex: THREE.DataTexture | null = null;
+  /** Shallow sea: a camera-following plane bent to the planet's curvature, tiled wave normals drifting with time. */
+  private buildWater() {
+    const N = 256;
+    const data = new Uint8Array(N * N * 4);
+    for (let j = 0; j < N; j++) {
+      for (let i = 0; i < N; i++) {
+        let dx = 0, dz = 0;
+        for (const [kx, kz, a] of [[3, 1, 1], [-2, 4, 0.7], [7, -5, 0.35], [-11, -3, 0.22], [13, 9, 0.14], [-21, 17, 0.08]]) {
+          const ph = ((kx * i + kz * j) / N) * Math.PI * 2;
+          dx += a * kx * Math.cos(ph);
+          dz += a * kz * Math.cos(ph);
+        }
+        const n = new THREE.Vector3(-dx * 0.04, 1, -dz * 0.04).normalize();
+        const k = (j * N + i) * 4;
+        data[k] = (n.x * 0.5 + 0.5) * 255;
+        data[k + 1] = (n.z * 0.5 + 0.5) * 255;
+        data[k + 2] = (n.y * 0.5 + 0.5) * 255;
+        data[k + 3] = 255;
+      }
+    }
+    this.waveTex = new THREE.DataTexture(data, N, N);
+    this.waveTex.wrapS = this.waveTex.wrapT = THREE.RepeatWrapping;
+    this.waveTex.repeat.set(900, 900);
+    this.waveTex.needsUpdate = true;
+    const mat = new THREE.MeshStandardMaterial({ color: new THREE.Color(0.06, 0.13, 0.15), roughness: 0.05, metalness: 0, transparent: true, opacity: 0.78, normalMap: this.waveTex, normalScale: new THREE.Vector2(0.55, 0.55), depthWrite: false });
+    const R = BODIES[this.site.body].radius;
+    mat.onBeforeCompile = (sh) => {
+      sh.uniforms.uSR = { value: R };
+      sh.vertexShader = sh.vertexShader.replace('#include <common>', '#include <common>\nuniform float uSR;').replace(
+        '#include <project_vertex>',
+        `vec4 wq = modelMatrix * vec4(transformed, 1.0);
+         float rr = dot(wq.xz, wq.xz);
+         wq.y = sqrt(max(uSR * uSR - rr, 0.0)) - uSR;
+         vec4 mvPosition = viewMatrix * wq;
+         gl_Position = projectionMatrix * mvPosition;`,
+      );
+    };
+    const g = new THREE.PlaneGeometry(30000, 30000, 160, 160).rotateX(-Math.PI / 2);
+    this.water = new THREE.Mesh(g, mat);
+    this.water.frustumCulled = false;
+    this.water.renderOrder = 5;
+    this.water.userData.owned = true;
+    this.scene.add(this.water);
+  }
+
+  private updateWater() {
+    const w = this.water!;
+    const cam = this.game.camera.position;
+    w.position.set(Math.round(cam.x / 200) * 200, 0, Math.round(cam.z / 200) * 200);
+    if (this.waveTex) {
+      this.waveTex.offset.set(this.time * 0.0021 + w.position.x / 30000 * 900, this.time * 0.0013 - w.position.z / 30000 * 900);
+    }
+  }
+
   // ===================================================================================================== dust
   private buildDust() {
     const n = 900;
@@ -838,9 +918,15 @@ export default class SurfaceZone extends Zone implements SurfaceAPHost {
     this.farQ.setFromRotationMatrix(L2I);
     const sunDist = Math.hypot(camH[0], camH[1], camH[2]);
     const sunI = new THREE.Vector3(-camH[0], -camH[1], -camH[2]).normalize();
-    this.sunDisc.update(sunI);
-    this.sunDisc.mesh.scale.setScalar(THREE.MathUtils.clamp((50000 * (6.957e8 / sunDist)) / 0.038 / 6500, 0.03, 4));
-    this.flux = SolarSystem.flux(sunDist);
+    if (this.garg) {
+      this.gargantua!.update(new THREE.Vector3(-camH[0], -camH[1], -camH[2]), this.time, 0.55);
+      this.sunDisc.mesh.visible = false;
+      this.flux = SolarSystem.flux(sunDist, 6e12);
+    } else {
+      this.sunDisc.update(sunI);
+      this.sunDisc.mesh.scale.setScalar(THREE.MathUtils.clamp((50000 * (6.957e8 / sunDist)) / 0.038 / 6500, 0.03, 4));
+      this.flux = SolarSystem.flux(sunDist);
+    }
     // sun direction in local axes
     const Linv = L2I.clone().invert();
     this.sunLocal.copy(sunI).applyMatrix4(Linv).normalize();
@@ -857,7 +943,7 @@ export default class SurfaceZone extends Zone implements SurfaceAPHost {
     const ext = atm ? new THREE.Color(Math.exp(-atm.tau[0] * airmass), Math.exp(-atm.tau[1] * airmass), Math.exp(-atm.tau[2] * airmass)) : new THREE.Color(1, 1, 1);
     this.sun.color.copy(ext);
     this.sun.intensity = 3.1 * this.flux * this.sunVisCPU * (atm?.sunK ?? 1);
-    this.sunDisc.mesh.visible = elev > -0.03;
+    if (!this.garg) this.sunDisc.mesh.visible = elev > -0.03;
     const fp = focus.clone();
     this.sun.target.position.copy(fp);
     this.sun.position.copy(fp).addScaledVector(this.sunLocal, 200);
@@ -876,6 +962,8 @@ export default class SurfaceZone extends Zone implements SurfaceAPHost {
       this.hemi.intensity = (0.03 + 0.9 * day * Math.sqrt(Math.max(0, elev))) * this.flux * 1.1;
     }
     this.stars.setVisibility(atm ? (1 - day) * 0.9 : day > 0.5 ? 0.22 : 1);
+    if (this.alienSky) this.alienSky.mat.uniforms.uK.value = atm ? 0.3 + 0.7 * (1 - day) : day > 0.5 ? 0.35 : 1;
+    if (this.water) this.updateWater();
     if (this.dome && atm) {
       this.dome.position.copy(game.camera.position);
       const u = (this.dome.material as THREE.ShaderMaterial).uniforms;
@@ -886,7 +974,7 @@ export default class SurfaceZone extends Zone implements SurfaceAPHost {
       fog.color.setRGB(atm.horizon[0], atm.horizon[1], atm.horizon[2]).multiplyScalar((0.06 + 0.94 * day) * this.flux * atm.skyK * 0.72);
     }
     // eye adaptation
-    const base = THREE.MathUtils.clamp(1 / Math.pow(this.flux, 0.75), 1, 4);
+    const base = THREE.MathUtils.clamp(1 / Math.pow(this.flux, 0.75), 0.4, 4);
     const night = 1 - day * this.sunVisCPU;
     this.exposure = THREE.MathUtils.damp(this.exposure, base * (1 + night * 2.2), 1.2, dt);
     this.envT -= dt;
@@ -991,5 +1079,9 @@ const ATMO_SURF: Record<string, { rho0: number; H: number; tau: C3; sky: C3; sky
   mars: { rho0: 0.02, H: 11100, tau: [0.22, 0.33, 0.48], sky: [0.62, 0.44, 0.3], skyK: 0.75, sunK: 0.9, zenith: [0.46, 0.3, 0.2], horizon: [0.8, 0.58, 0.4], glow: [0.5, 0.58, 0.7], alpha: 0.93, fog: 1 / 38000 },
   // thick orange photochemical haze
   titan: { rho0: 5.4, H: 40000, tau: [0.9, 1.4, 2.4], sky: [0.55, 0.36, 0.14], skyK: 1.4, sunK: 0.45, zenith: [0.45, 0.28, 0.1], horizon: [0.7, 0.46, 0.2], glow: [0.9, 0.65, 0.3], alpha: 0.985, fog: 1 / 9000 },
+  // Gargantua's worlds: thinner-looking skies so the black hole and its disk show through by day
+  miller: { rho0: 1.4, H: 8500, tau: [0.1, 0.14, 0.2], sky: [0.42, 0.48, 0.52], skyK: 0.55, sunK: 0.8, zenith: [0.16, 0.2, 0.24], horizon: [0.5, 0.55, 0.58], glow: [0.12, 0.1, 0.08], alpha: 0.4, fog: 1 / 30000 },
+  mann: { rho0: 1.0, H: 9000, tau: [0.14, 0.16, 0.2], sky: [0.62, 0.66, 0.7], skyK: 0.8, sunK: 0.9, zenith: [0.42, 0.47, 0.52], horizon: [0.74, 0.76, 0.79], glow: [0.25, 0.24, 0.22], alpha: 0.7, fog: 1 / 14000 },
+  edmunds: { rho0: 1.1, H: 8500, tau: [0.12, 0.2, 0.34], sky: [0.42, 0.55, 0.78], skyK: 0.8, sunK: 0.95, zenith: [0.2, 0.34, 0.66], horizon: [0.62, 0.7, 0.8], glow: [0.3, 0.27, 0.22], alpha: 0.72, fog: 1 / 30000 },
 };
 

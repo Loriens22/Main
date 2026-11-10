@@ -4,7 +4,7 @@ import type { SurfaceGen } from './SurfaceGen';
 import { CRATER_D0, CRATER_OCTAVES } from './SurfaceGen';
 import type { MaterialLibrary } from '../../render/Materials';
 
-const STYLE_ID: Record<string, number> = { lunar: 0, mercury: 0, rubble: 0, mars: 1, icy: 2, europa: 3, io: 4, titan: 5 };
+const STYLE_ID: Record<string, number> = { lunar: 0, mercury: 0, rubble: 0, mars: 1, desert: 1, ocean: 1, icy: 2, glacier: 2, europa: 3, io: 4, titan: 5 };
 
 /** Octave index of the smallest crater the CPU height map of a given cell size contains. */
 export function resolvedOctave(cell: number) {

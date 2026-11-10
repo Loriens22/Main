@@ -301,7 +301,8 @@ export class SurfaceGen {
         // grooves (Phobos): parallel troughs
         h -= 8 * Math.pow(Math.abs(Math.sin((x * 0.8 + z * 0.6) / 260 + 2 * fbm2(x / 3000, z / 3000, 2, sd))), 18);
         break;
-      case 'mars': {
+      case 'mars':
+      case 'desert': {
         // eroded hills, mesas in the highlands, dune fields in low ground
         const hills = 420 * fbm2(x / 14000, z / 14000, 5, sd + 3) + 60 * ridged2(x / 2600, z / 2600, 4, sd + 4);
         const low = THREE.MathUtils.smoothstep(-hills, -40, 120);
@@ -310,6 +311,10 @@ export class SurfaceGen {
         h += hills + dunes + 3 * fbm2(x / 60, z / 60, cell < 10 ? 4 : 2, sd + 8);
         break;
       }
+      case 'glacier':
+        // wind-carved sastrugi on top of the ice sheet's long swells
+        h += 2.5 * Math.pow(0.5 + 0.5 * Math.sin((x * 0.6 + z * 0.8) / 7 + 3 * fbm2(x / 90, z / 90, 2, sd + 9)), 3);
+      // falls through
       case 'icy':
         h += 260 * fbm2(x / 12000, z / 12000, 4, sd + 3);
         // fractures and grooves: sharp parallel ridges in bands
@@ -329,6 +334,11 @@ export class SurfaceGen {
         const pd = Math.hypot(x - 6500, z + 4200) / 3200;
         const pat = pd < 1 ? -220 * (1 - Math.pow(pd, 8)) : 30 * Math.exp(-(pd - 1) * 6);
         h += plain + pat + 4 * fbm2(x / 120, z / 120, 3, sd + 6);
+        break;
+      }
+      case 'ocean': {
+        // Miller: a flat sand seabed under ~0.7 m of water, rippled by the currents
+        h += -0.75 + 0.05 * Math.sin((x * 0.8 + z * 0.6) * 2.4 + 2 * fbm2(x / 6, z / 6, 2, sd + 2)) + 0.25 * fbm2(x / 400, z / 400, 3, sd + 4);
         break;
       }
       case 'titan': {
