@@ -514,3 +514,107 @@ export class SolarSystem {
     return this.state(id);
   }
 }
+
+/**
+ * The Anomaly: a spherical wormhole mouth (~2 km across) rendered as a gravitational lens.
+ *   b < R  — the view through the throat: another galaxy (dense stars, a galactic band, a warm distant glow);
+ *   b ≥ R  — our sky, deflected by α ∝ R/b and sampled from a periodic cube capture of the far layer,
+ *            with a bright Einstein ring hugging the rim. Fades out by b ≈ 7 R.
+ */
+export class WormholeLens {
+  readonly mesh: THREE.Mesh;
+  readonly mat: THREE.ShaderMaterial;
+  readonly cubeRT = new THREE.WebGLCubeRenderTarget(256, { type: THREE.HalfFloatType, generateMipmaps: true, minFilter: THREE.LinearMipmapLinearFilter });
+  readonly cubeCam = new THREE.CubeCamera(1, 3e5, this.cubeRT);
+  private captureT = 0;
+  readonly radiusKm = 1.0;
+
+  constructor() {
+    this.mat = new THREE.ShaderMaterial({
+      side: THREE.BackSide, transparent: true, depthWrite: false, depthTest: false,
+      blending: THREE.CustomBlending, blendSrc: THREE.OneFactor, blendDst: THREE.OneMinusSrcAlphaFactor,
+      uniforms: { tSky: { value: this.cubeRT.texture }, uC: { value: new THREE.Vector3() }, uR: { value: 1 }, uTime: { value: 0 }, uHave: { value: 0 } },
+      vertexShader: /* glsl */ `varying vec3 vW; void main(){ vec4 w = modelMatrix * vec4(position, 1.0); vW = w.xyz; gl_Position = projectionMatrix * viewMatrix * w; }`,
+      fragmentShader: /* glsl */ `
+        precision highp float;
+        uniform samplerCube tSky; uniform vec3 uC; uniform float uR, uTime, uHave; varying vec3 vW;
+        float hash3(vec3 p){ p = fract(p * 0.3183099 + 0.1); p *= 17.0; return fract(p.x * p.y * p.z * (p.x + p.y + p.z)); }
+        float vnoise(vec3 x){ vec3 i = floor(x); vec3 f = fract(x); f = f * f * (3.0 - 2.0 * f);
+          return mix(mix(mix(hash3(i), hash3(i + vec3(1,0,0)), f.x), mix(hash3(i + vec3(0,1,0)), hash3(i + vec3(1,1,0)), f.x), f.y),
+                     mix(mix(hash3(i + vec3(0,0,1)), hash3(i + vec3(1,0,1)), f.x), mix(hash3(i + vec3(0,1,1)), hash3(i + vec3(1,1,1)), f.x), f.y), f.z); }
+        vec3 otherSky(vec3 d){
+          vec3 col = vec3(0.0);
+          for (int k = 0; k < 2; k++){
+            vec3 p = d * (180.0 + float(k) * 260.0);
+            vec3 i = floor(p);
+            float h = hash3(i + float(k) * 7.0);
+            float s = step(0.965, h) * pow(fract(h * 113.0), 5.0);
+            vec3 f = fract(p) - 0.5;
+            col += vec3(0.9, 0.92, 1.0) * s * exp(-dot(f, f) * 30.0) * 9.0;
+          }
+          vec3 bandN = normalize(vec3(0.35, 0.82, 0.45));
+          float band = exp(-pow(dot(d, bandN), 2.0) * 14.0);
+          float neb = vnoise(d * 5.0) * 0.6 + vnoise(d * 13.0) * 0.4;
+          col += mix(vec3(0.25, 0.3, 0.65), vec3(0.7, 0.45, 0.6), neb) * band * (0.2 + 0.8 * neb) * 0.7;
+          // Gargantua's accretion glow, far beyond the mouth
+          vec3 gd = normalize(vec3(-0.45, 0.15, 0.88));
+          float g = max(dot(d, gd), 0.0);
+          col += vec3(1.0, 0.7, 0.4) * (pow(g, 80.0) * 1.2 + pow(g, 10.0) * 0.04);
+          return col;
+        }
+        void main(){
+          vec3 rd = normalize(vW);                     // camera at the far-layer origin
+          float tc = dot(uC, rd);
+          if (tc <= 0.0) discard;
+          vec3 perp = uC - rd * tc;                    // from the ray's closest point to the centre
+          float b = length(perp);
+          float x = b / uR;
+          vec3 axis = normalize(cross(rd, uC) + vec3(1e-7));
+          vec3 col; float a;
+          if (x < 1.0){
+            // through the throat: the far side, wrapped (strongest distortion near the rim)
+            float ang = (1.0 - x) * 2.6 + pow(x, 6.0) * 2.4;
+            vec3 d2 = rd * cos(ang) + cross(axis, rd) * sin(ang) + axis * dot(axis, rd) * (1.0 - cos(ang));
+            col = otherSky(normalize(d2));
+            col += vec3(1.0, 0.95, 0.9) * exp(-pow((1.0 - x) / 0.018, 2.0)) * 1.1;   // inner Einstein ring
+            a = 1.0;
+          } else {
+            // lensed exterior: light bent around the mouth
+            float alpha = 1.1 / pow(x, 1.3);
+            vec3 d2 = rd * cos(alpha) - cross(axis, rd) * sin(alpha) + axis * dot(axis, rd) * (1.0 - cos(alpha));
+            col = uHave > 0.5 ? textureCube(tSky, normalize(d2), 1.5).rgb * 0.6 : vec3(0.0);
+            col += vec3(0.95, 0.95, 1.0) * exp(-pow((x - 1.0) / 0.025, 2.0)) * 0.9;      // outer ring
+            a = 1.0 - smoothstep(1.4, 2.6, x);
+            col *= a;
+          }
+          gl_FragColor = vec4(col, a);
+        }`,
+    });
+    this.mesh = new THREE.Mesh(new THREE.SphereGeometry(8, 48, 24), this.mat);
+    this.mesh.frustumCulled = false;
+    this.mesh.renderOrder = 900;
+    this.mesh.userData.owned = true;
+  }
+
+  /** Position the lens (km, relative to the far camera) and refresh the sky capture every few seconds. */
+  update(rel: THREE.Vector3, renderer: THREE.WebGLRenderer, scene: THREE.Scene, dt: number) {
+    const dist = rel.length();
+    const sc = dist > SCALED_KM ? SCALED_KM / dist : 1;
+    this.mesh.position.copy(rel).multiplyScalar(sc);
+    this.mesh.scale.setScalar(sc * this.radiusKm);
+    const u = this.mat.uniforms;
+    (u.uC.value as THREE.Vector3).copy(this.mesh.position);
+    u.uR.value = this.radiusKm * sc;
+    u.uTime.value += dt;
+    this.mesh.visible = dist < 5e6;
+    this.captureT -= dt;
+    if (this.mesh.visible && dist < 2e4 && this.captureT <= 0) {
+      this.captureT = 6;
+      this.mesh.visible = false;
+      this.cubeCam.position.set(0, 0, 0);
+      this.cubeCam.update(renderer, scene);
+      this.mesh.visible = true;
+      u.uHave.value = 1;
+    }
+  }
+}

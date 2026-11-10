@@ -5,7 +5,7 @@ import type { Game } from '../../core/Game';
 import type { RenderLayer } from '../../render/Renderer';
 import type { ModelInstance } from '../../render/Assets';
 import { Starfield, SunDisc } from '../../render/Globe';
-import { SolarSystem, helio } from '../../render/SolarSystem';
+import { SolarSystem, WormholeLens, helio } from '../../render/SolarSystem';
 import { BODIES } from '../../data/bodies';
 import { planTransfer, cruiseState, parkRadius, planetOf, fmtDuration, DESTINATIONS, type TransferPlan } from '../../space/Navigation';
 import { MissionClock } from '../../core/MissionClock';
@@ -52,6 +52,7 @@ export default class SpaceZone extends Zone implements ProxHost {
   readonly far = new THREE.Scene();
   readonly farCam = new THREE.PerspectiveCamera(60, 1, 1, 3e5);
   system!: SolarSystem;
+  lens!: WormholeLens;
   stars!: Starfield;
   sunDisc!: SunDisc;
   sun!: THREE.DirectionalLight;
@@ -116,6 +117,8 @@ export default class SpaceZone extends Zone implements ProxHost {
     progress(0.1, 'Earth');
     this.system = new SolarSystem(mats);
     this.far.add(this.system.group);
+    this.lens = new WormholeLens();
+    this.far.add(this.lens.mesh);
     this.stars = new Starfield();
     this.far.add(this.stars.group);
     this.sunDisc = new SunDisc();
@@ -164,6 +167,7 @@ export default class SpaceZone extends Zone implements ProxHost {
       g.material.emissiveIntensity = name === 'panel' ? 1.4 : name.startsWith('deck') || name.startsWith('ring') ? 2.6 : 3;
     }
     this.addReboard();
+    this.addNavConsole();
     this.eInst.root.traverse((o) => {
       const m = o as THREE.Mesh;
       if (m.isMesh) {
@@ -720,6 +724,7 @@ export default class SpaceZone extends Zone implements ProxHost {
       add('ORBIT INSERTION', 'Burn to a stable parking orbit (periapsis above 185 km).', !this.r1Docked && s.pe < 185e3, () => ctrl.setAutopilot(new OrbitInsertion(this, 290e3)));
       add('RENDEZVOUS + DOCK', 'Plan a Lambert transfer to the Endurance, burn, correct, brake at the hold point, then dock at the forward port (time compressed).', !this.r1Docked && s.pe > 150e3, () => ctrl.setAutopilot(new Rendezvous(this, () => ctrl.setAutopilot(new DockingApproach(this)))));
       add('DOCKING APPROACH', 'From within 3 km: close to the 150 m hold point, align, match the ring\'s spin and dock.', !this.r1Docked && rel.dist < 3000, () => ctrl.setAutopilot(new DockingApproach(this)));
+      add('UNDOCK', 'Release the capture latches and back away from the forward port at 0.3 m/s (the Ranger keeps the ring\'s spin until SAS damps it).', this.r1Docked, () => this.undock());
       add('ENDURANCE NAVIGATION', 'Interplanetary transfers: plan, engage, cruise (cryosleep or time warp), capture into orbit at the destination.', this.r1Docked, () => setTimeout(() => import('../../ui/Panels').then((P) => P.openMissionComputer(game, 'nav')), 50));
       add('DISENGAGE AUTOPILOT', 'Manual flight: W/S pitch, A/D yaw, Q/E roll, I/K/J/L/H/N translate, Shift/Ctrl throttle, T SAS mode.', !!ctrl.autopilot, () => ctrl.setAutopilot(null));
     }, { narrow: true, onClose: () => game.input.requestLock() });
@@ -958,7 +963,7 @@ export default class SpaceZone extends Zone implements ProxHost {
           h('span', {}, 'Δv departure / capture'), h('span', {}, `${(plan.dvDep / 1000).toFixed(2)} / ${(plan.dvArr / 1000).toFixed(2)} km/s`),
           h('span', {}, 'v∞ departure / arrival'), h('span', {}, plan.local ? 'local transfer' : `${(plan.vinfDep / 1000).toFixed(2)} / ${(plan.vinfArr / 1000).toFixed(2)} km/s`),
           h('span', {}, 'Propellant'), h('span', {}, `${Math.round(prop / 1000).toLocaleString()} t of ${Math.round(game.state.vehicles.endurance.fuel / 1000).toLocaleString()} t`),
-          h('span', {}, 'Parking orbit'), h('span', {}, to === 'wormhole' ? 'station-keeping 60 km from the Anomaly' : `${((parkRadius(to) - BODIES[to].radius) / 1000).toFixed(0)} km altitude`),
+          h('span', {}, 'Parking orbit'), h('span', {}, to === 'wormhole' ? 'station-keeping 6 km from the Anomaly' : `${((parkRadius(to) - BODIES[to].radius) / 1000).toFixed(0)} km altitude`),
         ));
       const go = game.ui.button('ENGAGE', () => { game.ui.closeAllPanels(); this.engage(plan!); }, 'btn primary');
       go.disabled = !this.r1Docked || prop > game.state.vehicles.endurance.fuel;
@@ -1097,9 +1102,9 @@ export default class SpaceZone extends Zone implements ProxHost {
     delete d.cruise;
     this.switchPrimary(body);
     if (to === 'wormhole') {
-      // station-keeping 60 km sunward of the Anomaly
+      // station-keeping 6 km sunward of the Anomaly (the mouth is ~2 km across)
       const w = helio('wormhole', t).r;
-      const off = new THREE.Vector3(-w[0], -w[1], -w[2]).normalize().multiplyScalar(60e3);
+      const off = new THREE.Vector3(-w[0], -w[1], -w[2]).normalize().multiplyScalar(6e3);
       d.hold = { target: 'wormhole', offset: [off.x, off.y, off.z] };
       delete d.orbit;
     } else {
@@ -1156,6 +1161,44 @@ export default class SpaceZone extends Zone implements ProxHost {
       label: () => (this.game.player.mode === 'ladder' ? null : `Climb ladder (${len.toFixed(0)} m)`),
       use: () => this.game.player.grabLadder(ref),
     };
+  }
+
+  /** Release Ranger 1 from the forward port with a gentle separation push. */
+  undock() {
+    const game = this.game;
+    if (!this.r1Docked) return;
+    const g = this.dockGoal(this.craft, 0, true, this.dockRoll);
+    this.r1Docked = false;
+    game.state.vehicles.ranger1.docked = null;
+    for (let k = 0; k < 3; k++) {
+      this.craft.pos[k] = g.pos[k];
+      this.craft.vel[k] = g.vel[k] + g.axis.getComponent(k) * 0.3;
+    }
+    this.craft.quat.copy(g.quat);
+    this.craft.angVel.copy(g.w.clone().applyQuaternion(g.quat.clone().invert()));
+    this.craft.sas = 'stability';
+    this.craft.attRate = null;
+    game.audio.thud(undefined, 0.4, 90);
+    this.say('computer', 'Latches released. Separation 0.3 metres per second. Ranger 1 is free.');
+    game.log('mission', 'RANGER 1', `Undocked from the Endurance at ${BODIES[PRIMARY.id]?.name ?? 'cruise'}.`);
+  }
+
+  /** Command-deck navigation console: opens the transfer planner. */
+  private addNavConsole() {
+    const hit = new THREE.Mesh(new THREE.BoxGeometry(1.4, 7.0, 1.0), new THREE.MeshBasicMaterial({ visible: false }));
+    hit.userData.owned = true;
+    // in front of the flight console of module 9 (frame-local: x radial, z = −axial)
+    hit.position.set(30.4, 0, -2.9);
+    this.site.root.add(hit);
+    this.game.interaction.add({
+      id: 'endu_nav_console', targets: [hit], range: 2.8,
+      label: () => (this.aboard ? 'Navigation console — plan an interplanetary transfer' : null),
+      enabled: () => this.aboard,
+      use: () => {
+        this.game.input.releaseLock();
+        void import('../../ui/Panels').then((P) => P.openMissionComputer(this.game, 'nav'));
+      },
+    });
   }
 
   /** Iris door at the forward port: board Ranger 1 again. */
@@ -1244,6 +1287,8 @@ export default class SpaceZone extends Zone implements ProxHost {
     const ph = PRIMARY.id === 'sun' ? [0, 0, 0] : helio(PRIMARY.id, t).r;
     const camH: V3 = [ph[0] + camW[0], ph[1] + camW[1], ph[2] + camW[2]];
     this.system.update(t, camH, gmst(t), this.time, game.renderer.canvas.clientHeight / THREE.MathUtils.degToRad(cam.fov));
+    const wh = helio('wormhole', t).r;
+    this.lens.update(new THREE.Vector3((wh[0] - camH[0]) / 1000, (wh[1] - camH[1]) / 1000, (wh[2] - camH[2]) / 1000), game.renderer.gl, this.far, dt);
     const sunDist = Math.hypot(camH[0], camH[1], camH[2]);
     const sunDir = new THREE.Vector3(-camH[0], -camH[1], -camH[2]).normalize();
     this.flux = SolarSystem.flux(sunDist);
