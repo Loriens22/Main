@@ -2,6 +2,35 @@
 
 ## Status (latest first)
 
+### The Solar System (this pass)
+- Maps (`scripts/gen_planets.py`, public/assets/textures/planet_*): Moon (real mare layout, ray craters Tycho/Copernicus/
+  Kepler/Aristarchus, South Pole–Aitken), Mercury (Caloris), Venus cloud tops (super-rotation chevrons), Mars (albedo
+  regions incl. the southern dark belt, Syrtis Major, Acidalium; Tharsis volcanoes, Valles Marineris, Hellas, Argyre,
+  dichotomy, polar caps), Jupiter (belt/zone latitudes, GRS at 22° S, ovals, festoons), Saturn (bands, polar hexagon),
+  Uranus, Neptune (dark spot, cirrus), Io, Europa (lineae), Ganymede, Callisto (Valhalla), Titan, Enceladus (tiger
+  stripes), Mimas (Herschel), Dione, Rhea, Iapetus (Cassini Regio), Titania, Triton, Phobos, Deimos; height maps for
+  bump; Saturn ring profile (D, C, B, Cassini Division, A with Encke/Keeler gaps, F).
+- Renderer (`src/render/SolarSystem.ts`): every body ray-traced analytically in the km far layer; earth / rocky
+  (lunar-Lambert, map bump + procedural sub-texel relief) / gas (limb darkening, haze) / star modes; per-body
+  single-scattering atmospheres (Earth, Venus, Mars, Titan, giants); IAU poles + prime meridians, tidally locked moons;
+  rings with view-angle opacity, lit/unlit scattering, planet shadow on rings and ring shadow on the planet; scaled
+  space beyond 40 000 km; point markers for unresolved bodies; game-scaled solar flux with exposure adaptation.
+- The Anomaly (`WormholeLens`): view through the throat into another galaxy, our sky lensed from a cube capture,
+  Einstein rings. The Endurance station-keeps 6 km sunward of it.
+- Patched conics: `PRIMARY` (earthFrame.ts) drives gravity, drag, orbit summaries and all autopilots; the zone
+  re-centres on Earth, the Sun (cruise) or the destination; Lambert prograde is judged from the craft's own orbit normal.
+- Navigation (`src/space/Navigation.ts`, NAVIGATION tab in the mission computer, command-deck console, P menu):
+  19 destinations incl. major moons and the Anomaly; efficient (window search) and fast (Δv-budget) Lambert profiles,
+  moon legs, Δv from/to parking orbits; departure/capture burn cinematics; cruise with cryosleep or ×100 000 warp;
+  parking orbits inclined to show rings/poles; propellant by the rocket equation (Isp 14 000 s).
+- Undock (P menu) and fly the Ranger at any body; the docking autopilot works around any primary.
+
+Verified: Earth → Mars fast (41 d, capture 400 km) and Earth → Saturn fast (530 d, 190 000 km orbit) with departure,
+cruise, cryosleep, capture (`voyage_steps`); arrival at the Anomaly (`anomaly_steps`); undock + re-dock at Mars
+(`planet_flight_steps`); navigation tab UI (`navui_steps`); Earth rendezvous regression (`rdv_steps`).
+Not yet: landing on Solar-System bodies (orbit/flyby only), wormhole traversal to Gargantua.
+
+
 ### Launch → orbit → Endurance (this pass)
 - Lander (`blender/assets/lander.py`): spine, four splayed pods with VTOL bells, dorsal dock ring, cockpit with six seats,
   consoles, overhead panel; 25.8k tris.
@@ -81,8 +110,8 @@ Realism pass results (all rebuilt in Blender scripts, checked with Cycles previe
   `Plume.ts`, `CraftModel.ts`, `FlightHUD.ts`, `FlightControl.ts`, `world/earth/Launch.ts` (not yet wired into EarthZone).
 
 ### Next
-1. Crew aboard the Endurance (NPCs walking the ring), interior detail pass (seats, consoles, galley clutter), animated iris doors.
-2. Nav computer, cryo, Saturn, wormhole and Gargantua shaders.
+1. Wormhole traversal and the Gargantua system (black-hole shader, Miller/Mann/Edmunds approach).
+2. Crew aboard the Endurance (NPCs walking the ring), interior detail pass, animated iris doors.
 4. Planet zones (Miller, Mann, Edmunds), Lander model, universal landing.
 5. Docs, tests, screenshots.
 

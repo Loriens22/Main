@@ -950,6 +950,7 @@ export default class SpaceZone extends Zone implements ProxHost {
         this.navCache.set(key, plan);
       }
       detail.innerHTML = '';
+      detail.scrollIntoView?.({ block: 'start', behavior: 'smooth' });
       if (!plan) {
         detail.append(h('div', { class: 'status-warn' }, 'No transfer within the Δv budget for this profile.'));
         return;
@@ -979,7 +980,7 @@ export default class SpaceZone extends Zone implements ProxHost {
         h('span', {}, game.ui.button('EFFICIENT', () => show(id, 'efficient'), 'btn'), game.ui.button('FAST', () => show(id, 'fast'), 'btn')));
       list.append(row);
     }
-    b.append(h('div', { class: 'card' }, h('h3', {}, 'DESTINATIONS'), list), detail);
+    b.append(detail, h('div', { class: 'card' }, h('h3', {}, 'DESTINATIONS'), list));
   }
 
   /** Commit to a transfer: wait for the window (if any), then the departure burn. */
