@@ -115,6 +115,8 @@ export class Terrain {
       uFar: { value: f.far ? new THREE.Vector4(f.far.minX, f.far.minZ, f.far.size, f.far.res) : new THREE.Vector4(f.near.minX, f.near.minZ, f.near.size, f.near.res) },
       uFarOn: { value: f.far ? 1 : 0 },
       uBlend: { value: f.blend },
+      /** circular cut-out (x, z, radius, -) e.g. a silo shaft opening; radius 0 = none */
+      uHole: { value: new THREE.Vector4(0, 0, 0, 0) },
       ...opts.shading.uniforms,
     };
     const m = new THREE.MeshStandardMaterial({ color: 0xffffff, roughness: 0.9, metalness: 0 });
@@ -143,7 +145,8 @@ export class Terrain {
         )
         .replace('#include <begin_vertex>', 'vec3 transformed = vTWorld;');
       shader.fragmentShader = shader.fragmentShader
-        .replace('#include <common>', '#include <common>\n' + FRAG_DECL + opts.shading.glsl)
+        .replace('#include <common>', '#include <common>\nuniform vec4 uHole;\n' + FRAG_DECL + opts.shading.glsl)
+        .replace('#include <clipping_planes_fragment>', 'if (uHole.z > 0.0 && distance(vTWorld.xz, uHole.xy) < uHole.z) discard;\n#include <clipping_planes_fragment>')
         .replace('#include <map_fragment>', '#include <map_fragment>\nTerrainOut T = terrainShade(vTWorld, normalize(vTNormal));\ndiffuseColor.rgb = T.albedo;')
         .replace('#include <roughnessmap_fragment>', '#include <roughnessmap_fragment>\nroughnessFactor = T.rough;')
         .replace('#include <normal_fragment_maps>', '#include <normal_fragment_maps>\nnormal = normalize((viewMatrix * vec4(T.normal, 0.0)).xyz);')

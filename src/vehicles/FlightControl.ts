@@ -47,6 +47,8 @@ export class FlightControl implements Controllable {
   infoFn: (() => Partial<HudInfo>) | null = null;
   exitFn: (() => boolean) | null = null;
   towerPos: THREE.Vector3 | null = null;
+  /** optional aim point for the tower camera (default: the craft root) */
+  towerAim: (() => THREE.Vector3) | null = null;
   dockingCamNode: THREE.Object3D | null = null;
   engineLoop: LoopHandle | null = null;
   rcsLoop: LoopHandle | null = null;
@@ -204,7 +206,7 @@ export class FlightControl implements Controllable {
       case 'tower': {
         const p = this.towerPos ?? rp.clone().add(new THREE.Vector3(60, -20, 60));
         cam.position.copy(p);
-        cam.lookAt(rp);
+        cam.lookAt(this.towerAim?.() ?? rp);
         break;
       }
       case 'free':

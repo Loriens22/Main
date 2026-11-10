@@ -11,6 +11,9 @@ import { EARTH_TERRAIN, FARM_SPAWN, FIELDS, NASA } from '../../data/earthLayout'
 import { Loops } from '../../audio/Audio';
 import type { Game } from '../../core/Game';
 import { EarthContent } from '../earth/EarthContent';
+import { CloudLayer } from '../../render/Clouds';
+import { LaunchSequence } from '../earth/Launch';
+import type { NasaSite } from '../earth/NasaSite';
 
 /**
  * Earth: the dying farmland, the six-kilometre road and the hidden NASA facility.
@@ -31,6 +34,8 @@ export default class EarthZone extends Zone {
   private roadColCenter = new THREE.Vector2(1e9, 1e9);
   private fogColor = new THREE.Color();
   storm = 0; // 0..1 dust storm intensity (driven by Weather)
+  clouds!: CloudLayer;
+  launch: LaunchSequence | null = null;
 
   constructor(game: Game) {
     super(game);
@@ -78,6 +83,9 @@ export default class EarthZone extends Zone {
     this.hemi = new THREE.HemisphereLight(0xb8c4d0, 0x6b5a45, 0.5);
     this.scene.add(this.hemi);
     this.scene.fog = new THREE.FogExp2(0xbfb59c, 0.00012);
+    // sparse high cumulus deck the launch punches through
+    this.clouds = new CloudLayer(game.materials.tex('noise', false, 1), 4200, 900, 0.36);
+    this.scene.add(this.clouds.mesh);
     this.applyShadowQuality();
 
     // ground physics frame
@@ -231,7 +239,10 @@ export default class EarthZone extends Zone {
     const fog = this.scene.fog as THREE.FogExp2;
     fog.color.copy(this.fogColor);
     const vd = [2.2, 1.6, 1.2, 1.0][game.settings.graphics.viewDistance] ?? 1;
-    fog.density = (0.000085 * vd + this.storm * 0.012) * (1 + Math.max(0, 0.15 - sunUp) * 2);
+    // thinner air with altitude (ascent): fog falls off with the 8.5 km scale height
+    const camAlt = Math.max(0, cam.position.y - this.gen.portalLevel);
+    fog.density = (0.000085 * vd + this.storm * 0.012) * (1 + Math.max(0, 0.15 - sunUp) * 2) * Math.exp(-camAlt / 8500);
+    this.clouds.update(dt, cam, this.sky.sunDir, sunCol, zenith.clone().multiplyScalar(0.05), this.fogColor, this.storm);
     // exposure: daylight vs night vs storm (eye adaptation)
     this.exposure = THREE.MathUtils.clamp(0.95 / Math.max(0.12, sunI * (1 - this.storm * 0.5) + 0.05), 0.8, 6) * (this.content?.interiorExposure() ?? 1);
     // IBL refresh
@@ -263,6 +274,7 @@ export default class EarthZone extends Zone {
       this.roadColCenter.copy(focusXZ);
     }
     this.content.update(dt, dtEarth);
+    this.launch?.update(dt);
     ph.step(dt);
     // ambience
     this.updateAmbience();
@@ -320,6 +332,13 @@ export default class EarthZone extends Zone {
 
   recoverSpacecraft() {
     this.content?.recover();
+  }
+
+  /** Board Ranger 1 in the silo and run the launch (called by NasaSite.board). */
+  startLaunch(nasa: NasaSite) {
+    if (this.launch && this.launch.phase !== 'aborted') return;
+    this.launch = new LaunchSequence(this, nasa);
+    this.launch.begin();
   }
 
   get nasaPortal() {

@@ -156,7 +156,16 @@ export class LaunchSequence {
     // flight control (camera/HUD); manual input disabled until liftoff
     this.control = new FlightControl(game, 'launch', this.craft, this.stack, eye ?? null, this.env, 'RANGER 1 · LAUNCH');
     this.control.camModes = ['cockpit', 'chase', 'tower', 'orbital'];
-    this.control.towerPos = new THREE.Vector3(base.x + 26, this.zone.gen.siloTop + 6, base.z + 26);
+    // range camera on a mast at the edge of the summit clearing (~36 m from the silo), aimed at the upper stack
+    // (clamped above the silo doors so the doors and the emerging nose are framed before liftoff)
+    const tx = base.x + 25, tz = base.z + 26;
+    this.control.towerPos = new THREE.Vector3(tx, Math.max(this.zone.height(tx, tz), this.zone.gen.siloTop) + 7, tz);
+    this.control.towerAim = () => {
+      const up = new THREE.Vector3(0, 1, 0).applyQuaternion(this.stack.quaternion);
+      const aim = this.stack.position.clone().addScaledVector(up, 45);
+      aim.y = Math.max(aim.y, this.zone.gen.siloTop + 18);
+      return aim;
+    };
     this.control.infoFn = () => ({ extra: [['STAGE', this.stageNo === 1 ? 'S1 (5×)' : this.stageNo === 2 ? 'S2' : 'RANGER'], ['T+', this.missionT > 0 ? `${this.missionT.toFixed(0)} s` : `${(-this.countdown).toFixed(0)} s`]] });
     this.control.exitFn = () => {
       if (this.phase === 'checks') {

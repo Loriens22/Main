@@ -166,6 +166,8 @@ export class NasaSite {
     // silo shaft from the hall ledge up to the terrain, plus the concealed doors at the top
     this.siloTopLocal = z.gen.siloTop - this.origin.y;
     this.buildShaft();
+    // open the terrain over the shaft (the concealed doors sit on top of it)
+    (z.terrain.uniforms.uHole.value as THREE.Vector4).set(NASA.silo.x, NASA.silo.z, SILO_R + 0.45, 0);
     this.doors = await game.assets.instance('silo_doors');
     const siloLocal = new THREE.Vector3(0, this.siloTopLocal, -(NASA.silo.z - NASA.portal.z) * -1);
     this.doors.root.position.set(NASA.silo.x, z.gen.siloTop - 0.2, NASA.silo.z);
