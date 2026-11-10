@@ -13,12 +13,12 @@ const VARIANTS = 6;
 const CELL = 5;
 
 function rockGeometry(seed: number) {
-  const g = mergeVertices(new THREE.IcosahedronGeometry(1, 3).deleteAttribute('normal').deleteAttribute('uv'));
+  const g = mergeVertices(new THREE.IcosahedronGeometry(1, 2).deleteAttribute('normal').deleteAttribute('uv'));
   const p = g.getAttribute('position') as THREE.BufferAttribute;
   const v = new THREE.Vector3();
   const rnd = (i: number) => (hashCell(i, seed, 71) & 0xffffff) / 16777216;
   // a few random planes cut facets; low-frequency lumps; flattened base
-  const planes = Array.from({ length: 7 }, (_, i) => ({ n: new THREE.Vector3(rnd(i * 3) - 0.5, rnd(i * 3 + 1) - 0.3, rnd(i * 3 + 2) - 0.5).normalize(), d: 0.55 + 0.35 * rnd(i + 40) }));
+  const planes = Array.from({ length: 11 }, (_, i) => ({ n: new THREE.Vector3(rnd(i * 3) - 0.5, rnd(i * 3 + 1) - 0.3, rnd(i * 3 + 2) - 0.5).normalize(), d: 0.5 + 0.38 * rnd(i + 40) }));
   const sx = 0.8 + 0.5 * rnd(90), sy = 0.55 + 0.35 * rnd(91), sz = 0.8 + 0.5 * rnd(92);
   for (let i = 0; i < p.count; i++) {
     v.fromBufferAttribute(p, i);
@@ -49,7 +49,8 @@ export class Rocks {
     const max = opts.max ?? 2600;
     this.radius = opts.radius ?? 320;
     for (let k = 0; k < VARIANTS; k++) {
-      const mat = new THREE.MeshStandardMaterial({ color, roughness: 0.93, metalness: 0 });
+      // angular, fractured boulders: faceted shading, slight per-variant tone
+      const mat = new THREE.MeshStandardMaterial({ color: color.clone().multiplyScalar(0.85 + 0.06 * k), roughness: 0.95, metalness: 0, flatShading: true });
       const m = new THREE.InstancedMesh(rockGeometry(k * 17 + 3), mat, Math.ceil(max / VARIANTS));
       m.count = 0;
       m.castShadow = true;

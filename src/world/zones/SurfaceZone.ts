@@ -198,10 +198,11 @@ export default class SurfaceZone extends Zone implements SurfaceAPHost {
     progress(0.85, 'boulders');
     const rc = this.map.lumAt(sd.lat, sd.lon);
     const style = this.def.style;
-    const rockColor = style === 'mars' ? new THREE.Color(0.32, 0.2, 0.14) : style === 'icy' || style === 'europa' ? new THREE.Color(0.7, 0.7, 0.72) : style === 'titan' ? new THREE.Color(0.5, 0.42, 0.3) : new THREE.Color().setScalar(THREE.MathUtils.clamp(rc * 0.62, 0.1, 0.4));
+    const rockColor = style === 'mars' ? new THREE.Color(0.32, 0.2, 0.14) : style === 'icy' || style === 'europa' ? new THREE.Color(0.7, 0.7, 0.72) : style === 'titan' ? new THREE.Color(0.5, 0.42, 0.3) : new THREE.Color().setScalar(THREE.MathUtils.clamp(rc * 0.5, 0.08, 0.32));
     this.rocks = new Rocks(this.gen, rockColor);
     this.scene.add(this.rocks.group);
     this.buildDust();
+    this.buildSkyDome();
     progress(1, 'ready');
   }
 
@@ -336,6 +337,8 @@ export default class SurfaceZone extends Zone implements SurfaceAPHost {
     this.r1Model.gearT = this.craft.gearDown ? 1 : 0;
     this.seatPlayer();
     if (program === 'descent') this.control.setAutopilot(new PoweredDescent(this, this.targetName));
+    // airborne: start in the chase view so the descent and the ground are visible (the Ranger's windows are overhead)
+    if (!st.landed) this.control.camMode = 'chase';
     if (at === 'eva') this.beginEva(true);
   }
 
@@ -723,6 +726,39 @@ export default class SurfaceZone extends Zone implements SurfaceAPHost {
     }
   }
 
+  // ===================================================================================================== sky dome
+  private dome: THREE.Mesh | null = null;
+  /** Dust/haze sky seen from inside a thick or dusty atmosphere (multiple scattering the far layer does not model). */
+  private buildSkyDome() {
+    const atm = ATMO_SURF[this.site.body];
+    if (!atm) return;
+    // drawn first in the opaque pass (transparent materials would sort after the terrain), blended over the far layer
+    const mat = new THREE.ShaderMaterial({
+      transparent: false, depthTest: false, depthWrite: false, side: THREE.BackSide, fog: false,
+      blending: THREE.CustomBlending, blendSrc: THREE.SrcAlphaFactor, blendDst: THREE.OneMinusSrcAlphaFactor,
+      uniforms: { uSun: { value: new THREE.Vector3(0, 1, 0) }, uZen: { value: new THREE.Color(...atm.zenith) }, uHor: { value: new THREE.Color(...atm.horizon) }, uGlow: { value: new THREE.Color(...atm.glow) }, uDay: { value: 1 }, uK: { value: 1 }, uAlpha: { value: atm.alpha } },
+      vertexShader: /* glsl */ `varying vec3 vD; void main(){ vD = position; vec4 p = modelViewMatrix * vec4(position, 1.0); gl_Position = projectionMatrix * p; }`,
+      fragmentShader: /* glsl */ `
+        varying vec3 vD; uniform vec3 uSun, uZen, uHor, uGlow; uniform float uDay, uK, uAlpha;
+        void main(){
+          vec3 d = normalize(vD); float hgt = d.y;
+          float mu = dot(d, uSun);
+          float tw = smoothstep(-0.25, 0.12, uSun.y);          // twilight
+          vec3 c = mix(uHor, uZen, smoothstep(-0.02, 0.75, hgt)) * uDay;
+          // forward-scattering aureole around the Sun (bluish on Mars), brighter toward the horizon at low sun
+          c += uGlow * (pow(max(mu, 0.0), 6.0) * 0.55 + pow(max(mu, 0.0), 48.0) * 1.6) * tw;
+          float a = uAlpha * clamp(uDay * 1.15 + 0.15 * tw, 0.0, 1.0);
+          gl_FragColor = vec4(c * uK, a);
+        }`,
+    });
+    this.dome = new THREE.Mesh(new THREE.SphereGeometry(12000, 48, 24), mat);
+    this.dome.renderOrder = -1000;
+    this.dome.frustumCulled = false;
+    this.dome.userData.owned = true;
+    this.scene.add(this.dome);
+    this.scene.fog = new THREE.FogExp2(new THREE.Color(...atm.horizon), atm.fog);
+  }
+
   // ===================================================================================================== dust
   private buildDust() {
     const n = 900;
@@ -840,6 +876,15 @@ export default class SurfaceZone extends Zone implements SurfaceAPHost {
       this.hemi.intensity = (0.03 + 0.9 * day * Math.sqrt(Math.max(0, elev))) * this.flux * 1.1;
     }
     this.stars.setVisibility(atm ? (1 - day) * 0.9 : day > 0.5 ? 0.22 : 1);
+    if (this.dome && atm) {
+      this.dome.position.copy(game.camera.position);
+      const u = (this.dome.material as THREE.ShaderMaterial).uniforms;
+      (u.uSun.value as THREE.Vector3).copy(this.sunLocal);
+      u.uDay.value = day;
+      u.uK.value = this.flux * atm.skyK * 0.72;
+      const fog = this.scene.fog as THREE.FogExp2;
+      fog.color.setRGB(atm.horizon[0], atm.horizon[1], atm.horizon[2]).multiplyScalar((0.06 + 0.94 * day) * this.flux * atm.skyK * 0.72);
+    }
     // eye adaptation
     const base = THREE.MathUtils.clamp(1 / Math.pow(this.flux, 0.75), 1, 4);
     const night = 1 - day * this.sunVisCPU;
@@ -940,8 +985,11 @@ export default class SurfaceZone extends Zone implements SurfaceAPHost {
 }
 
 /** Near-surface atmosphere for flight and lighting (thin Mars, thick Titan). */
-const ATMO_SURF: Record<string, { rho0: number; H: number; tau: [number, number, number]; sky: [number, number, number]; skyK: number; sunK: number }> = {
-  mars: { rho0: 0.02, H: 11100, tau: [0.22, 0.33, 0.48], sky: [0.62, 0.44, 0.3], skyK: 0.75, sunK: 0.9 },
-  titan: { rho0: 5.4, H: 40000, tau: [0.9, 1.4, 2.4], sky: [0.55, 0.36, 0.14], skyK: 1.4, sunK: 0.45 },
+type C3 = [number, number, number];
+const ATMO_SURF: Record<string, { rho0: number; H: number; tau: C3; sky: C3; skyK: number; sunK: number; zenith: C3; horizon: C3; glow: C3; alpha: number; fog: number }> = {
+  // dusty butterscotch sky, blue aureole around the Sun (forward scattering by fine dust)
+  mars: { rho0: 0.02, H: 11100, tau: [0.22, 0.33, 0.48], sky: [0.62, 0.44, 0.3], skyK: 0.75, sunK: 0.9, zenith: [0.46, 0.3, 0.2], horizon: [0.8, 0.58, 0.4], glow: [0.5, 0.58, 0.7], alpha: 0.93, fog: 1 / 38000 },
+  // thick orange photochemical haze
+  titan: { rho0: 5.4, H: 40000, tau: [0.9, 1.4, 2.4], sky: [0.55, 0.36, 0.14], skyK: 1.4, sunK: 0.45, zenith: [0.45, 0.28, 0.1], horizon: [0.7, 0.46, 0.2], glow: [0.9, 0.65, 0.3], alpha: 0.985, fog: 1 / 9000 },
 };
 

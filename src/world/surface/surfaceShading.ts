@@ -235,13 +235,13 @@ export function surfaceShading(gen: SurfaceGen, mats: MaterialLibrary): TerrainS
       alb *= 1.0 + 0.55 * cFresh + 0.6 * smoothstep(0.12, 0.45, slope);
     } else if (uStyle == 1){
       // Mars: dust on highs, dark basaltic sand in lows and dune troughs, scattered dark rocks
-      float dust = smoothstep(-0.15, 0.25, big + 0.3 * mid);
-      vec3 sand = alb * vec3(0.55, 0.5, 0.48);
-      alb = mix(sand, alb * vec3(1.1, 1.0, 0.92), dust) * (0.9 + 0.2 * mic);
+      float dust = smoothstep(-0.25, 0.3, big + 0.3 * mid);
+      vec3 sand = alb * vec3(0.78, 0.72, 0.7);
+      alb = mix(sand, alb * vec3(1.06, 1.0, 0.94), dust) * (0.92 + 0.16 * mic);
       alb = mix(alb, alb * vec3(0.7, 0.62, 0.58), smoothstep(0.3, 0.6, slope));
       alb *= 1.0 + 0.25 * cFresh;
-      float pebble = smoothstep(0.62, 0.7, sNoise(wpos.xz * 2.3) * (0.6 + 0.6 * mid + 0.4)) * clamp(1.0 - fp * 2.0, 0.0, 1.0);
-      alb = mix(alb, vec3(0.12, 0.09, 0.08), pebble * 0.6);
+      float pebble = smoothstep(0.74, 0.8, sNoise(wpos.xz * 7.0) * (0.75 + 0.5 * mid + 0.25)) * clamp(1.0 - fp * 6.0, 0.0, 1.0);
+      alb = mix(alb, alb * vec3(0.45, 0.4, 0.38), pebble * 0.5);
       rough = 0.9;
     } else if (uStyle == 2 || uStyle == 3){
       // ice: bright, slightly glossy; dirty lag deposits in lows; fractures darker
