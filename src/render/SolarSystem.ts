@@ -1,5 +1,6 @@
 import * as THREE from 'three';
 import type { MaterialLibrary } from './Materials';
+import { SURFACES } from '../data/landing';
 import { BODIES, AU } from '../data/bodies';
 import { bodyState } from '../space/ephemeris';
 import type { V3 } from '../space/kepler';
@@ -86,7 +87,7 @@ const FRAG = /* glsl */ `
   uniform bool uHasAtmo, uHasAux, uHasRing;
   uniform vec3 uSun, uCam, uPole, uRay, uTint;
   uniform mat3 uRot;
-  uniform float uS, uR, uRa, uHr, uHm, uMie, uSunI, uSunL, uLights, uBump, uLimb, uRingIn, uRingOut, uTime;
+  uniform float uS, uR, uRa, uHr, uHm, uMie, uSunI, uSunL, uLights, uBump, uLimb, uRingIn, uRingOut, uTime, uCrK;
   uniform vec2 uTexel;
   varying vec3 vL;
   const float PI = 3.14159265;
@@ -114,6 +115,75 @@ const FRAG = /* glsl */ `
     for (int i = 0; i < 6; i++){ if (i >= oct) break; float fade = clamp(1.6 - px * f * 3.0, 0.0, 1.0); s += a * fade * (vnoise(p * f) - 0.5); f *= 2.63; a *= 0.56; }
     return 0.5 + s;
   }
+  // ---- sub-texel crater field in body-fixed 3D cells (km), same profile as the surface zone's craters
+  uint oh32(uint x){ x ^= x >> 16u; x *= 0x7feb352du; x ^= x >> 15u; x *= 0x846ca68bu; x ^= x >> 16u; return x; }
+  uint oCell(ivec3 c, int k){ return oh32((uint(c.x) * 0x27d4eb2du) ^ (uint(c.y) * 0x165667b1u) ^ (uint(c.z) * 0x9e3779b9u) ^ (uint(k + 101) * 0x61c88647u)); }
+  float osm(float x){ float t = clamp(x, 0.0, 1.0); return t * t * (3.0 - 2.0 * t); }
+  vec2 oProfile(float q, float r, float Dm, float ageU){
+    float age = 0.12 + 0.88 * ageU * ageU * ageU;
+    float depth = 0.3 * r * (0.25 + 0.75 * age), rim = 0.08 * r * age;
+    float w = 0.12 + 0.28 * (1.0 - age);
+    if (q < 1.0){
+      float fl = min(0.4, Dm / 5000.0); float t = max(0.0, (q - fl) / (1.0 - fl));
+      float s = osm((q - (1.0 - w)) / w); float bowl = -depth * (1.0 - t * t);
+      float xx = (q - (1.0 - w)) / w; float dS = (q > 1.0 - w) ? 6.0 * xx * (1.0 - xx) / w : 0.0;
+      float hv = bowl * (1.0 - 0.35 * s * (1.0 - age)) + rim * (1.0 - (1.0 - q) / w) * s;
+      float dB = q > fl ? 2.0 * depth * t / (1.0 - fl) : 0.0;
+      float dh = dB * (1.0 - 0.35 * s * (1.0 - age)) + bowl * (-0.35 * dS * (1.0 - age)) + rim * ((1.0 / w) * s + (1.0 - (1.0 - q) / w) * dS);
+      return vec2(hv, dh);
+    }
+    float s = (q - 1.0) / 0.8; float f = (1.0 - s) * (1.0 - s);
+    float e = exp(-((q - 1.0) * (q - 1.0)) / (w * w)); float iq = 1.0 / q;
+    float hv = rim * (0.75 * e + 0.25 * iq * iq * iq) * f;
+    float de = -2.0 * (q - 1.0) / (w * w) * e;
+    float dh = rim * ((0.75 * de - 0.75 * iq * iq * iq * iq) * f + (0.75 * e + 0.25 * iq * iq * iq) * (-2.0 * (1.0 - s) / 0.8));
+    return vec2(hv, dh);
+  }
+  float ocShadow = 1.0; float ocFresh = 0.0;
+  // returns the tangent slope vector (body-fixed); pb on the sphere (km), sunB body-fixed unit
+  vec3 orbCraters(vec3 pb, float R, float px, vec3 sunB){
+    vec3 g = vec3(0.0);
+    vec3 nb = normalize(pb);
+    vec3 st = sunB - nb * dot(sunB, nb); float sl = length(st);
+    vec3 sd = sl > 1e-5 ? st / sl : vec3(0.0); float tanE = dot(sunB, nb) / max(sl, 1e-5);
+    for (int k = 5; k >= 0; k--){
+      float D = 0.25 * exp2(float(k));
+      float fade = clamp(D / (px * 5.0) - 0.6, 0.0, 1.0);
+      if (fade <= 0.0) break;
+      float cell = D * 2.2;
+      vec3 u = pb / cell; vec3 cf = floor(u); vec3 f = u - cf;
+      ivec3 base = ivec3(cf) + ivec3(f.x < 0.5 ? -1 : 0, f.y < 0.5 ? -1 : 0, f.z < 0.5 ? -1 : 0);
+      float dens = uCrK * (k < 3 ? 0.36 : 0.26);
+      for (int a = 0; a < 8; a++){
+        ivec3 ij = base + ivec3(a & 1, (a >> 1) & 1, (a >> 2) & 1);
+        uint hs = oCell(ij, k);
+        if (float(hs & 0xffffu) / 65536.0 > dens) continue;
+        uint h2 = oh32(hs ^ 0x5bd1e995u);
+        vec3 jit = vec3(float((hs >> 16u) & 0xffu), float(hs >> 24u), float(h2 & 0xffu)) / 255.0;
+        vec3 c3 = (vec3(ij) + 0.3 + 0.4 * jit) * cell;
+        // one layer of cells: only those whose centre lies within half a cell of the surface
+        if (abs(length(c3) - R) > cell * 0.5) continue;
+        vec3 cc = normalize(c3) * R;
+        vec3 d = pb - cc; d -= nb * dot(d, nb);
+        float r = D * (0.5 + 0.5 * float((h2 >> 8u) & 0xffffu) / 65536.0);
+        float dl = length(d) + 1e-7; float q = dl / r;
+        if (q >= 1.8) continue;
+        float ageU = float(h2 >> 24u) / 255.0;
+        vec2 pr = oProfile(q, r, D * 1000.0, ageU);
+        g += fade * (pr.y / (r * dl)) * d;
+        if (q < 1.0 && sl > 1e-5){
+          float b = dot(d, sd); float rr = r * 1.02;
+          float tx = -b + sqrt(max(b * b - dot(d, d) + rr * rr, 0.0));
+          float rimH = oProfile(1.0, r, D * 1000.0, ageU).x;
+          float vis = clamp((pr.x + tx * tanE - rimH) / (0.07 * r + 1e-4) + 0.5, 0.0, 1.0);
+          ocShadow = min(ocShadow, mix(1.0, vis, fade));
+        }
+        ocFresh = max(ocFresh, fade * ageU * ageU * ageU * smoothstep(1.8, 0.9, q));
+      }
+    }
+    return g;
+  }
+
   // optical depth toward the sun (scaled units in, km out)
   vec2 sunDepth(vec3 p){
     vec2 s = sphere(p, uSun, uRa);
@@ -204,10 +274,17 @@ const FRAG = /* glsl */ `
       float m1 = detail(pk + 17.0, 12.0, px, 6);
       alb *= 0.82 + 0.36 * m1;
       alb *= 1.0 + 0.25 * smoothstep(0.72, 0.8, detail(pk * 1.7 + 3.0, 4.0, px, 4));
+      // procedural craters below the map resolution (0.25–8 km), with bowl shadows and immature bright ejecta
+      if (uCrK > 0.0 && px < 3.0){
+        vec3 nb = uRot * normalize(p);
+        vec3 gb = orbCraters(nb * (uR / uS), uR / uS, px, uRot * uSun);
+        n = normalize(n - transpose(uRot) * gb);
+        alb *= 1.0 + 0.45 * ocFresh;
+      }
     }
     float ndl = dot(n, uSun);
     vec3 sunT = uHasAtmo ? transmit(sunDepth(p + normalize(p) * 0.05 * uS)) : vec3(1.0);
-    vec3 sunL = sunT * uSunL;
+    vec3 sunL = sunT * uSunL * ocShadow;
     // ring shadow on the planet
     if (uHasRing){
       float dn = dot(uSun, uPole);
@@ -351,6 +428,7 @@ export class SolarSystem {
           uS: { value: 1 }, uR: { value: R }, uRa: { value: Ra }, uHr: { value: atm?.hr ?? 8 }, uHm: { value: atm?.hm ?? 1.2 }, uMie: { value: atm?.mie ?? 0 },
           uSunI: { value: atm?.sunI ?? 10 }, uSunL: { value: 1 }, uLights: { value: 0.9 }, uBump: { value: look.bump ?? 0 }, uLimb: { value: look.limb ?? 0.4 },
           uRingIn: { value: look.rings?.inner ?? 0 }, uRingOut: { value: look.rings?.outer ?? 1 }, uTime: { value: 0 }, uTexel: { value: texel },
+          uCrK: { value: look.mode === 'rocky' ? (SURFACES[id]?.craters ?? 0.6) * (id === 'moon' || id === 'mercury' ? 1.15 : 1) : 0 },
         },
       });
       const mesh = new THREE.Mesh(new THREE.SphereGeometry(Ra, look.mode === 'star' ? 48 : 64, 32), mat);
