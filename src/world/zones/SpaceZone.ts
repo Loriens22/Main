@@ -847,7 +847,8 @@ export default class SpaceZone extends Zone implements ProxHost {
     const game = this.game;
     const pos = this.localOf(at) ?? new THREE.Vector3(0, 1.2, 0);
     game.player.seat = null;
-    game.player.enterFrame(this.eFrame, pos, 0, at === 'spawn_hub' ? 'float' : 'walk');
+    // in the hub look down the axis toward the command-side spoke well (frame −Z = forward port, +X = spoke 9)
+    game.player.enterFrame(this.eFrame, pos, at === 'spawn_hub' ? -Math.PI / 2 : 0, at === 'spawn_hub' ? 'float' : 'walk');
     this.aboard = true;
     game.audio.door('airlock');
     game.state.player.frame = 'endurance';
