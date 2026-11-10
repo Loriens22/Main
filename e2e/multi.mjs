@@ -55,7 +55,7 @@ for (const st of steps) {
     if (st.ui) { try { await page.screenshot({ path: path.join(outDir, st.shot + '_ui.png'), timeout: 20000 }); } catch {} }
   }
   if (st.probe) {
-    const r = await page.evaluate(`(() => { const game = window.__game; ${st.probe} })()`);
+    const r = await page.evaluate(`(async () => { const game = window.__game; ${st.probe} })()`);
     console.log(`[${i}] probe:`, JSON.stringify(r));
   }
   console.log(`[${i}] done in ${((Date.now() - t0) / 1000).toFixed(1)} s${st.shot ? ' -> ' + st.shot : ''}`);

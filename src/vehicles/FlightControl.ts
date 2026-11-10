@@ -11,6 +11,8 @@ export interface AutopilotResult {
   msg?: string;
   /** requested simulation rate (cinematic compressed time) */
   timeScale?: number;
+  /** longest safe physics step while coasting (s) — lets the zone propagate analytically up to the next event */
+  maxStep?: number;
 }
 
 export interface AutopilotProgram {
@@ -55,6 +57,8 @@ export class FlightControl implements Controllable {
   shakeExtra = 0;
   /** time compression requested by the active autopilot (zone reads this) */
   timeScale = 1;
+  /** longest coast step the autopilot allows right now (s) */
+  maxStep = 0.05;
   manualThrottleRate = 0.6;
 
   constructor(
@@ -148,16 +152,22 @@ export class FlightControl implements Controllable {
   runAutopilot(dt: number) {
     if (!this.autopilot) {
       this.timeScale = 1;
+      this.maxStep = 0.05;
       return;
     }
-    const r = this.autopilot.update(this.craft, dt, this.env);
+    const prog = this.autopilot;
+    const r = prog.update(this.craft, dt, this.env);
     if (r.msg && r.msg !== this.messages[0]) this.say(r.msg);
     this.timeScale = r.timeScale ?? 1;
+    this.maxStep = r.maxStep ?? 0.05;
     if (r.done) {
-      const p = this.autopilot;
-      this.autopilot = null;
-      this.timeScale = 1;
-      p.onEnd?.();
+      // a program may chain its successor from inside update(); only clear it if it is still the active one
+      if (this.autopilot === prog) {
+        this.autopilot = null;
+        this.timeScale = 1;
+        this.maxStep = 0.05;
+      }
+      prog.onEnd?.();
     }
   }
 

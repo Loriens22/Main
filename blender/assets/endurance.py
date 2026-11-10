@@ -250,9 +250,9 @@ def module(P, G, root, k):
     for s in (-1, 1):
         q = F.p(s * (HT - 0.45), YF - 0.45, RO + 0.25)
         P.append(obox("rcs_quad", q, t, a, r, -0.32, 0.32, -0.32, 0.32, -0.25, 0.25, "metal_gunmetal"))
-        for d in (t * s, a, r, -a):
+        for j, d in enumerate((t * s, a, r, -a)):
             P.append(cyl("rcs_nozzle", 0.065, 0.22, r2=0.09, loc=q + d * 0.4, rot=to_quat(d).to_euler(), m="nozzle_inner", verts=10))
-        empty(f"rcs_{k}_{'a' if s < 0 else 'b'}", loc=q, parent=root)
+            empty(f"rcs_{k}_{'a' if s < 0 else 'b'}{j}", loc=q + d * 0.5, parent=root, dx=d.x, dy=d.y, dz=d.z)
     P.append(kit.sphere("beacon", 0.1, loc=F.p(0, YF - 0.3, RO + 0.12), m="emit_white" if k % 3 else "emit_red", segs=8, rings=6))
     empty(f"module_{k}", loc=F.p(0, 0, (RV + RO) / 2), parent=root, kind=kind, clock=k)
 
@@ -419,8 +419,8 @@ def build(preview=True):
     hub(P, G, root)
     for (cname, c, col) in (("navlight_port", 3, "emit_red"), ("navlight_stbd", 9, "emit_green")):
         r, t = frame_at(c)
-        P.append(kit.sphere(cname, 0.14, loc=r * (RO + 0.25) + AX * (YF - 0.3) + t * 2.5, m=col, segs=10, rings=6))
-        empty(cname, loc=r * (RO + 0.3) + AX * (YF - 0.3), parent=root)
+        P.append(kit.sphere("navlamp", 0.14, loc=r * (RO + 0.25) + AX * (YF - 0.3) + t * 2.5, m=col, segs=10, rings=6))
+        empty(cname, loc=r * (RO + 0.3) + AX * (YF - 0.3) + t * 2.5, parent=root, color="red" if c == 3 else "green")
     # merge per ring sector (frustum culling) + hub + spokes
     groups = {}
     for o in P:

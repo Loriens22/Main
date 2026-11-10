@@ -1,9 +1,875 @@
-import { Zone } from '../Zone';
-// TEMPORARY STUB
-export default class SpaceZone extends Zone {
-  readonly id = 'space' as any;
-  async load() {}
-  update() {}
-  spawn() {}
-  describe() { return { name: 'SpaceZone', sub: '' }; }
+import * as THREE from 'three';
+import { Zone, type SpawnSpec } from '../Zone';
+import { Frame } from '../Frame';
+import type { Game } from '../../core/Game';
+import type { RenderLayer } from '../../render/Renderer';
+import type { ModelInstance } from '../../render/Assets';
+import { Globe, Starfield, SunDisc } from '../../render/Globe';
+import { Spacecraft, type FlightEnv } from '../../vehicles/Spacecraft';
+import { FlightControl } from '../../vehicles/FlightControl';
+import { CraftModel } from '../../vehicles/CraftModel';
+import { Plume } from '../../vehicles/Plume';
+import { SPECS, type SpacecraftSpec } from '../../data/vehicles';
+import type { VehicleState } from '../../core/State';
+import { MU_EARTH, R_EARTH, gmst, sunDirECI, siteBasisECEF, ecefToEci, gravityAt, densityAt, orbitSummary } from '../../space/earthFrame';
+import { propagate, type V3 } from '../../space/kepler';
+import { OrbitInsertion, Rendezvous, DockingApproach, type ProxHost, type DockGoal, type PortRelation } from '../../space/Proximity';
+import { SITE } from '../../space/astro';
+import { CHARACTERS, CREW } from '../../data/characters';
+import { Humanoid } from '../../npc/Humanoid';
+import { h } from '../../ui/UI';
+
+const STACK_COM = 25; // m, stack centre of mass above the base (same as the launch sequence)
+const S2_SPEC: SpacecraftSpec = {
+  kind: 'rocket', dryMass: 8000, propMax: 88000, mainThrust: 1.1e6, mainIsp: 450, vtolThrust: 0, vtolIsp: 1, rcsThrust: 30e3,
+  rcsTorque: [2e7, 2e7, 8e6], rcsIsp: 300, inertia: [2.4e7, 2.4e7, 9e5], dragArea: 12, liftCoef: 0, length: 40, crew: 4, powerDraw: 0, gearHeight: 0, dockPorts: [], label: 'UPPER STAGE',
+};
+const RANGER_WET = 41000;
+const AXIS_Z = new THREE.Vector3(0, 0, 1);
+
+interface DockedBody {
+  id: string;
+  inst: ModelInstance;
+  port: string;
+}
+
+/**
+ * Earth orbit: the Endurance in its 420 km parking orbit, Ranger 1 arriving from the launch, rendezvous and docking.
+ * Inertial frame (metres, +Y north) with a floating origin at the player's craft; the Earth, Sun and stars are drawn
+ * in a kilometre-scale far layer.
+ */
+export default class SpaceZone extends Zone implements ProxHost {
+  readonly id = 'space' as const;
+  readonly far = new THREE.Scene();
+  readonly farCam = new THREE.PerspectiveCamera(60, 1, 1, 3e5);
+  globe!: Globe;
+  stars!: Starfield;
+  sunDisc!: SunDisc;
+  sun!: THREE.DirectionalLight;
+  earthLight!: THREE.HemisphereLight;
+  readonly origin: V3 = [R_EARTH + 420e3, 0, 0];
+  readonly env: FlightEnv = {
+    gravity: (p) => gravityAt(p),
+    density: (p) => densityAt(p),
+    up: (p) => {
+      const n = Math.hypot(p[0], p[1], p[2]);
+      return [p[0] / n, p[1] / n, p[2] / n];
+    },
+    altitude: (p) => Math.hypot(p[0], p[1], p[2]) - R_EARTH,
+  };
+  // Endurance
+  eInst!: ModelInstance;
+  eModel!: CraftModel;
+  readonly eRoot = new THREE.Group();
+  ePos: V3 = [0, 0, 0];
+  eVel: V3 = [0, 0, 0];
+  readonly eQLvlh = new THREE.Quaternion();
+  readonly eQ = new THREE.Quaternion();
+  docked: DockedBody[] = [];
+  // Ranger 1 (or the stack while the upper stage is attached)
+  r1Inst!: ModelInstance;
+  r1Model!: CraftModel;
+  readonly r1Root = new THREE.Group();
+  stackRoot: THREE.Group | null = null;
+  stackInst: ModelInstance | null = null;
+  s2Plume: Plume | null = null;
+  craft!: Spacecraft;
+  control!: FlightControl;
+  r1Frame!: Frame;
+  r1Docked = false;
+  crew: Humanoid[] = [];
+  /** Ranger 1 centre of mass in model space: on the port centreline, so a roll spins about the dock axis */
+  readonly r1Com = new THREE.Vector3();
+  private tSim = 0;
+  private envT = 0;
+  private sunVis = 1;
+  private eclipseLast = -1;
+  private dockRoll = 0;
+
+  constructor(game: Game) {
+    super(game);
+    this.music = 'space';
+    this.exposure = 1;
+  }
+
+  // ===================================================================================================== load
+  async load(progress: (p: number, msg: string) => void) {
+    const game = this.game;
+    const mats = game.materials;
+    progress(0.1, 'Earth');
+    this.globe = new Globe({ radius: R_EARTH / 1000, atmosphere: 100, day: mats.tex('earth_day', true, 1), aux: mats.tex('earth_aux', false, 1) });
+    this.far.add(this.globe.mesh);
+    this.stars = new Starfield();
+    this.far.add(this.stars.group);
+    this.sunDisc = new SunDisc();
+    this.far.add(this.sunDisc.mesh);
+    // near-field lighting: the Sun, earthshine and a trace of ambient
+    this.sun = new THREE.DirectionalLight(0xfff6ec, 3.2);
+    this.sun.castShadow = game.settings.graphics.shadowQuality > 0;
+    this.sun.shadow.mapSize.set(2048, 2048);
+    this.sun.shadow.bias = -0.0003;
+    this.sun.shadow.normalBias = 0.05;
+    const sc = this.sun.shadow.camera as THREE.OrthographicCamera;
+    sc.left = -45; sc.right = 45; sc.top = 45; sc.bottom = -45; sc.near = 1; sc.far = 400;
+    this.scene.add(this.sun, this.sun.target);
+    this.earthLight = new THREE.HemisphereLight(0x6f8fbf, 0x000000, 0.4);
+    this.scene.add(this.earthLight);
+    this.scene.add(new THREE.AmbientLight(0x101418, 0.25));
+    progress(0.3, 'Endurance');
+    this.eInst = await game.assets.instance('endurance');
+    this.eRoot.add(this.eInst.root);
+    this.eRoot.name = 'endurance';
+    this.scene.add(this.eRoot);
+    this.eModel = new CraftModel(this.eInst, 'endurance');
+    this.eInst.root.traverse((o) => {
+      const m = o as THREE.Mesh;
+      if (m.isMesh) {
+        m.castShadow = true;
+        m.receiveShadow = true;
+      }
+    });
+    progress(0.5, 'docked craft');
+    const vs = game.state.vehicles;
+    for (const id of ['ranger2', 'lander1', 'lander2']) {
+      const v = vs[id];
+      if (!v || v.location !== 'space' || v.docked?.ship !== 'endurance') continue;
+      const inst = await game.assets.instance(v.type === 'ranger' ? 'ranger' : 'lander');
+      this.stowGear(inst);
+      this.eRoot.add(inst.root);
+      this.docked.push({ id, inst, port: v.docked.port });
+    }
+    progress(0.7, 'Ranger 1');
+    this.r1Inst = await game.assets.instance('ranger');
+    this.stowGear(this.r1Inst);
+    this.r1Root.add(this.r1Inst.root);
+    const pr = new THREE.Vector3().setFromMatrixPosition(this.portLocal(this.r1Inst, 'dock_rear'));
+    this.r1Com.set(pr.x, pr.y, 0);
+    this.r1Inst.root.position.copy(this.r1Com).negate();
+    this.r1Root.name = 'ranger1';
+    this.scene.add(this.r1Root);
+    this.r1Model = new CraftModel(this.r1Inst, 'ranger');
+    this.r1Frame = this.addFrame(new Frame('ranger1', this.r1Root, (_l, o) => o.set(0, 0, 0), 'Ranger 1'));
+    progress(0.85, 'crew');
+    for (const id of CREW) {
+      const def = CHARACTERS[id];
+      if (!def) continue;
+      try {
+        const hm = await Humanoid.create(game.assets, def, 'jumpsuit');
+        this.crew.push(hm);
+      } catch (e) {
+        console.warn('[space] crew model', id, e);
+      }
+    }
+    this.initEnduranceOrbit();
+    this.tSim = game.state.clock.earthTime;
+    this.placeDocked();
+    progress(1, 'ready');
+  }
+
+  private stowGear(inst: ModelInstance) {
+    for (const k of ['gear_FL', 'gear_FR', 'gear_RL', 'gear_RR']) {
+      const g = inst.nodes.get(k);
+      if (g) g.rotation.x = -Math.PI / 2;
+    }
+  }
+
+  describe() {
+    const s = this.craft ? orbitSummary(this.craft.pos, this.craft.vel) : null;
+    if (this.r1Docked) return { name: 'ENDURANCE', sub: 'Docked · Earth orbit 420 km' };
+    return { name: 'EARTH ORBIT', sub: s ? `Ranger 1 · ${(s.alt / 1000).toFixed(0)} km` : 'Low Earth orbit' };
+  }
+
+  altitude() {
+    return this.env.altitude(this.origin);
+  }
+
+  inVacuum() {
+    return true;
+  }
+
+  // ===================================================================================================== orbits
+  /** Endurance orbit: circular 420 km. Created on first entry in the plane of Ranger 1's ascent, 12° ahead. */
+  private initEnduranceOrbit(ref?: { r: V3; v: V3 }) {
+    const ev = this.game.state.vehicles.endurance;
+    const t = this.game.state.clock.earthTime;
+    if (ev.data.orbit && !ref) return;
+    const rad = this.game.state.endurance.nav.parkRadius;
+    let rHat: THREE.Vector3, hHat: THREE.Vector3;
+    if (ref) {
+      const r = new THREE.Vector3(...ref.r), v = new THREE.Vector3(...ref.v);
+      hHat = new THREE.Vector3().crossVectors(r, v).normalize();
+      rHat = r.normalize().applyAxisAngle(hHat, THREE.MathUtils.degToRad(12));
+    } else {
+      // default plane: launch-site latitude inclination, site directly under the orbit now
+      const b = siteBasisECEF(SITE.lat, SITE.lon);
+      const up = ecefToEci(b.up, t), east = ecefToEci(b.east, t);
+      hHat = new THREE.Vector3().crossVectors(up, east).normalize();
+      rHat = up.clone().applyAxisAngle(hHat, THREE.MathUtils.degToRad(12));
+    }
+    const vHat = new THREE.Vector3().crossVectors(hHat, rHat).normalize();
+    const vc = Math.sqrt(MU_EARTH / rad);
+    ev.data.orbit = { r0: rHat.clone().multiplyScalar(rad).toArray(), v0: vHat.multiplyScalar(vc).toArray(), t0: t };
+  }
+
+  targetState(t: number): { r: V3; v: V3 } {
+    const o = this.game.state.vehicles.endurance.data.orbit as { r0: V3; v0: V3; t0: number };
+    return propagate(o.r0, o.v0, MU_EARTH, t - o.t0);
+  }
+
+  now() {
+    return this.tSim;
+  }
+
+  /** LVLH attitude: ring axis (model +Z, aft) along +velocity, so the forward port faces back along the orbit. */
+  private lvlh(r: V3, v: V3, out: THREE.Quaternion) {
+    const z = new THREE.Vector3(...v).normalize();
+    const y = new THREE.Vector3(...r).normalize();
+    y.addScaledVector(z, -y.dot(z)).normalize();
+    const x = new THREE.Vector3().crossVectors(y, z);
+    return out.setFromRotationMatrix(new THREE.Matrix4().makeBasis(x, y, z));
+  }
+
+  private updateEndurance(t: number) {
+    const s = this.targetState(t);
+    this.ePos = s.r;
+    this.eVel = s.v;
+    this.lvlh(s.r, s.v, this.eQLvlh);
+    const spin = this.game.state.endurance.spinAngle;
+    this.eQ.copy(this.eQLvlh).multiply(new THREE.Quaternion().setFromAxisAngle(AXIS_Z, spin));
+    const ev = this.game.state.vehicles.endurance;
+    ev.pos = [...s.r];
+    ev.vel = [...s.v];
+  }
+
+  // ===================================================================================================== docking geometry
+  /** Port node matrix relative to its model root. */
+  private portCache = new Map<string, THREE.Matrix4>();
+  private portLocal(inst: ModelInstance, name: string) {
+    const key = `${inst.root.uuid}:${name}`;
+    let m = this.portCache.get(key);
+    if (!m) {
+      const n = inst.nodes.get(name)!;
+      inst.root.updateMatrixWorld(true);
+      m = new THREE.Matrix4().copy(inst.root.matrixWorld).invert().multiply(n.matrixWorld);
+      this.portCache.set(key, m);
+    }
+    return m.clone();
+  }
+
+  /** Port matrix in the craft's simulation frame (Ranger 1: centre-of-mass frame; docked models: model root). */
+  private craftPortLocal(inst: ModelInstance, name: string) {
+    const m = this.portLocal(inst, name);
+    if (inst === this.r1Inst) m.premultiply(new THREE.Matrix4().makeTranslation(-this.r1Com.x, -this.r1Com.y, -this.r1Com.z));
+    return m;
+  }
+
+  /** Craft root transform (in the Endurance root space) that mates craftPort to the Endurance port with a roll phase. */
+  private mateMatrix(port: string, inst: ModelInstance, craftPort: string, roll: number, d = 0) {
+    const pe = this.portLocal(this.eInst, `dock_${port}`);
+    const pc = this.craftPortLocal(inst, craftPort);
+    return new THREE.Matrix4()
+      .copy(pe)
+      .multiply(new THREE.Matrix4().makeTranslation(0, 0, -d))
+      .multiply(new THREE.Matrix4().makeRotationZ(roll))
+      .multiply(new THREE.Matrix4().makeRotationY(Math.PI))
+      .multiply(pc.invert());
+  }
+
+  private placeDocked() {
+    for (const d of this.docked) {
+      const isRanger = d.inst.nodes.has('dock_rear');
+      // landers lie along the spoke axis so their pods clear the Ranger ports
+      const roll = isRanger ? 0 : Math.PI / 2;
+      const m = this.mateMatrix(d.port, d.inst, isRanger ? 'dock_rear' : 'dock_top', roll);
+      m.decompose(d.inst.root.position, d.inst.root.quaternion, d.inst.root.scale);
+    }
+  }
+
+  dockGoal(craft: Spacecraft, d: number, spin: boolean, rollPhase: number): DockGoal {
+    const q = spin ? this.eQ : this.eQLvlh;
+    const m = this.mateMatrix('fwd', this.r1Inst, 'dock_rear', spin ? rollPhase : 0, d);
+    const pos = new THREE.Vector3(), quat = new THREE.Quaternion(), sc = new THREE.Vector3();
+    new THREE.Matrix4().compose(new THREE.Vector3(), q, new THREE.Vector3(1, 1, 1)).multiply(m).decompose(pos, quat, sc);
+    const axis = new THREE.Vector3(0, 0, -1).applyQuaternion(q); // forward port faces model −Z
+    void craft;
+    const omega = this.game.state.endurance.omega;
+    // goal-point velocity: the Endurance's orbital velocity + the LVLH frame rotation (+ the spin when following it)
+    const rE = new THREE.Vector3(...this.ePos), vE = new THREE.Vector3(...this.eVel);
+    const wOrb = new THREE.Vector3().crossVectors(rE, vE).divideScalar(rE.lengthSq());
+    const wSpin = new THREE.Vector3(0, 0, 1).applyQuaternion(this.eQLvlh).multiplyScalar(omega);
+    const wTot = wOrb.clone().add(spin ? wSpin : new THREE.Vector3());
+    const vRot = new THREE.Vector3().crossVectors(wTot, pos);
+    return {
+      pos: [this.ePos[0] + pos.x, this.ePos[1] + pos.y, this.ePos[2] + pos.z],
+      vel: [this.eVel[0] + vRot.x, this.eVel[1] + vRot.y, this.eVel[2] + vRot.z],
+      quat,
+      w: wTot,
+      axis,
+    };
+  }
+
+  /** World pose (relative to the Endurance centre) of a port node of the Endurance. */
+  private ePortWorld(port: string) {
+    const m = new THREE.Matrix4().compose(new THREE.Vector3(), this.eQ, new THREE.Vector3(1, 1, 1)).multiply(this.portLocal(this.eInst, `dock_${port}`));
+    const p = new THREE.Vector3(), q = new THREE.Quaternion(), s = new THREE.Vector3();
+    m.decompose(p, q, s);
+    return { p, q };
+  }
+
+  portRelation(craft: Spacecraft): PortRelation {
+    const e = this.ePortWorld('fwd');
+    const axE = new THREE.Vector3(0, 0, -1).applyQuaternion(e.q);
+    const yE = new THREE.Vector3(0, 1, 0).applyQuaternion(e.q);
+    const pcl = this.craftPortLocal(this.r1Inst, 'dock_rear');
+    const mc = new THREE.Matrix4().compose(new THREE.Vector3(), craft.quat, new THREE.Vector3(1, 1, 1)).multiply(pcl);
+    const pc = new THREE.Vector3(), qc = new THREE.Quaternion(), s = new THREE.Vector3();
+    mc.decompose(pc, qc, s);
+    // port positions relative to the Endurance centre
+    const cRel = new THREE.Vector3(craft.pos[0] - this.ePos[0], craft.pos[1] - this.ePos[1], craft.pos[2] - this.ePos[2]).add(pc);
+    const dv = cRel.clone().sub(e.p);
+    const axial = dv.dot(axE);
+    const lateral = dv.clone().addScaledVector(axE, -axial).length();
+    const relVel = new THREE.Vector3(craft.vel[0] - this.eVel[0], craft.vel[1] - this.eVel[1], craft.vel[2] - this.eVel[2]);
+    const dist = dv.length();
+    const closing = dist > 1e-3 ? -relVel.dot(dv.clone().normalize()) : -relVel.dot(axE);
+    const axC = new THREE.Vector3(0, 0, -1).applyQuaternion(qc);
+    const alignErr = THREE.MathUtils.radToDeg(Math.acos(THREE.MathUtils.clamp(-axC.dot(axE), -1, 1)));
+    const yC = new THREE.Vector3(0, 1, 0).applyQuaternion(qc);
+    const yCp = yC.clone().addScaledVector(axE, -yC.dot(axE)).normalize();
+    let ang = Math.atan2(new THREE.Vector3().crossVectors(yE, yCp).dot(axE), yE.dot(yCp));
+    const sym = (2 * Math.PI) / 3;
+    ang = ((ang % sym) + sym) % sym;
+    const rollErr = THREE.MathUtils.radToDeg(Math.min(ang, sym - ang));
+    const wC = craft.angVel.clone().applyQuaternion(craft.quat);
+    const omega = this.game.state.endurance.omega;
+    const rateErr = Math.abs(wC.dot(new THREE.Vector3(0, 0, 1).applyQuaternion(this.eQLvlh)) - omega);
+    return { dist, axial, lateral, closing, relVel, alignErr, rollErr, rateErr };
+  }
+
+  aimOffset(t: number): V3 {
+    // hold point 220 m behind the forward port, i.e. along −velocity
+    const s = this.targetState(t);
+    const v = new THREE.Vector3(...s.v).normalize().multiplyScalar(-(220 + 6));
+    return [v.x, v.y, v.z];
+  }
+
+  capture(craft: Spacecraft) {
+    const game = this.game;
+    this.r1Docked = true;
+    // latch phase: the nearest of the three petal positions to the craft's current roll
+    let best = Infinity;
+    for (let k = 0; k < 3; k++) {
+      const g = this.dockGoal(craft, 0, true, (k * 2 * Math.PI) / 3);
+      const a = craft.quat.angleTo(g.quat);
+      if (a < best) {
+        best = a;
+        this.dockRoll = (k * 2 * Math.PI) / 3;
+      }
+    }
+    craft.rcsT.set(0, 0, 0);
+    craft.throttle = 0;
+    craft.sas = 'stability';
+    craft.attRate = null;
+    const st = game.state.vehicles.ranger1;
+    st.docked = { ship: 'endurance', port: 'fwd' };
+    game.state.mission.stage = 'docked';
+    game.flag('dockedEndurance', true);
+    game.audio.thud(undefined, 0.7, 70);
+    game.audio.door('airlock');
+    game.log('mission', 'WARD', 'Ranger 1 docked at the Endurance forward port. Hard capture confirmed.');
+    this.say('computer', 'Contact. Capture latches engaged — hard dock confirmed. Equalising pressure.');
+    setTimeout(() => this.say('sato', 'Welcome to the Endurance, Commander.'), 4500);
+  }
+
+  say(who: string, text: string) {
+    this.game.say(who, text, Math.max(3, text.length * 0.06));
+  }
+
+  // ===================================================================================================== spawn
+  spawn(spec: SpawnSpec) {
+    const game = this.game;
+    const t = game.state.clock.earthTime;
+    const st = game.state.vehicles.ranger1;
+    this.tSim = t;
+    const at = spec.at ?? (st.docked ? 'docked' : 'orbit');
+    let r: V3, v: V3;
+    let q = new THREE.Quaternion();
+    let stack = false;
+    if (at === 'launch' && st.data.launch) {
+      const L = st.data.launch as { x: number; y: number; z: number; vx: number; vy: number; vz: number; q: number[]; stage: number; s2fuel: number };
+      const b = siteBasisECEF(SITE.lat, SITE.lon);
+      const up = ecefToEci(b.up, t), east = ecefToEci(b.east, t), north = ecefToEci(b.north, t);
+      const P = up.clone().multiplyScalar(L.y).addScaledVector(east, L.x).addScaledVector(north, -L.z);
+      const Vv = east.clone().multiplyScalar(L.vx).addScaledVector(up, L.vy).addScaledVector(north, -L.vz);
+      r = P.toArray() as V3;
+      v = Vv.toArray() as V3;
+      // launch-local axes (X east, Y up, Z south) → inertial
+      const M = new THREE.Matrix4().makeBasis(east, up, north.clone().negate());
+      q = new THREE.Quaternion().setFromRotationMatrix(M).multiply(new THREE.Quaternion(L.q[0], L.q[1], L.q[2], L.q[3]));
+      stack = true;
+      this.initEnduranceOrbit({ r, v });
+      delete st.data.launch;
+    } else if (at === 'approach' || at === 'docked') {
+      this.updateEndurance(t);
+      const g = this.dockGoal(null as unknown as Spacecraft, at === 'docked' ? 0 : 160, false, 0);
+      r = g.pos;
+      v = [...this.eVel] as V3;
+      q = g.quat.clone();
+    } else {
+      // parking orbit at 290 km, coplanar, trailing the Endurance by ~14°
+      this.updateEndurance(t);
+      const rE = new THREE.Vector3(...this.ePos), vE = new THREE.Vector3(...this.eVel);
+      const hh = new THREE.Vector3().crossVectors(rE, vE).normalize();
+      const rr = rE.clone().normalize().applyAxisAngle(hh, -THREE.MathUtils.degToRad(14)).multiplyScalar(R_EARTH + 290e3);
+      const vv = new THREE.Vector3().crossVectors(hh, rr).normalize().multiplyScalar(Math.sqrt(MU_EARTH / rr.length()));
+      r = rr.toArray() as V3;
+      v = vv.toArray() as V3;
+      q = new THREE.Quaternion().setFromRotationMatrix(new THREE.Matrix4().lookAt(new THREE.Vector3(), vv.clone().normalize(), rr.clone().normalize()));
+    }
+    st.location = 'space';
+    st.pos = [...r];
+    st.vel = [...v];
+    st.quat = [q.x, q.y, q.z, q.w];
+    st.angVel = [0, 0, 0];
+    if (stack) {
+      const ss: VehicleState = { ...st, id: 'stack', fuel: (st.data.s2fuel as number) ?? S2_SPEC.propMax, fuelMax: S2_SPEC.propMax };
+      this.craft = new Spacecraft(S2_SPEC, ss);
+      this.craft.payload = RANGER_WET;
+      void this.buildStack();
+    } else {
+      this.craft = new Spacecraft(SPECS.ranger, st);
+    }
+    this.craft.gearDown = false;
+    this.craft.sas = 'stability';
+    this.craft.unlimited = game.state.creative.unlimitedResources;
+    this.r1Docked = at === 'docked';
+    if (this.r1Docked) {
+      st.docked = { ship: 'endurance', port: 'fwd' };
+      this.dockRoll = 0;
+    }
+    this.origin[0] = r[0];
+    this.origin[1] = r[1];
+    this.origin[2] = r[2];
+    this.updateEndurance(t);
+    this.syncRoots();
+    this.seatPlayer();
+  }
+
+  /** Upper stage + adapter under Ranger 1 until the stage is spent. */
+  private async buildStack() {
+    const inst = await this.game.assets.instance('rocket');
+    this.stackInst = inst;
+    const s1 = inst.nodes.get('stage1');
+    if (s1) s1.visible = false;
+    const g = new THREE.Group();
+    const inner = new THREE.Group();
+    inner.position.set(0, -STACK_COM, 0);
+    inner.add(inst.root);
+    g.add(inner);
+    inst.root.updateMatrixWorld(true);
+    const s2n = inst.nodes.get('stage2');
+    if (s2n) {
+      this.s2Plume = new Plume({ radius: 1.3, length: 55, core: 0xf2f6ff, edge: 0x7a9cff, intensity: 6 });
+      this.s2Plume.mesh.rotation.x = -Math.PI / 2;
+      this.s2Plume.mesh.position.set(0, 0.8, 0);
+      s2n.add(this.s2Plume.mesh);
+    }
+    // mount Ranger 1 nose-up on the adapter (same as on the pad)
+    const mount = inst.nodes.get('ranger_mount');
+    if (mount) {
+      g.updateMatrixWorld(true);
+      const mountL = g.worldToLocal(mount.getWorldPosition(new THREE.Vector3()));
+      const r = this.r1Inst.root;
+      r.quaternion.setFromAxisAngle(new THREE.Vector3(1, 0, 0), Math.PI / 2);
+      r.position.set(0, 0, 0);
+      r.updateMatrixWorld(true);
+      const dockL = this.r1Inst.nodes.get('dock_rear')!.getWorldPosition(new THREE.Vector3());
+      r.position.copy(mountL).sub(dockL).add(new THREE.Vector3(0, 0.15, 0));
+      g.add(r);
+    }
+    this.stackRoot = g;
+    this.scene.add(g);
+  }
+
+  /** Upper stage spent: Ranger 1 separates and continues on its own engines. */
+  private separateStage() {
+    if (!this.stackRoot) return;
+    const r = this.r1Inst.root;
+    // the Ranger's world pose becomes the new craft pose
+    this.stackRoot.updateMatrixWorld(true);
+    const wp = r.getWorldPosition(new THREE.Vector3()), wq = r.getWorldQuaternion(new THREE.Quaternion());
+    const st = this.game.state.vehicles.ranger1;
+    st.fuel = Math.max(st.fuel, SPECS.ranger.propMax * 0.97);
+    const old = this.craft;
+    const c = new Spacecraft(SPECS.ranger, st);
+    wp.add(this.r1Com.clone().applyQuaternion(wq));
+    c.pos[0] = this.origin[0] + wp.x;
+    c.pos[1] = this.origin[1] + wp.y;
+    c.pos[2] = this.origin[2] + wp.z;
+    c.vel[0] = old.vel[0] + 0;
+    c.vel[1] = old.vel[1];
+    c.vel[2] = old.vel[2];
+    c.quat.copy(wq);
+    c.angVel.set(0, 0, 0);
+    c.gearDown = false;
+    c.unlimited = old.unlimited;
+    this.craft = c;
+    (this.control as any).craft = c;
+    r.position.copy(this.r1Com).negate();
+    r.quaternion.identity();
+    this.r1Root.add(r);
+    // the spent stage drifts away (kept briefly as a visual)
+    const spent = this.stackRoot;
+    this.stackRoot = null;
+    const drift = { pos: [...old.pos] as V3, vel: [old.vel[0], old.vel[1], old.vel[2]] as V3, q: spent.quaternion.clone(), t: 0 };
+    const back = new THREE.Vector3(0, 0, 1).applyQuaternion(wq).multiplyScalar(-1.2);
+    drift.vel[0] += back.x;
+    drift.vel[1] += back.y;
+    drift.vel[2] += back.z;
+    this.spent = { obj: spent, ...drift };
+    this.game.audio.thud(undefined, 0.5, 120);
+    this.say('computer', 'Upper stage depleted. Separation confirmed — Ranger main engines.');
+  }
+  private spent: { obj: THREE.Object3D; pos: V3; vel: V3; q: THREE.Quaternion; t: number } | null = null;
+
+  private seatPlayer() {
+    const game = this.game;
+    const seat = this.r1Inst.nodes.get('seat_pilot');
+    const eye = this.r1Inst.nodes.get('seat_pilot_eye');
+    const p = game.player;
+    p.enterFrame(this.r1Frame, new THREE.Vector3(0, 0, 0), 0, 'float');
+    if (seat && eye) p.sit({ id: 'ranger1_pilot', anchor: seat, eye, frame: this.r1Frame, exit: () => new THREE.Vector3(0, 0.6, 2), yawLimit: 1.6 });
+    p.mode = 'seat';
+    // crew in their seats
+    const seats = ['seat_copilot', 'seat_p1', 'seat_p2'];
+    this.crew.forEach((hm, i) => {
+      const s = this.r1Inst.nodes.get(seats[i]);
+      if (!s) return;
+      s.add(hm.root);
+      hm.root.position.set(0, -0.05, 0.1);
+      hm.root.rotation.set(0, 0, 0);
+      hm.play('sit', 0);
+    });
+    if (this.control) this.control.dispose();
+    this.control = new FlightControl(game, 'ranger1', this.craft, this.r1Root, eye ?? null, this.env, 'RANGER 1');
+    this.control.camModes = ['cockpit', 'chase', 'orbital', 'docking'];
+    this.control.dockingCamNode = this.r1Inst.nodes.get('dock_rear') ?? null;
+    this.control.infoFn = () => this.hudInfo();
+    this.control.exitFn = () => {
+      if (this.r1Docked) {
+        this.say('computer', 'Hatch to the Endurance hub is sealed until the transfer tunnel is pressurised.');
+        return false;
+      }
+      game.notify('You cannot leave the pilot seat in flight.', 'warn', 2);
+      return false;
+    };
+    game.setControl(this.control);
+    if (this.stackRoot === null && this.stackInst === null && game.state.vehicles.ranger1.data.mounted === false && this.craft.spec === S2_SPEC) {
+      /* stack is being built asynchronously */
+    }
+    if (this.craft.spec === S2_SPEC) {
+      this.control.setAutopilot(new OrbitInsertion(this, 290e3, () => this.say('ward', 'We are in orbit. Endurance, this is Ranger 1 — on our way to you.')));
+    }
+  }
+
+  private hudInfo() {
+    const c = this.craft;
+    const s = orbitSummary(c.pos, c.vel);
+    const rel = this.portRelation(c);
+    const ep = this.ePortWorld('fwd');
+    const pcl = this.craftPortLocal(this.r1Inst, 'dock_rear');
+    const pc = new THREE.Vector3().setFromMatrixPosition(new THREE.Matrix4().compose(new THREE.Vector3(), c.quat, new THREE.Vector3(1, 1, 1)).multiply(pcl));
+    const relPos = new THREE.Vector3(this.ePos[0] - c.pos[0], this.ePos[1] - c.pos[1], this.ePos[2] - c.pos[2]).add(ep.p).sub(pc);
+    const near = relPos.length() < 5000;
+    return {
+      orbit: { body: 'EARTH', ap: s.ap, pe: s.pe, period: s.period, inc: THREE.MathUtils.radToDeg(s.inc) },
+      target: this.r1Docked
+        ? null
+        : {
+            name: 'ENDURANCE · FWD PORT',
+            relPos,
+            relVel: rel.relVel.clone().negate(),
+            portAxis: new THREE.Vector3(0, 0, -1).applyQuaternion(ep.q),
+            alignErr: near ? rel.alignErr : undefined,
+            rollErr: near ? rel.rollErr : undefined,
+            lateral: near ? rel.lateral : undefined,
+          },
+      extra: [
+        ['ALT', `${(s.alt / 1000).toFixed(1)} km`],
+        ['V', `${(c.speed() / 1000).toFixed(3)} km/s`],
+        ['RANGE', relPos.length() > 2000 ? `${(relPos.length() / 1000).toFixed(1)} km` : `${relPos.length().toFixed(1)} m`],
+        ['Δv', `${(c.deltaV() / 1000).toFixed(2)} km/s`],
+        ['SUN', this.sunVis > 0.5 ? 'DAY' : 'ECLIPSE'],
+      ] as [string, string][],
+    };
+  }
+
+  // ===================================================================================================== autopilot menu
+  openAutopilotMenu(ctrl: FlightControl) {
+    const game = this.game;
+    game.input.releaseLock();
+    const s = orbitSummary(this.craft.pos, this.craft.vel);
+    const rel = this.portRelation(this.craft);
+    game.ui.openPanel('RANGER 1 — FLIGHT COMPUTER', (b, p) => {
+      const pick = (fn: () => void) => () => {
+        fn();
+        p.close();
+        game.input.requestLock();
+      };
+      const add = (label: string, desc: string, ok: boolean, fn: () => void) => {
+        const btn = game.ui.button(label, pick(fn), ok ? 'btn primary' : 'btn');
+        btn.disabled = !ok;
+        b.append(h('div', { style: { margin: '8px 0' } }, btn, h('div', { class: 'dim', style: { fontSize: '12px', marginTop: '4px' } }, desc)));
+      };
+      b.append(h('div', { class: 'mono', style: { marginBottom: '10px' } }, `Orbit ${(s.pe / 1000).toFixed(0)} × ${(s.ap / 1000).toFixed(0)} km · Endurance range ${rel.dist > 2000 ? (rel.dist / 1000).toFixed(1) + ' km' : rel.dist.toFixed(0) + ' m'}`));
+      add('ORBIT INSERTION', 'Burn to a stable parking orbit (periapsis above 185 km).', !this.r1Docked && s.pe < 185e3, () => ctrl.setAutopilot(new OrbitInsertion(this, 290e3)));
+      add('RENDEZVOUS + DOCK', 'Plan a Lambert transfer to the Endurance, burn, correct, brake at the hold point, then dock at the forward port (time compressed).', !this.r1Docked && s.pe > 150e3, () => ctrl.setAutopilot(new Rendezvous(this, () => ctrl.setAutopilot(new DockingApproach(this)))));
+      add('DOCKING APPROACH', 'From within 3 km: close to the 150 m hold point, align, match the ring\'s spin and dock.', !this.r1Docked && rel.dist < 3000, () => ctrl.setAutopilot(new DockingApproach(this)));
+      add('DISENGAGE AUTOPILOT', 'Manual flight: W/S pitch, A/D yaw, Q/E roll, I/K/J/L/H/N translate, Shift/Ctrl throttle, T SAS mode.', !!ctrl.autopilot, () => ctrl.setAutopilot(null));
+    }, { narrow: true, onClose: () => game.input.requestLock() });
+  }
+
+  maxTimeWarp() {
+    if (this.r1Docked) return 1000;
+    const rel = this.craft ? this.portRelation(this.craft) : null;
+    return rel && rel.dist < 5000 ? 1 : 100;
+  }
+
+  clockContext() {
+    return {};
+  }
+
+  // ===================================================================================================== update
+  update(dt: number, dtEarth: number) {
+    this.time += dt;
+    const game = this.game;
+    if (!this.craft) return;
+    // autopilot time compression also advances the mission clock
+    const ts = this.control?.autopilot ? this.control.timeScale : 1;
+    let dE = dtEarth;
+    if (ts > 1 && dt > 0) dE += game.clock.advance(dt * (ts - 1), { location: 'space', system: game.state.system });
+    const tEnd = game.state.clock.earthTime;
+    let t = tEnd - dE;
+    // Endurance spin
+    const en = game.state.endurance;
+    en.omega = THREE.MathUtils.damp(en.omega, en.targetOmega, 0.05, dE);
+    en.spinAngle = (en.spinAngle + en.omega * dE) % (Math.PI * 2);
+    // ---- physics substeps (analytic Kepler propagation while coasting)
+    let guard = 0;
+    while (tEnd - t > 1e-6 && guard++ < 3000) {
+      const rem = tEnd - t;
+      this.tSim = t;
+      let hStep = Math.min(rem, 0.05);
+      if (this.r1Docked) {
+        hStep = rem;
+      } else {
+        this.updateEndurance(t);
+        if (this.control.autopilot) this.control.runAutopilot(hStep);
+        const thrust = this.craft.throttle > 0 || this.craft.rcsT.lengthSq() > 1e-6 || this.craft.attRate !== null;
+        const canCoast = !thrust && (this.control.autopilot ? this.control.maxStep > 0.05 : rem > 0.5);
+        if (canCoast) {
+          hStep = Math.min(rem, this.control.autopilot ? this.control.maxStep : 2);
+          const p = propagate(this.craft.pos as V3, this.craft.vel as V3, MU_EARTH, hStep);
+          for (let k = 0; k < 3; k++) {
+            this.craft.pos[k] = p.r[k];
+            this.craft.vel[k] = p.v[k];
+          }
+          const tgt = this.craft.sasTarget(this.env);
+          if (tgt && hStep > 0.2) {
+            this.craft.quat.slerp(tgt, Math.min(1, hStep * 0.5));
+            this.craft.angVel.multiplyScalar(0.5);
+          } else this.craft.step(0, this.env);
+        } else this.craft.step(hStep, this.env);
+        if (this.craft.spec === S2_SPEC && this.craft.state.fuel <= 0 && this.stackRoot) this.separateStage();
+        if (this.env.altitude(this.craft.pos) < 60e3 && !this.reentryWarned) {
+          this.reentryWarned = true;
+          game.notify('Warning: low perigee — atmospheric entry. Use ORBIT INSERTION (P).', 'alert', 6);
+        }
+      }
+      t += hStep;
+    }
+    this.tSim = tEnd;
+    this.updateEndurance(tEnd);
+    if (this.r1Docked) {
+      const g = this.dockGoal(this.craft, 0, true, this.dockRoll);
+      for (let k = 0; k < 3; k++) {
+        this.craft.pos[k] = g.pos[k];
+        this.craft.vel[k] = this.eVel[k];
+      }
+      this.craft.quat.copy(g.quat);
+      this.craft.angVel.copy(g.w.clone().applyQuaternion(g.quat.clone().invert()));
+    }
+    // write back the vehicle state
+    const st = game.state.vehicles.ranger1;
+    if (this.craft.spec !== S2_SPEC) {
+      st.pos = [...this.craft.pos];
+      st.vel = [...this.craft.vel];
+      st.quat = [this.craft.quat.x, this.craft.quat.y, this.craft.quat.z, this.craft.quat.w];
+    }
+    // ---- floating origin & render transforms
+    this.origin[0] = this.craft.pos[0];
+    this.origin[1] = this.craft.pos[1];
+    this.origin[2] = this.craft.pos[2];
+    this.syncRoots();
+    // models
+    this.r1Model.update(dt, this.craft.spec === S2_SPEC ? null : this.craft, 0);
+    this.s2Plume?.update(dt, this.craft.spec === S2_SPEC ? this.craft.mainLevel : 0, 0);
+    this.eModel.update(dt, null, 0, { mainLevel: 0 });
+    for (const hm of this.crew) hm.update(dt);
+    if (this.spent) {
+      const s = this.spent;
+      const p = propagate(s.pos, s.vel, MU_EARTH, dE);
+      s.pos = p.r;
+      s.vel = p.v;
+      s.t += dt;
+      s.obj.position.set(s.pos[0] - this.origin[0], s.pos[1] - this.origin[1], s.pos[2] - this.origin[2]);
+      s.obj.rotateX(0.02 * dt);
+      if (s.t > 240 || s.obj.position.length() > 25000) {
+        s.obj.removeFromParent();
+        this.spent = null;
+      }
+    }
+    this.updateSky(dt);
+  }
+  private reentryWarned = false;
+
+  private syncRoots() {
+    const o = this.origin;
+    this.eRoot.position.set(this.ePos[0] - o[0], this.ePos[1] - o[1], this.ePos[2] - o[2]);
+    this.eRoot.quaternion.copy(this.eQ);
+    const target = this.stackRoot ?? this.r1Root;
+    const q = this.craft.quat;
+    this.r1Root.position.set(this.craft.pos[0] - o[0], this.craft.pos[1] - o[1], this.craft.pos[2] - o[2]);
+    this.r1Root.quaternion.copy(q);
+    if (this.stackRoot && target === this.stackRoot) {
+      // stack group: +Y = stack up = craft body −Z
+      this.stackRoot.position.copy(this.r1Root.position);
+      this.stackRoot.quaternion.copy(q).multiply(new THREE.Quaternion().setFromAxisAngle(new THREE.Vector3(1, 0, 0), -Math.PI / 2));
+      // the camera/frames follow the Ranger inside the stack
+      this.stackRoot.updateMatrixWorld(true);
+      this.r1Inst.root.getWorldPosition(this.r1Root.position);
+      this.r1Inst.root.getWorldQuaternion(this.r1Root.quaternion);
+      this.r1Root.position.add(this.r1Com.clone().applyQuaternion(this.r1Root.quaternion));
+      this.r1Root.updateMatrixWorld(true);
+    }
+    this.scene.updateMatrixWorld(true);
+  }
+
+  private updateSky(dt: number) {
+    const game = this.game;
+    const t = game.state.clock.earthTime;
+    const sunDir = sunDirECI(t);
+    const cam = game.camera;
+    // far layer: camera at the origin, kilometre units
+    const camW: V3 = [this.origin[0] + cam.position.x, this.origin[1] + cam.position.y, this.origin[2] + cam.position.z];
+    const earthRel = new THREE.Vector3(-camW[0], -camW[1], -camW[2]).divideScalar(1000);
+    this.globe.update(earthRel, sunDir, gmst(t));
+    this.sunDisc.update(sunDir);
+    // eclipse: is the Sun hidden by the Earth (with a soft penumbra through the atmosphere)?
+    const pos = new THREE.Vector3(...camW);
+    const b = pos.dot(sunDir);
+    const perp = pos.clone().addScaledVector(sunDir, -b).length();
+    this.sunVis = b > 0 ? 1 : THREE.MathUtils.smoothstep(perp, R_EARTH + 5e3, R_EARTH + 60e3);
+    const sunsetTint = b > 0 ? 0 : 1 - THREE.MathUtils.smoothstep(perp, R_EARTH + 60e3, R_EARTH + 180e3);
+    this.sun.color.setRGB(1, 0.96 - 0.35 * sunsetTint, 0.92 - 0.6 * sunsetTint);
+    this.sun.intensity = 3.2 * this.sunVis;
+    this.sunDisc.mesh.visible = this.sunVis > 0.02;
+    const focus = this.focusPoint();
+    this.sun.target.position.copy(focus);
+    this.sun.position.copy(focus).addScaledVector(sunDir, 150);
+    this.sun.target.updateMatrixWorld();
+    // earthshine from the sunlit Earth below
+    const rHat = pos.clone().normalize();
+    const day = THREE.MathUtils.smoothstep(rHat.dot(sunDir), -0.35, 0.55);
+    this.earthLight.position.copy(rHat).negate();
+    this.earthLight.color.setRGB(0.32, 0.42, 0.6);
+    this.earthLight.intensity = 0.08 + 0.75 * day;
+    // exposure: adapt in orbital night
+    this.exposure = THREE.MathUtils.damp(this.exposure, this.sunVis > 0.5 ? 1.0 : 2.2, 1.5, dt);
+    // stars wash out when the sunlit Earth or the Sun is in view (camera exposure), full in orbital night
+    const look = cam.getWorldDirection(new THREE.Vector3());
+    const earthInView = THREE.MathUtils.smoothstep(look.dot(rHat.clone().negate()), -0.2, 0.5) * day;
+    this.stars.setVisibility(this.sunVis > 0.5 ? 0.35 * (1 - 0.8 * earthInView) : 1);
+    if (this.eclipseLast >= 0 && (this.sunVis > 0.5 ? 1 : 0) !== this.eclipseLast) this.game.notify(this.sunVis > 0.5 ? 'Orbital sunrise' : 'Entering Earth\'s shadow', 'info', 3);
+    this.eclipseLast = this.sunVis > 0.5 ? 1 : 0;
+    // reflections: refresh a small environment from the far layer every few seconds
+    this.envT -= dt;
+    if (this.envT <= 0) {
+      this.envT = 4;
+      this.refreshEnvironment(rHat, sunDir, day);
+    }
+  }
+
+  private envScene: THREE.Scene | null = null;
+  private envMat: THREE.ShaderMaterial | null = null;
+  private envRT: THREE.WebGLRenderTarget | null = null;
+  /** Cheap environment for metal/paint reflections: dark space, the bright Earth below, the Sun. */
+  private refreshEnvironment(rHat: THREE.Vector3, sun: THREE.Vector3, day: number) {
+    if (!this.envScene) {
+      this.envScene = new THREE.Scene();
+      this.envMat = new THREE.ShaderMaterial({
+        side: THREE.BackSide,
+        uniforms: { uDown: { value: new THREE.Vector3() }, uSun: { value: new THREE.Vector3() }, uDay: { value: 1 } },
+        vertexShader: /* glsl */ `varying vec3 vD; void main(){ vD = normalize(position); gl_Position = projectionMatrix * modelViewMatrix * vec4(position, 1.0); }`,
+        fragmentShader: /* glsl */ `
+          varying vec3 vD; uniform vec3 uDown, uSun; uniform float uDay;
+          void main(){
+            float e = smoothstep(0.25, 0.45, dot(vD, uDown));
+            vec3 earth = mix(vec3(0.004, 0.006, 0.012), vec3(0.16, 0.22, 0.32), uDay) * e;
+            float limb = exp(-pow((dot(vD, uDown) - 0.33) / 0.04, 2.0)) * uDay;
+            vec3 c = earth + vec3(0.2, 0.32, 0.6) * limb * 0.4 + vec3(40.0, 38.0, 35.0) * pow(max(dot(vD, uSun), 0.0), 2000.0);
+            gl_FragColor = vec4(c, 1.0);
+          }`,
+      });
+      this.envScene.add(new THREE.Mesh(new THREE.SphereGeometry(10, 32, 16), this.envMat));
+    }
+    const u = this.envMat!.uniforms;
+    (u.uDown.value as THREE.Vector3).copy(rHat).negate();
+    (u.uSun.value as THREE.Vector3).copy(sun);
+    u.uDay.value = day;
+    this.envRT?.dispose();
+    this.envRT = this.game.renderer.pmrem.fromScene(this.envScene, 0, 0.1, 100);
+    this.scene.environment = this.envRT.texture;
+    this.scene.environmentIntensity = 0.6;
+  }
+
+  private focusPoint() {
+    // shadows around the Endurance when it is near, otherwise around the player's craft
+    const d = this.eRoot.position.length();
+    return d < 300 ? this.eRoot.position.clone() : new THREE.Vector3();
+  }
+
+  layers(camera: THREE.Camera): RenderLayer[] {
+    const c = camera as THREE.PerspectiveCamera;
+    this.farCam.fov = c.fov;
+    this.farCam.aspect = c.aspect;
+    this.farCam.near = 1;
+    this.farCam.far = 3e5;
+    this.farCam.updateProjectionMatrix();
+    this.farCam.position.set(0, 0, 0);
+    this.farCam.quaternion.copy(c.quaternion);
+    this.farCam.updateMatrixWorld(true);
+    return [
+      { scene: this.far, camera: this.farCam },
+      { scene: this.scene, camera, clearDepth: true },
+    ];
+  }
+
+  writeState() {
+    const st = this.game.state.vehicles.ranger1;
+    if (this.craft && this.craft.spec !== S2_SPEC) {
+      st.pos = [...this.craft.pos];
+      st.vel = [...this.craft.vel];
+    }
+  }
+
+  dispose() {
+    this.control?.dispose();
+    this.envRT?.dispose();
+    this.far.traverse((o) => {
+      const m = o as THREE.Mesh;
+      if (m.geometry && m.userData.owned) m.geometry.dispose();
+    });
+    super.dispose();
+  }
 }

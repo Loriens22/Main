@@ -39,6 +39,8 @@ export class Spacecraft {
   readonly rcsR = new THREE.Vector3(); // pitch, yaw, roll command -1..1
   sas: SasMode = 'stability';
   readonly attTarget = new THREE.Quaternion();
+  /** feed-forward angular velocity of a moving attitude target (world frame, rad/s), e.g. a spinning dock port */
+  attRate: THREE.Vector3 | null = null;
   rcsOn = true;
   engineOn = true;
   // outputs
@@ -178,12 +180,15 @@ export class Spacecraft {
     const g = env.gravity(this.pos);
     const a = F.divideScalar(m);
     this.accel.copy(a);
+    // trapezoidal position update (exact for constant acceleration): keeps the position consistent with the
+    // reported velocity — semi-implicit Euler would add a spurious ½·a·dt drift (≈0.14 m/s in orbit at 30 Hz)
+    const v0x = this.vel[0], v0y = this.vel[1], v0z = this.vel[2];
     this.vel[0] += (a.x + g[0]) * dt;
     this.vel[1] += (a.y + g[1]) * dt;
     this.vel[2] += (a.z + g[2]) * dt;
-    this.pos[0] += this.vel[0] * dt;
-    this.pos[1] += this.vel[1] * dt;
-    this.pos[2] += this.vel[2] * dt;
+    this.pos[0] += (v0x + this.vel[0]) * 0.5 * dt;
+    this.pos[1] += (v0y + this.vel[1]) * 0.5 * dt;
+    this.pos[2] += (v0z + this.vel[2]) * 0.5 * dt;
     // integrate rotation
     const w = this.angVel;
     if (w.lengthSq() > 0) {
@@ -222,6 +227,7 @@ export class Spacecraft {
           const rate = Math.min(0.6, ang * 1.2);
           wDes.copy(axis).multiplyScalar(rate);
         }
+        if (this.attRate) wDes.add(this.attRate.clone().applyQuaternion(this.quat.clone().invert()));
       }
       const e = wDes.sub(this.angVel);
       const kp = 3.0;
