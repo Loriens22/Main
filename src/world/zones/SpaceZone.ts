@@ -148,6 +148,20 @@ export default class SpaceZone extends Zone implements ProxHost {
     this.r1Root.name = 'ranger1';
     this.scene.add(this.r1Root);
     this.r1Model = new CraftModel(this.r1Inst, 'ranger');
+    // cockpit glazing: the exterior 'dark glass' look is too opaque from inside — the crew must see Earth and stars
+    this.r1Inst.root.traverse((o) => {
+      const m = o as THREE.Mesh;
+      if (!m.isMesh || !/glass/i.test(m.name)) return;
+      const swap = (mat: THREE.Material) => {
+        if (!mat.name.startsWith('glass_dark')) return mat;
+        const c = (mat as THREE.MeshPhysicalMaterial).clone();
+        c.opacity = 0.18;
+        c.color.setRGB(0.05, 0.06, 0.07);
+        c.depthWrite = false;
+        return c;
+      };
+      m.material = Array.isArray(m.material) ? m.material.map(swap) : swap(m.material);
+    });
     this.r1Frame = this.addFrame(new Frame('ranger1', this.r1Root, (_l, o) => o.set(0, 0, 0), 'Ranger 1'));
     progress(0.85, 'crew');
     for (const id of CREW) {

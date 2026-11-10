@@ -110,10 +110,16 @@ class BurnExec {
   }
 }
 
-/** Ascent continuation from the atmospheric handover to a stable parking orbit (periapsis above 180 km). */
+/**
+ * Ascent continuation from the atmospheric handover to a near-circular parking orbit:
+ *   1. powered ascent: pitch from a vertical-speed profile until the apoapsis reaches the target altitude,
+ *   2. coast (time-compressed) to the apoapsis,
+ *   3. circularisation burn along the local horizon until the periapsis is within 15 km of the target.
+ */
 export class OrbitInsertion implements AutopilotProgram {
   name = 'ORBIT INSERTION';
   allowManual = false;
+  phase: 'ascent' | 'coast' | 'circ' = 'ascent';
   done = false;
   constructor(readonly host: ProxHost, readonly targetAlt = 280e3, readonly onDone?: () => void) {}
 
@@ -122,11 +128,50 @@ export class OrbitInsertion implements AutopilotProgram {
     const up = new THREE.Vector3(...env.up(c.pos));
     const v = new THREE.Vector3(...c.vel);
     const hdir = v.clone().sub(up.clone().multiplyScalar(v.dot(up)));
-    if (hdir.lengthSq() < 1) hdir.set(1, 0, 0).sub(up.clone().multiplyScalar(up.x)).normalize();
+    if (hdir.lengthSq() < 1) hdir.set(1, 0, 0).sub(up.clone().multiplyScalar(up.x));
     hdir.normalize();
     c.sas = 'target';
     c.attRate = null;
-    if (s.pe > 185e3 && s.ap > s.pe) {
+    c.rcsT.set(0, 0, 0);
+    if (this.phase === 'ascent') {
+      if (s.ap >= this.targetAlt) {
+        this.phase = 'coast';
+        c.throttle = 0;
+        this.host.say('computer', `Engine cutoff. Coasting to apoapsis, ${(s.ap / 1000).toFixed(0)} kilometres.`);
+      } else {
+        const vrDes = THREE.MathUtils.clamp((this.targetAlt - s.alt) / 110, -40, 260);
+        const theta = THREE.MathUtils.clamp(0.0035 * (vrDes - s.vr) + 0.05, -0.3, 0.75);
+        const dir = hdir.clone().multiplyScalar(Math.cos(theta)).addScaledVector(up, Math.sin(theta)).normalize();
+        c.attTarget.copy(lookQuat(dir, up));
+        // throttle back as the apoapsis approaches the target so cutoff lands on it
+        const margin = (this.targetAlt - s.ap) / 40e3;
+        c.throttle = c.forward().angleTo(dir) < 0.35 ? THREE.MathUtils.clamp(margin, 0.15, 1) : 0.2;
+        return { msg: s.alt < 120e3 ? 'Climbing — pitch program' : 'Raising apoapsis', timeScale: 4 };
+      }
+    }
+    if (this.phase === 'coast') {
+      c.throttle = 0;
+      c.attTarget.copy(lookQuat(hdir, up));
+      if (s.ap < this.targetAlt - 20e3) this.phase = 'ascent';
+      // exact time to apoapsis from the eccentric anomaly
+      const rN = R_EARTH + s.alt;
+      const cosE = THREE.MathUtils.clamp((1 - rN / s.a) / Math.max(1e-9, s.e), -1, 1);
+      const sinE = (rN * s.vr) / (Math.max(1e-9, s.e) * Math.sqrt(MU_EARTH * s.a));
+      const E = Math.atan2(sinE, cosE);
+      const M = E - s.e * Math.sin(E);
+      const n = Math.sqrt(MU_EARTH / (s.a * s.a * s.a));
+      const tApo = M < Math.PI ? (Math.PI - M) / n : 0;
+      const burnHalf = Math.max(2, (Math.sqrt(MU_EARTH / (R_EARTH + s.ap)) - hdir.dot(v)) / Math.max(1, c.maxAccel()) / 2);
+      if (s.vr <= 0 || tApo <= burnHalf) {
+        this.phase = 'circ';
+        this.host.say('computer', 'Circularisation burn.');
+      }
+      return { msg: `Coasting to apoapsis — ${tApo.toFixed(0)} s`, timeScale: THREE.MathUtils.clamp(tApo / 6, 1, 50), maxStep: Math.max(0.05, Math.min(10, tApo - burnHalf - 5)) };
+    }
+    // circularise
+    c.attTarget.copy(lookQuat(hdir, up));
+    const vc = Math.sqrt(MU_EARTH / (R_EARTH + s.alt));
+    if ((s.pe > this.targetAlt - 15e3 && s.pe > 185e3) || hdir.dot(v) >= vc + 2) {
       c.throttle = 0;
       if (!this.done) {
         this.done = true;
@@ -134,15 +179,8 @@ export class OrbitInsertion implements AutopilotProgram {
       }
       return { done: true, msg: `Orbit achieved — ${(s.pe / 1000).toFixed(0)} × ${(s.ap / 1000).toFixed(0)} km` };
     }
-    // vertical-speed profile toward the target altitude, pitch from the error, thrust along the horizon otherwise
-    const vrDes = THREE.MathUtils.clamp((this.targetAlt - s.alt) / 110, -40, 260);
-    const theta = THREE.MathUtils.clamp(0.0035 * (vrDes - s.vr) + 0.05, -0.3, 0.75);
-    const dir = hdir.clone().multiplyScalar(Math.cos(theta)).addScaledVector(up, Math.sin(theta)).normalize();
-    c.attTarget.copy(lookQuat(dir, up));
-    const err = c.forward().angleTo(dir);
-    c.throttle = err < 0.35 ? 1 : 0.2;
-    const msg = s.alt < 120e3 ? 'Climbing — pitch program' : s.ap < this.targetAlt ? 'Raising apoapsis' : 'Building horizontal speed';
-    return { msg, timeScale: 4 };
+    c.throttle = c.forward().angleTo(hdir) < 0.2 ? THREE.MathUtils.clamp((vc - hdir.dot(v)) / 30, 0.1, 1) : 0;
+    return { msg: `Circularising — periapsis ${(s.pe / 1000).toFixed(0)} km`, timeScale: 2 };
   }
 }
 
