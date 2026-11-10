@@ -99,7 +99,7 @@ export class EarthGen {
     this.flats.push(
       { x: 0, z: 0, r: 0, rect: [62, 46], feather: 30, yard: 0.7 }, // farm yard
       { x: -30, z: -30, r: 0, rect: [22, 18], feather: 12, yard: 0.8 }, // barn pad
-      { x: NASA.portal.x, z: NASA.portal.z + 36, r: 0, rect: [32, 37], feather: 12, h: this.portalLevel, yard: 0.0 }, // forecourt (quarried cut)
+      { x: NASA.portal.x, z: NASA.portal.z + 36, r: 0, rect: [32, 37], feather: 12, h: this.portalLevel - 0.08, yard: 0.0 }, // forecourt (quarried cut, just under the asphalt slab)
       { x: NASA.gate.pos[0], z: NASA.gate.pos[2], r: 18, feather: 20, yard: 0.5 },
       { x: NASA.silo.x, z: NASA.silo.z, r: 34, feather: 40, h: this.siloTop, yard: 0.0 },
     );
@@ -124,7 +124,15 @@ export class EarthGen {
         }
         heights[i] = s / w;
       }
-      // ends that terminate in flats stay exactly on the flat
+      // points on a flat (yards, forecourt, gate pad) stay exactly on it; blend back over ~30 m outside it
+      for (let i = 0; i < pts.length; i++) {
+        let fw = 0, fh = 0;
+        for (const f of this.flats) {
+          const w = this.flatWeight({ ...f, feather: 30 }, pts[i][0], pts[i][1]);
+          if (w > fw) { fw = w; fh = f.h!; }
+        }
+        if (fw > 0) heights[i] = lerp(heights[i], fh, fw);
+      }
       this.roads.push({ name: r.name, surface: r.surface, width: r.width, pts, cum, heights, route });
     };
     ROUTE.forEach((r) => addRoad(r, true));
@@ -209,6 +217,7 @@ export class EarthGen {
       const hx = f.rect ? f.rect[0] : f.r, hz = f.rect ? f.rect[1] : f.r;
       clearRect(f.x, f.z, hx + 6, hz + 6, 14);
     }
+    for (const hs of NASA.hillSites) clearRect(hs.x, hs.z, hs.kind === 'antenna_mast' ? 9 : 5, hs.kind === 'antenna_mast' ? 7 : 5, 8);
     for (const road of this.roads) {
       const half = road.width / 2 + 2.5;
       for (let k = 0; k < road.pts.length; k += 2) clearRect(road.pts[k][0], road.pts[k][1], half, half, 7);

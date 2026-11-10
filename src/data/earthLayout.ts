@@ -76,6 +76,12 @@ export const NASA = {
   /** silo centre (vertical axis) inside the mountain */
   silo: { x: 2900, z: -3350 },
   parking: [[2875, -3090], [2885, -3092], [2915, -3092], [2925, -3090]] as [number, number][],
+  /** structures on the hill above the portal (nasa_hill.glb nodes), placed on the terrain; forest is cleared round them */
+  hillSites: [
+    { kind: 'vent_stack', x: 2878, z: -3210, yaw: 0.2 },
+    { kind: 'vent_stack', x: 2926, z: -3236, yaw: -0.4 },
+    { kind: 'antenna_mast', x: 2944, z: -3298, yaw: 0.9 },
+  ] as { kind: string; x: number; z: number; yaw: number }[],
 };
 
 export interface FieldDef {

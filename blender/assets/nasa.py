@@ -13,7 +13,10 @@ Exports:
 import sys, os, math, random
 HERE = os.path.dirname(os.path.abspath(__file__))
 sys.path.insert(0, os.path.join(HERE, "..", "lib"))
+sys.path.insert(0, HERE)
+import bpy
 import kit, arch
+import nasa_portal
 from kit import V, box, cyl, prism, M, empty, merge, finish, set_props, lathe
 PI = math.pi
 LOW = -35.0
@@ -79,66 +82,7 @@ def nasa():
     root = empty("NASA")
     P, G, L, lights = [], [], [], []
     # ================================================================================== exterior: portal & forecourt
-    # massive concrete facade (trapezoid) set into the hill, opening 10 m × 7.5 m
-    face_poly = [(-24, 0), (24, 0), (20, 18), (-20, 18)]
-    facade = kit.prism_xz("facade", kit.ccw(face_poly), -1.5, 3.0, m="concrete")
-    opening = box("open_cut", (10.2, 8, 7.6), loc=(0, 0.7, 3.8), m="concrete_dark")
-    kit.boolean(facade, opening)
-    P.append(facade)
-    # recessed frame & lintel band, drainage channel, vents
-    P.append(box("lintel", (16, 1.2, 1.6), loc=(0, -1.7, 8.6), m="concrete_dark", bevel=0.05))
-    for sx in (-1, 1):
-        P.append(box("pier", (2.6, 1.6, 9.0), loc=(sx * 6.4, -1.6, 4.5), m="concrete_dark", bevel=0.05))
-        # wing walls holding back the hillside
-        w = box("wingwall", (22, 1.4, 9), loc=(sx * 30, -7, 4.0), rot=(0, 0, sx * 0.55), m="concrete", bevel=0.05)
-        P.append(w)
-        P.append(box("wing_cap", (22.2, 1.7, 0.4), loc=(sx * 30, -7, 8.6), rot=(0, 0, sx * 0.55), m="concrete_dark"))
-        col(f"COL_wing{sx}", (sx * 30, -7, 4.5), (22, 1.6, 9), sx * 0.55, root)
-        # floodlights and cameras on the facade
-        P.append(box("flood_arm", (0.15, 1.6, 0.15), loc=(sx * 9, -2.4, 10.5), m="steel_painted_gray"))
-        P.append(box("flood", (0.7, 0.45, 0.4), loc=(sx * 9, -3.1, 10.4), rot=(0.5, 0, 0), m="steel_painted_gray", bevel=0.03))
-        L.append(box("lampE|flood|f", (0.6, 0.02, 0.32), loc=(sx * 9, -3.35, 10.27), rot=(0.5, 0, 0), m="emit_white"))
-        lights.append(empty(f"light_flood_{len(lights)}", loc=(sx * 9, -5, 9), parent=root, light="cool", group="flood", intensity=60, distance=45))
-        P.append(box("cam_body", (0.18, 0.45, 0.18), loc=(sx * 5.6, -2.8, 9.3), rot=(0.35, 0, -sx * 0.4), m="steel_painted_white", bevel=0.03))
-        P.append(box("cam_mount", (0.06, 0.4, 0.06), loc=(sx * 5.6, -2.5, 9.4), m="metal_dark"))
-        P.append(box("cam_led", (0.03, 0.02, 0.03), loc=(sx * 5.6, -3.05, 9.25), m="emit_red"))
-    P.append(box("plaque", (1.6, 0.06, 0.5), loc=(9.5, -1.55, 2.2), m="metal_brushed"))
-    P.append(box("plaque_txt", (1.3, 0.02, 0.18), loc=(9.5, -1.6, 2.25), m="frame_black"))
-    for k in range(6):
-        P.append(box("vent", (1.2, 0.3, 0.5), loc=(-15 + k * 6, -1.6, 13.5), m="radiator_black"))
-    col("COL_facadeL", (-14.6, 0.75, 9), (19, 4.5, 18), 0, root)
-    col("COL_facadeR", (14.6, 0.75, 9), (19, 4.5, 18), 0, root)
-    col("COL_lintel", (0, 0.75, 12.8), (10.2, 4.5, 10.4), 0, root)
-    # forecourt: asphalt, jersey barriers, light poles, guard post, fence
-    P.append(box("forecourt", (60, 70, 0.1), loc=(0, -35, -0.03), m="asphalt"))
-    for k in range(10):
-        x = -22 + k * 4.8
-        P.append(box("parking_line", (0.12, 5.0, 0.012), loc=(x, -58, 0.03), m="paint_white_aero"))
-    for (x, y, r) in ((-8, -14, 0.0), (-4, -16, 0.0), (4, -16, 0.0), (8, -14, 0.0), (-14, -24, 1.3), (14, -24, -1.3)):
-        jb = kit.prism_xz("jersey", [(-0.3, 0), (0.3, 0), (0.12, 0.3), (0.1, 0.81), (-0.1, 0.81), (-0.12, 0.3)], -1.6, 1.6, m="concrete", loc=(x, y, 0))
-        jb.rotation_euler = (0, 0, r)
-        P.append(jb)
-        col("COL_jersey", (x, y, 0.4), (0.6, 3.2, 0.8), r, root)
-    for (x, y) in ((-22, -30), (22, -30), (-22, -60), (22, -60)):
-        P.append(cyl("lpole", 0.12, 9, loc=(x, y, 4.5), m="steel_galv", verts=10))
-        P.append(box("lhead", (1.1, 0.5, 0.2), loc=(x + (0.4 if x < 0 else -0.4), y, 9.0), m="steel_painted_gray"))
-        L.append(box("lampE|flood|p", (0.9, 0.4, 0.02), loc=(x + (0.4 if x < 0 else -0.4), y, 8.89), m="emit_white"))
-        lights.append(empty(f"light_flood_{len(lights)}", loc=(x, y, 8.2), parent=root, light="cool", group="flood", intensity=40, distance=35))
-        col("COL_lpole", (x, y, 4.5), (0.3, 0.3, 9), 0, root)
-    # guard post by the portal
-    gp = (13, -10)
-    for (a, b) in (((gp[0] - 1.5, gp[1] - 1.5), (gp[0] + 1.5, gp[1] - 1.5)), ((gp[0] + 1.5, gp[1] - 1.5), (gp[0] + 1.5, gp[1] + 1.5)), ((gp[0] + 1.5, gp[1] + 1.5), (gp[0] - 1.5, gp[1] + 1.5)), ((gp[0] - 1.5, gp[1] + 1.5), (gp[0] - 1.5, gp[1] - 1.5))):
-        arch.wall("gpw", a, b, 0, 1.0, 0.15, "concrete", [], parts=P)
-    P.append(box("gp_glass", (3.0, 3.0, 1.4), loc=(gp[0], gp[1], 1.7), m="glass_dark"))
-    P.append(box("gp_roof", (3.6, 3.6, 0.25), loc=(gp[0], gp[1], 2.5), m="concrete_dark", bevel=0.03))
-    col("COL_guard", (gp[0], gp[1], 1.3), (3.1, 3.1, 2.6), 0, root)
-    # chain-link fence along the forecourt edge
-    for side in (-1, 1):
-        for k in range(14):
-            P.append(cyl("fpost", 0.04, 2.6, loc=(side * 29, -8 - k * 4.5, 1.3), m="steel_galv", verts=8))
-        fn = box("fence_mesh", (0.02, 58.5, 2.4), loc=(side * 29, -37, 1.25), m="net")
-        P.append(fn)
-        col(f"COL_fence{side}", (side * 29, -37, 1.3), (0.1, 58.5, 2.6), 0, root)
+    nasa_portal.portal_exterior(root, P, G, L, lights)
 
     # ================================================================================== blast doors (slide into the piers)
     for sx, nm in ((-1, "L"), (1, "R")):
@@ -153,8 +97,6 @@ def nasa():
         dm.location = (0, 0, 0)
         finish(dm, 30)
         col(f"COL_blast_{nm}", (0, 0, 3.75), (5.1, 1.2, 7.5), 0, dv, door="nasa_blast")
-    box("blast_panel", (0.5, 0.15, 0.7), loc=(6.4, -2.45, 1.4), m="console_dark", par=root, interact="blastpanel", iid="nasa_blast_panel", bevel=0.02)
-    box("blast_panel_scr", (0.36, 0.02, 0.25), loc=(6.4, -2.53, 1.55), m="emit_green", par=root)
 
     # ================================================================================== entry tunnel y 3..60
     TW, TH = 10.0, 7.5
@@ -574,7 +516,7 @@ def nasa():
             kit.uv_box(o)
     kit.export_glb(os.path.join(kit.out_dir(), "nasa.glb"), root)
     pd = kit.preview_dir()
-    kit.preview(os.path.join(pd, "nasa_portal.png"), (22, -48, 9), (0, 0, 5), lens=30, samples=12, world=(0.7, 0.68, 0.6))
+    kit.preview(os.path.join(pd, "nasa_portal.png"), (-24, -52, 7), (0, -8, 6), lens=30, samples=16, world=(0.7, 0.68, 0.6))
 
 
 def gate():
@@ -680,7 +622,7 @@ def silo_doors():
 
 
 if __name__ == "__main__":
-    nasa()
-    gate()
-    rocket()
-    silo_doors()
+    only = [a for a in sys.argv[1:] if not a.startswith("-")]
+    for fn in (nasa, gate, rocket, silo_doors, nasa_portal.hill_structures):
+        if not only or fn.__name__ in only:
+            fn()

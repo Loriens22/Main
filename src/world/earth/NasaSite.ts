@@ -1,4 +1,5 @@
 import * as THREE from 'three';
+import { indexModel } from '../../render/Assets';
 import type { EarthContent } from './EarthContent';
 import { Site } from '../Site';
 import { NASA } from '../../data/earthLayout';
@@ -61,6 +62,50 @@ export class NasaSite {
     return this.content.zone;
   }
 
+  /** Ventilation stacks and the antenna mast on the hill above the portal; staff vehicles in the parking bays. */
+  private async placeHillAndParking() {
+    const game = this.game;
+    const z = this.zone;
+    try {
+      const hill = await game.assets.load('nasa_hill');
+      for (const hs of NASA.hillSites) {
+        const src = hill.scene.getObjectByName(hs.kind);
+        if (!src) continue;
+        const node = src.clone(true);
+        node.position.set(hs.x, z.height(hs.x, hs.z) - 0.25, hs.z);
+        node.rotation.set(0, hs.yaw, 0);
+        z.scene.add(node);
+        node.updateMatrixWorld(true);
+        const inst = indexModel(node);
+        z.ground.physics.addModelColliders(inst, node.matrixWorld.clone(), 'all');
+      }
+    } catch (e) {
+      console.warn('[nasa] hill structures unavailable', e);
+    }
+    // parked staff trucks in faded fleet colours (static, with box colliders)
+    const tints: [number, number, number][] = [[0.62, 0.63, 0.64], [0.08, 0.09, 0.1], [0.55, 0.5, 0.4], [0.32, 0.36, 0.4]];
+    for (let i = 0; i < NASA.parking.length; i++) {
+      const [px, pz] = NASA.parking[i];
+      const inst = await game.assets.instance('pickup');
+      const tint = new THREE.Color(...tints[i % tints.length]);
+      inst.root.traverse((o) => {
+        const m = o as THREE.Mesh;
+        if (!m.isMesh) return;
+        const mat = m.material as THREE.MeshStandardMaterial;
+        if (mat?.name?.startsWith('car_paint')) {
+          const c = mat.clone();
+          c.color.copy(mat.name.startsWith('car_paint_blue') ? tint.clone().multiplyScalar(0.6) : tint);
+          m.material = c;
+        }
+      });
+      const y = z.height(px, pz);
+      inst.root.position.set(px, y, pz);
+      inst.root.rotation.y = (i % 2 ? 0.04 : -0.03);
+      z.scene.add(inst.root);
+      z.ground.physics.addBox(new THREE.Vector3(0.98, 0.6, 2.8), new THREE.Vector3(px, y + 0.9, pz), inst.root.quaternion.clone());
+    }
+  }
+
   async load() {
     const game = this.game;
     const z = this.zone;
@@ -114,6 +159,7 @@ export class NasaSite {
         }),
       },
     });
+    await this.placeHillAndParking();
     // movers
     this.addMover('nasa_elevator', inst.nodes.get('elevator')!, ['COL_elevator_deck'], [0, LOW], new THREE.Box3(new THREE.Vector3(-4.2, -1, -4.2), new THREE.Vector3(4.2, 3, 4.2)), 2.2);
     this.addMover('gantry_lift', inst.nodes.get('gantry_lift')!, ['COL_gl_deck'], [LOW, LOW + 64.8], new THREE.Box3(new THREE.Vector3(-1.0, -1, -0.8), new THREE.Vector3(1.0, 3, 0.8)), 3.5);
