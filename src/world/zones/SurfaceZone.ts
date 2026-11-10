@@ -3,16 +3,14 @@ import { Zone, type SpawnSpec } from '../Zone';
 import { Frame } from '../Frame';
 import type { Game } from '../../core/Game';
 import type { RenderLayer } from '../../render/Renderer';
-import type { ModelInstance } from '../../render/Assets';
 import { Starfield, SunDisc } from '../../render/Globe';
 import { SolarSystem, helio, eclToThree } from '../../render/SolarSystem';
 import { Gargantua, AlienSky } from '../../render/Gargantua';
 import { BODIES } from '../../data/bodies';
 import { SURFACES, handoverAltitude, type SurfaceDef } from '../../data/landing';
 import { SPECS } from '../../data/vehicles';
-import { Spacecraft, type FlightEnv } from '../../vehicles/Spacecraft';
-import { FlightControl } from '../../vehicles/FlightControl';
-import { CraftModel } from '../../vehicles/CraftModel';
+import type { Spacecraft, FlightEnv } from '../../vehicles/Spacecraft';
+import type { FlightControl } from '../../vehicles/FlightControl';
 import { gmst, orbitSummary } from '../../space/earthFrame';
 import { MILLER_FACTOR } from '../../core/MissionClock';
 import type { V3 } from '../../space/kepler';
@@ -23,10 +21,8 @@ import { Heightmap } from '../terrain/Heightmap';
 import { BodyMap, SurfaceGen } from '../surface/SurfaceGen';
 import { surfaceShading, sunShadowPatch } from '../surface/surfaceShading';
 import { Rocks } from '../surface/Rocks';
-import { Site } from '../Site';
+import { RangerVehicle } from '../RangerVehicle';
 import { h } from '../../ui/UI';
-import type { Interactable } from '../../interact/Interaction';
-import type { LadderRef } from '../../player/Player';
 
 /** Where the Ranger is on (or above) a body's surface — persisted in vehicles.ranger1.data.surface. */
 export interface SurfaceState {
@@ -82,14 +78,22 @@ export default class SurfaceZone extends Zone implements SurfaceAPHost {
   targetName = '';
   env!: FlightEnv;
   // Ranger 1
-  r1Inst!: ModelInstance;
-  readonly r1Root = new THREE.Group();
-  r1Model!: CraftModel;
-  craft!: Spacecraft;
-  control!: FlightControl;
-  readonly r1Com = new THREE.Vector3();
-  rangerSite: Site | null = null;
-  private landedT = 0;
+  ranger!: RangerVehicle;
+  get craft() {
+    return this.ranger?.craft;
+  }
+  get control() {
+    return this.ranger?.control;
+  }
+  get rangerSite() {
+    return this.ranger?.site ?? null;
+  }
+  get r1Root() {
+    return this.ranger.root;
+  }
+  get r1Inst() {
+    return this.ranger.inst;
+  }
   private handing = false;
   private nearJob: Generator<number, import('../terrain/Heightmap').Heightmap> | null = null;
   private nearJobTier: 'near' | 'mid' = 'near';
@@ -191,27 +195,12 @@ export default class SurfaceZone extends Zone implements SurfaceAPHost {
     this.far.add(this.sunDisc.mesh);
     // Ranger 1
     progress(0.75, 'Ranger 1');
-    this.r1Inst = await game.assets.instance('ranger');
-    this.r1Root.add(this.r1Inst.root);
-    this.scene.add(this.r1Root);
-    this.r1Root.name = 'ranger1';
-    this.r1Model = new CraftModel(this.r1Inst, 'ranger');
-    this.r1Inst.root.traverse((o) => {
-      const m = o as THREE.Mesh;
-      if (!m.isMesh) return;
-      m.castShadow = true;
-      m.receiveShadow = true;
-      if (!/glass/i.test(m.name)) return;
-      const swap = (mat: THREE.Material) => {
-        if (!mat.name.startsWith('glass_dark')) return mat;
-        const c = (mat as THREE.MeshPhysicalMaterial).clone();
-        c.opacity = 0.18;
-        c.color.setRGB(0.05, 0.06, 0.07);
-        c.depthWrite = false;
-        return c;
-      };
-      m.material = Array.isArray(m.material) ? m.material.map(swap) : swap(m.material);
-    });
+    this.ranger = new RangerVehicle(this);
+    await this.ranger.load();
+    this.ranger.onTouchdown = () => {
+      game.notify(`Ranger 1 down on ${BODIES[this.site.body].name} — ${this.targetName}. F to stand up.`, 'ok', 6);
+      this.say('ward', `${BODIES[this.site.body].name}. ${this.targetName}. We're down.`);
+    };
     progress(0.85, 'boulders');
     const rc = this.map.lumAt(sd.lat, sd.lon);
     const style = this.def.style;
@@ -254,7 +243,11 @@ export default class SurfaceZone extends Zone implements SurfaceAPHost {
       ground: (p) => {
         const hgt = this.gen.field.height(p[0], p[2]) + this.rocks.bumpAt(p[0], p[2]);
         const n = this.gen.field.normal(p[0], p[2], 2.5);
-        return { h: hgt, n: [n.x, n.y, n.z] };
+        // Spacecraft compares heights along env.up (radial here): express the ground point the same way
+        const x = p[0] - c.x, y = p[1] - c.y, z = p[2] - c.z;
+        const r = Math.hypot(x, y, z);
+        const h = (p[0] * x + hgt * y + p[2] * z) / r;
+        return { h, n: [n.x, n.y, n.z] };
       },
       fictitious: (_p, v) => {
         // Coriolis −2ω × v (the centrifugal part is in gravity)
@@ -340,7 +333,7 @@ export default class SurfaceZone extends Zone implements SurfaceAPHost {
       program = ho.program;
       delete st.data.handover;
     } else if (at === 'landed' || at === 'eva') {
-      const p = this.landedPose(0, 0, 0);
+      const p = this.ranger.landedPose(0, 0, 0);
       st.pos = p.pos;
       st.vel = [0, 0, 0];
       st.quat = [p.q.x, p.q.y, p.q.z, p.q.w];
@@ -348,172 +341,33 @@ export default class SurfaceZone extends Zone implements SurfaceAPHost {
       st.landed = true;
       st.gearDown = true;
     }
-    this.craft = new Spacecraft(SPECS.ranger, st);
-    this.craft.unlimited = game.state.creative.unlimitedResources;
-    this.craft.sas = 'stability';
-    this.craft.onImpact = (s) => this.impact(s);
-    if (st.landed) {
-      this.craft.landed = true;
-      this.craft.contact = true;
-      this.craft.gearDown = true;
-    }
-    this.syncRanger();
-    this.r1Model.gearT = this.craft.gearDown ? 1 : 0;
-    this.seatPlayer();
+    this.ranger.create(st);
+    this.ranger.seat();
     if (program === 'descent') this.control.setAutopilot(new PoweredDescent(this, this.targetName));
     // airborne: start in the chase view so the descent and the ground are visible (the Ranger's windows are overhead)
     if (!st.landed) this.control.camMode = 'chase';
     if (at === 'eva') this.beginEva(true);
   }
 
-  /** Craft pose resting on its gear at (x, z) with heading `yaw` (rad from north). */
-  private landedPose(x: number, z: number, yaw: number) {
-    const n = this.gen.field.normal(x, z, 4);
-    // resting on the gear (a few millimetres of compression, so contact holds even in milli-g gravity)
-    const y = this.gen.field.height(x, z) + SPECS.ranger.gearHeight - 0.004;
-    const q = new THREE.Quaternion().setFromUnitVectors(new THREE.Vector3(0, 1, 0), n).multiply(new THREE.Quaternion().setFromAxisAngle(new THREE.Vector3(0, 1, 0), yaw));
-    return { pos: [x, y, z] as V3, q };
-  }
-
-  private seatPlayer() {
-    const game = this.game;
-    const seat = this.r1Inst.nodes.get('seat_pilot');
-    const eye = this.r1Inst.nodes.get('seat_pilot_eye');
-    const p = game.player;
-    p.enterFrame(this.ground, new THREE.Vector3(0, 0, 0), 0, 'walk');
-    if (seat && eye) p.sit({ id: 'ranger1_pilot', anchor: seat, eye, frame: this.ground, exit: () => this.modelToLocal(new THREE.Vector3(0, 0.45, 1.1)), yawLimit: 1.6 });
-    p.mode = 'seat';
-    if (this.control) this.control.dispose();
-    this.control = new FlightControl(game, 'ranger1', this.craft, this.r1Root, eye ?? null, this.env, 'RANGER 1');
-    this.control.camModes = ['cockpit', 'chase', 'orbital'];
-    this.control.infoFn = () => this.hudInfo();
-    this.control.exitFn = () => this.leaveSeat();
-    game.setControl(this.control);
-  }
-
-  /** model-space point of the Ranger (three axes, relative to the GLB root) → frame local */
-  private modelToLocal(v: THREE.Vector3) {
-    this.r1Inst.root.updateWorldMatrix(true, false);
-    return v.clone().applyMatrix4(this.r1Inst.root.matrixWorld);
-  }
-
-  private leaveSeat(): boolean {
-    if (!this.craft.landed) {
-      this.game.notify('Land first — you cannot leave the pilot seat in flight.', 'warn', 2.5);
-      return false;
-    }
-    this.makeRangerSite();
-    // stand in the cabin aisle; FlightControl is released by the game
-    setTimeout(() => {
-      const pl = this.game.player;
-      if (pl.mode === 'seat') pl.stand();
-      this.game.notify('Cabin door, then the rear hatch (E) — the ladder takes you down to the surface.', 'info', 6);
-    }, 0);
-    return true;
-  }
-
-  /** Re-board: sit in the pilot seat and take the controls. */
-  boardPilotSeat() {
-    this.seatPlayer();
-    this.game.audio.ui('click');
-  }
-
   /** Straight to the surface beside the ladder (debug / quick EVA). */
   beginEva(quiet = false) {
-    this.makeRangerSite();
-    this.game.setControl(null);
-    const foot = this.modelToLocal(new THREE.Vector3(0, -1.2, 10.4));
-    foot.y = this.gen.field.height(foot.x, foot.z) + 0.05;
-    this.game.player.stand?.();
-    this.game.player.enterFrame(this.ground, foot, Math.PI, 'walk');
-    this.game.input.context = 'walk';
-    if (!quiet) this.game.notify('EVA — on the surface.', 'info', 3);
+    this.ranger.beginEva(quiet);
   }
 
-  // ===================================================================================================== Ranger as a walkable site
-  private makeRangerSite() {
-    if (this.rangerSite) return;
-    const inst = this.r1Inst;
-    inst.root.updateWorldMatrix(true, false);
-    const placement = inst.root.matrixWorld.clone();
-    this.rangerSite = new Site(this.game, inst, {
-      name: 'ranger1', frame: this.ground, parent: this.scene, placement, doorSound: 'hatch', colliders: 'all',
-      handlers: {
-        ladder: (n, site) => this.rangerLadder(n, site),
-        hatch: (n, site) => {
-          const d = site.registerDoor(n, 'hatch');
-          d.locked = () => null;
-          return null;
-        },
-      },
-    });
-    // the pilot seat: sit down and take the controls
-    const seat = inst.nodes.get('seat_pilot');
-    if (seat) {
-      this.rangerSite.register({
-        id: 'ranger1:pilot', targets: [seat], range: 2,
-        label: () => 'Take the pilot seat',
-        use: () => this.boardPilotSeat(),
-      } as Interactable);
-    }
-  }
-
-  private removeRangerSite() {
-    const s = this.rangerSite;
-    if (!s) return;
-    for (const cols of s.colliderMap.values()) for (const c of cols) this.ground.physics.world.removeCollider(c, false);
-    for (const id of ['ranger_rear_hatch', 'ranger_cabin_door']) this.ground.physics.doors.delete(id);
-    // close the hatches for flight
-    for (const d of s.doors.values()) {
-      d.open = false;
-      d.t = 0;
-      d.node.quaternion.copy(d.baseQ);
-    }
-    s.dispose();
-    this.rangerSite = null;
-    this.r1Inst.root.position.copy(this.r1Com).negate();
-    this.r1Inst.root.quaternion.identity();
-    this.r1Inst.root.scale.setScalar(1);
-    this.r1Root.add(this.r1Inst.root);
-  }
-
-  private rangerLadder(n: THREE.Object3D, site: Site): Interactable | null {
-    const top = this.modelToLocal(new THREE.Vector3(0, 0.42, 8.62));
-    const bottom = this.modelToLocal(new THREE.Vector3(0, -1.25, 8.62));
-    const exitB = this.modelToLocal(new THREE.Vector3(0, 0.5, 7.85));
-    const exitA = this.modelToLocal(new THREE.Vector3(0, -1.2, 9.5));
-    exitA.y = this.gen.field.height(exitA.x, exitA.z) + 0.05;
-    bottom.y = Math.max(bottom.y, exitA.y + 0.2);
-    const face = this.modelToLocal(new THREE.Vector3(0, 0, 0)).sub(this.modelToLocal(new THREE.Vector3(0, 0, 1))).normalize();
-    const ref: LadderRef = { id: 'ranger_ladder', frame: this.ground, a: bottom, b: top, exitA, exitB, face };
-    return {
-      id: 'ranger1:ladder', targets: [n], range: 2.4,
-      label: () => {
-        const d = site.doors.get('ranger_rear_hatch');
-        return d && !d.open ? 'Open the rear hatch first' : 'Climb the ladder';
-      },
-      use: () => {
-        const d = site.doors.get('ranger_rear_hatch');
-        if (d && !d.open) {
-          site.toggleDoor('ranger_rear_hatch', true);
-          return;
-        }
-        this.game.player.grabLadder(ref);
-      },
-    } as Interactable;
+  removeRangerSite() {
+    this.ranger.removeSite();
   }
 
   private cabinPressurised(l: THREE.Vector3) {
-    if (!this.r1Inst) return false;
-    const inv = new THREE.Matrix4().copy(this.r1Inst.root.matrixWorld).invert();
-    const m = l.clone().applyMatrix4(inv);
-    const inside = Math.abs(m.x) < 2.3 && m.y > -0.2 && m.y < 2.6 && m.z > -2 && m.z < 8.4;
-    const hatch = this.rangerSite?.doors.get('ranger_rear_hatch');
-    return inside && !(hatch && hatch.t > 0.05);
+    return this.ranger ? this.ranger.cabinPressurised(l) : false;
+  }
+
+  groundNormal(x: number, z: number) {
+    return this.gen.field.normal(x, z, 4);
   }
 
   // ===================================================================================================== HUD / menu
-  private hudInfo() {
+  hudInfo() {
     const c = this.craft;
     const agl = c.pos[1] - this.ground_(c.pos[0], c.pos[2]);
     const up = new THREE.Vector3(...this.env.up(c.pos));
@@ -536,9 +390,19 @@ export default class SurfaceZone extends Zone implements SurfaceAPHost {
   }
 
   /** Engage the ascent-to-orbit program (menu / tests). */
+  /** Ascent targets: airless — a low orbit just above the handover; atmosphere — climb out steeply (≈4 scale
+   * heights) before building speed, apoapsis above the atmosphere so the orbit does not decay. */
+  ascentPlan() {
+    const atm = ATMO_SURF[this.site.body];
+    const top = ATMOS_TOP[this.site.body] ?? 0;
+    const apT = atm ? Math.max(this.hHand + 15e3, top * 0.85) : this.hHand + Math.min(15e3, 0.5 * this.hHand);
+    const climb = atm ? Math.min(Math.max(4 * atm.H, this.hHand + 8e3), apT * 0.7) : Math.max(this.hHand * 0.35, 3e3);
+    return { apT, climb, maxVr: atm ? 320 : 160 };
+  }
+
   ascend() {
-    const apT = this.hHand + Math.min(15e3, 0.4 * this.hHand);
-    this.control.setAutopilot(new AscentToOrbit(this, apT, Math.max(this.hHand * 0.35, 3e3)));
+    const p = this.ascentPlan();
+    this.control.setAutopilot(new AscentToOrbit(this, p.apT, p.climb, p.maxVr));
   }
 
   openAutopilotMenu(ctrl: FlightControl) {
@@ -546,7 +410,7 @@ export default class SurfaceZone extends Zone implements SurfaceAPHost {
     game.input.releaseLock();
     const c = this.craft;
     const agl = c.pos[1] - this.ground_(c.pos[0], c.pos[2]);
-    const apT = this.hHand + Math.min(15e3, 0.4 * this.hHand);
+    const apT = this.ascentPlan().apT;
     game.ui.openPanel('RANGER 1 — FLIGHT COMPUTER', (b, p) => {
       const pick = (fn: () => void) => () => {
         fn();
@@ -582,45 +446,15 @@ export default class SurfaceZone extends Zone implements SurfaceAPHost {
     const t = game.state.clock.earthTime;
     this.omegaL = localOmega(this.site, t);
     const c = this.craft;
-    const flying = game.control === this.control;
-    // ---- leave the walkable-site mode when the craft is about to move
-    if (this.rangerSite && flying && (c.throttle > 0.01 || c.vtol > 0.05 || this.control.autopilot)) {
-      this.removeRangerSite();
-      c.landed = false;
-    }
-    // ---- physics
-    if (!this.rangerSite) {
-      let rem = dt;
-      let guard = 0;
-      while (rem > 1e-6 && guard++ < 200) {
-        const h = Math.min(rem, 0.02);
-        if (this.control.autopilot) this.control.runAutopilot(h);
-        c.step(h, this.env);
-        rem -= h;
-      }
-      if (c.landed && c.throttle < 0.01 && c.vtol < 0.02) {
-        this.landedT += dt;
-        if (this.landedT > 0.6) {
-          for (let k = 0; k < 3; k++) c.vel[k] = 0;
-          c.angVel.set(0, 0, 0);
-        }
-      } else this.landedT = 0;
-      c.writeState();
-      if (this.landedT > 1.2 && !this.control.autopilot) {
-        this.makeRangerSite();
-        game.notify(`Ranger 1 down on ${BODIES[this.site.body].name} — ${this.targetName}. F to stand up.`, 'ok', 6);
-        this.say('ward', `${BODIES[this.site.body].name}. ${this.targetName}. We're down.`);
-      }
-    }
-    this.syncRanger();
-    // ---- models & effects
-    this.r1Model.update(dt, this.rangerSite ? null : c, 0);
+    // ---- the Ranger: physics with autopilot, touchdown, walkable site
+    this.ranger.update(dt);
     this.updateDust(dt);
     // ---- ascent handover back to orbit
     const alt = this.env.altitude(c.pos);
-    if (!this.handing && !this.rangerSite && alt > this.hHand + 3e3) {
+    const ascAp = this.control.autopilot instanceof AscentToOrbit ? this.control.autopilot : null;
+    if (!this.handing && !this.rangerSite && alt > this.hHand + Math.min(3e3, 0.15 * this.hHand) && ascAp?.phase !== 'hop') {
       const up = new THREE.Vector3(...this.env.up(c.pos));
-      if (new THREE.Vector3(...c.vel).dot(up) > 0) this.handToOrbit();
+      if (new THREE.Vector3(...c.vel).dot(up) > 0 || ascAp?.phase === 'orbit') this.handToOrbit();
     }
     // ---- terrain & streaming
     this.terrain.update(game.camera);
@@ -636,42 +470,11 @@ export default class SurfaceZone extends Zone implements SurfaceAPHost {
     const camP = game.camera.position;
     this.rocks.update(camP.distanceTo(focus) < 600 ? focus : camP, pl.mode !== 'seat' ? ph : null);
     this.rocks.group.visible = this.env.altitude([camP.x, camP.y, camP.z]) - (this.gen.field.height(camP.x, camP.z) - this.center.y - BODIES[this.site.body].radius) < 3000;
-    this.rangerSite?.update(dt);
     if (pl.frame === this.ground && pl.mode !== 'seat') ph.step(dt);
     // helmet visor outside the pressurised cabin
     const fx = game.renderer.fx;
     fx.visor = THREE.MathUtils.damp(fx.visor, pl.mode !== 'seat' && !this.cabinPressurised(pl.pos) ? 0.55 : 0, 3, dt);
     this.updateSky(dt);
-  }
-
-  private syncRanger() {
-    const c = this.craft;
-    if (this.rangerSite) return;
-    this.r1Root.position.set(c.pos[0], c.pos[1], c.pos[2]);
-    this.r1Root.quaternion.copy(c.quat);
-    this.r1Inst.root.position.copy(this.r1Com).negate();
-    this.r1Root.updateMatrixWorld(true);
-  }
-
-  private impact(speed: number) {
-    if (speed < 3.5) return;
-    const g = this.game;
-    if (speed < 9) {
-      g.notify(`Hard landing — ${speed.toFixed(1)} m/s. Gear stressed.`, 'warn', 4);
-      const d = g.state.vehicles.ranger1.damage;
-      d.gear = Math.max(0, (d.gear ?? 1) - (speed - 3.5) * 0.08);
-      g.renderer.fx.shake = 0.6;
-      return;
-    }
-    g.renderer.fx.shake = 1.2;
-    if (g.state.creative.damageProtection) {
-      g.notify(`Crash at ${speed.toFixed(0)} m/s — Creative mode: the Ranger survives.`, 'alert', 6);
-      return;
-    }
-    g.notify(`Ranger 1 crashed at ${speed.toFixed(0)} m/s.`, 'alert', 8);
-    const d = g.state.vehicles.ranger1.damage;
-    d.hull = Math.max(0, (d.hull ?? 1) - speed * 0.03);
-    d.engines = Math.max(0, (d.engines ?? 1) - speed * 0.02);
   }
 
   private handToOrbit() {
@@ -682,7 +485,7 @@ export default class SurfaceZone extends Zone implements SurfaceAPHost {
     const t = game.state.clock.earthTime;
     const I = localToInertial(this.site, t, c.pos as V3, c.vel as V3, c.quat);
     const asc = this.control.autopilot instanceof AscentToOrbit ? this.control.autopilot : null;
-    const ho: Handover = { r: I.r, v: I.v, q: [I.q.x, I.q.y, I.q.z, I.q.w], t, program: asc ? 'orbit-insertion' : undefined, apTarget: asc?.apTarget };
+    const ho: Handover = { r: I.r, v: I.v, q: [I.q.x, I.q.y, I.q.z, I.q.w], t, program: asc && asc.phase !== 'orbit' ? 'orbit-insertion' : undefined, apTarget: asc?.apTarget };
     st.data.handover = ho;
     st.landed = false;
     st.location = 'space';
@@ -980,7 +783,7 @@ export default class SurfaceZone extends Zone implements SurfaceAPHost {
     this.exposure = THREE.MathUtils.damp(this.exposure, base * (1 + night * 2.2), 1.2, dt);
     this.envT -= dt;
     const envKey = this.sunLocal.x * 7 + this.sunLocal.y * 13 + this.sunLocal.z * 3 + day * 5 + this.sunVisCPU * 2;
-    if (this.envT <= 0 && (Math.abs(envKey - this.envKey) > 0.03 || this.envT < -30)) {
+    if (this.envT <= 0 && !this.game.skipRender && (Math.abs(envKey - this.envKey) > 0.03 || this.envT < -30)) {
       this.envT = 3;
       this.envKey = envKey;
       this.refreshEnvironment(day, atm ? atm.sky : [0, 0, 0], sAlb);
@@ -1075,6 +878,8 @@ export default class SurfaceZone extends Zone implements SurfaceAPHost {
 
 /** Near-surface atmosphere for flight and lighting (thin Mars, thick Titan). */
 type C3 = [number, number, number];
+/** top of the atmosphere (m), as the orbital zone models it (space/earthFrame ATMOS) */
+const ATMOS_TOP: Record<string, number> = { mars: 150e3, titan: 600e3, miller: 110e3, mann: 80e3, edmunds: 100e3 };
 const ATMO_SURF: Record<string, { rho0: number; H: number; tau: C3; sky: C3; skyK: number; sunK: number; zenith: C3; horizon: C3; glow: C3; alpha: number; fog: number }> = {
   // dusty butterscotch sky, blue aureole around the Sun (forward scattering by fine dust)
   mars: { rho0: 0.02, H: 11100, tau: [0.22, 0.33, 0.48], sky: [0.62, 0.44, 0.3], skyK: 0.75, sunK: 0.9, zenith: [0.46, 0.3, 0.2], horizon: [0.8, 0.58, 0.4], glow: [0.5, 0.58, 0.7], alpha: 0.93, fog: 1 / 38000 },

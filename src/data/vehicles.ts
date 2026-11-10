@@ -31,7 +31,7 @@ export const SPECS: Record<string, SpacecraftSpec> = {
   ranger: {
     kind: 'ranger',
     dryMass: 22000,
-    propMax: 19000,
+    propMax: 26000, // ≈11.5 km/s: a powered descent and a climb back to orbit on Mars-class worlds
     mainThrust: 950e3,
     mainIsp: 1500,
     vtolThrust: 780e3,

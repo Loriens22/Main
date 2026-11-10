@@ -43,7 +43,8 @@ export function newGameState(): GameState {
   add(vehicle('combine1', 'combine', 'Combine 1', 'earth', FARM_VEHICLE_SPOTS.combine1.pos, { quat: FARM_VEHICLE_SPOTS.combine1.quat }));
   add(vehicle('combine2', 'combine', 'Combine 2', 'earth', FARM_VEHICLE_SPOTS.combine2.pos, { quat: FARM_VEHICLE_SPOTS.combine2.quat }));
   // Ranger 1 stands on its launch vehicle in the NASA silo
-  add(vehicle('ranger1', 'ranger', 'Ranger 1', 'earth', [0, 0, 0], { data: { mounted: true, stage: 'pad' }, gearDown: false }));
+  // launched with 19 t aboard (the launch vehicle's rated payload); the Endurance tops the tanks up once docked
+  add(vehicle('ranger1', 'ranger', 'Ranger 1', 'earth', [0, 0, 0], { fuel: 19000, data: { mounted: true, stage: 'pad' }, gearDown: false }));
 
   // ---- In orbit: Endurance with Ranger 2 and both Landers docked
   add(vehicle('endurance', 'endurance', 'Endurance', 'space', [0, 0, 0], { gearDown: false }));

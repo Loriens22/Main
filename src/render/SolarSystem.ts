@@ -681,7 +681,7 @@ export class WormholeLens {
   }
 
   /** Position the lens (km, relative to the far camera) and refresh the sky capture every few seconds. */
-  update(rel: THREE.Vector3, renderer: THREE.WebGLRenderer, scene: THREE.Scene, dt: number) {
+  update(rel: THREE.Vector3, renderer: THREE.WebGLRenderer, scene: THREE.Scene, dt: number, canCapture = true) {
     const dist = rel.length();
     const sc = dist > SCALED_KM ? SCALED_KM / dist : 1;
     this.mesh.position.copy(rel).multiplyScalar(sc);
@@ -692,7 +692,7 @@ export class WormholeLens {
     u.uTime.value += dt;
     this.mesh.visible = dist < 5e6;
     this.captureT -= dt;
-    if (this.mesh.visible && dist < 2e4 && this.captureT <= 0) {
+    if (canCapture && this.mesh.visible && dist < 2e4 && this.captureT <= 0) {
       this.captureT = 6;
       this.mesh.visible = false;
       this.cubeCam.position.set(0, 0, 0);

@@ -95,6 +95,10 @@ export function orbitSummary(r: V3, v: V3, mu = PRIMARY.mu, Rb = PRIMARY.R) {
     inc: Math.acos(THREE.MathUtils.clamp(h.y / h.length(), -1, 1)),
     alt: rn - Rb,
     vr: R.dot(Vv) / rn,
+    /** horizontal (tangential) speed */
+    vh: h.length() / rn,
+    r: rn,
+    mu,
   };
 }
 

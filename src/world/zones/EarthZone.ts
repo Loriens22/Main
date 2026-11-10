@@ -14,6 +14,8 @@ import { EarthContent } from '../earth/EarthContent';
 import { CloudLayer } from '../../render/Clouds';
 import { LaunchSequence } from '../earth/Launch';
 import type { NasaSite } from '../earth/NasaSite';
+import { RangerReturn, type EarthReentry } from '../earth/RangerReturn';
+import type { FlightControl } from '../../vehicles/FlightControl';
 
 /**
  * Earth: the dying farmland, the six-kilometre road and the hidden NASA facility.
@@ -36,6 +38,8 @@ export default class EarthZone extends Zone {
   storm = 0; // 0..1 dust storm intensity (driven by Weather)
   clouds!: CloudLayer;
   launch: LaunchSequence | null = null;
+  /** Ranger 1 back from space (re-entry, landed at the facility or the farm) */
+  returnFlight: RangerReturn | null = null;
 
   constructor(game: Game) {
     super(game);
@@ -95,6 +99,12 @@ export default class EarthZone extends Zone {
     progress(0.6, 'farm & facility');
     this.content = new EarthContent(this);
     await this.content.load((p, m) => progress(0.6 + p * 0.38, m));
+    const r1 = game.state.vehicles.ranger1;
+    if (r1.data.reentry || r1.data.onEarth) {
+      progress(0.99, 'Ranger 1');
+      this.returnFlight = new RangerReturn(this);
+      await this.returnFlight.load();
+    }
     progress(1, 'ready');
   }
 
@@ -129,8 +139,25 @@ export default class EarthZone extends Zone {
     return this.gen.height(x, z);
   }
 
+  /** flight computer for the returning Ranger */
+  openAutopilotMenu(ctrl: FlightControl) {
+    if (this.returnFlight && ctrl === this.returnFlight.control) this.returnFlight.openMenu(ctrl);
+  }
+
   spawn(spec: SpawnSpec) {
     const p = this.game.player;
+    const r1 = this.game.state.vehicles.ranger1;
+    if (this.returnFlight) {
+      if (spec.at === 'reentry' && r1.data.reentry) {
+        const re = r1.data.reentry as EarthReentry;
+        delete r1.data.reentry;
+        this.returnFlight.startReentry(re);
+        return;
+      }
+      const seated = spec.at === 'seat:ranger1_pilot' || spec.at === 'ranger1';
+      this.returnFlight.startParked(seated ? 'seat' : spec.at === 'ranger1:eva' ? 'eva' : 'none');
+      if (seated || spec.at === 'ranger1:eva') return;
+    }
     if (spec.at === 'menu') {
       // player parked at the farm while the menu cinematic runs
       const s = new THREE.Vector3(...FARM_SPAWN.pos);
@@ -247,7 +274,7 @@ export default class EarthZone extends Zone {
     this.exposure = THREE.MathUtils.clamp(0.95 / Math.max(0.12, sunI * (1 - this.storm * 0.5) + 0.05), 0.8, 6) * (this.content?.interiorExposure() ?? 1);
     // IBL refresh
     this.envTimer -= dt;
-    if (this.envTimer <= 0) {
+    if (this.envTimer <= 0 && !this.game.skipRender) {
       this.envTimer = 2;
       const env = this.sky.updateEnvironment(game.renderer.pmrem);
       this.scene.environment = env;
@@ -275,6 +302,7 @@ export default class EarthZone extends Zone {
     }
     this.content.update(dt, dtEarth);
     this.launch?.update(dt);
+    this.returnFlight?.update(dt);
     ph.step(dt);
     // ambience
     this.updateAmbience();
@@ -327,7 +355,13 @@ export default class EarthZone extends Zone {
   }
 
   writeState() {
+    this.returnFlight?.writeState();
     this.content?.writeState();
+  }
+
+  dispose() {
+    this.returnFlight?.dispose();
+    super.dispose();
   }
 
   recoverSpacecraft() {

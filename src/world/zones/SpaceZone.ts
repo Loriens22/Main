@@ -25,6 +25,7 @@ import { DeorbitLanding, brakingDistance } from '../../space/Landing';
 import { SURFACES, isLandable, handoverAltitude } from '../../data/landing';
 import { makeSite, bodyRot, bodyOmega } from '../../space/surfaceFrame';
 import type { SurfaceState, Handover } from './SurfaceZone';
+import { EARTH_HANDOVER, EARTH_TARGETS, earthLatLon, inertialToEarth, insideEarthMap, type EarthReentry } from '../earth/RangerReturn';
 import { SITE } from '../../space/astro';
 import { CHARACTERS, CREW } from '../../data/characters';
 import { Humanoid } from '../../npc/Humanoid';
@@ -772,8 +773,8 @@ export default class SpaceZone extends Zone implements ProxHost {
       add('ORBIT INSERTION', `Burn to a stable parking orbit (periapsis above ${(safe / 1000).toFixed(0)} km).`, !this.r1Docked && s.pe < safe * 1.2, () => ctrl.setAutopilot(new OrbitInsertion(this, PRIMARY.id === 'earth' ? 290e3 : Math.max(safe * 1.6, 30e3))));
       add('RENDEZVOUS + DOCK', 'Plan a Lambert transfer to the Endurance, burn, correct, brake at the hold point, then dock at the forward port (time compressed).', !this.r1Docked && s.pe > safe, () => ctrl.setAutopilot(new Rendezvous(this, () => ctrl.setAutopilot(new DockingApproach(this)))));
       add('DOCKING APPROACH', 'From within 3 km: close to the 150 m hold point, align, match the ring\'s spin and dock.', !this.r1Docked && rel.dist < 3000, () => ctrl.setAutopilot(new DockingApproach(this)));
-      const landable = isLandable(PRIMARY.id);
-      add('DEORBIT & LAND', landable ? `Choose a landing site on ${BODIES[PRIMARY.id].name}: deorbit burn, descent coast and powered descent to touchdown.` : `${BODIES[PRIMARY.id]?.name ?? 'This body'} has no surface the Ranger can land on.`, !this.r1Docked && landable && s.pe > 0, () => setTimeout(() => this.openLandingPicker(ctrl), 30));
+      const landable = this.landableHere();
+      add(PRIMARY.id === 'earth' ? 'RETURN TO EARTH' : 'DEORBIT & LAND', PRIMARY.id === 'earth' ? 'Deorbit, re-entry belly-first (lift up), powered descent to the NASA facility or the farm.' : landable ? `Choose a landing site on ${BODIES[PRIMARY.id].name}: deorbit burn, descent coast and powered descent to touchdown.` : `${BODIES[PRIMARY.id]?.name ?? 'This body'} has no surface the Ranger can land on.`, !this.r1Docked && landable && s.pe > 0, () => setTimeout(() => this.openLandingPicker(ctrl), 30));
       add('UNDOCK', 'Release the capture latches and back away from the forward port at 0.3 m/s (the Ranger keeps the ring\'s spin until SAS damps it).', this.r1Docked, () => this.undock());
       add('ENDURANCE NAVIGATION', 'Interplanetary transfers: plan, engage, cruise (cryosleep or time warp), capture into orbit at the destination.', this.r1Docked, () => setTimeout(() => import('../../ui/Panels').then((P) => P.openMissionComputer(game, 'nav')), 50));
       add('DISENGAGE AUTOPILOT', 'Manual flight: W/S pitch, A/D yaw, Q/E roll, I/K/J/L/H/N translate, Shift/Ctrl throttle, T SAS mode.', !!ctrl.autopilot, () => ctrl.setAutopilot(null));
@@ -813,6 +814,17 @@ export default class SpaceZone extends Zone implements ProxHost {
     const en = game.state.endurance;
     en.omega = THREE.MathUtils.damp(en.omega, en.targetOmega, 0.05, dE);
     en.spinAngle = (en.spinAngle + en.omega * dE) % (Math.PI * 2);
+    // docked: the Endurance tops up Ranger 1's tanks through the port (≈120 kg/s)
+    const r1s = game.state.vehicles.ranger1, evs = game.state.vehicles.endurance;
+    if (this.r1Docked && r1s.fuel < r1s.fuelMax && evs.fuel > 0 && dE > 0) {
+      const xfer = Math.min(r1s.fuelMax - r1s.fuel, 120 * dE, evs.fuel);
+      r1s.fuel += xfer;
+      evs.fuel -= xfer;
+      if (r1s.fuel >= r1s.fuelMax - 0.5 && !this.refuelSaid) {
+        this.refuelSaid = true;
+        this.say('computer', 'Ranger 1 propellant transfer complete.');
+      }
+    }
     // ---- physics substeps (analytic Kepler propagation while coasting)
     let guard = 0;
     while (tEnd - t > 1e-6 && guard++ < 3000) {
@@ -901,6 +913,7 @@ export default class SpaceZone extends Zone implements ProxHost {
     this.updateSky(dt);
   }
   private reentryWarned = false;
+  private refuelSaid = false;
   private handing = false;
 
   /** Low over a landable body: hand over to the surface zone; into a gas giant / Venus: the Ranger is lost. */
@@ -908,6 +921,10 @@ export default class SpaceZone extends Zone implements ProxHost {
     const alt = this.env.altitude(this.craft.pos);
     const id = PRIMARY.id;
     if (id === this.centre()) return;
+    if (id === 'earth') {
+      if (alt < EARTH_HANDOVER) this.handToEarth();
+      return;
+    }
     if (isLandable(id)) {
       if (alt < handoverAltitude(id, PRIMARY.R)) this.handToSurface();
       return;
@@ -957,22 +974,69 @@ export default class SpaceZone extends Zone implements ProxHost {
   }
 
   /** Engage the deorbit-and-landing autopilot for a site on the current body. */
-  landAt(lat: number, lon: number, name: string) {
-    if (!isLandable(PRIMARY.id) || this.r1Docked) return false;
-    this.control.setAutopilot(new DeorbitLanding(this, makeSite(PRIMARY.id, lat, lon), name, handoverAltitude(PRIMARY.id, PRIMARY.R)));
+  landAt(lat: number, lon: number, name: string, tag = '') {
+    if (!this.landableHere() || this.r1Docked) return false;
+    const hh = PRIMARY.id === 'earth' ? EARTH_HANDOVER : handoverAltitude(PRIMARY.id, PRIMARY.R);
+    const ap = new DeorbitLanding(this, makeSite(PRIMARY.id, lat, lon), name, hh);
+    ap.tag = tag;
+    this.control.setAutopilot(ap);
     return true;
   }
+
+  /** Every SURFACES body, plus Earth (the mapped region around the NASA facility and the farm). */
+  landableHere() {
+    return isLandable(PRIMARY.id) || PRIMARY.id === 'earth';
+  }
+
+  /** Return to Earth: pick the NASA forecourt or the farm. */
+  landOnEarth(target: 'nasa' | 'farm') {
+    const tg = EARTH_TARGETS.find((x) => x.id === target)!;
+    const ll = earthLatLon(tg.x, tg.z);
+    return this.landAt(ll.lat, ll.lon, tg.name, tg.id);
+  }
+
+  /** Below the hand-over altitude over Earth: into the Earth zone if over the mapped region. */
+  private handToEarth() {
+    const game = this.game;
+    const c = this.craft;
+    const t = this.tSim;
+    const ap = this.control.autopilot;
+    const E = inertialToEarth(c.pos as V3, c.vel as V3, c.quat, t, 1.6);
+    if (!insideEarthMap(E.p[0], E.p[2])) {
+      if (!this.reentryWarned2) {
+        this.reentryWarned2 = true;
+        game.notify('Re-entry outside the mapped region: only the plains and foothills around the NASA facility are mapped. Use DEORBIT & LAND to come down there.', 'alert', 9);
+      }
+      if (this.env.altitude(c.pos) < 300) {
+        this.handing = true;
+        game.notify('Ranger 1 was lost on landing outside the mapped region.', 'alert', 9);
+        void game.goTo('space', { at: 'docked' }, { fade: 1.5 });
+      }
+      return;
+    }
+    this.handing = true;
+    const st = game.state.vehicles.ranger1;
+    const tgt = ap instanceof DeorbitLanding && ap.tag ? (ap.tag as 'nasa' | 'farm') : EARTH_TARGETS.reduce((b, x) => (Math.hypot(x.x - E.p[0], x.z - E.p[2]) < Math.hypot(b.x - E.p[0], b.z - E.p[2]) ? x : b)).id;
+    const re: EarthReentry = { r: [...c.pos] as V3, v: [...c.vel] as V3, q: [c.quat.x, c.quat.y, c.quat.z, c.quat.w], t, target: tgt, autoland: ap instanceof DeorbitLanding };
+    st.data.reentry = re;
+    delete st.data.surface;
+    st.location = 'earth';
+    this.control.setAutopilot(null);
+    void game.goTo('earth', { at: 'reentry' }, { fade: 0.6 });
+  }
+  private reentryWarned2 = false;
 
   /** Landing-site picker for the current body. */
   private openLandingPicker(ctrl: FlightControl) {
     const game = this.game;
     const id = PRIMARY.id;
-    const def = SURFACES[id];
+    const earth = id === 'earth';
+    const def = earth ? { sites: EARTH_TARGETS.map((tg) => ({ ...earthLatLon(tg.x, tg.z), name: tg.name, tag: tg.id, note: tg.id === 'nasa' ? 'The paved forecourt outside the facility blast doors.' : 'The cornfield north of the farmhouse.' })) } : SURFACES[id];
     const c = this.craft;
     const s = orbitSummary(c.pos, c.vel);
     game.ui.openPanel(`LANDING SITE — ${(BODIES[id]?.name ?? id).toUpperCase()}`, (b, p) => {
-      const engage = (lat: number, lon: number, name: string) => {
-        this.landAt(lat, lon, name);
+      const engage = (lat: number, lon: number, name: string, tag = '') => {
+        this.landAt(lat, lon, name, tag);
         p.close();
         game.input.requestLock();
       };
@@ -981,11 +1045,12 @@ export default class SpaceZone extends Zone implements ProxHost {
       const est = vOrb * 1.08 + 150;
       b.append(h('div', { class: 'dim', style: { fontSize: '12px', marginBottom: '10px' } },
         `Deorbit, coast to the approach gate ${(handoverAltitude(id, PRIMARY.R) / 1000).toFixed(0)} km up and ${(brakingDistance(PRIMARY.mu, PRIMARY.R, aB) / 1000).toFixed(0)} km up-range, then powered descent. Descent Δv ≈ ${(est / 1000).toFixed(2)} km/s plus any plane change for sites off the ground track (the plan reports the exact figure); a return to orbit needs about the same. Ranger Δv ${(c.deltaV() / 1000).toFixed(2)} km/s.`));
-      for (const site of def.sites) {
-        const btn = game.ui.button(site.name.toUpperCase(), () => engage(site.lat, site.lon, site.name), 'btn primary');
+      for (const site of def.sites as { name: string; lat: number; lon: number; note: string; tag?: string }[]) {
+        const btn = game.ui.button(site.name.toUpperCase(), () => engage(site.lat, site.lon, site.name, site.tag ?? ''), 'btn primary');
         b.append(h('div', { style: { margin: '8px 0' } }, btn, h('div', { class: 'dim', style: { fontSize: '12px', marginTop: '4px' } }, `${site.note} · ${Math.abs(site.lat).toFixed(1)}°${site.lat >= 0 ? 'N' : 'S'} ${Math.abs(site.lon).toFixed(1)}°${site.lon >= 0 ? 'E' : 'W'}`)));
       }
-      // a site under the ground track a third of an orbit ahead: no plane change at all
+      // a site under the ground track a third of an orbit ahead: no plane change at all (not on Earth: unmapped)
+      if (earth) return;
       const P = Number.isFinite(s.period) ? s.period : 7200;
       const ahead = propagate(c.pos as V3, c.vel as V3, PRIMARY.mu, P * 0.33).r;
       const bf = new THREE.Vector3(...ahead).applyMatrix3(bodyRot(id, this.tSim + P * 0.33)).normalize();
@@ -1573,7 +1638,7 @@ export default class SpaceZone extends Zone implements ProxHost {
     const garg = this.sys === 'gargantua';
     this.system.update(t, camH, gmst(t), this.time, game.renderer.canvas.clientHeight / THREE.MathUtils.degToRad(cam.fov));
     const wh = helio(garg ? 'wormhole_g' : 'wormhole', t).r;
-    this.lens.update(new THREE.Vector3((wh[0] - camH[0]) / 1000, (wh[1] - camH[1]) / 1000, (wh[2] - camH[2]) / 1000), game.renderer.gl, this.far, dt);
+    this.lens.update(new THREE.Vector3((wh[0] - camH[0]) / 1000, (wh[1] - camH[1]) / 1000, (wh[2] - camH[2]) / 1000), game.renderer.gl, this.far, dt, !game.skipRender);
     const sunDist = Math.hypot(camH[0], camH[1], camH[2]);
     const sunDir = new THREE.Vector3(-camH[0], -camH[1], -camH[2]).normalize();
     this.flux = SolarSystem.flux(sunDist, garg ? GARG_FLUX_REF : undefined);
@@ -1622,7 +1687,7 @@ export default class SpaceZone extends Zone implements ProxHost {
     this.eclipseLast = this.sunVis > 0.5 ? 1 : 0;
     // reflections: refresh a small environment from the far layer every few seconds
     this.envT -= dt;
-    if (this.envT <= 0) {
+    if (this.envT <= 0 && !this.game.skipRender) {
       this.envT = 4;
       this.refreshEnvironment(rHat, sunDir, day);
     }
