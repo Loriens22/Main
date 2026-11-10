@@ -22,6 +22,10 @@ export interface TerrainOptions {
   lodBase?: number; // range of the finest level
   shading: TerrainShading;
   maxInstances?: number;
+  /** final fragment-shader patch (e.g. extra light terms) */
+  fragmentPatch?: (fs: string) => string;
+  /** program cache key suffix (different shading code per instance) */
+  cacheKey?: string;
 }
 
 const VERT_DECL = /* glsl */ `
@@ -29,6 +33,7 @@ attribute vec4 aNode;   // x0, z0, size, level
 attribute vec2 aMorph;  // morph start, morph end
 uniform sampler2D tHNear; uniform vec4 uNear;
 uniform sampler2D tHFar; uniform vec4 uFar; uniform float uFarOn; uniform float uBlend;
+uniform sampler2D tHMid; uniform vec4 uMid; uniform float uMidOn; uniform float uMidBlend;
 varying vec3 vTWorld; varying vec3 vTNormal;
 float tSample(sampler2D t, vec4 u, vec2 xz){
   vec2 p = (xz - u.xy) / u.z * (u.w - 1.0);
@@ -38,11 +43,20 @@ float tSample(sampler2D t, vec4 u, vec2 xz){
   float c = texelFetch(t, i + ivec2(0,1), 0).r; float d = texelFetch(t, i + ivec2(1,1), 0).r;
   return mix(mix(a, b, f.x), mix(c, d, f.x), f.y);
 }
+float tCoarse(vec2 xz){
+  float hf = tSample(tHFar, uFar, xz);
+  if (uMidOn < 0.5) return hf;
+  vec2 r = xz - uMid.xy;
+  float e = min(min(r.x, uMid.z - r.x), min(r.y, uMid.z - r.y));
+  if (e <= 0.0) return hf;
+  float t = clamp(e / uMidBlend, 0.0, 1.0);
+  return mix(hf, tSample(tHMid, uMid, xz), t * t * (3.0 - 2.0 * t));
+}
 float tHeight(vec2 xz){
   vec2 r = xz - uNear.xy;
   float e = min(min(r.x, uNear.z - r.x), min(r.y, uNear.z - r.y));
   if (uFarOn < 0.5) return tSample(tHNear, uNear, xz);
-  float hf = tSample(tHFar, uFar, xz);
+  float hf = tCoarse(xz);
   if (e <= 0.0) return hf;
   float hn = tSample(tHNear, uNear, xz);
   float t = clamp(e / uBlend, 0.0, 1.0);
@@ -115,6 +129,10 @@ export class Terrain {
       uFar: { value: f.far ? new THREE.Vector4(f.far.minX, f.far.minZ, f.far.size, f.far.res) : new THREE.Vector4(f.near.minX, f.near.minZ, f.near.size, f.near.res) },
       uFarOn: { value: f.far ? 1 : 0 },
       uBlend: { value: f.blend },
+      tHMid: { value: f.mid ? f.mid.texture() : f.near.texture() },
+      uMid: { value: f.mid ? new THREE.Vector4(f.mid.minX, f.mid.minZ, f.mid.size, f.mid.res) : new THREE.Vector4(0, 0, 1, 2) },
+      uMidOn: { value: f.mid ? 1 : 0 },
+      uMidBlend: { value: f.midBlend },
       /** circular cut-out (x, z, radius, -) e.g. a silo shaft opening; radius 0 = none */
       uHole: { value: new THREE.Vector4(0, 0, 0, 0) },
       ...opts.shading.uniforms,
@@ -151,8 +169,9 @@ export class Terrain {
         .replace('#include <roughnessmap_fragment>', '#include <roughnessmap_fragment>\nroughnessFactor = T.rough;')
         .replace('#include <normal_fragment_maps>', '#include <normal_fragment_maps>\nnormal = normalize((viewMatrix * vec4(T.normal, 0.0)).xyz);')
         .replace('#include <aomap_fragment>', '#include <aomap_fragment>\nreflectedLight.indirectDiffuse *= T.ao;');
+      if (opts.fragmentPatch) shader.fragmentShader = opts.fragmentPatch(shader.fragmentShader);
     };
-    m.customProgramCacheKey = () => 'terrain-cdlod';
+    m.customProgramCacheKey = () => 'terrain-cdlod' + (opts.cacheKey ?? '');
     this.material = m;
     this.mesh = new THREE.Mesh(g, m);
     this.mesh.frustumCulled = false;

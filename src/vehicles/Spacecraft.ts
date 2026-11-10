@@ -16,6 +16,8 @@ export interface FlightEnv {
   altitude(p: V3): number;
   /** surface velocity (rotating atmosphere / planet surface) */
   surfaceVel?(p: V3): V3;
+  /** velocity-dependent frame accelerations (Coriolis in a rotating surface frame) */
+  fictitious?(p: V3, v: V3): V3;
 }
 
 export type SasMode = 'off' | 'stability' | 'prograde' | 'retrograde' | 'radialOut' | 'radialIn' | 'normal' | 'antinormal' | 'target' | 'hold' | 'surface';
@@ -178,6 +180,12 @@ export class Spacecraft {
     if (!this.unlimited) this.state.fuel = Math.max(0, this.state.fuel - fuelUse * dt);
     // integrate translation
     const g = env.gravity(this.pos);
+    if (env.fictitious) {
+      const fa = env.fictitious(this.pos, this.vel);
+      g[0] += fa[0];
+      g[1] += fa[1];
+      g[2] += fa[2];
+    }
     const a = F.divideScalar(m);
     this.accel.copy(a);
     // trapezoidal position update (exact for constant acceleration): keeps the position consistent with the

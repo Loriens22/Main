@@ -2,7 +2,7 @@
  * Serializable game state — the single source of truth that survives save/load.
  * Everything here must be plain JSON (numbers, strings, arrays, records).
  */
-export type LocationId = 'earth' | 'space' | 'miller' | 'mann' | 'edmunds';
+export type LocationId = 'earth' | 'space' | 'surface' | 'miller' | 'mann' | 'edmunds';
 export type SystemId = 'sol' | 'gargantua';
 export type Vec3 = [number, number, number];
 export type Quat = [number, number, number, number];

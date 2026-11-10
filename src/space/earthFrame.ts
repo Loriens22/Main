@@ -96,3 +96,10 @@ export function orbitSummary(r: V3, v: V3, mu = PRIMARY.mu, Rb = PRIMARY.R) {
     vr: R.dot(Vv) / rn,
   };
 }
+
+/** Lowest altitude a coasting orbit or transfer may reach around the current primary (atmosphere or terrain). */
+export function safeOrbitAlt() {
+  if (PRIMARY.id === 'sun') return 1e9;
+  if (PRIMARY.rho0 > 0) return Math.min(150e3, PRIMARY.top * 0.8);
+  return Math.min(20e3, 0.25 * PRIMARY.R);
+}

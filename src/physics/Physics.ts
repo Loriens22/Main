@@ -69,6 +69,13 @@ export class PhysicsWorld {
     return c;
   }
 
+  addSphere(x: number, y: number, z: number, r: number, data: any = {}): RAPIER.Collider {
+    const d = RAPIER.ColliderDesc.ball(r).setTranslation(x, y, z).setCollisionGroups(groups(GROUP.STATIC, 0xffff));
+    const c = this.world.createCollider(d);
+    (c as any).userData = data;
+    return c;
+  }
+
   addTrimesh(positions: Float32Array, indices: Uint32Array, data: any = {}): RAPIER.Collider | null {
     const d = RAPIER.ColliderDesc.trimesh(positions, indices);
     if (!d) return null;

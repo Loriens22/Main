@@ -16,9 +16,13 @@ import { CraftModel } from '../../vehicles/CraftModel';
 import { Plume } from '../../vehicles/Plume';
 import { SPECS, type SpacecraftSpec } from '../../data/vehicles';
 import type { VehicleState } from '../../core/State';
-import { R_EARTH, gmst, siteBasisECEF, ecefToEci, gravityAt, densityAt, orbitSummary, PRIMARY, setPrimary } from '../../space/earthFrame';
+import { R_EARTH, gmst, siteBasisECEF, ecefToEci, gravityAt, densityAt, orbitSummary, PRIMARY, setPrimary, safeOrbitAlt } from '../../space/earthFrame';
 import { propagate, type V3 } from '../../space/kepler';
 import { OrbitInsertion, Rendezvous, DockingApproach, type ProxHost, type DockGoal, type PortRelation } from '../../space/Proximity';
+import { DeorbitLanding, brakingDistance } from '../../space/Landing';
+import { SURFACES, isLandable, handoverAltitude } from '../../data/landing';
+import { makeSite, bodyRot, bodyOmega } from '../../space/surfaceFrame';
+import type { SurfaceState, Handover } from './SurfaceZone';
 import { SITE } from '../../space/astro';
 import { CHARACTERS, CREW } from '../../data/characters';
 import { Humanoid } from '../../npc/Humanoid';
@@ -493,7 +497,22 @@ export default class SpaceZone extends Zone implements ProxHost {
     let r: V3, v: V3;
     let q = new THREE.Quaternion();
     let stack = false;
-    if (at === 'launch' && st.data.launch) {
+    let resume: Handover['program'];
+    let resumeAp = 0;
+    if (at === 'ascent' && !st.data.handover) at = 'orbit';
+    if (at === 'ascent') {
+      const ho = st.data.handover as Handover;
+      const sd = st.data.surface as SurfaceState | undefined;
+      if (sd) this.applyPrimary(sd.body);
+      this.updateEndurance(t);
+      r = [...ho.r] as V3;
+      v = [...ho.v] as V3;
+      q = new THREE.Quaternion(...ho.q);
+      resume = ho.program;
+      resumeAp = ho.apTarget ?? 0;
+      delete st.data.handover;
+      st.landed = false;
+    } else if (at === 'launch' && st.data.launch) {
       const L = st.data.launch as { x: number; y: number; z: number; vx: number; vy: number; vz: number; q: number[]; stage: number; s2fuel: number };
       const b = siteBasisECEF(SITE.lat, SITE.lon);
       const up = ecefToEci(b.up, t), east = ecefToEci(b.east, t), north = ecefToEci(b.north, t);
@@ -518,7 +537,9 @@ export default class SpaceZone extends Zone implements ProxHost {
       this.updateEndurance(t);
       const rE = new THREE.Vector3(...this.ePos), vE = new THREE.Vector3(...this.eVel);
       const hh = new THREE.Vector3().crossVectors(rE, vE).normalize();
-      const rr = rE.clone().normalize().applyAxisAngle(hh, -THREE.MathUtils.degToRad(14)).multiplyScalar(R_EARTH + 290e3);
+      const eAlt = rE.length() - PRIMARY.R;
+      const alt = PRIMARY.id === 'earth' ? 290e3 : Math.max(eAlt * 0.88, safeOrbitAlt() * 1.6);
+      const rr = rE.clone().normalize().applyAxisAngle(hh, -THREE.MathUtils.degToRad(14)).multiplyScalar(PRIMARY.R + alt);
       const vv = new THREE.Vector3().crossVectors(hh, rr).normalize().multiplyScalar(Math.sqrt(PRIMARY.mu / rr.length()));
       r = rr.toArray() as V3;
       v = vv.toArray() as V3;
@@ -551,6 +572,7 @@ export default class SpaceZone extends Zone implements ProxHost {
     this.updateEndurance(t);
     this.syncRoots();
     this.seatPlayer();
+    if (resume === 'orbit-insertion') this.control.setAutopilot(new OrbitInsertion(this, resumeAp));
     if (aboardAt) {
       this.game.setControl(null);
       this.boardEndurance(aboardAt);
@@ -721,9 +743,12 @@ export default class SpaceZone extends Zone implements ProxHost {
         b.append(h('div', { style: { margin: '8px 0' } }, btn, h('div', { class: 'dim', style: { fontSize: '12px', marginTop: '4px' } }, desc)));
       };
       b.append(h('div', { class: 'mono', style: { marginBottom: '10px' } }, `Orbit ${(s.pe / 1000).toFixed(0)} × ${(s.ap / 1000).toFixed(0)} km · Endurance range ${rel.dist > 2000 ? (rel.dist / 1000).toFixed(1) + ' km' : rel.dist.toFixed(0) + ' m'}`));
-      add('ORBIT INSERTION', 'Burn to a stable parking orbit (periapsis above 185 km).', !this.r1Docked && s.pe < 185e3, () => ctrl.setAutopilot(new OrbitInsertion(this, 290e3)));
-      add('RENDEZVOUS + DOCK', 'Plan a Lambert transfer to the Endurance, burn, correct, brake at the hold point, then dock at the forward port (time compressed).', !this.r1Docked && s.pe > 150e3, () => ctrl.setAutopilot(new Rendezvous(this, () => ctrl.setAutopilot(new DockingApproach(this)))));
+      const safe = safeOrbitAlt();
+      add('ORBIT INSERTION', `Burn to a stable parking orbit (periapsis above ${(safe / 1000).toFixed(0)} km).`, !this.r1Docked && s.pe < safe * 1.2, () => ctrl.setAutopilot(new OrbitInsertion(this, PRIMARY.id === 'earth' ? 290e3 : Math.max(safe * 1.6, 30e3))));
+      add('RENDEZVOUS + DOCK', 'Plan a Lambert transfer to the Endurance, burn, correct, brake at the hold point, then dock at the forward port (time compressed).', !this.r1Docked && s.pe > safe, () => ctrl.setAutopilot(new Rendezvous(this, () => ctrl.setAutopilot(new DockingApproach(this)))));
       add('DOCKING APPROACH', 'From within 3 km: close to the 150 m hold point, align, match the ring\'s spin and dock.', !this.r1Docked && rel.dist < 3000, () => ctrl.setAutopilot(new DockingApproach(this)));
+      const landable = isLandable(PRIMARY.id);
+      add('DEORBIT & LAND', landable ? `Choose a landing site on ${BODIES[PRIMARY.id].name}: deorbit burn, descent coast and powered descent to touchdown.` : `${BODIES[PRIMARY.id]?.name ?? 'This body'} has no surface the Ranger can land on.`, !this.r1Docked && landable && s.pe > 0, () => setTimeout(() => this.openLandingPicker(ctrl), 30));
       add('UNDOCK', 'Release the capture latches and back away from the forward port at 0.3 m/s (the Ranger keeps the ring\'s spin until SAS damps it).', this.r1Docked, () => this.undock());
       add('ENDURANCE NAVIGATION', 'Interplanetary transfers: plan, engage, cruise (cryosleep or time warp), capture into orbit at the destination.', this.r1Docked, () => setTimeout(() => import('../../ui/Panels').then((P) => P.openMissionComputer(game, 'nav')), 50));
       add('DISENGAGE AUTOPILOT', 'Manual flight: W/S pitch, A/D yaw, Q/E roll, I/K/J/L/H/N translate, Shift/Ctrl throttle, T SAS mode.', !!ctrl.autopilot, () => ctrl.setAutopilot(null));
@@ -792,6 +817,7 @@ export default class SpaceZone extends Zone implements ProxHost {
     }
     this.tSim = tEnd;
     this.updateEndurance(tEnd);
+    if (!this.r1Docked && !this.handing && this.craft.spec !== S2_SPEC) this.checkSurface();
     if (this.r1Docked) {
       const g = this.dockGoal(this.craft, 0, true, this.dockRoll);
       for (let k = 0; k < 3; k++) {
@@ -841,6 +867,100 @@ export default class SpaceZone extends Zone implements ProxHost {
     this.updateSky(dt);
   }
   private reentryWarned = false;
+  private handing = false;
+
+  /** Low over a landable body: hand over to the surface zone; into a gas giant / Venus: the Ranger is lost. */
+  private checkSurface() {
+    const alt = this.env.altitude(this.craft.pos);
+    const id = PRIMARY.id;
+    if (id === 'sun') return;
+    if (isLandable(id)) {
+      if (alt < handoverAltitude(id, PRIMARY.R)) this.handToSurface();
+      return;
+    }
+    const body = BODIES[id];
+    const crush = body.kind === 'gas' || body.kind === 'ice' ? 0 : id === 'venus' ? 45e3 : -1;
+    if (crush >= 0 && alt < crush) {
+      this.handing = true;
+      const msg = id === 'venus' ? 'Ranger 1 lost in the Venusian atmosphere: 90 bar and 460 °C below the clouds.' : `Ranger 1 lost below ${body.name}'s cloud tops — there is no surface to land on.`;
+      this.game.notify(msg, 'alert', 9);
+      this.game.log('mission', 'computer', msg);
+      void this.game.goTo('space', { at: 'docked' }, { fade: 1.5 });
+    }
+  }
+
+  private handToSurface() {
+    this.handing = true;
+    const game = this.game;
+    const st = game.state.vehicles.ranger1;
+    const t = this.tSim;
+    const c = this.craft;
+    const ap = this.control.autopilot;
+    let sd: SurfaceState;
+    if (ap instanceof DeorbitLanding) {
+      sd = { body: PRIMARY.id, lat: ap.site.lat, lon: ap.site.lon, name: ap.siteName, autoland: true };
+    } else {
+      // manual descent: centre the surface on the point the craft will reach after braking
+      const Rm = bodyRot(PRIMARY.id, t);
+      const w = bodyOmega(PRIMARY.id, t);
+      const r = new THREE.Vector3(...c.pos);
+      const vRel = new THREE.Vector3(...c.vel).sub(new THREE.Vector3().crossVectors(w, r));
+      const up = r.clone().normalize();
+      const hv = vRel.clone().addScaledVector(up, -vRel.dot(up));
+      const hs = hv.length();
+      const d = Math.min((hs * hs) / (2 * 0.42 * c.maxAccel()) + 3e3, 0.3 * PRIMARY.R);
+      const p = up.clone().multiplyScalar(Math.cos(d / PRIMARY.R)).addScaledVector(hs > 1 ? hv.normalize() : up, hs > 1 ? Math.sin(d / PRIMARY.R) : 0).applyMatrix3(Rm).normalize();
+      const lat = THREE.MathUtils.radToDeg(Math.asin(THREE.MathUtils.clamp(p.y, -1, 1)));
+      const lon = THREE.MathUtils.radToDeg(Math.atan2(-p.z, p.x));
+      sd = { body: PRIMARY.id, lat, lon, name: `${Math.abs(lat).toFixed(1)}°${lat >= 0 ? 'N' : 'S'} ${Math.abs(lon).toFixed(1)}°${lon >= 0 ? 'E' : 'W'}`, autoland: false };
+    }
+    const ho: Handover = { r: [...c.pos] as V3, v: [...c.vel] as V3, q: [c.quat.x, c.quat.y, c.quat.z, c.quat.w], t, program: sd.autoland ? 'descent' : undefined };
+    st.data.surface = sd;
+    st.data.handover = ho;
+    st.location = 'surface';
+    this.control.setAutopilot(null);
+    void game.goTo('surface', { at: 'descent' }, { fade: 0.6 });
+  }
+
+  /** Engage the deorbit-and-landing autopilot for a site on the current body. */
+  landAt(lat: number, lon: number, name: string) {
+    if (!isLandable(PRIMARY.id) || this.r1Docked) return false;
+    this.control.setAutopilot(new DeorbitLanding(this, makeSite(PRIMARY.id, lat, lon), name, handoverAltitude(PRIMARY.id, PRIMARY.R)));
+    return true;
+  }
+
+  /** Landing-site picker for the current body. */
+  private openLandingPicker(ctrl: FlightControl) {
+    const game = this.game;
+    const id = PRIMARY.id;
+    const def = SURFACES[id];
+    const c = this.craft;
+    const s = orbitSummary(c.pos, c.vel);
+    game.ui.openPanel(`LANDING SITE — ${(BODIES[id]?.name ?? id).toUpperCase()}`, (b, p) => {
+      const engage = (lat: number, lon: number, name: string) => {
+        this.landAt(lat, lon, name);
+        p.close();
+        game.input.requestLock();
+      };
+      const aB = 0.42 * c.maxAccel();
+      const vOrb = Math.sqrt(PRIMARY.mu / (PRIMARY.R + Math.max(0, s.alt)));
+      const est = vOrb * 1.08 + 150;
+      b.append(h('div', { class: 'dim', style: { fontSize: '12px', marginBottom: '10px' } },
+        `Deorbit, coast to the approach gate ${(handoverAltitude(id, PRIMARY.R) / 1000).toFixed(0)} km up and ${(brakingDistance(PRIMARY.mu, PRIMARY.R, aB) / 1000).toFixed(0)} km up-range, then powered descent. Descent Δv ≈ ${(est / 1000).toFixed(2)} km/s plus any plane change for sites off the ground track (the plan reports the exact figure); a return to orbit needs about the same. Ranger Δv ${(c.deltaV() / 1000).toFixed(2)} km/s.`));
+      for (const site of def.sites) {
+        const btn = game.ui.button(site.name.toUpperCase(), () => engage(site.lat, site.lon, site.name), 'btn primary');
+        b.append(h('div', { style: { margin: '8px 0' } }, btn, h('div', { class: 'dim', style: { fontSize: '12px', marginTop: '4px' } }, `${site.note} · ${Math.abs(site.lat).toFixed(1)}°${site.lat >= 0 ? 'N' : 'S'} ${Math.abs(site.lon).toFixed(1)}°${site.lon >= 0 ? 'E' : 'W'}`)));
+      }
+      // a site under the ground track a third of an orbit ahead: no plane change at all
+      const P = Number.isFinite(s.period) ? s.period : 7200;
+      const ahead = propagate(c.pos as V3, c.vel as V3, PRIMARY.mu, P * 0.33).r;
+      const bf = new THREE.Vector3(...ahead).applyMatrix3(bodyRot(id, this.tSim + P * 0.33)).normalize();
+      const la = THREE.MathUtils.radToDeg(Math.asin(bf.y)), lo = THREE.MathUtils.radToDeg(Math.atan2(-bf.z, bf.x));
+      const gname = `Ground track ${Math.abs(la).toFixed(1)}°${la >= 0 ? 'N' : 'S'} ${Math.abs(lo).toFixed(1)}°${lo >= 0 ? 'E' : 'W'}`;
+      const gb = game.ui.button('UNDER THE GROUND TRACK', () => engage(la, lo, gname), 'btn');
+      b.append(h('div', { style: { margin: '14px 0 6px' } }, gb, h('div', { class: 'dim', style: { fontSize: '12px', marginTop: '4px' } }, `${gname} — cheapest: no plane change.`)));
+    }, { narrow: true, onClose: () => game.input.requestLock() });
+  }
 
   // ===================================================================================================== navigation
   burnLevel = 0;

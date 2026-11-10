@@ -2,7 +2,7 @@ import * as THREE from 'three';
 import type { AutopilotProgram, AutopilotResult } from '../vehicles/FlightControl';
 import type { Spacecraft, FlightEnv } from '../vehicles/Spacecraft';
 import { lambert, propagate, type V3 } from './kepler';
-import { PRIMARY, orbitSummary } from './earthFrame';
+import { PRIMARY, orbitSummary, safeOrbitAlt } from './earthFrame';
 
 /** What the orbital programs need from the zone (all vectors in the zone's inertial frame, metres). */
 export interface ProxHost {
@@ -51,7 +51,7 @@ const vlen = (a: V3) => Math.hypot(a[0], a[1], a[2]);
 
 /** Lambert in the local frame. Prograde is judged against hRef (the craft's own orbit normal), not the frame's pole —
  * orbits around other planets can be inclined beyond 90° to the J2000 equator (Uranus). */
-function lambertECI(r1: V3, r2: V3, tof: number, hRef?: THREE.Vector3) {
+export function lambertECI(r1: V3, r2: V3, tof: number, hRef?: THREE.Vector3) {
   if (!hRef) {
     const s = lambert(toStd(r1), toStd(r2), tof, PRIMARY.mu, true);
     return s ? { v1: fromStd(s.v1), v2: fromStd(s.v2) } : null;
@@ -63,19 +63,19 @@ function lambertECI(r1: V3, r2: V3, tof: number, hRef?: THREE.Vector3) {
   const s = lambert(rot(r1, q), rot(r2, q), tof, PRIMARY.mu, true);
   return s ? { v1: rot(s.v1, qi), v2: rot(s.v2, qi) } : null;
 }
-const hOf = (r: V3 | number[], v: V3 | number[]) => new THREE.Vector3(r[0], r[1], r[2]).cross(new THREE.Vector3(v[0], v[1], v[2]));
+export const hOf = (r: V3 | number[], v: V3 | number[]) => new THREE.Vector3(r[0], r[1], r[2]).cross(new THREE.Vector3(v[0], v[1], v[2]));
 
 /** −Z along dir, +Y as close as possible to up. */
-function lookQuat(dir: THREE.Vector3, up: THREE.Vector3) {
+export function lookQuat(dir: THREE.Vector3, up: THREE.Vector3) {
   let u = up.clone();
   if (Math.abs(u.clone().normalize().dot(dir.clone().normalize())) > 0.98) u = Math.abs(dir.y) < 0.9 ? new THREE.Vector3(0, 1, 0) : new THREE.Vector3(1, 0, 0);
   return new THREE.Quaternion().setFromRotationMatrix(new THREE.Matrix4().lookAt(new THREE.Vector3(), dir.clone().normalize(), u)).normalize();
 }
 
-const fmtT = (s: number) => (s >= 3600 ? `${Math.floor(s / 3600)} h ${Math.floor((s % 3600) / 60)} min` : s >= 90 ? `${Math.floor(s / 60)} min ${Math.floor(s % 60)} s` : `${Math.max(0, s).toFixed(0)} s`);
+export const fmtT = (s: number) => (s >= 3600 ? `${Math.floor(s / 3600)} h ${Math.floor((s % 3600) / 60)} min` : s >= 90 ? `${Math.floor(s / 60)} min ${Math.floor(s % 60)} s` : `${Math.max(0, s).toFixed(0)} s`);
 
 /** Shared impulsive-burn executor: orient along Δv, then burn to a target inertial velocity. */
-class BurnExec {
+export class BurnExec {
   /** required velocity from the craft's current position (re-solved every step: gravity bends the path mid-burn) */
   targetFn: () => V3 | null = () => null;
   aligned = false;
@@ -163,7 +163,7 @@ export class OrbitInsertion implements AutopilotProgram {
     if (this.phase === 'coast') {
       c.throttle = 0;
       c.attTarget.copy(lookQuat(hdir, up));
-      if (s.ap < this.targetAlt - 20e3) this.phase = 'ascent';
+      if (s.ap < this.targetAlt - Math.min(20e3, this.targetAlt * 0.3)) this.phase = 'ascent';
       // exact time to apoapsis from the eccentric anomaly
       const rN = PRIMARY.R + s.alt;
       const cosE = THREE.MathUtils.clamp((1 - rN / s.a) / Math.max(1e-9, s.e), -1, 1);
@@ -182,7 +182,7 @@ export class OrbitInsertion implements AutopilotProgram {
     // circularise
     c.attTarget.copy(lookQuat(hdir, up));
     const vc = Math.sqrt(PRIMARY.mu / (PRIMARY.R + s.alt));
-    if ((s.pe > this.targetAlt - 15e3 && s.pe > 185e3) || hdir.dot(v) >= vc + 2) {
+    if ((s.pe > this.targetAlt - Math.min(15e3, this.targetAlt * 0.25) && s.pe > safeOrbitAlt()) || hdir.dot(v) >= vc + 2) {
       c.throttle = 0;
       if (!this.done) {
         this.done = true;
@@ -228,7 +228,7 @@ export class Rendezvous implements AutopilotProgram {
         if (!sol) continue;
         // reject transfers that dip into the atmosphere
         const mid = propagate(st.r, sol.v1, PRIMARY.mu, tof / 2);
-        if (vlen(mid.r) - PRIMARY.R < 150e3) continue;
+        if (vlen(mid.r) - PRIMARY.R < safeOrbitAlt()) continue;
         const dv = vlen(vsub(sol.v1, st.v)) + vlen(vsub(a.v, sol.v2));
         const cost = dv + 0.025 * w;
         if (cost < best.cost) best = { cost, w, tof, dv };

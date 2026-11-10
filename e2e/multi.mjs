@@ -52,6 +52,19 @@ for (const st of steps) {
     if (res !== undefined) console.log(`[${i}] result:`, JSON.stringify(res));
   }
   if (st.wait) await page.waitForTimeout(st.wait);
+  if (st.untilJs) {
+    // advance frames until the condition holds (or `max` frames), probing every chunk
+    let n = 0, ok = false;
+    while (n < (st.max ?? 3000)) {
+      const k = st.chunk ?? 30;
+      await page.evaluate(([k, dt]) => window.__game.step(k, dt, false), [k, st.dt ?? 1 / 30]);
+      n += k;
+      ok = await page.evaluate(`(() => { const game = window.__game; try { return !!(${st.untilJs}); } catch (e) { return false; } })()`);
+      if (ok) break;
+      if (st.probe && n % ((st.chunk ?? 30) * 10) === 0) console.log(`[${i}] ..${n}:`, JSON.stringify(await page.evaluate(`(async () => { const game = window.__game; ${st.probe} })()`)));
+    }
+    console.log(`[${i}] until ${ok ? 'met' : 'NOT met'} after ${n} frames`);
+  }
   if (st.frames) {
     // advance in chunks so long runs do not block the page for minutes in one call
     let left = st.frames;

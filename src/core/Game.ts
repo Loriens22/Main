@@ -25,6 +25,7 @@ type ZoneFactory = () => Promise<{ default: new (g: Game) => Zone }>;
 const ZONES: Record<LocationId, ZoneFactory> = {
   earth: () => import('../world/zones/EarthZone'),
   space: () => import('../world/zones/SpaceZone'),
+  surface: () => import('../world/zones/SurfaceZone'),
   miller: () => import('../world/zones/MillerZone'),
   mann: () => import('../world/zones/MannZone'),
   edmunds: () => import('../world/zones/EdmundsZone'),
@@ -512,7 +513,9 @@ export class Game {
       this.ui.prompt(null);
       this.ui.setCrosshair(!this.control && !this.cinematic);
     }
-    this.control?.hud?.(dt);
+    // HUD canvases only for frames that are presented (stepped test frames skip rendering; undisplayed 2D canvas
+    // work would otherwise pile up in the compositor)
+    if (!this.skipRender) this.control?.hud?.(dt);
     // on foot the input context follows the player's posture (zones may change it outside setControl, e.g. boarding)
     if (!this.control) this.input.context = this.player.mode === 'seat' ? 'seat' : 'walk';
     this.syncTouch();

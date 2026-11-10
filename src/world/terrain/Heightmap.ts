@@ -8,7 +8,15 @@ export class Heightmap {
   max = -Infinity;
   private tex: THREE.DataTexture | null = null;
 
-  constructor(readonly minX: number, readonly minZ: number, readonly size: number, readonly res: number, data?: Float32Array) {
+  /** Move the map (same size/resolution) — for streaming with reused buffers; callers refill `data` then touch(). */
+  recenter(cx: number, cz: number) {
+    this.minX = cx - this.size / 2;
+    this.minZ = cz - this.size / 2;
+    this.min = Infinity;
+    this.max = -Infinity;
+  }
+
+  constructor(public minX: number, public minZ: number, readonly size: number, readonly res: number, data?: Float32Array) {
     this.data = data ?? new Float32Array(res * res);
     this.cell = size / (res - 1);
   }
@@ -73,18 +81,34 @@ export class Heightmap {
   }
 }
 
-/** Near (high-res) + far (low-res) pair with a smooth blend at the near map's border. */
+/** Near (high-res) + optional mid + far (low-res) maps with smooth blends at the finer maps' borders. */
 export class HeightField {
+  /** optional middle tier between near and far (surface zones) */
+  mid: Heightmap | null = null;
+  midBlend = 1500;
   constructor(public near: Heightmap, public far: Heightmap | null, public blend = 300) {}
+
+  private coarse(x: number, z: number): number {
+    const far = this.far!;
+    const mid = this.mid;
+    if (!mid) return far.sample(x, z);
+    const e = mid.edgeDistance(x, z);
+    if (e <= 0) return far.sample(x, z);
+    const hm = mid.sample(x, z);
+    if (e >= this.midBlend) return hm;
+    const hf = far.sample(x, z);
+    const t = e / this.midBlend;
+    return hf + (hm - hf) * t * t * (3 - 2 * t);
+  }
 
   height(x: number, z: number): number {
     const far = this.far;
     const e = this.near.edgeDistance(x, z);
     if (!far) return this.near.sample(x, z);
-    if (e <= 0) return far.sample(x, z);
+    if (e <= 0) return this.coarse(x, z);
     const hn = this.near.sample(x, z);
     if (e >= this.blend) return hn;
-    const hf = far.sample(x, z);
+    const hf = this.coarse(x, z);
     const t = e / this.blend;
     const s = t * t * (3 - 2 * t);
     return hf + (hn - hf) * s;
