@@ -38,7 +38,11 @@ W, PANEL, PANEL_D, DARK, FRAME, EDGE = "paint_white_aero", "endu_panel", "endu_p
 RI, RV, RO = 19.5, 23.0, 32.0      # module inner face, vestibule/main split, outer face (radius)
 HT = 4.0                            # module tangential half width
 YF, YB, YV = 3.6, -3.6, 2.0         # main body front / back, vestibule front (recessed)
-RN, YN = 21.6, 0.2                  # node centre radius and axial position
+RN, YN = 22.724, 0.2                # node centre radius (tunnel floor flush with the vestibule floor) and axial position
+TH = 1.05                           # tunnel inner half size (2.1 m clear walkway)
+RC = RN * math.cos(math.radians(15))  # tunnel centre radius at the module end faces
+WALKABLE = (0, 3, 6, 9)             # modules with decks reachable by ladder (habitats, cryo-lab, command)
+HATCH = (1.7, 3.1, -3.2, -1.8)      # ladder hatch in the main-body ceiling: t0, t1, y0, y1
 WALL = 0.25
 AX = V((0, 1, 0))
 TYPES = ["habitat", "pod", "engine", "habitat", "engine", "pod", "cryo", "pod", "engine", "command", "engine", "pod"]
@@ -109,6 +113,25 @@ def seams(P, c, u, v, n, du, dv, nu, nv, m="endu_seam"):
         P.append(obox("seam", c + v * y, u, v, n, -du, du, -0.016, 0.016, 0.0, 0.008, m))
 
 
+def holed_panel(P, F, name, normal, ra, ya, rr, h1, h2, m):
+    """Module-frame panel with a rectangular opening. normal 't' (end face): ra = t range, ya = axial y range,
+    rr = radial range, hole h1 = y range, h2 = r range. normal 'r' (radial face): ra = t range, ya = y range,
+    rr = radial range (thickness), hole h1 = t range, h2 = y range."""
+    if normal == "t":
+        (t0, t1), (y0, y1), (r0, r1) = ra, ya, rr
+        (hy0, hy1), (hr0, hr1) = h1, h2
+        hr0, hr1 = max(hr0, r0), min(hr1, r1)
+        for (a0, a1, b0, b1) in ((y0, hy0, r0, r1), (hy1, y1, r0, r1), (hy0, hy1, r0, hr0), (hy0, hy1, hr1, r1)):
+            if a1 - a0 > 1e-3 and b1 - b0 > 1e-3:
+                F.box(P, name, t0, t1, a0, a1, b0, b1, m)
+    else:
+        (t0, t1), (y0, y1), (r0, r1) = ra, ya, rr
+        (ht0, ht1), (hy0, hy1) = h1, h2
+        for (a0, a1, b0, b1) in ((t0, ht0, y0, y1), (ht1, t1, y0, y1), (ht0, ht1, y0, hy0), (ht0, ht1, hy1, y1)):
+            if a1 - a0 > 1e-3 and b1 - b0 > 1e-3:
+                F.box(P, name, a0, a1, b0, b1, r0, r1, m)
+
+
 def window(P, G, c, u, v, n, hw, hh, frame="metal_gunmetal"):
     P.append(obox("win_frame", c, u, v, n, -hw - 0.07, hw + 0.07, -hh - 0.07, hh + 0.07, -0.02, 0.06, frame))
     G.append(obox("win", c, u, v, n, -hw, hw, -hh, hh, -0.02, 0.075, "glass_dark"))
@@ -121,17 +144,24 @@ def module(P, G, root, k):
     rm = (RV + RO) / 2
     # ------------------------------------------------------------------ main body shell (room inside: r 23→32)
     F.box(P, "shell_floor", -HT, HT, YB, YF, RO - WALL, RO, W)          # outer face = floor under spin gravity
-    F.box(P, "shell_ceiling", -HT, HT, YB, YF, RV, RV + WALL, W)
+    if k in WALKABLE:
+        holed_panel(P, F, "shell_ceiling", "r", (-HT, HT), (YB, YF), (RV, RV + WALL), HATCH[0:2], HATCH[2:4], W)
+    else:
+        F.box(P, "shell_ceiling", -HT, HT, YB, YF, RV, RV + WALL, W)
     F.box(P, "shell_front", -HT, HT, YF - WALL, YF, RV, RO, W)
     F.box(P, "shell_back", -HT, HT, YB, YB + WALL, RV, RO, W)
     for s in (-1, 1):
         F.box(P, "shell_end", s * HT - (WALL if s > 0 else 0), s * HT + (0 if s > 0 else WALL), YB, YF, RV, RO, W)
     # vestibule (r 19.5→23), front recessed to YV
-    F.box(P, "vest_inner", -HT, HT, YB, YV, RI, RI + WALL, W)
+    if k in (3, 9):   # spoke entry
+        holed_panel(P, F, "vest_inner", "r", (-HT, HT), (YB, YV), (RI, RI + WALL), (-1.3, 1.3), (-1.3, 1.3), W)
+    else:
+        F.box(P, "vest_inner", -HT, HT, YB, YV, RI, RI + WALL, W)
     F.box(P, "vest_front", -HT, HT, YV - WALL, YV, RI, RV, W)
     F.box(P, "vest_back", -HT, HT, YB, YB + WALL, RI, RV, W)
     for s in (-1, 1):
-        F.box(P, "vest_end", s * HT - (WALL if s > 0 else 0), s * HT + (0 if s > 0 else WALL), YB, YV, RI, RV, W)
+        holed_panel(P, F, "vest_end", "t", (s * HT - (WALL if s > 0 else 0), s * HT + (0 if s > 0 else WALL)), (YB, YV), (RI, RV),
+                    (YN - TH, YN + TH), (RC - TH, RC + TH), W)
     # edge frames: chamfer-like beams along every box edge
     e = 0.11
     for (y, rr) in ((YF, RO), (YB, RO), (YF, RV), (YB, RI), (YV, RI), (YV, RV)):
@@ -168,10 +198,16 @@ def module(P, G, root, k):
         for (i, j) in ((0, 0), (1, 0), (2, 0), (0, 1), (1, 1), (2, 1)):
             fbox("grille", 0.62 + i * 0.5, 0.98 + i * 0.5, 23.42 + j * 0.5, 23.78 + j * 0.5, 0.0, 0.05, "metal_gunmetal")
         if kind == "command":
-            for i in range(5):   # bridge glazing band across the outer end, above the panel fields
-                window(P, G, F.p(-3.0 + i * 1.5, YF, 31.62), t, r, a, 0.6, 0.16)
+            for i in range(5):   # bridge windows above the deck's instrument rack (deck ceiling r 28.85, rack top r 29.63)
+                window(P, G, F.p(-3.0 + i * 1.5, YF, 29.24), t, r, a, 0.5, 0.25)
         if kind == "cryo":
             fbox("cryo_stripe", -HT + 0.2, HT - 0.2, 24.75, 24.95, 0.0, 0.05, "warning_yellow")
+        if kind in ("habitat", "cryo"):
+            # a stacked pair of round portholes at deck eye level (galley reference image 7)
+            for rr in (29.75, 30.55):
+                pc = F.p(-3.3, YF, rr)
+                P.append(cyl("porthole_rim", 0.3, 0.1, loc=pc + a * 0.03, rot=to_quat(a).to_euler(), m="metal_gunmetal", verts=24))
+                G.append(cyl("porthole_glass", 0.23, 0.12, loc=pc + a * 0.04, rot=to_quat(a).to_euler(), m="glass_dark", verts=24))
     else:
         # plain engine module front: service hatch, a small dark port, an overlay plate
         fbox("svc_hatch_frame", -2.9, -1.1, 26.0, 28.4, 0.0, 0.04, FRAME)
@@ -198,12 +234,12 @@ def module(P, G, root, k):
             F.box(P, "inner_box", s * 2.6 - 0.8, s * 2.6 + 0.8, -1.6, 0.4, RI - 0.9, RI - 0.1, R.choice(["metal_gunmetal", "console_dark"]))
 
     # ------------------------------------------------------------------ tangential end faces: X-braced vents
-    rarm = RN * math.cos(math.radians(15))
     for s in (-1, 1):
         for yc in (-1.75, 1.75):
             xvent(P, F, s * HT, yc, 25.0, 2.6, t * s)
         # tunnel flange where the node arm lands on the vestibule end face
-        F.box(P, "arm_flange", s * HT + (0.0 if s > 0 else -0.1), s * HT + (0.1 if s > 0 else 0.0), YN - 1.05, YN + 1.05, rarm - 1.05, rarm + 1.05, FRAME)
+        holed_panel(P, F, "arm_flange", "t", (s * HT + (0.0 if s > 0 else -0.12), s * HT + (0.12 if s > 0 else 0.0)), (YN - TH - 0.22, YN + TH + 0.22),
+                    (RC - TH - 0.22, RC + TH), (YN - TH, YN + TH), (RC - TH, RC + TH), FRAME)
 
     # ------------------------------------------------------------------ outer face: dark panel inset / heat shield
     if kind == "pod":
@@ -263,15 +299,15 @@ def node(P, G, root, k):
     r, t, a = F.r, F.t, F.a
     N = r * RN + a * YN
     # drum: axis along +Y, ribbed, porthole rings with landscape windows on both caps
-    P.append(cyl("node_drum", 1.2, 3.0, loc=N, rot=(PI / 2, 0, 0), m=W, verts=36))
+    P.append(cyl("node_drum", 1.45, 3.0, loc=N, rot=(PI / 2, 0, 0), m=W, verts=40))
     for s in (-1, 1):
         cap = N + a * (s * 1.5)
-        P.append(cyl("node_cap", 1.28, 0.2, loc=cap, rot=(PI / 2, 0, 0), m=FRAME, verts=36))
+        P.append(cyl("node_cap", 1.53, 0.2, loc=cap, rot=(PI / 2, 0, 0), m=FRAME, verts=40))
         P.append(kit.torus("porthole_ring", 0.66, 0.11, loc=cap + a * (s * 0.12), rot=(PI / 2, 0, 0), m=W, seg=32, rseg=8))
         P.append(cyl("porthole_well", 0.6, 0.05, loc=cap + a * (s * 0.1), rot=(PI / 2, 0, 0), m="metal_gunmetal", verts=32))
         G.append(obox("porthole_win", cap + a * (s * 0.11), t, r, a * s, -0.38, 0.38, -0.24, 0.24, 0.0, 0.04, "glass_dark"))
     for yy in (-0.6, 0.6):
-        P.append(kit.torus("drum_rib", 1.21, 0.05, loc=N + a * yy, rot=(PI / 2, 0, 0), m=FRAME, seg=36, rseg=6))
+        P.append(kit.torus("drum_rib", 1.46, 0.05, loc=N + a * yy, rot=(PI / 2, 0, 0), m=FRAME, seg=40, rseg=6))
     # boxy rounded tunnel arms to both modules (perpendicular to each module's end face)
     for (mk, sgn) in ((k, 1), ((k + 1) % 12, -1)):
         Fm = Fr(mk)
@@ -280,11 +316,11 @@ def node(P, G, root, k):
         face_t = sgn * HT
         start = Fm.p(face_t, YN, rc)
         L = abs(tc - face_t)
-        P.append(rrect_prism("tunnel_arm", start, Fm.a, Fm.r, Fm.t * sgn, 0.85, 0.85, 0.3, 0.0, L, W))
-        for ff in (0.12, L * 0.45):
-            P.append(rrect_prism("arm_collar", start, Fm.a, Fm.r, Fm.t * sgn, 0.93, 0.93, 0.34, ff, ff + 0.12, FRAME))
+        P.append(rrect_prism("tunnel_arm", start, Fm.a, Fm.r, Fm.t * sgn, TH + 0.1, TH + 0.1, 0.3, 0.0, L, W))
+        for ff in (0.08, max(0.2, L * 0.5)):
+            P.append(rrect_prism("arm_collar", start, Fm.a, Fm.r, Fm.t * sgn, TH + 0.18, TH + 0.18, 0.34, ff, ff + 0.1, FRAME))
     # stepped outward stub (radial): collar, body, rings, neck, end cap — four nodes carry full airlocks
-    base = N + r * 1.05
+    base = N + r * 1.4
     airlock = k in AIRLOCKS
     if airlock:
         prof = [(0.0, 0.0), (0.98, 0.0), (0.98, 0.25), (0.86, 0.25), (0.86, 2.6), (0.98, 2.6), (0.98, 2.85), (0.86, 2.85),

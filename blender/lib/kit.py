@@ -208,6 +208,8 @@ PALETTE = {
     "endu_panel": dict(color=(0.55, 0.6, 0.68), metal=0.35, rough=0.35),
     "endu_panel_dark": dict(color=(0.16, 0.19, 0.25), metal=0.3, rough=0.45),
     "endu_seam": dict(color=(0.42, 0.42, 0.42), rough=0.6),
+    "console_blue": dict(color=(0.13, 0.25, 0.45), rough=0.55),
+    "endu_floor": dict(color=(0.07, 0.07, 0.075), rough=0.85),
     "endu_edge": dict(color=(0.6, 0.61, 0.6), metal=0.3, rough=0.45),
     "needles_spruce": dict(color=(0.11, 0.19, 0.12), rough=0.85),
     "needles_fir": dict(color=(0.14, 0.24, 0.13), rough=0.85),
@@ -905,7 +907,7 @@ def export_glb(path, root=None, animations=False):
 
 
 def preview(path, cam_loc, target=(0, 0, 0), res=(960, 540), lens=35, samples=24, sun=(0.6, 0.2, 0.9),
-            world=(0.55, 0.6, 0.68), strength=1.0, sun_strength=4.0, hide=()):
+            world=(0.55, 0.6, 0.68), strength=1.0, sun_strength=4.0, hide=(), up=None):
     """Quick Cycles render for visual verification against reference images."""
     sc = bpy.context.scene
     sc.render.engine = "CYCLES"
@@ -936,7 +938,13 @@ def preview(path, cam_loc, target=(0, 0, 0), res=(960, 540), lens=35, samples=24
     cam.data.clip_end = 5000
     cam.location = cam_loc
     d = V(target) - V(cam_loc)
-    cam.rotation_euler = d.to_track_quat("-Z", "Y").to_euler()
+    if up is None:
+        cam.rotation_euler = d.to_track_quat("-Z", "Y").to_euler()
+    else:
+        f = d.normalized()
+        rgt = f.cross(V(up)).normalized()
+        u2 = rgt.cross(f).normalized()
+        cam.rotation_euler = Matrix((rgt, u2, -f)).transposed().to_euler()
     sc.camera = cam
     s = bpy.data.objects.get("_preview_sun")
     if s is None:

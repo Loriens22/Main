@@ -140,6 +140,8 @@ const RECIPES: Record<string, Recipe> = {
   lander_graphite: { color: C(0.15, 0.14, 0.17), rough: 0.55, metal: 0.5, normal: 'panel_n', normalScale: 0.45, normalRepeat: 0.6, weather: { grime: 0.3, grimeTint: new THREE.Color(1.6, 1.5, 1.6), scratch: 0.35, scratchColor: new THREE.Color(0.45, 0.43, 0.48), streak: 0.2 } },
   endu_panel: { color: C(0.52, 0.57, 0.66), rough: 0.3, metal: 0.4, normal: 'panel_n', normalScale: 0.25, normalRepeat: 1.4, weather: { grime: 0.2 } },
   endu_panel_dark: { color: C(0.14, 0.17, 0.23), rough: 0.45, metal: 0.35, normal: 'panel_n', normalScale: 0.4, normalRepeat: 1.0, weather: { grime: 0.2, grimeTint: new THREE.Color(1.6, 1.6, 1.7) } },
+  console_blue: { color: C(0.12, 0.24, 0.44), rough: 0.5, metal: 0.15, normal: 'panel_n', normalScale: 0.3, normalRepeat: 1.5, weather: { grime: 0.45, scratch: 0.35, scratchColor: new THREE.Color(0.6, 0.62, 0.65) } },
+  endu_floor: { color: C(0.07, 0.07, 0.075), rough: 0.82, normal: 'hexmesh_n', normalScale: 0.9, normalRepeat: 3, weather: { grime: 0.5, grimeTint: new THREE.Color(2.5, 2.3, 2.1) } },
   endu_seam: { color: C(0.4, 0.4, 0.4), rough: 0.6, weather: false },
   endu_edge: { color: C(0.6, 0.61, 0.6), rough: 0.42, metal: 0.3, normal: 'brushed', normalScale: 0.08, weather: { grime: 0.4, scratch: 0.25 } },
   carpet_gray: { color: C(0.16, 0.17, 0.2), rough: 0.96, normal: 'fabric_n', normalScale: 0.9, normalRepeat: 3, weather: { grime: 0.3, scratch: 0 } },
