@@ -2,7 +2,7 @@ import * as THREE from 'three';
 import type { AutopilotProgram, AutopilotResult } from '../vehicles/FlightControl';
 import type { Spacecraft, FlightEnv } from '../vehicles/Spacecraft';
 import { lambert, propagate, type V3 } from './kepler';
-import { MU_EARTH, R_EARTH, orbitSummary } from './earthFrame';
+import { PRIMARY, orbitSummary } from './earthFrame';
 
 /** What the orbital programs need from the zone (all vectors in the zone's inertial frame, metres). */
 export interface ProxHost {
@@ -49,10 +49,21 @@ const vsub = (a: V3, b: V3): V3 => [a[0] - b[0], a[1] - b[1], a[2] - b[2]];
 const vadd = (a: V3, b: V3): V3 => [a[0] + b[0], a[1] + b[1], a[2] + b[2]];
 const vlen = (a: V3) => Math.hypot(a[0], a[1], a[2]);
 
-function lambertECI(r1: V3, r2: V3, tof: number) {
-  const s = lambert(toStd(r1), toStd(r2), tof, MU_EARTH, true);
-  return s ? { v1: fromStd(s.v1), v2: fromStd(s.v2) } : null;
+/** Lambert in the local frame. Prograde is judged against hRef (the craft's own orbit normal), not the frame's pole —
+ * orbits around other planets can be inclined beyond 90° to the J2000 equator (Uranus). */
+function lambertECI(r1: V3, r2: V3, tof: number, hRef?: THREE.Vector3) {
+  if (!hRef) {
+    const s = lambert(toStd(r1), toStd(r2), tof, PRIMARY.mu, true);
+    return s ? { v1: fromStd(s.v1), v2: fromStd(s.v2) } : null;
+  }
+  // rotate so hRef becomes +Z (the solver's prograde reference)
+  const q = new THREE.Quaternion().setFromUnitVectors(hRef.clone().normalize(), new THREE.Vector3(0, 0, 1));
+  const qi = q.clone().invert();
+  const rot = (v: V3, qq: THREE.Quaternion): V3 => new THREE.Vector3(...v).applyQuaternion(qq).toArray() as V3;
+  const s = lambert(rot(r1, q), rot(r2, q), tof, PRIMARY.mu, true);
+  return s ? { v1: rot(s.v1, qi), v2: rot(s.v2, qi) } : null;
 }
+const hOf = (r: V3 | number[], v: V3 | number[]) => new THREE.Vector3(r[0], r[1], r[2]).cross(new THREE.Vector3(v[0], v[1], v[2]));
 
 /** −Z along dir, +Y as close as possible to up. */
 function lookQuat(dir: THREE.Vector3, up: THREE.Vector3) {
@@ -154,14 +165,14 @@ export class OrbitInsertion implements AutopilotProgram {
       c.attTarget.copy(lookQuat(hdir, up));
       if (s.ap < this.targetAlt - 20e3) this.phase = 'ascent';
       // exact time to apoapsis from the eccentric anomaly
-      const rN = R_EARTH + s.alt;
+      const rN = PRIMARY.R + s.alt;
       const cosE = THREE.MathUtils.clamp((1 - rN / s.a) / Math.max(1e-9, s.e), -1, 1);
-      const sinE = (rN * s.vr) / (Math.max(1e-9, s.e) * Math.sqrt(MU_EARTH * s.a));
+      const sinE = (rN * s.vr) / (Math.max(1e-9, s.e) * Math.sqrt(PRIMARY.mu * s.a));
       const E = Math.atan2(sinE, cosE);
       const M = E - s.e * Math.sin(E);
-      const n = Math.sqrt(MU_EARTH / (s.a * s.a * s.a));
+      const n = Math.sqrt(PRIMARY.mu / (s.a * s.a * s.a));
       const tApo = M < Math.PI ? (Math.PI - M) / n : 0;
-      const burnHalf = Math.max(2, (Math.sqrt(MU_EARTH / (R_EARTH + s.ap)) - hdir.dot(v)) / Math.max(1, c.maxAccel()) / 2);
+      const burnHalf = Math.max(2, (Math.sqrt(PRIMARY.mu / (PRIMARY.R + s.ap)) - hdir.dot(v)) / Math.max(1, c.maxAccel()) / 2);
       if (s.vr <= 0 || tApo <= burnHalf) {
         this.phase = 'circ';
         this.host.say('computer', 'Circularisation burn.');
@@ -170,7 +181,7 @@ export class OrbitInsertion implements AutopilotProgram {
     }
     // circularise
     c.attTarget.copy(lookQuat(hdir, up));
-    const vc = Math.sqrt(MU_EARTH / (R_EARTH + s.alt));
+    const vc = Math.sqrt(PRIMARY.mu / (PRIMARY.R + s.alt));
     if ((s.pe > this.targetAlt - 15e3 && s.pe > 185e3) || hdir.dot(v) >= vc + 2) {
       c.throttle = 0;
       if (!this.done) {
@@ -210,14 +221,14 @@ export class Rendezvous implements AutopilotProgram {
     const P = Number.isFinite(s.period) ? s.period : 5400;
     let best = { cost: Infinity, w: 0, tof: 0, dv: 0 };
     for (let w = 30; w <= P * 1.2; w += 90) {
-      const st = propagate(c.pos as V3, c.vel as V3, MU_EARTH, w);
+      const st = propagate(c.pos as V3, c.vel as V3, PRIMARY.mu, w);
       for (let tof = P * 0.3; tof <= P * 0.8; tof += 150) {
         const a = this.aim(t0 + w + tof);
-        const sol = lambertECI(st.r, a.r, tof);
+        const sol = lambertECI(st.r, a.r, tof, hOf(c.pos, c.vel));
         if (!sol) continue;
         // reject transfers that dip into the atmosphere
-        const mid = propagate(st.r, sol.v1, MU_EARTH, tof / 2);
-        if (vlen(mid.r) - R_EARTH < 150e3) continue;
+        const mid = propagate(st.r, sol.v1, PRIMARY.mu, tof / 2);
+        if (vlen(mid.r) - PRIMARY.R < 150e3) continue;
         const dv = vlen(vsub(sol.v1, st.v)) + vlen(vsub(a.v, sol.v2));
         const cost = dv + 0.025 * w;
         if (cost < best.cost) best = { cost, w, tof, dv };
@@ -234,7 +245,7 @@ export class Rendezvous implements AutopilotProgram {
   private target(c: Spacecraft): V3 | null {
     const t = this.host.now();
     const a = this.aim(this.tArr);
-    const sol = lambertECI(c.pos as V3, a.r, Math.max(30, this.tArr - t));
+    const sol = lambertECI(c.pos as V3, a.r, Math.max(30, this.tArr - t), hOf(c.pos, c.vel));
     return sol ? sol.v1 : null;
   }
 
@@ -285,7 +296,7 @@ export class Rendezvous implements AutopilotProgram {
         let evt = this.tMid;
         if (this.phase === 'coast2') {
           const ar = this.aim(this.tArr);
-          const st = propagate(c.pos as V3, c.vel as V3, MU_EARTH, Math.max(0, this.tArr - t));
+          const st = propagate(c.pos as V3, c.vel as V3, PRIMARY.mu, Math.max(0, this.tArr - t));
           const dvA = vlen(vsub(ar.v, st.v));
           evt = this.tArr - dvA / (2 * Math.max(0.5, c.maxAccel())) - 0.5;
         }

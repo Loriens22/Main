@@ -4,14 +4,19 @@ import { Frame } from '../Frame';
 import type { Game } from '../../core/Game';
 import type { RenderLayer } from '../../render/Renderer';
 import type { ModelInstance } from '../../render/Assets';
-import { Globe, Starfield, SunDisc } from '../../render/Globe';
+import { Starfield, SunDisc } from '../../render/Globe';
+import { SolarSystem, helio } from '../../render/SolarSystem';
+import { BODIES } from '../../data/bodies';
+import { planTransfer, cruiseState, parkRadius, planetOf, fmtDuration, DESTINATIONS, type TransferPlan } from '../../space/Navigation';
+import { MissionClock } from '../../core/MissionClock';
+import { G0 } from '../../data/vehicles';
 import { Spacecraft, type FlightEnv } from '../../vehicles/Spacecraft';
 import { FlightControl } from '../../vehicles/FlightControl';
 import { CraftModel } from '../../vehicles/CraftModel';
 import { Plume } from '../../vehicles/Plume';
 import { SPECS, type SpacecraftSpec } from '../../data/vehicles';
 import type { VehicleState } from '../../core/State';
-import { MU_EARTH, R_EARTH, gmst, sunDirECI, siteBasisECEF, ecefToEci, gravityAt, densityAt, orbitSummary } from '../../space/earthFrame';
+import { R_EARTH, gmst, siteBasisECEF, ecefToEci, gravityAt, densityAt, orbitSummary, PRIMARY, setPrimary } from '../../space/earthFrame';
 import { propagate, type V3 } from '../../space/kepler';
 import { OrbitInsertion, Rendezvous, DockingApproach, type ProxHost, type DockGoal, type PortRelation } from '../../space/Proximity';
 import { SITE } from '../../space/astro';
@@ -46,7 +51,7 @@ export default class SpaceZone extends Zone implements ProxHost {
   readonly id = 'space' as const;
   readonly far = new THREE.Scene();
   readonly farCam = new THREE.PerspectiveCamera(60, 1, 1, 3e5);
-  globe!: Globe;
+  system!: SolarSystem;
   stars!: Starfield;
   sunDisc!: SunDisc;
   sun!: THREE.DirectionalLight;
@@ -59,7 +64,7 @@ export default class SpaceZone extends Zone implements ProxHost {
       const n = Math.hypot(p[0], p[1], p[2]);
       return [p[0] / n, p[1] / n, p[2] / n];
     },
-    altitude: (p) => Math.hypot(p[0], p[1], p[2]) - R_EARTH,
+    altitude: (p) => Math.hypot(p[0], p[1], p[2]) - PRIMARY.R,
   };
   // Endurance
   eInst!: ModelInstance;
@@ -94,6 +99,7 @@ export default class SpaceZone extends Zone implements ProxHost {
   private tSim = 0;
   private envT = 0;
   private sunVis = 1;
+  flux = 1;
   private eclipseLast = -1;
   private dockRoll = 0;
 
@@ -108,8 +114,8 @@ export default class SpaceZone extends Zone implements ProxHost {
     const game = this.game;
     const mats = game.materials;
     progress(0.1, 'Earth');
-    this.globe = new Globe({ radius: R_EARTH / 1000, atmosphere: 100, day: mats.tex('earth_day', true, 1), aux: mats.tex('earth_aux', false, 1) });
-    this.far.add(this.globe.mesh);
+    this.system = new SolarSystem(mats);
+    this.far.add(this.system.group);
     this.stars = new Starfield();
     this.far.add(this.stars.group);
     this.sunDisc = new SunDisc();
@@ -227,12 +233,25 @@ export default class SpaceZone extends Zone implements ProxHost {
   describe() {
     const s = this.craft ? orbitSummary(this.craft.pos, this.craft.vel) : null;
     const room = this.roomHere?.();
+    const where = this.whereText();
     if (room) {
       const g = this.eFrame.gravity(this.game.player.pos, new THREE.Vector3()).length() / 9.81;
-      return { name: 'ENDURANCE', sub: `${room} · ${g.toFixed(2)} g` };
+      return { name: 'ENDURANCE', sub: `${room} · ${g.toFixed(2)} g · ${where}` };
     }
-    if (this.r1Docked) return { name: 'ENDURANCE', sub: 'Docked · Earth orbit 420 km' };
-    return { name: 'EARTH ORBIT', sub: s ? `Ranger 1 · ${(s.alt / 1000).toFixed(0)} km` : 'Low Earth orbit' };
+    if (this.r1Docked) return { name: 'ENDURANCE', sub: `Docked · ${where}` };
+    return { name: PRIMARY.id === 'sun' ? 'INTERPLANETARY SPACE' : `${(BODIES[PRIMARY.id]?.name ?? '').toUpperCase()} ORBIT`, sub: s ? `Ranger 1 · ${(s.alt / 1000).toFixed(0)} km` : where };
+  }
+
+  /** Where the Endurance is, for status lines. */
+  whereText() {
+    const d = this.game.state.vehicles.endurance.data;
+    if (d.cruise) {
+      const pl = d.cruise as TransferPlan;
+      return `Cruise to ${BODIES[pl.to]?.name ?? pl.to} · ${fmtDuration(Math.max(0, pl.tArr - this.game.state.clock.earthTime))} to go`;
+    }
+    if (d.hold) return 'Station-keeping at the Anomaly, near Saturn';
+    const alt = this.ePos ? Math.hypot(...this.ePos) - PRIMARY.R : 0;
+    return `${BODIES[PRIMARY.id]?.name ?? PRIMARY.id} orbit ${alt > 1e7 ? (alt / 1e6).toFixed(0) + ' 000 km' : (alt / 1000).toFixed(0) + ' km'}`;
   }
 
   altitude() {
@@ -263,13 +282,21 @@ export default class SpaceZone extends Zone implements ProxHost {
       rHat = up.clone().applyAxisAngle(hHat, THREE.MathUtils.degToRad(12));
     }
     const vHat = new THREE.Vector3().crossVectors(hHat, rHat).normalize();
-    const vc = Math.sqrt(MU_EARTH / rad);
-    ev.data.orbit = { r0: rHat.clone().multiplyScalar(rad).toArray(), v0: vHat.multiplyScalar(vc).toArray(), t0: t };
+    const vc = Math.sqrt(PRIMARY.mu / rad);
+    ev.data.orbit = { r0: rHat.clone().multiplyScalar(rad).toArray(), v0: vHat.multiplyScalar(vc).toArray(), t0: t, body: 'earth' };
   }
 
+  /** Endurance state relative to the current primary: Kepler parking orbit, heliocentric cruise arc, or station-keeping. */
   targetState(t: number): { r: V3; v: V3 } {
-    const o = this.game.state.vehicles.endurance.data.orbit as { r0: V3; v0: V3; t0: number };
-    return propagate(o.r0, o.v0, MU_EARTH, t - o.t0);
+    const d = this.game.state.vehicles.endurance.data;
+    if (d.cruise) return cruiseState(d.cruise as TransferPlan, t);
+    if (d.hold) {
+      const h = d.hold as { target: string; offset: V3 };
+      const w = helio(h.target, t).r, sP = helio(PRIMARY.id, t).r;
+      return { r: [w[0] - sP[0] + h.offset[0], w[1] - sP[1] + h.offset[1], w[2] - sP[2] + h.offset[2]], v: [0, 0, 0] };
+    }
+    const o = d.orbit as { r0: V3; v0: V3; t0: number };
+    return propagate(o.r0, o.v0, PRIMARY.mu, t - o.t0);
   }
 
   now() {
@@ -278,7 +305,9 @@ export default class SpaceZone extends Zone implements ProxHost {
 
   /** LVLH attitude: ring axis (model +Z, aft) along +velocity, so the forward port faces back along the orbit. */
   private lvlh(r: V3, v: V3, out: THREE.Quaternion) {
-    const z = new THREE.Vector3(...v).normalize();
+    const vv = new THREE.Vector3(...v);
+    if (vv.lengthSq() < 1e-6) vv.set(...r).cross(new THREE.Vector3(0, 1, 0)); // station-keeping: any fixed tangential axis
+    const z = vv.normalize();
     const y = new THREE.Vector3(...r).normalize();
     y.addScaledVector(z, -y.dot(z)).normalize();
     const x = new THREE.Vector3().crossVectors(y, z);
@@ -447,6 +476,8 @@ export default class SpaceZone extends Zone implements ProxHost {
     const t = game.state.clock.earthTime;
     const st = game.state.vehicles.ranger1;
     this.tSim = t;
+    const ed = game.state.vehicles.endurance.data;
+    this.applyPrimary(ed.cruise ? 'sun' : ed.hold ? 'saturn' : ((ed.orbit as { body?: string } | undefined)?.body ?? 'earth'));
     let at = spec.at ?? (st.docked ? 'docked' : 'orbit');
     // 'endurance' / 'endurance:<room>' — aboard, with Ranger 1 docked at the forward port
     let aboardAt: string | null = null;
@@ -484,7 +515,7 @@ export default class SpaceZone extends Zone implements ProxHost {
       const rE = new THREE.Vector3(...this.ePos), vE = new THREE.Vector3(...this.eVel);
       const hh = new THREE.Vector3().crossVectors(rE, vE).normalize();
       const rr = rE.clone().normalize().applyAxisAngle(hh, -THREE.MathUtils.degToRad(14)).multiplyScalar(R_EARTH + 290e3);
-      const vv = new THREE.Vector3().crossVectors(hh, rr).normalize().multiplyScalar(Math.sqrt(MU_EARTH / rr.length()));
+      const vv = new THREE.Vector3().crossVectors(hh, rr).normalize().multiplyScalar(Math.sqrt(PRIMARY.mu / rr.length()));
       r = rr.toArray() as V3;
       v = vv.toArray() as V3;
       q = new THREE.Quaternion().setFromRotationMatrix(new THREE.Matrix4().lookAt(new THREE.Vector3(), vv.clone().normalize(), rr.clone().normalize()));
@@ -646,7 +677,7 @@ export default class SpaceZone extends Zone implements ProxHost {
     const relPos = new THREE.Vector3(this.ePos[0] - c.pos[0], this.ePos[1] - c.pos[1], this.ePos[2] - c.pos[2]).add(ep.p).sub(pc);
     const near = relPos.length() < 5000;
     return {
-      orbit: { body: 'EARTH', ap: s.ap, pe: s.pe, period: s.period, inc: THREE.MathUtils.radToDeg(s.inc) },
+      orbit: { body: (BODIES[PRIMARY.id]?.name ?? PRIMARY.id).toUpperCase(), ap: s.ap, pe: s.pe, period: s.period, inc: THREE.MathUtils.radToDeg(s.inc) },
       target: this.r1Docked
         ? null
         : {
@@ -689,11 +720,13 @@ export default class SpaceZone extends Zone implements ProxHost {
       add('ORBIT INSERTION', 'Burn to a stable parking orbit (periapsis above 185 km).', !this.r1Docked && s.pe < 185e3, () => ctrl.setAutopilot(new OrbitInsertion(this, 290e3)));
       add('RENDEZVOUS + DOCK', 'Plan a Lambert transfer to the Endurance, burn, correct, brake at the hold point, then dock at the forward port (time compressed).', !this.r1Docked && s.pe > 150e3, () => ctrl.setAutopilot(new Rendezvous(this, () => ctrl.setAutopilot(new DockingApproach(this)))));
       add('DOCKING APPROACH', 'From within 3 km: close to the 150 m hold point, align, match the ring\'s spin and dock.', !this.r1Docked && rel.dist < 3000, () => ctrl.setAutopilot(new DockingApproach(this)));
+      add('ENDURANCE NAVIGATION', 'Interplanetary transfers: plan, engage, cruise (cryosleep or time warp), capture into orbit at the destination.', this.r1Docked, () => setTimeout(() => import('../../ui/Panels').then((P) => P.openMissionComputer(game, 'nav')), 50));
       add('DISENGAGE AUTOPILOT', 'Manual flight: W/S pitch, A/D yaw, Q/E roll, I/K/J/L/H/N translate, Shift/Ctrl throttle, T SAS mode.', !!ctrl.autopilot, () => ctrl.setAutopilot(null));
     }, { narrow: true, onClose: () => game.input.requestLock() });
   }
 
   maxTimeWarp() {
+    if (this.r1Docked && this.game.state.vehicles.endurance.data.cruise) return 100000;
     if (this.r1Docked) return 1000;
     const rel = this.craft ? this.portRelation(this.craft) : null;
     return rel && rel.dist < 5000 ? 1 : 100;
@@ -733,7 +766,7 @@ export default class SpaceZone extends Zone implements ProxHost {
         const canCoast = !thrust && (this.control.autopilot ? this.control.maxStep > 0.05 : rem > 0.5);
         if (canCoast) {
           hStep = Math.min(rem, this.control.autopilot ? this.control.maxStep : 2);
-          const p = propagate(this.craft.pos as V3, this.craft.vel as V3, MU_EARTH, hStep);
+          const p = propagate(this.craft.pos as V3, this.craft.vel as V3, PRIMARY.mu, hStep);
           for (let k = 0; k < 3; k++) {
             this.craft.pos[k] = p.r[k];
             this.craft.vel[k] = p.v[k];
@@ -778,11 +811,13 @@ export default class SpaceZone extends Zone implements ProxHost {
     // models
     this.r1Model.update(dt, this.craft.spec === S2_SPEC ? null : this.craft, 0);
     this.s2Plume?.update(dt, this.craft.spec === S2_SPEC ? this.craft.mainLevel : 0, 0);
-    this.eModel.update(dt, null, 0, { mainLevel: 0 });
+    this.burnLevel = THREE.MathUtils.damp(this.burnLevel, this.burnTarget, 1.5, dt);
+    this.eModel.update(dt, null, 0, { mainLevel: this.burnLevel });
+    this.navTick();
     for (const hm of this.crew) hm.update(dt);
     if (this.spent) {
       const s = this.spent;
-      const p = propagate(s.pos, s.vel, MU_EARTH, dE);
+      const p = propagate(s.pos, s.vel, PRIMARY.mu, dE);
       s.pos = p.r;
       s.vel = p.v;
       s.t += dt;
@@ -801,6 +836,302 @@ export default class SpaceZone extends Zone implements ProxHost {
     this.updateSky(dt);
   }
   private reentryWarned = false;
+
+  // ===================================================================================================== navigation
+  burnLevel = 0;
+  get primaryId() {
+    return PRIMARY.id;
+  }
+  burnTarget = 0;
+  private navCache = new Map<string, TransferPlan | null>();
+
+  private applyPrimary(id: string) {
+    const b = BODIES[id];
+    setPrimary(id, b.mu, b.radius);
+  }
+
+  /** Re-centre the local inertial frame on another body (patched conics); free craft keep their heliocentric state. */
+  private switchPrimary(id: string) {
+    const t = this.game.state.clock.earthTime;
+    const old = PRIMARY.id;
+    if (old === id) return;
+    const ho = old === 'sun' ? { r: [0, 0, 0], v: [0, 0, 0] } : helio(old, t);
+    const hn = id === 'sun' ? { r: [0, 0, 0], v: [0, 0, 0] } : helio(id, t);
+    if (this.craft && !this.r1Docked) {
+      for (let k = 0; k < 3; k++) {
+        this.craft.pos[k] += ho.r[k] - hn.r[k];
+        this.craft.vel[k] += ho.v[k] - hn.v[k];
+      }
+    }
+    this.applyPrimary(id);
+    this.navCache.clear();
+  }
+
+  /** Body the Endurance is currently parked at (or 'sun' in cruise). */
+  parkedAt() {
+    const d = this.game.state.vehicles.endurance.data;
+    if (d.cruise) return 'sun';
+    if (d.hold) return 'wormhole';
+    return PRIMARY.id;
+  }
+
+  private enduranceDv() {
+    const ev = this.game.state.vehicles.endurance;
+    const sp = SPECS.endurance;
+    return sp.mainIsp * G0 * Math.log((sp.dryMass + ev.fuel) / sp.dryMass);
+  }
+
+  private propFor(dv: number) {
+    const ev = this.game.state.vehicles.endurance;
+    const sp = SPECS.endurance;
+    const m0 = sp.dryMass + ev.fuel;
+    return m0 * (1 - Math.exp(-dv / (sp.mainIsp * G0)));
+  }
+
+  computerTabs() {
+    if (!this.r1Docked && !this.aboard) return [];
+    return [{ id: 'nav', label: 'NAVIGATION', build: (b: HTMLElement) => this.navTab(b) }];
+  }
+
+  private navTab(b: HTMLElement) {
+    const game = this.game;
+    const st = game.state;
+    const ev = st.vehicles.endurance;
+    const d = ev.data;
+    const t = st.clock.earthTime;
+    b.innerHTML = '';
+    const here = this.parkedAt();
+    const cruise = d.cruise as TransferPlan | undefined;
+    const pending = d.pending as TransferPlan | undefined;
+    const head = h('div', { class: 'card' }, h('h3', {}, 'ENDURANCE — NAVIGATION'),
+      h('div', { class: 'kv' },
+        h('span', {}, 'Position'), h('span', {}, this.whereText()),
+        h('span', {}, 'Earth date'), h('span', {}, MissionClock.formatDate(t)),
+        h('span', {}, 'Propellant'), h('span', {}, `${Math.round(ev.fuel / 1000).toLocaleString()} t`),
+        h('span', {}, 'Δv available'), h('span', {}, `${(this.enduranceDv() / 1000).toFixed(1)} km/s (Isp ${SPECS.endurance.mainIsp} s)`),
+        h('span', {}, 'Ranger 1'), h('span', {}, this.r1Docked ? 'docked — forward port' : 'NOT DOCKED'),
+      ));
+    b.append(head);
+    if (cruise) {
+      const left = cruise.tArr - t;
+      const c = h('div', { class: 'card' }, h('h3', {}, `CRUISE TO ${(BODIES[cruise.to]?.name ?? cruise.to).toUpperCase()}`),
+        h('div', { class: 'kv' }, h('span', {}, 'Arrival'), h('span', {}, `${MissionClock.formatDate(cruise.tArr)} (${fmtDuration(left)})`),
+          h('span', {}, 'Heliocentric distance'), h('span', {}, `${(Math.hypot(...this.ePos) / 1.496e11).toFixed(3)} AU`)));
+      const row = h('div', { style: { display: 'flex', gap: '8px', marginTop: '10px', flexWrap: 'wrap' } });
+      row.append(game.ui.button('ENTER CRYOSLEEP UNTIL ARRIVAL', () => { game.ui.closeAllPanels(); void this.cryosleep(cruise.tArr - 2 * 86400); }, 'btn primary'));
+      row.append(game.ui.button('STAY AWAKE (TIME WARP ×100 000)', () => { game.ui.closeAllPanels(); game.clock.timeScale = 100000; game.input.requestLock(); }, 'btn'));
+      c.append(row);
+      b.append(c);
+      return;
+    }
+    if (pending) {
+      const c = h('div', { class: 'card' }, h('h3', {}, `DEPARTURE PLANNED — ${(BODIES[pending.to]?.name ?? pending.to).toUpperCase()}`),
+        h('div', { class: 'kv' }, h('span', {}, 'Departure'), h('span', {}, `${MissionClock.formatDate(pending.tDep)} (in ${fmtDuration(Math.max(0, pending.tDep - t))})`),
+          h('span', {}, 'Arrival'), h('span', {}, MissionClock.formatDate(pending.tArr))));
+      const row = h('div', { style: { display: 'flex', gap: '8px', marginTop: '10px', flexWrap: 'wrap' } });
+      if (pending.tDep - t > 600) row.append(game.ui.button('WAIT FOR THE WINDOW (SKIP AHEAD)', () => { game.ui.closeAllPanels(); void this.skipTo(pending.tDep - 30, 'Waiting for the departure window'); }, 'btn primary'));
+      row.append(game.ui.button('CANCEL', () => { delete d.pending; st.endurance.nav.program = 'parking'; this.navTab(b); }, 'btn danger'));
+      c.append(row);
+      b.append(c);
+      return;
+    }
+    const list = h('div', { class: 'list' });
+    const detail = h('div', { class: 'card', style: { marginTop: '10px' } }, h('div', { class: 'dim' }, 'Choose a destination and a profile. Efficient waits for the launch window; Fast leaves within weeks and spends more propellant.'));
+    const show = (to: string, profile: 'efficient' | 'fast') => {
+      const key = `${here}>${to}>${profile}`;
+      let plan = this.navCache.get(key);
+      if (plan === undefined) {
+        plan = planTransfer(here === 'wormhole' ? 'saturn' : here, to, game.state.clock.earthTime, profile, Math.min(80e3, this.enduranceDv() * 0.6));
+        this.navCache.set(key, plan);
+      }
+      detail.innerHTML = '';
+      if (!plan) {
+        detail.append(h('div', { class: 'status-warn' }, 'No transfer within the Δv budget for this profile.'));
+        return;
+      }
+      const prop = this.propFor(plan.dv);
+      detail.append(h('h3', {}, `${(BODIES[here]?.name ?? here).toUpperCase()} → ${(BODIES[to]?.name ?? to).toUpperCase()} · ${profile.toUpperCase()}`),
+        h('div', { class: 'kv' },
+          h('span', {}, 'Departure'), h('span', {}, `${MissionClock.formatDate(plan.tDep)}${plan.tDep - game.state.clock.earthTime > 86400 ? ` (wait ${fmtDuration(plan.tDep - game.state.clock.earthTime)})` : ''}`),
+          h('span', {}, 'Flight time'), h('span', {}, fmtDuration(plan.tArr - plan.tDep)),
+          h('span', {}, 'Arrival'), h('span', {}, MissionClock.formatDate(plan.tArr)),
+          h('span', {}, 'Δv departure / capture'), h('span', {}, `${(plan.dvDep / 1000).toFixed(2)} / ${(plan.dvArr / 1000).toFixed(2)} km/s`),
+          h('span', {}, 'v∞ departure / arrival'), h('span', {}, plan.local ? 'local transfer' : `${(plan.vinfDep / 1000).toFixed(2)} / ${(plan.vinfArr / 1000).toFixed(2)} km/s`),
+          h('span', {}, 'Propellant'), h('span', {}, `${Math.round(prop / 1000).toLocaleString()} t of ${Math.round(game.state.vehicles.endurance.fuel / 1000).toLocaleString()} t`),
+          h('span', {}, 'Parking orbit'), h('span', {}, to === 'wormhole' ? 'station-keeping 60 km from the Anomaly' : `${((parkRadius(to) - BODIES[to].radius) / 1000).toFixed(0)} km altitude`),
+        ));
+      const go = game.ui.button('ENGAGE', () => { game.ui.closeAllPanels(); this.engage(plan!); }, 'btn primary');
+      go.disabled = !this.r1Docked || prop > game.state.vehicles.endurance.fuel;
+      detail.append(h('div', { style: { marginTop: '10px' } }, go, !this.r1Docked ? h('span', { class: 'status-warn', style: { marginLeft: '10px' } }, 'Dock Ranger 1 first') : ''));
+    };
+    for (const id of DESTINATIONS) {
+      if (id === here || (here === 'wormhole' && id === 'wormhole')) continue;
+      const bd = BODIES[id];
+      const pa = planetOf(id);
+      const dist = Math.hypot(...(() => { const a = helio(pa, t).r, c = helio(planetOf(here === 'wormhole' ? 'saturn' : here === 'sun' ? 'earth' : here), t).r; return [a[0] - c[0], a[1] - c[1], a[2] - c[2]] as V3; })());
+      const row = h('div', { class: 'item' },
+        h('span', {}, h('b', {}, bd.name), h('span', { class: 'dim', style: { marginLeft: '8px', fontSize: '12px' } }, `${bd.kind === 'moon' ? 'moon of ' + BODIES[bd.parent!].name : bd.kind}${pa !== planetOf(here === 'wormhole' ? 'saturn' : here) ? ` · ${(dist / 1.496e11).toFixed(2)} AU` : ' · local'}`)),
+        h('span', {}, game.ui.button('EFFICIENT', () => show(id, 'efficient'), 'btn'), game.ui.button('FAST', () => show(id, 'fast'), 'btn')));
+      list.append(row);
+    }
+    b.append(h('div', { class: 'card' }, h('h3', {}, 'DESTINATIONS'), list), detail);
+  }
+
+  /** Commit to a transfer: wait for the window (if any), then the departure burn. */
+  engage(plan: TransferPlan) {
+    const game = this.game;
+    const d = game.state.vehicles.endurance.data;
+    d.pending = plan;
+    game.state.endurance.nav.destination = plan.to;
+    game.state.endurance.nav.departT = plan.tDep;
+    game.state.endurance.nav.arriveT = plan.tArr;
+    game.log('mission', 'NAV', `Transfer to ${BODIES[plan.to]?.name}: depart ${MissionClock.formatDate(plan.tDep)}, arrive ${MissionClock.formatDate(plan.tArr)}, Δv ${(plan.dv / 1000).toFixed(2)} km/s.`);
+    this.say('computer', `Course to ${BODIES[plan.to]?.name} laid in. ${plan.tDep - game.state.clock.earthTime > 3600 ? `Departure window opens in ${fmtDuration(plan.tDep - game.state.clock.earthTime)}.` : 'Departure burn in thirty seconds.'}`);
+  }
+
+  /** Per-frame: departure when the window opens, arrival at the end of the cruise. */
+  private navTick() {
+    const game = this.game;
+    const d = game.state.vehicles.endurance.data;
+    const t = game.state.clock.earthTime;
+    if (this.navBusy) return;
+    const pending = d.pending as TransferPlan | undefined;
+    if (pending && t >= pending.tDep) void this.depart(pending);
+    const cruise = d.cruise as TransferPlan | undefined;
+    if (cruise && t >= cruise.tArr) void this.arrive(cruise);
+  }
+  private navBusy = false;
+
+  /** External view of the Endurance with the main engines lit (departure / capture burns). */
+  private burnCinematic(seconds: number, label: string): Promise<void> {
+    const game = this.game;
+    return new Promise((resolve) => {
+      let tt = 0;
+      this.burnTarget = 1;
+      game.say('computer', label, 4);
+      game.playCinematic({
+        blocking: false,
+        update: (dt, cam) => {
+          tt += dt;
+          this.eRoot.updateMatrixWorld(true);
+          const k = tt / seconds;
+          const off = new THREE.Vector3(Math.sin(0.6 + k * 0.8) * 120, 45 - k * 20, 150 + Math.cos(0.6 + k * 0.8) * 60);
+          cam.position.copy(off.applyQuaternion(this.eQLvlh)).add(this.eRoot.position);
+          cam.up.set(0, 1, 0).applyQuaternion(this.eQLvlh);
+          cam.lookAt(this.eRoot.position);
+          cam.updateMatrixWorld();
+          if (tt >= seconds) {
+            this.burnTarget = 0;
+            resolve();
+            return false;
+          }
+          return true;
+        },
+      });
+    });
+  }
+
+  private async skipTo(tTarget: number, msg: string) {
+    const game = this.game;
+    const dt = tTarget - game.state.clock.earthTime;
+    if (dt <= 0) return;
+    await game.fadeTo(1, 0.8);
+    game.clock.skipEarth(dt, { location: 'space', system: game.state.system });
+    game.notify(`${msg} — ${fmtDuration(dt)} later`, 'info', 5);
+    await game.fadeTo(0, 0.8);
+  }
+
+  async cryosleep(tWake: number) {
+    const game = this.game;
+    const dt = tWake - game.state.clock.earthTime;
+    if (dt <= 0) return;
+    this.say('computer', 'Cryosleep sequence. Pods sealed. Sleep well.');
+    await game.fadeTo(1, 1.2);
+    const d = game.state.endurance.cryo;
+    d.active = true;
+    game.clock.skipEarth(dt, { location: 'space', system: game.state.system });
+    d.active = false;
+    game.log('medical', 'CRYO', `Crew revived after ${fmtDuration(dt)} of cryosleep.`);
+    if (this.aboard) this.boardEndurance('spawn_cryo');
+    game.clock.timeScale = 1;
+    await game.fadeTo(0, 1.6);
+    this.say('computer', `Good morning. You have been asleep for ${fmtDuration(dt)}. Earth date ${MissionClock.formatDate(game.state.clock.earthTime)}.`);
+  }
+
+  private async depart(plan: TransferPlan) {
+    const game = this.game;
+    const d = game.state.vehicles.endurance.data;
+    this.navBusy = true;
+    delete d.pending;
+    game.state.endurance.nav.program = 'transfer';
+    await this.burnCinematic(9, `Main engines. Departure burn — ${(plan.dvDep / 1000).toFixed(1)} kilometres per second.`);
+    game.state.vehicles.endurance.fuel = Math.max(0, game.state.vehicles.endurance.fuel - this.propFor(plan.dvDep));
+    if (plan.local) {
+      // short local transfer inside one planet's sphere of influence
+      await this.skipTo(plan.tArr, `Transfer to ${BODIES[plan.to]?.name}`);
+      this.navBusy = false;
+      await this.arrive(plan);
+      return;
+    }
+    await game.fadeTo(1, 0.6);
+    delete d.orbit;
+    delete d.hold;
+    d.cruise = plan;
+    this.switchPrimary('sun');
+    game.state.endurance.nav.program = 'coast';
+    game.state.mission.stage = game.state.mission.stage === 'docked' ? 'solar' : game.state.mission.stage;
+    await game.fadeTo(0, 0.6);
+    this.say('ward', `We're on our way. ${fmtDuration(plan.tArr - plan.tDep)} to ${BODIES[plan.to]?.name}.`);
+    this.navBusy = false;
+  }
+
+  private async arrive(plan: TransferPlan) {
+    const game = this.game;
+    const d = game.state.vehicles.endurance.data;
+    if (this.navBusy) return;
+    this.navBusy = true;
+    const t = game.state.clock.earthTime;
+    const to = plan.to;
+    const body = to === 'wormhole' ? 'saturn' : to;
+    await game.fadeTo(1, 0.5);
+    delete d.cruise;
+    this.switchPrimary(body);
+    if (to === 'wormhole') {
+      // station-keeping 60 km sunward of the Anomaly
+      const w = helio('wormhole', t).r;
+      const off = new THREE.Vector3(-w[0], -w[1], -w[2]).normalize().multiplyScalar(60e3);
+      d.hold = { target: 'wormhole', offset: [off.x, off.y, off.z] };
+      delete d.orbit;
+    } else {
+      // circular parking orbit, inclined to the body's equator (rings and poles in view at the giants)
+      const f = SolarSystem.bodyFrame(body, t);
+      const pole = f.pole.clone();
+      const tilt = BODIES[body].rings ? 0.42 : 0.18;
+      const axis = new THREE.Vector3(1, 0, 0).addScaledVector(pole, -pole.x).normalize();
+      const nrm = pole.clone().applyAxisAngle(axis, tilt);
+      const sunDir = new THREE.Vector3(...helio(body, t).r).negate().normalize();
+      let rHat = sunDir.clone().addScaledVector(nrm, -sunDir.dot(nrm)).normalize().applyAxisAngle(nrm, -0.9);
+      if (rHat.lengthSq() < 0.5) rHat = axis;
+      const rad = parkRadius(body);
+      const vHat = new THREE.Vector3().crossVectors(nrm, rHat).normalize();
+      d.orbit = { r0: rHat.multiplyScalar(rad).toArray(), v0: vHat.multiplyScalar(Math.sqrt(BODIES[body].mu / rad)).toArray(), t0: t, body };
+      delete d.hold;
+    }
+    game.state.endurance.nav.program = 'parking';
+    game.state.endurance.nav.parkBody = body;
+    game.state.endurance.nav.parkRadius = to === 'wormhole' ? 0 : parkRadius(body);
+    game.state.endurance.nav.dvUsed += plan.dv;
+    game.state.vehicles.endurance.fuel = Math.max(0, game.state.vehicles.endurance.fuel - this.propFor(plan.dvArr));
+    if (!game.state.discoveries.includes(`visited_${to}`)) game.state.discoveries.push(`visited_${to}`);
+    if (body === 'saturn') game.state.mission.stage = 'saturn';
+    this.updateEndurance(t);
+    this.syncRoots();
+    await game.fadeTo(0, 0.5);
+    await this.burnCinematic(7, `Capture burn — ${(plan.dvArr / 1000).toFixed(1)} kilometres per second. ${to === 'wormhole' ? 'Holding position at the Anomaly.' : `Entering orbit around ${BODIES[body]?.name}.`}`);
+    game.log('mission', 'NAV', `Arrived at ${BODIES[to]?.name} — ${MissionClock.formatDate(game.state.clock.earthTime)}.`);
+    this.say('sato', to === 'wormhole' ? 'There it is. A sphere — a hole in space. It is beautiful.' : `${BODIES[to]?.name}. ${BODIES[to]?.info ?? ''}`);
+    this.navBusy = false;
+  }
 
   // ===================================================================================================== aboard the Endurance
   private localOf(name: string) {
@@ -907,40 +1238,48 @@ export default class SpaceZone extends Zone implements ProxHost {
   private updateSky(dt: number) {
     const game = this.game;
     const t = game.state.clock.earthTime;
-    const sunDir = sunDirECI(t);
     const cam = game.camera;
-    // far layer: camera at the origin, kilometre units
+    // far layer: the whole Solar System around the camera (heliocentric, kilometre units, scaled space)
     const camW: V3 = [this.origin[0] + cam.position.x, this.origin[1] + cam.position.y, this.origin[2] + cam.position.z];
-    const earthRel = new THREE.Vector3(-camW[0], -camW[1], -camW[2]).divideScalar(1000);
-    this.globe.update(earthRel, sunDir, gmst(t));
+    const ph = PRIMARY.id === 'sun' ? [0, 0, 0] : helio(PRIMARY.id, t).r;
+    const camH: V3 = [ph[0] + camW[0], ph[1] + camW[1], ph[2] + camW[2]];
+    this.system.update(t, camH, gmst(t), this.time, game.renderer.canvas.clientHeight / THREE.MathUtils.degToRad(cam.fov));
+    const sunDist = Math.hypot(camH[0], camH[1], camH[2]);
+    const sunDir = new THREE.Vector3(-camH[0], -camH[1], -camH[2]).normalize();
+    this.flux = SolarSystem.flux(sunDist);
     this.sunDisc.update(sunDir);
+    this.sunDisc.mesh.scale.setScalar(THREE.MathUtils.clamp((50000 * (6.957e8 / sunDist)) / 0.038 / 6500, 0.03, 4));
     // eclipse: is the Sun hidden by the Earth (with a soft penumbra through the atmosphere)?
     const pos = new THREE.Vector3(...camW);
     const b = pos.dot(sunDir);
     const perp = pos.clone().addScaledVector(sunDir, -b).length();
-    this.sunVis = b > 0 ? 1 : THREE.MathUtils.smoothstep(perp, R_EARTH + 5e3, R_EARTH + 60e3);
-    const sunsetTint = b > 0 ? 0 : 1 - THREE.MathUtils.smoothstep(perp, R_EARTH + 60e3, R_EARTH + 180e3);
+    const pr = PRIMARY.R, at = Math.max(PRIMARY.top * 0.4, 5e3);
+    this.sunVis = PRIMARY.id === 'sun' || b > 0 ? 1 : THREE.MathUtils.smoothstep(perp, pr + at * 0.1, pr + at);
+    const sunsetTint = PRIMARY.id === 'sun' || b > 0 || PRIMARY.rho0 === 0 ? 0 : 1 - THREE.MathUtils.smoothstep(perp, pr + at, pr + at * 3);
     this.sun.color.setRGB(1, 0.96 - 0.35 * sunsetTint, 0.92 - 0.6 * sunsetTint);
-    this.sun.intensity = 3.2 * this.sunVis;
+    this.sun.intensity = 3.2 * this.sunVis * this.flux;
     this.sunDisc.mesh.visible = this.sunVis > 0.02;
     const focus = this.focusPoint();
     this.sun.target.position.copy(focus);
     this.sun.position.copy(focus).addScaledVector(sunDir, 150);
     this.sun.target.updateMatrixWorld();
-    // earthshine from the sunlit Earth below
+    // planetshine from the sunlit primary (fraction of the sky it fills × its albedo colour)
     const rHat = pos.clone().normalize();
-    const day = THREE.MathUtils.smoothstep(rHat.dot(sunDir), -0.35, 0.55);
+    const day = PRIMARY.id === 'sun' ? 0 : THREE.MathUtils.smoothstep(rHat.dot(sunDir), -0.35, 0.55);
+    const fill = PRIMARY.id === 'sun' ? 0 : 1 - Math.sqrt(Math.max(0, 1 - (PRIMARY.R / pos.length()) ** 2));
+    const pc = BODIES[PRIMARY.id]?.color ?? [0.3, 0.4, 0.6];
     this.earthLight.position.copy(rHat).negate();
-    this.earthLight.color.setRGB(0.32, 0.42, 0.6);
-    this.earthLight.intensity = (0.08 + 0.75 * day) * (this.aboard ? 0.12 : 1);
-    // exposure: adapt in orbital night
-    this.exposure = THREE.MathUtils.damp(this.exposure, this.aboard ? 0.95 : this.sunVis > 0.5 ? 1.0 : 2.2, 1.5, dt);
+    this.earthLight.color.setRGB(pc[0] * 0.6 + 0.1, pc[1] * 0.6 + 0.1, pc[2] * 0.6 + 0.12);
+    this.earthLight.intensity = (0.05 + 2.2 * day * fill) * this.flux * (this.aboard ? 0.12 : 1);
+    // exposure: eye adaptation to the local sunlight and to orbital night
+    const base = THREE.MathUtils.clamp(1 / Math.pow(this.flux, 0.75), 1, 4);
+    this.exposure = THREE.MathUtils.damp(this.exposure, this.aboard ? 0.95 : this.sunVis > 0.5 ? base : 2.2 * base, 1.5, dt);
     this.interiorFill.intensity = this.aboard ? 0.55 : 0;
     // stars wash out when the sunlit Earth or the Sun is in view (camera exposure), full in orbital night
     const look = cam.getWorldDirection(new THREE.Vector3());
     const earthInView = THREE.MathUtils.smoothstep(look.dot(rHat.clone().negate()), -0.2, 0.5) * day;
     this.stars.setVisibility(this.sunVis > 0.5 ? 0.35 * (1 - 0.8 * earthInView) : 1);
-    if (this.eclipseLast >= 0 && (this.sunVis > 0.5 ? 1 : 0) !== this.eclipseLast) this.game.notify(this.sunVis > 0.5 ? 'Orbital sunrise' : 'Entering Earth\'s shadow', 'info', 3);
+    if (this.eclipseLast >= 0 && (this.sunVis > 0.5 ? 1 : 0) !== this.eclipseLast) this.game.notify(this.sunVis > 0.5 ? 'Orbital sunrise' : `Entering ${BODIES[PRIMARY.id]?.name ?? 'the planet'}'s shadow`, 'info', 3);
     this.eclipseLast = this.sunVis > 0.5 ? 1 : 0;
     // reflections: refresh a small environment from the far layer every few seconds
     this.envT -= dt;

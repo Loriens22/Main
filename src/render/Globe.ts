@@ -333,7 +333,7 @@ export class SunDisc {
       vertexShader: /* glsl */ `varying vec2 vU; void main(){ vU = uv * 2.0 - 1.0; vec4 mv = modelViewMatrix * vec4(0.0, 0.0, 0.0, 1.0); mv.xy += position.xy; gl_Position = projectionMatrix * mv; }`,
       fragmentShader: /* glsl */ `
         varying vec2 vU;
-        void main(){ float r = length(vU); float disc = smoothstep(0.042, 0.034, r); float halo = exp(-r * 9.0) * 0.6 + exp(-r * 3.0) * 0.08;
+        void main(){ float r = length(vU); float disc = smoothstep(0.042, 0.034, r); float halo = (exp(-r * 9.0) * 0.6 + exp(-r * 3.0) * 0.08) * smoothstep(1.0, 0.55, r);
           vec3 c = vec3(1.0, 0.97, 0.92) * (disc * 60.0 + halo * 3.0); gl_FragColor = vec4(c, 1.0); }`,
     });
     // sized for a distance of 50 000 km: the disc (r ≈ 0.038 of the half-quad) subtends ~0.28°
