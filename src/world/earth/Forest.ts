@@ -380,10 +380,17 @@ export class Forest implements EarthSubsystem {
       this.updateColliders(p.x, p.z);
       this.lastCol.set(p.x, 0, p.z);
     }
-    // drop far chunk caches
-    if (this.fine.size > 4000) {
-      for (const [k, c] of this.fine) if (Math.hypot(c.cx - cx, c.cz - cz) > this.r2 * 1.6) this.fine.delete(k);
-    }
+    // drop chunk data the camera has left behind: a launch, re-entry or ascent sweeps hundreds of kilometres of
+    // forest, and unbounded caches grew the tab by hundreds of MB (typed arrays, outside the JS heap)
+    this.prune(this.fine, FINE, cx, cz, this.r2 + FINE);
+    this.prune(this.coarse, COARSE, cx, cz, this.r3 + COARSE);
+  }
+
+  /** Keep about twice the chunks the current radius needs; beyond that drop those farther than 1.25 × radius. */
+  private prune(map: Map<number, ChunkData>, size: number, cx: number, cz: number, radius: number) {
+    const expected = Math.PI * (radius / size + 1) ** 2;
+    if (map.size < expected * 2 + 64) return;
+    for (const [k, c] of map) if (Math.hypot(c.cx - cx, c.cz - cz) > radius * 1.25 + size) map.delete(k);
   }
 
   /** Warm the caches around a point synchronously (used before screenshots / on spawn). */

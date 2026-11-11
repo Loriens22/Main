@@ -35,8 +35,8 @@ export interface TransferPlan {
   mu?: number;
 }
 
-/** Destinations offered by the navigation computer. */
-export const DESTINATIONS = ['mercury', 'venus', 'earth', 'moon', 'mars', 'phobos', 'jupiter', 'io', 'europa', 'ganymede', 'callisto', 'saturn', 'enceladus', 'titan', 'wormhole', 'uranus', 'titania', 'neptune', 'triton'];
+/** Destinations offered by the navigation computer (every landable moon included, in order out from its planet). */
+export const DESTINATIONS = ['mercury', 'venus', 'earth', 'moon', 'mars', 'phobos', 'deimos', 'jupiter', 'io', 'europa', 'ganymede', 'callisto', 'saturn', 'mimas', 'enceladus', 'dione', 'rhea', 'titan', 'iapetus', 'wormhole', 'uranus', 'titania', 'neptune', 'triton'];
 export const GARG_DESTINATIONS = ['wormhole_g', 'miller', 'mann', 'edmunds'];
 export function destinations(system: string) {
   return system === 'gargantua' ? GARG_DESTINATIONS : DESTINATIONS;

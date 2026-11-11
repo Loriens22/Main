@@ -46,6 +46,30 @@ await page.evaluate(() => { window.__game.running = false; });
 // any other named preset: apply the game's own preset table (the init script above only sets its name)
 if (!['performance', 'custom'].includes(preset)) await page.evaluate(async (p) => { const S = await import('/src/core/Settings.ts'); const g = window.__game; S.applyPreset(g.settings.graphics, p); g.applySettings(); }, preset);
 let i = 0;
+// CDP_SAMPLE=1: Chrome's native sampling heap profiler on the page's renderer — after each step print the call stacks
+// holding the most live native memory (finds leaks outside the JS heap: typed arrays, WebGL, audio, Blink)
+let cdp = null;
+if (process.env.CDP_SAMPLE) {
+  cdp = await page.context().newCDPSession(page);
+  await cdp.send('Memory.startSampling', { samplingInterval: 1 << 17, suppressRandomness: false });
+}
+async function nativeTop() {
+  if (!cdp) return;
+  try {
+    const { profile } = await cdp.send('Memory.getSamplingProfile');
+    const agg = new Map();
+    let all = 0;
+    for (const s of profile.samples) {
+      const fr = s.stack.filter((f) => !/malloc|alloc|partition|Partition|operator new|::Allocate|base::/.test(f)).slice(0, 5);
+      const k = fr.join(' < ') || s.stack.slice(0, 3).join(' < ');
+      agg.set(k, (agg.get(k) ?? 0) + s.total);
+      all += s.total;
+    }
+    const top = [...agg.entries()].sort((a, b) => b[1] - a[1]).slice(0, 6);
+    console.log(`[native] live sampled ${(all / 1e6).toFixed(0)} MB; top:`);
+    for (const [k, v] of top) console.log(`   ${(v / 1e6).toFixed(0)} MB  ${k.slice(0, 260)}`);
+  } catch (e) { console.log('[native] profile failed', e.message); }
+}
 for (const st of steps) {
   i++;
   const t0 = Date.now();
@@ -87,6 +111,7 @@ for (const st of steps) {
     console.log(`[${i}] probe:`, JSON.stringify(r));
   }
   console.log(`[${i}] done in ${((Date.now() - t0) / 1000).toFixed(1)} s${st.shot ? ' -> ' + st.shot : ''}`);
+  if (cdp && (st.native || i % 2 === 0)) await nativeTop();
   if (logs.length) { console.log(logs.splice(0).slice(0, 25).join('\n')); }
 }
 await browser.close();

@@ -25,6 +25,7 @@ import { surfaceShading, sunShadowPatch } from '../surface/surfaceShading';
 import { Rocks } from '../surface/Rocks';
 import { RangerVehicle } from '../RangerVehicle';
 import { MillerWaves, WAVE_GLSL, WAVE_C, type TidalWave } from '../surface/MillerWaves';
+import { LazarusSite } from '../surface/LazarusSites';
 import { lookQuat } from '../../space/Proximity';
 import { h } from '../../ui/UI';
 
@@ -218,6 +219,8 @@ export default class SurfaceZone extends Zone implements SurfaceAPHost {
     this.buildDust();
     this.buildSkyDome();
     if (this.def.style === 'ocean') this.buildWater();
+    progress(0.95, 'beacon site');
+    this.lazarus = await LazarusSite.create(this);
     progress(1, 'ready');
   }
 
@@ -382,6 +385,16 @@ export default class SurfaceZone extends Zone implements SurfaceAPHost {
     this.ranger.removeSite();
   }
 
+  /** sine of the sun's elevation at the site (negative at night) */
+  sunHeight() {
+    return this.sunLocal.y;
+  }
+
+  /** inside the Ranger's sealed cabin (for the Lazarus sites' boarding check) */
+  cabinPressurisedAt(l: THREE.Vector3) {
+    return this.cabinPressurised(l);
+  }
+
   private cabinPressurised(l: THREE.Vector3) {
     return this.ranger ? this.ranger.cabinPressurised(l) : false;
   }
@@ -525,6 +538,7 @@ export default class SurfaceZone extends Zone implements SurfaceAPHost {
     fx.visor = THREE.MathUtils.damp(fx.visor, pl.mode !== 'seat' && !this.cabinPressurised(pl.pos) ? 0.55 : 0, 3, dt);
     this.updateSky(dt);
     this.updateTide(dt);
+    this.lazarus?.update(dt);
   }
 
   private handToOrbit() {
@@ -645,6 +659,7 @@ export default class SurfaceZone extends Zone implements SurfaceAPHost {
   // ===================================================================================================== water (Miller)
   private waveTex: THREE.DataTexture | null = null;
   waves: MillerWaves | null = null;
+  lazarus: LazarusSite | null = null;
   /**
    * Shallow sea: a camera-centred polar grid (dense near the eye, out to ~60 km so incoming crests show through the
    * haze) bent to the planet's curvature and displaced by the tidal waves; tiled wave normals drift with time.
@@ -1207,6 +1222,8 @@ export default class SurfaceZone extends Zone implements SurfaceAPHost {
   }
 
   dispose() {
+    this.lazarus?.dispose();
+    this.lazarus = null;
     this.control?.dispose();
     this.envRT?.dispose();
     this.rocks?.dispose(this.ground?.physics ?? null);
