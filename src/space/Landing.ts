@@ -444,7 +444,8 @@ export class PoweredDescent implements AutopilotProgram {
         c.vtol = 0;
         const err = c.forward().angleTo(dir);
         c.throttle = err < 0.2 ? THREE.MathUtils.clamp(a.length() / aMax, 0, 1) : err < 0.5 ? 0.15 : 0;
-        if (this.T < 7 || (hs < 55 && rangeH < this.hiDist * 2.5)) {
+        // (slow and close is not enough in dense air, where the craft drifts in slowly far above the gate)
+        if (this.T < 7 || (hs < 55 && rangeH < this.hiDist * 2.5 && agl < this.hiGate * 2.5)) {
           this.phase = 'approach';
           this.T = 0;
           this.host.say('computer', 'High gate. Pitch-over to hover thrusters.');
@@ -467,11 +468,11 @@ export class PoweredDescent implements AutopilotProgram {
         if (ah.length() > aBrake * 2) ah.setLength(aBrake * 2);
         const hDes = 60 + dist * 0.27;
         const vy = v.dot(up);
-        const vyDes = THREE.MathUtils.clamp((hDes - agl) * 0.12, -18, 10);
+        const vyDes = THREE.MathUtils.clamp((hDes - agl) * 0.12, -THREE.MathUtils.clamp(agl / 25, 18, 60), 10);
         const a = ah.addScaledVector(up, (vyDes - vy) * 0.9).sub(g);
         vtolAllocate(c, a, up, dist > 30 ? e.clone().normalize() : null, tl, lowG);
         if (agl < 500) c.gearDown = true;
-        if (dist < 15 && vh.length() < 2.5) {
+        if (dist < 15 && vh.length() < 2.5 && agl < 250) {
           this.phase = 'terminal';
           this.host.say('computer', 'Over the site. Vertical descent.');
         }

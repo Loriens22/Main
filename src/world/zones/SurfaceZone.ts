@@ -325,7 +325,7 @@ export default class SurfaceZone extends Zone implements SurfaceAPHost {
   }
 
   clockContext() {
-    // on Miller (and with the Endurance parked in Miller orbit) one hour is about seven Earth years
+    // on Miller's surface (and in the descent below the hand-over) one hour is about seven Earth years
     if (this.site.body === 'miller') return { playerDilation: MILLER_FACTOR, enduranceDilation: MILLER_FACTOR };
     return {};
   }

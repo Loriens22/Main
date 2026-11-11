@@ -4,10 +4,13 @@
 
 ### Landings checked body by body, Miller's waves, phone performance mode (this pass)
 Verified headless (SwiftShader, one browser at a time) unless marked otherwise.
-- **End-to-end landings** (orbit → deorbit → entry → hand-over → powered descent → touchdown → ascent → orbit),
-  `e2e/scripts/landing_steps.mjs`: Moon 0.0 m off target, 42 × 55 km back in orbit; Mars 0.0 m, 120 × 128 km;
-  Phobos 0.2 m, 6.9 × 8.2 km; Edmunds, Mann and Miller 0.0 m off target. Titan's entry now hands over within
-  18 km of the site (it missed by 2 400 km before). Every landable body loads (`surface_load.mjs`).
+- **End-to-end landings** (orbit → deorbit → entry → hand-over → powered descent → touchdown → ascent → orbit, one
+  run each, `e2e/scripts/landing_steps.mjs`, final code): Moon 0.0 m off target → 42 × 55 km; Titan 0.0 m (4.4 t
+  for the landing; it missed by 2 400 km before) → 379 × 380 km with 6.3 t left; Miller 0.0 m → 110 × 125 km;
+  Phobos 1.8 m → circular 7.5 km. Earlier in the pass: Mars 0.0 m → 120 × 128 km; Edmunds and Mann 0.0 m (their
+  ascents were then fixed and verified separately, below). Every landable body loads (`surface_load.mjs`).
+  The descent no longer starts its vertical leg kilometres up in dense air (brake → approach also needs the
+  high-gate height; approach → terminal below 250 m; faster sink rate on the approach when high).
 - **Ascents** from the surface to a stable orbit (`ascent_steps.mjs`): Moon 41.8 × 55.1 km (3.85 t of
   propellant), Mars 141 × 153 km, Titan 375 × 389 km (4.4 t left of 19 t), Mann 80 × 95 km, Edmunds 100 × 115 km,
   Miller 110 × 125 km (Gargantua worlds with unlimited propellant: Miller needs about as much Δv as a full Ranger
@@ -41,7 +44,28 @@ Verified headless (SwiftShader, one browser at a time) unless marked otherwise.
   ratio cap per preset (Phone renders at 1×); shared shader-quality uniforms (`render/quality.ts`) retune live
   materials: atmosphere ray-march samples (sky dome, Earth globe, planets), black-hole geodesic steps (260 → 94 with
   longer steps), terrain detail octaves and shadow-march steps, orbital crater field; slower environment captures.
-  PERF_PLACEHOLDER
+  Measured with `e2e/scripts/perf_presets.mjs` (one scene per page; SwiftShader, so only the ratios mean anything):
+  Earth farm 4.5 s → 1.9 s per frame (2.4×, draw calls 2 561 → 758), Moon surface 2.9 → 1.2 s (2.3×, 607 → 174),
+  Miller orbit 4.3 → 1.4 s (3.1×, 434 → 79). Black-hole steps lengthen only far from the hole (a long step near the
+  photon sphere jumps grazing rays into the horizon). Dynamic resolution and the step-down run in the real-time loop
+  on real elapsed time (`e2e/scripts/dynres.mjs`: on SwiftShader, Medium went to 56 % resolution within seconds, then
+  stepped down to Performance with a notice, then 56 % again).
+- **Return to Earth** (`world/earth/RangerReturn.ts`): orbit → RETURN TO EARTH (NASA forecourt or the farm) →
+  entry → hand-over into the Earth zone below 15 km → powered descent → touchdown → EVA → re-board → ascent →
+  hand-over at 45 km (measured on the sphere: the flat Earth frame lags the true altitude by 12 km 400 km
+  down-range) → orbit insertion. The NASA ground crew refuels a Ranger parked on the forecourt (~60 kg/s); the
+  farm has no propellant, and the flight computer says so when Δv aboard is short of the ~9.6 km/s an ascent needs.
+  Verified: re-entry handed over 14.6 km up and 30–38 km up-range; touchdown 0.0 m from the forecourt target;
+  refuel 8.2 → 26 t; EVA; re-board; from the pad to a 276 × 280 km orbit with 1.5 t left (`earth_ascent_steps.mjs`).
+  The brake phase's time-to-go now comes from the speed at the start of the brake (re-deriving it from the current
+  speed stalled the countdown: the Ranger hovered 18 km at walking pace and burned 16 t).
+- **Miller orbit clock**: the orbital zone integrates orbits on Earth time, so the dilated clock in Miller orbit ran
+  every orbit ~61 000× too fast for the crew. Miller time (1 h ≈ 7 years) now applies on the surface and below the
+  hand-over; in orbit the clock keeps the Endurance's rate (as in the film, where the ship waited higher up).
+- **Known issue**: a very long stepped headless run (space → re-entry → Earth zone → landing → EVA → ascent in one
+  page) grows native memory ~80 MB/s until the test browser is killed; the JS heap, GPU resources, colliders and
+  scene objects stay flat, and each leg run on its own stays flat (≈0.7–1 GB). Not reproduced outside that chain;
+  the Earth-return test is split in two meanwhile.
 - **Tooling**: `e2e/run.sh` starts its own Vite server per run and now really stops it (it killed the npx wrapper
   and left the server running — a later run on the same port silently tested old code); it refuses a busy port.
   `SNAPSHOT=<dir>` serves a copy of `src/` so edits cannot hot-reload a running test; `PORT` for parallel runs (keep
@@ -79,7 +103,7 @@ Verified headless (SwiftShader) unless marked otherwise:
 - **Gargantua system** — game-scale gravitational parameter (2×10²² m³/s²; orbital speeds 26–106 km/s inside the
   Endurance's ~160 km/s; periods derived from it). Miller 6 Rs (tidally locked), Mann 22 Rs, exit throat 30 Rs, Edmunds
   40 Rs. Lambert navigation around Gargantua (fast transfers ≈ 3–9 years under cryosleep, ≈105–110 km/s; efficient is
-  cheaper and slower), holds follow the moving throat, Miller orbit and surface run on Miller time (1 h ≈ 7 years).
+  cheaper and slower), holds follow the moving throat, Miller's surface runs on Miller time (1 h ≈ 7 years).
 - **Mobile controls** — per-mode layouts chosen every frame (walk, float, ladder, seat, drive, flight, panels,
   cinematics with SKIP); flight: pitch/roll stick, RCS translation stick (up/down = hover thrust), absolute throttle
   slider synced from the craft, yaw/fore-aft/CUT/MAX, top bar (autopilot, SAS, RCS, gear, camera, cockpit panel, warp,
@@ -200,10 +224,9 @@ Realism pass results (all rebuilt in Blender scripts, checked with Cycles previe
   `Plume.ts`, `CraftModel.ts`, `FlightHUD.ts`, `FlightControl.ts`, `world/earth/Launch.ts` (not yet wired into EarthZone).
 
 ### Next
-1. Earth return: re-entry corridor and landing back at the NASA site.
-2. Miller's tidal waves (moving water mountains), Mann and Edmunds story content, the Lander.
-3. Crew aboard the Endurance (NPCs walking the ring), interior detail pass, animated iris doors.
-4. Performance tiers for the black-hole and terrain shaders on mobile GPUs.
+1. Mann and Edmunds story content, the Lander; crew aboard the Endurance (NPCs walking the ring).
+2. A local physics clock for strongly dilated orbits (so Miller orbit itself could run on Miller time).
+3. Track down the native-memory growth seen only in very long stepped test chains.
 
 ## Conventions
 - `e2e/run.sh steps.mjs outDir w h` starts and stops the Vite server for one run (TOUCH=1 for touch, MEMLOG=1 logs RSS).

@@ -385,6 +385,7 @@ export class Game {
       this.last = now - dt * 1000;
       return;
     }
+    const rawDt = dt;
     dt = Math.min(dt, 0.1);
     this.time += dt;
     this.fpsAcc.t += dt;
@@ -396,7 +397,8 @@ export class Game {
       this.fpsAcc.t = 0;
       this.fpsAcc.n = 0;
     }
-    this.adaptQuality(dt);
+    // real elapsed time: the clamped step would report at least 10 fps however slow the device really is
+    this.adaptQuality(Math.min(rawDt, 5));
     try {
       this.update(dt);
     } catch (e) {
@@ -446,7 +448,7 @@ export class Game {
         applyPreset(g, next);
         r.dynScale = 1;
         this.applySettings();
-        this.notify(`Low frame rate (${fps.toFixed(0)} fps): graphics lowered to ${next === 'phone' ? 'Phone' : next[0].toUpperCase() + next.slice(1)}. Settings → Graphics to change.`, 'info', 6);
+        this.notify(`Low frame rate (${fps < 10 ? fps.toFixed(1) : fps.toFixed(0)} fps): graphics lowered to ${next === 'phone' ? 'Phone' : next[0].toUpperCase() + next.slice(1)}. Settings → Graphics to change.`, 'info', 6);
       }
     }
   }

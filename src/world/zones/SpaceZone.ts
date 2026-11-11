@@ -11,7 +11,6 @@ import { SolarSystem, WormholeLens, helio, eclToThree } from '../../render/Solar
 import { Gargantua, AlienSky } from '../../render/Gargantua';
 import { BODIES, systemCentre } from '../../data/bodies';
 import { planTransfer, cruiseState, parkRadius, planetOf, fmtDuration, destinations, type TransferPlan } from '../../space/Navigation';
-import { MILLER_FACTOR } from '../../core/MissionClock';
 import { MissionClock } from '../../core/MissionClock';
 import { G0 } from '../../data/vehicles';
 import { Spacecraft, type FlightEnv } from '../../vehicles/Spacecraft';
@@ -796,8 +795,9 @@ export default class SpaceZone extends Zone implements ProxHost {
   }
 
   clockContext() {
-    // Miller orbit sits deep in Gargantua's well: the film's one hour ≈ seven Earth years
-    if (PRIMARY.id === 'miller') return { playerDilation: MILLER_FACTOR, enduranceDilation: MILLER_FACTOR };
+    // Miller time (one hour ≈ seven Earth years) applies on the surface and in the descent below the hand-over
+    // (SurfaceZone). In orbit the clock keeps the Endurance's rate: this zone integrates orbits on Earth time, and a
+    // dilated clock here ran every orbit 61 000× too fast for the crew (a lap of Miller in a twelfth of a second).
     return {};
   }
 
@@ -1485,7 +1485,7 @@ export default class SpaceZone extends Zone implements ProxHost {
     await this.burnCinematic(7, `Capture burn — ${(plan.dvArr / 1000).toFixed(1)} kilometres per second. ${throat ? 'Holding position at the Anomaly.' : `Entering orbit around ${BODIES[body]?.name}.`}`);
     game.log('mission', 'NAV', `Arrived at ${BODIES[to]?.name} — ${MissionClock.formatDate(game.state.clock.earthTime)}.`);
     this.say('sato', to === 'wormhole' ? 'There it is. A sphere — a hole in space. It is beautiful.' : `${BODIES[to]?.name}. ${BODIES[to]?.info ?? ''}`);
-    if (to === 'miller') this.say('computer', 'Caution: gravitational time dilation in Miller orbit — one hour here is about seven years on Earth.');
+    if (to === 'miller') this.say('computer', 'Caution: gravitational time dilation on Miller — below the hand-over altitude and on the surface, one hour costs about seven years on Earth.');
     this.navBusy = false;
   }
 
