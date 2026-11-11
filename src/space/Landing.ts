@@ -194,7 +194,8 @@ export class DeorbitLanding implements AutopilotProgram {
         if (!pr.hit) break;
         // the air has already taken off part of the speed: put the gate where the remaining braking needs it
         const vGate = Math.hypot(pr.v[0], pr.v[1], pr.v[2]);
-        const upNew = Math.min(0.6, ((vGate * vGate) / (2 * 0.55 * c.maxAccel()) + Math.min(15e3, 0.3 * PRIMARY.R)) / PRIMARY.R);
+        // the air has already done most of the braking: a short margin (the powered descent is costly in dense air)
+        const upNew = Math.min(0.6, ((vGate * vGate) / (2 * 0.55 * c.maxAccel()) + Math.min(6e3, 0.3 * PRIMARY.R)) / PRIMARY.R);
         const Rp = bodyRot(this.site.body, t0 + best.w + pr.t), Rg = bodyRot(this.site.body, tA);
         const pB = V(pr.r).applyMatrix3(Rp).normalize();
         const gI = this.gate(tA, false);
@@ -380,6 +381,8 @@ export class PoweredDescent implements AutopilotProgram {
   phase: 'brake' | 'approach' | 'terminal' | 'done' = 'brake';
   private T = 0;
   private reT = 0;
+  /** mean speed expected while braking (half the speed at the start of the brake, at least the floor) */
+  private vMean = 0;
   private uprange = new THREE.Vector3(1, 0, 0);
   private hiGate = 1800;
   private hiDist = 1400;
@@ -408,6 +411,7 @@ export class PoweredDescent implements AutopilotProgram {
     switch (this.phase) {
       case 'brake': {
         if (this.T <= 0) {
+          this.vMean = 0.5 * v.length();
           const d = hor(p.clone().sub(tgt));
           if (d.lengthSq() > 1) this.uprange.copy(d.normalize());
           this.hiGate = THREE.MathUtils.clamp(agl * 0.08, 900, 2200);
@@ -423,7 +427,9 @@ export class PoweredDescent implements AutopilotProgram {
           // the drift, rather than hovering down for half an hour
           const dist = rT.clone().sub(p).length();
           const vFloor = 25 + 50 * THREE.MathUtils.clamp(env.density(c.pos) / 0.5, 0, 1);
-          const Ts = Math.max(solveTgo(p, v, rT, vT, g, aMax, 0.62), dist / Math.max(vFloor, v.length()));
+          // (from the speed at the start of the brake: re-deriving it from the current speed lets the countdown stall
+          // as the craft slows — it then hovers along at walking pace, paying gravity loss all the way)
+          const Ts = Math.max(solveTgo(p, v, rT, vT, g, aMax, 0.62), dist / Math.max(vFloor, this.vMean));
           this.T = this.T <= 0 ? Ts : Math.max(this.T, Math.min(Ts, this.T + 3));
           this.reT = 1;
         }

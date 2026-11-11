@@ -207,7 +207,7 @@ export function applyPreset(g: GraphicsSettings, p: PresetName) {
 export function shaderDetail(g: GraphicsSettings) {
   return {
     atmo: [0.5, 0.75, 1, 1][g.atmosphere] ?? 1,
-    garg: [0.36, 0.62, 1, 1][g.volumetrics] ?? 1,
+    garg: [0.5, 0.7, 1, 1][g.volumetrics] ?? 1,
     detail: [0.45, 0.75, 1, 1][g.textureQuality] ?? 1,
     /** environment-map refresh interval multiplier */
     env: g.preset === 'phone' ? 3 : g.atmosphere === 0 ? 2 : 1,

@@ -251,25 +251,56 @@ export class RangerReturn implements RangerHost, SurfaceAPHost {
         this.targetName = 'touchdown point';
         ctrl.setAutopilot(new LandHere(this));
       });
-      add('ASCENT TO ORBIT', 'Lift-off, steep climb through the atmosphere, orbit insertion above 150 km (≈9.5 km/s with losses).', true, () => this.ascend());
+      const short = !game.state.creative.unlimitedResources && c.deltaV() < 9600;
+      const atNasa = Math.hypot(c.pos[0] - EARTH_TARGETS[0].x, c.pos[2] - EARTH_TARGETS[0].z) < 250;
+      add('ASCENT TO ORBIT', `Lift-off, steep climb through the atmosphere, orbit insertion near 280 km (needs about 9.6 km/s with losses).${short ? ` Only ${(c.deltaV() / 1000).toFixed(1)} km/s aboard — ${atNasa ? 'wait for the ground crew to finish refuelling' : 'not enough to reach orbit; the NASA forecourt can refuel the Ranger'}.` : ''}`, true, () => this.ascend());
       add('DISENGAGE AUTOPILOT', 'Manual flight.', !!ctrl.autopilot, () => ctrl.setAutopilot(null));
     }, { narrow: true, onClose: () => game.input.requestLock() });
   }
 
+  private refuelSaid = 0;
+
   update(dt: number) {
     if (!this.craft) return;
+    this.groundService(dt);
     const game = this.game;
     const ts = this.control.autopilot && game.control === this.control ? Math.max(1, this.control.timeScale) : 1;
     if (ts > 1 && dt > 0) game.clock.advance(dt * (ts - 1), { location: game.state.location, system: game.state.system });
     this.ranger.update(dt * ts);
-    // climb back to orbit: hand over at 45 km (the launch's altitude)
+    // climb back to orbit: hand over at 45 km (the launch's altitude) — measured on the sphere, as the autopilot
+    // steers (hundreds of km down-range the flat zone's "height" lags the true altitude by kilometres) — or as soon
+    // as the craft leaves the mapped region above 20 km
     const c = this.craft;
-    if (!this.handing && !this.ranger.site && c.pos[1] - this.y0 > 45e3 && c.vel[1] > 0) {
+    const s = !this.handing && !this.ranger.site && c.pos[1] - this.y0 > 15e3 ? this.orbit(c) : null;
+    if (s && s.vr > 0 && (s.alt > 45e3 || (s.alt > 20e3 && !insideEarthMap(c.pos[0], c.pos[2])))) {
       this.handing = true;
       this.writeHandover();
       // the autopilot keeps flying through the fade-out; writeState() refreshes the hand-over with the final state
       void this.game.goTo('space', { at: 'ascent' }, { fade: 0.6 });
     }
+  }
+
+  /**
+   * Parked on the NASA forecourt: the ground crew connects a propellant line and tops the tanks up (~60 kg/s, a
+   * full load in about seven minutes). The farm has no such service.
+   */
+  private groundService(dt: number) {
+    const st = this.game.state.vehicles.ranger1;
+    const c = this.craft;
+    const nasa = EARTH_TARGETS[0];
+    const atNasa = !!this.ranger.site && Math.hypot(c.pos[0] - nasa.x, c.pos[2] - nasa.z) < 250;
+    if (!atNasa || st.fuel >= st.fuelMax - 0.5) {
+      if (this.refuelSaid === 1 && st.fuel >= st.fuelMax - 0.5) {
+        this.refuelSaid = 2;
+        this.say('capcom', 'Ranger 1, propellant load complete. Line disconnected.');
+      }
+      return;
+    }
+    if (this.refuelSaid === 0) {
+      this.refuelSaid = 1;
+      this.say('capcom', 'Ranger 1, ground crew is connecting the propellant line. Hold position.');
+    }
+    st.fuel = Math.min(st.fuelMax, st.fuel + 60 * dt);
   }
 
   private writeHandover() {

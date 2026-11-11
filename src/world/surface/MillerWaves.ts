@@ -126,6 +126,10 @@ export const WAVE_GLSL = /* glsl */ `
     float foam = exp(-pow((u - 0.1) / 0.16, 2.0)) + 0.75 * exp(-pow((u - 2.3) / 0.45, 2.0));
     return vec4(h, d * w.xy, foam * smoothstep(60.0, 500.0, w.w));
   }
+  // value noise for breaking up the white water (irregular, unlike a sum of sines that moirés at grazing angles)
+  float wHash(vec2 p){ p = fract(p * vec2(0.1031, 0.1030)); p += dot(p, p.yx + 33.33); return fract((p.x + p.y) * p.x); }
+  float wNoise(vec2 p){ vec2 i = floor(p), f = fract(p); f = f * f * (3.0 - 2.0 * f);
+    return mix(mix(wHash(i), wHash(i + vec2(1.0, 0.0)), f.x), mix(wHash(i + vec2(0.0, 1.0)), wHash(i + vec2(1.0, 1.0)), f.x), f.y); }
   // (height, dh/dx, dh/dz, foam)
   vec4 tide(vec2 p){ vec4 a = tideOne(p, uWave0), b = tideOne(p, uWave1); return vec4(a.xyz + b.xyz, max(a.w, b.w)); }
 `;

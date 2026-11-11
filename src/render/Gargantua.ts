@@ -124,12 +124,13 @@ export class Gargantua {
           }
           vec3 hv = cross(x, v); float h2 = dot(hv, hv);
           vec3 col = vec3(0.0); float acc = 0.0; bool cap = false;
-          // fewer, longer steps at low quality: the same path length is covered (coarser bending, softer ring)
+          // fewer steps at low quality: longer steps far from the hole only — near the photon sphere a long step
+          // jumps a grazing ray straight through the horizon and the shadow balloons
           int nSteps = int(260.0 * uQGarg); float kStep = 260.0 / float(nSteps);
           for (int i = 0; i < 260; i++){
             if (i >= nSteps) break;
             float r = length(x);
-            float dt = clamp(0.045 * kStep * r, 0.008 * kStep, 1.6 * kStep);
+            float dt = clamp(0.045 * r * mix(1.0, kStep, smoothstep(5.0, 14.0, r)), 0.008, 1.6 * kStep);
             vec3 a = -1.5 * h2 * x / (r * r * r * r * r);
             vec3 v2 = normalize(v + a * dt);
             vec3 xn = x + v2 * dt;

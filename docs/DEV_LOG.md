@@ -3,7 +3,50 @@
 ## Status (latest first)
 
 ### Landings checked body by body, Miller's waves, phone performance mode (this pass)
-Verified headless (SwiftShader, one browser at a time) unless marked otherwise. RESULTS_PLACEHOLDER
+Verified headless (SwiftShader, one browser at a time) unless marked otherwise.
+- **End-to-end landings** (orbit → deorbit → entry → hand-over → powered descent → touchdown → ascent → orbit),
+  `e2e/scripts/landing_steps.mjs`: Moon 0.0 m off target, 42 × 55 km back in orbit; Mars 0.0 m, 120 × 128 km;
+  Phobos 0.2 m, 6.9 × 8.2 km; Edmunds, Mann and Miller 0.0 m off target. Titan's entry now hands over within
+  18 km of the site (it missed by 2 400 km before). Every landable body loads (`surface_load.mjs`).
+- **Ascents** from the surface to a stable orbit (`ascent_steps.mjs`): Moon 41.8 × 55.1 km (3.85 t of
+  propellant), Mars 141 × 153 km, Titan 375 × 389 km (4.4 t left of 19 t), Mann 80 × 95 km, Edmunds 100 × 115 km,
+  Miller 110 × 125 km (Gargantua worlds with unlimited propellant: Miller needs about as much Δv as a full Ranger
+  carries — the ascent menu now shows the estimate against Δv aboard). Earth orbit insertion test: 275 × 290 km.
+- **Entry targeting** (`space/Landing.ts`, `tests/entry.test.ts`): the predictor–corrector moves the deorbit burn
+  and the aim point together along the orbit (a rotated copy of the same transfer, so the predicted hit moves
+  one-for-one), secant updates along and across track, near-180° transfers excluded (their plane is ill-defined).
+  Offline: Mars 36 m, Titan 0.3 km, Edmunds 0.1 km from the gate.
+- **Physics fixes** found on the way: drag used the angle from the *tail* (nose-first flight paid broadside drag,
+  tail-first none); the surface zone's ground clamped at the far map edge (a craft hundreds of km down-range met a
+  phantom ground and was pushed up); Titan's scale height was 40 km (now RT/Mg ≈ 21 km); surface and Earth zones
+  ignored the autopilot's time warp while the HUD showed ×4; the hand-over to orbit stopped the engine for the
+  fade-out (now the autopilot flies on and the final state is handed over).
+- **Guidance**: ascents pitch from the vertical force balance (weight less centrifugal relief + climb-rate error over
+  the thrust), angle of attack limited to what the attitude control holds, max-q at the cheapest climb pressure
+  (drag = weight: ≈3 kPa on Titan, 25 kPa on Earth), apoapsis above the modelled atmosphere, climb 20 km past the
+  hand-over; Phobos/Deimos climb to orbit on the hover thrusters; dense-air braking flies faster than the drift.
+- **Miller's tidal waves** (`world/surface/MillerWaves.ts`): single long crests 0.8–1.3 km high moving at 105 m/s,
+  asymmetric sech² profile (650 m front, 2.6 km back), one every ~11.5 minutes of local time — the first about
+  4½ minutes after touchdown. The same height field drives the water mesh (camera-centred polar grid out to 62 km,
+  so crests show through the haze), the physics and the warnings: the computer calls the swell with bearing and
+  height, two-minute and 30-second warnings, a HUD countdown and a growing rumble. A crest that reaches the landed
+  Ranger lifts it up the face, over the top and down the back (carried ~2 km), floods the engines (55 s purge —
+  about 40 days at home; damage to engines and hull) unless Creative damage protection is on (12 s, no damage).
+  Anyone walking in the cabin is thrown into the seat; a player on foot is swept up and over the crest once per
+  wave (suit integrity −45 %, a tether winches you back aboard if it runs out; Creative hazard protection: no
+  injury). The camera inside the water gets underwater fog. Verified in `e2e/scripts/miller_waves.mjs`.
+- **Phone performance mode**: new "Phone (low power)" preset; first-run detection (phones → Performance, or Phone
+  with ≤4 cores or ≤3 GB); dynamic resolution (holds 30 fps on phones, 50 on desktops, scale 0.5–1); presets chosen
+  by detection step down automatically when even the lowest resolution cannot hold 70 % of the target; device-pixel-
+  ratio cap per preset (Phone renders at 1×); shared shader-quality uniforms (`render/quality.ts`) retune live
+  materials: atmosphere ray-march samples (sky dome, Earth globe, planets), black-hole geodesic steps (260 → 94 with
+  longer steps), terrain detail octaves and shadow-march steps, orbital crater field; slower environment captures.
+  PERF_PLACEHOLDER
+- **Tooling**: `e2e/run.sh` starts its own Vite server per run and now really stops it (it killed the npx wrapper
+  and left the server running — a later run on the same port silently tested old code); it refuses a busy port.
+  `SNAPSHOT=<dir>` serves a copy of `src/` so edits cannot hot-reload a running test; `PORT` for parallel runs (keep
+  to one browser at a time: two SwiftShader runs exhausted memory). Probes print every `every` chunks.
+- Fixed the "0.00°S" latitude display (`util/format.ts`).
 
 ### Landing everywhere, the wormhole, Gargantua, mobile controls
 Verified headless (SwiftShader) unless marked otherwise:

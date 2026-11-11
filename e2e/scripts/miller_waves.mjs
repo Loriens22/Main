@@ -33,7 +33,7 @@ export const steps = [
   { js: `const z = game.zone; z.beginEva(true); const n = Math.max(1, Math.floor((z.time - z.waves.first) / z.waves.period) + 1); z.waves.first = z.time + 60 - n * z.waves.period - (z.waves.wave(n).t0 - (z.waves.first + n * z.waves.period)); return { n, t0: z.waves.wave(n).t0 - z.time };`, frames: 5, probe },
   { untilJs: `!!game.zone.swim`, max: 3000, dt: 0.05, chunk: 20, probe },
   { frames: 140, dt: 0.05, chunk: 20, probe },
-  view('wave_swim', `const p = game.player.pos; const w = z.waves.wave(z.sweptWave); cam.position.set(p.x - w.dir.y * 45 - w.dir.x * 25, p.y + 6, p.z + w.dir.x * 45 - w.dir.y * 25); cam.lookAt(p.x, p.y, p.z)`),
+  view('wave_swim', `const p = game.player.pos; const w = z.waves.wave(z.sweptWave); const cx = p.x + w.dir.x * 160 - w.dir.y * 40, cz = p.z + w.dir.y * 160 + w.dir.x * 40; cam.position.set(cx, z.waterLevel(cx, cz) + 4, cz); cam.lookAt(p.x, p.y + 1, p.z)`),
   free,
   { untilJs: `!game.zone.swim`, max: 4000, dt: 0.05, chunk: 40, probe },
   { frames: 20, dt: 0.05, probe },

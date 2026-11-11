@@ -681,7 +681,7 @@ export default class SurfaceZone extends Zone implements SurfaceAPHost {
       sh.uniforms.uWave0 = W.uniforms.uWave0;
       sh.uniforms.uWave1 = W.uniforms.uWave1;
       sh.vertexShader = sh.vertexShader
-        .replace('#include <common>', `#include <common>\nuniform float uSR; varying float vFoam; varying float vWall;\n${WAVE_GLSL}`)
+        .replace('#include <common>', `#include <common>\nuniform float uSR; varying vec2 vWP; varying float vWall;\n${WAVE_GLSL}`)
         .replace('#include <beginnormal_vertex>', `vec4 wq0 = modelMatrix * vec4(position, 1.0);
            vec4 tw = tide(wq0.xz);
            vec3 objectNormal = normalize(vec3(-tw.y, 1.0, -tw.z));
@@ -693,22 +693,27 @@ export default class SurfaceZone extends Zone implements SurfaceAPHost {
           `vec4 wq = modelMatrix * vec4(transformed, 1.0);
            float rr = dot(wq.xz, wq.xz);
            wq.y = sqrt(max(uSR * uSR - rr, 0.0)) - uSR + tw.x;
-           vFoam = clamp(tw.w, 0.0, 1.0);
+           vWP = wq.xz;
            vWall = smoothstep(1.5, 25.0, tw.x);
            vec4 mvPosition = viewMatrix * wq;
            gl_Position = projectionMatrix * mvPosition;`,
         );
       sh.fragmentShader = sh.fragmentShader
-        .replace('#include <common>', '#include <common>\nvarying float vFoam; varying float vWall;')
+        .replace('#include <common>', `#include <common>\nvarying vec2 vWP; varying float vWall;\n${WAVE_GLSL}`)
         .replace(
           '#include <color_fragment>',
           `#include <color_fragment>
-           // the wave body is a wall of deep water: darker, opaque; white water on the steep front and the crest
+           // white water per pixel (a per-vertex band zig-zags across the coarse far grid), broken up by streaks
+           float vFoam = clamp(tide(vWP).w, 0.0, 1.0);
+           vFoam *= smoothstep(0.25, 0.75, 0.65 * wNoise(vWP * 0.012) + 0.35 * wNoise(vWP * 0.047 + 7.0) + 0.15 * vFoam);
+           // the wave body is a wall of deep water: darker, opaque; white water on the lip and at the toe
            diffuseColor.rgb = mix(diffuseColor.rgb, vec3(0.035, 0.11, 0.12), vWall * 0.7);
            diffuseColor.rgb = mix(diffuseColor.rgb, vec3(0.74, 0.8, 0.82), vFoam);
            diffuseColor.a = mix(diffuseColor.a, 1.0, max(vWall, vFoam));`,
         )
-        .replace('#include <roughnessmap_fragment>', '#include <roughnessmap_fragment>\nroughnessFactor = mix(roughnessFactor, 0.85, vFoam);');
+        .replace('#include <roughnessmap_fragment>', '#include <roughnessmap_fragment>\nroughnessFactor = mix(roughnessFactor, 0.85, clamp(tide(vWP).w, 0.0, 1.0));')
+        // the tiled ripple normals smear into bands where the planar mapping stretches up the steep face
+        .replace('#include <normal_fragment_maps>', '#include <normal_fragment_maps>\nnormal = normalize(mix(normal, nonPerturbedNormal, vWall * 0.85));');
     };
     // polar grid: ring radii grow geometrically from 4 m to ~60 km around the camera
     const q = this.game.settings.graphics.water;
