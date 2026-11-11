@@ -2,7 +2,36 @@
 
 ## Status (latest first)
 
-### Landings checked body by body, Miller's waves, phone performance mode (this pass)
+### Every body flown, the Lazarus sites (this pass)
+- **All 20 landable bodies flown end to end** (orbit → deorbit → descent → touchdown → ascent → orbit, one run each,
+  from each body's navigation parking orbit, `landing_steps.mjs`): Moon 0.0 m, Mercury 0.0 m, Mars 0.1 m, Phobos 1.8 m,
+  Deimos 3.6 m, Io 0.3 m, Europa 0.1 m, Ganymede 0.0 m, Callisto 0.0 m, Mimas 2.2 m, Enceladus 0.0 m, Dione 0.0 m,
+  Rhea 0.0 m, Titan 0.0 m, Iapetus 0.0 m, Titania 0.0 m, Triton 0.1 m, Miller 0.0 m, Mann 0.0 m, Edmunds 0.0 m from the
+  target; every one back in a stable orbit (airless moons ~42 × 55 km, Phobos 7.5 km and Deimos 4.2 km circular,
+  Mars 141 × 151, Titan 379 × 380, Mann 80 × 95, Edmunds 100 × 115, Miller 110 × 125 — the Gargantua worlds with
+  unlimited propellant). Earth: launch → orbit 275 × 290 km (`launch_steps.mjs`, now run on to orbit).
+- **Navigation** offers Deimos, Mimas, Dione, Rhea and Iapetus — landable before but unreachable (`tests/navigation.test.ts`).
+- **The Lazarus sites** (`world/surface/LazarusSites.ts`, dialogue in `data/lazarus.ts`; original writing for this
+  game's timeline), at the first named site of each Gargantua world:
+  - *Miller*: her capsule lies tilted in the shallows 90 m from the landing point, beacon strobing; Dr. Laura Miller
+    waves the Ranger in. She will not leave without her data recorder (behind the capsule's port hatch) — then she
+    follows you and climbs aboard when you reach the Ranger. She calls the next wave two minutes out. Flags
+    `miller_recorder`, `miller_rescued`; discovery `miller_ocean_data`.
+  - *Mann*: a hab dome with a work lamp he never switched off, a beacon, a cryo shelter (wake him from its panel)
+    and a survey terminal listing the summaries he broadcast beside the raw logs. Reading them unlocks the
+    confrontation; take him along or leave him supplies. Flags `mann_awake`, `mann_logs_read`, `mann_aboard`/`mann_left`.
+  - *Edmunds*: a silent beacon with a dead power unit, his hab and its last log entries, a greenhouse still growing
+    in local soil, and his cracked helmet in fresh scree at the foot of the ridge. All three found → discovery
+    `edmunds_habitable` and a settlement recommendation.
+  Explorers who board join Ranger 1's passengers. Verified in `e2e/scripts/lazarus_steps.mjs` (BODY=miller|mann|edmunds).
+- **Memory** in long stepped headless runs: the forest's coarse chunk cache was unbounded (a launch or re-entry
+  sweeping hundreds of km kept every chunk) — both forest caches are now pruned by distance. The remaining growth
+  in multi-zone test chains sits mostly in Chrome's browser process and the renderer (JS heap, GPU resources,
+  colliders and terrain patches stay flat; suspending audio does not stop it), so it looks harness-side; the tests
+  now keep audio suspended unless `AUDIO=1`. Tooling: `MEMLOG` names Chrome process types, `CDP_SAMPLE=1` tries the
+  native sampling heap profiler (this headless build returned no samples).
+
+### Landings checked body by body, Miller's waves, phone performance mode
 Verified headless (SwiftShader, one browser at a time) unless marked otherwise.
 - **End-to-end landings** (orbit → deorbit → entry → hand-over → powered descent → touchdown → ascent → orbit, one
   run each, `e2e/scripts/landing_steps.mjs`, final code): Moon 0.0 m off target → 42 × 55 km; Titan 0.0 m (4.4 t
@@ -224,9 +253,8 @@ Realism pass results (all rebuilt in Blender scripts, checked with Cycles previe
   `Plume.ts`, `CraftModel.ts`, `FlightHUD.ts`, `FlightControl.ts`, `world/earth/Launch.ts` (not yet wired into EarthZone).
 
 ### Next
-1. Mann and Edmunds story content, the Lander; crew aboard the Endurance (NPCs walking the ring).
-2. A local physics clock for strongly dilated orbits (so Miller orbit itself could run on Miller time).
-3. Track down the native-memory growth seen only in very long stepped test chains.
+1. Rescued explorers aboard the Endurance (walking the ring, story beats), the Lander.
+2. Root-cause the native-memory growth in long multi-zone headless runs (browser process).
 
 ## Conventions
 - `e2e/run.sh steps.mjs outDir w h` starts and stops the Vite server for one run (TOUCH=1 for touch, MEMLOG=1 logs RSS).

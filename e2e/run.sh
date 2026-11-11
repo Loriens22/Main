@@ -4,7 +4,8 @@
 #   SNAPSHOT=<dir>  serve a copy of src/ (taken now) from <dir>, so editing the tree cannot hot-reload a running test
 #   SNAPSHOT_KEEP=1 reuse <dir> if it already holds a copy (one frozen tree for a whole batch)
 #   PORT=<n>        server port (default 5173; use distinct ports for parallel runs)
-#   TOUCH=1 / MEMLOG=1 / GFX=...  passed through (touch emulation, RSS log, graphics preset)
+#   TOUCH=1 / MEMLOG=1 / GFX=... / AUDIO=1 / CDP_SAMPLE=1  passed through (touch emulation, RSS log per Chrome
+#                   process, graphics preset, real audio output, native heap sampling)
 cd "$(dirname "$0")/.." || exit 1
 ROOT="$PWD"
 PORT="${PORT:-5173}"

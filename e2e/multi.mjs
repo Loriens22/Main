@@ -32,6 +32,15 @@ page.setDefaultTimeout(900000);
 const logs = [];
 page.on('console', (m) => { if (['error', 'warning'].includes(m.type()) || m.text().startsWith('[T]')) logs.push(`[${m.type()}] ${m.text()}`); });
 page.on('pageerror', (e) => logs.push(`[pageerror] ${e.message}\n${e.stack ?? ''}`));
+// AudioContexts stay suspended unless AUDIO=1 (headless Chrome here has no audio sink behind its ALSA fallback;
+// long runs also use less memory without it)
+if (!process.env.AUDIO) await page.addInitScript(() => {
+  const Orig = window.AudioContext;
+  window.AudioContext = class extends Orig {
+    constructor(o) { super(o); super.suspend(); }
+    resume() { return Promise.resolve(); }
+  };
+});
 const preset = process.env.GFX ?? 'performance';
 await page.addInitScript((p) => {
   try {
