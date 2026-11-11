@@ -85,13 +85,14 @@ export function openSettings(game: Game) {
           const g = s.graphics;
           const rebuild = () => { b.innerHTML = ''; (ui as any)._gfx(b); };
           (ui as any)._gfx = (bb: HTMLElement) => {
-            bb.append(ui.row('Graphics preset', ui.select<PresetName | 'custom'>(g.preset, [['cinematic', 'Cinematic'], ['ultra', 'Ultra'], ['high', 'High'], ['medium', 'Medium'], ['performance', 'Performance'], ['custom', 'Custom']], (v) => {
+            bb.append(ui.row('Graphics preset', ui.select<PresetName | 'custom'>(g.preset, [['cinematic', 'Cinematic'], ['ultra', 'Ultra'], ['high', 'High'], ['medium', 'Medium'], ['performance', 'Performance'], ['phone', 'Phone (low power)'], ['custom', 'Custom']], (v) => {
+              g.autoPreset = false;
               if (v !== 'custom') applyPreset(g, v);
               else g.preset = 'custom';
               apply();
               rebuild();
             })));
-            const custom = () => { g.preset = 'custom'; apply(); };
+            const custom = () => { g.preset = 'custom'; g.autoPreset = false; apply(); };
             const [rs, rv] = ui.slider(g.resolutionScale, 0.5, 1.5, 0.05, (v) => { g.resolutionScale = v; custom(); }, (v) => `${Math.round(v * 100)}%`);
             bb.append(ui.row('Resolution scale', rs, rv));
             const qs: [keyof typeof g, string][] = [['textureQuality', 'Texture quality'], ['shadowQuality', 'Shadow quality'], ['reflections', 'Reflections'], ['ambientOcclusion', 'Ambient occlusion'], ['volumetrics', 'Volumetric effects'], ['atmosphere', 'Atmospheric quality'], ['water', 'Water quality'], ['viewDistance', 'View distance']];
@@ -99,6 +100,7 @@ export function openSettings(game: Game) {
             bb.append(ui.row('Anti-aliasing', ui.select(g.antiAliasing, [['off', 'Off'], ['fxaa', 'FXAA'], ['smaa', 'SMAA'], ['msaa', 'MSAA 4×']], (v) => { g.antiAliasing = v; custom(); })));
             const [vd, vv] = ui.slider(g.vegetationDensity, 0.2, 1.5, 0.05, (v) => { g.vegetationDensity = v; custom(); });
             bb.append(ui.row('Vegetation density', vd, vv));
+            bb.append(ui.row('Dynamic resolution (holds the frame rate)', ui.toggle(g.dynamicResolution, (v) => { g.dynamicResolution = v; custom(); })));
             bb.append(ui.row('Bloom', ui.toggle(g.bloom, (v) => { g.bloom = v; custom(); })));
             bb.append(ui.row('Camera motion blur', ui.toggle(g.motionBlur, (v) => { g.motionBlur = v; custom(); })));
             bb.append(ui.row('Film grain', ui.toggle(g.filmGrain, (v) => { g.filmGrain = v; custom(); })));

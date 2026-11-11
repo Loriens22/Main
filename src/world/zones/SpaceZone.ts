@@ -1,4 +1,6 @@
 import * as THREE from 'three';
+import { fmtLatLon } from '../../util/format';
+import { QENV } from '../../render/quality';
 import { Zone, type SpawnSpec } from '../Zone';
 import { Frame } from '../Frame';
 import type { Game } from '../../core/Game';
@@ -963,7 +965,7 @@ export default class SpaceZone extends Zone implements ProxHost {
       const p = up.clone().multiplyScalar(Math.cos(d / PRIMARY.R)).addScaledVector(hs > 1 ? hv.normalize() : up, hs > 1 ? Math.sin(d / PRIMARY.R) : 0).applyMatrix3(Rm).normalize();
       const lat = THREE.MathUtils.radToDeg(Math.asin(THREE.MathUtils.clamp(p.y, -1, 1)));
       const lon = THREE.MathUtils.radToDeg(Math.atan2(-p.z, p.x));
-      sd = { body: PRIMARY.id, lat, lon, name: `${Math.abs(lat).toFixed(1)}°${lat >= 0 ? 'N' : 'S'} ${Math.abs(lon).toFixed(1)}°${lon >= 0 ? 'E' : 'W'}`, autoland: false };
+      sd = { body: PRIMARY.id, lat, lon, name: fmtLatLon(lat, lon, 1), autoland: false };
     }
     const ho: Handover = { r: [...c.pos] as V3, v: [...c.vel] as V3, q: [c.quat.x, c.quat.y, c.quat.z, c.quat.w], t, program: sd.autoland ? 'descent' : undefined };
     st.data.surface = sd;
@@ -1047,7 +1049,7 @@ export default class SpaceZone extends Zone implements ProxHost {
         `Deorbit, coast to the approach gate ${(handoverAltitude(id, PRIMARY.R) / 1000).toFixed(0)} km up and ${(brakingDistance(PRIMARY.mu, PRIMARY.R, aB) / 1000).toFixed(0)} km up-range, then powered descent. Descent Δv ≈ ${(est / 1000).toFixed(2)} km/s plus any plane change for sites off the ground track (the plan reports the exact figure); a return to orbit needs about the same. Ranger Δv ${(c.deltaV() / 1000).toFixed(2)} km/s.`));
       for (const site of def.sites as { name: string; lat: number; lon: number; note: string; tag?: string }[]) {
         const btn = game.ui.button(site.name.toUpperCase(), () => engage(site.lat, site.lon, site.name, site.tag ?? ''), 'btn primary');
-        b.append(h('div', { style: { margin: '8px 0' } }, btn, h('div', { class: 'dim', style: { fontSize: '12px', marginTop: '4px' } }, `${site.note} · ${Math.abs(site.lat).toFixed(1)}°${site.lat >= 0 ? 'N' : 'S'} ${Math.abs(site.lon).toFixed(1)}°${site.lon >= 0 ? 'E' : 'W'}`)));
+        b.append(h('div', { style: { margin: '8px 0' } }, btn, h('div', { class: 'dim', style: { fontSize: '12px', marginTop: '4px' } }, `${site.note} · ${fmtLatLon(site.lat, site.lon, 1)}`)));
       }
       // a site under the ground track a third of an orbit ahead: no plane change at all (not on Earth: unmapped)
       if (earth) return;
@@ -1055,7 +1057,7 @@ export default class SpaceZone extends Zone implements ProxHost {
       const ahead = propagate(c.pos as V3, c.vel as V3, PRIMARY.mu, P * 0.33).r;
       const bf = new THREE.Vector3(...ahead).applyMatrix3(bodyRot(id, this.tSim + P * 0.33)).normalize();
       const la = THREE.MathUtils.radToDeg(Math.asin(bf.y)), lo = THREE.MathUtils.radToDeg(Math.atan2(-bf.z, bf.x));
-      const gname = `Ground track ${Math.abs(la).toFixed(1)}°${la >= 0 ? 'N' : 'S'} ${Math.abs(lo).toFixed(1)}°${lo >= 0 ? 'E' : 'W'}`;
+      const gname = `Ground track ${fmtLatLon(la, lo, 1)}`;
       const gb = game.ui.button('UNDER THE GROUND TRACK', () => engage(la, lo, gname), 'btn');
       b.append(h('div', { style: { margin: '14px 0 6px' } }, gb, h('div', { class: 'dim', style: { fontSize: '12px', marginTop: '4px' } }, `${gname} — cheapest: no plane change.`)));
     }, { narrow: true, onClose: () => game.input.requestLock() });
@@ -1688,7 +1690,7 @@ export default class SpaceZone extends Zone implements ProxHost {
     // reflections: refresh a small environment from the far layer every few seconds
     this.envT -= dt;
     if (this.envT <= 0 && !this.game.skipRender) {
-      this.envT = 4;
+      this.envT = 4 * QENV.k;
       this.refreshEnvironment(rHat, sunDir, day);
     }
   }

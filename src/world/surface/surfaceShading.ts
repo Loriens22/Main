@@ -1,4 +1,5 @@
 import * as THREE from 'three';
+import { QU } from '../../render/quality';
 import type { TerrainShading } from '../terrain/Terrain';
 import type { SurfaceGen } from './SurfaceGen';
 import { CRATER_D0, CRATER_OCTAVES } from './SurfaceGen';
@@ -44,13 +45,14 @@ export function surfaceShading(gen: SurfaceGen, mats: MaterialLibrary): TerrainS
     uStyle: { value: STYLE_ID[gen.def.style] ?? 0 },
     uHighland: { value: gen.highland },
     uShadowQ: { value: 1 },
+    uQDetail: QU.uQDetail,
   };
   const glsl = /* glsl */ `
   uniform sampler2D tHNear; uniform vec4 uNear; uniform sampler2D tHFar; uniform vec4 uFar; uniform float uBlend;
   uniform sampler2D tHMid; uniform vec4 uMid; uniform float uMidOn; uniform float uMidBlend;
   uniform sampler2D tSDay;
   uniform mat3 uSiteRot;
-  uniform float uSR, uCrSeed, uCrDensity, uCrDepth, uHighland, uShadowQ;
+  uniform float uSR, uCrSeed, uCrDensity, uCrDepth, uHighland, uShadowQ, uQDetail;
   uniform int uKNear, uKMid, uKFar, uStyle;
   uniform vec3 uCells;
   uniform vec3 uSunDir, uTint;
@@ -189,12 +191,14 @@ export function surfaceShading(gen: SurfaceGen, mats: MaterialLibrary): TerrainS
     // dithered start: turns step banding into fine noise
     float dz = fract(sin(dot(gl_FragCoord.xy, vec2(12.9898, 78.233))) * 43758.5453);
     float d = max(1.5, fp * 1.5) * (0.6 + 0.8 * dz);
+    int nS = uQDetail < 0.6 ? 9 : 18; float grow = uQDetail < 0.6 ? 2.96 : 1.72;
     for (int i = 0; i < 18; i++){
+      if (i >= nS) break;
       vec2 q = wp.xz + dir * d;
       float hr = wp.y + d * tanE + 0.25 + d * 0.002;
       vis = min(vis, clamp((hr - sH(q)) / (d * 0.012 + 0.4) + 0.5, 0.0, 1.0));
       if (vis <= 0.0) break;
-      d *= 1.72;
+      d *= grow;
     }
     return vis * smoothstep(-0.02, 0.02, L.y);
   }
@@ -215,11 +219,12 @@ export function surfaceShading(gen: SurfaceGen, mats: MaterialLibrary): TerrainS
     cFresh = 0.0;
     cShadow = 1.0;
     cSun = uSunDir;
-    vec3 cr = uCrDensity > 0.01 ? craterSum(wpos.xz, kRes, fp) : vec3(0.0);
+    float fpD = fp / uQDetail; // low detail: procedural octaves stop at a coarser footprint
+    vec3 cr = uCrDensity > 0.01 ? craterSum(wpos.xz, kRes, fpD) : vec3(0.0);
     // ---- fine regolith / ice texture
     float mic = sFbm(wpos.xz, fp, 1.6);
     float mic2 = sFbm(wpos.xz + 31.7, fp, 0.35);
-    vec2 g = cr.yz + regolithGrad(wpos.xz, fp) * (uStyle == 2 || uStyle == 3 ? 0.6 : 1.0);
+    vec2 g = cr.yz + regolithGrad(wpos.xz, fpD) * (uStyle == 2 || uStyle == 3 ? 0.6 : 1.0);
     n = normalize(n + vec3(-g.x, 0.0, -g.y));
     // ---- colour: regional albedo from the orbital map
     vec3 bf = uSiteRot * (wpos + vec3(0.0, uSR, 0.0));

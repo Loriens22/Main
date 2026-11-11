@@ -1,4 +1,5 @@
 import * as THREE from 'three';
+import { QU } from './quality';
 
 /**
  * Ray-traced planet with single-scattering atmosphere, drawn in a kilometre-scale "far" layer.
@@ -35,6 +36,7 @@ const FRAG = /* glsl */ `
   uniform vec3 uCam;          // camera position in planet frame (km)
   uniform mat3 uRot;          // inertial → body-fixed
   uniform float uR, uRa, uHr, uHm, uMie, uSunI, uSunL, uLights, uExposure;
+  uniform float uQAtmo;
   uniform vec3 uRay;
   varying vec3 vL;
   const float PI = 3.14159265;
@@ -98,10 +100,12 @@ const FRAG = /* glsl */ `
     if (t1 <= t0) discard;
     // ---- in-scattering along the view ray
     const int N = 14;
-    float ds = (t1 - t0) / float(N);
+    int nV = int(14.0 * uQAtmo + 0.5);
+    float ds = (t1 - t0) / float(nV);
     vec2 odV = vec2(0.0);
     vec3 sumR = vec3(0.0), sumM = vec3(0.0);
     for (int i = 0; i < N; i++){
+      if (i >= nV) break;
       vec3 p = ro + rd * (t0 + ds * (float(i) + 0.5));
       float h = length(p) - uR;
       vec2 d = vec2(exp(-h / uHr), exp(-h / uHm)) * ds;
@@ -198,6 +202,7 @@ export class Globe {
         uCam: { value: new THREE.Vector3(0, 0, ra * 3) },
         uRot: { value: new THREE.Matrix3() },
         uR: { value: o.radius },
+        uQAtmo: QU.uQAtmo,
         uRa: { value: ra },
         uHr: { value: o.hr ?? 8 },
         uHm: { value: o.hm ?? 1.2 },

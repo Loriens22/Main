@@ -151,9 +151,10 @@ export class Spacecraft {
     if (rho > 1e-6 && vaN > 0.1) {
       const q = 0.5 * rho * vaN * vaN;
       const vdir = va.clone().divideScalar(vaN);
-      // drag grows with angle of attack (belly-first entry is draggier)
-      const aoa = Math.acos(THREE.MathUtils.clamp(-vdir.dot(fwd), -1, 1));
-      const cdA = s.dragArea * (1 + 2.5 * Math.sin(Math.min(aoa, Math.PI / 2)));
+      // drag grows as the body axis turns across the airflow (belly-first entry is draggier); nose-first and
+      // tail-first (retro-braking) both present the small frontal area
+      const along = THREE.MathUtils.clamp(vdir.dot(fwd), -1, 1);
+      const cdA = s.dragArea * (1 + 2.5 * Math.sqrt(1 - along * along));
       F.addScaledVector(vdir, -q * cdA);
       // lift: perpendicular to the airflow in the plane of the body's up axis; signed angle of attack
       if (s.liftCoef > 0) {

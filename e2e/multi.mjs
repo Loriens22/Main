@@ -43,6 +43,8 @@ await page.addInitScript((p) => {
 await page.goto(url, { waitUntil: 'load' });
 await page.waitForFunction(() => window.__game && window.__game.phase !== 'loading', null, { timeout: 900000 });
 await page.evaluate(() => { window.__game.running = false; });
+// any other named preset: apply the game's own preset table (the init script above only sets its name)
+if (!['performance', 'custom'].includes(preset)) await page.evaluate(async (p) => { const S = await import('/src/core/Settings.ts'); const g = window.__game; S.applyPreset(g.settings.graphics, p); g.applySettings(); }, preset);
 let i = 0;
 for (const st of steps) {
   i++;
@@ -61,7 +63,7 @@ for (const st of steps) {
       n += k;
       ok = await page.evaluate(`(() => { const game = window.__game; try { return !!(${st.untilJs}); } catch (e) { return false; } })()`);
       if (ok) break;
-      if (st.probe && n % ((st.chunk ?? 30) * 10) === 0) console.log(`[${i}] ..${n}:`, JSON.stringify(await page.evaluate(`(async () => { const game = window.__game; ${st.probe} })()`)));
+      if (st.probe && n % ((st.chunk ?? 30) * (st.every ?? 10)) === 0) console.log(`[${i}] ..${n}:`, JSON.stringify(await page.evaluate(`(async () => { const game = window.__game; ${st.probe} })()`)));
     }
     console.log(`[${i}] until ${ok ? 'met' : 'NOT met'} after ${n} frames`);
   }

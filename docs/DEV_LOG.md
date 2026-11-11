@@ -2,7 +2,10 @@
 
 ## Status (latest first)
 
-### Landing everywhere, the wormhole, Gargantua, mobile controls (this pass)
+### Landings checked body by body, Miller's waves, phone performance mode (this pass)
+Verified headless (SwiftShader, one browser at a time) unless marked otherwise. RESULTS_PLACEHOLDER
+
+### Landing everywhere, the wormhole, Gargantua, mobile controls
 Verified headless (SwiftShader) unless marked otherwise:
 - **Universal landing** — `world/zones/SurfaceZone.ts` serves every landable body (`data/landing.ts`: Moon, Mercury,
   Mars, Phobos, Deimos, Io, Europa, Ganymede, Callisto, Mimas, Enceladus, Dione, Rhea, Titan, Iapetus, Titania, Triton,
@@ -75,7 +78,7 @@ cruise, cryosleep, capture (`voyage_steps`); arrival at the Anomaly (`anomaly_st
 Not yet: landing on Solar-System bodies (orbit/flyby only), wormhole traversal to Gargantua.
 
 
-### Launch → orbit → Endurance (this pass)
+### Launch → orbit → Endurance
 - Lander (`blender/assets/lander.py`): spine, four splayed pods with VTOL bells, dorsal dock ring, cockpit with six seats,
   consoles, overhead panel; 25.8k tris.
 - Endurance exterior (`blender/assets/endurance.py`), rebuilt from reference renders 3/4 and the module/node/hub crops:

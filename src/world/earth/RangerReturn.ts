@@ -258,27 +258,37 @@ export class RangerReturn implements RangerHost, SurfaceAPHost {
 
   update(dt: number) {
     if (!this.craft) return;
-    this.ranger.update(dt);
+    const game = this.game;
+    const ts = this.control.autopilot && game.control === this.control ? Math.max(1, this.control.timeScale) : 1;
+    if (ts > 1 && dt > 0) game.clock.advance(dt * (ts - 1), { location: game.state.location, system: game.state.system });
+    this.ranger.update(dt * ts);
     // climb back to orbit: hand over at 45 km (the launch's altitude)
     const c = this.craft;
     if (!this.handing && !this.ranger.site && c.pos[1] - this.y0 > 45e3 && c.vel[1] > 0) {
       this.handing = true;
-      const st = this.game.state.vehicles.ranger1;
-      const t = this.now();
-      const I = earthToInertial(c.pos as V3, c.vel as V3, c.quat, t, this.y0);
-      const asc = this.control.autopilot instanceof AscentToOrbit ? this.control.autopilot : null;
-      st.data.handover = { r: I.r, v: I.v, q: [I.q.x, I.q.y, I.q.z, I.q.w], t, program: asc ? 'orbit-insertion' : undefined, apTarget: 290e3 };
-      delete st.data.surface;
-      delete st.data.onEarth;
-      st.landed = false;
-      st.location = 'space';
-      this.control.setAutopilot(null);
+      this.writeHandover();
+      // the autopilot keeps flying through the fade-out; writeState() refreshes the hand-over with the final state
       void this.game.goTo('space', { at: 'ascent' }, { fade: 0.6 });
     }
   }
 
+  private writeHandover() {
+    const c = this.craft;
+    const st = this.game.state.vehicles.ranger1;
+    const t = this.now();
+    const I = earthToInertial(c.pos as V3, c.vel as V3, c.quat, t, this.y0);
+    const asc = this.control.autopilot instanceof AscentToOrbit ? this.control.autopilot : null;
+    const prev = st.data.handover as { program?: string } | undefined;
+    st.data.handover = { r: I.r, v: I.v, q: [I.q.x, I.q.y, I.q.z, I.q.w], t, program: asc ? 'orbit-insertion' : prev?.program, apTarget: 290e3 };
+    delete st.data.surface;
+    delete st.data.onEarth;
+    st.landed = false;
+    st.location = 'space';
+  }
+
   writeState() {
     this.craft?.writeState();
+    if (this.handing && this.craft) this.writeHandover();
   }
 
   dispose() {

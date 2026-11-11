@@ -122,6 +122,28 @@ export class BurnExec {
 }
 
 /**
+ * Gravity turn in dense air: keep the commanded pitch (rad above the horizon) within an angle of attack the attitude
+ * control can still hold against the weathervane torque (≈50° at low dynamic pressure, ≈17° at 45 kPa) — a broadside
+ * Ranger also pays 2.5× the drag. Moderate angles are useful: the lifting body's lift helps the climb.
+ */
+/**
+ * Dynamic pressure above which climbing faster costs more in drag than it saves in gravity loss: for a vertical climb
+ * the optimum is drag = weight, q = m·g / CdA (≈3 kPa on Titan, ≈25 kPa on Earth).
+ */
+export function maxClimbQ(c: Spacecraft, g: number) {
+  return THREE.MathUtils.clamp((c.mass * g) / Math.max(1, c.spec.dragArea), 2e3, 25e3);
+}
+
+export function aoaLimit(theta: number, v: THREE.Vector3, up: THREE.Vector3, rho: number, minAoa = 0) {
+  const sp = v.length();
+  if (sp < 30 || rho <= 0) return theta;
+  const q = 0.5 * rho * sp * sp;
+  const gam = Math.asin(THREE.MathUtils.clamp(v.dot(up) / sp, -1, 1));
+  const aoa = Math.max(minAoa, THREE.MathUtils.lerp(0.9, 0.3, THREE.MathUtils.clamp((q - 5000) / 40000, 0, 1)));
+  return THREE.MathUtils.clamp(theta, gam - aoa, gam + aoa);
+}
+
+/**
  * Ascent continuation from the atmospheric handover to a near-circular parking orbit:
  *   1. powered ascent: pitch from a vertical-speed profile until the apoapsis reaches the target altitude,
  *   2. coast (time-compressed) to the apoapsis,
@@ -132,6 +154,7 @@ export class OrbitInsertion implements AutopilotProgram {
   allowManual = false;
   phase: 'ascent' | 'coast' | 'circ' = 'ascent';
   done = false;
+  private qk = 1;
   constructor(readonly host: ProxHost, readonly targetAlt = 280e3, readonly onDone?: () => void) {}
 
   update(c: Spacecraft, _dt: number, env: FlightEnv): AutopilotResult {
@@ -151,12 +174,21 @@ export class OrbitInsertion implements AutopilotProgram {
         this.host.say('computer', `Engine cutoff. Coasting to apoapsis, ${(s.ap / 1000).toFixed(0)} kilometres.`);
       } else {
         const vrDes = THREE.MathUtils.clamp((this.targetAlt - s.alt) / 110, -40, 260);
-        const theta = THREE.MathUtils.clamp(0.0035 * (vrDes - s.vr) + 0.05, -0.3, 0.75);
+        // pitch from the vertical balance (weight less centrifugal relief + climb-rate error) over the thrust: holds
+        // the climb on heavy worlds (Miller) where a fixed pitch law sags back into the air
+        const gEff = PRIMARY.mu / (s.r * s.r) - (s.vh * s.vh) / s.r;
+        const aAv = Math.max(1e-3, c.maxAccel() * this.qk);
+        const theta = aoaLimit(Math.asin(THREE.MathUtils.clamp((gEff + 0.04 * (vrDes - s.vr)) / aAv, -0.3, 0.9)), v, up, env.density(c.pos));
         const dir = hdir.clone().multiplyScalar(Math.cos(theta)).addScaledVector(up, Math.sin(theta)).normalize();
         c.attTarget.copy(lookQuat(dir, up));
         // throttle back as the apoapsis approaches the target so cutoff lands on it
         const margin = (this.targetAlt - s.ap) / 40e3;
-        c.throttle = c.forward().angleTo(dir) < 0.35 ? THREE.MathUtils.clamp(margin, 0.15, 1) : 0.2;
+        // max-q: throttle back while the dynamic pressure exceeds ~25 kPa
+        const q = 0.5 * env.density(c.pos) * c.speed() * c.speed();
+        const gN = PRIMARY.mu / (s.r * s.r);
+        const floor = THREE.MathUtils.clamp((1.25 * gN) / Math.max(1e-3, c.maxAccel()), 0.12, 1);
+        this.qk = THREE.MathUtils.clamp(this.qk + (q > maxClimbQ(c, gN) && s.vr > 50 ? -1.5 : 0.6) * _dt, floor, 1);
+        c.throttle = (c.forward().angleTo(dir) < 0.35 ? THREE.MathUtils.clamp(margin, 0.15, 1) : 0.2) * this.qk;
         return { msg: s.alt < 120e3 ? 'Climbing — pitch program' : 'Raising apoapsis', timeScale: 4 };
       }
     }
@@ -179,8 +211,11 @@ export class OrbitInsertion implements AutopilotProgram {
       }
       return { msg: `Coasting to apoapsis — ${tApo.toFixed(0)} s`, timeScale: THREE.MathUtils.clamp(tApo / 6, 1, 50), maxStep: Math.max(0.05, Math.min(10, tApo - burnHalf - 5)) };
     }
-    // circularise
-    c.attTarget.copy(lookQuat(hdir, up));
+    // circularise along the horizon, pitched up just enough to hold the altitude while the speed builds (heavy worlds)
+    const gEffC = PRIMARY.mu / (s.r * s.r) - (s.vh * s.vh) / s.r;
+    const sinC = THREE.MathUtils.clamp((gEffC - 0.05 * s.vr) / Math.max(1e-3, c.maxAccel()), -0.2, 0.8);
+    const cdir = hdir.clone().multiplyScalar(Math.sqrt(1 - sinC * sinC)).addScaledVector(up, sinC).normalize();
+    c.attTarget.copy(lookQuat(cdir, up));
     const vc = Math.sqrt(PRIMARY.mu / (PRIMARY.R + s.alt));
     if ((s.pe > this.targetAlt - Math.min(15e3, this.targetAlt * 0.25) && s.pe > safeOrbitAlt()) || hdir.dot(v) >= vc + 2) {
       c.throttle = 0;
@@ -190,7 +225,7 @@ export class OrbitInsertion implements AutopilotProgram {
       }
       return { done: true, msg: `Orbit achieved — ${(s.pe / 1000).toFixed(0)} × ${(s.ap / 1000).toFixed(0)} km` };
     }
-    c.throttle = c.forward().angleTo(hdir) < 0.2 ? THREE.MathUtils.clamp((vc - hdir.dot(v)) / 30, 0.1, 1) : 0;
+    c.throttle = c.forward().angleTo(cdir) < 0.2 ? THREE.MathUtils.clamp((vc - hdir.dot(v)) / 30, 0.1, 1) : 0;
     return { msg: `Circularising — periapsis ${(s.pe / 1000).toFixed(0)} km`, timeScale: 2 };
   }
 }

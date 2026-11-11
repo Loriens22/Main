@@ -1,4 +1,5 @@
 import * as THREE from 'three';
+import { QENV } from '../../render/quality';
 import { Zone, type SpawnSpec } from '../Zone';
 import { Frame } from '../Frame';
 import { EarthGen } from '../earth/EarthGen';
@@ -275,7 +276,7 @@ export default class EarthZone extends Zone {
     // IBL refresh
     this.envTimer -= dt;
     if (this.envTimer <= 0 && !this.game.skipRender) {
-      this.envTimer = 2;
+      this.envTimer = 2 * QENV.k;
       const env = this.sky.updateEnvironment(game.renderer.pmrem);
       this.scene.environment = env;
       this.scene.environmentIntensity = 0.55 * Math.max(0.08, sunI) + 0.05;

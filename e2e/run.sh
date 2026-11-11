@@ -17,8 +17,14 @@ if [ -n "$SNAPSHOT" ]; then
   ln -s "$ROOT/node_modules" "$SNAPSHOT/node_modules"
   SERVE="$SNAPSHOT"
 fi
-(cd "$SERVE" && exec npx vite --port "$PORT" --strictPort) > "e2e/out/vite_$PORT.log" 2>&1 &
+if curl -sf "http://localhost:$PORT/" > /dev/null 2>&1; then
+  echo "port $PORT is already serving (a leftover server?) — refusing to test against it" >&2
+  exit 3
+fi
+# run Vite's own node process (not the npx wrapper) so that killing $VP really stops the server
+(cd "$SERVE" && E2E_FS_ALLOW="$ROOT" exec node "$ROOT/node_modules/vite/bin/vite.js" --port "$PORT" --strictPort) > "e2e/out/vite_$PORT.log" 2>&1 &
 VP=$!
+trap 'kill "$VP" 2> /dev/null; [ -n "$ML" ] && kill "$ML" 2> /dev/null' EXIT
 for _ in $(seq 1 120); do curl -sf "http://localhost:$PORT/" > /dev/null && break; sleep 0.5; done
 if [ -n "$MEMLOG" ]; then
   ( while true; do echo "[mem] $(date +%T) total-rss-MB=$(ps -eo rss= | awk '{s+=$1} END {print int(s/1024)}') top=$(ps -eo rss=,comm= --sort=-rss | head -1 | awk '{print int($1/1024) "MB " $2}')"; sleep 10; done ) &

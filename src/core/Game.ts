@@ -6,7 +6,8 @@ import { Input } from './Input';
 import { AudioEngine } from '../audio/Audio';
 import { UI, TouchControls } from '../ui/UI';
 import { Emitter, type GameEvents } from './Events';
-import { loadSettings, saveSettings, type Settings } from './Settings';
+import { loadSettings, saveSettings, applyPreset, PRESET_ORDER, type Settings, type PresetName } from './Settings';
+import { applyShaderQuality } from '../render/quality';
 import type { GameState, LocationId, LogEntry } from './State';
 import { newGameState } from '../data/newGame';
 import { MissionClock } from './MissionClock';
@@ -66,6 +67,7 @@ export class Game {
   constructor() {
     this.canvas = document.getElementById('game') as HTMLCanvasElement;
     this.settings = loadSettings();
+    applyShaderQuality(this.settings.graphics);
     this.renderer = new Renderer(this.canvas, this.settings.graphics);
     this.materials.anisotropy = Math.min(8, this.renderer.maxAnisotropy);
     this.materials.textureQuality = this.settings.graphics.textureQuality;
@@ -276,6 +278,8 @@ export class Game {
 
   applySettings() {
     saveSettings(this.settings);
+    applyShaderQuality(this.settings.graphics);
+    if (!this.settings.graphics.dynamicResolution) this.renderer.dynScale = 1;
     this.renderer.applySettings(this.settings.graphics);
     this.materials.textureQuality = this.settings.graphics.textureQuality;
     this.audio.applySettings(this.settings.audio);
@@ -392,12 +396,59 @@ export class Game {
       this.fpsAcc.t = 0;
       this.fpsAcc.n = 0;
     }
+    this.adaptQuality(dt);
     try {
       this.update(dt);
     } catch (e) {
       console.error('[game] update error', e);
     }
     this.input.endFrame();
+  }
+
+  // ---- adaptive quality: dynamic resolution, then (for automatically chosen presets) one preset step down
+  private adapt = { t: 0, n: 0, slow: 0, warm: 4 };
+  private adaptQuality(dt: number) {
+    const g = this.settings.graphics;
+    const a = this.adapt;
+    if (this.phase !== 'playing' || this.zoneLoading || document.visibilityState !== 'visible') {
+      a.t = a.n = 0;
+      a.warm = 3; // zone switches, menus: let shaders compile and caches fill before judging
+      return;
+    }
+    if (a.warm > 0) {
+      a.warm -= dt;
+      return;
+    }
+    a.t += dt;
+    a.n++;
+    if (a.t < 2) return;
+    const fps = a.n / a.t;
+    a.t = a.n = 0;
+    const target = g.fpsCap > 0 ? Math.min(g.fpsCap, 55) * 0.9 : this.renderer.isMobile || g.preset === 'phone' ? 30 : 50;
+    const r = this.renderer;
+    if (g.dynamicResolution) {
+      let k = r.dynScale;
+      if (fps < target * 0.92) k = Math.max(0.5, k * Math.max(0.75, Math.sqrt(fps / target)));
+      else if (fps > target * 1.3 && k < 1) k = Math.min(1, k + 0.08);
+      if (Math.abs(k - r.dynScale) > 0.02) {
+        r.dynScale = k;
+        r.resize();
+      }
+    }
+    // still far too slow at the lowest resolution: an automatically chosen preset steps down once per 8 s
+    const floor = !g.dynamicResolution || r.dynScale <= 0.52;
+    a.slow = floor && fps < target * 0.7 ? a.slow + 2 : 0;
+    if (g.autoPreset && a.slow >= 8) {
+      a.slow = 0;
+      const i = PRESET_ORDER.indexOf(g.preset as PresetName);
+      if (i >= 0 && i < PRESET_ORDER.length - 1) {
+        const next = PRESET_ORDER[i + 1];
+        applyPreset(g, next);
+        r.dynScale = 1;
+        this.applySettings();
+        this.notify(`Low frame rate (${fps.toFixed(0)} fps): graphics lowered to ${next === 'phone' ? 'Phone' : next[0].toUpperCase() + next.slice(1)}. Settings → Graphics to change.`, 'info', 6);
+      }
+    }
   }
 
   private update(dt: number) {

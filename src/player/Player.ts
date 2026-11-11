@@ -78,6 +78,13 @@ export class Player {
     return Math.atan2(-this.heading.x, -this.heading.z);
   }
 
+  /** Carry the player kinematically (a wave, a moving platform): set the position and clear the fall speed. */
+  carry(p: THREE.Vector3) {
+    this.pos.copy(p);
+    this.vel.set(0, 0, 0);
+    this.vUp = 0;
+  }
+
   /** Place the player into a frame at a local position. */
   enterFrame(frame: Frame, pos: THREE.Vector3, yaw = 0, mode: PlayerMode = 'walk') {
     this.removeCollider();

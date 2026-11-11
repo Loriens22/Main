@@ -3,7 +3,7 @@ import type { AutopilotProgram, AutopilotResult } from '../vehicles/FlightContro
 import type { Spacecraft, FlightEnv } from '../vehicles/Spacecraft';
 import { propagate, type V3 } from './kepler';
 import { PRIMARY, orbitSummary, gravityAt, densityAt } from './earthFrame';
-import { BurnExec, lambertECI, hOf, lookQuat, fmtT, type ProxHost } from './Proximity';
+import { BurnExec, lambertECI, hOf, lookQuat, fmtT, aoaLimit, maxClimbQ, type ProxHost } from './Proximity';
 import { bodyRot, bodyOmega, type SurfaceSite } from './surfaceFrame';
 
 /**
@@ -34,8 +34,8 @@ export function brakingDistance(mu: number, R: number, aBrake: number) {
 export interface EntryAero { mass: number; cdA: number; clA: number }
 export const ENTRY_AOA = (50 * Math.PI) / 180;
 export function entryAero(c: Spacecraft): EntryAero {
-  // matches Spacecraft's aerodynamics at that attitude: drag area × (1 + 2.5 sin 90°), lift ½·CL·sin 2α
-  return { mass: c.mass, cdA: c.spec.dragArea * 3.5, clA: c.spec.dragArea * c.spec.liftCoef * 0.5 * Math.sin(2 * ENTRY_AOA) };
+  // matches Spacecraft's aerodynamics at that attitude: drag area × (1 + 2.5 sin α), lift ½·CL·sin 2α
+  return { mass: c.mass, cdA: c.spec.dragArea * (1 + 2.5 * Math.sin(ENTRY_AOA)), clA: c.spec.dragArea * c.spec.liftCoef * 0.5 * Math.sin(2 * ENTRY_AOA) };
 }
 
 /** Entry attitude: nose ENTRY_AOA above the velocity, wings level (lift up). */
@@ -419,8 +419,11 @@ export class PoweredDescent implements AutopilotProgram {
         this.reT -= dt;
         if (this.T <= 0 || this.reT <= 0) {
           // shortest feasible time-to-go, but never faster than the craft already flies (small worlds: ≥ 25 m/s cap)
+          // dense air (Titan: ~30 m/s terminal speed at the handover) — fly the remaining kilometres faster than
+          // the drift, rather than hovering down for half an hour
           const dist = rT.clone().sub(p).length();
-          const Ts = Math.max(solveTgo(p, v, rT, vT, g, aMax, 0.62), dist / Math.max(25, v.length()));
+          const vFloor = 25 + 50 * THREE.MathUtils.clamp(env.density(c.pos) / 0.5, 0, 1);
+          const Ts = Math.max(solveTgo(p, v, rT, vT, g, aMax, 0.62), dist / Math.max(vFloor, v.length()));
           this.T = this.T <= 0 ? Ts : Math.max(this.T, Math.min(Ts, this.T + 3));
           this.reT = 1;
         }
@@ -440,7 +443,7 @@ export class PoweredDescent implements AutopilotProgram {
           this.T = 0;
           this.host.say('computer', 'High gate. Pitch-over to hover thrusters.');
         }
-        return { msg: `Braking — ${hs.toFixed(0)} m/s, range ${(rangeH / 1000).toFixed(1)} km, ${(agl / 1000).toFixed(1)} km AGL`, timeScale: 1 };
+        return { msg: `Braking — ${hs.toFixed(0)} m/s, range ${(rangeH / 1000).toFixed(1)} km, ${(agl / 1000).toFixed(1)} km AGL`, timeScale: this.T > 120 && agl > 4000 ? THREE.MathUtils.clamp(this.T / 60, 1, 4) : 1 };
       }
       case 'approach': {
         // velocity-profile guidance on the hover thrusters: fly toward the site on a braking speed schedule while
@@ -504,6 +507,19 @@ export class AscentToOrbit implements AutopilotProgram {
   phase: 'lift' | 'pitch' | 'burn' | 'coast' | 'hop' | 'orbit' = 'lift';
   private t = 0;
   private tiny: boolean | null = null;
+  private qk = 1;
+  /** Max-q: throttle back while the dynamic pressure exceeds the cheapest climb pressure (drag = weight). */
+  private qLimit(c: Spacecraft, env: FlightEnv, dt: number) {
+    const gN = V(env.gravity(c.pos)).length();
+    const qMax = maxClimbQ(c, gN);
+    const q = 0.5 * env.density(c.pos) * c.speed() * c.speed();
+    // never below the thrust that still climbs (high-g worlds such as Miller have little margin)
+    const floor = THREE.MathUtils.clamp((1.25 * gN) / Math.max(1e-3, c.maxAccel()), 0.12, 1);
+    // only while climbing briskly: a craft that is not rising needs the thrust more than it fears the drag
+    const vr = V(c.vel).dot(V(env.up(c.pos)));
+    this.qk = THREE.MathUtils.clamp(this.qk + (q > qMax && vr > 50 ? -1.5 : 0.6) * dt, floor, 1);
+    return this.qk;
+  }
   constructor(readonly host: SurfaceAPHost, readonly apTarget: number, readonly climbAlt: number, readonly maxVr = 160) {}
 
   update(c: Spacecraft, dt: number, env: FlightEnv): AutopilotResult {
@@ -563,23 +579,31 @@ export class AscentToOrbit implements AutopilotProgram {
         return { msg: 'Pitch-over' };
       }
       case 'burn': {
-        c.vtol = THREE.MathUtils.damp(c.vtol, 0, 2, dt);
         if (s.ap >= this.apTarget) {
+          c.vtol = 0;
           this.phase = 'coast';
           c.throttle = 0;
           this.host.say('computer', `Main engine cutoff. Apoapsis ${(this.apTarget / 1000).toFixed(0)} kilometres.`);
           break;
         }
+        c.vtol = THREE.MathUtils.damp(c.vtol, 0, 2, dt);
         const hv = v.clone().addScaledVector(up, -v.dot(up));
-        const hdir = hv.lengthSq() > 25 ? hv.normalize() : east;
+        // below 40 m/s the ground track is not yet a direction worth following (and must not flip the heading)
+        const hdir = hv.lengthSq() > 1600 ? hv.normalize() : east;
         const vrDes = THREE.MathUtils.clamp((this.climbAlt - s.alt) / 45, -15, this.maxVr);
-        const theta = THREE.MathUtils.clamp(0.004 * (vrDes - s.vr) + 0.05, -0.15, 1.1);
+        // pitch from the vertical balance: weight less centrifugal relief, plus the climb-rate error, over the thrust
+        // available — steep on heavy worlds (Miller), shallow on the Moon
+        const gEff = g.length() - (s.vh * s.vh) / s.r;
+        const aMain = Math.max(1e-3, c.maxAccel() * this.qk);
+        // climbing too slowly for the profile: allow more angle of attack so the gravity turn cannot sag into a dive
+        const short = s.alt < this.climbAlt && s.vr < Math.min(vrDes, 80) - 25;
+        const theta = aoaLimit(Math.asin(THREE.MathUtils.clamp((gEff + 0.08 * (vrDes - s.vr)) / aMain, -0.15, 0.97)), v, up, env.density(c.pos), short ? 0.35 : 0);
         const dir = hdir.multiplyScalar(Math.cos(theta)).addScaledVector(up, Math.sin(theta)).normalize();
         c.sas = 'target';
         c.attTarget.copy(lookQuat(dir, up));
         const margin = (this.apTarget - s.ap) / 8e3;
-        c.throttle = c.forward().angleTo(dir) < 0.35 ? THREE.MathUtils.clamp(margin, 0.1, 1) : 0.15;
-        return { msg: `Ascent — ${(s.alt / 1000).toFixed(1)} km, apoapsis ${(Math.max(0, s.ap) / 1000).toFixed(1)} km` };
+        c.throttle = (c.forward().angleTo(dir) < 0.35 ? THREE.MathUtils.clamp(margin, 0.1, 1) : 0.15) * this.qLimit(c, env, dt);
+        return { msg: `Ascent — ${(s.alt / 1000).toFixed(1)} km, apoapsis ${(Math.max(0, s.ap) / 1000).toFixed(1)} km`, timeScale: s.alt > 3000 ? 4 : 1 };
       }
     }
     // coast toward the handover altitude

@@ -1,4 +1,5 @@
 import * as THREE from 'three';
+import { QU } from './quality';
 import type { MaterialLibrary } from './Materials';
 import { SURFACES } from '../data/landing';
 import { BODIES, AU, tidallyLocked } from '../data/bodies';
@@ -92,6 +93,7 @@ const FRAG = /* glsl */ `
   uniform vec3 uSun, uCam, uPole, uRay, uTint;
   uniform mat3 uRot;
   uniform float uS, uR, uRa, uHr, uHm, uMie, uSunI, uSunL, uLights, uBump, uLimb, uRingIn, uRingOut, uTime, uCrK;
+  uniform float uQAtmo, uQDetail;
   uniform vec2 uTexel;
   varying vec3 vL;
   const float PI = 3.14159265;
@@ -216,10 +218,12 @@ const FRAG = /* glsl */ `
       float t1 = hitP ? tp.x : ta.y;
       if (t1 > t0){
         const int N = 12;
-        float ds = (t1 - t0) / float(N);
+        int nV = int(12.0 * uQAtmo + 0.5);
+        float ds = (t1 - t0) / float(nV);
         vec2 odV = vec2(0.0);
         vec3 sumR = vec3(0.0), sumM = vec3(0.0);
         for (int i = 0; i < N; i++){
+          if (i >= nV) break;
           vec3 p = ro + rd * (t0 + ds * (float(i) + 0.5));
           float h = (length(p) - uR) / uS;
           vec2 d = vec2(exp(-h / uHr), exp(-h / uHm)) * ds / uS;
@@ -279,7 +283,7 @@ const FRAG = /* glsl */ `
       alb *= 0.82 + 0.36 * m1;
       alb *= 1.0 + 0.25 * smoothstep(0.72, 0.8, detail(pk * 1.7 + 3.0, 4.0, px, 4));
       // procedural craters below the map resolution (0.25–8 km), with bowl shadows and immature bright ejecta
-      if (uCrK > 0.0 && px < 3.0){
+      if (uCrK > 0.0 && px < 3.0 && uQDetail > 0.6){
         vec3 nb = uRot * normalize(p);
         vec3 gb = orbCraters(nb * (uR / uS), uR / uS, px, uRot * uSun);
         n = normalize(n - transpose(uRot) * gb);
@@ -432,6 +436,7 @@ export class SolarSystem {
           uS: { value: 1 }, uR: { value: R }, uRa: { value: Ra }, uHr: { value: atm?.hr ?? 8 }, uHm: { value: atm?.hm ?? 1.2 }, uMie: { value: atm?.mie ?? 0 },
           uSunI: { value: atm?.sunI ?? 10 }, uSunL: { value: 1 }, uLights: { value: 0.9 }, uBump: { value: look.bump ?? 0 }, uLimb: { value: look.limb ?? 0.4 },
           uRingIn: { value: look.rings?.inner ?? 0 }, uRingOut: { value: look.rings?.outer ?? 1 }, uTime: { value: 0 }, uTexel: { value: texel },
+          uQAtmo: QU.uQAtmo, uQDetail: QU.uQDetail,
           uCrK: { value: look.mode === 'rocky' ? (SURFACES[id]?.craters ?? 0.6) * (id === 'moon' || id === 'mercury' ? 1.15 : 1) : 0 },
         },
       });

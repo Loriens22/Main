@@ -33,6 +33,6 @@ export const steps = [
   { js: `game.zone.ascend(); return 1;`, frames: 5, probe },
   { untilJs: `!!game.zone && game.zone.id === 'space' && !!game.zone.craft`, max: 12000, dt: 0.1, chunk: 50, probe },
   { wait: 2500, frames: 3, probe },
-  { untilJs: `!game.zone.control?.autopilot`, max: 4000, chunk: 30, probe },
+  { untilJs: `!game.zone.control?.autopilot`, max: Number(process.env.ORBITMAX ?? 12000), chunk: 30, probe },
   { js: `const z = game.zone; const c = z.craft; const P = await import('/src/space/earthFrame.ts'); const B = (await import('/src/data/bodies.ts')).BODIES[z.primaryId]; const s = P.orbitSummary(c.pos, c.vel, B.mu, B.radius); return { pe: +(s.pe / 1000).toFixed(1), ap: +(s.ap / 1000).toFixed(1) };`, frames: 1, shot: 'land_back_in_orbit', probe },
 ];

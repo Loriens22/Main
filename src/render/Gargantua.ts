@@ -1,4 +1,5 @@
 import * as THREE from 'three';
+import { QU } from './quality';
 
 /**
  * The Gargantua system's sky: another galaxy (dense star field, a galactic band, nebulosity) and the black hole
@@ -73,12 +74,12 @@ export class Gargantua {
       side: THREE.BackSide, depthTest: false, depthWrite: false,
       uniforms: {
         uCam: { value: new THREE.Vector3(100, 0, 0) }, uN: { value: diskNormal.clone().normalize() },
-        uIn: { value: this.inner }, uOut: { value: this.outer }, uBound: { value: this.bound }, uTime: { value: 0 }, uK: { value: 1 }, uDisk: { value: 1 },
+        uIn: { value: this.inner }, uOut: { value: this.outer }, uBound: { value: this.bound }, uTime: { value: 0 }, uK: { value: 1 }, uDisk: { value: 1 }, uQGarg: QU.uQGarg,
       },
       vertexShader: /* glsl */ `varying vec3 vW; void main(){ vec4 w = modelMatrix * vec4(position, 1.0); vW = w.xyz; gl_Position = projectionMatrix * viewMatrix * w; }`,
       fragmentShader: /* glsl */ `
         precision highp float;
-        uniform vec3 uCam, uN; uniform float uIn, uOut, uBound, uTime, uK, uDisk; varying vec3 vW;
+        uniform vec3 uCam, uN; uniform float uIn, uOut, uBound, uTime, uK, uDisk, uQGarg; varying vec3 vW;
         ${OTHER_SKY_GLSL}
         float n2(vec2 p){ vec2 i = floor(p), f = fract(p); vec2 u = f * f * (3.0 - 2.0 * f);
           float a = gsHash(vec3(i, 1.0)), b = gsHash(vec3(i + vec2(1.0, 0.0), 1.0)), c = gsHash(vec3(i + vec2(0.0, 1.0), 1.0)), d = gsHash(vec3(i + vec2(1.0, 1.0), 1.0));
@@ -123,9 +124,12 @@ export class Gargantua {
           }
           vec3 hv = cross(x, v); float h2 = dot(hv, hv);
           vec3 col = vec3(0.0); float acc = 0.0; bool cap = false;
+          // fewer, longer steps at low quality: the same path length is covered (coarser bending, softer ring)
+          int nSteps = int(260.0 * uQGarg); float kStep = 260.0 / float(nSteps);
           for (int i = 0; i < 260; i++){
+            if (i >= nSteps) break;
             float r = length(x);
-            float dt = clamp(0.045 * r, 0.008, 1.6);
+            float dt = clamp(0.045 * kStep * r, 0.008 * kStep, 1.6 * kStep);
             vec3 a = -1.5 * h2 * x / (r * r * r * r * r);
             vec3 v2 = normalize(v + a * dt);
             vec3 xn = x + v2 * dt;

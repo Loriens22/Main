@@ -1,4 +1,6 @@
 import * as THREE from 'three';
+import { fmtLatLon } from '../../util/format';
+import { QENV } from '../../render/quality';
 import { Zone, type SpawnSpec } from '../Zone';
 import { Frame } from '../Frame';
 import type { Game } from '../../core/Game';
@@ -22,6 +24,8 @@ import { BodyMap, SurfaceGen } from '../surface/SurfaceGen';
 import { surfaceShading, sunShadowPatch } from '../surface/surfaceShading';
 import { Rocks } from '../surface/Rocks';
 import { RangerVehicle } from '../RangerVehicle';
+import { MillerWaves, WAVE_GLSL, WAVE_C, type TidalWave } from '../surface/MillerWaves';
+import { lookQuat } from '../../space/Proximity';
 import { h } from '../../ui/UI';
 
 /** Where the Ranger is on (or above) a body's surface — persisted in vehicles.ranger1.data.surface. */
@@ -198,6 +202,10 @@ export default class SurfaceZone extends Zone implements SurfaceAPHost {
     this.ranger = new RangerVehicle(this);
     await this.ranger.load();
     this.ranger.onTouchdown = () => {
+      if (this.quietTouchdown) {
+        this.quietTouchdown = false;
+        return;
+      }
       game.notify(`Ranger 1 down on ${BODIES[this.site.body].name} — ${this.targetName}. F to stand up.`, 'ok', 6);
       this.say('ward', `${BODIES[this.site.body].name}. ${this.targetName}. We're down.`);
     };
@@ -241,8 +249,8 @@ export default class SurfaceZone extends Zone implements SurfaceAPHost {
       },
       altitude: (p) => Math.hypot(p[0] - c.x, p[1] - c.y, p[2] - c.z) - R,
       ground: (p) => {
-        const hgt = this.gen.field.height(p[0], p[2]) + this.rocks.bumpAt(p[0], p[2]);
-        const n = this.gen.field.normal(p[0], p[2], 2.5);
+        const hgt = this.terrainY(p[0], p[2]) + this.rocks.bumpAt(p[0], p[2]);
+        const n = this.terrainNormal(p[0], p[2]);
         // Spacecraft compares heights along env.up (radial here): express the ground point the same way
         const x = p[0] - c.x, y = p[1] - c.y, z = p[2] - c.z;
         const r = Math.hypot(x, y, z);
@@ -263,17 +271,33 @@ export default class SurfaceZone extends Zone implements SurfaceAPHost {
     const agl = this.craft.pos[1] - this.ground_(this.craft.pos[0], this.craft.pos[2]);
     const g = new THREE.Vector3(...this.env.gravity(this.craft.pos)).length() / 9.81;
     const ll = localLatLon(this.site, this.craft.pos);
-    const where = `${Math.abs(ll.lat).toFixed(2)}°${ll.lat >= 0 ? 'N' : 'S'} ${Math.abs(ll.lon).toFixed(2)}°${ll.lon >= 0 ? 'E' : 'W'}`;
+    const where = fmtLatLon(ll.lat, ll.lon);
     if (this.craft.landed || agl < 3) return { name: b.name.toUpperCase(), sub: `${this.targetName} · ${where} · ${g < 0.05 ? g.toFixed(4) : g.toFixed(2)} g · ${this.def.temp}` };
     return { name: `${b.name.toUpperCase()} — DESCENT`, sub: `${(agl / 1000).toFixed(1)} km above ${this.targetName}` };
   }
 
   private ground_(x: number, z: number) {
-    return this.gen.field.height(x, z);
+    return this.terrainY(x, z);
   }
 
   groundHeight(x: number, z: number) {
-    return this.gen.field.height(x, z);
+    return this.terrainY(x, z);
+  }
+
+  /**
+   * Terrain height (local y) at (x, z): the streamed height maps around the site, the analytic surface beyond the far
+   * map (whose samples clamp at its edge — a craft hundreds of kilometres down-range would otherwise "touch" a
+   * phantom ground far above the real one).
+   */
+  terrainY(x: number, z: number) {
+    if (this.gen.far.edgeDistance(x, z) > 0) return this.gen.field.height(x, z);
+    return this.gen.height(x, z, 4000);
+  }
+
+  private terrainNormal(x: number, z: number) {
+    if (this.gen.far.edgeDistance(x, z) > 2000) return this.gen.field.normal(x, z, 2.5);
+    const e = 400;
+    return new THREE.Vector3(this.terrainY(x - e, z) - this.terrainY(x + e, z), 2 * e, this.terrainY(x, z - e) - this.terrainY(x, z + e)).normalize();
   }
 
   altitude() {
@@ -385,6 +409,8 @@ export default class SurfaceZone extends Zone implements SurfaceAPHost {
         ['SITE', rng > 2000 ? `${(rng / 1000).toFixed(1)} km` : `${rng.toFixed(0)} m`],
         ['Δv', `${(c.deltaV() / 1000).toFixed(2)} km/s`],
         ['G', `${(new THREE.Vector3(...this.env.gravity(c.pos)).length() / 9.81).toFixed(3)} g`],
+        ...(this.tideHud ? [['WAVE', this.tideHud]] : []),
+        ...(this.ranger.flooded > 0 ? [['ENGINES', `flooded · ${Math.ceil(this.ranger.flooded)} s`]] : []),
       ] as [string, string][],
     };
   }
@@ -395,9 +421,27 @@ export default class SurfaceZone extends Zone implements SurfaceAPHost {
   ascentPlan() {
     const atm = ATMO_SURF[this.site.body];
     const top = ATMOS_TOP[this.site.body] ?? 0;
-    const apT = atm ? Math.max(this.hHand + 15e3, top * 0.85) : this.hHand + Math.min(15e3, 0.5 * this.hHand);
-    const climb = atm ? Math.min(Math.max(4 * atm.H, this.hHand + 8e3), apT * 0.7) : Math.max(this.hHand * 0.35, 3e3);
+    // apoapsis clear of the air: above the modelled top (no drag there), or where the density falls below
+    // 1e-7 kg/m³ (+20 km) if that comes first (Titan's haze top is far above the air that matters)
+    const hAir = atm ? atm.H * Math.log(atm.rho0 / 1e-7) + 20e3 : 0;
+    const apT = atm ? Math.max(this.hHand + 15e3, Math.min(top + 15e3, hAir)) : this.hHand + Math.min(15e3, 0.5 * this.hHand);
+    // climb well past the hand-over so the orbital zone takes over a craft still rising briskly
+    const climb = atm ? Math.min(Math.max(4 * atm.H, this.hHand + 20e3), apT * 0.7) : Math.max(this.hHand * 0.35, 3e3);
     return { apT, climb, maxVr: atm ? 320 : 160 };
+  }
+
+  /**
+   * Rough Δv to orbit (m/s): circular speed at the target apoapsis, less the ground's rotation, plus a gravity loss
+   * (a quarter of g over the burn time) and, with air, a drag allowance.
+   */
+  ascentDv() {
+    const B = BODIES[this.site.body];
+    const apT = this.ascentPlan().apT;
+    const vc = Math.sqrt(B.mu / (B.radius + apT));
+    const g = B.mu / (B.radius * B.radius);
+    const vrot = this.omegaL.length() * B.radius * Math.cos(THREE.MathUtils.degToRad(this.site.lat));
+    const atm = ATMO_SURF[this.site.body];
+    return Math.max(0, vc - vrot) + 0.25 * g * (vc / Math.max(1, this.craft.maxAccel())) + (atm ? 350 * Math.sqrt(atm.rho0) : 0);
   }
 
   ascend() {
@@ -433,7 +477,9 @@ export default class SurfaceZone extends Zone implements SurfaceAPHost {
         this.targetName = 'touchdown point';
         ctrl.setAutopilot(new LandHere(this));
       });
-      add('ASCENT TO ORBIT', `VTOL lift-off, pitch-over and main-engine ascent to a ${(apT / 1000).toFixed(0)} km apoapsis; orbit insertion continues in orbit.`, true, () => this.ascend());
+      const need = this.ascentDv();
+      const short = !game.state.creative.unlimitedResources && c.deltaV() < need;
+      add('ASCENT TO ORBIT', `VTOL lift-off, pitch-over and main-engine ascent to a ${(apT / 1000).toFixed(0)} km apoapsis; orbit insertion continues in orbit. Needs about ${(need / 1000).toFixed(1)} km/s${short ? ` — only ${(c.deltaV() / 1000).toFixed(1)} km/s aboard: the Ranger cannot make orbit from here without more propellant` : ''}.`, true, () => this.ascend());
       add('DISENGAGE AUTOPILOT', 'Manual flight: I/K hover thrust up/down, J/L/H/N translate, W/S pitch, A/D yaw, Q/E roll, G gear.', !!ctrl.autopilot, () => ctrl.setAutopilot(null));
     }, { narrow: true, onClose: () => game.input.requestLock() });
   }
@@ -447,7 +493,10 @@ export default class SurfaceZone extends Zone implements SurfaceAPHost {
     this.omegaL = localOmega(this.site, t);
     const c = this.craft;
     // ---- the Ranger: physics with autopilot, touchdown, walkable site
-    this.ranger.update(dt);
+    // autopilot time compression (coasts, long brakes): the craft's physics and the mission clock run faster
+    const ts = this.control.autopilot && game.control === this.control ? Math.max(1, this.control.timeScale) : 1;
+    if (ts > 1 && dt > 0) game.clock.advance(dt * (ts - 1), { location: game.state.location, system: game.state.system, ...this.clockContext() });
+    this.ranger.update(dt * ts);
     this.updateDust(dt);
     // ---- ascent handover back to orbit
     const alt = this.env.altitude(c.pos);
@@ -475,22 +524,28 @@ export default class SurfaceZone extends Zone implements SurfaceAPHost {
     const fx = game.renderer.fx;
     fx.visor = THREE.MathUtils.damp(fx.visor, pl.mode !== 'seat' && !this.cabinPressurised(pl.pos) ? 0.55 : 0, 3, dt);
     this.updateSky(dt);
+    this.updateTide(dt);
   }
 
   private handToOrbit() {
     this.handing = true;
+    this.writeHandover();
+    // the autopilot keeps flying through the fade-out; writeState() refreshes the hand-over with the final state
+    void this.game.goTo('space', { at: 'ascent' }, { fade: 0.6 });
+  }
+
+  private writeHandover() {
     const game = this.game;
     const c = this.craft;
     const st = game.state.vehicles.ranger1;
     const t = game.state.clock.earthTime;
     const I = localToInertial(this.site, t, c.pos as V3, c.vel as V3, c.quat);
     const asc = this.control.autopilot instanceof AscentToOrbit ? this.control.autopilot : null;
-    const ho: Handover = { r: I.r, v: I.v, q: [I.q.x, I.q.y, I.q.z, I.q.w], t, program: asc && asc.phase !== 'orbit' ? 'orbit-insertion' : undefined, apTarget: asc?.apTarget };
+    const prev = st.data.handover as Handover | undefined;
+    const ho: Handover = { r: I.r, v: I.v, q: [I.q.x, I.q.y, I.q.z, I.q.w], t, program: asc ? (asc.phase !== 'orbit' ? 'orbit-insertion' : undefined) : prev?.program, apTarget: asc?.apTarget ?? prev?.apTarget };
     st.data.handover = ho;
     st.landed = false;
     st.location = 'space';
-    this.control.setAutopilot(null);
-    void game.goTo('space', { at: 'ascent' }, { fade: 0.6 });
   }
 
   // ===================================================================================================== terrain streaming
@@ -589,7 +644,11 @@ export default class SurfaceZone extends Zone implements SurfaceAPHost {
 
   // ===================================================================================================== water (Miller)
   private waveTex: THREE.DataTexture | null = null;
-  /** Shallow sea: a camera-following plane bent to the planet's curvature, tiled wave normals drifting with time. */
+  waves: MillerWaves | null = null;
+  /**
+   * Shallow sea: a camera-centred polar grid (dense near the eye, out to ~60 km so incoming crests show through the
+   * haze) bent to the planet's curvature and displaced by the tidal waves; tiled wave normals drift with time.
+   */
   private buildWater() {
     const N = 256;
     const data = new Uint8Array(N * N * 4);
@@ -613,25 +672,78 @@ export default class SurfaceZone extends Zone implements SurfaceAPHost {
     this.waveTex.wrapS = this.waveTex.wrapT = THREE.RepeatWrapping;
     this.waveTex.repeat.set(900, 900);
     this.waveTex.needsUpdate = true;
-    const mat = new THREE.MeshStandardMaterial({ color: new THREE.Color(0.06, 0.13, 0.15), roughness: 0.05, metalness: 0, transparent: true, opacity: 0.78, normalMap: this.waveTex, normalScale: new THREE.Vector2(0.55, 0.55), depthWrite: false });
+    this.waves = new MillerWaves();
+    const W = this.waves;
+    const mat = new THREE.MeshStandardMaterial({ color: new THREE.Color(0.06, 0.13, 0.15), roughness: 0.05, metalness: 0, transparent: true, opacity: 0.78, normalMap: this.waveTex, normalScale: new THREE.Vector2(0.55, 0.55), depthWrite: false, side: THREE.DoubleSide });
     const R = BODIES[this.site.body].radius;
     mat.onBeforeCompile = (sh) => {
       sh.uniforms.uSR = { value: R };
-      sh.vertexShader = sh.vertexShader.replace('#include <common>', '#include <common>\nuniform float uSR;').replace(
-        '#include <project_vertex>',
-        `vec4 wq = modelMatrix * vec4(transformed, 1.0);
-         float rr = dot(wq.xz, wq.xz);
-         wq.y = sqrt(max(uSR * uSR - rr, 0.0)) - uSR;
-         vec4 mvPosition = viewMatrix * wq;
-         gl_Position = projectionMatrix * mvPosition;`,
-      );
+      sh.uniforms.uWave0 = W.uniforms.uWave0;
+      sh.uniforms.uWave1 = W.uniforms.uWave1;
+      sh.vertexShader = sh.vertexShader
+        .replace('#include <common>', `#include <common>\nuniform float uSR; varying float vFoam; varying float vWall;\n${WAVE_GLSL}`)
+        .replace('#include <beginnormal_vertex>', `vec4 wq0 = modelMatrix * vec4(position, 1.0);
+           vec4 tw = tide(wq0.xz);
+           vec3 objectNormal = normalize(vec3(-tw.y, 1.0, -tw.z));
+           #ifdef USE_TANGENT
+             vec3 objectTangent = vec3(tangent.xyz);
+           #endif`)
+        .replace(
+          '#include <project_vertex>',
+          `vec4 wq = modelMatrix * vec4(transformed, 1.0);
+           float rr = dot(wq.xz, wq.xz);
+           wq.y = sqrt(max(uSR * uSR - rr, 0.0)) - uSR + tw.x;
+           vFoam = clamp(tw.w, 0.0, 1.0);
+           vWall = smoothstep(1.5, 25.0, tw.x);
+           vec4 mvPosition = viewMatrix * wq;
+           gl_Position = projectionMatrix * mvPosition;`,
+        );
+      sh.fragmentShader = sh.fragmentShader
+        .replace('#include <common>', '#include <common>\nvarying float vFoam; varying float vWall;')
+        .replace(
+          '#include <color_fragment>',
+          `#include <color_fragment>
+           // the wave body is a wall of deep water: darker, opaque; white water on the steep front and the crest
+           diffuseColor.rgb = mix(diffuseColor.rgb, vec3(0.035, 0.11, 0.12), vWall * 0.7);
+           diffuseColor.rgb = mix(diffuseColor.rgb, vec3(0.74, 0.8, 0.82), vFoam);
+           diffuseColor.a = mix(diffuseColor.a, 1.0, max(vWall, vFoam));`,
+        )
+        .replace('#include <roughnessmap_fragment>', '#include <roughnessmap_fragment>\nroughnessFactor = mix(roughnessFactor, 0.85, vFoam);');
     };
-    const g = new THREE.PlaneGeometry(30000, 30000, 160, 160).rotateX(-Math.PI / 2);
+    // polar grid: ring radii grow geometrically from 4 m to ~60 km around the camera
+    const q = this.game.settings.graphics.water;
+    const NA = q >= 2 ? 360 : q === 1 ? 256 : 160, NR = q >= 2 ? 200 : q === 1 ? 150 : 100;
+    const rMax = 62000, r0 = 4;
+    const k = Math.pow(rMax / r0, 1 / (NR - 1));
+    const pos: number[] = [0, 0, 0], uv: number[] = [0.5, 0.5], idx: number[] = [];
+    for (let r = 0; r < NR; r++) {
+      const rad = r0 * Math.pow(k, r);
+      for (let a = 0; a < NA; a++) {
+        const th = (a / NA) * Math.PI * 2;
+        const x = Math.cos(th) * rad, z = Math.sin(th) * rad;
+        pos.push(x, 0, z);
+        uv.push(x / 30000 + 0.5, -z / 30000 + 0.5);
+      }
+    }
+    const at = (r: number, a: number) => 1 + r * NA + (a % NA);
+    for (let a = 0; a < NA; a++) idx.push(0, at(0, a + 1), at(0, a));
+    for (let r = 0; r < NR - 1; r++) {
+      for (let a = 0; a < NA; a++) {
+        const i0 = at(r, a), i1 = at(r, a + 1), j0 = at(r + 1, a), j1 = at(r + 1, a + 1);
+        idx.push(i0, i1, j0, i1, j1, j0);
+      }
+    }
+    const g = new THREE.BufferGeometry();
+    g.setAttribute('position', new THREE.Float32BufferAttribute(pos, 3));
+    g.setAttribute('normal', new THREE.Float32BufferAttribute(new Float32Array(pos.length).map((_, i) => (i % 3 === 1 ? 1 : 0)), 3));
+    g.setAttribute('uv', new THREE.Float32BufferAttribute(uv, 2));
+    g.setIndex(idx);
     this.water = new THREE.Mesh(g, mat);
     this.water.frustumCulled = false;
     this.water.renderOrder = 5;
     this.water.userData.owned = true;
     this.scene.add(this.water);
+    this.ranger.hold = (dt) => this.rideStep(dt);
   }
 
   private updateWater() {
@@ -640,6 +752,227 @@ export default class SurfaceZone extends Zone implements SurfaceAPHost {
     w.position.set(Math.round(cam.x / 200) * 200, 0, Math.round(cam.z / 200) * 200);
     if (this.waveTex) {
       this.waveTex.offset.set(this.time * 0.0021 + w.position.x / 30000 * 900, this.time * 0.0013 - w.position.z / 30000 * 900);
+    }
+    this.waves?.updateUniforms(this.time);
+  }
+
+  /** still-water level plus the tide at (x, z), local frame */
+  waterLevel(x: number, z: number) {
+    const R = BODIES[this.site.body].radius;
+    return Math.sqrt(Math.max(R * R - x * x - z * z, 0)) - R + (this.waves ? this.waves.height(x, z, this.time) : 0);
+  }
+
+  private tideSaid = new Set<string>();
+  private quietTouchdown = false;
+  private tideHud: string | null = null;
+  private ride: { t: number; dir: THREE.Vector2; startY: number; crest: number } | null = null;
+  private sweptWave = -1;
+  private sweepFade = 0;
+  private swim: { t: number; dir: THREE.Vector2; d: number } | null = null;
+
+  /** Warnings, the Ranger caught by a crest, the player swept off their feet, the camera under the water. */
+  private updateTide(dt: number) {
+    const W = this.waves;
+    if (!W) return;
+    const game = this.game;
+    const t = this.time;
+    const c = this.craft;
+    const pl = game.player;
+    const st = game.state.vehicles.ranger1;
+    const onFoot = pl.frame === this.ground && pl.mode !== 'seat' && !this.cabinPressurised(pl.pos);
+    if (W.first === null && (st.landed || onFoot)) W.schedule(t + 270);
+    const fx = new THREE.Vector3(...(onFoot ? pl.pos.toArray() : c.pos));
+    const nx = W.next(fx.x, fx.z, t);
+    this.tideHud = null;
+    if (nx) {
+      const key = String(nx.wave.n);
+      const from = new THREE.Vector2(-nx.wave.dir.x, -nx.wave.dir.y); // local x east, z south
+      const brg = Math.round(((Math.atan2(from.x, -from.y) * 180) / Math.PI + 360) % 360);
+      const Hkm = (nx.wave.H / 1000).toFixed(1);
+      const tta = Math.max(0, nx.tta);
+      if (tta < 600) this.tideHud = `${tta >= 60 ? `${Math.floor(tta / 60)} min ${Math.floor(tta % 60)} s` : `${tta.toFixed(0)} s`} · ${Hkm} km`;
+      const once = (k: string, fn: () => void) => {
+        if (!this.tideSaid.has(key + k)) {
+          this.tideSaid.add(key + k);
+          fn();
+        }
+      };
+      const where = onFoot ? 'Get back aboard and close the hatch.' : st.landed ? 'Lift off and climb above two kilometres, or strap in and ride it out.' : 'Stay above two kilometres until it passes.';
+      if (tta < 330 && tta > 125) once(':far', () => this.say('computer', `Swell on the horizon, bearing ${brg}. Crest about ${Hkm} kilometres high, arriving in ${Math.round(tta / 60)} minutes.`));
+      if (tta <= 125 && tta > 35) once(':2', () => {
+        this.say('computer', `Wave arrival in ${Math.round(tta / 60) <= 1 ? 'two minutes' : `${Math.round(tta / 60)} minutes`}. ${where}`);
+        game.notify(`TIDAL WAVE — ${Math.round(tta)} s · ${Hkm} km · bearing ${brg}°`, 'warn', 6);
+      });
+      if (tta <= 35 && tta > 0) once(':30', () => game.notify(`WAVE IMPACT IN ${Math.round(tta)} s`, 'alert', 5));
+      // a low rumble that grows as the crest closes in
+      const near = THREE.MathUtils.clamp(1 - Math.abs(nx.dist) / 6000, 0, 1);
+      game.renderer.fx.shake = Math.max(game.renderer.fx.shake, near * near * 0.5);
+    }
+    // ---- the Ranger: a crest reaching the hull lifts it (rideStep carries it over the wave)
+    if (!this.ride) {
+      const lvl = this.waterLevel(c.pos[0], c.pos[2]);
+      const hW = W.height(c.pos[0], c.pos[2], t);
+      if (hW > 2.5 && lvl > c.pos[1] - 1.0) this.startRide();
+    }
+    // ---- the player on foot
+    if (this.swim) this.swimStep(dt);
+    else if (onFoot && pl.mode !== 'ladder' && W.height(pl.pos.x, pl.pos.z, t) > 3) {
+      const w = this.dominantWave(pl.pos.x, pl.pos.z);
+      if (w && w.n !== this.sweptWave) this.sweepPlayer(w);
+    }
+    if (this.sweepFade > 0) {
+      this.sweepFade -= dt;
+      const f = game.renderer.fx;
+      f.fadeColor.setRGB(0.02, 0.07, 0.08);
+      f.fade = THREE.MathUtils.clamp(this.sweepFade / 1.5, 0, 0.9);
+    }
+    // ---- the camera inside the water body
+    const cam = game.camera.position;
+    const fog = this.scene.fog as THREE.FogExp2 | null;
+    const atm = ATMO_SURF[this.site.body];
+    if (fog && atm) {
+      const under = cam.y < this.waterLevel(cam.x, cam.z) - 0.1;
+      fog.density = under ? 1 / 45 : atm.fog;
+      if (under) fog.color.setRGB(0.01, 0.045, 0.05);
+    }
+  }
+
+  private dominantWave(x: number, z: number) {
+    const W = this.waves!;
+    let best: TidalWave | null = null, hb = 0;
+    for (const w of W.active(this.time)) {
+      const h = w.H * MillerWaves.profile(MillerWaves.ahead(w, x, z, this.time));
+      if (h >= hb) {
+        hb = h;
+        best = w;
+      }
+    }
+    return best;
+  }
+
+  private startRide() {
+    const c = this.craft;
+    const game = this.game;
+    const pl = game.player;
+    const w = this.dominantWave(c.pos[0], c.pos[2]);
+    if (!w) return;
+    // on the ladder when the hull lifts: knocked off into the water (the sweep then carries them)
+    if (pl.mode === 'ladder') pl.enterFrame(this.ground, new THREE.Vector3(pl.pos.x, this.gen.field.height(pl.pos.x, pl.pos.z) + 0.05, pl.pos.z), pl.yaw, 'walk');
+    // anyone walking in the cabin is thrown into the pilot seat; the walkable site cannot ride a wave
+    if (this.ranger.site) {
+      if (pl.frame === this.ground && pl.mode !== 'seat' && this.cabinPressurised(pl.pos)) {
+        this.ranger.seat();
+        game.notify('The deck heaves — you are thrown into the pilot seat.', 'warn', 4);
+      }
+      this.ranger.removeSite();
+    }
+    this.control.setAutopilot(null);
+    c.throttle = 0;
+    c.vtol = 0;
+    c.landed = false;
+    this.ride = { t: 0, dir: w.dir.clone(), startY: c.pos[1], crest: 0 };
+    this.say('computer', 'Wave contact.');
+  }
+
+  /** Kinematic ride over the crest: the Ranger floats up the face, over the top and down the back, drifting along. */
+  private rideStep(dt: number) {
+    const r = this.ride;
+    if (!r) return false;
+    const W = this.waves!;
+    const c = this.craft;
+    const t = this.time;
+    r.t += dt;
+    const h = W.height(c.pos[0], c.pos[2], t);
+    r.crest = Math.max(r.crest, h);
+    const u = 0.32 * WAVE_C * (h / (h + 150));
+    const x = c.pos[0] + r.dir.x * u * dt, z = c.pos[2] + r.dir.y * u * dt;
+    const R = BODIES[this.site.body].radius;
+    const still = Math.sqrt(Math.max(R * R - x * x - z * z, 0)) - R;
+    const y = Math.max(this.gen.field.height(x, z) + 1.5, still + h - 0.6);
+    const nv = [(x - c.pos[0]) / dt, (y - c.pos[1]) / dt, (z - c.pos[2]) / dt];
+    c.pos[0] = x;
+    c.pos[1] = y;
+    c.pos[2] = z;
+    for (let k = 0; k < 3; k++) c.vel[k] = THREE.MathUtils.lerp(c.vel[k], nv[k], 0.5);
+    c.angVel.set(0, 0, 0);
+    c.landed = false;
+    // pitch and roll with the water surface, heading kept (tilt limited: it tumbles in the white water otherwise)
+    const g = W.gradient(x, z, t);
+    const n = new THREE.Vector3(-g.x, 1, -g.y).normalize();
+    const lim = 0.75;
+    if (n.angleTo(new THREE.Vector3(0, 1, 0)) > lim) n.set(n.x, 0, n.z).normalize().multiplyScalar(Math.sin(lim)).add(new THREE.Vector3(0, Math.cos(lim), 0));
+    const f = c.forward().addScaledVector(n, -c.forward().dot(n));
+    if (f.lengthSq() > 1e-4) c.quat.slerp(lookQuat(f.normalize(), n), Math.min(1, dt * 2.5));
+    this.game.renderer.fx.shake = Math.max(this.game.renderer.fx.shake, THREE.MathUtils.clamp(0.25 + g.length() * 0.6, 0.25, 1.1));
+    if (h < 1.2 && r.t > 6) {
+      this.ride = null;
+      this.afterWave(r.crest);
+      return false;
+    }
+    return true;
+  }
+
+  private afterWave(crest: number) {
+    const game = this.game;
+    const st = game.state.vehicles.ranger1;
+    const prot = game.state.creative.damageProtection;
+    const drain = prot ? 12 : 55;
+    this.quietTouchdown = true;
+    this.ranger.flooded = drain;
+    const days = (drain * MILLER_FACTOR) / 86400;
+    if (!prot) {
+      st.damage.engines = Math.max(0.4, (st.damage.engines ?? 1) - 0.15);
+      st.damage.hull = Math.max(0.3, (st.damage.hull ?? 1) - 0.1);
+    }
+    game.notify(`Ranger 1 rode a ${(crest / 1000).toFixed(1)} km crest. Engines flooded — draining for ${drain} s${prot ? ' (Creative: no damage)' : ''}.`, prot ? 'warn' : 'alert', 7);
+    this.say('computer', `Engines flooded. Purge cycle ${drain} seconds — about ${days >= 365 ? `${(days / 365).toFixed(1)} years` : `${Math.round(days)} days`} back home.`);
+  }
+
+  /** The player on foot is knocked down and carried up and over the crest by the water. */
+  private sweepPlayer(w: TidalWave) {
+    const game = this.game;
+    this.sweptWave = w.n;
+    this.sweepFade = 2.5;
+    const prot = game.state.creative.hazardProtection;
+    const ps = game.state.player;
+    if (!prot) ps.health = Math.max(0, (ps.health ?? 1) - 0.45);
+    if (!prot && ps.health <= 0) {
+      ps.health = 0.4;
+      if (this.ranger.site || this.craft.landed) {
+        this.ranger.seat();
+        game.notify('The wave knocked you out. The suit tether winched you back to Ranger 1 — suit integrity 40 %.', 'alert', 8);
+        return;
+      }
+    }
+    this.swim = { t: 0, dir: w.dir.clone(), d: 0 };
+    game.notify(prot ? 'Swept off your feet by the wave (Creative: no injury).' : `Swept off your feet by the wave. Suit integrity ${Math.round(ps.health * 100)} %.`, prot ? 'warn' : 'alert', 6);
+  }
+
+  /** Carried in the water like the Ranger: up the face, over the crest, set down behind it. */
+  private swimStep(dt: number) {
+    const sw = this.swim!;
+    const pl = this.game.player;
+    const W = this.waves!;
+    sw.t += dt;
+    const h = W.height(pl.pos.x, pl.pos.z, this.time);
+    const u = 0.32 * WAVE_C * (h / (h + 150));
+    const p = pl.pos.clone();
+    p.x += sw.dir.x * u * dt;
+    p.z += sw.dir.y * u * dt;
+    sw.d += u * dt;
+    const R = BODIES[this.site.body].radius;
+    const still = Math.sqrt(Math.max(R * R - p.x * p.x - p.z * p.z, 0)) - R;
+    const ground = this.gen.field.height(p.x, p.z);
+    p.y = Math.max(ground + 0.05, still + h - 1.45);
+    pl.carry(p);
+    const fx = this.game.renderer.fx;
+    fx.shake = Math.max(fx.shake, 0.5);
+    fx.fadeColor.setRGB(0.02, 0.07, 0.08);
+    fx.fade = Math.max(fx.fade, 0.25);
+    if (h < 1.2 && sw.t > 6) {
+      this.swim = null;
+      pl.carry(new THREE.Vector3(p.x, ground + 0.05, p.z));
+      this.game.notify(`The wave set you down ${Math.round(sw.d)} m from where it took you.`, 'info', 5);
     }
   }
 
@@ -784,7 +1117,7 @@ export default class SurfaceZone extends Zone implements SurfaceAPHost {
     this.envT -= dt;
     const envKey = this.sunLocal.x * 7 + this.sunLocal.y * 13 + this.sunLocal.z * 3 + day * 5 + this.sunVisCPU * 2;
     if (this.envT <= 0 && !this.game.skipRender && (Math.abs(envKey - this.envKey) > 0.03 || this.envT < -30)) {
-      this.envT = 3;
+      this.envT = 3 * QENV.k;
       this.envKey = envKey;
       this.refreshEnvironment(day, atm ? atm.sky : [0, 0, 0], sAlb);
     }
@@ -861,6 +1194,10 @@ export default class SurfaceZone extends Zone implements SurfaceAPHost {
   writeState() {
     const st = this.game.state.vehicles.ranger1;
     if (this.craft) this.craft.writeState();
+    if (this.handing && st.data.handover && this.craft) {
+      this.writeHandover();
+      return;
+    }
     st.location = 'surface';
   }
 
@@ -884,7 +1221,7 @@ const ATMO_SURF: Record<string, { rho0: number; H: number; tau: C3; sky: C3; sky
   // dusty butterscotch sky, blue aureole around the Sun (forward scattering by fine dust)
   mars: { rho0: 0.02, H: 11100, tau: [0.22, 0.33, 0.48], sky: [0.62, 0.44, 0.3], skyK: 0.75, sunK: 0.9, zenith: [0.46, 0.3, 0.2], horizon: [0.8, 0.58, 0.4], glow: [0.5, 0.58, 0.7], alpha: 0.93, fog: 1 / 38000 },
   // thick orange photochemical haze
-  titan: { rho0: 5.4, H: 40000, tau: [0.9, 1.4, 2.4], sky: [0.55, 0.36, 0.14], skyK: 1.4, sunK: 0.45, zenith: [0.45, 0.28, 0.1], horizon: [0.7, 0.46, 0.2], glow: [0.9, 0.65, 0.3], alpha: 0.985, fog: 1 / 9000 },
+  titan: { rho0: 5.4, H: 21000, tau: [0.9, 1.4, 2.4], sky: [0.55, 0.36, 0.14], skyK: 1.4, sunK: 0.45, zenith: [0.45, 0.28, 0.1], horizon: [0.7, 0.46, 0.2], glow: [0.9, 0.65, 0.3], alpha: 0.985, fog: 1 / 9000 },
   // Gargantua's worlds: thinner-looking skies so the black hole and its disk show through by day
   miller: { rho0: 1.4, H: 8500, tau: [0.1, 0.14, 0.2], sky: [0.42, 0.48, 0.52], skyK: 0.55, sunK: 0.8, zenith: [0.16, 0.2, 0.24], horizon: [0.5, 0.55, 0.58], glow: [0.12, 0.1, 0.08], alpha: 0.4, fog: 1 / 30000 },
   mann: { rho0: 1.0, H: 9000, tau: [0.14, 0.16, 0.2], sky: [0.62, 0.66, 0.7], skyK: 0.8, sunK: 0.9, zenith: [0.42, 0.47, 0.52], horizon: [0.74, 0.76, 0.79], glow: [0.25, 0.24, 0.22], alpha: 0.7, fog: 1 / 14000 },

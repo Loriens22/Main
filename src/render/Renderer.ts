@@ -162,6 +162,8 @@ export class Renderer {
   private lastCamQuat = new THREE.Quaternion();
   private lastCamPos = new THREE.Vector3(1e9, 0, 0);
   snapNext = false;
+  /** dynamic-resolution factor on top of the resolution scale (Game.adaptQuality), 0.5..1 */
+  dynScale = 1;
   readonly fx: ScreenFx = { dust: 0, fade: 0, fadeColor: new THREE.Color(0, 0, 0), visor: 0, shake: 0, warp: 0, exposure: 1 };
   readonly pmrem: THREE.PMREMGenerator;
   readonly maxAnisotropy: number;
@@ -243,8 +245,8 @@ export class Renderer {
 
   resize() {
     const s = this.settings;
-    const dpr = Math.min(window.devicePixelRatio || 1, this.isMobile ? 2 : 2.5);
-    const scale = s?.resolutionScale ?? 1;
+    const dpr = Math.min(window.devicePixelRatio || 1, s?.pixelRatioCap ?? (this.isMobile ? 2 : 2.5));
+    const scale = (s?.resolutionScale ?? 1) * this.dynScale;
     this.width = window.innerWidth;
     this.height = window.innerHeight;
     this.gl.setPixelRatio(dpr * scale);

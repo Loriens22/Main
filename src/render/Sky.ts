@@ -1,4 +1,5 @@
 import * as THREE from 'three';
+import { QU } from './quality';
 
 /**
  * Physically based single-scattering sky (Rayleigh + Mie), evaluated per pixel on a camera-centred dome.
@@ -55,6 +56,7 @@ precision highp float;
 varying vec3 vDir;
 uniform vec3 sunDir;
 uniform float Rp, Ra, Hr, Hm, mieG, sunI, starsVis, camAlt, dustAmt, sunDisk;
+uniform float uQAtmo;
 uniform vec3 betaR, mieTint, groundCol, dustCol;
 uniform float betaM;
 uniform float time;
@@ -75,7 +77,8 @@ vec3 atmosphere(vec3 rd){
   if (hitGround) tmax = tp.x;
   float tmin = max(ta.x, 0.0);
   const int N = 16; const int NL = 6;
-  float ds = (tmax - tmin) / float(N);
+  int nV = int(16.0 * uQAtmo + 0.5); int nL = uQAtmo < 0.7 ? 3 : uQAtmo < 0.9 ? 4 : 6;
+  float ds = (tmax - tmin) / float(nV);
   vec3 sumR = vec3(0.0), sumM = vec3(0.0);
   float odR = 0.0, odM = 0.0;
   float mu = dot(rd, sunDir);
@@ -83,14 +86,16 @@ vec3 atmosphere(vec3 rd){
   float g = mieG;
   float phM = 3.0 / (8.0 * PI) * ((1.0 - g*g) * (1.0 + mu*mu)) / ((2.0 + g*g) * pow(1.0 + g*g - 2.0*g*mu, 1.5));
   for (int i = 0; i < N; i++){
+    if (i >= nV) break;
     vec3 p = ro + rd * (tmin + ds * (float(i) + 0.5));
     float h = length(p) - Rp;
     float hr = exp(-h / Hr) * ds; float hm = exp(-h / Hm) * ds;
     odR += hr; odM += hm;
     vec2 tl = raySphere(p, sunDir, Ra);
-    float dsl = tl.y / float(NL);
+    float dsl = tl.y / float(nL);
     float odRl = 0.0, odMl = 0.0; bool shadow = false;
     for (int j = 0; j < NL; j++){
+      if (j >= nL) break;
       vec3 pl = p + sunDir * (dsl * (float(j) + 0.5));
       float hl = length(pl) - Rp;
       if (hl < 0.0) { shadow = true; break; }
@@ -159,6 +164,7 @@ export class Sky {
       depthWrite: false,
       uniforms: {
         sunDir: { value: this.sunDir },
+        uQAtmo: QU.uQAtmo,
         Rp: { value: params.planetRadius },
         Ra: { value: params.planetRadius + params.atmosphereHeight },
         Hr: { value: params.rayleighScale },

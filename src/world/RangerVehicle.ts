@@ -237,9 +237,28 @@ export class RangerVehicle {
     return inside && !(hatch && hatch.t > 0.05);
   }
 
+  /** external kinematic override (Miller's waves carry the craft): return true to skip this frame's physics */
+  hold: ((dt: number) => boolean) | null = null;
+  /** seconds until flooded engines can fire again */
+  flooded = 0;
+
   /** Physics (with autopilot), touchdown detection, model sync. */
   update(dt: number) {
     const c = this.craft;
+    if (this.flooded > 0) {
+      this.flooded -= dt;
+      c.efficiency = 0;
+      if (this.flooded <= 0) {
+        c.efficiency = Math.max(0.5, this.game.state.vehicles.ranger1.damage.engines ?? 1);
+        this.game.notify(`Engines drained — thrust restored${c.efficiency < 0.99 ? ` (${Math.round(c.efficiency * 100)} %)` : ''}.`, 'ok', 4);
+      }
+    }
+    if (!this.site && this.hold?.(dt)) {
+      c.writeState();
+      this.syncRoot();
+      this.model.update(dt, c, 0);
+      return;
+    }
     const flying = this.game.control === this.control;
     // leave the walkable-site mode when the craft is about to move
     if (this.site && flying && (c.throttle > 0.01 || c.vtol > 0.05 || this.control.autopilot)) {
