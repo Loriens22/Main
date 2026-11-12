@@ -4,10 +4,21 @@ const BODY = process.env.BODY ?? 'miller';
 const helpers = `const use = (id) => { const it = game.interaction.items.get(id); if (!it) return 'missing ' + id; const l = it.label(); it.use(); return l; };
   const pick = (s) => { const b = [...document.querySelectorAll('.dialogue .opts button')].find((x) => x.textContent.includes(s)); if (!b) return 'no option: ' + s + ' in ' + [...document.querySelectorAll('.dialogue .opts button')].map((x) => x.textContent).join(' | '); b.click(); return 'picked ' + s; };
   const line = () => document.querySelector('.dialogue .txt')?.textContent ?? null;
-  const at = (x, z) => { const p = new V3(x, game.zone.terrainY(x, z) + 0.05, z); game.player.enterFrame(game.zone.ground, p, 0, 'walk'); };`;
+  const at = (x, z) => { const p = new V3(x, game.zone.terrainY(x, z) + 0.05, z); game.player.enterFrame(game.zone.ground, p, 0, 'walk'); };
+  const L = game.zone.lazarus; const sp = (n) => L.spot(n);
+  // stand at a camp spot facing another one
+  const atS = (n, face) => { const p = sp(n); const f = face ? sp(face) : null; const yaw = f ? Math.atan2(-(f.x - p.x), -(f.z - p.z)) : 0; game.player.enterFrame(game.zone.ground, new V3(p.x, p.y + 0.05, p.z), yaw, 'walk'); return [p.x, p.y, p.z].map((v) => +v.toFixed(1)); };
+  const pl = () => { const p = game.player.pos; return { pos: [p.x, p.y, p.z].map((v) => +v.toFixed(1)), room: L.camp.roomAt(p) }; };`;
 const probe = `const z = game.zone; if (!z || !z.lazarus) return z ? 'no site' : 'loading'; const L = z.lazarus; const f = (k) => !!game.flag(k);
   return { npcs: L.npcs.map((n) => ({ id: n.state.id, vis: n.visible, follow: n.state.following, aboard: n.state.aboard, pos: [Math.round(n.pos.x), Math.round(n.pos.z)] })), flags: ['miller_recorder', 'miller_rescued', 'mann_awake', 'mann_logs_read', 'mann_aboard', 'mann_left', 'edmunds_log', 'edmunds_soil', 'edmunds_fate'].filter(f), disc: game.state.discoveries.filter((d) => /miller|mann|edmunds/.test(d)), props: [...game.interaction.items.keys()].filter((k) => /lazarus|npc:/.test(k)).length };`;
-const view = (name, js) => ({ js: `const z = game.zone; const cam = game.camera; game.cinematic = { blocking: true, update: () => true }; cam.fov = 60; cam.updateProjectionMatrix(); ${js}; cam.updateMatrixWorld(true); return 1;`, frames: 2, shot: name, probe });
+// a camera between two camp spots (from + up, looking at target + up)
+const camView = (name, from, up, target, tup, extra = '') => view(name, `const L = z.lazarus; const a = L.spot('${from}'), b = L.spot('${target}'); ${extra}; cam.position.set(a.x, a.y + ${up}, a.z); cam.lookAt(b.x, b.y + ${tup}, b.z)`);
+const exterior = (name) => view(name, `const L = z.lazarus; const a = L.spot('spot_view'), b = L.spot('spot_main') ?? L.spot('spot_center'); cam.position.set(a.x, z.terrainY(a.x, a.z) + 3.2, a.z); cam.lookAt(b.x, b.y + 1.6, b.z)`);
+// walk forward (held key) for n frames
+const walk = (frames) => [{ js: `game.input.virtualHold('forward', true); return 1;`, frames }, { js: `game.input.virtualHold('forward', false); return 1;`, frames: 2 }];
+// local clock to dusk/night: step 1/48 of a rotation until the sun is below the horizon
+const dusk = { js: `const B = (await import('/src/data/bodies.ts')).BODIES[game.zone.site.body]; let i = 0; for (; i < 60 && game.zone.sunLocal.y > -0.04; i++) { game.state.clock.earthTime += Math.abs(B.rotation) / 48; game.step(1, 1 / 30, false); } return { sun: +game.zone.sunLocal.y.toFixed(2), i };`, frames: 4 };
+const view = (name, js) => ({ js: `const z = game.zone; const cam = game.camera; game.cinematic = { blocking: true, update: () => true }; cam.fov = 60; cam.updateProjectionMatrix(); ${js}; cam.updateMatrixWorld(true); return 1;`, frames: 45, shot: name, probe });
 const free = { js: `game.cinematic = null; return 1;`, frames: 1 };
 const land = { js: `await game.startCreative(false); game.cinematic = null; game.state.system = 'gargantua';
     const L = await import('/src/data/landing.ts'); const s = L.SURFACES['${BODY}'].sites[0]; const v = game.state.vehicles.ranger1; v.data.surface = { body: '${BODY}', lat: s.lat, lon: s.lon, name: s.name }; v.landed = true;
@@ -31,21 +42,57 @@ const flows = {
   ],
   mann: [
     land,
-    view('laz_mann_site', `cam.position.set(-44, z.terrainY(-44, 60) + 3, 60); cam.lookAt(-56, z.terrainY(-56, 46) + 1.5, 46)`), free,
-    { js: `${helpers} game.zone.beginEva(true); at(-51, 47); return use('lazarus:mann_pod');`, frames: 3, probe },
-    { js: `${helpers} at(-61, 49); const r = use('lazarus:mann_terminal'); const txt = document.querySelector('.panel')?.textContent?.slice(0, 160) ?? null; game.ui.closeAllPanels(); return [r, txt];`, frames: 2, probe },
-    view('laz_mann_awake', `const n = z.lazarus.npcs[0]; cam.position.set(n.pos.x + 5, n.pos.y + 2, n.pos.z + 5); cam.lookAt(n.pos.x, n.pos.y + 1.3, n.pos.z)`), free,
-    { js: `${helpers} at(-50, 49); use('npc:mann'); const t = line(); const a = pick('Your raw logs say'); const t2 = line(); const b = pick('Come with us'); const t3 = line(); return [t, a, t2, b, t3];`, frames: 2, probe },
-    { js: `${helpers} pick('Lead him'); at(6, 8); return 1;`, frames: 2 },
+    exterior('laz_mann_site'), free,
+    // up to the porch, open the outer door, walk into the airlock
+    { js: `${helpers} game.zone.beginEva(true); const p = atS('spot_porch', 'nav_outer'); const r = use('mann_camp:mann_outer'); return [p, r];`, frames: 60 },
+    camView('laz_mann_porch', 'spot_porch', 1.7, 'nav_outer', 1.3), free,
+    { js: `${helpers} atS('spot_porch', 'nav_outer'); return 1;`, frames: 1 },
+    ...walk(130),
+    { js: `${helpers} return pl();`, frames: 1 },
+    // through the inner door into the main room
+    { js: `${helpers} atS('nav_lock', 'spot_lock'); const r = use('mann_camp:mann_inner'); atS('spot_lock', 'nav_main'); return r;`, frames: 50 },
+    ...walk(90),
+    { js: `${helpers} return pl();`, frames: 1 },
+    camView('laz_mann_interior', 'spot_pod', 1.55, 'spot_lock', 0.9), free,
+    camView('laz_mann_lock', 'nav_main', 1.6, 'spot_lock', 1.0), free,
+    'PART',
+    { js: `${helpers} game.zone.beginEva(true); atS('spot_pod', 'spot_main'); return use('lazarus:mann_pod');`, frames: 120, probe },
+    view('laz_mann_awake', `const n = z.lazarus.npcs[0]; const s = z.lazarus.spot('spot_main'); cam.position.set(s.x, n.pos.y + 1.6, s.z); cam.lookAt(n.pos.x, n.pos.y + 1.2, n.pos.z)`), free,
+    { js: `${helpers} atS('spot_main', 'spot_pod'); const r = use('lazarus:mann_terminal'); const txt = document.querySelector('.panel')?.textContent?.slice(0, 160) ?? null; game.ui.closeAllPanels(); return [r, txt];`, frames: 2, probe },
+    { js: `${helpers} use('npc:mann'); const t = line(); const a = pick('Your raw logs say'); const t2 = line(); const b = pick('Come with us'); const t3 = line(); return [t, a, t2, b, t3];`, frames: 2, probe },
+    // lead him out: the player waits on the porch; he walks the doorways
+    { js: `${helpers} pick('Lead him'); atS('spot_porch', 'spot_view'); return 1;`, frames: 2 },
+    { untilJs: `game.zone.lazarus.habRegion(game.zone.lazarus.npcs[0].pos) === 2`, max: 1500, chunk: 30, probe },
+    view('laz_mann_out', `const L = z.lazarus; const n = L.npcs[0]; const a = L.spot('spot_porch'), v = L.spot('spot_view'); const d = v.clone().sub(a).setY(0).normalize(); cam.position.copy(a).addScaledVector(d, 5); cam.position.y = z.terrainY(cam.position.x, cam.position.z) + 1.9; cam.lookAt(n.pos.x, n.pos.y + 1.1, n.pos.z)`), free,
+    { js: `${helpers} at(6, 8); return 1;`, frames: 2 },
     { untilJs: `!!game.flag('mann_aboard')`, max: 3000, chunk: 60, probe },
+    dusk,
+    exterior('laz_mann_dusk'), free,
     { frames: 2, probe },
   ],
   edmunds: [
     land,
-    view('laz_edmunds_site', `cam.position.set(40, z.terrainY(40, 72) + 3.5, 72); cam.lookAt(52, z.terrainY(52, 60) + 1.5, 60)`), free,
-    view('laz_edmunds_greenhouse', `cam.position.set(47, z.terrainY(47, 66) + 2.2, 66); cam.lookAt(51, z.terrainY(51, 63) + 0.5, 63)`), free,
-    { js: `${helpers} game.zone.beginEva(true); at(56, 58); const a = use('lazarus:edmunds_log'); game.ui.closeAllPanels(); const b = use('lazarus:edmunds_greenhouse'); game.ui.closeAllPanels(); const c = use('lazarus:edmunds_beacon'); game.ui.closeAllPanels(); const d = use('lazarus:edmunds_helmet'); game.ui.closeAllPanels(); return [a, b, c, d];`, frames: 3, probe },
-    view('laz_edmunds_ridge', `cam.position.set(80, z.terrainY(80, 30) + 2, 30); cam.lookAt(86, z.terrainY(86, 36) + 0.3, 36)`),
+    exterior('laz_edmunds_site'), free,
+    { js: `${helpers} game.zone.beginEva(true); const p = atS('spot_door', 'spot_inside'); const r = use('edmunds_camp:edm_hab'); return [p, r];`, frames: 50 },
+    ...walk(120),
+    { js: `${helpers} return pl();`, frames: 1 },
+    camView('laz_edmunds_living', 'spot_living', 1.6, 'spot_green', 0.9), free,
+    camView('laz_edmunds_greenhouse', 'spot_green', 1.5, 'spot_green', 0.6, `b.x += (b.x - L.spot('spot_living').x) * 3; b.z += (b.z - L.spot('spot_living').z) * 3`), free,
+    { js: `${helpers} atS('spot_living', 'spot_green'); const a = use('lazarus:edmunds_log'); game.ui.closeAllPanels(); const b = use('lazarus:edmunds_greenhouse'); game.ui.closeAllPanels(); const c = use('lazarus:edmunds_beacon'); game.ui.closeAllPanels(); const d = use('lazarus:edmunds_helmet'); game.ui.closeAllPanels(); return [a, b, c, d];`, frames: 3, probe },
+    view('laz_edmunds_ridge', `const L = z.lazarus; const a = L.spot('spot_ridge'), b = L.camp.localPos(L.camp.node('helmet_hit')); cam.position.set(a.x, a.y + 1.8, a.z); cam.lookAt(b.x, b.y + 0.3, b.z)`), free,
+    'PART',
+    { js: `${helpers} game.zone.beginEva(true); const r = use('edmunds_camp:edm_cont'); return r;`, frames: 50 },
+    camView('laz_edmunds_lab', 'spot_lab', 1.6, 'spot_lab_end', 0.9), free,
+    dusk,
+    exterior('laz_edmunds_dusk'), free,
+    camView('laz_edmunds_dusk_close', 'spot_center', 2.0, 'spot_living', 1.4), free,
+    camView('laz_edmunds_living_night', 'spot_living', 1.6, 'spot_green', 0.9), free,
+    { frames: 2, probe },
   ],
 };
-export const steps = flows[BODY];
+// PART=1 | 2 runs the flow up to / from its 'PART' marker in its own browser (one long SwiftShader page can exhaust the
+// test machine's memory); unset runs it all
+const PART = process.env.PART;
+const flow = flows[BODY];
+const cut = flow.indexOf('PART');
+export const steps = (PART === '1' ? flow.slice(0, cut) : PART === '2' ? [land, ...flow.slice(cut + 1)] : flow).filter((st) => st !== 'PART');

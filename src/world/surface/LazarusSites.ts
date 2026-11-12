@@ -4,20 +4,38 @@ import { NPC } from '../../npc/NPC';
 import { DialogueRunner } from '../../npc/Dialogue';
 import { LAZARUS_DIALOGUES } from '../../data/lazarus';
 import { h } from '../../ui/UI';
+import { Site } from '../Site';
+import { LightPool } from '../../render/LightPool';
+import type { Interactable } from '../../interact/Interaction';
+import type { SurfaceSite } from '../../space/surfaceFrame';
+import type { SurfaceDef } from '../../data/landing';
+import type { TerrainPad } from './SurfaceGen';
 
 /**
  * The Lazarus explorers' sites on the Gargantua worlds (original story content for this game's timeline).
  *   Miller  — her capsule lies tilted in the shallows near the beacon, Dr. Laura Miller alive beside it. She will not
  *             leave without her data recorder (inside the capsule); then she follows you to the Ranger. The waves
  *             keep coming meanwhile.
- *   Mann    — a hab, a beacon and a cryo shelter on the glacier; Dr. Mann asleep inside. His survey terminal holds
- *             both the summaries he broadcast and the raw logs. Wake him, read them, decide whether he comes along.
- *   Edmunds — a silent beacon, a hab with his log, a greenhouse still growing in local soil, and at the foot of the
- *             ridge the place his last walk ended.
+ *   Mann    — his camp on the glacier (model mann_camp.glb): a long rust-orange ribbed hab half-buried in a drift,
+ *             an airlock porch, the beacon; inside, Dr. Mann asleep in the cryo pod. His survey terminal holds both
+ *             the summaries he broadcast and the raw logs. Wake him, read them, decide whether he comes along.
+ *   Edmunds — his camp among the boulder piles (edmunds_camp.glb): a silent beacon, the lantern hab with his log and
+ *             a greenhouse still growing in local soil, his lander, rover and lab module, and at the foot of the
+ *             boulder ridge the place his last walk ended.
+ * Both camps stand on levelled ground (terrain pads, LazarusSite.pads) and are Sites: colliders, sliding/hinged
+ * doors, lamp groups (camp lights come on at dusk), rooms, and the story props as `interact=lazarus` nodes.
  * Flags (game.flag): miller_recorder, miller_rescued, mann_awake, mann_logs_read, mann_aboard, mann_left,
  * edmunds_log, edmunds_soil, edmunds_fate. Rescued explorers ride in Ranger 1 (npc.aboard = 'ranger1').
  */
 type Prop = { id: string; label: () => string | null; use: () => void; target: THREE.Object3D; range?: number };
+type CampProp = { label: () => string | null; use: () => void; range?: number };
+
+/** Camp placements (frame-local metres from the landing point) and their levelled pads. */
+const CAMPS: Record<string, { x: number; z: number; r: number; blend: number; model: string; view: [number, number] }> = {
+  // view: the direction (Blender x, y in the model) from which the camp faces the landing point
+  mann: { x: -58, z: 46, r: 36, blend: 14, model: 'mann_camp', view: [-0.35, -1] },
+  edmunds: { x: 52, z: 58, r: 33, blend: 18, model: 'edmunds_camp', view: [-0.3, -1] },
+};
 
 export class LazarusSite {
   readonly root = new THREE.Group();
@@ -25,11 +43,17 @@ export class LazarusSite {
   private props: string[] = [];
   private npcs: NPC[] = [];
   private beacons: { light: THREE.PointLight; lens: THREE.Mesh; period: number; on: number }[] = [];
-  /** work lamps: full at night, a faint glow by day (they would only glare on a sunlit glacier) */
-  private lamps: { light: THREE.PointLight; mats: THREE.MeshStandardMaterial[]; k: number[] }[] = [];
   private dialogue: DialogueRunner;
   private t = 0;
   private spoke = new Set<string>();
+  /** the camp model (Mann, Edmunds) */
+  camp: Site | null = null;
+  private pool: LightPool | null = null;
+  private campInv = new THREE.Matrix4();
+  private campProps: Record<string, CampProp> = {};
+  private nightGroups: string[] = [];
+  private nightOn: boolean | null = null;
+  private lid: { node: THREE.Object3D; t: number; open: boolean } | null = null;
 
   constructor(readonly zone: SurfaceZone) {
     this.dialogue = new DialogueRunner(zone.game);
@@ -39,19 +63,102 @@ export class LazarusSite {
     return this.zone.game;
   }
 
+  /** landing at the beacon site (first named site) of a Gargantua world */
+  static atBeacon(site: SurfaceSite, def: SurfaceDef) {
+    if (!['miller', 'mann', 'edmunds'].includes(site.body)) return false;
+    const first = def.sites[0];
+    return Math.abs(site.lat - first.lat) < 0.5 && Math.abs(site.lon - first.lon) < 0.5;
+  }
+
+  /** levelled ground under the camp (passed to the terrain generator before the maps are built) */
+  static pads(site: SurfaceSite, def: SurfaceDef): TerrainPad[] | undefined {
+    const c = CAMPS[site.body];
+    if (!c || !LazarusSite.atBeacon(site, def)) return undefined;
+    return [{ x: c.x, z: c.z, r: c.r, blend: c.blend }];
+  }
+
   /** The beacon site of a Gargantua world (first named site), or null. */
   static async create(zone: SurfaceZone): Promise<LazarusSite | null> {
     const body = zone.site.body;
-    if (!['miller', 'mann', 'edmunds'].includes(body)) return null;
-    const first = zone.def.sites[0];
-    const near = Math.abs(zone.site.lat - first.lat) < 0.5 && Math.abs(zone.site.lon - first.lon) < 0.5;
-    if (!near) return null;
+    if (!LazarusSite.atBeacon(zone.site, zone.def)) return null;
     const s = new LazarusSite(zone);
+    zone.scene.add(s.root);
     if (body === 'miller') await s.buildMiller();
     else if (body === 'mann') await s.buildMann();
-    else s.buildEdmunds();
-    zone.scene.add(s.root);
+    else await s.buildEdmunds();
     return s;
+  }
+
+  /**
+   * Place a camp model on its pad, facing the landing point; boulder piles and the ice cliff (snap_* nodes) are
+   * dropped onto the natural ground where they reach past the pad. Returns the Site.
+   */
+  private async placeCamp(body: string, opts: { groupsOn: string[]; nightGroups: string[]; doorSound: 'airlock' | 'hatch' | 'wood'; glow?: Record<string, number> }) {
+    const c = CAMPS[body];
+    const inst = await this.game.assets.instance(c.model);
+    const y0 = this.y(c.x, c.z);
+    // model +Z (Blender -Y) is its front; turn the camp so `view` points at the landing point
+    const toLander = Math.atan2(-c.x, -c.z);
+    const viewAng = Math.atan2(c.view[0], -c.view[1]);
+    const yaw = toLander - viewAng;
+    const placement = new THREE.Matrix4().compose(new THREE.Vector3(c.x, y0, c.z), new THREE.Quaternion().setFromAxisAngle(new THREE.Vector3(0, 1, 0), yaw), new THREE.Vector3(1, 1, 1));
+    inst.root.updateMatrixWorld(true);
+    const p = new THREE.Vector3();
+    for (const [, n] of inst.nodes) {
+      if (!n.userData.snap) continue;
+      p.setFromMatrixPosition(n.matrixWorld).applyMatrix4(placement);
+      n.position.y += this.y(p.x, p.z) - y0;
+      n.updateMatrixWorld(true);
+    }
+    this.pool = new LightPool(this.root, this.game.settings.graphics.shadowQuality >= 2 ? 6 : 4);
+    const site = new Site(this.game, inst, {
+      name: c.model,
+      frame: this.zone.ground,
+      parent: this.root,
+      placement,
+      lightPool: this.pool,
+      doorSound: opts.doorSound,
+      groupsOn: opts.groupsOn,
+      handlers: {
+        lazarus: (n) => this.campInteract(n),
+        slidedoor: (n, st) => {
+          st.registerDoor(n, 'door', { kind: 'slide', angle: n.userData.travel ?? 1.0, speed: 0.9, sound: 'airlock' });
+          return null;
+        },
+      },
+    });
+    this.campInv.copy(placement).invert();
+    // interior strip lights: softer than the default lamp glow (white rooms bloom)
+    for (const [gname, k] of Object.entries(opts.glow ?? {})) {
+      const g = site.groups.get(gname);
+      if (g?.material) g.material.emissiveIntensity = k;
+    }
+    this.nightGroups = opts.nightGroups;
+    this.camp = site;
+    return site;
+  }
+
+  private campInteract(n: THREE.Object3D): Interactable | null {
+    const iid = n.userData.iid as string;
+    const id = `lazarus:${iid}`;
+    return {
+      id,
+      targets: [n],
+      range: this.campProps[iid]?.range ?? 2.6,
+      label: () => this.campProps[iid]?.label() ?? null,
+      use: () => this.campProps[iid]?.use(),
+    };
+  }
+
+  /** the camp room containing a frame-local point, or null */
+  indoorAt(p: THREE.Vector3) {
+    return this.camp?.roomAt(p) ?? null;
+  }
+
+  /** frame-local position of a camp node */
+  spot(name: string) {
+    const n = this.camp?.node(name);
+    return n ? this.camp!.localPos(n) : null;
   }
 
   // ------------------------------------------------------------------------------------------------ helpers
@@ -215,131 +322,88 @@ export class LazarusSite {
   // ------------------------------------------------------------------------------------------------ Mann
   private async buildMann() {
     const g = this.game;
-    const x0 = -58, z0 = 46;
-    const camp = new THREE.Group();
-    camp.position.set(x0, this.y(x0, z0), z0);
-    this.root.add(camp);
-    // hab dome on a ring footing, an airlock stub, orange marker band
-    const dome = this.mesh(new THREE.SphereGeometry(3.4, 28, 14, 0, Math.PI * 2, 0, Math.PI / 2), this.mat('paint_white_worn'), camp, 0, 0.35, 0);
-    this.mesh(new THREE.CylinderGeometry(3.45, 3.5, 0.4, 28), this.mat('fabric_orange', 0xc05010), camp, 0, 0.2, 0);
-    this.mesh(new THREE.BoxGeometry(1.4, 2.0, 1.6), this.mat('hatch_gray'), camp, 0, 1.0, 3.6);
-    this.mesh(new THREE.BoxGeometry(0.9, 1.7, 0.06), this.mat('frame_black'), camp, 0, 0.95, 4.42);
-    this.collide(dome, new THREE.Vector3(2.6, 1.6, 2.6), new THREE.Vector3(0, 1.4, 0));
-    // cryo shelter: a long insulated housing with a window over the sleeper
-    const pod = new THREE.Group();
-    pod.position.set(5.4, 0, -1.2);
-    pod.rotation.y = 0.3;
-    camp.add(pod);
-    this.mesh(new THREE.BoxGeometry(3.2, 1.3, 1.5), this.mat('paint_white_worn'), pod, 0, 0.65, 0);
-    this.mesh(new THREE.BoxGeometry(1.8, 0.05, 0.9), this.mat('glass_dark'), pod, 0, 1.32, 0);
-    const panel = this.mesh(new THREE.BoxGeometry(0.5, 0.4, 0.08), this.mat('emit_screen'), pod, 1.3, 0.85, 0.79);
-    this.collide(pod, new THREE.Vector3(1.6, 0.65, 0.75), new THREE.Vector3(0, 0.65, 0));
-    // survey terminal on a tripod by the hab
-    const term = this.mesh(new THREE.BoxGeometry(0.6, 0.45, 0.35), this.mat('console_dark'), camp, -3.9, 1.1, 2.4);
-    this.mesh(new THREE.BoxGeometry(0.5, 0.32, 0.02), this.mat('emit_screen_amber'), camp, -3.9, 1.12, 2.58);
-    this.mesh(new THREE.CylinderGeometry(0.04, 0.04, 1.0, 6), this.mat('metal_gray'), camp, -3.9, 0.45, 2.4);
-    this.beacon(camp, -2.5, 0, -4.2, 6.5, 0xffffff, 3.0, true);
-    // he kept a work lamp burning over the camp the whole time: warm light on the ice, a glow in the hab window
-    this.mesh(new THREE.CylinderGeometry(0.05, 0.06, 4.2, 8), this.mat('metal_gray'), camp, 3.6, 2.1, 3.2);
-    const head = new THREE.MeshStandardMaterial({ color: 0x222222, emissive: 0xffd9a0, emissiveIntensity: 3 });
-    this.mesh(new THREE.BoxGeometry(0.5, 0.25, 0.35), head, camp, 3.6, 4.25, 3.2);
-    const lamp = new THREE.PointLight(0xffd2a0, 60, 40, 1.6);
-    lamp.position.set(3.6, 4.0, 3.2);
-    camp.add(lamp);
-    const glow = new THREE.MeshStandardMaterial({ color: 0x111111, emissive: 0xffc890, emissiveIntensity: 2 });
-    this.mesh(new THREE.CircleGeometry(0.45, 16), glow, camp, 2.2, 2.0, 2.5).lookAt(new THREE.Vector3(x0 + 4.4, camp.position.y + 2.0, z0 + 5.0));
-    this.lamps.push({ light: lamp, mats: [head, glow], k: [60, 3, 2] });
     const awake = () => !!g.flag('mann_awake');
     let mann: NPC | null = null;
-    if (!g.state.npcs.mann?.aboard && !g.flag('mann_aboard')) {
-      mann = await this.npc('mann', x0 + 5.4, z0 + 1.0, Math.PI);
-      if (mann) mann.visible = awake();
-    }
-    this.prop({
-      id: 'lazarus:mann_pod', target: panel, range: 2.6,
-      label: () => (awake() ? null : 'Wake the sleeper (cryo shelter controls)'),
+    // story props (registered by the camp Site from its interact=lazarus nodes)
+    this.campProps.mann_pod = {
+      range: 2.4,
+      label: () => (awake() ? null : 'Wake the sleeper (cryo pod controls)'),
       use: () => {
         g.flag('mann_awake', true);
         g.state.npcs.mann.task = 'mann_awake';
         g.audio.ui('click');
+        if (this.lid) this.lid.open = true;
         if (mann) {
-          const p = new THREE.Vector3(x0 + 5.4 + 1.6, 0, z0 + 2.4);
-          p.y = this.y(p.x, p.z);
-          mann.pos.copy(p);
           mann.visible = true;
           mann.forcedAnim = null;
           mann.sync();
         }
-        g.notify('The shelter vents. Dr. Mann is awake.', 'info', 5);
+        g.notify('The pod vents and the lid lifts. Dr. Mann is awake.', 'info', 5);
       },
-    });
-    this.prop({
-      id: 'lazarus:mann_terminal', target: term, range: 2.4,
+    };
+    this.campProps.mann_terminal = {
+      range: 2.4,
       label: () => 'Read the survey records',
       use: () => {
         g.flag('mann_logs_read', true);
         this.readPanel('MANN SURVEY — BROADCAST SUMMARIES AND RAW LOGS', MANN_LOGS);
       },
-    });
+    };
+    const camp = await this.placeCamp('mann', { groupsOn: ['int', 'floor'], nightGroups: ['ext'], doorSound: 'airlock', glow: { int: 2.2, floor: 1.4 } });
+    const bp = this.spot('spot_beacon');
+    if (bp) this.beacon(this.root, bp.x, bp.y, bp.z, 6.5, 0xffffff, 3.0, true);
+    const hinge = camp.node('pod_hinge');
+    if (hinge) this.lid = { node: hinge, t: awake() ? 1 : 0, open: awake() };
+    const sp = this.spot('spot_mann');
+    if (!g.state.npcs.mann?.aboard && !g.flag('mann_aboard') && sp) {
+      mann = await this.npc('mann', sp.x, sp.z, 0);
+      if (mann) {
+        mann.groundFn = (q) => this.floorAt(q);
+        mann.pos.y = this.floorAt(mann.pos);
+        const pod = this.spot('spot_pod');
+        if (pod) mann.faceTo(pod);
+        mann.visible = awake();
+        mann.sync();
+      }
+    }
+  }
+
+  /** standing height at a frame-local point: the hab floor / steps where there are colliders, else the ground */
+  private floorAt(q: THREE.Vector3) {
+    const hit = this.zone.ground.physics.raycast(new THREE.Vector3(q.x, q.y + 1.2, q.z), new THREE.Vector3(0, -1, 0), 4);
+    return hit ? hit.point.y : this.y(q.x, q.z);
+  }
+
+  /** Mann's hab: main room (0), airlock (1), outside (2), from a frame-local point */
+  private habRegion(q: THREE.Vector3) {
+    const m = q.clone().applyMatrix4(this.campInv);
+    const bx = m.x, by = -m.z;
+    if (Math.abs(by) > 2.3 || bx < -8.2 || bx > 6.1 || m.y > 3.2) return 2;
+    return bx >= -3.0 ? 0 : 1;
+  }
+
+  /** a follower walks the hab's doorways instead of through its walls (true while it is routing) */
+  private routeFollower(n: NPC) {
+    if (n.state.id !== 'mann' || !this.camp) return false;
+    const pl = this.game.player;
+    const a = this.habRegion(n.pos), b = this.habRegion(pl.pos);
+    if (a === b) return false;
+    const last = n.path[n.path.length - 1];
+    if (n.path.length > 1 && last && last.distanceTo(pl.pos) < 2.5) return true;
+    const legs: Record<string, string[]> = { '0-1': ['nav_main', 'nav_inner'], '1-0': ['nav_inner', 'nav_main'], '1-2': ['nav_lock', 'nav_outer', 'nav_porch'], '2-1': ['nav_porch', 'nav_outer', 'nav_lock'] };
+    const names: string[] = [];
+    for (let r = a; r !== b; r += Math.sign(b - a)) names.push(...legs[`${r}-${r + Math.sign(b - a)}`]);
+    const pts = names.map((nm) => this.spot(nm)).filter((v): v is THREE.Vector3 => !!v);
+    pts.push(pl.pos.clone());
+    n.goTo(pts, 1.5);
+    // he opens the doors on his way
+    for (const id of ['mann_inner', 'mann_outer']) if (!this.camp.doors.get(id)?.open) this.camp.toggleDoor(id, true);
+    return true;
   }
 
   // ------------------------------------------------------------------------------------------------ Edmunds
-  private buildEdmunds() {
+  private async buildEdmunds() {
     const g = this.game;
-    const x0 = 52, z0 = 58;
-    const base = new THREE.Group();
-    base.position.set(x0, this.y(x0, z0), z0);
-    this.root.add(base);
-    // hab: a horizontal cylinder on skids, dusted
-    const hab = this.mesh(new THREE.CylinderGeometry(1.6, 1.6, 6.2, 20), this.mat('paint_white_worn'), base, 0, 1.9, 0);
-    hab.rotation.z = Math.PI / 2;
-    for (const sx of [-2.2, 2.2]) this.mesh(new THREE.BoxGeometry(0.2, 0.35, 3.0), this.mat('metal_dark'), base, sx, 0.18, 0);
-    this.collide(hab, new THREE.Vector3(1.6, 3.1, 1.6));
-    const term = this.mesh(new THREE.BoxGeometry(0.06, 0.5, 0.7), this.mat('emit_screen'), base, 3.15, 1.9, 0);
-    // hatch and windows on the long side, a step at the door
-    this.mesh(new THREE.BoxGeometry(1.0, 1.7, 0.08), this.mat('hatch_gray'), base, -0.8, 1.6, 1.57);
-    for (const wx of [0.9, 2.0]) this.mesh(new THREE.BoxGeometry(0.55, 0.35, 0.05), this.mat('glass_dark'), base, wx, 2.3, 1.55);
-    this.mesh(new THREE.BoxGeometry(1.1, 0.25, 0.7), this.mat('metal_dark'), base, -0.8, 0.45, 2.0);
-    // solar array
-    for (let i = 0; i < 3; i++) {
-      const pan = this.mesh(new THREE.BoxGeometry(2.0, 0.05, 1.1), this.mat('radiator_black'), base, -4.6 + i * 0.0, 1.2, -3.2 + i * 1.25);
-      pan.rotation.x = -0.45;
-    }
-    // greenhouse: a translucent half-tube over rows of green
-    const gh = new THREE.Group();
-    // on its own patch of ground (the base's footing height is not the greenhouse's)
-    gh.position.set(-1.0, this.y(x0 - 1.0, z0 + 5.2) - base.position.y, 5.2);
-    base.add(gh);
-    const film = new THREE.MeshStandardMaterial({ color: 0xe4eee6, roughness: 0.25, transparent: true, opacity: 0.42, side: THREE.DoubleSide, depthWrite: false });
-    for (let k = 0; k < 5; k++) {
-      const hoop = this.mesh(new THREE.TorusGeometry(1.52, 0.035, 6, 20, Math.PI), this.mat('metal_gray'), gh, 0, 0, -2.4 + k * 1.2);
-      hoop.castShadow = false;
-    }
-    this.mesh(new THREE.BoxGeometry(2.8, 0.18, 4.9), new THREE.MeshStandardMaterial({ color: 0x3a2a1c, roughness: 0.95 }), gh, 0, 0.05, 0);
-    // a full tube lying along z, its lower half below the ground: the visible half is the arch
-    const tube = this.mesh(new THREE.CylinderGeometry(1.5, 1.5, 5.0, 16, 1, true), film, gh, 0, 0, 0);
-    tube.rotation.x = Math.PI / 2;
-    const leaf = new THREE.MeshStandardMaterial({ color: 0x3f7a2c, roughness: 0.7 });
-    const leaf2 = new THREE.MeshStandardMaterial({ color: 0x6a9a34, roughness: 0.7 });
-    for (let r = -1; r <= 1; r++) for (let k = 0; k < 9; k++) {
-      const pl = this.mesh(new THREE.ConeGeometry(0.16 + ((k * 7 + r) % 3) * 0.04, 0.35 + ((k + r * 3) % 4) * 0.08, 6), k % 2 ? leaf : leaf2, gh, r * 0.6, 0.2, -2.1 + k * 0.52);
-      pl.castShadow = false;
-    }
-    this.colliders.push(this.zone.ground.physics.addBox(new THREE.Vector3(1.5, 0.8, 2.5), new THREE.Vector3(x0 - 1.0, base.position.y + 0.8, z0 + 5.2)));
-    // the beacon: dark, its battery long dead
-    const bcn = this.beacon(base, 4.5, 0, 3.2, 5.5, 0xff3020, 2, false);
-    this.mesh(new THREE.BoxGeometry(0.5, 0.6, 0.4), this.mat('warning_yellow'), base, 4.5, 0.3, 3.75);
-    // at the foot of the ridge: fallen rock and his helmet
-    const hx = x0 + 34, hz = z0 - 22;
-    const rocks = new THREE.Group();
-    rocks.position.set(hx, this.y(hx, hz), hz);
-    this.root.add(rocks);
-    for (let i = 0; i < 9; i++) {
-      const rk = this.mesh(new THREE.DodecahedronGeometry(0.4 + (i % 4) * 0.35, 0), this.mat('rock_dark', 0x3a3530), rocks, Math.cos(i * 2.4) * (1 + i * 0.4), 0.2, Math.sin(i * 2.4) * (1 + i * 0.4));
-      rk.rotation.set(i, i * 0.7, 0);
-    }
-    const helmet = this.mesh(new THREE.SphereGeometry(0.2, 14, 10), this.mat('suit_white'), rocks, 0.9, 0.18, -0.6);
-    this.mesh(new THREE.SphereGeometry(0.13, 12, 8, 0, Math.PI), this.mat('glass_dark'), rocks, 0.98, 0.2, -0.47);
     const found = (k: string) => {
       g.flag(k, true);
       if (g.flag('edmunds_log') && g.flag('edmunds_soil') && g.flag('edmunds_fate')) {
@@ -347,16 +411,18 @@ export class LazarusSite {
         this.say('computer', 'Recording a recommendation: Edmunds’ world grows food in its own soil. Flagging for the settlement plan.', 'edmunds_rec');
       }
     };
-    this.prop({ id: 'lazarus:edmunds_log', target: term, range: 2.6, label: () => 'Read the hab log', use: () => { found('edmunds_log'); this.readPanel('EDMUNDS — HAB LOG (LAST ENTRIES)', EDMUNDS_LOG); } });
-    this.prop({
-      id: 'lazarus:edmunds_greenhouse', target: tube, range: 3.2, label: () => 'Examine the greenhouse',
+    this.campProps.edmunds_log = { label: () => 'Read the hab log', use: () => { found('edmunds_log'); this.readPanel('EDMUNDS — HAB LOG (LAST ENTRIES)', EDMUNDS_LOG); } };
+    this.campProps.edmunds_greenhouse = {
+      range: 3.0,
+      label: () => 'Examine the greenhouse beds',
       use: () => {
         found('edmunds_soil');
-        this.readPanel('GREENHOUSE', [['Rows of seedlings in local soil', 'A condenser still drips into the trough. Beans, rye and something with blue flowers — the third or fourth generation, by the seed packets pinned to the frame. Nothing here was watered by hand for a long time. It grew anyway.']]);
+        this.readPanel('GREENHOUSE', [['Raised beds of local soil', 'The condenser still drips into the trough. Beans climbing their strings, rye, and something with blue flowers — the third or fourth generation, by the seed packets pinned up in the living module. Nothing here was watered by hand for a long time. It grew anyway.']]);
       },
-    });
-    this.prop({ id: 'lazarus:edmunds_beacon', target: bcn, range: 3, label: () => 'Check the beacon power unit', use: () => this.readPanel('BEACON POWER UNIT', [['Battery: 0 %', 'The cells failed long after the last log entry. The beacon kept calling for a man who was no longer there to answer it.']]) });
-    this.prop({ id: 'lazarus:edmunds_helmet', target: helmet, range: 2.4, label: () => 'Look at the helmet', use: () => { found('edmunds_fate'); this.readPanel('AT THE FOOT OF THE RIDGE', [['A cracked helmet among fallen rock', 'The slope above is fresh scree. His last entry said he was going up to the seismometer and would be back by dark.']]); } });
+    };
+    this.campProps.edmunds_beacon = { range: 2.6, label: () => 'Check the beacon transmitter', use: () => this.readPanel('BEACON TRANSMITTER', [['Transmitter cells: 0 %', 'The camp lights still come on at dusk off the solar array; the transmitter drew from its own cells, and those failed long after the last log entry. The beacon kept calling for a man who was no longer there to answer it.']]) };
+    this.campProps.edmunds_helmet = { range: 2.4, label: () => 'Look at the helmet', use: () => { found('edmunds_fate'); this.readPanel('AT THE FOOT OF THE RIDGE', [['A cracked helmet among fallen rock', 'The boulders above have slipped; the scree is fresh. The seismometer lies toppled near the top of the pile. His last entry said he was going up to reseat it and would be back by dark.']]); } };
+    await this.placeCamp('edmunds', { groupsOn: ['hab'], nightGroups: ['camp', 'cont', 'lander'], doorSound: 'hatch' });
   }
 
   // ------------------------------------------------------------------------------------------------ frame
@@ -368,17 +434,30 @@ export class LazarusSite {
       (b.lens.material as THREE.MeshStandardMaterial).emissiveIntensity = on ? 6 : 0.15;
     }
     const night = THREE.MathUtils.clamp(1 - (this.zone.sunHeight() + 0.05) * 4, 0, 1);
-    for (const l of this.lamps) {
-      const f = 0.08 + 0.92 * night;
-      l.light.intensity = l.k[0] * f;
-      l.mats.forEach((m, i) => (m.emissiveIntensity = l.k[i + 1] * (0.2 + 0.8 * night)));
+    if (this.camp) {
+      // lamps on at dusk (they would only glare on a sunlit glacier or desert)
+      const on = night > 0.3;
+      if (on !== this.nightOn) {
+        this.nightOn = on;
+        for (const gname of this.nightGroups) this.camp.setGroup(gname, on);
+      }
+      // Edmunds' hab glows like a lantern after dark
+      const fab = this.game.materials.get('hab_fabric') as THREE.MeshStandardMaterial | null;
+      // (night exposure is ~3× the day's, so a little emission reads as a warm lantern, not a white blob)
+      if (fab && this.zone.site.body === 'edmunds') fab.emissiveIntensity = 0.13 * night;
+      this.camp.update(dt);
+      if (this.lid && this.lid.t < 1 && this.lid.open) {
+        this.lid.t = Math.min(1, this.lid.t + dt * 0.45);
+      }
+      if (this.lid) this.lid.node.rotation.x = -1.15 * this.lid.t * this.lid.t * (3 - 2 * this.lid.t);
+      this.pool?.update(dt, this.game.camera.getWorldPosition(new THREE.Vector3()));
     }
     const cam = this.game.camera.position;
     for (const n of this.npcs) {
       if (!n.visible) continue;
       const d = n.pos.distanceTo(cam);
       if (d > 400) continue;
-      if (n.state.following) {
+      if (n.state.following && !this.routeFollower(n)) {
         const pd = n.distToPlayer();
         if (pd > 3 && (!n.path.length || n.path[0].distanceTo(this.game.player.pos) > 2)) n.goTo(this.game.player.pos.clone(), pd > 8 ? 3.0 : 1.5);
         if (pd < 2.2) n.stop();
@@ -400,6 +479,14 @@ export class LazarusSite {
     for (const id of this.props) this.game.interaction.remove(id);
     const ph = this.zone.ground?.physics;
     if (ph) for (const c of this.colliders) ph.world.removeCollider(c, false);
+    if (this.camp) {
+      if (ph) for (const cols of this.camp.colliderMap.values()) for (const c of cols) ph.world.removeCollider(c, false);
+      this.camp.dispose();
+      this.camp = null;
+      const fab = this.game.materials.get('hab_fabric') as THREE.MeshStandardMaterial | null;
+      if (fab) fab.emissiveIntensity = 0;
+    }
+    this.pool?.clear();
     for (const n of this.npcs) {
       n.body?.root.removeFromParent();
       n.dispose();

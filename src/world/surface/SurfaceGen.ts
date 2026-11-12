@@ -228,11 +228,20 @@ function blurWrap(a: Float32Array, w: number, h: number) {
 }
 
 // ------------------------------------------------------------------------------------------- generator
+/** A levelled patch of ground (a camp site): flat within r, blending back to the natural terrain over `blend` metres. */
+export interface TerrainPad {
+  x: number;
+  z: number;
+  r: number;
+  blend: number;
+}
+
 export interface SurfaceGenOptions {
   site: SurfaceSite;
   map: BodyMap;
   /** half-size of the far map (m) */
   farHalf: number;
+  pads?: TerrainPad[];
 }
 
 export class SurfaceGen {
@@ -355,7 +364,35 @@ export class SurfaceGen {
   }
 
   height(x: number, z: number, cell: number) {
-    return this.curvature(x, z) + this.mapElevation(x, z) + this.detail(x, z, cell);
+    const h = this.curvature(x, z) + this.mapElevation(x, z) + this.detail(x, z, cell);
+    const pads = this.opts.pads;
+    if (!pads) return h;
+    let out = h;
+    for (let i = 0; i < pads.length; i++) {
+      const w = this.padWeight(pads[i], x, z);
+      if (w > 0) out += (this.padHeight(i, cell) - out) * w;
+    }
+    return out;
+  }
+
+  /** 1 inside a pad, smoothly 0 at its blend edge */
+  padWeight(p: TerrainPad, x: number, z: number) {
+    const d = Math.hypot(x - p.x, z - p.z);
+    if (d >= p.r + p.blend) return 0;
+    return d <= p.r ? 1 : 1 - THREE.MathUtils.smoothstep(d, p.r, p.r + p.blend);
+  }
+
+  /** the level of pad i: the natural height at its centre, sampled at the same map resolution */
+  private padCache = new Map<string, number>();
+  private padHeight(i: number, cell: number) {
+    const key = i + ':' + cell;
+    let v = this.padCache.get(key);
+    if (v === undefined) {
+      const p = this.opts.pads![i];
+      v = this.curvature(p.x, p.z) + this.mapElevation(p.x, p.z) + this.detail(p.x, p.z, cell);
+      this.padCache.set(key, v);
+    }
+    return v;
   }
 
   /** Build the near (high-resolution, around (cx, cz)) and far maps. */
@@ -407,6 +444,9 @@ export class SurfaceGen {
   rockiness(x: number, z: number) {
     const base = this.def.rocks;
     const n = 0.5 + fbm2(x / 400, z / 400, 3, this.seed + 21);
-    return base * THREE.MathUtils.smoothstep(n, 0.35, 0.75);
+    let clear = 1;
+    // no loose boulders on a levelled camp site
+    for (const p of this.opts.pads ?? []) clear *= 1 - this.padWeight(p, x, z);
+    return base * THREE.MathUtils.smoothstep(n, 0.35, 0.75) * clear;
   }
 }

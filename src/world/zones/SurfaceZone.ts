@@ -51,6 +51,7 @@ export interface Handover {
 }
 
 const NEAR_SIZE = 4096;
+const _camW = new THREE.Vector3();
 const MID_SIZE = 32768;
 const MAP_RES = 1025;
 
@@ -141,7 +142,7 @@ export default class SurfaceZone extends Zone implements SurfaceAPHost {
     const aMax = SPECS.ranger.mainThrust / (SPECS.ranger.dryMass + SPECS.ranger.propMax);
     const need = Math.max(brakingDistance(body.mu, body.radius, 0.42 * aMax) * 1.3, Math.sqrt(2 * body.radius * this.hHand) * 1.05, 30e3);
     const farHalf = Math.min(need, 0.42 * body.radius);
-    this.gen = new SurfaceGen({ site: this.site, map: this.map, farHalf });
+    this.gen = new SurfaceGen({ site: this.site, map: this.map, farHalf, pads: LazarusSite.pads(this.site, this.def) });
     progress(0.15, 'terrain');
     await new Promise((r) => setTimeout(r, 0));
     this.gen.build([0, 0], Math.min(NEAR_SIZE, farHalf * 1.6), Math.min(MID_SIZE, farHalf * 1.6), MAP_RES);
@@ -213,7 +214,7 @@ export default class SurfaceZone extends Zone implements SurfaceAPHost {
     progress(0.85, 'boulders');
     const rc = this.map.lumAt(sd.lat, sd.lon);
     const style = this.def.style;
-    const rockColor = style === 'mars' ? new THREE.Color(0.32, 0.2, 0.14) : style === 'desert' ? new THREE.Color(0.2, 0.16, 0.13) : style === 'icy' || style === 'europa' || style === 'glacier' ? new THREE.Color(0.7, 0.7, 0.72) : style === 'titan' ? new THREE.Color(0.5, 0.42, 0.3) : new THREE.Color().setScalar(THREE.MathUtils.clamp(rc * 0.5, 0.08, 0.32));
+    const rockColor = style === 'mars' ? new THREE.Color(0.32, 0.2, 0.14) : style === 'desert' ? new THREE.Color(0.42, 0.36, 0.3) : style === 'icy' || style === 'europa' || style === 'glacier' ? new THREE.Color(0.7, 0.7, 0.72) : style === 'titan' ? new THREE.Color(0.5, 0.42, 0.3) : new THREE.Color().setScalar(THREE.MathUtils.clamp(rc * 0.5, 0.08, 0.32));
     this.rocks = new Rocks(this.gen, rockColor);
     this.scene.add(this.rocks.group);
     this.buildDust();
@@ -660,6 +661,8 @@ export default class SurfaceZone extends Zone implements SurfaceAPHost {
   private waveTex: THREE.DataTexture | null = null;
   waves: MillerWaves | null = null;
   lazarus: LazarusSite | null = null;
+  /** 0 outdoors … 1 inside a camp room (damped) */
+  private indoorK = 0;
   /**
    * Shallow sea: a camera-centred polar grid (dense near the eye, out to ~60 km so incoming crests show through the
    * haze) bent to the planet's curvature and displaced by the tidal waves; tiled wave normals drift with time.
@@ -1130,10 +1133,15 @@ export default class SurfaceZone extends Zone implements SurfaceAPHost {
       const fog = this.scene.fog as THREE.FogExp2;
       fog.color.setRGB(atm.horizon[0], atm.horizon[1], atm.horizon[2]).multiplyScalar((0.06 + 0.94 * day) * this.flux * atm.skyK * 0.72);
     }
+    // indoors (a camp hab): the sky light and the outdoor eye adaptation give way to the room's lamps
+    const indoor = this.lazarus?.indoorAt(game.camera.getWorldPosition(_camW)) ? 1 : 0;
+    this.indoorK = THREE.MathUtils.damp(this.indoorK, indoor, 3, dt);
+    this.hemi.intensity *= 1 - 0.75 * this.indoorK;
+    this.scene.environmentIntensity = 0.5 * (1 - 0.8 * this.indoorK);
     // eye adaptation
     const base = THREE.MathUtils.clamp(1 / Math.pow(this.flux, 0.75), 0.4, 4);
     const night = 1 - day * this.sunVisCPU;
-    this.exposure = THREE.MathUtils.damp(this.exposure, base * (1 + night * 2.2), 1.2, dt);
+    this.exposure = THREE.MathUtils.damp(this.exposure, base * (1 + night * 2.2) * (1 - 0.3 * this.indoorK * (1 - night)), 1.2, dt);
     this.envT -= dt;
     const envKey = this.sunLocal.x * 7 + this.sunLocal.y * 13 + this.sunLocal.z * 3 + day * 5 + this.sunVisCPU * 2;
     if (this.envT <= 0 && !this.game.skipRender && (Math.abs(envKey - this.envKey) > 0.03 || this.envT < -30)) {

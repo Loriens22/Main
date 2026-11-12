@@ -2,6 +2,42 @@
 
 ## Status (latest first)
 
+### Mann's and Edmunds' camps rebuilt from the reference photos (this pass)
+Both camps are now Blender models (`blender/assets/mann_camp.py`, `edmunds_camp.py`, shared pieces in
+`blender/lib/camp.py`) placed as interactive Sites by `world/surface/LazarusSites.ts`. Original geometry built from the
+photos; no logos, name patches or photo textures.
+- **Mann's camp** (glacier): a long, low hab of thick rust-orange arch segments stepping down from front to back, each
+  with a rounded rim at its rear edge and a dark seal in the gap; a charcoal pill-nosed end-cap inside an orange collar,
+  with a 4 × 3 cluster of round vents and a service hatch; an airlock porch recessed under the ribs (grey bulkhead,
+  arched pocket door that slides into the wall, keypad, hazard stripe, steps). It stands on a raised ice shelf; a
+  wind-packed drift buries its back and rear end and blankets the rear roof; two crevasses with broken plates tipped up
+  along their lips run across the ice in front; a dark streaked ice cliff rises behind. Around it: an ice-core drill
+  derrick with a tray of cores, a supply sled, a finned power unit cabled to the end-cap, flood lamps (on at dusk), an
+  antenna and dish, a weather mast, stake flags, the beacon strobe.
+  Inside (walkable, airlock → main room through a second pocket door): coffered grid ceiling with light strips, cable
+  trays and a duct, a full wall of white drawers with recessed grips, quilted bags strapped to an overhead rack, a big
+  round wall hatch with dogs, hinges and a hand-wheel, the survey terminal on a ceiling arm over the desk with a status
+  box, a life-support rack, a grated floor lit from below, red gear at the back; suit lockers, spare helmets and an
+  ice-core rack in the airlock. The cryo pod: rounded white body, side latches and hinges, foot-end control screen,
+  frosted lid — its lid swings open when you wake him. Mann walks the doorways when he follows you out (waypoints
+  through the airlock; he opens the doors on his way).
+- **Edmunds' camp** (desert): a cleared flat ringed by piles of wind-rounded granite boulders (rounded-block core
+  stones). The lantern hab: a low greenhouse tunnel and a taller living module of pillowed ribs, glowing warm after dark;
+  a rigid door portal with a lamp. Inside: cot, workbench with the log on a laptop, soil jars and microscope, shelves of
+  supply cases, water tank, a board of seed packets, hanging lamps; through the joint, the greenhouse — raised beds of
+  beans climbing strings, rye and blue flowers, drip lines, grow-light bars, the condenser and its trough. Outside:
+  supply crates, standing gas bottles and bins, small light boxes on posts, a flag pole with a striped flag and a dark
+  pennant, a glowing cone tent, the dead beacon's dark transmitter cabinet and mast, his faceted dark lander on four
+  legs with belly lights, a boxy rover, a ribbed container lab on legs (walkable: sample shelves, bench, seismometer
+  spares) with lights under it, lamp poles throwing pools of light, solar panels, drums and cases. The camp lights come
+  on at dusk off the solar array (the transmitter's own cells are dead). At the foot of the boulder ridge behind the
+  camp: fresh scree, the toppled seismometer above, his cracked helmet.
+- **Terrain pads** (`SurfaceGen` `pads`): each camp stands on levelled ground (flat inside r, blending back to the
+  natural terrain), clear of the random boulder field; boulder piles and the ice cliff that reach past the pad are
+  dropped onto the natural ground (`snap` nodes).
+- New runtime materials: weathered rust-orange paint, wind-packed snow, streaked cliff ice, ice plates, crevasse,
+  frost, the glowing hab fabric, flag cloth, bed soil, leaves.
+
 ### Every body flown, the Lazarus sites (this pass)
 - **All 20 landable bodies flown end to end** (orbit → deorbit → descent → touchdown → ascent → orbit, one run each,
   from each body's navigation parking orbit, `landing_steps.mjs`): Moon 0.0 m, Mercury 0.0 m, Mars 0.1 m, Phobos 1.8 m,
