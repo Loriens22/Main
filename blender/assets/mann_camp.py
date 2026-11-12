@@ -448,8 +448,8 @@ def interior(root, P, W, L, F, lights):
     rv.hide_render = True
     # interior lights
     for (x, y) in ((-1.3, 0.0), (1.6, 0.0), (4.6, 0.3)):
-        lights.append(empty(f"light_int_{len(lights)}", loc=(x, y, CZ - 0.35), parent=root, light="cool", group="int", intensity=1.5, distance=7))
-    lights.append(empty(f"light_int_{len(lights)}", loc=(-5.6, 0.0, CZ - 0.35), parent=root, light="cool", group="int", intensity=1.2, distance=6))
+        lights.append(empty(f"light_int_{len(lights)}", loc=(x, y, CZ - 0.35), parent=root, light="warm", group="int", intensity=1.5, distance=7))
+    lights.append(empty(f"light_int_{len(lights)}", loc=(-5.6, 0.0, CZ - 0.35), parent=root, light="warm", group="int", intensity=1.2, distance=6))
 
 
 # ================================================================================================ ground

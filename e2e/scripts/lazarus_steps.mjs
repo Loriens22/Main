@@ -45,6 +45,8 @@ const flows = {
     exterior('laz_mann_site'), free,
     // up to the porch, open the outer door, walk into the airlock
     { js: `${helpers} game.zone.beginEva(true); const p = atS('spot_porch', 'nav_outer'); const r = use('mann_camp:mann_outer'); return [p, r];`, frames: 60 },
+    'PART',
+    { js: `${helpers} game.zone.beginEva(true); atS('spot_porch', 'nav_outer'); return use('mann_camp:mann_outer');`, frames: 60 },
     camView('laz_mann_porch', 'spot_porch', 1.7, 'nav_outer', 1.3), free,
     { js: `${helpers} atS('spot_porch', 'nav_outer'); return 1;`, frames: 1 },
     ...walk(130),
@@ -58,7 +60,6 @@ const flows = {
     camView('laz_mann_lock', 'nav_main', 1.6, 'spot_lock', 1.0), free,
     'PART',
     { js: `${helpers} game.zone.beginEva(true); atS('spot_pod', 'spot_main'); return use('lazarus:mann_pod');`, frames: 120, probe },
-    view('laz_mann_awake', `const n = z.lazarus.npcs[0]; const s = z.lazarus.spot('spot_main'); cam.position.set(s.x, n.pos.y + 1.6, s.z); cam.lookAt(n.pos.x, n.pos.y + 1.2, n.pos.z)`), free,
     { js: `${helpers} atS('spot_main', 'spot_pod'); const r = use('lazarus:mann_terminal'); const txt = document.querySelector('.panel')?.textContent?.slice(0, 160) ?? null; game.ui.closeAllPanels(); return [r, txt];`, frames: 2, probe },
     { js: `${helpers} use('npc:mann'); const t = line(); const a = pick('Your raw logs say'); const t2 = line(); const b = pick('Come with us'); const t3 = line(); return [t, a, t2, b, t3];`, frames: 2, probe },
     // lead him out: the player waits on the porch; he walks the doorways

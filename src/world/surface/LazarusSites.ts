@@ -128,6 +128,10 @@ export class LazarusSite {
       },
     });
     this.campInv.copy(placement).invert();
+    // the big ground pieces (drift, ice, cliff) only receive shadows: casting them costs a lot and shows little
+    inst.root.traverse((o) => {
+      if ((o as THREE.Mesh).isMesh && /^(mann_snow|mann_ice|mann_cracks|cliff)/.test(o.name) || /^(mann_snow|mann_ice|mann_cracks|cliff)/.test(o.parent?.name ?? '')) o.castShadow = false;
+    });
     // interior strip lights: softer than the default lamp glow (white rooms bloom)
     for (const [gname, k] of Object.entries(opts.glow ?? {})) {
       const g = site.groups.get(gname);
@@ -444,7 +448,7 @@ export class LazarusSite {
       // Edmunds' hab glows like a lantern after dark
       const fab = this.game.materials.get('hab_fabric') as THREE.MeshStandardMaterial | null;
       // (night exposure is ~3× the day's, so a little emission reads as a warm lantern, not a white blob)
-      if (fab && this.zone.site.body === 'edmunds') fab.emissiveIntensity = 0.13 * night;
+      if (fab && this.zone.site.body === 'edmunds') fab.emissiveIntensity = 0.06 * night;
       this.camp.update(dt);
       if (this.lid && this.lid.t < 1 && this.lid.open) {
         this.lid.t = Math.min(1, this.lid.t + dt * 0.45);
