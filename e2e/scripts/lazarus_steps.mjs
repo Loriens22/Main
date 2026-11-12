@@ -49,8 +49,9 @@ const flows = {
     { js: `${helpers} atS('spot_porch', 'nav_outer'); return 1;`, frames: 1 },
     ...walk(130),
     { js: `${helpers} return pl();`, frames: 1 },
+    'PART',
     // through the inner door into the main room
-    { js: `${helpers} atS('nav_lock', 'spot_lock'); const r = use('mann_camp:mann_inner'); atS('spot_lock', 'nav_main'); return r;`, frames: 50 },
+    { js: `${helpers} game.zone.beginEva(true); atS('nav_lock', 'spot_lock'); const r = use('mann_camp:mann_inner'); atS('spot_lock', 'nav_main'); return r;`, frames: 50 },
     ...walk(90),
     { js: `${helpers} return pl();`, frames: 1 },
     camView('laz_mann_interior', 'spot_pod', 1.55, 'spot_lock', 0.9), free,
@@ -90,9 +91,9 @@ const flows = {
     { frames: 2, probe },
   ],
 };
-// PART=1 | 2 runs the flow up to / from its 'PART' marker in its own browser (one long SwiftShader page can exhaust the
-// test machine's memory); unset runs it all
-const PART = process.env.PART;
-const flow = flows[BODY];
-const cut = flow.indexOf('PART');
-export const steps = (PART === '1' ? flow.slice(0, cut) : PART === '2' ? [land, ...flow.slice(cut + 1)] : flow).filter((st) => st !== 'PART');
+// PART=n runs the n-th segment of the flow (segments split at its 'PART' markers; later ones start with a fresh
+// landing) in its own browser — one long SwiftShader page can exhaust the test machine's memory; unset runs it all
+const PART = +(process.env.PART ?? 0);
+const segs = [[]];
+for (const st of flows[BODY]) if (st === 'PART') segs.push([]); else segs[segs.length - 1].push(st);
+export const steps = !PART ? segs.flat() : PART === 1 ? segs[0] : [land, ...segs[PART - 1]];

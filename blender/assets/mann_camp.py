@@ -155,9 +155,11 @@ def hab(root, P, D):
     D.append(box("bh_keypad", (0.14, 0.04, 0.2), loc=(DOOR_X + 0.75, -2.5, 1.55), m="console_dark", bevel=0.01))
     D.append(box("bh_keypad_led", (0.08, 0.01, 0.04), loc=(DOOR_X + 0.75, -2.525, 1.6), m="emit_green"))
     D.append(box("bh_stripe", (x1p - x0p, 0.03, 0.12), loc=((x0p + x1p) / 2, -2.49, 0.28), m="warning_yellow"))
-    # steps: ice shelf (0.2) → step (0.35) → floor (0.5)
-    P.append(box("porch_step", (1.5, 0.85, 0.35), loc=(DOOR_X, -2.9, 0.175), m="int_grate", bevel=0.01))
-    P.append(box("porch_step_base", (1.46, 0.8, 0.3), loc=(DOOR_X, -2.9, 0.14), m="metal_dark"))
+    # ice shelf (0.2) → step (0.35) → a landing flush with the floor (0.5) under the porch: the doorway itself is level
+    P.append(box("porch_landing", (1.5, 0.84, 0.5), loc=(DOOR_X, -2.885, 0.25), m="metal_dark"))
+    P.append(box("porch_landing_grate", (1.46, 0.8, 0.03), loc=(DOOR_X, -2.885, 0.49), m="int_grate"))
+    P.append(box("porch_step", (1.5, 0.45, 0.35), loc=(DOOR_X, -3.525, 0.175), m="metal_dark", bevel=0.01))
+    P.append(box("porch_step_grate", (1.46, 0.41, 0.03), loc=(DOOR_X, -3.525, 0.34), m="int_grate"))
     P.append(box("porch_sill", (1.2, 0.3, 0.5), loc=(DOOR_X, -2.45, 0.25), m="metal_dark"))
     # skids and the plinth along the foot of the shell
     for sy in (-1, 1):
@@ -688,7 +690,8 @@ def colliders(root):
     col("bh_a", ((PORCH[0] + DOOR_X - 0.52) / 2, -2.43, 1.5), (DOOR_X - 0.52 - PORCH[0], 0.3, 3.0), root)
     col("bh_b", ((DOOR_X + 0.52 + PORCH[1]) / 2, -2.43, 1.5), (PORCH[1] - DOOR_X - 0.52, 0.3, 3.0), root)
     col("bh_top", (DOOR_X, -2.43, FZ + 2.08 + 0.5), (1.05, 0.3, 1.0), root)
-    col("porch_step", (DOOR_X, -2.9, 0.175), (1.5, 0.85, 0.35), root)
+    col("porch_landing", (DOOR_X, -2.885, 0.25), (1.5, 0.84, 0.5), root)
+    col("porch_step", (DOOR_X, -3.525, 0.175), (1.5, 0.45, 0.35), root)
 
 
 # ================================================================================================ build
@@ -710,7 +713,7 @@ def build(preview=True):
     # spots and waypoints
     for (nm, p) in (("spot_mann", (2.7, 1.05, FZ)), ("spot_pod", (4.6, -0.9, FZ)), ("spot_main", (0.5, 0.2, FZ)), ("spot_lock", (-5.6, -0.6, FZ)),
                     ("spot_porch", (DOOR_X, -4.6, SHELF)), ("spot_view", (-2.0, -16.0, 0.0)),
-                    ("nav_main", (-2.3, 0.0, FZ)), ("nav_inner", (-3.7, 0.0, FZ)), ("nav_lock", (DOOR_X, -1.3, FZ)), ("nav_outer", (DOOR_X, -3.4, 0.35)), ("nav_porch", (DOOR_X, -5.2, SHELF))):
+                    ("nav_main", (-2.3, 0.0, FZ)), ("nav_inner", (-3.7, 0.0, FZ)), ("nav_lock", (DOOR_X, -1.3, FZ)), ("nav_outer", (DOOR_X, -3.0, FZ)), ("nav_porch", (DOOR_X, -5.2, SHELF))):
         empty(nm, loc=p, parent=root)
     hull = merge(P, "mann_hab", par=root, exterior=1)
     finish(hull, 40)

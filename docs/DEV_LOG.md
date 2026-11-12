@@ -36,7 +36,23 @@ photos; no logos, name patches or photo textures.
   natural terrain), clear of the random boulder field; boulder piles and the ice cliff that reach past the pad are
   dropped onto the natural ground (`snap` nodes).
 - New runtime materials: weathered rust-orange paint, wind-packed snow, streaked cliff ice, ice plates, crevasse,
-  frost, the glowing hab fabric, flag cloth, bed soil, leaves.
+  frost, the glowing hab fabric, flag cloth, bed soil, leaves, pale granite (Edmunds' world's loose boulder field is
+  paler now to match).
+- **Indoors** (camera inside a camp room): sky light (hemisphere, IBL) and the outdoor eye adaptation give way to the
+  room's lamps — without it the white hab interiors were washed out.
+- **Doorways are level**: every outer door has a landing flush with the floor outside it and the step-up beyond the
+  frame. The character controller's auto-step lifts the capsule by its full 0.35 m before stepping, so a step-up
+  directly under a door head (Edmunds' hab had 3 cm to spare) refused to climb — found with
+  `e2e/scripts/camp_door_debug.mjs` (ray-casts from the stuck point, then the same walk with the head collider off).
+- Verified (SwiftShader, `lazarus_steps.mjs` BODY=mann|edmunds in parts, `camp_door_debug.mjs`): holding forward
+  walks through all four doorways (Mann porch → airlock, airlock → main room; Edmunds door → living module, steps →
+  container lab). Mann: wake from the pod (lid opens), read the terminal, the confrontation, "come with us" — he
+  walks the doorways out (180 frames) and boards Ranger 1 (660 frames). Edmunds: log, greenhouse, beacon and helmet
+  → `edmunds_habitable`. Day and night views of both camps.
+- Test memory: in the long screenshot runs Chrome's browser and renderer processes swell during SwiftShader renders
+  (to ~14 GB, then the page is killed); with the camp loaded, 360 unrendered frames keep the JS heap (254 MB),
+  geometries, textures and programs flat — same as a site without a camp (`camp_mem_probe.mjs`). The flows are
+  split into parts (`PART=n`), each in its own browser.
 
 ### Every body flown, the Lazarus sites (this pass)
 - **All 20 landable bodies flown end to end** (orbit → deorbit → descent → touchdown → ascent → orbit, one run each,

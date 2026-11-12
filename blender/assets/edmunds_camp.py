@@ -98,8 +98,12 @@ def hab(root, S, P, L, lights):
     fr.append(box("portal_lamp", (0.3, 0.1, 0.08), loc=(DOOR[0], yd - 0.33, FZ + 2.26), m="metal_gray"))
     P.extend(fr)
     L.append(box("portal_lamp_lens", (0.26, 0.02, 0.05), loc=(DOOR[0], yd - 0.39, FZ + 2.24), m="emit_warm"))
-    P.append(box("door_step", (1.4, 0.7, 0.15), loc=(DOOR[0], yd - 0.6, 0.075), m="int_grate"))
-    col("door_step", (DOOR[0], yd - 0.6, 0.075), (1.4, 0.7, 0.15), root)
+    # a landing flush with the deck through the portal (the doorway itself is level), one step down to the sand
+    P.append(box("door_landing", (1.5, 0.8, FZ), loc=(DOOR[0], yd - 0.4, FZ / 2), m="metal_dark"))
+    P.append(box("door_landing_grate", (1.46, 0.76, 0.03), loc=(DOOR[0], yd - 0.4, FZ - 0.015), m="int_grate"))
+    P.append(box("door_step", (1.5, 0.45, 0.15), loc=(DOOR[0], yd - 1.02, 0.075), m="int_grate"))
+    col("door_landing", (DOOR[0], yd - 0.4, FZ / 2), (1.5, 0.8, FZ), root)
+    col("door_step", (DOOR[0], yd - 1.02, 0.075), (1.5, 0.45, 0.15), root)
     dn = empty("door_hab", loc=(DOOR[0] - DOOR[1] / 2, yd - 0.22, FZ), parent=root, interact="door", iid="edm_hab", openAngle=-1.75)
     parts = [box("dh_panel", (DOOR[1] - 0.02, 0.06, 2.02), loc=(DOOR[1] / 2, 0, 1.01), m="plastic_white", bevel=0.01)]
     parts.append(box("dh_win", (0.4, 0.07, 0.32), loc=(DOOR[1] / 2, 0, 1.55), m="glass_dark", bevel=0.02))
@@ -306,11 +310,17 @@ def container(root, P, Lc, lights, Lh):
         Lc.append(box("cont_belly_lens", (0.34, 0.2, 0.01), loc=(x, CY, zb - 0.085), m="emit_warm"))
         lights.append(empty(f"light_cont_{len(lights)}", loc=(x, CY, zb - 0.3), parent=root, light="warm", group="cont", intensity=5.0, distance=7.0))
     # steps up to the door
-    for k in range(4):
-        P.append(box("cont_step", (0.32, 1.1, 0.06), loc=(x0 - 0.35 - (3 - k) * 0.3, CY, 0.25 * (k + 1) - 0.03), m="int_grate"))
-        col(f"cont_step_{k}", (x0 - 0.35 - (3 - k) * 0.3, CY, 0.25 * (k + 1) / 2), (0.32, 1.1, 0.25 * (k + 1)), root)
+    # three steps up to a landing flush with the floor at the door (the doorway itself is level)
+    zf = zb + 0.12
+    P.append(box("cont_landing", (0.7, 1.2, 0.06), loc=(x0 - 0.38, CY, zf - 0.03), m="int_grate"))
+    col("cont_landing", (x0 - 0.38, CY, zf / 2), (0.7, 1.2, zf), root)
+    for k in range(3):
+        x = x0 - 0.73 - (2 - k) * 0.3 - 0.15
+        P.append(box("cont_step", (0.3, 1.1, 0.06), loc=(x, CY, zf * (k + 1) / 4 - 0.03), m="int_grate"))
+        col(f"cont_step_{k}", (x, CY, zf * (k + 1) / 8), (0.3, 1.1, zf * (k + 1) / 4), root)
     for sy in (-1, 1):
-        P.append(kit.tube("cont_rail_hand", [(x0 - 1.4, CY + sy * 0.58, 0.95), (x0 - 0.2, CY + sy * 0.58, zb + 0.95)], 0.02, m="metal_gray", seg=6))
+        P.append(cyl("cont_landing_leg", 0.03, zf, loc=(x0 - 0.68, CY + sy * 0.55, zf / 2), m="metal_gray", verts=8))
+        P.append(kit.tube("cont_rail_hand", [(x0 - 1.75, CY + sy * 0.58, 0.95), (x0 - 0.73, CY + sy * 0.58, zf + 0.95), (x0 - 0.05, CY + sy * 0.58, zf + 0.95)], 0.02, m="metal_gray", seg=6))
     # inside: lab bench, sample shelves, seismometer spares, a lamp
     P.append(box("lab_bench", (3.2, 0.7, 0.05), loc=(CX + 0.6, y1 - 0.45, zb + 0.95), m="int_panel_light"))
     P.append(box("lab_bench_body", (3.2, 0.65, 0.8), loc=(CX + 0.6, y1 - 0.45, zb + 0.5), m="int_panel_mid"))
@@ -633,7 +643,7 @@ def build(preview=True):
     props(root, P, G, T_, Lc, lights)
     boulders(root, P, G)
     for (nm, p) in (("spot_door", (DOOR[0], HY - HB[3] / 2 - 1.6, 0.0)), ("spot_inside", (DOOR[0], HY - 0.6, FZ)), ("spot_living", (-5.0, HY + 0.2, FZ)), ("spot_green", (-10.5, HY, FZ)),
-                    ("spot_lab", (CX - 1.0, CY, CLEG + 0.12)), ("spot_lab_end", (CX + 2.8, CY, CLEG + 0.12)), ("spot_view", (-8.0, -22.0, 0.0)), ("spot_center", (2.0, -6.0, 0.0))):
+                    ("spot_lab", (CX - 1.0, CY, CLEG + 0.12)), ("spot_lab_end", (CX + 2.8, CY, CLEG + 0.12)), ("spot_cont_out", (CX - CL / 2 - 2.6, CY, 0.0)), ("spot_view", (-8.0, -22.0, 0.0)), ("spot_center", (2.0, -6.0, 0.0))):
         empty(nm, loc=p, parent=root)
     skin = merge(S, "edm_hab_skin", par=root)
     finish(skin, 50)
