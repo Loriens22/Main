@@ -1,6 +1,7 @@
 import * as THREE from 'three';
 import { Creature, FaunaManager } from './Fauna';
 import { AX } from './Rig';
+import { cloneSkinned } from '../../render/CreatureSkin';
 import { MILLER_BIOME } from '../surface/millerBiome';
 import { populateMillerDeep, DEEP_SPECIES } from './millerDeep';
 
@@ -188,7 +189,7 @@ class FerracarisColony extends Creature {
       geo.applyMatrix4(src.matrixWorld);
       geo.setAttribute('aPhase', this.phase);
       geo.setAttribute('aMove', this.moving);
-      const mat = (src.material as THREE.MeshStandardMaterial).clone();
+      const mat = cloneSkinned(src.material as THREE.MeshStandardMaterial, this.game.materials?.textureQuality ?? 2);
       const legs = /ferra_leg|ferra_fringe/.test(mat.name);
       if (legs) {
         // metachronal leg waves (front to back) while walking; the fringe trembles in the flow
@@ -204,7 +205,8 @@ class FerracarisColony extends Creature {
               transformed.y += (0.004 * max(wave, 0.0) * aMove + 0.0012 * sin(uT * 3.0 + aPhase + position.z * 40.0)) * edge;
               transformed.z += 0.004 * cos(uT * 13.0 + aPhase - position.z * 70.0) * aMove * edge;`);
         };
-        mat.customProgramCacheKey = () => 'ferra_legs';
+        const key = mat.customProgramCacheKey.call(mat);
+        mat.customProgramCacheKey = () => 'ferra_legs:' + key;
       }
       const m = new THREE.InstancedMesh(geo, mat, N);
       m.castShadow = true;

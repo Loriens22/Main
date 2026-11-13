@@ -355,7 +355,63 @@ def assemble(name, sk, parts, falloff=4.0, keep=3, shrink=None):
     return ob
 
 
-def finish_creature(root, sk, body, path, props=None):
+def displace(o, kind="VORONOI", strength=0.02, size=0.1, subdiv=0, seed=0, mid=0.5):
+    """skin relief: optional subdivision, then a procedural texture pushed along the normals (applied)"""
+    if subdiv:
+        sm = o.modifiers.new("sub", "SUBSURF")
+        sm.levels = subdiv
+        sm.render_levels = subdiv
+    tex = bpy.data.textures.new(f"{o.name}_{kind}_{seed}", type=kind)
+    if kind == "VORONOI":
+        tex.distance_metric = "DISTANCE"
+        tex.color_mode = "INTENSITY"
+        tex.noise_intensity = 1.0
+    if hasattr(tex, "noise_scale"):
+        tex.noise_scale = size
+    if kind in ("CLOUDS", "MUSGRAVE", "STUCCI", "MARBLE", "WOOD"):
+        tex.noise_basis = "BLENDER_ORIGINAL"
+    m = o.modifiers.new("disp", "DISPLACE")
+    m.texture = tex
+    m.strength = strength
+    m.mid_level = mid
+    m.texture_coords = "GLOBAL"
+    kit.bake(o)
+    return o
+
+
+def bake_ao(o, distance=0.3, samples=24, floor=0.32):
+    """ambient occlusion baked into a vertex colour layer 'AO' (crevices between plates, under limbs, inside mouths);
+    remapped to [floor, 1] so occluded skin darkens without going black. The game multiplies it into the albedo."""
+    sc = bpy.context.scene
+    sc.render.engine = "CYCLES"
+    sc.cycles.device = "CPU"
+    sc.cycles.samples = samples
+    if sc.world is None:
+        sc.world = bpy.data.worlds.new("w")
+    sc.world.light_settings.distance = distance
+    me = o.data
+    if "AO" not in me.color_attributes:
+        me.color_attributes.new("AO", "BYTE_COLOR", "POINT")
+    me.color_attributes.active_color = me.color_attributes["AO"]
+    for ob in list(bpy.data.objects):
+        if ob is not None and ob.name in bpy.context.view_layer.objects:
+            ob.select_set(False)
+    o.hide_render = False
+    o.select_set(True)
+    bpy.context.view_layer.objects.active = o
+    sc.render.bake.target = "VERTEX_COLORS"
+    bpy.ops.object.bake(type="AO")
+    ca = me.color_attributes["AO"]
+    for d in ca.data:
+        v = floor + (1 - floor) * d.color[0]
+        d.color = (v, v, v, 1.0)
+    return o
+
+
+def finish_creature(root, sk, body, path, props=None, ao=None):
+    """ao: AO bake distance (m) or None"""
+    if ao:
+        bake_ao(body, distance=ao)
     arm = make_armature(sk)
     arm.parent = root
     body.parent = arm
@@ -367,6 +423,8 @@ def finish_creature(root, sk, body, path, props=None):
     kit.select_tree(root)
     kw = dict(filepath=path, export_format="GLB", use_selection=True, export_apply=False, export_extras=True, export_yup=True,
               export_animations=False, export_cameras=False, export_skins=True, export_materials="EXPORT")
+    if ao:
+        kw.update(export_vertex_color="NAME", export_vertex_color_name="AO", export_all_vertex_colors=False)
     bpy.ops.export_scene.gltf(**kw)
     tris = sum(len(p.vertices) - 2 for p in body.data.polygons)
     import os

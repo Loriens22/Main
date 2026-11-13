@@ -138,5 +138,50 @@ parts[3] = [
   // the field database
   { js: `const FL = await import('/src/ui/FieldLog.ts'); const d = document.createElement('div'); FL.exobiologyTab(game, d); return { cards: d.querySelectorAll('.card').length, text: d.textContent.replace(/\\s+/g, ' ').slice(0, 1400) };`, frames: 1 },
 ];
+
+// close-up skin survey: every species at arm's length. Natural light first; for the dark deep species a second frame
+// with a test-only lamp at the camera (LAMP shots are lit for inspection, not how the game lights them)
+const sv = (name, who, off, look = 0, lamp = false, fov = 40) => ({ js: `${H} ${M} game.state.player.health = 1; F['crack'] = 0;
+  const cam = game.camera; game.cinematic = { blocking: true, update: () => true }; cam.fov = ${fov}; cam.updateProjectionMatrix();
+  const c = ${who}; if (!c) return 'missing';
+  const q = c.q ? c.q.clone() : new (cam.quaternion.constructor)().setFromAxisAngle(new V(0, 1, 0), c.yaw ?? 0);
+  const s = c.size ?? 1; const o = new V(${off.join(', ')}).multiplyScalar(s).applyQuaternion(q);
+  cam.position.copy(c.pos).add(o); cam.lookAt(c.pos.x, c.pos.y + ${look} * s, c.pos.z);
+  let L = window.__surveyLamp; if (!L) { L = window.__surveyLamp = z.headlamp.clone(); L.distance = 0; L.decay = 1.6; L.angle = 0.9; L.penumbra = 0.6; L.castShadow = false; z.scene.add(L); z.scene.add(L.target); }
+  L.visible = true; L.intensity = ${lamp ? 5 : 0} * s * s; L.position.copy(cam.position); L.target.position.set(c.pos.x, c.pos.y + ${look} * s, c.pos.z); L.target.updateMatrixWorld(true); cam.updateMatrixWorld(true); return { at: [c.pos.x, c.pos.y, c.pos.z].map((v) => +v.toFixed(1)), st: c.state };`, frames: 2, shot: name });
+const unlamp = { js: `if (window.__surveyLamp) window.__surveyLamp.intensity = 0; game.cinematic = null; return 1;`, frames: 1 };
+parts[8] = [
+  land,
+  { untilJs: `game.zone.fauna && game.zone.fauna.creatures.length >= 18`, max: 900, chunk: 30, probe: fprobe },
+  { js: `game.zone.waves.first = game.zone.time + 4000; game.state.creative.hazardProtection = true; for (const k of game.zone.fauna.creatures) k.cooldown = 999; return 1;`, frames: 1 },
+  fgo(`const b = of('breaker')[0]; put(b.nest.x + 9, b.nest.z + 3, 0.05, Math.PI / 2, -0.2)`, 30),
+  sv('sv_breaker', `of('breaker')[0]`, [2.2, 1.2, -2.6], 0.5), unlamp,
+  sv('sv_breaker_head', `of('breaker')[0]`, [0.9, 0.7, -2.0], 0.4, false, 30), unlamp,
+  fgo(`const a = of('architect')[0]; put(a.den.x + 6, a.den.z + 3, 0.05, 1.2, -0.3)`, 30),
+  sv('sv_architect', `of('architect')[0]`, [1.4, 1.0, -1.6], 0.35), unlamp,
+  sv('sv_architect_lamp', `of('architect')[0]`, [1.4, 1.0, -1.6], 0.35, true), unlamp,
+  fgo(`const m = of('mimic')[0]; m.setState('den'); put(m.den.x + 7, m.den.z + 1, 0.05, Math.PI / 2, -0.3)`, 30),
+  sv('sv_mimic', `of('mimic')[0]`, [1.0, 0.8, -1.5], 0.3), unlamp,
+  sv('sv_mimic_lamp', `of('mimic')[0]`, [1.0, 0.8, -1.5], 0.3, true), unlamp,
+  fgo(`const m = of('sedimentmaw')[0]; const p = m.mouthPos(new V()); put(p.x + 4.5, p.z, 0.05, Math.PI / 2, -0.35)`, 30),
+  sv('sv_maw', `of('sedimentmaw')[0]`, [1.8, 1.5, -1.4], 0.0), unlamp,
+  fgo(`const c = of('ferracaris')[0]; put(c.cx + 2.5, c.cz + 1.6, 0.05, 0, -0.5)`, 30),
+  { js: `${H} ${M} const c = of('ferracaris')[0]; const g = c.ind.find((q) => q.state !== 'gone'); const y = z.terrainY(g.x, g.z); const cam = game.camera; game.cinematic = { blocking: true, update: () => true }; cam.fov = 28; cam.updateProjectionMatrix(); cam.position.set(g.x + 0.45, Math.max(y, 0) + 0.28, g.z + 0.35); cam.lookAt(g.x, y + 0.03, g.z); cam.updateMatrixWorld(true); return 1;`, frames: 2, shot: 'sv_ferracaris' }, unlamp,
+  fgo(`const s = of('siren')[0]; put(s.perch.x + 3, s.perch.z + 2, 0.05, 0, 0)`, 30),
+  sv('sv_siren', `of('siren')[0]`, [0.7, 0.15, -0.5], 0.0), unlamp,
+  sv('sv_siren_lamp', `of('siren')[0]`, [0.7, 0.15, -0.5], 0.0, true), unlamp,
+  fgo(`const s = of('abyssstalker')[0]; put(s.ledge.x + 8, s.ledge.z + 4, 0.05, 0, 0); pl.pos.y = Math.max(pl.pos.y, s.pos.y)`, 30),
+  sv('sv_stalker', `of('abyssstalker')[0]`, [1.8, 0.6, -3.6], 0.0), unlamp,
+  sv('sv_stalker_lamp', `of('abyssstalker')[0]`, [1.8, 0.6, -3.6], 0.0, true), unlamp,
+  fgo(`const c = of('chorus')[0]; put(c.pos.x + 12, c.pos.z + 8, 0.05, 0, 0); pl.pos.y = Math.max(pl.pos.y, c.pos.y)`, 30),
+  sv('sv_chorus', `of('chorus').find((k) => !k.juvenile)`, [0.9, 0.3, -1.8], 0.0), unlamp,
+  sv('sv_chorus_lamp', `of('chorus').find((k) => !k.juvenile)`, [0.9, 0.3, -1.8], 0.0, true), unlamp,
+  fgo(`const c = of('cathedral')[0]; put(c.pos.x + 30, c.pos.z + 25, 0.05, 0, 0); pl.pos.y = Math.max(pl.pos.y, c.pos.y)`, 30),
+  sv('sv_cathedral', `of('cathedral')[0]`, [6, 3, -14], 0.0, false, 50), unlamp,
+  sv('sv_cathedral_lamp', `of('cathedral')[0]`, [6, 3, -14], 0.0, true, 50), unlamp,
+  fgo(`const c = of('crown')[0]; c.pos.set(B.basin.x + 20, -45, B.basin.z + 10); c.setState('patrol'); put(B.basin.x + 20, B.basin.z - 40, 0.05, 0, 0); pl.pos.y = Math.max(pl.pos.y, -40)`, 20),
+  sv('sv_crown', `of('crown')[0]`, [2.5, 1.6, -8.5], 0.6), unlamp,
+  sv('sv_crown_lamp', `of('crown')[0]`, [2.5, 1.6, -8.5], 0.6, true), unlamp,
+];
 const P = process.env.PART ?? '1';
 export const steps = parts[P];

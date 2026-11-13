@@ -144,3 +144,15 @@ The images' ringed planet in the sky is not added (Miller's sky shows Gargantua 
 - Juvenile/adult differences are by scale only; no separate juvenile models or morph targets.
 - The Siren's prey, the Chorus prey school and the plankton bloom are particle stand-ins, not modelled animals.
 - Deep shots are dark by design (light falls with depth); the helmet lamp (L) is the main light below ~20 m.
+
+## Realism pass (in progress) — closing the known limits
+1. Pipeline: Blender skin displacement + AO baked to vertex colours (`COLOR_0`, exported by name); runtime per-species
+   skin shader (object-space mottling / reticulation / wrinkles / pores / grooves / lattice cut-outs, bump via
+   screen-space derivatives) + vertex-colour AO; wet corneas over the eyes.
+2. Re-model pass per species against its image (crown tines, teeth rows, barbels, grooves, lamella lattice, head
+   cavities, fin rays, bristles, banded limb armour, thorns, encrustation, …).
+3. Juvenile models (separate GLBs): stalker, chorus, cathedral calf, breaker hatchling, ferracaris, mimic.
+4. Prey animals (instanced, vertex-animated): lantern shrimp (siren), dart fish school (chorus), krill swarm (cathedral).
+5. Caves/overhangs: Blender rock meshes with colliders on the rift walls, basin rim, reef pool; dens and sirens in them.
+6. Deep lighting: lamp beam volume, suit flood light, brighter water overhead, faint bioluminescence where justified.
+7. Verification: a natural (unforced) wave with every species (state timeline), close-up detail shots of each.

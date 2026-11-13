@@ -1,4 +1,5 @@
 import * as THREE from 'three';
+import { applySkin, adoptAO, type SkinSpec } from './CreatureSkin';
 
 /**
  * Material library: upgrades the named Blender materials (see blender/lib/kit.py PALETTE) to full PBR
@@ -42,6 +43,8 @@ interface Recipe {
   /** thin-film colour shift (pearly gas bags) */
   iridescence?: number;
   aoMap?: string;
+  /** procedural object-space skin (creatures): replaces the UV weathering layer */
+  skin?: SkinSpec;
 }
 
 const W_DEFAULT: Weather = {
@@ -220,45 +223,112 @@ const RECIPES: Record<string, Recipe> = {
   hunter_sclera: { kind: 'physical', color: C(0.92, 0.62, 0.68), rough: 0.15, clearcoat: 1, weather: false },
   hunter_iris: { color: C(0.38, 0.26, 0.78), emissive: C(0.5, 0.3, 1.0), emissiveIntensity: 0.25, rough: 0.2, weather: false },
   hunter_feather: { color: C(0.74, 0.7, 0.68), rough: 0.7, side: THREE.DoubleSide, sheen: 0.4, weather: false },
-  // Miller (blender/assets/fauna_miller.py): wet tissues, mineralised plates, colours from function (camouflage, signals)
-  ferra_plate: { kind: 'physical', color: C(0.38, 0.29, 0.17), rough: 0.28, normal: 'rock_n', normalScale: 0.25, normalRepeat: 30, clearcoat: 0.8, weather: { grime: 0.6, grimeScale: 6, grimeTint: new THREE.Color(0.55, 0.5, 0.42), scratch: 0, streak: 0 } },
-  ferra_rim: { kind: 'physical', color: C(0.6, 0.3, 0.3), rough: 0.35, clearcoat: 0.6, weather: false },
-  ferra_leg: { color: C(0.76, 0.66, 0.58), rough: 0.5, weather: false },
-  ferra_fringe: { color: C(0.84, 0.52, 0.55), rough: 0.4, weather: false },
-  maw_hide: { color: C(0.46, 0.45, 0.43), rough: 0.9, normal: 'gravel_n', normalScale: 1.1, normalRepeat: 3, weather: { grime: 0.6, grimeScale: 2, grimeTint: new THREE.Color(0.55, 0.52, 0.48), scratch: 0, streak: 0 } },
-  maw_pebble: { color: C(0.07, 0.07, 0.075), rough: 0.5, normal: 'rock_n', normalScale: 0.8, normalRepeat: 8, weather: false },
-  maw_lip: { kind: 'physical', color: C(0.5, 0.42, 0.36), rough: 0.4, normal: 'ribbed_n', normalScale: 0.5, normalRepeat: 6, sheen: 0.3, clearcoat: 0.4, weather: { grime: 0.5, grimeScale: 3, grimeTint: new THREE.Color(0.6, 0.55, 0.5), scratch: 0, streak: 0 } },
-  maw_gullet: { kind: 'physical', color: C(0.11, 0.06, 0.055), rough: 0.3, clearcoat: 0.6, weather: false },
-  maw_limb: { kind: 'physical', color: C(0.5, 0.43, 0.37), rough: 0.45, normal: 'ribbed_n', normalScale: 0.7, normalRepeat: 4, sheen: 0.3, clearcoat: 0.3, weather: { grime: 0.5, grimeScale: 3, grimeTint: new THREE.Color(0.6, 0.55, 0.5), scratch: 0, streak: 0 } },
-  mimic_skin: { kind: 'physical', color: C(0.13, 0.115, 0.1), rough: 0.5, normal: 'rock_n', normalScale: 0.9, normalRepeat: 4, sheen: 0.25, clearcoat: 0.25, weather: { grime: 0.7, grimeScale: 4, grimeTint: new THREE.Color(1.8, 1.1, 0.7), scratch: 0, streak: 0 } },
-  mimic_plate: { kind: 'physical', color: C(0.16, 0.14, 0.12), rough: 0.62, normal: 'rock_n', normalScale: 1.2, normalRepeat: 3, clearcoat: 0.2, weather: { grime: 0.75, grimeScale: 5, grimeTint: new THREE.Color(2.2, 1.3, 0.7), scratch: 0.2, scratchColor: new THREE.Color(0.55, 0.5, 0.45), streak: 0 } },
-  mimic_under: { kind: 'physical', color: C(0.46, 0.25, 0.33), rough: 0.4, sheen: 0.4, clearcoat: 0.4, weather: false },
-  mimic_sucker: { kind: 'physical', color: C(0.74, 0.58, 0.6), rough: 0.35, clearcoat: 0.5, weather: false },
-  mimic_hook: { kind: 'physical', color: C(0.84, 0.78, 0.68), rough: 0.3, clearcoat: 0.7, weather: false },
-  mimic_eye: { kind: 'physical', color: C(0.62, 0.38, 0.1), emissive: C(0.6, 0.4, 0.12), emissiveIntensity: 0.12, rough: 0.08, clearcoat: 1, weather: false },
+  // Miller (blender/assets/fauna_miller*.py). Skin is procedural (src/render/CreatureSkin.ts), matched per species to
+  // the concept images: patterns in object space (no UV seams), relief as bump, wet cavities, baked AO.
+  cornea: { kind: 'physical', color: C(1, 1, 1), rough: 0.02, clearcoat: 1, opacity: 0.14, weather: false },
+  // Ferracaris (image 6): translucent amber plates mottled olive-brown, glossy; pink translucent fringe; pale legs
+  ferra_plate: { kind: 'physical', color: C(0.46, 0.33, 0.2), rough: 0.25, clearcoat: 0.9, sheen: 0.3, weather: false,
+    skin: { mottle: 0.75, mottleSize: 0.012, mottleColor: [0.2, 0.18, 0.09], mottle2: 0.5, mottle2Size: 0.006, mottle2Color: [0.62, 0.38, 0.32], spots: 0.4, spotSize: 0.008, spotRadius: 0.2, spotDensity: 0.35, spotColor: [0.72, 0.6, 0.46], pores: 0.0004, poreSize: 0.0025, cavity: 0.4, vary: 0.25, aoAlbedo: 0.5 } },
+  ferra_rim: { kind: 'physical', color: C(0.56, 0.3, 0.3), rough: 0.3, clearcoat: 0.7, weather: false, skin: { mottle: 0.5, mottleSize: 0.006, mottleColor: [0.7, 0.45, 0.42], vary: 0.2 } },
+  ferra_leg: { kind: 'physical', color: C(0.74, 0.68, 0.6), rough: 0.4, sheen: 0.3, weather: false, skin: { wrinkle: 0.0003, wrinkleSize: 0.003, mottle: 0.3, mottleSize: 0.006, mottleColor: [0.55, 0.5, 0.45] } },
+  ferra_fringe: { kind: 'physical', color: C(0.86, 0.55, 0.58), rough: 0.3, opacity: 0.75, weather: false },
+  // Sediment Maw (image 3): sandy beige hide gritted with dark gravel patches; ringed scales; pale fleshy funnel
+  maw_hide: { kind: 'physical', color: C(0.5, 0.45, 0.38), rough: 0.85, sheen: 0.2, weather: false,
+    skin: { plates: 0.003, plateSize: 0.012, plateGroove: 0.25, mottle: 0.85, mottleSize: 0.18, mottleColor: [0.1, 0.1, 0.1], mottle2: 0.6, mottle2Size: 0.03, mottle2Color: [0.66, 0.6, 0.5], pores: 0.003, poreSize: 0.012, cavity: 0.5, wet: 0.5, vary: 0.4 } },
+  maw_pebble: { color: C(0.07, 0.07, 0.075), rough: 0.5, weather: false, skin: { mottle: 0.5, mottleSize: 0.02, mottleColor: [0.2, 0.19, 0.18], pores: 0.002, poreSize: 0.008, vary: 0.4 } },
+  maw_lip: { kind: 'physical', color: C(0.55, 0.45, 0.38), rough: 0.4, sheen: 0.3, clearcoat: 0.5, weather: false,
+    skin: { plates: 0.003, plateSize: 0.014, plateGroove: 0.3, plateStretch: [1, 2.2, 1], mottle: 0.5, mottleSize: 0.1, mottleColor: [0.38, 0.3, 0.26], spots: 0.4, spotSize: 0.03, spotRadius: 0.22, spotDensity: 0.5, spotColor: [0.68, 0.6, 0.5], cavity: 0.55, wet: 0.6, vary: 0.25 } },
+  maw_gullet: { kind: 'physical', color: C(0.11, 0.06, 0.055), rough: 0.3, clearcoat: 0.6, weather: false, skin: { wrinkle: 0.006, wrinkleSize: 0.05, wrinkleAxis: [1, 4, 1], mottle: 0.5, mottleSize: 0.08, mottleColor: [0.2, 0.08, 0.07], cavity: 0.5 } },
+  maw_limb: { kind: 'physical', color: C(0.52, 0.44, 0.37), rough: 0.5, sheen: 0.3, clearcoat: 0.35, weather: false,
+    skin: { plates: 0.003, plateSize: 0.016, plateGroove: 0.3, mottle: 0.55, mottleSize: 0.12, mottleColor: [0.3, 0.26, 0.22], mottle2: 0.4, mottle2Size: 0.02, mottle2Color: [0.66, 0.58, 0.48], cavity: 0.5, wet: 0.5, vary: 0.3 } },
+  // Mimic Crawler (image 4): near-black skin with a gold-orange reticulated net, shingled plates, pink-purple undersides
+  mimic_skin: { kind: 'physical', color: C(0.07, 0.06, 0.05), rough: 0.45, sheen: 0.3, clearcoat: 0.4, weather: false,
+    skin: { plates: 0.0015, plateSize: 0.009, plateGroove: 0.3, retic: 0.85, reticSize: 0.035, reticWidth: 0.16, reticColor: [0.62, 0.42, 0.16], mottle: 0.6, mottleSize: 0.15, mottleColor: [0.2, 0.15, 0.1], mottle2: 0.35, mottle2Size: 0.05, mottle2Color: [0.28, 0.12, 0.16], pores: 0.001, poreSize: 0.006, cavity: 0.5, wet: 0.5, vary: 0.3 } },
+  mimic_plate: { kind: 'physical', color: C(0.09, 0.08, 0.065), rough: 0.5, clearcoat: 0.35, weather: false,
+    skin: { retic: 0.8, reticSize: 0.028, reticWidth: 0.18, reticColor: [0.7, 0.48, 0.18], mottle: 0.55, mottleSize: 0.09, mottleColor: [0.24, 0.2, 0.13], spots: 0.3, spotSize: 0.02, spotRadius: 0.2, spotDensity: 0.4, spotColor: [0.55, 0.46, 0.32], pores: 0.0012, poreSize: 0.006, cavity: 0.45, vary: 0.35 } },
+  mimic_under: { kind: 'physical', color: C(0.42, 0.22, 0.3), rough: 0.35, sheen: 0.4, clearcoat: 0.5, weather: false,
+    skin: { wrinkle: 0.003, wrinkleSize: 0.03, mottle: 0.5, mottleSize: 0.06, mottleColor: [0.55, 0.32, 0.36], cavity: 0.4, wet: 0.6, vary: 0.25 } },
+  mimic_sucker: { kind: 'physical', color: C(0.76, 0.6, 0.6), rough: 0.3, clearcoat: 0.6, weather: false, skin: { mottle: 0.4, mottleSize: 0.02, mottleColor: [0.6, 0.4, 0.45], wrinkle: 0.001, wrinkleSize: 0.006 } },
+  mimic_hook: { kind: 'physical', color: C(0.86, 0.8, 0.7), rough: 0.25, clearcoat: 0.8, weather: false, skin: { mottle: 0.5, mottleSize: 0.02, mottleColor: [0.55, 0.42, 0.36] } },
+  mimic_eye: { kind: 'physical', color: C(0.62, 0.42, 0.12), emissive: C(0.6, 0.4, 0.12), emissiveIntensity: 0.12, rough: 0.08, clearcoat: 1, weather: false,
+    skin: { retic: 0.6, reticSize: 0.012, reticWidth: 0.25, reticColor: [0.3, 0.18, 0.05], mottle: 0.5, mottleSize: 0.02, mottleColor: [0.85, 0.65, 0.25] } },
   mimic_pupil: { kind: 'physical', color: C(0.01, 0.01, 0.01), rough: 0.05, clearcoat: 1, weather: false },
-  breaker_shell: { kind: 'physical', color: C(0.27, 0.27, 0.2), rough: 0.42, normal: 'rock_n', normalScale: 1.1, normalRepeat: 2, clearcoat: 0.45, weather: { grime: 0.7, grimeScale: 2, grimeTint: new THREE.Color(0.75, 0.85, 0.6), scratch: 0.25, scratchColor: new THREE.Color(0.5, 0.48, 0.42), streak: 0.3 } },
-  breaker_skin: { kind: 'physical', color: C(0.2, 0.21, 0.16), rough: 0.45, normal: 'rock_n', normalScale: 0.6, normalRepeat: 3, sheen: 0.3, clearcoat: 0.4, weather: { grime: 0.5, grimeScale: 3, grimeTint: new THREE.Color(0.8, 0.85, 0.65), scratch: 0, streak: 0 } },
-  breaker_feeler: { kind: 'physical', color: C(0.3, 0.26, 0.21), rough: 0.4, clearcoat: 0.5, weather: false },
-  arch_shell: { kind: 'physical', color: C(0.3, 0.25, 0.34), rough: 0.5, normal: 'rock_n', normalScale: 1.0, normalRepeat: 4, clearcoat: 0.3, weather: { grime: 0.7, grimeScale: 4, grimeTint: new THREE.Color(1.6, 1.25, 0.6), scratch: 0.2, streak: 0 } },
-  arch_leg: { kind: 'physical', color: C(0.34, 0.28, 0.38), rough: 0.45, normal: 'ribbed_n', normalScale: 0.5, normalRepeat: 6, clearcoat: 0.3, weather: { grime: 0.5, grimeScale: 4, grimeTint: new THREE.Color(1.4, 1.2, 0.7), scratch: 0, streak: 0 } },
-  arch_tendril: { color: C(0.55, 0.47, 0.5), rough: 0.5, weather: false },
-  siren_glass: { kind: 'physical', color: C(0.62, 0.72, 0.8), rough: 0.08, clearcoat: 1, opacity: 0.32, weather: false },
-  siren_core: { kind: 'physical', color: C(0.1, 0.06, 0.06), rough: 0.45, normal: 'rock_n', normalScale: 0.5, normalRepeat: 6, weather: { grime: 0.6, grimeScale: 8, grimeTint: new THREE.Color(2.4, 1.6, 1.2), scratch: 0, streak: 0 } },
-  siren_fin: { kind: 'physical', color: C(0.7, 0.8, 0.9), rough: 0.08, clearcoat: 1, opacity: 0.28, side: THREE.DoubleSide, weather: false },
+  // Breaker Shield (image 8): olive-grey shell, knobbly, worn paler edges, moss in the seams; dark green-grey scaly skin
+  breaker_shell: { kind: 'physical', color: C(0.2, 0.2, 0.14), rough: 0.4, clearcoat: 0.55, weather: false,
+    skin: { wrinkle: 0.004, wrinkleSize: 0.05, wrinkleAxis: [3, 1, 3], pores: 0.004, poreSize: 0.016, mottle: 0.7, mottleSize: 0.25, mottleColor: [0.16, 0.18, 0.1], mottle2: 0.55, mottle2Size: 0.06, mottle2Color: [0.4, 0.37, 0.27], spots: 0.4, spotSize: 0.05, spotRadius: 0.2, spotDensity: 0.3, spotColor: [0.2, 0.27, 0.12], cavity: 0.4, wet: 0.5, vary: 0.35 } },
+  breaker_edge: { kind: 'physical', color: C(0.42, 0.38, 0.28), rough: 0.4, clearcoat: 0.5, weather: false,
+    skin: { pores: 0.003, poreSize: 0.018, mottle: 0.6, mottleSize: 0.12, mottleColor: [0.22, 0.22, 0.14], cavity: 0.5, vary: 0.35 } },
+  breaker_skin: { kind: 'physical', color: C(0.17, 0.19, 0.14), rough: 0.42, sheen: 0.3, clearcoat: 0.45, weather: false,
+    skin: { plates: 0.002, plateSize: 0.012, plateGroove: 0.25, wrinkle: 0.006, wrinkleSize: 0.07, mottle: 0.6, mottleSize: 0.18, mottleColor: [0.26, 0.27, 0.18], mottle2: 0.4, mottle2Size: 0.04, mottle2Color: [0.09, 0.1, 0.07], cavity: 0.55, wet: 0.5, vary: 0.3 } },
+  breaker_feeler: { kind: 'physical', color: C(0.34, 0.3, 0.24), rough: 0.35, clearcoat: 0.6, weather: false, skin: { mottle: 0.5, mottleSize: 0.03, mottleColor: [0.2, 0.18, 0.15], wrinkle: 0.002, wrinkleSize: 0.012 } },
+  breaker_eye: { kind: 'physical', color: C(0.42, 0.34, 0.12), rough: 0.08, clearcoat: 1, weather: false },
+  // Rift Architect (image 7): violet-grey iridescent shell crusted with orange-yellow growth, spined purple legs
+  arch_shell: { kind: 'physical', color: C(0.27, 0.24, 0.32), rough: 0.42, clearcoat: 0.45, iridescence: 0.35, weather: false,
+    skin: { plates: 0.0012, plateSize: 0.01, plateGroove: 0.25, pores: 0.0015, poreSize: 0.008, mottle: 0.6, mottleSize: 0.12, mottleColor: [0.5, 0.36, 0.14], mottle2: 0.5, mottle2Size: 0.04, mottle2Color: [0.18, 0.22, 0.24], spots: 0.4, spotSize: 0.025, spotRadius: 0.25, spotDensity: 0.3, spotColor: [0.72, 0.55, 0.2], cavity: 0.3, wet: 0.4, vary: 0.35 } },
+  arch_leg: { kind: 'physical', color: C(0.3, 0.25, 0.36), rough: 0.4, clearcoat: 0.4, iridescence: 0.3, weather: false,
+    skin: { plates: 0.0012, plateSize: 0.01, plateGroove: 0.25, plateStretch: [1, 1, 2.5], mottle: 0.5, mottleSize: 0.06, mottleColor: [0.46, 0.4, 0.5], mottle2: 0.35, mottle2Size: 0.03, mottle2Color: [0.55, 0.42, 0.2], cavity: 0.3, vary: 0.3 } },
+  arch_tendril: { kind: 'physical', color: C(0.62, 0.52, 0.58), rough: 0.4, sheen: 0.5, weather: false },
+  arch_wart: { kind: 'physical', color: C(0.7, 0.48, 0.14), rough: 0.6, weather: false, skin: { pores: 0.002, poreSize: 0.006, mottle: 0.6, mottleSize: 0.02, mottleColor: [0.85, 0.7, 0.3], vary: 0.4 } },
+  // Luminous Siren (image 2): glass-clear tissue, a mottled brown-purple organ mass inside, a darker translucent head
+  siren_glass: { kind: 'physical', color: C(0.62, 0.72, 0.8), rough: 0.06, clearcoat: 1, opacity: 0.26, weather: false,
+    skin: { mottle: 0.4, mottleSize: 0.04, mottleColor: [0.8, 0.85, 0.95], wrinkle: 0.0008, wrinkleSize: 0.01, wrinkleAxis: [1, 1, 3] } },
+  siren_core: { kind: 'physical', color: C(0.1, 0.06, 0.06), rough: 0.4, clearcoat: 0.5, weather: false,
+    skin: { mottle: 0.8, mottleSize: 0.03, mottleColor: [0.32, 0.16, 0.2], mottle2: 0.6, mottle2Size: 0.012, mottle2Color: [0.02, 0.015, 0.02], spots: 0.6, spotSize: 0.01, spotRadius: 0.18, spotDensity: 0.3, spotColor: [0.75, 0.55, 0.5], vary: 0.4 } },
+  siren_head: { kind: 'physical', color: C(0.22, 0.18, 0.18), rough: 0.12, clearcoat: 1, opacity: 0.82, weather: false,
+    skin: { mottle: 0.6, mottleSize: 0.012, mottleColor: [0.5, 0.42, 0.42], spots: 0.4, spotSize: 0.006, spotRadius: 0.2, spotDensity: 0.4, spotColor: [0.8, 0.75, 0.75] } },
+  siren_fin: { kind: 'physical', color: C(0.7, 0.8, 0.9), rough: 0.06, clearcoat: 1, opacity: 0.22, side: THREE.DoubleSide, weather: false },
+  siren_ray: { kind: 'physical', color: C(0.85, 0.92, 1.0), rough: 0.1, opacity: 0.5, weather: false },
+  siren_eye: { kind: 'physical', color: C(0.6, 0.66, 0.7), rough: 0.05, clearcoat: 1, iridescence: 0.6, weather: false },
   siren_lure: { color: C(0.3, 0.95, 0.9), emissive: C(0.3, 1.0, 0.92), emissiveIntensity: 4, rough: 0.2, weather: false },
-  stalker_hide: { kind: 'physical', color: C(0.028, 0.034, 0.045), rough: 0.36, normal: 'rock_n', normalScale: 0.35, normalRepeat: 1.5, sheen: 0.3, clearcoat: 0.35, weather: { grime: 0.4, grimeScale: 1, grimeTint: new THREE.Color(1.6, 1.8, 2.2), scratch: 0.25, scratchColor: new THREE.Color(0.25, 0.28, 0.32), streak: 0 } },
-  stalker_fin: { kind: 'physical', color: C(0.05, 0.07, 0.09), rough: 0.3, clearcoat: 0.4, side: THREE.DoubleSide, weather: false },
-  chorus_hide: { kind: 'physical', color: C(0.09, 0.12, 0.15), rough: 0.28, normal: 'ribbed_n', normalScale: 0.2, normalRepeat: 1, clearcoat: 0.6, sheen: 0.3, weather: { grime: 0.45, grimeScale: 1.5, grimeTint: new THREE.Color(1.5, 1.6, 1.8), scratch: 0.2, scratchColor: new THREE.Color(0.3, 0.33, 0.36), streak: 0 } },
-  chorus_belly: { kind: 'physical', color: C(0.28, 0.31, 0.34), rough: 0.32, clearcoat: 0.5, weather: false },
-  chorus_pore: { kind: 'physical', color: C(0.8, 0.66, 0.38), emissive: C(0.9, 0.7, 0.35), emissiveIntensity: 0.2, rough: 0.3, weather: false },
-  cath_hide: { kind: 'physical', color: C(0.12, 0.17, 0.24), rough: 0.4, normal: 'rock_n', normalScale: 0.4, normalRepeat: 0.4, sheen: 0.35, clearcoat: 0.25, weather: { grime: 0.5, grimeScale: 0.3, grimeTint: new THREE.Color(1.3, 1.4, 1.6), scratch: 0.15, streak: 0 } },
-  cath_wing: { kind: 'physical', color: C(0.2, 0.25, 0.32), rough: 0.35, sheen: 0.5, clearcoat: 0.3, iridescence: 0.5, side: THREE.DoubleSide, weather: false },
-  cath_lamella: { kind: 'physical', color: C(0.8, 0.78, 0.7), rough: 0.5, normal: 'hexmesh_n', normalScale: 0.8, normalRepeat: 3, sheen: 0.4, side: THREE.DoubleSide, weather: false },
+  // Abyssal Stalker (image 9): navy-black, pebbly fine scales, glossy wet, faint lighter mottling, grey belly;
+  // flippers dark and half-translucent over pale bony rays
+  stalker_hide: { kind: 'physical', color: C(0.025, 0.032, 0.045), rough: 0.34, clearcoat: 0.75, sheen: 0.25, weather: false,
+    skin: { plates: 0.0012, plateSize: 0.011, plateGroove: 0.3, wrinkle: 0.004, wrinkleSize: 0.12, mottle: 0.6, mottleSize: 0.35, mottleColor: [0.07, 0.09, 0.12], mottle2: 0.4, mottle2Size: 0.06, mottle2Color: [0.012, 0.014, 0.02], pores: 0.0012, poreSize: 0.01, cavity: 0.25, wet: 0.6, vary: 0.35 } },
+  stalker_belly: { kind: 'physical', color: C(0.12, 0.13, 0.15), rough: 0.36, clearcoat: 0.6, weather: false,
+    skin: { plates: 0.001, plateSize: 0.01, plateGroove: 0.3, wrinkle: 0.003, wrinkleSize: 0.05, wrinkleAxis: [4, 4, 1], mottle: 0.4, mottleSize: 0.2, mottleColor: [0.2, 0.21, 0.23], cavity: 0.4, vary: 0.3 } },
+  stalker_fin: { kind: 'physical', color: C(0.05, 0.07, 0.09), rough: 0.25, clearcoat: 0.6, opacity: 0.86, side: THREE.DoubleSide, weather: false,
+    skin: { mottle: 0.6, mottleSize: 0.1, mottleColor: [0.12, 0.15, 0.18], mottleAxis: [1, 1, 4], vary: 0.3 } },
+  stalker_ray: { kind: 'physical', color: C(0.22, 0.25, 0.28), rough: 0.3, clearcoat: 0.5, weather: false },
+  stalker_eye: { kind: 'physical', color: C(0.35, 0.3, 0.1), emissive: C(0.25, 0.22, 0.08), emissiveIntensity: 0.15, rough: 0.05, clearcoat: 1, weather: false },
+  // Chorus Hunter (image 1): dark slate-blue, glossy, pale streaks and fine grooves along the flanks, paler belly
+  chorus_hide: { kind: 'physical', color: C(0.07, 0.09, 0.115), rough: 0.25, clearcoat: 0.85, sheen: 0.25, iridescence: 0.15, weather: false,
+    skin: { wrinkle: 0.0025, wrinkleSize: 0.05, wrinkleAxis: [5, 5, 0.6], mottle: 0.55, mottleSize: 0.12, mottleColor: [0.2, 0.24, 0.28], mottleAxis: [5, 5, 0.5], mottle2: 0.45, mottle2Size: 0.05, mottle2Color: [0.03, 0.04, 0.055], pores: 0.0006, poreSize: 0.006, cavity: 0.45, wet: 0.6, vary: 0.3 } },
+  chorus_belly: { kind: 'physical', color: C(0.26, 0.29, 0.32), rough: 0.3, clearcoat: 0.7, weather: false,
+    skin: { wrinkle: 0.0015, wrinkleSize: 0.02, wrinkleAxis: [5, 5, 0.6], mottle: 0.35, mottleSize: 0.08, mottleColor: [0.36, 0.4, 0.44], vary: 0.25 } },
+  chorus_gill: { kind: 'physical', color: C(0.55, 0.6, 0.66), rough: 0.2, clearcoat: 0.8, iridescence: 0.5, weather: false },
+  chorus_fin: { kind: 'physical', color: C(0.09, 0.11, 0.14), rough: 0.25, clearcoat: 0.7, iridescence: 0.3, side: THREE.DoubleSide, weather: false,
+    skin: { mottle: 0.5, mottleSize: 0.08, mottleColor: [0.22, 0.26, 0.3], mottleAxis: [1, 4, 1], vary: 0.3 } },
+  chorus_pore: { kind: 'physical', color: C(0.85, 0.66, 0.3), emissive: C(0.95, 0.7, 0.3), emissiveIntensity: 0.35, rough: 0.25, clearcoat: 1, weather: false },
+  chorus_eye: { kind: 'physical', color: C(0.18, 0.15, 0.08), rough: 0.05, clearcoat: 1, weather: false },
+  // Abyssal Cathedral (image 10): pale blue-grey translucent skin sculpted round dark cavities, small white spots;
+  // iridescent feathered wings streaked rust, gold and teal; cream lattice filter plates; cyan throat lights
+  cath_hide: { kind: 'physical', color: C(0.2, 0.25, 0.31), rough: 0.35, clearcoat: 0.6, sheen: 0.4, weather: false,
+    skin: { wrinkle: 0.012, wrinkleSize: 0.25, wrinkleAxis: [1, 3, 1], mottle: 0.55, mottleSize: 0.8, mottleColor: [0.36, 0.42, 0.48], mottle2: 0.4, mottle2Size: 0.2, mottle2Color: [0.12, 0.16, 0.22], spots: 0.75, spotSize: 0.09, spotRadius: 0.13, spotDensity: 0.35, spotColor: [0.82, 0.86, 0.9], pores: 0.004, poreSize: 0.05, cavity: 0.5, wet: 0.5, vary: 0.3 } },
+  cath_belly: { kind: 'physical', color: C(0.3, 0.36, 0.42), rough: 0.35, clearcoat: 0.5, weather: false,
+    skin: { wrinkle: 0.01, wrinkleSize: 0.12, wrinkleAxis: [4, 1, 0.5], mottle: 0.4, mottleSize: 0.5, mottleColor: [0.42, 0.48, 0.54], spots: 0.4, spotSize: 0.08, spotRadius: 0.12, spotDensity: 0.3, spotColor: [0.8, 0.85, 0.9], cavity: 0.5 } },
+  cath_cavity: { kind: 'physical', color: C(0.07, 0.1, 0.15), rough: 0.25, clearcoat: 0.8, weather: false,
+    skin: { wrinkle: 0.015, wrinkleSize: 0.12, mottle: 0.5, mottleSize: 0.3, mottleColor: [0.16, 0.2, 0.28], cavity: 0.5, wet: 0.7 } },
+  cath_wing: { kind: 'physical', color: C(0.17, 0.22, 0.28), rough: 0.3, sheen: 0.5, clearcoat: 0.5, iridescence: 0.6, side: THREE.DoubleSide, weather: false,
+    skin: { mottle: 0.75, mottleSize: 0.6, mottleColor: [0.42, 0.25, 0.14], mottleAxis: [0.25, 1, 5], mottle2: 0.6, mottle2Size: 0.25, mottle2Color: [0.48, 0.4, 0.2], spots: 0.25, spotSize: 0.3, spotRadius: 0.1, spotDensity: 0.3, spotColor: [0.25, 0.42, 0.45], vary: 0.4 } },
+  cath_ray: { kind: 'physical', color: C(0.34, 0.24, 0.17), rough: 0.35, clearcoat: 0.4, iridescence: 0.4, weather: false },
+  cath_lamella: { kind: 'physical', color: C(0.8, 0.77, 0.66), rough: 0.5, sheen: 0.4, side: THREE.DoubleSide, weather: false,
+    skin: { lattice: 0.11, latticeSize: 0.07, mottle: 0.4, mottleSize: 0.3, mottleColor: [0.62, 0.55, 0.42], vary: 0.3 } },
   cath_glow: { color: C(0.3, 0.9, 1.0), emissive: C(0.3, 0.9, 1.0), emissiveIntensity: 3, rough: 0.2, weather: false },
-  crown_hide: { kind: 'physical', color: C(0.022, 0.025, 0.032), rough: 0.5, normal: 'rock_n', normalScale: 0.6, normalRepeat: 1, sheen: 0.25, clearcoat: 0.5, weather: { grime: 0.45, grimeScale: 0.8, grimeTint: new THREE.Color(2.0, 2.2, 2.6), scratch: 0.35, scratchColor: new THREE.Color(0.22, 0.24, 0.28), streak: 0 } },
-  crown_horn: { kind: 'physical', color: C(0.15, 0.15, 0.17), rough: 0.35, normal: 'rock_n', normalScale: 0.8, normalRepeat: 2, clearcoat: 0.7, weather: { grime: 0.4, grimeScale: 2, grimeTint: new THREE.Color(1.4, 1.3, 1.2), scratch: 0.3, streak: 0 } },
-  crown_gum: { kind: 'physical', color: C(0.28, 0.05, 0.06), rough: 0.3, clearcoat: 0.6, weather: false },
+  // Gargantuan Crown (image 5): wet black hide, deep wrinkles and pores with a silvery-blue sheen; dark glossy horn;
+  // red gums; long translucent fangs; fine dark barbels
+  crown_hide: { kind: 'physical', color: C(0.018, 0.021, 0.028), rough: 0.36, clearcoat: 0.85, sheen: 0.3, iridescence: 0.25, weather: false,
+    skin: { wrinkle: 0.022, wrinkleSize: 0.2, wrinkleAxis: [1.5, 1.5, 4], pores: 0.004, poreSize: 0.035, plates: 0.0025, plateSize: 0.03, plateGroove: 0.3, mottle: 0.55, mottleSize: 0.7, mottleColor: [0.06, 0.07, 0.09], mottle2: 0.5, mottle2Size: 0.12, mottle2Color: [0.008, 0.009, 0.012], spots: 0.3, spotSize: 0.08, spotRadius: 0.12, spotDensity: 0.25, spotColor: [0.16, 0.18, 0.22], cavity: 0.55, wet: 0.65, vary: 0.35, aoAlbedo: 0.6 } },
+  crown_horn: { kind: 'physical', color: C(0.1, 0.1, 0.12), rough: 0.22, clearcoat: 1, iridescence: 0.2, weather: false,
+    skin: { wrinkle: 0.006, wrinkleSize: 0.05, wrinkleAxis: [1, 4, 1], mottle: 0.6, mottleSize: 0.2, mottleColor: [0.3, 0.29, 0.3], pores: 0.002, poreSize: 0.02, cavity: 0.4, vary: 0.35 } },
+  crown_gum: { kind: 'physical', color: C(0.26, 0.045, 0.05), rough: 0.25, clearcoat: 0.8, weather: false,
+    skin: { wrinkle: 0.008, wrinkleSize: 0.06, mottle: 0.5, mottleSize: 0.1, mottleColor: [0.12, 0.02, 0.03], cavity: 0.55, wet: 0.7 } },
+  crown_throat: { kind: 'physical', color: C(0.04, 0.008, 0.01), rough: 0.3, clearcoat: 0.6, weather: false },
+  crown_tooth: { kind: 'physical', color: C(0.82, 0.8, 0.74), rough: 0.18, clearcoat: 1, weather: false,
+    skin: { mottle: 0.5, mottleSize: 0.08, mottleColor: [0.55, 0.5, 0.4], wrinkle: 0.0015, wrinkleSize: 0.02, wrinkleAxis: [4, 1, 4] } },
+  crown_fin: { kind: 'physical', color: C(0.022, 0.026, 0.034), rough: 0.3, clearcoat: 0.8, iridescence: 0.35, side: THREE.DoubleSide, weather: false,
+    skin: { wrinkle: 0.01, wrinkleSize: 0.12, wrinkleAxis: [0.4, 1, 5], mottle: 0.55, mottleSize: 0.5, mottleColor: [0.07, 0.085, 0.1], mottleAxis: [0.3, 1, 5], cavity: 0.5, wet: 0.5, vary: 0.35 } },
+  crown_barbel: { kind: 'physical', color: C(0.06, 0.05, 0.05), rough: 0.35, sheen: 0.4, weather: false },
+  crown_eye: { kind: 'physical', color: C(0.14, 0.09, 0.04), emissive: C(0.3, 0.18, 0.05), emissiveIntensity: 0.2, rough: 0.05, clearcoat: 1, weather: false },
   miller_canister: { kind: 'physical', color: C(0.8, 0.79, 0.74), rough: 0.4, metal: 0.3, weather: { grime: 0.6, streak: 0.3, scratch: 0.4 } },
   // the explorer camps on the Gargantua worlds (blender/lib/camp.py)
   granite_pale: { color: C(2.3, 2.05, 1.75), map: 'rock_a', mapRepeat: 0.22, rough: 0.92, normal: 'rock_n', normalScale: 1.1, normalRepeat: 0.22, weather: { grime: 0.35, grimeScale: 0.12, grimeTint: new THREE.Color(0.8, 0.72, 0.62), scratch: 0, streak: 0.25 } },
@@ -386,7 +456,8 @@ export class MaterialLibrary {
       }
       m = pm;
     } else m = new THREE.MeshStandardMaterial(params);
-    if (r.weather !== false) this.applyWeather(m, { ...W_DEFAULT, ...(r.weather ?? {}) });
+    if (r.skin) applySkin(m, r.skin, this.textureQuality);
+    else if (r.weather !== false) this.applyWeather(m, { ...W_DEFAULT, ...(r.weather ?? {}) });
     return m;
   }
 
@@ -472,6 +543,7 @@ export class MaterialLibrary {
       if (Array.isArray(mesh.material)) mesh.material = mesh.material.map(swap);
       else mesh.material = swap(mesh.material);
       const m = mesh.material as THREE.Material;
+      if ((Array.isArray(mesh.material) ? mesh.material : [m]).some((x) => x.userData.skin)) adoptAO(mesh.geometry);
       if ((m as any).transparent || (m as any).emissiveIntensity > 2) mesh.castShadow = false;
     });
   }

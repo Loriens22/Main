@@ -4,6 +4,7 @@ import type { Game } from '../../core/Game';
 import type { Frame } from '../Frame';
 import type { ModelInstance } from '../../render/Assets';
 import { Rig } from './Rig';
+import { cloneSkinned } from '../../render/CreatureSkin';
 import { CreatureVoice } from '../../audio/CreatureVoice';
 import { h } from '../../ui/UI';
 
@@ -81,7 +82,7 @@ export abstract class Creature {
       m.receiveShadow = true;
       const swap = (mat: THREE.Material) => {
         if (!glowMats.some((g) => mat.name.startsWith(g))) return mat;
-        const c = (mat as THREE.MeshStandardMaterial).clone();
+        const c = cloneSkinned(mat as THREE.MeshStandardMaterial, this.game.materials?.textureQuality ?? 2);
         this.glow.push(c);
         return c;
       };
