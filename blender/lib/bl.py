@@ -447,8 +447,9 @@ class Part:
         self._emit(tb, mat, M if M is not None else xf(at, rot), **kw)
         return self
 
-    def mesh(self, verts, faces, mat="paint_white", at=(0, 0, 0), rot=(0, 0, 0), M=None, bevel=None, recalc=True, **kw):
-        """Raw indexed mesh. With recalc=False the given winding is trusted (counter-clockwise = outward)."""
+    def mesh(self, verts, faces, mat="paint_white", at=(0, 0, 0), rot=(0, 0, 0), M=None, bevel=None, recalc=True, uvs=None, **kw):
+        """Raw indexed mesh. With recalc=False the given winding is trusted (counter-clockwise = outward).
+        uvs: optional per-vertex (u, v); implies uv_mode='given'."""
         tb = bmesh.new()
         vs = [tb.verts.new(v) for v in verts]
         for f in faces:
@@ -456,6 +457,13 @@ class Part:
                 tb.faces.new([vs[i] for i in f])
             except ValueError:
                 pass
+        if uvs is not None:
+            tb.verts.index_update()
+            uvl = tb.loops.layers.uv.new("UVMap")
+            for f in tb.faces:
+                for l in f.loops:
+                    l[uvl].uv = uvs[l.vert.index]
+            kw["uv_mode"] = "given"
         if recalc:
             bmesh.ops.recalc_face_normals(tb, faces=tb.faces[:])
         else:

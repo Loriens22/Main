@@ -13,16 +13,18 @@ export interface Field { id: string; name: string; cx: number; cz: number; w: nu
 
 const ROAD_CTRL: [number, number][] = [
   [-2575, 34], [-2500, 42], [-2380, 40], [-2250, 70], [-1960, 150], [-1560, 96], [-1180, -70], [-860, -200], [-470, -170],
-  [-80, -330], [230, -470], [640, -420], [930, -560], [1130, -800], [1420, -770], [1650, -930], [1790, -1180], [2060, -1230],
+  [-60, -370], [250, -540], [640, -400], [900, -600], [1090, -880], [1440, -740], [1640, -960], [1740, -1250], [2070, -1190],
   [2270, -1380], [2400, -1530], [2466, -1616], [2520, -1686],
 ];
 
 export const FARM = { x: -2600, z: -18, yardR: 62 };
+/** Centre of the mountain that hides the facility; the tunnel portal sits at its foot. */
+export const MOUNTAIN = { x: 3250, z: -2600 };
 /** NASA: gate on the approach road, tunnel portal in the hillside; `dir` is the unit direction into the mountain. */
 export const NASA = { gate: { x: 2420, z: -1556 }, portal: { x: 2520, z: -1686 }, dir: { x: 0.6097, z: -0.7926 }, silo: { x: 2800, z: -2050 } };
 
 export const FIELDS: Field[] = [
-  { id: 'south', name: 'South Field', cx: -2600, cz: 250, w: 620, d: 330, rows: 'x' },
+  { id: 'south', name: 'South Field', cx: -2600, cz: 222, w: 620, d: 350, rows: 'x' },
   { id: 'west', name: 'West Field', cx: -3010, cz: -40, w: 380, d: 420, rows: 'z' },
   { id: 'north', name: 'North Field', cx: -2560, cz: -330, w: 560, d: 300, rows: 'x' },
   { id: 'east', name: 'East Field', cx: -2200, cz: -180, w: 300, d: 300, rows: 'z' },
@@ -55,7 +57,7 @@ export class EarthMap {
     const ridge = 1 - Math.abs(fbm2(x / 520 + 11, z / 520 + 4, 5) * 2 - 1);
     const hills = rug * rug * (ridge * ridge * 150 + (fbm2(x / 150, z / 150, 4) - 0.5) * 26 * rug);
     // the mountain that hides the facility
-    const mx = x - 2900, mz = z + 2150;
+    const mx = x - MOUNTAIN.x, mz = z - MOUNTAIN.z;
     const md = Math.sqrt(mx * mx + mz * mz);
     const mnoise = 0.72 + 0.56 * fbm2(x / 330 - 2, z / 330 + 9, 5);
     const mountain = 310 * Math.pow(smoothstep(1500, 120, md), 1.6) * mnoise;
@@ -171,6 +173,21 @@ export class EarthMap {
       }
       y = out;
     }
+    // limit the gradient to 8 % (cuttings and embankments take up the rest), then re-smooth
+    const G = 0.08 * STEP;
+    for (let pass = 0; pass < 2; pass++) {
+      for (let i = 1; i < n; i++) y[i] = clamp(y[i], y[i - 1] - G, y[i - 1] + G);
+      for (let i = n - 2; i >= 0; i--) y[i] = clamp(y[i], y[i + 1] - G, y[i + 1] + G);
+    }
+    for (let pass = 0; pass < 2; pass++) {
+      const out = y.slice();
+      for (let i = 0; i < n; i++) {
+        let sum = 0, c = 0;
+        for (let k = -8; k <= 8; k++) { sum += y[clamp(i + k, 0, n - 1)]; c++; }
+        out[i] = sum / c;
+      }
+      y = out;
+    }
     // keep the first stretch on the yard level and let the last stretch settle onto the forecourt level
     this.nasaY = y[n - 1];
     for (let i = 0; i < n; i++) {
@@ -241,7 +258,7 @@ export class EarthMap {
   /** How rugged / unfarmable the ground is here (0 plains .. 1 hills). */
   rugged(x: number, z: number) {
     const rug = smoothstep(350, 1500, x);
-    const mx = x - 2900, mz = z + 2150;
+    const mx = x - MOUNTAIN.x, mz = z - MOUNTAIN.z;
     return Math.max(rug, smoothstep(1700, 900, Math.hypot(mx, mz)), smoothstep(-3700, -4700, x), smoothstep(5200, 6500, Math.hypot(x, z)));
   }
 

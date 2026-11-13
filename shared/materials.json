@@ -143,8 +143,8 @@
   "desert_gravel":     { "tex": "desert_gravel", "tile": 3.0 },
   "sand":              { "tex": "sand", "tile": 3.0 },
 
-  "leaf_corn":         { "color": "#5d8a2e", "rough": 0.62, "side": "double" },
-  "leaf_corn_dry":     { "color": "#9a9455", "rough": 0.7, "side": "double" },
+  "leaf_corn":         { "color": "#4e7a2b", "rough": 0.62, "side": "double" },
+  "leaf_corn_dry":     { "color": "#a39a58", "rough": 0.7, "side": "double" },
   "stalk_corn":        { "color": "#7d9148", "rough": 0.7 },
   "foliage_dry":       { "color": "#8a8250", "rough": 0.8, "side": "double" }
 }

@@ -1,5 +1,6 @@
 import { Game } from './core/Game';
 import { TestZone } from './world/TestZone';
+import { EarthZone } from './world/earth/EarthZone';
 
 async function boot() {
   const canvas = document.getElementById('view') as HTMLCanvasElement;
@@ -7,10 +8,15 @@ async function boot() {
   await game.init();
   const params = new URLSearchParams(location.search);
   game.registerZone(new TestZone(game, 'test'));
-  if (params.has('zone') || params.has('model')) {
+  const earth = game.registerZone(new EarthZone(game, 'earth')) as EarthZone;
+  canvas.addEventListener('click', () => game.input.requestPointerLock());
+  if (params.get('zone') === 'test' || params.has('model')) {
     await game.gotoZone('test', { fade: false });
     game.setState('playing');
-    canvas.addEventListener('click', () => game.input.requestPointerLock());
+  } else {
+    await game.gotoZone('earth', { fade: false });
+    game.player.teleport(earth.spawnPoint(), Math.PI);
+    game.setState('playing');
   }
   document.getElementById('boot')?.remove();
 }

@@ -406,6 +406,7 @@ export class Sky {
     const overcast = this.computeSunColor();
     this.sun.color.copy(this.sunColor);
     this.sun.intensity = Math.PI * (this.params.sunE / 20) * overcast * this.sunOcclusion;
+    W.uSunColor.value.copy(this.sunColor).multiplyScalar(this.sun.intensity);
     // shadow frustum follows the focus point, snapped to shadow texels to avoid crawling
     const range = this.shadowRange;
     const cam = this.sun.shadow.camera;

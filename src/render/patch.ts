@@ -16,6 +16,12 @@ export const W = {
   /** x dust deposit 0..1, y unused, z vertex-AO strength, w time */
   uSurf: { value: new THREE.Vector4(0, 0, 1, 0) },
   uDustColor: { value: new THREE.Color(0.52, 0.45, 0.34) },
+  /** direct sunlight colour x intensity (for translucency and hand-written shaders) */
+  uSunColor: { value: new THREE.Color(1, 0.95, 0.85) },
+  /** wind: xy = horizontal direction (x, z), z = time, w = strength 0..1+ */
+  uWind: { value: new THREE.Vector4(0.8, 0.6, 0, 0.25) },
+  /** player position (foliage parts around it) */
+  uPlayer: { value: new THREE.Vector3(0, -1000, 0) },
   /** bounce light inside enclosed spaces (where the baked sky visibility is low) */
   uAmbientIn: { value: new THREE.Color(0.035, 0.032, 0.03) },
 };

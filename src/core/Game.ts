@@ -102,8 +102,8 @@ export class Game {
       dt = this.frameBudget;
       this.frameBudget = 0;
     } else this.last = t;
+    if (dt > 0) this.fps += (1 / dt - this.fps) * (dt > 0.2 ? 0.5 : 0.05);
     dt = Math.min(dt, 0.1);
-    if (dt > 0) this.fps += (1 / dt - this.fps) * 0.05;
     this.tick(dt);
   };
 
