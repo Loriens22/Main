@@ -193,23 +193,23 @@ parts[9] = [
   { js: `game.zone.waves.first = game.zone.time + 4000; game.state.creative.hazardProtection = true; for (const k of game.zone.fauna.creatures) k.cooldown = 999; return { caves: game.zone.caves ? game.zone.caves.group.children.length : 0, sp: game.zone.fauna.creatures.map((k) => k.species).join(',') };`, frames: 1 },
   // the mimic den and the young mimic in its crack
   sv('cave_den', `of('mimic')[0]`, [3.5, 2.2, -3.0], 0.5, false, 50), unlamp,
-  sv('juv_mimic', `of('mimicjuv')[0]`, [0.9, 0.6, -1.2], 0.1, false, 40), unlamp,
+  sv('juv_mimic', `of('mimicjuv')[0]`, [3.2, 2.2, -4.2], 0.2, false, 40), unlamp,
   // the breaker's hatchlings round the nest
-  sv('juv_breaker', `of('breakerjuv')[0]`, [1.0, 0.7, -1.2], 0.1, false, 45), unlamp,
+  sv('juv_breaker', `of('breakerjuv')[0]`, [6, 4, -7.5], 0.3, false, 45), unlamp,
   // the siren's shelter on the rift wall, from outside, then from inside with the lamp: the siren and its shrimp
   fgo(`const s = of('siren')[0]; put(s.perch.x + 8, s.perch.z + 4, 0.05, 0, 0); pl.pos.y = s.pos.y; ${face('s.pos.x', 's.pos.z')}; z.headlampOn = true`, 60),
   pv('cave_shelter_lamp', `const s = of('siren')[0]; put(s.perch.x + (s.pos.x - s.perch.x) * 0 + 3.5, s.perch.z + 1.5, 0.05, 0, 0); pl.pos.y = s.pos.y - 1.4; ${face('s.pos.x', 's.pos.z')}; pl.pitch = 0.1`, 60),
-  sv('prey_shrimp', `of('siren')[0]`, [0.5, 0.25, -0.9], 0.1, true, 35), unlamp,
+  sv('prey_shrimp', `of('siren')[0]`, [0.6, 0.3, -1.4], 0.1, true, 40), unlamp,
   // a stalker ledge over the basin rim, the young stalker
   sv('cave_ledge', `of('abyssstalker')[0]`, [10, 5, -12], 0.0, true, 55), unlamp,
   sv('juv_stalker', `of('abyssstalker')[1]`, [2.4, 0.8, -2.6], 0.0, true, 45), unlamp,
   // the prey school and the juvenile hunter
   fgo(`const c = of('chorus')[0]; put(c.pos.x + 12, c.pos.z + 8, 0.05, 0, 0); pl.pos.y = Math.max(pl.pos.y, c.pos.y)`, 30),
   { js: `${H} ${M} const pod = F.creatures.find((k) => k.species === 'chorus_pod'); const c = pod.schoolC; const cam = game.camera; game.cinematic = { blocking: true, update: () => true }; cam.fov = 45; cam.updateProjectionMatrix(); cam.position.set(c.x + 3.5, c.y + 1.2, c.z + 3.5); cam.lookAt(c); let L = window.__surveyLamp; if (L) { L.intensity = 5; L.position.copy(cam.position); L.target.position.copy(c); L.target.updateMatrixWorld(true); } cam.updateMatrixWorld(true); return { n: pod.schoolN };`, frames: 3, shot: 'prey_school' }, unlamp,
-  sv('juv_chorus', `of('chorus').find((k) => k.juvenile)`, [0.8, 0.3, -1.4], 0.0, true, 45), unlamp,
+  sv('juv_chorus', `of('chorus').find((k) => k.juvenile)`, [1.8, 0.5, -2.6], 0.0, true, 45), unlamp,
   // the cathedral, its calf and the krill it filters
   fgo(`const c = of('cathedral')[0]; put(c.pos.x + 30, c.pos.z + 25, 0.05, 0, 0); pl.pos.y = Math.max(pl.pos.y, c.pos.y)`, 30),
-  sv('juv_calf', `of('cathedralcalf')[0]`, [3, 1.5, -6], 0.0, true, 50), unlamp,
+  sv('juv_calf', `of('cathedralcalf')[0]`, [14, 6, -24], 0.0, true, 50), unlamp,
   { js: `${H} ${M} const c = of('cathedral')[0]; const b = c.bloom; const cam = game.camera; game.cinematic = { blocking: true, update: () => true }; cam.fov = 40; cam.updateProjectionMatrix(); cam.position.set(b.x + 1.2, b.y + 0.4, b.z + 1.2); cam.lookAt(b.x, b.y, b.z); let L = window.__surveyLamp; if (L) { L.intensity = 4; L.position.copy(cam.position); L.target.position.copy(b); L.target.updateMatrixWorld(true); } cam.updateMatrixWorld(true); return 1;`, frames: 3, shot: 'prey_krill' }, unlamp,
   // the deep through the player's own lamp: the crown ahead in the dark
   fgo(`const c = of('crown')[0]; c.pos.set(B.basin.x + 20, -42, B.basin.z + 10); c.setState('patrol'); put(B.basin.x + 20, B.basin.z - 2, 0.05, 0, 0); pl.pos.y = -42; ${face('c.pos.x', 'c.pos.z')}; z.headlampOn = true`, 20),

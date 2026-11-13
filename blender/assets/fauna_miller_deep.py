@@ -779,7 +779,7 @@ def cathedral(juvenile=False):
             # leading edge sweeps out to the tip, then the trailing edge curves back in
             tip_x = 12.0 * (1 - 0.82 * u ** 1.4)
             edge.append(V((sx * (2.2 + tip_x), 3.2 - 7.6 * u ** 0.9 - 1.6 * math.sin(PI * u), -0.9 * (1 - u) ** 2)))
-        w = fin(f"wing{s}", base, edge, "cath_wing", nu=161, nv=18, rays=44, corr=0.006, scallop=0.012, ruffle=0.14, ruffle_f=7.0,
+        w = fin(f"wing{s}", base, edge, "cath_wing", nu=161, nv=18, rays=44, corr=0.006, scallop=0.01, ruffle=0.06, ruffle_f=5.0,
                 thick=0.14, droop=0.4, rays_m="cath_ray", ray_r=0.03, ray_taper=0.25, up=(0, 0, 1))
         parts.append(Part(w, bones=["body", f"wing{s}1", f"wing{s}2"]))
     # tail fluke (horizontal: the tail beats up and down)

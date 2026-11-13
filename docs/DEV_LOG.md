@@ -2,7 +2,20 @@
 
 ## Status (latest first)
 
-### Miller's Planet — an abyssal biosphere (this pass)
+### Miller's Planet — creature realism pass (this pass)
+All ten species rebuilt against the concept images, skin that is no longer uniform, and the six known limits closed or
+narrowed. Details and the remaining honest limits: `docs/MILLER_BIOSPHERE.md` → "Realism pass — what was done".
+- Modelling kit `blender/lib/organic.py` (parametric bodies, conforming plates, rayed fins, fangs, ringed limbs, eyes
+  with corneas); AO baked to a vertex layer. Species in `blender/assets/fauna_miller_deep.py` and
+  `fauna_miller_shore.py` (`fauna_miller.py` dispatches).
+- Procedural creature skin `src/render/CreatureSkin.ts` (scales, wrinkles, pores, mottling, reticulation, spots,
+  lattice, bump, wet cavities; detail fades by pixel size), a spec per Miller material in `Materials.ts`.
+- Young with their own builds and behaviours; prey animals (`world/fauna/prey.ts`: shrimp, dart-fish school, krill);
+  cave shells with colliders (`world/surface/millerCaves.ts`); deep water light, dive lamp, flood, visible beam.
+- Verified in the browser: close-up survey of every species (e2e PART=8), caves/prey/young/lamp (PART=9), and an
+  unforced wave with every species, seated in Ranger 1, logged every 5 s across two crests (PART=10).
+
+### Miller's Planet — an abyssal biosphere
 Ten original speculative species from the player's directive and concept images, plus the habitats they need. Full
 design, habitat map, registry and honest limits: `docs/MILLER_BIOSPHERE.md`.
 - Habitats (`world/surface/millerBiome.ts`): the flats keep their look; a black basalt reef with a lee pool, a soft

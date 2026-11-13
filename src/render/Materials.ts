@@ -341,7 +341,8 @@ const RECIPES: Record<string, Recipe> = {
   prey_shrimp: { kind: 'physical', color: C(0.7, 0.3, 0.26), rough: 0.25, clearcoat: 0.6, opacity: 0.85, weather: false,
     skin: { mottle: 0.5, mottleSize: 0.004, mottleColor: [0.9, 0.5, 0.42], spots: 0.5, spotSize: 0.003, spotRadius: 0.22, spotDensity: 0.4, spotColor: [0.45, 0.08, 0.08] } },
   prey_glow: { color: C(0.3, 0.9, 1.0), emissive: C(0.3, 0.9, 1.0), emissiveIntensity: 2.5, rough: 0.2, weather: false },
-  prey_krill: { kind: 'physical', color: C(0.8, 0.42, 0.38), rough: 0.3, opacity: 0.7, weather: false },
+  // krill carry light organs (photophores): a faint blue-green glow makes a swarm visible in the dark
+  prey_krill: { kind: 'physical', color: C(0.8, 0.42, 0.38), emissive: C(0.25, 0.85, 0.8), emissiveIntensity: 0.55, rough: 0.3, opacity: 0.8, weather: false },
   miller_canister: { kind: 'physical', color: C(0.8, 0.79, 0.74), rough: 0.4, metal: 0.3, weather: { grime: 0.6, streak: 0.3, scratch: 0.4 } },
   // the explorer camps on the Gargantua worlds (blender/lib/camp.py)
   granite_pale: { color: C(2.3, 2.05, 1.75), map: 'rock_a', mapRepeat: 0.22, rough: 0.92, normal: 'rock_n', normalScale: 1.1, normalRepeat: 0.22, weather: { grime: 0.35, grimeScale: 0.12, grimeTint: new THREE.Color(0.8, 0.72, 0.62), scratch: 0, streak: 0.25 } },

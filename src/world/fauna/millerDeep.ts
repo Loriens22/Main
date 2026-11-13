@@ -960,8 +960,8 @@ class Cathedral extends Swimmer {
     this.bloomPrev.copy(this.bloom);
     const N = f.count(420);
     this.krillP = new Float32Array(N * 3);
-    for (let i = 0; i < N; i++) this.krillP.set([this.bloom.x + (Math.random() - 0.5) * 30, this.bloom.y + (Math.random() - 0.5) * 10, this.bloom.z + (Math.random() - 0.5) * 30], i * 3);
-    this.krill = new PreySwarm(f, 'fauna_prey_krill', this.krillP, 1, { amp: 0.15, freq: 22, len: 0.02 });
+    for (let i = 0; i < N; i++) this.krillP.set([this.bloom.x + (Math.random() - 0.5) * 12, this.bloom.y + (Math.random() - 0.5) * 4, this.bloom.z + (Math.random() - 0.5) * 12], i * 3);
+    this.krill = new PreySwarm(f, 'fauna_prey_krill', this.krillP, 1.6, { amp: 0.15, freq: 22, len: 0.02 });
     this.krill.build().catch(() => undefined);
   }
 
@@ -978,14 +978,14 @@ class Cathedral extends Swimmer {
     if (seenK) {
       for (let i = 0; i < kp.length; i += 3) {
         if (kp[i + 1] < -500) {
-          if (Math.random() < dt * 0.02) kp.set([this.bloom.x + (Math.random() - 0.5) * 30, this.bloom.y + (Math.random() - 0.5) * 10, this.bloom.z + (Math.random() - 0.5) * 30], i);
+          if (Math.random() < dt * 0.02) kp.set([this.bloom.x + (Math.random() - 0.5) * 12, this.bloom.y + (Math.random() - 0.5) * 4, this.bloom.z + (Math.random() - 0.5) * 12], i);
           continue;
         }
         kp[i] += _w.x;
         kp[i + 1] += _w.y;
         kp[i + 2] += _w.z;
       }
-      this.krill.drift(dt, this.bloom, _u.set(15, 5, 15), 0.25);
+      this.krill.drift(dt, this.bloom, _u.set(6, 2, 6), 0.25);
       if (this.mouth > 0.4) {
         const mx = this.pos.x, my = this.pos.y, mz = this.pos.z;
         const f3 = this.fwd3(_u);

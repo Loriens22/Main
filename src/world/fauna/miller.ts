@@ -222,7 +222,9 @@ class FerracarisColony extends Creature {
 
   update(dt: number, near: boolean) {
     this.uT.value += dt;
-    if (!near || !this.meshes.length) return;
+    if (!this.meshes.length) return;
+    // the colony lives on when nobody is looking (tide reactions, sweeping, resettling); only the drawing and the
+    // fissure search are skipped far from the camera
     const host = this.f.host;
     const eco = this.eco;
     const pl = this.game.player;
@@ -248,6 +250,8 @@ class FerracarisColony extends Creature {
         const toHome = Math.atan2(g.hx - g.x, g.hz - g.z);
         if (Math.hypot(g.hx - g.x, g.hz - g.z) > 1.5) g.yaw += Math.sin(toHome - g.yaw) * dt;
         speed = 0.012 * (0.5 + 0.5 * Math.sin(g.t * 0.7 + i * 2));
+      } else if (g.state === 'hide' && !near) {
+        hidden++;
       } else if (g.state === 'hide') {
         // down into the nearest fissure (the lowest wet rock nearby)
         let best = host.terrainY(g.x, g.z), bx = g.x, bz = g.z;
@@ -291,6 +295,7 @@ class FerracarisColony extends Creature {
       }
     }
     this.lastState = tide;
+    if (!near) return;
     this.moving.needsUpdate = true;
     // write the matrices: on the rock, aligned to its slope, flattened when clamped
     this.ind.forEach((g, i) => {
