@@ -16,8 +16,8 @@ export const W = {
   /** x dust deposit 0..1, y unused, z vertex-AO strength, w time */
   uSurf: { value: new THREE.Vector4(0, 0, 1, 0) },
   uDustColor: { value: new THREE.Color(0.52, 0.45, 0.34) },
-  /** x: extra flat ambient multiplier for interiors (unused by default) */
-  uMisc: { value: new THREE.Vector4(1, 0, 0, 0) },
+  /** bounce light inside enclosed spaces (where the baked sky visibility is low) */
+  uAmbientIn: { value: new THREE.Color(0.035, 0.032, 0.03) },
 };
 
 export interface SurfaceParams {
@@ -63,6 +63,7 @@ uniform vec4 uSurf;
 uniform vec3 uDustColor;
 uniform vec4 uWearP; // wear, dirt, dust, glass
 uniform vec3 uEdgeColor;
+uniform vec3 uAmbientIn;
 #ifdef USE_VAO
 varying vec3 vVAO;
 #endif
@@ -104,9 +105,12 @@ const FRAG_SURFACE = /* glsl */ `
 const FRAG_AO = /* glsl */ `
 #ifdef USE_VAO
 {
+  // R = local occlusion, B = baked visibility of the environment (sky + ground bounce).
   float vao = mix( 1.0, vVAO.r, uSurf.z );
-  reflectedLight.indirectDiffuse *= vao;
-  reflectedLight.indirectSpecular *= mix( 1.0, vao, 0.85 );
+  float vis = vVAO.b;
+  reflectedLight.indirectDiffuse *= vao * vis;
+  reflectedLight.indirectDiffuse += uAmbientIn * material.diffuseColor * ( vao * ( 1.0 - vis ) );
+  reflectedLight.indirectSpecular *= mix( 0.05, 1.0, vis ) * mix( 1.0, vao, 0.85 );
   reflectedLight.directDiffuse *= mix( 1.0, vao, 0.3 );
 }
 #endif
@@ -153,7 +157,7 @@ export function patchWorldMaterial<T extends THREE.Material>(m: T, p: SurfacePar
     prev?.call(m, shader, renderer);
     Object.assign(shader.uniforms, {
       uFogH: W.uFogH, uFogZ: W.uFogZ, uFogSun: W.uFogSun, uSunDir: W.uSunDir, uFogP: W.uFogP, uSurf: W.uSurf,
-      uDustColor: W.uDustColor, uWearP: { value: wearP }, uEdgeColor: { value: edgeColor },
+      uDustColor: W.uDustColor, uWearP: { value: wearP }, uEdgeColor: { value: edgeColor }, uAmbientIn: W.uAmbientIn,
     });
     shader.vertexShader = shader.vertexShader
       .replace('#include <common>', '#include <common>\n' + VERT_PARS)

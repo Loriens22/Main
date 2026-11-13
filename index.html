@@ -1,0 +1,22 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no, viewport-fit=cover" />
+    <meta name="theme-color" content="#000000" />
+    <title>Interstellar: Beyond Endurance</title>
+    <style>
+      html, body { margin: 0; height: 100%; background: #000; overflow: hidden; overscroll-behavior: none; touch-action: none; }
+      body { font-family: 'Helvetica Neue', Helvetica, Arial, sans-serif; color: #e9e6df; -webkit-user-select: none; user-select: none; }
+      #view { position: fixed; inset: 0; width: 100%; height: 100%; display: block; outline: none; }
+      #ui { position: fixed; inset: 0; pointer-events: none; }
+      #boot { position: fixed; inset: 0; display: grid; place-items: center; letter-spacing: 0.4em; font-size: 12px; color: #8d8a84; text-transform: uppercase; background: #000; }
+    </style>
+  </head>
+  <body>
+    <canvas id="view" tabindex="0"></canvas>
+    <div id="ui"></div>
+    <div id="boot">Initialising</div>
+    <script type="module" src="/src/main.ts"></script>
+  </body>
+</html>

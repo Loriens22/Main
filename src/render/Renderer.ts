@@ -113,9 +113,9 @@ export class Renderer {
     this.gl.outputColorSpace = THREE.SRGBColorSpace;
     this.gl.toneMapping = THREE.NoToneMapping;
     this.gl.shadowMap.enabled = true;
-    this.gl.shadowMap.type = THREE.PCFSoftShadowMap;
+    this.gl.shadowMap.type = THREE.PCFShadowMap;
     this.gl.shadowMap.autoUpdate = true;
-    this.gl.info.autoReset = true;
+    this.gl.info.autoReset = false;
     this.maxAnisotropy = this.gl.capabilities.getMaxAnisotropy();
     this.scene.background = null;
     this.spaceScene.background = new THREE.Color(0x000000);
@@ -149,7 +149,7 @@ export class Renderer {
       ao.configuration.depthAwareUpsampling = true;
       ao.configuration.gammaCorrection = false;
       ao.setQualityMode(g.ambientOcclusion >= 2 ? 'Medium' : 'Low');
-      this.composer.addPass(ao);
+      this.composer.addPass(ao as any);
       this.ao = ao;
     }
     this.grade = new GradeEffect();
@@ -227,6 +227,7 @@ export class Renderer {
     }
 
     // The background camera shares orientation and lens with the main camera but sits at the origin.
+    this.gl.info.reset();
     this.camera.updateMatrixWorld();
     this.spaceCamera.quaternion.setFromRotationMatrix(this.camera.matrixWorld);
     if (this.spaceCamera.fov !== this.camera.fov) {

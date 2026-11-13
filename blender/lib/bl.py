@@ -150,7 +150,8 @@ class Part:
 
     def _emit(self, tb, mat_name, M=None, uv_scale=1.0, uv_swap=False, smooth=True, uv_mode="box", uv_off=(0, 0)):
         """Box-UV the temp bmesh in local space, transform, and append into the part."""
-        uvl = tb.loops.layers.uv.verify()
+        # the layer name must match the part's layer, otherwise from_mesh() appends a second UV set
+        uvl = tb.loops.layers.uv.get("UVMap") or tb.loops.layers.uv.new("UVMap")
         idx = self._slot(mat_name) if mat_name is not None else None
         if uv_mode == "box":
             for f in tb.faces:
@@ -446,8 +447,8 @@ class Part:
         self._emit(tb, mat, M if M is not None else xf(at, rot), **kw)
         return self
 
-    def mesh(self, verts, faces, mat="paint_white", at=(0, 0, 0), rot=(0, 0, 0), M=None, bevel=None, **kw):
-        """Raw indexed mesh."""
+    def mesh(self, verts, faces, mat="paint_white", at=(0, 0, 0), rot=(0, 0, 0), M=None, bevel=None, recalc=True, **kw):
+        """Raw indexed mesh. With recalc=False the given winding is trusted (counter-clockwise = outward)."""
         tb = bmesh.new()
         vs = [tb.verts.new(v) for v in verts]
         for f in faces:
@@ -455,7 +456,10 @@ class Part:
                 tb.faces.new([vs[i] for i in f])
             except ValueError:
                 pass
-        bmesh.ops.recalc_face_normals(tb, faces=tb.faces[:])
+        if recalc:
+            bmesh.ops.recalc_face_normals(tb, faces=tb.faces[:])
+        else:
+            tb.normal_update()
         b = self.default_bevel if bevel is None else bevel
         self._bevel(tb, b, kw.pop("segs", 2), angle=kw.pop("bevel_angle", 25.0))
         self._emit(tb, mat, M if M is not None else xf(at, rot), **kw)
@@ -534,6 +538,10 @@ class Part:
             apply_modifiers(ob)
         for k, v in {**self.props, **props}.items():
             ob[k] = v
+        if ob.get("colonly"):
+            # collision hulls must not occlude or shadow the visible model in previews and AO bakes
+            ob.hide_render = True
+            ob.display_type = "WIRE"
         return ob
 
 
@@ -639,31 +647,66 @@ def props(ob, **kw):
 
 def collider(name, verts_or_part, parent=None, at=(0, 0, 0), rot=(0, 0, 0), **p):
     """Invisible collision mesh. Pass a Part (finished here) for a simplified collision hull."""
-    ob = verts_or_part.finish(weighted=False, parent=parent, at=at, rot=rot)
+    ob = verts_or_part.finish(weighted=False, parent=parent, at=at, rot=rot, colonly=1)
     ob.name = name
-    ob["colonly"] = 1
     for k, v in p.items():
         ob[k] = v
     return ob
 
 
 # ----------------------------------------------------------------------------- vertex data bake
-def bake_ao(objs, samples=24, distance=1.5, convexity=True):
-    """Bake ambient occlusion (R) and edge convexity (G) into a 'Color' attribute per corner.
-    The engine reads R as AO for indirect light and G to drive edge wear / cavity dirt."""
-    sc = bpy.context.scene
-    sc.render.engine = "CYCLES"
-    sc.cycles.device = "CPU"
-    sc.cycles.samples = samples
-    sc.cycles.use_denoising = False
-    sc.render.bake.target = "VERTEX_COLORS"
-    if sc.world is None:
-        sc.world = bpy.data.worlds.new("w")
-    sc.world.light_settings.distance = distance
+_HEMI = None
+
+
+def _hemi_dirs(k):
+    """k cosine-weighted directions on the +Z hemisphere (stratified, deterministic)."""
+    global _HEMI
+    if _HEMI is None or len(_HEMI) != k:
+        out = []
+        golden = math.pi * (3 - math.sqrt(5))
+        for i in range(k):
+            u = (i + 0.5) / k
+            r = math.sqrt(u)
+            th = golden * i
+            out.append((r * math.cos(th), r * math.sin(th), math.sqrt(max(0.0, 1 - u))))
+        _HEMI = out
+    return _HEMI
+
+
+def _is_see_through(mat_name):
+    spec = MATERIAL_DB.get(mat_name, {})
+    return spec.get("kind") == "glass" or bool(spec.get("alphaTest"))
+
+
+def bake_ao(objs, rays=20, local_dist=1.6, sky_dist=45.0, ground_z=None, occluders=None, convexity=True):
+    """Ray-cast bake into a per-corner 'Color' attribute (exported as COLOR_0):
+         R = local ambient occlusion (distance-weighted within local_dist)
+         G = edge convexity (0.5 flat, >0.5 convex, <0.5 concave)
+         B = environment visibility (fraction of sky/ground light that can reach the point)
+    Sample points are pulled slightly toward the face centre and off the surface, and hits on back
+    faces are ignored, so vertices buried in neighbouring geometry do not bake to black.
+    Glass, alpha-tested and movable (`dynamic`) parts do not occlude. ground_z adds an implicit ground."""
+    from mathutils.bvhtree import BVHTree
     t0 = time.time()
     objs = [o for o in objs if o.type == "MESH" and len(o.data.polygons) > 0]
-    for o in bpy.context.scene.objects:
-        o.select_set(False)
+    occ = occluders if occluders is not None else [o for o in bpy.context.scene.objects if o.type == "MESH"]
+    verts, tris, tri_n = [], [], []
+    for o in occ:
+        if o.get("colonly") or o.get("dynamic") or o.hide_render:
+            continue
+        me = o.data
+        me.calc_loop_triangles()
+        mw = o.matrix_world
+        base = len(verts)
+        verts.extend(mw @ v.co for v in me.vertices)
+        see = [_is_see_through(m.name) if m else False for m in me.materials] or [False]
+        for lt in me.loop_triangles:
+            if see[min(lt.material_index, len(see) - 1)]:
+                continue
+            tris.append((base + lt.vertices[0], base + lt.vertices[1], base + lt.vertices[2]))
+    bvh = BVHTree.FromPolygons(verts, tris, all_triangles=True, epsilon=0.0) if tris else None
+    hemi = _hemi_dirs(rays)
+    total = 0
     for o in objs:
         me = o.data
         if "Color" in me.color_attributes:
@@ -671,44 +714,78 @@ def bake_ao(objs, samples=24, distance=1.5, convexity=True):
         ca = me.color_attributes.new("Color", "BYTE_COLOR", "CORNER")
         me.color_attributes.active_color = ca
         me.color_attributes.render_color_index = me.color_attributes.find("Color")
-    for o in objs:
-        o.select_set(True)
-        bpy.context.view_layer.objects.active = o
-        try:
-            bpy.ops.object.bake(type="AO", target="VERTEX_COLORS")
-        except Exception as e:  # pragma: no cover
-            print("  AO bake failed for", o.name, e)
-        o.select_set(False)
-        if convexity:
-            _write_convexity(o)
-    print(f"  baked AO for {len(objs)} objects in {time.time() - t0:.1f}s")
+        mw = o.matrix_world
+        n3 = mw.to_3x3().inverted_safe().transposed()
+        conv = _convexity(me) if convexity else None
+        wverts = [mw @ v.co for v in me.vertices]
+        colors = [0.0] * (len(me.loops) * 4)
+        for poly in me.polygons:
+            n = (n3 @ poly.normal).normalized()
+            c = mw @ poly.center
+            # tangent frame from the normal only -> identical ray sets on coplanar neighbours (no seams)
+            ref = Vector((0, 0, 1)) if abs(n.z) < 0.9 else Vector((1, 0, 0))
+            tx = n.cross(ref).normalized()
+            ty = n.cross(tx)
+            dirs = [tx * h[0] + ty * h[1] + n * h[2] for h in hemi]
+            for li in poly.loop_indices:
+                vi = me.loops[li].vertex_index
+                p = wverts[vi].lerp(c, 0.12) + n * 0.012
+                occl, vis = 0.0, 0.0
+                if bvh is not None:
+                    for d in dirs:
+                        origin, travelled, blocked = p, 0.0, False
+                        for _ in range(3):
+                            loc, hn, _idx, dist = bvh.ray_cast(origin, d, sky_dist - travelled)
+                            if loc is None:
+                                break
+                            if hn.dot(d) > 0.0:
+                                # back face: we started inside or behind a solid; step through it
+                                travelled += dist + 0.002
+                                origin = loc + d * 0.002
+                                continue
+                            travelled += dist
+                            blocked = True
+                            break
+                        if blocked:
+                            if travelled < local_dist:
+                                occl += (1.0 - travelled / local_dist)
+                        else:
+                            if ground_z is not None and d.z < -1e-3 and p.z > ground_z:
+                                vis += 0.45
+                            else:
+                                vis += 1.0
+                else:
+                    vis = rays
+                ao = 1.0 - min(1.0, occl / rays * 1.25)
+                g = conv[vi] if conv else 0.5
+                k = li * 4
+                colors[k] = ao
+                colors[k + 1] = g
+                colors[k + 2] = vis / rays
+                colors[k + 3] = 1.0
+            total += len(poly.loop_indices)
+        ca.data.foreach_set("color", colors)
+    print(f"  baked AO/visibility: {len(objs)} objects, {total} corners, {len(tris)} occluder tris, {time.time() - t0:.1f}s")
 
 
-def _write_convexity(o):
-    me = o.data
+def _convexity(me):
     bm = bmesh.new()
     bm.from_mesh(me)
     bm.normal_update()
-    conv = [0.0] * len(bm.verts)
+    conv = [0.5] * len(bm.verts)
     for v in bm.verts:
         s, c = 0.0, 0
         for e in v.link_edges:
             if len(e.link_faces) == 2:
                 try:
-                    a = e.calc_face_angle_signed()
+                    s += e.calc_face_angle_signed()
                 except ValueError:
-                    a = 0.0
-                s += a
+                    pass
                 c += 1
-        conv[v.index] = (s / c) if c else 0.0
+        if c:
+            conv[v.index] = max(0.0, min(1.0, 0.5 + (s / c) / math.pi * 1.6))
     bm.free()
-    ca = me.color_attributes["Color"]
-    data = ca.data
-    for li, loop in enumerate(me.loops):
-        col = data[li].color
-        g = max(0.0, min(1.0, 0.5 + conv[loop.vertex_index] / math.pi * 1.6))
-        # `.color` is the linear accessor; the glTF exporter writes linear values.
-        data[li].color = (col[0], g, col[2], 1.0)
+    return conv
 
 
 # ----------------------------------------------------------------------------- export / preview
