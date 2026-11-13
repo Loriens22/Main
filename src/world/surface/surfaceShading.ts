@@ -5,7 +5,7 @@ import type { SurfaceGen } from './SurfaceGen';
 import { CRATER_D0, CRATER_OCTAVES } from './SurfaceGen';
 import type { MaterialLibrary } from '../../render/Materials';
 
-const STYLE_ID: Record<string, number> = { lunar: 0, mercury: 0, rubble: 0, mars: 1, desert: 1, ocean: 1, icy: 2, glacier: 2, europa: 3, io: 4, titan: 5, gas: 6 };
+const STYLE_ID: Record<string, number> = { lunar: 0, mercury: 0, rubble: 0, mars: 1, desert: 1, icy: 2, glacier: 2, europa: 3, io: 4, titan: 5, gas: 6, ocean: 7 };
 
 /** Octave index of the smallest crater the CPU height map of a given cell size contains. */
 export function resolvedOctave(cell: number) {
@@ -46,13 +46,15 @@ export function surfaceShading(gen: SurfaceGen, mats: MaterialLibrary): TerrainS
     uHighland: { value: gen.highland },
     uShadowQ: { value: 1 },
     uQDetail: QU.uQDetail,
+    /** Miller: light lost in the water column over deep seabed, as seen from above the surface (0 with the camera under) */
+    uAbsorb: { value: 1 },
   };
   const glsl = /* glsl */ `
   uniform sampler2D tHNear; uniform vec4 uNear; uniform sampler2D tHFar; uniform vec4 uFar; uniform float uBlend;
   uniform sampler2D tHMid; uniform vec4 uMid; uniform float uMidOn; uniform float uMidBlend;
   uniform sampler2D tSDay;
   uniform mat3 uSiteRot;
-  uniform float uSR, uCrSeed, uCrDensity, uCrDepth, uHighland, uShadowQ, uQDetail;
+  uniform float uSR, uCrSeed, uCrDensity, uCrDepth, uHighland, uShadowQ, uQDetail, uAbsorb;
   uniform int uKNear, uKMid, uKFar, uStyle;
   uniform vec3 uCells;
   uniform vec3 uSunDir, uTint;
@@ -254,6 +256,18 @@ export function surfaceShading(gen: SurfaceGen, mats: MaterialLibrary): TerrainS
       alb = mix(alb, alb * vec3(0.75, 0.68, 0.62), smoothstep(0.0, 0.3, -big) * 0.4);
       alb *= 1.0 + 0.3 * cFresh;
       rough = mix(0.55, 0.85, smoothstep(-0.1, 0.2, mic2));
+    } else if (uStyle == 7){
+      // Miller: grey sand flats; black wet basalt on the reef, the rift walls and the basin steps
+      float dust = smoothstep(-0.25, 0.3, big + 0.3 * mid);
+      vec3 sand = alb * mix(vec3(0.82, 0.84, 0.86), vec3(0.95, 0.95, 0.96), dust) * (0.92 + 0.16 * mic);
+      float rock = clamp(smoothstep(0.1, 0.32, slope) + smoothstep(-0.35, 0.1, wpos.y), 0.0, 1.0);
+      vec3 basalt = vec3(0.05, 0.055, 0.06) * (0.75 + 0.5 * smoothstep(-0.2, 0.3, mic2)) * (0.9 + 0.2 * big);
+      alb = mix(sand, basalt, rock);
+      rough = mix(0.88, 0.32, rock * smoothstep(0.3, -0.2, wpos.y + 0.0) + smoothstep(-0.3, 0.2, wpos.y) * 0.5);
+      // seen from the air, deep water swallows the light: the rift and basin read as dark water
+      float wd = max(0.0, -wpos.y - 1.1);
+      float k = exp(-wd / 4.5);
+      alb = mix(alb, alb * k + vec3(0.012, 0.035, 0.045) * (1.0 - k), uAbsorb);
     } else if (uStyle == 6){
       // gas giant cloud deck seen from above: zonal streaks of cream ammonia cloud over rust-brown NH4SH, swirled
       // by eddies, darker gaps into the deep; no hard surface detail

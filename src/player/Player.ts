@@ -39,6 +39,11 @@ const _m = new THREE.Matrix4();
  * First/third person controller living in a Frame. Supports arbitrary local "up" (rotating habitats),
  * microgravity floating, ladders and seats.
  */
+/** water deeper than this over the feet (chest height) switches to swimming */
+export const SWIM_DEPTH = 1.25;
+/** floating at the surface: the feet this far under it (the head above) */
+const SURFACE_FLOAT = 1.45;
+
 export class Player {
   frame!: Frame;
   mode: PlayerMode = 'walk';
@@ -67,6 +72,12 @@ export class Player {
   private stepAcc = 0;
   onStep: ((surface: Surface, worldPos: THREE.Vector3) => void) | null = null;
   speedScale = 1; // suit encumbrance etc.
+  /** water surface height (frame-local y) above a point, or null on dry worlds: deep water switches to swimming */
+  water: ((p: THREE.Vector3) => number) | null = null;
+  /** depth of the feet below the water surface (0 when dry); > SWIM_DEPTH: swimming */
+  submerged = 0;
+  /** an outside current pushing the player (m/s, frame-local), e.g. a tidal surge felt in deep water */
+  readonly current = new THREE.Vector3();
   gEff = 9.81;
   noclip = false;
   /** body model for third-person */
@@ -266,21 +277,35 @@ export class Player {
     this.crouch = THREE.MathUtils.damp(this.crouch, wantCrouch ? 1 : 0, 10, dt);
     this.sprinting = input.held('sprint') && !wantCrouch && (opts.sprintAllowed ?? true);
     const lowG = THREE.MathUtils.clamp(gmag / 9.81, 0.35, 1.2);
+    // deep water: the suit is slightly heavier than the water it displaces — the player walks the bottom slowly,
+    // rises on the suit's jets (jump held) and sinks faster with crouch held
+    this.submerged = this.water ? Math.max(0, this.water(this.pos) - this.pos.y) : 0;
+    const swim = this.submerged > SWIM_DEPTH;
     let speed = (this.sprinting ? 4.6 : 1.75) * this.speedScale * (1 - this.crouch * 0.5) * Math.sqrt(lowG);
+    if (swim) speed = (this.sprinting ? 2.3 : 1.25) * this.speedScale;
     const right = _v.copy(this.heading).cross(this.up).normalize();
     const desired = new THREE.Vector3().addScaledVector(this.heading, input.move.y).addScaledVector(right, input.move.x);
     if (desired.lengthSq() > 1) desired.normalize();
     desired.multiplyScalar(speed);
     // smooth acceleration
     const horiz = this.vel.clone().addScaledVector(this.up, -this.vel.dot(this.up));
-    const accel = this.grounded ? 14 : 2.5;
+    const accel = swim ? 2.2 : this.grounded ? 14 : 2.5;
     horiz.lerp(desired, Math.min(1, accel * dt));
     // vertical
-    if (this.grounded && this.vUp < 0) this.vUp = -0.5;
-    if (this.grounded && input.pressed('jump')) this.vUp = Math.sqrt(2 * gmag * 0.55);
-    this.vUp -= gmag * dt;
-    this.vUp = Math.max(this.vUp, -55);
+    if (swim) {
+      const want = input.held('jump') ? 1.5 : input.held('crouch') ? -1.8 : -0.35;
+      // the head stops at the surface (the suit floats there with the jets held)
+      const vmax = Math.min(1.5, (this.submerged - SURFACE_FLOAT) * 2);
+      this.vUp = THREE.MathUtils.damp(this.vUp, Math.min(want, vmax), 2.2, dt);
+      if (this.grounded && this.vUp < 0) this.vUp = -0.2;
+    } else {
+      if (this.grounded && this.vUp < 0) this.vUp = -0.5;
+      if (this.grounded && input.pressed('jump')) this.vUp = Math.sqrt(2 * gmag * 0.55);
+      this.vUp -= gmag * dt;
+      this.vUp = Math.max(this.vUp, -55);
+    }
     const delta = horiz.clone().multiplyScalar(dt).addScaledVector(this.up, this.vUp * dt);
+    if (this.current.lengthSq() > 1e-6) delta.addScaledVector(this.current, dt);
     const moved = this.moveCollider(delta, this.up);
     this.vel.copy(moved).divideScalar(Math.max(dt, 1e-4));
     if (this.grounded && this.vUp < 0) this.vUp = 0;

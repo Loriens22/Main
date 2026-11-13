@@ -1,0 +1,104 @@
+# Miller's Planet — abyssal biosphere (design + status)
+
+Source: the player's master directive (ten species, ecology, tides, research) and ten concept images. The species are
+original speculative designs for this game, not canonical Interstellar animals and not established science.
+Premise (in-game, labelled hypothesis): the planet carried life from a long earlier history around a normal star before
+it was captured into Gargantua's orbit; survivors were filtered by the tides. Local biology runs on local time — time
+dilation only affects the mission clock.
+
+## Phase 1 audit (what exists, what must keep working)
+- Miller surface: `SURFACES.miller` (style `ocean`), seabed `SurfaceGen.detail` ≈ −0.75 m under still water at 0
+  (curvature-corrected `SurfaceZone.waterLevel`). Rescue site: Miller's capsule at (78, −42) from the landing origin
+  (`LazarusSites.buildMiller`), beacon, recorder, Dr. Miller beside it.
+- Tidal waves: `MillerWaves` (deterministic crests every ~690 s ± 75 s, 105 m/s, 820–1300 m, from the east ±25°).
+  `next(x, z, t)` gives each place its own time-to-arrival: the ecosystem's precursors come from it.
+  `SurfaceZone.updateTide`: warnings, Ranger ride, player swept (`swimStep`), camera-under-water fog.
+- Player: `Player.updateWalk` (no swimming), no suit headlamp on planets (the walk-context `flashlight` action is
+  unhandled there).
+- Creature framework: `world/fauna/Fauna.ts` (FaunaManager per surface zone, Rig, CreatureVoice, puffs, holds,
+  suit damage + visor cracks, settings switch), used by Mars and Jupiter.
+- No submersible, drone or ROV exists. The directive's drone/ROV scenes are not built on assumed tools: research uses
+  what the player has (eyes, helmet camera, suit sensors).
+
+### Non-regression checklist (run after each phase)
+- [ ] Land on Miller (origin), walk the flats, wave warnings at 330/125/35 s, Ranger ride, player swept and recovered.
+- [ ] Miller rescue: recorder, Dr. Miller boards, beacon.
+- [ ] Mars and Jupiter fauna e2e still pass; settings switches still remove creatures.
+- [ ] Creative mode hazard protection: creatures may still hunt and display, but no forced failure.
+- [ ] Other worlds land/fly unchanged (style `ocean` is Miller-only).
+- [ ] Mobile touch controls (new actions reachable).
+
+## Habitat map (local metres from the landing origin; x east, z south)
+Waves come from the east, so the west/lee sides of rocks are wave shadows.
+- **Zone A — the flats** (unchanged look, 0.7 m water to the horizon). Two hotspots only:
+  - *Black reef* around (−210, 140): low basalt ledges breaking the surface, wet black rock, crevices, a sheltered
+    pool (≈2 m) on the west side. Ferracaris colonies, a Breaker Shield nest in the lee notch, a Mimic Crawler den.
+  - *Soft hollow* around (150, 230): a fine-sediment depression ≈1.5 m deep. Two or three Sediment Maws.
+- **Zone B — the rift**: a channel opening from the reef's west edge, (−330, 200) → (−700, 650), 50–110 m wide,
+  floor dropping from −3 m to −45 m, steep basalt walls with ledges and overhangs; mineral vents near (−560, 470).
+  Mimic Crawlers, Rift Architects (vents), Luminous Sirens (overhang caves), juvenile Abyssal Stalkers.
+- **Zone C — the basin**: (−760, 900), ≈380 m radius, floor −160 m, walls stepping down. Chorus Hunters, Abyssal
+  Cathedral, Abyssal Stalkers on the rim ledges, rarely the Gargantuan Crown. Suit rated to 60 m: deeper is visible
+  only as darkness below (the giants rise into the reachable band).
+- **Zone D — refugia**: the basin floor and rift overhangs, where the surge is weakest (flow falls with depth and in
+  rock lee); the ecosystem moves animals there before a crest.
+
+## Species registry (game-design estimates)
+| id | name | size | zone | locomotion | senses | diet / role | threat |
+|---|---|---|---|---|---|---|---|
+| ferracaris | Ferracaris depressa | 8–30 cm | A reef rocks | many-legged crawl, clamp | touch fringe, flow | biofilm grazer | none |
+| sedimentmaw | Sediment Maw | 1.2–2.5 m | A soft hollow | buried; digging paddles | tactile rim, flow, chemical | suction ambush, small benthic prey | foot entrapment, fall |
+| mimic | Mimic Crawler | 1.5–2.8 m span | A reef, B | 8-limb crawl, jet | eyes, chem, touch | omnivore, scavenger, curious | grapple + bite if cornered/nest |
+| architect | Rift Architect | 0.8–1.8 m | B vents | 6 legs + 2 manipulators | multi-eyes, tendrils | benthic omnivore, builder | nest defence swipes |
+| breaker | Breaker Shield | 2–4 m | A reef lee | 6 thick legs, bracing | flow, vibration, chem | biofilm/carrion browser | shove/ram near nest |
+| siren | Luminous Siren | 0.6–1.5 m | B caves | fin undulation | low-light eyes, flow | lure predator of small prey | defensive nip |
+| stalker | Abyssal Stalker | 5–8 m | B/C overhangs | tail burst | flow → vision → electric | ambush medium swimmers | strike if cornered/feeding |
+| chorus | Chorus Hunters | 2–3.5 m (3–8) | C channel | sustained swim | clicks/echo, contact calls | social predator | investigate, rarely strike |
+| cathedral | Abyssal Cathedral | 12–18 m | C basin | slow wing strokes | flow, low light | plankton filter feeder | collision, wake |
+| crown | Gargantuan Crown | 8–11 m | C deep (rare, 1) | burst + patrol | flow, chem, acoustic | apex, medium-large prey | committed strike, rare |
+
+## Reference images — what each shows (shape notes for modelling)
+1. **Chorus Hunters**: five long ichthyosaur/whale-like swimmers. Narrow tapering snout, slightly hooked tip; a long
+   gape with pale lip line; a row of pale sensory pores along the top of the snout; small eye high behind the gape;
+   8–10 pale gill slits on the throat; long swept-back blade pectoral fins with rays, a smaller pelvic pair; a low
+   dorsal ridge/crest; horizontal crescent fluke with a long upper blade. Dark blue-grey, iridescent, faint flank grooves.
+2. **Luminous Siren**: slender glass-clear eel body, dark mottled visceral core; small head, pointed snout, needle
+   teeth, large eye; a thin clear stalk from the crown arcing up and forward into a loop, ending in a cyan teardrop
+   light hanging before the face; two pairs of big fan fins with rays (pectoral, larger pelvic), a sail-like dorsal
+   membrane, a broad forked fan tail.
+3. **Sediment Maw**: a low mound in sediment, back crusted with sand and dark pebbles; a huge round funnel mouth with
+   ribbed, radially pleated inner walls and fleshy rim; thick ringed (annulated) digging limbs at the sides, two to
+   three per side, curling into the water.
+4. **Mimic Crawler**: octopoid; mantle and limb tops shingled with rough rock-mottled plates (charcoal, bronze, rust
+   specks), heavy brow plate over a large gold eye with a dark slit pupil; eight thick limbs, armoured above, pink-purple
+   undersides with suckers and curved hooks, a pointed claw at each tip, bristly distal fringes; holds a small
+   cylindrical probe.
+5. **Gargantuan Crown**: broad flat head head-on; a crown of thick curved mineralised ridges — two central ones
+   sweeping up and back, two to three per side curving out; ridged brows; small eyes; huge maw with long recurved pale
+   teeth in rows, dark red gums, fine barbels under the jaw; glossy black wrinkled skin; broad pectoral fin, big tail.
+6. **Ferracaris**: flat oval grazers; overlapping translucent amber-olive plates with scalloped rear margins and pink
+   rims, a broad head shield, a fringe of clear pink filaments around the margin, many short pale jointed legs beneath.
+7. **Rift Architect**: crab-like; broad spiny overlapping carapace (purple-grey, rust/yellow encrustation); a cluster of
+   small black bead eyes on the front; long thin tendrils under the face and two long antennae; two slender
+   multi-jointed manipulators with fingered grippers; six thick plated walking legs; stacks flat stones and nacreous
+   shells around a crevice holding pearl-white eggs; vents nearby.
+8. **Breaker Shield**: huge turtle-like; carapace of big shingled serrated plates with up-turned points, a helmet-like
+   head shield, small dark eyes, thick hanging mouth feelers/mandibles; plated thick forelimbs with broad clawed feet;
+   speckled pale eggs beside it.
+9. **Abyssal Stalker**: black eel/pliosaur; long flat crocodilian head, rows of needle teeth, small side eye; dark
+   blue-black wrinkled skin; two big ray-membrane pectoral fins, a pelvic pair, long tail with a flat fin.
+10. **Abyssal Cathedral**: colossal manta-whale; long wings with fringed iridescent ray edges; domed head sculpted with
+    bony ridges and hollows; enormous mouth packed with pale lace-patterned vertical filter lamellae; faint cyan
+    dotted bioluminescent lines on the jaw/cheek; slate blue.
+The images' ringed planet in the sky is not added (Miller's sky shows Gargantua and its disk).
+
+## Tidal ecosystem states (from MillerWaves.next at each animal's position)
+0 quiet (tta > 240 s) · 1 precursors (240–120 s: current shifts, pressure pulses) · 2 anticipatory retreat (120–40 s)
+· 3 high hazard (< 40 s or the crest overhead) · 4 post-wave (≤ 90 s after the crest, sediment settling).
+
+## Phases
+1. Audit + this doc — done.
+2. Registry, ecology/tidal controller, habitat terrain, underwater (swim, headlamp, depth light) — in progress.
+3. Vertical slice: Ferracaris, Sediment Maw, Mimic Crawler — in progress.
+4. Remaining seven species.
+5. Ecosystem/wave integration polish; 6. research UX; 7. tests, screenshots.

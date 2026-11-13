@@ -218,12 +218,17 @@ export default class SurfaceZone extends Zone implements SurfaceAPHost {
     progress(0.85, 'boulders');
     const rc = this.map.lumAt(sd.lat, sd.lon);
     const style = this.def.style;
-    const rockColor = style === 'mars' ? new THREE.Color(0.32, 0.2, 0.14) : style === 'desert' ? new THREE.Color(0.42, 0.36, 0.3) : style === 'icy' || style === 'europa' || style === 'glacier' ? new THREE.Color(0.7, 0.7, 0.72) : style === 'titan' ? new THREE.Color(0.5, 0.42, 0.3) : new THREE.Color().setScalar(THREE.MathUtils.clamp(rc * 0.5, 0.08, 0.32));
+    const rockColor = this.site.body === 'miller' ? new THREE.Color(0.055, 0.058, 0.062) : style === 'mars' ? new THREE.Color(0.32, 0.2, 0.14) : style === 'desert' ? new THREE.Color(0.42, 0.36, 0.3) : style === 'icy' || style === 'europa' || style === 'glacier' ? new THREE.Color(0.7, 0.7, 0.72) : style === 'titan' ? new THREE.Color(0.5, 0.42, 0.3) : new THREE.Color().setScalar(THREE.MathUtils.clamp(rc * 0.5, 0.08, 0.32));
     this.rocks = new Rocks(this.gen, rockColor);
     this.scene.add(this.rocks.group);
     this.buildDust();
     this.buildSkyDome();
-    if (this.def.style === 'ocean') this.buildWater();
+    if (this.def.style === 'ocean') {
+      this.buildWater();
+      game.player.water = (p) => this.waterLevel(p.x, p.z);
+      this.buildSnow();
+    }
+    this.buildHeadlamp();
     if (this.gas) {
       this.jovian = new JovianSky(Math.round(sd.lat * 100 + sd.lon * 7) & 0xffff);
       this.jovian.onFlash = (at) => setTimeout(() => this.game.audio.thud(undefined, 0.35, 34), 600 + Math.random() * 1400);
@@ -583,6 +588,7 @@ export default class SurfaceZone extends Zone implements SurfaceAPHost {
     fx.visor = THREE.MathUtils.damp(fx.visor, pl.mode !== 'seat' && !this.cabinPressurised(pl.pos) ? 0.55 : 0, 3, dt);
     this.updateSky(dt);
     this.updateTide(dt);
+    this.updateSuit(dt);
     this.lazarus?.update(dt);
     this.fauna?.update(dt);
   }
@@ -970,10 +976,19 @@ export default class SurfaceZone extends Zone implements SurfaceAPHost {
       if (hW > 2.5 && lvl > c.pos[1] - 1.0) this.startRide();
     }
     // ---- the player on foot
+    pl.current.set(0, 0, 0);
     if (this.swim) this.swimStep(dt);
     else if (onFoot && pl.mode !== 'ladder' && W.height(pl.pos.x, pl.pos.z, t) > 3) {
       const w = this.dominantWave(pl.pos.x, pl.pos.z);
-      if (w && w.n !== this.sweptWave) this.sweepPlayer(w);
+      const deep = this.stillDepth(pl.pos) - 1.6;
+      if (deep > 8 && w) {
+        // deep in the rift the crest passes far overhead: a surge along its travel, weaker with depth, and silt
+        const v = 5.5 * Math.exp(-deep / 22) * Math.min(1, W.height(pl.pos.x, pl.pos.z, t) / 200);
+        pl.current.set(w.dir.x * v, 0, w.dir.y * v);
+        this.murk = Math.min(1, this.murk + dt * 0.4);
+        game.renderer.fx.shake = Math.max(game.renderer.fx.shake, 0.25 * Math.exp(-deep / 30));
+        this.sweptWave = w.n;
+      } else if (w && w.n !== this.sweptWave) this.sweepPlayer(w);
     }
     if (this.sweepFade > 0) {
       this.sweepFade -= dt;
@@ -986,10 +1001,41 @@ export default class SurfaceZone extends Zone implements SurfaceAPHost {
     const fog = this.scene.fog as THREE.FogExp2 | null;
     const atm = ATMO_SURF[this.site.body];
     if (fog && atm) {
-      const under = cam.y < this.waterLevel(cam.x, cam.z) - 0.1;
-      fog.density = under ? 1 / 45 : atm.fog;
-      if (under) fog.color.setRGB(0.01, 0.045, 0.05);
+      const lvl = this.waterLevel(cam.x, cam.z);
+      const under = cam.y < lvl - 0.1;
+      // light left at the camera's depth below the still water (a passing crest does not plunge it into night)
+      const still = lvl - W.height(cam.x, cam.z, t);
+      const d = Math.max(0, still - cam.y);
+      this.underK = under ? Math.max(0.02, Math.exp(-d / 24)) : 1;
+      fog.density = under ? 1 / (45 - 17 * (1 - this.underK)) * (1 + 1.5 * this.murk) : atm.fog;
+      if (under) fog.color.setRGB(0.01, 0.045, 0.05).multiplyScalar(0.2 + 0.8 * this.underK).lerp(new THREE.Color(0.05, 0.05, 0.04), this.murk * 0.5);
+      // under water the sky is gone: the dome shows the water's own murk all round
+      if (this.dome) {
+        const u = (this.dome.material as THREE.ShaderMaterial).uniforms;
+        if (under) {
+          (u.uZen.value as THREE.Color).copy(fog.color).multiplyScalar(1.6);
+          (u.uHor.value as THREE.Color).copy(fog.color);
+          (u.uGlow.value as THREE.Color).setRGB(0, 0, 0);
+          u.uDay.value = 1;
+          u.uK.value = 1;
+          u.uAlpha.value = 1;
+          this.domeUnder = true;
+        } else if (this.domeUnder) {
+          (u.uZen.value as THREE.Color).setRGB(...atm.zenith);
+          (u.uHor.value as THREE.Color).setRGB(...atm.horizon);
+          (u.uGlow.value as THREE.Color).setRGB(...atm.glow);
+          u.uAlpha.value = atm.alpha;
+          this.domeUnder = false;
+        }
+      }
+      if (under) {
+        this.sun.intensity *= this.underK;
+        this.hemi.intensity *= this.underK;
+        this.scene.environmentIntensity *= this.underK;
+      }
+      this.terrain.uniforms.uAbsorb.value = under ? 0 : 1;
     }
+    this.murk = Math.max(0, this.murk - dt * 0.05);
   }
 
   private dominantWave(x: number, z: number) {
@@ -1273,7 +1319,8 @@ export default class SurfaceZone extends Zone implements SurfaceAPHost {
     // eye adaptation
     const base = THREE.MathUtils.clamp(1 / Math.pow(this.flux, 0.75), 0.4, 4);
     const night = 1 - day * this.sunVisCPU;
-    this.exposure = THREE.MathUtils.damp(this.exposure, base * (1 + night * 2.2) * (1 - 0.3 * this.indoorK * (1 - night)), 1.2, dt);
+    // under water the eye adapts to the gloom, partly (deep down only the lamp shows much)
+    this.exposure = THREE.MathUtils.damp(this.exposure, base * (1 + night * 2.2) * (1 - 0.3 * this.indoorK * (1 - night)) * (1 + 1.3 * (1 - this.underK)), 1.2, dt);
     this.envT -= dt;
     const envKey = this.sunLocal.x * 7 + this.sunLocal.y * 13 + this.sunLocal.z * 3 + day * 5 + this.sunVisCPU * 2;
     if (this.envT <= 0 && !this.game.skipRender && (Math.abs(envKey - this.envKey) > 0.03 || this.envT < -30)) {
@@ -1361,7 +1408,133 @@ export default class SurfaceZone extends Zone implements SurfaceAPHost {
     st.location = 'surface';
   }
 
+  // ===================================================================================================== the suit underwater
+  /** light left at the camera's depth (1 above the water) */
+  underK = 1;
+  /** silt stirred up by a surge (0..1) */
+  murk = 0;
+  private domeUnder = false;
+  private headlamp: THREE.SpotLight | null = null;
+  private headlampOn = false;
+  private snow: THREE.Points | null = null;
+  private depthEl: HTMLElement | null = null;
+  private depthWarned = 0;
+
+  /** depth of a point below the still water (not counting a passing crest) */
+  stillDepth(p: THREE.Vector3) {
+    const R = BODIES[this.site.body].radius;
+    return Math.sqrt(Math.max(R * R - p.x * p.x - p.z * p.z, 0)) - R - p.y;
+  }
+
+  private buildHeadlamp() {
+    const l = new THREE.SpotLight(0xe8f2ff, 0, 28, 0.42, 0.55, 1.6);
+    l.castShadow = false;
+    this.scene.add(l, l.target);
+    this.headlamp = l;
+  }
+
+  /** marine snow: drifting specks around the camera under water (wrapped in a box that follows it) */
+  private buildSnow() {
+    const N = 700, S = 14;
+    const pos = new Float32Array(N * 3);
+    for (let i = 0; i < N * 3; i++) pos[i] = (Math.random() - 0.5) * S * 2;
+    const g = new THREE.BufferGeometry();
+    g.setAttribute('position', new THREE.BufferAttribute(pos, 3));
+    const m = new THREE.PointsMaterial({ color: 0xbfd2d0, size: 0.035, transparent: true, opacity: 0.55, depthWrite: false });
+    this.snow = new THREE.Points(g, m);
+    this.snow.frustumCulled = false;
+    this.snow.userData.owned = true;
+    this.snow.visible = false;
+    this.scene.add(this.snow);
+  }
+
+  /** the headlamp (L), marine snow, the depth gauge and the suit's pressure rating */
+  private updateSuit(dt: number) {
+    const game = this.game;
+    const pl = game.player;
+    const cam = game.camera;
+    const onFoot = pl.frame === this.ground && pl.mode !== 'seat' && !this.cabinPressurised(pl.pos);
+    if (onFoot && game.input.pressed('flashlight')) {
+      this.headlampOn = !this.headlampOn;
+      game.audio.ui('click');
+    }
+    const l = this.headlamp;
+    if (l) {
+      const on = onFoot && this.headlampOn;
+      l.intensity = on ? 220 : 0;
+      l.visible = on;
+      if (on) {
+        cam.getWorldPosition(l.position);
+        cam.getWorldDirection(_camW);
+        l.position.addScaledVector(_camW, 0.25).y -= 0.1;
+        l.target.position.copy(l.position).addScaledVector(_camW, 10);
+        l.target.updateMatrixWorld();
+      }
+    }
+    const under = this.underK < 1;
+    if (this.snow) {
+      this.snow.visible = under;
+      if (under) {
+        const p = this.snow.geometry.attributes.position as THREE.BufferAttribute;
+        const a = p.array as Float32Array;
+        const c = cam.position, S = 14;
+        const drift = 0.05 + this.murk * 0.6;
+        for (let i = 0; i < a.length; i += 3) {
+          a[i] += (pl.current.x * 0.8 + drift) * dt;
+          a[i + 1] -= 0.04 * dt;
+          a[i + 2] += pl.current.z * 0.8 * dt;
+          for (let k = 0; k < 3; k++) {
+            const o = k === 0 ? c.x : k === 1 ? c.y : c.z;
+            let v = a[i + k] - o;
+            if (v > S) v -= 2 * S;
+            else if (v < -S) v += 2 * S;
+            a[i + k] = o + v;
+          }
+        }
+        p.needsUpdate = true;
+        (this.snow.material as THREE.PointsMaterial).opacity = 0.35 + 0.4 * this.murk;
+      }
+    }
+    // depth gauge and the suit's rating (60 m)
+    const head = onFoot ? this.stillDepth(pl.pos) - 1.6 : 0;
+    const show = onFoot && head > 1.5 && this.waves !== null;
+    if (show) {
+      if (!this.depthEl) {
+        this.depthEl = h('div', { class: 'v' });
+        game.ui.vitals.append(this.depthEl);
+      }
+      this.depthEl.textContent = `DEPTH ${head.toFixed(1)} m · SUIT RATED 60 m${this.headlampOn ? '' : ' · LAMP [L]'}`;
+      if (head > 6 && !this.headlampOn && this.depthWarned < 1) {
+        this.depthWarned = 1;
+        game.notify('It gets dark fast down here — L for the helmet lamp.', 'info', 5);
+      }
+      if (head > 55 && this.depthWarned < 2) {
+        this.depthWarned = 2;
+        game.audio.ui('alert');
+        game.notify('Approaching the suit pressure limit — 60 m.', 'warn', 5);
+      }
+      if (head > 62) {
+        const ps = game.state.player;
+        const prot = game.state.creative.hazardProtection;
+        ps.health = Math.max(prot ? 0.3 : 0, (ps.health ?? 1) - dt * 0.025 * (1 + (head - 62) / 10));
+        game.renderer.fx.shake = Math.max(game.renderer.fx.shake, 0.2);
+        if (this.depthWarned < 3) {
+          this.depthWarned = 3;
+          game.notify('SUIT PRESSURE — seals failing. Ascend!', 'alert', 5);
+        }
+      } else if (this.depthWarned === 3 && head < 55) this.depthWarned = 1;
+    } else if (this.depthEl) {
+      this.depthEl.remove();
+      this.depthEl = null;
+    }
+  }
+
   dispose() {
+    this.game.player.water = null;
+    this.game.player.current.set(0, 0, 0);
+    this.depthEl?.remove();
+    this.headlamp?.removeFromParent();
+    this.headlamp?.dispose();
     this.lazarus?.dispose();
     this.fauna?.dispose();
     this.fauna = null;

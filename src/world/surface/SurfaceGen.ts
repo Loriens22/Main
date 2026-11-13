@@ -1,4 +1,5 @@
 import * as THREE from 'three';
+import { millerRelief, millerRockiness } from './millerBiome';
 import { Heightmap, HeightField } from '../terrain/Heightmap';
 import { SURFACES, type SurfaceDef } from '../../data/landing';
 import { type SurfaceSite, localToBF } from '../../space/surfaceFrame';
@@ -136,7 +137,7 @@ function vn2(x: number, z: number, seed: number) {
   const c = hashCell(i, j + 1, seed) * 2.3283064365386963e-10, d = hashCell(i + 1, j + 1, seed) * 2.3283064365386963e-10;
   return a + (b - a) * ux + (c - a) * uz + (a - b - c + d) * ux * uz;
 }
-function fbm2(x: number, z: number, oct: number, seed: number) {
+export function fbm2(x: number, z: number, oct: number, seed: number) {
   let s = 0, a = 0.5, f = 1;
   for (let o = 0; o < oct; o++) {
     s += a * (vn2(x * f, z * f, seed + o * 7) - 0.5);
@@ -355,6 +356,8 @@ export class SurfaceGen {
       case 'ocean': {
         // Miller: a flat sand seabed under ~0.7 m of water, rippled by the currents
         h += -0.75 + 0.05 * Math.sin((x * 0.8 + z * 0.6) * 2.4 + 2 * fbm2(x / 6, z / 6, 2, sd + 2)) + 0.25 * fbm2(x / 400, z / 400, 3, sd + 4);
+        // the reef, the soft hollow, the rift and the deep basin (world/surface/millerBiome.ts)
+        if (this.site.body === 'miller') h += millerRelief(x, z, sd);
         break;
       }
       case 'titan': {
@@ -454,6 +457,7 @@ export class SurfaceGen {
     let clear = 1;
     // no loose boulders on a levelled camp site
     for (const p of this.opts.pads ?? []) clear *= 1 - this.padWeight(p, x, z);
+    if (this.site.body === 'miller') return millerRockiness(x, z, this.seed) * clear;
     return base * THREE.MathUtils.smoothstep(n, 0.35, 0.75) * clear;
   }
 }
