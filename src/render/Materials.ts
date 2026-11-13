@@ -310,7 +310,7 @@ const RECIPES: Record<string, Recipe> = {
   cath_cavity: { kind: 'physical', color: C(0.07, 0.1, 0.15), rough: 0.25, clearcoat: 0.8, weather: false,
     skin: { wrinkle: 0.015, wrinkleSize: 0.12, mottle: 0.5, mottleSize: 0.3, mottleColor: [0.16, 0.2, 0.28], cavity: 0.5, wet: 0.7 } },
   cath_wing: { kind: 'physical', color: C(0.22, 0.3, 0.38), rough: 0.3, sheen: 0.5, clearcoat: 0.5, iridescence: 0.6, side: THREE.DoubleSide, weather: false,
-    skin: { mottle: 0.45, mottleSize: 0.5, mottleColor: [0.42, 0.27, 0.16], mottleAxis: [0.35, 1, 3], mottle2: 0.4, mottle2Size: 0.3, mottle2Color: [0.2, 0.36, 0.4], spots: 0.25, spotSize: 0.3, spotRadius: 0.1, spotDensity: 0.3, spotColor: [0.25, 0.42, 0.45], vary: 0.4 } },
+    skin: { mottle: 0.4, mottleSize: 0.9, mottleColor: [0.4, 0.27, 0.17], mottleAxis: [0.8, 1, 1.4], mottle2: 0.45, mottle2Size: 0.35, mottle2Color: [0.16, 0.32, 0.38], spots: 0.35, spotSize: 0.25, spotRadius: 0.12, spotDensity: 0.35, spotColor: [0.55, 0.62, 0.66], vary: 0.35 } },
   cath_ray: { kind: 'physical', color: C(0.34, 0.24, 0.17), rough: 0.35, clearcoat: 0.4, iridescence: 0.4, weather: false },
   cath_lamella: { kind: 'physical', color: C(0.8, 0.77, 0.66), rough: 0.5, sheen: 0.4, side: THREE.DoubleSide, weather: false,
     skin: { lattice: 0.11, latticeSize: 0.07, mottle: 0.4, mottleSize: 0.3, mottleColor: [0.62, 0.55, 0.42], vary: 0.3 } },

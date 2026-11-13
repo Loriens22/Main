@@ -2,7 +2,7 @@ import * as THREE from 'three';
 import { Creature, FaunaManager } from './Fauna';
 import { AX } from './Rig';
 import { cloneSkinned } from '../../render/CreatureSkin';
-import { MILLER_BIOME } from '../surface/millerBiome';
+import { MILLER_BIOME, millerSpots } from '../surface/millerBiome';
 import { populateMillerDeep, DEEP_SPECIES } from './millerDeep';
 
 /**
@@ -578,8 +578,30 @@ class MimicCrawler extends Creature {
     this.eggs = g;
   }
 
+  /** the den's rock shell (src/world/surface/millerCaves.ts): its centre and the way its opening faces */
+  readonly denC = new THREE.Vector3();
+  readonly denF = new THREE.Vector3(1, 0, 0);
+  private readonly _door = new THREE.Vector3();
+
+  /** in or out of the den only through its opening: a waypoint before the doorway when crossing the shell */
+  private viaDoor(to: THREE.Vector3) {
+    const c = this.denC;
+    const R = 2.3;
+    const ri = Math.hypot(this.pos.x - c.x, this.pos.z - c.z);
+    const rt = Math.hypot(to.x - c.x, to.z - c.z);
+    if (ri < R === rt < R) return to;
+    const door = this._door.set(c.x + this.denF.x * (R + 0.5), 0, c.z + this.denF.z * (R + 0.5));
+    // already lined up with the opening (inside heading out through it, or outside in front of it)
+    const ax = this.pos.x - c.x, az = this.pos.z - c.z;
+    const along = (ax * this.denF.x + az * this.denF.z) / Math.max(1e-3, ri);
+    if (along > 0.75 && Math.hypot(this.pos.x - door.x, this.pos.z - door.z) < R + 0.6) return to;
+    return door;
+  }
+
   private walk(to: THREE.Vector3, v: number, dt: number) {
     const host = this.f.host;
+    const dest = to;
+    to = this.viaDoor(to);
     const want = Math.atan2(-(to.x - this.pos.x), -(to.z - this.pos.z));
     let d = want - this.yaw;
     while (d > Math.PI) d -= TAU;
@@ -588,7 +610,7 @@ class MimicCrawler extends Creature {
     this.speedV = damp(this.speedV, Math.abs(d) > 1 ? v * 0.3 : v, 3, dt);
     this.pos.addScaledVector(this.fwd(_w), this.speedV * dt);
     this.pos.y = host.terrainY(this.pos.x, this.pos.z);
-    return Math.hypot(to.x - this.pos.x, to.z - this.pos.z);
+    return Math.hypot(dest.x - this.pos.x, dest.z - this.pos.z);
   }
 
   update(dt: number, near: boolean) {
@@ -892,6 +914,12 @@ export async function populateMiller(f: FaunaManager) {
   // a Mimic Crawler denning on the reef pool's sheltered west side; its eggs under the ledge; the canister nearby
   const mc = new MimicCrawler(f, eco);
   mc.den.set(B.pool.x + 9, 0, B.pool.z - 2);
+  {
+    const sp = millerSpots().mimic;
+    const L = Math.hypot(sp.face[0], sp.face[1]) || 1;
+    mc.denF.set(sp.face[0] / L, 0, sp.face[1] / L);
+    mc.denC.set(sp.at[0] + mc.denF.x * 0.4, 0, sp.at[1] + mc.denF.z * 0.4); // as placed by MillerCaves (back −0.4)
+  }
   mc.den.y = host.terrainY(mc.den.x, mc.den.z);
   mc.pos.copy(mc.den);
   mc.yaw = -Math.PI / 2;

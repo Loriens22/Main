@@ -258,5 +258,27 @@ parts[10] = [
   reefCam('wave_recovered_arch', `const a = game.zone.fauna.creatures.find((k) => k.species === 'architect'); cam.position.set(a.den.x + 3, a.den.y + 3, a.den.z + 3); cam.lookAt(a.den)`), { js: `game.cinematic = null; return 1;`, frames: 1 },
   { js: `const R = window.__wr; const out = {}; for (const [k, v] of Object.entries(R.states)) out[k] = [...v].slice(0, 14).join(' | '); return { placed0: R.placed0, minPlaced: R.minPlaced, maxGone: R.maxGone, states: out };`, frames: 1, probe: wlog },
 ];
+
+// re-shoots through the cave openings (the shells now hide the den and the ledge from most angles), the Cathedral's
+// wings and the glowing krill
+const thru = (name, who, spot, out, up, lamp) => ({ js: `${H} ${M} const S = (await import('/src/world/surface/millerBiome.ts')).millerSpots(); const sp = ${spot};
+  const c = ${who}; const L0 = Math.hypot(sp.face[0], sp.face[1]); const fx = sp.face[0] / L0, fz = sp.face[1] / L0;
+  const cam = game.camera; game.cinematic = { blocking: true, update: () => true }; cam.fov = 50; cam.updateProjectionMatrix();
+  cam.position.set(c.pos.x + fx * ${out}, c.pos.y + ${up}, c.pos.z + fz * ${out}); cam.lookAt(c.pos.x, c.pos.y + 0.3, c.pos.z);
+  let L = window.__surveyLamp; if (!L) { L = window.__surveyLamp = z.headlamp.clone(); L.distance = 0; L.decay = 1.6; L.angle = 0.9; L.penumbra = 0.6; L.castShadow = false; z.scene.add(L); z.scene.add(L.target); }
+  L.visible = true; L.intensity = ${lamp}; L.position.copy(cam.position); L.target.position.copy(c.pos); L.target.updateMatrixWorld(true); cam.updateMatrixWorld(true); return { st: c.state };`, frames: 2, shot: name });
+parts[11] = [
+  land,
+  { untilJs: `game.zone.fauna && game.zone.fauna.creatures.length >= 24`, max: 900, chunk: 30, probe: fprobe },
+  { js: `game.zone.waves.first = game.zone.time + 4000; game.state.creative.hazardProtection = true; for (const k of game.zone.fauna.creatures) k.cooldown = 999; return 1;`, frames: 1 },
+  fgo(`const m = of('mimic')[0]; m.setState('den'); put(m.den.x + 8, m.den.z + 1, 0.05, Math.PI / 2, -0.3)`, 30),
+  thru('thru_mimic_den', `of('mimic')[0]`, 'S.mimic', 3.2, 0.9, 0), unlamp,
+  thru('thru_mimic_den_lamp', `of('mimic')[0]`, 'S.mimic', 3.2, 0.9, 6), unlamp,
+  fgo(`const s = of('abyssstalker')[0]; put(s.ledge.x + 8, s.ledge.z + 4, 0.05, 0, 0); pl.pos.y = Math.max(pl.pos.y, s.pos.y)`, 30),
+  thru('thru_stalker_ledge', `of('abyssstalker')[0]`, 'S.stalker[0]', 9, 1.5, 40), unlamp,
+  fgo(`const c = of('cathedral')[0]; put(c.pos.x + 30, c.pos.z + 25, 0.05, 0, 0); pl.pos.y = Math.max(pl.pos.y, c.pos.y)`, 30),
+  sv('wing_cathedral', `of('cathedral')[0]`, [10, 8, 4], 0.0, true, 55), unlamp,
+  { js: `${H} ${M} const c = of('cathedral')[0]; const b = c.bloom; const cam = game.camera; game.cinematic = { blocking: true, update: () => true }; cam.fov = 55; cam.updateProjectionMatrix(); cam.position.set(b.x + 4, b.y + 1.2, b.z + 4); cam.lookAt(b.x, b.y, b.z); cam.updateMatrixWorld(true); return 1;`, frames: 3, shot: 'krill_glow' }, unlamp,
+];
 const P = process.env.PART ?? '1';
 export const steps = parts[P];

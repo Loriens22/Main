@@ -141,7 +141,9 @@ The images' ringed planet in the sky is not added (Miller's sky shows Gargantua 
 - The suit is rated to 60 m; the basin's floor (−160 m) is out of reach by design (a pressure blackout floats the
   diver up at 35 % integrity).
 - Caves are separate rock shells at five habitat spots (two siren shelters, two stalker ledges, the mimic den); the
-  rest of the rift is still heightfield walls and ledges.
+  rest of the rift is still heightfield walls and ledges. The diver collides with them; creatures do not. Each
+  opening faces the way its animal usually leaves (the Mimic routes through its doorway explicitly), so swimmers can
+  still clip a wall on an unusual path.
 - Skin detail is procedural (object-space noise), matched to the images by colour, pattern and relief; it is not
   hand-painted and not photographic. Hatchlings/calves/young are separate models, but there is no growth over time.
 - Juvenile Ferracaris are not modelled separately (a colony's sizes vary 0.55–1.15 ×); the Sediment Maw and Rift
