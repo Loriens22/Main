@@ -125,6 +125,7 @@ export class Sky extends Creature {
   spawnColony: (() => void) | null = null;
   private colonyGone = 0;
   private cloudPuffT = 0;
+  private rockArmed = true;
 
   constructor(f: FaunaManager) {
     super(f);
@@ -246,9 +247,16 @@ export class Sky extends Creature {
       gp.t += dt;
       const c = this.craft;
       let add = 0;
-      // in the cockpit E/Q are the roll keys: jabbing them rocks the Ranger (Interact counts too, for other seats)
+      // rocking the Ranger: every push of the roll control (Q/E, a stick flick, the touch stick) counts once
       const inp = g.input;
-      if (inp.pressed('rollLeft') || inp.pressed('rollRight') || inp.pressed('interact') || inp.pressed('jump')) {
+      const roll = Math.abs(inp.flight.roll);
+      let jab = false;
+      if (roll < 0.3) this.rockArmed = true;
+      else if (roll > 0.5 && this.rockArmed) {
+        this.rockArmed = false;
+        jab = true;
+      }
+      if (jab || inp.pressed('interact') || inp.pressed('jump')) {
         add += 1;
         fx.shake = Math.max(fx.shake, 0.45);
         g.audio.thud(undefined, 0.25, 70);
@@ -1209,7 +1217,8 @@ export async function populateJupiter(f: FaunaManager) {
     return out;
   };
   jobs.push(...colony());
-  sky.spawnColony = () => void Promise.all(colony());
+  sky.spawnColony = () =>
+    void Promise.all(colony()).then((bs) => bs.forEach((b) => (b as Creature).root.traverse((o) => (o.castShadow = false))));
   // the hunter waits over the flight path
   for (let i = 0; i < f.count(1); i++) {
     const h = new Hunter(f, sky);
@@ -1219,4 +1228,9 @@ export async function populateJupiter(f: FaunaManager) {
     jobs.push(f.add(h, 'fauna_hunter', ['hunter_iris']).then(() => h.init()));
   }
   await Promise.all(jobs);
+  // the giants are seen through haze far more than up close: they stay out of the shadow map (the rays, which ride
+  // on the hull, keep casting)
+  for (const c of f.creatures) {
+    if (c.species === 'floater' || c.species === 'sporebulb' || c.species === 'hunter') c.root.traverse((o) => (o.castShadow = false));
+  }
 }

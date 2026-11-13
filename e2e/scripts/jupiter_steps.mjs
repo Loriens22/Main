@@ -19,6 +19,8 @@ const shot = (name, js) => ({ js: `${J} game.cinematic = { blocking: true, updat
 const calm = { js: `${J} sky.lull = 999; sky.attacker = null; F.creatures.forEach((k) => (k.cooldown = 999)); return 1;`, frames: 1 };
 const go = (js, frames = 1) => ({ js: `${J} ${js}; return 1;`, frames, probe: jprobe });
 const populatedJ = { untilJs: `game.zone.fauna && game.zone.fauna.creatures.length >= 12`, max: 600, chunk: 30, probe: jprobe };
+// rock the Ranger: push the roll control (here the touch stick) and let go, n times
+const rock = (n) => Array.from({ length: n }, (_, i) => [{ js: `game.input.virtFlight.roll = ${i % 2 ? 1 : -1}; return 1;`, frames: 2 }, { js: `game.input.virtFlight.roll = 0; return 1;`, frames: 2 }]).flat();
 const parts = {
   1: [
     land,
@@ -63,7 +65,7 @@ const parts = {
     shot('jup_veil_drape', `cam.position.copy(sky.toWorld(new V(-11, 6, -22))); cam.lookAt(sky.toWorld(new V(0, 1, -4)))`), free,
     { js: `game.zone.control.camMode = 'cockpit'; return 1;`, frames: 3, shot: 'jup_veil_cockpit', probe: jprobe },
     shot('jup_veil_cockpit_up', `const e = sky.toWorld(sky.eye.clone()); cam.position.copy(e); cam.up.copy(new V(0, 0, -1).applyQuaternion(sky.rq)); cam.lookAt(sky.toWorld(new V(-0.6, 4, 0.6))); cam.up.set(0, 1, 0)`), free,
-    ...Array.from({ length: 9 }, () => ({ js: `game.input.virtualPress(Math.random() < 0.5 ? 'rollLeft' : 'rollRight'); return 1;`, frames: 3 })),
+    ...rock(9),
     { frames: 30, probe: jprobe },
     // a maw ray stalks from below and latches on
     go(`sky.lull = 0; sky.attacker = null; const m = of('mawray')[0]; m.cooldown = 0; sky.ahead(-160, 0, -45, m.pos); m.vel.copy(sky.rv); sky.claim(m); m.setState('trail'); m.st = 9`, 1),
@@ -72,7 +74,7 @@ const parts = {
     shot('jup_maw_latched', `cam.position.copy(sky.toWorld(new V(13, 5, -17))); cam.lookAt(sky.toWorld(new V(0, 2, -4)))`), free,
     { js: `game.zone.control.camMode = 'cockpit'; return 1;`, frames: 3, shot: 'jup_maw_cockpit', probe: jprobe },
     shot('jup_maw_cockpit_up', `const e = sky.toWorld(sky.eye.clone()); cam.position.copy(e); cam.up.copy(new V(0, 0, -1).applyQuaternion(sky.rq)); cam.lookAt(sky.toWorld(new V(0, 4, -0.3))); cam.up.set(0, 1, 0)`), free,
-    ...Array.from({ length: 12 }, () => ({ js: `game.input.virtualPress(Math.random() < 0.5 ? 'rollLeft' : 'rollRight'); return 1;`, frames: 3 })),
+    ...rock(12),
     { frames: 30, probe: jprobe },
     // a spore colony in the flight path
     go(`sky.lull = 999; if (of('sporebulb').length < 5) sky.spawnColony()`, 1),
@@ -90,7 +92,7 @@ const parts = {
     { untilJs: `game.zone.fauna.creatures.some((k) => k.species === 'hunter' && k.state === 'crush')`, max: 600, chunk: 6, probe: jprobe },
     { frames: 50, probe: jprobe },
     shot('jup_hunter_crush', `const h = of('hunter')[0]; const sd = new V(-sky.head.z, 0, sky.head.x); cam.position.copy(sky.rp).addScaledVector(sd, -40).add(new V(0, 6, 0)); cam.lookAt(sky.rp.x, sky.rp.y + 4, sky.rp.z)`), free,
-    ...Array.from({ length: 14 }, () => ({ js: `game.input.virtualPress(Math.random() < 0.5 ? 'rollLeft' : 'rollRight'); return 1;`, frames: 3 })),
+    ...rock(14),
     { frames: 60, probe: jprobe },
     // Settings → Alien life → Jupiter off: no creatures
     { js: `game.settings.life.jupiter = false; game.applySettings(); return 1;`, frames: 3, probe: jprobe },
