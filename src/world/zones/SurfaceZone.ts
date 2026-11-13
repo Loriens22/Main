@@ -597,6 +597,16 @@ export default class SurfaceZone extends Zone implements SurfaceAPHost {
     const vr = new THREE.Vector3(...c.vel).dot(up);
     this.jovian?.update(dt, game.camera.position, THREE.MathUtils.clamp(this.flux * 1.0, 0.05, 1));
     if (this.handing) return;
+    // augmented hydrogen propulsion, less what the creatures do to it (spore-choked intakes, a discharge surge)
+    c.efficiency = 2 * Math.max(0.5, st.damage.engines ?? 1) * (this.fauna?.active() ? this.fauna.thrustK : 1);
+    if (!game.state.creative.damageProtection && (st.damage.hull ?? 1) <= 0 && alt >= GAS_CRUSH) {
+      this.handing = true;
+      const msg = "Ranger 1's hull failed in Jupiter's clouds — the wreck fell into the deep.";
+      game.notify(msg, 'alert', 9);
+      game.log('mission', 'computer', msg);
+      void game.goTo('space', { at: 'docked' }, { fade: 1.5 });
+      return;
+    }
     if (alt > GAS_EXIT && vr > 0) {
       this.handing = true;
       this.control.setAutopilot(null);
@@ -771,6 +781,7 @@ export default class SurfaceZone extends Zone implements SurfaceAPHost {
         return pl.frame === this.ground && pl.mode === 'walk' && !this.cabinPressurised(pl.pos);
       },
       rangerRoot: () => this.ranger.root,
+      craft: () => (this.craft && !this.craft.landed ? this.craft : null),
       rangerFlying: () => !this.craft.landed,
       knockout: (msg) => {
         if (this.ranger.site || this.craft.landed) this.ranger.seat();

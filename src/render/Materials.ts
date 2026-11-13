@@ -39,6 +39,8 @@ interface Recipe {
   weather?: Partial<Weather> | false;
   alphaTest?: number;
   sheen?: number;
+  /** thin-film colour shift (pearly gas bags) */
+  iridescence?: number;
   aoMap?: string;
 }
 
@@ -194,6 +196,30 @@ const RECIPES: Record<string, Recipe> = {
   wing_skin: { kind: 'physical', color: C(0.56, 0.64, 0.73), rough: 0.4, normal: 'hexmesh_n', normalScale: 0.15, normalRepeat: 1, sheen: 0.4, clearcoat: 0.2, weather: { grime: 0.2, grimeScale: 0.5, grimeTint: new THREE.Color(0.8, 0.85, 0.95), scratch: 0, streak: 0.2 } },
   wing_dark: { kind: 'physical', color: C(0.12, 0.13, 0.17), rough: 0.35, clearcoat: 0.4, weather: false },
   wing_mark: { color: C(0.78, 0.2, 0.13), emissive: C(1.0, 0.22, 0.1), emissiveIntensity: 0.7, rough: 0.4, weather: false },
+  // Jupiter
+  floater_bag: { kind: 'physical', color: C(0.9, 0.62, 0.48), rough: 0.22, clearcoat: 0.8, iridescence: 0.75, weather: false },
+  floater_shell: { kind: 'physical', color: C(0.92, 0.88, 0.8), rough: 0.3, normal: 'ribbed_n', normalScale: 0.5, normalRepeat: 3, clearcoat: 0.5, weather: false },
+  floater_tendril: { color: C(0.42, 0.3, 0.24), emissive: C(0.45, 0.75, 1.0), emissiveIntensity: 0, rough: 0.55, weather: false },
+  ray_skin: { kind: 'physical', color: C(0.15, 0.18, 0.18), rough: 0.42, normal: 'hexmesh_n', normalScale: 0.12, normalRepeat: 0.4, sheen: 0.35, clearcoat: 0.25, weather: false },
+  ray_belly: { kind: 'physical', color: C(0.23, 0.26, 0.25), rough: 0.5, sheen: 0.3, weather: false },
+  ray_lip: { kind: 'physical', color: C(0.27, 0.28, 0.27), rough: 0.35, clearcoat: 0.5, weather: false },
+  ray_eye: { color: C(0.3, 0.05, 0.03), emissive: C(1.0, 0.18, 0.08), emissiveIntensity: 0.4, rough: 0.2, weather: false },
+  maw_throat: { color: C(0.12, 0.02, 0.025), emissive: C(0.6, 0.05, 0.03), emissiveIntensity: 0, rough: 0.3, weather: false },
+  puff_bladder: { kind: 'physical', color: C(0.9, 0.82, 0.66), rough: 0.36, sheen: 0.5, clearcoat: 0.3, weather: false },
+  puff_spore: { kind: 'physical', color: C(0.93, 0.86, 0.7), emissive: C(0.45, 1.0, 0.3), emissiveIntensity: 0, rough: 0.25, clearcoat: 0.6, weather: false },
+  puff_tendril: { color: C(0.88, 0.8, 0.64), rough: 0.5, weather: false },
+  hunter_bag: { kind: 'physical', color: C(0.84, 0.68, 0.2), rough: 0.5, sheen: 0.4, weather: { grime: 0.3, grimeScale: 0.05, grimeTint: new THREE.Color(0.7, 0.62, 0.3), scratch: 0, streak: 0.3 } },
+  hunter_groove: { color: C(0.36, 0.34, 0.1), rough: 0.6, weather: false },
+  hunter_fin: { kind: 'physical', color: C(0.92, 0.86, 0.52), rough: 0.45, sheen: 0.4, side: THREE.DoubleSide, weather: false },
+  hunter_crest: { color: C(0.86, 0.45, 0.14), rough: 0.55, normal: 'ribbed_n', normalScale: 0.4, normalRepeat: 2, weather: false },
+  hunter_pore: { color: C(0.12, 0.07, 0.04), rough: 0.7, weather: false },
+  hunter_organ: { kind: 'physical', color: C(0.08, 0.25, 0.9), emissive: C(0.1, 0.3, 1.0), emissiveIntensity: 0.45, rough: 0.15, clearcoat: 1, weather: false },
+  hunter_whisker: { color: C(0.04, 0.035, 0.035), rough: 0.4, weather: false },
+  hunter_cord: { color: C(0.1, 0.08, 0.07), rough: 0.6, weather: false },
+  hunter_body: { kind: 'physical', color: C(0.19, 0.15, 0.16), rough: 0.5, normal: 'rock_n', normalScale: 0.4, normalRepeat: 1.5, sheen: 0.3, weather: false },
+  hunter_sclera: { kind: 'physical', color: C(0.92, 0.62, 0.68), rough: 0.15, clearcoat: 1, weather: false },
+  hunter_iris: { color: C(0.38, 0.26, 0.78), emissive: C(0.5, 0.3, 1.0), emissiveIntensity: 0.25, rough: 0.2, weather: false },
+  hunter_feather: { color: C(0.74, 0.7, 0.68), rough: 0.7, side: THREE.DoubleSide, sheen: 0.4, weather: false },
   // the explorer camps on the Gargantua worlds (blender/lib/camp.py)
   granite_pale: { color: C(2.3, 2.05, 1.75), map: 'rock_a', mapRepeat: 0.22, rough: 0.92, normal: 'rock_n', normalScale: 1.1, normalRepeat: 0.22, weather: { grime: 0.35, grimeScale: 0.12, grimeTint: new THREE.Color(0.8, 0.72, 0.62), scratch: 0, streak: 0.25 } },
   mann_orange: { color: C(0.5, 0.14, 0.055), rough: 0.6, normal: 'panel_n', normalScale: 0.35, normalRepeat: 0.35, weather: { grime: 0.8, grimeScale: 0.25, grimeTint: new THREE.Color(0.7, 0.66, 0.62), streak: 0.75, scratch: 0.3, scratchColor: new THREE.Color(0.55, 0.42, 0.36) } },
@@ -302,8 +328,13 @@ export class MaterialLibrary {
     if (r.side !== undefined) params.side = r.side;
     if (r.envMapIntensity !== undefined) params.envMapIntensity = r.envMapIntensity;
     let m: THREE.MeshStandardMaterial;
-    if (r.kind === 'physical' || r.clearcoat || r.sheen) {
+    if (r.kind === 'physical' || r.clearcoat || r.sheen || r.iridescence) {
       const pm = new THREE.MeshPhysicalMaterial(params);
+      if (r.iridescence) {
+        pm.iridescence = r.iridescence;
+        pm.iridescenceIOR = 1.6;
+        pm.iridescenceThicknessRange = [180, 620];
+      }
       if (r.clearcoat) {
         pm.clearcoat = r.clearcoat;
         pm.clearcoatRoughness = 0.15;

@@ -1,4 +1,5 @@
 import * as THREE from 'three';
+import type { Spacecraft } from '../../vehicles/Spacecraft';
 import type { Game } from '../../core/Game';
 import type { Frame } from '../Frame';
 import type { ModelInstance } from '../../render/Assets';
@@ -22,6 +23,8 @@ export interface FaunaHost {
   /** the player is on foot outside (EVA), i.e. a possible target for ground creatures */
   playerOnFoot(): boolean;
   rangerRoot(): THREE.Object3D;
+  /** Ranger 1's flight state while it flies (Jupiter: the craft creatures grab, drag and shock) */
+  craft(): Spacecraft | null;
   /** Ranger 1 is flying (Jupiter: always) */
   rangerFlying(): boolean;
   /** knocked out on foot: back to Ranger 1 */
@@ -48,6 +51,10 @@ export abstract class Creature {
   readonly home = new THREE.Vector3();
   /** set false to remove */
   alive = true;
+  /** drawn within this distance of the camera (m) */
+  view = 1500;
+  /** posed (rig animated) within this distance */
+  nearR = 260;
   /** glow materials cloned per creature (pulsing light organs) */
   protected glow: THREE.MeshStandardMaterial[] = [];
 
@@ -271,6 +278,11 @@ export class FaunaManager {
   private lastHealthCall = 1;
   /** some creature is hunting / displaying at the player (shows the suit meter) */
   alarm = 0;
+  /** Ranger 1's canopy fractures (0..1), shown while the camera is in the cockpit (cabinView) */
+  cabinCrack = 0;
+  cabinView = false;
+  /** Ranger 1 thrust factor (spore-choked intakes, electrical surge) */
+  thrustK = 1;
 
   constructor(readonly host: FaunaHost, private populate: Populate) {
     this.voice = new CreatureVoice(host.game.audio);
@@ -336,12 +348,12 @@ export class FaunaManager {
     for (const c of this.creatures) {
       const d = c.pos.distanceTo(cam);
       // far ones tick slowly (still move); the rig is only posed when it can be seen in any detail
-      const near = d < 260;
+      const near = d < c.nearR;
       c.t += dt;
       c.st += dt;
       c.cooldown = Math.max(0, c.cooldown - dt);
       c.update(dt, near);
-      c.root.visible = d < 1500;
+      c.root.visible = d < c.view;
     }
     this.creatures = this.creatures.filter((c) => {
       if (!c.alive) c.dispose();
@@ -365,7 +377,7 @@ export class FaunaManager {
     // visor cracks follow suit integrity (a cracked visor stays cracked until the suit is serviced)
     const hp = g.state.player.health ?? 1;
     this.crack = Math.max(this.crack - dt * 0.002, hp < 0.85 ? (0.85 - hp) * 1.3 : 0);
-    fx.cracks = this.host.playerOnFoot() ? Math.min(1, this.crack) : 0;
+    fx.cracks = this.host.playerOnFoot() ? Math.min(1, this.crack) : this.cabinView ? Math.min(1, this.cabinCrack) : 0;
     if (this.shove.lengthSq() > 1e-4 && this.host.playerOnFoot() && !this.hold) {
       pl.pos.addScaledVector(this.shove, dt);
       const ty = this.host.terrainY(pl.pos.x, pl.pos.z);
@@ -452,13 +464,18 @@ export class FaunaManager {
     }
   }
 
-  /** Ranger 1 hull damage (Jupiter's creatures) */
+  /** red edge pulse (0..1) */
+  flash(k: number) {
+    this.hurtT = Math.min(1, this.hurtT + k);
+  }
+
+  /** Ranger 1 damage (Jupiter's creatures). Normal hostility leaves a wreck that still flies; fierce can destroy it. */
   hurtRanger(amount: number, sys: 'hull' | 'engines' | 'avionics' = 'hull') {
     const g = this.game;
     const d = g.state.vehicles.ranger1.damage;
     const prot = g.state.creative.damageProtection;
     const k = (prot ? 0.35 : 1) * (this.hostility === 2 ? 1.35 : 1);
-    d[sys] = Math.max(prot ? 0.2 : 0, (d[sys] ?? 1) - amount * k);
+    d[sys] = Math.max(prot ? 0.2 : this.hostility === 2 ? 0 : 0.05, (d[sys] ?? 1) - amount * k);
     return d[sys];
   }
 
@@ -489,6 +506,7 @@ export class FaunaManager {
     const fx = this.game.renderer.fx;
     fx.hurt = 0;
     fx.cracks = 0;
+    this.thrustK = 1;
     this.game.player.speedScale = 1;
     this.game.ui.countdown(null);
   }

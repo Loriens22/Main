@@ -18,6 +18,9 @@ export class Rig {
   private rest = new Map<string, THREE.Quaternion>();
   private restInv = new Map<string, THREE.Quaternion>();
   private restScale = new Map<string, THREE.Vector3>();
+  private restPos = new Map<string, THREE.Vector3>();
+  /** model space → the bone's parent space (rest), for move() */
+  private parentInv = new Map<string, { q: THREE.Quaternion; s: THREE.Vector3 }>();
   readonly meshes: THREE.SkinnedMesh[] = [];
 
   constructor(readonly inst: ModelInstance) {
@@ -30,6 +33,11 @@ export class Rig {
         this.bones.set(b.name, b);
         this.rest.set(b.name, b.quaternion.clone());
         this.restScale.set(b.name, b.scale.clone());
+        this.restPos.set(b.name, b.position.clone());
+        const par = b.parent!;
+        const pq = rootInv.clone().multiply(par.getWorldQuaternion(new THREE.Quaternion())).invert();
+        const ps = par.getWorldScale(new THREE.Vector3()).divide(root.getWorldScale(new THREE.Vector3()));
+        this.parentInv.set(b.name, { q: pq, s: ps });
         const wq = b.getWorldQuaternion(new THREE.Quaternion());
         this.restInv.set(b.name, rootInv.clone().multiply(wq).invert());
       }
@@ -50,6 +58,7 @@ export class Rig {
     for (const [n, b] of this.bones) {
       b.quaternion.copy(this.rest.get(n)!);
       b.scale.copy(this.restScale.get(n)!);
+      b.position.copy(this.restPos.get(n)!);
     }
   }
 
@@ -80,6 +89,16 @@ export class Rig {
     const r = this.restScale.get(boneName(name))!;
     if (typeof s === 'number') b.scale.copy(r).multiplyScalar(s);
     else b.scale.copy(r).multiply(s);
+  }
+
+  /** translate a bone by a model-space offset (model units), after reset(); for bones whose parent is not posed */
+  move(name: string, off: THREE.Vector3) {
+    const n = boneName(name);
+    const b = this.bones.get(n);
+    if (!b) return;
+    const pi = this.parentInv.get(n)!;
+    _a.copy(off).applyQuaternion(pi.q).divide(pi.s);
+    b.position.copy(this.restPos.get(n)!).add(_a);
   }
 
   /** world position of a bone's head */
