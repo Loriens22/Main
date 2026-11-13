@@ -2,7 +2,52 @@
 
 ## Status (latest first)
 
-### Mann's and Edmunds' camps rebuilt from the reference photos (this pass)
+### Alien life on Mars and Jupiter (this pass)
+Original creatures modelled in Blender from the player's reference art (own geometry, no copies or photo textures):
+`blender/assets/fauna_mars.py`, `fauna_jupiter.py`, kit `blender/lib/creature.py` (skeletons, metaball bodies with
+true-size radii, distance-blended skin weights, skinned GLB export). The game poses the bones procedurally
+(`src/world/fauna/Rig.ts`: rotations in model space, scale, `move` for translated bones); no baked clips.
+- **Settings → Alien life**: master switch, Mars, Jupiter, hostility (passive / normal / fierce), density. Off removes
+  every creature at once; passive creatures never attack.
+- **Framework** (`src/world/fauna/Fauna.ts`): FaunaManager per surface zone (populate on first update, LOD by distance,
+  per-creature view/pose ranges), dust/spore puffs, shock rings, the player hold (mash E), suit damage and visor cracks,
+  Ranger damage (`hurtRanger`: normal hostility leaves at least 5 % hull, fierce can destroy the Ranger), canopy cracks
+  (cockpit camera only), a thrust factor the gas zone applies to Ranger 1's engines. `CreatureVoice` synthesises all
+  calls (shrieks, sonar pings, song, zaps, hull grinding, heartbeat).
+- **Mars** (`fauna/mars.ts`): striders (herds; rear up and display, a sonic shriek that cracks the visor and slows you,
+  a charge and a scythe strike), stalkers (buried, tunnel toward sound, pounce and pin; break free with E), lancewings
+  (soar, mark and dive at 40+ m/s), tether-kites (sticky tethers that snag and lift you).
+- **Jupiter** (`fauna/jupiter.ts`, a shared `Sky` coordinates them: one attacker at a time with a lull between):
+  - floaters: giant ribbed pearly gas-bags (iridescent), spiral shells, tendril bundles; they sing; tendrils charge
+    as the Ranger nears (blue glow, crackle) and arc: engines out for 1.6 s, avionics damage, flash, HUD flicker.
+  - veil rays: shadow the Ranger from above in the haze, drop onto the roof, blacken the skylights, acid on the hull,
+    drag on the nose; the tentacle curtain hangs over the nose.
+  - maw rays: trail below and behind with sonar pings that quicken as they close, lunge and latch onto the roof with a
+    toothed sucker: hull ground and drained, canopy cracks, heartbeat, the Ranger dragged down.
+  - spore bulbs: colonies drift into the flight path, light up green when you come near and burst one after another
+    into corrosive clouds that choke the intakes (thrust 45 %), corrode hull and engines; a new colony drifts in later.
+  - balloon hunters: wait high over the flight path; the multi-eyed pod drops on its cords, harpoons the Ranger with
+    barbed lines, reels it in (cords part one by one as you fight) and crushes it in its feathered arms.
+  - Any grip is a struggle: jab the roll keys Q/E (rock the ship), burn full thrust or roll hard; a floater's
+    discharge also burns an attacker off.
+- Verified in-browser (`e2e/scripts/fauna_steps.mjs` PART 1–3, `jupiter_steps.mjs` PART 2 portraits, PART 3 every
+  attack through to release, the settings switch); unit test `tests/cloudcruise.test.ts`.
+
+### Jupiter: flying inside the cloud layer
+Jupiter has no surface: diving below 250 km from orbit (or "land" on a Jupiter site) enters the cloud layer instead.
+`SURFACES.jupiter` style `'gas'`: no ground contact (`env.ground` none), an NH4SH cloud deck far below (-6.5 km) shaded
+as zonal cream/rust bands (`surfaceShading` style 6), an opaque hazy sky dome and fog, `JovianSky` cloud cards
+(billows, convective towers with anvils, flat sheets; fading near the camera) in three layers, deep lightning with
+thunder. Ranger 1 runs on augmented hydrogen (unlimited, ×2 efficiency) with a CLOUD CRUISE altitude/speed hold
+(`space/Landing.ts`); CLIMB TO ORBIT climbs out above 30 km back to orbit; below -4.5 km the pressure crushes the hull.
+
+### Fixes
+- Edmunds' hab at night: the ribs have their own material (`hab_rib`) with almost no glow, so they read as dark ribs
+  against the lantern-lit fabric instead of one glowing shape.
+- E2E memory: the land steps' daylight loop is stepped unrendered (rendering regenerated the environment map every
+  step under SwiftShader and ran the test browser out of memory); long camp flows are split into `PART`s.
+
+### Mann's and Edmunds' camps rebuilt from the reference photos
 Both camps are now Blender models (`blender/assets/mann_camp.py`, `edmunds_camp.py`, shared pieces in
 `blender/lib/camp.py`) placed as interactive Sites by `world/surface/LazarusSites.ts`. Original geometry built from the
 photos; no logos, name patches or photo textures.
@@ -307,6 +352,7 @@ Realism pass results (all rebuilt in Blender scripts, checked with Cycles previe
 ### Next
 1. Rescued explorers aboard the Endurance (walking the ring, story beats), the Lander.
 2. Root-cause the native-memory growth in long multi-zone headless runs (browser process).
+3. Alien life on more worlds.
 
 ## Conventions
 - `e2e/run.sh steps.mjs outDir w h` starts and stops the Vite server for one run (TOUCH=1 for touch, MEMLOG=1 logs RSS).
