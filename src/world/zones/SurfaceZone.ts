@@ -26,6 +26,8 @@ import { Rocks } from '../surface/Rocks';
 import { RangerVehicle } from '../RangerVehicle';
 import { MillerWaves, WAVE_GLSL, WAVE_C, type TidalWave } from '../surface/MillerWaves';
 import { LazarusSite } from '../surface/LazarusSites';
+import { FaunaManager, type FaunaHost } from '../fauna/Fauna';
+import { populateMars } from '../fauna/mars';
 import { lookQuat } from '../../space/Proximity';
 import { h } from '../../ui/UI';
 
@@ -222,6 +224,7 @@ export default class SurfaceZone extends Zone implements SurfaceAPHost {
     if (this.def.style === 'ocean') this.buildWater();
     progress(0.95, 'beacon site');
     this.lazarus = await LazarusSite.create(this);
+    if (this.site.body === 'mars') this.fauna = new FaunaManager(this.faunaHost(), populateMars);
     progress(1, 'ready');
   }
 
@@ -540,6 +543,7 @@ export default class SurfaceZone extends Zone implements SurfaceAPHost {
     this.updateSky(dt);
     this.updateTide(dt);
     this.lazarus?.update(dt);
+    this.fauna?.update(dt);
   }
 
   private handToOrbit() {
@@ -661,6 +665,33 @@ export default class SurfaceZone extends Zone implements SurfaceAPHost {
   private waveTex: THREE.DataTexture | null = null;
   waves: MillerWaves | null = null;
   lazarus: LazarusSite | null = null;
+  /** alien life on this world (Settings → Alien life) */
+  fauna: FaunaManager | null = null;
+
+  private faunaHost(): FaunaHost {
+    const zone = this;
+    return {
+      game: this.game,
+      scene: this.scene,
+      body: this.site.body,
+      terrainY: (x, z) => this.terrainY(x, z),
+      sunHeight: () => this.sunHeight(),
+      get ground() {
+        return zone.ground;
+      },
+      playerOnFoot: () => {
+        const pl = this.game.player;
+        return pl.frame === this.ground && pl.mode === 'walk' && !this.cabinPressurised(pl.pos);
+      },
+      rangerRoot: () => this.ranger.root,
+      rangerFlying: () => !this.craft.landed,
+      knockout: (msg) => {
+        if (this.ranger.site || this.craft.landed) this.ranger.seat();
+        this.game.notify(msg, 'alert', 8);
+      },
+      say: (who, text) => this.say(who, text),
+    };
+  }
   /** 0 outdoors … 1 inside a camp room (damped) */
   private indoorK = 0;
   /**
@@ -1231,6 +1262,8 @@ export default class SurfaceZone extends Zone implements SurfaceAPHost {
 
   dispose() {
     this.lazarus?.dispose();
+    this.fauna?.dispose();
+    this.fauna = null;
     this.lazarus = null;
     this.control?.dispose();
     this.envRT?.dispose();

@@ -49,10 +49,23 @@ export interface ControlSettings {
   subtitles: boolean;
 }
 
+/** Alien life on other worlds (world/fauna). */
+export interface LifeSettings {
+  /** master switch: no creatures anywhere when off */
+  enabled: boolean;
+  mars: boolean;
+  jupiter: boolean;
+  /** passive: they react and display but never attack; fierce: more often, harder */
+  hostility: 'passive' | 'normal' | 'fierce';
+  /** creature count multiplier */
+  density: number;
+}
+
 export interface Settings {
   graphics: GraphicsSettings;
   audio: AudioSettings;
   controls: ControlSettings;
+  life: LifeSettings;
 }
 
 export const PRESETS: Record<PresetName, Omit<GraphicsSettings, 'preset' | 'fov' | 'fpsCap' | 'autoPreset'>> = {
@@ -165,6 +178,7 @@ export function defaultSettings(): Settings {
       headBob: true,
       subtitles: true,
     },
+    life: { enabled: true, mars: true, jupiter: true, hostility: 'normal', density: 1 },
   };
 }
 
@@ -184,6 +198,7 @@ export function loadSettings(): Settings {
         ...(s.controls ?? {}),
         bindings: { ...d.controls.bindings, ...(s.controls?.bindings ?? {}) },
       },
+      life: { ...d.life, ...(s.life ?? {}) },
     };
   } catch {
     return d;

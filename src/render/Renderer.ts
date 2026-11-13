@@ -56,13 +56,17 @@ const GradeShader = {
     visor: { value: 0.0 },
     shake: { value: 0.0 },
     warp: { value: 0.0 },
+    hurt: { value: 0.0 },
+    cracks: { value: 0.0 },
+    crackP: { value: new THREE.Vector2(0.4, 0.6) },
   },
   vertexShader: /* glsl */ `
     varying vec2 vUv;
     void main(){ vUv = uv; gl_Position = projectionMatrix * modelViewMatrix * vec4(position,1.0); }`,
   fragmentShader: /* glsl */ `
     uniform sampler2D tDiffuse; uniform float time; uniform vec2 resolution;
-    uniform float grain, vignette, chroma, saturation, contrast, dust, fade, visor, shake, warp;
+    uniform float grain, vignette, chroma, saturation, contrast, dust, fade, visor, shake, warp, hurt, cracks;
+    uniform vec2 crackP;
     uniform vec3 lift, gain, dustColor, fadeColor; uniform vec2 blurDir;
     varying vec2 vUv;
     float hash(vec2 p){ p = fract(p*vec2(123.34, 456.21)); p += dot(p, p+45.32); return fract(p.x*p.y); }
@@ -101,6 +105,30 @@ const GradeShader = {
         col = mix(col, col * vec3(0.92, 0.96, 1.0), visor);
         col *= 1.0 - e * 0.55 * visor;
         col += vec3(0.04, 0.05, 0.06) * smoothstep(0.02, 0.0, abs(uv.y - 0.82 + uv.x * 0.25)) * visor;
+      }
+      // suit damage: a cracked visor (radial fractures and rings around the impact point) and a red edge pulse
+      if (cracks > 0.0) {
+        vec2 d = (vUv - crackP) * vec2(resolution.x / resolution.y, 1.0);
+        float rr = length(d);
+        float ang = atan(d.y, d.x);
+        float ext = 0.05 + 0.42 * cracks;
+        float nLines = 11.0;
+        float sct = ang / 6.2831 * nLines + (noise(vec2(rr * 7.0, ang * 2.0)) - 0.5) * 0.9 + (noise(vec2(rr * 31.0, ang * 9.0)) - 0.5) * 0.18;
+        float ld = min(fract(sct), 1.0 - fract(sct)) * rr * 6.2831 / nLines;
+        float fade = 1.0 - smoothstep(ext * 0.55, ext, rr);
+        float wid = mix(0.0026, 0.0009, clamp(rr / ext, 0.0, 1.0));
+        float radial = (1.0 - smoothstep(wid * 0.4, wid, ld)) * fade * step(0.012, rr);
+        float rg = abs(fract(rr * 24.0 + noise(vec2(ang * 4.0, rr * 9.0)) * 0.8) - 0.5) / 24.0;
+        float ring = (1.0 - smoothstep(0.0006, 0.0016, rg)) * (1.0 - smoothstep(ext * 0.16, ext * 0.3, rr)) * step(0.015, rr);
+        float star = (1.0 - smoothstep(0.0, 0.03 + 0.02 * cracks, rr)) * 0.5;
+        float m = clamp(max(max(radial, ring * 0.8), star), 0.0, 1.0);
+        col = mix(col, vec3(0.86, 0.9, 0.95), m * 0.75);
+        col *= 1.0 - m * 0.25 * (1.0 - step(0.5, fract(sct * 3.0)));
+      }
+      if (hurt > 0.0) {
+        float e = smoothstep(0.05, 0.55, r2);
+        col = mix(col, vec3(0.55, 0.02, 0.02), e * hurt * 0.85);
+        col *= 1.0 - hurt * 0.25;
       }
       col *= 1.0 - vignette * smoothstep(0.08, 0.62, r2);
       float g = hash(uv * resolution + fract(time * 13.7) * 100.0) - 0.5;
@@ -143,6 +171,13 @@ export interface ScreenFx {
   shake: number;
   warp: number;
   exposure: number; // target exposure multiplier
+  /** red edge pulse when hurt (0..1) */
+  hurt: number;
+  /** visor fractures (0..1), around crackP (screen uv) */
+  cracks: number;
+  crackP: THREE.Vector2;
+  /** dust haze colour (default: Mars-like ochre) */
+  dustColor: THREE.Color;
 }
 
 export class Renderer {
@@ -164,7 +199,7 @@ export class Renderer {
   snapNext = false;
   /** dynamic-resolution factor on top of the resolution scale (Game.adaptQuality), 0.5..1 */
   dynScale = 1;
-  readonly fx: ScreenFx = { dust: 0, fade: 0, fadeColor: new THREE.Color(0, 0, 0), visor: 0, shake: 0, warp: 0, exposure: 1 };
+  readonly fx: ScreenFx = { dust: 0, fade: 0, fadeColor: new THREE.Color(0, 0, 0), visor: 0, shake: 0, warp: 0, exposure: 1, hurt: 0, cracks: 0, crackP: new THREE.Vector2(0.4, 0.6), dustColor: new THREE.Color(0.55, 0.47, 0.36) };
   readonly pmrem: THREE.PMREMGenerator;
   readonly maxAnisotropy: number;
   stats = { calls: 0, tris: 0, fps: 0 };
@@ -289,6 +324,10 @@ export class Renderer {
     u.visor.value = this.fx.visor;
     u.shake.value = this.fx.shake;
     u.warp.value = this.fx.warp;
+    u.hurt.value = this.fx.hurt;
+    u.cracks.value = this.fx.cracks;
+    (u.crackP.value as THREE.Vector2).copy(this.fx.crackP);
+    (u.dustColor.value as THREE.Color).copy(this.fx.dustColor);
     // camera rotation motion blur (screen-space, direction from angular velocity)
     if (s.motionBlur && dt > 0) {
       const dq = this.lastCamQuat.clone().invert().multiply(camera.quaternion);

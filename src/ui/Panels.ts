@@ -157,6 +157,21 @@ export function openSettings(game: Game) {
           b.append(h('div', { style: { marginTop: '14px' } }, ui.button('RESET BINDINGS', () => { c.bindings = structuredClone(DEFAULT_BINDINGS); apply(); }, 'btn small')));
         },
       },
+      {
+        id: 'life', label: 'ALIEN LIFE', build: (b) => {
+          const l = s.life;
+          const note = (t: string) => h('div', { class: 'dim', style: { fontSize: '12px', margin: '-4px 0 10px', lineHeight: '1.45' } }, t);
+          b.append(ui.row('Alien life', ui.toggle(l.enabled, (v) => { l.enabled = v; apply(); })));
+          b.append(note('Native creatures on other worlds. Off: no creatures anywhere.'));
+          b.append(ui.row('Mars', ui.toggle(l.mars, (v) => { l.mars = v; apply(); })));
+          b.append(note('Striders, burrowing stalkers, diving lancewings and drifting tether-kites.'));
+          b.append(ui.row('Jupiter', ui.toggle(l.jupiter, (v) => { l.jupiter = v; apply(); })));
+          b.append(note('Gas-bag floaters, maw rays, spore clusters and balloon hunters in the cloud layer.'));
+          b.append(ui.row('Hostility', ui.select<'passive' | 'normal' | 'fierce'>(l.hostility, [['passive', 'Passive — they never attack'], ['normal', 'Normal'], ['fierce', 'Fierce']], (v) => { l.hostility = v; apply(); })));
+          const [ds, dv] = ui.slider(l.density, 0.5, 2, 0.25, (v) => { l.density = v; apply(); }, (v) => `${Math.round(v * 100)} %`);
+          b.append(ui.row('Creature numbers', ds, dv));
+        },
+      },
     ],
   });
 }

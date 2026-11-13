@@ -228,6 +228,13 @@ export class AudioEngine {
     }
   }
 
+  /** A spatial (or flat) output for custom one-shot graphs (creature voices); null when audio is off or muted by vacuum. */
+  out(pos?: THREE.Vector3, reverb = 0.2, air = true): AudioNode | null {
+    if (!this.ctx) return null;
+    if (this.vacuum && air && pos) return null;
+    return this.dest(pos, 'sfx', reverb);
+  }
+
   // -------------------------------------------------------------------------------- one-shots
   private dest(pos?: THREE.Vector3, bus: 'sfx' | 'ambience' | 'dialogue' = 'sfx', reverb = 0.15): AudioNode {
     const ctx = this.ctx!;

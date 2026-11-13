@@ -182,6 +182,18 @@ const RECIPES: Record<string, Recipe> = {
   rock_granite: { color: C(0.55, 0.47, 0.4), map: 'rock_a', mapRepeat: 0.3, rough: 0.9, normal: 'rock_n', normalScale: 1.2, normalRepeat: 0.3, weather: { grime: 0.3, scratch: 0 } },
   rock_dark: { color: C(0.5, 0.48, 0.46), map: 'rock_a', mapRepeat: 0.3, rough: 0.9, normal: 'rock_n', normalScale: 1.2, normalRepeat: 0.3, weather: { grime: 0.3, scratch: 0 } },
   ice: { kind: 'physical', color: C(0.8, 0.85, 0.9), map: 'ice_a', mapRepeat: 0.2, rough: 0.22, normal: 'ice_n', normalScale: 0.8, normalRepeat: 0.2, clearcoat: 0.6, weather: false },
+  // alien life (blender/lib/creature.py)
+  strider_shell: { kind: 'physical', color: C(0.86, 0.4, 0.28), rough: 0.38, normal: 'hexmesh_n', normalScale: 0.25, normalRepeat: 1.4, clearcoat: 0.35, weather: { grime: 0.35, grimeScale: 0.6, grimeTint: new THREE.Color(0.75, 0.55, 0.45), scratch: 0, streak: 0.2 } },
+  strider_hide: { color: C(0.17, 0.115, 0.095), rough: 0.55, normal: 'ribbed_n', normalScale: 0.6, normalRepeat: 3, sheen: 0.3, weather: { grime: 0.3, grimeScale: 0.5, grimeTint: new THREE.Color(1.5, 1.2, 1.0), scratch: 0 } },
+  strider_seam: { color: C(0.05, 0.035, 0.03), rough: 0.45, weather: false },
+  strider_glow: { color: C(0.1, 0.5, 0.7), emissive: C(0.15, 0.75, 1.0), emissiveIntensity: 1.2, rough: 0.3, weather: false },
+  claw_black: { kind: 'physical', color: C(0.035, 0.03, 0.03), rough: 0.25, clearcoat: 0.6, weather: false },
+  stalker_skin: { color: C(0.34, 0.3, 0.26), rough: 0.6, normal: 'rock_n', normalScale: 0.55, normalRepeat: 2.2, sheen: 0.25, weather: { grime: 0.45, grimeScale: 0.8, grimeTint: new THREE.Color(0.7, 0.58, 0.48), scratch: 0, streak: 0 } },
+  mouth_red: { color: C(0.3, 0.04, 0.05), rough: 0.25, weather: false },
+  tooth: { color: C(0.82, 0.78, 0.65), rough: 0.35, weather: false },
+  wing_skin: { kind: 'physical', color: C(0.56, 0.64, 0.73), rough: 0.4, normal: 'hexmesh_n', normalScale: 0.15, normalRepeat: 1, sheen: 0.4, clearcoat: 0.2, weather: { grime: 0.2, grimeScale: 0.5, grimeTint: new THREE.Color(0.8, 0.85, 0.95), scratch: 0, streak: 0.2 } },
+  wing_dark: { kind: 'physical', color: C(0.12, 0.13, 0.17), rough: 0.35, clearcoat: 0.4, weather: false },
+  wing_mark: { color: C(0.78, 0.2, 0.13), emissive: C(1.0, 0.22, 0.1), emissiveIntensity: 0.7, rough: 0.4, weather: false },
   // the explorer camps on the Gargantua worlds (blender/lib/camp.py)
   granite_pale: { color: C(2.3, 2.05, 1.75), map: 'rock_a', mapRepeat: 0.22, rough: 0.92, normal: 'rock_n', normalScale: 1.1, normalRepeat: 0.22, weather: { grime: 0.35, grimeScale: 0.12, grimeTint: new THREE.Color(0.8, 0.72, 0.62), scratch: 0, streak: 0.25 } },
   mann_orange: { color: C(0.5, 0.14, 0.055), rough: 0.6, normal: 'panel_n', normalScale: 0.35, normalRepeat: 0.35, weather: { grime: 0.8, grimeScale: 0.25, grimeTint: new THREE.Color(0.7, 0.66, 0.62), streak: 0.75, scratch: 0.3, scratchColor: new THREE.Color(0.55, 0.42, 0.36) } },
