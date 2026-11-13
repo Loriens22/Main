@@ -927,6 +927,17 @@ export default class SpaceZone extends Zone implements ProxHost {
       if (alt < EARTH_HANDOVER) this.handToEarth();
       return;
     }
+    if (SURFACES[id]?.style === 'gas') {
+      // into a gas giant's atmosphere: the flight computer flies the entry and brings her out in the cloud layer
+      if (alt < 250e3) {
+        const Rm = bodyRot(id, this.tSim);
+        const p = new THREE.Vector3(...this.craft.pos).normalize().applyMatrix3(Rm);
+        const lat = THREE.MathUtils.radToDeg(Math.asin(THREE.MathUtils.clamp(p.y, -1, 1)));
+        const lon = THREE.MathUtils.radToDeg(Math.atan2(-p.z, p.x));
+        this.diveInto(lat, lon, fmtLatLon(lat, lon, 1));
+      }
+      return;
+    }
     if (isLandable(id)) {
       if (alt < handoverAltitude(id, PRIMARY.R)) this.handToSurface();
       return;
@@ -975,9 +986,32 @@ export default class SpaceZone extends Zone implements ProxHost {
     void game.goTo('surface', { at: 'descent' }, { fade: 0.6 });
   }
 
+  /**
+   * A gas giant (Jupiter): there is no landing. The entry from orbit (tens of km/s) is flown by the flight computer
+   * behind the shield and the Ranger comes out in level flight in the cloud layer at the 1-bar level.
+   */
+  diveInto(lat: number, lon: number, name: string) {
+    if (this.handing) return;
+    this.handing = true;
+    const game = this.game;
+    const st = game.state.vehicles.ranger1;
+    st.data.surface = { body: PRIMARY.id, lat, lon, name, autoland: false } as SurfaceState;
+    delete st.data.handover;
+    st.location = 'surface';
+    st.landed = false;
+    this.control.setAutopilot(null);
+    game.notify(`Atmospheric dive — ${BODIES[PRIMARY.id].name}, ${name}. The flight computer has the entry.`, 'info', 6);
+    game.renderer.fx.shake = 0.8;
+    void game.goTo('surface', { at: 'cruise' }, { fade: 1.6, color: new THREE.Color(1.0, 0.55, 0.25) });
+  }
+
   /** Engage the deorbit-and-landing autopilot for a site on the current body. */
   landAt(lat: number, lon: number, name: string, tag = '') {
     if (!this.landableHere() || this.r1Docked) return false;
+    if (SURFACES[PRIMARY.id]?.style === 'gas') {
+      this.diveInto(lat, lon, name);
+      return true;
+    }
     const hh = PRIMARY.id === 'earth' ? EARTH_HANDOVER : handoverAltitude(PRIMARY.id, PRIMARY.R);
     const ap = new DeorbitLanding(this, makeSite(PRIMARY.id, lat, lon), name, hh);
     ap.tag = tag;

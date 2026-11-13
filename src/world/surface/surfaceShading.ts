@@ -5,7 +5,7 @@ import type { SurfaceGen } from './SurfaceGen';
 import { CRATER_D0, CRATER_OCTAVES } from './SurfaceGen';
 import type { MaterialLibrary } from '../../render/Materials';
 
-const STYLE_ID: Record<string, number> = { lunar: 0, mercury: 0, rubble: 0, mars: 1, desert: 1, ocean: 1, icy: 2, glacier: 2, europa: 3, io: 4, titan: 5 };
+const STYLE_ID: Record<string, number> = { lunar: 0, mercury: 0, rubble: 0, mars: 1, desert: 1, ocean: 1, icy: 2, glacier: 2, europa: 3, io: 4, titan: 5, gas: 6 };
 
 /** Octave index of the smallest crater the CPU height map of a given cell size contains. */
 export function resolvedOctave(cell: number) {
@@ -224,7 +224,7 @@ export function surfaceShading(gen: SurfaceGen, mats: MaterialLibrary): TerrainS
     // ---- fine regolith / ice texture
     float mic = sFbm(wpos.xz, fp, 1.6);
     float mic2 = sFbm(wpos.xz + 31.7, fp, 0.35);
-    vec2 g = cr.yz + regolithGrad(wpos.xz, fpD) * (uStyle == 2 || uStyle == 3 ? 0.6 : 1.0);
+    vec2 g = cr.yz + regolithGrad(wpos.xz, fpD) * (uStyle == 6 ? 0.0 : uStyle == 2 || uStyle == 3 ? 0.6 : 1.0);
     n = normalize(n + vec3(-g.x, 0.0, -g.y));
     // ---- colour: regional albedo from the orbital map
     vec3 bf = uSiteRot * (wpos + vec3(0.0, uSR, 0.0));
@@ -254,6 +254,17 @@ export function surfaceShading(gen: SurfaceGen, mats: MaterialLibrary): TerrainS
       alb = mix(alb, alb * vec3(0.75, 0.68, 0.62), smoothstep(0.0, 0.3, -big) * 0.4);
       alb *= 1.0 + 0.3 * cFresh;
       rough = mix(0.55, 0.85, smoothstep(-0.1, 0.2, mic2));
+    } else if (uStyle == 6){
+      // gas giant cloud deck seen from above: zonal streaks of cream ammonia cloud over rust-brown NH4SH, swirled
+      // by eddies, darker gaps into the deep; no hard surface detail
+      vec2 q = wpos.xz;
+      float sw = sFbm(q * vec2(0.3, 1.0), fp, 1400.0);
+      float band = sin(q.y / 2300.0 + 2.6 * sw + 0.8 * big);
+      vec3 cream = vec3(0.95, 0.88, 0.76), rust = vec3(0.66, 0.45, 0.3), deep = vec3(0.36, 0.25, 0.18);
+      alb = mix(rust, cream, smoothstep(-0.5, 0.7, band + 0.5 * mid));
+      alb = mix(alb, deep, smoothstep(0.15, 0.6, -big - 0.35 * band) * 0.65);
+      alb *= 0.92 + 0.1 * mic;
+      rough = 1.0;
     } else if (uStyle == 4){
       // Io: sulphur frosts, dark silicate flows
       alb *= 0.85 + 0.3 * big;

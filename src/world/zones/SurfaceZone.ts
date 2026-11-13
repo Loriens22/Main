@@ -17,7 +17,7 @@ import { gmst, orbitSummary } from '../../space/earthFrame';
 import { MILLER_FACTOR } from '../../core/MissionClock';
 import type { V3 } from '../../space/kepler';
 import { makeSite, inertialToLocal, localToInertial, localToInertialRot, localOmega, localToBF, localLatLon, bodyRot, type SurfaceSite } from '../../space/surfaceFrame';
-import { PoweredDescent, LandHere, AscentToOrbit, brakingDistance, type SurfaceAPHost } from '../../space/Landing';
+import { PoweredDescent, LandHere, AscentToOrbit, CloudCruise, brakingDistance, type SurfaceAPHost } from '../../space/Landing';
 import { Terrain } from '../terrain/Terrain';
 import { Heightmap } from '../terrain/Heightmap';
 import { BodyMap, SurfaceGen } from '../surface/SurfaceGen';
@@ -28,6 +28,8 @@ import { MillerWaves, WAVE_GLSL, WAVE_C, type TidalWave } from '../surface/Mille
 import { LazarusSite } from '../surface/LazarusSites';
 import { FaunaManager, type FaunaHost } from '../fauna/Fauna';
 import { populateMars } from '../fauna/mars';
+import { populateJupiter } from '../fauna/jupiter';
+import { JovianSky } from '../surface/JovianSky';
 import { lookQuat } from '../../space/Proximity';
 import { h } from '../../ui/UI';
 
@@ -222,9 +224,15 @@ export default class SurfaceZone extends Zone implements SurfaceAPHost {
     this.buildDust();
     this.buildSkyDome();
     if (this.def.style === 'ocean') this.buildWater();
+    if (this.gas) {
+      this.jovian = new JovianSky(Math.round(sd.lat * 100 + sd.lon * 7) & 0xffff);
+      this.jovian.onFlash = (at) => setTimeout(() => this.game.audio.thud(undefined, 0.35, 34), 600 + Math.random() * 1400);
+      this.scene.add(this.jovian.group);
+    }
     progress(0.95, 'beacon site');
     this.lazarus = await LazarusSite.create(this);
     if (this.site.body === 'mars') this.fauna = new FaunaManager(this.faunaHost(), populateMars);
+    if (this.site.body === 'jupiter') this.fauna = new FaunaManager(this.faunaHost(), populateJupiter);
     progress(1, 'ready');
   }
 
@@ -256,6 +264,8 @@ export default class SurfaceZone extends Zone implements SurfaceAPHost {
       },
       altitude: (p) => Math.hypot(p[0] - c.x, p[1] - c.y, p[2] - c.z) - R,
       ground: (p) => {
+        // a gas giant: the deep cloud deck is not a surface — nothing to touch
+        if (this.gas) return { h: -1e9, n: [0, 1, 0] };
         const hgt = this.terrainY(p[0], p[2]) + this.rocks.bumpAt(p[0], p[2]);
         const n = this.terrainNormal(p[0], p[2]);
         // Spacecraft compares heights along env.up (radial here): express the ground point the same way
@@ -363,6 +373,17 @@ export default class SurfaceZone extends Zone implements SurfaceAPHost {
       st.gearDown = false;
       program = ho.program;
       delete st.data.handover;
+    } else if (at === 'cruise' || (this.gas && at !== 'descent')) {
+      // the dive is over: level flight eastward at the 1-bar level
+      const east = new THREE.Vector3(1, 0, 0), up = new THREE.Vector3(0, 1, 0);
+      const q = new THREE.Quaternion().setFromRotationMatrix(new THREE.Matrix4().lookAt(new THREE.Vector3(), east, up));
+      st.pos = [0, 1500, 0];
+      st.vel = [150, 0, 0];
+      st.quat = [q.x, q.y, q.z, q.w];
+      st.angVel = [0, 0, 0];
+      st.landed = false;
+      st.gearDown = false;
+      at = 'cruise';
     } else if (at === 'landed' || at === 'eva') {
       const p = this.ranger.landedPose(0, 0, 0);
       st.pos = p.pos;
@@ -374,6 +395,12 @@ export default class SurfaceZone extends Zone implements SurfaceAPHost {
     }
     this.ranger.create(st);
     this.ranger.seat();
+    if (this.gas) {
+      // scooped hydrogen feeds the engines' augmented mode: unlimited propellant, double thrust (2.5 g here)
+      this.craft.unlimited = true;
+      this.craft.efficiency = 2 * Math.max(0.5, st.damage.engines ?? 1);
+      if (at === 'cruise') this.control.setAutopilot(new CloudCruise(1500, 150));
+    }
     if (program === 'descent') this.control.setAutopilot(new PoweredDescent(this, this.targetName));
     // airborne: start in the chase view so the descent and the ground are visible (the Ranger's windows are overhead)
     if (!st.landed) this.control.camMode = 'chase';
@@ -462,6 +489,11 @@ export default class SurfaceZone extends Zone implements SurfaceAPHost {
   }
 
   ascend() {
+    if (this.gas) {
+      this.control.setAutopilot(new CloudCruise(GAS_EXIT + 4000, 160));
+      this.say('computer', 'Climbing out. Above thirty kilometres I will take her the rest of the way to orbit.');
+      return;
+    }
     const p = this.ascentPlan();
     this.control.setAutopilot(new AscentToOrbit(this, p.apT, p.climb, p.maxVr));
   }
@@ -483,6 +515,14 @@ export default class SurfaceZone extends Zone implements SurfaceAPHost {
         btn.disabled = !ok;
         b.append(h('div', { style: { margin: '8px 0' } }, btn, h('div', { class: 'dim', style: { fontSize: '12px', marginTop: '4px' } }, desc)));
       };
+      if (this.gas) {
+        const alt = this.env.altitude(c.pos);
+        b.append(h('div', { class: 'mono', style: { marginBottom: '10px' } }, `Jupiter · ${(alt / 1000).toFixed(1)} km above 1 bar · hull ${Math.round((game.state.vehicles.ranger1.damage.hull ?? 1) * 100)} %`));
+        add('CLOUD CRUISE', 'Hold this altitude at 150 m/s on the hover thrusters; steer with yaw (A/D).', true, () => ctrl.setAutopilot(new CloudCruise(Math.max(-3000, alt), 150)));
+        add('CLIMB TO ORBIT', 'Climb out of the cloud layer; above 30 km the flight computer flies the long climb back to orbit.', true, () => this.ascend());
+        add('DISENGAGE AUTOPILOT', 'Manual flight: I/K hover thrust up/down, W/S pitch, A/D yaw, Q/E roll, Shift/Ctrl main engine.', !!ctrl.autopilot, () => ctrl.setAutopilot(null));
+        return;
+      }
       b.append(h('div', { class: 'mono', style: { marginBottom: '10px' } }, `${BODIES[this.site.body].name} · ${c.landed ? 'landed' : `${agl.toFixed(0)} m AGL`} · Δv ${(c.deltaV() / 1000).toFixed(2)} km/s`));
       add(`POWERED DESCENT — ${this.targetName.toUpperCase()}`, 'Braking burn to the high gate, pitch-over to the hover thrusters, approach and vertical touchdown at the site.', !c.landed && agl > 300, () => ctrl.setAutopilot(new PoweredDescent(this, this.targetName)));
       add('LAND HERE', 'Null the horizontal speed and descend vertically to touchdown below the current position.', !c.landed && agl > 3, () => {
@@ -517,6 +557,7 @@ export default class SurfaceZone extends Zone implements SurfaceAPHost {
     this.updateDust(dt);
     // ---- ascent handover back to orbit
     const alt = this.env.altitude(c.pos);
+    if (this.gas) this.gasStep(dt, alt);
     const ascAp = this.control.autopilot instanceof AscentToOrbit ? this.control.autopilot : null;
     if (!this.handing && !this.rangerSite && alt > this.hHand + Math.min(3e3, 0.15 * this.hHand) && ascAp?.phase !== 'hop') {
       const up = new THREE.Vector3(...this.env.up(c.pos));
@@ -544,6 +585,50 @@ export default class SurfaceZone extends Zone implements SurfaceAPHost {
     this.updateTide(dt);
     this.lazarus?.update(dt);
     this.fauna?.update(dt);
+  }
+
+  /** Jupiter: climbing out hands the Ranger back to orbit; too deep, the pressure crushes the hull. */
+  private crushWarned = 0;
+  private gasStep(dt: number, alt: number) {
+    const game = this.game;
+    const c = this.craft;
+    const st = game.state.vehicles.ranger1;
+    const up = new THREE.Vector3(...this.env.up(c.pos));
+    const vr = new THREE.Vector3(...c.vel).dot(up);
+    this.jovian?.update(dt, game.camera.position, THREE.MathUtils.clamp(this.flux * 1.0, 0.05, 1));
+    if (this.handing) return;
+    if (alt > GAS_EXIT && vr > 0) {
+      this.handing = true;
+      this.control.setAutopilot(null);
+      st.location = 'space';
+      st.landed = false;
+      game.notify('Clear of the cloud tops — the flight computer is taking Ranger 1 back to orbit.', 'ok', 6);
+      void game.goTo('space', { at: 'orbit' }, { fade: 1.2 });
+      return;
+    }
+    if (alt < GAS_CRUSH) {
+      const depth = (GAS_CRUSH - alt) / 1000;
+      const prot = game.state.creative.damageProtection;
+      const hull = st.damage.hull ?? 1;
+      st.damage.hull = Math.max(prot ? 0.2 : 0, hull - dt * 0.012 * (1 + depth) * (prot ? 0.3 : 1));
+      game.renderer.fx.shake = Math.max(game.renderer.fx.shake, Math.min(0.8, 0.2 + depth * 0.15));
+      if (this.time - this.crushWarned > 6) {
+        this.crushWarned = this.time;
+        game.audio.ui('alert');
+        game.notify(`Pressure ${(1 + depth * 0.9).toFixed(1)} bar and rising — hull ${Math.round(st.damage.hull * 100)} %. Climb!`, 'alert', 5);
+      }
+      if (!prot && (st.damage.hull <= 0 || alt < GAS_CRUSH - 6000)) {
+        this.handing = true;
+        const msg = 'Ranger 1 was crushed in the deep clouds of Jupiter.';
+        game.notify(msg, 'alert', 9);
+        game.log('mission', 'computer', msg);
+        void game.goTo('space', { at: 'docked' }, { fade: 1.5 });
+      }
+    }
+  }
+
+  get gas() {
+    return this.def?.style === 'gas';
   }
 
   private handToOrbit() {
@@ -665,6 +750,8 @@ export default class SurfaceZone extends Zone implements SurfaceAPHost {
   private waveTex: THREE.DataTexture | null = null;
   waves: MillerWaves | null = null;
   lazarus: LazarusSite | null = null;
+  /** Jupiter's cloud banks and lightning */
+  jovian: JovianSky | null = null;
   /** alien life on this world (Settings → Alien life) */
   fauna: FaunaManager | null = null;
 
@@ -1264,6 +1351,8 @@ export default class SurfaceZone extends Zone implements SurfaceAPHost {
     this.lazarus?.dispose();
     this.fauna?.dispose();
     this.fauna = null;
+    this.jovian?.dispose();
+    this.jovian = null;
     this.lazarus = null;
     this.control?.dispose();
     this.envRT?.dispose();
@@ -1279,7 +1368,11 @@ export default class SurfaceZone extends Zone implements SurfaceAPHost {
 /** Near-surface atmosphere for flight and lighting (thin Mars, thick Titan). */
 type C3 = [number, number, number];
 /** top of the atmosphere (m), as the orbital zone models it (space/earthFrame ATMOS) */
-const ATMOS_TOP: Record<string, number> = { mars: 150e3, titan: 600e3, miller: 110e3, mann: 80e3, edmunds: 100e3 };
+const ATMOS_TOP: Record<string, number> = { mars: 150e3, titan: 600e3, miller: 110e3, mann: 80e3, edmunds: 100e3, jupiter: 300e3 };
+/** Jupiter: above this the computer flies the climb to orbit; below the crush level the pressure damages the hull */
+const GAS_EXIT = 30e3;
+const GAS_CRUSH = -4500;
+
 const ATMO_SURF: Record<string, { rho0: number; H: number; tau: C3; sky: C3; skyK: number; sunK: number; zenith: C3; horizon: C3; glow: C3; alpha: number; fog: number }> = {
   // dusty butterscotch sky, blue aureole around the Sun (forward scattering by fine dust)
   mars: { rho0: 0.02, H: 11100, tau: [0.22, 0.33, 0.48], sky: [0.62, 0.44, 0.3], skyK: 0.75, sunK: 0.9, zenith: [0.46, 0.3, 0.2], horizon: [0.8, 0.58, 0.4], glow: [0.5, 0.58, 0.7], alpha: 0.93, fog: 1 / 38000 },
@@ -1287,6 +1380,7 @@ const ATMO_SURF: Record<string, { rho0: number; H: number; tau: C3; sky: C3; sky
   titan: { rho0: 5.4, H: 21000, tau: [0.9, 1.4, 2.4], sky: [0.55, 0.36, 0.14], skyK: 1.4, sunK: 0.45, zenith: [0.45, 0.28, 0.1], horizon: [0.7, 0.46, 0.2], glow: [0.9, 0.65, 0.3], alpha: 0.985, fog: 1 / 9000 },
   // Gargantua's worlds: thinner-looking skies so the black hole and its disk show through by day
   miller: { rho0: 1.4, H: 8500, tau: [0.1, 0.14, 0.2], sky: [0.42, 0.48, 0.52], skyK: 0.55, sunK: 0.8, zenith: [0.16, 0.2, 0.24], horizon: [0.5, 0.55, 0.58], glow: [0.12, 0.1, 0.08], alpha: 0.4, fog: 1 / 30000 },
+  jupiter: { rho0: 0.17, H: 27000, tau: [0.06, 0.09, 0.16], sky: [0.66, 0.6, 0.5], skyK: 0.9, sunK: 0.8, zenith: [0.42, 0.47, 0.56], horizon: [0.86, 0.74, 0.56], glow: [0.36, 0.28, 0.18], alpha: 1, fog: 1 / 8000 },
   mann: { rho0: 1.0, H: 9000, tau: [0.14, 0.16, 0.2], sky: [0.62, 0.66, 0.7], skyK: 0.8, sunK: 0.9, zenith: [0.42, 0.47, 0.52], horizon: [0.74, 0.76, 0.79], glow: [0.25, 0.24, 0.22], alpha: 0.7, fog: 1 / 14000 },
   edmunds: { rho0: 1.1, H: 8500, tau: [0.12, 0.2, 0.34], sky: [0.42, 0.55, 0.78], skyK: 0.8, sunK: 0.95, zenith: [0.2, 0.34, 0.66], horizon: [0.62, 0.7, 0.8], glow: [0.3, 0.27, 0.22], alpha: 0.72, fog: 1 / 30000 },
 };

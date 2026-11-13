@@ -346,7 +346,7 @@ function solveTgo(p: THREE.Vector3, v: THREE.Vector3, rT: THREE.Vector3, vT: THR
  * Point the VTOL axis (craft +Y) along the commanded acceleration (tilt-limited) and set the hover thrust with
  * altitude priority (the vertical component is met first); RCS translation trims what the tilt cannot deliver.
  */
-function vtolAllocate(c: Spacecraft, a: THREE.Vector3, up: THREE.Vector3, heading: THREE.Vector3 | null, maxTilt = 0.6, lowG = false) {
+export function vtolAllocate(c: Spacecraft, a: THREE.Vector3, up: THREE.Vector3, heading: THREE.Vector3 | null, maxTilt = 0.6, lowG = false) {
   let u = a.clone().normalize();
   if (lowG) maxTilt = 1.35; // milli-g: nothing to hold up, the hover thrusters can push in any direction
   if (a.dot(up) <= 0.05) u = lowG && a.clone().addScaledVector(up, -a.dot(up)).lengthSq() > 1e-4 ? a.clone().addScaledVector(up, -a.dot(up)).normalize().addScaledVector(up, 0.2).normalize() : up.clone(); // never point the thrusters down
@@ -618,5 +618,33 @@ export class AscentToOrbit implements AutopilotProgram {
     c.vtol = 0;
     c.sas = 'prograde';
     return { msg: `Coasting up — ${(s.alt / 1000).toFixed(1)} km`, timeScale: 4 };
+  }
+}
+
+
+/**
+ * Gas giants: hold an altitude and an airspeed on the hover thrusters, keeping the current heading (the player steers
+ * with yaw). Used for cruising Jupiter's cloud layer.
+ */
+export class CloudCruise implements AutopilotProgram {
+  name = 'CLOUD CRUISE';
+  allowManual = false;
+  constructor(public alt: number, public speed = 140) {}
+
+  update(c: Spacecraft, _dt: number, env: FlightEnv): AutopilotResult {
+    const up = V(env.up(c.pos));
+    const v = V(c.vel);
+    const g = V(env.gravity(c.pos));
+    const hv = v.clone().addScaledVector(up, -v.dot(up));
+    const fwd = c.forward().addScaledVector(up, -c.forward().dot(up));
+    const head = (hv.lengthSq() > 100 ? hv.clone() : fwd).normalize();
+    const alt = env.altitude(c.pos);
+    const vyWant = THREE.MathUtils.clamp((this.alt - alt) * 0.06, -30, 30);
+    const aUp = (vyWant - v.dot(up)) * 0.7;
+    const aH = head.clone().multiplyScalar(this.speed).sub(hv).multiplyScalar(0.3);
+    if (aH.length() > 8) aH.setLength(8);
+    const a = up.clone().multiplyScalar(aUp).add(aH).sub(g);
+    vtolAllocate(c, a, up, head, 0.45);
+    return { msg: `Cruise ${(alt / 1000).toFixed(1)} km · ${hv.length().toFixed(0)} m/s` };
   }
 }

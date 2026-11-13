@@ -345,6 +345,13 @@ export class SurfaceGen {
         h += plain + pat + 4 * fbm2(x / 120, z / 120, 3, sd + 6);
         break;
       }
+      case 'gas': {
+        // the deep cloud deck far below the flying level: convective domes and long swells (never landed on)
+        const swell = 900 * fbm2(x / 9000, z / 9000, 3, sd + 3);
+        const domes = 380 * Math.pow(Math.max(0, fbm2(x / 1500, z / 1500, 3, sd + 4) + 0.25), 1.6);
+        h += -6500 + swell + domes + 40 * fbm2(x / 220, z / 220, cell < 20 ? 3 : 2, sd + 5);
+        break;
+      }
       case 'ocean': {
         // Miller: a flat sand seabed under ~0.7 m of water, rippled by the currents
         h += -0.75 + 0.05 * Math.sin((x * 0.8 + z * 0.6) * 2.4 + 2 * fbm2(x / 6, z / 6, 2, sd + 2)) + 0.25 * fbm2(x / 400, z / 400, 3, sd + 4);

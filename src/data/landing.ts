@@ -2,7 +2,7 @@
  * Landable bodies: surface style, relief scale of the orbital height maps, named landing sites.
  * Sites use planetocentric latitude / east longitude, matching the body maps (scripts/gen_planets.py).
  */
-export type SurfaceStyle = 'lunar' | 'mercury' | 'mars' | 'icy' | 'europa' | 'io' | 'titan' | 'rubble' | 'desert' | 'glacier' | 'ocean';
+export type SurfaceStyle = 'lunar' | 'mercury' | 'mars' | 'icy' | 'europa' | 'io' | 'titan' | 'rubble' | 'desert' | 'glacier' | 'ocean' | 'gas';
 
 export interface LandingSite {
   name: string;
@@ -27,6 +27,16 @@ export interface SurfaceDef {
 }
 
 export const SURFACES: Record<string, SurfaceDef> = {
+  // a gas giant: no surface — the Ranger dives into the cloud layer and flies there (style 'gas'; the 'ground' is the
+  // deep cloud deck far below, never touched); sites are where the dive comes down
+  jupiter: {
+    style: 'gas', relief: 0, rocks: 0, craters: 0, tint: [1, 0.96, 0.9], temp: '−110 °C · 1 bar · hydrogen, helium, ammonia ice',
+    sites: [
+      { name: 'Equatorial Zone', lat: 2.0, lon: 35, note: 'Cream ammonia-ice cloud tops at the 1-bar level; the floaters graze here.' },
+      { name: 'North Equatorial Belt', lat: 14.5, lon: 128, note: 'A dark belt: brown ammonium hydrosulfide cloud, lightning in the deep.' },
+      { name: 'Great Red Spot rim', lat: -22.5, lon: -62, note: 'The edge of the great storm — red-brown towers and fast winds.' },
+    ],
+  },
   moon: {
     style: 'lunar', relief: 6500, rocks: 0.6, craters: 1, tint: [1, 1, 1], temp: '−170…+120 °C',
     sites: [
