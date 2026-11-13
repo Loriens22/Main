@@ -26,6 +26,15 @@ PI = math.pi
 TAU = math.tau
 
 
+def pose(arm, rots):
+    """preview only: rotate pose bones (local XYZ euler, radians)"""
+    for nm, r in rots.items():
+        pb = arm.pose.bones.get(nm)
+        if pb:
+            pb.rotation_mode = "XYZ"
+            pb.rotation_euler = r
+
+
 def THREE_smooth(e0, e1, x):
     t = max(0.0, min(1.0, (x - e0) / (e1 - e0)))
     return t * t * (3 - 2 * t)
@@ -407,6 +416,475 @@ def mimic():
     return root, arm
 
 
+# ================================================================================================ shared helpers (2)
+ELL = lambda co, size, r=1.0: ("ELLIPSOID", co, r, size)
+
+
+def fan(name, base, center_dir, normal, radius, spread, m, n=14, notch=0.0, rays_m=None, ray_r=0.002, scallop=0.0, thick=0.004):
+    """a fin membrane: a fan of `spread` radians around `center_dir` in the plane ⟂ `normal`, with optional ray lines"""
+    base, cd, nm = V(base), V(center_dir).normalized(), V(normal).normalized()
+    sd = nm.cross(cd).normalized()
+    bm = bmesh.new()
+    c = bm.verts.new(base)
+    rim = []
+    for i in range(n + 1):
+        a = -spread / 2 + spread * i / n
+        rr = radius * (1 - notch * math.exp(-((a / (spread / 2)) ** 2) * 6)) * (1 + scallop * math.sin(i * PI))
+        rim.append(base + (cd * math.cos(a) + sd * math.sin(a)) * rr)
+    vs = [bm.verts.new(p) for p in rim]
+    for i in range(n):
+        bm.faces.new((c, vs[i], vs[i + 1]))
+    o = from_bmesh(name, bm, (m,))
+    kit.add_solidify(o, thick, 0.0)
+    kit.bake(o)
+    kit.smooth(o, 40)
+    out = [o]
+    if rays_m:
+        for i in range(0, n + 1, 1):
+            out.append(tube_tapered(f"{name}r{i}", [base, base.lerp(rim[i], 0.5), rim[i]], ray_r, ray_r * 0.4, rays_m, seg=3))
+    return kit.merge(out, name) if len(out) > 1 else o
+
+
+def teeth_row(name, pts, normals, lengths, back, m="tooth", r0=0.02, hook=0.3):
+    """a row of curved teeth standing from `pts` along `normals`, hooked back toward `back`"""
+    ts = []
+    for i, (p, n, L) in enumerate(zip(pts, normals, lengths)):
+        p, n = V(p), V(n).normalized()
+        b = V(back).normalized()
+        ts.append(tube_tapered(f"{name}{i}", [p, p + n * (L * 0.55) + b * (L * hook * 0.3), p + n * L + b * (L * hook)], r0 * (L / 0.1) ** 0.5, 0.002, m, seg=5))
+    return kit.merge(ts, name)
+
+
+def body_loft(name, stations, m, nu=26, mats=None, belly=None, sq=2.2):
+    """streamlined body along +Y: stations [(y, half_width, half_height, z_centre)], elliptic-ish sections (sq: squareness);
+    with `belly` the lower faces use mats[1]"""
+    nv = len(stations)
+    def P(i, j):
+        y, w, h, zc = stations[j]
+        a = TAU * i / nu
+        c, sn = math.cos(a), math.sin(a)
+        x = w * math.copysign(abs(c) ** (2 / sq), c)
+        z = zc + h * math.copysign(abs(sn) ** (2 / sq), sn)
+        return (x, y, z)
+    y0, w0, h0, z0 = stations[0]
+    y1, w1, h1, z1 = stations[-1]
+    mf = (lambda i, j: 1 if math.sin(TAU * (i + 0.5) / nu) < -0.35 else 0) if belly else None
+    tip0 = (0, y0 + (stations[0][0] - stations[1][0]) * 0.25, z0)
+    tip1 = (0, y1 + (stations[-1][0] - stations[-2][0]) * 0.25, z1)
+    return grid(name, P, nu, nv, mats or (m,), mat_fn=mf, poles=(tip0, tip1))
+
+
+# ================================================================================================ breaker shield (image 8)
+def breaker():
+    """3 m long; ground z = 0"""
+    kit.reset()
+    root = empty("BreakerShield")
+    rng = random.Random(51)
+    sk = Skeleton()
+    sk.add("body", (0, -1.3, 0.55), (0, 0.9, 0.55))
+    sk.add("head", (0, 0.9, 0.42), (0, 1.6, 0.34), "body")
+    parts = []
+    core = meta("core", [ELL((0, -0.15, 0.5), (1.0, 1.45, 0.36)), ELL((0, 0.95, 0.32), (0.42, 0.4, 0.2)), ELL((0, -1.35, 0.42), (0.62, 0.42, 0.24))], "breaker_skin", res=0.06)
+    parts.append(Part(decimate(core, 0.5), bones=["body", "head"]))
+
+    def cara(u, v):
+        y = -1.55 + 2.45 * v
+        hw = 1.08 * math.sin(PI * min(0.97, 0.06 + 0.94 * v)) ** 0.5 + 0.06
+        z = 0.32 + 0.62 * (1 - min(1.0, abs(u)) ** 2) ** 0.6 * (0.82 + 0.18 * math.sin(PI * v))
+        return V((u * hw, y, z)), V((u * 1.3, (0.5 - v) * 0.4, 1)).normalized()
+    for row in range(8):
+        v = 0.03 + row * 0.122
+        cols = 6 + (row % 2)
+        for c in range(cols):
+            u = -1.08 + 2.16 * (c + 0.5 * (row % 2) + 0.25) / (cols + 0.5)
+            p, nrm = cara(u, v)
+            sh = shard(f"cp{row}_{c}", p + nrm * 0.01, nrm, (0, -1, 0), rng.uniform(0.34, 0.46), "breaker_shell", rng, thick=0.06, lift=0.38, jag=0.26)
+            parts.append(Part(sh, bone="body"))
+    # the helmet shield over the head, pointed in front
+    parts.append(Part(shard("helm", (0, 1.22, 0.5), (0, 0.55, 1), (0, 1, 0), 0.62, "breaker_shell", rng, thick=0.08, lift=0.1, jag=0.12), bone="head"))
+    parts.append(Part(shard("helm2", (0, 0.85, 0.66), (0, 0.3, 1), (0, 1, 0), 0.55, "breaker_shell", rng, thick=0.07, lift=0.25, jag=0.2), bone="head"))
+    for sx in (-1, 1):
+        parts.append(Part(shard(f"cheek{sx}", (sx * 0.38, 1.2, 0.42), (sx * 0.9, 0.4, 0.5), (0, 1, 0), 0.24, "breaker_shell", rng, thick=0.05, lift=0.1), bone="head"))
+        parts.append(Part(kit.sphere(f"eye{sx}", 0.045, loc=(sx * 0.25, 1.48, 0.38), m="mimic_pupil", segs=10, rings=6), bone="head"))
+    # thick mouth feelers hanging forward and down
+    for k in range(6):
+        x = (k - 2.5) * 0.075
+        b = V((x, 1.5, 0.27))
+        path = [b, b + V((x * 0.5, 0.12, -0.08)), b + V((x * 0.9, 0.18, -0.2)), b + V((x * 1.1, 0.14, -0.3))]
+        parts.append(Part(tube_tapered(f"feeler{k}", path, 0.035, 0.008, "breaker_feeler", seg=7), bone="head"))
+    # six short thick plated limbs, broad clawed feet
+    for sx, s in ((-1, "L"), (1, "R")):
+        for k, y in enumerate((0.65, -0.05, -0.8)):
+            pts = [V((sx * 0.8, y, 0.42)), V((sx * 1.25, y + 0.05, 0.5)), V((sx * 1.5, y + 0.12, 0.2)), V((sx * 1.6, y + 0.22, 0.04))]
+            ch = sk.chain(f"limb{s}{k}", [tuple(p) for p in pts], "body")
+            parts.append(Part(tube_r(f"lm{s}{k}", pts, [0.19, 0.17, 0.14, 0.11], "breaker_skin", seg=10), bones=ch + ["body"]))
+            for i in range(3):
+                a, b = pts[i], pts[i + 1]
+                c = a.lerp(b, 0.5)
+                up = (V((0, 0, 1)) + V((sx * 0.4, 0, 0))).normalized()
+                parts.append(Part(shard(f"sl{s}{k}{i}", c + up * 0.12, up, (b - a).normalized(), 0.2, "breaker_shell", rng, thick=0.04, lift=0.3, jag=0.25), bone=ch[min(i, 2)]))
+            foot = pts[-1]
+            parts.append(Part(kit.sphere(f"pad{s}{k}", 0.17, loc=tuple(foot + V((0, 0.05, 0.0))), m="breaker_skin", segs=12, rings=6, scale=(1.1, 1.3, 0.45)), bone=ch[-1]))
+            for c in range(5):
+                a = (c - 2) * 0.32
+                d = V((math.sin(a) * sx * 0.6, math.cos(a), 0)).normalized()
+                cb = foot + d * 0.16
+                parts.append(Part(tube_tapered(f"cl{s}{k}{c}", [cb, cb + d * 0.08 + V((0, 0, -0.02)), cb + d * 0.12 + V((0, 0, -0.06))], 0.028, 0.004, "claw_black", seg=5), bone=ch[-1]))
+    body = assemble("breaker_body", sk, parts)
+    arm = finish_creature(root, sk, body, os.path.join(kit.out_dir(), "fauna_breaker.glb"), props={"creature": "breaker", "length": 3.0})
+    return root, arm
+
+
+# ================================================================================================ rift architect (image 7)
+def architect():
+    """1.4 m carapace; ground z = 0"""
+    kit.reset()
+    root = empty("RiftArchitect")
+    rng = random.Random(61)
+    sk = Skeleton()
+    sk.add("body", (0, -0.45, 0.42), (0, 0.42, 0.42))
+    parts = []
+    core = meta("core", [ELL((0, -0.02, 0.42), (0.6, 0.5, 0.2)), ELL((0, 0.44, 0.36), (0.3, 0.16, 0.15)), ELL((0, -0.02, 0.3), (0.45, 0.4, 0.14))], "arch_leg", res=0.03)
+    parts.append(Part(decimate(core, 0.5), bone="body"))
+
+    def cara(u, v):
+        y = -0.55 + 1.05 * v
+        hw = 0.66 * math.sin(PI * min(0.97, 0.06 + 0.94 * v)) ** 0.45 + 0.04
+        z = 0.48 + 0.2 * (1 - u * u) ** 0.6
+        return V((u * hw, y, z)), V((u * 1.2, (0.5 - v) * 0.4, 1)).normalized()
+    for row in range(7):
+        v = 0.04 + row * 0.15
+        cols = 4 + (row % 2)
+        for c in range(cols):
+            u = -0.95 + 1.9 * (c + 0.5 * (row % 2) + 0.25) / (cols + 0.5)
+            p, nrm = cara(u, v)
+            parts.append(Part(shard(f"cp{row}_{c}", p + nrm * 0.006, nrm, (0, -1, 0), rng.uniform(0.19, 0.25), "arch_shell", rng, thick=0.025, lift=0.32, jag=0.38), bone="body"))
+    # spines along the carapace margin
+    for k in range(18):
+        a = PI * (k / 17) - PI / 2
+        side = 1 if a > 0 else -1
+        y = -0.5 + 0.95 * (k % 9) / 8
+        p, nrm = cara(side * 0.98, (y + 0.55) / 1.05)
+        parts.append(Part(tube_tapered(f"sp{k}", [p, p + V((side * 0.06, -0.02, 0.04))], 0.014, 0.002, "arch_shell", seg=4), bone="body"))
+    # eyes: two rows of small black beads at the front
+    for i in range(8):
+        x = (i % 4 - 1.5) * 0.055
+        z = 0.42 if i < 4 else 0.37
+        parts.append(Part(kit.sphere(f"eye{i}", 0.022 if i < 4 else 0.018, loc=(x, 0.6, z), m="mimic_pupil", segs=10, rings=6), bone="body"))
+    # long face tendrils and two antennae
+    for k in range(10):
+        x = (k - 4.5) * 0.035
+        b = V((x, 0.58, 0.3))
+        L = rng.uniform(0.3, 0.5)
+        path = [b, b + V((x * 0.4, 0.08, -0.08)), b + V((x * 0.8, 0.12, -L * 0.6)), b + V((x * 1.2, 0.18 + rng.uniform(0, 0.08), -L))]
+        parts.append(Part(tube_tapered(f"ten{k}", path, 0.006, 0.0015, "arch_tendril", seg=4), bone="body"))
+    for sx in (-1, 1):
+        b = V((sx * 0.08, 0.6, 0.45))
+        parts.append(Part(tube_tapered(f"ant{sx}", [b, b + V((sx * 0.1, 0.25, 0.25)), b + V((sx * 0.22, 0.32, 0.5)), b + V((sx * 0.35, 0.22, 0.68))], 0.009, 0.002, "arch_tendril", seg=4), bone="body"))
+    # two slender manipulators with fingered grippers
+    for sx, s in ((-1, "L"), (1, "R")):
+        pts = [V((sx * 0.16, 0.5, 0.3)), V((sx * 0.3, 0.78, 0.48)), V((sx * 0.3, 1.02, 0.3)), V((sx * 0.24, 1.12, 0.1)), V((sx * 0.2, 1.16, 0.03))]
+        ch = sk.chain(f"man{s}", [tuple(p) for p in pts], "body")
+        parts.append(Part(tube_r(f"mm{s}", pts, [0.035, 0.028, 0.022, 0.017, 0.012], "arch_leg", seg=8), bones=ch))
+        for i in range(1, 4):
+            parts.append(Part(kit.sphere(f"j{s}{i}", 0.03, loc=tuple(pts[i]), m="arch_shell", segs=8, rings=5), bone=ch[i - 1]))
+        hand = pts[-1]
+        for f in range(4):
+            a = (f - 1.5) * 0.45
+            d = V((math.sin(a) * 0.8, 0.55, -0.3)).normalized()
+            parts.append(Part(tube_tapered(f"fg{s}{f}", [hand, hand + d * 0.05, hand + d * 0.09 + V((0, 0.02, -0.02))], 0.007, 0.002, "arch_leg", seg=4), bone=ch[-1]))
+    # six thick plated walking legs
+    for sx, s in ((-1, "L"), (1, "R")):
+        for k, y in enumerate((0.25, -0.1, -0.42)):
+            pts = [V((sx * 0.5, y, 0.36)), V((sx * 0.78, y + 0.05, 0.56)), V((sx * 0.98, y + 0.02, 0.26)), V((sx * 1.06, y - 0.02, 0.0))]
+            ch = sk.chain(f"leg{s}{k}", [tuple(p) for p in pts], "body")
+            parts.append(Part(tube_r(f"lg{s}{k}", pts, [0.095, 0.08, 0.06, 0.025], "arch_leg", seg=8), bones=ch))
+            for i in range(3):
+                a, b = pts[i], pts[i + 1]
+                c = a.lerp(b, 0.5)
+                up = (V((0, 0, 1)) + V((sx * 0.3, 0, 0))).normalized()
+                parts.append(Part(shard(f"lp{s}{k}{i}", c + up * 0.04, up, (b - a).normalized(), 0.09, "arch_shell", rng, thick=0.012, lift=0.35, jag=0.35), bone=ch[i]))
+    body = assemble("architect_body", sk, parts)
+    arm = finish_creature(root, sk, body, os.path.join(kit.out_dir(), "fauna_architect.glb"), props={"creature": "architect"})
+    return root, arm
+
+
+# ================================================================================================ luminous siren (image 2)
+def siren():
+    """1.1 m; swimming, origin at the body centre"""
+    kit.reset()
+    root = empty("LuminousSiren")
+    sk = Skeleton()
+    N = 30
+    path = [V((0.05 * math.sin(TAU * 0.8 * (i / (N - 1))) * (i / (N - 1)), 0.6 - 1.2 * (i / (N - 1)), 0.0)) for i in range(N)]
+    def prof(t):
+        return 0.045 * math.exp(-((t - 0.06) / 0.07) ** 2) + 0.055 * math.sin(PI * min(1, t * 1.2)) ** 0.6 * (1 - t) ** 0.6 + 0.006
+    spine = chain_along(sk, "sp", path, 6, None)
+    parts = [Part(tube_r("glass", path, [prof(i / (N - 1)) for i in range(N)], "siren_glass", seg=14), bones=spine)]
+    core_pts = path[5:23]
+    parts.append(Part(tube_r("core", core_pts, [prof((i + 5) / (N - 1)) * 0.55 for i in range(len(core_pts))], "siren_core", seg=10), bones=spine))
+    # head: pointed snout, needle teeth, big eye
+    h = path[0]
+    parts.append(Part(tube_tapered("snout", [h, h + V((0, 0.05, -0.005)), h + V((0, 0.09, -0.012))], 0.032, 0.004, "siren_glass", seg=10), bone=spine[0]))
+    tps, tns = [], []
+    for k in range(7):
+        for sx in (-1, 1):
+            tps.append(h + V((sx * (0.018 - 0.002 * k), 0.07 - 0.012 * k, -0.018)))
+            tns.append((sx * 0.3, 0.3, -1))
+    parts.append(Part(teeth_row("teeth", tps, tns, [0.012] * len(tps), (0, -1, 0), r0=0.0012, hook=0.2), bone=spine[0]))
+    for sx in (-1, 1):
+        parts.append(Part(kit.sphere(f"eye{sx}", 0.016, loc=tuple(h + V((sx * 0.026, 0.03, 0.012))), m="mimic_pupil", segs=12, rings=8), bone=spine[0]))
+    # the lure: a clear stalk from the crown, looping up and forward, the cyan bulb hanging before the face
+    ctrl = [h + V((0, -0.02, 0.04)), h + V((0, -0.03, 0.15)), h + V((0, 0.04, 0.24)), h + V((0, 0.13, 0.25)), h + V((0, 0.19, 0.18)), h + V((0, 0.2, 0.09))]
+    lp = []
+    for i in range(len(ctrl) - 1):  # Catmull-Rom through the control points: a smooth arc
+        p0, p1, p2, p3 = ctrl[max(i - 1, 0)], ctrl[i], ctrl[i + 1], ctrl[min(i + 2, len(ctrl) - 1)]
+        for k in range(5):
+            t = k / 5
+            lp.append(0.5 * ((2 * p1) + (-p0 + p2) * t + (2 * p0 - 5 * p1 + 4 * p2 - p3) * t * t + (-p0 + 3 * p1 - 3 * p2 + p3) * t * t * t))
+    lp.append(ctrl[-1])
+    lure = sk.chain("lu", [tuple(c) for c in ctrl[::2]] + [tuple(ctrl[-1])], spine[0])
+    parts.append(Part(tube_tapered("stalk", lp, 0.0045, 0.0025, "siren_fin", seg=6), bones=lure))
+    parts.append(Part(kit.sphere("bulb", 0.016, loc=tuple(lp[-1] + V((0, 0, -0.012))), m="siren_lure", segs=12, rings=8, scale=(1, 1, 1.4)), bone=lure[-1]))
+    # fins: pectoral and (larger) pelvic fans with rays, a sail along the back, the broad forked tail
+    for sx, s in ((-1, "L"), (1, "R")):
+        b = path[6] + V((sx * 0.04, 0, -0.01))
+        parts.append(Part(fan(f"pec{s}", b, (sx * 0.62, -0.75, -0.12), (0.2, 0, 1), 0.24, 1.15, "siren_fin", n=16, rays_m="siren_fin", ray_r=0.0012, scallop=0.04), bones=[spine[1]]))
+        b = path[13] + V((sx * 0.045, 0, -0.012))
+        parts.append(Part(fan(f"pel{s}", b, (sx * 0.55, -0.8, -0.2), (0.2, 0, 1), 0.33, 1.2, "siren_fin", n=16, rays_m="siren_fin", ray_r=0.0013, scallop=0.04), bones=[spine[2]]))
+    sail = fan("sail", path[11] + V((0, 0, 0.04)), (0, -0.55, 0.85), (1, 0, 0), 0.11, 1.5, "siren_fin", rays_m="siren_fin", ray_r=0.001)
+    parts.append(Part(sail, bones=[spine[2], spine[3]]))
+    tail = fan("tail", path[-2], (0, -1, 0), (1, 0, 0), 0.26, 1.25, "siren_fin", n=18, notch=0.35, rays_m="siren_fin", ray_r=0.0014)
+    parts.append(Part(tail, bone=spine[-1]))
+    body = assemble("siren_body", sk, parts)
+    arm = finish_creature(root, sk, body, os.path.join(kit.out_dir(), "fauna_siren.glb"), props={"creature": "siren", "length": 1.1})
+    return root, arm
+
+
+# ================================================================================================ abyssal stalker (image 9)
+def stalker():
+    """6.5 m; swimming, origin at the body centre"""
+    kit.reset()
+    root = empty("AbyssalStalker")
+    sk = Skeleton()
+    pts = [V((0, 3.2 - 6.6 * t, -0.15 * t * t)) for t in [i / 12 for i in range(13)]]
+    spine = sk.chain("sp", [tuple(p) for p in pts[2:]], None)
+    sk.add("head", tuple(pts[2]), tuple(pts[0]), spine[0])
+    sk.add("jaw", (0, 2.0, -0.18), (0, 3.15, -0.22), "head")
+    parts = []
+    st = [(3.3, 0.05, 0.03, 0.0), (3.05, 0.17, 0.06, 0.0), (2.7, 0.3, 0.09, 0.02), (2.3, 0.4, 0.12, 0.05), (1.9, 0.45, 0.22, 0.02), (1.3, 0.5, 0.38, 0.0),
+          (0.5, 0.52, 0.46, 0.0), (-0.4, 0.46, 0.43, 0.0), (-1.3, 0.34, 0.36, 0.0), (-2.1, 0.2, 0.27, 0.0), (-2.8, 0.1, 0.18, 0.0), (-3.3, 0.03, 0.05, 0.0)]
+    parts.append(Part(body_loft("body", st, "stalker_hide", nu=28, mats=("stalker_hide", "stalker_fin"), belly=True), bones=spine + ["head"]))
+    jst = [(3.2, 0.05, 0.02, -0.08), (2.9, 0.18, 0.04, -0.1), (2.5, 0.31, 0.06, -0.12), (2.1, 0.38, 0.07, -0.13), (1.85, 0.36, 0.08, -0.12)]
+    parts.append(Part(body_loft("jawm", jst, "stalker_hide", nu=20), bone="jaw"))
+    parts.append(Part(kit.sphere("mouthin", 1.0, loc=(0, 2.4, -0.04), m="maw_gullet", segs=16, rings=8, scale=(0.36, 0.75, 0.08)), bone="head"))
+    # needle teeth along both jaws
+    for jaw_name, z, nz in (("head", -0.04, -1), ("jaw", -0.09, 1)):
+        tp, tn = [], []
+        for k in range(16):
+            t = k / 15
+            y = 3.1 - 1.15 * t
+            for sx in (-1, 1):
+                w = (0.07 + 0.31 * t ** 0.7) * 0.92
+                tp.append((sx * w, y, z))
+                tn.append((sx * 0.12, 0.1, nz))
+        parts.append(Part(teeth_row(f"t{jaw_name}", tp, tn, [0.07 + 0.04 * math.sin(k) ** 2 for k in range(len(tp))], (0, -1, 0), r0=0.012, hook=0.25), bone=jaw_name))
+    for sx in (-1, 1):
+        parts.append(Part(kit.sphere(f"eye{sx}", 0.045, loc=(sx * 0.37, 2.2, 0.13), m="mimic_pupil", segs=12, rings=8), bone="head"))
+    # wing pectorals with rays, smaller pelvics, a keeled tail fin
+    for sx, s in ((-1, "L"), (1, "R")):
+        sk.add(f"fin{s}", (sx * 0.5, 1.1, -0.15), (sx * 1.9, 0.25, -0.4), spine[1])
+        parts.append(Part(fan(f"pec{s}", (sx * 0.5, 1.1, -0.15), (sx * 0.85, -0.5, -0.15), (0.15, 0, 1), 1.55, 1.0, "stalker_fin", n=16, rays_m="stalker_fin", ray_r=0.01, thick=0.03), bone=f"fin{s}"))
+        sk.add(f"pel{s}", (sx * 0.35, -0.9, -0.2), (sx * 1.1, -1.3, -0.35), spine[4])
+        parts.append(Part(fan(f"pel{s}", (sx * 0.35, -0.9, -0.2), (sx * 0.8, -0.6, -0.15), (0.15, 0, 1), 0.85, 0.9, "stalker_fin", n=12, rays_m="stalker_fin", ray_r=0.008, thick=0.025), bone=f"pel{s}"))
+    parts.append(Part(blade("keel", (0, -1.9, 0.12), (0, -3.45, 0.02), 0.55, (1, 0, 0), "stalker_fin", thick=0.04, n=10, taper=0.4), bones=spine[-3:]))
+    parts.append(Part(blade("keelv", (0, -1.9, -0.12), (0, -3.45, -0.1), 0.4, (1, 0, 0), "stalker_fin", thick=0.04, n=10, taper=0.4), bones=spine[-3:]))
+    body = assemble("stalker_body", sk, parts)
+    arm = finish_creature(root, sk, body, os.path.join(kit.out_dir(), "fauna_abyssstalker.glb"), props={"creature": "abyssstalker", "length": 6.5})
+    return root, arm
+
+
+# ================================================================================================ chorus hunter (image 1)
+def chorus():
+    """3 m; swimming, origin at the body centre"""
+    kit.reset()
+    root = empty("ChorusHunter")
+    sk = Skeleton()
+    ys = [1.55, 1.25, 0.88, 0.55, 0.1, -0.45, -0.95, -1.35]
+    rs = [0.025, 0.07, 0.16, 0.21, 0.26, 0.22, 0.13, 0.05]
+    pts = [V((0, y, -0.02 if y > 1.0 else 0)) for y in ys]
+    spine = sk.chain("sp", [tuple(p) for p in pts[2:]], None)
+    sk.add("head", tuple(pts[2]), tuple(pts[0]), spine[0])
+    parts = []
+    st = [(1.58, 0.012, 0.012, -0.04), (1.45, 0.035, 0.03, -0.02), (1.25, 0.055, 0.05, -0.01), (1.0, 0.085, 0.085, 0.0), (0.82, 0.13, 0.14, 0.01),
+          (0.6, 0.18, 0.2, 0.0), (0.2, 0.235, 0.26, 0.0), (-0.3, 0.215, 0.24, 0.0), (-0.8, 0.14, 0.17, 0.0), (-1.15, 0.07, 0.1, 0.0), (-1.38, 0.035, 0.05, 0.0)]
+    parts.append(Part(body_loft("body", st, "chorus_hide", nu=24, mats=("chorus_hide", "chorus_belly"), belly=True), bones=spine + ["head"]))
+    # the long gape with a pale lip line, the pore row on top of the snout, a small eye high behind the gape
+    for sx in (-1, 1):
+        lip = [V((sx * (0.012 + 0.11 * t ** 0.9), 1.52 - 0.8 * t, -0.04 - 0.03 * t)) for t in [i / 9 for i in range(10)]]
+        parts.append(Part(tube_tapered(f"lip{sx}", lip, 0.007, 0.01, "chorus_pore", seg=4), bone="head"))
+        parts.append(Part(kit.sphere(f"eye{sx}", 0.02, loc=(sx * 0.12, 0.8, 0.07), m="mimic_pupil", segs=10, rings=6), bone="head"))
+        for k in range(8):  # gill slits on the throat
+            y = 0.62 - 0.035 * k
+            arc = [V((sx * 0.19, y, -0.1)), V((sx * 0.215, y - 0.005, -0.02)), V((sx * 0.2, y - 0.01, 0.06))]
+            parts.append(Part(tube_tapered(f"gill{sx}{k}", arc, 0.005, 0.004, "chorus_belly", seg=4), bone=spine[0]))
+    pores = [((0, 1.45 - 0.07 * k, 0.03 + 0.012 * k), (0, 0.1, 1)) for k in range(9)]
+    parts.append(Part(spots("pores", pores, 0.009, "chorus_pore"), bone="head"))
+    # long swept blade pectorals, small pelvics, a low dorsal crest, a crescent fluke
+    for sx, s in ((-1, "L"), (1, "R")):
+        sk.add(f"fin{s}", (sx * 0.2, 0.35, -0.12), (sx * 0.95, -0.25, -0.35), spine[0])
+        parts.append(Part(blade(f"pec{s}", (sx * 0.2, 0.35, -0.12), (sx * 0.95, -0.25, -0.35), 0.3, (0.1, 0.25, 1), "chorus_hide", thick=0.03, n=12, curve=0.04, taper=0.6), bone=f"fin{s}"))
+        parts.append(Part(blade(f"pel{s}", (sx * 0.15, -0.5, -0.16), (sx * 0.45, -0.8, -0.26), 0.14, (0.1, 0.25, 1), "chorus_hide", thick=0.02, n=8, taper=0.6), bone=spine[3]))
+        parts.append(Part(blade(f"fl{s}", (0, -1.33, 0), (sx * 0.55, -1.72, 0.02), 0.2, (0, 0.1, 1), "chorus_hide", thick=0.025, n=10, curve=0.05, taper=0.75), bone=spine[-1]))
+    for k in range(9):
+        y = 0.25 - 0.1 * k
+        b = V((0, y, 0.26 - 0.01 * k))
+        parts.append(Part(tube_tapered(f"crest{k}", [b, b + V((0, -0.05, 0.06 - 0.004 * k))], 0.012, 0.003, "chorus_hide", seg=4), bone=spine[1 + min(3, k // 3)]))
+    body = assemble("chorus_body", sk, parts)
+    arm = finish_creature(root, sk, body, os.path.join(kit.out_dir(), "fauna_chorus.glb"), props={"creature": "chorus", "length": 3.0})
+    return root, arm
+
+
+# ================================================================================================ abyssal cathedral (image 10)
+def cathedral():
+    """15 m long, 24 m span; origin at the body centre"""
+    kit.reset()
+    root = empty("AbyssalCathedral")
+    rng = random.Random(81)
+    sk = Skeleton()
+    sk.add("body", (0, -3.5, 0), (0, 3.5, 0))
+    sk.add("jaw", (0, 3.5, -1.2), (0, 7.0, -1.4), "body")
+    tail = sk.chain("tail", [(0, -3.5, 0), (0, -5.3, 0.1), (0, -7.0, 0.2), (0, -8.2, 0.25)], "body")
+    for sx, s in ((-1, "L"), (1, "R")):
+        sk.add(f"wing{s}1", (sx * 2.4, 0.5, 0), (sx * 7.0, -1.5, -0.3), "body")
+        sk.add(f"wing{s}2", (sx * 7.0, -1.5, -0.3), (sx * 12.0, -4.2, -0.9), f"wing{s}1")
+    parts = []
+    bodym = meta("body", [ELL((0, 0.4, 0), (2.6, 4.4, 1.55)), ELL((0, 4.3, 0.45), (2.45, 2.2, 1.6)), ELL((0, -4.3, 0.1), (1.3, 2.6, 0.9)), ELL((0, -7.0, 0.2), (0.55, 1.4, 0.45)),
+                          ("ELLIPSOID", (0, 6.6, -0.25), 1.0, (2.15, 1.5, 1.05), None, True)], "cath_hide", res=0.22)
+    parts.append(Part(decimate(bodym, 0.5), bones=["body"] + tail))
+    # the mouth: a deep dark gape filled with pale filter lamellae; a thick lower jaw lined with cyan dots
+    throat = kit.sphere("throat", 1.0, loc=(0, 4.9, -0.3), m="maw_gullet", segs=24, rings=12, scale=(2.0, 0.9, 0.95))
+    parts.append(Part(throat, bone="body"))
+    for k in range(30):
+        x = -1.95 + 3.9 * k / 29
+        top = 0.65 - 0.15 * (x / 2) ** 2
+        bot = -1.3 + 0.2 * (x / 2) ** 2
+        y = 5.55 - 0.3 * (x / 2) ** 2
+        parts.append(Part(blade(f"lam{k}", (x, y, top), (x, y + 0.08, bot), 0.32, (0, 1, 0), "cath_lamella", thick=0.035, n=8, curve=0.08, taper=0.0), bones=["body", "jaw"]))
+    jawp = [V((math.sin(a) * 2.25, 3.6 + 2.45 * math.cos(a) ** 0.6, -1.3)) for a in [-PI / 2 + PI * i / 16 for i in range(17)]]
+    parts.append(Part(tube_r("jawm", jawp, [0.32] * 17, "cath_hide", seg=10), bone="jaw"))
+    lipp = [V((math.sin(a) * 2.3, 3.8 + 2.35 * math.cos(a) ** 0.6, 0.8)) for a in [-PI / 2 + PI * i / 16 for i in range(17)]]
+    parts.append(Part(tube_r("lip", lipp, [0.36] * 17, "cath_hide", seg=10), bone="body"))
+    glow = []
+    for line in range(3):
+        for k in range(14):
+            t = k / 13
+            a = -PI / 2 * (0.3 + 0.6 * t)
+            for sx in (-1, 1):
+                p = V((sx * (1.7 + 0.5 * line) * math.cos(a * 0.4), 5.6 - 2.4 * t - 0.4 * line, -1.25 - 0.18 * line - 0.25 * t))
+                glow.append((tuple(p), (sx * 0.4, 0.2, -1)))
+    parts.append(Part(spots("glow", glow, 0.06, "cath_glow"), bone="jaw"))
+    # cranial ridges arching over the dome
+    for k in range(5):
+        x = (k - 2) * 0.7
+        rp = [V((x * (1 + 0.3 * t), 6.0 - 3.2 * t, 1.0 + 1.1 * math.sin(PI * t) - 0.15 * abs(x))) for t in [i / 8 for i in range(9)]]
+        parts.append(Part(tube_r(f"ridge{k}", rp, [0.12 + 0.08 * math.sin(PI * i / 8) for i in range(9)], "cath_hide", seg=8), bone="body"))
+    # the wings: broad lofted sections, fringed trailing edges with rays
+    for sx, s in ((-1, "L"), (1, "R")):
+        secs = []
+        for i in range(15):
+            t = i / 14
+            x = sx * (2.2 + 9.8 * t)
+            yle = 3.4 - 6.0 * t ** 1.4
+            yte = -2.6 - 1.4 * t + 1.6 * math.sin(PI * t) * 0.6
+            ym, hc = (yle + yte) / 2, max(0.08, (yle - yte) / 2)
+            th = 0.9 * (1 - t) ** 1.3 + 0.05
+            z = -0.6 * t * t
+            secs.append([(x, ym + hc * math.cos(TAU * k / 14), z + 0.5 * th * math.sin(TAU * k / 14)) for k in range(14)])
+        wing = kit.loft(f"wing{s}", secs, m="cath_wing")
+        kit.smooth(wing, 60)
+        parts.append(Part(wing, bones=["body", f"wing{s}1", f"wing{s}2"]))
+        rays = []
+        for i in range(1, 14):
+            t = i / 14
+            x = sx * (2.2 + 9.8 * t)
+            yte = -2.6 - 1.4 * t + 1.6 * math.sin(PI * t) * 0.6
+            p0 = V((x, yte + 0.3, -0.6 * t * t))
+            p1 = p0 + V((sx * 0.15, -0.9 - 0.3 * math.sin(i * 1.7) ** 2, -0.05))
+            rays.append(tube_tapered(f"ray{s}{i}", [p0, p0.lerp(p1, 0.5), p1], 0.05, 0.015, "cath_wing", seg=5))
+            fr = fan(f"fr{s}{i}", p0, (p1 - p0), (0, 0, 1), (p1 - p0).length * 1.05, 0.5, "cath_wing", n=6, thick=0.02)
+            rays.append(fr)
+        parts.append(Part(kit.merge(rays, f"rays{s}"), bones=[f"wing{s}1", f"wing{s}2"]))
+    parts.append(Part(blade("fluke", (0, -7.6, 0.2), (0, -9.4, 0.25), 2.2, (0, 0, 1), "cath_wing", thick=0.12, n=10, taper=0.3), bone=tail[-1]))
+    body = assemble("cathedral_body", sk, parts)
+    arm = finish_creature(root, sk, body, os.path.join(kit.out_dir(), "fauna_cathedral.glb"), props={"creature": "cathedral", "length": 15.0})
+    return root, arm
+
+
+# ================================================================================================ gargantuan crown (image 5)
+def crown():
+    """10 m; origin at the body centre"""
+    kit.reset()
+    root = empty("GargantuanCrown")
+    rng = random.Random(91)
+    sk = Skeleton()
+    ys = [5.0, 4.4, 3.5, 2.4, 0.8, -1.2, -3.0, -4.4, -5.0]
+    rs = [0.45, 0.85, 1.05, 1.12, 1.25, 1.0, 0.62, 0.28, 0.12]
+    pts = [V((0, y, 0.0)) for y in ys]
+    spine = sk.chain("sp", [tuple(p) for p in pts[2:]], None)
+    sk.add("head", tuple(pts[2]), tuple(pts[0]), spine[0])
+    sk.add("jaw", (0, 2.9, -0.55), (0, 4.95, -0.75), "head")
+    parts = []
+    st = [(5.05, 0.45, 0.16, 0.12), (4.7, 0.95, 0.3, 0.18), (4.1, 1.28, 0.42, 0.2), (3.4, 1.36, 0.58, 0.15), (2.6, 1.28, 0.9, 0.0), (1.4, 1.32, 1.12, 0.0),
+          (-0.3, 1.18, 1.08, 0.0), (-1.9, 0.88, 0.86, 0.0), (-3.3, 0.52, 0.52, 0.0), (-4.4, 0.24, 0.26, 0.0), (-5.0, 0.08, 0.1, 0.0)]
+    parts.append(Part(body_loft("body", st, "crown_hide", nu=30), bones=spine + ["head"]))
+    jst = [(5.0, 0.42, 0.1, -0.12), (4.6, 0.9, 0.18, -0.2), (4.0, 1.18, 0.25, -0.28), (3.3, 1.2, 0.32, -0.32), (2.8, 1.05, 0.34, -0.3)]
+    parts.append(Part(body_loft("jawm", jst, "crown_hide", nu=24), bone="jaw"))
+    parts.append(Part(kit.sphere("mouthin", 1.0, loc=(0, 3.9, -0.05), m="crown_gum", segs=20, rings=10, scale=(1.1, 1.0, 0.16)), bone="head"))
+    # gums and long recurved teeth in rows (longest in front)
+    for jaw_name, z, nz in (("head", -0.18, -1), ("jaw", -0.12, 1)):
+        gp = [V((math.sin(a) * 1.05, 3.6 + 1.35 * math.cos(a) ** 0.7, z)) for a in [-PI / 2 + PI * i / 14 for i in range(15)]]
+        parts.append(Part(tube_r(f"gum{jaw_name}", gp, [0.09] * 15, "crown_gum", seg=8), bone=jaw_name))
+        tp, tn, tl = [], [], []
+        for row in range(2):
+            for i in range(1, 14):
+                a = -PI / 2 + PI * i / 14
+                p = V((math.sin(a) * (1.02 - 0.12 * row), 3.6 + (1.32 - 0.15 * row) * math.cos(a) ** 0.7, z))
+                tp.append(p)
+                tn.append((math.sin(a) * 0.15, math.cos(a) * 0.2, nz))
+                tl.append((0.42 if abs(math.sin(a)) < 0.5 else 0.3) * (1 - 0.3 * row) * rng.uniform(0.8, 1.1))
+        parts.append(Part(teeth_row(f"t{jaw_name}", tp, tn, tl, (0, -1, 0), r0=0.026, hook=0.35), bone=jaw_name))
+    # barbels under the jaw
+    for k in range(14):
+        x = (k - 6.5) * 0.13
+        b = V((x, 4.55 - abs(x) * 0.4, -0.5))
+        L = rng.uniform(0.6, 1.1)
+        parts.append(Part(tube_tapered(f"bar{k}", [b, b + V((x * 0.1, 0.05, -L * 0.5)), b + V((x * 0.2, -0.05, -L))], 0.018, 0.003, "crown_hide", seg=4), bone="jaw"))
+    # the crown: two great central ridges sweeping up and back, three curving out on each side; ridged brows
+    for sx in (-1, 1):
+        cp = [V((sx * 0.28, 3.4, 0.7)), V((sx * 0.38, 3.0, 1.35)), V((sx * 0.48, 2.3, 1.95)), V((sx * 0.6, 1.6, 2.15))]
+        parts.append(Part(tube_r(f"hornC{sx}", cp, [0.3, 0.22, 0.13, 0.04], "crown_horn", seg=12), bone="head"))
+        for k in range(3):
+            b = V((sx * (0.75 + 0.18 * k), 3.75 - 0.42 * k, 0.55 - 0.05 * k))
+            d = V((sx * 0.8, -0.35, 0.7)).normalized()
+            L = 1.0 - 0.18 * k
+            hp = [b, b + d * (L * 0.4), b + d * (L * 0.75) + V((sx * 0.1, -0.1, 0.12)), b + d * L + V((sx * 0.05, -0.25, 0.3))]
+            parts.append(Part(tube_r(f"hornL{sx}{k}", hp, [0.22, 0.15, 0.08, 0.025], "crown_horn", seg=10), bone="head"))
+        brow = [V((sx * (0.25 + 0.6 * t), 4.55 - 0.7 * t, 0.62 + 0.1 * math.sin(PI * t))) for t in [i / 6 for i in range(7)]]
+        parts.append(Part(tube_r(f"brow{sx}", brow, [0.1] * 7, "crown_horn", seg=8), bone="head"))
+        for (ex, ey, ez) in ((0.42, 4.65, 0.35), (0.72, 4.3, 0.45)):
+            parts.append(Part(kit.sphere(f"eye{sx}{ey}", 0.07, loc=(sx * ex, ey, ez), m="mimic_pupil", segs=12, rings=8), bone="head"))
+    # broad pectorals, small pelvics, a crescent fluke
+    for sx, s in ((-1, "L"), (1, "R")):
+        sk.add(f"fin{s}", (sx * 1.0, 1.8, -0.5), (sx * 3.6, 0.2, -1.0), spine[1])
+        parts.append(Part(blade(f"pec{s}", (sx * 1.0, 1.8, -0.5), (sx * 3.6, 0.2, -1.0), 2.0, (0.1, 0.2, 1), "crown_hide", thick=0.12, n=12, curve=0.15, taper=0.55), bone=f"fin{s}"))
+        parts.append(Part(blade(f"pel{s}", (sx * 0.7, -1.6, -0.6), (sx * 1.7, -2.6, -0.8), 0.9, (0.1, 0.2, 1), "crown_hide", thick=0.08, n=8, taper=0.5), bone=spine[3]))
+        parts.append(Part(blade(f"fl{s}", (0, -4.6, 0), (sx * 1.9, -5.7, 0.2), 0.8, (0, 0.1, 1), "crown_hide", thick=0.1, n=10, curve=0.1, taper=0.75), bone=spine[-1]))
+    body = assemble("crown_body", sk, parts)
+    arm = finish_creature(root, sk, body, os.path.join(kit.out_dir(), "fauna_crown.glb"), props={"creature": "crown", "length": 10.0})
+    return root, arm
+
+
 def preview_pose(name, cam, target, lens=40, world=(0.5, 0.55, 0.58), up=None, sun=(0.5, -0.6, 0.7)):
     kit.preview(os.path.join(kit.preview_dir(), f"{name}.png"), cam, target, lens=lens, samples=16, world=world, sun=sun, sun_strength=3.5, up=up)
 
@@ -424,5 +902,27 @@ if __name__ == "__main__":
         elif w == "mimic":
             preview_pose("fauna_mimic", (-1.5, 2.1, 0.85), (0, 0.1, 0.3), lens=35, world=(0.45, 0.5, 0.55))
             preview_pose("fauna_mimic_eye", (0.75, 0.95, 0.6), (0.15, 0.25, 0.4), lens=40, world=(0.45, 0.5, 0.55))
+        elif w == "breaker":
+            preview_pose("fauna_breaker", (-3.2, 4.0, 1.6), (0, 0.3, 0.45), lens=35)
+        elif w == "architect":
+            preview_pose("fauna_architect", (1.6, 2.6, 1.2), (0, 0.3, 0.35), lens=35)
+        elif w == "siren":
+            preview_pose("fauna_siren", (1.3, 0.9, 0.7), (0, 0.15, 0.05), lens=40, world=(0.08, 0.12, 0.14))
+        elif w in ("stalker", "chorus", "crown"):
+            pose(arm, {"jaw": (-0.35 if w != "chorus" else -0.2, 0, 0)})
+            if w == "stalker":
+                preview_pose("fauna_abyssstalker", (4.5, 5.6, 1.2), (0, 1.6, 0), lens=35, world=(0.2, 0.3, 0.35))
+            elif w == "chorus":
+                preview_pose("fauna_chorus", (1.6, 2.2, 0.5), (0, 0.6, 0), lens=35, world=(0.2, 0.3, 0.35))
+            else:
+                preview_pose("fauna_crown", (3.2, 12.5, 0.4), (0, 3.6, 0.2), lens=35, world=(0.15, 0.22, 0.26))
+        elif w == "stalker_old":
+            preview_pose("fauna_abyssstalker", (6.0, 5.5, 1.5), (0, 0.8, 0), lens=35, world=(0.2, 0.3, 0.35))
+        elif w == "chorus":
+            preview_pose("fauna_chorus", (2.6, 1.6, 0.6), (0, 0.2, 0), lens=35, world=(0.2, 0.3, 0.35))
+        elif w == "cathedral":
+            preview_pose("fauna_cathedral", (14, 22, -6), (0, 2, -0.5), lens=35, world=(0.2, 0.3, 0.38))
+        elif w == "crown":
+            preview_pose("fauna_crown", (2.5, 13, 0.6), (0, 3.5, 0.3), lens=35, world=(0.15, 0.22, 0.26))
         elif w == "sedimentmaw":
             preview_pose("fauna_sedimentmaw", (0.6, -3.0, 1.5), (0, 0.15, -0.05), lens=38, world=(0.6, 0.62, 0.62))

@@ -2,6 +2,7 @@ import * as THREE from 'three';
 import { Creature, FaunaManager } from './Fauna';
 import { AX } from './Rig';
 import { MILLER_BIOME } from '../surface/millerBiome';
+import { populateMillerDeep, DEEP_SPECIES } from './millerDeep';
 
 /**
  * Miller's Planet — the abyssal biosphere (docs/MILLER_BIOSPHERE.md). Original speculative species; behaviour comes
@@ -61,6 +62,8 @@ export const MILLER_SPECIES: Record<string, SpeciesInfo> = {
     tide: 'Stops exploring, compresses into its den and anchors', threat: 'Grip and bite only if cornered or near its eggs',
   },
 };
+
+Object.assign(MILLER_SPECIES, DEEP_SPECIES);
 
 /** Shared ecosystem state: the tides as each place feels them, and the field log. A model-less creature, updated first. */
 export class Eco extends Creature {
@@ -846,6 +849,7 @@ export async function populateMiller(f: FaunaManager) {
       mc.buildEggs();
     }),
   );
+  jobs.push(populateMillerDeep(f, eco));
   const cp = new THREE.Vector3(B.pool.x + 3, 0, B.pool.z - 7);
   cp.y = host.terrainY(cp.x, cp.z) + 0.1;
   eco.canister = buildCanister(f, cp);

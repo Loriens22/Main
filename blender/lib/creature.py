@@ -68,6 +68,28 @@ kit.PALETTE.update({
     "mimic_hook": dict(color=(0.86, 0.8, 0.72), rough=0.3),
     "mimic_eye": dict(color=(0.55, 0.36, 0.12), rough=0.1),
     "mimic_pupil": dict(color=(0.02, 0.02, 0.02), rough=0.1),
+    "breaker_shell": dict(color=(0.3, 0.29, 0.22), rough=0.45),
+    "breaker_skin": dict(color=(0.22, 0.23, 0.18), rough=0.5),
+    "breaker_feeler": dict(color=(0.3, 0.27, 0.22), rough=0.45),
+    "arch_shell": dict(color=(0.32, 0.27, 0.36), rough=0.5),
+    "arch_leg": dict(color=(0.36, 0.3, 0.4), rough=0.45),
+    "arch_tendril": dict(color=(0.55, 0.48, 0.5), rough=0.5),
+    "siren_glass": dict(color=(0.7, 0.78, 0.85), rough=0.08),
+    "siren_core": dict(color=(0.12, 0.08, 0.08), rough=0.4),
+    "siren_fin": dict(color=(0.75, 0.82, 0.9), rough=0.1),
+    "siren_lure": dict(color=(0.3, 0.95, 0.9), emit=(0.3, 1.0, 0.95), emit_strength=6.0),
+    "stalker_hide": dict(color=(0.03, 0.04, 0.05), rough=0.35),
+    "stalker_fin": dict(color=(0.06, 0.08, 0.1), rough=0.3),
+    "chorus_hide": dict(color=(0.1, 0.13, 0.16), rough=0.3),
+    "chorus_belly": dict(color=(0.3, 0.33, 0.36), rough=0.35),
+    "chorus_pore": dict(color=(0.85, 0.7, 0.4), rough=0.3),
+    "cath_hide": dict(color=(0.14, 0.2, 0.28), rough=0.4),
+    "cath_wing": dict(color=(0.25, 0.3, 0.36), rough=0.35),
+    "cath_lamella": dict(color=(0.82, 0.8, 0.72), rough=0.5),
+    "cath_glow": dict(color=(0.3, 0.9, 1.0), emit=(0.3, 0.9, 1.0), emit_strength=4.0),
+    "crown_hide": dict(color=(0.025, 0.028, 0.035), rough=0.4),
+    "crown_horn": dict(color=(0.18, 0.18, 0.2), rough=0.35),
+    "crown_gum": dict(color=(0.3, 0.06, 0.07), rough=0.3),
 })
 
 
@@ -145,7 +167,10 @@ def meta(name, elements, m, res=0.05, threshold=0.6):
         t, co, r = el[0], el[1], el[2]
         size = el[3] if len(el) > 3 else None
         rot = el[4] if len(el) > 4 else None
+        neg = el[5] if len(el) > 5 else False
         e = mb.elements.new(type=t)
+        if neg:
+            e.use_negative = True  # carves a cavity (a mouth) out of the blob
         e.co = co
         # the visible surface of a metaball element sits at ~0.575 × its radius (field (1 − d²/r²)³ × 2 = 0.6):
         # scale so that `r` (and an ellipsoid's size) is the size you see

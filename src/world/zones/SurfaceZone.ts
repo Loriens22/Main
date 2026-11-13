@@ -1334,7 +1334,7 @@ export default class SurfaceZone extends Zone implements SurfaceAPHost {
     const base = THREE.MathUtils.clamp(1 / Math.pow(this.flux, 0.75), 0.4, 4);
     const night = 1 - day * this.sunVisCPU;
     // under water the eye adapts to the gloom, partly (deep down only the lamp shows much)
-    this.exposure = THREE.MathUtils.damp(this.exposure, base * (1 + night * 2.2) * (1 - 0.3 * this.indoorK * (1 - night)) * (1 + 1.3 * (1 - this.underK)), 1.2, dt);
+    this.exposure = THREE.MathUtils.damp(this.exposure, base * (1 + night * 2.2) * (1 - 0.3 * this.indoorK * (1 - night)) * (1 + 0.8 * (1 - this.underK)), 1.2, dt);
     this.envT -= dt;
     const envKey = this.sunLocal.x * 7 + this.sunLocal.y * 13 + this.sunLocal.z * 3 + day * 5 + this.sunVisCPU * 2;
     if (this.envT <= 0 && !this.game.skipRender && (Math.abs(envKey - this.envKey) > 0.03 || this.envT < -30)) {
@@ -1441,7 +1441,7 @@ export default class SurfaceZone extends Zone implements SurfaceAPHost {
   }
 
   private buildHeadlamp() {
-    const l = new THREE.SpotLight(0xe8f2ff, 0, 28, 0.42, 0.55, 1.6);
+    const l = new THREE.SpotLight(0xe8f2ff, 0, 24, 0.42, 0.6, 1.4);
     l.castShadow = false;
     this.scene.add(l, l.target);
     this.headlamp = l;
@@ -1475,7 +1475,7 @@ export default class SurfaceZone extends Zone implements SurfaceAPHost {
     const l = this.headlamp;
     if (l) {
       const on = onFoot && this.headlampOn;
-      l.intensity = on ? 220 : 0;
+      l.intensity = on ? 28 : 0;
       l.visible = on;
       if (on) {
         cam.getWorldPosition(l.position);
@@ -1531,6 +1531,25 @@ export default class SurfaceZone extends Zone implements SurfaceAPHost {
         const ps = game.state.player;
         const prot = game.state.creative.hazardProtection;
         ps.health = Math.max(prot ? 0.3 : 0, (ps.health ?? 1) - dt * 0.025 * (1 + (head - 62) / 10));
+        if (ps.health <= 0) {
+          // blackout: the suit's emergency ballast drop brings the body up; Ranger 1's crew hauls it in
+          ps.health = 0.35;
+          const p = pl.pos;
+          let best = p.clone(), bd = Infinity;
+          for (let r = 10; r <= 400 && bd === Infinity; r += 10) {
+            for (let k = 0; k < 16; k++) {
+              const a = (k / 16) * Math.PI * 2, x = p.x + Math.cos(a) * r, z = p.z + Math.sin(a) * r;
+              if (this.stillDepth(new THREE.Vector3(x, this.terrainY(x, z), z)) < 1.2) {
+                bd = r;
+                best.set(x, this.terrainY(x, z) + 0.05, z);
+                break;
+              }
+            }
+          }
+          pl.enterFrame(this.ground, best, 0, 'walk');
+          game.notify('You blacked out under the pressure. The suit dropped its ballast and floated you up into the shallows — suit integrity 35 %.', 'alert', 8);
+          this.depthWarned = 0;
+        }
         game.renderer.fx.shake = Math.max(game.renderer.fx.shake, 0.2);
         if (this.depthWarned < 3) {
           this.depthWarned = 3;

@@ -99,5 +99,42 @@ parts[7] = [
   { js: `${H} ${M} const c = of('ferracaris')[0]; const m = c.meshes[0]; m.geometry.computeBoundingBox(); const bb = m.geometry.boundingBox; const g = c.ind[0]; const mat = new game.camera.matrix.constructor(); m.getMatrixAt(0, mat);
     return { n: c.ind.length, meshes: c.meshes.length, names: c.meshes.map((q) => q.material.name), size: [bb.max.x - bb.min.x, bb.max.y - bb.min.y, bb.max.z - bb.min.z].map((v) => +v.toFixed(3)), g: [g.x, g.z, g.s, g.state].map((v) => typeof v === 'number' ? +v.toFixed(2) : v), y: +z.terrainY(g.x, g.z).toFixed(2), water: +z.waterLevel(g.x, g.z).toFixed(2), m0: Array.from(mat.elements).map((v) => +v.toFixed(2)), root: [c.root.position.x, c.root.scale.x], visible: c.root.visible, parentScale: c.root.parent?.scale.x };`, frames: 1 },
 ];
+const dshot = (name, js) => ({ js: `${H} ${M} game.state.player.health = 1; F['crack'] = 0; const cam = game.camera; game.cinematic = { blocking: true, update: () => true }; cam.fov = 55; cam.updateProjectionMatrix(); ${js}; cam.updateMatrixWorld(true); return 1;`, frames: 3, shot: name, probe: fprobe });
+parts[3] = [
+  land,
+  { untilJs: `game.zone.fauna && game.zone.fauna.creatures.length >= 18`, max: 900, chunk: 30, probe: fprobe },
+  { js: `game.zone.waves.first = game.zone.time + 4000; game.state.creative.hazardProtection = true; return 1;`, frames: 1 },
+  // Breaker Shield at its nest; approach → guard display; crowd it → a shove
+  fgo(`const b = of('breaker')[0]; put(b.nest.x + 7, b.nest.z + 2, 0.05, Math.PI / 2, -0.2); pl.heading.set(-1, 0, 0)`, 40),
+  dshot('miller_breaker', `const b = of('breaker')[0]; cam.position.set(b.pos.x + 4.5, b.pos.y + 1.8, b.pos.z - 3.5); cam.lookAt(b.pos.x, b.pos.y + 0.5, b.pos.z)`), free,
+  fgo(`const b = of('breaker')[0]; put(b.nest.x + 2.2, b.nest.z + 0.4, 0.05, Math.PI / 2, -0.2)`, 2),
+  { untilJs: `game.zone.fauna.creatures.some((k) => k.species === 'breaker' && k.state === 'shove')`, max: 300, chunk: 3, probe: fprobe },
+  { frames: 30, probe: fprobe },
+  // Rift Architect building by the vents
+  fgo(`const a = of('architect')[0]; put(a.den.x + 6, a.den.z + 3, 0.05, 1.2, -0.3); game.input.virtualPress('flashlight')`, 200),
+  dshot('miller_architect', `const a = of('architect')[0]; cam.position.set(a.pos.x + 2.4, a.pos.y + 1.5, a.pos.z + 1.8); cam.lookAt(a.pos.x, a.pos.y + 0.3, a.pos.z)`), free,
+  { untilJs: `!!game.state.flags['bio:architect:construction']`, max: 1800, chunk: 30, probe: fprobe },
+  dshot('miller_architect_build', `const a = of('architect')[0]; cam.position.set(a.pos.x + 2.0, a.pos.y + 1.6, a.pos.z - 1.6); cam.lookAt(a.den.x, a.den.y + 0.2, a.den.z)`), free,
+  // a Luminous Siren by the rift wall (lamp off: the lure in the dark)
+  fgo(`const s = of('siren')[0]; put(s.perch.x + 3, s.perch.z + 2, 0.05, 0, 0); game.input.virtualPress('flashlight')`, 60),
+  dshot('miller_siren', `const s = of('siren')[0]; cam.position.copy(s.pos).add(new V(1.3, 0.35, 1.0)); cam.lookAt(s.pos.x, s.pos.y + 0.05, s.pos.z)`), free,
+  // an Abyssal Stalker: near its ledge it investigates; crowd it and it strikes after a telegraph
+  fgo(`const s = of('abyssstalker')[0]; put(s.ledge.x + 8, s.ledge.z + 4, 0.05, 0, 0); pl.pos.y = Math.max(pl.pos.y, s.pos.y); game.input.virtualPress('flashlight')`, 120),
+  dshot('miller_stalker', `const s = of('abyssstalker')[0]; const f = new V(0, 0, -1).applyQuaternion(s.q); cam.position.copy(s.pos).addScaledVector(f, 7).add(new V(3, 1.5, 0)); cam.lookAt(s.pos)`), free,
+  fgo(`const s = of('abyssstalker')[0]; s.cooldown = 0; s.energy = 1; s.setState('investigate'); put(s.pos.x + 3, s.pos.z + 1, 0.05, 0, 0); pl.pos.y = Math.max(pl.pos.y, s.pos.y)`, 2),
+  { untilJs: `game.zone.fauna.creatures.some((k) => k.species === 'abyssstalker' && (k.state === 'telegraph' || k.state === 'strike'))`, max: 600, chunk: 6, probe: fprobe },
+  dshot('miller_stalker_strike', `const s = of('abyssstalker')[0]; const f = new V(0, 0, -1).applyQuaternion(s.q); cam.position.copy(s.pos).addScaledVector(f, 5).add(new V(2.5, 1.2, 0)); cam.lookAt(s.pos)`), free,
+  { frames: 60, probe: fprobe },
+  // the Chorus pod in the basin
+  fgo(`const c = of('chorus')[0]; put(c.pos.x + 12, c.pos.z + 8, 0.05, 0, 0); pl.pos.y = Math.max(pl.pos.y, c.pos.y)`, 60),
+  dshot('miller_chorus', `const cs = of('chorus'); const c = cs[0]; const m = cs.reduce((a, k) => a.add(k.pos), new V()).divideScalar(cs.length); cam.position.copy(m).add(new V(-8, 3, 12)); cam.lookAt(m)`), free,
+  // the Cathedral feeding
+  fgo(`const c = of('cathedral')[0]; put(c.pos.x + 30, c.pos.z + 25, 0.05, 0, 0); pl.pos.y = Math.max(pl.pos.y, c.pos.y)`, 30),
+  dshot('miller_cathedral', `const c = of('cathedral')[0]; const f = new V(0, 0, -1).applyQuaternion(c.q); cam.position.copy(c.pos).addScaledVector(f, 26).add(new V(-14, -4, 0)); cam.lookAt(c.pos)`), free,
+  // the Crown, risen into reach
+  fgo(`const c = of('crown')[0]; c.pos.set(B.basin.x + 20, -45, B.basin.z + 10); c.setState('patrol'); put(B.basin.x + 20, B.basin.z - 40, 0.05, 0, 0); pl.pos.y = Math.max(pl.pos.y, -40)`, 30),
+  dshot('miller_crown', `const c = of('crown')[0]; const f = new V(0, 0, -1).applyQuaternion(c.q); cam.position.copy(c.pos).addScaledVector(f, 16).add(new V(3, 2.5, 0)); cam.lookAt(c.pos.x, c.pos.y + 1, c.pos.z)`), free,
+  { frames: 2, probe: fprobe },
+];
 const P = process.env.PART ?? '1';
 export const steps = parts[P];
