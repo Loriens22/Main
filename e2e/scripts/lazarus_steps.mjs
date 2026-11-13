@@ -24,7 +24,8 @@ const land = { js: `await game.startCreative(false); game.cinematic = null; game
     const L = await import('/src/data/landing.ts'); const s = L.SURFACES['${BODY}'].sites[0]; const v = game.state.vehicles.ranger1; v.data.surface = { body: '${BODY}', lat: s.lat, lon: s.lon, name: s.name }; v.landed = true;
     await game.goTo('surface', { at: 'landed' }, { fade: 0 }); if (game.zone.waves) { game.zone.waves.first = null; game.zone.waves.schedule(game.zone.time + 5000); }
     // local daytime for the screenshots: step the clock in 1/24 of a rotation until the sun is well up
-    const B = (await import('/src/data/bodies.ts')).BODIES['${BODY}']; game.step(2, 1 / 30, true); for (let i = 0; i < 30 && game.zone.sunLocal.y < 0.35; i++) { game.state.clock.earthTime += Math.abs(B.rotation) / 24; game.step(1, 1 / 30, true); }
+    const B = (await import('/src/data/bodies.ts')).BODIES['${BODY}']; game.step(2, 1 / 30, false); for (let i = 0; i < 30 && game.zone.sunLocal.y < 0.35; i++) { game.state.clock.earthTime += Math.abs(B.rotation) / 24; game.step(1, 1 / 30, false); }
+    // (unrendered: each rendered step with the Sun moved regenerated the environment map — a heavy SwiftShader job)
     return { site: !!game.zone.lazarus, sun: +game.zone.sunLocal.y.toFixed(2) };`, wait: 2500, frames: 10, probe };
 const flows = {
   miller: [

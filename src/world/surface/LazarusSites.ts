@@ -445,10 +445,14 @@ export class LazarusSite {
         this.nightOn = on;
         for (const gname of this.nightGroups) this.camp.setGroup(gname, on);
       }
-      // Edmunds' hab glows like a lantern after dark
-      const fab = this.game.materials.get('hab_fabric') as THREE.MeshStandardMaterial | null;
-      // (night exposure is ~3× the day's, so a little emission reads as a warm lantern, not a white blob)
-      if (fab && this.zone.site.body === 'edmunds') fab.emissiveIntensity = 0.06 * night;
+      // Edmunds' hab glows like a lantern after dark (night exposure is ~3× the day's, so a little emission is a lot):
+      // the membrane bays glow, the thicker pillowed ribs let less light through, so its segments read at night
+      if (this.zone.site.body === 'edmunds') {
+        const fab = this.game.materials.get('hab_fabric') as THREE.MeshStandardMaterial | null;
+        const rib = this.game.materials.get('hab_rib') as THREE.MeshStandardMaterial | null;
+        if (fab) fab.emissiveIntensity = 0.075 * night;
+        if (rib) rib.emissiveIntensity = 0.01 * night;
+      }
       this.camp.update(dt);
       if (this.lid && this.lid.t < 1 && this.lid.open) {
         this.lid.t = Math.min(1, this.lid.t + dt * 0.45);
@@ -487,8 +491,10 @@ export class LazarusSite {
       if (ph) for (const cols of this.camp.colliderMap.values()) for (const c of cols) ph.world.removeCollider(c, false);
       this.camp.dispose();
       this.camp = null;
-      const fab = this.game.materials.get('hab_fabric') as THREE.MeshStandardMaterial | null;
-      if (fab) fab.emissiveIntensity = 0;
+      for (const nm of ['hab_fabric', 'hab_rib']) {
+        const m = this.game.materials.get(nm) as THREE.MeshStandardMaterial | null;
+        if (m) m.emissiveIntensity = 0;
+      }
     }
     this.pool?.clear();
     for (const n of this.npcs) {

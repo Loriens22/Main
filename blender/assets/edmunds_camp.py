@@ -67,7 +67,7 @@ def hab(root, S, P, L, lights):
             xr = x0 + 0.1 + (x1 - x0 - 0.2) * k / n
             if s is HB and abs(xr - DOOR[0]) < DOOR[1] / 2 + 0.12:
                 continue
-            rib = shell_x(f"{nm}_rib", arch(s, 0.09), arch(s, -0.02), xr - 0.11, xr + 0.11, FAB)
+            rib = shell_x(f"{nm}_rib", arch(s, 0.09), arch(s, -0.02), xr - 0.11, xr + 0.11, "hab_rib")
             kit.add_bevel(rib, 0.08, 3, 30)
             S.append(rib)
         # anchor straps and ground pegs at the foot of each rib

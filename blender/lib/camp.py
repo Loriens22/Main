@@ -21,6 +21,7 @@ kit.PALETTE.update({
     "ice_slab": dict(color=(0.58, 0.62, 0.67), rough=0.35),
     "frost": dict(color=(0.9, 0.92, 0.95), rough=0.55),
     "hab_fabric": dict(color=(0.86, 0.85, 0.80), rough=0.85),
+    "hab_rib": dict(color=(0.80, 0.79, 0.74), rough=0.8),
     "flag_red": dict(color=(0.55, 0.06, 0.06), rough=0.8),
     "flag_white": dict(color=(0.85, 0.85, 0.82), rough=0.8),
     "flag_blue": dict(color=(0.06, 0.09, 0.25), rough=0.8),

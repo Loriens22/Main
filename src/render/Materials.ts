@@ -191,6 +191,7 @@ const RECIPES: Record<string, Recipe> = {
   crevasse: { color: C(0.025, 0.035, 0.05), rough: 0.35, weather: false },
   frost: { color: C(0.9, 0.93, 0.97), rough: 0.6, normal: 'ice_n', normalScale: 0.7, normalRepeat: 2.5, sheen: 0.4, weather: false },
   hab_fabric: { color: C(0.86, 0.85, 0.8), rough: 0.85, normal: 'fabric_n', normalScale: 0.5, normalRepeat: 1.5, sheen: 0.35, emissive: C(1.0, 0.62, 0.3), emissiveIntensity: 0, weather: { grime: 0.55, grimeScale: 0.2, grimeTint: new THREE.Color(0.75, 0.68, 0.58), streak: 0.4, scratch: 0 } },
+  hab_rib: { color: C(0.78, 0.77, 0.72), rough: 0.85, normal: 'ribbed_n', normalScale: 0.6, normalRepeat: 1.5, sheen: 0.35, emissive: C(1.0, 0.62, 0.3), emissiveIntensity: 0, weather: { grime: 0.55, grimeScale: 0.2, grimeTint: new THREE.Color(0.75, 0.68, 0.58), streak: 0.4, scratch: 0 } },
   flag_red: { color: C(0.5, 0.06, 0.06), rough: 0.85, normal: 'fabric_n', normalScale: 0.6, normalRepeat: 3, sheen: 0.4, weather: { grime: 0.3, scratch: 0 } },
   flag_white: { color: C(0.82, 0.81, 0.78), rough: 0.85, normal: 'fabric_n', normalScale: 0.6, normalRepeat: 3, sheen: 0.4, weather: { grime: 0.3, scratch: 0 } },
   flag_blue: { color: C(0.06, 0.085, 0.22), rough: 0.85, normal: 'fabric_n', normalScale: 0.6, normalRepeat: 3, sheen: 0.4, weather: { grime: 0.2, scratch: 0 } },
