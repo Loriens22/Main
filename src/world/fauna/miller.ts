@@ -94,7 +94,7 @@ export class Eco extends Creature {
     const g = this.game;
     const k = `bio:${species}:${key}`;
     if (g.flag(k)) return false;
-    g.flag(k, Math.round(g.state.clock.earthTime));
+    g.flag(k, `${Math.round(g.state.clock.earthTime)}|${text}`);
     const info = MILLER_SPECIES[species];
     const first = key === 'sighting';
     g.notify(first ? `New life form recorded — ${info?.name ?? species}. Field log updated.` : `Field log · ${info?.name ?? species}: ${text}`, 'ok', 5);

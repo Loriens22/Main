@@ -1,4 +1,5 @@
 import { h, type PanelHandle } from './UI';
+import { exobiologyTab } from './FieldLog';
 import type { Game } from '../core/Game';
 import { applyPreset, PRESETS, DEFAULT_BINDINGS, type PresetName, type Quality } from '../core/Settings';
 import { listSaves, deleteSave } from '../core/Save';
@@ -276,6 +277,7 @@ export function openMissionComputer(game: Game, initial = 'mission') {
     { id: 'crew', label: 'CREW', build: (b: HTMLElement) => crewTab(game, b) },
     { id: 'clocks', label: 'CLOCKS', build: (b: HTMLElement) => clocksTab(game, b) },
     { id: 'logs', label: 'LOGS', build: (b: HTMLElement) => logsTab(game, b) },
+    { id: 'bio', label: 'EXOBIOLOGY', build: (b: HTMLElement) => exobiologyTab(game, b) },
   ];
   const idx = tabs.findIndex((t) => t.id === initial);
   if (idx > 0) tabs.unshift(tabs.splice(idx, 1)[0]);

@@ -111,10 +111,36 @@ The images' ringed planet in the sky is not added (Miller's sky shows Gargantua 
      near the eggs; a leg grip and bites only if the intruder stays; a cooldown after a grapple (time to back off);
      memory of encounters (reaches earlier next time); goes home and compresses before a crest.
    - Field log: sightings and witnessed behaviours stored as `bio:<species>:<key>` flags (saved with the game).
-4. Remaining seven species — next.
-5. Ecosystem/wave integration polish; 6. research database UI; 7. tests, screenshots.
+4. Remaining seven species — done, verified in-browser (`miller_steps.mjs` PART 3):
+   - Breaker Shield (reef lee nest): browses; faces an intruder between it and the eggs, shield up, knocks on the
+     rock; a short shove only if crowded; flattens over the nest before a crest.
+   - Rift Architect (by the vents): carries loose stones and nacre to the wall round its egg crevice and fits them;
+     a crest knocks part of the wall down and it rebuilds; threat posture and a swipe only near the eggs.
+   - Luminous Siren (rift walls): hovers with a pulsing lure (a real point light); small drifting animals gather and
+     one is snapped up now and then; a flash and retreat if disturbed; dims and shelters before a crest.
+   - Abyssal Stalker (basin rim ledges, an adult and a younger one): ambush stillness; investigates lamp and movement
+     at a distance; crowded at its ledge it goes still (telegraph), then one straight burst (no homing) and tires.
+   - Chorus Hunters (a pod of 5 with a juvenile): loose flocking without a rigid leader, per-animal click patterns,
+     investigate a diver and move on, flank and burst into a prey school (some prey eaten, the school refills
+     slowly), regroup deep before a crest.
+   - Abyssal Cathedral: wide slow circuits, feeding passes with the mouth open through a plankton bloom, luminous
+     lines; its wake shoves a diver who gets too close (no attack); goes deep before a crest.
+   - Gargantuan Crown (one): patrols below the suit's reach, deep pulses heard first, rarely rises; circles a lamp
+     out of interest and leaves; only if pressed with the lamp at close range: display (jaw open, broadside), then
+     one heavy burst; goes deep before a crest.
+5. Ecosystem/wave integration — tidal states drive every species (above); the post-wave state knocks the
+   Architect's wall down and sweeps unsheltered Ferracaris away (juveniles resettle).
+6. Research database — Mission computer → EXOBIOLOGY: per species OBSERVED (dated evidence actually witnessed),
+   WORKING HYPOTHESIS (unlocked by confidence: sighted → behaviour noted → studied) and UNKNOWN.
+7. Verification — `miller_steps.mjs` PART 1 (habitats/underwater), 2 (vertical slice), 3 (deep species + field
+   database); regression: Miller rescue (`lazarus_steps.mjs`), Mars fauna, unit tests.
 
 ## Known limits (honest list)
 - No submersible, drone or ROV in the game: research is done on foot with the suit (eyes, helmet camera).
 - Prey for the Sediment Maw and Mimic Crawler (small benthic animals) is implied, not simulated as individuals.
-- The suit is rated to 60 m; the basin's floor (−160 m) is out of reach by design.
+- The suit is rated to 60 m; the basin's floor (−160 m) is out of reach by design (a pressure blackout floats the
+  diver up at 35 % integrity).
+- No cave meshes yet: the rift's "caves" are its walls and ledges (heightfield terrain cannot overhang).
+- Juvenile/adult differences are by scale only; no separate juvenile models or morph targets.
+- The Siren's prey, the Chorus prey school and the plankton bloom are particle stand-ins, not modelled animals.
+- Deep shots are dark by design (light falls with depth); the helmet lamp (L) is the main light below ~20 m.

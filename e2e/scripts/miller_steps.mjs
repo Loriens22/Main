@@ -135,6 +135,8 @@ parts[3] = [
   fgo(`const c = of('crown')[0]; c.pos.set(B.basin.x + 20, -45, B.basin.z + 10); c.setState('patrol'); put(B.basin.x + 20, B.basin.z - 40, 0.05, 0, 0); pl.pos.y = Math.max(pl.pos.y, -40)`, 30),
   dshot('miller_crown', `const c = of('crown')[0]; const f = new V(0, 0, -1).applyQuaternion(c.q); cam.position.copy(c.pos).addScaledVector(f, 16).add(new V(3, 2.5, 0)); cam.lookAt(c.pos.x, c.pos.y + 1, c.pos.z)`), free,
   { frames: 2, probe: fprobe },
+  // the field database
+  { js: `const FL = await import('/src/ui/FieldLog.ts'); const d = document.createElement('div'); FL.exobiologyTab(game, d); return { cards: d.querySelectorAll('.card').length, text: d.textContent.replace(/\\s+/g, ' ').slice(0, 1400) };`, frames: 1 },
 ];
 const P = process.env.PART ?? '1';
 export const steps = parts[P];

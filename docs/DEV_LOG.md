@@ -2,7 +2,24 @@
 
 ## Status (latest first)
 
-### Alien life on Mars and Jupiter (this pass)
+### Miller's Planet — an abyssal biosphere (this pass)
+Ten original speculative species from the player's directive and concept images, plus the habitats they need. Full
+design, habitat map, registry and honest limits: `docs/MILLER_BIOSPHERE.md`.
+- Habitats (`world/surface/millerBiome.ts`): the flats keep their look; a black basalt reef with a lee pool, a soft
+  sediment hollow, a rift channel dropping to −48 m and a deep basin to −160 m. Seabed shading (wet basalt, sand,
+  deep water dark from the air).
+- Under water: swimming (suit jets), helmet lamp (L, every world), light falling with depth, murk instead of sky,
+  marine snow, depth gauge with a 60 m suit rating (pressure blackout floats you up), a crest felt as a surge deep in
+  the rift instead of the full sweep.
+- Species (`blender/assets/fauna_miller.py`, `world/fauna/miller.ts`, `millerDeep.ts`): Ferracaris (instanced
+  colonies), Sediment Maw, Mimic Crawler, Breaker Shield, Rift Architect, Luminous Siren, Abyssal Stalker, Chorus
+  Hunters, Abyssal Cathedral, Gargantuan Crown — behaviour from perception (movement, lamp, closeness, short underwater
+  sight), needs and the real tidal precursors (quiet / precursors / retreat / hazard / post-wave); attacks are
+  telegraphed, short-range and escapable; harmless species never attack.
+- Mission computer → EXOBIOLOGY: observed evidence vs working hypothesis vs unknown, saved with the game.
+- Settings → Alien life → Miller's Planet switch.
+
+### Alien life on Mars and Jupiter
 Original creatures modelled in Blender from the player's reference art (own geometry, no copies or photo textures):
 `blender/assets/fauna_mars.py`, `fauna_jupiter.py`, kit `blender/lib/creature.py` (skeletons, metaball bodies with
 true-size radii, distance-blended skin weights, skinned GLB export). The game poses the bones procedurally
