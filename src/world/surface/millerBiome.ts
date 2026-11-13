@@ -98,7 +98,7 @@ export function millerRelief(x: number, z: number, seed: number) {
   }
   // ---- the soft hollow
   const dh = Math.hypot(x - B.hollow.x, z - B.hollow.z) / B.hollow.r;
-  if (dh < 1) off -= 0.95 * smooth(1 - dh + 0.1 * fbm2(x / 15, z / 15, 2, seed + 34), 0, 0.7);
+  if (dh < 1) off -= 0.45 * smooth(1 - dh + 0.1 * fbm2(x / 15, z / 15, 2, seed + 34), 0, 0.7);
   // ---- the rift and the basin, carved below the flats
   let carved = 0;
   const rc = riftCoord(x, z);

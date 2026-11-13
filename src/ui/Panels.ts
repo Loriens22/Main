@@ -167,6 +167,8 @@ export function openSettings(game: Game) {
           b.append(note('Striders, burrowing stalkers, diving lancewings and drifting tether-kites.'));
           b.append(ui.row('Jupiter', ui.toggle(l.jupiter, (v) => { l.jupiter = v; apply(); })));
           b.append(note('Singing gas-bag floaters, veil rays, maw rays, spore bulbs and balloon hunters in the cloud layer — met from Ranger 1. Shake off a creature by jabbing Q/E or full thrust.'));
+          b.append(ui.row("Miller's Planet", ui.toggle(l.miller, (v) => { l.miller = v; apply(); })));
+          b.append(note('An abyssal biosphere: reef grazers, buried suction traps, a camouflaged eight-limbed crawler, cave and deep-basin life. Mostly to be watched — some defend themselves.'));
           b.append(ui.row('Hostility', ui.select<'passive' | 'normal' | 'fierce'>(l.hostility, [['passive', 'Passive — they never attack'], ['normal', 'Normal'], ['fierce', 'Fierce']], (v) => { l.hostility = v; apply(); })));
           const [ds, dv] = ui.slider(l.density, 0.5, 2, 0.25, (v) => { l.density = v; apply(); }, (v) => `${Math.round(v * 100)} %`);
           b.append(ui.row('Creature numbers', ds, dv));

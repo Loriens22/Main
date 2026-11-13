@@ -98,7 +98,23 @@ The images' ringed planet in the sky is not added (Miller's sky shows Gargantua 
 
 ## Phases
 1. Audit + this doc — done.
-2. Registry, ecology/tidal controller, habitat terrain, underwater (swim, headlamp, depth light) — in progress.
-3. Vertical slice: Ferracaris, Sediment Maw, Mimic Crawler — in progress.
-4. Remaining seven species.
-5. Ecosystem/wave integration polish; 6. research UX; 7. tests, screenshots.
+2. Habitats (reef, pool, hollow, rift, basin), underwater (swim, helmet lamp L, depth light, murk, marine snow, depth
+   gauge + 60 m suit rating, deep surge instead of the sweep), tidal states, Settings → Alien life → Miller — done.
+3. Vertical slice — done, verified in-browser (`e2e/scripts/miller_steps.mjs` PART 2):
+   - Ferracaris colonies (instanced, shader legs/fringe) on the reef's wet rock at the waterline; graze, clamp on a
+     fast pass or rising flow, hide in fissures before a crest, some swept away, juveniles resettle later.
+   - Sediment Maws buried in the hollow (only a faint pucker ring and breathing puffs give them away); footstep
+     vibration → snap-open suction pulse (short range) → boot clamped (E to pull free) or a costly miss; relocate
+     after repeated disturbance; bury deeper before a crest.
+   - Mimic Crawler in the pool's den with a clutch of eggs: camouflage shader (rock mottle ↔ own colours), eyes
+     track; forages; inspects and carries Miller's drifted instrument canister into its den; rippling-band warning
+     near the eggs; a leg grip and bites only if the intruder stays; a cooldown after a grapple (time to back off);
+     memory of encounters (reaches earlier next time); goes home and compresses before a crest.
+   - Field log: sightings and witnessed behaviours stored as `bio:<species>:<key>` flags (saved with the game).
+4. Remaining seven species — next.
+5. Ecosystem/wave integration polish; 6. research database UI; 7. tests, screenshots.
+
+## Known limits (honest list)
+- No submersible, drone or ROV in the game: research is done on foot with the suit (eyes, helmet camera).
+- Prey for the Sediment Maw and Mimic Crawler (small benthic animals) is implied, not simulated as individuals.
+- The suit is rated to 60 m; the basin's floor (−160 m) is out of reach by design.

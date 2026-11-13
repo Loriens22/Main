@@ -27,6 +27,10 @@ export interface FaunaHost {
   craft(): Spacecraft | null;
   /** the pilot's stick and throttle are fighting off a creature: they must not abort the autopilot */
   struggle(on: boolean): void;
+  /** water surface height at (x, z) (−Infinity on dry worlds) */
+  waterLevel(x: number, z: number): number;
+  /** Miller's tides at (x, z): seconds until the next crest arrives, seconds since the last one passed; null elsewhere */
+  tide(x: number, z: number): { tta: number; since: number; dir: [number, number] } | null;
   /** Ranger 1 is flying (Jupiter: always) */
   rangerFlying(): boolean;
   /** knocked out on foot: back to Ranger 1 */
@@ -267,7 +271,7 @@ export class FaunaManager {
   readonly puffs: Puffs;
   readonly rings: ShockRings;
   /** player held by a creature (stalker pin, kite lift): the player can't move; mash Interact to break free */
-  hold: { by: Creature; kind: 'pin' | 'lift'; at: THREE.Vector3; got: number; need: number; t: number; look: () => THREE.Vector3; onFree: (broke: boolean) => void } | null = null;
+  hold: { by: Creature; kind: 'pin' | 'lift' | 'grip'; at: THREE.Vector3; got: number; need: number; t: number; look: () => THREE.Vector3; onFree: (broke: boolean) => void } | null = null;
   /** knock-back velocity applied to the player on foot */
   readonly shove = new THREE.Vector3();
   /** seconds of slowed walking (stunned by a shriek) */
@@ -304,7 +308,8 @@ export class FaunaManager {
   /** alien life switched on for this world */
   active() {
     const s = this.settings;
-    return s.enabled && (this.host.body === 'mars' ? s.mars : this.host.body === 'jupiter' ? s.jupiter : false);
+    const b = this.host.body;
+    return s.enabled && (b === 'mars' ? s.mars : b === 'jupiter' ? s.jupiter : b === 'miller' ? s.miller : false);
   }
 
   /** 0 passive, 1 normal, 2 fierce */
@@ -407,16 +412,19 @@ export class FaunaManager {
       g.renderer.fx.shake = Math.max(g.renderer.fx.shake, 0.5);
       g.audio.thud(undefined, 0.25, 90);
     }
-    // the camera is held on what holds you: pinned, you are on your back looking up at it
+    // the camera is held on what holds you: pinned, you are on your back looking up at it (a grip on a leg leaves
+    // the head free to look)
     const cam = g.camera;
-    const look = hd.look();
-    if (hd.kind === 'pin') cam.position.copy(hd.at).add(_v.set(0, 0.42, 0));
-    cam.lookAt(look);
-    g.ui.countdown(`${hd.kind === 'pin' ? 'PINNED' : 'SNAGGED'} — BREAK FREE  [E]  ${'▮'.repeat(hd.got)}${'▯'.repeat(Math.max(0, hd.need - hd.got))}`);
+    if (hd.kind !== 'grip') {
+      const look = hd.look();
+      if (hd.kind === 'pin') cam.position.copy(hd.at).add(_v.set(0, 0.42, 0));
+      cam.lookAt(look);
+    }
+    g.ui.countdown(`${hd.kind === 'pin' ? 'PINNED' : hd.kind === 'grip' ? 'CAUGHT' : 'SNAGGED'} — BREAK FREE  [E]  ${'▮'.repeat(hd.got)}${'▯'.repeat(Math.max(0, hd.need - hd.got))}`);
     if (hd.got >= hd.need) this.release(true);
   }
 
-  grab(by: Creature, kind: 'pin' | 'lift', need: number, look: () => THREE.Vector3, onFree: (broke: boolean) => void) {
+  grab(by: Creature, kind: 'pin' | 'lift' | 'grip', need: number, look: () => THREE.Vector3, onFree: (broke: boolean) => void) {
     if (this.hold) return false;
     const at = this.game.player.pos.clone();
     this.hold = { by, kind, at, got: 0, need, t: 0, look, onFree };

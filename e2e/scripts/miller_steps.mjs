@@ -34,5 +34,70 @@ const parts = {
     { frames: 2, shot: 'miller_flats', probe },
   ],
 };
+const M = `const F = z.fauna; const eco = F.creatures.find((k) => k.species === 'eco'); const of = (sp) => F.creatures.filter((k) => k.species === sp);`;
+const fprobe = `const z = game.zone; const F = z.fauna; if (!F) return 'no fauna'; const pl = game.player.pos;
+  return { sp: F.creatures.filter((k) => k.species !== 'eco').map((k) => k.species.slice(0, 4) + ':' + k.state + '@' + Math.round(Math.hypot(k.pos.x - pl.x, k.pos.z - pl.z) * 10) / 10).join(' '), hold: F.hold ? F.hold.kind + ' ' + F.hold.got + '/' + F.hold.need : null, hp: +(game.state.player.health ?? 1).toFixed(2), bio: Object.keys(game.state.flags).filter((k) => k.startsWith('bio:')).join(','), tide: F.creatures.find((k) => k.species === 'eco')?.tideState(pl.x, pl.z) };`;
+const fshot = (name, js) => ({ js: `${H} ${M} const cam = game.camera; game.cinematic = { blocking: true, update: () => true }; cam.fov = 55; cam.updateProjectionMatrix(); ${js}; cam.updateMatrixWorld(true); return 1;`, frames: 2, shot: name, probe: fprobe });
+const fgo = (js, frames = 30) => ({ js: `${H} ${M} ${js}; return 1;`, frames, probe: fprobe });
+const mash = (n) => Array.from({ length: n }, () => ({ js: `game.input.virtualPress('interact'); return 1;`, frames: 3 }));
+parts[2] = [
+  land,
+  { untilJs: `game.zone.fauna && game.zone.fauna.creatures.length >= 8`, max: 600, chunk: 30, probe: fprobe },
+  // the first crest well after the test's scenes (the tide scene at the end brings it forward)
+  { js: `game.zone.waves.first = game.zone.time + 3000; return 1;`, frames: 1 },
+  // Ferracaris on the reef: a close look, then a fast pass makes them clamp
+  fgo(`const c = of('ferracaris')[0]; put(c.cx + 2.2, c.cz + 1.6, 0.05, 0, -0.5); pl.heading.set(-0.8, 0, -0.6).normalize()`, 60),
+  fshot('miller_ferracaris', `const c = of('ferracaris')[0]; const y = z.terrainY(c.cx, c.cz); cam.position.set(c.cx + 1.6, 1.3, c.cz + 1.4); cam.lookAt(c.cx, y, c.cz)`), free,
+  fshot('miller_ferracaris_close', `const c = of('ferracaris')[0]; const g = c.ind.find((q) => q.state !== 'gone'); const y = z.terrainY(g.x, g.z); cam.fov = 32; cam.updateProjectionMatrix(); cam.position.set(g.x + 0.75, Math.max(y, 0) + 0.5, g.z + 0.6); cam.lookAt(g.x, y + 0.03, g.z)`), free,
+  // the Sediment Maw: buried, then a walker steps on its rim
+  fgo(`const m = of('sedimentmaw')[0]; m.cooldown = 0; m.energy = 1; const p = m.mouthPos(new V()); put(p.x + 3.5, p.z, 0.05, Math.PI / 2, -0.35)`, 30),
+  fshot('miller_maw_buried', `const m = of('sedimentmaw')[0]; const p = m.mouthPos(new V()); cam.position.set(p.x + 2.2, p.y + 1.6, p.z + 1.2); cam.lookAt(p)`), free,
+  fgo(`const m = of('sedimentmaw')[0]; const p = m.mouthPos(new V()); put(p.x + 1.4, p.z, 0.05, Math.PI / 2, -0.4); game.input.virtualHold('forward', true)`, 2),
+  { untilJs: `game.zone.fauna.creatures.some((k) => k.species === 'sedimentmaw' && k.state !== 'buried')`, max: 120, chunk: 2, probe: fprobe },
+  { js: `game.input.virtualHold('forward', false); return 1;`, frames: 6, probe: fprobe },
+  fshot('miller_maw_strike', `const m = of('sedimentmaw')[0]; const p = m.mouthPos(new V()); cam.position.set(p.x + 2.4, p.y + 1.5, p.z - 1.8); cam.lookAt(p.x, p.y + 0.2, p.z)`), free,
+  { frames: 20, probe: fprobe },
+  ...mash(8),
+  { frames: 40, probe: fprobe },
+  // the Mimic Crawler: camouflaged in its den by the pool
+  fgo(`const m = of('mimic')[0]; m.setState('den'); m.cooldown = 999; put(m.den.x + 7, m.den.z + 1, 0.05, Math.PI / 2, -0.3)`, 60),
+  fshot('miller_mimic_den', `const m = of('mimic')[0]; cam.position.set(m.pos.x + 2.4, m.pos.y + 1.3, m.pos.z + 1.6); cam.lookAt(m.pos.x, m.pos.y + 0.3, m.pos.z)`), free,
+  // too close to its eggs: the warning display
+  fgo(`const m = of('mimic')[0]; m.cooldown = 0; put(m.den.x + 2.4, m.den.z + 0.3, 0.05, Math.PI / 2, -0.3); pl.heading.set(-1, 0, 0)`, 70),
+  fshot('miller_mimic_warn', `const m = of('mimic')[0]; cam.position.set(m.pos.x + 2.2, m.pos.y + 1.0, m.pos.z - 1.6); cam.lookAt(m.pos.x, m.pos.y + 0.35, m.pos.z)`), free,
+  fgo(`const m = of('mimic')[0]; put(m.pos.x + 1.3, m.pos.z, 0.05, Math.PI / 2, -0.3)`, 2),
+  { untilJs: `!!game.zone.fauna.hold`, max: 200, chunk: 2, probe: fprobe },
+  { frames: 30, probe: fprobe },
+  fshot('miller_mimic_grapple', `const m = of('mimic')[0]; cam.position.set(m.pos.x + 1.6, m.pos.y + 1.4, m.pos.z + 2.2); cam.lookAt(pl.pos.x, pl.pos.y + 0.3, pl.pos.z)`), free,
+  ...mash(8),
+  { frames: 60, probe: fprobe },
+  // left alone, it finds the canister and takes it home
+  fgo(`const m = of('mimic')[0]; put(m.den.x + 15, m.den.z - 8, 0.05, 0, 0); m.setState('den'); m.st = 9; m.cooldown = 0; m.encounters = 0`, 2),
+  { untilJs: `game.zone.fauna.creatures.some((k) => k.species === 'mimic' && k.state === 'carry')`, max: 2400, chunk: 30, probe: fprobe },
+  { frames: 60, probe: fprobe },
+  fshot('miller_mimic_carry', `const m = of('mimic')[0]; cam.position.set(m.pos.x + 2.0, m.pos.y + 1.5, m.pos.z + 2.2); cam.lookAt(m.pos.x, m.pos.y + 0.2, m.pos.z)`), free,
+  // a crest due in 100 s: every species reacts (grazers hide, the crawler goes home, the maws bury deeper)
+  fgo(`const W = z.waves; W.first = z.time + 100 - (W.wave(0).t0 - W.first); for (const k of F.creatures) k.st = 0`, 120),
+  fshot('miller_ferracaris_hide', `const c = of('ferracaris')[0]; const y = z.terrainY(c.cx, c.cz); cam.position.set(c.cx + 1.1, y + 0.75, c.cz + 1.0); cam.lookAt(c.cx, y, c.cz)`), free,
+  { frames: 2, probe: fprobe },
+];
+parts[6] = [
+  land,
+  { untilJs: `game.zone.fauna && game.zone.fauna.creatures.length >= 8`, max: 600, chunk: 30, probe: fprobe },
+  fgo(`const m = of('mimic')[0]; put(m.den.x + 1.3, m.den.z + 0.3, 0.05, Math.PI / 2, -0.3); m.setState('warn'); m.st = 5`, 2),
+  { untilJs: `!!game.zone.fauna.hold`, max: 200, chunk: 2, probe: fprobe },
+  fshot('dbg', `cam.position.set(pl.pos.x + 2, pl.pos.y + 2, pl.pos.z + 2); cam.lookAt(pl.pos)`), free,
+  { js: `return { ctx: game.input.context, cin: !!game.cinematic, got: game.zone.fauna.hold?.got };`, frames: 1 },
+  { js: `game.input.virtualPress('interact'); return { ctx: game.input.context, mode: game.player.mode, sub: game.player.submerged, onFoot: game.zone.fauna.host.playerOnFoot() };`, frames: 3, probe: fprobe },
+  { js: `game.input.virtualPress('interact'); const r = { got: game.zone.fauna.hold?.got }; return r;`, frames: 1, probe: fprobe },
+  { js: `return { got: game.zone.fauna.hold?.got, pressedNow: game.input.pressed('interact') };`, frames: 1 },
+];
+parts[7] = [
+  land,
+  { untilJs: `game.zone.fauna && game.zone.fauna.creatures.length >= 8`, max: 600, chunk: 30, probe: fprobe },
+  fgo(`const c = of('ferracaris')[0]; put(c.cx + 3, c.cz + 2, 0.05, 0, -0.5)`, 30),
+  { js: `${H} ${M} const c = of('ferracaris')[0]; const m = c.meshes[0]; m.geometry.computeBoundingBox(); const bb = m.geometry.boundingBox; const g = c.ind[0]; const mat = new game.camera.matrix.constructor(); m.getMatrixAt(0, mat);
+    return { n: c.ind.length, meshes: c.meshes.length, names: c.meshes.map((q) => q.material.name), size: [bb.max.x - bb.min.x, bb.max.y - bb.min.y, bb.max.z - bb.min.z].map((v) => +v.toFixed(3)), g: [g.x, g.z, g.s, g.state].map((v) => typeof v === 'number' ? +v.toFixed(2) : v), y: +z.terrainY(g.x, g.z).toFixed(2), water: +z.waterLevel(g.x, g.z).toFixed(2), m0: Array.from(mat.elements).map((v) => +v.toFixed(2)), root: [c.root.position.x, c.root.scale.x], visible: c.root.visible, parentScale: c.root.parent?.scale.x };`, frames: 1 },
+];
 const P = process.env.PART ?? '1';
 export const steps = parts[P];

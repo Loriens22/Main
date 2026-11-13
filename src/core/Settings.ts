@@ -55,6 +55,7 @@ export interface LifeSettings {
   enabled: boolean;
   mars: boolean;
   jupiter: boolean;
+  miller: boolean;
   /** passive: they react and display but never attack; fierce: more often, harder */
   hostility: 'passive' | 'normal' | 'fierce';
   /** creature count multiplier */
@@ -178,7 +179,7 @@ export function defaultSettings(): Settings {
       headBob: true,
       subtitles: true,
     },
-    life: { enabled: true, mars: true, jupiter: true, hostility: 'normal', density: 1 },
+    life: { enabled: true, mars: true, jupiter: true, miller: true, hostility: 'normal', density: 1 },
   };
 }
 

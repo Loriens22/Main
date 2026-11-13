@@ -24,11 +24,12 @@ import { BodyMap, SurfaceGen } from '../surface/SurfaceGen';
 import { surfaceShading, sunShadowPatch } from '../surface/surfaceShading';
 import { Rocks } from '../surface/Rocks';
 import { RangerVehicle } from '../RangerVehicle';
-import { MillerWaves, WAVE_GLSL, WAVE_C, type TidalWave } from '../surface/MillerWaves';
+import { MillerWaves, WAVE_GLSL, WAVE_C, W_FRONT, type TidalWave } from '../surface/MillerWaves';
 import { LazarusSite } from '../surface/LazarusSites';
 import { FaunaManager, type FaunaHost } from '../fauna/Fauna';
 import { populateMars } from '../fauna/mars';
 import { populateJupiter } from '../fauna/jupiter';
+import { populateMiller } from '../fauna/miller';
 import { JovianSky } from '../surface/JovianSky';
 import { lookQuat } from '../../space/Proximity';
 import { h } from '../../ui/UI';
@@ -238,6 +239,7 @@ export default class SurfaceZone extends Zone implements SurfaceAPHost {
     this.lazarus = await LazarusSite.create(this);
     if (this.site.body === 'mars') this.fauna = new FaunaManager(this.faunaHost(), populateMars);
     if (this.site.body === 'jupiter') this.fauna = new FaunaManager(this.faunaHost(), populateJupiter);
+    if (this.site.body === 'miller') this.fauna = new FaunaManager(this.faunaHost(), populateMiller);
     progress(1, 'ready');
   }
 
@@ -790,6 +792,18 @@ export default class SurfaceZone extends Zone implements SurfaceAPHost {
       craft: () => (this.craft && !this.craft.landed ? this.craft : null),
       struggle: (on) => {
         if (this.control) this.control.struggle = on;
+      },
+      waterLevel: (x, z) => (this.waves ? this.waterLevel(x, z) : -Infinity),
+      tide: (x, z) => {
+        const W = this.waves;
+        if (!W || W.first === null) return null;
+        const n = W.next(x, z, this.time);
+        let since = Infinity;
+        for (const w of W.active(this.time)) {
+          const s = MillerWaves.ahead(w, x, z, this.time);
+          if (s < -W_FRONT * 0.3) since = Math.min(since, -s / WAVE_C);
+        }
+        return { tta: n ? n.tta : Infinity, since, dir: n ? [n.wave.dir.x, n.wave.dir.y] : [-1, 0] };
       },
       rangerFlying: () => !this.craft.landed,
       knockout: (msg) => {

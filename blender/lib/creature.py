@@ -51,6 +51,23 @@ kit.PALETTE.update({
     "hunter_sclera": dict(color=(0.92, 0.62, 0.68), rough=0.15),
     "hunter_iris": dict(color=(0.38, 0.26, 0.78), rough=0.2),
     "hunter_feather": dict(color=(0.74, 0.7, 0.68), rough=0.7),
+    # Miller
+    "ferra_plate": dict(color=(0.42, 0.33, 0.2), rough=0.3),
+    "ferra_rim": dict(color=(0.62, 0.36, 0.36), rough=0.35),
+    "ferra_leg": dict(color=(0.78, 0.7, 0.6), rough=0.5),
+    "ferra_fringe": dict(color=(0.86, 0.6, 0.62), rough=0.4),
+    "maw_hide": dict(color=(0.5, 0.44, 0.36), rough=0.8),
+    "maw_pebble": dict(color=(0.12, 0.12, 0.13), rough=0.6),
+    "maw_lip": dict(color=(0.56, 0.47, 0.4), rough=0.45),
+    "maw_gullet": dict(color=(0.16, 0.11, 0.1), rough=0.4),
+    "maw_limb": dict(color=(0.55, 0.47, 0.4), rough=0.55),
+    "mimic_skin": dict(color=(0.16, 0.14, 0.13), rough=0.55),
+    "mimic_plate": dict(color=(0.2, 0.18, 0.16), rough=0.6),
+    "mimic_under": dict(color=(0.5, 0.3, 0.38), rough=0.45),
+    "mimic_sucker": dict(color=(0.75, 0.62, 0.62), rough=0.4),
+    "mimic_hook": dict(color=(0.86, 0.8, 0.72), rough=0.3),
+    "mimic_eye": dict(color=(0.55, 0.36, 0.12), rough=0.1),
+    "mimic_pupil": dict(color=(0.02, 0.02, 0.02), rough=0.1),
 })
 
 
