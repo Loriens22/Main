@@ -34,6 +34,13 @@ kit.PALETTE.update({
     "stalker_eye": dict(color=(0.35, 0.3, 0.12), rough=0.1),
     "stalker_ray": dict(color=(0.1, 0.12, 0.14), rough=0.3),
     "stalker_belly": dict(color=(0.1, 0.11, 0.12), rough=0.4),
+    "stalker_gum": dict(color=(0.12, 0.05, 0.06), rough=0.3),
+    "prey_silver": dict(color=(0.7, 0.74, 0.78), rough=0.2),
+    "prey_back": dict(color=(0.12, 0.16, 0.2), rough=0.3),
+    "prey_fin": dict(color=(0.7, 0.75, 0.8), rough=0.2, alpha=0.5),
+    "prey_shrimp": dict(color=(0.75, 0.35, 0.3), rough=0.3),
+    "prey_glow": dict(color=(0.3, 0.9, 1.0), emit=(0.3, 0.9, 1.0), emit_strength=3.0),
+    "prey_krill": dict(color=(0.85, 0.45, 0.42), rough=0.3),
     "chorus_fin": dict(color=(0.14, 0.17, 0.2), rough=0.3),
     "chorus_gill": dict(color=(0.5, 0.55, 0.6), rough=0.25),
     "chorus_eye": dict(color=(0.2, 0.16, 0.08), rough=0.1),
@@ -308,13 +315,14 @@ def crown():
 
 
 # ================================================================================================ abyssal stalker (image 9)
-def stalker():
-    """6.6 m; swimming, origin at the body centre. A long-skulled ambush predator: flat crocodilian head with brow
+def stalker(juvenile=False):
+    """6.6 m (juvenile model: shorter snout, bigger eyes, finer teeth; scaled in game); swimming, origin at the body centre. A long-skulled ambush predator: flat crocodilian head with brow
     ridges over small eyes and rows of electro-sensory pits on the snout, a long gape of uneven needle teeth, a thick
     neck, two pairs of rayed paddle flippers, a long tail bending down into a crescent fin."""
     kit.reset()
     root = empty("AbyssalStalker")
     rng = random.Random(53)
+    J = juvenile
     sk = Skeleton()
     pts = [V((0, 3.2 - 6.6 * t, -0.15 * t * t)) for t in [i / 12 for i in range(13)]]
     spine = sk.chain("sp", [tuple(p) for p in pts[2:]], None)
@@ -358,7 +366,7 @@ def stalker():
         if t > 0.74 and math.sin(a) < -0.6:
             return 2  # palate
         return 1 if math.sin(a) < -0.45 else 0
-    parts.append(Part(body.mesh("body", 140, 40, ("stalker_hide", "stalker_belly", "crown_gum"), disp=disp, mat_fn=mat_fn), bones=spine + ["head"]))
+    parts.append(Part(body.mesh("body", 140, 40, ("stalker_hide", "stalker_belly", "stalker_gum"), disp=disp, mat_fn=mat_fn), bones=spine + ["head"]))
 
     jaw = Surf([
         (1.8, 0.4, 0.06, 0.18, -0.14, 2.5),
@@ -367,7 +375,7 @@ def stalker():
         (3.08, 0.16, 0.04, 0.07, -0.22, 2.4),
         (3.27, 0.05, 0.03, 0.03, -0.21, 2.0),
     ])
-    parts.append(Part(jaw.mesh("jawm", 50, 28, ("stalker_hide", "crown_gum", "stalker_belly"),
+    parts.append(Part(jaw.mesh("jawm", 50, 28, ("stalker_hide", "stalker_gum", "stalker_belly"),
                                mat_fn=lambda t, a: 1 if math.sin(a) > 0.7 else (2 if math.sin(a) < -0.5 else 0),
                                disp=lambda t, a: -0.03 * max(0.0, math.sin(a) - 0.4) * sstep(0.05, 0.3, t)), bone="jaw"))
     parts.append(Part(kit.sphere("throat", 1.0, loc=(0, 1.95, -0.08), m="crown_throat", segs=16, rings=8, scale=(0.3, 0.12, 0.13)), bone="head"))
@@ -378,7 +386,7 @@ def stalker():
     up_m = lambda sv: up_m0(sv) * 1.0
     for nm, mf, bone, down in (("u", up_m, "head", V((0, 0, -1))), ("l", lo_m, "jaw", V((0, 0, 1)))):
         gp = [mf(-1 + 2 * i / 24) for i in range(25)]
-        parts.append(Part(tube(f"gum{nm}", gp, [0.016] * 25, "crown_gum", seg=6), bone=bone))
+        parts.append(Part(tube(f"gum{nm}", gp, [0.016] * 25, "stalker_gum", seg=6), bone=bone))
         teeth = []
         n = 36 if nm == "u" else 32
         for i in range(n):
@@ -388,6 +396,8 @@ def stalker():
             L = (0.035 + 0.075 * front ** 1.5) * rng.uniform(0.6, 1.4)
             if rng.random() < 0.12:
                 L *= 1.6
+            if J:
+                L *= 0.6
             d = down + V((math.sin(sv * PI / 2) * 0.35 + rng.uniform(-0.15, 0.15), front * 0.3, 0))
             teeth.append(fang(f"t{nm}{i}", p, d, V((-p.x, 1.5 - p.y, 0)), L, 0.006 + 0.07 * L, curve=0.3, m="crown_tooth", seg=5, n=5))
         parts.append(Part(kit.merge(teeth, f"teeth{nm}"), bone=bone))
@@ -407,7 +417,7 @@ def stalker():
     det = []
     for sx in (-1, 1):
         p, n = head_pt(2.1, sx * 0.3, -0.012)
-        det.append(eye(f"eye{sx}", p, n + V((0, 0.35, 0.15)), 0.034, "stalker_eye", cornea_m="cornea", pupil=(0.5, 0.9), slit_axis=(0, 0, 1)))
+        det.append(eye(f"eye{sx}", p, n + V((0, 0.35, 0.15)), 0.034 * (1.7 if J else 1.0), "stalker_eye", cornea_m="cornea", pupil=(0.5, 0.9), slit_axis=(0, 0, 1)))
         # sensory pits in rows on the snout (bioelectric sense), nostrils at the tip
         for row in range(3):
             for k in range(7):
@@ -447,7 +457,17 @@ def stalker():
     te = [V((0, -3.0, 0.5)), V((0, -3.75, 0.62)), V((0, -3.55, -0.12)), V((0, -4.05, -0.95)), V((0, -3.3, -0.62))]
     parts.append(Part(fin("fluke", tb, te, "stalker_fin", nv=8, rays=14, corr=0.006, thick=0.03, rays_m="stalker_ray", ray_r=0.008), bones=spine[-2:]))
     body_o = assemble("stalker_body", sk, parts)
-    arm = finish_creature(root, sk, body_o, os.path.join(kit.out_dir(), "fauna_abyssstalker.glb"), props={"creature": "abyssstalker", "length": 6.5}, ao=0.6)
+    if J:
+        # a young one's snout is short: compress everything ahead of the eyes (weights stay with their bones)
+        for v in body_o.data.vertices:
+            if v.co.y > 2.0:
+                v.co.y = 2.0 + (v.co.y - 2.0) * 0.72
+        for bn in ("head", "jaw"):
+            h, t, par = sk.bones[bn]
+            sq = lambda q: V((q.x, 2.0 + (q.y - 2.0) * 0.72, q.z)) if q.y > 2.0 else q
+            sk.bones[bn] = (sq(h), sq(t), par)
+    name = "fauna_abyssstalker_juv.glb" if J else "fauna_abyssstalker.glb"
+    arm = finish_creature(root, sk, body_o, os.path.join(kit.out_dir(), name), props={"creature": "abyssstalker", "length": 6.5}, ao=0.6)
     return root, arm
 
 
@@ -515,8 +535,6 @@ def chorus(juvenile=False):
         y = y_of(t)
         sn = math.sin(a)
         p = body.P(t, a)
-        if y > 0.72 and abs(p.z - gape_z(y)) < 0.0028:
-            return 3
         if -1.0 < y < 0.55 and any(abs(sn - zc) < 0.025 for zc in (0.32, 0.05, -0.2)):
             return 2
         return 1 if sn < -0.4 else 0
@@ -559,6 +577,12 @@ def chorus(juvenile=False):
             sec_z = 0.035 + 0.03 * k / 11
             p, n = side_pt(y, sec_z, sx, -0.002)
             det.append(kit.sphere(f"du{sx}{k}", 0.005, loc=tuple(p), m="chorus_pore", segs=6, rings=4, scale=(1, 1, 0.5)))
+        gl = []
+        for k in range(30):
+            y = y_nose - 0.01 - (y_nose - 0.74) * k / 29
+            p, n = side_pt(y, gape_z(y), sx, 0.0015)
+            gl.append(p)
+        det.append(tube(f"gape{sx}", gl, [0.0018 + 0.0012 * k / 29 for k in range(30)], "crown_throat", seg=4))
         pe, ne = side_pt(0.79 if not J else 0.86, 0.03, sx, -0.004)
         det.append(eye(f"eye{sx}", pe, ne + V((0, 0.25, 0.05)), 0.016 * (1.5 if J else 1.0), "chorus_eye", cornea_m="cornea", pupil=(0.5, 0.8)))
     parts.append(Part(kit.merge(det, "headdots"), bone="head"))
@@ -592,6 +616,10 @@ def chorus(juvenile=False):
     name = "fauna_chorus_juv.glb" if J else "fauna_chorus.glb"
     arm = finish_creature(root, sk, body_o, os.path.join(kit.out_dir(), name), props={"creature": "chorus", "length": 1.9 if J else 3.0}, ao=0.3)
     return root, arm
+
+
+def stalker_juv():
+    return stalker(juvenile=True)
 
 
 def chorus_juv():
@@ -882,6 +910,73 @@ def siren():
     body_o = assemble("siren_body", sk, parts)
     arm = finish_creature(root, sk, body_o, os.path.join(kit.out_dir(), "fauna_siren.glb"), props={"creature": "siren", "length": 1.1}, ao=0.06)
     return root, arm
+
+
+# ================================================================================================ prey (instanced)
+def _export_static(root, body, path, props):
+    body.parent = root
+    kit.set_props(root, **props)
+    kit.select_tree(root)
+    bpy.ops.export_scene.gltf(filepath=path, export_format="GLB", use_selection=True, export_apply=True, export_extras=True, export_yup=True,
+                              export_animations=False, export_cameras=False, export_materials="EXPORT")
+    tris = sum(len(p.vertices) - 2 for p in body.data.polygons)
+    print(f"[creature] {path} ~{tris} tris, {os.path.getsize(path) / 1e6:.3f} MB")
+
+
+def prey_dart():
+    """0.12 m schooling dart fish (the Chorus Hunters' prey): fusiform, silver flanks, dark back, forked tail"""
+    kit.reset()
+    root = empty("PreyDart")
+    b = Surf([(-0.06, 0.002, 0.003, 0.003, 0.0, 2.0), (-0.045, 0.004, 0.006, 0.006, 0.0, 2.0), (-0.02, 0.008, 0.013, 0.012, 0.0, 2.1),
+              (0.01, 0.01, 0.016, 0.014, 0.0, 2.2), (0.035, 0.009, 0.013, 0.011, 0.0, 2.2), (0.052, 0.005, 0.007, 0.006, -0.001, 2.1), (0.06, 0.001, 0.002, 0.002, -0.001, 2.0)])
+    parts = [b.mesh("body", 30, 12, ("prey_silver", "prey_back"), mat_fn=lambda t, a: 1 if math.sin(a) > 0.45 else 0)]
+    tb = [V((0, -0.055, 0.002)), V((0, -0.058, 0.0)), V((0, -0.055, -0.002))]
+    te = [V((0, -0.075, 0.016)), V((0, -0.066, 0.0)), V((0, -0.075, -0.016))]
+    parts.append(fin("tail", tb, te, "prey_fin", nv=4, rays=6, thick=0.0006))
+    parts.append(fin("dors", [V((0, 0.015, 0.014)), V((0, -0.01, 0.012))], [V((0, 0.0, 0.026)), V((0, -0.016, 0.014))], "prey_fin", nv=3, rays=4, thick=0.0005))
+    for sx in (-1, 1):
+        parts.append(kit.sphere(f"eye{sx}", 0.0028, loc=(sx * 0.0055, 0.045, 0.003), m="mimic_pupil", segs=8, rings=5))
+    body = kit.merge(parts, "dart")
+    _export_static(root, body, os.path.join(kit.out_dir(), "fauna_prey_dart.glb"), {"creature": "prey_dart", "length": 0.12})
+    return root, None
+
+
+def prey_shrimp():
+    """0.04 m lantern shrimp (drawn to the Siren's light): curled segmented body, a light organ, antennae, legs"""
+    kit.reset()
+    root = empty("PreyShrimp")
+
+    def bend(t):
+        return (0.0, -0.006 * math.sin(PI * t) - 0.004 * (1 - t) ** 2)
+    b = Surf([(-0.02, 0.0015, 0.002, 0.002, 0.0, 2.0), (-0.014, 0.003, 0.003, 0.003, 0.0, 2.0), (-0.004, 0.0045, 0.005, 0.004, 0.0, 2.1),
+              (0.008, 0.005, 0.006, 0.005, 0.0, 2.2), (0.016, 0.004, 0.005, 0.004, 0.0, 2.1), (0.021, 0.001, 0.0015, 0.0015, 0.0, 2.0)], bend=bend)
+    parts = [b.mesh("body", 24, 10, ("prey_shrimp",), disp=lambda t, a: 0.0004 * max(0.0, math.sin(t * 60)))]
+    tb = [V((0, -0.019, -0.004)), V((0, -0.02, -0.0045))]
+    parts.append(fin("tail", tb, [V((0.004, -0.026, -0.006)), V((-0.004, -0.026, -0.006))], "prey_fin", nv=3, rays=4, thick=0.0004))
+    parts.append(kit.sphere("light", 0.0016, loc=(0, 0.004, -0.004), m="prey_glow", segs=8, rings=5))
+    for sx in (-1, 1):
+        parts.append(kit.sphere(f"eye{sx}", 0.0012, loc=(sx * 0.0025, 0.02, 0.002), m="mimic_pupil", segs=6, rings=4))
+        parts.append(tube(f"ant{sx}", [V((sx * 0.001, 0.021, 0.001)), V((sx * 0.006, 0.035, 0.006)), V((sx * 0.012, 0.045, 0.004))], [0.0003, 0.0002, 0.0001], "prey_shrimp", seg=3))
+        for k in range(5):
+            y = 0.012 - 0.005 * k
+            parts.append(tube(f"leg{sx}{k}", [V((sx * 0.002, y, -0.003)), V((sx * 0.004, y - 0.001, -0.007)), V((sx * 0.0045, y - 0.002, -0.01))], [0.0003, 0.00025, 0.0001], "prey_shrimp", seg=3))
+    body = kit.merge(parts, "shrimp")
+    _export_static(root, body, os.path.join(kit.out_dir(), "fauna_prey_shrimp.glb"), {"creature": "prey_shrimp", "length": 0.04})
+    return root, None
+
+
+def prey_krill():
+    """0.02 m krill (the Cathedral's plankton swarms): translucent pink, black eyes"""
+    kit.reset()
+    root = empty("PreyKrill")
+    b = Surf([(-0.01, 0.0008, 0.001, 0.001, 0.0, 2.0), (-0.004, 0.0018, 0.002, 0.0018, 0.0, 2.0), (0.004, 0.0022, 0.0025, 0.002, 0.0, 2.1), (0.01, 0.0008, 0.001, 0.001, 0.0, 2.0)],
+             bend=lambda t: (0.0, -0.0015 * math.sin(PI * t)))
+    parts = [b.mesh("body", 12, 8, ("prey_krill",))]
+    for sx in (-1, 1):
+        parts.append(kit.sphere(f"eye{sx}", 0.0008, loc=(sx * 0.0012, 0.008, 0.0005), m="mimic_pupil", segs=6, rings=4))
+    body = kit.merge(parts, "krill")
+    _export_static(root, body, os.path.join(kit.out_dir(), "fauna_prey_krill.glb"), {"creature": "prey_krill", "length": 0.02})
+    return root, None
 
 
 if __name__ == "__main__":

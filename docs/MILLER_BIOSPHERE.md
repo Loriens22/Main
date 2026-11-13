@@ -140,19 +140,49 @@ The images' ringed planet in the sky is not added (Miller's sky shows Gargantua 
 - Prey for the Sediment Maw and Mimic Crawler (small benthic animals) is implied, not simulated as individuals.
 - The suit is rated to 60 m; the basin's floor (−160 m) is out of reach by design (a pressure blackout floats the
   diver up at 35 % integrity).
-- No cave meshes yet: the rift's "caves" are its walls and ledges (heightfield terrain cannot overhang).
-- Juvenile/adult differences are by scale only; no separate juvenile models or morph targets.
-- The Siren's prey, the Chorus prey school and the plankton bloom are particle stand-ins, not modelled animals.
-- Deep shots are dark by design (light falls with depth); the helmet lamp (L) is the main light below ~20 m.
+- Caves are separate rock shells at five habitat spots (two siren shelters, two stalker ledges, the mimic den); the
+  rest of the rift is still heightfield walls and ledges.
+- Skin detail is procedural (object-space noise), matched to the images by colour, pattern and relief; it is not
+  hand-painted and not photographic. Hatchlings/calves/young are separate models, but there is no growth over time.
+- Juvenile Ferracaris are not modelled separately (a colony's sizes vary 0.55–1.15 ×); the Sediment Maw and Rift
+  Architect have no young in the world (the Architect's eggs are props).
+- The deep stays dark without a light, as it should; the helmet lamp (L) and the creatures' own light are the light.
 
-## Realism pass (in progress) — closing the known limits
-1. Pipeline: Blender skin displacement + AO baked to vertex colours (`COLOR_0`, exported by name); runtime per-species
-   skin shader (object-space mottling / reticulation / wrinkles / pores / grooves / lattice cut-outs, bump via
-   screen-space derivatives) + vertex-colour AO; wet corneas over the eyes.
-2. Re-model pass per species against its image (crown tines, teeth rows, barbels, grooves, lamella lattice, head
-   cavities, fin rays, bristles, banded limb armour, thorns, encrustation, …).
-3. Juvenile models (separate GLBs): stalker, chorus, cathedral calf, breaker hatchling, ferracaris, mimic.
-4. Prey animals (instanced, vertex-animated): lantern shrimp (siren), dart fish school (chorus), krill swarm (cathedral).
-5. Caves/overhangs: Blender rock meshes with colliders on the rift walls, basin rim, reef pool; dens and sirens in them.
-6. Deep lighting: lamp beam volume, suit flood light, brighter water overhead, faint bioluminescence where justified.
-7. Verification: a natural (unforced) wave with every species (state timeline), close-up detail shots of each.
+## Realism pass — what was done
+1. **Pipeline.** `blender/lib/organic.py`: smooth parametric bodies (Catmull-Rom cross-sections, outward normals,
+   displacement callbacks for keels, grooves, gill slits, cavities), plates that conform to a body or limb surface
+   (domed, keeled, pointed, spined, polygonal), rayed fin membranes (corrugation, scalloped/ruffled edges, droop, ray
+   tubes), curved fangs, ringed limbs, eyes with iris/pupil/cornea. Ambient occlusion is baked in Cycles to a vertex
+   layer (`AO`, exported by name) and used at runtime for indirect light and partly the albedo.
+2. **Skin** (`src/render/CreatureSkin.ts`): every Miller material has a spec — domain-warped scale cells, ridged
+   wrinkles, pores, two mottle layers (one can be streaked along an axis), reticulation, spots, countershading,
+   lattice cut-outs (the Cathedral's filter plates), derivative bump, wet darker cavities. Patterns are in bind-pose
+   object space (glued to a bending body, no UV seams); each relief layer fades as it nears pixel size (no glitter);
+   the lowest graphics preset keeps the colour layers and drops the costliest relief.
+3. **Models** rebuilt against each image (`fauna_miller_deep.py`, `fauna_miller_shore.py`):
+   Crown (ridged skull, five tines per side with barbs, irregular recurved fangs on swollen gums, beard of barbels,
+   swept rayed pectorals, crescent tail); Stalker (flat crocodilian head, brow ridges, sensory pits, needle teeth,
+   rayed paddle flippers, down-bent tail into a crescent); Chorus (long pointed snout, gape line, golden lateral dots,
+   seven pale gill slits, flank grooves, serrated crest, sickle pectorals); Cathedral (sculpted cranial cavities and
+   arches, lattice filter plates in a fan, pleated throat pouch with lines of cyan light, feathered manta wings);
+   Siren (glass body over a mottled organ mass, underslung needle jaw, fan fins with ragged edges, flowing tail,
+   arched lure); Breaker (keeled overlapping scutes, spiked skirt, helmet casque, ringed feelers, banded limb armour,
+   clawed toes); Architect (serrated plates crusted with tubercles, marginal lobes, rostrum over six eyes, whiskers,
+   spined manipulators with jointed fingers, armoured flattened legs); Mimic (leaf-scale mantle, slit-pupil eyes under
+   brows, scaled arms with cupped suckers, curved hooks, bristles, tip claws); Sediment Maw (fluted, nodular funnel,
+   rolled ringed lip, dense grit, ring-segment limbs); Ferracaris (scalloped lobed plates, fine translucent fringe,
+   ringed legs).
+4. **Young**: own models with juvenile proportions — Chorus juvenile, Stalker young (short snout, big eyes, fine
+   teeth), Cathedral calf (keeps station under its mother's wing), Breaker hatchlings (scatter round the nest, run
+   under the adult's shell), Mimic juvenile (watches from a crack by the pool, flattens into it).
+5. **Prey** (`src/world/fauna/prey.ts`): instanced lantern shrimp drawn to the Siren's lure and snapped up, a dart-fish
+   school that schools (cohesion, separation, alignment) and scatters from the Chorus Hunters and from divers, a krill
+   swarm the Cathedral filters (the swarm visibly thins where it passed; it refills slowly). Each animal turns along
+   its motion and swims with a body wave in the vertex shader.
+6. **Caves** (`blender/assets/miller_caves.py`, `src/world/surface/millerCaves.ts`): rock shells with arched openings
+   and trimesh colliders — a shelter at each Siren perch, an overhanging ledge over each Stalker post, the Mimic's den.
+7. **Deep light**: two-component water attenuation (red/green gone in tens of metres, the blue part carries much
+   deeper), a floor of scattered water light, a stronger wider dive lamp with a soft suit flood light, and the lamp
+   beam made visible by suspended particles.
+8. **Verification**: e2e PART=8 (close-up skin survey), PART=9 (caves, prey, young, the deep through the player's lamp),
+   PART=10 (an unforced crest with every species, state logged every 5 s).

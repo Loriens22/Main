@@ -30,6 +30,7 @@ import { FaunaManager, type FaunaHost } from '../fauna/Fauna';
 import { populateMars } from '../fauna/mars';
 import { populateJupiter } from '../fauna/jupiter';
 import { populateMiller } from '../fauna/miller';
+import { MillerCaves } from '../surface/millerCaves';
 import { JovianSky } from '../surface/JovianSky';
 import { lookQuat } from '../../space/Proximity';
 import { h } from '../../ui/UI';
@@ -239,7 +240,13 @@ export default class SurfaceZone extends Zone implements SurfaceAPHost {
     this.lazarus = await LazarusSite.create(this);
     if (this.site.body === 'mars') this.fauna = new FaunaManager(this.faunaHost(), populateMars);
     if (this.site.body === 'jupiter') this.fauna = new FaunaManager(this.faunaHost(), populateJupiter);
-    if (this.site.body === 'miller') this.fauna = new FaunaManager(this.faunaHost(), populateMiller);
+    if (this.site.body === 'miller') {
+      this.fauna = new FaunaManager(this.faunaHost(), populateMiller);
+      this.caves = await new MillerCaves(this).build().catch((e) => {
+        console.error('[miller] caves', e);
+        return null;
+      });
+    }
     progress(1, 'ready');
   }
 
@@ -1020,7 +1027,9 @@ export default class SurfaceZone extends Zone implements SurfaceAPHost {
       // light left at the camera's depth below the still water (a passing crest does not plunge it into night)
       const still = lvl - W.height(cam.x, cam.z, t);
       const d = Math.max(0, still - cam.y);
-      this.underK = under ? Math.max(0.02, Math.exp(-d / 24)) : 1;
+      // two-component attenuation: the red/green part of daylight is gone within tens of metres, the blue part
+      // carries much deeper (clear ocean water); a floor of scattered light remains at the suit's working depths
+      this.underK = under ? Math.max(0.035, 0.72 * Math.exp(-d / 22) + 0.28 * Math.exp(-d / 75)) : 1;
       fog.density = under ? 1 / (45 - 17 * (1 - this.underK)) * (1 + 1.5 * this.murk) : atm.fog;
       if (under) fog.color.setRGB(0.01, 0.045, 0.05).multiplyScalar(0.2 + 0.8 * this.underK).lerp(new THREE.Color(0.05, 0.05, 0.04), this.murk * 0.5);
       // under water the sky is gone: the dome shows the water's own murk all round
@@ -1044,8 +1053,10 @@ export default class SurfaceZone extends Zone implements SurfaceAPHost {
       }
       if (under) {
         this.sun.intensity *= this.underK;
-        this.hemi.intensity *= this.underK;
-        this.scene.environmentIntensity *= this.underK;
+        // scattered water light from every direction (blue-green): never quite black at the depths a diver reaches
+        const amb = Math.max(this.underK, 0.06);
+        this.hemi.intensity *= amb;
+        this.scene.environmentIntensity *= amb;
       }
       this.terrain.uniforms.uAbsorb.value = under ? 0 : 1;
     }
@@ -1429,6 +1440,7 @@ export default class SurfaceZone extends Zone implements SurfaceAPHost {
   murk = 0;
   private domeUnder = false;
   private headlamp: THREE.SpotLight | null = null;
+  caves: MillerCaves | null = null;
   private headlampOn = false;
   private snow: THREE.Points | null = null;
   private depthEl: HTMLElement | null = null;
@@ -1440,11 +1452,38 @@ export default class SurfaceZone extends Zone implements SurfaceAPHost {
     return Math.sqrt(Math.max(R * R - p.x * p.x - p.z * p.z, 0)) - R - p.y;
   }
 
+  private flood: THREE.PointLight | null = null;
+  private beam: THREE.Mesh | null = null;
+
   private buildHeadlamp() {
-    const l = new THREE.SpotLight(0xe8f2ff, 0, 24, 0.42, 0.6, 1.4);
+    // a dive lamp: a wide spot with long reach (the water itself attenuates it through the fog), a soft flood round
+    // the suit, and the beam made visible by the particles it lights
+    const l = new THREE.SpotLight(0xe8f2ff, 0, 42, 0.5, 0.55, 1.2);
     l.castShadow = false;
     this.scene.add(l, l.target);
     this.headlamp = l;
+    this.flood = new THREE.PointLight(0xcfe4ff, 0, 7, 1.5);
+    this.scene.add(this.flood);
+    const g = new THREE.ConeGeometry(1, 1, 28, 1, true);
+    g.translate(0, -0.5, 0);
+    g.rotateX(-Math.PI / 2); // apex at the origin, opening along −Z
+    const m = new THREE.ShaderMaterial({
+      uniforms: { uK: { value: 0 } },
+      vertexShader: `varying vec3 vN; varying vec3 vV; varying float vL;
+        void main() { vL = -position.z; vec4 mv = modelViewMatrix * vec4(position, 1.0); vV = normalize(-mv.xyz); vN = normalize(normalMatrix * normal); gl_Position = projectionMatrix * mv; }`,
+      fragmentShader: `uniform float uK; varying vec3 vN; varying vec3 vV; varying float vL;
+        void main() { float edge = pow(abs(dot(normalize(vN), normalize(vV))), 1.5); float fall = (1.0 - smoothstep(0.0, 1.0, vL)) * smoothstep(0.0, 0.08, vL);
+          gl_FragColor = vec4(vec3(0.55, 0.7, 0.8) * uK * edge * fall, 1.0); }`,
+      transparent: true,
+      blending: THREE.AdditiveBlending,
+      depthWrite: false,
+      side: THREE.DoubleSide,
+    });
+    this.beam = new THREE.Mesh(g, m);
+    this.beam.frustumCulled = false;
+    this.beam.visible = false;
+    this.beam.userData.owned = true;
+    this.scene.add(this.beam);
   }
 
   /** marine snow: drifting specks around the camera under water (wrapped in a box that follows it) */
@@ -1475,7 +1514,8 @@ export default class SurfaceZone extends Zone implements SurfaceAPHost {
     const l = this.headlamp;
     if (l) {
       const on = onFoot && this.headlampOn;
-      l.intensity = on ? 28 : 0;
+      const uw = this.underK < 1;
+      l.intensity = on ? (uw ? 46 : 28) : 0;
       l.visible = on;
       if (on) {
         cam.getWorldPosition(l.position);
@@ -1483,6 +1523,22 @@ export default class SurfaceZone extends Zone implements SurfaceAPHost {
         l.position.addScaledVector(_camW, 0.25).y -= 0.1;
         l.target.position.copy(l.position).addScaledVector(_camW, 10);
         l.target.updateMatrixWorld();
+      }
+      if (this.flood) {
+        this.flood.visible = on && uw;
+        this.flood.intensity = on && uw ? 2.2 : 0;
+        this.flood.position.copy(l.position).addScaledVector(_camW, 0.6);
+      }
+      if (this.beam) {
+        this.beam.visible = on && uw;
+        if (on && uw) {
+          const len = 16;
+          this.beam.position.copy(l.position).addScaledVector(_camW, 0.4);
+          this.beam.lookAt(_camW.clone().multiplyScalar(-1).add(this.beam.position));
+          this.beam.scale.set(Math.tan(0.5) * len, Math.tan(0.5) * len, len);
+          // brighter where the water is darker and murkier (more contrast, more particles)
+          (this.beam.material as THREE.ShaderMaterial).uniforms.uK.value = 0.05 * (1 - this.underK * 0.8) * (1 + 1.5 * this.murk);
+        }
       }
     }
     const under = this.underK < 1;
@@ -1568,7 +1624,16 @@ export default class SurfaceZone extends Zone implements SurfaceAPHost {
     this.depthEl?.remove();
     this.headlamp?.removeFromParent();
     this.headlamp?.dispose();
+    this.flood?.removeFromParent();
+    this.flood?.dispose();
+    if (this.beam) {
+      this.beam.removeFromParent();
+      this.beam.geometry.dispose();
+      (this.beam.material as THREE.Material).dispose();
+    }
     this.lazarus?.dispose();
+    this.caves?.dispose();
+    this.caves = null;
     this.fauna?.dispose();
     this.fauna = null;
     this.jovian?.dispose();

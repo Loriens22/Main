@@ -1,8 +1,9 @@
 import * as THREE from 'three';
 import { Creature, FaunaManager } from './Fauna';
 import { AX } from './Rig';
-import { MILLER_BIOME } from '../surface/millerBiome';
+import { MILLER_BIOME, millerSpots } from '../surface/millerBiome';
 import type { Eco } from './miller';
+import { PreySwarm } from './prey';
 
 /**
  * Miller's Planet — the reef's lee, the rift and the basin (docs/MILLER_BIOSPHERE.md):
@@ -270,6 +271,75 @@ class BreakerShield extends Creature {
   }
 }
 
+// hatchlings: wander round the nest, run under the parent's shell edge when anything big comes near or the sea turns
+class BreakerHatchling extends Creature {
+  readonly species = 'breakerjuv';
+  parent!: BreakerShield;
+  size = 0.2;
+  private target = new THREE.Vector3();
+  private speedV = 0;
+  private gait = 0;
+
+  constructor(f: FaunaManager, readonly eco: Eco, readonly idx: number) {
+    super(f);
+    this.view = 70;
+    this.nearR = 35;
+  }
+
+  update(dt: number, near: boolean) {
+    const p = this.parent;
+    const host = this.f.host;
+    const pl = this.game.player;
+    const tide = this.eco.tideState(this.pos.x, this.pos.z);
+    const dpl = pl.pos.distanceTo(this.pos);
+    const danger = dpl < 5 || tide >= 2 || p.state === 'guard' || p.state === 'shove' || p.state === 'shelter';
+    if (danger && this.state !== 'hide') this.setState('hide');
+    if (!danger && this.state === 'hide' && this.st > 4) this.setState('wander');
+    let want = 0;
+    if (this.state === 'hide') {
+      const a = this.idx * 2.1 + p.yaw;
+      this.target.set(p.pos.x + Math.cos(a) * 0.95 * p.size, 0, p.pos.z + Math.sin(a) * 0.95 * p.size);
+      want = 0.4;
+      if (this.eco.watching(this.pos, 8, 0.3) && dpl < 6) this.eco.note('breaker', 'young', 'Palm-sized young scattered round the nest, then ran in under the adult’s shell edge as I came close.');
+    } else {
+      if (this.state !== 'wander' || this.st > 5 + this.idx) {
+        this.setState('wander');
+        const a = Math.random() * TAU, d = 0.7 + Math.random() * 1.8;
+        this.target.set(p.nest.x + Math.cos(a) * d, 0, p.nest.z + Math.sin(a) * d);
+      }
+      want = this.pos.distanceTo(_v.set(this.target.x, this.pos.y, this.target.z)) > 0.15 ? 0.12 : 0;
+    }
+    _v.set(this.target.x - this.pos.x, 0, this.target.z - this.pos.z);
+    const d = _v.length();
+    if (d < 0.08) want = 0;
+    this.speedV = damp(this.speedV, want, 6, dt);
+    if (d > 1e-3) {
+      const yaw = Math.atan2(-_v.x, -_v.z);
+      let dy = yaw - this.yaw;
+      while (dy > Math.PI) dy -= TAU;
+      while (dy < -Math.PI) dy += TAU;
+      this.yaw += dy * Math.min(1, dt * 6);
+      this.pos.addScaledVector(_v.divideScalar(d), this.speedV * dt);
+    }
+    this.pos.y = host.terrainY(this.pos.x, this.pos.z);
+    if (near) {
+      const r = this.rig;
+      r.reset();
+      this.gait += this.speedV * dt * 40;
+      const w = clamp(this.speedV / 0.1, 0, 1);
+      ['L', 'R'].forEach((s, si) => {
+        for (let k = 0; k < 3; k++) {
+          const ph = this.gait + (k % 2 === si ? 0 : Math.PI);
+          r.rot(`limb${s}${k}1`, AX.y, (si === 0 ? 1 : -1) * 0.3 * Math.sin(ph) * w);
+        }
+      });
+    }
+    this.root.position.copy(this.pos);
+    this.root.rotation.set(0, this.yaw, 0, 'YXZ');
+    this.root.scale.setScalar(this.size);
+  }
+}
+
 // ================================================================================================ Rift Architect
 interface Stone {
   m: THREE.Mesh;
@@ -468,7 +538,7 @@ class LuminousSiren extends Swimmer {
   readonly species = 'siren';
   readonly perch = new THREE.Vector3();
   private light: THREE.PointLight;
-  private prey: THREE.Points;
+  private prey: PreySwarm;
   private preyP: Float32Array;
   private lure = 0.6;
   private snapT = 0;
@@ -481,13 +551,10 @@ class LuminousSiren extends Swimmer {
     this.light = new THREE.PointLight(0x50fff0, 0, 5, 1.5);
     this.light.castShadow = false;
     f.root.add(this.light);
-    // a few small phototactic animals drifting toward the light
+    // a few small phototactic animals (lantern shrimp) paddling toward the light
     this.preyP = new Float32Array(10 * 3);
-    const g = new THREE.BufferGeometry();
-    g.setAttribute('position', new THREE.BufferAttribute(this.preyP, 3));
-    this.prey = new THREE.Points(g, new THREE.PointsMaterial({ color: 0xbfe8e0, size: 0.03, transparent: true, opacity: 0.8 }));
-    this.prey.frustumCulled = false;
-    f.root.add(this.prey);
+    this.prey = new PreySwarm(f, 'fauna_prey_shrimp', this.preyP, 1, { amp: 0.1, freq: 18, len: 0.04 });
+    this.prey.build().catch(() => undefined);
   }
 
   /** the lure bulb (world) */
@@ -551,8 +618,7 @@ class LuminousSiren extends Swimmer {
         if (eco.watching(this.pos, 6, 0.6)) eco.note('siren', 'feeding', 'A small animal drifted to the light and the siren took it in one quick snap.');
       }
     }
-    (this.prey.geometry.attributes.position as THREE.BufferAttribute).needsUpdate = true;
-    this.prey.visible = near;
+    this.prey.update(dt, near);
     this.lure = damp(this.lure, lureT, 4, dt);
     this.setGlow(4 * this.lure);
     this.light.position.copy(lp);
@@ -572,9 +638,7 @@ class LuminousSiren extends Swimmer {
     super.dispose();
     this.light.removeFromParent();
     this.light.dispose();
-    this.prey.geometry.dispose();
-    (this.prey.material as THREE.Material).dispose();
-    this.prey.removeFromParent();
+    this.prey.dispose();
   }
 }
 
@@ -746,7 +810,8 @@ class ChorusPod extends Creature {
   spread = 6;
   speed = 1.4;
   private clickT = 0;
-  private school: THREE.Points;
+  private school: PreySwarm;
+  private threats: THREE.Vector3[] = [];
   private schoolP: Float32Array;
   private schoolC = new THREE.Vector3();
   private schoolN = 40;
@@ -756,11 +821,9 @@ class ChorusPod extends Creature {
     this.view = 1e9;
     this.nearR = 1e9;
     this.schoolP = new Float32Array(40 * 3);
-    const g = new THREE.BufferGeometry();
-    g.setAttribute('position', new THREE.BufferAttribute(this.schoolP, 3));
-    this.school = new THREE.Points(g, new THREE.PointsMaterial({ color: 0xc8d8e0, size: 0.09, transparent: true, opacity: 0.85 }));
-    this.school.frustumCulled = false;
-    f.root.add(this.school);
+    // a school of dart fish
+    this.school = new PreySwarm(f, 'fauna_prey_dart', this.schoolP, 1, { amp: 0.12, freq: 14, len: 0.12 });
+    this.school.build().catch(() => undefined);
     this.schoolC.set(B.basin.x + 60, -30, B.basin.z - 40);
     for (let i = 0; i < 40; i++) this.schoolP.set([this.schoolC.x + (Math.random() - 0.5) * 6, this.schoolC.y + (Math.random() - 0.5) * 3, this.schoolC.z + (Math.random() - 0.5) * 6], i * 3);
   }
@@ -858,19 +921,21 @@ class ChorusPod extends Creature {
         }
         continue;
       }
-      sp[i] += ((this.schoolC.x - sp[i]) * 0.1 + (Math.random() - 0.5) * 1.5) * dt;
-      sp[i + 1] += ((this.schoolC.y - sp[i + 1]) * 0.1 + (Math.random() - 0.5) * 0.8) * dt;
-      sp[i + 2] += ((this.schoolC.z - sp[i + 2]) * 0.1 + (Math.random() - 0.5) * 1.5) * dt;
     }
-    (this.school.geometry.attributes.position as THREE.BufferAttribute).needsUpdate = true;
-    this.school.visible = this.schoolC.distanceTo(pl.pos) < 60;
+    // schooling: tight round the centre, scattering from the hunters and from a diver
+    const seen = this.schoolC.distanceTo(pl.pos) < 60;
+    if (seen) {
+      this.threats.length = 0;
+      for (const m of this.members) this.threats.push(m.pos);
+      this.threats.push(pl.pos);
+      this.school.flock(dt, this.schoolC, 2.2, this.threats, this.state === 'hunt' ? 4 : 2.5, this.state === 'hunt' ? 2.6 : 1.2);
+    }
+    this.school.update(dt, seen);
   }
 
   dispose() {
     super.dispose();
-    this.school.geometry.dispose();
-    (this.school.material as THREE.Material).dispose();
-    this.school.removeFromParent();
+    this.school.dispose();
   }
 }
 
@@ -880,23 +945,24 @@ class Cathedral extends Swimmer {
   private goal = new THREE.Vector3();
   private bloom = new THREE.Vector3();
   private mouth = 0;
-  private bloomP: THREE.Points;
+  private krill: PreySwarm;
+  private krillP: Float32Array;
+  private bloomPrev = new THREE.Vector3();
+  private eaten = 0;
 
   constructor(f: FaunaManager, eco: Eco) {
     super(f, eco);
     this.view = 200;
     this.nearR = 140;
     this.clear = 0.5;
-    // a plankton bloom: a denser cloud of drifting particles it seeks out
-    const N = 500;
-    const p = new Float32Array(N * 3);
-    for (let i = 0; i < N; i++) p.set([(Math.random() - 0.5) * 30, (Math.random() - 0.5) * 10, (Math.random() - 0.5) * 30], i * 3);
-    const g = new THREE.BufferGeometry();
-    g.setAttribute('position', new THREE.BufferAttribute(p, 3));
-    this.bloomP = new THREE.Points(g, new THREE.PointsMaterial({ color: 0x9fd8d0, size: 0.06, transparent: true, opacity: 0.6, depthWrite: false }));
-    this.bloomP.frustumCulled = false;
-    f.root.add(this.bloomP);
+    // a plankton bloom: a dense swarm of krill it seeks out and filters
     this.bloom.set(B.basin.x - 40, -38, B.basin.z + 30);
+    this.bloomPrev.copy(this.bloom);
+    const N = f.count(420);
+    this.krillP = new Float32Array(N * 3);
+    for (let i = 0; i < N; i++) this.krillP.set([this.bloom.x + (Math.random() - 0.5) * 30, this.bloom.y + (Math.random() - 0.5) * 10, this.bloom.z + (Math.random() - 0.5) * 30], i * 3);
+    this.krill = new PreySwarm(f, 'fauna_prey_krill', this.krillP, 1, { amp: 0.15, freq: 22, len: 0.02 });
+    this.krill.build().catch(() => undefined);
   }
 
   update(dt: number, near: boolean) {
@@ -904,7 +970,38 @@ class Cathedral extends Swimmer {
     const pl = this.game.player;
     const tide = eco.tideState(this.pos.x, this.pos.z);
     this.bloom.add(_v.set(Math.cos(this.t * 0.02), 0, Math.sin(this.t * 0.03)).multiplyScalar(0.3 * dt));
-    this.bloomP.position.copy(this.bloom);
+    // the swarm drifts with its bloom; krill inside the open mouth are filtered out, the bloom slowly refills
+    const kp = this.krillP;
+    _w.subVectors(this.bloom, this.bloomPrev);
+    this.bloomPrev.copy(this.bloom);
+    const seenK = this.bloom.distanceTo(pl.pos) < 90;
+    if (seenK) {
+      for (let i = 0; i < kp.length; i += 3) {
+        if (kp[i + 1] < -500) {
+          if (Math.random() < dt * 0.02) kp.set([this.bloom.x + (Math.random() - 0.5) * 30, this.bloom.y + (Math.random() - 0.5) * 10, this.bloom.z + (Math.random() - 0.5) * 30], i);
+          continue;
+        }
+        kp[i] += _w.x;
+        kp[i + 1] += _w.y;
+        kp[i + 2] += _w.z;
+      }
+      this.krill.drift(dt, this.bloom, _u.set(15, 5, 15), 0.25);
+      if (this.mouth > 0.4) {
+        const mx = this.pos.x, my = this.pos.y, mz = this.pos.z;
+        const f3 = this.fwd3(_u);
+        const cx = mx + f3.x * 6 * this.size, cy = my + f3.y * 6 * this.size - 0.6 * this.size, cz = mz + f3.z * 6 * this.size;
+        const r2 = (2.6 * this.size) ** 2;
+        for (let i = 0; i < kp.length; i += 3) {
+          const dx = kp[i] - cx, dy = kp[i + 1] - cy, dz = kp[i + 2] - cz;
+          if (dx * dx + dy * dy + dz * dz < r2) {
+            kp[i + 1] = -1000;
+            this.eaten++;
+          }
+        }
+        if (this.eaten > 25 && eco.watching(this.pos, 45, 0.6)) eco.note('cathedral', 'filtering', 'Where it passed the krill swarm thinned: whole clouds of them vanished into the open mouth.');
+      }
+    }
+    this.krill.update(dt, seenK);
     let mouthT = 0;
     switch (this.state) {
       case 'idle':
@@ -966,9 +1063,47 @@ class Cathedral extends Swimmer {
 
   dispose() {
     super.dispose();
-    this.bloomP.geometry.dispose();
-    (this.bloomP.material as THREE.Material).dispose();
-    this.bloomP.removeFromParent();
+    this.krill.dispose();
+  }
+}
+
+// a calf: keeps station under one of the adult's wings, beating faster to keep up
+class CathedralCalf extends Swimmer {
+  readonly species = 'cathedralcalf';
+  mother!: Cathedral;
+  private side = -1;
+
+  constructor(f: FaunaManager, eco: Eco) {
+    super(f, eco);
+    this.view = 200;
+    this.nearR = 120;
+    this.clear = 0.5;
+  }
+
+  update(dt: number, near: boolean) {
+    const m = this.mother;
+    if (!m) return;
+    // the station: under and behind a wing root, swapping sides now and then
+    if (this.st > 90) {
+      this.side = -this.side;
+      this.st = 0;
+    }
+    _w.set(this.side * 6.5, -2.6, 5.5).multiplyScalar(m.size).applyQuaternion(m.q).add(m.pos);
+    const d = this.pos.distanceTo(_w);
+    this.swimTo(_w, clamp(m.vel.length() + d * 0.35, 0.4, 4), 0.6, dt, 1);
+    this.face(dt);
+    if (near) {
+      const r = this.rig;
+      r.reset();
+      const beat = Math.sin(this.swim * 0.5);
+      r.roll('wingL1', 0.3 * beat);
+      r.roll('wingR1', -0.3 * beat);
+      r.roll('wingL2', 0.22 * Math.sin(this.swim * 0.5 - 0.8));
+      r.roll('wingR2', -0.22 * Math.sin(this.swim * 0.5 - 0.8));
+      for (let i = 1; i <= 3; i++) r.rot(`tail${i}`, AX.x, 0.08 * Math.sin(this.swim * 0.5 - i));
+    }
+    this.placeSw();
+    if (this.eco.watching(this.pos, 45, 0.5)) this.eco.note('cathedral', 'calf', 'A calf a fraction of its size kept station under the adult’s wing, beating twice as fast to keep up.');
   }
 }
 
@@ -1143,6 +1278,14 @@ export async function populateMillerDeep(f: FaunaManager, eco: Eco) {
   bs.size = 0.9 + R() * 0.2;
   bs.setState('browse');
   jobs.push(f.add(bs, 'fauna_breaker').then(() => bs.buildNest()));
+  for (let i = 0; i < f.count(3); i++) {
+    const h = new BreakerHatchling(f, eco, i);
+    h.parent = bs;
+    h.pos.set(bs.nest.x + Math.cos(i * 2.1) * 1.2, 0, bs.nest.z + Math.sin(i * 2.1) * 1.2);
+    h.pos.y = floor(h.pos.x, h.pos.z);
+    h.setState('wander');
+    jobs.push(f.add(h, 'fauna_breaker_juv'));
+  }
   // Rift Architect by the vents
   const ra = new RiftArchitect(f, eco);
   ra.den.set(B.vents[0][0] + 6, 0, B.vents[0][1] - 4);
@@ -1154,11 +1297,8 @@ export async function populateMillerDeep(f: FaunaManager, eco: Eco) {
   // Luminous Sirens by the rift walls
   for (let i = 0; i < 2; i++) {
     const s = new LuminousSiren(f, eco);
-    const pt = B.rift[2 + i];
-    const side = i === 0 ? 1 : -1;
-    const nx = -(B.rift[3 + i][1] - B.rift[2 + i][1]), nz = B.rift[3 + i][0] - B.rift[2 + i][0];
-    const L = Math.hypot(nx, nz);
-    s.perch.set(pt[0] + (nx / L) * 26 * side, 0, pt[1] + (nz / L) * 26 * side);
+    const sp = millerSpots().siren[i];
+    s.perch.set(sp.at[0], 0, sp.at[1]);
     s.perch.y = floor(s.perch.x, s.perch.z) + 2.2;
     s.pos.copy(s.perch);
     s.size = 0.9 + R() * 0.4;
@@ -1168,14 +1308,13 @@ export async function populateMillerDeep(f: FaunaManager, eco: Eco) {
   // Abyssal Stalkers: on the basin's rim ledges near the rift's mouth
   for (let i = 0; i < 2; i++) {
     const s = new AbyssalStalker(f, eco);
-    const a = Math.atan2(B.rift[4][1] - B.basin.z, B.rift[4][0] - B.basin.x) + (i ? 0.5 : -0.4);
-    const r = B.basin.r * 0.8;
-    s.ledge.set(B.basin.x + Math.cos(a) * r, 0, B.basin.z + Math.sin(a) * r);
+    const sp = millerSpots().stalker[i];
+    s.ledge.set(sp.at[0], 0, sp.at[1]);
     s.ledge.y = floor(s.ledge.x, s.ledge.z) + 2.5;
     s.pos.copy(s.ledge);
-    s.size = i ? 0.7 : 1; // a younger, slimmer one
+    s.size = i ? 0.62 : 1; // a young one: its own build (shorter snout, bigger eyes, finer teeth)
     s.setState('ambush');
-    jobs.push(f.add(s, 'fauna_abyssstalker'));
+    jobs.push(f.add(s, i ? 'fauna_abyssstalker_juv' : 'fauna_abyssstalker'));
   }
   // a Chorus Hunter pod
   const pod = new ChorusPod(f, eco);
@@ -1189,7 +1328,7 @@ export async function populateMillerDeep(f: FaunaManager, eco: Eco) {
     c.size = c.juvenile ? 0.65 : 0.9 + R() * 0.2;
     c.pos.set(B.basin.x + 30 + i * 4, -30 - R() * 6, B.basin.z - 20 + i * 3);
     pod.members.push(c);
-    jobs.push(f.add(c, 'fauna_chorus'));
+    jobs.push(f.add(c, c.juvenile ? 'fauna_chorus_juv' : 'fauna_chorus'));
   }
   pod.setState('roam');
   // the Cathedral
@@ -1198,6 +1337,12 @@ export async function populateMillerDeep(f: FaunaManager, eco: Eco) {
   cat.size = 0.9 + R() * 0.2;
   cat.setState('cruise');
   jobs.push(f.add(cat, 'fauna_cathedral', ['cath_glow']));
+  const calf = new CathedralCalf(f, eco);
+  calf.mother = cat;
+  calf.size = 0.32;
+  calf.pos.copy(cat.pos).add(new THREE.Vector3(-6, -3, 6));
+  calf.setState('follow');
+  jobs.push(f.add(calf, 'fauna_cathedral_calf', ['cath_glow']));
   // the Crown: one, deep
   const cr = new Crown(f, eco);
   cr.pos.set(B.basin.x + 40, -110, B.basin.z + 40);

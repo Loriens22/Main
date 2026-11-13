@@ -154,3 +154,27 @@ export function millerZone(x: number, z: number): MillerZone {
   if (rc.d < 60) return 'rift';
   return 'flats';
 }
+
+/** habitat spots shared by the fauna and the cave shells (src/world/surface/millerCaves.ts): [x, z] and the
+ *  direction [dx, dz] its opening faces (toward open water) */
+export function millerSpots() {
+  const B = MILLER_BIOME;
+  const siren: { at: [number, number]; face: [number, number] }[] = [];
+  for (let i = 0; i < 2; i++) {
+    const pt = B.rift[2 + i];
+    const side = i === 0 ? 1 : -1;
+    const nx = -(B.rift[3 + i][1] - B.rift[2 + i][1]), nz = B.rift[3 + i][0] - B.rift[2 + i][0];
+    const L = Math.hypot(nx, nz);
+    const at: [number, number] = [pt[0] + (nx / L) * 26 * side, pt[1] + (nz / L) * 26 * side];
+    siren.push({ at, face: [pt[0] - at[0], pt[1] - at[1]] });
+  }
+  const stalker: { at: [number, number]; face: [number, number] }[] = [];
+  for (let i = 0; i < 2; i++) {
+    const a = Math.atan2(B.rift[4][1] - B.basin.z, B.rift[4][0] - B.basin.x) + (i ? 0.5 : -0.4);
+    const r = B.basin.r * 0.8;
+    stalker.push({ at: [B.basin.x + Math.cos(a) * r, B.basin.z + Math.sin(a) * r], face: [-Math.cos(a), -Math.sin(a)] });
+  }
+  const den: [number, number] = [B.pool.x + 9, B.pool.z - 2];
+  const mimic = { at: den, face: [B.pool.x - den[0], B.pool.z - den[1]] as [number, number] };
+  return { siren, stalker, mimic };
+}

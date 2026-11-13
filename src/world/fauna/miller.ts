@@ -809,6 +809,54 @@ function buildCanister(f: FaunaManager, at: THREE.Vector3) {
 }
 
 // ================================================================================================ population
+
+// a young Mimic: lives in a crack near the adult's den, watches with eyes too big for its body, flattens into the
+// crack when approached and peeks out again; never attacks
+class MimicJuvenile extends Creature {
+  readonly species = 'mimicjuv';
+  readonly crack = new THREE.Vector3();
+  size = 0.3;
+  private hideK = 0;
+  private eyeYaw = 0;
+
+  constructor(f: FaunaManager, readonly eco: Eco) {
+    super(f);
+    this.view = 60;
+    this.nearR = 30;
+  }
+
+  update(dt: number, near: boolean) {
+    const pl = this.game.player;
+    const d = pl.pos.distanceTo(this.pos);
+    const tide = this.eco.tideState(this.pos.x, this.pos.z);
+    const hide = d < 3.2 || tide >= 2 ? 1 : 0;
+    if (hide && this.state !== 'hide') this.setState('hide');
+    if (!hide && this.state === 'hide' && this.st > 6) this.setState('watch');
+    this.hideK = damp(this.hideK, this.state === 'hide' ? 1 : 0, this.state === 'hide' ? 6 : 0.8, dt);
+    if (this.state === 'hide' && d < 4 && this.eco.watching(this.pos, 5, 0.3)) this.eco.note('mimic', 'young', 'A small one, eyes too big for its body, watched me from a crack — then flattened into it as I leaned close.');
+    // eyes on the visitor
+    _v.copy(pl.pos).sub(this.pos);
+    const yaw = Math.atan2(-_v.x, -_v.z) - this.yaw;
+    this.eyeYaw = damp(this.eyeYaw, clamp(Math.atan2(Math.sin(yaw), Math.cos(yaw)), -1.2, 1.2), 4, dt);
+    if (near) {
+      const r = this.rig;
+      r.reset();
+      for (const e of ['eyeL', 'eyeR']) r.rot(e, AX.y, this.eyeYaw * 0.6);
+      ['L', 'R'].forEach((sd, si) => {
+        for (let k = 0; k < 4; k++) {
+          r.rot(`arm${sd}${k}1`, AX.x, 0.2 * this.hideK);
+          for (let i = 3; i <= 5; i++) r.rot(`arm${sd}${k}${i}`, AX.y, (si ? -1 : 1) * (0.15 * Math.sin(this.t * 0.6 + k + i) * (1 - this.hideK) + 0.25 * this.hideK));
+        }
+      });
+    }
+    this.pos.copy(this.crack);
+    this.pos.y = this.f.host.terrainY(this.crack.x, this.crack.z) - 0.12 * this.hideK * this.size;
+    this.root.position.copy(this.pos);
+    this.root.rotation.set(0, this.yaw, 0, 'YXZ');
+    this.root.scale.set(this.size, this.size * (1 - 0.55 * this.hideK), this.size);
+  }
+}
+
 export async function populateMiller(f: FaunaManager) {
   const eco = new Eco(f);
   f.creatures.unshift(eco);
@@ -851,6 +899,12 @@ export async function populateMiller(f: FaunaManager) {
       mc.buildEggs();
     }),
   );
+  const mj = new MimicJuvenile(f, eco);
+  mj.crack.set(B.pool.x - 5, 0, B.pool.z + 4);
+  mj.pos.copy(mj.crack);
+  mj.yaw = Math.PI / 2;
+  mj.setState('watch');
+  jobs.push(f.add(mj, 'fauna_mimic_juv'));
   jobs.push(populateMillerDeep(f, eco));
   const cp = new THREE.Vector3(B.pool.x + 3, 0, B.pool.z - 7);
   cp.y = host.terrainY(cp.x, cp.z) + 0.1;

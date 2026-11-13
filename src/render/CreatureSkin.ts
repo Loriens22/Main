@@ -95,7 +95,7 @@ function v3(c: [number, number, number] | undefined, d: [number, number, number]
 export function applySkin(m: THREE.MeshStandardMaterial, s: SkinSpec, quality = 2) {
   const f: string[] = [];
   const relief = quality >= 1;
-  if (s.plates) f.push('SK_PLATES');
+  if (s.plates && relief) f.push('SK_PLATES'); // the low presets keep the colour layers, drop cell relief
   if (s.wrinkle && relief) f.push('SK_WRINKLE');
   if (s.pores && quality >= 2) f.push('SK_PORES');
   if (s.mottle) f.push('SK_MOTTLE');
@@ -161,6 +161,8 @@ export function applySkin(m: THREE.MeshStandardMaterial, s: SkinSpec, quality = 
         {
           vec3 p = vSkP * skScale;
           skHeight = 0.0; skCav = 0.0;
+          // screen-space size of one metre of this surface: detail finer than ~2 px fades out (no glitter)
+          float pxm = max(length(fwidth(p)), 1e-5);
           // domain warp: organic, irregular cells instead of a regular tiling
           vec3 wq = vec3(skN(p * 1.7), skN(p * 1.7 + 7.13), skN(p * 1.7 + 3.71)) - 0.5;
           #ifdef SK_LATTICE
@@ -174,20 +176,25 @@ export function applySkin(m: THREE.MeshStandardMaterial, s: SkinSpec, quality = 
             float edge = smoothstep(0.0, gw, pv.y);
             float dome = 1.0 - pv.x * 0.5;
             float ch = 0.45 + 0.55 * pv.z;
-            skHeight += skPlates.x * edge * dome * ch;
-            skCav = max(skCav, (1.0 - edge) * 0.8);
-            diffuseColor.rgb *= 0.86 + 0.28 * pv.z;
+            float lodP = 1.0 - smoothstep(0.25, 0.6, pxm * skPlates.y);
+            skHeight += skPlates.x * edge * dome * ch * lodP;
+            skCav = max(skCav, (1.0 - edge) * 0.8 * lodP);
+            diffuseColor.rgb *= mix(1.0, 0.86 + 0.28 * pv.z, lodP);
           #endif
           #ifdef SK_WRINKLE
             float wr = skF(p * skWrinkleAxis * skWrinkle.y);
             float ridge = 1.0 - abs(wr * 2.0 - 1.0);
-            skHeight += skWrinkle.x * ridge;
-            skCav = max(skCav, smoothstep(0.55, 0.0, ridge) * 0.7);
+            float lodW = 1.0 - smoothstep(0.12, 0.35, pxm * skWrinkle.y * max(max(skWrinkleAxis.x, skWrinkleAxis.y), skWrinkleAxis.z));
+            skHeight += skWrinkle.x * ridge * lodW;
+            skCav = max(skCav, smoothstep(0.55, 0.0, ridge) * 0.7 * lodW);
           #endif
           #ifdef SK_PORES
-            vec3 po = skV(p * skPores.y);
-            float pit = 1.0 - smoothstep(0.0, 0.32, po.x);
-            skHeight -= skPores.x * pit * step(0.35, po.z);
+            float lodO = 1.0 - smoothstep(0.25, 0.6, pxm * skPores.y);
+            if (lodO > 0.0) {
+              vec3 po = skV(p * skPores.y);
+              float pit = 1.0 - smoothstep(0.0, 0.32, po.x);
+              skHeight -= skPores.x * pit * step(0.35, po.z) * lodO;
+            }
           #endif
           #ifdef SK_MOTTLE
             float mt = smoothstep(0.36, 0.66, skF((p + wq * (0.7 / skMottle.y)) * skMottleAxis * skMottle.y));
@@ -200,6 +207,9 @@ export function applySkin(m: THREE.MeshStandardMaterial, s: SkinSpec, quality = 
           #ifdef SK_RETIC
             vec3 rv = skV((p + wq * (0.8 / skRetic.y)) * skRetic.y);
             float line = 1.0 - smoothstep(skRetic.z * 0.5, skRetic.z, rv.y);
+            // far away the net blends to its average tone instead of aliasing
+            float lodR = 1.0 - smoothstep(0.2, 0.5, pxm * skRetic.y);
+            line = mix(skRetic.z * 1.5, line, lodR);
             diffuseColor.rgb = mix(diffuseColor.rgb, skReticColor, line * skRetic.x);
           #endif
           #ifdef SK_SPOTS

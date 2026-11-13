@@ -148,7 +148,7 @@ const sv = (name, who, off, look = 0, lamp = false, fov = 40) => ({ js: `${H} ${
   const s = c.size ?? 1; const o = new V(${off.join(', ')}).multiplyScalar(s).applyQuaternion(q);
   cam.position.copy(c.pos).add(o); cam.lookAt(c.pos.x, c.pos.y + ${look} * s, c.pos.z);
   let L = window.__surveyLamp; if (!L) { L = window.__surveyLamp = z.headlamp.clone(); L.distance = 0; L.decay = 1.6; L.angle = 0.9; L.penumbra = 0.6; L.castShadow = false; z.scene.add(L); z.scene.add(L.target); }
-  L.visible = true; L.intensity = ${lamp ? 5 : 0} * s * s; L.position.copy(cam.position); L.target.position.set(c.pos.x, c.pos.y + ${look} * s, c.pos.z); L.target.updateMatrixWorld(true); cam.updateMatrixWorld(true); return { at: [c.pos.x, c.pos.y, c.pos.z].map((v) => +v.toFixed(1)), st: c.state };`, frames: 2, shot: name });
+  L.visible = true; L.intensity = ${lamp ? 1 : 0} * Math.max(1, o.lengthSq() * 0.25); L.position.copy(cam.position); L.target.position.set(c.pos.x, c.pos.y + ${look} * s, c.pos.z); L.target.updateMatrixWorld(true); cam.updateMatrixWorld(true); return { at: [c.pos.x, c.pos.y, c.pos.z].map((v) => +v.toFixed(1)), st: c.state };`, frames: 2, shot: name });
 const unlamp = { js: `if (window.__surveyLamp) window.__surveyLamp.intensity = 0; game.cinematic = null; return 1;`, frames: 1 };
 parts[8] = [
   land,
@@ -163,16 +163,16 @@ parts[8] = [
   fgo(`const m = of('mimic')[0]; m.setState('den'); put(m.den.x + 7, m.den.z + 1, 0.05, Math.PI / 2, -0.3)`, 30),
   sv('sv_mimic', `of('mimic')[0]`, [1.0, 0.8, -1.5], 0.3), unlamp,
   sv('sv_mimic_lamp', `of('mimic')[0]`, [1.0, 0.8, -1.5], 0.3, true), unlamp,
-  fgo(`const m = of('sedimentmaw')[0]; const p = m.mouthPos(new V()); put(p.x + 4.5, p.z, 0.05, Math.PI / 2, -0.35)`, 30),
+  fgo(`const m = of('sedimentmaw')[0]; const p = m.mouthPos(new V()); put(p.x + 4.5, p.z, 0.05, Math.PI / 2, -0.35); m.cooldown = 0; m.energy = 1; m.setState('strike')`, 20),
   sv('sv_maw', `of('sedimentmaw')[0]`, [1.8, 1.5, -1.4], 0.0), unlamp,
   fgo(`const c = of('ferracaris')[0]; put(c.cx + 2.5, c.cz + 1.6, 0.05, 0, -0.5)`, 30),
   { js: `${H} ${M} const c = of('ferracaris')[0]; const g = c.ind.find((q) => q.state !== 'gone'); const y = z.terrainY(g.x, g.z); const cam = game.camera; game.cinematic = { blocking: true, update: () => true }; cam.fov = 28; cam.updateProjectionMatrix(); cam.position.set(g.x + 0.45, Math.max(y, 0) + 0.28, g.z + 0.35); cam.lookAt(g.x, y + 0.03, g.z); cam.updateMatrixWorld(true); return 1;`, frames: 2, shot: 'sv_ferracaris' }, unlamp,
   fgo(`const s = of('siren')[0]; put(s.perch.x + 3, s.perch.z + 2, 0.05, 0, 0)`, 30),
-  sv('sv_siren', `of('siren')[0]`, [0.7, 0.15, -0.5], 0.0), unlamp,
-  sv('sv_siren_lamp', `of('siren')[0]`, [0.7, 0.15, -0.5], 0.0, true), unlamp,
+  sv('sv_siren', `of('siren')[0]`, [1.3, 0.25, -0.2], 0.0), unlamp,
+  sv('sv_siren_lamp', `of('siren')[0]`, [1.3, 0.25, -0.2], 0.0, true), unlamp,
   fgo(`const s = of('abyssstalker')[0]; put(s.ledge.x + 8, s.ledge.z + 4, 0.05, 0, 0); pl.pos.y = Math.max(pl.pos.y, s.pos.y)`, 30),
-  sv('sv_stalker', `of('abyssstalker')[0]`, [1.8, 0.6, -3.6], 0.0), unlamp,
-  sv('sv_stalker_lamp', `of('abyssstalker')[0]`, [1.8, 0.6, -3.6], 0.0, true), unlamp,
+  sv('sv_stalker', `of('abyssstalker')[0]`, [3.4, 1.2, -3.2], 0.0), unlamp,
+  sv('sv_stalker_lamp', `of('abyssstalker')[0]`, [3.4, 1.2, -3.2], 0.0, true), unlamp,
   fgo(`const c = of('chorus')[0]; put(c.pos.x + 12, c.pos.z + 8, 0.05, 0, 0); pl.pos.y = Math.max(pl.pos.y, c.pos.y)`, 30),
   sv('sv_chorus', `of('chorus').find((k) => !k.juvenile)`, [0.9, 0.3, -1.8], 0.0), unlamp,
   sv('sv_chorus_lamp', `of('chorus').find((k) => !k.juvenile)`, [0.9, 0.3, -1.8], 0.0, true), unlamp,
@@ -182,6 +182,81 @@ parts[8] = [
   fgo(`const c = of('crown')[0]; c.pos.set(B.basin.x + 20, -45, B.basin.z + 10); c.setState('patrol'); put(B.basin.x + 20, B.basin.z - 40, 0.05, 0, 0); pl.pos.y = Math.max(pl.pos.y, -40)`, 20),
   sv('sv_crown', `of('crown')[0]`, [2.5, 1.6, -8.5], 0.6), unlamp,
   sv('sv_crown_lamp', `of('crown')[0]`, [2.5, 1.6, -8.5], 0.6, true), unlamp,
+];
+
+// the realism pass's new pieces: cave shells, prey animals, juveniles, and the deep seen through the player's own lamp
+const pv = (name, js, frames = 40) => ({ js: `${H} ${M} game.cinematic = null; game.state.player.health = 1; F['crack'] = 0; if (window.__surveyLamp) window.__surveyLamp.intensity = 0; ${js}; return 1;`, frames, shot: name, probe: fprobe });
+const face = (tx, tz) => `{ const dx = ${tx} - pl.pos.x, dz = ${tz} - pl.pos.z; pl.heading.set(dx, 0, dz).normalize(); }`;
+parts[9] = [
+  land,
+  { untilJs: `game.zone.fauna && game.zone.fauna.creatures.length >= 24`, max: 900, chunk: 30, probe: fprobe },
+  { js: `game.zone.waves.first = game.zone.time + 4000; game.state.creative.hazardProtection = true; for (const k of game.zone.fauna.creatures) k.cooldown = 999; return { caves: game.zone.caves ? game.zone.caves.group.children.length : 0, sp: game.zone.fauna.creatures.map((k) => k.species).join(',') };`, frames: 1 },
+  // the mimic den and the young mimic in its crack
+  sv('cave_den', `of('mimic')[0]`, [3.5, 2.2, -3.0], 0.5, false, 50), unlamp,
+  sv('juv_mimic', `of('mimicjuv')[0]`, [0.9, 0.6, -1.2], 0.1, false, 40), unlamp,
+  // the breaker's hatchlings round the nest
+  sv('juv_breaker', `of('breakerjuv')[0]`, [1.0, 0.7, -1.2], 0.1, false, 45), unlamp,
+  // the siren's shelter on the rift wall, from outside, then from inside with the lamp: the siren and its shrimp
+  fgo(`const s = of('siren')[0]; put(s.perch.x + 8, s.perch.z + 4, 0.05, 0, 0); pl.pos.y = s.pos.y; ${face('s.pos.x', 's.pos.z')}; z.headlampOn = true`, 60),
+  pv('cave_shelter_lamp', `const s = of('siren')[0]; put(s.perch.x + (s.pos.x - s.perch.x) * 0 + 3.5, s.perch.z + 1.5, 0.05, 0, 0); pl.pos.y = s.pos.y - 1.4; ${face('s.pos.x', 's.pos.z')}; pl.pitch = 0.1`, 60),
+  sv('prey_shrimp', `of('siren')[0]`, [0.5, 0.25, -0.9], 0.1, true, 35), unlamp,
+  // a stalker ledge over the basin rim, the young stalker
+  sv('cave_ledge', `of('abyssstalker')[0]`, [10, 5, -12], 0.0, true, 55), unlamp,
+  sv('juv_stalker', `of('abyssstalker')[1]`, [2.4, 0.8, -2.6], 0.0, true, 45), unlamp,
+  // the prey school and the juvenile hunter
+  fgo(`const c = of('chorus')[0]; put(c.pos.x + 12, c.pos.z + 8, 0.05, 0, 0); pl.pos.y = Math.max(pl.pos.y, c.pos.y)`, 30),
+  { js: `${H} ${M} const pod = F.creatures.find((k) => k.species === 'chorus_pod'); const c = pod.schoolC; const cam = game.camera; game.cinematic = { blocking: true, update: () => true }; cam.fov = 45; cam.updateProjectionMatrix(); cam.position.set(c.x + 3.5, c.y + 1.2, c.z + 3.5); cam.lookAt(c); let L = window.__surveyLamp; if (L) { L.intensity = 5; L.position.copy(cam.position); L.target.position.copy(c); L.target.updateMatrixWorld(true); } cam.updateMatrixWorld(true); return { n: pod.schoolN };`, frames: 3, shot: 'prey_school' }, unlamp,
+  sv('juv_chorus', `of('chorus').find((k) => k.juvenile)`, [0.8, 0.3, -1.4], 0.0, true, 45), unlamp,
+  // the cathedral, its calf and the krill it filters
+  fgo(`const c = of('cathedral')[0]; put(c.pos.x + 30, c.pos.z + 25, 0.05, 0, 0); pl.pos.y = Math.max(pl.pos.y, c.pos.y)`, 30),
+  sv('juv_calf', `of('cathedralcalf')[0]`, [3, 1.5, -6], 0.0, true, 50), unlamp,
+  { js: `${H} ${M} const c = of('cathedral')[0]; const b = c.bloom; const cam = game.camera; game.cinematic = { blocking: true, update: () => true }; cam.fov = 40; cam.updateProjectionMatrix(); cam.position.set(b.x + 1.2, b.y + 0.4, b.z + 1.2); cam.lookAt(b.x, b.y, b.z); let L = window.__surveyLamp; if (L) { L.intensity = 4; L.position.copy(cam.position); L.target.position.copy(b); L.target.updateMatrixWorld(true); } cam.updateMatrixWorld(true); return 1;`, frames: 3, shot: 'prey_krill' }, unlamp,
+  // the deep through the player's own lamp: the crown ahead in the dark
+  fgo(`const c = of('crown')[0]; c.pos.set(B.basin.x + 20, -42, B.basin.z + 10); c.setState('patrol'); put(B.basin.x + 20, B.basin.z - 2, 0.05, 0, 0); pl.pos.y = -42; ${face('c.pos.x', 'c.pos.z')}; z.headlampOn = true`, 20),
+  pv('deep_lamp_crown', `const c = of('crown')[0]; c.pos.set(pl.pos.x + 2, pl.pos.y + 0.5, pl.pos.z - 13); ${face('c.pos.x', 'c.pos.z')}; pl.pitch = 0.0`, 30),
+  pv('deep_nolamp', `z.headlampOn = false`, 20),
+];
+
+// a natural crest: land, stay seated in Ranger 1, never touch the wave schedule; log every species every 5 s and
+// track the after-effects (the Architect's wall knocked down and rebuilt, swept Ferracaris resettling)
+const landSeat = { js: `await game.startCreative(false); game.cinematic = null;
+    const L = await import('/src/data/landing.ts'); const s = L.SURFACES.miller.sites[0]; const v = game.state.vehicles.ranger1; v.data.surface = { body: 'miller', lat: s.lat, lon: s.lon, name: s.name }; v.landed = true;
+    game.state.creative.hazardProtection = false; game.state.player.health = 1;
+    await game.goTo('surface', { at: 'landed' }, { fade: 0 }); game.step(2, 1 / 30, false);
+    return { mode: game.player.mode, wavesFirst: game.zone.waves?.first };`, wait: 1500, frames: 30 };
+const wlog = `const z = game.zone; const F = z.fauna; if (!F) return 'no fauna'; const B = (await import('/src/world/surface/millerBiome.ts')).MILLER_BIOME;
+  const eco = F.creatures.find((k) => k.species === 'eco'); const of = (sp) => F.creatures.filter((k) => k.species === sp);
+  const W = z.waves; const w0 = W.wave(0); const R = window.__wr ??= { minPlaced: 99, maxGone: 0, placed0: null, gone: [], states: {} };
+  const ts = (x, zz) => eco.tideState(x, zz);
+  const fc = of('ferracaris'); const cnt = { graze: 0, clamp: 0, hide: 0, gone: 0 }; for (const c of fc) for (const g of c.ind) cnt[g.state]++;
+  const a = of('architect')[0]; const placed = a ? a.stones.filter((q) => q.placed).length : -1;
+  if (R.placed0 === null) R.placed0 = placed; R.minPlaced = Math.min(R.minPlaced, placed); R.maxGone = Math.max(R.maxGone, cnt.gone);
+  const st = (sp) => of(sp).map((k) => k.state).join('/');
+  const line = { t: Math.round(z.time), w0: Math.round(w0.t0), reef: ts(B.reef.x, B.reef.z), pool: ts(B.pool.x, B.pool.z), basin: ts(B.basin.x, B.basin.z), h: +(z.waterLevel(B.reef.x, B.reef.z) - z.waterLevel(B.basin.x, B.basin.z)).toFixed(1),
+    ferra: cnt, arch: (a?.state ?? '-') + ' ' + placed + '/' + (a?.stones.length ?? 0), brk: st('breaker'), hatch: st('breakerjuv'), mimic: st('mimic'), mjuv: st('mimicjuv'), maw: st('sedimentmaw'), siren: st('siren'), stalk: st('abyssstalker'),
+    pod: st('chorus_pod'), cath: st('cathedral'), calf: st('cathedralcalf'), crown: st('crown'), seat: game.player.mode, hp: +(game.state.player.health ?? 1).toFixed(2) };
+  for (const [k, v] of Object.entries(line)) if (typeof v === 'string') (R.states[k] ??= new Set()).add(v);
+  return line;`;
+const reefCam = (name, js) => ({ js: `${H} const cam = game.camera; game.cinematic = { blocking: true, update: () => true }; cam.fov = 55; cam.updateProjectionMatrix(); ${js}; cam.updateMatrixWorld(true); return 1;`, frames: 2, shot: name });
+parts[10] = [
+  landSeat,
+  { untilJs: `game.zone.fauna && game.zone.fauna.creatures.length >= 24`, max: 1800, chunk: 30 },
+  { js: `const B = (await import('/src/world/surface/millerBiome.ts')).MILLER_BIOME; window.__reefTide = () => game.zone.fauna.creatures.find((k) => k.species === 'eco').tideState(B.reef.x, B.reef.z);
+    return { first: game.zone.waves.first, t: game.zone.time, w0: game.zone.waves.wave(0).t0, reef: window.__reefTide() };`, frames: 1, probe: wlog },
+  // precursors at the reef (crest under 240 s away)
+  { untilJs: `window.__reefTide() >= 1`, max: 30000, chunk: 150, every: 1, probe: wlog },
+  { frames: 2, probe: wlog },
+  reefCam('wave_precursor', `cam.position.set(B.reef.x + 30, 14, B.reef.z + 25); cam.lookAt(B.reef.x, 0, B.reef.z)`), { js: `game.cinematic = null; return 1;`, frames: 1 },
+  { untilJs: `window.__reefTide() >= 3`, max: 12000, chunk: 150, every: 1, probe: wlog },
+  reefCam('wave_hazard', `const a = game.zone.fauna.creatures.find((k) => k.species === 'architect'); cam.position.set(a.pos.x + 5, a.pos.y + 3, a.pos.z + 4); cam.lookAt(a.pos)`), { js: `game.cinematic = null; return 1;`, frames: 1 },
+  { untilJs: `window.__reefTide() === 4`, max: 6000, chunk: 30, every: 5, probe: wlog },
+  reefCam('wave_crest', `cam.position.set(B.reef.x + 60, 30, B.reef.z + 50); cam.lookAt(B.reef.x, 0, B.reef.z)`), { js: `game.cinematic = null; return 1;`, frames: 1 },
+  { frames: 300, chunk: 150, probe: wlog },
+  reefCam('wave_after_arch', `const a = game.zone.fauna.creatures.find((k) => k.species === 'architect'); cam.position.set(a.den.x + 3, a.den.y + 3, a.den.z + 3); cam.lookAt(a.den)`), { js: `game.cinematic = null; return 1;`, frames: 1 },
+  // let the sea settle and the animals recover
+  { untilJs: `window.__reefTide() === 0 && game.zone.time > game.zone.waves.wave(0).t0 + 420`, max: 30000, chunk: 150, every: 1, probe: wlog },
+  reefCam('wave_recovered_arch', `const a = game.zone.fauna.creatures.find((k) => k.species === 'architect'); cam.position.set(a.den.x + 3, a.den.y + 3, a.den.z + 3); cam.lookAt(a.den)`), { js: `game.cinematic = null; return 1;`, frames: 1 },
+  { js: `const R = window.__wr; const out = {}; for (const [k, v] of Object.entries(R.states)) out[k] = [...v].slice(0, 14).join(' | '); return { placed0: R.placed0, minPlaced: R.minPlaced, maxGone: R.maxGone, states: out };`, frames: 1, probe: wlog },
 ];
 const P = process.env.PART ?? '1';
 export const steps = parts[P];
