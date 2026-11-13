@@ -126,6 +126,8 @@ export class Sky extends Creature {
   private colonyGone = 0;
   private cloudPuffT = 0;
   private rockArmed = true;
+  /** seconds the stick stays with the struggle after a grip ends (so the last jabs do not drop the autopilot) */
+  private grace = 0;
 
   constructor(f: FaunaManager) {
     super(f);
@@ -263,7 +265,7 @@ export class Sky extends Creature {
       }
       if (c) {
         add += dt * Math.max(0, Math.abs(c.angVel.z) + 0.6 * Math.abs(c.angVel.x) - 0.5) * 2.5;
-        if (c.mainLevel > 0.85) add += dt * 0.6;
+        if (c.mainLevel > 0.85 || inp.flight.throttle > 0.5) add += dt * 0.6;
       }
       gp.got = Math.min(gp.need, gp.got + add);
       const n = Math.floor(gp.got);
@@ -272,6 +274,9 @@ export class Sky extends Creature {
       else if (gp.got >= gp.need) this.release('broke');
       else if (gp.t > gp.max) this.release('timeout');
     }
+    // the autopilot (CLOUD CRUISE) keeps flying while the pilot fights: the stick is not a manual takeover
+    this.grace = this.grip ? 1.5 : Math.max(0, this.grace - dt);
+    this.f.host.struggle(this.grace > 0);
     // ---- spore clouds: drift, glow, choke the intakes of a craft flying through
     this.cloudPuffT -= dt;
     let inCloud = false;
@@ -352,6 +357,7 @@ export class Sky extends Creature {
       this.grip = null;
       g.ui.countdown(null);
     }
+    this.f.host.struggle(false);
   }
 }
 

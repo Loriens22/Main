@@ -25,6 +25,8 @@ export interface FaunaHost {
   rangerRoot(): THREE.Object3D;
   /** Ranger 1's flight state while it flies (Jupiter: the craft creatures grab, drag and shock) */
   craft(): Spacecraft | null;
+  /** the pilot's stick and throttle are fighting off a creature: they must not abort the autopilot */
+  struggle(on: boolean): void;
   /** Ranger 1 is flying (Jupiter: always) */
   rangerFlying(): boolean;
   /** knocked out on foot: back to Ranger 1 */

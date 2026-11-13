@@ -782,6 +782,9 @@ export default class SurfaceZone extends Zone implements SurfaceAPHost {
       },
       rangerRoot: () => this.ranger.root,
       craft: () => (this.craft && !this.craft.landed ? this.craft : null),
+      struggle: (on) => {
+        if (this.control) this.control.struggle = on;
+      },
       rangerFlying: () => !this.craft.landed,
       knockout: (msg) => {
         if (this.ranger.site || this.craft.landed) this.ranger.seat();

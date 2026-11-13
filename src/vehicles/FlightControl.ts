@@ -87,11 +87,14 @@ export class FlightControl implements Controllable {
     this.msgT = 6;
   }
 
+  /** the stick and throttle are busy with something else (fighting off a creature): they do not abort the autopilot */
+  struggle = false;
+
   control(dt: number, input: Input) {
     const c = this.craft;
     const f = input.flight;
     const manual = Math.abs(f.pitch) + Math.abs(f.yaw) + Math.abs(f.roll) + Math.abs(f.tx) + Math.abs(f.ty) + Math.abs(f.tz) + Math.abs(f.throttle) > 0.05 || f.throttleSet !== null;
-    if (this.autopilot && manual && !this.autopilot.allowManual) {
+    if (this.autopilot && manual && !this.autopilot.allowManual && !this.struggle) {
       this.say('Manual input — autopilot disengaged');
       this.setAutopilot(null);
     }
