@@ -60,6 +60,11 @@ export interface SkinSpec {
   latticeSize?: number;
   /** how strongly baked AO darkens the albedo (indirect light always gets full AO) */
   aoAlbedo?: number;
+  /**
+   * living light: bright, saturated parts of the (painted) colour emit — cobalt vein nets, ember fissures, a glowing
+   * crimson underside — while dark or grey skin does not (no separate emissive map needed)
+   */
+  glow?: number;
 }
 
 const GLSL_NOISE = /* glsl */ `
@@ -126,6 +131,7 @@ export function applySkin(m: THREE.MeshStandardMaterial, s: SkinSpec, quality = 
     skCavity: { value: new THREE.Vector4(s.cavity ?? 0.3, s.wet ?? 0.4, s.vary ?? 0.15, s.aoAlbedo ?? 0.55) },
     /** 0 adult … 1 newly born: paler, softer colouring (set per animal on its own material clone) */
     skYouth: { value: 0 },
+    skGlow: { value: s.glow ?? 0 },
     skLattice: { value: new THREE.Vector2(s.lattice ?? 0, 1 / (s.latticeSize ?? 0.1)) },
   };
   const defs = f.map((d) => `#define ${d}`).join('\n');
@@ -149,7 +155,7 @@ export function applySkin(m: THREE.MeshStandardMaterial, s: SkinSpec, quality = 
         `#include <common>
         ${defs}
         varying vec3 vSkP; varying vec3 vSkN; varying float vSkAO;
-        uniform float skScale, skBelly, skYouth;
+        uniform float skScale, skBelly, skYouth, skGlow;
         uniform vec4 skPlates, skSpots, skCavity; uniform vec3 skPlateStretch, skWrinkleAxis, skRetic;
         uniform vec2 skWrinkle, skPores, skMottle, skLattice;
         uniform vec3 skMottleColor, skSpotColor, skReticColor, skBellyColor, skMottleAxis, skMottle2Color;
@@ -248,6 +254,15 @@ export function applySkin(m: THREE.MeshStandardMaterial, s: SkinSpec, quality = 
           normal = normalize(abs(det) * normal - grad);
         }
         #endif`,
+      )
+      .replace(
+        '#include <emissivemap_fragment>',
+        `#include <emissivemap_fragment>
+        if (skGlow > 0.0) {
+          float skMx = max(diffuseColor.r, max(diffuseColor.g, diffuseColor.b));
+          float skMn = min(diffuseColor.r, min(diffuseColor.g, diffuseColor.b));
+          totalEmissiveRadiance += skGlow * diffuseColor.rgb * smoothstep(0.22, 0.6, skMx - skMn) * smoothstep(0.25, 0.7, skMx);
+        }`,
       )
       .replace(
         '#include <aomap_fragment>',

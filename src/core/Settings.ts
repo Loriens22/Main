@@ -131,6 +131,10 @@ export const DEFAULT_BINDINGS: Record<string, string[]> = {
   quickSave: ['F5'],
   quickLoad: ['F9'],
   creative: ['KeyK'],
+  // field research (surface zones)
+  drone: ['KeyG'],
+  photo: ['KeyB'],
+  sample: ['KeyN'],
   // flight
   throttleUp: ['ShiftLeft'],
   throttleDown: ['ControlLeft'],

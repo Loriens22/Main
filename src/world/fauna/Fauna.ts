@@ -1,4 +1,5 @@
 import * as THREE from 'three';
+import type { JupiterAir } from './jupiterAir';
 import type { Spacecraft } from '../../vehicles/Spacecraft';
 import type { Game } from '../../core/Game';
 import type { Frame } from '../Frame';
@@ -93,6 +94,11 @@ export abstract class Creature {
   readonly prevPos = new THREE.Vector3();
   /** glow materials cloned per creature (pulsing light organs) */
   protected glow: THREE.MeshStandardMaterial[] = [];
+  /** distance levels of detail baked in Blender (<mesh>_lod1, _lod2, skinned to the same bones) */
+  private lods: THREE.Object3D[][] = [[], [], []];
+  private lod = -1;
+  /** the model's bounding radius at size 1 (m), for the LOD distances */
+  bodyR = 1;
 
   constructor(readonly f: FaunaManager) {}
 
@@ -108,6 +114,8 @@ export abstract class Creature {
     this.inst.root.traverse((o) => {
       const m = o as THREE.Mesh;
       if (!m.isMesh) return;
+      const lv = /_lod(\d)/.exec(m.name) ?? /_lod(\d)/.exec(m.parent?.name ?? '');
+      this.lods[lv ? Math.min(2, Number(lv[1])) : 0].push(m);
       m.castShadow = true;
       m.receiveShadow = true;
       const ji = m.morphTargetDictionary?.juvenile;
@@ -124,7 +132,23 @@ export abstract class Creature {
       m.material = Array.isArray(m.material) ? m.material.map(swap) : swap(m.material);
     });
     this.f.root.add(this.root);
+    const bs = new THREE.Box3().setFromObject(this.inst.root).getBoundingSphere(new THREE.Sphere());
+    this.bodyR = Math.max(0.05, bs.radius);
+    this.setLod(0);
     return this;
+  }
+
+  /** show one level of detail (0 full … 2 far); levels a model lacks fall back to the nearest finer one */
+  setLod(level: number) {
+    let l = level;
+    while (l > 0 && !this.lods[l].length) l--;
+    if (l === this.lod) return;
+    this.lod = l;
+    this.lods.forEach((ms, i) => ms.forEach((m) => (m.visible = i === l)));
+  }
+
+  get lodLevel() {
+    return this.lod;
   }
 
   /** 1 newborn … 0 adult: the juvenile shape key and the paler young colouring */
@@ -331,6 +355,8 @@ export class FaunaManager {
   cabinView = false;
   /** Ranger 1 thrust factor (spore-choked intakes, electrical surge) */
   thrustK = 1;
+  /** Jupiter: the air the cloud-layer animals fly in (world/fauna/jupiterAir.ts), shared with the research tools */
+  air: JupiterAir | null = null;
 
   constructor(readonly host: FaunaHost, private populate: Populate) {
     this.voice = new CreatureVoice(host.game.audio);
@@ -434,6 +460,9 @@ export class FaunaManager {
         if (moved) c.root.position.copy(c.pos);
       }
       c.root.visible = d < c.view;
+      // levels of detail by distance in body radii (the rig keeps posing every level: they share the bones)
+      const rr = c.bodyR * ((c as unknown as { size?: number }).size ?? 1);
+      c.setLod(d < rr * 28 ? 0 : d < rr * 80 ? 1 : 2);
     }
     this.creatures = this.creatures.filter((c) => {
       if (!c.alive) c.dispose();

@@ -194,12 +194,14 @@ def preview(name, cam, target, lens=40, world=(0.5, 0.52, 0.56), sun=(0.4, -0.5,
     kit.preview(os.path.join(kit.preview_dir(), f"{name}.png"), cam, target, lens=lens, samples=16, world=world, sun=sun, sun_strength=3.5)
 
 
-def export_static(root, body, path, props, size=1024, nsize=None, ao=None):
-    """a static (unskinned) creature or habitat model, painted + normal-baked"""
+def export_static(root, body, path, props, size=1024, nsize=None, ao=None, lods=(0.32, 0.09)):
+    """a static (unskinned) creature or habitat model, painted + normal-baked, with distance LODs (<name>_lod1/2)"""
     body.parent = root
     PNT.bake_body(body, os.path.splitext(os.path.basename(path))[0], size=size, nsize=nsize)
     if ao:
         C.bake_ao(body, distance=ao)
+    for o in (C.make_lods(body, lods) if lods else []):
+        o.parent = root
     kit.set_props(root, **props)
     kit.select_tree(root)
     kw = dict(filepath=path, export_format="GLB", use_selection=True, export_apply=True, export_extras=True, export_yup=True,

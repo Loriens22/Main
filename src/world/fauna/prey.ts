@@ -56,6 +56,8 @@ export class PreySwarm {
     inst.root.traverse((o) => {
       const src = o as THREE.Mesh;
       if (!src.isMesh) return;
+      // the distance levels are for single animals; a school draws its full mesh instanced
+      if (/_lod\d/.test(src.name) || /_lod\d/.test(src.parent?.name ?? '')) return;
       const geo = src.geometry.clone();
       geo.applyMatrix4(src.matrixWorld);
       geo.setAttribute('aPh', aPh);

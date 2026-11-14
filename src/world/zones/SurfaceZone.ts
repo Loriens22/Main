@@ -33,6 +33,7 @@ import { populateMiller } from '../fauna/miller';
 import { MillerCaves } from '../surface/millerCaves';
 import { MarsRefuge, refugePad, refugeCarve } from '../surface/marsRefuge';
 import { JovianSky } from '../surface/JovianSky';
+import { ResearchTools } from '../research/ResearchTools';
 import { lookQuat } from '../../space/Proximity';
 import { h } from '../../ui/UI';
 
@@ -258,6 +259,7 @@ export default class SurfaceZone extends Zone implements SurfaceAPHost {
         return null;
       });
     }
+    this.research = new ResearchTools(this);
     progress(1, 'ready');
   }
 
@@ -612,6 +614,7 @@ export default class SurfaceZone extends Zone implements SurfaceAPHost {
     this.updateSuit(dt);
     this.lazarus?.update(dt);
     this.fauna?.update(dt);
+    this.research?.update(dt);
   }
 
   /** Jupiter: climbing out hands the Ranger back to orbit; too deep, the pressure crushes the hull. */
@@ -791,6 +794,8 @@ export default class SurfaceZone extends Zone implements SurfaceAPHost {
   jovian: JovianSky | null = null;
   /** alien life on this world (Settings → Alien life) */
   fauna: FaunaManager | null = null;
+  /** field research tools: survey drone / ROV (G), sampler (N), photo mode (B) — world/research */
+  research: ResearchTools | null = null;
 
   private faunaHost(): FaunaHost {
     const zone = this;
@@ -1702,6 +1707,8 @@ export default class SurfaceZone extends Zone implements SurfaceAPHost {
     this.caves = null;
     this.fauna?.dispose();
     this.fauna = null;
+    this.research?.dispose();
+    this.research = null;
     this.jovian?.dispose();
     this.jovian = null;
     this.lazarus = null;

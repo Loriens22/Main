@@ -319,4 +319,189 @@ export class CreatureVoice {
     const t = this.ctx.currentTime;
     for (let i = 0; i < 4; i++) this.noise('white', t + i * 0.025, 0.03, out, gain * (1 - i * 0.2), { type: 'highpass', f0: 3500 }, 0.001);
   }
+
+  // ------------------------------------------------------------------------------------------- the expansion's signatures
+  /**
+   * a spatial output through the medium the sound travels in: 'water' (the refuge lake: low-passed, a little
+   * delayed, quieter), 'contact' (felt through boots or the hull rather than heard: very low and very short), 'air'
+   */
+  private mout(pos: THREE.Vector3, reverb = 0.2, medium: 'air' | 'water' | 'contact' = 'air') {
+    const out = this.a.out(pos, medium === 'water' ? reverb * 1.5 : reverb, medium !== 'contact');
+    if (!out || !this.ctx) return null;
+    if (medium === 'air') return out;
+    const f = this.ctx.createBiquadFilter();
+    f.type = 'lowpass';
+    f.frequency.value = medium === 'water' ? 650 : 160;
+    f.Q.value = 0.7;
+    const g = this.ctx.createGain();
+    g.gain.value = medium === 'water' ? 0.75 : 0.5;
+    f.connect(g).connect(out);
+    return f;
+  }
+
+  /** Glass Ribbon: a delicate scrape on mineral film */
+  ribbonScrape(pos: THREE.Vector3, gain = 0.06, medium: 'air' | 'water' = 'water') {
+    const out = this.mout(pos, 0.2, medium);
+    if (!out) return;
+    const t = this.ctx!.currentTime;
+    for (let i = 0; i < 5; i++) this.noise('white', t + i * 0.06 + Math.random() * 0.03, 0.05, out, gain, { type: 'bandpass', f0: 2400 + Math.random() * 1500, q: 6 }, 0.004);
+  }
+
+  /** Prism Architect: ceramic scraping and a fragment tap */
+  prismScrape(pos: THREE.Vector3, gain = 0.15) {
+    const out = this.mout(pos, 0.3);
+    if (!out) return;
+    const t = this.ctx!.currentTime;
+    const tr = this.trem(23, 0.9, out, t, 0.5);
+    this.noise('white', t, 0.45, tr, gain, { type: 'bandpass', f0: 2600, f1: 1900, q: 4 }, 0.02);
+    // the tap: a short ringing ceramic click (inharmonic partials)
+    for (const [f, k] of [[2730, 1], [4180, 0.5], [6020, 0.3]] as const) this.osc('sine', f, f * 0.98, t + 0.5, 0.12, out, gain * 0.7 * k, 0.001);
+  }
+
+  /** Ghost of Valles: a faint fluid pulse; `lunge` adds the rush of its wake */
+  ghostPulse(pos: THREE.Vector3, gain = 0.12, lunge = false) {
+    const out = this.mout(pos, 0.4, 'water');
+    if (!out) return;
+    const t = this.ctx!.currentTime;
+    this.osc('sine', 78, 46, t, 0.6, out, gain, 0.08);
+    this.noise('pink', t, lunge ? 0.9 : 0.5, out, gain * (lunge ? 1.6 : 0.6), { type: 'lowpass', f0: lunge ? 900 : 400, f1: 200 }, 0.05);
+  }
+
+  /** Basalt Mimic: grit shifting under a moving body; `warn` adds the short low warning signal */
+  mimicGrit(pos: THREE.Vector3, gain = 0.15, warn = false) {
+    const out = this.mout(pos, 0.25);
+    if (!out) return;
+    const t = this.ctx!.currentTime;
+    for (let i = 0; i < 14; i++) this.noise('brown', t + i * 0.03 + Math.random() * 0.02, 0.025, out, gain * (0.4 + Math.random() * 0.6), { type: 'bandpass', f0: 600 + Math.random() * 1600, q: 3 }, 0.002);
+    if (warn) {
+      const tr = this.trem(17, 0.7, out, t + 0.45, 0.7);
+      this.osc('sawtooth', 68, 58, t + 0.45, 0.6, tr, gain * 0.8, 0.04);
+    }
+  }
+
+  /** Red Dune Hermit: footfalls felt through the boots (near-vacuum outside: contact only) */
+  hermitStep(pos: THREE.Vector3, gain = 0.25) {
+    const out = this.mout(pos, 0, 'contact');
+    if (!out) return;
+    const t = this.ctx!.currentTime;
+    this.osc('sine', 52, 38, t, 0.08, out, gain, 0.003);
+  }
+
+  /** Thermal Rift Serpent: a low submerged resonance; `crack` adds the jaw crack and a heavy rub */
+  serpentCall(pos: THREE.Vector3, gain = 0.25, crack = false) {
+    const out = this.mout(pos, 0.4, 'water');
+    if (!out) return;
+    const t = this.ctx!.currentTime;
+    this.osc('sine', 58, 44, t, 1.8, out, gain, 0.3);
+    this.osc('triangle', 116, 90, t, 1.6, out, gain * 0.35, 0.3);
+    if (crack) {
+      this.noise('white', t + 0.2, 0.04, out, gain * 1.4, { type: 'highpass', f0: 1200 }, 0.001);
+      this.noise('brown', t + 0.25, 0.5, out, gain, { type: 'lowpass', f0: 300 }, 0.02);
+    }
+  }
+
+  /** Subglacial Monarch: a long deep rumble through the water; `wake` adds the pressure wake of its pass */
+  monarchRumble(pos: THREE.Vector3, gain = 0.4, wake = false) {
+    const out = this.mout(pos, 0.6, 'water');
+    if (!out) return;
+    const t = this.ctx!.currentTime;
+    const tr = this.trem(3, 0.4, out, t, 5);
+    this.osc('sine', 34, 27, t, 4.5, tr, gain, 0.8);
+    this.noise('brown', t, 4.5, tr, gain * 0.6, { type: 'lowpass', f0: 140 }, 0.8);
+    if (wake) this.noise('pink', t + 1, 2.5, out, gain * 0.9, { type: 'lowpass', f0: 500, f1: 120 }, 0.4);
+  }
+
+  /** Stormskimmer: a wide soft rush of air over the membranes, their flex */
+  skimmerRush(pos: THREE.Vector3, gain = 0.25) {
+    const out = this.mout(pos, 0.5);
+    if (!out) return;
+    const t = this.ctx!.currentTime;
+    this.noise('pink', t, 3.2, out, gain, { type: 'bandpass', f0: 300, f1: 950, q: 0.7 }, 0.9);
+    for (let i = 0; i < 3; i++) this.noise('brown', t + 0.6 + i * 0.8, 0.25, out, gain * 0.5, { type: 'lowpass', f0: 180 }, 0.05);
+  }
+
+  /** Skyjelly: near silence — a faint flutter of the bell */
+  jellyFlutter(pos: THREE.Vector3, gain = 0.06) {
+    const out = this.mout(pos, 0.4);
+    if (!out) return;
+    const t = this.ctx!.currentTime;
+    const tr = this.trem(6, 0.9, out, t, 1.6);
+    this.noise('pink', t, 1.5, tr, gain, { type: 'lowpass', f0: 800 }, 0.3);
+  }
+
+  /** Stormbeast: a low intimidating gas vibration; `maw` adds the abrupt opening and the air it displaces */
+  beastRumble(pos: THREE.Vector3, gain = 0.5, maw = false) {
+    const out = this.mout(pos, 0.7);
+    if (!out) return;
+    const t = this.ctx!.currentTime;
+    const tr = this.trem(7, 0.6, out, t, 3.5);
+    this.osc('sawtooth', 38, 26, t, 3.2, tr, gain * 0.5, 0.5);
+    this.noise('brown', t, 3.2, tr, gain, { type: 'lowpass', f0: 160 }, 0.5);
+    if (maw) this.noise('white', t + 1.5, 1.4, out, gain * 0.8, { type: 'bandpass', f0: 1400, f1: 200, q: 0.6 }, 0.05);
+  }
+
+  /** Floating Colony: a broad diffuse hiss (an environment, not a voice) */
+  colonyHiss(pos: THREE.Vector3, gain = 0.08) {
+    const out = this.mout(pos, 0.6);
+    if (!out) return;
+    const t = this.ctx!.currentTime;
+    this.noise('white', t, 4, out, gain, { type: 'bandpass', f0: 2600, q: 0.4 }, 1.5);
+  }
+
+  /** Voltdrifter: an electrosensory clicking response and the rush of its tendrils */
+  voltClicks(pos: THREE.Vector3, gain = 0.15) {
+    const out = this.mout(pos, 0.2);
+    if (!out) return;
+    let t = this.ctx!.currentTime;
+    for (let i = 0; i < 9; i++) {
+      this.noise('white', t, 0.008, out, gain * (0.6 + Math.random() * 0.4), { type: 'highpass', f0: 4200 }, 0.0005);
+      t += 0.02 + Math.random() * 0.07;
+    }
+    this.noise('pink', this.ctx!.currentTime + 0.1, 0.8, out, gain * 0.5, { type: 'bandpass', f0: 700, q: 1 }, 0.1);
+  }
+
+  /** Deepdiver: dense armour resonance and deep fin buffeting */
+  diverResonance(pos: THREE.Vector3, gain = 0.3) {
+    const out = this.mout(pos, 0.5);
+    if (!out) return;
+    const t = this.ctx!.currentTime;
+    for (const [f, k] of [[96, 1], [151, 0.6], [233, 0.4], [347, 0.25]] as const) this.osc('sine', f, f * 0.97, t, 2.2, out, gain * k * 0.5, 0.01);
+    for (let i = 0; i < 4; i++) this.noise('brown', t + 0.3 + i * 0.45, 0.3, out, gain * 0.6, { type: 'lowpass', f0: 120 }, 0.04);
+  }
+
+  /** Gasgrazer: the rhythmic vibration of its comb and a low call */
+  combCall(pos: THREE.Vector3, gain = 0.35) {
+    const out = this.mout(pos, 0.7);
+    if (!out) return;
+    const t = this.ctx!.currentTime;
+    const tr = this.trem(16, 0.8, out, t, 2.5);
+    this.noise('pink', t, 2.4, tr, gain * 0.7, { type: 'bandpass', f0: 420, q: 2 }, 0.3);
+    this.osc('sine', 62, 48, t + 1.0, 3.5, out, gain, 0.6);
+    this.osc('sine', 93, 72, t + 1.0, 3.5, out, gain * 0.4, 0.6);
+  }
+
+  /** Aeromite Swarm: a faint shimmering rustle near a dense swarm */
+  aeromiteRustle(pos: THREE.Vector3, gain = 0.05) {
+    const out = this.mout(pos, 0.3);
+    if (!out) return;
+    const t = this.ctx!.currentTime;
+    const tr = this.trem(37, 0.95, out, t, 2.5);
+    this.noise('white', t, 2.4, tr, gain, { type: 'highpass', f0: 5200 }, 0.6);
+  }
+
+  /** Stormhunter: a short resonant call; `rush` adds the tearing rush of its fins in the intercept */
+  hunterCall(pos: THREE.Vector3, gain = 0.4, rush = false) {
+    const out = this.mout(pos, 0.5);
+    if (!out) return;
+    const t = this.ctx!.currentTime;
+    const bp = this.ctx!.createBiquadFilter();
+    bp.type = 'bandpass';
+    bp.Q.value = 6;
+    bp.frequency.setValueAtTime(900, t);
+    bp.frequency.exponentialRampToValueAtTime(420, t + 0.9);
+    bp.connect(out);
+    this.osc('sawtooth', 310, 180, t, 0.9, bp, gain, 0.03);
+    this.osc('sawtooth', 465, 270, t, 0.9, bp, gain * 0.5, 0.03);
+    if (rush) this.noise('white', t + 0.6, 1.2, out, gain * 0.9, { type: 'bandpass', f0: 1800, f1: 400, q: 0.5 }, 0.05);
+  }
 }

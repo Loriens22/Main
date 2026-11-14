@@ -483,7 +483,30 @@ def juvenile_shape(body, sk, rules, eye_mats=(), eye_scale=1.5, name="juvenile")
     return key
 
 
-def finish_creature(root, sk, body, path, props=None, ao=None, paint=None, paint_skip=(), nsize=None, juvenile=None):
+def make_lods(body, ratios=(0.32, 0.09)):
+    """lower-detail copies for distance (named <body>_lod1, _lod2): collapse-decimated with their vertex groups, UVs,
+    materials and AO kept (skinned to the same armature, the game switches between them by distance; shape keys are
+    dropped on the copies — the far versions show the adult build)"""
+    out = []
+    for i, r in enumerate(ratios):
+        o = body.copy()
+        o.data = body.data.copy()
+        o.name = f"{body.name}_lod{i + 1}"
+        bpy.context.collection.objects.link(o)
+        if o.data.shape_keys:
+            for kb in list(o.data.shape_keys.key_blocks)[::-1]:
+                o.shape_key_remove(kb)
+        o.modifiers.clear()
+        m = o.modifiers.new("dec", "DECIMATE")
+        m.decimate_type = "COLLAPSE"
+        m.ratio = r
+        m.use_collapse_triangulate = True
+        kit.bake(o)
+        out.append(o)
+    return out
+
+
+def finish_creature(root, sk, body, path, props=None, ao=None, paint=None, paint_skip=(), nsize=None, juvenile=None, lods=(0.32, 0.09)):
     """ao: AO bake distance (m) or None; paint: texture size (px) for a baked painted colour map (blender/lib/paint.py);
     nsize: normal map size (px, default = paint); juvenile: (rules, eye_mats) for a 'juvenile' shape key"""
     if juvenile:
@@ -493,13 +516,16 @@ def finish_creature(root, sk, body, path, props=None, ao=None, paint=None, paint
         P.bake_body(body, os.path.splitext(os.path.basename(path))[0], size=paint, skip=paint_skip, nsize=nsize)
     if ao:
         bake_ao(body, distance=ao)
+    lod_objs = make_lods(body, lods) if lods else []
     arm = make_armature(sk)
     arm.parent = root
-    body.parent = arm
-    mod = body.modifiers.new("arm", "ARMATURE")
-    mod.object = arm
+    for o in [body] + lod_objs:
+        o.parent = arm
+        mod = o.modifiers.new("arm", "ARMATURE")
+        mod.object = arm
     if not paint:
-        kit.uv_box(body)
+        for o in [body] + lod_objs:
+            kit.uv_box(o)
     if props:
         set_props(root, **props)
     kit.select_tree(root)
@@ -511,5 +537,6 @@ def finish_creature(root, sk, body, path, props=None, ao=None, paint=None, paint
         kw.update(export_image_format="JPEG", export_jpeg_quality=88)
     bpy.ops.export_scene.gltf(**kw)
     tris = sum(len(p.vertices) - 2 for p in body.data.polygons)
-    print(f"[creature] {path} ~{tris} tris, {len(sk.order)} bones, {os.path.getsize(path) / 1e6:.2f} MB")
+    lt = "/".join(str(sum(len(p.vertices) - 2 for p in o.data.polygons)) for o in lod_objs)
+    print(f"[creature] {path} ~{tris} tris{' (LOD ' + lt + ')' if lt else ''}, {len(sk.order)} bones, {os.path.getsize(path) / 1e6:.2f} MB")
     return arm
