@@ -8,7 +8,7 @@ const F = `const z = game.zone; const F = z.fauna; const R = z.refuge; const pl 
   const fy = (x, zz) => z.faunaHost().terrainY(R.c.x + x, R.c.z + zz) - R.y0;`;
 const probe = `const z = game.zone; const F = z.fauna; const R = z.refuge; if (!R) return 'no refuge'; const pl = game.player.pos;
   const by = {}; if (F) for (const c of F.creatures) { by[c.species] = (by[c.species] ?? '') + c.state[0] + Math.round(c.pos.distanceTo(pl)) + ' '; }
-  return { y0: +R.y0.toFixed(1), refugeK: +z.refugeK.toFixed(2), underK: +z.underK.toFixed(2), sp: by, hp: +(game.state.player.health ?? 1).toFixed(2), eco: F && F.creatures[0].biofilm !== undefined ? { film: +F.creatures[0].biofilm.toFixed(2), rib: F.creatures[0].ribbons, last: F.creatures[0].last } : null };`;
+  return { y0: +R.y0.toFixed(1), refugeK: +z.refugeK.toFixed(2), underK: +z.underK.toFixed(2), sp: by, hp: +(game.state.player.health ?? 1).toFixed(2), eco: F && F.creatures[0]?.biofilm !== undefined ? { film: +F.creatures[0].biofilm.toFixed(2), rib: F.creatures[0].ribbons, last: F.creatures[0].last } : null };`;
 const cine = (fov) => `const cam = game.camera; game.cinematic = { blocking: true, update: () => true }; cam.fov = ${fov}; cam.updateProjectionMatrix();`;
 const view = (name, from, to, fov = 55, frames = 3) => ({ js: `${F} ${cine(fov)} const a = W(${from.join(',')}), b = W(${to.join(',')}); cam.position.copy(a); cam.lookAt(b); cam.updateMatrixWorld(true); return 1;`, frames, shot: name, probe });
 const free = { js: `game.cinematic = null; return 1;`, frames: 1 };

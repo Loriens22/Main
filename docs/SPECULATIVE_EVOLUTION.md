@@ -77,20 +77,140 @@ Dossiers are in `src/data/speciesExpansion.ts`. Models are in `blender/assets/fa
 | 08 | Aeromite Swarm | Instanced seeds plus round glints |
 | 09 | Stormhunter | Shadows the craft, calls, makes one telegraphed intercept, breaks off |
 
+## Models
+
+Each Jupiter model follows its panel of the reference sheet (own geometry, built in Blender from close study of the
+panel; nothing traced or copied):
+
+| Panel | Species | Model |
+|---|---|---|
+| 01 | Stormskimmer | Manta-like planform: the wing root runs the whole body; a convex swept leading edge with a thick spar; a concave trailing edge into the tail root; a shoulder-to-tip ridge and finger ribs; glowing vein net in a translucent violet membrane; short beak, silver-ringed eye, whip tail |
+| 02 | Skyjelly | A shallow ribbed dome, glowing pink rim and gonad ring, four twisted frilled oral arms, 96 hair-fine beaded tentacles |
+| 03 | Stormbeast | A serpentine eel: broad wrinkled head with a hooked snout, a ~65° gape with irregular needle teeth, a ridged pink palate and dark throat, annular neck folds, no fins |
+| 04 | Floating Colony | One unit of the community: a cumulus dome of lumps on lumps with ember fissures, a beard of thin wavy branching threads |
+| 05 | Voltdrifter | A long tapering mantle with rhomboid fins, a dark blue-ringed eye under a brow, eight sinuous splayed arms and two clubbed tentacles |
+| 06 | Deepdiver | A blunt whale head with a long mouth line, large swept blade-plates along the back, three stacked swept blade-fins per side |
+| 07 | Gasgrazer | A bowhead's mouth: an arched upper jaw under a pale hood, a great dark-red lower lip, a comb of ~190 transverse baleen plates following the head between them, a curtain of tusk-fringes and fine hairs |
+| 08 | Aeromite | A golden seed with radiating hairs (instanced by the thousand, with glints) |
+| 09 | Stormhunter | A long narrow dragon head with needle teeth, a crown of backswept spikes webbed in crimson, a crimson frill on each side of the neck, silver scale armour over a crimson underside |
+
+**Levels of detail.** Every animal model carries two decimated copies (32 % and 9 % of the triangles, made in
+Blender, bound to the same skeleton). The game swaps them by distance measured in body radii (under 28, under 80,
+beyond). The Floating Colony draws its hundreds of units instanced in three tiers by camera distance.
+
+## Living systems
+
+- **Flight (Jupiter).** `src/world/fauna/jupiterAir.ts` is an approximate flight model, not CFD:
+  - The air: density from the zone's own atmosphere, gravity 24.8 m/s², a wind with vertical shear, meanders and gusts, and convective cells about 1.6 km apart (a rising core, a downdraft ring, each waxing and waning over minutes).
+  - The forces: each flyer integrates weight, partial buoyancy, lift ½ρV²S·C_L at a bank angle, drag with an induced term, and limited thrust, all against the relative wind.
+  - The Stormskimmer has no thrust at all. It sinks in still air and finds a rising core when low, circling there to climb before gliding on.
+  - A torn Skyjelly loses its gas and sinks.
+  - Corridors are absolute heights about the cloud-cruise level, so descending really takes the Ranger into the Deepdiver's layer.
+  - Unit-tested in `tests/jupiterAir.test.ts`: glide sink, climbing in a core, banking toward a goal, terminal fall, drag-limited drift, the cell field.
+- **Sounds.** Each species has its own synthesised call (`src/audio/CreatureVoice.ts`), sent through the medium it travels in:
+  - Underwater in the refuge lake: low-passed and quieter.
+  - Contact only for the Red Dune Hermit outside, where the air is too thin to carry sound.
+  - Hydrogen air on Jupiter.
+  - The Crimson Icebloom and Ferric Cathedral stay silent, as the directive asks.
+- **Carcasses.**
+  - **On Mars:** the Basalt Mimic, when hungry, moves to cover by the Prism Architects' nest and ambushes the young one. It misses more often than not.
+    - A kill leaves a carcass that decays on the site's clock: fresh (0–6 h), scavenged (6–24 h), under a spreading biofilm mat (24–60 h), loose plates (60–120 h), then gone.
+    - The Mimic scavenges it, and a new young one hatches 72 h after the death.
+  - **On Jupiter:** a Skyjelly torn by the Ranger sinks out of the layer, and a Deepdiver takes it as it falls through the lower corridor.
+- **Memory between visits.** Saved with the game (`src/world/fauna/memory.ts`, flags `mem:<site>:<key>`). On arrival every system catches up with the time away. What is remembered:
+  - **Mars ecosystem:** the biofilm (regrown logistically), each ribbon school's numbers (regrowing), the nest's size (it keeps growing), and the carcass and hatchling clocks.
+  - **Prism Architects:** habituation to a calm observer, and separately to the drone.
+  - **Basalt Mimic:** lamp exposures. It breaks cover earlier each time, and learns the drone is harmless after three.
+  - **Thermal Rift Serpent:** shoves given. It warns sooner.
+  - **Subglacial Monarch:** calm inspections. It approaches closer and slower each time.
+  - **Stormhunter:** failed intercepts make it assess longer and keep further off. After three long calm encounters it stops turning in.
+
+## Research tools and programmes
+
+`src/world/research/`:
+
+- **Survey drone / ROV (G, on foot):**
+  - A tethered camera drone with its own lamp; under water it becomes a slower, battery-limited ROV.
+  - Animals treat it by what it is:
+    - The Prism Architects warn at it and later learn it.
+    - The Mimic learns it is harmless.
+    - The Serpent investigates it, displays, and shoves it out of the channel.
+    - The Monarch follows it out of curiosity.
+    - A crowded Ghost bites at it.
+- **Sampler (N):**
+  - On Mars: an ice core by the Icebloom, a biofilm swab at the Ferric groves, brine, a borehole through the skylight ice, minerals, regolith.
+  - On Jupiter, from Ranger 1: aerosol (Aeromites), colony tissue, haze.
+- **Photo mode (B):**
+  - Controls: a free camera on a 40 m leash, with zoom (wheel or +/−).
+  - Overlays:
+    - the species tag with its panel ID and an optical size estimate with uncertainty;
+    - the field-note annotation;
+    - cave coordinates and depth, or altitude, pressure, temperature and the local wind vector.
+  - Capture: saves a JPEG and records the photograph in the codex.
+- **Touch:** walking adds DRONE / PHOTO / SAMPLE buttons. The drone and photo modes have their own layouts (stick to move, UP/DOWN, SAMPLE or SHOT, RECALL or EXIT).
+- **Staged programmes:**
+  - The directive's eight Mars stages and eight Jupiter stages (`programme.ts`), credited strictly in order from codex and sample evidence.
+  - Shown on a RESEARCH PROGRAMMES card in the Exobiology tab with the samples taken.
+  - Suspended in conservative science mode.
+  - Unit-tested in `tests/research.test.ts`.
+
 ## Verification
 
-- `e2e/scripts/refuge_steps.mjs`: PART 1 shoots the landform; PART 2 the species close-ups.
-- `e2e/scripts/jupiter_steps.mjs`: PART 7 is the sheet survey.
+- `e2e/scripts/refuge_steps.mjs`:
+  - PART 1 shoots the landform; PART 2 the species close-ups.
+  - PART 3 covers sampling, the drone (the Serpent's investigate, display and shove at it), photo mode, the Mimic's kill of the young Prism and the carcass stages over 75 h, and a return visit with memory.
+  - PART 4 is conservative mode.
+- `e2e/scripts/jupiter_steps.mjs`:
+  - PART 7 is the sheet survey.
+  - PART 8 covers free flight in the corridors, soaring in a core, the torn Skyjelly sinking and taken by a Deepdiver, the Stormhunter's remembered failure, photo mode in flight, and aerosol sampling.
+  - PART 9 is conservative mode.
 
-## Not built (the directive's wider scope)
+## Verified in game (this pass)
 
-- **Simulation depth:**
-  - Separate LOD meshes and impostors.
-  - Per-species synthesised calls beyond the shared creature voice.
-  - Carcass decomposition.
-  - Persistent per-individual memory across visits; placement is deterministic, but state resets.
-- **Player tools and missions:**
-  - The research tools: ROV, boreholes, photo mode.
-  - The staged mission sequences.
-- **Physics fields:** full resource-field and CFD-style wind and lift fields. The ecosystem uses a simple biofilm and
-  carrying-capacity budget, and Jupiter lift is a scripted field.
+### Jupiter
+
+| Check | Result |
+|---|---|
+| Free flight, 60 s | Each species stays in its corridor: Stormskimmers glide at +400…+480 m and sink 0.6–2.9 m/s; the Deepdiver holds −778 m at 69 m/s; the Voltdrifters hover on thrust in a downdraft |
+| Soaring | A Stormskimmer put low over a core rising at 9 m/s circled, climbed 300 m in 30 s, then glided on |
+| Torn Skyjelly | The Ranger at 147 m/s tore it; it sank 229 m in 20 s at a terminal 12.7 m/s |
+| Deepdiver | Took the carcass by its racetrack pursuit after 42 s |
+| Stormhunter memory | A broken-off intercept was remembered (`hunter.fails`) |
+| Photo mode in flight | Tag `GASGRAZER — jupiter_panel_07`, a size estimate, altitude / pressure / temperature, the local wind; the capture recorded in the codex |
+| Conservative mode | No fauna, no air model; the sampler still works; the programme suspended |
+
+### Mars refuge
+
+| Check | Result |
+|---|---|
+| Sampling | Regolith (N), biofilm and brine all recorded |
+| Survey drone | Launched with G and flown from the move input |
+| Rift Serpent and the ROV | It investigated the ROV in its channel and displayed at it |
+| Photo mode | The Prism Architect tagged and captured |
+| Mimic and young Prism | The Mimic killed the young Prism Architect and scavenged it |
+| Carcass decay | +30 h: under the mat; +75 h: loose plates |
+| Hatchling | A new hatchling after 72 h |
+| Return visit | A fresh zone load restored the carcass and the hatchling from memory |
+| Conservative mode | The refuge as a bare landform; the codex shows archive hypotheses and the suspended programmes |
+
+### Not checked
+
+Sound is synthesised and scheduled in the code paths these runs exercise, but the headless runs cannot listen to it.
+
+### Captures
+
+`docs/media/`:
+
+- `jupiter_sheet_v3_ingame.jpg`
+- `jupiter_stormskimmer_soaring.jpg`
+- `jupiter_gasgrazer_comb.jpg`
+- `tools_photo_mode_jupiter.jpg`
+- `tools_rov_serpent.jpg`
+- `tools_photo_mode_refuge.jpg`
+- `refuge_mimic_carcass.jpg`
+- `refuge_conservative_mode.jpg`
+
+## Still not built
+
+- GPU impostors or particle stand-ins (the directive's LOD3) beyond the instanced colony and the Aeromite glints.
+- Full resource-field or CFD simulation. The ecology uses budgets (biofilm, carrying capacity, aeromite regrowth), and the air uses the field model above.

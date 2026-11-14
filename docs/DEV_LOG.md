@@ -2,6 +2,39 @@
 
 ## Status (latest first)
 
+### The expansion's open items, and the Jupiter nine panel by panel (this pass)
+
+- **Jupiter models:** re-modelled one-to-one with their panels of the reference sheet. The detail is in
+  `docs/SPECULATIVE_EVOLUTION.md`; the main changes:
+  - Stormskimmer: a manta planform.
+  - Stormbeast: an eel with a hooked gaping maw.
+  - Gasgrazer: a bowhead mouth with a comb that follows the head.
+  - Deepdiver: a whale head with swept blade-plates and blade-fins.
+  - Stormhunter: a spiked crown and crimson neck frills.
+  - Voltdrifter: a long mantle, rhomboid fins and splayed arms.
+  - Floating Colony: a cumulus dome with thin threads.
+  - Skyjelly: a glowing rim and hair-fine beaded tentacles.
+- **Skin:** an emissive term for bright saturated pigment (the colony's embers, the jelly's rim, vein nets).
+- **Levels of detail:** Blender makes 32 % and 9 % copies on the same skeleton; the runtime swaps by distance in
+  body radii. The colony is instanced in three tiers.
+- **Flight model:** `jupiterAir.ts` (unit-tested).
+  - The air: density, a convective field of cores and downdraft rings, shear and gusts.
+  - The forces: lift, drag, buoyancy and thrust, integrated per animal.
+  - Behaviour: the Stormskimmer soars in cores, a torn Skyjelly sinks, and corridors are absolute heights.
+- **Sounds:** one synthesised signature per species, sent through its medium (water, contact, hydrogen air).
+- **Carcasses:** the Mimic's ambush on the young Prism Architect leaves a carcass.
+  - Decay: four stages over 120 h of site time, scavenged by the Mimic.
+  - A new hatchling comes 72 h after the death.
+  - A torn Skyjelly sinks and is taken by a Deepdiver.
+- **Memory between visits:** `memory.ts`, saved with the game, with catch-up for the time away. It covers the ecosystem,
+  the nest, the young, Prism habituation, Mimic light learning, Serpent shoves, Monarch inspections and Stormhunter
+  failures and calm encounters.
+- **Research tools:** the survey drone / ROV (G), the sampler (N) and photo mode (B), with touch layouts.
+  - Animals react to the drone.
+  - The directive's 8 + 8 programme stages are credited from evidence and shown in the codex.
+- **Conservative mode:** checked in game on Mars (the refuge without animals, the archive codex, the tools working) and
+  on Jupiter (no fauna in the clouds).
+
 ### Mars & Jupiter speculative-evolution expansion; the four creature limits (this pass)
 
 #### The four limits

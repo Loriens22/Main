@@ -210,5 +210,7 @@ parts[9] = [
   { js: `game.input.virtualPress('sample'); return 1;`, frames: 3 },
   { js: `return { samples: Object.keys(game.state.flags).filter((k) => k.startsWith('sample:')), prog: game.state.flags['prog:jupiter'] ?? 0 };`, frames: 1 },
 ];
+// PART 10 — the Gasgrazer alone (quick look at the comb)
+parts[10] = [land, populatedJ, sheetReady, calm, jsv('sheet_gasgrazer', 'gasgrazer', 55, 6, 0.6, 6), jfr('sheet_gasgrazer_comb', 'gasgrazer', 10, -2, 40, 6), jfr('sheet_gasgrazer_side', 'gasgrazer', 34, 4, 14, 6), free];
 const PART = process.env.PART ?? '1';
 export const steps = parts[PART];

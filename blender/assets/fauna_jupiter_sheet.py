@@ -143,7 +143,7 @@ PAINT.update({
         ("noise", (0.8, 0.78, 0.8), 0.4, 1.0, 0.55, 0.7), ("belly", (0.42, 0.16, 0.13), 0.75), ("edge", (0.88, 0.86, 0.88), 0.45), ("cavity", (0.3, 0.08, 0.07), 0.6), ("ao", 0.7, 2.0)],
         "relief": [("wrinkle", 0.012, 0.6, (1, 5, 1)), ("pores", 0.004, 0.3, 0.3), ("grooves", 0.004, 1.2, 0.05)]},
     "gg_belly": {"base": (0.4, 0.15, 0.12), "layers": [("streak", (0.6, 0.35, 0.3), 0.45, 0.4, "x", 0.55, 0.7), ("ao", 0.7, 1.5)], "relief": [("grooves", 0.01, 0.7, 0.12)]},
-    "gg_comb": {"base": (0.84, 0.78, 0.66), "layers": [("streak", (0.55, 0.45, 0.32), 0.55, 0.05, "z", 0.55, 0.7), ("grad", (0.5, 0.32, 0.22), 0.5, "z", 0.0, -3.5), ("ao", 0.7, 1.0)],
+    "gg_comb": {"base": (0.9, 0.85, 0.74), "layers": [("streak", (0.66, 0.56, 0.42), 0.4, 0.05, "z", 0.55, 0.7), ("noise", (0.97, 0.94, 0.86), 0.35, 0.3, 0.5, 0.7), ("ao", 0.2, 0.3)],
                 "relief": [("grooves", 0.002, 0.08, 0.15)]},
     "gg_fringe": {"base": (0.7, 0.55, 0.52), "layers": [("grad", (0.45, 0.14, 0.12), 0.7, "z", -4.0, -1.0), ("noise", (0.85, 0.75, 0.72), 0.35, 0.5, 0.55, 0.7)]},
     # 08 — gold
@@ -793,7 +793,7 @@ def gasgrazer():
     parts.append(Part(foil("flukeL", V((-0.3, -16.0, -0.4)), V((-1.0, -0.5, 0.05)), V((0, -1, 0)), 5.0, lambda u: (2.2 * (1 - u) ** 0.7 + 0.15, 0.3 * (1 - u) + 0.03, 1.7 * u), "gg_hide"), bone=sp[-1]))
     parts.append(Part(foil("flukeR", V((0.3, -16.0, -0.4)), V((1.0, -0.5, 0.05)), V((0, -1, 0)), 5.0, lambda u: (2.2 * (1 - u) ** 0.7 + 0.15, 0.3 * (1 - u) + 0.03, 1.7 * u), "gg_hide"), bone=sp[-1]))
     body_o = assemble("gasgrazer_body", sk, parts)
-    arm = finish_creature(root, sk, body_o, os.path.join(kit.out_dir(), "jup_gasgrazer.glb"), props={"creature": "gasgrazer", "length": 34}, ao=2.0, paint=4096, nsize=2048)
+    arm = finish_creature(root, sk, body_o, os.path.join(kit.out_dir(), "jup_gasgrazer.glb"), props={"creature": "gasgrazer", "length": 34}, ao=1.0, paint=4096, nsize=2048)
     return root, arm
 
 

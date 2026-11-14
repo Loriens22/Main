@@ -423,7 +423,7 @@ const RECIPES: Record<string, Recipe> = {
   gg_hide: { kind: 'physical', color: C(0.66, 0.63, 0.65), rough: 0.33, clearcoat: 0.55, sheen: 0.4, weather: false,
     skin: { wrinkle: 0.008, wrinkleSize: 0.7, wrinkleAxis: [1, 5, 1], pores: 0.004, poreSize: 0.25, cavity: 0.45, wet: 0.35, vary: 0.25 } },
   gg_belly: { kind: 'physical', color: C(0.4, 0.15, 0.12), rough: 0.4, clearcoat: 0.4, weather: false, skin: { wrinkle: 0.008, wrinkleSize: 0.6, wrinkleAxis: [5, 1, 1], cavity: 0.45 } },
-  gg_comb: { kind: 'physical', color: C(0.84, 0.78, 0.66), rough: 0.42, clearcoat: 0.3, side: THREE.DoubleSide, weather: false, skin: { wrinkle: 0.002, wrinkleSize: 0.08, wrinkleAxis: [1, 4, 1], cavity: 0.4 } },
+  gg_comb: { kind: 'physical', color: C(0.9, 0.85, 0.74), rough: 0.38, clearcoat: 0.3, sheen: 0.5, side: THREE.DoubleSide, weather: false, skin: { wrinkle: 0.002, wrinkleSize: 0.08, wrinkleAxis: [1, 4, 1], cavity: 0.15 } },
   gg_fringe: { kind: 'physical', color: C(0.7, 0.55, 0.52), rough: 0.38, clearcoat: 0.4, sheen: 0.4, weather: false, skin: { wrinkle: 0.003, wrinkleSize: 0.3, cavity: 0.3 } },
   am_body: { kind: 'physical', color: C(1.0, 0.72, 0.28), emissive: C(1.0, 0.6, 0.15), emissiveIntensity: 0.9, rough: 0.3, metal: 0.3, weather: false, skin: { glow: 1.2 } },
   am_hair: { kind: 'physical', color: C(1.0, 0.82, 0.45), emissive: C(0.8, 0.55, 0.2), emissiveIntensity: 0.7, rough: 0.2, opacity: 0.8, weather: false, skin: { glow: 1.0 } },
