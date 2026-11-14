@@ -284,9 +284,10 @@ export class FlightHUD {
       g.fillText(`AUTOPILOT · ${info.autopilot}`, W / 2, 66);
     }
     g.font = '11px Inter, sans-serif';
+    // under the autopilot line: the bottom centre is kept for the touch tools and the research read-out
     info.messages.slice(0, 3).forEach((m, i) => {
-      g.fillStyle = 'rgba(236,235,230,0.85)';
-      g.fillText(m, W / 2, H - 70 + i * 15);
+      g.fillStyle = `rgba(236,235,230,${0.85 - i * 0.2})`;
+      g.fillText(m, W / 2, 84 + i * 14);
     });
     g.textAlign = 'left';
   }

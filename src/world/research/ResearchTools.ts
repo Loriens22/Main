@@ -24,8 +24,9 @@ const _e = new THREE.Euler(0, 0, 0, 'YXZ');
 
 function hud(): HTMLElement {
   const el = document.createElement('div');
-  el.style.cssText = 'position:fixed;left:16px;bottom:16px;max-width:min(560px,calc(100vw - 32px));font:12px/1.45 ui-monospace,Menlo,monospace;color:#e8e2d2;' +
-    'background:rgba(8,10,14,.62);border:1px solid rgba(255,255,255,.14);border-radius:6px;padding:8px 10px;pointer-events:none;z-index:40;white-space:pre-wrap;display:none';
+  // placement in styles.css (.research-hud): bottom-left with a keyboard, bottom centre between the touch controls
+  el.className = 'research-hud';
+  el.style.display = 'none';
   document.body.append(el);
   return el;
 }
@@ -146,7 +147,8 @@ export class SurveyDrone implements Cinematic {
     const d = this.pos.distanceTo(this.origin);
     const depth = tools.waterLevel(this.pos) - this.pos.y;
     tools.setHud(`SURVEY ${water ? 'ROV' : 'DRONE'}   battery ${Math.round(this.battery * 100)} %   range ${d.toFixed(0)} / ${tether} m${water ? `   depth ${depth.toFixed(1)} m` : ''}\n` +
-      `WASD move · Space/C up/down · Shift fast · G recall${tools.sampleHint(this.pos) ? '   · N ' + tools.sampleHint(this.pos) : ''}`);
+      `${input.touchActive ? 'left stick move · UP / DOWN · FAST · RECALL' : 'WASD move · Space/C up/down · Shift fast · G recall'}` +
+      `${tools.sampleHint(this.pos) ? `   · ${input.touchActive ? 'SAMPLE' : 'N'} ` + tools.sampleHint(this.pos) : ''}`);
     if (input.pressed('sample')) tools.sample(this.pos, true);
     return true;
   }
@@ -262,29 +264,39 @@ export class ResearchTools {
     this.hudEl.style.display = text ? 'block' : 'none';
   }
 
+  /** which tools can start right now (the same tests update() uses; the touch layout shows only these buttons) */
+  canUse() {
+    const z = this.zone;
+    const g = z.game;
+    const pl = g.player;
+    const onFoot = pl.frame === z.ground && pl.mode === 'walk';
+    const flying = !!g.control && z.gas;
+    return { onFoot, flying, drone: onFoot && !z.gas, photo: onFoot || flying || !!g.control || pl.mode === 'seat', sample: onFoot || flying };
+  }
+
   // ---- per frame
   update(dt: number) {
     const z = this.zone;
     const g = z.game;
     const input = g.input;
     const pl = g.player;
-    const onFoot = pl.frame === z.ground && pl.mode === 'walk';
-    const flying = !!g.control && z.gas;
+    const can = this.canUse();
+    const { onFoot, flying } = can;
     // the key that just closed a tool must not reopen one in the same moment
     this.lock = Math.max(0, this.lock - dt);
     if (!g.cinematic && !g.ui.panelOpen && this.lock <= 0) {
-      if (input.pressed('drone') && onFoot && !z.gas) {
+      if (input.pressed('drone') && can.drone) {
         this.drone = new SurveyDrone(this, pl.pos.clone(), pl.yaw);
         g.playCinematic(this.drone);
-        g.notify('Survey drone launched. G to recall.', 'info', 3);
-      } else if (input.pressed('photo') && (onFoot || flying || g.control)) {
+        g.notify(`Survey drone launched. ${g.hint('G', 'RECALL')} to bring it back.`, 'info', 3);
+      } else if (input.pressed('photo') && can.photo) {
         this.photo = new PhotoMode(this, g.camera);
         g.playCinematic(this.photo);
-      } else if (input.pressed('sample') && (onFoot || flying)) {
+      } else if (input.pressed('sample') && can.sample) {
         this.sample(onFoot ? pl.pos : g.camera.getWorldPosition(_v), false);
       }
       const hint = onFoot ? this.sampleHint(pl.pos) : flying ? this.sampleHint(g.camera.getWorldPosition(_v)) : null;
-      this.setHud(hint ? `N — ${hint}` : null);
+      this.setHud(hint ? `${g.hint('N', 'SAMPLE')} — ${hint}` : null);
     }
     // the research programme: stages complete as their evidence comes in
     this.progT -= dt;
@@ -410,7 +422,7 @@ export class ResearchTools {
   photoHud(cam: THREE.PerspectiveCamera, tag: { id: string | null; species: string; d: number } | null, fov: number) {
     const z = this.zone;
     const p = cam.position;
-    const lines: string[] = [`PHOTO MODE   zoom ${(50 / fov).toFixed(1)}×   E capture · B exit · wheel or +/− zoom`];
+    const lines: string[] = [`PHOTO MODE   zoom ${(50 / fov).toFixed(1)}×   ${this.zone.game.hint('E capture · B exit · wheel or +/− zoom', 'SHOT capture · EXIT · ZOOM+ / ZOOM− or pinch')}`];
     if (tag) {
       const d = tag.id ? SPECIES_EXPANSION[tag.id] : null;
       const c = z.fauna?.creatures.find((k) => k.species === tag.species);

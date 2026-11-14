@@ -579,7 +579,7 @@ export class FaunaManager {
       if (hd.kind === 'pin') cam.position.copy(hd.at).add(_v.set(0, 0.42, 0));
       cam.lookAt(look);
     }
-    g.ui.countdown(`${hd.kind === 'pin' ? 'PINNED' : hd.kind === 'grip' ? 'CAUGHT' : 'SNAGGED'} — BREAK FREE  [E]  ${'▮'.repeat(hd.got)}${'▯'.repeat(Math.max(0, hd.need - hd.got))}`);
+    g.ui.countdown(`${hd.kind === 'pin' ? 'PINNED' : hd.kind === 'grip' ? 'CAUGHT' : 'SNAGGED'} — BREAK FREE  [${g.hint('E', 'USE')}]  ${'▮'.repeat(hd.got)}${'▯'.repeat(Math.max(0, hd.need - hd.got))}`);
     if (hd.got >= hd.need) this.release(true);
   }
 

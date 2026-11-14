@@ -119,9 +119,11 @@ export class UI {
       this.promptEl.classList.remove('show');
       return;
     }
-    const k = this.input.touchActive ? 'TAP' : this.input.gamepadActive ? 'A' : key;
+    // touch: the prompt names the USE button, and a tap on the prompt itself uses the thing (TouchControls)
+    const k = this.input.touchActive ? (key === 'E' ? 'USE' : 'TAP') : this.input.gamepadActive ? 'A' : key;
     const html = `<kbd>${k}</kbd>${text}`;
     if (this.promptEl.innerHTML !== html) this.promptEl.innerHTML = html;
+    this.promptEl.dataset.act = key === 'E' ? 'interact' : '';
     this.promptEl.classList.add('show');
   }
   notify(text: string, kind: 'info' | 'warn' | 'alert' | 'ok' = 'info', duration = 5) {
@@ -302,6 +304,11 @@ export class UI {
 }
 
 // ============================================================================================ touch
+/** cancel a touch event's default where the browser allows it (right after another finger lifts, Chrome can deliver
+ *  a non-cancelable touchstart; calling preventDefault() then only logs a warning) */
+const cancel = (e: Event) => {
+  if (e.cancelable) e.preventDefault();
+};
 export type TouchMode = 'walk' | 'float' | 'ladder' | 'seat' | 'drive' | 'flight' | 'ui' | 'cinematic' | 'drone' | 'photo';
 
 export interface TouchHost {
@@ -309,6 +316,8 @@ export interface TouchHost {
   /** skip the running cinematic (if skippable) */
   skip(): void;
   fullscreen(): void;
+  /** false where the browser has no full-screen API for pages (iPhone Safari): the ⛶ button is then left out */
+  canFullscreen(): boolean;
 }
 
 interface StickState {
@@ -333,10 +342,16 @@ export class TouchControls {
   private look: HTMLElement;
   private btns: HTMLElement;
   private tbar: HTMLElement;
+  /** the field tools (drone, photo, sampler…) in a column on the left, clear of the top bar */
+  private tools: HTMLElement;
+  /** two fingers on the look area: pinch distance (zoom in photo mode) */
+  private pinch: number | null = null;
   private throttle: HTMLElement;
   private throttleFill: HTMLElement;
   private throttleLabel: HTMLElement;
   private skipBtn: HTMLElement;
+  /** portrait: a hint to turn the phone (shown by CSS only in portrait, hidden for the session once tapped) */
+  private rotate: HTMLElement;
   private left: StickState;
   private right: StickState;
   private lookId: number | null = null;
@@ -352,11 +367,14 @@ export class TouchControls {
     this.look = h('div', { class: 'look' });
     this.btns = h('div', { class: 'btns' });
     this.tbar = h('div', { class: 'tbar' });
+    this.tools = h('div', { class: 'tools' });
     this.throttleFill = h('i');
     this.throttleLabel = h('b', {}, '0%');
     this.throttle = h('div', { class: 'throttle' }, this.throttleFill, this.throttleLabel, h('span', {}, 'THR'));
     this.skipBtn = h('button', { class: 'skip' }, 'SKIP ▸▸');
-    this.skipBtn.addEventListener('touchstart', (e) => { e.preventDefault(); this.host.skip(); }, { passive: false });
+    this.rotate = h('div', { class: 'rotate' }, h('b', {}, '⟳'), h('span', {}, 'Turn your phone sideways — the controls are laid out for landscape.'), h('i', {}, 'TAP TO HIDE'));
+    this.rotate.addEventListener('touchend', (e) => { cancel(e); this.rotate.classList.add('gone'); }, { passive: false });
+    this.skipBtn.addEventListener('touchstart', (e) => { cancel(e); this.host.skip(); }, { passive: false });
     this.left = this.makeStick('stick l', (dx, dy) => {
       if (this.mode === 'flight') {
         this.input.virtFlight.roll = dx;
@@ -367,7 +385,7 @@ export class TouchControls {
       this.input.virtFlight.tx = dx;
       this.input.virtFlight.ty = -dy;
     });
-    this.el = h('div', { class: 'touch' }, this.look, this.left.el, this.right.el, this.throttle, this.btns, this.tbar, this.skipBtn);
+    this.el = h('div', { class: 'touch' }, this.look, this.left.el, this.right.el, this.throttle, this.btns, this.tbar, this.tools, this.skipBtn, this.rotate);
     document.getElementById('ui')!.append(this.el);
     this.bindLook();
     this.bindThrottle();
@@ -411,17 +429,19 @@ export class TouchControls {
     for (const m of ['walk', 'float', 'ladder', 'seat', 'drive', 'flight', 'ui', 'cinematic', 'drone', 'photo']) this.el.classList.toggle(m, m === mode);
     this.btns.innerHTML = '';
     this.tbar.innerHTML = '';
+    this.tools.innerHTML = '';
+    this.avKey = '';
     const b = (label: string, action: string, hold = false, cls = '') => {
       const el = h('button', { class: cls }, label);
       el.dataset.action = action;
       el.addEventListener('touchstart', (e) => {
-        e.preventDefault();
+        cancel(e);
         el.classList.add('down');
         if (hold) this.input.virtualHold(action, true);
         this.input.virtualPress(action);
       }, { passive: false });
       const up = (e: TouchEvent) => {
-        e.preventDefault();
+        cancel(e);
         el.classList.remove('down');
         if (hold) this.input.virtualHold(action, false);
       };
@@ -431,37 +451,48 @@ export class TouchControls {
     };
     const fn = (label: string, f: () => void, cls = '') => {
       const el = h('button', { class: cls }, label);
-      el.addEventListener('touchstart', (e) => { e.preventDefault(); f(); }, { passive: false });
+      el.addEventListener('touchstart', (e) => { cancel(e); f(); }, { passive: false });
+      return el;
+    };
+    // full screen must be asked for on touchend: browsers do not count a touchstart as a user gesture
+    const fs = () => {
+      const el = h('button', { class: 'sm' }, '⛶');
+      if (!this.host.canFullscreen()) el.style.display = 'none';
+      el.addEventListener('touchstart', (e) => { cancel(e); el.classList.add('down'); }, { passive: false });
+      el.addEventListener('touchend', (e) => { cancel(e); el.classList.remove('down'); this.host.fullscreen(); }, { passive: false });
+      el.addEventListener('touchcancel', () => el.classList.remove('down'));
       return el;
     };
     if (mode === 'ui' || mode === 'cinematic') return;
     const warp = [b('◂◂', 'timeWarpDown', false, 'sm'), b('▸▸', 'timeWarpUp', false, 'sm')];
     this.tbar.append(fn('MENU', () => this.host.menu()), b('COMP', 'computer'));
     if (mode === 'walk') {
-      this.tbar.append(b('VIEW', 'view'), b('LIGHT', 'flashlight'), b('HELMET', 'helmet'), ...warp, fn('⛶', () => this.host.fullscreen(), 'sm'));
-      this.btns.append(b('CROUCH', 'crouch', true), b('USE', 'interact', false, 'big'), b('JUMP', 'jump'), b('RUN', 'sprint', true), b('ENTER', 'vehicle'), b('CREW', 'crew'));
-      this.tbar.append(b('DRONE', 'drone', false, 'sm'), b('PHOTO', 'photo', false, 'sm'), b('SAMPLE', 'sample', false, 'sm'));
+      this.tbar.append(b('VIEW', 'view'), b('LIGHT', 'flashlight', false, 'opt'), ...warp, fs());
+      this.btns.append(b('CROUCH', 'crouch', true), b('USE', 'interact', false, 'big'), b('JUMP', 'jump'), b('RUN', 'sprint', true), b('CREW', 'crew', false, 'opt'));
+      this.tools.append(b('DRONE', 'drone', false, 'opt'), b('PHOTO', 'photo', false, 'opt'), b('SAMPLE', 'sample', false, 'opt'));
     } else if (mode === 'float') {
-      this.tbar.append(b('VIEW', 'view'), b('LIGHT', 'flashlight'), ...warp, fn('⛶', () => this.host.fullscreen(), 'sm'));
-      this.btns.append(b('DOWN', 'crouch', true), b('USE', 'interact', false, 'big'), b('UP', 'jump', true), b('FAST', 'sprint', true), b('CREW', 'crew'));
+      this.tbar.append(b('VIEW', 'view'), b('LIGHT', 'flashlight', false, 'opt'), ...warp, fs());
+      this.btns.append(b('DOWN', 'crouch', true), b('USE', 'interact', false, 'big'), b('UP', 'jump', true), b('FAST', 'sprint', true), b('CREW', 'crew', false, 'opt'));
     } else if (mode === 'ladder') {
-      this.tbar.append(b('LIGHT', 'flashlight'), fn('⛶', () => this.host.fullscreen(), 'sm'));
+      this.tbar.append(b('LIGHT', 'flashlight', false, 'opt'), fs());
       this.btns.append(b('USE', 'interact', false, 'big'), b('LET GO', 'jump'));
     } else if (mode === 'seat') {
-      this.tbar.append(b('CREW', 'crew'), ...warp, fn('⛶', () => this.host.fullscreen(), 'sm'));
+      this.tbar.append(b('CREW', 'crew', false, 'opt'), ...warp, fs());
       this.btns.append(b('PANEL', 'cockpitMode'), b('USE', 'interact', false, 'big'), b('STAND', 'vehicle'));
+      this.tools.append(b('PHOTO', 'photo', false, 'opt'));
     } else if (mode === 'drone') {
       // the survey drone / ROV: the left stick flies it, the right side looks; up/down, fast, sample, recall
-      this.tbar.append(b('RECALL', 'drone', false, 'hi'), fn('⛶', () => this.host.fullscreen(), 'sm'));
+      this.tbar.append(b('RECALL', 'drone', false, 'hi'), fs());
       this.btns.append(b('DOWN', 'crouch', true), b('SAMPLE', 'sample', false, 'big'), b('UP', 'jump', true), b('FAST', 'sprint', true));
     } else if (mode === 'photo') {
-      this.tbar.append(b('EXIT', 'photo', false, 'hi'), fn('⛶', () => this.host.fullscreen(), 'sm'));
+      this.tbar.append(b('EXIT', 'photo', false, 'hi'), fs());
       this.btns.append(b('DOWN', 'crouch', true), b('SHOT', 'interact', false, 'big'), b('UP', 'jump', true), b('ZOOM+', 'zoomIn', true), b('ZOOM−', 'zoomOut', true));
     } else if (mode === 'drive') {
-      this.tbar.append(b('VIEW', 'view'), b('LIGHTS', 'flashlight'), fn('⛶', () => this.host.fullscreen(), 'sm'));
-      this.btns.append(b('BRAKE', 'brake', true, 'big'), b('BOOST', 'sprint', true), b('CAM', 'camera'), b('EXIT', 'vehicle'));
+      this.tbar.append(b('LIGHTS', 'flashlight', false, 'opt'), fs());
+      this.btns.append(b('BRAKE', 'brake', true, 'big'), b('CAM', 'camera'), b('EXIT', 'vehicle'));
     } else if (mode === 'flight') {
-      this.tbar.append(b('AUTO', 'autopilot', false, 'hi'), b('SAS', 'sas'), b('RCS', 'rcs'), b('GEAR', 'gear'), b('CAM', 'camera'), b('PANEL', 'cockpitMode'), b('PHOTO', 'photo', false, 'sm'), ...warp, b('EXIT', 'vehicle'));
+      this.tbar.append(b('AUTO', 'autopilot', false, 'hi'), b('SAS', 'sas'), b('RCS', 'rcs'), b('GEAR', 'gear'), b('CAM', 'camera'), b('PANEL', 'cockpitMode'), ...warp, b('EXIT', 'vehicle'));
+      this.tools.append(b('PHOTO', 'photo', false, 'opt'), b('SAMPLE', 'sample', false, 'opt'));
       // right cluster around the translation stick: yaw on the sides, fore/aft above, throttle shortcuts below
       this.btns.append(
         b('◀ YAW', 'yawLeft', true), b(this.vtol ? 'FWD' : 'FWD', 'transFwd', true), b('YAW ▶', 'yawRight', true),
@@ -470,6 +501,23 @@ export class TouchControls {
       if (this.vtol) this.right.el.dataset.label = 'HOVER ▲▼ · SLIDE ◀▶';
       else this.right.el.dataset.label = 'RCS TRANSLATE';
     }
+  }
+
+  /**
+   * Context buttons (class "opt": crew, lamps, the field tools that start a tool) show only while the zone reports a
+   * handler for their action (Game.syncTouch). Buttons inside a tool (EXIT in photo mode, RECALL) are always shown.
+   */
+  private avKey = '';
+  private optBtns: HTMLElement[] = [];
+
+  setAvailable(av: Set<string>) {
+    // the button list changes only when setMode rebuilds the layout (it clears avKey)
+    if (!this.avKey) this.optBtns = Array.from(this.el.querySelectorAll<HTMLElement>('button.opt[data-action]'));
+    const opt = this.optBtns;
+    const key = opt.map((el) => (av.has(el.dataset.action!) ? 1 : 0)).join('') + '|' + this.mode;
+    if (key === this.avKey) return;
+    this.avKey = key;
+    for (const el of opt) el.style.display = av.has(el.dataset.action!) ? '' : 'none';
   }
 
   /** Lift every held virtual action / axis (mode change, panel opened). */
@@ -484,7 +532,7 @@ export class TouchControls {
     v.pitch = v.roll = v.yaw = v.tx = v.ty = v.tz = v.throttle = 0;
     v.throttleSet = null;
     this.input.virtMove.set(0, 0);
-    for (const a of ['jump', 'crouch', 'sprint', 'brake', 'transFwd', 'transBack', 'yawLeft', 'yawRight']) this.input.virtualHold(a, false);
+    for (const a of ['jump', 'crouch', 'sprint', 'brake', 'transFwd', 'transBack', 'yawLeft', 'yawRight', 'zoomIn', 'zoomOut']) this.input.virtualHold(a, false);
   }
 
   private makeStick(cls: string, apply: (dx: number, dy: number) => void): StickState {
@@ -502,7 +550,7 @@ export class TouchControls {
       apply(curve(dx), curve(dy));
     };
     el.addEventListener('touchstart', (e) => {
-      e.preventDefault();
+      cancel(e);
       const t = e.changedTouches[0];
       st.id = t.identifier;
       const r = el.getBoundingClientRect();
@@ -511,7 +559,7 @@ export class TouchControls {
       move(t.clientX, t.clientY);
     }, { passive: false });
     el.addEventListener('touchmove', (e) => {
-      e.preventDefault();
+      cancel(e);
       for (const t of Array.from(e.changedTouches)) if (t.identifier === st.id) move(t.clientX, t.clientY);
     }, { passive: false });
     const end = (e: TouchEvent) => {
@@ -529,8 +577,18 @@ export class TouchControls {
 
   private bindLook() {
     const l = this.look;
+    const spread = (e: TouchEvent) => {
+      const a = e.targetTouches[0], b = e.targetTouches[1];
+      return Math.hypot(a.clientX - b.clientX, a.clientY - b.clientY);
+    };
     l.addEventListener('touchstart', (e) => {
-      e.preventDefault();
+      cancel(e);
+      // a second finger: pinch (zooms in photo mode); the look drag pauses meanwhile
+      if (e.targetTouches.length >= 2) {
+        this.pinch = spread(e);
+        this.lookStart.moved = 99;
+        return;
+      }
       if (this.lookId !== null) return;
       const t = e.changedTouches[0];
       this.lookId = t.identifier;
@@ -538,23 +596,40 @@ export class TouchControls {
       this.lookStart = { x: t.clientX, y: t.clientY, t: performance.now(), moved: 0 };
     }, { passive: false });
     l.addEventListener('touchmove', (e) => {
-      e.preventDefault();
+      cancel(e);
+      if (this.pinch !== null && e.targetTouches.length >= 2) {
+        const d = spread(e);
+        // fingers apart = zoom in (the same sign as the mouse wheel scrolling up)
+        this.input.wheel += (this.pinch - d) / 36;
+        this.pinch = d;
+        return;
+      }
       for (const t of Array.from(e.changedTouches)) {
         if (t.identifier !== this.lookId) continue;
         const dx = t.clientX - this.lookLast.x, dy = t.clientY - this.lookLast.y;
         this.lookLast = { x: t.clientX, y: t.clientY };
         this.lookStart.moved = Math.max(this.lookStart.moved, Math.hypot(t.clientX - this.lookStart.x, t.clientY - this.lookStart.y));
-        const k = 0.0045 * this.input.controls.mouseSensitivity;
+        const k = 0.0045 * (this.input.controls.touchLook ?? 1);
         const inv = this.input.controls.invertY ? -1 : 1;
         this.input.virtLook.set(this.input.virtLook.x - dx * k, this.input.virtLook.y - dy * k * inv);
       }
     }, { passive: false });
     const end = (e: TouchEvent) => {
+      if (e.targetTouches.length < 2) this.pinch = null;
       for (const t of Array.from(e.changedTouches)) {
         if (t.identifier !== this.lookId) continue;
         this.lookId = null;
         // a quick, still tap acts on whatever is under the finger
         if (e.type === 'touchend' && this.lookStart.moved < 12 && performance.now() - this.lookStart.t < 350) {
+          // on the interaction prompt ("USE  Open the door"): the same as the USE button
+          const pr = document.querySelector<HTMLElement>('.prompt.show');
+          if (pr?.dataset.act === 'interact') {
+            const r = pr.getBoundingClientRect();
+            if (t.clientX > r.left - 14 && t.clientX < r.right + 14 && t.clientY > r.top - 14 && t.clientY < r.bottom + 14) {
+              this.input.virtualPress('interact');
+              continue;
+            }
+          }
           this.input.pointer.set((t.clientX / innerWidth) * 2 - 1, -(t.clientY / innerHeight) * 2 + 1);
           this.input.pointerClicked = true;
           this.input.tapped = true;
@@ -582,13 +657,13 @@ export class TouchControls {
       this.input.virtFlight.throttleSet = v;
     };
     th.addEventListener('touchstart', (e) => {
-      e.preventDefault();
+      cancel(e);
       const t = e.changedTouches[0];
       this.throttleId = t.identifier;
       set(t.clientY);
     }, { passive: false });
     th.addEventListener('touchmove', (e) => {
-      e.preventDefault();
+      cancel(e);
       for (const t of Array.from(e.changedTouches)) if (t.identifier === this.throttleId) set(t.clientY);
     }, { passive: false });
     const end = (e: TouchEvent) => {

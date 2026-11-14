@@ -222,7 +222,7 @@ export default class SurfaceZone extends Zone implements SurfaceAPHost {
         this.quietTouchdown = false;
         return;
       }
-      game.notify(`Ranger 1 down on ${BODIES[this.site.body].name} — ${this.targetName}. F to stand up.`, 'ok', 6);
+      game.notify(`Ranger 1 down on ${BODIES[this.site.body].name} — ${this.targetName}. ${game.hint('F', 'EXIT')} to stand up.`, 'ok', 6);
       this.say('ward', `${BODIES[this.site.body].name}. ${this.targetName}. We're down.`);
     };
     progress(0.85, 'boulders');
@@ -548,9 +548,10 @@ export default class SurfaceZone extends Zone implements SurfaceAPHost {
       if (this.gas) {
         const alt = this.env.altitude(c.pos);
         b.append(h('div', { class: 'mono', style: { marginBottom: '10px' } }, `Jupiter · ${(alt / 1000).toFixed(1)} km above 1 bar · hull ${Math.round((game.state.vehicles.ranger1.damage.hull ?? 1) * 100)} %`));
-        add('CLOUD CRUISE', 'Hold this altitude at 150 m/s on the hover thrusters; steer with yaw (A/D).', true, () => ctrl.setAutopilot(new CloudCruise(Math.max(-3000, alt), 150)));
+        add('CLOUD CRUISE', `Hold this altitude at 150 m/s on the hover thrusters; steer with yaw (${game.hint('A/D', '◀ YAW / YAW ▶')}).`, true, () => ctrl.setAutopilot(new CloudCruise(Math.max(-3000, alt), 150)));
         add('CLIMB TO ORBIT', 'Climb out of the cloud layer; above 30 km the flight computer flies the long climb back to orbit.', true, () => this.ascend());
-        add('DISENGAGE AUTOPILOT', 'Manual flight: I/K hover thrust up/down, W/S pitch, A/D yaw, Q/E roll, Shift/Ctrl main engine.', !!ctrl.autopilot, () => ctrl.setAutopilot(null));
+        add('DISENGAGE AUTOPILOT', game.hint('Manual flight: I/K hover thrust up/down, W/S pitch, A/D yaw, Q/E roll, Shift/Ctrl main engine.',
+          'Manual flight: right stick up/down = hover thrust, left stick = pitch and roll, ◀ YAW / YAW ▶, the THR slider (or MAX / CUT) = main engine.'), !!ctrl.autopilot, () => ctrl.setAutopilot(null));
         return;
       }
       b.append(h('div', { class: 'mono', style: { marginBottom: '10px' } }, `${BODIES[this.site.body].name} · ${c.landed ? 'landed' : `${agl.toFixed(0)} m AGL`} · Δv ${(c.deltaV() / 1000).toFixed(2)} km/s`));
@@ -567,7 +568,8 @@ export default class SurfaceZone extends Zone implements SurfaceAPHost {
       const need = this.ascentDv();
       const short = !game.state.creative.unlimitedResources && c.deltaV() < need;
       add('ASCENT TO ORBIT', `VTOL lift-off, pitch-over and main-engine ascent to a ${(apT / 1000).toFixed(0)} km apoapsis; orbit insertion continues in orbit. Needs about ${(need / 1000).toFixed(1)} km/s${short ? ` — only ${(c.deltaV() / 1000).toFixed(1)} km/s aboard: the Ranger cannot make orbit from here without more propellant` : ''}.`, true, () => this.ascend());
-      add('DISENGAGE AUTOPILOT', 'Manual flight: I/K hover thrust up/down, J/L/H/N translate, W/S pitch, A/D yaw, Q/E roll, G gear.', !!ctrl.autopilot, () => ctrl.setAutopilot(null));
+      add('DISENGAGE AUTOPILOT', game.hint('Manual flight: I/K hover thrust up/down, J/L/U/O translate, W/S pitch, A/D yaw, Q/E roll, G gear.',
+        'Manual flight: right stick = hover thrust up/down and slide sideways, FWD / AFT translate, left stick = pitch and roll, ◀ YAW / YAW ▶, GEAR.'), !!ctrl.autopilot, () => ctrl.setAutopilot(null));
     }, { narrow: true, onClose: () => game.input.requestLock() });
   }
 
@@ -1563,12 +1565,29 @@ export default class SurfaceZone extends Zone implements SurfaceAPHost {
     this.scene.add(this.snow);
   }
 
+  /** the optional touch buttons that do something here right now (Game.syncTouch) */
+  touchActions(av: Set<string>) {
+    if (this.suitLampUsable()) av.add('flashlight');
+    if (this.research && !this.game.cinematic && !this.game.ui.panelOpen) {
+      const c = this.research.canUse();
+      if (c.drone) av.add('drone');
+      if (c.photo) av.add('photo');
+      if (c.sample) av.add('sample');
+    }
+  }
+
+  /** the helmet lamp works on foot outside (not seated, not in the pressurised cabin) */
+  private suitLampUsable() {
+    const pl = this.game.player;
+    return !!this.ground && pl.frame === this.ground && pl.mode !== 'seat' && !this.cabinPressurised(pl.pos);
+  }
+
   /** the headlamp (L), marine snow, the depth gauge and the suit's pressure rating */
   private updateSuit(dt: number) {
     const game = this.game;
     const pl = game.player;
     const cam = game.camera;
-    const onFoot = pl.frame === this.ground && pl.mode !== 'seat' && !this.cabinPressurised(pl.pos);
+    const onFoot = this.suitLampUsable();
     if (onFoot && game.input.pressed('flashlight')) {
       this.headlampOn = !this.headlampOn;
       game.audio.ui('click');
@@ -1637,10 +1656,10 @@ export default class SurfaceZone extends Zone implements SurfaceAPHost {
         this.depthEl = h('div', { class: 'v' });
         game.ui.vitals.append(this.depthEl);
       }
-      this.depthEl.textContent = `DEPTH ${head.toFixed(1)} m · SUIT RATED 60 m${this.headlampOn ? '' : ' · LAMP [L]'}`;
+      this.depthEl.textContent = `DEPTH ${head.toFixed(1)} m · SUIT RATED 60 m${this.headlampOn ? '' : ` · LAMP [${game.hint('L', 'LIGHT')}]`}`;
       if (head > 6 && !this.headlampOn && this.depthWarned < 1) {
         this.depthWarned = 1;
-        game.notify('It gets dark fast down here — L for the helmet lamp.', 'info', 5);
+        game.notify(`It gets dark fast down here — ${game.hint('L', 'LIGHT')} for the helmet lamp.`, 'info', 5);
       }
       if (head > 55 && this.depthWarned < 2) {
         this.depthWarned = 2;
@@ -1712,7 +1731,7 @@ export default class SurfaceZone extends Zone implements SurfaceAPHost {
     if (!this.refugeLampSaid && this.refugeK > 0.6 && game.player.frame === this.ground && game.player.mode !== 'seat') {
       this.refugeLampSaid = true;
       if (!this.headlampOn) this.headlampOn = true;
-      game.notify('Entering the refuge cavern — suit lamp on (L toggles). Survey floodlights ahead.', 'info', 6);
+      game.notify(`Entering the refuge cavern — suit lamp on (${game.hint('L', 'LIGHT')} toggles). Survey floodlights ahead.`, 'info', 6);
     }
   }
 

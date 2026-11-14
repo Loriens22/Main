@@ -3,7 +3,7 @@ import { h } from './UI';
 import { MissionClock } from '../core/MissionClock';
 import { MILLER_SPECIES } from '../world/fauna/miller';
 import { SPECIES_EXPANSION, MARS_EXPANSION, JUPITER_EXPANSION, type Certainty } from '../data/speciesExpansion';
-import { PROGRAMMES } from '../world/research/programme';
+import { PROGRAMMES, goalText } from '../world/research/programme';
 
 /**
  * EXOBIOLOGY — the field database (Mission computer). Every entry separates what was OBSERVED (dated evidence the
@@ -65,7 +65,8 @@ function programmeCard(game: Game, b: HTMLElement) {
   const flags = game.state.flags;
   const card = h('div', { class: 'card' }, h('h3', {}, 'RESEARCH PROGRAMMES'),
     h('div', { class: 'dim', style: { fontSize: '12px', lineHeight: '1.5' } },
-      'Survey drone / ROV (G, on foot), sampler (N), photo mode (B). Stages complete from the evidence you gather, in order.' +
+      game.hint('Survey drone / ROV (G, on foot), sampler (N), photo mode (B).', 'Survey drone / ROV (DRONE, on foot), sampler (SAMPLE), photo mode (PHOTO).') +
+      ' Stages complete from the evidence you gather, in order.' +
       (game.settings.life.science === 'conservative' ? ' Conservative science mode: the programmes are suspended (no complex animals to study).' : '')));
   for (const body of ['mars', 'jupiter'] as const) {
     const P = PROGRAMMES[body];
@@ -76,7 +77,7 @@ function programmeCard(game: Game, b: HTMLElement) {
       const next = i === n;
       const when = flags[`prog:${body}:${i + 1}`];
       card.append(h('div', { style: { fontSize: '12px', margin: '2px 0 2px 8px', opacity: done || next ? '1' : '0.55' } },
-        `${done ? '✓' : next ? '▸' : '·'} ${i + 1}. ${st.title}` + (done && when ? ` — ${MissionClock.formatDate(Number(String(when).split('|')[0]))}` : next ? ` — ${st.goal}` : '')));
+        `${done ? '✓' : next ? '▸' : '·'} ${i + 1}. ${st.title}` + (done && when ? ` — ${MissionClock.formatDate(Number(String(when).split('|')[0]))}` : next ? ` — ${goalText(game, st.goal)}` : '')));
     });
   }
   const samples = Object.keys(flags).filter((k) => k.startsWith('sample:'));

@@ -269,7 +269,7 @@ export class Sky extends Creature {
       }
       gp.got = Math.min(gp.need, gp.got + add);
       const n = Math.floor(gp.got);
-      g.ui.countdown(`${gp.kind} — SHAKE IT OFF: ROCK [Q]/[E] · FULL THRUST  ${'▮'.repeat(n)}${'▯'.repeat(Math.max(0, gp.need - n))}`);
+      g.ui.countdown(`${gp.kind} — SHAKE IT OFF: ${g.hint('ROCK [Q]/[E] · FULL THRUST', 'ROCK THE LEFT STICK · MAX THRUST')}  ${'▮'.repeat(n)}${'▯'.repeat(Math.max(0, gp.need - n))}`);
       if (!gp.by.alive || !c) this.release('timeout');
       else if (gp.got >= gp.need) this.release('broke');
       else if (gp.t > gp.max) this.release('timeout');

@@ -470,7 +470,7 @@ class SedimentMaw extends Creature {
               this.energy -= 0.2;
               if (broke) this.game.notify('You wrenched your boot out of the rim.', 'ok', 3);
             });
-            this.game.notify('Your foot is caught in something buried in the sand — mash E (Interact) to pull free!', 'alert', 4);
+            this.game.notify(`Your foot is caught in something buried in the sand — ${this.game.hint('mash E (Interact)', 'tap USE fast')} to pull free!`, 'alert', 4);
             if (eco.watching(mp, 6, 1.2)) eco.note('sedimentmaw', 'strike', 'A buried mouth opened under a footstep and clamped the boot.');
           } else {
             // missed: the effort is spent and it must reset

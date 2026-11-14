@@ -22,8 +22,8 @@ export function showMainMenu(game: Game) {
     if (sub) { sub.remove(); sub = null; return; }
     sub = h('div', { class: 'mm-sub' },
       h('div', { class: 'note' }, 'Explore freely. Optional assists, automatic refuelling and repair, fast travel, and no forced objectives.'),
-      btn('CREATIVE MODE', () => game.startCreative(true)),
-      listSaves().length ? btn('CONTINUE', () => game.load(listSaves()[0].slot)) : null,
+      btn('CREATIVE MODE', () => { game.autoFullscreen(); void game.startCreative(true); }),
+      listSaves().length ? btn('CONTINUE', () => { game.autoFullscreen(); game.load(listSaves()[0].slot); }) : null,
     );
     play.after(sub);
   });
@@ -138,10 +138,27 @@ export function openSettings(game: Game) {
           b.append(ui.row('Gamepad sensitivity', gs, gv));
           const [ts, tv] = ui.slider(c.touchScale, 0.7, 1.6, 0.05, (v) => { c.touchScale = v; apply(); });
           b.append(ui.row('Touch control size', ts, tv));
+          const [tl, tlv] = ui.slider(c.touchLook, 0.3, 3, 0.05, (v) => { c.touchLook = v; apply(); });
+          b.append(ui.row('Touch look sensitivity', tl, tlv));
+          if (game.fullscreenSupported()) b.append(ui.row('Touch: full screen + landscape when play starts', ui.toggle(c.autoFullscreen, (v) => { c.autoFullscreen = v; apply(); })));
           b.append(ui.row('Invert look Y', ui.toggle(c.invertY, (v) => { c.invertY = v; apply(); })));
           b.append(ui.row('Invert flight pitch', ui.toggle(c.invertFlightPitch, (v) => { c.invertFlightPitch = v; apply(); })));
           b.append(ui.row('Head bob', ui.toggle(c.headBob, (v) => { c.headBob = v; apply(); })));
           b.append(ui.row('Subtitles', ui.toggle(c.subtitles, (v) => { c.subtitles = v; apply(); })));
+          // touch only: no keyboard to press, so the bindings list would be a dead control
+          if (game.input.touchActive) {
+            const guide: [string, string][] = [
+              ['On foot', 'left stick walks · drag on the right half to look · tap a door, switch or screen (or the USE prompt) to use it · JUMP · CROUCH and RUN while held'],
+              ['Flying', 'left stick pitch and roll · right stick hover thrust / RCS slide · ◀ YAW ▶ · FWD / AFT · THR slider, MAX, CUT · AUTO opens the flight computer · PANEL for cockpit switches'],
+              ['Driving', 'left stick steers and drives · BRAKE while held · CAM · EXIT'],
+              ['On planets', 'DRONE (survey drone / ROV) · PHOTO (pinch or ZOOM± to zoom, SHOT) · SAMPLE · LIGHT (helmet lamp)'],
+              ['Top bar', 'MENU · COMP mission computer · VIEW first/third person · ◂◂ ▸▸ time warp · ⛶ full screen'],
+            ];
+            b.append(h('div', { class: 'dim', style: { margin: '18px 0 8px', fontSize: '11px', letterSpacing: '0.2em' } }, 'TOUCH CONTROLS'),
+              ...guide.map(([k, v]) => h('div', { style: { fontSize: '12px', lineHeight: '1.5', margin: '0 0 6px' } }, h('b', {}, `${k} — `), v)),
+              h('div', { class: 'dim', style: { margin: '10px 0 0', fontSize: '11px' } }, 'Buttons appear only where they do something. Key bindings show here when a keyboard is in use.'));
+            return;
+          }
           b.append(h('div', { class: 'dim', style: { margin: '18px 0 8px', fontSize: '11px', letterSpacing: '0.2em' } }, 'KEY BINDINGS — click a binding, then press a key'));
           for (const action of Object.keys(DEFAULT_BINDINGS)) {
             const keys = c.bindings[action] ?? [];

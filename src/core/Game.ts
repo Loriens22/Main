@@ -81,11 +81,8 @@ export class Game {
       skip: () => {
         if (this.cinematic?.skippable) this.cinematic.skip?.();
       },
-      fullscreen: () => {
-        const d = document as Document & { webkitFullscreenElement?: Element };
-        if (d.fullscreenElement || d.webkitFullscreenElement) void document.exitFullscreen?.();
-        else void document.documentElement.requestFullscreen?.({ navigationUI: 'hide' }).catch(() => {});
-      },
+      fullscreen: () => this.toggleFullscreen(),
+      canFullscreen: () => this.fullscreenSupported(),
     });
     this.touch.setScale(this.settings.controls.touchScale);
     this.camera = new THREE.PerspectiveCamera(this.settings.graphics.fov, this.renderer.aspect, 0.05, 30000);
@@ -198,7 +195,8 @@ export class Game {
     this.input.requestLock();
     const d = this.zone!.describe();
     this.ui.locationCard(d.name, d.sub, 6);
-    setTimeout(() => this.ui.notify('Creative Mode — explore freely. Press M for the mission computer, Esc for the menu.', 'info', 9), 2500);
+    setTimeout(() => this.ui.notify(this.hint('Creative Mode — explore freely. Press M for the mission computer, Esc for the menu.',
+      'Creative Mode — explore freely. Drag on the right to look, tap things to use them. COMP opens the mission computer, MENU the menu.'), 'info', 9), 2500);
   }
 
   async returnToMainMenu() {
@@ -224,6 +222,8 @@ export class Game {
     this.cockpitMode = false;
   }
 
+  private touchAv = new Set<string>();
+
   /** Pick the on-screen touch layout from what the player is doing right now. */
   syncTouch() {
     if (!this.input.touchActive) {
@@ -239,6 +239,11 @@ export class Game {
           ? this.control.context === 'flight' ? 'flight' : this.control.context === 'drive' ? 'drive' : 'seat'
           : p.mode === 'seat' ? 'seat' : p.mode === 'float' ? 'float' : p.mode === 'ladder' ? 'ladder' : 'walk';
     this.touch.setMode(mode);
+    if (document.body.dataset.tmode !== mode) document.body.dataset.tmode = mode;
+    // context buttons (crew, lamps, field tools) only where something handles them right now: no dead buttons
+    this.touchAv.clear();
+    (this.zone as unknown as { touchActions?: (av: Set<string>) => void } | null)?.touchActions?.(this.touchAv);
+    this.touch.setAvailable(this.touchAv);
     this.touch.el.classList.toggle('skippable', !!this.cinematic?.skippable);
   }
 
@@ -246,7 +251,60 @@ export class Game {
     this.cinematic = c;
   }
 
+  // ================================================================================== full screen (phones)
+  /** the browser lets a page go full screen (not on iPhone Safari, where only Add to Home Screen removes the bars) */
+  fullscreenSupported() {
+    const d = document as Document & { webkitFullscreenEnabled?: boolean };
+    return !!(d.fullscreenEnabled || d.webkitFullscreenEnabled);
+  }
+
+  isFullscreen() {
+    const d = document as Document & { webkitFullscreenElement?: Element };
+    return !!(d.fullscreenElement || d.webkitFullscreenElement);
+  }
+
+  /**
+   * Full screen, then landscape (Android Chrome only allows the orientation lock while full screen). Must run inside
+   * the handler of a user gesture (click, touchend): browsers refuse full screen from a touchstart.
+   */
+  enterFullscreen() {
+    if (this.isFullscreen()) return;
+    const el = document.documentElement as HTMLElement & { webkitRequestFullscreen?: () => void };
+    const lock = () => {
+      const o = screen.orientation as ScreenOrientation & { lock?: (o: string) => Promise<void> };
+      o?.lock?.('landscape').catch(() => {});
+    };
+    try {
+      if (el.requestFullscreen) void el.requestFullscreen({ navigationUI: 'hide' }).then(lock, () => {});
+      else if (el.webkitRequestFullscreen) { el.webkitRequestFullscreen(); lock(); }
+    } catch {
+      /* refused (no gesture, or not allowed in this frame) */
+    }
+  }
+
+  toggleFullscreen() {
+    if (!this.isFullscreen()) return this.enterFullscreen();
+    const d = document as Document & { webkitExitFullscreen?: () => void };
+    try {
+      (screen.orientation as ScreenOrientation & { unlock?: () => void })?.unlock?.();
+      if (d.exitFullscreen) void d.exitFullscreen().catch(() => {});
+      else d.webkitExitFullscreen?.();
+    } catch {
+      /* already left */
+    }
+  }
+
+  /** called from the menu's PLAY choices (a click: a user gesture): full screen + landscape on touch devices */
+  autoFullscreen() {
+    if (this.input.touchActive && this.settings.controls.autoFullscreen && this.fullscreenSupported()) this.enterFullscreen();
+  }
+
   // ===================================================================================== helpers
+  /** player-facing wording for a control: the keyboard key(s), or the on-screen button while playing by touch */
+  hint(keys: string, touch: string) {
+    return this.input.touchActive ? touch : keys;
+  }
+
   notify(text: string, kind: 'info' | 'warn' | 'alert' | 'ok' = 'info', duration = 5) {
     this.ui.notify(text, kind, duration);
   }
@@ -462,7 +520,11 @@ export class Game {
     }
     if (this.phase === 'menu' || this.phase === 'transition') {
       this.menuT += dt;
-      (z as any).menuUpdate?.(dt, this.camera, this.menuT);
+      // the hand-off from the menu into play (EarthZone.introToPlay) is a cinematic: it must run here, or the game
+      // never leaves the transition (no HUD, no controls)
+      if (this.phase === 'transition' && this.cinematic) {
+        if (!this.cinematic.update(dt, this.camera)) this.cinematic = null;
+      } else (z as any).menuUpdate?.(dt, this.camera, this.menuT);
       z.update(dt, dt);
       this.syncTouch();
       this.renderFrame(dt);
@@ -491,7 +553,7 @@ export class Game {
         this.cockpitMode = !this.cockpitMode;
         if (this.cockpitMode) this.input.releaseLock();
         else this.input.requestLock();
-        this.notify(this.cockpitMode ? 'Cockpit interaction: click switches and screens. Tab to return.' : 'Flight view', 'info', 2.5);
+        this.notify(this.cockpitMode ? this.hint('Cockpit interaction: click switches and screens. Tab to return.', 'Cockpit interaction: tap switches and screens. PANEL to return.') : 'Flight view', 'info', 2.5);
       }
       if (input.pressed('timeWarpUp') || input.pressed('timeWarpDown')) this.changeTimeWarp(input.pressed('timeWarpUp') ? 1 : -1);
     }

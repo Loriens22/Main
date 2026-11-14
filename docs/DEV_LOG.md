@@ -2,6 +2,58 @@
 
 ## Status (latest first)
 
+### Phone controls, end to end (this pass)
+
+A phone playtest (`e2e/mobile_play.mjs`) drives the published build the way a phone does: an emulated Android phone
+(touch screen, mobile user agent, landscape or portrait) and real touch events through the browser's input layer
+(taps, stick drags, swipes, two-finger pinch, multi-touch). Every control is checked by its effect on the game.
+
+- **Start hang (all devices):** the intro cinematic between the menu and play only advanced during play. From
+  PLAY → CREATIVE MODE the game never got there: no HUD, no controls. The intro now runs during the transition
+  (`Game.update`).
+- **Full screen and landscape:** tapping CREATIVE MODE / CONTINUE on a touch screen goes full screen and locks
+  landscape where the browser allows it (Android Chrome; Settings → Controls can turn it off).
+  - ⛶ now acts on touchend: browsers refuse full screen from a touchstart, so the old button could never work on a
+    real phone. ⛶ is hidden where the page cannot go full screen (iPhone Safari).
+  - A web manifest and Apple meta tags let "Add to Home Screen" open the game full screen in landscape.
+- **No dead buttons:** each touch action was traced to its handler.
+  - Removed: HELMET (no handler anywhere), ENTER on foot (vehicles are entered with USE), BOOST while driving (the
+    ground vehicles never read it), VIEW in a vehicle (ignored; CAM cycles its cameras), LIGHTS and CREW while flying.
+  - Context buttons (CREW, LIGHT, DRONE, PHOTO, SAMPLE) show only while the zone reports a handler right now
+    (`Zone.touchActions`):
+    - CREW on foot on Earth;
+    - the helmet lamp outside the cabin on a surface;
+    - the field tools where `ResearchTools.canUse()` allows them.
+- **Touch wording:** prompts and hints name the on-screen button while playing by touch (`Game.hint`). Covered: the
+  welcome, stand up, the flight computer's manual-flight lines, the drone and photo read-outs, the sampler, the
+  escape prompts when a creature holds you, the research goals, cockpit mode. Two keyboard hints were wrong and are
+  fixed: RCS translation is J/L/U/O (not H/N), and the flight computer is Y (P opens the menu).
+- **Tap to use:** the interaction prompt shows USE and can be tapped (like the USE button).
+- **Photo mode:** pinch to zoom.
+- **Settings → Controls:** touch look sensitivity (separate from the mouse), and a touch-controls guide in place of
+  the key bindings, which need a keyboard.
+- **Layout:**
+  - The field tools sit in a column at the left (a row at the bottom centre while flying, clear of the flight HUD).
+  - The research read-out sits between the stick and the buttons.
+  - Autopilot messages moved under the AUTOPILOT line.
+  - Top-bar buttons are pills sized to their label.
+  - Panel headers and tab rows no longer collapse in a short landscape panel (the Settings tabs were unreachable).
+  - A panel opened from another hides the one beneath.
+  - Portrait shows a "turn your phone sideways" hint (tap to hide); the controls still work upright.
+
+Checked on the emulated phone (915×412 landscape and 412×915 portrait):
+- On foot: stick walking, swipe look, walk and turn together, JUMP, VIEW, the USE prompt tap, COMP, swipe-scrolling a
+  long panel, MENU → SETTINGS → CONTROLS, RESUME, ⛶ off and on.
+- Flying on Jupiter: AUTO → DISENGAGE AUTOPILOT, stick roll (0.59 rad/s, 61° over the hold), the THR slider (0 → 83 %),
+  SAMPLE, PHOTO with pinch (70° → 42°), ZOOM−, SHOT, EXIT.
+- On foot on Mars: LIGHT, DRONE flown by the stick (7.5 m), RECALL.
+- Portrait: the hint, stick walking, look.
+
+Screenshots: `docs/media/mobile_controls.jpg`.
+
+Not checked: a real phone's touch screen and frame rate. iOS was not run; there, full screen comes only from Add to
+Home Screen.
+
 ### Far detail, the colony mass, phone performance, dramatic light, publishing (this pass)
 
 - **Impostor level of detail:** relit view atlases baked per species (`render/Impostors.ts`). Distance switching now
@@ -490,6 +542,8 @@ Realism pass results (all rebuilt in Blender scripts, checked with Cycles previe
 
 ## Conventions
 - `e2e/run.sh steps.mjs outDir w h` starts and stops the Vite server for one run (TOUCH=1 for touch, MEMLOG=1 logs RSS).
+- `node e2e/mobile_play.mjs <url> <outDir> [landscape|portrait] [all|walk|flight|mars|portrait]`: the phone playtest
+  against a served build (`npm run build`, then serve `dist/`); it writes screenshots and `results.json`.
   Steps support `untilJs`/`max`/`chunk` to advance until a condition holds.
 - `game.step(n, dt)` and `game.running=false` give deterministic tests. `e2e/shot.mjs out.png script.js frames` saves screenshots;
   `e2e/multi.mjs steps.mjs outDir` runs a step list (js / frames / shot / probe). Keep renders per run few with the forest in view.

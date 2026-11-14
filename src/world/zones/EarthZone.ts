@@ -226,6 +226,14 @@ export default class EarthZone extends Zone {
   }
 
   // ------------------------------------------------------------------------- update
+  /** the optional touch buttons that do something here right now (Game.syncTouch) */
+  touchActions(av: Set<string>) {
+    const g = this.game;
+    // the crew wheel (EarthPeople): on foot; the lamps of a ground vehicle while driving it (GroundVehicles)
+    if ((this.content as unknown as { people?: unknown })?.people && !g.control) av.add('crew');
+    if (g.control?.context === 'drive') av.add('flashlight');
+  }
+
   update(dt: number, dtEarth: number) {
     this.time += dt;
     const game = this.game;

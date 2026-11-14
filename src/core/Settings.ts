@@ -44,6 +44,10 @@ export interface ControlSettings {
   invertY: boolean;
   invertFlightPitch: boolean;
   touchScale: number;
+  /** look speed of a drag on the touch screen's look area */
+  touchLook: number;
+  /** touch devices: go full screen (and lock to landscape where the browser allows it) when play starts */
+  autoFullscreen: boolean;
   bindings: Record<string, string[]>; // action -> key codes
   headBob: boolean;
   subtitles: boolean;
@@ -189,6 +193,8 @@ export function defaultSettings(): Settings {
       invertY: false,
       invertFlightPitch: false,
       touchScale: 1.0,
+      touchLook: 1.0,
+      autoFullscreen: true,
       bindings: structuredClone(DEFAULT_BINDINGS),
       headBob: true,
       subtitles: true,

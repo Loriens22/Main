@@ -272,7 +272,7 @@ export class LaunchSequence {
           this.control.setAutopilot(null);
           this.craft.throttle = 1;
           this.craft.sas = 'stability';
-          this.control.say('Manual ascent: hold vertical until clear of the silo, then pitch east (D) gently.');
+          this.control.say(`Manual ascent: hold vertical until clear of the silo, then pitch east (${game.hint('D', 'YAW ▶')}) gently.`);
         }
         this.control.camMode = 'tower';
         game.audio.thud(undefined, 0.8, 50);

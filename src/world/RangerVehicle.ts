@@ -136,7 +136,7 @@ export class RangerVehicle {
     setTimeout(() => {
       const pl = this.game.player;
       if (pl.mode === 'seat') pl.stand();
-      this.game.notify('Cabin door, then the rear hatch (E) — the ladder takes you down to the ground.', 'info', 6);
+      this.game.notify(`Cabin door, then the rear hatch (${this.game.hint('E', 'USE')}) — the ladder takes you down to the ground.`, 'info', 6);
     }, 0);
     return true;
   }

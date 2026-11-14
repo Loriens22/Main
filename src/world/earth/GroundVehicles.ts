@@ -713,7 +713,7 @@ export class GroundVehicles {
       id: `veh:${gv.id}`,
       targets: [gv.root],
       range: 4.5,
-      label: () => (gv.driver === 'player' ? null : gv.spec.kind === 'car' ? `Drive ${gv.state.name}` : `${gv.state.name} — ${gv.task.label}  [E] commands`),
+      label: () => (gv.driver === 'player' ? null : gv.spec.kind === 'car' ? `Drive ${gv.state.name}` : `${gv.state.name} — ${gv.task.label}  [${game.hint('E', 'USE')}] commands`),
       use: () => (gv.spec.kind === 'car' ? gv.enter() : this.openCommands(gv)),
     });
   }

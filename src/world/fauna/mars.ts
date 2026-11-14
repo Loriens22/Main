@@ -447,7 +447,7 @@ export class Stalker extends Walker {
       this.biteT = 0.4;
       this.setState('pin');
       this.game.renderer.fx.shake = 1.5;
-      this.game.notify('A stalker has you pinned — mash E (Interact) to throw it off!', 'alert', 4);
+      this.game.notify(`A stalker has you pinned — ${this.game.hint('mash E (Interact)', 'tap USE fast')} to throw it off!`, 'alert', 4);
     } else this.setState('circle');
   }
 
@@ -738,7 +738,7 @@ export class Tetherkite extends Creature {
           this.hookAt = i;
           this.lift = 0;
           f.voice.twang(pl, 0.3);
-          this.game.notify('The tether stuck to your suit — mash E (Interact) to tear free before it lifts you!', 'alert', 4);
+          this.game.notify(`The tether stuck to your suit — ${this.game.hint('mash E (Interact)', 'tap USE fast')} to tear free before it lifts you!`, 'alert', 4);
           f.grab(this, 'lift', f.hostility === 2 ? 7 : 5, () => this.pos, (broke) => this.letGo(broke));
           break;
         }

@@ -62,6 +62,11 @@ canvas#game { position: fixed; inset: 0; display: block; }
 .panel .pb { padding: 18px 22px 22px; overflow: auto; flex: 1; }
 .panel.narrow { width: min(460px, 94vw); }
 .tabs { display: flex; gap: 2px; border-bottom: 1px solid var(--line); padding: 0 22px; overflow-x: auto; }
+/* the header and the tab row keep their height in a short panel (a phone held sideways): an overflow box in a flex
+   column would otherwise shrink to nothing */
+.panel .ph, .panel .tabs { flex-shrink: 0; }
+/* a panel opened from another (Settings from the pause menu) hides the one beneath instead of showing through it */
+#ui .overlay:has(~ .overlay) > .panel { visibility: hidden; }
 .tab { background: none; border: none; color: var(--fg-dim); font-family: var(--title); font-size: 10px; letter-spacing: 0.25em; padding: 12px 14px; cursor: pointer; border-bottom: 1px solid transparent; white-space: nowrap; }
 .tab.on { color: var(--fg); border-bottom-color: var(--accent); }
 .menu-list { display: flex; flex-direction: column; gap: 4px; }
@@ -168,8 +173,29 @@ canvas.flighthud { position: absolute; inset: 0; width: 100%; height: 100%; }
 .touch button.down { background: rgba(217,201,163,0.32); border-color: var(--accent); }
 .touch button.big { border-color: rgba(217,201,163,0.7); }
 .touch .tbar { position: absolute; left: 24vw; right: 1vw; top: max(8px, env(safe-area-inset-top)); display: flex; gap: calc(5 * var(--u)); pointer-events: none; flex-wrap: wrap; justify-content: center; }
-.touch .tbar button { width: calc(44 * var(--u)); height: calc(44 * var(--u)); font-size: calc(7.5 * var(--u)); }
-.touch .tbar button.sm { width: calc(34 * var(--u)); }
+.touch .tbar button { width: auto; min-width: calc(44 * var(--u)); height: calc(40 * var(--u)); padding: 0 calc(10 * var(--u)); border-radius: calc(20 * var(--u)); font-size: calc(7.5 * var(--u)); white-space: nowrap; }
+.touch .tbar button.sm { min-width: calc(36 * var(--u)); padding: 0 calc(6 * var(--u)); }
+/* the field tools: a column on the left under the status lines, clear of the top bar and the stick */
+.touch .tools { position: absolute; left: max(10px, env(safe-area-inset-left)); top: calc(max(8px, env(safe-area-inset-top)) + 56px); display: flex; flex-direction: column; gap: calc(6 * var(--u)); pointer-events: none; }
+.touch .tools button { width: auto; min-width: calc(66 * var(--u)); height: calc(34 * var(--u)); border-radius: calc(17 * var(--u)); padding: 0 calc(12 * var(--u)); font-size: calc(7.5 * var(--u)); white-space: nowrap; }
+.touch.ui .tools, .touch.cinematic .tools { display: none; }
+/* flying: the compact flight HUD holds the top corners, so the tools sit in a row at the bottom centre */
+.touch.flight .tools { top: auto; left: 50%; transform: translateX(-50%); bottom: max(8px, env(safe-area-inset-bottom)); flex-direction: row; }
+/* the field-research read-out (sampler hint, drone, photo mode): bottom-left with a keyboard; on touch between the
+   stick and the button cluster, above the flight tools row */
+.research-hud { position: fixed; left: 16px; bottom: 16px; max-width: min(560px, calc(100vw - 32px)); font: 12px/1.45 ui-monospace, Menlo, monospace; color: #e8e2d2;
+  background: rgba(8,10,14,.62); border: 1px solid rgba(255,255,255,.14); border-radius: 6px; padding: 8px 10px; pointer-events: none; z-index: 40; white-space: pre-wrap; }
+body.touch-ui .research-hud { left: 50%; transform: translateX(-50%); bottom: max(8px, env(safe-area-inset-bottom)); max-width: max(220px, min(440px, calc(100vw - 500px))); font-size: 10.5px; padding: 6px 9px; }
+body.touch-ui[data-tmode=flight] .research-hud { bottom: calc(max(8px, env(safe-area-inset-bottom)) + 44px); }
+/* touch screens: the location title below the button bar; a finger-sized panel close button; compact panels on short screens */
+body.touch-ui .location-card { top: 24vh; }
+body.touch-ui .panel .ph .x { width: 44px; height: 44px; font-size: 18px; }
+body.touch-ui .tabs button, body.touch-ui .tabs .tab { min-height: 40px; }
+@media (max-height: 520px) {
+  .panel { max-height: 96vh; }
+  .panel .ph { padding: 6px 14px; }
+  .panel .pb { padding: 10px 14px 14px; }
+}
 .touch .tbar button.hi { border-color: var(--data); color: var(--data); }
 .touch .throttle { position: absolute; left: calc(max(3.5vw, env(safe-area-inset-left) + 10px) + 150 * var(--u)); bottom: max(5vh, calc(env(safe-area-inset-bottom) + 10px)); width: calc(42 * var(--u)); height: calc(150 * var(--u)); border: 1px solid rgba(255,255,255,0.3); border-radius: 6px; background: rgba(10,12,14,0.35); pointer-events: auto; touch-action: none; display: none; overflow: hidden; }
 .touch .throttle i { position: absolute; left: 0; right: 0; bottom: 0; background: linear-gradient(to top, rgba(217,201,163,0.65), rgba(217,201,163,0.3)); }
@@ -186,13 +212,19 @@ canvas.flighthud { position: absolute; inset: 0; width: 100%; height: 100%; }
 .touch.ladder .stick.l i { border-radius: 30%; }
 /* HUD placement while the touch layout is up: status to the top-left corner, toasts under the button bar */
 body.touch-ui .status { top: max(8px, env(safe-area-inset-top)); bottom: auto; left: max(10px, env(safe-area-inset-left)); max-width: 22vw; font-size: 8.5px; line-height: 1.45; }
-body.touch-ui .toasts { top: 64px; right: 12px; max-width: min(360px, 60vw); }
-body.touch-ui .toasts .toast { font-size: 11px; padding: 7px 10px; }
+body.touch-ui .toasts { top: 64px; right: 12px; max-width: min(300px, 36vw); }
+body.touch-ui .toasts .toast { font-size: 10.5px; line-height: 1.35; padding: 6px 9px; }
+/* a phone has room for three at once (they never take touches: #ui passes them through) */
+body.touch-ui .toasts .toast:nth-child(n+4) { display: none; }
 body.touch-ui .subtitles { bottom: 26vh; }
 body.touch-ui .fps { display: none; }
+.touch .rotate { display: none; position: absolute; left: 50%; top: 34%; transform: translateX(-50%); width: min(78vw, 320px); padding: 14px 16px; border: 1px solid rgba(255,255,255,0.25); border-radius: 12px; background: rgba(6,8,12,0.82); color: var(--fg); text-align: center; pointer-events: auto; font-size: 13px; line-height: 1.45; }
+.touch .rotate b { display: block; font-size: 30px; font-weight: 400; color: var(--accent); }
+.touch .rotate i { display: block; margin-top: 8px; font-style: normal; font-family: var(--title); font-size: 9px; letter-spacing: 0.18em; color: rgba(255,255,255,0.55); }
 @media (orientation: portrait) {
   .touch .look { width: 100%; height: 55%; }
   .touch .stick.l { bottom: calc(26vh); }
+  .touch.on:not(.ui):not(.cinematic) .rotate:not(.gone) { display: block; }
 }
 
 @media (max-width: 720px) {

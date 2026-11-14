@@ -19,9 +19,9 @@ export const PROGRAMMES: Record<'mars' | 'jupiter', { name: string; stages: Stag
   mars: {
     name: 'Mars subsurface programme',
     stages: [
-      { title: 'Spectral traces', goal: 'Sample the regolith or the dark basalt (N): look for anything the minerals alone do not explain.',
+      { title: 'Spectral traces', goal: 'Sample the regolith or the dark basalt ({sample}): look for anything the minerals alone do not explain.',
         done: (has) => has('sample:mars:regolith') || has('sample:mars:mineral') || has('sample:mars:ice') || has('sample:mars:icebloom') },
-      { title: 'Shielded ice', goal: 'Drill the ice plug over the refuge (N at the skylight) and record the Crimson Icebloom beneath it.',
+      { title: 'Shielded ice', goal: 'Drill the ice plug over the refuge ({sample} at the skylight) and record the Crimson Icebloom beneath it.',
         done: (has) => (has('sample:mars:ice') || has('sample:mars:icebloom')) && has('bio:icebloom:') },
       { title: 'The mineral grove', goal: 'Enter the cavern. Record the Ferric Cathedral, the Glass Ribbons grazing it, and a Prism Architect nest — without disturbing them.',
         done: (has) => has('bio:ferric:') && has('bio:ribbon:') && has('bio:prism:') },
@@ -40,10 +40,10 @@ export const PROGRAMMES: Record<'mars' | 'jupiter', { name: string; stages: Stag
   jupiter: {
     name: 'Jupiter atmospheric programme',
     stages: [
-      { title: 'Profiles', goal: 'Fly Ranger 1 in the cloud layer while its instruments log pressure, temperature and wind; record the Aeromite Swarm (sample N near a swarm).',
+      { title: 'Profiles', goal: 'Fly Ranger 1 in the cloud layer while its instruments log pressure, temperature and wind; record the Aeromite Swarm ({sample} near a swarm).',
         done: (has) => has('jupiter:profile') && (has('bio:aeromite:') || has('sample:jupiter:aerosol')) },
       { title: 'Silhouettes', goal: 'Find the faint Skyjelly silhouettes drifting in the layer.', done: seen('skyjelly') },
-      { title: 'A community, not a body', goal: 'Pass near a Floating Colony and sample it (N within its stand).',
+      { title: 'A community, not a body', goal: 'Pass near a Floating Colony and sample it ({sample} within its stand).',
         done: (has) => has('bio:colony:') && has('sample:jupiter:colony') },
       { title: 'Ecological scale', goal: 'Sight Stormskimmers crossing the shear lanes and Gasgrazers following the food fronts.',
         done: (has) => has('bio:stormskimmer:') && has('bio:gasgrazer:') },
@@ -56,6 +56,11 @@ export const PROGRAMMES: Record<'mars' | 'jupiter', { name: string; stages: Stag
     ],
   },
 };
+
+/** a goal as the player reads it: {sample} becomes the sampler's key (N) or its touch button */
+export function goalText(game: Game, goal: string) {
+  return goal.replace(/\{sample\}/g, game.hint?.('sampler: N', 'SAMPLE') ?? 'sampler: N');
+}
 
 export function progress(game: Game, body: 'mars' | 'jupiter') {
   return Number(game.flag(`prog:${body}`) ?? 0) || 0;
@@ -79,14 +84,14 @@ export function checkProgramme(game: Game, body: string) {
     // first arrival: announce the programme once
     if (n === 0 && !flags[`prog:${body}:intro`]) {
       game.flag(`prog:${body}:intro`, 1);
-      game.notify(`${P.name} — stage 1: ${P.stages[0].goal}`, 'info', 10);
+      game.notify(`${P.name} — stage 1: ${goalText(game, P.stages[0].goal)}`, 'info', 10);
     }
     return;
   }
   game.flag(`prog:${body}`, n);
   const last = P.stages[n - 1];
   game.notify(n < P.stages.length
-    ? `${P.name}: stage ${n} complete — ${last.title}. Next: ${P.stages[n].goal}`
+    ? `${P.name}: stage ${n} complete — ${last.title}. Next: ${goalText(game, P.stages[n].goal)}`
     : `${P.name}: all ${n} stages complete.`, 'ok', 10);
   game.log?.('mission', 'computer', `${P.name}: stage ${n} — ${last.title}`);
 }

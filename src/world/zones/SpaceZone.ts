@@ -778,7 +778,8 @@ export default class SpaceZone extends Zone implements ProxHost {
       add(PRIMARY.id === 'earth' ? 'RETURN TO EARTH' : 'DEORBIT & LAND', PRIMARY.id === 'earth' ? 'Deorbit, re-entry belly-first (lift up), powered descent to the NASA facility or the farm.' : landable ? `Choose a landing site on ${BODIES[PRIMARY.id].name}: deorbit burn, descent coast and powered descent to touchdown.` : `${BODIES[PRIMARY.id]?.name ?? 'This body'} has no surface the Ranger can land on.`, !this.r1Docked && landable && s.pe > 0, () => setTimeout(() => this.openLandingPicker(ctrl), 30));
       add('UNDOCK', 'Release the capture latches and back away from the forward port at 0.3 m/s (the Ranger keeps the ring\'s spin until SAS damps it).', this.r1Docked, () => this.undock());
       add('ENDURANCE NAVIGATION', 'Interplanetary transfers: plan, engage, cruise (cryosleep or time warp), capture into orbit at the destination.', this.r1Docked, () => setTimeout(() => import('../../ui/Panels').then((P) => P.openMissionComputer(game, 'nav')), 50));
-      add('DISENGAGE AUTOPILOT', 'Manual flight: W/S pitch, A/D yaw, Q/E roll, I/K/J/L/H/N translate, Shift/Ctrl throttle, T SAS mode.', !!ctrl.autopilot, () => ctrl.setAutopilot(null));
+      add('DISENGAGE AUTOPILOT', game.hint('Manual flight: W/S pitch, A/D yaw, Q/E roll, I/K/J/L/U/O translate, Shift/Ctrl throttle, T SAS mode.',
+        'Manual flight: left stick = pitch and roll, ◀ YAW / YAW ▶, right stick + FWD / AFT = RCS translation, the THR slider = throttle, SAS cycles the hold mode.'), !!ctrl.autopilot, () => ctrl.setAutopilot(null));
     }, { narrow: true, onClose: () => game.input.requestLock() });
   }
 
@@ -858,7 +859,7 @@ export default class SpaceZone extends Zone implements ProxHost {
         if (this.craft.spec === S2_SPEC && this.craft.state.fuel <= 0 && this.stackRoot) this.separateStage();
         if (this.env.altitude(this.craft.pos) < 60e3 && !this.reentryWarned) {
           this.reentryWarned = true;
-          game.notify('Warning: low perigee — atmospheric entry. Use ORBIT INSERTION (P).', 'alert', 6);
+          game.notify(`Warning: low perigee — atmospheric entry. ${game.hint('Flight computer (Y)', 'AUTO')} → ORBIT INSERTION.`, 'alert', 6);
         }
       }
       t += hStep;

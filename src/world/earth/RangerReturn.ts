@@ -144,7 +144,7 @@ export class RangerReturn implements RangerHost, SurfaceAPHost {
     this.y0 = (this.zone.content as unknown as { nasa?: { origin: THREE.Vector3 } })?.nasa?.origin?.y ?? this.groundHeight(ORIGIN.x, ORIGIN.z);
     await this.ranger.load();
     this.ranger.onTouchdown = () => {
-      this.game.notify(`Ranger 1 is down — ${this.targetName}. F to stand up.`, 'ok', 6);
+      this.game.notify(`Ranger 1 is down — ${this.targetName}. ${this.game.hint('F', 'EXIT')} to stand up.`, 'ok', 6);
       this.say('ward', this.targetName.startsWith('The farm') ? 'Home. The corn is still standing.' : 'Wheels down at the facility. Welcome home.');
       const st = this.game.state.vehicles.ranger1;
       st.data.onEarth = true;
