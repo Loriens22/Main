@@ -1545,7 +1545,7 @@ export default class SurfaceZone extends Zone implements SurfaceAPHost {
       const uw = this.underK < 1;
       // candela: the long-reach dive lamp only in Miller's open deep water; in air and in the refuge's short-sighted
       // brine a working lamp that does not blow out a subject a metre or two away
-      l.intensity = on ? (uw ? (this.refuge ? 6 : 46) : 2.5) : 0;
+      l.intensity = on ? (uw ? (this.refuge ? 22 : 46) : 2.5) : 0;
       l.visible = on;
       if (on) {
         cam.getWorldPosition(l.position);
@@ -1664,7 +1664,7 @@ export default class SurfaceZone extends Zone implements SurfaceAPHost {
       // brine with fine mineral silt: a short sight line, light lost quickly (the lamps carry it)
       this.underK = under ? Math.max(0.05, Math.exp(-d / 9)) : 1;
       if (under) {
-        fog.density = 1 / 14;
+        fog.density = 1 / 20;
         fog.color.setRGB(0.012, 0.022, 0.024);
         this.hemi.intensity *= this.underK;
         this.scene.environmentIntensity *= Math.max(this.underK, 0.1);
