@@ -31,6 +31,8 @@ export interface AeroBody {
   T: number;
   /** maximum bank (rad) */
   bank: number;
+  /** steering gain: bank per radian of heading error (default 1.4; a pursuer closing on a target steers harder) */
+  steer?: number;
 }
 
 export interface AeroState {
@@ -148,7 +150,7 @@ export function aeroStep(b: AeroBody, air: JupiterAir, pos: THREE.Vector3, vel: 
   // seen from above when the goal is left: the sign follows the heading error directly)
   _h.set(goal.x - pos.x, 0, goal.z - pos.z);
   const headErr = Math.atan2(dir.x * _h.z - dir.z * _h.x, dir.x * _h.x + dir.z * _h.z);
-  const bank = THREE.MathUtils.clamp(headErr * 1.4, -b.bank, b.bank);
+  const bank = THREE.MathUtils.clamp(headErr * (b.steer ?? 1.4), -b.bank, b.bank);
   // lift direction: up projected ⊥ to the airflow, rotated about the airflow by the bank
   _l.copy(_up).addScaledVector(dir, -dir.y);
   if (_l.lengthSq() < 1e-6) _l.set(1, 0, 0);
@@ -156,7 +158,8 @@ export function aeroStep(b: AeroBody, air: JupiterAir, pos: THREE.Vector3, vel: 
   const weight = b.m * G_JUP * (1 - b.buoy);
   let CL = 0;
   if (b.CLmax > 0) {
-    const climb = THREE.MathUtils.clamp((goal.y - pos.y) / 300, -0.6, 0.6);
+    // height control: proportional to the height error, damped by the climb rate through the air (no porpoising)
+    const climb = THREE.MathUtils.clamp((goal.y - pos.y) / 160 - (vel.y - w.y) / 25, -1, 1.2);
     const CLlevel = weight / Math.max(1e-3, q * b.S * Math.cos(bank));
     // below the wanted airspeed, pitch down (less lift) to gain speed; above it, pitch up
     const speedK = THREE.MathUtils.clamp((V - wantV) / Math.max(1, wantV), -0.5, 0.5);
@@ -169,8 +172,11 @@ export function aeroStep(b: AeroBody, air: JupiterAir, pos: THREE.Vector3, vel: 
   let T = 0;
   if (b.T > 0) {
     T = THREE.MathUtils.clamp((wantV - V) * b.m * 0.6 + D * 0.9, 0, b.T * thrustK);
+    // a swimmer pushes along its body (the flow); only a slow hoverer (a jetting squid, a bell) vectors its thrust
+    // toward where it wants to go
+    const hover = b.CLmax === 0 || V < 0.5 * wantV;
     _h.set(goal.x - pos.x, goal.y - pos.y, goal.z - pos.z);
-    if (_h.lengthSq() > 1e-6) _h.normalize().lerp(dir, 0.5).normalize();
+    if (hover && _h.lengthSq() > 1e-6) _h.normalize().lerp(dir, 0.3).normalize();
     else _h.copy(dir);
     _f.addScaledVector(_h, T);
     // a powered swimmer can also hold its height by thrust where its lift is not enough (it pays in drag/energy)
@@ -192,4 +198,27 @@ export function aeroStep(b: AeroBody, air: JupiterAir, pos: THREE.Vector3, vel: 
   s.w = w.y;
   s.T = T;
   return s;
+}
+
+/**
+ * A heavy flyer's pursuit of a slow target (a racetrack, not a dogfight): run in on a lead point; if the pass misses
+ * or the target lies too far off the nose to turn onto, extend straight out to about two turning circles, turn
+ * and run in again. Writes the goal; returns the mode.
+ */
+export function pursue(st: { mode: 'in' | 'out' }, pos: THREE.Vector3, vel: THREE.Vector3, prey: THREE.Vector3, preyVel: THREE.Vector3, speed: number, turnR: number, goal: THREE.Vector3) {
+  const dx = prey.x - pos.x, dz = prey.z - pos.z;
+  const dh = Math.hypot(dx, dz);
+  const hv = Math.hypot(vel.x, vel.z) || 1;
+  const off = Math.acos(THREE.MathUtils.clamp((vel.x * dx + vel.z * dz) / (hv * Math.max(dh, 1e-3)), -1, 1));
+  if (st.mode === 'in' && ((dh < 2.2 * turnR && off > 1.0) || (dh < 60 && off > 0.6))) st.mode = 'out';
+  else if (st.mode === 'out' && dh > 2.2 * turnR) st.mode = 'in';
+  if (st.mode === 'in') {
+    const d = pos.distanceTo(prey);
+    goal.copy(prey).addScaledVector(preyVel, d / Math.max(10, speed));
+  } else {
+    // straight out, away from the target (and at its height, ready for the next run)
+    goal.set(pos.x - (dx / Math.max(dh, 1e-3)) * 2.5 * turnR, prey.y, pos.z - (dz / Math.max(dh, 1e-3)) * 2.5 * turnR);
+    goal.addScaledVector(vel, 2);
+  }
+  return st.mode;
 }

@@ -183,7 +183,7 @@ parts[8] = [
   { js: `${A} const j = of('skyjelly')[0]; return { torn: j.torn, sank: +(window.__jy - j.pos.y).toFixed(0), vy: +j.vel.y.toFixed(1) };`, frames: 1 },
   // a Deepdiver below takes it as it sinks through the lower corridor
   { js: `${A} const j = of('skyjelly')[0]; const d = of('deepdiver')[0]; if (j.torn < 0) return 'not torn'; j.pos.y = A.refY - 620; d.pos.copy(j.pos).add(new V(320, -120, 0)); d.prey = null; return 1;`, frames: 2 },
-  { untilJs: `!!game.state.flags['bio:deepdiver:scavenge']`, max: 900, chunk: 30, probe: aprobe },
+  { untilJs: `game.zone.fauna.creatures.some((k) => k.species === 'deepdiver' && k.meals > 0)`, max: 2400, chunk: 60, probe: aprobe },
   jsv('phys_deepdiver', 'deepdiver', 30, 6, 0.7, 5),
   free,
   // the Stormhunter's memory: an intercept broken off by leaving its envelope counts as a failure (remembered)
@@ -192,11 +192,11 @@ parts[8] = [
   // photo mode in flight (B): the species tag, altitude / pressure / wind readouts; E captures
   { js: `${A} const k = of('gasgrazer')[0]; k.pos.copy(sky.rp).addScaledVector(sky.head, 140).add(new V(0, 10, 0)); return 1;`, frames: 2 },
   { js: `game.input.virtualPress('photo'); return 1;`, frames: 4, probe: aprobe },
-  { js: `${A} const k = of('gasgrazer')[0]; const pm = game.cinematic; const cam = game.camera; cam.lookAt(k.pos); const e = new cam.rotation.constructor().setFromQuaternion(cam.quaternion, 'YXZ'); pm.yaw = e.y; pm.pitch = e.x; return game.cinematic?.constructor.name;`, frames: 6, shot: 'tools_photo_jupiter', ui: true },
+  { js: `${A} const k = of('gasgrazer')[0]; const pm = game.cinematic; cam.lookAt(k.pos); const e = new cam.rotation.constructor().setFromQuaternion(cam.quaternion, 'YXZ'); pm.yaw = e.y; pm.pitch = e.x; return game.cinematic?.constructor.name;`, frames: 6, shot: 'tools_photo_jupiter', ui: true },
   { js: `game.input.virtualPress('interact'); return 1;`, frames: 3 },
   { js: `game.input.virtualPress('photo'); return { photo: Object.keys(game.state.flags).filter((k) => k.includes(':photo')), hud: game.zone.research.hudText };`, frames: 3 },
   // the aerosol sampler near the swarm (N)
-  { js: `${A} const m = of('aeromite')[0]; m.center.copy(sky.rp).addScaledVector(sky.head, 60); return 1;`, frames: 2 },
+  { js: `${A} const m = of('aeromite')[0]; m.center.copy(sky.rp).addScaledVector(sky.head, 60); return 1;`, frames: 15 },
   { js: `game.input.virtualPress('sample'); return 1;`, frames: 3, probe: aprobe },
   { frames: 120, probe: aprobe },
 ];

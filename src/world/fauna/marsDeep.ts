@@ -694,7 +694,7 @@ class PrismArchitect extends RefugeCreature {
         });
         m.material = Array.isArray(m.material) ? list : list[0];
       });
-      const mat = new THREE.Mesh(new THREE.CircleGeometry(1, 28), new THREE.MeshStandardMaterial({ color: 0x5a2c12, roughness: 0.95, transparent: true, opacity: 0.85, polygonOffset: true, polygonOffsetFactor: -2 }));
+      const mat = new THREE.Mesh(new THREE.CircleGeometry(1, 28), new THREE.MeshStandardMaterial({ color: 0x8a4216, emissive: 0x2a0c02, roughness: 0.9, transparent: true, opacity: 0.9, polygonOffset: true, polygonOffsetFactor: -2 }));
       mat.rotation.x = -Math.PI / 2;
       mat.position.copy(this.pos).setY(this.floor(this.pos.x, this.pos.z) + 0.015);
       mat.receiveShadow = true;
@@ -987,16 +987,18 @@ class BasaltMimic extends RefugeCreature {
         this.pos.y = this.floor(this.pos.x, this.pos.z);
         // a person stepping close, unaware: pre-tension first (never a one-frame jump scare). Warier with experience.
         if (inside && d < 7 - 0.6 * learned && this.lightMem <= 0 && this.cooldown <= 0) this.setState('tense');
-        // hungry: food first — a fresh carcass to scavenge, or move to the cover by the nest's paths
+        // prey in reach first: the young Prism Architect wandering by — an ambush of the size it prefers (it misses
+        // more often than not)
+        else if (young && young.deadAt === null && young.pos.distanceTo(this.pos) < 5 && this.cooldown <= 0 && this.hunger > 0.5) {
+          this.prey = young;
+          this.leapTo.copy(young.pos);
+          this.startLeap();
+        }
+        // hungry: a fresh carcass to scavenge, or the cover by the nest's paths to wait in
         else if (carcass && this.hunger > 0.4 && !(inside && d < 12)) this.setState('feed');
         else if (this.hunger > 0.7 && this.cover !== 3 && this.covers.length > 3 && this.cooldown <= 0 && !(inside && d < 15)) {
           this.cover = 3;
           this.setState('move');
-        } else if (young && young.deadAt === null && young.pos.distanceTo(this.pos) < 5 && this.cooldown <= 0 && this.hunger > 0.5) {
-          // the young Prism Architect wandering by: an ambush of the size it prefers (it misses more often than not)
-          this.prey = young;
-          this.leapTo.copy(young.pos);
-          this.startLeap();
         }
         break;
       }

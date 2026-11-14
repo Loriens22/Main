@@ -1,6 +1,6 @@
 import { describe, it, expect } from 'vitest';
 import * as THREE from 'three';
-import { JupiterAir, aeroStep, G_JUP, type AeroBody } from '../src/world/fauna/jupiterAir';
+import { JupiterAir, aeroStep, pursue, G_JUP, type AeroBody } from '../src/world/fauna/jupiterAir';
 
 const rho = (p: THREE.Vector3) => 0.17 * Math.exp(-(p.y + 1500) / 27000);
 const SKIMMER: AeroBody = { m: 600, S: 120, CLmax: 1.4, CD0: 0.02, k: 0.04, buoy: 0, T: 0, bank: 0.7 };
@@ -95,5 +95,25 @@ describe('Jupiter air: lift, drag and buoyancy', () => {
     expect(down).toBeGreaterThan(50);
     const c = air.core(800, 800);
     expect(air.updraft(c.x, c.z)).toBeGreaterThan(1.5);
+  });
+
+  it('a heavy pursuer (the Deepdiver) reaches a sinking carcass by a racetrack from any start', () => {
+    for (const [ox, oy, oz, vx, vz] of [[320, -120, 0, 70, 0], [320, -120, 0, -70, 0], [0, -100, 500, 70, 0], [-600, -80, 300, 0, -70]]) {
+      const b: AeroBody = { m: 4000, S: 140, CLmax: 1.4, CD0: 0.05, k: 0.06, buoy: 0.55, T: 30000, bank: 0.9, steer: 5 };
+      const air = new Still(() => 0.166, 0);
+      const pos = new THREE.Vector3(ox, oy, oz), vel = new THREE.Vector3(vx, 0, vz);
+      const prey = new THREE.Vector3(), pv = new THREE.Vector3(0, -13, 0);
+      const st = { mode: 'in' as 'in' | 'out' };
+      const goal = new THREE.Vector3();
+      let hit = false;
+      for (let i = 0; i < 70 * 30 && !hit; i++) {
+        prey.addScaledVector(pv, 1 / 30);
+        const d = pos.distanceTo(prey);
+        pursue(st, pos, vel, prey, pv, 75, 300, goal);
+        aeroStep(b, air, pos, vel, goal, d < 400 ? 85 : 75, 1 / 30, d < 400 ? 1.6 : 1);
+        hit = pos.distanceTo(prey) < 22;
+      }
+      expect(hit).toBe(true);
+    }
   });
 });

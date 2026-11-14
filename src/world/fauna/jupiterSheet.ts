@@ -4,7 +4,7 @@ import { AX } from './Rig';
 import { Flyer, Sky } from './jupiter';
 import { PreySwarm } from './prey';
 import { SPECIES_EXPANSION } from '../../data/speciesExpansion';
-import { JupiterAir, aeroStep, type AeroBody, type AeroState } from './jupiterAir';
+import { JupiterAir, aeroStep, pursue, type AeroBody, type AeroState } from './jupiterAir';
 import { siteMemory, type FaunaMemory } from './memory';
 
 /**
@@ -592,8 +592,12 @@ class Deepdiver extends SheetFlyer {
   readonly species = 'deepdiver';
   readonly id = 'deepdiver';
   /** 4 t of armour and muscle, 55 % gas-buoyed: it must swim fast (≈70 m/s) to hold its height on its fins */
-  readonly body: AeroBody = { m: 4000, S: 120, CLmax: 1.0, CD0: 0.05, k: 0.06, buoy: 0.55, T: 30000, bank: 0.5 };
+  readonly body: AeroBody = { m: 4000, S: 140, CLmax: 1.0, CD0: 0.05, k: 0.06, buoy: 0.55, T: 30000, bank: 0.5 };
   prey: Skyjelly | null = null;
+  private run = { mode: 'in' as 'in' | 'out' };
+  private chaseT = 0;
+  /** carcasses taken (a count for the field record and the tests) */
+  meals = 0;
 
   constructor(f: FaunaManager, sky: Sky, air: JupiterAir, readonly jellies: Skyjelly[]) {
     super(f, sky, air);
@@ -608,11 +612,31 @@ class Deepdiver extends SheetFlyer {
     if (!this.prey) this.prey = this.jellies.find((j) => j.torn >= 0 && j.pos.y < this.hi + 150 && j.pos.distanceTo(this.pos) < 1500) ?? null;
     if (this.prey && this.prey.torn < 0) this.prey = null;
     if (this.prey) {
-      this.fly(this.prey.pos, 75, dt);
-      if (this.pos.distanceTo(this.prey.pos) < 14 * this.size) {
+      this.chaseT += dt;
+      // the ambush run: a racetrack on the sinking carcass (run in on a lead point, extend out after a miss and
+      // come round again) with the three blade-fins spread — more lift, a hard bank, sharp steering near the end;
+      // it may follow the carcass a few hundred metres below its usual layer, then climbs back
+      const d = this.pos.distanceTo(this.prey.pos);
+      pursue(this.run, this.pos, this.vel, this.prey.pos, this.prey.vel, 75, 300, _w);
+      this.body.bank = 0.9;
+      this.body.CLmax = 1.4;
+      this.body.steer = 5;
+      this.band = [-1450, -450];
+      this.fly(_w, d < 400 ? 85 : 75, dt, d < 400 ? 1.6 : 1);
+      if (d < 22 * this.size) {
         if (seen(this.f, this.pos, 2000, 0.8)) note(this.f, 'deepdiver', 'scavenge', 'Took a torn Skyjelly sinking through its corridor — an ambush from below.');
         this.prey.torn = 1e6; // consumed (it is replaced up in the layer)
         this.prey = null;
+        this.meals++;
+      }
+      if (this.prey && (this.prey.pos.y < this.air.refY - 1450 || this.chaseT > 150)) this.prey = null;
+      if (!this.prey) {
+        this.body.bank = 0.5;
+        this.body.CLmax = 1.0;
+        this.body.steer = 1.4;
+        this.band = [-1100, -500];
+        this.run.mode = 'in';
+        this.chaseT = 0;
       }
     } else {
       // cruising its lower corridor ahead of the Ranger's track
