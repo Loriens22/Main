@@ -60,6 +60,14 @@ export interface LifeSettings {
   hostility: 'passive' | 'normal' | 'fierce';
   /** creature count multiplier */
   density: number;
+  /**
+   * Science presentation (Mars & Jupiter expansion): 'speculative' — the full speculative-evolution biosphere (all
+   * eighteen expansion species and the earlier ones); 'conservative' — no complex animals on Mars or Jupiter (the
+   * refuge stays, empty but for microbial mats; the codex keeps them as unverified archive hypotheses)
+   */
+  science: 'speculative' | 'conservative';
+  /** Creative: show the Jupiter giants at the poster's heroic size instead of the simulated size */
+  heroic: boolean;
 }
 
 export interface Settings {
@@ -179,7 +187,7 @@ export function defaultSettings(): Settings {
       headBob: true,
       subtitles: true,
     },
-    life: { enabled: true, mars: true, jupiter: true, miller: true, hostility: 'normal', density: 1 },
+    life: { enabled: true, mars: true, jupiter: true, miller: true, hostility: 'normal', density: 1, science: 'speculative', heroic: false },
   };
 }
 

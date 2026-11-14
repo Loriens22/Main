@@ -124,6 +124,8 @@ export function applySkin(m: THREE.MeshStandardMaterial, s: SkinSpec, quality = 
     skBelly: { value: s.belly ?? 0 },
     skBellyColor: { value: v3(s.bellyColor, [1, 1, 1]) },
     skCavity: { value: new THREE.Vector4(s.cavity ?? 0.3, s.wet ?? 0.4, s.vary ?? 0.15, s.aoAlbedo ?? 0.55) },
+    /** 0 adult … 1 newly born: paler, softer colouring (set per animal on its own material clone) */
+    skYouth: { value: 0 },
     skLattice: { value: new THREE.Vector2(s.lattice ?? 0, 1 / (s.latticeSize ?? 0.1)) },
   };
   const defs = f.map((d) => `#define ${d}`).join('\n');
@@ -147,7 +149,7 @@ export function applySkin(m: THREE.MeshStandardMaterial, s: SkinSpec, quality = 
         `#include <common>
         ${defs}
         varying vec3 vSkP; varying vec3 vSkN; varying float vSkAO;
-        uniform float skScale, skBelly;
+        uniform float skScale, skBelly, skYouth;
         uniform vec4 skPlates, skSpots, skCavity; uniform vec3 skPlateStretch, skWrinkleAxis, skRetic;
         uniform vec2 skWrinkle, skPores, skMottle, skLattice;
         uniform vec3 skMottleColor, skSpotColor, skReticColor, skBellyColor, skMottleAxis, skMottle2Color;
@@ -224,6 +226,7 @@ export function applySkin(m: THREE.MeshStandardMaterial, s: SkinSpec, quality = 
           diffuseColor.rgb *= 1.0 - skCavity.z * 0.5 + skCavity.z * skF(p * 9.0);
           diffuseColor.rgb *= 1.0 - skCav * skCavity.x;
           diffuseColor.rgb *= mix(1.0, vSkAO, skCavity.w);
+          diffuseColor.rgb = mix(diffuseColor.rgb, diffuseColor.rgb * 0.7 + vec3(0.07, 0.065, 0.06) + 0.25 * vec3(dot(diffuseColor.rgb, vec3(0.33))), skYouth * 0.65);
         }`,
       )
       .replace(
@@ -256,6 +259,7 @@ export function applySkin(m: THREE.MeshStandardMaterial, s: SkinSpec, quality = 
   m.customProgramCacheKey = () => 'skin1:' + f.join(',');
   m.userData.skin = true;
   m.userData.skinSpec = s;
+  m.userData.skinUniforms = u;
 }
 
 /** clone a material keeping its skin (Material.clone drops onBeforeCompile) */

@@ -174,7 +174,8 @@ def breaker(juvenile=False):
             parts.append(Part(kit.merge(toes, f"toes{s}{k}"), bone=ch[-1]))
     body = assemble("breaker_body", sk, parts)
     name = "fauna_breaker_juv.glb" if J else "fauna_breaker.glb"
-    arm = finish_creature(root, sk, body, os.path.join(kit.out_dir(), name), props={"creature": "breaker", "length": 3.0}, ao=0.45, paint=1024 if J else 2048)
+    arm = finish_creature(root, sk, body, os.path.join(kit.out_dir(), name), props={"creature": "breaker", "length": 3.0}, ao=0.45, paint=1024 if J else 2048,
+                           juvenile=None if J else ([("head", "grow", 1.3), ("limb", "thin", 0.78), ("body", "squash", 0.97)], ("breaker_eye", "cornea")))
     return root, arm
 
 
@@ -309,7 +310,8 @@ def architect(juvenile=False):
                 parts.append(Part(b, bone=ch[min(2, int(3 * (i + 0.5) / len(bands)))]))
             parts.append(Part(fang(f"dact{s}{k}", pts[-1] + V((0, 0, 0.03)), V((0, 0, -1)), V((sx, 0, 0)), 0.05, 0.016, curve=0.2, m=SH, seg=6), bone=ch[-1]))
     body = assemble("architect_body", sk, parts)
-    arm = finish_creature(root, sk, body, os.path.join(kit.out_dir(), "fauna_architect_juv.glb" if J else "fauna_architect.glb"), props={"creature": "architect"}, ao=0.25, paint=1024 if not J else 512)
+    arm = finish_creature(root, sk, body, os.path.join(kit.out_dir(), "fauna_architect_juv.glb" if J else "fauna_architect.glb"), props={"creature": "architect"}, ao=0.25, paint=1024 if not J else 512,
+                           juvenile=None if J else ([("leg", "thin", 0.78), ("man", "thin", 0.8), ("body", "squash", 0.96)], ("mimic_pupil", "cornea")))
     return root, arm
 
 
@@ -437,7 +439,8 @@ def mimic(juvenile=False):
             parts.append(Part(kit.merge(det, f"adet{s}{k}"), bones=ch))
     body = assemble("mimic_body", sk, parts)
     name = "fauna_mimic_juv.glb" if J else "fauna_mimic.glb"
-    arm = finish_creature(root, sk, body, os.path.join(kit.out_dir(), name), props={"creature": "mimic", "span": 2.4}, ao=0.3, paint=1024 if J else 2048)
+    arm = finish_creature(root, sk, body, os.path.join(kit.out_dir(), name), props={"creature": "mimic", "span": 2.4}, ao=0.3, paint=1024 if J else 2048,
+                           juvenile=None if J else ([("eye", "grow", 1.35), ("head", "grow", 1.2), ("arm", "thin", 0.8)], ("mimic_eye", "mimic_pupil", "cornea")))
     return root, arm
 
 
@@ -552,7 +555,8 @@ def sedimentmaw(juvenile=False):
             ch = chain_along(sk, f"limb{s}{k}", path, 3, "body")
             parts.append(Part(ringed(f"limb{s}{k}m", path, lambda t: (0.15 if not J else 0.11) * (1 - 0.55 * t) + 0.01, "maw_limb", rings=15, groove=0.16, seg=14, samples=160), bones=ch + ["body"]))
     body = assemble("sedimentmaw_body", sk, parts)
-    arm = finish_creature(root, sk, body, os.path.join(kit.out_dir(), "fauna_sedimentmaw_juv.glb" if J else "fauna_sedimentmaw.glb"), props={"creature": "sedimentmaw", "rim": RIM, "mouth": f"{MX:.2f},{MY:.2f}"}, ao=0.4, paint=1024 if not J else 512)
+    arm = finish_creature(root, sk, body, os.path.join(kit.out_dir(), "fauna_sedimentmaw_juv.glb" if J else "fauna_sedimentmaw.glb"), props={"creature": "sedimentmaw", "rim": RIM, "mouth": f"{MX:.2f},{MY:.2f}"}, ao=0.4, paint=1024 if not J else 512,
+                           juvenile=None if J else ([("limb", "thin", 0.72), ("lip", "grow", 1.12)], ()))
     return root, arm
 
 
@@ -639,6 +643,32 @@ def ferracaris(juvenile=False):
     body = kit.merge(parts, "ferracaris_body")
     kit.smooth(body, 45)
     body.parent = root
+    if not J:
+        me = body.data
+        body.shape_key_add(name="Basis", from_mix=False)
+        key = body.shape_key_add(name="juvenile", from_mix=False)
+        mats = [m.name if m else "" for m in me.materials]
+        vmat = {}
+        for poly in me.polygons:
+            for vi in poly.vertices:
+                vmat.setdefault(vi, mats[poly.material_index])
+        eyes = {vi for vi, m in vmat.items() if m == "mimic_pupil"}
+        ec = {sx: sum((me.vertices[i].co for i in eyes if me.vertices[i].co.x * sx > 0), V((0, 0, 0))) for sx in (-1, 1)}
+        en = {sx: max(1, sum(1 for i in eyes if me.vertices[i].co.x * sx > 0)) for sx in (-1, 1)}
+        for v in me.vertices:
+            p = v.co.copy()
+            m = vmat.get(v.index, "")
+            q = V((p.x * 1.04, p.y * 0.86, p.z * 1.08))  # rounder, shorter, a little higher-domed
+            if m in ("ferra_leg",):
+                q = V((q.x * 0.82, q.y, q.z))  # shorter legs
+            if m == "ferra_fringe":
+                q = V((q.x * 0.9, q.y * 0.95, q.z + 0.002))  # a shorter fringe
+            if v.index in eyes:
+                sx = 1 if p.x > 0 else -1
+                c = ec[sx] / en[sx]
+                c2 = V((c.x * 1.04, c.y * 0.86, c.z * 1.08))
+                q = c2 + (p - c) * 1.6
+            key.data[v.index].co = q
     import paint as PNT
     PNT.bake_body(body, "fauna_ferracaris_juv" if J else "fauna_ferracaris", size=512 if not J else 256)
     C.bake_ao(body, distance=0.03)

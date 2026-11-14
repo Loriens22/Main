@@ -204,8 +204,8 @@ const RECIPES: Record<string, Recipe> = {
   wing_dark: { kind: 'physical', color: C(0.12, 0.13, 0.17), rough: 0.35, clearcoat: 0.4, weather: false },
   wing_mark: { kind: 'physical', color: C(0.78, 0.2, 0.13), emissive: C(1.0, 0.22, 0.1), emissiveIntensity: 0.55, rough: 0.35, clearcoat: 0.5, weather: false },
   // Jupiter
-  floater_bag: { kind: 'physical', color: C(0.72, 0.38, 0.25), rough: 0.2, clearcoat: 0.85, iridescence: 0.7, sheen: 0.3, weather: false,
-    skin: { wrinkle: 0.015, wrinkleSize: 0.6, wrinkleAxis: [1, 1, 3], pores: 0.004, poreSize: 0.15, retic: 0.25, reticSize: 1.5, reticWidth: 0.03, reticColor: [0.5, 0.22, 0.14], cavity: 0.3, wet: 0.3, vary: 0.2 } },
+  floater_bag: { kind: 'physical', color: C(0.72, 0.38, 0.25), rough: 0.07, clearcoat: 1, iridescence: 0.95, sheen: 0.2, envMapIntensity: 1.9, weather: false,
+    skin: { wrinkle: 0.01, wrinkleSize: 0.6, wrinkleAxis: [1, 1, 3], pores: 0.003, poreSize: 0.15, cavity: 0.25, wet: 0.6, vary: 0.15 } },
   floater_shell: { kind: 'physical', color: C(0.82, 0.78, 0.7), rough: 0.3, clearcoat: 0.6, weather: false,
     skin: { wrinkle: 0.01, wrinkleSize: 0.08, wrinkleAxis: [4, 1, 4], pores: 0.002, poreSize: 0.03, mottle: 0.4, mottleSize: 0.2, mottleColor: [0.62, 0.55, 0.45], cavity: 0.4, vary: 0.25 } },
   floater_tendril: { kind: 'physical', color: C(0.32, 0.22, 0.17), emissive: C(0.45, 0.75, 1.0), emissiveIntensity: 0, rough: 0.5, sheen: 0.3, weather: false,
@@ -383,6 +383,84 @@ const RECIPES: Record<string, Recipe> = {
   prey_glow: { color: C(0.3, 0.9, 1.0), emissive: C(0.3, 0.9, 1.0), emissiveIntensity: 2.5, rough: 0.2, weather: false },
   // krill carry light organs (photophores): a faint blue-green glow makes a swarm visible in the dark
   prey_krill: { kind: 'physical', color: C(0.8, 0.42, 0.38), emissive: C(0.25, 0.85, 0.8), emissiveIntensity: 0.55, rough: 0.3, opacity: 0.8, weather: false },
+  // ---- the Mars refuge (blender/assets/mars_refuge.py): object-space procedural rock, AO from the bake
+  refuge_crust: { kind: 'physical', color: C(0.4, 0.2, 0.12), rough: 0.92, weather: false,
+    skin: { plates: 0.05, plateSize: 3.2, plateGroove: 0.12, wrinkle: 0.04, wrinkleSize: 0.9, wrinkleAxis: [0.4, 3, 0.4], pores: 0.012, poreSize: 0.25, mottle: 0.55, mottleSize: 6, mottleColor: [0.27, 0.13, 0.08], mottle2: 0.45, mottle2Size: 0.7, mottle2Color: [0.48, 0.25, 0.14], cavity: 0.5, vary: 0.35 } },
+  refuge_basalt: { kind: 'physical', color: C(0.075, 0.06, 0.052), rough: 0.62, clearcoat: 0.35, weather: false,
+    skin: { plates: 0.05, plateSize: 1.8, plateGroove: 0.16, wrinkle: 0.035, wrinkleSize: 0.7, wrinkleAxis: [0.5, 2.5, 0.5], pores: 0.02, poreSize: 0.14, mottle: 0.55, mottleSize: 3, mottleColor: [0.2, 0.08, 0.04], mottle2: 0.45, mottle2Size: 0.4, mottle2Color: [0.12, 0.1, 0.09], cavity: 0.55, wet: 0.6, vary: 0.4 } },
+  refuge_mineral: { kind: 'physical', color: C(0.3, 0.13, 0.06), rough: 0.42, clearcoat: 0.6, weather: false,
+    skin: { wrinkle: 0.03, wrinkleSize: 0.25, wrinkleAxis: [3, 0.3, 3], pores: 0.008, poreSize: 0.06, mottle: 0.6, mottleSize: 0.9, mottleColor: [0.52, 0.3, 0.12], mottle2: 0.5, mottle2Size: 0.25, mottle2Color: [0.12, 0.05, 0.03], cavity: 0.5, wet: 0.7, vary: 0.35 } },
+  refuge_floor: { kind: 'physical', color: C(0.09, 0.066, 0.052), rough: 0.6, clearcoat: 0.3, weather: false,
+    skin: { pores: 0.014, poreSize: 0.09, wrinkle: 0.02, wrinkleSize: 0.5, wrinkleAxis: [1, 0.3, 1], mottle: 0.6, mottleSize: 2.5, mottleColor: [0.2, 0.09, 0.045], mottle2: 0.5, mottle2Size: 0.35, mottle2Color: [0.045, 0.04, 0.036], spots: 0.35, spotSize: 0.6, spotRadius: 0.3, spotDensity: 0.25, spotColor: [0.16, 0.12, 0.09], cavity: 0.55, wet: 0.65, vary: 0.4 } },
+  refuge_ice: { kind: 'physical', color: C(0.62, 0.78, 0.86), rough: 0.06, clearcoat: 1, opacity: 0.72, envMapIntensity: 1.4, weather: false,
+    skin: { wrinkle: 0.012, wrinkleSize: 0.5, pores: 0.003, poreSize: 0.05, mottle: 0.45, mottleSize: 1.2, mottleColor: [0.85, 0.9, 0.95], cavity: 0.2, wet: 0.8, vary: 0.25 } },
+  // ---- Mars & Jupiter speculative expansion: the nine Mars species (blender/assets/fauna_mars_deep.py, painted maps)
+  // 909 Crimson Icebloom: thin translucent gel lamellae, wet, frost-speckled
+  ib_petal: { kind: 'physical', color: C(0.62, 0.08, 0.3), rough: 0.16, clearcoat: 0.9, sheen: 0.35, opacity: 0.62, side: THREE.DoubleSide, weather: false,
+    skin: { wrinkle: 0.0006, wrinkleSize: 0.01, pores: 0.0002, poreSize: 0.003, cavity: 0.2, wet: 0.7, vary: 0.2 } },
+  ib_petal_in: { kind: 'physical', color: C(0.72, 0.06, 0.22), rough: 0.18, clearcoat: 0.9, sheen: 0.35, opacity: 0.78, side: THREE.DoubleSide, weather: false,
+    skin: { wrinkle: 0.0006, wrinkleSize: 0.01, cavity: 0.25, wet: 0.7, vary: 0.2 } },
+  ib_core: { kind: 'physical', color: C(0.5, 0.02, 0.05), rough: 0.28, clearcoat: 0.7, weather: false, skin: { pores: 0.0004, poreSize: 0.003, cavity: 0.4, wet: 0.5 } },
+  ib_vein: { kind: 'physical', color: C(0.66, 0.04, 0.08), rough: 0.3, clearcoat: 0.7, opacity: 0.85, weather: false, skin: { cavity: 0.2, wet: 0.5 } },
+  ib_nodule: { kind: 'physical', color: C(0.25, 0.02, 0.04), rough: 0.35, clearcoat: 0.5, weather: false, skin: { pores: 0.0004, poreSize: 0.004, cavity: 0.4 } },
+  // 912 Ferric Cathedral: wet velvet tissue over glassy-rusty mineral scaffold
+  fc_tissue: { kind: 'physical', color: C(0.36, 0.05, 0.025), rough: 0.26, clearcoat: 0.75, sheen: 0.35, weather: false,
+    skin: { wrinkle: 0.002, wrinkleSize: 0.03, wrinkleAxis: [1, 1, 4], pores: 0.0008, poreSize: 0.008, cavity: 0.5, wet: 0.7, vary: 0.25 } },
+  fc_mineral: { kind: 'physical', color: C(0.22, 0.08, 0.04), rough: 0.55, clearcoat: 0.3, weather: false,
+    skin: { pores: 0.002, poreSize: 0.02, wrinkle: 0.002, wrinkleSize: 0.04, cavity: 0.55, wet: 0.35, vary: 0.3 } },
+  fc_frond: { kind: 'physical', color: C(0.7, 0.2, 0.05), rough: 0.3, clearcoat: 0.6, sheen: 0.4, opacity: 0.9, side: THREE.DoubleSide, weather: false,
+    skin: { wrinkle: 0.0008, wrinkleSize: 0.01, cavity: 0.3, wet: 0.5 } },
+  // 913 Glass Ribbon: a hydrated transparent membrane with a violet organ tract
+  gr_glass: { kind: 'physical', color: C(0.82, 0.86, 0.92), rough: 0.06, clearcoat: 1, iridescence: 0.4, opacity: 0.3, side: THREE.DoubleSide, weather: false,
+    skin: { wrinkle: 0.0002, wrinkleSize: 0.004, wet: 0.8 } },
+  gr_tract: { kind: 'physical', color: C(0.38, 0.12, 0.62), emissive: C(0.18, 0.05, 0.3), emissiveIntensity: 0.25, rough: 0.2, opacity: 0.85, weather: false },
+  gr_cilia: { kind: 'physical', color: C(0.9, 0.92, 0.95), rough: 0.2, opacity: 0.55, weather: false },
+  // 915 Prism Architect: layered mineralised plates with strong thin-film colour, worn matte seams
+  pa_plate: { kind: 'physical', color: C(0.36, 0.2, 0.11), rough: 0.3, metal: 0.15, clearcoat: 0.45, iridescence: 1.0, envMapIntensity: 1.0, weather: false,
+    skin: { wrinkle: 0.0006, wrinkleSize: 0.008, wrinkleAxis: [1, 4, 1], pores: 0.0003, poreSize: 0.004, cavity: 0.3, wet: 0.45, vary: 0.3 } },
+  pa_body: { kind: 'physical', color: C(0.2, 0.12, 0.08), rough: 0.4, clearcoat: 0.4, iridescence: 0.35, weather: false,
+    skin: { wrinkle: 0.0015, wrinkleSize: 0.02, pores: 0.0006, poreSize: 0.006, cavity: 0.4, vary: 0.25 } },
+  pa_leg: { kind: 'physical', color: C(0.34, 0.2, 0.13), rough: 0.32, metal: 0.12, clearcoat: 0.4, iridescence: 0.75, weather: false,
+    skin: { pores: 0.0004, poreSize: 0.005, wrinkle: 0.0006, wrinkleSize: 0.01, cavity: 0.35, vary: 0.25 } },
+  pa_eye: { kind: 'physical', color: C(0.01, 0.01, 0.012), rough: 0.03, clearcoat: 1, weather: false },
+  pa_stone: { kind: 'physical', color: C(0.28, 0.24, 0.2), rough: 0.75, weather: false, skin: { pores: 0.002, poreSize: 0.02, cavity: 0.5, vary: 0.3 } },
+  pa_egg: { kind: 'physical', color: C(0.88, 0.78, 0.66), emissive: C(0.55, 0.32, 0.12), emissiveIntensity: 0.18, rough: 0.3, clearcoat: 0.8, sheen: 0.4, opacity: 0.9, weather: false,
+    skin: { wrinkle: 0.0004, wrinkleSize: 0.01, cavity: 0.2, wet: 0.4 } },
+  pa_fibre: { kind: 'physical', color: C(0.45, 0.38, 0.3), rough: 0.8, weather: false, skin: { cavity: 0.3 } },
+  // 911 Ghost of Valles: silver-lilac translucent membranes, silver venation, purple core
+  gv_membrane: { kind: 'physical', color: C(0.66, 0.62, 0.78), rough: 0.1, clearcoat: 1, sheen: 0.4, iridescence: 0.45, opacity: 0.4, side: THREE.DoubleSide, weather: false,
+    skin: { wrinkle: 0.0006, wrinkleSize: 0.04, wet: 0.7 } },
+  gv_body: { kind: 'physical', color: C(0.55, 0.42, 0.68), rough: 0.1, clearcoat: 1, iridescence: 0.3, opacity: 0.62, side: THREE.DoubleSide, weather: false,
+    skin: { wrinkle: 0.0008, wrinkleSize: 0.03, pores: 0.0004, poreSize: 0.008, wet: 0.7 } },
+  gv_core: { kind: 'physical', color: C(0.38, 0.14, 0.5), emissive: C(0.2, 0.06, 0.28), emissiveIntensity: 0.2, rough: 0.2, opacity: 0.85, weather: false },
+  gv_vein: { kind: 'physical', color: C(0.9, 0.9, 0.95), rough: 0.15, clearcoat: 0.8, metal: 0.3, opacity: 0.8, weather: false },
+  gv_eye: { kind: 'physical', color: C(0.08, 0.06, 0.1), rough: 0.05, clearcoat: 1, weather: false },
+  // 910 Basalt Mimic: granular vesicular basalt skin, rust mottling, damp
+  bm_skin: { kind: 'physical', color: C(0.05, 0.04, 0.035), rough: 0.62, clearcoat: 0.2, weather: false,
+    skin: { pores: 0.0016, poreSize: 0.012, wrinkle: 0.0018, wrinkleSize: 0.03, cavity: 0.55, wet: 0.3, vary: 0.3 } },
+  bm_shield: { kind: 'physical', color: C(0.06, 0.05, 0.045), rough: 0.7, clearcoat: 0.12, weather: false,
+    skin: { pores: 0.0024, poreSize: 0.016, cavity: 0.6, wet: 0.2, vary: 0.35 } },
+  bm_belly: { kind: 'physical', color: C(0.12, 0.07, 0.05), rough: 0.55, clearcoat: 0.2, weather: false, skin: { pores: 0.001, poreSize: 0.008, wrinkle: 0.0012, wrinkleSize: 0.02, cavity: 0.4 } },
+  bm_eye: { kind: 'physical', color: C(0.6, 0.38, 0.08), emissive: C(0.25, 0.14, 0.02), emissiveIntensity: 0.12, rough: 0.05, clearcoat: 1, weather: false },
+  // 914 Red Dune Hermit: matte, dust-caked, impact-pitted
+  dh_shell: { kind: 'physical', color: C(0.36, 0.12, 0.06), rough: 0.88, sheen: 0.3, weather: false,
+    skin: { pores: 0.0006, poreSize: 0.004, wrinkle: 0.0006, wrinkleSize: 0.008, cavity: 0.4, vary: 0.25 } },
+  dh_leg: { kind: 'physical', color: C(0.32, 0.12, 0.06), rough: 0.82, sheen: 0.3, weather: false, skin: { pores: 0.0005, poreSize: 0.003, cavity: 0.4 } },
+  dh_soft: { kind: 'physical', color: C(0.28, 0.1, 0.06), rough: 0.6, sheen: 0.3, weather: false, skin: { wrinkle: 0.0006, wrinkleSize: 0.005, cavity: 0.4 } },
+  // 907 Thermal Rift Serpent: wet black hide, rust-copper banding
+  rs_hide: { kind: 'physical', color: C(0.05, 0.025, 0.02), rough: 0.3, clearcoat: 0.85, sheen: 0.25, weather: false,
+    skin: { pores: 0.0008, poreSize: 0.008, wrinkle: 0.0015, wrinkleSize: 0.025, wrinkleAxis: [1, 1, 3], cavity: 0.5, wet: 0.85, vary: 0.25 } },
+  rs_belly: { kind: 'physical', color: C(0.25, 0.14, 0.09), rough: 0.35, clearcoat: 0.7, weather: false,
+    skin: { wrinkle: 0.0012, wrinkleSize: 0.02, wrinkleAxis: [4, 1, 1], cavity: 0.4, wet: 0.7 } },
+  rs_eye: { kind: 'physical', color: C(0.65, 0.45, 0.1), emissive: C(0.3, 0.18, 0.03), emissiveIntensity: 0.15, rough: 0.05, clearcoat: 1, weather: false },
+  rs_whisker: { kind: 'physical', color: C(0.75, 0.68, 0.6), rough: 0.3, clearcoat: 0.5, weather: false },
+  // 908 Subglacial Monarch: elastic black-blue skin, ivory scars, pale underside
+  mo_hide: { kind: 'physical', color: C(0.025, 0.035, 0.055), rough: 0.32, clearcoat: 0.9, sheen: 0.2, weather: false,
+    skin: { wrinkle: 0.003, wrinkleSize: 0.08, wrinkleAxis: [3, 1, 3], pores: 0.0015, poreSize: 0.03, cavity: 0.45, wet: 0.8, vary: 0.25 } },
+  mo_belly: { kind: 'physical', color: C(0.3, 0.32, 0.34), rough: 0.35, clearcoat: 0.8, weather: false,
+    skin: { wrinkle: 0.003, wrinkleSize: 0.04, wrinkleAxis: [4, 1, 1], cavity: 0.4, wet: 0.7 } },
+  mo_gum: { kind: 'physical', color: C(0.28, 0.1, 0.12), rough: 0.3, clearcoat: 0.8, weather: false, skin: { wrinkle: 0.002, wrinkleSize: 0.02, cavity: 0.5, wet: 0.8 } },
+  mo_eye: { kind: 'physical', color: C(0.35, 0.2, 0.06), rough: 0.05, clearcoat: 1, weather: false },
   miller_canister: { kind: 'physical', color: C(0.8, 0.79, 0.74), rough: 0.4, metal: 0.3, weather: { grime: 0.6, streak: 0.3, scratch: 0.4 } },
   // the explorer camps on the Gargantua worlds (blender/lib/camp.py)
   granite_pale: { color: C(2.3, 2.05, 1.75), map: 'rock_a', mapRepeat: 0.22, rough: 0.92, normal: 'rock_n', normalScale: 1.1, normalRepeat: 0.22, weather: { grime: 0.35, grimeScale: 0.12, grimeTint: new THREE.Color(0.8, 0.72, 0.62), scratch: 0, streak: 0.25 } },
@@ -516,17 +594,25 @@ export class MaterialLibrary {
   }
 
   /** a recipe material carrying a baked colour map: the map holds the colour pattern, the skin adds relief only */
-  private painted(base: string, map: THREE.Texture): THREE.Material {
-    const key = base + '|' + map.uuid;
+  private painted(base: string, map: THREE.Texture, nmap: THREE.Texture | null = null, nscale: THREE.Vector2 | null = null): THREE.Material {
+    const key = base + '|' + map.uuid + (nmap ? '|' + nmap.uuid : '');
     const hit = this.matCache.get(key);
     if (hit) return hit;
     const r = RECIPES[base];
     const sk = r.skin!;
-    const skin: SkinSpec = { ...sk, mottle: 0, mottle2: 0, spots: 0, retic: 0, belly: 0, aoAlbedo: 0.15, vary: 0.04, cavity: Math.min(sk.cavity ?? 0.3, 0.15) };
-    const m = this.build(base, { ...r, color: [1, 1, 1], skin }) as THREE.MeshStandardMaterial;
+    // the baked maps hold colour pattern and medium relief: the runtime skin adds only the finest relief (pores,
+    // fine wrinkles) and wet cavities — with a baked normal map the coarser procedural cells are dropped
+    const skin: SkinSpec = { ...sk, mottle: 0, mottle2: 0, spots: 0, retic: 0, belly: 0, aoAlbedo: 0.15, vary: 0.04, cavity: Math.min(sk.cavity ?? 0.3, 0.15),
+      ...(nmap ? { plates: 0, wrinkle: (sk.wrinkle ?? 0) * 0.35, wrinkleSize: (sk.wrinkleSize ?? 0.05) * 0.4, pores: (sk.pores ?? 0) * 0.6, poreSize: (sk.poreSize ?? 0.01) * 0.5 } : {}) };
+    const m = this.build(base, { ...r, color: [1, 1, 1], skin, normal: undefined }) as THREE.MeshStandardMaterial;
     map.colorSpace = THREE.SRGBColorSpace;
     map.anisotropy = this.anisotropy;
     m.map = map;
+    if (nmap && this.textureQuality > 0) {
+      nmap.anisotropy = this.anisotropy;
+      m.normalMap = nmap;
+      m.normalScale = (nscale ?? new THREE.Vector2(1, 1)).clone();
+    }
     m.needsUpdate = true;
     this.matCache.set(key, m);
     return m;
@@ -605,7 +691,7 @@ export class MaterialLibrary {
         // a creature with a painted colour map baked in Blender (blender/lib/paint.py): keep the map
         const gm = mat as THREE.MeshStandardMaterial;
         const base = mat.name.replace(/\.\d+$/, '');
-        if (lib && gm.map && RECIPES[base]?.skin) return this.painted(base, gm.map);
+        if (lib && gm.map && RECIPES[base]?.skin) return this.painted(base, gm.map, gm.normalMap, gm.normalScale);
         if (lib) return lib;
         // unknown material: keep, mark as weathered lightly
         const sm = mat as THREE.MeshStandardMaterial;

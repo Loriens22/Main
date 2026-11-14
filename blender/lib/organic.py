@@ -147,6 +147,8 @@ def plate(name, P, N, tc, ac, dt, da, m, rng, lift=0.02, thick=0.01, dome=0.3, j
         f = k - int(k)
         r = rad(th) * (jit[j0] * (1 - f) + jit[(j0 + 1) % K] * f) * u
         t = tc - rear * math.cos(th) * dt * r
+        # a plate reaching past either end of its surface must not sample the extrapolated surface (a spike)
+        t = min(0.995, max(0.005, t))
         a = ac + math.sin(th) * da * r
         p = P(t, a)
         n = N(t, a)

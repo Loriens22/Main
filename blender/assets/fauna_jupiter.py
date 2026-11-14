@@ -194,6 +194,28 @@ def belly_mat(m):
     return f
 
 
+RELIEF_JUP = {
+    "ray_skin": [("wrinkle", 0.012, 0.4, (3, 1, 3)), ("pores", 0.004, 0.08, 0.3), ("scales", 0.003, 0.12), ("noise", 0.01, 1.0)],
+    "ray_belly": [("wrinkle", 0.01, 0.3, (4, 1, 1)), ("pores", 0.003, 0.06, 0.3)],
+    "ray_tent": [("wrinkle", 0.008, 0.15, (1, 4, 1)), ("pores", 0.002, 0.05, 0.3)],
+    "ray_lip": [("wrinkle", 0.01, 0.12), ("pores", 0.003, 0.05, 0.3)],
+    "puff_bladder": [("veins", 0.006, 0.6, 0.03), ("wrinkle", 0.006, 0.2, (1, 1, 3)), ("pores", 0.002, 0.05, 0.3)],
+    "puff_spore": [("veins", 0.003, 0.3, 0.04), ("pores", 0.002, 0.04, 0.3)],
+    "floater_bag": [("wrinkle", 0.015, 0.6, (1, 1, 3)), ("veins", 0.006, 1.5, 0.02), ("pores", 0.004, 0.15, 0.3)],
+    "floater_shell": [("grooves", 0.008, 0.08, 0.05), ("wrinkle", 0.006, 0.08, (4, 1, 4))],
+    "floater_tendril": [("wrinkle", 0.006, 0.1, (1, 1, 5))],
+    "hunter_bag": [("wrinkle", 0.025, 1.2, (3, 1, 3)), ("scales", 0.006, 0.35), ("pores", 0.008, 0.25, 0.3)],
+    "hunter_groove": [("wrinkle", 0.02, 0.6)],
+    "hunter_crest": [("vesicles", 0.03, 0.5, 0.3), ("wrinkle", 0.015, 0.6)],
+    "hunter_fin": [("wrinkle", 0.01, 0.8, (1, 0.3, 1)), ("veins", 0.006, 1.2, 0.03)],
+    "hunter_body": [("wrinkle", 0.02, 0.3), ("pores", 0.008, 0.12, 0.3), ("scales", 0.005, 0.2)],
+    "hunter_feather": [("wrinkle", 0.004, 0.2, (1, 1, 4))],
+}
+for _k, _v in RELIEF_JUP.items():
+    if _k in PAINT:
+        PAINT[_k]["relief"] = _v
+
+
 # ================================================================================================ floater (photo 5)
 def floater():
     kit.reset()
@@ -260,7 +282,7 @@ def floater():
         ch = chains[k % 3]
         parts.append(Part(ringed(f"tendril{k}", pts, lambda t: 0.26 * (1 - t) + 0.05, "floater_tendril", rings=24, groove=0.12, seg=7, samples=80), bones=ch + ["bag"]))
     body = assemble("floater_body", sk, parts)
-    arm = finish_creature(root, sk, body, os.path.join(kit.out_dir(), "fauna_floater.glb"), props={"creature": "floater", "radius": RR}, ao=6.0, paint=2048)
+    arm = finish_creature(root, sk, body, os.path.join(kit.out_dir(), "fauna_floater.glb"), props={"creature": "floater", "radius": RR}, ao=6.0, paint=4096, nsize=2048)
     return root, arm
 
 
@@ -341,7 +363,7 @@ def veilray():
         r0 = 0.5 - 0.14 * abs(u)
         parts.append(Part(ringed(f"tent{k}m", path, lambda t, r0=r0: r0 * (1 - t) ** 1.1 + 0.03, "ray_tent", rings=30, groove=0.07, seg=10, samples=120), bones=ch + ["body"]))
     body = assemble("veilray_body", sk, parts)
-    arm = finish_creature(root, sk, body, os.path.join(kit.out_dir(), "fauna_veilray.glb"), props={"creature": "veilray", "span": 2 * S}, ao=2.5, paint=2048)
+    arm = finish_creature(root, sk, body, os.path.join(kit.out_dir(), "fauna_veilray.glb"), props={"creature": "veilray", "span": 2 * S}, ao=2.5, paint=4096, nsize=2048)
     return root, arm
 
 
@@ -410,7 +432,7 @@ def mawray():
     knobs = [fang(f"tk{i}", path[i] + V((0, 0, 0.45 * (1 - i / 17) ** 1.2)), V((0, -0.4, 1)), V((0, -1, 0)), 0.25 * (1 - i / 8), 0.08 * (1 - i / 9), curve=0.3, m="ray_lip", seg=6, n=4) for i in range(1, 7)]
     parts.append(Part(kit.merge(knobs, "tailknobs"), bones=ch[:3]))
     body = assemble("mawray_body", sk, parts)
-    arm = finish_creature(root, sk, body, os.path.join(kit.out_dir(), "fauna_mawray.glb"), props={"creature": "mawray", "span": 2 * S}, ao=2.5, paint=2048)
+    arm = finish_creature(root, sk, body, os.path.join(kit.out_dir(), "fauna_mawray.glb"), props={"creature": "mawray", "span": 2 * S}, ao=2.5, paint=4096, nsize=2048)
     return root, arm
 
 
@@ -634,7 +656,7 @@ def hunter():
                     bm.faces.new((vs[3], vs[2], vs[4]))
         parts.append(Part(from_bmesh(f"barbs{k}", bm, ("hunter_feather",)), bones=ch))
     body = assemble("hunter_body", sk, parts)
-    arm = finish_creature(root, sk, body, os.path.join(kit.out_dir(), "fauna_hunter.glb"), ao=6.0, paint=2048, props={
+    arm = finish_creature(root, sk, body, os.path.join(kit.out_dir(), "fauna_hunter.glb"), ao=6.0, paint=4096, nsize=2048, props={
         "creature": "hunter", "length": 2 * LB,
         # Blender (x, y, z) → glTF (x, z, −y): the runtime reads model-space anchors
         "anchors": ";".join(f"{p.x:.2f},{p.z:.2f},{-p.y:.2f}" for p in anchors),

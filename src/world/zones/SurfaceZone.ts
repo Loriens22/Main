@@ -31,6 +31,7 @@ import { populateMars } from '../fauna/mars';
 import { populateJupiter } from '../fauna/jupiter';
 import { populateMiller } from '../fauna/miller';
 import { MillerCaves } from '../surface/millerCaves';
+import { MarsRefuge, refugePad, refugeCarve } from '../surface/marsRefuge';
 import { JovianSky } from '../surface/JovianSky';
 import { lookQuat } from '../../space/Proximity';
 import { h } from '../../ui/UI';
@@ -148,7 +149,10 @@ export default class SurfaceZone extends Zone implements SurfaceAPHost {
     const aMax = SPECS.ranger.mainThrust / (SPECS.ranger.dryMass + SPECS.ranger.propMax);
     const need = Math.max(brakingDistance(body.mu, body.radius, 0.42 * aMax) * 1.3, Math.sqrt(2 * body.radius * this.hHand) * 1.05, 30e3);
     const farHalf = Math.min(need, 0.42 * body.radius);
-    this.gen = new SurfaceGen({ site: this.site, map: this.map, farHalf, pads: LazarusSite.pads(this.site, this.def) });
+    // Mars: the refuge's mesa stands on levelled ground and its cavern floor is a mesh (world/surface/marsRefuge.ts)
+    const mars = this.site.body === 'mars';
+    const pads = mars ? [...(LazarusSite.pads(this.site, this.def) ?? []), refugePad()] : LazarusSite.pads(this.site, this.def);
+    this.gen = new SurfaceGen({ site: this.site, map: this.map, farHalf, pads, carve: mars ? refugeCarve : undefined });
     progress(0.15, 'terrain');
     await new Promise((r) => setTimeout(r, 0));
     this.gen.build([0, 0], Math.min(NEAR_SIZE, farHalf * 1.6), Math.min(MID_SIZE, farHalf * 1.6), MAP_RES);
@@ -238,7 +242,14 @@ export default class SurfaceZone extends Zone implements SurfaceAPHost {
     }
     progress(0.95, 'beacon site');
     this.lazarus = await LazarusSite.create(this);
-    if (this.site.body === 'mars') this.fauna = new FaunaManager(this.faunaHost(), populateMars);
+    if (this.site.body === 'mars') {
+      this.refuge = await new MarsRefuge(this).build().catch((e) => {
+        console.error('[mars] refuge', e);
+        return null;
+      });
+      if (this.refuge) game.player.water = (p) => this.refuge!.waterLevel(p.x, p.z);
+      this.fauna = new FaunaManager(this.faunaHost(), populateMars);
+    }
     if (this.site.body === 'jupiter') this.fauna = new FaunaManager(this.faunaHost(), populateJupiter);
     if (this.site.body === 'miller') {
       this.fauna = new FaunaManager(this.faunaHost(), populateMiller);
@@ -597,6 +608,7 @@ export default class SurfaceZone extends Zone implements SurfaceAPHost {
     fx.visor = THREE.MathUtils.damp(fx.visor, pl.mode !== 'seat' && !this.cabinPressurised(pl.pos) ? 0.55 : 0, 3, dt);
     this.updateSky(dt);
     this.updateTide(dt);
+    this.updateRefuge(dt);
     this.updateSuit(dt);
     this.lazarus?.update(dt);
     this.fauna?.update(dt);
@@ -786,7 +798,7 @@ export default class SurfaceZone extends Zone implements SurfaceAPHost {
       game: this.game,
       scene: this.scene,
       body: this.site.body,
-      terrainY: (x, z) => this.terrainY(x, z),
+      terrainY: (x, z) => this.refuge?.floorY(x, z) ?? this.terrainY(x, z),
       sunHeight: () => this.sunHeight(),
       get ground() {
         return zone.ground;
@@ -800,7 +812,7 @@ export default class SurfaceZone extends Zone implements SurfaceAPHost {
       struggle: (on) => {
         if (this.control) this.control.struggle = on;
       },
-      waterLevel: (x, z) => (this.waves ? this.waterLevel(x, z) : -Infinity),
+      waterLevel: (x, z) => (this.waves ? this.waterLevel(x, z) : this.refuge ? this.refuge.waterLevel(x, z) : -Infinity),
       tide: (x, z) => {
         const W = this.waves;
         if (!W || W.first === null) return null;
@@ -813,7 +825,9 @@ export default class SurfaceZone extends Zone implements SurfaceAPHost {
         return { tta: n ? n.tta : Infinity, since, dir: n ? [n.wave.dir.x, n.wave.dir.y] : [-1, 0] };
       },
       rangerFlying: () => !this.craft.landed,
-      caveGuard: (from, to, r) => (this.caves ? this.caves.guard(from, to, r) : false),
+      caveGuard: (from, to, r) => (this.caves ? this.caves.guard(from, to, r) : this.refuge ? this.refuge.guard(from, to, r) : false),
+      lamp: () => this.headlampOn,
+      refuge: () => this.refuge,
       knockout: (msg) => {
         if (this.ranger.site || this.craft.landed) this.ranger.seat();
         this.game.notify(msg, 'alert', 8);
@@ -1314,6 +1328,7 @@ export default class SurfaceZone extends Zone implements SurfaceAPHost {
     this.sun.target.updateMatrixWorld();
     // sky / ground bounce
     const day = THREE.MathUtils.smoothstep(elev, -0.08, 0.2);
+    this.dayK = day;
     const sAlb = this.map.lumAt(this.site.lat, this.site.lon);
     if (atm) {
       this.hemi.color.setRGB(atm.sky[0], atm.sky[1], atm.sky[2]);
@@ -1340,11 +1355,17 @@ export default class SurfaceZone extends Zone implements SurfaceAPHost {
     // indoors (a camp hab): the sky light and the outdoor eye adaptation give way to the room's lamps
     const indoor = this.lazarus?.indoorAt(game.camera.getWorldPosition(_camW)) ? 1 : 0;
     this.indoorK = THREE.MathUtils.damp(this.indoorK, indoor, 3, dt);
+    // under the refuge's rock: no sun, no sky — the survey floods, the skylight and the suit lamp
+    this.refugeK = THREE.MathUtils.damp(this.refugeK, this.refuge ? this.refuge.inside(game.camera.getWorldPosition(_camW)) : 0, 2.5, dt);
+    if (this.refugeK > 0.001) {
+      this.sun.intensity *= 1 - this.refugeK;
+      this.hemi.intensity *= 1 - 0.97 * this.refugeK;
+    }
     this.hemi.intensity *= 1 - 0.75 * this.indoorK;
-    this.scene.environmentIntensity = 0.5 * (1 - 0.8 * this.indoorK);
+    this.scene.environmentIntensity = 0.5 * (1 - 0.8 * this.indoorK) * (1 - 0.9 * this.refugeK);
     // eye adaptation
     const base = THREE.MathUtils.clamp(1 / Math.pow(this.flux, 0.75), 0.4, 4);
-    const night = 1 - day * this.sunVisCPU;
+    const night = Math.max(1 - day * this.sunVisCPU, 0.3 * this.refugeK);
     // under water the eye adapts to the gloom, partly (deep down only the lamp shows much)
     this.exposure = THREE.MathUtils.damp(this.exposure, base * (1 + night * 2.2) * (1 - 0.3 * this.indoorK * (1 - night)) * (1 + 0.8 * (1 - this.underK)), 1.2, dt);
     this.envT -= dt;
@@ -1442,6 +1463,12 @@ export default class SurfaceZone extends Zone implements SurfaceAPHost {
   private domeUnder = false;
   private headlamp: THREE.SpotLight | null = null;
   caves: MillerCaves | null = null;
+  /** Mars: the subsurface refuge (a game alternate-history extension) */
+  refuge: MarsRefuge | null = null;
+  /** 0 outside … 1 under the refuge's rock (damped) */
+  refugeK = 0;
+  private dayK = 1;
+  private refugeLampSaid = false;
   private headlampOn = false;
   private snow: THREE.Points | null = null;
   private depthEl: HTMLElement | null = null;
@@ -1516,7 +1543,9 @@ export default class SurfaceZone extends Zone implements SurfaceAPHost {
     if (l) {
       const on = onFoot && this.headlampOn;
       const uw = this.underK < 1;
-      l.intensity = on ? (uw ? 46 : 28) : 0;
+      // candela: the long-reach dive lamp only in Miller's open deep water; in air and in the refuge's short-sighted
+      // brine a working lamp that does not blow out a subject a metre or two away
+      l.intensity = on ? (uw ? (this.refuge ? 6 : 46) : 2.5) : 0;
       l.visible = on;
       if (on) {
         cam.getWorldPosition(l.position);
@@ -1619,8 +1648,44 @@ export default class SurfaceZone extends Zone implements SurfaceAPHost {
     }
   }
 
+  /** Mars refuge: the lake seen from below its surface (fog, light lost with depth), its lights, the suit lamp */
+  private updateRefuge(dt: number) {
+    const R = this.refuge;
+    if (!R) return;
+    const game = this.game;
+    R.update(dt, this.dayK, this.refugeK);
+    const cam = game.camera.position;
+    const lvl = R.waterLevel(cam.x, cam.z);
+    const under = cam.y < lvl - 0.05;
+    const fog = this.scene.fog as THREE.FogExp2 | null;
+    const atm = ATMO_SURF[this.site.body];
+    if (fog && atm) {
+      const d = Math.max(0, lvl - cam.y);
+      // brine with fine mineral silt: a short sight line, light lost quickly (the lamps carry it)
+      this.underK = under ? Math.max(0.05, Math.exp(-d / 9)) : 1;
+      if (under) {
+        fog.density = 1 / 14;
+        fog.color.setRGB(0.012, 0.022, 0.024);
+        this.hemi.intensity *= this.underK;
+        this.scene.environmentIntensity *= Math.max(this.underK, 0.1);
+      } else if (this.refugeK > 0.01) {
+        // dry cave air: dark, only a little haze in the beams
+        fog.density = THREE.MathUtils.lerp(atm.fog, 1 / 160, this.refugeK);
+        fog.color.multiplyScalar(1 - 0.95 * this.refugeK);
+      }
+    }
+    // the suit lamp comes on by itself the first time the cave swallows the daylight
+    if (!this.refugeLampSaid && this.refugeK > 0.6 && game.player.frame === this.ground && game.player.mode !== 'seat') {
+      this.refugeLampSaid = true;
+      if (!this.headlampOn) this.headlampOn = true;
+      game.notify('Entering the refuge cavern — suit lamp on (L toggles). Survey floodlights ahead.', 'info', 6);
+    }
+  }
+
   dispose() {
     this.game.player.water = null;
+    this.refuge?.dispose();
+    this.refuge = null;
     this.game.player.current.set(0, 0, 0);
     this.depthEl?.remove();
     this.headlamp?.removeFromParent();

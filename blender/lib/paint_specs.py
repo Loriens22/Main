@@ -139,3 +139,54 @@ PAINT.update({
         ("noise", (0.7, 0.52, 0.48), 0.5, 0.008, 0.5, 0.7), ("noise", (0.4, 0.33, 0.22), 0.4, 0.012, 0.52, 0.7),
         ("edge", (0.8, 0.68, 0.58), 0.4), ("ao", 0.5, 0.015)]},
 })
+
+
+# ------------------------------------------------------------------------------------------------ relief (normal maps)
+# heights in metres of the model; sizes in metres (see paint.RELIEF_DOC)
+RELIEF = {
+    "crown_hide": [("wrinkle", 0.012, 0.18, (1.5, 1.5, 4)), ("scales", 0.003, 0.03), ("pores", 0.004, 0.05, 0.25), ("noise", 0.01, 0.5)],
+    "crown_horn": [("wrinkle", 0.006, 0.05, (1, 4, 1)), ("pores", 0.002, 0.02, 0.3), ("grooves", 0.004, 0.08, 0.04)],
+    "crown_gum": [("wrinkle", 0.006, 0.05), ("noise", 0.004, 0.1)],
+    "crown_fin": [("grooves", 0.003, 0.25, 0.03), ("wrinkle", 0.004, 0.2, (0.4, 1, 5))],
+    "crown_tooth": [("wrinkle", 0.001, 0.02, (4, 1, 4))],
+    "stalker_hide": [("scales", 0.0015, 0.011), ("wrinkle", 0.003, 0.12), ("pores", 0.001, 0.02, 0.3)],
+    "stalker_belly": [("wrinkle", 0.003, 0.05, (4, 4, 1)), ("scales", 0.001, 0.01)],
+    "stalker_fin": [("grooves", 0.0015, 0.08, 0.04), ("wrinkle", 0.001, 0.06)],
+    "chorus_hide": [("wrinkle", 0.002, 0.05, (5, 5, 0.6)), ("scales", 0.0008, 0.008), ("pores", 0.0006, 0.01, 0.3)],
+    "chorus_belly": [("wrinkle", 0.0015, 0.02, (5, 5, 0.6))],
+    "chorus_fin": [("grooves", 0.001, 0.04, 0.05)],
+    "cath_hide": [("wrinkle", 0.012, 0.25, (1, 3, 1)), ("pores", 0.004, 0.06, 0.3), ("scales", 0.003, 0.05), ("noise", 0.01, 0.8)],
+    "cath_belly": [("wrinkle", 0.01, 0.12, (4, 1, 0.5)), ("pores", 0.003, 0.05, 0.3)],
+    "cath_cavity": [("wrinkle", 0.012, 0.12), ("noise", 0.01, 0.3)],
+    "cath_wing": [("veins", 0.003, 0.35, 0.03), ("wrinkle", 0.003, 0.3, (0.6, 1, 2))],
+    "cath_lamella": [("cells", 0.004, 0.07, 0.1)],
+    "siren_core": [("noise", 0.0015, 0.02), ("pores", 0.0008, 0.008, 0.3)],
+    "siren_head": [("scales", 0.0005, 0.005), ("noise", 0.0008, 0.01)],
+    "breaker_shell": [("scales", 0.003, 0.025), ("pores", 0.0025, 0.016, 0.3), ("wrinkle", 0.003, 0.05, (3, 1, 3)), ("vesicles", 0.002, 0.04, 0.2)],
+    "breaker_edge": [("pores", 0.002, 0.018, 0.3), ("scales", 0.002, 0.02)],
+    "breaker_skin": [("scales", 0.002, 0.012), ("wrinkle", 0.004, 0.06), ("pores", 0.001, 0.01, 0.3)],
+    "breaker_feeler": [("bands", 0.0015, 40, "z"), ("wrinkle", 0.001, 0.01)],
+    "arch_shell": [("scales", 0.0012, 0.01), ("pores", 0.001, 0.008, 0.3), ("grooves", 0.0015, 0.04, 0.04)],
+    "arch_shell_juv": [("scales", 0.0008, 0.008)],
+    "arch_leg": [("scales", 0.001, 0.008), ("wrinkle", 0.001, 0.02, (1, 1, 2.5))],
+    "arch_wart": [("pores", 0.0015, 0.005, 0.3), ("noise", 0.001, 0.01)],
+    "mimic_skin": [("scales", 0.0012, 0.008), ("wrinkle", 0.002, 0.04), ("pores", 0.0008, 0.006, 0.3)],
+    "mimic_plate": [("pores", 0.001, 0.006, 0.3), ("scales", 0.0012, 0.009), ("grooves", 0.0008, 0.02, 0.05)],
+    "mimic_under": [("wrinkle", 0.002, 0.025), ("noise", 0.001, 0.02)],
+    "mimic_sucker": [("wrinkle", 0.0008, 0.006)],
+    "maw_hide": [("scales", 0.002, 0.012), ("pores", 0.0015, 0.01, 0.3), ("noise", 0.003, 0.05)],
+    "maw_hide_juv": [("scales", 0.0015, 0.01)],
+    "maw_lip": [("cells", 0.002, 0.014, 0.25), ("wrinkle", 0.0015, 0.02)],
+    "maw_limb": [("cells", 0.002, 0.016, 0.25), ("wrinkle", 0.0012, 0.02)],
+    "maw_gullet": [("wrinkle", 0.004, 0.04, (1, 4, 1))],
+    "ferra_plate": [("pores", 0.0003, 0.0025, 0.3), ("noise", 0.0003, 0.006)],
+    "ferra_plate_juv": [("noise", 0.0002, 0.005)],
+    "ferra_leg": [("bands", 0.0002, 600, "z")],
+    "ferra_fringe": [("noise", 0.0001, 0.004)],
+    "tooth": [("wrinkle", 0.0008, 0.02, (4, 1, 4))],
+    "claw_black": [("wrinkle", 0.001, 0.02, (4, 1, 4))],
+    "miller_cave_rock": [("wrinkle", 0.03, 0.6, (0.5, 3, 0.5)), ("vesicles", 0.02, 0.15, 0.25), ("noise", 0.03, 0.8)],
+}
+for _k, _v in RELIEF.items():
+    if _k in PAINT:
+        PAINT[_k]["relief"] = _v

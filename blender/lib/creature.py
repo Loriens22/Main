@@ -408,11 +408,89 @@ def bake_ao(o, distance=0.3, samples=24, floor=0.32):
     return o
 
 
-def finish_creature(root, sk, body, path, props=None, ao=None, paint=None, paint_skip=()):
-    """ao: AO bake distance (m) or None; paint: texture size (px) for a baked painted colour map (blender/lib/paint.py)"""
+def juvenile_shape(body, sk, rules, eye_mats=(), eye_scale=1.5, name="juvenile"):
+    """a shape key holding the young's proportions on the adult mesh (the game blends it out as the animal grows):
+    rules: [(bone-name prefix, kind, factor)] — kind "grow" scales about the bone's head joint (a bigger head),
+    "thin" pulls toward the bone's axis (slimmer limbs, less armour bulk), "squash" scales the bone's own length;
+    faces with an eye material are enlarged about each eye's own centre by eye_scale."""
+    me = body.data
+    if me.shape_keys is None:
+        body.shape_key_add(name="Basis", from_mix=False)
+    key = body.shape_key_add(name=name, from_mix=False)
+    gname = {g.index: g.name for g in body.vertex_groups}
+    segs = {nm: sk.seg(nm) for nm in sk.order}
+
+    def rule_for(bone):
+        for pre, kind, f in rules:
+            if bone.startswith(pre):
+                return kind, f
+        return None
+    pts = [v.co.copy() for v in me.vertices]
+    out = [p.copy() for p in pts]
+    for v in me.vertices:
+        p = pts[v.index]
+        acc = Vector((0, 0, 0))
+        tot = 0.0
+        for ge in v.groups:
+            if ge.weight <= 0:
+                continue
+            bone = gname.get(ge.group)
+            r = rule_for(bone) if bone else None
+            a, b = segs[bone] if bone in segs else (p, p)
+            if r is None:
+                q = p
+            elif r[0] == "grow":
+                q = a + (p - a) * r[1]
+            elif r[0] == "thin":
+                d, t = _seg_dist(p, a, b)
+                c = a + (b - a) * t
+                q = c + (p - c) * r[1]
+            elif r[0] == "squash":
+                q = a + (p - a) * r[1]
+            else:
+                q = p
+            acc += q * ge.weight
+            tot += ge.weight
+        out[v.index] = acc / tot if tot > 1e-6 else p
+    # eyes: each connected cluster of eye-material faces scaled about its own centre
+    if eye_mats:
+        bm = bmesh.new()
+        bm.from_mesh(me)
+        bm.faces.ensure_lookup_table()
+        idx = {i for i, m in enumerate(me.materials) if m is not None and m.name in eye_mats}
+        seen = set()
+        for f in bm.faces:
+            if f.material_index not in idx or f.index in seen:
+                continue
+            comp, stack = set(), [f]
+            while stack:
+                g = stack.pop()
+                if g.index in seen:
+                    continue
+                seen.add(g.index)
+                comp.add(g)
+                for e in g.edges:
+                    for h in e.link_faces:
+                        if h.index not in seen and h.material_index in idx:
+                            stack.append(h)
+            vs = {v.index for g in comp for v in g.verts}
+            c = sum((out[i] for i in vs), Vector()) / max(1, len(vs))
+            for i in vs:
+                out[i] = c + (out[i] - c) * eye_scale
+        bm.free()
+    for i, p in enumerate(out):
+        key.data[i].co = p
+    return key
+
+
+def finish_creature(root, sk, body, path, props=None, ao=None, paint=None, paint_skip=(), nsize=None, juvenile=None):
+    """ao: AO bake distance (m) or None; paint: texture size (px) for a baked painted colour map (blender/lib/paint.py);
+    nsize: normal map size (px, default = paint); juvenile: (rules, eye_mats) for a 'juvenile' shape key"""
+    if juvenile:
+        juvenile_shape(body, sk, juvenile[0], eye_mats=juvenile[1] if len(juvenile) > 1 else ())
     if paint:
         import paint as P
-        P.bake_body(body, os.path.splitext(os.path.basename(path))[0], size=paint, skip=paint_skip)
+        P.bake_body(body, os.path.splitext(os.path.basename(path))[0], size=paint, skip=paint_skip, nsize=nsize)
     if ao:
         bake_ao(body, distance=ao)
     arm = make_armature(sk)

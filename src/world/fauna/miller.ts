@@ -21,7 +21,6 @@ const _v = new THREE.Vector3();
 const _u = new THREE.Vector3();
 const _w = new THREE.Vector3();
 const _m = new THREE.Matrix4();
-const _m2 = new THREE.Matrix4();
 const _q = new THREE.Quaternion();
 const _q2 = new THREE.Quaternion();
 const _s = new THREE.Vector3();
@@ -166,11 +165,11 @@ class FerracarisColony extends Creature {
     this.nearR = 70;
   }
 
-  private juvMeshes: THREE.InstancedMesh[] = [];
+  /** per-instance weight of the 'juvenile' shape key (young proportions blended out as each one grows) */
+  private morphProxy = { morphTargetInfluences: [0] } as unknown as THREE.Mesh;
 
   async build() {
     const inst = await this.game.assets.instance('fauna_ferracaris');
-    const instJ = await this.game.assets.instance('fauna_ferracaris_juv').catch(() => null);
     const R = rnd(this.seed);
     const host = this.f.host;
     // spots on wet rock: the ledges awash or just under the water, not the dry crests
@@ -192,7 +191,6 @@ class FerracarisColony extends Creature {
     this.moving = new THREE.InstancedBufferAttribute(mv, 1);
     const uT = this.uT;
     const sets: [typeof inst, THREE.InstancedMesh[]][] = [[inst, this.meshes]];
-    if (instJ) sets.push([instJ, this.juvMeshes]);
     for (const [src0, list] of sets) {
     src0.root.updateMatrixWorld(true);
     src0.root.traverse((o) => {
@@ -200,6 +198,8 @@ class FerracarisColony extends Creature {
       if (!src.isMesh) return;
       const geo = src.geometry.clone();
       geo.applyMatrix4(src.matrixWorld);
+      // applyMatrix4 leaves the shape keys in node space: move them with the base mesh
+      for (const a of geo.morphAttributes.position ?? []) a.applyMatrix4(src.matrixWorld);
       geo.setAttribute('aPhase', this.phase);
       geo.setAttribute('aMove', this.moving);
       const mat = cloneSkinned(src.material as THREE.MeshStandardMaterial, this.game.materials?.textureQuality ?? 2);
@@ -222,6 +222,13 @@ class FerracarisColony extends Creature {
         mat.customProgramCacheKey = () => 'ferra_legs:' + key;
       }
       const m = new THREE.InstancedMesh(geo, mat, N);
+      if (geo.morphAttributes.position?.length) {
+        // an instanced mesh with shape keys gets neither influences nor a morph texture of its own in three r187:
+        // without both, a colony whose young never set a morph yet breaks the shadow pass — start every one at 0
+        m.morphTargetInfluences = [0];
+        const zero = { morphTargetInfluences: [0] } as unknown as THREE.Mesh;
+        for (let i = 0; i < N; i++) m.setMorphAt(i, zero);
+      }
       m.castShadow = true;
       m.receiveShadow = true;
       m.frustumCulled = false;
@@ -301,7 +308,7 @@ class FerracarisColony extends Creature {
       for (const g of this.ind) {
         if (g.state === 'gone' && Math.random() < dt * 0.01) {
           g.state = 'graze';
-          g.juv = true; // a young one settles
+          g.juv = true; // a young one settles (its proportions blend to the adult's as it grows)
           g.born = localHours(this.game.state.clock.earthTime);
           g.s = 0.36 + 0.08 * Math.random();
           g.x = g.hx;
@@ -316,7 +323,7 @@ class FerracarisColony extends Creature {
     for (const g of this.ind) {
       if (!g.juv) continue;
       g.s = Math.max(g.s, 0.36 + 0.09 * (hours - g.born));
-      if (g.s >= 0.6 || !this.juvMeshes.length) g.juv = false;
+      if (g.s >= 0.66) g.juv = false;
     }
     if (!near) return;
     this.moving.needsUpdate = true;
@@ -332,12 +339,17 @@ class FerracarisColony extends Creature {
       const sc = g.state === 'gone' ? 0 : g.s;
       _s.set(sc, sc * flat, sc);
       _m.compose(_u.set(g.x, y - 0.004, g.z), _q, _s);
-      for (const m of g.juv ? this.juvMeshes : this.meshes) m.setMatrixAt(i, _m);
-      _m2.makeScale(0, 0, 0);
-      for (const m of g.juv ? this.meshes : this.juvMeshes) m.setMatrixAt(i, _m2);
+      // young → adult build: 1 at settling size (0.36), 0 from 0.66 of a full-grown adult
+      (this.morphProxy.morphTargetInfluences as number[])[0] = g.juv ? THREE.MathUtils.clamp((0.66 - g.s) / 0.3, 0, 1) : 0;
+      for (const m of this.meshes) {
+        m.setMatrixAt(i, _m);
+        if (m.geometry.morphAttributes.position?.length) m.setMorphAt(i, this.morphProxy);
+      }
     });
-    for (const m of this.meshes) m.instanceMatrix.needsUpdate = true;
-    for (const m of this.juvMeshes) m.instanceMatrix.needsUpdate = true;
+    for (const m of this.meshes) {
+      m.instanceMatrix.needsUpdate = true;
+      if (m.morphTexture) m.morphTexture.needsUpdate = true;
+    }
     // field notes
     const c = _w.set(this.cx, host.terrainY(this.cx, this.cz), this.cz);
     if (eco.watching(c, 9, 0.5)) {
@@ -350,7 +362,7 @@ class FerracarisColony extends Creature {
 
   dispose() {
     super.dispose();
-    for (const m of [...this.meshes, ...this.juvMeshes]) {
+    for (const m of this.meshes) {
       m.geometry.dispose();
       (m.material as THREE.Material).dispose();
     }
@@ -950,11 +962,11 @@ export async function populateMiller(f: FaunaManager) {
     const m = new SedimentMaw(f, eco);
     m.juvenile = true;
     m.pos.set(B.hollow.x + 4, 0, B.hollow.z - 9);
-    m.growth = { base: 0.4, born: localHours(f.game.state.clock.earthTime) - 1.2, rate: 0.12, max: 1.6 };
+    m.growth = { base: 0.4, born: localHours(f.game.state.clock.earthTime) - 1.2, rate: 0.12, max: 2.2 };
     m.size = 0.4;
     m.yaw = R() * TAU;
     m.setState('buried');
-    jobs.push(f.add(m, 'fauna_sedimentmaw_juv'));
+    jobs.push(f.add(m, 'fauna_sedimentmaw'));
   }
   // a Mimic Crawler denning on the reef pool's sheltered west side; its eggs under the ledge; the canister nearby
   const mc = new MimicCrawler(f, eco);
@@ -978,13 +990,14 @@ export async function populateMiller(f: FaunaManager) {
     }),
   );
   mc.collideR = 0.8;
+  mc.collideLen = 0.9;
   const mj = new MimicJuvenile(f, eco);
-  mj.growth = { base: 0.3, born: localHours(f.game.state.clock.earthTime) - 0.8, rate: 0.1, max: 1.5 };
+  mj.growth = { base: 0.3, born: localHours(f.game.state.clock.earthTime) - 0.8, rate: 0.1, max: 3.3 };
   mj.crack.set(B.pool.x - 5, 0, B.pool.z + 4);
   mj.pos.copy(mj.crack);
   mj.yaw = Math.PI / 2;
   mj.setState('watch');
-  jobs.push(f.add(mj, 'fauna_mimic_juv'));
+  jobs.push(f.add(mj, 'fauna_mimic'));
   jobs.push(populateMillerDeep(f, eco));
   const cp = new THREE.Vector3(B.pool.x + 3, 0, B.pool.z - 7);
   cp.y = host.terrainY(cp.x, cp.z) + 0.1;

@@ -1,6 +1,7 @@
 import * as THREE from 'three';
 import { Creature, FaunaManager, ahead } from './Fauna';
 import { AX } from './Rig';
+import { populateRefuge, outsideRefuge } from './marsDeep';
 
 /**
  * Mars: striders (herds, a sonic shriek and a scythe charge), stalkers (eyeless burrowing pack hunters that pounce and
@@ -58,6 +59,8 @@ abstract class Walker extends Creature {
     const a = Math.atan2(-look.z, -look.x) + (Math.random() - 0.5) * 1.6; // behind the camera
     const d = minR + Math.random() * (maxR - minR);
     this.home.set(pl.x + Math.cos(a) * d, 0, pl.z + Math.sin(a) * d);
+    // never onto the refuge massif (its cavern floor is not this animal's ground)
+    outsideRefuge(this.f.host.refuge?.(), this.home);
     this.pos.set(this.home.x, this.groundY(this.home.x, this.home.z), this.home.z);
     this.setState('idle');
   }
@@ -784,6 +787,9 @@ export class Tetherkite extends Creature {
 // ================================================================================================ population
 /** Mars population around the player when the zone loads (counts × the density setting), seeded by the site. */
 export async function populateMars(f: FaunaManager) {
+  // Settings → Science mode 'conservative': no complex animals on Mars (the refuge stays, an empty landform)
+  if (f.settings.science === 'conservative') return;
+  const refuge = f.host.refuge?.() ?? null;
   const pl = f.game.player.pos.clone();
   const R = rnd(Math.round(pl.x * 13 + pl.z * 7) + 911);
   const host = f.host;
@@ -791,29 +797,31 @@ export async function populateMars(f: FaunaManager) {
   const jobs: Promise<unknown>[] = [];
   // a herd of striders
   const ha = R() * TAU;
-  const herd = at(ha, 120 + R() * 50);
+  const herd = outsideRefuge(refuge, at(ha, 120 + R() * 50), 40);
   for (let i = 0; i < f.count(3); i++) {
     const s = new Strider(f, i);
     s.home.copy(herd);
     s.pos.set(herd.x + (R() - 0.5) * 16, 0, herd.z + (R() - 0.5) * 16);
     s.pos.y = host.terrainY(s.pos.x, s.pos.z);
     s.yaw = R() * TAU;
+    s.collideR = refuge ? 1.6 : 0;
     jobs.push(f.add(s, 'fauna_strider', ['strider_glow']));
   }
   // a stalker pack, buried
   const pa = ha + 2 + R();
-  const pack = at(pa, 75 + R() * 30);
+  const pack = outsideRefuge(refuge, at(pa, 75 + R() * 30), 40);
   for (let i = 0; i < f.count(2); i++) {
     const s = new Stalker(f, i);
     s.home.copy(pack);
     s.pos.set(pack.x + (R() - 0.5) * 12, 0, pack.z + (R() - 0.5) * 12);
     s.pos.y = host.terrainY(s.pos.x, s.pos.z);
+    s.collideR = refuge ? 0.9 : 0;
     jobs.push(f.add(s, 'fauna_stalker'));
   }
   // lancewings circling
   for (let i = 0; i < f.count(2); i++) {
     const l = new Lancewing(f);
-    l.home.copy(at(R() * TAU, 90 + R() * 60));
+    l.home.copy(outsideRefuge(refuge, at(R() * TAU, 90 + R() * 60), 30));
     l.pos.set(l.home.x + 60, host.terrainY(l.home.x, l.home.z) + 60, l.home.z);
     l.setState('soar');
     jobs.push(f.add(l, 'fauna_lancewing', ['wing_mark']));
@@ -821,9 +829,11 @@ export async function populateMars(f: FaunaManager) {
   // tether-kites drifting
   for (let i = 0; i < f.count(4); i++) {
     const k = new Tetherkite(f);
-    const p = at(R() * TAU, 60 + R() * 160);
+    const p = outsideRefuge(refuge, at(R() * TAU, 60 + R() * 160), 30);
     k.pos.set(p.x, host.terrainY(p.x, p.z) + 28, p.z);
     jobs.push(f.add(k, 'fauna_tetherkite', ['wing_mark']).then((c) => (c as Tetherkite).init()));
   }
+  // the subsurface refuge's own biosphere (world/fauna/marsDeep.ts)
+  if (refuge) jobs.push(populateRefuge(f, refuge));
   await Promise.all(jobs);
 }

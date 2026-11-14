@@ -40,10 +40,17 @@ export interface FaunaHost {
   say(who: string, text: string): void;
   /** keep a body of radius r from passing through cave rock on its way from → to (moves `to`; true if it did) */
   caveGuard?(from: THREE.Vector3, to: THREE.Vector3, r: number): boolean;
+  /** the suit lamp is on */
+  lamp?(): boolean;
+  /** Mars: the subsurface refuge (world/surface/marsRefuge.ts), if this site has one */
+  refuge?(): import('../surface/marsRefuge').MarsRefuge | null;
 }
 
 const _v = new THREE.Vector3();
 const _w = new THREE.Vector3();
+const _ga = new THREE.Vector3();
+const _gb = new THREE.Vector3();
+const _gc = new THREE.Vector3();
 
 /** hours of Miller's own (dilated) time since the mission began */
 export function localHours(earthTime: number) {
@@ -72,6 +79,12 @@ export abstract class Creature {
   nearR = 260;
   /** body radius for collisions with cave rock (0: none) */
   collideR = 0;
+  /** half body length (m, at size 1): the nose and the tail end are also kept out of cave rock */
+  collideLen = 0;
+  readonly prevQ = new THREE.Quaternion();
+  /** meshes carrying the 'juvenile' shape key (blended out as the animal grows) and its own skin uniforms */
+  private juvMorph: { m: THREE.Mesh; i: number }[] = [];
+  private youthU: { skYouth: { value: number } }[] = [];
   /**
    * a young animal growing on its world's own clock: size = base × min(max, 1 + rate × age h); born in local hours
    * (Miller: 1 h of its time ≈ 7 years on Earth, so a long stay there or the years waiting in orbit show)
@@ -91,21 +104,33 @@ export abstract class Creature {
     this.inst = await this.game.assets.instance(model);
     this.root.add(this.inst.root);
     this.rig = new Rig(this.inst);
+    const young = this.growth !== null;
     this.inst.root.traverse((o) => {
       const m = o as THREE.Mesh;
       if (!m.isMesh) return;
       m.castShadow = true;
       m.receiveShadow = true;
+      const ji = m.morphTargetDictionary?.juvenile;
+      if (young && ji !== undefined) this.juvMorph.push({ m, i: ji });
       const swap = (mat: THREE.Material) => {
-        if (!glowMats.some((g) => mat.name.startsWith(g))) return mat;
+        const isGlow = glowMats.some((g) => mat.name.startsWith(g));
+        // a growing animal gets its own copies of its skin (its youth tint is its own)
+        if (!isGlow && !(young && mat.userData.skin)) return mat;
         const c = cloneSkinned(mat as THREE.MeshStandardMaterial, this.game.materials?.textureQuality ?? 2);
-        this.glow.push(c);
+        if (isGlow) this.glow.push(c as THREE.MeshStandardMaterial);
+        if (young && c.userData.skinUniforms) this.youthU.push(c.userData.skinUniforms);
         return c;
       };
       m.material = Array.isArray(m.material) ? m.material.map(swap) : swap(m.material);
     });
     this.f.root.add(this.root);
     return this;
+  }
+
+  /** 1 newborn … 0 adult: the juvenile shape key and the paler young colouring */
+  setYouth(k: number) {
+    for (const j of this.juvMorph) if (j.m.morphTargetInfluences) j.m.morphTargetInfluences[j.i] = k;
+    for (const u of this.youthU) u.skYouth.value = k;
   }
 
   setState(s: string) {
@@ -372,7 +397,11 @@ export class FaunaManager {
     const hours = localHours(this.game.state.clock.earthTime);
     for (const c of this.creatures) {
       const g = c.growth;
-      if (g) (c as unknown as { size: number }).size = g.base * Math.min(g.max, 1 + g.rate * Math.max(0, hours - g.born));
+      if (!g) continue;
+      const f = Math.min(g.max, 1 + g.rate * Math.max(0, hours - g.born));
+      (c as unknown as { size: number }).size = g.base * f;
+      // the build changes with the size: the young proportions blend out continuously to the adult's
+      c.setYouth(g.max > 1 ? 1 - (f - 1) / (g.max - 1) : 0);
     }
     for (const c of this.creatures) {
       const d = c.pos.distanceTo(cam);
@@ -382,9 +411,28 @@ export class FaunaManager {
       c.st += dt;
       c.cooldown = Math.max(0, c.cooldown - dt);
       const guard = c.collideR > 0 && this.host.caveGuard;
-      if (guard) c.prevPos.copy(c.pos);
+      if (guard) {
+        c.prevPos.copy(c.pos);
+        c.prevQ.copy(c.root.quaternion);
+      }
       c.update(dt, near);
-      if (guard && this.host.caveGuard!(c.prevPos, c.pos, c.collideR * ((c as unknown as { size?: number }).size ?? 1))) c.root.position.copy(c.pos);
+      if (guard) {
+        const sz = (c as unknown as { size?: number }).size ?? 1;
+        let moved = this.host.caveGuard!(c.prevPos, c.pos, c.collideR * sz);
+        // the nose and the tail end too: a long body or a trailing tail must not dip into the rock
+        if (c.collideLen > 0) {
+          for (const sgn of [-1, 1]) {
+            _ga.set(0, 0, sgn * c.collideLen * sz).applyQuaternion(c.prevQ).add(c.prevPos);
+            _gb.set(0, 0, sgn * c.collideLen * sz).applyQuaternion(c.root.quaternion).add(c.pos);
+            _gc.copy(_gb);
+            if (this.host.caveGuard!(_ga, _gb, c.collideR * sz * 0.5)) {
+              c.pos.add(_gb.sub(_gc));
+              moved = true;
+            }
+          }
+        }
+        if (moved) c.root.position.copy(c.pos);
+      }
       c.root.visible = d < c.view;
     }
     this.creatures = this.creatures.filter((c) => {

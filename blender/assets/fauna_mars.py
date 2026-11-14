@@ -97,6 +97,23 @@ PAINT.update({
 })
 
 
+RELIEF_MARS = {
+    "strider_shell": [("cells", 0.003, 0.32, 0.03), ("scales", 0.0015, 0.02), ("pores", 0.0015, 0.015, 0.3), ("wrinkle", 0.002, 0.08)],
+    "strider_hide": [("wrinkle", 0.004, 0.035, (1, 4, 1)), ("scales", 0.0015, 0.012), ("pores", 0.001, 0.01, 0.3)],
+    "strider_seam": [("wrinkle", 0.0015, 0.02)],
+    "mstalker_skin": [("wrinkle", 0.004, 0.035, (1, 1, 3)), ("retic", 0.0, 0.03, 0.05), ("grooves", 0.0015, 0.03, 0.05), ("pores", 0.001, 0.01, 0.3), ("noise", 0.003, 0.08)],
+    "mstalker_belly": [("wrinkle", 0.003, 0.025, (4, 1, 1))],
+    "mouth_red": [("wrinkle", 0.0015, 0.015)],
+    "lance_skin": [("wrinkle", 0.002, 0.04, (1, 3, 1)), ("scales", 0.0008, 0.015), ("pores", 0.0008, 0.012, 0.3)],
+    "lance_carapace": [("pores", 0.0008, 0.012, 0.3), ("noise", 0.001, 0.05)],
+    "lance_wing": [("wrinkle", 0.0015, 0.06, (3, 0.4, 3)), ("veins", 0.001, 0.15, 0.04)],
+    "kite_skin": [("wrinkle", 0.0015, 0.04), ("pores", 0.0006, 0.008, 0.3)],
+}
+for _k, _v in RELIEF_MARS.items():
+    if _k in PAINT:
+        PAINT[_k]["relief"] = [r for r in _v if r[0] != "retic"]
+
+
 def pose(arm, rots):
     """preview only: rotate pose bones (local XYZ euler, radians)"""
     for nm, r in rots.items():

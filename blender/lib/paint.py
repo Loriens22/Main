@@ -149,6 +149,47 @@ def build_paint(mat, spec, image, seed=0):
             nz.inputs["Distortion"].default_value = 0.3
             nt.links.new(v, nz.inputs["Vector"])
             col = _mix(nt, col, c, _ramp(nt, nz.outputs["Fac"], lo, hi), amt)
+        elif kind == "chevron":
+            # pale V-shaped scar bands along the back (object space: +Y forward, X across): w = y·f + |x|·slope·f
+            _, c, amt, freq, slope, width, zmin = L[:7]
+            brk = L[7] if len(L) > 7 else 0.5
+            tc = _n(nt, "ShaderNodeTexCoord")
+            sp = _n(nt, "ShaderNodeSeparateXYZ")
+            nt.links.new(tc.outputs["Object"], sp.inputs[0])
+            ax = _n(nt, "ShaderNodeMath", operation="ABSOLUTE")
+            nt.links.new(sp.outputs["X"], ax.inputs[0])
+            m1 = _n(nt, "ShaderNodeMath", operation="MULTIPLY_ADD")   # |x|·slope + y
+            nt.links.new(ax.outputs[0], m1.inputs[0])
+            m1.inputs[1].default_value = slope
+            nt.links.new(sp.outputs["Y"], m1.inputs[2])
+            # a little waviness so the bands are not ruled lines
+            wv = _n(nt, "ShaderNodeTexNoise")
+            wv.inputs["Scale"].default_value = freq * 0.6
+            wv.inputs["Detail"].default_value = 2.0
+            nt.links.new(tc.outputs["Object"], wv.inputs["Vector"])
+            m2 = _n(nt, "ShaderNodeMath", operation="MULTIPLY_ADD")
+            nt.links.new(wv.outputs["Fac"], m2.inputs[0])
+            m2.inputs[1].default_value = 0.35 / freq
+            nt.links.new(m1.outputs[0], m2.inputs[2])
+            m3 = _n(nt, "ShaderNodeMath", operation="MULTIPLY")
+            nt.links.new(m2.outputs[0], m3.inputs[0])
+            m3.inputs[1].default_value = freq
+            fr = _n(nt, "ShaderNodeMath", operation="FRACT")
+            nt.links.new(m3.outputs[0], fr.inputs[0])
+            band = _ramp(nt, fr.outputs[0], width, width * 0.35)
+            back = _ramp(nt, sep.outputs["Z"], zmin, zmin + 0.25)
+            nz = _n(nt, "ShaderNodeTexNoise")
+            nz.inputs["Scale"].default_value = freq * 2.5
+            nz.inputs["Detail"].default_value = 4.0
+            nt.links.new(tc.outputs["Object"], nz.inputs["Vector"])
+            br = _ramp(nt, nz.outputs["Fac"], brk - 0.08, brk + 0.06)
+            f1 = _n(nt, "ShaderNodeMath", operation="MULTIPLY")
+            nt.links.new(band, f1.inputs[0])
+            nt.links.new(back, f1.inputs[1])
+            f2 = _n(nt, "ShaderNodeMath", operation="MULTIPLY")
+            nt.links.new(f1.outputs[0], f2.inputs[0])
+            nt.links.new(br, f2.inputs[1])
+            col = _mix(nt, col, c, f2.outputs[0], amt)
         elif kind == "speck":
             _, c, amt, size, thresh = L
             v = _coords(nt, seed=seed + k)
@@ -195,7 +236,167 @@ def build_paint(mat, spec, image, seed=0):
     return mat
 
 
-def export_nodes(mat, image, baked, base=None):
+# ------------------------------------------------------------------------------------------------ relief → normal map
+RELIEF_DOC = """
+relief layers (spec["relief"]), summed into a height in metres and baked as a tangent-space normal map:
+  ("cells",   amp, size, groove)        raised plates / scales separated by grooves (Voronoi edges)
+  ("scales",  amp, size)                rounded pebbly scales (domes over Voronoi cells)
+  ("wrinkle", amp, size, stretch)       ridged folds (|noise| ridges), stretch = per-axis frequency multiplier
+  ("pores",   amp, size, radius)        small pits
+  ("vesicles",amp, size, radius)        larger round pits (vesicular basalt, sensory pits)
+  ("veins",   amp, size, width)         thin raised branching lines (Voronoi edges, warped)
+  ("grooves", amp, size, width)         thin sunken lines
+  ("bands",   amp, freq, axis)          rings along an object axis (annulation)
+  ("noise",   amp, size)                soft lumps
+"""
+
+
+def _height_layers(nt, layers, seed):
+    """sum of relief layers → a float socket (metres)"""
+    acc = None
+    k = 0
+    for L in layers:
+        kind = L[0]
+        k += 1
+        h = None
+        if kind in ("cells", "veins", "grooves"):
+            amp, size, w = L[1], L[2], L[3]
+            v = _coords(nt, seed=seed + 31 * k)
+            wn = _n(nt, "ShaderNodeTexNoise")
+            wn.inputs["Scale"].default_value = 0.7 / size
+            nt.links.new(v, wn.inputs["Vector"])
+            add = _n(nt, "ShaderNodeVectorMath", operation="MULTIPLY_ADD")
+            nt.links.new(wn.outputs["Color"], add.inputs[0])
+            add.inputs[1].default_value = (size * 0.7,) * 3
+            nt.links.new(v, add.inputs[2])
+            vo = _n(nt, "ShaderNodeTexVoronoi", feature="DISTANCE_TO_EDGE")
+            vo.inputs["Scale"].default_value = 1.0 / size
+            nt.links.new(add.outputs[0], vo.inputs["Vector"])
+            if kind == "cells":
+                r = _ramp(nt, vo.outputs["Distance"], 0.0, w)
+                # per-cell height variation
+                vc = _n(nt, "ShaderNodeTexVoronoi", feature="F1")
+                vc.inputs["Scale"].default_value = 1.0 / size
+                nt.links.new(add.outputs[0], vc.inputs["Vector"])
+                sepc = _n(nt, "ShaderNodeSeparateColor")
+                nt.links.new(vc.outputs["Color"], sepc.inputs[0])
+                var = _n(nt, "ShaderNodeMath", operation="MULTIPLY_ADD")
+                nt.links.new(sepc.outputs[0], var.inputs[0])
+                var.inputs[1].default_value = 0.5
+                var.inputs[2].default_value = 0.6
+                h = _n(nt, "ShaderNodeMath", operation="MULTIPLY")
+                nt.links.new(r, h.inputs[0])
+                nt.links.new(var.outputs[0], h.inputs[1])
+                h = h.outputs[0]
+            else:
+                r = _ramp(nt, vo.outputs["Distance"], w, 0.0)
+                h = r
+                if kind == "grooves":
+                    neg = _n(nt, "ShaderNodeMath", operation="MULTIPLY")
+                    nt.links.new(r, neg.inputs[0])
+                    neg.inputs[1].default_value = -1.0
+                    h = neg.outputs[0]
+        elif kind in ("scales", "pores", "vesicles"):
+            amp, size = L[1], L[2]
+            rad = L[3] if len(L) > 3 else 0.35
+            v = _coords(nt, seed=seed + 31 * k)
+            wn = _n(nt, "ShaderNodeTexNoise")
+            wn.inputs["Scale"].default_value = 0.6 / size
+            nt.links.new(v, wn.inputs["Vector"])
+            add = _n(nt, "ShaderNodeVectorMath", operation="MULTIPLY_ADD")
+            nt.links.new(wn.outputs["Color"], add.inputs[0])
+            add.inputs[1].default_value = (size * 0.5,) * 3
+            nt.links.new(v, add.inputs[2])
+            vo = _n(nt, "ShaderNodeTexVoronoi", feature="F1")
+            vo.inputs["Scale"].default_value = 1.0 / size
+            nt.links.new(add.outputs[0], vo.inputs["Vector"])
+            if kind == "scales":
+                h = _ramp(nt, vo.outputs["Distance"], 0.75, 0.0)
+                sq = _n(nt, "ShaderNodeMath", operation="POWER")
+                nt.links.new(h, sq.inputs[0])
+                sq.inputs[1].default_value = 0.6
+                h = sq.outputs[0]
+            else:
+                pit = _ramp(nt, vo.outputs["Distance"], rad, rad * 0.4)
+                neg = _n(nt, "ShaderNodeMath", operation="MULTIPLY")
+                nt.links.new(pit, neg.inputs[0])
+                neg.inputs[1].default_value = -1.0
+                h = neg.outputs[0]
+        elif kind == "wrinkle":
+            amp, size = L[1], L[2]
+            st = L[3] if len(L) > 3 else (1, 1, 1)
+            v = _coords(nt, st, seed=seed + 31 * k)
+            nz = _n(nt, "ShaderNodeTexNoise")
+            nz.inputs["Scale"].default_value = 1.0 / size
+            nz.inputs["Detail"].default_value = 5.0
+            nz.inputs["Distortion"].default_value = 0.6
+            nt.links.new(v, nz.inputs["Vector"])
+            c = _n(nt, "ShaderNodeMath", operation="MULTIPLY_ADD")
+            nt.links.new(nz.outputs["Fac"], c.inputs[0])
+            c.inputs[1].default_value = 2.0
+            c.inputs[2].default_value = -1.0
+            ab = _n(nt, "ShaderNodeMath", operation="ABSOLUTE")
+            nt.links.new(c.outputs[0], ab.inputs[0])
+            inv = _n(nt, "ShaderNodeMath", operation="SUBTRACT")
+            inv.inputs[0].default_value = 1.0
+            nt.links.new(ab.outputs[0], inv.inputs[1])
+            h = inv.outputs[0]
+        elif kind == "bands":
+            amp, freq, axis = L[1], L[2], L[3]
+            tc = _n(nt, "ShaderNodeTexCoord")
+            sp = _n(nt, "ShaderNodeSeparateXYZ")
+            nt.links.new(tc.outputs["Object"], sp.inputs[0])
+            m = _n(nt, "ShaderNodeMath", operation="MULTIPLY")
+            nt.links.new(sp.outputs[axis.upper()], m.inputs[0])
+            m.inputs[1].default_value = freq * 6.2831853
+            sn = _n(nt, "ShaderNodeMath", operation="SINE")
+            nt.links.new(m.outputs[0], sn.inputs[0])
+            h = sn.outputs[0]
+        elif kind == "noise":
+            amp, size = L[1], L[2]
+            v = _coords(nt, seed=seed + 31 * k)
+            nz = _n(nt, "ShaderNodeTexNoise")
+            nz.inputs["Scale"].default_value = 1.0 / size
+            nz.inputs["Detail"].default_value = 4.0
+            nt.links.new(v, nz.inputs["Vector"])
+            h = nz.outputs["Fac"]
+        if h is None:
+            continue
+        mul = _n(nt, "ShaderNodeMath", operation="MULTIPLY")
+        nt.links.new(h, mul.inputs[0])
+        mul.inputs[1].default_value = L[1]
+        if acc is None:
+            acc = mul.outputs[0]
+        else:
+            ad = _n(nt, "ShaderNodeMath", operation="ADD")
+            nt.links.new(acc, ad.inputs[0])
+            nt.links.new(mul.outputs[0], ad.inputs[1])
+            acc = ad.outputs[0]
+    return acc
+
+
+def build_relief(mat, spec, image, seed=0):
+    """nodes for the NORMAL bake: a Principled BSDF whose normal is bumped by the relief height"""
+    mat.use_nodes = True
+    nt = mat.node_tree
+    nt.nodes.clear()
+    out = _n(nt, "ShaderNodeOutputMaterial")
+    bsdf = _n(nt, "ShaderNodeBsdfPrincipled")
+    nt.links.new(bsdf.outputs[0], out.inputs["Surface"])
+    hgt = _height_layers(nt, spec.get("relief", []), seed) if spec else None
+    if hgt is not None:
+        bump = _n(nt, "ShaderNodeBump")
+        bump.inputs["Strength"].default_value = 1.0
+        bump.inputs["Distance"].default_value = 1.0
+        nt.links.new(hgt, bump.inputs["Height"])
+        nt.links.new(bump.outputs["Normal"], bsdf.inputs["Normal"])
+    img = _n(nt, "ShaderNodeTexImage")
+    img.image = image
+    img.select = True
+    nt.nodes.active = img
+
+
+def export_nodes(mat, image, baked, base=None, nimage=None):
     """after the bake: a plain Principled material the glTF exporter understands (the runtime takes only the map)"""
     nt = mat.node_tree
     nt.nodes.clear()
@@ -208,9 +409,26 @@ def export_nodes(mat, image, baked, base=None):
         nt.links.new(img.outputs["Color"], bsdf.inputs["Base Color"])
     elif base is not None:
         bsdf.inputs["Base Color"].default_value = tuple(base[:3]) + (1.0,)
+    if not baked:
+        # unpainted parts keep their palette finish (clear corneas stay clear in the previews and the glTF)
+        pal = kit.PALETTE.get(mat.name, {})
+        bsdf.inputs["Roughness"].default_value = pal.get("rough", 0.5)
+        if pal.get("alpha", 1.0) < 1.0:
+            bsdf.inputs["Alpha"].default_value = pal["alpha"]
+            try:
+                mat.blend_method = "BLEND"
+            except Exception:
+                pass
+    if baked and nimage is not None:
+        ni = _n(nt, "ShaderNodeTexImage")
+        ni.image = nimage
+        nm = _n(nt, "ShaderNodeNormalMap")
+        nm.space = "TANGENT"
+        nt.links.new(ni.outputs["Color"], nm.inputs["Color"])
+        nt.links.new(nm.outputs["Normal"], bsdf.inputs["Normal"])
 
 
-def bake_body(o, name, size=1024, samples=6, skip=()):
+def bake_body(o, name, size=1024, samples=6, skip=(), nsize=None):
     """UV atlas + paint bake for every material of `o` that has a PAINT spec; returns the image"""
     sc = bpy.context.scene
     sc.render.engine = "CYCLES"
@@ -258,10 +476,26 @@ def bake_body(o, name, size=1024, samples=6, skip=()):
     sc.render.bake.margin = 6
     sc.render.bake.use_clear = True
     bpy.ops.object.bake(type="EMIT")
+    # ---- the relief: a tangent-space normal map baked from each material's height layers (sculpt-like detail)
+    nimg = None
+    if any(PAINT.get(m.name, {}).get("relief") for m in me.materials if m is not None and m.name in baked):
+        ns = nsize or size
+        nimg = bpy.data.images.new(f"{name}_normal", ns, ns, alpha=False)
+        nimg.colorspace_settings.name = "Non-Color"
+        for i, m in enumerate(me.materials):
+            if m is None:
+                continue
+            build_relief(m, PAINT.get(m.name) if m.name in baked else None, nimg, seed=i)
+        sc.cycles.samples = 2
+        sc.render.bake.normal_space = "TANGENT"
+        bpy.ops.object.bake(type="NORMAL")
+        sc.cycles.samples = samples
     for m in me.materials:
         if m is None:
             continue
-        export_nodes(m, img, m.name in baked, kit.PALETTE.get(m.name, {}).get("color"))
+        export_nodes(m, img, m.name in baked, kit.PALETTE.get(m.name, {}).get("color"), nimage=nimg)
     img.pack()
-    print(f"[paint] {name}: {size}px, baked {len(baked)} of {len(me.materials)} materials")
+    if nimg is not None:
+        nimg.pack()
+    print(f"[paint] {name}: {size}px colour{f', {nimg.size[0]}px normal' if nimg else ''}, baked {len(baked)} of {len(me.materials)} materials")
     return img

@@ -1399,6 +1399,7 @@ export async function populateMillerDeep(f: FaunaManager, eco: Eco) {
   bs.pos.y = floor(bs.pos.x, bs.pos.z);
   bs.size = 0.9 + R() * 0.2;
   bs.collideR = 1.0;
+  bs.collideLen = 1.4;
   bs.setState('browse');
   jobs.push(f.add(bs, 'fauna_breaker').then(() => bs.buildNest()));
   for (let i = 0; i < f.count(3); i++) {
@@ -1407,8 +1408,8 @@ export async function populateMillerDeep(f: FaunaManager, eco: Eco) {
     h.pos.set(bs.nest.x + Math.cos(i * 2.1) * 1.2, 0, bs.nest.z + Math.sin(i * 2.1) * 1.2);
     h.pos.y = floor(h.pos.x, h.pos.z);
     h.setState('wander');
-    h.growth = { base: 0.2, born: localHours(f.game.state.clock.earthTime) - 0.5 - i * 0.3, rate: 0.12, max: 1.6 };
-    jobs.push(f.add(h, 'fauna_breaker_juv'));
+    h.growth = { base: 0.2, born: localHours(f.game.state.clock.earthTime) - 0.5 - i * 0.3, rate: 0.12, max: 5 };
+    jobs.push(f.add(h, 'fauna_breaker'));
   }
   // Rift Architect by the vents
   const ra = new RiftArchitect(f, eco);
@@ -1418,14 +1419,15 @@ export async function populateMillerDeep(f: FaunaManager, eco: Eco) {
   ra.pos.y = floor(ra.pos.x, ra.pos.z);
   ra.setState('build');
   ra.collideR = 0.6;
+  ra.collideLen = 0.5;
   jobs.push(f.add(ra, 'fauna_architect').then(() => ra.buildSite()));
   const ay = new ArchitectYoung(f, eco);
   ay.parent = ra;
   ay.pos.copy(ra.den).add(new THREE.Vector3(-1.2, 0, 0.8));
   ay.pos.y = floor(ay.pos.x, ay.pos.z);
-  ay.growth = { base: 0.35, born: localHours(f.game.state.clock.earthTime) - 1.5, rate: 0.1, max: 1.5 };
+  ay.growth = { base: 0.35, born: localHours(f.game.state.clock.earthTime) - 1.5, rate: 0.1, max: 2.9 };
   ay.setState('forage');
-  jobs.push(f.add(ay, 'fauna_architect_juv').then(() => ay.buildPebble()));
+  jobs.push(f.add(ay, 'fauna_architect').then(() => ay.buildPebble()));
   // Luminous Sirens by the rift walls
   for (let i = 0; i < 2; i++) {
     const s = new LuminousSiren(f, eco);
@@ -1435,6 +1437,7 @@ export async function populateMillerDeep(f: FaunaManager, eco: Eco) {
     s.pos.copy(s.perch);
     s.size = 0.9 + R() * 0.4;
     s.collideR = 0.25;
+    s.collideLen = 0.5;
     s.setState('hover');
     jobs.push(f.add(s, 'fauna_siren', ['siren_lure']));
   }
@@ -1447,9 +1450,10 @@ export async function populateMillerDeep(f: FaunaManager, eco: Eco) {
     s.pos.copy(s.ledge);
     s.size = i ? 0.62 : 1; // a young one: its own build (shorter snout, bigger eyes, finer teeth)
     s.collideR = 0.9;
-    if (i) s.growth = { base: 0.62, born: localHours(f.game.state.clock.earthTime) - 2, rate: 0.05, max: 1.4 };
+    s.collideLen = 3.0;
+    if (i) s.growth = { base: 0.62, born: localHours(f.game.state.clock.earthTime) - 2, rate: 0.05, max: 1.61 };
     s.setState('ambush');
-    jobs.push(f.add(s, i ? 'fauna_abyssstalker_juv' : 'fauna_abyssstalker'));
+    jobs.push(f.add(s, 'fauna_abyssstalker'));
   }
   // a Chorus Hunter pod
   const pod = new ChorusPod(f, eco);
@@ -1462,10 +1466,11 @@ export async function populateMillerDeep(f: FaunaManager, eco: Eco) {
     c.juvenile = i === n - 1;
     c.size = c.juvenile ? 0.65 : 0.9 + R() * 0.2;
     c.collideR = 0.5;
-    if (c.juvenile) c.growth = { base: 0.65, born: localHours(f.game.state.clock.earthTime) - 1, rate: 0.06, max: 1.4 };
+    c.collideLen = 1.4;
+    if (c.juvenile) c.growth = { base: 0.65, born: localHours(f.game.state.clock.earthTime) - 1, rate: 0.06, max: 1.54 };
     c.pos.set(B.basin.x + 30 + i * 4, -30 - R() * 6, B.basin.z - 20 + i * 3);
     pod.members.push(c);
-    jobs.push(f.add(c, c.juvenile ? 'fauna_chorus_juv' : 'fauna_chorus'));
+    jobs.push(f.add(c, 'fauna_chorus'));
   }
   pod.setState('roam');
   // the Cathedral
@@ -1477,10 +1482,10 @@ export async function populateMillerDeep(f: FaunaManager, eco: Eco) {
   const calf = new CathedralCalf(f, eco);
   calf.mother = cat;
   calf.size = 0.32;
-  calf.growth = { base: 0.32, born: localHours(f.game.state.clock.earthTime) - 2, rate: 0.04, max: 1.5 };
+  calf.growth = { base: 0.32, born: localHours(f.game.state.clock.earthTime) - 2, rate: 0.04, max: 3.1 };
   calf.pos.copy(cat.pos).add(new THREE.Vector3(-6, -3, 6));
   calf.setState('follow');
-  jobs.push(f.add(calf, 'fauna_cathedral_calf', ['cath_glow']));
+  jobs.push(f.add(calf, 'fauna_cathedral', ['cath_glow']));
   // the Crown: one, deep
   const cr = new Crown(f, eco);
   cr.pos.set(B.basin.x + 40, -110, B.basin.z + 40);

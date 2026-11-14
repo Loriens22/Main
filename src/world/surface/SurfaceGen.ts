@@ -238,6 +238,8 @@ export interface TerrainPad {
 }
 
 export interface SurfaceGenOptions {
+  /** metres added (≤ 0) where a landform's own mesh replaces the ground (zone frame) */
+  carve?: (x: number, z: number) => number;
   site: SurfaceSite;
   map: BodyMap;
   /** half-size of the far map (m) */
@@ -376,12 +378,15 @@ export class SurfaceGen {
   height(x: number, z: number, cell: number) {
     const h = this.curvature(x, z) + this.mapElevation(x, z) + this.detail(x, z, cell);
     const pads = this.opts.pads;
-    if (!pads) return h;
     let out = h;
-    for (let i = 0; i < pads.length; i++) {
-      const w = this.padWeight(pads[i], x, z);
-      if (w > 0) out += (this.padHeight(i, cell) - out) * w;
+    if (pads) {
+      for (let i = 0; i < pads.length; i++) {
+        const w = this.padWeight(pads[i], x, z);
+        if (w > 0) out += (this.padHeight(i, cell) - out) * w;
+      }
     }
+    // carved out of sight under a landform's own floor mesh (the Mars refuge)
+    if (this.opts.carve) out += this.opts.carve(x, z);
     return out;
   }
 

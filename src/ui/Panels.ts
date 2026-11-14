@@ -165,11 +165,15 @@ export function openSettings(game: Game) {
           b.append(ui.row('Alien life', ui.toggle(l.enabled, (v) => { l.enabled = v; apply(); })));
           b.append(note('Native creatures on other worlds. Off: no creatures anywhere.'));
           b.append(ui.row('Mars', ui.toggle(l.mars, (v) => { l.mars = v; apply(); })));
-          b.append(note('Striders, burrowing stalkers, diving lancewings and drifting tether-kites.'));
+          b.append(note('Striders, burrowing stalkers, diving lancewings and drifting tether-kites on the surface; in the refuge cavern beside each landing site, the speculative-evolution nine: Crimson Icebloom, Ferric Cathedral, Glass Ribbon, Prism Architect, Ghost of Valles, Basalt Mimic, Thermal Rift Serpent, Subglacial Monarch — and the rare Red Dune Hermit at its fissure.'));
           b.append(ui.row('Jupiter', ui.toggle(l.jupiter, (v) => { l.jupiter = v; apply(); })));
           b.append(note('Singing gas-bag floaters, veil rays, maw rays, spore bulbs and balloon hunters in the cloud layer — met from Ranger 1. Shake off a creature by jabbing Q/E or full thrust.'));
           b.append(ui.row("Miller's Planet", ui.toggle(l.miller, (v) => { l.miller = v; apply(); })));
           b.append(note('An abyssal biosphere: reef grazers, buried suction traps, a camouflaged eight-limbed crawler, cave and deep-basin life. Mostly to be watched — some defend themselves.'));
+          b.append(ui.row('Science mode', ui.select<'speculative' | 'conservative'>(l.science, [['speculative', 'Speculative evolution — the full biosphere'], ['conservative', 'Scientific / conservative']], (v) => { l.science = v; apply(); })));
+          b.append(note('No life is known on Mars or Jupiter. Speculative: every creature, each labelled in the codex (observed · inferred · hypothetical · speculative). Conservative: no complex animals on Mars or Jupiter — only the environments and archive hypotheses. Takes effect on the next landing.'));
+          b.append(ui.row('Heroic Jupiter scale', ui.toggle(l.heroic, (v) => { l.heroic = v; apply(); })));
+          b.append(note("Creative: show the Jupiter giants at the reference sheet's poster size rather than the size the simulation can justify."));
           b.append(ui.row('Hostility', ui.select<'passive' | 'normal' | 'fierce'>(l.hostility, [['passive', 'Passive — they never attack'], ['normal', 'Normal'], ['fierce', 'Fierce']], (v) => { l.hostility = v; apply(); })));
           const [ds, dv] = ui.slider(l.density, 0.5, 2, 0.25, (v) => { l.density = v; apply(); }, (v) => `${Math.round(v * 100)} %`);
           b.append(ui.row('Creature numbers', ds, dv));

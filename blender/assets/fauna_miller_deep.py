@@ -311,7 +311,7 @@ def crown():
     parts.append(Part(fin("dorsal", db, de, "crown_fin", nv=6, rays=8, corr=0.015, thick=0.05), bones=spine[3:5]))
 
     body_o = assemble("crown_body", sk, parts)
-    arm = finish_creature(root, sk, body_o, os.path.join(kit.out_dir(), "fauna_crown.glb"), props={"creature": "crown", "length": 10.0}, ao=1.2, paint=2048)
+    arm = finish_creature(root, sk, body_o, os.path.join(kit.out_dir(), "fauna_crown.glb"), props={"creature": "crown", "length": 10.0}, ao=1.2, paint=4096, nsize=2048)
     return root, arm
 
 
@@ -468,7 +468,8 @@ def stalker(juvenile=False):
             sq = lambda q: V((q.x, 2.0 + (q.y - 2.0) * 0.72, q.z)) if q.y > 2.0 else q
             sk.bones[bn] = (sq(h), sq(t), par)
     name = "fauna_abyssstalker_juv.glb" if J else "fauna_abyssstalker.glb"
-    arm = finish_creature(root, sk, body_o, os.path.join(kit.out_dir(), name), props={"creature": "abyssstalker", "length": 6.5}, ao=0.6, paint=1024)
+    arm = finish_creature(root, sk, body_o, os.path.join(kit.out_dir(), name), props={"creature": "abyssstalker", "length": 6.5}, ao=0.6, paint=2048,
+                           juvenile=None if J else ([("head", "grow", 1.25), ("jaw", "grow", 1.18), ("fin", "thin", 0.85), ("pel", "thin", 0.85)], ("stalker_eye", "cornea")))
     return root, arm
 
 
@@ -615,7 +616,8 @@ def chorus(juvenile=False):
     parts.append(Part(fin("fluke", tb, te, "chorus_fin", nv=7, rays=12, corr=0.002, thick=0.012), bones=spine[-2:]))
     body_o = assemble("chorus_body", sk, parts)
     name = "fauna_chorus_juv.glb" if J else "fauna_chorus.glb"
-    arm = finish_creature(root, sk, body_o, os.path.join(kit.out_dir(), name), props={"creature": "chorus", "length": 1.9 if J else 3.0}, ao=0.3, paint=1024)
+    arm = finish_creature(root, sk, body_o, os.path.join(kit.out_dir(), name), props={"creature": "chorus", "length": 1.9 if J else 3.0}, ao=0.3, paint=1024,
+                           juvenile=None if J else ([("head", "grow", 1.22), ("fin", "thin", 0.8)], ("chorus_eye", "cornea")))
     return root, arm
 
 
@@ -790,7 +792,8 @@ def cathedral(juvenile=False):
         parts.append(Part(fin(f"fluke{sx}", fb, fe, "cath_wing", nv=6, rays=10, corr=0.01, thick=0.08), bone=tail[-1]))
     body_o = assemble("cathedral_body", sk, parts)
     name = "fauna_cathedral_calf.glb" if J else "fauna_cathedral.glb"
-    arm = finish_creature(root, sk, body_o, os.path.join(kit.out_dir(), name), props={"creature": "cathedral", "length": 15.0}, ao=1.6, paint=1024 if J else 2048)
+    arm = finish_creature(root, sk, body_o, os.path.join(kit.out_dir(), name), props={"creature": "cathedral", "length": 15.0}, ao=1.6, paint=1024 if J else 2048,
+                           juvenile=None if J else ([("wing", "squash", 0.8), ("jaw", "grow", 1.12), ("tail", "thin", 0.8)], ("crown_eye", "cornea")))
     return root, arm
 
 

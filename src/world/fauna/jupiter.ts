@@ -1177,6 +1177,8 @@ class Hunter extends Flyer {
 
 // ================================================================================================ population
 export async function populateJupiter(f: FaunaManager) {
+  // Settings → Science mode 'conservative': no complex animals in Jupiter's clouds
+  if (f.settings.science === 'conservative') return;
   const sky = new Sky(f);
   f.creatures.unshift(sky);
   const R = rnd(Math.round(sky.rp.x * 3 + sky.rp.z * 7) + 1777);
