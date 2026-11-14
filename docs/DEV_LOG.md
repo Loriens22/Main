@@ -2,7 +2,53 @@
 
 ## Status (latest first)
 
-### Creatures — painted maps; Mars and Jupiter rebuilt; Miller young, growth, cave collision (this pass)
+### Mars & Jupiter speculative-evolution expansion; the four creature limits (this pass)
+
+#### The four limits
+
+- **Normal maps:** baked from the painted relief for every creature (tangent space; 2048 px on the large Jupiter forms).
+- **Cave collision:** now also checks the nose and the tail end.
+- **Growing young:** they use the adult builds. A 'juvenile' shape key blends out as they grow; the Ferracaris uses a
+  per-instance morph.
+  - Instanced meshes with shape keys now start with influences and a morph texture.
+  - Without them, three r187 broke the shadow pass the first time a colony had no young near the camera.
+- **Floater:** the gas bag is glossy.
+- **Suit lamp:** retuned in candela.
+  - 46 in Miller's open water only.
+  - 6 in the refuge brine.
+  - 2.5 in air (28 blew out anything within a few metres).
+
+#### Mars refuge
+
+- **Shell:** a mesa beside every Mars landing site over a sealed cavern (`mars_refuge.py`, `marsRefuge.json`).
+- **Floor:** a mesh floor with a collider and a rasterised height grid; terrain carving through a new
+  `SurfaceGen.carve` hook.
+- **Environment:** lake water, the underwater view, cave darkness and exposure, survey floodlights, the skylight.
+- **Species:** nine painted species (`fauna_mars_deep.py`).
+  - A refuge ecosystem with a biofilm budget, ribbon carrying capacity and hunters.
+  - Per-species state machines with telegraphed attacks (`marsDeep.ts`).
+
+#### Jupiter
+
+The reference sheet's nine (`fauna_jupiter_sheet.py`, `jupiterSheet.ts`).
+
+#### Data and UI
+
+- **Dossiers:** eighteen, with certainty labels, art scale vs simulated scale, and panel IDs
+  (`data/speciesExpansion.ts`).
+- **Codex:** sections in the exobiology tab.
+- **Settings:** Science mode (speculative / conservative) and a heroic Jupiter scale.
+
+See `docs/SPECULATIVE_EVOLUTION.md`.
+
+#### Kit
+
+- `foil()`: lofted fins with a real section.
+- A `chevron` paint layer.
+- Plates are clamped to their surface's ends; past either end, the extrapolation made spikes.
+- Unpainted parts keep their palette alpha, so corneas stay clear in the previews.
+
+### Creatures — painted maps; Mars and Jupiter rebuilt; Miller young, growth, cave collision
 - Painted colour maps baked per creature in Blender (`blender/lib/paint.py`, `paint_specs.py`), kept at runtime with
   the procedural relief on top (`src/render/Materials.ts` → `painted()`).
 - Mars (`blender/assets/fauna_mars.py`, reference photos 1–3) rebuilt on the organic kit with the original skeletons:
