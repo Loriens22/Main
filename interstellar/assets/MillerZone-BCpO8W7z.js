@@ -1,0 +1,1 @@
+import{t as e}from"./Zone-B2yOeeCM.js";var t=class extends e{id=`space`;async load(){}update(){}spawn(){}describe(){return{name:`MillerZone`,sub:``}}};export{t as default};
