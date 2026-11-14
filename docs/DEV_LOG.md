@@ -2,7 +2,21 @@
 
 ## Status (latest first)
 
-### Miller's Planet — creature realism pass (this pass)
+### Creatures — painted maps; Mars and Jupiter rebuilt; Miller young, growth, cave collision (this pass)
+- Painted colour maps baked per creature in Blender (`blender/lib/paint.py`, `paint_specs.py`), kept at runtime with
+  the procedural relief on top (`src/render/Materials.ts` → `painted()`).
+- Mars (`blender/assets/fauna_mars.py`, reference photos 1–3) rebuilt on the organic kit with the original skeletons:
+  strider (panelled coral carapace with dark seams and ringed light organs, segmented S-neck, grooved helmet, crest
+  with sensor hammer, armoured forelimbs, tendoned ringed legs, clawed feet), stalker (gaunt torso with ribs, spine
+  and blades, continuous muscled limbs, wrinkled broad skull, tusks), lancewing, tether-kite.
+- Jupiter (`fauna_jupiter.py`, photos 4–6): eyes, spiracles, gill slits and dorsal knobs on the rays, ringed
+  tentacles and tails, veined spore bulb with fine tendrils, wrinkled floater bag, painted maps for all five.
+- Miller: young Maw / Architect / Ferracaris, growth on Miller's clock, creatures kept out of cave rock, arched cave
+  doorways. Details and remaining limits: `docs/MILLER_BIOSPHERE.md`.
+- Verified in the browser: e2e `fauna_steps.mjs` PART=4 (Mars survey), `jupiter_steps.mjs` PART=6 (Jupiter survey),
+  `miller_steps.mjs` PART=12/13.
+
+### Miller's Planet — creature realism pass
 All ten species rebuilt against the concept images, skin that is no longer uniform, and the six known limits closed or
 narrowed. Details and the remaining honest limits: `docs/MILLER_BIOSPHERE.md` → "Realism pass — what was done".
 - Modelling kit `blender/lib/organic.py` (parametric bodies, conforming plates, rayed fins, fangs, ringed limbs, eyes

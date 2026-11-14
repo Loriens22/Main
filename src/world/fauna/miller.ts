@@ -311,6 +311,13 @@ class FerracarisColony extends Creature {
       }
     }
     this.lastState = tide;
+    // the young grow on Miller's clock (near or not) and take the adult build at about 0.6 of full size
+    const hours = localHours(this.game.state.clock.earthTime);
+    for (const g of this.ind) {
+      if (!g.juv) continue;
+      g.s = Math.max(g.s, 0.36 + 0.09 * (hours - g.born));
+      if (g.s >= 0.6 || !this.juvMeshes.length) g.juv = false;
+    }
     if (!near) return;
     this.moving.needsUpdate = true;
     // write the matrices: on the rock, aligned to its slope, flattened when clamped
@@ -321,12 +328,6 @@ class FerracarisColony extends Creature {
       const nz = host.terrainY(g.x, g.z - e) - host.terrainY(g.x, g.z + e);
       _v.set(nx, 2 * e, nz).normalize();
       _q.setFromUnitVectors(AX.y, _v).multiply(_q2.setFromAxisAngle(AX.y, g.yaw + Math.PI));
-      // the young grow on Miller's clock and take the adult build at about 0.6 of full size
-      if (g.juv) {
-        const age = localHours(this.game.state.clock.earthTime) - g.born;
-        g.s = Math.max(g.s, 0.36 + 0.09 * age);
-        if (g.s >= 0.6 || !this.juvMeshes.length) g.juv = false;
-      }
       const flat = g.state === 'graze' ? 1 : 0.82;
       const sc = g.state === 'gone' ? 0 : g.s;
       _s.set(sc, sc * flat, sc);

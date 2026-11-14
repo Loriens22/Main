@@ -296,5 +296,31 @@ parts[12] = [
     sv(`q_${sp}_nat`, `of('${sp}')[0]`, OFF[sp].slice(0, 3), OFF[sp][3], false, 40), unlamp,
   ]),
 ];
+
+// the young, cave collisions, growth on Miller's clock
+parts[13] = [
+  land,
+  { untilJs: `game.zone.fauna && ['sedimentmaw', 'architectjuv', 'mimicjuv', 'breakerjuv', 'cathedralcalf'].every((sp) => game.zone.fauna.creatures.some((k) => k.species === sp))`, max: 1200, chunk: 30 },
+  { js: `game.zone.waves.first = game.zone.time + 4000; game.state.creative.hazardProtection = true; for (const k of game.zone.fauna.creatures) k.cooldown = 999;
+    const F = game.zone.fauna; const yM = F.creatures.find((k) => k.species === 'sedimentmaw' && k.juvenile);
+    const col = F.creatures.filter((k) => k.species === 'ferracaris'); const juvN = col.reduce((n, c) => n + c.ind.filter((g) => g.juv).length, 0);
+    return { youngMaw: !!yM, mawSize: yM && +yM.size.toFixed(3), archJuv: +F.creatures.find((k) => k.species === 'architectjuv').size.toFixed(3), ferraJuv: juvN, caves: game.zone.caves?.group.children.length };`, frames: 1 },
+  // cave collision: a move straight through the mimic den's back wall is stopped at the rock and slid along it
+  { js: `const z = game.zone; const V = game.player.pos.constructor; const S = (await import('/src/world/surface/millerBiome.ts')).millerSpots().mimic;
+    const L = Math.hypot(...S.face); const fx = S.face[0] / L, fz = S.face[1] / L; const cx = S.at[0] + fx * 0.4, cz = S.at[1] + fz * 0.4; const y = z.terrainY(cx, cz) + 0.5;
+    const from = new V(cx - fx * 6, y, cz - fz * 6), to = new V(cx, y, cz); const to0 = to.clone(); const hit = z.caves.guard(from, to, 0.5);
+    const from2 = new V(cx + fx * 6, y, cz + fz * 6), to2 = new V(cx, y, cz); const hit2 = z.caves.guard(from2, to2, 0.5);
+    return { throughWall: { hit, stoppedAt: +from.distanceTo(to).toFixed(2), wanted: +from.distanceTo(to0).toFixed(2) }, throughDoor: { hit: hit2, moved: +from2.distanceTo(to2).toFixed(2) } };`, frames: 1 },
+  // the young: close looks
+  sv('young_maw', `game.zone.fauna.creatures.find((k) => k.species === 'sedimentmaw' && k.juvenile)`, [1.6, 1.4, -1.6], 0, false, 45), unlamp,
+  fgo(`const a = of('architect')[0]; put(a.den.x + 5, a.den.z + 3, 0.05, 1.2, -0.3)`, 60),
+  sv('young_architect', `of('architectjuv')[0]`, [1.2, 0.9, -1.4], 0.1, true, 40), unlamp,
+  { js: `${H} ${M} const c = of('ferracaris')[0]; const g = c.ind.find((q) => q.juv && q.state !== 'gone') ?? c.ind[0]; const y = z.terrainY(g.x, g.z); const cam = game.camera; game.cinematic = { blocking: true, update: () => true }; cam.fov = 30; cam.updateProjectionMatrix(); cam.position.set(g.x + 0.5, Math.max(y, 0) + 0.32, g.z + 0.4); cam.lookAt(g.x, y + 0.03, g.z); cam.updateMatrixWorld(true); return { juv: g.juv, s: g.s };`, frames: 2, shot: 'young_ferracaris' }, unlamp,
+  // three local hours pass (21 Earth years): the young have grown
+  { js: `const MF = (await import('/src/core/MissionClock.ts')).MILLER_FACTOR; game.state.clock.earthTime += 3 * 3600 / MF; return 1;`, frames: 3 },
+  { js: `const F = game.zone.fauna; const yM = F.creatures.find((k) => k.species === 'sedimentmaw' && k.juvenile); const col = F.creatures.filter((k) => k.species === 'ferracaris');
+    return { mawSize: +yM.size.toFixed(3), archJuv: +F.creatures.find((k) => k.species === 'architectjuv').size.toFixed(3), mimicJuv: +F.creatures.find((k) => k.species === 'mimicjuv').size.toFixed(3), calf: +F.creatures.find((k) => k.species === 'cathedralcalf').size.toFixed(3),
+      ferraJuvLeft: col.reduce((n, c) => n + c.ind.filter((g) => g.juv).length, 0) };`, frames: 1 },
+];
 const P = process.env.PART ?? '1';
 export const steps = parts[P];

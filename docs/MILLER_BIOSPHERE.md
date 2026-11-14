@@ -141,13 +141,14 @@ The images' ringed planet in the sky is not added (Miller's sky shows Gargantua 
 - The suit is rated to 60 m; the basin's floor (−160 m) is out of reach by design (a pressure blackout floats the
   diver up at 35 % integrity).
 - Caves are separate rock shells at five habitat spots (two siren shelters, two stalker ledges, the mimic den); the
-  rest of the rift is still heightfield walls and ledges. The diver collides with them; creatures do not. Each
-  opening faces the way its animal usually leaves (the Mimic routes through its doorway explicitly), so swimmers can
-  still clip a wall on an unusual path.
-- Skin detail is procedural (object-space noise), matched to the images by colour, pattern and relief; it is not
-  hand-painted and not photographic. Hatchlings/calves/young are separate models, but there is no growth over time.
-- Juvenile Ferracaris are not modelled separately (a colony's sizes vary 0.55–1.15 ×); the Sediment Maw and Rift
-  Architect have no young in the world (the Architect's eggs are props).
+  rest of the rift is still heightfield walls and ledges. Creatures with a body radius are kept out of the rock by a
+  ray cast against the cave colliders (the move stops short and slides along the wall); the check is a single ray
+  from the body centre, so a long tail or fin can still dip into rock for a moment.
+- Colour maps are painted procedurally in Blender (blender/lib/paint.py) and baked per creature, not painted by hand
+  stroke by stroke, and not photographic. A 2048 px map over a 10–64 m animal is coarse up close; the runtime skin
+  relief fills in the fine scale.
+- Growth is continuous size on Miller's clock (the young keep their own build until they are replaced at adult
+  size for the Ferracaris; the other young scale up but keep juvenile proportions — no morph between the two builds).
 - The deep stays dark without a light, as it should; the helmet lamp (L) and the creatures' own light are the light.
 
 ## Realism pass — what was done
@@ -188,3 +189,19 @@ The images' ringed planet in the sky is not added (Miller's sky shows Gargantua 
    beam made visible by suspended particles.
 8. **Verification**: e2e PART=8 (close-up skin survey), PART=9 (caves, prey, young, the deep through the player's lamp),
    PART=10 (an unforced crest with every species, state logged every 5 s).
+
+## Second pass — painted maps, all young, growth, cave collision
+- **Painted texture maps** (`blender/lib/paint.py`, specs in `paint_specs.py`): each body gets a UV atlas (uniform
+  texel density, tight pack) and an anatomy-aware paint (blotches, spots, reticulation, streaks, countershading,
+  convex wear, grimy folds, baked AO) baked into a colour map inside the GLB. The runtime keeps the map and the
+  procedural skin adds only relief (scales, wrinkles, pores, wet folds).
+- **Young for every species with a nursery**: young Sediment Maw (nips a boot and lets go, never holds), young Rift
+  Architect (follows the builder, carries pebbles, hides in the den), young Ferracaris (paler, fewer segments;
+  settle after a crest and take the adult build at ~0.6 size), plus the earlier Breaker hatchlings, Mimic juvenile,
+  Cathedral calf, young Stalker and Chorus juvenile.
+- **Growth on Miller's clock**: the young grow with local (dilated) time — 1 local hour ≈ 7 Earth years — so a long
+  stay or years waiting in orbit show (verified: 3 local hours → young Maw 0.46 → 0.60 of adult size).
+- **Cave collision** for creatures (see limits), smooth arched doorways, Cathedral wings without rib corrugation,
+  the Mimic down from ~76k to ~56k triangles.
+- e2e PART=12 (per-species check: SPECIES=…), PART=13 (young, cave collision, growth).
+
