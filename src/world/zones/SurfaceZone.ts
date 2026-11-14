@@ -61,6 +61,8 @@ export interface Handover {
 
 const NEAR_SIZE = 4096;
 const _camW = new THREE.Vector3();
+const _tintC = new THREE.Color();
+const _duskC = new THREE.Color();
 const MID_SIZE = 32768;
 const MAP_RES = 1025;
 
@@ -626,7 +628,12 @@ export default class SurfaceZone extends Zone implements SurfaceAPHost {
     const st = game.state.vehicles.ranger1;
     const up = new THREE.Vector3(...this.env.up(c.pos));
     const vr = new THREE.Vector3(...c.vel).dot(up);
-    this.jovian?.update(dt, game.camera.position, THREE.MathUtils.clamp(this.flux * 1.0, 0.05, 1));
+    // the cloud banks are lit by the Sun: they dim through dusk to dark at night and redden with the low Sun
+    const sunTint = _tintC.copy(this.sun.color);
+    sunTint.setRGB(sunTint.r ** 2.5, sunTint.g ** 2.5, sunTint.b ** 2.5);
+    const mx = Math.max(sunTint.r, sunTint.g, sunTint.b, 1e-3);
+    sunTint.multiplyScalar(1 / mx);
+    this.jovian?.update(dt, game.camera.position, THREE.MathUtils.clamp(this.flux, 0.05, 1) * (0.03 + 0.97 * this.dayK), sunTint);
     if (this.handing) return;
     // augmented hydrogen propulsion, less what the creatures do to it (spore-choked intakes, a discharge surge)
     c.efficiency = 2 * Math.max(0.5, st.damage.engines ?? 1) * (this.fauna?.active() ? this.fauna.thrustK : 1);
@@ -764,10 +771,10 @@ export default class SurfaceZone extends Zone implements SurfaceAPHost {
     const mat = new THREE.ShaderMaterial({
       transparent: false, depthTest: false, depthWrite: false, side: THREE.BackSide, fog: false,
       blending: THREE.CustomBlending, blendSrc: THREE.SrcAlphaFactor, blendDst: THREE.OneMinusSrcAlphaFactor,
-      uniforms: { uSun: { value: new THREE.Vector3(0, 1, 0) }, uZen: { value: new THREE.Color(...atm.zenith) }, uHor: { value: new THREE.Color(...atm.horizon) }, uGlow: { value: new THREE.Color(...atm.glow) }, uDay: { value: 1 }, uK: { value: 1 }, uAlpha: { value: atm.alpha } },
+      uniforms: { uSun: { value: new THREE.Vector3(0, 1, 0) }, uZen: { value: new THREE.Color(...atm.zenith) }, uHor: { value: new THREE.Color(...atm.horizon) }, uGlow: { value: new THREE.Color(...atm.glow) }, uDusk: { value: new THREE.Color(...(atm.dusk ?? [0, 0, 0])) }, uDay: { value: 1 }, uK: { value: 1 }, uAlpha: { value: atm.alpha } },
       vertexShader: /* glsl */ `varying vec3 vD; void main(){ vD = position; vec4 p = modelViewMatrix * vec4(position, 1.0); gl_Position = projectionMatrix * p; }`,
       fragmentShader: /* glsl */ `
-        varying vec3 vD; uniform vec3 uSun, uZen, uHor, uGlow; uniform float uDay, uK, uAlpha;
+        varying vec3 vD; uniform vec3 uSun, uZen, uHor, uGlow, uDusk; uniform float uDay, uK, uAlpha;
         void main(){
           vec3 d = normalize(vD); float hgt = d.y;
           float mu = dot(d, uSun);
@@ -775,6 +782,9 @@ export default class SurfaceZone extends Zone implements SurfaceAPHost {
           vec3 c = mix(uHor, uZen, smoothstep(-0.02, 0.75, hgt)) * uDay;
           // forward-scattering aureole around the Sun (bluish on Mars), brighter toward the horizon at low sun
           c += uGlow * (pow(max(mu, 0.0), 6.0) * 0.55 + pow(max(mu, 0.0), 48.0) * 1.6) * tw;
+          // the twilight band: a low Sun lights the haze near the horizon red-orange, strongest toward the Sun
+          float dk = smoothstep(0.3, 0.02, uSun.y) * smoothstep(-0.2, 0.0, uSun.y);
+          c += uDusk * dk * exp(-max(hgt, 0.0) * 4.0) * (0.3 + 0.7 * pow(max(mu * 0.5 + 0.5, 0.0), 3.0));
           float a = uAlpha * clamp(uDay * 1.15 + 0.15 * tw, 0.0, 1.0);
           gl_FragColor = vec4(c * uK, a);
         }`,
@@ -795,6 +805,7 @@ export default class SurfaceZone extends Zone implements SurfaceAPHost {
   jovian: JovianSky | null = null;
   /** alien life on this world (Settings → Alien life) */
   fauna: FaunaManager | null = null;
+  private impLight = { dir: new THREE.Vector3(0, 1, 0), sun: new THREE.Color(), ambient: new THREE.Color() };
   /** field research tools: survey drone / ROV (G), sampler (N), photo mode (B) — world/research */
   research: ResearchTools | null = null;
 
@@ -838,6 +849,13 @@ export default class SurfaceZone extends Zone implements SurfaceAPHost {
       probe: () => this.research?.drone?.pos ?? null,
       bumpProbe: (k) => this.research?.drone?.knock(k),
       airDensity: (p) => this.env.density([p.x, p.y, p.z]),
+      light: () => {
+        const L = this.impLight;
+        L.dir.copy(this.sunLocal).normalize();
+        L.sun.copy(this.sun.color).multiplyScalar(this.sun.intensity);
+        L.ambient.copy(this.hemi.color).add(this.hemi.groundColor).multiplyScalar(0.5 * this.hemi.intensity);
+        return L;
+      },
       knockout: (msg) => {
         if (this.ranger.site || this.craft.landed) this.ranger.seat();
         this.game.notify(msg, 'alert', 8);
@@ -1361,6 +1379,11 @@ export default class SurfaceZone extends Zone implements SurfaceAPHost {
       u.uK.value = this.flux * atm.skyK * 0.72;
       const fog = this.scene.fog as THREE.FogExp2;
       fog.color.setRGB(atm.horizon[0], atm.horizon[1], atm.horizon[2]).multiplyScalar((0.06 + 0.94 * day) * this.flux * atm.skyK * 0.72);
+      // twilight: the haze round a low Sun turns red-orange (Jupiter's storm dusks)
+      if (atm.dusk) {
+        const dk = THREE.MathUtils.smoothstep(0.3 - elev, 0, 0.28) * THREE.MathUtils.smoothstep(elev, -0.2, 0.0);
+        fog.color.lerp(_duskC.setRGB(atm.dusk[0], atm.dusk[1], atm.dusk[2]).multiplyScalar(0.55 * this.flux * atm.skyK), dk * 0.65);
+      }
     }
     // indoors (a camp hab): the sky light and the outdoor eye adaptation give way to the room's lamps
     const indoor = this.lazarus?.indoorAt(game.camera.getWorldPosition(_camW)) ? 1 : 0;
@@ -1377,7 +1400,8 @@ export default class SurfaceZone extends Zone implements SurfaceAPHost {
     const base = THREE.MathUtils.clamp(1 / Math.pow(this.flux, 0.75), 0.4, 4);
     const night = Math.max(1 - day * this.sunVisCPU, 0.3 * this.refugeK);
     // under water the eye adapts to the gloom, partly (deep down only the lamp shows much)
-    this.exposure = THREE.MathUtils.damp(this.exposure, base * (1 + night * 2.2) * (1 - 0.3 * this.indoorK * (1 - night)) * (1 + 0.8 * (1 - this.underK)), 1.2, dt);
+    const nightBoost = this.gas ? 0.7 : 2.2;
+    this.exposure = THREE.MathUtils.damp(this.exposure, base * (1 + night * nightBoost) * (1 - 0.3 * this.indoorK * (1 - night)) * (1 + 0.8 * (1 - this.underK)), 1.2, dt);
     this.envT -= dt;
     const envKey = this.sunLocal.x * 7 + this.sunLocal.y * 13 + this.sunLocal.z * 3 + day * 5 + this.sunVisCPU * 2;
     if (this.envT <= 0 && !this.game.skipRender && (Math.abs(envKey - this.envKey) > 0.03 || this.envT < -30)) {
@@ -1737,14 +1761,14 @@ const ATMOS_TOP: Record<string, number> = { mars: 150e3, titan: 600e3, miller: 1
 const GAS_EXIT = 30e3;
 const GAS_CRUSH = -4500;
 
-const ATMO_SURF: Record<string, { rho0: number; H: number; tau: C3; sky: C3; skyK: number; sunK: number; zenith: C3; horizon: C3; glow: C3; alpha: number; fog: number }> = {
+const ATMO_SURF: Record<string, { rho0: number; H: number; tau: C3; sky: C3; skyK: number; sunK: number; zenith: C3; horizon: C3; glow: C3; alpha: number; fog: number; dusk?: C3 }> = {
   // dusty butterscotch sky, blue aureole around the Sun (forward scattering by fine dust)
   mars: { rho0: 0.02, H: 11100, tau: [0.22, 0.33, 0.48], sky: [0.62, 0.44, 0.3], skyK: 0.75, sunK: 0.9, zenith: [0.46, 0.3, 0.2], horizon: [0.8, 0.58, 0.4], glow: [0.5, 0.58, 0.7], alpha: 0.93, fog: 1 / 38000 },
   // thick orange photochemical haze
   titan: { rho0: 5.4, H: 21000, tau: [0.9, 1.4, 2.4], sky: [0.55, 0.36, 0.14], skyK: 1.4, sunK: 0.45, zenith: [0.45, 0.28, 0.1], horizon: [0.7, 0.46, 0.2], glow: [0.9, 0.65, 0.3], alpha: 0.985, fog: 1 / 9000 },
   // Gargantua's worlds: thinner-looking skies so the black hole and its disk show through by day
   miller: { rho0: 1.4, H: 8500, tau: [0.1, 0.14, 0.2], sky: [0.42, 0.48, 0.52], skyK: 0.55, sunK: 0.8, zenith: [0.16, 0.2, 0.24], horizon: [0.5, 0.55, 0.58], glow: [0.12, 0.1, 0.08], alpha: 0.4, fog: 1 / 30000 },
-  jupiter: { rho0: 0.17, H: 27000, tau: [0.06, 0.09, 0.16], sky: [0.66, 0.6, 0.5], skyK: 0.9, sunK: 0.8, zenith: [0.42, 0.47, 0.56], horizon: [0.86, 0.74, 0.56], glow: [0.36, 0.28, 0.18], alpha: 1, fog: 1 / 8000 },
+  jupiter: { rho0: 0.17, H: 27000, tau: [0.06, 0.09, 0.16], sky: [0.66, 0.6, 0.5], skyK: 0.9, sunK: 0.8, zenith: [0.42, 0.47, 0.56], horizon: [0.86, 0.74, 0.56], glow: [0.36, 0.28, 0.18], alpha: 1, fog: 1 / 8000, dusk: [0.95, 0.4, 0.13] },
   mann: { rho0: 1.0, H: 9000, tau: [0.14, 0.16, 0.2], sky: [0.62, 0.66, 0.7], skyK: 0.8, sunK: 0.9, zenith: [0.42, 0.47, 0.52], horizon: [0.74, 0.76, 0.79], glow: [0.25, 0.24, 0.22], alpha: 0.7, fog: 1 / 14000 },
   edmunds: { rho0: 1.1, H: 8500, tau: [0.12, 0.2, 0.34], sky: [0.42, 0.55, 0.78], skyK: 0.8, sunK: 0.95, zenith: [0.2, 0.34, 0.66], horizon: [0.62, 0.7, 0.8], glow: [0.3, 0.27, 0.22], alpha: 0.72, fog: 1 / 30000 },
 };

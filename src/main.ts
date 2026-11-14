@@ -14,7 +14,11 @@ if (!webgl2Available()) {
     '<div style="color:#ddd;font-family:sans-serif;padding:40px;line-height:1.6">Interstellar: Beyond Endurance needs a browser with WebGL2 support.</div>';
 } else {
   const game = new Game();
-  game.init().catch((e) => {
+  const bench = new URLSearchParams(location.search).get('bench');
+  game.init().then(() => {
+    // ?bench (or ?bench=jupiter / ?bench=refuge): the repeatable performance test (core/Bench.ts)
+    if (bench !== null) void import('./core/Bench').then((m) => m.runBench(game, bench || 'all'));
+  }).catch((e) => {
     console.error(e);
     const d = document.createElement('div');
     d.style.cssText = 'position:fixed;inset:0;color:#eee;background:#000;padding:40px;font-family:monospace;z-index:999;white-space:pre-wrap';

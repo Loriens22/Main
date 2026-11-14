@@ -356,7 +356,8 @@ export class ResearchTools {
       return { key: 'mars:regolith', label: 'scoop a regolith sample', result: 'Regolith: basaltic fines, perchlorate ≈ 0.5 % (as found by Phoenix), no organics detected in the field kit.' };
     }
     if (body === 'jupiter') {
-      if (near('colony', 60)) return { key: 'jupiter:colony', label: 'intake-sample the colony stand', species: 'colony',
+      const col = F?.creatures.find((c) => c.species === 'colony') as unknown as { distTo?: (q: THREE.Vector3) => number } | undefined;
+      if (col?.distTo && col.distTo(p) < 80) return { key: 'jupiter:colony', label: 'intake-sample the colony', species: 'colony',
         result: 'Colony sample: porous organic units 0.5–3 m, each with its own gas inclusions; soft adhesive links between neighbours — a community, not one body.' };
       const am = F?.creatures.find((c) => c.species === 'aeromite' && c.pos.distanceTo(p) < 180);
       if (am) return { key: 'jupiter:aerosol', label: 'sample the aerosol', species: 'aeromite',

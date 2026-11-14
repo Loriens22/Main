@@ -210,7 +210,37 @@ Sound is synthesised and scheduled in the code paths these runs exercise, but th
 - `refuge_mimic_carcass.jpg`
 - `refuge_conservative_mode.jpg`
 
+## Far detail, the colony mass, performance, dramatic light (latest pass)
+
+- **Impostors (the directive's LOD3)** — `src/render/Impostors.ts`.
+  - **Bake:** each species is rendered once into three small atlases (colour, normals, glow) from 8 headings × 4 elevations.
+  - **Display:** at range, an animal is one camera-facing quad. The quad picks the nearest view and rolls with the animal's bank. It is relit by the scene's sun and sky, so it darkens at night; glow organs stay lit, and fog applies.
+  - **Switch:** detail levels follow screen size. The model is drawn in full until ~12 body radii away, then the 32 % mesh to 36 radii, the 9 % mesh to 110 radii, then the impostor. The Phone preset switches sooner (×0.45).
+  - **Coverage:** every animal model now has the decimated LODs, including the older Jupiter and Mars species.
+- **Floating Colony:** one mass ~450 m across, like the poster. It is built of 21 overlapping cumulus lobes, 13 on the Phone preset (`jup_colony_lobe`, with LODs and impostors).
+  - Only the bottom layer trails the tendrils, which hang hundreds of metres.
+  - Each lobe floats on its own and rides its own air, and soft links pull it back. This is still no rigid body.
+  - Small satellite colonies drift around it.
+  - Flying into it fouls the intakes; the sampler works within 80 m of any lobe.
+- **Skyjelly:** 36k triangles at full detail (was 80k), with 11k and 3k levels.
+- **A cost bug found and fixed:** hidden instanced colony units (zero-scale matrices) were still drawn at every LOD tier. The flight view went from 8.7 M to 1.6 M triangles at High.
+- **Performance test:** Settings → Graphics → "Run performance test", or open the game with `?bench`.
+  - **Route:** a fixed flight through Jupiter's clouds (the flight view, a colony orbit, the animals close up) and a walk through the Mars refuge.
+  - **Report:** median fps, 1 % low, draw calls and triangles for the device it runs on.
+  - **Measured here:** this machine has no GPU (SwiftShader), so its fps says nothing about a phone. Draw calls and triangles do not depend on the device:
+
+| Preset | Jupiter flight | Colony orbit | Animals close | Mars refuge |
+|---|---|---|---|---|
+| Phone | 382 draws · 0.56 M tris | 219 · 0.45 M | 192 · 0.51 M | 173 · 0.63 M |
+| High | 1195 · 1.61 M | 924 · 1.83 M | 828 · 1.48 M | 941 · 1.98 M |
+
+- **Dramatic light on Jupiter:**
+  - **Clouds:** the cloud banks now follow the sun's height. They dim through dusk to dark at night, and the low sun reddens them.
+  - **Twilight:** a red-orange band lights the haze toward a low sun.
+  - **Nights:** they stay dark, with a smaller eye-adaptation boost.
+  - **Lightning:** near strikes are drawn as branching bolts, with a flash that lights the animals nearby.
+  - **Comparison:** `docs/media/jupiter_panels_vs_game_dramatic.jpg` puts the nine side by side, panel and game. Dusk light is used for the Stormskimmer, Stormbeast, Colony, Deepdiver, Gasgrazer and Aeromites; night with lightning for the Skyjelly, Voltdrifter and Stormhunter.
+
 ## Still not built
 
-- GPU impostors or particle stand-ins (the directive's LOD3) beyond the instanced colony and the Aeromite glints.
 - Full resource-field or CFD simulation. The ecology uses budgets (biofilm, carrying capacity, aeromite regrowth), and the air uses the field model above.

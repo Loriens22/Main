@@ -6,6 +6,7 @@ import { PreySwarm } from './prey';
 import { SPECIES_EXPANSION } from '../../data/speciesExpansion';
 import { JupiterAir, aeroStep, pursue, type AeroBody, type AeroState } from './jupiterAir';
 import { siteMemory, type FaunaMemory } from './memory';
+import { Impostor, ImpostorBaker } from '../../render/Impostors';
 
 /**
  * Jupiter — the nine species of the player's 3×3 reference sheet (jupiter_panel_01 … 09; dossiers in
@@ -43,7 +44,6 @@ const _q = new THREE.Quaternion();
 const _s = new THREE.Vector3();
 const clamp = THREE.MathUtils.clamp;
 const damp = THREE.MathUtils.damp;
-const ZERO = new THREE.Matrix4().makeScale(0, 0, 0);
 
 /** codex evidence (flags bio:<id>:<key>) for a species of the sheet */
 function note(f: FaunaManager, id: string, key: string, text?: string) {
@@ -415,56 +415,133 @@ class Stormbeast extends SheetFlyer {
 }
 
 // ================================================================================================ 04 Floating Colony
+/** a static model with its Blender LODs (<mesh>_lod1/2) and a far impostor — for the colony's lobes */
+class LodModel {
+  readonly lods: THREE.Object3D[][] = [[], [], []];
+  impostor: Impostor | null = null;
+  level = -1;
+
+  constructor(readonly root: THREE.Object3D, readonly key: string, hide?: (m: THREE.Mesh) => boolean) {
+    root.traverse((o) => {
+      const m = o as THREE.Mesh;
+      if (!m.isMesh) return;
+      if (hide?.(m)) {
+        m.visible = false;
+        return;
+      }
+      const lv = /_lod(\d)/.exec(m.name) ?? /_lod(\d)/.exec(m.parent?.name ?? '');
+      this.lods[lv ? Math.min(2, Number(lv[1])) : 0].push(m);
+      m.castShadow = false;
+    });
+    this.set(0);
+  }
+
+  set(level: number) {
+    let l = level === 3 && !this.impostor ? 2 : level;
+    if (l < 3) while (l > 0 && !this.lods[l].length) l--;
+    if (l === this.level) return;
+    this.level = l;
+    this.lods.forEach((ms, i) => ms.forEach((m) => (m.visible = i === l)));
+    if (this.impostor) this.impostor.mesh.visible = l === 3;
+  }
+
+  makeImpostor(baker: ImpostorBaker, parent: THREE.Object3D) {
+    if (this.impostor) return;
+    const was = this.level;
+    const atlas = baker.bake(this.key, this.root, () => this.lods.forEach((ms, i) => ms.forEach((m) => (m.visible = i === 0))), () => {
+      this.level = -1;
+      this.set(Math.max(0, Math.min(was, 2)));
+    });
+    this.impostor = new Impostor(atlas);
+    parent.add(this.impostor.mesh);
+  }
+}
+
 /**
- * thousands of small units over a wide volume, instanced — near ones at full detail, far ones as the low LOD. Each
- * unit floats at its own density level (like a superpressure balloon): it rides the wind horizontally, a rising
- * core lifts it until its buoyancy pulls it back; shear spreads the stand, soft links between neighbours draw it
- * together. No rigid body anywhere.
+ * panel 04's great floating colony — as a COMMUNITY: a cumulus mass ~450 m across built of fourteen lobes, each a
+ * separate organism floating at its own density level and riding its own air (a rising core lifts part of the mass,
+ * shear leans it), held together by soft links that pull the lobes back toward their places — no rigid body. Long
+ * tendrils hang hundreds of metres below. Around it drift small satellite colonies (the instanced units).
  */
 class FloatingColony extends Creature {
   readonly species = 'colony';
-  /** instanced meshes per level of detail: [0] within 150 m of the camera, [1] to 700 m, [2] beyond */
+  /** lobes of the main mass: model, offset from the centre (current / rest), scale */
+  private lobes: { m: LodModel; p: THREE.Vector3; rest: THREE.Vector3; s: number; ph: number; q: THREE.Quaternion }[] = [];
+  /** satellite units (instanced, three LOD tiers) */
   private tiers: THREE.InstancedMesh[][] = [[], [], []];
   private units: { p: THREE.Vector3; rest: THREE.Vector3; s: number; ph: number }[] = [];
   readonly center = new THREE.Vector3();
   private cv = new THREE.Vector3();
   private fouled = false;
   private hissT = 2;
+  /** the radius of the main mass (m) — for the tools and the codex size estimate */
+  readonly massR = 230;
 
   constructor(f: FaunaManager, readonly sky: Sky, readonly air: JupiterAir, n: number) {
     super(f);
     this.view = 1e9;
     this.nearR = 1e9;
+    this.bodyR = this.massR;
+    // satellite colonies: five small clusters round the mass, and a few loose units
     for (let i = 0; i < n; i++) {
-      // clustered sub-colonies inside a ~700 m diffuse region
-      const cl = i % 7;
-      const ca = (cl / 7) * TAU;
-      const p = new THREE.Vector3(Math.cos(ca) * 220 + (Math.random() - 0.5) * 140, (Math.random() - 0.5) * 120, Math.sin(ca) * 220 + (Math.random() - 0.5) * 140);
-      this.units.push({ p, rest: p.clone(), s: 0.6 + Math.random() * 1.6, ph: Math.random() * TAU });
+      const cl = i % 6;
+      const ca = (cl / 5) * TAU + 0.4;
+      const far = cl === 5 ? 380 + Math.random() * 500 : 520 + (cl % 2) * 220;
+      const spread = cl === 5 ? 260 : 26;
+      const p = new THREE.Vector3(Math.cos(ca) * far + (Math.random() - 0.5) * spread, (cl - 2) * 40 + (Math.random() - 0.5) * spread * 0.6, Math.sin(ca) * far + (Math.random() - 0.5) * spread);
+      this.units.push({ p, rest: p.clone(), s: (cl === 5 ? 0.8 : 1.6) + Math.random() * 1.6, ph: Math.random() * TAU });
     }
   }
 
+  /** distance from p to the nearest part of the community (lobes or units), m */
+  distTo(p: THREE.Vector3) {
+    let d = Infinity;
+    for (const l of this.lobes) d = Math.min(d, _w.copy(l.p).add(this.center).distanceTo(p) - 5 * l.s);
+    for (const u of this.units) d = Math.min(d, _w.copy(u.p).add(this.center).distanceTo(p) - 2 * u.s);
+    return Math.max(0, d);
+  }
+
   async build() {
-    const inst = await this.game.assets.instance('jup_colony');
-    inst.root.updateMatrixWorld(true);
-    const lodOf = (o: THREE.Object3D) => {
-      const m = /_lod(\d)/.exec(o.name) ?? /_lod(\d)/.exec(o.parent?.name ?? '');
-      return m ? Number(m[1]) : 0;
+    // the mass, a cauliflower dome wider than tall: a bottom layer of big lobes trailing the tendrils, then layers
+    // of lobes without tendrils, each sitting half-buried in the ones below (a fused surface, not stacked caps)
+    const layout: [number, number, number, number, boolean][] = [];
+    const ring = (n: number, r: number, y: number, s0: number, s1: number, tendrils: boolean, ph = 0) => {
+      for (let k = 0; k < n; k++) layout.push([Math.cos((k / n) * TAU + ph) * r * (0.9 + 0.2 * Math.random()), y + (Math.random() - 0.5) * 14, Math.sin((k / n) * TAU + ph) * r * (0.9 + 0.2 * Math.random()), s0 + Math.random() * (s1 - s0), tendrils]);
     };
-    inst.root.traverse((o) => {
+    const phone = this.f.lodK < 0.7;
+    ring(phone ? 5 : 7, 125, 0, 12, 14, true);
+    layout.push([0, 8, 0, 16, true]);
+    ring(phone ? 4 : 6, 88, 52, 11.5, 13, false, 0.4);
+    ring(phone ? 2 : 4, 48, 100, 10.5, 12, false, 1.1);
+    if (!phone) ring(2, 18, 140, 10, 11, false, 2.0);
+    layout.push([0, 168, 0, 9.5, false]);
+    for (const [x, y, z, s, tendrils] of layout) {
+      const inst = await this.game.assets.instance('jup_colony_lobe');
+      const m = new LodModel(inst.root, tendrils ? 'jup_colony_lobe' : 'jup_colony_lobe_top', tendrils ? undefined : (mesh) => {
+        const mat = (Array.isArray(mesh.material) ? mesh.material[0] : mesh.material) as THREE.Material;
+        return mat.name.startsWith('co_thread');
+      });
+      this.root.add(inst.root);
+      const p = new THREE.Vector3(x, y, z);
+      this.lobes.push({ m, p, rest: p.clone(), s, ph: Math.random() * TAU, q: new THREE.Quaternion().setFromAxisAngle(AX.y, Math.random() * TAU) });
+    }
+    // the satellite units, instanced in three tiers
+    const unit = await this.game.assets.instance('jup_colony');
+    unit.root.updateMatrixWorld(true);
+    unit.root.traverse((o) => {
       const src = o as THREE.Mesh;
       if (!src.isMesh) return;
-      const lod = Math.min(2, lodOf(src));
+      const lv = /_lod(\d)/.exec(src.name) ?? /_lod(\d)/.exec(src.parent?.name ?? '');
+      const lod = lv ? Math.min(2, Number(lv[1])) : 0;
       const geo = src.geometry.clone();
       geo.applyMatrix4(src.matrixWorld);
-      const m = new THREE.InstancedMesh(geo, src.material, this.units.length);
-      m.frustumCulled = false;
-      m.castShadow = false;
-      m.instanceMatrix.setUsage(THREE.DynamicDrawUsage);
-      this.tiers[lod].push(m);
-      this.root.add(m);
+      const im = new THREE.InstancedMesh(geo, src.material, this.units.length);
+      im.frustumCulled = false;
+      im.castShadow = false;
+      im.instanceMatrix.setUsage(THREE.DynamicDrawUsage);
+      this.tiers[lod].push(im);
+      this.root.add(im);
     });
-    // a missing level falls back to the nearest finer one
     if (!this.tiers[1].length) this.tiers[1] = this.tiers[0];
     if (!this.tiers[2].length) this.tiers[2] = this.tiers[1];
     this.f.root.add(this.root);
@@ -474,59 +551,97 @@ class FloatingColony extends Creature {
   update(dt: number) {
     const sky = this.sky;
     const air = this.air;
-    if (this.center.lengthSq() === 0) sky.ahead(1800, 500, air.refY + 80 - sky.rp.y, this.center);
-    // the stand's centre rides the air (vertical: lifted by a core, pulled back to its level by buoyancy)
+    if (this.center.lengthSq() === 0) sky.ahead(2400, 700, air.refY + 60 - sky.rp.y, this.center);
+    // the community's centre rides the air (vertical: lifted by a core, pulled back to its level by buoyancy)
     const wc = air.wind(this.center, _a);
-    this.cv.set(wc.x, 0.35 * wc.y + 0.02 * (air.refY + 80 - this.center.y), wc.z);
+    const wcx = wc.x, wcy = wc.y, wcz = wc.z;
+    this.cv.set(wcx, 0.35 * wcy + 0.02 * (air.refY + 60 - this.center.y), wcz);
     this.center.addScaledVector(this.cv, dt);
     // far behind: the wind has carried another part of the community into the path ahead
     _v.subVectors(this.center, sky.rp);
-    if (_v.length() > 2600 && _v.dot(sky.head) < 0) sky.ahead(2400, (Math.random() - 0.5) * 1600, air.refY + 80 + (Math.random() - 0.5) * 200 - sky.rp.y, this.center);
+    if (_v.length() > 3600 && _v.dot(sky.head) < 0) sky.ahead(3200, (Math.random() - 0.5) * 2200, air.refY + 60 - sky.rp.y, this.center);
     const cam = this.game.camera.getWorldPosition(_s);
-    let nearest = Infinity;
-    const wcx = wc.x, wcy = wc.y, wcz = wc.z;
-    this.units.forEach((u, i) => {
+    const K = this.f.lodK;
+    const light = this.f.host.light?.();
+    let nearest = Infinity, reach = 0;
+    let baked = false;
+    // each lobe floats on its own: shear and updrafts displace it, the soft links (springs to its place) pull back
+    for (const l of this.lobes) {
+      _w.copy(l.p).add(this.center);
+      const wu = air.wind(_w, _a);
+      l.p.x += ((wu.x - wcx) * 0.08 + (l.rest.x - l.p.x) * 0.004) * dt;
+      l.p.z += ((wu.z - wcz) * 0.08 + (l.rest.z - l.p.z) * 0.004) * dt;
+      l.p.y += (0.3 * (wu.y - wcy) + (l.rest.y - l.p.y) * 0.015 + Math.sin(this.t * 0.07 + l.ph) * 0.4) * dt;
+      _w.copy(l.p).add(this.center);
+      const r = 6 * l.s;
+      const dc = _w.distanceTo(cam);
+      const dr = _w.distanceTo(sky.rp) - r;
+      if (dr < nearest) {
+        nearest = dr;
+        reach = r;
+      }
+      const root = l.m.root;
+      root.position.copy(_w);
+      root.quaternion.copy(l.q).multiply(_q.setFromAxisAngle(AX.y, Math.sin(this.t * 0.01 + l.ph) * 0.1));
+      root.scale.setScalar(l.s);
+      const lvl = dc < r * 4 * K ? 0 : dc < r * 13 * K ? 1 : dc < r * 40 * K ? 2 : 3;
+      if (lvl === 3 && !l.m.impostor && !baked) {
+        this.f.impostors ??= new ImpostorBaker(this.game.renderer.gl, K < 0.7 ? 96 : 128);
+        l.m.makeImpostor(this.f.impostors, this.f.root);
+        baked = true;
+      }
+      l.m.set(lvl);
+      if (l.m.level === 3 && l.m.impostor && light) l.m.impostor.update(root.position, root.quaternion, l.s, this.game.camera, light);
+    }
+    // the satellites: each tier draws only its own units (packed at the front, instance count set) — hidden
+    // instances would still cost their full vertex work
+    const filled = [0, 0, 0];
+    this.units.forEach((u) => {
       _w.copy(u.p).add(this.center);
-      // the unit's own air relative to the centre's: shear spreads it, a core lifts part of it; soft links pull back
       const wu = air.wind(_w, _a);
       u.p.x += ((wu.x - wcx) * 0.1 + (u.rest.x - u.p.x) * 0.003) * dt;
       u.p.z += ((wu.z - wcz) * 0.1 + (u.rest.z - u.p.z) * 0.003) * dt;
       u.p.y += (0.35 * (wu.y - wcy) + (u.rest.y - u.p.y) * 0.02 + Math.sin(this.t * 0.2 + u.ph) * 0.3) * dt;
       _w.copy(u.p).add(this.center);
       const dc = _w.distanceTo(cam);
-      nearest = Math.min(nearest, _w.distanceTo(sky.rp));
       _q.setFromAxisAngle(AX.y, u.ph + this.t * 0.02);
       _m.compose(_w, _q, _g.setScalar(u.s));
-      const lvl = dc < 150 * u.s ? 0 : dc < 700 * u.s ? 1 : 2;
-      for (let l = 0; l < 3; l++) {
-        if (l > 0 && this.tiers[l] === this.tiers[l - 1]) continue;
-        const show = l === lvl || (this.tiers[lvl] === this.tiers[l]);
-        for (const m of this.tiers[l]) m.setMatrixAt(i, show ? _m : ZERO);
-      }
+      let lvl = dc < 40 * u.s * K ? 0 : dc < 160 * u.s * K ? 1 : 2;
+      while (lvl > 0 && this.tiers[lvl] === this.tiers[lvl - 1]) lvl--;
+      const idx = filled[lvl]++;
+      for (const m of this.tiers[lvl]) m.setMatrixAt(idx, _m);
     });
+    for (let l = 0; l < 3; l++) {
+      if (l > 0 && this.tiers[l] === this.tiers[l - 1]) continue;
+      for (const m of this.tiers[l]) {
+        m.count = filled[l];
+        m.visible = filled[l] > 0;
+      }
+    }
     for (const set of new Set(this.tiers)) for (const m of set) m.instanceMatrix.needsUpdate = true;
     this.pos.copy(this.center);
-    // flown through at speed: units in the intakes and smeared over the optics
+    // flown into the mass at speed: lobe tissue in the intakes and smeared over the optics; inside it: slowed
     const fast = sky.rv.length() > 40;
-    if (nearest < 12 && fast && !this.fouled && sky.craft) {
+    if (nearest < 0 && fast && !this.fouled && sky.craft) {
       this.fouled = true;
-      sky.clog = Math.max(sky.clog, 6);
-      sky.darkTarget = Math.max(sky.darkTarget, 0.35);
-      this.game.notify('Flew through a colony stand — intakes fouled, canopy smeared. Slow down near them.', 'warn', 5);
-      setTimeout(() => (sky.darkTarget = 0), 2500);
+      sky.clog = Math.max(sky.clog, 8);
+      sky.darkTarget = Math.max(sky.darkTarget, 0.55);
+      this.game.notify('Flew into the colony mass — intakes fouled, canopy smeared. Slow down near it, or go round.', 'warn', 5);
+      setTimeout(() => (sky.darkTarget = 0), 3000);
     }
-    if (nearest > 60) this.fouled = false;
+    if (nearest > reach * 0.3) this.fouled = false;
     this.hissT -= dt;
     if (this.hissT < 0) {
       this.hissT = 3 + Math.random() * 3;
-      if (nearest < 220) this.f.voice.colonyHiss(this.center, 0.06);
+      if (nearest < 300) this.f.voice.colonyHiss(this.center, 0.08);
     }
-    if (seen(this.f, this.center, 4000, 0.6)) note(this.f, 'colony', 'sighting');
+    if (seen(this.f, this.center, 6000, 0.6)) note(this.f, 'colony', 'sighting');
   }
 
   dispose() {
     super.dispose();
     for (const m of new Set(this.tiers.flat())) m.geometry.dispose();
+    for (const l of this.lobes) l.m.impostor?.dispose();
   }
 }
 
@@ -966,7 +1081,7 @@ export async function populateJupiterSheet(f: FaunaManager, sky: Sky, R: () => n
   const sb = new Stormbeast(f, sky, air);
   sky.ahead(2800, -2600, refY - 150 - sky.rp.y, sb.pos);
   jobs.push(safe(f.add(sb, 'jup_stormbeast')));
-  const col = new FloatingColony(f, sky, air, f.count(140));
+  const col = new FloatingColony(f, sky, air, f.count(110));
   jobs.push(safe(col.build().then(() => f.creatures.push(col))));
   for (let i = 0; i < f.count(2); i++) {
     const v = new Voltdrifter(f, sky, air, i, mites);

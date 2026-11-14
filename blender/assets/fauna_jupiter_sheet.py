@@ -278,9 +278,8 @@ def skyjelly():
     R, H = 3.5, 1.95
     parts = []
 
-    def lathe(name, R_, H_, mat, ribs, rib_h, z0=0.0, flip=False):
+    def lathe(name, R_, H_, mat, ribs, rib_h, z0=0.0, flip=False, nr=22, na=96):
         bm = bmesh.new()
-        nr, na = 30, 128
         rows = []
         for i in range(nr + 1):
             t = i / nr
@@ -305,7 +304,7 @@ def skyjelly():
         kit.smooth(o, 60)
         return o
     parts.append(Part(lathe("bell", R, H, "sj_bell", 32, 0.05), bone="bell"))
-    parts.append(Part(lathe("inner", R * 0.86, H * 0.68, "sj_inner", 8, 0.02, z0=-0.05), bone="bell"))
+    parts.append(Part(lathe("inner", R * 0.86, H * 0.68, "sj_inner", 8, 0.02, z0=-0.05, nr=14, na=64), bone="bell"))
     # the velum: an inturned skirt at the margin
     vel = []
     for j in range(64):
@@ -321,7 +320,7 @@ def skyjelly():
         rr = R * 0.56 + 0.12 * math.sin(a * 24)
         gp.append(V((math.cos(a) * rr, math.sin(a) * rr, 0.75 + 0.1 * math.sin(a * 12))))
         gr.append(0.22 + 0.08 * math.sin(a * 18) ** 2)
-    parts.append(Part(tube("gonads", gp, gr, "sj_core", seg=10), bone="bell"))
+    parts.append(Part(tube("gonads", gp, gr, "sj_core", seg=8), bone="bell"))
     parts.append(Part(kit.sphere("core", 1.0, loc=(0, 0, 1.05), m="sj_core", segs=20, rings=12, scale=(1.1, 1.1, 0.55)), bone="bell"))
     # four long twisted frilled oral arms
     for k in range(4):
@@ -339,22 +338,22 @@ def skyjelly():
     # the thin bright rim (panel 02: a glowing pink margin round the bell)
     rim = [V((math.cos(TAU * k / 128) * R * 1.0, math.sin(TAU * k / 128) * R * 1.0, -0.2 + 0.03 * math.sin(TAU * k / 128 * 16))) for k in range(129)]
     parts.append(Part(tube("rim", rim, [0.075] * 129, "sj_core", seg=8), bone="bell"))
-    # ninety-six hair-fine wavy tentacles from the rim in eight bundles, beaded with tiny nematocyst-like knots
+    # seventy-two hair-fine wavy tentacles from the rim in eight bundles, beaded with tiny nematocyst-like knots
     for b in range(8):
         a0 = TAU * b / 8
         ch = sk.chain(f"tent{b}", [(math.cos(a0) * R * 0.95, math.sin(a0) * R * 0.95, -0.2 - 4.5 * k) for k in range(5)], "bell")
         tents = []
-        for k in range(12):
-            a = a0 + (k - 5.5) * 0.065
+        for k in range(9):
+            a = a0 + (k - 4) * 0.085
             base = V((math.cos(a) * R * 0.97, math.sin(a) * R * 0.97, -0.25))
             L = rng.uniform(6, 20)
             ph = rng.uniform(0, TAU)
             amp = rng.uniform(0.15, 0.45)
-            NQ = 26
+            NQ = 18
             path = [base + V((math.cos(a) * 0.5 * math.sin(PI * q / NQ) + amp * math.sin(q * 0.5 + ph) * q / NQ, math.sin(a) * 0.5 * math.sin(PI * q / NQ) + amp * math.cos(q * 0.42 + ph) * q / NQ, -L * q / NQ)) for q in range(NQ + 1)]
-            tents.append(tube(f"t{b}{k}", path, [0.026 * (1 - 0.85 * q / NQ) + 0.003 for q in range(NQ + 1)], "sj_tent", seg=5))
-            for q in range(4, NQ, 7):
-                tents.append(kit.sphere(f"k{b}{k}{q}", 0.03 * (1 - 0.6 * q / NQ) + 0.008, loc=tuple(path[q]), m="sj_tent", segs=6, rings=4))
+            tents.append(tube(f"t{b}{k}", path, [0.028 * (1 - 0.85 * q / NQ) + 0.003 for q in range(NQ + 1)], "sj_tent", seg=4))
+            for q in range(4, NQ, 6):
+                tents.append(kit.sphere(f"k{b}{k}{q}", 0.032 * (1 - 0.6 * q / NQ) + 0.008, loc=tuple(path[q]), m="sj_tent", segs=5, rings=3))
         parts.append(Part(kit.merge(tents, f"tents{b}"), bones=ch))
     body = assemble("skyjelly_body", sk, parts)
     arm = finish_creature(root, sk, body, os.path.join(kit.out_dir(), "jup_skyjelly.glb"), props={"creature": "skyjelly", "bell": 7}, ao=0.6, paint=2048, nsize=1024)
@@ -497,6 +496,56 @@ def colony():
         parts.append(tube(f"pt{k}", [c + V((0, 0, -0.2)), c + V((0.1, 0.1, -1.4)), c + V((0.2, -0.1, -2.9))], [0.04, 0.025, 0.005], "co_thread", seg=4))
     body = kit.merge(parts, "colony_body")
     export_static(root, body, os.path.join(kit.out_dir(), "jup_colony.glb"), {"creature": "colony"}, size=2048, nsize=1024, ao=0.6)
+    return root, None
+
+
+# ================================================================================================ 04b Colony lobe
+def colony_lobe():
+    """panel 04's great mass is built at runtime from a dozen of these lobes (each floats on its own and is held to
+    the others by soft links — a community, never one rigid body): a cumulus head ~12 m across at scale 1 (shown at
+    70–150 m), lumps on lumps in three scales split by ember-lit fissures, a flatter base trailing long tendrils"""
+    kit.reset()
+    root = empty("ColonyLobe")
+    rng = random.Random(1624)
+    els = [("ELLIPSOID", (0, 0, 0.6), 4.6, (1.15, 1.0, 0.62))]
+    for count, rmin, rmax, d0, d1, e0 in ((12, 1.9, 2.6, 3.2, 4.4, 0.0), (34, 1.0, 1.5, 3.9, 5.0, -0.05), (90, 0.45, 0.75, 4.6, 5.6, -0.1)):
+        for k in range(count):
+            a = rng.uniform(0, TAU)
+            e = rng.uniform(e0, 1.35)
+            d = rng.uniform(d0, d1)
+            c = (math.cos(a) * d * math.cos(e) * 1.12, math.sin(a) * d * math.cos(e), 0.6 + math.sin(e) * d * 0.72)
+            els.append(("BALL", c, rng.uniform(rmin, rmax)))
+    lump = meta("lobe", els, "co_body", res=0.24)
+    for v in lump.data.vertices:
+        p = v.co.copy()
+        n = v.normal.copy()
+        fold = abs(noise.noise(p * 0.55 + Vector((3, 1, 0))))
+        d = -0.45 * (1 - sstep(0.0, 0.1, fold)) + 0.22 * noise.noise(p * 0.45) + 0.1 * noise.noise(p * 1.3) + 0.04 * noise.noise(p * 3.5)
+        if p.z < 0.2:
+            d -= 0.9 * sstep(0.2, -1.6, p.z)          # a flatter, ragged base
+        v.co = p + n * d
+    kit.smooth(lump, 60)
+    parts = [lump]
+    for k in range(44):
+        a = rng.uniform(0, TAU)
+        r0 = 4.6 * math.sqrt(rng.uniform(0.05, 1.0))
+        b = V((math.cos(a) * r0 * 1.1, math.sin(a) * r0, -0.9))
+        L = rng.uniform(10, 38)
+        ph, ph2 = rng.uniform(0, TAU), rng.uniform(0, TAU)
+        amp = rng.uniform(0.6, 1.8)
+        NQ = 16
+        pts = [b + V((amp * math.sin(q * 0.8 + ph) * q / NQ + 0.6 * math.cos(a) * q / NQ, amp * math.cos(q * 0.6 + ph2) * q / NQ + 0.6 * math.sin(a) * q / NQ, -L * q / NQ)) for q in range(NQ + 1)]
+        r = rng.uniform(0.08, 0.2)
+        parts.append(tube(f"th{k}", pts, [r * (1 - 0.88 * q / NQ) + 0.012 for q in range(NQ + 1)], "co_thread", seg=5))
+        for br in range(rng.randint(0, 2)):
+            j = rng.randint(3, 11)
+            d = V((rng.uniform(-1, 1), rng.uniform(-1, 1), -1.5)).normalized()
+            bl = rng.uniform(3, 9)
+            parts.append(tube(f"tb{k}{br}", [pts[j], pts[j] + d * bl * 0.5 + V((0.3, 0, 0)), pts[j] + d * bl], [r * 0.5, r * 0.3, 0.01], "co_thread", seg=4))
+        if rng.random() < 0.3:
+            parts.append(kit.sphere(f"bd{k}", r * 2.4, loc=tuple(pts[rng.randint(5, 14)]), m="co_body", segs=8, rings=5))
+    body = kit.merge(parts, "lobe_body")
+    export_static(root, body, os.path.join(kit.out_dir(), "jup_colony_lobe.glb"), {"creature": "colony_lobe"}, size=2048, nsize=1024, ao=2.0)
     return root, None
 
 
@@ -914,10 +963,10 @@ def stormhunter():
     return root, arm
 
 
-ALL = ["stormskimmer", "skyjelly", "stormbeast", "colony", "voltdrifter", "deepdiver", "gasgrazer", "aeromite", "stormhunter"]
+ALL = ["stormskimmer", "skyjelly", "stormbeast", "colony", "colony_lobe", "voltdrifter", "deepdiver", "gasgrazer", "aeromite", "stormhunter"]
 VIEWS = {   # panel-like angles
     "stormskimmer": ((17, 13, -5), (0, -2, 0), 30), "skyjelly": ((14, 16, 2), (0, 0, -4), 35), "stormbeast": ((26, 34, 5), (0, 12, 0), 35),
-    "colony": ((9, 10, 3), (0, 0, -2), 35), "voltdrifter": ((13, 6, 4), (0, 0, 0), 35), "deepdiver": ((14, 18, 6), (0, 2, 0), 35),
+    "colony": ((9, 10, 3), (0, 0, -2), 35), "colony_lobe": ((26, 30, 6), (0, 0, -8), 35), "voltdrifter": ((13, 6, 4), (0, 0, 0), 35), "deepdiver": ((14, 18, 6), (0, 2, 0), 35),
     "gasgrazer": ((-24, 32, -3), (0, 8, -1), 35), "aeromite": ((0.06, 0.07, 0.04), (0, 0, 0), 50), "stormhunter": ((-14, 26, 4), (0, 6, 1), 35),
 }
 

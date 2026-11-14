@@ -407,7 +407,7 @@ const RECIPES: Record<string, Recipe> = {
   sb_mouth: { kind: 'physical', color: C(0.42, 0.07, 0.06), rough: 0.28, clearcoat: 0.85, weather: false, skin: { wrinkle: 0.004, wrinkleSize: 0.18, cavity: 0.5, wet: 0.85, glow: 0.2 } },
   co_body: { kind: 'physical', color: C(0.12, 0.08, 0.065), rough: 0.75, weather: false, skin: { pores: 0.01, poreSize: 0.12, cavity: 0.4, vary: 0.35, glow: 2.2 } },
   co_ember: { kind: 'physical', color: C(1.0, 0.45, 0.1), emissive: C(1.0, 0.4, 0.08), emissiveIntensity: 1.2, rough: 0.6, weather: false },
-  co_thread: { kind: 'physical', color: C(0.42, 0.13, 0.05), rough: 0.6, weather: false, skin: { cavity: 0.2, glow: 0.7 } },
+  co_thread: { kind: 'physical', color: C(0.3, 0.09, 0.04), rough: 0.6, weather: false, skin: { cavity: 0.2, glow: 0.2 } },
   vd_skin: { kind: 'physical', color: C(0.1, 0.06, 0.13), rough: 0.2, clearcoat: 0.9, iridescence: 0.6, sheen: 0.3, weather: false,
     skin: { pores: 0.0015, poreSize: 0.05, wrinkle: 0.002, wrinkleSize: 0.15, cavity: 0.4, wet: 0.6, vary: 0.2, glow: 0.35 } },
   vd_belly: { kind: 'physical', color: C(0.4, 0.3, 0.55), rough: 0.25, clearcoat: 0.7, weather: false, skin: { pores: 0.0015, poreSize: 0.04, cavity: 0.35, wet: 0.5 } },

@@ -1,5 +1,6 @@
 import * as THREE from 'three';
 import type { JupiterAir } from './jupiterAir';
+import { Impostor, ImpostorBaker, type ImpostorLight } from '../../render/Impostors';
 import type { Spacecraft } from '../../vehicles/Spacecraft';
 import type { Game } from '../../core/Game';
 import type { Frame } from '../Frame';
@@ -51,6 +52,8 @@ export interface FaunaHost {
   bumpProbe?(k: THREE.Vector3): void;
   /** gas density (kg/m³) at a world point — Jupiter's air for the flight model */
   airDensity?(p: THREE.Vector3): number;
+  /** the scene's main light for relighting impostors (world) */
+  light?(): ImpostorLight;
 }
 
 const _v = new THREE.Vector3();
@@ -105,6 +108,10 @@ export abstract class Creature {
   private lod = -1;
   /** the model's bounding radius at size 1 (m), for the LOD distances */
   bodyR = 1;
+  /** the model asset (the key of its species' impostor atlas) */
+  model = '';
+  /** the far level (3): a relit view-atlas quad (render/Impostors.ts); null until first needed */
+  impostor: Impostor | null = null;
 
   constructor(readonly f: FaunaManager) {}
 
@@ -113,6 +120,7 @@ export abstract class Creature {
   }
 
   async load(model: string, glowMats: string[] = []) {
+    this.model = model;
     this.inst = await this.game.assets.instance(model);
     this.root.add(this.inst.root);
     this.rig = new Rig(this.inst);
@@ -144,13 +152,30 @@ export abstract class Creature {
     return this;
   }
 
-  /** show one level of detail (0 full … 2 far); levels a model lacks fall back to the nearest finer one */
+  /**
+   * show one level of detail (0 full … 2 far, 3 impostor); mesh levels a model lacks fall back to the nearest finer
+   * one, the impostor to level 2 until it is baked
+   */
   setLod(level: number) {
     let l = level;
-    while (l > 0 && !this.lods[l].length) l--;
+    if (l === 3 && !this.impostor) l = 2;
+    if (l < 3) while (l > 0 && !this.lods[l].length) l--;
     if (l === this.lod) return;
     this.lod = l;
     this.lods.forEach((ms, i) => ms.forEach((m) => (m.visible = i === l)));
+    if (this.impostor) this.impostor.mesh.visible = l === 3;
+  }
+
+  /** bake (once per species) and attach the impostor */
+  makeImpostor(baker: ImpostorBaker) {
+    if (this.impostor || !this.inst) return;
+    const was = this.lod;
+    const atlas = baker.bake(this.model, this.inst.root, () => this.lods.forEach((ms, i) => ms.forEach((m) => (m.visible = i === 0))), () => {
+      this.lod = -1;
+      this.setLod(was < 0 ? 0 : Math.min(was, 2));
+    });
+    this.impostor = new Impostor(atlas);
+    this.f.root.add(this.impostor.mesh);
   }
 
   get lodLevel() {
@@ -206,6 +231,8 @@ export abstract class Creature {
   dispose() {
     this.root.removeFromParent();
     for (const m of this.glow) m.dispose();
+    this.impostor?.dispose();
+    this.impostor = null;
   }
 }
 
@@ -363,6 +390,14 @@ export class FaunaManager {
   thrustK = 1;
   /** Jupiter: the air the cloud-layer animals fly in (world/fauna/jupiterAir.ts), shared with the research tools */
   air: JupiterAir | null = null;
+  /** far-view atlases (render/Impostors.ts), one per species; baked as first needed */
+  impostors: ImpostorBaker | null = null;
+  private light: ImpostorLight = { dir: new THREE.Vector3(0, 1, 0), sun: new THREE.Color(2, 2, 2), ambient: new THREE.Color(0.6, 0.6, 0.6) };
+  /** LOD distance scale from the graphics preset (phones switch to lighter levels sooner) */
+  get lodK() {
+    const q = this.game.settings.graphics?.preset;
+    return q === 'phone' ? 0.45 : q === 'performance' ? 0.6 : q === 'medium' ? 0.8 : 1;
+  }
 
   constructor(readonly host: FaunaHost, private populate: Populate) {
     this.voice = new CreatureVoice(host.game.audio);
@@ -426,6 +461,8 @@ export class FaunaManager {
     }
     const cam = this.game.camera.getWorldPosition(_w);
     if (this.air) this.air.t += dt;
+    const light = this.host.light?.() ?? this.light;
+    let baked = false;
     this.alarm = Math.max(0, this.alarm - dt);
     const hours = localHours(this.game.state.clock.earthTime);
     for (const c of this.creatures) {
@@ -467,9 +504,22 @@ export class FaunaManager {
         if (moved) c.root.position.copy(c.pos);
       }
       c.root.visible = d < c.view;
-      // levels of detail by distance in body radii (the rig keeps posing every level: they share the bones)
-      const rr = c.bodyR * ((c as unknown as { size?: number }).size ?? 1);
-      c.setLod(d < rr * 28 ? 0 : d < rr * 80 ? 1 : 2);
+      // levels of detail by distance in body radii (the rig keeps posing every level: they share the bones); the
+      // impostor far off — baked for a species the first time one of it is that far (one bake a frame)
+      const rr = c.bodyR * ((c as unknown as { size?: number }).size ?? 1) * this.lodK;
+      // switch by screen size: full detail while the animal is more than ~130 px tall (12 radii at a 65° view),
+      // then the 32 % mesh, the 9 % mesh, and the impostor beyond ~110 radii
+      const want = d < rr * 12 ? 0 : d < rr * 36 ? 1 : d < rr * 110 ? 2 : 3;
+      if (want === 3 && !c.impostor && c.inst && !baked) {
+        this.impostors ??= new ImpostorBaker(this.game.renderer.gl, this.lodK < 0.7 ? 96 : 128);
+        c.makeImpostor(this.impostors);
+        baked = true;
+      }
+      c.setLod(want);
+      if (c.impostor && c.lodLevel === 3) {
+        c.impostor.mesh.visible = c.root.visible;
+        if (c.root.visible) c.impostor.update(c.root.position, c.root.quaternion, c.root.scale.x, this.game.camera, light);
+      }
     }
     this.creatures = this.creatures.filter((c) => {
       if (!c.alive) c.dispose();
@@ -615,6 +665,8 @@ export class FaunaManager {
   }
 
   dispose() {
+    this.impostors?.dispose();
+    this.impostors = null;
     if (this.hold) this.release(false);
     for (const c of this.creatures) c.dispose();
     this.creatures = [];

@@ -1,0 +1,42 @@
+# Publishes the game to GitHub Pages under /interstellar/ (https://loriens22.github.io/Main/interstellar/).
+# Only the interstellar/ folder of the gh-pages branch is replaced; the rest of the published site is left as it is.
+name: Publish Interstellar to GitHub Pages
+
+on:
+  push:
+    branches: [ccr-d3d383c7-33f9ym]
+    paths: ['src/**', 'public/**', 'index.html', 'package.json', 'package-lock.json', 'vite.config.ts', '.github/workflows/pages-interstellar.yml']
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+concurrency:
+  group: pages-interstellar
+  cancel-in-progress: true
+
+jobs:
+  publish:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+      - run: npm ci
+      - run: npm run build
+      - name: Publish dist/ into gh-pages/interstellar/
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git fetch --depth=1 origin gh-pages
+          git worktree add /tmp/pages FETCH_HEAD
+          rm -rf /tmp/pages/interstellar
+          cp -r dist /tmp/pages/interstellar
+          touch /tmp/pages/.nojekyll
+          cd /tmp/pages
+          git add -A interstellar .nojekyll
+          if git diff --cached --quiet; then echo "no changes"; exit 0; fi
+          git commit -m "Interstellar: publish ${GITHUB_SHA::7}"
+          git push origin HEAD:gh-pages

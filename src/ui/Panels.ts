@@ -110,6 +110,11 @@ export function openSettings(game: Game) {
             const [fv, fvv] = ui.slider(g.fov, 50, 100, 1, (v) => { g.fov = v; apply(); }, (v) => `${v}°`);
             bb.append(ui.row('Field of view', fv, fvv));
             bb.append(ui.row('Show performance counter', ui.toggle(ui.showFps, (v) => { ui.showFps = v; })));
+            // the repeatable performance test (core/Bench.ts): reloads into a fixed flight through Jupiter's clouds and
+            // a walk through the Mars refuge, then shows fps, 1 % low, draw calls and triangles for this device
+            const bench = h('button', { class: 'btn' }, 'Run performance test (≈1 min)');
+            bench.addEventListener('click', () => { location.search = '?bench'; });
+            bb.append(ui.row('Performance test (Jupiter clouds + Mars refuge)', bench));
           };
           (ui as any)._gfx(b);
         },

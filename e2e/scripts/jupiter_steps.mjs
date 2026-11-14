@@ -156,7 +156,7 @@ parts[7] = [
   jfr('sheet_gasgrazer_comb', 'gasgrazer', 10, -2, 40, 6),
   jsv('sheet_stormhunter', 'stormhunter', 40, 8, 0.7, 7),
   jfr('sheet_stormhunter_head', 'stormhunter', 7, 3, 22, 7),
-  { js: `${J} game.cinematic = { blocking: true, update: () => true }; cam.fov = 60; cam.updateProjectionMatrix(); const k = of('colony')[0]; const C0 = k.center; cam.position.copy(C0).add(new V(160, 40, 220)); cam.lookAt(C0); cam.updateMatrixWorld(true); return 1;`, frames: 3, shot: 'sheet_colony', probe: jprobe },
+  { js: `${J} game.cinematic = { blocking: true, update: () => true }; cam.fov = 60; cam.updateProjectionMatrix(); const k = of('colony')[0]; const C0 = k.center; cam.position.copy(C0).add(new V(560, -60, 820)); cam.lookAt(C0.x, C0.y - 40, C0.z); cam.updateMatrixWorld(true); return 1;`, frames: 3, shot: 'sheet_colony', probe: jprobe },
   { js: `${J} game.cinematic = { blocking: true, update: () => true }; cam.fov = 60; cam.updateProjectionMatrix(); const k = of('aeromite')[0]; const C0 = k.center; cam.position.copy(C0).add(new V(30, 8, 40)); cam.lookAt(C0); cam.updateMatrixWorld(true); return 1;`, frames: 3, shot: 'sheet_aeromites', probe: jprobe },
   free,
 ];
@@ -212,5 +212,78 @@ parts[9] = [
 ];
 // PART 10 — the Gasgrazer alone (quick look at the comb)
 parts[10] = [land, populatedJ, sheetReady, calm, jsv('sheet_gasgrazer', 'gasgrazer', 55, 6, 0.6, 6), jfr('sheet_gasgrazer_comb', 'gasgrazer', 10, -2, 40, 6), jfr('sheet_gasgrazer_side', 'gasgrazer', 34, 4, 14, 6), free];
+
+// PART 11 — the nine in dramatic light, framed like their panels: dusk (a low orange Sun) or night with a near
+// lightning strike placed behind the animal
+const sunTo = (lo, hi, label) => ({ js: `const B = (await import('/src/data/bodies.ts')).BODIES.jupiter; const z = game.zone; let n = 0;
+    for (; n < 400 && !(z.sunLocal.y > ${lo} && z.sunLocal.y < ${hi}); n++) { game.state.clock.earthTime += Math.abs(B.rotation) / 160; game.step(1, 1 / 30, false); }
+    return { ${label}: +z.sunLocal.y.toFixed(3), steps: n };`, frames: 20 });
+const frameAt = (sp, side, up, ahead, slot) => `${J} game.cinematic = { blocking: true, update: () => true }; cam.fov = 48; cam.updateProjectionMatrix();
+  const k = of('${sp}')[0]; if (!k) return 'missing';
+  const C0 = new V(...c.pos).add(new V(60 + ${slot} * 400, 30, 40)); k.pos.copy(C0); k.root.position.copy(C0); k.update?.(0.001, true); k.root.updateMatrixWorld(true);
+  const q = k.root.quaternion; const fw = new V(0, 0, -1).applyQuaternion(q), rt = new V(1, 0, 0).applyQuaternion(q), upv = new V(0, 1, 0).applyQuaternion(q);
+  cam.position.copy(C0).addScaledVector(rt, ${side}).addScaledVector(upv, ${up}).addScaledVector(fw, ${ahead}); cam.lookAt(C0); cam.updateMatrixWorld(true);`;
+const dshot = (name, sp, side, up, ahead, slot, bolt = false) => [
+  { js: `${frameAt(sp, side, up, ahead, slot)} return k.state;`, frames: 3 },
+  { js: `${frameAt(sp, side, up, ahead, slot)} ${bolt ? `const d = new V().subVectors(C0, cam.position); z.jovian.strike(d.length() + 1400, Math.atan2(d.z, d.x));` : ''} return 1;`, frames: 2, shot: name },
+];
+const mshot = (name, js) => ({ js: `${J} game.cinematic = { blocking: true, update: () => true }; cam.fov = 50; cam.updateProjectionMatrix(); ${js}; cam.updateMatrixWorld(true); return 1;`, frames: 3, shot: name });
+parts[11] = [
+  land, populatedJ, sheetReady, calm,
+  sunTo(0.0, 0.05, 'dusk'),
+  ...dshot('drama_stormskimmer', 'stormskimmer', 26, -9, 16, 1),
+  ...dshot('drama_stormbeast', 'stormbeast', 16, 3, 46, 3),
+  ...dshot('drama_gasgrazer', 'gasgrazer', -24, -3, 34, 6),
+  ...dshot('drama_deepdiver', 'deepdiver', 22, 5, 18, 5),
+  mshot('drama_colony', `const k = of('colony')[0]; const C0 = k.center; cam.position.copy(C0).add(new V(620, -120, 760)); cam.lookAt(C0.x, C0.y - 20, C0.z)`),
+  mshot('drama_aeromites', `const k = of('aeromite')[0]; const C0 = k.center; cam.position.copy(C0).add(new V(26, 4, 36)); cam.lookAt(C0)`),
+  free,
+  sunTo(-0.6, -0.2, 'night'),
+  ...dshot('drama_skyjelly', 'skyjelly', 8, -6, 18, 2, true),
+  ...dshot('drama_voltdrifter', 'voltdrifter', 13, 2, 5, 4, true),
+  ...dshot('drama_stormhunter', 'stormhunter', -10, 2, 22, 7, true),
+  mshot('drama_colony_night', `const k = of('colony')[0]; const C0 = k.center; cam.position.copy(C0).add(new V(620, -120, 760)); cam.lookAt(C0.x, C0.y - 20, C0.z)`),
+  free,
+];
+
+// PART 12 — impostors at range (zoomed views of animals 3 km off, the colony 5 km off) and the colony mass close
+const iprobe = `const z = game.zone; const F = z.fauna; if (!F) return 'no fauna'; return { baked: F.impostors ? [...F.impostors['cache'].keys()] : [], lod: F.creatures.filter((k) => k.lodLevel !== undefined && k.inst).map((k) => k.species.slice(0, 4) + k.lodLevel).join(' '), calls: game.renderer.gl.info.render.calls, tris: game.renderer.gl.info.render.triangles };`;
+const far = (name, sp, dist, fov) => ({ js: `${J} game.cinematic = { blocking: true, update: () => true }; cam.fov = ${fov}; cam.updateProjectionMatrix();
+  const k = of('${sp}')[0]; if (!k) return 'missing'; const C0 = new V(...c.pos).add(new V(${dist}, 60, 200)); k.pos.copy(C0); k.root.position.copy(C0);
+  cam.position.set(c.pos[0], c.pos[1] + 60, c.pos[2] + 200); cam.lookAt(C0); cam.updateMatrixWorld(true); return 1;`, frames: 6, shot: name, probe: iprobe });
+parts[12] = [
+  land, populatedJ, sheetReady, calm,
+  far('imp_stormskimmer_3km', 'stormskimmer', 3000, 1.6),
+  far('imp_stormhunter_3km', 'stormhunter', 3200, 1.6),
+  far('imp_gasgrazer_4km', 'gasgrazer', 4200, 1.6),
+  far('lod2_stormskimmer_1km', 'stormskimmer', 1200, 4),
+  { js: `${J} game.cinematic = { blocking: true, update: () => true }; cam.fov = 14; cam.updateProjectionMatrix(); const k = of('colony')[0]; const C0 = k.center; cam.position.copy(C0).add(new V(3000, 200, 4000)); cam.lookAt(C0); cam.updateMatrixWorld(true); return 1;`, frames: 8, shot: 'imp_colony_5km', probe: iprobe },
+  { js: `${J} game.cinematic = { blocking: true, update: () => true }; cam.fov = 55; cam.updateProjectionMatrix(); const k = of('colony')[0]; const C0 = k.center; cam.position.copy(C0).add(new V(520, -80, 640)); cam.lookAt(C0.x, C0.y - 20, C0.z); cam.updateMatrixWorld(true); return 1;`, frames: 8, shot: 'colony_mass', probe: iprobe },
+  { js: `${J} game.cinematic = { blocking: true, update: () => true }; cam.fov = 60; cam.updateProjectionMatrix(); const k = of('colony')[0]; const C0 = k.center; cam.position.copy(C0).add(new V(160, -260, 200)); cam.lookAt(C0.x, C0.y - 60, C0.z); cam.updateMatrixWorld(true); return 1;`, frames: 8, shot: 'colony_under', probe: iprobe },
+  free,
+];
+// PART 13 — the benchmark (core/Bench.ts) in the real-time loop; GFX=phone runs it at the Phone preset
+parts[13] = [
+  { js: `const S = await import('/src/core/Settings.ts'); const g = game.settings.graphics; const p = '${process.env.GFX ?? 'high'}'; g.autoPreset = false; S.applyPreset(g, p); game.applySettings(); game.running = true; window.__bench = null; import('/src/core/Bench.ts').then((m) => m.runBench(game, '${process.env.BENCH ?? 'all'}')); return p;`, frames: 1 },
+  { js: `await new Promise((r) => { const t = setInterval(() => { if (window.__bench) { clearInterval(t); r(); } }, 500); }); return window.__bench;`, shot: 'bench_result', ui: true },
+];
+
+// PART 14 — where the frame's triangles and draw calls go (each part of the scene hidden in turn); GFX sets the preset
+const costJs = `const z = game.zone; const F = z.fauna; const gl = game.renderer.gl; const R = game.renderer; const cam = game.camera;
+  const measure = () => { R.render(z.layers(cam), cam, 0, game.time); return { calls: R.stats.calls, tris: R.stats.tris }; };
+  const all = measure(); const out = { all };
+  const parts = { fauna: F.root, sky: z.jovian?.group, ranger: z.ranger?.root };
+  for (const [k, o] of Object.entries(parts)) { if (!o) continue; const v = o.visible; o.visible = false; const m = measure(); o.visible = v; out['-' + k] = { calls: all.calls - m.calls, tris: all.tris - m.tris }; }
+  const sp = {}; for (const c of F.creatures) { const v = c.root.visible; c.root.visible = false; const imv = c.impostor?.mesh.visible; if (c.impostor) c.impostor.mesh.visible = false; const m = measure(); c.root.visible = v; if (c.impostor) c.impostor.mesh.visible = imv; const k = c.species; sp[k] = (sp[k] ?? [0, 0]); sp[k][0] += all.tris - m.tris; sp[k][1] += all.calls - m.calls; }
+  out.bySpecies = Object.fromEntries(Object.entries(sp).filter(([, v]) => v[0] > 5000 || v[1] > 4).map(([k, v]) => [k, Math.round(v[0] / 1000) + 'k/' + v[1]]));
+  const g = game.settings.graphics; out.passes = { shadow: gl.shadowMap.enabled, shadowQ: g.shadowQuality, ao: g.ambientOcclusion, aa: g.antiAliasing, res: g.resolutionScale, bloom: g.bloom }; return out;`;
+parts[14] = [
+  { js: `const S = await import('/src/core/Settings.ts'); const g = game.settings.graphics; g.autoPreset = false; S.applyPreset(g, '${process.env.GFX ?? 'high'}'); game.applySettings(); return g.preset;`, frames: 1 },
+  land, populatedJ, sheetReady, calm,
+  { frames: 60 },
+  { js: costJs, frames: 1 },
+  { js: `${J} game.cinematic = { blocking: true, update: () => true }; const k = of('colony')[0]; const C0 = k.center; cam.position.copy(C0).add(new V(520, -80, 640)); cam.lookAt(C0); cam.updateMatrixWorld(true); return 1;`, frames: 4 },
+  { js: costJs, frames: 1 },
+];
 const PART = process.env.PART ?? '1';
 export const steps = parts[PART];

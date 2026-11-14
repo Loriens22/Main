@@ -2,6 +2,17 @@
 
 ## Status (latest first)
 
+### Far detail, the colony mass, phone performance, dramatic light, publishing (this pass)
+
+- **Impostor level of detail:** relit view atlases baked per species (`render/Impostors.ts`). Distance switching now
+  follows screen size, and every animal model has decimated LODs.
+- **Floating Colony:** a poster-like mass of 21 independently floating lobes with tendrils, plus satellite colonies.
+- **Skyjelly:** down to 36k triangles.
+- **Instancing bug:** hidden instances were drawn at every tier (8.7 M → 1.6 M triangles in the Jupiter flight view).
+- **Performance test:** in game (`?bench`, Settings → Graphics); measured counts are in `docs/SPECULATIVE_EVOLUTION.md`.
+- **Jupiter light:** sun-height lighting of the clouds, a twilight band, darker nights, visible lightning bolts.
+- **Published:** to GitHub Pages under `/interstellar/`, by `.github/workflows/pages-interstellar.yml`.
+
 ### The expansion's open items, and the Jupiter nine panel by panel (this pass)
 
 - **Jupiter models:** re-modelled one-to-one with their panels of the reference sheet. The detail is in
