@@ -235,7 +235,8 @@ export class Player {
     this.collider.setTranslation({ x: center.x, y: center.y, z: center.z });
     this.collider.setRotation({ x: _q.x, y: _q.y, z: _q.z, w: _q.w });
     this.controller.setUp({ x: upVec.x, y: upVec.y, z: upVec.z });
-    this.controller.computeColliderMovement(this.collider, { x: delta.x, y: delta.y, z: delta.z }, undefined, groups(0xffff, GROUP.STATIC | GROUP.VEHICLE | GROUP.DOOR));
+    // inside a terrain cut (the NASA entry tunnel) the hillside's height map is not a wall: skip it
+    this.controller.computeColliderMovement(this.collider, { x: delta.x, y: delta.y, z: delta.z }, undefined, groups(0xffff, GROUP.STATIC | GROUP.VEHICLE | GROUP.DOOR), this.frame.physics.terrainFilterAt(center));
     const m = this.controller.computedMovement();
     const out = new THREE.Vector3(m.x, m.y, m.z);
     this.pos.add(out);

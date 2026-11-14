@@ -2,6 +2,47 @@
 
 ## Status (latest first)
 
+### The rock behind the NASA blast doors, and other blockers (this pass)
+
+**Reported:** at the NASA base, with the blast doors open, a rock stopped the player going in.
+
+**Cause:** the Earth terrain is a height map, and the hill behind the portal was shaped so that its surface came down
+through the entry tunnel. Behind the doors it rose about 4 m within 4 m, drawn and collided as rock. The player
+stopped 1.8 m inside. The tunnel also had no floor collider: past the ramp there was nothing to stand on. Every
+earlier interior test had spawned the player straight into the atrium, so the walk in was never tested.
+
+**Fix:**
+- **Terrain cuts** (`PhysicsWorld.terrainCuts`, `Terrain.addCut`): volumes where a structure lies under the terrain.
+  - Inside them the terrain is not drawn.
+  - The player, ray queries (NPC ground snapping, wheel rays) and vehicle bodies ignore the terrain collider there.
+  - Vehicle bodies use a contact-pair hook. It is pure JS: Rapier runs hooks only on the event-queue step path, and a
+    hook that calls back into the world throws, which silently drops *every* terrain contact. `tests/terrainCut.test.ts`
+    covers this.
+- **The NASA entry route** (portal extension, opening, tunnel, into the atrium) is registered as a cut and has its own
+  floor.
+- **The headwall opening** gets a concrete slab: it had no floor and showed the forecourt dirt across the door line.
+- **An earth berm** (`EarthGen.applyPortalBerm`) behind the headwall: the hill covers the tunnel (16.5 m over the
+  forecourt) instead of dipping into it.
+- **Vehicle fall-through safety:** no longer lifts a vehicle out of a cut onto the hilltop.
+- **Planet surfaces:** boulders are kept off the Ranger's footprint, rear hatch and ladder from the last 20 m of a
+  descent (`Rocks.setKeepOut`). Before, a landing could put boulders under the craft or at the foot of the ladder
+  (2 of them, up to 1.2 m, at the Moon test site). Camps were already cleared by their terrain pads.
+
+**Checked:**
+- `e2e/nasa_entry.mjs`:
+  - USE on the security panel opens the blast doors;
+  - walk the tunnel; USE opens the inner door; reach the atrium;
+  - walk back out to the forecourt;
+  - drive the farm pickup through the doors to the inner door, on the tunnel floor the whole way.
+- `e2e/blocker_audit.mjs` checks every site's rooms and doors for terrain inside rooms, ground above door sills,
+  boulders in rooms, at doors or under the landed Ranger, and trees at room level:
+  - Earth: 7 sites, 19 rooms, 17 doors;
+  - Mars, Mann's camp, Edmunds' camp, Miller's beacon and the Moon.
+  
+  No problems on this build. On the previous build it finds the tunnel (30 points, terrain up to 8.2 m above the
+  floor) and the Moon boulders.
+- Before/after: `docs/media/nasa_entry_fix.jpg`.
+
 ### Phone controls, end to end (this pass)
 
 A phone playtest (`e2e/mobile_play.mjs`) drives the published build the way a phone does: an emulated Android phone
@@ -544,6 +585,9 @@ Realism pass results (all rebuilt in Blender scripts, checked with Cycles previe
 - `e2e/run.sh steps.mjs outDir w h` starts and stops the Vite server for one run (TOUCH=1 for touch, MEMLOG=1 logs RSS).
 - `node e2e/mobile_play.mjs <url> <outDir> [landscape|portrait] [all|walk|flight|mars|portrait]`: the phone playtest
   against a served build (`npm run build`, then serve `dist/`); it writes screenshots and `results.json`.
+- `node e2e/nasa_entry.mjs <url> <outDir> in|out|car` and `node e2e/blocker_audit.mjs <url> <zone>`: the NASA entry
+  route, and the rooms/doors/boulders audit, against a served build.
+- Interior tests that spawn inside a building skip its way in: walk in from outside at least once.
   Steps support `untilJs`/`max`/`chunk` to advance until a condition holds.
 - `game.step(n, dt)` and `game.running=false` give deterministic tests. `e2e/shot.mjs out.png script.js frames` saves screenshots;
   `e2e/multi.mjs steps.mjs outDir` runs a step list (js / frames / shot / probe). Keep renders per run few with the forest in view.

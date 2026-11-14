@@ -43,6 +43,9 @@ export class Rocks {
   private colliders: import('@dimforge/rapier3d-compat').Collider[] = [];
   private colCenter = new THREE.Vector2(1e12, 1e12);
   private placed: { x: number; y: number; z: number; s: number }[] = [];
+  /** circles kept clear of boulders (the landed Ranger: hull, rear hatch and the foot of its ladder) */
+  private keepOut: { x: number; z: number; r: number }[] = [];
+  private keepKey = '';
   readonly radius: number;
 
   constructor(readonly gen: SurfaceGen, color: THREE.Color, opts: { max?: number; radius?: number } = {}) {
@@ -63,11 +66,24 @@ export class Rocks {
     }
   }
 
-  /** Re-place when the focus moves away from the last placement centre. */
+  /** Re-place when the focus moves away from the last placement centre (or the keep-out areas change). */
   update(focus: THREE.Vector3, physics: PhysicsWorld | null) {
     const f2 = new THREE.Vector2(focus.x, focus.z);
     if (f2.distanceTo(this.center) > this.radius * 0.3) this.place(f2);
     if (physics && f2.distanceTo(this.colCenter) > 20) this.collide(f2, physics);
+  }
+
+  /**
+   * Keep boulders out of these circles (frame-local x/z, metres). Placement is deterministic, so a change re-places
+   * the field at once and rebuilds the nearby colliders: nothing ends up inside the craft or across its ladder.
+   */
+  setKeepOut(list: { x: number; z: number; r: number }[], physics: PhysicsWorld | null) {
+    const key = list.map((k) => `${k.x.toFixed(0)},${k.z.toFixed(0)},${k.r.toFixed(1)}`).join(';');
+    if (key === this.keepKey) return;
+    this.keepKey = key;
+    this.keepOut = list;
+    if (this.center.x < 1e11) this.place(this.center.clone());
+    if (physics && this.colCenter.x < 1e11) this.collide(this.colCenter.clone(), physics);
   }
 
   private place(c: THREE.Vector2) {
@@ -100,6 +116,9 @@ export class Rocks {
         if (size < d * 0.004) continue;
         const k = h % VARIANTS;
         if (counts[k] >= cap) continue;
+        let blocked = false;
+        for (const ko of this.keepOut) if (Math.hypot(x - ko.x, z - ko.z) < ko.r + size) { blocked = true; break; }
+        if (blocked) continue;
         const y = this.gen.field.height(x, z);
         this.gen.field.normal(x, z, Math.max(0.6, size), n);
         q.setFromUnitVectors(new THREE.Vector3(0, 1, 0), n).multiply(new THREE.Quaternion().setFromAxisAngle(new THREE.Vector3(0, 1, 0), ((h >>> 3) & 0x3ff) * 0.0061));

@@ -134,6 +134,7 @@ export class NasaSite {
         gantrylift: (n) => (n.name === 'gantry_lift' ? null : { id: 'gl_btn', targets: [n], label: () => `Gantry lift — ${this.mover('gantry_lift')?.level === 0 ? 'up to the crew access arm' : 'down to the silo floor'}`, use: () => this.callMover('gantry_lift') }),
       },
     });
+    this.openEntryRoute();
     // blast doors are two sliding leaves driven together
     this.blastL = inst.nodes.get('blast_L')!;
     this.blastR = inst.nodes.get('blast_R')!;
@@ -302,6 +303,32 @@ export class NasaSite {
     this.game.audio.door('blast', this.origin);
     this.game.say('computer', this.blastOpen ? 'Access authorised. Blast doors opening.' : 'Blast doors closing.', 4);
     if (this.blastOpen) this.zone.ground.physics.setDoorOpen('nasa_blast', true);
+  }
+
+  /**
+   * The entry route under the hill: portal extension, blast-door opening and tunnel (model y −12.5 … 63, north into
+   * the atrium). The terrain is a height map, so behind the headwall its surface comes down through the opening; inside
+   * this volume it is neither drawn nor collided with, and the route stands on its own floor (the model had none: the
+   * forecourt terrain was the floor at the doors and nothing carried you along the tunnel).
+   */
+  private openEntryRoute() {
+    const z = this.zone, o = this.origin;
+    const ph = z.ground.physics;
+    const Y0 = -12.6, Y1 = 63, HW = 5.6;
+    // model (Blender) y runs north = world −z
+    ph.terrainCuts.push(new THREE.Box3(new THREE.Vector3(o.x - HW, o.y - 2, o.z - Y1), new THREE.Vector3(o.x + HW, o.y + 10.4, o.z - Y0)));
+    // drawn terrain: only what pokes above the floor is removed (the forecourt below the slab stays)
+    z.terrain.addCut(new THREE.Box3(new THREE.Vector3(o.x - HW, o.y + 0.03, o.z - Y1), new THREE.Vector3(o.x + HW, o.y + 10.4, o.z - Y0)));
+    ph.addBox(new THREE.Vector3(5.15, 0.1, (Y1 - Y0) / 2), new THREE.Vector3(o.x, o.y - 0.1, o.z - (Y0 + Y1) / 2));
+    // the headwall opening (model y −1.7 … 3.1, between the extension's floor and the tunnel's) had no slab of its
+    // own: it showed the forecourt terrain as a strip of dirt across the door line
+    const g = new THREE.BoxGeometry(10.2, 0.12, 4.8);
+    const pa = g.getAttribute('position'), ua = g.getAttribute('uv');
+    for (let i = 0; i < pa.count; i++) ua.setXY(i, pa.getX(i), pa.getZ(i)); // metre UVs, like the model's
+    const slab = new THREE.Mesh(g, this.game.materials.get('concrete_dark')!);
+    slab.position.set(o.x, o.y - 0.065, o.z - 0.7);
+    slab.receiveShadow = true;
+    z.scene.add(slab);
   }
 
   // ------------------------------------------------------------------------------------------ spawn & queries

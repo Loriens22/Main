@@ -311,14 +311,17 @@ export class GroundVehicle implements Controllable {
       const steerSign = s.kind === 'combine' ? -1 : 1;
       s.steerWheels.forEach((i) => vc.setWheelSteering(i, this.steer * steerSign));
       for (let i = 0; i < 4; i++) vc.setWheelBrake(i, this.brake * s.brakeForce * (s.mass / 2000));
-      vc.updateVehicle(dt, undefined, groups(GROUP.VEHICLE, GROUP.STATIC | GROUP.VEHICLE | GROUP.DOOR));
+      const ph = zone.ground.physics;
+      const bt = this.body.translation();
+      // in a terrain cut (the NASA entry tunnel) the wheels roll on the structure's floor, not the hill above it
+      vc.updateVehicle(dt, undefined, groups(GROUP.VEHICLE, GROUP.STATIC | GROUP.VEHICLE | GROUP.DOOR), ph.terrainFilterAt(bt));
       this.speed = -vc.currentVehicleSpeed();
       const t = this.body.translation(), r = this.body.rotation();
       this.root.position.set(t.x, t.y, t.z);
       this.root.quaternion.set(r.x, r.y, r.z, r.w);
-      // safety: never fall through the terrain
+      // safety: never fall through the terrain (except under it on purpose: inside a terrain cut such as the tunnel)
       const gy = zone.height(t.x, t.z);
-      if (t.y < gy - 1.5) {
+      if (t.y < gy - 1.5 && !ph.inTerrainCut(t)) {
         this.body.setTranslation({ x: t.x, y: gy + 1.0, z: t.z }, true);
         this.body.setLinvel({ x: 0, y: 0, z: 0 }, true);
       }

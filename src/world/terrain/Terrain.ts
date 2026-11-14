@@ -135,6 +135,9 @@ export class Terrain {
       uMidBlend: { value: f.midBlend },
       /** circular cut-out (x, z, radius, -) e.g. a silo shaft opening; radius 0 = none */
       uHole: { value: new THREE.Vector4(0, 0, 0, 0) },
+      /** up to 4 world-space boxes the terrain is not drawn in (tunnels under a hillside); empty boxes: min > max */
+      uCutMin: { value: Array.from({ length: 4 }, () => new THREE.Vector4(1e9, 1e9, 1e9, 0)) },
+      uCutMax: { value: Array.from({ length: 4 }, () => new THREE.Vector4(-1e9, -1e9, -1e9, 0)) },
       ...opts.shading.uniforms,
     };
     const m = new THREE.MeshStandardMaterial({ color: 0xffffff, roughness: 0.9, metalness: 0 });
@@ -163,8 +166,9 @@ export class Terrain {
         )
         .replace('#include <begin_vertex>', 'vec3 transformed = vTWorld;');
       shader.fragmentShader = shader.fragmentShader
-        .replace('#include <common>', '#include <common>\nuniform vec4 uHole;\n' + FRAG_DECL + opts.shading.glsl)
-        .replace('#include <clipping_planes_fragment>', 'if (uHole.z > 0.0 && distance(vTWorld.xz, uHole.xy) < uHole.z) discard;\n#include <clipping_planes_fragment>')
+        .replace('#include <common>', '#include <common>\nuniform vec4 uHole;\nuniform vec4 uCutMin[4];\nuniform vec4 uCutMax[4];\n' + FRAG_DECL + opts.shading.glsl)
+        .replace('#include <clipping_planes_fragment>', 'if (uHole.z > 0.0 && distance(vTWorld.xz, uHole.xy) < uHole.z) discard;\n' +
+          'for (int i = 0; i < 4; i++) { if (all(greaterThan(vTWorld, uCutMin[i].xyz)) && all(lessThan(vTWorld, uCutMax[i].xyz))) discard; }\n#include <clipping_planes_fragment>')
         .replace('#include <map_fragment>', '#include <map_fragment>\nTerrainOut T = terrainShade(vTWorld, normalize(vTNormal));\ndiffuseColor.rgb = T.albedo;')
         .replace('#include <roughnessmap_fragment>', '#include <roughnessmap_fragment>\nroughnessFactor = T.rough;')
         .replace('#include <normal_fragment_maps>', '#include <normal_fragment_maps>\nnormal = normalize((viewMatrix * vec4(T.normal, 0.0)).xyz);')
@@ -184,6 +188,16 @@ export class Terrain {
     return this.opts.field.height(x, z);
   }
 
+
+  /** stop drawing the terrain inside a world-space box (a tunnel under a hillside); returns false when all 4 are used */
+  addCut(box: THREE.Box3) {
+    const mins = this.uniforms.uCutMin.value as THREE.Vector4[], maxs = this.uniforms.uCutMax.value as THREE.Vector4[];
+    const k = mins.findIndex((v) => v.x > 1e8);
+    if (k < 0) return false;
+    mins[k].set(box.min.x, box.min.y, box.min.z, 0);
+    maxs[k].set(box.max.x, box.max.y, box.max.z, 0);
+    return true;
+  }
   update(camera: THREE.Camera) {
     camera.updateMatrixWorld();
     const pv = new THREE.Matrix4().multiplyMatrices((camera as THREE.PerspectiveCamera).projectionMatrix, camera.matrixWorldInverse);

@@ -44,6 +44,33 @@ export class PhysicsWorld {
   readonly doors = new Map<string, RAPIER.Collider[]>();
   private terrain: RAPIER.Collider | null = null;
   terrainCenter = new THREE.Vector2(1e9, 1e9);
+  /**
+   * Volumes (frame-local boxes) where the terrain is cut away for a structure under it, e.g. a tunnel driven into a
+   * hillside. A height map cannot pass over a tunnel: its surface comes down through the portal. Inside these boxes
+   * the player and ray queries ignore the terrain collider (the structure brings its own floor), and the terrain is
+   * not drawn there (Terrain.addCut).
+   */
+  readonly terrainCuts: THREE.Box3[] = [];
+
+  /** the streamed terrain heightfield collider (null before the first patch) */
+  get terrainCollider() {
+    return this.terrain;
+  }
+
+  inTerrainCut(p: { x: number; y: number; z: number }) {
+    for (const b of this.terrainCuts) {
+      if (p.x >= b.min.x && p.x <= b.max.x && p.y >= b.min.y && p.y <= b.max.y && p.z >= b.min.z && p.z <= b.max.z) return true;
+    }
+    return false;
+  }
+
+  /** a query filter that skips the terrain where a point lies in a terrain cut (undefined: no filtering needed) */
+  terrainFilterAt(p: { x: number; y: number; z: number }): ((c: RAPIER.Collider) => boolean) | undefined {
+    const t = this.terrain;
+    if (!t || !this.terrainCuts.length || !this.inTerrainCut(p)) return undefined;
+    const h = t.handle;
+    return (c) => c.handle !== h;
+  }
 
   constructor(gravity = new THREE.Vector3(0, -9.81, 0)) {
     this.world = new RAPIER.World({ x: gravity.x, y: gravity.y, z: gravity.z });
@@ -56,8 +83,43 @@ export class PhysicsWorld {
 
   step(dt: number) {
     this.world.timestep = Math.min(dt, 1 / 30);
-    this.world.step();
+    if (!this.terrainCuts.length) {
+      this.world.step();
+      return;
+    }
+    // the colliders of moving bodies inside a cut, gathered now: the hook runs inside rapier's step and must not call
+    // back into the world (wasm refuses the re-entrant borrow and a throwing hook silently drops every terrain contact)
+    this.inCut.clear();
+    this.terrainHandle = this.terrain ? this.terrain.handle : null;
+    this.world.forEachRigidBody((b) => {
+      if (b.isFixed()) return;
+      for (let i = 0; i < b.numColliders(); i++) {
+        const c = b.collider(i);
+        if (this.inTerrainCut(c.translation())) this.inCut.add(c.handle);
+      }
+    });
+    if (!this.inCut.size) {
+      this.world.step();
+      return;
+    }
+    // rapier only runs physics hooks on the stepWithEvents path: that needs an event queue (auto-drained, unused)
+    this.events ??= new RAPIER.EventQueue(true);
+    this.world.step(this.events, this.hooks);
   }
+
+  private events: RAPIER.EventQueue | null = null;
+  private readonly inCut = new Set<number>();
+  private terrainHandle: number | null = null;
+
+  /** bodies inside a terrain cut (a vehicle driven into the tunnel) make no contact with the terrain collider */
+  private readonly hooks: RAPIER.PhysicsHooks = {
+    filterContactPair: (h1, h2) => {
+      const t = this.terrainHandle;
+      if (t !== null && ((h1 === t && this.inCut.has(h2)) || (h2 === t && this.inCut.has(h1)))) return null;
+      return RAPIER.SolverFlags.COMPUTE_IMPULSE;
+    },
+    filterIntersectionPair: () => true,
+  };
 
   addBox(half: THREE.Vector3, pos: THREE.Vector3, quat = new THREE.Quaternion(), data: any = {}): RAPIER.Collider {
     const d = RAPIER.ColliderDesc.cuboid(half.x, half.y, half.z)
@@ -163,7 +225,9 @@ export class PhysicsWorld {
     }
     const d = RAPIER.ColliderDesc.heightfield(n, n, heights, { x: size, y: 1, z: size })
       .setTranslation(cx, 0, cz)
-      .setCollisionGroups(groups(GROUP.STATIC, 0xffff));
+      .setCollisionGroups(groups(GROUP.STATIC, 0xffff))
+      // lets step() drop contacts with bodies inside a terrain cut (only consulted while cuts exist)
+      .setActiveHooks(RAPIER.ActiveHooks.FILTER_CONTACT_PAIRS);
     this.terrain = this.world.createCollider(d);
     (this.terrain as any).userData = { terrain: true };
     this.terrainCenter.set(cx, cz);
@@ -174,7 +238,8 @@ export class PhysicsWorld {
     const dx = Math.abs(dir.x) < 1e-5 ? 1.3e-4 : dir.x;
     const dz = Math.abs(dir.z) < 1e-5 ? 1.1e-4 : dir.z;
     const ray = new RAPIER.Ray({ x: origin.x, y: origin.y, z: origin.z }, { x: dx, y: dir.y, z: dz });
-    const hit = this.world.castRayAndGetNormal(ray, maxDist, true, undefined, filterGroups, exclude);
+    // from inside a terrain cut (a tunnel under a hill) the terrain surface above or across the way is not there
+    const hit = this.world.castRayAndGetNormal(ray, maxDist, true, undefined, filterGroups, exclude, undefined, this.terrainFilterAt(origin));
     if (!hit) return null;
     const t = hit.timeOfImpact;
     return {
@@ -186,6 +251,8 @@ export class PhysicsWorld {
   }
 
   dispose() {
+    this.events?.free();
+    this.events = null;
     this.world.free();
   }
 }

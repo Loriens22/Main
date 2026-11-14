@@ -25,6 +25,8 @@ interface Flat {
 }
 
 export const SURFACE_CODE: Record<Surface, number> = { gravel: 0.25, dirt: 0.5, asphalt: 1.0 };
+/** ground over the NASA entry tunnel, above the forecourt (m): the tunnel roof is ~10 m, the headwall 18 m */
+export const PORTAL_COVER = 16.5;
 
 /**
  * Procedural Earth terrain for the farm → NASA region.
@@ -144,6 +146,7 @@ export class EarthGen {
     progress?.(0.45, 'carving roads');
     this.applyFlats(near);
     this.applyRoads(near);
+    this.applyPortalBerm(near);
     near.min = Infinity; near.max = -Infinity;
     for (const v of near.data) { if (v < near.min) near.min = v; if (v > near.max) near.max = v; }
     progress?.(0.6, 'distant mountains');
@@ -245,6 +248,27 @@ export class EarthGen {
       d = Math.hypot(dx, dz);
     } else d = Math.max(0, Math.hypot(x - f.x, z - f.z) - f.r);
     return 1 - smoothstep(0, f.feather, d);
+  }
+
+  /**
+   * Earth fill over the cut-and-cover portal: behind the headwall (local y > 3 m, north) the ground stands at least
+   * PORTAL_COVER above the forecourt across the headwall's width, so the hill covers the entry tunnel (roof ~10 m)
+   * instead of dipping into it. Between the forecourt and the berm the height map ramps up inside the headwall's
+   * concrete; in the opening itself the terrain is cut away (NasaSite registers the cut volume).
+   */
+  private applyPortalBerm(hm: Heightmap) {
+    const r = hm.res, c = hm.cell, d = hm.data;
+    const top = this.portalLevel + PORTAL_COVER;
+    const x0 = NASA.portal.x - 60, x1 = NASA.portal.x + 60, z0 = NASA.portal.z - 60, z1 = NASA.portal.z + 4;
+    const i0 = Math.max(0, Math.floor((x0 - hm.minX) / c)), i1 = Math.min(r - 1, Math.ceil((x1 - hm.minX) / c));
+    const j0 = Math.max(0, Math.floor((z0 - hm.minZ) / c)), j1 = Math.min(r - 1, Math.ceil((z1 - hm.minZ) / c));
+    for (let j = j0; j <= j1; j++) for (let i = i0; i <= i1; i++) {
+      const lx = hm.minX + i * c - NASA.portal.x, ly = -(hm.minZ + j * c - NASA.portal.z);
+      const w = smoothstep(1.0, 3.0, ly) * (1 - smoothstep(20, 34, Math.abs(lx))) * (1 - smoothstep(30, 56, ly));
+      if (w <= 0) continue;
+      const k = j * r + i;
+      d[k] = Math.max(d[k], lerp(d[k], top, w));
+    }
   }
 
   private applyFlats(hm: Heightmap) {

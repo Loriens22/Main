@@ -607,6 +607,13 @@ export default class SurfaceZone extends Zone implements SurfaceAPHost {
       ph.setTerrainPatch(cx, cz, 192, cs, (x, z) => this.gen.field.height(x, z));
     }
     const camP = game.camera.position;
+    // no boulders under the Ranger or across its rear hatch and ladder: cleared for the last 20 m of a descent (the
+    // legs settle on clear ground) and while it stands; the centre snaps to 4 m so a hover does not re-place every frame
+    {
+      const gy = this.gen.field.height(c.pos[0], c.pos[2]);
+      const low = c.landed || c.pos[1] - gy < 20;
+      this.rocks.setKeepOut(low ? [{ x: Math.round(c.pos[0] / 4) * 4, z: Math.round(c.pos[2] / 4) * 4, r: c.spec.length / 2 + 6 }] : [], pl.mode !== 'seat' ? ph : null);
+    }
     this.rocks.update(camP.distanceTo(focus) < 600 ? focus : camP, pl.mode !== 'seat' ? ph : null);
     this.rocks.group.visible = this.env.altitude([camP.x, camP.y, camP.z]) - (this.gen.field.height(camP.x, camP.z) - this.center.y - BODIES[this.site.body].radius) < 3000;
     if (pl.frame === this.ground && pl.mode !== 'seat') ph.step(dt);
