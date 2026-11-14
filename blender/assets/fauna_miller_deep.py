@@ -20,6 +20,7 @@ from kit import V, empty
 import creature as C
 from creature import Skeleton, Part, assemble, finish_creature
 from organic import Surf, plate, fin, tube, fang, ringed, cornea, eye, sstep, smooth_lerp
+import paint_specs  # noqa: F401  (fills paint.PAINT)
 
 PI = math.pi
 TAU = math.tau
@@ -310,7 +311,7 @@ def crown():
     parts.append(Part(fin("dorsal", db, de, "crown_fin", nv=6, rays=8, corr=0.015, thick=0.05), bones=spine[3:5]))
 
     body_o = assemble("crown_body", sk, parts)
-    arm = finish_creature(root, sk, body_o, os.path.join(kit.out_dir(), "fauna_crown.glb"), props={"creature": "crown", "length": 10.0}, ao=1.2)
+    arm = finish_creature(root, sk, body_o, os.path.join(kit.out_dir(), "fauna_crown.glb"), props={"creature": "crown", "length": 10.0}, ao=1.2, paint=2048)
     return root, arm
 
 
@@ -467,7 +468,7 @@ def stalker(juvenile=False):
             sq = lambda q: V((q.x, 2.0 + (q.y - 2.0) * 0.72, q.z)) if q.y > 2.0 else q
             sk.bones[bn] = (sq(h), sq(t), par)
     name = "fauna_abyssstalker_juv.glb" if J else "fauna_abyssstalker.glb"
-    arm = finish_creature(root, sk, body_o, os.path.join(kit.out_dir(), name), props={"creature": "abyssstalker", "length": 6.5}, ao=0.6)
+    arm = finish_creature(root, sk, body_o, os.path.join(kit.out_dir(), name), props={"creature": "abyssstalker", "length": 6.5}, ao=0.6, paint=1024)
     return root, arm
 
 
@@ -614,7 +615,7 @@ def chorus(juvenile=False):
     parts.append(Part(fin("fluke", tb, te, "chorus_fin", nv=7, rays=12, corr=0.002, thick=0.012), bones=spine[-2:]))
     body_o = assemble("chorus_body", sk, parts)
     name = "fauna_chorus_juv.glb" if J else "fauna_chorus.glb"
-    arm = finish_creature(root, sk, body_o, os.path.join(kit.out_dir(), name), props={"creature": "chorus", "length": 1.9 if J else 3.0}, ao=0.3)
+    arm = finish_creature(root, sk, body_o, os.path.join(kit.out_dir(), name), props={"creature": "chorus", "length": 1.9 if J else 3.0}, ao=0.3, paint=1024)
     return root, arm
 
 
@@ -779,8 +780,8 @@ def cathedral(juvenile=False):
             # leading edge sweeps out to the tip, then the trailing edge curves back in
             tip_x = 12.0 * (1 - 0.82 * u ** 1.4)
             edge.append(V((sx * (2.2 + tip_x), 3.2 - 7.6 * u ** 0.9 - 1.6 * math.sin(PI * u), -0.9 * (1 - u) ** 2)))
-        w = fin(f"wing{s}", base, edge, "cath_wing", nu=161, nv=18, rays=44, corr=0.006, scallop=0.01, ruffle=0.06, ruffle_f=5.0,
-                thick=0.14, droop=0.4, rays_m="cath_ray", ray_r=0.03, ray_taper=0.25, up=(0, 0, 1))
+        w = fin(f"wing{s}", base, edge, "cath_wing", nu=161, nv=18, rays=36, corr=0.0, scallop=0.008, ruffle=0.06, ruffle_f=5.0,
+                thick=0.14, droop=0.4, rays_m="cath_ray", ray_r=0.02, ray_taper=0.25, up=(0, 0, 1))
         parts.append(Part(w, bones=["body", f"wing{s}1", f"wing{s}2"]))
     # tail fluke (horizontal: the tail beats up and down)
     for sx in (-1, 1):
@@ -789,7 +790,7 @@ def cathedral(juvenile=False):
         parts.append(Part(fin(f"fluke{sx}", fb, fe, "cath_wing", nv=6, rays=10, corr=0.01, thick=0.08), bone=tail[-1]))
     body_o = assemble("cathedral_body", sk, parts)
     name = "fauna_cathedral_calf.glb" if J else "fauna_cathedral.glb"
-    arm = finish_creature(root, sk, body_o, os.path.join(kit.out_dir(), name), props={"creature": "cathedral", "length": 15.0}, ao=1.6)
+    arm = finish_creature(root, sk, body_o, os.path.join(kit.out_dir(), name), props={"creature": "cathedral", "length": 15.0}, ao=1.6, paint=1024 if J else 2048)
     return root, arm
 
 
@@ -908,7 +909,7 @@ def siren():
              rays_m="siren_ray", ray_r=0.001, ray_taper=0.35)
     parts.append(Part(tl, bones=spine[-2:]))
     body_o = assemble("siren_body", sk, parts)
-    arm = finish_creature(root, sk, body_o, os.path.join(kit.out_dir(), "fauna_siren.glb"), props={"creature": "siren", "length": 1.1}, ao=0.06)
+    arm = finish_creature(root, sk, body_o, os.path.join(kit.out_dir(), "fauna_siren.glb"), props={"creature": "siren", "length": 1.1}, ao=0.06, paint=1024)
     return root, arm
 
 

@@ -613,11 +613,12 @@ def add_bevel(o, width, segs=2, angle=40):
     return mod
 
 
-def add_solidify(o, t, offset=-1.0):
+def add_solidify(o, t, offset=-1.0, even=True):
     mod = o.modifiers.new("solid", "SOLIDIFY")
     mod.thickness = t
     mod.offset = offset
-    mod.use_even_offset = True
+    mod.use_even_offset = even
+    mod.use_quality_normals = True
     return mod
 
 

@@ -1,4 +1,5 @@
 import * as THREE from 'three';
+import { RAPIER } from '../../physics/Physics';
 import type SurfaceZone from '../zones/SurfaceZone';
 import { millerSpots } from './millerBiome';
 
@@ -12,6 +13,11 @@ import { millerSpots } from './millerBiome';
 export class MillerCaves {
   readonly group = new THREE.Group();
   private colliders: import('@dimforge/rapier3d-compat').Collider[] = [];
+  private handles = new Set<number>();
+  /** bounding spheres (centre, radius) for a cheap test before any ray cast */
+  private bounds: { c: THREE.Vector3; r: number }[] = [];
+  private _d = new THREE.Vector3();
+  private _n = new THREE.Vector3();
 
   constructor(private zone: SurfaceZone) {}
 
@@ -43,11 +49,49 @@ export class MillerCaves {
         m.castShadow = true;
         m.receiveShadow = true;
         const c = zone.ground.physics?.addGeometry(m.geometry, m.matrixWorld, { cave: model });
-        if (c) this.colliders.push(c);
+        if (c) {
+          this.colliders.push(c);
+          this.handles.add(c.handle);
+        }
+        m.geometry.computeBoundingSphere();
+        const bs = m.geometry.boundingSphere!;
+        this.bounds.push({ c: bs.center.clone().applyMatrix4(m.matrixWorld), r: bs.radius * root.scale.x });
       });
     }
     zone.scene.add(this.group);
     return this;
+  }
+
+  /**
+   * Keep a creature of radius r from passing through a cave shell on its way from → to: a ray cast against the
+   * cave colliders only; on a hit the move stops r short of the rock and slides along it. Returns true if it moved `to`.
+   */
+  guard(from: THREE.Vector3, to: THREE.Vector3, r: number) {
+    const ph = this.zone.ground.physics;
+    if (!ph || !this.colliders.length) return false;
+    let near = false;
+    for (const b of this.bounds) {
+      if (b.c.distanceTo(to) < b.r + r + 1 || b.c.distanceTo(from) < b.r + r + 1) {
+        near = true;
+        break;
+      }
+    }
+    if (!near) return false;
+    const d = this._d.subVectors(to, from);
+    const L = d.length();
+    if (L < 1e-5) return false;
+    d.divideScalar(L);
+    const ray = new RAPIER.Ray({ x: from.x, y: from.y, z: from.z }, { x: d.x, y: d.y, z: d.z });
+    const hit = ph.world.castRayAndGetNormal(ray, L + r, true, undefined, undefined, undefined, undefined, (c) => this.handles.has(c.handle));
+    if (!hit) return false;
+    const allowed = Math.max(0, hit.timeOfImpact - r);
+    const n = this._n.set(hit.normal.x, hit.normal.y, hit.normal.z);
+    // the rest of the move, minus its part into the rock: a slide along the wall
+    const rest = L - allowed;
+    const slide = d.clone().multiplyScalar(rest);
+    slide.addScaledVector(n, -slide.dot(n));
+    to.copy(from).addScaledVector(d, allowed).add(slide);
+    return true;
   }
 
   dispose() {

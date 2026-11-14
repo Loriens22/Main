@@ -13,7 +13,7 @@ sys.path.insert(0, HERE)
 sys.path.insert(0, os.path.join(HERE, "..", "lib"))
 import subprocess
 
-SHORE = ["ferracaris", "sedimentmaw", "mimic", "mimic_juv", "breaker", "breaker_juv", "architect"]
+SHORE = ["ferracaris", "ferracaris_juv", "sedimentmaw", "sedimentmaw_juv", "mimic", "mimic_juv", "breaker", "breaker_juv", "architect", "architect_juv"]
 DEEP = ["siren", "stalker", "stalker_juv", "chorus", "chorus_juv", "cathedral", "cathedral_calf", "crown", "prey_dart", "prey_shrimp", "prey_krill"]
 CAVES = ["miller_cave_shelter", "miller_cave_ledge", "miller_cave_den"]
 

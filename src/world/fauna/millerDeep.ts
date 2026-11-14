@@ -1,5 +1,5 @@
 import * as THREE from 'three';
-import { Creature, FaunaManager } from './Fauna';
+import { Creature, FaunaManager, localHours } from './Fauna';
 import { AX } from './Rig';
 import { MILLER_BIOME, millerSpots } from '../surface/millerBiome';
 import type { Eco } from './miller';
@@ -530,6 +530,128 @@ class RiftArchitect extends Creature {
     super.dispose();
     this.props.traverse((o) => (o as THREE.Mesh).geometry?.dispose());
     this.props.removeFromParent();
+  }
+}
+
+// a young Architect: keeps close to the builder and the den, carries pebbles about (practice), hides in the den when
+// anything large comes near or the sea turns
+class ArchitectYoung extends Creature {
+  readonly species = 'architectjuv';
+  parent!: RiftArchitect;
+  size = 0.35;
+  private target = new THREE.Vector3();
+  private speedV = 0;
+  private gait = 0;
+  private pebble: THREE.Mesh | null = null;
+  private carry = false;
+
+  constructor(f: FaunaManager, readonly eco: Eco) {
+    super(f);
+    this.view = 60;
+    this.nearR = 30;
+  }
+
+  buildPebble() {
+    const m = new THREE.Mesh(new THREE.IcosahedronGeometry(0.035, 1), this.game.materials.get('miller_cave_rock') ?? new THREE.MeshStandardMaterial({ color: 0x2a2b2d }));
+    m.scale.set(1.3, 0.55, 1);
+    m.castShadow = true;
+    m.position.set(this.parent.den.x + 1.6, 0, this.parent.den.z + 0.6);
+    m.position.y = this.f.host.terrainY(m.position.x, m.position.z) + 0.015;
+    this.f.root.add(m);
+    this.pebble = m;
+  }
+
+  update(dt: number, near: boolean) {
+    const p = this.parent;
+    const pl = this.game.player;
+    const host = this.f.host;
+    const tide = this.eco.tideState(this.pos.x, this.pos.z);
+    const dpl = Math.hypot(pl.pos.x - this.pos.x, pl.pos.z - this.pos.z);
+    const danger = tide >= 2 || dpl < 3 || p.state === 'defend' || p.state === 'shelter';
+    if (danger && this.state !== 'hide') {
+      this.setState('hide');
+      this.dropPebble();
+    } else if (!danger && this.state === 'hide' && this.st > 5) this.setState('forage');
+    let want = 0;
+    if (this.state === 'hide') {
+      this.target.copy(p.den);
+      want = 0.32;
+    } else if (this.state === 'fetch' && this.pebble) {
+      if (!this.carry) {
+        this.target.copy(this.pebble.position);
+        want = 0.14;
+        if (Math.hypot(this.target.x - this.pos.x, this.target.z - this.pos.z) < 0.12) this.carry = true;
+      } else {
+        // to the wall ring and set it down beside the parent's stones
+        const a = Math.atan2(this.pos.z - p.den.z, this.pos.x - p.den.x);
+        this.target.set(p.den.x + Math.cos(a) * 0.95, 0, p.den.z + Math.sin(a) * 0.7);
+        want = 0.12;
+        if (Math.hypot(this.target.x - this.pos.x, this.target.z - this.pos.z) < 0.15) {
+          this.dropPebble();
+          if (this.eco.watching(this.pos, 8, 0.4)) this.eco.note('architect', 'young', 'A pale young one followed the builder about, carrying pebbles too small to matter to the wall — practice, perhaps.');
+          this.setState('forage');
+        }
+      }
+    } else {
+      if (this.state !== 'forage' || this.st > 7) {
+        if (this.state === 'forage' && this.pebble && Math.random() < 0.6) {
+          this.setState('fetch');
+        } else {
+          this.setState('forage');
+          const a = Math.random() * TAU, d = 1.1 + Math.random() * 1.2;
+          this.target.set(p.den.x + Math.cos(a) * d, 0, p.den.z + Math.sin(a) * d);
+        }
+      }
+      want = Math.hypot(this.target.x - this.pos.x, this.target.z - this.pos.z) > 0.1 ? 0.08 : 0;
+    }
+    _v.set(this.target.x - this.pos.x, 0, this.target.z - this.pos.z);
+    const d = _v.length();
+    if (d < 0.06) want = 0;
+    this.speedV = damp(this.speedV, want, 5, dt);
+    if (d > 1e-3) {
+      const yaw = Math.atan2(-_v.x, -_v.z);
+      let dy = yaw - this.yaw;
+      while (dy > Math.PI) dy -= TAU;
+      while (dy < -Math.PI) dy += TAU;
+      this.yaw += dy * Math.min(1, dt * 5);
+      this.pos.addScaledVector(_v.divideScalar(d), this.speedV * dt);
+    }
+    this.pos.y = host.terrainY(this.pos.x, this.pos.z);
+    if (this.carry && this.pebble) {
+      this.pebble.position.copy(this.fwd(_w)).multiplyScalar(0.55 * this.size).add(this.pos);
+      this.pebble.position.y = this.pos.y + 0.25 * this.size;
+    }
+    if (near) {
+      const r = this.rig;
+      r.reset();
+      this.gait += this.speedV * dt * 30;
+      const w = clamp(this.speedV / 0.1, 0, 1);
+      ['L', 'R'].forEach((sd, si) => {
+        for (let k = 0; k < 3; k++) {
+          const ph = this.gait + (k % 2 === si ? 0 : Math.PI);
+          r.rot(`leg${sd}${k}1`, AX.y, (si ? -1 : 1) * 0.28 * Math.sin(ph) * w);
+          r.rot(`leg${sd}${k}1`, AX.z, (si ? 1 : -1) * 0.16 * Math.max(0, Math.sin(ph)) * w);
+        }
+        r.rot(`man${sd}1`, AX.x, this.carry ? -0.35 : 0.1 * Math.sin(this.t * 1.9 + si));
+      });
+    }
+    this.root.position.copy(this.pos);
+    this.root.rotation.set(0, this.yaw, 0, 'YXZ');
+    this.root.scale.setScalar(this.size * (this.state === 'hide' ? 0.9 : 1));
+  }
+
+  private dropPebble() {
+    if (!this.carry || !this.pebble) return;
+    this.carry = false;
+    this.pebble.position.y = this.f.host.terrainY(this.pebble.position.x, this.pebble.position.z) + 0.015;
+  }
+
+  dispose() {
+    super.dispose();
+    if (this.pebble) {
+      this.pebble.geometry.dispose();
+      this.pebble.removeFromParent();
+    }
   }
 }
 
@@ -1276,6 +1398,7 @@ export async function populateMillerDeep(f: FaunaManager, eco: Eco) {
   bs.pos.copy(bs.nest).add(new THREE.Vector3(2, 0, 1));
   bs.pos.y = floor(bs.pos.x, bs.pos.z);
   bs.size = 0.9 + R() * 0.2;
+  bs.collideR = 1.0;
   bs.setState('browse');
   jobs.push(f.add(bs, 'fauna_breaker').then(() => bs.buildNest()));
   for (let i = 0; i < f.count(3); i++) {
@@ -1284,6 +1407,7 @@ export async function populateMillerDeep(f: FaunaManager, eco: Eco) {
     h.pos.set(bs.nest.x + Math.cos(i * 2.1) * 1.2, 0, bs.nest.z + Math.sin(i * 2.1) * 1.2);
     h.pos.y = floor(h.pos.x, h.pos.z);
     h.setState('wander');
+    h.growth = { base: 0.2, born: localHours(f.game.state.clock.earthTime) - 0.5 - i * 0.3, rate: 0.12, max: 1.6 };
     jobs.push(f.add(h, 'fauna_breaker_juv'));
   }
   // Rift Architect by the vents
@@ -1293,7 +1417,15 @@ export async function populateMillerDeep(f: FaunaManager, eco: Eco) {
   ra.pos.copy(ra.den).add(new THREE.Vector3(1.5, 0, 0.5));
   ra.pos.y = floor(ra.pos.x, ra.pos.z);
   ra.setState('build');
+  ra.collideR = 0.6;
   jobs.push(f.add(ra, 'fauna_architect').then(() => ra.buildSite()));
+  const ay = new ArchitectYoung(f, eco);
+  ay.parent = ra;
+  ay.pos.copy(ra.den).add(new THREE.Vector3(-1.2, 0, 0.8));
+  ay.pos.y = floor(ay.pos.x, ay.pos.z);
+  ay.growth = { base: 0.35, born: localHours(f.game.state.clock.earthTime) - 1.5, rate: 0.1, max: 1.5 };
+  ay.setState('forage');
+  jobs.push(f.add(ay, 'fauna_architect_juv').then(() => ay.buildPebble()));
   // Luminous Sirens by the rift walls
   for (let i = 0; i < 2; i++) {
     const s = new LuminousSiren(f, eco);
@@ -1302,6 +1434,7 @@ export async function populateMillerDeep(f: FaunaManager, eco: Eco) {
     s.perch.y = floor(s.perch.x, s.perch.z) + 2.2;
     s.pos.copy(s.perch);
     s.size = 0.9 + R() * 0.4;
+    s.collideR = 0.25;
     s.setState('hover');
     jobs.push(f.add(s, 'fauna_siren', ['siren_lure']));
   }
@@ -1313,6 +1446,8 @@ export async function populateMillerDeep(f: FaunaManager, eco: Eco) {
     s.ledge.y = floor(s.ledge.x, s.ledge.z) + 2.5;
     s.pos.copy(s.ledge);
     s.size = i ? 0.62 : 1; // a young one: its own build (shorter snout, bigger eyes, finer teeth)
+    s.collideR = 0.9;
+    if (i) s.growth = { base: 0.62, born: localHours(f.game.state.clock.earthTime) - 2, rate: 0.05, max: 1.4 };
     s.setState('ambush');
     jobs.push(f.add(s, i ? 'fauna_abyssstalker_juv' : 'fauna_abyssstalker'));
   }
@@ -1326,6 +1461,8 @@ export async function populateMillerDeep(f: FaunaManager, eco: Eco) {
     c.index = i;
     c.juvenile = i === n - 1;
     c.size = c.juvenile ? 0.65 : 0.9 + R() * 0.2;
+    c.collideR = 0.5;
+    if (c.juvenile) c.growth = { base: 0.65, born: localHours(f.game.state.clock.earthTime) - 1, rate: 0.06, max: 1.4 };
     c.pos.set(B.basin.x + 30 + i * 4, -30 - R() * 6, B.basin.z - 20 + i * 3);
     pod.members.push(c);
     jobs.push(f.add(c, c.juvenile ? 'fauna_chorus_juv' : 'fauna_chorus'));
@@ -1340,6 +1477,7 @@ export async function populateMillerDeep(f: FaunaManager, eco: Eco) {
   const calf = new CathedralCalf(f, eco);
   calf.mother = cat;
   calf.size = 0.32;
+  calf.growth = { base: 0.32, born: localHours(f.game.state.clock.earthTime) - 2, rate: 0.04, max: 1.5 };
   calf.pos.copy(cat.pos).add(new THREE.Vector3(-6, -3, 6));
   calf.setState('follow');
   jobs.push(f.add(calf, 'fauna_cathedral_calf', ['cath_glow']));

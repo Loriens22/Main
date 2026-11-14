@@ -813,6 +813,7 @@ export default class SurfaceZone extends Zone implements SurfaceAPHost {
         return { tta: n ? n.tta : Infinity, since, dir: n ? [n.wave.dir.x, n.wave.dir.y] : [-1, 0] };
       },
       rangerFlying: () => !this.craft.landed,
+      caveGuard: (from, to, r) => (this.caves ? this.caves.guard(from, to, r) : false),
       knockout: (msg) => {
         if (this.ranger.site || this.craft.landed) this.ranger.seat();
         this.game.notify(msg, 'alert', 8);

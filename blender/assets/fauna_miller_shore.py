@@ -20,6 +20,7 @@ from kit import V, empty
 import creature as C
 from creature import Skeleton, Part, assemble, finish_creature
 from organic import Surf, TubeSurf, plate, fin, tube, fang, ringed, cornea, eye, sstep, smooth_lerp
+import paint_specs  # noqa: F401  (fills paint.PAINT)
 
 PI = math.pi
 TAU = math.tau
@@ -29,6 +30,9 @@ kit.PALETTE.update({
     "breaker_eye": dict(color=(0.42, 0.36, 0.14), rough=0.1),
     "breaker_edge": dict(color=(0.45, 0.42, 0.32), rough=0.4),
     "arch_wart": dict(color=(0.75, 0.52, 0.16), rough=0.6),
+    "arch_shell_juv": dict(color=(0.42, 0.38, 0.46), rough=0.45),
+    "maw_hide_juv": dict(color=(0.62, 0.56, 0.48), rough=0.8),
+    "ferra_plate_juv": dict(color=(0.62, 0.48, 0.36), rough=0.3),
 })
 
 
@@ -170,7 +174,7 @@ def breaker(juvenile=False):
             parts.append(Part(kit.merge(toes, f"toes{s}{k}"), bone=ch[-1]))
     body = assemble("breaker_body", sk, parts)
     name = "fauna_breaker_juv.glb" if J else "fauna_breaker.glb"
-    arm = finish_creature(root, sk, body, os.path.join(kit.out_dir(), name), props={"creature": "breaker", "length": 3.0}, ao=0.45)
+    arm = finish_creature(root, sk, body, os.path.join(kit.out_dir(), name), props={"creature": "breaker", "length": 3.0}, ao=0.45, paint=1024 if J else 2048)
     return root, arm
 
 
@@ -179,14 +183,16 @@ def breaker_juv():
 
 
 # ================================================================================================ rift architect (image 7)
-def architect():
+def architect(juvenile=False):
     """1.4 m carapace; ground z = 0. A broad flat crab-like builder: carapace of overlapping serrated plates crusted
     with orange-yellow tubercles, a margin of big pointed lobes, a rostrum over two rows of glossy black eyes, a fringe
     of fine whiskers, two long antennae; slender spined manipulators ending in long jointed fingers; six flattened
     armoured walking legs with spines and pointed tips."""
     kit.reset()
     root = empty("RiftArchitect")
-    rng = random.Random(61)
+    J = juvenile
+    rng = random.Random(61 if not J else 62)
+    SH = "arch_shell_juv" if J else "arch_shell"
     sk = Skeleton()
     sk.add("body", (0, -0.45, 0.42), (0, 0.42, 0.42))
     parts = []
@@ -210,18 +216,18 @@ def architect():
     ])
     shell = [cara.mesh("cbase", 30, 36, ("arch_leg",))]
     warts = []
-    rows = 6
+    rows = 6 if not J else 4
     for r in range(rows):
         tc = 0.1 + 0.8 * (r + 0.5) / rows
         cols = 5 + (r % 2)
         for c in range(cols):
             ac = 0.1 * PI + 0.8 * PI * (c + 0.5) / cols + rng.uniform(-0.04, 0.04)
             mid = 1 - abs(ac - PI / 2) / (PI / 2)
-            shell.append(plate(f"cp{r}_{c}", cara.P, cara.N, tc, ac, 0.8 / rows * 0.75, 0.8 * PI / cols * 0.65, "arch_shell", rng,
+            shell.append(plate(f"cp{r}_{c}", cara.P, cara.N, tc, ac, 0.8 / rows * 0.75, 0.8 * PI / cols * 0.65, SH, rng,
                                lift=0.025, thick=0.018, dome=0.4, jag=0.3, keel=0.012, tip=0.9, K=20, rings=3, inset=0.008,
                                spines=2, spine_len=0.05, spine_m="arch_wart"))
             # tubercles crusting the plate
-            for w in range(rng.randint(2, 5)):
+            for w in range(rng.randint(2, 5) if not J else rng.randint(0, 1)):
                 tt = tc + rng.uniform(-0.05, 0.05)
                 aa = ac + rng.uniform(-0.15, 0.15)
                 p = cara.P(tt, aa) + cara.N(tt, aa) * 0.03
@@ -236,12 +242,12 @@ def architect():
             def outline(th, out_sign=out_sign):
                 o = max(0.0, math.sin(th) * out_sign)
                 return 1 + 1.3 * o ** 5
-            shell.append(plate(f"mg{side}{k}", cara.P, cara.N, tc, ac, 0.055, 0.14, "arch_shell", rng, lift=0.0, thick=0.016,
+            shell.append(plate(f"mg{side}{k}", cara.P, cara.N, tc, ac, 0.055, 0.14, SH, rng, lift=0.0, thick=0.016,
                                dome=0.3, jag=0.25, outline=outline, K=20, rings=3, inset=0.01 + 0.006 * (k % 2)))
             tipp = cara.P(tc, ac + out_sign * 0.3)
             shell.append(fang(f"mgs{side}{k}", tipp, V((side * 1, -0.2, 0.15)), V((0, 0, 1)), 0.06, 0.012, curve=0.2, m="arch_wart", seg=5, n=4))
     # rostrum
-    shell.append(fang("rostrum", V((0, 0.62, 0.5)), V((0, 1, -0.15)), V((0, 0, -1)), 0.2, 0.05, curve=0.15, m="arch_shell", seg=8))
+    shell.append(fang("rostrum", V((0, 0.62, 0.5)), V((0, 1, -0.15)), V((0, 0, -1)), 0.2, 0.05, curve=0.15, m=SH, seg=8))
     parts.append(Part(kit.merge(shell, "shell"), bone="body"))
     parts.append(Part(kit.merge(warts, "warts"), bone="body"))
     # face: two rows of glossy eyes under the rostrum, a fringe of whiskers, antennae
@@ -251,7 +257,7 @@ def architect():
         x = ((i % 3) - 1) * 0.075
         z = 0.42 if i < 3 else 0.37
         y = 0.64 if i < 3 else 0.62
-        face.append(eye(f"eye{i}", V((x, y, z)), V((x * 3, 1, 0.1)), 0.024 if i < 3 else 0.018, "mimic_pupil", cornea_m="cornea", pupil=(0.3, 0.3)))
+        face.append(eye(f"eye{i}", V((x, y, z)), V((x * 3, 1, 0.1)), (0.024 if i < 3 else 0.018) * (1.5 if J else 1.0), "mimic_pupil", cornea_m="cornea", pupil=(0.3, 0.3)))
     for k in range(16):
         x = (k - 7.5) * 0.028
         b = V((x, 0.6, 0.33))
@@ -279,7 +285,7 @@ def architect():
                 tq = 0.25 + 0.25 * q
                 pq = ts.P(tq, PI / 2 + sx * 0.4)
                 sp.append(fang(f"msp{s}{i}{q}", pq, ts.N(tq, PI / 2 + sx * 0.4) + (b - a).normalized() * 0.5, (b - a), 0.03, 0.006, curve=0.3, m="arch_wart", seg=4, n=4))
-            sp.append(kit.sphere(f"mj{s}{i}", r0 * 1.15, loc=tuple(b), m="arch_shell", segs=10, rings=6))
+            sp.append(kit.sphere(f"mj{s}{i}", r0 * 1.15, loc=tuple(b), m=SH, segs=10, rings=6))
             parts.append(Part(kit.merge(sp, f"mseg{s}{i}"), bone=ch[i]))
         hand = pts[-1]
         fingers = []
@@ -295,15 +301,15 @@ def architect():
         for k, y in enumerate((0.25, -0.1, -0.42)):
             pts = [V((sx * 0.5, y, 0.36)), V((sx * 0.82, y + 0.03, 0.58)), V((sx * 1.04, y - 0.01, 0.28)), V((sx * 1.12, y - 0.04, 0.0))]
             ch = sk.chain(f"leg{s}{k}", [tuple(p) for p in pts], "body")
-            ts = TubeSurf(pts, lambda t: 0.085 * (1 - 0.75 * t) + 0.008, ref=(0, 0, 1), squash=0.6)
+            ts = TubeSurf(pts, lambda t: (0.085 if not J else 0.06) * (1 - 0.75 * t) + 0.008, ref=(0, 0, 1), squash=0.6)
             parts.append(Part(ts.mesh(f"lg{s}{k}", 28, 12, ("arch_leg",)), bones=ch))
-            bands = armour_bands(f"lb{s}{k}", ts, 0.04, 0.9, 6, 0.0, 1.7, "arch_shell", rng, lift=0.012, thick=0.012, keel=0.006, tip=0.8,
+            bands = armour_bands(f"lb{s}{k}", ts, 0.04, 0.9, 6, 0.0, 1.7, SH, rng, lift=0.012, thick=0.012, keel=0.006, tip=0.8,
                                  spines=1, spine_len=0.035, spine_m="arch_wart")
             for i, b in enumerate(bands):
                 parts.append(Part(b, bone=ch[min(2, int(3 * (i + 0.5) / len(bands)))]))
-            parts.append(Part(fang(f"dact{s}{k}", pts[-1] + V((0, 0, 0.03)), V((0, 0, -1)), V((sx, 0, 0)), 0.05, 0.016, curve=0.2, m="arch_shell", seg=6), bone=ch[-1]))
+            parts.append(Part(fang(f"dact{s}{k}", pts[-1] + V((0, 0, 0.03)), V((0, 0, -1)), V((sx, 0, 0)), 0.05, 0.016, curve=0.2, m=SH, seg=6), bone=ch[-1]))
     body = assemble("architect_body", sk, parts)
-    arm = finish_creature(root, sk, body, os.path.join(kit.out_dir(), "fauna_architect.glb"), props={"creature": "architect"}, ao=0.25)
+    arm = finish_creature(root, sk, body, os.path.join(kit.out_dir(), "fauna_architect_juv.glb" if J else "fauna_architect.glb"), props={"creature": "architect"}, ao=0.25, paint=1024 if not J else 512)
     return root, arm
 
 
@@ -386,7 +392,7 @@ def mimic(juvenile=False):
             ch = sk.chain(f"arm{s}{k}", [tuple(path[round(q * (N - 1) / 5)]) for q in range(6)], "body")
             ts = TubeSurf(path, lambda t: 0.1 * (1 - t) ** 0.85 + 0.013, ref=(0, 0, 1), samples=N)
             # material by angle: a = 0 is the top (ref up), a = π underneath
-            limb = ts.mesh(f"arm{s}{k}m", 60, 14, ("mimic_skin", "mimic_under"), mat_fn=lambda t, a: 1 if math.cos(a) < -0.35 else 0,
+            limb = ts.mesh(f"arm{s}{k}m", 48, 12, ("mimic_skin", "mimic_under"), mat_fn=lambda t, a: 1 if math.cos(a) < -0.35 else 0,
                            disp=lambda t, a: 0.004 * math.sin(t * 90) * (math.cos(a) > 0))
             parts.append(Part(limb, bones=ch + ["body"]))
             # leaf-scales along the top of the proximal two thirds
@@ -400,18 +406,16 @@ def mimic(juvenile=False):
             parts.append(Part(kit.merge(pl, f"apl{s}{k}"), bones=ch))
             # suckers: rims with a cup, in two rows under the distal part; hooks along both under-edges; bristles
             det = []
-            for i in range(int(N * 0.42), N - 3, 2):
+            for i in range(int(N * 0.42), N - 3, 3):
                 t = i / (N - 1)
                 for row in (-1, 1):
                     aa = PI + row * 0.5
                     c = ts.P(t, aa)
                     n = ts.N(t, aa)
                     r = ts.r(t)
-                    su = kit.torus(f"su{s}{k}{i}{row}", r * 0.3, r * 0.11, m="mimic_sucker", seg=8, rseg=4)
+                    su = kit.torus(f"su{s}{k}{i}{row}", r * 0.3, r * 0.11, m="mimic_sucker", seg=7, rseg=3)
                     from fauna_jupiter import orient
                     det.append(orient(su, n, c + n * (r * 0.05)))
-                    cup = kit.sphere(f"cu{s}{k}{i}{row}", r * 0.22, loc=tuple(c - n * (r * 0.02)), m="mimic_under", segs=6, rings=3, scale=(1, 1, 0.4))
-                    det.append(orient(cup, n, c))
             for i in range(int(N * 0.3), N - 4, 3):
                 t = i / (N - 1)
                 for row in (-1, 1):
@@ -420,8 +424,8 @@ def mimic(juvenile=False):
                     n = ts.N(t, aa)
                     c0, tt, xx, yy = ts.frame(t)
                     det.append(fang(f"hk{s}{k}{i}{row}", c - n * 0.004, n * 0.7 + V((0, 0, -0.5)), -tt, 0.03 + 0.04 * ts.r(t) / 0.1, ts.r(t) * 0.18 + 0.004,
-                                    curve=0.55, m="mimic_hook", seg=5, n=5))
-            for i in range(2, N - 2, 3):
+                                    curve=0.55, m="mimic_hook", seg=4, n=4))
+            for i in range(2, N - 2, 5):
                 t = i / (N - 1)
                 for row in (-1, 1):
                     aa = row * 1.25 + rng.uniform(-0.2, 0.2)
@@ -433,7 +437,7 @@ def mimic(juvenile=False):
             parts.append(Part(kit.merge(det, f"adet{s}{k}"), bones=ch))
     body = assemble("mimic_body", sk, parts)
     name = "fauna_mimic_juv.glb" if J else "fauna_mimic.glb"
-    arm = finish_creature(root, sk, body, os.path.join(kit.out_dir(), name), props={"creature": "mimic", "span": 2.4}, ao=0.3)
+    arm = finish_creature(root, sk, body, os.path.join(kit.out_dir(), name), props={"creature": "mimic", "span": 2.4}, ao=0.3, paint=1024 if J else 2048)
     return root, arm
 
 
@@ -442,14 +446,16 @@ def mimic_juv():
 
 
 # ================================================================================================ sediment maw (image 3)
-def sedimentmaw():
+def sedimentmaw(juvenile=False):
     """2.4 m across; the sediment surface at z = 0 (the body mostly below it); mouth modelled open. A low gritted mound
     round a deep funnel whose walls are lined with fluted folds and nodules, a thick rolled ringed lip, and stubby
     limbs in deeply grooved ring segments gripping the sediment."""
     from fauna_jupiter import grid
     kit.reset()
     root = empty("SedimentMaw")
-    rng = random.Random(23)
+    J = juvenile
+    rng = random.Random(23 if not J else 24)
+    HIDE = "maw_hide_juv" if J else "maw_hide"
     sk = Skeleton()
     sk.add("body", (0, -0.6, -0.2), (0, 0.6, -0.2))
     MX, MY = 0.0, 0.12
@@ -482,7 +488,7 @@ def sedimentmaw():
         z += 0.03 * (abs(math.sin(a * 23 + 0.4 * math.sin(a * 5))) ** 0.6 - 0.5) * t ** 2.2
         z += 0.012 * math.sin(x * 23 + 2 * math.sin(y * 17)) * math.sin(y * 19 + x * 7)
         return (x, y, z)
-    back = grid("back", Pb, nu, nv, ("maw_hide", "maw_lip"), mat_fn=lambda i, j: 1 if j > nv * 0.82 else 0)
+    back = grid("back", Pb, nu, nv, (HIDE, "maw_lip"), mat_fn=lambda i, j: 1 if j > nv * 0.82 else 0)
     parts.append(Part(back, bones=["body"] + lips))
     # the funnel: deep flutes (rounded ridges, narrow grooves) studded with nodules, ring corrugations, the gullet
     nf, nd = 216, 34
@@ -509,7 +515,7 @@ def sedimentmaw():
     parts.append(Part(ringed("lip", lp, lambda t: 0.07 + 0.018 * math.sin(t * TAU * 5) + 0.01 * math.sin(t * TAU * 13), "maw_lip", rings=44, groove=0.1, seg=12, samples=420), bones=lips))
     # gravel and grit cemented to the back: dense, mixed sizes, dark and sandy
     peb = []
-    for k in range(1300):
+    for k in range(1300 if not J else 260):
         a = rng.uniform(0, TAU)
         t = rng.random() ** 0.7
         rr = (RIM + 0.2) + t * 0.75
@@ -519,7 +525,7 @@ def sedimentmaw():
             continue
         r = rng.uniform(0.006, 0.03) * (1.8 if rng.random() < 0.06 else 1)
         z = back_z(x, y) - 0.22 * max(0.0, (rr - RIM - 0.06) / 0.75) ** 3 + r * 0.2
-        peb.append(kit.sphere(f"p{k}", r, loc=(x, y, z), m="maw_pebble" if rng.random() < 0.5 else "maw_hide", segs=5, rings=3,
+        peb.append(kit.sphere(f"p{k}", r, loc=(x, y, z), m="maw_pebble" if rng.random() < 0.5 else HIDE, segs=5, rings=3,
                               scale=(1, 0.7 + 0.5 * rng.random(), 0.45)))
     parts.append(Part(kit.merge(peb, "pebbles"), bones=["body"] + lips))
     for sx in (-1, 1):
@@ -534,7 +540,7 @@ def sedimentmaw():
             ang = a_side if sx > 0 else PI - a_side
             out = V((math.cos(ang), math.sin(ang) * 0.9, 0)).normalized()
             base = V((math.cos(ang) * 1.05, math.sin(ang) * 0.9, -0.08))
-            L = 0.7 + 0.25 * rng.random()
+            L = (0.7 + 0.25 * rng.random()) * (0.8 if J else 1.0)
             path = []
             for i in range(40):
                 t = i / 39
@@ -544,14 +550,14 @@ def sedimentmaw():
                 path.append(p)
             from fauna_jupiter import chain_along
             ch = chain_along(sk, f"limb{s}{k}", path, 3, "body")
-            parts.append(Part(ringed(f"limb{s}{k}m", path, lambda t: 0.15 * (1 - 0.55 * t) + 0.01, "maw_limb", rings=15, groove=0.16, seg=14, samples=160), bones=ch + ["body"]))
+            parts.append(Part(ringed(f"limb{s}{k}m", path, lambda t: (0.15 if not J else 0.11) * (1 - 0.55 * t) + 0.01, "maw_limb", rings=15, groove=0.16, seg=14, samples=160), bones=ch + ["body"]))
     body = assemble("sedimentmaw_body", sk, parts)
-    arm = finish_creature(root, sk, body, os.path.join(kit.out_dir(), "fauna_sedimentmaw.glb"), props={"creature": "sedimentmaw", "rim": RIM, "mouth": f"{MX:.2f},{MY:.2f}"}, ao=0.4)
+    arm = finish_creature(root, sk, body, os.path.join(kit.out_dir(), "fauna_sedimentmaw_juv.glb" if J else "fauna_sedimentmaw.glb"), props={"creature": "sedimentmaw", "rim": RIM, "mouth": f"{MX:.2f},{MY:.2f}"}, ao=0.4, paint=1024 if not J else 512)
     return root, arm
 
 
 # ================================================================================================ ferracaris (image 6)
-def ferracaris():
+def ferracaris(juvenile=False):
     """0.25 m adult, origin on the rock surface under the body centre, +Y forward. Flat oval grazer: head shield, seven
     overlapping segments whose sides end in rounded lobes and whose rear margins are scalloped and stand proud, a tail
     plate; a dense fringe of fine translucent pink spines under the skirt; eleven pairs of short ringed pale legs.
@@ -559,14 +565,16 @@ def ferracaris():
     from fauna_jupiter import grid
     kit.reset()
     root = empty("Ferracaris")
-    rng = random.Random(12)
+    J = juvenile
+    rng = random.Random(12 if not J else 13)
+    PL = "ferra_plate_juv" if J else "ferra_plate"
     L, W, Hh = 0.25, 0.165, 0.05
     parts = []
 
     def outline(t):
         tt = min(0.985, max(0.015, t))
         return W / 2 * math.sin(PI * tt) ** 0.5 * (0.96 + 0.06 * t)
-    n = 9
+    n = 9 if not J else 7
     edges = [i / n for i in range(n + 1)]
     for k in range(n):
         t0, t1 = edges[k], edges[k + 1]
@@ -596,7 +604,7 @@ def ferracaris():
             z += 0.008 * (1 - v) ** 2
             z += 0.0025 * math.sin(u * 11 + k * 1.7) * (1 - au) + 0.0012 * math.sin(u * 37 + k)
             return (x, y, z + 0.016)
-        pl = grid(f"seg{k}", P, nu, nv, ("ferra_plate",), wrap_u=False)
+        pl = grid(f"seg{k}", P, nu, nv, (PL,), wrap_u=False)
         kit.add_solidify(pl, 0.0035, 0.0)
         kit.bake(pl)
         parts.append(pl)
@@ -604,7 +612,7 @@ def ferracaris():
         parts.append(tube(f"rim{k}", rim, [0.0011] * nu, "ferra_rim", seg=4))
         # the fringe: many fine translucent spines of uneven length under the skirt
         for side in (-1, 1):
-            nf = 7 if not head else 11
+            nf = (7 if not head else 11) if not J else (4 if not head else 7)
             for f in range(nf):
                 if head:
                     a = PI / 2 * (f + 0.5) / nf * side
@@ -616,12 +624,12 @@ def ferracaris():
                     hw = outline(tt) * 1.1
                     base = V((side * hw * 0.97, -L / 2 + L * tt, 0.006))
                     d = V((side * 0.78, -0.1 + rng.uniform(-0.15, 0.15), -0.6)).normalized()
-                ln = 0.008 + 0.012 * rng.random() ** 1.5
+                ln = (0.008 + 0.012 * rng.random() ** 1.5) * (0.6 if J else 1.0)
                 parts.append(fang(f"fr{k}{side}{f}", base, d, V((0, 0, -1)), ln, 0.0011, curve=0.15, m="ferra_fringe", seg=3, n=3))
     for side in (-1, 1):
-        parts.append(kit.sphere(f"eye{side}", 0.0035, loc=(side * 0.028, L / 2 - 0.006, 0.016 + Hh * 0.62), m="mimic_pupil", segs=8, rings=5))
-    for k in range(11):
-        tt = 0.12 + 0.76 * k / 10
+        parts.append(kit.sphere(f"eye{side}", 0.0035 * (1.6 if J else 1.0), loc=(side * 0.028, L / 2 - 0.006, 0.016 + Hh * 0.62), m="mimic_pupil", segs=8, rings=5))
+    for k in range(11 if not J else 8):
+        tt = 0.12 + 0.76 * k / (10 if not J else 7)
         y = -L / 2 + L * tt
         hw = outline(tt)
         for side in (-1, 1):
@@ -631,16 +639,31 @@ def ferracaris():
     body = kit.merge(parts, "ferracaris_body")
     kit.smooth(body, 45)
     body.parent = root
+    import paint as PNT
+    PNT.bake_body(body, "fauna_ferracaris_juv" if J else "fauna_ferracaris", size=512 if not J else 256)
     C.bake_ao(body, distance=0.03)
     kit.set_props(root, creature="ferracaris", length=L)
     kit.select_tree(root)
-    path = os.path.join(kit.out_dir(), "fauna_ferracaris.glb")
+    path = os.path.join(kit.out_dir(), "fauna_ferracaris_juv.glb" if J else "fauna_ferracaris.glb")
     bpy.ops.export_scene.gltf(filepath=path, export_format="GLB", use_selection=True, export_apply=True, export_extras=True, export_yup=True,
                               export_animations=False, export_cameras=False, export_materials="EXPORT",
-                              export_vertex_color="NAME", export_vertex_color_name="AO", export_all_vertex_colors=False)
+                              export_vertex_color="NAME", export_vertex_color_name="AO", export_all_vertex_colors=False,
+                              export_image_format="JPEG", export_jpeg_quality=88)
     tris = sum(len(p.vertices) - 2 for p in body.data.polygons)
     print(f"[creature] {path} ~{tris} tris, {os.path.getsize(path) / 1e6:.2f} MB")
     return root, None
+
+
+def ferracaris_juv():
+    return ferracaris(juvenile=True)
+
+
+def architect_juv():
+    return architect(juvenile=True)
+
+
+def sedimentmaw_juv():
+    return sedimentmaw(juvenile=True)
 
 
 if __name__ == "__main__":

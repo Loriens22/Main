@@ -75,5 +75,25 @@ const parts = {
     { js: `game.settings.life.mars = true; game.applySettings(); return game.zone.fauna.active();`, frames: 2 },
   ],
 };
+
+// close-up survey of each Mars species (daylight; LAMP shots add a test light at the camera to judge skin)
+const sv = (name, sp, off, look, fov = 40, idx = 0) => ({ js: `${F} const cam = game.camera; game.cinematic = { blocking: true, update: () => true }; cam.fov = ${fov}; cam.updateProjectionMatrix();
+  const c = of('${sp}')[${idx}]; if (!c) return 'missing'; const f = c.fwd(new V()); const sd = new V(-f.z, 0, f.x);
+  cam.position.copy(c.pos).addScaledVector(sd, ${off[0]}).addScaledVector(f, ${off[2]}); cam.position.y = c.pos.y + ${off[1]};
+  cam.lookAt(c.pos.x + f.x * ${look[1]}, c.pos.y + ${look[0]}, c.pos.z + f.z * ${look[1]}); cam.updateMatrixWorld(true); return c.state;`, frames: 2, shot: name });
+parts[4] = [
+  land, populated,
+  { js: `${F} game.state.creative.hazardProtection = true; for (const c of F.creatures) c.cooldown = 999; const s = of('strider'); s.forEach((c, i) => { put(c, -6 + i * 9, -18 - i * 5); c.setState('graze'); });
+    const k = of('stalker')[0]; if (k) { put(k, 8, -10); k.setState('prowl'); } return s.length;`, frames: 30, probe },
+  sv('mars_strider', 'strider', [6.5, 2.6, 1.5], [2.4, 0.3], 45), free,
+  sv('mars_strider_head', 'strider', [2.4, 3.6, 3.2], [3.4, 1.8], 40), free,
+  sv('mars_strider_legs', 'strider', [3.2, 1.0, 0.5], [0.9, 0], 45), free,
+  { js: `${F} const k = of('stalker')[0]; put(k, 6, -6); k.setState('prowl'); k.yaw = 0.8; return k.state;`, frames: 4, probe },
+  sv('mars_stalker', 'stalker', [3.0, 1.3, 1.0], [0.9, 0.4], 45), free,
+  sv('mars_stalker_head', 'stalker', [1.0, 1.15, 2.6], [0.9, 1.7], 40), free,
+  { js: `${F} const l = of('lancewing')[0]; if (!l) return 'none'; l.pos.set(pl.pos.x + 4, pl.pos.y + 14, pl.pos.z - 16); return l.state;`, frames: 3, probe },
+  { js: `${F} const cam = game.camera; game.cinematic = { blocking: true, update: () => true }; cam.fov = 45; cam.updateProjectionMatrix(); const l = of('lancewing')[0]; cam.position.set(l.pos.x + 7, l.pos.y - 3, l.pos.z + 6); cam.lookAt(l.pos); cam.updateMatrixWorld(true); return 1;`, frames: 2, shot: 'mars_lancewing' }, free,
+  { js: `${F} const cam = game.camera; game.cinematic = { blocking: true, update: () => true }; cam.fov = 40; cam.updateProjectionMatrix(); const k = of('tetherkite')[0]; if (!k) return 'none'; cam.position.set(k.pos.x + 4.5, k.pos.y, k.pos.z + 3); cam.lookAt(k.pos); cam.updateMatrixWorld(true); return 1;`, frames: 2, shot: 'mars_tetherkite' }, free,
+];
 const P = process.env.PART;
 export const steps = P ? parts[P] : [...parts[1], ...parts[2].slice(2), ...parts[3].slice(2)];

@@ -280,5 +280,21 @@ parts[11] = [
   sv('wing_cathedral', `of('cathedral')[0]`, [10, 8, 4], 0.0, true, 55), unlamp,
   { js: `${H} ${M} const c = of('cathedral')[0]; const b = c.bloom; const cam = game.camera; game.cinematic = { blocking: true, update: () => true }; cam.fov = 55; cam.updateProjectionMatrix(); cam.position.set(b.x + 4, b.y + 1.2, b.z + 4); cam.lookAt(b.x, b.y, b.z); cam.updateMatrixWorld(true); return 1;`, frames: 3, shot: 'krill_glow' }, unlamp,
 ];
+
+// quick look at one or more species through the survey lamp (SPECIES=crown,siren …)
+const SPEC = (process.env.SPECIES ?? 'crown').split(',');
+const OFF = { crown: [2.5, 1.6, -8.5, 0.6], cathedral: [6, 3, -14, 0], abyssstalker: [3.4, 1.2, -3.2, 0], chorus: [1.6, 0.4, -2.2, 0], siren: [1.3, 0.25, -0.2, 0],
+  breaker: [2.2, 1.2, -2.6, 0.5], architect: [1.4, 1.0, -1.6, 0.35], mimic: [1.6, 1.0, -2.2, 0.3], sedimentmaw: [1.8, 1.5, -1.4, 0] };
+parts[12] = [
+  land,
+  { untilJs: `game.zone.fauna && game.zone.fauna.creatures.length >= 18`, max: 900, chunk: 30, probe: fprobe },
+  { js: `game.zone.waves.first = game.zone.time + 4000; game.state.creative.hazardProtection = true; for (const k of game.zone.fauna.creatures) k.cooldown = 999; return 1;`, frames: 1 },
+  ...SPEC.flatMap((sp) => [
+    { untilJs: `game.zone.fauna.creatures.some((k) => k.species === '${sp}')`, max: 900, chunk: 30 },
+    fgo(`const c = of('${sp}')[0]; c.pos.y = Math.max(c.pos.y, z.terrainY(c.pos.x, c.pos.z) + 3 * (c.size ?? 1) * ${['crown', 'cathedral', 'abyssstalker', 'chorus'].includes(sp) ? 1 : 0}); put(c.pos.x + 12, c.pos.z + 8, 0.05, 0, 0); pl.pos.y = Math.max(pl.pos.y, c.pos.y)`, 20),
+    sv(`q_${sp}`, `of('${sp}')[0]`, OFF[sp].slice(0, 3), OFF[sp][3], true, 40), unlamp,
+    sv(`q_${sp}_nat`, `of('${sp}')[0]`, OFF[sp].slice(0, 3), OFF[sp][3], false, 40), unlamp,
+  ]),
+];
 const P = process.env.PART ?? '1';
 export const steps = parts[P];

@@ -6,7 +6,7 @@ Blender space: +Y forward (the creature's nose), +Z up, +X its right. Bone local
 A part is either `auto` (organic: weights from the distance to the listed bones, blended across joints) or rigid to
 one bone (armour plates, claws, teeth).
 """
-import math, random
+import math, random, os
 import bpy, bmesh
 from mathutils import Vector, Matrix, noise
 import kit
@@ -408,8 +408,11 @@ def bake_ao(o, distance=0.3, samples=24, floor=0.32):
     return o
 
 
-def finish_creature(root, sk, body, path, props=None, ao=None):
-    """ao: AO bake distance (m) or None"""
+def finish_creature(root, sk, body, path, props=None, ao=None, paint=None, paint_skip=()):
+    """ao: AO bake distance (m) or None; paint: texture size (px) for a baked painted colour map (blender/lib/paint.py)"""
+    if paint:
+        import paint as P
+        P.bake_body(body, os.path.splitext(os.path.basename(path))[0], size=paint, skip=paint_skip)
     if ao:
         bake_ao(body, distance=ao)
     arm = make_armature(sk)
@@ -417,7 +420,8 @@ def finish_creature(root, sk, body, path, props=None, ao=None):
     body.parent = arm
     mod = body.modifiers.new("arm", "ARMATURE")
     mod.object = arm
-    kit.uv_box(body)
+    if not paint:
+        kit.uv_box(body)
     if props:
         set_props(root, **props)
     kit.select_tree(root)
@@ -425,8 +429,9 @@ def finish_creature(root, sk, body, path, props=None, ao=None):
               export_animations=False, export_cameras=False, export_skins=True, export_materials="EXPORT")
     if ao:
         kw.update(export_vertex_color="NAME", export_vertex_color_name="AO", export_all_vertex_colors=False)
+    if paint:
+        kw.update(export_image_format="JPEG", export_jpeg_quality=88)
     bpy.ops.export_scene.gltf(**kw)
     tris = sum(len(p.vertices) - 2 for p in body.data.polygons)
-    import os
     print(f"[creature] {path} ~{tris} tris, {len(sk.order)} bones, {os.path.getsize(path) / 1e6:.2f} MB")
     return arm

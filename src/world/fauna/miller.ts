@@ -1,5 +1,5 @@
 import * as THREE from 'three';
-import { Creature, FaunaManager } from './Fauna';
+import { Creature, FaunaManager, localHours } from './Fauna';
 import { AX } from './Rig';
 import { cloneSkinned } from '../../render/CreatureSkin';
 import { MILLER_BIOME, millerSpots } from '../surface/millerBiome';
@@ -21,6 +21,7 @@ const _v = new THREE.Vector3();
 const _u = new THREE.Vector3();
 const _w = new THREE.Vector3();
 const _m = new THREE.Matrix4();
+const _m2 = new THREE.Matrix4();
 const _q = new THREE.Quaternion();
 const _q2 = new THREE.Quaternion();
 const _s = new THREE.Vector3();
@@ -142,6 +143,9 @@ interface Grazer {
   hx: number;
   hz: number;
   turn: number;
+  /** a young one (its own build); born at this local hour */
+  juv: boolean;
+  born: number;
 }
 
 /** A reef colony of Ferracaris: one instanced mesh per material, the legs and fringe animated in the vertex shader. */
@@ -162,8 +166,11 @@ class FerracarisColony extends Creature {
     this.nearR = 70;
   }
 
+  private juvMeshes: THREE.InstancedMesh[] = [];
+
   async build() {
     const inst = await this.game.assets.instance('fauna_ferracaris');
+    const instJ = await this.game.assets.instance('fauna_ferracaris_juv').catch(() => null);
     const R = rnd(this.seed);
     const host = this.f.host;
     // spots on wet rock: the ledges awash or just under the water, not the dry crests
@@ -172,7 +179,10 @@ class FerracarisColony extends Creature {
       const x = this.cx + Math.cos(a) * d, z = this.cz + Math.sin(a) * d;
       const y = host.terrainY(x, z);
       if (y < -0.4 || y > 0.3) continue;
-      const g: Grazer = { x, z, yaw: R() * TAU, s: 0.55 + 0.6 * R(), state: 'graze', t: R() * 10, move: 1, hx: x, hz: z, turn: (R() - 0.5) * 0.6 };
+      // about a third are young of the last few local hours (their own build: paler, fewer segments, bigger eyes)
+      const juv = R() < 0.32;
+      const g: Grazer = { x, z, yaw: R() * TAU, s: juv ? 0.4 : 0.6 + 0.55 * R(), state: 'graze', t: R() * 10, move: 1, hx: x, hz: z, turn: (R() - 0.5) * 0.6,
+        juv, born: localHours(this.game.state.clock.earthTime) - R() * 2.5 };
       this.ind.push(g);
     }
     const N = Math.max(1, this.ind.length);
@@ -181,8 +191,11 @@ class FerracarisColony extends Creature {
     this.phase = new THREE.InstancedBufferAttribute(ph, 1);
     this.moving = new THREE.InstancedBufferAttribute(mv, 1);
     const uT = this.uT;
-    inst.root.updateMatrixWorld(true);
-    inst.root.traverse((o) => {
+    const sets: [typeof inst, THREE.InstancedMesh[]][] = [[inst, this.meshes]];
+    if (instJ) sets.push([instJ, this.juvMeshes]);
+    for (const [src0, list] of sets) {
+    src0.root.updateMatrixWorld(true);
+    src0.root.traverse((o) => {
       const src = o as THREE.Mesh;
       if (!src.isMesh) return;
       const geo = src.geometry.clone();
@@ -213,9 +226,10 @@ class FerracarisColony extends Creature {
       m.receiveShadow = true;
       m.frustumCulled = false;
       m.instanceMatrix.setUsage(THREE.DynamicDrawUsage);
-      this.meshes.push(m);
+      list.push(m);
       this.root.add(m);
     });
+    }
     this.f.root.add(this.root);
     this.pos.set(this.cx, host.terrainY(this.cx, this.cz), this.cz);
   }
@@ -287,7 +301,9 @@ class FerracarisColony extends Creature {
       for (const g of this.ind) {
         if (g.state === 'gone' && Math.random() < dt * 0.01) {
           g.state = 'graze';
-          g.s = 0.35 + 0.2 * Math.random(); // a juvenile settles
+          g.juv = true; // a young one settles
+          g.born = localHours(this.game.state.clock.earthTime);
+          g.s = 0.36 + 0.08 * Math.random();
           g.x = g.hx;
           g.z = g.hz;
           this.sweptN--;
@@ -305,13 +321,22 @@ class FerracarisColony extends Creature {
       const nz = host.terrainY(g.x, g.z - e) - host.terrainY(g.x, g.z + e);
       _v.set(nx, 2 * e, nz).normalize();
       _q.setFromUnitVectors(AX.y, _v).multiply(_q2.setFromAxisAngle(AX.y, g.yaw + Math.PI));
+      // the young grow on Miller's clock and take the adult build at about 0.6 of full size
+      if (g.juv) {
+        const age = localHours(this.game.state.clock.earthTime) - g.born;
+        g.s = Math.max(g.s, 0.36 + 0.09 * age);
+        if (g.s >= 0.6 || !this.juvMeshes.length) g.juv = false;
+      }
       const flat = g.state === 'graze' ? 1 : 0.82;
       const sc = g.state === 'gone' ? 0 : g.s;
       _s.set(sc, sc * flat, sc);
       _m.compose(_u.set(g.x, y - 0.004, g.z), _q, _s);
-      for (const m of this.meshes) m.setMatrixAt(i, _m);
+      for (const m of g.juv ? this.juvMeshes : this.meshes) m.setMatrixAt(i, _m);
+      _m2.makeScale(0, 0, 0);
+      for (const m of g.juv ? this.meshes : this.juvMeshes) m.setMatrixAt(i, _m2);
     });
     for (const m of this.meshes) m.instanceMatrix.needsUpdate = true;
+    for (const m of this.juvMeshes) m.instanceMatrix.needsUpdate = true;
     // field notes
     const c = _w.set(this.cx, host.terrainY(this.cx, this.cz), this.cz);
     if (eco.watching(c, 9, 0.5)) {
@@ -324,7 +349,7 @@ class FerracarisColony extends Creature {
 
   dispose() {
     super.dispose();
-    for (const m of this.meshes) {
+    for (const m of [...this.meshes, ...this.juvMeshes]) {
       m.geometry.dispose();
       (m.material as THREE.Material).dispose();
     }
@@ -335,6 +360,7 @@ class FerracarisColony extends Creature {
 class SedimentMaw extends Creature {
   readonly species = 'sedimentmaw';
   size = 1;
+  juvenile = false;
   open = 0;
   energy = 1;
   disturb = 0;
@@ -413,7 +439,14 @@ class SedimentMaw extends Creature {
           this.game.renderer.fx.shake = Math.max(this.game.renderer.fx.shake, 0.5);
         }
         if (this.st > 0.35) {
-          if (onFoot && dp < R + 0.12) {
+          if (onFoot && dp < R + 0.12 && this.juvenile) {
+            // a young one: far too small to hold a suit — it nips the boot and buries itself again
+            this.setState('buried');
+            this.cooldown = 20;
+            this.disturb++;
+            this.f.puffs.burst(mp, 8, SAND, { speed: 0.8, up: 0.5, size: 0.4, life: 1.5, alpha: 0.4, spread: R });
+            if (eco.watching(this.pos, 6, 0.3)) eco.note('sedimentmaw', 'young', 'A small one snapped at my boot and let go at once — too small to hold a suit; it dug itself in again.');
+          } else if (onFoot && dp < R + 0.12) {
             // a foot caught in the rim: the suit's boot is far too big to swallow — it holds and squeezes
             this.setState('clamp');
             this.f.hurtPlayer(0.05, { cause: 'a Sediment Maw', crack: null, shake: 0.9 });
@@ -911,6 +944,17 @@ export async function populateMiller(f: FaunaManager) {
     m.setState('buried');
     jobs.push(f.add(m, 'fauna_sedimentmaw'));
   }
+  // a young Maw near the others: its own build (bigger lip for its size, a paler hide, few pebbles yet)
+  {
+    const m = new SedimentMaw(f, eco);
+    m.juvenile = true;
+    m.pos.set(B.hollow.x + 4, 0, B.hollow.z - 9);
+    m.growth = { base: 0.4, born: localHours(f.game.state.clock.earthTime) - 1.2, rate: 0.12, max: 1.6 };
+    m.size = 0.4;
+    m.yaw = R() * TAU;
+    m.setState('buried');
+    jobs.push(f.add(m, 'fauna_sedimentmaw_juv'));
+  }
   // a Mimic Crawler denning on the reef pool's sheltered west side; its eggs under the ledge; the canister nearby
   const mc = new MimicCrawler(f, eco);
   mc.den.set(B.pool.x + 9, 0, B.pool.z - 2);
@@ -932,7 +976,9 @@ export async function populateMiller(f: FaunaManager) {
       mc.buildEggs();
     }),
   );
+  mc.collideR = 0.8;
   const mj = new MimicJuvenile(f, eco);
+  mj.growth = { base: 0.3, born: localHours(f.game.state.clock.earthTime) - 0.8, rate: 0.1, max: 1.5 };
   mj.crack.set(B.pool.x - 5, 0, B.pool.z + 4);
   mj.pos.copy(mj.crack);
   mj.yaw = Math.PI / 2;

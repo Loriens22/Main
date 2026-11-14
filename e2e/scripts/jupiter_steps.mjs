@@ -118,5 +118,22 @@ parts[5] = [
   { js: `game.zone.control.camMode = 'cockpit'; return 1;`, frames: 3, shot: 'jup_maw_cockpit', probe: jprobe },
   shot('jup_maw_cockpit_up', `const e = sky.toWorld(sky.eye.clone()); cam.position.copy(e); cam.up.copy(new V(0, 0, -1).applyQuaternion(sky.rq)); cam.lookAt(sky.toWorld(new V(0, 4, -0.3))); cam.up.set(0, 1, 0)`), free,
 ];
+
+// close-up survey: each species moved in front of a free camera beside the Ranger
+const jsv = (name, sp, dist, up = 0, side = 0.6, slot = 0) => ({ js: `${J} game.cinematic = { blocking: true, update: () => true }; cam.fov = 50; cam.updateProjectionMatrix();
+  const k = of('${sp}')[0]; if (!k) return 'missing';
+  const C0 = new V(...c.pos).add(new V(60 + ${slot} * 400, 30, 40)); k.pos.copy(C0); k.root.position.copy(C0); k.update?.(0.001, true);
+  cam.position.copy(C0).add(new V(${dist} * ${side}, ${up}, ${dist})); cam.lookAt(C0.x, C0.y + ${up} * 0.3, C0.z); cam.updateMatrixWorld(true); return k.state;`, frames: 2, shot: name });
+parts[6] = [
+  land, populatedJ, calm,
+  jsv('jup_veilray', 'veilray', 30, 6, 0.6, 1),
+  jsv('jup_veilray_under', 'veilray', 26, -18, 0.2, 1),
+  jsv('jup_mawray', 'mawray', 28, -14, 0.3, 2),
+  jsv('jup_sporebulb', 'sporebulb', 16, 2, 0.6, 3),
+  jsv('jup_floater', 'floater', 80, 4, 0.6, 4),
+  jsv('jup_hunter', 'hunter', 130, 10, 0.8, 6),
+  jsv('jup_hunter_pod', 'hunter', 30, -50, 0.6, 6),
+  free,
+];
 const PART = process.env.PART ?? '1';
 export const steps = parts[PART];

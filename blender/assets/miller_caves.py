@@ -20,44 +20,49 @@ PI = math.pi
 kit.PALETTE.update({"miller_cave_rock": dict(color=(0.06, 0.062, 0.066), rough=0.85)})
 
 
-def shell(name, W, D, H, T, door_w, door_h, seed, sink=2.5, segs=64, rings=28):
+def shell(name, W, D, H, T, door_w, door_h, seed, sink=2.5, segs=72, rings=30):
     """domed rock shell (ellipsoid W×D×H, carried `sink` m below ground) with an arched doorway facing +Y:
-    door_w = half-angle of the opening (rad), door_h = its height (m). Rock relief is radial fractal noise."""
+    door_w = half-angle of the opening (rad), door_h = its height (m). Each column of the grid starts at the doorway's
+    arch (or below ground), so the opening has a smooth rounded rim instead of a stepped one. Rock relief is radial
+    fractal noise."""
     from mathutils import noise, Vector
     bm = bmesh.new()
     el0 = -math.asin(min(0.95, sink / H))
-    grid = []
-    for j in range(rings + 1):
-        el = el0 + (PI / 2 - el0) * j / rings
-        row = []
-        for i in range(segs):
-            az = 2 * PI * i / segs
+    cols = []
+    for i in range(segs):
+        az = 2 * PI * i / segs
+        off = abs(math.atan2(math.sin(az - PI / 2), math.cos(az - PI / 2)))
+        if off < door_w:
+            zd = door_h * max(0.0, 1 - (off / door_w) ** 4) ** 0.25
+            el_min = math.asin(min(0.97, zd / H))
+        elif off < door_w * 1.18:
+            el_min = el0 * (off - door_w) / (door_w * 0.18)
+        else:
+            el_min = el0
+        col = []
+        for j in range(rings + 1):
+            el = el_min + (PI / 2 - el_min) * (j / rings) ** 1.15
             d = Vector((math.cos(az) * math.cos(el), math.sin(az) * math.cos(el), math.sin(el)))
             p = Vector((d.x * W / 2, d.y * D / 2, d.z * H))
             q = p * (1.0 / 1.7) + Vector((seed * 3.1, seed * 1.7, 0))
             n = 0.7 * noise.fractal(q, 1.0, 2.0, 4) + 0.3 * noise.noise(p * 1.4) + 0.1 * noise.noise(p * 4.5)
             n += 0.25 * max(0.0, noise.voronoi(p * 0.9)[0][0] - 0.4)
             r = 1.0 + 0.3 * n
-            # lumpy, slumped: not a dome — bulges, a sagging crown, a leaning top
             lean = 0.12 * d.z * (1 + noise.noise(Vector((seed, 0.3, 0.7))))
-            row.append(bm.verts.new((p.x * r + lean * W * 0.3, p.y * r, p.z * (1.0 + 0.22 * n) * (0.85 + 0.15 * abs(d.x)))))
-        grid.append(row)
-    for j in range(rings):
-        for i in range(segs):
-            a, b = grid[j][i], grid[j][(i + 1) % segs]
-            c, dd = grid[j + 1][(i + 1) % segs], grid[j + 1][i]
-            cen = (a.co + b.co + c.co + dd.co) / 4
-            az = math.atan2(cen.y / (D / 2), cen.x / (W / 2))
-            off = abs(math.atan2(math.sin(az - PI / 2), math.cos(az - PI / 2)))
-            if off < door_w and cen.z < door_h * (1 - (off / door_w) ** 2) ** 0.5:
-                continue  # the doorway
-            bm.faces.new((a, b, c, dd))
-    bmesh.ops.delete(bm, geom=[v for v in bm.verts if not v.link_faces], context="VERTS")
+            col.append(bm.verts.new((p.x * r + lean * W * 0.3, p.y * r, p.z * (1.0 + 0.22 * n) * (0.85 + 0.15 * abs(d.x)))))
+        cols.append(col)
+    top = bm.verts.new(sum((c[-1].co for c in cols), Vector()) / segs)
+    for i in range(segs):
+        a, b = cols[i], cols[(i + 1) % segs]
+        for j in range(rings - 1):
+            bm.faces.new((a[j], b[j], b[j + 1], a[j + 1]))
+        bm.faces.new((a[rings - 1], b[rings - 1], top))
+    bmesh.ops.remove_doubles(bm, verts=bm.verts, dist=1e-4)
     bmesh.ops.recalc_face_normals(bm, faces=bm.faces)
     o = kit.from_bmesh(name, bm, ("miller_cave_rock",))
-    kit.add_solidify(o, T, 1.0)
+    kit.add_solidify(o, T, 1.0, even=False)
     kit.bake(o)
-    kit.smooth(o, 40)
+    kit.smooth(o, 50)
     return o
 
 
@@ -78,12 +83,16 @@ def boulders(name, n, area, rng):
 def export(root, objs, path, props):
     o = kit.merge(objs, root.name + "_mesh") if len(objs) > 1 else objs[0]
     o.parent = root
+    import paint as PNT
+    import paint_specs  # noqa: F401
+    PNT.bake_body(o, root.name, size=1024)
     C.bake_ao(o, distance=1.5)
     kit.set_props(root, **props)
     kit.select_tree(root)
     bpy.ops.export_scene.gltf(filepath=path, export_format="GLB", use_selection=True, export_apply=True, export_extras=True, export_yup=True,
                               export_animations=False, export_cameras=False, export_materials="EXPORT",
-                              export_vertex_color="NAME", export_vertex_color_name="AO", export_all_vertex_colors=False)
+                              export_vertex_color="NAME", export_vertex_color_name="AO", export_all_vertex_colors=False,
+                              export_image_format="JPEG", export_jpeg_quality=88)
     tris = sum(len(p.vertices) - 2 for p in o.data.polygons)
     print(f"[cave] {path} ~{tris} tris, {os.path.getsize(path) / 1e6:.2f} MB")
 

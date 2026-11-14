@@ -4,6 +4,7 @@ import type { Game } from '../../core/Game';
 import type { Frame } from '../Frame';
 import type { ModelInstance } from '../../render/Assets';
 import { Rig } from './Rig';
+import { MILLER_FACTOR, START_EARTH_TIME } from '../../core/MissionClock';
 import { cloneSkinned } from '../../render/CreatureSkin';
 import { CreatureVoice } from '../../audio/CreatureVoice';
 import { h } from '../../ui/UI';
@@ -37,10 +38,17 @@ export interface FaunaHost {
   /** knocked out on foot: back to Ranger 1 */
   knockout(msg: string): void;
   say(who: string, text: string): void;
+  /** keep a body of radius r from passing through cave rock on its way from → to (moves `to`; true if it did) */
+  caveGuard?(from: THREE.Vector3, to: THREE.Vector3, r: number): boolean;
 }
 
 const _v = new THREE.Vector3();
 const _w = new THREE.Vector3();
+
+/** hours of Miller's own (dilated) time since the mission began */
+export function localHours(earthTime: number) {
+  return ((earthTime - START_EARTH_TIME) * MILLER_FACTOR) / 3600;
+}
 
 export abstract class Creature {
   abstract readonly species: string;
@@ -62,6 +70,14 @@ export abstract class Creature {
   view = 1500;
   /** posed (rig animated) within this distance */
   nearR = 260;
+  /** body radius for collisions with cave rock (0: none) */
+  collideR = 0;
+  /**
+   * a young animal growing on its world's own clock: size = base × min(max, 1 + rate × age h); born in local hours
+   * (Miller: 1 h of its time ≈ 7 years on Earth, so a long stay there or the years waiting in orbit show)
+   */
+  growth: { base: number; born: number; rate: number; max: number } | null = null;
+  readonly prevPos = new THREE.Vector3();
   /** glow materials cloned per creature (pulsing light organs) */
   protected glow: THREE.MeshStandardMaterial[] = [];
 
@@ -353,6 +369,11 @@ export class FaunaManager {
     }
     const cam = this.game.camera.getWorldPosition(_w);
     this.alarm = Math.max(0, this.alarm - dt);
+    const hours = localHours(this.game.state.clock.earthTime);
+    for (const c of this.creatures) {
+      const g = c.growth;
+      if (g) (c as unknown as { size: number }).size = g.base * Math.min(g.max, 1 + g.rate * Math.max(0, hours - g.born));
+    }
     for (const c of this.creatures) {
       const d = c.pos.distanceTo(cam);
       // far ones tick slowly (still move); the rig is only posed when it can be seen in any detail
@@ -360,7 +381,10 @@ export class FaunaManager {
       c.t += dt;
       c.st += dt;
       c.cooldown = Math.max(0, c.cooldown - dt);
+      const guard = c.collideR > 0 && this.host.caveGuard;
+      if (guard) c.prevPos.copy(c.pos);
       c.update(dt, near);
+      if (guard && this.host.caveGuard!(c.prevPos, c.pos, c.collideR * ((c as unknown as { size?: number }).size ?? 1))) c.root.position.copy(c.pos);
       c.root.visible = d < c.view;
     }
     this.creatures = this.creatures.filter((c) => {

@@ -21,9 +21,70 @@ from mathutils import Matrix
 import kit
 from kit import V, M, empty, from_bmesh
 import creature as C
+import paint_specs  # noqa: F401
+from paint import PAINT
+from organic import ringed, fang
 from creature import Skeleton, Part, meta, blade, tube_tapered, spots, assemble, finish_creature, decimate
 
 PI = math.pi
+
+kit.PALETTE.update({
+    "cornea": dict(color=(0.9, 0.92, 0.95), rough=0.02, alpha=0.18),
+    "ray_tent": dict(color=(0.13, 0.15, 0.16), rough=0.45),
+    "ray_gill": dict(color=(0.04, 0.03, 0.03), rough=0.4),
+    "floater_vein": dict(color=(0.8, 0.45, 0.35), rough=0.3),
+    "puff_vein": dict(color=(0.8, 0.66, 0.5), rough=0.4),
+})
+
+PAINT.update({
+    # ---- photo 4: the dark rays — near-black, smooth, faint paler mottling, lighter belly, pale tentacle tips
+    "ray_skin": {"base": (0.03, 0.035, 0.038), "layers": [
+        ("noise", (0.07, 0.08, 0.085), 0.55, 2.5, 0.48, 0.7), ("noise", (0.015, 0.017, 0.02), 0.5, 0.8, 0.5, 0.7),
+        ("speck", (0.1, 0.11, 0.115), 0.35, 0.12, 0.74), ("grad", (0.08, 0.09, 0.1), 0.4, "x", 6.0, 12.0),
+        ("edge", (0.12, 0.13, 0.14), 0.35), ("ao", 0.55, 2.5)]},
+    "ray_belly": {"base": (0.1, 0.11, 0.115), "layers": [
+        ("noise", (0.16, 0.17, 0.18), 0.45, 1.5, 0.48, 0.7), ("spots", (0.2, 0.21, 0.22), 0.3, 0.6, 0.15, 0.3), ("ao", 0.6, 2.0)]},
+    "ray_tent": {"base": (0.05, 0.055, 0.06), "layers": [
+        ("grad", (0.32, 0.33, 0.34), 0.7, "z", -6.0, -17.0), ("noise", (0.02, 0.022, 0.025), 0.5, 0.6, 0.5, 0.7),
+        ("speck", (0.2, 0.21, 0.22), 0.3, 0.1, 0.74), ("ao", 0.5, 1.0)]},
+    "ray_lip": {"base": (0.12, 0.12, 0.12), "layers": [("noise", (0.25, 0.22, 0.22), 0.5, 0.3, 0.5, 0.7), ("cavity", (0.04, 0.03, 0.03), 0.6), ("ao", 0.7, 1.0)]},
+    "ray_gill": {"base": (0.03, 0.02, 0.02), "layers": [("noise", (0.12, 0.05, 0.05), 0.5, 0.2, 0.5, 0.7)]},
+    # ---- photo 4 right: the cream spore bulb, faintly peach, veined
+    "puff_bladder": {"base": (0.78, 0.7, 0.55), "layers": [
+        ("noise", (0.88, 0.8, 0.66), 0.5, 1.2, 0.48, 0.7), ("retic", (0.62, 0.48, 0.36), 0.35, 0.9, 0.05),
+        ("grad", (0.86, 0.72, 0.56), 0.35, "z", 2.0, 6.4), ("cavity", (0.5, 0.4, 0.3), 0.55), ("ao", 0.5, 1.2)]},
+    "puff_spore": {"base": (0.84, 0.78, 0.64), "layers": [
+        ("retic", (0.65, 0.55, 0.42), 0.35, 0.4, 0.06), ("noise", (0.94, 0.9, 0.8), 0.4, 0.3, 0.5, 0.7), ("ao", 0.55, 0.8)]},
+    "puff_tendril": {"base": (0.8, 0.72, 0.58), "layers": [("grad", (0.92, 0.88, 0.8), 0.6, "z", -2.0, -12.0), ("noise", (0.6, 0.52, 0.42), 0.4, 0.3, 0.5, 0.7)]},
+    # ---- photo 5: the floater — pearly peach to orange gas bag, darker in the lobe grooves, pale shells
+    "floater_bag": {"base": (0.66, 0.26, 0.13), "layers": [
+        ("grad", (0.9, 0.66, 0.55), 0.75, "z", -6.0, 14.0), ("noise", (0.55, 0.18, 0.08), 0.55, 8.0, 0.46, 0.68),
+        ("streak", (0.82, 0.5, 0.36), 0.45, 1.5, "z", 0.52, 0.72), ("streak", (0.5, 0.2, 0.12), 0.4, 3.0, "z", 0.55, 0.74),
+        ("noise", (0.75, 0.82, 0.8), 0.25, 5.0, 0.6, 0.75), ("speck", (0.95, 0.85, 0.78), 0.3, 0.4, 0.74),
+        ("cavity", (0.3, 0.1, 0.05), 0.85), ("ao", 0.75, 5.0)]},
+    "floater_shell": {"base": (0.8, 0.74, 0.64), "layers": [
+        ("streak", (0.62, 0.5, 0.4), 0.45, 0.06, "x", 0.55, 0.72), ("grad", (0.9, 0.62, 0.5), 0.3, "z", -9.0, -6.0),
+        ("noise", (0.62, 0.55, 0.45), 0.5, 0.2, 0.5, 0.7), ("cavity", (0.4, 0.33, 0.25), 0.7), ("edge", (0.95, 0.93, 0.88), 0.5), ("ao", 0.6, 1.0)]},
+    "floater_tendril": {"base": (0.32, 0.22, 0.17), "layers": [
+        ("grad", (0.62, 0.5, 0.42), 0.5, "z", -10.0, -30.0), ("streak", (0.18, 0.12, 0.09), 0.5, 0.3, "z", 0.5, 0.7), ("ao", 0.6, 1.0)]},
+    # ---- photo 6: the hunter — ochre ribbed bag, dark olive grooves, orange porous crest; mottled grey-mauve pod
+    "hunter_bag": {"base": (0.6, 0.45, 0.1), "layers": [
+        ("noise", (0.72, 0.58, 0.18), 0.5, 4.0, 0.48, 0.7), ("noise", (0.42, 0.3, 0.06), 0.45, 1.5, 0.52, 0.7),
+        ("speck", (0.78, 0.66, 0.3), 0.3, 0.3, 0.74), ("back", (0.7, 0.55, 0.16), 0.3), ("belly", (0.45, 0.33, 0.08), 0.4),
+        ("cavity", (0.25, 0.2, 0.04), 0.6), ("ao", 0.5, 6.0)]},
+    "hunter_groove": {"base": (0.22, 0.2, 0.05), "layers": [("noise", (0.12, 0.1, 0.02), 0.5, 2.0, 0.5, 0.7), ("ao", 0.6, 4.0)]},
+    "hunter_crest": {"base": (0.66, 0.26, 0.06), "layers": [
+        ("noise", (0.85, 0.42, 0.12), 0.5, 1.5, 0.48, 0.7), ("spots", (0.35, 0.12, 0.03), 0.5, 0.8, 0.2, 0.5), ("cavity", (0.3, 0.1, 0.02), 0.6), ("ao", 0.6, 3.0)]},
+    "hunter_fin": {"base": (0.78, 0.7, 0.36), "layers": [
+        ("noise", (0.88, 0.82, 0.55), 0.5, 3.0, 0.48, 0.7), ("grad", (0.95, 0.9, 0.7), 0.4, "y", -36.0, -44.0), ("edge", (0.95, 0.92, 0.75), 0.4), ("ao", 0.4, 4.0)]},
+    "hunter_body": {"base": (0.16, 0.12, 0.13), "layers": [
+        ("noise", (0.3, 0.22, 0.25), 0.5, 1.2, 0.48, 0.7), ("spots", (0.62, 0.55, 0.52), 0.35, 0.5, 0.15, 0.3),
+        ("retic", (0.08, 0.06, 0.06), 0.4, 0.4, 0.06), ("cavity", (0.05, 0.03, 0.04), 0.6), ("ao", 0.65, 2.0)]},
+    "hunter_feather": {"base": (0.62, 0.58, 0.56), "layers": [
+        ("grad", (0.82, 0.8, 0.78), 0.5, "z", -40.0, -60.0), ("noise", (0.45, 0.42, 0.42), 0.4, 0.8, 0.5, 0.7), ("ao", 0.5, 2.0)]},
+    "hunter_sclera": {"base": (0.85, 0.55, 0.6), "layers": [("retic", (0.6, 0.15, 0.2), 0.35, 0.3, 0.04), ("ao", 0.5, 1.0)]},
+    "hunter_whisker": {"base": (0.04, 0.035, 0.035), "layers": [("noise", (0.12, 0.1, 0.1), 0.4, 0.5, 0.5, 0.7)]},
+})
 TAU = math.tau
 
 
@@ -152,7 +213,9 @@ def floater():
         cz = math.cos(ph)
         z = (HT * cz - DT * math.exp(-(ph / 0.42) ** 2)) if cz > 0 else (HB * cz + DB * math.exp(-((PI - ph) / 0.42) ** 2))
         z *= 0.97 + 0.03 * lobe(th)
-        return (r * math.cos(th), r * math.sin(th), z)
+        # thin-skin wrinkles running along each lobe, strongest near the groove
+        w = 0.035 * math.sin(th * N * 7 + 3 * math.sin(ph * 5)) * (1 - lobe(th)) * math.sin(ph)
+        return (r * (1 + w * 0.02) * math.cos(th), r * (1 + w * 0.02) * math.sin(th), z)
 
     nu, nv = N * 6, 46
     bag = grid("bag", lambda i, j: Pf(TAU * i / nu, PI * (j + 1) / (nv + 1)), nu, nv, ("floater_bag",),
@@ -195,10 +258,33 @@ def floater():
             a = a0 + 1.7 * s + 0.25 * math.sin(s * 9 + k)
             pts.append((math.cos(a) * rb + 0.2 * math.sin(s * 13 + k * 1.7), math.sin(a) * rb, z0 - L * s))
         ch = chains[k % 3]
-        parts.append(Part(tube_tapered(f"tendril{k}", pts, 0.26, 0.05, "floater_tendril", seg=6), bones=ch + ["bag"]))
+        parts.append(Part(ringed(f"tendril{k}", pts, lambda t: 0.26 * (1 - t) + 0.05, "floater_tendril", rings=24, groove=0.12, seg=7, samples=80), bones=ch + ["bag"]))
     body = assemble("floater_body", sk, parts)
-    arm = finish_creature(root, sk, body, os.path.join(kit.out_dir(), "fauna_floater.glb"), props={"creature": "floater", "radius": RR})
+    arm = finish_creature(root, sk, body, os.path.join(kit.out_dir(), "fauna_floater.glb"), props={"creature": "floater", "radius": RR}, ao=6.0, paint=2048)
     return root, arm
+
+
+def ray_details(rng, ex, ey, ez, belly_z, gill_x0):
+    """eyes with corneas set in sockets, spiracles behind them, a dorsal ridge of low knobs, five pairs of gill slits
+    on the underside"""
+    from organic import eye as oeye, tube as otube
+    out = []
+    det = []
+    for sx in (-1, 1):
+        det.append(oeye(f"eye{sx}", V((sx * ex, ey, ez - 0.05)), V((sx * 0.7, 0.6, 0.4)), 0.2, "ray_eye", cornea_m="cornea", pupil=(0.45, 0.9), slit_axis=(0, 0, 1)))
+        det.append(kit.sphere(f"spir{sx}", 0.16, loc=(sx * (ex + 0.15), ey - 1.1, ez - 0.02), m="ray_gill", segs=10, rings=6, scale=(1, 1.5, 0.35)))
+    out.append(Part(kit.merge(det, "headdet"), bone="head"))
+    ridge = [fang(f"rk{k}", V((0, 2.2 - 0.6 * k, ez + 0.35 - 0.03 * k)), V((0, -0.6, 1)), V((0, -1, 0)), 0.22 - 0.015 * k, 0.1 - 0.005 * k, curve=0.3, m="ray_lip", seg=6, n=4) for k in range(9)]
+    out.append(Part(kit.merge(ridge, "ridge"), bones=["body", "head"]))
+    gills = []
+    for sx in (-1, 1):
+        for k in range(5):
+            y = 1.4 - 0.42 * k
+            x0 = sx * (gill_x0 + 0.05 * k)
+            pts = [V((x0, y + 0.15, belly_z)), V((x0 + sx * 0.18, y, belly_z - 0.04)), V((x0 + sx * 0.32, y - 0.2, belly_z - 0.02))]
+            gills.append(otube(f"gill{sx}{k}", pts, [0.05, 0.06, 0.04], "ray_gill", seg=5))
+    out.append(Part(kit.merge(gills, "gills"), bone="body"))
+    return out
 
 
 # ================================================================================================ veil ray (photo 4, left)
@@ -237,8 +323,7 @@ def veilray():
     wing = kit.loft("veil_wing", secs, mats=("ray_skin", "ray_belly"), face_mats=belly_mat(m))
     kit.smooth(wing, 70)
     parts = [Part(wing, bones=["body", "head", "wingL1", "wingL2", "wingR1", "wingR2"])]
-    for sx in (-1, 1):
-        parts.append(Part(kit.sphere(f"eye{sx}", 0.17, loc=(sx * 0.95, 3.45, 0.42), m="ray_eye", segs=10, rings=6), bone="head"))
+    parts += ray_details(rng, 0.95, 3.45, 0.42, -0.55, 0.78)
     # the curtain: eight tentacles from the underside of the body, trailing back and down
     for k in range(8):
         u = (k - 3.5) / 3.5
@@ -254,9 +339,9 @@ def veilray():
             path.append(p)
         ch = chain_along(sk, f"tent{k}", path, 4, "body")
         r0 = 0.5 - 0.14 * abs(u)
-        parts.append(Part(tube_r(f"tent{k}m", path, [r0 * (1 - s / 15) ** 1.1 + 0.03 for s in range(16)], "ray_skin", seg=7), bones=ch + ["body"]))
+        parts.append(Part(ringed(f"tent{k}m", path, lambda t, r0=r0: r0 * (1 - t) ** 1.1 + 0.03, "ray_tent", rings=30, groove=0.07, seg=10, samples=120), bones=ch + ["body"]))
     body = assemble("veilray_body", sk, parts)
-    arm = finish_creature(root, sk, body, os.path.join(kit.out_dir(), "fauna_veilray.glb"), props={"creature": "veilray", "span": 2 * S})
+    arm = finish_creature(root, sk, body, os.path.join(kit.out_dir(), "fauna_veilray.glb"), props={"creature": "veilray", "span": 2 * S}, ao=2.5, paint=2048)
     return root, arm
 
 
@@ -264,6 +349,7 @@ def veilray():
 def mawray():
     kit.reset()
     root = empty("MawRay")
+    rng = random.Random(22)
     S = 11.0
     sk = Skeleton()
     ray_skeleton(sk, S, -4.6, 0.6)
@@ -290,8 +376,7 @@ def mawray():
     wing = kit.loft("maw_wing", secs, mats=("ray_skin", "ray_belly"), face_mats=belly_mat(m))
     kit.smooth(wing, 70)
     parts = [Part(wing, bones=["body", "head", "wingL1", "wingL2", "wingR1", "wingR2"])]
-    for sx in (-1, 1):
-        parts.append(Part(kit.sphere(f"eye{sx}", 0.16, loc=(sx * 1.05, 3.7, 0.62), m="ray_eye", segs=10, rings=6), bone="head"))
+    parts += ray_details(rng, 1.05, 3.7, 0.62, -0.7, 0.85)
     # the sucker on the underside: a thick lip, a dark throat funnel, three rings of hooked teeth
     nrm = V((0, 0.3, -0.95)).normalized()
     ctr = V((0, 2.2, -1.12))
@@ -320,9 +405,12 @@ def mawray():
         s = i / 17
         path.append(V((1.1 * math.sin(TAU * 0.85 * s) * s, -3.9 - 18.0 * s, -0.25 * s - 0.4 * s * s)))
     ch = chain_along(sk, "tail", path, 6, "body")
-    parts.append(Part(tube_r("tailm", path, [0.6 * (1 - i / 17) ** 1.2 + 0.035 for i in range(18)], "ray_skin", seg=8), bones=ch + ["body"]))
+    parts.append(Part(ringed("tailm", path, lambda t: 0.6 * (1 - t) ** 1.2 + 0.035, "ray_skin", rings=40, groove=0.05, seg=12, samples=160), bones=ch + ["body"]))
+    # a low row of dermal knobs down the tail's first third
+    knobs = [fang(f"tk{i}", path[i] + V((0, 0, 0.45 * (1 - i / 17) ** 1.2)), V((0, -0.4, 1)), V((0, -1, 0)), 0.25 * (1 - i / 8), 0.08 * (1 - i / 9), curve=0.3, m="ray_lip", seg=6, n=4) for i in range(1, 7)]
+    parts.append(Part(kit.merge(knobs, "tailknobs"), bones=ch[:3]))
     body = assemble("mawray_body", sk, parts)
-    arm = finish_creature(root, sk, body, os.path.join(kit.out_dir(), "fauna_mawray.glb"), props={"creature": "mawray", "span": 2 * S})
+    arm = finish_creature(root, sk, body, os.path.join(kit.out_dir(), "fauna_mawray.glb"), props={"creature": "mawray", "span": 2 * S}, ao=2.5, paint=2048)
     return root, arm
 
 
@@ -336,12 +424,13 @@ def sporebulb():
     N = 9
 
     def Pb(th, t):
-        k = 0.85 + 0.15 * abs(math.sin(N * (th + 0.15 * t) / 2)) ** 0.5
+        k = 0.8 + 0.2 * abs(math.sin(N * (th + 0.15 * t) / 2)) ** 0.45
+        k += 0.012 * math.sin(th * 41 + t * 30) * math.sin(PI * t)  # fine veins and wrinkles
         r = 3.35 * math.sin(PI * t ** 0.85) ** (0.72 if t < 0.5 else 0.9) * (1 - 0.1 * t) * k
         z = 0.3 + 6.15 * t
         return (r * math.cos(th), r * math.sin(th), z)
 
-    nu, nv = N * 8, 30
+    nu, nv = N * 14, 48
     bulb = grid("bulb", lambda i, j: Pb(TAU * i / nu, (j + 1) / (nv + 1)), nu, nv, ("puff_bladder",), poles=(Pb(0, 0), Pb(0, 1)))
     parts = [Part(bulb, bone="bulb")]
     # the collar of spore sacs around the base
@@ -370,9 +459,22 @@ def sporebulb():
             s = i / 9
             pts.append((math.cos(a) * (rr + 0.6 * s) + 0.18 * math.sin(s * 8 + k), math.sin(a) * (rr + 0.6 * s), 0.35 - L * s))
         best = min(range(3), key=lambda c: (math.cos(TAU * c / 3) - math.cos(a)) ** 2 + (math.sin(TAU * c / 3) - math.sin(a)) ** 2)
-        parts.append(Part(tube_tapered(f"st{k}", pts, 0.095, 0.022, "puff_tendril", seg=4), bones=chains[best] + ["bulb"]))
+        thick = 0.095 if k % 3 else 0.14
+        parts.append(Part(tube_tapered(f"st{k}", pts, thick, 0.015, "puff_tendril", seg=5), bones=chains[best] + ["bulb"]))
+    # fine hair-like tendrils between the main ones
+    fines = []
+    for k in range(40):
+        a = rng.uniform(0, TAU)
+        rr = 0.6 + 2.0 * math.sqrt(rng.random())
+        L = 5 + rng.uniform(0, 6)
+        pts = [(math.cos(a) * (rr + 0.4 * s) + 0.25 * math.sin(s * 9 + k), math.sin(a) * (rr + 0.4 * s), 0.3 - L * s) for s in [i / 7 for i in range(8)]]
+        fines.append((tube_tapered(f"sf{k}", pts, 0.035, 0.008, "puff_tendril", seg=3), a))
+    for c in range(3):
+        sel = [o for (o, a) in fines if min(range(3), key=lambda q: (math.cos(TAU * q / 3) - math.cos(a)) ** 2 + (math.sin(TAU * q / 3) - math.sin(a)) ** 2) == c]
+        if sel:
+            parts.append(Part(kit.merge(sel, f"fines{c}"), bones=chains[c] + ["bulb"]))
     body = assemble("sporebulb_body", sk, parts)
-    arm = finish_creature(root, sk, body, os.path.join(kit.out_dir(), "fauna_sporebulb.glb"), props={"creature": "sporebulb", "height": 6.4})
+    arm = finish_creature(root, sk, body, os.path.join(kit.out_dir(), "fauna_sporebulb.glb"), props={"creature": "sporebulb", "height": 6.4}, ao=1.0, paint=1024)
     return root, arm
 
 
@@ -532,7 +634,7 @@ def hunter():
                     bm.faces.new((vs[3], vs[2], vs[4]))
         parts.append(Part(from_bmesh(f"barbs{k}", bm, ("hunter_feather",)), bones=ch))
     body = assemble("hunter_body", sk, parts)
-    arm = finish_creature(root, sk, body, os.path.join(kit.out_dir(), "fauna_hunter.glb"), props={
+    arm = finish_creature(root, sk, body, os.path.join(kit.out_dir(), "fauna_hunter.glb"), ao=6.0, paint=2048, props={
         "creature": "hunter", "length": 2 * LB,
         # Blender (x, y, z) → glTF (x, z, −y): the runtime reads model-space anchors
         "anchors": ";".join(f"{p.x:.2f},{p.z:.2f},{-p.y:.2f}" for p in anchors),
