@@ -197,7 +197,9 @@ export class BodyMap {
         return null;
       }
     };
-    const [aux, day] = await Promise.all([img(`planet_${id}_aux`), img(`planet_${id}`)]);
+    // gas giants and the cloud-covered have no height map: do not ask for one (a 404 in the console otherwise)
+    const flat = id === 'jupiter' || id === 'saturn' || id === 'uranus' || id === 'neptune' || id === 'venus' || id === 'titan';
+    const [aux, day] = await Promise.all([flat ? Promise.resolve(null) : img(`planet_${id}_aux`), img(`planet_${id}`)]);
     const ref = aux ?? day;
     if (!ref) return new BodyMap(1, 1, null, null);
     const n = ref.width * ref.height;
