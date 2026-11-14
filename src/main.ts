@@ -9,6 +9,7 @@ import { FarmPanel } from './ui/panels/FarmPanel';
 import { DialoguePanel } from './ui/panels/DialoguePanel';
 import { Conversation } from './npc/Dialogue';
 import { story } from './core/Story';
+import { AudioEngine } from './audio/Audio';
 import { bus } from './core/events';
 import { PRESETS, PresetName } from './core/Settings';
 
@@ -24,6 +25,9 @@ async function boot() {
   registerPanel('dialogue', DialoguePanel);
   game.services.dialogue = new Conversation(game);
   game.services.story = story;
+  const audio = new AudioEngine(game);
+  game.services.audio = audio;
+  game.systems.push(audio);
   await game.init();
   const params = new URLSearchParams(location.search);
   const preset = params.get('preset');

@@ -15,11 +15,12 @@ import { Weather } from './Weather';
 import { WheeledVehicle } from '../../vehicles/WheeledVehicle';
 import { Driving } from '../../vehicles/Driving';
 import { Neighbors } from './Neighbors';
+import type { AudioEngine, Soundscape } from '../../audio/Audio';
 import { Farm, Machine } from './Farm';
 import { ScreenSurface, scr } from '../../render/ScreenSurface';
 import { ui } from '../../ui/store';
 import { bus } from '../../core/events';
-import { damp, lerp, smoothstep } from '../../core/math';
+import { clamp, damp, lerp, smoothstep } from '../../core/math';
 import { GROUP, groups } from '../../physics/Physics';
 
 /** House origin (south-west corner of the main block on the front wall line) in zone coordinates. */
@@ -60,8 +61,10 @@ export class EarthZone extends Zone {
   private radioOn = false;
   private radioTimer = 0;
   private radioIdx = 0;
+  private radioPos = new THREE.Vector3();
   private refuelT = 0;
   private gpsTimer = 0;
+  private cropNear = 0;
   /** hooks other modules use to extend the zone (NASA facility, neighbours, crew) */
   extensions: { fixedUpdate?(dt: number): void; update?(dt: number): void; serialize?(): any; deserialize?(d: any): void; id: string }[] = [];
 
@@ -124,6 +127,8 @@ export class EarthZone extends Zone {
     this.extensions.push(nb);
 
     bus.on('weather:storm', (e: any) => this.farm.setStorm(!!e.active));
+    const radioNode = house.marker('equip', 'radio')?.node;
+    if (radioNode) (g.services.audio as AudioEngine).loop('static', () => ({ on: this.radioOn && g.zone === this ? 1 : 0 }), () => radioNode.getWorldPosition(this.radioPos), { ref: 1.2 });
     bus.on('farm:manual', (m: Machine) => {
       if (this.driving.vehicle) return;
       this.farm.setManual(m, true);
@@ -163,6 +168,13 @@ export class EarthZone extends Zone {
       this.farm.add(id, name, kind, v, { x: FARM.x + dx, z: FARM.z + dz, yaw });
     }
     this.farm.extraObstacles.push(this.pickup);
+    // engine and tyre sound for every vehicle
+    const audio: AudioEngine = this.game.services.audio;
+    for (const v of this.vehicles) {
+      const base = v.kind === 'pickup' ? 27 : v.kind === 'tractor' ? 19 : 16;
+      audio.loop('engine', () => ({ rpm: v.rpm, load: Math.abs(v.throttle), on: v.engineOn && this.game.zone === this ? 1 : 0, base, gain: v.kind === 'pickup' ? 0.8 : 1.15 }), () => v.position, { ref: v.kind === 'pickup' ? 4 : 7 });
+      audio.loop('tyres', () => ({ speed: this.game.zone === this ? Math.abs(v.speed) : 0, rough: 1 }), () => v.position, { ref: 4 });
+    }
     this.driving.onExit = (v) => { const m = this.farm.machines.find((x) => x.vehicle === v); if (m) this.farm.setManual(m, false); };
     // live instruments in the pickup
     const gps = pm.marker('screen', 'gps');
@@ -502,6 +514,7 @@ export class EarthZone extends Zone {
     // wading through standing corn slows you down
     const pl = this.game.player;
     const inCrop = pl.mode === 'walk' && this.corn.inCrop(p.x, p.z);
+    this.cropNear = damp(this.cropNear, inCrop ? 1 : this.map.cornDensity(p.x + 9, p.z) + this.map.cornDensity(p.x - 9, p.z) + this.map.cornDensity(p.x, p.z + 9) + this.map.cornDensity(p.x, p.z - 9) > 0.5 ? 0.6 : 0, 2, dt);
     pl.speedScale = damp(pl.speedScale, inCrop ? 0.7 : 1, 6, dt);
     pl.surface = inCrop ? 'crop' : this.indoors > 0.5 ? 'wood' : 'dirt';
     if (this.refuelT > 0) {
@@ -566,6 +579,23 @@ export class EarthZone extends Zone {
   }
 
   override groundHeight(x: number, z: number) { return this.map.height(x, z); }
+
+  override soundscape(o: Soundscape) {
+    const w = this.weather, p = this.game.player.pos;
+    const driving = !!this.driving.vehicle;
+    const cabin = driving ? 0.55 : 0;
+    o.wind = clamp(w.wind * 0.55 + w.intensity * 0.5, 0, 1);
+    o.dust = w.intensity;
+    o.indoors = Math.max(this.indoors, cabin);
+    o.rustle = this.cropNear * clamp(0.25 + w.wind * 0.6, 0, 1) * 0.6;
+    o.hum = 0; o.air = 0; o.water = 0; o.vacuum = 0; o.helmet = 0;
+    o.rumble = w.intensity * 0.35;
+    o.reverb = this.indoors > 0.5 ? 'room' : 'open';
+    const nasa = Math.hypot(p.x - NASA.portal.x, p.z - NASA.portal.z) < 420;
+    o.music = w.storm === 'arriving' || w.storm === 'peak' ? 'storm' : nasa ? 'nasa' : driving ? 'road' : 'farm';
+    o.intensity = w.storm !== 'none' ? 0.4 + 0.6 * w.intensity : driving ? clamp(Math.abs(this.driving.vehicle!.speed) / 26, 0.2, 0.8) : 0.35;
+    return o;
+  }
 
   override locationName() {
     const p = this.driving.vehicle ? this.driving.vehicle.position : this.game.player.pos;

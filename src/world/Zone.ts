@@ -1,6 +1,7 @@
 import * as THREE from 'three';
 import type { Game } from '../core/Game';
 import { PhysicsWorld } from '../physics/Physics';
+import { SILENT, Soundscape } from '../audio/Audio';
 
 /**
  * A zone is one locally-simulated environment with its own frame of reference and physics world:
@@ -46,6 +47,9 @@ export abstract class Zone {
   groundHeight(_x: number, _z: number): number | null {
     return null;
   }
+
+  /** What this place sounds like right now (ambience levels, reverb, music cue). */
+  soundscape(out: Soundscape): Soundscape { return Object.assign(out, SILENT); }
 
   /** Short human-readable location for the HUD and saves. */
   locationName() { return this.id; }
