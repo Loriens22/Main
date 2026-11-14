@@ -25,7 +25,10 @@ export class Interactions {
   /** optional occlusion test supplied by the active zone: returns distance to the first solid hit */
   occlusion: ((origin: THREE.Vector3, dir: THREE.Vector3, max: number) => number | null) | null = null;
 
-  add(i: Interactable) { this.list.add(i); return i; }
+  /** Interactables belong to the zone that was being loaded / active when they were registered. */
+  scope = 'global';
+
+  add(i: Interactable) { (i as any).__scope = this.scope; this.list.add(i); return i; }
   remove(i: Interactable) { this.list.delete(i); if (this.current === i) this.current = null; }
   clear() { this.list.clear(); this.current = null; }
 
@@ -46,6 +49,8 @@ export class Interactions {
     let best: Interactable | null = null;
     let bestT = Infinity;
     for (const it of this.list) {
+      const sc = (it as any).__scope;
+      if (sc !== this.scope && sc !== 'global') continue;
       if (it.enabled && !it.enabled()) continue;
       it.position(_p);
       const range = it.range ?? 2.6;

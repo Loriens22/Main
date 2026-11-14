@@ -232,7 +232,7 @@ export class Player {
 
     this.kcc.setUp(this.up);
     this.body.setRotation(this.basis, true);
-    this.kcc.computeColliderMovement(this.collider, desired, undefined, groups(GROUP.PLAYER, GROUP.WORLD | GROUP.VEHICLE | GROUP.DYNAMIC));
+    this.kcc.computeColliderMovement(this.collider, desired, undefined, groups(GROUP.PLAYER, GROUP.WORLD | GROUP.VEHICLE | GROUP.DYNAMIC | GROUP.NPC));
     const m = this.kcc.computedMovement();
     const wasGrounded = this.grounded;
     if (!floating) this.grounded = this.kcc.computedGrounded();

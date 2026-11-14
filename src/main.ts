@@ -6,6 +6,9 @@ import { Driving } from './vehicles/Driving';
 import { mountUI } from './ui/App';
 import { registerPanel, ui } from './ui/store';
 import { FarmPanel } from './ui/panels/FarmPanel';
+import { DialoguePanel } from './ui/panels/DialoguePanel';
+import { Conversation } from './npc/Dialogue';
+import { story } from './core/Story';
 import { bus } from './core/events';
 import { PRESETS, PresetName } from './core/Settings';
 
@@ -18,6 +21,9 @@ async function boot() {
   game.services.driving = driving;
   game.systems.push(driving);
   registerPanel('farm', FarmPanel);
+  registerPanel('dialogue', DialoguePanel);
+  game.services.dialogue = new Conversation(game);
+  game.services.story = story;
   await game.init();
   const params = new URLSearchParams(location.search);
   const preset = params.get('preset');

@@ -14,6 +14,7 @@ import { Building } from '../Building';
 import { Weather } from './Weather';
 import { WheeledVehicle } from '../../vehicles/WheeledVehicle';
 import { Driving } from '../../vehicles/Driving';
+import { Neighbors } from './Neighbors';
 import { Farm, Machine } from './Farm';
 import { ScreenSurface, scr } from '../../render/ScreenSurface';
 import { ui } from '../../ui/store';
@@ -48,6 +49,7 @@ export class EarthZone extends Zone {
   houseB!: Building;
   shedB!: Building;
   farm!: Farm;
+  neighbors!: Neighbors;
   pickup!: WheeledVehicle;
   vehicles: WheeledVehicle[] = [];
   private screens: ScreenSurface[] = [];
@@ -115,6 +117,11 @@ export class EarthZone extends Zone {
     this.buildYard();
     this.buildRoadside();
     this.bindInteractions();
+    progress?.(0.42, 'Neighbours');
+    const nb = new Neighbors(this);
+    await nb.load();
+    this.neighbors = nb;
+    this.extensions.push(nb);
 
     bus.on('weather:storm', (e: any) => this.farm.setStorm(!!e.active));
     bus.on('farm:manual', (m: Machine) => {

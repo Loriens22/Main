@@ -93,8 +93,13 @@
   "suit_orange":       { "tex": "suit_fabric", "tile": 0.35, "color": "#c9622b" },
   "skin":              { "tex": "skin", "tile": 0.25 },
   "skin_dark":         { "tex": "skin", "tile": 0.25, "color": "#9a6d55" },
+  "lips":              { "color": "#8a5548", "rough": 0.5 },
+  "eye":               { "color": "#18120e", "rough": 0.15 },
+  "eye_white":         { "color": "#e8e4dc", "rough": 0.3 },
   "hair_brown":        { "tex": "fabric", "tile": 0.1, "color": "#3a2a1e" },
   "hair_gray":         { "tex": "fabric", "tile": 0.1, "color": "#8a8782" },
+  "hair_black":        { "tex": "fabric", "tile": 0.1, "color": "#1c1814" },
+  "hair_red":          { "tex": "fabric", "tile": 0.1, "color": "#6e3a22" },
   "hair_blond":        { "tex": "fabric", "tile": 0.1, "color": "#a8895a" },
 
   "tile_white":        { "tex": "tile_white", "tile": 1.0 },

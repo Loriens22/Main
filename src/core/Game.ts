@@ -90,6 +90,8 @@ export class Game {
         this.renderer.fadeTo(1, 4);
         await wait(380);
       }
+      this.interactions.scope = id;
+      this.interactions.current = null;
       if (!z.loaded) {
         bus.emit('loading', { active: true, label: 'Loading', f: 0 });
         await z.load((f, label) => bus.emit('loading', { active: true, label, f }));
@@ -97,7 +99,6 @@ export class Game {
         bus.emit('loading', { active: false });
       }
       this.zone?.leave();
-      this.interactions.clear();
       this.zone = z;
       z.enter();
       opts.onEnter?.(z);

@@ -133,3 +133,20 @@ canvas.map { width: 100%; height: auto; display: block; border: 1px solid var(--
   .hud .hints { display: none; }
   .row input[type='range'] { width: 130px; }
 }
+
+/* ---------- dialogue */
+.panel-wrap:has(.dialogue) { background: linear-gradient(to top, rgba(0, 0, 0, 0.55), rgba(0, 0, 0, 0) 60%); place-items: end center; padding-bottom: 4vh; }
+.panel.dialogue { width: min(900px, 95vw); max-height: 72vh; background: rgba(9, 12, 14, 0.82); }
+.dialogue .mood { font-size: 10px; letter-spacing: 0.2em; text-transform: uppercase; color: var(--dim); }
+.dialogue .body { display: flex; flex-direction: column; min-height: 0; overflow: hidden; }
+.dialogue .talk { flex: 1 1 auto; min-height: 60px; max-height: 26vh; overflow-y: auto; padding-right: 8px; }
+.dialogue .talk p { margin: 0 0 9px; font-size: 14.5px; line-height: 1.5; color: var(--dim); }
+.dialogue .talk p.now { color: var(--ink); }
+.dialogue .talk p.me { color: var(--accent); font-size: 12.5px; letter-spacing: 0.04em; margin-top: 12px; }
+.dialogue .talk p.me::before { content: '› '; }
+.dialogue .talk p b { display: none; }
+.dialogue .topics { flex: 0 0 auto; display: grid; grid-template-columns: 1fr 1fr; gap: 2px 14px; margin-top: 12px; border-top: 1px solid var(--faint); padding-top: 10px; }
+@media (max-width: 720px) { .dialogue .topics { grid-template-columns: 1fr; } }
+.topic { all: unset; cursor: pointer; padding: 7px 10px; font-size: 13px; color: var(--ink); border-left: 1px solid transparent; transition: background 0.15s, border-color 0.15s, padding 0.15s; }
+.topic:hover, .topic:focus-visible { background: rgba(233, 230, 223, 0.07); border-color: var(--accent); padding-left: 16px; }
+.topic.leave { color: var(--dim); }
