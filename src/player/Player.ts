@@ -140,8 +140,8 @@ export class Player {
 
   /** Mouse / stick look. Runs every rendered frame for responsiveness. */
   look(input: Input) {
-    const [dx, dy] = input.consumeLook();
     if (!this.lookEnabled) return;
+    const [dx, dy] = input.consumeLook();
     this.yaw -= dx;
     this.pitch = clamp(this.pitch - dy, -88 * DEG, 88 * DEG);
     if (this.seat) this.yaw = clamp(this.yaw, -this.seat.yawLimit, this.seat.yawLimit);

@@ -728,6 +728,11 @@ def bake_ao(objs, rays=20, local_dist=1.6, sky_dist=45.0, ground_z=None, occlude
         wverts = [mw @ v.co for v in me.vertices]
         colors = [0.0] * (len(me.loops) * 4)
         for poly in me.polygons:
+            # Edge wear belongs on bevel strips only. A flat panel's corners all sit on bevels, so a plain
+            # per-vertex value would paint the whole panel as worn; keep convexity only on narrow faces.
+            ev = [wverts[i] for i in poly.vertices]
+            el = [(ev[i] - ev[(i + 1) % len(ev)]).length for i in range(len(ev))]
+            thin = min(el) < 0.07 and (max(el) > min(el) * 2.2 or max(el) < 0.07)
             n = (n3 @ poly.normal).normalized()
             c = mw @ poly.center
             # tangent frame from the normal only -> identical ray sets on coplanar neighbours (no seams)
@@ -766,6 +771,8 @@ def bake_ao(objs, rays=20, local_dist=1.6, sky_dist=45.0, ground_z=None, occlude
                     vis = rays
                 ao = 1.0 - min(1.0, occl / rays * 1.25)
                 g = conv[vi] if conv else 0.5
+                if g > 0.5 and not thin:
+                    g = 0.5
                 k = li * 4
                 colors[k] = ao
                 colors[k + 1] = g

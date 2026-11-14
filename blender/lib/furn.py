@@ -294,7 +294,7 @@ def monitor_crt(p, M, w=0.42, mat="plastic_beige", screen="screen"):
     return M @ T((0, -w * 0.45 + 0.03, h / 2 + 0.045))
 
 
-def lamp_ceiling(p, M, drop=0.25, shade="glass", r=0.17, bulb="emit_warm"):
+def lamp_ceiling(p, M, drop=0.25, shade="glass", r=0.17, bulb="plastic_white"):
     """Pendant with glass shade; origin at the ceiling."""
     p.cyl(0.05, 0.02, M=M @ T((0, 0, -0.01)), mat="metal_brass", segs=14, bevel=0.003)
     p.cyl(0.006, drop, M=M @ T((0, 0, -drop / 2)), mat="metal_dark", segs=6, bevel=0)
@@ -302,7 +302,7 @@ def lamp_ceiling(p, M, drop=0.25, shade="glass", r=0.17, bulb="emit_warm"):
     p.sphere(0.035, M=M @ T((0, 0, -drop - 0.06)), mat=bulb, segs=12, rings=8, scale=(1, 1, 1.25))
 
 
-def lamp_table(p, M, shade="canvas", base="metal_brass", bulb="emit_warm"):
+def lamp_table(p, M, shade="canvas", base="metal_brass", bulb="plastic_white"):
     p.cyl(0.07, 0.02, M=M @ T((0, 0, 0.01)), mat=base, segs=14, bevel=0.004)
     p.lathe([(0.02, 0.02), (0.05, 0.08), (0.03, 0.2), (0.012, 0.3)], M=M, mat=base, segs=14, bevel=0)
     p.lathe([(0.09, 0.3), (0.15, 0.52), (0.145, 0.52), (0.086, 0.305)], M=M, mat=shade, segs=18, closed=True, bevel=0)

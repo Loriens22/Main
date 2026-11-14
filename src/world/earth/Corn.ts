@@ -231,6 +231,7 @@ export class Corn {
 
   private setLod(cell: NearCell, lod: number) {
     if (cell.lod === lod && cell.version === this.version) return;
+    if (cell.version === -1) cell.version = -2;
     const cap = Math.ceil((NEAR / ROW + 1) * (NEAR / this.spacing + 1)) + 4;
     // release
     for (const m of cell.m0) { m.visible = false; this.pool0[m.userData.v].push(m); }
@@ -385,6 +386,18 @@ export class Corn {
         if (cell.mesh) { this.group.remove(cell.mesh); cell.mesh.geometry.dispose(); }
         this.cards.delete(key);
       }
+    }
+  }
+
+  /** Mark an area as changed (harvested) so the affected cells rebuild. */
+  invalidate(x0: number, z0: number, x1: number, z1: number) {
+    for (const c of this.near.values()) {
+      if ((c.cx + 1) * NEAR < x0 || c.cx * NEAR > x1 || (c.cz + 1) * NEAR < z0 || c.cz * NEAR > z1) continue;
+      c.version = -1;
+    }
+    for (const c of this.cards.values()) {
+      if ((c.cx + 1) * FAR < x0 || c.cx * FAR > x1 || (c.cz + 1) * FAR < z0 || c.cz * FAR > z1) continue;
+      c.version = -1;
     }
   }
 

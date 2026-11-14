@@ -22,7 +22,7 @@ const TEX_URL = (set: string, map: string) => `${import.meta.env.BASE_URL}assets
 
 /** Per texture-set surface behaviour: how baked convexity / cavity data is used. */
 const SURFACE: Record<string, SurfaceParams> = {
-  metal_painted: { wear: 0.75, dirt: 0.75, edgeColor: 0x8f9194 },
+  metal_painted: { wear: 0.6, dirt: 0.6, edgeColor: 0x9a9c9f },
   metal_bare: { wear: 0.25, dirt: 0.7, edgeColor: 0xdcdfe2 },
   metal_dark: { wear: 0.6, dirt: 0.6, edgeColor: 0xa8abae },
   rust: { wear: 0.2, dirt: 0.8, edgeColor: 0x8a4a22 },

@@ -8,6 +8,7 @@ import { Interactions } from '../player/Interaction';
 import { initPhysics } from '../physics/Physics';
 import { Zone } from '../world/Zone';
 import { W } from '../render/patch';
+import { ui } from '../ui/store';
 
 export type GameState = 'loading' | 'menu' | 'playing' | 'paused';
 export interface System {
@@ -41,11 +42,33 @@ export class Game {
   /** blocks gameplay input while a UI panel is open */
   uiFocus = false;
   private switching = false;
+  private expectUnlock = false;
+  private hudTimer = 0;
+  /** named services registered by gameplay modules (clock, crew, audio, save...) */
+  services: Record<string, any> = {};
 
   constructor(canvas: HTMLCanvasElement) {
     this.input = new Input(canvas, this.settings);
     this.renderer = new Renderer(canvas, this.settings);
     (window as any).__ibe = this;
+    bus.on('loading', (l: any) => ui.set({ loading: { active: !!l.active, label: l.label ?? '', f: l.f ?? 0 } }));
+    bus.on('ui:pause', () => this.pause());
+    bus.on('ui:resume', () => this.resume());
+    bus.on('ui:closePanel', () => this.closePanel());
+    bus.on('ui:panel', (id: string) => this.openPanel(id));
+    document.addEventListener('pointerlockchange', () => {
+      if (document.pointerLockElement) return;
+      if (this.expectUnlock) { this.expectUnlock = false; return; }
+      if (this.state === 'playing' && !this.uiFocus && !this.input.usingTouch) this.pause();
+    });
+    window.addEventListener('keydown', (e) => {
+      if (e.code !== 'Escape') return;
+      if (ui.get().panel) this.closePanel();
+      else if (this.state === 'paused') this.resume();
+      else if (this.state === 'playing' && !document.pointerLockElement) this.pause();
+    });
+    canvas.addEventListener('click', () => { if (this.state === 'playing' && !this.uiFocus) this.input.requestPointerLock(); });
+    window.addEventListener('touchstart', () => ui.set({ touch: true }), { passive: true, once: true });
   }
 
   async init() {
@@ -88,7 +111,40 @@ export class Game {
   setState(s: GameState) {
     if (s === this.state) return;
     this.state = s;
+    ui.set({ screen: s === 'menu' ? 'menu' : s === 'paused' ? 'pause' : s === 'loading' ? 'boot' : 'none' });
     bus.emit('state', s);
+  }
+
+  pause() {
+    if (this.state !== 'playing') return;
+    this.expectUnlock = true;
+    this.input.exitPointerLock();
+    this.setState('paused');
+    setTimeout(() => (this.expectUnlock = false), 100);
+  }
+
+  resume() {
+    if (this.state !== 'paused') return;
+    this.setState('playing');
+    if (!ui.get().panel) this.input.requestPointerLock();
+  }
+
+  openPanel(id: string, props: any = null) {
+    if (this.state !== 'playing') return;
+    this.uiFocus = true;
+    this.expectUnlock = true;
+    this.input.exitPointerLock();
+    ui.openPanel(id, props);
+    bus.emit('sfx', { id: 'ui_open' });
+    setTimeout(() => (this.expectUnlock = false), 100);
+  }
+
+  closePanel() {
+    if (!ui.get().panel) return;
+    ui.closePanel();
+    this.uiFocus = false;
+    bus.emit('sfx', { id: 'ui_close' });
+    if (this.state === 'playing') this.input.requestPointerLock();
   }
 
   private frame = (t: number) => {
@@ -110,7 +166,7 @@ export class Game {
   /** One rendered frame. Exposed so automated tests can drive the game deterministically. */
   tick(dt: number, render = true) {
     this.input.poll(dt);
-    this.input.enabled = !this.uiFocus;
+    this.input.enabled = !this.uiFocus && this.state === 'playing';
     if (this.state === 'playing') {
       this.acc += dt;
       let n = 0;
@@ -123,8 +179,8 @@ export class Game {
       this.alpha = this.acc / H;
       this.time += dt;
     }
-    this.update(dt);
-    if (render) this.renderer.render(dt);
+    if (this.state !== 'paused') this.update(dt);
+    if (render) this.renderer.render(this.state === 'paused' ? 0 : dt);
     this.input.endFrame();
   }
 
@@ -142,16 +198,28 @@ export class Game {
   private update(dt: number) {
     const z = this.zone;
     W.uSurf.value.w = this.time;
+    // world first (vehicles and platforms settle their visual transforms), then the camera that rides on them
+    z?.update(dt);
+    for (const s of this.systems) s.update?.(dt);
     if (this.state === 'playing') {
       this.player.look(this.input);
       if (this.cameraDriver) this.cameraDriver(dt, this.alpha);
       else this.player.applyCamera(this.renderer.camera, this.alpha, dt);
       this.renderer.camera.updateMatrixWorld();
       this.interactions.update(this.renderer.camera);
-      if (this.input.pressed('interact')) this.interactions.use();
+      if (this.input.pressed('interact')) { if (this.interactions.use()) bus.emit('sfx', { id: 'ui_tick' }); }
+      if (this.input.pressed('computer')) bus.emit('key:computer');
+      if (this.input.pressed('creative')) bus.emit('key:creative');
+      if (this.input.pressed('crew')) bus.emit('key:crew');
+      this.hudTimer -= dt;
+      if (this.hudTimer <= 0) {
+        this.hudTimer = 0.08;
+        ui.set({ prompt: this.uiFocus ? '' : this.interactions.currentLabel, location: z?.locationName() ?? '' });
+      }
+    } else if (this.cameraDriver) {
+      this.cameraDriver(dt, this.alpha);
+      this.renderer.camera.updateMatrixWorld();
     }
-    z?.update(dt);
-    for (const s of this.systems) s.update?.(dt);
   }
 
   /** Test hook: simulate `seconds` of play without rendering. */

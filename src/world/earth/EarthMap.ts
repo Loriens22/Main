@@ -30,6 +30,14 @@ export const FIELDS: Field[] = [
   { id: 'east', name: 'East Field', cx: -2200, cz: -180, w: 300, d: 300, rows: 'z' },
 ];
 
+/** Other inhabited places along the road. Positions are derived from the road (arc length, side, offset). */
+export interface Site { id: string; name: string; s: number; side: number; off: number; r: number; x: number; z: number; y: number; yaw: number }
+const SITE_DEFS: Omit<Site, 'x' | 'z' | 'y' | 'yaw'>[] = [
+  { id: 'heller', name: 'Heller Place', s: 1280, side: -1, off: 62, r: 34 },
+  { id: 'mill', name: 'Mill Road', s: 2880, side: 1, off: 58, r: 52 },
+  { id: 'wreck', name: 'Abandoned Yard', s: 4180, side: -1, off: 34, r: 22 },
+];
+
 const CELL = 24;
 
 export class EarthMap {
@@ -38,12 +46,24 @@ export class EarthMap {
   private grid = new Map<number, number[]>();
   farmY = 0;
   nasaY = 0;
+  sites: Site[] = [];
   private ready = false;
 
   constructor() {
     this.farmY = this.natural(FARM.x, FARM.z);
     this.buildRoad();
+    for (const d of SITE_DEFS) {
+      const r = this.roadAt(d.s);
+      const x = r.x + -r.tz * d.side * d.off, z = r.z + r.tx * d.side * d.off;
+      // sites face the road
+      this.sites.push({ ...d, x, z, y: r.y + 0.4, yaw: Math.atan2(-(r.x - x), -(r.z - z)) });
+    }
     this.ready = true;
+  }
+
+  siteAt(x: number, z: number): Site | null {
+    for (const s of this.sites) if (Math.hypot(x - s.x, z - s.z) < s.r + 12) return s;
+    return null;
   }
 
   // ------------------------------------------------------------------------------- terrain
@@ -95,6 +115,11 @@ export class EarthMap {
         const k = 1 - smoothstep(22, 60, lat);
         h = lerp(h, Math.max(h, cover), k);
       }
+    }
+    // levelled pads for the neighbouring yards
+    for (const st of this.sites) {
+      const d = Math.hypot(x - st.x, z - st.z);
+      if (d < st.r + 45) h = lerp(st.y, h, smoothstep(st.r, st.r + 45, d));
     }
     // concealed silo cap on the mountain flank: a shallow levelled bowl
     const sd = Math.hypot(x - NASA.silo.x, z - NASA.silo.z);
@@ -285,6 +310,7 @@ export class EarthMap {
     const p = this.plot(x, z);
     if (!p.corn) return 0;
     if (Math.hypot(x - FARM.x, z - FARM.z) < FARM.yardR + 6) return 0;
+    if (this.siteAt(x, z)) return 0;
     const rd = this.roadQuery(x, z);
     if (rd && rd.d < rd.w * 0.5 + 9) return 0;
     return smoothstep(0, 2.5, p.edge);
@@ -293,7 +319,8 @@ export class EarthMap {
   /** Surface type weights: [dirt, dry grass, tilled soil, gravel]. Rock is derived from slope in the shader. */
   splat(x: number, z: number, out: Float32Array | number[]) {
     const fd = Math.hypot(x - FARM.x, z - FARM.z);
-    const yard = 1 - smoothstep(FARM.yardR - 8, FARM.yardR + 10, fd);
+    let yard = 1 - smoothstep(FARM.yardR - 8, FARM.yardR + 10, fd);
+    for (const st of this.sites) yard = Math.max(yard, 1 - smoothstep(st.r - 6, st.r + 8, Math.hypot(x - st.x, z - st.z)));
     const p = this.plot(x, z);
     const corn = p.corn ? smoothstep(-1, 2, p.edge) : 0;
     const rd = this.roadQuery(x, z);

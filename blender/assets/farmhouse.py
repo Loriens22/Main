@@ -262,7 +262,7 @@ def build():
         X.box((0.1, 0.03, 0.14), M=M, mat="metal_dark", bevel=0.006)
         X.cyl(0.05, 0.13, M=M @ T((0, -0.09, -0.03)), mat="glass_dirty", segs=10, bevel=0.004)
         X.cyl(0.058, 0.02, M=M @ T((0, -0.09, 0.045)), mat="metal_dark", segs=10, bevel=0.003)
-        X.sphere(0.025, M=M @ T((0, -0.09, -0.03)), mat="emit_warm", segs=8, rings=6)
+        X.sphere(0.025, M=M @ T((0, -0.09, -0.03)), mat="plastic_white", segs=8, rings=6)
     wall_lamp(1.7, -0.03, 2.35, 0)
     wall_lamp(-2.9, -0.03, 2.35, 0)
     wall_lamp(WX - 0.03, 3.75, 2.35, -90)

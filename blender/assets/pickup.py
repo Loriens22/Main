@@ -163,8 +163,9 @@ def build():
     # dash-top navigation unit (the destination display)
     B.box((0.2, 0.03, 0.13), at=(0, 1.02, 1.29), rot=(-18, 0, 0), mat="plastic_black", bevel=0.01)
     B.cyl(0.012, 0.07, at=(0, 1.05, 1.22), mat="plastic_black", segs=8, bevel=0)
-    marker("screen", "gps", at=(0, 1.002, 1.293), rot=(72, 0, 180), w=0.17, h=0.1, label="Navigation")
-    marker("screen", "cluster", at=(-0.45, 0.876, 1.165), rot=(80, 0, 180), w=0.34, h=0.12)
+    # screen marker frame: +X right, +Z up, -Y out of the glass (toward the driver)
+    marker("screen", "gps", at=(0, 1.003, 1.292), rot=(-18, 0, 0), w=0.17, h=0.1, label="Navigation")
+    marker("screen", "cluster", at=(-0.45, 0.876, 1.2), rot=(-8, 0, 0), w=0.36, h=0.13)
 
     # ---------------------------------------------------------------- doors (hinged at the front edge)
     def door(did, side, y0, y1, front):
