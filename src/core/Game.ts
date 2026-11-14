@@ -234,7 +234,7 @@ export class Game {
     const mode = this.ui.panelOpen || this.ui.dialogueOpen || this.phase !== 'playing'
       ? 'ui'
       : this.cinematic?.blocking
-        ? 'cinematic'
+        ? (this.cinematic.touch ?? 'cinematic')
         : this.control
           ? this.control.context === 'flight' ? 'flight' : this.control.context === 'drive' ? 'drive' : 'seat'
           : p.mode === 'seat' ? 'seat' : p.mode === 'float' ? 'float' : p.mode === 'ladder' ? 'ladder' : 'walk';
@@ -570,7 +570,7 @@ export class Game {
     // work would otherwise pile up in the compositor)
     if (!this.skipRender) this.control?.hud?.(dt);
     // on foot the input context follows the player's posture (zones may change it outside setControl, e.g. boarding)
-    if (!this.control) this.input.context = this.player.mode === 'seat' ? 'seat' : 'walk';
+    if (!this.control && !this.cinematic?.touch) this.input.context = this.player.mode === 'seat' ? 'seat' : 'walk';
     this.syncTouch();
 
     // ---- status line

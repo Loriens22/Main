@@ -160,5 +160,55 @@ parts[7] = [
   { js: `${J} game.cinematic = { blocking: true, update: () => true }; cam.fov = 60; cam.updateProjectionMatrix(); const k = of('aeromite')[0]; const C0 = k.center; cam.position.copy(C0).add(new V(30, 8, 40)); cam.lookAt(C0); cam.updateMatrixWorld(true); return 1;`, frames: 3, shot: 'sheet_aeromites', probe: jprobe },
   free,
 ];
+
+// PART 8 — the flight model in game: corridors, soaring, the torn Skyjelly sinking and taken below, memory, tools
+const aprobe = `const z = game.zone; const F = z.fauna; if (!F || !F.air) return 'no air'; const A = F.air; const sky = F.creatures.find((k) => k.species === 'sky');
+  const row = (k) => k.species.slice(0, 4) + ':' + k.state + ' dy' + Math.round(k.pos.y - A.refY) + ' vy' + (k.vel ? k.vel.y.toFixed(1) : '-') + (k.aero ? ' V' + k.aero.V.toFixed(0) + ' w' + k.aero.w.toFixed(1) + ' CL' + k.aero.CL.toFixed(2) : '') + (k.torn !== undefined && k.torn >= 0 ? ' TORN' + k.torn.toFixed(0) : '');
+  return { ranger_dy: Math.round(sky.rp.y - A.refY), t: +A.t.toFixed(0), sp: F.creatures.filter((k) => ['stormskimmer', 'stormbeast', 'voltdrifter', 'deepdiver', 'gasgrazer', 'stormhunter'].includes(k.species) || (k.species === 'skyjelly' && k.torn >= 0)).map(row).join(' | '),
+    flags: Object.keys(game.state.flags).filter((k) => /bio:(stormskimmer|skyjelly|deepdiver|stormhunter):|sample:jupiter|jupiter:profile|mem:jupiter|prog:jupiter/.test(k)) };`;
+const A = `${J} const A = F.air;`;
+parts[8] = [
+  land, populatedJ, sheetReady, calm,
+  // a minute of free flight: every species flies by forces in its own corridor
+  { frames: 1800, chunk: 300, probe: aprobe },
+  // soaring: a Stormskimmer put low in its corridor over the strongest nearby core climbs while it circles there
+  { js: `${A} const k = of('stormskimmer')[0]; const cc = A.core(sky.rp.x + 600, sky.rp.z + 600, new V()); k.pos.set(cc.x + 140, A.refY + 160, cc.z); A.wind(k.pos, k.vel).add(new V(0, 0, 38)); k['core'].copy(cc); k.setState('thermal'); window.__y0 = k.pos.y; return { w: +A.updraft(cc.x, cc.z).toFixed(1) };`, frames: 1 },
+  { frames: 900, chunk: 300, probe: aprobe },
+  { js: `${A} const k = of('stormskimmer')[0]; return { climbed: +(k.pos.y - window.__y0).toFixed(0), state: k.state };`, frames: 1 },
+  jfr('phys_skimmer_bank', 'stormskimmer', 30, 10, 20, 1),
+  free,
+  // the torn Skyjelly: put in the Ranger's path at speed; it tears and sinks
+  { js: `${A} const j = of('skyjelly')[0]; j.pos.copy(sky.rp).addScaledVector(sky.rv.clone().normalize(), 6); j.vel.copy(sky.rv).multiplyScalar(0.0); return Math.round(sky.rv.length());`, frames: 6, probe: aprobe },
+  { js: `${A} const j = of('skyjelly')[0]; window.__jy = j.pos.y; return j.torn;`, frames: 600, chunk: 150, probe: aprobe },
+  { js: `${A} const j = of('skyjelly')[0]; return { torn: j.torn, sank: +(window.__jy - j.pos.y).toFixed(0), vy: +j.vel.y.toFixed(1) };`, frames: 1 },
+  // a Deepdiver below takes it as it sinks through the lower corridor
+  { js: `${A} const j = of('skyjelly')[0]; const d = of('deepdiver')[0]; if (j.torn < 0) return 'not torn'; j.pos.y = A.refY - 620; d.pos.copy(j.pos).add(new V(320, -120, 0)); d.prey = null; return 1;`, frames: 2 },
+  { untilJs: `!!game.state.flags['bio:deepdiver:scavenge']`, max: 900, chunk: 30, probe: aprobe },
+  jsv('phys_deepdiver', 'deepdiver', 30, 6, 0.7, 5),
+  free,
+  // the Stormhunter's memory: an intercept broken off by leaving its envelope counts as a failure (remembered)
+  { js: `${A} const h = of('stormhunter')[0]; window.__f0 = game.state.flags['mem:jupiter:hunter.fails'] ?? 0; sky.lull = 0; sky.attacker = null; h.cooldown = 0; h.setState('call'); sky.claim(h); h.band = [2000, 3000]; return window.__f0;`, frames: 10 },
+  { js: `${A} const h = of('stormhunter')[0]; h.band = [-350, 450]; return { fails: game.state.flags['mem:jupiter:hunter.fails'], state: h.state };`, frames: 1, probe: aprobe },
+  // photo mode in flight (B): the species tag, altitude / pressure / wind readouts; E captures
+  { js: `${A} const k = of('gasgrazer')[0]; k.pos.copy(sky.rp).addScaledVector(sky.head, 140).add(new V(0, 10, 0)); return 1;`, frames: 2 },
+  { js: `game.input.virtualPress('photo'); return 1;`, frames: 4, probe: aprobe },
+  { js: `${A} const k = of('gasgrazer')[0]; const pm = game.cinematic; const cam = game.camera; cam.lookAt(k.pos); const e = new cam.rotation.constructor().setFromQuaternion(cam.quaternion, 'YXZ'); pm.yaw = e.y; pm.pitch = e.x; return game.cinematic?.constructor.name;`, frames: 6, shot: 'tools_photo_jupiter', ui: true },
+  { js: `game.input.virtualPress('interact'); return 1;`, frames: 3 },
+  { js: `game.input.virtualPress('photo'); return { photo: Object.keys(game.state.flags).filter((k) => k.includes(':photo')), hud: game.zone.research.hudText };`, frames: 3 },
+  // the aerosol sampler near the swarm (N)
+  { js: `${A} const m = of('aeromite')[0]; m.center.copy(sky.rp).addScaledVector(sky.head, 60); return 1;`, frames: 2 },
+  { js: `game.input.virtualPress('sample'); return 1;`, frames: 3, probe: aprobe },
+  { frames: 120, probe: aprobe },
+];
+// PART 9 — conservative science mode at Jupiter: no animals in the clouds, the flight and the tools unchanged
+parts[9] = [
+  { js: `game.settings.life.science = 'conservative'; return 1;`, frames: 1 },
+  land,
+  { frames: 600, chunk: 200, probe },
+  { js: `const F = game.zone.fauna; return { fauna: F ? F.creatures.length : null, air: !!F?.air, science: game.settings.life.science };`, frames: 1 },
+  view('conservative_jupiter', `cam.position.copy(P).add(new P.constructor(0, 8, 0)); cam.lookAt(P.x + 3000, P.y - 400, P.z + 1200)`), free,
+  { js: `game.input.virtualPress('sample'); return 1;`, frames: 3 },
+  { js: `return { samples: Object.keys(game.state.flags).filter((k) => k.startsWith('sample:')), prog: game.state.flags['prog:jupiter'] ?? 0 };`, frames: 1 },
+];
 const PART = process.env.PART ?? '1';
 export const steps = parts[PART];

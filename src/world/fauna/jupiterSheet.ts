@@ -4,39 +4,54 @@ import { AX } from './Rig';
 import { Flyer, Sky } from './jupiter';
 import { PreySwarm } from './prey';
 import { SPECIES_EXPANSION } from '../../data/speciesExpansion';
+import { JupiterAir, aeroStep, type AeroBody, type AeroState } from './jupiterAir';
+import { siteMemory, type FaunaMemory } from './memory';
 
 /**
  * Jupiter — the nine species of the player's 3×3 reference sheet (jupiter_panel_01 … 09; dossiers in
  * data/speciesExpansion.ts, models blender/assets/fauna_jupiter_sheet.py), met from Ranger 1 in the cloud layer.
- * None levitates for free and none lives "in all atmospheric layers": each keeps to a bounded corridor relative to
- * the Ranger's level and loses height where its lift fails. No species eats lightning.
- *   Stormskimmer   strings gliding across shear lanes; a panicked wingtip strike only if you ram the string
- *   Skyjelly       drifting bells; their sticky tendrils foul small intakes if you plough through
- *   Stormbeast     a very rare burst-ambusher at a storm wall: a long telegraph, one pass, gone into the deep
- *   Floating Colony thousands of small units over a wide volume (instanced) — a community, never a 5-km body;
- *                  fly through fast and they foul the intakes and the optics
- *   Voltdrifter    squid near a distant storm cell, reading the field (UI readout), darting for aeromites
- *   Deepdiver      armoured air-swimmer in the dense lower haze, far below the flight level
- *   Gasgrazer      giant comb-mouthed grazer following the aeromite swarm
- *   Aeromite Swarm the golden base of the web (instanced)
- *   Stormhunter    a mobile apex predator: shadows, calls, one telegraphed intercept, then breaks off — and
- *                  never follows out of its altitude envelope
- * Settings → Heroic Jupiter scale shows the poster sizes (Creative); the simulation size is the default.
+ *
+ * They FLY in the air of world/fauna/jupiterAir.ts: weight at 24.8 m/s², partial buoyancy, lift and drag against the
+ * relative wind at the body, limited thrust where the species has any. Nothing is scripted to hover:
+ *   Stormskimmer    a pure glider (no thrust): glides its lane and sinks; low in its corridor it finds a rising
+ *                   convective core and circles in it to climb, then glides on — soaring, not flapping
+ *   Skyjelly        near-neutral drifter: goes where the wind goes; a bell pulse is a few newtons. Ploughed through
+ *                   at speed it tears, loses its gas and sinks out of the layer (a carcass the Deepdivers take)
+ *   Stormbeast      very rare, at a storm wall: a long telegraph, one pass, then down into the deep
+ *   Floating Colony a community of instanced units (near ones full detail, far ones the low LOD); each unit floats
+ *                   at its own density level and rides the wind — updrafts lift parts of it and shear spreads it;
+ *                   soft links pull it back together
+ *   Voltdrifter     a jetting squid near a storm cell, reading the field (UI readout); darts for aeromites
+ *   Deepdiver       armoured cruiser of a LOWER corridor (500–1100 m below the cruise level): descend to meet it;
+ *                   it ambushes carcasses sinking through its corridor
+ *   Gasgrazer       a gas-buoyed comb-mouthed grazer following the aeromite swarm
+ *   Aeromite Swarm  golden seeds carried on the convection (instanced, with glints)
+ *   Stormhunter     shadows, calls, one telegraphed intercept, then breaks off — never out of its altitude
+ *                   envelope; it remembers failed intercepts and a craft that never threatens it (memory.ts)
+ * Corridors are ABSOLUTE heights about the cloud-cruise level, so climbing or diving really leaves or enters a
+ * species' layer. Settings → Heroic Jupiter scale shows the poster sizes (Creative); the simulation size is the default.
  */
 const TAU = Math.PI * 2;
 const _v = new THREE.Vector3();
 const _u = new THREE.Vector3();
 const _w = new THREE.Vector3();
+const _g = new THREE.Vector3();
+const _a = new THREE.Vector3();
+const _e = new THREE.Euler();
+const _m = new THREE.Matrix4();
+const _q = new THREE.Quaternion();
+const _s = new THREE.Vector3();
 const clamp = THREE.MathUtils.clamp;
 const damp = THREE.MathUtils.damp;
+const ZERO = new THREE.Matrix4().makeScale(0, 0, 0);
 
 /** codex evidence (flags bio:<id>:<key>) for a species of the sheet */
-function note(f: FaunaManager, id: string, key: string) {
+function note(f: FaunaManager, id: string, key: string, text?: string) {
   const g = f.game;
   const k = `bio:${id}:${key}`;
   if (g.flag(k)) return false;
   const info = SPECIES_EXPANSION[id];
-  const t = info?.evidence[key] ?? key;
+  const t = text ?? info?.evidence[key] ?? key;
   g.flag(k, `${Math.round(g.state.clock.earthTime)}|${t}`);
   g.notify(key === 'sighting' ? `New life form recorded — ${info?.name ?? id}. Codex updated.` : `Codex · ${info?.name ?? id}: ${t}`, 'ok', 5);
   g.log?.('mission', 'computer', `${info?.name ?? id} — ${t}`);
@@ -52,30 +67,81 @@ function seen(f: FaunaManager, p: THREE.Vector3, range: number, cone = 0.45) {
   return _u.dot(_v.subVectors(p, c).normalize()) > Math.cos(cone);
 }
 
-/** a Flyer of the sheet: heroic scale, a bounded corridor in height relative to the flight level */
+function hears(f: FaunaManager, p: THREE.Vector3, r: number) {
+  return f.game.camera.getWorldPosition(_w).distanceTo(p) < r;
+}
+
+/** a Flyer of the sheet: aerodynamic flight in its own corridor of absolute height */
 abstract class SheetFlyer extends Flyer {
   abstract readonly id: string;
-  /** the corridor (m relative to Ranger 1's altitude) */
+  /** the corridor (m about the cloud-cruise level — absolute heights) */
   band: [number, number] = [-300, 300];
-  readonly wind = new THREE.Vector3();
+  abstract readonly body: AeroBody;
+  readonly aero: AeroState = { bank: 0, CL: 0, V: 0, rho: 0, w: 0, T: 0 };
+  protected aPitch = 0;
+  protected aRoll = 0;
+  /** seconds to the next call */
+  protected callT = 5 + Math.random() * 20;
+
+  constructor(f: FaunaManager, sky: Sky, readonly air: JupiterAir) {
+    super(f, sky);
+  }
 
   get heroicK() {
     return this.f.settings.heroic ? SPECIES_EXPANSION[this.id]?.heroic ?? 1 : 1;
   }
 
-  /** keep within the corridor: outside it, climb or sink back (a lift budget, not free levitation) */
-  protected corridor(dt: number, k = 1) {
-    const dy = this.pos.y - this.sky.rp.y;
-    if (dy > this.band[1]) this.vel.y -= 2 * k * dt;
-    if (dy < this.band[0]) this.vel.y += 2 * k * dt;
+  /** the corridor's floor and ceiling (world y) */
+  get lo() {
+    return this.air.refY + this.band[0];
+  }
+  get hi() {
+    return this.air.refY + this.band[1];
   }
 
-  /** far behind the flight path: carried ahead again on the wind (a new animal of the string, out of sight) */
-  protected recycle(far: number, ahead: number, lat: number, dy: number) {
+  /**
+   * fly toward `goal` at airspeed `wantV` by forces (sub-stepped for stability); the goal's height is held inside
+   * the corridor — where the body's lift and thrust allow
+   */
+  protected fly(goal: THREE.Vector3, wantV: number, dt: number, thrustK = 1) {
+    _g.copy(goal);
+    _g.y = clamp(_g.y, this.lo, this.hi);
+    const n = Math.max(1, Math.ceil(dt / 0.05));
+    for (let i = 0; i < n; i++) aeroStep(this.body, this.air, this.pos, this.vel, _g, wantV, dt / n, thrustK, this.aero);
+    this.speed = this.aero.V;
+    return this.aero;
+  }
+
+  /** orient along the airflow, rolled by the bank the flight model used */
+  protected faceAir(dt: number, bankK = 1) {
+    const w = this.air.wind(this.pos, _a);
+    _v.subVectors(this.vel, w);
+    const sp = _v.length();
+    if (sp < 0.5) return;
+    this.yaw = Math.atan2(-_v.x, -_v.z);
+    this.aPitch = damp(this.aPitch, Math.asin(clamp(_v.y / sp, -1, 1)), 3, dt);
+    this.aRoll = damp(this.aRoll, -this.aero.bank * bankK, 3, dt);
+    this.q.setFromEuler(_e.set(this.aPitch, this.yaw, this.aRoll, 'YXZ'));
+  }
+
+  /** a point `d` ahead of the Ranger, `lat` to the side, at corridor height y (m about the cruise level) */
+  protected at(d: number, lat: number, y: number, out: THREE.Vector3) {
+    return this.sky.ahead(d, lat, this.air.refY + y - this.sky.rp.y, out);
+  }
+
+  /** far behind the flight path: another animal of the kind is met ahead (carried on the wind, out of sight) */
+  protected recycle(far: number, ahead: number, lat: number, y: number, v0: number) {
     if (!this.behind(far)) return false;
-    this.sky.ahead(ahead, lat, dy, this.pos);
-    this.vel.set(0, 0, 0);
+    this.at(ahead, lat, y, this.pos);
+    this.air.wind(this.pos, this.vel);
+    this.vel.addScaledVector(_v.set(-this.sky.head.z, 0, this.sky.head.x).multiplyScalar(Math.sign(lat) || 1), -v0);
     return true;
+  }
+
+  /** the Ranger is inside this corridor (with a margin) */
+  protected rangerIn(margin = 0) {
+    const y = this.sky.rp.y;
+    return y > this.lo - margin && y < this.hi + margin;
   }
 }
 
@@ -83,36 +149,62 @@ abstract class SheetFlyer extends Flyer {
 class Stormskimmer extends SheetFlyer {
   readonly species = 'stormskimmer';
   readonly id = 'stormskimmer';
-  private laneLat = 0;
-  private laneDy = 0;
+  /** a glider: 600 kg on 120 m² — no thrust at all; ~2–3 m/s sink in still air, climbs in cores */
+  readonly body: AeroBody = { m: 600, S: 120, CLmax: 1.4, CD0: 0.02, k: 0.04, buoy: 0, T: 0, bank: 0.7 };
+  private core = new THREE.Vector3();
+  private orbit = Math.random() * TAU;
+  private lane = new THREE.Vector3();
   private struck = false;
 
-  constructor(f: FaunaManager, sky: Sky, readonly index: number) {
-    super(f, sky);
+  constructor(f: FaunaManager, sky: Sky, air: JupiterAir, readonly index: number) {
+    super(f, sky, air);
     this.view = 6000;
     this.nearR = 900;
-    this.band = [150, 700];
+    this.band = [100, 750];
+    this.setState('glide');
   }
 
   update(dt: number, near: boolean) {
     const sky = this.sky;
-    // a lane across the zonal boundary: the string crosses the flight path slowly, in line
-    if (this.laneLat === 0) {
-      this.laneLat = (this.index - 1) * 60 + 900;
-      this.laneDy = 300 + this.index * 25;
+    const air = this.air;
+    if (this.lane.lengthSq() === 0 || this.recycle(2600, 1600 + this.index * 150, 1200 + this.index * 60, 450 + this.index * 30, 40)) {
+      if (this.lane.lengthSq() === 0) {
+        this.at(1600 + this.index * 150, 1200 + this.index * 60, 450 + this.index * 30, this.pos);
+        air.wind(this.pos, this.vel).addScaledVector(_v.set(sky.head.z, 0, -sky.head.x), 40);
+      }
+      // the lane: across the flight path (a string crossing the zonal boundary)
+      this.at(1800, -3000, 500, this.lane);
+      this.setState('glide');
     }
-    this.laneLat -= dt * 18;
-    if (this.laneLat < -1400) this.laneLat = 1400;
-    sky.ahead(1100 + this.index * 140, this.laneLat, this.laneDy, _w);
-    // lift from the shear: a slow sinusoidal field — where it fails the glider sinks
-    const lift = Math.sin(this.t * 0.05 + this.index) * 3;
-    _w.y += lift * 10;
-    this.flyTo(_w, 24, 0.25, dt, 2);
-    this.vel.y += (lift < 0 ? -1.2 : 0.4) * dt;
-    this.corridor(dt);
-    this.faceVel(dt, 0.6);
+    switch (this.state) {
+      case 'glide': {
+        // along the lane at best-glide speed, holding what height it can: the polar sets the sink (≈2–3 m/s)
+        this.fly(_w.copy(this.lane).setY(this.pos.y), 40, dt);
+        if (this.pos.y < this.lo + 90) {
+          air.core(this.pos.x, this.pos.z, this.core);
+          this.setState('seek');
+        }
+        break;
+      }
+      case 'seek': {
+        // to the nearest rising core
+        this.fly(_w.set(this.core.x, this.pos.y, this.core.z), 38, dt);
+        if (Math.hypot(this.pos.x - this.core.x, this.pos.z - this.core.z) < 200) this.setState('thermal');
+        if (this.st > 90) this.setState('glide');
+        break;
+      }
+      case 'thermal': {
+        // circling in the core (a tight banked orbit), gaining height while the air rises faster than it sinks
+        this.orbit += dt * 0.32;
+        this.fly(_w.set(this.core.x + Math.cos(this.orbit) * 140, this.hi, this.core.z + Math.sin(this.orbit) * 140), 36, dt);
+        if (this.aero.w > 2.5 && this.vel.y > 0.3 && seen(this.f, this.pos, 2200)) note(this.f, 'stormskimmer', 'soar', 'Seen circling in a rising cell, climbing without a wingbeat — then gliding on along its lane.');
+        if (this.pos.y > this.hi - 60 || this.st > 150) this.setState('glide');
+        break;
+      }
+    }
     this.size = this.heroicK;
-    // rammed at close range: a panicked wingtip strike, then a descending spiral away
+    this.faceAir(dt, 1);
+    // rammed at close range: a panicked wingtip strike, then a dive away
     const d = this.pos.distanceTo(sky.rp);
     if (d < 18 * this.size && !this.struck && sky.craft) {
       this.struck = true;
@@ -124,18 +216,24 @@ class Stormskimmer extends SheetFlyer {
     if (d > 60) this.struck = false;
     if (seen(this.f, this.pos, 3500)) {
       note(this.f, 'stormskimmer', 'sighting');
-      if (lift < -1.5 && seen(this.f, this.pos, 1500)) note(this.f, 'stormskimmer', 'glide');
+      if (this.state === 'glide' && this.vel.y < -1 && seen(this.f, this.pos, 1500)) note(this.f, 'stormskimmer', 'glide');
+    }
+    this.callT -= dt;
+    if (this.callT < 0) {
+      this.callT = 10 + Math.random() * 8;
+      if (hears(this.f, this.pos, 700)) this.f.voice.skimmerRush(this.pos, 0.22);
     }
     this.placeQ();
     if (near) {
       const r = this.rig;
       r.reset();
-      // membranes flex with the air, not flapping: a slow travelling ripple, tips lagging
+      // the membranes flex with the load (lift coefficient) and a slow travelling ripple; tips lag; the whip sways
+      const load = clamp(this.aero.CL / this.body.CLmax, 0, 1);
       for (const [s, sx] of [['L', -1], ['R', 1]] as const) {
-        r.rot(`wing${s}1`, AX.fwd, sx * 0.06 * Math.sin(this.t * 0.8 + this.index));
-        r.rot(`wing${s}2`, AX.fwd, sx * 0.12 * Math.sin(this.t * 0.8 + this.index - 0.8));
-        for (let i = 1; i <= 3; i++) r.rot(`tail${s}${i}`, AX.y, 0.12 * Math.sin(this.t * 1.3 - i * 0.7 + sx));
+        r.rot(`wing${s}1`, AX.fwd, sx * (0.05 * load + 0.04 * Math.sin(this.t * 0.8 + this.index)));
+        r.rot(`wing${s}2`, AX.fwd, sx * (0.1 * load + 0.08 * Math.sin(this.t * 0.8 + this.index - 0.8)));
       }
+      for (let i = 1; i <= 3; i++) r.rot(`tail${i}`, AX.y, 0.1 * Math.sin(this.t * 1.1 - i * 0.7) + 0.15 * this.aRoll * (i / 3));
     }
   }
 }
@@ -144,45 +242,82 @@ class Stormskimmer extends SheetFlyer {
 class Skyjelly extends SheetFlyer {
   readonly species = 'skyjelly';
   readonly id = 'skyjelly';
+  /** near-neutral: 120 kg, all but 0.5 % of it carried by its gas; a bell pulse of a few tens of newtons */
+  readonly body: AeroBody = { m: 120, S: 30, CLmax: 0, CD0: 1.2, k: 0, buoy: 0.995, T: 25, bank: 0 };
   private stuck = false;
+  /** torn by the Ranger: the gas lost, it sinks out of the layer (s since) */
+  torn = -1;
+  private homeY = 0;
 
-  constructor(f: FaunaManager, sky: Sky, readonly young: boolean) {
-    super(f, sky);
+  constructor(f: FaunaManager, sky: Sky, air: JupiterAir, readonly young: boolean) {
+    super(f, sky, air);
     this.view = 3000;
     this.nearR = 400;
-    this.band = [-200, 500];
+    this.band = [-250, 550];
+    this.homeY = -100 + Math.random() * 500;
   }
 
   update(dt: number, near: boolean) {
     const sky = this.sky;
-    // drifts with the wind (relative air ~0); the bell's pulse is gentle, no fast self-propulsion
     const pulse = Math.max(0, Math.sin(this.t * 0.9));
-    this.vel.lerp(_v.copy(this.wind).add(_u.set(0, 0.25 * pulse - 0.12, 0)), 1 - Math.exp(-0.5 * dt));
-    this.pos.addScaledVector(this.vel, dt);
-    this.corridor(dt, 0.2);
-    this.recycle(2200, 1600 + Math.random() * 1500, (Math.random() - 0.5) * 2000, -100 + Math.random() * 500);
     this.size = (this.young ? 0.35 : 1) * this.heroicK;
-    // ploughing through the tendrils: sticky strands in the intakes
-    const d = this.pos.distanceTo(sky.rp);
-    if (d < 9 * this.size + 6 && sky.craft && !this.stuck) {
-      this.stuck = true;
-      sky.clog = Math.max(sky.clog, 4);
-      this.game.notify('Skyjelly tendrils across the intakes — thrust reduced until they burn off.', 'warn', 4);
+    if (this.torn >= 0) {
+      // a carcass: heavier than the gas round it now; it falls toward the dense lower layers
+      this.torn += dt;
+      this.body.buoy = 0.85;
+      this.body.T = 0;
+      _w.copy(this.pos).setY(this.pos.y - 1000);
+      const n = Math.max(1, Math.ceil(dt / 0.05));
+      for (let i = 0; i < n; i++) aeroStep(this.body, this.air, this.pos, this.vel, _w, 0, dt / n, 0, this.aero);
+      if (this.pos.y < this.air.refY - 1500 || this.torn > 240) this.revive();
+    } else {
+      // it goes where the air goes; the pulse only trims its height toward its preferred level
+      const want = this.air.refY + this.homeY;
+      this.body.T = 25 * pulse;
+      this.fly(_w.copy(this.pos).add(_v.set(0, clamp(want - this.pos.y, -50, 50), 0)).addScaledVector(this.air.wind(this.pos, _a), 10), 0.5, dt);
+      this.recycle(2200, 1600 + Math.random() * 1500, (Math.random() - 0.5) * 2000, this.homeY, 0);
+      // ploughing through at speed: the bell tears (and its sticky tendrils wrap the intakes)
+      const d = this.pos.distanceTo(sky.rp);
+      if (d < 9 * this.size + 6 && sky.craft && !this.stuck) {
+        this.stuck = true;
+        sky.clog = Math.max(sky.clog, 4);
+        this.game.notify('Skyjelly tendrils across the intakes — thrust reduced until they burn off.', 'warn', 4);
+        if (sky.rv.length() > 50) {
+          this.torn = 0;
+          this.f.voice.jellyFlutter(this.pos, 0.2);
+          if (seen(this.f, this.pos, 600, 1.2)) note(this.f, 'skyjelly', 'torn', 'Torn by the craft at speed: the bell lost its gas and sank out of the layer — food for the Deepdivers below.');
+        }
+      }
+      if (d > 40) this.stuck = false;
     }
-    if (d > 40) this.stuck = false;
     if (seen(this.f, this.pos, 1800)) {
       note(this.f, 'skyjelly', 'sighting');
-      if (this.t > 30 && seen(this.f, this.pos, 600)) note(this.f, 'skyjelly', 'drift');
+      if (this.t > 30 && this.torn < 0 && seen(this.f, this.pos, 600)) note(this.f, 'skyjelly', 'drift');
+    }
+    this.callT -= dt;
+    if (this.callT < 0) {
+      this.callT = 4 + Math.random() * 4;
+      if (this.torn < 0 && hears(this.f, this.pos, 160)) this.f.voice.jellyFlutter(this.pos, 0.05);
     }
     this.q.setFromAxisAngle(AX.y, this.t * 0.03);
+    if (this.torn >= 0) this.q.multiply(_q.setFromAxisAngle(AX.x, Math.min(1.2, this.torn * 0.1)));
     this.placeQ();
-    this.root.scale.set(this.size * (1 + 0.04 * pulse), this.size * (1 - 0.05 * pulse), this.size * (1 + 0.04 * pulse));
+    const sag = this.torn >= 0 ? Math.min(1, this.torn / 8) : 0;
+    this.root.scale.set(this.size * (1 + 0.04 * pulse) * (1 - 0.15 * sag), this.size * (1 - 0.05 * pulse) * (1 - 0.4 * sag), this.size * (1 + 0.04 * pulse) * (1 - 0.15 * sag));
     if (near) {
       const r = this.rig;
       r.reset();
-      for (let b = 0; b < 8; b++) for (let i = 1; i <= 4; i++) r.rot(`tent${b}${i}`, b % 2 ? AX.x : AX.fwd, 0.08 * Math.sin(this.t * 0.7 - i * 0.6 + b));
-      for (let k = 0; k < 4; k++) r.rot(`oral${k}1`, AX.x, 0.1 * Math.sin(this.t * 0.5 + k));
+      for (let b = 0; b < 8; b++) for (let i = 1; i <= 4; i++) r.rot(`tent${b}${i}`, b % 2 ? AX.x : AX.fwd, 0.08 * Math.sin(this.t * 0.7 - i * 0.6 + b) + (sag ? 0.35 * sag * (i === 1 ? -1 : 0.3) : 0));
+      for (let k = 0; k < 4; k++) for (let i = 1; i <= 3; i++) r.rot(`oral${k}${i}`, AX.x, 0.1 * Math.sin(this.t * 0.5 + k - i * 0.5));
     }
+  }
+
+  /** gone below: another young one drifts in ahead (the population is replenished from the layer) */
+  private revive() {
+    this.torn = -1;
+    this.body.buoy = 0.995;
+    this.at(2200 + Math.random() * 1200, (Math.random() - 0.5) * 2000, this.homeY, this.pos);
+    this.air.wind(this.pos, this.vel);
   }
 }
 
@@ -190,21 +325,24 @@ class Skyjelly extends SheetFlyer {
 class Stormbeast extends SheetFlyer {
   readonly species = 'stormbeast';
   readonly id = 'stormbeast';
+  /** 6 t, gas-buoyed to 70 %, a long body planing on the storm's winds, strong muscular thrust */
+  readonly body: AeroBody = { m: 6000, S: 400, CLmax: 0.8, CD0: 0.04, k: 0.06, buoy: 0.7, T: 60000, bank: 0.6 };
   private wall = new THREE.Vector3();
   private ang = 0;
   private jaw = 0;
+  private wave = 0;
 
-  constructor(f: FaunaManager, sky: Sky) {
-    super(f, sky);
+  constructor(f: FaunaManager, sky: Sky, air: JupiterAir) {
+    super(f, sky, air);
     this.view = 9000;
     this.nearR = 1500;
-    this.band = [-600, 200];
+    this.band = [-700, 250];
     this.setState('cruise');
   }
 
   update(dt: number, near: boolean) {
     const sky = this.sky;
-    if (this.wall.lengthSq() === 0) sky.ahead(2800, -2200, -150, this.wall);
+    if (this.wall.lengthSq() === 0 || (this.state === 'cruise' && this.wall.distanceTo(sky.rp) > 7000)) this.at(2800, -2200, -150, this.wall);
     this.size = this.heroicK;
     const d = this.pos.distanceTo(sky.rp);
     switch (this.state) {
@@ -212,28 +350,28 @@ class Stormbeast extends SheetFlyer {
         // surging along the storm's peripheral shear lane (a wide arc), mostly half-hidden
         this.ang += dt * 0.012;
         _w.set(this.wall.x + Math.cos(this.ang) * 900, this.wall.y + Math.sin(this.ang * 3) * 80, this.wall.z + Math.sin(this.ang) * 900);
-        this.flyTo(_w, 45, 0.15, dt, 4);
+        this.fly(_w, 45, dt);
         this.jaw = damp(this.jaw, 0.1, 1, dt);
-        if (d < 320 * this.size && this.cooldown <= 0 && sky.claim(this)) {
+        if (d < 320 * this.size && this.cooldown <= 0 && this.rangerIn(150) && sky.claim(this)) {
           this.setState('telegraph');
-          this.f.voice.growl(this.pos, 3, 0.6);
+          this.f.voice.beastRumble(this.pos, 0.6, true);
           this.game.notify('Low pressure pulse from the storm wall — something enormous turning toward you.', 'alert', 5);
         }
         break;
       }
       case 'telegraph': {
-        // a long, legible build-up: turn, open the maw
-        this.flyTo(sky.rp, 20, 0.3, dt, 3);
+        // a long, legible build-up: turn, the forebody folds, the maw opens
+        this.fly(sky.rp, 22, dt, 0.4);
         this.jaw = damp(this.jaw, 1, 1.2, dt);
         if (this.st > 6) this.setState('pass');
-        if (d > 700) {
+        if (d > 700 || !this.rangerIn(250)) {
           sky.done(this, 60);
           this.setState('cruise');
         }
         break;
       }
       case 'pass': {
-        this.flyTo(sky.rp, 90, 0.5, dt, 25);
+        this.fly(_w.copy(sky.rp).addScaledVector(sky.rv, 1), 95, dt, 1);
         if (d < 40 * this.size) {
           this.f.hurtRanger(0.12, 'hull');
           this.game.renderer.fx.shake = Math.max(this.game.renderer.fx.shake, 1.4);
@@ -244,9 +382,9 @@ class Stormbeast extends SheetFlyer {
         break;
       }
       case 'dive': {
-        // gone into the deep, back to the storm's edge much later
-        _w.copy(this.pos).add(_v.set(0, -400, 0)).addScaledVector(sky.head, -300);
-        this.flyTo(_w, 70, 0.4, dt, 10);
+        // gone into the deep, back to the storm's edge much later (its corridor reaches far below the cruise level)
+        _w.copy(this.pos).add(_v.set(0, -500, 0)).addScaledVector(sky.head, -300);
+        this.fly(_w, 70, dt, 0.6);
         this.jaw = damp(this.jaw, 0.1, 1, dt);
         if (this.st > 12) {
           sky.done(this, 120);
@@ -257,30 +395,43 @@ class Stormbeast extends SheetFlyer {
       }
     }
     if (seen(this.f, this.pos, 5000)) note(this.f, 'stormbeast', 'sighting');
-    this.faceVel(dt, 0.4);
+    this.callT -= dt;
+    if (this.callT < 0) {
+      this.callT = 25 + Math.random() * 20;
+      if (hears(this.f, this.pos, 4000)) this.f.voice.beastRumble(this.pos, 0.4);
+    }
+    this.faceAir(dt, 0.7);
     this.placeQ();
     if (near) {
       const r = this.rig;
       r.reset();
-      for (let i = 1; i <= 7; i++) r.rot(`sp${i}`, AX.y, 0.12 * (i / 7) * Math.sin(this.t * 0.6 - i * 0.6));
-      r.rot('jaw', AX.x, 0.55 * this.jaw);
+      // the long body undulates (stronger with speed), the neck folding in the telegraph
+      this.wave += dt * (0.5 + this.speed * 0.012);
+      for (let i = 1; i <= 7; i++) r.rot(`sp${i}`, AX.y, 0.1 * (i / 7) * Math.sin(this.wave * TAU * 0.25 - i * 0.7));
+      if (this.state === 'telegraph') r.rot('sp1', AX.x, -0.15 * Math.min(1, this.st / 3));
+      r.rot('jaw', AX.x, 0.5 * this.jaw - 0.25);
     }
   }
 }
 
 // ================================================================================================ 04 Floating Colony
-/** thousands of small units drawn instanced over a wide volume; temporary links, no rigid body */
+/**
+ * thousands of small units over a wide volume, instanced — near ones at full detail, far ones as the low LOD. Each
+ * unit floats at its own density level (like a superpressure balloon): it rides the wind horizontally, a rising
+ * core lifts it until its buoyancy pulls it back; shear spreads the stand, soft links between neighbours draw it
+ * together. No rigid body anywhere.
+ */
 class FloatingColony extends Creature {
   readonly species = 'colony';
-  private mesh: THREE.InstancedMesh[] = [];
-  private units: { p: THREE.Vector3; v: THREE.Vector3; s: number; ph: number }[] = [];
+  /** instanced meshes per level of detail: [0] within 150 m of the camera, [1] to 700 m, [2] beyond */
+  private tiers: THREE.InstancedMesh[][] = [[], [], []];
+  private units: { p: THREE.Vector3; rest: THREE.Vector3; s: number; ph: number }[] = [];
   readonly center = new THREE.Vector3();
+  private cv = new THREE.Vector3();
   private fouled = false;
-  private _m = new THREE.Matrix4();
-  private _q = new THREE.Quaternion();
-  private _s = new THREE.Vector3();
+  private hissT = 2;
 
-  constructor(f: FaunaManager, readonly sky: Sky, readonly wind: THREE.Vector3, n: number) {
+  constructor(f: FaunaManager, readonly sky: Sky, readonly air: JupiterAir, n: number) {
     super(f);
     this.view = 1e9;
     this.nearR = 1e9;
@@ -288,51 +439,72 @@ class FloatingColony extends Creature {
       // clustered sub-colonies inside a ~700 m diffuse region
       const cl = i % 7;
       const ca = (cl / 7) * TAU;
-      this.units.push({
-        p: new THREE.Vector3(Math.cos(ca) * 220 + (Math.random() - 0.5) * 140, (Math.random() - 0.5) * 120, Math.sin(ca) * 220 + (Math.random() - 0.5) * 140),
-        v: new THREE.Vector3(), s: 0.6 + Math.random() * 1.6, ph: Math.random() * TAU,
-      });
+      const p = new THREE.Vector3(Math.cos(ca) * 220 + (Math.random() - 0.5) * 140, (Math.random() - 0.5) * 120, Math.sin(ca) * 220 + (Math.random() - 0.5) * 140);
+      this.units.push({ p, rest: p.clone(), s: 0.6 + Math.random() * 1.6, ph: Math.random() * TAU });
     }
   }
 
   async build() {
     const inst = await this.game.assets.instance('jup_colony');
     inst.root.updateMatrixWorld(true);
+    const lodOf = (o: THREE.Object3D) => {
+      const m = /_lod(\d)/.exec(o.name) ?? /_lod(\d)/.exec(o.parent?.name ?? '');
+      return m ? Number(m[1]) : 0;
+    };
     inst.root.traverse((o) => {
       const src = o as THREE.Mesh;
       if (!src.isMesh) return;
+      const lod = Math.min(2, lodOf(src));
       const geo = src.geometry.clone();
       geo.applyMatrix4(src.matrixWorld);
       const m = new THREE.InstancedMesh(geo, src.material, this.units.length);
       m.frustumCulled = false;
       m.castShadow = false;
       m.instanceMatrix.setUsage(THREE.DynamicDrawUsage);
-      this.mesh.push(m);
+      this.tiers[lod].push(m);
       this.root.add(m);
     });
+    // a missing level falls back to the nearest finer one
+    if (!this.tiers[1].length) this.tiers[1] = this.tiers[0];
+    if (!this.tiers[2].length) this.tiers[2] = this.tiers[1];
     this.f.root.add(this.root);
     return this;
   }
 
   update(dt: number) {
     const sky = this.sky;
-    if (this.center.lengthSq() === 0) sky.ahead(1800, 500, 80, this.center);
-    this.center.addScaledVector(this.wind, dt);
+    const air = this.air;
+    if (this.center.lengthSq() === 0) sky.ahead(1800, 500, air.refY + 80 - sky.rp.y, this.center);
+    // the stand's centre rides the air (vertical: lifted by a core, pulled back to its level by buoyancy)
+    const wc = air.wind(this.center, _a);
+    this.cv.set(wc.x, 0.35 * wc.y + 0.02 * (air.refY + 80 - this.center.y), wc.z);
+    this.center.addScaledVector(this.cv, dt);
     // far behind: the wind has carried another part of the community into the path ahead
     _v.subVectors(this.center, sky.rp);
-    if (_v.length() > 2600 && _v.dot(sky.head) < 0) sky.ahead(2400, (Math.random() - 0.5) * 1600, (Math.random() - 0.5) * 300, this.center);
+    if (_v.length() > 2600 && _v.dot(sky.head) < 0) sky.ahead(2400, (Math.random() - 0.5) * 1600, air.refY + 80 + (Math.random() - 0.5) * 200 - sky.rp.y, this.center);
+    const cam = this.game.camera.getWorldPosition(_s);
     let nearest = Infinity;
+    const wcx = wc.x, wcy = wc.y, wcz = wc.z;
     this.units.forEach((u, i) => {
-      // each unit bobs on its own lift balance; neighbours drift together (soft links), shear pulls them apart
-      u.v.y = Math.sin(this.t * 0.2 + u.ph) * 0.4;
-      u.p.addScaledVector(u.v, dt);
       _w.copy(u.p).add(this.center);
+      // the unit's own air relative to the centre's: shear spreads it, a core lifts part of it; soft links pull back
+      const wu = air.wind(_w, _a);
+      u.p.x += ((wu.x - wcx) * 0.1 + (u.rest.x - u.p.x) * 0.003) * dt;
+      u.p.z += ((wu.z - wcz) * 0.1 + (u.rest.z - u.p.z) * 0.003) * dt;
+      u.p.y += (0.35 * (wu.y - wcy) + (u.rest.y - u.p.y) * 0.02 + Math.sin(this.t * 0.2 + u.ph) * 0.3) * dt;
+      _w.copy(u.p).add(this.center);
+      const dc = _w.distanceTo(cam);
       nearest = Math.min(nearest, _w.distanceTo(sky.rp));
-      this._q.setFromAxisAngle(AX.y, u.ph + this.t * 0.02);
-      this._m.compose(_w, this._q, this._s.setScalar(u.s));
-      for (const m of this.mesh) m.setMatrixAt(i, this._m);
+      _q.setFromAxisAngle(AX.y, u.ph + this.t * 0.02);
+      _m.compose(_w, _q, _g.setScalar(u.s));
+      const lvl = dc < 150 * u.s ? 0 : dc < 700 * u.s ? 1 : 2;
+      for (let l = 0; l < 3; l++) {
+        if (l > 0 && this.tiers[l] === this.tiers[l - 1]) continue;
+        const show = l === lvl || (this.tiers[lvl] === this.tiers[l]);
+        for (const m of this.tiers[l]) m.setMatrixAt(i, show ? _m : ZERO);
+      }
     });
-    for (const m of this.mesh) m.instanceMatrix.needsUpdate = true;
+    for (const set of new Set(this.tiers)) for (const m of set) m.instanceMatrix.needsUpdate = true;
     this.pos.copy(this.center);
     // flown through at speed: units in the intakes and smeared over the optics
     const fast = sky.rv.length() > 40;
@@ -344,12 +516,17 @@ class FloatingColony extends Creature {
       setTimeout(() => (sky.darkTarget = 0), 2500);
     }
     if (nearest > 60) this.fouled = false;
+    this.hissT -= dt;
+    if (this.hissT < 0) {
+      this.hissT = 3 + Math.random() * 3;
+      if (nearest < 220) this.f.voice.colonyHiss(this.center, 0.06);
+    }
     if (seen(this.f, this.center, 4000, 0.6)) note(this.f, 'colony', 'sighting');
   }
 
   dispose() {
     super.dispose();
-    for (const m of this.mesh) m.geometry.dispose();
+    for (const m of new Set(this.tiers.flat())) m.geometry.dispose();
   }
 }
 
@@ -357,11 +534,14 @@ class FloatingColony extends Creature {
 class Voltdrifter extends SheetFlyer {
   readonly species = 'voltdrifter';
   readonly id = 'voltdrifter';
+  /** a jetting squid: 300 kg, 85 % gas-buoyed, fins for steering, a 6 kN jet */
+  readonly body: AeroBody = { m: 300, S: 25, CLmax: 0.6, CD0: 0.1, k: 0.1, buoy: 0.85, T: 6000, bank: 0.9 };
   private cell = new THREE.Vector3();
   private read = 0;
+  private jet = 0;
 
-  constructor(f: FaunaManager, sky: Sky, readonly index: number, readonly mites: AeromiteSwarm | null) {
-    super(f, sky);
+  constructor(f: FaunaManager, sky: Sky, air: JupiterAir, readonly index: number, readonly mites: AeromiteSwarm | null) {
+    super(f, sky, air);
     this.view = 3000;
     this.nearR = 400;
     this.band = [-300, 300];
@@ -369,31 +549,40 @@ class Voltdrifter extends SheetFlyer {
 
   update(dt: number, near: boolean) {
     const sky = this.sky;
-    if (this.cell.lengthSq() === 0) sky.ahead(1700, 1500, 50, this.cell);
-    // hovering at a distance from the storm cell (the field gradient tells it where the storm is — and to keep away)
+    if (this.cell.lengthSq() === 0 || this.cell.distanceTo(sky.rp) > 4500) this.at(1700, 1500, 50, this.cell);
+    // keeping a distance from the storm cell (the field gradient tells it where the storm is — and to keep off)
     const dart = this.mites && this.mites.center.distanceTo(this.pos) < 300 && Math.sin(this.t * 0.1 + this.index) > 0.7;
-    if (dart) this.flyTo(this.mites!.center, 18, 0.8, dt, 8);
-    else {
+    if (dart) {
+      this.fly(this.mites!.center, 22, dt);
+      this.jet = 1;
+    } else {
       _w.copy(this.cell).add(_v.set(Math.cos(this.t * 0.04 + this.index * 2) * 260, Math.sin(this.t * 0.07) * 40, Math.sin(this.t * 0.04 + this.index * 2) * 260));
-      this.flyTo(_w, 9, 0.4, dt, 3);
+      this.fly(_w, 10, dt);
+      this.jet = damp(this.jet, this.aero.T / this.body.T, 3, dt);
     }
-    this.corridor(dt);
-    this.faceVel(dt, 0.6);
+    if (this.behind(2600)) {
+      this.cell.set(0, 0, 0);
+      this.at(1500, 1300 + this.index * 120, 40, this.pos);
+      this.vel.set(0, 0, 0);
+    }
     this.size = this.heroicK;
     // the electro readout (instrument, not an aura): a rhythmic response in the field sensor when close
     const d = this.pos.distanceTo(sky.rp);
     this.read -= dt;
     if (d < 250 && this.read < 0) {
       this.read = 1.4;
-      this.f.voice.clicks(this.pos, 6, 0.18);
+      this.f.voice.voltClicks(this.pos, 0.15);
       sky.once('volt_field', () => this.game.notify('Field sensor: rhythmic micro-discharges near the squid-like drifter — it is sensing the storm, not feeding on it.', 'info', 6));
     }
     if (seen(this.f, this.pos, 1500)) note(this.f, 'voltdrifter', 'sighting');
+    this.faceAir(dt, 0.6);
     this.placeQ();
     if (near) {
       const r = this.rig;
       r.reset();
-      for (let k = 0; k < 10; k++) for (let i = 1; i <= 4; i++) r.rot(`arm${k}${i}`, k % 2 ? AX.x : AX.y, 0.14 * Math.sin(this.t * 1.1 - i * 0.7 + k));
+      // arms trail and coil; the mantle squeezes on each jet pulse
+      for (let k = 0; k < 10; k++) for (let i = 1; i <= 5; i++) r.rot(`arm${k}${i}`, k % 2 ? AX.x : AX.y, 0.12 * Math.sin(this.t * 1.1 - i * 0.7 + k) * (1 - 0.5 * this.jet) - 0.05 * this.jet * i);
+      r.scale('mantle', 1 - 0.06 * this.jet * Math.max(0, Math.sin(this.t * 6)));
     }
   }
 }
@@ -402,8 +591,12 @@ class Voltdrifter extends SheetFlyer {
 class Deepdiver extends SheetFlyer {
   readonly species = 'deepdiver';
   readonly id = 'deepdiver';
-  constructor(f: FaunaManager, sky: Sky) {
-    super(f, sky);
+  /** 4 t of armour and muscle, 55 % gas-buoyed: it must swim fast (≈70 m/s) to hold its height on its fins */
+  readonly body: AeroBody = { m: 4000, S: 120, CLmax: 1.0, CD0: 0.05, k: 0.06, buoy: 0.55, T: 30000, bank: 0.5 };
+  prey: Skyjelly | null = null;
+
+  constructor(f: FaunaManager, sky: Sky, air: JupiterAir, readonly jellies: Skyjelly[]) {
+    super(f, sky, air);
     this.view = 4000;
     this.nearR = 600;
     this.band = [-1100, -500];
@@ -411,20 +604,42 @@ class Deepdiver extends SheetFlyer {
 
   update(dt: number, near: boolean) {
     const sky = this.sky;
-    // a lower, denser corridor: it cruises far below the flight level and never rises into the cold upper layers
-    sky.ahead(900, Math.sin(this.t * 0.02) * 700, -750, _w);
-    this.flyTo(_w, 30, 0.2, dt, 3);
-    this.corridor(dt, 2);
-    this.faceVel(dt, 0.5);
+    // a carcass sinking through its corridor: a short ambush climb, the grab, a glide back down
+    if (!this.prey) this.prey = this.jellies.find((j) => j.torn >= 0 && j.pos.y < this.hi + 150 && j.pos.distanceTo(this.pos) < 1500) ?? null;
+    if (this.prey && this.prey.torn < 0) this.prey = null;
+    if (this.prey) {
+      this.fly(this.prey.pos, 75, dt);
+      if (this.pos.distanceTo(this.prey.pos) < 14 * this.size) {
+        if (seen(this.f, this.pos, 2000, 0.8)) note(this.f, 'deepdiver', 'scavenge', 'Took a torn Skyjelly sinking through its corridor — an ambush from below.');
+        this.prey.torn = 1e6; // consumed (it is replaced up in the layer)
+        this.prey = null;
+      }
+    } else {
+      // cruising its lower corridor ahead of the Ranger's track
+      this.at(900, Math.sin(this.t * 0.02) * 700, -780, _w);
+      this.fly(_w, 70, dt);
+      if (this.behind(3000)) {
+        this.at(1500, 400, -780, this.pos);
+        this.air.wind(this.pos, this.vel).addScaledVector(sky.head, 70);
+      }
+    }
     this.size = this.heroicK;
     if (seen(this.f, this.pos, 2500, 0.6)) note(this.f, 'deepdiver', 'sighting');
+    this.callT -= dt;
+    if (this.callT < 0) {
+      this.callT = 25 + Math.random() * 15;
+      if (hears(this.f, this.pos, 1500)) this.f.voice.diverResonance(this.pos, 0.3);
+    }
+    this.faceAir(dt, 0.6);
     this.placeQ();
     if (near) {
       const r = this.rig;
       r.reset();
       for (let i = 1; i <= 3; i++) r.rot(`sp${i}`, AX.y, 0.06 * i * Math.sin(this.t * 0.9 - i));
-      r.rot('finL', AX.fwd, -0.12 * Math.sin(this.t * 0.9));
-      r.rot('finR', AX.fwd, 0.12 * Math.sin(this.t * 0.9));
+      const flex = 0.1 * Math.sin(this.t * 0.9) + 0.1 * clamp(this.aero.CL, 0, 1);
+      r.rot('finL', AX.fwd, -flex);
+      r.rot('finR', AX.fwd, flex);
+      r.rot('jaw', AX.x, this.prey && this.pos.distanceTo(this.prey.pos) < 60 ? 0.35 : 0.03);
     }
   }
 }
@@ -433,37 +648,49 @@ class Deepdiver extends SheetFlyer {
 class Gasgrazer extends SheetFlyer {
   readonly species = 'gasgrazer';
   readonly id = 'gasgrazer';
-  private callT = 20;
-  constructor(f: FaunaManager, sky: Sky, readonly mites: AeromiteSwarm | null, readonly index: number) {
-    super(f, sky);
+  /** 9 t, 98 % carried by its gas: a slow swimmer (≈12 m/s); filtering costs drag */
+  readonly body: AeroBody = { m: 9000, S: 150, CLmax: 1.0, CD0: 0.06, k: 0.08, buoy: 0.98, T: 15000, bank: 0.35 };
+
+  constructor(f: FaunaManager, sky: Sky, air: JupiterAir, readonly mites: AeromiteSwarm | null, readonly index: number) {
+    super(f, sky, air);
     this.view = 6000;
     this.nearR = 900;
     this.band = [-400, 300];
+    this.callT = 20;
   }
 
   update(dt: number, near: boolean) {
     const sky = this.sky;
     // follows the food front: its comb has to meet the swarm to feed
-    const target = this.mites ? this.mites.center : sky.ahead(1500, -600, 0, _w);
+    const target = this.mites ? this.mites.center : this.at(1500, -600, 0, _a);
     _w.copy(target).add(_v.set(-Math.sin(this.t * 0.01 + this.index) * 120, 10, Math.cos(this.t * 0.01 + this.index) * 120));
-    this.flyTo(_w, 11, 0.12, dt, 1.5);
-    this.corridor(dt);
-    this.faceVel(dt, 0.3);
-    this.size = this.heroicK;
     const feeding = !!this.mites && this.pos.distanceTo(this.mites.center) < 160;
-    if (feeding && this.mites) this.mites.eat(this.pos, 18 * this.size, dt);
+    // the open comb is a sieve held into the flow: more drag while it feeds
+    this.body.CD0 = feeding ? 0.18 : 0.06;
+    this.fly(_w, 12, dt);
+    if (this.pos.distanceTo(sky.rp) > 3500 && (!this.mites || this.mites.center.distanceTo(this.pos) > 2000)) {
+      this.pos.copy(this.mites?.center ?? sky.rp).add(_v.set(150, 0, 0));
+      this.air.wind(this.pos, this.vel);
+    }
+    this.size = this.heroicK;
+    if (feeding && this.mites) {
+      this.mites.eat(this.pos, 18 * this.size, dt);
+      if (seen(this.f, this.pos, 1500)) note(this.f, 'gasgrazer', 'feed', 'Its comb held open into the swarm: aeromites filtered out of the air as it swam through.');
+    }
     this.callT -= dt;
     if (this.callT < 0) {
       this.callT = 25 + Math.random() * 25;
-      if (this.pos.distanceTo(sky.rp) < 1500) this.f.voice.song(this.pos, 5, 0.35);
+      if (hears(this.f, this.pos, 1800)) this.f.voice.combCall(this.pos, 0.35);
     }
     if (seen(this.f, this.pos, 3500)) note(this.f, 'gasgrazer', 'sighting');
+    this.faceAir(dt, 0.4);
     this.placeQ();
     if (near) {
       const r = this.rig;
       r.reset();
       for (let i = 1; i <= 4; i++) r.rot(`sp${i}`, AX.x, 0.04 * Math.sin(this.t * 0.4 - i * 0.7));
-      r.rot('comb', AX.x, feeding ? 0.25 + 0.08 * Math.sin(this.t * 1.6) : 0.05);
+      r.rot('comb', AX.x, feeding ? 0.18 + 0.06 * Math.sin(this.t * 1.6) : 0.04);
+      r.rot('head', AX.x, feeding ? -0.05 : 0);
     }
   }
 }
@@ -476,12 +703,15 @@ class AeromiteSwarm extends Creature {
   private swarm: PreySwarm;
   private sparkle: THREE.Points;
   private dry = 0;
+  private level = 0;
+  private rustleT = 2;
 
-  constructor(f: FaunaManager, readonly sky: Sky, readonly wind: THREE.Vector3, n: number) {
+  constructor(f: FaunaManager, readonly sky: Sky, readonly air: JupiterAir, n: number) {
     super(f);
     this.view = 1e9;
     this.nearR = 1e9;
-    sky.ahead(1300, -500, 60, this.center);
+    this.level = air.refY + 60;
+    sky.ahead(1300, -500, this.level - sky.rp.y, this.center);
     this.P = new Float32Array(n * 3);
     for (let i = 0; i < n; i++) this.P.set([this.center.x + (Math.random() - 0.5) * 120, this.center.y + (Math.random() - 0.5) * 40, this.center.z + (Math.random() - 0.5) * 120], i * 3);
     // 3 cm animals: up close, instanced seeds; at range only their glints (points) — one per animal
@@ -514,18 +744,21 @@ class AeromiteSwarm extends Creature {
 
   update(dt: number) {
     const sky = this.sky;
-    this.center.addScaledVector(this.wind, dt);
+    // carried on the convection: the bloom rises in a core and settles back (a slow fall speed, mild buoyancy)
+    const w = this.air.wind(this.center, _a);
+    const dx = w.x * dt, dz = w.z * dt;
+    const dy = (0.6 * w.y - 0.25 + 0.01 * (this.level - this.center.y)) * dt;
+    this.center.x += dx;
+    this.center.y += dy;
+    this.center.z += dz;
     _v.subVectors(this.center, sky.rp);
+    let shift = false;
     if (_v.length() > 2200 && _v.dot(sky.head) < 0) {
       // the wind brings another bloom into the path ahead
-      sky.ahead(1600, (Math.random() - 0.5) * 1400, (Math.random() - 0.5) * 200, _w);
+      sky.ahead(1600, (Math.random() - 0.5) * 1400, this.level + (Math.random() - 0.5) * 200 - sky.rp.y, _w);
       _u.subVectors(_w, this.center);
-      for (let i = 0; i < this.P.length; i += 3) {
-        this.P[i] += _u.x;
-        this.P[i + 1] += _u.y;
-        this.P[i + 2] += _u.z;
-      }
       this.center.copy(_w);
+      shift = true;
     }
     const P = this.P;
     this.dry += dt;
@@ -535,15 +768,25 @@ class AeromiteSwarm extends Creature {
         if (Math.random() < dt * 0.02) P.set([this.center.x + (Math.random() - 0.5) * 60, this.center.y + (Math.random() - 0.5) * 20, this.center.z + (Math.random() - 0.5) * 60], i);
         continue;
       }
-      // swirl round the bloom with the wind
-      const dx = P[i] - this.center.x, dz = P[i + 2] - this.center.z;
-      P[i] += (this.wind.x - dz * 0.03) * dt;
-      P[i + 1] += Math.sin(this.dry * 1.3 + i) * 0.4 * dt;
-      P[i + 2] += (this.wind.z + dx * 0.03) * dt;
+      if (shift) {
+        P[i] += _u.x;
+        P[i + 1] += _u.y;
+        P[i + 2] += _u.z;
+      }
+      // swirl round the bloom, carried with it
+      const rx = P[i] - this.center.x, rz = P[i + 2] - this.center.z;
+      P[i] += dx - rz * 0.03 * dt;
+      P[i + 1] += dy + Math.sin(this.dry * 1.3 + i) * 0.4 * dt;
+      P[i + 2] += dz + rx * 0.03 * dt;
     }
     (this.sparkle.geometry.attributes.position as THREE.BufferAttribute).needsUpdate = true;
     const close = this.center.distanceTo(sky.rp) < 250;
     this.swarm.update(dt, close);
+    this.rustleT -= dt;
+    if (this.rustleT < 0) {
+      this.rustleT = 2 + Math.random() * 2;
+      if (hears(this.f, this.center, 120)) this.f.voice.aeromiteRustle(this.center, 0.05);
+    }
     if (seen(this.f, this.center, 1500, 0.6)) note(this.f, 'aeromite', 'sighting');
     this.pos.copy(this.center);
   }
@@ -562,121 +805,164 @@ class AeromiteSwarm extends Creature {
 class Stormhunter extends SheetFlyer {
   readonly species = 'stormhunter';
   readonly id = 'stormhunter';
-  private homeY = 0;
+  /** 3 t, 60 % gas-buoyed, wide frills for lift, a 60 kN burst for the intercept (it cannot outrun a craft at 150 m/s) */
+  readonly body: AeroBody = { m: 3000, S: 150, CLmax: 1.3, CD0: 0.03, k: 0.05, buoy: 0.6, T: 60000, bank: 0.8 };
   private jaw = 0;
   private side = 1;
+  private calmT = 0;
+  private wave = 0;
+  /** remembered between visits: intercepts that failed (it then assesses longer) and calm encounters */
+  private fails = 0;
+  private calm = 0;
+  private mem: FaunaMemory;
 
-  constructor(f: FaunaManager, sky: Sky) {
-    super(f, sky);
+  constructor(f: FaunaManager, sky: Sky, air: JupiterAir) {
+    super(f, sky, air);
     this.view = 6000;
     this.nearR = 900;
+    this.band = [-350, 450];
     this.setState('shadow');
     this.cooldown = 90;
+    this.mem = siteMemory(f.game, 'jupiter');
+    this.fails = this.mem.get('hunter.fails', 0);
+    this.calm = this.mem.get('hunter.calm', 0);
   }
 
   update(dt: number, near: boolean) {
     const sky = this.sky;
-    if (this.homeY === 0) this.homeY = sky.rp.y + 100;
     // its envelope: a bounded altitude band (not "all layers") — climb or dive out of it and it breaks off
-    const outside = Math.abs(sky.rp.y - this.homeY) > 450;
+    const outside = !this.rangerIn(60);
     const d = this.pos.distanceTo(sky.rp);
+    const wary = Math.min(3, this.fails);
+    const habituated = this.calm >= 3;
     switch (this.state) {
       case 'shadow': {
-        // shadowing the corridor off to the side, matching speed
-        sky.ahead(150, this.side * 450, this.homeY - sky.rp.y, _w);
-        this.flyTo(_w, Math.max(30, sky.rv.length() + 10), 0.35, dt, 8);
+        // shadowing the corridor off to the side, matching speed (further off once it has missed)
+        this.at(150, this.side * (450 + 100 * wary), 100, _w);
+        this.fly(_w, clamp(sky.rv.length() + 10, 30, 110), dt);
         this.jaw = damp(this.jaw, 0.05, 1, dt);
-        if (this.cooldown <= 0 && !outside && sky.claim(this)) {
+        // a craft that has never threatened it: each long calm shadowing counts
+        this.calmT += dt;
+        if (d < 300) this.calmT = 0;
+        if (this.calmT > 60) {
+          this.calmT = 0;
+          this.calm = this.mem.bump('hunter.calm');
+          if (this.calm === 3 && seen(this.f, this.pos, 3000, 0.8)) note(this.f, 'stormhunter', 'habituate', 'After repeated calm encounters it shadows the craft without turning in — the probe is learned as neither prey nor threat.');
+        }
+        if (this.cooldown <= 0 && !outside && !habituated && sky.claim(this)) {
           this.setState('call');
-          this.f.voice.screech(this.pos, 0.5);
+          this.f.voice.hunterCall(this.pos, 0.5);
           this.game.notify('A short resonant call off the beam — the Stormhunter has turned toward you. Climb or dive out of its corridor.', 'alert', 6);
         }
         break;
       }
       case 'call': {
-        // the legible warning: it turns in, beak opening, for several seconds
-        this.flyTo(sky.rp, 28, 0.4, dt, 6);
+        // the legible warning: fins fold, head pitches, it turns in for several seconds (longer when it has missed before)
+        this.fly(sky.rp, 30, dt, 0.4);
         this.jaw = damp(this.jaw, 0.8, 1.5, dt);
-        if (outside) this.breakOff();
-        else if (this.st > 5) this.setState('intercept');
+        if (outside) this.breakOff(true);
+        else if (this.st > 5 + 2 * wary) {
+          this.setState('intercept');
+          this.f.voice.hunterCall(this.pos, 0.6, true);
+        }
         break;
       }
       case 'intercept': {
         _w.copy(sky.rp).addScaledVector(sky.rv, 1.5);
-        this.flyTo(_w, Math.max(70, sky.rv.length() + 25), 0.9, dt, 20);
+        this.fly(_w, 110, dt, 1);
         this.jaw = damp(this.jaw, 1, 3, dt);
         if (d < 22 * this.size) {
           this.f.hurtRanger(0.15, 'hull');
           this.game.renderer.fx.shake = Math.max(this.game.renderer.fx.shake, 1.2);
-          this.f.voice.screech(this.pos, 0.6);
+          this.f.voice.hunterCall(this.pos, 0.6, true);
           this.game.notify('The Stormhunter\'s beak raked the hull.', 'alert', 4);
-          this.breakOff();
-        } else if (outside || this.st > 14) this.breakOff();
+          this.breakOff(false);
+        } else if (outside || this.st > 14) this.breakOff(true);
         break;
       }
       case 'recover': {
-        sky.ahead(-400, this.side * 900, this.homeY - sky.rp.y, _w);
-        this.flyTo(_w, 35, 0.3, dt, 6);
+        this.at(-400, this.side * 900, 100, _w);
+        this.fly(_w, 40, dt, 0.5);
         this.jaw = damp(this.jaw, 0.05, 1, dt);
         if (this.st > 25) this.setState('shadow');
         break;
       }
     }
+    if (this.behind(4000) && this.state !== 'intercept') this.at(-300, this.side * 600, 100, this.pos);
     this.size = this.heroicK;
-    this.faceVel(dt, 0.7);
     if (seen(this.f, this.pos, 3000)) note(this.f, 'stormhunter', 'sighting');
+    this.faceAir(dt, 0.8);
     this.placeQ();
     if (near) {
       const r = this.rig;
       r.reset();
-      for (let i = 1; i <= 6; i++) r.rot(`sp${i}`, AX.y, 0.1 * (i / 6) * Math.sin(this.t * 1.0 - i * 0.7));
+      this.wave += dt * (0.6 + this.speed * 0.01);
+      for (let i = 1; i <= 6; i++) r.rot(`sp${i}`, AX.y, 0.1 * (i / 6) * Math.sin(this.wave * 1.6 - i * 0.7));
+      // the telegraph: the head pitches down, the frills fold back
+      if (this.state === 'call' || this.state === 'intercept') r.rot('head', AX.x, 0.12);
       r.rot('jaw', AX.x, 0.5 * this.jaw);
     }
   }
 
-  private breakOff() {
+  private breakOff(missed: boolean) {
     this.sky.done(this, 90);
     this.cooldown = 240;
     this.side = -this.side;
+    if (missed) {
+      this.fails = this.mem.bump('hunter.fails');
+      if (seen(this.f, this.pos, 3000, 0.9)) note(this.f, 'stormhunter', 'breakoff', 'It broke off when the craft left its altitude envelope — and kept further off afterwards.');
+    }
     this.setState('recover');
   }
 }
 
 // ================================================================================================ population
 /** The sheet's nine in Jupiter's cloud layer (speculative-evolution mode; called by populateJupiter). */
-export async function populateJupiterSheet(f: FaunaManager, sky: Sky, R: () => number, wind: THREE.Vector3) {
+export async function populateJupiterSheet(f: FaunaManager, sky: Sky, R: () => number, _wind: THREE.Vector3) {
   const jobs: Promise<unknown>[] = [];
   const safe = (p: Promise<unknown>) => p.catch((e) => console.error('[jupiter sheet] species', e));
-  const mites = new AeromiteSwarm(f, sky, wind, f.count(900));
+  // the reference level: the cloud-cruise level at this site (Ranger 1's autopilot holds 1.5 km above the 1-bar level)
+  const host = f.host;
+  const alt = (f.game.zone as unknown as { altitude?: () => number } | null)?.altitude?.();
+  const refY = sky.rp.y - ((alt ?? 1500) - 1500);
+  const air = new JupiterAir((p) => host.airDensity?.(p) ?? 0.17 * Math.exp(-(p.y - refY + 1500) / 27000), refY, Math.round(R() * 1000));
+  f.air = air;
+  siteMemory(f.game, 'jupiter');
+  const mites = new AeromiteSwarm(f, sky, air, f.count(900));
   f.creatures.push(mites);
-  for (let i = 0; i < f.count(3); i++) jobs.push(safe(f.add(new Stormskimmer(f, sky, i), 'jup_stormskimmer')));
+  for (let i = 0; i < f.count(3); i++) jobs.push(safe(f.add(new Stormskimmer(f, sky, air, i), 'jup_stormskimmer')));
+  const jellies: Skyjelly[] = [];
   for (let i = 0; i < f.count(6); i++) {
-    const j = new Skyjelly(f, sky, i > 1);
-    sky.ahead(700 + R() * 2500, (R() - 0.5) * 1800, -80 + R() * 400, j.pos);
-    j.wind.copy(wind);
+    const j = new Skyjelly(f, sky, air, i > 1);
+    sky.ahead(700 + R() * 2500, (R() - 0.5) * 1800, refY - 80 + R() * 400 - sky.rp.y, j.pos);
+    air.wind(j.pos, j.vel);
+    jellies.push(j);
     jobs.push(safe(f.add(j, 'jup_skyjelly')));
   }
-  const sb = new Stormbeast(f, sky);
-  sky.ahead(2800, -2600, -150, sb.pos);
+  const sb = new Stormbeast(f, sky, air);
+  sky.ahead(2800, -2600, refY - 150 - sky.rp.y, sb.pos);
   jobs.push(safe(f.add(sb, 'jup_stormbeast')));
-  const col = new FloatingColony(f, sky, wind.clone().multiplyScalar(0.9), f.count(140));
+  const col = new FloatingColony(f, sky, air, f.count(140));
   jobs.push(safe(col.build().then(() => f.creatures.push(col))));
   for (let i = 0; i < f.count(2); i++) {
-    const v = new Voltdrifter(f, sky, i, mites);
-    sky.ahead(1700, 1300 + i * 120, 40, v.pos);
+    const v = new Voltdrifter(f, sky, air, i, mites);
+    sky.ahead(1700, 1300 + i * 120, refY + 40 - sky.rp.y, v.pos);
     jobs.push(safe(f.add(v, 'jup_voltdrifter')));
   }
-  const dd = new Deepdiver(f, sky);
-  sky.ahead(1200, 400, -750, dd.pos);
+  const dd = new Deepdiver(f, sky, air, jellies);
+  sky.ahead(1200, 400, refY - 780 - sky.rp.y, dd.pos);
+  air.wind(dd.pos, dd.vel).addScaledVector(sky.head, 70);
   jobs.push(safe(f.add(dd, 'jup_deepdiver')));
   for (let i = 0; i < f.count(1); i++) {
-    const g = new Gasgrazer(f, sky, mites, i);
-    sky.ahead(1500, -800, 30, g.pos);
+    const g = new Gasgrazer(f, sky, air, mites, i);
+    sky.ahead(1500, -800, refY + 30 - sky.rp.y, g.pos);
     jobs.push(safe(f.add(g, 'jup_gasgrazer')));
   }
-  const sh = new Stormhunter(f, sky);
-  sky.ahead(-300, 600, 100, sh.pos);
+  const sh = new Stormhunter(f, sky, air);
+  sky.ahead(-300, 600, refY + 100 - sky.rp.y, sh.pos);
+  air.wind(sh.pos, sh.vel).addScaledVector(sky.head, 40);
   jobs.push(safe(f.add(sh, 'jup_stormhunter')));
+  // gliders start with flying speed along the flight path
   await Promise.all(jobs);
   // the giants are silhouettes in the haze far more than close: out of the shadow map
   for (const c of f.creatures) if (['stormskimmer', 'skyjelly', 'stormbeast', 'gasgrazer', 'deepdiver', 'stormhunter', 'voltdrifter'].includes(c.species)) c.root.traverse((o) => (o.castShadow = false));

@@ -24,4 +24,6 @@ export interface Cinematic {
   skip?(): void;
   /** blocks player input while running */
   blocking: boolean;
+  /** an interactive cinematic's touch layout (the research tools: 'drone' | 'photo'); default: none */
+  touch?: 'drone' | 'photo';
 }

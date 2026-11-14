@@ -34,6 +34,7 @@ import { MillerCaves } from '../surface/millerCaves';
 import { MarsRefuge, refugePad, refugeCarve } from '../surface/marsRefuge';
 import { JovianSky } from '../surface/JovianSky';
 import { ResearchTools } from '../research/ResearchTools';
+import { endSiteMemories } from '../fauna/memory';
 import { lookQuat } from '../../space/Proximity';
 import { h } from '../../ui/UI';
 
@@ -831,8 +832,12 @@ export default class SurfaceZone extends Zone implements SurfaceAPHost {
       },
       rangerFlying: () => !this.craft.landed,
       caveGuard: (from, to, r) => (this.caves ? this.caves.guard(from, to, r) : this.refuge ? this.refuge.guard(from, to, r) : false),
-      lamp: () => this.headlampOn,
+      // the survey drone carries its own lamp: what it lights counts as lit
+      lamp: () => this.headlampOn || !!this.research?.drone,
       refuge: () => this.refuge,
+      probe: () => this.research?.drone?.pos ?? null,
+      bumpProbe: (k) => this.research?.drone?.knock(k),
+      airDensity: (p) => this.env.density([p.x, p.y, p.z]),
       knockout: (msg) => {
         if (this.ranger.site || this.craft.landed) this.ranger.seat();
         this.game.notify(msg, 'alert', 8);
@@ -1709,6 +1714,7 @@ export default class SurfaceZone extends Zone implements SurfaceAPHost {
     this.fauna = null;
     this.research?.dispose();
     this.research = null;
+    endSiteMemories();
     this.jovian?.dispose();
     this.jovian = null;
     this.lazarus = null;

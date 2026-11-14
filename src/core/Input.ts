@@ -5,7 +5,7 @@ export type InputContext = 'walk' | 'drive' | 'flight' | 'ui' | 'seat';
 
 /** Actions available per context; resolves key conflicts (e.g. E = interact on foot, roll in flight). */
 const CONTEXT_ACTIONS: Record<InputContext, string[]> = {
-  walk: ['forward', 'back', 'left', 'right', 'jump', 'crouch', 'sprint', 'interact', 'vehicle', 'view', 'menu', 'computer', 'crew', 'flashlight', 'helmet', 'quickSave', 'quickLoad', 'creative', 'timeWarpUp', 'timeWarpDown', 'drone', 'photo', 'sample'],
+  walk: ['forward', 'back', 'left', 'right', 'jump', 'crouch', 'sprint', 'interact', 'vehicle', 'view', 'menu', 'computer', 'crew', 'flashlight', 'helmet', 'quickSave', 'quickLoad', 'creative', 'timeWarpUp', 'timeWarpDown', 'drone', 'photo', 'sample', 'zoomIn', 'zoomOut'],
   seat: ['interact', 'vehicle', 'view', 'menu', 'computer', 'crew', 'quickSave', 'quickLoad', 'creative', 'cockpitMode', 'timeWarpUp', 'timeWarpDown', 'photo'],
   drive: ['forward', 'back', 'left', 'right', 'brake', 'vehicle', 'view', 'menu', 'computer', 'flashlight', 'quickSave', 'quickLoad', 'creative', 'camera', 'sprint'],
   flight: ['throttleUp', 'throttleDown', 'throttleMax', 'throttleCut', 'pitchDown', 'pitchUp', 'yawLeft', 'yawRight', 'rollLeft', 'rollRight', 'transUp', 'transDown', 'transLeft', 'transRight', 'transFwd', 'transBack', 'sas', 'rcs', 'gear', 'autopilot', 'camera', 'vehicle', 'view', 'menu', 'computer', 'cockpitMode', 'quickSave', 'quickLoad', 'creative', 'timeWarpUp', 'timeWarpDown', 'brake', 'flashlight', 'crew', 'photo', 'sample'],

@@ -135,6 +135,8 @@ export const DEFAULT_BINDINGS: Record<string, string[]> = {
   drone: ['KeyG'],
   photo: ['KeyB'],
   sample: ['KeyN'],
+  zoomIn: ['Equal'],
+  zoomOut: ['Minus'],
   // flight
   throttleUp: ['ShiftLeft'],
   throttleDown: ['ControlLeft'],

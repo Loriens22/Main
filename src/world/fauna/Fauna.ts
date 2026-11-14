@@ -45,6 +45,12 @@ export interface FaunaHost {
   lamp?(): boolean;
   /** Mars: the subsurface refuge (world/surface/marsRefuge.ts), if this site has one */
   refuge?(): import('../surface/marsRefuge').MarsRefuge | null;
+  /** the survey drone / ROV while it is out (world/research): animals react to it as a probe */
+  probe?(): THREE.Vector3 | null;
+  /** an animal knocked the probe (k: the push, m/s) */
+  bumpProbe?(k: THREE.Vector3): void;
+  /** gas density (kg/m³) at a world point — Jupiter's air for the flight model */
+  airDensity?(p: THREE.Vector3): number;
 }
 
 const _v = new THREE.Vector3();
@@ -419,6 +425,7 @@ export class FaunaManager {
       });
     }
     const cam = this.game.camera.getWorldPosition(_w);
+    if (this.air) this.air.t += dt;
     this.alarm = Math.max(0, this.alarm - dt);
     const hours = localHours(this.game.state.clock.earthTime);
     for (const c of this.creatures) {

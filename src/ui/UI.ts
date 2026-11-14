@@ -302,7 +302,7 @@ export class UI {
 }
 
 // ============================================================================================ touch
-export type TouchMode = 'walk' | 'float' | 'ladder' | 'seat' | 'drive' | 'flight' | 'ui' | 'cinematic';
+export type TouchMode = 'walk' | 'float' | 'ladder' | 'seat' | 'drive' | 'flight' | 'ui' | 'cinematic' | 'drone' | 'photo';
 
 export interface TouchHost {
   menu(): void;
@@ -408,7 +408,7 @@ export class TouchControls {
     if (mode === this.mode && !force) return;
     if (mode !== this.mode) this.releaseAll();
     this.mode = mode;
-    for (const m of ['walk', 'float', 'ladder', 'seat', 'drive', 'flight', 'ui', 'cinematic']) this.el.classList.toggle(m, m === mode);
+    for (const m of ['walk', 'float', 'ladder', 'seat', 'drive', 'flight', 'ui', 'cinematic', 'drone', 'photo']) this.el.classList.toggle(m, m === mode);
     this.btns.innerHTML = '';
     this.tbar.innerHTML = '';
     const b = (label: string, action: string, hold = false, cls = '') => {
@@ -440,6 +440,7 @@ export class TouchControls {
     if (mode === 'walk') {
       this.tbar.append(b('VIEW', 'view'), b('LIGHT', 'flashlight'), b('HELMET', 'helmet'), ...warp, fn('⛶', () => this.host.fullscreen(), 'sm'));
       this.btns.append(b('CROUCH', 'crouch', true), b('USE', 'interact', false, 'big'), b('JUMP', 'jump'), b('RUN', 'sprint', true), b('ENTER', 'vehicle'), b('CREW', 'crew'));
+      this.tbar.append(b('DRONE', 'drone', false, 'sm'), b('PHOTO', 'photo', false, 'sm'), b('SAMPLE', 'sample', false, 'sm'));
     } else if (mode === 'float') {
       this.tbar.append(b('VIEW', 'view'), b('LIGHT', 'flashlight'), ...warp, fn('⛶', () => this.host.fullscreen(), 'sm'));
       this.btns.append(b('DOWN', 'crouch', true), b('USE', 'interact', false, 'big'), b('UP', 'jump', true), b('FAST', 'sprint', true), b('CREW', 'crew'));
@@ -449,11 +450,18 @@ export class TouchControls {
     } else if (mode === 'seat') {
       this.tbar.append(b('CREW', 'crew'), ...warp, fn('⛶', () => this.host.fullscreen(), 'sm'));
       this.btns.append(b('PANEL', 'cockpitMode'), b('USE', 'interact', false, 'big'), b('STAND', 'vehicle'));
+    } else if (mode === 'drone') {
+      // the survey drone / ROV: the left stick flies it, the right side looks; up/down, fast, sample, recall
+      this.tbar.append(b('RECALL', 'drone', false, 'hi'), fn('⛶', () => this.host.fullscreen(), 'sm'));
+      this.btns.append(b('DOWN', 'crouch', true), b('SAMPLE', 'sample', false, 'big'), b('UP', 'jump', true), b('FAST', 'sprint', true));
+    } else if (mode === 'photo') {
+      this.tbar.append(b('EXIT', 'photo', false, 'hi'), fn('⛶', () => this.host.fullscreen(), 'sm'));
+      this.btns.append(b('DOWN', 'crouch', true), b('SHOT', 'interact', false, 'big'), b('UP', 'jump', true), b('ZOOM+', 'zoomIn', true), b('ZOOM−', 'zoomOut', true));
     } else if (mode === 'drive') {
       this.tbar.append(b('VIEW', 'view'), b('LIGHTS', 'flashlight'), fn('⛶', () => this.host.fullscreen(), 'sm'));
       this.btns.append(b('BRAKE', 'brake', true, 'big'), b('BOOST', 'sprint', true), b('CAM', 'camera'), b('EXIT', 'vehicle'));
     } else if (mode === 'flight') {
-      this.tbar.append(b('AUTO', 'autopilot', false, 'hi'), b('SAS', 'sas'), b('RCS', 'rcs'), b('GEAR', 'gear'), b('CAM', 'camera'), b('PANEL', 'cockpitMode'), ...warp, b('EXIT', 'vehicle'));
+      this.tbar.append(b('AUTO', 'autopilot', false, 'hi'), b('SAS', 'sas'), b('RCS', 'rcs'), b('GEAR', 'gear'), b('CAM', 'camera'), b('PANEL', 'cockpitMode'), b('PHOTO', 'photo', false, 'sm'), ...warp, b('EXIT', 'vehicle'));
       // right cluster around the translation stick: yaw on the sides, fore/aft above, throttle shortcuts below
       this.btns.append(
         b('◀ YAW', 'yawLeft', true), b(this.vtol ? 'FWD' : 'FWD', 'transFwd', true), b('YAW ▶', 'yawRight', true),

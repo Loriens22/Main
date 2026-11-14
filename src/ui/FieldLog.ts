@@ -3,6 +3,7 @@ import { h } from './UI';
 import { MissionClock } from '../core/MissionClock';
 import { MILLER_SPECIES } from '../world/fauna/miller';
 import { SPECIES_EXPANSION, MARS_EXPANSION, JUPITER_EXPANSION, type Certainty } from '../data/speciesExpansion';
+import { PROGRAMMES } from '../world/research/programme';
 
 /**
  * EXOBIOLOGY — the field database (Mission computer). Every entry separates what was OBSERVED (dated evidence the
@@ -52,10 +53,41 @@ export function exobiologyTab(game: Game, b: HTMLElement) {
     if (unknown.length) card.append(h('div', { class: 'mono', style: { fontSize: '11px', margin: '8px 0 4px' } }, 'UNKNOWN'), h('div', { class: 'dim', style: { fontSize: '12px' } }, `Not yet determined: ${unknown.join(', ')}.`));
     b.append(card);
   }
+  programmeCard(game, b);
   expansionSection(game, b, 'MARS — THE REFUGE CAVERN (SPECULATIVE EVOLUTION)', MARS_EXPANSION,
     'A sealed lava-tube cavern beside the landing site — a game alternate-history extension, not a known feature of Mars. Its lake, warmth and life are fictional conditions to investigate.');
   expansionSection(game, b, "JUPITER — THE NINE OF THE REFERENCE SHEET (SPECULATIVE EVOLUTION)", JUPITER_EXPANSION,
     'Concept-sheet species (jupiter_panel_01 … 09) re-scaled to what a mass, energy and buoyancy budget could carry; Creative Mode can show the poster sizes.');
+}
+
+/** the staged research programmes (world/research/programme.ts): what is done, what is next, the samples taken */
+function programmeCard(game: Game, b: HTMLElement) {
+  const flags = game.state.flags;
+  const card = h('div', { class: 'card' }, h('h3', {}, 'RESEARCH PROGRAMMES'),
+    h('div', { class: 'dim', style: { fontSize: '12px', lineHeight: '1.5' } },
+      'Survey drone / ROV (G, on foot), sampler (N), photo mode (B). Stages complete from the evidence you gather, in order.' +
+      (game.settings.life.science === 'conservative' ? ' Conservative science mode: the programmes are suspended (no complex animals to study).' : '')));
+  for (const body of ['mars', 'jupiter'] as const) {
+    const P = PROGRAMMES[body];
+    const n = Number(flags[`prog:${body}`] ?? 0) || 0;
+    card.append(h('div', { class: 'mono', style: { fontSize: '11px', margin: '8px 0 4px' } }, `${P.name.toUpperCase()} — ${n} / ${P.stages.length}`));
+    P.stages.forEach((st, i) => {
+      const done = i < n;
+      const next = i === n;
+      const when = flags[`prog:${body}:${i + 1}`];
+      card.append(h('div', { style: { fontSize: '12px', margin: '2px 0 2px 8px', opacity: done || next ? '1' : '0.55' } },
+        `${done ? '✓' : next ? '▸' : '·'} ${i + 1}. ${st.title}` + (done && when ? ` — ${MissionClock.formatDate(Number(String(when).split('|')[0]))}` : next ? ` — ${st.goal}` : '')));
+    });
+  }
+  const samples = Object.keys(flags).filter((k) => k.startsWith('sample:'));
+  if (samples.length) {
+    card.append(h('div', { class: 'mono', style: { fontSize: '11px', margin: '8px 0 4px' } }, 'SAMPLES'));
+    for (const k of samples) {
+      const [t, text] = String(flags[k]).split('|');
+      card.append(h('div', { style: { fontSize: '12px', margin: '2px 0 2px 8px' } }, `${MissionClock.formatDate(Number(t))} — ${text ?? k}`));
+    }
+  }
+  b.append(card);
 }
 
 const CERT_COLOR: Record<Certainty, string> = { OBSERVED: '#7fd07f', INFERRED: '#9fc4ff', HYPOTHETICAL: '#e8c76a', SPECULATIVE: '#e58f8f' };

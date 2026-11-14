@@ -33,6 +33,7 @@ function hud(): HTMLElement {
 // ================================================================================================ survey drone
 export class SurveyDrone implements Cinematic {
   blocking = true;
+  readonly touch = 'drone' as const;
   readonly pos = new THREE.Vector3();
   readonly vel = new THREE.Vector3();
   yaw = 0;
@@ -70,6 +71,8 @@ export class SurveyDrone implements Cinematic {
     lampHead.position.set(0, 0.02, -0.212);
     lampHead.rotation.y = Math.PI;
     this.group.add(lens, lampHead);
+    // the camera rides inside the hull: the body is not drawn from its own camera (only its lamp shows)
+    this.group.visible = false;
     this.lamp = new THREE.SpotLight(0xf2f6ff, 6, 40, 0.5, 0.5, 1.6);
     this.lamp.castShadow = false;
     z.scene.add(this.group, this.lamp, this.lamp.target);
@@ -81,6 +84,14 @@ export class SurveyDrone implements Cinematic {
 
   recall() {
     this.done = true;
+  }
+
+  /** knocked by an animal: a push and a few seconds of wobble (the ROV is sturdy; nothing breaks) */
+  knock(k: THREE.Vector3) {
+    this.vel.add(k);
+    this.bump = Math.max(this.bump, 1.5);
+    this.tools.zone.game.renderer.fx.shake = Math.max(this.tools.zone.game.renderer.fx.shake, 0.5);
+    this.tools.zone.game.notify('Something knocked the drone.', 'warn', 3);
   }
 
   update(dt: number, cam: THREE.PerspectiveCamera) {
@@ -103,7 +114,8 @@ export class SurveyDrone implements Cinematic {
     this.pitch = THREE.MathUtils.clamp(this.pitch + input.look.y, -1.3, 1.3);
     const water = this.inWater;
     const vmax = water ? 1.6 : 4.5;
-    _v.set((input.held('right') ? 1 : 0) - (input.held('left') ? 1 : 0), (input.held('jump') ? 1 : 0) - (input.held('crouch') ? 1 : 0), (input.held('back') ? 1 : 0) - (input.held('forward') ? 1 : 0));
+    // the move stick / WASD (input.move: x right, y forward), Space/C (or the touch UP/DOWN) for height
+    _v.set(input.move.x, (input.held('jump') ? 1 : 0) - (input.held('crouch') ? 1 : 0), -input.move.y);
     _v.applyAxisAngle(THREE.Object3D.DEFAULT_UP, this.yaw).multiplyScalar(vmax * (input.held('sprint') ? 1.8 : 1));
     this.vel.lerp(_v, 1 - Math.exp(-(water ? 2 : 4) * dt));
     if (this.bump > 0) {
@@ -157,6 +169,7 @@ export class SurveyDrone implements Cinematic {
 // ================================================================================================ photo mode
 export class PhotoMode implements Cinematic {
   blocking = true;
+  readonly touch = 'photo' as const;
   private pos = new THREE.Vector3();
   private origin = new THREE.Vector3();
   private yaw = 0;
@@ -191,7 +204,9 @@ export class PhotoMode implements Cinematic {
     this.yaw += input.look.x * (this.fov / 60);
     this.pitch = THREE.MathUtils.clamp(this.pitch + input.look.y * (this.fov / 60), -1.5, 1.5);
     if (input.wheel) this.fov = THREE.MathUtils.clamp(this.fov * (1 + input.wheel * 0.08), 6, 90);
-    _v.set((input.held('right') ? 1 : 0) - (input.held('left') ? 1 : 0), (input.held('jump') ? 1 : 0) - (input.held('crouch') ? 1 : 0), (input.held('back') ? 1 : 0) - (input.held('forward') ? 1 : 0));
+    const zk = (input.held('zoomOut') ? 1 : 0) - (input.held('zoomIn') ? 1 : 0);
+    if (zk) this.fov = THREE.MathUtils.clamp(this.fov * Math.exp(zk * dt * 0.9), 6, 90);
+    _v.set(input.move.x, (input.held('jump') ? 1 : 0) - (input.held('crouch') ? 1 : 0), -input.move.y);
     _v.applyAxisAngle(THREE.Object3D.DEFAULT_UP, this.yaw).multiplyScalar(dt * 3 * (input.held('sprint') ? 4 : 1));
     this.pos.add(_v);
     // a free camera on a short leash (photo mode is not a way to scout)
@@ -255,7 +270,9 @@ export class ResearchTools {
     const pl = g.player;
     const onFoot = pl.frame === z.ground && pl.mode === 'walk';
     const flying = !!g.control && z.gas;
-    if (!g.cinematic && !g.ui.panelOpen) {
+    // the key that just closed a tool must not reopen one in the same moment
+    this.lock = Math.max(0, this.lock - dt);
+    if (!g.cinematic && !g.ui.panelOpen && this.lock <= 0) {
       if (input.pressed('drone') && onFoot && !z.gas) {
         this.drone = new SurveyDrone(this, pl.pos.clone(), pl.yaw);
         g.playCinematic(this.drone);
@@ -275,6 +292,12 @@ export class ResearchTools {
       this.progT = 2;
       checkProgramme(g, z.site.body);
       if (z.gas && g.control) {
+        // stage 1: a minute of flight in the cloud layer logs a pressure-temperature-wind profile
+        this.flyT += 2;
+        if (this.flyT >= 60 && !g.flag('jupiter:profile')) {
+          g.flag('jupiter:profile', `${Math.round(g.state.clock.earthTime)}|Pressure, temperature and wind profile logged through the cloud layer.`);
+          g.notify('Instruments: pressure-temperature-wind profile logged.', 'ok', 4);
+        }
         const alt = z.altitude();
         // the lower corridor (stage 6): well below the starting flight level, where the Deepdiver keeps
         if (!g.flag('jupiter:lower') && this.refAlt !== null && alt < this.refAlt - 450) g.flag('jupiter:lower', 1);
@@ -283,13 +306,17 @@ export class ResearchTools {
     }
   }
   private refAlt: number | null = null;
+  private lock = 0;
+  private flyT = 0;
 
   droneEnded() {
+    this.lock = 0.3;
     this.drone = null;
     this.setHud(null);
   }
 
   photoEnded() {
+    this.lock = 0.3;
     this.photo = null;
     this.setHud(null);
     const cam = this.zone.game.camera;
@@ -382,7 +409,7 @@ export class ResearchTools {
   photoHud(cam: THREE.PerspectiveCamera, tag: { id: string | null; species: string; d: number } | null, fov: number) {
     const z = this.zone;
     const p = cam.position;
-    const lines: string[] = [`PHOTO MODE   zoom ${(50 / fov).toFixed(1)}×   E capture · B exit`];
+    const lines: string[] = [`PHOTO MODE   zoom ${(50 / fov).toFixed(1)}×   E capture · B exit · wheel or +/− zoom`];
     if (tag) {
       const d = tag.id ? SPECIES_EXPANSION[tag.id] : null;
       const c = z.fauna?.creatures.find((k) => k.species === tag.species);

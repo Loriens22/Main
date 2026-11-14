@@ -412,7 +412,7 @@ const RECIPES: Record<string, Recipe> = {
     skin: { pores: 0.0015, poreSize: 0.05, wrinkle: 0.002, wrinkleSize: 0.15, cavity: 0.4, wet: 0.6, vary: 0.2, glow: 0.35 } },
   vd_belly: { kind: 'physical', color: C(0.4, 0.3, 0.55), rough: 0.25, clearcoat: 0.7, weather: false, skin: { pores: 0.0015, poreSize: 0.04, cavity: 0.35, wet: 0.5 } },
   vd_fin: { kind: 'physical', color: C(0.2, 0.11, 0.33), rough: 0.18, clearcoat: 0.8, iridescence: 0.7, opacity: 0.82, side: THREE.DoubleSide, weather: false, skin: { wet: 0.5, glow: 0.3 } },
-  vd_iris: { kind: 'physical', color: C(0.1, 0.45, 0.95), emissive: C(0.05, 0.3, 0.8), emissiveIntensity: 0.5, rough: 0.03, clearcoat: 1, weather: false },
+  vd_iris: { kind: 'physical', color: C(0.03, 0.11, 0.34), emissive: C(0.02, 0.12, 0.45), emissiveIntensity: 0.35, rough: 0.03, clearcoat: 1, weather: false },
   vd_lid: { kind: 'physical', color: C(0.05, 0.03, 0.05), rough: 0.3, clearcoat: 0.6, weather: false, skin: { cavity: 0.4, wet: 0.5 } },
   vd_eye: { kind: 'physical', color: C(0.05, 0.05, 0.08), rough: 0.03, clearcoat: 1, weather: false },
   dd_plate: { kind: 'physical', color: C(0.06, 0.06, 0.065), rough: 0.3, metal: 0.3, clearcoat: 0.6, weather: false,

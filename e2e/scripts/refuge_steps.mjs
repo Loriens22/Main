@@ -64,5 +64,68 @@ parts[2] = [
   { js: `${F} const h = of('hermit')[0]; if (!h) return 'none'; h.pos.copy(h.fissure); h.pos.x += 3; h.pos.y = z.terrainY(h.pos.x, h.pos.z); h.setState('cross'); return 1;`, frames: 20, probe },
   sv('refuge_hermit', 'hermit', [0.6, 0.35, 0.6], [0.1, 0], 45), free,
 ];
+
+// PART 3 — research tools, memory between visits, the carcass sequence
+const T = `${F} const tools = z.research; const mem = F?.creatures[0]?.mem;`;
+const tprobe = `const z = game.zone; const t = z.research; const F = z.fauna; const flags = game.state.flags; const keys = Object.keys(flags);
+  const young = F ? F.creatures.filter((c) => c.species === 'prism' && c.juvenile).map((c) => (c.deadAt === null ? 'alive' : 'dead:' + c.stage)) : [];
+  return { cine: game.cinematic ? game.cinematic.constructor.name : null, drone: t?.drone ? t.drone.pos.toArray().map((v) => +v.toFixed(1)) : null, hud: t ? t.hudText.slice(0, 120) : null,
+    samples: keys.filter((k) => k.startsWith('sample:')), prog: flags['prog:mars'] ?? 0, young, mem: keys.filter((k) => k.startsWith('mem:mars_refuge:')).map((k) => k.slice(16) + '=' + String(flags[k]).slice(0, 40)),
+    sp: F ? F.creatures.filter((c) => ['serpent', 'bmimic', 'monarch', 'ghost'].includes(c.species)).map((c) => c.species.slice(0, 3) + ':' + c.state).join(' ') : null };`;
+parts[3] = [
+  land, populated,
+  // sampling on foot: the regolith outside (N), then in the cavern by the grove (a biofilm swab), then the brine
+  { js: `game.input.virtualPress('sample'); return 1;`, frames: 3, probe: tprobe },
+  stand(-20, -48, 10, 8),
+  { js: `${T} const fc = of('ferric')[0]; tools.sample(fc.pos.clone().add(new V(1.5, 0.6, 0)), false); return 1;`, frames: 2, probe: tprobe },
+  { js: `${T} const p = W(10, -24, 8); tools.sample(p, false); return 1;`, frames: 2, probe: tprobe },
+  // the survey drone: launched by G, flown forward with the move input, then taken into the warm channel
+  stand(-24, -24, -30, -22),
+  { js: `game.input.virtualPress('drone'); return 1;`, frames: 4, probe: tprobe },
+  { js: `game.input.virtualHold('forward', true); game.input.virtualHold('jump', true); return 1;`, frames: 45, probe: tprobe },
+  { js: `game.input.virtualHold('forward', false); game.input.virtualHold('jump', false); return 1;`, frames: 3, shot: 'tools_drone_view', ui: true, probe: tprobe },
+  { js: `${T} const s = of('serpent')[0]; s.setState('station'); s.cooldown = 0; const d = tools.drone; d.pos.copy(s.pos).addScaledVector(s.fwd(new V()), 7); d.pos.y = s.pos.y + 0.3; d.yaw = s.yaw + Math.PI; d.pitch = -0.05; return R.waterLevel(d.pos.x, d.pos.z) - d.pos.y;`, frames: 2, probe: tprobe },
+  { untilJs: `game.zone.fauna.creatures.some((c) => c.species === 'serpent' && ['display', 'shove'].includes(c.state))`, max: 900, chunk: 30, probe: tprobe },
+  { frames: 20, shot: 'tools_drone_serpent', ui: true, probe: tprobe },
+  { untilJs: `!!game.state.flags['bio:serpent:probe']`, max: 300, chunk: 30, probe: tprobe },
+  { js: `game.input.virtualPress('drone'); return 1;`, frames: 4, probe: tprobe },
+  // photo mode: facing the nest, B; the species tag and the readouts; E captures (the codex records the photograph)
+  stand(-24, -18, -30, -22),
+  { js: `${F} const p = of('prism')[0]; for (const c of F.creatures) c.cooldown = 999; const a = pl.pos; pl.enterFrame(z.ground, a.clone(), Math.atan2(-(p.pos.x - a.x), -(p.pos.z - a.z)), 'walk'); return 1;`, frames: 10, probe: tprobe },
+  { js: `game.input.virtualPress('photo'); return 1;`, frames: 6, probe: tprobe },
+  { js: `${F} const p = of('prism')[0]; const cam = game.camera; cam.lookAt(p.pos.x, p.pos.y + 0.4, p.pos.z); const e = new cam.rotation.constructor().setFromQuaternion(cam.quaternion, 'YXZ'); const pm = game.cinematic; pm.yaw = e.y; pm.pitch = e.x; return 1;`, frames: 8, shot: 'tools_photo', ui: true, probe: tprobe },
+  { js: `game.input.virtualPress('interact'); return 1;`, frames: 4, probe: tprobe },
+  { js: `game.input.virtualPress('photo'); return Object.keys(game.state.flags).filter((k) => k.includes(':photo'));`, frames: 4, probe: tprobe },
+  // the carcass: the Mimic's ambush on the young Prism Architect (forced close and hungry; the catch forced)
+  { js: `${F} const m = of('bmimic')[0]; const y = of('prism').find((c) => c.juvenile && c.deadAt === null); m.hunger = 1; m.cooldown = 0; m.setState('anchor');
+      y.pos.copy(m.pos).addScaledVector(m.fwd(new V()), 2.5); y.pos.y = z.faunaHost().terrainY(y.pos.x, y.pos.z); y.setState('forage'); window.__rnd = Math.random; Math.random = () => 0.1; return 1;`, frames: 1 },
+  { untilJs: `game.zone.fauna.creatures.some((c) => c.species === 'prism' && c.juvenile && c.deadAt !== null)`, max: 120, chunk: 5, probe: tprobe },
+  { js: `Math.random = window.__rnd; return 1;`, frames: 30, probe: tprobe },
+  sv('carcass_fresh', 'bmimic', [3.0, 2.2, 3.0], [0.1, 0.8], 50), free,
+  // site time passes (the clock jumped as if by time warp): scavenged, then under the biofilm mat, then loose plates
+  { js: `game.state.clock.earthTime += 30 * 3600; return 1;`, frames: 40, probe: tprobe },
+  { js: `${F} ${cine(50)} const y = of('prism').find((c) => c.juvenile && c.deadAt !== null); cam.position.copy(y.pos).add(new V(2.2, 2.0, 2.2)); cam.lookAt(y.pos); cam.updateMatrixWorld(true); return y.stage;`, frames: 3, shot: 'carcass_mat', probe: tprobe }, free,
+  { js: `game.state.clock.earthTime += 45 * 3600; return 1;`, frames: 360, probe: tprobe },
+  { js: `${F} ${cine(50)} const y = of('prism').find((c) => c.juvenile && c.deadAt !== null); cam.position.copy(y.pos).add(new V(2.2, 2.0, 2.2)); cam.lookAt(y.pos); cam.updateMatrixWorld(true); return y.stage;`, frames: 3, shot: 'carcass_plates', probe: tprobe }, free,
+  // memory between visits: leave and come back (a new zone load) — the carcass, the hatchling, the counts persist
+  { js: `${F} return { young: game.state.flags['mem:mars_refuge:young'], hatched: of('prism').filter((c) => c.juvenile && c.deadAt === null).length };`, frames: 1, probe: tprobe },
+  { js: `await game.goTo('surface', { at: 'landed' }, { fade: 0 }); game.step(2, 1 / 30, false); game.zone.beginEva(true); return game.state.flags['mem:mars_refuge:visits'];`, wait: 1500, frames: 30 },
+  populated,
+  { js: `${F} const eco = F.creatures[0]; return { away: +eco.mem.away.toFixed(2), visits: eco.mem.visits, biofilm: +eco.biofilm.toFixed(2), young: of('prism').filter((c) => c.juvenile).map((c) => c.deadAt === null ? 'alive' : 'dead:' + c.stage), mimicExp: of('bmimic')[0].exposures, serpentShoves: of('serpent')[0].shoves };`, frames: 2, probe: tprobe },
+  { js: `const P = await import('/src/ui/Panels.ts'); P.openMissionComputer(game, 'bio'); await new Promise((r) => setTimeout(r, 400)); const t = document.body.innerText; return { programme: t.includes('RESEARCH PROGRAMMES'), samples: t.includes('SAMPLES') };`, frames: 2, shot: 'codex_programme', ui: true },
+];
+
+// PART 4 — conservative science mode: the refuge is there as a landform; no complex animals; the tools still work
+parts[4] = [
+  { js: `game.settings.life.science = 'conservative'; return game.settings.life.science;`, frames: 1 },
+  land,
+  { frames: 300, chunk: 100, probe },
+  { js: `${F} return { refuge: !!R, fauna: F ? F.creatures.map((c) => c.species) : null, science: game.settings.life.science, populated: F ? F['populated'] : null };`, frames: 1 },
+  view('conservative_refuge_grove', [6, -23.6, 12], [-6, -24.5, 0], 58, 10),
+  free,
+  { js: `game.input.virtualPress('sample'); return 1;`, frames: 3 },
+  { js: `return { samples: Object.keys(game.state.flags).filter((k) => k.startsWith('sample:')), prog: game.state.flags['prog:mars'] ?? 0, intro: game.state.flags['prog:mars:intro'] ?? null };`, frames: 1 },
+  { js: `const P = await import('/src/ui/Panels.ts'); P.openMissionComputer(game, 'bio'); await new Promise((r) => setTimeout(r, 400)); const t = document.body.innerText; return { archive: t.includes('ARCHIVE HYPOTHESIS'), conservativeNote: t.includes('CONSERVATIVE'), suspended: t.includes('programmes are suspended') };`, frames: 2, shot: 'conservative_codex', ui: true },
+];
 const P = process.env.PART;
 export const steps = P ? parts[P] : [...parts[1], ...parts[2].slice(2)];
