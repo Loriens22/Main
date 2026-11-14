@@ -448,7 +448,7 @@ def ferric(variant=0):
                 dv = (dd * math.cos(a) + side * math.sin(a)).normalized()
                 edge.append(tip + dv * fr + V((0, 0, fr * 0.25 * math.cos(a))))
             shelves.append(fin(f"fan{name}", base, edge, "fc_frond", nv=3, rays=5, corr=0.004 * k, scallop=0.16, ruffle=0.015 * k, ruffle_f=5,
-                               thick=0.005 * k, rays_m="fc_tissue", ray_r=0.004 * k, ray_taper=0.3))
+                               thick=0.005 * k))
             for t_ in range(rng.randint(2, 3)):
                 td = (dd + V((rng.uniform(-0.7, 0.7), rng.uniform(-0.7, 0.7), rng.uniform(0.1, 0.6)))).normalized()
                 twigs.append(fang(f"tw{name}{t_}", tip, td, V((0, 0, 1)), L * rng.uniform(0.3, 0.5), r * 0.75, curve=0.25, m="fc_frond", seg=3, n=3))

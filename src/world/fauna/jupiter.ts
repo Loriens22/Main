@@ -362,7 +362,7 @@ export class Sky extends Creature {
 }
 
 /** A creature of the open sky: flies with a velocity, banks into turns, can be fixed to Ranger 1. */
-abstract class Flyer extends Creature {
+export abstract class Flyer extends Creature {
   readonly vel = new THREE.Vector3();
   readonly q = new THREE.Quaternion();
   size = 1;
@@ -1235,6 +1235,8 @@ export async function populateJupiter(f: FaunaManager) {
     h.cooldown = 25;
     jobs.push(f.add(h, 'fauna_hunter', ['hunter_iris']).then(() => h.init()));
   }
+  // the reference sheet's nine (world/fauna/jupiterSheet.ts; loaded lazily — it extends the classes above)
+  jobs.push(import('./jupiterSheet').then((m) => m.populateJupiterSheet(f, sky, R, wind)).catch((e) => console.error('[jupiter] sheet species', e)));
   await Promise.all(jobs);
   // the giants are seen through haze far more than up close: they stay out of the shadow map (the rays, which ride
   // on the hull, keep casting)

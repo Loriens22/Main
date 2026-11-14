@@ -135,5 +135,30 @@ parts[6] = [
   jsv('jup_hunter_pod', 'hunter', 30, -50, 0.6, 6),
   free,
 ];
+// the reference sheet's nine (jupiterSheet.ts): each placed beside the Ranger and seen at a fitting distance
+const sheetReady = { untilJs: `game.zone.fauna && ['stormskimmer','skyjelly','stormbeast','voltdrifter','deepdiver','gasgrazer','stormhunter'].every((sp) => game.zone.fauna.creatures.some((k) => k.species === sp)) && game.zone.fauna.creatures.some((k) => k.species === 'colony')`, max: 900, chunk: 30, probe: jprobe };
+// a view in the animal's own frame: (side, up, ahead) metres from it, looking at it
+const jfr = (name, sp, side, up, ahead, slot = 0) => ({ js: `${J} game.cinematic = { blocking: true, update: () => true }; cam.fov = 50; cam.updateProjectionMatrix();
+  const k = of('${sp}')[0]; if (!k) return 'missing';
+  const C0 = new V(...c.pos).add(new V(60 + ${slot} * 400, 30, 40)); k.pos.copy(C0); k.root.position.copy(C0); k.update?.(0.001, true); k.root.updateMatrixWorld(true);
+  const q = k.root.quaternion; const fw = new V(0, 0, -1).applyQuaternion(q), rt = new V(1, 0, 0).applyQuaternion(q), upv = new V(0, 1, 0).applyQuaternion(q);
+  cam.position.copy(C0).addScaledVector(rt, ${side}).addScaledVector(upv, ${up}).addScaledVector(fw, ${ahead}); cam.lookAt(C0); cam.updateMatrixWorld(true); return k.state;`, frames: 2, shot: name });
+parts[7] = [
+  land, populatedJ, sheetReady, calm,
+  jfr('sheet_stormskimmer', 'stormskimmer', 22, 14, 26, 1),
+  jsv('sheet_stormskimmer_top', 'stormskimmer', 12, 38, 0.2, 1),
+  jsv('sheet_skyjelly', 'skyjelly', 22, -4, 0.5, 2),
+  jsv('sheet_stormbeast', 'stormbeast', 70, 8, 0.8, 3),
+  jfr('sheet_stormbeast_maw', 'stormbeast', 12, 4, 46, 3),
+  jfr('sheet_voltdrifter', 'voltdrifter', 11, 3, 6, 4),
+  jsv('sheet_deepdiver', 'deepdiver', 28, 6, 0.7, 5),
+  jsv('sheet_gasgrazer', 'gasgrazer', 55, 6, 0.6, 6),
+  jfr('sheet_gasgrazer_comb', 'gasgrazer', 10, -2, 40, 6),
+  jsv('sheet_stormhunter', 'stormhunter', 40, 8, 0.7, 7),
+  jfr('sheet_stormhunter_head', 'stormhunter', 7, 3, 22, 7),
+  { js: `${J} game.cinematic = { blocking: true, update: () => true }; cam.fov = 60; cam.updateProjectionMatrix(); const k = of('colony')[0]; const C0 = k.center; cam.position.copy(C0).add(new V(160, 40, 220)); cam.lookAt(C0); cam.updateMatrixWorld(true); return 1;`, frames: 3, shot: 'sheet_colony', probe: jprobe },
+  { js: `${J} game.cinematic = { blocking: true, update: () => true }; cam.fov = 60; cam.updateProjectionMatrix(); const k = of('aeromite')[0]; const C0 = k.center; cam.position.copy(C0).add(new V(30, 8, 40)); cam.lookAt(C0); cam.updateMatrixWorld(true); return 1;`, frames: 3, shot: 'sheet_aeromites', probe: jprobe },
+  free,
+];
 const PART = process.env.PART ?? '1';
 export const steps = parts[PART];

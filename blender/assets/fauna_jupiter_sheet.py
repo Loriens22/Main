@@ -35,7 +35,7 @@ PI, TAU = math.pi, math.tau
 
 kit.PALETTE.update({
     "js_keel": dict(color=(0.04, 0.03, 0.07), rough=0.2),
-    "js_wing": dict(color=(0.32, 0.12, 0.5), rough=0.15, alpha=0.6),
+    "js_wing": dict(color=(0.12, 0.05, 0.2), rough=0.15, alpha=0.6),
     "js_vein": dict(color=(0.2, 0.4, 0.95), rough=0.15),
     "js_eye": dict(color=(0.5, 0.75, 0.9), rough=0.03),
     "sj_bell": dict(color=(0.42, 0.32, 0.85), rough=0.08, alpha=0.4),
@@ -70,7 +70,7 @@ PAINT.update({
     # 01 near-black indigo keel with a violet sheen; translucent violet wings, cobalt veins
     "js_keel": {"base": (0.035, 0.025, 0.07), "layers": [("noise", (0.18, 0.1, 0.35), 0.5, 0.6, 0.5, 0.7), ("streak", (0.25, 0.3, 0.6), 0.35, 0.15, "y", 0.58, 0.72), ("edge", (0.35, 0.3, 0.55), 0.45), ("ao", 0.6, 1.0)],
                 "relief": [("grooves", 0.003, 0.4, 0.04), ("wrinkle", 0.002, 0.3, (1, 4, 1))]},
-    "js_wing": {"base": (0.3, 0.1, 0.48), "layers": [("noise", (0.45, 0.2, 0.7), 0.5, 1.2, 0.48, 0.7), ("retic", (0.15, 0.3, 0.85), 0.45, 0.9, 0.03), ("noise", (0.1, 0.05, 0.2), 0.35, 3.0, 0.55, 0.7)],
+    "js_wing": {"base": (0.09, 0.035, 0.16), "layers": [("noise", (0.28, 0.08, 0.42), 0.55, 1.2, 0.5, 0.7), ("retic", (0.12, 0.28, 0.85), 0.5, 0.9, 0.025), ("grad", (0.35, 0.12, 0.55), 0.4, "x", 3.0, 11.0), ("noise", (0.02, 0.01, 0.04), 0.4, 3.0, 0.55, 0.7)],
                 "relief": [("veins", 0.002, 0.9, 0.03), ("wrinkle", 0.0015, 0.6)]},
     "js_vein": {"base": (0.2, 0.42, 0.95), "layers": [("noise", (0.5, 0.75, 1.0), 0.5, 0.3, 0.5, 0.7)]},
     # 02 violet-blue translucent bell, radial ribs, pink core
@@ -121,13 +121,13 @@ def swept_edge(u, sx, span, chord, sweep, tip_up):
     """a swept wing outline: u 0 leading root → 0.55 tip → 1 trailing root"""
     if u <= 0.55:
         s = u / 0.55
-        x = span * (0.04 + 0.96 * s)
-        y = chord * 0.5 + chord * 0.15 * math.sin(PI * s * 0.7) - sweep * s ** 1.6
+        x = span * (0.04 + 0.96 * s ** 0.9)
+        y = chord * 0.5 + chord * 0.1 * math.sin(PI * s * 0.5) - sweep * s ** 1.9
         z = tip_up * s ** 3
     else:
         s = (u - 0.55) / 0.45
-        x = span * (1 - 0.96 * s ** 0.8)
-        y = chord * 0.5 - sweep - (chord * 0.4) * math.sin(PI * s) * 0.5 - chord * s
+        x = span * (1 - 0.96 * s ** 0.65)
+        y = chord * 0.5 - sweep + (sweep * 0.55) * s ** 0.8 - chord * 0.9 * s
         z = tip_up * (1 - s) ** 3
     return V((sx * x, y, z))
 
@@ -162,7 +162,7 @@ def stormskimmer():
     for sx, s in ((-1, "L"), (1, "R")):
         n = 25
         us = [k / (n - 1) for k in range(n)]
-        edge = [swept_edge(u, sx, 12.0, 5.0, 6.5, 1.5) for u in us]
+        edge = [swept_edge(u, sx, 12.5, 4.0, 9.5, 1.2) for u in us]
         base = [V((sx * (0.7 + 0.2 * math.sin(PI * u)), 2.4 - 5.6 * u, 0.0)) for u in us]
         w = fin(f"wing{s}", base, edge, "js_wing", nv=10, rays=18, corr=0.06, scallop=0.02, ruffle=0.12, ruffle_f=5, thick=0.03,
                 rays_m="js_vein", ray_r=0.05, ray_taper=0.2, up=(0, 0, 1))
@@ -198,7 +198,7 @@ def skyjelly():
         row = []
         for j in range(na):
             a = TAU * j / na
-            rib = 1 + 0.035 * max(0.0, math.cos(a * 12)) ** 6 * math.sin(PI * min(1.0, t * 1.4))
+            rib = 1 + 0.06 * max(0.0, math.cos(a * 16)) ** 6 * math.sin(PI * min(1.0, t * 1.3))
             scal = 1 - 0.06 * max(0.0, math.cos(a * 24 + PI)) ** 2 * t ** 8
             rr = R * math.sin(th) * rib * scal
             z = 2.4 * math.cos(th) - 0.15 * t ** 6
@@ -221,12 +221,13 @@ def skyjelly():
         pts = [(math.cos(a0) * R * 0.95, math.sin(a0) * R * 0.95, -0.2 - 4.0 * k) for k in range(5)]
         ch = sk.chain(f"tent{b}", pts, "bell")
         tents = []
-        for k in range(5):
-            a = a0 + (k - 2) * 0.12
-            base = V((math.cos(a) * R * 0.97, math.sin(a) * R * 0.97, -0.1))
-            L = rng.uniform(12, 18)
-            path = [base + V((math.cos(a) * 0.5 * math.sin(PI * q / 10), math.sin(a) * 0.5 * math.sin(PI * q / 10), -L * q / 10)) for q in range(11)]
-            tents.append(tube(f"t{b}{k}", path, [0.045 * (1 - 0.85 * q / 10) + 0.005 for q in range(11)], "sj_tent", seg=5))
+        for k in range(9):
+            a = a0 + (k - 4) * 0.085
+            base = V((math.cos(a) * R * 0.96, math.sin(a) * R * 0.96, -0.12))
+            L = rng.uniform(8, 20)
+            ph = rng.uniform(0, TAU)
+            path = [base + V((math.cos(a) * (0.35 * math.sin(PI * q / 14) + 0.35 * math.sin(q * 0.7 + ph)), math.sin(a) * (0.35 * math.sin(PI * q / 14)) + 0.35 * math.cos(q * 0.6 + ph), -L * q / 14)) for q in range(15)]
+            tents.append(tube(f"t{b}{k}", path, [0.022 * (1 - 0.85 * q / 14) + 0.003 for q in range(15)], "sj_tent", seg=4))
         parts.append(Part(kit.merge(tents, f"tents{b}"), bones=ch))
     for k in range(4):
         a = TAU * k / 4 + 0.4
@@ -347,13 +348,13 @@ def voltdrifter():
     sk.add("mantle", (0, -3.2, 0), (0, 0.6, 0))
     sk.add("head", (0, 0.6, 0), (0, 1.6, 0), "mantle")
     parts = []
-    mant = Surf([(-3.6, 0.05, 0.05, 0.05, 0.0, 2.0), (-3.0, 0.45, 0.45, 0.42, 0.0, 2.0), (-1.5, 0.75, 0.72, 0.68, 0.0, 2.0), (0.0, 0.8, 0.75, 0.7, 0.0, 2.0),
+    mant = Surf([(-3.9, 0.03, 0.03, 0.03, 0.0, 2.0), (-3.2, 0.3, 0.3, 0.28, 0.0, 2.0), (-1.5, 0.75, 0.72, 0.68, 0.0, 2.0), (0.0, 0.8, 0.75, 0.7, 0.0, 2.0),
                  (0.7, 0.72, 0.68, 0.62, 0.0, 2.0), (1.3, 0.62, 0.6, 0.55, 0.0, 2.0), (1.8, 0.45, 0.42, 0.4, 0.0, 2.0), (2.1, 0.32, 0.3, 0.3, 0.0, 2.0)])
     parts.append(Part(mant.mesh("mantle", 60, 32, ("vd_skin",), disp=lambda t, a: 0.02 * noise.noise(mant.P(t, a) * 2)), bones=["mantle", "head"]))
     # slender sharp fins at the mantle's tip
     for sx, s in ((-1, "L"), (1, "R")):
         base = [V((sx * 0.3, -3.4 + 1.8 * k / 5, 0)) for k in range(6)]
-        edge = [V((sx * (0.3 + 1.7 * math.sin(PI * (k / 5) ** 0.7) ** 1.5), -3.9 + 1.6 * k / 5 - 0.8 * math.sin(PI * k / 5), 0.0)) for k in range(6)]
+        edge = [V((sx * (0.3 + 2.4 * math.sin(PI * (k / 5) ** 0.7) ** 1.3), -4.4 + 2.0 * k / 5 - 1.2 * math.sin(PI * k / 5), 0.0)) for k in range(6)]
         parts.append(Part(fin(f"fin{s}", base, edge, "vd_fin", nv=5, rays=10, thick=0.02, rays_m="vd_skin", ray_r=0.02), bone="mantle"))
     hd = []
     for sx in (-1, 1):
@@ -368,9 +369,10 @@ def voltdrifter():
         long = k in (2, 7)
         L = 8.0 if long else 3.6
         b = V((math.cos(a) * 0.42, 2.0, math.sin(a) * 0.42))
-        pts = [b + V((math.cos(a) * 0.25 * q, L * q / 4, math.sin(a) * 0.25 * q)) for q in range(5)]
+        curl = rng.uniform(-0.6, 0.6)
+        pts = [b + V((math.cos(a) * (0.2 * q + curl * 0.12 * q * q), L * q / 4, math.sin(a) * (0.2 * q) - 0.1 * q * q * (0.5 if long else 1))) for q in range(5)]
         ch = sk.chain(f"arm{k}", [tuple(p) for p in pts], "head")
-        armp = [ringed(f"a{k}", pts, (lambda t, long=long: (0.11 if long else 0.14) * (1 - 0.85 * t) + 0.012), "vd_skin", rings=24 if long else 14, groove=0.1, seg=8, samples=60)]
+        armp = [ringed(f"a{k}", pts, (lambda t, long=long: (0.08 if long else 0.13) * (1 - 0.9 * t ** 0.8) + 0.006), "vd_skin", rings=30 if long else 16, groove=0.08, seg=8, samples=70)]
         if long:
             armp.append(kit.sphere(f"club{k}", 0.16, loc=tuple(pts[-1]), m="vd_skin", segs=10, rings=6, scale=(1, 2, 1)))
         parts.append(Part(kit.merge(armp, f"arm{k}"), bones=ch))
@@ -435,19 +437,19 @@ def gasgrazer():
         p = body.P(t, a)
         d = 0.06 * noise.noise(p * 0.5)
         # the mouth: the front face of the head is cut back (the comb sits in the opening)
-        if p.y > 12.0 and math.sin(a) < 0.45:
-            d -= 0.9 * sstep(12.0, 14.8, p.y) * sstep(0.45, -0.2, math.sin(a))
+        if p.y > 12.5 and math.sin(a) < 0.35:
+            d -= 1.6 * sstep(12.5, 14.6, p.y) * sstep(0.35, -0.1, math.sin(a))
         d += 0.05 * max(0.0, math.cos(p.y * 1.4)) ** 8 * (math.sin(a) < -0.3)   # throat grooves
         return d
     parts.append(Part(body.mesh("body", 110, 48, ("gg_hide",), disp=bdisp), bones=sp + ["head"]))
     # the vertical comb: many slender cream plates spanning the mouth opening, a red gum line above and below
-    comb = []
-    for i in range(46):
-        sv = -0.94 + 1.88 * i / 45
-        x = 2.75 * math.sin(sv * PI / 2)
-        y = 14.6 - 2.2 * (1 - math.cos(sv * PI / 2))
-        top, bot = V((x, y, 0.9)), V((x * 0.92, y - 0.4, -3.2))
-        comb.append(tube(f"c{i}", [top, top.lerp(bot, 0.5) + V((0, 0.12, 0)), bot], [0.06, 0.05, 0.03], "gg_comb", seg=4))
+    comb = [kit.sphere("cavity", 1.0, loc=(0, 13.2, -1.2), m="mouth_red", segs=24, rings=14, scale=(2.6, 1.6, 2.1))]
+    for i in range(64):
+        sv = -0.95 + 1.9 * i / 63
+        x = 2.85 * math.sin(sv * PI / 2)
+        y = 14.9 - 2.4 * (1 - math.cos(sv * PI / 2))
+        top, bot = V((x, y, 0.75)), V((x * 0.9, y - 0.5, -3.3))
+        comb.append(tube(f"c{i}", [top, top.lerp(bot, 0.5) + V((0, 0.2, 0)), bot], [0.07, 0.06, 0.035], "gg_comb", seg=4))
     comb.append(tube("gumU", [V((2.75 * math.sin(sv * PI / 2), 14.6 - 2.2 * (1 - math.cos(sv * PI / 2)), 0.95)) for sv in [-0.95 + 1.9 * k / 30 for k in range(31)]], [0.18] * 31, "mouth_red", seg=6))
     parts.append(Part(kit.merge(comb, "comb"), bones=["head", "comb"]))
     for sx in (-1, 1):
