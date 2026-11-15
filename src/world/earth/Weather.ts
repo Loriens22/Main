@@ -10,12 +10,12 @@ interface Params { dust: number; cloud: number; cloudDensity: number; cirrus: nu
 
 const SETS: Record<WeatherKind, Params> = {
   // the pale yellow-green dusty afternoon of reference 1
-  haze: { dust: 1.0, cloud: 0.28, cloudDensity: 0.6, cirrus: 0.85, fog: 0.00016, wind: 0.28, exposure: 1.0 },
+  haze: { dust: 1.9, cloud: 0.28, cloudDensity: 0.6, cirrus: 0.85, fog: 0.00016, wind: 0.28, exposure: 1.0 },
   clear: { dust: 0.45, cloud: 0.12, cloudDensity: 0.5, cirrus: 0.3, fog: 0.00008, wind: 0.16, exposure: 0.95 },
   // the grey-blue overcast of reference 2
   overcast: { dust: 0.75, cloud: 0.96, cloudDensity: 0.95, cirrus: 0.0, fog: 0.0003, wind: 0.55, exposure: 1.25 },
 };
-const STORM: Params = { dust: 12, cloud: 0.5, cloudDensity: 0.8, cirrus: 0, fog: 0.022, wind: 1.9, exposure: 1.5 };
+const STORM: Params = { dust: 12, cloud: 0.5, cloudDensity: 0.8, cirrus: 0, fog: 0.022, wind: 1.9, exposure: 0.6 };
 
 export type StormPhase = 'none' | 'warning' | 'arriving' | 'peak' | 'clearing';
 

@@ -65,6 +65,7 @@ export class EarthZone extends Zone {
   private refuelT = 0;
   private gpsTimer = 0;
   private cropNear = 0;
+  private tint: [number, number, number] = [1, 1, 1];
   /** hooks other modules use to extend the zone (NASA facility, neighbours, crew) */
   extensions: { fixedUpdate?(dt: number): void; update?(dt: number): void; serialize?(): any; deserialize?(d: any): void; id: string }[] = [];
 
@@ -559,7 +560,9 @@ export class EarthZone extends Zone {
     this.sky.update(dt, camPos, Math.max(2, camPos.y - ground + 600));
     // eye adaptation: dim interiors, storm darkness, night
     const night = smoothstep(0.12, -0.08, this.sky.sunDir.y);
-    g.renderer.setLook({ exposure: this.weather.exposure * lerp(1, 2.3, this.indoors) * lerp(1, 5.5, night), saturation: lerp(1.2, 1.05, this.weather.intensity), contrast: 1.25 });
+    const k = this.weather.intensity;
+    this.tint[0] = lerp(1.03, 1.0, k); this.tint[1] = lerp(1.0, 0.8, k); this.tint[2] = lerp(0.93, 0.55, k);
+    g.renderer.setLook({ exposure: this.weather.exposure * lerp(1, 2.3, this.indoors) * lerp(1, 5.5, night), saturation: lerp(1.2, 1.05, k), contrast: 1.25, tint: this.tint });
     // instruments, radio
     const inTruck = this.driving.vehicle === this.pickup;
     for (const s of this.screens) s.update(dt, camPos.distanceTo(this.pickup.position) < 12);
