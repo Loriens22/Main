@@ -1,4 +1,7 @@
 import { Game } from './core/Game';
+import { installChunkRecovery } from './core/Recovery';
+
+installChunkRecovery();
 
 function webgl2Available() {
   try {

@@ -4,6 +4,18 @@ import * as SkeletonUtils from 'three/examples/jsm/utils/SkeletonUtils.js';
 import type { MaterialLibrary } from './Materials';
 
 const MODEL_BASE = 'assets/models/';
+/** content hash of each model at build time (vite.config.ts): the URL changes when the file does, so a browser or CDN
+ * never pairs a new build with a cached older model, and an unchanged model stays cached across releases */
+declare const __MODEL_HASHES__: Record<string, string>;
+const MODEL_HASHES: Record<string, string> = typeof __MODEL_HASHES__ === 'object' ? __MODEL_HASHES__ : {};
+/** a failed download is tried again this many times (a dropped mobile connection, a CDN hiccup during a release) */
+const MODEL_RETRIES = 2;
+
+export function modelUrl(name: string, attempt = 0) {
+  const h = MODEL_HASHES[name];
+  const q = [h ? `h=${h}` : '', attempt ? `retry=${attempt}` : ''].filter(Boolean).join('&');
+  return MODEL_BASE + name + '.glb' + (q ? `?${q}` : '');
+}
 
 export interface ModelInstance {
   root: THREE.Object3D;
@@ -42,21 +54,29 @@ export class Assets {
     if (!p) {
       this.pending++;
       p = new Promise<GLTF>((resolve, reject) => {
-        this.loader.load(
-          MODEL_BASE + name + '.glb',
-          (g) => {
-            this.materials.upgrade(g.scene);
-            this.finished++;
-            this.onProgress?.(name, this.finished, this.pending);
-            resolve(g);
-          },
-          undefined,
-          (e) => {
-            this.finished++;
-            console.error(`[assets] failed to load ${name}`, e);
-            reject(e);
-          },
-        );
+        const attempt = (n: number) =>
+          this.loader.load(
+            modelUrl(name, n),
+            (g) => {
+              this.materials.upgrade(g.scene);
+              this.finished++;
+              this.onProgress?.(name, this.finished, this.pending);
+              resolve(g);
+            },
+            undefined,
+            (e) => {
+              if (n < MODEL_RETRIES) {
+                console.warn(`[assets] ${name}: download failed, trying again`, e);
+                setTimeout(() => attempt(n + 1), 1500 * (n + 1));
+                return;
+              }
+              this.finished++;
+              console.error(`[assets] failed to load ${name}`, e);
+              this.cache.delete(name); // a later request starts afresh
+              reject(e);
+            },
+          );
+        attempt(0);
       });
       this.cache.set(name, p);
     }

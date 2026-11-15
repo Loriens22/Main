@@ -2,6 +2,59 @@
 
 ## Status (latest first)
 
+### "There is no NASA base": a load that fails silently (this pass)
+
+**Reported:** on the published game, there was no NASA base.
+
+**What was checked.** The published build, served from its own path (`/Main/interstellar/`), loads the base:
+- 879 parts, no errors;
+- in desktop and phone emulation (the phone preset, touch controls, the real menu, SKIP DRIVE);
+- old code with the new model and new code with the old model also load.
+
+The JavaScript level of every chunk is unchanged from the version that worked.
+
+**The failure that matches.** Every lazily loaded part of Earth comes from its own script chunk: the NASA base, the
+forest, the vehicles, the people. If its chunk or model fails to load:
+- the loader logged the error to the console and went on, so the world simply had no base;
+- nothing told the player and nothing tried again.
+
+On the published build, one failed request for the base's chunk gives exactly that (`e2e/load_recovery.mjs chunk`:
+base false, 0 parts, no message).
+
+Such failures are made likely by the release itself:
+- every build renames its chunks;
+- the publish replaced the folder, deleting the previous build's chunks;
+- GitHub Pages caches pages for 10 minutes, so a browser or CDN edge still holding the previous index.html asks for
+  chunks that no longer exist.
+
+A dropped mobile download of the 10.9 MB model had the same silent result.
+
+**Fixed:**
+- **Previous chunks kept:** the publish keeps the previous build's script and style chunks beside the new ones
+  (`deploy-assets.txt` lists each build's own), so a cached previous page still loads completely.
+- **Reload on a missing chunk:** a chunk that fails anyway reloads the page once from a fresh URL (`core/Recovery.ts`,
+  `vite:preloadError` and the Earth loader), which gets the current build.
+- **Models tagged by content:** model URLs carry a content hash (`?h=`, `vite.config.ts`). A new model is never paired
+  with old code, and unchanged models stay cached.
+- **Retried downloads:** a failed model download is tried twice more.
+- **Told on screen:** a part that still fails is reported on screen, for example "Part of the world failed to load: the
+  NASA base (…). Reload the page to try again."
+- **Fall safety net:** a player below the ground outside every building, or below the bottom of one, is put back on
+  their feet (at the NASA entrance when near the base). Before, they fell forever and saw nothing.
+- **Fast travel to mission control** arrived on the entrance floor facing the 1.35 m wall of the top console tier. It
+  now arrives at the corridor mouth, looking up the aisle.
+
+**Checked (`e2e/load_recovery.mjs`):**
+- model download dropped once: retried, base there (879 parts);
+- base chunk 404 once: reloaded with `?fresh=`, base there;
+- model never loads: the message is on screen;
+- under the fields: put back on the ground;
+- in the silo hall 35 m down: left alone;
+- below the base: put back at the entrance;
+- mission control arrival.
+
+The publish step was run against a copy of gh-pages: all 26 chunks of the live build kept.
+
 ### NASA base: the holes, the second door, the rework, and skipping the drive (this pass)
 
 **Reported:**
@@ -673,6 +726,7 @@ Realism pass results (all rebuilt in Blender scripts, checked with Cycles previe
 - `node e2e/nasa_entry.mjs <url> <outDir> in|out|car` and `node e2e/blocker_audit.mjs <url> <zone>`: the NASA entry
   route, and the rooms/doors/boulders audit, against a served build.
 - Interior tests that spawn inside a building skip its way in: walk in from outside at least once.
+- `node e2e/load_recovery.mjs <url> [retry chunk fail fall mc]`: failed loads and falls out of the world recover.
 - `node e2e/nasa_floor_audit.mjs <url>`, `node e2e/nasa_tour.mjs <url> <out>`, `node e2e/farm_nasa_travel.mjs <url> <out>`,
   `node e2e/nasa_views.mjs <url> <out>`: the NASA base's floors, a walk round it, skipping the drive, pictures.
 - The NASA model: `/home/user/blenv/bin/python blender/assets/nasa.py nasa` (bpy in a venv; about 7 minutes).

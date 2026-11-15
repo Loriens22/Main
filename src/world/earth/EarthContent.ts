@@ -8,6 +8,12 @@ import type { Surface } from '../Frame';
 import type { MusicMood } from '../../audio/Audio';
 import type { SpawnSpec } from '../Zone';
 import { FARM_TEXTS } from '../../data/texts';
+import { isChunkLoadError, reloadForNewBuild } from '../../core/Recovery';
+
+/** what each lazily loaded part is called in a message to the player */
+const PART_NAMES: Record<string, string> = {
+  corn: 'the corn fields', forest: 'the forest', vehicles: 'the vehicles', facility: 'the NASA base', people: 'the people', weather: 'the weather',
+};
 
 export interface EarthSubsystem {
   update(dt: number, dtEarth: number): void;
@@ -105,9 +111,15 @@ export class EarthContent {
         if (s) this.subsystems.push(s);
       } catch (e) {
         console.error(`[earth] subsystem ${name} failed`, e);
+        // a script chunk of another build (a release landed while this page was cached): reload the current build
+        if (isChunkLoadError(e) && reloadForNewBuild(`${name} failed to load`)) return;
+        this.loadFailures.push(`${PART_NAMES[name] ?? name} (${String((e as Error)?.message ?? e).slice(0, 120)})`);
       }
     }
   }
+
+  /** parts of the world that failed to load: told to the player on screen, not only in the console */
+  private loadFailures: string[] = [];
 
   spawnAt(at: string): boolean {
     const p = this.game.player;
@@ -181,6 +193,11 @@ export class EarthContent {
   travel: EarthTravel | null = null;
 
   update(dt: number, dtEarth: number) {
+    if (this.loadFailures.length) {
+      this.game.notify(`Part of the world failed to load: ${this.loadFailures.join('; ')}. Reload the page to try again.`, 'alert', 20);
+      this.loadFailures.length = 0;
+    }
+    this.rescueFall(dt);
     if (!this.travel) {
       this.travel = new EarthTravel(this);
       this.zone.disposables.push(this.travel);
@@ -210,6 +227,43 @@ export class EarthContent {
       }
     }
     this.lightPool.update(dt, this.game.camera.position);
+  }
+
+  /**
+   * Safety net: a player who has fallen out of the world (below the ground outside every building, or out of the
+   * bottom of one) sees nothing at all — no ground, no buildings — and would fall forever. Put them back: at the NASA
+   * entrance when near the base, otherwise on the ground where they were.
+   */
+  private fallT = 0;
+  private siteBounds: { box: THREE.Box3; site: Site }[] | null = null;
+  private rescueFall(dt: number) {
+    const game = this.game;
+    const p = game.player;
+    if (game.phase !== 'playing' || game.control || game.cinematic || p.frame !== this.zone.ground || p.mode === 'seat') {
+      this.fallT = 0;
+      return;
+    }
+    const nasa = (this as any).nasa as { site?: Site; origin: THREE.Vector3 } | undefined;
+    if (!this.siteBounds) {
+      const all = [...this.sites, ...(nasa?.site ? [nasa.site] : [])];
+      this.siteBounds = all.map((site) => ({ box: new THREE.Box3().setFromObject(site.root).expandByScalar(3), site }));
+    }
+    const pos = p.pos;
+    const ground = this.zone.height(pos.x, pos.z);
+    let out = pos.y < ground - 4;
+    for (const b of this.siteBounds) {
+      if (pos.x < b.box.min.x || pos.x > b.box.max.x || pos.z < b.box.min.z || pos.z > b.box.max.z) continue;
+      // inside a building's footprint its own floors count (the NASA base runs 35 m under the hill)
+      out = pos.y < b.box.min.y;
+      break;
+    }
+    this.fallT = out ? this.fallT + dt : 0;
+    if (this.fallT < 0.5) return;
+    this.fallT = 0;
+    const nearNasa = nasa && Math.hypot(pos.x - nasa.origin.x, pos.z - nasa.origin.z) < 600;
+    if (nearNasa) this.spawnAt('nasa');
+    else p.enterFrame(this.zone.ground, new THREE.Vector3(pos.x, ground + 0.3, pos.z), p.yaw, 'walk');
+    game.notify(nearNasa ? 'You fell out of the world — put back at the NASA base entrance.' : 'You fell through the ground — put back on your feet.', 'warn', 6);
   }
 
   focusXZ(): THREE.Vector2 | null {

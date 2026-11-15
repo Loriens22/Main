@@ -463,6 +463,9 @@ export class NasaSite {
     const n = this.site.inst.nodes.get(node);
     if (!n) return false;
     const pos = this.site.localPos(n);
+    // mission control: arrive where the corridor meets the room, looking up the centre aisle (the model's spawn
+    // point is on the entrance floor below the tallest console tier: a wall in your face)
+    if (at === 'nasa_mc') pos.copy(this.origin).add(new THREE.Vector3(-23.6, 0, -82));
     if (at !== 'nasa' && at !== 'nasa_gate') {
       this.blastOpen = true;
       this.blastT = 1;

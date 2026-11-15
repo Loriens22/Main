@@ -1,5 +1,8 @@
 # Publishes the game to GitHub Pages under /interstellar/ (https://loriens22.github.io/Main/interstellar/).
 # Only the interstellar/ folder of the gh-pages branch is replaced; the rest of the published site is left as it is.
+# The previous build's script and style chunks are kept beside the new ones: a browser or CDN edge still holding the
+# previous index.html (GitHub Pages caches for 10 minutes) can load the whole game instead of losing every lazily
+# loaded part (the NASA base, the forest, the zones) to missing chunks.
 name: Publish Interstellar to GitHub Pages
 
 on:
@@ -32,8 +35,16 @@ jobs:
           git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
           git fetch --depth=1 origin gh-pages
           git worktree add /tmp/pages FETCH_HEAD
-          rm -rf /tmp/pages/interstellar
-          cp -r dist /tmp/pages/interstellar
+          # chunks of the build being replaced (listed at its publish; the first time, whatever is there)
+          keep=$(mktemp -d)
+          live=/tmp/pages/interstellar
+          if [ -f $live/deploy-assets.txt ]; then prev=$(cat $live/deploy-assets.txt); else prev=$(ls $live/assets 2>/dev/null | grep -E '\.(js|css)$' || true); fi
+          for f in $prev; do if [ -f "$live/assets/$f" ]; then cp "$live/assets/$f" "$keep/"; fi; done
+          rm -rf $live
+          cp -r dist $live
+          ls dist/assets | grep -E '\.(js|css)$' > $live/deploy-assets.txt
+          for f in "$keep"/*; do if [ -e "$f" ] && [ ! -e "$live/assets/$(basename "$f")" ]; then cp "$f" "$live/assets/"; fi; done
+          echo "kept $(ls $keep | wc -l) chunks of the previous build"
           touch /tmp/pages/.nojekyll
           cd /tmp/pages
           git add -A interstellar .nojekyll
