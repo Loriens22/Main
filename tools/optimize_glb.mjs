@@ -21,6 +21,16 @@ for (const f of files) {
     console.log(`  ${path.basename(f)} already compressed`);
     continue;
   }
+  // Quantisation folds its de-quantisation matrix into the node that owns each mesh, which would move the
+  // origin of authored parts (door hinges, wheel hubs, prop bases). Hang every mesh on an anonymous child
+  // node first so the authored node keeps its exact transform, name and extras.
+  for (const node of doc.getRoot().listNodes()) {
+    const mesh = node.getMesh();
+    if (!mesh || node.getSkin()) continue;
+    const child = doc.createNode(node.getName() + '__m').setMesh(mesh);
+    node.setMesh(null);
+    node.addChild(child);
+  }
   await doc.transform(
     dedup(),
     reorder({ encoder: MeshoptEncoder, level: 'medium' }),

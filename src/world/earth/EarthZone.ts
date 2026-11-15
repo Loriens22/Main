@@ -16,6 +16,7 @@ import { WheeledVehicle } from '../../vehicles/WheeledVehicle';
 import { Driving } from '../../vehicles/Driving';
 import { Neighbors } from './Neighbors';
 import { NasaSite } from './Nasa';
+import type { NasaStaff } from './NasaStaff';
 import type { AudioEngine, Soundscape } from '../../audio/Audio';
 import { Farm, Machine } from './Farm';
 import { ScreenSurface, scr } from '../../render/ScreenSurface';
@@ -53,6 +54,7 @@ export class EarthZone extends Zone {
   farm!: Farm;
   neighbors!: Neighbors;
   nasa!: NasaSite;
+  nasaStaff: NasaStaff | null = null;
   /** 0..1: the camera is below the terrain surface (tunnels, the facility) */
   underground = 0;
   pickup!: WheeledVehicle;
@@ -209,8 +211,8 @@ export class EarthZone extends Zone {
   }
 
   /** Many copies of a prop as instanced meshes. Each entry: [x, z, yaw]. */
-  private instanceProp(part: string, items: [number, number, number][]) {
-    const src = this.props.part(part);
+  instanceProp(part: string | THREE.Object3D, items: [number, number, number][]) {
+    const src = typeof part === 'string' ? this.props.part(part) : part;
     if (!src || !items.length) return;
     src.updateWorldMatrix(true, true);
     const inv = new THREE.Matrix4().copy(src.matrixWorld).invert();

@@ -213,7 +213,7 @@ export class NPC {
     const nav = this.env.nav;
     const t = new THREE.Vector3(target.x, target.y, target.z);
     this.path = [];
-    if (nav && !opts.direct && nav.nearest(this.pos, 6) >= 0 && nav.nearest(t, 6) >= 0) {
+    if (nav && !opts.direct && nav.nearest(this.pos, 9) >= 0 && nav.nearest(t, 16) >= 0) {
       const p = nav.path(this.pos, t);
       if (!p) { this.blocked = true; this.moving = false; return false; }
       for (const n of p) this.path.push(n.clone());
@@ -259,7 +259,9 @@ export class NPC {
     const h = dt * every;
     const env = this.env;
     if (env.up) env.up(this.pos, this.up); else this.up.set(0, 1, 0);
-    const weightless = env.weightless?.() ?? false;
+    const floating = env.weightless?.() ?? false;
+    // far from the player an agent without analytic ground simply follows its route in 3D (stairs, decks)
+    const weightless = floating || (this.lod > 0 && !env.ground);
 
     let speed = 0;
     if (this.moving && this.path.length && !this.talking) {
@@ -332,7 +334,7 @@ export class NPC {
     this.vel.copy(this.fwd).multiplyScalar(speed);
 
     // keep feet on the floor
-    if (!weightless) {
+    if (!floating && this.lod === 0 || !weightless) {
       let y: number | null = null;
       if (this.lod === 0) {
         _b.copy(this.pos).addScaledVector(this.up, 0.95);

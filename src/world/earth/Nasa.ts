@@ -9,6 +9,10 @@ import { clamp, damp } from '../../core/math';
 import { RAPIER } from '../../physics/Physics';
 import type { PhysicsWorld } from '../../physics/Physics';
 import type { Game } from '../../core/Game';
+import { NasaStaff } from './NasaStaff';
+import { NasaScreens } from './NasaScreens';
+import { mission } from '../../mission/Mission';
+import { ui } from '../../ui/store';
 import type { EarthZone } from './EarthZone';
 
 const BIG = new Set(['tunnel', 'bay', 'corridor', 'hall', 'cavern', 'cavern_fx', 'tower']);
@@ -40,6 +44,8 @@ const AREAS: [name: string, lat0: number, lat1: number, along0: number, along1: 
 
 /** Height of the first-stage base above the facility floor (the vehicle stands in the pit). */
 export const ROCKET_BASE = -40;
+/** The perimeter gate sits on the approach road this far in front of the portal (GPS arrival point). */
+export const GATE_ALONG = -112;
 
 /** Cargo lift: a kinematic platform that carries whoever stands on it between the service levels. */
 export class Lift {
@@ -124,6 +130,9 @@ export class NasaSite {
   building!: Building;
   launch!: Model;
   launchB!: Building;
+  gate!: Model;
+  gateB!: Building;
+  private booms: { node: THREE.Object3D; q0: THREE.Quaternion; angle: number; auto: number; t: number }[] = [];
   rocket!: Model;
   lift: Lift | null = null;
   /** 0 closed .. 1 open */
@@ -158,6 +167,35 @@ export class NasaSite {
     z.phys.addTrimesh(this.complex.colliders);
     this.building = new Building('nasa', this.complex, z.phys, g.interactions, z.lights, { lightsOn: true, actors: () => this.doorActors() });
     this.collectSections(this.complex);
+
+    // ---- perimeter: checkpoint on the approach road and the fence line across the forecourt
+    this.gate = await assets.load('nasa_gate');
+    const gw = this.toWorld(0, 0, GATE_ALONG);
+    this.gate.root.position.set(gw.x, z.map.height(gw.x, gw.z) + 0.02, gw.z);
+    this.gate.root.rotation.y = this.root.rotation.y;
+    const panel = this.gate.part('fence_panel')!;
+    panel.removeFromParent();
+    panel.position.set(0, 0, 0);
+    z.root.add(this.gate.root);
+    this.gate.root.updateMatrixWorld(true);
+    z.phys.addTrimesh(this.gate.colliders);
+    this.gateB = new Building('gate', this.gate, z.phys, g.interactions, z.lights, { lightsOn: true, actors: () => this.doorActors() });
+    for (const m of this.gate.ofKind('boom')) this.booms.push({ node: m.node, q0: m.node.quaternion.clone(), angle: (m.data.angle * Math.PI) / 180, auto: m.data.auto, t: 0 });
+    const items: [number, number, number][] = [];
+    for (const side of [-1, 1]) {
+      const line: [number, number][] = [[4.4 * side, GATE_ALONG], [46 * side, GATE_ALONG], [60 * side, -58], [54 * side, -6]];
+      for (let i = 0; i < line.length - 1; i++) {
+        const a = this.toWorld(line[i][0], 0, line[i][1], new THREE.Vector3()), b = this.toWorld(line[i + 1][0], 0, line[i + 1][1], new THREE.Vector3());
+        const n = Math.max(1, Math.round(a.distanceTo(b) / 3));
+        // a panel runs along its local +X; keep the barbed-wire outriggers on the outside of the compound
+        const yaw = Math.atan2(-(b.z - a.z), b.x - a.x);
+        for (let k = 0; k < n; k++) {
+          const x = a.x + ((b.x - a.x) * k) / n, zz = a.z + ((b.z - a.z) * k) / n;
+          items.push(side > 0 ? [x, zz, yaw] : [x + (b.x - a.x) / n, zz + (b.z - a.z) / n, yaw + Math.PI]);
+        }
+      }
+    }
+    z.instanceProp(panel, items);
 
     // ---- launch complex and the vehicle standing in the silo
     this.launch = await assets.load('nasa_launch');
@@ -202,7 +240,25 @@ export class NasaSite {
     const audio = g.services.audio;
     audio?.loop('pump', () => ({ level: this.lift?.moving && g.zone === z ? 0.5 : 0 }), () => this.lift?.node.getWorldPosition(_a) ?? null, { ref: 4 });
     this.buildNav(this.complex, this.launch);
+
+    // ---- terminals, displays, people
+    const TAB: Record<string, string> = { mission_decision: 'decision', mission: 'countdown', astro: 'wormhole', lab: 'environment', crew: 'crew', launch: 'countdown' };
+    for (const m of [this.complex, this.launch]) for (const t of m.ofKind('terminal')) {
+      I.node(t.node, 0.5, () => String(t.data.label ?? 'Terminal'), () => g.openPanel('mission', { tab: TAB[t.id] ?? 'countdown' }), { range: 2.8 });
+    }
+    this.screens = new NasaScreens(z, this);
+    this.screens.build(this.complex, this.launch, this.gate);
+    this.staff = new NasaStaff(z, this);
+    await this.staff.load();
+    z.nasaStaff = this.staff;
+    bus.on('nasa:board', () => {
+      if (mission.choice !== 'endurance') { ui.toast('Ranger 1 is sealed until the mission is authorised (briefing room, or ask Director Hale).', 'warn', 6); return; }
+      bus.emit('launch:board');
+    });
   }
+
+  screens!: NasaScreens;
+  staff!: NasaStaff;
 
   rocketColliders: RAPIER.Collider[] = [];
 
@@ -263,6 +319,7 @@ export class NasaSite {
 
   fixedUpdate(dt: number) {
     this.lift?.fixedUpdate(dt);
+    this.staff?.fixedUpdate(dt);
   }
 
   update(dt: number) {
@@ -276,6 +333,17 @@ export class NasaSite {
     }
     this.armsRetract = damp(this.armsRetract, this.armsTarget, 1.2, dt);
     for (const a of this.arms) a.node.quaternion.copy(a.q0).multiply(_q.setFromAxisAngle(THREE.Object3D.DEFAULT_UP, a.angle * this.armsRetract));
+    this.gateB.update(dt);
+    this.staff?.update(dt);
+    this.screens?.update(dt);
+    for (const b of this.booms) {
+      b.node.getWorldPosition(_a);
+      let near = false;
+      for (const p of this.doorActors()) if (Math.hypot(p.x - _a.x, p.z - _a.z) < b.auto) near = true;
+      const t0 = b.t;
+      b.t = clamp(b.t + (near ? dt : -dt) / 2.2, 0, 1);
+      if (b.t !== t0) b.node.quaternion.copy(b.q0).multiply(_q.setFromAxisAngle(_s.set(0, 0, 1), b.angle * b.t * b.t * (3 - 2 * b.t)));
+    }
     const t = this.zone.game.time;
     for (const o of this.orbiters) {
       const k = 0.5 - 0.5 * Math.cos((t / o.period) * Math.PI * 2);
@@ -292,9 +360,10 @@ export class NasaSite {
     }
   }
 
-  serialize() { return { building: this.building.serialize(), lift: this.lift?.y ?? 0 }; }
+  serialize() { return { building: this.building.serialize(), lift: this.lift?.y ?? 0, staff: this.staff?.serialize() }; }
   deserialize(d: any) {
     this.building.deserialize(d?.building);
+    this.staff?.deserialize(d?.staff);
     if (this.lift && typeof d?.lift === 'number') { this.lift.y = this.lift.target = d.lift; this.lift.node.position.y = d.lift; }
   }
 }

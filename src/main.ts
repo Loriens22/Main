@@ -7,6 +7,8 @@ import { mountUI } from './ui/App';
 import { registerPanel, ui } from './ui/store';
 import { FarmPanel } from './ui/panels/FarmPanel';
 import { DialoguePanel } from './ui/panels/DialoguePanel';
+import { MissionPanel } from './ui/panels/MissionPanel';
+import { mission } from './mission/Mission';
 import { Conversation } from './npc/Dialogue';
 import { story } from './core/Story';
 import { AudioEngine } from './audio/Audio';
@@ -23,6 +25,9 @@ async function boot() {
   game.systems.push(driving);
   registerPanel('farm', FarmPanel);
   registerPanel('dialogue', DialoguePanel);
+  registerPanel('mission', MissionPanel);
+  game.services.mission = mission;
+  game.systems.push({ update: (dt) => mission.update(dt) });
   game.services.dialogue = new Conversation(game);
   game.services.story = story;
   const audio = new AudioEngine(game);

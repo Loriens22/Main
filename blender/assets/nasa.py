@@ -900,6 +900,21 @@ def launch_glb():
                     D.box((1.4, 3.4, 0.05), at=(XE + 0.7, CY - 2.4, z0 + fr_ - 0.025), mat="tread_plate", bevel=0)
                     C.box((1.4, 3.4, 0.2), at=(XE + 0.7, CY - 2.4, z0 + fr_ - 0.1), mat="concrete", bevel=0)
                     F.rail([(XE + 1.36, CY - 4.05, z0 + fr_), (XE + 1.36, CY - 0.75, z0 + fr_)])
+    # walking route for staff from the main level up to the crew-access level
+    rise = LEVELS[-1] - LEVELS[-2]
+    nfl = max(2, int(round(rise / 3.0)))
+    nfl += nfl % 2
+    fr_ = rise / nfl
+    route = [(XE + 0.6, YA, LEVELS[-2])]
+    for k in range(nfl):
+        zt = LEVELS[-2] + (k + 1) * fr_
+        if k % 2 == 0:
+            route += [(XW - 0.7, YA, zt), (XW - 0.7, YB, zt)]
+        else:
+            route += [(XE + 0.7, YB, zt)] + ([(XE + 0.7, YA, zt)] if k < nfl - 1 else [])
+    route += [(-25.0, CY, LEVELS[-1]), (-18.7, CY, LEVELS[-1]), (-12.6, CY, LEVELS[-1])]
+    for k, pnt in enumerate(route):
+        marker("nav", f"up{k}", at=pnt, links=f"up{k + 1}" if k < len(route) - 1 else "")
     # level floors of the alcove (the lift well stays open), signs, call buttons, lamps
     for z in LEVELS:
         for (x0_, x1_, y0_, y1_) in [(XE, -23.4, CY - AH + 0.2, CY + 0.5), (-26.5, -23.4, CY + 0.5, CY + AH - 0.2)]:
@@ -1100,8 +1115,120 @@ def rocket_glb():
     return [s1, i1, s2, ad]
 
 
+
+# =====================================================================================================
+def gate_glb():
+    """Perimeter checkpoint on the approach road. Origin on the road centre at the fence line, +Y toward the
+    facility. Also carries the `fence_panel` part that the engine instances along the perimeter."""
+    reset()
+    rnd = random.Random(5)
+    F = Fac("gate", cell=4.0)
+    D, E, G = F.section("gate")
+    C = F.C
+    # gate posts and the track of the sliding leaf
+    for x in (-4.25, 4.25):
+        D.box((0.25, 0.25, 3.6), at=(x, 0, 1.8), mat="paint_gray_dark", bevel=0.02)
+        C.box((0.25, 0.25, 3.6), at=(x, 0, 1.8), mat="concrete", bevel=0)
+        E.box((0.12, 0.12, 0.1), at=(x, 0, 3.66), mat="emit_amber", bevel=0.02)
+    D.box((17.6, 0.12, 0.08), at=(4.6, 0.22, 0.04), mat="metal_steel", bevel=0)
+    leaf = Part("gate_leaf")
+    leaf.box((8.3, 0.06, 0.08), at=(0, 0, 0.2), mat="paint_gray_dark", bevel=0.01)
+    leaf.box((8.3, 0.06, 0.08), at=(0, 0, 2.9), mat="paint_gray_dark", bevel=0.01)
+    for k in range(6):
+        leaf.box((0.07, 0.06, 2.7), at=(-4.15 + k * 1.66, 0, 1.55), mat="paint_gray_dark", bevel=0.01)
+    leaf.mesh([(-4.15, 0, 0.2), (4.15, 0, 0.2), (4.15, 0, 2.9), (-4.15, 0, 2.9)], [(0, 1, 2, 3)], mat="chainlink", bevel=0)
+    for k in range(3):
+        leaf.pipe([(-4.15, 0.06 + k * 0.07, 3.0 + k * 0.1), (4.15, 0.06 + k * 0.07, 3.0 + k * 0.1)], 0.006, mat="metal_steel", segs=4)
+    for x in (-3.6, 3.6):
+        leaf.cyl(0.09, 0.05, at=(x, 0, 0.09), rot=(90, 0, 0), mat="metal_dark", segs=10, bevel=0)
+    lo = leaf.finish(sharp=40)
+    lo.location = (0, 0.22, 0)
+    props(lo, kind="slide", id="perimeter", part="gate_leaf", travel=8.6, dynamic=1, col=0, label="Perimeter gate", w=8.3, h=3.0, t=0.1, auto=22.0, time=6.5, sound="hatch")
+    F.dyn.append(lo)
+    # boom barrier a few metres inside
+    D.box((0.45, 0.45, 1.1), at=(-4.6, 7.0, 0.55), mat="paint_yellow", bevel=0.03)
+    C.box((0.45, 0.45, 1.1), at=(-4.6, 7.0, 0.55), mat="concrete", bevel=0)
+    boom = Part("boom")
+    for k in range(9):
+        boom.box((1.0, 0.09, 0.12), at=(0.5 + k * 1.0, 0, 0), mat="paint_red" if k % 2 == 0 else "paint_white", bevel=0.01)
+    boom.box((0.7, 0.14, 0.3), at=(-0.35, 0, 0), mat="paint_gray_dark", bevel=0.02)
+    for k in range(3):
+        boom.box((0.05, 0.02, 0.05), at=(2.5 + k * 3.0, -0.055, 0), mat="emit_red", bevel=0)
+    bo = boom.finish(sharp=40)
+    bo.location = (-4.6, 6.7, 1.0)
+    props(bo, kind="boom", id="boom", part="boom", dynamic=1, col=0, angle=84, auto=14.0)
+    F.dyn.append(bo)
+    # guard booth
+    bx, by = -7.2, 3.4
+    D.box((2.6, 2.6, 0.15), at=(bx, by, 0.075), mat="concrete", bevel=0.02)
+    for (px, py) in [(-1.2, -1.2), (1.2, -1.2), (-1.2, 1.2), (1.2, 1.2)]:
+        D.box((0.12, 0.12, 2.5), at=(bx + px, by + py, 1.4), mat="paint_gray", bevel=0.01)
+    for (cx, cy, w, d) in [(0, -1.2, 2.4, 0.08), (0, 1.2, 2.4, 0.08), (-1.2, 0, 0.08, 2.4), (1.2, 0.5, 0.08, 1.4)]:
+        D.box((w, d, 1.0), at=(bx + cx, by + cy, 0.65), mat="paint_gray", bevel=0.01)
+        G.box((w if w > 0.1 else 0.012, d if d > 0.1 else 0.012, 1.3), at=(bx + cx, by + cy, 1.8), mat="glass_dirty", bevel=0)
+        C.box((w, d, 2.5), at=(bx + cx, by + cy, 1.4), mat="concrete", bevel=0)
+    D.box((3.2, 3.2, 0.12), at=(bx, by, 2.72), mat="paint_gray_dark", bevel=0.02)
+    D.box((1.6, 0.6, 0.04), at=(bx + 0.2, by - 0.85, 1.0), mat="plastic_dark", bevel=0.01)
+    F.screen("gate0", at(bx + 0.2, by - 0.95, 1.3, 180) @ RX(-10), w=0.5, h=0.3, depth=0.03)
+    E.box((0.5, 0.12, 0.03), at=(bx, by, 2.64), mat="emit_warm", bevel=0)
+    light("gate_booth", at=(bx, by, 2.3), color=(1.0, 0.85, 0.6), power=14, dist=7, group="gate")
+    marker("work", "gate_guard", at=(bx + 0.2, by + 0.1, 0.15), rot=(0, 0, 180), pose="stand", role="guard")
+    marker("work", "gate_patrol", at=(-2.6, 3.0, 0), rot=(0, 0, 180), pose="stand", role="guard")
+    # concrete barriers: a chicane on the approach and a row guarding the booth
+    def jersey(x, y, yaw):
+        M = at(x, y, 0, yaw)
+        prof = [(-0.3, 0), (0.3, 0), (0.3, 0.08), (0.12, 0.3), (0.08, 0.8), (-0.08, 0.8), (-0.12, 0.3), (-0.3, 0.08)]
+        D.prism(prof, 2.6, plane="XZ", M=M @ T((0, 1.3, 0)), mat="concrete", bevel=0.01)
+        C.box((0.6, 2.6, 0.8), M=M @ T((0, 0, 0.4)), mat="concrete", bevel=0)
+    for k in range(2):
+        jersey(-2.2 + k * 2.7, -16, 90)
+        jersey(2.2 - k * 2.7, -27, 90)
+    for k in range(3):
+        jersey(-5.6, 0.2 + 1.5 + k * 2.75 - 6.5, 0) if False else None
+    for k in range(4):
+        jersey(-4.9 - 0.0, -3.2 - k * 2.75, 0)
+        jersey(4.9, -3.2 - k * 2.75, 0)
+    # camera and floodlight poles
+    for (x, y, yaw) in [(5.6, -1.5, 150), (-5.9, 10.5, -40)]:
+        D.cyl(0.07, 5.0, at=(x, y, 2.5), mat="paint_gray_dark", segs=10, bevel=0)
+        C.cyl(0.08, 5.0, at=(x, y, 2.5), mat="concrete", segs=6, bevel=0)
+        F.camera(at(x, y, 4.9, yaw) @ T((0, -0.05, 0)))
+    for (x, y, yaw) in [(6.4, 5.0, 115), (-8.4, -5.0, -70)]:
+        D.cyl(0.09, 8.0, at=(x, y, 4.0), mat="paint_gray_dark", segs=10, bevel=0)
+        C.cyl(0.1, 8.0, at=(x, y, 4.0), mat="concrete", segs=6, bevel=0)
+        D.box((1.4, 0.1, 0.1), at=(x, y, 7.9), rot=(0, 0, yaw), mat="paint_gray_dark", bevel=0.01)
+        for s in (-0.5, 0.5):
+            M = at(x, y, 7.75, yaw) @ T((s, -0.1, 0)) @ RX(40)
+            D.box((0.42, 0.2, 0.3), M=M, mat="metal_dark", bevel=0.02)
+            E.box((0.36, 0.02, 0.24), M=M @ T((0, -0.11, 0)), mat="emit_warm", bevel=0)
+        light(f"gate_flood{x:+.0f}", at=(x, y, 7.5), color=(1.0, 0.9, 0.72), power=70, dist=40, kind="spot", rot=(-52, 0, yaw), group="gate")
+    # signs on the fence either side of the gate, intercom post
+    F.sign(at(-6.4, -0.06, 1.7, 0), "RESTRICTED AREA", w=2.0, h=0.5, bg="paint_white", fg="paint_red")
+    F.sign(at(-6.4, -0.06, 1.2, 0), "U.S. GOVERNMENT PROPERTY  ·  NO TRESPASSING", w=2.0, h=0.22)
+    F.sign(at(6.4, -0.06, 1.7, 0), "USE OF DEADLY FORCE AUTHORIZED", w=2.2, h=0.4, bg="paint_white", fg="paint_red")
+    F.sign(at(6.4, -0.06, 1.25, 0), "PHOTOGRAPHY PROHIBITED", w=1.6, h=0.22)
+    D.cyl(0.05, 1.2, at=(-3.7, -3.5, 0.6), mat="paint_yellow", segs=8, bevel=0)
+    D.box((0.3, 0.14, 0.4), at=(-3.7, -3.5, 1.3), mat="metal_dark", bevel=0.02)
+    E.box((0.05, 0.01, 0.05), at=(-3.62, -3.58, 1.4), mat="emit_green", bevel=0)
+    objs = F.finish(bake=True, lights=False, rays=14, ground_z=0.0, sky_dist=30.0)
+    # ---- perimeter fence panel (3 m, origin at the first post)
+    P = Part("fence_panel")
+    P.cyl(0.035, 3.0, at=(0, 0, 1.5), mat="metal_steel", segs=8, bevel=0)
+    P.pipe([(0, 0, 2.95), (3.0, 0, 2.95)], 0.025, mat="metal_steel", segs=6)
+    P.pipe([(0, 0, 0.12), (3.0, 0, 0.12)], 0.015, mat="metal_steel", segs=5)
+    P.mesh([(0, 0, 0.05), (3.0, 0, 0.05), (3.0, 0, 2.95), (0, 0, 2.95)], [(0, 1, 2, 3)], mat="chainlink", bevel=0)
+    P.box((0.04, 0.5, 0.04), at=(0, -0.18, 3.17), rot=(45, 0, 0), mat="metal_steel", bevel=0)
+    for k in range(3):
+        P.pipe([(0, -0.1 - k * 0.13, 3.1 + k * 0.13), (3.0, -0.1 - k * 0.13, 3.1 + k * 0.13)], 0.005, mat="metal_steel", segs=4)
+    fp = P.finish(sharp=40, col=0)
+    fp.location = (0, 0, -200)
+    props(fp, part="fence_panel")
+    bake_ao([fp], rays=8, local_dist=1.0, sky_dist=10.0)
+    return objs + [fp]
+
+
 if __name__ == "__main__":
-    which = [a for a in sys.argv[1:] if not a.startswith("-")] or ["complex"]
+    which = [a for a in sys.argv[1:] if not a.startswith("-")] or ["complex", "launch", "rocket", "gate"]
     if "complex" in which:
         complex_glb()
         export_glb("nasa_complex")
@@ -1114,3 +1241,7 @@ if __name__ == "__main__":
         rocket_glb()
         export_glb("launch_vehicle")
         save_blend("launch_vehicle")
+    if "gate" in which:
+        gate_glb()
+        export_glb("nasa_gate")
+        save_blend("nasa_gate")
