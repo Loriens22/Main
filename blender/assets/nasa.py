@@ -897,21 +897,77 @@ def nasa():
         L.append(box(f"lampE|silo|g{k}", (0.6, 0.3, 0.1), loc=(GX + 1.8, SILO_Y + 1.8, z + 2.5), m="emit_warm"))
         lights.append(empty(f"light_silo_{len(lights)}", loc=(GX - 2, SILO_Y, z + 2.0), parent=root, light="warm", group="silo", intensity=14, distance=20))
     col("COL_gantry", (GX, SILO_Y, (gantry_top + LOW) / 2), (3.4, 3.4, gantry_top - LOW), 0, root)
-    # crew access arm at payload adapter height (adapter door at LOW + 6 + 40 + 18 + 1.5 = LOW+65.5)
+    # crew access arm at payload adapter height (adapter door at LOW + 6 + 40 + 18 + 1.5 = LOW+65.5). The lift cage
+    # runs on the tower's south face and stops beside a landing; the landing joins the arm, which runs west from the
+    # tower right up to the adapter's skin (r ≈ 3.2 at this height). It used to start inside the solid tower and end
+    # 0.6 m short of the rocket, with nothing between the cage and the arm: the arm could not be reached.
     ARM_Z = LOW + 64.8
-    P.append(box("arm", (GX - 4.6, 2.0, 0.2), loc=((GX + 4.6) / 2 - 0.8, SILO_Y, ARM_Z), m="int_grate"))
-    P.append(box("arm_roof", (GX - 4.6, 2.2, 0.1), loc=((GX + 4.6) / 2 - 0.8, SILO_Y, ARM_Z + 2.4), m="steel_painted_white"))
+    AX0, AX1 = 3.25, 11.0                       # arm: adapter skin → tower face
+    LX0, LX1 = 7.4, 11.45                       # landing: west of the cage (cage x 11.5 … 13.5)
+    LY0, LY1 = SILO_Y - 3.8, SILO_Y - 0.6       # landing: south of the tower, overlapping the arm's south edge
+    AL = AX1 - AX0
+    P.append(box("arm", (AL, 2.0, 0.2), loc=((AX0 + AX1) / 2, SILO_Y, ARM_Z), m="int_grate"))
+    col("COL_arm", ((AX0 + AX1) / 2, SILO_Y, ARM_Z), (AL, 2.0, 0.2), 0, root)
+    P.append(box("arm_landing", (LX1 - LX0, LY1 - LY0, 0.2), loc=((LX0 + LX1) / 2, (LY0 + LY1) / 2, ARM_Z), m="int_grate"))
+    col("COL_arm_landing", ((LX0 + LX1) / 2, (LY0 + LY1) / 2, ARM_Z), (LX1 - LX0, LY1 - LY0, 0.2), 0, root)
+    for k in range(int(AL / 1.6)):              # edge stripes and floor lights along the walkway
+        L.append(box(f"lampE|silo|arm{k}", (0.3, 0.06, 0.02), loc=(AX0 + 0.8 + k * 1.6, SILO_Y + 0.85, ARM_Z + 0.11), m="emit_warm"))
+    P.append(box("arm_roof", (AL, 2.2, 0.1), loc=((AX0 + AX1) / 2, SILO_Y, ARM_Z + 2.45), m="steel_painted_white"))
+    P.append(box("arm_landing_roof", (LX1 - LX0, LY1 - LY0, 0.1), loc=((LX0 + LX1) / 2, (LY0 + LY1) / 2, ARM_Z + 2.65), m="steel_painted_white"))
+    # walls: the north wall the whole length, the south wall from the adapter to the landing (solid, no stepping off)
+    for (x0, x1, yy) in ((AX0, AX1, SILO_Y + 1.05), (AX0, LX0, SILO_Y - 1.05)):
+        P.append(box("arm_wall", (x1 - x0, 0.06, 2.35), loc=((x0 + x1) / 2, yy, ARM_Z + 1.27), m="steel_painted_white"))
+        for k in range(int((x1 - x0) / 1.4)):
+            P.append(box("arm_window", (0.9, 0.07, 0.5), loc=(x0 + 0.7 + k * 1.4, yy, ARM_Z + 1.5), m="glass_clear"))
+        col("COL_arm_wall", ((x0 + x1) / 2, yy, ARM_Z + 1.27), (x1 - x0, 0.12, 2.35), 0, root)
+    # landing railings (south and west edges); the east edge is the lift's gate, the north edge opens onto the arm
+    for (c, sz) in ((((LX0 + LX1) / 2, LY0), (LX1 - LX0, 0.06)), (((LX0, (LY0 + SILO_Y - 1.05) / 2)), (0.06, SILO_Y - 1.05 - LY0))):
+        P.append(box("landing_rail", (sz[0], sz[1], 0.06), loc=(c[0], c[1], ARM_Z + 1.1), m="steel_painted_yellow"))
+        P.append(box("landing_kick", (sz[0], sz[1], 0.15), loc=(c[0], c[1], ARM_Z + 0.17), m="steel_painted_yellow"))
+        col("COL_landing_rail", (c[0], c[1], ARM_Z + 0.65), (max(sz[0], 0.12), max(sz[1], 0.12), 1.1), 0, root)
+    for (x, y) in ((LX0, LY0), (LX1 - 0.05, LY0), (LX0, SILO_Y - 1.05), ((LX0 + LX1) / 2, LY0)):
+        P.append(box("landing_post", (0.06, 0.06, 1.1), loc=(x, y, ARM_Z + 0.65), m="steel_painted_yellow"))
+    # the landing's gate over the lift shaft: open only while the cage stands at the arm (NasaSite)
+    lg = empty("gl_landgate", loc=(LX1 - 0.1, SILO_Y - 2.9, ARM_Z), parent=root)
+    lgm = merge([box("gl_landgate_bar", (0.08, 1.6, 0.08), loc=(0, 0, 1.05), m="warning_yellow"),
+                 box("gl_landgate_bar2", (0.06, 1.6, 0.06), loc=(0, 0, 0.55), m="warning_yellow")], "gl_landgate_mesh", par=lg)
+    lgm.location = (0, 0, 0)
+    col("COL_gl_landgate", (LX1 - 0.1, SILO_Y - 2.9, ARM_Z + 0.65), (0.12, 1.6, 1.1), 0, root, door="gantry_landing")
+    box("gl_call_top", (0.2, 0.12, 0.25), loc=(LX1 - 0.3, LY0 + 0.08, ARM_Z + 1.15), m="emit_green", par=root, interact="gantrylift", iid="gantry_call_top", level=1)
+    # call post on the silo floor, south-west of the cage (clear of its gate)
+    P.append(box("gl_call_post", (0.18, 0.18, 1.05), loc=(GX - 1.9, SILO_Y - 4.4, LOW + 0.525), m="steel_painted_yellow"))
+    col("COL_gl_call_post", (GX - 1.9, SILO_Y - 4.4, LOW + 0.525), (0.18, 0.18, 1.05), 0, root)
+    box("gl_call_bottom", (0.2, 0.12, 0.25), loc=(GX - 1.9, SILO_Y - 4.5, LOW + 1.15), m="emit_green", par=root, interact="gantrylift", iid="gantry_call_bottom", level=0)
+    sign(P, L, "GANTRY LIFT  ·  CREW ACCESS ARM", (GX - 1.9, SILO_Y - 4.52, LOW + 1.6), (0, -1), size=0.12, board=(2.9, 0.3))
+    sign(P, L, "CREW ACCESS ARM  ·  RANGER 1", ((AX0 + AX1) / 2 + 1.0, SILO_Y + 1.0, ARM_Z + 2.1), (0, -1), size=0.13, board=(3.2, 0.3))
+    # the arm's end at the adapter: a frame round the hatch and a bar at waist height (the rocket has no colliders:
+    # nothing to stand on beyond the arm); boarding is by the hatch prompt over the bar
     for sy in (-1, 1):
-        P.append(box("arm_wall", (GX - 4.6, 0.06, 2.4), loc=((GX + 4.6) / 2 - 0.8, SILO_Y + sy * 1.05, ARM_Z + 1.2), m="steel_painted_white"))
-    col("COL_arm", ((GX + 4.6) / 2 - 0.8, SILO_Y, ARM_Z - 0.1), (GX - 4.6, 2.0, 0.2), 0, root)
-    # gantry lift cage (moves between hangar and arm)
+        P.append(box("arm_end_jamb", (0.15, 0.25, 2.35), loc=(AX0 + 0.08, SILO_Y + sy * 0.93, ARM_Z + 1.27), m="warning_yellow"))
+    P.append(box("arm_end_header", (0.15, 2.1, 0.2), loc=(AX0 + 0.08, SILO_Y, ARM_Z + 2.35), m="warning_yellow"))
+    P.append(box("arm_end_bar", (0.06, 1.8, 0.06), loc=(AX0 + 0.08, SILO_Y, ARM_Z + 1.05), m="steel_painted_yellow"))
+    col("COL_arm_end", (AX0 + 0.08, SILO_Y, ARM_Z + 0.65), (0.15, 2.0, 1.1), 0, root)
+    # gantry lift cage (moves between the silo floor and the landing): a gate on its open (west) side is down while
+    # it moves; the east and south sides are closed
     lv = empty("gantry_lift", loc=(GX, SILO_Y - 2.9, LOW), parent=root, interact="gantrylift", iid="gantry_lift")
-    lp = [box("gl_deck", (2.0, 1.6, 0.15), loc=(0, 0, 0.0), m="int_grate"), box("gl_cage", (2.0, 1.6, 2.4), loc=(0, 0, 1.2), m="net")]
+    lp = [box("gl_deck", (2.0, 1.6, 0.15), loc=(0, 0, 0.0), m="int_grate"), box("gl_cage_top", (2.0, 1.6, 0.08), loc=(0, 0, 2.4), m="steel_painted_gray")]
+    for (c, sz) in (((1.0, 0, 1.2), (0.06, 1.6, 2.4)), ((0, -0.8, 1.2), (2.0, 0.06, 2.4)), ((0, 0.8, 1.2), (2.0, 0.06, 2.4))):
+        lp.append(box("gl_side", sz, loc=c, m="net"))
+    for (x, y) in ((-1.0, -0.8), (1.0, -0.8), (-1.0, 0.8), (1.0, 0.8)):
+        lp.append(box("gl_post", (0.08, 0.08, 2.45), loc=(x, y, 1.22), m="steel_painted_yellow"))
     lm = merge(lp, "gantry_lift_mesh", par=lv)
     lm.location = (0, 0, 0)
     finish(lm, 30)
     col("COL_gl_deck", (0, 0, -0.05), (2.0, 1.6, 0.2), 0, lv, mover="gantry_lift")
-    box("gl_button", (0.2, 0.1, 0.25), loc=(0.8, -0.82, 1.1), m="emit_green", par=lv, interact="gantrylift", iid="gantry_lift_btn")
+    col("COL_gl_wallE", (1.0, 0, 1.2), (0.12, 1.6, 2.4), 0, lv, mover="gantry_lift")
+    col("COL_gl_wallS", (0, -0.8, 1.2), (2.0, 0.12, 2.4), 0, lv, mover="gantry_lift")
+    col("COL_gl_wallN", (0, 0.8, 1.2), (2.0, 0.12, 2.4), 0, lv, mover="gantry_lift")
+    gg = empty("gl_gate", loc=(-1.0, 0, 0), parent=lv)
+    ggm = merge([box("gl_gate_bar", (0.08, 1.6, 0.08), loc=(0, 0, 1.05), m="warning_yellow"),
+                 box("gl_gate_bar2", (0.06, 1.6, 0.06), loc=(0, 0, 0.55), m="warning_yellow")], "gl_gate_mesh", par=gg)
+    ggm.location = (0, 0, 0)
+    col("COL_gl_gate", (-1.0, 0, 0.65), (0.12, 1.6, 1.1), 0, lv, mover="gantry_lift", door="gantry_gate")
+    box("gl_button", (0.2, 0.1, 0.25), loc=(0.8, -0.72, 1.1), m="emit_green", par=lv, interact="gantrylift", iid="gantry_lift_btn")
     # silo hall ring wall (lower 14 m; the shaft continues at runtime) with the corridor doorway cut to its width
     ring_wall("silo_ring", (0, SILO_Y), RR, LOW, LOW + 14, 0.9, "concrete", 48, [(270, CW, [(LOW, LOW + 6.5)])], P, root)
     P.append(lathe("silo_ledge", [(SILO_R + 0.5, LOW + 14), (SILO_R + 8, LOW + 14), (SILO_R + 8, LOW + 14.8), (SILO_R + 0.5, LOW + 14.8), (SILO_R + 0.5, LOW + 14)], m="concrete", seg=48, loc=(0, SILO_Y, 0)))

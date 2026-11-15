@@ -171,7 +171,26 @@ export class NasaSite {
         }),
         terminal: (n) => ({ id: `term:${n.userData.iid}`, targets: [n], label: () => `Use terminal — ${termTitle(n.userData.iid)}`, use: () => this.openTerminal(n.userData.iid) }),
         elevator: (n) => (n.name === 'elevator' ? null : { id: 'nasa_el_btn', targets: [n], range: 2.6, label: () => 'Elevator — choose a level', use: () => this.elevatorPanel() }),
-        gantrylift: (n) => (n.name === 'gantry_lift' ? null : { id: 'gl_btn', targets: [n], label: () => `Gantry lift — ${this.mover('gantry_lift')?.level === 0 ? 'up to the crew access arm' : 'down to the silo floor'}`, use: () => this.callMover('gantry_lift') }),
+        // the cage's own button sends it to the other stop; the call buttons (silo floor, arm landing: userData.level)
+        // bring it to theirs
+        gantrylift: (n) => {
+          if (n.name === 'gantry_lift') return null;
+          const at = n.userData.level === undefined ? null : Number(n.userData.level);
+          return {
+            id: `gl_btn:${n.name}`, targets: [n], range: 2.6,
+            label: () => {
+              const m = this.mover('gantry_lift');
+              if (!m) return null;
+              if (m.y !== m.target) return 'Gantry lift — on its way';
+              if (at === null) return `Gantry lift — ${m.level === 0 ? 'up to the crew access arm' : 'down to the silo floor'}`;
+              return m.level === at ? 'Gantry lift — here (the gate is open)' : 'Call the gantry lift';
+            },
+            use: () => {
+              const m = this.mover('gantry_lift');
+              if (m && (at === null || m.level !== at)) this.callMover('gantry_lift');
+            },
+          };
+        },
       },
     });
     this.openEntryRoute();
@@ -203,7 +222,15 @@ export class NasaSite {
     await this.placeHillAndParking();
     // movers
     this.addMover('nasa_elevator', inst.nodes.get('elevator')!, ['COL_elevator_deck', 'COL_el_rail-1', 'COL_el_rail1'], ELEVATOR_LEVELS.map((l) => l.y), new THREE.Box3(new THREE.Vector3(-4.2, -1, -4.2), new THREE.Vector3(4.2, 3, 4.2)), 2.6);
-    this.addMover('gantry_lift', inst.nodes.get('gantry_lift')!, ['COL_gl_deck'], [LOW, LOW + 64.8], new THREE.Box3(new THREE.Vector3(-1.0, -1, -0.8), new THREE.Vector3(1.0, 3, 0.8)), 3.5);
+    this.addMover('gantry_lift', inst.nodes.get('gantry_lift')!, ['COL_gl_deck', 'COL_gl_wallE', 'COL_gl_wallS', 'COL_gl_wallN', 'COL_gl_gate'], [LOW, LOW + 64.8], new THREE.Box3(new THREE.Vector3(-1.0, -1, -0.8), new THREE.Vector3(1.0, 3, 0.8)), 3.5);
+    // the cage's gate (down while it moves) and the arm landing's gate over the shaft (up only while the cage is there)
+    for (const [id, node, open] of [
+      ['gantry_gate', 'gl_gate', () => { const m = this.mover('gantry_lift'); return !!m && m.y === m.target; }],
+      ['gantry_landing', 'gl_landgate', () => { const m = this.mover('gantry_lift'); return !!m && m.y === m.target && m.level === 1; }],
+    ] as const) {
+      const n = inst.nodes.get(node);
+      if (n) this.liftGates.push({ id, node: n, base: n.position.clone(), open, t: 0 });
+    }
     // silo shaft from the hall ledge up to the terrain, plus the concealed doors at the top
     this.siloTopLocal = z.gen.siloTop - this.origin.y;
     this.buildShaft();
@@ -226,7 +253,9 @@ export class NasaSite {
       this.mountRanger();
       z.scene.add(this.ranger.root);
       const board = this.rocket.nodes.get('adapter_door')!;
-      const hit = new THREE.Mesh(new THREE.BoxGeometry(2.4, 3, 2.4), new THREE.MeshBasicMaterial({ visible: false }));
+      // the hatch itself (x: 3.05 … 3.55 from the rocket's axis, over the bar at the arm's end): a box reaching onto the
+      // arm would hold the eyes of someone standing at its end, and a ray from inside a box never hits it
+      const hit = new THREE.Mesh(new THREE.BoxGeometry(0.5, 2.2, 1.4), new THREE.MeshBasicMaterial({ visible: false }));
       board.add(hit);
       game.interaction.add({
         id: 'board_ranger1', targets: [hit], range: 4,
@@ -395,7 +424,28 @@ export class NasaSite {
   }
 
   /** elevator landing gates rise while the car stands at their level and drop when it leaves */
+  /** gantry lift gates: a bar that rises 1.35 m out of the way; its collider is off only once it is up */
+  readonly liftGates: { id: string; node: THREE.Object3D; base: THREE.Vector3; open: () => boolean; t: number; passable?: boolean }[] = [];
+  private updateLiftGates(dt: number) {
+    const ph = this.zone.ground.physics;
+    for (const g of this.liftGates) {
+      const want = g.open() ? 1 : 0;
+      if (g.t !== want) {
+        g.t = THREE.MathUtils.clamp(g.t + Math.sign(want - g.t) * dt / 0.8, 0, 1);
+        const e = g.t * g.t * (3 - 2 * g.t);
+        g.node.position.copy(g.base).add(new THREE.Vector3(0, 1.35 * e, 0));
+      }
+      // passable once the bar is up; closing starts with the collider (nobody steps through a gate coming down)
+      const passable = want === 1 && g.t > 0.85;
+      if (g.passable !== passable) {
+        g.passable = passable;
+        ph.setDoorOpen(g.id, passable);
+      }
+    }
+  }
+
   private updateGates(dt: number) {
+    this.updateLiftGates(dt);
     if (!this.gates.length) return;
     const m = this.mover('nasa_elevator');
     const ph = this.zone.ground.physics;

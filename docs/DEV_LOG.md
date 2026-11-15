@@ -2,6 +2,36 @@
 
 ## Status (latest first)
 
+### The crew access arm to Ranger 1 (this pass)
+
+**Reported:** the corridor from the gantry lift to the Ranger at the top of the rocket was not built properly and could
+not be reached.
+
+**What was wrong:**
+- At its top stop (64.8 m) the lift cage stood on the gantry tower's south face. The arm started inside the tower's
+  solid collider, north of the cage, with nothing between them: stepping out of the cage meant a 65 m fall.
+- The arm's walls were visual only, so you could also walk off its sides.
+- It ended 0.6 m short of the adapter, and the rocket has no colliders.
+- The hatch's invisible prompt box was 2.4 m wide. Someone standing at the arm's end had their eyes inside it, and a
+  ray from inside a box never hits it, so no prompt.
+
+**Rebuilt (`blender/assets/nasa.py`, `NasaSite.ts`):**
+- A landing beside the cage joins the arm. The arm runs from the tower face to the adapter's skin.
+- Solid walls with windows on both sides of the arm, and railings on the landing.
+- At the adapter, a yellow frame with a bar at waist height, under the hatch prompt.
+- The cage has solid sides and a gate that is down while it moves.
+- The landing has a gate over the shaft, up only while the cage stands there.
+- Call buttons on the silo floor (a post with a sign) and on the landing. Signs and floor lights along the arm.
+- The hatch prompt box is the hatch itself.
+
+**Checked (`e2e/gantry_arm.mjs`, as a player):**
+- call post → cage → its button → up 64.8 m → out through the gate → landing → arm → the end, where the prompt shows;
+- the bar, both arm walls and both landing railings hold;
+- with the cage sent down, the landing gate holds over the empty shaft, and the landing's call button brings it back;
+- with the mission authorised, boarding from the arm starts the launch sequence.
+
+Pictures: `docs/media/gantry_arm.jpg` (`e2e/nasa_views.mjs arm_walkway arm_landing arm_outside`).
+
 ### "There is no NASA base": a load that fails silently (this pass)
 
 **Reported:** on the published game, there was no NASA base.
@@ -726,6 +756,7 @@ Realism pass results (all rebuilt in Blender scripts, checked with Cycles previe
 - `node e2e/nasa_entry.mjs <url> <outDir> in|out|car` and `node e2e/blocker_audit.mjs <url> <zone>`: the NASA entry
   route, and the rooms/doors/boulders audit, against a served build.
 - Interior tests that spawn inside a building skip its way in: walk in from outside at least once.
+- `node e2e/gantry_arm.mjs <url> <out>`: the gantry lift and crew access arm to Ranger 1, edges included, then boarding.
 - `node e2e/load_recovery.mjs <url> [retry chunk fail fall mc]`: failed loads and falls out of the world recover.
 - `node e2e/nasa_floor_audit.mjs <url>`, `node e2e/nasa_tour.mjs <url> <out>`, `node e2e/farm_nasa_travel.mjs <url> <out>`,
   `node e2e/nasa_views.mjs <url> <out>`: the NASA base's floors, a walk round it, skipping the drive, pictures.

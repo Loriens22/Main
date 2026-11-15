@@ -23,6 +23,10 @@ const VIEWS = {
   kiosk: [[3.6, 69.3, 1.75], [3.2, 70.7, 1.3], 'open'],
   lower_corridor: [[0, 114, -33.3], [0, 170, -32.5], 'low'],
   silo_hall: [[0, 179.5, -32.8], [0, 200, -20], 'low'],
+  // the crew access arm 64.8 m up the gantry (the lift brought up first)
+  arm_walkway: [[10.2, 200.2, 31.6], [2.0, 200.0, 31.0], 'arm'],
+  arm_landing: [[8.2, 196.9, 31.7], [13.0, 197.2, 30.6], 'arm'],
+  arm_outside: [[-9.5, 186.0, 36.0], [6.5, 199.0, 30.5], 'arm'],
 };
 const names = Object.keys(VIEWS).filter((n) => !only.length || only.includes(n));
 const PER = 3;
@@ -40,11 +44,13 @@ for (let i = 0; i < names.length; i += PER) {
       if (setup === 'closed' && nasa.site.doors.get('nasa_inner')?.open) nasa.site.toggleDoor('nasa_inner');
       if (setup !== 'closed' && !nasa.site.doors.get('nasa_inner')?.open) nasa.site.toggleDoor('nasa_inner');
       if (setup === 'low') nasa.moveTo('nasa_elevator', 3);
+      if (setup === 'arm' && nasa.mover('gantry_lift').level === 0) { nasa.callMover('gantry_lift'); for (let k = 0; k < 700; k++) g.step(1, 1 / 30, false); }
       // the player stands just behind the camera (lights, doors and NPCs react to where the player is)
-      g.player.enterFrame(g.player.frame, new V(o.x + from[0], o.y + (setup === 'low' ? -35 : from[2] > 6 ? 5.5 : 0) + 0.05, o.z - from[1]), 0, 'walk');
+      const feet = setup === 'arm' ? [9.0, 200.0, 29.85] : [from[0], from[1], setup === 'low' ? -35 : from[2] > 6 ? 5.5 : 0];
+      g.player.enterFrame(g.player.frame, new V(o.x + feet[0], o.y + feet[2] + 0.05, o.z - feet[1]), 0, 'walk');
       g.cinematic = { blocking: true, update: (_dt, c) => { c.position.set(o.x + from[0], o.y + from[2], o.z - from[1]); c.lookAt(o.x + at[0], o.y + at[2], o.z - at[1]); c.updateMatrixWorld(true); return true; } };
     }, [from, at, setup]);
-    await p.evaluate((low) => { const g = window.__game; for (let k = 0; k < (low ? 12 : 3); k++) g.step(30, 1 / 30, false); g.step(1, 1 / 30, true); }, setup === 'low');
+    await p.evaluate((low) => { const g = window.__game; for (let k = 0; k < (low ? 12 : 3); k++) g.step(30, 1 / 30, false); g.step(1, 1 / 30, true); }, setup === 'low' || setup === 'arm');
     fs.writeFileSync(`${out}/${n}.png`, Buffer.from((await p.evaluate(() => window.__game.renderer.canvas.toDataURL('image/png'))).split(',')[1], 'base64'));
     console.log('saved', n);
   }
