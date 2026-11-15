@@ -166,6 +166,8 @@ export const DEFAULT_BINDINGS: Record<string, string[]> = {
   camera: ['KeyC'],
   timeWarpUp: ['Period'],
   timeWarpDown: ['Comma'],
+  // Earth: skip the drive between the farm and the NASA base
+  travel: ['KeyJ'],
 };
 
 /**

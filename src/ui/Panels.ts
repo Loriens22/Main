@@ -60,6 +60,12 @@ export function openGameMenu(game: Game) {
     const list = h('div', { class: 'menu-list' });
     const item = (label: string, fn: () => void) => list.append(game.ui.button(label, fn, ''));
     item('RESUME GAME', () => { p.close(); game.input.requestLock(); });
+    {
+      // Earth: skip the drive between the farm and the NASA base
+      const travel = (game.zone as unknown as { content?: { travel?: { option(ignoreUi?: boolean): { label: string; minutes: number } | null; go(): Promise<void> } | null } })?.content?.travel;
+      const opt = travel?.option(true) ?? null;
+      if (travel && opt) item(`SKIP THE DRIVE TO ${opt.label.toUpperCase()} (${opt.minutes} MIN)`, () => { p.close(); void travel.go(); });
+    }
     item('SETTINGS', () => openSettings(game));
     item('MISSION COMPUTER', () => openMissionComputer(game));
     item('SPACECRAFT MANAGEMENT', () => openMissionComputer(game, 'vehicles'));

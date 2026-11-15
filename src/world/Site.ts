@@ -182,7 +182,9 @@ export class Site {
     return it;
   }
 
-  registerDoor(n: THREE.Object3D, type: string, opts: Partial<DoorRt> = {}) {
+  /** opts.range: reach for the prompt (big doors); opts.what: names the door in the prompt ("Open security door") */
+  registerDoor(n: THREE.Object3D, type: string, opts: Partial<DoorRt> & { range?: number; what?: string } = {}) {
+    const { range, what, ...rt } = opts;
     const id = n.userData.iid ?? n.name;
     const d: DoorRt = {
       id,
@@ -196,7 +198,7 @@ export class Site {
       speed: type === 'rolldoor' ? 0.35 : type === 'hatch' ? 0.6 : 1.4,
       sound: type === 'hatch' ? 'hatch' : type === 'rolldoor' ? 'blast' : this.opts.doorSound ?? 'wood',
       follow: n.userData.follow,
-      ...opts,
+      ...rt,
     };
     this.doors.set(id, d);
     if (n.userData.startOpen && d.kind === 'hinge') {
@@ -209,9 +211,11 @@ export class Site {
     this.register({
       id: `${this.opts.name}:${id}`,
       targets: [n],
+      range,
       label: () => {
         const lk = d.locked?.();
         if (lk) return lk;
+        if (what) return `${d.open ? 'Close' : 'Open'} ${what}`;
         return d.open ? 'Close' : type === 'hatch' ? 'Open hatch' : 'Open';
       },
       use: () => this.toggleDoor(id),

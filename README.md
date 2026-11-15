@@ -14,5 +14,7 @@ Play in the browser: **https://loriens22.github.io/Main/interstellar/**
     computer. Photo mode: pinch to zoom.
   - Buttons appear only where they do something (the field tools on planet surfaces, the helmet lamp outside the cabin…).
     Settings → Controls lists every touch control and sets the look sensitivity.
+- On Earth, **SKIP THE DRIVE** (the button at the top, **J**, the pause menu, or SKIP DRIVE on a phone) takes you, or you
+  and the pickup, between the farm and the NASA base; the clock moves on by the drive time.
 - Settings → Graphics → "Run performance test" measures this device (or open the link with `?bench`).
 - The site is published from this branch by `.github/workflows/pages-interstellar.yml` into `gh-pages/interstellar/`.

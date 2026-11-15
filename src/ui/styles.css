@@ -234,3 +234,7 @@ body.touch-ui .fps { display: none; }
   .row input[type=range] { width: 130px; }
   .toasts { top: 70px; }
 }
+
+/* Earth: skip the drive between the farm and the NASA base (Travel.ts) — keyboard/mouse; touch has a SKIP DRIVE button */
+.travel-chip { position: absolute; left: 50%; top: 14px; transform: translateX(-50%); padding: 8px 16px; border: 1px solid rgba(217,201,163,0.55); border-radius: 18px; background: rgba(8,10,14,0.62); color: var(--fg); font-family: var(--title); font-size: 10.5px; letter-spacing: 0.14em; cursor: pointer; white-space: nowrap; }
+.travel-chip:hover { border-color: var(--accent); background: rgba(30,28,22,0.75); }

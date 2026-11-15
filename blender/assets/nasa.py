@@ -44,6 +44,118 @@ def light_strip(P, L, lights, par, x, y, z, length, along="y", group="tunnel", e
             lights.append(empty(f"light_{group}_{len(lights)}", loc=(x - length / 2 + (k + 0.5) * length / n, y, z - 0.6), parent=par, light=kind, group=group, intensity=intensity, distance=distance))
 
 
+import itertools
+_IDS = itertools.count()
+
+
+def wall2(name, a, b, z0, z1, thick, m, ops, P, root, cols=True, offset=0.0):
+    """Straight wall a→b (plan points), z0..z1, centred on the line (+offset along the left normal).
+    ops: (along_centre, width, [(sill, head), ...]) — several openings may be stacked in one span (elevator landings).
+    Every visual piece gets an identical collision box, so what you see is exactly what you bump into."""
+    dx, dy = b[0] - a[0], b[1] - a[1]
+    L = math.hypot(dx, dy)
+    ux, uy = dx / L, dy / L
+    nx, ny = -uy, ux
+    ang = math.atan2(dy, dx)
+    out = []
+
+    def piece(s0, s1, zz0, zz1):
+        if s1 - s0 < 0.005 or zz1 - zz0 < 0.005:
+            return
+        cx = a[0] + ux * (s0 + s1) / 2 + nx * offset
+        cy = a[1] + uy * (s0 + s1) / 2 + ny * offset
+        o = box(name, (s1 - s0, thick, zz1 - zz0), loc=(cx, cy, (zz0 + zz1) / 2), rot=(0, 0, ang), m=m)
+        P.append(o)
+        out.append(o)
+        if cols:
+            col(f"COL_{name}_{next(_IDS)}", (cx, cy, (zz0 + zz1) / 2), (s1 - s0, thick, zz1 - zz0), ang, root)
+    cur = 0.0
+    for (c, w, vs) in sorted(ops, key=lambda o: o[0]):
+        s0, s1 = max(0.0, c - w / 2), min(L, c + w / 2)
+        piece(cur, s0, z0, z1)
+        zc = z0
+        for (sill, head) in sorted(vs):
+            piece(s0, s1, zc, sill)
+            zc = head
+        piece(s0, s1, zc, z1)
+        cur = s1
+    piece(cur, L, z0, z1)
+    return out
+
+
+def ring_wall(name, c, R, z0, z1, thick, m, nseg, doors, P, root, cols=True):
+    """Circular wall of nseg straight segments with doorways (axis_deg, width, [(sill, head), ...]) cut exactly to
+    their width (measured across the doorway). Returns the angles of the segments without any opening."""
+    plain = []
+    for k in range(nseg):
+        a0 = 2 * PI * k / nseg
+        a1 = 2 * PI * (k + 1) / nseg
+        p0 = (c[0] + math.cos(a0) * R, c[1] + math.sin(a0) * R)
+        p1 = (c[0] + math.cos(a1) * R, c[1] + math.sin(a1) * R)
+        L = math.hypot(p1[0] - p0[0], p1[1] - p0[1])
+        ux, uy = (p1[0] - p0[0]) / L, (p1[1] - p0[1]) / L
+
+        def proj(t):
+            return (c[0] + math.cos(t) * R - p0[0]) * ux + (c[1] + math.sin(t) * R - p0[1]) * uy
+        ops = []
+        for (ax, w, vs) in doors:
+            al = math.radians(ax)
+            dl = math.asin(min(1.0, (w / 2) / R))
+            rel = lambda t: (t - al + PI) % (2 * PI) - PI
+            r0, r1 = rel(a0), rel(a1)
+            if r1 < r0:
+                continue
+            lo, hi = max(r0, -dl), min(r1, dl)
+            if hi <= lo:
+                continue
+            s0 = 0.0 if lo <= r0 + 1e-9 else proj(al + lo)
+            s1 = L if hi >= r1 - 1e-9 else proj(al + hi)
+            ops.append(((s0 + s1) / 2, s1 - s0, vs))
+        wall2(name, p0, p1, z0, z1, thick, m, ops, P, root, cols=cols)
+        if not ops:
+            plain.append((a0 + a1) / 2)
+    return plain
+
+
+def text_mesh(name, txt, size, loc, rot, m="emit_white", align="CENTER"):
+    """Flat 3-D lettering (Blender's built-in font) as a mesh; rot=(PI/2, 0, g) stands it up facing (sin g, -cos g)."""
+    cu = bpy.data.curves.new(name + "_crv", type="FONT")
+    cu.body = txt
+    cu.size = size
+    cu.align_x = align
+    cu.align_y = "CENTER"
+    cu.resolution_u = 2
+    ob = bpy.data.objects.new(name + "_tmp", cu)
+    bpy.context.scene.collection.objects.link(ob)
+    dg = bpy.context.evaluated_depsgraph_get()
+    me = bpy.data.meshes.new_from_object(ob.evaluated_get(dg))
+    bpy.data.objects.remove(ob, do_unlink=True)
+    bpy.data.curves.remove(cu)
+    me.name = name
+    o = kit._obj(name, me, (m,))
+    o.location = loc
+    o.rotation_euler = rot
+    return o
+
+
+def facing(fx, fy):
+    """z-rotation that turns a sign's face (built facing −y) toward the plan direction (fx, fy)."""
+    return math.atan2(fx, -fy)
+
+
+def sign(P, L, txt, loc, face, size=0.28, board=None, lamp="signs", text_m="emit_white", board_m="console_dark"):
+    """An illuminated sign: dark board with glowing lettering, facing plan direction `face`."""
+    g = facing(*face)
+    fx, fy = face
+    n = len(txt)
+    bw, bh = board or (n * size * 0.72 + 0.5, size * 1.9)
+    P.append(box("sign_board", (bw, 0.06, bh), loc=loc, rot=(0, 0, g), m=board_m, bevel=0.01))
+    t = text_mesh("sign_txt", txt, size, (loc[0] + fx * 0.035, loc[1] + fy * 0.035, loc[2]), (PI / 2, 0, g), m=text_m)
+    L.append(t)
+    t.name = f"lampE|{lamp}|{n}"
+    return t
+
+
 def screen(name, par, loc, size, rot=(0, 0, 0), m="emit_screen"):
     import bmesh
     w, h = size
@@ -128,16 +240,22 @@ def nasa():
         finish(dm, 30)
         col(f"COL_blast_{nm}", (0, 0, 3.75), (5.1, 1.2, 7.5), 0, dv, door="nasa_blast")
 
-    # ================================================================================== entry tunnel y 3..60
+    # ================================================================================== entry tunnel y 3..63 (into the atrium wall)
     TW, TH = 10.0, 7.5
+    TY0, TY1 = 3.0, 63.0
+    TL, TC = TY1 - TY0, (TY0 + TY1) / 2
     for sx in (-1, 1):
-        P.append(box("tun_wall", (0.8, 57, TH), loc=(sx * (TW / 2 + 0.4), 31.5, TH / 2), m="concrete", bevel=0.02))
-        col(f"COL_tunwall{sx}", (sx * (TW / 2 + 0.4), 31.5, TH / 2), (0.8, 57, TH), 0, root)
+        P.append(box("tun_wall", (0.8, TL, TH), loc=(sx * (TW / 2 + 0.4), TC, TH / 2), m="concrete", bevel=0.02))
+        col(f"COL_tunwall{sx}", (sx * (TW / 2 + 0.4), TC, TH / 2), (0.8, TL, TH), 0, root)
         # cable trays and pipes along the walls
-        P.append(box("tray", (0.5, 57, 0.08), loc=(sx * (TW / 2 - 0.25), 31.5, 5.9), m="steel_galv"))
+        P.append(box("tray", (0.5, TL, 0.08), loc=(sx * (TW / 2 - 0.25), TC, 5.9), m="steel_galv"))
         for k in range(3):
-            P.append(kit.tube("pipe", [(sx * (TW / 2 - 0.15), 3, 6.4 + k * 0.25), (sx * (TW / 2 - 0.15), 60, 6.4 + k * 0.25)], 0.07 + k * 0.02, m=["pipe_blue", "steel_painted_yellow", "steel_galv"][k], seg=10))
-        P.append(box("curb", (0.6, 57, 0.18), loc=(sx * (TW / 2 - 0.3), 31.5, 0.09), m="concrete_dark"))
+            P.append(kit.tube("pipe", [(sx * (TW / 2 - 0.15), TY0, 6.4 + k * 0.25), (sx * (TW / 2 - 0.15), TY1, 6.4 + k * 0.25)], 0.07 + k * 0.02, m=["pipe_blue", "steel_painted_yellow", "steel_galv"][k], seg=10))
+        P.append(box("curb", (0.6, TL, 0.18), loc=(sx * (TW / 2 - 0.3), TC, 0.09), m="concrete_dark"))
+        # wall bumper rail and reflector studs
+        P.append(box("tun_bumper", (0.12, TL, 0.3), loc=(sx * (TW / 2 - 0.06), TC, 0.75), m="steel_painted_yellow"))
+        for k in range(4):   # fire-equipment cabinets
+            P.append(box("tun_fire", (0.2, 0.5, 0.7), loc=(sx * (TW / 2 - 0.1), 13 + k * 15, 1.5), m="warning_red", bevel=0.02))
     # vaulted ceiling (segmented arch)
     for k in range(12):
         a0 = PI * k / 12
@@ -147,83 +265,141 @@ def nasa():
         x1, z1 = math.cos(a1) * rr, math.sin(a1) * 1.8 + TH
         cx, cz = (x0 + x1) / 2, (z0 + z1) / 2
         ang = math.atan2(z1 - z0, x1 - x0)
-        P.append(box("vault", (math.hypot(x1 - x0, z1 - z0) + 0.05, 57, 0.6), loc=(cx, 31.5, cz + 0.3), rot=(0, -ang, 0), m="concrete"))
-    col("COL_tunceil", (0, 31.5, TH + 1.6), (TW + 1.6, 57, 0.5), 0, root)
-    P.append(box("tun_floor", (TW, 57, 0.2), loc=(0, 31.5, -0.1), m="concrete_dark"))
+        P.append(box("vault", (math.hypot(x1 - x0, z1 - z0) + 0.05, TL, 0.6), loc=(cx, TC, cz + 0.3), rot=(0, -ang, 0), m="concrete"))
+    col("COL_tunceil", (0, TC, TH + 1.6), (TW + 1.6, TL, 0.5), 0, root)
+    P.append(box("tun_floor", (TW, TL, 0.2), loc=(0, TC, -0.1), m="concrete_dark"))
+    col("COL_tun_floor", (0, TC, -0.1), (TW + 0.4, TL, 0.2), 0, root)
     for k in range(10):
-        P.append(box("lane", (0.15, 3.0, 0.01), loc=(0, 6 + k * 5.5, 0.01), m="steel_painted_yellow"))
+        P.append(box("lane", (0.15, 3.0, 0.01), loc=(0.6, 6 + k * 5.5, 0.01), m="steel_painted_yellow"))
+    # pedestrian walkway stripe (white) on the west side
+    P.append(box("walk_line", (0.12, TL - 4, 0.008), loc=(-1.0, TC + 2, 0.006), m="steel_painted_white"))
     for k in range(6):
         P.append(box("rib_arch", (TW + 1.7, 0.6, 0.3), loc=(0, 6 + k * 10, TH + 0.2), m="concrete_dark"))
-    light_strip(P, L, lights, root, 0, 31.5, TH + 1.55, 55, "y", "tunnel", every=10)
-    # checkpoint at y = 40: booth + turnstiles + inner door frame
+    light_strip(P, L, lights, root, 0, TC, TH + 1.55, TL - 2, "y", "tunnel", every=10)
+    sign(P, L, "NASA  ·  OPERATIONS LEVEL 0", (-TW / 2 + 0.03, 9.0, 4.2), (1, 0), size=0.34)
+    sign(P, L, "AUTHORIZED PERSONNEL ONLY", (TW / 2 - 0.03, 9.0, 4.2), (-1, 0), size=0.3, text_m="emit_red")
+    # checkpoint at y = 40: booth + turnstiles (pedestrian lanes on the west side, the vehicle lane east of them)
     P.append(box("chk_booth", (2.4, 3.0, 2.8), loc=(-3.6, 40, 1.4), m="concrete_dark", bevel=0.03))
     P.append(box("chk_glass", (0.05, 2.6, 1.0), loc=(-2.38, 40, 2.0), m="glass_clear"))
     P.append(box("chk_desk", (0.6, 2.4, 0.9), loc=(-2.1, 40, 0.45), m="console_dark"))
+    P.append(box("chk_roof", (2.8, 3.4, 0.15), loc=(-3.6, 40, 2.88), m="metal_gunmetal"))
     screen("screen_checkpoint", root, (-2.0, 40.2, 1.2), (0.5, 0.32), rot=(0, 0, PI / 2))
     col("COL_booth", (-3.6, 40, 1.4), (2.4, 3.0, 2.8), 0, root)
-    for k in range(3):
-        P.append(box("turnstile", (0.15, 1.2, 1.0), loc=(-1.2 + k * 1.2, 40, 0.5), m="metal_brushed"))
-    P.append(box("inner_frame_l", (2.0, 1.5, TH), loc=(-4.0, 46, TH / 2), m="metal_gunmetal"))
-    P.append(box("inner_frame_r", (2.0, 1.5, TH), loc=(4.0, 46, TH / 2), m="metal_gunmetal"))
-    P.append(box("inner_frame_t", (10, 1.5, 1.5), loc=(0, 46, TH - 0.75), m="metal_gunmetal"))
-    dv = empty("inner_door", loc=(0, 46, 0), parent=root, interact="slidedoor", iid="nasa_inner")
-    dp = [box("id_leaf", (6.0, 0.5, 6.0), loc=(0, 0, 3.0), m="metal_gunmetal", bevel=0.03), box("id_stripe", (6.0, 0.55, 0.25), loc=(0, 0, 0.3), m="steel_painted_yellow")]
+    sign(P, L, "SECURITY CHECKPOINT", (-3.6, 38.48, 2.45), (0, -1), size=0.2)
+    for tx in (-1.55, -0.62):
+        P.append(box("turnstile", (0.28, 1.3, 1.0), loc=(tx, 40, 0.5), m="metal_brushed", bevel=0.02))
+        P.append(box("turnstile_top", (0.3, 1.32, 0.04), loc=(tx, 40, 1.02), m="console_dark"))
+        L.append(box("lampE|checkpoint|t", (0.06, 0.2, 0.02), loc=(tx, 39.4, 1.045), m="emit_green"))
+        P.append(box("turnstile_arm", (0.42, 0.04, 0.04), loc=(tx + 0.35, 40, 0.9), m="metal_brushed"))
+        col(f"COL_turnstile{tx}", (tx, 40, 0.5), (0.28, 1.3, 1.0), 0, root)
+
+    # ---- the security (inner) door at y = 46: a vertical-lift door that rises into its header; control panels on both
+    # faces of the east jamb. The jambs and header are solid (they used to be walk-through).
+    for sx in (-1, 1):
+        P.append(box("inner_jamb", (2.0, 1.5, TH), loc=(sx * 4.0, 46, TH / 2), m="metal_gunmetal", bevel=0.02))
+        col(f"COL_innerjamb{sx}", (sx * 4.0, 46, TH / 2), (2.0, 1.5, TH), 0, root)
+        P.append(box("inner_jamb_stripe", (0.08, 1.52, TH - 0.2), loc=(sx * 3.0, 46, TH / 2), m="steel_painted_yellow"))
+        L.append(box("lampE|innerdoor|b", (0.18, 0.18, 0.18), loc=(sx * 3.3, 45.2, 6.25), m="emit_red"))
+    P.append(box("inner_header", (10, 1.6, 3.9), loc=(0, 46, 7.95), m="metal_gunmetal"))
+    col("COL_innerheader", (0, 46, 7.95), (10, 1.6, 3.9), 0, root)
+    for k in range(5):
+        P.append(box("inner_header_rib", (10.02, 1.62, 0.08), loc=(0, 46, 6.2 + k * 0.5), m="metal_dark"))
+    dv = empty("inner_door", loc=(0, 46, 0), parent=root, interact="liftdoor", iid="nasa_inner")
+    dp = [box("id_leaf", (6.0, 0.4, 6.0), loc=(0, 0, 3.0), m="metal_gunmetal", bevel=0.03)]
+    for k in range(4):
+        dp.append(box("id_rib", (5.9, 0.46, 0.12), loc=(0, 0, 0.9 + k * 1.45), m="metal_dark"))
+    for k in range(8):
+        dp.append(box("id_chevron", (0.5, 0.47, 0.22), loc=(-2.6 + k * 0.75, 0, 0.3), rot=(0, 0.55 if k % 2 else -0.55, 0), m="steel_painted_yellow"))
+    dp.append(box("id_window", (1.2, 0.42, 0.5), loc=(0, 0, 4.4), m="glass_dark"))
     dm = merge(dp, "inner_door_mesh", par=dv)
     dm.location = (0, 0, 0)
     finish(dm, 30)
     col("COL_inner", (0, 0, 3.0), (6.0, 0.6, 6.0), 0, dv, door="nasa_inner")
-    # signage
-    P.append(box("sign_bg", (4, 0.08, 0.8), loc=(0, 45.2, 6.6), m="console_dark"))
-    P.append(box("sign_txt", (3.2, 0.02, 0.25), loc=(0, 45.15, 6.65), m="emit_white"))
+    for side, (px, py, face) in (("s", (3.6, 45.2, (0, -1))), ("n", (-3.6, 46.8, (0, 1)))):
+        g = facing(*face)
+        P.append(box("door_panel", (0.45, 0.08, 0.7), loc=(px, py, 1.35), rot=(0, 0, g), m="console_dark", bevel=0.01))
+        P.append(box("door_panel_label", (0.3, 0.085, 0.06), loc=(px, py, 1.62), rot=(0, 0, g), m="plastic_white"))
+        bt = box(f"innerdoor_btn_{side}", (0.2, 0.06, 0.2), loc=(px + face[0] * 0.04, py + face[1] * 0.04, 1.3), rot=(0, 0, g), m="emit_green", par=root, interact="liftdoor_btn", iid="nasa_inner")
+        bt["door"] = "nasa_inner"
+        L.append(box("lampE|innerdoor|p", (0.06, 0.03, 0.06), loc=(px + face[0] * 0.05 + 0.13, py + face[1] * 0.05, 1.55), rot=(0, 0, g), m="emit_red"))
+    sign(P, L, "OPERATIONS", (0, 45.15, 6.75), (0, -1), size=0.42)
+    sign(P, L, "ATRIUM", (0, 46.85, 6.75), (0, 1), size=0.42)
+    sign(P, L, "EXIT  ·  PORTAL", (0, 61.4, 4.3), (0, 1), size=0.3)
 
     # ================================================================================== atrium (circular, 3 levels)
     AC = (0, 82)
     AR = 20.0
     AH = 16.0
-    nseg = 36
-    openings = {9: "east", 27: "west", 0: None}
-    for k in range(nseg):
-        a0 = 2 * PI * k / nseg
-        a1 = 2 * PI * (k + 1) / nseg
-        am = (a0 + a1) / 2
-        x0, y0 = AC[0] + math.cos(a0) * AR, AC[1] + math.sin(a0) * AR
-        x1, y1 = AC[0] + math.cos(a1) * AR, AC[1] + math.sin(a1) * AR
-        # doorways: south (tunnel, a=270°), north (elevator corridor, 90°), east (labs, 0°), west (mission control, 180°)
-        deg = math.degrees(am) % 360
-        door = any(abs(deg - d) < 6 for d in (0, 90, 180, 270))
-        ops = [(math.hypot(x1 - x0, y1 - y0) / 2, math.hypot(x1 - x0, y1 - y0) + 0.05, 0, 6.5 if deg % 180 == 0 or abs(deg - 270) < 6 else 6.5)] if door else []
-        arch.wall("atr_wall", (x0, y0), (x1, y1), 0, AH, 0.8, "concrete", ops, parts=P)
-        arch.col_wall(f"atr{k}", (x0, y0), (x1, y1), 0, AH, 0.9, ops, root)
-        # wall light bands
-        if not door:
-            L.append(box(f"lampE|atrium|w", (math.hypot(x1 - x0, y1 - y0) * 0.7, 0.05, 0.12), loc=((x0 + x1) / 2 - math.cos(am) * 0.45, (y0 + y1) / 2 - math.sin(am) * 0.45, 4.6), rot=(0, 0, am + PI / 2), m="emit_warm"))
+    EY = AC[1] + AR + 5.0          # elevator shaft centre (y = 107), a metre clear of the atrium wall
+    # doorways cut to their corridor widths: south tunnel (5 m tall: the 5.5 m balcony passes above it), west mission
+    # control, east labs, north elevator with landings at 0, 5.5 and 11
+    ADOORS = [(270, TW, [(0, 5.0)]), (180, 4.0, [(0, 4.0)]), (0, 4.5, [(0, 4.0)]), (90, 8.6, [(0, 3.2), (5.5, 8.0), (11.0, 13.5)])]
+    plain = ring_wall("atr_wall", AC, AR, 0, AH, 0.8, "concrete", 36, ADOORS, P, root)
+    for am in plain:
+        L.append(box(f"lampE|atrium|w", (2 * AR * math.sin(PI / 36) * 0.7, 0.05, 0.12), loc=(AC[0] + math.cos(am) * (AR - 0.45), AC[1] + math.sin(am) * (AR - 0.45), 4.6), rot=(0, 0, am + PI / 2), m="emit_warm"))
     P.append(cyl("atr_floor", AR + 0.4, 0.2, loc=(AC[0], AC[1], -0.1), m="concrete_dark", verts=48))
     P.append(cyl("atr_floor_inlay", 6, 0.02, loc=(AC[0], AC[1], 0.01), m="metal_brushed", verts=48))
     P.append(kit.torus("atr_inlay_ring", 9, 0.06, loc=(AC[0], AC[1], 0.02), m="metal_brushed", seg=64, rseg=4))
     P.append(cyl("atr_ceil", AR + 0.4, 0.6, loc=(AC[0], AC[1], AH + 0.3), m="concrete", verts=48))
-    col("COL_atr_floor", (AC[0], AC[1], -0.1), (2 * AR, 2 * AR, 0.2), 0, root)
-    # balconies at 5.5 and 11 (ring walkways 3.2 m wide with railings), circular void in the middle
+    col("COL_atr_floor", (AC[0], (62.0 + 101.6) / 2, -0.1), (2 * AR, 101.6 - 62.0, 0.2), 0, root)
+    # wayfinding stripes from the inlay ring to each doorway: west blue (mission control), east green (labs),
+    # north yellow (elevator / launch complex), south white (exit)
+    for ang, m in ((180, "pipe_blue"), (0, "plant_green"), (90, "steel_painted_yellow"), (270, "steel_painted_white")):
+        a = math.radians(ang)
+        r0, r1 = 9.5, AR - 0.5
+        for off in (-0.35, 0.35):
+            cx, cy = AC[0] + math.cos(a) * (r0 + r1) / 2 - math.sin(a) * off, AC[1] + math.sin(a) * (r0 + r1) / 2 + math.cos(a) * off
+            P.append(box("guide_stripe", (r1 - r0, 0.14, 0.008), loc=(cx, cy, 0.006), rot=(0, 0, a), m=m))
+    # balconies at 5.5 and 11 (ring walkways 3.4 m wide): floor colliders overlap all the way to the wall (no wedge
+    # gaps), glass railings with colliders, a gap where the stair arrives
+    STAIR_A = 45.0
     for lvl in (5.5, 11.0):
         P.append(lathe("balcony", [(AR - 3.4, lvl - 0.35), (AR, lvl - 0.35), (AR, lvl), (AR - 3.4, lvl), (AR - 3.4, lvl - 0.35)], m="concrete", seg=48, loc=(AC[0], AC[1], 0)))
-        P.append(kit.torus("rail_top", AR - 3.35, 0.04, loc=(AC[0], AC[1], lvl + 1.05), m="metal_brushed", seg=64, rseg=6))
-        P.append(lathe("rail_glass", [(AR - 3.38, lvl), (AR - 3.38, lvl + 1.0)], m="glass_clear", seg=64, loc=(AC[0], AC[1], 0)))
+        P.append(lathe("balcony_fascia", [(AR - 3.42, lvl - 0.36), (AR - 3.42, lvl + 0.02)], m="metal_brushed", seg=48, loc=(AC[0], AC[1], 0)))
         L.append(kit.torus(f"lampE|atrium|b{lvl}", AR - 3.5, 0.05, loc=(AC[0], AC[1], lvl - 0.4), m="emit_warm", seg=64, rseg=4))
+        for k in range(48):
+            a = 2 * PI * (k + 0.5) / 48
+            rm = (AR - 3.4 + AR - 0.3) / 2
+            col(f"COL_bal{lvl}_{k}", (AC[0] + math.cos(a) * rm, AC[1] + math.sin(a) * rm, lvl - 0.18), (3.1, 2 * PI * (AR - 0.3) / 48 + 0.2, 0.36), a, root)
+        nr = 72
+        for k in range(nr):
+            a0, a1 = 2 * PI * k / nr, 2 * PI * (k + 1) / nr
+            am = (a0 + a1) / 2
+            if lvl == 5.5 and abs(math.degrees(am) - STAIR_A) < 5.1:
+                continue
+            rr = AR - 3.38
+            ch = 2 * rr * math.sin(PI / nr)
+            cx, cy = AC[0] + math.cos(am) * rr, AC[1] + math.sin(am) * rr
+            P.append(box("rail_glass", (ch + 0.01, 0.025, 0.95), loc=(cx, cy, lvl + 0.52), rot=(0, 0, am + PI / 2), m="glass_clear"))
+            P.append(box("rail_top", (ch + 0.02, 0.07, 0.05), loc=(cx, cy, lvl + 1.05), rot=(0, 0, am + PI / 2), m="metal_brushed"))
+            if k % 3 == 0:
+                P.append(box("rail_post", (0.05, 0.05, 1.05), loc=(AC[0] + math.cos(a0) * rr, AC[1] + math.sin(a0) * rr, lvl + 0.52), m="metal_brushed"))
+            col(f"COL_rail{lvl}_{k}", (cx, cy, lvl + 0.55), (ch + 0.06, 0.12, 1.1), am + PI / 2, root)
+        # columns under each balcony (offset from the doorway axes and the stair), now solid
         for k in range(16):
-            a = 2 * PI * k / 16
-            P.append(cyl("bal_col", 0.25, lvl - 0.35 if lvl < 6 else 5.15, loc=(AC[0] + math.cos(a) * (AR - 3.0), AC[1] + math.sin(a) * (AR - 3.0), (lvl - 0.35) / 2 if lvl < 6 else 5.5 + 2.6), m="concrete_dark", verts=16))
-        # balcony collision as segments + railing
-        for k in range(24):
-            a = 2 * PI * (k + 0.5) / 24
-            cx, cy = AC[0] + math.cos(a) * (AR - 1.7), AC[1] + math.sin(a) * (AR - 1.7)
-            col(f"COL_bal{lvl}_{k}", (cx, cy, lvl - 0.18), (3.4, 2 * PI * (AR - 1.7) / 24 + 0.1, 0.35), a, root)
-            rx, ry = AC[0] + math.cos(a) * (AR - 3.4), AC[1] + math.sin(a) * (AR - 3.4)
-            col(f"COL_rail{lvl}_{k}", (rx, ry, lvl + 0.55), (0.1, 2 * PI * (AR - 3.4) / 24 + 0.1, 1.1), a, root)
+            a = 2 * PI * k / 16 + PI / 16
+            cx, cy = AC[0] + math.cos(a) * (AR - 3.0), AC[1] + math.sin(a) * (AR - 3.0)
+            z0, z1 = (0.0, lvl - 0.35) if lvl < 6 else (5.5, lvl - 0.35)
+            P.append(cyl("bal_col", 0.25, z1 - z0, loc=(cx, cy, (z0 + z1) / 2), m="concrete_dark", verts=16))
+            col(f"COL_balcol{lvl}_{k}", (cx, cy, (z0 + z1) / 2), (0.5, 0.5, z1 - z0), a, root)
         for k in range(12):
             a = 2 * PI * k / 12
             lights.append(empty(f"light_atrium_{len(lights)}", loc=(AC[0] + math.cos(a) * (AR - 2), AC[1] + math.sin(a) * (AR - 2), lvl - 0.8), parent=root, light="warm", group="atrium", intensity=5, distance=12))
-    # spiral-ish stair to the balconies (straight flights along the wall, east-north-east)
-    arch.stairs("atr_stair1", (14.0, 70.5, 0.0), PI / 2, 1.6, 5.5, 18, 7.6, parts=P, m="concrete_dark", stringer_m="metal_dark", par=root)
-    arch.stairs("atr_stair2", (-14.0, 93.5, 5.5), -PI / 2, 1.6, 5.5, 18, 7.6, parts=P, m="concrete_dark", stringer_m="metal_dark", par=root)
+    # radial stair from the floor to the 5.5 m balcony (north-east), handrails on both sides
+    sa = math.radians(STAIR_A)
+    r_top = AR - 3.4
+    run = 8.6
+    r_bot = r_top - run
+    arch.stairs("atr_stair", (AC[0] + math.cos(sa) * r_bot, AC[1] + math.sin(sa) * r_bot, 0.0), sa, 2.0, 5.5, 32, run, parts=P, m="concrete_dark", stringer_m="metal_dark", par=root)
+    slope = math.atan2(5.5, run)
+    hyp = math.hypot(5.5, run)
+    for side in (-1, 1):
+        ox, oy = -math.sin(sa) * side * 1.05, math.cos(sa) * side * 1.05
+        mx, my = AC[0] + math.cos(sa) * (r_bot + run / 2) + ox, AC[1] + math.sin(sa) * (r_bot + run / 2) + oy
+        P.append(box("stair_glass", (hyp, 0.025, 0.9), loc=(mx, my, 2.75 + 0.5), rot=(0, -slope, sa), m="glass_clear"))
+        P.append(box("stair_rail", (hyp, 0.07, 0.05), loc=(mx, my, 2.75 + 1.0), rot=(0, -slope, sa), m="metal_brushed"))
+        c = col(f"COL_stairrail{side}", (mx, my, 2.75 + 0.55), (hyp, 0.12, 1.1), 0, root)
+        c.rotation_euler = (0, -slope, sa)
     # centrepiece: suspended scale model of Endurance (ring + modules) in the void
     ring_c = (AC[0], AC[1], 9.5)
     P.append(kit.torus("model_ring", 3.0, 0.08, loc=ring_c, rot=(PI / 2, 0, 0), m="metal_brushed", seg=48, rseg=6))
@@ -234,12 +410,39 @@ def nasa():
     P.append(cyl("model_spoke", 0.08, 6.0, loc=ring_c, rot=(0, PI / 2, 0), m="metal_brushed", verts=8))
     for sx in (-1, 1):
         P.append(cyl("model_cable", 0.01, 6.5, loc=(ring_c[0] + sx * 2.5, ring_c[1], ring_c[2] + 3.4), m="metal_dark", verts=4))
-    # atrium big display wall (north side above the elevator door)
-    screen("screen_atrium", root, (AC[0], AC[1] + AR - 0.55, 9.0), (10, 4.5), rot=(0, 0, 0))
+    # atrium display wall (north-west, between the balconies)
+    da = math.radians(135)
+    screen("screen_atrium", root, (AC[0] + math.cos(da) * (AR - 0.45), AC[1] + math.sin(da) * (AR - 0.45), 8.3), (8, 3.6), rot=(0, 0, facing(-math.cos(da), -math.sin(da))))
+    # signs on the 5.5 m balcony fascia over each doorway, facing the atrium centre
+    for ang, txt in ((180, "MISSION CONTROL"), (0, "LABORATORIES"), (90, "ELEVATOR  ·  LAUNCH COMPLEX"), (270, "EXIT  ·  PORTAL")):
+        a = math.radians(ang)
+        sign(P, L, txt, (AC[0] + math.cos(a) * (AR - 3.47), AC[1] + math.sin(a) * (AR - 3.47), 4.72), (-math.cos(a), -math.sin(a)), size=0.24, board=(len(txt) * 0.19 + 0.6, 0.44))
+    # benches, planters and a directory kiosk on the floor
+    for k in range(4):
+        a = PI / 4 + k * PI / 2 + 0.25
+        bx, by = AC[0] + math.cos(a) * 12.5, AC[1] + math.sin(a) * 12.5
+        P.append(box("bench_seat", (2.2, 0.55, 0.08), loc=(bx, by, 0.45), rot=(0, 0, a + PI / 2), m="wood_board", bevel=0.01))
+        for e in (-0.9, 0.9):
+            P.append(box("bench_leg", (0.08, 0.5, 0.42), loc=(bx + math.cos(a + PI / 2) * e, by + math.sin(a + PI / 2) * e, 0.21), rot=(0, 0, a + PI / 2), m="metal_dark"))
+        col(f"COL_bench{k}", (bx, by, 0.25), (2.2, 0.55, 0.5), a + PI / 2, root)
+    for k, a in enumerate((PI * 0.62, PI * 0.38 + PI, PI * 1.62, PI * 0.38)):
+        px, py = AC[0] + math.cos(a) * 14.6, AC[1] + math.sin(a) * 14.6
+        P.append(cyl("planter", 0.75, 0.6, loc=(px, py, 0.3), m="concrete", verts=20))
+        P.append(cyl("planter_soil", 0.7, 0.02, loc=(px, py, 0.6), m="sand_dust", verts=20))
+        P.append(cyl("tree_trunk", 0.07, 1.6, loc=(px, py, 1.4), m="bark", verts=8))
+        for j in range(5):
+            P.append(kit.sphere("tree_leaf", 0.45 + 0.08 * (j % 2), loc=(px + 0.3 * math.cos(j * 1.3), py + 0.3 * math.sin(j * 1.3), 2.1 + 0.25 * (j % 3)), m="plant_green", segs=10, rings=6))
+        col(f"COL_planter{k}", (px, py, 0.5), (1.5, 1.5, 1.0), 0, root)
+    P.append(box("kiosk_base", (0.9, 0.6, 1.0), loc=(AC[0] + 3.2, AC[1] - 11.0, 0.5), m="console_dark", bevel=0.02))
+    P.append(box("kiosk_head", (1.0, 0.12, 0.7), loc=(AC[0] + 3.2, AC[1] - 11.25, 1.35), rot=(-0.35, 0, 0), m="console_dark", bevel=0.02))
+    screen("screen_directory", root, (AC[0] + 3.2, AC[1] - 11.32, 1.36), (0.86, 0.56), rot=(-0.35, 0, 0))
+    hb = box("term_atrium_hit", (1.1, 0.9, 1.6), loc=(AC[0] + 3.2, AC[1] - 11.0, 0.9), m="frame_black", par=root, interact="terminal", iid="atrium_info")
+    hb.hide_render = True
+    col("COL_kiosk", (AC[0] + 3.2, AC[1] - 11.0, 0.6), (0.9, 0.6, 1.2), 0, root)
     # ROOM volumes
     rv = box("ROOM_nasa_atrium", (2 * AR, 2 * AR, AH), loc=(AC[0], AC[1], AH / 2), m="frame_black", par=root, room="nasa_atrium")
     rv.hide_render = True
-    rv = box("ROOM_nasa_tunnel", (TW, 58, TH + 2), loc=(0, 32, (TH + 2) / 2), m="frame_black", par=root, room="nasa_tunnel")
+    rv = box("ROOM_nasa_tunnel", (TW, TL + 1, TH + 2), loc=(0, TC, (TH + 2) / 2), m="frame_black", par=root, room="nasa_tunnel")
     rv.hide_render = True
 
     # ================================================================================== mission control (west)
@@ -253,11 +456,21 @@ def nasa():
     arch.col_wall("mcw", (MX0, MY1), (MX0, MY0), 0, MH, 0.6, [], root)
     arch.col_wall("mcs", (MX0, MY0), (MX1, MY0), 0, MH, 0.6, [], root)
     arch.col_wall("mce", (MX1, MY0), (MX1, MY1), 0, MH, 0.6, [(20.0, 4.0, 0, 4.2)], root)
-    # connecting corridor atrium (x=-20) → MC (x=-24)
+    # connecting corridor atrium → MC: walls run from the MC wall into the atrium wall, with its own floor (there was
+    # none: a 4 m hole between the two floors)
     for sy in (-1, 1):
-        P.append(box("mc_corr_wall", (5, 0.4, 4.4), loc=(-22, 82 + sy * 2.2, 2.2), m="concrete"))
-        col(f"COL_mccorr{sy}", (-22, 82 + sy * 2.2, 2.2), (5, 0.4, 4.4), 0, root)
-    P.append(box("mc_corr_ceil", (5, 4.8, 0.3), loc=(-22, 82, 4.4), m="concrete"))
+        P.append(box("mc_corr_wall", (4.3, 0.4, 4.4), loc=(-22.05, 82 + sy * 2.2, 2.2), m="concrete"))
+        col(f"COL_mccorr{sy}", (-22.05, 82 + sy * 2.2, 2.2), (4.3, 0.4, 4.4), 0, root)
+        P.append(box("mc_corr_bumper", (4.3, 0.06, 0.25), loc=(-22.05, 82 + sy * 1.97, 0.9), m="steel_painted_blue"))
+    P.append(box("mc_corr_ceil", (4.6, 4.8, 0.3), loc=(-22.05, 82, 4.4), m="concrete"))
+    P.append(box("mc_corr_floor", (5.0, 4.0, 0.2), loc=(-21.8, 82, -0.1), m="int_floor"))
+    col("COL_mccorr_floor", (-21.8, 82, -0.1), (5.4, 4.4, 0.2), 0, root)
+    P.append(box("guide_stripe", (4.6, 0.14, 0.008), loc=(-21.9, 81.65, 0.006), m="pipe_blue"))
+    P.append(box("guide_stripe", (4.6, 0.14, 0.008), loc=(-21.9, 82.35, 0.006), m="pipe_blue"))
+    L.append(box("lampE|mc|corr", (3.6, 0.3, 0.03), loc=(-22.0, 82, 4.24), m="emit_cool"))
+    lights.append(empty(f"light_mccorr_{len(lights)}", loc=(-22.0, 82, 3.6), parent=root, light="cool", group="mc", intensity=6, distance=10))
+    sign(P, L, "MISSION CONTROL", (-22.0, 83.97, 3.25), (0, -1), size=0.26)
+    sign(P, L, "ATRIUM", (-22.0, 80.03, 3.25), (0, 1), size=0.26)
     P.append(box("mc_floor", (MX1 - MX0, MY1 - MY0, 0.2), loc=((MX0 + MX1) / 2, (MY0 + MY1) / 2, -0.1), m="int_floor"))
     P.append(box("mc_ceil", (MX1 - MX0, MY1 - MY0, 0.3), loc=((MX0 + MX1) / 2, (MY0 + MY1) / 2, MH + 0.15), m="int_panel_dark"))
     col("COL_mc_floor", ((MX0 + MX1) / 2, (MY0 + MY1) / 2, -0.1), (MX1 - MX0, MY1 - MY0, 0.2), 0, root)
@@ -279,13 +492,33 @@ def nasa():
     for k, (yy, zz) in enumerate(((67.5, 6.5), (67.5, 2.9), (96.5, 6.5), (96.5, 2.9), (72.8, 1.4), (91.2, 1.4))):
         screen(f"screen_mc_{k}", root, (MX0 + 0.75, yy, zz), (5.6 if k < 4 else 4.0, 3.2 if k < 4 else 1.2), rot=(0, 0, PI / 2))
     # director's glass office at the back (east), raised
-    P.append(box("dir_floor", (7, 14, 1.8), loc=(-28, 82, 0.9), m="int_floor"))
-    col("COL_dir_floor", (-28, 82, 0.9), (7, 14, 1.8), 0, root)
-    P.append(box("dir_glass", (0.05, 14, 3.0), loc=(-31.5, 82, 3.3), m="glass_clear"))
-    col("COL_dir_glass", (-31.5, 82, 3.3), (0.1, 14, 3.0), 0, root)
-    arch.stairs("dir_stair", (-33.5, 72.5, 1.35), 0, 1.4, 0.45, 3, 1.0, parts=P, m="int_floor", par=root)
-    arch.desk("dir_desk", (-27.5, 84, 1.8), -PI / 2, 2.0, parts=P)
-    arch.chair("dir_chair", (-26.6, 84, 1.8), -PI / 2, "leather_brown", P)
+    # the director's glass office stands in the north-east corner (it used to sit right across the entrance: a 1.8 m
+    # wall where the corridor came in), reached from tier 3 by a short stair
+    DY0, DY1 = 88.0, 101.6
+    P.append(box("dir_floor", (7.7, DY1 - DY0, 1.8), loc=(-28.15, (DY0 + DY1) / 2, 0.9), m="int_floor"))
+    col("COL_dir_floor", (-28.15, (DY0 + DY1) / 2, 0.9), (7.7, DY1 - DY0, 1.8), 0, root)
+    for (g0, g1) in ((DY0, 90.2), (91.8, DY1)):
+        P.append(box("dir_glass", (0.05, g1 - g0, 3.0), loc=(-32.0, (g0 + g1) / 2, 3.3), m="glass_clear"))
+        col("COL_dir_glass", (-32.0, (g0 + g1) / 2, 3.3), (0.1, g1 - g0, 3.0), 0, root)
+    P.append(box("dir_glass_s", (7.7, 0.05, 3.0), loc=(-28.15, DY0, 3.3), m="glass_clear"))
+    col("COL_dir_glass_s", (-28.15, DY0, 3.3), (7.7, 0.1, 3.0), 0, root)
+    arch.stairs("dir_stair", (-34.0, 91.0, 1.35), 0, 1.4, 0.45, 2, 2.0, parts=P, m="int_floor", par=root)
+    arch.desk("dir_desk", (-27.5, 96.0, 1.8), -PI / 2, 2.0, parts=P)
+    arch.chair("dir_chair", (-26.6, 96.0, 1.8), -PI / 2, "leather_brown", P)
+    # the centre aisle (y 79.4 … 84.6, on the corridor's axis): steps of 0.225 m from the entrance floor up to tier 3,
+    # then down tier by tier toward the screen wall, so every console row can be reached on foot
+    AY0, AY1 = 79.4, 84.6
+    for k in range(6):
+        sx0 = -24.0 - k * 1.33
+        P.append(box("aisle_step", (1.33, AY1 - AY0, 0.225 * (k + 1)), loc=(sx0 - 0.665, 82, 0.1125 * (k + 1)), m="int_floor"))
+        P.append(box("aisle_nosing", (0.05, AY1 - AY0, 0.03), loc=(sx0 - 0.03, 82, 0.225 * (k + 1) - 0.015), m="steel_painted_yellow"))
+        col(f"COL_aisle_up{k}", (sx0 - 0.665, 82, 0.1125 * (k + 1)), (1.33, AY1 - AY0, 0.225 * (k + 1)), 0, root)
+    for t in (3, 2, 1):
+        xe = -62 + t * 7.5          # the tier's west edge: half-step blocks on the lower tier below it
+        zt = t * 0.45
+        P.append(box("aisle_half", (0.8, AY1 - AY0, zt - 0.225), loc=(xe - 0.4, 82, (zt - 0.225) / 2), m="int_floor"))
+        P.append(box("aisle_nosing", (0.05, AY1 - AY0, 0.03), loc=(xe - 0.8, 82, zt - 0.225 - 0.015), m="steel_painted_yellow"))
+        col(f"COL_aisle_half{t}", (xe - 0.4, 82, (zt - 0.225) / 2), (0.8, AY1 - AY0, zt - 0.225), 0, root)
     for k in range(6):
         for row in range(2):
             light_strip(P, L, lights, root, -66 + k * 7.5, 72 + row * 20, MH - 0.05, 6, "y", "mc", every=6, kind="cool", intensity=11, distance=20)
@@ -299,10 +532,10 @@ def nasa():
         if t > 0:
             for k in range(9):
                 yy = 66 + k * 4.0
-                if 80 < yy < 84:
+                if 79 < yy < 85:
                     continue
                 P.append(cyl("tier_rail_post", 0.025, 0.9, loc=(x0 - 0.25, yy, zt - 0.45 + 0.45 + 0.45), m="metal_brushed", verts=8))
-            for (y0_, y1_) in ((65.5, 80.5), (83.5, 98.5)):
+            for (y0_, y1_) in ((65.5, 79.2), (84.8, 98.5)):
                 P.append(cyl("tier_rail", 0.025, y1_ - y0_, loc=(x0 - 0.25, (y0_ + y1_) / 2, zt + 0.9), rot=(PI / 2, 0, 0), m="metal_brushed", verts=8))
         for row_y in (68.5, 75.5, 88.5, 95.5):
             console_props(P, x0 + 3.0, row_y, zt, PI / 2, 4.8)
@@ -347,53 +580,80 @@ def nasa():
         empty(f"station_{iid}", loc=(x - 1.0, y, tier * 0.45), rot=(0, 0, PI / 2), parent=root)
 
     # ================================================================================== labs wing (east)
+    # ten rooms along a 60 m corridor (it starts inside the atrium wall and ends in a solid wall); one doorway per room
+    # at its centre, with a frame, a glass door that slides open as you approach (NasaSite: autodoor) and a nameplate
     LX0, LX1 = 22.0, 82.0
+    CX0 = 19.8
     CY = 82.0
-    # corridor
+    rooms = [("greenhouse", 22, 37, 1, "GREENHOUSE"), ("briefing", 22, 37, -1, "BRIEFING"), ("workshop", 37, 47, 1, "WORKSHOP"),
+             ("lifesupport", 37, 47, -1, "LIFE SUPPORT"), ("computers", 47, 57, 1, "COMPUTERS"), ("storage", 47, 57, -1, "STORES"),
+             ("medical", 57, 69.5, 1, "MEDICAL BAY"), ("suits", 57, 69.5, -1, "SUIT ROOM"), ("cryo", 69.5, 82, 1, "CRYOGENICS"), ("archive", 69.5, 82, -1, "ARCHIVE")]
+    DW, DH = 1.8, 2.5
     for sy in (-1, 1):
-        ops = [(10.0, 1.6, 0, 2.6), (25.0, 1.6, 0, 2.6), (40.0, 1.6, 0, 2.6), (52.0, 1.6, 0, 2.6)]
-        arch.wall(f"lab_corr{sy}", (LX0, CY + sy * 2.4), (LX1, CY + sy * 2.4), 0, 4.0, 0.3, "concrete", ops, parts=P)
-        arch.col_wall(f"labc{sy}", (LX0, CY + sy * 2.4), (LX1, CY + sy * 2.4), 0, 4.0, 0.3, ops, root)
-    P.append(box("lab_corr_floor", (LX1 - LX0, 4.8, 0.2), loc=((LX0 + LX1) / 2, CY, -0.1), m="int_floor"))
-    P.append(box("lab_corr_ceil", (LX1 - LX0, 4.8, 0.2), loc=((LX0 + LX1) / 2, CY, 4.1), m="int_panel_light"))
-    col("COL_labcorr_floor", ((LX0 + LX1) / 2, CY, -0.1), (LX1 - LX0, 4.8, 0.2), 0, root)
-    light_strip(P, L, lights, root, (LX0 + LX1) / 2, CY, 3.95, LX1 - LX0 - 1, "x", "labs", every=8, kind="cool")
-    # rooms: (name, x0, x1, side) side=+1 north, -1 south
-    rooms = [("greenhouse", 22, 37, 1), ("briefing", 22, 37, -1), ("workshop", 37, 47, 1), ("lifesupport", 37, 47, -1), ("computers", 47, 57, 1), ("storage", 47, 57, -1)]
-    for nm, x0, x1, side in rooms:
+        ops = [((x0 + x1) / 2 - CX0, DW, [(0, DH)]) for (nm, x0, x1, side, lab) in rooms if side == sy]
+        wall2(f"lab_corr{sy}", (CX0, CY + sy * 2.4), (LX1, CY + sy * 2.4), 0, 4.0, 0.3, "concrete", ops, P, root)
+        P.append(box("lab_bumper", (LX1 - CX0, 0.05, 0.22), loc=((CX0 + LX1) / 2, CY + sy * 2.22, 0.9), m="steel_painted_white"))
+    wall2("lab_end", (LX1, CY - 2.55), (LX1, CY + 2.55), 0, 4.0, 0.3, "concrete", [], P, root)
+    P.append(box("lab_corr_floor", (LX1 - CX0, 4.8, 0.2), loc=((CX0 + LX1) / 2, CY, -0.1), m="int_floor"))
+    P.append(box("lab_corr_ceil", (LX1 - CX0, 4.8, 0.2), loc=((CX0 + LX1) / 2, CY, 4.1), m="int_panel_light"))
+    col("COL_labcorr_floor", ((CX0 - 0.6 + LX1) / 2, CY, -0.1), (LX1 - CX0 + 0.6, 5.0, 0.2), 0, root)
+    for off in (-0.35, 0.35):
+        P.append(box("guide_stripe", (LX1 - CX0 - 1.0, 0.14, 0.008), loc=((CX0 + LX1) / 2 - 0.5, CY + off, 0.006), m="plant_green"))
+    light_strip(P, L, lights, root, (CX0 + LX1) / 2, CY, 3.95, LX1 - CX0 - 1, "x", "labs", every=8, kind="cool")
+    sign(P, L, "LABORATORIES", (LX1 - 0.17, CY, 2.6), (-1, 0), size=0.3)
+    sign(P, L, "ATRIUM", (23.0, CY + 2.23, 3.2), (0, -1), size=0.22)
+    for k, (nm, x0, x1, side, lab) in enumerate(rooms):
         y0 = CY + side * 2.4
         y1 = CY + side * 16.4
         ya, yb = (y0, y1) if side > 0 else (y1, y0)
-        arch.wall(f"{nm}_far", (x0, y1), (x1, y1), 0, 4.0, 0.3, "concrete", [], parts=P)
-        arch.wall(f"{nm}_w", (x0, ya), (x0, yb), 0, 4.0, 0.3, "concrete", [], parts=P)
-        arch.wall(f"{nm}_e", (x1, ya), (x1, yb), 0, 4.0, 0.3, "concrete", [], parts=P)
-        arch.col_wall(f"{nm}f", (x0, y1), (x1, y1), 0, 4.0, 0.3, [], root)
-        arch.col_wall(f"{nm}w", (x0, ya), (x0, yb), 0, 4.0, 0.3, [], root)
-        arch.col_wall(f"{nm}e", (x1, ya), (x1, yb), 0, 4.0, 0.3, [], root)
-        P.append(box(f"{nm}_floor", (x1 - x0, 14, 0.2), loc=((x0 + x1) / 2, (ya + yb) / 2, -0.1), m="int_floor" if nm != "greenhouse" else "tile_white"))
-        P.append(box(f"{nm}_ceil", (x1 - x0, 14, 0.2), loc=((x0 + x1) / 2, (ya + yb) / 2, 4.1), m="int_panel_light"))
-        col(f"COL_{nm}_floor", ((x0 + x1) / 2, (ya + yb) / 2, -0.1), (x1 - x0, 14, 0.2), 0, root)
-        rv = box(f"ROOM_nasa_{nm}", (x1 - x0, 14, 4.0), loc=((x0 + x1) / 2, (ya + yb) / 2, 2.0), m="frame_black", par=root, room=f"nasa_{nm}")
-        rv.hide_render = True
         cx, cy = (x0 + x1) / 2, (ya + yb) / 2
+        # walls: the far wall, the east wall of every room, the west wall only for the first room (no doubled partitions)
+        wall2(f"{nm}_far", (x0, y1), (x1, y1), 0, 4.0, 0.3, "concrete", [], P, root)
+        wall2(f"{nm}_e", (x1, ya), (x1, yb), 0, 4.0, 0.3, "concrete", [], P, root)
+        if x0 == LX0:
+            wall2(f"{nm}_w", (x0, ya), (x0, yb), 0, 4.0, 0.3, "concrete", [], P, root)
+        P.append(box(f"{nm}_floor", (x1 - x0, 14, 0.2), loc=(cx, cy, -0.1), m="int_floor" if nm not in ("greenhouse", "medical") else "tile_white"))
+        P.append(box(f"{nm}_ceil", (x1 - x0, 14, 0.2), loc=(cx, cy, 4.1), m="int_panel_light"))
+        col(f"COL_{nm}_floor", (cx, cy, -0.1), (x1 - x0, 14, 0.2), 0, root)
+        rv = box(f"ROOM_nasa_{nm}", (x1 - x0, 14, 4.0), loc=(cx, cy, 2.0), m="frame_black", par=root, room=f"nasa_{nm}")
+        rv.hide_render = True
+        # doorway frame, the sliding glass door (on the corridor face, slides east over the wall) and the nameplate
+        wy = CY + side * 2.4
+        for e in (-1, 1):
+            P.append(box("door_jamb", (0.08, 0.36, DH), loc=(cx + e * (DW / 2 + 0.04), wy, DH / 2), m="metal_gunmetal"))
+        P.append(box("door_head", (DW + 0.16, 0.36, 0.1), loc=(cx, wy, DH + 0.05), m="metal_gunmetal"))
+        dvn = empty(f"adoor_{nm}", loc=(cx, wy - side * 0.21, 0), parent=root, interact="autodoor", iid=f"adoor_{nm}")
+        dpp = [box("ad_glass", (DW + 0.08, 0.03, DH - 0.06), loc=(0, 0, (DH - 0.06) / 2), m="glass_clear"),
+               box("ad_rail_b", (DW + 0.1, 0.05, 0.1), loc=(0, 0, 0.05), m="metal_brushed"),
+               box("ad_rail_t", (DW + 0.1, 0.05, 0.08), loc=(0, 0, DH - 0.1), m="metal_brushed"),
+               box("ad_stile_l", (0.05, 0.05, DH - 0.06), loc=(-(DW + 0.05) / 2, 0, (DH - 0.06) / 2), m="metal_brushed"),
+               box("ad_stile_r", (0.05, 0.05, DH - 0.06), loc=((DW + 0.05) / 2, 0, (DH - 0.06) / 2), m="metal_brushed"),
+               box("ad_band", (DW + 0.06, 0.035, 0.08), loc=(0, 0, 1.2), m="steel_painted_white")]
+        dmm = merge(dpp, f"adoor_{nm}_mesh", par=dvn)
+        dmm.location = (0, 0, 0)
+        finish(dmm, 30)
+        col(f"COL_adoor_{nm}", (0, side * 0.21, DH / 2), (DW, 0.3, DH), 0, dvn, door=f"adoor_{nm}")
+        sign(P, L, lab, (cx - DW / 2 - 0.95, wy - side * 0.17, 2.0), (0, -side), size=0.15, board=(1.6, 0.32))
+        lights.append(empty(f"light_{nm}_{len(lights)}", loc=(cx, cy, 3.3), parent=root, light="cool" if nm not in ("greenhouse",) else "warm", group="labs", intensity=8, distance=14))
         if nm == "greenhouse":
             for r in range(4):
-                for k in range(3):
-                    yy = cy - 5 + k * 5
+                for k2 in range(3):
+                    yy = cy - 5 + k2 * 5
                     xx = x0 + 2.5 + r * 3.3
                     P.append(box("gh_rack", (1.2, 4.0, 0.9), loc=(xx, yy, 0.45), m="steel_galv"))
                     P.append(box("gh_tray", (1.1, 3.9, 0.15), loc=(xx, yy, 0.95), m="plastic_white"))
                     for pk in range(10):
                         P.append(cyl("gh_plant", 0.04, R.uniform(0.4, 0.9), loc=(xx + R.uniform(-0.4, 0.4), yy - 1.8 + pk * 0.4, 1.3), m="plant_green", verts=5))
                     L.append(box("lampE|greenhouse|g", (1.0, 3.8, 0.04), loc=(xx, yy, 2.6), m="emit_warm"))
-            lights.append(empty(f"light_greenhouse_{len(lights)}", loc=(cx, cy, 3.2), parent=root, light="warm", group="greenhouse", intensity=10, distance=14))
-            hb = box("term_greenhouse_hit", (2, 2, 2), loc=(cx, cy, 1.0), m="frame_black", par=root, interact="terminal", iid="lab_greenhouse")
+                col(f"COL_ghrack{r}", (x0 + 2.5 + r * 3.3, cy, 0.5), (1.2, 14.0, 1.0), 0, root)
+            hb = box("term_greenhouse_hit", (1.4, 1.4, 2), loc=(x1 - 1.2, cy + side * 5.5, 1.0), m="frame_black", par=root, interact="terminal", iid="lab_greenhouse")
             hb.hide_render = True
+            P.append(box("gh_desk", (1.2, 0.7, 0.9), loc=(x1 - 1.2, cy + side * 5.5, 0.45), m="console_dark"))
         elif nm == "briefing":
             arch.table("brief_table", (cx, cy, 0), 7.0, 2.2, parts=P, m="console_dark")
-            for k in range(6):
-                for sy in (-1, 1):
-                    arch.chair("bchair", (cx - 3 + k * 1.2, cy + sy * 1.5, 0), PI if sy > 0 else 0, "plastic_dark", P)
+            for k2 in range(6):
+                for sy2 in (-1, 1):
+                    arch.chair("bchair", (cx - 3 + k2 * 1.2, cy + sy2 * 1.5, 0), PI if sy2 > 0 else 0, "plastic_dark", P)
             screen("screen_briefing", root, (x0 + 0.25, cy, 2.2), (4.0, 2.2), rot=(0, 0, PI / 2))
             hb = box("term_briefing_hit", (1, 4, 2.5), loc=(x0 + 0.6, cy, 2.0), m="frame_black", par=root, interact="terminal", iid="lab_briefing")
             hb.hide_render = True
@@ -401,70 +661,191 @@ def nasa():
         elif nm == "workshop":
             P.append(box("ws_bench", (8, 1.0, 0.95), loc=(cx, y1 - side * 1.0, 0.48), m="steel_painted_gray", bevel=0.02))
             col("COL_wsbench", (cx, y1 - side * 1.0, 0.48), (8, 1.0, 0.95), 0, root)
-            # a spare Ranger landing leg and RCS pod on stands
             P.append(box("ws_stand", (2.0, 2.0, 0.8), loc=(cx - 2, cy, 0.4), m="steel_painted_yellow"))
             P.append(cyl("ws_leg", 0.1, 2.2, loc=(cx - 2, cy, 1.2), rot=(0, PI / 2 * 0.8, 0), m="metal_gray", verts=12))
             P.append(box("ws_rcs", (0.7, 0.6, 0.5), loc=(cx + 2, cy, 1.05), m="paint_charcoal", bevel=0.03))
             P.append(box("ws_cart", (1.0, 1.4, 0.8), loc=(cx + 2, cy, 0.4), m="farm_red"))
+            col("COL_wsstand", (cx - 2, cy, 0.5), (2.0, 2.0, 1.0), 0, root)
+            col("COL_wscart", (cx + 2, cy, 0.5), (1.0, 1.4, 1.0), 0, root)
             hb = box("term_workshop_hit", (8, 1.2, 1.5), loc=(cx, y1 - side * 1.0, 1.0), m="frame_black", par=root, interact="terminal", iid="lab_workshop")
             hb.hide_render = True
         elif nm == "lifesupport":
-            for k in range(3):
-                P.append(cyl("ls_tank", 1.1, 3.4, loc=(x0 + 2 + k * 3.0, cy - 3, 1.7), m="steel_painted_white", verts=24))
-                P.append(cyl("ls_fan", 0.8, 0.5, loc=(x0 + 2 + k * 3.0, cy + 3, 2.5), rot=(PI / 2, 0, 0), m="radiator_black", verts=20))
-                col(f"COL_lstank{k}", (x0 + 2 + k * 3.0, cy - 3, 1.7), (2.2, 2.2, 3.4), 0, root)
-            for k in range(4):
-                P.append(kit.tube("ls_pipe", [(x0 + 0.5, cy - 6 + k * 0.6, 3.5), (x1 - 0.5, cy - 6 + k * 0.6, 3.5)], 0.09, m=["pipe_blue", "steel_painted_yellow", "steel_galv", "warning_red"][k], seg=10))
-            hb = box("term_ls_hit", (1.5, 1.5, 2), loc=(cx, cy, 1.0), m="frame_black", par=root, interact="terminal", iid="lab_lifesupport")
+            for k2 in range(3):
+                P.append(cyl("ls_tank", 1.1, 3.4, loc=(x0 + 2 + k2 * 3.0, cy - 3, 1.7), m="steel_painted_white", verts=24))
+                P.append(cyl("ls_fan", 0.8, 0.5, loc=(x0 + 2 + k2 * 3.0, cy + 3, 2.5), rot=(PI / 2, 0, 0), m="radiator_black", verts=20))
+                col(f"COL_lstank{k2}", (x0 + 2 + k2 * 3.0, cy - 3, 1.7), (2.2, 2.2, 3.4), 0, root)
+            for k2 in range(4):
+                P.append(kit.tube("ls_pipe", [(x0 + 0.5, cy - 6 + k2 * 0.6, 3.5), (x1 - 0.5, cy - 6 + k2 * 0.6, 3.5)], 0.09, m=["pipe_blue", "steel_painted_yellow", "steel_galv", "warning_red"][k2], seg=10))
+            hb = box("term_ls_hit", (1.5, 1.5, 2), loc=(cx, cy + 1.2, 1.0), m="frame_black", par=root, interact="terminal", iid="lab_lifesupport")
             hb.hide_render = True
+            P.append(box("ls_console", (1.2, 0.6, 1.1), loc=(cx, cy + 1.2, 0.55), m="console_dark"))
         elif nm == "computers":
             for r in range(3):
-                for k in range(5):
-                    P.append(box("rack", (0.65, 1.1, 2.2), loc=(x0 + 2.2 + r * 2.8, cy - 5 + k * 2.2, 1.1), m="console_dark", bevel=0.01))
-                    for j in range(8):
-                        L.append(box("lampE|computers|led", (0.02, 0.6, 0.02), loc=(x0 + 2.2 + r * 2.8 - 0.33, cy - 5 + k * 2.2, 0.4 + j * 0.22), m="emit_green" if (j + k) % 3 else "emit_screen_amber"))
+                for k2 in range(5):
+                    P.append(box("rack", (0.65, 1.1, 2.2), loc=(x0 + 2.2 + r * 2.8, cy - 5 + k2 * 2.2, 1.1), m="console_dark", bevel=0.01))
+                    for j2 in range(8):
+                        L.append(box("lampE|computers|led", (0.02, 0.6, 0.02), loc=(x0 + 2.2 + r * 2.8 - 0.33, cy - 5 + k2 * 2.2, 0.4 + j2 * 0.22), m="emit_green" if (j2 + k2) % 3 else "emit_screen_amber"))
                 col(f"COL_racks{r}", (x0 + 2.2 + r * 2.8, cy, 1.1), (0.7, 11, 2.2), 0, root)
             hb = box("term_comp_hit", (1, 1, 2), loc=(x1 - 1.5, cy, 1.0), m="frame_black", par=root, interact="terminal", iid="lab_computers")
             hb.hide_render = True
         elif nm == "storage":
             for r in range(3):
-                arch.shelf_unit("st_shelf", (x0 + 2.5 + r * 2.8, cy, 0), PI / 2, w=8.0, h=2.8, d=0.9, parts=P, items="boxes", seed=40 + r)
-                col(f"COL_shelf{r}", (x0 + 2.5 + r * 2.8, cy, 1.4), (0.9, 8.0, 2.8), 0, root)
+                arch.shelf_unit("st_shelf", (x0 + 2.5 + r * 2.8, cy - 1.0, 0), PI / 2, w=8.0, h=2.8, d=0.9, parts=P, items="boxes", seed=40 + r)
+                col(f"COL_shelf{r}", (x0 + 2.5 + r * 2.8, cy - 1.0, 1.4), (0.9, 8.0, 2.8), 0, root)
+        elif nm == "medical":
+            for b in range(2):
+                bx = x0 + 3.0 + b * 4.5
+                by = y1 - side * 1.6
+                P.append(box("med_bed_frame", (1.0, 2.1, 0.5), loc=(bx, by, 0.35), m="steel_painted_white", bevel=0.02))
+                P.append(box("med_mattress", (0.92, 2.0, 0.14), loc=(bx, by, 0.67), m="pad_white", bevel=0.03))
+                P.append(box("med_pillow", (0.6, 0.35, 0.1), loc=(bx, by + side * 0.75, 0.78), m="pad_white", bevel=0.04))
+                for e in (-1, 1):
+                    P.append(box("med_rail", (0.04, 1.2, 0.3), loc=(bx + e * 0.5, by, 0.85), m="metal_brushed"))
+                P.append(cyl("med_pole", 0.025, 1.8, loc=(bx + 0.8, by + side * 0.7, 0.9), m="metal_brushed", verts=8))
+                P.append(box("med_monitor", (0.45, 0.06, 0.32), loc=(bx + 0.8, by + side * 0.7, 1.75), m="plastic_dark"))
+                L.append(box("lampE|labs|med", (0.4, 0.02, 0.27), loc=(bx + 0.8, by + side * 0.66, 1.75), m="emit_screen"))
+                P.append(box("med_curtain", (0.03, 2.3, 2.2), loc=(bx + 1.35, by, 1.35), m="fabric_curtain"))
+                col(f"COL_medbed{b}", (bx, by, 0.4), (1.0, 2.1, 0.8), 0, root)
+            P.append(box("med_cabinets", (0.6, 6.0, 0.9), loc=(x1 - 0.5, cy, 0.45), m="steel_painted_white", bevel=0.01))
+            P.append(box("med_counter", (0.65, 6.0, 0.04), loc=(x1 - 0.5, cy, 0.92), m="ceramic_white"))
+            P.append(box("med_cab_upper", (0.4, 6.0, 0.8), loc=(x1 - 0.35, cy, 2.2), m="steel_painted_white"))
+            col("COL_medcab", (x1 - 0.5, cy, 0.5), (0.6, 6.0, 1.0), 0, root)
+            P.append(box("med_scanner", (1.2, 2.2, 1.0), loc=(x0 + 3.0, cy - side * 1.0, 0.5), m="paint_white_aero", bevel=0.05))
+            P.append(cyl("med_scanner_ring", 0.75, 0.5, loc=(x0 + 3.0, cy - side * 1.0, 1.1), rot=(PI / 2, 0, 0), m="paint_white_aero", verts=32))
+            col("COL_medscan", (x0 + 3.0, cy - side * 1.0, 0.75), (1.4, 2.2, 1.5), 0, root)
+            hb = box("term_med_hit", (1.0, 1.4, 2.0), loc=(x1 - 0.6, cy + 2.0, 1.0), m="frame_black", par=root, interact="terminal", iid="lab_medical")
+            hb.hide_render = True
+        elif nm == "cryo":
+            for b in range(4):
+                bx = x0 + 2.2 + b * 2.7
+                by = cy + side * 1.5
+                P.append(box("cryo_base", (1.1, 2.6, 0.55), loc=(bx, by, 0.28), m="steel_painted_white", bevel=0.03))
+                P.append(cyl("cryo_shell", 0.55, 2.4, loc=(bx, by, 0.95), rot=(PI / 2, 0, 0), m="glass_clear", verts=24))
+                P.append(cyl("cryo_cap", 0.58, 0.18, loc=(bx, by - 1.25, 0.95), rot=(PI / 2, 0, 0), m="paint_white_aero", verts=24))
+                P.append(cyl("cryo_cap", 0.58, 0.18, loc=(bx, by + 1.25, 0.95), rot=(PI / 2, 0, 0), m="paint_white_aero", verts=24))
+                L.append(box("lampE|cryo|p", (0.6, 2.2, 0.03), loc=(bx, by, 0.6), m="emit_cool"))
+                P.append(box("cryo_panel", (0.5, 0.08, 0.35), loc=(bx, by - side * 1.45, 1.25), m="console_dark"))
+                L.append(box("lampE|cryo|s", (0.42, 0.02, 0.27), loc=(bx, by - side * 1.5, 1.25), m="emit_screen"))
+                col(f"COL_cryo{b}", (bx, by, 0.75), (1.2, 2.7, 1.5), 0, root)
+            lights.append(empty(f"light_cryo_{len(lights)}", loc=(cx, cy + side * 1.5, 2.6), parent=root, light="cool", group="labs", intensity=6, distance=10))
+            hb = box("term_cryo_hit", (1.0, 1.0, 2.0), loc=(x1 - 0.9, cy - side * 4.5, 1.0), m="frame_black", par=root, interact="terminal", iid="lab_cryo")
+            hb.hide_render = True
+            P.append(box("cryo_console", (1.2, 0.6, 1.1), loc=(x1 - 0.9, cy - side * 4.5, 0.55), m="console_dark"))
+        elif nm == "suits":
+            for b in range(4):
+                bx = x0 + 2.2 + b * 2.6
+                by = y1 - side * 1.4
+                P.append(cyl("suit_base", 0.35, 0.05, loc=(bx, by, 0.03), m="metal_dark", verts=16))
+                P.append(cyl("suit_leg", 0.1, 0.85, loc=(bx - 0.12, by, 0.5), m="suit_white", verts=10))
+                P.append(cyl("suit_leg", 0.1, 0.85, loc=(bx + 0.12, by, 0.5), m="suit_white", verts=10))
+                P.append(cyl("suit_torso", 0.26, 0.7, loc=(bx, by, 1.25), m="suit_white", verts=16))
+                P.append(box("suit_pack", (0.5, 0.25, 0.6), loc=(bx, by + side * 0.3, 1.3), m="suit_gray", bevel=0.04))
+                for e in (-1, 1):
+                    P.append(cyl("suit_arm", 0.08, 0.65, loc=(bx + e * 0.36, by, 1.2), rot=(0, e * 0.12, 0), m="suit_white", verts=10))
+                P.append(kit.sphere("suit_helmet", 0.18, loc=(bx, by, 1.8), m="suit_white", segs=16, rings=10))
+                P.append(kit.sphere("suit_visor", 0.13, loc=(bx, by - side * 0.08, 1.8), m="glass_dark", segs=14, rings=8, scale=(1, 0.6, 0.9)))
+                col(f"COL_suit{b}", (bx, by, 1.0), (0.8, 0.7, 2.0), 0, root)
+            for b in range(8):
+                P.append(box("locker", (0.55, 0.5, 2.0), loc=(x0 + 0.5, cy - 3.5 + b * 0.58, 1.0), m="steel_painted_gray", bevel=0.01))
+                P.append(box("locker_vent", (0.02, 0.3, 0.12), loc=(x0 + 0.78, cy - 3.5 + b * 0.58, 1.7), m="metal_dark"))
+            col("COL_lockers", (x0 + 0.5, cy - 1.5, 1.0), (0.55, 4.7, 2.0), 0, root)
+            P.append(box("suit_bench", (3.0, 0.45, 0.45), loc=(cx, cy, 0.23), m="wood_board", bevel=0.01))
+            col("COL_suitbench", (cx, cy, 0.23), (3.0, 0.45, 0.45), 0, root)
+            hb = box("term_suits_hit", (1.0, 1.0, 2.0), loc=(x1 - 0.9, cy, 1.0), m="frame_black", par=root, interact="terminal", iid="lab_suits")
+            hb.hide_render = True
+            P.append(box("suit_console", (0.6, 1.0, 1.1), loc=(x1 - 0.6, cy, 0.55), m="console_dark"))
+        elif nm == "archive":
+            for r in range(3):
+                arch.shelf_unit("ar_shelf", (x0 + 2.0 + r * 2.6, cy - 1.5, 0), PI / 2, w=7.0, h=2.6, d=0.8, parts=P, items="boxes", seed=60 + r)
+                col(f"COL_arshelf{r}", (x0 + 2.0 + r * 2.6, cy - 1.5, 1.3), (0.8, 7.0, 2.6), 0, root)
+            arch.table("plan_table", (x1 - 2.5, cy + 2.5, 0), 2.4, 1.4, parts=P, m="metal_gray")
+            P.append(box("plan_sheet", (2.0, 1.1, 0.005), loc=(x1 - 2.5, cy + 2.5, 0.77), m="plastic_white"))
+            col("COL_plantable", (x1 - 2.5, cy + 2.5, 0.38), (2.4, 1.4, 0.76), 0, root)
+            for b in range(3):
+                P.append(box("tape_cab", (0.8, 0.6, 1.8), loc=(x1 - 0.5, cy - 4.5 + b * 1.0, 0.9), m="console_dark", bevel=0.01))
+                for e in (-1, 1):
+                    P.append(cyl("tape_reel", 0.17, 0.03, loc=(x1 - 0.9, cy - 4.5 + b * 1.0 + e * 0.0, 1.25 + e * 0.0 + (0.22 if e > 0 else -0.2)), rot=(0, PI / 2, 0), m="metal_brushed", verts=16))
+            col("COL_tapecab", (x1 - 0.5, cy - 3.5, 0.9), (0.8, 3.0, 1.8), 0, root)
+            hb = box("term_archive_hit", (1.6, 1.0, 1.4), loc=(x1 - 2.5, cy + 2.5, 1.0), m="frame_black", par=root, interact="terminal", iid="lab_archive")
+            hb.hide_render = True
         if nm not in ("greenhouse",):
-            light_strip(P, L, lights, root, cx, cy, 3.95, 10, "y", f"labs", every=10, kind="cool")
-    rv = box("ROOM_nasa_labs", (LX1 - LX0, 4.8, 4.0), loc=((LX0 + LX1) / 2, CY, 2.0), m="frame_black", par=root, room="nasa_labs")
+            light_strip(P, L, lights, root, cx, cy, 3.95, 10, "y", "labs", every=10, kind="cool")
+    rv = box("ROOM_nasa_labs", (LX1 - CX0, 4.8, 4.0), loc=((CX0 + LX1) / 2, CY, 2.0), m="frame_black", par=root, room="nasa_labs")
     rv.hide_render = True
-    # connector atrium (x=20) → lab corridor (x=22)
-    P.append(box("lab_conn_ceil", (3, 4.8, 0.3), loc=(21, CY, 4.3), m="concrete"))
 
-    # ================================================================================== elevator (atrium north) down to hangar level
-    EY = AC[1] + AR + 4.0  # elevator shaft centre y = 106
+    # ================================================================================== elevator: four stops (−35, 0, 5.5, 11)
+    # shaft north of the atrium (centre EY): closed on every side; landings on the south face (atrium floor and both
+    # balconies) and on the north face at the bottom (the lower corridor); a rising steel gate at each landing opens
+    # only while the car stands there (NasaSite), and a call button beside it
+    SX = 4.3                     # inner half-width
+    SS, SN = EY - 4.45, EY + 4.6  # south / north wall lines
+    ZB, ZT = LOW - 0.3, 16.3
+    LANDS = [(0.0, 3.2), (5.5, 8.0), (11.0, 13.5)]
     for sx in (-1, 1):
-        P.append(box("el_shaft", (0.6, 9, 16 - LOW), loc=(sx * 4.6, EY, (16 + LOW) / 2), m="concrete"))
-        col(f"COL_elshaft{sx}", (sx * 4.6, EY, (16 + LOW) / 2), (0.6, 9, 16 - LOW), 0, root)
-    P.append(box("el_back", (9.8, 0.6, 16 - LOW), loc=(0, EY + 4.6, (16 + LOW) / 2), m="concrete"))
-    col("COL_elback_up", (0, EY + 4.6, 8 - 2), (9.8, 0.6, 16 + 4), 0, root)
-    P.append(box("el_guide_l", (0.2, 0.3, 16 - LOW), loc=(-4.1, EY + 3.8, (16 + LOW) / 2), m="steel_painted_yellow"))
-    P.append(box("el_guide_r", (0.2, 0.3, 16 - LOW), loc=(4.1, EY + 3.8, (16 + LOW) / 2), m="steel_painted_yellow"))
+        wall2(f"el_side{sx}", (sx * (SX + 0.3), SS - 0.15), (sx * (SX + 0.3), SN + 0.15), ZB, ZT, 0.6, "concrete", [], P, root)
+    wall2("el_south", (-SX - 0.6, SS), (SX + 0.6, SS), ZB, ZT, 0.3, "concrete", [(SX + 0.6, 2 * SX, LANDS)], P, root)
+    wall2("el_north", (-SX - 0.6, SN), (SX + 0.6, SN), ZB, ZT, 0.3, "concrete", [(SX + 0.6, 2 * SX, [(LOW, LOW + 3.2)])], P, root)
+    P.append(box("el_roof", (2 * SX + 1.2, SN - SS + 0.3, 0.4), loc=(0, EY, ZT + 0.2), m="concrete"))
+    P.append(box("el_pit", (2 * SX, SN - SS, 0.3), loc=(0, (SS + SN) / 2, LOW - 0.6), m="concrete_dark"))
+    col("COL_el_pit", (0, (SS + SN) / 2, LOW - 0.6), (2 * SX, SN - SS, 0.3), 0, root)
+    for sx in (-1, 1):
+        P.append(box("el_guide", (0.2, 0.3, ZT - ZB), loc=(sx * (SX - 0.1), EY, (ZB + ZT) / 2), m="steel_painted_yellow"))
+    # landing thresholds: atrium floor and the two balconies run through the wall opening to the shaft
+    for i_l, (lz, _) in enumerate(LANDS):
+        P.append(box("el_threshold", (2 * SX, SS + 0.32 - 101.2, 0.2 if lz == 0 else 0.35), loc=(0, (101.2 + SS + 0.32) / 2, lz - (0.1 if lz == 0 else 0.175)), m="int_grate" if lz else "steel_galv"))
+        col(f"COL_el_threshold{i_l}", (0, (101.2 + SS + 0.32) / 2, lz - (0.1 if lz == 0 else 0.175)), (2 * SX, SS + 0.32 - 101.2, 0.2 if lz == 0 else 0.35), 0, root)
+    # car: grated deck, side rails (east/west), control post with the level button
     ev = empty("elevator", loc=(0, EY, 0), parent=root, interact="elevator", iid="nasa_elevator")
     ep = [box("el_deck", (8.4, 8.4, 0.3), loc=(0, 0, -0.15), m="int_grate"), box("el_frame", (8.4, 8.4, 0.25), loc=(0, 0, -0.45), m="steel_painted_yellow")]
     for sx in (-1, 1):
         ep.append(box("el_rail", (0.06, 8.4, 1.1), loc=(sx * 4.15, 0, 0.55), m="steel_painted_yellow"))
-    ep.append(box("el_rail_b", (8.4, 0.06, 1.1), loc=(0, 4.15, 0.55), m="steel_painted_yellow"))
-    ep.append(box("el_panel", (0.4, 0.15, 1.2), loc=(3.6, -3.9, 0.6), m="console_dark"))
+        ep.append(box("el_rail_mid", (0.04, 8.4, 0.05), loc=(sx * 4.15, 0, 0.55), m="steel_painted_yellow"))
+    ep.append(box("el_post", (0.15, 0.15, 1.1), loc=(3.9, -3.7, 0.55), m="console_dark"))
+    ep.append(box("el_panel", (0.35, 0.15, 0.45), loc=(3.9, -3.78, 1.15), m="console_dark"))
     em = merge(ep, "elevator_mesh", par=ev)
     em.location = (0, 0, 0)
     finish(em, 30)
     col("COL_elevator_deck", (0, 0, -0.2), (8.4, 8.4, 0.4), 0, ev, mover="nasa_elevator")
-    box("el_button", (0.25, 0.12, 0.3), loc=(3.6, -4.0, 1.0), m="emit_green", par=ev, interact="elevator", iid="nasa_elevator_btn")
-    L.append(box("lampE|elev|e", (8, 0.2, 0.05), loc=(0, EY - 4.0, 15.6), m="emit_cool"))
+    for sx in (-1, 1):
+        col(f"COL_el_rail{sx}", (sx * 4.15, 0, 0.55), (0.1, 8.4, 1.1), 0, ev, mover="nasa_elevator")
+    box("el_button", (0.22, 0.08, 0.22), loc=(3.9, -3.87, 1.15), m="emit_green", par=ev, interact="elevator", iid="nasa_elevator_btn")
+    # landing gates (they rise into the solid wall above each opening) and call buttons
+    for i_l, (lz, top) in enumerate(LANDS + [(LOW, LOW + 3.2)]):
+        gy = SS if i_l < 3 else SN
+        gv = empty(f"elgate_{i_l}", loc=(0, gy, lz), parent=root, interact="elgate", iid=f"elgate_{i_l}")
+        gv["level"] = i_l
+        gp = [box("eg_rail", (2 * SX, 0.08, 0.08), loc=(0, 0, 0.06), m="steel_painted_yellow"), box("eg_rail", (2 * SX, 0.08, 0.08), loc=(0, 0, 2.36), m="steel_painted_yellow"),
+              box("eg_rail", (2 * SX, 0.06, 0.06), loc=(0, 0, 1.2), m="steel_painted_yellow")]
+        for b in range(int(2 * SX / 0.22)):
+            gp.append(box("eg_bar", (0.03, 0.03, 2.3), loc=(-SX + 0.11 + b * 0.22, 0, 1.2), m="metal_dark"))
+        gm = merge(gp, f"elgate_{i_l}_mesh", par=gv)
+        gm.location = (0, 0, 0)
+        finish(gm, 30)
+        col(f"COL_elgate_{i_l}", (0, 0, 1.2), (2 * SX, 0.2, 2.4), 0, gv, door=f"elgate_{i_l}")
+        if i_l < 3:
+            # on the atrium wall right of the landing, facing the atrium centre
+            px, pz = SX + 0.85, lz + 1.25
+            py = AC[1] + math.sqrt((AR - 0.4) ** 2 - px * px) - 0.06
+            g = facing(-px, AC[1] - py)
+            P.append(box("elcall_panel", (0.32, 0.06, 0.5), loc=(px, py, pz), rot=(0, 0, g), m="console_dark", bevel=0.01))
+            cb = box(f"elcall_{i_l}", (0.13, 0.05, 0.13), loc=(px - math.sin(g) * 0.0, py - 0.035, pz), rot=(0, 0, g), m="emit_green", par=root, interact="elcall", iid=str(i_l))
+            sign(P, L, ["ELEVATOR  ·  LEVEL 0", "ELEVATOR  ·  LEVEL +5.5", "ELEVATOR  ·  LEVEL +11"][i_l], (0, AC[1] + AR - 0.42, top + 0.45), (0, -1), size=0.2)
+        else:
+            px, pz = 4.45, LOW + 1.25
+            P.append(box("elcall_panel", (0.06, 0.32, 0.5), loc=(px, SN + 1.6, pz), m="console_dark", bevel=0.01))
+            box(f"elcall_{i_l}", (0.05, 0.13, 0.13), loc=(px - 0.04, SN + 1.6, pz), m="emit_green", par=root, interact="elcall", iid=str(i_l))
+            sign(P, L, "ELEVATOR  ·  LEVEL −35", (0, SN + 0.17, top + 0.45), (0, 1), size=0.2)
+    L.append(box("lampE|elev|e", (8, 0.2, 0.05), loc=(0, EY, ZT - 0.05), m="emit_cool"))
+    lights.append(empty(f"light_elev_{len(lights)}", loc=(0, EY, 13.0), parent=root, light="cool", group="elev", intensity=7, distance=16))
+    lights.append(empty(f"light_elev_{len(lights)}", loc=(0, EY, LOW + 3.0), parent=root, light="cool", group="elev", intensity=7, distance=12))
 
     # ================================================================================== lower level: corridor to the silo hall (z = LOW)
     CW, CH = 9.0, 7.0
-    cy0, cy1 = EY + 4.4, SILO_Y - SILO_R - 1.0
-    P.append(box("low_floor", (CW, cy1 - cy0 + 9, 0.3), loc=(0, (cy0 + cy1) / 2 - 4.5, LOW - 0.15), m="concrete_dark"))
-    col("COL_low_floor", (0, (cy0 + cy1) / 2 - 4.5, LOW - 0.15), (CW, cy1 - cy0 + 9, 0.3), 0, root)
-    P.append(box("low_floor_shaft", (9.8, 9.8, 0.3), loc=(0, EY, LOW - 0.15), m="concrete_dark"))
+    RR = SILO_R + 7.5            # silo hall ring wall (0.9 thick)
+    cy0 = SN + 0.15
+    cy1 = SILO_Y - math.sqrt((RR + 0.45) ** 2 - (CW / 2 + 0.9) ** 2)   # the corridor walls meet the ring's outer face
+    P.append(box("low_floor", (CW, SILO_Y - RR + 1.5 - (SN - 0.35), 0.3), loc=(0, (SN - 0.35 + SILO_Y - RR + 1.5) / 2, LOW - 0.15), m="concrete_dark"))
+    col("COL_low_floor", (0, (SN - 0.35 + SILO_Y - RR + 1.5) / 2, LOW - 0.15), (CW, SILO_Y - RR + 1.5 - (SN - 0.35), 0.3), 0, root)
     for sx in (-1, 1):
         P.append(box("low_wall", (0.6, cy1 - cy0, CH), loc=(sx * (CW / 2 + 0.3), (cy0 + cy1) / 2, LOW + CH / 2), m="concrete"))
         col(f"COL_lowwall{sx}", (sx * (CW / 2 + 0.3), (cy0 + cy1) / 2, LOW + CH / 2), (0.6, cy1 - cy0, CH), 0, root)
@@ -474,12 +855,16 @@ def nasa():
     light_strip(P, L, lights, root, 0, (cy0 + cy1) / 2, LOW + CH - 0.05, cy1 - cy0 - 2, "y", "lower", every=12)
     for k in range(int((cy1 - cy0) / 6)):
         P.append(box("hazard", (0.6, 0.6, 0.02), loc=(-CW / 2 + 0.5, cy0 + 3 + k * 6, LOW + 0.02), m="steel_painted_yellow"))
+    for off in (-0.35, 0.35):
+        P.append(box("guide_stripe", (cy1 - cy0 - 1, 0.14, 0.008), loc=(off, (cy0 + cy1) / 2, LOW + 0.006), rot=(0, 0, PI / 2), m="steel_painted_yellow"))
+    sign(P, L, "LAUNCH COMPLEX  ·  SILO 1", (0, cy1 - 0.4, LOW + 5.6), (0, -1), size=0.32)
     rv = box("ROOM_nasa_lower", (CW, cy1 - cy0 + 9, CH), loc=(0, (cy0 + cy1) / 2 - 4.5, LOW + CH / 2), m="frame_black", par=root, room="nasa_lower")
     rv.hide_render = True
 
     # ================================================================================== silo hall at the bottom (z = LOW .. LOW+12) — the shaft above is built at runtime
-    P.append(cyl("silo_floor", SILO_R + 6, 0.4, loc=(0, SILO_Y, LOW - 0.2), m="concrete_dark", verts=48))
-    col("COL_silo_floor", (0, SILO_Y, LOW - 0.2), (2 * SILO_R + 12, 2 * SILO_R + 12, 0.4), 0, root)
+    # the floor reaches the ring wall all round (it stopped 1.5 m short of it: a ring-shaped drop)
+    P.append(cyl("silo_floor", RR + 0.1, 0.4, loc=(0, SILO_Y, LOW - 0.2), m="concrete_dark", verts=64))
+    col("COL_silo_floor", (0, SILO_Y, LOW - 0.2), (2 * RR + 1.0, 2 * RR + 1.0, 0.4), 0, root)
     # flame trench: grated pit under the rocket
     P.append(cyl("flame_pit", 6.5, 0.5, loc=(0, SILO_Y, LOW + 0.05), m="nozzle_inner", verts=32))
     # launch mount pedestal (4 hold-down posts)
@@ -527,18 +912,8 @@ def nasa():
     finish(lm, 30)
     col("COL_gl_deck", (0, 0, -0.05), (2.0, 1.6, 0.2), 0, lv, mover="gantry_lift")
     box("gl_button", (0.2, 0.1, 0.25), loc=(0.8, -0.82, 1.1), m="emit_green", par=lv, interact="gantrylift", iid="gantry_lift_btn")
-    # silo hall entry & ring wall (lower 12 m; shaft continues at runtime)
-    for k in range(48):
-        a0 = 2 * PI * k / 48
-        a1 = 2 * PI * (k + 1) / 48
-        am = (a0 + a1) / 2
-        deg = math.degrees(am) % 360
-        RR = SILO_R + 7.5
-        x0, y0 = math.cos(a0) * RR, SILO_Y + math.sin(a0) * RR
-        x1, y1 = math.cos(a1) * RR, SILO_Y + math.sin(a1) * RR
-        ops = [(math.hypot(x1 - x0, y1 - y0) / 2, math.hypot(x1 - x0, y1 - y0) + 0.05, LOW, LOW + 6.5)] if abs(deg - 270) < 5 else []
-        arch.wall("silo_ring", (x0, y0), (x1, y1), LOW, LOW + 14, 0.9, "concrete", ops, parts=P)
-        arch.col_wall(f"siloring{k}", (x0, y0), (x1, y1), LOW, LOW + 14, 1.0, ops, root)
+    # silo hall ring wall (lower 14 m; the shaft continues at runtime) with the corridor doorway cut to its width
+    ring_wall("silo_ring", (0, SILO_Y), RR, LOW, LOW + 14, 0.9, "concrete", 48, [(270, CW, [(LOW, LOW + 6.5)])], P, root)
     P.append(lathe("silo_ledge", [(SILO_R + 0.5, LOW + 14), (SILO_R + 8, LOW + 14), (SILO_R + 8, LOW + 14.8), (SILO_R + 0.5, LOW + 14.8), (SILO_R + 0.5, LOW + 14)], m="concrete", seg=48, loc=(0, SILO_Y, 0)))
     for k in range(16):
         a = 2 * PI * k / 16
@@ -553,7 +928,7 @@ def nasa():
     empty("spawn_atrium", loc=(0, 66, 0), parent=root)
     empty("rocket_base", loc=(0, SILO_Y, LOW + 5.6), parent=root)
     empty("arm_tip", loc=(4.4, SILO_Y, ARM_Z + 0.1), parent=root)
-    empty("director_spot", loc=(-27.5, 82.5, 1.8), rot=(0, 0, PI / 2), parent=root)
+    empty("director_spot", loc=(-27.5, 95.5, 1.8), rot=(0, 0, PI / 2), parent=root)
 
     # ---------------- merge by region & export
     def region(o):

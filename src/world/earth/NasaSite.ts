@@ -13,6 +13,13 @@ import { SPECS, deltaV } from '../../data/vehicles';
 
 const LOW = -35;
 const SILO_R = 16;
+/** the elevator's stops (model z, metres) in landing order: the gates and call buttons are numbered the same way */
+const ELEVATOR_LEVELS = [
+  { y: 0, label: 'LEVEL 0 — atrium', note: 'Atrium, mission control, the laboratories and the way out.' },
+  { y: 5.5, label: 'LEVEL +5.5 — balcony', note: 'The first balcony ring round the atrium (the stair also reaches it).' },
+  { y: 11, label: 'LEVEL +11 — gallery', note: 'The upper gallery under the atrium dome.' },
+  { y: LOW, label: 'LEVEL −35 — launch complex', note: 'The corridor to the launch silo: the rocket, Ranger 1 and the gantry.' },
+];
 
 interface Mover {
   id: string;
@@ -129,8 +136,41 @@ export class NasaSite {
           site.registerDoor(n, 'door', { kind: 'slide', angle: 6.2, speed: 0.35, sound: 'blast' });
           return null;
         },
+        // the security door in the tunnel: a vertical-lift door that rises 5.8 m into its header (5 s)
+        liftdoor: (n, site) => {
+          site.registerDoor(n, 'door', { kind: 'roll', angle: 5.8, speed: 0.2, sound: 'blast', range: 4.5, what: 'the security door' });
+          return null;
+        },
+        liftdoor_btn: (n) => ({
+          id: `nasa_doorbtn:${n.name}`, targets: [n], range: 2.6,
+          label: () => `Door control — ${this.site?.doors.get(n.userData.door ?? 'nasa_inner')?.open ? 'close' : 'open'} the security door`,
+          use: () => {
+            this.site.toggleDoor(n.userData.door ?? 'nasa_inner');
+            this.game.audio.beep(this.site.doors.get('nasa_inner')?.open ? 990 : 620, 0.12, 0.08, 'square', n.getWorldPosition(new THREE.Vector3()));
+          },
+        }),
+        // lab doors slide open as you come near (update)
+        autodoor: (n) => {
+          this.autoDoors.push({ id: n.userData.iid ?? n.name, node: n, base: n.position.clone(), t: 0 });
+          return null;
+        },
+        // elevator landing gates: open only while the car stands at their level (update)
+        elgate: (n) => {
+          this.gates.push({ id: n.userData.iid ?? n.name, node: n, base: n.position.clone(), level: Number(n.userData.level ?? 0), t: 0 });
+          return null;
+        },
+        elcall: (n) => ({
+          id: `nasa_elcall:${n.name}`, targets: [n], range: 2.6,
+          label: () => {
+            const m = this.mover('nasa_elevator');
+            const lv = Number(n.userData.iid ?? 0);
+            if (m && m.level === lv && m.y === m.target) return 'Elevator — here (the gate is open)';
+            return m && m.y !== m.target ? 'Elevator — on its way' : `Call the elevator to ${ELEVATOR_LEVELS[lv].label}`;
+          },
+          use: () => this.callElevator(Number(n.userData.iid ?? 0)),
+        }),
         terminal: (n) => ({ id: `term:${n.userData.iid}`, targets: [n], label: () => `Use terminal — ${termTitle(n.userData.iid)}`, use: () => this.openTerminal(n.userData.iid) }),
-        elevator: (n) => (n.name === 'elevator' ? null : { id: 'nasa_el_btn', targets: [n], label: () => `Elevator — ${this.elevatorAtTop() ? 'go down to the launch silo level' : 'go up to the atrium'}`, use: () => this.callMover('nasa_elevator') }),
+        elevator: (n) => (n.name === 'elevator' ? null : { id: 'nasa_el_btn', targets: [n], range: 2.6, label: () => 'Elevator — choose a level', use: () => this.elevatorPanel() }),
         gantrylift: (n) => (n.name === 'gantry_lift' ? null : { id: 'gl_btn', targets: [n], label: () => `Gantry lift — ${this.mover('gantry_lift')?.level === 0 ? 'up to the crew access arm' : 'down to the silo floor'}`, use: () => this.callMover('gantry_lift') }),
       },
     });
@@ -162,7 +202,7 @@ export class NasaSite {
     });
     await this.placeHillAndParking();
     // movers
-    this.addMover('nasa_elevator', inst.nodes.get('elevator')!, ['COL_elevator_deck'], [0, LOW], new THREE.Box3(new THREE.Vector3(-4.2, -1, -4.2), new THREE.Vector3(4.2, 3, 4.2)), 2.2);
+    this.addMover('nasa_elevator', inst.nodes.get('elevator')!, ['COL_elevator_deck', 'COL_el_rail-1', 'COL_el_rail1'], ELEVATOR_LEVELS.map((l) => l.y), new THREE.Box3(new THREE.Vector3(-4.2, -1, -4.2), new THREE.Vector3(4.2, 3, 4.2)), 2.6);
     this.addMover('gantry_lift', inst.nodes.get('gantry_lift')!, ['COL_gl_deck'], [LOW, LOW + 64.8], new THREE.Box3(new THREE.Vector3(-1.0, -1, -0.8), new THREE.Vector3(1.0, 3, 0.8)), 3.5);
     // silo shaft from the hall ledge up to the terrain, plus the concealed doors at the top
     this.siloTopLocal = z.gen.siloTop - this.origin.y;
@@ -277,6 +317,52 @@ export class NasaSite {
     return !m || m.level === 0;
   }
 
+  readonly autoDoors: { id: string; node: THREE.Object3D; base: THREE.Vector3; t: number }[] = [];
+  readonly gates: { id: string; node: THREE.Object3D; base: THREE.Vector3; level: number; t: number }[] = [];
+
+  /** send the elevator to a level (index into ELEVATOR_LEVELS); ignored while it is moving */
+  moveTo(id: string, level: number) {
+    const m = this.mover(id);
+    if (!m || m.y !== m.target || level < 0 || level >= m.levels.length) return;
+    if (m.level === level) return;
+    m.level = level;
+    m.target = m.levels[level];
+    this.game.audio.door('elevator', m.node.getWorldPosition(new THREE.Vector3()));
+    this.game.audio.loop('elev_' + id, 'sfx', Loops.hum(48, 0.6, 220), { pos: m.node.getWorldPosition(new THREE.Vector3()), gain: 0.9 });
+  }
+
+  callElevator(level: number) {
+    const m = this.mover('nasa_elevator');
+    if (!m) return;
+    if (m.y !== m.target) {
+      this.game.notify('The elevator is moving — wait for it to stop.', 'info', 2);
+      return;
+    }
+    if (m.level === level) return;
+    this.moveTo('nasa_elevator', level);
+  }
+
+  /** the car's control post: pick a level */
+  elevatorPanel() {
+    const game = this.game;
+    const m = this.mover('nasa_elevator');
+    if (!m) return;
+    game.input.releaseLock();
+    game.ui.openPanel('ELEVATOR', (b, p) => {
+      b.append(h('div', { class: 'dim', style: { fontSize: '12px', marginBottom: '10px' } }, 'The landing gates open when the car stops at a level.'));
+      ELEVATOR_LEVELS.forEach((lv, i) => {
+        const here = m.level === i && m.y === m.target;
+        const btn = game.ui.button(`${lv.label}${here ? '  (here)' : ''}`, () => {
+          p.close();
+          this.moveTo('nasa_elevator', i);
+          game.input.requestLock();
+        }, here ? 'btn' : 'btn primary');
+        btn.disabled = here || m.y !== m.target;
+        b.append(h('div', { style: { margin: '6px 0' } }, btn, h('div', { class: 'dim', style: { fontSize: '11.5px', marginTop: '3px' } }, lv.note)));
+      });
+    }, { narrow: true, onClose: () => game.input.requestLock() });
+  }
+
   callMover(id: string) {
     const m = this.mover(id);
     if (!m) return;
@@ -285,6 +371,44 @@ export class NasaSite {
     m.target = m.levels[m.level];
     this.game.audio.door('elevator', m.node.getWorldPosition(new THREE.Vector3()));
     this.game.audio.loop('elev_' + id, 'sfx', Loops.hum(48, 0.6, 220), { pos: m.node.getWorldPosition(new THREE.Vector3()), gain: 0.9 });
+  }
+
+  /** lab doors: slide 1.95 m along the wall when the player (or anyone walking the corridor) is within ~2.6 m */
+  private updateAutoDoors(dt: number) {
+    if (!this.autoDoors.length) return;
+    const ph = this.zone.ground.physics;
+    const pl = this.game.player;
+    const people = ((this.content as any).people?.npcs ?? []) as { pos: THREE.Vector3; visible: boolean }[];
+    const w = new THREE.Vector3();
+    for (const d of this.autoDoors) {
+      d.node.getWorldPosition(w).sub(d.node.position).add(d.base);
+      const near = (p: THREE.Vector3, r: number) => Math.hypot(p.x - w.x, p.z - w.z) < r && Math.abs(p.y - w.y) < 2.2;
+      const want = (pl.frame === this.zone.ground && near(pl.pos, 2.6)) || people.some((n) => n.visible && near(n.pos, 2.0)) ? 1 : 0;
+      if (d.t === want) continue;
+      const was = d.t;
+      d.t = THREE.MathUtils.clamp(d.t + Math.sign(want - d.t) * dt / 0.7, 0, 1);
+      if (was === 0 && want === 1) this.game.audio.door('airlock', w.clone());
+      const e = d.t * d.t * (3 - 2 * d.t);
+      d.node.position.copy(d.base).add(new THREE.Vector3(1.95 * e, 0, 0));
+      ph.setDoorOpen(d.id, d.t > 0.5);
+    }
+  }
+
+  /** elevator landing gates rise while the car stands at their level and drop when it leaves */
+  private updateGates(dt: number) {
+    if (!this.gates.length) return;
+    const m = this.mover('nasa_elevator');
+    const ph = this.zone.ground.physics;
+    for (const g of this.gates) {
+      const want = m && m.y === m.target && m.level === g.level ? 1 : 0;
+      if (g.t === want) continue;
+      g.t = THREE.MathUtils.clamp(g.t + Math.sign(want - g.t) * dt / 1.4, 0, 1);
+      const e = g.t * g.t * (3 - 2 * g.t);
+      const rise = g.level === 1 || g.level === 2 ? 2.5 : 3.0;
+      g.node.position.copy(g.base).add(new THREE.Vector3(0, rise * e, 0));
+      ph.setDoorOpen(g.id, g.t > 0.85);
+      if (g.t === 1 || g.t === 0) this.game.audio.thud(g.node.getWorldPosition(new THREE.Vector3()), 0.25, 140);
+    }
   }
 
   // ------------------------------------------------------------------------------------------ blast doors & gate
@@ -348,8 +472,14 @@ export class NasaSite {
     if (at === 'nasa_silo') {
       const el = this.mover('nasa_elevator');
       if (el) {
-        el.level = 1;
+        el.level = ELEVATOR_LEVELS.length - 1;
         el.target = el.y = LOW;
+        el.node.position.y = LOW;
+        el.node.updateMatrixWorld(true);
+        for (const cn of el.colliders) for (const c of this.site.colliderMap.get(cn) ?? []) {
+          const t = c.translation();
+          c.setTranslation({ x: t.x, y: this.origin.y + LOW + (cn === 'COL_elevator_deck' ? -0.2 : 0.55), z: t.z });
+        }
       }
     }
     p.enterFrame(g, pos, at === 'nasa_mc' ? Math.PI / 2 : 0);
@@ -451,13 +581,18 @@ export class NasaSite {
     tex.flipY = false; // glTF already flips V: with three's default flipY the canvas would show upside down
     mesh.material = new THREE.MeshBasicMaterial({ map: tex, toneMapped: false });
     const name = mesh.name;
-    const draw = name === 'screen_mc_main' || name === 'screen_atrium' ? drawOrbitScreen(this) : name.startsWith('screen_mc_') ? drawTelemetry(this, name) : drawGeneric(this, name);
+    const draw = name === 'screen_mc_main' || name === 'screen_atrium' ? drawOrbitScreen(this) : name.startsWith('screen_mc_') ? drawTelemetry(this, name) : name === 'screen_directory' ? drawDirectory() : drawGeneric(this, name);
     this.screens.push({ mesh, canvas, tex, draw });
   }
 
   // ------------------------------------------------------------------------------------------ update
   update(dt: number) {
     const game = this.game;
+    // the facility's and the gate's own doors (the security door, ...): they never moved before (never updated)
+    this.site.update(dt);
+    this.gate.update(dt);
+    this.updateAutoDoors(dt);
+    this.updateGates(dt);
     // blast doors slide apart into the piers (6.5 s)
     const tgt = this.blastOpen ? 1 : 0;
     if (this.blastT !== tgt) {
@@ -541,7 +676,7 @@ export class NasaSite {
       }
     }
     // facility hum
-    const inside = this.content.indoorRoom === 'nasa';
+    const inside = !!this.content.indoorRoom?.startsWith('nasa');
     const a = game.audio;
     if (a.ctx) {
       if (inside && !this.hum) this.hum = a.loop('nasa_hum', 'ambience', Loops.hum(60, 0.35, 420), { gain: 0.9 });
@@ -559,6 +694,7 @@ const TERMS: Record<string, string> = {
   mc_saturn: 'Saturn navigation', mc_wormhole: 'Wormhole research', mc_planets: 'Lazarus planetary data', mc_countdown: 'Launch countdown', mc_environment: 'Environmental conditions',
   mc_eng: 'Flight engineering', mc_sci: 'Science desk', mc_med: 'Flight surgeon', mc_dir: 'Program director',
   lab_greenhouse: 'Greenhouse control', lab_briefing: 'Mission briefing', lab_workshop: 'Engineering workshop', lab_lifesupport: 'Life-support plant', lab_computers: 'Computer centre',
+  lab_medical: 'Medical bay', lab_cryo: 'Cryogenics lab', lab_suits: 'Suit room', lab_archive: 'Program archive', atrium_info: 'Facility directory',
 };
 function termTitle(iid: string) {
   return TERMS[iid] ?? 'Terminal';
@@ -621,6 +757,10 @@ function terminalContent(n: NasaSite, iid: string): HTMLElement {
     case 'lab_briefing':
       grid.append(decisionPanel(n));
       break;
+    case 'atrium_info':
+      grid.append(card('LEVEL 0 — OPERATIONS', kv([['South', 'Entry tunnel, security checkpoint, blast doors (exit)'], ['West', 'Mission control (blue line)'], ['East', 'Laboratories (green line): greenhouse, briefing, workshop, life support, computers, stores, medical bay, suit room, cryogenics, archive'], ['North', 'Elevator (yellow line)']])),
+        card('ELEVATOR', kv([['Level +11', 'Upper gallery'], ['Level +5.5', 'Balcony (also by the stair, north-east)'], ['Level 0', 'Atrium'], ['Level −35', 'Launch complex: corridor to silo 1, the rocket, Ranger 1, the gantry lift']])));
+      break;
     default:
       grid.append(card(termTitle(iid).toUpperCase(), h('div', { class: 'dim' }, labText(iid))));
   }
@@ -633,6 +773,10 @@ function labText(iid: string) {
     case 'lab_workshop': return 'Spare Ranger landing leg under inspection (retraction cylinder seal replaced). RCS pod RF-31D bench-tested: 98.6 % nominal thrust.';
     case 'lab_lifesupport': return 'Scrubbers nominal. O₂ reserve 31 days. Filtration load elevated by dust ingress during storms.';
     case 'lab_computers': return 'Trajectory computation cluster: 14 racks online. Gravitational data from the anomaly is being processed for the population-transfer equations.';
+    case 'lab_medical': return 'Pre-flight medicals: crew cleared. Centrifuge tolerance 6.2 g sustained. Radiation dosimeters issued for the Saturn transfer; cumulative dose budget 1.0 Sv per crew member.';
+    case 'lab_cryo': return 'Four hibernation pods certified for the transfer. Core temperature target 31 °C (mild hypothermia), metabolic rate 25 % of baseline, sedation and nutrition by line. Revival takes about six hours.';
+    case 'lab_suits': return 'EVA suits: four flight units and two trainers. Suit pressure 29.6 kPa (pure O₂), pre-breathe 4 h from cabin pressure. Helmet visors gold-coated; ammonia sensor packs fitted for the Mann survey.';
+    case 'lab_archive': return 'Lazarus program records: the twelve volunteers, their target systems, the beacon log. Three beacons still transmit (Miller, Mann, Edmunds). Original anomaly survey tapes, catalogued and digitised.';
     default: return 'Terminal online.';
   }
 }
@@ -649,6 +793,36 @@ function decisionPanel(n: NasaSite): HTMLElement {
     n.game.ui.button('BEGIN ENDURANCE MISSION', () => { n.decide('endurance'); state.textContent = 'Current: ENDURANCE MISSION — GO'; }, 'btn primary'),
   ));
   return wrap;
+}
+
+/** the atrium kiosk: a plan of level 0 with the colour-coded routes */
+function drawDirectory() {
+  return (g: CanvasRenderingContext2D, W: number, H: number) => {
+    g.fillStyle = '#060b10';
+    g.fillRect(0, 0, W, H);
+    const cx = W * 0.5, cy = H * 0.56, R = H * 0.2;
+    g.lineWidth = Math.max(2, H * 0.012);
+    const route = (col: string, x: number, y: number, label: string, lx: number, ly: number) => {
+      g.strokeStyle = col;
+      g.beginPath(); g.moveTo(cx, cy); g.lineTo(x, y); g.stroke();
+      g.fillStyle = col;
+      g.font = `${Math.round(H * 0.07)}px Michroma, sans-serif`;
+      g.fillText(label, lx, ly);
+    };
+    route('#4f8fd6', W * 0.08, cy, 'MISSION CTRL', W * 0.02, cy - H * 0.05);
+    route('#5fbf6a', W * 0.92, cy, 'LABS', W * 0.8, cy - H * 0.05);
+    route('#e8c84a', cx, H * 0.18, 'ELEVATOR', cx - W * 0.12, H * 0.14);
+    route('#e8e8e2', cx, H * 0.95, 'EXIT', cx + W * 0.03, H * 0.93);
+    g.strokeStyle = '#9fb4c4';
+    g.beginPath(); g.arc(cx, cy, R, 0, Math.PI * 2); g.stroke();
+    g.fillStyle = '#ffcc55';
+    g.beginPath(); g.arc(cx + R * 0.15, cy + R * 0.55, H * 0.025, 0, Math.PI * 2); g.fill();
+    g.font = `${Math.round(H * 0.06)}px JetBrains Mono, monospace`;
+    g.fillText('YOU ARE HERE', cx + R * 0.3, cy + R * 0.75);
+    g.fillStyle = '#9fd4ea';
+    g.font = `${Math.round(H * 0.08)}px Michroma, sans-serif`;
+    g.fillText('LEVEL 0', W * 0.03, H * 0.1);
+  };
 }
 
 function drawOrbitScreen(n: NasaSite) {

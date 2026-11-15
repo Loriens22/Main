@@ -1,4 +1,5 @@
 import * as THREE from 'three';
+import { EarthTravel } from './Travel';
 import type EarthZone from '../zones/EarthZone';
 import { Site } from '../Site';
 import { LightPool } from '../../render/LightPool';
@@ -176,7 +177,15 @@ export class EarthContent {
     return { name: 'COUNTY ROAD 9', sub: `${(Math.hypot(pos.x - NASA.portal.x, pos.z - NASA.portal.z) / 1000).toFixed(1)} km to the facility` };
   }
 
+  /** skip the drive between the farm and the NASA base (button, J, touch, pause menu) */
+  travel: EarthTravel | null = null;
+
   update(dt: number, dtEarth: number) {
+    if (!this.travel) {
+      this.travel = new EarthTravel(this);
+      this.zone.disposables.push(this.travel);
+    }
+    this.travel.update(dt);
     for (const s of this.sites) s.update(dt);
     // indoor detection
     const p = this.game.player;
@@ -191,7 +200,7 @@ export class EarthContent {
         }
       }
       const n = (this as any).nasa;
-      if (!this.indoorRoom && n?.contains?.(eye)) this.indoorRoom = 'nasa';
+      if (!this.indoorRoom && n) this.indoorRoom = n.site?.roomAt?.(eye) ?? (n.contains?.(eye) ? 'nasa' : null);
     }
     for (const s of this.subsystems) {
       try {

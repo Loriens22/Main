@@ -90,7 +90,7 @@ const drive = await p.evaluate(async () => {
   const v = z.content.vehicles.list.find((x) => x.spec.kind === 'car');
   if (!v) return 'no car';
   v.disablePhysics();
-  const at = new V(o.x, 0, o.z + 30); at.y = z.height(at.x, at.z) + 0.3;
+  const at = new V(o.x + 2.0, 0, o.z + 30); at.y = z.height(at.x, at.z) + 0.3; // the vehicle lane, east of the turnstiles
   v.root.position.copy(at);
   v.root.quaternion.identity();
   v.root.updateMatrixWorld(true);

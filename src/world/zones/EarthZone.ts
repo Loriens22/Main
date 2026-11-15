@@ -232,6 +232,7 @@ export default class EarthZone extends Zone {
     // the crew wheel (EarthPeople): on foot; the lamps of a ground vehicle while driving it (GroundVehicles)
     if ((this.content as unknown as { people?: unknown })?.people && !g.control) av.add('crew');
     if (g.control?.context === 'drive') av.add('flashlight');
+    if (this.content?.travel?.option()) av.add('travel');
   }
 
   update(dt: number, dtEarth: number) {

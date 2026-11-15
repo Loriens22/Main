@@ -469,7 +469,7 @@ export class TouchControls {
     if (mode === 'walk') {
       this.tbar.append(b('VIEW', 'view'), b('LIGHT', 'flashlight', false, 'opt'), ...warp, fs());
       this.btns.append(b('CROUCH', 'crouch', true), b('USE', 'interact', false, 'big'), b('JUMP', 'jump'), b('RUN', 'sprint', true), b('CREW', 'crew', false, 'opt'));
-      this.tools.append(b('DRONE', 'drone', false, 'opt'), b('PHOTO', 'photo', false, 'opt'), b('SAMPLE', 'sample', false, 'opt'));
+      this.tools.append(b('DRONE', 'drone', false, 'opt'), b('PHOTO', 'photo', false, 'opt'), b('SAMPLE', 'sample', false, 'opt'), b('SKIP DRIVE', 'travel', false, 'opt'));
     } else if (mode === 'float') {
       this.tbar.append(b('VIEW', 'view'), b('LIGHT', 'flashlight', false, 'opt'), ...warp, fs());
       this.btns.append(b('DOWN', 'crouch', true), b('USE', 'interact', false, 'big'), b('UP', 'jump', true), b('FAST', 'sprint', true), b('CREW', 'crew', false, 'opt'));
@@ -488,7 +488,7 @@ export class TouchControls {
       this.tbar.append(b('EXIT', 'photo', false, 'hi'), fs());
       this.btns.append(b('DOWN', 'crouch', true), b('SHOT', 'interact', false, 'big'), b('UP', 'jump', true), b('ZOOM+', 'zoomIn', true), b('ZOOM−', 'zoomOut', true));
     } else if (mode === 'drive') {
-      this.tbar.append(b('LIGHTS', 'flashlight', false, 'opt'), fs());
+      this.tbar.append(b('LIGHTS', 'flashlight', false, 'opt'), b('SKIP DRIVE', 'travel', false, 'opt hi'), fs());
       this.btns.append(b('BRAKE', 'brake', true, 'big'), b('CAM', 'camera'), b('EXIT', 'vehicle'));
     } else if (mode === 'flight') {
       this.tbar.append(b('AUTO', 'autopilot', false, 'hi'), b('SAS', 'sas'), b('RCS', 'rcs'), b('GEAR', 'gear'), b('CAM', 'camera'), b('PANEL', 'cockpitMode'), ...warp, b('EXIT', 'vehicle'));

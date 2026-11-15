@@ -2,6 +2,84 @@
 
 ## Status (latest first)
 
+### NASA base: the holes, the second door, the rework, and skipping the drive (this pass)
+
+**Reported:**
+- holes between the corridors you could fall into;
+- the second main door (the security door in the tunnel) did not open when its button was pressed.
+
+**Holes:** a floor audit (`e2e/nasa_floor_audit.mjs`) finds every place you can step off a floor. Per walkable level
+it flood-fills a 0.5 m grid of physics floor from where you stand, through cells joined by walkable steps with no
+wall between them. A hole is an unwalled edge where the floor ends, wide enough for the player. On the old model it
+found:
+- the corridor from the atrium to mission control had walls and a ceiling but no floor (4 m);
+- the connector to the labs had only a ceiling (2 m);
+- the labs corridor ran to x = 82 but its rooms ended at 57: two doorways and the corridor's end opened onto nothing;
+- slivers where the tunnel met the atrium wall;
+- the elevator shaft was open whenever the car was at the other level (a 35 m drop), and open on its south side at
+  the bottom;
+- a 1 m ring between the silo hall floor and its wall;
+- gaps where the lower corridor met the silo ring;
+- wedge gaps between the balcony floor segments and the wall;
+- stairs to the balconies whose tops ended over the open atrium;
+- a tunnel opening taller than the balcony above it (you could step off the balcony into the tunnel).
+
+**Mission control** was never reachable on foot: the corridor ran into the side of the director's raised office (a
+1.8 m block), and the console tiers rose in 0.45 m steps. The player climbs 0.35 m at most.
+
+**Door:**
+- `NasaSite.update` never updated the facility's (or the gate's) own doors: the security door toggled "open", its
+  collider switched off, and it never moved.
+- It now rises 5.8 m into a solid header (it slid sideways before, and its jambs could be walked through). It has
+  door-control buttons on both sides and a 4.5 m reach for its prompt.
+
+**The rework (`blender/assets/nasa.py`):**
+- Walls are built by `wall2` and `ring_wall`: every visual piece has an identical collider, openings can be stacked
+  (elevator landings), and doorways are cut exactly to their corridors.
+- The tunnel runs into the atrium wall. Its opening in the atrium is 5 m tall, under the balcony.
+- Mission control and labs corridors have floors and walls end to end.
+- **Labs:** ten rooms fill the corridor. New: medical bay, cryogenics (four hibernation pods), suit room, archive.
+  - Each room has a doorway at its centre with a frame, a glass door that slides open as you come near
+    (`autodoor`), a nameplate and a terminal.
+  - Shared partitions are no longer built twice.
+- **Mission control:** a stepped centre aisle up to the tiers and down toward the screens; the director's office
+  moved to the corner with its own stair.
+- **Elevator:** four stops (−35, 0, +5.5, +11).
+  - The shaft is a metre clear of the atrium and closed on every side.
+  - A steel gate at each landing rises only while the car stands there.
+  - Call buttons at each landing; a level chooser on the car.
+  - The car's rails move with it.
+- **Atrium:**
+  - balconies with overlapping floor colliders, glass railings and solid columns;
+  - one radial stair to the 5.5 m balcony;
+  - benches, planters, a directory kiosk (terminal and screen with a level plan);
+  - colour-coded guide lines: blue to mission control, green to the labs, yellow to the elevator, white to the exit;
+  - lit signs, made from Blender text, at every junction and room.
+- **Silo hall:** the floor reaches the wall; the corridor doorway is cut to the corridor's width.
+- Checkpoint turnstiles are solid, with the vehicle lane beside them.
+
+**Skip the drive (`world/earth/Travel.ts`):**
+- On Earth, a button (J, the pause menu, SKIP DRIVE on touch) takes you, or you and the pickup, between the farm and
+  the NASA base.
+- It is offered when the other end is more than 400 m away.
+- The clock moves on by the drive time (7 min on the road), "reached NASA" is set, and following crew come along.
+
+**Checked:**
+- **Floor audit:** 0 holes on every level (0, both balconies, −35) with the elevator at each of its four stops.
+- **Tour (`e2e/nasa_tour.mjs`, through the real prompts):**
+  - security panel → tunnel → door-control button (the door rises 5.8 m) → atrium;
+  - mission control up the aisle and down the tiers;
+  - labs corridor → medical bay through its auto door;
+  - stair → balcony;
+  - elevator call button, car panel to −35 → silo hall.
+- **Travel (`e2e/farm_nasa_travel.mjs`):** J on foot, back from the pause menu, both ways in the pickup (parked level
+  at each end); SKIP DRIVE shows on touch.
+- **Pictures:** `docs/media/nasa_base_rework.jpg` (`e2e/nasa_views.mjs`).
+
+**Test machine note:** on the software renderer, the first read-back of each new area compiles its shaders (about 30 s
+and several GB). A long session of screenshots ran out of memory, which is why the tour takes pictures only with
+SHOTS=1. The game itself held at about 1.7 GB walking through the base.
+
 ### The rock behind the NASA blast doors, and other blockers (this pass)
 
 **Reported:** at the NASA base, with the blast doors open, a rock stopped the player going in.
@@ -588,6 +666,9 @@ Realism pass results (all rebuilt in Blender scripts, checked with Cycles previe
 - `node e2e/nasa_entry.mjs <url> <outDir> in|out|car` and `node e2e/blocker_audit.mjs <url> <zone>`: the NASA entry
   route, and the rooms/doors/boulders audit, against a served build.
 - Interior tests that spawn inside a building skip its way in: walk in from outside at least once.
+- `node e2e/nasa_floor_audit.mjs <url>`, `node e2e/nasa_tour.mjs <url> <out>`, `node e2e/farm_nasa_travel.mjs <url> <out>`,
+  `node e2e/nasa_views.mjs <url> <out>`: the NASA base's floors, a walk round it, skipping the drive, pictures.
+- The NASA model: `/home/user/blenv/bin/python blender/assets/nasa.py nasa` (bpy in a venv; about 7 minutes).
   Steps support `untilJs`/`max`/`chunk` to advance until a condition holds.
 - `game.step(n, dt)` and `game.running=false` give deterministic tests. `e2e/shot.mjs out.png script.js frames` saves screenshots;
   `e2e/multi.mjs steps.mjs outDir` runs a step list (js / frames / shot / probe). Keep renders per run few with the forest in view.
