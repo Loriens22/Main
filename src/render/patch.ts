@@ -24,6 +24,8 @@ export const W = {
   uPlayer: { value: new THREE.Vector3(0, -1000, 0) },
   /** bounce light inside enclosed spaces (where the baked sky visibility is low) */
   uAmbientIn: { value: new THREE.Color(0.035, 0.032, 0.03) },
+  /** colour x intensity of the artificial lighting baked into vertex alpha (facility / spacecraft interiors) */
+  uBakedLight: { value: new THREE.Color(1.0, 0.96, 0.9) },
 };
 
 export interface SurfaceParams {
@@ -41,7 +43,7 @@ const VERT_PARS = /* glsl */ `
 varying vec3 vWPos;
 #ifdef USE_VAO
 attribute vec4 color;
-varying vec3 vVAO;
+varying vec4 vVAO;
 #endif
 `;
 
@@ -54,7 +56,7 @@ const VERT_MAIN = /* glsl */ `
   vWPos = ( modelMatrix * wpw ).xyz;
 }
 #ifdef USE_VAO
-  vVAO = color.rgb;
+  vVAO = color;
 #endif
 `;
 
@@ -70,8 +72,9 @@ uniform vec3 uDustColor;
 uniform vec4 uWearP; // wear, dirt, dust, glass
 uniform vec3 uEdgeColor;
 uniform vec3 uAmbientIn;
+uniform vec3 uBakedLight;
 #ifdef USE_VAO
-varying vec3 vVAO;
+varying vec4 vVAO;
 #endif
 `;
 
@@ -118,6 +121,11 @@ const FRAG_AO = /* glsl */ `
   reflectedLight.indirectDiffuse += uAmbientIn * material.diffuseColor * ( vao * ( 1.0 - vis ) );
   reflectedLight.indirectSpecular *= mix( 0.05, 1.0, vis ) * mix( 1.0, vao, 0.85 );
   reflectedLight.directDiffuse *= mix( 1.0, vao, 0.3 );
+  // A = 1 - sqrt(E): artificial light baked in Blender for large interiors
+  float bl = 1.0 - vVAO.a;
+  bl *= bl;
+  reflectedLight.indirectDiffuse += uBakedLight * material.diffuseColor * ( bl * 3.2 );
+  reflectedLight.indirectSpecular += uBakedLight * material.specularColor * ( bl * 0.9 * ( 1.0 - 0.6 * material.roughness ) );
 }
 #endif
 `;
@@ -163,7 +171,7 @@ export function patchWorldMaterial<T extends THREE.Material>(m: T, p: SurfacePar
     prev?.call(m, shader, renderer);
     Object.assign(shader.uniforms, {
       uFogH: W.uFogH, uFogZ: W.uFogZ, uFogSun: W.uFogSun, uSunDir: W.uSunDir, uFogP: W.uFogP, uSurf: W.uSurf,
-      uDustColor: W.uDustColor, uWearP: { value: wearP }, uEdgeColor: { value: edgeColor }, uAmbientIn: W.uAmbientIn,
+      uDustColor: W.uDustColor, uWearP: { value: wearP }, uEdgeColor: { value: edgeColor }, uAmbientIn: W.uAmbientIn, uBakedLight: W.uBakedLight,
     });
     shader.vertexShader = shader.vertexShader
       .replace('#include <common>', '#include <common>\n' + VERT_PARS)

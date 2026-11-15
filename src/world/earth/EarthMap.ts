@@ -21,7 +21,12 @@ export const FARM = { x: -2600, z: -18, yardR: 62 };
 /** Centre of the mountain that hides the facility; the tunnel portal sits at its foot. */
 export const MOUNTAIN = { x: 3250, z: -2600 };
 /** NASA: gate on the approach road, tunnel portal in the hillside; `dir` is the unit direction into the mountain. */
-export const NASA = { gate: { x: 2420, z: -1556 }, portal: { x: 2520, z: -1686 }, dir: { x: 0.6097, z: -0.7926 }, silo: { x: 2800, z: -2050 } };
+export const NASA = {
+  gate: { x: 2520 - 0.6097 * 112, z: -1686 + 0.7926 * 112 }, portal: { x: 2520, z: -1686 }, dir: { x: 0.6097, z: -0.7926 },
+  /** the launch silo sits on the tunnel axis, SILO_ALONG metres inside the mountain */
+  silo: { x: 2520 + 0.6097 * 305, z: -1686 - 0.7926 * 305 },
+};
+export const SILO_ALONG = 305;
 
 export const FIELDS: Field[] = [
   { id: 'south', name: 'South Field', cx: -2600, cz: 222, w: 620, d: 350, rows: 'x' },
@@ -102,17 +107,18 @@ export class EarthMap {
     const px = x - NASA.portal.x, pz = z - NASA.portal.z;
     const along = px * NASA.dir.x + pz * NASA.dir.z;
     const lat = Math.abs(-px * NASA.dir.z + pz * NASA.dir.x);
-    if (along > -140 && along < 260 && lat < 90) {
-      if (along <= 0) {
+    if (along > -140 && along < 420 && lat < 130) {
+      // the hillside starts just behind the face of the portal headwall
+      if (along <= 2.6) {
         // level forecourt in front of the portal, widening away from the mountain
         const half = 16 + Math.max(0, -along) * 0.22;
         const k = smoothstep(half, half + 22, lat);
         const endFade = smoothstep(-140, -70, along);
         h = lerp(h, lerp(this.nasaY, h, k), endFade);
       } else {
-        // guarantee solid cover over the tunnel: the hillside climbs steeply behind the headwall
-        const cover = this.nasaY + 11 + along * 0.75;
-        const k = 1 - smoothstep(22, 60, lat);
+        // guarantee solid rock above the whole underground complex (halls up to 30 m high)
+        const cover = this.nasaY + Math.min(38, 13 + (along - 2.6) * 1.6);
+        const k = (1 - smoothstep(80, 128, lat)) * (1 - smoothstep(380, 420, along));
         h = lerp(h, Math.max(h, cover), k);
       }
     }
@@ -144,7 +150,7 @@ export class EarthMap {
     const px = x - NASA.portal.x, pz = z - NASA.portal.z;
     const along = px * NASA.dir.x + pz * NASA.dir.z;
     const lat = Math.abs(-px * NASA.dir.z + pz * NASA.dir.x);
-    if (along > -1.5 && along < 46 && lat < 9.5) return true;
+    if (along > -1.5 && along < 10 && lat < 6.2) return true;
     if (Math.hypot(x - NASA.silo.x, z - NASA.silo.z) < 15.5) return true;
     return false;
   }

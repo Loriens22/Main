@@ -140,6 +140,7 @@ class Part:
         self.slots = []
         self.props = props
         self.default_bevel = 0.0
+        self.bevel_segs = 2
 
     # -- internals
     def _slot(self, name):
@@ -205,7 +206,7 @@ class Part:
             if origin == "bottom":
                 v.co.z += sz / 2
         b = self.default_bevel if bevel is None else bevel
-        self._bevel(tb, min(b, min(sx, sy, sz) * 0.45), kw.pop("segs", 2))
+        self._bevel(tb, min(b, min(sx, sy, sz) * 0.45), kw.pop("segs", self.bevel_segs))
         self._emit(tb, mat, M if M is not None else xf(at, rot), **kw)
         return self
 
@@ -220,7 +221,7 @@ class Part:
                 v.co.z += h / 2
         b = self.default_bevel if bevel is None else bevel
         if caps:
-            self._bevel(tb, min(b, min(r, r2 if r2 > 0 else r, h) * 0.45), kw.pop("segs_b", 2), angle=40)
+            self._bevel(tb, min(b, min(r, r2 if r2 > 0 else r, h) * 0.45), kw.pop("segs_b", self.bevel_segs), angle=40)
         self._emit(tb, mat, M if M is not None else xf(at, rot), **kw)
         return self
 
@@ -527,7 +528,18 @@ class Part:
         return len(self.bm.verts), sum(max(1, len(f.verts) - 2) for f in self.bm.faces)
 
     # -- finish
-    def finish(self, sharp=32.0, weighted=True, parent=None, at=(0, 0, 0), rot=(0, 0, 0), **props):
+    def tessellate(self, max_edge=2.0, iters=7):
+        """Split long edges so per-vertex bakes (AO, baked lighting) have enough resolution on big surfaces."""
+        for _ in range(iters):
+            edges = [e for e in self.bm.edges if e.calc_length() > max_edge]
+            if not edges:
+                break
+            bmesh.ops.subdivide_edges(self.bm, edges=edges, cuts=1, use_grid_fill=True)
+        return self
+
+    def finish(self, sharp=32.0, weighted=True, parent=None, at=(0, 0, 0), rot=(0, 0, 0), tess=None, **props):
+        if tess:
+            self.tessellate(tess)
         me = bpy.data.meshes.new(self.name)
         self.bm.normal_update()
         self.bm.to_mesh(me)
@@ -686,14 +698,17 @@ def _is_see_through(mat_name):
     return spec.get("kind") == "glass" or bool(spec.get("alphaTest"))
 
 
-def bake_ao(objs, rays=20, local_dist=1.6, sky_dist=45.0, ground_z=None, occluders=None, convexity=True):
+def bake_ao(objs, rays=20, local_dist=1.6, sky_dist=45.0, ground_z=None, occluders=None, convexity=True, lights=None, light_gain=1.0, fill=0.0):
     """Ray-cast bake into a per-corner 'Color' attribute (exported as COLOR_0):
          R = local ambient occlusion (distance-weighted within local_dist)
          G = edge convexity (0.5 flat, >0.5 convex, <0.5 concave)
          B = environment visibility (fraction of sky/ground light that can reach the point)
     Sample points are pulled slightly toward the face centre and off the surface, and hits on back
     faces are ignored, so vertices buried in neighbouring geometry do not bake to black.
-    Glass, alpha-tested and movable (`dynamic`) parts do not occlude. ground_z adds an implicit ground."""
+    Glass, alpha-tested and movable (`dynamic`) parts do not occlude. ground_z adds an implicit ground.
+    lights: optional list of (world position, power, range[, direction, cone_cos]) fixtures. Their shadowed
+    irradiance is baked into alpha as A = 1 - sqrt(E) so that un-baked assets (alpha 1) receive none.
+    `fill` adds a constant floor of bounce light to baked interiors."""
     from mathutils.bvhtree import BVHTree
     t0 = time.time()
     objs = [o for o in objs if o.type == "MESH" and len(o.data.polygons) > 0]
@@ -715,6 +730,22 @@ def bake_ao(objs, rays=20, local_dist=1.6, sky_dist=45.0, ground_z=None, occlude
     bvh = BVHTree.FromPolygons(verts, tris, all_triangles=True, epsilon=0.0) if tris else None
     hemi = _hemi_dirs(rays)
     total = 0
+    L = []
+    for l in (lights or []):
+        if float(l[1]) <= 0.0:
+            continue
+        L.append((Vector(l[0]), float(l[1]), float(l[2]), Vector(l[3]).normalized() if len(l) > 3 and l[3] is not None else None, l[4] if len(l) > 4 else 0.0))
+    # bucket the fixtures in a coarse grid so each polygon only looks at the ones that can reach it
+    CELL = 8.0
+    lgrid = {}
+    for item in L:
+        lp, rng_ = item[0], item[2]
+        r = int(math.ceil(rng_ / CELL))
+        cx, cy, cz = int(math.floor(lp.x / CELL)), int(math.floor(lp.y / CELL)), int(math.floor(lp.z / CELL))
+        for ix in range(cx - r, cx + r + 1):
+            for iy in range(cy - r, cy + r + 1):
+                for iz in range(cz - r, cz + r + 1):
+                    lgrid.setdefault((ix, iy, iz), []).append(item)
     for o in objs:
         me = o.data
         if "Color" in me.color_attributes:
@@ -740,6 +771,7 @@ def bake_ao(objs, rays=20, local_dist=1.6, sky_dist=45.0, ground_z=None, occlude
             tx = n.cross(ref).normalized()
             ty = n.cross(tx)
             dirs = [tx * h[0] + ty * h[1] + n * h[2] for h in hemi]
+            Lp = lgrid.get((int(math.floor(c.x / CELL)), int(math.floor(c.y / CELL)), int(math.floor(c.z / CELL))), ()) if L else ()
             for li in poly.loop_indices:
                 vi = me.loops[li].vertex_index
                 p = wverts[vi].lerp(c, 0.12) + n * 0.012
@@ -773,14 +805,56 @@ def bake_ao(objs, rays=20, local_dist=1.6, sky_dist=45.0, ground_z=None, occlude
                 g = conv[vi] if conv else 0.5
                 if g > 0.5 and not thin:
                     g = 0.5
+                e = 0.0
+                if Lp:
+                    pl = p + n * 0.03
+                    for (lp, power, rng_, ldir, cone) in Lp:
+                        v = lp - pl
+                        d2 = v.length_squared
+                        if d2 > rng_ * rng_:
+                            continue
+                        d = math.sqrt(d2)
+                        if d < 1e-4:
+                            continue
+                        vd = v / d
+                        if ldir is not None:
+                            cs = -vd.dot(ldir)
+                            if cs < cone:
+                                continue
+                            spot = min(1.0, (cs - cone) / max(1e-3, (1.0 - cone) * 0.5))
+                        else:
+                            spot = 1.0
+                        if bvh is not None and d > 0.12:
+                            hit = bvh.ray_cast(pl, vd, d - 0.1)
+                            if hit[0] is not None:
+                                continue
+                        w = 1.0 - (d / rng_) ** 2
+                        ndl = max(0.0, n.dot(vd))
+                        e += power * spot * w * w * (0.82 * ndl + 0.18) / (1.0 + d2 * 0.12)
+                    e = e * light_gain * 0.02
+                if L:
+                    e = (e + fill) * (0.35 + 0.65 * ao)
                 k = li * 4
                 colors[k] = ao
                 colors[k + 1] = g
                 colors[k + 2] = vis / rays
-                colors[k + 3] = 1.0
+                colors[k + 3] = 1.0 - math.sqrt(min(1.0, max(0.0, e)))
             total += len(poly.loop_indices)
         ca.data.foreach_set("color", colors)
-    print(f"  baked AO/visibility: {len(objs)} objects, {total} corners, {len(tris)} occluder tris, {time.time() - t0:.1f}s")
+    print(f"  baked AO/visibility: {len(objs)} objects, {total} corners, {len(tris)} occluder tris, {len(L)} lights, {time.time() - t0:.1f}s")
+
+
+def scene_lights(scale=1.0):
+    """Collect the light markers in the scene as bake inputs: (position, power, range, direction, cone)."""
+    out = []
+    for o in bpy.context.scene.objects:
+        if o.get("kind") != "light":
+            continue
+        mw = o.matrix_world
+        spot = o.get("light") == "spot"
+        d = (mw.to_3x3() @ Vector((0, 0, -1))).normalized() if spot else None
+        out.append((mw.translation.copy(), float(o.get("bake", o.get("power", 60.0))) * scale, float(o.get("dist", 8.0)) * (2.2 if spot else 1.7), d, 0.45 if spot else 0.0))
+    return out
 
 
 def _convexity(me):

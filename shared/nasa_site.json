@@ -1,0 +1,15 @@
+{
+  "nasaY": 168.947,
+  "siloTop": 69.901,
+  "siloAlong": 305,
+  "gateAlong": -112,
+  "portal": {
+    "x": 2520,
+    "z": -1686
+  },
+  "dir": {
+    "x": 0.6097,
+    "z": -0.7926
+  },
+  "roadLength": 6130
+}

@@ -134,6 +134,20 @@ export const SFX: Record<string, Recipe> = {
     noise(e, o, t + 0.82, { type: 'lowpass', f: 380, gain: 0.8 * v, d: 0.16, brown: true });
     return tone(e, o, t + 0.82, { f: 62, f1: 40, gain: 0.5 * v, d: 0.3 });
   },
+  door_slide: (e, o, t, v) => {
+    noise(e, o, t, { type: 'bandpass', f: 900, f1: 1500, q: 2.5, gain: 0.12 * v, a: 0.05, hold: 0.45, d: 0.2 });
+    tone(e, o, t, { type: 'sawtooth', f: 120, f1: 170, gain: 0.025 * v, a: 0.05, hold: 0.45, d: 0.15, curve: 'lin' });
+    return noise(e, o, t + 0.68, { type: 'lowpass', f: 500, gain: 0.4 * v, d: 0.07, brown: true });
+  },
+  blast: (e, o, t, v) => {
+    // heavy door on rollers: warning tone, motor, grinding mass, final stop
+    for (let i = 0; i < 2; i++) tone(e, o, t + i * 0.35, { type: 'square', f: 620, gain: 0.05 * v, a: 0.01, hold: 0.16, d: 0.04 });
+    tone(e, o, t + 0.7, { type: 'sawtooth', f: 52, f1: 64, gain: 0.12 * v, a: 0.4, hold: 5.0, d: 0.6, curve: 'lin' });
+    noise(e, o, t + 0.7, { type: 'lowpass', f: 260, gain: 0.9 * v, a: 0.5, hold: 4.8, d: 0.7, brown: true });
+    noise(e, o, t + 0.7, { type: 'bandpass', f: 1400, q: 3, gain: 0.05 * v, a: 0.5, hold: 4.8, d: 0.5 });
+    noise(e, o, t + 6.4, { type: 'lowpass', f: 300, gain: 1.1 * v, d: 0.25, brown: true });
+    return tone(e, o, t + 6.4, { f: 46, f1: 30, gain: 0.8 * v, d: 0.6 });
+  },
   airlock: (e, o, t, v) => { noise(e, o, t, { type: 'bandpass', f: 5200, f1: 900, q: 0.8, gain: 0.3 * v, a: 0.15, hold: 1.2, d: 2.2 }); return noise(e, o, t, { type: 'lowpass', f: 180, gain: 0.35 * v, a: 0.3, hold: 1.4, d: 1.6, brown: true }); },
   clamp: (e, o, t, v) => {
     // docking latches closing through the hull

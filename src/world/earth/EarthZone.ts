@@ -15,6 +15,7 @@ import { Weather } from './Weather';
 import { WheeledVehicle } from '../../vehicles/WheeledVehicle';
 import { Driving } from '../../vehicles/Driving';
 import { Neighbors } from './Neighbors';
+import { NasaSite } from './Nasa';
 import type { AudioEngine, Soundscape } from '../../audio/Audio';
 import { Farm, Machine } from './Farm';
 import { ScreenSurface, scr } from '../../render/ScreenSurface';
@@ -51,6 +52,9 @@ export class EarthZone extends Zone {
   shedB!: Building;
   farm!: Farm;
   neighbors!: Neighbors;
+  nasa!: NasaSite;
+  /** 0..1: the camera is below the terrain surface (tunnels, the facility) */
+  underground = 0;
   pickup!: WheeledVehicle;
   vehicles: WheeledVehicle[] = [];
   private screens: ScreenSurface[] = [];
@@ -126,6 +130,10 @@ export class EarthZone extends Zone {
     await nb.load();
     this.neighbors = nb;
     this.extensions.push(nb);
+    progress?.(0.44, 'Facility');
+    this.nasa = new NasaSite(this);
+    await this.nasa.load();
+    this.extensions.push(this.nasa);
 
     bus.on('weather:storm', (e: any) => this.farm.setStorm(!!e.active));
     const radioNode = house.marker('equip', 'radio')?.node;
@@ -547,9 +555,13 @@ export class EarthZone extends Zone {
       const hit = this.phys.raycast({ x: camPos.x, y: camPos.y + 0.1, z: camPos.z }, { x: 0, y: 1, z: 0 }, 9, groups(0xffff, GROUP.WORLD));
       (this as any)._inT = hit ? 1 : 0;
     }
-    this.indoors = damp(this.indoors, (this as any)._inT ?? 0, 3, dt);
+    this.underground = damp(this.underground, camPos.y < ground - 2.5 ? 1 : 0, 3.5, dt);
+    this.indoors = Math.max(damp(this.indoors, (this as any)._inT ?? 0, 3, dt), this.underground);
     this.weather.indoors = this.indoors;
     this.weather.update(dt, camPos, ground);
+    // no sunlight or weather haze inside the mountain
+    this.sky.sunOcclusion *= 1 - this.underground;
+    W.uFogP.value.x *= 1 - 0.98 * this.underground;
     const interior = this.house.part('interior');
     if (interior) interior.visible = camPos.distanceTo(this.house.root.position) < 90;
     this.lights.update(camPos, dt);
@@ -562,7 +574,7 @@ export class EarthZone extends Zone {
     const night = smoothstep(0.12, -0.08, this.sky.sunDir.y);
     const k = this.weather.intensity;
     this.tint[0] = lerp(1.03, 1.0, k); this.tint[1] = lerp(1.0, 0.8, k); this.tint[2] = lerp(0.93, 0.55, k);
-    g.renderer.setLook({ exposure: this.weather.exposure * lerp(1, 2.3, this.indoors) * lerp(1, 5.5, night), saturation: lerp(1.2, 1.05, k), contrast: 1.25, tint: this.tint });
+    g.renderer.setLook({ exposure: lerp(this.weather.exposure * lerp(1, 2.3, this.indoors) * lerp(1, 5.5, night), 1.25, this.underground), saturation: lerp(1.2, 1.05, k), contrast: 1.25, tint: this.tint });
     // instruments, radio
     const inTruck = this.driving.vehicle === this.pickup;
     for (const s of this.screens) s.update(dt, camPos.distanceTo(this.pickup.position) < 12);
@@ -593,7 +605,8 @@ export class EarthZone extends Zone {
     o.rustle = this.cropNear * clamp(0.25 + w.wind * 0.6, 0, 1) * 0.6;
     o.hum = 0; o.air = 0; o.water = 0; o.vacuum = 0; o.helmet = 0;
     o.rumble = w.intensity * 0.35;
-    o.reverb = this.indoors > 0.5 ? 'room' : 'open';
+    o.reverb = this.underground > 0.5 ? 'hall' : this.indoors > 0.5 ? 'room' : 'open';
+    if (this.underground > 0.5) { o.wind = 0; o.dust = 0; o.rustle = 0; o.rumble = 0; o.hum = 0.5; o.air = 0.35; }
     const nasa = Math.hypot(p.x - NASA.portal.x, p.z - NASA.portal.z) < 420;
     o.music = w.storm === 'arriving' || w.storm === 'peak' ? 'storm' : nasa ? 'nasa' : driving ? 'road' : 'farm';
     o.intensity = w.storm !== 'none' ? 0.4 + 0.6 * w.intensity : driving ? clamp(Math.abs(this.driving.vehicle!.speed) / 26, 0.2, 0.8) : 0.35;
@@ -602,6 +615,8 @@ export class EarthZone extends Zone {
 
   override locationName() {
     const p = this.driving.vehicle ? this.driving.vehicle.position : this.game.player.pos;
+    const area = this.nasa?.area(p);
+    if (area) return area;
     if (this.indoors > 0.6 && p.distanceTo(this.house.root.position) < 26) return 'Farmhouse';
     if (Math.hypot(p.x - FARM.x, p.z - FARM.z) < 420) return 'The Farm';
     if (Math.hypot(p.x - NASA.portal.x, p.z - NASA.portal.z) < 260) return 'NASA Research Facility';

@@ -100,25 +100,104 @@ export class Sash {
 }
 
 /**
+ * Sliding door or blast door leaf (userData: travel along local +X, w, h, t, auto radius, time, sound).
+ * With `auto` it opens for anyone who comes near; otherwise it is operated by hand.
+ */
+export class SlideDoor {
+  open = false;
+  t = 0;
+  private p0 = new THREE.Vector3();
+  private axis = new THREE.Vector3(1, 0, 0);
+  private centre = new THREE.Vector3();
+  private body: RAPIER.RigidBody | null = null;
+  private w: number; private h: number; private th: number;
+  private travel: number; private time: number; auto: number; private sound: string;
+  private hold = 0;
+  label: string;
+  /** set false to keep the door shut regardless of who is near (lock-down) */
+  enabled = true;
+
+  constructor(public id: string, public node: THREE.Object3D, phys: PhysicsWorld | null, interactions: Interactions, private actors: (() => THREE.Vector3[]) | null) {
+    const u = node.userData;
+    this.w = u.w ?? 1; this.h = u.h ?? 2.2; this.th = u.t ?? 0.08;
+    this.travel = u.travel ?? this.w; this.time = u.time ?? 1.2; this.auto = u.auto ?? 0; this.sound = u.sound ?? 'door_slide';
+    this.label = u.label ?? 'Door';
+    this.p0.copy(node.position);
+    this.axis.applyQuaternion(node.quaternion);
+    node.updateWorldMatrix(true, false);
+    this.centre.set(0, this.h / 2, 0).applyMatrix4(node.matrixWorld);
+    if (phys) {
+      this.body = phys.world.createRigidBody(RAPIER.RigidBodyDesc.kinematicPositionBased());
+      phys.world.createCollider(RAPIER.ColliderDesc.cuboid(this.w / 2, this.h / 2, this.th / 2 + 0.02).setCollisionGroups(groups(GROUP.WORLD, 0xffff)), this.body);
+      this.sync(true);
+    }
+    if (!this.auto) {
+      interactions.add({
+        position: (out) => out.copy(this.centre), radius: 0.8, range: 3,
+        label: () => `${this.open ? 'Close' : 'Open'} ${this.label.toLowerCase()}`,
+        use: () => this.setOpen(!this.open),
+      });
+    }
+  }
+
+  setOpen(v: boolean) {
+    if (v === this.open) return;
+    this.open = v;
+    bus.emit('sfx', { id: this.sound, pos: this.centre, gain: this.sound === 'blast' ? 1 : 0.7 });
+  }
+
+  private sync(now = false) {
+    if (!this.body) return;
+    this.node.updateWorldMatrix(true, false);
+    this.node.matrixWorld.decompose(_p, _q, _s);
+    _c.set(0, this.h / 2, 0).applyMatrix4(this.node.matrixWorld);
+    if (now) { this.body.setTranslation(_c, true); this.body.setRotation(_q, true); }
+    else { this.body.setNextKinematicTranslation(_c); this.body.setNextKinematicRotation(_q); }
+  }
+
+  update(dt: number) {
+    if (this.auto && this.actors) {
+      let near = false;
+      if (this.enabled) for (const a of this.actors()) {
+        const dx = a.x - this.centre.x, dy = a.y - this.centre.y, dz = a.z - this.centre.z;
+        const r = this.open ? this.auto + 1.2 : this.auto;
+        if (dx * dx + dz * dz < r * r && Math.abs(dy) < this.h + 2) { near = true; break; }
+      }
+      if (near) { this.hold = 1.2; this.setOpen(true); }
+      else { this.hold -= dt; if (this.hold <= 0) this.setOpen(false); }
+    }
+    const target = this.open ? 1 : 0;
+    if (this.t === target) return;
+    this.t += Math.sign(target - this.t) * Math.min(Math.abs(target - this.t), dt / this.time);
+    const e = this.t * this.t * (3 - 2 * this.t);
+    this.node.position.copy(this.p0).addScaledVector(this.axis, this.travel * e);
+    this.sync();
+  }
+}
+
+/**
  * Brings a Blender-authored building to life: doors, sash windows, light switches and fixtures, ceiling fans.
  * Everything is discovered from the custom properties exported with the model.
  */
 export class Building {
   doors = new Map<string, Door>();
+  slides = new Map<string, SlideDoor>();
   sashes = new Map<string, Sash>();
   fixtures: Fixture[] = [];
   private spinners: { node: THREE.Object3D; speed: number; cur: number; on: boolean; axis: THREE.Vector3 }[] = [];
   private glowGeo = new THREE.SphereGeometry(0.045, 10, 8);
 
-  constructor(public name: string, public model: Model, phys: PhysicsWorld | null, private interactions: Interactions, private lights: LightPool, opts: { lightsOn?: boolean } = {}) {
+  constructor(public name: string, public model: Model, phys: PhysicsWorld | null, private interactions: Interactions, private lights: LightPool, opts: { lightsOn?: boolean; actors?: () => THREE.Vector3[] } = {}) {
     for (const m of model.markers) {
       const n = m.node;
       if (m.kind === 'door') this.doors.set(m.id, new Door(m.id, n, phys, interactions));
+      else if (m.kind === 'slide') this.slides.set(m.id, new SlideDoor(m.id, n, phys, interactions, opts.actors ?? null));
       else if (m.kind === 'window') this.sashes.set(m.id, new Sash(m.id, n, interactions));
       else if (m.kind === 'light') {
         const f = lights.addFromMarker(n, m.data, opts.lightsOn ?? false);
         f.group = f.group ?? name;
-        if (!f.spot) {
+        // fixtures with baked light carry their own emissive geometry
+        if (!f.spot && m.data.bake === undefined) {
           const mat = new THREE.MeshStandardMaterial({ color: 0xfff4e0, emissive: f.color.clone(), emissiveIntensity: 0, roughness: 0.4 });
           const g = new THREE.Mesh(this.glowGeo, mat);
           n.add(g);
@@ -157,6 +236,7 @@ export class Building {
 
   update(dt: number) {
     for (const d of this.doors.values()) d.update(dt);
+    for (const d of this.slides.values()) d.update(dt);
     for (const s of this.sashes.values()) s.update(dt);
     for (const sp of this.spinners) {
       sp.cur = damp(sp.cur, sp.on ? sp.speed : 0, 0.8, dt);

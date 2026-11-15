@@ -140,6 +140,7 @@
   "emit_green":        { "color": "#30ff60", "emissive": "#20ff50", "emissiveIntensity": 3.0 },
   "emit_amber":        { "color": "#ffb030", "emissive": "#ffa020", "emissiveIntensity": 3.5 },
   "emit_blue":         { "color": "#40a0ff", "emissive": "#3090ff", "emissiveIntensity": 3.5 },
+  "emit_grow":         { "color": "#ff70d0", "emissive": "#ff48c8", "emissiveIntensity": 4.0 },
   "emit_cyan":         { "color": "#60e0ff", "emissive": "#50d8ff", "emissiveIntensity": 3.0 },
 
   "ice":               { "tex": "ice", "tile": 6.0 },
