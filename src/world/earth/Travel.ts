@@ -1,7 +1,7 @@
 import * as THREE from 'three';
 import type { EarthContent } from './EarthContent';
 import { NASA, FARM_VEHICLE_SPOTS } from '../../data/earthLayout';
-import { GroundVehicle } from './GroundVehicles';
+import type { GroundVehicle } from './GroundVehicles';
 import { h } from '../../ui/UI';
 
 /** straight-line distance farm yard → NASA portal (the road is longer) */
@@ -37,14 +37,20 @@ export class EarthTravel {
     return this.content.game;
   }
 
+  /** the ground vehicle you are driving, if any (a type-only import keeps the vehicles in their own lazy chunk) */
+  private car(): GroundVehicle | null {
+    const list = (this.content as unknown as { vehicles?: { list: GroundVehicle[] } }).vehicles?.list ?? [];
+    const c = this.game.control as unknown as GroundVehicle | null;
+    return c && list.includes(c) ? c : null;
+  }
+
   /** where a skip would take you from here, or null when it is not offered right now (ignoreUi: the pause menu asks) */
   option(ignoreUi = false): TravelOption | null {
     const game = this.game;
     if (this.busy || game.phase !== 'playing' || game.cinematic || (!ignoreUi && (game.ui.panelOpen || game.ui.dialogueOpen))) return null;
     const z = this.content.zone;
-    const c = game.control;
-    const car = c instanceof GroundVehicle ? c : null;
-    if (c && !car) return null; // flying, or strapped into the launch vehicle
+    const car = this.car();
+    if (game.control && !car) return null; // flying, or strapped into the launch vehicle
     if (!car && game.player.frame !== z.ground) return null;
     const p = car ? car.root.position : game.player.pos;
     const dFarm = Math.hypot(p.x, p.z);
@@ -86,8 +92,7 @@ export class EarthTravel {
     this.chip.style.display = 'none';
     try {
       await game.fadeTo(1, 0.6);
-      const c = game.control;
-      const car = c instanceof GroundVehicle ? c : null;
+      const car = this.car();
       const from = car ? car.root.position.clone() : game.player.pos.clone();
       game.state.clock.earthTime += this.seconds(opt.dest === 'nasa' ? Math.hypot(from.x - NASA.portal.x, from.z - NASA.portal.z) : Math.hypot(from.x, from.z));
       let at: THREE.Vector3;

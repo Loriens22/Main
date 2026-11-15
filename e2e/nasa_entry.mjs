@@ -49,8 +49,9 @@ log('blast doors open after USE:', await p.evaluate(() => window.__game.zone.con
 await run(150);
 // 2) walk in, centre of the tunnel, facing north
 await p.evaluate(() => { const g = window.__game, o = g.zone.content.nasa.origin, pl = g.player; const V = g.camera.position.constructor; pl.enterFrame(pl.frame, new V(o.x, g.zone.height(o.x, o.z + 8) + 0.05, o.z + 8), 0, 'walk'); pl.pitch = 0; g.input.virtMove.set(0, 1); });
+// from the forecourt (y = −8) to the security door (y = 46): about 52 m at walking pace (1.6 m/s)
 let reachedDoor = false;
-for (let i = 0; i < 60; i++) {
+for (let i = 0; i < 100; i++) {
   await run(15);
   const l = await loc();
   if (l[2] > 43.2) { reachedDoor = true; break; }
@@ -58,7 +59,7 @@ for (let i = 0; i < 60; i++) {
 }
 await p.evaluate(() => window.__game.input.virtMove.set(0, 0));
 await run(6);
-log('at the inner door', JSON.stringify(await loc()), 'prompt:', await prompt());
+log('at the inner door', reachedDoor, JSON.stringify(await loc()), 'prompt:', await prompt());
 await shot('01_inner_door');
 await p.evaluate(() => window.__game.input.virtualPress('interact'));
 await run(90);

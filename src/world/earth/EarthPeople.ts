@@ -42,7 +42,7 @@ const SCHEDULES: Record<string, SchedStop[]> = {
   ],
 };
 
-const STAFF: { id: string; name: string; female: boolean; station?: string; patrol?: boolean }[] = [
+const STAFF: { id: string; name: string; female: boolean; station?: string; patrol?: boolean; guard?: [number, number] }[] = [
   { id: 'staff1', name: 'Flight controller', female: false, station: 'mc_telemetry' },
   { id: 'staff2', name: 'Trajectory officer', female: true, station: 'mc_orbits' },
   { id: 'staff3', name: 'Propulsion engineer', female: false, station: 'mc_fuel' },
@@ -50,7 +50,8 @@ const STAFF: { id: string; name: string; female: boolean; station?: string; patr
   { id: 'staff5', name: 'Navigation analyst', female: false, station: 'mc_saturn' },
   { id: 'staff6', name: 'Astrophysicist', female: true, station: 'mc_wormhole' },
   { id: 'staff7', name: 'Facility technician', female: false, patrol: true },
-  { id: 'staff8', name: 'Security officer', female: true, patrol: true },
+  // stands guard at the tunnel checkpoint, beside the booth and clear of the lanes (NASA model x, y)
+  { id: 'staff8', name: 'Security officer', female: true, guard: [-2.7, 37.3] },
 ];
 
 /**
@@ -125,8 +126,13 @@ export class EarthPeople {
       if (s.station) {
         const sp = station(s.station);
         if (sp) n.sit(sp, Math.PI / 2, 'type');
+      } else if (s.guard) {
+        n.pos.copy(this.nasaLocal(s.guard[0], s.guard[1], 0));
+        n.yaw = Math.PI; // facing the portal
       } else {
-        this.nasaPatrol = [this.nasaLocal(0, 40, 0), this.nasaLocal(0, 70, 0), this.nasaLocal(10, 82, 0), this.nasaLocal(40, 82, 0), this.nasaLocal(10, 82, 0), this.nasaLocal(-10, 82, 0), this.nasaLocal(-22, 82, 0), this.nasaLocal(-10, 82, 0), this.nasaLocal(0, 70, 0)];
+        // the patrol stays inside the security door (NPCs walk without colliders: a route through the closed door
+        // would walk through it)
+        this.nasaPatrol = [this.nasaLocal(0, 55, 0), this.nasaLocal(0, 70, 0), this.nasaLocal(10, 82, 0), this.nasaLocal(40, 82, 0), this.nasaLocal(10, 82, 0), this.nasaLocal(-10, 82, 0), this.nasaLocal(-22, 82, 0), this.nasaLocal(-10, 82, 0), this.nasaLocal(0, 70, 0)];
         const start = s.id === 'staff7' ? 0 : 4;
         n.pos.copy(this.nasaPatrol[start]);
         let idx = start;

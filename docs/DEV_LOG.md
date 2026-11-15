@@ -57,6 +57,10 @@ found:
   - lit signs, made from Blender text, at every junction and room.
 - **Silo hall:** the floor reaches the wall; the corridor doorway is cut to the corridor's width.
 - Checkpoint turnstiles are solid, with the vehicle lane beside them.
+- **Staff:**
+  - NPCs walk without colliders, so the technician's patrol (which started at the checkpoint) walked through the closed
+    security door. The patrol now stays inside it.
+  - The security officer stands guard at the checkpoint, beside the booth and out of the lanes.
 
 **Skip the drive (`world/earth/Travel.ts`):**
 - On Earth, a button (J, the pause menu, SKIP DRIVE on touch) takes you, or you and the pickup, between the farm and
@@ -74,6 +78,9 @@ found:
   - elevator call button, car panel to −35 → silo hall.
 - **Travel (`e2e/farm_nasa_travel.mjs`):** J on foot, back from the pause menu, both ways in the pickup (parked level
   at each end); SKIP DRIVE shows on touch.
+- **Regression:** `nasa_entry` in, out and car pass. The walk in gets 50 s (the forecourt to the security door is
+  52 m), and the door prompt is no longer taken by a passing NPC. `blocker_audit earth`: 23 rooms, 17 doors,
+  0 problems.
 - **Pictures:** `docs/media/nasa_base_rework.jpg` (`e2e/nasa_views.mjs`).
 
 **Test machine note:** on the software renderer, the first read-back of each new area compiles its shaders (about 30 s
