@@ -1,5 +1,5 @@
-// The way to Ranger 1 at the top of the rocket, as a player: silo floor → the gantry lift's call post → into the cage
-// → its button → up 64.8 m → out through the gate onto the landing → along the crew access arm → the hatch prompt.
+// The way to Ranger 1 at the top of the rocket, as a player: from the silo hall's entrance across the floor → the
+// gantry lift's call post → into the cage by its south door (and its west door) → its button → up 64.8 m → out through the gate onto the landing → along the crew access arm → the hatch prompt.
 // Then the safety edges: the arm's walls, the landing's railings, the bar at the adapter, the landing gate over the
 // empty shaft once the cage has gone down, and the call button that brings it back.
 //   node e2e/gantry_arm.mjs <url> <outDir>      (against a served build; SHOTS=1 for pictures)
@@ -61,15 +61,38 @@ const use = async () => { await p.evaluate(() => window.__game.input.virtualPres
 const lift = () => p.evaluate(() => { const m = window.__game.zone.content.nasa.mover('gantry_lift'); return { level: m.level, y: +m.y.toFixed(2), moving: m.y !== m.target }; });
 const SY = 200, LOW = -35, ARM = LOW + 64.8;
 
-// 1) the call post on the silo floor; the cage is down there already
-await place(10.6, 194.2, LOW, N);
-await run(10);
+/** walk to a point on the floor, steering towards it every half second */
+const walkTo = async (x, y, s = 40, r = 0.35) => {
+  const start = await loc();
+  let l = start, low = start[2];
+  await p.evaluate(() => window.__game.input.virtMove.set(0, 1));
+  for (let i = 0; i < s * 2; i++) {
+    await p.evaluate(([x, y]) => { const g = window.__game, o = g.zone.content.nasa.origin, pl = g.player; const dx = o.x + x - pl.pos.x, dz = o.z - y - pl.pos.z; pl.heading.set(dx, 0, dz).normalize(); pl.orthoHeading?.(); }, [x, y]);
+    await run(15);
+    l = await loc();
+    low = Math.min(low, l[2]);
+    if (Math.hypot(l[0] - x, l[1] - y) < r) break;
+  }
+  await p.evaluate(() => window.__game.input.virtMove.set(0, 0));
+  await run(4);
+  return { start, end: await loc(), low };
+};
+// 1) from the silo hall's entrance (where the corridor comes in) across the floor to the cage's south door
+await place(0, 177.5, LOW, N);
+let w = await walkTo(12.5, 194.9);
+check('hall entrance → in front of the cage', Math.hypot(w.end[0] - 12.5, w.end[1] - 194.9) < 0.6 && w.low > LOW - 0.3, w);
 log('call post prompt', [await aim('gl_btn:gl_call_bottom'), (await run(4), await prompt())]);
-// 2) into the cage from the west, through its open gate
-await place(9.6, 197.1, LOW, E);
-let w = await walk((l) => l[0] > 12.3, 8);
-check('silo floor → into the cage', w.end[0] > 12.0 && w.low > LOW - 0.3, w);
+await face(N);
+w = await walk((l) => l[1] > 197.0, 8);
+check('in through the south door', w.end[1] > 196.8 && w.end[0] > 11.6 && w.end[0] < 13.4 && w.low > LOW - 0.3, w);
 await shot('01_cage');
+// 2) the west door works at the silo floor too
+await face(W);
+w = await walk((l) => l[0] < 10.0, 6);
+check('out through the west door', w.end[0] < 10.5 && w.low > LOW - 0.3, w.end);
+await face(E);
+w = await walk((l) => l[0] > 12.3, 6);
+check('back in through the west door', w.end[0] > 12.0 && w.low > LOW - 0.3, w.end);
 // 3) the cage's button: up to the crew access arm
 log('cage button', [await aim('gl_btn:gl_button'), (await run(4), await prompt())]);
 await use();
@@ -78,6 +101,11 @@ for (let i = 0; i < 40 && (await lift()).moving; i++) await run(15);
 await run(40);
 const top = await loc();
 check('rode up with the cage', Math.abs(top[2] - ARM) < 0.3, { at: top, lift: await lift() });
+// up here the south gate stays down (nothing on that side but the drop)
+await face(S);
+w = await walk(() => false, 3);
+check('the south gate holds at the top', w.end[1] > 196.3 && w.low > ARM - 0.3, w.end);
+await place(12.5, 197.1, ARM, W);
 // 4) out through the gate onto the landing, then onto the arm and along it to the adapter
 await face(W);
 w = await walk((l) => l[0] < 9.6, 8);

@@ -947,27 +947,38 @@ def nasa():
     P.append(box("arm_end_header", (0.15, 2.1, 0.2), loc=(AX0 + 0.08, SILO_Y, ARM_Z + 2.35), m="warning_yellow"))
     P.append(box("arm_end_bar", (0.06, 1.8, 0.06), loc=(AX0 + 0.08, SILO_Y, ARM_Z + 1.05), m="steel_painted_yellow"))
     col("COL_arm_end", (AX0 + 0.08, SILO_Y, ARM_Z + 0.65), (0.15, 2.0, 1.1), 0, root)
-    # gantry lift cage (moves between the silo floor and the landing): a gate on its open (west) side is down while
-    # it moves; the east and south sides are closed
+    # gantry lift cage (moves between the silo floor and the landing). Two doorways, each a yellow frame with a gate
+    # bar that rises out of the way: south (towards the silo hall's entrance; open only at the silo floor) and west
+    # (open at both stops: the landing is on that side up top). The east and north sides are solid panels you can see
+    # (a near-invisible net there read as open sides you could not get through).
     lv = empty("gantry_lift", loc=(GX, SILO_Y - 2.9, LOW), parent=root, interact="gantrylift", iid="gantry_lift")
     lp = [box("gl_deck", (2.0, 1.6, 0.15), loc=(0, 0, 0.0), m="int_grate"), box("gl_cage_top", (2.0, 1.6, 0.08), loc=(0, 0, 2.4), m="steel_painted_gray")]
-    for (c, sz) in (((1.0, 0, 1.2), (0.06, 1.6, 2.4)), ((0, -0.8, 1.2), (2.0, 0.06, 2.4)), ((0, 0.8, 1.2), (2.0, 0.06, 2.4))):
-        lp.append(box("gl_side", sz, loc=c, m="net"))
+    for (c, sz) in (((1.0, 0, 0.55), (0.06, 1.6, 1.1)), ((0, 0.8, 0.55), (2.0, 0.06, 1.1))):
+        lp.append(box("gl_panel", sz, loc=c, m="steel_painted_gray"))                     # solid lower panels
+    for (c, sz) in (((1.0, 0, 1.75), (0.04, 1.6, 1.3)), ((0, 0.8, 1.75), (2.0, 0.04, 1.3))):
+        lp.append(box("gl_mesh", sz, loc=c, m="int_grate"))                               # mesh above
+    for k in range(3):
+        lp.append(box("gl_rail", (0.05, 1.6, 0.05), loc=(1.0, 0, 1.1 + k * 0.6), m="steel_painted_yellow"))
+        lp.append(box("gl_rail", (2.0, 0.05, 0.05), loc=(0, 0.8, 1.1 + k * 0.6), m="steel_painted_yellow"))
     for (x, y) in ((-1.0, -0.8), (1.0, -0.8), (-1.0, 0.8), (1.0, 0.8)):
-        lp.append(box("gl_post", (0.08, 0.08, 2.45), loc=(x, y, 1.22), m="steel_painted_yellow"))
+        lp.append(box("gl_post", (0.1, 0.1, 2.45), loc=(x, y, 1.22), m="steel_painted_yellow"))
+    lp.append(box("gl_door_header_w", (0.1, 1.6, 0.12), loc=(-1.0, 0, 2.34), m="warning_yellow"))
+    lp.append(box("gl_door_header_s", (2.0, 0.1, 0.12), loc=(0, -0.8, 2.34), m="warning_yellow"))
     lm = merge(lp, "gantry_lift_mesh", par=lv)
     lm.location = (0, 0, 0)
     finish(lm, 30)
     col("COL_gl_deck", (0, 0, -0.05), (2.0, 1.6, 0.2), 0, lv, mover="gantry_lift")
     col("COL_gl_wallE", (1.0, 0, 1.2), (0.12, 1.6, 2.4), 0, lv, mover="gantry_lift")
-    col("COL_gl_wallS", (0, -0.8, 1.2), (2.0, 0.12, 2.4), 0, lv, mover="gantry_lift")
     col("COL_gl_wallN", (0, 0.8, 1.2), (2.0, 0.12, 2.4), 0, lv, mover="gantry_lift")
-    gg = empty("gl_gate", loc=(-1.0, 0, 0), parent=lv)
-    ggm = merge([box("gl_gate_bar", (0.08, 1.6, 0.08), loc=(0, 0, 1.05), m="warning_yellow"),
-                 box("gl_gate_bar2", (0.06, 1.6, 0.06), loc=(0, 0, 0.55), m="warning_yellow")], "gl_gate_mesh", par=gg)
-    ggm.location = (0, 0, 0)
-    col("COL_gl_gate", (-1.0, 0, 0.65), (0.12, 1.6, 1.1), 0, lv, mover="gantry_lift", door="gantry_gate")
-    box("gl_button", (0.2, 0.1, 0.25), loc=(0.8, -0.72, 1.1), m="emit_green", par=lv, interact="gantrylift", iid="gantry_lift_btn")
+    for (nm, loc, bar, door) in (("gl_gate", (-1.0, 0, 0), (0.08, 1.6, 0.08), "gantry_gate"), ("gl_gate_s", (0, -0.8, 0), (2.0, 0.08, 0.08), "gantry_gate_s")):
+        gg = empty(nm, loc=loc, parent=lv)
+        ggm = merge([box(nm + "_bar", bar, loc=(0, 0, 1.05), m="warning_yellow"),
+                     box(nm + "_bar2", (bar[0] if bar[0] > 1 else 0.06, bar[1] if bar[1] > 1 else 0.06, 0.06), loc=(0, 0, 0.55), m="warning_yellow")],
+                    nm + "_mesh", par=gg)
+        ggm.location = (0, 0, 0)
+        col("COL_" + nm, (loc[0], loc[1], 0.65), (bar[0] if bar[0] > 1 else 0.12, bar[1] if bar[1] > 1 else 0.12, 1.1), 0, lv, mover="gantry_lift", door=door)
+    # the cage's button on its east wall, facing in
+    box("gl_button", (0.1, 0.2, 0.25), loc=(0.92, -0.35, 1.15), m="emit_green", par=lv, interact="gantrylift", iid="gantry_lift_btn")
     # silo hall ring wall (lower 14 m; the shaft continues at runtime) with the corridor doorway cut to its width
     ring_wall("silo_ring", (0, SILO_Y), RR, LOW, LOW + 14, 0.9, "concrete", 48, [(270, CW, [(LOW, LOW + 6.5)])], P, root)
     P.append(lathe("silo_ledge", [(SILO_R + 0.5, LOW + 14), (SILO_R + 8, LOW + 14), (SILO_R + 8, LOW + 14.8), (SILO_R + 0.5, LOW + 14.8), (SILO_R + 0.5, LOW + 14)], m="concrete", seg=48, loc=(0, SILO_Y, 0)))

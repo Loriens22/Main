@@ -222,10 +222,12 @@ export class NasaSite {
     await this.placeHillAndParking();
     // movers
     this.addMover('nasa_elevator', inst.nodes.get('elevator')!, ['COL_elevator_deck', 'COL_el_rail-1', 'COL_el_rail1'], ELEVATOR_LEVELS.map((l) => l.y), new THREE.Box3(new THREE.Vector3(-4.2, -1, -4.2), new THREE.Vector3(4.2, 3, 4.2)), 2.6);
-    this.addMover('gantry_lift', inst.nodes.get('gantry_lift')!, ['COL_gl_deck', 'COL_gl_wallE', 'COL_gl_wallS', 'COL_gl_wallN', 'COL_gl_gate'], [LOW, LOW + 64.8], new THREE.Box3(new THREE.Vector3(-1.0, -1, -0.8), new THREE.Vector3(1.0, 3, 0.8)), 3.5);
-    // the cage's gate (down while it moves) and the arm landing's gate over the shaft (up only while the cage is there)
+    this.addMover('gantry_lift', inst.nodes.get('gantry_lift')!, ['COL_gl_deck', 'COL_gl_wallE', 'COL_gl_wallN', 'COL_gl_gate', 'COL_gl_gate_s'], [LOW, LOW + 64.8], new THREE.Box3(new THREE.Vector3(-1.0, -1, -0.8), new THREE.Vector3(1.0, 3, 0.8)), 3.5);
+    // the cage's gates (down while it moves; the south one, towards the silo hall's entrance, opens only at the silo
+    // floor) and the arm landing's gate over the shaft (up only while the cage is there)
     for (const [id, node, open] of [
       ['gantry_gate', 'gl_gate', () => { const m = this.mover('gantry_lift'); return !!m && m.y === m.target; }],
+      ['gantry_gate_s', 'gl_gate_s', () => { const m = this.mover('gantry_lift'); return !!m && m.y === m.target && m.level === 0; }],
       ['gantry_landing', 'gl_landgate', () => { const m = this.mover('gantry_lift'); return !!m && m.y === m.target && m.level === 1; }],
     ] as const) {
       const n = inst.nodes.get(node);

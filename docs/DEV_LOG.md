@@ -24,6 +24,16 @@ not be reached.
 - Call buttons on the silo floor (a post with a sign) and on the landing. Signs and floor lights along the arm.
 - The hatch prompt box is the hatch itself.
 
+**Then reported:** the lift itself could not be boarded.
+- The cage had solid sides except the west one (towards the rocket), and the sides were a dark see-through net: the
+  cage looked open all round.
+- Players come from the silo hall's entrance in the south and walked into an invisible wall.
+- The cage now has a door on the south side (open at the silo floor only) as well as the west one (open at both
+  stops), each a yellow frame with a gate bar. The two closed sides are visible panels, and the button is on the east
+  wall.
+- The walkthrough now starts at the hall entrance and enters by the south door, then by the west one. At the top, the
+  south gate holds.
+
 **Checked (`e2e/gantry_arm.mjs`, as a player):**
 - call post → cage → its button → up 64.8 m → out through the gate → landing → arm → the end, where the prompt shows;
 - the bar, both arm walls and both landing railings hold;

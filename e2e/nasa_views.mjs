@@ -23,6 +23,7 @@ const VIEWS = {
   kiosk: [[3.6, 69.3, 1.75], [3.2, 70.7, 1.3], 'open'],
   lower_corridor: [[0, 114, -33.3], [0, 170, -32.5], 'low'],
   silo_hall: [[0, 179.5, -32.8], [0, 200, -20], 'low'],
+  gantry_cage: [[9.0, 190.0, -33.3], [12.5, 197.1, -34.0], 'low'],
   // the crew access arm 64.8 m up the gantry (the lift brought up first)
   arm_walkway: [[10.2, 200.2, 31.6], [2.0, 200.0, 31.0], 'arm'],
   arm_landing: [[8.2, 196.9, 31.7], [13.0, 197.2, 30.6], 'arm'],
