@@ -175,8 +175,10 @@ vec4 cloudLayer( vec3 rd, float alt, float scale, float coverage, float density,
   return vec4( col, d * fade );
 }
 
+Atmo gAtmo;
 vec3 skyColor( vec3 rd, bool withSun ) {
   Atmo a = atmosphere( rd );
+  gAtmo = a;
   vec3 col = a.L;
   vec3 sunT = sunTransmittance();
   vec3 sunCol = uSunE * uSunTint * sunT * 0.11 * smoothstep( -0.06, 0.08, uSunDir.y );
@@ -223,9 +225,13 @@ void main() {
 `;
 const DOME_FRAG = /* glsl */ `
 varying vec3 vDir;
+uniform float uOverGlobe;
 void main() {
   vec3 rd = normalize( vDir );
-  gl_FragColor = vec4( skyColor( rd, true ), 1.0 );
+  vec3 c = skyColor( rd, true );
+  // over a rendered globe: emit in-scattered light and the ray's transmittance as alpha (blend: src + dst * a)
+  float a = uOverGlobe > 0.5 ? ( gAtmo.ground ? dot( gAtmo.T, vec3( 0.3333 ) ) : 0.0 ) : 1.0;
+  gl_FragColor = vec4( c, a );
 }
 `;
 const BAKE_VERT = /* glsl */ `
@@ -299,6 +305,7 @@ export class Sky {
       uAmbient: { value: new THREE.Vector3(...p.ambient) },
       uSunRadius: { value: p.sunRadius },
       uStars: { value: 0 },
+      uOverGlobe: { value: 0 },
       uGroundColor: { value: this.groundColor },
     };
     const defs = (q: number) => ({ N_VIEW: [8, 12, 18][q], N_LIGHT: [3, 4, 6][q] });
@@ -469,6 +476,19 @@ export class Sky {
   setFog(density: number, falloff: number, baseHeight = 0) {
     W.uFogP.value.set(density, falloff, baseHeight, 6);
   }
+
+  /** Composite over a Globe drawn beforehand in the space scene (orbit and ascent views). */
+  setOverGlobe(on: boolean) {
+    this.uniforms.uOverGlobe.value = on ? 1 : 0;
+    this.mat.transparent = on;
+    this.mat.blending = on ? THREE.CustomBlending : THREE.NormalBlending;
+    this.mat.blendSrc = THREE.OneFactor;
+    this.mat.blendDst = THREE.SrcAlphaFactor;
+    this.mat.blendEquation = THREE.AddEquation;
+    this.mat.needsUpdate = true;
+  }
+
+  setStars(v: number) { this.uniforms.uStars.value = v; }
 
   setVisible(v: boolean) {
     this.enabled = v;

@@ -5,7 +5,7 @@ export type Phase = 'earth' | 'prep' | 'boarding' | 'countdown' | 'ascent' | 'or
 
 /** Launch vehicle data shared by the Blender model, the launch simulation and the mission displays. */
 export const LAUNCHER = {
-  stage1: { dry: 42000, prop: 560000, thrust: 9.2e6, isp: 285, burn: 0 },
+  stage1: { dry: 42000, prop: 560000, thrust: 10.6e6, isp: 285, burn: 0 },
   stage2: { dry: 9000, prop: 108000, thrust: 1.15e6, isp: 440, burn: 0 },
   adapter: 1200,
   ranger: 28000,
