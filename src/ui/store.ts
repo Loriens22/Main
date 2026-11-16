@@ -27,12 +27,22 @@ export interface UIState {
   touch: boolean;
   /** bumps whenever non-reactive data a panel reads has changed */
   tick: number;
+  /** special full-screen view overlays: 'dockcam' */
+  view: string;
+  /** docking display (null when no docking target) */
+  dock: DockHud | null;
+}
+
+export interface DockHud {
+  target: string; port: string; range: number; axial: number; lx: number; ly: number; vx: number; vy: number; closing: number;
+  align: number; tiltX: number; tiltY: number; roll: number; rollRate: number; fuel: number; rcs: string; clearance: string;
+  state: string; issues: string[]; auto: string; spin: number; time: number;
 }
 
 let state: UIState = {
   loading: { active: true, label: 'Initialising', f: 0 },
   screen: 'boot', menuReady: false, panel: null, panelProps: null, prompt: '', promptKey: 'E', hints: [], subtitle: null, toasts: [],
-  location: '', mode: 'cinematic', gauges: [], gps: null, clocks: [], alert: '', touch: false, tick: 0,
+  location: '', mode: 'cinematic', gauges: [], gps: null, clocks: [], alert: '', touch: false, tick: 0, view: '', dock: null,
 };
 
 const subs = new Set<() => void>();

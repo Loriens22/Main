@@ -46,6 +46,8 @@ export interface FlightEnv {
   wind?(p: THREE.Vector3, out: THREE.Vector3): THREE.Vector3;
   /** height above the ground under p, if there is a ground */
   altitude?(p: THREE.Vector3): number | null;
+  /** velocity-dependent apparent acceleration of a rotating frame (Coriolis, tidal terms), m/s^2 */
+  accel?(p: THREE.Vector3, v: THREE.Vector3, out: THREE.Vector3): THREE.Vector3;
 }
 
 interface Thruster { node: THREE.Object3D; dir: THREE.Vector3; pos: THREE.Vector3; level: number; sprite: THREE.Sprite; was: boolean }
@@ -54,7 +56,7 @@ interface Plume { node: THREE.Object3D; mesh: THREE.Mesh; light?: Fixture; kind:
 
 const _v = new THREE.Vector3(), _w = new THREE.Vector3(), _a = new THREE.Vector3(), _q = new THREE.Quaternion(), _m = new THREE.Matrix4();
 const _g = new THREE.Vector3(), _f = new THREE.Vector3(), _t = new THREE.Vector3(), _q2 = new THREE.Quaternion();
-const _rp = new THREE.Vector3(), _ra = new THREE.Vector3();
+const _rp = new THREE.Vector3(), _ra = new THREE.Vector3(), _ex = new THREE.Vector3(), _pv = new THREE.Vector3();
 const blenderDir = (d: number[]) => new THREE.Vector3(d[0], d[2], -d[1]);
 
 let puffTex: THREE.Texture | null = null;
@@ -74,7 +76,7 @@ function puffTexture() {
 }
 
 /** Additive exhaust: hot core near the nozzle fading to a long, faint, wider jet; expands in vacuum. */
-function plumeMaterial() {
+export function plumeMaterial() {
   return new THREE.ShaderMaterial({
     uniforms: { uLevel: { value: 0 }, uTime: { value: 0 }, uVac: { value: 0 } },
     vertexShader: /* glsl */ `
@@ -148,6 +150,12 @@ export class Spacecraft {
   private time = 0;
   private lastMass = 0;
   private lastVel = new THREE.Vector3();
+  /** velocity the integrator should produce this step without contacts; a larger change is an impact */
+  private expectVel = new THREE.Vector3();
+  private expectValid = false;
+  /** structural damage 0..1 (Creative Mode: recoverable) */
+  damage = 0;
+  onImpact: ((dv: number, at: THREE.Vector3) => void) | null = null;
 
   constructor(public id: string, public spec: CraftSpec, public model: Model, private phys: PhysicsWorld, private lights: LightPool | null) {
     this.fuel = spec.fuelMax;
@@ -249,12 +257,14 @@ export class Spacecraft {
     this.body.setRotation(quat, true);
     this.body.setLinvel(vel ?? { x: 0, y: 0, z: 0 }, true);
     this.body.setAngvel({ x: 0, y: 0, z: 0 }, true);
+    this.expectValid = false;
     this.syncFromBody(true);
   }
 
   /** Attach to something that moves it (launch stack, docking port): physics off, pose set every frame. */
   setCarried(on: boolean) {
     this.carried = on;
+    this.expectValid = false;
     this.body.setBodyType(on ? RAPIER.RigidBodyType.KinematicPositionBased : RAPIER.RigidBodyType.Dynamic, true);
     if (!on) this.updateMass(true);
   }
@@ -265,7 +275,12 @@ export class Spacecraft {
     this.body.setNextKinematicTranslation(_v);
     this.body.setNextKinematicRotation(quat);
     if (vel) this.lastVel.set(vel.x, vel.y, vel.z);
+    // the commanded pose is the pose: interpolate toward it now, in step with whatever carries the craft
+    this.prevPos.copy(this.curPos); this.prevQuat.copy(this.curQuat);
+    this.curPos.copy(_v); this.curQuat.copy(quat);
+    this.carriedThisStep = true;
   }
+  private carriedThisStep = false;
 
   // ------------------------------------------------------------------------------------------- readouts
   position(out = new THREE.Vector3()) { return out.copy(this.curPos); }
@@ -276,6 +291,30 @@ export class Spacecraft {
   axis(local: THREE.Vector3Like, out = new THREE.Vector3()) { return out.set(local.x, local.y, local.z).applyQuaternion(this.curQuat); }
   forward(out = new THREE.Vector3()) { return this.axis({ x: 0, y: 0, z: -1 }, out); }
   up(out = new THREE.Vector3()) { return this.axis({ x: 0, y: 1, z: 0 }, out); }
+  /** world position (physics pose) of a model-space point */
+  pointWorld(modelPoint: THREE.Vector3, out = new THREE.Vector3()) {
+    return out.copy(modelPoint).sub(this.com).applyQuaternion(this.curQuat).add(this.curPos);
+  }
+
+  /** world velocity of a model-space point (translation plus rotation) */
+  pointVelocity(modelPoint: THREE.Vector3, out = new THREE.Vector3()) {
+    const r = _pv.copy(modelPoint).sub(this.com).applyQuaternion(this.curQuat);
+    const w = this.body.angvel(), v = this.body.linvel();
+    return out.set(w.y * r.z - w.z * r.y + v.x, w.z * r.x - w.x * r.z + v.y, w.x * r.y - w.y * r.x + v.z);
+  }
+
+  /** centre of mass in model space */
+  get comModel() { return this.com; }
+
+  /** position of a marker in model space (the GLB's own coordinates) */
+  markerLocal(kind: string, id: string, out = new THREE.Vector3()) {
+    const n = this.model.node(kind, id);
+    if (!n) return null;
+    this.root.updateMatrixWorld(true);
+    n.getWorldPosition(out);
+    return this.model.root.worldToLocal(out);
+  }
+
   /** model-space point (engine coordinates of the GLB) to zone space */
   modelToWorld(p: THREE.Vector3) { return this.model.root.localToWorld(p); }
 
@@ -293,7 +332,12 @@ export class Spacecraft {
   // ------------------------------------------------------------------------------------------- simulation
   fixedUpdate(dt: number, env: FlightEnv) {
     this.time += dt;
-    if (this.carried) { this.syncFromBody(); this.fireRcs(_v.set(0, 0, 0), _w.set(0, 0, 0), dt); this.mainFlow = 0; return; }
+    if (this.carried) {
+      this.expectValid = false;
+      if (!this.carriedThisStep) this.syncFromBody();
+      this.carriedThisStep = false;
+      this.fireRcs(_v.set(0, 0, 0), _w.set(0, 0, 0), dt); this.mainFlow = 0; return;
+    }
     const b = this.body, s = this.spec;
     const t = b.translation(), r = b.rotation();
     const p = _a.set(t.x, t.y, t.z);
@@ -302,6 +346,14 @@ export class Spacecraft {
     const m = this.mass;
     const lv = b.linvel(), av = b.angvel();
     const vel = _t.set(lv.x, lv.y, lv.z);
+    if (this.expectValid) {
+      const dv = _g.copy(vel).sub(this.expectVel).length();
+      if (dv > 0.12) {
+        this.damage = Math.min(1, this.damage + Math.max(0, dv - 0.25) * 0.06);
+        this.onImpact?.(dv, p);
+        bus.emit('craft:impact', { craft: this, dv });
+      }
+    }
     const angLocal = _w.set(av.x, av.y, av.z).applyQuaternion(qi);
     const fuelOk = this.fuel > 0 || this.infiniteFuel;
     // ---- engines
@@ -373,9 +425,12 @@ export class Spacecraft {
     // ---- apply (impulses over the step), gravity on the whole mass
     const F = _f.applyQuaternion(_q);
     env.gravity(p, _g);
+    if (env.accel) _g.add(env.accel(p, vel, _ex));
     this.accel.copy(F).divideScalar(m);
     this.gLoad = this.accel.length() / G0;
     b.applyImpulse({ x: (F.x + _g.x * m) * dt, y: (F.y + _g.y * m) * dt, z: (F.z + _g.z * m) * dt }, true);
+    this.expectVel.copy(vel).addScaledVector(this.accel, dt).addScaledVector(_g, dt);
+    this.expectValid = true;
     const T = tq.applyQuaternion(_q);
     b.applyTorqueImpulse({ x: T.x * dt, y: T.y * dt, z: T.z * dt }, true);
     this.updateMass();

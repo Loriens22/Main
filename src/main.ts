@@ -15,6 +15,9 @@ import { story } from './core/Story';
 import { AudioEngine } from './audio/Audio';
 import { bus } from './core/events';
 import { PRESETS, PresetName } from './core/Settings';
+import { OrbitZone } from './world/space/OrbitZone';
+import { DockingPanel } from './ui/panels/DockingPanel';
+import * as THREE from 'three';
 
 async function boot() {
   const canvas = document.getElementById('view') as HTMLCanvasElement;
@@ -30,6 +33,7 @@ async function boot() {
   registerPanel('farm', FarmPanel);
   registerPanel('dialogue', DialoguePanel);
   registerPanel('mission', MissionPanel);
+  registerPanel('docking', DockingPanel);
   game.services.mission = mission;
   game.systems.push({ update: (dt) => mission.update(dt) });
   game.services.dialogue = new Conversation(game);
@@ -43,6 +47,19 @@ async function boot() {
   if (preset && preset in PRESETS) game.settings.applyPreset(preset as PresetName);
   game.registerZone(new TestZone(game, 'test'));
   const earth = game.registerZone(new EarthZone(game, 'earth')) as EarthZone;
+  const orbit = game.registerZone(new OrbitZone(game, 'orbit')) as OrbitZone;
+
+  if (params.get('zone') === 'orbit') {
+    // developer entry: Ranger 1 in Earth orbit near the Endurance (start=gate: aligned at the approach gate; start=far: 4 km out)
+    await game.gotoZone('orbit', { fade: false });
+    orbit.met = Number(params.get('met') ?? 900);
+    const start = params.get('start') ?? 'gate';
+    if (start === 'far') orbit.startInRanger(new THREE.Vector3(-4200, -260, 140), new THREE.Vector3(0.4, 0, 0));
+    else if (start === 'near') orbit.startInRanger(new THREE.Vector3(-160, 14, 22));
+    else orbit.startInRanger(new THREE.Vector3(-57.6, 0, 0), new THREE.Vector3(), 'tail');
+    game.setState('playing');
+    return;
+  }
 
   if (params.get('zone') === 'test' || params.has('model') || params.has('craft')) {
     await game.gotoZone('test', { fade: false });

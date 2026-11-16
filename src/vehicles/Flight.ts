@@ -7,12 +7,26 @@ import { ScreenSurface, scr } from '../render/ScreenSurface';
 import { FlightEnv, Spacecraft } from './Spacecraft';
 
 const _v = new THREE.Vector3(), _u = new THREE.Vector3(), _f = new THREE.Vector3(), _q = new THREE.Quaternion(), _e = new THREE.Euler();
+/** a camera looking along +Z of the craft (aft): turn the default -Z view half way round about Y */
+const _qf = new THREE.Quaternion().setFromAxisAngle(new THREE.Vector3(0, 1, 0), Math.PI);
 
 /** A guidance target shown on the instruments (docking port, landing zone, the Endurance...). */
 export interface NavTarget { name: string; pos: (out: THREE.Vector3) => THREE.Vector3; vel?: (out: THREE.Vector3) => THREE.Vector3; up?: THREE.Vector3 }
 
 /** Autopilot programs plug in here; they write the craft's command fields every fixed step. */
-export interface Autopilot { name: string; step(c: Spacecraft, dt: number, env: FlightEnv): boolean | void; status?(): string; stop?(): void }
+export interface Autopilot {
+  name: string;
+  step(c: Spacecraft, dt: number, env: FlightEnv): boolean | void;
+  status?(): string;
+  stop?(): void;
+  /** keeps running while the craft is carried (analytic coast, docked hand-over) */
+  carriedOk?: boolean;
+  /** program to chain to when this one completes */
+  next?(): Autopilot | null;
+}
+
+/** An extra camera a zone or program offers in the camera cycle (launch tracking camera...). */
+export interface ExtraCam { id: string; label: string; drive(cam: THREE.PerspectiveCamera, dt: number): void; fov?: number }
 
 /**
  * The pilot's seat: control mapping, cameras, HUD and the live cockpit displays of the craft being flown.
@@ -21,7 +35,9 @@ export interface Autopilot { name: string; step(c: Spacecraft, dt: number, env: 
 export class Flight implements System {
   craft: Spacecraft | null = null;
   env: FlightEnv | null = null;
-  cam: 'cockpit' | 'chase' = 'cockpit';
+  cam = 'cockpit';
+  /** cameras added by the zone or the current program */
+  extraCams: ExtraCam[] = [];
   target: NavTarget | null = null;
   autopilot: Autopilot | null = null;
   /** hover assist: lift engines hold a vertical speed (m/s) */
@@ -82,6 +98,10 @@ export class Flight implements System {
     c.throttle = 0; c.lift = 0; c.rot.set(0, 0, 0); c.trans.set(0, 0, 0);
     this.craft = null;
     this.game.cameraDriver = null;
+    this.cam = 'cockpit';
+    this.extraCams = [];
+    { const cam = this.game.renderer.camera; if (cam.fov !== 70) { cam.fov = 70; cam.updateProjectionMatrix(); } }
+    ui.set({ view: '' });
     this.game.player.lookEnabled = true;
     this.game.interactions.suspended = false;
     for (const s of this.screens) s.dispose();
@@ -102,11 +122,21 @@ export class Flight implements System {
 
   fixedUpdate(dt: number) {
     const c = this.craft, env = this.env;
-    if (!c || !env || c.carried) return;
+    if (!c || !env) return;
+    if (c.carried && !this.autopilot?.carriedOk) return;
     const inp = this.game.input;
     if (this.autopilot) {
       const done = this.autopilot.step(c, dt, env);
-      if (done) { ui.toast(`${this.autopilot.name}: complete`, 'good', 4); this.autopilot = null; }
+      if (done) {
+        const ap = this.autopilot;
+        const nx = ap.next?.() ?? null;
+        ui.toast(`${ap.name}: complete`, 'good', 4);
+        bus.emit('flight:apdone', ap);
+        this.autopilot = nx;
+        if (nx) { ui.toast(`Autopilot: ${nx.name}`, 'info', 3); bus.emit('flight:apstart', nx); }
+        return;
+      }
+      if (!this.autopilot) return;
       // any stick input hands control back to the pilot
       if (!this.locked && (Math.abs(inp.axis('back', 'forward')) + Math.abs(inp.axis('left', 'right')) > 0.5)) { this.engage(null); ui.toast('Autopilot disengaged by pilot input', 'warn', 3); }
       return;
@@ -144,7 +174,7 @@ export class Flight implements System {
     const g = this.game, inp = g.input;
     if (g.state !== 'playing') return;
     if (inp.pressed('exit')) { this.leave(); if (!this.craft) return; }
-    if (inp.pressed('camera')) { this.cam = this.cam === 'cockpit' ? 'chase' : 'cockpit'; this.camInit = false; }
+    if (inp.pressed('camera')) this.cycleCamera();
     if (!this.locked) {
       if (inp.pressed('gear')) { c.setGear(!c.gearDown); ui.toast(c.gearDown ? 'Gear down' : 'Gear up', 'info', 1.5); }
       if (inp.pressed('headlights')) { c.setLights(!c.lightsOn); bus.emit('sfx', { id: 'switch', ui: true }); }
@@ -162,7 +192,23 @@ export class Flight implements System {
       if (inp.pressed('autopilot')) bus.emit('flight:autopilot', c);
     }
     // cameras
-    if (this.cam === 'chase') {
+    const extra = this.extraCams.find((e) => e.id === this.cam);
+    if (this.cam === 'dock' && c.model.marker('dock', 'rear')) {
+      g.player.lookEnabled = false;
+      const n = c.model.node('dock', 'rear')!;
+      g.cameraDriver = () => {
+        const cam = g.renderer.camera;
+        n.getWorldPosition(cam.position);
+        const q = c.root.getWorldQuaternion(_q);
+        // looking aft along the docking axis from the centre of the ring, craft up is screen up
+        cam.position.addScaledVector(_f.set(0, 0, 1).applyQuaternion(q), 0.25);
+        cam.quaternion.copy(q).multiply(_qf);
+        cam.fov = 46; cam.updateProjectionMatrix();
+      };
+    } else if (extra) {
+      g.player.lookEnabled = false;
+      g.cameraDriver = (cdt) => { const cam = g.renderer.camera; if (extra.fov && cam.fov !== extra.fov) { cam.fov = extra.fov; cam.updateProjectionMatrix(); } extra.drive(cam, cdt); };
+    } else if (this.cam === 'chase') {
       g.player.lookEnabled = false;
       const [dx, dy] = inp.consumeLook();
       this.orbitYaw -= dx;
@@ -188,7 +234,23 @@ export class Flight implements System {
       g.player.lookEnabled = true;
     }
     for (const s of this.screens) s.update(dt, true);
+    ui.set({ view: this.cam === 'dock' ? 'dockcam' : '' });
     this.hud();
+  }
+
+  /** cockpit -> chase -> docking camera (if the craft has one) -> zone cameras -> cockpit */
+  cycleCamera(to?: string) {
+    const c = this.craft;
+    const list = ['cockpit', 'chase'];
+    if (c?.model.marker('dock', 'rear')) list.push('dock');
+    for (const e of this.extraCams) list.push(e.id);
+    const i = list.indexOf(this.cam);
+    this.cam = to && list.includes(to) ? to : list[(i + 1) % list.length];
+    this.camInit = false;
+    const cam = this.game.renderer.camera;
+    if (cam.fov !== 70 && this.cam !== 'dock') { cam.fov = 70; cam.updateProjectionMatrix(); }
+    const label = this.cam === 'cockpit' ? 'Cockpit' : this.cam === 'chase' ? 'Chase camera' : this.cam === 'dock' ? 'Docking camera' : this.extraCams.find((e) => e.id === this.cam)?.label ?? this.cam;
+    ui.toast(label, 'info', 1.2);
   }
 
   // ------------------------------------------------------------------------------------------- HUD / screens

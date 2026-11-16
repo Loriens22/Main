@@ -229,8 +229,9 @@ uniform float uOverGlobe;
 void main() {
   vec3 rd = normalize( vDir );
   vec3 c = skyColor( rd, true );
-  // over a rendered globe: emit in-scattered light and the ray's transmittance as alpha (blend: src + dst * a)
-  float a = uOverGlobe > 0.5 ? ( gAtmo.ground ? dot( gAtmo.T, vec3( 0.3333 ) ) : 0.0 ) : 1.0;
+  // over a rendered globe and star field: emit in-scattered light and the ray's transmittance as alpha
+  // (blend: src + dst * a), so the ground, the limb and the stars behind are all seen through the air
+  float a = uOverGlobe > 0.5 ? dot( gAtmo.T, vec3( 0.3333 ) ) : 1.0;
   gl_FragColor = vec4( c, a );
 }
 `;
@@ -245,8 +246,8 @@ void main() {
   float lat = ( vUv.y - 0.5 ) * PI;
   vec3 rd = vec3( cos( lat ) * cos( lon ), sin( lat ), cos( lat ) * sin( lon ) );
   vec3 c = skyColor( rd, false );
-  // ground bounce for the lower hemisphere so IBL from below is not black
-  if ( rd.y < 0.0 ) c = mix( c, uGroundColor * ( atmosphere( vec3( 0.0, 1.0, 0.0 ) ).L * 1.6 + sunTransmittance() * uSunE * uSunTint * 0.045 * max( uSunDir.y, 0.0 ) ), smoothstep( 0.0, -0.08, rd.y ) );
+  // ground bounce wherever the ray meets the planet (seen through the air in between) so IBL from below is not black
+  if ( gAtmo.ground ) c += uGroundColor * ( atmosphere( vec3( 0.0, 1.0, 0.0 ) ).L * 1.6 + sunTransmittance() * uSunE * uSunTint * 0.045 * max( uSunDir.y, 0.0 ) ) * gAtmo.T;
   gl_FragColor = vec4( min( c, vec3( 60.0 ) ), 1.0 );
 }
 `;
@@ -286,6 +287,8 @@ export class Sky {
   enabled = true;
   /** extra uniform darkening for storms: multiplies sun */
   sunOcclusion = 1.0;
+  /** fixed star visibility for the shader's own stars (null: automatic from sun elevation and clouds) */
+  starsOverride: number | null = null;
 
   constructor(private r: Renderer, quality: number, params: AtmosphereParams = EARTH_ATMOSPHERE) {
     this.params = { ...params };
@@ -371,7 +374,7 @@ export class Sky {
     (u.uCloud.value as THREE.Vector4).set(p.cloudCoverage, p.cloudDensity, p.cloudAltitude, p.cirrus);
     (u.uAmbient.value as THREE.Vector3).set(...p.ambient);
     u.uSunRadius.value = p.sunRadius;
-    u.uStars.value = clamp((-this.sunDir.y - 0.02) * 6, 0, 1) * (1 - p.cloudCoverage * 0.8);
+    u.uStars.value = this.starsOverride ?? clamp((-this.sunDir.y - 0.02) * 6, 0, 1) * (1 - p.cloudCoverage * 0.8);
   }
 
   /** CPU mirror of the shader's sun transmittance (for the directional light colour). */
@@ -488,7 +491,7 @@ export class Sky {
     this.mat.needsUpdate = true;
   }
 
-  setStars(v: number) { this.uniforms.uStars.value = v; }
+  setStars(v: number | null) { this.starsOverride = v; }
 
   setVisible(v: boolean) {
     this.enabled = v;

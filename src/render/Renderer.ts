@@ -107,6 +107,8 @@ export class Renderer {
   height = 1;
   frame = 0;
   maxAnisotropy = 1;
+  /** called after the camera is final for the frame, before drawing (background objects placed relative to it) */
+  preRender: ((cam: THREE.PerspectiveCamera) => void)[] = [];
 
   constructor(public canvas: HTMLCanvasElement, private settings: Settings) {
     this.gl = new THREE.WebGLRenderer({ canvas, antialias: false, powerPreference: 'high-performance', stencil: false, depth: true, alpha: false });
@@ -229,6 +231,7 @@ export class Renderer {
     // The background camera shares orientation and lens with the main camera but sits at the origin.
     this.gl.info.reset();
     this.camera.updateMatrixWorld();
+    for (const f of this.preRender) f(this.camera);
     this.spaceCamera.quaternion.setFromRotationMatrix(this.camera.matrixWorld);
     if (this.spaceCamera.fov !== this.camera.fov) {
       this.spaceCamera.fov = this.camera.fov;

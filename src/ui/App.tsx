@@ -1,3 +1,4 @@
+import { DockHud } from './DockHud';
 import { render } from 'preact';
 import { useEffect, useRef, useState } from 'preact/hooks';
 import type { Game } from '../core/Game';
@@ -228,6 +229,7 @@ function Hud() {
       {s.alert && <div class="alert">{s.alert}</div>}
       {s.subtitle && s.subtitle.until > now && <div class="subtitle">{s.subtitle.speaker && <b>{s.subtitle.speaker}</b>}{s.subtitle.text}</div>}
       <div class="toasts">{s.toasts.map((t) => <div class={`toast ${t.kind}`}>{t.text}</div>)}</div>
+      <DockHud />
     </div>
   );
 }

@@ -11,6 +11,8 @@ export class Emitter {
     return () => s!.delete(fn);
   }
 
+  off(name: string, fn: Handler) { this.map.get(name)?.delete(fn); }
+
   emit(name: string, payload?: any) {
     const s = this.map.get(name);
     if (s) for (const fn of [...s]) fn(payload);
