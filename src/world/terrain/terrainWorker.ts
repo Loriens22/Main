@@ -1,6 +1,7 @@
 /// <reference lib="webworker" />
 import { buildChunk, ChunkRequest } from './chunk';
 import { terrainSource } from './sources';
+import './worlds';
 
 // Terrain tiles are meshed off the main thread so streaming never stalls the frame.
 self.onmessage = (e: MessageEvent<ChunkRequest>) => {

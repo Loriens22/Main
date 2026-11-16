@@ -4,6 +4,7 @@ import { bus } from '../../core/events';
 import { PanelFrame } from '../App';
 import { ENDURANCE } from '../../space/Endurance';
 import { RANGER_SPEC } from '../../vehicles/Spacecraft';
+import { ui } from '../store';
 
 const KV = ({ k, v, warn }: { k: string; v: any; warn?: boolean }) => <div class="kv"><span>{k}</span><b style={warn ? { color: 'var(--warn)' } : {}}>{v}</b></div>;
 
@@ -34,6 +35,13 @@ export function DockingPanel({ game, close }: { game: Game; close: () => void })
           <p>The computer picks the free Ranger port, plans a two-burn transfer to the approach gate {50} m out on the docking axis (coasting under time compression), then turns the docking ring to the port, matches the ship's spin and clocking, and flies the final approach. From the gate it docks in under a minute.</p>
           <button class="btn" disabled={docked} onClick={() => { bus.emit('ui:click'); close(); z.engageAutoDock(); }}>Engage automatic docking</button>
         </div>
+        {z.body?.landing && !docked && (
+          <div class="card">
+            <h4>Automatic landing · {z.body.landing.site}</h4>
+            <p>From here (the descent staging point) the computer waits for the window when the site passes under the orbit, makes the deorbit burn, coasts down{z.body.atmosphere ? ', flies a lifting entry with bank steering' : ''}, brakes under power to a gate {1200} m above the pad and lets down onto it. Time is compressed except for the burns and the last metres.</p>
+            <button class="btn" onClick={() => { bus.emit('ui:click'); const err = z.beginDescent(); if (err) ui.toast(err, 'warn', 5); else close(); }}>Land on {z.body.name}</button>
+          </div>
+        )}
         <div class="card">
           <h4>Manual docking</h4>
           <p>You fly. Translate with I K J L U O, rotate with W S A D Q E. The Ranger docks tail-first: press V for the docking camera. Inside 0.3 m capture needs offset under 0.22 m, closing under 0.45 m/s, alignment within 5°, clocking within 12° and the spin matched within 3.5°/s.</p>

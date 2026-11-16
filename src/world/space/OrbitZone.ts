@@ -30,8 +30,12 @@ import { SystemView } from '../../render/SystemView';
 import { atmosphereFor, exposureFor, irradianceAt } from '../../space/Worlds';
 import { distanceRemaining, ENDURANCE_DV, finalizeArrival, finalizeDeparture, fmtDistance, fmtDuration, ParkState, TransferPlan, voyagePosition } from '../../space/Voyage';
 import { AU, DAY, R_G, WORMHOLE_PAIR } from '../../space/Bodies';
-import { dilationAt } from '../../space/Relativity';
-import type { V3 } from '../../space/Kepler';
+import { dilationAt, MILLER_R, kerrCircularDilation } from '../../space/Relativity';
+import { add, cross, dot, norm, scale, sub, unit, V3 } from '../../space/Kepler';
+import { GuidedFlight, HANDOVER_ALT, planDescent, rangerPerf } from '../../space/Descent';
+import { FlightProgram, siteFunction } from '../../space/FlightProgram';
+import { ProgramPilot } from './SurfaceZone';
+import type { SurfaceZone } from './SurfaceZone';
 
 const _v = new THREE.Vector3(), _w = new THREE.Vector3(), _s = new THREE.Vector3(), _q = new THREE.Quaternion();
 const _x = new THREE.Vector3(), _z = new THREE.Vector3(), _m4 = new THREE.Matrix4(), _c = new THREE.Color(), _c2 = new THREE.Color();
@@ -70,7 +74,7 @@ export class OrbitZone extends Zone implements OrbitContext {
   phiE0 = 0;
   warp = 1;
   /** 'ascent': the frame rides with the climbing launch vehicle; 'orbit': the Endurance's LVLH frame */
-  mode: 'orbit' | 'ascent' | 'cruise' = 'orbit';
+  mode: 'orbit' | 'ascent' | 'cruise' | 'flight' = 'orbit';
   stack: LaunchStack | null = null;
   sim: AscentSim | null = null;
   npcs!: NPCManager;
@@ -182,7 +186,7 @@ export class OrbitZone extends Zone implements OrbitContext {
 
   /** Advance mission time by dt real seconds (time compression applies in orbit and in cruise). */
   advance(dt: number) {
-    if (this.mode === 'ascent') return;
+    if (this.mode === 'ascent' || this.mode === 'flight') return;
     const step = dt * this.warp;
     this.met += step;
     if (this.pending && this.met >= this.pending.burnMet) { this.earthOffset += step * (this.dilation() - 1); this.startCruise(this.met - this.pending.burnMet); return; }
@@ -338,6 +342,174 @@ export class OrbitZone extends Zone implements OrbitContext {
     this.orientStars();
   }
 
+  // ------------------------------------------------------------------------------------------- landing flights
+  /** Ranger 1's guided descent or ascent while it is in this zone's view (the frame rides with it) */
+  flightProg: FlightProgram | null = null;
+  private enduranceBaseQ = new THREE.Quaternion().setFromAxisAngle(new THREE.Vector3(0, 1, 0), Math.PI / 2);
+
+  /** the Endurance's LVLH axes (system frame) and state, for converting the Ranger's relative state */
+  private lvlh() {
+    const g = this.currentGeometry();
+    const e = this.parkState(g, this.phiE);
+    const Y = unit(e.r), X = unit(sub(e.v, scale(Y, dot(e.v, Y)))), Z = cross(X, Y);
+    // the frame turns about the orbit normal (-Z) once per orbit
+    return { e, X, Y, Z, w: scale(Z, -this.n) };
+  }
+
+  /** a zone (LVLH) state near the Endurance -> body-centred inertial (system axes) */
+  lvlhToInertial(p: THREE.Vector3, v: THREE.Vector3) {
+    const L = this.lvlh();
+    const rel = add(add(scale(L.X, p.x), scale(L.Y, p.y)), scale(L.Z, p.z));
+    const vr = add(add(scale(L.X, v.x), scale(L.Y, v.y)), scale(L.Z, v.z));
+    return { r: add(L.e.r, rel), v: add(add(L.e.v, vr), cross(L.w, rel)) };
+  }
+
+  /** Start the automatic landing from near the Endurance (the descent staging point). */
+  beginDescent(): string | null {
+    const b = this.body, c = this.ranger!;
+    if (!b.landing) return `${b.name} has no landing site the Ranger can reach.`;
+    if (this.mode !== 'orbit') return 'Not in orbit.';
+    if (this.docking.linkOf(c)) return 'Undock first: the descent starts from the staging point near the Endurance.';
+    const pos = c.position(new THREE.Vector3()).sub(c.comModel.clone().applyQuaternion(c.quaternion(new THREE.Quaternion())));
+    if (pos.length() > 8000) return 'Too far from the Endurance: the descent is planned from the staging point within 8 km.';
+    const s = this.lvlhToInertial(pos, c.velocity(new THREE.Vector3()));
+    const jd0 = this.jd;
+    const site = siteFunction(b, jd0);
+    const perf = rangerPerf(RANGER_SPEC, this.rangerFuel);
+    // land in daylight: the Sun (or Gargantua's light) at least 6 degrees above the site's horizon
+    const daylight = (t: number) => {
+      const jd = jd0 + t / 86400, st = site(t), bp = state(b.id, jd).r;
+      const toSun = unit(scale(add(bp, st.r), -1));
+      return dot(toSun, st.up) > Math.sin((6 * Math.PI) / 180);
+    };
+    const plan = planDescent(b, s.r, s.v, perf, site, { ok: daylight });
+    if (!plan) return 'No landing window in daylight within the next month.';
+    const f = new GuidedFlight(b, s.r, s.v, perf, 'descent', site);
+    f.armDescent(plan.tDeorbit, plan.rp);
+    const pr = new FlightProgram('descent', f, b, jd0, this.met);
+    this.startFlight(pr);
+    mission.note(`Automatic landing at ${b.landing.site}: deorbit burn in ${(plan.tDeorbit / 60).toFixed(0)} min (periapsis ${((plan.rp - b.R) / 1000).toFixed(0)} km).`);
+    return null;
+  }
+
+  /** The ascent program arriving from the surface a few kilometres up. */
+  takeFlight(pr: FlightProgram) {
+    this.setBody(pr.body.id);
+    this.startFlight(pr);
+  }
+
+  private startFlight(pr: FlightProgram) {
+    const c = this.ranger!;
+    this.flightProg = pr;
+    this.mode = 'flight';
+    c.root.visible = true;
+    c.setCarried(true);
+    const flight = this.game.services.flight as Flight;
+    if (flight.craft !== c) { if (flight.craft) flight.leave(true); flight.enter(c, this.env, 'pilot_l'); }
+    flight.engage(new ProgramPilot(pr));
+    this.flightPose(true);
+  }
+
+  private flightStep(dt: number) {
+    const pr = this.flightProg!, f = pr.f;
+    pr.step(dt);
+    this.syncLocal(pr.met0 + f.t, pr.body.id, f.height);
+    this.flightPose();
+    if (pr.kind === 'descent' && (f.phase === 'braking' || f.phase === 'terminal') && f.height < HANDOVER_ALT && f.rangeTo(f.site(f.t).r) < 14000) {
+      // the ground is close enough to be drawn in detail: the surface zone takes over
+      this.flightProg = null;
+      this.mode = 'orbit';
+      this.rangerFuel = f.fuel;
+      this.ranger!.root.visible = false;
+      this.resetEndurancePose();
+      void this.game.gotoZone('surface', { fade: false, onEnter: (z) => (z as SurfaceZone).takeOver(pr) });
+      return;
+    }
+    if (pr.kind === 'ascent' && f.phase === 'done') this.finishAscent();
+  }
+
+  /** Back in the Endurance's frame a kilometre or so behind it: the docking autopilot takes over. */
+  private finishAscent() {
+    const pr = this.flightProg!, f = pr.f, c = this.ranger!;
+    const L = this.lvlh();
+    const rel = sub(f.r, L.e.r);
+    const vr = sub(sub(f.v, L.e.v), cross(L.w, rel));
+    const p = new THREE.Vector3(dot(rel, L.X), dot(rel, L.Y), dot(rel, L.Z));
+    const v = new THREE.Vector3(dot(vr, L.X), dot(vr, L.Y), dot(vr, L.Z));
+    this.rangerFuel = f.fuel;
+    this.flightProg = null;
+    this.mode = 'orbit';
+    this.resetEndurancePose();
+    const q = c.quaternion(new THREE.Quaternion());
+    c.setCarried(false);
+    c.place(p, q, v);
+    c.throttle = 0; c.lift = 0; c.plumeWhileCarried = false;
+    this.sky.dome.visible = this.sky.enabled && this.skyDome();
+    mission.note(`Rendezvous: ${(p.length() / 1000).toFixed(2)} km from the Endurance, ${v.length().toFixed(1)} m/s relative. Automatic docking.`);
+    this.engageAutoDock();
+  }
+
+  private resetEndurancePose() {
+    this.endurance.root.position.set(0, 0, 0);
+    this.endurance.root.quaternion.copy(this.enduranceBaseQ);
+    this.endurance.root.visible = true;
+    this.endurance.root.updateMatrixWorld(true);
+  }
+
+  /** zone frame on the flying Ranger: Y up from the body centre, X along the horizontal velocity */
+  private flightPose(snap = false) {
+    const f = this.flightProg!.f, c = this.ranger!;
+    const Y = unit(f.r);
+    let X = sub(f.v, scale(Y, dot(f.v, Y)));
+    X = norm(X) > 1e-3 ? unit(X) : unit(cross([0, 0, 1], Y));
+    const Z = cross(X, Y);
+    this.cruiseAxes.X.set(...X); this.cruiseAxes.Y.set(...Y); this.cruiseAxes.Z.set(...Z);
+    const toZ = (v: V3, out: THREE.Vector3) => out.set(dot(v, X), dot(v, Y), dot(v, Z));
+    const att = f.attitude();
+    const fwd = toZ(att.fwd, new THREE.Vector3()).normalize(), up = toZ(att.up, new THREE.Vector3()).normalize();
+    const back = fwd.clone().negate();
+    const m = new THREE.Matrix4().makeBasis(new THREE.Vector3().crossVectors(up, back).normalize(), up, back);
+    const q = new THREE.Quaternion().setFromRotationMatrix(m);
+    if (!snap) q.copy(c.quaternion(new THREE.Quaternion()).slerp(q, Math.min(1, 0.06 * Math.max(1, this.flightProg!.warp()))));
+    // the Ranger sits at the frame origin (its velocity is the frame's: zero relative)
+    const p0 = new THREE.Vector3(0, 0, 0);
+    if (snap) c.place(p0, q); else c.carry(p0, q, p0);
+    c.plumeWhileCarried = f.throttle > 0.002;
+    c.throttle = att.engines === 'main' ? f.throttle : 0;
+    c.lift = att.engines === 'lift' ? f.throttle : 0;
+    this.entryHeat = f.heat;
+    // the Endurance where it really is, relative to the Ranger (hidden beyond 60 km)
+    const L = this.lvlh();
+    const rel = sub(L.e.r, f.r);
+    const d = norm(rel);
+    const er = this.endurance.root;
+    er.visible = d < 60000;
+    toZ(d < 60000 ? rel : scale(rel, 60000 / d), er.position);
+    // its attitude: the LVLH orientation carried into this frame
+    const mL = new THREE.Matrix4().set(dot(L.X, X), dot(L.Y, X), dot(L.Z, X), 0, dot(L.X, Y), dot(L.Y, Y), dot(L.Z, Y), 0, dot(L.X, Z), dot(L.Y, Z), dot(L.Z, Z), 0, 0, 0, 0, 1);
+    er.quaternion.setFromRotationMatrix(mL).multiply(this.enduranceBaseQ);
+    er.updateMatrixWorld(true);
+  }
+
+  /** entry heating 0..1 for the plasma effects */
+  entryHeat = 0;
+
+  /** sky, Sun and stars around the flying Ranger */
+  private updateSkyFlight() {
+    const f = this.flightProg!.f;
+    const bp = state(this.body.id, this.jd).r;
+    this.cruiseShip = add(bp, f.r);
+    const { X, Y, Z } = this.cruiseAxes;
+    this.rotSys.set(X.x, X.y, X.z, 0, Y.x, Y.y, Y.z, 0, Z.x, Z.y, Z.z, 0, 0, 0, 0, 1);
+    const sun = _s.set(-this.cruiseShip[0], -this.cruiseShip[1], -this.cruiseShip[2]).normalize().applyMatrix4(_m4.extractRotation(this.rotSys));
+    this.sunLocal.copy(sun);
+    this.sunView.copy(sun);
+    this.sky.lightRotation = null;
+    this.sky.setSunDirection(sun);
+    this.earthCentre.set(0, -norm(f.r), 0);
+    this.orientStars();
+  }
+
   /** exposure for the local sunlight (Saturn: 1/90 of the Earth's) */
   exposure() { return this.body.id === 'earth' && this.mode !== 'cruise' ? 0.95 : exposureFor(this.irradiance()); }
 
@@ -356,6 +528,38 @@ export class OrbitZone extends Zone implements OrbitContext {
   /** eye adaptation follows the sunlight (off inside the ship, where the cabin lights set it) */
   adaptLook = true;
   private lookT = 0;
+
+  /** Ranger 1's propellant while it is away from the Endurance (kg) */
+  rangerFuel = RANGER_SPEC.fuelMax;
+  /** the Endurance's clock minus the player's (met): grows while the player is deeper in Gargantua's well */
+  endOffset = 0;
+  get enduranceT() { return this.met + this.endOffset; }
+
+  /**
+   * Dilation where the player is, away from the Endurance: on Miller's planet the near-horizon value (one hour =
+   * seven years); elsewhere the world's navigation-radius value. Descending to Miller it ramps in with depth
+   * (fiction: the game keeps the Endurance in orbit near the planet, see docs/SPACE.md).
+   */
+  localDilation(bodyId: string, height = 0) {
+    const b = BODY[bodyId];
+    if (b.system !== 'gargantua') return 1;
+    const far = dilationAt({ rOverM: (b.orbit?.a ?? 300 * R_G) / R_G });
+    if (bodyId !== 'miller') return far;
+    const deep = kerrCircularDilation(MILLER_R);
+    const k = Math.max(0, Math.min(1, 1 - height / (b.parkingAlt || 1)));
+    return Math.exp(Math.log(far) + (Math.log(deep) - Math.log(far)) * k * k);
+  }
+
+  /** The player's clock moves to metNew away from the ship: the Endurance's and Earth's clocks run at their rates. */
+  syncLocal(metNew: number, bodyId: string, height = 0) {
+    const d = metNew - this.met;
+    if (d <= 0) return;
+    const D = this.localDilation(bodyId, height), De = this.dilation();
+    this.met = metNew;
+    this.earthOffset += d * (D - 1);
+    this.endOffset += d * (D / De - 1);
+  }
+  advanceLocal(dt: number, bodyId: string) { this.syncLocal(this.met + dt, bodyId); }
 
   /**
    * Coordinate (Earth-reference) seconds per second of the Endurance's clock where it is. Far from Gargantua the
@@ -376,8 +580,10 @@ export class OrbitZone extends Zone implements OrbitContext {
 
   /** the HUD clocks shared by every zone aboard (the bridge displays read the same values) */
   missionClocks(): { label: string; value: string }[] {
-    const out = [{ label: 'MET', value: fmtClock(this.met) }];
-    if (Math.abs(this.earthOffset) > 60) out.push({ label: 'EARTH', value: fmtClock(this.earthT) });
+    const split = Math.abs(this.endOffset) > 60, earth = Math.abs(this.earthOffset) > 60;
+    const out = [{ label: split || earth ? 'LOCAL' : 'MET', value: fmtClock(this.met) }];
+    if (split) out.push({ label: 'ENDURANCE', value: fmtClock(this.enduranceT) });
+    if (earth) out.push({ label: 'EARTH', value: fmtClock(this.earthT) });
     if (this.mode === 'cruise' && this.voyage) {
       out.push({ label: 'ETA', value: fmtDuration(Math.max(0, this.voyage.tof - this.voyageT)) });
       out.push({ label: 'TO GO', value: fmtDistance(distanceRemaining(this.voyage, this.voyageT)) });
@@ -561,6 +767,7 @@ export class OrbitZone extends Zone implements OrbitContext {
   // ------------------------------------------------------------------------------------------- simulation
   override fixedUpdate(dt: number) {
     this.advance(dt);
+    if (this.mode === 'flight' && this.flightProg) this.flightStep(dt);
     this.endurance.fixedUpdate(dt);
     this.npcs.fixedUpdate(dt);
     this.docking.fixedUpdate(dt);
@@ -577,6 +784,7 @@ export class OrbitZone extends Zone implements OrbitContext {
   /** Earth, sun and stars for the current time, in the zone frame. Runs every frame before drawing. */
   updateSky() {
     if (this.mode === 'cruise') { this.updateSkyCruise(); return; }
+    if (this.mode === 'flight') { this.updateSkyFlight(); return; }
     if (this.mode === 'orbit') { this.originR = this.rE; this.originPhi = this.phiE; }
     this.plane.frame(this.originPhi, this.frame);
     this.updateRot();
@@ -645,7 +853,7 @@ export class OrbitZone extends Zone implements OrbitContext {
     const B = this.bci, F = this.frame;
     const local = _w.copy(_v);
     if (this.skyRotation) local.applyQuaternion(_q.copy(this.skyRotation).invert());
-    if (this.mode === 'cruise') {
+    if (this.mode === 'cruise' || this.mode === 'flight') {
       const S = this.cruiseShip, C = this.cruiseAxes;
       this.camSys[0] = S[0] + C.X.x * local.x + C.Y.x * local.y + C.Z.x * local.z;
       this.camSys[1] = S[1] + C.X.y * local.x + C.Y.y * local.y + C.Z.y * local.z;
@@ -683,7 +891,7 @@ export class OrbitZone extends Zone implements OrbitContext {
     this.camTarget.copy(this.ranger ? this.ranger.root.position : _v);
     this.sky.shadowFocus.copy(this.camTarget.distanceTo(this.endurance.root.position) < 120 ? this.endurance.root.position : this.camTarget);
     this.sky.shadowRange = this.camTarget.distanceTo(this.endurance.root.position) < 120 ? 48 : 20;
-    this.sky.update(dt, _v, this.originR - this.body.R + _v.y);
+    this.sky.update(dt, _v, this.mode === 'flight' && this.flightProg ? this.flightProg.f.alt + _v.y : this.originR - this.body.R + _v.y);
     this.npcs.update(dt);
     if (this.mode === 'ascent' || this.stack) this.ascentVisuals(dt);
     this.lights.update(_v, dt);

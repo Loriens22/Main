@@ -354,6 +354,49 @@ def desert_gravel(t):
     t.normal_strength = 7.0
 
 
+@tex("regolith")
+def regolith(t):
+    """Lunar mare regolith: fine grey dust, small fresh craterlets with bright rims, scattered angular clasts."""
+    n = t.n
+    lf, mf, hf = fbm(n, 2.6, 401), fbm(n, 1.7, 402, fmin=5), fbm(n, 0.6, 403, fmin=40)
+    f1, f2, ids = voronoi(n, 2600, 404)
+    clast = smoothstep(0.30, 0.12, f1) * smoothstep(0.80, 0.9, cell_random(ids, 405))
+    c1, c2, cid = voronoi(n, 22, 406)
+    rad = 0.45 * (0.3 + 0.7 * cell_random(cid, 407) ** 2)
+    keep = smoothstep(0.72, 0.8, cell_random(cid, 408))
+    pit = smoothstep(rad, rad * 0.2, c1) * keep * 0.6
+    rim = np.exp(-((c1 - rad) / (rad * 0.25 + 1e-6)) ** 2) * keep * 0.5
+    base = mix(solid(n, rgb("#4f4d4a")), solid(n, rgb("#77746f")), _norm_(lf * 0.6 + mf * 0.4))
+    base = base * (0.92 + 0.16 * hf[..., None])
+    base = base * (1 - pit[..., None] * 0.1) + rim[..., None] * 0.03
+    base = mix(base, solid(n, rgb("#8e8b86")) * (0.75 + 0.45 * cell_random(ids, 409)[..., None]), clast * 0.85)
+    t.albedo = base
+    t.height = np.clip(0.45 + (mf - 0.5) * 0.25 + (hf - 0.5) * 0.12 - pit * 0.3 + rim * 0.15 + clast * 0.35, 0, 1)
+    t.rough = np.clip(0.94 + hf * 0.05, 0, 1)
+    t.normal_strength = 6.0
+
+
+@tex("mars_soil")
+def mars_soil(t):
+    """Martian surface: rust-coloured dust over darker basaltic sand and pebbles, wind ripples."""
+    n = t.n
+    u, v = grid_uv(n)
+    lf, mf, hf = fbm(n, 2.6, 411), fbm(n, 1.6, 412, fmin=5), fbm(n, 0.6, 413, fmin=40)
+    w = fbm(n, 2.4, 414)
+    rip = 0.5 + 0.5 * np.sin((v * 30 + w * 4.0) * math.tau)
+    f1, f2, ids = voronoi(n, 3000, 415)
+    peb = smoothstep(0.36, 0.15, f1) * smoothstep(0.58, 0.72, cell_random(ids, 416))
+    dust = mix(solid(n, rgb("#8a5232")), solid(n, rgb("#b8794d")), _norm_(lf * 0.6 + mf * 0.4))
+    sand = solid(n, rgb("#4e3a2e"))
+    base = mix(dust, sand, smoothstep(0.55, 0.8, mf) * 0.45 * (1 - rip[..., None][..., 0] * 0.5))
+    base = base * (0.92 + 0.16 * hf[..., None]) * (0.95 + 0.07 * rip[..., None])
+    base = mix(base, solid(n, rgb("#3f3530")) * (0.8 + 0.5 * cell_random(ids, 417)[..., None]), peb * 0.9)
+    t.albedo = base
+    t.height = np.clip(0.4 + rip * 0.2 + (mf - 0.5) * 0.25 + peb * 0.35, 0, 1)
+    t.rough = np.clip(0.9 + hf * 0.08, 0, 1)
+    t.normal_strength = 5.5
+
+
 @tex("ice")
 def ice(t):
     n = t.n

@@ -26,6 +26,9 @@ import { EnduranceZone } from './world/space/EnduranceZone';
 import { ViewerZone } from './world/space/ViewerZone';
 import { ShipPanel } from './ui/panels/ShipPanel';
 import { CryoPanel } from './ui/panels/CryoPanel';
+import { SurfacePanel } from './ui/panels/SurfacePanel';
+import { SurfaceZone } from './world/space/SurfaceZone';
+import { state, surfacePoint } from './space/Ephemeris';
 
 async function boot() {
   const canvas = document.getElementById('view') as HTMLCanvasElement;
@@ -45,6 +48,7 @@ async function boot() {
   registerPanel('launch', LaunchPanel);
   registerPanel('ship', ShipPanel);
   registerPanel('cryo', CryoPanel);
+  registerPanel('surfaceops', SurfacePanel);
   const launch = new LaunchDirector(game);
   game.services.launch = launch;
   game.systems.push(launch);
@@ -63,6 +67,7 @@ async function boot() {
   const earth = game.registerZone(new EarthZone(game, 'earth')) as EarthZone;
   const orbit = game.registerZone(new OrbitZone(game, 'orbit')) as OrbitZone;
   game.registerZone(new EnduranceZone(game, 'endurance'));
+  const surface = game.registerZone(new SurfaceZone(game, 'surface')) as SurfaceZone;
   const viewer = game.registerZone(new ViewerZone(game, 'viewer')) as ViewerZone;
   if (import.meta.env.DEV) Object.assign(window as any, { __THREE: THREE, __RAPIER: RAPIER });   // test scripts
 
@@ -108,6 +113,35 @@ async function boot() {
     return;
   }
 
+  if (params.get('zone') === 'surface') {
+    // developer entry: standing beside Ranger 1 on the pad of a world (body=moon|mars|miller|mann|edmunds)
+    await game.gotoZone('orbit', { fade: false });
+    orbit.met = 3600;
+    orbit.setBody(params.get('body') ?? 'moon');
+    if (params.has('sun')) {
+      // advance the clock to the first time the Sun stands at this elevation (deg) over the site, rising
+      const want = Number(params.get('sun')) * Math.PI / 180, b = orbit.body, L = b.landing!;
+      const elev = (met: number) => {
+        const jd = orbit.jd0 + met / 86400;
+        const rel = surfacePoint(b.id, L.lat, L.lon, jd), bp = state(b.id, jd).r;
+        const site = [bp[0] + rel[0], bp[1] + rel[1], bp[2] + rel[2]];
+        const up = rel.map((x) => x / Math.hypot(...rel)), toSun = site.map((x) => -x / Math.hypot(...site));
+        return Math.asin(up[0] * toSun[0] + up[1] * toSun[1] + up[2] * toSun[2]);
+      };
+      const step = Math.max(600, Math.abs(b.rotation) / 400);
+      for (let m = orbit.met, k = 0; k < 4000; k++, m += step) if (elev(m) < want && elev(m + step) >= want) { orbit.met = m + step; break; }
+      orbit.setBody(b.id);
+    }
+    orbit.docking.attachNow(orbit.ranger!, orbit.endurance.port('axial_fwd')!);
+    await game.gotoZone('surface', { fade: false, onEnter: (z) => { const s = z as SurfaceZone; s.setBody(orbit.body.id); s.landed = true; } });
+    game.setState('playing');
+    if (params.get('start') !== 'seat') {
+      game.player.suited = true;
+      game.player.teleport(new THREE.Vector3(9, 2, 9), 2.3);
+    } else surface.board();
+    return;
+  }
+
   if (params.get('zone') === 'orbit') {
     // developer entry: Ranger 1 in Earth orbit near the Endurance (start=gate: aligned at the approach gate; start=far: 4 km out)
     await game.gotoZone('orbit', { fade: false });
@@ -116,6 +150,7 @@ async function boot() {
     const start = params.get('start') ?? 'gate';
     if (start === 'far') orbit.startInRanger(new THREE.Vector3(-4200, -260, 140), new THREE.Vector3(0.4, 0, 0));
     else if (start === 'near') orbit.startInRanger(new THREE.Vector3(-160, 14, 22));
+    else if (start === 'stage') orbit.startInRanger(new THREE.Vector3(-300, 0, 0));
     else orbit.startInRanger(new THREE.Vector3(-57.6, 0, 0), new THREE.Vector3(), 'tail');
     game.setState('playing');
     return;

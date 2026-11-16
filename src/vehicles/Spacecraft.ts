@@ -25,12 +25,18 @@ export interface CraftSpec {
   liftSlope: number;
 }
 
+/*
+ * The Ranger flies single-stage to orbit and back from worlds of up to 1.3 g, as in the film. No chemical rocket
+ * of its size can (it needs ~11 km/s from Miller's planet); the game gives it a fictional high-exhaust-velocity
+ * drive (Isp ~4200 s main, 3400 s lift) with enough thrust to hover fully fuelled at 1.3 g. Documented in
+ * docs/SPACE.md. Docking and orbital handling are unaffected (reaction control is conventional).
+ */
 export const RANGER_SPEC: CraftSpec = {
   name: 'Ranger 1',
   dryMass: 18000,
   fuelMax: 10000,
-  main: { thrust: 240000, isp: 360 },
-  lift: { thrust: 380000, isp: 300 },
+  main: { thrust: 420000, isp: 4200 },
+  lift: { thrust: 640000, isp: 3400 },
   rcs: { thrust: 9000, torque: [70000, 70000, 50000], isp: 230 },
   inertia: [25.6, 28.2, 3.3],
   dragArea: [35, 125, 6.5],
