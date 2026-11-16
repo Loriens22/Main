@@ -1,5 +1,5 @@
 import { BODY, BodyDef } from './Bodies';
-import { pole } from './Ephemeris';
+import { bodyAxes, LAUNCH_JD } from './Ephemeris';
 import { add, cross, dot, norm, propagate, scale, sub, unit, V3 } from './Kepler';
 
 /*
@@ -43,9 +43,17 @@ export const HANDOVER_ALT = 9000;    // m: the surface zone takes over below thi
 const smooth = (x: number) => { const t = Math.min(1, Math.max(0, x)); return t * t * (3 - 2 * t); };
 
 /** Angular velocity of a body's rotation (inertial, rad/s). */
-export function spinVector(b: BodyDef): V3 {
-  if (!b.rotation) return [0, 0, 0];
-  return scale(pole(b.id), (2 * Math.PI) / b.rotation);
+export function spinVector(b: BodyDef, jd = LAUNCH_JD): V3 {
+  // from the body's actual axes (synchronous moons turn with their orbit, whatever the pole convention):
+  // for a frame turning at w, de_i/dt = w x e_i, so w = 1/2 sum e_i x de_i/dt
+  const h = 30 / 86400;
+  const a = bodyAxes(b.id, jd - h), c = bodyAxes(b.id, jd + h);
+  let w: V3 = [0, 0, 0];
+  for (const k of ['x', 'y', 'z'] as const) {
+    const e = scale(add(a[k], c[k]), 0.5), de = scale(sub(c[k], a[k]), 1 / 60);
+    w = add(w, cross(e, de));
+  }
+  return scale(w, 0.5);
 }
 
 export class GuidedFlight {
@@ -68,6 +76,12 @@ export class GuidedFlight {
   siteH = 0;
   /** planned time of arrival at the rendezvous point (ascent) */
   tArrive = 0;
+  /** Creative Mode unlimited resources: propellant is not consumed */
+  infiniteFuel = false;
+  /** propellant burned so far (kg), counted even when it is not consumed */
+  burned = 0;
+  /** planning only: keep burning past an empty tank, to measure what a flight needs */
+  overdraw = false;
   /** height of the craft's reference point above the ground when it stands on its gear (m) */
   touchH = 0;
 
@@ -106,7 +120,7 @@ export class GuidedFlight {
     if (program === 'ascent') { this.phase = 'ascent'; }
   }
 
-  get mass() { return this.perf.dry + this.fuel; }
+  get mass() { return this.perf.dry + Math.max(this.fuel, -0.5 * this.perf.dry); }
   get alt() { return norm(this.r) - this.body.R; }
   /** height above the landing site's ground level */
   get height() { return norm(this.r) - this.body.R - this.siteH; }
@@ -363,7 +377,19 @@ export class GuidedFlight {
   }
 
   /** duration of the powered descent from this state: the speed to kill and the height to lose */
-  brakeTime(vrel: number, height = this.height) { return Math.max(this.tgoFor(vrel), (height - GATE_ALT) / 120 + 10); }
+  brakeTime(vrel: number, height = this.height) {
+    // in dense air the fall is held to near terminal speed: integrate the time down to the gate at 85% of it
+    let tAir = 0;
+    if (this.body.atmosphere && height > GATE_ALT) {
+      const n = 12, dh = (height - GATE_ALT) / n, g = this.mu / (this.body.R * this.body.R);
+      for (let i = 0; i < n; i++) {
+        const rho = this.density(GATE_ALT + (i + 0.5) * dh + this.siteH);
+        const vt = rho > 0 ? Math.sqrt((2 * this.mass * g) / (rho * this.perf.cdA)) : 1e9;
+        tAir += dh / Math.min(120, 0.85 * vt);
+      }
+    }
+    return Math.max(this.tgoFor(vrel), (height - GATE_ALT) / 120 + 10, tAir);
+  }
 
   /** ground range the powered descent covers (the uprange distance to start it at) */
   brakeRange(vrel: number, vh = vrel, height = this.height) { return 0.5 * vh * this.brakeTime(vrel, height) + 2000; }
@@ -380,14 +406,16 @@ export class GuidedFlight {
     const s = this.site(this.t);
     const vrel = norm(sub(this.v, s.v));
     const range = this.rangeTo(s.r);
-    this.tgo = Math.min(900, Math.max(this.brakeTime(vrel), (1.6 * range) / Math.max(this.vhRel(s.v), 60)));
+    this.tgo = Math.min(1800, Math.max(this.brakeTime(vrel), (1.6 * range) / Math.max(this.vhRel(s.v), 60)));
   }
 
   startInsertion() {
     this.phase = 'insert';
     const tg = this.target!(this.t);
     const vOrb = Math.sqrt(this.mu / norm(tg.r));
-    this.tgo = GuidedFlight.insertionTime(Math.max(300, vOrb - Math.max(0, dot(this.v, this.downrange()))), this.aMax);
+    // time to gain the speed, and to climb the height still between the ship and the Endurance's orbit
+    const climb = Math.max(0, norm(tg.r) - norm(this.r));
+    this.tgo = Math.max(GuidedFlight.insertionTime(Math.max(300, vOrb - Math.max(0, dot(this.v, this.downrange()))), this.aMax), climb / 400);
   }
 
   /** after insertion: a short transfer to the rendezvous point, then a velocity trim */
@@ -476,7 +504,7 @@ export class GuidedFlight {
       }
       const h = Math.min(left, this.phase === 'entry' ? 1 : 0.25);
       let aT = this.guide();
-      const am = norm(aT), lim = this.fuel > 0 ? this.aMax : 0;
+      const am = norm(aT), lim = this.fuel > 0 || this.infiniteFuel || this.overdraw ? this.aMax : 0;
       if (am > lim) aT = scale(aT, lim / am);
       this.aT = aT;
       this.throttle = lim > 0 ? Math.min(1, norm(aT) / lim) : 0;
@@ -488,7 +516,10 @@ export class GuidedFlight {
       const k4v = this.accel(add(r0, scale(k3r, h)), add(v0, scale(k3v, h)), aT), k4r = add(v0, scale(k3v, h));
       this.r = add(r0, scale(add(add(k1r, scale(k2r, 2)), add(scale(k3r, 2), k4r)), h / 6));
       this.v = add(v0, scale(add(add(k1v, scale(k2v, 2)), add(scale(k3v, 2), k4v)), h / 6));
-      this.fuel = Math.max(0, this.fuel - (this.mass * norm(aT) * h) / this.perf.ve);
+      const dm = (this.mass * norm(aT) * h) / this.perf.ve;
+      this.burned += dm;
+      if (this.overdraw) this.fuel -= dm;
+      else if (!this.infiniteFuel) this.fuel = Math.max(0, this.fuel - dm);
       this.t += h; left -= h;
       if (this.phase === 'braking' || this.phase === 'insert' || this.phase === 'close') this.tgo -= h;
       // entry heating: convective flux ~ sqrt(rho) v^3 (Sutton-Graves), normalised so a hard entry glows fully
@@ -515,7 +546,8 @@ export function planDescent(body: BodyDef, r: V3, v: V3, perf: Perf, site: SiteF
   const mu = body.GM;
   const rr = norm(r), n = Math.sqrt(mu / rr ** 3), P = (2 * Math.PI) / n;
   const air = body.atmosphere;
-  const rp = air ? body.R + Math.min(air.top * 0.45, 40000) : body.R + (opts.siteH ?? 0) + 15000;
+  // small bodies park only a few km up: aim the periapsis at half the parking height there
+  const rp = air ? body.R + Math.min(air.top * 0.45, 40000) : body.R + (opts.siteH ?? 0) + Math.min(15000, 0.5 * (rr - body.R));
   const hHat = unit(cross(r, v));
   const maxCross = opts.maxCross ?? (4 * Math.PI) / 180;
   const horizon = opts.horizon ?? Math.max(P * 40, 32 * 86400);
@@ -586,13 +618,15 @@ export function planDescent(body: BodyDef, r: V3, v: V3, perf: Perf, site: SiteF
  * arrives (a vertical rise, then about half orbital speed on average downrange during the powered insertion), with
  * the site close to the Endurance's orbit plane. Returns the launch time and the planned arrival time.
  */
-export function planAscent(body: BodyDef, site: SiteFn, endurance: TargetFn, perf: Perf, opts: { maxCross?: number; horizon?: number } = {}) {
+export function planAscent(body: BodyDef, site: SiteFn, endurance: TargetFn, perf: Perf, opts: { maxCross?: number; horizon?: number; infiniteFuel?: boolean } = {}) {
   const e0 = endurance(0);
   const mu = body.GM, rr = norm(e0.r), n = Math.sqrt(mu / rr ** 3), P = (2 * Math.PI) / n;
   const hHat = unit(cross(e0.r, e0.v));
   const vOrb = Math.sqrt(mu / rr);
   // reference ascent from the site at t = 0: climb, pitch program and insertion into the orbit (free along-track)
   const ref = new GuidedFlight(body, add(site(0).r, scale(site(0).up, 5)), site(0).v, perf, 'ascent', site, endurance);
+  // the reference climb never runs dry: it measures what the ascent needs (or flies as Creative Mode would)
+  if (opts.infiniteFuel) ref.infiniteFuel = true; else ref.overdraw = true;
   let guard = 0;
   while (ref.phase !== 'close' && ref.phase !== 'done' && guard++ < 40000) ref.step(0.5);
   const up0 = unit(site(0).r);
@@ -619,7 +653,7 @@ export function planAscent(body: BodyDef, site: SiteFn, endurance: TargetFn, per
       let lo = t, hi = t + step;
       for (let k = 0; k < 40; k++) { const m = (lo + hi) / 2; if (f(m).ang <= 0) lo = m; else hi = m; }
       const tL = (lo + hi) / 2;
-      return { tLaunch: tL, tArrive: tL + tClimb, cross: f(tL).cross };
+      return { tLaunch: tL, tArrive: tL + tClimb, cross: f(tL).cross, fuelOk: ref.burned < 0.97 * perf.fuel || !!opts.infiniteFuel, fuelNeed: ref.burned };
     }
   }
   return null;

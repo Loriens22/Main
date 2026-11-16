@@ -1,15 +1,16 @@
 import { BODY, BodyDef } from './Bodies';
 import { surfacePoint } from './Ephemeris';
-import { cross, norm, sub, unit, V3 } from './Kepler';
-import { GuidedFlight, HANDOVER_ALT, spinVector, SiteFn, TargetFn } from './Descent';
+import { norm, sub, unit, V3 } from './Kepler';
+import { GuidedFlight, HANDOVER_ALT, SiteFn, TargetFn } from './Descent';
 
 /** The landing site of a body as a function of program time (s after jd0): state relative to the body centre. */
 export function siteFunction(body: BodyDef, jd0: number): SiteFn {
   const L = body.landing!;
-  const w = spinVector(body);
+  const at = (t: number) => surfacePoint(body.id, L.lat, L.lon, jd0 + t / 86400);
   return (t: number) => {
-    const r = surfacePoint(body.id, L.lat, L.lon, jd0 + t / 86400);
-    return { r, v: cross(w, r), up: unit(r) };
+    // velocity straight from the ephemeris (exactly consistent with the positions)
+    const r = at(t), a = at(t - 0.5), b = at(t + 0.5);
+    return { r, v: sub(b, a), up: unit(r) };
   };
 }
 
@@ -56,8 +57,12 @@ export class FlightProgram {
       case 'landed': return this.kind === 'ascent' ? this.waitWarp : 1;
       case 'deorbit': return 3;
       case 'coast': return 150;
-      case 'entry': return 15;
-      case 'braking': return f.height < HANDOVER_ALT * 1.5 ? 4 : 8;
+      case 'entry': {
+        // a long fall through thick air (Venus, Titan) runs faster: about 30 s of real time for what is left
+        const vr = Math.abs(f.v[0] * f.r[0] + f.v[1] * f.r[1] + f.v[2] * f.r[2]) / norm(f.r);
+        return Math.max(15, Math.min(300, f.height / Math.max(vr, 1) / 30));
+      }
+      case 'braking': return f.height < HANDOVER_ALT * 1.5 ? Math.max(4, Math.min(20, f.tgo / 30)) : Math.max(8, Math.min(60, f.tgo / 25));
       case 'gate': case 'terminal': return f.height > 60 ? 3 : 1;
       case 'ascent': return 2;
       case 'pitch': return 6;

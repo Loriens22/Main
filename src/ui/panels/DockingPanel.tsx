@@ -5,6 +5,7 @@ import { PanelFrame } from '../App';
 import { ENDURANCE } from '../../space/Endurance';
 import { RANGER_SPEC } from '../../vehicles/Spacecraft';
 import { ui } from '../store';
+import { BODIES } from '../../space/Bodies';
 
 const KV = ({ k, v, warn }: { k: string; v: any; warn?: boolean }) => <div class="kv"><span>{k}</span><b style={warn ? { color: 'var(--warn)' } : {}}>{v}</b></div>;
 
@@ -40,6 +41,12 @@ export function DockingPanel({ game, close }: { game: Game; close: () => void })
             <h4>Automatic landing · {z.body.landing.site}</h4>
             <p>From here (the descent staging point) the computer waits for the window when the site passes under the orbit, makes the deorbit burn, coasts down{z.body.atmosphere ? ', flies a lifting entry with bank steering' : ''}, brakes under power to a gate {1200} m above the pad and lets down onto it. Time is compressed except for the burns and the last metres.</p>
             <button class="btn" onClick={() => { bus.emit('ui:click'); const err = z.beginDescent(); if (err) ui.toast(err, 'warn', 5); else close(); }}>Land on {z.body.name}</button>
+          </div>
+        )}
+        {z.body && !z.body.landing && (z.body.kind === 'gas' || z.body.kind === 'ice') && (
+          <div class="card">
+            <h4>No landing at {z.body.name}</h4>
+            <p>{z.body.name} has no surface: its atmosphere thickens into a hot fluid interior. A craft that descended to the cloud deck could not climb out again (orbital speed there is {(Math.sqrt(z.body.GM / z.body.R) / 1000).toFixed(0)} km/s, against the Ranger's {(13.9).toFixed(0)} km/s of drive). Fly to one of its moons instead: {BODIES.filter((m: any) => m.parent === z.body.id && m.landing).map((m: any) => m.name).join(', ')}.</p>
           </div>
         )}
         <div class="card">

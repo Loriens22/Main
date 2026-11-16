@@ -46,6 +46,62 @@ const LOOK: Record<string, WorldLook> = {
     layers: { sets: ['snow', 'ice', 'ice', 'snow', 'rock'], tiles: [4, 6, 6, 4, 9], tints: [[0.94, 0.96, 1.0], [0.86, 0.93, 1.02], [0.62, 0.64, 0.68], [1, 1, 1], [0.55, 0.57, 0.6]], aux: 'none', rockSlope: [0.62, 0.86] },
     ground: [0.62, 0.66, 0.72],
   },
+  mercury: {
+    layers: { sets: ['regolith', 'regolith', 'gravel', 'regolith', 'rock'], tiles: [4.6, 7.3, 2.6, 5.9, 9], tints: [[0.98, 0.94, 0.88], [0.82, 0.78, 0.74], [0.8, 0.76, 0.72], [1, 1, 1], [0.66, 0.62, 0.58]], aux: 'none', rockSlope: [0.5, 0.8] },
+    ground: [0.14, 0.13, 0.12],
+  },
+  venus: {
+    layers: { sets: ['dirt', 'rock', 'gravel', 'dirt', 'rock'], tiles: [3, 11, 2.5, 3, 8], tints: [[0.4, 0.37, 0.34], [0.55, 0.52, 0.49], [0.48, 0.45, 0.42], [0.4, 0.37, 0.34], [0.5, 0.47, 0.44]], aux: 'none', rockSlope: [0.6, 0.85] },
+    ground: [0.32, 0.22, 0.12],
+  },
+  phobos: {
+    layers: { sets: ['regolith', 'regolith', 'gravel', 'regolith', 'rock'], tiles: [4.6, 7.3, 2.6, 5.9, 9], tints: [[0.6, 0.56, 0.52], [0.5, 0.47, 0.44], [0.55, 0.52, 0.5], [0.6, 0.56, 0.52], [0.5, 0.47, 0.45]], aux: 'none', rockSlope: [0.6, 0.9] },
+    ground: [0.07, 0.065, 0.06],
+  },
+  deimos: {
+    layers: { sets: ['regolith', 'regolith', 'gravel', 'regolith', 'rock'], tiles: [4.6, 7.3, 2.6, 5.9, 9], tints: [[0.66, 0.6, 0.55], [0.58, 0.53, 0.49], [0.6, 0.56, 0.52], [0.66, 0.6, 0.55], [0.55, 0.5, 0.47]], aux: 'none', rockSlope: [0.6, 0.9] },
+    ground: [0.08, 0.075, 0.07],
+  },
+  io: {
+    layers: { sets: ['snow', 'sand', 'snow', 'desert_rock', 'rock'], tiles: [4.2, 3.4, 5, 6, 9], tints: [[1.12, 1.0, 0.5], [1.3, 0.68, 0.3], [1.05, 1.04, 0.94], [0.3, 0.27, 0.24], [0.95, 0.84, 0.5]], aux: 'none', rockSlope: [0.5, 0.75] },
+    ground: [0.55, 0.47, 0.2],
+  },
+  europa: {
+    layers: { sets: ['snow', 'ice', 'ice', 'snow', 'ice'], tiles: [4, 6, 5, 4, 8], tints: [[1.0, 0.98, 0.95], [0.86, 0.72, 0.58], [0.74, 0.6, 0.48], [1, 1, 1], [0.92, 0.88, 0.84]], aux: 'none', rockSlope: [0.55, 0.8] },
+    ground: [0.6, 0.56, 0.5],
+  },
+  ganymede: {
+    layers: { sets: ['snow', 'ice', 'regolith', 'snow', 'rock'], tiles: [4, 6, 5, 4, 9], tints: [[0.95, 0.93, 0.9], [0.85, 0.85, 0.86], [0.58, 0.54, 0.5], [1, 1, 1], [0.6, 0.58, 0.55]], aux: 'none', rockSlope: [0.5, 0.78] },
+    ground: [0.35, 0.33, 0.3],
+  },
+  callisto: {
+    layers: { sets: ['regolith', 'snow', 'regolith', 'snow', 'rock'], tiles: [4.6, 4, 7, 4, 9], tints: [[0.6, 0.55, 0.5], [0.95, 0.95, 0.96], [0.5, 0.46, 0.42], [1, 1, 1], [0.5, 0.47, 0.44]], aux: 'none', rockSlope: [0.5, 0.78] },
+    ground: [0.16, 0.15, 0.14],
+  },
+  enceladus: {
+    layers: { sets: ['snow', 'ice', 'snow', 'ice', 'ice'], tiles: [4, 6, 4, 6, 8], tints: [[1.1, 1.12, 1.15], [1.0, 1.05, 1.12], [1, 1, 1], [1, 1, 1], [0.95, 1.0, 1.06]], aux: 'none', rockSlope: [0.55, 0.8] },
+    ground: [0.85, 0.88, 0.92],
+  },
+  rhea: {
+    layers: { sets: ['snow', 'regolith', 'snow', 'snow', 'rock'], tiles: [4, 6, 4, 4, 9], tints: [[0.88, 0.88, 0.9], [0.72, 0.72, 0.74], [1.1, 1.1, 1.12], [1, 1, 1], [0.6, 0.6, 0.62]], aux: 'none', rockSlope: [0.5, 0.78] },
+    ground: [0.55, 0.55, 0.57],
+  },
+  titania: {
+    layers: { sets: ['snow', 'regolith', 'regolith', 'snow', 'rock'], tiles: [4, 6, 5, 4, 9], tints: [[0.72, 0.71, 0.7], [0.62, 0.61, 0.6], [0.55, 0.54, 0.53], [1, 1, 1], [0.55, 0.54, 0.53]], aux: 'none', rockSlope: [0.5, 0.75] },
+    ground: [0.25, 0.25, 0.25],
+  },
+  iapetus: {
+    layers: { sets: ['regolith', 'regolith', 'snow', 'regolith', 'rock'], tiles: [4.6, 7.3, 4, 5.9, 9], tints: [[0.36, 0.26, 0.19], [0.3, 0.22, 0.16], [0.9, 0.9, 0.9], [0.36, 0.26, 0.19], [0.35, 0.28, 0.22]], aux: 'none', rockSlope: [0.55, 0.85] },
+    ground: [0.05, 0.035, 0.025],
+  },
+  titan: {
+    layers: { sets: ['sand', 'gravel', 'sand', 'sand', 'rock'], tiles: [3, 1.6, 6, 3, 8], tints: [[0.62, 0.46, 0.3], [0.85, 0.8, 0.72], [0.48, 0.36, 0.26], [0.62, 0.46, 0.3], [0.55, 0.45, 0.35]], aux: 'none', rockSlope: [0.5, 0.75] },
+    ground: [0.24, 0.16, 0.08],
+  },
+  triton: {
+    layers: { sets: ['snow', 'ice', 'snow', 'ice', 'rock'], tiles: [4, 6, 4, 6, 9], tints: [[1.04, 0.94, 0.9], [0.92, 0.88, 0.86], [1, 1, 1], [1, 1, 1], [0.7, 0.66, 0.64]], aux: 'none', rockSlope: [0.55, 0.8] },
+    ground: [0.6, 0.55, 0.52],
+  },
   edmunds: {
     layers: { sets: ['sand', 'desert_gravel', 'dirt', 'desert_rock', 'desert_rock'], tiles: [3.4, 2.6, 4.5, 7, 9], tints: [[1.04, 0.96, 0.86], [1, 0.95, 0.88], [1.02, 0.9, 0.78], [1, 0.9, 0.8], [0.95, 0.86, 0.76]], aux: 'none', rockSlope: [0.5, 0.74] },
     ground: [0.42, 0.34, 0.25],
@@ -128,7 +184,10 @@ export class SurfaceZone extends Zone {
       this.terrain?.dispose();
       this.terrain?.group.removeFromParent();
       const look = LOOK[id] ?? LOOK.moon;
-      this.terrain = new Terrain(this.phys, { source: `surface:${id}`, layers: look.layers, rootSize: 65536, minSize: 64 });
+      // small bodies: the patch of ground stays within about the body's radius (the curve takes over beyond)
+      let root = 65536;
+      while (root > 4096 && root > 1.3 * b.R) root /= 2;
+      this.terrain = new Terrain(this.phys, { source: `surface:${id}`, layers: look.layers, rootSize: root, minSize: Math.min(64, root / 64) });
       this.terrain.setDetail(this.game.settings.g.viewDistance);
       this.root.add(this.terrain.group);
       this.sky.groundColor.setRGB(...look.ground);
@@ -144,7 +203,18 @@ export class SurfaceZone extends Zone {
       }
     }
     const air = atmosphereFor(b, this.orbit.jd);
-    this.sky.setParams({ ...air, fogDensity: b.atmosphere ? Math.min(2.5e-4, 2.2e-5 * (b.atmosphere.rho0 / 1.2) ** 0.5 * 4) : 0, fogFalloff: 0.0007 });
+    let p: any = { ...air, fogDensity: b.atmosphere ? Math.min(2.5e-4, 2.2e-5 * (b.atmosphere.rho0 / 1.2) ** 0.5 * 4) : 0, fogFalloff: 0.0007 };
+    if (id === 'venus') {
+      // the bottom of a 92-bar atmosphere: light that reaches the ground has been scattered many times and its blue
+      // absorbed in the clouds (Venera 13's orange images); a single-scattering sky cannot produce that, so the sky
+      // here is set as a deep orange haze with a large, dim, diffuse Sun
+      p = { ...p, betaR: [1.0e-6, 0.8e-6, 0.4e-6], betaM: 3e-5, HM: 12000, betaD: [2.6e-5, 2.0e-5, 1.1e-5], betaDAbs: [0.2e-5, 1.0e-5, 3.2e-5], HD: 18000, sunRadius: 0.06, sunE: air.sunE * 0.08, fogDensity: 1.6e-4, fogFalloff: 0.0004, sunTint: [1.0, 0.72, 0.38] };
+    } else if (id === 'titan') {
+      // Titan's surface: a dim orange twilight under the haze (about 0.1% of Earth's sunlight)
+      p = { ...p, sunRadius: 0.03, sunE: air.sunE * 0.4, fogDensity: 1.1e-4, fogFalloff: 0.0005, sunTint: [1.0, 0.68, 0.36] };
+    }
+    this.sky.setParams(p);
+    if (this.game.zone === this) this.game.renderer.setLook(this.look(), true);
     this.sky.setStars(0);
     this.sky.invalidate();
     // the planet itself is drawn by the system view beyond the terrain; its atmosphere by the sky
@@ -159,7 +229,7 @@ export class SurfaceZone extends Zone {
     g.renderer.spaceScene.add(this.stars.group, this.view.group);
     this.sky.setVisible(true);
     g.renderer.preRender.push(this.place);
-    g.renderer.setLook({ exposure: this.exposure(), saturation: 1.08, contrast: 1.18, bloom: 0.55, aoIntensity: 1.6, aoRadius: 1.4 }, true);
+    g.renderer.setLook(this.look(), true);
     g.interactions.occlusion = null;
     const flight = g.services.flight as Flight;
     flight.canLeave = () => (this.program && !this.landed ? 'The Ranger is flying.' : null);
@@ -177,7 +247,13 @@ export class SurfaceZone extends Zone {
     bus.off('flight:leave', this.onLeaveSeat);
   }
 
-  exposure() { return exposureFor(irradianceAt(this.body.id, this.orbit.jd), 0.9); }
+  /** eye adaptation to the light on the ground (Venus and Titan: what is left under their haze) */
+  exposure() {
+    const k = this.body.id === 'venus' ? 0.3 : this.body.id === 'titan' ? 0.5 : 1;
+    return exposureFor(irradianceAt(this.body.id, this.orbit.jd) * k, 0.9);
+  }
+
+  private look() { return { exposure: this.exposure(), saturation: 1.08, contrast: 1.18, bloom: 0.55, aoIntensity: 1.6, aoRadius: 1.4 }; }
 
   // ------------------------------------------------------------------------------------------- frames
   /** site and its east/up/south axes in the system frame, for the program's (or the mission's) time */
@@ -249,7 +325,7 @@ export class SurfaceZone extends Zone {
     const f = this.program!.f, c = this.ranger;
     const st = f.site(f.t);
     const p = this.toZone(sub(f.r, st.r), new THREE.Vector3());
-    const w = spinVector(this.body);
+    const w = spinVector(this.body, this.program!.jd);
     const vRel = sub(f.v, cross(w, f.r));
     const v = this.toZone(vRel, new THREE.Vector3());
     const att = f.attitude();
@@ -321,12 +397,18 @@ export class SurfaceZone extends Zone {
     const endurance = (t: number) => o.parkState(g, o.phiE + o.n * t);
     const target = behindTarget(endurance, 1500);
     const perf = rangerPerf(RANGER_SPEC, o.rangerFuel);
-    const plan = planAscent(this.body, site, target, perf);
+    const unlimited = this.game.settings.creative.unlimitedResources;
+    let plan = planAscent(this.body, site, target, perf);
     if (!plan) return 'No launch window within the next few days: the site is too far from the Endurance\'s orbit plane.';
+    if (!plan.fuelOk) {
+      if (!unlimited) return `Not enough propellant to reach the Endurance: the climb needs ${(plan.fuelNeed / 1000).toFixed(1)} t, the tanks hold ${(o.rangerFuel / 1000).toFixed(1)} t.${this.body.id === 'venus' ? ' No craft of the Ranger\'s size climbs out of 92 bar.' : ''} Creative Mode \'unlimited resources\' lifts the limit.`;
+      plan = planAscent(this.body, site, target, perf, { infiniteFuel: true })!;
+    }
     const s0 = site(0);
     const f = new GuidedFlight(this.body, add(s0.r, scale(s0.up, this.touchH)), s0.v, perf, 'ascent', site, target);
     f.touchH = this.touchH;
     f.phase = 'landed';
+    f.infiniteFuel = unlimited;
     const pr = new FlightProgram('ascent', f, this.body, jd0, met0);
     pr.launchAt = plan.tLaunch;
     this.program = pr;
@@ -392,7 +474,7 @@ export class SurfaceZone extends Zone {
       const clocks = o.missionClocks();
       if (this.program) clocks.push({ label: 'PROGRAM', value: this.program.status() });
       ui.set({ clocks, prompt: !flight.craft && this.ranger.root.position.distanceTo(g.player.pos) < 7.5 ? 'Board Ranger 1' : '', promptKey: 'E' });
-      g.renderer.setLook({ exposure: this.exposure() });
+      g.renderer.setLook(this.look());
     }
     void this.landedAt;
   }

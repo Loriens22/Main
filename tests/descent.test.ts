@@ -1,17 +1,18 @@
 import { describe, expect, it } from 'vitest';
-import { BODY } from '../src/space/Bodies';
+import { BODIES, BODY } from '../src/space/Bodies';
 import { LAUNCH_JD, surfacePoint } from '../src/space/Ephemeris';
 import { add, cross, dot, norm, propagate, scale, sub, unit, V3 } from '../src/space/Kepler';
 import { GATE_ALT, GATE_VZ, GuidedFlight, planAscent, planDescent, rangerPerf, spinVector } from '../src/space/Descent';
+import { siteFunction } from '../src/space/FlightProgram';
 import { RANGER_SPEC } from '../src/vehicles/Spacecraft';
 
-const WORLDS = ['moon', 'mars', 'miller', 'mann', 'edmunds'];
+const WORLDS = BODIES.filter((b) => b.landing).map((b) => b.id);
 
 /** the site and the Endurance's parking orbit laid over it (as the orbit zone does on arrival) */
 function setup(id: string, dt0 = 0) {
   const b = BODY[id], L = b.landing!, jd0 = LAUNCH_JD;
   const w = spinVector(b);
-  const site = (t: number) => { const r = surfacePoint(id, L.lat, L.lon, jd0 + t / 86400); return { r, v: cross(w, r), up: unit(r) }; };
+  const site = siteFunction(b, jd0);
   const s0 = site(0).r, sv = unit(s0);
   const east = unit(cross(BODY[id].system === 'gargantua' ? [0, 0, 1] : (globalThis as any).__pole ?? [0, 0, 1], sv));
   // plane through the site and its local east (pole of the body)
@@ -76,11 +77,19 @@ describe('descent and ascent guidance', () => {
       // ---- ascent: wait for the window, climb, insert 1.5 km behind the Endurance with its velocity
       const t0 = f.t;
       const behind = (t: number) => { const e = endu(t); return { r: sub(e.r, scale(unit(e.v), 1500)), v: e.v }; };
-      const asc = planAscent(b, (t) => site(t0 + t), (t) => behind(t0 + t), perf)!;
+      let asc = planAscent(b, (t) => site(t0 + t), (t) => behind(t0 + t), perf)!;
+      if (id === 'venus') {
+        // no drive of the Ranger's size climbs out of 92 bar: the computer says so; Creative Mode lifts the limit
+        expect(asc.fuelOk).toBe(false);
+        expect(asc.fuelNeed).toBeGreaterThan(perf.fuel);
+        asc = planAscent(b, (t) => site(t0 + t), (t) => behind(t0 + t), perf, { infiniteFuel: true })!;
+      }
       expect(asc).not.toBeNull();
       const tL = t0 + asc.tLaunch;
       const sL = site(tL);
       const a = new GuidedFlight(b, add(sL.r, scale(sL.up, 5)), sL.v, perf, 'ascent', site, behind);
+      // Venus: no chemical or fictional drive of the Ranger's size climbs out of 92 bar; Creative Mode lifts the limit
+      if (id === 'venus') a.infiniteFuel = true; else expect(asc.fuelOk).toBe(true);
       a.t = tL;
       a.tArrive = t0 + asc.tArrive;
       let g2 = 0;

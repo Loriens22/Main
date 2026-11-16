@@ -192,7 +192,7 @@ export class OrbitZone extends Zone implements OrbitContext {
     if (this.pending && this.met >= this.pending.burnMet) { this.earthOffset += step * (this.dilation() - 1); this.startCruise(this.met - this.pending.burnMet); return; }
     this.earthOffset += step * (this.dilation() - 1);
     this.lookT -= dt;
-    if (this.mode === 'cruise' && this.adaptLook && this.lookT <= 0) { this.lookT = 0.5; this.game.renderer.setLook({ exposure: this.exposure() }); }
+    if (this.mode === 'cruise' && this.adaptLook && this.lookT <= 0) { this.lookT = 0.5; this.game.renderer.setLook(this.look()); }
     if (this.mode === 'cruise' && this.voyage) {
       this.voyageT += step;
       if (this.voyageT >= this.voyage.tof) this.arriveVoyage();
@@ -295,7 +295,7 @@ export class OrbitZone extends Zone implements OrbitContext {
       this.dvUsed = 0;
       mission.note('Creative Mode: the Endurance\'s propellant is topped up on arrival.');
     }
-    if (this.game.zone === this) this.game.renderer.setLook({ exposure: this.exposure() });
+    if (this.game.zone === this) this.game.renderer.setLook(this.look());
     mission.note(`Arrived at ${BODY[plan.to].name}${plan.dvArrive > 0 ? `: capture burn ${(plan.dvArrive / 1000).toFixed(2)} km/s` : ''}.`);
     if (BODY[plan.to].kind === 'wormhole') mission.setPhase('saturn');
     bus.emit('voyage:arrive', plan);
@@ -382,9 +382,13 @@ export class OrbitZone extends Zone implements OrbitContext {
       const toSun = unit(scale(add(bp, st.r), -1));
       return dot(toSun, st.up) > Math.sin((6 * Math.PI) / 180);
     };
-    const plan = planDescent(b, s.r, s.v, perf, site, { ok: daylight });
-    if (!plan) return 'No landing window in daylight within the next month.';
+    let plan = planDescent(b, s.r, s.v, perf, site, { ok: daylight });
+    let dark = false;
+    if (!plan) { plan = planDescent(b, s.r, s.v, perf, site); dark = true; }
+    if (!plan) return 'No landing window within the next month: the site never passes under the orbit.';
+    if (dark) mission.note(`No daylight landing window at ${b.landing.site} within a month (polar night or a slow day): landing in darkness.`);
     const f = new GuidedFlight(b, s.r, s.v, perf, 'descent', site);
+    f.infiniteFuel = this.game.settings.creative.unlimitedResources;
     f.armDescent(plan.tDeorbit, plan.rp);
     const pr = new FlightProgram('descent', f, b, jd0, this.met);
     this.startFlight(pr);
@@ -509,6 +513,8 @@ export class OrbitZone extends Zone implements OrbitContext {
     this.earthCentre.set(0, -norm(f.r), 0);
     this.orientStars();
   }
+
+  look() { return { exposure: this.exposure(), saturation: 1.12, contrast: 1.2, bloom: 0.7, aoIntensity: 1.6, aoRadius: 1.6 }; }
 
   /** exposure for the local sunlight (Saturn: 1/90 of the Earth's) */
   exposure() { return this.body.id === 'earth' && this.mode !== 'cruise' ? 0.95 : exposureFor(this.irradiance()); }
@@ -673,7 +679,7 @@ export class OrbitZone extends Zone implements OrbitContext {
     this.sky.setStars(0);
     this.sky.invalidate();
     this.sky.dome.visible = this.sky.enabled && this.skyDome();
-    if (this.game.zone === this) this.game.renderer.setLook({ exposure: this.exposure(), saturation: 1.12, contrast: 1.2, bloom: 0.7, aoIntensity: 1.6, aoRadius: 1.6 }, true);
+    if (this.game.zone === this) this.game.renderer.setLook(this.look(), true);
   }
 
   /** whether the physical sky dome draws the atmosphere seen from this orbit */
@@ -693,7 +699,7 @@ export class OrbitZone extends Zone implements OrbitContext {
     this.sky.setVisible(true);
     this.sky.dome.visible = this.skyDome();
     g.renderer.preRender.push(this.place);
-    g.renderer.setLook({ exposure: this.exposure(), saturation: 1.12, contrast: 1.2, bloom: 0.7, aoIntensity: 1.6, aoRadius: 1.6 }, true);
+    g.renderer.setLook(this.look(), true);
     // dark sky: environment from the sky bake (black above, earthshine below)
     this.sky.invalidate();
     const flight = g.services.flight as Flight;
