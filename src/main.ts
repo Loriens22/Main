@@ -23,6 +23,7 @@ import type { NPC } from './npc/NPC';
 import { LaunchDirector } from './mission/Launch';
 import { LaunchPanel } from './ui/panels/LaunchPanel';
 import { EnduranceZone } from './world/space/EnduranceZone';
+import { ViewerZone } from './world/space/ViewerZone';
 import { ShipPanel } from './ui/panels/ShipPanel';
 
 async function boot() {
@@ -60,7 +61,19 @@ async function boot() {
   const earth = game.registerZone(new EarthZone(game, 'earth')) as EarthZone;
   const orbit = game.registerZone(new OrbitZone(game, 'orbit')) as OrbitZone;
   game.registerZone(new EnduranceZone(game, 'endurance'));
+  const viewer = game.registerZone(new ViewerZone(game, 'viewer')) as ViewerZone;
   if (import.meta.env.DEV) Object.assign(window as any, { __THREE: THREE, __RAPIER: RAPIER });   // test scripts
+
+  if (params.get('zone') === 'viewer') {
+    // developer entry: look at any body from space (appearance checks)
+    const num = (k: string, d: number) => (params.has(k) ? Number(params.get(k)) : d);
+    viewer.body = params.get('body') ?? 'mars';
+    await game.gotoZone('viewer', { fade: false });
+    viewer.setTarget(viewer.body, num('dist', 3), num('az', 30), num('el', 10), params.has('jd') ? num('jd', 0) : undefined);
+    viewer.fov = num('fov', 40);
+    game.setState('playing');
+    return;
+  }
 
   if (params.get('zone') === 'endurance') {
     // developer entry: Ranger 1 docked at the forward port, the commander unbuckled in its cabin (or start=hub)
