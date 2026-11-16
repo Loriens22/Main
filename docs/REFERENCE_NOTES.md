@@ -61,8 +61,8 @@ above the belly.
 * Ring outer Ø **64 m** [ref img 9]. 12 modules at 30°. Clock positions (forward view, image 9):
   12 Habitat · 1 Pod · 2 Engine · 3 Habitat (spine tunnel) · 4 Engine · 5 Pod · 6 Cryo-lab · 7 Pod ·
   8 Engine · 9 Command · 10 Engine · 11 Pod.
-* Module boxes are **elongated radially** [ref img 8, 9]: ≈10.5 m radial × 6.6 m tangential × 5.6 m
-  axial, outer face at r = 32 m. Engine modules are plain boxes with chamfered corners; the others
+* Module boxes are **elongated radially** [ref img 8, 9, 10]: 10.6 m radial × 7.6 m tangential × 7.6 m
+  axial (engine 11.0 × 9.0 × 8.4, command 11.6 × 8.2 × 7.8), outer face at r = 32 m. Engine modules are plain boxes with chamfered corners; the others
   carry large blue-grey panel arrays and 2×3 window clusters on their axial faces.
 * Communicating tunnels join neighbouring modules at **mid radius (r ≈ 24 m)** through cylindrical
   knuckle nodes; four nodes carry outward-pointing ring airlocks.
@@ -73,8 +73,8 @@ above the belly.
   plane, perpendicular to the spine, for the Landers (dorsal docking ring). Ports are a common
   standard: any free compatible port may be used, axial ports while spinning (match roll rate),
   radial ports via the rotating-frame approach or after de-spin.
-* Spin [film/physics]: 5.25 rpm → ω = 0.55 rad/s → 9.7 m/s² at r = 32 m. Decks stack radially inside
-  each module (floor-to-floor ≈3.2 m): outer deck 1.0 g, tunnel deck ≈0.75 g.
+* Spin [film/physics]: 5.25 rpm → ω = 0.55 rad/s → 9.7 m/s² at r = 32 m. Two decks per module: main
+  deck floor at r = 29 m (0.90 g), corridor deck floor at r = 25 m (0.78 g, level with the ring tunnels).
 * Interior palette [ref img 11–16]: pale grey-green structural walls, black studded rubber floor with
   inset white/blue hatch plates, cream ceiling light boxes with blue padded panels between them,
   white cargo bags behind nets, quilted padding, maroon folding seats with harnesses, beige/blue
