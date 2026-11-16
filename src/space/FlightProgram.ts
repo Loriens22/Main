@@ -63,11 +63,11 @@ export class FlightProgram {
         return Math.max(15, Math.min(300, f.height / Math.max(vr, 1) / 30));
       }
       case 'braking': return f.height < HANDOVER_ALT * 1.5 ? Math.max(4, Math.min(20, f.tgo / 30)) : Math.max(8, Math.min(60, f.tgo / 25));
-      case 'gate': case 'terminal': return f.height > 60 ? 3 : 1;
+      case 'gate': case 'terminal': return f.height > 200 ? 6 : f.height > 25 ? 3 : 1.5;
       case 'ascent': return 2;
-      case 'pitch': return 6;
-      case 'insert': return 10;
-      case 'close': return 6;
+      case 'pitch': return 10;
+      case 'insert': return Math.max(15, Math.min(60, f.tgo / 15));
+      case 'close': return Math.max(6, Math.min(30, f.tgo / 10));
       case 'trim': return 2;
       default: return 1;
     }

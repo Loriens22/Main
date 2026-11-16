@@ -384,6 +384,10 @@ export class SurfaceZone extends Zone {
     ui.toast(`Touchdown · ${this.body.landing!.site}`, 'good', 5);
     mission.setPhase('surface');
     this.orbit.rangerFuel = f.fuel;
+    if (this.game.settings.creative.autoRefuel && f.fuel < RANGER_SPEC.fuelMax) {
+      this.orbit.rangerFuel = RANGER_SPEC.fuelMax;
+      mission.note('Creative Mode: Ranger 1 refuelled on the ground.');
+    }
     this.program = null;
   }
 
@@ -394,8 +398,10 @@ export class SurfaceZone extends Zone {
     const jd0 = o.jd, met0 = o.met;
     const site = siteFunction(this.body, jd0);
     const g = o.currentGeometry();
-    const endurance = (t: number) => o.parkState(g, o.phiE + o.n * t);
-    const target = behindTarget(endurance, 1500);
+    // the Endurance's orbit from its phase now (program time t counts from this moment)
+    const phi0 = o.phiE, n = o.n;
+    const endurance = (t: number) => o.parkState(g, phi0 + n * t);
+    const target = behindTarget(endurance, 600);
     const perf = rangerPerf(RANGER_SPEC, o.rangerFuel);
     const unlimited = this.game.settings.creative.unlimitedResources;
     let plan = planAscent(this.body, site, target, perf);

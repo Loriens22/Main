@@ -93,7 +93,8 @@ export class RendezvousAutopilot implements Autopilot {
         if (_p.length() < 110 && i < 22) { clear = false; break; }
       }
       if (!clear) continue;
-      const cost = sol.v0.distanceTo(v) + sol.vf.length() + T * 0.0008;
+      // a little extra delta-v for a quicker transfer is worth it (the RCS has plenty for these distances)
+      const cost = sol.v0.distanceTo(v) + sol.vf.length() + T * 0.003;
       if (!best || cost < best.cost) best = { T, v0: sol.v0, vf: sol.vf, cost };
     }
     if (!best) return false;
@@ -153,7 +154,7 @@ export class RendezvousAutopilot implements Autopilot {
     if (this.phase === 'coast') {
       // exact relative-motion coast under time compression; the craft turns to the docking attitude meanwhile
       const rem = this.T - this.tc;
-      const warp = rem > 400 ? 60 : rem > 120 ? 20 : rem > 40 ? 6 : rem > 12 ? 2 : 1;
+      const warp = rem > 600 ? 150 : rem > 200 ? 40 : rem > 60 ? 10 : rem > 15 ? 3 : 1;
       this.ctx.setWarp(warp);
       this.tc = Math.min(this.T - 2, this.tc + dt * warp);
       this.realCoast += dt;

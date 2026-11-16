@@ -153,7 +153,15 @@ export class OrbitZone extends Zone implements OrbitContext {
     this.ranger.onImpact = (dv) => {
       if (dv > 0.4) { ui.toast(`Contact! ${dv.toFixed(2)} m/s — hull damage ${(this.ranger!.damage * 100).toFixed(0)}%`, 'warn', 3); bus.emit('sfx', { id: 'thud', node: this.ranger!.root, gain: clamp(dv, 0.3, 1) }); }
     };
-    this.docking.onDocked = (l) => { bus.emit('ranger:docked', l); void g.preload('endurance'); };
+    this.docking.onDocked = (l) => {
+      bus.emit('ranger:docked', l);
+      if (l.craft === this.ranger && g.settings.creative.autoRefuel && this.rangerFuel < RANGER_SPEC.fuelMax) {
+        this.rangerFuel = RANGER_SPEC.fuelMax;
+        this.ranger.fuel = RANGER_SPEC.fuelMax;
+        mission.note('Creative Mode: Ranger 1 refuelled from the Endurance.');
+      }
+      void g.preload('endurance');
+    };
     this.stackModel = await assets.load('launch_vehicle');
     this.smoke = new Smoke(1400);
     this.smoke.drag = 0.05;
@@ -398,7 +406,8 @@ export class OrbitZone extends Zone implements OrbitContext {
 
   /** The ascent program arriving from the surface a few kilometres up. */
   takeFlight(pr: FlightProgram) {
-    this.setBody(pr.body.id);
+    // the Endurance has stayed in its parking orbit (re-laying it would move the ship)
+    if (this.body.id !== pr.body.id) this.setBody(pr.body.id);
     this.startFlight(pr);
   }
 
@@ -611,9 +620,26 @@ export class OrbitZone extends Zone implements OrbitContext {
     const toB = (v: THREE.Vector3) => new THREE.Vector3(v.dot(bci.e1), v.dot(bci.e2), v.dot(bci.n));
     if (id === 'earth') return { plane: new OrbitPlane(LAUNCH_SITE.lat, LAUNCH_SITE.lon, this.theta0), bci, rE, n, phase: 0 };
     if (b.landing) {
-      const site = surfacePoint(id, b.landing.lat, b.landing.lon, jd);
+      // lay the orbit over the site as it will be at its next mid-morning (sun 25-35 deg up), so the site passes
+      // beneath the ship in daylight that day rather than at the same dark hour every rotation
+      const elev = (j: number) => {
+        const rel = surfacePoint(id, b.landing!.lat, b.landing!.lon, j), bp = state(id, j).r;
+        const u = unit(rel), toSun = unit(scale(add(bp, rel), -1));
+        return Math.asin(dot(u, toSun));
+      };
+      const span = Math.min(Math.abs(b.rotation || 86400 * 30), 86400 * 30) / 86400;
+      let jdDay = jd;
+      for (let k = 0; k < 200; k++) {
+        const j0 = jd + (span * k) / 200, j1 = jd + (span * (k + 1)) / 200;
+        if (elev(j0) < 0.5 && elev(j1) >= 0.5) { jdDay = j1; break; }
+      }
+      const site = surfacePoint(id, b.landing.lat, b.landing.lon, jdDay);
       const sv = new THREE.Vector3(site[0], site[1], site[2]).normalize();
-      const east = new THREE.Vector3().crossVectors(bci.n, sv).normalize();
+      // the site's own direction of motion (east for a prograde spin, west for Venus): the orbit runs with it
+      const sp = surfacePoint(id, b.landing.lat, b.landing.lon, jdDay + 60 / 86400);
+      const east = new THREE.Vector3(sp[0] - site[0], sp[1] - site[1], sp[2] - site[2]);
+      if (east.lengthSq() < 1e-8) east.crossVectors(bci.n, sv);
+      east.addScaledVector(sv, -east.dot(sv)).normalize();
       return { plane: OrbitPlane.fromVectors(toB(sv), toB(east)), bci, rE, n, phase: -0.35 };
     }
     const bp = state(id, jd).r;
