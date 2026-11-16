@@ -1111,13 +1111,13 @@ def exterior():
     la = fixtures().finish(sharp=40, col=0, shadow=0)
     props(la, part="lamps")
     gears = [main_gear(1), main_gear(-1), rear_gear(1), rear_gear(-1)]
+    Cc, Cd, Ce = cabin()
     hatches = []
-    for Ph, loc, kw in HATCHES:
+    for Ph, loc, kw in HATCHES:                          # after cabin(): it adds the inner cabin hatch
         ob = Ph.finish(sharp=40, col=0)
         ob.location = loc
         props(ob, kind="hatch", dynamic=1, **kw)
         hatches.append(ob)
-    Cc, Cd, Ce = cabin()
     cab = Cc.finish(sharp=40, col=0)
     props(cab, part="cabin")
     cabd = Cd.finish(sharp=38, col=0)

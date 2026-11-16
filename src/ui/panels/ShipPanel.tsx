@@ -90,7 +90,7 @@ export function ShipPanel({ game, close, tab: first }: { game: Game; close: () =
     body = (
       <div>
         <KV k="Commander" v="On board · you" />
-        {crew.map((n: any) => <KV k={`${n.name} · ${n.def?.role ?? ''}`} v={n.attached ? 'Seated' : 'On board'} />)}
+        {crew.map((n: any) => <KV k={`${n.name} · ${n.def?.role ?? ''}`} v={n.post ?? (n.attached ? 'Seated' : 'On board')} />)}
         <KV k="Cryo pods" v="4 of 4 ready (Cryo-lab, 6 o'clock)" />
         <KV k="Suits" v="4 EVA suits stowed (Landing pod 1)" />
         <p class="note">Hibernation for the long transfer is managed from the cryo-lab once the ship departs Earth orbit.</p>

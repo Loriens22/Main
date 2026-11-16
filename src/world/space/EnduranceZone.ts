@@ -15,6 +15,7 @@ import { clamp } from '../../core/math';
 import { ui } from '../../ui/store';
 import { mission } from '../../mission/Mission';
 import { story } from '../../core/Story';
+import { EnduranceScreens } from './EnduranceScreens';
 
 const blenderDir = (d: number[]) => new THREE.Vector3(d[0], d[2], -d[1]);
 const _v = new THREE.Vector3(), _w = new THREE.Vector3(), _q = new THREE.Quaternion(), _m = new THREE.Matrix4();
@@ -57,6 +58,7 @@ class SpokeLift {
   private base = new THREE.Vector3();
   private up = new THREE.Vector3();
   private rest: number;
+  private floor!: RAPIER.Collider;
   moving = false;
   /** shaft gates: the iris across the shaft mouth in the hub floor, and the landing door on the corridor deck */
   private gates: { leaves: { mesh: THREE.Mesh; base: THREE.Vector3; dir: THREE.Vector3; travel: number; turn?: THREE.Object3D }[]; col: RAPIER.Collider; t: number; open: () => boolean }[] = [];
@@ -72,7 +74,9 @@ class SpokeLift {
     const g = groups(GROUP.WORLD, 0xffff);
     const rc = 1.08;
     // floor: a 16-sided prism (exact face normals; the character controller sticks on Rapier's rounded cylinder)
-    w.createCollider(discCollider(rc, 0.04).setTranslation(0, -0.052, 0).setCollisionGroups(g), this.body);   // 12 mm under the deck
+    // floor 12 mm under the deck surface; parked at the bottom the deck carries the rider and the floor is switched
+    // off (a kinematic floor flush with the deck snags the character controller at its rim)
+    this.floor = w.createCollider(discCollider(rc, 0.04).setTranslation(0, -0.052, 0).setCollisionGroups(g), this.body);
     for (let k = 0; k < 12; k++) {
       const a = (k + 0.5) * (Math.PI * 2 / 12);
       const deg = (a * 180) / Math.PI;
@@ -194,6 +198,7 @@ class SpokeLift {
     this.v += clamp(want - this.v, -1.2 * dt, 1.2 * dt);
     if (Math.abs(d) < 0.005 && Math.abs(this.v) < 0.05) { this.v = 0; this.r = this.target; }
     this.moving = Math.abs(this.v) > 1e-4;
+    this.floor.setEnabled(this.moving || Math.abs(this.r - this.rBottom) > 0.02);
     if (was && !this.moving) bus.emit('sfx', { id: 'thud', node: this.node, gain: 0.5 });
     if (!this.moving) return;
     const dr = this.v * dt;
@@ -221,6 +226,7 @@ export class EnduranceZone extends Zone {
   lights!: LightPool;
   npcs!: NPCManager;
   lift: SpokeLift | null = null;
+  screens!: EnduranceScreens;
   ports: PortGroup[] = [];
   private sections: Section[] = [];
   private cullT = 0;
@@ -229,6 +235,7 @@ export class EnduranceZone extends Zone {
   private shipQi = new THREE.Quaternion();
   private where = '';
   private sitting: THREE.Object3D | null = null;
+  private crewPosted = false;
 
   private get orbit() { return this.game.zones.get('orbit') as OrbitZone; }
   private get flight() { return this.game.services.flight as Flight; }
@@ -279,6 +286,8 @@ export class EnduranceZone extends Zone {
     }
     this.collectSections();
     this.terminals();
+    this.screens = new EnduranceScreens(this);
+    this.screens.build(this.int);
     this.npcs = new NPCManager({ game: g, phys: this.phys, parent: this.root, up: (p, out) => this.upAt(p, out), weightless: () => this.omega < 0.05 });
     progress?.(1, 'Ready');
   }
@@ -394,6 +403,39 @@ export class EnduranceZone extends Zone {
       this.addI({ position: (out) => b.node.getWorldPosition(out), radius: 0.5, range: 2.4, label: () => String(b.data.label ?? 'Bunk'),
         use: () => ui.toast('Crew rest is scheduled by the mission clock (cryo and sleep cycles come with the voyage).', 'info', 4) });
     }
+  }
+
+  // ------------------------------------------------------------------------------------------- crew
+  /**
+   * The crew follows the commander out of the Ranger and goes to work: by the time the commander is down in the ring
+   * (out of sight of the docked Ranger) each of them is at a post that fits the job.
+   */
+  private postCrew() {
+    this.crewPosted = true;
+    const POSTS: Record<string, { kind: 'seat' | 'terminal'; id: string; where: string }> = {
+      reyes: { kind: 'seat', id: 'cmd_r', where: 'Command module · right seat' },
+      hartmann: { kind: 'terminal', id: 'cryo', where: 'Cryo-lab and sick bay' },
+      okoye: { kind: 'terminal', id: 'lab', where: 'Landing pod 3 · laboratory' },
+    };
+    let moved = 0;
+    for (const n of this.npcs.list) {
+      const post = POSTS[n.id];
+      const m = post && this.int.marker(post.kind, post.id);
+      if (!post || !m) continue;
+      n.brain = null;
+      (n as any).post = post.where;
+      n.state.location = 'Endurance';
+      moved++;
+      if (post.kind === 'seat') { n.attach(m.node, 'sit', new THREE.Vector3(0, -0.5, 0.02)); continue; }
+      // standing on the deck in front of the console, facing it
+      const at = m.node.getWorldPosition(new THREE.Vector3());
+      const up = this.upAt(at, new THREE.Vector3());
+      const hit = this.phys.raycast(at, _x.copy(up).negate(), 3, groups(0xffff, GROUP.WORLD));
+      const feet = at.clone().addScaledVector(up, -(hit ? hit.dist : 1.2) + 0.03);
+      n.place(feet, 0);
+      n.face(at.clone().addScaledVector(up, -0.3));
+    }
+    if (moved) mission.note('The crew has gone to their stations: Reyes in the command module, Hartmann in the cryo-lab, Okoye in the laboratory.');
   }
 
   // ------------------------------------------------------------------------------------------- arrival and departure
@@ -524,6 +566,8 @@ export class EnduranceZone extends Zone {
       ui.set({ mode: 'foot', hints: [] });
     }
     this.lift?.updateGates(dt);
+    this.screens.update(dt);
+    if (!this.crewPosted && Math.hypot(g.player.pos.x, g.player.pos.y) > 18) this.postCrew();
     this.npcs.update(dt);
     this.lights.update(_v, dt);
     this.cullT -= dt;

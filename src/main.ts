@@ -19,6 +19,7 @@ import { OrbitZone } from './world/space/OrbitZone';
 import { DockingPanel } from './ui/panels/DockingPanel';
 import * as THREE from 'three';
 import { RAPIER } from './physics/Physics';
+import type { NPC } from './npc/NPC';
 import { LaunchDirector } from './mission/Launch';
 import { LaunchPanel } from './ui/panels/LaunchPanel';
 import { EnduranceZone } from './world/space/EnduranceZone';
@@ -67,6 +68,14 @@ async function boot() {
     orbit.met = 1800;
     orbit.startInRanger(new THREE.Vector3(-60, 0, 0));
     orbit.docking.attachNow(orbit.ranger!, orbit.endurance.port('axial_fwd')!);
+    // the crew of three in their Ranger seats, as after the launch
+    const crew: NPC[] = [];
+    for (const [id, name, role, look] of [
+      ['reyes', 'Tomas Reyes', 'Flight Systems Engineer', { shirt: 'cloth_khaki', pants: 'cloth_khaki', hair: 'hair_black', skin: 'skin', scale: 1.01 }],
+      ['hartmann', 'Dr. Lena Hartmann', 'Mission & Medical Specialist', { shirt: 'cloth_khaki', pants: 'cloth_khaki', hair: 'hair_blond', skin: 'skin', scale: 0.97, width: 0.94 }],
+      ['okoye', 'Dr. Imani Okoye', 'Planetary Scientist', { shirt: 'cloth_khaki', pants: 'cloth_khaki', hair: 'hair_black', skin: 'skin_dark', scale: 0.95, width: 0.93 }],
+    ] as [string, string, string, any][]) crew.push(await orbit.npcs.spawn({ id, name, role, model: 'char_civilian', look }, new THREE.Vector3(), 0));
+    orbit.seatCrew(crew, [['reyes', 'pilot_r'], ['hartmann', 'crew_l'], ['okoye', 'crew_r']]);
     await game.preload('endurance');
     game.setState('playing');
     // settle the docked pose and the seat camera before unbuckling, as after a real docking

@@ -91,9 +91,9 @@ export class NasaStaff {
 
     // ---------------------------------------------------------------- crew of three
     const crewDefs: [string, string, string, string[], any, DialogueDef][] = [
-      ['reyes', 'Tomas Reyes', 'Flight Systems Engineer', ['eng', 'crew'], { hair: 'hair_black', skin: 'skin', scale: 1.01 }, this.reyesTalk()],
-      ['okoye', 'Dr. Imani Okoye', 'Planetary Scientist', ['sci', 'crew'], { hair: 'hair_black', skin: 'skin_dark', scale: 0.95, width: 0.93 }, this.okoyeTalk()],
-      ['hartmann', 'Dr. Lena Hartmann', 'Mission & Medical Specialist', ['med', 'crew', 'ctrl'], { hair: 'hair_blond', skin: 'skin', scale: 0.97, width: 0.94 }, this.hartmannTalk()],
+      ['reyes', 'Tomas Reyes', 'Flight Systems Engineer', ['eng', 'crew'], { shirt: 'cloth_khaki', pants: 'cloth_khaki', hair: 'hair_black', skin: 'skin', scale: 1.01 }, this.reyesTalk()],
+      ['okoye', 'Dr. Imani Okoye', 'Planetary Scientist', ['sci', 'crew'], { shirt: 'cloth_khaki', pants: 'cloth_khaki', hair: 'hair_black', skin: 'skin_dark', scale: 0.95, width: 0.93 }, this.okoyeTalk()],
+      ['hartmann', 'Dr. Lena Hartmann', 'Mission & Medical Specialist', ['med', 'crew', 'ctrl'], { shirt: 'cloth_khaki', pants: 'cloth_khaki', hair: 'hair_blond', skin: 'skin', scale: 0.97, width: 0.94 }, this.hartmannTalk()],
     ];
     const checks = ['hall_stage', 'mc_0_2', 'crew_med'];
     for (let i = 0; i < crewDefs.length; i++) {

@@ -83,6 +83,62 @@ def chamfer_box(P, size, M, mat, c=0.5):
     P.prism(pts, sz, M=M @ T((0, 0, -sz / 2)), mat=mat, bevel=0.06)
 
 
+def rect_pts(w, d):
+    return [(-w / 2, -d / 2), (w / 2, -d / 2), (w / 2, d / 2), (-w / 2, d / 2)]
+
+
+def module_shell(P, size, M, mat, c, zc, spoke=False, t=0.05, hole_r=1.08, shaft_r=1.38):
+    """The chamfered module hull built as plates (radial end caps, forward/aft faces, chamfers and the two tangential
+    side faces) so that the ring tunnels pass through the side faces at height zc and, on the spoke module, the spoke
+    shaft through the inner end cap: from inside a tunnel or the shaft the way on is open."""
+    sx, sy, sz = size
+    pts = [(-sx / 2 + c, -sy / 2), (sx / 2 - c, -sy / 2), (sx / 2, -sy / 2 + c), (sx / 2, sy / 2 - c), (sx / 2 - c, sy / 2),
+           (-sx / 2 + c, sy / 2), (-sx / 2, sy / 2 - c), (-sx / 2, -sy / 2 + c)]
+    shaft = [(math.cos(a) * shaft_r, math.sin(a) * shaft_r) for a in [2 * math.pi * k / 32 for k in range(32)]]
+    P.prism(pts, t, M=M @ T((0, 0, sz / 2 - t)), mat=mat, bevel=0.02)
+    P.prism(pts, t, M=M @ T((0, 0, -sz / 2)), mat=mat, bevel=0.02, holes=[shaft[::-1]] if spoke else None)
+    for s_ in (1, -1):
+        P.box((sx - 2 * c, t, sz - 2 * t), M=M @ T((0, s_ * (sy / 2 - t / 2), 0)), mat=mat, bevel=0.01)
+    for a_ in (1, -1):
+        for b_ in (1, -1):
+            A = Vector((a_ * (sx / 2 - c), b_ * sy / 2, 0))
+            B = Vector((a_ * sx / 2, b_ * (sy / 2 - c), 0))
+            mid = (A + B) / 2 - Vector((a_, b_, 0)).normalized() * (t / 2)
+            ang = math.degrees(math.atan2(B.y - A.y, B.x - A.x))
+            P.box(((B - A).length, t, sz - 2 * t), M=M @ T(mid[:]) @ RZ(ang), mat=mat, bevel=0.01)
+    hole = [(math.cos(a) * hole_r, zc + math.sin(a) * hole_r) for a in [2 * math.pi * k / 28 for k in range(28)]]
+    rect = [(-sy / 2 + c, -sz / 2 + t), (sy / 2 - c, -sz / 2 + t), (sy / 2 - c, sz / 2 - t), (-sy / 2 + c, sz / 2 - t)]
+    for s_ in (1, -1):
+        P.prism(rect, t, plane="YZ", M=M @ T((s_ * sx / 2 - (t if s_ > 0 else 0), 0, 0)), mat=mat, bevel=0.01, holes=[hole[::-1]])
+
+
+def hub_shell(P, r, L, mat, holes=(0, 90, 180, 270), hole_r=1.48, segs=64, rows=45):
+    """Hub cylinder skin along +Y (normals out) built from cells, with round openings where the radial tunnels leave
+    it (Lander ports, spoke, stores alcove), so they read as open from inside."""
+    verts, faces, idx = [], [], {}
+    ys = [-L / 2 + L * k / rows for k in range(rows + 1)]
+
+    def v(i, k):
+        key = (i % segs, k)
+        if key not in idx:
+            a = 2 * math.pi * key[0] / segs
+            idx[key] = len(verts)
+            verts.append((r * math.cos(a), ys[k], -r * math.sin(a)))
+        return idx[key]
+    for i in range(segs):
+        am = 360.0 * (i + 0.5) / segs
+        for k in range(rows):
+            ym = (ys[k] + ys[k + 1]) / 2
+            cut = False
+            for th in holes:                           # clock angle th <-> cell angle 270 - th
+                da = abs(((am - (270 - th)) + 180) % 360 - 180)
+                if math.hypot(math.radians(da) * r, ym) < hole_r:
+                    cut = True
+            if not cut:
+                faces.append((v(i, k), v(i + 1, k), v(i + 1, k + 1), v(i, k + 1)))
+    P.mesh(verts, faces, mat=mat, recalc=False)       # winding gives outward normals
+
+
 def panel_array(P, M, w, h, cols, rows, mat="radiator_blue", frame="hull_gray"):
     """Grid of recessed blue-grey panels in a light frame; local -Y faces out of the surface."""
     P.box((w + 0.16, 0.05, h + 0.16), M=M @ T((0, -0.025, 0)), mat=frame, bevel=0.02)
@@ -140,14 +196,23 @@ def module(P, idx, rnd):
     F = frame_at(th, rc)
     W, D, H = dims(idx)
     body = {"engine": "hull_white", "cryo": "hull_gray"}.get(kind, "hull_white")
-    chamfer_box(P, (W, D, H), F, body, c=0.55 if kind == "engine" else 0.35)
+    module_shell(P, (W, D, H), F, body, c=0.55 if kind == "engine" else 0.35, zc=R_NODE - rc, spoke=(idx == 3))
     # end caps: outer face with a thermal-blanket panel, inner face darker with the tunnel collars
     P.box((W - 0.9, D - 0.9, 0.1), M=F @ T((0, 0, H / 2 + 0.03)), mat="hull_blanket", bevel=0.05)
-    P.box((W - 1.0, D - 1.0, 0.12), M=F @ T((0, 0, -H / 2 - 0.04)), mat="hull_black", bevel=0.05)
+    if idx == 3:                                       # the spoke enters the inner face of Habitat B
+        hb = [(math.cos(a) * 1.38, math.sin(a) * 1.38) for a in [2 * math.pi * k / 32 for k in range(32)]]
+        P.prism(rect_pts(W - 1.0, D - 1.0), 0.12, M=F @ T((0, 0, -H / 2 - 0.1)), mat="hull_black", bevel=0.02, holes=[hb[::-1]])
+    else:
+        P.box((W - 1.0, D - 1.0, 0.12), M=F @ T((0, 0, -H / 2 - 0.04)), mat="hull_black", bevel=0.05)
     # tangential side faces: black blanket band on the lower half (reference 8 shows dark side faces)
+    zc = R_NODE - rc                                   # tunnel collar height on the side faces
     for sx in (1, -1):
-        M = F @ T((sx * (W / 2 + 0.02), 0, -H * 0.2)) @ RZ(90 * sx)
-        P.box((D - 1.0, 0.04, H * 0.5), M=M, mat="hull_tiles", bevel=0.02)
+        # band of dark tiles round the tunnel collar (cut open there: the ring tunnel passes through)
+        L, z0, z1 = D - 1.0, -H * 0.45, H * 0.05
+        Mb = F @ T((sx * (W / 2 + 0.02), 0, 0)) @ RZ(90 * sx)
+        for (a, b, c, d) in ((-L / 2, L / 2, z0, zc - 1.32), (-L / 2, L / 2, zc + 1.32, z1), (-L / 2, -1.32, zc - 1.32, zc + 1.32), (1.32, L / 2, zc - 1.32, zc + 1.32)):
+            if b - a > 0.05 and d - c > 0.05:
+                P.box((b - a, 0.04, d - c), M=Mb @ T(((a + b) / 2, 0, (c + d) / 2)), mat="hull_tiles", bevel=0.02)
         for k in range(3):
             P.box((D - 1.2, 0.06, 0.06), M=F @ T((sx * (W / 2 + 0.04), 0, H * 0.18 + k * 1.1)) @ RZ(90), mat="hull_gray", bevel=0.01)
     if kind in ("habitat", "pod", "cryo", "command"):
@@ -240,13 +305,17 @@ HUB_HATCHES = []
 def hub():
     P = Part("endurance_hub")
     # core cylinder along the spin axis with stiffening rings and equipment
-    P.cyl(HUB_R, HUB_L, rot=(90, 0, 0), mat="hull_white", segs=40, bevel=0.1)
-    for y in (-3.4, -1.2, 1.2, 3.4):
+    # core cylinder, open at the axial ports: annular end plates leave the docking tunnels clear
+    hub_shell(P, HUB_R, HUB_L, "hull_white")
+    for sy_ in (1, -1):
+        P.tube(HUB_R, 0.97, 0.05, at=(0, sy_ * (HUB_L / 2 - 0.025), 0), rot=(90, 0, 0), mat="hull_white", segs=40, bevel=0.01)
+    for y in (-3.6, -1.7, 1.7, 3.6):                    # stiffening rings, clear of the radial openings
         P.tube(HUB_R + 0.18, HUB_R - 0.05, 0.4, at=(0, y, 0), rot=(90, 0, 0), mat="hull_gray", segs=40, bevel=0.03)
     # axial docking ports (Rangers): androgynous ring with guide petals and a hatch
     for sy, pid in ((1, "axial_fwd"), (-1, "axial_aft")):
         y0 = sy * HUB_L / 2
-        P.cyl(1.6, 1.0, at=(0, y0 + sy * 0.5, 0), rot=(90, 0, 0), mat="hull_white", segs=32, bevel=0.06)
+        P.cyl(1.6, 1.0, at=(0, y0 + sy * 0.5, 0), rot=(90, 0, 0), mat="hull_white", segs=32, bevel=0.06, caps=False)
+        P.tube(1.6, 0.95, 0.04, at=(0, y0 + sy * 0.98, 0), rot=(90, 0, 0), mat="hull_white", segs=32, bevel=0.01)
         P.tube(1.45, 0.95, 0.35, at=(0, y0 + sy * 1.15, 0), rot=(90, 0, 0), mat="gear_metal", segs=32, bevel=0.03)
         for k in range(3):
             a = math.radians(120 * k)
@@ -258,8 +327,18 @@ def hub():
         for a in (0, 90):
             Hh.box((0.8, 0.04, 0.08), at=(0, sy * 0.04, 0), rot=(0, a, 0), mat="paint_black", bevel=0)
         # inner face: radial stiffening ribs and the rescue arrows of reference 12
+        # inner face: a star of twelve folded blades (reference 12), each a light and a dark half meeting on a ridge
+        h_b = 0.025
+        yb = -0.03 - h_b if sy > 0 else 0.03
         for k in range(12):
-            Hh.box((0.03, 0.04, 0.78), M=T((0, -sy * 0.045, 0)) @ RY(15 + 30 * k) @ T((0, 0, 0.42)), mat="metal_steel", bevel=0.004)
+            a = math.radians(15 + 30 * k)
+            ca, sa = math.cos(a), math.sin(a)
+            uv = lambda u, v: (u * ca - v * sa, u * sa + v * ca)  # noqa: E731
+            for half, m in ((-1, "metal_steel"), (1, "hull_gray")):
+                tri = [uv(0.15, 0.0), uv(0.86, 0.0), uv(0.15, half * 0.095)]
+                if half > 0:
+                    tri = tri[::-1]
+                Hh.prism(tri, h_b, M=T((0, yb, 0)), plane="XZ", mat=m, bevel=0)
         Hh.cyl(0.12, 0.06, at=(0, -sy * 0.06, 0), rot=(90, 0, 0), mat="metal_chrome", segs=20, bevel=0.01)
         HUB_HATCHES.append((Hh, (0, y0 + sy * 1.3, 0), dict(id=pid, part=f"hatch_{pid}", axis=[0, 0, 1], travel=1.0, label="Docking hatch")))
     # radial ports (Landers) at 12 and 6 o'clock, spine collar at 3 o'clock and stub at 9 o'clock
@@ -271,7 +350,7 @@ def hub():
         marker("dock", pid, at=(F @ Vector((0, 0, 1.75)))[:], dir=list(radial(th)), up=[0, 1, 0], port="radial", accepts="lander", label="Radial docking port")
     for clk in (3, 9):
         F = frame_at(clock(clk), HUB_R)
-        P.cyl(1.5, 1.0, M=F @ T((0, 0, 0.5)), mat="hull_gray", segs=32, bevel=0.06)
+        P.cyl(1.5, 1.0, M=F @ T((0, 0, 0.5)), mat="hull_gray", segs=32, bevel=0.06, caps=(clk == 9))   # the spoke passes the 3 o'clock collar
     # equipment boxes and antennas on the hub
     rnd = random.Random(4)
     for k in range(8):

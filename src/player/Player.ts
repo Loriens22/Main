@@ -74,8 +74,6 @@ export class Player {
       this.body,
     );
     this.kcc = w.createCharacterController(0.02);
-    // pushes the character back out of a skin overlap (a floor arriving under the feet) instead of freezing it
-    this.kcc.setNormalNudgeFactor(0.01);
     this.kcc.enableAutostep(0.38, 0.18, true);
     this.kcc.enableSnapToGround(0.32);
     this.kcc.setMaxSlopeClimbAngle(52 * DEG);

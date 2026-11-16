@@ -1001,8 +1001,11 @@ def command_deck(F, K, M, i, ss):
     for x in (-1.425, -0.475, 0.475, 1.425):
         K.switch_panel(Mf @ T((x, -0.03, 2.05)), w=0.36, h=0.3, rows=3, cols=4)
     for x in (-0.8, 0.8):
-        K.flight_seat(M @ T((x, -HY + 1.55, 0)))
-        marker("seat", f"cmd_{'l' if x < 0 else 'r'}", at=P3(M, x, -HY + 1.55, 0.6), eye=0.72, label="Command seat")
+        Ms = M @ T((x, -HY + 1.55, 0))
+        K.flight_seat(Ms)
+        # seat frame as the engine expects it (local +Y forward, +Z up): the room frame turned to face the console
+        e = (Ms.to_3x3() @ RZ(180).to_3x3()).to_euler("XYZ")
+        marker("seat", f"cmd_{'l' if x < 0 else 'r'}", at=P3(Ms, 0, 0, 0.55), rot=tuple(math.degrees(a) for a in e), eye=0.74, label="Command seat")
     marker("terminal", "nav", at=P3(Mf, 0, -0.55, 1.0), label="Navigation computer")
     Mst = wf(M, "stbd", along=0.2, off=0.62)
     K.console_bank(Mst, w=min(3.6, 2 * HY - 1.6), sid="cmd_main", n=5)
@@ -1359,10 +1362,11 @@ def hub_rooms(F, K):
         for k in range(3):
             D.tube(0.97, 0.9, 0.07, M=T((0, s * (HUB_END + 0.25 + k * 0.42), 0)) @ RX(90), mat="padding_blue" if k == 1 else "plastic_beige", segs=28, bevel=0)
         D.tube(1.15, 0.95, 0.12, M=T((0, s * (HUB_END + 0.02), 0)) @ RX(90), mat="metal_steel", segs=32, bevel=0.01)
-        flip = RZ(180) if s > 0 else Matrix.Identity(4)
-        D.text(label, size=0.14, M=T((0, s * (HUB_END - 0.025), 1.35)) @ RX(90) @ flip, mat="paint_black", depth=0.002)
+        # lettering reads from inside the hub: the forward wall faces -Y (text as laid by RX(90)); the aft wall faces +Y
+        flip = RZ(180) if s < 0 else Matrix.Identity(4)
+        D.text(label, size=0.14, M=T((0, s * (HUB_END - 0.025), 1.35)) @ flip @ RX(90), mat="paint_black", depth=0.002)
         for k in (-1, 1):
-            D.text("RESCUE", size=0.07, M=T((k * 1.45, s * (HUB_END - 0.025), -1.25)) @ RX(90) @ flip, mat="paint_yellow", depth=0.002)
+            D.text("RESCUE", size=0.07, M=T((k * 1.45, s * (HUB_END - 0.025), -1.25)) @ flip @ RX(90), mat="paint_yellow", depth=0.002)
         marker("hatch_ctl", pid, at=(0.78 * s, s * (HUB_END - 0.15), -0.75), label="Docking hatch")
         marker("nav", f"hub_{pid}", at=(0, s * (HUB_END - 0.6), -RH + 0.1), links="hub")
     for th, label in ((0, "LANDER 1"), (180, "LANDER 2")):
