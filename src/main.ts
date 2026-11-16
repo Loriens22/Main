@@ -79,6 +79,7 @@ async function boot() {
     // developer entry: Ranger 1 docked at the forward port, the commander unbuckled in its cabin (or start=hub)
     await game.gotoZone('orbit', { fade: false });
     orbit.met = 1800;
+    if (params.has('body')) orbit.setBody(params.get('body')!);
     orbit.startInRanger(new THREE.Vector3(-60, 0, 0));
     orbit.docking.attachNow(orbit.ranger!, orbit.endurance.port('axial_fwd')!);
     // the crew of three in their Ranger seats, as after the launch
@@ -109,6 +110,7 @@ async function boot() {
     // developer entry: Ranger 1 in Earth orbit near the Endurance (start=gate: aligned at the approach gate; start=far: 4 km out)
     await game.gotoZone('orbit', { fade: false });
     orbit.met = Number(params.get('met') ?? 900);
+    if (params.has('body')) orbit.setBody(params.get('body')!);
     const start = params.get('start') ?? 'gate';
     if (start === 'far') orbit.startInRanger(new THREE.Vector3(-4200, -260, 140), new THREE.Vector3(0.4, 0, 0));
     else if (start === 'near') orbit.startInRanger(new THREE.Vector3(-160, 14, 22));

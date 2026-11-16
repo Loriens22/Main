@@ -491,7 +491,8 @@ export class EnduranceZone extends Zone {
   override enter() {
     super.enter();
     const g = this.game, o = this.orbit;
-    g.renderer.spaceScene.add(o.stars.group, o.globe.mesh);
+    g.renderer.spaceScene.add(o.stars.group, o.view.group);
+    if (o.body.id === 'earth') g.renderer.spaceScene.add(o.globe.mesh);
     o.sky.setVisible(true);
     o.sky.setFog(0, 0);
     g.renderer.preRender.push(o.place);
@@ -504,7 +505,7 @@ export class EnduranceZone extends Zone {
   override leave() {
     super.leave();
     const g = this.game, o = this.orbit;
-    g.renderer.spaceScene.remove(o.stars.group, o.globe.mesh);
+    g.renderer.spaceScene.remove(o.stars.group, o.globe.mesh, o.view.group);
     o.sky.setVisible(false);
     o.skyRotation = null;
     o.sky.lightRotation = null;
@@ -544,7 +545,7 @@ export class EnduranceZone extends Zone {
     cam.getWorldPosition(_v);
     o.sky.shadowFocus.copy(g.player.pos);
     o.sky.shadowRange = 12;
-    o.sky.update(dt, _v, o.rE - R_EARTH);
+    o.sky.update(dt, _v, o.rE - o.body.R);
     for (const pg of this.ports) {
       for (const s of pg.slides) {
         if (s.t === s.target) continue;

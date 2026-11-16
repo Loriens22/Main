@@ -24,6 +24,10 @@ import { Smoke } from '../../render/Smoke';
 import { NPC, NPCManager } from '../../npc/NPC';
 import { polarToLvlh } from '../../space/Orbit';
 import { pressureRatio } from '../../space/Earth';
+import { BODY, BodyDef } from '../../space/Bodies';
+import { equatorBasis, LAUNCH_JD, state, surfacePoint } from '../../space/Ephemeris';
+import { SystemView } from '../../render/SystemView';
+import { atmosphereFor, exposureFor, irradianceAt } from '../../space/Worlds';
 
 const _v = new THREE.Vector3(), _w = new THREE.Vector3(), _s = new THREE.Vector3(), _q = new THREE.Quaternion();
 const _x = new THREE.Vector3(), _z = new THREE.Vector3(), _m4 = new THREE.Matrix4(), _c = new THREE.Color(), _c2 = new THREE.Color();
@@ -74,11 +78,22 @@ export class OrbitZone extends Zone implements OrbitContext {
   private sunLocal = new THREE.Vector3();
   private earthCentre = new THREE.Vector3();
   private camTarget = new THREE.Vector3();
+  /** the body the Endurance orbits (the Earth until the voyage starts) */
+  body: BodyDef = BODY.earth;
+  /** the rest of the system: planets, moons and the Sun, placed in double precision */
+  view!: SystemView;
+  /** Julian date (Earth reference) at met = 0 */
+  jd0 = LAUNCH_JD;
+  get jd() { return this.jd0 + this.met / 86400; }
+  /** zone frame <- system (ecliptic / Gargantua) frame, for the current frame origin */
+  private rotSys = new THREE.Matrix4();
+  private bci = { e1: new THREE.Vector3(1, 0, 0), e2: new THREE.Vector3(0, 1, 0), n: new THREE.Vector3(0, 0, 1) };
+  private camSys: [number, number, number] = [0, 0, 0];
 
   env: FlightEnv = {
     gravity: (_p, out) => out.set(0, 0, 0),
     density: () => 0,
-    altitude: (p) => this.rE - R_EARTH + p.y,
+    altitude: (p) => this.rE - this.body.R + p.y,
     accel: (p, v, out) => cwAccel(p, v, this.n, out),
   };
 
@@ -96,6 +111,9 @@ export class OrbitZone extends Zone implements OrbitContext {
     this.sky.setVisible(false);
     this.globe = new Globe(R_EARTH, 256);
     this.stars = new StarField();
+    this.view = new SystemView('sol');
+    this.view.exclude.add('earth');
+    this.view.showSun = false;   // the sky model draws the Sun's disc
     this.lights = new LightPool(this.root, 8, 4);
     progress?.(0.3, 'Endurance');
     this.endurance = new EnduranceShip(this.phys);
@@ -136,16 +154,84 @@ export class OrbitZone extends Zone implements OrbitContext {
     if (phiE0 !== undefined) this.phiE0 = phiE0;
   }
 
+  /** exposure for the local sunlight (Saturn: 1/90 of the Earth's) */
+  exposure() { return this.body.id === 'earth' ? 0.95 : exposureFor(irradianceAt(this.body.id, this.jd)); }
+
+  /**
+   * Put the Endurance in its parking orbit around a body. For a world with a landing site the orbit plane is laid
+   * over the site (the plane through the site and its local east, so the inclination equals the site's latitude);
+   * otherwise it is equatorial. The ship starts a little behind the point over the site.
+   */
+  setBody(id: string, opts: { phase?: number } = {}) {
+    const b = BODY[id];
+    this.body = b;
+    this.rE = b.R + b.parkingAlt;
+    this.n = Math.sqrt(b.GM / (this.rE ** 3));
+    if (id === 'earth') { this.setLaunch(this.day, this.hours); }
+    else {
+      const { e1, e2, n } = equatorBasis(id);
+      this.bci.e1.set(...e1); this.bci.e2.set(...e2); this.bci.n.set(...n);
+      const jd = this.jd;
+      if (b.landing) {
+        const site = surfacePoint(id, b.landing.lat, b.landing.lon, jd);
+        const sv = new THREE.Vector3(site[0], site[1], site[2]).normalize();
+        const east = new THREE.Vector3().crossVectors(this.bci.n, sv).normalize();
+        this.plane = OrbitPlane.fromVectors(this.toBci(sv, new THREE.Vector3()), this.toBci(east, new THREE.Vector3()));
+        this.phiE0 = (opts.phase ?? -0.35) - this.n * this.met;
+      } else {
+        // no site to pass over: a 22 deg orbit (rings seen open) that starts on the morning side, in sunlight
+        const bp = state(id, jd).r;
+        const sun = this.toBci(new THREE.Vector3(-bp[0], -bp[1], -bp[2]).normalize(), new THREE.Vector3());
+        const pole = new THREE.Vector3(0, 0, 1);
+        const P = sun.addScaledVector(pole, -sun.dot(pole)).normalize().applyAxisAngle(pole, -0.6);
+        const inc = (22 * Math.PI) / 180;
+        const E = new THREE.Vector3().crossVectors(pole, P).multiplyScalar(Math.cos(inc)).addScaledVector(pole, Math.sin(inc));
+        this.plane = OrbitPlane.fromVectors(P, E);
+        // start ~70 deg past the node: about 20 deg above the equator (ring) plane, still in daylight
+        this.phiE0 = (opts.phase ?? 1.2) - this.n * this.met;
+      }
+    }
+    if (this.view.system !== b.system) {
+      this.view.dispose();
+      this.view = new SystemView(b.system);
+      this.view.showSun = false;
+      if (this.game.zone === this || this.game.zone?.id === 'endurance') this.game.renderer.spaceScene.add(this.view.group);
+    }
+    this.view.exclude.clear();
+    if (id === 'earth') this.view.exclude.add('earth');
+    this.view.jdRef = 0;
+    if (this.game.zone === this) {
+      if (id === 'earth') this.game.renderer.spaceScene.add(this.globe.mesh); else this.globe.mesh.removeFromParent();
+    }
+    this.sky.setParams(id === 'earth' ? { ...this.sky.params } : atmosphereFor(b, this.jd));
+    // the sky model's limb is for low orbits round rocky worlds with air; giants and airless bodies are drawn whole
+    // by the system view (the sky keeps lighting the ship)
+    this.view.noShell.clear();
+    if (this.skyDome()) this.view.noShell.add(id);
+    this.sky.setStars(0);
+    this.sky.invalidate();
+    this.sky.dome.visible = this.sky.enabled && this.skyDome();
+    if (this.game.zone === this) this.game.renderer.setLook({ exposure: this.exposure(), saturation: 1.12, contrast: 1.2, bloom: 0.7, aoIntensity: 1.6, aoRadius: 1.6 }, true);
+  }
+
+  /** whether the physical sky dome draws the atmosphere seen from this orbit */
+  skyDome() { return this.body.id === 'earth' || (this.body.kind === 'rocky' && !!this.body.atmosphere); }
+
+  /** system-frame vector -> body-centred inertial (equatorial) coordinates */
+  private toBci(v: THREE.Vector3, out: THREE.Vector3) { return out.set(v.dot(this.bci.e1), v.dot(this.bci.e2), v.dot(this.bci.n)); }
+
   get phiE() { return this.phiE0 + this.n * this.met; }
   get theta() { return this.theta0 + OMEGA_EARTH * this.met; }
 
   override enter() {
     super.enter();
     const g = this.game;
-    g.renderer.spaceScene.add(this.stars.group, this.globe.mesh);
+    g.renderer.spaceScene.add(this.stars.group, this.view.group);
+    if (this.body.id === 'earth') g.renderer.spaceScene.add(this.globe.mesh);
     this.sky.setVisible(true);
+    this.sky.dome.visible = this.skyDome();
     g.renderer.preRender.push(this.place);
-    g.renderer.setLook({ exposure: 0.95, saturation: 1.12, contrast: 1.2, bloom: 0.7, aoIntensity: 1.6, aoRadius: 1.6 }, true);
+    g.renderer.setLook({ exposure: this.exposure(), saturation: 1.12, contrast: 1.2, bloom: 0.7, aoIntensity: 1.6, aoRadius: 1.6 }, true);
     // dark sky: environment from the sky bake (black above, earthshine below)
     this.sky.invalidate();
     const flight = g.services.flight as Flight;
@@ -157,7 +243,7 @@ export class OrbitZone extends Zone implements OrbitContext {
   override leave() {
     super.leave();
     const g = this.game;
-    g.renderer.spaceScene.remove(this.stars.group, this.globe.mesh);
+    g.renderer.spaceScene.remove(this.stars.group, this.globe.mesh, this.view.group);
     this.sky.setVisible(false);
     g.renderer.preRender = g.renderer.preRender.filter((f) => f !== this.place);
     bus.off('flight:autopilot', this.onAutopilotKey);
@@ -236,6 +322,8 @@ export class OrbitZone extends Zone implements OrbitContext {
   updateSky() {
     if (this.mode === 'orbit') { this.originR = this.rE; this.originPhi = this.phiE; }
     this.plane.frame(this.originPhi, this.frame);
+    this.updateRot();
+    if (this.body.id !== 'earth') { this.updateSkyGeneric(); return; }
     const s = sunEci(this.day + (this.hours + this.met / 3600) / 24, _s);
     this.frame.toLocal(s, this.sunLocal).normalize();
     this.sky.setSunDirection(this.sunLocal);
@@ -256,18 +344,68 @@ export class OrbitZone extends Zone implements OrbitContext {
     }
   }
 
+  /** zone frame <- system frame for the current origin: rows of the local frame (in BCI) times BCI <- system */
+  private updateRot() {
+    if (this.body.id === 'earth') {
+      // the Earth's BCI is ECI: its equator basis is the vernal equinox / J2000 equator
+      const { e1, e2, n } = equatorBasis('earth');
+      this.bci.e1.set(...e1); this.bci.e2.set(...e2); this.bci.n.set(...n);
+    }
+    const F = this.frame, B = this.bci;
+    const zb = new THREE.Matrix4().set(F.X.x, F.X.y, F.X.z, 0, F.Y.x, F.Y.y, F.Y.z, 0, F.Z.x, F.Z.y, F.Z.z, 0, 0, 0, 0, 1);
+    const bs = new THREE.Matrix4().set(B.e1.x, B.e1.y, B.e1.z, 0, B.e2.x, B.e2.y, B.e2.z, 0, B.n.x, B.n.y, B.n.z, 0, 0, 0, 0, 1);
+    this.rotSys.multiplyMatrices(zb, bs);
+    if (this.skyRotation) this.rotSys.premultiply(new THREE.Matrix4().makeRotationFromQuaternion(this.skyRotation));
+  }
+
+  /** sun, sky and stars around a body other than the Earth (its globe is drawn by the system view) */
+  private updateSkyGeneric() {
+    const pos = state(this.body.id, this.jd).r;
+    // light from the system origin (the Sun, or Gargantua's disk)
+    const sun = _s.set(-pos[0], -pos[1], -pos[2]).normalize().applyMatrix4(_m4.extractRotation(this.rotSys));
+    this.sunLocal.copy(sun);
+    this.sunView.copy(sun);
+    this.sky.lightRotation = null;
+    this.sky.setSunDirection(sun);
+    this.earthCentre.set(0, -this.originR, 0);
+    if (this.skyRotation) this.earthCentre.applyQuaternion(this.skyRotation);
+    // stars: catalogued in J2000 equatorial coordinates
+    this.orientStars();
+  }
+
+  private orientStars() {
+    const obl = (23.4392911 * Math.PI) / 180;
+    const eqToEcl = new THREE.Matrix4().makeRotationX(-obl);
+    const m = new THREE.Matrix4().multiplyMatrices(_m4.extractRotation(this.rotSys), eqToEcl);
+    const e = m.elements;
+    this.stars.orient(_x.set(e[0], e[4], e[8]), _z.set(e[1], e[5], e[9]), new THREE.Vector3(e[2], e[6], e[10]));
+  }
+
   /** background objects relative to the final camera of the frame */
   place = (cam: THREE.PerspectiveCamera) => {
     cam.getWorldPosition(_v);
+    // the camera in the system frame: body centre + frame origin + camera offset (zone -> BCI -> system)
+    const B = this.bci, F = this.frame;
+    const local = _w.copy(_v);
+    if (this.skyRotation) local.applyQuaternion(_q.copy(this.skyRotation).invert());
+    const o = this.plane.eci(this.originR, this.originPhi, _s).add(F.toEci(local, new THREE.Vector3()));
+    const bp = state(this.body.id, this.jd).r;
+    this.camSys[0] = bp[0] + o.x * B.e1.x + o.y * B.e2.x + o.z * B.n.x;
+    this.camSys[1] = bp[1] + o.x * B.e1.y + o.y * B.e2.y + o.z * B.n.y;
+    this.camSys[2] = bp[2] + o.x * B.e1.z + o.y * B.e2.z + o.z * B.n.z;
+    this.view.update(this.jd, this.camSys, this.rotSys, this.game.renderer.height / ((cam.fov * Math.PI) / 180));
     this.globe.mesh.position.copy(this.earthCentre).sub(_v);
     // eye adaptation: stars fade when the sunlit Earth or the sun fills the view
     const look = cam.getWorldDirection(_w);
     const toEarth = _s.copy(this.earthCentre).sub(_v).normalize();
     const earthIn = clamp((look.dot(toEarth) - 0.2) / 0.6, 0, 1);
-    const sunUp = this.sky.sunColor.r > 0.05 ? 1 : 0;
+    const irr = this.body.id === 'earth' ? 1 : irradianceAt(this.body.id, this.jd);
+    const sunUp = this.sky.sunColor.r > 0.05 * Math.min(1, irr) ? 1 : 0;
     const sunIn = clamp((look.dot(this.sunView) - 0.6) / 0.4, 0, 1) * sunUp;
     const day = sunUp * (0.35 + 0.65 * earthIn) + sunIn;
-    this.stars.setVisibility(2.4 * (1 - clamp(day, 0, 0.92)), 6.8 - 3.2 * clamp(day, 0, 1));
+    // the stars keep their screen brightness whatever the eye adaptation to the local sunlight
+    const adapt = 0.95 / this.game.renderer.look.exposure;
+    this.stars.setVisibility(2.4 * (1 - clamp(day, 0, 0.92)) * adapt, 6.8 - 3.2 * clamp(day, 0, 1));
   };
 
   override update(dt: number) {
@@ -281,7 +419,7 @@ export class OrbitZone extends Zone implements OrbitContext {
     this.camTarget.copy(this.ranger ? this.ranger.root.position : _v);
     this.sky.shadowFocus.copy(this.camTarget.distanceTo(this.endurance.root.position) < 120 ? this.endurance.root.position : this.camTarget);
     this.sky.shadowRange = this.camTarget.distanceTo(this.endurance.root.position) < 120 ? 48 : 20;
-    this.sky.update(dt, _v, this.originR - R_EARTH + _v.y);
+    this.sky.update(dt, _v, this.originR - this.body.R + _v.y);
     this.npcs.update(dt);
     if (this.mode === 'ascent' || this.stack) this.ascentVisuals(dt);
     this.lights.update(_v, dt);
@@ -507,7 +645,8 @@ export class OrbitZone extends Zone implements OrbitContext {
     const c = this.ranger;
     if (c && this.docking.isDocked(c)) return 'Ranger 1 · docked to Endurance';
     const d = c ? c.position(_v).length() : 0;
-    return d > 5 ? `Earth orbit · ${(this.rE - R_EARTH) / 1000 | 0} km · ${d < 2000 ? d.toFixed(0) + ' m' : (d / 1000).toFixed(1) + ' km'} from Endurance` : 'Earth orbit';
+    const where = `${this.body.id === 'earth' ? 'Earth' : this.body.name} orbit`;
+    return d > 5 ? `${where} · ${(this.rE - this.body.R) / 1000 | 0} km · ${d < 2000 ? d.toFixed(0) + ' m' : (d / 1000).toFixed(1) + ' km'} from Endurance` : where;
   }
 
   override serialize() {

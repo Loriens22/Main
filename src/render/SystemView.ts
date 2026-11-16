@@ -56,6 +56,10 @@ export class SystemView {
   jdRef = 0;
   /** brightness of the sunlight on bodies (renderer units at 1 au) */
   sunE = 20;
+  /** draw the Sun (off where a sky model already draws its disc) */
+  showSun = true;
+  /** bodies whose limb a sky model draws instead of the simple shell */
+  noShell = new Set<string>();
 
   constructor(public system: SystemId, ids?: string[]) {
     this.ids = ids ?? BODIES.filter((b) => b.system === system && b.kind !== 'star' && b.kind !== 'blackhole' && b.kind !== 'wormhole' && b.R > 50e3).map((b) => b.id);
@@ -100,6 +104,7 @@ export class SystemView {
     // light source at the system origin (the Sun, or Gargantua's accretion disk)
     const sunRel = _v.set(-camSys[0], -camSys[1], -camSys[2]).applyMatrix4(rot);
     if (this.sun && this.sunGlow) {
+      this.sun.visible = this.sunGlow.visible = this.showSun;
       const d = sunRel.length(), D = compressDistance(d), k = D / d;
       this.sun.position.copy(sunRel).multiplyScalar(k);
       this.sun.scale.setScalar(BODY.sun.R * k);
@@ -153,7 +158,7 @@ export class SystemView {
       const pt = Math.max(0, Math.min(1, (2.5 - angPx) / 1.5));
       p.globe.visible = !hidden && angPx > 0.6;
       if (p.ring) p.ring.visible = !hidden && angPx > 0.6;
-      if (p.shell) p.shell.visible = !hidden && angPx > 1.2;
+      if (p.shell) p.shell.visible = !hidden && angPx > 1.2 && !this.noShell.has(id);
       const dir = relZ.normalize();
       this.ptPos[i * 3] = dir.x * 3.9e6; this.ptPos[i * 3 + 1] = dir.y * 3.9e6; this.ptPos[i * 3 + 2] = dir.z * 3.9e6;
       // reflected light: albedo x illumination x apparent size x half-phase

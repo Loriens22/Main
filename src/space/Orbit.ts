@@ -73,6 +73,15 @@ export class OrbitPlane {
   /** orbit normal (P x E) */
   N = new THREE.Vector3();
 
+  /** A plane through an arbitrary inertial direction P with in-plane direction of motion E (any body). */
+  static fromVectors(P: THREE.Vector3, E: THREE.Vector3) {
+    const o = new OrbitPlane(0, 0, 0);
+    o.P.copy(P).normalize();
+    o.E.copy(E).addScaledVector(o.P, -E.dot(o.P)).normalize();
+    o.N.crossVectors(o.P, o.E).normalize();
+    return o;
+  }
+
   constructor(lat: number, lon: number, theta0: number) {
     const site = ecefToEci(latLonToEcef(lat, lon), theta0, this.P).normalize();
     const lo = lon * D2R;
