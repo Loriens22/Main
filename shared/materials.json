@@ -58,6 +58,7 @@
 
   "tire":              { "tex": "tire_tread", "tile": 1.0, "uvMode": "native" },
   "rubber":            { "tex": "rubber", "tile": 0.5 },
+  "deck_grid":         { "tex": "deck_grid", "tile": 1.2 },
   "plastic_white":     { "tex": "plastic_panel", "tile": 1.0 },
   "plastic_beige":     { "tex": "plastic_panel", "tile": 1.0, "color": "#d3c8ad" },
   "plastic_gray":      { "tex": "plastic_panel", "tile": 1.0, "color": "#8e9193" },
@@ -132,6 +133,7 @@
   "glass_dark":        { "kind": "glass", "color": "#0a0d10", "opacity": 0.82, "rough": 0.04 },
   "glass_cockpit":     { "kind": "glass", "color": "#141a1f", "opacity": 0.55, "rough": 0.03 },
   "glass_visor":       { "kind": "glass", "color": "#2a2218", "opacity": 0.78, "rough": 0.02, "metal": 0.6 },
+  "visor_gold":        { "color": "#9c7a34", "rough": 0.07, "metal": 1.0 },
   "screen":            { "tex": "screen_grid", "tile": 0.3, "rough": 1.0 },
 
   "emit_warm":         { "color": "#fff0d0", "emissive": "#ffe2a8", "emissiveIntensity": 6.0, "rough": 0.6 },

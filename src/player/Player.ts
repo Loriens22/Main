@@ -74,6 +74,8 @@ export class Player {
       this.body,
     );
     this.kcc = w.createCharacterController(0.02);
+    // pushes the character back out of a skin overlap (a floor arriving under the feet) instead of freezing it
+    this.kcc.setNormalNudgeFactor(0.01);
     this.kcc.enableAutostep(0.38, 0.18, true);
     this.kcc.enableSnapToGround(0.32);
     this.kcc.setMaxSlopeClimbAngle(52 * DEG);
@@ -114,6 +116,16 @@ export class Player {
     this.stepSmooth = 0;
     this.syncBody();
     this.world?.world.propagateModifiedBodyPositionsToColliders();
+  }
+
+  /**
+   * Carried by a moving floor (a lift car): shift the player and the collider together this step, so the floor never
+   * moves into a collider that lags a step behind.
+   */
+  carry(d: THREE.Vector3Like) {
+    this.pos.x += d.x; this.pos.y += d.y; this.pos.z += d.z;
+    this.prevPos.x += d.x; this.prevPos.y += d.y; this.prevPos.z += d.z;
+    this.syncBody();
   }
 
   setColliderEnabled(on: boolean) {
@@ -161,7 +173,8 @@ export class Player {
     if (this.mode === 'seated' || this.mode === 'frozen' || !this.kcc || !this.collider || !this.body || !this.world) return;
 
     const gMag = this.gravity.length();
-    const floating = gMag < 0.45;
+    // below about 0.1 g nobody walks (the hub of a spinning ship, a docked craft on its axis): float, with hysteresis
+    const floating = this.mode === 'float' ? gMag < 1.1 : gMag < 0.9;
     if (floating !== (this.mode === 'float')) {
       this.mode = floating ? 'float' : 'walk';
       bus.emit('player:mode', this.mode);
@@ -236,7 +249,9 @@ export class Player {
         this.airTime = 0;
         if (vUp < 0) vUp = -0.5;
         if (input.pressed('jump') && !this.crouching) {
-          vUp = Math.sqrt(2 * gMag * 0.5) * (this.suited ? 0.8 : 1);
+          // legs push off at about the same speed in any gravity (3.1 m/s ~ a 0.5 m jump on Earth): in a weak
+          // field the same push carries much higher (the hub end of the spoke, small moons)
+          vUp = 3.13 * (this.suited ? 0.8 : 1);
           bus.emit('player:jump');
         }
       } else this.airTime += dt;

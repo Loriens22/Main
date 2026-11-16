@@ -589,6 +589,27 @@ def floor_stud(t):
     t.normal_strength = 10.0
 
 
+@tex("deck_grid")
+def deck_grid(t):
+    """Spacecraft deck covering (references 11, 14, 15): charcoal rubber with a fine grid of raised square pads,
+    worn paler along the walkways."""
+    n = t.n
+    u, v = grid_uv(n)
+    k = 24
+    cu, cv = ((u * k) % 1.0) - 0.5, ((v * k) % 1.0) - 0.5
+    pad = (1 - smoothstep(0.30, 0.36, np.abs(cu))) * (1 - smoothstep(0.30, 0.36, np.abs(cv)))
+    hf, lf = fbm(n, 0.7, 431, fmin=20), fbm(n, 2.6, 432)
+    wear = smoothstep(0.45, 0.85, fbm(n, 1.6, 433, fmin=2))
+    grime = smoothstep(0.55, 0.9, fbm(n, 2.2, 434)) * (1 - pad * 0.6)
+    base = tone(solid(n, rgb("#3b3d40")), lf, 0.18) * (0.92 + 0.12 * hf[..., None])
+    base = mix(base, solid(n, rgb("#55585b")), pad * (0.35 + 0.35 * wear))
+    base = mix(base, solid(n, rgb("#4e483f")), grime * 0.35)
+    t.albedo = base * (0.82 + 0.18 * pad[..., None])
+    t.height = np.clip(pad * 0.7 + hf * 0.04, 0, 1)
+    t.rough = np.clip(0.78 - pad * wear * 0.18 + grime * 0.12, 0, 1)
+    t.normal_strength = 6.0
+
+
 @tex("plastic_panel")
 def plastic_panel(t):
     n = t.n
@@ -658,7 +679,7 @@ def padding(t):
     grime = smoothstep(0.5, 0.9, fbm(n, 2.2, 344))
     base = tone(solid(n, rgb("#dcdad5")), lf, 0.14) * (0.9 + 0.12 * hf[..., None])
     base = mix(base, base * rgb("#9c9588"), grime * 0.4)
-    t.albedo = base * (0.55 + 0.45 * pil[..., None]) * (1 - seam[..., None] * 0.45)
+    t.albedo = base * (0.8 + 0.2 * pil[..., None]) * (1 - seam[..., None] * 0.22)
     t.height = np.clip(pil * 0.85 + (wk - 0.5) * 0.08, 0, 1)
     t.rough = np.clip(0.86 + hf * 0.1, 0, 1)
     t.normal_strength = 7.0
@@ -734,13 +755,14 @@ def skin(t):
 @tex("tile_white")
 def tile_white(t):
     n = t.n
-    T = tiles(n, 10, 10, gap=0.05, bevel=0.035, seed=401)
+    # ~12.5 cm glazed tiles with pale grout (references 13 and 14): the grid reads as texture, not as a cage
+    T = tiles(n, 8, 8, gap=0.035, bevel=0.03, seed=401)
     lf, hf = fbm(n, 2.6, 402), fbm(n, 0.8, 403, fmin=30)
     grime = smoothstep(0.5, 0.9, fbm(n, 2.2, 404))
-    chip = smoothstep(0.9, 0.93, cell_random(T["ids"], 405)) * smoothstep(0.5, 0.2, T["d"] * 4)
-    base = solid(n, rgb("#e4e5e3")) * (0.93 + 0.09 * T["rnd"][..., None])
-    base = mix(base, base * rgb("#b9b3a5"), grime * 0.3)
-    grout = solid(n, rgb("#6f6e69")) * (0.8 + 0.4 * hf[..., None])
+    chip = smoothstep(0.92, 0.94, cell_random(T["ids"], 405)) * smoothstep(0.5, 0.2, T["d"] * 4)
+    base = solid(n, rgb("#e6e7e4")) * (0.95 + 0.06 * T["rnd"][..., None])
+    base = mix(base, base * rgb("#c4beb1"), grime * 0.25)
+    grout = solid(n, rgb("#aeada7")) * (0.9 + 0.2 * hf[..., None])
     alb = mix(grout, base, T["mask"])
     t.albedo = mix(alb, solid(n, rgb("#a8a59c")), chip * 0.7)
     t.height = np.clip(T["height"] * 0.85 - chip * 0.3 + hf * 0.02, 0, 1)

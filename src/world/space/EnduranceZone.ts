@@ -1,6 +1,7 @@
 import * as THREE from 'three';
 import { Zone } from '../Zone';
 import { assets, Model } from '../../render/Assets';
+import { materials } from '../../render/Materials';
 import { LightPool } from '../../render/LightPool';
 import { GROUP, groups, RAPIER } from '../../physics/Physics';
 import { Soundscape } from '../../audio/Audio';
@@ -18,6 +19,22 @@ import { story } from '../../core/Story';
 const blenderDir = (d: number[]) => new THREE.Vector3(d[0], d[2], -d[1]);
 const _v = new THREE.Vector3(), _w = new THREE.Vector3(), _q = new THREE.Quaternion(), _m = new THREE.Matrix4();
 const _x = new THREE.Vector3(), _y = new THREE.Vector3(), _z = new THREE.Vector3(), _m2 = new THREE.Matrix4();
+
+/** Thin disc along local Y as a 16-sided convex prism (exact normals: the character controller can stick on cylinders). */
+function discCollider(radius: number, halfH: number) {
+  const pts: number[] = [];
+  for (let k = 0; k < 16; k++) { const a = (k / 16) * Math.PI * 2; for (const y of [halfH, -halfH]) pts.push(Math.cos(a) * radius, y, Math.sin(a) * radius); }
+  return RAPIER.ColliderDesc.convexHull(new Float32Array(pts))!;
+}
+
+/** Turn a geometry inside out (winding and normals), for the inner face of a thin curved panel. */
+function flipGeometry(g: THREE.BufferGeometry) {
+  const idx = g.index!.array as Uint16Array | Uint32Array;
+  for (let i = 0; i < idx.length; i += 3) { const t = idx[i + 1]; idx[i + 1] = idx[i + 2]; idx[i + 2] = t; }
+  const n = g.attributes.normal.array as Float32Array;
+  for (let i = 0; i < n.length; i++) n[i] = -n[i];
+  return g;
+}
 
 /** Module names by clock position (the same order as the Blender model). */
 const MODULES = ['Habitat A · crew quarters', 'Landing pod 1 · EVA suits', 'Engine 1', 'Habitat B · mess and life support', 'Engine 2',
@@ -41,6 +58,8 @@ class SpokeLift {
   private up = new THREE.Vector3();
   private rest: number;
   moving = false;
+  /** shaft gates: the iris across the shaft mouth in the hub floor, and the landing door on the corridor deck */
+  private gates: { leaves: { mesh: THREE.Mesh; base: THREE.Vector3; dir: THREE.Vector3; travel: number; turn?: THREE.Object3D }[]; col: RAPIER.Collider; t: number; open: () => boolean }[] = [];
 
   constructor(public node: THREE.Object3D, private zone: EnduranceZone, public rTop: number, public rBottom: number, speed: number) {
     this.r = this.target = rBottom;
@@ -52,7 +71,8 @@ class SpokeLift {
     this.body = w.createRigidBody(RAPIER.RigidBodyDesc.kinematicPositionBased());
     const g = groups(GROUP.WORLD, 0xffff);
     const rc = 1.08;
-    w.createCollider(RAPIER.ColliderDesc.cylinder(0.04, rc).setTranslation(0, -0.04, 0).setCollisionGroups(g), this.body);
+    // floor: a 16-sided prism (exact face normals; the character controller sticks on Rapier's rounded cylinder)
+    w.createCollider(discCollider(rc, 0.04).setTranslation(0, -0.052, 0).setCollisionGroups(g), this.body);   // 12 mm under the deck
     for (let k = 0; k < 12; k++) {
       const a = (k + 0.5) * (Math.PI * 2 / 12);
       const deg = (a * 180) / Math.PI;
@@ -63,6 +83,84 @@ class SpokeLift {
         .setRotation(new THREE.Quaternion().setFromAxisAngle(new THREE.Vector3(0, 1, 0), a + Math.PI / 2)).setCollisionGroups(g), this.body);
     }
     this.sync(true);
+    this.buildGates(rc);
+  }
+
+  /**
+   * Nobody falls down an empty shaft: the hub mouth is closed by a two-leaf iris unless the car is parked at the top,
+   * and the landing door on the corridor deck stays shut unless the car is at the bottom.
+   */
+  private buildGates(rc: number) {
+    const w = this.zone.phys.world;
+    const parent = this.node.parent!;
+    // rest frame of the car (at the bottom landing), in the parent's space
+    const R = new THREE.Matrix4().compose(this.base, this.node.quaternion, new THREE.Vector3(1, 1, 1));
+    const ax = new THREE.Vector3(1, 0, 0).applyQuaternion(this.node.quaternion);
+    const g = groups(GROUP.WORLD, 0xffff);
+    const steel = materials.get('metal_steel'), yellow = materials.get('paint_yellow'), blue = materials.get('paint_blue');
+    const toWorld = (v: THREE.Vector3) => parent.localToWorld(v.clone());
+    const qWorld = parent.getWorldQuaternion(new THREE.Quaternion()).multiply(this.node.quaternion);
+    // hub iris: two half discs in the plane of the hub wall
+    {
+      const h = this.rest - (2.35 + 0.04);               // from the bottom landing up to just outside the hub wall
+      const c = new THREE.Vector3(0, h, 0).applyMatrix4(R);
+      const leaves = [-1, 1].map((s) => {
+        const geo = new THREE.CylinderGeometry(rc + 0.16, rc + 0.16, 0.05, 28, 1, false, s > 0 ? 0 : Math.PI, Math.PI);
+        const mesh = new THREE.Mesh(geo, s > 0 ? steel : yellow);
+        mesh.quaternion.copy(this.node.quaternion);
+        mesh.position.copy(c);
+        mesh.castShadow = mesh.receiveShadow = true;
+        parent.add(mesh);
+        // three's cylinder puts theta 0..PI on the local +X half (x = r sin theta): each leaf slides out along X
+        return { mesh, base: c.clone(), dir: ax.clone().multiplyScalar(s > 0 ? 1 : -1), travel: rc + 0.25 };
+      });
+      const cw = toWorld(c);
+      const col = w.createCollider(discCollider(rc + 0.12, 0.04).setTranslation(cw.x, cw.y, cw.z).setRotation(qWorld).setCollisionGroups(g));
+      this.gates.push({ leaves, col, t: 0, open: () => !this.moving && Math.abs(this.r - this.rTop) < 0.03 });
+    }
+    // corridor-deck landing door: a curved leaf between the enclosure's two shells that turns round the shaft axis
+    // to open (the doorway spans 55..125 deg in the model's frame, i.e. three.js theta 145..215 deg about the car axis)
+    {
+      const rD = rc + 0.27, hD = 2.12;
+      const span = (74 * Math.PI) / 180, th0 = (143 * Math.PI) / 180;
+      const pivot = new THREE.Group();
+      pivot.position.copy(this.base);
+      pivot.quaternion.copy(this.node.quaternion);
+      parent.add(pivot);
+      const spin = new THREE.Group();                    // turns about the car axis (the pivot's local Y)
+      pivot.add(spin);
+      const outer = new THREE.CylinderGeometry(rD + 0.012, rD + 0.012, hD, 18, 1, true, th0, span).translate(0, hD / 2, 0);
+      const inner = flipGeometry(new THREE.CylinderGeometry(rD - 0.012, rD - 0.012, hD, 18, 1, true, th0, span).translate(0, hD / 2, 0));
+      const band = new THREE.CylinderGeometry(rD + 0.016, rD + 0.016, 0.08, 18, 1, true, th0, span).translate(0, 0.36, 0);
+      for (const [geo, mat] of [[outer, blue], [inner, blue], [band, yellow]] as [THREE.BufferGeometry, THREE.Material][]) {
+        const m = new THREE.Mesh(geo, mat);
+        m.castShadow = m.receiveShadow = true;
+        spin.add(m);
+      }
+      const leaf = spin.children[0] as THREE.Mesh;
+      const c = new THREE.Vector3(0, hD / 2, -(rc + 0.13)).applyMatrix4(R);
+      const cw = toWorld(c);
+      const col = w.createCollider(RAPIER.ColliderDesc.cuboid(0.8, hD / 2, 0.16).setTranslation(cw.x, cw.y, cw.z).setRotation(qWorld).setCollisionGroups(g));
+      this.gates.push({ leaves: [{ mesh: leaf, base: new THREE.Vector3(), dir: new THREE.Vector3(), travel: 0, turn: spin }], col, t: 0,
+        open: () => !this.moving && Math.abs(this.r - this.rBottom) < 0.03 });
+    }
+  }
+
+  /** animate the gates (render rate) */
+  updateGates(dt: number) {
+    for (const gt of this.gates) {
+      const want = gt.open() ? 1 : 0;
+      if (gt.t === want) continue;
+      const was = gt.t;
+      gt.t = clamp(gt.t + Math.sign(want - gt.t) * dt / 1.1, 0, 1);
+      if (was === 0 || gt.t === want) bus.emit('sfx', { id: gt.t === want ? 'clamp' : 'door_slide', node: gt.leaves[0].mesh, gain: 0.45 });
+      const e = gt.t * gt.t * (3 - 2 * gt.t);
+      for (const l of gt.leaves) {
+        if (l.turn) l.turn.rotation.y = e * 1.4;        // swing the curved leaf round behind the shell
+        else l.mesh.position.copy(l.base).addScaledVector(l.dir, l.travel * e);
+      }
+      gt.col.setEnabled(gt.t < 0.85);
+    }
   }
 
   /** radius of the car floor -> node position */
@@ -104,7 +202,7 @@ class SpokeLift {
     this.r += dr;
     this.sync();
     // the car moves "up" (toward the axis) when r decreases
-    if (riding) pl.pos.addScaledVector(this.up, -dr);
+    if (riding) pl.carry(_w.copy(this.up).multiplyScalar(-dr));
   }
 }
 
@@ -223,14 +321,14 @@ export class EnduranceZone extends Zone {
       const blockers: RAPIER.Collider[] = [];
       const pm = this.ext.marker('dock', id)!;
       const pp = pm.node.getWorldPosition(new THREE.Vector3());
-      const hubDisc = RAPIER.ColliderDesc.cylinder(0.05, 0.98).setTranslation(pp.x, pp.y, pp.z - Math.sign(pp.z) * 0.3)
+      const hubDisc = discCollider(0.98, 0.05).setTranslation(pp.x, pp.y, pp.z - Math.sign(pp.z) * 0.3)
         .setRotation(new THREE.Quaternion().setFromAxisAngle(new THREE.Vector3(1, 0, 0), Math.PI / 2)).setCollisionGroups(groups(GROUP.WORLD, 0xffff));
       blockers.push(this.phys.world.createCollider(hubDisc));
       const hi = model.part('hatch_inner');
       if (hi) {
         const p = hi.getWorldPosition(new THREE.Vector3());
         const ax = new THREE.Vector3(0, 0, 1).applyQuaternion(model.root.quaternion);
-        const d = RAPIER.ColliderDesc.cylinder(0.04, 0.6).setTranslation(p.x, p.y, p.z)
+        const d = discCollider(0.6, 0.04).setTranslation(p.x, p.y, p.z)
           .setRotation(new THREE.Quaternion().setFromUnitVectors(new THREE.Vector3(0, 1, 0), ax)).setCollisionGroups(groups(GROUP.WORLD, 0xffff));
         blockers.push(this.phys.world.createCollider(d));
       }
@@ -425,6 +523,7 @@ export class EnduranceZone extends Zone {
       this.sitting = null;
       ui.set({ mode: 'foot', hints: [] });
     }
+    this.lift?.updateGates(dt);
     this.npcs.update(dt);
     this.lights.update(_v, dt);
     this.cullT -= dt;

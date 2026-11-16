@@ -622,23 +622,132 @@ class Kit:
         E.box((0.28, 0.01, 0.18), M=M @ T((0.05, -0.85, 1.55)), mat="emit_green", bevel=0)
         self.C.box((0.8, 2.0, 0.9), M=M @ T((0, 0, 0.45)), mat="concrete", bevel=0)
 
-    def suit(self, M):
-        """EVA suit stowed on its rack: white suit, backpack, gold-visor helmet."""
-        D = self.D
-        D.box((0.5, 0.06, 2.0), M=M @ T((0, 0.24, 1.0)), mat="paint_gray_dark", bevel=0.01)
-        D.box((0.46, 0.3, 0.62), M=M @ T((0, 0, 1.15)), mat="suit_white", bevel=0.08)
-        D.box((0.4, 0.22, 0.5), M=M @ T((0, 0.2, 1.22)), mat="suit_gray", bevel=0.05)
+    def helmet(self, M, r=0.165):
+        """EVA helmet: white hard shell, gold sun visor over the clear bubble, neck ring, twin lamps, camera."""
+        D, E = self.D, self.E
+        D.sphere(r, M=M @ T((0, 0.012, 0)), mat="suit_white", segs=20, rings=12)
+        D.sphere(r * 0.96, M=M @ T((0, -0.045, -0.008)) @ Matrix.Diagonal((0.9, 0.72, 0.8, 1)), mat="visor_gold", segs=20, rings=12)
+        D.tube(r * 0.98, r * 0.9, 0.03, M=M @ T((0, -0.01, r * 0.62)) @ RX(-18), mat="suit_gray", segs=20, bevel=0.004)
+        D.tube(r * 0.82, r * 0.64, 0.05, M=M @ T((0, 0.0, -r * 0.92)), mat="metal_steel", segs=20, bevel=0.006)
+        D.tube(r * 0.85, r * 0.78, 0.018, M=M @ T((0, 0.0, -r * 0.82)), mat="paint_blue", segs=20, bevel=0)
         for sx in (1, -1):
-            D.cyl(0.075, 0.6, M=M @ T((sx * 0.3, 0, 1.13)) @ RY(sx * 8), mat="suit_white", segs=10, bevel=0.02)
-            D.cyl(0.08, 0.05, M=M @ T((sx * 0.33, 0, 0.82)) @ RY(sx * 8), mat="suit_gray", segs=10, bevel=0.01)
-            D.cyl(0.09, 0.8, M=M @ T((sx * 0.12, 0, 0.45)), mat="suit_white", segs=10, bevel=0.02)
-            D.box((0.13, 0.26, 0.1), M=M @ T((sx * 0.12, -0.04, 0.05)), mat="suit_gray", bevel=0.03)
-        D.box((0.48, 0.32, 0.08), M=M @ T((0, 0, 0.88)), mat="suit_gray", bevel=0.02)
-        D.sphere(0.17, M=M @ T((0, 0.0, 1.66)), mat="suit_white", segs=16, rings=10)
-        D.box((0.22, 0.02, 0.15), M=M @ T((0, -0.16, 1.66)), mat="glass_visor", bevel=0.04)
-        D.box((0.16, 0.06, 0.1), M=M @ T((0, -0.16, 1.18)), mat="plastic_dark", bevel=0.02)
-        D.box((0.06, 0.02, 0.04), M=M @ T((0.12, -0.155, 1.3)), mat="paint_red", bevel=0)
-        self.C.box((0.6, 0.45, 1.85), M=M @ T((0, 0.05, 0.92)), mat="concrete", bevel=0)
+            Ml = M @ T((sx * r * 0.9, -0.02, r * 0.35)) @ RY(sx * 20)
+            D.box((0.05, 0.09, 0.045), M=Ml, mat="plastic_dark", bevel=0.012)
+            E.box((0.032, 0.006, 0.026), M=Ml @ T((0, -0.046, 0)), mat="emit_white", bevel=0)
+            D.cyl(0.012, 0.03, M=M @ T((sx * r * 0.98, 0.01, 0.0)) @ RY(90), mat="metal_chrome", segs=8, bevel=0)
+        D.box((0.03, 0.05, 0.03), M=M @ T((r * 0.62, -0.03, r * 0.72)), mat="plastic_dark", bevel=0.006)
+
+    def suit(self, M):
+        """EVA suit stowed on its rack, front to local -Y: hard upper torso with chest control module, life-support
+        backpack and umbilicals, bearing rings and bellows at the joints, gloves with coloured wrist disconnects,
+        boots, and the helmet with its gold visor."""
+        D, E = self.D, self.E
+        # rack: back board, yoke and foot plate
+        D.box((0.56, 0.05, 2.0), M=M @ T((0, 0.36, 1.0)), mat="paint_gray_dark", bevel=0.01)
+        D.box((0.6, 0.3, 0.04), M=M @ T((0, 0.2, 0.02)), mat="tread_plate", bevel=0.005)
+        for sx in (1, -1):
+            D.box((0.04, 0.22, 0.04), M=M @ T((sx * 0.16, 0.25, 1.52)), mat="metal_chrome", bevel=0.006)
+        # boots
+        for sx in (1, -1):
+            x = sx * 0.11
+            D.box((0.13, 0.3, 0.035), M=M @ T((x, -0.03, 0.018)), mat="rubber", bevel=0.012)
+            D.box((0.12, 0.27, 0.1), M=M @ T((x, -0.03, 0.08)), mat="suit_white", bevel=0.04)
+            D.box((0.125, 0.04, 0.03), M=M @ T((x, -0.15, 0.06)), mat="suit_gray", bevel=0.01)
+            D.cyl(0.074, 0.12, M=M @ T((x, 0.0, 0.18)), mat="suit_white", segs=14, bevel=0.015)
+            D.tube(0.08, 0.07, 0.03, M=M @ T((x, 0.0, 0.25)), mat="metal_steel", segs=14, bevel=0.004)
+            # lower leg, knee bellows, thigh, hip bearing
+            D.cyl(0.08, 0.24, r2=0.086, M=M @ T((x, 0.0, 0.38)), mat="suit_white", segs=14, bevel=0.01)
+            for k in range(3):
+                D.tube(0.092, 0.07, 0.022, M=M @ T((x, 0.0, 0.515 + k * 0.026)), mat="suit_gray", segs=14, bevel=0.008)
+            D.cyl(0.092, 0.28, r2=0.1, M=M @ T((x, 0.0, 0.72)), mat="suit_white", segs=14, bevel=0.01)
+            D.box((0.07, 0.012, 0.12), M=M @ T((x + sx * 0.03, -0.095, 0.72)), mat="suit_gray", bevel=0.004)   # thigh pocket
+            D.tube(0.108, 0.09, 0.035, M=M @ T((x, 0.0, 0.875)), mat="metal_steel", segs=16, bevel=0.005)
+        # pelvis (brief), waist bellows
+        D.box((0.38, 0.25, 0.17), M=M @ T((0, 0.0, 0.95)), mat="suit_white", bevel=0.07)
+        for k in range(3):
+            D.tube(0.165, 0.12, 0.024, M=M @ T((0, 0.0, 1.05 + k * 0.03)) @ Matrix.Diagonal((1.15, 0.85, 1, 1)), mat="suit_gray", segs=20, bevel=0.008)
+        # hard upper torso, chest control module, name tape
+        D.sphere(0.2, M=M @ T((0, 0.0, 1.33)) @ Matrix.Diagonal((1.27, 0.85, 1.22, 1)), mat="suit_white", segs=22, rings=12)
+        Mc = M @ T((0, -0.19, 1.22)) @ RX(12)
+        D.box((0.25, 0.09, 0.13), M=Mc, mat="plastic_dark", bevel=0.015)
+        D.box((0.09, 0.006, 0.035), M=Mc @ T((-0.06, -0.046, 0.03)), mat="screen", bevel=0)
+        E.box((0.07, 0.004, 0.018), M=Mc @ T((-0.06, -0.05, 0.03)), mat="emit_green", bevel=0)
+        for k, c in enumerate(("paint_red", "metal_chrome", "metal_chrome", "paint_yellow")):
+            D.cyl(0.012, 0.025, M=Mc @ T((0.02 + (k % 2) * 0.05, -0.05, 0.035 - (k // 2) * 0.05)) @ RX(90), mat=c, segs=8, bevel=0.002)
+        D.box((0.15, 0.006, 0.035), M=M @ T((0.1, -0.165, 1.44)) @ RZ(-8), mat="plastic_white", bevel=0)
+        D.cyl(0.035, 0.006, M=M @ T((-0.12, -0.165, 1.45)) @ RX(90), mat="paint_blue", segs=14, bevel=0)   # mission patch
+        # shoulders, arms, gloves; wrist disconnects red (left) and blue (right)
+        for sx in (1, -1):
+            D.tube(0.1, 0.075, 0.05, M=M @ T((sx * 0.265, 0.0, 1.45)) @ RY(90), mat="metal_steel", segs=16, bevel=0.006)
+            Ma = M @ T((sx * 0.3, 0.0, 1.43)) @ RY(sx * 7)
+            D.cyl(0.076, 0.26, M=Ma @ T((0, 0, -0.14)), mat="suit_white", segs=14, bevel=0.01)
+            for k in range(2):
+                D.tube(0.081, 0.06, 0.02, M=Ma @ T((0, 0, -0.29 - k * 0.024)), mat="suit_gray", segs=14, bevel=0.006)
+            D.cyl(0.066, 0.22, r2=0.072, M=Ma @ T((0, -0.01, -0.44)), mat="suit_white", segs=14, bevel=0.01)
+            D.tube(0.072, 0.055, 0.04, M=Ma @ T((0, -0.01, -0.565)), mat="paint_red" if sx < 0 else "paint_blue", segs=14, bevel=0.005)
+            Mg = Ma @ T((0, -0.01, -0.64))
+            D.box((0.055, 0.1, 0.11), M=Mg, mat="suit_gray", bevel=0.022)
+            for f in range(4):
+                D.box((0.022, 0.024, 0.07), M=Mg @ T((0, -0.035 + f * 0.024, -0.08)), mat="suit_gray", bevel=0.008)
+            D.box((0.024, 0.026, 0.06), M=Mg @ T((-sx * 0.025, -0.05, -0.02)) @ RY(-sx * 25), mat="suit_gray", bevel=0.008)
+            D.box((0.05, 0.08, 0.035), M=Ma @ T((sx * 0.02, -0.06, -0.42)), mat="plastic_dark", bevel=0.008)       # cuff checklist
+        # life-support backpack with its top cap and side vents
+        D.box((0.46, 0.2, 0.62), M=M @ T((0, 0.2, 1.3)), mat="suit_white", bevel=0.05)
+        D.box((0.4, 0.17, 0.08), M=M @ T((0, 0.2, 1.64)), mat="suit_gray", bevel=0.03)
+        for sx in (1, -1):
+            for k in range(4):
+                D.box((0.012, 0.13, 0.025), M=M @ T((sx * 0.232, 0.2, 1.12 + k * 0.05)), mat="plastic_dark", bevel=0.003)
+            D.cyl(0.03, 0.05, M=M @ T((sx * 0.24, 0.12, 1.45)) @ RY(90), mat="metal_chrome", segs=10, bevel=0.005)
+        # umbilicals from the backpack round to the chest module
+        D.pipe([(0.25, 0.12, 1.45), (0.29, -0.02, 1.36), (0.2, -0.16, 1.24), (0.1, -0.2, 1.22)], 0.017, mat="plastic_dark", segs=8, M=M)
+        D.pipe([(-0.25, 0.12, 1.45), (-0.29, -0.02, 1.34), (-0.2, -0.16, 1.22), (-0.1, -0.2, 1.2)], 0.017, mat="paint_blue", segs=8, M=M)
+        self.helmet(M @ T((0, -0.01, 1.77)))
+        self.C.box((0.62, 0.62, 1.88), M=M @ T((0, 0.08, 0.94)), mat="concrete", bevel=0)
+
+    def gauge(self, M, r=0.07, face="plastic_white"):
+        """Round dial gauge in a chrome bezel; face toward local -Y."""
+        D = self.D
+        D.cyl(r, 0.04, M=M @ T((0, -0.02, 0)) @ RX(90), mat="metal_chrome", segs=16, bevel=0.005)
+        D.cyl(r * 0.86, 0.006, M=M @ T((0, -0.042, 0)) @ RX(90), mat=face, segs=16, bevel=0)
+        D.box((0.006, 0.004, r * 0.72), M=M @ T((0, -0.047, 0)) @ RY(rnd.uniform(-70, 70)) @ T((0, 0, r * 0.3)), mat="paint_red", bevel=0)
+
+    def cable_tray(self, M, L, w=0.3, n=6):
+        """Cable tray along local +X hung below the ceiling plane M (local -Z down), with a bundle of cables."""
+        D = self.D
+        D.box((L, w, 0.012), M=M @ T((L / 2, 0, -0.17)), mat="metal_steel", bevel=0.002)
+        for sy in (1, -1):
+            D.box((L, 0.012, 0.06), M=M @ T((L / 2, sy * w / 2, -0.14)), mat="metal_steel", bevel=0.002)
+        for k in range(int(L / 1.1) + 1):
+            for sy in (1, -1):
+                D.box((0.02, 0.02, 0.17), M=M @ T((min(L - 0.05, 0.05 + k * 1.1), sy * (w / 2 + 0.015), -0.085)), mat="metal_dark", bevel=0)
+        cols = ["plastic_dark", "paint_orange", "paint_blue", "plastic_gray", "plastic_dark", "paint_red", "plastic_dark"]
+        for j in range(n):
+            y = -w / 2 + 0.04 + j * (w - 0.08) / max(1, n - 1)
+            D.pipe([(0.0, y, -0.145), (L, y, -0.145)], 0.012 + 0.004 * (j % 2), mat=cols[j % len(cols)], segs=6, M=M)
+
+    def elec_cabinet(self, M, w=0.8, d=0.5, h=2.0):
+        """Electrical cabinet: louvred door, status lamps, handle and a hazard label. Front at y = 0."""
+        D, E = self.D, self.E
+        D.box((w, d, h), M=M @ T((0, d / 2, h / 2)), mat="paint_gray", bevel=0.01)
+        D.box((w - 0.06, 0.015, h - 0.12), M=M @ T((0, -0.006, h / 2)), mat="paint_gray", bevel=0.005)
+        for k in range(7):
+            D.box((w * 0.5, 0.01, 0.018), M=M @ T((0, -0.016, 0.22 + k * 0.045)), mat="plastic_dark", bevel=0)
+            D.box((w * 0.5, 0.01, 0.018), M=M @ T((0, -0.016, h - 0.75 + k * 0.045)), mat="plastic_dark", bevel=0)
+        for k, c in enumerate(("emit_green", "emit_green", "emit_amber", "emit_red")):
+            E.box((0.028, 0.006, 0.028), M=M @ T((-w * 0.3 + k * 0.07, -0.016, h - 0.2)), mat=c, bevel=0)
+        D.box((0.03, 0.035, 0.22), M=M @ T((w * 0.38, -0.03, h * 0.55)), mat="metal_chrome", bevel=0.006)
+        D.box((0.2, 0.004, 0.13), M=M @ T((-w * 0.15, -0.016, h * 0.55)), mat="paint_yellow", bevel=0)
+        D.text("440 V", size=0.04, M=M @ T((-w * 0.15, -0.02, h * 0.55 - 0.02)) @ RX(90), mat="paint_black", depth=0.001)
+        self.C.box((w, d, h), M=M @ T((0, d / 2, h / 2)), mat="concrete", bevel=0)
+
+    def valve_body(self, M, r_pipe=0.11):
+        """In-line valve on a vertical pipe (pipe axis local Z): body, bonnet and a handwheel facing local -Y."""
+        D = self.D
+        D.cyl(r_pipe + 0.06, 0.26, M=M, mat="paint_gray_dark", segs=16, bevel=0.02)
+        for sz in (1, -1):
+            D.cyl(r_pipe + 0.09, 0.035, M=M @ T((0, 0, sz * 0.15)), mat="metal_steel", segs=16, bevel=0.005)
+        D.cyl(0.045, 0.22, M=M @ T((0, -r_pipe - 0.12, 0)) @ RX(90), mat="metal_steel", segs=10, bevel=0.005)
+        self.valve_wheel(M @ T((0, -r_pipe - 0.25, 0)), r=0.13)
 
     def tool_board(self, M, w=1.4, h=0.9):
         """Pegboard with tools (EVA preparation)."""
@@ -749,7 +858,7 @@ def walls_of(F, K, M, h, holes=None, door=None, mat_lo="tile_white", mat_hi="pad
                 K.pillar(wf(M, side, along=x), h)
 
 
-def ceiling(F, K, M, h, room, outline=None, boxes=((-1.4, 0.0), (1.4, 0.0)), power=12.0, mat="padding_gray"):
+def ceiling(F, K, M, h, room, outline=None, boxes=((-1.4, 0.0), (1.4, 0.0)), power=12.0, mat="padding_light"):
     outline = outline or rect(-HX, -HY, HX, HY)
     slab_poly(F.D, F.C, M, outline, h + 0.1, 0.1, mat)
     Mc = M @ T((0, 0, h))
@@ -830,7 +939,7 @@ def module_rooms(F, K, i):
     ywall = HY if ss > 0 else -HY
     ys = (yr + ywall) / 2                            # stair centre line
     # ================================================================ corridor deck
-    slab_poly(D, C, Mu, deck_outline(ss), 0.0, 0.14, "rubber")
+    slab_poly(D, C, Mu, deck_outline(ss), 0.0, 0.14, "deck_grid")
     for k, x in enumerate((-HX * 0.55, 0.0, HX * 0.55)):
         K.floor_plate(Mu @ T((x, -0.35 * ss, 0)), w=1.05, d=0.62, style=k % 3)
     walls_of(F, K, Mu, UH, holes=win_holes(i, "up"), door=(1.72, 2.02))
@@ -859,7 +968,7 @@ def module_rooms(F, K, i):
     K.sign(wf(Mu, "stbd", along=-1.45, off=0.04, z=2.2), NAMES[i].upper(), w=1.25, h=0.17)
     K.vent(wf(Mu, "port", along=-1.4, z=2.55), w=0.6, h=0.25)
     # ================================================================ main deck
-    slab_poly(D, C, Ml, rect(-HX, -HY, HX, HY), 0.0, 0.14, "tile_floor" if kind == "cryo" else "rubber", holes=floor_holes(kind))
+    slab_poly(D, C, Ml, rect(-HX, -HY, HX, HY), 0.0, 0.14, "tile_floor" if kind == "cryo" else "deck_grid", holes=floor_holes(kind))
     walls_of(F, K, Ml, LH, holes=win_holes(i, "main"), mat_hi="tile_white" if kind in ("cryo", "command") else "padding_light",
              mat_lo="padding_gray" if kind == "engine" else "tile_white")
     if kind == "command":
@@ -1006,11 +1115,11 @@ def pod_room(F, K, M, i, ss):
         for s in (-1, 1):
             D.box((0.06, 0.55, 0.88), M=Mb @ T((s * 1.05, 0, 0.44)), mat="paint_gray_dark", bevel=0.01)
         D.box((0.5, 0.3, 0.25), M=Mb @ T((-0.5, 0, 1.06)), mat="plastic_gray", bevel=0.03)
-        D.sphere(0.16, M=Mb @ T((0.5, 0, 1.1)), mat="suit_white", segs=14, rings=8)
+        K.helmet(Mb @ T((0.5, 0, 1.13)) @ RZ(160))
         C.box((2.2, 0.6, 0.95), M=Mb @ T((0, 0, 0.47)), mat="concrete", bevel=0)
         K.tool_board(wf(M, "stbd", along=0.3, z=1.65))
         for k in range(3):
-            D.sphere(0.16, M=wf(M, front, along=-0.2 + k * 0.6, off=0.25, z=1.62), mat="suit_white", segs=14, rings=8)
+            K.helmet(wf(M, front, along=-0.2 + k * 0.6, off=0.25, z=1.6) @ RZ(rnd.uniform(-20, 20)))
         D.box((2.0, 0.35, 0.04), M=wf(M, front, along=0.4, off=0.2, z=1.44), mat="metal_steel", bevel=0.005)
         marker("terminal", "eva", at=P3(Mb, 0, -0.6, 1.0), label="EVA preparation")
     elif i == 7:
@@ -1057,23 +1166,61 @@ def pod_room(F, K, M, i, ss):
 
 
 def engine_room(F, K, M, i, ss):
-    """Engine module: propellant tanks, turbopumps, manifolds, valve wheels and the engine control station."""
+    """Engine module: LH2 and LOX run tanks on saddles, turbopumps, the two feedlines rising to the ceiling and
+    running aft into the thrust-structure bulkhead (the engine bells are on the other side), valves and gauges,
+    electrical cabinets, ceiling cable trays and the engine control station."""
     D, E, C = F.D, F.E, F.C
     front = "fwd" if ss > 0 else "aft"
-    for k, y in enumerate((-HY + 1.0, -HY + 2.3)):
+    n_eng = [2, 4, 8, 10].index(i) + 1
+    ys = (-HY + 1.0, -HY + 2.3)
+    for k, y in enumerate(ys):
         K.tank_h(M @ T((0.35, y, 0)), r=0.5, L=min(3.8, 2 * HX - 2.2), band="paint_orange" if k else "paint_blue", label="LOX" if k else "LH2")
         K.pump(M @ T((-HX + 0.65, y, 0)) @ RZ(180 * k))
         F.pipe([P3(M, -HX + 2.0, y, 0.75), P3(M, -HX + 1.0, y, 0.75), P3(M, -HX + 1.0, y, 0.35)], r=0.06, mat="paint_gray")
+        # feedline: up from the pump discharge, along the ceiling, aft through the bulkhead
+        x = -HX + (0.87 if k == 0 else 0.43)
+        zf = LH - (0.75 if k == 0 else 0.98)
+        col = "paint_blue" if k == 0 else "paint_orange"
+        F.pipe([P3(M, x, y, 0.62), P3(M, x, y, zf), P3(M, x, HY + 0.12, zf)], r=0.11, mat="paint_white", flanges=False)
+        for t in (0.25, 0.75):                         # colour bands identify the propellant
+            D.cyl(0.115, 0.06, M=M @ T((x, y, 0.62 + (zf - 0.62) * t)), mat=col, segs=16, bevel=0)
+            D.cyl(0.115, 0.06, M=M @ T((x, y + (HY - y) * t, zf)) @ RX(90), mat=col, segs=16, bevel=0)
+        K.valve_body(M @ T((x, y, 1.45)) @ RZ(-90 if k == 0 else 90))
+        K.gauge(M @ T((x, y, 1.95)) @ RZ(-90 if k == 0 else 90) @ T((0, -0.13, 0)), r=0.08)
+        Mw = wf(M, "aft", along=x, z=zf)
+        D.tube(0.26, 0.1, 0.08, M=Mw @ T((0, -0.04, 0)) @ RX(90), mat="metal_steel", segs=20, bevel=0.01)
+        for b in range(8):
+            D.cyl(0.015, 0.03, M=Mw @ T((0, -0.09, 0)) @ RY(45 * b) @ T((0, 0, 0.21)) @ RX(90), mat="metal_chrome", segs=6, bevel=0)
+        K.stencil(Mw @ T((0, 0, -0.38)), "LH2 FEED" if k == 0 else "LOX FEED", size=0.06)
     F.pipe([P3(M, -HX + 0.3, -HY + 0.45, LH - 0.35), P3(M, HX - 0.3, -HY + 0.45, LH - 0.35)], r=0.09, mat="paint_orange")
     F.pipe([P3(M, -HX + 0.3, -HY + 0.75, LH - 0.35), P3(M, HX - 0.3, -HY + 0.75, LH - 0.35)], r=0.09, mat="paint_blue")
+    # engine control station on the starboard wall
     Mst = wf(M, "stbd", along=0.6)
-    K.switch_panel(Mst @ T((0, -0.04, 1.35)), w=1.2, h=0.6, rows=5, cols=12)
-    F.screen(f"eng{i}", Mst @ T((0, -0.06, 1.95)), w=0.5, h=0.3, depth=0.04)
-    marker("terminal", f"eng{i}", at=P3(Mst, 0, -0.5, 1.2), label="Engine control")
+    K.console_bank(Mst @ T((0, -0.63, 0)), w=2.4, sid=f"eng{i}_", n=3, cabinet="paint_gray_dark")   # back against the wall
+    F.screen(f"eng{i}", Mst @ T((0, -0.01, 2.4)), w=0.62, h=0.36, depth=0.04)
+    K.stool(Mst @ T((0.4, -1.15, 0)))
+    K.sign(Mst @ T((0, 0.0, 2.85)), f"ENGINE {n_eng} CONTROL", w=1.5, h=0.16)
+    marker("terminal", f"eng{i}", at=P3(Mst, 0, -1.0, 1.2), label="Engine control")
+    # port wall: electrical cabinets, gauge board, valves, extinguisher
+    for k, a in enumerate((1.45, 2.3)):
+        K.elec_cabinet(wf(M, "port", along=a, off=0.01), w=0.8, d=0.48, h=2.0)
+    Mg = wf(M, "port", along=0.15, z=1.55)
+    D.box((0.9, 0.03, 0.5), M=Mg @ T((0, -0.015, 0)), mat="paint_gray", bevel=0.006)
+    for k in range(4):
+        K.gauge(Mg @ T((-0.33 + k * 0.22, -0.03, 0.06)), r=0.075)
+    for k in range(4):
+        E.box((0.05, 0.006, 0.02), M=Mg @ T((-0.33 + k * 0.22, -0.035, -0.15)), mat="emit_green" if k != 2 else "emit_amber", bevel=0)
+    K.stencil(Mg @ T((0, -0.03, 0.31)), "TANK PRESSURE", size=0.05)
     for z in (0.9, 1.3):
         K.valve_wheel(wf(M, "port", along=0.8, z=z))
     K.extinguisher(wf(M, "port", along=-0.6))
-    K.stencil(wf(M, front, along=0.0, z=2.6), f"ENGINE {[2, 4, 8, 10].index(i) + 1}", size=0.2)
+    # ceiling cable trays clear of the light boxes, and floor access plates
+    for sx in (1, -1):
+        K.cable_tray(M @ T((sx * 2.6, -HY + 0.9, LH)) @ RZ(90), 2 * HY - 1.4, w=0.3, n=6)
+    for k, (x, y) in enumerate(((0.9, 0.4), (-0.9, 0.4), (0.0, 1.5))):
+        K.floor_plate(M @ T((x, y, 0)), w=0.95, d=0.6, style=k % 3)
+    K.stencil(wf(M, front, along=0.0, z=2.6), f"ENGINE {n_eng}", size=0.2)
+    K.sign(wf(M, front, along=1.4, off=0.02, z=2.25), "CRYOGENIC PROPELLANT · NO NAKED FLAME", w=2.0, h=0.15)
 
 
 def spoke_landing(F, K, Mu):
@@ -1102,7 +1249,7 @@ def node_rooms(F, K, i):
     for d in (-1, 1):
         j = i if d < 0 else (i + 1) % 12
         F2 = frame_at(clock(i) + (0 if d < 0 else math.radians(30)), R_NODE)
-        side = F2 @ Vector((-d * dims(j)[0] / 2, 0, 0))
+        side = F2 @ Vector((d * dims(j)[0] / 2, 0, 0))     # frame +x points to decreasing clock angle: the near face
         a = frame_at(th, R_NODE) @ Vector((0, 0, 0))
         dv = (side - a).normalized()
         loc = Minv @ dv
@@ -1123,8 +1270,8 @@ def node_rooms(F, K, i):
         C.cyl(rn, 0.1, M=Mh @ RX(90), mat="concrete", segs=16, bevel=0)
         for k in range(8):
             D.box((0.06, 0.04, 0.06), M=Mh @ RY(22.5 + 45 * k) @ T((0, -s * 0.04, 0.8)), mat="paint_yellow", bevel=0.005)
-    slab_poly(D, C, M, rect(-1.18, -1.75, 1.18, 1.75), 0.02, 0.06, "rubber")
-    K.light_box(M @ T((0, 0, zc + rn - 0.03)), w=0.62, d=1.1, power=8.0, room=f"n{i}")
+    slab_poly(D, C, M, rect(-1.18, -1.75, 1.18, 1.75), 0.02, 0.06, "deck_grid")
+    K.light_box(M @ T((0, 0, zc + rn - 0.03)), w=0.62, d=1.1, power=11.0, room=f"n{i}")
     if i in (1, 4, 7, 10):
         D.cyl(0.62, 0.03, M=M @ T((0, 0, 0.035)), mat="metal_steel", segs=24, bevel=0.005)
         D.tube(0.7, 0.62, 0.05, M=M @ T((0, 0, 0.04)), mat="paint_yellow", segs=24, bevel=0.005)
@@ -1151,7 +1298,7 @@ def node_rooms(F, K, i):
         C.box((L + 0.2, 0.9, 0.1), M=Mt @ T((L / 2, 0, -0.97)), mat="concrete", bevel=0)
         for s in (-1, 1):
             K.rail(Mt @ T((0.1, s * 0.86, 0.1)), max(0.2, L - 0.2), standoff=0.0)
-        light(F.uid("end_l"), at=(Mt @ Vector((L / 2, 0, 0.7)))[:], color=(0.92, 0.97, 1.0), power=5.0, dist=4.5, bake=11.0, group="endurance_int", room=f"n{i}")
+        light(F.uid("end_l"), at=(Mt @ Vector((L / 2, 0, 0.7)))[:], color=(0.92, 0.97, 1.0), power=8.0, dist=5.5, bake=16.0, group="endurance_int", room=f"n{i}")
         F.E.box((min(0.6, L * 0.7), 0.12, 0.02), M=Mt @ T((L / 2, 0, 0.97)), mat="emit_white", bevel=0)
 
 
@@ -1221,6 +1368,7 @@ def hub_rooms(F, K):
     for th, label in ((0, "LANDER 1"), (180, "LANDER 2")):
         Fo = frame_at(math.radians(th), 0.0)
         D.cyl(0.92, 0.05, M=Fo @ T((0, 0, RH + 1.2)), mat="metal_steel", segs=28, bevel=0.005)
+        C.cyl(1.0, 0.12, M=Fo @ T((0, 0, RH + 1.24)), mat="concrete", segs=16, bevel=0)     # the port's closed hatch
         for k in range(10):
             D.box((0.03, 0.62, 0.03), M=Fo @ T((0, 0, RH + 1.16)) @ RZ(18 + 36 * k) @ T((0, 0.33, 0)), mat="metal_bare", bevel=0.003)
         inner_cyl(D, 0.95, RH - 0.1, RH + 1.25, Fo, "padding_light", segs=24)
@@ -1231,6 +1379,7 @@ def hub_rooms(F, K):
     inner_cyl(D, SR, RH - 0.1, RH + 4.0, Fo, "padding_gray", segs=24, cells_z=3)
     inner_cyl(C, SR, RH - 0.1, RH + 4.0, Fo, "concrete", segs=16)
     D.cyl(SR + 0.02, 0.06, M=Fo @ T((0, 0, RH + 4.0)), mat="padding_gray", segs=24, bevel=0)
+    C.cyl(SR + 0.1, 0.14, M=Fo @ T((0, 0, RH + 4.05)), mat="concrete", segs=16, bevel=0)      # alcove end wall
     for k in range(6):
         K.bag(Fo @ T((((k % 2) - 0.5) * 0.9, 0.0, RH + 0.8 + (k // 2) * 1.0)) @ RY(90), w=0.6, d=0.42, h=0.36)
     marker("nav", "hub", at=(0, 0, 0), links="hub_axial_fwd,hub_axial_aft,spoke_top")
@@ -1262,7 +1411,8 @@ def spoke_rooms(F, K):
     rc = SR - 0.14
     car.cyl(rc, 0.08, at=(0, 0, -0.04), mat="tread_plate", segs=28, bevel=0.01)
     car.tube(rc, rc - 0.06, 0.08, at=(0, 0, 2.3), mat="paint_blue", segs=28, bevel=0.01)
-    car.tube(rc, rc - 0.05, 0.05, at=(0, 0, 1.05), mat="paint_blue", segs=28, bevel=0.005)
+    arc = [(math.cos(math.radians(a)) * (rc - 0.025), math.sin(math.radians(a)) * (rc - 0.025), 1.05) for a in range(130, 411, 10)]
+    car.pipe(arc, 0.025, mat="paint_blue", segs=8)
     for k in range(6):
         a = math.radians(30 + 60 * k)
         if 50 < math.degrees(a) < 130:

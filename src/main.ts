@@ -18,6 +18,7 @@ import { PRESETS, PresetName } from './core/Settings';
 import { OrbitZone } from './world/space/OrbitZone';
 import { DockingPanel } from './ui/panels/DockingPanel';
 import * as THREE from 'three';
+import { RAPIER } from './physics/Physics';
 import { LaunchDirector } from './mission/Launch';
 import { LaunchPanel } from './ui/panels/LaunchPanel';
 import { EnduranceZone } from './world/space/EnduranceZone';
@@ -58,17 +59,21 @@ async function boot() {
   const earth = game.registerZone(new EarthZone(game, 'earth')) as EarthZone;
   const orbit = game.registerZone(new OrbitZone(game, 'orbit')) as OrbitZone;
   game.registerZone(new EnduranceZone(game, 'endurance'));
+  if (import.meta.env.DEV) Object.assign(window as any, { __THREE: THREE, __RAPIER: RAPIER });   // test scripts
 
   if (params.get('zone') === 'endurance') {
     // developer entry: Ranger 1 docked at the forward port, the commander unbuckled in its cabin (or start=hub)
     await game.gotoZone('orbit', { fade: false });
     orbit.met = 1800;
-    orbit.docking.attachNow(orbit.ranger!, orbit.endurance.port('axial_fwd')!);
     orbit.startInRanger(new THREE.Vector3(-60, 0, 0));
+    orbit.docking.attachNow(orbit.ranger!, orbit.endurance.port('axial_fwd')!);
     await game.preload('endurance');
+    game.setState('playing');
+    // settle the docked pose and the seat camera before unbuckling, as after a real docking
+    for (let k = 0; k < 30; k++) game.tick(1 / 60, k === 29);
     const f = game.services.flight;
     f.leave(true);
-    game.setState('playing');
+    await new Promise((res) => { const t = setInterval(() => { if (game.zone?.id === 'endurance') { clearInterval(t); res(null); } }, 50); });
     if (params.get('start') === 'hub') {
       const ez = game.zones.get('endurance') as EnduranceZone;
       ez.ports[0] && ez.setHatches(ez.ports[0], true);

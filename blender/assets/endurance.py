@@ -154,7 +154,7 @@ def module(P, idx, rnd):
         # forward and aft faces: big panel arrays + window cluster near the inner end
         for sy in (1, -1):
             Mf = F @ T((0, sy * (D / 2), 0)) @ RZ(180 if sy > 0 else 0)
-            arr_h = H * (0.6 if kind != "command" else 0.36)
+            arr_h = H * (0.6 if kind != "command" else 0.27)   # command: strips start above the flight-deck window band
             panel_strips(P, Mf @ T((0.45, 0.0, H / 2 - arr_h / 2 - 0.55)), W * 0.2, arr_h, 0.18, 9 if kind != "command" else 5,
                          mat="radiator_blue" if kind != "cryo" else "hull_frame")
             window_cluster(P, Mf @ T((-W * 0.3, 0.0, R_WIN_UP - rc)), 2, 3)
@@ -208,7 +208,7 @@ def node(P, idx):
     for d in (-1, 1):
         th2 = th + d * math.radians(15)
         F2 = frame_at(th2, R_NODE)
-        side = F2 @ Vector((-d * dims(idx if d < 0 else idx + 1)[0] / 2, 0, 0))
+        side = F2 @ Vector((d * dims(idx if d < 0 else idx + 1)[0] / 2, 0, 0))   # frame +x points to decreasing clock angle: the near face
         a = F @ Vector((0, 0, 0))
         v = side - a
         L = v.length
