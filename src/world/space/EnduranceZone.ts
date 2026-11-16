@@ -399,6 +399,10 @@ export class EnduranceZone extends Zone {
           ui.set({ mode: 'seat', hints: ['F  stand up'] });
         } });
     }
+    for (const c of this.int.ofKind('cryo')) {
+      this.addI({ position: (out) => c.node.getWorldPosition(out), radius: 0.6, range: 2.4, label: () => (this.orbit.mode === 'cruise' ? 'Hibernate' : String(c.data.label ?? 'Hibernation pod')),
+        use: () => this.game.openPanel('cryo') });
+    }
     for (const b of this.int.ofKind('bed')) {
       this.addI({ position: (out) => b.node.getWorldPosition(out), radius: 0.5, range: 2.4, label: () => String(b.data.label ?? 'Bunk'),
         use: () => ui.toast('Crew rest is scheduled by the mission clock (cryo and sleep cycles come with the voyage).', 'info', 4) });
@@ -497,6 +501,7 @@ export class EnduranceZone extends Zone {
     o.sky.setFog(0, 0);
     g.renderer.preRender.push(o.place);
     g.renderer.setLook({ exposure: 1.3, saturation: 1.1, contrast: 1.18, bloom: 0.5, aoIntensity: 2.0, aoRadius: 1.0 }, true);
+    o.adaptLook = false;
     g.interactions.occlusion = (or, d, max) => { const h = this.phys.raycast(or, d, max, groups(0xffff, GROUP.WORLD)); return h ? h.dist : null; };
     this.npcs.rebind();
     o.sky.invalidate();
@@ -509,6 +514,7 @@ export class EnduranceZone extends Zone {
     o.sky.setVisible(false);
     o.skyRotation = null;
     o.sky.lightRotation = null;
+    o.adaptLook = true;
     g.renderer.preRender = g.renderer.preRender.filter((f) => f !== o.place);
     g.interactions.occlusion = null;
   }
@@ -526,8 +532,8 @@ export class EnduranceZone extends Zone {
 
   override fixedUpdate(dt: number) {
     const o = this.orbit;
-    // the ship keeps flying while we are inside it
-    o.met += dt;
+    // the ship keeps flying while we are inside it (time compression and the voyage included)
+    o.advance(dt);
     o.endurance.fixedUpdate(dt);
     this.lift?.fixedUpdate(dt);
     this.npcs.fixedUpdate(dt);
@@ -583,8 +589,7 @@ export class EnduranceZone extends Zone {
     if (this.hudT <= 0) {
       this.hudT = 0.2;
       const gm = this.gravityAt(g.player.pos, _w).length();
-      const t = o.met, pad = (x: number) => String(Math.floor(x)).padStart(2, '0');
-      ui.set({ clocks: [{ label: 'MET', value: `${pad(t / 3600)}:${pad((t % 3600) / 60)}:${pad(t % 60)}` }, { label: 'SPIN', value: `${o.endurance.rpm.toFixed(2)} rpm` }, { label: 'GRAVITY', value: `${(gm / 9.81).toFixed(2)} g` }] });
+      ui.set({ clocks: [...o.missionClocks(), { label: 'SPIN', value: `${o.endurance.rpm.toFixed(2)} rpm` }, { label: 'GRAVITY', value: `${(gm / 9.81).toFixed(2)} g` }] });
       this.where = this.locate(g.player.pos);
     }
   }

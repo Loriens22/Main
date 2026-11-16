@@ -192,3 +192,26 @@ canvas.map { width: 100%; height: auto; display: block; border: 1px solid var(--
 .dockcam .cross::before { left: -6vh; right: -6vh; top: 50%; height: 1px; } .dockcam .cross::after { top: -6vh; bottom: -6vh; left: 50%; width: 1px; }
 .dockcam .ticks i { position: absolute; top: calc(50% - 6px); width: 1px; height: 12px; background: rgba(170, 255, 205, 0.4); }
 @media (max-width: 720px) { .dockhud { width: 220px; right: 8px; top: 44px; font-size: 10px; } .dock-reticle { width: 120px; height: 120px; } }
+
+/* ---- navigation console */
+.panel .progress { height: 3px; background: var(--faint); margin: 4px 0 12px; }
+.panel .progress i { display: block; height: 3px; background: var(--accent); }
+.panel .dest { display: flex; flex-direction: column; gap: 8px; max-height: 40vh; overflow-y: auto; }
+.panel .dgroup { display: flex; flex-wrap: wrap; gap: 4px; align-items: center; }
+.panel .dgroup span { width: 100%; font-size: 9.5px; letter-spacing: 0.24em; text-transform: uppercase; color: var(--dim); }
+.panel .dgroup .btn { padding: 5px 10px; font-size: 10px; letter-spacing: 0.12em; }
+.panel .plan { border: 1px solid var(--faint); padding: 10px 12px; margin-top: 10px; }
+.panel .plan > b { display: block; font-weight: 400; font-size: 11px; letter-spacing: 0.2em; text-transform: uppercase; margin-bottom: 6px; }
+.panel .plan .btn { margin-top: 8px; }
+
+/* ---- hibernation */
+.cryo { background: radial-gradient(ellipse at center, rgba(8, 14, 18, 0.55) 0%, rgba(2, 4, 6, 0.96) 70%); display: grid; place-items: center; }
+.cryo.deep { background: radial-gradient(ellipse at center, rgba(150, 200, 225, 0.10) 0%, rgba(1, 3, 5, 0.995) 60%); }
+.cryo .pod { width: min(560px, 92vw); font-family: var(--mono); color: #cfe6ee; }
+.cryo .pod h2 { font-family: var(--sans); font-weight: 200; font-size: 13px; letter-spacing: 0.5em; text-transform: uppercase; color: #9ccfe0; margin: 0 0 22px; text-align: center; }
+.cryo .pod .kv { font-size: 12.5px; padding: 5px 0; border-bottom: 1px solid rgba(160, 210, 230, 0.10); }
+.cryo .pod .kv span { color: rgba(170, 205, 220, 0.7); font-family: var(--sans); font-size: 10px; letter-spacing: 0.24em; text-transform: uppercase; }
+.cryo .pod .actions { display: flex; flex-wrap: wrap; gap: 8px; justify-content: center; margin-top: 22px; }
+.cryo .pod .bar { height: 2px; background: rgba(160, 210, 230, 0.12); margin: 18px 0 6px; }
+.cryo .pod .bar i { display: block; height: 2px; background: #9ccfe0; }
+.cryo .pod p { font-family: var(--sans); font-size: 11.5px; color: rgba(170, 205, 220, 0.65); line-height: 1.5; text-align: center; }

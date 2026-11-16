@@ -4,7 +4,7 @@ import { bus } from '../../core/events';
 import { PanelFrame } from '../App';
 import { ENDURANCE } from '../../space/Endurance';
 import { mission } from '../../mission/Mission';
-import { meanMotion, R_EARTH, PARKING_ALT } from '../../space/Earth';
+import { NavTab } from './NavPanel';
 
 const KV = ({ k, v, warn }: { k: string; v: any; warn?: boolean }) => <div class="kv"><span>{k}</span><b style={warn ? { color: 'var(--warn)' } : {}}>{v}</b></div>;
 const TABS: [string, string][] = [['rotation', 'Rotation · gravity'], ['vehicles', 'Vehicles · docking'], ['crew', 'Crew'], ['systems', 'Ship systems'], ['navigation', 'Navigation']];
@@ -117,17 +117,7 @@ export function ShipPanel({ game, close, tab: first }: { game: Game; close: () =
       </div>
     );
   } else {
-    const r = R_EARTH + PARKING_ALT, n = meanMotion(r);
-    body = (
-      <div>
-        <KV k="Orbit" v={`${(PARKING_ALT / 1000).toFixed(0)} km circular · inclination 38.7°`} />
-        <KV k="Period" v={`${(2 * Math.PI / n / 60).toFixed(1)} min`} />
-        <KV k="Orbital speed" v={`${(Math.sqrt(3.986004418e14 / r) / 1000).toFixed(2)} km/s`} />
-        <KV k="Mission elapsed time" v={`${(o.met / 3600).toFixed(2)} h`} />
-        <KV k="Mission phase" v={mission.phase.toUpperCase()} />
-        <p class="note">Departure for Saturn is planned on this console once the crew and both Rangers are aboard and the Landers are stowed.</p>
-      </div>
-    );
+    body = <NavTab game={game} />;
   }
   return <PanelFrame title="Endurance · command computer" sub="Ship systems" close={close} tabs={TABS} tab={tab} setTab={setTab}>{body}</PanelFrame>;
 }

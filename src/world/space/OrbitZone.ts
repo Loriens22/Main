@@ -28,6 +28,10 @@ import { BODY, BodyDef } from '../../space/Bodies';
 import { equatorBasis, LAUNCH_JD, state, surfacePoint } from '../../space/Ephemeris';
 import { SystemView } from '../../render/SystemView';
 import { atmosphereFor, exposureFor, irradianceAt } from '../../space/Worlds';
+import { distanceRemaining, ENDURANCE_DV, finalizeArrival, finalizeDeparture, fmtDistance, fmtDuration, ParkState, TransferPlan, voyagePosition } from '../../space/Voyage';
+import { AU, DAY, R_G, WORMHOLE_PAIR } from '../../space/Bodies';
+import { dilationAt } from '../../space/Relativity';
+import type { V3 } from '../../space/Kepler';
 
 const _v = new THREE.Vector3(), _w = new THREE.Vector3(), _s = new THREE.Vector3(), _q = new THREE.Quaternion();
 const _x = new THREE.Vector3(), _z = new THREE.Vector3(), _m4 = new THREE.Matrix4(), _c = new THREE.Color(), _c2 = new THREE.Color();
@@ -39,6 +43,9 @@ const _x = new THREE.Vector3(), _z = new THREE.Vector3(), _m4 = new THREE.Matrix
  * the sun and the stars are placed from the real geometry of the orbit plane, the Earth's rotation and the
  * season, so the terminator, sunrises and the night side come and go once per 92-minute orbit.
  */
+/** a parking orbit: its plane in body-centred inertial axes, those axes in the system frame, radius and rate */
+export interface ParkingGeometry { plane: OrbitPlane; bci: { e1: THREE.Vector3; e2: THREE.Vector3; n: THREE.Vector3 }; rE: number; n: number; phase: number }
+
 export class OrbitZone extends Zone implements OrbitContext {
   sky!: Sky;
   globe!: Globe;
@@ -63,7 +70,7 @@ export class OrbitZone extends Zone implements OrbitContext {
   phiE0 = 0;
   warp = 1;
   /** 'ascent': the frame rides with the climbing launch vehicle; 'orbit': the Endurance's LVLH frame */
-  mode: 'orbit' | 'ascent' = 'orbit';
+  mode: 'orbit' | 'ascent' | 'cruise' = 'orbit';
   stack: LaunchStack | null = null;
   sim: AscentSim | null = null;
   npcs!: NPCManager;
@@ -84,7 +91,15 @@ export class OrbitZone extends Zone implements OrbitContext {
   view!: SystemView;
   /** Julian date (Earth reference) at met = 0 */
   jd0 = LAUNCH_JD;
-  get jd() { return this.jd0 + this.met / 86400; }
+  /**
+   * Earth-reference time minus the Endurance's own (proper) time, s. Zero in the Solar System; it grows wherever
+   * the ship's clock runs slow (Gargantua's gravity), and by years after a stay on Miller's planet.
+   */
+  earthOffset = 0;
+  /** Earth-reference time since lift-off (s) */
+  get earthT() { return this.met + this.earthOffset; }
+  /** Julian date on Earth now: drives every ephemeris (coordinate time far from Gargantua) */
+  get jd() { return this.jd0 + this.earthT / 86400; }
   /** zone frame <- system (ecliptic / Gargantua) frame, for the current frame origin */
   private rotSys = new THREE.Matrix4();
   private bci = { e1: new THREE.Vector3(1, 0, 0), e2: new THREE.Vector3(0, 1, 0), n: new THREE.Vector3(0, 0, 1) };
@@ -94,7 +109,7 @@ export class OrbitZone extends Zone implements OrbitContext {
     gravity: (_p, out) => out.set(0, 0, 0),
     density: () => 0,
     altitude: (p) => this.rE - this.body.R + p.y,
-    accel: (p, v, out) => cwAccel(p, v, this.n, out),
+    accel: (p, v, out) => (this.mode === 'cruise' ? out.set(0, 0, 0) : cwAccel(p, v, this.n, out)),
   };
 
   setWarp(w: number) { this.warp = w; }
@@ -154,42 +169,283 @@ export class OrbitZone extends Zone implements OrbitContext {
     if (phiE0 !== undefined) this.phiE0 = phiE0;
   }
 
+  // ------------------------------------------------------------------------------------------- voyages
+  /** velocity change spent by the Endurance's drive since its tanks were last full (m/s) */
+  dvUsed = 0;
+  /** the transfer being flown, and time since its departure burn (s) */
+  voyage: TransferPlan | null = null;
+  voyageT = 0;
+  private cruiseShip: V3 = [0, 0, 0];
+  private cruiseAxes = { X: new THREE.Vector3(1, 0, 0), Y: new THREE.Vector3(0, 1, 0), Z: new THREE.Vector3(0, 0, 1) };
+  /** largest time compression offered in cruise (one day per second) */
+  static readonly MAX_WARP = 86400;
+
+  /** Advance mission time by dt real seconds (time compression applies in orbit and in cruise). */
+  advance(dt: number) {
+    if (this.mode === 'ascent') return;
+    const step = dt * this.warp;
+    this.met += step;
+    if (this.pending && this.met >= this.pending.burnMet) { this.earthOffset += step * (this.dilation() - 1); this.startCruise(this.met - this.pending.burnMet); return; }
+    this.earthOffset += step * (this.dilation() - 1);
+    this.lookT -= dt;
+    if (this.mode === 'cruise' && this.adaptLook && this.lookT <= 0) { this.lookT = 0.5; this.game.renderer.setLook({ exposure: this.exposure() }); }
+    if (this.mode === 'cruise' && this.voyage) {
+      this.voyageT += step;
+      if (this.voyageT >= this.voyage.tof) this.arriveVoyage();
+    }
+  }
+
+  /** Jump the voyage forward (cryo-sleep): everything is propagated analytically to the new time. */
+  skipTo(t: number) {
+    if (this.mode !== 'cruise' || !this.voyage) return;
+    const dt = Math.max(0, Math.min(t, this.voyage.tof) - this.voyageT);
+    // the clocks run at the mean rate along the leg (the dilation changes slowly with distance from Gargantua)
+    const d0 = this.dilation();
+    this.voyageT += dt / 2;
+    const d1 = this.dilation();
+    this.voyageT += dt / 2;
+    const d2 = this.dilation();
+    this.met += dt;
+    this.earthOffset += dt * ((d0 + 4 * d1 + d2) / 6 - 1);
+    if (this.voyageT >= this.voyage.tof - 1e-3) this.arriveVoyage();
+  }
+
+  /** a scheduled departure: the burn waits for the right point of the parking orbit */
+  pending: { plan: TransferPlan; burnMet: number; geomArr: ParkingGeometry | null } | null = null;
+  private geomArr: ParkingGeometry | null = null;
+
+  /**
+   * Schedule a planned transfer: the burn point on the parking orbit, the escape and capture legs and their true
+   * costs. The ship coasts to the burn point under time compression and then burns. Both Rangers must be docked.
+   */
+  departVoyage(plan: TransferPlan): string | null {
+    if (this.mode !== 'orbit') return 'The Endurance is not in a parking orbit.';
+    for (const c of [this.ranger, this.ranger2]) if (c && !this.docking.isDocked(c)) return `${c === this.ranger ? 'Ranger 1' : 'Ranger 2'} is not docked.`;
+    if (Math.abs(plan.jdDepart - this.jd) > 0.5) return 'The plan is out of date: the planets have moved. Recompute it.';
+    const { plan: p, geomArr: ga } = this.prepareVoyage(plan);
+    const need = p.dvDepart + p.dvArrive, left = ENDURANCE_DV - this.dvUsed;
+    if (need > left && !this.game.settings.creative.unlimitedResources) return `Not enough propellant: the transfer needs ${(need / 1000).toFixed(1)} km/s and ${(left / 1000).toFixed(1)} km/s remain.`;
+    const wait = p.wait ?? 0;
+    this.pending = { plan: p, burnMet: this.met + wait, geomArr: ga };
+    if (wait > 1) {
+      // coast to the burn point: about eight seconds of compressed time
+      this.warp = Math.max(1, Math.min(1000, Math.round(wait / 8)));
+      mission.note(`Departure for ${BODY[p.to].name} scheduled: burn in ${fmtDuration(wait)} at the right point of the orbit, ${(p.dvDepart / 1000).toFixed(2)} km/s.`);
+    } else this.startCruise(0);
+    return null;
+  }
+
+  /** The transfer as it will be flown from this orbit: burn point, escape and capture legs, true costs. */
+  prepareVoyage(plan: TransferPlan): { plan: TransferPlan; geomArr: ParkingGeometry | null } {
+    const g = this.currentGeometry(), jd = this.jd;
+    const period = this.n > 0 ? (2 * Math.PI) / this.n : Infinity;
+    let p = finalizeDeparture(plan, jd, (t) => this.parkState(g, this.phiE + this.n * t), period);
+    const ga = BODY[p.to].kind === 'wormhole' || BODY[p.to].GM > 0 ? this.parkingGeometry(p.to, p.jdDepart + p.tof / DAY) : null;
+    if (ga) p = finalizeArrival(p, (phi) => this.parkState(ga, phi), ga.phase);
+    return { plan: p, geomArr: ga };
+  }
+
+  cancelDeparture() {
+    if (!this.pending) return;
+    this.pending = null;
+    this.warp = 1;
+    mission.note('Scheduled departure cancelled.');
+  }
+
+  /** The departure burn: the ship leaves its parking orbit on the escape leg of the transfer. */
+  private startCruise(late: number) {
+    const pd = this.pending!;
+    this.pending = null;
+    const plan = pd.plan;
+    this.geomArr = pd.geomArr;
+    this.dvUsed += plan.dvDepart;
+    this.voyage = plan;
+    this.voyageT = late;
+    this.mode = 'cruise';
+    this.warp = 1;
+    this.sky.dome.visible = false;
+    this.view.exclude.clear();
+    this.view.noShell.clear();
+    this.globe.mesh.removeFromParent();
+    this.sky.setParams(atmosphereFor({ ...BODY[plan.from], atmosphere: undefined } as BodyDef, this.jd));
+    bus.emit('sfx', { id: 'blast', node: this.endurance.root, gain: 0.6 });
+    this.game.renderer.shake = 0.004;
+    setTimeout(() => { this.game.renderer.shake = 0; }, 6000);
+    mission.note(`Departure burn: ${(plan.dvDepart / 1000).toFixed(2)} km/s. Course laid in for ${BODY[plan.to].name}, arrival in ${fmtDuration(plan.tof)}.`);
+    mission.setPhase('transit');
+    bus.emit('voyage:depart', plan);
+    ui.toast(`Departure burn · ${BODY[plan.to].name}`, 'info', 4);
+  }
+
+  /** End of the arc: capture burn into the target's parking orbit (or station-keeping at the wormhole). */
+  arriveVoyage() {
+    const plan = this.voyage;
+    if (!plan) return;
+    this.voyage = null;
+    this.mode = 'orbit';
+    this.warp = 1;
+    this.dvUsed += plan.dvArrive;
+    this.setBody(plan.to, { phase: plan.arrPhase, geom: this.geomArr ?? undefined });
+    this.geomArr = null;
+    if (this.game.settings.creative.autoRefuel && this.dvUsed > 0) {
+      this.dvUsed = 0;
+      mission.note('Creative Mode: the Endurance\'s propellant is topped up on arrival.');
+    }
+    if (this.game.zone === this) this.game.renderer.setLook({ exposure: this.exposure() });
+    mission.note(`Arrived at ${BODY[plan.to].name}${plan.dvArrive > 0 ? `: capture burn ${(plan.dvArrive / 1000).toFixed(2)} km/s` : ''}.`);
+    if (BODY[plan.to].kind === 'wormhole') mission.setPhase('saturn');
+    bus.emit('voyage:arrive', plan);
+    ui.toast(`Arrived · ${BODY[plan.to].name}`, 'info', 5);
+  }
+
+  /** Through the wormhole: the ship comes out at the other mouth (the traversal itself is played by the director). */
+  traverseWormhole() {
+    const other = WORMHOLE_PAIR[this.body.id];
+    if (!other) return;
+    this.setBody(other);
+    mission.setPhase(other === 'gate' ? 'gargantua' : 'saturn');
+  }
+
+  /** Cruise: frame along the velocity, the whole system placed from the ship's true position. */
+  private updateSkyCruise() {
+    const plan = this.voyage!;
+    const p = voyagePosition(plan, this.voyageT);
+    let r: V3, v: V3;
+    if (p) { r = p.r; v = p.v; } else {
+      // slingshot legs beyond the wormhole: a smooth arc between the two orbits (fiction, see Voyage.ts)
+      const f = Math.min(1, this.voyageT / plan.tof), e = f * f * (3 - 2 * f);
+      const a = state(plan.from, plan.jdDepart).r, b = state(plan.to, plan.jdDepart + plan.tof / DAY).r;
+      r = [a[0] + (b[0] - a[0]) * e, a[1] + (b[1] - a[1]) * e, a[2] + (b[2] - a[2]) * e];
+      v = [b[0] - a[0], b[1] - a[1], b[2] - a[2]];
+    }
+    this.cruiseShip = r;
+    const X = this.cruiseAxes.X.set(v[0], v[1], v[2]).normalize();
+    const north = new THREE.Vector3(0, 0, 1);
+    const Y = this.cruiseAxes.Y.copy(north).addScaledVector(X, -north.dot(X));
+    if (Y.lengthSq() < 1e-8) Y.set(0, 1, 0);
+    Y.normalize();
+    this.cruiseAxes.Z.crossVectors(X, Y);
+    const Z = this.cruiseAxes.Z;
+    this.rotSys.set(X.x, X.y, X.z, 0, Y.x, Y.y, Y.z, 0, Z.x, Z.y, Z.z, 0, 0, 0, 0, 1);
+    if (this.skyRotation) this.rotSys.premultiply(new THREE.Matrix4().makeRotationFromQuaternion(this.skyRotation));
+    const sun = _s.set(-r[0], -r[1], -r[2]).normalize().applyMatrix4(_m4.extractRotation(this.rotSys));
+    this.sunLocal.copy(sun);
+    this.sunView.copy(sun);
+    this.sky.lightRotation = null;
+    this.sky.setSunDirection(sun);
+    this.sky.params.sunE = 20 * this.irradiance();
+    this.earthCentre.set(0, -1e12, 0);
+    this.orientStars();
+  }
+
   /** exposure for the local sunlight (Saturn: 1/90 of the Earth's) */
-  exposure() { return this.body.id === 'earth' ? 0.95 : exposureFor(irradianceAt(this.body.id, this.jd)); }
+  exposure() { return this.body.id === 'earth' && this.mode !== 'cruise' ? 0.95 : exposureFor(this.irradiance()); }
+
+  /** sunlight here relative to 1 au (the ship's true position in cruise) */
+  irradiance() {
+    if (this.mode === 'cruise' && this.voyage) {
+      const to = BODY[this.voyage.to];
+      if (to.system !== 'sol') return to.insolation ?? 0.3;
+      const r = this.cruiseShip;
+      const d = Math.hypot(r[0], r[1], r[2]);
+      return d > 0 ? (AU / d) ** 2 : 1;
+    }
+    return this.body.id === 'earth' ? 1 : irradianceAt(this.body.id, this.jd);
+  }
+
+  /** eye adaptation follows the sunlight (off inside the ship, where the cabin lights set it) */
+  adaptLook = true;
+  private lookT = 0;
+
+  /**
+   * Coordinate (Earth-reference) seconds per second of the Endurance's clock where it is. Far from Gargantua the
+   * weak-field value 1/sqrt(1 - 3M/r) at the navigation radius; Miller's near-horizon factor applies on the planet
+   * itself (see the surface zone and docs/SPACE.md).
+   */
+  dilation() {
+    const v = this.voyage;
+    const inG = (id: string) => BODY[id].system === 'gargantua';
+    const rOf = (id: string) => (BODY[id].orbit?.a ?? 300 * R_G) / R_G;
+    if (this.mode === 'cruise' && v) {
+      if (!inG(v.to) || !inG(v.from)) return 1;
+      const f = Math.min(1, this.voyageT / v.tof);
+      return dilationAt({ rOverM: rOf(v.from) + (rOf(v.to) - rOf(v.from)) * f });
+    }
+    return inG(this.body.id) ? dilationAt({ rOverM: rOf(this.body.id) }) : 1;
+  }
+
+  /** the HUD clocks shared by every zone aboard (the bridge displays read the same values) */
+  missionClocks(): { label: string; value: string }[] {
+    const out = [{ label: 'MET', value: fmtClock(this.met) }];
+    if (Math.abs(this.earthOffset) > 60) out.push({ label: 'EARTH', value: fmtClock(this.earthT) });
+    if (this.mode === 'cruise' && this.voyage) {
+      out.push({ label: 'ETA', value: fmtDuration(Math.max(0, this.voyage.tof - this.voyageT)) });
+      out.push({ label: 'TO GO', value: fmtDistance(distanceRemaining(this.voyage, this.voyageT)) });
+    }
+    if (this.warp > 1) out.push({ label: 'TIME', value: `×${this.warp}` });
+    return out;
+  }
+
+  /**
+   * The parking orbit setBody lays out round a body at a date: over the landing site (the plane through the site
+   * and its local east, so the inclination equals the site's latitude), else a 22 deg orbit starting on the
+   * morning side. Pure: used to plan an arrival before the ship gets there.
+   */
+  parkingGeometry(id: string, jd: number): ParkingGeometry {
+    const b = BODY[id];
+    const rE = b.R + b.parkingAlt, n = b.GM > 0 ? Math.sqrt(b.GM / rE ** 3) : 0;
+    const { e1, e2, n: nn } = equatorBasis(id);
+    const bci = { e1: new THREE.Vector3(...e1), e2: new THREE.Vector3(...e2), n: new THREE.Vector3(...nn) };
+    const toB = (v: THREE.Vector3) => new THREE.Vector3(v.dot(bci.e1), v.dot(bci.e2), v.dot(bci.n));
+    if (id === 'earth') return { plane: new OrbitPlane(LAUNCH_SITE.lat, LAUNCH_SITE.lon, this.theta0), bci, rE, n, phase: 0 };
+    if (b.landing) {
+      const site = surfacePoint(id, b.landing.lat, b.landing.lon, jd);
+      const sv = new THREE.Vector3(site[0], site[1], site[2]).normalize();
+      const east = new THREE.Vector3().crossVectors(bci.n, sv).normalize();
+      return { plane: OrbitPlane.fromVectors(toB(sv), toB(east)), bci, rE, n, phase: -0.35 };
+    }
+    const bp = state(id, jd).r;
+    const sun = toB(new THREE.Vector3(-bp[0], -bp[1], -bp[2]).normalize());
+    const pole = new THREE.Vector3(0, 0, 1);
+    const P = sun.addScaledVector(pole, -sun.dot(pole)).normalize().applyAxisAngle(pole, -0.6);
+    const inc = (22 * Math.PI) / 180;
+    const E = new THREE.Vector3().crossVectors(pole, P).multiplyScalar(Math.cos(inc)).addScaledVector(pole, Math.sin(inc));
+    // start ~70 deg past the node: about 20 deg above the equator (ring) plane, still in daylight
+    return { plane: OrbitPlane.fromVectors(P, E), bci, rE, n, phase: 1.2 };
+  }
+
+  /** State on a parking orbit at in-plane angle phi, relative to the body, in the system frame. */
+  parkState(g: ParkingGeometry, phi: number): ParkState {
+    const p = g.plane.eci(g.rE, phi, new THREE.Vector3());
+    const v = g.plane.eci(g.n * g.rE, phi + Math.PI / 2, new THREE.Vector3());
+    const B = g.bci;
+    const sys = (x: THREE.Vector3): V3 => [x.x * B.e1.x + x.y * B.e2.x + x.z * B.n.x, x.x * B.e1.y + x.y * B.e2.y + x.z * B.n.y, x.x * B.e1.z + x.y * B.e2.z + x.z * B.n.z];
+    return { r: sys(p), v: sys(v) };
+  }
+
+  /** the orbit the ship is in now */
+  currentGeometry(): ParkingGeometry {
+    const { e1, e2, n: nn } = equatorBasis(this.body.id);
+    const bci = this.body.id === 'earth' ? { e1: new THREE.Vector3(...e1), e2: new THREE.Vector3(...e2), n: new THREE.Vector3(...nn) } : { e1: this.bci.e1.clone(), e2: this.bci.e2.clone(), n: this.bci.n.clone() };
+    return { plane: this.plane, bci, rE: this.rE, n: this.n, phase: this.phiE };
+  }
 
   /**
    * Put the Endurance in its parking orbit around a body. For a world with a landing site the orbit plane is laid
    * over the site (the plane through the site and its local east, so the inclination equals the site's latitude);
    * otherwise it is equatorial. The ship starts a little behind the point over the site.
    */
-  setBody(id: string, opts: { phase?: number } = {}) {
+  setBody(id: string, opts: { phase?: number; geom?: ParkingGeometry } = {}) {
     const b = BODY[id];
     this.body = b;
     this.rE = b.R + b.parkingAlt;
     this.n = Math.sqrt(b.GM / (this.rE ** 3));
     if (id === 'earth') { this.setLaunch(this.day, this.hours); }
     else {
-      const { e1, e2, n } = equatorBasis(id);
-      this.bci.e1.set(...e1); this.bci.e2.set(...e2); this.bci.n.set(...n);
-      const jd = this.jd;
-      if (b.landing) {
-        const site = surfacePoint(id, b.landing.lat, b.landing.lon, jd);
-        const sv = new THREE.Vector3(site[0], site[1], site[2]).normalize();
-        const east = new THREE.Vector3().crossVectors(this.bci.n, sv).normalize();
-        this.plane = OrbitPlane.fromVectors(this.toBci(sv, new THREE.Vector3()), this.toBci(east, new THREE.Vector3()));
-        this.phiE0 = (opts.phase ?? -0.35) - this.n * this.met;
-      } else {
-        // no site to pass over: a 22 deg orbit (rings seen open) that starts on the morning side, in sunlight
-        const bp = state(id, jd).r;
-        const sun = this.toBci(new THREE.Vector3(-bp[0], -bp[1], -bp[2]).normalize(), new THREE.Vector3());
-        const pole = new THREE.Vector3(0, 0, 1);
-        const P = sun.addScaledVector(pole, -sun.dot(pole)).normalize().applyAxisAngle(pole, -0.6);
-        const inc = (22 * Math.PI) / 180;
-        const E = new THREE.Vector3().crossVectors(pole, P).multiplyScalar(Math.cos(inc)).addScaledVector(pole, Math.sin(inc));
-        this.plane = OrbitPlane.fromVectors(P, E);
-        // start ~70 deg past the node: about 20 deg above the equator (ring) plane, still in daylight
-        this.phiE0 = (opts.phase ?? 1.2) - this.n * this.met;
-      }
+      const g = opts.geom ?? this.parkingGeometry(id, this.jd);
+      this.bci.e1.copy(g.bci.e1); this.bci.e2.copy(g.bci.e2); this.bci.n.copy(g.bci.n);
+      this.plane = g.plane;
+      this.phiE0 = (opts.phase ?? g.phase) - this.n * this.met;
     }
     if (this.view.system !== b.system) {
       this.view.dispose();
@@ -304,7 +560,7 @@ export class OrbitZone extends Zone implements OrbitContext {
 
   // ------------------------------------------------------------------------------------------- simulation
   override fixedUpdate(dt: number) {
-    if (this.mode === 'orbit') this.met += dt * this.warp;
+    this.advance(dt);
     this.endurance.fixedUpdate(dt);
     this.npcs.fixedUpdate(dt);
     this.docking.fixedUpdate(dt);
@@ -320,6 +576,7 @@ export class OrbitZone extends Zone implements OrbitContext {
 
   /** Earth, sun and stars for the current time, in the zone frame. Runs every frame before drawing. */
   updateSky() {
+    if (this.mode === 'cruise') { this.updateSkyCruise(); return; }
     if (this.mode === 'orbit') { this.originR = this.rE; this.originPhi = this.phiE; }
     this.plane.frame(this.originPhi, this.frame);
     this.updateRot();
@@ -388,18 +645,25 @@ export class OrbitZone extends Zone implements OrbitContext {
     const B = this.bci, F = this.frame;
     const local = _w.copy(_v);
     if (this.skyRotation) local.applyQuaternion(_q.copy(this.skyRotation).invert());
-    const o = this.plane.eci(this.originR, this.originPhi, _s).add(F.toEci(local, new THREE.Vector3()));
-    const bp = state(this.body.id, this.jd).r;
-    this.camSys[0] = bp[0] + o.x * B.e1.x + o.y * B.e2.x + o.z * B.n.x;
-    this.camSys[1] = bp[1] + o.x * B.e1.y + o.y * B.e2.y + o.z * B.n.y;
-    this.camSys[2] = bp[2] + o.x * B.e1.z + o.y * B.e2.z + o.z * B.n.z;
+    if (this.mode === 'cruise') {
+      const S = this.cruiseShip, C = this.cruiseAxes;
+      this.camSys[0] = S[0] + C.X.x * local.x + C.Y.x * local.y + C.Z.x * local.z;
+      this.camSys[1] = S[1] + C.X.y * local.x + C.Y.y * local.y + C.Z.y * local.z;
+      this.camSys[2] = S[2] + C.X.z * local.x + C.Y.z * local.y + C.Z.z * local.z;
+    } else {
+      const o = this.plane.eci(this.originR, this.originPhi, _s).add(F.toEci(local, new THREE.Vector3()));
+      const bp = state(this.body.id, this.jd).r;
+      this.camSys[0] = bp[0] + o.x * B.e1.x + o.y * B.e2.x + o.z * B.n.x;
+      this.camSys[1] = bp[1] + o.x * B.e1.y + o.y * B.e2.y + o.z * B.n.y;
+      this.camSys[2] = bp[2] + o.x * B.e1.z + o.y * B.e2.z + o.z * B.n.z;
+    }
     this.view.update(this.jd, this.camSys, this.rotSys, this.game.renderer.height / ((cam.fov * Math.PI) / 180));
     this.globe.mesh.position.copy(this.earthCentre).sub(_v);
     // eye adaptation: stars fade when the sunlit Earth or the sun fills the view
     const look = cam.getWorldDirection(_w);
     const toEarth = _s.copy(this.earthCentre).sub(_v).normalize();
     const earthIn = clamp((look.dot(toEarth) - 0.2) / 0.6, 0, 1);
-    const irr = this.body.id === 'earth' ? 1 : irradianceAt(this.body.id, this.jd);
+    const irr = this.irradiance();
     const sunUp = this.sky.sunColor.r > 0.05 * Math.min(1, irr) ? 1 : 0;
     const sunIn = clamp((look.dot(this.sunView) - 0.6) / 0.4, 0, 1) * sunUp;
     const day = sunUp * (0.35 + 0.65 * earthIn) + sunIn;
@@ -428,12 +692,11 @@ export class OrbitZone extends Zone implements OrbitContext {
   }
 
   private clocks() {
-    const t = this.met;
-    const hh = Math.floor(t / 3600), mm = Math.floor((t % 3600) / 60), ss = Math.floor(t % 60);
-    const pad = (x: number) => String(x).padStart(2, '0');
-    const orbitFrac = ((this.phiE % (2 * Math.PI)) + 2 * Math.PI) % (2 * Math.PI) / (2 * Math.PI);
-    const clocks = [{ label: 'MET', value: `${pad(hh)}:${pad(mm)}:${pad(ss)}` }, { label: 'ORBIT', value: `${(orbitFrac * 100).toFixed(0)}%` }];
-    if (this.warp > 1) clocks.push({ label: 'TIME', value: `×${this.warp}` });
+    const clocks = this.missionClocks();
+    if (this.mode === 'orbit' && this.n > 0) {
+      const orbitFrac = ((this.phiE % (2 * Math.PI)) + 2 * Math.PI) % (2 * Math.PI) / (2 * Math.PI);
+      clocks.splice(1, 0, { label: 'ORBIT', value: `${(orbitFrac * 100).toFixed(0)}%` });
+    }
     ui.set({ clocks });
   }
 
@@ -641,6 +904,10 @@ export class OrbitZone extends Zone implements OrbitContext {
   }
 
   override locationName() {
+    if (this.mode === 'cruise' && this.voyage) {
+      const r = this.cruiseShip, inSol = BODY[this.voyage.to].system === 'sol';
+      return `Cruise to ${BODY[this.voyage.to].name}${inSol ? ` · ${(Math.hypot(r[0], r[1], r[2]) / AU).toFixed(2)} au from the Sun` : ''}`;
+    }
     if (this.mode === 'ascent' && this.sim) return `Ascent · ${(this.sim.h / 1000).toFixed(0)} km · ${(this.sim.downrange / 1000).toFixed(0)} km downrange`;
     const c = this.ranger;
     if (c && this.docking.isDocked(c)) return 'Ranger 1 · docked to Endurance';
@@ -650,8 +917,18 @@ export class OrbitZone extends Zone implements OrbitContext {
   }
 
   override serialize() {
-    return { met: this.met, day: this.day, hours: this.hours, phiE0: this.phiE0, endurance: this.endurance.serialize(), ranger: this.ranger?.serialize(), docked: this.ranger ? this.docking.isDocked(this.ranger) : false };
+    return { met: this.met, earthOffset: this.earthOffset, dvUsed: this.dvUsed, body: this.body.id, voyage: this.voyage, voyageT: this.voyageT, day: this.day, hours: this.hours, phiE0: this.phiE0, endurance: this.endurance.serialize(), ranger: this.ranger?.serialize(), docked: this.ranger ? this.docking.isDocked(this.ranger) : false };
   }
 }
 
 void D2R; void cwPropagate; void _q;
+
+/** elapsed time as days and hours:minutes:seconds (years once they pass) */
+export function fmtClock(t: number) {
+  const pad = (x: number) => String(Math.floor(x)).padStart(2, '0');
+  const y = Math.floor(t / (365.25 * 86400));
+  const d = Math.floor((t - y * 365.25 * 86400) / 86400);
+  const s = t - y * 365.25 * 86400 - d * 86400;
+  const hms = `${pad(s / 3600)}:${pad((s % 3600) / 60)}:${pad(s % 60)}`;
+  return y > 0 ? `${y}y ${d}d ${hms}` : d > 0 ? `${d}d ${hms}` : hms;
+}

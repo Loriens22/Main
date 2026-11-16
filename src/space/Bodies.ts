@@ -153,7 +153,8 @@ export const BODIES: BodyDef[] = [
   { id: 'triton', name: 'Triton', kind: 'rocky', system: 'sol', parent: 'neptune', R: 1353.4 * km, GM: 1.4276e12, rotation: 0, pole: [299.36, 41.17], orbit: { a: 354759 * km, period: -5.876854 * DAY, inc: 157, phase: 100 }, maps: 'triton', parkingAlt: 80 * km, blurb: 'Retrograde captured moon with nitrogen geysers.' },
 
   // ---------------------------------------------------------------- beyond the wormhole (fiction, see header)
-  { id: 'wormhole', name: 'Wormhole', kind: 'wormhole', system: 'sol', parent: 'saturn', R: 1000, GM: 0, rotation: 0, pole: [40.589, 83.537], orbit: { a: 1.45e9, period: 0, phase: 30 }, maps: null, parkingAlt: 0, blurb: 'A sphere two kilometres across, in Saturn orbit. The far side shows another galaxy.' },
+  { id: 'wormhole', name: 'Wormhole', kind: 'wormhole', system: 'sol', parent: 'saturn', R: 1000, GM: 0, rotation: 0, pole: [40.589, 83.537], orbit: { a: 1.45e9, period: 0, phase: 30 }, maps: null, parkingAlt: 24000, blurb: 'A sphere two kilometres across, in Saturn orbit. The far side shows another galaxy.' },
+  { id: 'gate', name: 'Wormhole · far side', kind: 'wormhole', system: 'gargantua', parent: 'gargantua', R: 1000, GM: 0, rotation: 0, pole: [0, 90], orbit: { a: 300 * R_G, period: 0, phase: 75 }, maps: null, parkingAlt: 24000, insolation: 0.15, blurb: 'Where the wormhole opens beyond Saturn: Gargantua fills the sky ahead.' },
   { id: 'gargantua', name: 'Gargantua', kind: 'blackhole', system: 'gargantua', parent: null, R: R_G, GM: GM_GARGANTUA, rotation: 0, pole: [0, 90], maps: null, parkingAlt: 0, blurb: 'Rotating supermassive black hole, 100 million solar masses, spinning within a hair of the maximum.' },
   {
     id: 'miller', name: "Miller's planet", kind: 'rocky', system: 'gargantua', parent: 'gargantua', R: 6700 * km, GM: 5.72e14, rotation: 0, pole: [0, 90], orbit: { a: 12 * R_G, period: 0, phase: 0 },
@@ -190,6 +191,8 @@ for (const b of BODIES) {
 /** Bodies the navigation computer offers. */
 export const SOL_DESTINATIONS = ['mercury', 'venus', 'earth', 'moon', 'mars', 'jupiter', 'europa', 'saturn', 'titan', 'uranus', 'neptune'];
 export const LAZARUS_DESTINATIONS = ['wormhole', 'miller', 'mann', 'edmunds'];
+/** the wormhole's two mouths */
+export const WORMHOLE_PAIR: Record<string, string> = { wormhole: 'gate', gate: 'wormhole' };
 
 /** Sphere of influence radius of a body about its parent (Laplace). */
 export function soiRadius(b: BodyDef): number {

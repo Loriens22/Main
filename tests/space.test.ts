@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import { AU, BODY, soiRadius, surfaceGravity } from '../src/space/Bodies';
 import { calendarDate, J2000, julianDate, LAUNCH_JD, pole, position, state, surfacePoint } from '../src/space/Ephemeris';
-import { elementsToState, lambert, norm, propagate, stateToElements, sub, V3 } from '../src/space/Kepler';
+import { add, elementsToState, lambert, norm, propagate, stateToElements, sub, V3 } from '../src/space/Kepler';
 import { kerrCircularDilation, MILLER_DILATION, MILLER_R, dilationAt } from '../src/space/Relativity';
 
 const MU_SUN = BODY.sun.GM;
@@ -90,5 +90,90 @@ describe('relativity', () => {
     expect(dilationAt('earth')).toBe(1);
     // far away the weak-field value takes over
     expect(dilationAt({ rOverM: 1e4 })).toBeCloseTo(1.00015, 5);
+  });
+});
+
+describe('voyage planning', () => {
+  it('plans Earth to Mars and Earth to Saturn with sensible costs and times', async () => {
+    const { planVoyage, voyagePosition, ENDURANCE_DV } = await import('../src/space/Voyage');
+    const mars = planVoyage('earth', 'mars', LAUNCH_JD);
+    expect(mars.length).toBeGreaterThan(0);
+    const eco = mars.find((p) => p.kind === 'economy')!;
+    // Hohmann-like: ~0.7 years and ~5.6 km/s from LEO to low Mars orbit (the date matters, allow a range)
+    expect(eco.tof / 86400).toBeGreaterThan(120);
+    expect(eco.tof / 86400).toBeLessThan(400);
+    expect(eco.dvDepart + eco.dvArrive).toBeLessThan(15000);
+    const sat = planVoyage('earth', 'saturn', LAUNCH_JD);
+    const fast = sat.find((p) => p.kind === 'fast');
+    expect(fast).toBeDefined();
+    expect(fast!.tof / 86400 / 365.25).toBeLessThan(2.1);
+    expect(fast!.dvDepart + fast!.dvArrive).toBeLessThan(ENDURANCE_DV);
+    // the arc arrives where Saturn will be
+    const end = voyagePosition(fast!, fast!.tof)!;
+    const tgt = state('saturn', LAUNCH_JD + fast!.tof / 86400).r;
+    expect(norm(sub(end.r, tgt)) / AU).toBeLessThan(1e-4);
+    // a moon transfer is computed about its planet
+    const moon = planVoyage('earth', 'moon', LAUNCH_JD);
+    expect(moon[0].center).toBe('earth');
+    expect(moon[moon.length - 1].tof / 86400).toBeLessThan(8);
+  });
+});
+
+describe('flown path', () => {
+  // a circular parking orbit about a body, inclined i to the ecliptic, as a function of the in-plane angle
+  const circle = (id: string, alt: number, inc: number) => {
+    const b = BODY[id], r = b.R + alt, n = Math.sqrt(b.GM / r ** 3);
+    const at = (phi: number) => ({
+      r: [r * Math.cos(phi), r * Math.sin(phi) * Math.cos(inc), r * Math.sin(phi) * Math.sin(inc)] as V3,
+      v: [-r * n * Math.sin(phi), r * n * Math.cos(phi) * Math.cos(inc), r * n * Math.cos(phi) * Math.sin(inc)] as V3,
+    });
+    return { at, n, period: (2 * Math.PI) / n };
+  };
+
+  it('Earth to Mars: leaves from the parking orbit, never jumps, ends in the Mars parking orbit', async () => {
+    const V = await import('../src/space/Voyage');
+    const plan = V.planVoyage('earth', 'mars', LAUNCH_JD).find((p) => p.kind === 'economy')!;
+    const E = circle('earth', 400e3, 0.5), M = circle('mars', 400e3, 0.3);
+    let p = V.finalizeDeparture(plan, LAUNCH_JD, (t) => E.at(0.3 + E.n * t), E.period);
+    expect(p.wait!).toBeGreaterThanOrEqual(0);
+    expect(p.wait!).toBeLessThanOrEqual(E.period + 60);
+    p = V.finalizeArrival(p, M.at, 0);
+    // starts exactly at the burn point of the parking orbit
+    const start = V.voyagePoint(p, 0);
+    const burn = add(position('earth', p.jdDepart), E.at(0.3 + E.n * p.wait!).r);
+    expect(norm(sub(start, burn))).toBeLessThan(1);
+    // ends exactly at the capture point of the Mars parking orbit
+    const end = V.voyagePoint(p, p.tof);
+    const cap = add(position('mars', p.jdDepart + p.tof / 86400), M.at(p.arrPhase!).r);
+    expect(norm(sub(end, cap))).toBeLessThan(1);
+    // continuity: no step faster than 60 km/s over the whole leg, sampled densely near both ends
+    const ts: number[] = [];
+    for (let k = 0; k <= 400; k++) ts.push(p.tof * (k / 400) ** 3);
+    for (let k = 0; k <= 400; k++) ts.push(p.tof * (1 - (k / 400) ** 3));
+    ts.sort((a, b) => a - b);
+    let worst = 0;
+    for (let k = 1; k < ts.length; k++) {
+      const dt = ts[k] - ts[k - 1];
+      if (dt < 1) continue;
+      worst = Math.max(worst, norm(sub(V.voyagePoint(p, ts[k]), V.voyagePoint(p, ts[k - 1]))) / dt);
+    }
+    expect(worst).toBeLessThan(60e3);
+    // the burns cost no less than the coplanar ideal
+    expect(p.dvDepart).toBeGreaterThanOrEqual(plan.dvDepart * 0.98);
+  });
+
+  it('Saturn to the wormhole: a short transfer that comes to rest at the standoff point', async () => {
+    const V = await import('../src/space/Voyage');
+    const plans = V.planVoyage('saturn', 'wormhole', LAUNCH_JD);
+    expect(plans.length).toBe(1);
+    const S = circle('saturn', BODY.saturn.parkingAlt, 0.4);
+    let p = V.finalizeDeparture(plans[0], LAUNCH_JD, (t) => S.at(S.n * t), S.period);
+    const stand = (phi: number) => ({ r: [25e3 * Math.cos(phi), 25e3 * Math.sin(phi), 0] as V3, v: [0, 0, 0] as V3 });
+    p = V.finalizeArrival(p, stand, 0);
+    const end = V.voyagePoint(p, p.tof);
+    expect(norm(sub(end, add(position('wormhole', p.jdDepart + p.tof / 86400), stand(p.arrPhase!).r)))).toBeLessThan(1);
+    const late = V.voyagePosition(p, p.tof - 1);
+    const wv = state('wormhole', p.jdDepart + p.tof / 86400).v;
+    expect(norm(sub(late.v, wv))).toBeLessThan(20);   // braked to rest relative to the wormhole
   });
 });

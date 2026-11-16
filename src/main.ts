@@ -25,6 +25,7 @@ import { LaunchPanel } from './ui/panels/LaunchPanel';
 import { EnduranceZone } from './world/space/EnduranceZone';
 import { ViewerZone } from './world/space/ViewerZone';
 import { ShipPanel } from './ui/panels/ShipPanel';
+import { CryoPanel } from './ui/panels/CryoPanel';
 
 async function boot() {
   const canvas = document.getElementById('view') as HTMLCanvasElement;
@@ -43,6 +44,7 @@ async function boot() {
   registerPanel('docking', DockingPanel);
   registerPanel('launch', LaunchPanel);
   registerPanel('ship', ShipPanel);
+  registerPanel('cryo', CryoPanel);
   const launch = new LaunchDirector(game);
   game.services.launch = launch;
   game.systems.push(launch);
