@@ -38,6 +38,7 @@ export function DockingPanel({ game, close }: { game: Game; close: () => void })
           <h4>Manual docking</h4>
           <p>You fly. Translate with I K J L U O, rotate with W S A D Q E. The Ranger docks tail-first: press V for the docking camera. Inside 0.3 m capture needs offset under 0.22 m, closing under 0.45 m/s, alignment within 5°, clocking within 12° and the spin matched within 3.5°/s.</p>
           <button class="btn" disabled={docked} onClick={() => { bus.emit('ui:click'); if (flight.autopilot) flight.engage(null); close(); flight.cycleCamera('dock'); }}>Manual docking · docking camera</button>
+          {docked && <button class="btn warn" style={{ marginLeft: '8px' }} onClick={() => { bus.emit('ui:click'); z.docking.undock(c, 0.15); close(); }}>Undock · release latches</button>}
         </div>
       </div>
       <div class="grid2">

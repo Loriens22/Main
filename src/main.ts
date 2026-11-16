@@ -20,6 +20,8 @@ import { DockingPanel } from './ui/panels/DockingPanel';
 import * as THREE from 'three';
 import { LaunchDirector } from './mission/Launch';
 import { LaunchPanel } from './ui/panels/LaunchPanel';
+import { EnduranceZone } from './world/space/EnduranceZone';
+import { ShipPanel } from './ui/panels/ShipPanel';
 
 async function boot() {
   const canvas = document.getElementById('view') as HTMLCanvasElement;
@@ -37,6 +39,7 @@ async function boot() {
   registerPanel('mission', MissionPanel);
   registerPanel('docking', DockingPanel);
   registerPanel('launch', LaunchPanel);
+  registerPanel('ship', ShipPanel);
   const launch = new LaunchDirector(game);
   game.services.launch = launch;
   game.systems.push(launch);
@@ -54,6 +57,26 @@ async function boot() {
   game.registerZone(new TestZone(game, 'test'));
   const earth = game.registerZone(new EarthZone(game, 'earth')) as EarthZone;
   const orbit = game.registerZone(new OrbitZone(game, 'orbit')) as OrbitZone;
+  game.registerZone(new EnduranceZone(game, 'endurance'));
+
+  if (params.get('zone') === 'endurance') {
+    // developer entry: Ranger 1 docked at the forward port, the commander unbuckled in its cabin (or start=hub)
+    await game.gotoZone('orbit', { fade: false });
+    orbit.met = 1800;
+    orbit.docking.attachNow(orbit.ranger!, orbit.endurance.port('axial_fwd')!);
+    orbit.startInRanger(new THREE.Vector3(-60, 0, 0));
+    await game.preload('endurance');
+    const f = game.services.flight;
+    f.leave(true);
+    game.setState('playing');
+    if (params.get('start') === 'hub') {
+      const ez = game.zones.get('endurance') as EnduranceZone;
+      ez.ports[0] && ez.setHatches(ez.ports[0], true);
+      const sp = ez.int.marker('spawn', 'hub');
+      if (sp) game.player.teleport(sp.node.getWorldPosition(new THREE.Vector3()), 0);
+    }
+    return;
+  }
 
   if (params.get('zone') === 'orbit') {
     // developer entry: Ranger 1 in Earth orbit near the Endurance (start=gate: aligned at the approach gate; start=far: 4 km out)

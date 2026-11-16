@@ -3,9 +3,10 @@
 Frame: Blender +Y is the spin axis and the direction of thrust (forward), the ring lies in the XZ plane.
 Clock positions are as seen in the forward view (looking at the ship from +Y): 12 o'clock = +Z, 3 o'clock = -X.
 
-  * 12 modules every 30 deg, radially elongated boxes 10.5 (radial) x 6.6 (tangential) x 5.6 (axial) m with the outer
-    face at r = 32 m (ring diameter 64 m / 210 ft): 12 Habitat, 1 Pod, 2 Engine, 3 Habitat (spine), 4 Engine, 5 Pod,
-    6 Cryo-lab, 7 Pod, 8 Engine, 9 Command, 10 Engine, 11 Pod
+  * 12 modules every 30 deg with the outer face at r = 32 m (ring diameter 64 m / 210 ft), sized by type (DIMS):
+    engine blocks 9.0 x 8.4 x 11.0 m (tangential x axial x radial), command 8.2 x 7.8 x 11.6, the others
+    7.6 x 7.6 x 10.6: 12 Habitat, 1 Pod, 2 Engine, 3 Habitat (spine), 4 Engine, 5 Pod, 6 Cryo-lab, 7 Pod, 8 Engine,
+    9 Command, 10 Engine, 11 Pod
   * knuckle nodes between modules at r = 24 m joined to the module sides by short tunnels; four ring airlocks
   * central hub on the axis: axial docking ports fore and aft (Rangers, rear hatch), radial ports at 12 and 6 o'clock
     (Landers); a three-segment spine to the 3 o'clock habitat and a short capped stub toward 9 o'clock.
@@ -21,15 +22,37 @@ from fac import T, RX, RY, RZ  # noqa: E402
 from mathutils import Matrix, Vector  # noqa: E402
 
 R_OUT = 32.0
-MOD_RAD, MOD_TAN, MOD_AX = 10.5, 6.6, 5.6
-R_IN = R_OUT - MOD_RAD          # 21.5
+MOD_RAD, MOD_TAN, MOD_AX = 10.6, 7.6, 7.6     # the common module (pods, habitats, cryo-lab)
+R_IN = R_OUT - MOD_RAD          # 21.4
 R_NODE = 24.0
 HUB_R, HUB_L = 2.6, 9.0
 SPIN_RPM = 5.25
+# Module sizes by type (tangential W, axial D, radial H; outer face at R_OUT). Measured against references 8-10:
+# the axial depth is about the width, engine blocks are the chunkiest, the command module reaches furthest in.
+DIMS = {
+    "engine": (9.0, 8.4, 11.0),
+    "pod": (7.6, 7.6, 10.6),
+    "habitat": (7.6, 7.6, 10.6),
+    "command": (8.2, 7.8, 11.6),
+    "cryo": (7.6, 7.6, 10.6),
+}
+# window centres as radii from the spin axis, shared with the interiors
+R_WIN_UP = 23.6       # window clusters of the corridor deck (1.4 m above its floor at r = 25 m)
+R_WIN_CMD = 27.75     # command deck windows (1.25 m above the main deck floor at r = 29 m)
+R_WIN_MAIN = 27.6     # 2 x 2 window clusters of the other main decks (1.4 m above the floor)
 
 KINDS = ["habitat", "pod", "engine", "habitat", "engine", "pod", "cryo", "pod", "engine", "command", "engine", "pod"]
 NAMES = ["Habitat A", "Landing pod 1", "Engine 1", "Habitat B", "Engine 2", "Landing pod 2", "Cryo-lab", "Landing pod 3",
          "Engine 3", "Command", "Engine 4", "Landing pod 4"]
+
+
+def dims(i):
+    return DIMS[KINDS[i % 12]]
+
+
+def mod_rc(i):
+    """Radius of the module's centre."""
+    return R_OUT - dims(i)[2] / 2
 
 
 def clock(i):
@@ -71,13 +94,33 @@ def panel_array(P, M, w, h, cols, rows, mat="radiator_blue", frame="hull_gray"):
             P.box((pw, 0.04, ph), M=M @ T((x, -0.06, z)), mat=mat, bevel=0.008)
 
 
+def panel_strips(P, M, strip_w, h, gap, rows, mat="radiator_blue", frame="hull_gray"):
+    """Two tall panel strips side by side, each divided into small cells (references 8 and 10). Local -Y out."""
+    for s_ in (-1, 1):
+        x = s_ * (strip_w + gap) / 2
+        P.box((strip_w + 0.12, 0.05, h + 0.12), M=M @ T((x, -0.025, 0)), mat=frame, bevel=0.015)
+        ch = (h - 0.04 * (rows - 1)) / rows
+        for j in range(rows):
+            z = -h / 2 + ch / 2 + j * (ch + 0.04)
+            for c in (-1, 1):
+                P.box((strip_w / 2 - 0.03, 0.04, ch), M=M @ T((x + c * strip_w / 4, -0.06, z)), mat=mat, bevel=0.006)
+
+
+def window_frame(P, M, w, h, f=0.05, depth=0.05, mat="hull_black"):
+    """Open window frame (four bars) so the window can be seen through from inside; local -Y out of the hull."""
+    for sz in (1, -1):
+        P.box((w + 2 * f, depth, f), M=M @ T((0, -0.02, sz * (h / 2 + f / 2))), mat=mat, bevel=0.01)
+    for sx in (1, -1):
+        P.box((f, depth, h), M=M @ T((sx * (w / 2 + f / 2), -0.02, 0)), mat=mat, bevel=0.01)
+
+
 def window_cluster(P, M, cols=2, rows=3, s=0.32, gap=0.12):
     for i in range(cols):
         for j in range(rows):
             x = (i - (cols - 1) / 2) * (s + gap)
             z = (j - (rows - 1) / 2) * (s + gap)
-            P.box((s + 0.08, 0.05, s + 0.08), M=M @ T((x, -0.02, z)), mat="hull_black", bevel=0.015)
-            P.box((s, 0.02, s), M=M @ T((x, -0.05, z)), mat="glass_dark", bevel=0.005)
+            window_frame(P, M @ T((x, 0, z)), s, s, f=0.04)
+            P.box((s, 0.012, s), M=M @ T((x, -0.03, z)), mat="glass", bevel=0.003)
 
 
 def rcs_quad(P, M):
@@ -93,9 +136,9 @@ def rcs_quad(P, M):
 def module(P, idx, rnd):
     kind = KINDS[idx]
     th = clock(idx)
-    rc = (R_IN + R_OUT) / 2
+    rc = mod_rc(idx)
     F = frame_at(th, rc)
-    W, D, H = MOD_TAN, MOD_AX, MOD_RAD
+    W, D, H = dims(idx)
     body = {"engine": "hull_white", "cryo": "hull_gray"}.get(kind, "hull_white")
     chamfer_box(P, (W, D, H), F, body, c=0.55 if kind == "engine" else 0.35)
     # end caps: outer face with a thermal-blanket panel, inner face darker with the tunnel collars
@@ -111,16 +154,17 @@ def module(P, idx, rnd):
         # forward and aft faces: big panel arrays + window cluster near the inner end
         for sy in (1, -1):
             Mf = F @ T((0, sy * (D / 2), 0)) @ RZ(180 if sy > 0 else 0)
-            cols, rows = (2, 4) if kind == "habitat" else (2, 3) if kind == "pod" else (3, 2)
-            arr_h = H * (0.56 if kind != "command" else 0.38)
-            panel_array(P, Mf @ T((0.3, 0.0, H * 0.12)), W * 0.6, arr_h, cols, rows,
-                        mat="radiator_blue" if kind != "cryo" else "hull_frame")
-            window_cluster(P, Mf @ T((-W * 0.3, 0.0, -H * 0.3)), 2, 3 if kind != "command" else 4)
+            arr_h = H * (0.6 if kind != "command" else 0.36)
+            panel_strips(P, Mf @ T((0.45, 0.0, H / 2 - arr_h / 2 - 0.55)), W * 0.2, arr_h, 0.18, 9 if kind != "command" else 5,
+                         mat="radiator_blue" if kind != "cryo" else "hull_frame")
+            window_cluster(P, Mf @ T((-W * 0.3, 0.0, R_WIN_UP - rc)), 2, 3)
+            if kind != "command":
+                window_cluster(P, Mf @ T((-W * 0.3, 0.0, R_WIN_MAIN - rc)), 2, 2)
             if kind == "command":
-                # flight deck: a wide band of windows near the outer end
+                # flight deck: a wide band of windows at eye level of the lower deck (floor at r = 29 m)
                 for k in range(5):
-                    P.box((0.85, 0.06, 0.55), M=Mf @ T((-1.9 + k * 0.95, -0.02, H * 0.36)), mat="hull_black", bevel=0.02)
-                    P.box((0.72, 0.03, 0.42), M=Mf @ T((-1.9 + k * 0.95, -0.05, H * 0.36)), mat="glass_dark", bevel=0.01)
+                    window_frame(P, Mf @ T((-1.9 + k * 0.95, 0, R_WIN_CMD - rc)), 0.78, 0.52, f=0.06, depth=0.06)
+                    P.box((0.78, 0.012, 0.52), M=Mf @ T((-1.9 + k * 0.95, -0.03, R_WIN_CMD - rc)), mat="glass", bevel=0.004)
             # small vents and boxes
             for k in range(rnd.randint(2, 4)):
                 P.box((rnd.uniform(0.3, 0.8), 0.18, rnd.uniform(0.2, 0.5)), M=Mf @ T((rnd.uniform(-W / 2 + 0.6, W / 2 - 0.6), -0.09, rnd.uniform(-H / 2 + 0.6, -H * 0.1))), mat=rnd.choice(["hull_gray", "hull_black", "hull_white"]), bevel=0.02)
@@ -147,7 +191,7 @@ def module(P, idx, rnd):
     # tunnel collars on both tangential sides, inner part (they meet the node tunnels)
     for sx in (1, -1):
         M = F @ T((sx * (W / 2), 0, R_NODE - rc)) @ RY(90 * sx)
-        P.cyl(1.25, 0.6, M=M @ T((0, 0, 0.3)), mat="hull_gray", segs=24, bevel=0.04)
+        P.cyl(1.25, 0.6, M=M @ T((0, 0, 0.3)), mat="hull_gray", segs=24, bevel=0.04, caps=False)
     return F
 
 
@@ -164,16 +208,16 @@ def node(P, idx):
     for d in (-1, 1):
         th2 = th + d * math.radians(15)
         F2 = frame_at(th2, R_NODE)
-        side = F2 @ Vector((-d * MOD_TAN / 2, 0, 0))
+        side = F2 @ Vector((-d * dims(idx if d < 0 else idx + 1)[0] / 2, 0, 0))
         a = F @ Vector((0, 0, 0))
         v = side - a
         L = v.length
         dvec = v.normalized()
         a2 = a + dvec * 1.2
-        Lt = (side - a2).length + 0.1
+        Lt = max(0.3, (side - a2).length + 0.1)
         q = Vector((0, 0, 1)).rotation_difference(dvec).to_matrix().to_4x4()
         Mt = T(a2 + dvec * (Lt / 2)) @ q
-        P.cyl(1.1, Lt, M=Mt, mat="hull_white", segs=24, bevel=0.03)
+        P.cyl(1.1, Lt, M=Mt, mat="hull_white", segs=24, bevel=0.03, caps=False)
         P.tube(1.22, 1.08, 0.22, M=Mt, mat="hull_gray", segs=24, bevel=0.02)
     return F
 
@@ -190,6 +234,9 @@ def airlock(P, idx):
     marker("airlock", f"ring{idx}", at=(F @ Vector((0, 0, 4.2)))[:])
 
 
+HUB_HATCHES = []
+
+
 def hub():
     P = Part("endurance_hub")
     # core cylinder along the spin axis with stiffening rings and equipment
@@ -204,11 +251,17 @@ def hub():
         for k in range(3):
             a = math.radians(120 * k)
             P.box((0.5, 0.5, 0.12), at=(math.cos(a) * 1.18, y0 + sy * 1.5, math.sin(a) * 1.18), rot=(90, math.degrees(a) + 90, 0), mat="handle_yellow", bevel=0.02)
-        P.cyl(0.92, 0.06, at=(0, y0 + sy * 1.3, 0), rot=(90, 0, 0), mat="hull_gray", segs=28, bevel=0)
         marker("dock", pid, at=(0, y0 + sy * 1.4, 0), dir=[0, sy, 0], up=[0, 0, 1], port="axial", accepts="ranger", label="Axial docking port")
-        # target cross for manual docking
+        # the port's pressure hatch (slides up into the collar once a craft is hard-docked), target cross outside
+        Hh = Part(f"endurance_hatch_{pid}")
+        Hh.cyl(0.92, 0.06, rot=(90, 0, 0), mat="hull_gray", segs=28, bevel=0)
         for a in (0, 90):
-            P.box((0.8, 0.04, 0.08), at=(0, y0 + sy * 1.34, 0), rot=(0, a, 0), mat="paint_black", bevel=0)
+            Hh.box((0.8, 0.04, 0.08), at=(0, sy * 0.04, 0), rot=(0, a, 0), mat="paint_black", bevel=0)
+        # inner face: radial stiffening ribs and the rescue arrows of reference 12
+        for k in range(12):
+            Hh.box((0.03, 0.04, 0.78), M=T((0, -sy * 0.045, 0)) @ RY(15 + 30 * k) @ T((0, 0, 0.42)), mat="metal_steel", bevel=0.004)
+        Hh.cyl(0.12, 0.06, at=(0, -sy * 0.06, 0), rot=(90, 0, 0), mat="metal_chrome", segs=20, bevel=0.01)
+        HUB_HATCHES.append((Hh, (0, y0 + sy * 1.3, 0), dict(id=pid, part=f"hatch_{pid}", axis=[0, 0, 1], travel=1.0, label="Docking hatch")))
     # radial ports (Landers) at 12 and 6 o'clock, spine collar at 3 o'clock and stub at 9 o'clock
     for clk, pid in ((0, "radial_up"), (6, "radial_down")):
         th = clock(clk)
@@ -238,14 +291,14 @@ def spine_and_stub():
     for k in range(segs):
         a, b = r0 + k * L, r0 + (k + 1) * L
         F = frame_at(th, (a + b) / 2)
-        P.cyl(1.35, L - 0.6, M=F, mat="hull_white", segs=28, bevel=0.06)
+        P.cyl(1.35, L - 0.6, M=F, mat="hull_white", segs=28, bevel=0.06, caps=False)
         P.tube(1.62, 1.3, 0.9, M=F @ T((0, 0, L / 2 - 0.2)), mat="hull_white", segs=28, bevel=0.06)
         P.tube(1.66, 1.6, 0.18, M=F @ T((0, 0, L / 2 - 0.65)), mat="hull_gray", segs=28, bevel=0.02)
         for j in range(4):
             P.box((0.12, 0.12, L - 1.6), M=F @ RZ(45 + 90 * j) @ T((1.38, 0, 0)), mat="hull_gray", bevel=0.02)
     # stub toward 9 o'clock: one segment, capped
     F = frame_at(clock(9), HUB_R + 3.2)
-    P.cyl(1.35, 4.4, M=F, mat="hull_white", segs=28, bevel=0.06)
+    P.cyl(1.35, 4.4, M=F, mat="hull_white", segs=28, bevel=0.06, caps=False)
     P.cyl(1.55, 0.5, M=F @ T((0, 0, 2.3)), mat="hull_gray", segs=28, bevel=0.08)
     P.sphere(1.2, M=F @ T((0, 0, 2.5)) @ Matrix.Diagonal((1, 1, 0.35, 1)), mat="hull_white", segs=24, rings=10)
     return P
@@ -266,7 +319,7 @@ def lights_and_markers():
     for i in range(12):
         th = clock(i)
         F = frame_at(th, R_OUT + 0.15)
-        light(f"ring_nav{i}", at=(F @ Vector((0, MOD_AX / 2 - 0.4, 0)))[:], color=(1.0, 0.2, 0.1) if i % 3 == 0 else (0.9, 0.95, 1.0), power=8, dist=40, group="endurance_nav")
+        light(f"ring_nav{i}", at=(F @ Vector((0, dims(i)[1] / 2 - 0.4, 0)))[:], color=(1.0, 0.2, 0.1) if i % 3 == 0 else (0.9, 0.95, 1.0), power=8, dist=40, group="endurance_nav")
     for sy in (1, -1):
         for k in range(3):
             a = math.radians(120 * k + 30)
@@ -274,7 +327,7 @@ def lights_and_markers():
                   rot=(90 * sy, 0, 0), group="endurance_dock")
     for i, (kind, name) in enumerate(zip(KINDS, NAMES)):
         th = clock(i)
-        marker("module", f"m{i}", at=(radial(th) * ((R_IN + R_OUT) / 2))[:], kind_name=kind, label=name, clock=i)
+        marker("module", f"m{i}", at=(radial(th) * mod_rc(i))[:], kind_name=kind, label=name, clock=i)
     marker("vehicle", "endurance", at=(0, 0, 0), ring_r=R_OUT, spin_rpm=SPIN_RPM, mass=480000)
 
 
@@ -298,8 +351,9 @@ def collision():
         out.append(ob)
 
     for i in range(12):
-        F = frame_at(clock(i), (R_IN + R_OUT) / 2)
-        hull(f"col_m{i}", [F @ Vector((sx * MOD_TAN / 2, sy * MOD_AX / 2, sz * MOD_RAD / 2)) for sx in (1, -1) for sy in (1, -1) for sz in (1, -1)])
+        F = frame_at(clock(i), mod_rc(i))
+        W, D, H = dims(i)
+        hull(f"col_m{i}", [F @ Vector((sx * W / 2, sy * D / 2, sz * H / 2)) for sx in (1, -1) for sy in (1, -1) for sz in (1, -1)])
         Fn = frame_at(clock(i) + math.radians(15), R_NODE)
         hull(f"col_n{i}", [Fn @ Vector((sx * 1.7, sy * 1.8, sz * 1.7)) for sx in (1, -1) for sy in (1, -1) for sz in (1, -1)])
     hull("col_hub", [Vector((sx * (HUB_R + 0.3), sy * (HUB_L / 2 + 1.4), sz * (HUB_R + 0.3))) for sx in (1, -1) for sy in (1, -1) for sz in (1, -1)])
@@ -314,6 +368,11 @@ def build():
     for P, part in ((ring(), "ring"), (hub(), "hub"), (spine_and_stub(), "spine")):
         ob = P.finish(sharp=38, col=0)
         props(ob, part=part)
+        objs.append(ob)
+    for Ph, loc, kw in HUB_HATCHES:
+        ob = Ph.finish(sharp=40, col=0)
+        ob.location = loc
+        props(ob, kind="hatch", dynamic=1, **kw)
         objs.append(ob)
     lights_and_markers()
     cols = collision()

@@ -375,6 +375,9 @@ def body():
     return H, C
 
 
+HATCHES = []
+
+
 def rear_block():
     """White rear block with rounded rear edges, black lower skirt, rear face recesses."""
     P = Part("ranger_rear")
@@ -401,10 +404,20 @@ def rear_block():
             c, d = (pb[j + 1][0], yb, pb[j + 1][1]), (pb[j][0], yb, pb[j][1])
             ac.face([a, b, c, d])
             ac.face([(-a[0], a[1], a[2]), (-d[0], d[1], d[2]), (-c[0], c[1], c[2]), (-b[0], b[1], b[2])])
-    # rear face (n-gon), normal -Y
+    # rear face, normal -Y, with the docking passage cut through it
+    from mathutils.geometry import tessellate_polygon
     y0, p0 = rings[0]
-    ring = [(x, y0, z) for x, z in p0] + [(-x, y0, z) for x, z in reversed(p0[1:-1])]
-    acc.setdefault("hull_gray", MeshAcc()).face(list(reversed(ring)))
+    outline = [(x, z) for x, z in p0] + [(-x, z) for x, z in reversed(p0[1:-1])]
+    hole_c = [(math.cos(a) * 0.61, 0.98 + math.sin(a) * 0.61) for a in [2 * math.pi * i / 40 for i in range(40)]]
+    loops = [outline, hole_c]
+    flat = [p for l in loops for p in l]
+    for t in tessellate_polygon([[Vector((x, z, 0.0)) for x, z in l] for l in loops]):
+        tri = [(flat[i][0], y0, flat[i][1]) for i in t]
+        # orient each triangle so its normal points -Y
+        a, b, c = (Vector(v) for v in tri)
+        if (b - a).cross(c - a).y > 0:
+            tri = tri[::-1]
+        acc.setdefault("hull_gray", MeshAcc()).face(tri)
     emit(P, acc)
     yr = Y(0.0)
     F = Matrix.Identity(4)
@@ -425,20 +438,31 @@ def rear_block():
         for k in range(5):
             P.box((0.03, 0.06, 0.5), at=(cx - 0.46 + k * 0.23, yr - 0.06, cz), mat="metal_dark", bevel=0.004)
     # ---- hatch panel, docking ring, hatch door, latches, release handles
-    P.box((1.96, 0.08, 1.60), at=(0, yr - 0.04, 0.90), mat="hull_gray", bevel=0.03)
-    P.box((1.86, 0.02, 1.50), at=(0, yr - 0.085, 0.90), mat="hull_white_fine", bevel=0.01)
     hz = 0.98
+    hole = [(math.cos(a) * 0.61, hz + math.sin(a) * 0.61) for a in [2 * math.pi * i / 40 for i in range(40)]]
+    rect = lambda w, h: [(-w / 2, 0.90 - h / 2), (w / 2, 0.90 - h / 2), (w / 2, 0.90 + h / 2), (-w / 2, 0.90 + h / 2)]
+    # panels with the docking passage through them (prisms extrude +Y from their base plane)
+    P.prism(rect(1.96, 1.60), 0.08, plane="XZ", at=(0, yr - 0.08, 0), mat="hull_gray", bevel=0.02, holes=[hole[::-1]])
+    P.prism(rect(1.86, 1.50), 0.02, plane="XZ", at=(0, yr - 0.095, 0), mat="hull_white_fine", bevel=0.005, holes=[hole[::-1]])
     ring_prof = [(0.60, 0.0), (0.74, 0.0), (0.74, 0.05), (0.71, 0.13), (0.62, 0.15), (0.60, 0.12)]
     P.lathe(ring_prof, M=T((0, yr - 0.08, hz)) @ RX(90), mat="gear_metal", segs=48)
-    P.cyl(0.6, 0.05, M=T((0, yr - 0.12, hz)) @ RX(90), mat="hull_gray", segs=48, bevel=0.01)
-    P.cyl(0.16, 0.08, M=T((0, yr - 0.16, hz)) @ RX(90), mat="metal_dark", segs=24, bevel=0.01)
+    # the outer docking hatch: a movable part that slides aside into the rear block once the seals are made
+    Hh = Part("ranger_hatch_outer")
+    Hh.cyl(0.6, 0.05, M=T((0, -0.02, 0)) @ RX(90), mat="hull_gray", segs=48, bevel=0.01)
+    Hh.cyl(0.16, 0.08, M=T((0, -0.06, 0)) @ RX(90), mat="metal_dark", segs=24, bevel=0.01)
     for k in range(8):
         a = k * 45
-        Mk = T((0, yr - 0.15, hz)) @ RY(a)
-        P.box((0.07, 0.05, 0.42), M=Mk @ T((0, 0, 0.36)), mat="gear_metal", bevel=0.01)
-        P.box((0.13, 0.04, 0.09), M=Mk @ T((0, -0.01, 0.55)), mat="metal_dark", bevel=0.01)
-        P.cyl(0.035, 0.05, M=Mk @ T((0, -0.03, 0.2)) @ RX(90), mat="metal_bare", segs=10, bevel=0.004)
-    P.tube(0.40, 0.36, 0.04, M=T((0, yr - 0.15, hz)) @ RX(90), mat="metal_dark", segs=40, bevel=0.004)
+        Mk = T((0, -0.05, 0)) @ RY(a)
+        Hh.box((0.07, 0.05, 0.42), M=Mk @ T((0, 0, 0.36)), mat="gear_metal", bevel=0.01)
+        Hh.box((0.13, 0.04, 0.09), M=Mk @ T((0, -0.01, 0.55)), mat="metal_dark", bevel=0.01)
+        Hh.cyl(0.035, 0.05, M=Mk @ T((0, -0.03, 0.2)) @ RX(90), mat="metal_bare", segs=10, bevel=0.004)
+    Hh.tube(0.40, 0.36, 0.04, M=T((0, -0.05, 0)) @ RX(90), mat="metal_dark", segs=40, bevel=0.004)
+    # inner face (seen from the docking tunnel): padded, with a handwheel
+    Hh.cyl(0.55, 0.02, M=T((0, 0.015, 0)) @ RX(90), mat="padding_light", segs=40, bevel=0.005)
+    Hh.tube(0.2, 0.17, 0.03, M=T((0, 0.04, 0)) @ RX(90), mat="metal_chrome", segs=24, bevel=0.004)
+    for k in range(3):
+        Hh.box((0.34, 0.02, 0.025), M=T((0, 0.04, 0)) @ RY(60 * k), mat="metal_chrome", bevel=0.004)
+    HATCHES.append((Hh, (0, yr - 0.10, hz), dict(id="outer", part="hatch_outer", axis=[1, 0, 0], travel=1.25, label="Docking hatch")))
     for sx, sz in ((-0.78, 1.58), (0.78, 1.58), (-0.78, 0.26), (0.78, 0.26)):
         P.cyl(0.075, 0.05, M=T((sx, yr - 0.1, sz)) @ RX(90), mat="gear_metal", segs=20, bevel=0.01)
         P.tube(0.08, 0.06, 0.055, M=T((sx, yr - 0.1, sz)) @ RX(90), mat="handle_yellow", segs=20, bevel=0.004)
@@ -978,15 +1002,18 @@ def cabin():
     hz, hr = 0.98, 0.52
     circ = [(math.cos(a) * hr, hz + math.sin(a) * hr) for a in [2 * math.pi * i / 32 for i in range(32)]]
     C.prism([(-XW, ZA), (XW, ZA), (XW, Z_RAD), (-XW, Z_RAD)], 0.08, plane="XZ", at=(0, yr - 0.08, 0), mat="padding_gray", bevel=0, holes=[circ])
-    C.lathe([(hr + 0.02, 0.0), (hr + 0.02, Y(S_REAR) - Y(0.0) - 0.25)], M=T((0, Y(0.0) + 0.25, hz)) @ RX(-90), mat="padding_light", segs=32, closed=False)
-    C.cyl(hr + 0.03, 0.04, M=T((0, Y(0.0) + 0.24, hz)) @ RX(-90), mat="hull_gray", segs=32, bevel=0)
+    C.lathe([(hr + 0.02, 0.0), (hr + 0.02, Y(S_REAR) - Y(0.0) + 0.04)], M=T((0, Y(0.0) - 0.04, hz)) @ RX(-90), mat="padding_light", segs=32, closed=False)
+    # inner pressure hatch at the cabin end of the tunnel: slides aside into the bulkhead
+    Hi = Part("ranger_hatch_inner")
+    Hi.cyl(hr + 0.03, 0.04, M=RX(-90), mat="hull_gray", segs=32, bevel=0.004)
+    Hi.cyl(0.11, 0.05, M=T((0, 0.04, 0)) @ RX(-90), mat="metal_dark", segs=20, bevel=0.01)
+    for k in range(6):
+        Hi.box((0.04, 0.04, 0.36), M=T((0, 0.05, 0)) @ RY(k * 60) @ T((0, 0, 0.24)), mat="gear_metal", bevel=0.005)
+    HATCHES.append((Hi, (0, Y(0.0) + 0.24, hz), dict(id="inner", part="hatch_inner", axis=[1, 0, 0], travel=1.1, label="Rear hatch")))
     D.tube(hr + 0.12, hr, 0.1, M=T((0, yr + 0.02, hz)) @ RX(-90), mat="padding_light", segs=32, bevel=0.03)
     for k in range(4):
         a = math.radians(45 + 90 * k)
         D.box((0.1, 0.06, 0.1), M=T((math.cos(a) * (hr + 0.17), yr + 0.04, hz + math.sin(a) * (hr + 0.17))), mat="handle_yellow", bevel=0.01)
-    D.cyl(0.11, 0.05, M=T((0, Y(0.0) + 0.27, hz)) @ RX(-90), mat="metal_dark", segs=20, bevel=0.01)
-    for k in range(6):
-        D.box((0.04, 0.04, 0.36), M=T((0, Y(0.0) + 0.28, hz)) @ RY(k * 60) @ T((0, 0, 0.24)), mat="gear_metal", bevel=0.005)
     marker("hatch", "rear_inner", at=(0, Y(0.0) + 0.45, hz), label="Rear hatch")
     # ---- aisle rails and floor plates
     for sx in (-0.17, 0.17):
@@ -1084,6 +1111,12 @@ def exterior():
     la = fixtures().finish(sharp=40, col=0, shadow=0)
     props(la, part="lamps")
     gears = [main_gear(1), main_gear(-1), rear_gear(1), rear_gear(-1)]
+    hatches = []
+    for Ph, loc, kw in HATCHES:
+        ob = Ph.finish(sharp=40, col=0)
+        ob.location = loc
+        props(ob, kind="hatch", dynamic=1, **kw)
+        hatches.append(ob)
     Cc, Cd, Ce = cabin()
     cab = Cc.finish(sharp=40, col=0)
     props(cab, part="cabin")
@@ -1093,13 +1126,13 @@ def exterior():
     props(cabe, part="cabin_emit")
     markers()
     cols = collision()
-    outside = [hull, wf, rear, fr, no, ve, de] + gears
+    outside = [hull, wf, rear, fr, no, ve, de] + gears + [h for h in hatches if h.get("id") == "outer"]
     bake_ao(outside, rays=16, local_dist=1.4, sky_dist=30.0)
     # the cabin and the canopy shell (whose inner face is the cabin ceiling) get the interior fixtures baked in
     lights_in = [l for l in scene_lights() if l[1] > 0]
     cab_lights = [l for l in lights_in if l[0].z < 2.1 and abs(l[0].x) < 2.3 and Y(S_REAR) - 0.5 < l[0].y < Y(S_FRONT)]
-    bake_ao([can, cab, cabd], rays=16, local_dist=1.2, sky_dist=30.0, lights=cab_lights, light_gain=1.0, fill=0.01)
-    return outside + [can, cab, cabd, cabe, gl, la] + cols
+    bake_ao([can, cab, cabd] + [h for h in hatches if h.get("id") == "inner"], rays=16, local_dist=1.2, sky_dist=30.0, lights=cab_lights, light_gain=1.0, fill=0.01)
+    return outside + [can, cab, cabd, cabe, gl, la] + [h for h in hatches if h.get("id") == "inner"] + cols
 
 
 def previews():

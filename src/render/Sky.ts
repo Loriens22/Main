@@ -289,6 +289,11 @@ export class Sky {
   sunOcclusion = 1.0;
   /** fixed star visibility for the shader's own stars (null: automatic from sun elevation and clouds) */
   starsOverride: number | null = null;
+  /** Rotation from the sky's own frame (+Y = local vertical) into the zone frame, for zones that rotate with a
+   * spinning ship: the dome, the sunlight and the environment map are turned with it. */
+  lightRotation: THREE.Quaternion | null = null;
+  /** allow the sun below the local horizon (orbit: the ground is far below, the light comes from any direction) */
+  freeSun = false;
 
   constructor(private r: Renderer, quality: number, params: AtmosphereParams = EARTH_ATMOSPHERE) {
     this.params = { ...params };
@@ -427,16 +432,28 @@ export class Sky {
     }
     const texel = (range * 2) / this.sun.shadow.mapSize.x;
     const f = this.shadowFocus;
-    const lightDir = this.sunDir.y > 0.02 ? this.sunDir : _v.set(this.sunDir.x, 0.02, this.sunDir.z).normalize();
+    const sd = this.lightRotation ? _sd.copy(this.sunDir).applyQuaternion(this.lightRotation) : this.sunDir;
+    const lightDir = this.freeSun || this.lightRotation ? sd : this.sunDir.y > 0.02 ? this.sunDir : _v.set(this.sunDir.x, 0.02, this.sunDir.z).normalize();
     // build light-space basis for snapping
-    _right.crossVectors(_up, lightDir).normalize();
+    _right.crossVectors(_up, lightDir);
+    if (_right.lengthSq() < 1e-6) _right.set(1, 0, 0);
+    _right.normalize();
     _upL.crossVectors(lightDir, _right).normalize();
     const sx = Math.round(f.dot(_right) / texel) * texel, sy = Math.round(f.dot(_upL) / texel) * texel, sz = f.dot(lightDir);
     _t.set(0, 0, 0).addScaledVector(_right, sx).addScaledVector(_upL, sy).addScaledVector(lightDir, sz);
     this.sun.target.position.copy(_t);
     this.sun.position.copy(_t).addScaledVector(lightDir, 300);
     this.sun.target.updateMatrixWorld();
-    W.uSunDir.value.copy(this.sunDir);
+    W.uSunDir.value.copy(sd);
+    if (this.lightRotation) {
+      this.dome.matrix.makeRotationFromQuaternion(this.lightRotation);
+      this.dome.matrixWorld.copy(this.dome.matrix);
+      this.r.scene.environmentRotation.setFromQuaternion(this.lightRotation);
+    } else if (this.dome.matrix.elements[0] !== 1 || this.dome.matrix.elements[5] !== 1) {
+      this.dome.matrix.identity();
+      this.dome.matrixWorld.identity();
+      this.r.scene.environmentRotation.set(0, 0, 0);
+    }
 
     this.bakeTimer -= dt;
     if (this.dirty && this.bakeTimer <= 0) this.bake();
@@ -512,4 +529,5 @@ export class Sky {
 }
 
 const _v = new THREE.Vector3(), _t = new THREE.Vector3(), _right = new THREE.Vector3(), _upL = new THREE.Vector3(), _up = new THREE.Vector3(0, 1, 0);
+const _sd = new THREE.Vector3();
 void damp;

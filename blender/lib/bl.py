@@ -904,8 +904,9 @@ def save_blend(name):
 
 
 def preview(name, eye, target=(0, 0, 0), res=(1280, 720), samples=32, lens=35, ortho=None,
-            sun_rot=(50, 0, 35), sun=3.5, sky=(0.75, 0.82, 0.9), sky_strength=0.9, exposure=0.0, film_transparent=False):
-    """Cycles preview render to blender/previews/<name>.png (for checking models against references)."""
+            sun_rot=(50, 0, 35), sun=3.5, sky=(0.75, 0.82, 0.9), sky_strength=0.9, exposure=0.0, film_transparent=False, up=None):
+    """Cycles preview render to blender/previews/<name>.png (for checking models against references).
+    up: camera up direction (default world +Z), for rooms whose floor is not level (spinning habitats)."""
     os.makedirs(PREVIEW_DIR, exist_ok=True)
     sc = bpy.context.scene
     cam = bpy.data.cameras.new("pcam")
@@ -913,7 +914,14 @@ def preview(name, eye, target=(0, 0, 0), res=(1280, 720), samples=32, lens=35, o
     sc.collection.objects.link(co)
     co.location = eye
     d = Vector(target) - Vector(eye)
-    co.rotation_euler = d.to_track_quat("-Z", "Y").to_euler()
+    if up is None:
+        co.rotation_euler = d.to_track_quat("-Z", "Y").to_euler()
+    else:
+        f = d.normalized()
+        u = Vector(up)
+        r = f.cross(u).normalized()
+        u = r.cross(f).normalized()
+        co.rotation_euler = Matrix((r, u, -f)).transposed().to_euler()
     cam.lens = lens
     cam.clip_start, cam.clip_end = 0.05, 5000
     if ortho:

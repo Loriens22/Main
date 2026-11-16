@@ -15,7 +15,9 @@ export interface Seat {
   onLeave?: () => void;
 }
 
-const STAND_H = 1.8, CROUCH_H = 1.05, RADIUS = 0.3;
+const STAND_H = 1.8, CROUCH_H = 1.05, FLOAT_H = 0.9, RADIUS = 0.3;
+/** eye height above the feet when floating tucked up (knees drawn in, as crews move through hatches) */
+const FLOAT_EYE = 0.62;
 const _q = new THREE.Quaternion(), _q2 = new THREE.Quaternion(), _v = new THREE.Vector3(), _v2 = new THREE.Vector3(), _v3 = new THREE.Vector3();
 const _Y = new THREE.Vector3(0, 1, 0), _X = new THREE.Vector3(1, 0, 0);
 
@@ -188,6 +190,20 @@ export class Player {
       }
     }
     this.eyeHeight = this.crouching ? 0.92 : 1.66;
+    // weightless: a compact body that fits through hatches and tunnels; the view stays where it was
+    if (floating) {
+      if (this.height !== FLOAT_H) {
+        this.pos.addScaledVector(this.up, Math.max(0, this.eyeSmooth - FLOAT_EYE));
+        this.prevPos.copy(this.pos);
+        this.eyeSmooth = FLOAT_EYE;
+        this.setHeight(FLOAT_H);
+      }
+      this.eyeHeight = FLOAT_EYE;
+    } else if (this.height === FLOAT_H) {
+      // gravity again: stand up if there is room, otherwise stay low until there is
+      if (this.canStand()) this.setHeight(this.crouching ? CROUCH_H : STAND_H);
+      else { this.crouching = true; this.setHeight(CROUCH_H); }
+    }
 
     const desired = _v3.set(0, 0, 0);
     if (floating) {

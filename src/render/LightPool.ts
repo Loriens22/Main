@@ -16,7 +16,7 @@ export interface Fixture {
   room?: string;
   group?: string;
   spot?: boolean;
-  /** for spots: world direction (refreshed from node -Z if a node is set) */
+  /** for spots: world direction (refreshed from the node's authored light axis if a node is set) */
   dir?: THREE.Vector3;
   angle?: number;
   /** optional emissive mesh that glows while the fixture is on */
@@ -113,7 +113,9 @@ export class LightPool {
     for (const f of this.fixtures) {
       if (f.node) {
         f.node.getWorldPosition(f.pos);
-        if (f.spot && f.dir) f.node.getWorldDirection(f.dir).negate();
+        // spots are authored as Blender lights (shining along local -Z); after the glTF Y-up conversion that
+        // axis is the node's local -Y
+        if (f.spot && f.dir) f.dir.set(0, -1, 0).transformDirection(f.node.matrixWorld);
       }
       if (f.glow) {
         const m = f.glow.material as THREE.MeshStandardMaterial;

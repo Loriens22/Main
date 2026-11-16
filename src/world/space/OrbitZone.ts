@@ -90,6 +90,7 @@ export class OrbitZone extends Zone implements OrbitContext {
     this.sky = new Sky(g.renderer, g.settings.g.atmosphere, { ...EARTH_ATMOSPHERE, cloudCoverage: 0, cirrus: 0, betaD: [0.3e-5, 0.25e-5, 0.15e-5], betaDAbs: [0.02e-5, 0.05e-5, 0.15e-5] });
     this.sky.groundColor.setRGB(0.16, 0.2, 0.28);
     this.sky.setOverGlobe(true);
+    this.sky.freeSun = true;
     this.sky.setStars(0);
     this.sky.shadowRange = 48;
     this.sky.setVisible(false);
@@ -115,7 +116,7 @@ export class OrbitZone extends Zone implements OrbitContext {
     this.ranger.onImpact = (dv) => {
       if (dv > 0.4) { ui.toast(`Contact! ${dv.toFixed(2)} m/s — hull damage ${(this.ranger!.damage * 100).toFixed(0)}%`, 'warn', 3); bus.emit('sfx', { id: 'thud', node: this.ranger!.root, gain: clamp(dv, 0.3, 1) }); }
     };
-    this.docking.onDocked = (l) => bus.emit('ranger:docked', l);
+    this.docking.onDocked = (l) => { bus.emit('ranger:docked', l); void g.preload('endurance'); };
     this.stackModel = await assets.load('launch_vehicle');
     this.smoke = new Smoke(1400);
     this.smoke.drag = 0.05;
@@ -150,6 +151,7 @@ export class OrbitZone extends Zone implements OrbitContext {
     const flight = g.services.flight as Flight;
     flight.canLeave = (c) => (this.docking.isDocked(c) ? null : 'Stay strapped in while the Ranger is in free flight.');
     bus.on('flight:autopilot', this.onAutopilotKey);
+    bus.on('flight:leave', this.onLeaveSeat);
   }
 
   override leave() {
@@ -159,6 +161,7 @@ export class OrbitZone extends Zone implements OrbitContext {
     this.sky.setVisible(false);
     g.renderer.preRender = g.renderer.preRender.filter((f) => f !== this.place);
     bus.off('flight:autopilot', this.onAutopilotKey);
+    bus.off('flight:leave', this.onLeaveSeat);
     ui.set({ dock: null });
   }
 
@@ -194,6 +197,18 @@ export class OrbitZone extends Zone implements OrbitContext {
     mission.note(near ? 'Automatic docking engaged at the approach gate.' : 'Automatic rendezvous and docking engaged.');
   }
 
+  /** Unbuckling in a docked Ranger: the walk continues inside the ship's own (rotating) frame, with no cut. */
+  private onLeaveSeat = (c: Spacecraft) => {
+    if (this.game.zone !== this || !this.docking.isDocked(c)) return;
+    const cam = this.game.renderer.camera;
+    const q = new THREE.Quaternion().copy(this.endurance.root.quaternion).multiply(this.endurance.spinNode.quaternion);
+    const qi = q.clone().invert();
+    const pos = cam.getWorldPosition(new THREE.Vector3()).sub(this.endurance.root.position).applyQuaternion(qi);
+    const quat = cam.getWorldQuaternion(new THREE.Quaternion()).premultiply(qi);
+    const craft: 'r1' | 'r2' = c === this.ranger ? 'r1' : 'r2';
+    void this.game.gotoZone('endurance', { fade: false, onEnter: (z) => (z as any).arrive(pos, quat, craft) });
+  };
+
   private onAutopilotKey = () => {
     const flight = this.game.services.flight as Flight;
     if (flight.craft !== this.ranger) return;
@@ -213,8 +228,12 @@ export class OrbitZone extends Zone implements OrbitContext {
 
   override gravityAt(_p: THREE.Vector3, out: THREE.Vector3) { return out.set(0, 0, 0); }
 
+  /** rotation from the orbital frame into the frame being drawn (the interior of the spinning ship), or null */
+  skyRotation: THREE.Quaternion | null = null;
+  private sunView = new THREE.Vector3();
+
   /** Earth, sun and stars for the current time, in the zone frame. Runs every frame before drawing. */
-  private updateSky() {
+  updateSky() {
     if (this.mode === 'orbit') { this.originR = this.rE; this.originPhi = this.phiE; }
     this.plane.frame(this.originPhi, this.frame);
     const s = sunEci(this.day + (this.hours + this.met / 3600) / 24, _s);
@@ -225,10 +244,20 @@ export class OrbitZone extends Zone implements OrbitContext {
     this.globe.mat.uniforms.uCloudShift.value = (this.met / 86400) * 0.6;
     this.stars.orient(this.frame.X, this.frame.Y, this.frame.Z);
     this.earthCentre.set(0, -this.originR, 0);
+    this.sunView.copy(this.sunLocal);
+    const R = this.skyRotation;
+    this.sky.lightRotation = R;
+    if (R) {
+      this.globe.mesh.quaternion.premultiply(R);
+      this.stars.group.quaternion.premultiply(R);
+      this.earthCentre.applyQuaternion(R);
+      this.sunView.applyQuaternion(R);
+      this.globe.setSun(this.sunView, 20);
+    }
   }
 
   /** background objects relative to the final camera of the frame */
-  private place = (cam: THREE.PerspectiveCamera) => {
+  place = (cam: THREE.PerspectiveCamera) => {
     cam.getWorldPosition(_v);
     this.globe.mesh.position.copy(this.earthCentre).sub(_v);
     // eye adaptation: stars fade when the sunlit Earth or the sun fills the view
@@ -236,7 +265,7 @@ export class OrbitZone extends Zone implements OrbitContext {
     const toEarth = _s.copy(this.earthCentre).sub(_v).normalize();
     const earthIn = clamp((look.dot(toEarth) - 0.2) / 0.6, 0, 1);
     const sunUp = this.sky.sunColor.r > 0.05 ? 1 : 0;
-    const sunIn = clamp((look.dot(this.sunLocal) - 0.6) / 0.4, 0, 1) * sunUp;
+    const sunIn = clamp((look.dot(this.sunView) - 0.6) / 0.4, 0, 1) * sunUp;
     const day = sunUp * (0.35 + 0.65 * earthIn) + sunIn;
     this.stars.setVisibility(2.4 * (1 - clamp(day, 0, 0.92)), 6.8 - 3.2 * clamp(day, 0, 1));
   };
