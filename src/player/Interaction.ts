@@ -27,6 +27,8 @@ export class Interactions {
 
   /** Interactables belong to the zone that was being loaded / active when they were registered. */
   scope = 'global';
+  /** while true nothing can be picked (flying: the interact key doubles as a flight control) */
+  suspended = false;
 
   add(i: Interactable) { (i as any).__scope = this.scope; this.list.add(i); return i; }
   remove(i: Interactable) { this.list.delete(i); if (this.current === i) this.current = null; }
@@ -44,6 +46,7 @@ export class Interactions {
   }
 
   update(cam: THREE.Camera) {
+    if (this.suspended) { this.current = null; this.currentLabel = ''; return; }
     cam.getWorldPosition(_o);
     cam.getWorldDirection(_d);
     let best: Interactable | null = null;

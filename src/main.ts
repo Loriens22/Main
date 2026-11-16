@@ -3,6 +3,7 @@ import { TestZone } from './world/TestZone';
 import { EarthZone } from './world/earth/EarthZone';
 import { FarmIntro } from './world/earth/Intro';
 import { Driving } from './vehicles/Driving';
+import { Flight } from './vehicles/Flight';
 import { mountUI } from './ui/App';
 import { registerPanel, ui } from './ui/store';
 import { FarmPanel } from './ui/panels/FarmPanel';
@@ -23,6 +24,9 @@ async function boot() {
   const driving = new Driving(game);
   game.services.driving = driving;
   game.systems.push(driving);
+  const flight = new Flight(game);
+  game.services.flight = flight;
+  game.systems.push(flight);
   registerPanel('farm', FarmPanel);
   registerPanel('dialogue', DialoguePanel);
   registerPanel('mission', MissionPanel);
@@ -40,7 +44,7 @@ async function boot() {
   game.registerZone(new TestZone(game, 'test'));
   const earth = game.registerZone(new EarthZone(game, 'earth')) as EarthZone;
 
-  if (params.get('zone') === 'test' || params.has('model')) {
+  if (params.get('zone') === 'test' || params.has('model') || params.has('craft')) {
     await game.gotoZone('test', { fade: false });
     game.setState('playing');
     ui.set({ mode: 'foot' });

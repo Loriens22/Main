@@ -461,6 +461,14 @@ def rear_block():
         Mt = T((side * 3.034, Y(0.12), 1.2)) @ RZ(90 * side) @ RX(90)
         P.text("RF-31D", size=0.13, M=Mt, mat="paint_black", depth=0.002)
         P.cyl(0.09, 0.004, M=T((side * 3.033, Y(0.12), 1.42)) @ RY(90), mat="paint_blue", segs=20, bevel=0)
+    # ---- ventral lift engines either side of the keel, near the centre of mass: louvred grilles over the nozzles
+    for side in (1, -1):
+        cx, cy = side * 1.55, Y(0.395)
+        P.box((1.2, 1.5, 0.08), at=(cx, cy, -0.04), mat="hull_black", bevel=0.02)
+        P.box((1.04, 1.34, 0.04), at=(cx, cy, -0.085), mat="engine_dark", bevel=0.005)
+        for k in range(7):
+            P.box((1.0, 0.05, 0.12), at=(cx, cy - 0.6 + k * 0.2, -0.12), rot=(25, 0, 0), mat="gear_metal", bevel=0.005)
+        P.cyl(0.42, 0.06, at=(cx, cy, -0.06), mat="thruster", segs=24, bevel=0)
     # ---- keel pod under the rear half
     kp = [(-1.05, Y(0.0)), (1.05, Y(0.0)), (1.05, Y(0.47)), (0.7, Y(0.5)), (-0.7, Y(0.5)), (-1.05, Y(0.47))]
     P.prism(kp, 0.26, at=(0, 0, -0.25), mat="hull_tiles", bevel=0.03)
@@ -722,6 +730,8 @@ def markers():
                 ((side * 4.56, Y(0.43), 0.2), (side, 0, 0))]
     for i, (p, d) in enumerate(rcs):
         marker("rcs", f"r{i}", at=p, dir=list(d))
+    for side, nm in ((-1, "l"), (1, "r")):
+        marker("engine", f"lift_{nm}", at=(side * 1.55, Y(0.395), -0.30), dir=[0, 0, -1], thrust=190000, w=1.0, h=0.7)
     marker("dock", "rear", at=(0, Y(0.0) - 0.16, 0.98), dir=[0, -1, 0], up=[0, 0, 1], label="Rear docking hatch")
     marker("mount", "launcher", at=(0, Y(0.0) - 0.02, 0.98))
     marker("cog", "ranger", at=(0, 0, 0.9))
@@ -946,7 +956,7 @@ def cabin():
             acc.setdefault(m, MeshAcc()).face([(x0, ya, z), (x1, ya, z), (x1, yb, z), (x0, yb, z)])
         for sx in (1, -1):
             q = [(sx * AW, ya, ZA), (sx * AW, yb, ZA), (sx * AW, yb, ZD), (sx * AW, ya, ZD)]
-            acc.setdefault("floor_panel", MeshAcc()).face(q if sx > 0 else q[::-1])
+            acc.setdefault("floor_panel", MeshAcc()).face(q[::-1] if sx > 0 else q)
         # side walls up to the ceiling
         for sx in (1, -1):
             za, zb = ceil_z(sx * XW, sa) + 0.012, ceil_z(sx * XW, sb) + 0.012
@@ -961,7 +971,7 @@ def cabin():
     # front wall below the canopy, behind the instrument panels
     yf = Y(S_FRONT)
     for xa, xb in zip(xs[:-1], xs[1:]):
-        acc.setdefault("padding_dark", MeshAcc()).face([(xb, yf, ZA), (xa, yf, ZA), (xa, yf, ceil_z(xa, S_FRONT) + 0.02), (xb, yf, ceil_z(xb, S_FRONT) + 0.02)])
+        acc.setdefault("padding_dark", MeshAcc()).face([(xa, yf, ZA), (xb, yf, ZA), (xb, yf, ceil_z(xb, S_FRONT) + 0.02), (xa, yf, ceil_z(xa, S_FRONT) + 0.02)])
     emit(C, acc)
     # rear bulkhead with the round hatchway, and the docking tunnel through the rear block
     yr = Y(S_REAR)

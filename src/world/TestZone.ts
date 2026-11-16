@@ -3,6 +3,9 @@ import { Zone } from './Zone';
 import { Sky } from '../render/Sky';
 import { materials } from '../render/Materials';
 import { assets } from '../render/Assets';
+import { LightPool } from '../render/LightPool';
+import { FlightEnv, RANGER_SPEC, Spacecraft } from '../vehicles/Spacecraft';
+import type { Flight } from '../vehicles/Flight';
 
 /**
  * Developer sandbox (open with ?zone=test or ?model=<name>): a flat pad under the Earth sky used to
@@ -11,6 +14,13 @@ import { assets } from '../render/Assets';
 export class TestZone extends Zone {
   sky!: Sky;
   private t = 0;
+  lights!: LightPool;
+  craft: Spacecraft | null = null;
+  env: FlightEnv = {
+    gravity: (_p, out) => out.set(0, -9.81, 0),
+    density: (p) => 1.225 * Math.exp(-Math.max(0, p.y) / 8500),
+    altitude: (p) => p.y - (this.craft ? 0 : 0),
+  };
 
   async load() {
     const g = this.game;
@@ -24,9 +34,24 @@ export class TestZone extends Zone {
     this.root.add(ground);
     this.phys.addTrimesh([ground]);
 
+    this.lights = new LightPool(this.root, 8, 4);
     const params = new URLSearchParams(location.search);
     const modelName = params.get('model');
-    if (modelName) {
+    if (params.get('craft') === 'ranger') {
+      const m = await assets.load('ranger');
+      const c = new Spacecraft('ranger1', RANGER_SPEC, m, this.phys, this.lights);
+      this.root.add(c.root);
+      c.place(new THREE.Vector3(0, 1.12, -14), new THREE.Quaternion());
+      this.craft = c;
+      const seat = m.marker('seat', 'pilot_l')!;
+      g.interactions.add({
+        position: (out) => out.copy(c.root.position).setY(c.root.position.y + 0.5),
+        radius: 6, range: 14, label: () => 'Board Ranger 1 (pilot seat)',
+        use: () => (g.services.flight as Flight).enter(c, this.env, 'pilot_l'),
+        enabled: () => !(g.services.flight as Flight).craft,
+      });
+      void seat;
+    } else if (modelName) {
       const m = await assets.load(modelName);
       this.root.add(m.root);
       m.root.updateMatrixWorld(true);
@@ -57,8 +82,14 @@ export class TestZone extends Zone {
     this.game.renderer.setLook({ exposure: 1.0 }, true);
   }
 
+  override fixedUpdate(dt: number) {
+    this.craft?.fixedUpdate(dt, this.env);
+  }
+
   override update(dt: number) {
     this.t += dt;
+    this.craft?.update(dt, this.game.alpha, Math.exp(-Math.max(0, this.craft.root.position.y) / 8500));
+    this.lights.update(this.game.renderer.camera.position, dt);
     const cam = this.game.renderer.camera;
     this.sky.shadowFocus.copy(this.game.player.pos);
     this.sky.update(dt, cam.position, Math.max(2, cam.position.y));
