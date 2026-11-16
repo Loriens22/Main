@@ -79,6 +79,15 @@ export class Game {
 
   registerZone(z: Zone) { this.zones.set(z.id, z); return z; }
 
+  /** Load a zone in the background so a later switch is instant. */
+  async preload(id: string) {
+    const z = this.zones.get(id);
+    if (!z || z.loaded) return;
+    if ((z as any).__loading) return (z as any).__loading;
+    (z as any).__loading = z.load().then(() => { z.loaded = true; });
+    return (z as any).__loading;
+  }
+
   /** Activate a zone (loading it on first use) with a fade. */
   async gotoZone(id: string, opts: { fade?: boolean; onEnter?: (z: Zone) => void } = {}) {
     if (this.switching) return;
@@ -92,6 +101,7 @@ export class Game {
       }
       this.interactions.scope = id;
       this.interactions.current = null;
+      if (!z.loaded && (z as any).__loading) await (z as any).__loading;
       if (!z.loaded) {
         bus.emit('loading', { active: true, label: 'Loading', f: 0 });
         await z.load((f, label) => bus.emit('loading', { active: true, label, f }));
@@ -148,8 +158,12 @@ export class Game {
     if (this.state === 'playing') this.input.requestPointerLock();
   }
 
+  /** test hook: freeze the real-time loop (automated tests drive tick() themselves) */
+  holdLoop = false;
+
   private frame = (t: number) => {
     requestAnimationFrame(this.frame);
+    if (this.holdLoop) { this.last = t; return; }
     let dt = (t - this.last) / 1000;
     const cap = this.settings.g.fpsCap;
     if (cap > 0) {

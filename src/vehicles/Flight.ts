@@ -5,6 +5,7 @@ import { clamp, damp } from '../core/math';
 import { ui } from '../ui/store';
 import { ScreenSurface, scr } from '../render/ScreenSurface';
 import { FlightEnv, Spacecraft } from './Spacecraft';
+import { GROUP, groups } from '../physics/Physics';
 
 const _v = new THREE.Vector3(), _u = new THREE.Vector3(), _f = new THREE.Vector3(), _q = new THREE.Quaternion(), _e = new THREE.Euler();
 /** a camera looking along +Z of the craft (aft): turn the default -Z view half way round about Y */
@@ -55,6 +56,10 @@ export class Flight implements System {
   onLeave: ((c: Spacecraft) => void) | null = null;
   /** when set, the pilot may not fly (launch stack, docked): the seat is only a seat */
   locked = false;
+  /** another system owns the HUD gauges (launch director) */
+  hudOverride = false;
+  /** chase camera keeps the zone's up (a craft standing on a launch vehicle) instead of the craft's */
+  chaseWorldUp = false;
 
   constructor(private game: Game) {}
 
@@ -219,9 +224,16 @@ export class Flight implements System {
       const off = _v.set(Math.sin(this.orbitYaw) * Math.cos(this.orbitPitch), Math.sin(this.orbitPitch), Math.cos(this.orbitYaw) * Math.cos(this.orbitPitch)).multiplyScalar(this.chaseDist).applyQuaternion(q);
       const at = c.root.position;
       const want = _u.copy(at).add(off);
+      // keep the camera out of rock and walls (launch silo, hangar): pull it in along the line of sight
+      const phys = g.zone?.phys;
+      if (phys) {
+        const d = off.length();
+        const hit = phys.raycast(at, _f.copy(off).divideScalar(d), d, groups(0xffff, GROUP.WORLD));
+        if (hit) want.copy(at).addScaledVector(_f, Math.max(2, hit.dist - 0.6));
+      }
       if (!this.camInit) { this.camPos.copy(want); this.camInit = true; }
       this.camPos.lerp(want, 1 - Math.exp(-10 * dt));
-      const camUp = c.up(new THREE.Vector3());
+      const camUp = this.chaseWorldUp ? new THREE.Vector3(0, 1, 0) : c.up(new THREE.Vector3());
       g.cameraDriver = () => {
         const cam = g.renderer.camera;
         cam.position.copy(this.camPos);
@@ -235,7 +247,7 @@ export class Flight implements System {
     }
     for (const s of this.screens) s.update(dt, true);
     ui.set({ view: this.cam === 'dock' ? 'dockcam' : '' });
-    this.hud();
+    if (!this.hudOverride) this.hud();
   }
 
   /** cockpit -> chase -> docking camera (if the craft has one) -> zone cameras -> cockpit */

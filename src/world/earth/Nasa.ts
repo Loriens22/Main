@@ -14,6 +14,9 @@ import { NasaScreens } from './NasaScreens';
 import { mission } from '../../mission/Mission';
 import { ui } from '../../ui/store';
 import type { EarthZone } from './EarthZone';
+import { LaunchStack } from '../../mission/LaunchStack';
+import { FlightEnv, RANGER_SPEC, Spacecraft } from '../../vehicles/Spacecraft';
+import { airDensity } from '../../space/Earth';
 
 const BIG = new Set(['tunnel', 'bay', 'corridor', 'hall', 'cavern', 'cavern_fx', 'tower']);
 
@@ -117,7 +120,8 @@ export class Lift {
   }
 }
 
-const _q = new THREE.Quaternion(), _s = new THREE.Vector3();
+const _q = new THREE.Quaternion(), _s = new THREE.Vector3(), _qw = new THREE.Quaternion(), _q2 = new THREE.Quaternion(), _v2 = new THREE.Vector3();
+const _Y = new THREE.Vector3(0, 1, 0), _Z = new THREE.Vector3(0, 0, 1);
 
 /**
  * The concealed facility in the mountain: places the Blender-built complex on the tunnel axis, wires its
@@ -201,11 +205,23 @@ export class NasaSite {
     this.launch = await assets.load('nasa_launch');
     this.root.add(this.launch.root);
     this.rocket = await assets.load('launch_vehicle');
-    this.rocket.root.position.set(0, ROCKET_BASE, -SILO_ALONG);
-    this.root.add(this.rocket.root);
+    this.stack = new LaunchStack(this.rocket, z.lights);
+    this.stack.root.position.set(0, ROCKET_BASE, -SILO_ALONG);
+    this.root.add(this.stack.root);
     this.root.updateMatrixWorld(true);
+    this.stackBase.copy(this.stack.root.position);
     z.phys.addTrimesh(this.launch.colliders);
     this.rocketColliders = z.phys.addTrimesh(this.rocket.colliders);
+    // the silo mouth is an opening in the mountain top (the cap doors close it, not the ground)
+    const mouth = this.toWorld(0, 0, SILO_ALONG, new THREE.Vector3());
+    z.terrain.hole.set(mouth.x, mouth.z, 15.0, mouth.y + 40);
+    // Ranger 1 stands on the payload adapter, rear docking face down, top toward the crew access arm
+    const rm = await assets.load('ranger');
+    this.ranger = new Spacecraft('ranger1', RANGER_SPEC, rm, z.phys, z.lights);
+    z.root.add(this.ranger.root);
+    this.stack.mount(this.ranger);
+    this.ranger.setGear(false);
+    this.ranger.gearT = 0;
     this.launchB = new Building('launch', this.launch, z.phys, g.interactions, z.lights, { lightsOn: true, actors: () => this.doorActors() });
     this.collectSections(this.launch);
     const I = g.interactions;
@@ -261,6 +277,36 @@ export class NasaSite {
   staff!: NasaStaff;
 
   rocketColliders: RAPIER.Collider[] = [];
+  stack!: LaunchStack;
+  ranger!: Spacecraft;
+  /** set once the stack has left the pad */
+  flying = false;
+  /** stack base position in the facility frame before lift-off */
+  stackBase = new THREE.Vector3();
+  rangerEnv: FlightEnv = {
+    gravity: (_p, out) => out.set(0, -9.81, 0),
+    density: (p) => airDensity(Math.max(0, p.y)),
+    altitude: (p) => p.y - this.zone.map.nasaY,
+  };
+
+  /**
+   * Fly the stack: height of the base above its pad position (m), downrange distance east (m), tilt from vertical
+   * toward the east (rad) and the roll program (0..1: crew side turned from the access arm to face up-range).
+   */
+  placeStack(h: number, downrange: number, tilt: number, roll: number) {
+    const yaw0 = this.root.rotation.y;
+    _qw.setFromAxisAngle(_Z, -tilt).multiply(_q2.setFromAxisAngle(_Y, -yaw0 * roll)).multiply(this.root.quaternion);
+    const base = this.toWorld(this.stackBase.x, this.stackBase.y, -this.stackBase.z, _v2);
+    base.y += h;
+    base.x += downrange;
+    this.root.updateMatrixWorld(true);
+    this.stack.root.position.copy(this.root.worldToLocal(base));
+    this.stack.root.quaternion.copy(this.root.quaternion).invert().multiply(_qw);
+    this.stack.root.updateMatrixWorld(true);
+  }
+
+  /** remove the vehicle's static collision once it starts to move */
+  releaseStackColliders() { this.zone.phys.remove(this.rocketColliders); this.rocketColliders = []; }
 
   private doorActors() {
     const z = this.zone, L = this.actorList;
@@ -320,11 +366,16 @@ export class NasaSite {
   fixedUpdate(dt: number) {
     this.lift?.fixedUpdate(dt);
     this.staff?.fixedUpdate(dt);
+    // while the stack flies, the launch director places it and carries the Ranger itself (same step, no lag)
+    if (!this.flying && this.ranger?.carried && this.stack.ranger === this.ranger) this.stack.carryRanger();
+    this.ranger?.fixedUpdate(dt, this.rangerEnv);
   }
 
   update(dt: number) {
     this.building.update(dt);
     this.launchB.update(dt);
+    this.stack.update(dt);
+    this.ranger.update(dt, this.zone.game.alpha, Math.exp(-Math.max(0, this.ranger.root.position.y - this.zone.map.nasaY) / 7400));
     // silo cap, umbilical arms, the inspection arm on its wall rail
     if (this.siloOpen !== this.siloTarget) {
       this.siloOpen = clamp(this.siloOpen + Math.sign(this.siloTarget - this.siloOpen) * dt / 14, 0, 1);

@@ -44,6 +44,8 @@ const TEX = (set: string, map: string) => `${import.meta.env.BASE_URL}assets/tex
 /** Quadtree level-of-detail terrain streamed around the camera, meshed in a worker. */
 export class Terrain {
   group = new THREE.Group();
+  /** an opening in the rendered ground: (x, z, radius, only above this height); radius 0 = none */
+  hole = new THREE.Vector4(0, 0, 0, 0);
   source: TerrainSource;
   material: THREE.MeshStandardMaterial;
   private root: Node;
@@ -97,6 +99,7 @@ export class Terrain {
       uTint: { value: tints },
       uCrop: { value: new THREE.Vector4(...(L.cropColor ?? [0.19, 0.3, 0.09]), L.aux === 'crop' ? 1 : 0) },
       uRock: { value: new THREE.Vector2(...(L.rockSlope ?? [0.5, 0.72])) },
+      uHole: { value: this.hole },
     };
     const m = new THREE.MeshStandardMaterial({ color: 0xffffff, roughness: 1, metalness: 0 });
     patchWorldMaterial(m, { dirt: 0, wear: 0, dust: 1 }, { vao: false });
@@ -312,6 +315,7 @@ uniform float uTile[5];
 uniform vec3 uTint[5];
 uniform vec4 uCrop;
 uniform vec2 uRock;
+uniform vec4 uHole;   // x, z, radius, minimum height: an opening in the ground (launch silo mouth)
 varying vec4 vSplat;
 varying float vAux;
 varying vec3 vWN;
@@ -326,6 +330,7 @@ float tNoise( vec2 p ) {
 
 // Replaces map_fragment: blends five PBR layers in world space, with distance-dependent re-tiling to hide repetition.
 const TERRAIN_ALBEDO = /* glsl */ `
+if ( uHole.z > 0.0 && vWPos.y > uHole.w && length( vWPos.xz - uHole.xy ) < uHole.z ) discard;
 {
   vec3 wp = vWPos;
   float dist = length( wp - cameraPosition );

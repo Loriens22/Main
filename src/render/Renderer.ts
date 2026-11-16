@@ -107,6 +107,9 @@ export class Renderer {
   height = 1;
   frame = 0;
   maxAnisotropy = 1;
+  /** camera vibration (radians of jitter): launch, engine thrust, impacts */
+  shake = 0;
+  private shakeT = 0;
   /** called after the camera is final for the frame, before drawing (background objects placed relative to it) */
   preRender: ((cam: THREE.PerspectiveCamera) => void)[] = [];
 
@@ -230,6 +233,13 @@ export class Renderer {
 
     // The background camera shares orientation and lens with the main camera but sits at the origin.
     this.gl.info.reset();
+    if (this.shake > 1e-5 && dt > 0) {
+      // band-limited jitter: two incommensurate sines per axis plus a little noise
+      this.shakeT += dt;
+      const t = this.shakeT, a = this.shake;
+      _e.set(a * (Math.sin(t * 37.1) * 0.6 + Math.sin(t * 61.7) * 0.3 + (Math.random() - 0.5) * 0.25), a * (Math.sin(t * 43.3 + 1) * 0.6 + Math.sin(t * 71.9) * 0.3 + (Math.random() - 0.5) * 0.25), a * 0.4 * Math.sin(t * 29.3 + 2));
+      this.camera.quaternion.multiply(_sq.setFromEuler(_e));
+    }
     this.camera.updateMatrixWorld();
     for (const f of this.preRender) f(this.camera);
     this.spaceCamera.quaternion.setFromRotationMatrix(this.camera.matrixWorld);
@@ -245,3 +255,5 @@ export class Renderer {
     return { calls: i.render.calls, tris: i.render.triangles, geometries: i.memory.geometries, textures: i.memory.textures, programs: i.programs?.length ?? 0 };
   }
 }
+
+const _e = new THREE.Euler(), _sq = new THREE.Quaternion();

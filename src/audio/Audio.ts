@@ -88,6 +88,8 @@ export class AudioEngine {
     bus.on('player:stand', () => this.play('seat', { gain: 0.4 }));
     bus.on('settings', () => this.applyVolumes());
     bus.on('npc:say', (e: any) => this.speak(e.text, e.npc?.def?.look));
+    // radio traffic: a squelch click, then the line (spoken when voices are enabled)
+    bus.on('radio:say', (e: any) => { this.play('comm', { ui: true, gain: 0.5 }); this.speak(e.text, { radio: true, longHair: e.female }); });
     bus.on('state', (s: string) => { if (this.ctx) this.master.gain.setTargetAtTime(s === 'paused' ? 0.25 * this.game.settings.a.master : this.game.settings.a.master, this.ctx.currentTime, 0.15); });
   }
 
@@ -195,7 +197,7 @@ export class AudioEngine {
     try {
       const u = new SpeechSynthesisUtterance(text);
       u.volume = clamp(a.master * a.dialogue, 0, 1);
-      u.rate = 0.96; u.pitch = look?.longHair ? 1.15 : 0.82;
+      u.rate = look?.radio ? 1.04 : 0.96; u.pitch = look?.longHair ? 1.15 : 0.82;
       window.speechSynthesis.speak(u);
     } catch { /* speech synthesis unavailable */ }
   }

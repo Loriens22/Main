@@ -3,7 +3,7 @@ import { LAUNCHER } from './Mission';
 
 export interface Stage { name: string; dry: number; prop: number; thrustVac: number; thrustSL: number; ispVac: number; ispSL: number }
 
-export type AscentEvent = 'liftoff' | 'tower' | 'pitch' | 'maxq' | 'meco' | 'separation' | 'ignition2' | 'seco' | 'rangerBurn' | 'rangerCutoff' | 'orbit';
+export type AscentEvent = 'liftoff' | 'tower' | 'pitch' | 'maxq' | 'meco' | 'separation' | 'ignition2' | 'seco' | 'rangerBurn' | 'rangerCutoff' | 'orbit' | 'recovery';
 
 /**
  * Planar ascent of the launch stack in the inertial orbit plane: polar state (r, phi, vr, vt), inverse-square
@@ -36,6 +36,11 @@ export class AscentSim {
   cdA = 0.3 * Math.PI * 3.4 * 3.4;
   /** altitude at which the stack leaves the silo mouth (m above the pad datum) */
   siloClear = 130;
+  /** pilot steering: the commanded pitch is flown instead of the guidance solution */
+  manual = false;
+  pitchCmd = Math.PI / 2;
+  /** pitch the guidance would fly now (the flight director cue shown to a manual pilot) */
+  guidePitch = Math.PI / 2;
 
   constructor() {
     const L = LAUNCHER;
@@ -88,7 +93,10 @@ export class AscentSim {
         const fpa = Math.atan2(this.vr, Math.max(vAir, 1));
         const aoa = this.q > 8000 ? 3 * D2R : 12 * D2R;
         const target = Math.max(Math.min(prog, fpa + aoa), fpa - aoa);
-        this.pitch += Math.max(-0.6 * D2R * dt * 60, Math.min(0.6 * D2R * dt * 60, target - this.pitch)) * 0.1;
+        this.guidePitch = target;
+        // a manual pilot is limited to the same structural angle of attack while the air is dense
+        const want = this.manual ? Math.max(Math.min(this.pitchCmd, fpa + aoa * 1.5), fpa - aoa * 1.5) : target;
+        this.pitch += Math.max(-0.6 * D2R * dt * 60, Math.min(0.6 * D2R * dt * 60, want - this.pitch)) * 0.1;
       }
     } else if (T > 0) {
       // linear vertical-acceleration law: reach the target radius with zero vertical speed when the horizontal
@@ -101,7 +109,12 @@ export class AscentSim {
       const a0 = (6 * dh - 4 * this.vr * tgo) / (tgo * tgo);
       const need = a0 + g - (this.vt * this.vt) / this.r;
       const s = Math.max(-0.5, Math.min(0.85, need / (T / this.m)));
-      this.pitch = Math.asin(s);
+      this.guidePitch = Math.asin(s);
+      if (this.manual) {
+        this.pitch += Math.max(-2 * D2R * dt, Math.min(2 * D2R * dt, this.pitchCmd - this.pitch));
+        // Creative Mode safety net: a trajectory heading back into the atmosphere hands control to guidance
+        if (this.vr < -40 && this.h < 90e3) { this.manual = false; this.fire('recovery'); }
+      } else this.pitch = this.guidePitch;
     }
     // ---- forces in polar form
     const aT = T / this.m;

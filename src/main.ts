@@ -18,6 +18,8 @@ import { PRESETS, PresetName } from './core/Settings';
 import { OrbitZone } from './world/space/OrbitZone';
 import { DockingPanel } from './ui/panels/DockingPanel';
 import * as THREE from 'three';
+import { LaunchDirector } from './mission/Launch';
+import { LaunchPanel } from './ui/panels/LaunchPanel';
 
 async function boot() {
   const canvas = document.getElementById('view') as HTMLCanvasElement;
@@ -34,6 +36,10 @@ async function boot() {
   registerPanel('dialogue', DialoguePanel);
   registerPanel('mission', MissionPanel);
   registerPanel('docking', DockingPanel);
+  registerPanel('launch', LaunchPanel);
+  const launch = new LaunchDirector(game);
+  game.services.launch = launch;
+  game.systems.push(launch);
   game.services.mission = mission;
   game.systems.push({ update: (dt) => mission.update(dt) });
   game.services.dialogue = new Conversation(game);

@@ -7,8 +7,10 @@ varying vec2 vUv;
 varying vec3 vNw;     // normal in the frame of the space camera (world orientation)
 varying vec3 vPw;     // position relative to the camera
 varying vec3 vTan;
+varying vec3 vObj;
 void main() {
   vUv = uv;
+  vObj = normalize( position );
   vec4 wp = modelMatrix * vec4( position, 1.0 );
   vPw = wp.xyz - cameraPosition;
   vNw = normalize( mat3( modelMatrix ) * normal );
@@ -26,6 +28,14 @@ uniform vec3 uSunTint;
 uniform float uCloudShift;     // longitude offset of the cloud layer (they drift)
 uniform float uNightLights;
 varying vec2 vUv; varying vec3 vNw; varying vec3 vPw; varying vec3 vTan;
+varying vec3 vObj;
+float h3( vec3 p ) { p = fract( p * 0.3183099 + vec3( 0.71, 0.113, 0.419 ) ); p *= 17.0; return fract( p.x * p.y * p.z * ( p.x + p.y + p.z ) ); }
+float n3( vec3 x ) {
+  vec3 i = floor( x ), f = fract( x ); f = f * f * ( 3.0 - 2.0 * f );
+  return mix( mix( mix( h3( i ), h3( i + vec3( 1, 0, 0 ) ), f.x ), mix( h3( i + vec3( 0, 1, 0 ) ), h3( i + vec3( 1, 1, 0 ) ), f.x ), f.y ),
+              mix( mix( h3( i + vec3( 0, 0, 1 ) ), h3( i + vec3( 1, 0, 1 ) ), f.x ), mix( h3( i + vec3( 0, 1, 1 ) ), h3( i + vec3( 1, 1, 1 ) ), f.x ), f.y ), f.z );
+}
+float fb( vec3 p ) { return n3( p ) * 0.5 + n3( p * 2.03 + 3.1 ) * 0.3 + n3( p * 4.11 + 7.7 ) * 0.2; }
 void main() {
   vec3 N = normalize( vNw );
   vec3 T = normalize( vTan - N * dot( vTan, N ) );
@@ -37,6 +47,16 @@ void main() {
   vec4 sp = texture2D( uSpec, vUv );
   vec2 cuv = vec2( vUv.x + uCloudShift, vUv.y );
   vec4 cl = texture2D( uClouds, cuv );
+  // procedural detail below the texture's resolution, faded in as the camera gets close (ascent, low orbit)
+  float dist = length( vPw );
+  vec3 P = vObj * 6371.0;   // kilometres on the surface
+  float k1 = smoothstep( 900e3, 200e3, dist ), k2 = smoothstep( 160e3, 25e3, dist ), k3 = smoothstep( 30e3, 4e3, dist );
+  float land = 1.0 - sp.r;
+  float dl = ( fb( P * 0.06 ) - 0.5 ) * k1 + ( fb( P * 0.31 ) - 0.5 ) * k2 + ( fb( P * 1.7 ) - 0.5 ) * k3;
+  alb *= 1.0 + dl * 0.9 * land;
+  alb = mix( alb, alb * vec3( 0.85, 1.0, 0.8 ), clamp( ( fb( P * 0.13 + 11.0 ) - 0.45 ) * 2.0, 0.0, 1.0 ) * k2 * land * 0.6 );
+  float dc = ( fb( P * 0.09 + 5.0 ) - 0.5 ) * k1 + ( fb( P * 0.45 + 9.0 ) - 0.5 ) * k2;
+  cl.a = clamp( cl.a * ( 1.0 + dc * 1.6 ) + ( dc - 0.12 ) * 0.35 * cl.a, 0.0, 1.0 );
   float ndl = dot( N, uSunDir );
   float day = smoothstep( -0.08, 0.12, ndl );
   // sunlight reddens through the long path near the terminator

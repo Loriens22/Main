@@ -78,7 +78,7 @@ function puffTexture() {
 /** Additive exhaust: hot core near the nozzle fading to a long, faint, wider jet; expands in vacuum. */
 export function plumeMaterial() {
   return new THREE.ShaderMaterial({
-    uniforms: { uLevel: { value: 0 }, uTime: { value: 0 }, uVac: { value: 0 } },
+    uniforms: { uLevel: { value: 0 }, uTime: { value: 0 }, uVac: { value: 0 }, uGain: { value: 1 } },
     vertexShader: /* glsl */ `
       varying vec2 vUv; varying vec3 vN; varying vec3 vV;
       void main() {
@@ -88,7 +88,7 @@ export function plumeMaterial() {
         gl_Position = projectionMatrix * mv;
       }`,
     fragmentShader: /* glsl */ `
-      uniform float uLevel, uTime, uVac;
+      uniform float uLevel, uTime, uVac, uGain;
       varying vec2 vUv; varying vec3 vN; varying vec3 vV;
       void main() {
         float along = vUv.y;                           // 0 at the nozzle, 1 at the tail
@@ -100,7 +100,7 @@ export function plumeMaterial() {
         vec3 mid = mix(vec3(1.0, 0.55, 0.22), vec3(0.45, 0.6, 1.0), uVac) * 2.2;
         vec3 col = mix(mid, hot, core);
         float a = (core * 1.4 + 0.35 * (1.0 - along)) * rim * diamonds * flick * uLevel;
-        gl_FragColor = vec4(col * a, 1.0);
+        gl_FragColor = vec4(col * a * uGain, 1.0);
       }`,
     transparent: true, depthWrite: false, blending: THREE.AdditiveBlending, side: THREE.DoubleSide,
   });
@@ -131,6 +131,8 @@ export class Spacecraft {
   gearT = 1;
   lightsOn = false;
   infiniteFuel = false;
+  /** show the main-engine plume although the craft is carried (finishing an insertion on the launch vehicle) */
+  plumeWhileCarried = false;
   /** last-step readouts */
   accel = new THREE.Vector3();
   gLoad = 0;
@@ -480,7 +482,7 @@ export class Spacecraft {
     // exhaust plumes: longer and wider in vacuum
     const vac = clamp(1 - ambientPressure, 0, 1);
     for (const p of this.plumes) {
-      const lvl = p.kind === 'main' ? (this.carried ? 0 : this.fuel > 0 || this.infiniteFuel ? clamp(this.throttle, 0, 1) : 0) : clamp(this.lift, 0, 1);
+      const lvl = p.kind === 'main' ? (this.carried && !this.plumeWhileCarried ? 0 : this.fuel > 0 || this.infiniteFuel ? clamp(this.throttle, 0, 1) : 0) : clamp(this.lift, 0, 1);
       const mat = p.mesh.material as THREE.ShaderMaterial;
       const cur = mat.uniforms.uLevel.value as number;
       const l = damp(cur, lvl, 12, dt);
