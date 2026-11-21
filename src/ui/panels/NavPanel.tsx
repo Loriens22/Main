@@ -86,7 +86,20 @@ export function NavTab({ game }: { game: Game }) {
     );
   }
 
+  if (o.traverse) {
+    const T = o.traverse;
+    return (
+      <div>
+        <h4>Wormhole passage</h4>
+        <KV k="Distance from the throat" v={`${(T.l / 1000).toFixed(2)} km ${T.crossed ? '(through)' : ''}`} />
+        <KV k="Approach speed" v={`${T.v.toFixed(0)} m/s`} />
+        <p class="note">{T.manual ? 'Manual: throttle up / down sets the approach speed; reverse to abort before the throat.' : 'Automatic: the computer eases the ship through the throat and out to the far station.'}</p>
+      </div>
+    );
+  }
+
   const { groups } = destinations(here);
+  const mouth = o.body.kind === 'wormhole';
   const T = BODY[dest ?? here];
   return (
     <div class="grid2">
@@ -97,6 +110,14 @@ export function NavTab({ game }: { game: Game }) {
         <KV k="Ship clock (MET)" v={fmtClock(o.met)} />
         <KV k="Earth reference" v={`${fmtClock(o.earthT)} · ${date(o.jd)}`} />
         <KV k="Drive Δv remaining" v={`${(left / 1000).toFixed(1)} of ${(ENDURANCE_DV / 1000).toFixed(0)} km/s`} warn={left < 5000} />
+        {mouth && (
+          <div class="plan">
+            <b>The wormhole</b>
+            <p class="note" style={{ marginTop: 0 }}>A sphere {(o.body.R * 2 / 1000).toFixed(0)} km across: a lens, not a gravity well. Inside it the {o.body.system === 'sol' ? "other galaxy, with Gargantua at the centre" : 'Solar System, with Saturn'}; round its edge the stars of this sky, bent and repeated in a ring. The passage takes about a minute.</p>
+            <button class="btn" onClick={click(() => { const e = o.startTraversal(false); setErr(e); if (!e) game.closePanel?.(); })}>Enter the wormhole · automatic</button>{' '}
+            <button class="btn" onClick={click(() => { const e = o.startTraversal(true); setErr(e); if (!e) game.closePanel?.(); })}>Manual approach</button>
+          </div>
+        )}
         <h4 style={{ marginTop: '14px' }}>Destinations</h4>
         <div class="dest">
           {groups.map(([g, ids]) => (

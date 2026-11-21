@@ -27,6 +27,7 @@ import { pressureRatio } from '../../space/Earth';
 import { BODY, BodyDef } from '../../space/Bodies';
 import { equatorBasis, LAUNCH_JD, state, surfacePoint } from '../../space/Ephemeris';
 import { SystemView } from '../../render/SystemView';
+import { WormholeLens } from '../../render/Wormhole';
 import { atmosphereFor, exposureFor, irradianceAt, toLight } from '../../space/Worlds';
 import { distanceRemaining, ENDURANCE_DV, finalizeArrival, finalizeDeparture, fmtDistance, fmtDuration, ParkState, TransferPlan, voyagePosition } from '../../space/Voyage';
 import { AU, DAY, R_G, WORMHOLE_PAIR } from '../../space/Bodies';
@@ -310,12 +311,166 @@ export class OrbitZone extends Zone implements OrbitContext {
     ui.toast(`Arrived · ${BODY[plan.to].name}`, 'info', 5);
   }
 
-  /** Through the wormhole: the ship comes out at the other mouth (the traversal itself is played by the director). */
+  // ------------------------------------------------------------------------------------------- the wormhole
+  lens: WormholeLens | null = null;
+  private skyNear: THREE.Texture | null = null;
+  private skyFar: THREE.Texture | null = null;
+  /** the traversal under way: proper distance from the throat (m, signed: > 0 on the side we started from) */
+  traverse: { l: number; v: number; manual: boolean; from: string; crossed: boolean; t: number; notes: number } | null = null;
+
+  /** distance of the station from the mouth's throat (proper radial distance) */
+  private stationL() { const b0 = this.body.R; return Math.sqrt(Math.max(0, this.rE * this.rE - b0 * b0)); }
+
+  /**
+   * Picture the sky around a point of a system (frame: that system's axes) into a cube map: the stars, planets, the
+   * Sun or Gargantua, as they are there now. Used by the lens for each universe.
+   */
+  private captureSky(system: 'sol' | 'gargantua', posSys: V3): THREE.Texture {
+    const r = this.game.renderer;
+    const rt = new THREE.WebGLCubeRenderTarget(512, { type: THREE.HalfFloatType, generateMipmaps: true, minFilter: THREE.LinearMipmapLinearFilter });
+    const cam = new THREE.CubeCamera(1, 1e7, rt);
+    const scene = new THREE.Scene();
+    scene.background = new THREE.Color(0);
+    const I = new THREE.Matrix4();
+    const view = system === this.view.system ? this.view : new SystemView(system);
+    const prevParent = view.group.parent;
+    view.showSun = system === 'sol';
+    view.exposure = r.look.exposure;
+    view.update(this.jd, posSys, I, 512 / (Math.PI / 2));
+    scene.add(view.group);
+    let starsParent: THREE.Object3D | null = null;
+    if (system === 'sol') {
+      starsParent = this.stars.group.parent;
+      const keep = this.rotSys.clone();
+      this.rotSys.identity();
+      this.orientStars();
+      this.rotSys.copy(keep);
+      this.stars.setVisibility(1.6, 6.5);
+      scene.add(this.stars.group);
+    }
+    cam.update(r.gl, scene);
+    if (starsParent) starsParent.add(this.stars.group);
+    if (view === this.view) { view.showSun = false; if (prevParent) prevParent.add(view.group); } else view.dispose();
+    return rt.texture;
+  }
+
+  /** At a mouth: picture both skies and put the lens in the background scene. */
+  private setupLens() {
+    const b = this.body;
+    if (b.kind !== 'wormhole') { this.lens?.dispose(); this.lens = null; return; }
+    const other = BODY[WORMHOLE_PAIR[b.id]];
+    this.skyNear = this.captureSky(b.system, state(b.id, this.jd).r);
+    this.skyFar = this.captureSky(other.system, state(other.id, this.jd).r);
+    if (!this.lens) this.lens = new WormholeLens(b.R);
+    if (this.game.zone === this || this.game.zone?.id === 'endurance') this.game.renderer.spaceScene.add(this.lens.mesh);
+  }
+
+  /**
+   * Identification of the two mouths' directions: the station's outward direction here maps to the other mouth's
+   * station direction (so a ship going straight through comes out at the other station, and Gargantua sits at the
+   * centre of the sphere seen from the Saturn side).
+   */
+  private mouthMap(): THREE.Matrix3 {
+    const here = this.body, there = BODY[WORMHOLE_PAIR[here.id]];
+    const gh = this.parkingGeometry(here.id, this.jd), gt = this.parkingGeometry(there.id, this.jd);
+    const a = new THREE.Vector3(...this.parkState(gh, gh.phase).r).normalize();
+    const c = new THREE.Vector3(...this.parkState(gt, gt.phase).r).normalize();
+    return new THREE.Matrix3().setFromMatrix4(new THREE.Matrix4().makeRotationFromQuaternion(new THREE.Quaternion().setFromUnitVectors(a, c)));
+  }
+
+  /** Begin the passage through the wormhole from the station at either mouth (automatic or manual speed). */
+  startTraversal(manual = false): string | null {
+    if (this.body.kind !== 'wormhole') return 'Not at the wormhole.';
+    if (this.mode !== 'orbit' || this.traverse) return 'The ship is busy.';
+    for (const c of [this.ranger, this.ranger2]) if (c && !this.docking.isDocked(c)) return `${c === this.ranger ? 'Ranger 1' : 'Ranger 2'} is not docked.`;
+    this.traverse = { l: this.stationL(), v: 0, manual, from: this.body.id, crossed: false, t: 0, notes: 0 };
+    mission.note(`${manual ? 'Manual' : 'Automatic'} approach to the wormhole: ${(this.stationL() / 1000).toFixed(1)} km to the throat.`);
+    bus.emit('sfx', { id: 'chime', ui: true });
+    return null;
+  }
+
+  /** advance the passage (fixed step); the ship's own frame stays at the origin, the mouth moves */
+  traverseStep(dt: number) {
+    const T = this.traverse!, b0 = this.body.R;
+    T.t += dt;
+    const aMax = 25;   // m/s^2: the Endurance's drive, gently
+    if (T.manual) {
+      const inp = this.game.input;
+      if (inp.down('throttleUp')) T.v = Math.min(900, T.v + aMax * dt);
+      if (inp.down('throttleDown')) T.v = Math.max(-200, T.v - aMax * dt);
+    } else {
+      // cruise in at up to 700 m/s, easing to 180 m/s through the throat region, then away to the far station
+      const dist = T.crossed ? this.stationL() - T.l : T.l;
+      const want = Math.min(700, 180 + Math.max(0, Math.abs(T.crossed ? T.l : T.l) - 2 * b0) * 0.06, Math.sqrt(2 * aMax * 0.5 * Math.max(dist, 0)) + 20);
+      T.v += Math.max(-aMax * dt, Math.min(aMax * dt, want - T.v));
+    }
+    // signed: before the throat l decreases toward 0; after it l grows again from the other mouth
+    if (!T.crossed) {
+      T.l -= T.v * dt;
+      if (T.l <= 0) {
+        T.crossed = true;
+        T.l = -T.l;
+        this.crossThroat();
+      } else if (T.l > this.stationL() * 1.02 && T.manual && T.v < 0) { this.traverse = null; mission.note('Approach to the wormhole aborted; back at the station.'); return; }
+    } else {
+      T.l += T.v * dt;
+      if (T.l >= this.stationL()) {
+        this.traverse = null;
+        this.game.renderer.shake = 0;
+        mission.note(`Through the wormhole: holding station ${(this.stationL() / 1000).toFixed(0)} km from the ${this.body.name.toLowerCase()}.`);
+        ui.toast(this.body.system === 'gargantua' ? 'Through the wormhole · Gargantua system' : 'Through the wormhole · Saturn', 'good', 6);
+        return;
+      }
+    }
+    // the passage shakes the ship hardest in the throat (tidal stress of the curved space is small; the drive and
+    // the structure ring), instruments lose their references near the throat
+    const near = Math.exp(-((T.l / (3 * b0)) ** 2));
+    this.game.renderer.shake = 0.0015 + 0.012 * near;
+    if (near > 0.2 && T.notes === 0) { T.notes = 1; ui.toast('Star tracker: no lock · navigation references lost', 'warn', 4); bus.emit('sfx', { id: 'caution', ui: true }); }
+    if (near > 0.6 && T.notes === 1) { T.notes = 2; ui.toast('Structural load · ring vibration', 'warn', 3); bus.emit('sfx', { id: 'blast', node: this.endurance.root, gain: 0.8 }); }
+  }
+
+  /** At the throat: the other universe becomes this one. */
+  private crossThroat() {
+    const from = this.body.id, to = WORMHOLE_PAIR[from];
+    this.setBody(to);
+    mission.setPhase(to === 'gate' ? 'gargantua' : 'saturn');
+    bus.emit('sfx', { id: 'blast', node: this.endurance.root, gain: 1 });
+    this.game.renderer.flash.set(0.12, 0.13, 0.15);
+    this.flashFade = true;
+  }
+
+  /** the throat's flash fades over about half a second */
+  private flashFade = false;
+
+  /** Through the wormhole at once (the passage skipped: Creative fast travel). */
   traverseWormhole() {
     const other = WORMHOLE_PAIR[this.body.id];
     if (!other) return;
     this.setBody(other);
     mission.setPhase(other === 'gate' ? 'gargantua' : 'saturn');
+  }
+
+  /** the lens for this frame: the mouth below the station (or wherever the passage has taken us) */
+  private placeLens(local: THREE.Vector3) {
+    const L = this.lens;
+    if (!L || this.body.kind !== 'wormhole') return;
+    const l = this.traverse ? this.traverse.l : this.stationL();
+    const b0 = this.body.R;
+    const rc = Math.sqrt(b0 * b0 + l * l);
+    const rel = new THREE.Vector3(0, -rc, 0).sub(local);
+    if (this.skyRotation) rel.applyQuaternion(this.skyRotation);
+    L.place(Math.max(rel.length() > rc ? Math.sqrt(Math.max(0, rel.lengthSq() - b0 * b0)) : l, 0), rel);
+    const zoneToNear = new THREE.Matrix3().setFromMatrix4(_m4.extractRotation(this.rotSys)).transpose();
+    const M = this.mouthMap();
+    L.setSkies(this.skyNear!, this.skyFar!, zoneToNear, M);
+    // during the passage the other universe's light fills more and more of the view
+    if (this.traverse) {
+      const there = BODY[WORMHOLE_PAIR[this.body.id]];
+      const k = Math.exp(-((l / (4 * b0)) ** 2)) * 0.5;
+      const e = Math.exp(Math.log(this.exposure()) * (1 - k) + Math.log(exposureFor(irradianceAt(there.id, this.jd))) * k);
+      this.game.renderer.setLook({ ...this.look(), exposure: e });
+    }
   }
 
   /** Cruise: frame along the velocity, the whole system placed from the ship's true position. */
@@ -597,6 +752,11 @@ export class OrbitZone extends Zone implements OrbitContext {
 
   /** the HUD clocks shared by every zone aboard (the bridge displays read the same values) */
   missionClocks(): { label: string; value: string }[] {
+    if (this.traverse && Math.abs(this.traverse.l) < 4 * this.body.R) {
+      // instrument anomaly in the throat: the clock references disagree and the readouts scramble
+      const junk = () => Array.from({ length: 8 }, (_, i) => (i === 2 || i === 5 ? ':' : '0123456789#'[Math.floor(Math.random() * 11)])).join('');
+      return [{ label: 'MET', value: junk() }, { label: 'NAV', value: 'NO LOCK' }];
+    }
     const split = Math.abs(this.endOffset) > 60, earth = Math.abs(this.earthOffset) > 60;
     const out = [{ label: split || earth ? 'LOCAL' : 'MET', value: fmtClock(this.met) }];
     if (split) out.push({ label: 'ENDURANCE', value: fmtClock(this.enduranceT) });
@@ -645,6 +805,14 @@ export class OrbitZone extends Zone implements OrbitContext {
       return { plane: OrbitPlane.fromVectors(toB(sv), toB(east)), bci, rE, n, phase: -0.35 };
     }
     const bp = state(id, jd).r;
+    if (b.kind === 'wormhole') {
+      // hold station on the light's side of the mouth (sunward at Saturn, toward Gargantua beyond)
+      const tl = toLight(bp, b.system);
+      const P = toB(new THREE.Vector3(tl[0], tl[1], tl[2]).normalize());
+      const E = new THREE.Vector3(0, 0, 1).cross(P);
+      if (E.lengthSq() < 1e-6) E.set(1, 0, 0);
+      return { plane: OrbitPlane.fromVectors(P, E.normalize()), bci, rE, n, phase: 0 };
+    }
     const sun = toB(new THREE.Vector3(-bp[0], -bp[1], -bp[2]).normalize());
     const pole = new THREE.Vector3(0, 0, 1);
     const P = sun.addScaledVector(pole, -sun.dot(pole)).normalize().applyAxisAngle(pole, -0.6);
@@ -708,6 +876,13 @@ export class OrbitZone extends Zone implements OrbitContext {
     this.sky.invalidate();
     this.sky.dome.visible = this.sky.enabled && this.skyDome();
     if (this.game.zone === this) this.game.renderer.setLook(this.look(), true);
+    if (this.loaded || this.view) this.refreshLens();
+  }
+
+  /** at a wormhole mouth (or leaving one): the lens and the two skies */
+  private refreshLens() {
+    if (this.body.kind === 'wormhole') this.setupLens();
+    else if (this.lens) { this.lens.dispose(); this.lens = null; }
   }
 
   /** whether the physical sky dome draws the atmosphere seen from this orbit */
@@ -724,6 +899,7 @@ export class OrbitZone extends Zone implements OrbitContext {
     const g = this.game;
     g.renderer.spaceScene.add(this.stars.group, this.view.group);
     if (this.body.id === 'earth') g.renderer.spaceScene.add(this.globe.mesh);
+    if (this.lens) g.renderer.spaceScene.add(this.lens.mesh);
     this.sky.setVisible(true);
     this.sky.dome.visible = this.skyDome();
     g.renderer.preRender.push(this.place);
@@ -740,6 +916,7 @@ export class OrbitZone extends Zone implements OrbitContext {
     super.leave();
     const g = this.game;
     g.renderer.spaceScene.remove(this.stars.group, this.globe.mesh, this.view.group);
+    if (this.lens) g.renderer.spaceScene.remove(this.lens.mesh);
     this.sky.setVisible(false);
     g.renderer.preRender = g.renderer.preRender.filter((f) => f !== this.place);
     bus.off('flight:autopilot', this.onAutopilotKey);
@@ -802,6 +979,7 @@ export class OrbitZone extends Zone implements OrbitContext {
   override fixedUpdate(dt: number) {
     this.advance(dt);
     if (this.mode === 'flight' && this.flightProg) this.flightStep(dt);
+    if (this.traverse) this.traverseStep(dt);
     this.endurance.fixedUpdate(dt);
     this.npcs.fixedUpdate(dt);
     this.docking.fixedUpdate(dt);
@@ -904,6 +1082,7 @@ export class OrbitZone extends Zone implements OrbitContext {
     this.view.update(this.jd, this.camSys, this.rotSys, this.game.renderer.height / ((cam.fov * Math.PI) / 180));
     // beyond the wormhole the sky is another galaxy's (drawn, lensed, by the black hole pass)
     this.stars.group.visible = this.view.system === 'sol';
+    this.placeLens(local);
     this.globe.mesh.position.copy(this.earthCentre).sub(_v);
     // eye adaptation: stars fade when the sunlit Earth or the sun fills the view
     const look = cam.getWorldDirection(_w);
@@ -916,10 +1095,17 @@ export class OrbitZone extends Zone implements OrbitContext {
     // the stars keep their screen brightness whatever the eye adaptation to the local sunlight
     const adapt = 0.95 / this.game.renderer.look.exposure;
     this.stars.setVisibility(2.4 * (1 - clamp(day, 0, 0.92)) * adapt, 6.8 - 3.2 * clamp(day, 0, 1));
+    // our catalogue's stars are not those of Gargantua's galaxy (its sky is drawn by the black-hole pass)
+    if (this.view.system !== 'sol') this.stars.group.visible = false;
   };
 
   override update(dt: number) {
     const g = this.game;
+    if (this.flashFade) {
+      const fl = g.renderer.flash;
+      fl.multiplyScalar(Math.exp(-dt * 4));
+      if (fl.length() < 0.002) { fl.set(0, 0, 0); this.flashFade = false; }
+    }
     this.endurance.update(dt, g.alpha);
     this.ranger2?.update(dt, g.alpha, 0);
     this.ranger?.update(dt, g.alpha, 0);
@@ -1145,6 +1331,7 @@ export class OrbitZone extends Zone implements OrbitContext {
     o.hum = 0.45; o.air = 0.5;
     o.reverb = 'ship';
     o.music = this.docking.links.some((l) => l.craft === this.ranger) ? 'ship' : flight.autopilot ? 'dock' : 'orbit';
+    if (this.traverse) { o.rumble = 0.3 + 0.7 * Math.exp(-((this.traverse.l / (3 * this.body.R)) ** 2)); o.intensity = 0.8; o.music = 'gargantua'; }
     o.intensity = 0.4;
     return o;
   }
@@ -1154,6 +1341,7 @@ export class OrbitZone extends Zone implements OrbitContext {
       const r = this.cruiseShip, inSol = BODY[this.voyage.to].system === 'sol';
       return `Cruise to ${BODY[this.voyage.to].name}${inSol ? ` · ${(Math.hypot(r[0], r[1], r[2]) / AU).toFixed(2)} au from the Sun` : ''}`;
     }
+    if (this.traverse) return Math.abs(this.traverse.l) < 3 * this.body.R ? 'Wormhole · throat' : `Wormhole · ${(this.traverse.l / 1000).toFixed(1)} km from the throat · ${this.traverse.v.toFixed(0)} m/s`;
     if (this.mode === 'ascent' && this.sim) return `Ascent · ${(this.sim.h / 1000).toFixed(0)} km · ${(this.sim.downrange / 1000).toFixed(0)} km downrange`;
     const c = this.ranger;
     if (c && this.docking.isDocked(c)) return 'Ranger 1 · docked to Endurance';

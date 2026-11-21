@@ -293,6 +293,7 @@ export class SurfaceZone extends Zone {
     const sunIn = clamp((look.dot(this.sky.sunDir) - 0.6) / 0.4, 0, 1);
     const adapt = 0.95 / this.game.renderer.look.exposure;
     this.stars.setVisibility(2.2 * (1 - day) * (1 - 0.8 * sunIn) * adapt * (this.body.atmosphere ? 1 : 0.35), 6.5);
+    if (this.view.system !== 'sol') this.stars.group.visible = false;
   };
 
   private updateSun() {

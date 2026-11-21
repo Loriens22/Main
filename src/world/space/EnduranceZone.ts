@@ -497,6 +497,7 @@ export class EnduranceZone extends Zone {
     const g = this.game, o = this.orbit;
     g.renderer.spaceScene.add(o.stars.group, o.view.group);
     if (o.body.id === 'earth') g.renderer.spaceScene.add(o.globe.mesh);
+    if (o.lens) g.renderer.spaceScene.add(o.lens.mesh);
     o.sky.setVisible(true);
     o.sky.setFog(0, 0);
     g.renderer.preRender.push(o.place);
@@ -511,6 +512,7 @@ export class EnduranceZone extends Zone {
     super.leave();
     const g = this.game, o = this.orbit;
     g.renderer.spaceScene.remove(o.stars.group, o.globe.mesh, o.view.group);
+    if (o.lens) g.renderer.spaceScene.remove(o.lens.mesh);
     o.sky.setVisible(false);
     o.skyRotation = null;
     o.sky.lightRotation = null;
@@ -532,8 +534,9 @@ export class EnduranceZone extends Zone {
 
   override fixedUpdate(dt: number) {
     const o = this.orbit;
-    // the ship keeps flying while we are inside it (time compression and the voyage included)
+    // the ship keeps flying while we are inside it (time compression, the voyage, a wormhole passage)
     o.advance(dt);
+    if (o.traverse) o.traverseStep(dt);
     o.endurance.fixedUpdate(dt);
     this.lift?.fixedUpdate(dt);
     this.npcs.fixedUpdate(dt);
@@ -614,6 +617,9 @@ export class EnduranceZone extends Zone {
     o.indoors = 1; o.vacuum = 0; o.helmet = 0;
     o.hum = 0.55; o.air = 0.6;
     o.rumble = clamp(this.omega / 0.55, 0, 1) * 0.12;
+    const tr = this.orbit.traverse;
+    // through the wormhole the whole structure hums and shudders, hardest in the throat
+    if (tr) o.rumble = Math.max(o.rumble, 0.35 + 0.65 * Math.exp(-((tr.l / (3 * this.orbit.body.R)) ** 2)));
     o.reverb = 'ship';
     o.music = 'ship';
     o.intensity = 0.3;
