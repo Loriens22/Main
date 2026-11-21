@@ -83,8 +83,9 @@ void craterOctave( vec3 P, vec3 n, vec3 Ls, float R, float S, float dens, float 
       float w = 1.0 - x * x, pw = pow( w, a );
       dhdx = D * w * pw < floorD ? 2.0 * D * ( 1.0 + a ) * pw * x : 0.0;
       // cast shadow: where the sunward ray leaves the bowl, is it still below the rim? (exact for the convex
-      // fresh bowl, close enough for the rounded old ones)
-      if ( sinE > 0.0 ) {
+      // fresh bowl, close enough for the rounded old ones); with the Sun below the horizon the bowl is all in shadow
+      if ( sinE <= 0.0 ) lit = min( lit, 1.0 - fade );
+      else {
         float xs = dot( d, sh ) / r;
         float tEx = -xs + sqrt( max( xs * xs - x * x + 1.0, 0.0 ) );
         float rise = tEx * r * tanE, need = min( D * w * pw, floorD );
@@ -202,6 +203,9 @@ void main() {
     alb *= 1.0 + d * ( uKind > 1.5 ? 0.15 : 0.45 );
   }
   float mu0 = dot( Nr, L ), mu = max( dot( N, V ), 0.0 ), mus = dot( N, L );
+  // relief only catches the light while the Sun is above the horizon of the surrounding ground (beyond the
+  // terminator a wall facing the Sun is still below its horizon)
+  float horizon = smoothstep( -0.012, 0.01, mus );
   // ring shadow on the planet: follow the ray toward the sun to the ring plane
   float ringT = 1.0;
   if ( uRing.z > 0.5 ) {
@@ -220,10 +224,10 @@ void main() {
     // airless regolith: Lommel-Seeliger with a little Lambert, and the opposition surge
     float ls = max( mu0, 0.0 ) / ( max( mu0, 0.0 ) + mu + 1e-3 );
     float ph = dot( L, V );
-    col = alb * uSunCol * ( ls * 1.6 + max( mu0, 0.0 ) * 0.25 ) * ( 1.0 + 0.25 * pow( max( ph, 0.0 ), 30.0 ) );
+    col = alb * uSunCol * ( ls * 1.6 + max( mu0, 0.0 ) * 0.25 ) * ( 1.0 + 0.25 * pow( max( ph, 0.0 ), 30.0 ) ) * horizon;
   } else if ( uKind < 1.5 ) {
     vec3 sunC = uSunCol * mix( vec3( 1.0, 0.55, 0.3 ), vec3( 1.0 ), smoothstep( -0.02, 0.3, mus ) );
-    col = alb * sunC * max( mu0, 0.0 );
+    col = alb * sunC * max( mu0, 0.0 ) * horizon;
     if ( uHasClouds > 0.5 ) {
       vec2 cuv = vec2( uv.x + uTime * uBands.z, uv.y );
       vec4 cl = tex2( uClouds, cuv ); cl.rgb = pow( cl.rgb, vec3( 2.2 ) );
