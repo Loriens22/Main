@@ -165,7 +165,7 @@ export const BODIES: BodyDef[] = [
   },
   {
     id: 'mann', name: "Mann's planet", kind: 'rocky', system: 'gargantua', parent: 'gargantua', R: 5800 * km, GM: 2.64e14, rotation: 67 * HOUR, pole: [0, 90], orbit: { a: 420 * R_G, period: 0, inc: 7, phase: 150 },
-    atmosphere: { rho0: 0.9, H: 9200, top: 90 * km, betaR: [5.0e-6, 11.0e-6, 24.0e-6], HR: 9200, betaM: 2.2e-4, HM: 2600, g: 0.82, betaD: [2.6e-5, 2.6e-5, 2.7e-5], betaDAbs: [0.05e-5, 0.06e-5, 0.07e-5], HD: 6000, limb: [0.8, 0.84, 0.9] },
+    atmosphere: { rho0: 0.9, H: 9200, top: 90 * km, betaR: [5.0e-6, 11.0e-6, 24.0e-6], HR: 9200, betaM: 5e-5, HM: 2200, g: 0.8, betaD: [0.9e-5, 0.9e-5, 0.95e-5], betaDAbs: [0.05e-5, 0.06e-5, 0.07e-5], HD: 5000, limb: [0.8, 0.84, 0.9] },
     maps: 'mann', parkingAlt: 200 * km, landing: { zone: 'surface:mann', lat: -38, lon: 75, site: "Dr. Mann's shelter" }, insolation: 0.18,
     blurb: '0.8 g. Ice and frozen cloud; ammonia in the air. Not breathable.',
   },

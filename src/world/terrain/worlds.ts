@@ -139,7 +139,7 @@ const mann: TerrainSource = {
     // flow along x: ridges stretched across it
     const u = x / 1.0, v = z / 0.35;
     let h = (fbm2(x / 3500, z / 3500, 4) - 0.5) * 90;
-    h += ridged(u / 900, v / 900, 5) * 38;
+    h += ridged(u / 650, v / 650, 5) * 85 * smoothstep(250, 900, Math.hypot(x, z)) + ridged(u / 900, v / 900, 5) * 20;
     h += (fbm2(x / 120, z / 120, 3) - 0.5) * 5;
     // crevasses: narrow deep cuts along ridged-noise valleys, in bands
     const c = ridged(x / 260 + 11, z / 700 - 4, 3);
@@ -150,8 +150,9 @@ const mann: TerrainSource = {
   splat(x, z, out) {
     const n = fbm2(x / 250, z / 250, 3);
     const c = ridged(x / 260 + 11, z / 700 - 4, 3);
-    out[0] = clamp(0.8 - n * 0.5, 0, 1);              // snow crust
-    out[1] = clamp(n * 0.8 + smoothstep(0.8, 0.95, c) * 0.8, 0, 1); // blue ice
+    const rg = ridged(x / 650, z / 0.35 / 650, 5);
+    out[0] = clamp(0.95 - n * 0.3, 0, 1);              // wind-packed snow crust
+    out[1] = clamp(smoothstep(0.8, 0.95, c) * 0.9 + smoothstep(0.75, 0.95, rg) * 0.6, 0, 1); // blue ice in crevasses and on ridge crests
     out[2] = smoothstep(0.7, 0.9, fbm2(x / 600 + 2, z / 600, 3)) * 0.6; // dirty ice bands
     out[3] = 0;
   },

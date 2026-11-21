@@ -24,6 +24,7 @@ import { mission } from '../../mission/Mission';
 import type { OrbitZone } from './OrbitZone';
 import { SeaSurface } from '../../render/Sea';
 import { MillerWave } from '../../render/MillerWave';
+import { FrozenClouds } from '../../render/FrozenClouds';
 
 const _v = new THREE.Vector3(), _w = new THREE.Vector3(), _q = new THREE.Quaternion(), _m = new THREE.Matrix4(), _x = new THREE.Vector3(), _z = new THREE.Vector3();
 
@@ -136,6 +137,8 @@ export class SurfaceZone extends Zone {
   sea: SeaSurface | null = null;
   /** Miller's tidal wave */
   wave: MillerWave | null = null;
+  /** Mann's frozen clouds */
+  frozen: FrozenClouds | null = null;
   private waveWarn = 0;
   program: FlightProgram | null = null;
   /** height of the Ranger's model origin above the ground on its gear (m) */
@@ -203,6 +206,9 @@ export class SurfaceZone extends Zone {
       this.wave?.dispose();
       this.wave = null;
       if (id === 'miller') { this.wave = new MillerWave(b.R); this.root.add(this.wave.mesh); }
+      this.frozen?.dispose();
+      this.frozen = null;
+      if (id === 'mann') { const src = this.terrain.source; this.frozen = new FrozenClouds(11, 38, (x, z) => src.height(x, z)); this.root.add(this.frozen.group); }
       if (this.view.system !== b.system) {
         const inScene = !!this.view.group.parent;
         this.view.dispose();
