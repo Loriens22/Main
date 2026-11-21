@@ -75,15 +75,19 @@ void main() {
 }`;
 
 /** water height above the sea (m) at u along the propagation from the crest line, v along it (mesh frame) */
-function profile(u: number, v: number) {
+export function waveProfile(u: number, v: number) {
   const H = 1200, Lv = 90000;
   // crest height varies along its length; the front is a steep concave wall, the back a long slope
   const hv = H * (0.82 + 0.18 * Math.sin(v / 7300 + 1.3) * Math.cos(v / 11900));
   const shift = 350 * Math.sin(v / 9000);       // the crest line wanders a little
   const x = u - shift;
-  let h: number;
-  if (x >= 0) h = hv * Math.pow(Math.max(0, 1 - x / 520), 2.2);
-  else h = hv * Math.exp(-((x / 3200) ** 2)) * (1 - 0.05 * Math.sin(x / 140));
+  // the steep concave front and the long back meet in a rounded crest (a smooth minimum ~150 m wide, not a cusp)
+  const F = x >= 520 ? 0 : hv * Math.pow(1 - x / 520, 2.2);
+  const B = hv * Math.exp(-((x / 3200) ** 2)) * (1 - 0.05 * Math.sin(x / 140));
+  const k = 170;
+  const m = Math.min(F, B);
+  let h = m - k * Math.log(Math.exp((m - F) / k) + Math.exp((m - B) / k));
+  h = Math.max(0, h);
   // the ends of the ridge sink back into the sea
   return h * Math.max(0, Math.min(1, (Lv - Math.abs(v)) / 15000));
 }
@@ -109,7 +113,7 @@ export class MillerWave {
     for (let u = 300; u <= 900; u += 60) us.push(u);
     const nv = 220, Lv = 90000;
     const pos: number[] = [], foam: number[] = [], idx: number[] = [];
-    const prof = profile;
+    const prof = waveProfile;
     for (let j = 0; j <= nv; j++) {
       const v = -Lv + (2 * Lv * j) / nv;
       for (const u of us) {
@@ -165,8 +169,8 @@ export class MillerWave {
   at(x: number, z: number) {
     const d = this.dir;
     const u = x * d.x + z * d.z - this.s, v = -x * d.z + z * d.x;
-    const h = profile(u, v);
-    const slope = (profile(u + 4, v) - profile(u - 4, v)) / 8;
+    const h = waveProfile(u, v);
+    const slope = (waveProfile(u + 4, v) - waveProfile(u - 4, v)) / 8;
     return { h, slope, u };
   }
 

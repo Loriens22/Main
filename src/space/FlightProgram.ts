@@ -4,9 +4,12 @@ import { norm, sub, unit, V3 } from './Kepler';
 import { GuidedFlight, HANDOVER_ALT, SiteFn, TargetFn } from './Descent';
 
 /** The landing site of a body as a function of program time (s after jd0): state relative to the body centre. */
-export function siteFunction(body: BodyDef, jd0: number): SiteFn {
+export function siteFunction(body: BodyDef, jd0: number, dEast = 0, dNorth = 0): SiteFn {
   const L = body.landing!;
-  const at = (t: number) => surfacePoint(body.id, L.lat, L.lon, jd0 + t / 86400);
+  // a point near the landing site (dEast, dNorth metres from it: where the Ranger stands after being moved)
+  const lat = L.lat + (dNorth / body.R) * (180 / Math.PI);
+  const lon = L.lon + (dEast / (body.R * Math.cos((L.lat * Math.PI) / 180))) * (180 / Math.PI);
+  const at = (t: number) => surfacePoint(body.id, lat, lon, jd0 + t / 86400);
   return (t: number) => {
     // velocity straight from the ephemeris (exactly consistent with the positions)
     const r = at(t), a = at(t - 0.5), b = at(t + 0.5);

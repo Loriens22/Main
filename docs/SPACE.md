@@ -138,12 +138,17 @@ What is simulated, how, and where the game departs from physics on purpose. Code
 ## Miller, Mann, Edmunds
 
 - Miller: knee-deep sea over a rippled floor; the tidal wave (1.2 km, 40 m/s, once per local hour), first seen as a
-  mountain range on the horizon, with warnings and a growing roar. If it reaches the Ranger on the pad (or waiting for
-  its launch window), the craft is engulfed at the foot of the front, lifted up the face and over the crest, ridden
-  down the long back and set down on the sea floor about 3.5 minutes later with its engines flooded: 45 minutes of
-  local time (over five years on Earth) to drain them before it can lift off, as in the film. Time compression on the
-  ground (x10, x60) is offered for the wait and switches off when the next wave approaches. A crew member outside is
-  swept off their feet and hauled back aboard. (A floating hull's ride up a 1.2 km wall is stylised: it lags the
-  water and rides about two metres deep, tilted with the surface up to 40 degrees.)
+  mountain range on the horizon, with warnings and a growing roar. The wave is the film's (no real ocean makes one
+  over a knee-deep sea), so its flow is an assumption: the water's particle velocity is that of a long wave whose
+  moving mass is ~1.5 km thick, forward u = c eta/(eta + D), the surface water rising up the face at -(c - u) d(eta)/dx
+  (the surface is a streamline of the steady flow seen from the wave); the crest is rounded (a smooth minimum of the
+  front and back profiles, not a cusp). The Ranger's response is ordinary mechanics (world/space/WaveRide.ts,
+  tests/waveride.test.ts): buoyancy of a 17 x 5 x 3.2 m hull, drag against the water on its wetted side and bottom,
+  added mass, gravity, the sea floor and friction. Caught on the pad it is swept up the face at up to ~100 m/s
+  (briefly engulfed, ~35 m of water over the hull), thrown a second or so clear of the crest, rides down the long back
+  and is set down about 2.6 km on, five minutes later, at worst ~3 g. Peak loads and depth damage the hull; the
+  engines are flooded: 45 minutes of local time (over five years on Earth) to drain them, as in the film, with time
+  compression on the ground for the wait. The launch then starts from where the Ranger stands. A crew member outside
+  is swept off their feet and hauled back aboard.
 - Mann: glacier with pressure ridges and crevasses under frozen clouds held aloft.
 - Edmunds: stony desert, mesas, dry washes, boulder fields and mountain ranges, breathable air.
