@@ -31,6 +31,8 @@ export interface UIState {
   view: string;
   /** docking display (null when no docking target) */
   dock: DockHud | null;
+  /** cracked helmet visor 0..1 (a suit breach) */
+  visor: number;
 }
 
 export interface DockHud {
@@ -42,7 +44,7 @@ export interface DockHud {
 let state: UIState = {
   loading: { active: true, label: 'Initialising', f: 0 },
   screen: 'boot', menuReady: false, panel: null, panelProps: null, prompt: '', promptKey: 'E', hints: [], subtitle: null, toasts: [],
-  location: '', mode: 'cinematic', gauges: [], gps: null, clocks: [], alert: '', touch: false, tick: 0, view: '', dock: null,
+  location: '', mode: 'cinematic', gauges: [], gps: null, clocks: [], alert: '', touch: false, tick: 0, view: '', dock: null, visor: 0,
 };
 
 const subs = new Set<() => void>();

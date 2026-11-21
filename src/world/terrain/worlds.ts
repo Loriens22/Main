@@ -2,6 +2,7 @@ import { clamp, fbm2, hash2, smoothstep, vnoise } from '../../core/math';
 import { earthMap, registerTerrainSource, TerrainSource } from './sources';
 import { LANDING_FIELD } from '../earth/EarthMap';
 import { BODY } from '../../space/Bodies';
+import { LAZARUS_SITE } from './sites';
 
 /*
  * Procedural ground for the landing sites, in a local frame centred on the landing pad (y up, metres). Each is a
@@ -473,11 +474,27 @@ export function curvatureDrop(id: string, x: number, z: number) { return (x * x 
 
 const curved = (id: string, src: TerrainSource): TerrainSource => ({ ...src, height: (x, z) => src.height(x, z) - curvatureDrop(id, x, z) });
 
+/** level the ground under a Lazarus camp to the natural height at its centre (see sites.ts) */
+function leveled(id: string, src: TerrainSource): TerrainSource {
+  const s = LAZARUS_SITE[id];
+  if (!s || !s.flat) return src;
+  let h0: number | null = null;
+  return {
+    ...src,
+    height(x, z) {
+      const h = src.height(x, z);
+      if (h0 === null) h0 = src.height(s.x, s.z);
+      const k = smoothstep(s.flat, s.flat + s.blend, Math.hypot(x - s.x, z - s.z));
+      return h0 + (h - h0) * k;
+    },
+  };
+}
+
 registerTerrainSource('surface:moon', () => curved('moon', moon));
 registerTerrainSource('surface:mars', () => curved('mars', mars));
 registerTerrainSource('surface:miller', () => curved('miller', miller));
-registerTerrainSource('surface:mann', () => curved('mann', mann));
-registerTerrainSource('surface:edmunds', () => curved('edmunds', edmunds));
+registerTerrainSource('surface:mann', () => curved('mann', leveled('mann', mann)));
+registerTerrainSource('surface:edmunds', () => curved('edmunds', leveled('edmunds', edmunds)));
 for (const [id, src] of Object.entries({ mercury, venus, phobos, deimos, io, europa, ganymede, callisto, enceladus, rhea, titania, iapetus, titan, triton })) {
   registerTerrainSource(`surface:${id}`, () => curved(id, src));
 }

@@ -28,6 +28,7 @@ import { ViewerZone } from './world/space/ViewerZone';
 import { ShipPanel } from './ui/panels/ShipPanel';
 import { CryoPanel } from './ui/panels/CryoPanel';
 import { SurfacePanel } from './ui/panels/SurfacePanel';
+import { ReaderPanel } from './ui/panels/ReaderPanel';
 import { SurfaceZone } from './world/space/SurfaceZone';
 import { state, surfacePoint } from './space/Ephemeris';
 
@@ -50,6 +51,7 @@ async function boot() {
   registerPanel('ship', ShipPanel);
   registerPanel('cryo', CryoPanel);
   registerPanel('surfaceops', SurfacePanel);
+  registerPanel('reader', ReaderPanel);
   const launch = new LaunchDirector(game);
   game.services.launch = launch;
   game.systems.push(launch);

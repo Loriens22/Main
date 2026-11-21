@@ -213,12 +213,44 @@ function Help() {
   );
 }
 
+/** a cracked visor: a starburst of fractures from an impact point, frost creeping in from the edges */
+function Visor({ k }: { k: number }) {
+  const cracks: string[] = [];
+  let seed = 7;
+  const rnd = () => ((seed = (seed * 16807) % 2147483647) / 2147483647);
+  const cx = 640, cy = 300;
+  const run = (x: number, y: number, a: number, n: number, depth: number) => {
+    let d = `M${x.toFixed(0)} ${y.toFixed(0)}`;
+    for (let j = 0; j < n; j++) {
+      a += (rnd() - 0.5) * 0.9;
+      const L = 12 + rnd() * 38;
+      x += Math.cos(a) * L; y += Math.sin(a) * L;
+      d += ` L${x.toFixed(0)} ${y.toFixed(0)}`;
+      // fractures fork as they run
+      if (depth < 2 && rnd() < 0.28) run(x, y, a + (rnd() < 0.5 ? -1 : 1) * (0.5 + rnd() * 0.6), 2 + Math.floor(rnd() * 4), depth + 1);
+    }
+    cracks.push(d);
+  };
+  for (let i = 0; i < 13; i++) run(cx, cy, (i / 13) * Math.PI * 2 + rnd() * 0.4, 5 + Math.floor(rnd() * 7), 0);
+  // the ring fractures round the impact
+  for (let r = 0; r < 2; r++) { let d = ''; const R = 18 + r * 22; for (let k = 0; k <= 14; k++) { const t = (k / 14) * Math.PI * 2; const q = R * (0.85 + rnd() * 0.3); d += `${k ? ' L' : 'M'}${(cx + Math.cos(t) * q).toFixed(0)} ${(cy + Math.sin(t) * q).toFixed(0)}`; } cracks.push(d); }
+  return (
+    <svg class="visor" viewBox="0 0 1000 600" preserveAspectRatio="xMidYMid slice" style={{ opacity: Math.min(1, 0.35 + k) }}>
+      <defs><radialGradient id="vfrost" cx="50%" cy="50%" r="70%"><stop offset="55%" stop-color="#cfe6ff" stop-opacity="0" /><stop offset="100%" stop-color="#e8f4ff" stop-opacity={0.25 + 0.5 * k} /></radialGradient></defs>
+      <rect width="1000" height="600" fill="url(#vfrost)" />
+      {cracks.map((d) => <path d={d} fill="none" stroke="#f4fbff" stroke-width="1.1" stroke-opacity="0.7" stroke-linejoin="bevel" />)}
+      <circle cx={cx} cy={cy} r="9" fill="none" stroke="#f4fbff" stroke-opacity="0.8" stroke-width="2" />
+    </svg>
+  );
+}
+
 function Hud() {
   const s = useUI((x) => x);
   if (s.screen !== 'none') return null;
   const now = performance.now();
   return (
     <div class="layer hud">
+      {s.visor > 0 && <Visor k={s.visor} />}
       {s.mode !== 'cinematic' && !s.panel && <div class="cross" />}
       {s.prompt && !s.panel && <div class="prompt">{!s.touch && <kbd>{s.promptKey}</kbd>}{s.prompt}</div>}
       {s.location && <div class="loc">{s.location}</div>}

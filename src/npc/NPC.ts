@@ -97,6 +97,8 @@ export class NPC {
   /** the agent is parented to a seat/bunk and does not move by itself */
   attached: THREE.Object3D | null = null;
   talking = false;
+  /** walk on even when the player stands in the way (someone running away) */
+  ignorePlayer = false;
   private body: RAPIER.RigidBody | null = null;
   private collider: RAPIER.Collider | null = null;
   private interact: Interactable | null = null;
@@ -315,7 +317,7 @@ export class NPC {
         // do not walk into the player
         _b.copy(playerPos).sub(this.pos);
         const pd = _b.length();
-        const facingPlayer = pd < 1.0 && _b.dot(_a) > 0.5 * pd;
+        const facingPlayer = !this.ignorePlayer && pd < 1.0 && _b.dot(_a) > 0.5 * pd;
         speed = facingPlayer ? 0 : (dodge ? this.walkSpeed * 2.2 : this.moveSpeed) * (last ? clamp(dist / 0.6, 0.35, 1) : 1);
         const off = this.turnToward(_a, weightless ? 2.2 : 5.5, h);
         if (off > 1.2) speed *= 0.25;

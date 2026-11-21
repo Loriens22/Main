@@ -156,3 +156,31 @@ What is simulated, how, and where the game departs from physics on purpose. Code
   is swept off their feet and hauled back aboard.
 - Mann: glacier with pressure ridges and crevasses under frozen clouds held aloft.
 - Edmunds: stony desert, mesas, dry washes, boulder fields and mountain ranges, breathable air.
+
+### The Lazarus camps (`world/space/Lazarus.ts`, `blender/assets/lazarus.py`, `world/terrain/sites.ts`)
+
+All the models are built in Blender (lazarus.py): the scouts' one-way lander (a low, dark, faceted hull on four
+short legs, no ascent stage), Miller's wreck, Mann's shelter and survey robot, Edmunds' camp. Mann's shelter and
+Edmunds' camp follow the reference photos: a barrel vault of telescoping orange ribs with a dark rear shell, half
+buried in grey ice dust, a white panelled room inside (ceiling panels and light strips, cable trays, padded bags
+overhead, stacked crates, the boxy frosted cryo casket); long white inflatable tents with rib seams among granite
+boulder piles, a flag, a container on stilts, a rover, crates and lamp posts. The ground under each camp is
+levelled (sites.ts, used by the terrain worker and the zone alike). Every surface is solid: the models' meshes are
+static trimesh colliders, the doors are kinematic bodies.
+
+- Miller: the lander lies on its side in the shallows, roof torn off and lying apart, legs snapped, debris strewn
+  the way the waves run. The flight recorder strobes beside it, its antenna above the water; recovering it reads her
+  68 minutes on the surface (nearly eight years outside).
+- Mann: open the cryo casket and he climbs out. He tells the crew what they came to hear and offers to show the
+  survey site on a ridge 355 m off; follow him up and he cracks the commander's visor, then runs for Ranger 1 (locked
+  to him), and seals himself in his shelter. A cracked visor leaves 120 s of oxygen (the HUD counts it, frost and
+  fractures creep across the view): enough to reach a pressurised cabin at a run, not at a walk; inside the Ranger
+  the visor is patched. Running out blacks the commander out (the crew drag them back aboard); Creative Mode's damage
+  protection holds the oxygen at reserve instead. His log at the desk tells the truth (and can be put to him). The
+  survey robot's data core is wired to its power cell: opening it blind blows it (and the shelter's power) apart and
+  cracks the visor; cutting the cable first recovers the robot's own survey: a dead world.
+- Edmunds: the camp is dark, the beacon silent, the greenhouse mostly dead. His journal tells the story and where the
+  power feed is; reconnecting it lights the camp and the tents glow; the beacon can be restarted, seeds collected
+  (a few seedlings of the hardy strain live), and a cairn raised where he asked to lie.
+
+Dialogue and story text are original. What has been done is kept as story facts across saves and visits.

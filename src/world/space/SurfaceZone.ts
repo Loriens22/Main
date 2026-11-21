@@ -29,6 +29,7 @@ import { Model } from '../../render/Assets';
 import { Building } from '../Building';
 import { GIANT } from './Giants';
 import { WaveRide } from './WaveRide';
+import { LazarusSites } from './Lazarus';
 import type { SiteFn } from '../../space/Descent';
 import type { RAPIER } from '../../physics/Physics';
 
@@ -185,6 +186,8 @@ export class SurfaceZone extends Zone {
   private flashS = 0;
   private flashPos = new THREE.Vector2();
   get giant() { return !!this.body.station; }
+  /** the Lazarus scouts' camps on Miller's, Mann's and Edmunds' worlds */
+  sites = new LazarusSites(this);
 
   env: FlightEnv = {
     gravity: (_p, out) => out.set(0, -surfaceGravity(this.body), 0),
@@ -216,6 +219,14 @@ export class SurfaceZone extends Zone {
     this.root.add(this.ranger.root);
     this.ranger.setCarried(true);
     this.ranger.onImpact = (dv) => { if (dv > 1.2) ui.toast(`Hard contact: ${dv.toFixed(1)} m/s`, 'warn', 3); };
+    // board from anywhere close to the hull
+    const board = g.interactions.add({
+      position: (out) => out.copy(this.ranger.root.position).add(_up),
+      radius: 3.6, range: 7.5,
+      label: () => ((g.services.flight as Flight).craft ? '' : 'Board Ranger 1'),
+      use: () => this.board(),
+    });
+    (board as any).__scope = 'surface';
     // back aboard Ranger 1 from the Earth zone (it stands on NASA's landing field)
     bus.on('ranger:board', (w: string) => {
       if (w !== 'earth' || this.body.id !== 'earth') return;
@@ -293,6 +304,7 @@ export class SurfaceZone extends Zone {
       p = { ...p, sunRadius: 0.03, sunE: air.sunE * 0.4, fogDensity: 1.1e-4, fogFalloff: 0.0005, sunTint: [1.0, 0.68, 0.36] };
     }
     this.sky.setParams(p);
+    this.sites.setWorld(id);
     if (this.game.zone === this) this.game.renderer.setLook(this.look(), true);
     this.sky.setStars(0);
     this.sky.invalidate();
@@ -492,6 +504,7 @@ export class SurfaceZone extends Zone {
       this.ranger.carry({ x: this.padOffset.x, y: this.touchH, z: this.padOffset.z }, this.ranger.quaternion(_q), { x: 0, y: 0, z: 0 });
     }
     this.ranger.fixedUpdate(dt, this.env);
+    this.sites.fixedUpdate(dt);
     const p = g.player.pos;
     this.terrain?.ensureCollision(p.x, p.z, 26);
     if (this.giant && p.y < -120 && !(g.services.flight as Flight).craft) {
@@ -695,16 +708,15 @@ export class SurfaceZone extends Zone {
     this.sky.update(dt, _v, Math.max(2, _v.y - ground + 2));
     if (this.giant) this.lightning(dt);
     this.lights.update(_v, dt);
-    // boarding
-    const flight = g.services.flight as Flight;
-    if (!flight.craft && this.ranger.root.position.distanceTo(g.player.pos) < 7.5 && g.input.pressed('interact')) this.board();
+    this.sites.update(dt);
     this.hudT -= dt;
     if (this.hudT <= 0) {
       this.hudT = 0.2;
       const o = this.orbit;
       const clocks = o.missionClocks();
       if (this.program) clocks.push({ label: 'PROGRAM', value: this.program.status() });
-      ui.set({ clocks, prompt: !flight.craft && this.ranger.root.position.distanceTo(g.player.pos) < 7.5 ? 'Board Ranger 1' : '', promptKey: 'E' });
+      clocks.push(...this.sites.hud());
+      ui.set({ clocks });
       g.renderer.setLook(this.look());
     }
     void this.landedAt;

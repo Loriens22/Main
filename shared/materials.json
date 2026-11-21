@@ -156,5 +156,13 @@
   "leaf_corn":         { "color": "#4e7a2b", "rough": 0.62, "side": "double" },
   "leaf_corn_dry":     { "color": "#a39a58", "rough": 0.7, "side": "double" },
   "stalk_corn":        { "color": "#7d9148", "rough": 0.7 },
-  "foliage_dry":       { "color": "#8a8250", "rough": 0.8, "side": "double" }
+  "foliage_dry":       { "color": "#8a8250", "rough": 0.8, "side": "double" },
+
+  "mann_orange":       { "tex": "metal_painted", "tile": 2.0, "color": "#b4461f" },
+  "ice_dust":          { "tex": "snow", "tile": 5.0, "color": "#aeb2b7" },
+  "tent_white":        { "tex": "canvas_bag", "tile": 2.5, "color": "#efeee8", "emissive": "#ffe6c0", "emissiveIntensity": 0.0 },
+  "boulder":           { "tex": "rock", "tile": 3.5, "color": "#e0cdb4" },
+  "flag_red":          { "tex": "cloth", "tile": 0.4, "color": "#a3262a" },
+  "flag_white":        { "tex": "cloth", "tile": 0.4, "color": "#e8e6df" },
+  "flag_blue":         { "tex": "cloth", "tile": 0.4, "color": "#273a6b" }
 }

@@ -215,3 +215,11 @@ canvas.map { width: 100%; height: auto; display: block; border: 1px solid var(--
 .cryo .pod .bar { height: 2px; background: rgba(160, 210, 230, 0.12); margin: 18px 0 6px; }
 .cryo .pod .bar i { display: block; height: 2px; background: #9ccfe0; }
 .cryo .pod p { font-family: var(--sans); font-size: 11.5px; color: rgba(170, 205, 220, 0.65); line-height: 1.5; text-align: center; }
+
+/* cracked visor overlay (suit breach) */
+.hud .visor { position: absolute; inset: 0; width: 100%; height: 100%; pointer-events: none; }
+/* reader panel (logs, recorder data, notes) */
+.reader { max-height: 58vh; overflow-y: auto; padding-right: 6px; }
+.reader .entry { margin-bottom: 14px; }
+.reader .entry h4 { margin: 0 0 4px; font-size: 13px; letter-spacing: 0.06em; text-transform: uppercase; opacity: 0.75; }
+.reader .entry p { margin: 0 0 6px; line-height: 1.5; }
