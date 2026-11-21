@@ -54,6 +54,8 @@ export interface FlightEnv {
   altitude?(p: THREE.Vector3): number | null;
   /** velocity-dependent apparent acceleration of a rotating frame (Coriolis, tidal terms), m/s^2 */
   accel?(p: THREE.Vector3, v: THREE.Vector3, out: THREE.Vector3): THREE.Vector3;
+  /** the craft's velocity relative to the ground and air, when the zone flies it on a program (zone frame) */
+  velocity?(out: THREE.Vector3): THREE.Vector3 | null;
 }
 
 interface Thruster { node: THREE.Object3D; dir: THREE.Vector3; pos: THREE.Vector3; level: number; sprite: THREE.Sprite; was: boolean }

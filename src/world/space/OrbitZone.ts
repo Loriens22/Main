@@ -36,6 +36,7 @@ import { add, cross, dot, norm, scale, sub, unit, V3 } from '../../space/Kepler'
 import { GuidedFlight, HANDOVER_ALT, planDescent, rangerPerf } from '../../space/Descent';
 import { FlightProgram, siteFunction } from '../../space/FlightProgram';
 import { ProgramPilot } from './SurfaceZone';
+import { EntryPlasma, PlasmaGas } from '../../render/EntryPlasma';
 import type { SurfaceZone } from './SurfaceZone';
 
 const _v = new THREE.Vector3(), _w = new THREE.Vector3(), _s = new THREE.Vector3(), _q = new THREE.Quaternion();
@@ -113,8 +114,14 @@ export class OrbitZone extends Zone implements OrbitContext {
   env: FlightEnv = {
     gravity: (_p, out) => out.set(0, 0, 0),
     density: () => 0,
-    altitude: (p) => this.rE - this.body.R + p.y,
+    altitude: (p) => (this.mode === 'flight' && this.flightProg ? this.flightProg.f.height : this.rE - this.body.R + p.y),
     accel: (p, v, out) => (this.mode === 'cruise' ? out.set(0, 0, 0) : cwAccel(p, v, this.n, out)),
+    // on the descent and ascent programs: speed through the air, in the frame on the Ranger
+    velocity: (out) => {
+      if (this.mode !== 'flight' || !this.flightProg) return null;
+      const a = this.flightProg.f.airVel(), { X, Y, Z } = this.cruiseAxes;
+      return out.set(a[0] * X.x + a[1] * X.y + a[2] * X.z, a[0] * Y.x + a[1] * Y.y + a[2] * Y.z, a[0] * Z.x + a[1] * Z.y + a[2] * Z.z);
+    },
   };
 
   setWarp(w: number) { this.warp = w; }
@@ -151,6 +158,10 @@ export class OrbitZone extends Zone implements OrbitContext {
     this.ranger = new Spacecraft('ranger1', RANGER_SPEC, m1, this.phys, this.lights);
     this.root.add(this.ranger.root);
     this.docking.addCraft(this.ranger);
+    // the plasma sheath of atmospheric entry, sized to the Ranger
+    const rb = new THREE.Box3().setFromObject(this.ranger.root).getSize(new THREE.Vector3());
+    this.plasma = new EntryPlasma(Math.max(rb.x, rb.y, rb.z));
+    this.root.add(this.plasma.group);
     this.ranger.onImpact = (dv) => {
       if (dv > 0.4) { ui.toast(`Contact! ${dv.toFixed(2)} m/s — hull damage ${(this.ranger!.damage * 100).toFixed(0)}%`, 'warn', 3); bus.emit('sfx', { id: 'thud', node: this.ranger!.root, gain: clamp(dv, 0.3, 1) }); }
     };
@@ -569,6 +580,8 @@ export class OrbitZone extends Zone implements OrbitContext {
 
   private startFlight(pr: FlightProgram) {
     const c = this.ranger!;
+    const id = pr.body.id;
+    this.plasma?.setGas((id === 'titan' ? 'titan' : id === 'venus' || id === 'mars' ? 'co2' : 'air') as PlasmaGas);
     this.flightProg = pr;
     this.mode = 'flight';
     c.root.visible = true;
@@ -590,6 +603,8 @@ export class OrbitZone extends Zone implements OrbitContext {
       this.mode = 'orbit';
       this.rangerFuel = f.fuel;
       this.ranger!.root.visible = false;
+      this.game.renderer.shake = 0;
+      this.plasma?.update(0, 0, _v.set(0, 0, 0), _v, 1);
       this.resetEndurancePose();
       void this.game.gotoZone('surface', { fade: false, onEnter: (z) => (z as SurfaceZone).takeOver(pr) });
       return;
@@ -608,6 +623,7 @@ export class OrbitZone extends Zone implements OrbitContext {
     this.rangerFuel = f.fuel;
     this.flightProg = null;
     this.mode = 'orbit';
+    this.game.renderer.shake = 0;
     this.resetEndurancePose();
     const q = c.quaternion(new THREE.Quaternion());
     c.setCarried(false);
@@ -662,6 +678,23 @@ export class OrbitZone extends Zone implements OrbitContext {
 
   /** entry heating 0..1 for the plasma effects */
   entryHeat = 0;
+  private plasma: EntryPlasma | null = null;
+
+  /** the entry glow, buffeting and roar of the flight through the air */
+  private entryEffects(dt: number) {
+    const pl = this.plasma, g = this.game;
+    if (!pl) return;
+    const pr = this.mode === 'flight' ? this.flightProg : null;
+    if (!pr) { if (pl.glow > 0) pl.update(dt, 0, _v.set(0, 0, 0), _v, 1); return; }
+    const f = pr.f, { X, Y, Z } = this.cruiseAxes;
+    const a = f.airVel();
+    const flow = new THREE.Vector3(a[0] * X.x + a[1] * X.y + a[2] * X.z, a[0] * Y.x + a[1] * Y.y + a[2] * Y.z, a[0] * Z.x + a[1] * Z.y + a[2] * Z.z);
+    pl.update(dt, f.heat, flow, this.ranger!.root.position, g.renderer.look.exposure);
+    // the hull lit by the sheath (from the cockpit the light would leak through the cabin walls)
+    if ((g.services.flight as Flight).cam === 'cockpit') pl.light.intensity = 0;
+    // buffeting with the dynamic pressure (peaks of ~10-20 kPa in a lifting entry)
+    g.renderer.shake = Math.min(0.006, f.q / 4e6 + pl.glow * 0.0012);
+  }
 
   /** sky, Sun and stars around the flying Ranger */
   private updateSkyFlight() {
@@ -1118,6 +1151,7 @@ export class OrbitZone extends Zone implements OrbitContext {
     this.sky.update(dt, _v, this.mode === 'flight' && this.flightProg ? this.flightProg.f.alt + _v.y : this.originR - this.body.R + _v.y);
     this.npcs.update(dt);
     if (this.mode === 'ascent' || this.stack) this.ascentVisuals(dt);
+    this.entryEffects(dt);
     this.lights.update(_v, dt);
     this.hudT -= dt;
     if (this.hudT <= 0) { this.hudT = 0.1; this.dockHud(); this.clocks(); }
@@ -1331,6 +1365,12 @@ export class OrbitZone extends Zone implements OrbitContext {
     o.hum = 0.45; o.air = 0.5;
     o.reverb = 'ship';
     o.music = this.docking.links.some((l) => l.craft === this.ranger) ? 'ship' : flight.autopilot ? 'dock' : 'orbit';
+    if (this.mode === 'flight' && this.flightProg) {
+      const f = this.flightProg.f;
+      o.rumble = Math.min(1, f.q / 12000 + (this.plasma?.glow ?? 0) * 0.5);
+      o.wind = Math.min(1, f.q / 8000);
+      o.vacuum = f.q > 5 ? 0 : o.vacuum;
+    }
     if (this.traverse) { o.rumble = 0.3 + 0.7 * Math.exp(-((this.traverse.l / (3 * this.body.R)) ** 2)); o.intensity = 0.8; o.music = 'gargantua'; }
     o.intensity = 0.4;
     return o;

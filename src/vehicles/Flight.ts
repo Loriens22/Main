@@ -269,7 +269,7 @@ export class Flight implements System {
   readout() {
     const c = this.craft!, env = this.env!;
     const pos = c.position(new THREE.Vector3());
-    const vel = c.velocity(new THREE.Vector3());
+    const vel = env.velocity?.(new THREE.Vector3()) ?? c.velocity(new THREE.Vector3());
     const gvec = env.gravity(pos, new THREE.Vector3());
     const upW = gvec.lengthSq() > 1e-6 ? gvec.clone().normalize().negate() : new THREE.Vector3(0, 1, 0);
     const alt = env.altitude?.(pos) ?? null;
