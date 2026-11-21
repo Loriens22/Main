@@ -1,5 +1,6 @@
 import { clamp, fbm2, hash2, smoothstep, vnoise } from '../../core/math';
-import { registerTerrainSource, TerrainSource } from './sources';
+import { earthMap, registerTerrainSource, TerrainSource } from './sources';
+import { LANDING_FIELD } from '../earth/EarthMap';
 import { BODY } from '../../space/Bodies';
 
 /*
@@ -480,3 +481,13 @@ registerTerrainSource('surface:edmunds', () => curved('edmunds', edmunds));
 for (const [id, src] of Object.entries({ mercury, venus, phobos, deimos, io, europa, ganymede, callisto, enceladus, rhea, titania, iapetus, titan, triton })) {
   registerTerrainSource(`surface:${id}`, () => curved(id, src));
 }
+
+/** Earth: the farmland round NASA's landing field, from the same map as the Earth zone (pad at the origin) */
+registerTerrainSource('surface:earth', () => {
+  const m = earthMap(), L = LANDING_FIELD;
+  return curved('earth', {
+    height: (x, z) => m.height(x + L.x, z + L.z) - m.landingY,
+    splat: (x, z, out) => m.splat(x + L.x, z + L.z, out),
+    aux: (x, z) => m.cornDensity(x + L.x, z + L.z),
+  });
+});

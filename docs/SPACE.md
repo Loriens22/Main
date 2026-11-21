@@ -78,6 +78,10 @@ What is simulated, how, and where the game departs from physics on purpose. Code
   hydrosulphide ~25 km down, tan zones and brown belts drawn out east-west, gaps to the deep air), broken cloud
   above (ammonia ice), H2/He Rayleigh scattering scaled to 1-bar density, haze or methane absorption, lightning glowing
   in the deep clouds with muffled thunder (sound in cold hydrogen ~1.1 km/s).
+- **Earth**: the Ranger comes home to a levelled field by the NASA gate (the same terrain map as the Earth zone,
+  centred on the pad). Back on the ground, "Walk out at NASA" opens the full Earth zone round the field with Ranger 1
+  standing on it; boarding it returns to its cockpit. The climb back to orbit is single-stage (the fiction drive and
+  its atmospheric mode: ~60% of the tanks), unlike the film's rocket launch.
 - Surfaces are procedural height fields around each named site, with the curve of the world built into the height
   (d^2 / 2R) so what is drawn, walked on and the globe beyond the terrain edge agree. Venus and Titan skies are set
   explicitly (the sky shader is single-scattering and cannot produce the bottom of a 92-bar or a hazy 1.5-bar

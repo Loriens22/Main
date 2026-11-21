@@ -5,7 +5,7 @@ import { assets, Model } from '../../render/Assets';
 import { Terrain } from '../terrain/Terrain';
 import { earthMap } from '../terrain/sources';
 import { buildRoad } from './Road';
-import { FARM, NASA } from './EarthMap';
+import { FARM, LANDING_FIELD, NASA } from './EarthMap';
 import { wait } from '../../core/Game';
 import { Corn } from './Corn';
 import { W } from '../../render/patch';
@@ -500,6 +500,22 @@ export class EarthZone extends Zone {
     if (p) out.copy(p.pos); else out.set(HOUSE.x, 0, HOUSE.z + 10);
     out.y = this.map.height(out.x, out.z) + 0.05;
     return out;
+  }
+
+  /** Ranger 1 back from space, standing on the landing field by the NASA gate (boarding it returns to its cockpit) */
+  landedRanger: Model | null = null;
+  async showLandedRanger(on: boolean) {
+    if (on && !this.landedRanger) {
+      const m = await assets.load('ranger');
+      const L = LANDING_FIELD;
+      m.root.position.set(L.x, this.map.height(L.x, L.z) + 1.1, L.z);
+      this.root.add(m.root);
+      m.root.updateMatrixWorld(true);
+      this.phys.addTrimesh(m.colliders);
+      this.game.interactions.node(m.root, 7, 'Board Ranger 1', () => bus.emit('ranger:board', 'earth'), { range: 9 } as any);
+      this.landedRanger = m;
+    }
+    if (this.landedRanger) this.landedRanger.root.visible = on;
   }
 
   override enter() {

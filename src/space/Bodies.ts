@@ -102,7 +102,7 @@ export const BODIES: BodyDef[] = [
     id: 'earth', name: 'Earth', kind: 'rocky', system: 'sol', parent: 'sun', R: 6371 * km, GM: 3.986004418e14, rotation: 0.99726968 * DAY, pole: [0, 90], W0: 190.147,
     jpl: { a: [1.00000261, 0.00000562], e: [0.01671123, -0.00004392], I: [-0.00001531, -0.01294668], L: [100.46457166, 35999.37244981], w: [102.93768193, 0.32327364], O: [0, 0] },
     atmosphere: { rho0: 1.225, H: 8500, top: 80 * km, betaR: [5.8e-6, 13.5e-6, 33.1e-6], HR: 8000, betaM: 2.6e-5, HM: 1200, g: 0.78, breathable: true, limb: [0.45, 0.65, 1.0] },
-    maps: null, parkingAlt: 400 * km, blurb: 'Home. The blight is winning.',
+    maps: null, landing: { zone: 'surface:earth', lat: 38.74372, lon: -104.85308, site: 'NASA landing field' }, parkingAlt: 400 * km, blurb: 'Home. The blight is winning.',
   },
   {
     id: 'moon', name: 'Moon', kind: 'rocky', system: 'sol', parent: 'earth', R: 1737.4 * km, GM: 4.9048695e12, rotation: 0, pole: [266.86, 65.64],

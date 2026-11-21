@@ -55,6 +55,10 @@ const LOOK: Record<string, WorldLook> = {
     layers: { sets: ['snow', 'ice', 'ice', 'snow', 'rock'], tiles: [4, 6, 6, 4, 9], tints: [[0.94, 0.96, 1.0], [0.86, 0.93, 1.02], [0.62, 0.64, 0.68], [1, 1, 1], [0.55, 0.57, 0.6]], aux: 'none', rockSlope: [0.62, 0.86] },
     ground: [0.62, 0.66, 0.72],
   },
+  earth: {
+    layers: { sets: ['dirt', 'grass_dry', 'soil_rows', 'gravel', 'rock'], tiles: [4, 5, 3.04, 2.2, 7], tints: [[1, 0.98, 0.94], [1.02, 1.0, 0.9], [0.95, 0.92, 0.88], [0.8, 0.76, 0.68], [1, 0.98, 0.95]], aux: 'crop', cropColor: [0.2, 0.31, 0.085] } as TerrainLayers,
+    ground: [0.3, 0.27, 0.19],
+  },
   mercury: {
     layers: { sets: ['regolith', 'regolith', 'gravel', 'regolith', 'rock'], tiles: [4.6, 7.3, 2.6, 5.9, 9], tints: [[0.98, 0.94, 0.88], [0.82, 0.78, 0.74], [0.8, 0.76, 0.72], [1, 1, 1], [0.66, 0.62, 0.58]], aux: 'none', rockSlope: [0.5, 0.8] },
     ground: [0.14, 0.13, 0.12],
@@ -212,6 +216,12 @@ export class SurfaceZone extends Zone {
     this.root.add(this.ranger.root);
     this.ranger.setCarried(true);
     this.ranger.onImpact = (dv) => { if (dv > 1.2) ui.toast(`Hard contact: ${dv.toFixed(1)} m/s`, 'warn', 3); };
+    // back aboard Ranger 1 from the Earth zone (it stands on NASA's landing field)
+    bus.on('ranger:board', (w: string) => {
+      if (w !== 'earth' || this.body.id !== 'earth') return;
+      const ez = this.game.zones.get('earth') as any;
+      void this.game.gotoZone('surface', { onEnter: () => { ez?.showLandedRanger(false); this.board(); } });
+    });
     progress?.(1, 'Ready');
   }
 
@@ -271,6 +281,9 @@ export class SurfaceZone extends Zone {
       // absorbed in the clouds (Venera 13's orange images); a single-scattering sky cannot produce that, so the sky
       // here is set as a deep orange haze with a large, dim, diffuse Sun
       p = { ...p, betaR: [1.0e-6, 0.8e-6, 0.4e-6], betaM: 3e-5, HM: 12000, betaD: [2.6e-5, 2.0e-5, 1.1e-5], betaDAbs: [0.2e-5, 1.0e-5, 3.2e-5], HD: 18000, sunRadius: 0.06, sunE: air.sunE * 0.08, fogDensity: 1.6e-4, fogFalloff: 0.0004, sunTint: [1.0, 0.72, 0.38] };
+    } else if (id === 'earth') {
+      // the same dusty blight-era sky as the farm
+      p = { ...EARTH_ATMOSPHERE, planetRadius: b.R, sunE: air.sunE, cloudCoverage: 0.3, cirrus: 0.5 };
     } else if (b.station) {
       const G = GIANT[id];
       p = { ...p, ...G.sky, planetRadius: b.R, atmosphereHeight: Math.min(b.atmosphere!.top, 12 * b.atmosphere!.HR), sunE: air.sunE, cloudCoverage: 0, cirrus: 0 };
@@ -643,6 +656,23 @@ export class SurfaceZone extends Zone {
     this.game.player.stand(p, Math.atan2(-(p.x - this.ranger.root.position.x), -(p.z - this.ranger.root.position.z)) + Math.PI);
     ui.set({ mode: 'foot' });
   };
+
+  /** Earth: walk out at NASA (the full Earth zone round the landing field, the Ranger left standing there). */
+  async walkOutAtNasa() {
+    const g = this.game;
+    await g.gotoZone('earth', {
+      onEnter: (z) => {
+        const ez = z as any;
+        void ez.showLandedRanger(true);
+        const L = { x: 2091.7, z: -1897.2 };
+        const p = new THREE.Vector3(L.x + 4, 0, L.z + 9);
+        p.y = ez.map.height(p.x, p.z) + 0.1;
+        g.player.suited = true;
+        g.player.teleport(p, 0);
+        ui.set({ mode: 'foot' });
+      },
+    });
+  }
 
   /** Board: back into the pilot's seat. */
   board() {

@@ -27,6 +27,8 @@ export const NASA = {
   silo: { x: 2520 + 0.6097 * 305, z: -1686 - 0.7926 * 305 },
 };
 export const SILO_ALONG = 305;
+/** the levelled field west of the gate where Ranger 1 lands when it comes home (a 40 m pad, graded 90 m beyond) */
+export const LANDING_FIELD = { x: 2091.7, z: -1897.2, r: 40 };
 
 export const FIELDS: Field[] = [
   { id: 'south', name: 'South Field', cx: -2600, cz: 222, w: 620, d: 350, rows: 'x' },
@@ -51,6 +53,7 @@ export class EarthMap {
   private grid = new Map<number, number[]>();
   farmY = 0;
   nasaY = 0;
+  landingY = 0;
   sites: Site[] = [];
   private ready = false;
 
@@ -127,6 +130,9 @@ export class EarthMap {
       const d = Math.hypot(x - st.x, z - st.z);
       if (d < st.r + 45) h = lerp(st.y, h, smoothstep(st.r, st.r + 45, d));
     }
+    // the Ranger landing field
+    const ld = Math.hypot(x - LANDING_FIELD.x, z - LANDING_FIELD.z);
+    if (ld < LANDING_FIELD.r + 90) h = lerp(this.landingY, h, smoothstep(LANDING_FIELD.r, LANDING_FIELD.r + 90, ld));
     // concealed silo cap on the mountain flank: a shallow levelled bowl
     const sd = Math.hypot(x - NASA.silo.x, z - NASA.silo.z);
     if (sd < 90) h = lerp(this.siloY, h, smoothstep(34, 90, sd));
@@ -229,6 +235,7 @@ export class EarthMap {
       y[i] = lerp(y[i], this.nasaY, e);
     }
     this.siloY = this.natural(NASA.silo.x, NASA.silo.z) - 3;
+    this.landingY = this.natural(LANDING_FIELD.x, LANDING_FIELD.z);
     for (let i = 0; i < n; i++) {
       const a = pts[Math.max(0, i - 1)], b = pts[Math.min(n - 1, i + 1)];
       const l = Math.hypot(b[0] - a[0], b[1] - a[1]) || 1;

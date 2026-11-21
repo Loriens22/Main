@@ -41,6 +41,13 @@ export function SurfacePanel({ game, close }: { game: Game; close: () => void })
             </div>
           )}
           {z.body.id === 'miller' && <p class="note">Every hour of local time is about seven years on Earth.</p>}
+          {z.body.id === 'earth' && !z.program && (
+            <>
+              <h4 style={{ marginTop: '12px' }}>Home</h4>
+              <p class="note">Ranger 1 stands on the landing field west of the NASA gate. Walk out into the countryside round the facility; the Ranger stays on the field for the return.</p>
+              <button class="btn" onClick={() => { bus.emit('ui:click'); close(); void z.walkOutAtNasa(); }}>Walk out at NASA</button>
+            </>
+          )}
           {err && <p class="note" style={{ color: 'var(--warn)' }}>{err}</p>}
           {z.program && <p class="note">{z.program.status()}</p>}
         </div>
