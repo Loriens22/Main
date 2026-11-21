@@ -1,4 +1,4 @@
-import { AU, BODY, BodyDef, DAY, GM_GARGANTUA, R_G, soiRadius } from './Bodies';
+import { AU, BODY, BodyDef, DAY, GM_GARGANTUA, parkAlt, R_G, soiRadius } from './Bodies';
 import { state } from './Ephemeris';
 import { add, dot, lambert, norm, propagate, scale, sub, unit, V3 } from './Kepler';
 
@@ -91,10 +91,10 @@ function lambertLeg(from: string, to: string, center: string, jd: number, tof: n
   const vInfD = norm(sub(sol.v1, s1.v)), vInfA = norm(sub(sol.v2, s2.v));
   const fb = BODY[from], tb = BODY[to];
   // departing from a moon or planet parking orbit, capturing into the target's
-  const dvD = A === from ? oberth(vInfD, fb.GM, fb.R + fb.parkingAlt) : vInfD;
+  const dvD = A === from ? oberth(vInfD, fb.GM, fb.R + parkAlt(fb)) : vInfD;
   // arriving at a moon (or the wormhole) of another planet: fall in through the planet's well to the moon's orbit and
   // match it there (no Oberth gain at the moon itself is assumed)
-  const dvA = B === to ? oberth(vInfA, tb.GM, tb.R + tb.parkingAlt) : (() => {
+  const dvA = B === to ? oberth(vInfA, tb.GM, tb.R + parkAlt(tb)) : (() => {
     const P = BODY[B], rm = tb.orbit?.a ?? P.R * 10;
     return Math.abs(Math.sqrt(vInfA * vInfA + (2 * P.GM) / rm) - Math.sqrt(P.GM / rm));
   })();
@@ -147,7 +147,7 @@ export function planVoyage(from: string, to: string, jd: number): TransferPlan[]
 function planetMoon(from: string, to: string, center: string, jd: number): TransferPlan {
   const P = BODY[center], mu = P.GM;
   const moon = from === center ? to : from;
-  const rp = P.R + P.parkingAlt;
+  const rp = P.R + parkAlt(P);
   const am = norm(relState(moon, center, jd).r);
   const a = (rp + am) / 2;
   const tof = Math.PI * Math.sqrt((a ** 3) / mu);
@@ -156,7 +156,7 @@ function planetMoon(from: string, to: string, center: string, jd: number): Trans
   const M = BODY[moon];
   const outbound = from === center;
   const vinf = Math.abs(vMoon - va);
-  const dvLow = vp - vPark, dvHigh = oberth(vinf, M.GM, M.R + M.parkingAlt);
+  const dvLow = vp - vPark, dvHigh = oberth(vinf, M.GM, M.R + parkAlt(M));
   // geometry: the ellipse in the moon's orbit plane, periapsis opposite the moon's position on arrival (outbound)
   const mArr = relState(moon, center, jd + tof / DAY), mNow = relState(moon, center, jd);
   const h = [mNow.r[1] * mNow.v[2] - mNow.r[2] * mNow.v[1], mNow.r[2] * mNow.v[0] - mNow.r[0] * mNow.v[2], mNow.r[0] * mNow.v[1] - mNow.r[1] * mNow.v[0]] as V3;
@@ -297,7 +297,7 @@ export function finalizeDeparture(plan: TransferPlan, jdNow: number, park: (t: n
       if (!sol) continue;
       const tb = BODY[plan.to];
       const vA = norm(sub(sol.v2, tgt.v));
-      const cost = norm(sub(sol.v1, s.v)) + oberth(vA, tb.GM, tb.R + tb.parkingAlt);
+      const cost = norm(sub(sol.v1, s.v)) + oberth(vA, tb.GM, tb.R + parkAlt(tb));
       if (!best || cost < best.cost) best = { t, cost, plan: { ...plan, jdDepart: jd, r1: s.r, v1: sol.v1, dvDepart: norm(sub(sol.v1, s.v)), vInfArrive: vA, wait: t } };
     }
     return best ? best.plan : { ...plan, jdDepart: jdNow, wait: 0, depOff: park(0).r };

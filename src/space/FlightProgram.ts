@@ -17,7 +17,7 @@ export function siteFunction(body: BodyDef, jd0: number): SiteFn {
 const PHASE_LABEL: Record<string, string> = {
   wait: 'Waiting for the window', deorbit: 'Deorbit burn', coast: 'Coasting down', entry: 'Entry', braking: 'Powered descent',
   gate: 'High gate', terminal: 'Terminal descent', landed: 'Landed', ascent: 'Lift-off', pitch: 'Climb', insert: 'Orbit insertion',
-  close: 'Closing on the Endurance', trim: 'Matching velocity', done: 'Rendezvous',
+  raise: 'Apoapsis trim', xfer: 'Transfer coast', close: 'Closing on the Endurance', trim: 'Matching velocity', done: 'Rendezvous',
 };
 
 /**
@@ -46,6 +46,7 @@ export class FlightProgram {
   /** sim seconds per real second for the current phase */
   /** constant compression for a wait, fixed when it starts so the wait takes about five seconds */
   private waitWarp = 0;
+  private xferWarp = 0;
 
   warp(): number {
     const f = this.f;
@@ -56,7 +57,17 @@ export class FlightProgram {
       case 'wait': return this.waitWarp;
       case 'landed': return this.kind === 'ascent' ? this.waitWarp : 1;
       case 'deorbit': return 3;
-      case 'coast': return 150;
+      case 'coast': {
+        // the fall from a high orbit (gas giants) takes hours: about eight seconds of real time down to the air
+        const vr = -(f.v[0] * f.r[0] + f.v[1] * f.r[1] + f.v[2] * f.r[2]) / norm(f.r);
+        const top = f.body.atmosphere ? f.body.atmosphere.top : 0;
+        return Math.max(150, Math.min(20000, (f.alt - top) / Math.max(vr, 1) / 8));
+      }
+      case 'xfer': {
+        // up the transfer ellipse in about ten seconds
+        if (!this.xferWarp) this.xferWarp = Math.max(30, Math.min(20000, f.timeToApoapsis() / 10));
+        return this.xferWarp;
+      }
       case 'entry': {
         // a long fall through thick air (Venus, Titan) runs faster: about 30 s of real time for what is left
         const vr = Math.abs(f.v[0] * f.r[0] + f.v[1] * f.r[1] + f.v[2] * f.r[2]) / norm(f.r);
@@ -69,6 +80,7 @@ export class FlightProgram {
       case 'insert': return Math.max(15, Math.min(60, f.tgo / 15));
       case 'close': return Math.max(6, Math.min(30, f.tgo / 10));
       case 'trim': return 2;
+      case 'raise': return 2;
       default: return 1;
     }
   }
@@ -78,6 +90,7 @@ export class FlightProgram {
     const label = PHASE_LABEL[f.phase] ?? f.phase;
     if (f.phase === 'wait') return `${label} · burn in ${fmtT(f.tDeorbit - f.t)}`;
     if (this.kind === 'ascent' && f.phase === 'landed') return `Launch window in ${fmtT(this.launchAt - f.t)}`;
+    if (f.phase === 'xfer') return `${label} · apoapsis in ${fmtT(f.timeToApoapsis())}`;
     if (f.phase === 'entry') return `${label} · ${(norm(f.airVel()) / 1000).toFixed(2)} km/s · ${(f.q / 1000).toFixed(1)} kPa`;
     const s = f.site(f.t);
     if (this.kind === 'descent') return `${label} · ${(f.height / 1000).toFixed(f.height < 10000 ? 2 : 1)} km · ${(f.rangeTo(s.r) / 1000).toFixed(1)} km to go`;

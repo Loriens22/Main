@@ -19,7 +19,7 @@ function setup(id: string, dt0 = 0) {
   const poleV = unit(w[0] || w[1] || w[2] ? w : [0, 0, 1]);
   const E = unit(cross(poleV, sv));
   void east;
-  const rE = b.R + b.parkingAlt, n = Math.sqrt(b.GM / rE ** 3);
+  const rE = b.R + (b.surveyAlt ?? b.parkingAlt), n = Math.sqrt(b.GM / rE ** 3);
   const phase0 = -0.35 + dt0 * n;
   const endu = (t: number) => {
     const ph = phase0 + n * t;
@@ -43,7 +43,7 @@ describe('descent and ascent guidance', () => {
       let maxG = 0, minH = Infinity, guard = 0, tBrake = -1, heat = 0;
       while (f.phase !== 'terminal' && f.phase !== 'landed' && guard++ < 400000) {
         const before = norm(f.v);
-        f.step(f.phase === 'wait' ? Math.max(1, plan.tDeorbit - f.t) : 0.5);
+        f.step(f.phase === 'wait' ? Math.max(1, plan.tDeorbit - f.t) : f.phase === 'coast' && f.alt > (b.atmosphere?.top ?? 0) + 2e5 ? 20 : 0.5);
         if (f.phase !== 'wait' && f.phase !== 'coast') maxG = Math.max(maxG, Math.abs(norm(f.v) - before) / 0.5 / 9.81);
         if (f.phase === 'braking' && tBrake < 0) tBrake = f.t;
         if (f.phase === 'braking' || f.phase === 'entry') minH = Math.min(minH, f.height);
@@ -77,26 +77,23 @@ describe('descent and ascent guidance', () => {
       // ---- ascent: wait for the window, climb, insert 1.5 km behind the Endurance with its velocity
       const t0 = f.t;
       const behind = (t: number) => { const e = endu(t); return { r: sub(e.r, scale(unit(e.v), 1500)), v: e.v }; };
-      let asc = planAscent(b, (t) => site(t0 + t), (t) => behind(t0 + t), perf)!;
-      if (id === 'venus') {
-        // no drive of the Ranger's size climbs out of 92 bar: the computer says so; Creative Mode lifts the limit
-        expect(asc.fuelOk).toBe(false);
-        expect(asc.fuelNeed).toBeGreaterThan(perf.fuel);
-        asc = planAscent(b, (t) => site(t0 + t), (t) => behind(t0 + t), perf, { infiniteFuel: true })!;
-      }
+      // gas giants: the station refuels the Ranger and straps its ascent booster on
+      const perfUp = b.station ? rangerPerf(RANGER_SPEC, RANGER_SPEC.fuelMax, b.station.booster) : perf;
+      const asc = planAscent(b, (t) => site(t0 + t), (t) => behind(t0 + t), perfUp)!;
       expect(asc).not.toBeNull();
       const tL = t0 + asc.tLaunch;
       const sL = site(tL);
-      const a = new GuidedFlight(b, add(sL.r, scale(sL.up, 5)), sL.v, perf, 'ascent', site, behind);
-      // Venus: no chemical or fictional drive of the Ranger's size climbs out of 92 bar; Creative Mode lifts the limit
-      if (id === 'venus') a.infiniteFuel = true; else expect(asc.fuelOk).toBe(true);
+      const a = new GuidedFlight(b, add(sL.r, scale(sL.up, 5)), sL.v, perfUp, 'ascent', site, behind);
+      // every world, Venus included (the drive takes its reaction mass from the dense air low down)
+      expect(asc.fuelOk).toBe(true);
       a.t = tL;
       a.tArrive = t0 + asc.tArrive;
-      let g2 = 0;
-      while (a.phase !== 'done' && g2++ < 200000) a.step(0.5);
+      let g2 = 0, maxQ = 0, dropped = -1;
+      a.onJettison = () => { dropped = a.height; };
+      while (a.phase !== 'done' && g2++ < 400000) { a.step(a.phase === 'xfer' ? 30 : 0.5); maxQ = Math.max(maxQ, a.q); }
       const tg = behind(a.t);
       const aMiss = norm(sub(a.r, tg.r)), aV = norm(sub(a.v, tg.v));
-      if (process.env.TRACE) require('fs').appendFileSync(process.env.TRACE, JSON.stringify({ id, window_h: +(asc.tLaunch / 3600).toFixed(2), climb_s: +(a.t - tL).toFixed(0), miss_m: +aMiss.toFixed(0), vErr: +aV.toFixed(1), fuelUsed: +(1 - a.fuel / perf.fuel).toFixed(2) }) + '\n');
+      if (process.env.TRACE) require('fs').appendFileSync(process.env.TRACE, JSON.stringify({ id, window_h: +(asc.tLaunch / 3600).toFixed(2), climb_s: +(a.t - tL).toFixed(0), miss_m: +aMiss.toFixed(0), vErr: +aV.toFixed(1), fuelUsed: +(1 - a.fuel / perf.fuel).toFixed(2), maxQ_kPa: +(maxQ / 1000).toFixed(1), boosterDrop_km: +(dropped / 1000).toFixed(0) }) + '\n');
       expect(aMiss).toBeLessThan(500);
       expect(aV).toBeLessThan(5);
       expect(a.fuel).toBeGreaterThan(0);

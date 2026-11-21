@@ -27,14 +27,23 @@ export interface Perf {
   cdANose: number;
   cdAEntry: number;
   ld: number;
+  /**
+   * An ascent booster strapped under the Ranger (gas giants): its engines add to the Ranger's, the Ranger's engines
+   * draw from its tanks while it is attached (cross-feed), and it is dropped when they run dry.
+   */
+  stage?: { thrust: number; ve: number; dry: number; fuel: number };
 }
+
+/** intake area of the drive's atmospheric mode (m^2) and the exhaust speed of heated intake gas (m/s) */
+export const INTAKE_AREA = 1.5;
+export function intakeVe(b: BodyDef) { return (b.station ? 800 : 300) * 9.80665; }
 
 /** A place on the rotating surface: state relative to the body centre (inertial axes) at sim time t. */
 export type SiteFn = (t: number) => { r: V3; v: V3; up: V3 };
 /** A moving point to meet in orbit (the rendezvous point behind the Endurance). */
 export type TargetFn = (t: number) => { r: V3; v: V3 };
 
-export type FlightPhase = 'wait' | 'deorbit' | 'coast' | 'entry' | 'braking' | 'gate' | 'terminal' | 'landed' | 'ascent' | 'pitch' | 'insert' | 'close' | 'trim' | 'done';
+export type FlightPhase = 'wait' | 'deorbit' | 'coast' | 'entry' | 'braking' | 'gate' | 'terminal' | 'landed' | 'ascent' | 'pitch' | 'insert' | 'raise' | 'xfer' | 'close' | 'trim' | 'done';
 
 export const GATE_ALT = 1200;        // m above the site: where the terminal descent starts
 export const GATE_VZ = -28;          // m/s vertical speed at the gate
@@ -84,6 +93,16 @@ export class GuidedFlight {
   overdraw = false;
   /** height of the craft's reference point above the ground when it stands on its gear (m) */
   touchH = 0;
+  /** the ascent booster is attached, and its remaining propellant (kg) */
+  staged = false;
+  stageFuel = 0;
+  /** called when the booster is dropped (visuals) */
+  onJettison: (() => void) | null = null;
+  /** fraction of the reaction mass the drive takes from the air at this instant (0..1) */
+  intake = 0;
+  /** planning: step() returns as soon as this phase begins */
+  stopAt: FlightPhase | null = null;
+  private closeIters = 0;
 
   /** time of the vertical rise off the pad to ASCENT_RISE metres */
   static ascentRiseTime(b: BodyDef, aMax: number) {
@@ -115,16 +134,35 @@ export class GuidedFlight {
 
   constructor(public body: BodyDef, public r: V3, public v: V3, public perf: Perf, public program: 'descent' | 'ascent', public site: SiteFn, public target: TargetFn | null = null) {
     this.fuel = perf.fuel;
+    if (perf.stage && perf.stage.fuel > 0) { this.staged = true; this.stageFuel = perf.stage.fuel; }
     this.omega = spinVector(body);
     this.mu = body.GM;
     if (program === 'ascent') { this.phase = 'ascent'; }
   }
 
-  get mass() { return this.perf.dry + Math.max(this.fuel, -0.5 * this.perf.dry); }
+  get mass() {
+    const st = this.staged && this.perf.stage ? this.perf.stage.dry + Math.max(0, this.stageFuel) : 0;
+    return this.perf.dry + Math.max(this.fuel, -0.5 * this.perf.dry) + st;
+  }
+  /** total thrust (N) and effective exhaust speed (m/s) of the engines now firing */
+  get thrust() { return this.perf.thrust + (this.staged && this.perf.stage ? this.perf.stage.thrust : 0); }
+  get ve() {
+    const S = this.staged ? this.perf.stage : undefined;
+    return S ? (this.perf.thrust + S.thrust) / (this.perf.thrust / this.perf.ve + S.thrust / S.ve) : this.perf.ve;
+  }
+  /** the target orbit is far above the low orbits the direct ascent flies into: ascend onto a transfer ellipse */
+  get highTarget() { return !!this.target && norm(this.target(0).r) > this.lowRadius() + 500000; }
+  /** radius of the low point of the transfer: clear of the air, where the insertion ends */
+  lowRadius() {
+    const a = this.body.atmosphere, R = this.body.R;
+    if (!a) return R + 30000;
+    const vO = Math.sqrt(this.mu / R);
+    return R + Math.max(a.H * Math.log((a.rho0 * vO * vO) / 60), 0.6 * this.turnHeight() + 20000);
+  }
   get alt() { return norm(this.r) - this.body.R; }
   /** height above the landing site's ground level */
   get height() { return norm(this.r) - this.body.R - this.siteH; }
-  get aMax() { return this.perf.thrust / this.mass; }
+  get aMax() { return this.thrust / this.mass; }
 
   /** air velocity: relative to the co-rotating atmosphere */
   airVel(): V3 { return sub(this.v, cross(this.omega, this.r)); }
@@ -272,8 +310,14 @@ export class GuidedFlight {
       }
       case 'entry': {
         const va = norm(this.airVel());
-        // the glide ends low and slow: the air does most of the braking (near terminal speed in thick air)
-        if ((va < GuidedFlight.ENTRY_EXIT && this.height < 14000) || this.height < 9000) { this.startBraking(); return this.guide(); }
+        // the glide ends low and slow: the air does most of the braking (near terminal speed in thick air). Where the
+        // engines only just out-pull gravity (Jupiter: 1.5 g of thrust against 2.5 g) the braking starts higher,
+        // with room to stop the fall
+        const g = this.mu / dot(this.r, this.r);
+        const aNet = Math.max(0.5, 0.9 * this.aMax - g);
+        const vr = Math.max(0, -dot(this.v, unit(this.r)));
+        const stop = (vr * vr) / (2 * aNet);
+        if ((va < GuidedFlight.ENTRY_EXIT && this.height < Math.max(14000, 3 * stop + GATE_ALT)) || (va < 3000 && this.height < Math.max(9000, 2 * stop + GATE_ALT)) || this.height < 9000) { this.startBraking(); return this.guide(); }
         return zero;
       }
       case 'braking': {
@@ -319,16 +363,20 @@ export class GuidedFlight {
         return add(scale(up, av), scale(dr, ah));
       }
       case 'insert': {
-        // into the Endurance's orbit: its plane, its radius, circular speed; the along-track point is left free
+        // into the Endurance's orbit: its plane, its radius, circular speed; the along-track point is left free.
+        // A high orbit is reached by injecting onto a transfer ellipse from a low radius clear of the air instead
         const tg = this.target!(this.t);
-        const hH = unit(cross(tg.r, tg.v)), rT = norm(tg.r);
+        const hH = unit(cross(tg.r, tg.v)), rE = norm(tg.r);
+        const high = this.highTarget;
+        const rT = high ? this.lowRadius() : rE;
+        const vIns = high ? Math.sqrt((2 * this.mu * rE) / (rT * (rT + rE))) : Math.sqrt(this.mu / rT);
         const tgo = Math.max(3, this.tgo);
         // aim where the ship gets to while it accelerates to orbital speed (average of now and then), in the plane
-        const vO = Math.sqrt(this.mu / rT);
+        const vO = vIns;
         let p = add(this.r, scale(add(this.v, scale(this.downrange(), vO)), tgo / 2));
         p = sub(p, scale(hH, dot(p, hH)));
         const rTgt = scale(unit(p), rT);
-        const vTgt = scale(unit(cross(hH, rTgt)), Math.sqrt(this.mu / rT));
+        const vTgt = scale(unit(cross(hH, rTgt)), vIns);
         let a = this.curvZem(rTgt, vTgt, tgo);
         // never sink back toward the ground low down
         const up = unit(this.r), vr = dot(this.v, up);
@@ -339,6 +387,26 @@ export class GuidedFlight {
           if (au < need) a = add(a, scale(up, need - au));
         }
         return sub(a, this.dragAccel());
+      }
+      case 'raise': {
+        // trim the injection: the apoapsis exactly on the Endurance's orbit (the last step is sized, no overshoot)
+        const rE = norm(this.target!(this.t).r);
+        const ra = this.apoapsis();
+        const r = norm(this.r), vv = norm(this.v);
+        // speed change that puts the apoapsis at rE from here (vis-viva with the flight-path angle held)
+        const hv = norm(cross(this.r, this.v)), cosG = hv / (r * vv);
+        const vNeed = Math.sqrt(Math.max(0, (2 * this.mu * (1 / r - 1 / rE)) / (1 - ((r * r) / (rE * rE)) * cosG * cosG)));
+        const need = vNeed - vv;
+        if (Math.abs(ra - rE) < 150 || Math.abs(need) < 0.02) { this.phase = 'xfer'; return zero; }
+        return scale(unit(this.v), Math.sign(need) * Math.min(this.aMax, Math.abs(need) / 0.25));
+      }
+      case 'xfer': {
+        // coasting up the transfer ellipse: the close-in starts so that it ends at the apoapsis
+        const tA = this.timeToApoapsis();
+        const dvC = Math.abs(Math.sqrt(this.mu / norm(this.target!(this.t).r)) - this.apoSpeed());
+        const tgoC = 60 + (3 * dvC) / Math.max(1, this.perf.thrust / (this.perf.dry + Math.max(0, this.fuel)));
+        if (tA <= tgoC / 2) { this.phase = 'close'; this.tgo = Math.max(60, tA + tgoC / 2); return this.guide(); }
+        return zero;
       }
       case 'close': {
         // the last few kilometres to the rendezvous point behind the Endurance
@@ -412,10 +480,52 @@ export class GuidedFlight {
   startInsertion() {
     this.phase = 'insert';
     const tg = this.target!(this.t);
-    const vOrb = Math.sqrt(this.mu / norm(tg.r));
+    const rE = norm(tg.r), high = this.highTarget, rI = high ? this.lowRadius() : rE;
+    const vOrb = high ? Math.sqrt((2 * this.mu * rE) / (rI * (rI + rE))) : Math.sqrt(this.mu / rE);
     // time to gain the speed, and to climb the height still between the ship and the Endurance's orbit
-    const climb = Math.max(0, norm(tg.r) - norm(this.r));
+    const climb = Math.max(0, rI - norm(this.r));
     this.tgo = Math.max(GuidedFlight.insertionTime(Math.max(300, vOrb - Math.max(0, dot(this.v, this.downrange()))), this.aMax), climb / 400);
+  }
+
+  /** an empty booster is dropped as soon as the injection is done (its remaining propellant goes with it) */
+  dropStage() {
+    if (!this.staged) return;
+    this.staged = false;
+    this.onJettison?.();
+  }
+
+  /** orbit elements of the current state: time to the next apoapsis (s) and the speed there (m/s) */
+  timeToApoapsis() {
+    const r = norm(this.r), v2 = dot(this.v, this.v), mu = this.mu;
+    const E = v2 / 2 - mu / r;
+    if (E >= 0) return Infinity;
+    const a = -mu / (2 * E);
+    const hv = cross(this.r, this.v), h = norm(hv);
+    const e = Math.sqrt(Math.max(0, 1 - (h * h) / (mu * a)));
+    if (e < 1e-6) return 0;
+    const cosE = (1 - r / a) / e;
+    const sinE = dot(this.r, this.v) / (e * Math.sqrt(mu * a));
+    let EA = Math.atan2(sinE, cosE);            // eccentric anomaly, -pi..pi
+    if (EA < 0) EA += 2 * Math.PI;
+    const n = Math.sqrt(mu / (a * a * a));
+    const M = EA - e * Math.sin(EA);
+    return Math.max(0, (Math.PI - M) / n);
+  }
+  apoapsis() {
+    const r = norm(this.r), v2 = dot(this.v, this.v), mu = this.mu;
+    const E = v2 / 2 - mu / r;
+    if (E >= 0) return Infinity;
+    const a = -mu / (2 * E);
+    const h = norm(cross(this.r, this.v));
+    const e = Math.sqrt(Math.max(0, 1 - (h * h) / (mu * a)));
+    return a * (1 + e);
+  }
+  apoSpeed() {
+    const r = norm(this.r), v2 = dot(this.v, this.v), mu = this.mu;
+    const a = -mu / (2 * (v2 / 2 - mu / r));
+    const h = norm(cross(this.r, this.v));
+    const e = Math.sqrt(Math.max(0, 1 - (h * h) / (mu * a)));
+    return h / (a * (1 + e));
   }
 
   /** after insertion: a short transfer to the rendezvous point, then a velocity trim */
@@ -449,16 +559,23 @@ export class GuidedFlight {
     const vr = dot(va, up), s = norm(va), vh = unit(va);
     // hold a shallow glide; full lift up when the deceleration passes 3 g; never steer hard into the thick air
     const vrWant = -Math.max(20, 0.012 * s);
-    let lamV = Math.max(-0.3, Math.min(1, (vrWant - vr) * 0.03));
-    if (norm(drag) > 3 * 9.81) lamV = 1;
-    // cross-range to the site, relative to the remaining range: bank toward it with what lift is left
+    // faster than circular (entry from a high orbit): the lift may point down, holding the ship in the air
+    const r = norm(this.r), vIn = norm(this.v);
+    const superOrbital = vIn * vIn > (this.mu / r) * 1.02;
+    // cross-range to the site: off the track the bank keeps some lateral lift whatever the glide asks for (a long
+    // glide through a co-rotating atmosphere that does not turn with the orbit plane drifts sideways otherwise)
     const site = this.site(this.t).r;
     const lat = unit(cross(up, vh));
     const d = sub(site, this.r);
-    const cr = dot(d, lat), rg = Math.max(20000, dot(d, vh));
-    const want = Math.max(-1, Math.min(1, (cr / rg) * 6));
+    const cr = dot(d, lat);
+    const off = Math.min(1, Math.abs(cr) / 30000);
+    const vmax = 1 - 0.4 * off;
+    let lamV = Math.max(superOrbital ? -vmax : -0.3, Math.min(vmax, (vrWant - vr) * 0.03));
+    if (superOrbital && vr > 0) lamV = -vmax;
+    if (norm(drag) > 3 * 9.81) lamV = 1;
+    // bank toward the track with the lift the vertical channel leaves (proportional close in: no chatter)
     const room = Math.sqrt(Math.max(0, 1 - lamV * lamV));
-    const lamL = want * room;
+    const lamL = Math.sign(cr) * room * Math.min(1, Math.abs(cr) / 4000);
     const lv = unit(sub(up, scale(vh, dot(up, vh))));
     return scale(add(scale(lv, lamV), scale(lat, lamL)), this.perf.ld * norm(drag));
   }
@@ -492,19 +609,20 @@ export class GuidedFlight {
     while (left > 1e-9) {
       if ((this.phase as FlightPhase) === 'landed') { this.t += left; break; }
       const air = this.body.atmosphere;
-      const coasting = (this.phase === 'wait' || this.phase === 'coast') && (!air || this.alt > air.top);
+      const coasting = (this.phase === 'wait' || this.phase === 'coast' || this.phase === 'xfer') && (!air || this.alt > air.top);
       if (coasting) {
         // analytic Kepler coast, in slices so phase changes are caught
-        const h = Math.min(left, this.phase === 'wait' ? Math.max(0.05, this.tDeorbit - this.t) : 5);
+        const h = Math.min(left, this.phase === 'wait' ? Math.max(0.05, this.tDeorbit - this.t) : this.phase === 'xfer' ? Math.max(1, Math.min(60, this.timeToApoapsis() / 20)) : 5);
         const s = propagate(this.r, this.v, this.mu, h);
         this.r = s.r; this.v = s.v; this.t += h; left -= h;
         this.aT = [0, 0, 0]; this.throttle = 0;
         this.guide();
+        if (this.stopAt && this.phase === this.stopAt) return;
         continue;
       }
       const h = Math.min(left, this.phase === 'entry' ? 1 : 0.25);
       let aT = this.guide();
-      const am = norm(aT), lim = this.fuel > 0 || this.infiniteFuel || this.overdraw ? this.aMax : 0;
+      const am = norm(aT), lim = this.fuel > 0 || this.staged || this.infiniteFuel || this.overdraw ? this.aMax : 0;
       if (am > lim) aT = scale(aT, lim / am);
       this.aT = aT;
       this.throttle = lim > 0 ? Math.min(1, norm(aT) / lim) : 0;
@@ -516,9 +634,23 @@ export class GuidedFlight {
       const k4v = this.accel(add(r0, scale(k3r, h)), add(v0, scale(k3v, h)), aT), k4r = add(v0, scale(k3v, h));
       this.r = add(r0, scale(add(add(k1r, scale(k2r, 2)), add(scale(k3r, 2), k4r)), h / 6));
       this.v = add(v0, scale(add(add(k1v, scale(k2v, 2)), add(scale(k3v, 2), k4v)), h / 6));
-      const dm = (this.mass * norm(aT) * h) / this.perf.ve;
+      // reaction mass: in dense air the drive heats intake gas (atmospheric mode), the rest comes from the tanks
+      const F = this.mass * norm(aT);
+      const rhoA = this.density();
+      const need = F / intakeVe(this.body);
+      this.intake = need > 0 && rhoA > 0 ? Math.min(1, (rhoA * Math.max(25, norm(this.airVel())) * INTAKE_AREA) / need) : 0;
+      const dm = ((F * h) / this.ve) * (1 - this.intake);
       this.burned += dm;
-      if (this.overdraw) this.fuel -= dm;
+      if (this.staged && !this.infiniteFuel) {
+        // cross-feed from the booster first; it is dropped when it runs dry
+        this.stageFuel -= dm;
+        if (this.stageFuel <= 0) {
+          if (this.overdraw) this.fuel += this.stageFuel;
+          this.stageFuel = 0;
+          this.staged = false;
+          this.onJettison?.();
+        }
+      } else if (this.overdraw) this.fuel -= dm;
       else if (!this.infiniteFuel) this.fuel = Math.max(0, this.fuel - dm);
       this.t += h; left -= h;
       if (this.phase === 'braking' || this.phase === 'insert' || this.phase === 'close') this.tgo -= h;
@@ -528,8 +660,13 @@ export class GuidedFlight {
       this.q = 0.5 * rho * va * va;
       this.heat = Math.min(1, (Math.sqrt(rho) * va * va * va) / 2.5e10);
       if (this.phase === 'braking' && this.tgo <= 0.5) this.phase = 'terminal';
-      if (this.phase === 'insert' && this.tgo <= 3) this.startClose();
-      else if (this.phase === 'close' && this.tgo <= 1) this.phase = 'trim';
+      if (this.phase === 'insert' && this.tgo <= 3) { if (this.highTarget) { this.phase = 'raise'; this.dropStage(); } else this.startClose(); }
+      else if (this.phase === 'close' && this.tgo <= 1) {
+        // still kilometres off (a long close-in from a transfer): another, shorter close-in, then the trim
+        const d = this.target ? norm(sub(this.target(this.t).r, this.r)) : 0;
+        if (d > 400 && this.closeIters++ < 6) this.startClose(); else this.phase = 'trim';
+      }
+      if (this.stopAt && this.phase === this.stopAt) return;
     }
   }
 }
@@ -549,7 +686,9 @@ export function planDescent(body: BodyDef, r: V3, v: V3, perf: Perf, site: SiteF
   // small bodies park only a few km up: aim the periapsis at half the parking height there
   const rp = air ? body.R + Math.min(air.top * 0.45, 40000) : body.R + (opts.siteH ?? 0) + Math.min(15000, 0.5 * (rr - body.R));
   const hHat = unit(cross(r, v));
-  const maxCross = opts.maxCross ?? (4 * Math.PI) / 180;
+  // the site may lie off the ground track by what the entry glide (or the braking) can steer out: a distance, not an
+  // angle (4 degrees is 120 km on the Moon but 4,000 km on Saturn)
+  const maxCross = opts.maxCross ?? Math.min((4 * Math.PI) / 180, (air ? 400000 : 120000) / body.R);
   const horizon = opts.horizon ?? Math.max(P * 40, 32 * 86400);
   /** signed angle from a to b about the orbit normal (positive ahead), -pi..pi */
   const angle = (a: V3, b: V3) => Math.atan2(dot(cross(a, b), hHat), dot(a, b));
@@ -584,8 +723,9 @@ export function planDescent(body: BodyDef, r: V3, v: V3, perf: Perf, site: SiteF
   const dt = P / 90;
   for (let t = 0; t < horizon; t += dt) {
     const a = geo(t), b = geo(t + dt);
-    // the site falls back relative to the burn point as time goes on: d decreases through zero
-    if (a.d > 0 && b.d <= 0 && a.d - b.d < 1 && Math.abs(a.cross) < maxCross) {
+    // the site falls back relative to the burn point as time goes on (d decreases through zero), or, under a slow
+    // high orbit round a fast-spinning giant, runs ahead of it (d increases through zero)
+    if (Math.sign(a.d) !== Math.sign(b.d) && Math.abs(a.d - b.d) < 1 && Math.abs(a.cross) < maxCross) {
       const tc = t + dt * (a.d / (a.d - b.d));
       // e.g. daylight at the site on landing
       if (!opts.ok || opts.ok(tc + ref.tB + 300)) { tCand = tc; break; }
@@ -627,13 +767,17 @@ export function planAscent(body: BodyDef, site: SiteFn, endurance: TargetFn, per
   const ref = new GuidedFlight(body, add(site(0).r, scale(site(0).up, 5)), site(0).v, perf, 'ascent', site, endurance);
   // the reference climb never runs dry: it measures what the ascent needs (or flies as Creative Mode would)
   if (opts.infiniteFuel) ref.infiniteFuel = true; else ref.overdraw = true;
+  if (perf.stage) ref.stageFuel = perf.stage.fuel;
   let guard = 0;
-  while (ref.phase !== 'close' && ref.phase !== 'done' && guard++ < 40000) ref.step(0.5);
+  ref.stopAt = 'close';
+  while (ref.phase !== 'close' && ref.phase !== 'done' && guard++ < 80000) ref.step(ref.phase === 'xfer' ? 120 : 0.5);
   const up0 = unit(site(0).r);
   const proj = (x: V3) => sub(x, scale(hHat, dot(x, hHat)));
-  // how far round the ship gets from the site, plus a little: it should come in just behind the Endurance's point
-  const theta1 = Math.atan2(dot(cross(proj(up0), proj(ref.r)), hHat), dot(proj(up0), proj(ref.r)));
-  const tClimb = ref.t;
+  // how far round the ship gets from the site, plus a little: it should come in just behind the Endurance's point.
+  // Up a transfer ellipse the meeting is at the end of the close-in, round the apoapsis: predict it ballistically
+  let arr = ref.r, tClimb = ref.t;
+  if (ref.phase === 'close' && ref.highTarget) { arr = propagate(ref.r, ref.v, mu, ref.tgo).r; tClimb = ref.t + ref.tgo; }
+  const theta1 = Math.atan2(dot(cross(proj(up0), proj(arr)), hHat), dot(proj(up0), proj(arr)));
   const lead = theta1 + 1000 / rr;
   void vOrb;
   const maxCross = opts.maxCross ?? (4 * Math.PI) / 180;
@@ -653,17 +797,22 @@ export function planAscent(body: BodyDef, site: SiteFn, endurance: TargetFn, per
       let lo = t, hi = t + step;
       for (let k = 0; k < 40; k++) { const m = (lo + hi) / 2; if (f(m).ang <= 0) lo = m; else hi = m; }
       const tL = (lo + hi) / 2;
-      return { tLaunch: tL, tArrive: tL + tClimb, cross: f(tL).cross, fuelOk: ref.burned < 0.97 * perf.fuel || !!opts.infiniteFuel, fuelNeed: ref.burned };
+      // the climb must leave the Ranger enough for the close-in and the trim (and the booster's tanks are spent first)
+      const closeDv = ref.highTarget ? Math.abs(Math.sqrt(mu / rr) - ref.apoSpeed()) + 200 : 150;
+      const reserve = (perf.dry + Math.max(0, ref.fuel)) * (1 - Math.exp(-closeDv / perf.ve));
+      return { tLaunch: tL, tArrive: tL + tClimb, cross: f(tL).cross, fuelOk: ref.fuel > reserve + 0.02 * perf.fuel || !!opts.infiniteFuel, fuelNeed: perf.fuel - ref.fuel + reserve + (perf.stage ? perf.stage.fuel : 0) };
     }
   }
   return null;
 }
 
 /** The Ranger as a point mass (fictional high-Isp drive: see docs/SPACE.md). */
-export function rangerPerf(spec: { dryMass: number; fuelMax: number; main: { thrust: number; isp: number }; lift: { thrust: number; isp: number } }, fuel = spec.fuelMax): Perf {
+export function rangerPerf(spec: { dryMass: number; fuelMax: number; main: { thrust: number; isp: number }; lift: { thrust: number; isp: number } }, fuel = spec.fuelMax, booster?: { fuel: number; dry: number; thrust: number; isp: number }): Perf {
   const T = spec.main.thrust + spec.lift.thrust;
   const isp = T / (spec.main.thrust / spec.main.isp + spec.lift.thrust / spec.lift.isp);
-  return { thrust: T * 0.92, ve: isp * 9.80665, dry: spec.dryMass, fuel, cdA: 40, cdANose: 9, cdAEntry: 110, ld: 0.6 };
+  const p: Perf = { thrust: T * 0.92, ve: isp * 9.80665, dry: spec.dryMass, fuel, cdA: 40, cdANose: 9, cdAEntry: 110, ld: 0.6 };
+  if (booster) p.stage = { thrust: booster.thrust, ve: booster.isp * 9.80665, dry: booster.dry, fuel: booster.fuel };
+  return p;
 }
 
 void smooth; void BODY;

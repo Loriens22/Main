@@ -24,7 +24,7 @@ import { Smoke } from '../../render/Smoke';
 import { NPC, NPCManager } from '../../npc/NPC';
 import { polarToLvlh } from '../../space/Orbit';
 import { pressureRatio } from '../../space/Earth';
-import { BODY, BodyDef } from '../../space/Bodies';
+import { BODY, BodyDef, parkAlt, parkingOverride } from '../../space/Bodies';
 import { equatorBasis, LAUNCH_JD, state, surfacePoint } from '../../space/Ephemeris';
 import { SystemView } from '../../render/SystemView';
 import { WormholeLens } from '../../render/Wormhole';
@@ -810,7 +810,7 @@ export class OrbitZone extends Zone implements OrbitContext {
    */
   parkingGeometry(id: string, jd: number): ParkingGeometry {
     const b = BODY[id];
-    const rE = b.R + b.parkingAlt, n = b.GM > 0 ? Math.sqrt(b.GM / rE ** 3) : 0;
+    const rE = b.R + parkAlt(b), n = b.GM > 0 ? Math.sqrt(b.GM / rE ** 3) : 0;
     const { e1, e2, n: nn } = equatorBasis(id);
     const bci = { e1: new THREE.Vector3(...e1), e2: new THREE.Vector3(...e2), n: new THREE.Vector3(...nn) };
     const toB = (v: THREE.Vector3) => new THREE.Vector3(v.dot(bci.e1), v.dot(bci.e2), v.dot(bci.n));
@@ -880,7 +880,7 @@ export class OrbitZone extends Zone implements OrbitContext {
   setBody(id: string, opts: { phase?: number; geom?: ParkingGeometry } = {}) {
     const b = BODY[id];
     this.body = b;
-    this.rE = b.R + b.parkingAlt;
+    this.rE = b.R + parkAlt(b);
     this.n = Math.sqrt(b.GM / (this.rE ** 3));
     if (id === 'earth') { this.setLaunch(this.day, this.hours); }
     else {

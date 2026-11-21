@@ -58,8 +58,15 @@ export interface BodyDef {
   maps: string | null;
   /** a surface the Ranger can land on (and the zone that plays it) */
   landing?: { zone: string; lat: number; lon: number; site: string };
+  /**
+   * Gas and ice giants: a floating station at the 1-bar level (a hot-hydrogen aerostat) the Ranger lands on, and the
+   * ascent booster it builds from atmospheric hydrogen for the climb back to the Endurance (see docs/SPACE.md).
+   */
+  station?: { name: string; booster: { fuel: number; dry: number; thrust: number; isp: number }; wind: number; tempK: number; molar: number };
   /** altitude of the Endurance's parking orbit (m) */
   parkingAlt: number;
+  /** giants: a low circular survey orbit (as Juno and Cassini flew close in), from which the station is reached */
+  surveyAlt?: number;
   /** light the planet receives as a fraction of the Sun's at 1 au (Gargantua system: from the disk) */
   insolation?: number;
   blurb: string;
@@ -116,7 +123,10 @@ export const BODIES: BodyDef[] = [
     id: 'jupiter', name: 'Jupiter', kind: 'gas', system: 'sol', parent: 'sun', R: 69911 * km, Rp: 66854 * km, GM: 1.26686534e17, rotation: 0.41354 * DAY, pole: [268.057, 64.495], W0: 284.95,
     jpl: { a: [5.202887, -0.00011607], e: [0.04838624, -0.00013253], I: [1.30439695, -0.00183714], L: [34.39644051, 3034.74612775], w: [14.72847983, 0.21252668], O: [100.47390909, 0.20469106] },
     atmosphere: { rho0: 0.16, H: 27000, top: 1500 * km, betaR: [1.5e-6, 3.2e-6, 7.0e-6], HR: 27000, betaM: 1e-5, HM: 20000, g: 0.8, limb: [0.75, 0.75, 0.85] },
-    maps: 'jupiter', parkingAlt: 450000 * km, blurb: 'Gas giant: no surface. Belts and zones of ammonia cloud, the Great Red Spot. Orbital survey and atmospheric reconnaissance only.',
+    maps: 'jupiter', parkingAlt: 450000 * km, landing: { zone: 'station:jupiter', lat: 17, lon: 20, site: 'Aeolus Station, 1 bar, North Tropical Zone' },
+    surveyAlt: 4000 * km,
+    station: { name: 'Aeolus Station', booster: { fuel: 62000, dry: 5500, thrust: 2.7e6, isp: 4500 }, wind: 0, tempK: 165, molar: 2.22 },
+    blurb: 'Gas giant: no surface. Belts and zones of ammonia cloud, the Great Red Spot. The Ranger lands on Aeolus Station, an aerostat floating at the 1-bar level; the station builds an ascent booster from atmospheric hydrogen for the climb back.',
   },
   { id: 'io', name: 'Io', kind: 'rocky', system: 'sol', parent: 'jupiter', R: 1821.6 * km, GM: 5.959916e12, rotation: 0, pole: [268.05, 64.5], orbit: { a: 421700 * km, period: 1.769138 * DAY, phase: 10 }, maps: 'io', parkingAlt: 100 * km, landing: { zone: 'surface:io', lat: 12, lon: 51, site: 'Plains by Loki Patera' }, blurb: 'Volcanic sulphur world.' },
   { id: 'europa', name: 'Europa', kind: 'rocky', system: 'sol', parent: 'jupiter', R: 1560.8 * km, GM: 3.202739e12, rotation: 0, pole: [268.08, 64.51], orbit: { a: 671034 * km, period: 3.551181 * DAY, phase: 120 }, maps: 'europa', parkingAlt: 100 * km, landing: { zone: 'surface:europa', lat: 9.7, lon: 87, site: 'Conamara Chaos' }, blurb: 'Ice shell over a global ocean, crossed by dark lineae.' },
@@ -127,7 +137,10 @@ export const BODIES: BodyDef[] = [
     jpl: { a: [9.53667594, -0.0012506], e: [0.05386179, -0.00050991], I: [2.48599187, 0.00193609], L: [49.95424423, 1222.49362201], w: [92.59887831, -0.41897216], O: [113.66242448, -0.28867794] },
     atmosphere: { rho0: 0.19, H: 59500, top: 1800 * km, betaR: [1.2e-6, 2.4e-6, 5.0e-6], HR: 59500, betaM: 1e-5, HM: 40000, g: 0.8, limb: [0.9, 0.82, 0.6] },
     rings: { inner: 66900 * km, outer: 140220 * km },
-    maps: 'saturn', parkingAlt: 300000 * km, blurb: 'Ringed gas giant. The wormhole was found in its orbit.',
+    maps: 'saturn', parkingAlt: 300000 * km, landing: { zone: 'station:saturn', lat: 32, lon: -40, site: 'Zephyr Station, 1 bar' },
+    surveyAlt: 3000 * km,
+    station: { name: 'Zephyr Station', booster: { fuel: 30000, dry: 3000, thrust: 1.3e6, isp: 4500 }, wind: 0, tempK: 134, molar: 2.07 },
+    blurb: 'Ringed gas giant. The wormhole was found in its orbit. Zephyr Station floats at the 1-bar level.',
   },
   { id: 'enceladus', name: 'Enceladus', kind: 'rocky', system: 'sol', parent: 'saturn', R: 252.1 * km, GM: 7.21e9, rotation: 0, pole: [40.66, 83.52], orbit: { a: 237948 * km, period: 1.370218 * DAY, phase: 70 }, maps: 'enceladus', parkingAlt: 30 * km, landing: { zone: 'surface:enceladus', lat: 5, lon: 60, site: 'Sarandib Planitia' }, blurb: 'Bright ice moon venting water from its south pole.' },
   { id: 'rhea', name: 'Rhea', kind: 'rocky', system: 'sol', parent: 'saturn', R: 763.8 * km, GM: 1.539e11, rotation: 0, pole: [40.38, 83.55], orbit: { a: 527108 * km, period: 4.518212 * DAY, phase: 200 }, maps: 'rhea', parkingAlt: 50 * km, landing: { zone: 'surface:rhea', lat: -14, lon: -112, site: 'Inktomi crater rays' }, blurb: 'Icy, cratered.' },
@@ -142,14 +155,20 @@ export const BODIES: BodyDef[] = [
     jpl: { a: [19.18916464, -0.00196176], e: [0.04725744, -0.00004397], I: [0.77263783, -0.00242939], L: [313.23810451, 428.48202785], w: [170.9542763, 0.40805281], O: [74.01692503, 0.04240589] },
     atmosphere: { rho0: 0.42, H: 27700, top: 1200 * km, betaR: [1.0e-6, 2.0e-6, 3.8e-6], HR: 27700, betaM: 6e-6, HM: 30000, g: 0.8, limb: [0.6, 0.88, 0.95] },
     rings: { inner: 41837 * km, outer: 51149 * km },
-    maps: 'uranus', parkingAlt: 120000 * km, blurb: 'Ice giant lying on its side; methane haze turns it pale cyan.',
+    maps: 'uranus', parkingAlt: 120000 * km, landing: { zone: 'station:uranus', lat: -12, lon: 60, site: 'Boreas Station, 1 bar' },
+    surveyAlt: 2500 * km,
+    station: { name: 'Boreas Station', booster: { fuel: 16000, dry: 1800, thrust: 0.7e6, isp: 4500 }, wind: 0, tempK: 76, molar: 2.64 },
+    blurb: 'Ice giant lying on its side; methane haze turns it pale cyan. Boreas Station floats at the 1-bar level.',
   },
   { id: 'titania', name: 'Titania', kind: 'rocky', system: 'sol', parent: 'uranus', R: 788.4 * km, GM: 2.27e11, rotation: 0, pole: [257.43, -15.1], orbit: { a: 435910 * km, period: -8.706234 * DAY, phase: 0 }, maps: 'rhea', parkingAlt: 50 * km, landing: { zone: 'surface:titania', lat: -33, lon: -25, site: 'Messina Chasmata' }, blurb: 'Largest moon of Uranus.' },
   {
     id: 'neptune', name: 'Neptune', kind: 'ice', system: 'sol', parent: 'sun', R: 24622 * km, Rp: 24341 * km, GM: 6.836529e15, rotation: 0.6713 * DAY, pole: [299.36, 43.46], W0: 249.98,
     jpl: { a: [30.06992276, 0.00026291], e: [0.00859048, 0.00005105], I: [1.77004347, 0.00035372], L: [-55.12002969, 218.45945325], w: [44.96476227, -0.32241464], O: [131.78422574, -0.00508664] },
     atmosphere: { rho0: 0.45, H: 19700, top: 1200 * km, betaR: [1.0e-6, 2.4e-6, 6.0e-6], HR: 19700, betaM: 6e-6, HM: 30000, g: 0.8, limb: [0.35, 0.55, 1.0] },
-    maps: 'neptune', parkingAlt: 110000 * km, blurb: 'Deep blue ice giant with the fastest winds in the Solar System.',
+    maps: 'neptune', parkingAlt: 110000 * km, landing: { zone: 'station:neptune', lat: -22, lon: 150, site: 'Notus Station, 1 bar' },
+    surveyAlt: 2500 * km,
+    station: { name: 'Notus Station', booster: { fuel: 18000, dry: 2000, thrust: 0.8e6, isp: 4500 }, wind: 0, tempK: 72, molar: 2.6 },
+    blurb: 'Deep blue ice giant with the fastest winds in the Solar System. Notus Station floats at the 1-bar level.',
   },
   { id: 'triton', name: 'Triton', kind: 'rocky', system: 'sol', parent: 'neptune', R: 1353.4 * km, GM: 1.4276e12, rotation: 0, pole: [299.36, 41.17], orbit: { a: 354759 * km, period: -5.876854 * DAY, inc: 157, phase: 100 }, maps: 'triton', parkingAlt: 80 * km, landing: { zone: 'surface:triton', lat: 20, lon: -30, site: 'Bubembe Regio cantaloupe terrain' }, blurb: 'Retrograde captured moon with nitrogen geysers.' },
 
@@ -203,6 +222,13 @@ export function soiRadius(b: BodyDef): number {
   if (!P || P.GM <= 0 || b.GM <= 0) return 0;
   return a * Math.pow(b.GM / P.GM, 0.4);
 }
+
+/**
+ * The Endurance's parking altitude at a body: its default, or the one chosen for it (the low survey orbit at a giant,
+ * picked for the capture or reached later by a Hohmann transfer). Saved with the game.
+ */
+export const parkingOverride: Record<string, number> = {};
+export const parkAlt = (b: BodyDef) => parkingOverride[b.id] ?? b.parkingAlt;
 
 /** Surface gravity (m/s^2). */
 export const surfaceGravity = (b: BodyDef) => b.GM / (b.R * b.R);
