@@ -27,6 +27,7 @@ import { MillerWave } from '../../render/MillerWave';
 import { FrozenClouds } from '../../render/FrozenClouds';
 
 const _v = new THREE.Vector3(), _w = new THREE.Vector3(), _q = new THREE.Quaternion(), _m = new THREE.Matrix4(), _x = new THREE.Vector3(), _z = new THREE.Vector3();
+const _up = new THREE.Vector3(0, 1, 0), _qi = new THREE.Quaternion();
 
 interface WorldLook { layers: TerrainLayers; ground: [number, number, number]; sea?: boolean }
 
@@ -151,6 +152,16 @@ export class SurfaceZone extends Zone {
   private landedAt = -1;
   /** the Ranger stands on the pad (engines safe) */
   landed = false;
+  /** local seconds until the engines, flooded by Miller's wave, have drained */
+  flooded = 0;
+  /** carried by the wave */
+  riding = false;
+  private restQ = new THREE.Quaternion();
+  private rideY = 0;
+  private rideVy = 0;
+  private rideQ = new THREE.Quaternion();
+  /** time compression on the ground (waiting for the engines to drain) */
+  warp = 1;
 
   env: FlightEnv = {
     gravity: (_p, out) => out.set(0, -surfaceGravity(this.body), 0),
@@ -378,16 +389,78 @@ export class SurfaceZone extends Zone {
       if (pr.kind === 'descent' && pr.f.phase === 'landed' && !this.landed) this.touchdown();
       if (pr.kind === 'ascent' && pr.f.phase !== 'landed' && pr.f.height > HANDOVER_ALT) this.handToOrbit();
     } else {
-      this.orbit.advanceLocal(dt, this.body.id);
+      this.orbit.advanceLocal(dt * this.warp, this.body.id);
       this.updateFrame();
     }
-    if (!this.program || this.landed) {
+    if (this.wave) this.waveImpact(dt);
+    if (this.flooded > 0) {
+      this.flooded = Math.max(0, this.flooded - dt * (this.program ? 1 : this.warp));
+      if (this.flooded === 0) { mission.note('Engines drained: Ranger 1 can lift off.'); ui.toast('Engines drained', 'good', 4); this.warp = 1; }
+    }
+    if (this.riding) {
+      this.ranger.carry({ x: 0, y: this.rideY, z: 0 }, this.rideQ, { x: 0, y: this.rideVy, z: 0 });
+    } else if (!this.program || this.landed) {
       // standing on the pad
       this.ranger.carry({ x: 0, y: this.touchH, z: 0 }, this.ranger.quaternion(_q), { x: 0, y: 0, z: 0 });
     }
     this.ranger.fixedUpdate(dt, this.env);
     const p = g.player.pos;
     this.terrain?.ensureCollision(p.x, p.z, 26);
+  }
+
+  /**
+   * Miller's wave reaching the pad. A floating hull cannot climb a wall of water this steep: the Ranger is engulfed at
+   * the foot of the front, carried up and over the crest as the water lifts it, and set down behind on the sea floor
+   * with its engines full of water (in the film: 45 minutes to an hour to drain them). Anyone outside is swept away.
+   */
+  private waveImpact(dt: number) {
+    const w = this.wave!, g = this.game, flight = g.services.flight as Flight;
+    const pr = this.program;
+    const onPad = !pr || this.landed || (pr.kind === 'ascent' && pr.f.phase === 'landed');
+    const at = w.at(0, 0);
+    if (onPad && !this.riding && at.h > 1.5 && at.u > -200) {
+      this.riding = true;
+      if (pr) { this.program = null; flight.engage(null); this.landed = true; ui.toast('Launch aborted', 'warn', 3); }
+      this.restQ.copy(this.ranger.quaternion(_q));
+      this.rideY = this.touchH; this.rideVy = 0;
+      this.warp = 1;
+      mission.note('The wave hit Ranger 1 on the pad and carried it over the crest.');
+      ui.toast('The wave has the Ranger!', 'warn', 4);
+    }
+    if (this.riding) {
+      // the hull rides a couple of metres deep, lagging the steep face (it is engulfed before it is lifted)
+      const target = this.touchH + Math.max(0, at.h - 2);
+      const k = 1.1, a = k * k * (target - this.rideY) - 2 * k * this.rideVy;
+      this.rideVy += a * dt;
+      this.rideY = Math.max(this.touchH, this.rideY + this.rideVy * dt);
+      // turned with the water surface, at most ~40 degrees, and rolling a little in the turbulence
+      const n = _v.set(-at.slope * w.dir.x, 1, -at.slope * w.dir.z).normalize();
+      const tilt = new THREE.Quaternion().setFromUnitVectors(_up, n);
+      const ang = 2 * Math.acos(Math.min(1, Math.abs(tilt.w)));
+      if (ang > 0.7) tilt.slerp(_qi, 1 - 0.7 / ang);
+      const t = this.game.time;
+      tilt.multiply(new THREE.Quaternion().setFromEuler(new THREE.Euler(0.06 * Math.sin(t * 1.3), 0, 0.08 * Math.sin(t * 0.9 + 1))));
+      this.rideQ.slerp(tilt.multiply(this.restQ), Math.min(1, dt * 2));
+      if (this.rideQ.lengthSq() < 0.5) this.rideQ.copy(this.restQ);
+      if (at.u < 0 && at.h < 1.5 && this.rideY - this.touchH < 1) {
+        // set down behind the wave, the engines full of water
+        this.riding = false;
+        this.ranger.carry({ x: 0, y: this.touchH, z: 0 }, this.restQ, { x: 0, y: 0, z: 0 });
+        this.flooded = Math.max(this.flooded, 45 * 60);
+        this.ranger.damage = Math.min(1, this.ranger.damage + 0.05);
+        mission.note('Engines flooded: about 45 minutes (local) to drain them before Ranger 1 can lift off.');
+        ui.toast('Engines flooded · draining, about 45 minutes', 'warn', 6);
+      }
+    }
+    // a crew member outside, caught in the water
+    if (!flight.craft) {
+      const pp = g.player.pos;
+      if (w.at(pp.x, pp.z).h > 1.2) {
+        this.board();
+        mission.note(g.settings.creative.damageProtection ? 'Swept off your feet by the wave; hauled back into Ranger 1.' : 'Swept away by the wave and battered; hauled back into Ranger 1.');
+        ui.toast('Swept away by the wave!', 'warn', 5);
+      }
+    }
   }
 
   private touchdown() {
@@ -412,6 +485,8 @@ export class SurfaceZone extends Zone {
   /** Lift off for the Endurance: wait for the window on the pad, then climb into a rendezvous behind it. */
   launch(): string | null {
     if (this.program) return 'A program is already running.';
+    if (this.riding) return 'The wave has the Ranger.';
+    if (this.flooded > 0) return `Engines flooded: ${Math.ceil(this.flooded / 60)} min (local) until they have drained.`;
     const o = this.orbit;
     const jd0 = o.jd, met0 = o.met;
     const site = siteFunction(this.body, jd0);
@@ -515,8 +590,10 @@ export class SurfaceZone extends Zone {
       if (eta > 0 && eta < steps[i][0]) { this.waveWarn = i + 1; ui.toast(steps[i][1], i >= 2 ? 'warn' : 'info', 6); bus.emit('sfx', { id: i >= 2 ? 'caution' : 'chime', ui: true }); break; }
     }
     if (eta < -60) this.waveWarn = 0;
+    // time compression stops while there is still time to react
+    if (this.warp > 1 && eta > 0 && eta < 150 * this.warp + 120) { this.warp = 1; ui.toast('Time compression off: wave approaching', 'warn', 4); }
     // the ground and the ship shake as the crest goes by
-    this.game.renderer.shake = dist < 3000 ? 0.012 * (1 - dist / 3000) : 0;
+    this.game.renderer.shake = this.riding ? 0.02 : dist < 3000 ? 0.012 * (1 - dist / 3000) : 0;
   }
 
   override gravityAt(_p: THREE.Vector3, out: THREE.Vector3) { return out.set(0, -surfaceGravity(this.body), 0); }

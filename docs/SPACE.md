@@ -56,6 +56,23 @@ What is simulated, how, and where the game departs from physics on purpose. Code
   explicitly (the sky shader is single-scattering and cannot produce the bottom of a 92-bar or a hazy 1.5-bar
   atmosphere).
 
+- Entry plasma (`render/EntryPlasma.ts`): the shock layer glows on the windward face, white-hot at the stagnation
+  point and in the gas's own colour toward the edges (air orange-pink, CO2 paler, Titan's nitrogen-methane violet),
+  with streamers trailing aft. Brightness follows the convective heating (Sutton-Graves, sqrt(rho) v^3) with a steep
+  onset: entries from low orbit at Miller (~8.8 km/s), Edmunds, Mann and Venus glow; Mars from orbit (3.5 km/s) and
+  Titan (1.8 km/s) hardly at all. The buffeting and the roar follow the dynamic pressure.
+
+## Globes up close (`render/Planet.ts`)
+
+- Each body's map is procedural (no mission imagery is used), 4096x2048 at most: a texel is kilometres across. As the
+  camera closes in (low orbit, descent) the map's relief fades out and a procedural crater field takes over: five
+  octaves of craters from ~60 m to ~10 km radius with the saturated size-frequency distribution of the lunar
+  highlands (N(>D) ~ D^-2), fewer large ones on the maria, fresh sharp-rimmed bowls (depth/diameter 0.2) to
+  degraded dimples, flat floors on the larger ones, and cast shadows solved exactly for the convex bowl (black on an
+  airless world, with a little light from the sunlit far wall). Each octave fades in by its size on screen so nothing
+  aliases. Crater density per body follows its surface age (Moon, Mercury, Callisto, Rhea saturated; Europa, Triton
+  sparse; Io none).
+
 ## Time (`space/Relativity.ts`, `OrbitZone.missionClocks`)
 
 - Three clocks: LOCAL (the player's proper time), ENDURANCE, EARTH. Near Gargantua the Endurance's clock runs at the
@@ -90,7 +107,12 @@ What is simulated, how, and where the game departs from physics on purpose. Code
 ## Miller, Mann, Edmunds
 
 - Miller: knee-deep sea over a rippled floor; the tidal wave (1.2 km, 40 m/s, once per local hour), first seen as a
-  mountain range on the horizon. The wave is visual and audible with warnings; its impact on the Ranger is not yet
-  simulated.
+  mountain range on the horizon, with warnings and a growing roar. If it reaches the Ranger on the pad (or waiting for
+  its launch window), the craft is engulfed at the foot of the front, lifted up the face and over the crest, ridden
+  down the long back and set down on the sea floor about 3.5 minutes later with its engines flooded: 45 minutes of
+  local time (over five years on Earth) to drain them before it can lift off, as in the film. Time compression on the
+  ground (x10, x60) is offered for the wait and switches off when the next wave approaches. A crew member outside is
+  swept off their feet and hauled back aboard. (A floating hull's ride up a 1.2 km wall is stylised: it lags the
+  water and rides about two metres deep, tilted with the surface up to 40 degrees.)
 - Mann: glacier with pressure ridges and crevasses under frozen clouds held aloft.
 - Edmunds: stony desert, mesas, dry washes, boulder fields and mountain ranges, breathable air.

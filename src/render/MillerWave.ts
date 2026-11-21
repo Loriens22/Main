@@ -48,12 +48,13 @@ void main() {
   float fade = 1.0 - smoothstep( 800.0, 12000.0, dist );
   vec2 q = vec2( vW.x + vW.z, vW.y * 3.0 + uTime * 25.0 ) * 0.02;
   float st = fbm( q ) - 0.5;
-  vec3 N = normalize( vN + vec3( st * 0.25, 0.0, ( fbm( q.yx + 7.0 ) - 0.5 ) * 0.25 ) * fade );
+  vec3 N0 = gl_FrontFacing ? vN : -vN;               // seen from behind the crest or from under the water
+  vec3 N = normalize( N0 + vec3( st * 0.25, 0.0, ( fbm( q.yx + 7.0 ) - 0.5 ) * 0.25 ) * fade );
   float cosT = max( dot( N, V ), 0.0 );
   float F = 0.02 + 0.98 * pow( 1.0 - cosT, 5.0 );
   vec3 R = reflect( -V, N );
   vec3 sky = mix( uFogH, uFogZ, smoothstep( 0.0, 0.6, R.y ) );
-  float spec = pow( max( dot( R, uSunDir ), 0.0 ), 400.0 ) * 30.0;
+  float spec = gl_FrontFacing ? pow( max( dot( R, uSunDir ), 0.0 ), 400.0 ) * 30.0 : 0.0;
   // the body of the water: dark blue-grey, lit through where the crest is thin (forward scattering toward the eye)
   float thin = smoothstep( 0.7, 1.0, vH / uHeight );
   float through = pow( max( dot( -V, uSunDir ), 0.0 ), 3.0 ) * thin;
@@ -72,6 +73,20 @@ void main() {
   #include <tonemapping_fragment>
   #include <colorspace_fragment>
 }`;
+
+/** water height above the sea (m) at u along the propagation from the crest line, v along it (mesh frame) */
+function profile(u: number, v: number) {
+  const H = 1200, Lv = 90000;
+  // crest height varies along its length; the front is a steep concave wall, the back a long slope
+  const hv = H * (0.82 + 0.18 * Math.sin(v / 7300 + 1.3) * Math.cos(v / 11900));
+  const shift = 350 * Math.sin(v / 9000);       // the crest line wanders a little
+  const x = u - shift;
+  let h: number;
+  if (x >= 0) h = hv * Math.pow(Math.max(0, 1 - x / 520), 2.2);
+  else h = hv * Math.exp(-((x / 3200) ** 2)) * (1 - 0.05 * Math.sin(x / 140));
+  // the ends of the ridge sink back into the sea
+  return h * Math.max(0, Math.min(1, (Lv - Math.abs(v)) / 15000));
+}
 
 export class MillerWave {
   mesh: THREE.Mesh;
@@ -94,17 +109,7 @@ export class MillerWave {
     for (let u = 300; u <= 900; u += 60) us.push(u);
     const nv = 220, Lv = 90000;
     const pos: number[] = [], foam: number[] = [], idx: number[] = [];
-    const prof = (u: number, v: number) => {
-      // crest height varies along its length; the front is a steep concave wall, the back a long slope
-      const hv = H * (0.82 + 0.18 * Math.sin(v / 7300 + 1.3) * Math.cos(v / 11900));
-      const shift = 350 * Math.sin(v / 9000);       // the crest line wanders a little
-      const x = u - shift;
-      let h: number;
-      if (x >= 0) h = hv * Math.pow(Math.max(0, 1 - x / 520), 2.2);
-      else h = hv * Math.exp(-((x / 3200) ** 2)) * (1 - 0.05 * Math.sin(x / 140));
-      // the ends of the ridge sink back into the sea
-      return h * Math.min(1, (Lv - Math.abs(v)) / 15000);
-    };
+    const prof = profile;
     for (let j = 0; j <= nv; j++) {
       const v = -Lv + (2 * Lv * j) / nv;
       for (const u of us) {
@@ -150,6 +155,19 @@ export class MillerWave {
     this.mesh.position.set(this.dir.x * this.s, 0, this.dir.z * this.s);
     this.mesh.rotation.y = Math.atan2(-this.dir.z, this.dir.x);
     this.mat.uniforms.uTime.value += dt;
+  }
+
+  /**
+   * The water at a point of the zone (x, z, near the site): its height above the sea, the slope of the surface along
+   * the direction of travel (dh/du, negative on the front face), and where the point is relative to the crest (u > 0:
+   * not yet reached).
+   */
+  at(x: number, z: number) {
+    const d = this.dir;
+    const u = x * d.x + z * d.z - this.s, v = -x * d.z + z * d.x;
+    const h = profile(u, v);
+    const slope = (profile(u + 4, v) - profile(u - 4, v)) / 8;
+    return { h, slope, u };
   }
 
   /** seconds until the crest reaches a point d metres along the direction of travel (negative once past) */

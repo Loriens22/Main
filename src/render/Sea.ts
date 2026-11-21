@@ -28,25 +28,35 @@ varying float vDist;
 float h2( vec2 p ) { return fract( sin( dot( p, vec2( 127.1, 311.7 ) ) ) * 43758.5453 ); }
 float n2( vec2 p ) { vec2 i = floor( p ), f = fract( p ); vec2 u = f * f * ( 3.0 - 2.0 * f );
   return mix( mix( h2( i ), h2( i + vec2( 1, 0 ) ), u.x ), mix( h2( i + vec2( 0, 1 ) ), h2( i + vec2( 1, 1 ) ), u.x ), u.y ); }
-// slope of a sum of travelling waves (wind chop on shallow water), fading with distance to avoid aliasing
-vec2 waves( vec2 p, float t, float fade ) {
+// slope of the water surface: wind chop on shallow water. Nine trains from 7 m down to half a metre, spread about the
+// wind in golden-angle steps so that no interference grid forms, with deep-water dispersion at 1.3 g (for the short
+// chop the shallow depth hardly matters). Each fades out once its wavelength is under a couple of pixels (fp: metres
+// per pixel), or the sum aliases into a moire grid at grazing angles. Value noise is only used to modulate the chop in
+// gusts and for the finest roughness: used as a slope it shows its lattice as a checkerboard.
+vec2 waves( vec2 p, float t, float fade, float fp ) {
   vec2 g = vec2( 0.0 );
-  vec2 dir[ 5 ]; dir[ 0 ] = vec2( 0.8, 0.6 ); dir[ 1 ] = vec2( 0.3, 0.95 ); dir[ 2 ] = vec2( 0.95, -0.3 ); dir[ 3 ] = vec2( -0.5, 0.86 ); dir[ 4 ] = vec2( 0.7, 0.2 );
-  float L[ 5 ]; L[ 0 ] = 6.3; L[ 1 ] = 3.1; L[ 2 ] = 1.7; L[ 3 ] = 0.9; L[ 4 ] = 0.45;
-  for ( int i = 0; i < 5; i++ ) {
-    float k = 6.2831 / L[ i ];
-    float c = sqrt( 9.8 * 1.3 / k );   // deep-water dispersion at 1.3 g (the shortest waves: shallow is negligible)
-    float a = 0.035 * L[ i ] / 6.0;
-    float ph = k * dot( dir[ i ], p ) - k * c * t;
-    float f = i >= 3 ? fade : 1.0;
-    g += dir[ i ] * ( a * k * cos( ph ) ) * f;
+  for ( int i = 0; i < 9; i++ ) {
+    float fi = float( i );
+    float L = 7.0 * pow( 0.72, fi );
+    float ang = 0.6 + 1.1 * sin( fi * 2.399 + 0.3 );
+    vec2 d = vec2( cos( ang ), sin( ang ) );
+    float k = 6.2831 / L;
+    float c = sqrt( 9.8 * 1.3 / k );
+    float a = 0.026 * L / 6.0;
+    float ph = k * dot( d, p ) - k * c * t + fi * 1.7;
+    float f = ( 1.0 - smoothstep( 0.2, 0.5, fp / L ) ) * ( L < 1.2 ? fade : 1.0 );
+    g += d * ( a * k * cos( ph ) ) * f;
   }
-  g += ( vec2( n2( p * 2.3 + t * 0.7 ), n2( p * 2.3 - t * 0.6 + 7.0 ) ) - 0.5 ) * 0.08 * fade;
-  return g;
+  mat2 rot = mat2( 0.8, -0.6, 0.6, 0.8 );
+  float gust = 0.6 + 0.8 * n2( rot * p * 0.05 + vec2( t * 0.05, 0.0 ) );
+  vec2 r = rot * p * 2.3;
+  g += ( vec2( n2( r + t * 0.7 ), n2( r.yx - t * 0.6 + 7.0 ) ) - 0.5 ) * 0.05 * fade * ( 1.0 - smoothstep( 0.05, 0.15, fp ) );
+  return g * gust;
 }
 void main() {
   float fade = 1.0 - smoothstep( 30.0, 400.0, vDist );
-  vec2 g = waves( vW.xz, uTime, fade );
+  vec2 dw = fwidth( vW.xz );
+  vec2 g = waves( vW.xz, uTime, fade, max( dw.x, dw.y ) );
   vec3 N = normalize( vec3( -g.x, 1.0, -g.y ) );
   vec3 V = normalize( uCam - vW );
   float cosT = max( dot( N, V ), 0.0 );

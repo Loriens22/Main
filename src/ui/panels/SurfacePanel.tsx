@@ -32,7 +32,15 @@ export function SurfacePanel({ game, close }: { game: Game; close: () => void })
         <div class="card">
           <h4>Return to the Endurance</h4>
           <p>The computer waits on the pad for the launch window (the Endurance passing the right distance ahead, the site close to its orbit plane), climbs out of the dense air under a dynamic-pressure limit, inserts into the Endurance's orbit about a kilometre behind it, and closes in. The docking autopilot then brings the Ranger into a free port.</p>
-          <button class="btn" disabled={!!z.program} onClick={() => { bus.emit('ui:click'); const e = z.launch(); setErr(e); if (!e) close(); }}>Launch · automatic return</button>
+          {z.flooded > 0 && <KV k="Engines flooded · draining" v={`${Math.floor(z.flooded / 60)}:${String(Math.floor(z.flooded % 60)).padStart(2, '0')} (local)`} warn />}
+          {z.wave && <KV k="Next wave" v={z.wave.eta(0) > 0 ? `${Math.floor(z.wave.eta(0) / 60)} min ${String(Math.floor(z.wave.eta(0) % 60)).padStart(2, '0')} s` : 'passing'} warn={z.wave.eta(0) < 480} />}
+          <button class="btn" disabled={!!z.program || z.flooded > 0 || z.riding} onClick={() => { bus.emit('ui:click'); const e = z.launch(); setErr(e); if (!e) close(); }}>Launch · automatic return</button>
+          {!z.program && (
+            <div class="row" style={{ marginTop: '10px' }}><span>Time compression</span>
+              <div class="seg">{[1, 10, 60].map((w) => <button class={z.warp === w ? 'on' : ''} onClick={() => { bus.emit('ui:click'); z.warp = w; }}>{`×${w}`}</button>)}</div>
+            </div>
+          )}
+          {z.body.id === 'miller' && <p class="note">Every hour of local time is about seven years on Earth.</p>}
           {err && <p class="note" style={{ color: 'var(--warn)' }}>{err}</p>}
           {z.program && <p class="note">{z.program.status()}</p>}
         </div>
