@@ -43,7 +43,8 @@ What is simulated, how, and where the game departs from physics on purpose. Code
   rendezvous and docking autopilots (Clohessy-Wiltshire) bring it in.
 - Tests (`tests/descent.test.ts`): on all 19 landable worlds the descent reaches the gate within ~20 m, touches down
   on the pad at 1 m/s, and the ascent arrives within ~20 m and 0.3 m/s of the rendezvous point. In the game (browser
-  runs): automatic landing ~100-145 s of real time from the staging point; docking ~45 s from the approach gate.
+  runs): automatic landing ~100-145 s of real time from the staging point; automatic return from the pad to the
+  Endurance's docking approach gate ~105-110 s (Moon, Mars, Miller), docking ~45 s from the gate.
 - **Fiction: the Ranger's drive.** The film's Ranger reaches orbit from 1.3 g Miller single-stage. No chemical rocket
   of its size can (about 11 km/s to orbit). The game gives it a high exhaust velocity (Isp ~5000 s main, ~4200 s
   lift) and enough thrust to hover fully fuelled at 1.3 g. Reaction control is conventional.

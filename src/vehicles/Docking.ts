@@ -211,6 +211,14 @@ export class DockingSystem {
     return l;
   }
 
+  /** Forget a craft's link at once (it is somewhere else entirely, e.g. on a planet's surface). */
+  detachNow(c: Spacecraft) {
+    const l = this.linkOf(c);
+    if (!l) return;
+    if (l.port.occupant === c) l.port.occupant = null;
+    this.links.splice(this.links.indexOf(l), 1);
+  }
+
   /** Release the latches and push the craft clear of the port at `speed` m/s. */
   undock(c: Spacecraft, speed = 0.15) {
     const l = this.linkOf(c);

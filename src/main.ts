@@ -132,7 +132,9 @@ async function boot() {
       for (let m = orbit.met, k = 0; k < 4000; k++, m += step) if (elev(m) < want && elev(m + step) >= want) { orbit.met = m + step; break; }
       orbit.setBody(b.id);
     }
-    orbit.docking.attachNow(orbit.ranger!, orbit.endurance.port('axial_fwd')!);
+    // Ranger 1 is down on the pad: in the orbit zone it is out of the picture until the ascent hands it back
+    orbit.ranger!.setCarried(true);
+    orbit.ranger!.root.visible = false;
     await game.gotoZone('surface', { fade: false, onEnter: (z) => { const s = z as SurfaceZone; s.setBody(orbit.body.id); s.landed = true; } });
     game.setState('playing');
     if (params.get('start') !== 'seat') {

@@ -154,7 +154,7 @@ export class RendezvousAutopilot implements Autopilot {
     if (this.phase === 'coast') {
       // exact relative-motion coast under time compression; the craft turns to the docking attitude meanwhile
       const rem = this.T - this.tc;
-      const warp = rem > 600 ? 150 : rem > 200 ? 40 : rem > 60 ? 10 : rem > 15 ? 3 : 1;
+      const warp = rem > 600 ? 150 : rem > 200 ? 60 : rem > 60 ? 20 : rem > 15 ? 6 : 2;
       this.ctx.setWarp(warp);
       this.tc = Math.min(this.T - 2, this.tc + dt * warp);
       this.realCoast += dt;

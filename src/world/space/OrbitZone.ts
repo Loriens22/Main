@@ -584,6 +584,7 @@ export class OrbitZone extends Zone implements OrbitContext {
     this.plasma?.setGas((id === 'titan' ? 'titan' : id === 'venus' || id === 'mars' ? 'co2' : 'air') as PlasmaGas);
     this.flightProg = pr;
     this.mode = 'flight';
+    this.docking.detachNow(c);
     c.root.visible = true;
     c.setCarried(true);
     const flight = this.game.services.flight as Flight;
