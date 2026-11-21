@@ -3,6 +3,8 @@ import { AU, BODIES, BODY, SystemId } from '../space/Bodies';
 import { bodyAxes, pole, state } from '../space/Ephemeris';
 import type { V3 } from '../space/Kepler';
 import { PlanetBody } from './Planet';
+import { BlackHoleView } from './BlackHole';
+import { toLight } from '../space/Worlds';
 
 const _v = new THREE.Vector3(), _a = new THREE.Vector3(), _b = new THREE.Vector3(), _c = new THREE.Vector3(), _m = new THREE.Matrix4();
 
@@ -60,6 +62,10 @@ export class SystemView {
   showSun = true;
   /** bodies whose limb a sky model draws instead of the simple shell */
   noShell = new Set<string>();
+  /** Gargantua and its galaxy (the Gargantua system's whole background) */
+  blackHole: BlackHoleView | null = null;
+  /** current eye adaptation, so the black hole shader keeps the stars at a sensible brightness */
+  exposure = 1;
 
   constructor(public system: SystemId, ids?: string[]) {
     this.ids = ids ?? BODIES.filter((b) => b.system === system && b.kind !== 'star' && b.kind !== 'blackhole' && b.kind !== 'wormhole' && b.R > 50e3).map((b) => b.id);
@@ -78,6 +84,10 @@ export class SystemView {
     this.pts.frustumCulled = false;
     this.pts.renderOrder = -2999;
     this.group.add(this.pts);
+    if (system === 'gargantua') {
+      this.blackHole = new BlackHoleView(BODY.gargantua.R);
+      this.group.add(this.blackHole.mesh);
+    }
     if (system === 'sol') {
       this.sun = new THREE.Mesh(new THREE.SphereGeometry(1, 48, 24), new THREE.MeshBasicMaterial({ color: new THREE.Color(60, 54, 46), depthTest: false, depthWrite: false, toneMapped: false }));
       this.sun.frustumCulled = false;
@@ -103,6 +113,7 @@ export class SystemView {
     const order: [string, number][] = [];
     // light source at the system origin (the Sun, or Gargantua's accretion disk)
     const sunRel = _v.set(-camSys[0], -camSys[1], -camSys[2]).applyMatrix4(rot);
+    this.blackHole?.update(camSys, rot, tRel, this.exposure);
     if (this.sun && this.sunGlow) {
       this.sun.visible = this.sunGlow.visible = this.showSun;
       const d = sunRel.length(), D = compressDistance(d), k = D / d;
@@ -135,7 +146,8 @@ export class SystemView {
       p.group.quaternion.setFromRotationMatrix(_m);
       const u = p.mat.uniforms;
       // sunlight: direction from the body to the system origin, irradiance falling with distance (or set per world)
-      const toSun = _b.set(-s[0], -s[1], -s[2]);
+      const tl = toLight(s, this.system);
+      const toSun = _b.set(tl[0], tl[1], tl[2]);
       const ds = toSun.length();
       (u.uSunDir.value as THREE.Vector3).copy(toSun.applyMatrix4(rot).normalize());
       const irr = this.system === 'sol' ? (AU / ds) ** 2 : b.insolation ?? 0.5;
@@ -178,6 +190,7 @@ export class SystemView {
   }
 
   dispose() {
+    this.blackHole?.dispose();
     for (const p of this.bodies.values()) p.dispose();
     this.group.removeFromParent();
   }

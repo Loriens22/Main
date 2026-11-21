@@ -197,7 +197,8 @@ vec3 skyColor( vec3 rd, bool withSun ) {
       float disc = smoothstep( uSunRadius, uSunRadius * 0.82, ang );
       float limb = 1.0 - 0.45 * pow( clamp( ang / uSunRadius, 0.0, 1.0 ), 2.0 );
       col += disc * limb * uSunTint * a.T * uSunE * 9.0;
-      col += uSunTint * a.T * uSunE * 0.02 * pow( max( c, 0.0 ), 900.0 );
+      // the glow around a star's disc (none for Gargantua: its light comes from the disk, drawn by its own pass)
+      col += uSunTint * a.T * uSunE * 0.02 * pow( max( c, 0.0 ), 900.0 ) * step( 1e-4, uSunRadius );
     }
     if ( uCloud.w > 0.001 ) {
       vec4 ci = cloudLayer( rd, 9000.0, 26000.0, 0.42 + 0.3 * uCloud.w, 0.5 * uCloud.w, vec2( 1.0, 0.28 ), sunCol, skyAmb );

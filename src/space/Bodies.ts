@@ -155,22 +155,22 @@ export const BODIES: BodyDef[] = [
 
   // ---------------------------------------------------------------- beyond the wormhole (fiction, see header)
   { id: 'wormhole', name: 'Wormhole', kind: 'wormhole', system: 'sol', parent: 'saturn', R: 1000, GM: 0, rotation: 0, pole: [40.589, 83.537], orbit: { a: 1.45e9, period: 0, phase: 30 }, maps: null, parkingAlt: 24000, blurb: 'A sphere two kilometres across, in Saturn orbit. The far side shows another galaxy.' },
-  { id: 'gate', name: 'Wormhole · far side', kind: 'wormhole', system: 'gargantua', parent: 'gargantua', R: 1000, GM: 0, rotation: 0, pole: [0, 90], orbit: { a: 300 * R_G, period: 0, phase: 75 }, maps: null, parkingAlt: 24000, insolation: 0.15, blurb: 'Where the wormhole opens beyond Saturn: Gargantua fills the sky ahead.' },
+  { id: 'gate', name: 'Wormhole · far side', kind: 'wormhole', system: 'gargantua', parent: 'gargantua', R: 1000, GM: 0, rotation: 0, pole: [0, 90], orbit: { a: 300 * R_G, period: 0, inc: 9, phase: 75 }, maps: null, parkingAlt: 24000, insolation: 0.15, blurb: 'Where the wormhole opens beyond Saturn: Gargantua fills the sky ahead.' },
   { id: 'gargantua', name: 'Gargantua', kind: 'blackhole', system: 'gargantua', parent: null, R: R_G, GM: GM_GARGANTUA, rotation: 0, pole: [0, 90], maps: null, parkingAlt: 0, blurb: 'Rotating supermassive black hole, 100 million solar masses, spinning within a hair of the maximum.' },
   {
-    id: 'miller', name: "Miller's planet", kind: 'rocky', system: 'gargantua', parent: 'gargantua', R: 6700 * km, GM: 5.72e14, rotation: 0, pole: [0, 90], orbit: { a: 12 * R_G, period: 0, phase: 0 },
-    atmosphere: { rho0: 1.5, H: 8800, top: 90 * km, betaR: [5.2e-6, 11.6e-6, 25.0e-6], HR: 8800, betaM: 1.1e-4, HM: 1800, g: 0.8, betaD: [1.6e-5, 1.6e-5, 1.5e-5], betaDAbs: [0.1e-5, 0.15e-5, 0.2e-5], HD: 2500, limb: [0.62, 0.72, 0.82] },
+    id: 'miller', name: "Miller's planet", kind: 'rocky', system: 'gargantua', parent: 'gargantua', R: 6700 * km, GM: 5.72e14, rotation: 0, pole: [0, 90], orbit: { a: 12 * R_G, period: 0, inc: 4, phase: 0 },
+    atmosphere: { rho0: 1.5, H: 8800, top: 90 * km, betaR: [5.2e-6, 11.6e-6, 25.0e-6], HR: 8800, betaM: 3.5e-5, HM: 1500, g: 0.76, betaD: [0.7e-5, 0.7e-5, 0.65e-5], betaDAbs: [0.1e-5, 0.15e-5, 0.2e-5], HD: 2500, limb: [0.62, 0.72, 0.82] },
     maps: 'miller', parkingAlt: 250 * km, landing: { zone: 'surface:miller', lat: 4.0, lon: -30.0, site: "Dr. Miller's beacon" }, insolation: 0.55,
     blurb: '1.3 g. A planet-wide shallow ocean. Tidal waves over a kilometre high sweep round it.',
   },
   {
-    id: 'mann', name: "Mann's planet", kind: 'rocky', system: 'gargantua', parent: 'gargantua', R: 5800 * km, GM: 2.64e14, rotation: 67 * HOUR, pole: [0, 90], orbit: { a: 420 * R_G, period: 0, phase: 150 },
+    id: 'mann', name: "Mann's planet", kind: 'rocky', system: 'gargantua', parent: 'gargantua', R: 5800 * km, GM: 2.64e14, rotation: 67 * HOUR, pole: [0, 90], orbit: { a: 420 * R_G, period: 0, inc: 7, phase: 150 },
     atmosphere: { rho0: 0.9, H: 9200, top: 90 * km, betaR: [5.0e-6, 11.0e-6, 24.0e-6], HR: 9200, betaM: 2.2e-4, HM: 2600, g: 0.82, betaD: [2.6e-5, 2.6e-5, 2.7e-5], betaDAbs: [0.05e-5, 0.06e-5, 0.07e-5], HD: 6000, limb: [0.8, 0.84, 0.9] },
     maps: 'mann', parkingAlt: 200 * km, landing: { zone: 'surface:mann', lat: -38, lon: 75, site: "Dr. Mann's shelter" }, insolation: 0.18,
     blurb: '0.8 g. Ice and frozen cloud; ammonia in the air. Not breathable.',
   },
   {
-    id: 'edmunds', name: "Edmunds' planet", kind: 'rocky', system: 'gargantua', parent: 'gargantua', R: 6200 * km, GM: 3.58e14, rotation: 24.667 * HOUR, pole: [0, 90], orbit: { a: 120 * R_G, period: 0, phase: 260 },
+    id: 'edmunds', name: "Edmunds' planet", kind: 'rocky', system: 'gargantua', parent: 'gargantua', R: 6200 * km, GM: 3.58e14, rotation: 24.667 * HOUR, pole: [0, 90], orbit: { a: 120 * R_G, period: 0, inc: 5, phase: 260 },
     atmosphere: { rho0: 1.05, H: 8900, top: 85 * km, betaR: [5.6e-6, 12.6e-6, 29.5e-6], HR: 8900, betaM: 2.0e-5, HM: 1300, g: 0.78, betaD: [0.8e-5, 0.7e-5, 0.5e-5], betaDAbs: [0.1e-5, 0.25e-5, 0.6e-5], HD: 2400, breathable: true, limb: [0.55, 0.7, 1.0] },
     maps: 'edmunds', parkingAlt: 250 * km, landing: { zone: 'surface:edmunds', lat: 18, lon: 140, site: 'Edmunds research base' }, insolation: 1.0,
     blurb: '0.95 g. Dry rocky desert under a breathable sky. The most promising world.',

@@ -1,4 +1,5 @@
-import { AU, BODY, BodyDef } from './Bodies';
+import { AU, BODY, BodyDef, SystemId, R_G } from './Bodies';
+import type { V3 } from './Kepler';
 import { state } from './Ephemeris';
 import { AtmosphereParams, EARTH_ATMOSPHERE } from '../render/Sky';
 
@@ -45,4 +46,17 @@ export function atmosphereFor(b: BodyDef, jd: number, opts: { clouds?: boolean }
     cloudCoverage: opts.clouds ? EARTH_ATMOSPHERE.cloudCoverage : 0, cirrus: opts.clouds ? 0.4 : 0,
     sunRadius: disc,
   };
+}
+
+/**
+ * Where the light comes from, for an observer at pos (system frame): the Sun at the origin; in the Gargantua
+ * system the brightest part of the accretion disk as seen from there, the inner disk on the side whose gas moves
+ * toward the observer (Doppler beaming), at ~4 M from the hole. Returns the vector from pos to the source.
+ */
+export function toLight(pos: V3, system: SystemId | string): V3 {
+  if (system !== 'gargantua') return [-pos[0], -pos[1], -pos[2]];
+  const phc = Math.atan2(pos[1], pos[0]);
+  const psi = phc - Math.PI / 2;
+  const src: V3 = [4 * R_G * Math.cos(psi), 4 * R_G * Math.sin(psi), 0];
+  return [src[0] - pos[0], src[1] - pos[1], src[2] - pos[2]];
 }

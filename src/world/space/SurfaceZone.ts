@@ -12,7 +12,7 @@ import { MILLER_SEA_FLOOR } from '../terrain/worlds';
 import { BODY, BodyDef, surfaceGravity } from '../../space/Bodies';
 import { pole, state, surfacePoint } from '../../space/Ephemeris';
 import { add, cross, dot, scale, sub, unit, V3 } from '../../space/Kepler';
-import { atmosphereFor, exposureFor, irradianceAt } from '../../space/Worlds';
+import { atmosphereFor, exposureFor, irradianceAt, toLight } from '../../space/Worlds';
 import { GuidedFlight, HANDOVER_ALT, planAscent, rangerPerf, spinVector } from '../../space/Descent';
 import { behindTarget, FlightProgram, siteFunction } from '../../space/FlightProgram';
 import { FlightEnv, RANGER_SPEC, Spacecraft } from '../../vehicles/Spacecraft';
@@ -159,6 +159,8 @@ export class SurfaceZone extends Zone {
     this.sky = new Sky(g.renderer, g.settings.g.atmosphere, { ...EARTH_ATMOSPHERE, cloudCoverage: 0, cirrus: 0 });
     this.sky.freeSun = true;
     this.sky.setShadowQuality(g.settings.g.shadowQuality);
+    // the air is drawn over the space scene (stars, planets, Gargantua), each seen through its transmittance
+    this.sky.setOverGlobe(true);
     this.sky.setVisible(false);
     this.stars = new StarField();
     this.view = new SystemView('sol');
@@ -278,7 +280,9 @@ export class SurfaceZone extends Zone {
     const { e, u, s } = this.axes;
     for (let i = 0; i < 3; i++) this.camSys[i] = this.siteSys[i] + e[i] * _v.x + u[i] * _v.y + s[i] * _v.z;
     const jd = this.program ? this.program.jd : this.orbit.jd;
+    this.view.exposure = this.game.renderer.look.exposure;
     this.view.update(jd, this.camSys, this.rot, this.game.renderer.height / ((cam.fov * Math.PI) / 180));
+    this.stars.group.visible = this.view.system === 'sol';
     // stars: their catalogue is J2000 equatorial
     const obl = (23.4392911 * Math.PI) / 180;
     const m = new THREE.Matrix4().multiplyMatrices(this.rot, new THREE.Matrix4().makeRotationX(-obl)).elements;
@@ -293,7 +297,7 @@ export class SurfaceZone extends Zone {
 
   private updateSun() {
     // light from the system origin (the Sun, or Gargantua's disk)
-    const sunZ = this.toZone(scale(this.siteSys, -1), _v).normalize();
+    const sunZ = this.toZone(toLight(this.siteSys, this.body.system), _v).normalize();
     this.sky.setSunDirection(sunZ);
     this.sky.params.sunE = 20 * irradianceAt(this.body.id, this.orbit.jd);
     if (this.sea) this.sea.setSun(sunZ, this.sky.sunColor);

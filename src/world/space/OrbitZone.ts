@@ -27,7 +27,7 @@ import { pressureRatio } from '../../space/Earth';
 import { BODY, BodyDef } from '../../space/Bodies';
 import { equatorBasis, LAUNCH_JD, state, surfacePoint } from '../../space/Ephemeris';
 import { SystemView } from '../../render/SystemView';
-import { atmosphereFor, exposureFor, irradianceAt } from '../../space/Worlds';
+import { atmosphereFor, exposureFor, irradianceAt, toLight } from '../../space/Worlds';
 import { distanceRemaining, ENDURANCE_DV, finalizeArrival, finalizeDeparture, fmtDistance, fmtDuration, ParkState, TransferPlan, voyagePosition } from '../../space/Voyage';
 import { AU, DAY, R_G, WORMHOLE_PAIR } from '../../space/Bodies';
 import { dilationAt, MILLER_R, kerrCircularDilation } from '../../space/Relativity';
@@ -340,7 +340,8 @@ export class OrbitZone extends Zone implements OrbitContext {
     const Z = this.cruiseAxes.Z;
     this.rotSys.set(X.x, X.y, X.z, 0, Y.x, Y.y, Y.z, 0, Z.x, Z.y, Z.z, 0, 0, 0, 0, 1);
     if (this.skyRotation) this.rotSys.premultiply(new THREE.Matrix4().makeRotationFromQuaternion(this.skyRotation));
-    const sun = _s.set(-r[0], -r[1], -r[2]).normalize().applyMatrix4(_m4.extractRotation(this.rotSys));
+    const tl = toLight(r, this.voyage ? BODY[this.voyage.to].system : this.body.system);
+    const sun = _s.set(tl[0], tl[1], tl[2]).normalize().applyMatrix4(_m4.extractRotation(this.rotSys));
     this.sunLocal.copy(sun);
     this.sunView.copy(sun);
     this.sky.lightRotation = null;
@@ -514,7 +515,8 @@ export class OrbitZone extends Zone implements OrbitContext {
     this.cruiseShip = add(bp, f.r);
     const { X, Y, Z } = this.cruiseAxes;
     this.rotSys.set(X.x, X.y, X.z, 0, Y.x, Y.y, Y.z, 0, Z.x, Z.y, Z.z, 0, 0, 0, 0, 1);
-    const sun = _s.set(-this.cruiseShip[0], -this.cruiseShip[1], -this.cruiseShip[2]).normalize().applyMatrix4(_m4.extractRotation(this.rotSys));
+    const tl = toLight(this.cruiseShip, this.body.system);
+    const sun = _s.set(tl[0], tl[1], tl[2]).normalize().applyMatrix4(_m4.extractRotation(this.rotSys));
     this.sunLocal.copy(sun);
     this.sunView.copy(sun);
     this.sky.lightRotation = null;
@@ -859,7 +861,8 @@ export class OrbitZone extends Zone implements OrbitContext {
   private updateSkyGeneric() {
     const pos = state(this.body.id, this.jd).r;
     // light from the system origin (the Sun, or Gargantua's disk)
-    const sun = _s.set(-pos[0], -pos[1], -pos[2]).normalize().applyMatrix4(_m4.extractRotation(this.rotSys));
+    const tl = toLight(pos, this.body.system);
+    const sun = _s.set(tl[0], tl[1], tl[2]).normalize().applyMatrix4(_m4.extractRotation(this.rotSys));
     this.sunLocal.copy(sun);
     this.sunView.copy(sun);
     this.sky.lightRotation = null;
@@ -897,7 +900,10 @@ export class OrbitZone extends Zone implements OrbitContext {
       this.camSys[1] = bp[1] + o.x * B.e1.y + o.y * B.e2.y + o.z * B.n.y;
       this.camSys[2] = bp[2] + o.x * B.e1.z + o.y * B.e2.z + o.z * B.n.z;
     }
+    this.view.exposure = this.game.renderer.look.exposure;
     this.view.update(this.jd, this.camSys, this.rotSys, this.game.renderer.height / ((cam.fov * Math.PI) / 180));
+    // beyond the wormhole the sky is another galaxy's (drawn, lensed, by the black hole pass)
+    this.stars.group.visible = this.view.system === 'sol';
     this.globe.mesh.position.copy(this.earthCentre).sub(_v);
     // eye adaptation: stars fade when the sunlit Earth or the sun fills the view
     const look = cam.getWorldDirection(_w);
