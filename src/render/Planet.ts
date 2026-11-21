@@ -27,6 +27,81 @@ float n3( vec3 x ) {
 float fb( vec3 p ) { return n3( p ) * 0.5 + n3( p * 2.03 + 3.1 ) * 0.27 + n3( p * 4.11 + 7.7 ) * 0.15 + n3( p * 8.3 + 1.3 ) * 0.08; }
 `;
 
+/*
+ * Craters below the map's resolution (radius ~60 m to 4 km), for the close views from low orbit and on the descent.
+ * Each octave is a lattice of cells of size S; a cell holds at most one crater, its centre a random point in the cell
+ * projected onto the sphere, its radius shrinking with the centre's distance from the surface so that the crater's
+ * whole influence (bowl, rim, ejecta to two radii) stays within S/2 of the centre: the 2x2x2 cells nearest a point
+ * are then the only ones that can touch it. Octaves 2.5x apart in size with equal numbers per cell give the
+ * saturated lunar size-frequency distribution, N(>D) ~ D^-2.
+ *
+ * A crater: a parabolic bowl of depth D below a raised rim of height Hr, ejecta falling off outside. Fresh craters are
+ * deep (depth/diameter ~0.2) with bright ejecta; old ones are shallow. Cast shadows are analytic: the bowl is convex,
+ * so a point inside is in shadow exactly when the ray toward the sun passes below the rim where it leaves the bowl.
+ * Each octave fades in once its craters span a few pixels, so nothing aliases into noise from far away.
+ */
+const CRATERS = /* glsl */ `
+vec4 hash44( vec4 p4 ) { p4 = fract( p4 * vec4( 0.1031, 0.1030, 0.0973, 0.1099 ) ); p4 += dot( p4, p4.wzxy + 33.33 ); return fract( ( p4.xxyz + p4.yzzw ) * p4.zywx ); }
+// P: point (km, object frame) on the sphere of radius R; n: up; Ls: sun in the object frame; fp: km per pixel
+void craterOctave( vec3 P, vec3 n, vec3 Ls, float R, float S, float dens, float seed, float fp,
+                   inout vec3 grad, inout float lit, inout float albK ) {
+  float fade = smoothstep( 0.8, 2.6, 0.12 * S / fp );
+  if ( fade <= 0.0 || dens <= 0.0 ) return;
+  float sinE = dot( Ls, n );
+  vec3 Lt = Ls - n * sinE;
+  float cosE = length( Lt );
+  vec3 sh = Lt / max( cosE, 1e-5 );
+  float tanE = sinE / max( cosE, 1e-4 );
+  vec3 base = floor( P / S - 0.5 );
+  for ( int i = 0; i < 16; i++ ) {
+    // two candidate craters per cell (a jittered grid of one per cell would look too even)
+    vec3 cell = base + vec3( float( i % 2 ), float( ( i / 2 ) % 2 ), float( ( i / 4 ) % 2 ) );
+    float sd = seed + float( i / 8 ) * 0.37;
+    vec4 h = hash44( vec4( cell, sd ) );
+    if ( h.w > dens ) continue;
+    vec4 k = hash44( vec4( cell.zxy + 17.0, sd + 5.0 ) );
+    vec3 c = ( cell + h.xyz ) * S;
+    float cl = length( c );
+    float dz = cl - R;
+    float q = 1.0 - 4.0 * dz * dz / ( S * S );
+    if ( q <= 0.0 ) continue;
+    float r = S * ( 0.08 + 0.17 * k.x ) * sqrt( q );      // <= S/4: ejecta to 2r stay within S/2
+    vec3 d = P - c * ( R / cl );
+    float rho = length( d );
+    float x = rho / r;
+    if ( x >= 2.0 ) continue;
+    // degradation a: fresh (0) is a sharp-rimmed parabolic bowl, depth/diameter 0.2; old (1) is a shallow, rounded
+    // dimple (h = -D (1 - x^2)^2) with no rim left
+    float age = k.y, a = age * age;
+    float D = r * ( 0.4 - 0.3 * a );
+    float Hr = D * 0.18 * ( 1.0 - a );
+    // craters wider than ~12 km have flat floors
+    float floorD = r > 6.0 ? 0.7 * D : D;
+    vec3 u = d / max( rho, 1e-6 );
+    float dhdx;
+    if ( x < 1.0 ) {
+      float w = 1.0 - x * x, pw = pow( w, a );
+      dhdx = D * w * pw < floorD ? 2.0 * D * ( 1.0 + a ) * pw * x : 0.0;
+      // cast shadow: where the sunward ray leaves the bowl, is it still below the rim? (exact for the convex
+      // fresh bowl, close enough for the rounded old ones)
+      if ( sinE > 0.0 ) {
+        float xs = dot( d, sh ) / r;
+        float tEx = -xs + sqrt( max( xs * xs - x * x + 1.0, 0.0 ) );
+        float rise = tEx * r * tanE, need = min( D * w * pw, floorD );
+        float pen = max( 0.005 * tEx * r, fp * 0.6 );
+        lit = min( lit, mix( 1.0, smoothstep( -pen, pen, rise - need ), fade ) );
+      }
+    } else {
+      dhdx = -2.5 * Hr * exp( -2.5 * ( x - 1.0 ) ) * ( 1.0 - smoothstep( 1.5, 2.0, x ) );
+    }
+    grad += u * ( dhdx / r ) * fade;
+    // fresh craters: bright ejecta and walls; old ones fade into the surroundings
+    float fresh = max( 0.0, 1.0 - age / 0.18 );
+    albK *= 1.0 + fade * ( fresh * 0.5 * exp( -x * x * 0.7 ) - ( x < 1.0 ? 0.06 * age : 0.0 ) );
+  }
+}
+`;
+
 const VERT = /* glsl */ `
 varying vec3 vObj; varying vec3 vNw; varying vec3 vPw; varying vec3 vTan;
 uniform vec3 uOblate;   // object scale (1, polar/equatorial, 1)
@@ -54,8 +129,11 @@ uniform float uRadiusKm;
 uniform vec3 uLimb;
 uniform float uNormalK;
 uniform float uOcean;                            // open water: sun glint
+uniform float uCraters;                          // density of the sub-texture crater population (0: none)
+uniform float uCraterMare;                       // 1: fewer large craters where the map is dark (lunar maria)
 varying vec3 vObj; varying vec3 vNw; varying vec3 vPw; varying vec3 vTan;
 ${NOISE}
+${CRATERS}
 vec2 uvOf( vec3 o, float extraLon ) {
   float lon = atan( -o.z, o.x ) + extraLon;
   float lat = asin( clamp( o.y, -1.0, 1.0 ) );
@@ -87,16 +165,42 @@ void main() {
     vec3 T = normalize( vTan - N * dot( vTan, N ) );
     vec3 B = cross( N, T );
     vec3 tn = tex2( uNormal, uv ).xyz * 2.0 - 1.0;
-    tn.xy *= uNormalK;
+    // a map texel is kilometres across: up close its slopes would be exaggerated, so it fades into the detail below
+    tn.xy *= uNormalK * ( 1.0 - ( uCraters > 0.0 ? 0.95 : 0.7 ) * uDetail );
     Nr = normalize( T * tn.x + B * tn.y + N * tn.z );
   }
-  // sub-texture detail as the camera closes in (orbit, descent)
-  if ( uDetail > 0.001 ) {
-    vec3 P = vObj * uRadiusKm;
-    float d = ( fb( P * 0.05 ) - 0.5 ) * 0.6 + ( fb( P * 0.4 ) - 0.5 ) * 0.4 * uDetail + ( fb( P * 2.7 ) - 0.5 ) * 0.25 * uDetail;
-    alb *= 1.0 + d * ( uKind > 1.5 ? 0.15 : 0.6 );
-  }
   vec3 L = normalize( uSunDir );
+  float craterLit = 1.0;
+  if ( uDetail > 0.001 ) {
+    vec3 n = normalize( vObj );
+    vec3 P = n * uRadiusKm;
+    float fp = max( length( fwidth( P ) ), 1e-4 );    // km per pixel
+    // the object frame's local east/north, matching the world tangent frame
+    vec3 To = normalize( vec3( n.z, 0.0, -n.x ) + vec3( 1e-6 ) ); To = normalize( To - n * dot( To, n ) );
+    vec3 Bo = cross( n, To );
+    vec3 Tw = normalize( vTan - N * dot( vTan, N ) ), Bw = cross( N, Tw );
+    if ( uCraters > 0.0 && uKind < 1.5 ) {
+      vec3 Ls = To * dot( L, Tw ) + Bo * dot( L, Bw ) + n * dot( L, N );
+      vec3 grad = vec3( 0.0 );
+      float albK = 1.0;
+      float lum = dot( alb, vec3( 0.3, 0.6, 0.1 ) );
+      float big = uCraterMare > 0.5 ? mix( 0.25, 1.0, smoothstep( 0.075, 0.12, lum ) ) : 1.0;
+      float dn = 0.5 * uCraters;
+      craterOctave( P, n, Ls, uRadiusKm, 40.0, dn * big, 0.0, fp, grad, craterLit, albK );
+      craterOctave( P, n, Ls, uRadiusKm, 16.0, dn * big, 1.0, fp, grad, craterLit, albK );
+      craterOctave( P, n, Ls, uRadiusKm, 6.4, dn * mix( 0.6, 1.0, big ), 2.0, fp, grad, craterLit, albK );
+      craterOctave( P, n, Ls, uRadiusKm, 2.56, dn, 3.0, fp, grad, craterLit, albK );
+      craterOctave( P, n, Ls, uRadiusKm, 1.02, dn, 4.0, fp, grad, craterLit, albK );
+      craterOctave( P, n, Ls, uRadiusKm, 0.41, dn, 5.0, fp, grad, craterLit, albK );
+      vec2 g = vec2( dot( grad, To ), dot( grad, Bo ) );
+      Nr = normalize( Nr - ( Tw * g.x + Bw * g.y ) );
+      alb *= albK;
+    }
+    // albedo variation below the map's texels, each octave only once it spans several pixels
+    float a1 = 1.0 - smoothstep( 0.15, 0.4, fp / 20.0 ), a2 = 1.0 - smoothstep( 0.15, 0.4, fp / 2.5 ), a3 = 1.0 - smoothstep( 0.15, 0.4, fp / 0.37 );
+    float d = ( fb( P * 0.05 ) - 0.5 ) * 0.6 * a1 + ( fb( P * 0.4 ) - 0.5 ) * 0.4 * uDetail * a2 + ( fb( P * 2.7 ) - 0.5 ) * 0.25 * uDetail * a3;
+    alb *= 1.0 + d * ( uKind > 1.5 ? 0.15 : 0.45 );
+  }
   float mu0 = dot( Nr, L ), mu = max( dot( N, V ), 0.0 ), mus = dot( N, L );
   // ring shadow on the planet: follow the ray toward the sun to the ring plane
   float ringT = 1.0;
@@ -139,7 +243,8 @@ void main() {
     lambert *= smoothstep( -0.08, 0.15, mus );
     col = alb * uSunCol * lambert * pow( max( mu, 0.02 ), 0.18 );
   }
-  col *= ringT;
+  // crater shadows: no air, but the sunlit far wall lights the shadowed floor a little
+  col *= ringT * mix( 0.04, 1.0, craterLit );
   // a hint of the atmosphere at the limb (distant views; the full sky model takes over close in)
   if ( uKind > 0.5 ) {
     float rim = pow( 1.0 - mu, 4.0 );
@@ -241,6 +346,12 @@ export interface PlanetLook {
   ringDark: number;
 }
 
+/** sub-texture crater populations: saturated on the ancient airless surfaces, sparse where they are resurfaced */
+const CRATER_DENSITY: Record<string, number> = {
+  moon: 1, mercury: 1, callisto: 1, rhea: 1, iapetus: 0.9, titania: 0.8, ganymede: 0.7, phobos: 0.8, deimos: 0.5,
+  mars: 0.45, enceladus: 0.5, triton: 0.12, europa: 0.06, edmunds: 0.04,
+};
+
 function lookOf(b: BodyDef): PlanetLook {
   const kind = b.kind === 'gas' ? 2 : b.kind === 'ice' ? 3 : b.atmosphere && b.atmosphere.rho0 > 0.05 ? 1 : 0;
   // zonal winds (rad/s): Jupiter's equator runs ~100 m/s ahead of the deep rotation
@@ -287,6 +398,7 @@ export class PlanetBody {
         uRing: { value: new THREE.Vector4(ringDef ? ringDef.inner / def.R : 0, ringDef ? ringDef.outer / def.R : 0, ringDef ? 1 : 0, 1) },
         uPoleW: { value: new THREE.Vector3(0, 1, 0) }, uDetail: { value: 0 }, uRadiusKm: { value: def.R / 1000 },
         uLimb: { value: new THREE.Vector3(...(def.atmosphere?.limb ?? [0, 0, 0])) }, uNormalK: { value: this.look.normalK }, uOcean: { value: id === 'miller' ? 1 : 0 },
+        uCraters: { value: CRATER_DENSITY[id] ?? 0 }, uCraterMare: { value: id === 'moon' ? 1 : 0 },
         uOblate: { value: new THREE.Vector3(1, def.Rp ? def.Rp / def.R : 1, 1) },
       },
       vertexShader: VERT, fragmentShader: FRAG, depthWrite: false, depthTest: false,
