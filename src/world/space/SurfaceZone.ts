@@ -23,6 +23,7 @@ import { ui } from '../../ui/store';
 import { mission } from '../../mission/Mission';
 import type { OrbitZone } from './OrbitZone';
 import { SeaSurface } from '../../render/Sea';
+import { MillerWave } from '../../render/MillerWave';
 
 const _v = new THREE.Vector3(), _w = new THREE.Vector3(), _q = new THREE.Quaternion(), _m = new THREE.Matrix4(), _x = new THREE.Vector3(), _z = new THREE.Vector3();
 
@@ -133,6 +134,9 @@ export class SurfaceZone extends Zone {
   lights!: LightPool;
   ranger!: Spacecraft;
   sea: SeaSurface | null = null;
+  /** Miller's tidal wave */
+  wave: MillerWave | null = null;
+  private waveWarn = 0;
   program: FlightProgram | null = null;
   /** height of the Ranger's model origin above the ground on its gear (m) */
   touchH = 1.1;
@@ -196,6 +200,9 @@ export class SurfaceZone extends Zone {
       this.sea?.dispose();
       this.sea = null;
       if (look.sea) { this.sea = new SeaSurface(b.R); this.root.add(this.sea.mesh); }
+      this.wave?.dispose();
+      this.wave = null;
+      if (id === 'miller') { this.wave = new MillerWave(b.R); this.root.add(this.wave.mesh); }
       if (this.view.system !== b.system) {
         const inScene = !!this.view.group.parent;
         this.view.dispose();
@@ -470,6 +477,7 @@ export class SurfaceZone extends Zone {
     this.terrain?.update(_v);
     this.updateSun();
     this.sea?.update(dt, _v);
+    if (this.wave) this.updateWave(dt);
     this.sky.shadowFocus.copy(_v.distanceTo(this.ranger.root.position) < 80 ? this.ranger.root.position : g.player.pos);
     this.sky.shadowRange = 40;
     const ground = this.terrain ? this.terrain.source.height(_v.x, _v.z) : 0;
@@ -490,6 +498,21 @@ export class SurfaceZone extends Zone {
     void this.landedAt;
   }
 
+  /** the wave on its way: warnings as it comes, the roar and the shaking as it passes */
+  private updateWave(dt: number) {
+    const w = this.wave!;
+    w.update(this.orbit.met, dt);
+    const eta = w.eta(0);
+    const dist = Math.abs(w.s);
+    const steps = [[1200, 'The mountains on the horizon are moving. That is a wave: 1.2 km high, about 20 minutes out.'], [480, 'Wave: 8 minutes. Get to the Ranger.'], [120, 'Wave: 2 minutes!'], [30, 'Wave! Brace!']] as const;
+    for (let i = this.waveWarn; i < steps.length; i++) {
+      if (eta > 0 && eta < steps[i][0]) { this.waveWarn = i + 1; ui.toast(steps[i][1], i >= 2 ? 'warn' : 'info', 6); bus.emit('sfx', { id: i >= 2 ? 'caution' : 'chime', ui: true }); break; }
+    }
+    if (eta < -60) this.waveWarn = 0;
+    // the ground and the ship shake as the crest goes by
+    this.game.renderer.shake = dist < 3000 ? 0.012 * (1 - dist / 3000) : 0;
+  }
+
   override gravityAt(_p: THREE.Vector3, out: THREE.Vector3) { return out.set(0, -surfaceGravity(this.body), 0); }
 
   override groundHeight(x: number, z: number) {
@@ -503,6 +526,8 @@ export class SurfaceZone extends Zone {
     const air = this.body.atmosphere ? clamp(this.body.atmosphere.rho0 / 1.2, 0, 1) : 0;
     o.wind = inCraft ? 0 : air * 0.6; o.dust = this.body.id === 'mars' || this.body.id === 'edmunds' ? air * 0.4 : 0;
     o.rustle = 0; o.water = this.sea && !inCraft ? 0.7 : 0; o.rumble = this.program ? 0.4 : 0;
+    // the wave is heard long before it arrives: a roar growing as it closes
+    if (this.wave) o.rumble = Math.max(o.rumble, Math.min(1, 3000 / Math.max(500, Math.abs(this.wave.s))));
     o.indoors = inCraft ? 1 : 0; o.vacuum = !inCraft && !this.body.atmosphere ? 1 : 0;
     o.helmet = !inCraft ? 1 : 0;
     o.hum = inCraft ? 0.35 : 0.1; o.air = inCraft ? 0.4 : 0.5;

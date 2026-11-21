@@ -1,4 +1,5 @@
 import * as THREE from 'three';
+import { W } from './patch';
 
 const VERT = /* glsl */ `
 uniform float uR;
@@ -55,8 +56,8 @@ void main() {
   float spec = pow( max( dot( R, uSunDir ), 0.0 ), 900.0 ) * 60.0 + pow( max( dot( R, uSunDir ), 0.0 ), 60.0 ) * 0.6;
   vec3 col = sky * F + uSunCol * spec * step( 0.0, uSunDir.y );
   // shallow water: the floor shows through, more at steep angles and close by
-  float alpha = clamp( F + 0.18 + 0.5 * smoothstep( 20.0, 2000.0, vDist ), 0.0, 1.0 );
-  col += uDeep * ( 1.0 - F ) * 0.35;
+  float alpha = clamp( F + 0.32 + 0.5 * smoothstep( 15.0, 600.0, vDist ), 0.0, 1.0 );
+  col += uDeep * ( 1.0 - F ) * uHorizon * 1.5;
   gl_FragColor = vec4( col, alpha );
   #include <tonemapping_fragment>
   #include <colorspace_fragment>
@@ -94,8 +95,8 @@ export class SeaSurface {
       vertexShader: VERT, fragmentShader: FRAG, transparent: true, depthWrite: false,
       uniforms: {
         uR: { value: radius }, uTime: { value: 0 }, uCam: { value: new THREE.Vector3() },
-        uSunDir: { value: new THREE.Vector3(0, 1, 0) }, uSunCol: { value: new THREE.Color(1, 1, 1) },
-        uZenith: { value: new THREE.Color(0.3, 0.38, 0.46) }, uHorizon: { value: new THREE.Color(0.62, 0.66, 0.68) },
+        // reflections of the actual sky (the radiance the sky model measures for the fog) and of the light source
+        uSunDir: W.uSunDir, uSunCol: W.uSunColor, uZenith: W.uFogZ, uHorizon: W.uFogH,
         uDeep: { value: new THREE.Color(0.05, 0.08, 0.09) },
       },
     });
@@ -104,14 +105,8 @@ export class SeaSurface {
     this.mesh.renderOrder = 5;
   }
 
-  setSun(dir: THREE.Vector3, col: THREE.Color) {
-    (this.mat.uniforms.uSunDir.value as THREE.Vector3).copy(dir);
-    (this.mat.uniforms.uSunCol.value as THREE.Color).copy(col);
-    // sky colours follow the light: a bright overcast-blue by day, dark by night
-    const k = Math.max(0, Math.min(1, dir.y * 3 + 0.3));
-    (this.mat.uniforms.uZenith.value as THREE.Color).setRGB(0.3 * k, 0.38 * k, 0.46 * k).multiply(col).multiplyScalar(1.2);
-    (this.mat.uniforms.uHorizon.value as THREE.Color).setRGB(0.62 * k, 0.66 * k, 0.7 * k).multiply(col).multiplyScalar(1.2);
-  }
+  /** (kept for callers: the sky and light now come from the shared scene uniforms) */
+  setSun(_dir: THREE.Vector3, _col: THREE.Color) {}
 
   update(dt: number, cam: THREE.Vector3) {
     this.mat.uniforms.uTime.value += dt;
