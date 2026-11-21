@@ -28,6 +28,12 @@ export interface AtmosphereParams {
   sunRadius: number;
   fogDensity: number;
   fogFalloff: number;
+  /**
+   * Inside a giant planet's atmosphere (a station at 1 bar): a cloud deck below (altitude m, negative), a broken
+   * cloud layer above, colours of the deck's bright zones, its darker belts, the upper cloud, the deep air seen
+   * through gaps, and the haze (colour, e-folding distance m).
+   */
+  giant?: { floor: number; ceil: number; cover: number; zone: [number, number, number]; belt: [number, number, number]; upper: [number, number, number]; deep: [number, number, number]; haze: [number, number, number]; hazeL: number; scale: number } | null;
 }
 
 export const EARTH_ATMOSPHERE: AtmosphereParams = {
@@ -55,6 +61,11 @@ uniform vec3 uCloudOff; // xz offset (wind + camera), time
 uniform vec3 uAmbient;
 uniform float uSunRadius;
 uniform float uStars;
+uniform vec4 uGiant;      // on, deck altitude, upper cloud altitude, upper cover
+uniform vec3 uGiantA, uGiantB, uGiantC, uGiantDeep;
+uniform vec4 uGiantHaze;  // colour, e-folding distance
+uniform float uGiantScale;
+uniform vec4 uFlash;      // lightning in the deck: world x, z, radius, strength
 const float PI = 3.14159265359;
 
 // Intersections are written in terms of altitude to avoid catastrophic cancellation at planet scale.
@@ -175,6 +186,61 @@ vec4 cloudLayer( vec3 rd, float alt, float scale, float coverage, float density,
   return vec4( col, d * fade );
 }
 
+// ---- inside a giant planet: the cloud deck below, seen from above, and the broken layer overhead
+vec3 giantDeck( vec2 w, float tc, vec3 sunCol, vec3 skyAmb ) {
+  // zonal flow draws features out east-west (x): broad belts and zones across the north-south (z) direction, eddies,
+  // festoons and puffs between, domain-warped
+  float S = uGiantScale;
+  vec2 uv = w / ( 14000.0 * S ) * vec2( 0.3, 1.0 );
+  float tm = uCloudOff.z * 0.0015;
+  vec2 q = vec2( fbm( uv + vec2( tm, 0.0 ) ), fbm( uv + vec2( 5.2, 1.3 ) ) );
+  vec2 r = vec2( fbm( uv + 3.0 * q + vec2( 1.7, 9.2 ) ), fbm( uv + 3.0 * q + vec2( 8.3, 2.8 ) - tm ) );
+  float n = fbm( uv + 3.0 * r );
+  // belts: a slow north-south banding, bent by the eddies
+  float band = 0.5 + 0.5 * sin( ( w.y / ( 52000.0 * S ) + 1.6 * r.x ) * 6.2831 );
+  // cumulus puffs on the deck top, faded with distance (no aliasing toward the horizon)
+  float k = exp( -tc / ( 45000.0 * S ) );
+  float fine = fbm( w / ( 1500.0 * S ) + r * 3.0 );
+  float fine2 = fbm( w / ( 420.0 * S ) + q * 4.0 );
+  float h = n + ( fine - 0.5 ) * 0.5 * k + ( fine2 - 0.5 ) * 0.25 * k * k;
+  // relief lit by the sun (a sunward offset sample of the same field)
+  vec2 so = normalize( uSunDir.xz + 1e-4 );
+  float n2 = fbm( uv + so * 0.02 + 3.0 * r ) + ( fbm( ( w + so * 220.0 * S ) / ( 1500.0 * S ) + r * 3.0 ) - 0.5 ) * 0.5 * k + ( fbm( ( w + so * 70.0 * S ) / ( 420.0 * S ) + q * 4.0 ) - 0.5 ) * 0.25 * k * k;
+  float lit = clamp( 0.55 + ( h - n2 ) * 9.0, 0.08, 1.5 );
+  // bright high-cloud zones, darker belts of deeper cloud, dark gaps down into the deep air
+  float hi = smoothstep( 0.42, 0.62, h + 0.4 * ( band - 0.5 ) );
+  vec3 c = mix( uGiantB, uGiantA, hi );
+  c *= 0.85 + 0.3 * fbm( uv * 7.0 + r );
+  float gap = smoothstep( 0.4, 0.27, h - 0.12 * ( band - 0.5 ) );
+  c = mix( c, uGiantDeep, gap );
+  float sunUp = clamp( uSunDir.y * 1.5 + 0.15, 0.0, 1.0 );
+  vec3 col = c * ( sunCol * sunUp * lit * 1.2 + skyAmb * 0.35 ) * ( 1.0 - 0.8 * gap );
+  // lightning deep in the clouds: a diffuse glow round the strike
+  vec2 fd = ( w - uFlash.xy ) / max( uFlash.z, 1.0 );
+  col += vec3( 0.8, 0.85, 1.0 ) * uFlash.w * exp( -dot( fd, fd ) ) * ( 0.4 + 0.9 * smoothstep( 0.3, 0.8, h ) );
+  return col;
+}
+vec4 giantUpper( vec3 rd, vec3 sunCol, vec3 skyAmb ) {
+  if ( rd.y <= 0.002 || uGiant.w <= 0.0 ) return vec4( 0.0 );
+  float Rp = uPlanet.x, h0 = max( uPlanet.z, 1.0 ), camR = Rp + h0, alt = uGiant.z;
+  vec2 t = hitShell( camR, rd.y, ( h0 - alt ) * ( 2.0 * Rp + h0 + alt ) );
+  float tc = t.y;
+  if ( tc <= 0.0 || tc > 4.0e5 ) return vec4( 0.0 );
+  float S = uGiantScale;
+  vec2 w = rd.xz * tc + uCloudOff.xy;
+  vec2 uv = w / ( 9000.0 * S ) * vec2( 0.4, 1.0 );
+  vec2 q = vec2( fbm( uv + vec2( 2.1, 7.7 ) ), fbm( uv + vec2( 9.4, 3.3 ) ) );
+  float n = fbm( uv + 2.5 * q ) * 0.7 + fbm( uv * 3.3 + q ) * 0.3;
+  float cov = uGiant.w;
+  float d = smoothstep( 1.0 - cov, 1.0 - cov + 0.32, n );
+  if ( d <= 0.002 ) return vec4( 0.0 );
+  // seen from below: light comes through, the thin edges glow, thick cores grey; forward scattering round the sun
+  float fwd = pow( max( dot( rd, uSunDir ), 0.0 ), 5.0 );
+  vec3 col = uGiantC * ( sunCol * ( 0.18 + 0.95 * exp( -2.2 * d ) ) * ( 0.55 + 1.8 * fwd ) + skyAmb * 1.1 );
+  float fade = exp( -tc / 120000.0 );
+  return vec4( col, d * fade * 0.97 );
+}
+
 Atmo gAtmo;
 vec3 skyColor( vec3 rd, bool withSun ) {
   Atmo a = atmosphere( rd );
@@ -183,6 +249,29 @@ vec3 skyColor( vec3 rd, bool withSun ) {
   vec3 sunT = sunTransmittance();
   vec3 sunCol = uSunE * uSunTint * sunT * 0.11 * smoothstep( -0.06, 0.08, uSunDir.y );
   vec3 skyAmb = atmosphere( vec3( 0.0, 1.0, 0.0 ) ).L;
+  if ( uGiant.x > 0.5 ) {
+    float Rp = uPlanet.x, h0 = max( uPlanet.z, 1.0 ), camR = Rp + h0;
+    float fa = uGiant.y;
+    vec3 haze = uGiantHaze.rgb * ( sunCol * 0.45 + skyAmb * 2.2 );
+    vec2 tf = hitShell( camR, rd.y, ( h0 - fa ) * ( 2.0 * Rp + h0 + fa ) );
+    if ( rd.y < 0.0 && tf.x > 0.0 ) {
+      vec3 fc = giantDeck( rd.xz * tf.x + uCloudOff.xy, tf.x, sunCol, skyAmb );
+      gAtmo.T = vec3( 0.0 );
+      return mix( fc, haze, 1.0 - exp( -tf.x / uGiantHaze.w ) );
+    }
+    // above: the sky (the horizon dissolving into the haze), the sun's disc, the broken cloud overhead
+    vec3 sky = mix( col, haze, exp( -max( rd.y, 0.0 ) * 18.0 ) );
+    vec4 up = giantUpper( rd, sunCol, skyAmb );
+    gAtmo.T *= 1.0 - up.a;
+    if ( withSun ) {
+      float c = dot( rd, uSunDir );
+      float ang = acos( clamp( c, -1.0, 1.0 ) );
+      float disc = smoothstep( uSunRadius, uSunRadius * 0.82, ang );
+      sky += disc * uSunTint * a.T * uSunE * 9.0 * ( 1.0 - up.a );
+      sky += uSunTint * a.T * uSunE * 0.03 * pow( max( c, 0.0 ), 400.0 ) * step( 1e-4, uSunRadius );
+    }
+    return mix( sky, up.rgb, up.a );
+  }
   if ( !a.ground ) {
     if ( uStars > 0.001 ) {
       vec3 sd = rd * 220.0;
@@ -296,6 +385,11 @@ export class Sky {
   /** allow the sun below the local horizon (orbit: the ground is far below, the light comes from any direction) */
   freeSun = false;
 
+  /** a lightning flash in a giant's cloud deck (zone x, z in m, glow radius m, strength) */
+  setFlash(x: number, z: number, radius: number, strength: number) {
+    (this.uniforms.uFlash.value as THREE.Vector4).set(x + this.cloudOffset.x, z + this.cloudOffset.y, radius, strength);
+  }
+
   constructor(private r: Renderer, quality: number, params: AtmosphereParams = EARTH_ATMOSPHERE) {
     this.params = { ...params };
     const p = this.params;
@@ -316,6 +410,11 @@ export class Sky {
       uStars: { value: 0 },
       uOverGlobe: { value: 0 },
       uGroundColor: { value: this.groundColor },
+      uGiant: { value: new THREE.Vector4(0, -25000, 9000, 0.5) },
+      uGiantA: { value: new THREE.Vector3(0.85, 0.76, 0.62) }, uGiantB: { value: new THREE.Vector3(0.55, 0.38, 0.24) },
+      uGiantC: { value: new THREE.Vector3(0.95, 0.92, 0.86) }, uGiantDeep: { value: new THREE.Vector3(0.12, 0.08, 0.06) },
+      uGiantHaze: { value: new THREE.Vector4(0.8, 0.7, 0.55, 90000) }, uGiantScale: { value: 1 },
+      uFlash: { value: new THREE.Vector4(0, 0, 1, 0) },
     };
     const defs = (q: number) => ({ N_VIEW: [8, 12, 18][q], N_LIGHT: [3, 4, 6][q] });
     this.mat = new THREE.ShaderMaterial({
@@ -380,6 +479,14 @@ export class Sky {
     (u.uCloud.value as THREE.Vector4).set(p.cloudCoverage, p.cloudDensity, p.cloudAltitude, p.cirrus);
     (u.uAmbient.value as THREE.Vector3).set(...p.ambient);
     u.uSunRadius.value = p.sunRadius;
+    const gi = p.giant;
+    if (gi) {
+      (u.uGiant.value as THREE.Vector4).set(1, gi.floor, gi.ceil, gi.cover);
+      (u.uGiantA.value as THREE.Vector3).set(...gi.zone); (u.uGiantB.value as THREE.Vector3).set(...gi.belt);
+      (u.uGiantC.value as THREE.Vector3).set(...gi.upper); (u.uGiantDeep.value as THREE.Vector3).set(...gi.deep);
+      (u.uGiantHaze.value as THREE.Vector4).set(...gi.haze, gi.hazeL);
+      u.uGiantScale.value = gi.scale;
+    } else (u.uGiant.value as THREE.Vector4).x = 0;
     u.uStars.value = this.starsOverride ?? clamp((-this.sunDir.y - 0.02) * 6, 0, 1) * (1 - p.cloudCoverage * 0.8);
   }
 

@@ -71,14 +71,14 @@ export class FlightProgram {
       case 'entry': {
         // a long fall through thick air (Venus, Titan) runs faster: about 30 s of real time for what is left
         const vr = Math.abs(f.v[0] * f.r[0] + f.v[1] * f.r[1] + f.v[2] * f.r[2]) / norm(f.r);
-        return Math.max(15, Math.min(300, f.height / Math.max(vr, 1) / 30));
+        return Math.max(15, Math.min(600, f.height / Math.max(vr, 1) / 15));
       }
-      case 'braking': return f.height < HANDOVER_ALT * 1.5 ? Math.max(4, Math.min(20, f.tgo / 30)) : Math.max(8, Math.min(60, f.tgo / 25));
-      case 'gate': case 'terminal': return f.height > 200 ? 6 : f.height > 25 ? 3 : 1.5;
+      case 'braking': return f.height < HANDOVER_ALT * 1.5 ? Math.max(5, Math.min(30, f.tgo / 15)) : Math.max(8, Math.min(60, f.tgo / 25));
+      case 'gate': case 'terminal': return f.height > 200 ? 10 : f.height > 25 ? 3 : 1.5;
       case 'ascent': return 2;
-      case 'pitch': return 10;
-      case 'insert': return Math.max(15, Math.min(60, f.tgo / 15));
-      case 'close': return Math.max(6, Math.min(30, f.tgo / 10));
+      case 'pitch': return 20;
+      case 'insert': return Math.max(15, Math.min(120, f.tgo / 10));
+      case 'close': return Math.max(6, Math.min(60, f.tgo / 6));
       case 'trim': return 2;
       case 'raise': return 2;
       default: return 1;

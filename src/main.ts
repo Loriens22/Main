@@ -18,6 +18,7 @@ import { PRESETS, PresetName } from './core/Settings';
 import { OrbitZone } from './world/space/OrbitZone';
 import { DockingPanel } from './ui/panels/DockingPanel';
 import * as THREE from 'three';
+import { parkingOverride } from './space/Bodies';
 import { RAPIER } from './physics/Physics';
 import type { NPC } from './npc/NPC';
 import { LaunchDirector } from './mission/Launch';
@@ -69,7 +70,7 @@ async function boot() {
   game.registerZone(new EnduranceZone(game, 'endurance'));
   const surface = game.registerZone(new SurfaceZone(game, 'surface')) as SurfaceZone;
   const viewer = game.registerZone(new ViewerZone(game, 'viewer')) as ViewerZone;
-  if (import.meta.env.DEV) Object.assign(window as any, { __THREE: THREE, __RAPIER: RAPIER });   // test scripts
+  if (import.meta.env.DEV) Object.assign(window as any, { __THREE: THREE, __RAPIER: RAPIER, __parkOv: (b: { id: string; surveyAlt?: number }) => { if (b.surveyAlt) parkingOverride[b.id] = b.surveyAlt; } });   // test scripts
 
   if (params.get('zone') === 'viewer') {
     // developer entry: look at any body from space (appearance checks)

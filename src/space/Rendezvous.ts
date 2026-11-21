@@ -82,7 +82,7 @@ export class RendezvousAutopilot implements Autopilot {
     const p = c.position(new THREE.Vector3()), v = c.velocity(new THREE.Vector3());
     const P = (2 * Math.PI) / n;
     let best: { T: number; v0: THREE.Vector3; vf: THREE.Vector3; cost: number } | null = null;
-    for (let k = 3; k <= 22; k++) {
+    for (let k = 1; k <= 22; k++) {
       const T = (k / 50) * P;
       const sol = cwTarget(p, this.gate, n, T);
       if (!sol) continue;
@@ -94,7 +94,7 @@ export class RendezvousAutopilot implements Autopilot {
       }
       if (!clear) continue;
       // a little extra delta-v for a quicker transfer is worth it (the RCS has plenty for these distances)
-      const cost = sol.v0.distanceTo(v) + sol.vf.length() + T * 0.003;
+      const cost = sol.v0.distanceTo(v) + sol.vf.length() + T * 0.02;
       if (!best || cost < best.cost) best = { T, v0: sol.v0, vf: sol.vf, cost };
     }
     if (!best) return false;

@@ -215,6 +215,11 @@ export const SFX: Record<string, Recipe> = {
     return tone(e, o, t, { f: 68, f1: 24, gain: 1.0 * v, a: 0.004, d: 2.2 });
   },
   cryo: (e, o, t, v) => { noise(e, o, t, { type: 'highpass', f: 4200, gain: 0.18 * v, a: 0.4, hold: 1.5, d: 2.5 }); return tone(e, o, t, { f: 180, f1: 60, gain: 0.08 * v, a: 0.5, hold: 1, d: 2.6 }); },
+  // distant thunder: a low rolling rumble (several strokes), the highs lost on the way
+  thunder: (e, o, t, v) => {
+    for (let i = 0; i < 4; i++) noise(e, o, t + i * r(0.35, 0.8), { type: 'lowpass', f: r(90, 160), f1: 50, gain: r(0.5, 0.9) * v, a: 0.25, hold: r(0.2, 0.8), d: r(1.8, 3.2), brown: true });
+    return 4.5;
+  },
   whoosh: (e, o, t, v) => noise(e, o, t, { type: 'bandpass', f: 300, f1: 2400, q: 0.8, gain: 0.3 * v, a: 0.5, d: 0.9 }),
   beep: (e, o, t, v) => tone(e, o, t, { f: 1046, gain: 0.05 * v, a: 0.004, hold: 0.08, d: 0.04 }),
 };

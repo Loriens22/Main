@@ -183,7 +183,7 @@ def build_station():
     C_ = Part("cradle")
     for y in (-8, 0, 8):
         for s in (-1, 1):
-            C_.box((1.0, 1.0, 3.0), M=xf((17.0, -12.0, 0), (0, 0, 25)) @ xf((s * 7.4, y, 1.5)), mat="paint_yellow", bevel=0.05)
+            C_.box((1.6, 1.0, 1.95), M=xf((17.0, -12.0, 0), (0, 0, 25)) @ xf((s * 7.4, y, 0.975)), mat="paint_yellow", bevel=0.05)
     cradle = C_.finish(sharp=40)
 
     # arms, tether nodes, cables and envelopes

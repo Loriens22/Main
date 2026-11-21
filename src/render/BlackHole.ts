@@ -17,8 +17,11 @@ import { makeGalaxySky, STARS_GLSL } from './GalaxySky';
  * g = E_camera / E_emitter for the gas on prograde circular orbits). Rays that escape sample the galaxy sky in the
  * direction they came from; rays that reach the horizon are black.
  *
- * Spin: the story's Gargantua spins at a = 1 - 1e-14 (Miller's dilation uses it); the image is traced with
- * a = 0.999, whose shadow and disk are indistinguishable at screen resolution and numerically well behaved.
+ * Spin: the story's a = 1 - 1e-14 (Miller's dilation uses the same value). The GPU holds it as 1.0 (single
+ * precision cannot tell them apart); every quantity that differs between the two lies within 1e-5 M of the horizon:
+ * the innermost stable orbit (1.000034 M, computed in double precision on the CPU) and the horizon itself. Delta is
+ * written (r - 1)^2 + a^2 - 1 so it keeps its precision down there; the shadow's flattened prograde edge, the
+ * strongly lopsided photon ring and the disk running down almost to the horizon are those of the near-extremal hole.
  */
 
 const VERT = /* glsl */ `
@@ -59,7 +62,7 @@ void derivs( vec3 X, vec2 P, float b, out vec3 dX, out vec2 dP ) {
   float r = X.x, s = max( sin( X.y ), 1e-4 ), c = cos( X.y );
   float a = uA, a2 = a * a;
   float rho2 = r * r + a2 * c * c;
-  float D = r * r - 2.0 * r + a2;
+  float D = max( ( r - 1.0 ) * ( r - 1.0 ) + a2 - 1.0, 1e-9 );
   float Pp = r * r + a2 - a * b;
   float B = b / s - a * s;
   dX.x = D * P.x / rho2;
@@ -94,7 +97,7 @@ void main() {
   float nr = dot( nF, er ), nth = dot( nF, eth ), nph = dot( nF, eph );
   float a = uA, a2 = a * a;
   float st = max( sin( th ), 1e-4 ), ct = cos( th );
-  float rho = sqrt( r * r + a2 * ct * ct ), D = r * r - 2.0 * r + a2;
+  float rho = sqrt( r * r + a2 * ct * ct ), D = max( ( r - 1.0 ) * ( r - 1.0 ) + a2 - 1.0, 1e-9 );
   float Sig = sqrt( ( r * r + a2 ) * ( r * r + a2 ) - a2 * D * st * st );
   float alpha = rho * sqrt( D ) / Sig, omega = 2.0 * a * r / ( Sig * Sig ), varpi = Sig * st / rho;
   float EF = 1.0 / ( alpha + omega * varpi * nph );
@@ -173,7 +176,7 @@ export function iscoRadius(a: number) {
 export class BlackHoleView {
   mesh: THREE.Mesh;
   mat: THREE.ShaderMaterial;
-  static readonly SPIN = 0.999;
+  static readonly SPIN = 1 - 1e-14;
 
   constructor(public M: number) {
     const a = BlackHoleView.SPIN;
@@ -182,7 +185,7 @@ export class BlackHoleView {
       uniforms: {
         uCam: { value: new THREE.Vector3(300, 0, 0) }, uZoneToSys: { value: new THREE.Matrix3() },
         uInvProj: { value: new THREE.Matrix4() }, uCamWorld: { value: new THREE.Matrix4() },
-        uA: { value: a }, uRh: { value: 1 + Math.sqrt(1 - a * a) }, uRin: { value: iscoRadius(a) }, uRout: { value: 24 },
+        uA: { value: a }, uRh: { value: 1 + Math.sqrt((1 - a) * (1 + a)) }, uRin: { value: iscoRadius(a) }, uRout: { value: 24 },
         uTime: { value: 0 }, uDisk: { value: 1 }, uTdisk: { value: 5200 }, uSkyGain: { value: 0.05 },
         uSky: { value: galaxySky() }, uPix: { value: 0.001 },
       },

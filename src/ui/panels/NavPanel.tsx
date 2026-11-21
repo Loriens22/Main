@@ -1,7 +1,7 @@
 import { useMemo, useState } from 'preact/hooks';
 import type { Game } from '../../core/Game';
 import { bus } from '../../core/events';
-import { BODIES, BODY, LAZARUS_DESTINATIONS, SOL_DESTINATIONS, surfaceGravity } from '../../space/Bodies';
+import { BODIES, BODY, LAZARUS_DESTINATIONS, parkAlt, parkingOverride, SOL_DESTINATIONS, surfaceGravity } from '../../space/Bodies';
 import { calendarDate } from '../../space/Ephemeris';
 import { ENDURANCE_DV, fmtDistance, fmtDuration, planVoyage, TransferPlan, voyagePosition, distanceRemaining } from '../../space/Voyage';
 import { fmtClock } from '../../world/space/OrbitZone';
@@ -32,10 +32,12 @@ export function NavTab({ game }: { game: Game }) {
   const o: any = game.zones.get('orbit');
   const [dest, setDest] = useState<string | null>(null);
   const [err, setErr] = useState<string | null>(null);
+  const [, bump] = useState(0);
   const here: string = o.body.id;
   const jdDay = Math.floor(o.jd * 4) / 4;
   // the options as they would be flown from this orbit now (burn point, escape and capture legs, true costs)
-  const plans: TransferPlan[] = useMemo(() => (dest && o.mode === 'orbit' ? planVoyage(here, dest, o.jd).map((p) => o.prepareVoyage(p).plan) : []), [dest, here, jdDay, o.mode]);
+  const survey = !!dest && !!BODY[dest]?.surveyAlt && parkingOverride[dest] === BODY[dest].surveyAlt;
+  const plans: TransferPlan[] = useMemo(() => (dest && o.mode === 'orbit' ? planVoyage(here, dest, o.jd).map((p) => o.prepareVoyage(p).plan) : []), [dest, here, jdDay, o.mode, survey]);
   const left = ENDURANCE_DV - o.dvUsed;
   const click = (f: () => void) => () => { bus.emit('ui:click'); f(); };
 
@@ -110,6 +112,19 @@ export function NavTab({ game }: { game: Game }) {
         <KV k="Ship clock (MET)" v={fmtClock(o.met)} />
         <KV k="Earth reference" v={`${fmtClock(o.earthT)} · ${date(o.jd)}`} />
         <KV k="Drive Δv remaining" v={`${(left / 1000).toFixed(1)} of ${(ENDURANCE_DV / 1000).toFixed(0)} km/s`} warn={left < 5000} />
+        {o.body.station && o.body.surveyAlt && o.mode === 'orbit' && (() => {
+          const b = o.body, low = Math.abs(parkAlt(b) - b.surveyAlt) < 1000;
+          const alt = low ? b.parkingAlt : b.surveyAlt;
+          const c = o.orbitChange(alt);
+          return (
+            <div class="plan">
+              <b>{low ? 'Survey orbit' : 'Parking orbit'} · {b.station.name}</b>
+              <p class="note" style={{ marginTop: 0 }}>{low ? `The Endurance is in the ${(b.surveyAlt / 1000).toFixed(0)} km survey orbit, below the radiation belts (as Juno flew), from which Ranger 1 can fly down to ${b.station.name} at the 1-bar level.` : `${b.station.name} floats at the 1-bar level. Landings are flown from the ${(b.surveyAlt / 1000).toFixed(0)} km survey orbit: the descent from this high orbit would take the Ranger round a planet spinning faster than its orbit with no way to time the arrival, and the climb back would need over 50 km/s.`}</p>
+              <KV k={low ? 'Climb back to the parking orbit' : 'Transfer down to the survey orbit'} v={`${(c.dv / 1000).toFixed(2)} km/s · ${fmtDuration(c.time)}`} warn={c.dv > left} />
+              <button class="btn" onClick={click(() => { const e = o.changeOrbit(alt); setErr(e); bump((n) => n + 1); })}>{low ? 'Climb to the parking orbit' : 'Transfer to the survey orbit'}</button>
+            </div>
+          );
+        })()}
         {mouth && (
           <div class="plan">
             <b>The wormhole</b>
@@ -134,6 +149,14 @@ export function NavTab({ game }: { game: Game }) {
           <p class="note" style={{ marginTop: 0 }}>{T.blurb}</p>
           {T.GM > 0 && T.kind !== 'gas' && <KV k="Surface gravity" v={`${(surfaceGravity(T) / 9.80665).toFixed(2)} g`} />}
           {T.landing && <KV k="Landing site" v={T.landing.site} />}
+          {T.surveyAlt && (
+            <div class="row" style={{ marginTop: '8px' }}><span>Capture into</span>
+              <div class="seg">
+                <button class={!survey ? 'on' : ''} onClick={click(() => { delete parkingOverride[dest!]; bump((n) => n + 1); })}>{(T.parkingAlt / 1000).toFixed(0)} km parking orbit</button>
+                <button class={survey ? 'on' : ''} onClick={click(() => { parkingOverride[dest!] = T.surveyAlt!; bump((n) => n + 1); })}>{(T.surveyAlt / 1000).toFixed(0)} km survey orbit (station landing)</button>
+              </div>
+            </div>
+          )}
           {plans.length === 0 && <p class="note">No transfer found from here.</p>}
           {plans.map((p) => {
             const need = p.dvDepart + p.dvArrive;

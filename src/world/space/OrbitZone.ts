@@ -544,6 +544,7 @@ export class OrbitZone extends Zone implements OrbitContext {
     const b = this.body, c = this.ranger!;
     if (!b.landing) return `${b.name} has no landing site the Ranger can reach.`;
     if (this.mode !== 'orbit') return 'Not in orbit.';
+    if (b.station && b.surveyAlt && Math.abs(parkAlt(b) - b.surveyAlt) > 1000) return `${b.station.name} is reached from the ${(b.surveyAlt / 1000).toFixed(0)} km survey orbit: bring the Endurance down first (Ranger docked).`;
     if (this.docking.linkOf(c)) return 'Undock first: the descent starts from the staging point near the Endurance.';
     const pos = c.position(new THREE.Vector3()).sub(c.comModel.clone().applyQuaternion(c.quaternion(new THREE.Quaternion())));
     if (pos.length() > 8000) return 'Too far from the Endurance: the descent is planned from the staging point within 8 km.';
@@ -571,6 +572,37 @@ export class OrbitZone extends Zone implements OrbitContext {
     return null;
   }
 
+  /**
+   * Move the Endurance between its parking orbit and another circular altitude round the same body (at a giant: the
+   * low survey orbit the stations are reached from). A Hohmann transfer: the cost in drive delta-v and the half-orbit
+   * it takes are shown before it is flown; time passes on all the clocks. The Rangers must be aboard.
+   */
+  orbitChange(alt: number) {
+    const b = this.body, mu = b.GM;
+    const r1 = this.rE, r2 = b.R + alt;
+    const a = (r1 + r2) / 2;
+    const v1 = Math.sqrt(mu / r1), v2 = Math.sqrt(mu / r2);
+    const vp = Math.sqrt(mu * (2 / r1 - 1 / a)), va = Math.sqrt(mu * (2 / r2 - 1 / a));
+    return { dv: Math.abs(vp - v1) + Math.abs(v2 - va), time: Math.PI * Math.sqrt(a ** 3 / mu) };
+  }
+
+  changeOrbit(alt: number): string | null {
+    const b = this.body;
+    if (this.mode !== 'orbit' || this.pending) return 'Not in a parking orbit.';
+    if (this.ranger && !this.docking.isDocked(this.ranger)) return 'Ranger 1 must be docked before the Endurance changes orbit.';
+    const { dv, time } = this.orbitChange(alt);
+    if (dv > ENDURANCE_DV - this.dvUsed) return `Not enough delta-v: the transfer needs ${(dv / 1000).toFixed(1)} km/s.`;
+    this.dvUsed += dv;
+    if (this.game.settings.creative.unlimitedResources) this.dvUsed -= dv;
+    // the half-orbit passes (the clocks move on); the new orbit is laid over the station's site again
+    this.earthOffset += time * (this.dilation() - 1);
+    this.met += time;
+    if (Math.abs(alt - b.parkingAlt) < 1) delete parkingOverride[b.id]; else parkingOverride[b.id] = alt;
+    this.setBody(b.id);
+    mission.note(`Endurance transferred to a ${(alt / 1000).toFixed(0)} km orbit round ${b.name}: ${(dv / 1000).toFixed(2)} km/s, ${fmtDuration(time)}.`);
+    return null;
+  }
+
   /** The ascent program arriving from the surface a few kilometres up. */
   takeFlight(pr: FlightProgram) {
     // the Endurance has stayed in its parking orbit (re-laying it would move the ship)
@@ -578,9 +610,45 @@ export class OrbitZone extends Zone implements OrbitContext {
     this.startFlight(pr);
   }
 
+  private boosterModel: Model | null = null;
+  private boosterDebris: { obj: THREE.Object3D; v: THREE.Vector3; w: THREE.Vector3; t: number } | null = null;
+
+  /** the ascent booster on the Ranger while it is attached; dropped, it tumbles away and falls back */
+  private async showBooster(pr: FlightProgram) {
+    const st = pr.body.station;
+    if (!st || !pr.f.staged) return;
+    if (!this.boosterModel) this.boosterModel = await assets.load('booster');
+    const m = this.boosterModel, c = this.ranger!;
+    m.root.scale.setScalar(Math.cbrt(st.booster.fuel / 62000));
+    m.root.position.set(0, 0, 0); m.root.quaternion.identity();
+    c.model.root.add(m.root);
+    pr.f.onJettison = () => {
+      c.model.root.updateMatrixWorld(true);
+      const wp = m.root.getWorldPosition(new THREE.Vector3()), wq = m.root.getWorldQuaternion(new THREE.Quaternion());
+      this.root.add(m.root);
+      m.root.position.copy(wp); m.root.quaternion.copy(wq);
+      const down = new THREE.Vector3(0, -1, 0);
+      this.boosterDebris = { obj: m.root, v: down.multiplyScalar(6), w: new THREE.Vector3(0.05, 0.02, 0.08), t: 0 };
+      bus.emit('sfx', { id: 'clamp', node: c.root, gain: 1 });
+      mission.note('Booster separation: the empty pods fall back into the clouds.');
+    };
+  }
+
+  private updateDebris(dt: number) {
+    const d = this.boosterDebris;
+    if (!d) return;
+    d.t += dt;
+    // in the frame riding with the Ranger the spent booster falls behind and below (drag, no thrust)
+    d.v.y -= 3 * dt; d.v.x -= 2 * dt;
+    d.obj.position.addScaledVector(d.v, dt);
+    d.obj.rotateX(d.w.x * dt); d.obj.rotateZ(d.w.z * dt);
+    if (d.t > 40) { d.obj.removeFromParent(); this.boosterDebris = null; }
+  }
+
   private startFlight(pr: FlightProgram) {
     const c = this.ranger!;
     const id = pr.body.id;
+    void this.showBooster(pr);
     this.plasma?.setGas((id === 'titan' ? 'titan' : id === 'venus' || id === 'mars' ? 'co2' : 'air') as PlasmaGas);
     this.flightProg = pr;
     this.mode = 'flight';
@@ -1153,6 +1221,7 @@ export class OrbitZone extends Zone implements OrbitContext {
     this.npcs.update(dt);
     if (this.mode === 'ascent' || this.stack) this.ascentVisuals(dt);
     this.entryEffects(dt);
+    this.updateDebris(dt);
     this.lights.update(_v, dt);
     this.hudT -= dt;
     if (this.hudT <= 0) { this.hudT = 0.1; this.dockHud(); this.clocks(); }

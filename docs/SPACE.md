@@ -48,10 +48,36 @@ What is simulated, how, and where the game departs from physics on purpose. Code
 - **Fiction: the Ranger's drive.** The film's Ranger reaches orbit from 1.3 g Miller single-stage. No chemical rocket
   of its size can (about 11 km/s to orbit). The game gives it a high exhaust velocity (Isp ~5000 s main, ~4200 s
   lift) and enough thrust to hover fully fuelled at 1.3 g. Reaction control is conventional.
-- **Venus**: landing works; climbing out of 92 bar at near-terminal speed costs more propellant than the Ranger
-  carries. The computer says so; Creative Mode "unlimited resources" lifts the limit (the trajectory is the same).
-- **Gas and ice giants** have no surface, and a craft at their cloud tops could not climb back to orbit (orbital
-  speed 15-42 km/s). The flight computer explains this and lists their landable moons.
+- **Atmospheric mode of the drive** (fiction built on real proposals: Zubrin's NIMF rocket heating Martian CO2,
+  nuclear ramjets for Jupiter's atmosphere): in dense air the drive heats intake gas as reaction mass instead of
+  tank propellant. The fraction taken from the air is the intake's mass flow (density x airspeed x 1.5 m^2) over
+  what the thrust needs at the heated gas's exhaust speed (300 s for CO2/N2, 800 s for hydrogen). It matters where
+  gravity losses pile up, low and slow in thick air: the Venus climb out of 92 bar now uses about half the tanks
+  (tested), the Miller climb two thirds; on Mars and airless worlds it does nothing.
+- **Gas and ice giants: floating stations.** There is no surface. Each giant has a station at the 1-bar level
+  (Aeolus at Jupiter, Zephyr at Saturn, Boreas at Uranus, Notus at Neptune): a deck carried by three 110 m
+  hot-hydrogen envelopes (the only aerostat that floats in a hydrogen atmosphere: heated hydrogen inside, cold
+  outside; ~0.1 kg of lift per m^3 at Jupiter, ~230 t in all). It liquefies hydrogen from the air (ISRU), refuels
+  the Ranger on landing and builds an ascent booster: two pods strapped beside the Ranger (Jupiter 62 t of
+  propellant, Saturn 30 t, Uranus 16 t, Neptune 18 t), engines firing with the Ranger's, the Ranger drawing from them
+  (cross-feed), dropped when dry or at injection. The climb to orbit at Jupiter needs ~35 km/s (orbital speed 42 km/s
+  less the rotation): no single-stage craft of the Ranger's size does it.
+- **The survey orbit.** Station landings are flown from a low circular orbit (Jupiter 4,000 km, Saturn 3,000 km,
+  Uranus and Neptune 2,500 km: below the radiation belts, as Juno and Cassini's last orbits went close in), chosen
+  for the capture in the navigation console or reached later by a Hohmann transfer (its cost and time shown). From
+  the high parking orbit a descent is impossible to time (a slow two-day orbit over a ten-hour rotation) and the
+  return would need over 50 km/s.
+- The entry at a giant is fast (Jupiter ~30 km/s relative to the air, the Galileo probe met 47): the Ranger's heat
+  shield is fiction. Guidance: the glide may fly lift-down when faster than circular, keeps lateral authority when
+  the co-rotating air drags it sideways, and ends where the engines (only ~1.5 g of thrust at Jupiter's 2.5 g) can
+  still stop the fall; the ascent goes onto a transfer ellipse from just above the air, trims the apoapsis, coasts and
+  closes in. Tests: all four giants land on the pad at 1 m/s and return to within 35 m of the Endurance.
+- In the browser (Jupiter): station landing ~140 s of real time, return to the docking gate ~150 s (longer than
+  elsewhere: the climb from 2.5 g takes two hours of simulated time); docking ~45 s.
+- Inside a giant (render/Sky.ts giant mode, world/space/Giants.ts): a cloud deck below (Jupiter's ammonium
+  hydrosulphide ~25 km down, tan zones and brown belts drawn out east-west, gaps to the deep air), broken cloud
+  above (ammonia ice), H2/He Rayleigh scattering scaled to 1-bar density, haze or methane absorption, lightning glowing
+  in the deep clouds with muffled thunder (sound in cold hydrogen ~1.1 km/s).
 - Surfaces are procedural height fields around each named site, with the curve of the world built into the height
   (d^2 / 2R) so what is drawn, walked on and the globe beyond the terrain edge agree. Venus and Titan skies are set
   explicitly (the sky shader is single-scattering and cannot produce the bottom of a 92-bar or a hazy 1.5-bar
@@ -101,7 +127,11 @@ What is simulated, how, and where the game departs from physics on purpose. Code
   camera with momenta from the zero-angular-momentum observer's frame, as in James et al. 2015). Thin disk from the
   ISCO with a Novikov-Thorne-like flux; observed colour a blackbody at g T and intensity g^4 (gravitational redshift
   and Doppler beaming, which the film toned down). Rays far from the hole use the weak-field 4M/b.
-- The image is traced with a = 0.999 (indistinguishable at screen resolution from 1 - 1e-14, numerically stable).
+- The image is traced at the story's spin, a = 1 - 1e-14. The GPU's single precision holds it as 1.0; the
+  quantities that differ (horizon 1 + 1.4e-7 M, innermost stable orbit 1.000034 M) are computed in double precision on
+  the CPU, and Delta is written (r - 1)^2 + a^2 - 1 to keep its precision near the horizon. The near-extremal
+  signatures show: the shadow's prograde edge is flat, with a bright line of near-horizon emission along it (the
+  "NHEK line" of Gralla, Lupsasca & Strominger 2017), and the disk image is strongly lopsided.
 - Its galaxy's sky is procedural (not ours: Earth's constellations would be wrong there).
 - Light in that system comes from the beamed inner disk, not the hole's centre.
 

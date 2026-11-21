@@ -25,6 +25,10 @@ import type { OrbitZone } from './OrbitZone';
 import { SeaSurface } from '../../render/Sea';
 import { MillerWave } from '../../render/MillerWave';
 import { FrozenClouds } from '../../render/FrozenClouds';
+import { Model } from '../../render/Assets';
+import { Building } from '../Building';
+import { GIANT } from './Giants';
+import type { RAPIER } from '../../physics/Physics';
 
 const _v = new THREE.Vector3(), _w = new THREE.Vector3(), _q = new THREE.Quaternion(), _m = new THREE.Matrix4(), _x = new THREE.Vector3(), _z = new THREE.Vector3();
 const _up = new THREE.Vector3(0, 1, 0), _qi = new THREE.Quaternion();
@@ -162,11 +166,21 @@ export class SurfaceZone extends Zone {
   private rideQ = new THREE.Quaternion();
   /** time compression on the ground (waiting for the engines to drain) */
   warp = 1;
+  /** gas giants: the floating station the Ranger lands on (no terrain), and the booster for the climb back */
+  station: Model | null = null;
+  private stationBuilding: Building | null = null;
+  private stationColliders: RAPIER.Collider[] = [];
+  booster: Model | null = null;
+  private flashT = 3;
+  private flashS = 0;
+  private flashPos = new THREE.Vector2();
+  get giant() { return !!this.body.station; }
 
   env: FlightEnv = {
     gravity: (_p, out) => out.set(0, -surfaceGravity(this.body), 0),
     density: (p) => { const a = this.body.atmosphere; return a ? a.rho0 * Math.exp(-Math.max(0, p.y) / a.H) : 0; },
     altitude: (p) => p.y - (this.terrain ? this.terrain.source.height(p.x, p.z) : 0),
+    // in a giant's air there is nowhere to stand but the deck: the gravity is the planet's (2.5 g at Jupiter)
   };
 
   get orbit() { return this.game.zones.get('orbit') as OrbitZone; }
@@ -200,7 +214,23 @@ export class SurfaceZone extends Zone {
     const b = BODY[id];
     const same = this.body.id === id && this.terrain;
     this.body = b;
-    if (!same) {
+    if (!same && b.station) {
+      this.terrain?.dispose();
+      this.terrain?.group.removeFromParent();
+      this.terrain = null;
+      this.sea?.dispose(); this.sea = null;
+      this.wave?.dispose(); this.wave = null;
+      this.frozen?.dispose(); this.frozen = null;
+      void this.loadStation();
+      if (this.view.system !== b.system) {
+        const inScene = !!this.view.group.parent;
+        this.view.dispose();
+        this.view = new SystemView(b.system);
+        this.view.showSun = false;
+        if (inScene) this.game.renderer.spaceScene.add(this.view.group);
+      }
+    } else if (!same) {
+      this.removeStation();
       this.terrain?.dispose();
       this.terrain?.group.removeFromParent();
       const look = LOOK[id] ?? LOOK.moon;
@@ -235,6 +265,10 @@ export class SurfaceZone extends Zone {
       // absorbed in the clouds (Venera 13's orange images); a single-scattering sky cannot produce that, so the sky
       // here is set as a deep orange haze with a large, dim, diffuse Sun
       p = { ...p, betaR: [1.0e-6, 0.8e-6, 0.4e-6], betaM: 3e-5, HM: 12000, betaD: [2.6e-5, 2.0e-5, 1.1e-5], betaDAbs: [0.2e-5, 1.0e-5, 3.2e-5], HD: 18000, sunRadius: 0.06, sunE: air.sunE * 0.08, fogDensity: 1.6e-4, fogFalloff: 0.0004, sunTint: [1.0, 0.72, 0.38] };
+    } else if (b.station) {
+      const G = GIANT[id];
+      p = { ...p, ...G.sky, planetRadius: b.R, atmosphereHeight: Math.min(b.atmosphere!.top, 12 * b.atmosphere!.HR), sunE: air.sunE, cloudCoverage: 0, cirrus: 0 };
+      this.sky.wind.set(...G.wind);
     } else if (id === 'titan') {
       // Titan's surface: a dim orange twilight under the haze (about 0.1% of Earth's sunlight)
       p = { ...p, sunRadius: 0.03, sunE: air.sunE * 0.4, fogDensity: 1.1e-4, fogFalloff: 0.0005, sunTint: [1.0, 0.68, 0.36] };
@@ -247,6 +281,40 @@ export class SurfaceZone extends Zone {
     this.view.exclude.clear();
     this.view.noShell.clear();
     this.view.noShell.add(id);
+  }
+
+  /** the station model, its lights and collision (loaded the first time a giant is visited) */
+  private async loadStation() {
+    if (!this.station) {
+      this.station = await assets.load('station');
+      this.booster = await assets.load('booster');
+    }
+    if (!this.giant || this.stationBuilding) return;
+    this.root.add(this.station.root);
+    this.stationBuilding = new Building('station', this.station, this.phys, this.game.interactions, this.lights, { lightsOn: true });
+    this.station.root.updateMatrixWorld(true);
+    this.stationColliders = this.phys.addTrimesh(this.station.colliders);
+  }
+
+  private removeStation() {
+    if (!this.stationBuilding) return;
+    this.station?.root.removeFromParent();
+    this.phys.remove(this.stationColliders);
+    this.stationColliders = [];
+    this.stationBuilding = null;
+  }
+
+  /** the booster strapped on for the climb (shown on the Ranger until it is dropped) */
+  attachBooster(on: boolean) {
+    const b = this.booster;
+    if (!b) return;
+    if (on) { this.ranger.model.root.add(b.root); b.root.position.set(0, 0, 0); b.root.scale.setScalar(this.boosterScale()); }
+    else b.root.removeFromParent();
+  }
+
+  boosterScale() {
+    const st = this.body.station;
+    return st ? Math.cbrt(st.booster.fuel / 62000) : 1;
   }
 
   override enter() {
@@ -346,7 +414,7 @@ export class SurfaceZone extends Zone {
     if (flight.craft !== c) { if (flight.craft) flight.leave(true); flight.enter(c, this.env, 'pilot_l'); }
     flight.engage(new ProgramPilot(program));
     flight.target = { name: this.body.landing!.site, pos: (out) => out.set(0, this.touchH, 0), vel: (out) => out.set(0, 0, 0) };
-    this.terrain!.update(this.ranger.root.position);
+    this.terrain?.update(this.ranger.root.position);
   }
 
   /** Pose the Ranger from the guided flight (body-centred inertial -> zone, rotating with the ground). */
@@ -406,6 +474,12 @@ export class SurfaceZone extends Zone {
     this.ranger.fixedUpdate(dt, this.env);
     const p = g.player.pos;
     this.terrain?.ensureCollision(p.x, p.z, 26);
+    if (this.giant && p.y < -120 && !(g.services.flight as Flight).craft) {
+      // off the edge of the deck: the station's tethered recovery drone brings the crew member back
+      g.player.teleport(new THREE.Vector3(-10, 0.6, -14), 0);
+      ui.toast('Fell from the deck: recovered by the station drone', 'warn', 5);
+      mission.note('Fell from the station deck into the clouds; recovered by the tethered drone.');
+    }
   }
 
   /**
@@ -475,7 +549,10 @@ export class SurfaceZone extends Zone {
     ui.toast(`Touchdown · ${this.body.landing!.site}`, 'good', 5);
     mission.setPhase('surface');
     this.orbit.rangerFuel = f.fuel;
-    if (this.game.settings.creative.autoRefuel && f.fuel < RANGER_SPEC.fuelMax) {
+    if (this.body.station) {
+      this.orbit.rangerFuel = RANGER_SPEC.fuelMax;
+      mission.note(`${this.body.station.name} tops up Ranger 1's tanks with hydrogen liquefied from the atmosphere.`);
+    } else if (this.game.settings.creative.autoRefuel && f.fuel < RANGER_SPEC.fuelMax) {
       this.orbit.rangerFuel = RANGER_SPEC.fuelMax;
       mission.note('Creative Mode: Ranger 1 refuelled on the ground.');
     }
@@ -495,7 +572,9 @@ export class SurfaceZone extends Zone {
     const phi0 = o.phiE, n = o.n;
     const endurance = (t: number) => o.parkState(g, phi0 + n * t);
     const target = behindTarget(endurance, 600);
-    const perf = rangerPerf(RANGER_SPEC, o.rangerFuel);
+    const st = this.body.station;
+    const perf = rangerPerf(RANGER_SPEC, st ? RANGER_SPEC.fuelMax : o.rangerFuel, st?.booster);
+    if (st) o.rangerFuel = RANGER_SPEC.fuelMax;
     const unlimited = this.game.settings.creative.unlimitedResources;
     let plan = planAscent(this.body, site, target, perf);
     if (!plan) return 'No launch window within the next few days: the site is too far from the Endurance\'s orbit plane.';
@@ -511,6 +590,11 @@ export class SurfaceZone extends Zone {
     const pr = new FlightProgram('ascent', f, this.body, jd0, met0);
     pr.launchAt = plan.tLaunch;
     this.program = pr;
+    if (st) {
+      this.attachBooster(true);
+      f.onJettison = () => this.attachBooster(false);
+      mission.note(`${st.name} straps its ascent booster under Ranger 1: ${(st.booster.fuel / 1000).toFixed(0)} t of propellant for the climb out of the well.`);
+    }
     this.landed = false;
     const flight = this.game.services.flight as Flight;
     if (flight.craft !== this.ranger) flight.enter(this.ranger, this.env, 'pilot_l');
@@ -521,6 +605,7 @@ export class SurfaceZone extends Zone {
 
   private handToOrbit() {
     const pr = this.program!;
+    this.attachBooster(false);
     this.program = null;
     this.orbit.rangerFuel = pr.f.fuel;
     void this.game.gotoZone('orbit', { fade: false, onEnter: (z) => (z as OrbitZone).takeFlight(pr) });
@@ -539,6 +624,7 @@ export class SurfaceZone extends Zone {
     const q = this.ranger.quaternion(_q);
     const p = new THREE.Vector3(0, 0, 6.2).applyQuaternion(q).add(this.ranger.root.position);
     p.y = (this.terrain?.source.height(p.x, p.z) ?? 0) + 0.05;
+    if (this.giant) p.y = 0.1;
     this.game.player.suited = true;
     this.game.player.stand(p, Math.atan2(-(p.x - this.ranger.root.position.x), -(p.z - this.ranger.root.position.z)) + Math.PI);
     ui.set({ mode: 'foot' });
@@ -563,6 +649,7 @@ export class SurfaceZone extends Zone {
     this.sky.shadowRange = 40;
     const ground = this.terrain ? this.terrain.source.height(_v.x, _v.z) : 0;
     this.sky.update(dt, _v, Math.max(2, _v.y - ground + 2));
+    if (this.giant) this.lightning(dt);
     this.lights.update(_v, dt);
     // boarding
     const flight = g.services.flight as Flight;
@@ -577,6 +664,27 @@ export class SurfaceZone extends Zone {
       g.renderer.setLook(this.look());
     }
     void this.landedAt;
+  }
+
+  /**
+   * Lightning in the deep water clouds under the deck: a flash lights a patch of cloud tens of kilometres across
+   * from inside (Jupiter's are seen from orbit as such glows); the thunder arrives muffled, late.
+   */
+  private lightning(dt: number) {
+    const G = GIANT[this.body.id];
+    this.flashT -= dt;
+    if (this.flashT <= 0) {
+      this.flashT = -Math.log(1 - Math.random()) / Math.max(1e-3, G.lightning);
+      const a = Math.random() * Math.PI * 2, d = 25000 + Math.random() * 160000;
+      this.flashPos.set(Math.cos(a) * d, Math.sin(a) * d);
+      this.flashS = 1;
+      const delay = (Math.hypot(d, 25000) / 1100) * 1000;   // speed of sound in cold hydrogen ~1.1 km/s
+      if (delay < 60000) setTimeout(() => bus.emit('sfx', { id: 'thunder', ui: true, gain: Math.max(0.15, 1 - d / 190000) }), delay);
+    }
+    // a flash flickers for half a second (several return strokes)
+    this.flashS = Math.max(0, this.flashS - dt * 2.2);
+    const flick = this.flashS > 0 ? this.flashS * (0.6 + 0.4 * Math.sin(this.flashS * 60)) : 0;
+    this.sky.setFlash(this.flashPos.x, this.flashPos.y, 9000 + 6000 * (1 - this.flashS), flick * 3.0);
   }
 
   /** the wave on its way: warnings as it comes, the roar and the shaking as it passes */
@@ -599,6 +707,7 @@ export class SurfaceZone extends Zone {
   override gravityAt(_p: THREE.Vector3, out: THREE.Vector3) { return out.set(0, -surfaceGravity(this.body), 0); }
 
   override groundHeight(x: number, z: number) {
+    if (this.giant) return Math.hypot(x, z) < 34 ? 0 : null;
     const h = this.terrain ? this.terrain.source.height(x, z) : 0;
     return this.sea ? Math.max(h, MILLER_SEA_FLOOR) : h;
   }
