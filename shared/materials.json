@@ -76,6 +76,7 @@
   "fabric_orange":     { "tex": "fabric", "tile": 0.5, "color": "#c8562a" },
   "canvas":            { "tex": "canvas_bag", "tile": 0.6 },
   "canvas_olive":      { "tex": "canvas_bag", "tile": 0.6, "color": "#8a8a6a" },
+  "envelope":          { "tex": "canvas_bag", "tile": 3.0, "color": "#ece6d8", "rough": 0.85 },
   "seat_leather":      { "tex": "leather_ribbed", "tile": 0.45, "color": "#6e2c2c" },
   "seat_leather_dark": { "tex": "leather_ribbed", "tile": 0.45, "color": "#3a3536" },
   "padding_dark":      { "tex": "padding", "tile": 1.0, "color": "#3d3f42" },
