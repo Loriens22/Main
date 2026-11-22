@@ -131,6 +131,7 @@
 
   "glass":             { "kind": "glass", "color": "#c9d6da", "opacity": 0.22, "rough": 0.05 },
   "glass_dirty":       { "kind": "glass", "color": "#b9b3a2", "opacity": 0.42, "rough": 0.3 },
+  "glass_vehicle":     { "kind": "glass", "color": "#a9b0aa", "opacity": 0.1, "rough": 0.06 },
   "glass_dark":        { "kind": "glass", "color": "#0a0d10", "opacity": 0.82, "rough": 0.04 },
   "glass_cockpit":     { "kind": "glass", "color": "#141a1f", "opacity": 0.55, "rough": 0.03 },
   "glass_visor":       { "kind": "glass", "color": "#2a2218", "opacity": 0.78, "rough": 0.02, "metal": 0.6 },

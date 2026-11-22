@@ -1,5 +1,6 @@
 import * as THREE from 'three';
 import { Model } from '../render/Assets';
+import { materials } from '../render/Materials';
 import { GROUP, groups, PhysicsWorld, RAPIER } from '../physics/Physics';
 import { clamp, damp, moveToward } from '../core/math';
 import { Fixture, LightPool } from '../render/LightPool';
@@ -109,6 +110,10 @@ export class WheeledVehicle {
     }
     for (const m of model.ofKind('vdoor')) this.doors.set(m.id, { node: m.node, q0: m.node.quaternion.clone(), angle: ((m.data.angle ?? 60) * Math.PI) / 180, t: 0, target: 0 });
     this.addGuards(model);
+    // the cab's windows: clear glass with a faint tint (the dusty farmhouse glass the model is authored with hid the
+    // road from the driver's seat, seen through both faces of each pane)
+    const clear = materials.get('glass_vehicle', false);
+    model.root.traverse((o) => { const me = o as THREE.Mesh; if (me.isMesh && (me.material as THREE.Material).name === 'glass_dirty') me.material = clear; });
     if (lights) for (const m of model.ofKind('light')) { const f = lights.addFromMarker(m.node, m.data, false); f.angle = 0.42; this.lamps.push(f); }
     const lamp = model.part('headlights');
     if (lamp) {
