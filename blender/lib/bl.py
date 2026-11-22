@@ -878,9 +878,10 @@ def _convexity(me):
 
 
 # ----------------------------------------------------------------------------- export / preview
-def export_glb(name, objects=None):
-    os.makedirs(MODELS, exist_ok=True)
-    path = os.path.join(MODELS, name + ".glb")
+def export_glb(name, objects=None, out_dir=None):
+    out_dir = out_dir or MODELS
+    os.makedirs(out_dir, exist_ok=True)
+    path = os.path.join(out_dir, name + ".glb")
     for o in bpy.context.scene.objects:
         o.select_set(objects is None or o in objects)
     t0 = time.time()

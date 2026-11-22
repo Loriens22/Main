@@ -15,6 +15,10 @@ interface MatSpec {
   alphaTest?: number;
   side?: 'double';
   uvMode?: 'native';
+  /** thin-film colour shift (organic iridescence: shells, plates, wing films) */
+  iridescence?: number;
+  /** soft sheen for wet or velvety tissue */
+  sheen?: number;
 }
 
 const SPECS = DB as unknown as Record<string, MatSpec>;
@@ -134,7 +138,10 @@ export class MaterialLibrary {
       }
       if (spec.alphaTest) { p.alphaTest = spec.alphaTest; }
       if (spec.side === 'double') p.side = THREE.DoubleSide;
-      const sm = new THREE.MeshStandardMaterial(p);
+      if (spec.opacity !== undefined) { p.transparent = true; p.opacity = spec.opacity; p.depthWrite = false; p.side = THREE.DoubleSide; }
+      const sm = spec.iridescence || spec.sheen
+        ? new THREE.MeshPhysicalMaterial({ ...p, iridescence: spec.iridescence ?? 0, iridescenceIOR: 1.6, iridescenceThicknessRange: [180, 620], sheen: spec.sheen ?? 0, sheenRoughness: 0.5, sheenColor: new THREE.Color(1, 1, 1) })
+        : new THREE.MeshStandardMaterial(p);
       if (p.roughness! > 1) { sm.roughness = 1; }
       const surf = { ...(spec.tex ? SURFACE[spec.tex] : undefined) };
       if (spec.emissive) { surf.dust = 0; surf.dirt = 0; }

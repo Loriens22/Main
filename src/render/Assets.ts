@@ -57,7 +57,7 @@ class AssetManager {
     this.loader.setMeshoptDecoder(MeshoptDecoder);
   }
 
-  url(name: string) { return `${import.meta.env.BASE_URL}assets/models/${name}.glb`; }
+  url(name: string) { return name.includes('/') ? `${import.meta.env.BASE_URL}assets/${name}.glb` : `${import.meta.env.BASE_URL}assets/models/${name}.glb`; }
 
   private loadRaw(name: string): Promise<GLTF> {
     let p = this.cache.get(name);

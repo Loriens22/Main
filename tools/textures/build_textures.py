@@ -1006,6 +1006,124 @@ def screen_grid(t):
     t.normal_strength = 0.5
 
 
+# ============================================================================= CREATURES (organic, neutral: tinted per species by the material colour)
+@tex("bio_skin", 1024)
+def bio_skin(t):
+    """Wet living skin: fine pores, soft wrinkles along the body axis, mottling, a few healed scars."""
+    n = t.n
+    f1, f2, ids = voronoi(n, 14000, 1201)
+    pore = smoothstep(0.10, 0.0, f2 - f1)
+    wr = fbm(n, 1.6, 1202, fmin=6, aniso=(1.0, 6.0))
+    mot = fbm(n, 2.2, 1203)
+    blot = smoothstep(0.55, 0.75, fbm(n, 2.0, 1204, fmin=3))
+    sc = scratches(n, 26, 1205, length=(0.05, 0.3), width=2)
+    base = tone(solid(n, rgb("#a2a2a2")), mot, 0.45)
+    base = base * (1 - blot[..., None] * 0.28) * (1 - pore[..., None] * 0.12)
+    base = mix(base, solid(n, rgb("#c4c0ba")), sc * 0.5)
+    t.albedo = base
+    t.height = np.clip(0.5 + (wr - 0.5) * 0.35 - pore * 0.18 + sc * 0.15, 0, 1)
+    t.rough = np.clip(0.38 + mot * 0.12 + sc * 0.15, 0, 1)
+    t.normal_strength = 3.5
+
+
+@tex("bio_scales", 1024)
+def bio_scales(t):
+    """Small overlapping rounded scales with darker margins (each scale shaded toward its trailing edge)."""
+    n = t.n
+    u, v = grid_uv(n)
+    k = 44
+    row = np.floor(v * k)
+    uu = u * k + (row % 2) * 0.5
+    cu = uu - np.floor(uu) - 0.5
+    cv = v * k - row
+    # a scale: a disc whose lower part overlaps the next row
+    d = np.sqrt(cu ** 2 + (cv - 0.15) ** 2 * 0.8)
+    scale = smoothstep(0.62, 0.42, d)
+    shade = np.clip(1.0 - cv * 0.55, 0, 1)
+    mot = fbm(n, 2.3, 1211)
+    base = tone(solid(n, rgb("#9a9a9a")), mot, 0.5) * (0.72 + 0.28 * shade[..., None] * scale[..., None])
+    t.albedo = base
+    t.height = np.clip(scale * shade * 0.6 + mot * 0.1, 0, 1)
+    t.rough = np.clip(0.36 + (1 - scale) * 0.2 + mot * 0.08, 0, 1)
+    t.normal_strength = 5.0
+
+
+@tex("bio_plate", 1024)
+def bio_plate(t):
+    """Mineralized armour: growth lines, pits, encrustation, worn raised edges."""
+    n = t.n
+    u, v = grid_uv(n)
+    lf, mf, hf = fbm(n, 2.4, 1221), fbm(n, 1.7, 1222, fmin=4), fbm(n, 0.8, 1223, fmin=40)
+    growth = 0.5 + 0.5 * np.sin((v + lf * 0.08) * math.tau * 34)
+    f1, f2, ids = voronoi(n, 2200, 1224)
+    pit = smoothstep(0.05, 0.0, f1) * (cell_random(ids, 1225) > 0.6)
+    crust = smoothstep(0.58, 0.8, fbm(n, 2.0, 1226, fmin=3))
+    base = tone(solid(n, rgb("#9c968c")), lf, 0.5) * (0.9 + 0.1 * growth[..., None])
+    base = mix(base, solid(n, rgb("#cfc8b8")), crust * 0.55)
+    base = base * (1 - pit[..., None] * 0.45)
+    t.albedo = base
+    t.height = np.clip(0.45 + growth * 0.08 + mf * 0.2 + crust * 0.2 - pit * 0.35 + hf * 0.06, 0, 1)
+    t.rough = np.clip(0.62 + crust * 0.2 - mf * 0.15, 0, 1)
+    t.normal_strength = 7.0
+
+
+@tex("bio_membrane", 1024)
+def bio_membrane(t):
+    """Thin living membrane: branching veins (more opaque) over a translucent sheet."""
+    n = t.n
+    lf = fbm(n, 2.4, 1231)
+    veins = np.zeros((n, n))
+    for i, cells in enumerate((18, 70, 260)):
+        f1, f2, ids = voronoi(n, cells, 1232 + i)
+        veins = np.maximum(veins, smoothstep(0.035 / (1 + i * 0.6), 0.0, f2 - f1) * (1.0 - i * 0.25))
+    base = tone(solid(n, rgb("#c8c8cc")), lf, 0.3)
+    t.albedo = mix(base, solid(n, rgb("#f2f0f4")), veins * 0.8)
+    t.alpha = np.clip(0.38 + veins * 0.55 + lf * 0.1, 0, 1)
+    t.height = np.clip(0.5 + veins * 0.25, 0, 1)
+    t.rough = np.clip(0.25 + lf * 0.1, 0, 1)
+    t.normal_strength = 2.0
+
+
+@tex("bio_sediment", 1024)
+def bio_sediment(t):
+    """Skin crusted with sediment: dark mineral grains and pale shell grit stuck in a biofilm."""
+    n = t.n
+    f1, f2, ids = voronoi(n, 9000, 1241)
+    grain = smoothstep(0.5, 0.0, f1 * 30)
+    r = cell_random(ids, 1242)
+    dark = (r > 0.62) * grain
+    pale = (r < 0.2) * grain
+    lf = fbm(n, 2.2, 1243)
+    base = tone(solid(n, rgb("#a49a88")), lf, 0.45)
+    base = mix(base, solid(n, rgb("#2c2a28")), dark * 0.85)
+    base = mix(base, solid(n, rgb("#e2dccb")), pale * 0.6)
+    t.albedo = base
+    t.height = np.clip(0.4 + grain * 0.4 + lf * 0.15, 0, 1)
+    t.rough = np.clip(0.55 + grain * 0.25, 0, 1)
+    t.normal_strength = 6.0
+
+
+@tex("bio_shingle", 1024)
+def bio_shingle(t):
+    """Overlapping mineral shingles with thin-film colour (copper, blue, violet) that shifts plate to plate."""
+    n = t.n
+    T = tiles(n, 7, 11, gap=0.01, bevel=0.08, offset_rows=0.5, seed=1251)
+    u, v = grid_uv(n)
+    lf = fbm(n, 2.0, 1252)
+    hue = (T["rnd"] * 0.7 + lf * 0.6 + v * 0.4) % 1.0
+    # thin-film palette: copper -> magenta -> violet -> blue -> teal
+    pal = np.array([rgb("#b8733f"), rgb("#b04a86"), rgb("#6b47b3"), rgb("#3d6fc2"), rgb("#3aa59a"), rgb("#b8733f")])
+    x = hue * 5
+    i0 = np.floor(x).astype(int)
+    f = (x - i0)[..., None]
+    col = pal[i0] * (1 - f) + pal[np.minimum(i0 + 1, 5)] * f
+    sheen = 0.75 + 0.25 * np.sin((u * 3 + v * 7 + lf) * math.tau)
+    t.albedo = np.clip(col * sheen[..., None] * (0.55 + 0.45 * T["mask"][..., None]), 0, 1)
+    t.height = np.clip(T["height"] * 0.8 + lf * 0.1, 0, 1)
+    t.rough = np.clip(0.22 + (1 - T["mask"]) * 0.5, 0, 1)
+    t.normal_strength = 6.0
+
+
 def main():
     args = [a for a in sys.argv[1:] if not a.startswith("--")]
     scale = 1.0
