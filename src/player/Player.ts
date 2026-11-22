@@ -114,7 +114,7 @@ export class Player {
     this.stepSmooth = 0;
     this.syncBody();
     this.world?.world.propagateModifiedBodyPositionsToColliders();
-    this.settle = 0.5;
+    this.settle = 2;
   }
 
   /**
@@ -156,7 +156,7 @@ export class Player {
     this.seat = null;
     this.mode = 'walk';
     this.setColliderEnabled(true);
-    this.settle = 0.5;
+    this.settle = 2;
     if (at) this.teleport(at, yaw ?? this.yaw);
     s?.onLeave?.();
     bus.emit('player:stand', s);
@@ -182,7 +182,11 @@ export class Player {
    * body nowhere, a body that overlaps solid geometry (a seat, a console, a hatch frame) is moved to the nearest spot
    * where it fits and that the eyes can see from where they are: never through a wall or a hull.
    */
-  /** set when the body has just been put somewhere: checked once, at the next step (after any change of posture) */
+  /**
+   * Steps until the check after the body has been put somewhere: it runs once, on the second step, because Rapier's
+   * scene queries only see the colliders of a world once it has stepped (a zone just entered, a hatch just closed),
+   * and after any change of posture on the first step.
+   */
   private settle = 0;
   private stuckT = 0;
   /**
@@ -319,8 +323,7 @@ export class Player {
     }
 
     // just put here (out of a seat, a teleport): free the body if it is inside something
-    if (this.settle > 0) {
-      this.settle = 0;
+    if (this.settle > 0 && --this.settle === 0) {
       let ok = !this.inside() || this.freeSpot();
       if (!ok) {
         const from = this.pos.clone();
