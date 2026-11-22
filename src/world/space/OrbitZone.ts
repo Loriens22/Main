@@ -41,6 +41,35 @@ import type { SurfaceZone } from './SurfaceZone';
 
 const _v = new THREE.Vector3(), _w = new THREE.Vector3(), _s = new THREE.Vector3(), _q = new THREE.Quaternion();
 const _x = new THREE.Vector3(), _z = new THREE.Vector3(), _m4 = new THREE.Matrix4(), _c = new THREE.Color(), _c2 = new THREE.Color();
+const _qI = new THREE.Quaternion(), _qa = new THREE.Quaternion(), _qb = new THREE.Quaternion(), _m4b = new THREE.Matrix4();
+
+/**
+ * Time-lapse stabiliser for one rotation of the view (the zone frame against the stars, the Earth's attitude...).
+ * Under heavy time compression these turn by tens of degrees between frames and the view would strobe; while
+ * `hold` is set the last rotation shown is kept, and when it clears the view eases back onto the true one.
+ */
+class HeldRotation {
+  /** shown <- true for this frame (identity when live) */
+  delta = new THREE.Quaternion();
+  private shown = new THREE.Quaternion();
+  private state = 0;           // 0 live, 1 held, 2 easing back
+  private seen = false;
+  apply(q: THREE.Quaternion, hold: boolean, dt: number) {
+    if (hold && this.seen) {
+      this.state = 1;
+      this.delta.copy(this.shown).multiply(_qb.copy(q).invert());
+      return q.copy(this.shown);
+    }
+    if (this.state === 1) { this.state = 2; this.delta.copy(this.shown).multiply(_qb.copy(q).invert()); }
+    if (this.state === 2) {
+      this.delta.slerp(_qI, 1 - Math.exp(-dt * 2.5));
+      if (Math.abs(this.delta.w) > 0.99999) { this.state = 0; this.delta.identity(); } else q.premultiply(this.delta);
+    }
+    this.shown.copy(q);
+    this.seen = true;
+    return q;
+  }
+}
 
 /**
  * Earth orbit. The zone frame is the local-vertical / local-horizontal frame of the Endurance on its circular
@@ -110,6 +139,20 @@ export class OrbitZone extends Zone implements OrbitContext {
   private rotSys = new THREE.Matrix4();
   private bci = { e1: new THREE.Vector3(1, 0, 0), e2: new THREE.Vector3(0, 1, 0), n: new THREE.Vector3(0, 0, 1) };
   private camSys: [number, number, number] = [0, 0, 0];
+  /** heavy time compression: the outside view is held steady (no strobing day, night and turning stars) */
+  lapse = false;
+  private lapseRate = 0;
+  private lapseT = -1;
+  private lapseQ = new THREE.Quaternion();
+  private lapseSeen = false;
+  private heldRot = new HeldRotation();
+  private heldGlobe = new HeldRotation();
+  private heldCam: [number, number, number] = [0, 0, 0];
+  private heldCamOff: [number, number, number] = [0, 0, 0];
+  private heldCamState = -1;
+  private heldCamT = -1;
+  private cloudShown = 0;
+  private cloudEase = false;
 
   env: FlightEnv = {
     gravity: (_p, out) => out.set(0, 0, 0),
@@ -505,7 +548,7 @@ export class OrbitZone extends Zone implements OrbitContext {
     this.cruiseAxes.Z.crossVectors(X, Y);
     const Z = this.cruiseAxes.Z;
     this.rotSys.set(X.x, X.y, X.z, 0, Y.x, Y.y, Y.z, 0, Z.x, Z.y, Z.z, 0, 0, 0, 0, 1);
-    if (this.skyRotation) this.rotSys.premultiply(new THREE.Matrix4().makeRotationFromQuaternion(this.skyRotation));
+    this.finishRot();
     const tl = toLight(r, this.voyage ? BODY[this.voyage.to].system : this.body.system);
     const sun = _s.set(tl[0], tl[1], tl[2]).normalize().applyMatrix4(_m4.extractRotation(this.rotSys));
     this.sunLocal.copy(sun);
@@ -772,6 +815,7 @@ export class OrbitZone extends Zone implements OrbitContext {
     this.cruiseShip = add(bp, f.r);
     const { X, Y, Z } = this.cruiseAxes;
     this.rotSys.set(X.x, X.y, X.z, 0, Y.x, Y.y, Y.z, 0, Z.x, Z.y, Z.z, 0, 0, 0, 0, 1);
+    this.finishRot();
     const tl = toLight(this.cruiseShip, this.body.system);
     const sun = _s.set(tl[0], tl[1], tl[2]).normalize().applyMatrix4(_m4.extractRotation(this.rotSys));
     this.sunLocal.copy(sun);
@@ -1097,21 +1141,36 @@ export class OrbitZone extends Zone implements OrbitContext {
 
   /** Earth, sun and stars for the current time, in the zone frame. Runs every frame before drawing. */
   updateSky() {
+    // the sky's light hold follows the view stabiliser here, not its own rate test
+    this.sky.holdLight = false;
     if (this.mode === 'cruise') { this.updateSkyCruise(); return; }
     if (this.mode === 'flight') { this.updateSkyFlight(); return; }
     if (this.mode === 'orbit') { this.originR = this.rE; this.originPhi = this.phiE; }
     this.plane.frame(this.originPhi, this.frame);
+    const dt = this.lapseDt();
     this.updateRot();
     if (this.body.id !== 'earth') { this.updateSkyGeneric(); return; }
     const s = sunEci(this.day + (this.hours + this.met / 3600) / 24, _s);
     this.frame.toLocal(s, this.sunLocal).normalize();
+    // Earth: the sun is computed in the true local frame, so the sky holds it itself while the view is held
+    this.sky.holdLight = this.lapse;
     this.sky.setSunDirection(this.sunLocal);
-    this.globe.setSun(this.sunLocal, 20);
+    // the globe is lit by the sun as shown
+    this.sunView.copy(this.sky.sunDir);
+    this.globe.setSun(this.sunView, 20);
     this.frame.globeQuaternion(this.theta, this.globe.mesh.quaternion);
-    this.globe.mat.uniforms.uCloudShift.value = (this.met / 86400) * 0.6;
+    this.heldGlobe.apply(this.globe.mesh.quaternion, this.lapse, dt);
+    const cloud = (this.met / 86400) * 0.6;
+    if (this.lapse) this.cloudEase = true;
+    else if (this.cloudEase && dt > 0) {
+      const d = cloud - this.cloudShown, dd = d - Math.round(d);
+      this.cloudShown += dd * (1 - Math.exp(-dt * 2.5));
+      if (Math.abs(dd) < 1e-3) { this.cloudEase = false; this.cloudShown = cloud; }
+    } else if (!this.cloudEase) this.cloudShown = cloud;
+    this.globe.mat.uniforms.uCloudShift.value = this.cloudShown;
     this.stars.orient(this.frame.X, this.frame.Y, this.frame.Z);
+    this.stars.group.quaternion.premultiply(this.heldRot.delta);
     this.earthCentre.set(0, -this.originR, 0);
-    this.sunView.copy(this.sunLocal);
     const R = this.skyRotation;
     this.sky.lightRotation = R;
     if (R) {
@@ -1121,6 +1180,29 @@ export class OrbitZone extends Zone implements OrbitContext {
       this.sunView.applyQuaternion(R);
       this.globe.setSun(this.sunView, 20);
     }
+  }
+
+  /** real seconds since the last sky update (0 for a repeated call within the same frame) */
+  private lapseDt() {
+    return this.lapseT < 0 ? 0 : this.sky.clock - this.lapseT;
+  }
+
+  /**
+   * Finish the zone <- system rotation: decide whether time runs too fast for the eye (the frame turning faster
+   * than 45 degrees a second against the stars), hold or ease the view accordingly, then add the ship's spin.
+   */
+  private finishRot() {
+    const dt = this.lapseDt();
+    const q = _qa.setFromRotationMatrix(this.rotSys);
+    if (dt > 1e-4 && this.lapseSeen) {
+      this.lapseRate = (this.lapseQ.angleTo(q) / dt) * (180 / Math.PI);
+      this.lapse = this.lapseRate > (this.lapse ? 30 : 45);
+    }
+    if (dt > 1e-4 || !this.lapseSeen) { this.lapseQ.copy(q); this.lapseSeen = true; this.lapseT = this.sky.clock; }
+    if (this.warp < 100) this.lapse = false;
+    const shown = this.heldRot.apply(q.copy(this.lapseQ), this.lapse, dt);
+    this.rotSys.makeRotationFromQuaternion(shown);
+    if (this.skyRotation) this.rotSys.premultiply(_m4b.makeRotationFromQuaternion(this.skyRotation));
   }
 
   /** zone frame <- system frame for the current origin: rows of the local frame (in BCI) times BCI <- system */
@@ -1134,7 +1216,7 @@ export class OrbitZone extends Zone implements OrbitContext {
     const zb = new THREE.Matrix4().set(F.X.x, F.X.y, F.X.z, 0, F.Y.x, F.Y.y, F.Y.z, 0, F.Z.x, F.Z.y, F.Z.z, 0, 0, 0, 0, 1);
     const bs = new THREE.Matrix4().set(B.e1.x, B.e1.y, B.e1.z, 0, B.e2.x, B.e2.y, B.e2.z, 0, B.n.x, B.n.y, B.n.z, 0, 0, 0, 0, 1);
     this.rotSys.multiplyMatrices(zb, bs);
-    if (this.skyRotation) this.rotSys.premultiply(new THREE.Matrix4().makeRotationFromQuaternion(this.skyRotation));
+    this.finishRot();
   }
 
   /** sun, sky and stars around a body other than the Earth (its globe is drawn by the system view) */
@@ -1161,6 +1243,24 @@ export class OrbitZone extends Zone implements OrbitContext {
     this.stars.orient(_x.set(e[0], e[4], e[8]), _z.set(e[1], e[5], e[9]), new THREE.Vector3(e[2], e[6], e[10]));
   }
 
+  /** the camera's place in the system frame, held with the view under heavy time compression and eased back after */
+  private holdCam() {
+    const c = this.camSys, h = this.heldCam, o = this.heldCamOff;
+    const dt = this.heldCamT < 0 ? 0 : this.sky.clock - this.heldCamT;
+    this.heldCamT = this.sky.clock;
+    if (this.lapse && this.heldCamState !== -1) { this.heldCamState = 1; c[0] = h[0]; c[1] = h[1]; c[2] = h[2]; return; }
+    if (this.heldCamState === 1) { this.heldCamState = 2; o[0] = h[0] - c[0]; o[1] = h[1] - c[1]; o[2] = h[2] - c[2]; }
+    if (this.heldCamState === 2) {
+      const k = Math.exp(-dt * 2.5);
+      o[0] *= k; o[1] *= k; o[2] *= k;
+      // eased back: the offset is negligible against the distance to the nearest body
+      if (Math.hypot(o[0], o[1], o[2]) < 1) this.heldCamState = 0;
+      else { c[0] += o[0]; c[1] += o[1]; c[2] += o[2]; }
+    }
+    h[0] = c[0]; h[1] = c[1]; h[2] = c[2];
+    if (this.heldCamState === -1) this.heldCamState = 0;
+  }
+
   /** background objects relative to the final camera of the frame */
   place = (cam: THREE.PerspectiveCamera) => {
     cam.getWorldPosition(_v);
@@ -1180,6 +1280,7 @@ export class OrbitZone extends Zone implements OrbitContext {
       this.camSys[1] = bp[1] + o.x * B.e1.y + o.y * B.e2.y + o.z * B.n.y;
       this.camSys[2] = bp[2] + o.x * B.e1.z + o.y * B.e2.z + o.z * B.n.z;
     }
+    this.holdCam();
     this.view.exposure = this.game.renderer.look.exposure;
     this.view.update(this.jd, this.camSys, this.rotSys, this.game.renderer.height / ((cam.fov * Math.PI) / 180));
     // beyond the wormhole the sky is another galaxy's (drawn, lensed, by the black hole pass)

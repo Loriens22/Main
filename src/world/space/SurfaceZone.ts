@@ -439,6 +439,7 @@ export class SurfaceZone extends Zone {
   };
 
   private updateSun() {
+    this.sky.timeLapse = this.warp > 1;
     // light from the system origin (the Sun, or Gargantua's disk)
     // (its own vector: the shared temporaries hold the camera position for the rest of the frame)
     const sunZ = this.toZone(toLight(this.siteSys, this.body.system), _sunZ).normalize();

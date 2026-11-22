@@ -347,6 +347,8 @@ void main() {
  * The same scattering model renders the dome, bakes the environment map, and feeds the fog colours,
  * so distant terrain always dissolves into exactly the sky behind it.
  */
+const _lapD = new THREE.Vector3(), _lapQ = new THREE.Quaternion();
+
 export class Sky {
   params: AtmosphereParams;
   dome: THREE.Mesh;
@@ -458,9 +460,46 @@ export class Sky {
     this.dirty = true;
   }
 
+  /**
+   * Under heavy time compression the sun can sweep tens of degrees between frames (a whole orbit's day and night in a
+   * few seconds): sunlight and shadows through windows would strobe. While `timeLapse` is set and the sun moves
+   * faster than the eye can follow, the light is held where it was; when compression ends it glides back to the
+   * true direction.
+   */
+  timeLapse = false;
+  private lapseHold = false;
+  private lapseRelease = false;
+  private lapseOff = new THREE.Quaternion();
+  private lastTrue = new THREE.Vector3();
+  private lastTrueT = -1;
+  private lastRate = 0;
+  /** real seconds of sky updates (a clock for rates of change) */
+  clock = 0;
+  /** when set, overrides the rate test: hold the light (true) or never (false) */
+  holdLight: boolean | null = null;
+
   setSunDirection(dir: THREE.Vector3) {
-    if (this.sunDir.distanceToSquared(dir) > 1e-7) this.dirty = true;
-    this.sunDir.copy(dir).normalize();
+    const d = _lapD.copy(dir).normalize();
+    const dt = this.lastTrueT < 0 ? 0 : this.clock - this.lastTrueT;
+    // angular speed of the true sun in this frame (degrees per real second)
+    const fresh = dt > 1e-4 && this.lastTrue.lengthSq() > 0.5;
+    const rate = fresh ? (this.lastTrue.angleTo(d) / dt) * (180 / Math.PI) : this.lastRate;
+    this.lastRate = rate;
+    if (fresh || this.lastTrueT < 0) { this.lastTrue.copy(d); this.lastTrueT = this.clock; }
+    if (this.holdLight ?? (this.timeLapse && rate > 45)) { this.lapseHold = true; this.lapseRelease = false; return; }
+    if (this.lapseHold) {
+      // compression over: from the held light, ease back onto the true sun (following any spin of the frame meanwhile)
+      this.lapseHold = false;
+      this.lapseRelease = true;
+      this.lapseOff.setFromUnitVectors(d, this.sunDir);
+    }
+    if (this.lapseRelease) {
+      this.lapseOff.slerp(_lapQ.identity(), 1 - Math.exp(-Math.max(dt, 1 / 120) * 2.5));
+      if (Math.abs(this.lapseOff.w) > 0.99999) { this.lapseRelease = false; this.lapseOff.identity(); }
+      else { this.sunDir.copy(d).applyQuaternion(this.lapseOff); this.dirty = true; return; }
+    }
+    if (this.sunDir.distanceToSquared(d) > 1e-7) this.dirty = true;
+    this.sunDir.copy(d);
   }
 
   /** Request an environment re-bake on the next opportunity. */
@@ -519,6 +558,7 @@ export class Sky {
   }
 
   update(dt: number, cameraPos: THREE.Vector3, altitude: number) {
+    this.clock += dt;
     if (!this.enabled) return;
     if (Math.abs(altitude - this.altitude) > Math.max(2, this.altitude * 0.02)) this.dirty = true;
     this.altitude = altitude;
