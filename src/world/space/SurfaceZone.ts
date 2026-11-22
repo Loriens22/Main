@@ -31,6 +31,7 @@ import { WaveRide } from './WaveRide';
 import { LazarusSites } from './Lazarus';
 import { MillerLife } from '../../life/worlds/MillerLife';
 import { MarsLife } from '../../life/worlds/MarsLife';
+import { JupiterLife } from '../../life/worlds/JupiterLife';
 import type { WorldLife } from '../../life/worlds/WorldLife';
 import { W } from '../../render/patch';
 import type { SiteFn } from '../../space/Descent';
@@ -320,6 +321,7 @@ export class SurfaceZone extends Zone {
     if (this.life && this.life.planet !== id) { this.life.dispose(); this.life = null; }
     if (!this.life && id === 'miller') this.life = new MillerLife(this);
     if (!this.life && id === 'mars') this.life = new MarsLife(this);
+    if (!this.life && id === 'jupiter') this.life = new JupiterLife(this);
     if (this.game.zone === this) this.game.renderer.setLook(this.look(), true);
     this.sky.setStars(0);
     this.sky.invalidate();

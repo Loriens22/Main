@@ -310,6 +310,11 @@ export class Creature {
       if (this.pos.y <= lo + 1e-3 && this.fwd.y < 0) this.fwd.y *= 0.5;
     } else if (medium === 'ground') {
       this.pos.y = floor;
+    } else if (medium === 'air' && d.habitat.alt) {
+      // a flyer's survivable corridor: it cannot climb above or sink below it
+      const [lo, hi] = d.habitat.alt;
+      this.pos.y = Math.max(lo, Math.min(hi, this.pos.y));
+      if ((this.pos.y <= lo + 1e-3 && this.fwd.y < 0) || (this.pos.y >= hi - 1e-3 && this.fwd.y > 0)) this.fwd.y *= 0.5;
     }
     // the rate of turning feeds the body bend
     const yaw = Math.atan2(-this.fwd.x, -this.fwd.z);

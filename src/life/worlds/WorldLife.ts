@@ -111,6 +111,10 @@ export abstract class WorldLife implements LifeWorld {
   protected waterView(_cam: THREE.Vector3): WaterView | null { return null; }
   /** how much daylight reaches the camera (caves: little), 0..1 */
   protected daylight(_cam: THREE.Vector3) { return 1; }
+  /** the scanner's reach (m) */
+  protected scanRange(): number { return this.sub?.piloted ? 34 : 15; }
+  /** how far animals can be made out in open air, relative to the default (clear thin air or haze) */
+  protected sightScale(): number { return 1; }
 
   // ============================================================================================ habitats
   protected addSpot(tag: string, s: Spot) { if (!this.tags.has(tag)) this.tags.set(tag, []); this.tags.get(tag)!.push(s); }
@@ -420,7 +424,7 @@ export abstract class WorldLife implements LifeWorld {
     for (const c of this.eco.live.values()) {
       _v.copy(c.pos).sub(cam);
       const d = _v.length();
-      if (d > 160) continue;
+      if (d > 160 * this.sightScale()) continue;
       if (d > c.length && _v.dot(dir) / d < 0.64) continue;
       const amb = this.lightAt(c.pos);
       const s = this.surface(c.pos.x, c.pos.z);
@@ -435,7 +439,7 @@ export abstract class WorldLife implements LifeWorld {
       }
       if (helmet && _v.dot(dir) / d > 0.9) R = Math.max(R, 28);
       if (c.def.archetype === 'lure') R = Math.max(R, 30 * c.display);
-      R *= clamp(0.55 + 0.3 * Math.sqrt(c.length), 0.5, 2.2) * (1 - 0.7 * c.hidden);
+      R *= clamp(0.55 + 0.3 * Math.sqrt(c.length), 0.5, 2.2) * (1 - 0.7 * c.hidden) * (this.underwater ? 1 : this.sightScale());
       if (d > R) continue;
       _v.divideScalar(d);
       if (this.habitat.ray(cam, _v, Math.max(0, d - c.length * 0.6)) !== null) continue;
@@ -467,7 +471,7 @@ export abstract class WorldLife implements LifeWorld {
     const g = this.game;
     const flight = g.services.flight as Flight;
     const dir = g.renderer.camera.getWorldDirection(new THREE.Vector3());
-    const range = this.sub?.piloted ? 34 : 15;
+    const range = this.scanRange();
     const aim = (c: Creature) => {
       _v.copy(c.pos).sub(cam);
       const d = _v.length();

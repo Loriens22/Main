@@ -34,6 +34,8 @@ export interface LifeWorld {
 
 /** how far from the camera a species is simulated in full and drawn (by body size) */
 function activeRadius(def: SpeciesDef) {
+  // in open air sight lines are long: flyers are simulated and drawn further out
+  if (def.medium === 'air') return Math.min(900, Math.max(250, def.size[1] * 45));
   const L = def.size[1];
   if (L < 0.5) return 22;
   if (L < 3) return 90;
@@ -90,7 +92,7 @@ export class Ecosystem {
     }
   }
 
-  brainFor(def: SpeciesDef) { return this.brains[def.id] ?? this.brains[def.archetype] ?? BRAINS.grazer; }
+  brainFor(def: SpeciesDef) { return this.brains[def.archetype] ?? BRAINS.grazer; }
 
   update(dt: number, cam: THREE.Vector3) {
     if (this.disposed) return;

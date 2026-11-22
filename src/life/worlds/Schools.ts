@@ -46,8 +46,8 @@ const WIGGLE = /* glsl */ `
 #include <begin_vertex>
 {
   // the body wave of a small swimmer: grows toward the tail (the model's +z), faster when the fish is hurried
-  float tw = smoothstep( -0.03, 0.15, position.z );
-  transformed.x += sin( uFishT * ( 11.0 + 6.0 * aPhase ) + aPhase * 6.2831 - position.z * 30.0 ) * 0.014 * tw;
+  float tw = smoothstep( -0.14 * uFishL, 0.68 * uFishL, position.z );
+  transformed.x += sin( uFishT * ( 11.0 + 6.0 * aPhase ) + aPhase * 6.2831 - position.z * ( 6.6 / uFishL ) ) * 0.064 * uFishL * tw;
 }
 `;
 
@@ -64,9 +64,19 @@ export class Schools {
   private phase: THREE.InstancedBufferAttribute;
   private uT = { value: 0 };
   private per: number;
+  private base: number;
+  private uL: { value: number };
 
-  constructor(model: Model, homes: { pos: THREE.Vector3; range: number }[], per = 44) {
+  /**
+   * opts.base: the model's own length (m); opts.size: the members' length range; opts.cloud: the school's spread
+   * (half-extents across, up, along the swimming direction)
+   */
+  constructor(model: Model, homes: { pos: THREE.Vector3; range: number }[], per = 44, opts: { base?: number; size?: [number, number]; cloud?: [number, number, number] } = {}) {
     this.per = per;
+    this.base = opts.base ?? 0.22;
+    this.uL = { value: this.base };
+    const [s0, s1] = opts.size ?? [0.17, 0.26];
+    const [cx, cy, cz] = opts.cloud ?? [1.1, 0.45, 1.6];
     const max = homes.length * per;
     const ph = new Float32Array(max);
     for (let i = 0; i < max; i++) ph[i] = hashRand('darter', i);
@@ -96,12 +106,12 @@ export class Schools {
       for (let i = 0; i < per; i++) {
         const id = `school${si}`;
         // a flattened, elongated cloud: wider than tall, longer along the swimming direction
-        const off = new THREE.Vector3((hashRand(id, i * 3) - 0.5) * 2.2, (hashRand(id, i * 3 + 1) - 0.5) * 0.9, (hashRand(id, i * 3 + 2) - 0.5) * 3.2);
-        fish.push({ off, pos: h.pos.clone().add(off), vel: new THREE.Vector3(), size: 0.17 + 0.09 * hashRand(id, i + 99), alive: true, regrow: 0 });
+        const off = new THREE.Vector3((hashRand(id, i * 3) - 0.5) * 2 * cx, (hashRand(id, i * 3 + 1) - 0.5) * 2 * cy, (hashRand(id, i * 3 + 2) - 0.5) * 2 * cz);
+        fish.push({ off, pos: h.pos.clone().add(off), vel: new THREE.Vector3(), size: s0 + (s1 - s0) * hashRand(id, i + 99), alive: true, regrow: 0 });
       }
       const pos = h.pos.clone();
       this.list.push({
-        contact: { id: `school${si}`, kind: 'prey', pos, vel: new THREE.Vector3(), size: 0.22, light: 0, noise: 0.05 },
+        contact: { id: `school${si}`, kind: 'prey', pos, vel: new THREE.Vector3(), size: this.base, light: 0, noise: 0.05 },
         home: h.pos.clone(), range: h.range, goal: h.pos.clone(), fish, scatter: 0, yaw: hashRand('s', si) * 6.28,
       });
     });
@@ -116,8 +126,9 @@ export class Schools {
     m.onBeforeCompile = (shader, r) => {
       prev?.call(m, shader, r);
       shader.uniforms.uFishT = uT;
+      shader.uniforms.uFishL = this.uL;
       shader.vertexShader = shader.vertexShader
-        .replace('#include <common>', '#include <common>\nattribute float aPhase;\nuniform float uFishT;')
+        .replace('#include <common>', '#include <common>\nattribute float aPhase;\nuniform float uFishT;\nuniform float uFishL;')
         .replace('#include <begin_vertex>', WIGGLE);
     };
     const key = src.customProgramCacheKey?.bind(src);
@@ -168,8 +179,9 @@ export class Schools {
         const k = Math.floor(H.time / 23) + s.fish.length;
         const a = hashRand(s.contact.id, k) * Math.PI * 2, r = s.range * Math.sqrt(hashRand(s.contact.id, k + 1));
         s.goal.set(s.home.x + Math.cos(a) * r, 0, s.home.z + Math.sin(a) * r);
-        const fl = H.floor(s.goal.x, s.goal.z), su = H.surface(s.goal.x, s.goal.z) ?? 0;
-        s.goal.y = Math.min(su - 1.5, fl + 2 + (Math.min(14, su - fl - 4)) * hashRand(s.contact.id, k + 2));
+        const fl = H.floor(s.goal.x, s.goal.z), su = H.surface(s.goal.x, s.goal.z);
+        if (su === null) s.goal.y = s.home.y + (hashRand(s.contact.id, k + 2) - 0.5) * 40;
+        else s.goal.y = Math.min(su - 1.5, fl + 2 + (Math.min(14, su - fl - 4)) * hashRand(s.contact.id, k + 2));
       }
       s.scatter = Math.max(0, s.scatter - dt * 0.12);
       _v.copy(s.goal).sub(c);
@@ -177,8 +189,8 @@ export class Schools {
       if (d > 0.01) _v.multiplyScalar(Math.min(speed, d) / d);
       s.contact.vel.lerp(_v, 1 - Math.exp(-1.5 * dt));
       c.addScaledVector(s.contact.vel, dt);
-      // stay in the water
-      const fl = H.floor(c.x, c.z), su = H.surface(c.x, c.z) ?? 0;
+      // stay in the water (or in the air: no surface)
+      const fl = H.floor(c.x, c.z), su = H.surface(c.x, c.z) ?? 1e9;
       c.y = Math.max(fl + 0.8, Math.min(su - 0.6, c.y));
       if (Math.hypot(s.contact.vel.x, s.contact.vel.z) > 0.1) {
         const want = Math.atan2(-s.contact.vel.x, -s.contact.vel.z);
@@ -213,7 +225,7 @@ export class Schools {
         if (_v.lengthSq() < 0.0025) _v.set(-Math.sin(s.yaw), 0, -Math.cos(s.yaw));
         _v.normalize();
         _q.setFromUnitVectors(FWD, _v);
-        _m.compose(f.pos, _q, _s.setScalar(f.size / 0.22));
+        _m.compose(f.pos, _q, _s.setScalar(f.size / this.base));
         for (const im of this.meshes) im.setMatrixAt(n, _m);
         n++;
       }

@@ -379,7 +379,7 @@ export const filter: Brain = (c, H) => {
     return;
   }
   wander(c, c.home, 200, c.def.speed.cruise, H, 40);
-  c.setState('patrol', 'cruising the basin');
+  c.setState('patrol', 'cruising its range');
 };
 
 // ============================================================================================= apex
@@ -415,7 +415,7 @@ export const apex: Brain = (c, H) => {
     }
   }
   wander(c, c.home, 400, c.def.speed.cruise, H, 60);
-  c.setState('patrol', 'patrolling the deep basin');
+  c.setState('patrol', 'patrolling its range');
   if (c.stateT > 30) H.observe(c, 'patrol');
 };
 
@@ -570,4 +570,54 @@ export const stalkcam: Brain = (c, H) => {
   c.goal.copy(den); c.speedWant = c.pos.distanceTo(den) > 0.3 ? c.def.speed.cruise : 0;
 };
 
-export const BRAINS: Record<string, Brain> = { grazer, ambush, trap, lure, pack, builder, defender, filter, apex, clever, producer, colony, hermit, stalkcam };
+
+// ============================================================================================= glider (Jovian skyray)
+/** glides on shear lanes in long loops; feeds through aeromite swarms; spirals down away from a hunter */
+export const glider: Brain = (c, H) => {
+  const t = c.sensed.find((s) => s.c.kind === 'creature' && s.c.size > c.length * 1.1 && (s.c.ref?.def?.threat?.level === 'high') && s.d < 260);
+  if (t) {
+    // fold and drop away in a descending spiral, banking hard on the shear
+    flee(c, t.c.pos, c.def.speed.burst);
+    c.goal.y -= 60;
+    c.setState('flee', 'wings folded, spiralling down');
+    H.observe(c, 'dive');
+    return;
+  }
+  const swarm = c.sensed.find((s) => s.c.kind === 'prey' && s.d < 350);
+  if (swarm && c.energy < 0.9) {
+    c.goal.copy(swarm.c.pos);
+    c.speedWant = c.def.speed.cruise * 0.8;
+    c.setState('feed', 'gliding through the swarm, mouth comb open');
+    if (swarm.d < c.length) { c.energy = Math.min(1, c.energy + 0.01); H.observe(c, 'feeding'); }
+    return;
+  }
+  wander(c, c.home, 500, c.def.speed.cruise, H, 60);
+  c.setState('patrol', 'gliding along the shear lane');
+  if (c.stateT > 12) H.observe(c, 'glide');
+};
+
+// ============================================================================================= drifter (floating colonies)
+/** drifts with the air at its level, bobbing slowly; links with its group; draws in its filaments at a touch */
+export const drifter: Brain = (c, H) => {
+  const touch = c.sensed.find((s) => s.c.kind !== 'prey' && s.d < c.length * 0.8 + s.c.size * 0.5);
+  if (touch) { c.display = Math.min(1, c.display + 0.3); c.setState('hide', 'filaments drawn in'); H.observe(c, 'retract'); c.speedWant = 0.1; return; }
+  c.display = Math.max(0, c.display - 0.02);
+  const mates = H.group?.(c) ?? [];
+  const k = hashRand(c.id, 5) * 6.28;
+  _v.copy(c.home);
+  if (mates.length) {
+    // loose links: drift toward the group's middle, keeping a little apart
+    const ctr = new THREE.Vector3();
+    for (const m of mates) ctr.add(m.pos);
+    ctr.divideScalar(mates.length);
+    _v.lerp(ctr, 0.6);
+  }
+  c.goal.set(_v.x + Math.cos(H.time * 0.01 + k) * 20, _v.y + Math.sin(H.time * 0.02 + k) * 12, _v.z + Math.sin(H.time * 0.01 + k) * 20);
+  c.speedWant = c.def.speed.cruise;
+  const swarm = c.sensed.find((s) => s.c.kind === 'prey' && s.d < 40);
+  if (swarm) { c.energy = Math.min(1, c.energy + 0.002); c.setState('feed', 'collecting aeromites on its filaments'); H.observe(c, 'feeding'); return; }
+  c.setState('patrol', 'drifting with the air');
+  if (c.stateT > 15) H.observe(c, 'drifting');
+};
+
+export const BRAINS: Record<string, Brain> = { grazer, ambush, trap, lure, pack, builder, defender, filter, apex, clever, producer, colony, hermit, stalkcam, glider, drifter };
