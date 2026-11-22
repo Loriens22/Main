@@ -120,7 +120,7 @@ class Rig:
         return P
 
     # ------------------------------------------------------------------ finish: armature, skinning, export prep
-    def finish(self, subdiv=1, ao=True, ao_dist=None, col=0):
+    def finish(self, subdiv=1, ao=True, ao_dist=None, col=0, looks=None, tex=2048, extra=None, levels=2):
         arm_data = bpy.data.armatures.new(self.name)
         arm = bpy.data.objects.new(self.name, arm_data)
         bpy.context.scene.collection.objects.link(arm)
@@ -150,6 +150,8 @@ class Rig:
             bm.from_mesh(ob.data)
             bmesh.ops.remove_doubles(bm, verts=bm.verts[:], dist=1e-5)
             bmesh.ops.delete(bm, geom=[v for v in bm.verts if not v.link_faces], context="VERTS")
+            # one consistent outward orientation for every closed piece (teeth, claws, caps, plates included)
+            bmesh.ops.recalc_face_normals(bm, faces=bm.faces[:])
             bm.to_mesh(ob.data)
             bm.free()
             if subdiv:
@@ -175,6 +177,9 @@ class Rig:
                 bpy.ops.object.join()
         body.name = self.name + "_body"
         props(body, part="body", col=0)
+        if looks:
+            from skin import bake as skin_bake
+            skin_bake(body, looks, self.name, tex=tex, levels=levels, extra=extra)
         body.parent = arm
         md = body.modifiers.new("arm", "ARMATURE")
         md.object = arm
@@ -349,7 +354,7 @@ def sheet(P, root0, root1, tip0, tip1, mat, nu=8, nv=6, thick=0.02, camber=0.0, 
     return nrm
 
 
-def plate(P, center, T, L, N, a, b, mat, rise=0.3, thick=0.03, nu=8, nv=6, lip=0.0, tilt=0.0, spikes=0, spike_h=0.0, sq=2.0, droop=0.0):
+def plate(P, center, T, L, N, a, b, mat, rise=0.3, thick=0.03, nu=8, nv=6, lip=0.0, tilt=0.0, spikes=0, spike_h=0.0, sq=2.0, droop=0.0, spike_mat=None):
     """A curved armour plate: a dome patch a (along T) by b (along L), bulging `rise` along N, with a thickened
     leading lip; `tilt` lifts the trailing edge (overlapping shingles); optional spikes along the trailing rim."""
     c = V(center)
@@ -389,7 +394,7 @@ def plate(P, center, T, L, N, a, b, mat, rise=0.3, thick=0.03, nu=8, nv=6, lip=0
         for s in range(spikes):
             u = (s + 0.5) / spikes * 2 - 1
             base = c + T * a * 0.95 + L * (u * b * 0.8) + N * (tilt + 0.02)
-            cone(P, base, base + T * spike_h + N * spike_h * 0.6, spike_h * 0.25, mat)
+            cone(P, base, base + T * spike_h + N * spike_h * 0.6, spike_h * 0.25, spike_mat or mat)
 
 
 def cone(P, base, tip, r, mat, segs=6, bend=None):
@@ -417,3 +422,114 @@ def jitter(P, amp, freq=3.0, seed=0, axis_scale=(1, 1, 1)):
 
 def mirror_pts(pts):
     return [Vector((-p[0], p[1], p[2])) for p in pts]
+
+
+def ringed(P, pts, r0, r1, mat, rings=6, segs=10, flat=1.0, n=None):
+    """a segmented limb: a tapered tube whose radius swells at each segment"""
+    tube(P, pts, [(0, r0), (1, r1)], mat, segs=segs, n=n or 14, flat=flat,
+         warp=lambda t, a, p, T, L, N: p + (L * math.cos(a) + N * math.sin(a) * flat) * (r0 + (r1 - r0) * t) * 0.14 * math.cos(TAU * rings * t))
+
+
+def claws(P, tip, direction, spread, n, length, r, mat="bio_tooth", down=(0, 0, -1)):
+    d = V(direction).normalized()
+    side = d.cross(Vector(down)).normalized()
+    for i in range(n):
+        o = (i - (n - 1) / 2) * spread
+        base = V(tip) + side * o
+        cone(P, base, base + d * length + Vector(down) * length * 0.6, r, mat, bend=Vector(down))
+
+
+def review(name, bg=(0.05, 0.09, 0.12), front=(0.75, 0.9, 0.35), side=(1.0, -0.12, 0.18), res=(600, 420), samples=24, sun=3.0):
+    """two preview renders (front three-quarter and side) of the whole scene, composed into one image
+    blender/previews/rv_<name>.png; camera framed on the meshes' bounds"""
+    import os
+    from bl import preview, PREVIEW_DIR
+    lo = Vector((1e9, 1e9, 1e9)); hi = Vector((-1e9, -1e9, -1e9))
+    for o in bpy.context.scene.objects:
+        if o.type != "MESH" or o.hide_render:
+            continue
+        for c in o.bound_box:
+            w = o.matrix_world @ Vector(c)
+            lo = Vector((min(lo.x, w.x), min(lo.y, w.y), min(lo.z, w.z)))
+            hi = Vector((max(hi.x, w.x), max(hi.y, w.y), max(hi.z, w.z)))
+    c = (lo + hi) / 2
+    r = (hi - lo).length / 2
+    files = []
+    head = Vector((c.x, hi.y - (hi.y - lo.y) * 0.12, c.z))
+    for tag, d, tgt, k in (("a", front, c, 1.7), ("b", side, c, 1.55), ("c", (0.55, 1.0, 0.25), head, 0.62)):
+        dv = Vector(d).normalized()
+        eye = tgt + dv * r * k
+        preview(f"_rv_{name}_{tag}", tuple(eye), tuple(tgt), res=res, lens=40, samples=samples, sky=bg, sky_strength=0.6, sun=sun)
+        files.append(os.path.join(PREVIEW_DIR, f"_rv_{name}_{tag}.png"))
+    try:
+        from PIL import Image
+        ims = [Image.open(f).convert("RGB") for f in files]
+        W = Image.new("RGB", (res[0] * len(ims), res[1]))
+        for i, im in enumerate(ims):
+            W.paste(im, (res[0] * i, 0))
+        W.save(os.path.join(PREVIEW_DIR, f"rv_{name}.png"))
+        for f in files:
+            os.remove(f)
+    except Exception as e:
+        print("review compose failed", e)
+
+
+def surf(rings, t, a):
+    """a point on a lofted body (rings from body()) at length fraction t and section angle a (0 = right side,
+    pi/2 = top), and its outward normal"""
+    n = len(rings)
+    segs = len(rings[0]) - 1
+    fi = max(0.0, min(n - 1.001, t * (n - 1)))
+    i = int(fi)
+    u = fi - i
+    fk = (a % TAU) / TAU * segs
+    k = int(fk) % segs
+    w = fk - int(fk)
+    def P(ii, kk):
+        return rings[ii][kk % segs]
+    p = (P(i, k) * (1 - w) + P(i, k + 1) * w) * (1 - u) + (P(i + 1, k) * (1 - w) + P(i + 1, k + 1) * w) * u
+    ta = P(i + 1, k) - P(i, k)
+    tb = P(i, k + 1) - P(i, k)
+    nrm = tb.cross(ta)
+    c = sum((rings[i][j] for j in range(segs)), Vector()) / segs
+    if nrm.dot(p - c) < 0:
+        nrm = -nrm
+    return p, nrm.normalized()
+
+
+def surface_line(P, rings, path, r, mat, lift=0.004, segs=5, n=24):
+    """a tube lying on the body surface along [(t, a), ...] (glow lines, ridges, scars)"""
+    pts = []
+    for i in range(n):
+        f = i / (n - 1) * (len(path) - 1)
+        j = min(int(f), len(path) - 2)
+        u = f - j
+        t = path[j][0] * (1 - u) + path[j + 1][0] * u
+        a = path[j][1] * (1 - u) + path[j + 1][1] * u
+        p, nr = surf(rings, t, a)
+        pts.append(p + nr * (lift + r * 0.5))
+    tube(P, pts, [(0, r), (1, r)], mat, segs=segs, n=n)
+
+
+def segmented_limb(P, pts, radii, mat, joint_mat=None, flare=0.25, spines=0, spine_mat=None, spine_len=0.3, segs=12):
+    """an arthropod limb: one tapered tube per segment between joints, each segment flaring at its distal end
+    (the chitin collar), a knuckle at every joint, optional spines along the upper edge"""
+    pts = [V(p) for p in pts]
+    for i in range(len(pts) - 1):
+        a, b = pts[i], pts[i + 1]
+        r0, r1 = radii[i], radii[i + 1]
+        d = b - a
+        mid = a.lerp(b, 0.5) + (Vector((0, 0, 1)).cross(d).cross(d).normalized() * -d.length * 0.03 if d.length > 1e-6 else Vector())
+        tube(P, [a + d * 0.02, mid, b - d * 0.04], [(0, r0 * 0.92), (0.5, (r0 + r1) * 0.5 * 0.88), (0.85, r1 * (1 + flare)), (1, r1 * (1 + flare * 0.6))],
+             mat, segs=segs, n=10)
+        if i > 0:
+            P.sphere(r0 * 0.95, at=tuple(a), mat=joint_mat or mat, segs=segs, rings=max(6, segs // 2))
+        for s in range(spines):
+            f = (s + 1) / (spines + 1)
+            q = a.lerp(b, f)
+            up = Vector((0, 0, 1)) - d.normalized() * d.normalized().z
+            if up.length < 1e-4:
+                up = Vector((1, 0, 0))
+            up.normalize()
+            rr = r0 + (r1 - r0) * f
+            cone(P, q + up * rr * 0.8, q + up * rr * (1 + spine_len * 3) + d.normalized() * rr * spine_len * 2, rr * 0.28, spine_mat or mat, segs=5)

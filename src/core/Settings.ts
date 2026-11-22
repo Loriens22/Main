@@ -63,7 +63,7 @@ export const DEFAULT_BINDINGS: Record<string, string[]> = {
   forward: ['KeyW', 'ArrowUp'], back: ['KeyS', 'ArrowDown'], left: ['KeyA', 'ArrowLeft'], right: ['KeyD', 'ArrowRight'],
   jump: ['Space'], sprint: ['ShiftLeft', 'ShiftRight'], crouch: ['KeyC', 'ControlLeft'],
   interact: ['KeyE'], exit: ['KeyF'], camera: ['KeyV'], menu: ['Escape'], computer: ['KeyM'], creative: ['KeyP'],
-  flashlight: ['KeyL'], crew: ['KeyG'], thirdPerson: ['KeyT'],
+  flashlight: ['KeyL'], crew: ['KeyG'], thirdPerson: ['KeyT'], scan: ['KeyR'], codex: ['KeyJ'],
   // vehicles
   brake: ['Space'], headlights: ['KeyH'], horn: ['KeyB'],
   // spacecraft

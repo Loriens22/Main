@@ -2,7 +2,7 @@ import { clamp, fbm2, hash2, smoothstep, vnoise } from '../../core/math';
 import { earthMap, registerTerrainSource, TerrainSource } from './sources';
 import { LANDING_FIELD } from '../earth/EarthMap';
 import { BODY } from '../../space/Bodies';
-import { LAZARUS_SITE } from './sites';
+import { LAZARUS_SITE, MILLER_BASIN, MILLER_ROCKS, MILLER_SANDS, riftQuery } from './sites';
 
 /*
  * Procedural ground for the landing sites, in a local frame centred on the landing pad (y up, metres). Each is a
@@ -119,13 +119,53 @@ const mars: TerrainSource = {
 // ------------------------------------------------------------------------------------------- Miller
 /** Miller's planet: a planet-wide sea about knee-deep over a flat, rippled floor (the water surface is y = 0). */
 export const MILLER_SEA_FLOOR = -0.55;
+/** the rift, the basin, the outcrops and the sandy hollow, added to the flats (see sites.ts) */
+function millerRelief(x: number, z: number) {
+  let dh = 0;
+  // the canyon: stepped walls (two ledges) from the rim down to a floor broken by a maze of rock spines
+  const q = riftQuery(x, z);
+  const w = q.w * (0.85 + 0.3 * fbm2(x / 90, z / 90, 3));
+  const rim = w * 2.4;
+  if (q.d < rim + 120) {
+    // the approach: the flats shelve to a few metres near the canyon
+    dh -= 2.5 * (1 - smoothstep(rim, rim + 120, q.d)) * smoothstep(0, 0.08, q.t + 0.04);
+    const s = clamp((q.d - w * 0.7) / (rim - w * 0.7), 0, 1);
+    const steps = (Math.floor(s * 3) + smoothstep(0.7, 1.0, (s * 3) % 1)) / 3;
+    const wall = 1 - steps;
+    // the canyon opens gradually from its western end
+    const open = smoothstep(0.0, 0.06, q.t);
+    let floor = q.depth * wall * open;
+    // rock spines and blocks on the floor: shelter for the bottom dwellers, a maze for the swimmers
+    const spines = ridged(x / 38 + 4, z / 38 - 2, 3);
+    floor -= smoothstep(0.55, 0.9, spines) * Math.min(18, q.depth * 0.22) * (1 - s) * open;
+    dh -= floor;
+  }
+  // the basin
+  const bd = Math.hypot(x - MILLER_BASIN.x, z - MILLER_BASIN.z);
+  if (bd < MILLER_BASIN.r * 1.4) {
+    const s = clamp((bd - MILLER_BASIN.r * 0.55) / (MILLER_BASIN.r * 0.85), 0, 1);
+    const steps = (Math.floor(s * 4) + smoothstep(0.65, 1.0, (s * 4) % 1)) / 4;
+    const basin = MILLER_BASIN.depth * (1 - steps) + (fbm2(x / 120, z / 120, 3) - 0.5) * 20 * (1 - s);
+    dh = Math.min(dh, -basin);
+  }
+  // black basalt outcrops breaking the surface on the flats
+  for (const r of MILLER_ROCKS) {
+    const d = Math.hypot(x - r.x, z - r.z);
+    if (d < r.r * 1.6) dh += Math.max(0, 1 - d / r.r) ** 0.6 * (0.9 + 0.8 * ridged(x / 7, z / 7, 2)) * 1.2;
+  }
+  // the sandy hollow
+  const sd = Math.hypot(x - MILLER_SANDS.x, z - MILLER_SANDS.z);
+  if (sd < MILLER_SANDS.r) dh -= 0.35 * (1 - smoothstep(MILLER_SANDS.r * 0.5, MILLER_SANDS.r, sd));
+  return dh;
+}
+
 const miller: TerrainSource = {
   height(x, z) {
     const ripple = 0.5 + 0.5 * Math.sin((x * 0.6 + z * 0.8) / 0.9 + fbm2(x / 6, z / 6, 2) * 3);
     let h = MILLER_SEA_FLOOR + (fbm2(x / 800, z / 800, 4) - 0.5) * 0.5 + ripple * 0.06 + (fbm2(x / 40, z / 40, 3) - 0.5) * 0.18;
     // the odd shoal breaks the surface
     h += smoothstep(0.78, 0.92, fbm2(x / 1500 + 3, z / 1500 - 7, 4)) * 0.9;
-    return h;
+    return h + millerRelief(x, z);
   },
   splat(x, z, out) {
     const n = fbm2(x / 200, z / 200, 3);

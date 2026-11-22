@@ -16,3 +16,38 @@ export const LAZARUS_SITE: Record<string, CampSite> = {
 
 /** the ridge on Mann's glacier he says he will show the crew (the survey site of his reports) */
 export const MANN_RIDGE = { x: 90, z: 540 };
+
+/**
+ * Miller's rift (original worldbuilding for the game, not from the film): beyond the knee-deep flats round the landing
+ * site the floor shelves to a few metres, then drops into a canyon of stepped walls that deepens eastward into a basin
+ * some 230 m deep. The flats stay as the film shows them; the life of the deeper water lives here.
+ * Centre line of the canyon (zone x, z) with its floor depth below the sea surface (m) and half-width (m).
+ */
+export const MILLER_RIFT: { x: number; z: number; depth: number; w: number }[] = [
+  { x: 120, z: -300, depth: 8, w: 26 },
+  { x: 260, z: -360, depth: 45, w: 34 },
+  { x: 480, z: -430, depth: 95, w: 42 },
+  { x: 760, z: -450, depth: 140, w: 50 },
+  { x: 1020, z: -380, depth: 190, w: 60 },
+];
+export const MILLER_BASIN = { x: 1300, z: -300, r: 330, depth: 230 };
+/** the rocky outcrops of the flats (wet black basalt breaking the surface): grazers, the shield-backs' nests */
+export const MILLER_ROCKS = [{ x: 95, z: 70, r: 26 }, { x: -140, z: 120, r: 18 }, { x: 160, z: -150, r: 20 }];
+/** the sandy hollow where the sediment maws lie */
+export const MILLER_SANDS = { x: -60, z: -190, r: 60 };
+
+/** nearest point on the canyon centre line: distance (m), along-line parameter 0..1, interpolated depth and half-width */
+export function riftQuery(x: number, z: number) {
+  let best = 1e9, bt = 0, bd = 0, bw = 0, acc = 0, total = 0;
+  for (let i = 0; i < MILLER_RIFT.length - 1; i++) total += Math.hypot(MILLER_RIFT[i + 1].x - MILLER_RIFT[i].x, MILLER_RIFT[i + 1].z - MILLER_RIFT[i].z);
+  for (let i = 0; i < MILLER_RIFT.length - 1; i++) {
+    const a = MILLER_RIFT[i], b = MILLER_RIFT[i + 1];
+    const dx = b.x - a.x, dz = b.z - a.z, L = Math.hypot(dx, dz);
+    const t = Math.max(0, Math.min(1, ((x - a.x) * dx + (z - a.z) * dz) / (L * L)));
+    const px = a.x + dx * t, pz = a.z + dz * t;
+    const d = Math.hypot(x - px, z - pz);
+    if (d < best) { best = d; bt = (acc + t * L) / total; bd = a.depth + (b.depth - a.depth) * t; bw = a.w + (b.w - a.w) * t; }
+    acc += L;
+  }
+  return { d: best, t: bt, depth: bd, w: bw };
+}

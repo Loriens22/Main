@@ -26,6 +26,13 @@ export const W = {
   uAmbientIn: { value: new THREE.Color(0.035, 0.032, 0.03) },
   /** colour x intensity of the artificial lighting baked into vertex alpha (facility / spacecraft interiors) */
   uBakedLight: { value: new THREE.Color(1.0, 0.96, 0.9) },
+  /** a body of water: x on (0/1), y surface height (world y), z extinction along a path (1/m), w downwelling-light
+   *  attenuation with depth (1/m) */
+  uWater: { value: new THREE.Vector4(0, 0, 0.06, 0.05) },
+  /** the water's own colour (in-scattered light just under the surface) */
+  uWaterCol: { value: new THREE.Color(0.06, 0.12, 0.13) },
+  /** horizontal extent of the water: x, z centre and radius (radius 0: everywhere) */
+  uWaterReg: { value: new THREE.Vector4(0, 0, 0, 0) },
 };
 
 export interface SurfaceParams {
@@ -73,6 +80,9 @@ uniform vec4 uWearP; // wear, dirt, dust, glass
 uniform vec3 uEdgeColor;
 uniform vec3 uAmbientIn;
 uniform vec3 uBakedLight;
+uniform vec4 uWater;
+uniform vec3 uWaterCol;
+uniform vec4 uWaterReg;
 #ifdef USE_VAO
 varying vec4 vVAO;
 #endif
@@ -151,8 +161,32 @@ const FRAG_FOG = /* glsl */ `
 #ifdef USE_SKYFOG
 {
   vec3 toFrag = vWPos - cameraPosition;
-  float fa = skyFogAmount( cameraPosition, toFrag );
-  gl_FragColor.rgb = mix( gl_FragColor.rgb, skyFogColor( normalize( toFrag ) ), fa );
+  float dist = length( toFrag );
+  vec3 dir = toFrag / max( dist, 1e-4 );
+  bool inReg = uWaterReg.z <= 0.0 || length( vWPos.xz - uWaterReg.xy ) < uWaterReg.z;
+  bool camIn = cameraPosition.y < uWater.y;
+  if ( uWater.x > 0.5 && inReg && ( vWPos.y < uWater.y || camIn ) ) {
+    // the stretch of the view ray that runs through water
+    float inW = camIn ? ( vWPos.y < uWater.y ? dist : min( dist, ( uWater.y - cameraPosition.y ) / max( dir.y, 1e-3 ) ) )
+                      : min( dist, ( uWater.y - vWPos.y ) / max( -dir.y, 1e-3 ) );
+    float dep = max( 0.0, uWater.y - vWPos.y );
+    // red goes first: what reaches a surface at depth is blue-green, and dimmer
+    vec3 absorb = exp( -dep * uWater.w * vec3( 2.2, 1.0, 0.75 ) );
+    vec3 lit = gl_FragColor.rgb;
+    #if defined( USE_EMISSIVEMAP ) || defined( STANDARD )
+      vec3 emis = totalEmissiveRadiance;
+      lit = ( lit - emis ) * ( camIn ? vec3( 1.0 ) : absorb ) + emis;
+    #else
+      lit = lit * ( camIn ? vec3( 1.0 ) : absorb );
+    #endif
+    float a = 1.0 - exp( -uWater.z * inW );
+    float camDep = max( 0.0, uWater.y - min( cameraPosition.y, vWPos.y ) );
+    vec3 wc = uWaterCol * exp( -camDep * uWater.w * vec3( 1.6, 0.95, 0.8 ) );
+    gl_FragColor.rgb = mix( lit * exp( -inW * uWater.z * 0.35 * vec3( 1.8, 0.9, 0.7 ) ), wc, a );
+  } else {
+    float fa = skyFogAmount( cameraPosition, toFrag );
+    gl_FragColor.rgb = mix( gl_FragColor.rgb, skyFogColor( dir ), fa );
+  }
 }
 #endif
 `;
@@ -172,6 +206,7 @@ export function patchWorldMaterial<T extends THREE.Material>(m: T, p: SurfacePar
     Object.assign(shader.uniforms, {
       uFogH: W.uFogH, uFogZ: W.uFogZ, uFogSun: W.uFogSun, uSunDir: W.uSunDir, uFogP: W.uFogP, uSurf: W.uSurf,
       uDustColor: W.uDustColor, uWearP: { value: wearP }, uEdgeColor: { value: edgeColor }, uAmbientIn: W.uAmbientIn, uBakedLight: W.uBakedLight,
+      uWater: W.uWater, uWaterCol: W.uWaterCol, uWaterReg: W.uWaterReg,
     });
     shader.vertexShader = shader.vertexShader
       .replace('#include <common>', '#include <common>\n' + VERT_PARS)

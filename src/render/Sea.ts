@@ -23,6 +23,8 @@ uniform vec3 uZenith;
 uniform vec3 uHorizon;
 uniform vec3 uDeep;
 uniform vec3 uCam;
+uniform vec4 uWater;
+uniform vec3 uWaterCol;
 varying vec3 vW;
 varying float vDist;
 float h2( vec2 p ) { return fract( sin( dot( p, vec2( 127.1, 311.7 ) ) ) * 43758.5453 ); }
@@ -58,6 +60,24 @@ void main() {
   vec2 dw = fwidth( vW.xz );
   vec2 g = waves( vW.xz, uTime, fade, max( dw.x, dw.y ) );
   vec3 N = normalize( vec3( -g.x, 1.0, -g.y ) );
+  if ( !gl_FrontFacing ) {
+    // seen from below: the sky through Snell's window (inside ~48.6 degrees of the vertical), beyond it the surface
+    // mirrors the water itself (total internal reflection), all seen through the water between
+    vec3 d = normalize( vW - uCam );
+    float cosI = clamp( dot( d, N ), 0.0, 1.0 );
+    float sinI = sqrt( 1.0 - cosI * cosI );
+    float win = 1.0 - smoothstep( 0.70, 0.76, sinI );
+    vec3 skyIn = mix( uHorizon, uZenith, cosI ) * 1.1 + uSunCol * pow( max( dot( refract( d, -N, 1.33 ), uSunDir ), 0.0 ), 200.0 ) * 4.0;
+    float camDep = max( 0.0, uWater.y - uCam.y );
+    vec3 wc = uWaterCol * exp( -camDep * uWater.w * vec3( 1.6, 0.95, 0.8 ) );
+    vec3 col = mix( wc * 0.8, skyIn * ( 1.0 - pow( sinI / 0.75, 6.0 ) * 0.6 ), win );
+    float a = 1.0 - exp( -uWater.z * vDist );
+    col = mix( col * exp( -camDep * uWater.w * vec3( 1.6, 0.95, 0.8 ) ), wc, a );
+    gl_FragColor = vec4( col, 1.0 );
+    #include <tonemapping_fragment>
+    #include <colorspace_fragment>
+    return;
+  }
   vec3 V = normalize( uCam - vW );
   float cosT = max( dot( N, V ), 0.0 );
   float F = 0.02 + 0.98 * pow( 1.0 - cosT, 5.0 );
@@ -108,7 +128,9 @@ export class SeaSurface {
         // reflections of the actual sky (the radiance the sky model measures for the fog) and of the light source
         uSunDir: W.uSunDir, uSunCol: W.uSunColor, uZenith: W.uFogZ, uHorizon: W.uFogH,
         uDeep: { value: new THREE.Color(0.05, 0.08, 0.09) },
+        uWater: W.uWater, uWaterCol: W.uWaterCol,
       },
+      side: THREE.DoubleSide,
     });
     this.mesh = new THREE.Mesh(g, this.mat);
     this.mesh.frustumCulled = false;

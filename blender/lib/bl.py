@@ -878,7 +878,7 @@ def _convexity(me):
 
 
 # ----------------------------------------------------------------------------- export / preview
-def export_glb(name, objects=None, out_dir=None):
+def export_glb(name, objects=None, out_dir=None, images=False):
     out_dir = out_dir or MODELS
     os.makedirs(out_dir, exist_ok=True)
     path = os.path.join(out_dir, name + ".glb")
@@ -891,7 +891,8 @@ def export_glb(name, objects=None, out_dir=None):
         export_tangents=False, export_materials="EXPORT", export_cameras=False, export_lights=False,
         export_animations=False, export_skins=True, export_morph=False,
         export_vertex_color="ACTIVE", export_all_vertex_colors=False,
-        export_active_vertex_color_when_no_material=True, export_image_format="NONE",
+        export_active_vertex_color_when_no_material=True, export_image_format="WEBP" if images else "NONE",
+        **({"export_image_quality": 88} if images else {}),
     )
     tris = sum(len(o.data.loop_triangles) or sum(len(p.vertices) - 2 for p in o.data.polygons)
                for o in bpy.context.scene.objects if o.type == "MESH")

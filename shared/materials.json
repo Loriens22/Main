@@ -170,6 +170,7 @@
   "bio_eye":            { "color": "#07080a", "rough": 0.04 },
   "bio_gum":            { "tex": "bio_skin", "tile": 0.6, "color": "#7a3a36", "rough": 0.3, "metal": 0 },
   "stalker_skin":       { "tex": "bio_scales", "tile": 0.7, "color": "#3d4654", "rough": 0.4, "metal": 0, "sheen": 0.4 },
+  "stalker_fin":       { "tex": "bio_skin", "tile": 0.8, "color": "#2a3240", "metal": 0 },
   "stalker_belly":      { "tex": "bio_skin", "tile": 0.8, "color": "#59626e", "metal": 0 },
   "mimic_skin":         { "tex": "bio_skin", "tile": 0.7, "color": "#6f6559", "metal": 0 },
   "mimic_plate":        { "tex": "bio_plate", "tile": 0.6, "color": "#5d554b", "metal": 0 },
@@ -236,5 +237,14 @@
   "aeromite":           { "color": "#ffd890", "emissive": "#ffb840", "emissiveIntensity": 2.5, "rough": 0.4 },
   "hunter_plate":       { "tex": "bio_plate", "tile": 2.0, "color": "#2c1616", "rough": 0.5, "metal": 0 },
   "hunter_fin":         { "tex": "bio_membrane", "tile": 2.0, "color": "#5c1c16", "opacity": 0.88, "metal": 0 },
-  "hunter_edge":        { "color": "#ff9a5a", "emissive": "#c8541a", "emissiveIntensity": 1.6, "rough": 0.4 }
+  "hunter_edge":        { "color": "#ff9a5a", "emissive": "#c8541a", "emissiveIntensity": 1.6, "rough": 0.4 },
+  "basalt_wet":         { "tex": "rock", "tile": 3.0, "color": "#3a3c3f", "rough": 0.35, "metal": 0 },
+  "vent_crust":         { "tex": "bio_plate", "tile": 1.2, "color": "#2e2a26", "rough": 0.8, "metal": 0 },
+  "vent_rim":           { "tex": "bio_sediment", "tile": 0.6, "color": "#d8d0bc", "metal": 0 },
+  "vent_mat":           { "tex": "bio_skin", "tile": 2.0, "color": "#8a7a52", "rough": 0.7, "metal": 0 },
+  "egg_shell":          { "tex": "bio_skin", "tile": 0.2, "color": "#d6c9b0", "rough": 0.45, "metal": 0, "sheen": 0.4 },
+  "nest_shell":         { "tex": "bio_plate", "tile": 0.25, "color": "#8c8a8e", "metal": 0, "iridescence": 0.3 },
+  "arch_spine":         { "tex": "bio_plate", "tile": 0.1, "color": "#4a3d50", "rough": 0.5, "metal": 0 },
+  "brk_spike":          { "tex": "bio_plate", "tile": 0.2, "color": "#6a6656", "rough": 0.55, "metal": 0 },
+  "ferr_fringe":        { "color": "#e4c6bc", "rough": 0.4, "opacity": 0.8 }
 }

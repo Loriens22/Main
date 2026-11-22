@@ -3,6 +3,7 @@ import { GLTF, GLTFLoader } from 'three/addons/loaders/GLTFLoader.js';
 import { MeshoptDecoder } from 'three/addons/libs/meshopt_decoder.module.js';
 import * as SkeletonUtils from 'three/addons/utils/SkeletonUtils.js';
 import { materials } from './Materials';
+import { patchWorldMaterial } from './patch';
 
 export interface Marker {
   kind: string;
@@ -84,6 +85,27 @@ class AssetManager {
       if (colonly) {
         mesh.visible = false;
         mesh.userData.__collide = true;
+      } else if (src.name.startsWith('cr_') || src.name.startsWith('crt')) {
+        // a creature's own baked skin (colour, normal and roughness maps on its second UV set): kept, made organic
+        // (no metalness) and given the shared world shading (fog, water, baked occlusion)
+        const m = src as THREE.MeshStandardMaterial;
+        m.metalness = 0;
+        m.metalnessMap = null;
+        // the vertex colours carry baked occlusion, read by the world shading itself
+        m.vertexColors = false;
+        m.roughness = 1;
+        if (m.map) m.map.anisotropy = 8;
+        if (m.normalMap) m.normalScale.set(1.15, 1.15);
+        if (!(m as any).__patched) { patchWorldMaterial(m, { wear: 0, dirt: 0, dust: 0 }, { vao: hasAO }); (m as any).__patched = true; }
+        const tr = /^crt(\d\d)_/.exec(src.name);
+        if (tr) {
+          // translucent tissue (fins, membranes, glassy bodies): the baked maps seen through
+          m.transparent = true; m.opacity = Number(tr[1]) / 100; m.depthWrite = false; m.side = THREE.DoubleSide;
+          mesh.renderOrder = 10;
+        }
+        mesh.castShadow = flags.shadow !== 0 && !tr;
+        mesh.receiveShadow = true;
+        mesh.userData.__collide = false;
       } else {
         mesh.material = materials.get(src.name, hasAO);
         const transparent = (mesh.material as THREE.Material).transparent;
