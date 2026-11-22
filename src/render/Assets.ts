@@ -106,7 +106,7 @@ class AssetManager {
             const pm = new THREE.MeshPhysicalMaterial({
               name: m.name, map: m.map, normalMap: m.normalMap, normalScale: m.normalScale.clone(), roughnessMap: m.roughnessMap, roughness: m.roughness,
               metalness: 0, color: m.color.clone(), emissive: m.emissive.clone(), emissiveIntensity: m.emissiveIntensity, emissiveMap: m.emissiveMap,
-              aoMap: m.aoMap, iridescence: ex.iridescence, iridescenceIOR: 1.6, iridescenceThicknessRange: [180, 620], sheen: ex.sheen, sheenRoughness: 0.5,
+              aoMap: m.aoMap, iridescence: ex.iridescence, iridescenceIOR: 1.6, iridescenceThicknessMinimum: 180, iridescenceThicknessMaximum: 620, sheen: ex.sheen, sheenRoughness: 0.5,
               sheenColor: new THREE.Color(1, 1, 1),
             });
             (pm as any).__extras = true;

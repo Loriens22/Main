@@ -148,7 +148,7 @@ export class MaterialLibrary {
       if (spec.side === 'double') p.side = THREE.DoubleSide;
       if (spec.opacity !== undefined) { p.transparent = true; p.opacity = spec.opacity; p.depthWrite = false; p.side = THREE.DoubleSide; }
       const sm = spec.iridescence || spec.sheen
-        ? new THREE.MeshPhysicalMaterial({ ...p, iridescence: spec.iridescence ?? 0, iridescenceIOR: 1.6, iridescenceThicknessRange: [180, 620], sheen: spec.sheen ?? 0, sheenRoughness: 0.5, sheenColor: new THREE.Color(1, 1, 1) })
+        ? new THREE.MeshPhysicalMaterial({ ...p, iridescence: spec.iridescence ?? 0, iridescenceIOR: 1.6, iridescenceThicknessMinimum: 180, iridescenceThicknessMaximum: 620, sheen: spec.sheen ?? 0, sheenRoughness: 0.5, sheenColor: new THREE.Color(1, 1, 1) })
         : new THREE.MeshStandardMaterial(p);
       if (p.roughness! > 1) { sm.roughness = 1; }
       const surf = { ...(spec.tex ? SURFACE[spec.tex] : undefined) };
