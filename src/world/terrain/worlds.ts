@@ -2,7 +2,7 @@ import { clamp, fbm2, hash2, smoothstep, vnoise } from '../../core/math';
 import { earthMap, registerTerrainSource, TerrainSource } from './sources';
 import { LANDING_FIELD } from '../earth/EarthMap';
 import { BODY } from '../../space/Bodies';
-import { LAZARUS_SITE, MILLER_BASIN, MILLER_ROCKS, MILLER_SANDS, riftQuery } from './sites';
+import { LAZARUS_SITE, MARS_CAVE, MILLER_BASIN, MILLER_ROCKS, MILLER_SANDS, riftQuery } from './sites';
 
 /*
  * Procedural ground for the landing sites, in a local frame centred on the landing pad (y up, metres). Each is a
@@ -515,6 +515,24 @@ export function curvatureDrop(id: string, x: number, z: number) { return (x * x 
 const curved = (id: string, src: TerrainSource): TerrainSource => ({ ...src, height: (x, z) => src.height(x, z) - curvatureDrop(id, x, z) });
 
 /** level the ground under a Lazarus camp to the natural height at its centre (see sites.ts) */
+/** Mars: level ground round the cave opening, the ground kept above the chambers, the opening itself cut out */
+function marsCave(src: TerrainSource): TerrainSource {
+  const c = MARS_CAVE;
+  let h0: number | null = null;
+  return {
+    ...src,
+    height(x, z) {
+      let h = src.height(x, z);
+      if (h0 === null) h0 = src.height(c.x, c.z);
+      const d = Math.hypot(x - c.x, z - c.z);
+      if (d < c.keep + 60) h = Math.max(h, h0 - 5 - 30 * smoothstep(c.keep, c.keep + 60, d));
+      return h0 + (h - h0) * smoothstep(c.flat, c.flat + c.blend, d);
+    },
+    // a cell goes only when it lies wholly inside the opening (the ground's shader trims the rest exactly)
+    hole: (x, z, cell = 1) => Math.hypot(x - c.x, z - c.z) + cell * 0.72 < c.r,
+  };
+}
+
 function leveled(id: string, src: TerrainSource): TerrainSource {
   const s = LAZARUS_SITE[id];
   if (!s || !s.flat) return src;
@@ -531,7 +549,7 @@ function leveled(id: string, src: TerrainSource): TerrainSource {
 }
 
 registerTerrainSource('surface:moon', () => curved('moon', moon));
-registerTerrainSource('surface:mars', () => curved('mars', mars));
+registerTerrainSource('surface:mars', () => curved('mars', marsCave(mars)));
 registerTerrainSource('surface:miller', () => curved('miller', miller));
 registerTerrainSource('surface:mann', () => curved('mann', leveled('mann', mann)));
 registerTerrainSource('surface:edmunds', () => curved('edmunds', leveled('edmunds', edmunds)));

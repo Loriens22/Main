@@ -7,7 +7,8 @@ export interface TerrainSource {
   splat(x: number, z: number, out: Float32Array | number[]): void;
   /** auxiliary mask 0..1 (crop cover on Earth, wetness on Miller, crevasse depth on Mann...) */
   aux(x: number, z: number): number;
-  hole?(x: number, z: number): boolean;
+  /** an opening: the cell at (x, z), `cell` metres across, is left out of the mesh and the collision */
+  hole?(x: number, z: number, cell?: number): boolean;
 }
 
 const cache = new Map<string, TerrainSource>();

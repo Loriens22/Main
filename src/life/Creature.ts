@@ -369,7 +369,7 @@ export class Creature {
       rig.wave(this.phase, amp, { axis: m.wave.axis, waves: m.wave.waves, tail: m.wave.tail, curve: -this.turnRate * 1.2, headFix: m.wave.headFix });
     } else this.phase += dt * 2;
     if (m.fins) for (const fn of m.fins) {
-      const ph = this.phase * (fn.freq / Math.max(0.05, m.wave?.freq ?? fn.freq)) ;
+      const ph = this.phase * (fn.freq / Math.max(0.05, m.wave?.freq ?? fn.freq)) + (fn.ph0 ?? 0);
       const amp = fn.amp * (fn.scull ? 0.4 + 0.6 * Math.min(1, rel) : 1);
       rig.flap(fn.l, ph, amp, fn.axis, { lag: fn.lag, bias: fn.bias });
       rig.flap(fn.r, ph, amp, fn.axis, { lag: fn.lag, bias: fn.bias, mirror: true });
@@ -379,7 +379,7 @@ export class Creature {
     if (m.chains) for (const ch of m.chains) {
       for (const [prefix] of rig.chainsLike(ch.prefix)) {
         const seed = prefix.length * 1.7 + prefix.charCodeAt(prefix.length - 2);
-        rig.curl(prefix, ch.bend + (ch.jaw ?? 0) * this.jaw, this.phase * ch.freq + seed, ch.wave, ch.axis ?? 'right', 0.8, 'up', ch.side ?? 0);
+        rig.curl(prefix, ch.bend + (ch.jaw ?? 0) * this.jaw + (ch.disp ?? 0) * this.display, this.phase * ch.freq + seed, ch.wave, ch.axis ?? 'right', 0.8, 'up', ch.side ?? 0);
       }
     }
     if (m.jaw) {
@@ -388,6 +388,13 @@ export class Creature {
       rig.openJaw(this.jaw);
     }
     if (m.legs) this.walk(dt, H, m.legs);
+    // curled up: the legs drawn in under the body
+    if (m.tuck && this.hidden > 0.05) for (const [prefix] of rig.chainsLike(m.legs?.prefix ?? 'leg')) rig.curl(prefix, m.tuck * this.hidden, 0, 0, 'right', 0.8, 'up', 0);
+    // membranes opening and closing (display), breathing slowly
+    if (m.swell) {
+      const k = 1 + m.swell.amp * (this.display - 0.5) + 0.03 * Math.sin(H.time * m.swell.freq * Math.PI * 2 + this.phase);
+      for (const [, chain] of rig.chainsLike(m.swell.prefix)) chain[0].bone.scale.setScalar(k);
+    }
     if (this.skins.length) this.skin(H);
   }
 

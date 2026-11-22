@@ -142,7 +142,7 @@ function SettingsBody({ game, tab }: { game: Game; tab: string }) {
     );
   }
   if (tab === 'creative') {
-    const set = (k: keyof typeof cr, v: boolean) => { cr[k] = v; s.changed('creative'); re(); };
+    const set = (k: Exclude<keyof typeof cr, 'science'>, v: boolean) => { cr[k] = v; s.changed('creative'); re(); };
     return (
       <>
         <h3>Creative Mode assistance</h3>
@@ -153,6 +153,8 @@ function SettingsBody({ game, tab }: { game: Game; tab: string }) {
         <Row label="Damage protection" hint="Hazards (waves, impacts, vacuum) cannot disable you or the vehicles."><Toggle on={cr.damageProtection} onChange={(v) => set('damageProtection', v)} /></Row>
         <Row label="Fast travel" hint="Enables return-to-base and destination shortcuts."><Toggle on={cr.fastTravel} onChange={(v) => set('fastTravel', v)} /></Row>
         <Row label="Free camera" hint="Detach the camera and fly it freely (movement keys, run to speed up)."><Toggle on={cr.freeCamera} onChange={(v) => set('freeCamera', v)} /></Row>
+        <h3>Science presentation</h3>
+        <Row label="Speculative biospheres" hint="On: the speculative-evolution life of Mars and Jupiter (original hypothetical species, labelled in the field codex). Off: scientific mode, as known today (no life found there); takes effect on the next landing."><Toggle on={cr.science !== 'conservative'} onChange={(v) => { cr.science = v ? 'speculative' : 'conservative'; s.changed('creative'); re(); }} /></Row>
         <h3>Recovery</h3>
         <div class="btnrow">
           <button class="btn" onClick={() => bus.emit('creative:recover')}>Recover spacecraft</button>

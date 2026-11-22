@@ -30,6 +30,8 @@ import { GIANT } from './Giants';
 import { WaveRide } from './WaveRide';
 import { LazarusSites } from './Lazarus';
 import { MillerLife } from '../../life/worlds/MillerLife';
+import { MarsLife } from '../../life/worlds/MarsLife';
+import type { WorldLife } from '../../life/worlds/WorldLife';
 import { W } from '../../render/patch';
 import type { SiteFn } from '../../space/Descent';
 import type { RAPIER } from '../../physics/Physics';
@@ -189,8 +191,8 @@ export class SurfaceZone extends Zone {
   get giant() { return !!this.body.station; }
   /** the Lazarus scouts' camps on Miller's, Mann's and Edmunds' worlds */
   sites = new LazarusSites(this);
-  /** the life of Miller's planet (its animals, the submersible, the view under water) */
-  life: MillerLife | null = null;
+  /** the life of the world (Miller's planet, Mars): its animals, the crew's vehicles for it, the view under water */
+  life: WorldLife | null = null;
   /** the suit's helmet lamp (L on foot) */
   helmetOn = false;
   private helmet: THREE.SpotLight | null = null;
@@ -218,7 +220,7 @@ export class SurfaceZone extends Zone {
     this.view.showSun = false;
     this.lights = new LightPool(this.root, 8, 4);
     // the helmet lamp: always in the scene (switching it off zeroes it, so no shader is rebuilt)
-    this.helmet = new THREE.SpotLight(0xfff1dc, 0, 38, 0.42, 0.55, 2);
+    this.helmet = new THREE.SpotLight(0xfff1dc, 0, 45, 0.46, 0.6, 2);
     this.helmet.castShadow = false;
     this.root.add(this.helmet, this.helmet.target);
     progress?.(0.5, 'Ranger');
@@ -315,8 +317,9 @@ export class SurfaceZone extends Zone {
     }
     this.sky.setParams(p);
     this.sites.setWorld(id);
-    if (id === 'miller' && !this.life) this.life = new MillerLife(this);
-    else if (id !== 'miller' && this.life) { this.life.dispose(); this.life = null; }
+    if (this.life && this.life.planet !== id) { this.life.dispose(); this.life = null; }
+    if (!this.life && id === 'miller') this.life = new MillerLife(this);
+    if (!this.life && id === 'mars') this.life = new MarsLife(this);
     if (this.game.zone === this) this.game.renderer.setLook(this.look(), true);
     this.sky.setStars(0);
     this.sky.invalidate();
@@ -751,7 +754,8 @@ export class SurfaceZone extends Zone {
       bus.emit('sfx', { id: 'switch', ui: true });
     }
     const on = this.helmetOn && onFoot;
-    h.intensity = on ? 70 : 0;
+    // a caving headlamp (~1500 lm): about 500 cd on the beam's axis
+    h.intensity = on ? 500 : 0;
     if (!on) return;
     const cam = g.renderer.camera;
     cam.getWorldPosition(h.position);

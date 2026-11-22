@@ -32,6 +32,8 @@ export const BEHAVIOUR: Record<string, string> = {
   emerging: 'Emerging after the wave', patrol: 'Patrolling its range', investigate: 'Investigating the vehicle', drifting: 'Drifting with the flow',
   growth: 'Membranes opening in favourable conditions', dormant: 'Dormancy', swarm: 'Swarm flow and scattering', glide: 'Gliding on shear and updrafts',
   dive: 'Dive from a stable layer', grapple: 'Grapple and release',
+  retract: 'Drawing in its living tissue at a disturbance', crossing: 'Crossing open ground between refuges', curl: 'Curling into its shell',
+  stalking: 'Stalking prey under camouflage', leap: 'A coiled leap at prey', territorial: 'Territorial shove',
 };
 
 class CodexStore {

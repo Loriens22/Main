@@ -254,7 +254,7 @@ export class MillerLife extends WorldLife {
     put(this.vents[0], vents);
     for (let i = 1; i < this.vents.length; i++) put(this.vents[i], await inst('rift_vents'));
     if (this.disposed) return;
-    for (const o of this.outcrops) this.rasters.push(this.raster(o));
+    this.afterPhysics(() => { for (const o of this.outcrops) this.rasters.push(this.raster(o)); });
     // eggs: in each outcrop notch (shield-backs) and inside each builder's wall
     const eggAt = async (p: THREE.Vector3, s: number, first: boolean) => {
       const m = first ? clutch : await inst('egg_clutch');

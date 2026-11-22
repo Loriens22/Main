@@ -117,10 +117,14 @@ def paint(L, p, n, h, groove):
     return c, max(0.05, min(1.0, r))
 
 
-def _image(name, size, data=False):
+def _image(name, size, data=False, fill=None):
     img = bpy.data.images.new(name, size, size, alpha=False, float_buffer=False)
     if data:
         img.colorspace_settings.name = "Non-Color"
+    # texels outside the islands start as a plausible value, not black: thin rims of membranes get tiny islands
+    # whose filtered edges would otherwise show black
+    if fill is not None:
+        img.generated_color = fill
     return img
 
 
@@ -244,10 +248,17 @@ def bake(ob, looks, name, tex=2048, levels=2, extra=None, scale=1.0):
     sc.cycles.samples = 1
     sc.render.bake.use_selected_to_active = True
     size = max(ob.dimensions) / max(1e-6, max(ob.scale))
-    sc.render.bake.cage_extrusion = max(0.004, size * 0.012)
-    sc.render.bake.max_ray_distance = max(0.02, size * 0.05)
-    sc.render.bake.margin = 6
-    imgs = {"col": _image(f"{name}_col", tex), "nrm": _image(f"{name}_nrm", tex, True), "rgh": _image(f"{name}_rgh", tex, True)}
+    # the cage only has to clear the sculpted relief: a deep cage on thin membranes (wings, fins, lamellae) reaches
+    # through to the far side and bakes black specks
+    depth = max((lk.amp for lk in looks.values() if lk is not None), default=0.004)
+    ext = max(0.003, min(size * 0.012, depth * 4 + 0.002))
+    sc.render.bake.cage_extrusion = ext
+    sc.render.bake.max_ray_distance = max(0.012, min(size * 0.05, ext * 3))
+    sc.render.bake.margin = 12
+    cs = [lk.color for lk in looks.values() if lk is not None]
+    avg = sum(cs, Vector((0, 0, 0))) / max(1, len(cs))
+    imgs = {"col": _image(f"{name}_col", tex, fill=(avg.x, avg.y, avg.z, 1)), "nrm": _image(f"{name}_nrm", tex, True, (0.5, 0.5, 1.0, 1)),
+            "rgh": _image(f"{name}_rgh", tex, True, (0.4, 0.4, 0.4, 1))}
     # every material of the target gets a temporary image node (bake writes into the active one)
     temp = []
     for slot in ob.material_slots:

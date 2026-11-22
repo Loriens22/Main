@@ -51,3 +51,11 @@ export function riftQuery(x: number, z: number) {
   }
   return { d: best, t: bt, depth: bd, w: bw };
 }
+
+/**
+ * Mars: the opening of the cave system (game alternate-history extension), a collapse trench into voids under the
+ * crater plain. The model's origin is the centre of the opening on levelled ground; `r` the opening's radius (the
+ * terrain is cut away inside it), `flat` / `blend` the levelling round it, `keep` the radius over the chambers inside
+ * which the ground is kept from dipping toward them. Yaw: the trench's surface end faces the landing pad.
+ */
+export const MARS_CAVE = { x: -160, z: -150, r: 30, flat: 34, blend: 40, keep: 270, yaw: Math.atan2(-160 / Math.hypot(160, 150), -150 / Math.hypot(160, 150)) };

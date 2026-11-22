@@ -64,6 +64,14 @@ export class MaterialLibrary {
 
   has(name: string) { return name in SPECS; }
 
+  /** the optical extras of a library tissue (thin-film iridescence, sheen, emission) for a baked creature skin */
+  extras(name: string) {
+    const sp = (SPECS as Record<string, MatSpec>)[name];
+    if (!sp) return null;
+    const e = { iridescence: sp.iridescence ?? 0, sheen: sp.sheen ?? 0, emissive: (sp as any).emissive as string | undefined, emissiveIntensity: (sp as any).emissiveIntensity as number | undefined };
+    return e.iridescence || e.sheen || e.emissive ? e : null;
+  }
+
   private tex(set: string, map: 'albedo' | 'normal' | 'orm', tile: number): THREE.Texture {
     const baseKey = `${set}_${map}`;
     const key = `${baseKey}@${tile}`;

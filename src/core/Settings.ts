@@ -49,6 +49,9 @@ export interface CreativeSettings {
   damageProtection: boolean;
   fastTravel: boolean;
   freeCamera: boolean;
+  /** alien life: 'speculative' (the full speculative-evolution biospheres of Mars and Jupiter) or 'conservative'
+   *  (scientific mode: no complex life there, only the hypotheses in the codex) */
+  science: 'speculative' | 'conservative';
 }
 
 export interface AllSettings {
@@ -95,7 +98,7 @@ export class Settings {
       graphics: { preset, ...PRESETS[preset] },
       audio: { master: 0.8, music: 0.55, sfx: 0.8, dialogue: 0.9, ambience: 0.7, voice: false },
       controls: { mouseSensitivity: 1.0, gamepadSensitivity: 1.0, invertY: false, invertFlightPitch: false, touchScale: 1.0, bindings: structuredClone(DEFAULT_BINDINGS) },
-      creative: { unlimitedResources: false, autoRefuel: true, autoRepair: true, autopilotAssist: true, damageProtection: true, fastTravel: true, freeCamera: false },
+      creative: { unlimitedResources: false, autoRefuel: true, autoRepair: true, autopilotAssist: true, damageProtection: true, fastTravel: true, freeCamera: false, science: 'speculative' },
     };
     try {
       const raw = localStorage.getItem(KEY);

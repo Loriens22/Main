@@ -73,6 +73,8 @@ export abstract class WorldLife implements LifeWorld {
   private lastSight = new Map<string, number>();
   protected scanning: { c: Creature; t: number } | null = null;
   private stirs = [0, 1, 2, 3].map(() => new THREE.Vector4());
+  /** work that needs new colliders in the physics queries (they are indexed by the next step): run two steps on */
+  private afterSteps: { n: number; fn: () => void }[] = [];
 
   constructor(public zone: SurfaceZone, name: string) {
     this.root.name = name;
@@ -294,8 +296,13 @@ export abstract class WorldLife implements LifeWorld {
     });
   }
 
+  /** run once the physics world has stepped past the colliders just added (ray queries then see them) */
+  protected afterPhysics(fn: () => void) { this.afterSteps.push({ n: 2, fn }); }
+
   // ============================================================================================ update
   fixedUpdate(dt: number) {
+    for (const a of this.afterSteps) if (--a.n === 0) a.fn();
+    this.afterSteps = this.afterSteps.filter((a) => a.n > 0);
     if (!this.ready) return;
     const g = this.game, sub = this.sub;
     if (sub) {

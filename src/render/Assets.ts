@@ -96,9 +96,29 @@ class AssetManager {
         m.roughness = 1;
         if (m.map) m.map.anisotropy = 8;
         if (m.normalMap) m.normalScale.set(1.15, 1.15);
-        if (!(m as any).__patched) { patchWorldMaterial(m, { wear: 0, dirt: 0, dust: 0 }, { vao: hasAO }); (m as any).__patched = true; }
+        // the tissue's optical extras from the library (iridescent shells, velvety sheen, light organs)
+        // (keyed by the baked material's own name in the library: 'cr_<creature>', or 'crt_<creature>' for its translucent tissue)
+        const ex = materials.extras(src.name.replace(/^crt\d\d_/, 'crt_'));
+        if (ex && (m as any).__phys) mesh.material = (m as any).__phys;
+        else if (ex && !(m as any).__extras) {
+          if (ex.emissive) { m.emissive = new THREE.Color(ex.emissive); m.emissiveIntensity = ex.emissiveIntensity ?? 1; m.emissiveMap = m.map; }
+          if (ex.iridescence || ex.sheen) {
+            const pm = new THREE.MeshPhysicalMaterial({
+              name: m.name, map: m.map, normalMap: m.normalMap, normalScale: m.normalScale.clone(), roughnessMap: m.roughnessMap, roughness: m.roughness,
+              metalness: 0, color: m.color.clone(), emissive: m.emissive.clone(), emissiveIntensity: m.emissiveIntensity, emissiveMap: m.emissiveMap,
+              aoMap: m.aoMap, iridescence: ex.iridescence, iridescenceIOR: 1.6, iridescenceThicknessRange: [180, 620], sheen: ex.sheen, sheenRoughness: 0.5,
+              sheenColor: new THREE.Color(1, 1, 1),
+            });
+            (pm as any).__extras = true;
+            (m as any).__phys = pm;
+            mesh.material = pm;
+          } else (m as any).__extras = true;
+        }
+        const mm = mesh.material as THREE.MeshStandardMaterial;
+        if (!(mm as any).__patched) { patchWorldMaterial(mm, { wear: 0, dirt: 0, dust: 0 }, { vao: hasAO }); (mm as any).__patched = true; }
         const tr = /^crt(\d\d)_/.exec(src.name);
         if (tr) {
+          const m = mm;
           // translucent tissue (fins, membranes, glassy bodies): the baked maps seen through
           m.transparent = true; m.opacity = Number(tr[1]) / 100; m.depthWrite = false; m.side = THREE.DoubleSide;
           mesh.renderOrder = 10;

@@ -323,7 +323,8 @@ def sheet(P, root0, root1, tip0, tip1, mat, nu=8, nv=6, thick=0.02, camber=0.0, 
             off = camber * math.sin(math.pi * u) * (1 - v * 0.5) + curl * v * v
             if edge:
                 off += edge(u, v)
-            th = thick * (1 - v * 0.8) * math.sin(math.pi * min(max(u, 0.02), 0.98)) * 0.5
+            # tapering to the edges but never to nothing (coincident faces render as black specks)
+            th = thick * (0.25 + 0.75 * (1 - v * 0.8) * math.sin(math.pi * min(max(u, 0.02), 0.98))) * 0.5
             p = p + nrm * off
             top.append(tuple(p + nrm * th))
             bot.append(tuple(p - nrm * th))

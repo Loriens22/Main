@@ -141,9 +141,9 @@ export const ambush: Brain = (c, H) => {
     }
   }
   // rest under its overhang most of the time; patrol a little when hungry
-  if (hungry > 0.6 && c.state !== 'patrol') c.setState('patrol', 'patrolling the canyon edge');
-  if (c.state === 'patrol') { wander(c, den, c.length * 12, c.def.speed.cruise, H, 6); if (c.stateT > 60) c.setState('rest', 'holding still under an overhang'); return; }
-  c.setState('rest', 'holding still under an overhang');
+  if (hungry > 0.6 && c.state !== 'patrol') c.setState('patrol', 'patrolling its range');
+  if (c.state === 'patrol') { wander(c, den, c.length * 12, c.def.speed.cruise, H, 6); if (c.stateT > 60) c.setState('rest', 'holding still in cover'); return; }
+  c.setState('rest', 'holding still in cover');
   c.goal.copy(den); c.speedWant = c.pos.distanceTo(den) > c.length * 0.5 ? c.def.speed.cruise * 0.6 : 0;
 };
 
@@ -453,4 +453,121 @@ export const clever: Brain = (c, H) => {
   if (hashRand(c.id, Math.floor(H.time / 20)) > 0.85) H.observe(c, 'handling');
 };
 
-export const BRAINS: Record<string, Brain> = { grazer, ambush, trap, lure, pack, builder, defender, filter, apex, clever };
+
+// ============================================================================================= producer (sessile phototroph)
+/** opens its membranes slowly when there is light and water, closes into dormancy without; tears and closes at a touch */
+export const producer: Brain = (c, H) => {
+  c.speedWant = 0;
+  const lit = H.light(c.pos);
+  const touch = c.sensed.find((s) => s.d < c.length * 0.45 + s.c.size * 0.3 && s.c.vel.length() > 0.05);
+  if (touch) {
+    c.display = Math.max(0, c.display - 0.25);
+    c.setState('hide', 'membranes torn and closing at the touch');
+    H.observe(c, 'retract');
+    return;
+  }
+  // a slow response: seasons, compressed to minutes for the observer
+  const want = lit > 0.08 ? 1 : 0.15;
+  c.display += (want - c.display) * 0.004;
+  if (want > 0.5) { c.setState('feed', 'lamellae open to the light through the ice'); if (c.display > 0.6) H.observe(c, 'growth'); }
+  else { c.setState('rest', 'dormant: membranes contracted'); if (c.display < 0.35) H.observe(c, 'dormant'); }
+};
+
+// ============================================================================================= colony (anchored mineral colony)
+/** draws in its living tips at vibration, wash or a close disturbance; extends them again slowly */
+export const colony: Brain = (c, H) => {
+  c.speedWant = 0;
+  const near = c.sensed.find((s) => s.d < c.length * 0.9 + 1.5 && (s.c.noise > 0.3 || s.c.vel.length() > 0.6));
+  if (near) {
+    c.display = Math.min(1, c.display + 0.35);
+    c.setState('hide', 'living tips drawn in');
+    H.observe(c, 'retract');
+    return;
+  }
+  c.display = Math.max(0, c.display - 0.01);
+  c.setState('feed', 'tips extended into the seep flow');
+  if (c.stateT > 20) H.observe(c, 'feeding');
+};
+
+// ============================================================================================= hermit (brief surface excursions)
+/** at dawn or dusk it crosses the open ground from one crack to another; curls at vibration, strong sun or cold */
+export const hermit: Brain = (c, H) => {
+  const a = c.home, b = c.den ?? c.home;
+  const hz = H.hazard(c.pos);
+  const atA = c.pos.distanceTo(a) < 0.15, atB = c.pos.distanceTo(b) < 0.15;
+  const shaken = c.sensed.find((s) => s.c.kind !== 'prey' && s.d < 6 && (s.c.noise > 0.15 || s.c.vel.length() > 0.3));
+  if (shaken && !atA && !atB) {
+    // curled up where it is: a small rock
+    c.hidden = Math.min(1, c.hidden + 0.4); c.speedWant = 0;
+    c.setState('hide', 'curled up in its shell');
+    c.stress = Math.min(1, c.stress + 0.1);
+    H.observe(c, 'curl');
+    return;
+  }
+  if (c.state === 'hide' && c.stateT < 25 && c.stress > 0.2) { c.speedWant = 0; return; }
+  c.hidden = Math.max(0, c.hidden - 0.1);
+  if (hz.state >= 2 || c.stress > 0.7) {
+    // the hours are wrong or it has been frightened: back underground by the nearer crack
+    const r = c.pos.distanceTo(a) < c.pos.distanceTo(b) ? a : b;
+    c.goal.copy(r); c.speedWant = c.def.speed.burst;
+    c.setState('shelter', 'making for the nearest crack');
+    if (c.pos.distanceTo(r) < 0.15) { c.hidden = 1; c.speedWant = 0; c.setState('rest', 'underground'); }
+    return;
+  }
+  // a crossing: from whichever crack it is at to the other, slowly, stopping now and then
+  if (c.state !== 'patrol') { c.goal.copy(atA || c.pos.distanceTo(a) < c.pos.distanceTo(b) ? b : a); c.setState('patrol', 'crossing the open ground'); }
+  c.speedWant = hashRand(c.id, Math.floor(H.time / 4)) > 0.25 ? c.def.speed.cruise : 0;
+  if (c.pos.distanceTo(c.goal) < 0.15) { c.setState('rest', 'resting in the crack'); c.hidden = 1; }
+  H.observe(c, 'crossing');
+};
+
+// ============================================================================================= stalkcam (camouflaged cave ambusher)
+/** anchors camouflaged by prey paths; approaches only undetected; a coiled leap and a latch; disengages after a miss */
+export const stalkcam: Brain = (c, H) => {
+  const den = c.den ?? c.home;
+  if (c.state === 'attack') return attackStep(c, H);
+  if (c.state === 'recover' && c.stateT < 10 + c.failures * 5) { c.goal.copy(den); c.speedWant = c.def.speed.cruise; c.hidden = Math.max(0.4, c.hidden - 0.05); return; }
+  const hungry = 1 - c.energy;
+  // a light on it, or a vehicle's lamps: exposed
+  const lit = c.sensed.find((s) => s.c.light > 0.5 && s.d < 10);
+  const big = c.sensed.find((s) => (s.c.kind === 'player' || s.c.kind === 'sub') && s.conf > 0.3);
+  if (big) {
+    const mem = c.memory.get(big.c.id);
+    if (big.d < c.length * 0.7 && (c.bold > 0.5 || (mem?.val ?? 0) < -0.4)) {
+      // cornered or provoked: a hiss and a ground click, then a defensive lunge
+      c.hidden = 0; c.display = 1;
+      if (c.state === 'warn' && c.stateT > 2) { c.target = big.c; c.setState('attack', 'lunging'); c.speedWant = c.def.speed.burst; H.observe(c, 'leap'); return; }
+      if (c.state !== 'warn') { c.setState('warn', 'exposed: hissing, body raised'); H.observe(c, 'warning'); }
+      c.speedWant = 0;
+      return;
+    }
+    if (lit) {
+      // exposed in a beam: freeze, then slip back to its crevice
+      c.learn(big.c.id, -0.05, H);
+      c.goal.copy(den); c.speedWant = c.def.speed.cruise * 1.5; c.hidden = Math.max(0.3, c.hidden - 0.1);
+      c.setState('flee', 'slipping back into its crevice');
+      return;
+    }
+    // unseen: hold still and let it pass
+    c.hidden = Math.min(1, c.hidden + 0.1); c.speedWant = 0;
+    c.setState('hide', 'pressed to the rock, matching it');
+    if (big.d < 8) H.observe(c, 'camouflage');
+    return;
+  }
+  const p = hungry > 0.3 ? prey(c, 0.05, 0.5, c.length * 4) : null;
+  if (p) {
+    c.target = p.c;
+    c.hidden = Math.min(1, c.hidden + 0.05);
+    if (p.d < c.length * 1.2) { c.setState('attack', 'coiled leap'); c.speedWant = c.def.speed.burst; c.goal.copy(p.c.pos); H.observe(c, 'leap'); return; }
+    c.goal.copy(p.c.pos); c.speedWant = c.def.speed.cruise * 0.35;
+    c.setState('stalk', 'creeping closer under camouflage, toes repositioning');
+    H.observe(c, 'stalking');
+    return;
+  }
+  c.hidden = Math.min(1, c.hidden + 0.05);
+  if (hungry > 0.6) { c.setState('patrol', 'moving between crevices'); wander(c, den, c.length * 6, c.def.speed.cruise, H); return; }
+  c.setState('rest', 'anchored in its crevice, breathing slowly');
+  c.goal.copy(den); c.speedWant = c.pos.distanceTo(den) > 0.3 ? c.def.speed.cruise : 0;
+};
+
+export const BRAINS: Record<string, Brain> = { grazer, ambush, trap, lure, pack, builder, defender, filter, apex, clever, producer, colony, hermit, stalkcam };

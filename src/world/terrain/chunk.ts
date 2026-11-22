@@ -55,7 +55,7 @@ export function buildChunk(src: TerrainSource, r: ChunkRequest): ChunkData {
   const idx: number[] = [];
   for (let j = 0; j < n; j++) {
     for (let i = 0; i < n; i++) {
-      if (src.hole && src.hole(x0 + (i + 0.5) * step, z0 + (j + 0.5) * step)) continue;
+      if (src.hole && src.hole(x0 + (i + 0.5) * step, z0 + (j + 0.5) * step, step)) continue;
       const a = j * m + i, b = a + 1, c = a + m, d = c + 1;
       idx.push(a, c, b, b, c, d);
     }
