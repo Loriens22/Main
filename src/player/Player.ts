@@ -165,6 +165,31 @@ export class Player {
     this.collider.setHalfHeight(h / 2 - RADIUS);
   }
 
+  /**
+   * Out of the world: if we have been falling for a while with nothing at all below (a gap in some ground, a seam
+   * between a model and the terrain), we are put back where we last stood safely instead of falling for ever.
+   * A fall onto anything (a pit, a lower floor) is left alone.
+   */
+  private lastSafe = new THREE.Vector3();
+  private hasSafe = false;
+  private safeT = 0;
+  private guardFall(dt: number, floating: boolean) {
+    if (floating || !this.world) { this.safeT = 0; return; }
+    if (this.grounded) {
+      this.safeT += dt;
+      if (this.safeT > 0.6) { this.lastSafe.copy(this.pos); this.hasSafe = true; }
+      return;
+    }
+    this.safeT = 0;
+    if (!this.hasSafe || this.airTime < 0.9 || this.vel.dot(this.up) > -5) return;
+    const hit = this.world.raycast(this.pos, _v3.copy(this.up).negate(), 600, groups(0xffff, GROUP.WORLD | GROUP.VEHICLE | GROUP.DYNAMIC), this.collider ?? undefined);
+    if (hit) return;
+    this.teleport(this.lastSafe.clone().addScaledVector(this.up, 0.2), this.yaw);
+    this.vel.set(0, 0, 0);
+    this.airTime = 0;
+    bus.emit('player:rescued');
+  }
+
   /** Fixed-step locomotion. */
   step(dt: number, input: Input) {
     this.prevPos.copy(this.pos);
@@ -281,6 +306,8 @@ export class Player {
     const expected = desired.dot(this.up);
     if (!floating && this.grounded && Math.abs(dUp - expected) > 0.04 && Math.abs(dUp) < 0.6) this.stepSmooth -= dUp - Math.max(expected, -0.02);
     this.stepSmooth = damp(this.stepSmooth, 0, 12, dt);
+
+    this.guardFall(dt, floating);
 
     if (!floating && this.grounded) {
       const d = _v.copy(this.pos).sub(before);

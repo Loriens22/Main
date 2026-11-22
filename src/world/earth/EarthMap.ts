@@ -118,6 +118,8 @@ export class EarthMap {
         const k = smoothstep(half, half + 22, lat);
         const endFade = smoothstep(-140, -70, along);
         h = lerp(h, lerp(this.nasaY, h, k), endFade);
+        // inside the mouth the ground that remains lies just under the tunnel floor (no flicker where both meet)
+        if (along > 0.05 && lat < 6.6) h = this.nasaY - 0.1;
       } else {
         // guarantee solid rock above the whole underground complex (halls up to 30 m high)
         const cover = this.nasaY + Math.min(38, 13 + (along - 2.6) * 1.6);
@@ -142,7 +144,11 @@ export class EarthMap {
       const w = rd.w * 0.5 + 0.8;
       const d = rd.d;
       if (d < w + 16) {
-        const ditch = 0.5 * smoothstep(w, w + 2.2, d) * (1 - smoothstep(w + 2.6, w + 6.5, d));
+        // roadside ditches, but not across the forecourt in front of the facility portal (they fade out on the approach)
+        const fx = x - NASA.portal.x, fz = z - NASA.portal.z;
+        const fa = fx * NASA.dir.x + fz * NASA.dir.z, fl = Math.abs(-fx * NASA.dir.z + fz * NASA.dir.x);
+        const keep = fa > -90 && fa < 3 && fl < 40 ? 1 - smoothstep(-90, -60, fa) : 1;
+        const ditch = 0.5 * smoothstep(w, w + 2.2, d) * (1 - smoothstep(w + 2.6, w + 6.5, d)) * keep;
         h = lerp(rd.y - ditch, h, smoothstep(w + 1.0, w + 16, d));
       }
     }
@@ -151,12 +157,18 @@ export class EarthMap {
 
   siloY = 0;
 
-  /** True where the terrain surface must be removed (tunnel mouth, silo shaft). */
-  hole(x: number, z: number): boolean {
+  /**
+   * True where the terrain surface must be removed (tunnel mouth, silo shaft), for a mesh cell of size `cell` centred
+   * on (x, z). At the front of the tunnel mouth only cells lying wholly behind the portal face are removed: a cell
+   * judged by its centre alone used to cut up to 2.5 m into the forecourt, a pit across the entrance that the tunnel
+   * floor (which starts at the face) did not cover.
+   */
+  hole(x: number, z: number, cell = 0): boolean {
     const px = x - NASA.portal.x, pz = z - NASA.portal.z;
     const along = px * NASA.dir.x + pz * NASA.dir.z;
     const lat = Math.abs(-px * NASA.dir.z + pz * NASA.dir.x);
-    if (along > -1.5 && along < 10 && lat < 6.2) return true;
+    const hd = cell * 0.71;
+    if (along - hd > 0.3 && along < 10 && lat < 6.2) return true;
     if (Math.hypot(x - NASA.silo.x, z - NASA.silo.z) < 15.5) return true;
     return false;
   }

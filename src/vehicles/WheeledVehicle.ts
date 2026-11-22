@@ -1,5 +1,6 @@
 import * as THREE from 'three';
 import { Model } from '../render/Assets';
+import { bus } from '../core/events';
 import { materials } from '../render/Materials';
 import { GROUP, groups, PhysicsWorld, RAPIER } from '../physics/Physics';
 import { clamp, damp, moveToward } from '../core/math';
@@ -282,6 +283,7 @@ export class WheeledVehicle {
     const p = this.body.translation(), r = this.body.rotation(), lv = this.body.linvel();
     this.curPos.set(p.x, p.y, p.z);
     this.curQuat.set(r.x, r.y, r.z, r.w);
+    if (this.guardFall(dt, lv.y)) return;
     this.forward(_v);
     this.speed = _v.x * lv.x + _v.y * lv.y + _v.z * lv.z;
     const sp = Math.abs(this.speed);
@@ -349,6 +351,40 @@ export class WheeledVehicle {
         d.node.quaternion.copy(d.q0).multiply(_q.setFromAxisAngle(Y, d.angle * e));
       }
     }    this.updateGuards();
+  }
+
+  /**
+   * Out of the world: the same guard as for people. Where it last stood on its wheels it is put back if it falls
+   * for a while with nothing at all below it (a gap in some ground); a fall onto anything is left alone.
+   */
+  private safePos = new THREE.Vector3();
+  private safeQuat = new THREE.Quaternion();
+  private hasSafe = false;
+  private safeT = 0;
+  private fallT = 0;
+  private guardFall(dt: number, vy: number): boolean {
+    let contact = false;
+    for (let i = 0; i < this.wheels.length; i++) if (this.ctrl?.wheelIsInContact(i)) { contact = true; break; }
+    if (contact) {
+      this.fallT = 0;
+      this.safeT += dt;
+      if (this.safeT > 1.0) { this.safePos.copy(this.curPos); this.safeQuat.copy(this.curQuat); this.hasSafe = true; }
+      return false;
+    }
+    this.safeT = 0;
+    this.fallT += dt;
+    if (!this.hasSafe || this.fallT < 1.2 || vy > -6) return false;
+    const hit = this.phys.raycast(this.curPos, _v2.set(0, -1, 0), 600, groups(0xffff, GROUP.WORLD | GROUP.DYNAMIC));
+    if (hit) return false;
+    this.fallT = 0;
+    this.body.setTranslation(this.safePos.clone().add(_v2.set(0, 0.6, 0)), true);
+    this.body.setRotation(this.safeQuat, true);
+    this.body.setLinvel({ x: 0, y: 0, z: 0 }, true);
+    this.body.setAngvel({ x: 0, y: 0, z: 0 }, true);
+    this.curPos.copy(this.safePos); this.prevPos.copy(this.safePos);
+    this.curQuat.copy(this.safeQuat); this.prevQuat.copy(this.safeQuat);
+    bus.emit('vehicle:rescued', this);
+    return true;
   }
 
   /** World position of a marker (exit points, seats). */

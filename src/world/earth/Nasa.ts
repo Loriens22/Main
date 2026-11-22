@@ -47,6 +47,9 @@ const AREAS: [name: string, lat0: number, lat1: number, along0: number, along1: 
 
 /** Height of the first-stage base above the facility floor (the vehicle stands in the pit). */
 export const ROCKET_BASE = -40;
+/** silo shaft radius (blender/assets/nasa.py SHAFT_R) */
+const SHAFT_R = 15.0;
+
 /** The perimeter gate sits on the approach road this far in front of the portal (GPS arrival point). */
 export const GATE_ALONG = -112;
 
@@ -145,6 +148,8 @@ export class NasaSite {
   armsRetract = 0;
   armsTarget = 0;
   private silo: { node: THREE.Object3D; x0: number; travel: number }[] = [];
+  /** colliders of the shut silo cap (off while it is open or moving) */
+  private siloCols: RAPIER.Collider[] = [];
   private arms: { node: THREE.Object3D; q0: THREE.Quaternion; angle: number }[] = [];
   private orbiters: { pivot: THREE.Object3D; a0: number; a1: number; period: number; base: number }[] = [];
   private liftLoop = 0;
@@ -254,6 +259,22 @@ export class NasaSite {
       } else if (m.kind === 'board') {
         I.node(n, 0.9, () => String(u.label ?? 'Board'), () => bus.emit('nasa:board', u), { range: 3.2 });
       }
+    }
+    // the silo cap is ground to walk on while it is shut (camouflaged doors with earth on top), and the concrete
+    // collar round the opening is solid out to where the mountain top begins: without these, walking over the
+    // mountain top dropped people 70 m down the shaft, or through slivers between the collar and the terrain
+    for (const d of this.silo) {
+      const meshes: THREE.Mesh[] = [];
+      d.node.updateWorldMatrix(true, true);
+      d.node.traverse((o) => { if ((o as THREE.Mesh).isMesh) meshes.push(o as THREE.Mesh); });
+      this.siloCols.push(...z.phys.addTrimesh(meshes));
+    }
+    if (this.silo.length) {
+      const axis = this.silo[0].node.getWorldPosition(new THREE.Vector3());
+      const ring = new THREE.Mesh(new THREE.RingGeometry(SHAFT_R, 18.6, 72, 1).rotateX(-Math.PI / 2));
+      ring.position.set(axis.x, axis.y - 0.07, axis.z);
+      ring.updateMatrixWorld(true);
+      z.phys.addTrimesh([ring]);
     }
     const audio = g.services.audio;
     audio?.loop('pump', () => ({ level: this.lift?.moving && g.zone === z ? 0.5 : 0 }), () => this.lift?.node.getWorldPosition(_a) ?? null, { ref: 4 });
@@ -383,6 +404,8 @@ export class NasaSite {
       this.siloOpen = clamp(this.siloOpen + Math.sign(this.siloTarget - this.siloOpen) * dt / 14, 0, 1);
       const e = this.siloOpen * this.siloOpen * (3 - 2 * this.siloOpen);
       for (const d of this.silo) d.node.position.x = d.x0 + d.travel * e;
+      const shut = this.siloOpen < 0.01;
+      for (const c of this.siloCols) if (c.isEnabled() !== shut) c.setEnabled(shut);
     }
     this.armsRetract = damp(this.armsRetract, this.armsTarget, 1.2, dt);
     for (const a of this.arms) a.node.quaternion.copy(a.q0).multiply(_q.setFromAxisAngle(THREE.Object3D.DEFAULT_UP, a.angle * this.armsRetract));

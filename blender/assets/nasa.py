@@ -88,8 +88,9 @@ def complex_glb():
         X.mesh(wv, [(0, 1, 2, 3), (7, 6, 5, 4), (3, 2, 6, 7), (1, 5, 6, 2), (0, 3, 7, 4)], mat="concrete_panels", bevel=0)
         C.mesh(wv, [(0, 1, 2, 3), (7, 6, 5, 4), (3, 2, 6, 7), (1, 5, 6, 2), (0, 3, 7, 4)], mat="concrete", bevel=0)
     X.mesh([(-10, 1.2, 16.9), (10, 1.2, 16.9), (10, 15.5, 37), (-10, 15.5, 37)], [(0, 1, 2, 3)], mat="rock", bevel=0)
-    C.box((26, 1.6, 17), at=(-8.6 - 4.4, 0.6, 8.5), mat="concrete", bevel=0)
-    C.box((26, 1.6, 17), at=(8.6 + 4.4, 0.6, 8.5), mat="concrete", bevel=0)
+    # solid headwall either side of the opening (from the tunnel wall out to the headwall's edge), open in between
+    for s_ in (-1, 1):
+        C.box((13 - TUN_W, 1.6, 17), at=(s_ * (13 + TUN_W) / 2, 0.6, 8.5), mat="concrete", bevel=0)
     C.box((8.4, 1.6, 10.8), at=(0, 0.6, 11.6), mat="concrete", bevel=0)
     # stencilled marking, a faded number: minimal identification
     X.text("FACILITY 7", size=0.55, at=(0, -0.81, 7.4), rot=(90, 0, 0), mat="concrete_dark", depth=0.004)

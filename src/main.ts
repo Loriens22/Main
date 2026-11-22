@@ -75,6 +75,9 @@ async function boot() {
   game.services.audio = audio;
   game.systems.push(audio);
   await game.init();
+  // the out-of-the-world guards (Player, WheeledVehicle) say what happened
+  bus.on('player:rescued', () => ui.toast('Back on solid ground', 'info', 2.5));
+  bus.on('vehicle:rescued', () => ui.toast('Vehicle put back on solid ground', 'info', 2.5));
   const params = new URLSearchParams(location.search);
   const preset = params.get('preset');
   if (preset && preset in PRESETS) game.settings.applyPreset(preset as PresetName);

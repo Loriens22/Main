@@ -41,6 +41,6 @@ registerTerrainSource('earth', () => {
     height: (x, z) => m.height(x, z),
     splat: (x, z, out) => m.splat(x, z, out),
     aux: (x, z) => m.cornDensity(x, z),
-    hole: (x, z) => m.hole(x, z),
+    hole: (x, z, cell) => m.hole(x, z, cell),
   };
 });
