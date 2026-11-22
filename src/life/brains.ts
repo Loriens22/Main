@@ -174,4 +174,283 @@ function attackStep(c: Creature, H: Habitat) {
   }
 }
 
-export const BRAINS: Record<string, Brain> = { grazer, ambush };
+
+// ============================================================================================= trap (buried suction feeder)
+/** lies buried; a short-range suction strike at small things that move over it; startled by large ones close by */
+export const trap: Brain = (c, H) => {
+  const hz = H.hazard(c.pos);
+  c.speedWant = 0;
+  if (hz.state >= 2 || hz.cue > 0.5) { c.hidden = 1; c.setState('hide', 'burrowed deep against the current'); H.observe(c, 'shelter'); return; }
+  if (c.state === 'attack') {
+    if (c.stateT > 0.6) {
+      const t = c.target;
+      if (t && t.pos.distanceTo(c.pos) < c.def.threat.reach * c.scale + t.size * 0.3) {
+        if (t.kind === 'prey' || t.kind === 'creature') { c.energy = Math.min(1, c.energy + H.feed(c, t)); H.observe(c, 'kill'); }
+        else H.strike(c, t, c.def.threat.harm);
+      } else { c.failures++; c.energy = Math.max(0, c.energy - 0.02); H.observe(c, 'miss'); }
+      c.target = null;
+      c.setState('recover', 'resetting, sand settling');
+    }
+    return;
+  }
+  if (c.state === 'recover' && c.stateT < 6) return;
+  c.hidden = Math.max(0.85, c.hidden - 0.05);
+  for (const s of c.sensed) {
+    const reach = c.def.threat.reach * c.scale + s.c.size * 0.3;
+    if (s.d > reach * 1.3) continue;
+    const moving = s.c.vel.length() > 0.08;
+    // too big to take: only a startled snap when something steps right on it
+    if (moving && (s.c.size < c.length * 0.5 || s.d < reach * 0.6)) {
+      c.target = s.c; c.setState('attack', 'suction strike'); c.jaw = 0; H.observe(c, 'strike');
+      return;
+    }
+  }
+  c.setState('hide', 'buried, the mouth rim just under the sand');
+  if (c.stateT > 10) H.observe(c, 'buried');
+};
+
+// ============================================================================================= lure (cave light predator)
+/** holds by a cave wall with its lure lit; strikes at small prey that comes to the light; darkens and retreats when alarmed */
+export const lure: Brain = (c, H) => {
+  const den = c.den ?? c.home;
+  const hz = H.hazard(c.pos);
+  if (hz.state >= 2 && hz.cue > 0.2) { c.display = Math.max(0, c.display - 0.3); c.goal.copy(den); c.speedWant = c.def.speed.cruise * 2; c.setState('shelter', 'withdrawn into the recess, lure dark'); return; }
+  const t = threat(c, 2.5);
+  if (t && t.d < 6) { c.display = Math.max(0, c.display - 0.4); flee(c, t.c.pos, c.def.speed.burst * 0.6); c.goal.lerp(den, 0.5); c.setState('flee', 'darkened and slipping into a crevice'); c.stress = Math.min(1, c.stress + 0.3); return; }
+  if (c.state === 'attack') return attackStep(c, H);
+  const p = c.energy < 0.85 ? prey(c, 0, 0.3, 1.5) : null;
+  if (p && p.d < 0.6) { c.target = p.c; c.setState('attack', 'snap'); c.speedWant = c.def.speed.burst; H.observe(c, 'strike'); return; }
+  // hover by the wall, lure glowing (a metabolic cost: dimmer when well fed or nothing comes)
+  c.display = Math.min(1, c.display + 0.08) * (c.energy > 0.9 ? 0.5 : 1);
+  c.energy = Math.max(0, c.energy - 0.0004);
+  c.setState('idle', 'hovering by the rock, lure lit');
+  wander(c, den, 1.5, c.def.speed.cruise * 0.4, H, 0.6);
+  if (c.stateT > 8) H.observe(c, 'lure');
+};
+
+// ============================================================================================= pack (acoustic social hunters)
+/** loose group travel with spacing; when one member senses a school, others take flanking positions; one strikes */
+export const pack: Brain = (c, H) => {
+  const mates = H.group?.(c) ?? [];
+  if (seekShelter(c, H)) { c.speedWant = c.def.speed.cruise * 1.4; H.observe(c, 'calls'); return; }
+  if (c.state === 'attack') return attackStep(c, H);
+  // a school sensed by me or any mate within calling range
+  let school: Contact | null = null;
+  for (const m of [c, ...mates]) {
+    const p = m.sensed.find((s) => s.c.kind === 'prey' && s.d < 60);
+    if (p) { school = p.c; break; }
+  }
+  const hungry = 1 - c.energy;
+  if (school && hungry > 0.3 && c.fatigue < 0.6) {
+    const idx = mates.length ? [c, ...mates].sort((a, b) => a.id.localeCompare(b.id)).indexOf(c) : 0;
+    const d = school.pos.distanceTo(c.pos);
+    // the first in order strikes once the others are spread round the school
+    const ready = mates.filter((m) => m.state === 'stalk' && m.pos.distanceTo(school!.pos) < 18).length >= Math.min(2, mates.length);
+    if (idx === 0 && ready && d < 14) { c.target = school; c.setState('attack', 'driving into the school'); c.speedWant = c.def.speed.burst; H.observe(c, 'flank'); return; }
+    if (idx !== 0 && c.stateT > 3 && mates.some((m) => m.state === 'attack') && d < 10) { c.target = school; c.setState('attack', 'taking scattered fish'); c.speedWant = c.def.speed.burst * 0.8; return; }
+    const ang = (idx / Math.max(1, mates.length + 1)) * Math.PI * 2;
+    c.goal.copy(school.pos).add(_v.set(Math.cos(ang) * 12, (idx % 2 ? 3 : -3), Math.sin(ang) * 12));
+    c.speedWant = c.def.speed.cruise * 1.3;
+    c.setState('stalk', 'flanking a school, calls quickening');
+    H.observe(c, 'calls');
+    return;
+  }
+  // a vehicle: investigate in a loose ring, then lose interest
+  const veh = c.sensed.find((s) => s.c.kind === 'sub' && s.conf > 0.3);
+  if (veh && c.stress < 0.6 && (c.memory.get(veh.c.id)?.val ?? 0) > -0.4 && c.stateT < 40) {
+    _w.copy(c.pos).sub(veh.c.pos).setY(0).normalize();
+    c.goal.copy(veh.c.pos).addScaledVector(_w, 9).add(_v.set(0, 2, 0));
+    c.speedWant = c.def.speed.cruise;
+    c.setState('investigate', 'circling the submersible, clicking');
+    H.observe(c, 'investigate');
+    return;
+  }
+  // travel together: follow the group's centre along the canyon with some spacing
+  if (mates.length) {
+    const ctr = _v.set(0, 0, 0);
+    for (const m of mates) ctr.add(m.pos);
+    ctr.divideScalar(mates.length);
+    const lead = [c, ...mates].sort((a, b) => a.id.localeCompare(b.id))[0];
+    if (lead === c) wander(c, c.home, 120, c.def.speed.cruise, H, 30);
+    else {
+      c.goal.copy(lead.goal).addScaledVector(_w.copy(c.pos).sub(ctr).setY(0).normalize(), 6);
+      // keep apart from the nearest mate
+      for (const m of mates) if (m.pos.distanceTo(c.pos) < 4) c.goal.addScaledVector(_w.copy(c.pos).sub(m.pos).normalize(), 4);
+      c.speedWant = c.def.speed.cruise * (c.pos.distanceTo(ctr) > 20 ? 1.4 : 1);
+    }
+  } else wander(c, c.home, 120, c.def.speed.cruise, H, 30);
+  c.setState('patrol', 'travelling the channel in a loose group');
+};
+
+// ============================================================================================= builder (stone-wall nest)
+/** forages near the nest, fetches stones and sets them in the wall, repairs it after the wave, defends the eggs */
+export const builder: Brain = (c, H) => {
+  const nest = H.nest?.(c);
+  const den = c.den ?? c.home;
+  if (seekShelter(c, H)) return;
+  // an intruder close to the eggs: posture, taps; a grab only within reach
+  const intr = c.sensed.find((s) => (s.c.kind === 'player' || s.c.kind === 'sub' || (s.c.kind === 'creature' && s.c.size > c.length)) && s.c.pos.distanceTo(den) < c.length * 2.2);
+  if (intr) {
+    c.goal.copy(den).lerp(intr.c.pos, 0.3); c.speedWant = c.def.speed.cruise;
+    c.display = 1;
+    if (intr.d < c.def.threat.reach * c.scale + intr.c.size * 0.4 && c.state === 'warn' && c.stateT > 3) { H.strike(c, intr.c, c.def.threat.harm); c.setState('recover', 'grabbed, then backed off'); return; }
+    if (c.state !== 'warn') c.setState('warn', 'front raised over the nest, tapping');
+    H.observe(c, 'guarding');
+    return;
+  }
+  c.display = Math.max(0, c.display - 0.2);
+  if (nest && nest.stones < nest.max && c.energy > 0.3) {
+    if (!c.carrying) {
+      c.goal.copy(nest.pile); c.speedWant = c.def.speed.cruise;
+      c.setState('forage', 'choosing a stone');
+      if (c.pos.distanceTo(nest.pile) < c.length * 0.6) { c.carrying = true; c.setState('forage', 'turning a stone, testing it'); }
+    } else {
+      c.goal.copy(den); c.speedWant = c.def.speed.cruise * 0.8;
+      c.setState('nest', 'carrying a stone to the wall');
+      if (c.pos.distanceTo(den) < c.length * 0.7) { H.placeStone?.(c); c.carrying = false; H.observe(c, nest.stones > nest.max * 0.6 ? 'repair' : 'building'); }
+    }
+    return;
+  }
+  // the wall is whole: graze the mats round the vents, never far
+  if (c.state !== 'feed' || c.stateT > 15) { c.setState('feed', 'grazing the microbial mat'); c.goal.set(0, 0, 0); }
+  wander(c, den, c.length * 4, c.def.speed.cruise * 0.6, H);
+  c.energy = Math.min(1, c.energy + 0.002);
+};
+
+// ============================================================================================= defender (armoured shield-back)
+/** stays by its eggs; turns its shield to an intruder, braces and knocks; shoves only if the intruder stays close */
+export const defender: Brain = (c, H) => {
+  const den = c.den ?? c.home;
+  const hz = H.hazard(c.pos);
+  if (hz.state >= 2 || hz.cue > 0.4) { c.goal.copy(den); c.speedWant = c.pos.distanceTo(den) > 0.5 ? c.def.speed.cruise * 2 : 0; c.setState('shelter', 'lowered into the notch, gripping the rock'); H.observe(c, 'shelter'); return; }
+  const intr = c.sensed.find((s) => (s.c.kind === 'player' || s.c.kind === 'creature') && s.c.pos.distanceTo(den) < 6 && s.c.size > 0.5);
+  if (intr) {
+    // face it, between it and the nest
+    c.goal.copy(den).lerp(intr.c.pos, 0.35);
+    c.speedWant = c.def.speed.cruise;
+    c.display = 1;
+    const reach = c.def.threat.reach * c.scale + intr.c.size * 0.4;
+    if (c.state === 'warn' && c.stateT > 4 && intr.d < reach) { c.target = intr.c; c.setState('attack', 'shoving forward'); c.speedWant = c.def.speed.burst; return; }
+    if (c.state === 'attack') {
+      if (intr.d < reach * 0.8) { H.strike(c, intr.c, c.def.threat.harm); c.setState('recover', 'backing to the nest'); }
+      else if (c.stateT > 1.5) c.setState('recover', 'stopped short');
+      return;
+    }
+    if (c.state !== 'warn') { c.setState('warn', 'shield raised, knocking on the rock'); H.observe(c, 'warning'); }
+    return;
+  }
+  c.display = Math.max(0, c.display - 0.2);
+  if (c.state === 'recover' && c.stateT < 6) { c.goal.copy(den); c.speedWant = c.def.speed.cruise; return; }
+  c.setState('feed', 'grazing the rock film near its eggs');
+  wander(c, den, 4, c.def.speed.cruise * 0.5, H);
+  if (c.stateT > 12) H.observe(c, 'guarding');
+};
+
+// ============================================================================================= filter feeder
+/** slow passes through the plankton, mouth open; wide turns; steers round vehicles; deep water before the wave */
+export const filter: Brain = (c, H) => {
+  if (seekShelter(c, H, 2)) { c.speedWant = c.def.speed.cruise; return; }
+  const bloom = H.bloom?.(c) ?? null;
+  const veh = c.sensed.find((s) => s.c.kind === 'sub' && s.d < c.length * 1.2);
+  if (veh) {
+    // drift aside: a slow course change away from the hull
+    _w.copy(c.pos).sub(veh.c.pos).normalize();
+    c.goal.copy(c.pos).addScaledVector(_w, c.length * 2).addScaledVector(c.fwd, c.length);
+    c.speedWant = c.def.speed.cruise;
+    c.setState('investigate', 'easing away from the vehicle');
+    return;
+  }
+  if (bloom && c.energy < 0.95) {
+    const d = bloom.distanceTo(c.pos);
+    if (d < 40) {
+      // feeding passes back and forth through the bloom
+      if (c.pos.distanceTo(c.goal) < c.length || c.state !== 'feed') {
+        const a = hashRand(c.id, Math.floor(H.time / 30)) * Math.PI * 2;
+        c.goal.copy(bloom).add(_v.set(Math.cos(a) * 30, (hashRand(c.id, Math.floor(H.time / 30) + 1) - 0.5) * 8, Math.sin(a) * 30));
+      }
+      c.speedWant = c.def.speed.cruise * 0.8;
+      c.setState('feed', 'mouth open, filtering the bloom');
+      c.energy = Math.min(1, c.energy + 0.0015);
+      H.observe(c, 'feeding');
+      return;
+    }
+    c.goal.copy(bloom); c.speedWant = c.def.speed.cruise;
+    c.setState('patrol', 'travelling toward a plankton bloom');
+    return;
+  }
+  wander(c, c.home, 200, c.def.speed.cruise, H, 40);
+  c.setState('patrol', 'cruising the basin');
+};
+
+// ============================================================================================= apex
+/** long patrols over a large range; inspects vehicles from below; attacks only hungry with a good target or provoked */
+export const apex: Brain = (c, H) => {
+  if (c.state === 'attack') return attackStep(c, H);
+  if (seekShelter(c, H, 3)) return;
+  const hungry = 1 - c.energy;
+  const p = hungry > 0.55 && c.fatigue < 0.4 && c.injury < 0.5 ? prey(c, 0.12, 0.6, c.length * 3) : null;
+  if (p) {
+    c.target = p.c;
+    if (p.d < c.length * 0.9) { c.setState('attack', 'a short burst at prey'); c.speedWant = c.def.speed.burst; H.observe(c, 'strike'); return; }
+    c.goal.copy(p.c.pos); c.speedWant = c.def.speed.cruise; c.setState('stalk', 'turning toward prey');
+    return;
+  }
+  const veh = c.sensed.find((s) => s.c.kind === 'sub' && s.conf > 0.3);
+  if (veh) {
+    const mem = c.memory.get(veh.c.id);
+    // provoked (rammed, chased): threat display, then a single charge if it keeps coming
+    if (mem && mem.val < -0.5 && veh.d < c.length * 1.2) {
+      if (c.state === 'warn' && c.stateT > 5) { c.target = veh.c; c.setState('attack', 'charging the hull'); c.speedWant = c.def.speed.burst * 0.8; return; }
+      c.goal.copy(veh.c.pos); c.speedWant = c.def.speed.cruise * 0.6;
+      if (c.state !== 'warn') { c.setState('warn', 'jaws parted, crown raised toward the vehicle'); H.observe(c, 'warning'); }
+      return;
+    }
+    if (c.stateT < 50 && veh.d > c.length * 0.8) {
+      // a slow pass below, then away
+      c.goal.copy(veh.c.pos).add(_v.set(0, -c.length * 0.8, 0)).addScaledVector(c.fwd, c.length * 2);
+      c.speedWant = c.def.speed.cruise;
+      c.setState('investigate', 'passing below the vehicle');
+      H.observe(c, 'investigate');
+      return;
+    }
+  }
+  wander(c, c.home, 400, c.def.speed.cruise, H, 60);
+  c.setState('patrol', 'patrolling the deep basin');
+  if (c.stateT > 30) H.observe(c, 'patrol');
+};
+
+// ============================================================================================= clever (camouflaging crawler)
+/** camouflaged by its den; watches; explores nearby; warning display then a grapple only when cornered near its eggs */
+export const clever: Brain = (c, H) => {
+  const den = c.den ?? c.home;
+  const hz = H.hazard(c.pos);
+  if (hz.state >= 2 || hz.cue > 0.45) { c.goal.copy(den); c.speedWant = c.def.speed.cruise * 2; c.display = 0; c.hidden = 1; c.setState('hide', 'arms anchored in a crevice'); H.observe(c, 'shelter'); return; }
+  const near = c.sensed.find((s) => s.c.kind === 'player' || s.c.kind === 'sub');
+  if (near) {
+    const mem = c.memory.get(near.c.id);
+    const cornered = near.c.pos.distanceTo(den) < 3 && near.d < 2.2;
+    if (cornered || (mem && mem.val < -0.4 && near.d < 2.5)) {
+      c.display = 1; c.hidden = 0;
+      if (c.state === 'warn' && c.stateT > 2.5 && near.d < c.def.threat.reach * c.scale + near.c.size * 0.4) {
+        H.strike(c, near.c, c.def.threat.harm); H.observe(c, 'grapple'); c.learn(near.c.id, -0.2, H); c.setState('recover', 'released and backed into the den');
+        return;
+      }
+      if (c.state !== 'warn') { c.setState('warn', 'high-contrast pattern rippling, arms spread'); H.observe(c, 'warning'); }
+      c.speedWant = 0;
+      return;
+    }
+    // otherwise: hold still, match the rock, watch
+    c.display = 0; c.hidden = 1; c.speedWant = 0;
+    c.setState('hide', 'matching the rock, watching');
+    if (near.d < 8) H.observe(c, 'camouflage');
+    return;
+  }
+  c.hidden = Math.max(0.3, c.hidden - 0.05);
+  if (c.state === 'recover' && c.stateT < 10) { c.goal.copy(den); c.speedWant = c.def.speed.cruise; return; }
+  // explore round the den, now and then handling something it finds
+  c.setState('forage', 'exploring the crevices');
+  wander(c, den, 5, c.def.speed.cruise, H);
+  if (hashRand(c.id, Math.floor(H.time / 20)) > 0.85) H.observe(c, 'handling');
+};
+
+export const BRAINS: Record<string, Brain> = { grazer, ambush, trap, lure, pack, builder, defender, filter, apex, clever };

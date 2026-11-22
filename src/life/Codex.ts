@@ -66,7 +66,7 @@ class CodexStore {
     r.sightings++;
     if (!r.individuals.includes(individual)) r.individuals.push(individual);
     r.maxSize = Math.max(r.maxSize, size);
-    this.raise(id, Math.max(1, Math.min(2, r.level + 1)));
+    this.raise(id, Math.max(r.level, 2));
   }
 
   /** a completed scan at close range */

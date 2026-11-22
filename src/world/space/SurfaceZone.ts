@@ -8,7 +8,6 @@ import { SystemView } from '../../render/SystemView';
 import type { Soundscape } from '../../audio/Audio';
 import { Terrain, TerrainLayers } from '../terrain/Terrain';
 import '../terrain/worlds';
-import { MILLER_SEA_FLOOR } from '../terrain/worlds';
 import { BODY, BodyDef, surfaceGravity } from '../../space/Bodies';
 import { pole, state, surfacePoint } from '../../space/Ephemeris';
 import { add, cross, dot, scale, sub, unit, V3 } from '../../space/Kepler';
@@ -30,11 +29,13 @@ import { Building } from '../Building';
 import { GIANT } from './Giants';
 import { WaveRide } from './WaveRide';
 import { LazarusSites } from './Lazarus';
+import { MillerLife } from '../../life/worlds/MillerLife';
+import { W } from '../../render/patch';
 import type { SiteFn } from '../../space/Descent';
 import type { RAPIER } from '../../physics/Physics';
 
 const _v = new THREE.Vector3(), _w = new THREE.Vector3(), _q = new THREE.Quaternion(), _m = new THREE.Matrix4(), _x = new THREE.Vector3(), _z = new THREE.Vector3();
-const _up = new THREE.Vector3(0, 1, 0), _qi = new THREE.Quaternion();
+const _up = new THREE.Vector3(0, 1, 0), _qi = new THREE.Quaternion(), _sunZ = new THREE.Vector3();
 
 interface WorldLook { layers: TerrainLayers; ground: [number, number, number]; sea?: boolean }
 
@@ -188,6 +189,8 @@ export class SurfaceZone extends Zone {
   get giant() { return !!this.body.station; }
   /** the Lazarus scouts' camps on Miller's, Mann's and Edmunds' worlds */
   sites = new LazarusSites(this);
+  /** the life of Miller's planet (its animals, the submersible, the view under water) */
+  life: MillerLife | null = null;
 
   env: FlightEnv = {
     gravity: (_p, out) => out.set(0, -surfaceGravity(this.body), 0),
@@ -210,7 +213,7 @@ export class SurfaceZone extends Zone {
     this.stars = new StarField();
     this.view = new SystemView('sol');
     this.view.showSun = false;
-    this.lights = new LightPool(this.root, 8, 3);
+    this.lights = new LightPool(this.root, 8, 4);
     progress?.(0.5, 'Ranger');
     const m = await assets.load('ranger');
     this.ranger = new Spacecraft('ranger1', RANGER_SPEC, m, this.phys, this.lights);
@@ -305,6 +308,8 @@ export class SurfaceZone extends Zone {
     }
     this.sky.setParams(p);
     this.sites.setWorld(id);
+    if (id === 'miller' && !this.life) this.life = new MillerLife(this);
+    else if (id !== 'miller' && this.life) { this.life.dispose(); this.life = null; }
     if (this.game.zone === this) this.game.renderer.setLook(this.look(), true);
     this.sky.setStars(0);
     this.sky.invalidate();
@@ -370,6 +375,8 @@ export class SurfaceZone extends Zone {
     g.renderer.preRender = g.renderer.preRender.filter((f) => f !== this.place);
     bus.off('flight:autopilot', this.onAutopilotKey);
     bus.off('flight:leave', this.onLeaveSeat);
+    // water optics belong to this world only
+    W.uWater.value.x = 0;
   }
 
   /** eye adaptation to the light on the ground (Venus and Titan: what is left under their haze) */
@@ -378,7 +385,7 @@ export class SurfaceZone extends Zone {
     return exposureFor(irradianceAt(this.body.id, this.orbit.jd) * k, 0.9);
   }
 
-  private look() { return { exposure: this.exposure(), saturation: 1.08, contrast: 1.18, bloom: 0.55, aoIntensity: 1.6, aoRadius: 1.4 }; }
+  private look() { const uw = this.life?.underwater ? 1 : 0; return { exposure: this.exposure() * (this.life?.exposureGain ?? 1), saturation: 1.08 + 0.2 * uw, contrast: 1.18 + 0.1 * uw, bloom: 0.55, aoIntensity: 1.6, aoRadius: 1.4 }; }
 
   // ------------------------------------------------------------------------------------------- frames
   /** site and its east/up/south axes in the system frame, for the program's (or the mission's) time */
@@ -421,7 +428,8 @@ export class SurfaceZone extends Zone {
 
   private updateSun() {
     // light from the system origin (the Sun, or Gargantua's disk)
-    const sunZ = this.toZone(toLight(this.siteSys, this.body.system), _v).normalize();
+    // (its own vector: the shared temporaries hold the camera position for the rest of the frame)
+    const sunZ = this.toZone(toLight(this.siteSys, this.body.system), _sunZ).normalize();
     this.sky.setSunDirection(sunZ);
     this.sky.params.sunE = 20 * irradianceAt(this.body.id, this.orbit.jd);
     if (this.sea) this.sea.setSun(sunZ, this.sky.sunColor);
@@ -505,6 +513,7 @@ export class SurfaceZone extends Zone {
     }
     this.ranger.fixedUpdate(dt, this.env);
     this.sites.fixedUpdate(dt);
+    this.life?.fixedUpdate(dt);
     const p = g.player.pos;
     this.terrain?.ensureCollision(p.x, p.z, 26);
     if (this.giant && p.y < -120 && !(g.services.flight as Flight).craft) {
@@ -562,8 +571,8 @@ export class SurfaceZone extends Zone {
         this.ride = null;
       }
     }
-    // a crew member outside, caught in the water
-    if (!flight.craft) {
+    // a crew member outside, caught in the water (inside the submersible's sphere the sub takes the wave)
+    if (!flight.craft && !this.life?.sub?.piloted) {
       const pp = g.player.pos;
       if (w.at(pp.x, pp.z).h > 1.2) {
         this.board();
@@ -706,6 +715,7 @@ export class SurfaceZone extends Zone {
     this.sky.shadowRange = 40;
     const ground = this.terrain ? this.terrain.source.height(_v.x, _v.z) : 0;
     this.sky.update(dt, _v, Math.max(2, _v.y - ground + 2));
+    this.life?.update(dt);
     if (this.giant) this.lightning(dt);
     this.lights.update(_v, dt);
     this.sites.update(dt);
@@ -716,6 +726,7 @@ export class SurfaceZone extends Zone {
       const clocks = o.missionClocks();
       if (this.program) clocks.push({ label: 'PROGRAM', value: this.program.status() });
       clocks.push(...this.sites.hud());
+      if (this.life) clocks.push(...this.life.hud());
       ui.set({ clocks });
       g.renderer.setLook(this.look());
     }
@@ -764,8 +775,7 @@ export class SurfaceZone extends Zone {
 
   override groundHeight(x: number, z: number) {
     if (this.giant) return Math.hypot(x, z) < 34 ? 0 : null;
-    const h = this.terrain ? this.terrain.source.height(x, z) : 0;
-    return this.sea ? Math.max(h, MILLER_SEA_FLOOR) : h;
+    return this.terrain ? this.terrain.source.height(x, z) : 0;
   }
 
   override soundscape(o: Soundscape) {
@@ -774,6 +784,7 @@ export class SurfaceZone extends Zone {
     const air = this.body.atmosphere ? clamp(this.body.atmosphere.rho0 / 1.2, 0, 1) : 0;
     o.wind = inCraft ? 0 : air * 0.6; o.dust = this.body.id === 'mars' || this.body.id === 'edmunds' ? air * 0.4 : 0;
     o.rustle = 0; o.water = this.sea && !inCraft ? 0.7 : 0; o.rumble = this.program ? 0.4 : 0;
+    if (this.life?.underwater) { o.wind = 0; o.water = 0.15; o.dust = 0; }
     // the wave is heard long before it arrives: a roar growing as it closes
     if (this.wave) o.rumble = Math.max(o.rumble, Math.min(1, 3000 / Math.max(500, Math.abs(this.wave.s))));
     o.indoors = inCraft ? 1 : 0; o.vacuum = !inCraft && !this.body.atmosphere ? 1 : 0;

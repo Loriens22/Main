@@ -352,6 +352,12 @@ export class LazarusSites {
     return Math.abs(_v.x) < 1.95 && _v.y > -0.5 && _v.y < 3.2 && _v.z > -7.4 && _v.z < 9.7;
   }
 
+  /** an injury out on the surface (wildlife): a cracked visor */
+  harm(why: string) { this.crackVisor(why); }
+
+  /** another pressurised cabin the crew member is in (the submersible) */
+  cabin: (() => boolean) | null = null;
+
   private crackVisor(why: string) {
     if (this.breach !== null) return;
     this.breach = BREACH_O2;
@@ -563,10 +569,10 @@ export class LazarusSites {
     if (this.breach === null) return;
     const g = this.game;
     const flight = g.services.flight as Flight;
-    if (flight.craft === this.zone.ranger) {
+    if (flight.craft === this.zone.ranger || this.cabin?.()) {
       this.breach = null;
       ui.set({ visor: 0 });
-      mission.note('Visor patched in Ranger 1\'s cabin.');
+      mission.note(flight.craft === this.zone.ranger ? 'Visor patched in Ranger 1\'s cabin.' : 'Visor patched inside the submersible\'s sphere.');
       ui.toast('Safe in the cabin · visor patched', 'good', 4);
       return;
     }

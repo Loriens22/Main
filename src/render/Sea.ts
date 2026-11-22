@@ -69,7 +69,7 @@ void main() {
     float win = 1.0 - smoothstep( 0.70, 0.76, sinI );
     vec3 skyIn = mix( uHorizon, uZenith, cosI ) * 1.1 + uSunCol * pow( max( dot( refract( d, -N, 1.33 ), uSunDir ), 0.0 ), 200.0 ) * 4.0;
     float camDep = max( 0.0, uWater.y - uCam.y );
-    vec3 wc = uWaterCol * exp( -camDep * uWater.w * vec3( 1.6, 0.95, 0.8 ) );
+    vec3 wc = uWaterCol * exp( -camDep * uWater.w * vec3( 1.6, 0.95, 0.8 ) ) * ( 1.0 + 0.8 * pow( max( d.y, 0.0 ), 1.5 ) );
     vec3 col = mix( wc * 0.8, skyIn * ( 1.0 - pow( sinI / 0.75, 6.0 ) * 0.6 ), win );
     float a = 1.0 - exp( -uWater.z * vDist );
     col = mix( col * exp( -camDep * uWater.w * vec3( 1.6, 0.95, 0.8 ) ), wc, a );

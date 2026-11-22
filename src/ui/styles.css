@@ -223,3 +223,29 @@ canvas.map { width: 100%; height: auto; display: block; border: 1px solid var(--
 .reader .entry { margin-bottom: 14px; }
 .reader .entry h4 { margin: 0 0 4px; font-size: 13px; letter-spacing: 0.06em; text-transform: uppercase; opacity: 0.75; }
 .reader .entry p { margin: 0 0 6px; line-height: 1.5; }
+
+/* field codex: the species list beside the selected record (stacked on narrow screens) */
+.codex { display: grid; grid-template-columns: minmax(220px, 300px) 1fr; gap: 22px; min-height: 52vh; }
+.codex-list { display: flex; flex-direction: column; gap: 3px; max-height: 62vh; overflow-y: auto; padding-right: 6px; }
+.codex-item { all: unset; cursor: pointer; display: grid; grid-template-columns: 1fr auto; grid-template-rows: auto auto; column-gap: 10px; padding: 8px 10px; border: 1px solid var(--faint); background: rgba(255, 255, 255, 0.015); }
+.codex-item b { font-weight: 400; font-size: 13px; letter-spacing: 0.02em; }
+.codex-item small { grid-column: 1; font-style: italic; color: var(--dim); font-size: 11px; }
+.codex-item .lv { grid-column: 2; grid-row: 1 / span 2; align-self: center; color: var(--accent); font-size: 10px; letter-spacing: 0.12em; }
+.codex-item:hover { border-color: var(--line); }
+.codex-item.on { border-color: var(--accent); background: rgba(230, 180, 90, 0.06); }
+.codex-item.unknown b { color: var(--dim); font-size: 12px; }
+.codex-list .note { margin-top: 10px; }
+.codex-entry { max-height: 62vh; overflow-y: auto; padding-right: 8px; }
+.codex-entry h3 { margin: 0 0 12px; font-weight: 300; font-size: 22px; letter-spacing: 0.02em; }
+.codex-entry h3 small { margin-left: 8px; font-size: 13px; color: var(--dim); }
+.codex-entry .kv { border-bottom: 1px solid var(--faint); }
+.codex-fact { margin-top: 14px; }
+.codex-fact h4 { display: flex; align-items: center; gap: 10px; margin: 0 0 4px; }
+.codex-fact p { margin: 0; font-size: 13.5px; line-height: 1.55; color: var(--ink); }
+.codex-fact ul { margin: 4px 0 0; padding-left: 18px; font-size: 13px; line-height: 1.6; }
+.cert { font-family: var(--mono); font-size: 9px; letter-spacing: 0.14em; padding: 1px 6px; border: 1px solid currentColor; }
+.cert.obs { color: #7fd08a; } .cert.inf { color: #79b8e8; } .cert.hyp { color: #e0b45a; } .cert.spec { color: #d48ae0; } .cert.unk { color: #9a9a9a; }
+@media (max-width: 720px) {
+  .codex { grid-template-columns: 1fr; }
+  .codex-list { max-height: 30vh; }
+}

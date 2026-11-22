@@ -29,10 +29,12 @@ import { ShipPanel } from './ui/panels/ShipPanel';
 import { CryoPanel } from './ui/panels/CryoPanel';
 import { SurfacePanel } from './ui/panels/SurfacePanel';
 import { ReaderPanel } from './ui/panels/ReaderPanel';
+import { CodexPanel } from './ui/panels/CodexPanel';
 import { assets } from './render/Assets';
 import { Creature } from './life/Creature';
 import { SPECIES } from './life/species';
 import { BRAINS } from './life/brains';
+import { codex } from './life/Codex';
 import { SurfaceZone } from './world/space/SurfaceZone';
 import { state, surfacePoint } from './space/Ephemeris';
 
@@ -56,6 +58,12 @@ async function boot() {
   registerPanel('cryo', CryoPanel);
   registerPanel('surfaceops', SurfacePanel);
   registerPanel('reader', ReaderPanel);
+  registerPanel('codex', CodexPanel);
+  bus.on('key:codex', () => {
+    if (ui.get().panel === 'codex') { bus.emit('ui:closePanel'); return; }
+    const body = (game.zone as any)?.body?.id;
+    game.openPanel('codex', { planet: body === 'mars' || body === 'jupiter' ? body : 'miller' });
+  });
   const launch = new LaunchDirector(game);
   game.services.launch = launch;
   game.systems.push(launch);
@@ -76,7 +84,7 @@ async function boot() {
   game.registerZone(new EnduranceZone(game, 'endurance'));
   const surface = game.registerZone(new SurfaceZone(game, 'surface')) as SurfaceZone;
   const viewer = game.registerZone(new ViewerZone(game, 'viewer')) as ViewerZone;
-  if (import.meta.env.DEV) Object.assign(window as any, { __life: { Creature, SPECIES, BRAINS, assets }, __THREE: THREE, __RAPIER: RAPIER, __parkOv: (b: { id: string; surveyAlt?: number }) => { if (b.surveyAlt) parkingOverride[b.id] = b.surveyAlt; } });   // test scripts
+  if (import.meta.env.DEV) Object.assign(window as any, { __life: { Creature, SPECIES, BRAINS, assets, codex }, __codex: codex, __THREE: THREE, __RAPIER: RAPIER, __parkOv: (b: { id: string; surveyAlt?: number }) => { if (b.surveyAlt) parkingOverride[b.id] = b.surveyAlt; } });   // test scripts
 
   if (params.get('zone') === 'viewer') {
     // developer entry: look at any body from space (appearance checks)

@@ -226,6 +226,7 @@ export class Game {
       if (this.input.pressed('computer')) bus.emit('key:computer');
       if (this.input.pressed('creative')) bus.emit('key:creative');
       if (this.input.pressed('crew')) bus.emit('key:crew');
+      if (this.input.pressed('codex') && !this.uiFocus) bus.emit('key:codex');
       this.hudTimer -= dt;
       if (this.hudTimer <= 0) {
         this.hudTimer = 0.08;

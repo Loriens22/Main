@@ -22,7 +22,7 @@ export interface SubWorld {
  * thrusters give it about 1.6 m/s ahead (2.4 boosted), 0.8 m/s up or down and a slow yaw; water drag bleeds speed
  * within seconds; it is pushed by the current like everything else in the water. It collides with rock through a
  * kinematic character controller (the canyon walls, overhangs, the outcrops) and rests on the floor on its skids.
- * Out of the water it sits on its skids and cannot move. The hatch only opens at the surface.
+ * In water too shallow to float it crawls on the tracks of its skids. The hatch only opens at the surface.
  */
 export class Submersible {
   root = new THREE.Group();
@@ -41,6 +41,8 @@ export class Submersible {
   private col: RAPIER.Collider;
   private kcc: RAPIER.KinematicCharacterController;
   private lamps: Fixture[] = [];
+  /** the instrument glow in the sphere (on while someone is aboard) */
+  private cabin: Fixture | null = null;
   private shakeT = 0;
   private chaseYaw = 0;
   /** water column over the hull top (m); negative: surfaced */
@@ -60,7 +62,8 @@ export class Submersible {
     for (const m of model.ofKind('light')) {
       const f = lightsPool.addFromMarker(m.node, m.data, true);
       f.group = 'sub';
-      this.lamps.push(f);
+      if (m.data.room === 'cabin') this.cabin = f;
+      else this.lamps.push(f);
     }
   }
 
@@ -117,12 +120,12 @@ export class Submersible {
       if (this.depth < -0.5 && this.vel.y > 0) this.vel.y *= 0.5;
       if (this.depth < -0.6) this.vel.y -= 2 * dt;
     } else {
-      // stranded in the shallows: on its skids, it can only creep (thrusters half out of the water)
-      this.vel.multiplyScalar(Math.exp(-3 * dt));
-      this.vel.addScaledVector(_v, fwd * 0.35 * dt);
+      // in the shallows it sits on its skids: their tracks crawl it along the floor (about 2 m/s at most)
+      this.vel.x *= Math.exp(-1.5 * dt); this.vel.z *= Math.exp(-1.5 * dt);
+      this.vel.addScaledVector(_v, fwd * 3.2 * boost * damaged * dt);
       this.vel.y = -1;
     }
-    this.yawRate += ((afloat ? turn * 0.45 : turn * 0.15) - this.yawRate) * (1 - Math.exp(-1.5 * dt));
+    this.yawRate += ((afloat ? turn * 0.45 : turn * 0.4) - this.yawRate) * (1 - Math.exp(-1.5 * dt));
     this.yaw += this.yawRate * dt;
     // collide and slide (rock, overhangs, the terrain under the hull)
     const desired = _w.copy(this.vel).multiplyScalar(dt);
@@ -131,16 +134,18 @@ export class Submersible {
     const hitScale = desired.lengthSq() > 1e-9 ? Math.hypot(mv.x, mv.y, mv.z) / desired.length() : 1;
     if (hitScale < 0.5 && this.vel.length() > 0.8) this.impact(this.vel.length() * (1 - hitScale));
     this.pos.x += mv.x; this.pos.y += mv.y; this.pos.z += mv.z;
-    // the analytic floor and the surface bound it as well (terrain colliders stream round the player only)
+    // the analytic floor and the surface bound it as well (terrain colliders stream round the player only); afloat it
+    // rides with the top of its frame just awash
     const fl = W.floor(this.pos.x, this.pos.z);
+    if (afloat && this.pos.y > surf - 1.4) { this.pos.y = surf - 1.4; this.vel.y = Math.min(0, this.vel.y); }
     if (this.pos.y < fl + 0.02) { if (this.vel.y < -0.8) this.impact(-this.vel.y); this.pos.y = fl + 0.02; this.vel.y = Math.max(0, this.vel.y); }
-    if (this.pos.y > surf - 1.4) { this.pos.y = surf - 1.4; this.vel.y = Math.min(0, this.vel.y); }
     // the vel reflects the actual movement (so sliding along a wall kills the into-wall speed)
     if (dt > 0) { this.vel.set(mv.x / dt, this.vel.y, mv.z / dt); }
     this.body.setNextKinematicTranslation(this.pos);
     _q.setFromAxisAngle(new THREE.Vector3(0, 1, 0), this.yaw);
     this.body.setNextKinematicRotation(_q);
     this.pitch += ((fwd * -0.04 + up * 0.06) - this.pitch) * (1 - Math.exp(-2 * dt));
+    if (this.cabin) this.cabin.on = this.piloted;
     this.sync();
     // the pilot is carried along (the terrain streams round the player)
     if (this.piloted) g.player.pos.copy(this.pos).add(_v.set(0, 1.0, 0));
@@ -174,11 +179,13 @@ export class Submersible {
 
   applyCam() {
     const g = this.game;
+    // from inside, the acrylic sphere is the window itself (its reflections of the sky would fog the whole view)
+    const shell = this.model.root.getObjectByName('sub_sphere');
+    if (shell) shell.visible = !(this.piloted && this.cam === 'cockpit');
     if (!this.piloted) return;
     if (this.cam === 'cockpit') {
-      const seat = this.model.marker('seat', 'pilot');
+      // the pilot's own view out of the acrylic sphere
       g.cameraDriver = null;
-      if (seat) g.player.sit({ node: seat.node, eye: 0.62, yawLimit: 2.2 });
     } else {
       this.chaseYaw = this.yaw;
       g.cameraDriver = (dt) => {
@@ -201,8 +208,11 @@ export class Submersible {
     this.piloted = true;
     g.player.suited = true;
     g.interactions.suspended = true;
+    // seated in the sphere (the pilot moves with the sub; the seat sets the cockpit view)
+    const seat = this.model.marker('seat', 'pilot');
+    if (seat) g.player.sit({ node: seat.node, eye: 0.62, yawLimit: 2.2 });
     this.applyCam();
-    ui.set({ mode: 'drive', hints: ['W / S  ahead / astern · A / D  turn', 'SPACE / C  up / down · SHIFT  boost', 'L  lamps · V  camera · F  leave (at the surface)', 'R  scan · J  field codex'] });
+    ui.set({ mode: 'drive', hints: ['W / S  ahead / astern · A / D  turn', 'SPACE / C  up / down · SHIFT  boost', 'L  lamps · V  camera · E  leave (at the surface)', 'R  scan · J  field codex'] });
     bus.emit('sfx', { id: 'hatch', ui: true });
   }
 
@@ -215,9 +225,11 @@ export class Submersible {
     }
     const g = this.game;
     this.piloted = false;
+    this.applyCam();
     g.cameraDriver = null;
     g.player.lookEnabled = true;
     g.interactions.suspended = false;
+    this.thrust = 0;
     this.forward(_v);
     const p = this.pos.clone().addScaledVector(new THREE.Vector3(-_v.z, 0, _v.x), 2.6);
     at(p);
@@ -240,6 +252,7 @@ export class Submersible {
 
   dispose() {
     for (const f of this.lamps) this.lightsPool.remove(f);
+    if (this.cabin) this.lightsPool.remove(this.cabin);
     this.phys.world.removeCharacterController(this.kcc);
     if (this.phys.world.bodies.contains(this.body.handle)) this.phys.world.removeRigidBody(this.body);
     this.root.removeFromParent();

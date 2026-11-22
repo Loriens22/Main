@@ -6,6 +6,7 @@ import type { Model } from '../render/Assets';
 const _v = new THREE.Vector3(), _w = new THREE.Vector3(), _u = new THREE.Vector3(), _q = new THREE.Quaternion(), _m = new THREE.Matrix4(),
   _n = new THREE.Vector3(), _f = new THREE.Vector3(), _r = new THREE.Vector3();
 const UP = new THREE.Vector3(0, 1, 0);
+const _ROCK = new THREE.Color(0.075, 0.08, 0.085), _WARN = new THREE.Color(0.95, 0.55, 0.18);
 
 /** something a creature may sense: the player, a vehicle, another creature, a prey school */
 export interface Contact {
@@ -46,6 +47,13 @@ export interface Habitat {
   feed(c: Creature, target: Contact | null): number;
   /** a notable behaviour seen by the player (codex observations) */
   observe(c: Creature, what: string): void;
+  /** builders: the state of this animal's nest (stones laid of the wall it wants) and where it gathers stones */
+  nest?(c: Creature): { stones: number; max: number; pile: THREE.Vector3 } | null;
+  placeStone?(c: Creature): void;
+  /** social species: the live members of this animal's group */
+  group?(c: Creature): Creature[];
+  /** food patches for filter feeders (plankton blooms) */
+  bloom?(c: Creature): THREE.Vector3 | null;
 }
 
 export type CState = 'idle' | 'forage' | 'patrol' | 'investigate' | 'stalk' | 'warn' | 'attack' | 'recover' | 'flee' | 'shelter' | 'rest' | 'feed' | 'nest' | 'hide' | 'display';
@@ -104,6 +112,16 @@ export class Creature {
   sensed: { c: Contact; d: number; conf: number }[] = [];
   /** debugging / codex: what it is doing in words */
   doing = '';
+  /** group membership (social species) */
+  groupId = '';
+  /** carrying a stone (builders) */
+  carrying = false;
+  /** seen by the player just now (set by the world) and when it was last seen (s) */
+  seenT = -1e9;
+  /** visual depth of burial (smoothed from `hidden`, burrowers) */
+  private bury = 0;
+  /** per-individual materials for colour change and light organs */
+  private skins: { m: THREE.MeshStandardMaterial; color: THREE.Color; emissive: THREE.Color; ei: number; lure: boolean }[] = [];
 
   constructor(public id: string, public def: SpeciesDef, public model: Model, size: number) {
     this.scale = size / def.built;
@@ -112,6 +130,29 @@ export class Creature {
     this.root.scale.setScalar(this.scale);
     this.root.name = `creature:${id}`;
     this.rig = new Rig(model.root);
+    // animals that change colour (camouflage, warning) or carry a light organ get their own copies of their materials
+    if (def.archetype === 'clever' || def.archetype === 'lure') {
+      const done = new Map<THREE.Material, THREE.Material>();
+      model.root.traverse((o) => {
+        const mesh = o as THREE.Mesh;
+        if (!mesh.isMesh) return;
+        const one = (m: THREE.Material) => {
+          let c = done.get(m);
+          if (!c) {
+            c = m.clone();
+            // keep the shared shader patch (clone does not carry onBeforeCompile)
+            c.onBeforeCompile = m.onBeforeCompile;
+            c.customProgramCacheKey = m.customProgramCacheKey;
+            done.set(m, c);
+            const sm = c as THREE.MeshStandardMaterial;
+            const lure = /lure/.test(m.name);
+            if (sm.color && (def.archetype === 'clever' || lure)) this.skins.push({ m: sm, color: sm.color.clone(), emissive: sm.emissive?.clone() ?? new THREE.Color(), ei: sm.emissiveIntensity ?? 1, lure });
+          }
+          return c;
+        };
+        mesh.material = Array.isArray(mesh.material) ? mesh.material.map(one) : one(mesh.material);
+      });
+    }
     this.energy = 0.55 + 0.35 * hashRand(id, 1);
     this.bold = hashRand(id, 2);
     this.phase = hashRand(id, 3) * 10;
@@ -306,6 +347,12 @@ export class Creature {
     _q.setFromRotationMatrix(_m);
     this.root.quaternion.copy(_q);
     this.root.position.copy(this.pos);
+    if (this.def.locomotion === 'burrow') {
+      // buried to the mouth rim; out of the sediment in a strike
+      const want = this.state === 'attack' ? 0 : this.hidden;
+      this.bury += (want - this.bury) * Math.min(1, dt * (want < this.bury ? 9 : 0.8));
+      this.root.position.addScaledVector(this.up, -this.bury * this.length * 0.16);
+    }
   }
 
   // ============================================================================================ animation
@@ -341,6 +388,22 @@ export class Creature {
       rig.openJaw(this.jaw);
     }
     if (m.legs) this.walk(dt, H, m.legs);
+    if (this.skins.length) this.skin(H);
+  }
+
+  /** colour change (camouflage toward the rock, a rippling high-contrast warning) and the light organ's glow */
+  private skin(H: Habitat) {
+    const camo = this.hidden, warn = this.display;
+    for (const s of this.skins) {
+      if (s.lure) {
+        s.m.emissiveIntensity = s.ei * (0.04 + 0.96 * warn) * (0.85 + 0.15 * Math.sin(H.time * 1.7 + this.phase));
+        continue;
+      }
+      s.m.color.copy(s.color).lerp(_ROCK, camo * 0.75);
+      const ripple = 0.5 + 0.5 * Math.sin(H.time * 7 + this.phase * 3);
+      s.m.emissive.copy(s.emissive).lerp(_WARN, warn * 0.8);
+      s.m.emissiveIntensity = s.ei + warn * 0.9 * ripple;
+    }
   }
 
   /** feet: plant, and step when the body has moved on; small animals swing legs without full IK */

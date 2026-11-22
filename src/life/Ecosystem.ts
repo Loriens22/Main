@@ -8,6 +8,8 @@ import { SPECIES, type SpeciesDef } from './species';
 export interface Individual {
   id: string;
   species: string;
+  /** social group (members share it) */
+  group: string;
   size: number;
   home: THREE.Vector3;
   den: THREE.Vector3 | null;
@@ -53,6 +55,9 @@ export class Ecosystem {
   /** brains by species archetype, overridable per species */
   brains: Record<string, Brain> = { ...BRAINS };
   disposed = false;
+  /** world hooks: a creature instantiated near the player / unloaded again */
+  onSpawn: ((c: Creature) => void) | null = null;
+  onDespawn: ((c: Creature) => void) | null = null;
 
   constructor(public world: LifeWorld, parent: THREE.Object3D, saved?: any) {
     this.group.name = `life:${world.planet}`;
@@ -77,7 +82,7 @@ export class Ecosystem {
           const size = def.size[0] + (def.size[1] - def.size[0]) * (0.35 + 0.65 * hashRand(id, 9));
           const jitter = (def.group ? Math.max(0.4, size * 3) : 0);
           const p = h.pos.clone().add(new THREE.Vector3((hashRand(id, 11) - 0.5) * jitter, 0, (hashRand(id, 12) - 0.5) * jitter));
-          this.inds.push({ id, species: def.id, size, home: p.clone(), den: h.den?.clone() ?? null, pos: p.clone(), heading: h.heading ?? hashRand(id, 13) * Math.PI * 2, energy: 0.6, injury: 0, failures: 0, alive: true, memory: {} });
+          this.inds.push({ id, species: def.id, group: `${def.id}_g${gi}`, size, home: p.clone(), den: h.den?.clone() ?? null, pos: p.clone(), heading: h.heading ?? hashRand(id, 13) * Math.PI * 2, energy: 0.6, injury: 0, failures: 0, alive: true, memory: {} });
           made++;
         }
         gi++;
@@ -127,12 +132,14 @@ export class Ecosystem {
       const c = new Creature(ind.id, def, m, ind.size);
       c.energy = ind.energy; c.injury = ind.injury; c.failures = ind.failures;
       c.den = ind.den;
+      c.groupId = ind.group;
       for (const [k, v] of Object.entries(ind.memory)) c.memory.set(k, { val: v, t: -1e9, pos: new THREE.Vector3() });
       this.group.add(c.root);
       c.place(ind.pos, ind.heading, this.world.habitat);
       c.home.copy(ind.home);
       c.root.traverse((o) => { if ((o as THREE.Mesh).isMesh) { o.castShadow = def.size[1] > 0.5; o.frustumCulled = false; } });
       this.live.set(ind.id, c);
+      this.onSpawn?.(c);
     } finally {
       this.loading.delete(ind.id);
     }
@@ -140,6 +147,7 @@ export class Ecosystem {
 
   private despawn(ind: Individual, c: Creature) {
     this.store(ind, c);
+    this.onDespawn?.(c);
     c.dispose();
     this.live.delete(ind.id);
   }
@@ -150,6 +158,22 @@ export class Ecosystem {
     ind.energy = c.energy; ind.injury = c.injury; ind.failures = c.failures;
     ind.memory = {};
     for (const [k, v] of c.memory) if (Math.abs(v.val) > 0.05) ind.memory[k] = v.val;
+  }
+
+  /** an animal dies (taken by a predator): it is gone for good */
+  kill(id: string) {
+    const ind = this.inds.find((i) => i.id === id);
+    if (!ind) return;
+    ind.alive = false;
+    const c = this.live.get(id);
+    if (c) { this.onDespawn?.(c); c.dispose(); this.live.delete(id); }
+  }
+
+  /** the live members of a group */
+  members(group: string) {
+    const out: Creature[] = [];
+    for (const c of this.live.values()) if (c.groupId === group) out.push(c);
+    return out;
   }
 
   /** every individual of a species, live or not (for the codex / tracking) */
@@ -172,7 +196,7 @@ export class Ecosystem {
 
   dispose() {
     this.disposed = true;
-    for (const c of this.live.values()) c.dispose();
+    for (const c of this.live.values()) { this.onDespawn?.(c); c.dispose(); }
     this.live.clear();
     this.group.removeFromParent();
   }

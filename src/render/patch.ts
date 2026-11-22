@@ -31,7 +31,7 @@ export const W = {
   uWater: { value: new THREE.Vector4(0, 0, 0.06, 0.05) },
   /** the water's own colour (in-scattered light just under the surface) */
   uWaterCol: { value: new THREE.Color(0.06, 0.12, 0.13) },
-  /** horizontal extent of the water: x, z centre and radius (radius 0: everywhere) */
+  /** horizontal extent of the water: x, z centre and radius (radius 0: everywhere); w: curvature 1 / 2R of the surface */
   uWaterReg: { value: new THREE.Vector4(0, 0, 0, 0) },
 };
 
@@ -163,30 +163,41 @@ const FRAG_FOG = /* glsl */ `
   vec3 toFrag = vWPos - cameraPosition;
   float dist = length( toFrag );
   vec3 dir = toFrag / max( dist, 1e-4 );
+  float fa = skyFogAmount( cameraPosition, toFrag );
+  vec3 fogged = mix( gl_FragColor.rgb, skyFogColor( dir ), fa );
   bool inReg = uWaterReg.z <= 0.0 || length( vWPos.xz - uWaterReg.xy ) < uWaterReg.z;
-  bool camIn = cameraPosition.y < uWater.y;
-  if ( uWater.x > 0.5 && inReg && ( vWPos.y < uWater.y || camIn ) ) {
-    // the stretch of the view ray that runs through water
-    float inW = camIn ? ( vWPos.y < uWater.y ? dist : min( dist, ( uWater.y - cameraPosition.y ) / max( dir.y, 1e-3 ) ) )
-                      : min( dist, ( uWater.y - vWPos.y ) / max( -dir.y, 1e-3 ) );
-    float dep = max( 0.0, uWater.y - vWPos.y );
-    // red goes first: what reaches a surface at depth is blue-green, and dimmer
-    vec3 absorb = exp( -dep * uWater.w * vec3( 2.2, 1.0, 0.75 ) );
-    vec3 lit = gl_FragColor.rgb;
-    #if defined( USE_EMISSIVEMAP ) || defined( STANDARD )
-      vec3 emis = totalEmissiveRadiance;
-      lit = ( lit - emis ) * ( camIn ? vec3( 1.0 ) : absorb ) + emis;
-    #else
-      lit = lit * ( camIn ? vec3( 1.0 ) : absorb );
-    #endif
-    float a = 1.0 - exp( -uWater.z * inW );
-    float camDep = max( 0.0, uWater.y - min( cameraPosition.y, vWPos.y ) );
-    vec3 wc = uWaterCol * exp( -camDep * uWater.w * vec3( 1.6, 0.95, 0.8 ) );
-    gl_FragColor.rgb = mix( lit * exp( -inW * uWater.z * 0.35 * vec3( 1.8, 0.9, 0.7 ) ), wc, a );
-  } else {
-    float fa = skyFogAmount( cameraPosition, toFrag );
-    gl_FragColor.rgb = mix( gl_FragColor.rgb, skyFogColor( dir ), fa );
-  }
+  if ( uWater.x > 0.5 && inReg ) {
+    // the water surface follows the planet's curve (uWaterReg.w = 1 / 2R, drop measured from the zone origin)
+    float sY = uWater.y - dot( vWPos.xz, vWPos.xz ) * uWaterReg.w;
+    float cY = uWater.y - dot( cameraPosition.xz, cameraPosition.xz ) * uWaterReg.w;
+    bool camIn = cameraPosition.y < cY;
+    float dep = max( 0.0, sY - vWPos.y );
+    // from above, knee-deep water is left to the sea surface's own shading; deeper water darkens and closes in
+    float wgt = camIn ? 1.0 : smoothstep( 0.8, 3.0, dep );
+    if ( wgt > 0.0 ) {
+      // the stretch of the view ray that runs through water
+      float inW = camIn ? ( vWPos.y < sY ? dist : min( dist, ( cY - cameraPosition.y ) / max( dir.y, 1e-3 ) ) )
+                        : min( dist, dep / max( -dir.y, 1e-3 ) );
+      // red goes first: what reaches a surface at depth is blue-green, and dimmer (seen from inside the water the
+      // scene light itself is dimmed by the camera's depth: see the zone's underwater state)
+      vec3 absorb = exp( -dep * uWater.w * vec3( 2.2, 1.0, 0.75 ) );
+      vec3 lit = gl_FragColor.rgb;
+      #if defined( USE_EMISSIVEMAP ) || defined( STANDARD )
+        vec3 emis = totalEmissiveRadiance;
+        lit = ( lit - emis ) * ( camIn ? vec3( 1.0 ) : absorb ) + emis;
+      #else
+        lit = lit * ( camIn ? vec3( 1.0 ) : absorb );
+      #endif
+      float a = 1.0 - exp( -uWater.z * inW );
+      float camDep = max( 0.0, cY - min( cameraPosition.y, vWPos.y ) );
+      vec3 wc = uWaterCol * exp( -camDep * uWater.w * vec3( 1.6, 0.95, 0.8 ) );
+      // inside the water: brighter toward the light above
+      if ( camIn ) wc *= 1.0 + 0.8 * pow( max( dir.y, 0.0 ), 1.5 );
+      vec3 wr = mix( lit * exp( -inW * uWater.z * 0.35 * vec3( 1.8, 0.9, 0.7 ) ), wc, a );
+      if ( !camIn ) wr = mix( wr, skyFogColor( dir ), fa );
+      gl_FragColor.rgb = mix( fogged, wr, wgt );
+    } else gl_FragColor.rgb = fogged;
+  } else gl_FragColor.rgb = fogged;
 }
 #endif
 `;
