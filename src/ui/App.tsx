@@ -169,6 +169,7 @@ function SettingsBody({ game, tab }: { game: Game; tab: string }) {
 
 function Sheet({ game, title, only, onClose }: { game: Game; title: string; only?: 'settings'; onClose: () => void }) {
   const [tab, setTab] = useState(only ? 'graphics' : 'root');
+  const skip = useUI((s) => s.skip);
   const settingsTabs: [string, string][] = [['graphics', 'Graphics'], ['audio', 'Audio'], ['controls', 'Controls']];
   const item = (id: string, label: string, fn?: () => void) => <button class={`mbtn ${tab === id ? 'on' : ''}`} onClick={() => { bus.emit('ui:click'); fn ? fn() : setTab(id); }}>{label}</button>;
   return (
@@ -177,6 +178,7 @@ function Sheet({ game, title, only, onClose }: { game: Game; title: string; only
         <h2>{title}</h2>
         <div class="build">build {__BUILD__}</div>
         {!only && item('resume', 'Resume game', onClose)}
+        {!only && skip && item('skip', skip, () => { onClose(); bus.emit('earth:skip'); })}
         {!only && item('graphics', 'Settings')}
         {only && settingsTabs.map(([id, l]) => item(id, l))}
         {!only && item('computer', 'Mission computer', () => { onClose(); bus.emit('ui:panel', 'mission'); })}
@@ -301,6 +303,7 @@ type TouchMode = 'foot' | 'drive' | 'fly' | 'seat' | 'float' | 'sub' | 'cinemati
  */
 function Touch({ game }: { game: Game }) {
   const mode = useUI((s) => s.mode) as TouchMode;
+  const skip = useUI((s) => s.skip);
   const screen = useUI((s) => s.screen);
   const panel = useUI((s) => s.panel);
   const moveZone = useRef<HTMLDivElement>(null);
@@ -405,7 +408,7 @@ function Touch({ game }: { game: Game }) {
       break;
     case 'drive':
       cluster = <>{tap('camera', 'Cam')}{tap('headlights', 'Lights')}{tap('exit', 'Exit')}{hold('brake', 'Brake', 'main')}{tap('interact', 'Use')}</>;
-      tools = <>{tool('computer', 'Computer')}{tool('codex', 'Codex')}</>;
+      tools = <>{skip && tool('skip', 'Skip drive')}{tool('computer', 'Computer')}{tool('codex', 'Codex')}</>;
       break;
     case 'sub':
       cluster = <>{hold('jump', 'Up')}{hold('sprint', 'Boost')}{tap('headlights', 'Lamps')}{hold('crouch', 'Down')}{tap('camera', 'Cam')}{tap('interact', 'Use', 'main')}</>;

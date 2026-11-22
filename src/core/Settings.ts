@@ -67,6 +67,8 @@ export const DEFAULT_BINDINGS: Record<string, string[]> = {
   jump: ['Space'], sprint: ['ShiftLeft', 'ShiftRight'], crouch: ['KeyC', 'ControlLeft'],
   interact: ['KeyE'], exit: ['KeyF'], camera: ['KeyV'], menu: ['Escape'], computer: ['KeyM'], creative: ['KeyP'],
   flashlight: ['KeyL'], crew: ['KeyG'], thirdPerson: ['KeyT'], scan: ['KeyR'], codex: ['KeyJ'],
+  /** fast travel along the county road while driving the pickup */
+  skip: ['KeyK'],
   // vehicles
   brake: ['Space'], headlights: ['KeyH'], horn: ['KeyB'],
   // spacecraft

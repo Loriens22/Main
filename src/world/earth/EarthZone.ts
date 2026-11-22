@@ -22,6 +22,7 @@ import { Farm, Machine } from './Farm';
 import { ScreenSurface, scr } from '../../render/ScreenSurface';
 import { ui } from '../../ui/store';
 import { bus } from '../../core/events';
+import { mission } from '../../mission/Mission';
 import { clamp, damp, lerp, smoothstep } from '../../core/math';
 import { GROUP, groups } from '../../physics/Physics';
 
@@ -186,6 +187,7 @@ export class EarthZone extends Zone {
       audio.loop('engine', () => ({ rpm: v.rpm, load: Math.abs(v.throttle), on: v.engineOn && this.game.zone === this ? 1 : 0, base, gain: v.kind === 'pickup' ? 0.8 : 1.15 }), () => v.position, { ref: v.kind === 'pickup' ? 4 : 7 });
       audio.loop('tyres', () => ({ speed: this.game.zone === this ? Math.abs(v.speed) : 0, rough: 1 }), () => v.position, { ref: 4 });
     }
+    bus.on('earth:skip', () => { void this.skipDrive(); });
     this.driving.onExit = (v) => { const m = this.farm.machines.find((x) => x.vehicle === v); if (m) this.farm.setManual(m, false); };
     // live instruments in the pickup
     const gps = pm.marker('screen', 'gps');
@@ -416,6 +418,49 @@ export class EarthZone extends Zone {
   }
 
   // ------------------------------------------------------------------------------------ instruments
+  // ------------------------------------------------------------------------------------ fast travel
+  private skipping = false;
+
+  /** Which end of the county road a skip goes to: the facility from the farm half, the farm from the facility half. */
+  private skipDest(): 'nasa' | 'farm' { return this.routeDistance(this.pickup.position) > this.map.roadLength * 0.5 ? 'nasa' : 'farm'; }
+
+  /** The drive can be skipped (Creative fast travel) while driving the pickup, nearly stopped or not. */
+  canSkip() { return this.game.zone === this && this.game.settings.creative.fastTravel && this.driving.vehicle === this.pickup && !this.skipping; }
+
+  /**
+   * Skip the six kilometres of county road: fade out, the pickup (with its driver) to the other end — on the road
+   * short of the facility gate, or back on its spot by the farmhouse — and fade in once the ground there is built.
+   */
+  async skipDrive() {
+    if (!this.canSkip()) return;
+    const g = this.game, dest = this.skipDest();
+    this.skipping = true;
+    ui.set({ skip: null });
+    g.renderer.fadeTo(1, 3);
+    await new Promise((r) => setTimeout(r, 450));
+    if (g.zone !== this) { this.skipping = false; return; }
+    let x: number, y: number, z: number, yaw: number;
+    if (dest === 'nasa') {
+      const r = this.map.roadAt(this.map.roadLength - 175);
+      x = r.x; z = r.z; y = r.y + 0.55; yaw = Math.atan2(-r.tx, -r.tz);
+    } else {
+      x = HOUSE.x + 12.4; z = HOUSE.z + 5.2; y = this.map.farmY + 0.55; yaw = 0;
+    }
+    this.pickup.throttle = 0;
+    this.pickup.place(x, y, z, yaw);
+    this.terrain.ensureCollision(x, z, 60);
+    // let the ground and the scenery stream in behind the black screen (at most a few seconds)
+    const t0 = performance.now();
+    while (performance.now() - t0 < 4500) {
+      await new Promise((r) => setTimeout(r, 120));
+      if (performance.now() - t0 > 900 && this.terrain.busy === 0) break;
+    }
+    mission.note(dest === 'nasa' ? 'Drove the county road to the NASA facility.' : 'Drove back to the farm.');
+    ui.toast(dest === 'nasa' ? 'The facility gate is just ahead.' : 'Back at the farm.', 'info', 3.5);
+    g.renderer.fadeTo(0, 1.4);
+    this.skipping = false;
+  }
+
   /** Distance still to drive to the facility gate along the road, from any position. */
   routeDistance(p: THREE.Vector3) {
     const gateS = this.map.roadLength - 112;
@@ -530,6 +575,7 @@ export class EarthZone extends Zone {
 
   override leave() {
     super.leave();
+    ui.set({ skip: null });
     this.sky.setVisible(false);
   }
 
@@ -602,8 +648,12 @@ export class EarthZone extends Zone {
     this.gpsTimer -= dt;
     if (this.gpsTimer <= 0) {
       this.gpsTimer = 0.25;
-      ui.set({ gps: inTruck ? { name: 'NASA Research Facility', dist: this.routeDistance(this.pickup.position) } : null });
+      ui.set({
+        gps: inTruck ? { name: 'NASA Research Facility', dist: this.routeDistance(this.pickup.position) } : null,
+        skip: this.canSkip() ? (this.skipDest() === 'nasa' ? 'Skip the drive to NASA' : 'Skip the drive to the farm') : null,
+      });
     }
+    if (g.input.pressed('skip') && this.canSkip()) void this.skipDrive();
     if (this.radioOn) {
       this.radioTimer -= dt;
       if (this.radioTimer <= 0 && camPos.distanceTo(this.house.root.position) < 30) {

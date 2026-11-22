@@ -38,7 +38,8 @@ export class Driving implements System {
     this.camInit = false;
     bus.emit('vehicle:enter', v);
     bus.emit('sfx', { id: 'engine_start', node: v.root });
-    ui.set({ mode: 'drive', hints: ['W / S  accelerate · brake', 'A / D  steer', 'SPACE  handbrake', 'H  lights   V  camera', 'F  leave vehicle'] });
+    const skip = v.kind === 'pickup' && this.game.settings.creative.fastTravel ? ['K  skip the drive (fast travel)'] : [];
+    ui.set({ mode: 'drive', hints: ['W / S  accelerate · brake', 'A / D  steer', 'SPACE  handbrake', 'H  lights   V  camera', 'F  leave vehicle', ...skip] });
     ui.toast(`${label}: engine running`, 'info', 2.5);
   }
 
