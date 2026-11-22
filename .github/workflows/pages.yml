@@ -1,16 +1,16 @@
-# Build the game and publish it on GitHub Pages (the site is static: Vite's dist folder).
-name: Deploy to GitHub Pages
+# Build check: type-check and production build of the game on every push of the development branch.
+# (Publishing is not automatic: the repository's GitHub Pages site is managed separately.)
+name: Build check
 
 on:
   push:
-    branches: [main, claude/3d-game-blender-realism-i1xzwh]
+    branches: [claude/3d-game-blender-realism-i1xzwh]
   workflow_dispatch:
 
 permissions:
   contents: read
-  pages: write
-  id-token: write
 
+# same group as the first version of this workflow, so that this run supersedes it
 concurrency:
   group: pages
   cancel-in-progress: true
@@ -26,17 +26,3 @@ jobs:
           cache: npm
       - run: npm ci
       - run: npm run build
-      - uses: actions/configure-pages@v5
-      - uses: actions/upload-pages-artifact@v3
-        with:
-          path: dist
-
-  deploy:
-    needs: build
-    runs-on: ubuntu-latest
-    environment:
-      name: github-pages
-      url: ${{ steps.deployment.outputs.page_url }}
-    steps:
-      - id: deployment
-        uses: actions/deploy-pages@v4
