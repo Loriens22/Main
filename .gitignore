@@ -5,3 +5,4 @@ __pycache__/
 blender/previews/
 blender/scenes/*.blend1
 .DS_Store
+public/assets/_orig/
