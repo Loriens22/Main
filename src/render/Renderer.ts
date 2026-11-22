@@ -248,6 +248,46 @@ export class Renderer {
       this.spaceCamera.updateProjectionMatrix();
     }
     this.composer.render(dt);
+    if (++this.healthFrame % 90 === 0) this.checkPrograms();
+  }
+
+  /**
+   * Safety net for devices with tighter GPU limits than ours: a shader that does not compile or link there would leave
+   * whatever uses it invisible (ground you drive on but cannot see). Every so often the compiled programs are
+   * checked; the materials of any that failed are swapped for a simpler stand-in (a material may name its own:
+   * userData.fallback, told of the swap through userData.onFallback).
+   */
+  private healthFrame = 0;
+  private failed = new Set<unknown>();
+  private fallbacks = new Map<THREE.Material, THREE.Material>();
+  private checkPrograms() {
+    const bad = (this.gl.info.programs ?? []).filter((p: any) => p.diagnostics && p.diagnostics.runnable === false && !this.failed.has(p));
+    if (!bad.length) return;
+    for (const p of bad) {
+      this.failed.add(p);
+      console.warn('[renderer] a shader failed on this device; using a simpler material', (p as any).diagnostics?.programLog ?? '');
+    }
+    const swap = (o: THREE.Object3D) => {
+      const mesh = o as THREE.Mesh;
+      if (!mesh.isMesh) return;
+      const mats = Array.isArray(mesh.material) ? mesh.material : [mesh.material];
+      let changed = false;
+      const next = mats.map((m) => {
+        const prog = (this.gl.properties.get(m) as any)?.currentProgram;
+        if (!prog || !bad.includes(prog)) return m;
+        changed = true;
+        let fb = this.fallbacks.get(m);
+        if (!fb) {
+          fb = (m.userData.fallback?.() as THREE.Material | undefined) ?? simpleStandIn(m);
+          this.fallbacks.set(m, fb);
+          m.userData.onFallback?.(fb);
+        }
+        return fb;
+      });
+      if (changed) mesh.material = Array.isArray(mesh.material) ? next : next[0];
+    };
+    this.scene.traverse(swap);
+    this.spaceScene.traverse(swap);
   }
 
   info() {
@@ -257,3 +297,14 @@ export class Renderer {
 }
 
 const _e = new THREE.Euler(), _sq = new THREE.Quaternion();
+
+/** a plain material with the original's colour, texture and blending: few texture units, no custom shader code */
+function simpleStandIn(m: THREE.Material): THREE.Material {
+  const a = m as THREE.MeshStandardMaterial;
+  return new THREE.MeshStandardMaterial({
+    name: (m.name || 'material') + ' (fallback)', color: a.color?.clone() ?? new THREE.Color(1, 1, 1), map: a.map ?? null,
+    roughness: a.roughness ?? 0.9, metalness: Math.min(0.5, a.metalness ?? 0), emissive: a.emissive?.clone() ?? new THREE.Color(0, 0, 0),
+    emissiveMap: a.emissiveMap ?? null, emissiveIntensity: a.emissiveIntensity ?? 1, transparent: m.transparent, opacity: m.opacity,
+    side: m.side, vertexColors: m.vertexColors, depthWrite: m.depthWrite, alphaTest: m.alphaTest,
+  });
+}

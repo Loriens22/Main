@@ -126,11 +126,41 @@ export class Terrain {
         .replace('#include <normal_fragment_begin>', '#include <normal_fragment_begin>\n' + TERRAIN_NORMAL);
     };
     m.customProgramCacheKey = () => 'terrain|' + L.sets.join(',') + (L.aux ?? '');
+    // if this shader cannot run on a device, the renderer swaps in the plain version below for every chunk
+    m.userData.fallback = () => this.fallbackMaterial();
+    m.userData.onFallback = (fb: THREE.MeshStandardMaterial) => { this.material = fb; };
     void this.loadLayers();
     return m;
   }
 
+  /** Plain stand-in: the five layers' average colours blended by the same weights, rock on steep slopes. */
+  private fallbackMaterial() {
+    const L = this.opts.layers;
+    const tints = (L.tints ?? [[1, 1, 1], [1, 1, 1], [1, 1, 1], [1, 1, 1], [1, 1, 1]]);
+    const cols = this.layerAvg.map((c, i) => new THREE.Vector3(c.r * tints[i][0], c.g * tints[i][1], c.b * tints[i][2]));
+    const m = new THREE.MeshStandardMaterial({ name: 'terrain (fallback)', color: 0xffffff, roughness: 0.95, metalness: 0 });
+    m.onBeforeCompile = (shader) => {
+      shader.uniforms.uCol = { value: cols };
+      shader.uniforms.uRock = { value: new THREE.Vector2(...(L.rockSlope ?? [0.5, 0.72])) };
+      shader.vertexShader = shader.vertexShader
+        .replace('#include <common>', '#include <common>\nattribute vec4 splat;\nvarying vec4 vSplat;\nvarying float vUpN;')
+        .replace('#include <project_vertex>', '#include <project_vertex>\nvSplat = splat;\nvUpN = normalize( mat3( modelMatrix ) * normal ).y;');
+      shader.fragmentShader = shader.fragmentShader
+        .replace('#include <common>', '#include <common>\nuniform vec3 uCol[5];\nuniform vec2 uRock;\nvarying vec4 vSplat;\nvarying float vUpN;')
+        .replace('#include <map_fragment>', `{
+          float rock = smoothstep( uRock.x, uRock.y, 1.0 - clamp( vUpN, 0.0, 1.0 ) );
+          vec4 w = vSplat * ( 1.0 - rock );
+          float ws = w.x + w.y + w.z + w.w + rock + 1e-4;
+          diffuseColor.rgb = ( uCol[0] * w.x + uCol[1] * w.y + uCol[2] * w.z + uCol[3] * w.w + uCol[4] * rock ) / ws;
+        }`);
+    };
+    m.customProgramCacheKey = () => 'terrain-fallback';
+    return m;
+  }
+
   private disposed = false;
+  /** average colour of each layer (linear), for the fallback material */
+  private layerAvg = [0, 1, 2, 3, 4].map(() => new THREE.Color(0.45, 0.4, 0.33));
 
   /** Load each map kind's five images and pack them, full size, into a texture array (rows flipped as flipY would). */
   private async loadLayers() {
@@ -151,6 +181,12 @@ export class Terrain {
         const px = ctx.getImageData(0, 0, size, size).data;
         const base = layer * row * size;
         for (let y = 0; y < size; y++) data.set(px.subarray(y * row, (y + 1) * row), base + (size - 1 - y) * row);
+        if (key === 'tA') {
+          // the layer's average colour, for the plain stand-in material
+          let r = 0, g = 0, b = 0, n = 0;
+          for (let i = 0; i < px.length; i += 4 * 61) { r += px[i]; g += px[i + 1]; b += px[i + 2]; n++; }
+          this.layerAvg[layer].setRGB(r / n / 255, g / n / 255, b / n / 255, THREE.SRGBColorSpace);
+        }
       });
       const t = new THREE.DataArrayTexture(data, size, size, imgs.length);
       t.format = THREE.RGBAFormat;

@@ -273,3 +273,7 @@ canvas.map { width: 100%; height: auto; display: block; border: 1px solid var(--
   .codex { grid-template-columns: 1fr; }
   .codex-list { max-height: 30vh; }
 }
+
+/* build tag (which version is running) */
+.build { display: block; margin-top: 6px; font-family: var(--mono); font-size: 9px; letter-spacing: 0.08em; color: var(--dim); text-transform: none; }
+.sheet aside .build { margin: -14px 0 16px; }

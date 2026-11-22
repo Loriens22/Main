@@ -39,7 +39,7 @@ function MainMenu({ game }: { game: Game }) {
         {view === 'play' && <button class="mbtn sub" onClick={() => { bus.emit('ui:click'); bus.emit('ui:start', 'creative'); }}>Creative Mode</button>}
         <button class="mbtn" onClick={() => { bus.emit('ui:click'); setView('settings'); }}>Settings</button>
       </nav>
-      <div class="foot">UNOFFICIAL FAN PROJECT — NOT AFFILIATED WITH THE FILM'S RIGHTS HOLDERS</div>
+      <div class="foot">UNOFFICIAL FAN PROJECT — NOT AFFILIATED WITH THE FILM'S RIGHTS HOLDERS<span class="build">build {__BUILD__}</span></div>
     </div>
   );
 }
@@ -175,6 +175,7 @@ function Sheet({ game, title, only, onClose }: { game: Game; title: string; only
     <div class="sheet interactive">
       <aside>
         <h2>{title}</h2>
+        <div class="build">build {__BUILD__}</div>
         {!only && item('resume', 'Resume game', onClose)}
         {!only && item('graphics', 'Settings')}
         {only && settingsTabs.map(([id, l]) => item(id, l))}

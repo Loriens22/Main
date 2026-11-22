@@ -1,3 +1,6 @@
+/** build tag (commit and date), set by vite.config.ts */
+declare const __BUILD__: string;
+
 declare module 'n8ao' {
   export class N8AOPostPass {
     constructor(scene: any, camera: any, width?: number, height?: number);
