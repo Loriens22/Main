@@ -114,6 +114,17 @@ export class Player {
     this.stepSmooth = 0;
     this.syncBody();
     this.world?.world.propagateModifiedBodyPositionsToColliders();
+    this.settle = 0.5;
+  }
+
+  /**
+   * Put the body so that the eyes are at `eye` (out of a seat: the view stays exactly where it was). How far the eyes
+   * are above the feet depends on the body's posture: standing, crouched or tucked up weightless.
+   */
+  teleportEye(eye: THREE.Vector3Like, yaw?: number) {
+    const e = this.height === FLOAT_H ? FLOAT_EYE : this.height === CROUCH_H ? 0.92 : 1.66;
+    this.teleport(new THREE.Vector3(eye.x, eye.y, eye.z).addScaledVector(this.up, -e), yaw);
+    this.eyeSmooth = e;
   }
 
   /**
@@ -145,6 +156,7 @@ export class Player {
     this.seat = null;
     this.mode = 'walk';
     this.setColliderEnabled(true);
+    this.settle = 0.5;
     if (at) this.teleport(at, yaw ?? this.yaw);
     s?.onLeave?.();
     bus.emit('player:stand', s);
@@ -163,6 +175,71 @@ export class Player {
     if (h === this.height || !this.collider) return;
     this.height = h;
     this.collider.setHalfHeight(h / 2 - RADIUS);
+  }
+
+  /**
+   * Never left inside anything. After standing up from a seat or being put somewhere, and whenever pushing gets the
+   * body nowhere, a body that overlaps solid geometry (a seat, a console, a hatch frame) is moved to the nearest spot
+   * where it fits and that the eyes can see from where they are: never through a wall or a hull.
+   */
+  /** set when the body has just been put somewhere: checked once, at the next step (after any change of posture) */
+  private settle = 0;
+  private stuckT = 0;
+  /**
+   * Where the body may go if it cannot be freed from where it was put (a seat's eye point can sit inside the seat's
+   * own headrest): feet positions in open space, nearest first, e.g. the cabin aisle beside a seat. Used once.
+   */
+  exitHints: THREE.Vector3[] = [];
+  /** No solid geometry within the body (grown by `pad`: positive for room to spare, negative for a real overlap). */
+  private fits(center: THREE.Vector3, h: number, pad = 0.02): boolean {
+    if (!this.world || !this.collider) return true;
+    const shape = new RAPIER.Capsule(Math.max(0.01, h / 2 - RADIUS), RADIUS + pad);
+    let hit = false;
+    this.world.world.intersectionsWithShape(center, this.basis, shape, () => { hit = true; return false; },
+      RAPIER.QueryFilterFlags.EXCLUDE_SENSORS, groups(GROUP.PLAYER, GROUP.WORLD | GROUP.VEHICLE | GROUP.DYNAMIC), this.collider);
+    return !hit;
+  }
+
+  /** Is the body overlapping solid geometry where it stands now? */
+  inside(): boolean {
+    // a few centimetres of real overlap (standing on a floor or touching a wall is not inside)
+    return !this.fits(new THREE.Vector3().copy(this.pos).addScaledVector(this.up, this.height / 2), this.height - 0.08, -0.04);
+  }
+
+  /** Move the body to the nearest free spot within reach (see `settle`); false if there is none. */
+  freeSpot(maxR = 1.8): boolean {
+    if (!this.world || !this.collider) return false;
+    const h = this.height;
+    const c0 = new THREE.Vector3().copy(this.pos).addScaledVector(this.up, h / 2);
+    const eye = new THREE.Vector3().copy(this.pos).addScaledVector(this.up, Math.min(this.eyeHeight, h - 0.1));
+    const c = new THREE.Vector3(), d = new THREE.Vector3(), los = new THREE.Vector3();
+    const dirs: THREE.Vector3[] = [];
+    for (let x = -1; x <= 1; x++) for (let y = -1; y <= 1; y++) for (let z = -1; z <= 1; z++) {
+      if (x || y || z) dirs.push(new THREE.Vector3(x, y, z).normalize().applyQuaternion(this.basis));
+    }
+    for (let r = 0.08; r <= maxR; r += 0.08) {
+      for (const dir of dirs) {
+        c.copy(c0).addScaledVector(dir, r);
+        if (!this.fits(c, h)) continue;
+        // the eyes must see the new place (its centre and its head end): not through a wall
+        let seen = true;
+        for (const k of [0, h / 2 - 0.12]) {
+          los.copy(c).addScaledVector(this.up, k);
+          d.copy(los).sub(eye);
+          const len = d.length();
+          if (len > 1e-3 && this.world.raycast(eye, d.multiplyScalar(1 / len), len, groups(0xffff, GROUP.WORLD | GROUP.VEHICLE | GROUP.DYNAMIC), this.collider)) { seen = false; break; }
+        }
+        if (!seen) continue;
+        if (import.meta.env.DEV) console.info(`[player] freed from an overlap: moved ${r.toFixed(2)} m`);
+        this.pos.copy(c).addScaledVector(this.up, -h / 2);
+        this.prevPos.copy(this.pos);
+        this.vel.set(0, 0, 0);
+        this.syncBody();
+        this.world.world.propagateModifiedBodyPositionsToColliders();
+        return true;
+      }
+    }
+    return false;
   }
 
   /**
@@ -241,6 +318,23 @@ export class Player {
       else { this.crouching = true; this.setHeight(CROUCH_H); }
     }
 
+    // just put here (out of a seat, a teleport): free the body if it is inside something
+    if (this.settle > 0) {
+      this.settle = 0;
+      let ok = !this.inside() || this.freeSpot();
+      if (!ok) {
+        const from = this.pos.clone();
+        for (const h of this.exitHints) {
+          this.pos.copy(h);
+          this.syncBody();
+          if (!this.inside() || this.freeSpot()) { ok = true; break; }
+        }
+        if (ok) { this.prevPos.copy(this.pos); this.vel.set(0, 0, 0); this.syncBody(); this.world?.world.propagateModifiedBodyPositionsToColliders(); }
+        else { this.pos.copy(from); this.syncBody(); }
+      }
+      this.exitHints = [];
+    }
+
     const desired = _v3.set(0, 0, 0);
     if (floating) {
       // Zero-g: push off in the look direction; velocity persists and bleeds off slowly (handholds, air drag).
@@ -308,6 +402,11 @@ export class Player {
     this.stepSmooth = damp(this.stepSmooth, 0, 12, dt);
 
     this.guardFall(dt, floating);
+    // pushing and getting nowhere at all while overlapping something: wedged, free the body
+    if ((mx !== 0 || mz !== 0) && m.x * m.x + m.y * m.y + m.z * m.z < 1e-10) {
+      this.stuckT += dt;
+      if (this.stuckT > 0.5) { this.stuckT = 0; if (this.inside()) this.freeSpot(); }
+    } else this.stuckT = 0;
 
     if (!floating && this.grounded) {
       const d = _v.copy(this.pos).sub(before);

@@ -314,6 +314,9 @@ function Touch({ game }: { game: Game }) {
   const [sprint, setSprint] = useState(false);
   const [full, setFull] = useState(!!document.fullscreenElement);
   const [portrait, setPortrait] = useState(window.innerHeight > window.innerWidth);
+  // weightless (the hub, a Ranger docked on the axis): the on-foot buttons become float up / down
+  const [floating, setFloating] = useState(game.player.mode === 'float');
+  useEffect(() => bus.on('player:mode', (m: string) => setFloating(m === 'float')), []);
   const inp = game.input;
   const sc = game.settings.c.touchScale;
   // the controls are on screen (the effects below attach to their elements whenever they appear)
@@ -392,7 +395,7 @@ function Touch({ game }: { game: Game }) {
     inp.setVirtualAxis('moveX', 0);
     inp.setVirtualAxis('moveY', 0);
     setSprint(false);
-  }, [mode, screen, panel]);
+  }, [mode, screen, panel, floating]);
   if (!shown) return null;
   const hold = (action: string, label: string, cls = '') => (
     <button class={`tb ${cls}`} onPointerDown={(e) => { e.preventDefault(); (e.currentTarget as HTMLElement).setPointerCapture(e.pointerId); inp.setVirtualDown(action, true); }}
@@ -422,7 +425,9 @@ function Touch({ game }: { game: Game }) {
       rcs = <div class="rcs" style={{ transform: `scale(${sc})` }}><span />{hold('transFwd', 'Fwd', 'sm')}{hold('transUp', 'Up', 'sm')}{hold('transLeft', 'Left', 'sm')}<b>RCS</b>{hold('transRight', 'Right', 'sm')}<span />{hold('transBack', 'Back', 'sm')}{hold('transDown', 'Down', 'sm')}</div>;
       break;
     default:
-      cluster = <>{hold('crouch', 'Crouch')}{hold('jump', 'Jump')}{tap('interact', 'Use', 'main')}{run}</>;
+      cluster = floating
+        ? <>{hold('crouch', 'Down')}{hold('jump', 'Up')}{tap('interact', 'Use', 'main')}{run}</>
+        : <>{hold('crouch', 'Crouch')}{hold('jump', 'Jump')}{tap('interact', 'Use', 'main')}{run}</>;
       tools = <>{tool('flashlight', 'Lamp')}{tool('scan', 'Scan')}{tool('codex', 'Codex')}{tool('crew', 'Crew')}{tool('computer', 'Computer')}</>;
   }
   const canFull = !!document.documentElement.requestFullscreen;

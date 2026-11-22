@@ -458,9 +458,18 @@ export class EnduranceZone extends Zone {
     pl.basis.copy(quat);
     pl.up.set(0, 1, 0).applyQuaternion(quat);
     pl.yaw = 0; pl.pitch = 0;
-    pl.teleport(pos.clone().addScaledVector(pl.up, -1.66));
+    // the eyes where the seat had them, whatever the body's posture (weightless at the hub: tucked up); if the body
+    // then overlaps the seat or the console, the player controller moves it to the nearest free spot in the cabin
+    pl.teleportEye(pos);
+    // the cabin aisle beside the seats, nearest first: where the commander floats out if the seat holds the body
+    const cabin = craft === 'r1' ? this.r1 : this.r2;
+    pl.exitHints = cabin.ofKind('nav').filter((m) => m.id.startsWith('aisle'))
+      .map((m) => m.node.getWorldPosition(new THREE.Vector3()).addScaledVector(pl.up, 0.08))
+      .sort((a, b) => a.distanceToSquared(pos) - b.distanceToSquared(pos));
     pl.lookEnabled = true;
     ui.set({ mode: 'foot', hints: [] });
+    const pg = this.ports.find((p) => p.craft === craft);
+    if (pg && !pg.open) setTimeout(() => ui.toast('The docking hatch is at the back of the cabin: float to it and Use it to open the way into the Endurance', 'info', 6), 700);
     const o = this.orbit;
     // the crew climbs out with the commander
     const mdl = craft === 'r1' ? this.r1 : this.r2;
