@@ -117,13 +117,34 @@ kbd { font-family: var(--mono); font-size: 11px; border: 1px solid var(--line); 
 canvas.map { width: 100%; height: auto; display: block; border: 1px solid var(--faint); background: #06080a; }
 
 /* ---------- touch controls */
-.touch .stick { position: absolute; left: 28px; bottom: 34px; width: 132px; height: 132px; border-radius: 50%; border: 1px solid var(--line); background: rgba(10, 12, 14, 0.25); pointer-events: auto; touch-action: none; }
-.touch .stick i { position: absolute; left: 50%; top: 50%; width: 54px; height: 54px; margin: -27px; border-radius: 50%; background: rgba(233, 230, 223, 0.35); }
-.touch .look { position: absolute; right: 0; top: 0; width: 55%; height: 100%; pointer-events: auto; touch-action: none; }
-.touch .tbtns { position: absolute; right: 22px; bottom: 30px; display: grid; grid-template-columns: repeat(3, 62px); gap: 10px; pointer-events: none; }
-.touch .tb { all: unset; pointer-events: auto; touch-action: none; width: 62px; height: 62px; border-radius: 50%; border: 1px solid var(--line); background: rgba(10, 12, 14, 0.35); display: grid; place-items: center; font-size: 9px; letter-spacing: 0.14em; text-transform: uppercase; }
-.touch .tb:active, .touch .tb.on { background: rgba(233, 230, 223, 0.4); color: #000; }
-.touch .tmenu { position: absolute; right: 18px; top: 14px; }
+.touch { --sl: env(safe-area-inset-left, 0px); --sr: env(safe-area-inset-right, 0px); --st: env(safe-area-inset-top, 0px); --sb: env(safe-area-inset-bottom, 0px); }
+.touch .move { position: absolute; left: 0; top: 18%; width: 42%; bottom: 0; pointer-events: auto; touch-action: none; }
+.touch .look { position: absolute; right: 0; top: 0; width: 58%; height: 100%; pointer-events: auto; touch-action: none; }
+.touch .stick { position: absolute; left: calc(26px + var(--sl)); bottom: calc(28px + var(--sb)); border-radius: 50%; border: 1px solid var(--line); background: rgba(10, 12, 14, 0.22); pointer-events: none; opacity: 0.55; transition: opacity 0.2s; }
+.touch .stick.live { bottom: auto; transform: translate(-50%, -50%); opacity: 1; transition: none; }
+.touch .stick i { position: absolute; left: 50%; top: 50%; width: 46%; height: 46%; transform-origin: center; margin: -23% 0 0 -23%; border-radius: 50%; background: rgba(233, 230, 223, 0.38); box-shadow: 0 0 12px rgba(0, 0, 0, 0.35); }
+.touch .tbtns { position: absolute; right: calc(16px + var(--sr)); bottom: calc(20px + var(--sb)); display: grid; grid-template-columns: repeat(3, 64px); gap: 10px; pointer-events: none; transform-origin: bottom right; direction: rtl; }
+.touch .tbtns > * { direction: ltr; }
+.touch .tb { all: unset; pointer-events: auto; touch-action: none; -webkit-touch-callout: none; width: 64px; height: 64px; border-radius: 50%; border: 1px solid var(--line); background: rgba(10, 12, 14, 0.38); display: grid; place-items: center; font-size: 9.5px; letter-spacing: 0.12em; text-transform: uppercase; text-align: center; line-height: 1.15; color: var(--ink); text-shadow: 0 1px 3px rgba(0, 0, 0, 0.8); }
+.touch .tb.main { border-color: rgba(233, 230, 223, 0.6); background: rgba(233, 230, 223, 0.12); }
+.touch .tb.sm { width: 48px; height: 48px; font-size: 8.5px; border-radius: 12px; }
+.touch .tb:active, .touch .tb.on { background: rgba(233, 230, 223, 0.42); color: #000; text-shadow: none; }
+.touch .rcs { position: absolute; left: calc(14px + var(--sl)); top: 30%; display: grid; grid-template-columns: repeat(3, 48px); gap: 6px; pointer-events: none; transform-origin: top left; }
+.touch .rcs b { display: grid; place-items: center; font-weight: 400; font-size: 8px; letter-spacing: 0.24em; color: var(--dim); }
+.touch .ttools { position: absolute; left: calc(14px + var(--sl)); top: calc(40px + var(--st)); display: flex; flex-wrap: wrap; gap: 6px; max-width: 64vw; pointer-events: none; }
+.touch .tt { all: unset; pointer-events: auto; touch-action: none; -webkit-touch-callout: none; padding: 8px 11px; border: 1px solid var(--line); background: rgba(10, 12, 14, 0.42); font-size: 9.5px; letter-spacing: 0.16em; text-transform: uppercase; color: var(--ink); }
+.touch .tt:active { background: rgba(233, 230, 223, 0.42); color: #000; }
+.touch .rotate { position: absolute; left: 50%; top: 42%; transform: translateX(-50%); padding: 10px 16px; background: var(--glass); border: 1px solid var(--line); font-size: 11px; letter-spacing: 0.16em; text-transform: uppercase; text-align: center; }
+/* with touch controls on screen the HUD moves out of their way */
+.touch-ui .hud .gauges { left: 50%; transform: translateX(-50%); bottom: calc(12px + env(safe-area-inset-bottom, 0px)); gap: 16px; }
+.touch-ui .hud .gauge b { font-size: 16px; }
+.touch-ui .hud .loc { left: calc(16px + env(safe-area-inset-left, 0px)); top: calc(16px + env(safe-area-inset-top, 0px)); }
+.touch-ui .hud .clocks { right: calc(16px + env(safe-area-inset-right, 0px)); top: calc(14px + env(safe-area-inset-top, 0px)); }
+.touch-ui .hud .toasts { top: calc(64px + env(safe-area-inset-top, 0px)); right: auto; left: 50%; transform: translateX(-50%); align-items: center; max-width: 52vw; }
+.touch-ui .hud .subtitle { bottom: 22vh; max-width: 56vw; }
+.touch-ui .dockhud { width: 228px; top: calc(52px + env(safe-area-inset-top, 0px)); right: calc(14px + env(safe-area-inset-right, 0px)); font-size: 10px; padding: 9px 11px 8px; }
+.hud .prompt.tap { pointer-events: auto; padding: 10px 16px; border: 1px solid rgba(233, 230, 223, 0.55); background: rgba(10, 12, 14, 0.5); }
+.hud .prompt.tap::before { content: 'Tap'; font-size: 9px; letter-spacing: 0.24em; color: var(--accent); margin-right: 2px; }
 
 @media (max-width: 760px) {
   .sheet { grid-template-columns: 1fr; }

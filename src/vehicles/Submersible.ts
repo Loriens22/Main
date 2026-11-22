@@ -236,7 +236,7 @@ export class Submersible {
       if (seat) g.player.sit({ node: seat.node, eye: 0.62, yawLimit: 2.2 });
     }
     this.applyCam();
-    ui.set({ mode: 'drive', hints: ['W / S  ahead / astern · A / D  turn', 'SPACE / C  up / down · SHIFT  boost', `L  lamps · V  camera · E  ${this.remote ? 'put down the controls' : 'leave (at the surface)'}`, 'R  scan · J  field codex'] });
+    ui.set({ mode: 'sub', hints: ['W / S  ahead / astern · A / D  turn', 'SPACE / C  up / down · SHIFT  boost', `L  lamps · V  camera · E  ${this.remote ? 'put down the controls' : 'leave (at the surface)'}`, 'R  scan · J  field codex'] });
     bus.emit('sfx', { id: this.remote ? 'beep' : 'hatch', ui: true });
   }
 

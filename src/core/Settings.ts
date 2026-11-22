@@ -78,8 +78,9 @@ export const DEFAULT_BINDINGS: Record<string, string[]> = {
 
 function detectPreset(): PresetName {
   const ua = navigator.userAgent;
+  // phones and tablets get the same picture as a desktop (no quality cut for touch devices)
   const mobile = /Android|iPhone|iPad|iPod|Mobile/i.test(ua) || (navigator.maxTouchPoints > 1 && /Macintosh/.test(ua));
-  if (mobile) return 'medium';
+  if (mobile) return 'high';
   const cores = navigator.hardwareConcurrency || 4;
   const mem = (navigator as any).deviceMemory || 8;
   if (cores <= 4 || mem <= 4) return 'medium';

@@ -19,7 +19,7 @@ export interface UIState {
   subtitle: Subtitle | null;
   toasts: Toast[];
   location: string;
-  mode: 'foot' | 'drive' | 'fly' | 'seat' | 'float' | 'cinematic';
+  mode: 'foot' | 'drive' | 'fly' | 'seat' | 'float' | 'sub' | 'cinematic';
   gauges: HudGauge[];
   gps: { name: string; dist: number } | null;
   clocks: { label: string; value: string }[];

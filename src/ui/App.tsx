@@ -246,7 +246,7 @@ function Visor({ k }: { k: number }) {
   );
 }
 
-function Hud() {
+function Hud({ game }: { game: Game }) {
   const s = useUI((x) => x);
   if (s.screen !== 'none') return null;
   const now = performance.now();
@@ -254,7 +254,9 @@ function Hud() {
     <div class="layer hud">
       {s.visor > 0 && <Visor k={s.visor} />}
       {s.mode !== 'cinematic' && !s.panel && <div class="cross" />}
-      {s.prompt && !s.panel && <div class="prompt">{!s.touch && <kbd>{s.promptKey}</kbd>}{s.prompt}</div>}
+      {s.prompt && !s.panel && (s.touch
+        ? <div class="prompt tap" onPointerDown={(e) => { e.preventDefault(); game.input.tapVirtual('interact'); }}>{s.prompt}</div>
+        : <div class="prompt"><kbd>{s.promptKey}</kbd>{s.prompt}</div>)}
       {s.location && <div class="loc">{s.location}</div>}
       {s.clocks.length > 0 && <div class="clocks">{s.clocks.map((c) => <div><span>{c.label}</span>{c.value}</div>)}</div>}
       {s.gps && <div class="gps"><span>{s.gps.name}</span><b>{fmtDist(s.gps.dist)}</b></div>}
@@ -288,27 +290,53 @@ export function PanelFrame({ title, sub, close, children, tabs, tab, setTab }: {
   );
 }
 
+type TouchMode = 'foot' | 'drive' | 'fly' | 'seat' | 'float' | 'sub' | 'cinematic';
+
+/**
+ * Touch controls with the full set of actions of the keyboard: a floating movement stick (anywhere on the left),
+ * free look (anywhere on the right), a cluster of the actions of the current mode (on foot, seated, driving, the
+ * submersible, flying with its RCS translation pad) and a tool strip (lamp, scanner, codex, crew, computer, menu,
+ * full screen). Holds stay pressed while the finger stays down, even if it slides off the button.
+ */
 function Touch({ game }: { game: Game }) {
-  const mode = useUI((s) => s.mode);
+  const mode = useUI((s) => s.mode) as TouchMode;
   const screen = useUI((s) => s.screen);
   const panel = useUI((s) => s.panel);
-  const stick = useRef<HTMLDivElement>(null);
+  const moveZone = useRef<HTMLDivElement>(null);
+  const base = useRef<HTMLDivElement>(null);
   const knob = useRef<HTMLElement>(null);
+  const look = useRef<HTMLDivElement>(null);
   const [sprint, setSprint] = useState(false);
+  const [full, setFull] = useState(!!document.fullscreenElement);
+  const [portrait, setPortrait] = useState(window.innerHeight > window.innerWidth);
   const inp = game.input;
+  const sc = game.settings.c.touchScale;
+  // the controls are on screen (the effects below attach to their elements whenever they appear)
+  const shown = screen === 'none' && !panel && mode !== 'cinematic';
   useEffect(() => {
-    const el = stick.current;
-    if (!el) return;
-    let id = -1;
+    const f = () => setFull(!!document.fullscreenElement);
+    const o = () => setPortrait(window.innerHeight > window.innerWidth * 1.05);
+    document.addEventListener('fullscreenchange', f);
+    window.addEventListener('resize', o);
+    return () => { document.removeEventListener('fullscreenchange', f); window.removeEventListener('resize', o); };
+  }, []);
+  // floating stick: it appears under the thumb wherever the left side is touched
+  useEffect(() => {
+    const el = moveZone.current, b = base.current;
+    if (!el || !b) return;
+    let id = -1, ox = 0, oy = 0;
+    const R = 62 * sc;
+    const home = () => { b.style.left = ''; b.style.top = ''; b.classList.remove('live'); };
     const move = (e: PointerEvent) => {
       if (e.pointerId !== id) return;
-      const r = el.getBoundingClientRect();
-      let x = (e.clientX - r.left - r.width / 2) / (r.width / 2), y = (e.clientY - r.top - r.height / 2) / (r.height / 2);
+      let x = (e.clientX - ox) / R, y = (e.clientY - oy) / R;
       const l = Math.hypot(x, y);
       if (l > 1) { x /= l; y /= l; }
-      inp.setVirtualAxis('moveX', x);
-      inp.setVirtualAxis('moveY', -y);
-      if (knob.current) knob.current.style.transform = `translate(${x * 38}px, ${y * 38}px)`;
+      // a small dead zone, then a gentle curve: fine control near the centre, full deflection at the rim
+      const k = (v: number) => Math.sign(v) * Math.min(1, Math.max(0, (Math.abs(v) - 0.08) / 0.92) ** 1.25);
+      inp.setVirtualAxis('moveX', k(x));
+      inp.setVirtualAxis('moveY', -k(y));
+      if (knob.current) knob.current.style.transform = `translate(${x * R * 0.62}px, ${y * R * 0.62}px)`;
     };
     const end = (e: PointerEvent) => {
       if (e.pointerId !== id) return;
@@ -316,23 +344,33 @@ function Touch({ game }: { game: Game }) {
       inp.setVirtualAxis('moveX', 0);
       inp.setVirtualAxis('moveY', 0);
       if (knob.current) knob.current.style.transform = '';
+      home();
     };
-    const start = (e: PointerEvent) => { id = e.pointerId; el.setPointerCapture(id); move(e); };
+    const start = (e: PointerEvent) => {
+      if (id !== -1) return;
+      id = e.pointerId; ox = e.clientX; oy = e.clientY;
+      el.setPointerCapture(id);
+      const r = el.getBoundingClientRect();
+      b.style.left = `${ox - r.left}px`; b.style.top = `${oy - r.top}px`;
+      b.classList.add('live');
+      move(e);
+    };
     el.addEventListener('pointerdown', start);
     el.addEventListener('pointermove', move);
     el.addEventListener('pointerup', end);
     el.addEventListener('pointercancel', end);
     return () => { el.removeEventListener('pointerdown', start); el.removeEventListener('pointermove', move); el.removeEventListener('pointerup', end); el.removeEventListener('pointercancel', end); };
-  }, [screen, panel]);
-  const look = useRef<HTMLDivElement>(null);
+  }, [shown, sc]);
+  // free look: drag anywhere on the right
   useEffect(() => {
     const el = look.current;
     if (!el) return;
     let id = -1, lx = 0, ly = 0;
-    const down = (e: PointerEvent) => { id = e.pointerId; lx = e.clientX; ly = e.clientY; el.setPointerCapture(id); };
+    const down = (e: PointerEvent) => { if (id !== -1) return; id = e.pointerId; lx = e.clientX; ly = e.clientY; el.setPointerCapture(id); };
     const move = (e: PointerEvent) => {
       if (e.pointerId !== id) return;
-      inp.addLook((e.clientX - lx) * 0.005 * game.settings.c.mouseSensitivity, (e.clientY - ly) * 0.005 * game.settings.c.mouseSensitivity);
+      const s = 0.0048 * game.settings.c.mouseSensitivity;
+      inp.addLook((e.clientX - lx) * s, (e.clientY - ly) * s * (game.settings.c.invertY ? -1 : 1));
       lx = e.clientX; ly = e.clientY;
     };
     const up = (e: PointerEvent) => { if (e.pointerId === id) id = -1; };
@@ -341,33 +379,74 @@ function Touch({ game }: { game: Game }) {
     el.addEventListener('pointerup', up);
     el.addEventListener('pointercancel', up);
     return () => { el.removeEventListener('pointerdown', down); el.removeEventListener('pointermove', move); el.removeEventListener('pointerup', up); el.removeEventListener('pointercancel', up); };
-  }, [screen, panel]);
-  if (screen !== 'none' || panel) return null;
-  const sc = game.settings.c.touchScale;
-  const hold = (action: string, label: string) => (
-    <button class="tb" onPointerDown={(e) => { (e.target as HTMLElement).setPointerCapture(e.pointerId); inp.setVirtualDown(action, true); }} onPointerUp={() => inp.setVirtualDown(action, false)} onPointerCancel={() => inp.setVirtualDown(action, false)}>{label}</button>
+  }, [shown]);
+  // a change of mode, or a panel or menu opening over the controls (their buttons vanish mid-press), releases
+  // everything the fingers were holding: no throttle or walk left stuck on
+  useEffect(() => {
+    for (const a of HOLDS) inp.setVirtualDown(a, false);
+    inp.setVirtualAxis('moveX', 0);
+    inp.setVirtualAxis('moveY', 0);
+    setSprint(false);
+  }, [mode, screen, panel]);
+  if (!shown) return null;
+  const hold = (action: string, label: string, cls = '') => (
+    <button class={`tb ${cls}`} onPointerDown={(e) => { e.preventDefault(); (e.currentTarget as HTMLElement).setPointerCapture(e.pointerId); inp.setVirtualDown(action, true); }}
+      onPointerUp={() => inp.setVirtualDown(action, false)} onPointerCancel={() => inp.setVirtualDown(action, false)} onLostPointerCapture={() => inp.setVirtualDown(action, false)}>{label}</button>
   );
-  const tap = (action: string, label: string) => <button class="tb" onPointerDown={() => inp.tapVirtual(action)}>{label}</button>;
-  let buttons: any;
-  if (mode === 'drive') buttons = <>{tap('camera', 'Cam')}{tap('headlights', 'Lights')}{tap('exit', 'Exit')}{hold('brake', 'Brake')}{tap('interact', 'Use')}{tap('computer', 'Menu')}</>;
-  else if (mode === 'fly') buttons = <>{hold('throttleUp', 'Thr +')}{hold('rollLeft', 'Roll L')}{hold('rollRight', 'Roll R')}{hold('throttleDown', 'Thr −')}{hold('vtol', 'Lift')}{tap('autopilot', 'Auto')}{tap('camera', 'Cam')}{tap('gear', 'Gear')}{tap('exit', 'Seat')}</>;
-  else buttons = <>{tap('crew', 'Crew')}{tap('computer', 'Comp')}{tap('exit', 'Exit')}<button class={`tb ${sprint ? 'on' : ''}`} onPointerDown={() => { const v = !sprint; setSprint(v); inp.setVirtualDown('sprint', v); }}>Run</button>{hold('crouch', 'Crouch')}{hold('jump', 'Jump')}<span />{tap('interact', 'Use')}<span /></>;
+  const tap = (action: string, label: string, cls = '') => <button class={`tb ${cls}`} onPointerDown={(e) => { e.preventDefault(); inp.tapVirtual(action); }}>{label}</button>;
+  const tool = (action: string, label: string) => <button class="tt" onPointerDown={(e) => { e.preventDefault(); inp.tapVirtual(action); }}>{label}</button>;
+  const run = <button class={`tb ${sprint ? 'on' : ''}`} onPointerDown={(e) => { e.preventDefault(); const v = !sprint; setSprint(v); inp.setVirtualDown('sprint', v); }}>Run</button>;
+  let cluster: any, tools: any, rcs: any = null;
+  switch (mode) {
+    case 'seat':
+      cluster = <>{tap('exit', 'Stand')}{tap('interact', 'Use', 'main')}</>;
+      tools = <>{tool('crew', 'Crew')}{tool('computer', 'Computer')}{tool('codex', 'Codex')}</>;
+      break;
+    case 'drive':
+      cluster = <>{tap('camera', 'Cam')}{tap('headlights', 'Lights')}{tap('exit', 'Exit')}{hold('brake', 'Brake', 'main')}{tap('interact', 'Use')}</>;
+      tools = <>{tool('computer', 'Computer')}{tool('codex', 'Codex')}</>;
+      break;
+    case 'sub':
+      cluster = <>{hold('jump', 'Up')}{hold('sprint', 'Boost')}{tap('headlights', 'Lamps')}{hold('crouch', 'Down')}{tap('camera', 'Cam')}{tap('interact', 'Use', 'main')}</>;
+      tools = <>{tool('scan', 'Scan')}{tool('codex', 'Codex')}{tool('computer', 'Computer')}</>;
+      break;
+    case 'fly':
+      cluster = <>{hold('rollLeft', 'Roll L')}{hold('throttleUp', 'Thr +', 'main')}{hold('rollRight', 'Roll R')}{tap('throttleCut', 'Cut')}{hold('throttleDown', 'Thr −')}{tap('throttleMax', 'Max')}{tap('vtol', 'VTOL')}{tap('autopilot', 'Auto')}{tap('sas', 'SAS')}</>;
+      tools = <>{tool('gear', 'Gear')}{tool('headlights', 'Lights')}{tool('camera', 'Camera')}{tool('exit', 'Leave seat')}{tool('computer', 'Computer')}</>;
+      // RCS translation: forward / back / left / right / up / down
+      rcs = <div class="rcs" style={{ transform: `scale(${sc})` }}><span />{hold('transFwd', 'Fwd', 'sm')}{hold('transUp', 'Up', 'sm')}{hold('transLeft', 'Left', 'sm')}<b>RCS</b>{hold('transRight', 'Right', 'sm')}<span />{hold('transBack', 'Back', 'sm')}{hold('transDown', 'Down', 'sm')}</div>;
+      break;
+    default:
+      cluster = <>{hold('crouch', 'Crouch')}{hold('jump', 'Jump')}{tap('interact', 'Use', 'main')}{run}</>;
+      tools = <>{tool('flashlight', 'Lamp')}{tool('scan', 'Scan')}{tool('codex', 'Codex')}{tool('crew', 'Crew')}{tool('computer', 'Computer')}</>;
+  }
+  const canFull = !!document.documentElement.requestFullscreen;
+  const toggleFull = () => {
+    if (document.fullscreenElement) { document.exitFullscreen?.(); return; }
+    // landscape once in full screen (where the browser allows locking it)
+    document.documentElement.requestFullscreen?.({ navigationUI: 'hide' } as any).then(() => (window.screen as any).orientation?.lock?.('landscape')?.catch?.(() => {}), () => {});
+  };
   return (
-    <div class="layer touch" style={{ fontSize: `${sc}em` }}>
+    <div class="layer touch">
+      <div class="move" ref={moveZone}><div class="stick" ref={base} style={{ width: `${124 * sc}px`, height: `${124 * sc}px` }}><i ref={knob as any} /></div></div>
       <div class="look" ref={look} />
-      <div class="stick" ref={stick} style={{ transform: `scale(${sc})`, transformOrigin: 'bottom left' }}><i ref={knob as any} /></div>
-      <div class="tbtns" style={{ transform: `scale(${sc})`, transformOrigin: 'bottom right' }}>{buttons}</div>
-      <button class="btn tmenu interactive" onClick={() => bus.emit('ui:pause')}>Menu</button>
+      {rcs}
+      <div class={`tbtns ${mode === 'fly' ? 'fly' : ''}`} style={{ transform: `scale(${sc})` }}>{cluster}</div>
+      <div class="ttools">{tools}{canFull && <button class="tt" onPointerDown={(e) => { e.preventDefault(); toggleFull(); }}>{full ? 'Window' : 'Full screen'}</button>}<button class="tt" onPointerDown={(e) => { e.preventDefault(); bus.emit('ui:pause'); }}>Menu</button></div>
+      {portrait && <div class="rotate">Turn the device sideways for the full view</div>}
     </div>
   );
 }
+
+/** every action a touch button can hold down (released when the mode changes) */
+const HOLDS = ['jump', 'crouch', 'sprint', 'brake', 'rollLeft', 'rollRight', 'throttleUp', 'throttleDown', 'transFwd', 'transBack', 'transLeft', 'transRight', 'transUp', 'transDown'];
 
 function Root({ game }: { game: Game }) {
   const screen = useUI((s) => s.screen);
   const touch = useUI((s) => s.touch);
   return (
     <>
-      <Hud />
+      <div class={touch ? 'touch-ui' : ''}><Hud game={game} /></div>
       {touch && <Touch game={game} />}
       <PanelHost game={game} />
       {screen === 'menu' && <MainMenu game={game} />}
