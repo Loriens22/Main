@@ -191,6 +191,9 @@ export class SurfaceZone extends Zone {
   sites = new LazarusSites(this);
   /** the life of Miller's planet (its animals, the submersible, the view under water) */
   life: MillerLife | null = null;
+  /** the suit's helmet lamp (L on foot) */
+  helmetOn = false;
+  private helmet: THREE.SpotLight | null = null;
 
   env: FlightEnv = {
     gravity: (_p, out) => out.set(0, -surfaceGravity(this.body), 0),
@@ -214,6 +217,10 @@ export class SurfaceZone extends Zone {
     this.view = new SystemView('sol');
     this.view.showSun = false;
     this.lights = new LightPool(this.root, 8, 4);
+    // the helmet lamp: always in the scene (switching it off zeroes it, so no shader is rebuilt)
+    this.helmet = new THREE.SpotLight(0xfff1dc, 0, 38, 0.42, 0.55, 2);
+    this.helmet.castShadow = false;
+    this.root.add(this.helmet, this.helmet.target);
     progress?.(0.5, 'Ranger');
     const m = await assets.load('ranger');
     this.ranger = new Spacecraft('ranger1', RANGER_SPEC, m, this.phys, this.lights);
@@ -718,6 +725,7 @@ export class SurfaceZone extends Zone {
     this.life?.update(dt);
     if (this.giant) this.lightning(dt);
     this.lights.update(_v, dt);
+    this.updateHelmet();
     this.sites.update(dt);
     this.hudT -= dt;
     if (this.hudT <= 0) {
@@ -731,6 +739,26 @@ export class SurfaceZone extends Zone {
       g.renderer.setLook(this.look());
     }
     void this.landedAt;
+  }
+
+  /** L on foot: the helmet lamp, riding on the view */
+  private updateHelmet() {
+    const g = this.game, h = this.helmet!;
+    const flight = g.services.flight as Flight;
+    const onFoot = g.zone === this && !flight.craft && !this.life?.sub?.piloted && !g.uiFocus;
+    if (onFoot && g.input.pressed('flashlight')) {
+      this.helmetOn = !this.helmetOn;
+      bus.emit('sfx', { id: 'switch', ui: true });
+    }
+    const on = this.helmetOn && onFoot;
+    h.intensity = on ? 70 : 0;
+    if (!on) return;
+    const cam = g.renderer.camera;
+    cam.getWorldPosition(h.position);
+    h.position.y -= 0.05;
+    cam.getWorldDirection(_w);
+    h.target.position.copy(h.position).addScaledVector(_w, 10);
+    h.target.updateMatrixWorld();
   }
 
   /**

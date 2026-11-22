@@ -1,37 +1,31 @@
 import * as THREE from 'three';
 import type { SurfaceZone } from '../../world/space/SurfaceZone';
 import { assets, type Model } from '../../render/Assets';
-import { W } from '../../render/patch';
-import type { Fixture } from '../../render/LightPool';
-import { Ecosystem, type LifeWorld } from '../Ecosystem';
-import { Creature, hashRand, type Contact, type Habitat } from '../Creature';
+import { hashRand, type Creature } from '../Creature';
 import { MILLER_SPECIES } from '../species';
-import { codex } from '../Codex';
 import { MILLER_BASIN, MILLER_RIFT, MILLER_ROCKS, MILLER_SANDS, riftQuery } from '../../world/terrain/sites';
 import { curvatureDrop, MILLER_SEA_FLOOR } from '../../world/terrain/worlds';
 import { MillerWave } from '../../render/MillerWave';
-import { Submersible } from '../../vehicles/Submersible';
-import { floatGeometry, Schools, type SchoolStimulus } from './Schools';
+import type { Submersible } from '../../vehicles/Submersible';
+import { floatGeometry, Schools } from './Schools';
 import { Underwater } from './Underwater';
+import { UP, WorldLife, type WaterView } from './WorldLife';
 import { ui } from '../../ui/store';
 import { bus } from '../../core/events';
 import { clamp } from '../../core/math';
-import { GROUP, groups, type RAPIER } from '../../physics/Physics';
+import { GROUP, groups } from '../../physics/Physics';
 import { mission } from '../../mission/Mission';
 import type { Flight } from '../../vehicles/Flight';
 import type { Interactable } from '../../player/Interaction';
 
-const _v = new THREE.Vector3(), _w = new THREE.Vector3(), _u = new THREE.Vector3(), _q = new THREE.Quaternion();
-const UP = new THREE.Vector3(0, 1, 0);
-const _tint = new THREE.Color();
+const _v = new THREE.Vector3(), _u = new THREE.Vector3();
 
 /** what stays of Miller's life between visits (the same animals, the sub where it was left, the nest walls) */
 const SAVED: { eco?: any; sub?: { p: number[]; yaw: number; hull: number } | null; nests?: number[] } = {};
 
 /** water optics of Miller's sea: extinction along a sight line (1/m), downwelling attenuation with depth (1/m) */
-const EXT = 0.05, ATT = 0.03;
+const ATT = 0.03;
 
-interface Spot { pos: THREE.Vector3; den?: THREE.Vector3; heading?: number }
 interface Placed { name: string; pos: THREE.Vector3; yaw: number; scale: number; model?: Model }
 interface Nest { owner: string; centre: THREE.Vector3; pile: THREE.Vector3; stones: number; max: number; mesh?: THREE.InstancedMesh; waveCycle: number }
 /** the tops of an outcrop's blocks on a grid (ground animals walk on them) */
@@ -44,75 +38,34 @@ const NOTCH = new THREE.Vector3(0.2, 0, 1.8);
 /**
  * The life of Miller's planet (original speculative worldbuilding for the game): the habitats of the rift and the
  * flats, the physical world its animals sense (the tide's precursors, the surge, light falling off with depth,
- * refuges), what they can sense of each other and of the crew, and what follows from contact. Also the crew's side:
- * the research submersible, sightings, scans and sonar contacts for the field codex, and the view under water.
+ * refuges), the research submersible unloaded from Ranger 1, and the sea's water optics.
  */
-export class MillerLife implements LifeWorld {
+export class MillerLife extends WorldLife {
   planet = 'miller';
-  habitat: Habitat;
-  eco: Ecosystem;
-  root = new THREE.Group();
-  sub: Submersible | null = null;
-  /** the camera is under water, how deep, and the exposure the eye adapts to there */
-  underwater = false;
-  camDepth = 0;
-  exposureGain = 1;
-  private time = 0;
-  private frame = 0;
-  private cFrame = -1;
-  private cList: Contact[] = [];
-  private cPlayer: Contact = { id: 'player', kind: 'player', pos: new THREE.Vector3(), vel: new THREE.Vector3(), size: 1.8, light: 0, noise: 0.2 };
-  private cSub: Contact = { id: 'sub', kind: 'sub', pos: new THREE.Vector3(), vel: new THREE.Vector3(), size: 4, light: 1, noise: 0.3 };
-  private cRanger: Contact = { id: 'ranger', kind: 'object', pos: new THREE.Vector3(), vel: new THREE.Vector3(), size: 12, light: 0.2, noise: 0 };
-  private cCreature = new Map<string, Contact>();
-  private tags = new Map<string, Spot[]>();
-  private tagNext = new Map<string, number>();
   private outcrops: Placed[] = [];
   private overhangs: Placed[] = [];
   private vents: Placed[] = [];
   private nests: Nest[] = [];
   private rasters: Raster[] = [];
-  private colliders: RAPIER.Collider[] = [];
-  private schools: Schools | null = null;
-  private water: Underwater;
   private bloomC: { c: THREE.Vector3; a: number; r: number; o: THREE.Vector3 }[] = [];
-  private interacts: Interactable[] = [];
-  private lure: Fixture | null = null;
-  private subModel: Model | null = null;
-  private colliderSet = new Set<number>();
-  private ready = false;
-  private disposed = false;
-  private sightT = 0;
-  private sonarT = 0;
-  private sonarN = 0;
-  private lastSight = new Map<string, number>();
-  private scanning: { c: Creature; t: number } | null = null;
   private warnT = 0;
   private sweptCycle = -1;
-  private stirs = [0, 1, 2, 3].map(() => new THREE.Vector4());
   private cum: number[] = [];
   private total = 0;
 
-  constructor(public zone: SurfaceZone) {
-    this.root.name = 'miller-life';
-    zone.root.add(this.root);
-    this.habitat = this.makeHabitat();
+  constructor(zone: SurfaceZone) {
+    super(zone, 'miller-life');
+    this.optics = { ext: 0.05, att: ATT, col: [0.012, 0.058, 0.07] };
     this.measureRift();
     this.layout();
     this.water = new Underwater(this.bloomC.map((b) => b.c));
     this.root.add(this.water.group);
-    this.eco = new Ecosystem(this, this.root, SAVED.eco);
-    this.eco.onSpawn = (c) => this.spawned(c);
-    this.eco.onDespawn = (c) => this.cCreature.delete(c.id);
-    zone.sites.cabin = () => !!this.sub?.piloted;
+    this.startEcosystem(SAVED.eco);
     void this.load();
   }
 
-  get game() { return this.zone.game; }
-
   species() { return MILLER_SPECIES; }
 
-  // ============================================================================================ the rift's geometry
   private measureRift() {
     this.cum = [0];
     for (let i = 0; i < MILLER_RIFT.length - 1; i++) this.cum.push(this.cum[i] + Math.hypot(MILLER_RIFT[i + 1].x - MILLER_RIFT[i].x, MILLER_RIFT[i + 1].z - MILLER_RIFT[i].z));
@@ -131,7 +84,10 @@ export class MillerLife implements LifeWorld {
   }
 
   /** the ground (terrain only) */
-  private ground(x: number, z: number) { return this.zone.terrain ? this.zone.terrain.source.height(x, z) : MILLER_SEA_FLOOR; }
+  protected ground(x: number, z: number) { return this.zone.terrain ? this.zone.terrain.source.height(x, z) : MILLER_SEA_FLOOR; }
+
+  /** ground animals walk on the outcrops' blocks as well */
+  protected override floorAt(x: number, z: number) { const g = this.ground(x, z); const r = this.rasterAt(x, z); return r > g ? r : g; }
 
   /** the foot of the canyon wall on one side at t: where the floor starts to climb steeply */
   private wallFoot(t: number, side: number) {
@@ -161,9 +117,6 @@ export class MillerLife implements LifeWorld {
     }
     return new THREE.Vector3(best.x, this.ground(best.x, best.z), best.z);
   }
-
-  // ============================================================================================ habitats
-  private addSpot(tag: string, s: Spot) { if (!this.tags.has(tag)) this.tags.set(tag, []); this.tags.get(tag)!.push(s); }
 
   private layout() {
     const wy = (x: number, z: number) => -curvatureDrop('miller', x, z);
@@ -287,35 +240,11 @@ export class MillerLife implements LifeWorld {
     return best ?? p.clone();
   }
 
-  spots(tag: string, n: number, _seed: number) {
-    const list = this.tags.get(tag) ?? [];
-    const out: Spot[] = [];
-    if (!list.length) return out;
-    for (let i = 0; i < n; i++) {
-      const k = this.tagNext.get(tag) ?? 0;
-      this.tagNext.set(tag, k + 1);
-      const s = list[k % list.length];
-      out.push({ pos: s.pos.clone(), den: s.den?.clone(), heading: s.heading });
-    }
-    return out;
-  }
-
-  // ============================================================================================ loading
   private async load() {
     const [outcrop, overhang, vents, clutch, stone, darter, sub] = await Promise.all(
       ['miller_outcrop', 'rift_overhang', 'rift_vents', 'egg_clutch', 'nest_stone', 'rift_darter', 'minisub'].map((n) => assets.load(n)));
     if (this.disposed) return;
-    const phys = this.zone.phys;
-    const put = (p: Placed, m: Model) => {
-      p.model = m;
-      m.root.position.copy(p.pos);
-      m.root.rotation.set(0, p.yaw, 0);
-      m.root.scale.setScalar(p.scale);
-      m.root.traverse((o) => { if ((o as THREE.Mesh).isMesh) { o.castShadow = true; o.receiveShadow = true; } });
-      this.root.add(m.root);
-      m.root.updateMatrixWorld(true);
-      for (const c of phys.addTrimesh(m.colliders)) { this.colliders.push(c); this.colliderSet.add(c.handle); }
-    };
+    const put = (p: Placed, m: Model) => { p.model = m; this.put(m, p.pos, p.yaw, p.scale); };
     // every placement gets its own instance of the model
     const inst = async (name: string) => assets.load(name);
     put(this.outcrops[0], outcrop);
@@ -364,7 +293,7 @@ export class MillerLife implements LifeWorld {
     // vent plumes from each chimney mouth
     const plumes: { pos: THREE.Vector3; power: number }[] = [];
     for (const v of this.vents) for (const mk of v.model!.ofKind('plume')) plumes.push({ pos: mk.node.getWorldPosition(new THREE.Vector3()), power: Number(mk.data.power ?? 1) });
-    this.water.setPlumes(plumes);
+    this.water!.setPlumes(plumes);
     // the darter schools, one per reach of the canyon and the basin edge
     const homes = [0.2, 0.38, 0.55, 0.72, 0.9].map((t) => {
       const r = this.rift(t), fl = this.ground(r.x, r.z);
@@ -408,51 +337,6 @@ export class MillerLife implements LifeWorld {
     return NaN;
   }
 
-  private spawned(c: Creature) {
-    this.cCreature.set(c.id, { id: c.id, kind: 'creature', pos: c.pos, vel: c.vel, size: c.length, light: 0, noise: 0.1, ref: c, species: c.def.id });
-  }
-
-  // ============================================================================================ the physical world
-  private makeHabitat(): Habitat {
-    const self = this;
-    return {
-      get time() { return self.time; },
-      floor: (x, z) => { const g = this.ground(x, z); const r = this.rasterAt(x, z); return r > g ? r : g; },
-      surface: (x, z) => this.surface(x, z),
-      ray: (o, d, max) => {
-        const n = Math.max(4, Math.min(24, Math.ceil(max / 2)));
-        for (let i = 1; i <= n; i++) {
-          const t = (max * i) / n;
-          const x = o.x + d.x * t, y = o.y + d.y * t, z = o.z + d.z * t;
-          if (y < this.ground(x, z)) return t;
-        }
-        const hit = this.zone.phys.raycast(o, d, max, groups(0xffff, GROUP.WORLD));
-        return hit ? hit.dist : null;
-      },
-      light: (p) => this.lightAt(p),
-      current: (p, out) => this.current(p, out),
-      hazard: (p) => this.hazard(p),
-      refuge: (c) => this.refuge(c),
-      contacts: () => this.contacts(),
-      strike: (c, t, sev) => this.strike(c, t, sev),
-      feed: (c, t) => this.feed(c, t),
-      observe: (c, what) => { if (this.time - c.seenT < 1.5) codex.observe(c.def.id, what); },
-      nest: (c) => { const n = this.nests.find((x) => x.owner === c.id); return n ? { stones: n.stones, max: n.max, pile: n.pile } : null; },
-      placeStone: (c) => {
-        const n = this.nests.find((x) => x.owner === c.id);
-        if (!n || n.stones >= n.max) return;
-        n.stones++;
-        if (n.mesh) n.mesh.count = n.stones;
-      },
-      group: (c) => this.eco.members(c.groupId).filter((m) => m !== c),
-      bloom: (c) => {
-        let best: THREE.Vector3 | null = null, bd = 500;
-        for (const b of this.bloomC) { const d = b.c.distanceTo(c.pos); if (d < bd) { bd = d; best = b.c; } }
-        return best;
-      },
-    };
-  }
-
   /** the sea surface (the wave where it is passing), following the planet's curve */
   surface(x: number, z: number) {
     const w = this.zone.wave;
@@ -460,7 +344,7 @@ export class MillerLife implements LifeWorld {
   }
 
   /** daylight left at a point: falling off with depth, and nearly nothing under an overhang's roof */
-  private lightAt(p: THREE.Vector3) {
+  lightAt(p: THREE.Vector3) {
     const sun = clamp(this.zone.sky.sunDir.y * 3 + 0.25, 0.03, 1);
     const depth = Math.max(0, this.surface(p.x, p.z) - p.y);
     let L = sun * Math.exp(-depth * ATT);
@@ -481,7 +365,7 @@ export class MillerLife implements LifeWorld {
    * Water movement. Before the wave the water is drawn back toward it (the trough ahead of the crest); as the crest
    * passes there is a violent surge along its course that weakens with depth; overhangs break the flow.
    */
-  private current(p: THREE.Vector3, out: THREE.Vector3) {
+  protected current(p: THREE.Vector3, out: THREE.Vector3) {
     out.set(0, 0, 0);
     const w = this.zone.wave;
     if (w) {
@@ -499,7 +383,7 @@ export class MillerLife implements LifeWorld {
   }
 
   /** the tidal hazard at a point: 0 calm, 1 precursors, 2 warning, 3 the wave, 4 aftermath; and what is felt of it */
-  private hazard(p: THREE.Vector3) {
+  protected hazard(p: THREE.Vector3) {
     const w = this.zone.wave;
     if (!w) return { state: 0, cue: 0 };
     const eta = (p.x * w.dir.x + p.z * w.dir.z - w.s) / MillerWave.SPEED;
@@ -511,7 +395,7 @@ export class MillerLife implements LifeWorld {
   }
 
   /** where an animal shelters: its den, the outcrop's fissures for the grazers, else the nearest overhang or the floor */
-  private refuge(c: Creature) {
+  protected refuge(c: Creature) {
     if (c.def.id === 'ferracaris') {
       let best: Placed | null = null, bd = 1e9;
       for (const o of this.outcrops) { const d = Math.hypot(o.pos.x - c.pos.x, o.pos.z - c.pos.z); if (d < bd) { bd = d; best = o; } }
@@ -530,94 +414,29 @@ export class MillerLife implements LifeWorld {
     return null;
   }
 
-  // ============================================================================================ contacts and their consequences
-  private contacts(): Contact[] {
-    if (this.cFrame === this.frame) return this.cList;
-    this.cFrame = this.frame;
-    const L = this.cList;
-    L.length = 0;
-    const g = this.game, flight = g.services.flight as Flight;
-    const sub = this.sub;
-    if (g.zone === this.zone && !flight.craft && !sub?.piloted) {
-      const p = this.cPlayer;
-      p.pos.copy(g.player.pos).addScaledVector(UP, 0.9);
-      p.vel.copy(g.player.vel);
-      const sp = Math.hypot(p.vel.x, p.vel.z);
-      // wading splashes
-      p.noise = clamp(sp / 5, 0.05, 1) * (this.surface(p.pos.x, p.pos.z) > g.player.pos.y ? 1 : 0.6);
-      L.push(p);
-    }
-    if (sub) {
-      const s = this.cSub;
-      s.pos.copy(sub.pos).addScaledVector(UP, 1.1);
-      s.vel.copy(sub.vel);
-      s.light = sub.lights ? 1 : 0;
-      s.noise = 0.12 + sub.thrust * 0.88;
-      s.ref = sub;
-      L.push(s);
-    }
-    const r = this.cRanger;
-    r.pos.copy(this.zone.ranger.root.position);
-    L.push(r);
-    for (const c of this.cCreature.values()) {
-      const cr = c.ref as Creature;
-      c.light = cr.def.archetype === 'lure' ? cr.display : 0;
-      c.noise = 0.08 + 0.5 * Math.min(1, cr.speed / Math.max(0.1, cr.def.speed.burst));
-      c.size = cr.length * (1 - cr.hidden * 0.5);
-      L.push(c);
-    }
-    if (this.schools) for (const s of this.schools.list) if (this.schools.alive(s) > 0) L.push(s.contact);
-    return L;
+  protected override nestOf(c: Creature) { const n = this.nests.find((x) => x.owner === c.id); return n ? { stones: n.stones, max: n.max, pile: n.pile } : null; }
+
+  protected override placeStoneFor(c: Creature) {
+    const n = this.nests.find((x) => x.owner === c.id);
+    if (!n || n.stones >= n.max) return;
+    n.stones++;
+    if (n.mesh) n.mesh.count = n.stones;
   }
 
-  private strike(c: Creature, t: Contact, sev: number) {
-    const g = this.game;
-    const near = c.pos.distanceTo(g.renderer.camera.position) < 60;
-    if (near) bus.emit('sfx', { id: 'thud', ui: true, gain: clamp(sev * 1.5, 0.2, 1) });
-    switch (t.kind) {
-      case 'player': {
-        _v.copy(g.player.pos).sub(c.pos).setY(0);
-        if (_v.lengthSq() < 1e-4) _v.set(1, 0, 0);
-        g.player.carry(_v.normalize().multiplyScalar(1.2));
-        g.renderer.shake = 0.02;
-        const name = codex.level(c.def.id) >= 2 ? `The ${c.def.name.toLowerCase()}` : 'Something in the water';
-        if (g.settings.creative.damageProtection) ui.toast(`${name} lunges at you · Creative Mode: no injury`, 'warn', 4);
-        else if (sev >= 0.35) this.zone.sites.harm(`${name} strikes you: your visor cracks.`);
-        else ui.toast(`${name} strikes your leg and lets go.`, 'warn', 4);
-        mission.note(`Struck by ${codex.level(c.def.id) >= 2 ? c.def.name : 'an unidentified animal'} on Miller's planet.`);
-        break;
-      }
-      case 'sub':
-        this.sub?.impact(1.4 + sev * 7, codex.level(c.def.id) >= 2 ? c.def.name.toLowerCase() : 'an animal');
-        break;
-      case 'creature': {
-        const o = t.ref as Creature;
-        o.injury = Math.min(1, o.injury + sev);
-        o.stress = 1;
-        o.learn(c.id, -0.6, this.habitat);
-        break;
-      }
-    }
+  protected override bloomNear(c: Creature) {
+    let best: THREE.Vector3 | null = null, bd = 500;
+    for (const b of this.bloomC) { const d = b.c.distanceTo(c.pos); if (d < bd) { bd = d; best = b.c; } }
+    return best;
   }
 
-  private feed(c: Creature, t: Contact | null) {
-    if (!t) return 0.2;
-    if (t.kind === 'prey' && this.schools) return this.schools.take(t.ref) ? 0.35 : 0;
-    if (t.kind === 'creature') {
-      const o = t.ref as Creature;
-      // small, numerous animals are taken outright; anything else is wounded and gets away
-      if (o.length < c.length * 0.35 && o.def.population >= 20) { this.eco.kill(o.id); return 0.5; }
-      o.injury = Math.min(1, o.injury + 0.3);
-      o.stress = 1;
-      return 0.1;
-    }
-    return 0;
+  protected override waterView(cam: THREE.Vector3): WaterView {
+    const w = this.zone.wave;
+    return { level: w ? w.at(cam.x, cam.z).h : 0, region: [0, 0, 0], curve: 1 / (2 * this.zone.body.R) };
   }
 
-  // ============================================================================================ the submersible
   private addInteractions() {
     const g = this.game;
-    const add = (i: Interactable) => { (i as any).__scope = 'surface'; g.interactions.add(i); (i as any).__scope = 'surface'; this.interacts.push(i); };
+    const add = (i: Interactable) => this.addInteract(i);
     add({
       position: (out) => {
         const r = this.zone.ranger.root;
@@ -642,35 +461,11 @@ export class MillerLife implements LifeWorld {
     });
   }
 
-  private deploy(p: THREE.Vector3, yaw: number, hull: number) {
-    if (!this.subModel || this.sub) return;
-    const W_ = { floor: (x: number, z: number) => this.habitat.floor(x, z), surface: (x: number, z: number) => this.surface(x, z), current: (q: THREE.Vector3, out: THREE.Vector3) => this.current(q, out) };
-    this.sub = new Submersible(this.game, this.subModel, this.zone.phys, this.zone.lights, W_);
-    this.sub.hull = hull;
-    this.root.add(this.sub.root);
-    this.sub.place(p, yaw);
-    this.sub.setLights(false);
-  }
-
-  /** out through the hatch (at the surface, or on the flats) */
-  private leaveSub() {
-    const sub = this.sub!;
-    const g = this.game;
-    sub.leave((p) => {
-      p.y = this.habitat.floor(p.x, p.z) + 0.05;
-      g.player.stand(p, sub.yaw);
-    });
-  }
-
-  // ============================================================================================ update
-  fixedUpdate(dt: number) {
+  override fixedUpdate(dt: number) {
+    super.fixedUpdate(dt);
     if (!this.ready) return;
     const g = this.game, sub = this.sub;
-    if (sub) {
-      sub.fixedUpdate(dt);
-      if (sub.piloted && g.input.pressed('interact') && !g.uiFocus) this.leaveSub();
-      this.waveOverSub(sub);
-    }
+    if (sub) this.waveOverSub(sub);
     // nobody wades deeper than about chest height in a pressure suit: the ground slopes you back
     const flight = g.services.flight as Flight;
     if (g.zone === this.zone && !flight.craft && !sub?.piloted && g.player.mode === 'walk') {
@@ -687,7 +482,6 @@ export class MillerLife implements LifeWorld {
         }
       }
     }
-    this.time += dt;
   }
 
   /** the wave over the submersible: deep down it is a surge; in shallow water it tumbles it and throws it down-sea */
@@ -712,187 +506,16 @@ export class MillerLife implements LifeWorld {
     }
   }
 
-  update(dt: number) {
-    this.frame++;
+  override update(dt: number) {
+    super.update(dt);
     if (!this.ready) return;
-    const g = this.game, cam = g.renderer.camera;
-    const camP = cam.getWorldPosition(new THREE.Vector3());
-    const H = this.habitat;
-    this.eco.update(dt, camP);
     // plankton blooms drift slowly round their centres
     for (const [i, b] of this.bloomC.entries()) {
       b.a += dt * 0.002;
       b.c.set(b.o.x + Math.cos(b.a) * b.r, b.o.y, b.o.z + Math.sin(b.a) * b.r);
-      this.water.moveBloom(i, b.c);
+      this.water!.moveBloom(i, b.c);
     }
-    // the fish: threats and lights
-    if (this.schools) {
-      const stim: SchoolStimulus[] = [];
-      for (const c of this.contacts()) {
-        if (c.kind === 'prey' || c.kind === 'object') continue;
-        const cr = c.ref as Creature | undefined;
-        const predator = c.kind !== 'creature' || (cr && cr.length > 0.5 && cr.def.archetype !== 'filter' && cr.def.archetype !== 'grazer');
-        stim.push({ pos: c.pos, light: c.light, threat: predator && (c.vel.length() > 0.3 || c.kind === 'creature') ? 1 : 0, size: c.size });
-      }
-      this.schools.update(dt, H, camP, stim);
-    }
-    this.updateView(dt, camP);
-    this.updateLure(camP);
-    this.sightings(dt, camP);
-    this.updateScan(dt, camP);
     this.nestDamage();
-    if (this.sub?.piloted) {
-      this.sonarT -= dt;
-      if (this.sonarT <= 0) { this.sonarT = 3; this.sonar(); }
-      ui.set({ gauges: this.sub.hud() });
-    }
-  }
-
-  /** being in the water: what the light is like at the camera, the eye adapting, the water round the view */
-  private updateView(dt: number, cam: THREE.Vector3) {
-    const z = this.zone, sky = z.sky;
-    const w = z.wave;
-    const surfHere = w ? w.at(cam.x, cam.z).h : 0;
-    this.camDepth = this.surface(cam.x, cam.z) - cam.y;
-    this.underwater = this.camDepth > 0.02;
-    W.uWater.value.set(1, surfHere, EXT, ATT);
-    W.uWaterCol.value.setRGB(0.012, 0.058, 0.07);
-    W.uWaterReg.value.set(0, 0, 0, 1 / (2 * z.body.R));
-    const d = Math.max(0, this.camDepth);
-    const k = Math.exp(-d * ATT);
-    if (this.underwater) {
-      // sunlight dimmed and turned blue-green by the water over the camera
-      sky.sun.intensity *= k;
-      sky.sun.color.multiply(_tint.setRGB(Math.exp(-d * ATT * 1.2), 1, Math.min(1.4, Math.exp(d * ATT * 0.25))));
-      sky.fill.intensity *= k;
-      (g_scene(z)).environmentIntensity *= 0.15 + 0.85 * k;
-    }
-    const want = this.underwater ? clamp(1 / Math.sqrt(Math.max(k, 0.04)), 1, 4) : 1;
-    this.exposureGain += (want - this.exposureGain) * Math.min(1, dt * 0.8);
-    const r = this.game.renderer;
-    const px = r.height / (2 * Math.tan(((r.camera as THREE.PerspectiveCamera).fov * Math.PI) / 360));
-    const sub = this.sub;
-    let lamp = null;
-    if (sub) {
-      sub.forward(_u);
-      lamp = { pos: sub.pos.clone().addScaledVector(UP, 0.45).addScaledVector(_u, 1.85), dir: _u.clone().addScaledVector(UP, -0.14).normalize(), on: sub.lights };
-    }
-    // what stirs the water: the sub's thrusters, the fastest animals near the camera
-    let n = 0;
-    if (sub && sub.thrust > 0.05) this.stirs[n++].set(sub.pos.x, sub.pos.y + 1, sub.pos.z, sub.thrust * 1.5);
-    for (const c of this.eco.live.values()) {
-      if (n >= 4) break;
-      if (c.speed > c.def.speed.cruise * 1.5 && c.pos.distanceTo(cam) < 50) this.stirs[n++].set(c.pos.x, c.pos.y, c.pos.z, Math.min(2, c.speed / 3));
-    }
-    for (let i = n; i < 4; i++) this.stirs[i].set(0, -1e5, 0, 0);
-    this.water.update(dt, cam, this.underwater, this.camDepth, this.lightAt(cam), px, lamp, this.stirs);
-  }
-
-  /** the brightest siren lure near the camera lights the rock round it */
-  private updateLure(cam: THREE.Vector3) {
-    const f = this.lure;
-    if (!f) return;
-    let best: Creature | null = null, bd = 60;
-    for (const c of this.eco.live.values()) {
-      if (c.def.archetype !== 'lure' || c.display < 0.2) continue;
-      const d = c.pos.distanceTo(cam);
-      if (d < bd) { bd = d; best = c; }
-    }
-    f.on = !!best;
-    if (best) {
-      const tip = best.rig.bones.get('luree')?.bone ?? best.root;
-      f.node = tip;
-      f.level = best.display;
-    }
-  }
-
-  /** what the crew can see of the animals (light, water clarity, line of sight), and the codex records it makes */
-  private sightings(dt: number, cam: THREE.Vector3) {
-    this.sightT -= dt;
-    if (this.sightT > 0) return;
-    this.sightT = 0.25;
-    const g = this.game, camO = g.renderer.camera;
-    const dir = camO.getWorldDirection(new THREE.Vector3());
-    const sub = this.sub;
-    const lampOn = !!sub?.lights && !!sub?.piloted;
-    if (sub) sub.forward(_u);
-    for (const c of this.eco.live.values()) {
-      _v.copy(c.pos).sub(cam);
-      const d = _v.length();
-      if (d > 160) continue;
-      if (d > c.length && _v.dot(dir) / d < 0.64) continue;
-      const amb = this.lightAt(c.pos);
-      const sub_ = Math.max(0, this.surface(c.pos.x, c.pos.z) - c.pos.y);
-      let R: number;
-      if (this.underwater) {
-        R = 6 + 48 * amb;
-        if (lampOn) {
-          _w.copy(c.pos).sub(sub!.pos);
-          const ld = _w.length();
-          if (ld < 40 && _w.dot(_u) / ld > 0.82) R = Math.max(R, 40);
-        }
-      } else R = sub_ > 1.2 ? 5 + 18 * amb : 140;
-      if (c.def.archetype === 'lure') R = Math.max(R, 30 * c.display);
-      R *= clamp(0.55 + 0.3 * Math.sqrt(c.length), 0.5, 2.2) * (1 - 0.7 * c.hidden);
-      if (d > R) continue;
-      _v.divideScalar(d);
-      if (this.habitat.ray(cam, _v, Math.max(0, d - c.length * 0.6)) !== null) continue;
-      c.seenT = this.time;
-      const last = this.lastSight.get(c.id) ?? -1e9;
-      if (this.time - last > 20 && d < R * 0.75) {
-        this.lastSight.set(c.id, this.time);
-        codex.sight(c.def.id, c.id, c.length);
-      }
-    }
-  }
-
-  /** the submersible's sonar: echoes of anything large enough in range, whether seen or not */
-  private sonar() {
-    const sub = this.sub!;
-    if (!sub.submerged) { this.sonarN = 0; return; }
-    let n = 0;
-    for (const c of this.eco.live.values()) {
-      if (c.def.medium !== 'water' || c.pos.distanceTo(sub.pos) > 160 || c.length < 0.5) continue;
-      n++;
-      if (this.time - c.seenT > 10) codex.contact(c.def.id);
-    }
-    if (n && !this.sonarN) bus.emit('sfx', { id: 'beep', ui: true, gain: 0.4 });
-    this.sonarN = n;
-  }
-
-  /** R: scan the animal at the centre of view (range and light limited); it has to stay in view for the scan */
-  private updateScan(dt: number, cam: THREE.Vector3) {
-    const g = this.game;
-    const flight = g.services.flight as Flight;
-    const dir = g.renderer.camera.getWorldDirection(new THREE.Vector3());
-    const range = this.sub?.piloted ? 34 : 15;
-    const aim = (c: Creature) => {
-      _v.copy(c.pos).sub(cam);
-      const d = _v.length();
-      return d < range + c.length * 0.5 && this.time - c.seenT < 0.6 ? Math.acos(clamp(_v.dot(dir) / d, -1, 1)) : 9;
-    };
-    if (g.input.pressed('scan') && !g.uiFocus && g.zone === this.zone && !flight.craft) {
-      let best: Creature | null = null, ba = 0.28;
-      for (const c of this.eco.live.values()) { const a = aim(c); if (a < ba) { ba = a; best = c; } }
-      if (best) { this.scanning = { c: best, t: 0 }; bus.emit('sfx', { id: 'beep', ui: true, gain: 0.5 }); }
-      else { ui.toast(`Nothing to scan in view (range ${range} m; it has to be seen clearly)`, 'info', 3); bus.emit('sfx', { id: 'ui_deny', ui: true }); }
-    }
-    const s = this.scanning;
-    if (!s) return;
-    if (!this.eco.live.has(s.c.id) || aim(s.c) > 0.45) {
-      this.scanning = null;
-      ui.toast('Scan interrupted: keep the animal in view', 'warn', 3);
-      return;
-    }
-    s.t += dt;
-    if (s.t >= 2.5) {
-      this.scanning = null;
-      const c = s.c;
-      codex.scan(c.def.id, c.id, c.length);
-      const name = codex.level(c.def.id) >= 2 ? c.def.name : 'Unidentified';
-      ui.toast(`Scan complete · ${name} · ${c.length.toFixed(c.length < 1 ? 2 : 1)} m · ${c.doing}`, 'good', 5);
-      bus.emit('sfx', { id: 'chime', ui: true });
-    }
   }
 
   /** the wave knocks stones out of the builders' walls (they rebuild) */
@@ -912,37 +535,19 @@ export class MillerLife implements LifeWorld {
   }
 
   /** HUD lines: the scan in progress, sonar contacts, the wave as seen from the sub */
-  hud(): { label: string; value: string; warn?: boolean }[] {
-    const out: { label: string; value: string; warn?: boolean }[] = [];
-    if (this.scanning) out.push({ label: 'SCAN', value: `${Math.min(99, Math.round((this.scanning.t / 2.5) * 100))} %` });
-    if (this.sub?.piloted) {
-      out.push({ label: 'SONAR', value: this.sonarN ? `${this.sonarN} contact${this.sonarN > 1 ? 's' : ''} within 160 m` : 'clear' });
-      const w = this.zone.wave;
-      if (w) {
-        const eta = w.eta(this.sub.pos.x * w.dir.x + this.sub.pos.z * w.dir.z);
-        if (eta > 0 && eta < 1500) out.push({ label: 'WAVE', value: `${Math.floor(eta / 60)}:${String(Math.floor(eta % 60)).padStart(2, '0')}`, warn: eta < 300 });
-      }
+  override hud() {
+    const out = super.hud();
+    const w = this.zone.wave;
+    if (this.sub?.piloted && w) {
+      const eta = w.eta(this.sub.pos.x * w.dir.x + this.sub.pos.z * w.dir.z);
+      if (eta > 0 && eta < 1500) out.push({ label: 'WAVE', value: `${Math.floor(eta / 60)}:${String(Math.floor(eta % 60)).padStart(2, '0')}`, warn: eta < 300 });
     }
     return out;
   }
 
-  dispose() {
-    this.disposed = true;
+  protected save() {
     SAVED.eco = this.eco.serialize();
     SAVED.nests = this.nests.map((n) => n.stones);
     if (this.sub) SAVED.sub = { p: this.sub.pos.toArray(), yaw: this.sub.yaw, hull: this.sub.hull };
-    if (this.sub?.piloted) this.leaveSub();
-    this.eco.dispose();
-    this.sub?.dispose();
-    this.schools?.dispose();
-    this.water.dispose();
-    if (this.lure) this.zone.lights.remove(this.lure);
-    for (const i of this.interacts) this.game.interactions.remove(i);
-    this.zone.phys.remove(this.colliders);
-    this.zone.sites.cabin = null;
-    W.uWater.value.x = 0;
-    this.root.removeFromParent();
   }
 }
-
-function g_scene(z: SurfaceZone) { return z.game.renderer.scene; }

@@ -12,6 +12,7 @@ const _v = new THREE.Vector3(), _w = new THREE.Vector3(), _q = new THREE.Quatern
 /** what the sub needs from the world it dives in */
 export interface SubWorld {
   floor(x: number, z: number): number;
+  /** the water surface (a very low value where there is no water) */
   surface(x: number, z: number): number;
   /** water current at a point (m/s) */
   current(p: THREE.Vector3, out: THREE.Vector3): THREE.Vector3;
@@ -47,12 +48,20 @@ export class Submersible {
   private chaseYaw = 0;
   /** water column over the hull top (m); negative: surfaced */
   depth = 0;
+  /** model scale (an ROV is the same frame built small) */
+  scale = 1;
+  /** flown remotely from where the crew member stands (no cabin; the controls can be put down anywhere) */
+  remote = false;
 
-  constructor(private game: Game, public model: Model, private phys: PhysicsWorld, private lightsPool: LightPool, private W: SubWorld) {
+  constructor(private game: Game, public model: Model, private phys: PhysicsWorld, private lightsPool: LightPool, private W: SubWorld, opts: { scale?: number; remote?: boolean } = {}) {
+    this.scale = opts.scale ?? 1;
+    this.remote = !!opts.remote;
     this.root.add(model.root);
-    this.root.name = 'minisub';
+    model.root.scale.setScalar(this.scale);
+    this.root.name = this.remote ? 'rov' : 'minisub';
+    const k = this.scale;
     this.body = phys.world.createRigidBody(RAPIER.RigidBodyDesc.kinematicPositionBased());
-    this.col = phys.world.createCollider(RAPIER.ColliderDesc.capsule(1.0, 1.05).setRotation({ x: Math.SQRT1_2, y: 0, z: 0, w: Math.SQRT1_2 }).setTranslation(0, 1.1, 0)
+    this.col = phys.world.createCollider(RAPIER.ColliderDesc.capsule(1.0 * k, 1.05 * k).setRotation({ x: Math.SQRT1_2, y: 0, z: 0, w: Math.SQRT1_2 }).setTranslation(0, 1.1 * k, 0)
       .setCollisionGroups(groups(GROUP.VEHICLE, GROUP.WORLD | GROUP.PLAYER)), this.body);
     this.kcc = phys.world.createCharacterController(0.05);
     this.kcc.setSlideEnabled(true);
@@ -89,8 +98,9 @@ export class Submersible {
     const floor = W.floor(this.pos.x, this.pos.z);
     const surf = W.surface(this.pos.x, this.pos.z);
     const waterDepth = surf - floor;
-    this.depth = surf - (this.pos.y + 2.1);
-    const afloat = waterDepth > 2.4;
+    const k = this.scale;
+    this.depth = surf - (this.pos.y + 2.1 * k);
+    const afloat = waterDepth > 2.4 * k;
     // controls
     let fwd = 0, side = 0, up = 0, turn = 0;
     if (this.piloted && !g.uiFocus) {
@@ -104,7 +114,7 @@ export class Submersible {
     const boost = this.piloted && inp.down('sprint') ? 1.5 : 1;
     const damaged = 0.4 + 0.6 * this.hull;
     // thrusters accelerate against linear drag: terminal ~1.6 m/s ahead, 0.8 m/s vertically
-    const k = 0.9;
+    const drag = 0.9;
     this.forward(_v);
     const a = new THREE.Vector3().addScaledVector(_v, fwd * 1.45 * boost * damaged).addScaledVector(new THREE.Vector3(-_v.z, 0, _v.x), side * 0.6);
     a.y = up * 0.75 * damaged;
@@ -113,9 +123,9 @@ export class Submersible {
     if (afloat) {
       // water: thrust, drag toward the current, neutral buoyancy
       this.vel.addScaledVector(a, dt);
-      this.vel.x += (_w.x - this.vel.x) * (1 - Math.exp(-k * dt));
-      this.vel.z += (_w.z - this.vel.z) * (1 - Math.exp(-k * dt));
-      this.vel.y += (_w.y - this.vel.y) * (1 - Math.exp(-k * 1.6 * dt));
+      this.vel.x += (_w.x - this.vel.x) * (1 - Math.exp(-drag * dt));
+      this.vel.z += (_w.z - this.vel.z) * (1 - Math.exp(-drag * dt));
+      this.vel.y += (_w.y - this.vel.y) * (1 - Math.exp(-drag * 1.6 * dt));
       // at the surface it floats with the hatch clear
       if (this.depth < -0.5 && this.vel.y > 0) this.vel.y *= 0.5;
       if (this.depth < -0.6) this.vel.y -= 2 * dt;
@@ -137,7 +147,7 @@ export class Submersible {
     // the analytic floor and the surface bound it as well (terrain colliders stream round the player only); afloat it
     // rides with the top of its frame just awash
     const fl = W.floor(this.pos.x, this.pos.z);
-    if (afloat && this.pos.y > surf - 1.4) { this.pos.y = surf - 1.4; this.vel.y = Math.min(0, this.vel.y); }
+    if (afloat && this.pos.y > surf - 1.4 * k) { this.pos.y = surf - 1.4 * k; this.vel.y = Math.min(0, this.vel.y); }
     if (this.pos.y < fl + 0.02) { if (this.vel.y < -0.8) this.impact(-this.vel.y); this.pos.y = fl + 0.02; this.vel.y = Math.max(0, this.vel.y); }
     // the vel reflects the actual movement (so sliding along a wall kills the into-wall speed)
     if (dt > 0) { this.vel.set(mv.x / dt, this.vel.y, mv.z / dt); }
@@ -147,8 +157,8 @@ export class Submersible {
     this.pitch += ((fwd * -0.04 + up * 0.06) - this.pitch) * (1 - Math.exp(-2 * dt));
     if (this.cabin) this.cabin.on = this.piloted;
     this.sync();
-    // the pilot is carried along (the terrain streams round the player)
-    if (this.piloted) g.player.pos.copy(this.pos).add(_v.set(0, 1.0, 0));
+    // the pilot is carried along (the terrain streams round the player); an ROV's pilot stays put
+    if (this.piloted && !this.remote) g.player.pos.copy(this.pos).add(_v.set(0, 1.0, 0));
   }
 
   /** a knock against rock or a creature: the hull takes it in proportion to the speed */
@@ -159,7 +169,7 @@ export class Submersible {
     this.hull = Math.max(0, this.hull - dmg);
     this.shakeT = 0.6;
     bus.emit('sfx', { id: 'thud', ui: true, gain: Math.min(1, speed / 3) });
-    if (dmg > 0.03) ui.toast(`Hull struck (${from}) · integrity ${(this.hull * 100).toFixed(0)} %`, 'warn', 3);
+    if (dmg > 0.03) ui.toast(`${this.remote ? 'ROV' : 'Hull'} struck (${from}) · integrity ${(this.hull * 100).toFixed(0)} %`, 'warn', 3);
     if (this.hull < 0.3) ui.toast('Hull integrity low: surface and return', 'warn', 5);
   }
 
@@ -181,9 +191,17 @@ export class Submersible {
     const g = this.game;
     // from inside, the acrylic sphere is the window itself (its reflections of the sky would fog the whole view)
     const shell = this.model.root.getObjectByName('sub_sphere');
-    if (shell) shell.visible = !(this.piloted && this.cam === 'cockpit');
+    if (shell) shell.visible = !(this.piloted && this.cam === 'cockpit' && !this.remote);
     if (!this.piloted) return;
-    if (this.cam === 'cockpit') {
+    if (this.cam === 'cockpit' && this.remote) {
+      // the ROV's own camera, at the front of its frame
+      g.cameraDriver = () => {
+        const cam = g.renderer.camera;
+        this.forward(_v);
+        cam.position.copy(this.pos).addScaledVector(_v, 1.7 * this.scale).add(_w.set(0, 1.0 * this.scale, 0));
+        cam.quaternion.setFromEuler(new THREE.Euler(this.pitch - 0.08, this.yaw, 0, 'YXZ'));
+      };
+    } else if (this.cam === 'cockpit') {
       // the pilot's own view out of the acrylic sphere
       g.cameraDriver = null;
     } else {
@@ -193,7 +211,7 @@ export class Submersible {
         this.chaseYaw += (this.yaw - this.chaseYaw) * (1 - Math.exp(-2.5 * dt));
         const back = new THREE.Vector3(Math.sin(this.chaseYaw), 0, Math.cos(this.chaseYaw));
         const target = _v.copy(this.pos).add(new THREE.Vector3(0, 1.2, 0));
-        cam.position.copy(target).addScaledVector(back, 8.5).add(new THREE.Vector3(0, 2.6, 0));
+        cam.position.copy(target).addScaledVector(back, 8.5 * Math.max(0.45, this.scale)).add(new THREE.Vector3(0, 2.6 * Math.max(0.45, this.scale), 0));
         // keep the chase camera out of the rock and under the surface
         const fl = this.W.floor(cam.position.x, cam.position.z);
         cam.position.y = Math.max(cam.position.y, fl + 1.0);
@@ -208,17 +226,35 @@ export class Submersible {
     this.piloted = true;
     g.player.suited = true;
     g.interactions.suspended = true;
-    // seated in the sphere (the pilot moves with the sub; the seat sets the cockpit view)
-    const seat = this.model.marker('seat', 'pilot');
-    if (seat) g.player.sit({ node: seat.node, eye: 0.62, yawLimit: 2.2 });
+    if (this.remote) {
+      // the crew member stands at the controls; the ROV goes where they send it
+      g.player.mode = 'frozen';
+      this.cam = 'chase';
+    } else {
+      // seated in the sphere (the pilot moves with the sub; the seat sets the cockpit view)
+      const seat = this.model.marker('seat', 'pilot');
+      if (seat) g.player.sit({ node: seat.node, eye: 0.62, yawLimit: 2.2 });
+    }
     this.applyCam();
-    ui.set({ mode: 'drive', hints: ['W / S  ahead / astern · A / D  turn', 'SPACE / C  up / down · SHIFT  boost', 'L  lamps · V  camera · E  leave (at the surface)', 'R  scan · J  field codex'] });
-    bus.emit('sfx', { id: 'hatch', ui: true });
+    ui.set({ mode: 'drive', hints: ['W / S  ahead / astern · A / D  turn', 'SPACE / C  up / down · SHIFT  boost', `L  lamps · V  camera · E  ${this.remote ? 'put down the controls' : 'leave (at the surface)'}`, 'R  scan · J  field codex'] });
+    bus.emit('sfx', { id: this.remote ? 'beep' : 'hatch', ui: true });
   }
 
   /** out through the top hatch: only at the surface (or stranded in the shallows) */
   leave(at: (p: THREE.Vector3) => void): boolean {
-    if (this.depth > -0.2 && this.W.surface(this.pos.x, this.pos.z) - this.W.floor(this.pos.x, this.pos.z) > 2.4) {
+    if (this.remote) {
+      const g = this.game;
+      this.piloted = false;
+      this.applyCam();
+      g.cameraDriver = null;
+      g.player.mode = 'walk';
+      g.interactions.suspended = false;
+      this.thrust = 0;
+      ui.set({ mode: 'foot', hints: [], gauges: [] });
+      bus.emit('sfx', { id: 'beep', ui: true });
+      return true;
+    }
+    if (this.depth > -0.2 && this.W.surface(this.pos.x, this.pos.z) - this.W.floor(this.pos.x, this.pos.z) > 2.4 * this.scale) {
       ui.toast(`Surface first: ${this.depth.toFixed(0)} m of water over the hatch`, 'warn', 3);
       bus.emit('sfx', { id: 'ui_deny', ui: true });
       return false;
