@@ -39,6 +39,17 @@ interface Node {
   lastUsed: number;
 }
 
+/** A placeholder texture array: one texel of a neutral value per layer */
+function neutralArray(rgba: [number, number, number, number], layers: number, srgb: boolean) {
+  const d = new Uint8Array(4 * layers);
+  for (let i = 0; i < layers; i++) d.set(rgba, i * 4);
+  const t = new THREE.DataArrayTexture(d, 1, 1, layers);
+  t.wrapS = t.wrapT = THREE.RepeatWrapping;
+  t.colorSpace = srgb ? THREE.SRGBColorSpace : THREE.NoColorSpace;
+  t.needsUpdate = true;
+  return t;
+}
+
 const TEX = (set: string, map: string) => `${import.meta.env.BASE_URL}assets/textures/${set}_${map}.webp`;
 
 /** Quadtree level-of-detail terrain streamed around the camera, meshed in a worker. */
@@ -79,22 +90,20 @@ export class Terrain {
   }
 
   // ---------------------------------------------------------------------------------- material
+  /**
+   * The five layers of each map kind (colour, normal, occlusion-roughness) as one texture array each: three texture
+   * units instead of fifteen. (Fifteen separate textures plus the shadow and environment maps came to 18 units, more
+   * than the 16 most GPUs allow a shader, mobile and desktop browsers alike: there the ground did not draw at all.)
+   * Until the images arrive the arrays hold one neutral texel per layer.
+   */
   private makeMaterial() {
     const L = this.opts.layers;
-    const loader = new THREE.TextureLoader();
-    const tex = (set: string, map: string, srgb: boolean) => {
-      const t = loader.load(TEX(set, map));
-      t.wrapS = t.wrapT = THREE.RepeatWrapping;
-      t.colorSpace = srgb ? THREE.SRGBColorSpace : THREE.NoColorSpace;
-      t.anisotropy = materials.anisotropy;
-      return t;
-    };
-    const tA = L.sets.map((s) => tex(s, 'albedo', true));
-    const tN = L.sets.map((s) => tex(s, 'normal', false));
-    const tO = L.sets.map((s) => tex(s, 'orm', false));
     const tints = (L.tints ?? [[1, 1, 1], [1, 1, 1], [1, 1, 1], [1, 1, 1], [1, 1, 1]]).map((c) => new THREE.Vector3(...c));
+    const n = L.sets.length;
     this.uniforms = {
-      tA: { value: tA }, tN: { value: tN }, tO: { value: tO },
+      tA: { value: neutralArray([150, 140, 125, 255], n, true) },
+      tN: { value: neutralArray([128, 128, 255, 255], n, false) },
+      tO: { value: neutralArray([255, 230, 0, 255], n, false) },
       uTile: { value: L.tiles.map((t) => 1 / t) },
       uTint: { value: tints },
       uCrop: { value: new THREE.Vector4(...(L.cropColor ?? [0.19, 0.3, 0.09]), L.aux === 'crop' ? 1 : 0) },
@@ -117,7 +126,48 @@ export class Terrain {
         .replace('#include <normal_fragment_begin>', '#include <normal_fragment_begin>\n' + TERRAIN_NORMAL);
     };
     m.customProgramCacheKey = () => 'terrain|' + L.sets.join(',') + (L.aux ?? '');
+    void this.loadLayers();
     return m;
+  }
+
+  private disposed = false;
+
+  /** Load each map kind's five images and pack them, full size, into a texture array (rows flipped as flipY would). */
+  private async loadLayers() {
+    const L = this.opts.layers;
+    const loader = new THREE.ImageLoader();
+    for (const [key, map, srgb] of [['tA', 'albedo', true], ['tN', 'normal', false], ['tO', 'orm', false]] as [string, string, boolean][]) {
+      let imgs: HTMLImageElement[];
+      try { imgs = await Promise.all(L.sets.map((set) => loader.loadAsync(TEX(set, map)))); } catch (e) { console.warn('terrain textures', e); continue; }
+      if (this.disposed) return;
+      const size = Math.max(...imgs.map((im) => im.width));
+      const cv = document.createElement('canvas');
+      cv.width = cv.height = size;
+      const ctx = cv.getContext('2d', { willReadFrequently: true })!;
+      const row = size * 4, data = new Uint8Array(row * size * imgs.length);
+      imgs.forEach((im, layer) => {
+        ctx.clearRect(0, 0, size, size);
+        ctx.drawImage(im, 0, 0, size, size);
+        const px = ctx.getImageData(0, 0, size, size).data;
+        const base = layer * row * size;
+        for (let y = 0; y < size; y++) data.set(px.subarray(y * row, (y + 1) * row), base + (size - 1 - y) * row);
+      });
+      const t = new THREE.DataArrayTexture(data, size, size, imgs.length);
+      t.format = THREE.RGBAFormat;
+      t.type = THREE.UnsignedByteType;
+      t.wrapS = t.wrapT = THREE.RepeatWrapping;
+      t.magFilter = THREE.LinearFilter;
+      t.minFilter = THREE.LinearMipmapLinearFilter;
+      t.generateMipmaps = true;
+      t.anisotropy = materials.anisotropy;
+      t.colorSpace = srgb ? THREE.SRGBColorSpace : THREE.NoColorSpace;
+      // once on the GPU the CPU copy is not needed
+      t.onUpdate = () => { (t.image as any).data = null; };
+      t.needsUpdate = true;
+      const old = this.uniforms[key].value as THREE.Texture;
+      this.uniforms[key].value = t;
+      old.dispose();
+    }
   }
 
   // ---------------------------------------------------------------------------------- streaming
@@ -299,6 +349,8 @@ export class Terrain {
   }
 
   dispose() {
+    this.disposed = true;
+    for (const k of ['tA', 'tN', 'tO']) (this.uniforms[k]?.value as THREE.Texture | undefined)?.dispose();
     this.worker.terminate();
     this.disposeNode(this.root, true);
     for (const t of this.colTiles.values()) this.phys.world.removeCollider(t.collider, false);
@@ -308,9 +360,9 @@ export class Terrain {
 }
 
 const TERRAIN_PARS = /* glsl */ `
-uniform sampler2D tA[5];
-uniform sampler2D tN[5];
-uniform sampler2D tO[5];
+uniform mediump sampler2DArray tA;
+uniform mediump sampler2DArray tN;
+uniform mediump sampler2DArray tO;
 uniform float uTile[5];
 uniform vec3 uTint[5];
 uniform vec4 uCrop;
@@ -344,7 +396,7 @@ if ( uHole.z > 0.0 && vWPos.y > uHole.w && length( vWPos.xz - uHole.xy ) < uHole
   w = max( w + ( nz - 0.5 ) * 0.35 * step( 0.02, w ) * ( 1.0 - w ), 0.0 );
   float ws = w.x + w.y + w.z + w.w + rock + 1e-4;
   vec3 alb = vec3( 0.0 ); vec3 nrm = vec3( 0.0 ); vec3 orm = vec3( 0.0 );
-  #define TLAYER( i, wt ) if ( wt > 0.004 ) { vec2 uv = wp.xz * uTile[ i ]; vec3 a = texture2D( tA[ i ], uv ).rgb; vec3 af = texture2D( tA[ i ], uv * 0.137 + 0.31 ).rgb; alb += mix( a, af, farK ) * uTint[ i ] * wt; nrm += ( texture2D( tN[ i ], uv ).xyz * 2.0 - 1.0 ) * wt * ( 1.0 - farK * 0.8 ); orm += texture2D( tO[ i ], uv ).rgb * wt; }
+  #define TLAYER( i, wt ) if ( wt > 0.004 ) { vec2 uv = wp.xz * uTile[ i ]; vec3 a = texture( tA, vec3( uv, float( i ) ) ).rgb; vec3 af = texture( tA, vec3( uv * 0.137 + 0.31, float( i ) ) ).rgb; alb += mix( a, af, farK ) * uTint[ i ] * wt; nrm += ( texture( tN, vec3( uv, float( i ) ) ).xyz * 2.0 - 1.0 ) * wt * ( 1.0 - farK * 0.8 ); orm += texture( tO, vec3( uv, float( i ) ) ).rgb * wt; }
   TLAYER( 0, w.x )
   TLAYER( 1, w.y )
   TLAYER( 2, w.z )
@@ -353,11 +405,11 @@ if ( uHole.z > 0.0 && vWPos.y > uHole.w && length( vWPos.xz - uHole.xy ) < uHole
     // tri-planar for cliffs so the rock does not stretch
     vec3 bw = pow( abs( vWN ), vec3( 4.0 ) ); bw /= bw.x + bw.y + bw.z;
     vec2 ux = wp.zy * uTile[ 4 ], uy = wp.xz * uTile[ 4 ], uz = wp.xy * uTile[ 4 ];
-    vec3 a = texture2D( tA[ 4 ], ux ).rgb * bw.x + texture2D( tA[ 4 ], uy ).rgb * bw.y + texture2D( tA[ 4 ], uz ).rgb * bw.z;
-    vec3 af = texture2D( tA[ 4 ], uy * 0.137 ).rgb;
+    vec3 a = texture( tA, vec3( ux, 4.0 ) ).rgb * bw.x + texture( tA, vec3( uy, 4.0 ) ).rgb * bw.y + texture( tA, vec3( uz, 4.0 ) ).rgb * bw.z;
+    vec3 af = texture( tA, vec3( uy * 0.137, 4.0 ) ).rgb;
     alb += mix( a, af, farK * 0.6 ) * uTint[ 4 ] * rock;
-    nrm += ( texture2D( tN[ 4 ], uy ).xyz * 2.0 - 1.0 ) * rock;
-    orm += ( texture2D( tO[ 4 ], ux ).rgb * bw.x + texture2D( tO[ 4 ], uy ).rgb * bw.y + texture2D( tO[ 4 ], uz ).rgb * bw.z ) * rock;
+    nrm += ( texture( tN, vec3( uy, 4.0 ) ).xyz * 2.0 - 1.0 ) * rock;
+    orm += ( texture( tO, vec3( ux, 4.0 ) ).rgb * bw.x + texture( tO, vec3( uy, 4.0 ) ).rgb * bw.y + texture( tO, vec3( uz, 4.0 ) ).rgb * bw.z ) * rock;
   }
   alb /= ws; nrm /= ws; orm /= ws;
   // large-scale tonal variation so fields do not look uniform from the air

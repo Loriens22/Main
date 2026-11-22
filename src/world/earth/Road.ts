@@ -28,7 +28,8 @@ export function buildRoad(map: EarthMap): THREE.Group {
     for (let k = 0; k < n; k++) {
       const r = R[c0 + k];
       // the lane narrows to nothing where the pavement begins, so the end of the tarmac feathers into gravel
-      const hw = (r.w / 2) * Math.min(1, r.paved * 1.4 + 0.25);
+      const e = Math.min(1, Math.max(0, r.paved / 0.6));
+      const hw = (r.w / 2) * e * e * (3 - 2 * e);
       const nx = -r.tz, nz = r.tx;
       const prev = R[Math.max(0, c0 + k - 1)], next = R[Math.min(R.length - 1, c0 + k + 1)];
       const slope = (next.y - prev.y) / Math.max(0.01, next.s - prev.s);
@@ -40,7 +41,8 @@ export function buildRoad(map: EarthMap): THREE.Group {
         nor[o] = -r.tx * slope * ny; nor[o + 1] = ny; nor[o + 2] = -r.tz * slope * ny;
         uv[(k * 2 + side) * 2] = hw * sg; uv[(k * 2 + side) * 2 + 1] = r.s;
       }
-      if (k < n - 1) { const a = k * 2; idx.push(a, a + 2, a + 1, a + 1, a + 2, a + 3); }
+      // counter-clockwise seen from above: the faces look up (the material draws front faces only)
+      if (k < n - 1) { const a = k * 2; idx.push(a, a + 1, a + 2, a + 1, a + 3, a + 2); }
     }
     const g = new THREE.BufferGeometry();
     g.setAttribute('position', new THREE.BufferAttribute(pos, 3));
@@ -61,7 +63,7 @@ export function buildRoad(map: EarthMap): THREE.Group {
       const nx = -p.tz, nz = p.tx;
       dp.push(p.x - nx * 0.06, p.y, p.z - nz * 0.06, p.x + nx * 0.06, p.y, p.z + nz * 0.06);
     }
-    di.push(v, v + 2, v + 1, v + 1, v + 2, v + 3);
+    di.push(v, v + 1, v + 2, v + 1, v + 3, v + 2);
     v += 4;
   }
   const lg = new THREE.BufferGeometry();
