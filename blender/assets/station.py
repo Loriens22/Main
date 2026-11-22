@@ -179,7 +179,7 @@ def build_station():
     B_ = Part("spare_booster")
     booster_pods(B_)
     booster_engines(B_)
-    spare = B_.finish(sharp=40, at=(17.0, -12.0, 3.4), rot=(0, 0, 25), col=0)
+    spare = B_.finish(sharp=40, at=(17.0, -12.0, 3.4), rot=(0, 0, 25))       # solid: people walk round it on the deck
     C_ = Part("cradle")
     for y in (-8, 0, 8):
         for s in (-1, 1):

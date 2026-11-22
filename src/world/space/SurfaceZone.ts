@@ -35,10 +35,10 @@ import { JupiterLife } from '../../life/worlds/JupiterLife';
 import type { WorldLife } from '../../life/worlds/WorldLife';
 import { W } from '../../render/patch';
 import type { SiteFn } from '../../space/Descent';
-import type { RAPIER } from '../../physics/Physics';
+import { GROUP, groups, type RAPIER } from '../../physics/Physics';
 
 const _v = new THREE.Vector3(), _w = new THREE.Vector3(), _q = new THREE.Quaternion(), _m = new THREE.Matrix4(), _x = new THREE.Vector3(), _z = new THREE.Vector3();
-const _up = new THREE.Vector3(0, 1, 0), _qi = new THREE.Quaternion(), _sunZ = new THREE.Vector3();
+const _up = new THREE.Vector3(0, 1, 0), _down = new THREE.Vector3(0, -1, 0), _qi = new THREE.Quaternion(), _sunZ = new THREE.Vector3();
 
 interface WorldLook { layers: TerrainLayers; ground: [number, number, number]; sea?: boolean }
 
@@ -231,6 +231,7 @@ export class SurfaceZone extends Zone {
     if (veh && typeof veh.data.ground === 'number') this.touchH = -veh.data.ground;
     this.root.add(this.ranger.root);
     this.ranger.setCarried(true);
+    this.ranger.setSolidForPeople(true);
     this.ranger.onImpact = (dv) => { if (dv > 1.2) ui.toast(`Hard contact: ${dv.toFixed(1)} m/s`, 'warn', 3); };
     // board from anywhere close to the hull
     const board = g.interactions.add({
@@ -684,9 +685,21 @@ export class SurfaceZone extends Zone {
   private onLeaveSeat = (c: Spacecraft) => {
     if (this.game.zone !== this || c !== this.ranger) return;
     const q = this.ranger.quaternion(_q);
-    const p = new THREE.Vector3(0, 0, 6.2).applyQuaternion(q).add(this.ranger.root.position);
-    p.y = (this.terrain?.source.height(p.x, p.z) ?? 0) + 0.05;
-    if (this.giant) p.y = 0.1;
+    // behind the ramp, far enough back that a person standing there is clear of the hull
+    const p = new THREE.Vector3();
+    const floor = (x: number, z: number) => (this.giant ? 0.1 : (this.terrain?.source.height(x, z) ?? 0) + 0.05);
+    const PG = groups(GROUP.PLAYER, GROUP.WORLD | GROUP.VEHICLE | GROUP.DYNAMIC);
+    for (let back = 6.2; back < 14; back += 0.4) {
+      p.set(0, 0, back).applyQuaternion(q).add(this.ranger.root.position);
+      p.y = floor(p.x, p.z);
+      let clear = true;
+      for (const [dx, dz] of [[0, 0], [0.35, 0], [-0.35, 0], [0, 0.35], [0, -0.35]]) {
+        const o = _v.set(p.x + dx, p.y + 2.2, p.z + dz);
+        const h = this.phys.raycast(o, _down, 2.2, PG);
+        if (h && h.dist < 2.1) { clear = false; break; }
+      }
+      if (clear) break;
+    }
     this.game.player.suited = true;
     this.game.player.stand(p, Math.atan2(-(p.x - this.ranger.root.position.x), -(p.z - this.ranger.root.position.z)) + Math.PI);
     ui.set({ mode: 'foot' });

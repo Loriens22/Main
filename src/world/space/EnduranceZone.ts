@@ -265,7 +265,9 @@ export class EnduranceZone extends Zone {
       this.dockModel(m, port);
       const cabin: THREE.Mesh[] = [];
       m.root.traverse((o) => {
-        const part = (o.userData.part ?? o.parent?.userData.part) as string | undefined;
+        // (a node's mesh can sit a level or two below the node carrying the tag: material primitives under a mesh group)
+        let part: string | undefined;
+        for (let a: THREE.Object3D | null = o; a && a !== m.root && part === undefined; a = a.parent) part = a.userData.part;
         if ((o as THREE.Mesh).isMesh && (part === 'cabin' || part === 'cabin_detail' || part === 'canopy')) cabin.push(o as THREE.Mesh);
       });
       this.phys.addTrimesh(cabin);

@@ -264,7 +264,7 @@ export class EarthZone extends Zone {
         c.root.rotation.y = yaw;
         this.root.add(c.root);
         c.root.updateMatrixWorld(true);
-        this.phys.addTrimesh(c.colliders);
+        this.phys.addTrimesh(solidMeshes(c.root));
       });
     }
   }
@@ -358,7 +358,7 @@ export class EarthZone extends Zone {
       cart.root.rotation.y = yaw + 0.7;
       this.root.add(cart.root);
       cart.root.updateMatrixWorld(true);
-      this.phys.addTrimesh(cart.colliders);
+      this.phys.addTrimesh(solidMeshes(cart.root));
     } else if (id === 'wreck') {
       put('old_harrow', 0, 0, 0.3); put('old_harrow', 7, 4, 1.9); put('steel_tank', -8, 3); put('hay_bale', 4, -7); put('sand_pile', -3, -5, 0, false); put('sand_pile', 9, -2, 1.0, false);
     }
@@ -511,7 +511,10 @@ export class EarthZone extends Zone {
       m.root.position.set(L.x, this.map.height(L.x, L.z) + 1.1, L.z);
       this.root.add(m.root);
       m.root.updateMatrixWorld(true);
-      this.phys.addTrimesh(m.colliders);
+      // the hull pieces and the gear legs it stands on
+      const gear: THREE.Mesh[] = [];
+      for (const g of m.ofKind('gear')) g.node.traverse((o) => { if ((o as THREE.Mesh).isMesh) gear.push(o as THREE.Mesh); });
+      this.phys.addTrimesh([...m.colliders, ...gear]);
       this.game.interactions.node(m.root, 7, 'Board Ranger 1', () => bus.emit('ranger:board', 'earth'), { range: 9 } as any);
       this.landedRanger = m;
     }
@@ -659,4 +662,11 @@ export class EarthZone extends Zone {
     this.corn.version++;
     for (const e of this.extensions) if (e.deserialize && d.ext?.[e.id]) e.deserialize(d.ext[e.id]);
   }
+}
+
+/** every visible mesh of a parked machine (its parts are authored non-colliding for when it is a vehicle) */
+function solidMeshes(root: THREE.Object3D) {
+  const out: THREE.Mesh[] = [];
+  root.traverse((o) => { const m = o as THREE.Mesh; if (m.isMesh && m.visible && !(m.material as THREE.Material).transparent) out.push(m); });
+  return out;
 }

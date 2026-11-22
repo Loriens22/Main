@@ -31,7 +31,8 @@ export const TUNING: Record<string, VehicleTuning> = {
 interface Wheel { node: THREE.Object3D; id: string; radius: number; steer: boolean; base: THREE.Vector3; q0: THREE.Quaternion; spin: number; flip: number; parent: THREE.Object3D }
 
 const _v = new THREE.Vector3(), _v2 = new THREE.Vector3(), _q = new THREE.Quaternion(), _q2 = new THREE.Quaternion(), _m = new THREE.Matrix4();
-const X = new THREE.Vector3(1, 0, 0), Y = new THREE.Vector3(0, 1, 0);
+const _w = new THREE.Vector3(), _m2 = new THREE.Matrix4();
+const X = new THREE.Vector3(1, 0, 0), Y = new THREE.Vector3(0, 1, 0), Z = new THREE.Vector3(0, 0, 1);
 
 /**
  * A wheeled ground vehicle with two interchangeable drive modes:
@@ -107,12 +108,70 @@ export class WheeledVehicle {
       this.wheels.push({ node: n, id: m.id, radius: m.data.radius ?? 0.4, steer: !!m.data.steer, base: n.position.clone(), q0: n.quaternion.clone(), spin: 0, flip: Math.abs(n.rotation.z) > 1 || Math.abs(n.rotation.y) > 1 ? -1 : 1, parent: n.parent! });
     }
     for (const m of model.ofKind('vdoor')) this.doors.set(m.id, { node: m.node, q0: m.node.quaternion.clone(), angle: ((m.data.angle ?? 60) * Math.PI) / 180, t: 0, target: 0 });
+    this.addGuards(model);
     if (lights) for (const m of model.ofKind('light')) { const f = lights.addFromMarker(m.node, m.data, false); f.angle = 0.42; this.lamps.push(f); }
     const lamp = model.part('headlights');
     if (lamp) {
       lamp.traverse((o) => { const me = o as THREE.Mesh; if (me.isMesh) { me.material = (me.material as THREE.MeshStandardMaterial).clone(); (me.material as THREE.MeshStandardMaterial).emissiveIntensity = 0.02; this.lampMesh = me; } });
     }
     this.buildController();
+  }
+
+  /**
+   * Solid wheels and implements for people: the chassis boxes stop the vehicle against the world, but tyres, a header
+   * or an auger stand out of them. Each gets a massless collider that only people (the player, the crew) touch, so
+   * nobody walks through a tractor's rear wheel; the wheels' own ground contact stays the suspension rays'. The
+   * colliders follow their parts (steering, suspension, a header lowered to cut, an auger swung out).
+   */
+  private guards: { col: RAPIER.Collider; node: THREE.Object3D; c: THREE.Vector3; align: THREE.Quaternion }[] = [];
+
+  private addGuards(model: Model) {
+    const people = groups(GROUP.VEHICLE, GROUP.PLAYER | GROUP.NPC);
+    const box = new THREE.Box3(), part = new THREE.Box3();
+    const add = (node: THREE.Object3D, wheel: boolean) => {
+      // the part's extent in its own frame
+      node.updateWorldMatrix(true, true);
+      const inv = _m.copy(node.matrixWorld).invert();
+      box.makeEmpty();
+      node.traverse((x) => {
+        const me = x as THREE.Mesh;
+        if (!me.isMesh) return;
+        if (!me.geometry.boundingBox) me.geometry.computeBoundingBox();
+        box.union(part.copy(me.geometry.boundingBox!).applyMatrix4(_m2.multiplyMatrices(inv, me.matrixWorld)));
+      });
+      if (box.isEmpty()) return;
+      const c = box.getCenter(new THREE.Vector3()), sz = box.getSize(_w);
+      let desc: RAPIER.ColliderDesc;
+      const align = new THREE.Quaternion();
+      if (wheel) {
+        // a cylinder along the axle (the part's thinnest extent); Rapier's cylinders stand along Y
+        const ax = sz.x <= sz.y && sz.x <= sz.z ? 'x' : sz.z <= sz.y ? 'z' : 'y';
+        const w = ax === 'x' ? sz.x : ax === 'z' ? sz.z : sz.y, d = ax === 'x' ? Math.max(sz.y, sz.z) : ax === 'z' ? Math.max(sz.x, sz.y) : Math.max(sz.x, sz.z);
+        if (ax === 'x') align.setFromAxisAngle(Z, Math.PI / 2);
+        else if (ax === 'z') align.setFromAxisAngle(X, Math.PI / 2);
+        desc = RAPIER.ColliderDesc.cylinder(Math.max(0.05, w / 2), d / 2);
+      } else desc = RAPIER.ColliderDesc.cuboid(Math.max(0.05, sz.x / 2), Math.max(0.05, sz.y / 2), Math.max(0.05, sz.z / 2));
+      const col = this.phys.world.createCollider(desc.setDensity(0).setCollisionGroups(people), this.body);
+      this.guards.push({ col, node, c, align });
+    };
+    for (const m of model.ofKind('wheel')) add(m.node, true);
+    for (const kind of ['lift', 'swing']) for (const m of model.ofKind(kind)) add(m.node, false);
+    this.updateGuards();
+  }
+
+  /** move the people colliders onto their parts' current poses (in the chassis frame) */
+  private updateGuards() {
+    if (!this.guards.length) return;
+    this.root.updateWorldMatrix(true, false);
+    const rootInv = _m.copy(this.root.matrixWorld).invert();
+    for (const g of this.guards) {
+      g.node.updateWorldMatrix(true, false);
+      const rel = _m2.multiplyMatrices(rootInv, g.node.matrixWorld);
+      _v2.copy(g.c).applyMatrix4(rel);
+      _q2.setFromRotationMatrix(rel).multiply(g.align);
+      g.col.setTranslationWrtParent(_v2);
+      g.col.setRotationWrtParent(_q2);
+    }
   }
 
   private buildController() {
@@ -284,7 +343,7 @@ export class WheeledVehicle {
         const e = d.t * d.t * (3 - 2 * d.t);
         d.node.quaternion.copy(d.q0).multiply(_q.setFromAxisAngle(Y, d.angle * e));
       }
-    }
+    }    this.updateGuards();
   }
 
   /** World position of a marker (exit points, seats). */

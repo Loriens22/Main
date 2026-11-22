@@ -250,6 +250,38 @@ export class Spacecraft {
     this.updateMass(true);
   }
 
+  /**
+   * Solid for people on foot (the craft standing on a planet's surface): the hull pieces again, touched by the player
+   * only (the hull's own colliders meet the world and other craft; a seated player has no collider), and the deployed
+   * gear legs, so nobody walks through the Ranger standing on its pad.
+   */
+  private peopleCols: RAPIER.Collider[] = [];
+  setSolidForPeople(on: boolean, gear = true) {
+    const w = this.phys.world;
+    for (const c of this.peopleCols) w.removeCollider(c, false);
+    this.peopleCols = [];
+    if (!on) return;
+    const grp = groups(GROUP.VEHICLE, GROUP.PLAYER);
+    this.root.updateMatrixWorld(true);
+    const inv = new THREE.Matrix4().copy(this.root.matrixWorld).invert();
+    const hull = (meshes: THREE.Mesh[]) => {
+      const pts: number[] = [];
+      for (const mesh of meshes) {
+        const pos = mesh.geometry.attributes.position;
+        _m.multiplyMatrices(inv, mesh.matrixWorld);
+        for (let i = 0; i < pos.count; i++) { _v.fromBufferAttribute(pos as THREE.BufferAttribute, i).applyMatrix4(_m); pts.push(_v.x, _v.y, _v.z); }
+      }
+      const desc = pts.length >= 12 ? RAPIER.ColliderDesc.convexHull(new Float32Array(pts)) : null;
+      if (desc) this.peopleCols.push(w.createCollider(desc.setDensity(0).setFriction(0.9).setCollisionGroups(grp), this.body));
+    };
+    for (const mesh of this.model.colliders) hull([mesh]);
+    if (gear) for (const g of this.gears) {
+      const ms: THREE.Mesh[] = [];
+      g.node.traverse((o) => { if ((o as THREE.Mesh).isMesh) ms.push(o as THREE.Mesh); });
+      hull(ms);
+    }
+  }
+
   get mass() { return this.spec.dryMass + this.fuel; }
 
   private updateMass(force = false) {

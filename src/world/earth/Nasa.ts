@@ -222,6 +222,8 @@ export class NasaSite {
     this.stack.mount(this.ranger);
     this.ranger.setGear(false);
     this.ranger.gearT = 0;
+    // solid for the crew walking the access arm to its top hatch (gear stowed inside the hull)
+    this.ranger.setSolidForPeople(true, false);
     this.launchB = new Building('launch', this.launch, z.phys, g.interactions, z.lights, { lightsOn: true, actors: () => this.doorActors() });
     this.collectSections(this.launch);
     const I = g.interactions;

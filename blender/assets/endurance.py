@@ -260,11 +260,48 @@ def module(P, idx, rnd):
     return F
 
 
+def node_shell(P, F, dirs, r=1.7, L=3.6, hole_r=1.1, segs=64, rows=36, mat="hull_white"):
+    """Knuckle node skin: a cylinder along the frame's Y axis (normals out) with its end discs, cut open where the
+    ring tunnels enter (dirs: tunnel directions in the frame), so that from inside a tunnel the node reads as open."""
+    verts, faces, idx = [], [], {}
+    ys = [-L / 2 + L * k / rows for k in range(rows + 1)]
+    cuts = [math.atan2(-d.z, d.x) for d in dirs]       # cell angle of each tunnel axis
+
+    def v(i, k):
+        key = (i % segs, k)
+        if key not in idx:
+            a = 2 * math.pi * key[0] / segs
+            idx[key] = len(verts)
+            verts.append((r * math.cos(a), ys[k], -r * math.sin(a)))
+        return idx[key]
+    for i in range(segs):
+        am = 2 * math.pi * (i + 0.5) / segs
+        for k in range(rows):
+            ym = (ys[k] + ys[k + 1]) / 2
+            if any(math.hypot((((am - c) + math.pi) % (2 * math.pi) - math.pi) * r, ym) < hole_r for c in cuts):
+                continue
+            faces.append((v(i, k), v(i + 1, k), v(i + 1, k + 1), v(i, k + 1)))
+    # end discs (outward: -Y at the aft end, +Y at the fore end)
+    for k, sgn in ((0, -1), (rows, 1)):
+        c = len(verts)
+        verts.append((0.0, ys[k], 0.0))
+        for i in range(segs):
+            a, b = v(i, k), v(i + 1, k)
+            faces.append((c, b, a) if sgn > 0 else (c, a, b))
+    P.mesh([(F @ Vector(p))[:] for p in verts], faces, mat=mat, recalc=False)
+
+
 def node(P, idx):
     """Knuckle node between module idx and idx+1: a short cylinder along the spin axis with ring ports."""
     th = clock(idx) + math.radians(15)
     F = frame_at(th, R_NODE)
-    P.cyl(1.7, 3.6, M=F @ RX(90), mat="hull_white", segs=32, bevel=0.08)
+    Finv = F.inverted().to_3x3()
+    dirs = []
+    for d in (-1, 1):
+        F2 = frame_at(th + d * math.radians(15), R_NODE)
+        side = F2 @ Vector((d * dims(idx if d < 0 else idx + 1)[0] / 2, 0, 0))
+        dirs.append((Finv @ (side - F @ Vector((0, 0, 0)))).normalized())
+    node_shell(P, F, dirs)
     for sy in (1, -1):
         P.tube(1.75, 1.2, 0.3, M=F @ T((0, sy * 1.9, 0)) @ RX(90), mat="hull_gray", segs=32, bevel=0.03)
         P.cyl(1.05, 0.12, M=F @ T((0, sy * 1.95, 0)) @ RX(90), mat="hull_black", segs=28, bevel=0.01)
@@ -284,6 +321,8 @@ def node(P, idx):
         Mt = T(a2 + dvec * (Lt / 2)) @ q
         P.cyl(1.1, Lt, M=Mt, mat="hull_white", segs=24, bevel=0.03, caps=False)
         P.tube(1.22, 1.08, 0.22, M=Mt, mat="hull_gray", segs=24, bevel=0.02)
+        # collar where the tunnel leaves the node skin
+        P.tube(1.24, 1.1, 0.16, M=T(a + dvec * 1.62) @ q, mat="hull_gray", segs=28, bevel=0.02)
     return F
 
 
@@ -345,12 +384,16 @@ def hub():
     for clk, pid in ((0, "radial_up"), (6, "radial_down")):
         th = clock(clk)
         F = frame_at(th, HUB_R)
-        P.cyl(1.5, 1.4, M=F @ T((0, 0, 0.7)), mat="hull_white", segs=32, bevel=0.06)
+        # open toward the hub (the port's own tunnel and hatch are inside), closed at the outer end
+        P.cyl(1.5, 1.4, M=F @ T((0, 0, 0.7)), mat="hull_white", segs=32, bevel=0.06, caps=False)
+        P.cyl(1.5, 0.06, M=F @ T((0, 0, 1.37)), mat="hull_white", segs=32, bevel=0.02)
         P.tube(1.4, 0.95, 0.35, M=F @ T((0, 0, 1.55)), mat="gear_metal", segs=32, bevel=0.03)
         marker("dock", pid, at=(F @ Vector((0, 0, 1.75)))[:], dir=list(radial(th)), up=[0, 1, 0], port="radial", accepts="lander", label="Radial docking port")
     for clk in (3, 9):
         F = frame_at(clock(clk), HUB_R)
-        P.cyl(1.5, 1.0, M=F @ T((0, 0, 0.5)), mat="hull_gray", segs=32, bevel=0.06, caps=(clk == 9))   # the spoke passes the 3 o'clock collar
+        # open: the spoke passes the 3 o'clock collar, the stores alcove runs into the 9 o'clock stub (closed at its far end)
+        P.cyl(1.5, 1.0, M=F @ T((0, 0, 0.5)), mat="hull_gray", segs=32, bevel=0.06, caps=False)
+        P.tube(1.5, 1.3, 0.05, M=F @ T((0, 0, 0.975)), mat="hull_gray", segs=32, bevel=0.01)     # step down to the tube
     # equipment boxes and antennas on the hub
     rnd = random.Random(4)
     for k in range(8):
