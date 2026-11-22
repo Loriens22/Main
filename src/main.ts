@@ -119,6 +119,7 @@ async function boot() {
     const f = game.services.flight;
     f.leave(true);
     await new Promise((res) => { const t = setInterval(() => { if (game.zone?.id === 'endurance') { clearInterval(t); res(null); } }, 50); });
+    if (ui.get().mode === 'cinematic') ui.set({ mode: 'foot' });
     if (params.get('start') === 'hub') {
       const ez = game.zones.get('endurance') as EnduranceZone;
       ez.ports[0] && ez.setHatches(ez.ports[0], true);
@@ -155,6 +156,7 @@ async function boot() {
     if (params.get('start') !== 'seat') {
       game.player.suited = true;
       game.player.teleport(new THREE.Vector3(9, 2, 9), 2.3);
+      ui.set({ mode: 'foot' });
     } else surface.board();
     return;
   }

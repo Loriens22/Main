@@ -427,7 +427,7 @@ function Touch({ game }: { game: Game }) {
     document.documentElement.requestFullscreen?.({ navigationUI: 'hide' } as any).then(() => (window.screen as any).orientation?.lock?.('landscape')?.catch?.(() => {}), () => {});
   };
   return (
-    <div class="layer touch">
+    <div class={`layer touch ${mode === 'fly' ? 'fly' : ''}`}>
       <div class="move" ref={moveZone}><div class="stick" ref={base} style={{ width: `${124 * sc}px`, height: `${124 * sc}px` }}><i ref={knob as any} /></div></div>
       <div class="look" ref={look} />
       {rcs}
