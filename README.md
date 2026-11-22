@@ -40,6 +40,7 @@ Play → Creative Mode.
 | Driving | W A S D, Space brake, H lights, V camera | | stick, Brake, Lights, Cam |
 | Submersible | W S A D, Space / C up / down, Shift boost, L lamps | | stick, Up, Down, Boost, Lamps |
 | Flying | stick or W S A D pitch / yaw, Q E roll, Shift / Ctrl throttle, Z max, X cut, I J K L U O translation, R SAS, N gear, Y autopilot | | stick, Roll L/R, Thr +/-, Max, Cut, RCS pad, SAS, Auto, VTOL; Gear, Lights, Camera in the top strip |
+| Skip the farm–NASA drive (in the pickup, Creative fast travel) | K, or the pause menu | | Skip drive (top strip), or Menu |
 | Pause menu | Esc | Start | Menu |
 
 On phones and tablets the touch controls appear at the first touch. Turn the device sideways; the Full screen
