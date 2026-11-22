@@ -6,7 +6,11 @@ complex, Ranger, Endurance, stations, bases, creatures) is generated in Blender 
 
 ## Play in the browser
 
-<!-- PLAY_LINK -->
+**https://loriens22.github.io/Beyound-Endurance-New-2/**
+
+Desktop (keyboard and mouse, or a gamepad), tablet or phone (touch). Use a current Chrome, Edge, Firefox or Safari
+with hardware acceleration on (models and textures, about 190 MB in all, load world by world as you travel). On the main menu choose
+Play → Creative Mode.
 
 ## What is in it
 
