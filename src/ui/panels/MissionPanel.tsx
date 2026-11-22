@@ -26,11 +26,30 @@ export function MissionPanel({ game, close, tab: first }: { game: Game; close: (
   const dv = launcherDeltaV();
   const L = LAUNCHER;
   let body: any = null;
+  // the whole departure from this computer: authorise, board Ranger 1 with the crew, checklist and count by the launch computer
+  const launch = game.services.launch;
+  const onEarth = !!zone?.nasa && game.zone === game.zones.get('earth');
+  const startMission = () => {
+    bus.emit('ui:click');
+    mission.decide('endurance');
+    close();
+    bus.emit('launch:board', { auto: true });
+  };
+  const startCard = onEarth && launch && (launch.state === 'idle' || launch.state === 'scrubbed') ? (
+    <div class="card start">
+      <h4>Start the mission from this computer</h4>
+      <p>Authorises the Endurance mission, seats you and the crew in Ranger 1 and hands the cockpit checklist and the terminal count to the launch computer; lift-off follows at T−0 under the launch autopilot. In the seat, the launch computer (Y, or Auto on a touch screen) holds or scrubs the count or gives you the ascent by hand.</p>
+      <button class="btn warn" onClick={startMission}>Start the mission now · launch Ranger 1</button>
+    </div>
+  ) : onEarth && launch && launch.state !== 'idle' ? (
+    <div class="card start"><h4>Launch in progress</h4><p>Ranger 1 is boarded · {String(launch.state).toUpperCase()}. The launch computer in the commander's seat (Y) has the checklist and the count.</p></div>
+  ) : null;
 
   if (tab === 'decision') {
     body = (
       <div>
         <p class="lead">Mission authorization — Endurance expedition. As mission commander the decision is yours alone, and it may be changed at any time before engine start.</p>
+        {startCard}
         <div class="grid2">
           <div class="card">
             <h4>Continue research on Earth</h4>
@@ -59,7 +78,8 @@ export function MissionPanel({ game, close, tab: first }: { game: Game; close: (
           <KV k="Propellant load" v="Stage 1 100 % · Stage 2 100 %" />
           <KV k="Silo cap" v={zone?.nasa?.siloOpen > 0.99 ? 'OPEN' : zone?.nasa?.siloOpen > 0.01 ? 'Moving' : 'Closed (opens at T−60 s)'} />
           <KV k="Umbilical arms" v={zone?.nasa?.armsRetract > 0.9 ? 'Retracted' : 'Connected'} />
-          <p class="note">The countdown is started from the commander's seat in Ranger 1. Nothing here launches the vehicle without you aboard.</p>
+          <p class="note">The countdown runs from the commander's seat in Ranger 1: board at the crew access arm, or start the mission below and the computer seats the crew and runs the checklist and the count. Nothing here launches the vehicle without you aboard.</p>
+          {startCard}
         </div>
         <div>
           <h4>Mission log</h4>
@@ -91,7 +111,7 @@ export function MissionPanel({ game, close, tab: first }: { game: Game; close: (
       <div class="grid2">
         <div>
           <h4>Ascent target</h4>
-          <KV k="Parking orbit" v="400 km circular, 28.5°" /><KV k="Orbital speed" v={kms(v1)} /><KV k="Period" v={`${(T1 / 60).toFixed(1)} min`} /><KV k="Rendezvous" v="Endurance, same orbit, phase 0.8° ahead" />
+          <KV k="Parking orbit" v="400 km circular, 38.7°" /><KV k="Orbital speed" v={kms(v1)} /><KV k="Period" v={`${(T1 / 60).toFixed(1)} min`} /><KV k="Rendezvous" v="Endurance, same orbit, phase 0.8° ahead" />
         </div>
         <div>
           <h4>Earth → Saturn</h4>

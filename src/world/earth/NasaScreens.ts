@@ -123,7 +123,7 @@ export class NasaScreens {
     scr.text(ctx, 'FACILITY 7', cx - R * 0.52 + 8 * s, cy - R * 0.36 + 12 * s, 10 * s, C.green);
     ctx.strokeStyle = C.green; ctx.lineWidth = 1.5 * s; ctx.beginPath(); ctx.moveTo(cx - R * 0.52, cy - R * 0.36); ctx.quadraticCurveTo(cx - R * 0.1, cy - R * 0.95, cx + R * 0.55, cy - R * 0.98); ctx.stroke();
     const x0 = W * 0.74;
-    const rows: [string, string][] = [['PARKING ORBIT', '400 km × 400 km'], ['INCLINATION', '28.5°'], ['PERIOD', '92.4 min'], ['ORBITAL SPEED', '7.67 km/s'], ['ASCENT TIME', `${Math.round(LAUNCHER.stage1.burn + LAUNCHER.stage2.burn)} s`], ['PHASE', mission.phase.toUpperCase()]];
+    const rows: [string, string][] = [['PARKING ORBIT', '400 km × 400 km'], ['INCLINATION', '38.7°'], ['PERIOD', '92.4 min'], ['ORBITAL SPEED', '7.67 km/s'], ['ASCENT TIME', `${Math.round(LAUNCHER.stage1.burn + LAUNCHER.stage2.burn)} s`], ['PHASE', mission.phase.toUpperCase()]];
     rows.forEach(([k, v], i) => { scr.text(ctx, k, x0, H * 0.3 + i * 34 * s, 10 * s, C.dim); scr.mono(ctx, v, x0, H * 0.3 + i * 34 * s + 14 * s, 14 * s, C.ink); });
   }
 

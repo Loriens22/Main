@@ -222,11 +222,18 @@ export class Game {
       else this.player.applyCamera(this.renderer.camera, this.alpha, dt);
       this.renderer.camera.updateMatrixWorld();
       this.interactions.update(this.renderer.camera);
+      // a panel already open at the start of the frame (its key closes it below; not the press that opened it)
+      const open = this.uiFocus ? ui.get().panel : null;
       if (this.input.pressed('interact')) { if (this.interactions.use()) bus.emit('sfx', { id: 'ui_tick' }); }
       if (this.input.pressed('computer')) bus.emit('key:computer');
       if (this.input.pressed('creative')) bus.emit('key:creative');
       if (this.input.pressed('crew')) bus.emit('key:crew');
       if (this.input.pressed('codex') && !this.uiFocus) bus.emit('key:codex');
+      // with a panel open the game's input is off; its key still closes it (or switches to another computer page)
+      const typing = document.activeElement instanceof HTMLInputElement && !['range', 'checkbox', 'button'].includes(document.activeElement.type);
+      if (open && open === ui.get().panel && open !== 'dialogue' && !typing) {
+        for (const k of ['computer', 'crew', 'codex']) if (this.input.pressedRaw(k)) { bus.emit('key:' + k); break; }
+      }
       this.hudTimer -= dt;
       if (this.hudTimer <= 0) {
         this.hudTimer = 0.08;

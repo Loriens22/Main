@@ -823,7 +823,13 @@ def launch_glb():
             deck(F, CX, CY, 10.0, CAV_R - 0.05, 180, 360, z, mat="tread_plate")
             deck(F, CX, CY, 10.0, 14.0, 0, 180, z, rail_out=True)
         elif z == LEVELS[-1]:
-            deck(F, CX, CY, 9.2, 14.0, 120, 240, z, rail_out=True)
+            # the crew-access deck: handrails along both edges, open where the bridge from the stair tower arrives
+            # (outer edge) and where the crew access arm leaves for the vehicle (inner edge), both on the 180 degree line
+            deck(F, CX, CY, 9.2, 14.0, 120, 240, z, rail_in=False, rail_out=False)
+            for (r, gap) in ((9.2 + 0.06, 7.3), (14.0 - 0.06, 5.8)):
+                for (b0, b1) in ((120, 180 - gap), (180 + gap, 240)):
+                    n = max(2, int((b1 - b0) / 7.5))
+                    F.rail([(CX + math.cos(math.radians(b0 + (b1 - b0) * k / n)) * r, CY + math.sin(math.radians(b0 + (b1 - b0) * k / n)) * r, z) for k in range(n + 1)])
         else:
             deck(F, CX, CY, 10.0, CAV_R - 0.05, 95, 265, z)
             # swing platforms that reach the vehicle skin

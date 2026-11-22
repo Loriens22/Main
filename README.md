@@ -12,6 +12,10 @@ Desktop (keyboard and mouse, or a gamepad), tablet or phone (touch). Use a curre
 with hardware acceleration on (models and textures, about 190 MB in all, load world by world as you travel). On the main menu choose
 Play → Creative Mode.
 
+To leave Earth straight away, open the mission computer (M, or Computer on a touch screen) and choose **Start the
+mission now**: the crew boards Ranger 1 with you and the launch computer runs the checklist and the count. Or walk to
+the crew access arm in the launch cavern and board there.
+
 ## What is in it
 
 - **Earth**: the farm in the dust storms, six kilometres of county road, the concealed NASA facility with its
@@ -36,7 +40,7 @@ Play → Creative Mode.
 | Use (prompt) | E | X | Use button, or tap the prompt |
 | Leave seat / vehicle | F | Y | Stand / Exit / Leave seat |
 | Helmet lamp, scanner, codex | L, R, J | | Lamp, Scan, Codex (top strip) |
-| Crew, computer, creative | G, M, P | D-pad, Back | Crew, Computer (top strip) |
+| Crew, mission computer, creative options | G, M, P (the same key closes it) | D-pad, Back | Crew, Computer (top strip) |
 | Driving | W A S D, Space brake, H lights, V camera | | stick, Brake, Lights, Cam |
 | Submersible | W S A D, Space / C up / down, Shift boost, L lamps | | stick, Up, Down, Boost, Lamps |
 | Flying | stick or W S A D pitch / yaw, Q E roll, Shift / Ctrl throttle, Z max, X cut, I J K L U O translation, R SAS, N gear, Y autopilot | | stick, Roll L/R, Thr +/-, Max, Cut, RCS pad, SAS, Auto, VTOL; Gear, Lights, Camera in the top strip |

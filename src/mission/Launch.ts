@@ -56,12 +56,14 @@ export class LaunchDirector implements System {
   private switching = false;
   private seated: NPC[] = [];
   private autoRun = false;
+  /** between the fade-out and the seating */
+  private boarding = false;
   private emitAcc = 0;
   /** ascent events already narrated */
   private seen = new Set<string>();
 
   constructor(private game: Game) {
-    bus.on('launch:board', () => this.board());
+    bus.on('launch:board', (o?: { auto?: boolean }) => this.board(!!o?.auto));
   }
 
   private get earth() { return this.game.zones.get('earth') as EarthZone; }
@@ -76,12 +78,31 @@ export class LaunchDirector implements System {
   }
 
   // ------------------------------------------------------------------------------------------- boarding and checklist
-  board() {
-    if (this.state !== 'idle' && this.state !== 'scrubbed') return;
+  /** Can the crew board Ranger 1 now (on Earth, nobody in the seats, no count running)? */
+  canBoard() {
+    const z = this.earth;
+    return !this.boarding && (this.state === 'idle' || this.state === 'scrubbed') && !!z?.nasa?.ranger && this.game.zone === z && !this.flight.craft;
+  }
+
+  /**
+   * Crew and commander into Ranger 1. `auto`: started from the mission computer, which then runs the cockpit
+   * checklist and the count itself (the full launch autopilot), so the mission begins without walking to the arm.
+   */
+  board(auto = false) {
+    if (!this.canBoard()) return false;
     const z = this.earth, nasa = z.nasa, g = this.game;
+    this.boarding = true;
     void g.preload('orbit');
     g.renderer.fadeTo(1, 3);
     setTimeout(() => {
+      this.boarding = false;
+      if (g.zone !== z || this.flight.craft) { g.renderer.fadeTo(0, 1); return; }
+      // out of the pickup (or any other vehicle) first
+      const driving = g.services.driving as { vehicle: unknown; exit(): void } | undefined;
+      if (driving?.vehicle) driving.exit();
+      // started from a computer elsewhere: the commander is brought to the access arm first (location, sound, light)
+      const arm = nasa.launch.marker('board', 'ranger');
+      if (arm && g.player.pos.distanceTo(arm.node.getWorldPosition(_v)) > 20) g.player.stand(_v.clone().add(new THREE.Vector3(0, -0.95, 0)), 0);
       // the crew climbs in through the top hatch with the commander
       const staff = z.nasaStaff;
       this.seated = [];
@@ -107,10 +128,17 @@ export class LaunchDirector implements System {
       mission.note('Crew aboard Ranger 1.');
       bus.emit('sfx', { id: 'buckle', ui: true });
       g.renderer.fadeTo(0, 1.4);
-      ui.toast('Ranger 1 · launch computer: press Y for the checklist', 'info', 6);
-      setTimeout(() => this.radio('Launch Control', 'Ranger 1, Launch Control. We have you and three crew aboard. Close up and run your checklist when ready.'), 1600);
       bus.emit('launch:state', this.state);
+      if (auto) {
+        ui.toast('Launch computer has the checklist and the count · Y opens it (hold, scrub, manual ascent)', 'info', 7);
+        setTimeout(() => this.radio('Launch Control', 'Ranger 1, Launch Control. Crew aboard. Your computer is running the checklist; we pick up the count at T minus sixty.'), 1600);
+        setTimeout(() => { if (this.state === 'prep') this.fullAuto(); }, 3200);
+      } else {
+        ui.toast(g.input.usingTouch ? 'Ranger 1 · launch computer: tap Auto for the checklist' : 'Ranger 1 · launch computer: press Y for the checklist', 'info', 6);
+        setTimeout(() => this.radio('Launch Control', 'Ranger 1, Launch Control. We have you and three crew aboard. Close up and run your checklist when ready.'), 1600);
+      }
     }, 900);
+    return true;
   }
 
   /** leaving the seat before the count: the crew climbs back out with you */

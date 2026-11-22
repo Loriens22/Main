@@ -87,6 +87,35 @@ async function boot() {
   game.registerZone(new EnduranceZone(game, 'endurance'));
   const surface = game.registerZone(new SurfaceZone(game, 'surface')) as SurfaceZone;
   const viewer = game.registerZone(new ViewerZone(game, 'viewer')) as ViewerZone;
+
+  // The Computer, Spacecraft, Crew and Creative keys and buttons (M, G, P; the touch strip; the pause menu): each opens
+  // what the place offers. Earth: the mission computer (authorization, start of the mission, crew); seated for launch:
+  // the launch computer; flying Ranger 1 in orbit: its flight computer; aboard or round the Endurance: ship systems;
+  // on a surface: the surface operations of the Ranger. The same key again closes it.
+  const computer = (what: 'computer' | 'craft' | 'crew') => {
+    if (game.state !== 'playing') return;
+    const z = game.zone, fl = game.services.flight as Flight;
+    const launching = launch.state === 'prep' || launch.state === 'countdown' || launch.state === 'liftoff' || launch.state === 'ascent';
+    const shipTab = what === 'crew' ? 'crew' : what === 'craft' ? 'vehicles' : 'navigation';
+    let id = 'mission', props: Record<string, unknown> | null = null;
+    if (launching && what !== 'crew' && (z === earth || z === orbit)) id = 'launch';
+    else if (z === earth || z === game.zones.get('test')) props = { tab: what === 'crew' ? 'crew' : what === 'craft' ? 'config' : mission.choice === 'endurance' ? 'countdown' : 'decision' };
+    else if (z === orbit && what === 'computer' && fl.craft && fl.craft === orbit.ranger) id = 'docking';
+    else if (z === surface && what !== 'crew') id = 'surfaceops';
+    else if (z === orbit || z === surface || z?.id === 'endurance') { id = 'ship'; props = { tab: shipTab }; }
+    const cur = ui.get();
+    if (cur.panel === id && (cur.panelProps?.tab ?? null) === (props?.tab ?? null)) { bus.emit('ui:closePanel'); return; }
+    game.openPanel(id, props);
+  };
+  bus.on('key:computer', () => computer('computer'));
+  bus.on('key:crew', () => computer('crew'));
+  bus.on('ui:computer', (what?: 'computer' | 'craft' | 'crew') => computer(what ?? 'computer'));
+  bus.on('key:creative', () => {
+    if (game.state !== 'playing') return;
+    if (ui.get().panel) bus.emit('ui:closePanel');
+    ui.set({ sheetTab: 'creative' });
+    bus.emit('ui:pause');
+  });
   if (import.meta.env.DEV) Object.assign(window as any, { __life: { Creature, SPECIES, BRAINS, assets, codex }, __codex: codex, __THREE: THREE, __RAPIER: RAPIER, __parkOv: (b: { id: string; surveyAlt?: number }) => { if (b.surveyAlt) parkingOverride[b.id] = b.surveyAlt; } });   // test scripts
 
   if (params.get('zone') === 'viewer') {

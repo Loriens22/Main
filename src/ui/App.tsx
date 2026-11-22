@@ -168,7 +168,8 @@ function SettingsBody({ game, tab }: { game: Game; tab: string }) {
 }
 
 function Sheet({ game, title, only, onClose }: { game: Game; title: string; only?: 'settings'; onClose: () => void }) {
-  const [tab, setTab] = useState(only ? 'graphics' : 'root');
+  const [tab, setTab] = useState(() => (only ? 'graphics' : ui.get().sheetTab ?? 'root'));
+  useEffect(() => { if (ui.get().sheetTab) ui.set({ sheetTab: null }); }, []);
   const skip = useUI((s) => s.skip);
   const settingsTabs: [string, string][] = [['graphics', 'Graphics'], ['audio', 'Audio'], ['controls', 'Controls']];
   const item = (id: string, label: string, fn?: () => void) => <button class={`mbtn ${tab === id ? 'on' : ''}`} onClick={() => { bus.emit('ui:click'); fn ? fn() : setTab(id); }}>{label}</button>;
@@ -181,8 +182,8 @@ function Sheet({ game, title, only, onClose }: { game: Game; title: string; only
         {!only && skip && item('skip', skip, () => { onClose(); bus.emit('earth:skip'); })}
         {!only && item('graphics', 'Settings')}
         {only && settingsTabs.map(([id, l]) => item(id, l))}
-        {!only && item('computer', 'Mission computer', () => { onClose(); bus.emit('ui:panel', 'mission'); })}
-        {!only && item('craft', 'Spacecraft management', () => { onClose(); bus.emit('ui:panel', 'craft'); })}
+        {!only && item('computer', 'Mission computer', () => { onClose(); bus.emit('ui:computer', 'computer'); })}
+        {!only && item('craft', 'Spacecraft management', () => { onClose(); bus.emit('ui:computer', 'craft'); })}
         {!only && item('creative', 'Creative Mode options')}
         {!only && item('save', 'Save game', () => bus.emit('ui:save'))}
         {!only && item('load', 'Load game', () => { bus.emit('ui:load'); onClose(); })}
@@ -280,7 +281,7 @@ function PanelHost({ game }: { game: Game }) {
   if (!id) return null;
   const C = panels.get(id);
   if (!C) return null;
-  return <div class="layer panel-wrap interactive"><C game={game} {...(props || {})} close={() => bus.emit('ui:closePanel')} /></div>;
+  return <div class="layer panel-wrap interactive"><C key={`${id}:${props?.tab ?? ''}`} game={game} {...(props || {})} close={() => bus.emit('ui:closePanel')} /></div>;
 }
 
 export function PanelFrame({ title, sub, close, children, tabs, tab, setTab }: { title: string; sub?: string; close: () => void; children: any; tabs?: [string, string][]; tab?: string; setTab?: (t: string) => void }) {

@@ -90,7 +90,11 @@ export class Input {
   }
 
   pressed(action: string): boolean {
-    if (!this.enabled) return false;
+    return this.enabled && this.pressedRaw(action);
+  }
+
+  /** pressed this frame, even while the game's input is off (a panel open): for the keys that close panels */
+  pressedRaw(action: string): boolean {
     if (this.virtualPressed.has(action)) return true;
     if (this.padDown.has(action) && !this.padPrev.has(action)) return true;
     for (const c of this.codes(action)) if (this.pressedNow.has(c)) return true;

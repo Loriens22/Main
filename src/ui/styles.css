@@ -182,6 +182,7 @@ canvas.map { width: 100%; height: auto; display: block; border: 1px solid var(--
 .panel .note { font-size: 11.5px; color: var(--dim); line-height: 1.5; margin: 10px 0 0; }
 .panel .card { border: 1px solid var(--faint); padding: 14px 16px; margin-bottom: 12px; }
 .panel .card p { font-size: 12.5px; line-height: 1.5; color: var(--dim); margin: 0 0 12px; }
+.panel .card.start { border-color: var(--warn); margin: 12px 0; }
 .panel .log { max-height: 34vh; overflow-y: auto; }
 .panel .log p { font-size: 12px; color: var(--dim); margin: 0 0 6px; padding-left: 10px; border-left: 1px solid var(--faint); }
 .btn.on { background: var(--ink); color: #0b0c0d; }

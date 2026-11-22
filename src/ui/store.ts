@@ -27,6 +27,8 @@ export interface UIState {
   touch: boolean;
   /** label of the fast-travel skip on offer (the farm-NASA drive), or null */
   skip: string | null;
+  /** the page the pause menu opens on (the Creative key opens it on Creative Mode options), or null */
+  sheetTab: string | null;
   /** bumps whenever non-reactive data a panel reads has changed */
   tick: number;
   /** special full-screen view overlays: 'dockcam' */
@@ -46,7 +48,7 @@ export interface DockHud {
 let state: UIState = {
   loading: { active: true, label: 'Initialising', f: 0 },
   screen: 'boot', menuReady: false, panel: null, panelProps: null, prompt: '', promptKey: 'E', hints: [], subtitle: null, toasts: [],
-  location: '', mode: 'cinematic', gauges: [], gps: null, clocks: [], alert: '', touch: false, skip: null, tick: 0, view: '', dock: null, visor: 0,
+  location: '', mode: 'cinematic', gauges: [], gps: null, clocks: [], alert: '', touch: false, skip: null, sheetTab: null, tick: 0, view: '', dock: null, visor: 0,
 };
 
 const subs = new Set<() => void>();
