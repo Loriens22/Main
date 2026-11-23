@@ -16,6 +16,7 @@ import { ui } from '../../ui/store';
 import { mission } from '../../mission/Mission';
 import { story } from '../../core/Story';
 import { EnduranceScreens } from './EnduranceScreens';
+import { CryoBay } from './Hypersleep';
 
 const blenderDir = (d: number[]) => new THREE.Vector3(d[0], d[2], -d[1]);
 const _v = new THREE.Vector3(), _w = new THREE.Vector3(), _q = new THREE.Quaternion(), _m = new THREE.Matrix4();
@@ -235,6 +236,8 @@ export class EnduranceZone extends Zone {
   private shipQi = new THREE.Quaternion();
   private where = '';
   private sitting: THREE.Object3D | null = null;
+  /** the hypersleep pods of the cryo-lab */
+  cryo!: CryoBay;
   private crewPosted = false;
 
   private get orbit() { return this.game.zones.get('orbit') as OrbitZone; }
@@ -287,6 +290,11 @@ export class EnduranceZone extends Zone {
         use: () => this.lift?.goTo(top ? this.lift.rTop : this.lift.rBottom) });
     }
     this.collectSections();
+    // the hypersleep pods of the cryo-lab (their own model and animation), culled with their room
+    progress?.(0.85, 'Cryo-lab');
+    this.cryo = new CryoBay(g, this.root, this.phys, () => this.npcs, this.lights);
+    await this.cryo.load(this.int.ofKind('cryo'), (o, at) => { this.sections.find((s) => s.box.containsPoint(at))?.nodes.push(o); });
+    bus.on('cryo:sleep', (e: { pod?: number; until: number | null }) => { if (this.game.zone === this) this.cryo.sleep(e.pod ?? 0, e.until); });
     this.terminals();
     this.screens = new EnduranceScreens(this);
     this.screens.build(this.int);
@@ -401,9 +409,11 @@ export class EnduranceZone extends Zone {
           ui.set({ mode: 'seat', hints: ['F  stand up'] });
         } });
     }
-    for (const c of this.int.ofKind('cryo')) {
-      this.addI({ position: (out) => c.node.getWorldPosition(out), radius: 0.6, range: 2.4, label: () => (this.orbit.mode === 'cruise' ? 'Hibernate' : String(c.data.label ?? 'Hibernation pod')),
-        use: () => this.game.openPanel('cryo') });
+    for (const [k] of this.cryo.pods.entries()) {
+      this.addI({ position: (out) => this.cryo.usePoint(k, out), radius: 0.7, range: 2.8,
+        label: () => (this.orbit.voyage ? 'Hypersleep pod · sleep until arrival' : 'Hypersleep pod'),
+        enabled: () => this.cryo.state === 'idle',
+        use: () => this.game.openPanel('cryo', { pod: k }) });
     }
     for (const b of this.int.ofKind('bed')) {
       this.addI({ position: (out) => b.node.getWorldPosition(out), radius: 0.5, range: 2.4, label: () => String(b.data.label ?? 'Bunk'),
@@ -520,6 +530,7 @@ export class EnduranceZone extends Zone {
   }
 
   override leave() {
+    this.cryo.abort();
     super.leave();
     const g = this.game, o = this.orbit;
     g.renderer.spaceScene.remove(o.stars.group, o.globe.mesh, o.view.group);
@@ -588,6 +599,7 @@ export class EnduranceZone extends Zone {
     }
     this.lift?.updateGates(dt);
     this.screens.update(dt);
+    this.cryo.update(dt);
     if (!this.crewPosted && Math.hypot(g.player.pos.x, g.player.pos.y) > 18) this.postCrew();
     this.npcs.update(dt);
     this.lights.update(_v, dt);

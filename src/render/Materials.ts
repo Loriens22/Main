@@ -123,6 +123,14 @@ export class MaterialLibrary {
         transparent: true, opacity: spec.opacity ?? 0.25, depthWrite: false, side: THREE.DoubleSide,
         envMapIntensity: 1.4, specularIntensity: 1.0, ior: 1.5,
       });
+      if (spec.tex) {
+        // a textured film (crumpled plastic): its creases catch the light
+        const tile = spec.tile ?? 1;
+        g.normalMap = this.tex(spec.tex, 'normal', tile);
+        g.normalScale.set(0.45, 0.45);
+        g.roughnessMap = this.tex(spec.tex, 'orm', tile);
+        g.envMapIntensity = 0.7;
+      }
       m = patchWorldMaterial(g, { glass: true, dust: 1, dirt: 0 }, { vao: false });
     } else {
       const tile = spec.uvMode === 'native' ? 1 : spec.tile ?? 1;

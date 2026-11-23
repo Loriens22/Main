@@ -21,8 +21,11 @@ the crew access arm in the launch cavern and board there.
 - **Earth**: the farm in the dust storms, six kilometres of county road, the concealed NASA facility with its
   launch silo; the launch to orbit.
 - **The Endurance**: walkable ring of twelve modules, hub and spoke lift, spin gravity, docking of the Rangers.
-- **The Solar System and Gargantua**: real ephemerides, Lambert transfers, time compression, cryo sleep, Saturn,
-  the wormhole, the black hole with its time dilation.
+- **The Solar System and Gargantua**: real ephemerides, Lambert transfers, time compression, Saturn, the wormhole,
+  the black hole with its time dilation.
+- **Hypersleep**: four pods in the Endurance's cryo-lab. Use one during a voyage (or just to rest): its lid slides
+  open, you climb in and lie down, the plastic film closes round you, the lid closes, and you wake in orbit at the
+  destination as the pod opens again. The crew sleeps in the pods beside you.
 - **Landings**: every solid body has a landing site; the gas and ice giants have floating stations at 1 bar
   (reached by descent and left with an ascent booster).
 - **Lazarus worlds**: Miller's wave world (wreck and beacon), Mann's ice world (shelter and robot), Edmunds'

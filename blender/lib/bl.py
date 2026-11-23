@@ -299,8 +299,11 @@ class Part:
             except ValueError:
                 pass
         bmesh.ops.recalc_face_normals(tb, faces=tb.faces[:])
-        # dissolve the cap triangulation back into n-gons where possible
-        bmesh.ops.dissolve_limit(tb, angle_limit=D(0.5), verts=tb.verts[:], edges=tb.edges[:])
+        # dissolve the cap triangulation back into n-gons where possible. With holes this can merge a cap into one
+        # "keyhole" n-gon whose triangulation covers the hole: exact_holes keeps the caps triangulated instead.
+        if not (holes and kw.pop("exact_holes", False)):
+            bmesh.ops.dissolve_limit(tb, angle_limit=D(0.5), verts=tb.verts[:], edges=tb.edges[:])
+        kw.pop("exact_holes", None)
         b = self.default_bevel if bevel is None else bevel
         self._bevel(tb, b, kw.pop("segs", 2))
         self._emit(tb, mat, M if M is not None else xf(at, rot), **kw)
@@ -878,7 +881,9 @@ def _convexity(me):
 
 
 # ----------------------------------------------------------------------------- export / preview
-def export_glb(name, objects=None, out_dir=None, images=False):
+def export_glb(name, objects=None, out_dir=None, images=False, anim=False):
+    """anim: export the scene timeline as one glTF animation (object transforms and shape keys, sampled per
+    frame) together with the shape keys as morph targets."""
     out_dir = out_dir or MODELS
     os.makedirs(out_dir, exist_ok=True)
     path = os.path.join(out_dir, name + ".glb")
@@ -889,7 +894,9 @@ def export_glb(name, objects=None, out_dir=None, images=False):
         filepath=path, export_format="GLB", use_selection=objects is not None, export_apply=False,
         export_extras=True, export_yup=True, export_texcoords=True, export_normals=True,
         export_tangents=False, export_materials="EXPORT", export_cameras=False, export_lights=False,
-        export_animations=False, export_skins=True, export_morph=False,
+        export_animations=anim, export_skins=True, export_morph=anim,
+        **({"export_animation_mode": "SCENE", "export_morph_animation": True, "export_force_sampling": True,
+            "export_frame_range": True, "export_morph_normal": True} if anim else {}),
         export_vertex_color="ACTIVE", export_all_vertex_colors=False,
         export_active_vertex_color_when_no_material=True, export_image_format="WEBP" if images else "NONE",
         **({"export_image_quality": 88} if images else {}),

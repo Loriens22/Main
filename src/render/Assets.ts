@@ -19,7 +19,8 @@ export class Model {
   colliders: THREE.Mesh[] = [];
   private byId = new Map<string, THREE.Object3D>();
 
-  constructor(public name: string, public root: THREE.Object3D) {
+  /** `clips`: the GLB's animations (authored in Blender; they bind to this instance's nodes by name) */
+  constructor(public name: string, public root: THREE.Object3D, public clips: THREE.AnimationClip[] = []) {
     root.traverse((o) => {
       const u = o.userData;
       if (u.kind && u.id !== undefined) {
@@ -148,7 +149,7 @@ class AssetManager {
     const group = new THREE.Group();
     group.name = name;
     group.add(root);
-    return new Model(name, group);
+    return new Model(name, group, g.animations);
   }
 }
 

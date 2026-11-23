@@ -728,6 +728,85 @@ def padding(t):
     t.normal_strength = 7.0
 
 
+@tex("pod_paint")
+def pod_paint(t):
+    """The hypersleep pods' worn white paint (film prop finish): off-white enamel over steel, black scuffs and
+    rub marks, fine scratches, small dark chips and a grey haze of handling grime."""
+    n = t.n
+    lf, mf, hf = fbm(n, 2.6, 901), fbm(n, 1.8, 902, fmin=4), fbm(n, 0.7, 903, fmin=40)
+    paint = tone(solid(n, rgb("#dddbd5")), lf, 0.08) * (0.975 + 0.05 * hf[..., None])
+    # handling grime: soft grey patches, a little warmer where it collects
+    grime = smoothstep(0.48, 0.92, fbm(n, 2.1, 904, fmin=2)) * 0.55 + smoothstep(0.6, 0.95, streaks(n, 905)) * 0.25
+    paint = mix(paint, paint * rgb("#a7a49c"), np.clip(grime, 0, 1) * 0.55)
+    # black rub marks (boots, trolleys): short, soft, mostly horizontal smears
+    rub = np.clip(scratches(n, 70, 906, length=(0.02, 0.09), width=4, angle=0.0, angle_spread=0.7, blur_sigma=2.2) * 1.4, 0, 1)
+    rub = rub * smoothstep(0.35, 0.65, fbm(n, 1.6, 907, fmin=3))
+    paint = mix(paint, solid(n, rgb("#3a3a3c")), rub * 0.55)
+    # fine scratches: lighter where the enamel is scored, darker where they reach the primer
+    sc = np.clip(scratches(n, 420, 908, length=(0.006, 0.07)) * 1.3, 0, 1)
+    paint = mix(paint, solid(n, rgb("#8e8d89")), sc * 0.45)
+    # chips down to dark primer and steel
+    chip = smoothstep(0.78, 0.82, fbm(n, 1.1, 909, fmin=14)) + smoothstep(0.86, 0.9, white(n, 910) * 0.25 + fbm(n, 0.9, 911, fmin=30) * 0.75)
+    chip = np.clip(chip, 0, 1)
+    paint = mix(paint, solid(n, rgb("#2d2e30")), chip * 0.85)
+    t.albedo = paint
+    t.height = np.clip(0.6 + (hf - 0.5) * 0.04 - sc * 0.08 - chip * 0.2 + (mf - 0.5) * 0.03, 0, 1)
+    t.rough = np.clip(0.42 + grime * 0.25 + rub * 0.15 + sc * 0.1 + chip * 0.2 + hf * 0.05, 0, 1)
+    t.metal = chip * 0.35
+    t.normal_strength = 3.0
+
+
+@tex("quilt")
+def quilt(t):
+    """Diamond-quilted black vinyl (the pods' padded band): 4 x 6 diamonds per tile (wider than tall), stitched
+    seams with visible stitches, puffy cells with a soft vinyl sheen and dust in the seams."""
+    n = t.n
+    u, v = grid_uv(n)
+    ku, kv = 4, 6
+    a, b = u * ku + v * kv, u * ku - v * kv
+    fa, fb = (a % 1.0) - 0.5, (b % 1.0) - 0.5
+    pil = np.clip(1 - (np.abs(fa) * 2) ** 3.0, 0, 1) * np.clip(1 - (np.abs(fb) * 2) ** 3.0, 0, 1)
+    pil = pil ** 0.4
+    d = np.minimum(0.5 - np.abs(fa), 0.5 - np.abs(fb))
+    seam = 1 - smoothstep(0.0, 0.045, d)
+    # stitches: dashes along the seams
+    along = np.where(0.5 - np.abs(fa) < 0.5 - np.abs(fb), b, a)
+    stitch = seam * smoothstep(0.25, 0.4, np.abs(((along * 9.0) % 1.0) - 0.5)) * (1 - smoothstep(0.012, 0.03, d))
+    hf, lf = fbm(n, 0.8, 921, fmin=40), fbm(n, 2.4, 922)
+    wr = fbm(n, 1.6, 923, fmin=10)
+    base = tone(solid(n, rgb("#1b1c1f")), lf, 0.25) * (0.75 + 0.4 * pil[..., None])
+    dust = smoothstep(0.45, 0.85, fbm(n, 2.0, 924, fmin=3)) * (0.3 + 0.7 * seam)
+    base = mix(base, solid(n, rgb("#5d5b57")), dust * 0.35)
+    base = mix(base, solid(n, rgb("#4a4b4f")), stitch * 0.6)
+    t.albedo = base * (1 - seam[..., None] * 0.35)
+    t.height = np.clip(pil * 0.8 + (wr - 0.5) * 0.06 - stitch * 0.05, 0, 1)
+    t.rough = np.clip(0.38 + (1 - pil) * 0.3 + dust * 0.25 + hf * 0.06, 0, 1)
+    t.normal_strength = 6.0
+
+
+@tex("film")
+def film(t):
+    """Crumpled clear plastic film (the pods' cellophane wrap): flat facets meeting at sharp creases, three scales
+    of crumpling over soft folds. Each facet of a (periodic) Voronoi layer is tilted at random; the tilts of the
+    layers add up into the normal map directly. Colourless; the material makes it transparent."""
+    n = t.n
+    folds = fbm(n, 3.2, 931, fmin=2, fmax=10)
+    gx = (np.roll(folds, -1, 1) - np.roll(folds, 1, 1)) * n * 0.02
+    gy = (np.roll(folds, -1, 0) - np.roll(folds, 1, 0)) * n * 0.02
+    edges = np.zeros((n, n))
+    for k, (cells, amp) in enumerate(((22, 0.34), (90, 0.24), (330, 0.14))):
+        f1, f2, ids = voronoi(n, cells, 940 + k, jitter=1.0)
+        gx += blur((cell_random(ids, 950 + k) - 0.5) * 2 * amp, 0.7)
+        gy += blur((cell_random(ids, 960 + k) - 0.5) * 2 * amp, 0.7)
+        edges += (1 - smoothstep(0.0, 0.05, f2 - f1)) * amp
+    l = np.sqrt(gx * gx + gy * gy + 1.0)
+    t.normal = np.stack([-gx / l * 0.5 + 0.5, gy / l * 0.5 + 0.5, 1.0 / l * 0.5 + 0.5], -1)
+    t.albedo = solid(n, rgb("#f2f5f6")) * (0.95 + 0.05 * folds[..., None])
+    t.height = np.clip(folds * 0.6 + edges * 0.2, 0, 1)
+    t.ao = np.ones((n, n))
+    t.rough = np.clip(0.05 + edges * 0.35, 0, 1)
+
+
 @tex("canvas_bag", 512)
 def canvas_bag(t):
     n = t.n

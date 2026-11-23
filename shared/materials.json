@@ -285,5 +285,13 @@
   "nest_shell":         { "tex": "bio_plate", "tile": 0.25, "color": "#8c8a8e", "metal": 0, "iridescence": 0.3 },
   "arch_spine":         { "tex": "bio_plate", "tile": 0.1, "color": "#4a3d50", "rough": 0.5, "metal": 0 },
   "brk_spike":          { "tex": "bio_plate", "tile": 0.2, "color": "#6a6656", "rough": 0.55, "metal": 0 },
-  "ferr_fringe":        { "color": "#e4c6bc", "rough": 0.4, "opacity": 0.8 }
+  "ferr_fringe":        { "color": "#e4c6bc", "rough": 0.4, "opacity": 0.8 },
+  "pod_white":         { "tex": "pod_paint", "tile": 1.4 },
+  "pod_flange":        { "tex": "metal_painted", "tile": 1.2, "color": "#2b303a", "rough": 0.85 },
+  "pod_quilt":         { "tex": "quilt", "tile": 0.26 },
+  "pod_tub":           { "tex": "plastic_panel", "tile": 0.8, "color": "#2a2b2e", "rough": 0.9 },
+  "pod_net":           { "tex": "fabric", "tile": 0.12, "color": "#45474b" },
+  "pod_film":          { "kind": "glass", "tex": "film", "tile": 0.32, "color": "#f1f4f4", "opacity": 0.34, "rough": 0.12 },
+  "pod_tape":          { "tex": "canvas_bag", "tile": 0.15, "color": "#d9ccaa", "side": "double" },
+  "pod_lcd":           { "color": "#5cb8ff", "emissive": "#3c9fff", "emissiveIntensity": 2.4, "rough": 0.25 }
 }

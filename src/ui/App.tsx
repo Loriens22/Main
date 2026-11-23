@@ -316,7 +316,12 @@ function Touch({ game }: { game: Game }) {
   const [portrait, setPortrait] = useState(window.innerHeight > window.innerWidth);
   // weightless (the hub, a Ranger docked on the axis): the on-foot buttons become float up / down
   const [floating, setFloating] = useState(game.player.mode === 'float');
-  useEffect(() => bus.on('player:mode', (m: string) => setFloating(m === 'float')), []);
+  useEffect(() => {
+    const off = bus.on('player:mode', (m: string) => setFloating(m === 'float'));
+    // (the mode also changes without an event: standing up, teleports, cutscenes)
+    const t = setInterval(() => setFloating(game.player.mode === 'float'), 500);
+    return () => { off(); clearInterval(t); };
+  }, []);
   const inp = game.input;
   const sc = game.settings.c.touchScale;
   // the controls are on screen (the effects below attach to their elements whenever they appear)

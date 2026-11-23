@@ -11,7 +11,7 @@ import time
 
 HERE = os.path.dirname(os.path.abspath(__file__))
 ROOT = os.path.dirname(HERE)
-SCRIPTS = ["farmhouse", "corn", "pickup", "farm_machines", "farm_props", "characters", "nasa", "ranger", "endurance", "endurance_int", "station", "lazarus"]
+SCRIPTS = ["farmhouse", "corn", "pickup", "farm_machines", "farm_props", "characters", "nasa", "ranger", "endurance", "endurance_int", "cryopod", "station", "lazarus"]
 SKIP_OPT = {"corn"}
 
 only = [a for a in sys.argv[1:] if not a.startswith("-")]

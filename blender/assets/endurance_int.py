@@ -562,25 +562,6 @@ class Kit:
         D.box((0.5, 0.06, 0.3), M=M @ T((0, -0.62, 1.3)) @ RX(-30), mat="plastic_dark", bevel=0.01)
         self.C.box((0.7, 1.7, 0.2), M=M @ T((0, 0, 0.1)), mat="concrete", bevel=0)
 
-    def cryo_pod(self, M, band="padding_blue"):
-        """Cryo pod (ref 13): white chamfered shell, quilted band, two round ports at the foot. Along local Y."""
-        D = self.D
-        L, W_ = 2.3, 1.0
-        octo = [(-W_ / 2 + 0.12, 0), (W_ / 2 - 0.12, 0), (W_ / 2, 0.12), (W_ / 2, 0.55), (W_ / 2 - 0.18, 0.72), (-W_ / 2 + 0.18, 0.72), (-W_ / 2, 0.55), (-W_ / 2, 0.12)]
-        D.prism(octo, L, plane="XZ", M=M @ T((0, -L / 2, 0.0)), mat="plastic_white", bevel=0.02)
-        D.box((W_ + 0.04, L - 0.1, 0.16), M=M @ T((0, 0, 0.42)), mat=band, bevel=0.03)
-        for z in (0.33, 0.52):
-            D.box((W_ + 0.08, L + 0.02, 0.035), M=M @ T((0, 0, z)), mat="metal_dark", bevel=0.01)
-        for sx in (-0.22, 0.22):
-            D.cyl(0.12, 0.04, M=M @ T((sx, -L / 2 - 0.01, 0.2)) @ RX(90), mat="metal_steel", segs=20, bevel=0.01)
-            D.cyl(0.08, 0.05, M=M @ T((sx, -L / 2 - 0.02, 0.2)) @ RX(90), mat="metal_dark", segs=16, bevel=0)
-        for k in range(3):
-            D.box((0.14, 0.2, 0.01), M=M @ T((0.1, -0.6 + k * 0.5, 0.725)), mat="glass_dark", bevel=0)
-        D.cyl(0.08, 0.06, M=M @ T((-0.25, 0.75, 0.74)), mat="metal_steel", segs=14, bevel=0.01)
-        D.box((0.12, 0.08, 0.04), M=M @ T((0.28, 0.75, 0.74)), mat="plastic_dark", bevel=0.01)
-        self.E.box((0.12, 0.01, 0.05), M=M @ T((0.3, -L / 2 - 0.012, 0.42)), mat="emit_cyan", bevel=0)
-        self.C.box((W_, L, 0.75), M=M @ T((0, 0, 0.375)), mat="concrete", bevel=0)
-
     def heavy_door(self, M, w=1.1, h=2.0):
         """Heavy pressure door with a porthole and a handwheel (ref 13), shut, in a bolted black frame. Wall face at
         y = 0."""
@@ -1038,12 +1019,17 @@ def cryo_lab(F, K, M, i, ss):
             C.box((1.3, 0.06, 0.36), M=M @ T((x, -0.55 + s * 1.35, -0.18)), mat="concrete", bevel=0)
         D.box((1.24, 2.64, 0.04), M=M @ T((x, -0.55, -0.34)), mat="metal_dark", bevel=0)
         C.box((1.24, 2.64, 0.06), M=M @ T((x, -0.55, -0.35)), mat="concrete", bevel=0)
-        K.cryo_pod(Mp, band="padding_blue" if k % 2 else "fabric_red")
-        marker("cryo", f"pod{k}", at=P3(Mp, 0, 0, 0.75), label="Hibernation pod")
+        # the hypersleep pod is its own model (cryo_pod.glb, with its animation), set in the pit by the engine:
+        # pod frame = room frame (head toward +Y, the lid slides toward the aft wall); `side` is where the commander
+        # stands to climb in (the aisle side)
+        e = Mp.to_3x3().to_euler("XYZ")
+        marker("cryo", f"pod{k}", at=P3(Mp, 0, 0, 0), rot=tuple(math.degrees(a) for a in e), label="Hypersleep pod",
+               side="l" if x > 0 else "r")
         K.ceiling_device(M @ T((x, -0.55, LH)))
-    for x in (-HX + 0.25, HX - 0.25):
+    # (columns against the side walls: the outer pods' lids slide past them)
+    for x in (-HX + 0.12, HX - 0.12):
         D.box((0.32, 0.32, LH), M=M @ T((x, -2.35, LH / 2)), mat="paint_gray", bevel=0.02)
-        D.pipe([(x - math.copysign(0.2, x), -2.35, 0.1), (x - math.copysign(0.2, x), -2.35, LH - 0.1)], 0.025, mat="metal_dark", segs=8, M=M)
+        D.pipe([(x, -2.35 + 0.2, 0.1), (x, -2.35 + 0.2, LH - 0.1)], 0.025, mat="metal_dark", segs=8, M=M)
         C.box((0.32, 0.32, LH), M=M @ T((x, -2.35, LH / 2)), mat="concrete", bevel=0)
     Mw = wf(M, "port")
     K.switch_panel(Mw @ T((0.4, -0.03, 1.35)), w=0.9, h=0.6, rows=6, cols=8)
