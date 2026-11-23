@@ -615,6 +615,48 @@ export class OrbitZone extends Zone implements OrbitContext {
     return null;
   }
 
+  /** set while an automatic landing waits for Ranger 1 to back away from its port (seconds since release) */
+  private autoLanding: { t: number } | null = null;
+
+  /**
+   * The whole way down from one button of the Ranger's flight computer, docked or not. At a giant the Endurance
+   * first takes Ranger 1 (docked) down to the survey orbit its station is reached from; then the latches release,
+   * the Ranger backs away from the port to the staging point and the computer flies the descent (beginDescent).
+   */
+  landFromShip(): string | null {
+    const b = this.body, c = this.ranger!;
+    if (!b.landing) return `${b.name} has no landing site the Ranger can reach.`;
+    if (this.mode !== 'orbit') return 'Not in orbit.';
+    if (this.autoLanding) return null;
+    const link = this.docking.linkOf(c);
+    if (link && link.state !== 'docked') return 'Docking in progress: wait for the latches.';
+    if (b.station && b.surveyAlt && Math.abs(parkAlt(b) - b.surveyAlt) > 1000) {
+      if (!link) return `${b.station.name} is reached from the ${(b.surveyAlt / 1000).toFixed(0)} km survey orbit: dock with the Endurance first, it takes Ranger 1 down.`;
+      const e = this.changeOrbit(b.surveyAlt);
+      if (e) return e;
+      ui.toast(`Endurance in the ${(b.surveyAlt / 1000).toFixed(0)} km survey orbit · undocking for the descent to ${b.station.name}`, 'info', 6);
+    }
+    if (!link) return this.beginDescent();
+    this.autoLanding = { t: 0 };
+    mission.note(`Automatic landing at ${b.landing.site}: Ranger 1 undocking from the Endurance.`);
+    return null;
+  }
+
+  /** the automatic landing: once the Ranger is free and clear of the port, the descent program takes over */
+  private autoLandStep(dt: number) {
+    const a = this.autoLanding, c = this.ranger;
+    if (!a || !c) return;
+    if (this.mode !== 'orbit') { this.autoLanding = null; return; }
+    // release the latches (as soon as the link is fully docked), then wait while the push carries the Ranger clear
+    const l = this.docking.linkOf(c);
+    if (l) { if (l.state === 'docked') this.docking.undock(c, 0.8); return; }
+    a.t += dt;
+    if (a.t < 5) return;
+    this.autoLanding = null;
+    const e = this.beginDescent();
+    if (e) ui.toast(e, 'warn', 6);
+  }
+
   /**
    * Move the Endurance between its parking orbit and another circular altitude round the same body (at a giant: the
    * low survey orbit the stations are reached from). A Hohmann transfer: the cost in drive delta-v and the half-orbit
@@ -1060,6 +1102,7 @@ export class OrbitZone extends Zone implements OrbitContext {
 
   override leave() {
     super.leave();
+    this.autoLanding = null;
     const g = this.game;
     g.renderer.spaceScene.remove(this.stars.group, this.globe.mesh, this.view.group);
     if (this.lens) g.renderer.spaceScene.remove(this.lens.mesh);
@@ -1129,6 +1172,7 @@ export class OrbitZone extends Zone implements OrbitContext {
     this.endurance.fixedUpdate(dt);
     this.npcs.fixedUpdate(dt);
     this.docking.fixedUpdate(dt);
+    this.autoLandStep(dt);
     this.ranger2?.fixedUpdate(dt, this.env);
     this.ranger?.fixedUpdate(dt, this.env);
   }

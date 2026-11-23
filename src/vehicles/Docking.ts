@@ -241,6 +241,8 @@ export class DockingSystem {
         port.pose(_p, _v, _u);
         if (c.pointWorld(this.rings.get(c)!.pos, _w).distanceTo(_p) > 1.5) continue;
         const r = this.measure(c, port);
+        // a craft moving away from the port (just released, backing off) is never caught again
+        if (r.closing < CAPTURE.closingMin) continue;
         if (r.axial > CAPTURE.axial || r.axial < -0.4 || r.lateralDist > 0.6) continue;
         if (!r.ready) {
           if (!(c as any).__capWarn || this.time - (c as any).__capWarn > 2) {
@@ -289,10 +291,12 @@ export class DockingSystem {
       } else if (l.state === 'release') {
         c.carry(pos, quat);
         if (l.t > 1.2) {
-          // hand the craft back to free flight with the port's motion plus a gentle push
+          // hand the craft back to free flight with the port's motion plus a gentle push along the port's outward
+          // axis (its own vectors: pointVelocity works in the module's scratch vectors)
           const speed = (l as any).speed ?? 0.15;
-          l.port.pose(_p, _v, _u);
-          const vel = l.port.pointVelocity(c.position(new THREE.Vector3()), new THREE.Vector3()).addScaledVector(_v, speed);
+          const pp = new THREE.Vector3(), out = new THREE.Vector3(), pu = new THREE.Vector3();
+          l.port.pose(pp, out, pu);
+          const vel = l.port.pointVelocity(c.position(new THREE.Vector3()), new THREE.Vector3()).addScaledVector(out, speed);
           const w = l.port.host.omega(new THREE.Vector3());
           c.setCarried(false);
           c.place(pos, quat, vel);

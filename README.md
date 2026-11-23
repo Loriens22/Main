@@ -27,7 +27,9 @@ the crew access arm in the launch cavern and board there.
   open, you climb in and lie down, the plastic film closes round you, the lid closes, and you wake in orbit at the
   destination as the pod opens again. The crew sleeps in the pods beside you.
 - **Landings**: every solid body has a landing site; the gas and ice giants have floating stations at 1 bar
-  (reached by descent and left with an ascent booster).
+  (reached by descent and left with an ascent booster). From Ranger 1 docked to the Endurance, the flight computer
+  (Y, or Computer) lands with one button: at a giant the Endurance first takes the Ranger down to the survey orbit,
+  then the Ranger undocks, backs away and flies the descent.
 - **Lazarus worlds**: Miller's wave world (wreck and beacon), Mann's ice world (shelter and robot), Edmunds'
   desert (base and old lander).
 - **Speculative life** (switchable to a conservative science mode in the settings): animals in Miller's ocean

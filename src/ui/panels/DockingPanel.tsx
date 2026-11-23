@@ -5,7 +5,8 @@ import { PanelFrame } from '../App';
 import { ENDURANCE } from '../../space/Endurance';
 import { RANGER_SPEC } from '../../vehicles/Spacecraft';
 import { ui } from '../store';
-import { BODIES } from '../../space/Bodies';
+import { BODIES, parkAlt } from '../../space/Bodies';
+import { fmtDuration } from '../../space/Voyage';
 
 const KV = ({ k, v, warn }: { k: string; v: any; warn?: boolean }) => <div class="kv"><span>{k}</span><b style={warn ? { color: 'var(--warn)' } : {}}>{v}</b></div>;
 
@@ -36,13 +37,23 @@ export function DockingPanel({ game, close }: { game: Game; close: () => void })
           <p>The computer picks the free Ranger port, plans a two-burn transfer to the approach gate {50} m out on the docking axis (coasting under time compression), then turns the docking ring to the port, matches the ship's spin and clocking, and flies the final approach. From the gate it docks in under a minute.</p>
           <button class="btn" disabled={docked} onClick={() => { bus.emit('ui:click'); close(); z.engageAutoDock(); }}>Engage automatic docking</button>
         </div>
-        {z.body?.landing && !docked && (
-          <div class="card">
-            <h4>Automatic landing · {z.body.landing.site}</h4>
-            <p>From here (the descent staging point) the computer waits for the window when the site passes under the orbit, makes the deorbit burn, coasts down{z.body.atmosphere ? ', flies a lifting entry with bank steering' : ''}, brakes under power to a gate {1200} m above the pad and lets down onto it. Time is compressed except for the burns and the last metres.</p>
-            <button class="btn" onClick={() => { bus.emit('ui:click'); const err = z.beginDescent(); if (err) ui.toast(err, 'warn', 5); else close(); }}>Land on {z.body.name}</button>
-          </div>
-        )}
+        {z.body?.landing && (() => {
+          const b = z.body;
+          // at a giant the station is reached from the survey orbit: the Endurance takes the docked Ranger down first
+          const lower = b.station && b.surveyAlt && Math.abs(parkAlt(b) - b.surveyAlt) > 1000;
+          const oc = lower ? z.orbitChange(b.surveyAlt) : null;
+          return (
+            <div class="card">
+              <h4>Automatic landing · {b.landing.site}</h4>
+              <p>
+                {lower && docked && `First the Endurance takes Ranger 1 down to the ${(b.surveyAlt / 1000).toFixed(0)} km survey orbit (${(oc.dv / 1000).toFixed(2)} km/s, ${fmtDuration(oc.time)}). `}
+                {lower && !docked && `${b.station.name} is reached from the ${(b.surveyAlt / 1000).toFixed(0)} km survey orbit: dock first, and the Endurance takes Ranger 1 down. `}
+                {docked ? 'Ranger 1 releases its latches and backs away to the descent staging point; then the computer' : 'From here (the descent staging point) the computer'} waits for the window when the site passes under the orbit, makes the deorbit burn, coasts down{b.atmosphere ? ', flies a lifting entry with bank steering' : ''}, brakes under power to a gate {1200} m above the pad and lets down onto it. Time is compressed except for the burns and the last metres.
+              </p>
+              <button class="btn" disabled={!!lower && !docked} onClick={() => { bus.emit('ui:click'); const err = z.landFromShip(); if (err) ui.toast(err, 'warn', 5); else close(); }}>{docked ? `Undock and land on ${b.name}` : `Land on ${b.name}`}</button>
+            </div>
+          );
+        })()}
         {z.body && !z.body.landing && (z.body.kind === 'gas' || z.body.kind === 'ice') && (
           <div class="card">
             <h4>No landing at {z.body.name}</h4>
