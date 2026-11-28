@@ -232,8 +232,8 @@ def saucer(P, G):
 
 
 BRIDGE = [  # (y relative to the saucer centre, half width, height)
-    (23.0, 0.5, 0.6), (21.0, 2.6, 1.6), (18.0, 4.6, 2.6), (14.0, 6.2, 3.3), (9.0, 7.2, 3.7), (3.0, 7.6, 3.8),
-    (-2.0, 7.0, 3.4), (-5.5, 4.6, 2.2), (-7.0, 1.0, 0.8)]
+    (23.0, 0.5, 0.9), (21.0, 2.6, 2.3), (18.0, 4.6, 3.4), (14.0, 6.2, 4.0), (9.0, 7.2, 4.3), (3.0, 7.6, 4.3),
+    (-2.0, 7.0, 3.8), (-5.5, 4.6, 2.6), (-7.0, 1.0, 1.0)]
 PE = 2.6
 
 
@@ -259,40 +259,136 @@ def band_point(yr, w, h, f, side):
     return Vector((side * (x + 0.04), Y_S + yr, base + f * h))
 
 
+F1, F2 = 0.30, 0.80          # the panoramic window band: height fractions of the canopy section
+BAND_YR = (8.0, 22.4)        # ... and its extent along the canopy (it wraps round the nose)
+NOSE_YR = 14.5               # forward of this the window is one windscreen over the top
+NT = 36                      # samples over the section arc
+
+
+def bridge_dims(yr):
+    """Half width and height of the canopy section at yr (linear between the BRIDGE stations)."""
+    st = sorted(BRIDGE)
+    if yr <= st[0][0]:
+        return st[0][1], st[0][2]
+    for (y0, w0, h0), (y1, w1, h1) in zip(st[:-1], st[1:]):
+        if y0 <= yr <= y1:
+            f = (yr - y0) / (y1 - y0)
+            return w0 + (w1 - w0) * f, h0 + (h1 - h0) * f
+    return st[-1][1], st[-1][2]
+
+
+def canopy_ring(yr, inset=0.0):
+    """One section ring: NT + 1 points over the arc (t 0..pi, +x side first), then the two bottom corners."""
+    w, h = bridge_dims(yr)
+    w, h = max(0.05, w - inset), max(0.05, h - inset)
+    base = top_z(abs(yr)) - 0.2
+    pts = []
+    for k in range(NT + 1):
+        t = math.pi * k / NT
+        c, s = math.cos(t), math.sin(t)
+        pts.append(Vector((w * math.copysign(abs(c) ** (2 / PE), c), Y_S + yr, base + h * (abs(s) ** (2 / PE)))))
+    pts.append(Vector((-w, Y_S + yr, base - 1.2)))
+    pts.append(Vector((w, Y_S + yr, base - 1.2)))
+    return pts
+
+
+def canopy_yrs():
+    return [23.0 - 0.5 * i for i in range(61)]          # 23 .. -7
+
+
+def in_band(yr_c, k):
+    """Is the arc segment k (between samples k and k + 1) of the row band at yr_c part of the window?"""
+    if k >= NT or not (BAND_YR[0] <= yr_c <= BAND_YR[1]):
+        return False
+    f = abs(math.sin(math.pi * (k + 0.5) / NT)) ** (2 / PE)
+    # at the nose the band opens over the top: a windscreen across the front of the bridge (refs 01-02)
+    if yr_c >= NOSE_YR:
+        return f >= F1
+    return F1 <= f <= F2
+
+
+def canopy_mesh(inset=0.0, want="hull"):
+    """The canopy as a grid of quads. want: 'hull' (everything but the window band), 'band' (only the band)."""
+    yrs = canopy_yrs()
+    rings = [canopy_ring(yr, inset) for yr in yrs]
+    n = len(rings[0])
+    verts = [v for r in rings for v in r]
+    faces = []
+    for i in range(len(rings) - 1):
+        yc = (yrs[i] + yrs[i + 1]) / 2
+        for k in range(n):
+            band = in_band(yc, k)
+            if (want == "band") != band:
+                continue
+            a, b = i * n + k, i * n + (k + 1) % n
+            faces.append((a, b, b + n, a + n))     # outward
+    if want == "hull":
+        faces.append(tuple(range(n))[::-1])
+        faces.append(tuple(range((len(rings) - 1) * n, len(rings) * n)))
+    return verts, faces
+
+
 def bridge(P, G):
-    rings = [bridge_section(yr, w, h) for (yr, w, h) in BRIDGE]
-    P.loft(rings, mat="hull_white", closed=True, cap_a=True, cap_b=True, bevel=0.0)
-    # dorsal ridge and a small sensor mast on the canopy
-    P.box((0.8, 16.0, 0.5), at=(0, Y_S + 6.0, top_z(6.0) - 0.2 + 3.85), mat="hull_gray", bevel=0.15)
-    P.cyl(0.25, 2.4, at=(0, Y_S - 1.5, top_z(1.5) + 4.8), mat="metal_gunmetal", segs=8)
-    P.sphere(0.45, at=(0, Y_S - 1.5, top_z(1.5) + 6.0), mat="hull_gray", segs=12, rings=8)
-    # the long panoramic window round the front of the canopy: warm light behind dark glass, white mullions
-    stations = [(yr, w, h) for (yr, w, h) in BRIDGE if 4.0 <= yr <= 21.0]
-    f1, f2 = 0.30, 0.80
-    for mat, off in (("bridge_glow", 0.0), ("glass_dark", 0.06)):
-        verts, faces = [], []
+    # the canopy, open where the panoramic window is (a real window: the bridge is walkable behind it)
+    v, f = canopy_mesh(0.0, "hull")
+    P.mesh(v, f, mat="hull_white", recalc=False)
+    v, f = canopy_mesh(0.0, "band")
+    G.mesh(v, f, mat="glass_cockpit", recalc=False)
+    # seen from outside without the interior loaded: warm light and consoles behind the glass (an exterior-only
+    # backdrop the interior zone hides)
+    BK = Part("bridge_backdrop")
+    v, f = canopy_mesh(0.7, "band")
+    BK.mesh(v, f, mat="bridge_dim", recalc=False)
+    # reveals from the hull's band edges in to the backdrop, and a few warm console lights on it
+    yrs = canopy_yrs()
+    outer = [canopy_ring(yr, 0.0) for yr in yrs]
+    inner = [canopy_ring(yr, 0.7) for yr in yrs]
+    rv, rf = [], []
+    for i in range(len(yrs) - 1):
+        yc = (yrs[i] + yrs[i + 1]) / 2
+        for k in range(NT):
+            if not in_band(yc, k):
+                continue
+            edges = []
+            if not in_band(yc, k - 1):
+                edges.append(((i, k), (i + 1, k)))
+            if not in_band(yc, k + 1):
+                edges.append(((i, k + 1), (i + 1, k + 1)))
+            if i == 0 or not in_band((yrs[i - 1] + yrs[i]) / 2, k):
+                edges.append(((i, k), (i, k + 1)))
+            if i == len(yrs) - 2 or not in_band((yrs[i + 1] + yrs[i + 2]) / 2, k):
+                edges.append(((i + 1, k), (i + 1, k + 1)))
+            for (a0, a1) in edges:
+                base = len(rv)
+                rv += [outer[a0[0]][a0[1]], outer[a1[0]][a1[1]], inner[a1[0]][a1[1]], inner[a0[0]][a0[1]]]
+                rf += [(base, base + 1, base + 2, base + 3), (base + 3, base + 2, base + 1, base)]
+    BK.mesh(rv, rf, mat="hull_gray", recalc=False)
+    for k, yr in enumerate((10.0, 12.5, 15.0, 17.5)):
+        w, h = bridge_dims(yr)
         for side in (1, -1):
-            for (yr, w, h) in stations:
-                a = band_point(yr, w, h, f1, side)
-                b = band_point(yr, w, h, f2, side)
-                n = Vector((side, 0.2, 0)).normalized() * off
-                verts += [a + n, b + n]
-        m = len(stations)
-        for s in range(2):
-            for i in range(m - 1):
-                a0 = s * m * 2 + i * 2
-                faces.append((a0, a0 + 2, a0 + 3, a0 + 1))
-        # across the nose between the two sides
-        faces.append((0, 1, m * 2 + 1, m * 2))
-        (G if mat.startswith("glass") else P).mesh(verts, faces, mat=mat)
+            p = band_point(yr, w - 0.75, h - 0.7, 0.42, side)
+            BK.box((0.05, 0.5, 0.12), at=(p.x, p.y, p.z), mat="emit_amber" if k % 2 else "bridge_glow")
+    BK.finish(col=0, shadow=0, extonly=1)
+    # dorsal ridge and a small sensor mast on the canopy
+    P.box((0.8, 16.0, 0.5), at=(0, Y_S + 6.0, top_z(6.0) - 0.2 + 4.32), mat="hull_gray", bevel=0.15)
+    P.cyl(0.25, 2.4, at=(0, Y_S - 1.5, top_z(1.5) + 5.3), mat="metal_gunmetal", segs=8)
+    P.sphere(0.45, at=(0, Y_S - 1.5, top_z(1.5) + 6.5), mat="hull_gray", segs=12, rings=8)
+    # white mullions across the band and frame lines above and below it
+    stations = [(yr, w, h) for (yr, w, h) in BRIDGE if 4.0 <= yr <= 21.0]
+    f1, f2 = F1, F2
     for (yr, w, h) in stations:
         for side in (1, -1):
             seg_box(P, band_point(yr, w, h, f1 - 0.02, side) + Vector((side * 0.06, 0, 0)),
                     band_point(yr, w, h, f2 + 0.02, side) + Vector((side * 0.06, 0, 0)), 0.22, 0.12, "hull_white")
-    # window frame lines above and below the band
     for f in (f1 - 0.03, f2 + 0.03):
-        pts = [band_point(yr, w, h, f, 1) for (yr, w, h) in stations][::-1] + [band_point(yr, w, h, f, -1) for (yr, w, h) in stations]
-        P.pipe(pts, 0.09, mat="hull_gray", segs=6, bend=0.6)
+        pts = [band_point(yr, w, h, f, 1) for (yr, w, h) in stations if yr <= NOSE_YR][::-1] + [band_point(yr, w, h, f, -1) for (yr, w, h) in stations if yr <= NOSE_YR]
+        P.pipe(pts, 0.09, mat="hull_gray", segs=6)
+    # the windscreen's frame: a centre bar over the top and an arch at its rear edge
+    top = [Vector((0, Y_S + yr, top_z(abs(yr)) - 0.2 + bridge_dims(yr)[1] + 0.05)) for yr in (NOSE_YR, 19.0, 20.5, 21.6, 22.4)]
+    P.pipe(top, 0.11, mat="hull_white", segs=8)
+    w, h = bridge_dims(NOSE_YR)
+    arch = [band_point(NOSE_YR, w, h, f, 1) for f in (f2, 0.9, 1.0)] + [band_point(NOSE_YR, w, h, f, -1) for f in (1.0, 0.9, f2)]
+    P.pipe(arch, 0.1, mat="hull_white", segs=8)
 
 
 # ----------------------------------------------------------------------------- the spine and its modules
@@ -320,9 +416,18 @@ def spine(P, G):
     P.tube(5.25, 4.9, 0.6, at=(0, 6.0, CORE_R + 0.1), mat="hull_gray", segs=48)
     # dorsal docking collar (the station gangway berths here)
     dock = Vector((0, -32.0, CORE_R + 0.2))
-    P.cyl(2.5, 2.4, at=(dock.x, dock.y, dock.z + 1.2), mat="hull_gray", segs=32, bevel=0.1)
+    P.tube(2.5, 1.22, 2.4, at=(dock.x, dock.y, dock.z + 1.2), mat="hull_gray", segs=32, bevel=0.1)
     P.tube(3.1, 2.4, 0.5, at=(dock.x, dock.y, dock.z + 2.45), mat="metal_gunmetal", segs=32)
-    P.cyl(1.6, 0.1, at=(dock.x, dock.y, dock.z + 2.5), mat="hull_seam", segs=24)
+    P.tube(1.6, 1.22, 0.1, at=(dock.x, dock.y, dock.z + 2.5), mat="hull_seam", segs=32)
+    # the dorsal hatch (a separate part: it slides aside under the gangway's flange when the ship is boarded)
+    H = Part("hatch_dorsal")
+    H.cyl(1.3, 0.12, mat="hull_gray", segs=32, bevel=0.02)
+    H.cyl(0.18, 0.08, at=(0, 0, 0.09), mat="metal_dark", segs=16)
+    for k in range(6):
+        H.box((0.05, 0.05, 0.9), M=T((0, 0, 0.1)) @ R(k * 60, "Z") @ R(90, "Y") @ T((0, 0, 0.0)), mat="gear_metal", bevel=0.006)
+    for k in range(8):
+        H.box((0.12, 0.05, 0.04), M=R(k * 45, "Z") @ T((1.12, 0, 0.07)), mat="paint_yellow")
+    H.finish(col=0, at=(dock.x, dock.y, dock.z + 2.52), part="hatch_dorsal", axis=[1, 0, 0], travel=2.9)
     for k in range(3):
         a = 120 * k
         P.box((0.5, 0.5, 0.9), M=T((dock.x, dock.y, dock.z + 2.9)) @ R(a, "Z") @ T((2.7, 0, 0)), mat="paint_yellow", bevel=0.05)
@@ -495,6 +600,7 @@ if __name__ == "__main__":
         dark = dict(sky=(0.012, 0.014, 0.02), sky_strength=1.0, sun=4.5)
         preview("warpship_wide", (215.0, 205.0, 150.0), (0, -6.0, -6.0), res=(1400, 900), lens=40, samples=40, sun_rot=(35, 0, 150), **dark)
         preview("warpship_bow", (44.0, 112.0, 26.0), (-6.0, 36.0, 4.0), res=(1400, 800), lens=30, samples=40, sun_rot=(40, 0, 120), **dark)
+        preview("warpship_bridge", (16.0, 84.0, 14.0), (0.0, 60.0, 8.0), res=(1400, 800), lens=35, samples=40, sun_rot=(40, 0, 120), **dark)
         preview("warpship_broadside", (62.0, -4.0, 6.0), (8.0, -6.0, -1.0), res=(1400, 800), lens=30, samples=40, sun_rot=(50, 0, 70), **dark)
         preview("warpship_stern", (-70.0, -250.0, 40.0), (0, -40.0, 0), res=(1200, 900), lens=45, samples=40, sun_rot=(25, 0, -20), **dark)
         preview("warpship_stern_close", (-26.0, -122.0, 14.0), (0, -66.0, 0), res=(1200, 900), lens=32, samples=40, sun_rot=(25, 0, -20), **dark)

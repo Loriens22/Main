@@ -19,7 +19,8 @@ export class WarpShip {
   field = 0;
   private time = 0;
 
-  constructor(private phys: PhysicsWorld) { this.root.name = 'warpship'; }
+  /** collide: false where the ship is walked through from inside (its exterior hulls would wall in the rooms) */
+  constructor(private phys: PhysicsWorld, private collide = true) { this.root.name = 'warpship'; }
 
   async load() {
     this.model = await assets.load('warpship');
@@ -34,7 +35,7 @@ export class WarpShip {
     this.root.updateMatrixWorld(true);
     this.body = this.phys.world.createRigidBody(RAPIER.RigidBodyDesc.kinematicPositionBased());
     const inv = new THREE.Matrix4().copy(this.root.matrixWorld).invert();
-    this.phys.addTrimesh(this.model.colliders, { body: this.body, frameInv: inv, friction: 0.6, group: GROUP.WORLD });
+    if (this.collide) this.phys.addTrimesh(this.model.colliders, { body: this.body, frameInv: inv, friction: 0.6, group: GROUP.WORLD });
     this.sync(true);
     return this;
   }

@@ -2,10 +2,11 @@ import { useEffect, useState } from 'preact/hooks';
 import type { Game } from '../../core/Game';
 import { bus } from '../../core/events';
 import { PanelFrame } from '../App';
+import { ASTERION, asterionHZ } from '../../space/Asterion';
 
 const KV = ({ k, v, warn, good }: { k: string; v: any; warn?: boolean; good?: boolean }) =>
   <div class="kv"><span>{k}</span><b style={warn ? { color: 'var(--warn)' } : good ? { color: 'var(--good, #7fe08a)' } : {}}>{v}</b></div>;
-const TABS: [string, string][] = [['halcyon', 'WSV-1 Halcyon'], ['traffic', 'Traffic · berth'], ['gangway', 'Gangway · route']];
+const TABS: [string, string][] = [['halcyon', 'Yard status'], ['traffic', 'Traffic · berth'], ['gangway', 'Gangway · route'], ['ship', 'WSV-1 Halcyon'], ['astro', 'Target system']];
 
 /**
  * Meridian platform consoles: the warp ship's readiness as the yard sees it, traffic and the Ranger berth, and the
@@ -41,6 +42,62 @@ export function PlatformPanel({ game, close, tab: first }: { game: Game; close: 
           <h4>About the drive</h4>
           <p>The Halcyon's two field rings are built to shape a warp field: space contracted ahead of the ship and expanded behind it, the ship itself at rest inside a bubble. This is <b>speculative physics</b> — an Alcubierre-style metric needs negative energy density and nobody has shown it can be built. The game treats it as a fictional engineering assumption; orbital flight around it stays real.</p>
           <p class="note">Departure, the warp flight and the pods are flown from the ship's bridge.</p>
+        </div>
+      </div>
+    );
+  } else if (tab === 'ship') {
+    const d = pz?.dorsal;
+    body = (
+      <div class="grid2">
+        <div>
+          <h4>WSV-1 Halcyon · ship computer</h4>
+          <KV k="State" v="BERTHED · Meridian cradle" />
+          <KV k="Helm" v="COLD · warp inhibited (berthed)" warn />
+          <KV k="Dorsal airlock" v={d?.open ? 'OPEN to the gangway' : 'CLOSED'} warn={!!d?.open} />
+          <KV k="Field rings A / B" v="STANDBY · symmetry 99.94 %" good />
+          <KV k="Field core" v="COLD STANDBY · platform power 42 kW" />
+          <KV k="Life support" v="101.3 kPa · O₂ 21.1 kPa · CO₂ 0.28 kPa" good />
+          <KV k="Hibernation" v="4 capsules ready" good />
+          <KV k="Pods 01–04" v="SECURED · propellant 100 %" good />
+        </div>
+        <div>
+          <h4>Deck plan</h4>
+          <p><b>Saucer</b>: bridge (up the stair from the central hall), astrometry centre, warp-field operations, science lab B. <b>Spine</b>, bow to stern: medical bay and life support, crew cabins, mess and galley, hibernation and stores, science lab A and the pod-bay stair, field-ring access and the dorsal airlock, engineering. <b>Deck 2</b>: the pod launch and recovery bay.</p>
+          <p class="note">Deck gravity comes from the field coils in deck mode — the same speculative technology as the drive. The dorsal airlock shaft is weightless.</p>
+        </div>
+      </div>
+    );
+  } else if (tab === 'astro') {
+    const hz = asterionHZ();
+    body = (
+      <div>
+        <div class="grid2">
+          <div>
+            <h4>Earth system → {ASTERION.name}</h4>
+            <KV k="Distance" v={`${ASTERION.distanceLy.toFixed(2)} light-years · ≈ ${(ASTERION.distanceLy * 63241).toFixed(0)} AU`} />
+            <KV k="Stars" v={ASTERION.stars.map((x) => `${x.name} (${x.spectral}, ${x.teff} K)`).join(' · ')} />
+            <KV k="Binary" v={`${ASTERION.binary.separationAu} AU apart · ${ASTERION.binary.periodDays} d orbit`} />
+            <KV k="Habitable zone" v={`${hz.inner.toFixed(3)}–${hz.outer.toFixed(3)} AU`} />
+          </div>
+          <div>
+            <p class="note">Game fiction: the names, the stars and the planets are invented for this story. The distance is real-world scale (4.24 ly) and is flown as such; the drive that covers it is speculative.</p>
+          </div>
+        </div>
+        <div class="grid2">
+          {ASTERION.planets.map((pl) => (
+            <div class="card">
+              <h4>{pl.index} · {pl.name}</h4>
+              <p>{pl.look}.</p>
+              <KV k="Radius · mass · gravity" v={`${pl.radius.toFixed(2)} R⊕ · ${pl.mass.toFixed(2)} M⊕ · ${pl.gravity.toFixed(1)} m/s²`} />
+              <KV k="Atmosphere" v={`${pl.pressure} bar · ${pl.atmosphere}`} />
+              <KV k="Temperature" v={`${pl.temp[0]} … ${pl.temp[1]} °C`} />
+              <KV k="Orbit" v={`${pl.a.toFixed(3)} AU · ${pl.period.toFixed(1)} d`} />
+              <KV k="Fauna" v={pl.faunaNote} good={pl.fauna} />
+              <KV k="Landing zones" v={pl.landing.join(' · ')} />
+              <KV k="Points of interest" v={pl.poi.join(' · ')} />
+              <KV k="Pods available" v="4 of 4" />
+            </div>
+          ))}
         </div>
       </div>
     );
@@ -80,5 +137,6 @@ export function PlatformPanel({ game, close, tab: first }: { game: Game; close: 
       </div>
     );
   }
-  return <PanelFrame title="Meridian platform" sub="NASA orbital platform · operations" close={close} tabs={TABS} tab={tab} setTab={setTab}>{body}</PanelFrame>;
+  const onShip = tab === 'ship' || tab === 'astro';
+  return <PanelFrame title={onShip ? 'WSV-1 Halcyon' : 'Meridian platform'} sub={onShip ? 'ship computer' : 'NASA orbital platform · operations'} close={close} tabs={TABS} tab={tab} setTab={setTab}>{body}</PanelFrame>;
 }

@@ -38,8 +38,12 @@ the crew access arm in the launch cavern and board there.
   berth you walk aboard without a cut: Ranger cabin and berth vestibule (weightless), airlock 1 (interlocked doors,
   pressure cycle), the station corridor, operations with the engineers, the glazed inspection gallery between the
   rings, the gangway head, and the zero-g gangway down to the Halcyon's dorsal hatch. Transfers between the Endurance
-  and the platform are one button in the flight computer. Coming next: the ship's interior, engine rooms, the warp
-  flight to the Asterion system, its four planets and the landing pods.
+  and the platform are one button in the flight computer. The dorsal airlock opens into the Halcyon itself: the
+  bridge inside the canopy (command dais, flight deck, panoramic window and windscreen, sit-able seats, live
+  displays), astrometry with the 4.24-ly star map, warp-field operations, science labs, medical, life support and
+  hydroponics, crew cabins, mess and galley, hibernation with four new hinged-canopy capsules (the same sleep cycle
+  as the Endurance pods), stores, the four-station pod bay, field-ring access, engineering and its crew. Coming next:
+  the engine rooms, the warp flight to the Asterion system, its four planets and the landing pods.
 - **Lazarus worlds**: Miller's wave world (wreck and beacon), Mann's ice world (shelter and robot), Edmunds'
   desert (base and old lander).
 - **Speculative life** (switchable to a conservative science mode in the settings): animals in Miller's ocean

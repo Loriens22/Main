@@ -77,7 +77,7 @@ export function CryoPanel({ game, close, mode, until, pod }: { game: Game; close
         <KV k="Destination" v={vv ? BODY[vv.to].name : run.current?.arrived ?? o.body.name} />
         <KV k="Distance remaining" v={vv ? fmtDistance(distanceRemaining(vv, o.voyageT)) : run.current?.arrived ? 'arrived' : 'no voyage under way'} />
         <KV k="Estimated arrival" v={vv ? `${fmtDuration(Math.max(0, vv.tof - o.voyageT))} · ${date(vv.jdDepart + vv.tof / DAY)}` : run.current?.arrived ? 'arrived' : '—'} />
-        <KV k="Spacecraft status" v={`${vv ? 'coasting · drive cold' : 'in parking orbit'} · ring ${o.endurance.rpm.toFixed(1)} rpm · hull nominal`} />
+        <KV k="Spacecraft status" v={game.zone?.id === 'platform' ? 'WSV-1 Halcyon · berthed at the Meridian platform · hull nominal' : `${vv ? 'coasting · drive cold' : 'in parking orbit'} · ring ${o.endurance.rpm.toFixed(1)} rpm · hull nominal`} />
         <KV k="Crew status" v={phase === 'sleep' ? (run.current?.rest ? 'Commander resting · pod sealed' : '4 in hibernation · 3.5 °C · vitals stable') : '4 awake · vitals nominal'} />
       </>
     );

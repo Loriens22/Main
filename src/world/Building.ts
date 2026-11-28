@@ -172,6 +172,8 @@ export class SlideDoor {
     const e = this.t * this.t * (3 - 2 * this.t);
     this.node.position.copy(this.p0).addScaledVector(this.axis, this.travel * e);
     this.sync();
+    // more than half open the leaf is in its pocket: nobody can be wedged against a moving edge
+    this.body?.setEnabled(this.t < 0.5);
   }
 }
 

@@ -134,11 +134,12 @@ export class CryoBay {
   constructor(private game: Game, private parent: THREE.Object3D, private phys: PhysicsWorld, private npcs: () => NPCManager, private lights: LightPool) {}
 
   /** One pod per `cryo` marker of the interior, posed as the marker; `cull` adds it to its room's visibility. */
-  async load(markers: Marker[], cull: (o: THREE.Object3D, at: THREE.Vector3) => void) {
+  /** `model`: the capsule (the Endurance's pod, or the Halcyon's capsule with the same timeline and markers) */
+  async load(markers: Marker[], cull: (o: THREE.Object3D, at: THREE.Vector3) => void, modelName = 'cryo_pod') {
     this.parent.updateMatrixWorld(true);
     const inv = new THREE.Matrix4().copy(this.parent.matrixWorld).invert();
     for (const [k, m] of markers.entries()) {
-      const model = await assets.load('cryo_pod');
+      const model = await assets.load(modelName);
       m.node.updateWorldMatrix(true, false);
       new THREE.Matrix4().multiplyMatrices(inv, m.node.matrixWorld).decompose(model.root.position, model.root.quaternion, _s);
       this.parent.add(model.root);
