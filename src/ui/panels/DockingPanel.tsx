@@ -14,7 +14,7 @@ const KV = ({ k, v, warn }: { k: string; v: any; warn?: boolean }) => <div class
  * Ranger flight computer, rendezvous page: choose manual or automatic docking with the Endurance, and talk to
  * the ship's rotation system (start, stop, set speed, automatic gravity control).
  */
-export function DockingPanel({ game, close }: { game: Game; close: () => void }) {
+export function DockingPanel({ game, close, choice }: { game: Game; close: () => void; choice?: boolean }) {
   const [, setN] = useState(0);
   const [rpm, setRpm] = useState<number>(() => { const e0 = (game.zone as any)?.endurance; return e0 ? e0.targetRate * 60 / (2 * Math.PI) : ENDURANCE.spinRpm; });
   useEffect(() => { const t = setInterval(() => setN((n) => n + 1), 300); return () => clearInterval(t); }, []);
@@ -29,14 +29,38 @@ export function DockingPanel({ game, close }: { game: Game; close: () => void })
   const port = z.docking.nearestPort(c, 'ranger');
   const range = port ? port.node.getWorldPosition(pos.clone()).distanceTo(pos) : 0;
   const g1 = e.gravityAtRadius(ENDURANCE.ringR);
+  // Earth orbit: two destinations, the Endurance (the original route) and the Meridian platform with the warp ship
+  const link = z.docking.linkOf(c);
+  const earthOrbit = z.body?.id === 'earth' && z.mode === 'orbit' && !!z.platform?.root.visible;
+  const atPlat = !!link && link.port.host === z.platform, atEnd = !!link && link.port.host === e;
+  const go = (d: 'endurance' | 'platform') => { bus.emit('ui:click'); const err = z.transferTo(d); if (err) ui.toast(err, 'warn', 4); else close(); };
   return (
-    <PanelFrame title="Rendezvous · Endurance" sub="Ranger 1 flight computer" close={close}>
-      <div class="grid2">
-        <div class="card">
-          <h4>Automatic docking</h4>
-          <p>The computer picks the free Ranger port, plans a two-burn transfer to the approach gate {50} m out on the docking axis (coasting under time compression), then turns the docking ring to the port, matches the ship's spin and clocking, and flies the final approach. From the gate it docks in under a minute.</p>
-          <button class="btn" disabled={docked} onClick={() => { bus.emit('ui:click'); close(); z.engageAutoDock(); }}>Engage automatic docking</button>
+    <PanelFrame title={earthOrbit ? 'Rendezvous · Earth orbit' : 'Rendezvous · Endurance'} sub="Ranger 1 flight computer" close={close}>
+      {earthOrbit && (
+        <div>
+          {choice && <p class="lead">In orbit. Two destinations: choose one (without a choice the computer docks with the Endurance in 30 s).</p>}
+          <div class="grid2">
+            <div class="card start">
+              <h4>(A) Autopilot docking with Endurance</h4>
+              <p>The original route. The computer picks the free Ranger port, plans a two-burn transfer to the approach gate {50} m out on the docking axis (coasting under time compression), then turns the docking ring to the port, matches the ring's spin and clocking and flies the final approach.</p>
+              <button class="btn" disabled={atEnd} onClick={() => go('endurance')}>{atPlat ? 'Undock and dock with the Endurance' : 'Autopilot docking with Endurance'}</button>
+            </div>
+            <div class="card start">
+              <h4>(B) AUTO LAND — ORBITAL PLATFORM</h4>
+              <p>NASA's Meridian platform, {(1.6).toFixed(1)} km ahead on the same orbit, where the warp ship WSV-1 Halcyon is held. Rendezvous, approach down the berth axis over the landing deck, hard dock on the berth collar, robotic restraints, pressure equalisation — then walk aboard.</p>
+              <button class="btn warn" disabled={atPlat} onClick={() => go('platform')}>{atEnd ? 'Undock · AUTO LAND — ORBITAL PLATFORM' : 'AUTO LAND — ORBITAL PLATFORM'}</button>
+            </div>
+          </div>
         </div>
+      )}
+      <div class="grid2">
+        {!earthOrbit && (
+          <div class="card">
+            <h4>Automatic docking</h4>
+            <p>The computer picks the free Ranger port, plans a two-burn transfer to the approach gate {50} m out on the docking axis (coasting under time compression), then turns the docking ring to the port, matches the ship's spin and clocking, and flies the final approach. From the gate it docks in under a minute.</p>
+            <button class="btn" disabled={docked} onClick={() => { bus.emit('ui:click'); close(); z.engageAutoDock(); }}>Engage automatic docking</button>
+          </div>
+        )}
         {z.body?.landing && (() => {
           const b = z.body;
           // at a giant the station is reached from the survey orbit: the Endurance takes the docked Ranger down first
@@ -73,7 +97,7 @@ export function DockingPanel({ game, close }: { game: Game; close: () => void })
           <KV k="Range to port" v={range < 2000 ? `${range.toFixed(1)} m` : `${(range / 1000).toFixed(2)} km`} />
           <KV k="Position (along · radial · cross)" v={`${pos.x.toFixed(0)} · ${pos.y.toFixed(0)} · ${pos.z.toFixed(0)} m`} />
           <KV k="Velocity" v={`${vel.x.toFixed(2)} · ${vel.y.toFixed(2)} · ${vel.z.toFixed(2)} m/s`} />
-          <KV k="Free Ranger port" v={port ? port.label : 'none'} warn={!port} />
+          <KV k="Free Ranger port" v={port ? `${port.label}${port.host !== e ? '' : ' · Endurance'}` : 'none'} warn={!port} />
           <KV k="Ranger 2" v="Docked · aft axial port" />
           <KV k="Propellant" v={`${(c.fuel / 1000).toFixed(2)} t of ${(RANGER_SPEC.fuelMax / 1000).toFixed(0)} t`} warn={c.fuel < 1500} />
           <KV k="Hull" v={c.damage > 0 ? `${(c.damage * 100).toFixed(0)} % damage (repairable)` : 'Nominal'} warn={c.damage > 0} />

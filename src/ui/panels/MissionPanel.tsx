@@ -2,6 +2,7 @@ import { useEffect, useState } from 'preact/hooks';
 import type { Game } from '../../core/Game';
 import { bus } from '../../core/events';
 import { PanelFrame } from '../App';
+import { OrbitZone } from '../../world/space/OrbitZone';
 import { useUI } from '../store';
 import { LAUNCHER, LAZARUS, launcherDeltaV, mission } from '../../mission/Mission';
 
@@ -29,17 +30,21 @@ export function MissionPanel({ game, close, tab: first }: { game: Game; close: (
   // the whole departure from this computer: authorise, board Ranger 1 with the crew, checklist and count by the launch computer
   const launch = game.services.launch;
   const onEarth = !!zone?.nasa && game.zone === game.zones.get('earth');
-  const startMission = () => {
+  const startMission = (dest: 'endurance' | 'platform' = 'endurance') => {
     bus.emit('ui:click');
     mission.decide('endurance');
     close();
+    OrbitZone.nextDestination = dest;
     bus.emit('launch:board', { auto: true });
   };
   const startCard = onEarth && launch && (launch.state === 'idle' || launch.state === 'scrubbed') ? (
     <div class="card start">
       <h4>Start the mission from this computer</h4>
       <p>Authorises the Endurance mission, seats you and the crew in Ranger 1 and hands the cockpit checklist and the terminal count to the launch computer; lift-off follows at T−0 under the launch autopilot. In the seat, the launch computer (Y, or Auto on a touch screen) holds or scrubs the count or gives you the ascent by hand.</p>
-      <button class="btn warn" onClick={startMission}>Start the mission now · launch Ranger 1</button>
+      <div class="row" style={{ display: 'flex', gap: '8px', flexWrap: 'wrap' }}>
+        <button class="btn warn" onClick={() => startMission('endurance')}>Start the mission now · launch Ranger 1 to the Endurance</button>
+        <button class="btn" onClick={() => startMission('platform')}>Launch Ranger 1 · AUTO LAND — ORBITAL PLATFORM</button>
+      </div>
     </div>
   ) : onEarth && launch && launch.state !== 'idle' ? (
     <div class="card start"><h4>Launch in progress</h4><p>Ranger 1 is boarded · {String(launch.state).toUpperCase()}. The launch computer in the commander's seat (Y) has the checklist and the count.</p></div>

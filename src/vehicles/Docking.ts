@@ -147,12 +147,16 @@ export class DockingSystem {
     return outPos;
   }
 
-  /** The nearest port this craft may use, or null. */
+  /** where the automatic programs take the craft: only this host's ports are offered (null: any host) */
+  destination: DockHost | null = null;
+
+  /** The nearest port this craft may use (on the chosen destination, if one is set), or null. */
   nearestPort(c: Spacecraft, accepts = 'ranger') {
     let best: DockPort | null = null, bd = Infinity;
     const rp = this.rings.has(c) ? c.pointWorld(this.rings.get(c)!.pos, new THREE.Vector3()) : c.position(new THREE.Vector3());
     for (const p of this.ports) {
       if (p.accepts !== accepts || !p.free(c)) continue;
+      if (this.destination && p.host !== this.destination) continue;
       p.pose(_p, _v, _u);
       const d = _p.distanceTo(rp);
       if (d < bd) { bd = d; best = p; }

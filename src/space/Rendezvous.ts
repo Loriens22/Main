@@ -14,6 +14,8 @@ export interface OrbitContext {
   docking: DockingSystem;
   /** time compression (sim seconds per real second) while the craft coasts on an analytic trajectory */
   setWarp(w: number): void;
+  /** spheres the transfer arc must stay out of (zone frame); default: 110 m round the frame origin */
+  keepOut?(): { c: THREE.Vector3; r: number }[];
 }
 
 export const GATE_DIST = 50;
@@ -47,7 +49,10 @@ export class RendezvousAutopilot implements Autopilot {
   private craft: Spacecraft | null = null;
   private realCoast = 0;
 
-  constructor(private ctx: OrbitContext, private thenDock = true) {}
+  /** `point`: fly to this point (zone frame) and hold there instead of a port's approach gate (a staging point) */
+  constructor(private ctx: OrbitContext, private thenDock = true, private point: THREE.Vector3 | null = null) {
+    if (point) this.thenDock = false;
+  }
 
   status() {
     const s = { plan: 'planning', burn1: 'transfer burn', coast: 'coasting', brake: 'braking', hold: 'gate hold', done: 'at gate', abort: 'aborted' }[this.phase];
@@ -82,15 +87,17 @@ export class RendezvousAutopilot implements Autopilot {
     const p = c.position(new THREE.Vector3()), v = c.velocity(new THREE.Vector3());
     const P = (2 * Math.PI) / n;
     let best: { T: number; v0: THREE.Vector3; vf: THREE.Vector3; cost: number } | null = null;
+    // the structures to keep clear of (one the craft is leaving, i.e. starts inside, does not count)
+    const keep = (this.ctx.keepOut?.() ?? [{ c: new THREE.Vector3(), r: 110 }]).filter((k) => k.c.distanceTo(p) > k.r);
     for (let k = 1; k <= 22; k++) {
       const T = (k / 50) * P;
       const sol = cwTarget(p, this.gate, n, T);
       if (!sol) continue;
-      // keep clear of the ship: sample the arc, ignoring its last stretch toward the gate
+      // keep clear of the ships: sample the arc, ignoring its last stretch toward the gate
       let clear = true;
-      for (let i = 1; i < 24; i++) {
+      for (let i = 1; i < 22 && clear; i++) {
         cwPropagate(p, sol.v0, n, (T * i) / 24, _p, _v);
-        if (_p.length() < 110 && i < 22) { clear = false; break; }
+        for (const ko of keep) if (_p.distanceTo(ko.c) < ko.r) { clear = false; break; }
       }
       if (!clear) continue;
       // a little extra delta-v for a quicker transfer is worth it (the RCS has plenty for these distances)
@@ -117,10 +124,15 @@ export class RendezvousAutopilot implements Autopilot {
     this.craft = c;
     const n = this.ctx.n;
     if (this.phase === 'plan') {
-      this.port = this.ctx.docking.nearestPort(c, 'ranger');
-      if (!this.port) { this.phase = 'abort'; bus.emit('rdv:abort', 'No free docking port'); return true; }
-      this.port.reservedFor = c;
-      this.gatePose(c, this.port, this.gate, this.gateQ);
+      if (this.point) {
+        this.gate.copy(this.point);
+        this.gateQ.copy(c.quaternion(_q));
+      } else {
+        this.port = this.ctx.docking.nearestPort(c, 'ranger');
+        if (!this.port) { this.phase = 'abort'; bus.emit('rdv:abort', 'No free docking port'); return true; }
+        this.port.reservedFor = c;
+        this.gatePose(c, this.port, this.gate, this.gateQ);
+      }
       this.prevSas = c.sas;
       c.sas = 'off';
       if (c.position(_p).distanceTo(this.gate) < 25) { this.phase = 'brake'; return false; }

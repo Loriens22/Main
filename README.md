@@ -30,6 +30,16 @@ the crew access arm in the launch cavern and board there.
   (reached by descent and left with an ascent booster). From Ranger 1 docked to the Endurance, the flight computer
   (Y, or Computer) lands with one button: at a giant the Endurance first takes the Ranger down to the survey orbit,
   then the Ranger undocks, backs away and flies the descent.
+- **Warp expansion (in progress)**: NASA's Meridian orbital platform holds the warp starship WSV-1 Halcyon (two
+  60 m field rings, bow saucer and bridge, spine with side modules, stern engine; original markings) in an exterior
+  cradle 1.6 km ahead of the Endurance. In orbit after the launch the flight computer offers two destinations:
+  (A) autopilot docking with the Endurance, unchanged, or (B) **AUTO LAND — ORBITAL PLATFORM**: rendezvous and a hard
+  dock on the landing deck's berth, with restraints. The mission computer can launch straight to either. From the
+  berth you walk aboard without a cut: Ranger cabin and berth vestibule (weightless), airlock 1 (interlocked doors,
+  pressure cycle), the station corridor, operations with the engineers, the glazed inspection gallery between the
+  rings, the gangway head, and the zero-g gangway down to the Halcyon's dorsal hatch. Transfers between the Endurance
+  and the platform are one button in the flight computer. Coming next: the ship's interior, engine rooms, the warp
+  flight to the Asterion system, its four planets and the landing pods.
 - **Lazarus worlds**: Miller's wave world (wreck and beacon), Mann's ice world (shelter and robot), Edmunds'
   desert (base and old lander).
 - **Speculative life** (switchable to a conservative science mode in the settings): animals in Miller's ocean

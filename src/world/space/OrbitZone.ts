@@ -10,6 +10,7 @@ import { D2R, LAUNCH_SITE, LocalFrame, meanMotion, OMEGA_EARTH, PARKING_ALT, R_E
 import { cwAccel, cwPropagate, OrbitPlane } from '../../space/Orbit';
 import { EnduranceShip } from '../../space/Endurance';
 import { WarpShip } from '../../space/WarpShip';
+import { OrbitalPlatform } from '../../space/Platform';
 import { FlightEnv, RANGER_SPEC, Spacecraft } from '../../vehicles/Spacecraft';
 import { DockAutopilot, DockingSystem } from '../../vehicles/Docking';
 import { GATE_DIST, OrbitContext, RendezvousAutopilot } from '../../space/Rendezvous';
@@ -92,6 +93,15 @@ export class OrbitZone extends Zone implements OrbitContext {
   endurance!: EnduranceShip;
   /** the warp starship WSV-1 Halcyon, parked in Earth orbit ahead of the Endurance */
   warpShip: WarpShip | null = null;
+  /** NASA's Meridian orbital platform holding the warp ship (the Ranger's second destination after launch) */
+  platform: OrbitalPlatform | null = null;
+  /**
+   * Where Ranger 1's automatic programs go in Earth orbit: the Endurance (the original route) or the platform
+   * ("AUTO LAND - ORBITAL PLATFORM"). null until chosen after the ascent.
+   */
+  destination: 'endurance' | 'platform' | null = null;
+  /** a choice made before launch (the mission computer's start buttons) */
+  static nextDestination: 'endurance' | 'platform' | null = null;
   ranger: Spacecraft | null = null;
   ranger2: Spacecraft | null = null;
   /** mission elapsed time since lift-off (s) */
@@ -199,6 +209,9 @@ export class OrbitZone extends Zone implements OrbitContext {
     progress?.(0.45, 'WSV-1 Halcyon');
     this.warpShip = await new WarpShip(this.phys).load();
     this.root.add(this.warpShip.root);
+    progress?.(0.52, 'Meridian platform');
+    this.platform = await new OrbitalPlatform(this.phys).load(this.docking);
+    this.root.add(this.platform.root);
     this.placeWarpShip(true);
     progress?.(0.6, 'Rangers');
     const m2 = await assets.load('ranger');
@@ -218,12 +231,19 @@ export class OrbitZone extends Zone implements OrbitContext {
     };
     this.docking.onDocked = (l) => {
       bus.emit('ranger:docked', l);
+      const atPlatform = !!this.platform && l.port.host === this.platform;
       if (l.craft === this.ranger && g.settings.creative.autoRefuel && this.rangerFuel < RANGER_SPEC.fuelMax) {
         this.rangerFuel = RANGER_SPEC.fuelMax;
         this.ranger.fuel = RANGER_SPEC.fuelMax;
-        mission.note('Creative Mode: Ranger 1 refuelled from the Endurance.');
+        mission.note(`Creative Mode: Ranger 1 refuelled from ${atPlatform ? 'the platform\'s refuelling boom' : 'the Endurance'}.`);
       }
-      void g.preload('endurance');
+      if (atPlatform && l.craft === this.ranger) {
+        // on the landing deck: gear down onto the deck shoes, restraints closed
+        this.ranger.setGear(true);
+        mission.note('Berthed at the Meridian platform: hard dock on berth 1, restraints closed, cabin pressure equalised. Unbuckle (F) and float aft through the rear hatch to the berth vestibule.');
+        setTimeout(() => ui.say('Meridian Control', 'Ranger 1, Meridian. Hard dock confirmed on berth 1, restraints closed. Welcome aboard, Commander — the Halcyon is in the cradle.', 6), 800);
+        void g.preload('platform');
+      } else void g.preload('endurance');
     };
     this.stackModel = await assets.load('launch_vehicle');
     this.smoke = new Smoke(1400);
@@ -792,8 +812,18 @@ export class OrbitZone extends Zone implements OrbitContext {
     c.place(p, q, v);
     c.throttle = 0; c.lift = 0; c.plumeWhileCarried = false;
     this.sky.dome.visible = this.sky.enabled && this.skyDome();
-    mission.note(`Rendezvous: ${(p.length() / 1000).toFixed(2)} km from the Endurance, ${v.length().toFixed(1)} m/s relative. Automatic docking.`);
-    this.engageAutoDock();
+    const pre = OrbitZone.nextDestination;
+    OrbitZone.nextDestination = null;
+    if (pre || this.body.id !== 'earth' || !this.platform) {
+      if (pre) this.setDestination(pre);
+      mission.note(`Rendezvous: ${(p.length() / 1000).toFixed(2)} km from the Endurance, ${v.length().toFixed(1)} m/s relative. ${pre === 'platform' ? 'AUTO LAND — ORBITAL PLATFORM.' : 'Automatic docking.'}`);
+      this.engageAutoDock();
+    } else {
+      // in orbit: two destinations. Ask; without an answer the original route is flown
+      mission.note(`In orbit, ${(p.length() / 1000).toFixed(2)} km from the Endurance. Choose: dock with the Endurance, or AUTO LAND at the Meridian orbital platform (the warp ship's berth, ${(OrbitZone.WARP_PARK.x / 1000).toFixed(1)} km ahead).`);
+      this.choiceT = 30;
+      this.game.openPanel('docking', { choice: true });
+    }
   }
 
   /**
@@ -804,18 +834,110 @@ export class OrbitZone extends Zone implements OrbitContext {
   private static readonly WARP_Q = new THREE.Quaternion().setFromAxisAngle(new THREE.Vector3(0, 1, 0), -Math.PI / 2);
 
   private placeWarpShip(snap = false) {
-    const w = this.warpShip;
+    const w = this.warpShip, pf = this.platform;
     if (!w) return;
     const er = this.endurance.root;
     const show = this.body.id === 'earth' && this.mode !== 'cruise' && er.visible;
-    if (!show) { if (w.root.visible) w.setVisible(false); return; }
     // the LVLH orientation in this frame: the Endurance's attitude without its own base rotation
     const lq = _wq.copy(er.quaternion).multiply(_wqi.copy(this.enduranceBaseQ).invert());
     const pos = _wp.copy(OrbitZone.WARP_PARK).applyQuaternion(lq).add(er.position);
-    if (pos.length() > 60000) { if (w.root.visible) w.setVisible(false); return; }
-    if (!w.root.visible) { w.setVisible(true); snap = true; }
-    w.place(pos, lq.multiply(OrbitZone.WARP_Q), snap);
+    if (!show || pos.length() > 60000) {
+      if (w.root.visible) w.setVisible(false);
+      if (pf?.root.visible) pf.setVisible(false);
+      return;
+    }
+    if (!w.root.visible) { w.setVisible(true); pf?.setVisible(true); snap = true; }
+    lq.multiply(OrbitZone.WARP_Q);
+    w.place(pos, lq, snap);
+    pf?.place(pos, lq, snap);
   }
+
+  /** the platform's pose in this zone (the frame the platform zone is built in) */
+  platformPose(pos: THREE.Vector3, quat: THREE.Quaternion) {
+    const r = this.platform!.root;
+    return { pos: pos.copy(r.position), quat: quat.copy(r.quaternion) };
+  }
+
+  /** what the rendezvous program keeps clear of: the Endurance, and the platform with the ship in its cradle */
+  keepOut() {
+    const out = [{ c: this.endurance.root.position.clone(), r: 110 }];
+    if (this.platform?.root.visible) {
+      // the ship and the platform's inboard half (rings, cradle, access arm) and its keel, in the platform's frame
+      for (const [x, y, z, r] of [[30, 0, 0, 100], [90, 40, 10, 60]] as [number, number, number, number][]) {
+        out.push({ c: new THREE.Vector3(x, z, -y).applyQuaternion(this.platform.root.quaternion).add(this.platform.root.position), r });
+      }
+    }
+    return out;
+  }
+
+  /** choose where Ranger 1's automatic programs go (Earth orbit only) */
+  setDestination(d: 'endurance' | 'platform') {
+    this.destination = d;
+    this.docking.destination = d === 'platform' ? this.platform : this.endurance;
+    const flight = this.game.services.flight as Flight;
+    if (this.ranger && flight.craft === this.ranger) flight.target = this.destTarget();
+  }
+
+  /** the flight display's target: the chosen port */
+  private destTarget() {
+    const plat = this.destination === 'platform' && this.platform;
+    return {
+      name: plat ? 'Meridian platform · Ranger berth' : 'Endurance · axial port',
+      pos: (out: THREE.Vector3) => (plat ? this.platform!.port('berth')!.node.getWorldPosition(out) : this.endurance.port('axial_fwd')!.node.getWorldPosition(out)),
+      vel: (out: THREE.Vector3) => out.set(0, 0, 0),
+    };
+  }
+
+  /** a transfer between the Endurance and the platform: release the latches, back away, then fly the program */
+  private transfer: { t: number; from: 'endurance' | 'platform'; stage: 'undock' | 'clear'; ap: RendezvousAutopilot | null } | null = null;
+  transferTo(d: 'endurance' | 'platform') {
+    const c = this.ranger, flight = this.game.services.flight as Flight;
+    if (!c || flight.craft !== c) return 'Take Ranger 1\'s pilot seat first.';
+    if (this.body.id !== 'earth' || this.mode !== 'orbit') return 'The platform is in Earth orbit.';
+    this.setDestination(d);
+    if (flight.autopilot) flight.engage(null);
+    const l = this.docking.linkOf(c);
+    if (l && l.port.host === (d === 'platform' ? this.platform : this.endurance)) return d === 'platform' ? 'Already berthed at the platform.' : 'Already docked to the Endurance.';
+    if (l) {
+      this.transfer = { t: 0, from: l.port.host === this.platform ? 'platform' : 'endurance', stage: 'undock', ap: null };
+      mission.note(`Transfer to ${d === 'platform' ? 'the Meridian platform' : 'the Endurance'}: undocking.`);
+      return null;
+    }
+    this.engageAutoDock();
+    return null;
+  }
+
+  private transferStep(dt: number) {
+    const a = this.transfer, c = this.ranger;
+    if (!a || !c) return;
+    if (this.mode !== 'orbit') { this.transfer = null; return; }
+    const flight = this.game.services.flight as Flight;
+    if (a.stage === 'clear') {
+      // climbing to the staging point above the Endurance: then the rendezvous with the platform
+      if (flight.autopilot === a.ap && a.ap && a.ap.phase !== 'done' && a.ap.phase !== 'abort') return;
+      this.transfer = null;
+      this.engageAutoDock();
+      return;
+    }
+    const l = this.docking.linkOf(c);
+    if (l) { if (l.state === 'docked') this.docking.undock(c, 0.8); return; }
+    a.t += dt;
+    if (a.t < 5) return;
+    if (a.from === 'endurance' && this.destination === 'platform') {
+      // the platform lies ahead along the track, through the Endurance's ring: first climb clear, 160 m up the R-bar
+      const stage = this.endurance.root.position.clone().add(new THREE.Vector3(-30, 160, 0));
+      a.ap = new RendezvousAutopilot(this, false, stage);
+      a.stage = 'clear';
+      flight.engage(a.ap);
+      mission.note('Departure: climbing 160 m above the Endurance to clear the ring before the transfer.');
+      return;
+    }
+    this.transfer = null;
+    this.engageAutoDock();
+  }
+
+  /** the choice after the ascent: wait this long for the commander before the original route is flown */
+  private choiceT = -1;
 
   private resetEndurancePose() {
     this.endurance.root.position.set(0, 0, 0);
@@ -1132,6 +1254,8 @@ export class OrbitZone extends Zone implements OrbitContext {
   override leave() {
     super.leave();
     this.autoLanding = null;
+    this.transfer = null;
+    this.choiceT = -1;
     const g = this.game;
     g.renderer.spaceScene.remove(this.stars.group, this.globe.mesh, this.view.group);
     if (this.lens) g.renderer.spaceScene.remove(this.lens.mesh);
@@ -1166,18 +1290,33 @@ export class OrbitZone extends Zone implements OrbitContext {
   engageAutoDock() {
     const c = this.ranger!, flight = this.game.services.flight as Flight;
     if (flight.craft !== c || this.docking.linkOf(c)) return;
+    this.choiceT = -1;
+    // away from the Earth only the Endurance is there; in Earth orbit the chosen destination (the Endurance if none)
+    if (this.body.id !== 'earth' || !this.platform?.root.visible) this.docking.destination = null;
+    else if (!this.destination) this.setDestination('endurance');
+    const plat = this.docking.destination === this.platform && !!this.platform;
     const port = this.docking.nearestPort(c, 'ranger');
-    if (!port) { ui.toast('No free Ranger port on the Endurance', 'warn', 4); return; }
+    if (!port) { ui.toast(plat ? 'The platform berth is not free' : 'No free Ranger port on the Endurance', 'warn', 4); return; }
+    flight.target = this.destTarget();
     const pp = port.node.getWorldPosition(new THREE.Vector3());
     const near = c.position(_v).distanceTo(pp) < GATE_DIST + 40 && c.velocity(_w).length() < 1.5;
     flight.engage(near ? new DockAutopilot(this.docking) : new RendezvousAutopilot(this, true));
-    mission.note(near ? 'Automatic docking engaged at the approach gate.' : 'Automatic rendezvous and docking engaged.');
+    if (plat) mission.note(near ? 'AUTO LAND — ORBITAL PLATFORM: final approach to berth 1.' : 'AUTO LAND — ORBITAL PLATFORM engaged: rendezvous with the Meridian platform, then berthing on the landing deck.');
+    else mission.note(near ? 'Automatic docking engaged at the approach gate.' : 'Automatic rendezvous and docking engaged.');
   }
 
   /** Unbuckling in a docked Ranger: the walk continues inside the ship's own (rotating) frame, with no cut. */
   private onLeaveSeat = (c: Spacecraft) => {
     if (this.game.zone !== this || !this.docking.isDocked(c)) return;
     const cam = this.game.renderer.camera;
+    if (this.platform && this.docking.linkOf(c)!.port.host === this.platform) {
+      // berthed at the platform: the walk continues in the platform's own frame
+      const r = this.platform.root, qi = r.quaternion.clone().invert();
+      const pos = cam.getWorldPosition(new THREE.Vector3()).sub(r.position).applyQuaternion(qi);
+      const quat = cam.getWorldQuaternion(new THREE.Quaternion()).premultiply(qi);
+      void this.game.gotoZone('platform', { fade: false, onEnter: (z) => (z as any).arrive(pos, quat) });
+      return;
+    }
     const q = new THREE.Quaternion().copy(this.endurance.root.quaternion).multiply(this.endurance.spinNode.quaternion);
     const qi = q.clone().invert();
     const pos = cam.getWorldPosition(new THREE.Vector3()).sub(this.endurance.root.position).applyQuaternion(qi);
@@ -1202,6 +1341,15 @@ export class OrbitZone extends Zone implements OrbitContext {
     this.npcs.fixedUpdate(dt);
     this.docking.fixedUpdate(dt);
     this.autoLandStep(dt);
+    this.transferStep(dt);
+    if (this.choiceT > 0) {
+      this.choiceT -= dt;
+      if (this.choiceT <= 0 && this.ranger && !(this.game.services.flight as Flight).autopilot && !this.docking.linkOf(this.ranger)) {
+        if (ui.get().panel === 'docking') bus.emit('ui:closePanel');
+        this.setDestination('endurance');
+        this.engageAutoDock();
+      }
+    }
     this.ranger2?.fixedUpdate(dt, this.env);
     this.ranger?.fixedUpdate(dt, this.env);
   }
@@ -1385,6 +1533,7 @@ export class OrbitZone extends Zone implements OrbitContext {
     this.endurance.update(dt, g.alpha);
     this.placeWarpShip();
     this.warpShip?.update(dt);
+    this.platform?.update(dt);
     this.ranger2?.update(dt, g.alpha, 0);
     this.ranger?.update(dt, g.alpha, 0);
     this.updateSky();
@@ -1418,7 +1567,7 @@ export class OrbitZone extends Zone implements OrbitContext {
     const c = this.ranger;
     if (!c || flight.craft !== c || this.mode !== 'orbit' || c.carried && !this.docking.linkOf(c) && !flight.autopilot) { ui.set({ dock: null }); return; }
     const link = this.docking.linkOf(c);
-    const port = link?.port ?? this.endurance.ports.find((p) => p.reservedFor === c) ?? this.docking.nearestPort(c, 'ranger') ?? this.endurance.port('axial_fwd')!;
+    const port = link?.port ?? this.docking.ports.find((p) => p.reservedFor === c) ?? this.docking.nearestPort(c, 'ranger') ?? this.endurance.port('axial_fwd')!;
     const r = this.docking.measure(c, port);
     // a carried craft coasting under time compression moves warp times faster per real second than it flies
     if (c.carried && this.warp > 1 && !link) { r.relVel.multiplyScalar(1 / this.warp); r.closing /= this.warp; }
@@ -1429,10 +1578,10 @@ export class OrbitZone extends Zone implements OrbitContext {
     const rcs = c.fuel <= 0 ? 'NO PROPELLANT' : c.sas === 'off' ? 'DIRECT' : c.sas === 'rate' ? 'RATE DAMP' : 'ATT HOLD';
     ui.set({
       dock: {
-        target: 'ENDURANCE', port: port.label, range: r.range, axial: r.axial, lx: r.lateral.x, ly: r.lateral.y, vx: r.relVel.x, vy: r.relVel.y,
+        target: port.host === this.platform ? 'MERIDIAN PLATFORM' : 'ENDURANCE', port: port.label, range: r.range, axial: r.axial, lx: r.lateral.x, ly: r.lateral.y, vx: r.relVel.x, vy: r.relVel.y,
         closing: r.closing, align: r.alignErr, tiltX: r.tilt.x, tiltY: r.tilt.y, roll: r.rollErr, rollRate: r.rollRate, fuel: c.fuel / c.spec.fuelMax,
         rcs, clearance, state: stateText, issues: link ? [] : r.issues, auto: ap ? `${ap.name.toUpperCase()} · ${ap.status?.() ?? ''}` : 'MANUAL',
-        spin: this.endurance.rpm, time: ap && (ap as any).t !== undefined ? (ap as any).t : -1,
+        spin: port.host === this.platform ? 0 : this.endurance.rpm, time: ap && (ap as any).t !== undefined ? (ap as any).t : -1,
       },
     });
   }
@@ -1630,9 +1779,11 @@ export class OrbitZone extends Zone implements OrbitContext {
     if (this.traverse) return Math.abs(this.traverse.l) < 3 * this.body.R ? 'Wormhole · throat' : `Wormhole · ${(this.traverse.l / 1000).toFixed(1)} km from the throat · ${this.traverse.v.toFixed(0)} m/s`;
     if (this.mode === 'ascent' && this.sim) return `Ascent · ${(this.sim.h / 1000).toFixed(0)} km · ${(this.sim.downrange / 1000).toFixed(0)} km downrange`;
     const c = this.ranger;
-    if (c && this.docking.isDocked(c)) return 'Ranger 1 · docked to Endurance';
+    if (c && this.docking.isDocked(c)) return this.docking.linkOf(c)!.port.host === this.platform ? 'Ranger 1 · berthed at the Meridian platform' : 'Ranger 1 · docked to Endurance';
     const d = c ? c.position(_v).length() : 0;
     const where = `${this.body.id === 'earth' ? 'Earth' : this.body.name} orbit`;
+    const pd = c && this.platform?.root.visible ? c.position(_v).distanceTo(this.platform.root.position) : Infinity;
+    if (pd < d) return `${where} · ${(this.rE - this.body.R) / 1000 | 0} km · ${pd < 2000 ? pd.toFixed(0) + ' m' : (pd / 1000).toFixed(1) + ' km'} from the Meridian platform`;
     return d > 5 ? `${where} · ${(this.rE - this.body.R) / 1000 | 0} km · ${d < 2000 ? d.toFixed(0) + ' m' : (d / 1000).toFixed(1) + ' km'} from Endurance` : where;
   }
 

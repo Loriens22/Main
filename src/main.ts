@@ -24,6 +24,8 @@ import type { NPC } from './npc/NPC';
 import { LaunchDirector } from './mission/Launch';
 import { LaunchPanel } from './ui/panels/LaunchPanel';
 import { EnduranceZone } from './world/space/EnduranceZone';
+import { PlatformZone } from './world/space/PlatformZone';
+import { PlatformPanel } from './ui/panels/PlatformPanel';
 import { ViewerZone } from './world/space/ViewerZone';
 import { ShipPanel } from './ui/panels/ShipPanel';
 import { CryoPanel } from './ui/panels/CryoPanel';
@@ -56,6 +58,7 @@ async function boot() {
   registerPanel('launch', LaunchPanel);
   registerPanel('ship', ShipPanel);
   registerPanel('cryo', CryoPanel);
+  registerPanel('platform', PlatformPanel);
   registerPanel('surfaceops', SurfacePanel);
   registerPanel('reader', ReaderPanel);
   registerPanel('codex', CodexPanel);
@@ -85,6 +88,7 @@ async function boot() {
   const earth = game.registerZone(new EarthZone(game, 'earth')) as EarthZone;
   const orbit = game.registerZone(new OrbitZone(game, 'orbit')) as OrbitZone;
   game.registerZone(new EnduranceZone(game, 'endurance'));
+  game.registerZone(new PlatformZone(game, 'platform'));
   const surface = game.registerZone(new SurfaceZone(game, 'surface')) as SurfaceZone;
   const viewer = game.registerZone(new ViewerZone(game, 'viewer')) as ViewerZone;
 
@@ -102,6 +106,7 @@ async function boot() {
     else if (z === earth || z === game.zones.get('test')) props = { tab: what === 'crew' ? 'crew' : what === 'craft' ? 'config' : mission.choice === 'endurance' ? 'countdown' : 'decision' };
     else if (z === orbit && what === 'computer' && fl.craft && fl.craft === orbit.ranger) id = 'docking';
     else if (z === surface && what !== 'crew') id = 'surfaceops';
+    else if (z?.id === 'platform' && what !== 'crew') { id = 'platform'; props = { tab: 'halcyon' }; }
     else if (z === orbit || z === surface || z?.id === 'endurance') { id = 'ship'; props = { tab: shipTab }; }
     const cur = ui.get();
     if (cur.panel === id && (cur.panelProps?.tab ?? null) === (props?.tab ?? null)) { bus.emit('ui:closePanel'); return; }
@@ -157,6 +162,25 @@ async function boot() {
       ez.ports[0] && ez.setHatches(ez.ports[0], true);
       const sp = ez.int.marker('spawn', 'hub');
       if (sp) game.player.teleport(sp.node.getWorldPosition(new THREE.Vector3()), 0);
+    }
+    return;
+  }
+
+  if (params.get('zone') === 'platform') {
+    // developer entry: Ranger 1 berthed at the Meridian platform, the commander unbuckled in its cabin
+    await game.gotoZone('orbit', { fade: false });
+    orbit.met = 1800;
+    orbit.startInRanger(new THREE.Vector3(1400, 20, 90));
+    orbit.setDestination('platform');
+    orbit.docking.attachNow(orbit.ranger!, orbit.platform!.port('berth')!);
+    orbit.ranger!.setGear(true);
+    await game.preload('platform');
+    game.setState('playing');
+    for (let k = 0; k < 30; k++) game.tick(1 / 60, k === 29);
+    if (params.get('start') !== 'seat') {
+      game.services.flight.leave(true);
+      await new Promise((res) => { const t = setInterval(() => { if (game.zone?.id === 'platform') { clearInterval(t); res(null); } }, 50); });
+      if (ui.get().mode === 'cinematic') ui.set({ mode: 'foot' });
     }
     return;
   }
