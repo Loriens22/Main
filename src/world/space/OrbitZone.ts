@@ -9,6 +9,7 @@ import { Soundscape } from '../../audio/Audio';
 import { D2R, LAUNCH_SITE, LocalFrame, meanMotion, OMEGA_EARTH, PARKING_ALT, R_EARTH, sunEci, thetaForLocalTime } from '../../space/Earth';
 import { cwAccel, cwPropagate, OrbitPlane } from '../../space/Orbit';
 import { EnduranceShip } from '../../space/Endurance';
+import { WarpShip } from '../../space/WarpShip';
 import { FlightEnv, RANGER_SPEC, Spacecraft } from '../../vehicles/Spacecraft';
 import { DockAutopilot, DockingSystem } from '../../vehicles/Docking';
 import { GATE_DIST, OrbitContext, RendezvousAutopilot } from '../../space/Rendezvous';
@@ -42,6 +43,7 @@ import type { SurfaceZone } from './SurfaceZone';
 const _v = new THREE.Vector3(), _w = new THREE.Vector3(), _s = new THREE.Vector3(), _q = new THREE.Quaternion();
 const _x = new THREE.Vector3(), _z = new THREE.Vector3(), _m4 = new THREE.Matrix4(), _c = new THREE.Color(), _c2 = new THREE.Color();
 const _qI = new THREE.Quaternion(), _qa = new THREE.Quaternion(), _qb = new THREE.Quaternion(), _m4b = new THREE.Matrix4();
+const _wp = new THREE.Vector3(), _wq = new THREE.Quaternion(), _wqi = new THREE.Quaternion();
 
 /**
  * Time-lapse stabiliser for one rotation of the view (the zone frame against the stars, the Earth's attitude...).
@@ -88,6 +90,8 @@ export class OrbitZone extends Zone implements OrbitContext {
   lights!: LightPool;
   docking = new DockingSystem();
   endurance!: EnduranceShip;
+  /** the warp starship WSV-1 Halcyon, parked in Earth orbit ahead of the Endurance */
+  warpShip: WarpShip | null = null;
   ranger: Spacecraft | null = null;
   ranger2: Spacecraft | null = null;
   /** mission elapsed time since lift-off (s) */
@@ -192,6 +196,10 @@ export class OrbitZone extends Zone implements OrbitContext {
     // spin axis along-track, the forward axial port facing back down the V-bar toward arriving craft
     this.endurance.root.quaternion.setFromAxisAngle(new THREE.Vector3(0, 1, 0), Math.PI / 2);
     this.endurance.root.updateMatrixWorld(true);
+    progress?.(0.45, 'WSV-1 Halcyon');
+    this.warpShip = await new WarpShip(this.phys).load();
+    this.root.add(this.warpShip.root);
+    this.placeWarpShip(true);
     progress?.(0.6, 'Rangers');
     const m2 = await assets.load('ranger');
     this.ranger2 = new Spacecraft('ranger2', RANGER_SPEC, m2, this.phys, this.lights);
@@ -788,6 +796,27 @@ export class OrbitZone extends Zone implements OrbitContext {
     this.engageAutoDock();
   }
 
+  /**
+   * The warp ship's parking spot in Earth orbit, in the Endurance's LVLH frame (m): 1.6 km ahead on the same orbit,
+   * bow along the track. It is carried with the Endurance's pose in whatever frame the zone is using.
+   */
+  static readonly WARP_PARK = new THREE.Vector3(1600, 0, 0);
+  private static readonly WARP_Q = new THREE.Quaternion().setFromAxisAngle(new THREE.Vector3(0, 1, 0), -Math.PI / 2);
+
+  private placeWarpShip(snap = false) {
+    const w = this.warpShip;
+    if (!w) return;
+    const er = this.endurance.root;
+    const show = this.body.id === 'earth' && this.mode !== 'cruise' && er.visible;
+    if (!show) { if (w.root.visible) w.setVisible(false); return; }
+    // the LVLH orientation in this frame: the Endurance's attitude without its own base rotation
+    const lq = _wq.copy(er.quaternion).multiply(_wqi.copy(this.enduranceBaseQ).invert());
+    const pos = _wp.copy(OrbitZone.WARP_PARK).applyQuaternion(lq).add(er.position);
+    if (pos.length() > 60000) { if (w.root.visible) w.setVisible(false); return; }
+    if (!w.root.visible) { w.setVisible(true); snap = true; }
+    w.place(pos, lq.multiply(OrbitZone.WARP_Q), snap);
+  }
+
   private resetEndurancePose() {
     this.endurance.root.position.set(0, 0, 0);
     this.endurance.root.quaternion.copy(this.enduranceBaseQ);
@@ -1354,6 +1383,8 @@ export class OrbitZone extends Zone implements OrbitContext {
       if (fl.length() < 0.002) { fl.set(0, 0, 0); this.flashFade = false; }
     }
     this.endurance.update(dt, g.alpha);
+    this.placeWarpShip();
+    this.warpShip?.update(dt);
     this.ranger2?.update(dt, g.alpha, 0);
     this.ranger?.update(dt, g.alpha, 0);
     this.updateSky();
